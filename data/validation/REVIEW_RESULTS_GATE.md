@@ -1,8 +1,20 @@
-# wger 헬스장 검토 결과 게이트
+# 검토 결과 게이트
 
 상태: `DRAFT`  
 validator version: `0.1.0`  
 production eligible: `false`
+
+두 원천 트랙이 같은 게이트 규칙을 사용한다.
+
+| 트랙 | 배치 | mapping 파일 | validator |
+|---|---|---|---|
+| wger 헬스장 | gym-core-review v0.2.0 | `gym_core_review_batch.csv` | `validate_wger_gym_review_results.py` |
+| KSPO 홈·맨몸 | review-batch v0.2.0 | `review_batch.csv` | `validate_kspo_fitness100_review_results.py` |
+
+두 트랙 모두 `catalog_review_records_template.csv`를 증적 템플릿으로 사용한다. 승인 필드는
+원천의 권리 위험이 달라 트랙별로 다르다. wger는 `review_license_status`, KSPO는
+`review_media_rights_status`를 사용한다. KSPO 원천은 공공누리 제1유형이지만 제3자 권리가
+포함될 수 있고 영상·썸네일을 재배포하지 않으므로 미디어 권리를 별도로 확인한다.
 
 ## 목적
 
@@ -25,15 +37,16 @@ normalized seed 생성이나 프로덕션 승격이 아니다.
 
 ## 입력
 
-1. 검증된 gym-core review batch v0.2.0
-2. 배치의 `gym_core_review_batch.csv`를 복사해 작성한 mapping results
+1. 검증된 review batch v0.2.0
+2. 배치의 mapping CSV를 복사해 작성한 mapping results
 3. 배치의 `catalog_review_records_template.csv`를 복사해 작성한 evidence results
 
 원본 파일은 manifest 해시 검증 대상이므로 직접 수정하지 않는다.
 
 ## 매핑 행 검증
 
-- source ID, UUID, 영문 원천명, 장비, 라이선스 등 원천 필드는 변경할 수 없다.
+- 원천 식별자, 원천명, 장비·도구, 라이선스 등 원천 필드는 변경할 수 없다.
+  wger는 source ID와 UUID, KSPO는 `source_candidate_id`가 식별자다.
 - `PENDING` 행은 미완료 상태로 검증 가능하지만 승인 후보가 아니다.
 - `EXCLUDE`에는 제외 사유가 필요하다.
 - `INCLUDE` 또는 `MERGE`에는 다음 값이 모두 필요하다.
@@ -41,7 +54,7 @@ normalized seed 생성이나 프로덕션 승격이 아니다.
   - 한국어 표시명
   - 소문자 machine code 형식의 taxonomy code
   - 검토된 초보자 적합성
-  - 실행 안내, 라이선스 및 도메인 안전 상태 `APPROVED`
+  - 실행 안내, 라이선스(KSPO는 미디어 권리) 및 도메인 안전 상태 `APPROVED`
 
 현재 movement pattern과 training type의 최종 코드 목록은 미확정이므로 이 단계에서는
 코드 형식만 검증하며 DB seed를 생성하지 않는다.
@@ -67,9 +80,20 @@ normalized seed 생성이나 프로덕션 승격이 아니다.
 
 ## 실행
 
+wger 헬스장 트랙:
+
 ```powershell
 python data/scripts/validate_wger_gym_review_results.py `
   "data/validation/review_batches/<gym-core-review-v0.2.0>" `
+  "<mapping-results.csv>" `
+  "<evidence-results.csv>"
+```
+
+KSPO 홈·맨몸 트랙:
+
+```powershell
+python data/scripts/validate_kspo_fitness100_review_results.py `
+  "data/validation/review_batches/<training-video-review-batch-v0.2.0>" `
   "<mapping-results.csv>" `
   "<evidence-results.csv>"
 ```

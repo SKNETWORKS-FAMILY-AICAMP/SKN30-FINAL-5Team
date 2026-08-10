@@ -23,6 +23,28 @@ python data/scripts/build_kspo_fitness100_review_batch.py verify `
 운동 분류, 초보자 적합성, 실행 용량, 자세 문구, 미디어 권리, 안전 및 대체 관계는
 자동 판정하지 않습니다.
 
+배치 v0.2부터 검토 결과 입력 열과 `catalog_review_records_template.csv`를 함께 생성합니다.
+정규화 ID, 한국어 표시명, taxonomy, 초보자 적합성, 실행 안내·미디어 권리·도메인 안전 상태,
+포함 여부는 생성 시 모두 빈 값 또는 `PENDING`입니다. 운동마다 `DATA_OWNER`,
+`BACKEND_REVIEWER`, `PM_REVIEWER`, `DOMAIN_REVIEWER` 네 역할의 DRAFT 증적 행이 있습니다.
+
+원본 배치를 직접 승인 데이터로 수정하지 말고 검토용 사본에서 작성한 뒤 검증합니다.
+
+```powershell
+python data/scripts/validate_kspo_fitness100_review_results.py `
+  "data/validation/review_batches/<training-video-review-batch-v0.2.0>" `
+  "<작성한-mapping-results.csv>" `
+  "<작성한-evidence-results.csv>"
+```
+
+원천 식별자와 원천명 등 불변 필드가 바뀌거나, `INCLUDE`/`MERGE` 행에 필수 검토 상태와
+역할별 증적이 없으면 실패합니다. 검증 성공도 프로덕션 승격을 의미하지 않으며 결과의
+`production_eligible`은 항상 `false`입니다. 게이트 규칙은
+[REVIEW_RESULTS_GATE.md](../validation/REVIEW_RESULTS_GATE.md)를 따릅니다.
+
+v0.1.0 배치는 검토 결과 열이 없으므로 현재 verifier로 검증되지 않습니다. 기록으로만
+보존하고 검토는 v0.2.0 배치에서 진행합니다.
+
 재현 가능한 수집·정규화·seed 생성 도구 위치입니다.
 
 ## 국민체력100 원문 수집

@@ -34,8 +34,14 @@ wger gym-core review batch는 60개 검토 행을 목표 운동군 할당량으�
 배치하지만 이는 안전성 또는 포함 승인이 아니다. 모든 검토 입력 필드는 생성 시
 `PENDING`이며, JSONL/CSV 해시와 행 identity가 다르면 검증에 실패한다.
 
-v0.2 배치는 `catalog_review_records_template.jsonl/.csv`에 운동별 네 reviewer role의
-증적 행을 생성한다. 이 구조는 `docs/DATA_MODEL.md`의 `catalog_review_records` 계약을
-따른다. 운영상의 검수자 자격·계약 방식은 여기서 확정하지 않으며, reviewer reference에는
-이메일이나 실명이 아닌 내부 비식별 코드를 사용한다. 상세 게이트는
+KSPO training-video review batch는 50개 검토 행을 원천 장소·도구 조합으로 순회해
+채운다. 홈·맨몸 커버리지 후보이며 헬스장 트랙과 별도로 검토한다.
+
+두 트랙의 v0.2 배치는 `catalog_review_records_template.jsonl/.csv`에 운동별 네 reviewer
+role의 증적 행을 생성한다. 이 구조는 `docs/DATA_MODEL.md`의 `catalog_review_records`
+계약을 따른다. 운영상의 검수자 자격·계약 방식은 여기서 확정하지 않으며, reviewer
+reference에는 이메일이나 실명이 아닌 내부 비식별 코드를 사용한다. 상세 게이트는
 `REVIEW_RESULTS_GATE.md`를 따른다.
+
+v0.1.0 배치는 검토 결과 열이 없어 현재 verifier로 검증되지 않는다. 이력으로만 보존하고
+검토는 v0.2.0 배치에서 진행한다.

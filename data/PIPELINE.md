@@ -14,6 +14,10 @@ profile의 `MVP_SCOPE_REVIEW` 후보는 곧바로 정규화하거나 승인하�
 검토 순서는 원천 장소·도구 조합의 다양성을 위한 운영 큐일 뿐입니다. 배치 포함 여부를
 운동의 안전성, 품질 또는 최종 카탈로그 포함 결정으로 해석하지 않습니다.
 
+KSPO 홈·맨몸 트랙과 wger 헬스장 트랙은 모두 review batch v0.2.0에서 검토 결과 입력 열과
+역할별 증적 템플릿을 함께 제공하며, 같은 결과 게이트 규칙을 사용한다.
+[validation/REVIEW_RESULTS_GATE.md](validation/REVIEW_RESULTS_GATE.md)를 따른다.
+
 ## 1. 목표
 
 외부 운동 데이터를 출처와 라이선스가 추적 가능한 원문으로 수집하고, 기술 검증과
@@ -87,6 +91,22 @@ official API
 초기 후보는 성인 대상, 초보자 설명이 있는 운동, 홈·헬스장·걷기/가벼운 러닝·
 스트레칭/코어 범위를 우선한다. 후보 선정은 다양성과 MVP 커버리지를 위한 것이며
 안전 승인을 대신하지 않는다.
+
+### 현재 상태
+
+1번은 완료했다. KSPO·wger snapshot과 profile, 두 트랙의 v0.2.0 배치가 모두 해시
+검증을 통과한다.
+
+2번부터는 사람의 검토 입력이 필요하다. 두 트랙 모두 검토 결과 입력 열, 역할별 증적
+템플릿, 실패 폐쇄 결과 validator가 준비되어 있으므로 홈 트랙과 헬스장 트랙 검토를
+동시에 진행할 수 있다.
+
+3번과 5번의 taxonomy 코드 확정은 자동화 대상이 아니다. `training_type_code`,
+`body_focus_code`, equipment·location seed 코드는 `docs/API_CONTRACT.md`의 미확정 계약
+목록에 있으므로 파이프라인이 임의로 정하지 않는다. validator는 코드 형식만 검사한다.
+`body_area_code`는 `docs/DOMAIN_RULES.md`에서 확정되어 있다.
+
+7번 seed generator는 taxonomy 코드 목록이 확정되고 검토 결과가 입력된 뒤에 구현한다.
 
 ### 원천 단위 주의
 

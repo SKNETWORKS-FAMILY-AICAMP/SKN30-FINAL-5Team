@@ -16,7 +16,7 @@ from kspo_fitness100_pipeline import PipelineError, sha256_bytes
 from profile_kspo_fitness100 import canonical_text, verify_profile
 
 
-REVIEW_BATCH_VERSION = "0.1.0"
+REVIEW_BATCH_VERSION = "0.2.0"
 DEFAULT_BATCH_SIZE = 50
 DEFAULT_OUTPUT_ROOT = Path(__file__).resolve().parents[1] / "validation" / "review_batches"
 MISSING_METADATA_CODES = {
@@ -38,7 +38,50 @@ INTERPRETATION_GUARDS = (
     "BLANK_SOURCE_TOOL_IS_UNSPECIFIED_NOT_BODYWEIGHT",
     "SOURCE_VIDEO_LENGTH_IS_NOT_EXERCISE_DOSAGE",
     "MEDIA_REFERENCE_IS_NOT_REDISTRIBUTION_PERMISSION",
+    "ALTERNATIVE_RELATION_REQUIRES_SEPARATE_REVIEW",
 )
+
+REQUIRED_REVIEW_CODES = {
+    "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+    "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+    "DOMAIN_SAFETY_REVIEW_REQUIRED",
+    "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+    "EXERCISE_TAXONOMY_MAPPING_REQUIRED",
+    "INSTRUCTION_CONTENT_REVIEW_REQUIRED",
+    "MEDIA_RIGHTS_REVIEW_REQUIRED",
+}
+
+PENDING_REVIEW_FIELDS = {
+    "review_normalized_exercise_id": "",
+    "review_display_name_ko": "",
+    "review_taxonomy_code": "",
+    "review_beginner_suitability": "PENDING",
+    "review_execution_guidance_status": "PENDING",
+    "review_media_rights_status": "PENDING",
+    "review_domain_safety_status": "PENDING",
+    "review_decision": "PENDING",
+    "reviewer_notes": "",
+}
+
+REVIEWER_ROLE_CODES = (
+    "DATA_OWNER",
+    "BACKEND_REVIEWER",
+    "PM_REVIEWER",
+    "DOMAIN_REVIEWER",
+)
+
+REVIEW_EVIDENCE_FIELDS = [
+    "evidence_position",
+    "source_candidate_id",
+    "source_training_name",
+    "target_type_code",
+    "target_reference",
+    "reviewer_role_code",
+    "review_status_code",
+    "reviewer_reference",
+    "evidence_reference",
+    "reviewed_at",
+]
 
 
 def load_candidates(profile_dir: Path) -> list[dict[str, object]]:
@@ -176,6 +219,7 @@ def select_review_batch(
                 "batch_position": position,
                 "batch_status": "DRAFT_REVIEW_QUEUE",
                 "selection_basis_codes": list(SELECTION_BASIS_CODES),
+                **PENDING_REVIEW_FIELDS,
                 "review_status": "DRAFT",
                 "production_eligible": False,
             }
@@ -209,47 +253,93 @@ def write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
             handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
 
 
+CSV_FIELDS = [
+    "batch_position",
+    "source_candidate_id",
+    "source_file_name",
+    "source_training_name",
+    "duplicate_name_candidate_count",
+    "age_groups",
+    "places",
+    "tools",
+    "muscle_parts",
+    "source_frame_rows",
+    "required_review_codes",
+    *PENDING_REVIEW_FIELDS,
+    "batch_status",
+    "review_status",
+    "production_eligible",
+]
+
+
+def csv_row(row: dict[str, object]) -> dict[str, object]:
+    return {
+        "batch_position": row["batch_position"],
+        "source_candidate_id": row["source_candidate_id"],
+        "source_file_name": row["source_file_name"],
+        "source_training_name": row["source_training_name"],
+        "duplicate_name_candidate_count": row["duplicate_name_candidate_count"],
+        "age_groups": joined(row, "age_groups"),
+        "places": joined(row, "places"),
+        "tools": joined(row, "tools"),
+        "muscle_parts": joined(row, "muscle_parts"),
+        "source_frame_rows": row["source_frame_rows"],
+        "required_review_codes": joined(row, "required_review_codes"),
+        **{field: row[field] for field in PENDING_REVIEW_FIELDS},
+        "batch_status": row["batch_status"],
+        "review_status": row["review_status"],
+        "production_eligible": "false",
+    }
+
+
 def write_csv(path: Path, rows: list[dict[str, object]]) -> None:
-    fieldnames = [
-        "batch_position",
-        "source_candidate_id",
-        "source_file_name",
-        "source_training_name",
-        "duplicate_name_candidate_count",
-        "age_groups",
-        "places",
-        "tools",
-        "muscle_parts",
-        "source_frame_rows",
-        "required_review_codes",
-        "batch_status",
-        "review_status",
-        "production_eligible",
-    ]
     with path.open("w", encoding="utf-8-sig", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer = csv.DictWriter(handle, fieldnames=CSV_FIELDS)
         writer.writeheader()
         for row in rows:
-            writer.writerow(
+            writer.writerow(csv_row(row))
+
+
+def build_review_evidence_rows(
+    rows: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """One DRAFT evidence row per reviewer role, with no reviewer identity."""
+
+    evidence_rows: list[dict[str, object]] = []
+    for row in rows:
+        for role_code in REVIEWER_ROLE_CODES:
+            evidence_rows.append(
                 {
-                    "batch_position": row["batch_position"],
+                    "evidence_position": len(evidence_rows) + 1,
                     "source_candidate_id": row["source_candidate_id"],
-                    "source_file_name": row["source_file_name"],
                     "source_training_name": row["source_training_name"],
-                    "duplicate_name_candidate_count": row[
-                        "duplicate_name_candidate_count"
-                    ],
-                    "age_groups": joined(row, "age_groups"),
-                    "places": joined(row, "places"),
-                    "tools": joined(row, "tools"),
-                    "muscle_parts": joined(row, "muscle_parts"),
-                    "source_frame_rows": row["source_frame_rows"],
-                    "required_review_codes": joined(row, "required_review_codes"),
-                    "batch_status": row["batch_status"],
-                    "review_status": row["review_status"],
-                    "production_eligible": "false",
+                    "target_type_code": "EXERCISE",
+                    "target_reference": f"kspo:{row['source_candidate_id']}",
+                    "reviewer_role_code": role_code,
+                    "review_status_code": "DRAFT",
+                    "reviewer_reference": "",
+                    "evidence_reference": "",
+                    "reviewed_at": "",
                 }
             )
+    return evidence_rows
+
+
+def write_review_evidence_jsonl(
+    path: Path, evidence_rows: list[dict[str, object]]
+) -> None:
+    with path.open("w", encoding="utf-8", newline="\n") as handle:
+        for row in evidence_rows:
+            handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
+
+
+def write_review_evidence_csv(
+    path: Path, evidence_rows: list[dict[str, object]]
+) -> None:
+    with path.open("w", encoding="utf-8-sig", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=REVIEW_EVIDENCE_FIELDS)
+        writer.writeheader()
+        writer.writerows(evidence_rows)
 
 
 def file_entry(path: Path, root: Path, records: int) -> dict[str, object]:
@@ -270,6 +360,8 @@ def create_review_batch(
     profile_dir = profile_dir.resolve()
     candidates = load_candidates(profile_dir)
     rows, summary = select_review_batch(candidates, size=size)
+    evidence_rows = build_review_evidence_rows(rows)
+    summary["review_evidence_template_records"] = len(evidence_rows)
     profile_manifest_path = profile_dir / "profile_manifest.json"
 
     output_root = output_root.resolve()
@@ -286,8 +378,12 @@ def create_review_batch(
     try:
         jsonl_path = partial_dir / "review_batch.jsonl"
         csv_path = partial_dir / "review_batch.csv"
+        evidence_jsonl_path = partial_dir / "catalog_review_records_template.jsonl"
+        evidence_csv_path = partial_dir / "catalog_review_records_template.csv"
         write_jsonl(jsonl_path, rows)
         write_csv(csv_path, rows)
+        write_review_evidence_jsonl(evidence_jsonl_path, evidence_rows)
+        write_review_evidence_csv(evidence_csv_path, evidence_rows)
         manifest = {
             "schema_version": "1.0",
             "review_batch_version": REVIEW_BATCH_VERSION,
@@ -307,6 +403,8 @@ def create_review_batch(
             "files": [
                 file_entry(jsonl_path, partial_dir, len(rows)),
                 file_entry(csv_path, partial_dir, len(rows)),
+                file_entry(evidence_jsonl_path, partial_dir, len(evidence_rows)),
+                file_entry(evidence_csv_path, partial_dir, len(evidence_rows)),
             ],
         }
         write_json(partial_dir / "review_manifest.json", manifest)
@@ -350,11 +448,13 @@ def verify_review_batch(batch_dir: Path) -> dict[str, int | str]:
         raise PipelineError("review batch is missing its safety interpretation guard")
 
     files = manifest.get("files")
-    if not isinstance(files, list) or len(files) != 2:
-        raise PipelineError("review manifest must list JSONL and CSV files")
+    if not isinstance(files, list) or len(files) != 4:
+        raise PipelineError("review manifest must list mapping and evidence files")
 
     jsonl_rows: list[dict[str, object]] | None = None
     csv_rows: list[dict[str, str]] | None = None
+    evidence_jsonl_rows: list[dict[str, object]] | None = None
+    evidence_csv_rows: list[dict[str, str]] | None = None
     for entry in files:
         if not isinstance(entry, dict):
             raise PipelineError("review manifest file entry is invalid")
@@ -384,15 +484,37 @@ def verify_review_batch(batch_dir: Path) -> dict[str, int | str]:
             csv_rows = list(csv.DictReader(raw.decode("utf-8-sig").splitlines()))
             if len(csv_rows) != expected_records:
                 raise PipelineError("review batch CSV record count mismatch")
+        elif relative.name == "catalog_review_records_template.jsonl":
+            evidence_jsonl_rows = [
+                json.loads(line)
+                for line in raw.decode("utf-8").splitlines()
+                if line.strip()
+            ]
+            if len(evidence_jsonl_rows) != expected_records:
+                raise PipelineError("review evidence JSONL record count mismatch")
+        elif relative.name == "catalog_review_records_template.csv":
+            evidence_csv_rows = list(
+                csv.DictReader(raw.decode("utf-8-sig").splitlines())
+            )
+            if len(evidence_csv_rows) != expected_records:
+                raise PipelineError("review evidence CSV record count mismatch")
 
     if jsonl_rows is None or csv_rows is None:
         raise PipelineError("review batch is missing JSONL or CSV content")
     if len(jsonl_rows) != len(csv_rows):
         raise PipelineError("review batch JSONL and CSV counts differ")
+    if (
+        evidence_jsonl_rows is None
+        or evidence_csv_rows is None
+        or len(evidence_jsonl_rows) != len(evidence_csv_rows)
+        or len(evidence_jsonl_rows) != len(jsonl_rows) * len(REVIEWER_ROLE_CODES)
+    ):
+        raise PipelineError("review evidence template content is incomplete")
 
     expected_positions = list(range(1, len(jsonl_rows) + 1))
     actual_positions: list[int] = []
     training_names: set[str] = set()
+    candidate_ids: set[str] = set()
     for row in jsonl_rows:
         if not isinstance(row, dict):
             raise PipelineError("review batch JSONL row is invalid")
@@ -403,19 +525,25 @@ def verify_review_batch(batch_dir: Path) -> dict[str, int | str]:
         required = row.get("required_review_codes")
         if not isinstance(required, list) or "DOMAIN_SAFETY_REVIEW_REQUIRED" not in required:
             raise PipelineError("review batch row is missing domain safety review")
+        if not REQUIRED_REVIEW_CODES.issubset(set(required)):
+            raise PipelineError("review batch row is missing required reviews")
         actual_positions.append(int(row.get("batch_position", 0)))
         training_name = canonical_text(row.get("source_training_name"))
         if not training_name or training_name in training_names:
             raise PipelineError("review batch training names must be non-empty and unique")
         training_names.add(training_name)
+        candidate_id = canonical_text(row.get("source_candidate_id"))
+        if not candidate_id or candidate_id in candidate_ids:
+            raise PipelineError("review batch source candidate IDs must be unique")
+        candidate_ids.add(candidate_id)
     if actual_positions != expected_positions:
         raise PipelineError("review batch positions are not contiguous")
 
-    for jsonl_row, csv_row in zip(jsonl_rows, csv_rows, strict=True):
+    for jsonl_row, csv_record in zip(jsonl_rows, csv_rows, strict=True):
         if (
-            csv_row.get("batch_status") != "DRAFT_REVIEW_QUEUE"
-            or csv_row.get("review_status") != "DRAFT"
-            or csv_row.get("production_eligible") != "false"
+            csv_record.get("batch_status") != "DRAFT_REVIEW_QUEUE"
+            or csv_record.get("review_status") != "DRAFT"
+            or csv_record.get("production_eligible") != "false"
         ):
             raise PipelineError("review batch CSV contains an invalid state")
         identity = (
@@ -424,12 +552,45 @@ def verify_review_batch(batch_dir: Path) -> dict[str, int | str]:
             canonical_text(jsonl_row.get("source_training_name")),
         )
         csv_identity = (
-            csv_row.get("batch_position", ""),
-            csv_row.get("source_candidate_id", ""),
-            csv_row.get("source_training_name", ""),
+            csv_record.get("batch_position", ""),
+            csv_record.get("source_candidate_id", ""),
+            csv_record.get("source_training_name", ""),
         )
         if csv_identity != identity:
             raise PipelineError("review batch JSONL and CSV identity mismatch")
+        for field, pending_value in PENDING_REVIEW_FIELDS.items():
+            if jsonl_row.get(field) != pending_value:
+                raise PipelineError(f"generated review field must remain pending: {field}")
+            if csv_record.get(field, "") != pending_value:
+                raise PipelineError(f"generated CSV review field must remain pending: {field}")
+
+    expected_evidence_position = 1
+    evidence_keys: set[tuple[str, str]] = set()
+    for jsonl_record, csv_record in zip(
+        evidence_jsonl_rows, evidence_csv_rows, strict=True
+    ):
+        if int(jsonl_record.get("evidence_position", 0)) != expected_evidence_position:
+            raise PipelineError("review evidence positions are not contiguous")
+        expected_evidence_position += 1
+        candidate_id = canonical_text(jsonl_record.get("source_candidate_id"))
+        role_code = canonical_text(jsonl_record.get("reviewer_role_code"))
+        if candidate_id not in candidate_ids or role_code not in REVIEWER_ROLE_CODES:
+            raise PipelineError("review evidence source or role is invalid")
+        key = (candidate_id, role_code)
+        if key in evidence_keys:
+            raise PipelineError("review evidence source and role must be unique")
+        evidence_keys.add(key)
+        if (
+            jsonl_record.get("target_type_code") != "EXERCISE"
+            or jsonl_record.get("review_status_code") != "DRAFT"
+            or jsonl_record.get("reviewer_reference") != ""
+            or jsonl_record.get("evidence_reference") != ""
+            or jsonl_record.get("reviewed_at") != ""
+        ):
+            raise PipelineError("generated review evidence must remain DRAFT and blank")
+        for field in REVIEW_EVIDENCE_FIELDS:
+            if csv_record.get(field, "") != str(jsonl_record.get(field, "")):
+                raise PipelineError("review evidence JSONL and CSV identity mismatch")
 
     summary = manifest.get("summary")
     if not isinstance(summary, dict) or summary.get("selected_batch_size") != len(jsonl_rows):

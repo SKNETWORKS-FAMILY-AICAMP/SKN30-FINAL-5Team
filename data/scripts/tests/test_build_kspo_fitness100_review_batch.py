@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import importlib.util
 import json
 import shutil
@@ -126,6 +127,20 @@ def make_profile(root: Path) -> Path:
     return profile_kspo_fitness100.create_profile(snapshot, root / "profiles")
 
 
+def rehash_manifest_entry(batch_dir: Path, file_name: str) -> None:
+    """Re-sign one batch file so verification tests reach content checks."""
+
+    manifest_path = batch_dir / "review_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    entry = next(item for item in manifest["files"] if item["path"] == file_name)
+    raw = (batch_dir / file_name).read_bytes()
+    entry["sha256"] = build_review_batch.sha256_bytes(raw)
+    entry["bytes"] = len(raw)
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+
+
 class BuildKspoFitness100ReviewBatchTests(unittest.TestCase):
     def test_selection_deduplicates_name_and_prefers_source_completeness(self) -> None:
         rows = [
@@ -172,6 +187,84 @@ class BuildKspoFitness100ReviewBatchTests(unittest.TestCase):
                 "REVIEW_BATCH_IS_NOT_DOMAIN_SAFETY_APPROVAL",
                 manifest["selection"]["interpretation_guards"],
             )
+
+    def test_batch_emits_pending_review_columns_and_role_evidence_template(self) -> None:
+        with workspace_directory() as work:
+            profile_dir = make_profile(work)
+            batch_dir = build_review_batch.create_review_batch(
+                profile_dir, work / "review_batches", size=3
+            )
+
+            with (batch_dir / "review_batch.csv").open(
+                "r", encoding="utf-8-sig", newline=""
+            ) as handle:
+                mapping_rows = list(csv.DictReader(handle))
+            with (batch_dir / "catalog_review_records_template.csv").open(
+                "r", encoding="utf-8-sig", newline=""
+            ) as handle:
+                evidence_rows = list(csv.DictReader(handle))
+
+            for field, pending_value in build_review_batch.PENDING_REVIEW_FIELDS.items():
+                self.assertTrue(
+                    all(row[field] == pending_value for row in mapping_rows),
+                    f"{field} must be generated as pending",
+                )
+            self.assertEqual(len(evidence_rows), 3 * 4)
+            for row in evidence_rows:
+                self.assertEqual(row["review_status_code"], "DRAFT")
+                self.assertEqual(row["reviewer_reference"], "")
+                self.assertEqual(row["evidence_reference"], "")
+                self.assertEqual(row["reviewed_at"], "")
+                self.assertTrue(row["target_reference"].startswith("kspo:"))
+            for candidate_id in {row["source_candidate_id"] for row in mapping_rows}:
+                roles = {
+                    row["reviewer_role_code"]
+                    for row in evidence_rows
+                    if row["source_candidate_id"] == candidate_id
+                }
+                self.assertEqual(roles, set(build_review_batch.REVIEWER_ROLE_CODES))
+
+    def test_verify_rejects_generated_batch_approved_without_review(self) -> None:
+        with workspace_directory() as work:
+            profile_dir = make_profile(work)
+            batch_dir = build_review_batch.create_review_batch(
+                profile_dir, work / "review_batches", size=3
+            )
+            jsonl_path = batch_dir / "review_batch.jsonl"
+            lines = jsonl_path.read_text(encoding="utf-8").splitlines()
+            first_row = json.loads(lines[0])
+            first_row["review_decision"] = "INCLUDE"
+            lines[0] = json.dumps(first_row, ensure_ascii=False, sort_keys=True)
+            jsonl_path.write_text(
+                "\n".join(lines) + "\n", encoding="utf-8", newline="\n"
+            )
+            rehash_manifest_entry(batch_dir, "review_batch.jsonl")
+
+            with self.assertRaisesRegex(
+                build_review_batch.PipelineError, "must remain pending"
+            ):
+                build_review_batch.verify_review_batch(batch_dir)
+
+    def test_verify_rejects_evidence_template_promoted_without_review(self) -> None:
+        with workspace_directory() as work:
+            profile_dir = make_profile(work)
+            batch_dir = build_review_batch.create_review_batch(
+                profile_dir, work / "review_batches", size=3
+            )
+            evidence_path = batch_dir / "catalog_review_records_template.jsonl"
+            lines = evidence_path.read_text(encoding="utf-8").splitlines()
+            first_row = json.loads(lines[0])
+            first_row["review_status_code"] = "DOMAIN_APPROVED"
+            lines[0] = json.dumps(first_row, ensure_ascii=False, sort_keys=True)
+            evidence_path.write_text(
+                "\n".join(lines) + "\n", encoding="utf-8", newline="\n"
+            )
+            rehash_manifest_entry(batch_dir, "catalog_review_records_template.jsonl")
+
+            with self.assertRaisesRegex(
+                build_review_batch.PipelineError, "must remain DRAFT and blank"
+            ):
+                build_review_batch.verify_review_batch(batch_dir)
 
     def test_verify_detects_tampered_batch(self) -> None:
         with workspace_directory() as work:
