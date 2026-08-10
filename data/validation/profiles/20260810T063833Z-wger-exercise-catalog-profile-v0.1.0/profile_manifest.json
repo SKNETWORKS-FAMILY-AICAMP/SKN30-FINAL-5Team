@@ -1,0 +1,101 @@
+{
+  "schema_version": "1.0",
+  "profiler_version": "0.1.0",
+  "source": {
+    "snapshot_id": "20260810T063833Z-wger-exercise-catalog",
+    "manifest_sha256": "fb178cd11719130b1784a788cd098f08db1e97102e75ebf58d6d26822b6bab75"
+  },
+  "review": {
+    "status": "DRAFT",
+    "production_eligible": false
+  },
+  "summary": {
+    "total_exercises": 862,
+    "total_translations": 3312,
+    "exercises_with_english_translation": 849,
+    "exercises_with_korean_translation": 0,
+    "gym_review_candidates": 400,
+    "gym_candidates_with_equipment_evidence": 377,
+    "gym_candidates_with_target_name_evidence": 77,
+    "exercises_with_image_references": 266,
+    "exercises_with_video_references": 46,
+    "equipment_counts": {
+      "Barbell": 73,
+      "Bench": 47,
+      "Cable machine": 101,
+      "Dumbbell": 144,
+      "Gym mat": 13,
+      "Incline bench": 19,
+      "Kettlebell": 16,
+      "Pull-up bar": 21,
+      "Resistance band": 15,
+      "SZ-Bar": 17,
+      "Swiss Ball": 3,
+      "none (bodyweight exercise)": 271
+    },
+    "category_counts": {
+      "Abs": 114,
+      "Arms": 138,
+      "Back": 159,
+      "Calves": 12,
+      "Cardio": 48,
+      "Chest": 82,
+      "Legs": 202,
+      "Shoulders": 107
+    },
+    "base_license_counts": {
+      "CC-BY-SA 3": 128,
+      "CC-BY-SA 4": 713,
+      "CC0": 21
+    },
+    "translation_language_id_counts": {
+      "1": 628,
+      "10": 3,
+      "12": 582,
+      "13": 142,
+      "14": 4,
+      "15": 2,
+      "16": 31,
+      "17": 48,
+      "18": 1,
+      "19": 2,
+      "2": 849,
+      "20": 3,
+      "21": 22,
+      "22": 31,
+      "23": 48,
+      "24": 48,
+      "4": 644,
+      "5": 10,
+      "6": 49,
+      "7": 66,
+      "8": 48,
+      "9": 51
+    }
+  },
+  "files": [
+    {
+      "path": "profile.json",
+      "sha256": "2ab2e0a3a1ba8d19b828ac932b4dfcd7d57a1f1d05af82e5301a3d6f539d9e5f",
+      "bytes": 2232
+    },
+    {
+      "path": "gym_candidate_inventory.jsonl",
+      "sha256": "6980072bb8dd667e931b40ae34c7d656f3c6bf33615047d0e33a549f12f742b3",
+      "bytes": 730628,
+      "records": 400
+    },
+    {
+      "path": "gym_candidate_review.csv",
+      "sha256": "daa8df377a186592fca47598a48cb7a3853f7c3fd53a7132f1be61876ac8e9b3",
+      "bytes": 163569,
+      "records": 400
+    },
+    {
+      "path": "target_movement_coverage.json",
+      "sha256": "0c0c10b856e0072ccae20cd2f3ef3ee2cf5e43ba9892339540dc37f2ad596b8b",
+      "bytes": 22639,
+      "records": 10
+    }
+  ]
+}

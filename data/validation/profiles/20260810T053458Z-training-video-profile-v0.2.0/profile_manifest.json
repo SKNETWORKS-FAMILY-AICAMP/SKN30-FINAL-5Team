@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "profiler_version": "0.2.0",
+  "source": {
+    "snapshot_id": "20260810T053458Z-training-video",
+    "manifest_sha256": "45e22195f521b7279a6383df37660296628a0e0d159b0ccef55b2cbaacde885f"
+  },
+  "review": {
+    "status": "DRAFT",
+    "production_eligible": false
+  },
+  "summary": {
+    "raw_frame_rows": 1668,
+    "unique_video_files": 243,
+    "unique_training_names": 365,
+    "video_training_pairs_including_blank_names": 403,
+    "videos_with_multiple_training_names": 49,
+    "minimum_frame_rows_per_video": 1,
+    "maximum_frame_rows_per_video": 33,
+    "named_candidate_pairs": 391,
+    "unnamed_source_rows_excluded": 15,
+    "mvp_scope_review_candidates": 231,
+    "out_of_scope_review_candidates": 160
+  },
+  "files": [
+    {
+      "path": "profile.json",
+      "sha256": "c298ce330be84f5e35d46214ad04f21d4d4ad7b8fea36badfdcad3bf69ac0774",
+      "bytes": 49279
+    },
+    {
+      "path": "candidate_inventory.jsonl",
+      "sha256": "0b47674fb099cb90f5000159569df8dfd513bc31d184e62c7d7d5b933838196c",
+      "bytes": 463382,
+      "records": 391
+    },
+    {
+      "path": "candidate_review.csv",
+      "sha256": "e10c70acef8771efe84424bd2ae9260e8f7c64746ca0d9ae4cc929ea69f51ea6",
+      "bytes": 206379,
+      "records": 391
+    }
+  ]
+}

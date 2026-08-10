@@ -41,4 +41,10 @@ Thumbs.db
 # Temporary files
 tmp/
 temp/
+outputs/
 *.tmp
+
+# Locally collected external-data snapshots
+# Source descriptors and pipeline code remain tracked; fetched payloads are
+# reviewed before any explicit decision to redistribute or commit them.
+data/raw/*/snapshots/
