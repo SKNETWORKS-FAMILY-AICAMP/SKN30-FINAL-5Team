@@ -1,0 +1,57 @@
+name: Feature task
+description: Contract-first product or implementation task
+title: "[Feature] "
+labels: ["feature"]
+body:
+  - type: input
+    id: requirements
+    attributes:
+      label: Requirement IDs
+      description: F/POL/NFR IDs from the source requirements
+    validations:
+      required: true
+  - type: textarea
+    id: value
+    attributes:
+      label: User value and background
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Included and excluded scope
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true
+  - type: input
+    id: owner
+    attributes:
+      label: Primary owner
+    validations:
+      required: true
+  - type: checkboxes
+    id: impacts
+    attributes:
+      label: Impact areas
+      options:
+        - label: Public API
+        - label: Database or migration
+        - label: Safety or domain rules
+        - label: Authentication or privacy
+        - label: Frontend states
+        - label: Exercise data or license
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies and blockers
+  - type: textarea
+    id: verification
+    attributes:
+      label: Test and manual verification plan
+    validations:
+      required: true

@@ -1,0 +1,13 @@
+# Frontend working rules
+
+- Primary owner: frontend engineer.
+- Read `docs/API_CONTRACT.md`, `docs/DOMAIN_RULES.md`, and the current task before editing.
+- Do not reproduce safety, duration, return-mode, or coordinator logic in the client.
+- Use typed API contracts and stable machine codes; Korean labels belong in presentation resources.
+- The client shows a count-up elapsed timer from zero and preserves temporary block progress; elapsed time never decides completion.
+- Completion comes only from explicit exercise-block actions and is synchronized through the item-completion API.
+- The workout screen keeps elapsed time at the top, the current mascot animation in the center, and ordered exercise blocks at the bottom.
+- Provide loading, empty, network error, auth error, permission-denied, stale-context, non-selectable, and safety-stop states.
+- Pain and adverse-reaction screens use serious tone and suppress playful mascot animation.
+- Never persist or log auth tokens, emails, full names, or raw health/wearable records.
+- API contract changes require backend review and mock/client updates in the same change.

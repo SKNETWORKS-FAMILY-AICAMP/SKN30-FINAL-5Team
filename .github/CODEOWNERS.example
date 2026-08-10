@@ -1,0 +1,17 @@
+# Copy this file to .github/CODEOWNERS only after replacing every placeholder
+# with a real GitHub user or team handle.
+
+/frontend/ @frontend-handle
+/backend/app/api/ @backend-handle @frontend-handle
+/backend/app/db/ @backend-handle @dev-lead-handle
+/backend/migrations/ @backend-handle @dev-lead-handle
+/backend/app/domain/agents/ @dev-lead-handle
+/backend/app/domain/rules/ @dev-lead-handle @pm-handle
+/data/ @dev-lead-handle
+/docs/product/ @pm-handle
+/docs/API_CONTRACT.md @backend-handle @frontend-handle @dev-lead-handle
+/docs/DATA_MODEL.md @backend-handle @dev-lead-handle
+/docs/DOMAIN_RULES.md @dev-lead-handle @pm-handle
+/docs/MVP_SCOPE.md @pm-handle @dev-lead-handle
+/docs/ARCHITECTURE.md @dev-lead-handle
+/.github/ @dev-lead-handle
