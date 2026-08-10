@@ -16,13 +16,13 @@
 | 브랜치 | 용도 |
 |---|---|
 | `main` | 배포 가능한 보호 브랜치 |
-| `develop` | 팀이 별도 통합 브랜치를 쓰기로 한 경우에만 사용 |
+| `develop` | 통합 브랜치. 모든 작업 브랜치 PR의 기본 병합 대상 |
 | `feat/<issue>-<slug>` | 기능 |
 | `fix/<issue>-<slug>` | 버그 |
 | `docs/<issue>-<slug>` | 문서·계약 |
 | `chore/<issue>-<slug>` | 도구·환경 |
 
-`develop` 사용 여부는 저장소 설정 전에 팀이 한 번 결정한다. 작은 팀 기본안은 feature branch → `main` PR이다.
+`develop` 사용을 확정했다. 작업 브랜치는 `develop`에서 분기하고 `develop`으로 PR한다. `main`은 배포 가능 상태만 유지하며 `develop` → `main` 릴리스 PR로만 갱신한다.
 
 ## 3. 커밋 규칙
 
@@ -81,6 +81,7 @@ PR 작성자가 자기 diff를 먼저 검토한다. 생성 파일, 비밀값, �
 
 ## 7. 병합 정책
 
+- PR 기본 타깃은 `develop`이며 `main` PR은 릴리스 승격에만 사용
 - 필수 CI 성공
 - unresolved conversation 0개
 - 필요한 계약 문서 동시 갱신
@@ -108,13 +109,13 @@ Git Flow 전체를 기본으로 선택하지 않았다. 장기 release/hotfix �
 
 ## 11. 아직 확정되지 않은 사항
 
-- `develop` 브랜치 사용 여부
-- required review 수와 GitHub branch protection 관리자
+- `main`·`develop` branch protection 실제 적용 (저장소 admin 권한 보유자 필요, §12 참고)
+- required review 수
 - 실제 GitHub handle 기반 `CODEOWNERS`
 - CI에서 필수로 고정할 formatter/type checker 명령
 
 ## 12. 팀 확인 질문
 
-- `main` 직접 push를 저장소 설정으로 차단할 권한이 있는가?
+- `main`·`develop` 직접 push 차단: 팀 계정에는 저장소 admin 권한이 없어 branch protection을 설정할 수 없음이 확인되었다. `SKNETWORKS-FAMILY-AICAMP` org owner 또는 저장소 admin에게 설정을 요청해야 한다. 그전까지 직접 push 금지는 규칙으로만 강제된다.
 - squash merge를 팀 표준으로 채택할 것인가?
 - 주 1회 계약 변경 검토 시간을 고정할 것인가?
