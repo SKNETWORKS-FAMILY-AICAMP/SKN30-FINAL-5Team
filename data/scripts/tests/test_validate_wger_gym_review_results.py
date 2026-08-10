@@ -210,6 +210,49 @@ class ValidateWgerGymReviewResultsTests(unittest.TestCase):
             ):
                 result_validator.validate_review_results(batch, mapping, evidence)
 
+    def test_include_keeping_the_english_source_name_fails_closed(self) -> None:
+        """wger snapshot에 한국어 번역이 없으므로 영문명을 그대로 두면 반려한다."""
+
+        with workspace_directory() as root:
+            batch = make_batch(root)
+            mapping, evidence = result_copies(batch, root)
+            mapping_fields, mapping_rows = read_rows(mapping)
+            self.complete_mapping_row(mapping_rows[0])
+            mapping_rows[0]["review_display_name_ko"] = mapping_rows[0][
+                "primary_source_name_en"
+            ]
+            write_rows(mapping, mapping_fields, mapping_rows)
+            evidence_fields, evidence_rows = read_rows(evidence)
+            self.complete_evidence_for_exercise(
+                evidence_rows, mapping_rows[0]["source_exercise_id"]
+            )
+            write_rows(evidence, evidence_fields, evidence_rows)
+
+            with self.assertRaisesRegex(
+                result_validator.PipelineError, "contains no Hangul"
+            ):
+                result_validator.validate_review_results(batch, mapping, evidence)
+
+    def test_duplicate_korean_display_names_fail_closed(self) -> None:
+        with workspace_directory() as root:
+            batch = make_batch(root)
+            mapping, evidence = result_copies(batch, root)
+            mapping_fields, mapping_rows = read_rows(mapping)
+            evidence_fields, evidence_rows = read_rows(evidence)
+            for row in mapping_rows[:2]:
+                self.complete_mapping_row(row)
+                self.complete_evidence_for_exercise(
+                    evidence_rows, row["source_exercise_id"]
+                )
+            mapping_rows[1]["review_normalized_exercise_id"] = "second_lat_pulldown"
+            write_rows(mapping, mapping_fields, mapping_rows)
+            write_rows(evidence, evidence_fields, evidence_rows)
+
+            with self.assertRaisesRegex(
+                result_validator.PipelineError, "used by more than one exercise"
+            ):
+                result_validator.validate_review_results(batch, mapping, evidence)
+
     def test_fully_evidenced_include_is_structurally_valid_but_not_production_eligible(self) -> None:
         with workspace_directory() as root:
             batch = make_batch(root)

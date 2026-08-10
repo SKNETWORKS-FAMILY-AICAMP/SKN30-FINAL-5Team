@@ -17,6 +17,10 @@ from build_kspo_fitness100_review_batch import (
     REVIEWER_ROLE_CODES,
     verify_review_batch,
 )
+from korean_display_name_rules import (
+    display_name_problems,
+    duplicate_display_names,
+)
 from kspo_fitness100_pipeline import PipelineError
 from profile_kspo_fitness100 import canonical_text
 
@@ -117,8 +121,11 @@ def validate_mapping_row(row: dict[str, str], row_number: int) -> None:
             raise PipelineError(
                 f"mapping row {row_number} normalized exercise ID is invalid"
             )
-        if not canonical_text(row["review_display_name_ko"]):
-            raise PipelineError(f"mapping row {row_number} Korean display name is missing")
+        problems = display_name_problems(
+            row["review_display_name_ko"], source_name=row["source_training_name"]
+        )
+        if problems:
+            raise PipelineError(f"mapping row {row_number} {problems[0]}")
         if not MACHINE_CODE_PATTERN.fullmatch(taxonomy_code):
             raise PipelineError(f"mapping row {row_number} taxonomy code is invalid")
         if beginner == "PENDING":
@@ -215,6 +222,17 @@ def validate_review_results(
             raise PipelineError("evidence source and reviewer role must be unique")
         evidence_by_key[key] = result
         evidence_status_counts[result["review_status_code"].strip()] += 1
+
+    duplicates = duplicate_display_names(
+        mapping["review_display_name_ko"]
+        for mapping in mapping_by_candidate_id.values()
+        if mapping["review_decision"].strip() in {"INCLUDE", "MERGE"}
+    )
+    if duplicates:
+        raise PipelineError(
+            "Korean display name is used by more than one exercise: "
+            + ", ".join(duplicates)
+        )
 
     review_complete_rows = 0
     for candidate_id, mapping in mapping_by_candidate_id.items():

@@ -177,3 +177,16 @@ python data/scripts/validate_wger_gym_review_results.py `
 원천 ID·이름 등 불변 필드가 바뀌거나, `INCLUDE`/`MERGE` 행에 필수 검토 상태와 역할별
 증적이 없으면 실패한다. 검증 성공도 프로덕션 승격을 의미하지 않으며 결과의
 `production_eligible`은 항상 `false`다.
+
+## 한국어 표시명 검수 규칙
+
+`korean_display_name_rules.py`는 두 트랙의 결과 validator가 함께 사용하는 표시명 규칙이다.
+wger snapshot에는 한국어 번역이 0건이므로 모든 한국어 명칭은 사람이 작성하며, 이 모듈은
+번역을 생성하지 않고 형식만 검사한다.
+
+`INCLUDE`/`MERGE` 행의 표시명은 한글을 포함해야 하고, 앞뒤 공백·제어문자가 없어야 하며,
+배치 안에서 중복될 수 없고, 진단·치료·처방·재활 등 의료 표현을 쓸 수 없다. 한글이 없는
+원천명을 그대로 복사한 행은 반려한다. `T바 로우`처럼 한글과 함께 쓰는 로마자는 허용하고,
+macOS에서 입력한 NFD 한글은 NFC로 정규화해 비교한다.
+
+상세 근거는 [REVIEW_RESULTS_GATE.md](../validation/REVIEW_RESULTS_GATE.md)를 따른다.

@@ -239,6 +239,64 @@ class ValidateKspoFitness100ReviewResultsTests(unittest.TestCase):
             ):
                 result_validator.validate_review_results(batch, mapping, evidence)
 
+    def test_include_with_untranslated_english_name_fails_closed(self) -> None:
+        with workspace_directory() as root:
+            batch = make_batch(root)
+            mapping, evidence = result_copies(batch, root)
+            mapping_fields, mapping_rows = read_rows(mapping)
+            self.complete_mapping_row(mapping_rows[0])
+            mapping_rows[0]["review_display_name_ko"] = "Chest Opening Stretch"
+            write_rows(mapping, mapping_fields, mapping_rows)
+            evidence_fields, evidence_rows = read_rows(evidence)
+            self.complete_evidence_for_candidate(
+                evidence_rows, mapping_rows[0]["source_candidate_id"]
+            )
+            write_rows(evidence, evidence_fields, evidence_rows)
+
+            with self.assertRaisesRegex(
+                result_validator.PipelineError, "contains no Hangul"
+            ):
+                result_validator.validate_review_results(batch, mapping, evidence)
+
+    def test_include_with_medical_claim_name_fails_closed(self) -> None:
+        with workspace_directory() as root:
+            batch = make_batch(root)
+            mapping, evidence = result_copies(batch, root)
+            mapping_fields, mapping_rows = read_rows(mapping)
+            self.complete_mapping_row(mapping_rows[0])
+            mapping_rows[0]["review_display_name_ko"] = "허리 통증 치료 스트레칭"
+            write_rows(mapping, mapping_fields, mapping_rows)
+            evidence_fields, evidence_rows = read_rows(evidence)
+            self.complete_evidence_for_candidate(
+                evidence_rows, mapping_rows[0]["source_candidate_id"]
+            )
+            write_rows(evidence, evidence_fields, evidence_rows)
+
+            with self.assertRaisesRegex(
+                result_validator.PipelineError, "medical claim language"
+            ):
+                result_validator.validate_review_results(batch, mapping, evidence)
+
+    def test_duplicate_korean_display_names_fail_closed(self) -> None:
+        with workspace_directory() as root:
+            batch = make_batch(root)
+            mapping, evidence = result_copies(batch, root)
+            mapping_fields, mapping_rows = read_rows(mapping)
+            evidence_fields, evidence_rows = read_rows(evidence)
+            for row in mapping_rows[:2]:
+                self.complete_mapping_row(row)
+                self.complete_evidence_for_candidate(
+                    evidence_rows, row["source_candidate_id"]
+                )
+            mapping_rows[1]["review_normalized_exercise_id"] = "chest_opening_stretch_b"
+            write_rows(mapping, mapping_fields, mapping_rows)
+            write_rows(evidence, evidence_fields, evidence_rows)
+
+            with self.assertRaisesRegex(
+                result_validator.PipelineError, "used by more than one exercise"
+            ):
+                result_validator.validate_review_results(batch, mapping, evidence)
+
     def test_exclude_requires_a_reason(self) -> None:
         with workspace_directory() as root:
             batch = make_batch(root)
