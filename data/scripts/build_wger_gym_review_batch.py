@@ -9,12 +9,13 @@ import re
 import shutil
 import sys
 from collections import Counter, defaultdict
+from collections.abc import Callable, Iterable
 from pathlib import Path
-from typing import Iterable
+from typing import Any
 
+from manifest_values import require_int
 from profile_wger_exercises import canonical_text, verify_profile
 from wger_exercise_pipeline import PipelineError, sha256_bytes
-
 
 REVIEW_BATCH_VERSION = "0.2.0"
 DEFAULT_BATCH_SIZE = 60
@@ -111,7 +112,9 @@ def list_of_strings(candidate: dict[str, object], field: str) -> list[str]:
     value = candidate.get(field, [])
     if not isinstance(value, list):
         raise PipelineError(f"candidate field {field} must be a list")
-    return sorted({canonical_text(item) for item in value if canonical_text(item)}, key=str.casefold)
+    return sorted(
+        {canonical_text(item) for item in value if canonical_text(item)}, key=str.casefold
+    )
 
 
 def named_items(candidate: dict[str, object], field: str) -> list[dict[str, object]]:
@@ -170,9 +173,10 @@ def validate_candidate(candidate: dict[str, object]) -> None:
     exercise_uuid = canonical_text(candidate.get("source_exercise_uuid"))
     if not isinstance(exercise_id, int) or exercise_id < 1 or not exercise_uuid:
         raise PipelineError("gym candidate source identity is invalid")
-    if candidate.get("review_status") != "DRAFT" or candidate.get(
-        "production_eligible"
-    ) is not False:
+    if (
+        candidate.get("review_status") != "DRAFT"
+        or candidate.get("production_eligible") is not False
+    ):
         raise PipelineError("gym candidate must remain DRAFT and production-ineligible")
     required = set(list_of_strings(candidate, "required_review_codes"))
     if not REQUIRED_REVIEW_CODES.issubset(required):
@@ -182,7 +186,7 @@ def validate_candidate(candidate: dict[str, object]) -> None:
         raise PipelineError("gym candidate base license is missing")
 
 
-def metadata_rank(candidate: dict[str, object]) -> tuple[object, ...]:
+def metadata_rank(candidate: dict[str, object]) -> tuple[Any, ...]:
     """Prefer reviewable source evidence without inferring quality or safety."""
 
     equipment = source_equipment_names(candidate)
@@ -195,7 +199,7 @@ def metadata_rank(candidate: dict[str, object]) -> tuple[object, ...]:
         -int(bool(canonical_text(base_license.get("license_author")))),
         -int(bool(aliases)),
         primary_name(candidate).casefold(),
-        int(candidate["source_exercise_id"]),
+        require_int(candidate["source_exercise_id"], "source_exercise_id"),
     )
 
 
@@ -209,7 +213,7 @@ def representative_candidates(
         name = primary_name(candidate)
         if not name:
             continue
-        exercise_id = int(candidate["source_exercise_id"])
+        exercise_id = require_int(candidate["source_exercise_id"], "source_exercise_id")
         if exercise_id in seen_ids:
             raise PipelineError(f"duplicate source_exercise_id: {exercise_id}")
         seen_ids.add(exercise_id)
@@ -220,7 +224,7 @@ def representative_candidates(
     for group in grouped.values():
         if len(group) > 1:
             duplicate_groups += 1
-        representative = dict(min(group, key=metadata_rank))
+        representative = dict(sorted(group, key=metadata_rank)[0])
         representative["duplicate_primary_name_count"] = len(group)
         representatives.append(representative)
     representatives.sort(key=metadata_rank)
@@ -239,7 +243,7 @@ def category_name(candidate: dict[str, object]) -> str:
 
 def round_robin(
     candidates: Iterable[dict[str, object]],
-    group_key,
+    group_key: Callable[[dict[str, object]], object],
 ) -> Iterable[dict[str, object]]:
     groups: dict[str, list[dict[str, object]]] = defaultdict(list)
     for candidate in candidates:
@@ -275,7 +279,7 @@ def select_review_batch(
     reasons: dict[int, set[str]] = defaultdict(set)
 
     def add(candidate: dict[str, object], reason: str) -> bool:
-        exercise_id = int(candidate["source_exercise_id"])
+        exercise_id = require_int(candidate["source_exercise_id"], "source_exercise_id")
         if exercise_id in selected_ids or len(selected) >= size:
             if exercise_id in selected_ids:
                 reasons[exercise_id].add(reason)
@@ -300,7 +304,8 @@ def select_review_batch(
             candidate
             for candidate in representatives
             if target_code in list_of_strings(candidate, "target_name_match_codes")
-            and int(candidate["source_exercise_id"]) not in selected_ids
+            and require_int(candidate["source_exercise_id"], "source_exercise_id")
+            not in selected_ids
         ]
         for candidate in round_robin(pool, equipment_signature):
             if target_counts[target_code] >= quota or len(selected) >= size:
@@ -311,7 +316,7 @@ def select_review_batch(
     remaining = [
         candidate
         for candidate in representatives
-        if int(candidate["source_exercise_id"]) not in selected_ids
+        if require_int(candidate["source_exercise_id"], "source_exercise_id") not in selected_ids
     ]
     for candidate in round_robin(
         remaining, lambda item: f"{category_name(item)}\x1f{equipment_signature(item)}"
@@ -326,7 +331,7 @@ def select_review_batch(
     rows: list[dict[str, object]] = []
     for position, candidate in enumerate(selected, start=1):
         row = dict(candidate)
-        exercise_id = int(candidate["source_exercise_id"])
+        exercise_id = require_int(candidate["source_exercise_id"], "source_exercise_id")
         row.update(
             {
                 "batch_position": position,
@@ -383,9 +388,7 @@ def joined(row: dict[str, object], field: str) -> str:
 
 
 def write_json(path: Path, payload: object) -> None:
-    path.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
@@ -485,17 +488,13 @@ def build_review_evidence_rows(
     return evidence_rows
 
 
-def write_review_evidence_jsonl(
-    path: Path, evidence_rows: list[dict[str, object]]
-) -> None:
+def write_review_evidence_jsonl(path: Path, evidence_rows: list[dict[str, object]]) -> None:
     with path.open("w", encoding="utf-8", newline="\n") as handle:
         for row in evidence_rows:
             handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
 
 
-def write_review_evidence_csv(
-    path: Path, evidence_rows: list[dict[str, object]]
-) -> None:
+def write_review_evidence_csv(path: Path, evidence_rows: list[dict[str, object]]) -> None:
     with path.open("w", encoding="utf-8-sig", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=REVIEW_EVIDENCE_FIELDS)
         writer.writeheader()
@@ -549,17 +548,13 @@ def create_review_batch(
             "review_batch_version": REVIEW_BATCH_VERSION,
             "source": {
                 "profile_directory": profile_dir.name,
-                "profile_manifest_sha256": sha256_bytes(
-                    profile_manifest_path.read_bytes()
-                ),
+                "profile_manifest_sha256": sha256_bytes(profile_manifest_path.read_bytes()),
             },
             "selection": {
                 "status": "DRAFT_REVIEW_QUEUE",
                 "method_codes": list(SELECTION_METHOD_CODES),
                 "target_quotas": dict(TARGET_QUOTAS),
-                "user_requested_source_name_seeds": list(
-                    USER_REQUESTED_SOURCE_NAME_SEEDS
-                ),
+                "user_requested_source_name_seeds": list(USER_REQUESTED_SOURCE_NAME_SEEDS),
                 "interpretation_guards": list(INTERPRETATION_GUARDS),
             },
             "review": {"status": "DRAFT", "production_eligible": False},
@@ -580,7 +575,7 @@ def create_review_batch(
         raise
 
 
-def verify_review_batch(batch_dir: Path) -> dict[str, int | str]:
+def verify_review_batch(batch_dir: Path) -> dict[str, object]:
     batch_dir = batch_dir.resolve()
     manifest_path = batch_dir / "review_manifest.json"
     try:
@@ -629,14 +624,12 @@ def verify_review_batch(batch_dir: Path) -> dict[str, int | str]:
             raise PipelineError(f"gym review file is missing: {relative.as_posix()}") from exc
         if sha256_bytes(raw) != entry.get("sha256"):
             raise PipelineError(f"gym review batch hash mismatch: {relative.as_posix()}")
-        if len(raw) != int(entry.get("bytes", -1)):
+        if len(raw) != require_int(entry.get("bytes", -1), "manifest bytes"):
             raise PipelineError(f"gym review batch size mismatch: {relative.as_posix()}")
-        expected_records = int(entry.get("records", -1))
+        expected_records = require_int(entry.get("records", -1), "manifest records")
         if relative.name == "gym_core_review_batch.jsonl":
             jsonl_rows = [
-                json.loads(line)
-                for line in raw.decode("utf-8").splitlines()
-                if line.strip()
+                json.loads(line) for line in raw.decode("utf-8").splitlines() if line.strip()
             ]
             if len(jsonl_rows) != expected_records:
                 raise PipelineError("gym review JSONL record count mismatch")
@@ -646,16 +639,12 @@ def verify_review_batch(batch_dir: Path) -> dict[str, int | str]:
                 raise PipelineError("gym review CSV record count mismatch")
         elif relative.name == "catalog_review_records_template.jsonl":
             evidence_jsonl_rows = [
-                json.loads(line)
-                for line in raw.decode("utf-8").splitlines()
-                if line.strip()
+                json.loads(line) for line in raw.decode("utf-8").splitlines() if line.strip()
             ]
             if len(evidence_jsonl_rows) != expected_records:
                 raise PipelineError("review evidence JSONL record count mismatch")
         elif relative.name == "catalog_review_records_template.csv":
-            evidence_csv_rows = list(
-                csv.DictReader(raw.decode("utf-8-sig").splitlines())
-            )
+            evidence_csv_rows = list(csv.DictReader(raw.decode("utf-8-sig").splitlines()))
             if len(evidence_csv_rows) != expected_records:
                 raise PipelineError("review evidence CSV record count mismatch")
 
@@ -674,9 +663,10 @@ def verify_review_batch(batch_dir: Path) -> dict[str, int | str]:
     for jsonl_row, csv_record in zip(jsonl_rows, csv_rows, strict=True):
         if jsonl_row.get("batch_status") != "DRAFT_REVIEW_QUEUE":
             raise PipelineError("gym review row batch status is invalid")
-        if jsonl_row.get("review_status") != "DRAFT" or jsonl_row.get(
-            "production_eligible"
-        ) is not False:
+        if (
+            jsonl_row.get("review_status") != "DRAFT"
+            or jsonl_row.get("production_eligible") is not False
+        ):
             raise PipelineError("gym review row was promoted without approval")
         required = set(list_of_strings(jsonl_row, "required_review_codes"))
         if not REQUIRED_REVIEW_CODES.issubset(required):
@@ -686,8 +676,8 @@ def verify_review_batch(batch_dir: Path) -> dict[str, int | str]:
                 raise PipelineError(f"generated gym review field must remain pending: {field}")
             if csv_record.get(field, "") != pending_value:
                 raise PipelineError(f"generated CSV review field must remain pending: {field}")
-        position = int(jsonl_row.get("batch_position", 0))
-        exercise_id = int(jsonl_row.get("source_exercise_id", 0))
+        position = require_int(jsonl_row.get("batch_position", 0), "batch_position")
+        exercise_id = require_int(jsonl_row.get("source_exercise_id", 0), "source_exercise_id")
         name = canonical_text(jsonl_row.get("primary_source_name_en")).casefold()
         if exercise_id in source_ids or not name or name in source_names:
             raise PipelineError("gym review source identities and names must be unique")
@@ -697,8 +687,7 @@ def verify_review_batch(batch_dir: Path) -> dict[str, int | str]:
         if (
             csv_record.get("batch_position") != str(position)
             or csv_record.get("source_exercise_id") != str(exercise_id)
-            or csv_record.get("primary_source_name_en")
-            != jsonl_row.get("primary_source_name_en")
+            or csv_record.get("primary_source_name_en") != jsonl_row.get("primary_source_name_en")
         ):
             raise PipelineError("gym review JSONL and CSV identity mismatch")
         if (
@@ -712,11 +701,9 @@ def verify_review_batch(batch_dir: Path) -> dict[str, int | str]:
         raise PipelineError("gym review batch positions are not contiguous")
     expected_evidence_position = 1
     evidence_keys: set[tuple[int, str]] = set()
-    for jsonl_record, csv_record in zip(
-        evidence_jsonl_rows, evidence_csv_rows, strict=True
-    ):
-        position = int(jsonl_record.get("evidence_position", 0))
-        exercise_id = int(jsonl_record.get("source_exercise_id", 0))
+    for jsonl_record, csv_record in zip(evidence_jsonl_rows, evidence_csv_rows, strict=True):
+        position = require_int(jsonl_record.get("evidence_position", 0), "evidence_position")
+        exercise_id = require_int(jsonl_record.get("source_exercise_id", 0), "source_exercise_id")
         role_code = canonical_text(jsonl_record.get("reviewer_role_code"))
         if position != expected_evidence_position:
             raise PipelineError("review evidence positions are not contiguous")

@@ -5,12 +5,17 @@ import sys
 import unicodedata
 import unittest
 from pathlib import Path
-
+from types import ModuleType
 
 SCRIPT_DIR = Path(__file__).resolve().parents[1]
 
+# 스크립트끼리 형제 모듈을 import하므로 로더가 경로를 알아야 한다. 이 줄이 없으면
+# 테스트 모듈이 먼저 로드한 순서에 우연히 의존하게 된다.
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
 
-def load_script(module_name: str, file_name: str):
+
+def load_script(module_name: str, file_name: str) -> ModuleType:
     if module_name in sys.modules:
         return sys.modules[module_name]
     spec = importlib.util.spec_from_file_location(module_name, SCRIPT_DIR / file_name)
@@ -37,9 +42,7 @@ class KoreanDisplayNameRuleTests(unittest.TestCase):
         self.assertEqual(rules.display_name_problems("T바 로우"), [])
 
     def test_missing_name_is_reported_once(self) -> None:
-        self.assertEqual(
-            rules.display_name_problems("   "), ["Korean display name is missing"]
-        )
+        self.assertEqual(rules.display_name_problems("   "), ["Korean display name is missing"])
 
     def test_english_only_name_is_rejected(self) -> None:
         problems = rules.display_name_problems(
@@ -49,9 +52,7 @@ class KoreanDisplayNameRuleTests(unittest.TestCase):
         self.assertIn("Korean display name contains no Hangul", problems)
 
     def test_untranslated_source_name_is_rejected(self) -> None:
-        problems = rules.display_name_problems(
-            "Seated Cable Row", source_name="Seated Cable Row"
-        )
+        problems = rules.display_name_problems("Seated Cable Row", source_name="Seated Cable Row")
 
         self.assertIn("Korean display name is identical to the source name", problems)
 
@@ -66,24 +67,18 @@ class KoreanDisplayNameRuleTests(unittest.TestCase):
     def test_medical_claim_language_is_rejected(self) -> None:
         problems = rules.display_name_problems("허리 통증 치료 운동")
 
-        self.assertIn(
-            "Korean display name uses medical claim language: 치료", problems
-        )
+        self.assertIn("Korean display name uses medical claim language: 치료", problems)
 
     def test_every_medical_term_is_detected(self) -> None:
         for term in rules.MEDICAL_CLAIM_TERMS:
             with self.subTest(term=term):
                 problems = rules.display_name_problems(f"무릎 {term} 스트레칭")
-                self.assertTrue(
-                    any("medical claim language" in problem for problem in problems)
-                )
+                self.assertTrue(any("medical claim language" in problem for problem in problems))
 
     def test_surrounding_whitespace_is_rejected(self) -> None:
         problems = rules.display_name_problems(" 랫풀다운 ")
 
-        self.assertIn(
-            "Korean display name has leading or trailing whitespace", problems
-        )
+        self.assertIn("Korean display name has leading or trailing whitespace", problems)
 
     def test_control_characters_are_rejected(self) -> None:
         problems = rules.display_name_problems("랫풀\t다운")
@@ -97,9 +92,7 @@ class KoreanDisplayNameRuleTests(unittest.TestCase):
         self.assertEqual(rules.display_name_problems(decomposed), [])
 
     def test_duplicate_display_names_are_reported(self) -> None:
-        duplicates = rules.duplicate_display_names(
-            ["랫풀다운", "덤벨로우", "랫풀다운", "", "  "]
-        )
+        duplicates = rules.duplicate_display_names(["랫풀다운", "덤벨로우", "랫풀다운", "", "  "])
 
         self.assertEqual(duplicates, ["랫풀다운"])
 
@@ -109,9 +102,7 @@ class KoreanDisplayNameRuleTests(unittest.TestCase):
         self.assertEqual(duplicates, ["랫풀다운"])
 
     def test_unique_display_names_report_nothing(self) -> None:
-        self.assertEqual(
-            rules.duplicate_display_names(["랫풀다운", "덤벨로우", "스쿼트"]), []
-        )
+        self.assertEqual(rules.duplicate_display_names(["랫풀다운", "덤벨로우", "스쿼트"]), [])
 
 
 if __name__ == "__main__":

@@ -5,12 +5,12 @@ import json
 import shutil
 import sys
 import unittest
+from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
-
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "wger_exercise_pipeline.py"
 SPEC = importlib.util.spec_from_file_location("wger_exercise_pipeline", SCRIPT_PATH)
@@ -21,7 +21,7 @@ SPEC.loader.exec_module(wger_pipeline)
 
 
 @contextmanager
-def workspace_directory():
+def workspace_directory() -> Iterator[Path]:
     path = Path.cwd() / f"test-work-{uuid4().hex}"
     path.mkdir()
     try:
@@ -94,7 +94,7 @@ class WgerExercisePipelineTests(unittest.TestCase):
                 page_size=2,
                 timeout=5.0,
                 fetcher=self.fake_fetcher,
-                now=datetime(2026, 8, 10, 8, 0, tzinfo=timezone.utc),
+                now=datetime(2026, 8, 10, 8, 0, tzinfo=UTC),
             )
 
             result = wger_pipeline.validate_snapshot(snapshot)
@@ -122,7 +122,7 @@ class WgerExercisePipelineTests(unittest.TestCase):
                 wger_pipeline.collect_snapshot(
                     output_root=output_root,
                     fetcher=missing_license_fetcher,
-                    now=datetime(2026, 8, 10, 8, 1, tzinfo=timezone.utc),
+                    now=datetime(2026, 8, 10, 8, 1, tzinfo=UTC),
                 )
             self.assertEqual(list(output_root.iterdir()), [])
 
@@ -140,7 +140,7 @@ class WgerExercisePipelineTests(unittest.TestCase):
             snapshot = wger_pipeline.collect_snapshot(
                 output_root=output_root,
                 fetcher=empty_translation_fetcher,
-                now=datetime(2026, 8, 10, 8, 4, tzinfo=timezone.utc),
+                now=datetime(2026, 8, 10, 8, 4, tzinfo=UTC),
             )
 
             self.assertEqual(wger_pipeline.validate_snapshot(snapshot)["exercises"], 1)
@@ -158,7 +158,7 @@ class WgerExercisePipelineTests(unittest.TestCase):
                 wger_pipeline.collect_snapshot(
                     output_root=output_root,
                     fetcher=incomplete_fetcher,
-                    now=datetime(2026, 8, 10, 8, 2, tzinfo=timezone.utc),
+                    now=datetime(2026, 8, 10, 8, 2, tzinfo=UTC),
                 )
             self.assertEqual(list(output_root.iterdir()), [])
 
@@ -169,7 +169,7 @@ class WgerExercisePipelineTests(unittest.TestCase):
                 page_size=2,
                 timeout=5.0,
                 fetcher=self.fake_fetcher,
-                now=datetime(2026, 8, 10, 8, 3, tzinfo=timezone.utc),
+                now=datetime(2026, 8, 10, 8, 3, tzinfo=UTC),
             )
             page = snapshot / "exerciseinfo" / "page-00001.json"
             page.write_bytes(page.read_bytes() + b" ")

@@ -6,17 +6,23 @@ import json
 import shutil
 import sys
 import unittest
+from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from types import ModuleType
 from urllib.parse import urlparse
 from uuid import uuid4
 
-
 SCRIPT_DIR = Path(__file__).resolve().parents[1]
 
+# 스크립트끼리 형제 모듈을 import하므로 로더가 경로를 알아야 한다. 이 줄이 없으면
+# 테스트 모듈이 먼저 로드한 순서에 우연히 의존하게 된다.
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
 
-def load_script(module_name: str, file_name: str):
+
+def load_script(module_name: str, file_name: str) -> ModuleType:
     if module_name in sys.modules:
         return sys.modules[module_name]
     spec = importlib.util.spec_from_file_location(module_name, SCRIPT_DIR / file_name)
@@ -29,16 +35,14 @@ def load_script(module_name: str, file_name: str):
 
 wger_pipeline = load_script("wger_exercise_pipeline", "wger_exercise_pipeline.py")
 wger_profile = load_script("profile_wger_exercises", "profile_wger_exercises.py")
-gym_batch = load_script(
-    "build_wger_gym_review_batch", "build_wger_gym_review_batch.py"
-)
+gym_batch = load_script("build_wger_gym_review_batch", "build_wger_gym_review_batch.py")
 result_validator = load_script(
     "validate_wger_gym_review_results", "validate_wger_gym_review_results.py"
 )
 
 
 @contextmanager
-def workspace_directory():
+def workspace_directory() -> Iterator[Path]:
     path = Path.cwd() / f"test-work-{uuid4().hex}"
     path.mkdir()
     try:
@@ -121,7 +125,7 @@ def make_batch(root: Path) -> Path:
     snapshot = wger_pipeline.collect_snapshot(
         output_root=root / "snapshots",
         fetcher=fake_fetcher,
-        now=datetime(2026, 8, 10, 11, 0, tzinfo=timezone.utc),
+        now=datetime(2026, 8, 10, 11, 0, tzinfo=UTC),
     )
     profile = wger_profile.create_profile(snapshot, root / "profiles")
     return gym_batch.create_review_batch(profile, root / "review_batches", size=6)
@@ -131,7 +135,7 @@ def read_rows(path: Path) -> tuple[list[str], list[dict[str, str]]]:
     with path.open("r", encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
         assert reader.fieldnames is not None
-        return reader.fieldnames, list(reader)
+        return list(reader.fieldnames), list(reader)
 
 
 def write_rows(path: Path, fields: list[str], rows: list[dict[str, str]]) -> None:
@@ -155,9 +159,7 @@ class ValidateWgerGymReviewResultsTests(unittest.TestCase):
             batch = make_batch(root)
             mapping, evidence = result_copies(batch, root)
 
-            result = result_validator.validate_review_results(
-                batch, mapping, evidence
-            )
+            result = result_validator.validate_review_results(batch, mapping, evidence)
 
             self.assertEqual(result["decision_counts"]["PENDING"], 6)
             self.assertEqual(result["evidence_status_counts"]["DRAFT"], 24)
@@ -185,9 +187,7 @@ class ValidateWgerGymReviewResultsTests(unittest.TestCase):
             rows[0]["review_status_code"] = "TECH_REVIEWED"
             write_rows(evidence, fields, rows)
 
-            with self.assertRaisesRegex(
-                result_validator.PipelineError, "opaque internal code"
-            ):
+            with self.assertRaisesRegex(result_validator.PipelineError, "opaque internal code"):
                 result_validator.validate_review_results(batch, mapping, evidence)
 
     def test_include_without_domain_evidence_fails_closed(self) -> None:
@@ -205,9 +205,7 @@ class ValidateWgerGymReviewResultsTests(unittest.TestCase):
             )
             write_rows(evidence, evidence_fields, evidence_rows)
 
-            with self.assertRaisesRegex(
-                result_validator.PipelineError, "DOMAIN_REVIEWER evidence"
-            ):
+            with self.assertRaisesRegex(result_validator.PipelineError, "DOMAIN_REVIEWER evidence"):
                 result_validator.validate_review_results(batch, mapping, evidence)
 
     def test_include_keeping_the_english_source_name_fails_closed(self) -> None:
@@ -218,9 +216,7 @@ class ValidateWgerGymReviewResultsTests(unittest.TestCase):
             mapping, evidence = result_copies(batch, root)
             mapping_fields, mapping_rows = read_rows(mapping)
             self.complete_mapping_row(mapping_rows[0])
-            mapping_rows[0]["review_display_name_ko"] = mapping_rows[0][
-                "primary_source_name_en"
-            ]
+            mapping_rows[0]["review_display_name_ko"] = mapping_rows[0]["primary_source_name_en"]
             write_rows(mapping, mapping_fields, mapping_rows)
             evidence_fields, evidence_rows = read_rows(evidence)
             self.complete_evidence_for_exercise(
@@ -228,9 +224,7 @@ class ValidateWgerGymReviewResultsTests(unittest.TestCase):
             )
             write_rows(evidence, evidence_fields, evidence_rows)
 
-            with self.assertRaisesRegex(
-                result_validator.PipelineError, "contains no Hangul"
-            ):
+            with self.assertRaisesRegex(result_validator.PipelineError, "contains no Hangul"):
                 result_validator.validate_review_results(batch, mapping, evidence)
 
     def test_duplicate_korean_display_names_fail_closed(self) -> None:
@@ -241,9 +235,7 @@ class ValidateWgerGymReviewResultsTests(unittest.TestCase):
             evidence_fields, evidence_rows = read_rows(evidence)
             for row in mapping_rows[:2]:
                 self.complete_mapping_row(row)
-                self.complete_evidence_for_exercise(
-                    evidence_rows, row["source_exercise_id"]
-                )
+                self.complete_evidence_for_exercise(evidence_rows, row["source_exercise_id"])
             mapping_rows[1]["review_normalized_exercise_id"] = "second_lat_pulldown"
             write_rows(mapping, mapping_fields, mapping_rows)
             write_rows(evidence, evidence_fields, evidence_rows)
@@ -253,7 +245,9 @@ class ValidateWgerGymReviewResultsTests(unittest.TestCase):
             ):
                 result_validator.validate_review_results(batch, mapping, evidence)
 
-    def test_fully_evidenced_include_is_structurally_valid_but_not_production_eligible(self) -> None:
+    def test_fully_evidenced_include_is_structurally_valid_but_not_production_eligible(
+        self,
+    ) -> None:
         with workspace_directory() as root:
             batch = make_batch(root)
             mapping, evidence = result_copies(batch, root)
@@ -266,9 +260,7 @@ class ValidateWgerGymReviewResultsTests(unittest.TestCase):
             )
             write_rows(evidence, evidence_fields, evidence_rows)
 
-            result = result_validator.validate_review_results(
-                batch, mapping, evidence
-            )
+            result = result_validator.validate_review_results(batch, mapping, evidence)
 
             self.assertEqual(result["decision_counts"]["INCLUDE"], 1)
             self.assertEqual(result["review_complete_rows"], 1)

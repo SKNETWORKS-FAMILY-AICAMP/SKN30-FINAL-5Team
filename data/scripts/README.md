@@ -81,8 +81,17 @@ python data/scripts/kspo_fitness100_pipeline.py validate `
 python -m unittest discover -s data/scripts/tests -v
 ```
 
-이 스크립트는 Python 표준 라이브러리만 사용합니다. 수집 결과는 `DRAFT`이며
-정규화 또는 프로덕션 seed가 아닙니다.
+린터와 타입 체커는 루트 `pyproject.toml` 설정을 사용합니다.
+
+```powershell
+pip install --group dev
+ruff check .
+ruff format --check .
+mypy
+```
+
+이 스크립트는 Python 표준 라이브러리만 사용합니다. ruff와 mypy는 개발 도구이며 실행
+의존성이 아닙니다. 수집 결과는 `DRAFT`이며 정규화 또는 프로덕션 seed가 아닙니다.
 
 ## 원천 profiling과 검토 인벤토리
 

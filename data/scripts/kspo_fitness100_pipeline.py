@@ -14,14 +14,13 @@ import os
 import shutil
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Callable
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
-
 
 PIPELINE_VERSION = "0.1.0"
 SERVICE_KEY_ENV = "DATA_GO_KR_SERVICE_KEY"
@@ -60,9 +59,7 @@ def sha256_bytes(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
-def build_request_url(
-    *, service_key: str, endpoint: str, page_no: int, page_size: int
-) -> str:
+def build_request_url(*, service_key: str, endpoint: str, page_no: int, page_size: int) -> str:
     if endpoint not in ENDPOINTS:
         raise PipelineError(f"지원하지 않는 endpoint입니다: {endpoint}")
     if not service_key.strip():
@@ -161,9 +158,7 @@ def parse_page(raw: bytes, *, expected_page_no: int | None = None) -> ParsedPage
         items: list[dict[str, object]] = []
     elif isinstance(items_value, dict):
         items = [items_value]
-    elif isinstance(items_value, list) and all(
-        isinstance(item, dict) for item in items_value
-    ):
+    elif isinstance(items_value, list) and all(isinstance(item, dict) for item in items_value):
         items = items_value
     else:
         raise PipelineError("API 응답의 item 목록 형식을 해석할 수 없습니다.")
@@ -230,10 +225,10 @@ def collect_snapshot(
     if endpoint not in ENDPOINTS:
         raise PipelineError(f"지원하지 않는 endpoint입니다: {endpoint}")
 
-    collected_at = now or datetime.now(timezone.utc)
+    collected_at = now or datetime.now(UTC)
     if collected_at.tzinfo is None:
         raise PipelineError("수집 시각에는 timezone 정보가 필요합니다.")
-    collected_at = collected_at.astimezone(timezone.utc).replace(microsecond=0)
+    collected_at = collected_at.astimezone(UTC).replace(microsecond=0)
     snapshot_id = f"{collected_at.strftime('%Y%m%dT%H%M%SZ')}-{endpoint}"
     retrieved_at = collected_at.isoformat().replace("+00:00", "Z")
 
@@ -322,7 +317,7 @@ def _required_mapping(value: object, name: str) -> dict[str, object]:
     return value
 
 
-def validate_snapshot(snapshot_dir: Path) -> dict[str, int | str]:
+def validate_snapshot(snapshot_dir: Path) -> dict[str, object]:
     snapshot_dir = snapshot_dir.resolve()
     manifest_path = snapshot_dir / "manifest.json"
     try:
@@ -388,9 +383,7 @@ def validate_snapshot(snapshot_dir: Path) -> dict[str, int | str]:
             observed_total = parsed.total_count
         elif parsed.total_count != observed_total:
             raise PipelineError("원문 페이지 사이에서 totalCount가 다릅니다.")
-        expected_records = _integer(
-            entry.get("records"), f"files[{index - 1}].records"
-        )
+        expected_records = _integer(entry.get("records"), f"files[{index - 1}].records")
         if len(parsed.items) != expected_records:
             raise PipelineError(f"원문 페이지 레코드 수가 다릅니다: {relative.as_posix()}")
         record_count += len(parsed.items)

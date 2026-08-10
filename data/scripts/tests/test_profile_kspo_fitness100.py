@@ -5,16 +5,22 @@ import json
 import shutil
 import sys
 import unittest
+from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from types import ModuleType
 from uuid import uuid4
-
 
 SCRIPT_DIR = Path(__file__).resolve().parents[1]
 
+# 스크립트끼리 형제 모듈을 import하므로 로더가 경로를 알아야 한다. 이 줄이 없으면
+# 테스트 모듈이 먼저 로드한 순서에 우연히 의존하게 된다.
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
 
-def load_module(name: str, path: Path):
+
+def load_module(name: str, path: Path) -> ModuleType:
     spec = importlib.util.spec_from_file_location(name, path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -32,7 +38,7 @@ profile_kspo_fitness100 = load_module(
 
 
 @contextmanager
-def workspace_directory():
+def workspace_directory() -> Iterator[Path]:
     path = Path.cwd() / f"test-work-{uuid4().hex}"
     path.mkdir()
     try:
@@ -92,7 +98,7 @@ def make_snapshot(root: Path) -> Path:
         output_root=root,
         page_size=100,
         fetcher=lambda _url, _timeout: response_bytes(items),
-        now=datetime(2026, 8, 10, 6, 0, tzinfo=timezone.utc),
+        now=datetime(2026, 8, 10, 6, 0, tzinfo=UTC),
     )
 
 
@@ -119,14 +125,10 @@ class ProfileKspoFitness100Tests(unittest.TestCase):
                 .read_text(encoding="utf-8")
                 .splitlines()
             ]
-            bridge = next(
-                item for item in candidates if item["source_training_name"] == "브릿지"
-            )
+            bridge = next(item for item in candidates if item["source_training_name"] == "브릿지")
             self.assertEqual(bridge["source_frame_rows"], 2)
             self.assertFalse(bridge["production_eligible"])
-            self.assertIn(
-                "DOMAIN_SAFETY_REVIEW_REQUIRED", bridge["required_review_codes"]
-            )
+            self.assertIn("DOMAIN_SAFETY_REVIEW_REQUIRED", bridge["required_review_codes"])
             self.assertIn(
                 "VIDEO_LENGTH_IS_NOT_EXERCISE_DURATION",
                 profile["interpretation_guards"],
@@ -141,9 +143,7 @@ class ProfileKspoFitness100Tests(unittest.TestCase):
             },
             source_items(),
         )
-        candidate = next(
-            item for item in candidates if item["source_training_name"] == "물에 뜨기"
-        )
+        candidate = next(item for item in candidates if item["source_training_name"] == "물에 뜨기")
         self.assertEqual(candidate["review_bucket"], "OUT_OF_SCOPE_REVIEW")
         self.assertIn("AGE_CHILD_ONLY", candidate["scope_reason_codes"])
         self.assertIn("PLACE_POOL_ONLY", candidate["scope_reason_codes"])
@@ -172,9 +172,7 @@ class ProfileKspoFitness100Tests(unittest.TestCase):
             manifest_path = profile_dir / "profile_manifest.json"
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             csv_entry = next(
-                entry
-                for entry in manifest["files"]
-                if entry["path"] == "candidate_review.csv"
+                entry for entry in manifest["files"] if entry["path"] == "candidate_review.csv"
             )
             raw = review_csv.read_bytes()
             csv_entry["sha256"] = profile_kspo_fitness100.sha256_bytes(raw)

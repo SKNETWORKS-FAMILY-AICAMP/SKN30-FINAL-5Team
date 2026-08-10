@@ -71,6 +71,24 @@
 
 정확한 명령은 프로젝트 초기화 PR에서 확정한다. 실행하지 않은 테스트를 통과로 보고하지 않는다.
 
+### Python 린터와 타입 체커
+
+Python 린터·포매터는 ruff, 타입 체커는 mypy로 확정했다. 설정과 고정 버전은 루트
+`pyproject.toml`에 둔다. 현재 검사 범위는 `data/scripts`이며, backend 코드가 추가되면
+같은 설정을 확장한다.
+
+```powershell
+pip install --group dev
+ruff check .
+ruff format --check .
+mypy
+python -m unittest discover -s data/scripts/tests
+```
+
+Pyright를 선택하지 않은 이유는 저장소의 Python 산출물이 표준 라이브러리 기반이고 CI에서
+ruff와 동일한 Python 툴체인으로 실행하는 편이 단순하기 때문이다. 프론트엔드 타입 검사는
+이 결정과 무관하다.
+
 프론트 component 테스트는 최상단 count-up timer, 중앙 마스코트, 하단 순서형 운동 블록, 자세·설명 펼침, 체크·밀기 완료, 다음 블록 이동을 검증한다. 타이머 값만 변경했을 때 블록과 세션 상태가 바뀌지 않는 음성 테스트를 포함한다.
 
 ## 7. 대안과 선택 이유
@@ -80,6 +98,5 @@ E2E만으로 검증하지 않는다. 원인 파악이 느리고 안전 규칙의
 ## 8. 아직 확정되지 않은 사항과 질문
 
 - React Native E2E 도구
-- type checker를 mypy와 Pyright 중 무엇으로 할지
 - 성능 목표와 부하 테스트 임계값
 - 외부 도메인 검수자가 승인할 골든 결과 형식

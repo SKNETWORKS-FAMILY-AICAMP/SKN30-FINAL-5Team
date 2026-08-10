@@ -9,12 +9,12 @@ import re
 import shutil
 import sys
 from collections import defaultdict
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 from kspo_fitness100_pipeline import PipelineError, sha256_bytes
+from manifest_values import require_int
 from profile_kspo_fitness100 import canonical_text, verify_profile
-
 
 REVIEW_BATCH_VERSION = "0.2.0"
 DEFAULT_BATCH_SIZE = 50
@@ -242,9 +242,7 @@ def joined(candidate: dict[str, object], field: str) -> str:
 
 
 def write_json(path: Path, payload: object) -> None:
-    path.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
@@ -325,17 +323,13 @@ def build_review_evidence_rows(
     return evidence_rows
 
 
-def write_review_evidence_jsonl(
-    path: Path, evidence_rows: list[dict[str, object]]
-) -> None:
+def write_review_evidence_jsonl(path: Path, evidence_rows: list[dict[str, object]]) -> None:
     with path.open("w", encoding="utf-8", newline="\n") as handle:
         for row in evidence_rows:
             handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
 
 
-def write_review_evidence_csv(
-    path: Path, evidence_rows: list[dict[str, object]]
-) -> None:
+def write_review_evidence_csv(path: Path, evidence_rows: list[dict[str, object]]) -> None:
     with path.open("w", encoding="utf-8-sig", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=REVIEW_EVIDENCE_FIELDS)
         writer.writeheader()
@@ -389,9 +383,7 @@ def create_review_batch(
             "review_batch_version": REVIEW_BATCH_VERSION,
             "source": {
                 "profile_directory": profile_dir.name,
-                "profile_manifest_sha256": sha256_bytes(
-                    profile_manifest_path.read_bytes()
-                ),
+                "profile_manifest_sha256": sha256_bytes(profile_manifest_path.read_bytes()),
             },
             "selection": {
                 "status": "DRAFT_REVIEW_QUEUE",
@@ -416,7 +408,7 @@ def create_review_batch(
         raise
 
 
-def verify_review_batch(batch_dir: Path) -> dict[str, int | str]:
+def verify_review_batch(batch_dir: Path) -> dict[str, object]:
     batch_dir = batch_dir.resolve()
     manifest_path = batch_dir / "review_manifest.json"
     try:
@@ -468,15 +460,13 @@ def verify_review_batch(batch_dir: Path) -> dict[str, int | str]:
             raise PipelineError(f"review batch file is missing: {relative.as_posix()}") from exc
         if sha256_bytes(raw) != entry.get("sha256"):
             raise PipelineError(f"review batch hash mismatch: {relative.as_posix()}")
-        if len(raw) != int(entry.get("bytes", -1)):
+        if len(raw) != require_int(entry.get("bytes", -1), "manifest bytes"):
             raise PipelineError(f"review batch size mismatch: {relative.as_posix()}")
 
-        expected_records = int(entry.get("records", -1))
+        expected_records = require_int(entry.get("records", -1), "manifest records")
         if relative.name == "review_batch.jsonl":
             jsonl_rows = [
-                json.loads(line)
-                for line in raw.decode("utf-8").splitlines()
-                if line.strip()
+                json.loads(line) for line in raw.decode("utf-8").splitlines() if line.strip()
             ]
             if len(jsonl_rows) != expected_records:
                 raise PipelineError("review batch JSONL record count mismatch")
@@ -486,16 +476,12 @@ def verify_review_batch(batch_dir: Path) -> dict[str, int | str]:
                 raise PipelineError("review batch CSV record count mismatch")
         elif relative.name == "catalog_review_records_template.jsonl":
             evidence_jsonl_rows = [
-                json.loads(line)
-                for line in raw.decode("utf-8").splitlines()
-                if line.strip()
+                json.loads(line) for line in raw.decode("utf-8").splitlines() if line.strip()
             ]
             if len(evidence_jsonl_rows) != expected_records:
                 raise PipelineError("review evidence JSONL record count mismatch")
         elif relative.name == "catalog_review_records_template.csv":
-            evidence_csv_rows = list(
-                csv.DictReader(raw.decode("utf-8-sig").splitlines())
-            )
+            evidence_csv_rows = list(csv.DictReader(raw.decode("utf-8-sig").splitlines()))
             if len(evidence_csv_rows) != expected_records:
                 raise PipelineError("review evidence CSV record count mismatch")
 
@@ -527,7 +513,7 @@ def verify_review_batch(batch_dir: Path) -> dict[str, int | str]:
             raise PipelineError("review batch row is missing domain safety review")
         if not REQUIRED_REVIEW_CODES.issubset(set(required)):
             raise PipelineError("review batch row is missing required reviews")
-        actual_positions.append(int(row.get("batch_position", 0)))
+        actual_positions.append(require_int(row.get("batch_position", 0), "batch_position"))
         training_name = canonical_text(row.get("source_training_name"))
         if not training_name or training_name in training_names:
             raise PipelineError("review batch training names must be non-empty and unique")
@@ -566,10 +552,11 @@ def verify_review_batch(batch_dir: Path) -> dict[str, int | str]:
 
     expected_evidence_position = 1
     evidence_keys: set[tuple[str, str]] = set()
-    for jsonl_record, csv_record in zip(
-        evidence_jsonl_rows, evidence_csv_rows, strict=True
-    ):
-        if int(jsonl_record.get("evidence_position", 0)) != expected_evidence_position:
+    for jsonl_record, csv_record in zip(evidence_jsonl_rows, evidence_csv_rows, strict=True):
+        evidence_position = require_int(
+            jsonl_record.get("evidence_position", 0), "evidence_position"
+        )
+        if evidence_position != expected_evidence_position:
             raise PipelineError("review evidence positions are not contiguous")
         expected_evidence_position += 1
         candidate_id = canonical_text(jsonl_record.get("source_candidate_id"))

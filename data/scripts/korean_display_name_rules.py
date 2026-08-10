@@ -22,8 +22,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from collections import Counter
-from typing import Iterable
-
+from collections.abc import Iterable
 
 HANGUL_SYLLABLE_PATTERN = re.compile(r"[가-힣]")
 CONTROL_CHARACTER_PATTERN = re.compile(r"[\x00-\x1f\x7f]")
@@ -76,8 +75,6 @@ def duplicate_display_names(display_names: Iterable[object]) -> list[str]:
     """Return display names used by more than one exercise, in sorted order."""
 
     counts = Counter(
-        normalized_display_name(name)
-        for name in display_names
-        if normalized_display_name(name)
+        normalized_display_name(name) for name in display_names if normalized_display_name(name)
     )
     return sorted(name for name, count in counts.items() if count > 1)

@@ -6,16 +6,22 @@ import json
 import shutil
 import sys
 import unittest
+from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from types import ModuleType
 from uuid import uuid4
-
 
 SCRIPT_DIR = Path(__file__).resolve().parents[1]
 
+# 스크립트끼리 형제 모듈을 import하므로 로더가 경로를 알아야 한다. 이 줄이 없으면
+# 테스트 모듈이 먼저 로드한 순서에 우연히 의존하게 된다.
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
 
-def load_module(name: str, path: Path):
+
+def load_module(name: str, path: Path) -> ModuleType:
     spec = importlib.util.spec_from_file_location(name, path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -37,7 +43,7 @@ build_review_batch = load_module(
 
 
 @contextmanager
-def workspace_directory():
+def workspace_directory() -> Iterator[Path]:
     path = Path.cwd() / f"test-work-{uuid4().hex}"
     path.mkdir()
     try:
@@ -108,9 +114,27 @@ def source_items() -> list[dict[str, object]]:
     return [
         {**base, "file_nm": "video-a.mp4", "trng_nm": "alpha", "img_file_nm": "1.jpg"},
         {**base, "file_nm": "video-a.mp4", "trng_nm": "alpha", "img_file_nm": "2.jpg"},
-        {**base, "file_nm": "video-b.mp4", "trng_nm": "beta", "tool_nm": "BAND", "img_file_nm": "3.jpg"},
-        {**base, "file_nm": "video-c.mp4", "trng_nm": "gamma", "trng_plc_nm": "GYM", "img_file_nm": "4.jpg"},
-        {**base, "file_nm": "video-d.mp4", "trng_nm": "alpha", "tool_nm": "", "img_file_nm": "5.jpg"},
+        {
+            **base,
+            "file_nm": "video-b.mp4",
+            "trng_nm": "beta",
+            "tool_nm": "BAND",
+            "img_file_nm": "3.jpg",
+        },
+        {
+            **base,
+            "file_nm": "video-c.mp4",
+            "trng_nm": "gamma",
+            "trng_plc_nm": "GYM",
+            "img_file_nm": "4.jpg",
+        },
+        {
+            **base,
+            "file_nm": "video-d.mp4",
+            "trng_nm": "alpha",
+            "tool_nm": "",
+            "img_file_nm": "5.jpg",
+        },
     ]
 
 
@@ -122,7 +146,7 @@ def make_profile(root: Path) -> Path:
         output_root=root / "snapshots",
         page_size=100,
         fetcher=lambda _url, _timeout: response_bytes(items),
-        now=datetime(2026, 8, 10, 7, 0, tzinfo=timezone.utc),
+        now=datetime(2026, 8, 10, 7, 0, tzinfo=UTC),
     )
     return profile_kspo_fitness100.create_profile(snapshot, root / "profiles")
 
@@ -178,9 +202,7 @@ class BuildKspoFitness100ReviewBatchTests(unittest.TestCase):
             result = build_review_batch.verify_review_batch(batch_dir)
 
             self.assertEqual(result["records"], 3)
-            manifest = json.loads(
-                (batch_dir / "review_manifest.json").read_text(encoding="utf-8")
-            )
+            manifest = json.loads((batch_dir / "review_manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["review"]["status"], "DRAFT")
             self.assertFalse(manifest["review"]["production_eligible"])
             self.assertIn(
@@ -235,14 +257,10 @@ class BuildKspoFitness100ReviewBatchTests(unittest.TestCase):
             first_row = json.loads(lines[0])
             first_row["review_decision"] = "INCLUDE"
             lines[0] = json.dumps(first_row, ensure_ascii=False, sort_keys=True)
-            jsonl_path.write_text(
-                "\n".join(lines) + "\n", encoding="utf-8", newline="\n"
-            )
+            jsonl_path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
             rehash_manifest_entry(batch_dir, "review_batch.jsonl")
 
-            with self.assertRaisesRegex(
-                build_review_batch.PipelineError, "must remain pending"
-            ):
+            with self.assertRaisesRegex(build_review_batch.PipelineError, "must remain pending"):
                 build_review_batch.verify_review_batch(batch_dir)
 
     def test_verify_rejects_evidence_template_promoted_without_review(self) -> None:
@@ -256,9 +274,7 @@ class BuildKspoFitness100ReviewBatchTests(unittest.TestCase):
             first_row = json.loads(lines[0])
             first_row["review_status_code"] = "DOMAIN_APPROVED"
             lines[0] = json.dumps(first_row, ensure_ascii=False, sort_keys=True)
-            evidence_path.write_text(
-                "\n".join(lines) + "\n", encoding="utf-8", newline="\n"
-            )
+            evidence_path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
             rehash_manifest_entry(batch_dir, "catalog_review_records_template.jsonl")
 
             with self.assertRaisesRegex(
@@ -275,9 +291,7 @@ class BuildKspoFitness100ReviewBatchTests(unittest.TestCase):
             batch_file = batch_dir / "review_batch.jsonl"
             batch_file.write_bytes(batch_file.read_bytes() + b" ")
 
-            with self.assertRaisesRegex(
-                build_review_batch.PipelineError, "hash mismatch"
-            ):
+            with self.assertRaisesRegex(build_review_batch.PipelineError, "hash mismatch"):
                 build_review_batch.verify_review_batch(batch_dir)
 
     def test_verify_detects_csv_identity_change_after_manifest_rehash(self) -> None:

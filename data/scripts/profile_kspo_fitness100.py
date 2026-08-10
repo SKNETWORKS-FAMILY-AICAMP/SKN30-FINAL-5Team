@@ -10,11 +10,10 @@ import shutil
 import sys
 import unicodedata
 from collections import Counter, defaultdict
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 from kspo_fitness100_pipeline import PipelineError, sha256_bytes, validate_snapshot
-
 
 PROFILER_VERSION = "0.2.0"
 DEFAULT_OUTPUT_ROOT = Path(__file__).resolve().parents[1] / "validation" / "profiles"
@@ -129,7 +128,7 @@ def field_profile(items: list[dict[str, object]]) -> list[dict[str, object]]:
 
 
 def candidate_id(file_name: str, training_name: str) -> str:
-    identity = f"kspo_fitness100_video\x1f{file_name}\x1f{training_name}".encode("utf-8")
+    identity = f"kspo_fitness100_video\x1f{file_name}\x1f{training_name}".encode()
     return hashlib.sha256(identity).hexdigest()
 
 
@@ -252,16 +251,14 @@ def build_profile(
 
     source = manifest.get("source", {})
     retrieval = manifest.get("retrieval", {})
-    profile = {
+    profile: dict[str, object] = {
         "schema_version": "1.0",
         "profiler_version": PROFILER_VERSION,
         "source": {
             "snapshot_id": manifest.get("snapshot_id"),
             "source_id": source.get("source_id") if isinstance(source, dict) else None,
             "dataset_id": source.get("dataset_id") if isinstance(source, dict) else None,
-            "retrieved_at": retrieval.get("retrieved_at")
-            if isinstance(retrieval, dict)
-            else None,
+            "retrieved_at": retrieval.get("retrieved_at") if isinstance(retrieval, dict) else None,
         },
         "review": {"status": "DRAFT", "production_eligible": False},
         "unit_analysis": {
@@ -288,12 +285,8 @@ def build_profile(
                 > 1
                 for file_name in file_names
             ),
-            "minimum_frame_rows_per_video": min(video_groups.values())
-            if video_groups
-            else 0,
-            "maximum_frame_rows_per_video": max(video_groups.values())
-            if video_groups
-            else 0,
+            "minimum_frame_rows_per_video": min(video_groups.values()) if video_groups else 0,
+            "maximum_frame_rows_per_video": max(video_groups.values()) if video_groups else 0,
             **candidate_summary,
         },
         "field_profiles": field_profile(items),
@@ -309,9 +302,7 @@ def build_profile(
 
 
 def write_json(path: Path, payload: object) -> None:
-    path.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def write_inventory_jsonl(path: Path, candidates: list[dict[str, object]]) -> None:
@@ -429,7 +420,7 @@ def create_profile(snapshot_dir: Path, output_root: Path = DEFAULT_OUTPUT_ROOT) 
         raise
 
 
-def verify_profile(profile_dir: Path) -> dict[str, int | str]:
+def verify_profile(profile_dir: Path) -> dict[str, object]:
     profile_dir = profile_dir.resolve()
     manifest_path = profile_dir / "profile_manifest.json"
     try:
@@ -477,12 +468,16 @@ def verify_profile(profile_dir: Path) -> dict[str, int | str]:
                 raise PipelineError("candidate inventory 레코드 수가 다릅니다.")
             for line in lines:
                 candidate = json.loads(line)
-                if candidate.get("review_status") != "DRAFT" or candidate.get(
-                    "production_eligible"
-                ) is not False:
+                if (
+                    candidate.get("review_status") != "DRAFT"
+                    or candidate.get("production_eligible") is not False
+                ):
                     raise PipelineError("승인되지 않은 candidate 상태가 있습니다.")
                 required = candidate.get("required_review_codes")
-                if not isinstance(required, list) or "DOMAIN_SAFETY_REVIEW_REQUIRED" not in required:
+                if (
+                    not isinstance(required, list)
+                    or "DOMAIN_SAFETY_REVIEW_REQUIRED" not in required
+                ):
                     raise PipelineError("candidate에 필수 안전 리뷰 코드가 없습니다.")
             inventory_records = len(lines)
         elif relative.name == "candidate_review.csv":
@@ -490,13 +485,9 @@ def verify_profile(profile_dir: Path) -> dict[str, int | str]:
             if len(rows) != int(entry.get("records", -1)):
                 raise PipelineError("candidate review CSV 레코드 수가 다릅니다.")
             for row in rows:
-                if row.get("review_status") != "DRAFT" or row.get(
-                    "production_eligible"
-                ) != "false":
+                if row.get("review_status") != "DRAFT" or row.get("production_eligible") != "false":
                     raise PipelineError("CSV에 승인되지 않은 candidate 상태가 있습니다.")
-                if "DOMAIN_SAFETY_REVIEW_REQUIRED" not in row.get(
-                    "required_review_codes", ""
-                ):
+                if "DOMAIN_SAFETY_REVIEW_REQUIRED" not in row.get("required_review_codes", ""):
                     raise PipelineError("CSV candidate에 필수 안전 리뷰 코드가 없습니다.")
             csv_records = len(rows)
         elif relative.name == "profile.json":

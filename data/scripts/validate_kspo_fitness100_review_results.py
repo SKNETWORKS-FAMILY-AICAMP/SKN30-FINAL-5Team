@@ -24,7 +24,6 @@ from korean_display_name_rules import (
 from kspo_fitness100_pipeline import PipelineError
 from profile_kspo_fitness100 import canonical_text
 
-
 RESULT_VALIDATOR_VERSION = "0.1.0"
 ALLOWED_REVIEW_DECISIONS = {"PENDING", "INCLUDE", "EXCLUDE", "MERGE"}
 ALLOWED_BEGINNER_VALUES = {"PENDING", "YES", "CONDITIONAL", "NO"}
@@ -66,9 +65,7 @@ def read_csv(path: Path, expected_fields: list[str]) -> list[dict[str, str]]:
         with path.resolve().open("r", encoding="utf-8-sig", newline="") as handle:
             reader = csv.DictReader(handle)
             if reader.fieldnames != expected_fields:
-                raise PipelineError(
-                    f"CSV columns do not match the template: {path.name}"
-                )
+                raise PipelineError(f"CSV columns do not match the template: {path.name}")
             return list(reader)
     except FileNotFoundError as exc:
         raise PipelineError(f"review result CSV is missing: {path}") from exc
@@ -107,9 +104,7 @@ def validate_mapping_row(row: dict[str, str], row_number: int) -> None:
     if decision not in ALLOWED_REVIEW_DECISIONS:
         raise PipelineError(f"mapping row {row_number} review_decision is invalid")
     if beginner not in ALLOWED_BEGINNER_VALUES:
-        raise PipelineError(
-            f"mapping row {row_number} review_beginner_suitability is invalid"
-        )
+        raise PipelineError(f"mapping row {row_number} review_beginner_suitability is invalid")
     for field in APPROVAL_STATUS_FIELDS:
         if row[field].strip() not in ALLOWED_APPROVAL_VALUES:
             raise PipelineError(f"mapping row {row_number} {field} is invalid")
@@ -118,9 +113,7 @@ def validate_mapping_row(row: dict[str, str], row_number: int) -> None:
         stable_code = row["review_normalized_exercise_id"].strip()
         taxonomy_code = row["review_taxonomy_code"].strip()
         if not MACHINE_CODE_PATTERN.fullmatch(stable_code):
-            raise PipelineError(
-                f"mapping row {row_number} normalized exercise ID is invalid"
-            )
+            raise PipelineError(f"mapping row {row_number} normalized exercise ID is invalid")
         problems = display_name_problems(
             row["review_display_name_ko"], source_name=row["source_training_name"]
         )
@@ -129,9 +122,7 @@ def validate_mapping_row(row: dict[str, str], row_number: int) -> None:
         if not MACHINE_CODE_PATTERN.fullmatch(taxonomy_code):
             raise PipelineError(f"mapping row {row_number} taxonomy code is invalid")
         if beginner == "PENDING":
-            raise PipelineError(
-                f"mapping row {row_number} beginner suitability is still PENDING"
-            )
+            raise PipelineError(f"mapping row {row_number} beginner suitability is still PENDING")
         for field in APPROVAL_STATUS_FIELDS:
             if row[field].strip() != "APPROVED":
                 raise PipelineError(
@@ -230,8 +221,7 @@ def validate_review_results(
     )
     if duplicates:
         raise PipelineError(
-            "Korean display name is used by more than one exercise: "
-            + ", ".join(duplicates)
+            "Korean display name is used by more than one exercise: " + ", ".join(duplicates)
         )
 
     review_complete_rows = 0
@@ -243,7 +233,8 @@ def validate_review_results(
             evidence = evidence_by_key.get((candidate_id, role_code))
             if evidence is None or evidence["review_status_code"].strip() not in accepted_statuses:
                 raise PipelineError(
-                    f"candidate {candidate_id} cannot be {decision} without completed {role_code} evidence"
+                    f"candidate {candidate_id} cannot be {decision} "
+                    f"without completed {role_code} evidence"
                 )
         review_complete_rows += 1
 
@@ -271,9 +262,7 @@ def create_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = create_parser().parse_args(argv)
     try:
-        result = validate_review_results(
-            args.batch, args.mapping_results, args.evidence_results
-        )
+        result = validate_review_results(args.batch, args.mapping_results, args.evidence_results)
     except (PipelineError, OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"failed: {exc}", file=sys.stderr)
         return 1

@@ -6,16 +6,22 @@ import json
 import shutil
 import sys
 import unittest
+from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from types import ModuleType
 from uuid import uuid4
-
 
 SCRIPT_DIR = Path(__file__).resolve().parents[1]
 
+# 스크립트끼리 형제 모듈을 import하므로 로더가 경로를 알아야 한다. 이 줄이 없으면
+# 테스트 모듈이 먼저 로드한 순서에 우연히 의존하게 된다.
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
 
-def load_script(module_name: str, file_name: str):
+
+def load_script(module_name: str, file_name: str) -> ModuleType:
     if module_name in sys.modules:
         return sys.modules[module_name]
     spec = importlib.util.spec_from_file_location(module_name, SCRIPT_DIR / file_name)
@@ -38,7 +44,7 @@ result_validator = load_script(
 
 
 @contextmanager
-def workspace_directory():
+def workspace_directory() -> Iterator[Path]:
     path = Path.cwd() / f"test-work-{uuid4().hex}"
     path.mkdir()
     try:
@@ -93,7 +99,7 @@ def make_batch(root: Path) -> Path:
         output_root=root / "snapshots",
         page_size=100,
         fetcher=lambda _url, _timeout: response_bytes(source_items()),
-        now=datetime(2026, 8, 10, 7, 0, tzinfo=timezone.utc),
+        now=datetime(2026, 8, 10, 7, 0, tzinfo=UTC),
     )
     profile = kspo_profile.create_profile(snapshot, root / "profiles")
     return kspo_batch.create_review_batch(profile, root / "review_batches", size=3)
@@ -103,7 +109,7 @@ def read_rows(path: Path) -> tuple[list[str], list[dict[str, str]]]:
     with path.open("r", encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
         assert reader.fieldnames is not None
-        return reader.fieldnames, list(reader)
+        return list(reader.fieldnames), list(reader)
 
 
 def write_rows(path: Path, fields: list[str], rows: list[dict[str, str]]) -> None:
@@ -155,9 +161,7 @@ class ValidateKspoFitness100ReviewResultsTests(unittest.TestCase):
             rows[0]["review_status_code"] = "TECH_REVIEWED"
             write_rows(evidence, fields, rows)
 
-            with self.assertRaisesRegex(
-                result_validator.PipelineError, "opaque internal code"
-            ):
+            with self.assertRaisesRegex(result_validator.PipelineError, "opaque internal code"):
                 result_validator.validate_review_results(batch, mapping, evidence)
 
     def test_reviewer_email_is_rejected_as_reviewer_reference(self) -> None:
@@ -175,9 +179,7 @@ class ValidateKspoFitness100ReviewResultsTests(unittest.TestCase):
             )
             write_rows(evidence, fields, rows)
 
-            with self.assertRaisesRegex(
-                result_validator.PipelineError, "opaque internal code"
-            ):
+            with self.assertRaisesRegex(result_validator.PipelineError, "opaque internal code"):
                 result_validator.validate_review_results(batch, mapping, evidence)
 
     def test_timestamp_without_timezone_is_rejected(self) -> None:
@@ -215,9 +217,7 @@ class ValidateKspoFitness100ReviewResultsTests(unittest.TestCase):
             )
             write_rows(evidence, evidence_fields, evidence_rows)
 
-            with self.assertRaisesRegex(
-                result_validator.PipelineError, "DOMAIN_REVIEWER evidence"
-            ):
+            with self.assertRaisesRegex(result_validator.PipelineError, "DOMAIN_REVIEWER evidence"):
                 result_validator.validate_review_results(batch, mapping, evidence)
 
     def test_include_without_media_rights_approval_fails_closed(self) -> None:
@@ -253,9 +253,7 @@ class ValidateKspoFitness100ReviewResultsTests(unittest.TestCase):
             )
             write_rows(evidence, evidence_fields, evidence_rows)
 
-            with self.assertRaisesRegex(
-                result_validator.PipelineError, "contains no Hangul"
-            ):
+            with self.assertRaisesRegex(result_validator.PipelineError, "contains no Hangul"):
                 result_validator.validate_review_results(batch, mapping, evidence)
 
     def test_include_with_medical_claim_name_fails_closed(self) -> None:
@@ -272,9 +270,7 @@ class ValidateKspoFitness100ReviewResultsTests(unittest.TestCase):
             )
             write_rows(evidence, evidence_fields, evidence_rows)
 
-            with self.assertRaisesRegex(
-                result_validator.PipelineError, "medical claim language"
-            ):
+            with self.assertRaisesRegex(result_validator.PipelineError, "medical claim language"):
                 result_validator.validate_review_results(batch, mapping, evidence)
 
     def test_duplicate_korean_display_names_fail_closed(self) -> None:
@@ -285,9 +281,7 @@ class ValidateKspoFitness100ReviewResultsTests(unittest.TestCase):
             evidence_fields, evidence_rows = read_rows(evidence)
             for row in mapping_rows[:2]:
                 self.complete_mapping_row(row)
-                self.complete_evidence_for_candidate(
-                    evidence_rows, row["source_candidate_id"]
-                )
+                self.complete_evidence_for_candidate(evidence_rows, row["source_candidate_id"])
             mapping_rows[1]["review_normalized_exercise_id"] = "chest_opening_stretch_b"
             write_rows(mapping, mapping_fields, mapping_rows)
             write_rows(evidence, evidence_fields, evidence_rows)
@@ -310,7 +304,9 @@ class ValidateKspoFitness100ReviewResultsTests(unittest.TestCase):
             ):
                 result_validator.validate_review_results(batch, mapping, evidence)
 
-    def test_fully_evidenced_include_is_structurally_valid_but_not_production_eligible(self) -> None:
+    def test_fully_evidenced_include_is_structurally_valid_but_not_production_eligible(
+        self,
+    ) -> None:
         with workspace_directory() as root:
             batch = make_batch(root)
             mapping, evidence = result_copies(batch, root)

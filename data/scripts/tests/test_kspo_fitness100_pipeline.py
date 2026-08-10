@@ -5,12 +5,12 @@ import json
 import shutil
 import sys
 import unittest
+from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from uuid import uuid4
 from urllib.parse import parse_qs, urlparse
-
+from uuid import uuid4
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "kspo_fitness100_pipeline.py"
 SPEC = importlib.util.spec_from_file_location("kspo_fitness100_pipeline", SCRIPT_PATH)
@@ -21,7 +21,7 @@ SPEC.loader.exec_module(kspo_fitness100_pipeline)
 
 
 @contextmanager
-def workspace_directory():
+def workspace_directory() -> Iterator[Path]:
     path = Path.cwd() / f"test-work-{uuid4().hex}"
     path.mkdir()
     try:
@@ -69,7 +69,7 @@ class KspoFitness100PipelineTests(unittest.TestCase):
                 page_size=2,
                 timeout=5.0,
                 fetcher=fake_fetcher,
-                now=datetime(2026, 8, 10, 4, 5, tzinfo=timezone.utc),
+                now=datetime(2026, 8, 10, 4, 5, tzinfo=UTC),
             )
 
             report = kspo_fitness100_pipeline.validate_snapshot(snapshot)
@@ -101,15 +101,13 @@ class KspoFitness100PipelineTests(unittest.TestCase):
                     endpoint="training-video",
                     output_root=output_root,
                     fetcher=lambda _url, _timeout: json.dumps(failure).encode("utf-8"),
-                    now=datetime(2026, 8, 10, 4, 6, tzinfo=timezone.utc),
+                    now=datetime(2026, 8, 10, 4, 6, tzinfo=UTC),
                 )
             self.assertEqual(list(output_root.iterdir()), [])
 
     def test_record_count_mismatch_does_not_complete_snapshot(self) -> None:
         with workspace_directory() as output_root:
-            with self.assertRaisesRegex(
-                kspo_fitness100_pipeline.PipelineError, "수집 레코드 수"
-            ):
+            with self.assertRaisesRegex(kspo_fitness100_pipeline.PipelineError, "수집 레코드 수"):
                 kspo_fitness100_pipeline.collect_snapshot(
                     service_key="secret",
                     endpoint="training-video",
@@ -118,7 +116,7 @@ class KspoFitness100PipelineTests(unittest.TestCase):
                     fetcher=lambda _url, _timeout: response_bytes(
                         page_no=1, total_count=2, items=[{"id": "only-one"}]
                     ),
-                    now=datetime(2026, 8, 10, 4, 7, tzinfo=timezone.utc),
+                    now=datetime(2026, 8, 10, 4, 7, tzinfo=UTC),
                 )
             self.assertEqual(list(output_root.iterdir()), [])
 
@@ -131,7 +129,7 @@ class KspoFitness100PipelineTests(unittest.TestCase):
                 fetcher=lambda _url, _timeout: response_bytes(
                     page_no=1, total_count=1, items=[{"id": "routine-1"}]
                 ),
-                now=datetime(2026, 8, 10, 4, 8, tzinfo=timezone.utc),
+                now=datetime(2026, 8, 10, 4, 8, tzinfo=UTC),
             )
             page = snapshot / "pages" / "page-00001.json"
             page.write_bytes(page.read_bytes() + b" ")

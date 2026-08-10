@@ -5,17 +5,18 @@ import json
 import shutil
 import sys
 import unittest
+from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from types import ModuleType
 from urllib.parse import urlparse
 from uuid import uuid4
-
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1]
 
 
-def load_script(module_name: str, file_name: str):
+def load_script(module_name: str, file_name: str) -> ModuleType:
     if module_name in sys.modules:
         return sys.modules[module_name]
     spec = importlib.util.spec_from_file_location(module_name, SCRIPTS_DIR / file_name)
@@ -31,7 +32,7 @@ wger_profile = load_script("profile_wger_exercises", "profile_wger_exercises.py"
 
 
 @contextmanager
-def workspace_directory():
+def workspace_directory() -> Iterator[Path]:
     path = Path.cwd() / f"test-work-{uuid4().hex}"
     path.mkdir()
     try:
@@ -40,7 +41,9 @@ def workspace_directory():
         shutil.rmtree(path)
 
 
-def translation(translation_id: int, name: str, aliases: list[str] | None = None):
+def translation(
+    translation_id: int, name: str, aliases: list[str] | None = None
+) -> dict[str, object]:
     return {
         "id": translation_id,
         "name": name,
@@ -60,7 +63,7 @@ def exercise_item(
     equipment_names: list[str],
     *,
     image: bool = False,
-):
+) -> dict[str, object]:
     return {
         "id": exercise_id,
         "uuid": f"00000000-0000-0000-0000-{exercise_id:012d}",
@@ -127,7 +130,7 @@ class WgerExerciseProfileTests(unittest.TestCase):
         snapshot = wger_pipeline.collect_snapshot(
             output_root=root / "snapshots",
             fetcher=self.fake_fetcher,
-            now=datetime(2026, 8, 10, 9, 0, tzinfo=timezone.utc),
+            now=datetime(2026, 8, 10, 9, 0, tzinfo=UTC),
         )
         profile = wger_profile.create_profile(snapshot, root / "profiles")
         return snapshot, profile
@@ -196,9 +199,7 @@ class WgerExerciseProfileTests(unittest.TestCase):
                 seated_row["gym_candidate_reason_codes"],
                 ["TARGET_NAME_SOURCE_EVIDENCE"],
             )
-            self.assertIn(
-                "SOURCE_EQUIPMENT_UNSPECIFIED", seated_row["required_review_codes"]
-            )
+            self.assertIn("SOURCE_EQUIPMENT_UNSPECIFIED", seated_row["required_review_codes"])
 
     def test_profile_verification_detects_tampered_inventory(self) -> None:
         with workspace_directory() as root:

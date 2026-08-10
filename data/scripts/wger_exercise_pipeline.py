@@ -8,14 +8,13 @@ import json
 import shutil
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Callable
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
-
 
 PIPELINE_VERSION = "0.1.0"
 SOURCE_ID = "wger_exercise_catalog"
@@ -33,9 +32,7 @@ RESOURCES = (
     "license",
     "muscle",
 )
-DEFAULT_OUTPUT_ROOT = (
-    Path(__file__).resolve().parents[1] / "raw" / SOURCE_ID / "snapshots"
-)
+DEFAULT_OUTPUT_ROOT = Path(__file__).resolve().parents[1] / "raw" / SOURCE_ID / "snapshots"
 USER_AGENT = "SKN30-wger-exercise-collector/0.1"
 
 
@@ -140,9 +137,7 @@ def validate_exercise_item(item: dict[str, object]) -> None:
     license_info = _mapping(item.get("license"), "exerciseinfo.license")
     if not isinstance(license_info.get("id"), int):
         raise PipelineError("exerciseinfo.license.id is missing")
-    if not isinstance(license_info.get("short_name"), str) or not license_info.get(
-        "short_name"
-    ):
+    if not isinstance(license_info.get("short_name"), str) or not license_info.get("short_name"):
         raise PipelineError("exerciseinfo.license.short_name is missing")
     for field in (
         "muscles",
@@ -155,7 +150,10 @@ def validate_exercise_item(item: dict[str, object]) -> None:
         value = item.get(field)
         if not isinstance(value, list) or not all(isinstance(entry, dict) for entry in value):
             raise PipelineError(f"exerciseinfo.{field} must be a list of objects")
-    for translation in item["translations"]:
+    translations = item["translations"]
+    if not isinstance(translations, list):
+        raise PipelineError("exerciseinfo.translations must be a list of objects")
+    for translation in translations:
         if not isinstance(translation.get("name"), str) or not translation["name"].strip():
             raise PipelineError("exercise translation name is missing")
         if not isinstance(translation.get("language"), int):
@@ -223,10 +221,10 @@ def collect_snapshot(
         raise PipelineError("timeout must be positive")
     if not 1 <= page_size <= 1000:
         raise PipelineError("page_size must be between 1 and 1000")
-    collected_at = now or datetime.now(timezone.utc)
+    collected_at = now or datetime.now(UTC)
     if collected_at.tzinfo is None:
         raise PipelineError("collection time must include timezone information")
-    collected_at = collected_at.astimezone(timezone.utc).replace(microsecond=0)
+    collected_at = collected_at.astimezone(UTC).replace(microsecond=0)
     snapshot_id = f"{collected_at.strftime('%Y%m%dT%H%M%SZ')}-wger-exercise-catalog"
     retrieved_at = collected_at.isoformat().replace("+00:00", "Z")
 
@@ -316,7 +314,7 @@ def collect_snapshot(
         raise
 
 
-def validate_snapshot(snapshot_dir: Path) -> dict[str, int | str]:
+def validate_snapshot(snapshot_dir: Path) -> dict[str, object]:
     snapshot_dir = snapshot_dir.resolve()
     manifest_path = snapshot_dir / "manifest.json"
     try:
@@ -384,9 +382,7 @@ def validate_snapshot(snapshot_dir: Path) -> dict[str, int | str]:
         if len(raw) != _integer(entry.get("bytes"), f"files[{entry_index}].bytes"):
             raise PipelineError(f"raw page size mismatch: {relative.as_posix()}")
         parsed = parse_page(raw)
-        expected_records = _integer(
-            entry.get("records"), f"files[{entry_index}].records"
-        )
+        expected_records = _integer(entry.get("records"), f"files[{entry_index}].records")
         if len(parsed.results) != expected_records:
             raise PipelineError(f"raw page record count mismatch: {relative.as_posix()}")
         if resource == "exerciseinfo":

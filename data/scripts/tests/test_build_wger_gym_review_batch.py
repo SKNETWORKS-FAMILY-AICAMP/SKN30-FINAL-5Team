@@ -6,17 +6,23 @@ import json
 import shutil
 import sys
 import unittest
+from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from types import ModuleType
 from urllib.parse import urlparse
 from uuid import uuid4
 
-
 SCRIPT_DIR = Path(__file__).resolve().parents[1]
 
+# 스크립트끼리 형제 모듈을 import하므로 로더가 경로를 알아야 한다. 이 줄이 없으면
+# 테스트 모듈이 먼저 로드한 순서에 우연히 의존하게 된다.
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
 
-def load_script(module_name: str, file_name: str):
+
+def load_script(module_name: str, file_name: str) -> ModuleType:
     if module_name in sys.modules:
         return sys.modules[module_name]
     spec = importlib.util.spec_from_file_location(module_name, SCRIPT_DIR / file_name)
@@ -29,13 +35,11 @@ def load_script(module_name: str, file_name: str):
 
 wger_pipeline = load_script("wger_exercise_pipeline", "wger_exercise_pipeline.py")
 wger_profile = load_script("profile_wger_exercises", "profile_wger_exercises.py")
-gym_batch = load_script(
-    "build_wger_gym_review_batch", "build_wger_gym_review_batch.py"
-)
+gym_batch = load_script("build_wger_gym_review_batch", "build_wger_gym_review_batch.py")
 
 
 @contextmanager
-def workspace_directory():
+def workspace_directory() -> Iterator[Path]:
     path = Path.cwd() / f"test-work-{uuid4().hex}"
     path.mkdir()
     try:
@@ -132,7 +136,7 @@ def make_profile(root: Path) -> Path:
     snapshot = wger_pipeline.collect_snapshot(
         output_root=root / "snapshots",
         fetcher=fake_fetcher,
-        now=datetime(2026, 8, 10, 10, 0, tzinfo=timezone.utc),
+        now=datetime(2026, 8, 10, 10, 0, tzinfo=UTC),
     )
     return wger_profile.create_profile(snapshot, root / "profiles")
 
@@ -190,9 +194,7 @@ class BuildWgerGymReviewBatchTests(unittest.TestCase):
             [row["primary_source_name_en"] for row in rows[:3]],
             list(gym_batch.USER_REQUESTED_SOURCE_NAME_SEEDS),
         )
-        self.assertTrue(
-            all(row["review_domain_safety_status"] == "PENDING" for row in rows)
-        )
+        self.assertTrue(all(row["review_domain_safety_status"] == "PENDING" for row in rows))
         self.assertTrue(all(row["review_display_name_ko"] == "" for row in rows))
         self.assertTrue(all(row["production_eligible"] is False for row in rows))
         self.assertEqual(summary["selected_batch_size"], 6)
@@ -208,9 +210,7 @@ class BuildWgerGymReviewBatchTests(unittest.TestCase):
             direct_candidate(4, "Seated Cable Row", "SEATED_OR_CABLE_ROW", ["Cable machine"]),
         ]
 
-        rows, summary = gym_batch.select_review_batch(
-            [incomplete, complete, *fillers], size=3
-        )
+        rows, summary = gym_batch.select_review_batch([incomplete, complete, *fillers], size=3)
 
         selected = next(
             row for row in rows if row["primary_source_name_en"] == "Incline Dumbbell Row"
@@ -222,9 +222,7 @@ class BuildWgerGymReviewBatchTests(unittest.TestCase):
     def test_builds_and_verifies_batch_from_wger_profile(self) -> None:
         with workspace_directory() as root:
             profile = make_profile(root)
-            batch = gym_batch.create_review_batch(
-                profile, root / "review_batches", size=6
-            )
+            batch = gym_batch.create_review_batch(profile, root / "review_batches", size=6)
 
             result = gym_batch.verify_review_batch(batch)
 
@@ -250,28 +248,20 @@ class BuildWgerGymReviewBatchTests(unittest.TestCase):
                 {row["reviewer_role_code"] for row in evidence_rows},
                 set(gym_batch.REVIEWER_ROLE_CODES),
             )
-            self.assertTrue(
-                all(row["review_status_code"] == "DRAFT" for row in evidence_rows)
-            )
+            self.assertTrue(all(row["review_status_code"] == "DRAFT" for row in evidence_rows))
 
     def test_verify_rejects_review_approval_inserted_into_generated_csv(self) -> None:
         with workspace_directory() as root:
             profile = make_profile(root)
-            batch = gym_batch.create_review_batch(
-                profile, root / "review_batches", size=6
-            )
+            batch = gym_batch.create_review_batch(profile, root / "review_batches", size=6)
             csv_path = batch / "gym_core_review_batch.csv"
-            csv_text = csv_path.read_text(encoding="utf-8-sig").replace(
-                "PENDING", "APPROVED", 1
-            )
+            csv_text = csv_path.read_text(encoding="utf-8-sig").replace("PENDING", "APPROVED", 1)
             csv_path.write_text(csv_text, encoding="utf-8-sig", newline="")
 
             manifest_path = batch / "review_manifest.json"
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             entry = next(
-                item
-                for item in manifest["files"]
-                if item["path"] == "gym_core_review_batch.csv"
+                item for item in manifest["files"] if item["path"] == "gym_core_review_batch.csv"
             )
             raw = csv_path.read_bytes()
             entry["sha256"] = gym_batch.sha256_bytes(raw)
