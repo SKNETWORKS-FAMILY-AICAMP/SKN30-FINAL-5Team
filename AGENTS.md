@@ -127,7 +127,7 @@ Data:
 
 The following rules must not be changed without development lead and PM approval:
 
-- The default user experience shows one recommended plan and one lighter alternative.
+- The default user experience shows one final recommended routine. A REST opt-out may be offered, but lighter and original routines are not public plan alternatives.
 - The system must support users without wearable devices.
 - Wearable data reduces input burden but is not mandatory.
 - A downshift preserves the user's requested duration and lowers load, intensity, sets, repetitions, exercise difficulty/type, or rest structure; the system must not shorten duration without explicit user input.
@@ -211,7 +211,7 @@ Agent or exercise-rule changes:
 
 Required golden scenarios:
 
-1. Healthy condition keeps the original routine.
+1. Healthy condition returns the original routine as the final recommendation.
 2. Limited time creates a goal-preserving downshift.
 3. Knee discomfort excludes knee-load movements while preserving an appropriate goal.
 4. Wearable data missing uses manual check-in fallback.

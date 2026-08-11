@@ -6,7 +6,7 @@
 
 실제 SQLAlchemy 모델과 Alembic 마이그레이션은 이 문서와 API 계약이 승인된 다음 작성한다.
 
-멀티 에이전트 로직은 설계 전 단계다. `agent_proposals`, 조정 결과, 공개 요약의 세부 JSON 구조와 버전 필드는 멀티 에이전트 로직 설계 후 확정하며, 현재 컬럼과 JSONB 예시는 잠정 계약으로 관리한다. 결정 재현에 필요한 입력·정책·카탈로그·그래프 버전과 안전 veto 기록은 현재 확정한다.
+멀티 에이전트 로직은 설계 전 단계다. `agent_proposals`, 조정 결과, 공개 요약의 세부 JSON 구조와 버전 필드는 멀티 에이전트 로직 설계 후 확정하며, 현재 컬럼과 JSONB 예시는 잠정 계약으로 관리한다. 외부 연동·무료 체험·개인정보 보유기간의 상위 경계는 `ACCEPTED` ADR-0003·0004와 POL-013을 따르며, 관련 컬럼은 실제 migration과 호환성 검토가 승인되기 전까지 논리 모델이다. 결정 재현에 필요한 입력·정책·카탈로그·그래프 버전과 안전 veto 기록은 현재 확정한다.
 
 ---
 
@@ -671,7 +671,7 @@ requested_duration_minutes는 사용자 입력에서만 가져오며 시스템�
 
 ### 9.6 decision_options
 
-운동 계획이 없는 REST와 STOP_AND_SEEK_HELP도 동일한 선택 모델에서 표현하기 위한 테이블이다.
+공개 가능한 최종 루틴과 사용자의 REST 선택을 같은 선택 모델에서 표현하기 위한 테이블이다. STOP_AND_SEEK_HELP는 사용자가 선택하는 option이 아니므로 decision run의 최종 action으로만 기록하고 이 테이블에 행을 만들지 않는다.
 
 | 컬럼 | 설명 |
 |---|---|
@@ -686,10 +686,11 @@ requested_duration_minutes는 사용자 입력에서만 가져오며 시스템�
 
 규칙:
 
-- REST와 STOP_AND_SEEK_HELP에는 plan_candidate_id가 없다.
-- 공개 옵션은 최종 루틴 하나 또는 REST 하나만 반환한다.
-- ORIGINAL과 안전 veto된 내부 후보는 비교·감사 기록에만 남기고 selectable=false 옵션으로 공개하지 않는다.
-- KEEP, DOWNSHIFT, CHANGE, RECOVERY 결정에는 사용자의 자발적 휴식을 위한 별도 REST option을 둘 수 있다.
+- REST option에는 plan_candidate_id가 없다. STOP_AND_SEEK_HELP는 decision_option 행을 만들지 않는다.
+- KEEP, DOWNSHIFT, CHANGE, RECOVERY 결정의 공개 운동 option은 `FINAL_ROUTINE` 정확히 하나다.
+- 위 결정에는 사용자의 자발적 휴식을 위한 별도 REST opt-out을 함께 둘 수 있다.
+- 서버 권고가 REST인 결정은 plan candidate 없이 REST option 하나만 둘 수 있다.
+- ORIGINAL과 안전 veto된 후보는 `plan_candidates`와 `safety_reviews`에만 남기며 `decision_options` 행을 만들거나 공개하지 않는다.
 
 ### 9.7 decision_selections
 
@@ -738,7 +739,7 @@ requested_duration_minutes는 사용자 입력에서만 가져오며 시스템�
 | estimated_calories_burned | 체중 기반 추정치, nullable |
 | idempotency_key | 세션 생성 중복 방지 |
 
-REST 또는 STOP_AND_SEEK_HELP 선택에는 workout_session을 만들지 않는다.
+REST selection 또는 STOP_AND_SEEK_HELP decision에는 workout_session을 만들지 않는다.
 
 ### 10.2 workout_session_items
 
