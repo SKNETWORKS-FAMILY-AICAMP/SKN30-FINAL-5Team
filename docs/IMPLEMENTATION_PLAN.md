@@ -25,13 +25,13 @@ flowchart LR
   C --> API["API 스키마·mock"]
   CAT --> RULE["SafetyRuleEngine·시간 계산"]
   RULE --> CAND["CandidateBuilder"]
-  CAND --> AG["4개 전문 에이전트"]
-  AG --> COORD["Coordinator·FinalSafetyGate"]
+  CAND --> AG["Training·Recovery·Safety proposal"]
+  AG --> COORD["Coordinator(의장)·FinalSafetyGate"]
   DB --> FLOW["온보딩→세션 수직 슬라이스"]
   API --> FLOW
   COORD --> FLOW
   FLOW --> WEEK["주간 리포트·다음 계획 게이트"]
-  WEEK --> OPT["선택적 LLM·소셜/웨어러블 확장"]
+  WEEK --> OPT["MVP 외부 어댑터·선택적 LLM/소셜 확장"]
 ```
 
 ## 4. 단계별 계획
@@ -61,7 +61,7 @@ flowchart LR
 - 시간 계산기
 - SafetyPrecheck와 FinalSafetyGate
 - FITT CandidateBuilder
-- 4개 전문 agent proposal
+- Training·Recovery·Safety proposal
 - 결정적 Coordinator
 - 재현 기록 저장
 
@@ -69,12 +69,12 @@ flowchart LR
 
 범위:
 
-1. 테스트 로그인과 성인 확인
+1. 테스트 로그인과 만 14세 이상 이용 자격 확인
 2. 홈·맨몸·상체 목표 온보딩
 3. 검수된 40분 기본 루틴
 4. 피로 MODERATE, 통증 없음, 희망 시간 40분 확인
-5. 네 proposal과 동일한 40분 목표의 primary/lighter 강도안
-6. primary 선택, 상단 0초 경과 타이머 시작
+5. 세 proposal과 Coordinator가 선택한 요청 시간 40분의 최종 루틴
+6. 최종 루틴 선택, 상단 0초 경과 타이머 시작
 7. 중앙 마스코트와 하단 순서형 운동 블록 표시
 8. 운동 블록별 사용자 완료 체크와 다음 블록 이동
 9. 모든 블록 체크로 `COMPLETED` 저장과 피드백
@@ -82,7 +82,7 @@ flowchart LR
 완료 기준:
 
 - React Native → FastAPI → PostgreSQL 실제 연결
-- LLM과 웨어러블 없이 실행
+- LLM 없이 실행하고, 웨어러블 미연동·권한 거부 시 수동 입력으로 실행
 - 동일 입력·버전에서 동일 결정
 - 준비·휴식·전환·마무리를 포함한 권장 예상 시간 제공
 - 사용자 동의 없이 requested duration을 축소하지 않음
@@ -106,12 +106,15 @@ flowchart LR
 - AI 수정 최대 2회와 이후 직접 편집
 - 직접 편집 결과 최종 안전 재검증
 
-### 단계 6 — 안정화와 선택 기능
+### 단계 6 — MVP 외부 연동·안정화와 후속 기능 분리
 
-- Google/Kakao/Naver 실제 provider 통합
+- MVP 필수 Google/Kakao/Naver provider의 실제 앱 설정·통합 검증
 - 선택적 LLM 설명과 템플릿 폴백
 - 성능·보안·삭제 리허설
-- 핵심 MVP 승인 후 한 플랫폼 웨어러블 검토
+- MVP에서 선택한 웨어러블·캘린더 어댑터 통합 검증
+- 체중 기반 예상 소모 칼로리 추정치와 비의료적 안내 검증
+- 멀티 에이전트 로직 설계 완료 후 proposal·coordinator·회의 UI 계약 확정 및 회귀 테스트 갱신
+- MVP에서 선택한 provider 외 추가 웨어러블·캘린더 provider는 후속 기능으로 분리
 
 ## 5. 병렬 작업 스트림
 
@@ -143,7 +146,7 @@ flowchart LR
 ## 7. 선택하지 않은 구현 순서
 
 - 모든 DB 테이블을 먼저 완성: 사용 흐름 검증이 늦고 과설계 위험이 크다.
-- LLM/웨어러블 우선: 핵심 결정적 흐름의 결함을 가린다.
+- 외부 어댑터·LLM 우선: 핵심 결정적 흐름의 결함을 가린다.
 - 프론트와 백엔드를 계약 없이 독립 구현: 통합 비용이 커진다.
 
 ## 8. 아직 확정되지 않은 사항
