@@ -9,6 +9,7 @@
 | `exercise-catalog-seed-wger-mvp-v0.2.0` | wger 카탈로그 | 27 |
 | `exercise-catalog-seed-kspo-mvp-v0.2.0` | KSPO 카탈로그 | 23 |
 | `exercise-safety-rules-mvp-v0.2.0` | 부위별 제외·주의 규칙 | 277 |
+| `exercise-alternatives-mvp-v0.1.0` | 방향성 운동 대체 관계 | 224 |
 
 이전 tranche 1 v0.1.0 산출물은 재현·비교를 위해 보존한다. 최신 카탈로그 매니페스트는
 리뷰 배치, 매핑, 증적, 속성, taxonomy 입력 해시를 기록한다. 안전 규칙 매니페스트는
@@ -27,4 +28,6 @@ python data/scripts/build_exercise_catalog_seed.py verify `
   data/generated/exercise-catalog-seed-kspo-mvp-v0.2.0
 python data/scripts/build_exercise_safety_rules.py verify `
   data/generated/exercise-safety-rules-mvp-v0.2.0
+python data/scripts/build_exercise_alternatives.py verify `
+  data/generated/exercise-alternatives-mvp-v0.1.0
 ```
