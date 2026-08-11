@@ -1,0 +1,244 @@
+{
+  "schema_version": "1.0",
+  "reference_version": "0.1.0",
+  "reference_type": "ADULT_COMPENDIUM_MVP_RELEVANT_SUBSET",
+  "status": "DRAFT",
+  "review_method_code": "AGENT_ONLY",
+  "production_eligible": false,
+  "population_code": "GENERAL_ADULT",
+  "interpretation_guards": [
+    "PUBLIC_HEALTH_REFERENCE_IS_NOT_INDIVIDUAL_PRESCRIPTION",
+    "REFERENCE_MUST_NOT_OVERRIDE_SAFETY_VETO",
+    "SCHEMA_TARGET_UNRESOLVED",
+    "NO_AUTOMATIC_EXERCISE_MET_MAPPING",
+    "NO_DIAGNOSIS_TREATMENT_OR_REHABILITATION_INFERENCE"
+  ],
+  "coverage_code": "MVP_RELEVANT_REFERENCE_SUBSET_NOT_FULL_COMPENDIUM",
+  "met_value_policy": "PRESERVE_OFFICIAL_VALUE_EXACTLY",
+  "source_ids": [
+    "ADULT_COMPENDIUM_PDF_2024",
+    "CDC_PA_INTENSITY_2025"
+  ],
+  "activities": [
+    {
+      "activity_code": "02020",
+      "major_heading": "Conditioning Exercise",
+      "activity_description": "Calisthenics (e.g., pushups, sit ups, pull-ups, jumping jacks, burpees, battling ropes), vigorous effort",
+      "met_value": 7.5,
+      "absolute_intensity_reference_code": "VIGOROUS_MET",
+      "source_id": "ADULT_COMPENDIUM_PDF_2024",
+      "source_locator": "PDF page 2",
+      "review_status": "DRAFT",
+      "production_eligible": false
+    },
+    {
+      "activity_code": "02022",
+      "major_heading": "Conditioning Exercise",
+      "activity_description": "Calisthenics (e.g., pushups, sit ups, pull-ups, lunges), moderate effort",
+      "met_value": 3.8,
+      "absolute_intensity_reference_code": "MODERATE_MET",
+      "source_id": "ADULT_COMPENDIUM_PDF_2024",
+      "source_locator": "PDF page 2",
+      "review_status": "DRAFT",
+      "production_eligible": false
+    },
+    {
+      "activity_code": "02024",
+      "major_heading": "Conditioning Exercise",
+      "activity_description": "Calisthenics (e.g., curl ups, abdominal crunches, plank), light effort",
+      "met_value": 2.8,
+      "absolute_intensity_reference_code": "BELOW_MODERATE_MET",
+      "source_id": "ADULT_COMPENDIUM_PDF_2024",
+      "source_locator": "PDF page 2",
+      "review_status": "DRAFT",
+      "production_eligible": false
+    },
+    {
+      "activity_code": "02052",
+      "major_heading": "Conditioning Exercise",
+      "activity_description": "Resistance (weight) training, squats, deadlift, slow or explosive effort",
+      "met_value": 5.0,
+      "absolute_intensity_reference_code": "MODERATE_MET",
+      "source_id": "ADULT_COMPENDIUM_PDF_2024",
+      "source_locator": "PDF page 2",
+      "review_status": "DRAFT",
+      "production_eligible": false
+    },
+    {
+      "activity_code": "02054",
+      "major_heading": "Conditioning Exercise",
+      "activity_description": "Resistance (weight) training, multiple exercises, 8-15 reps at varied resistance",
+      "met_value": 3.5,
+      "absolute_intensity_reference_code": "MODERATE_MET",
+      "source_id": "ADULT_COMPENDIUM_PDF_2024",
+      "source_locator": "PDF page 2",
+      "review_status": "DRAFT",
+      "production_eligible": false
+    },
+    {
+      "activity_code": "02056",
+      "major_heading": "Conditioning Exercise",
+      "activity_description": "Body weight resistance exercises (e.g., squat, lunge, push-up, crunch), general",
+      "met_value": 3.0,
+      "absolute_intensity_reference_code": "MODERATE_MET",
+      "source_id": "ADULT_COMPENDIUM_PDF_2024",
+      "source_locator": "PDF page 2",
+      "review_status": "DRAFT",
+      "production_eligible": false
+    },
+    {
+      "activity_code": "02057",
+      "major_heading": "Conditioning Exercise",
+      "activity_description": "Body weight resistance exercises (e.g., squat, lunge, push-up, crunch), high intensity",
+      "met_value": 6.5,
+      "absolute_intensity_reference_code": "VIGOROUS_MET",
+      "source_id": "ADULT_COMPENDIUM_PDF_2024",
+      "source_locator": "PDF page 2",
+      "review_status": "DRAFT",
+      "production_eligible": false
+    },
+    {
+      "activity_code": "02058",
+      "major_heading": "Conditioning Exercise",
+      "activity_description": "Kettle bell swings",
+      "met_value": 9.8,
+      "absolute_intensity_reference_code": "VIGOROUS_MET",
+      "source_id": "ADULT_COMPENDIUM_PDF_2024",
+      "source_locator": "PDF page 2",
+      "review_status": "DRAFT",
+      "production_eligible": false
+    },
+    {
+      "activity_code": "02064",
+      "major_heading": "Conditioning Exercise",
+      "activity_description": "Home exercise, general",
+      "met_value": 3.8,
+      "absolute_intensity_reference_code": "MODERATE_MET",
+      "source_id": "ADULT_COMPENDIUM_PDF_2024",
+      "source_locator": "PDF page 2",
+      "review_status": "DRAFT",
+      "production_eligible": false
+    },
+    {
+      "activity_code": "02101",
+      "major_heading": "Conditioning Exercise",
+      "activity_description": "Stretching, mild",
+      "met_value": 2.3,
+      "absolute_intensity_reference_code": "BELOW_MODERATE_MET",
+      "source_id": "ADULT_COMPENDIUM_PDF_2024",
+      "source_locator": "PDF page 3",
+      "review_status": "DRAFT",
+      "production_eligible": false
+    },
+    {
+      "activity_code": "02112",
+      "major_heading": "Conditioning Exercise",
+      "activity_description": "Therapeutic exercise ball, Fitball exercise",
+      "met_value": 2.8,
+      "absolute_intensity_reference_code": "BELOW_MODERATE_MET",
+      "source_id": "ADULT_COMPENDIUM_PDF_2024",
+      "source_locator": "PDF page 3",
+      "review_status": "DRAFT",
+      "production_eligible": false
+    },
+    {
+      "activity_code": "02340",
+      "major_heading": "Conditioning Exercise",
+      "activity_description": "Sit to stand exercise, 6-12 times/min",
+      "met_value": 2.8,
+      "absolute_intensity_reference_code": "BELOW_MODERATE_MET",
+      "source_id": "ADULT_COMPENDIUM_PDF_2024",
+      "source_locator": "PDF page 4",
+      "review_status": "DRAFT",
+      "production_eligible": false
+    },
+    {
+      "activity_code": "02344",
+      "major_heading": "Conditioning Exercise",
+      "activity_description": "Sit to stand exercise, 18-24 times/min",
+      "met_value": 4.0,
+      "absolute_intensity_reference_code": "MODERATE_MET",
+      "source_id": "ADULT_COMPENDIUM_PDF_2024",
+      "source_locator": "PDF page 4",
+      "review_status": "DRAFT",
+      "production_eligible": false
+    },
+    {
+      "activity_code": "17170",
+      "major_heading": "Walking",
+      "activity_description": "Walking, 2.5 mph, firm, level surface",
+      "met_value": 3.0,
+      "absolute_intensity_reference_code": "MODERATE_MET",
+      "source_id": "ADULT_COMPENDIUM_PDF_2024",
+      "source_locator": "PDF page 22",
+      "review_status": "DRAFT",
+      "production_eligible": false
+    },
+    {
+      "activity_code": "17190",
+      "major_heading": "Walking",
+      "activity_description": "Walking, 2.8 to 3.4 mph, level, moderate pace, firm surface",
+      "met_value": 3.8,
+      "absolute_intensity_reference_code": "MODERATE_MET",
+      "source_id": "ADULT_COMPENDIUM_PDF_2024",
+      "source_locator": "PDF page 22",
+      "review_status": "DRAFT",
+      "production_eligible": false
+    },
+    {
+      "activity_code": "17200",
+      "major_heading": "Walking",
+      "activity_description": "Walking, 3.5 to 3.9 mph, level, brisk, firm surface, walking for exercise",
+      "met_value": 4.8,
+      "absolute_intensity_reference_code": "MODERATE_MET",
+      "source_id": "ADULT_COMPENDIUM_PDF_2024",
+      "source_locator": "PDF page 22",
+      "review_status": "DRAFT",
+      "production_eligible": false
+    },
+    {
+      "activity_code": "17349",
+      "major_heading": "Walking",
+      "activity_description": "Walking, treadmill, 2.0 to 2.4 mph (3.2 to 3.9 km/h), 0% grade",
+      "met_value": 3.0,
+      "absolute_intensity_reference_code": "MODERATE_MET",
+      "source_id": "ADULT_COMPENDIUM_PDF_2024",
+      "source_locator": "PDF page 23",
+      "review_status": "DRAFT",
+      "production_eligible": false
+    },
+    {
+      "activity_code": "17352",
+      "major_heading": "Walking",
+      "activity_description": "Walking, treadmill, 2.5 to 2.9 mph (4.0 to 4.7 km/h), 0% grade",
+      "met_value": 3.5,
+      "absolute_intensity_reference_code": "MODERATE_MET",
+      "source_id": "ADULT_COMPENDIUM_PDF_2024",
+      "source_locator": "PDF page 23",
+      "review_status": "DRAFT",
+      "production_eligible": false
+    },
+    {
+      "activity_code": "17355",
+      "major_heading": "Walking",
+      "activity_description": "Walking, treadmill, 3.0 to 3.4 mph (4.8 to 5.5 km/h), 0% grade",
+      "met_value": 3.8,
+      "absolute_intensity_reference_code": "MODERATE_MET",
+      "source_id": "ADULT_COMPENDIUM_PDF_2024",
+      "source_locator": "PDF page 23",
+      "review_status": "DRAFT",
+      "production_eligible": false
+    },
+    {
+      "activity_code": "17358",
+      "major_heading": "Walking",
+      "activity_description": "Walking, treadmill, 3.5 to 3.9 mph (5.6 to 6.3 km/h), 0% grade",
+      "met_value": 4.8,
+      "absolute_intensity_reference_code": "MODERATE_MET",
+      "source_id": "ADULT_COMPENDIUM_PDF_2024",
+      "source_locator": "PDF page 23",
+      "review_status": "DRAFT",
+      "production_eligible": false
+    }
+  ]
+}

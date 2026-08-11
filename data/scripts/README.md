@@ -277,3 +277,25 @@ wger snapshot에는 한국어 번역이 0건이므로 모든 한국어 명칭은
 macOS에서 입력한 NFD 한글은 NFC로 정규화해 비교한다.
 
 상세 근거는 [REVIEW_RESULTS_GATE.md](../validation/REVIEW_RESULTS_GATE.md)를 따른다.
+
+## 공식 신체활동 근거와 참조 데이터
+
+공식 URL의 응답 해시와 최소 원천 사실을 수집한다. 원문 HTML·PDF는 저장소에 보존하지
+않으며, 일반 HTTP 클라이언트가 차단된 CDC 페이지는 브라우저로 확인한 구조화 사실의
+해시임을 별도로 표시한다.
+
+```powershell
+python data/scripts/collect_physical_activity_guidelines.py collect `
+  --retrieved-at "<ISO-8601 timezone timestamp>"
+python data/scripts/collect_physical_activity_guidelines.py verify
+```
+
+검증된 원천에서 일반 성인 주간 FITT, 절대·상대 강도, Compendium 관련 활동 참조를 만든다.
+
+```powershell
+python data/scripts/build_physical_activity_reference.py build
+python data/scripts/build_physical_activity_reference.py verify
+```
+
+결과는 `DRAFT`, `AGENT_ONLY`, `production_eligible=false`다. MET 값은 변경하지 않고,
+운동 카탈로그와 자동 연결하지 않으며, 개인 처방이나 안전 veto 대체에 사용할 수 없다.
