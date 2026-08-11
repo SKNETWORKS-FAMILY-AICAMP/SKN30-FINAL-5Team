@@ -78,6 +78,7 @@ ATTRIBUTE_FIELDS = [
     "instruction_summary_ko",
     "form_cues_ko",
     "instruction_content_version",
+    "draft_source",
     "attribute_status",
 ]
 
@@ -99,6 +100,9 @@ PENDING_ATTRIBUTE_VALUES = {
     "instruction_summary_ko": "",
     "form_cues_ko": "",
     "instruction_content_version": "",
+    # 기계가 채운 값을 검토자가 구분할 수 있어야 한다. 빈 값은 사람이 처음부터 작성한
+    # 행이라는 뜻이며, 이 열은 승인 여부를 대신하지 않는다.
+    "draft_source": "",
     "attribute_status": "PENDING",
 }
 
