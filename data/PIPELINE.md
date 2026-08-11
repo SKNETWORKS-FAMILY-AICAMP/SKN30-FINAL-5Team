@@ -1,5 +1,17 @@
 # External exercise data pipeline
 
+## 2026-08-11 MVP v0.2 현황
+
+- KSPO 50개와 wger 60개 리뷰 후보를 모두 결정했다: 포함 50, 제외 60, 미결 0.
+- 최신 생성물은 `generated/*-mvp-v0.2.0`이며 카탈로그 50개와 안전 규칙 277개다.
+- 검토 방법은 `AGENT_ONLY`이고 외부 전문가 승인으로 해석하지 않는다.
+- 모든 결과는 `production_eligible=false`인 DRAFT다.
+- 현재 MVP 수집은 마감하고 대체 관계·golden scenario 검증을 우선한다.
+- 추가 수집은 안전 필터 후 선택 후보 부족, 위치·장비·패턴 결손, 대체 운동 부족이
+  실제 테스트로 확인될 때만 재개한다.
+- 상세 수집 현황은 `reports/DATA_COLLECTION_REPORT.md`, 전처리·분포·검증은
+  `reports/DATA_PREPROCESSING_REPORT.md`를 참조한다.
+
 ## 1차 수동 검토 배치
 
 profile의 `MVP_SCOPE_REVIEW` 후보는 곧바로 정규화하거나 승인하지 않습니다. 먼저

@@ -1,13 +1,18 @@
 # Data
 
-- `raw/`: 변경하지 않는 출처 원본 또는 출처 manifest
-- `normalized/`: 애플리케이션 중립 정규화 결과
-- `generated/`: 승인 seed 등 코드베이스 소비 산출물
-- `scripts/`: 수집·정규화·검증 스크립트
-- `validation/`: schema, 품질 보고서, 승인 증적
+- `raw/`: 변경하지 않는 원천 JSON 스냅샷과 출처 매니페스트
+- `validation/profiles/`: 원천 품질·커버리지 프로파일
+- `validation/review_batches/`: 검토 대상 배치와 빈 증적 템플릿
+- `validation/review_results/`: 포함·제외 결정, 역할별 증적, 정규화 속성
+- `normalized/`: taxonomy, 안전 정책, 에이전트 검토 정책·계획
+- `generated/`: 검증된 DRAFT 카탈로그 시드와 안전 규칙
+- `reports/`: 수집 데이터 보고서와 전처리 보고서
+- `scripts/`: 수집·프로파일·검토·생성·검증 자동화
 
-첫 수집 파이프라인의 범위와 승격 게이트는 [PIPELINE.md](PIPELINE.md)를 따릅니다.
-현재 구현은 국민체력100 OpenAPI와 wger 공개 exercise catalog의 원문 JSON 수집,
-무결성 재검증 및 검토용 profile 생성을 지원합니다. wger는 헬스장 기구·프리웨이트
-종목의 보강 후보로만 사용합니다. 정규화, 안전 규칙 작성, 한국어 현지화 및 DB seed
-생성은 별도 검토 작업입니다.
+2026-08-11 현재 KSPO 50개와 wger 60개 리뷰 후보의 결정을 모두 완료했다. 포함
+50개, 제외 60개, 미결 0개이며 카탈로그와 안전 규칙은 모두
+`review_method_code=AGENT_ONLY`, `production_eligible=false`인 DRAFT다.
+
+세부 현황과 추가 수집 재개 조건은 [수집 데이터 보고서](reports/DATA_COLLECTION_REPORT.md),
+정규화·분포·검증 결과는 [데이터 전처리 보고서](reports/DATA_PREPROCESSING_REPORT.md)를
+참조한다. 파이프라인 경계는 [PIPELINE.md](PIPELINE.md)에 정의돼 있다.
