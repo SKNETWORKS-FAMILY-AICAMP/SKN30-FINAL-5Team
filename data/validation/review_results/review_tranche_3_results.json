@@ -1,0 +1,711 @@
+{
+  "schema_version": "1.0",
+  "result_version": "tranche3-v0.1.0",
+  "status": "AGENT_REVIEWED_DRAFT",
+  "review_method_code": "AGENT_ONLY",
+  "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
+  "production_eligible": false,
+  "reviewed_at": "2026-08-11T19:30:00+09:00",
+  "inputs": {
+    "queue_path": "data/normalized/review_tranche_3_candidates.json",
+    "queue_sha256": "82ceb7dfe8afdca55ba1dc5d1b632b493f8445753c2e88caa4ccdfe9ef70ce08",
+    "plan_path": "data/normalized/review_tranche_3.agent.json",
+    "plan_sha256": "6e006eccfa9c04cd6d2dd5613ec43037ba7d49ce5224e83c629cda567c05ece4",
+    "policy_path": "data/normalized/agent_review_policy.json",
+    "policy_sha256": "7a2d41c5cbdb982bea5a84680bb8d2a1327500aca355d2b45c994c3a61b897f6",
+    "taxonomy_sha256": "89e61bba1baf1ccedca94adcb88127f32f529a1b46162ee8392f2cd2ef1372c7"
+  },
+  "summary": {
+    "candidate_count": 11,
+    "included": 6,
+    "excluded": 5,
+    "track_included": {
+      "kspo": 3,
+      "wger": 3
+    }
+  },
+  "records": [
+    {
+      "queue_position": 1,
+      "track": "kspo",
+      "source_identity": "ee82ac56c7d744489bff26d9d39a5f029173475135db8a167dacc92454b82dc6",
+      "source_name": "네발기기 자세에서 손바닥으로 바닥밀기",
+      "review_decision": "INCLUDE",
+      "review_status": "DOMAIN_APPROVED",
+      "review_method_code": "AGENT_ONLY",
+      "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
+      "production_eligible": false,
+      "evidence": [
+        {
+          "reviewer_role_code": "DATA_OWNER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-DATA-OWNER-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "BACKEND_REVIEWER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-BACKEND-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "PM_REVIEWER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-PM-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "DOMAIN_REVIEWER",
+          "review_status_code": "DOMAIN_APPROVED",
+          "reviewer_reference": "AGENT-CODEX-DOMAIN-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        }
+      ],
+      "attributes": {
+        "queue_position": 1,
+        "stable_code": "quadruped_scapular_press",
+        "name_ko": "네발기기 손바닥 바닥 밀기",
+        "training_type_code": "STRENGTH",
+        "body_focus_code": "UPPER_BODY",
+        "movement_pattern_code": "HORIZONTAL_PUSH",
+        "difficulty_code": "BEGINNER",
+        "beginner_suitability": "YES",
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": 3,
+        "default_rest_seconds": 30,
+        "recovery_eligible": true,
+        "primary_body_area_codes": [
+          "SHOULDER",
+          "CHEST"
+        ],
+        "secondary_body_area_codes": [
+          "ELBOW",
+          "WRIST_HAND",
+          "UPPER_BACK"
+        ],
+        "equipment_codes": [
+          "MAT"
+        ],
+        "location_codes": [
+          "HOME"
+        ],
+        "instruction_summary_ko": "매트에서 네발기기 자세를 만든 뒤 팔꿈치를 편 상태로 손바닥을 눌러 등 위쪽을 밀어 올렸다가 천천히 돌아옵니다.",
+        "form_cues_ko": [
+          "손목을 어깨 아래에 둡니다",
+          "팔꿈치를 잠그듯 세게 펴지 않습니다",
+          "허리가 꺾이지 않도록 몸통을 유지합니다",
+          "어깨가 귀 쪽으로 올라가지 않게 합니다"
+        ]
+      }
+    },
+    {
+      "queue_position": 2,
+      "track": "kspo",
+      "source_identity": "0643bf2548537c1284fe95e5e0b40af45e72c225e6ea50c44852222b9bf53a29",
+      "source_name": "당겨내리기",
+      "review_decision": "INCLUDE",
+      "review_status": "DOMAIN_APPROVED",
+      "review_method_code": "AGENT_ONLY",
+      "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
+      "production_eligible": false,
+      "evidence": [
+        {
+          "reviewer_role_code": "DATA_OWNER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-DATA-OWNER-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "BACKEND_REVIEWER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-BACKEND-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "PM_REVIEWER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-PM-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "DOMAIN_REVIEWER",
+          "review_status_code": "DOMAIN_APPROVED",
+          "reviewer_reference": "AGENT-CODEX-DOMAIN-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        }
+      ],
+      "attributes": {
+        "queue_position": 2,
+        "stable_code": "standing_band_pulldown",
+        "name_ko": "서서 밴드 아래로 당기기",
+        "training_type_code": "STRENGTH",
+        "body_focus_code": "UPPER_BODY",
+        "movement_pattern_code": "VERTICAL_PULL",
+        "difficulty_code": "BEGINNER",
+        "beginner_suitability": "YES",
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": 3,
+        "default_rest_seconds": 45,
+        "recovery_eligible": false,
+        "primary_body_area_codes": [
+          "SHOULDER",
+          "UPPER_BACK"
+        ],
+        "secondary_body_area_codes": [
+          "ELBOW",
+          "WRIST_HAND"
+        ],
+        "equipment_codes": [
+          "RESISTANCE_BAND"
+        ],
+        "location_codes": [
+          "HOME"
+        ],
+        "instruction_summary_ko": "머리 위쪽에 안전하게 고정한 밴드를 양손으로 잡고 팔꿈치를 몸통 옆으로 내리며 당긴 뒤 천천히 시작 자세로 돌아갑니다.",
+        "form_cues_ko": [
+          "밴드 고정 상태를 먼저 확인합니다",
+          "가슴을 과하게 내밀지 않습니다",
+          "팔꿈치를 아래쪽으로 당깁니다",
+          "밴드가 빠르게 되돌아가지 않게 제어합니다"
+        ]
+      }
+    },
+    {
+      "queue_position": 3,
+      "track": "kspo",
+      "source_identity": "2b59da9534638a2c0b8af314e4377b96f1bbcbb217485628e5fefa19f48b31d6",
+      "source_name": "벽에서 팔 굽혀 펴기",
+      "review_decision": "EXCLUDE",
+      "review_status": "DOMAIN_APPROVED",
+      "review_method_code": "AGENT_ONLY",
+      "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
+      "production_eligible": false,
+      "evidence": [
+        {
+          "reviewer_role_code": "DATA_OWNER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-DATA-OWNER-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "BACKEND_REVIEWER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-BACKEND-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "PM_REVIEWER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-PM-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "DOMAIN_REVIEWER",
+          "review_status_code": "DOMAIN_APPROVED",
+          "reviewer_reference": "AGENT-CODEX-DOMAIN-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        }
+      ],
+      "exclusion": {
+        "reason_code": "SOURCE_EQUIPMENT_CONFLICT",
+        "reason_ko": "운동명은 벽 푸시업이지만 원천 도구가 밴드로 기록되어 장비 안내를 신뢰성 있게 확정할 수 없습니다."
+      }
+    },
+    {
+      "queue_position": 4,
+      "track": "kspo",
+      "source_identity": "85322f21d3e5676af548cad0795f2dded36ead619c91bd0a11dce4c1992f415c",
+      "source_name": "빠르게 걷기",
+      "review_decision": "EXCLUDE",
+      "review_status": "DOMAIN_APPROVED",
+      "review_method_code": "AGENT_ONLY",
+      "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
+      "production_eligible": false,
+      "evidence": [
+        {
+          "reviewer_role_code": "DATA_OWNER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-DATA-OWNER-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "BACKEND_REVIEWER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-BACKEND-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "PM_REVIEWER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-PM-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "DOMAIN_REVIEWER",
+          "review_status_code": "DOMAIN_APPROVED",
+          "reviewer_reference": "AGENT-CODEX-DOMAIN-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        }
+      ],
+      "exclusion": {
+        "reason_code": "REDUNDANT_GAIT_VARIATION",
+        "reason_ko": "기존 실외 걷기와 목표·장소가 겹치며 강도는 루틴 항목에서 조절할 수 있어 별도 운동으로 추가하지 않습니다."
+      }
+    },
+    {
+      "queue_position": 5,
+      "track": "kspo",
+      "source_identity": "c367af763a34ce423ccf17918b57be734dee9877a4125c363287465f54ad246d",
+      "source_name": "손목 펴기/굽히기",
+      "review_decision": "EXCLUDE",
+      "review_status": "DOMAIN_APPROVED",
+      "review_method_code": "AGENT_ONLY",
+      "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
+      "production_eligible": false,
+      "evidence": [
+        {
+          "reviewer_role_code": "DATA_OWNER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-DATA-OWNER-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "BACKEND_REVIEWER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-BACKEND-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "PM_REVIEWER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-PM-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "DOMAIN_REVIEWER",
+          "review_status_code": "DOMAIN_APPROVED",
+          "reviewer_reference": "AGENT-CODEX-DOMAIN-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        }
+      ],
+      "exclusion": {
+        "reason_code": "ALTERNATIVE_COVERAGE_GAP",
+        "reason_ko": "현재 카탈로그에 같은 손목 강화 목표의 보수적 대체 후보가 없어 이번 증분에서는 포함하지 않습니다."
+      }
+    },
+    {
+      "queue_position": 6,
+      "track": "kspo",
+      "source_identity": "493b5c9d6b2de695a0e3837068cb225115055de52a94aa779af7ee9728d2cbc4",
+      "source_name": "의자에 앉아 등 굽혔다 펴기",
+      "review_decision": "INCLUDE",
+      "review_status": "DOMAIN_APPROVED",
+      "review_method_code": "AGENT_ONLY",
+      "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
+      "production_eligible": false,
+      "evidence": [
+        {
+          "reviewer_role_code": "DATA_OWNER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-DATA-OWNER-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "BACKEND_REVIEWER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-BACKEND-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "PM_REVIEWER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-PM-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "DOMAIN_REVIEWER",
+          "review_status_code": "DOMAIN_APPROVED",
+          "reviewer_reference": "AGENT-CODEX-DOMAIN-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        }
+      ],
+      "attributes": {
+        "queue_position": 6,
+        "stable_code": "seated_spinal_flexion_extension",
+        "name_ko": "의자에 앉아 등 굽혔다 펴기",
+        "training_type_code": "MOBILITY",
+        "body_focus_code": "CORE",
+        "movement_pattern_code": "MOBILITY_STRETCH",
+        "difficulty_code": "BEGINNER",
+        "beginner_suitability": "YES",
+        "timing_mode_code": "DURATION",
+        "default_work_seconds": 30,
+        "default_rest_seconds": 20,
+        "recovery_eligible": true,
+        "primary_body_area_codes": [
+          "UPPER_BACK",
+          "LOWER_BACK"
+        ],
+        "secondary_body_area_codes": [
+          "NECK",
+          "HIP"
+        ],
+        "equipment_codes": [
+          "CHAIR"
+        ],
+        "location_codes": [
+          "HOME"
+        ],
+        "instruction_summary_ko": "의자 앞쪽에 안정적으로 앉아 등을 편안하게 둥글게 만들었다가 가슴을 가볍게 열며 중립 자세로 돌아옵니다.",
+        "form_cues_ko": [
+          "양발을 바닥에 안정적으로 둡니다",
+          "반동 없이 작은 범위에서 움직입니다",
+          "목을 과하게 젖히지 않습니다",
+          "불편하지 않은 범위까지만 움직입니다"
+        ]
+      }
+    },
+    {
+      "queue_position": 7,
+      "track": "kspo",
+      "source_identity": "d5fc8a3a8a6c8afa72061580a6035306fdefd630354abbc8a058081e38879fb8",
+      "source_name": "다이나믹 스트레칭",
+      "review_decision": "EXCLUDE",
+      "review_status": "DOMAIN_APPROVED",
+      "review_method_code": "AGENT_ONLY",
+      "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
+      "production_eligible": false,
+      "evidence": [
+        {
+          "reviewer_role_code": "DATA_OWNER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-DATA-OWNER-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "BACKEND_REVIEWER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-BACKEND-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "PM_REVIEWER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-PM-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "DOMAIN_REVIEWER",
+          "review_status_code": "DOMAIN_APPROVED",
+          "reviewer_reference": "AGENT-CODEX-DOMAIN-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        }
+      ],
+      "exclusion": {
+        "reason_code": "SOURCE_MOVEMENT_AMBIGUOUS",
+        "reason_ko": "다이나믹 스트레칭이라는 원천명만으로 구체 동작과 부하 부위를 일관되게 확정할 수 없습니다."
+      }
+    },
+    {
+      "queue_position": 8,
+      "track": "wger",
+      "source_identity": 1127,
+      "source_name": "Close-grip supinated lat pulldown",
+      "review_decision": "EXCLUDE",
+      "review_status": "DOMAIN_APPROVED",
+      "review_method_code": "AGENT_ONLY",
+      "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
+      "production_eligible": false,
+      "evidence": [
+        {
+          "reviewer_role_code": "DATA_OWNER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-DATA-OWNER-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "BACKEND_REVIEWER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-BACKEND-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "PM_REVIEWER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-PM-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "DOMAIN_REVIEWER",
+          "review_status_code": "DOMAIN_APPROVED",
+          "reviewer_reference": "AGENT-CODEX-DOMAIN-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        }
+      ],
+      "exclusion": {
+        "reason_code": "REDUNDANT_GRIP_VARIATION",
+        "reason_ko": "기존 뉴트럴 그립 랫풀다운과 같은 목표의 세부 그립 변형이므로 MVP 카탈로그에서는 제외합니다."
+      }
+    },
+    {
+      "queue_position": 9,
+      "track": "wger",
+      "source_identity": 567,
+      "source_name": "Shoulder Press, Dumbbells",
+      "review_decision": "INCLUDE",
+      "review_status": "DOMAIN_APPROVED",
+      "review_method_code": "AGENT_ONLY",
+      "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
+      "production_eligible": false,
+      "evidence": [
+        {
+          "reviewer_role_code": "DATA_OWNER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-DATA-OWNER-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "BACKEND_REVIEWER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-BACKEND-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "PM_REVIEWER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-PM-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "DOMAIN_REVIEWER",
+          "review_status_code": "DOMAIN_APPROVED",
+          "reviewer_reference": "AGENT-CODEX-DOMAIN-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        }
+      ],
+      "attributes": {
+        "queue_position": 9,
+        "stable_code": "dumbbell_shoulder_press",
+        "name_ko": "덤벨 숄더 프레스",
+        "training_type_code": "STRENGTH",
+        "body_focus_code": "UPPER_BODY",
+        "movement_pattern_code": "VERTICAL_PUSH",
+        "difficulty_code": "INTERMEDIATE",
+        "beginner_suitability": "CONDITIONAL",
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": 4,
+        "default_rest_seconds": 60,
+        "recovery_eligible": false,
+        "primary_body_area_codes": [
+          "SHOULDER"
+        ],
+        "secondary_body_area_codes": [
+          "ELBOW",
+          "NECK",
+          "WRIST_HAND",
+          "UPPER_BACK"
+        ],
+        "equipment_codes": [
+          "DUMBBELL"
+        ],
+        "location_codes": [
+          "GYM"
+        ],
+        "instruction_summary_ko": "양손의 덤벨을 어깨 높이에서 시작해 몸통을 안정적으로 유지하며 머리 위로 밀어 올렸다가 천천히 내립니다.",
+        "form_cues_ko": [
+          "손목과 팔꿈치 방향을 나란히 둡니다",
+          "허리를 과하게 젖히지 않습니다",
+          "덤벨을 머리 위에서 부딪치지 않습니다",
+          "가벼운 중량으로 동작 경로를 먼저 익힙니다"
+        ]
+      }
+    },
+    {
+      "queue_position": 10,
+      "track": "wger",
+      "source_identity": 211,
+      "source_name": "Dumbbell Triceps Extension",
+      "review_decision": "INCLUDE",
+      "review_status": "DOMAIN_APPROVED",
+      "review_method_code": "AGENT_ONLY",
+      "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
+      "production_eligible": false,
+      "evidence": [
+        {
+          "reviewer_role_code": "DATA_OWNER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-DATA-OWNER-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "BACKEND_REVIEWER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-BACKEND-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "PM_REVIEWER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-PM-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "DOMAIN_REVIEWER",
+          "review_status_code": "DOMAIN_APPROVED",
+          "reviewer_reference": "AGENT-CODEX-DOMAIN-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        }
+      ],
+      "attributes": {
+        "queue_position": 10,
+        "stable_code": "dumbbell_overhead_triceps_extension",
+        "name_ko": "덤벨 오버헤드 트라이셉스 익스텐션",
+        "training_type_code": "STRENGTH",
+        "body_focus_code": "UPPER_BODY",
+        "movement_pattern_code": "ISOLATION",
+        "difficulty_code": "INTERMEDIATE",
+        "beginner_suitability": "CONDITIONAL",
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": 4,
+        "default_rest_seconds": 45,
+        "recovery_eligible": false,
+        "primary_body_area_codes": [
+          "ELBOW"
+        ],
+        "secondary_body_area_codes": [
+          "SHOULDER",
+          "WRIST_HAND",
+          "UPPER_BACK"
+        ],
+        "equipment_codes": [
+          "DUMBBELL"
+        ],
+        "location_codes": [
+          "GYM"
+        ],
+        "instruction_summary_ko": "덤벨 하나를 양손으로 받쳐 머리 위에 들고 팔꿈치를 굽혀 뒤로 내렸다가 위팔 위치를 유지하며 다시 폅니다.",
+        "form_cues_ko": [
+          "덤벨을 양손으로 안정적으로 잡습니다",
+          "팔꿈치가 지나치게 벌어지지 않게 합니다",
+          "허리를 과하게 젖히지 않습니다",
+          "머리 뒤 공간을 확인하고 천천히 움직입니다"
+        ]
+      }
+    },
+    {
+      "queue_position": 11,
+      "track": "wger",
+      "source_identity": 805,
+      "source_name": "Tricep Pushdown on Cable",
+      "review_decision": "INCLUDE",
+      "review_status": "DOMAIN_APPROVED",
+      "review_method_code": "AGENT_ONLY",
+      "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
+      "production_eligible": false,
+      "evidence": [
+        {
+          "reviewer_role_code": "DATA_OWNER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-DATA-OWNER-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "BACKEND_REVIEWER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-BACKEND-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "PM_REVIEWER",
+          "review_status_code": "TECH_REVIEWED",
+          "reviewer_reference": "AGENT-CODEX-PM-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        },
+        {
+          "reviewer_role_code": "DOMAIN_REVIEWER",
+          "review_status_code": "DOMAIN_APPROVED",
+          "reviewer_reference": "AGENT-CODEX-DOMAIN-02",
+          "evidence_reference": "data/normalized/review_tranche_3.agent.json",
+          "reviewed_at": "2026-08-11T19:30:00+09:00"
+        }
+      ],
+      "attributes": {
+        "queue_position": 11,
+        "stable_code": "cable_triceps_pushdown",
+        "name_ko": "케이블 트라이셉스 푸시다운",
+        "training_type_code": "STRENGTH",
+        "body_focus_code": "UPPER_BODY",
+        "movement_pattern_code": "ISOLATION",
+        "difficulty_code": "BEGINNER",
+        "beginner_suitability": "YES",
+        "timing_mode_code": "REPS",
+        "default_seconds_per_rep": 3,
+        "default_rest_seconds": 45,
+        "recovery_eligible": false,
+        "primary_body_area_codes": [
+          "ELBOW"
+        ],
+        "secondary_body_area_codes": [
+          "WRIST_HAND",
+          "SHOULDER"
+        ],
+        "equipment_codes": [
+          "CABLE_MACHINE"
+        ],
+        "location_codes": [
+          "GYM"
+        ],
+        "instruction_summary_ko": "상단 케이블 손잡이를 잡고 위팔을 몸통 옆에 고정한 채 팔꿈치를 펴 손잡이를 아래로 내렸다가 천천히 돌아옵니다.",
+        "form_cues_ko": [
+          "위팔을 몸통 옆에 유지합니다",
+          "손목을 꺾지 않습니다",
+          "어깨를 으쓱하지 않습니다",
+          "반동 없이 케이블을 제어합니다"
+        ]
+      }
+    }
+  ]
+}
