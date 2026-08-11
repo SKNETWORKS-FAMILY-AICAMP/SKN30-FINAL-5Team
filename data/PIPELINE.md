@@ -101,10 +101,17 @@ official API
 템플릿, 실패 폐쇄 결과 validator가 준비되어 있으므로 홈 트랙과 헬스장 트랙 검토를
 동시에 진행할 수 있다.
 
-3번과 5번의 taxonomy 코드 확정은 자동화 대상이 아니다. `training_type_code`,
-`body_focus_code`, equipment·location seed 코드는 `docs/API_CONTRACT.md`의 미확정 계약
-목록에 있으므로 파이프라인이 임의로 정하지 않는다. validator는 코드 형식만 검사한다.
-`body_area_code`는 `docs/DOMAIN_RULES.md`에서 확정되어 있다.
+3번과 5번의 taxonomy 코드는 `docs/API_CONTRACT.md`의 미확정 계약이므로 파이프라인이 임의로
+정하지 않는다. 원천 어휘 실측과 승인된 문서 문장에서 도출한 제안을
+[normalized/EXERCISE_TAXONOMY_CODE_PROPOSAL.md](normalized/EXERCISE_TAXONOMY_CODE_PROPOSAL.md)와
+`normalized/exercise_taxonomy_codes.draft.json`에 두었다. **승인 전까지 `DRAFT`이며**
+validator는 계속 코드 형식만 검사한다. `body_area_code`는 `docs/DOMAIN_RULES.md`에서 이미
+확정되어 있다.
+
+FITT·MET 참고 원천은 [FITT_REFERENCE_ASSESSMENT.md](FITT_REFERENCE_ASSESSMENT.md)에서
+평가했다. 결론은 snapshot 수집 대상이 아니라는 것이다. MVP 스키마에 MET 컬럼이 없고,
+세션 시간 구조는 이미 `docs/DOMAIN_RULES.md`에 확정되어 있으며, 해당 문서들은 공개
+API가 아니라 라이선스 제한이 있는 저작물이다.
 
 7번 seed generator는 taxonomy 코드 목록이 확정되고 검토 결과가 입력된 뒤에 구현한다.
 
