@@ -1,0 +1,85 @@
+{
+  "schema_version": "1.0",
+  "scenario_set_version": "mvp-v0.1.0",
+  "status": "DRAFT",
+  "production_eligible": false,
+  "scenarios": [
+    {
+      "scenario_code": "HEALTHY_KEEP_LEG_PRESS",
+      "original_exercise_code": "leg_press",
+      "body_area_code": "KNEE",
+      "severity_code": "NONE",
+      "location_code": "GYM",
+      "available_equipment_codes": ["MACHINE"],
+      "expected_action_code": "KEEP",
+      "expected_original_excluded": false,
+      "minimum_alternative_candidates": 0
+    },
+    {
+      "scenario_code": "KNEE_MILD_GYM_CHANGE",
+      "original_exercise_code": "leg_press",
+      "body_area_code": "KNEE",
+      "severity_code": "MILD",
+      "location_code": "GYM",
+      "available_equipment_codes": ["MACHINE", "DUMBBELL", "KETTLEBELL"],
+      "expected_action_code": "CHANGE",
+      "expected_original_excluded": true,
+      "minimum_alternative_candidates": 2
+    },
+    {
+      "scenario_code": "KNEE_MILD_HOME_CHANGE",
+      "original_exercise_code": "supported_sit_to_stand",
+      "body_area_code": "KNEE",
+      "severity_code": "MILD",
+      "location_code": "HOME",
+      "available_equipment_codes": [
+        "CHAIR",
+        "MAT",
+        "STABILITY_BALL",
+        "HOUSEHOLD_WEIGHT",
+        "RESISTANCE_BAND"
+      ],
+      "expected_action_code": "CHANGE",
+      "expected_original_excluded": true,
+      "minimum_alternative_candidates": 1
+    },
+    {
+      "scenario_code": "KNEE_MODERATE_FALLBACK",
+      "original_exercise_code": "leg_press",
+      "body_area_code": "KNEE",
+      "severity_code": "MODERATE",
+      "location_code": "GYM",
+      "available_equipment_codes": ["MACHINE", "DUMBBELL", "KETTLEBELL"],
+      "expected_action_code": "FALLBACK_REQUIRED",
+      "expected_original_excluded": true,
+      "minimum_alternative_candidates": 0,
+      "maximum_alternative_candidates": 0
+    },
+    {
+      "scenario_code": "SAFETY_VETO_COORDINATOR_ALTERNATIVE",
+      "original_exercise_code": "leg_press",
+      "body_area_code": "KNEE",
+      "severity_code": "MODERATE",
+      "location_code": "GYM",
+      "available_equipment_codes": ["MACHINE", "DUMBBELL"],
+      "proposed_alternative_code": "dumbbell_deadlift",
+      "expected_action_code": "FALLBACK_REQUIRED",
+      "expected_original_excluded": true,
+      "expected_proposal_accepted": false,
+      "minimum_alternative_candidates": 0,
+      "maximum_alternative_candidates": 0
+    },
+    {
+      "scenario_code": "KNEE_MILD_EQUIPMENT_GAP",
+      "original_exercise_code": "leg_press",
+      "body_area_code": "KNEE",
+      "severity_code": "MILD",
+      "location_code": "GYM",
+      "available_equipment_codes": ["MACHINE"],
+      "expected_action_code": "FALLBACK_REQUIRED",
+      "expected_original_excluded": true,
+      "minimum_alternative_candidates": 0,
+      "maximum_alternative_candidates": 0
+    }
+  ]
+}
