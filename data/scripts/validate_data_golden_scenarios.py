@@ -93,8 +93,6 @@ def eligible_alternatives(
     for relation in relations:
         if relation.get("source_exercise_stable_code") != original_code:
             continue
-        if relation.get("reason_code") != "DISCOMFORT":
-            continue
         if int(relation.get("difficulty_delta", 1)) > 0:
             continue
         candidate_code = str(relation.get("alternative_exercise_stable_code", ""))

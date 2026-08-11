@@ -1,0 +1,99 @@
+{
+  "schema_version": "1.0",
+  "generator_version": "0.1.0",
+  "evaluation_version": "mvp-v0.2.0",
+  "source": {
+    "input_artifacts": [
+      {
+        "role": "scenario_definition",
+        "path": "mvp_data_scenarios_v0.2.0.json",
+        "sha256": "c66bf896ec6e47b6fd40ec2a6addb9cb811338e4c69e1a92aa217ee1670e16e0",
+        "bytes": 5117
+      },
+      {
+        "role": "exercise-catalog-seed-wger-mvp-v0.2.0:manifest",
+        "path": "seed_manifest.json",
+        "sha256": "d42aed06781c59b58261f0d2d8983ddc3f98b5b01d11cb0045d5e72088350afd",
+        "bytes": 1950
+      },
+      {
+        "role": "exercise-catalog-seed-wger-mvp-v0.2.0:exercises",
+        "path": "exercises.jsonl",
+        "sha256": "e33c10cc252203f2fcaadba031b1ec2608a0515dac9a335da5a817e1fe5a52cf",
+        "bytes": 32462
+      },
+      {
+        "role": "exercise-catalog-seed-kspo-mvp-v0.2.0:manifest",
+        "path": "seed_manifest.json",
+        "sha256": "344fb546e7f92e09394fe9a408ddbad75dfe0ea4f49903737c2c1acd647823ce",
+        "bytes": 1940
+      },
+      {
+        "role": "exercise-catalog-seed-kspo-mvp-v0.2.0:exercises",
+        "path": "exercises.jsonl",
+        "sha256": "fc06aeb4e3200b546f8e7f1bdcf5d30e29f718d6da9d7fdd4f18992767ed34e8",
+        "bytes": 28001
+      },
+      {
+        "role": "exercise-catalog-seed-wger-tranche3-v0.1.0:manifest",
+        "path": "seed_manifest.json",
+        "sha256": "bba4d1a799e7c516df56360160386e2e6327a01af56241142a4eed692486e66b",
+        "bytes": 1698
+      },
+      {
+        "role": "exercise-catalog-seed-wger-tranche3-v0.1.0:exercises",
+        "path": "exercises.jsonl",
+        "sha256": "7de22794076231717d8769d00c4413cbf5a04aa10e08375d09202710ef47512c",
+        "bytes": 3565
+      },
+      {
+        "role": "exercise-catalog-seed-kspo-tranche3-v0.1.0:manifest",
+        "path": "seed_manifest.json",
+        "sha256": "1ed49cd57db4783984edd2e676235254ffa353ebfec49cc44f901e88ab0325c3",
+        "bytes": 1698
+      },
+      {
+        "role": "exercise-catalog-seed-kspo-tranche3-v0.1.0:exercises",
+        "path": "exercises.jsonl",
+        "sha256": "a7359a0af8b109cd62775a09b503eb5044f99029ac2bf58c7284fa9ccb43b98c",
+        "bytes": 3702
+      },
+      {
+        "role": "safety_manifest",
+        "path": "rules_manifest.json",
+        "sha256": "d3281fb7bcf85d614ace027b1a50587430a6578733aab765f0d0b805dd85f51b",
+        "bytes": 2418
+      },
+      {
+        "role": "safety_coverage",
+        "path": "coverage_report.json",
+        "sha256": "34bae42917c36a527cfff76bf97f57951d2891279c3a274150f24da5c3f323da",
+        "bytes": 14838
+      },
+      {
+        "role": "alternatives_manifest",
+        "path": "alternatives_manifest.json",
+        "sha256": "9875cecc075ff1e3f827243f1ebe4db475dfe9a86985a122febaf2558b81ec7f",
+        "bytes": 3631
+      },
+      {
+        "role": "alternatives",
+        "path": "alternatives.jsonl",
+        "sha256": "0f7cd5e5194f7e08b9611d7b2f03e5872ed74032ab44945952c738a1d6c34b2d",
+        "bytes": 125225
+      }
+    ]
+  },
+  "review": {
+    "status": "DRAFT_VALIDATED",
+    "production_eligible": false
+  },
+  "files": [
+    {
+      "path": "scenario_results.json",
+      "sha256": "00025b1dacfd836621843d1ab0637ff5d919b96dcffd3aecf1ad092f9e62fba7",
+      "bytes": 4973,
+      "records": 11
+    }
+  ]
+}

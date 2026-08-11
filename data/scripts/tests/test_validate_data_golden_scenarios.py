@@ -88,6 +88,20 @@ class ValidateDataGoldenScenariosTests(unittest.TestCase):
         self.assertTrue(result["passed"])
         self.assertEqual(result["alternative_candidate_codes"], ["hip_hinge"])
 
+    def test_discomfort_flow_accepts_safe_exact_goal_relation(self) -> None:
+        relation = dict(self.relations[0])
+        relation["reason_code"] = "DIFFICULTY"
+
+        result = golden.evaluate_scenario(
+            self.scenario("MILD", ["MACHINE", "DUMBBELL"], "CHANGE"),
+            self.exercises,
+            [relation],
+            self.safety,
+        )
+
+        self.assertTrue(result["passed"])
+        self.assertEqual(result["alternative_candidate_codes"], ["hip_hinge"])
+
     def test_safety_veto_and_equipment_gap_require_fallback(self) -> None:
         moderate = self.scenario("MODERATE", ["MACHINE", "DUMBBELL"], "FALLBACK_REQUIRED")
         moderate["proposed_alternative_code"] = "hip_hinge"
