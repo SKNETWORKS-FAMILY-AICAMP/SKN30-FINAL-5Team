@@ -1,0 +1,115 @@
+{
+  "schema_version": "1.0",
+  "collection_version": "0.1.0",
+  "status": "DRAFT",
+  "review_method_code": "AGENT_ONLY",
+  "production_eligible": false,
+  "retrieved_at": "2026-08-11T18:00:00+09:00",
+  "content_retention_code": "HASH_AND_MINIMUM_FACTS_ONLY",
+  "snapshots": [
+    {
+      "source_id": "WHO_PA_GUIDELINE_LANDING_2020",
+      "requested_url": "https://www.who.int/publications/i/item/9789240015128",
+      "final_url": "https://www.who.int/publications/i/item/9789240015128",
+      "retrieved_at": "2026-08-11T18:00:00+09:00",
+      "collection_method_code": "HTTP_RESPONSE_HASH",
+      "hash_scope_code": "HTTP_RESPONSE_BODY",
+      "http_status": 200,
+      "content_type": "text/html",
+      "content_sha256": "99a2be7d678a77d936c15a23834edbeb405bcef051e0228e37c0efe1d43792a5",
+      "content_bytes": 88137
+    },
+    {
+      "source_id": "WHO_PA_GUIDELINE_PDF_2020",
+      "requested_url": "https://iris.who.int/bitstream/handle/10665/336656/9789240015128-eng.pdf",
+      "final_url": "https://iris.who.int/bitstream/handle/10665/336656/9789240015128-eng.pdf",
+      "retrieved_at": "2026-08-11T18:00:00+09:00",
+      "collection_method_code": "BROWSER_VERIFIED_FACT_HASH",
+      "hash_scope_code": "STRUCTURED_FACTS_NOT_HTTP_RESPONSE",
+      "http_status": null,
+      "content_type": "application/json",
+      "content_sha256": "297f5a53b11bdd06c513f022a5529c8aa5b1ad8aa1e82b3f16eecd2aa03fe4d3",
+      "content_bytes": 880
+    },
+    {
+      "source_id": "CDC_PA_INTENSITY_2025",
+      "requested_url": "https://www.cdc.gov/physical-activity-basics/measuring/index.html",
+      "final_url": "https://www.cdc.gov/physical-activity-basics/measuring/index.html",
+      "retrieved_at": "2026-08-11T18:00:00+09:00",
+      "collection_method_code": "BROWSER_VERIFIED_FACT_HASH",
+      "hash_scope_code": "STRUCTURED_FACTS_NOT_HTTP_RESPONSE",
+      "http_status": null,
+      "content_type": "application/json",
+      "content_sha256": "ca0b7cfee0be8e028a38b1b212f9f8d6a7502bf64234034da368a2c1b34ba7b0",
+      "content_bytes": 1375
+    },
+    {
+      "source_id": "CDC_ADULT_PA_2023",
+      "requested_url": "https://www.cdc.gov/physical-activity-basics/adding-adults/what-counts.html",
+      "final_url": "https://www.cdc.gov/physical-activity-basics/adding-adults/what-counts.html",
+      "retrieved_at": "2026-08-11T18:00:00+09:00",
+      "collection_method_code": "BROWSER_VERIFIED_FACT_HASH",
+      "hash_scope_code": "STRUCTURED_FACTS_NOT_HTTP_RESPONSE",
+      "http_status": null,
+      "content_type": "application/json",
+      "content_sha256": "603dfb4df3bcd2c9938ac7c5e242d6bea2df3868193fd2eef7322a639acf9560",
+      "content_bytes": 1015
+    },
+    {
+      "source_id": "KDCA_PA_GUIDANCE_2026",
+      "requested_url": "https://health.kdca.go.kr/healthinfo/biz/health/gnrlzHealthInfo/gnrlzHealthInfo/gnrlzHealthInfoView.do?cntnts_sn=6251",
+      "final_url": "https://health.kdca.go.kr/healthinfo/biz/health/gnrlzHealthInfo/gnrlzHealthInfo/gnrlzHealthInfoView.do?cntnts_sn=6251",
+      "retrieved_at": "2026-08-11T18:00:00+09:00",
+      "collection_method_code": "HTTP_RESPONSE_HASH",
+      "hash_scope_code": "HTTP_RESPONSE_BODY",
+      "http_status": 200,
+      "content_type": "text/html",
+      "content_sha256": "37931363817c06ebacb0717b767f4972ae83239258ec9b2254f917e4b40ae190",
+      "content_bytes": 189499
+    },
+    {
+      "source_id": "ADULT_COMPENDIUM_HOME_2024",
+      "requested_url": "https://pacompendium.com/",
+      "final_url": "https://pacompendium.com/",
+      "retrieved_at": "2026-08-11T18:00:00+09:00",
+      "collection_method_code": "HTTP_RESPONSE_HASH",
+      "hash_scope_code": "HTTP_RESPONSE_BODY",
+      "http_status": 200,
+      "content_type": "text/html",
+      "content_sha256": "12d6e033198564001df296aa2c81e7b669018acc77503409198c7f2b54760df2",
+      "content_bytes": 137124
+    },
+    {
+      "source_id": "ADULT_COMPENDIUM_PDF_2024",
+      "requested_url": "https://pacompendium.com/wp-content/uploads/2025/02/1_2024-adult-compendium_1_2024.pdf",
+      "final_url": "https://pacompendium.com/wp-content/uploads/2025/02/1_2024-adult-compendium_1_2024.pdf",
+      "retrieved_at": "2026-08-11T18:00:00+09:00",
+      "collection_method_code": "HTTP_RESPONSE_HASH",
+      "hash_scope_code": "HTTP_RESPONSE_BODY",
+      "http_status": 200,
+      "content_type": "application/pdf",
+      "content_sha256": "ac30234b8f8f813837e282773cfcb3e0fe062334777c2f7b3213429c4fbc251c",
+      "content_bytes": 563091
+    }
+  ],
+  "local_files": [
+    {
+      "path": "source_registry.json",
+      "sha256": "9f2d3b3a92220caaf46d610621ea7ca2dd67ee2069d408128883890aaa6e23f4",
+      "bytes": 4320,
+      "records": 7
+    },
+    {
+      "path": "general_guideline_facts.json",
+      "sha256": "db1137088c7bf39819280586d8029ef689ed167c7643acd6681533ccba8af583",
+      "bytes": 5080,
+      "records": 14
+    },
+    {
+      "path": "adult_compendium_mvp_reference_subset.jsonl",
+      "sha256": "a75dd242d8897ae11906ec60d426593c1fdcc389382bcda960dacbf32cd8478e",
+      "bytes": 5663,
+      "records": 20
+    }
+  ]
+}

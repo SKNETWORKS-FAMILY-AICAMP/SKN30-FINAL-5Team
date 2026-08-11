@@ -1,0 +1,148 @@
+{
+  "schema_version": "1.0",
+  "status": "DRAFT",
+  "review_method_code": "AGENT_ONLY",
+  "production_eligible": false,
+  "population_code": "GENERAL_ADULT",
+  "facts": [
+    {
+      "fact_id": "CDC_ABSOLUTE_MODERATE_MET_RANGE",
+      "source_id": "CDC_PA_INTENSITY_2025",
+      "source_locator": "Absolute intensity section",
+      "fact_type": "INTENSITY_RANGE",
+      "intensity_code": "MODERATE",
+      "measure_code": "MET",
+      "minimum": 3.0,
+      "maximum": 5.9,
+      "minimum_inclusive": true,
+      "maximum_inclusive": true
+    },
+    {
+      "fact_id": "CDC_ABSOLUTE_VIGOROUS_MET_MINIMUM",
+      "source_id": "CDC_PA_INTENSITY_2025",
+      "source_locator": "Absolute intensity section",
+      "fact_type": "INTENSITY_RANGE",
+      "intensity_code": "VIGOROUS",
+      "measure_code": "MET",
+      "minimum": 6.0,
+      "maximum": null,
+      "minimum_inclusive": true,
+      "maximum_inclusive": false
+    },
+    {
+      "fact_id": "CDC_RELATIVE_MODERATE_EFFORT_RANGE",
+      "source_id": "CDC_PA_INTENSITY_2025",
+      "source_locator": "Relative intensity section",
+      "fact_type": "INTENSITY_RANGE",
+      "intensity_code": "MODERATE",
+      "measure_code": "EFFORT_0_10",
+      "minimum": 5,
+      "maximum": 6,
+      "minimum_inclusive": true,
+      "maximum_inclusive": true
+    },
+    {
+      "fact_id": "CDC_RELATIVE_VIGOROUS_EFFORT_START",
+      "source_id": "CDC_PA_INTENSITY_2025",
+      "source_locator": "Relative intensity section",
+      "fact_type": "INTENSITY_RANGE",
+      "intensity_code": "VIGOROUS",
+      "measure_code": "EFFORT_0_10",
+      "minimum": 7,
+      "maximum": 8,
+      "minimum_inclusive": true,
+      "maximum_inclusive": true,
+      "interpretation_note": "CDC states vigorous activity begins at 7 or 8; this fact does not define 9-10 as a separate application code."
+    },
+    {
+      "fact_id": "CDC_ADULT_AEROBIC_MINIMUM_MODERATE",
+      "source_id": "CDC_ADULT_PA_2023",
+      "source_locator": "Aerobic activity - what counts section",
+      "fact_type": "WEEKLY_TARGET",
+      "activity_type_code": "AEROBIC",
+      "intensity_code": "MODERATE",
+      "minimum_minutes_per_week": 150
+    },
+    {
+      "fact_id": "CDC_ADULT_AEROBIC_MINIMUM_VIGOROUS",
+      "source_id": "CDC_ADULT_PA_2023",
+      "source_locator": "Aerobic activity - what counts section",
+      "fact_type": "WEEKLY_TARGET",
+      "activity_type_code": "AEROBIC",
+      "intensity_code": "VIGOROUS",
+      "minimum_minutes_per_week": 75
+    },
+    {
+      "fact_id": "CDC_ADULT_STRENGTH_MINIMUM_DAYS",
+      "source_id": "CDC_ADULT_PA_2023",
+      "source_locator": "Muscle strengthening - what counts section",
+      "fact_type": "WEEKLY_FREQUENCY",
+      "activity_type_code": "STRENGTH",
+      "minimum_days_per_week": 2
+    },
+    {
+      "fact_id": "CDC_VIGOROUS_TO_MODERATE_EQUIVALENCE",
+      "source_id": "CDC_ADULT_PA_2023",
+      "source_locator": "Aerobic activity - what counts section",
+      "fact_type": "EQUIVALENCE",
+      "vigorous_minutes": 1,
+      "moderate_equivalent_minutes": 2
+    },
+    {
+      "fact_id": "KDCA_ADULT_AEROBIC_MODERATE_RANGE",
+      "source_id": "KDCA_PA_GUIDANCE_2026",
+      "source_locator": "만 19~64세의 성인 ①",
+      "fact_type": "WEEKLY_TARGET_RANGE",
+      "activity_type_code": "AEROBIC",
+      "intensity_code": "MODERATE",
+      "minimum_minutes_per_week": 150,
+      "maximum_minutes_per_week": 300
+    },
+    {
+      "fact_id": "KDCA_ADULT_AEROBIC_VIGOROUS_RANGE",
+      "source_id": "KDCA_PA_GUIDANCE_2026",
+      "source_locator": "만 19~64세의 성인 ①",
+      "fact_type": "WEEKLY_TARGET_RANGE",
+      "activity_type_code": "AEROBIC",
+      "intensity_code": "VIGOROUS",
+      "minimum_minutes_per_week": 75,
+      "maximum_minutes_per_week": 150
+    },
+    {
+      "fact_id": "KDCA_ADULT_STRENGTH_MINIMUM_DAYS",
+      "source_id": "KDCA_PA_GUIDANCE_2026",
+      "source_locator": "만 19~64세의 성인 ②",
+      "fact_type": "WEEKLY_FREQUENCY",
+      "activity_type_code": "STRENGTH",
+      "minimum_days_per_week": 2
+    },
+    {
+      "fact_id": "WHO_ADULT_AEROBIC_MODERATE_RANGE",
+      "source_id": "WHO_PA_GUIDELINE_PDF_2020",
+      "source_locator": "Adults aged 18-64 years recommendations",
+      "fact_type": "WEEKLY_TARGET_RANGE",
+      "activity_type_code": "AEROBIC",
+      "intensity_code": "MODERATE",
+      "minimum_minutes_per_week": 150,
+      "maximum_minutes_per_week": 300
+    },
+    {
+      "fact_id": "WHO_ADULT_AEROBIC_VIGOROUS_RANGE",
+      "source_id": "WHO_PA_GUIDELINE_PDF_2020",
+      "source_locator": "Adults aged 18-64 years recommendations",
+      "fact_type": "WEEKLY_TARGET_RANGE",
+      "activity_type_code": "AEROBIC",
+      "intensity_code": "VIGOROUS",
+      "minimum_minutes_per_week": 75,
+      "maximum_minutes_per_week": 150
+    },
+    {
+      "fact_id": "WHO_ADULT_STRENGTH_MINIMUM_DAYS",
+      "source_id": "WHO_PA_GUIDELINE_PDF_2020",
+      "source_locator": "Adults aged 18-64 years recommendations",
+      "fact_type": "WEEKLY_FREQUENCY",
+      "activity_type_code": "STRENGTH",
+      "minimum_days_per_week": 2
+    }
+  ]
+}
