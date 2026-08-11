@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0",
+  "generator_version": "0.1.0",
+  "catalog_version": {
+    "version_code": "kspo-mvp-v0.2.0",
+    "status_code": "DRAFT"
+  },
+  "source": {
+    "track": "kspo",
+    "review_batch_directory": "20260810T053458Z-training-video-profile-v0.2.0-review-batch-v0.2.0",
+    "taxonomy_registry_sha256": "89e61bba1baf1ccedca94adcb88127f32f529a1b46162ee8392f2cd2ef1372c7",
+    "input_artifacts": [
+      {
+        "role": "review_batch_manifest",
+        "path": "review_manifest.json",
+        "sha256": "09714609b299fdae4d724837936ddef30675cb727b8281658e8c90604071653b",
+        "bytes": 2155
+      },
+      {
+        "role": "mapping_results",
+        "path": "kspo_mapping_results.csv",
+        "sha256": "bfd1e21cd0974790819a43de57bd04e50f32a840357e0a1953721db3c239821a",
+        "bytes": 37784
+      },
+      {
+        "role": "evidence_results",
+        "path": "kspo_evidence_results.csv",
+        "sha256": "f4d1073942fbfa6f1050dc66729ccbdfde61feaca4bc758aae53321535a1e425",
+        "bytes": 50470
+      },
+      {
+        "role": "catalog_attributes",
+        "path": "kspo_attributes.csv",
+        "sha256": "3f78236dc698551c40dec3de9270ac84e4e4b390988bb72b96e62a6cb22454d9",
+        "bytes": 14955
+      },
+      {
+        "role": "taxonomy_registry",
+        "path": "exercise_taxonomy_codes.json",
+        "sha256": "89e61bba1baf1ccedca94adcb88127f32f529a1b46162ee8392f2cd2ef1372c7",
+        "bytes": 9144
+      }
+    ]
+  },
+  "review": {
+    "status": "DOMAIN_APPROVED",
+    "review_method_code": "AGENT_ONLY",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
+    "production_eligible": false
+  },
+  "summary": {
+    "exercise_records": 23
+  },
+  "files": [
+    {
+      "path": "exercises.jsonl",
+      "sha256": "fc06aeb4e3200b546f8e7f1bdcf5d30e29f718d6da9d7fdd4f18992767ed34e8",
+      "bytes": 28001,
+      "records": 23
+    }
+  ]
+}

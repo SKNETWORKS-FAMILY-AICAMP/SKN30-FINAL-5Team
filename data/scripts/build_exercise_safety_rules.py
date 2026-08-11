@@ -453,10 +453,27 @@ def build_rules(
             "rule_set_version": {"version_code": version_code, "status_code": "DRAFT"},
             "source": {
                 "catalog_seeds": [d.resolve().name for d in seed_dirs],
+                "catalog_seed_artifacts": [
+                    {
+                        "directory": d.resolve().name,
+                        "seed_manifest_sha256": sha256_bytes(
+                            (d.resolve() / "seed_manifest.json").read_bytes()
+                        ),
+                        "exercises_sha256": sha256_bytes(
+                            (d.resolve() / "exercises.jsonl").read_bytes()
+                        ),
+                    }
+                    for d in seed_dirs
+                ],
                 "policy_sha256": sha256_bytes(policy_path.read_bytes()),
                 "policy_version": str(policy["policy_version"]),
             },
-            "review": {"status": "DOMAIN_APPROVED", "production_eligible": False},
+            "review": {
+                "status": "DOMAIN_APPROVED",
+                "review_method_code": "AGENT_ONLY",
+                "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
+                "production_eligible": False,
+            },
             "summary": {
                 "rule_records": len(rules),
                 "exercise_records": len(exercises),

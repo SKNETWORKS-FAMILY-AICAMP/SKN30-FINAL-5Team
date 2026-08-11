@@ -1,0 +1,499 @@
+{
+  "ABDOMEN": {
+    "MILD": {
+      "caution": 5,
+      "excluded": 6,
+      "excluded_codes": [
+        "cable_woodchop",
+        "stability_ball_trunk_rotation",
+        "standing_side_stretch",
+        "supine_ball_trunk_tilt",
+        "supine_bicycle",
+        "supine_leg_raise"
+      ],
+      "selectable": 44
+    },
+    "MODERATE": {
+      "caution": 0,
+      "excluded": 11,
+      "excluded_codes": [
+        "cable_woodchop",
+        "dumbbell_side_punch",
+        "half_kneeling_single_arm_lat_pulldown",
+        "inverted_row",
+        "push_up",
+        "stability_ball_trunk_rotation",
+        "standing_cable_chest_press",
+        "standing_side_stretch",
+        "supine_ball_trunk_tilt",
+        "supine_bicycle",
+        "supine_leg_raise"
+      ],
+      "selectable": 39
+    }
+  },
+  "ANKLE_FOOT": {
+    "MILD": {
+      "caution": 9,
+      "excluded": 4,
+      "excluded_codes": [
+        "machine_calf_press",
+        "outdoor_walking",
+        "standing_calf_raise",
+        "treadmill_walking"
+      ],
+      "selectable": 46
+    },
+    "MODERATE": {
+      "caution": 0,
+      "excluded": 13,
+      "excluded_codes": [
+        "band_leg_curl",
+        "barbell_back_squat",
+        "dumbbell_goblet_squat",
+        "dumbbell_split_squat",
+        "leg_press",
+        "machine_calf_press",
+        "outdoor_walking",
+        "seated_leg_extension",
+        "standing_calf_raise",
+        "supported_sit_to_stand",
+        "supported_standing_hip_extension",
+        "treadmill_walking",
+        "two_hand_kettlebell_swing"
+      ],
+      "selectable": 37
+    }
+  },
+  "CHEST": {
+    "MILD": {
+      "caution": 1,
+      "excluded": 6,
+      "excluded_codes": [
+        "dumbbell_side_punch",
+        "incline_dumbbell_bench_press",
+        "push_up",
+        "seated_bench_press",
+        "standing_cable_chest_press",
+        "supine_chest_opening_stretch"
+      ],
+      "selectable": 44
+    },
+    "MODERATE": {
+      "caution": 0,
+      "excluded": 7,
+      "excluded_codes": [
+        "dumbbell_side_punch",
+        "incline_chest_supported_dumbbell_row",
+        "incline_dumbbell_bench_press",
+        "push_up",
+        "seated_bench_press",
+        "standing_cable_chest_press",
+        "supine_chest_opening_stretch"
+      ],
+      "selectable": 43
+    }
+  },
+  "ELBOW": {
+    "MILD": {
+      "caution": 17,
+      "excluded": 3,
+      "excluded_codes": [
+        "bent_over_triceps_kickback",
+        "household_biceps_curl",
+        "supported_dumbbell_curl"
+      ],
+      "selectable": 47
+    },
+    "MODERATE": {
+      "caution": 0,
+      "excluded": 20,
+      "excluded_codes": [
+        "barbell_overhead_press",
+        "bent_over_triceps_kickback",
+        "cable_woodchop",
+        "diagonal_arm_raise",
+        "dumbbell_arnold_press",
+        "dumbbell_rear_delt_row",
+        "dumbbell_side_punch",
+        "half_kneeling_single_arm_lat_pulldown",
+        "household_biceps_curl",
+        "incline_chest_supported_dumbbell_row",
+        "incline_dumbbell_bench_press",
+        "inverted_row",
+        "machine_seated_row",
+        "machine_shoulder_press",
+        "neutral_grip_lat_pulldown",
+        "push_up",
+        "seated_bench_press",
+        "seated_cable_row",
+        "standing_cable_chest_press",
+        "supported_dumbbell_curl"
+      ],
+      "selectable": 30
+    }
+  },
+  "GENERALIZED": {
+    "MILD": {
+      "caution": 0,
+      "excluded": 0,
+      "excluded_codes": [],
+      "selectable": 50
+    },
+    "MODERATE": {
+      "caution": 0,
+      "excluded": 0,
+      "excluded_codes": [],
+      "selectable": 50
+    }
+  },
+  "HIP": {
+    "MILD": {
+      "caution": 9,
+      "excluded": 17,
+      "excluded_codes": [
+        "barbell_back_squat",
+        "dumbbell_deadlift",
+        "dumbbell_goblet_squat",
+        "dumbbell_romanian_deadlift",
+        "dumbbell_split_squat",
+        "kettlebell_sumo_deadlift",
+        "leg_press",
+        "outdoor_walking",
+        "quadruped_leg_raise",
+        "romanian_deadlift",
+        "stability_ball_hip_hinge_lift",
+        "standing_weighted_hip_hinge",
+        "supine_hip_bridge",
+        "supported_sit_to_stand",
+        "supported_standing_hip_extension",
+        "treadmill_walking",
+        "two_hand_kettlebell_swing"
+      ],
+      "selectable": 33
+    },
+    "MODERATE": {
+      "caution": 0,
+      "excluded": 26,
+      "excluded_codes": [
+        "band_leg_curl",
+        "barbell_back_squat",
+        "cable_woodchop",
+        "dumbbell_deadlift",
+        "dumbbell_goblet_squat",
+        "dumbbell_romanian_deadlift",
+        "dumbbell_split_squat",
+        "kettlebell_sumo_deadlift",
+        "leg_curl",
+        "leg_press",
+        "outdoor_walking",
+        "quadruped_leg_raise",
+        "romanian_deadlift",
+        "seated_leg_extension",
+        "stability_ball_hip_hinge_lift",
+        "stability_ball_trunk_rotation",
+        "standing_side_stretch",
+        "standing_weighted_hip_hinge",
+        "supine_ball_trunk_tilt",
+        "supine_bicycle",
+        "supine_hip_bridge",
+        "supine_leg_raise",
+        "supported_sit_to_stand",
+        "supported_standing_hip_extension",
+        "treadmill_walking",
+        "two_hand_kettlebell_swing"
+      ],
+      "selectable": 24
+    }
+  },
+  "KNEE": {
+    "MILD": {
+      "caution": 13,
+      "excluded": 11,
+      "excluded_codes": [
+        "band_leg_curl",
+        "barbell_back_squat",
+        "dumbbell_goblet_squat",
+        "dumbbell_split_squat",
+        "leg_curl",
+        "leg_extension",
+        "leg_press",
+        "outdoor_walking",
+        "seated_leg_extension",
+        "supported_sit_to_stand",
+        "treadmill_walking"
+      ],
+      "selectable": 39
+    },
+    "MODERATE": {
+      "caution": 0,
+      "excluded": 24,
+      "excluded_codes": [
+        "band_leg_curl",
+        "barbell_back_squat",
+        "dumbbell_deadlift",
+        "dumbbell_goblet_squat",
+        "dumbbell_romanian_deadlift",
+        "dumbbell_split_squat",
+        "half_kneeling_single_arm_lat_pulldown",
+        "kettlebell_sumo_deadlift",
+        "leg_curl",
+        "leg_extension",
+        "leg_press",
+        "machine_calf_press",
+        "outdoor_walking",
+        "quadruped_leg_raise",
+        "romanian_deadlift",
+        "seated_leg_extension",
+        "stability_ball_hip_hinge_lift",
+        "standing_calf_raise",
+        "standing_weighted_hip_hinge",
+        "supine_hip_bridge",
+        "supported_sit_to_stand",
+        "supported_standing_hip_extension",
+        "treadmill_walking",
+        "two_hand_kettlebell_swing"
+      ],
+      "selectable": 26
+    }
+  },
+  "LOWER_BACK": {
+    "MILD": {
+      "caution": 17,
+      "excluded": 14,
+      "excluded_codes": [
+        "barbell_back_squat",
+        "cable_woodchop",
+        "dumbbell_deadlift",
+        "dumbbell_romanian_deadlift",
+        "kettlebell_sumo_deadlift",
+        "romanian_deadlift",
+        "stability_ball_hip_hinge_lift",
+        "stability_ball_trunk_rotation",
+        "standing_side_stretch",
+        "standing_weighted_hip_hinge",
+        "supine_ball_trunk_tilt",
+        "supine_bicycle",
+        "supine_leg_raise",
+        "two_hand_kettlebell_swing"
+      ],
+      "selectable": 36
+    },
+    "MODERATE": {
+      "caution": 0,
+      "excluded": 31,
+      "excluded_codes": [
+        "barbell_back_squat",
+        "barbell_overhead_press",
+        "bent_over_triceps_kickback",
+        "cable_woodchop",
+        "dumbbell_arnold_press",
+        "dumbbell_deadlift",
+        "dumbbell_goblet_squat",
+        "dumbbell_rear_delt_row",
+        "dumbbell_romanian_deadlift",
+        "dumbbell_split_squat",
+        "kettlebell_sumo_deadlift",
+        "leg_curl",
+        "leg_press",
+        "neutral_grip_lat_pulldown",
+        "outdoor_walking",
+        "push_up",
+        "quadruped_leg_raise",
+        "romanian_deadlift",
+        "seated_cable_row",
+        "stability_ball_hip_hinge_lift",
+        "stability_ball_trunk_rotation",
+        "standing_side_stretch",
+        "standing_weighted_hip_hinge",
+        "supine_ball_trunk_tilt",
+        "supine_bicycle",
+        "supine_hip_bridge",
+        "supine_leg_raise",
+        "supported_sit_to_stand",
+        "supported_standing_hip_extension",
+        "treadmill_walking",
+        "two_hand_kettlebell_swing"
+      ],
+      "selectable": 19
+    }
+  },
+  "NECK": {
+    "MILD": {
+      "caution": 7,
+      "excluded": 0,
+      "excluded_codes": [],
+      "selectable": 50
+    },
+    "MODERATE": {
+      "caution": 0,
+      "excluded": 7,
+      "excluded_codes": [
+        "barbell_overhead_press",
+        "diagonal_arm_raise",
+        "dumbbell_arnold_press",
+        "machine_shoulder_press",
+        "standing_lateral_raise",
+        "supine_bicycle",
+        "supine_chest_opening_stretch"
+      ],
+      "selectable": 43
+    }
+  },
+  "OTHER": {
+    "MILD": {
+      "caution": 0,
+      "excluded": 0,
+      "excluded_codes": [],
+      "selectable": 50
+    },
+    "MODERATE": {
+      "caution": 0,
+      "excluded": 0,
+      "excluded_codes": [],
+      "selectable": 50
+    }
+  },
+  "SHOULDER": {
+    "MILD": {
+      "caution": 9,
+      "excluded": 18,
+      "excluded_codes": [
+        "barbell_overhead_press",
+        "diagonal_arm_raise",
+        "dumbbell_arnold_press",
+        "dumbbell_rear_delt_row",
+        "dumbbell_side_punch",
+        "half_kneeling_single_arm_lat_pulldown",
+        "incline_chest_supported_dumbbell_row",
+        "incline_dumbbell_bench_press",
+        "inverted_row",
+        "machine_seated_row",
+        "machine_shoulder_press",
+        "neutral_grip_lat_pulldown",
+        "push_up",
+        "seated_bench_press",
+        "seated_cable_row",
+        "standing_cable_chest_press",
+        "standing_lateral_raise",
+        "supine_chest_opening_stretch"
+      ],
+      "selectable": 32
+    },
+    "MODERATE": {
+      "caution": 0,
+      "excluded": 27,
+      "excluded_codes": [
+        "barbell_overhead_press",
+        "bent_over_triceps_kickback",
+        "cable_woodchop",
+        "diagonal_arm_raise",
+        "dumbbell_arnold_press",
+        "dumbbell_rear_delt_row",
+        "dumbbell_side_punch",
+        "half_kneeling_single_arm_lat_pulldown",
+        "household_biceps_curl",
+        "incline_chest_supported_dumbbell_row",
+        "incline_dumbbell_bench_press",
+        "inverted_row",
+        "machine_seated_row",
+        "machine_shoulder_press",
+        "neutral_grip_lat_pulldown",
+        "push_up",
+        "quadruped_leg_raise",
+        "seated_bench_press",
+        "seated_cable_row",
+        "stability_ball_trunk_rotation",
+        "standing_cable_chest_press",
+        "standing_lateral_raise",
+        "standing_side_stretch",
+        "supine_ball_trunk_tilt",
+        "supine_chest_opening_stretch",
+        "supported_dumbbell_curl",
+        "two_hand_kettlebell_swing"
+      ],
+      "selectable": 23
+    }
+  },
+  "UPPER_BACK": {
+    "MILD": {
+      "caution": 11,
+      "excluded": 7,
+      "excluded_codes": [
+        "dumbbell_rear_delt_row",
+        "half_kneeling_single_arm_lat_pulldown",
+        "incline_chest_supported_dumbbell_row",
+        "inverted_row",
+        "machine_seated_row",
+        "neutral_grip_lat_pulldown",
+        "seated_cable_row"
+      ],
+      "selectable": 43
+    },
+    "MODERATE": {
+      "caution": 0,
+      "excluded": 18,
+      "excluded_codes": [
+        "barbell_back_squat",
+        "dumbbell_deadlift",
+        "dumbbell_goblet_squat",
+        "dumbbell_rear_delt_row",
+        "dumbbell_romanian_deadlift",
+        "half_kneeling_single_arm_lat_pulldown",
+        "incline_chest_supported_dumbbell_row",
+        "inverted_row",
+        "kettlebell_sumo_deadlift",
+        "machine_seated_row",
+        "machine_shoulder_press",
+        "neutral_grip_lat_pulldown",
+        "romanian_deadlift",
+        "seated_cable_row",
+        "stability_ball_hip_hinge_lift",
+        "standing_lateral_raise",
+        "standing_weighted_hip_hinge",
+        "supine_chest_opening_stretch"
+      ],
+      "selectable": 32
+    }
+  },
+  "WRIST_HAND": {
+    "MILD": {
+      "caution": 21,
+      "excluded": 1,
+      "excluded_codes": [
+        "push_up"
+      ],
+      "selectable": 49
+    },
+    "MODERATE": {
+      "caution": 0,
+      "excluded": 22,
+      "excluded_codes": [
+        "barbell_overhead_press",
+        "bent_over_triceps_kickback",
+        "diagonal_arm_raise",
+        "dumbbell_arnold_press",
+        "dumbbell_deadlift",
+        "dumbbell_rear_delt_row",
+        "dumbbell_romanian_deadlift",
+        "dumbbell_side_punch",
+        "dumbbell_split_squat",
+        "household_biceps_curl",
+        "incline_dumbbell_bench_press",
+        "inverted_row",
+        "kettlebell_sumo_deadlift",
+        "push_up",
+        "quadruped_leg_raise",
+        "romanian_deadlift",
+        "seated_bench_press",
+        "stability_ball_hip_hinge_lift",
+        "standing_cable_chest_press",
+        "standing_weighted_hip_hinge",
+        "supported_dumbbell_curl",
+        "two_hand_kettlebell_swing"
+      ],
+      "selectable": 28
+    }
+  },
+  "_total_exercises": 50
+}

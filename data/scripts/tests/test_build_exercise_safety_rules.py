@@ -224,6 +224,11 @@ class ExerciseSafetyRuleTests(unittest.TestCase):
         self.assertFalse(result["production_eligible"])
         manifest = json.loads((rules_dir / "rules_manifest.json").read_text(encoding="utf-8"))
         self.assertFalse(manifest["review"]["production_eligible"])
+        self.assertEqual(manifest["review"]["review_method_code"], "AGENT_ONLY")
+        artifacts = manifest["source"]["catalog_seed_artifacts"]
+        self.assertEqual(len(artifacts), 1)
+        self.assertEqual(len(artifacts[0]["seed_manifest_sha256"]), 64)
+        self.assertEqual(len(artifacts[0]["exercises_sha256"]), 64)
 
     def test_tampered_rules_file_fails_verification(self) -> None:
         rules_dir = self.build()

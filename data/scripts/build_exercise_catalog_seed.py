@@ -519,6 +519,13 @@ def build_seed(
             for seed_row in seed_rows:
                 handle.write(json.dumps(seed_row, ensure_ascii=False, sort_keys=True) + "\n")
         raw = seed_path.read_bytes()
+        input_paths = {
+            "review_batch_manifest": batch_dir / "review_manifest.json",
+            "mapping_results": mapping,
+            "evidence_results": evidence,
+            "catalog_attributes": attributes,
+            "taxonomy_registry": registry_path,
+        }
         manifest = {
             "schema_version": "1.0",
             "generator_version": SEED_GENERATOR_VERSION,
@@ -527,8 +534,22 @@ def build_seed(
                 "track": track.name,
                 "review_batch_directory": batch_dir.name,
                 "taxonomy_registry_sha256": sha256_bytes(registry_path.read_bytes()),
+                "input_artifacts": [
+                    {
+                        "role": role,
+                        "path": path.name,
+                        "sha256": sha256_bytes(path.read_bytes()),
+                        "bytes": len(path.read_bytes()),
+                    }
+                    for role, path in input_paths.items()
+                ],
             },
-            "review": {"status": "DOMAIN_APPROVED", "production_eligible": False},
+            "review": {
+                "status": "DOMAIN_APPROVED",
+                "review_method_code": "AGENT_ONLY",
+                "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
+                "production_eligible": False,
+            },
             "summary": {"exercise_records": len(seed_rows)},
             "files": [
                 {

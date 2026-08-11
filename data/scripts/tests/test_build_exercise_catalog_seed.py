@@ -356,6 +356,19 @@ class BuildExerciseCatalogSeedTests(unittest.TestCase):
         self.assertTrue(all(10 <= r["default_transition_seconds"] <= 20 for r in records))
         manifest = json.loads((seed_dir / "seed_manifest.json").read_text(encoding="utf-8"))
         self.assertFalse(manifest["review"]["production_eligible"])
+        self.assertEqual(manifest["review"]["review_method_code"], "AGENT_ONLY")
+        artifacts = manifest["source"]["input_artifacts"]
+        self.assertEqual(
+            {entry["role"] for entry in artifacts},
+            {
+                "review_batch_manifest",
+                "mapping_results",
+                "evidence_results",
+                "catalog_attributes",
+                "taxonomy_registry",
+            },
+        )
+        self.assertTrue(all(len(entry["sha256"]) == 64 for entry in artifacts))
 
     def build_default_seed(self) -> Path:
         self.approve_all()
