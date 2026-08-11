@@ -127,3 +127,15 @@ python data/scripts/validate_kspo_fitness100_review_results.py `
 검증 결과의 `review_complete_rows`는 구조와 증적이 완성된 INCLUDE/MERGE 행 수다.
 `production_eligible`은 항상 `false`이며, 후속 normalized schema 및 seed 승격 게이트가
 별도로 필요하다.
+
+## 통과 기록
+
+| 일자 | 트랙 | `review_complete_rows` |
+|---|---|---:|
+| 2026-08-11 | wger 헬스장 | 14 |
+| 2026-08-11 | KSPO 홈·맨몸 | 10 |
+
+이 검토는 개발 리드 위임으로 AI 에이전트가 수행했다. `reviewer_reference`가 `AGENT-`로
+시작하는 증적이 이에 해당한다. 범위와 한계는
+[review_results/TRANCHE1_REVIEW_DECISION.md](review_results/TRANCHE1_REVIEW_DECISION.md)에
+있으며, 프로덕션 승격 게이트에서 전문가 검수 필요 여부를 다시 판단해야 한다.

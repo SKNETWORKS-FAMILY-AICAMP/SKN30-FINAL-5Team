@@ -97,9 +97,19 @@ official API
 1번은 완료했다. KSPO·wger snapshot과 profile, 두 트랙의 v0.2.0 배치가 모두 해시
 검증을 통과한다.
 
-2번부터는 사람의 검토 입력이 필요하다. 두 트랙 모두 검토 결과 입력 열, 역할별 증적
-템플릿, 실패 폐쇄 결과 validator가 준비되어 있으므로 홈 트랙과 헬스장 트랙 검토를
-동시에 진행할 수 있다.
+2번부터 7번까지 tranche 1(24종)에 대해 완료했다. 개발 리드가 데이터 파트 총괄 권한으로
+네 검토 역할을 AI 에이전트에 위임했고, 그 결정과 한계를
+[validation/review_results/TRANCHE1_REVIEW_DECISION.md](validation/review_results/TRANCHE1_REVIEW_DECISION.md)에
+기록했다. 결과는 `generated/`의 두 seed다.
+
+| 트랙 | 검토 완료 | seed |
+|---|---:|---|
+| wger 헬스장 | 14 / 60 | `exercise-catalog-seed-wger-tranche1-v0.1.0` |
+| KSPO 홈·맨몸 | 10 / 50 | `exercise-catalog-seed-kspo-tranche1-v0.1.0` |
+
+두 seed 모두 `production_eligible`이 `false`다. DB 설계·적재를 진행할 수 있는 DRAFT
+카탈로그이며 사용자 노출 승인이 아니다. 나머지 86행은 `PENDING`으로 남아 있고 같은
+절차로 tranche 2를 진행한다.
 
 3번과 5번의 taxonomy 코드는 `docs/API_CONTRACT.md`의 미확정 계약이므로 파이프라인이 임의로
 정하지 않는다. 원천 어휘 실측과 승인된 문서 문장에서 도출한 제안을
@@ -114,8 +124,8 @@ FITT·MET 참고 원천은 [FITT_REFERENCE_ASSESSMENT.md](FITT_REFERENCE_ASSESSM
 API가 아니라 라이선스 제한이 있는 저작물이다.
 
 7번 seed generator는 `scripts/build_exercise_catalog_seed.py`로 구현했다. 승인 증적이
-없으면 아무것도 생성하지 않는다. 현재는 taxonomy registry가 `DRAFT`이고 검토 완료 행이
-0건이므로 `build`가 항상 실패하며 이는 의도된 동작이다.
+없으면 아무것도 생성하지 않는다. tranche 1 검토가 끝나 두 트랙 모두 `build`가 성공하며,
+검토가 끝나지 않은 86행은 여전히 seed에 들어가지 않는다.
 
 `readiness` 명령이 무엇이 비어 있는지 기계적으로 보고하므로, 남은 작업을 추정하지 않고
 확인할 수 있다. 검토 배치에 없는 DATA_MODEL 필드는 `template` 명령이 만드는 catalog

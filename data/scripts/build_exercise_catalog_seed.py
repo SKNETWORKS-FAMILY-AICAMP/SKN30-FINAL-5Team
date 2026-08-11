@@ -224,8 +224,15 @@ def load_taxonomy_registry(path: Path) -> dict[str, set[str]]:
     return resolved
 
 
-def split_codes(value: str) -> list[str]:
+def split_cell(value: str) -> list[str]:
+    """`|`로 구분한 다중 값 셀을 나눈다. 코드 목록과 자세 문구가 같은 표기를 쓴다."""
+
     return [part.strip() for part in value.split("|") if part.strip()]
+
+
+def optional_int(value: str) -> int | None:
+    text = value.strip()
+    return int(text) if text else None
 
 
 def parse_seconds(value: str, field: str, problems: list[str]) -> int | None:
@@ -306,21 +313,21 @@ def attribute_problems(row: dict[str, str], registry: dict[str, set[str]] | None
     if parse_boolean(row.get("recovery_eligible", ""), "recovery_eligible", problems) is None:
         problems.append("recovery_eligible is empty")
 
-    primary_areas = split_codes(row.get("primary_body_area_codes", ""))
+    primary_areas = split_cell(row.get("primary_body_area_codes", ""))
     if not primary_areas:
         problems.append("primary_body_area_codes is empty")
-    for code in primary_areas + split_codes(row.get("secondary_body_area_codes", "")):
+    for code in primary_areas + split_cell(row.get("secondary_body_area_codes", "")):
         if code not in BODY_AREA_CODES:
             problems.append(f"body area code is not in DOMAIN_RULES: {code}")
 
-    equipment = split_codes(row.get("equipment_codes", ""))
+    equipment = split_cell(row.get("equipment_codes", ""))
     if not equipment:
         problems.append("equipment_codes is empty")
     if registry:
         for code in equipment:
             if code not in registry.get("equipment_code", set()):
                 problems.append(f"equipment_code is not in the approved code list: {code}")
-    locations = split_codes(row.get("location_codes", ""))
+    locations = split_cell(row.get("location_codes", ""))
     if not locations:
         problems.append("location_codes is empty")
     if registry:
@@ -466,20 +473,21 @@ def build_seed(
                 "difficulty_code": attribute_row["difficulty_code"].strip(),
                 "beginner_suitable": row["review_beginner_suitability"].strip() == "YES",
                 "timing_mode_code": attribute_row["timing_mode_code"].strip(),
-                "default_seconds_per_rep": attribute_row["default_seconds_per_rep"].strip() or None,
-                "default_work_seconds": attribute_row["default_work_seconds"].strip() or None,
+                # 초 단위 값은 모두 정수로 낸다. attribute_problems가 이미 정수임을
+                # 검증했으므로 여기서는 형식만 맞춘다.
+                "default_seconds_per_rep": optional_int(attribute_row["default_seconds_per_rep"]),
+                "default_work_seconds": optional_int(attribute_row["default_work_seconds"]),
                 "default_rest_seconds": int(attribute_row["default_rest_seconds"]),
                 "default_transition_seconds": int(attribute_row["default_transition_seconds"]),
                 "recovery_eligible": attribute_row["recovery_eligible"].strip().upper()
                 in {"TRUE", "YES"},
-                "primary_body_area_codes": split_codes(attribute_row["primary_body_area_codes"]),
-                "secondary_body_area_codes": split_codes(
-                    attribute_row["secondary_body_area_codes"]
-                ),
-                "equipment_codes": split_codes(attribute_row["equipment_codes"]),
-                "location_codes": split_codes(attribute_row["location_codes"]),
+                "primary_body_area_codes": split_cell(attribute_row["primary_body_area_codes"]),
+                "secondary_body_area_codes": split_cell(attribute_row["secondary_body_area_codes"]),
+                "equipment_codes": split_cell(attribute_row["equipment_codes"]),
+                "location_codes": split_cell(attribute_row["location_codes"]),
                 "instruction_summary_ko": attribute_row["instruction_summary_ko"].strip(),
-                "form_cues_ko": attribute_row["form_cues_ko"].strip(),
+                # docs/DATA_MODEL.md 5.2의 form_cues_ko는 JSONB이므로 문자열이 아닌 목록으로 낸다.
+                "form_cues_ko": split_cell(attribute_row["form_cues_ko"]),
                 "instruction_content_version": attribute_row["instruction_content_version"].strip(),
                 "review_status_code": "DOMAIN_APPROVED",
                 "source_track": track.name,

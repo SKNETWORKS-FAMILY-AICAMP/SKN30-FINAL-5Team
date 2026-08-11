@@ -357,6 +357,68 @@ class BuildExerciseCatalogSeedTests(unittest.TestCase):
         manifest = json.loads((seed_dir / "seed_manifest.json").read_text(encoding="utf-8"))
         self.assertFalse(manifest["review"]["production_eligible"])
 
+    def build_default_seed(self) -> Path:
+        self.approve_all()
+        attributes = self.make_attributes()
+        registry = write_registry(self.root / "registry.json")
+        return seed.build_seed(
+            TRACK,
+            self.batch,
+            self.mapping,
+            self.evidence,
+            attributes,
+            registry,
+            self.root / "generated",
+            "v0.1.0",
+        )
+
+    def read_seed_records(self, seed_dir: Path) -> list[dict[str, object]]:
+        return [
+            json.loads(line)
+            for line in (seed_dir / "exercises.jsonl").read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+
+    def test_form_cues_are_emitted_as_a_list(self) -> None:
+        """docs/DATA_MODEL.md 5.2절의 form_cues_ko는 JSONB이므로 문자열이면 안 된다."""
+
+        self.approve_all()
+        attributes = self.make_attributes()
+        registry = write_registry(self.root / "registry.json")
+        fields, rows = read_rows(attributes)
+        rows[0]["form_cues_ko"] = "무릎을 발끝 방향으로 둔다 | 허리를 말지 않는다"
+        write_rows(attributes, fields, rows)
+
+        seed_dir = seed.build_seed(
+            TRACK,
+            self.batch,
+            self.mapping,
+            self.evidence,
+            attributes,
+            registry,
+            self.root / "generated",
+            "v0.1.0",
+        )
+
+        records = self.read_seed_records(seed_dir)
+        self.assertEqual(
+            records[0]["form_cues_ko"],
+            ["무릎을 발끝 방향으로 둔다", "허리를 말지 않는다"],
+        )
+        self.assertTrue(all(isinstance(r["form_cues_ko"], list) for r in records))
+
+    def test_seconds_fields_are_integers_or_null(self) -> None:
+        """DB 적재 대상이므로 초 단위 값이 문자열로 새어 나가면 안 된다."""
+
+        records = self.read_seed_records(self.build_default_seed())
+
+        for record in records:
+            self.assertIsInstance(record["default_rest_seconds"], int)
+            self.assertIsInstance(record["default_transition_seconds"], int)
+            # 이 fixture는 DURATION 모드라 반복 시간은 비어 있고 수행 시간만 있다.
+            self.assertIsNone(record["default_seconds_per_rep"])
+            self.assertIsInstance(record["default_work_seconds"], int)
+
     def test_readiness_reports_ready_when_everything_is_approved(self) -> None:
         self.approve_all()
         attributes = self.make_attributes()

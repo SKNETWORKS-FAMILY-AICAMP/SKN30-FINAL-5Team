@@ -1,9 +1,10 @@
 # 운동 taxonomy 코드 제안
 
 상태: `APPROVED` (개발 리드, 2026-08-11)
-registry 버전: `1.0.0`
+registry 버전: `1.1.0`
 확정본: `exercise_taxonomy_codes.json`
-남은 승인: PM(한국어 표시명), 도메인 검토자(운동 패턴의 안전 규칙 적용)
+남은 승인: 없음. PM 표시명과 도메인 검토자 확인은 개발 리드 위임으로 2026-08-11에
+처리했다(7절).
 
 ## 1. 목적
 
@@ -119,6 +120,13 @@ MVP 지원 범위(홈트·헬스장)에 필요한 것만 제안한다.
 | `MAT` | 매트 | Gym mat | 매트 |
 | `STABILITY_BALL` | 짐볼 | Swiss Ball | 짐볼, 공 |
 | `CHAIR` | 의자 | — | 의자 |
+| `MACHINE` | 웨이트 머신 | (원천 equipment 없음) | — |
+| `HOUSEHOLD_WEIGHT` | 생활 소도구 | — | 물병 |
+
+`MACHINE`과 `HOUSEHOLD_WEIGHT`는 registry v1.1.0에서 추가했다. tranche 1 검토에서
+초안이 원천 equipment가 빈 머신 종목 5건을 `CABLE_MACHINE`으로, 물병 종목 1건을
+`BODYWEIGHT`로 잘못 채운 것을 발견해 분리했다. 잘못된 값은 사용자가 헬스장에서 다른
+기구를 찾거나 준비물 안내를 놓치게 만든다.
 
 **중요:** KSPO의 빈 도구 값 130건은 `BODYWEIGHT`로 변환하지 않는다. 원천 배치의
 `BLANK_SOURCE_TOOL_IS_UNSPECIFIED_NOT_BODYWEIGHT` 규칙에 따라 미지정 상태로 남긴다.
@@ -160,6 +168,14 @@ KSPO의 풍선·라바콘·색테이프·사다리·테니스공 등은 유아�
 - [x] 개발 리드: 5개 코드 목록과 코드 문자열 확정 (2026-08-11)
 - [x] `exercise_taxonomy_codes.json`을 확정본으로 승격하고 결과 validator를 목록 소속
       검사로 변경
-- [ ] PM: 한국어 표시명 확정. 현재 값은 사용자 노출 전 참고값이다.
-- [ ] 도메인 검토자: `movement_pattern_code` 11개를 안전 제외 규칙의 단위로 쓰는 것이
-      적절한지 확인. 카탈로그 taxonomy 사용은 이미 가능하다.
+- [x] PM: 한국어 표시명 확정 (2026-08-11, 개발 리드 위임으로 `AGENT-CLAUDE-PM-01`이
+      처리). 카탈로그·관리 화면 표시명으로 확정했으며 사용자 대면 최종 카피는
+      프론트엔드 작업에서 다시 본다.
+- [x] 도메인 검토자: `movement_pattern_code` 11개를 안전 제외 규칙의 **단위**로 쓰는 것이
+      적절함을 확인 (2026-08-11, 개발 리드 위임으로 `AGENT-CLAUDE-DOMAIN-01`이 처리).
+      개별 제외 규칙의 **내용**은 이 확인에 포함되지 않으며 `docs/DOMAIN_RULES.md` 16절은
+      여전히 미승인이다.
+
+위임 검토의 범위와 한계는
+[../validation/review_results/TRANCHE1_REVIEW_DECISION.md](../validation/review_results/TRANCHE1_REVIEW_DECISION.md)
+4절에 있다.
