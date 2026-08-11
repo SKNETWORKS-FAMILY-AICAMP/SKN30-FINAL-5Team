@@ -1,9 +1,9 @@
 # 운동 taxonomy 코드 제안
 
-상태: `DRAFT`
-제안 버전: `0.1.0`
-프로덕션 사용 가능: `false`
-승인 필요: 개발 리드(코드 목록), PM(표시명), 도메인 검토자(운동 패턴)
+상태: `APPROVED` (개발 리드, 2026-08-11)
+registry 버전: `1.0.0`
+확정본: `exercise_taxonomy_codes.json`
+남은 승인: PM(한국어 표시명), 도메인 검토자(운동 패턴의 안전 규칙 적용)
 
 ## 1. 목적
 
@@ -15,8 +15,8 @@
 - `equipment_code`
 - `location_code`
 
-이 목록이 확정되기 전에는 정규화 카탈로그와 DB seed를 만들 수 없다. 검토 배치의
-`review_taxonomy_code`도 현재 형식만 검증하고 값 목록을 검사하지 못한다.
+개발 리드가 2026-08-11에 5개 집합을 모두 승인했다. 결과 validator는 이제
+`review_taxonomy_code`의 형식이 아니라 승인된 목록 소속을 검사한다.
 
 `body_area_code`는 `docs/DOMAIN_RULES.md` 3.2절에서 이미 확정된 13개 코드를 사용하며 이
 문서에서 다시 제안하지 않는다.
@@ -80,9 +80,10 @@ MVP_SCOPE의 "상체, 하체 등 루틴 화면 분류" 수준이다. wger catego
 
 ### 4.3 movement_pattern_code
 
-`exercise_safety_rules`가 이 코드로 제외 규칙을 건다. `docs/DOMAIN_RULES.md` 16절의
-"각 신체 부위와 운동 패턴의 제외 규칙"이 미승인 상태이므로 **도메인 검토자 승인이 반드시
-필요하다.**
+`exercise_safety_rules`가 이 코드로 제외 규칙을 건다. 개발 리드가 코드 목록을 승인했으므로
+카탈로그 taxonomy로는 사용할 수 있다. 다만 `docs/DOMAIN_RULES.md` 16절의 "각 신체 부위와
+운동 패턴의 제외 규칙"은 여전히 미승인이므로 **안전 규칙 작성에는 도메인 검토자 승인이
+별도로 필요하다.**
 
 앞의 8개는 `GYM_EXERCISE_SOURCE_COVERAGE.md` 검토 우선순위를 그대로 코드화했다.
 
@@ -156,8 +157,9 @@ KSPO의 풍선·라바콘·색테이프·사다리·테니스공 등은 유아�
 
 ## 7. 승인 체크리스트
 
-- [ ] 개발 리드: 5개 코드 목록과 코드 문자열 확정
-- [ ] PM: 한국어 표시명 확정
-- [ ] 도메인 검토자: `movement_pattern_code` 11개가 안전 제외 규칙의 단위로 적절한지 확인
-- [ ] 승인 후: `exercise_taxonomy_codes.draft.json`을 확정본으로 올리고 결과 validator가
-      코드 형식이 아니라 목록 소속을 검사하도록 변경
+- [x] 개발 리드: 5개 코드 목록과 코드 문자열 확정 (2026-08-11)
+- [x] `exercise_taxonomy_codes.json`을 확정본으로 승격하고 결과 validator를 목록 소속
+      검사로 변경
+- [ ] PM: 한국어 표시명 확정. 현재 값은 사용자 노출 전 참고값이다.
+- [ ] 도메인 검토자: `movement_pattern_code` 11개를 안전 제외 규칙의 단위로 쓰는 것이
+      적절한지 확인. 카탈로그 taxonomy 사용은 이미 가능하다.

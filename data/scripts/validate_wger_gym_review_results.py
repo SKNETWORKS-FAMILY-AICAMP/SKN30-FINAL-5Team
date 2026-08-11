@@ -36,6 +36,9 @@ ALLOWED_REVIEW_STATUS_CODES = {
     "DEPRECATED",
 }
 MACHINE_CODE_PATTERN = re.compile(r"^[a-z][a-z0-9_]{2,63}$")
+DEFAULT_TAXONOMY_REGISTRY = (
+    Path(__file__).resolve().parents[1] / "normalized" / "exercise_taxonomy_codes.json"
+)
 OPAQUE_REVIEWER_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{2,127}$")
 
 MAPPING_EDITABLE_FIELDS = set(PENDING_REVIEW_FIELDS)
@@ -92,7 +95,9 @@ def parse_timezone_timestamp(value: str, field_name: str) -> str:
     return value.strip()
 
 
-def validate_mapping_row(row: dict[str, str], row_number: int) -> None:
+def validate_mapping_row(
+    row: dict[str, str], row_number: int, approved_movement_patterns: set[str]
+) -> None:
     decision = row["review_decision"].strip()
     beginner = row["review_beginner_suitability"].strip()
     if decision not in ALLOWED_REVIEW_DECISIONS:
@@ -117,8 +122,11 @@ def validate_mapping_row(row: dict[str, str], row_number: int) -> None:
         )
         if problems:
             raise PipelineError(f"mapping row {row_number} {problems[0]}")
-        if not MACHINE_CODE_PATTERN.fullmatch(taxonomy_code):
-            raise PipelineError(f"mapping row {row_number} taxonomy code is invalid")
+        if taxonomy_code not in approved_movement_patterns:
+            raise PipelineError(
+                f"mapping row {row_number} taxonomy code is not an approved "
+                f"movement pattern: {taxonomy_code}"
+            )
         if beginner == "PENDING":
             raise PipelineError(f"mapping row {row_number} beginner suitability is still PENDING")
         for field in (
@@ -160,13 +168,32 @@ def validate_evidence_row(row: dict[str, str], row_number: int) -> None:
     parse_timezone_timestamp(reviewed_at, f"evidence row {row_number} reviewed_at")
 
 
+def load_approved_movement_patterns(registry_path: Path) -> set[str]:
+    """승인된 movement pattern 코드 집합. 승인 registry가 없으면 실패한다."""
+
+    try:
+        registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise PipelineError(f"taxonomy registry is missing: {registry_path}") from exc
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise PipelineError("taxonomy registry is not valid JSON") from exc
+    if registry.get("status") != "APPROVED":
+        raise PipelineError("taxonomy registry is not APPROVED")
+    entries = registry.get("code_sets", {}).get("movement_pattern_code")
+    if not isinstance(entries, list) or not entries:
+        raise PipelineError("taxonomy registry has no movement_pattern_code list")
+    return {str(entry["code"]) for entry in entries if isinstance(entry, dict)}
+
+
 def validate_review_results(
     batch_dir: Path,
     mapping_results_path: Path,
     evidence_results_path: Path,
+    taxonomy_registry_path: Path = DEFAULT_TAXONOMY_REGISTRY,
 ) -> dict[str, object]:
     batch_dir = batch_dir.resolve()
     verify_review_batch(batch_dir)
+    approved_movement_patterns = load_approved_movement_patterns(taxonomy_registry_path)
     template_mapping = read_csv(batch_dir / "gym_core_review_batch.csv", CSV_FIELDS)
     template_evidence = read_csv(
         batch_dir / "catalog_review_records_template.csv", REVIEW_EVIDENCE_FIELDS
@@ -189,7 +216,7 @@ def validate_review_results(
             MAPPING_EDITABLE_FIELDS,
             record_label="mapping",
         )
-        validate_mapping_row(result, row_number)
+        validate_mapping_row(result, row_number, approved_movement_patterns)
         exercise_id = int(result["source_exercise_id"])
         if exercise_id in mapping_by_exercise_id:
             raise PipelineError("mapping result source_exercise_id must be unique")
@@ -242,6 +269,7 @@ def validate_review_results(
 
     return {
         "validator_version": RESULT_VALIDATOR_VERSION,
+        "taxonomy_registry_status": "APPROVED",
         "batch": batch_dir.name,
         "mapping_rows": len(result_mapping),
         "evidence_rows": len(result_evidence),

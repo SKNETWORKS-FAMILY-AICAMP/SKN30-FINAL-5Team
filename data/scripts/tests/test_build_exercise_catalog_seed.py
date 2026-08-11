@@ -173,7 +173,7 @@ class BuildExerciseCatalogSeedTests(unittest.TestCase):
                 {
                     "review_normalized_exercise_id": f"reviewed_exercise_{index}",
                     "review_display_name_ko": f"검수된 운동 {index}",
-                    "review_taxonomy_code": "mobility_stretch",
+                    "review_taxonomy_code": "MOBILITY_STRETCH",
                     "review_beginner_suitability": "YES",
                     "review_execution_guidance_status": "APPROVED",
                     "review_media_rights_status": "APPROVED",

@@ -52,12 +52,13 @@ normalized seed 생성이나 프로덕션 승격이 아니다.
 - `INCLUDE` 또는 `MERGE`에는 다음 값이 모두 필요하다.
   - 소문자 machine code 형식의 정규화 운동 ID
   - 한국어 표시명
-  - 소문자 machine code 형식의 taxonomy code
+  - 승인된 movement pattern 코드(대문자)
   - 검토된 초보자 적합성
   - 실행 안내, 라이선스(KSPO는 미디어 권리) 및 도메인 안전 상태 `APPROVED`
 
-현재 movement pattern과 training type의 최종 코드 목록은 미확정이므로 이 단계에서는
-코드 형식만 검증하며 DB seed를 생성하지 않는다.
+taxonomy 코드는 2026-08-11에 개발 리드가 승인했다. `review_taxonomy_code`는 형식이 아니라
+`normalized/exercise_taxonomy_codes.json`의 `movement_pattern_code` 목록에 속해야 하며
+표기는 대문자다. registry가 `APPROVED`가 아니면 검증 자체가 실패한다.
 
 ## 한국어 표시명 검수 규칙
 

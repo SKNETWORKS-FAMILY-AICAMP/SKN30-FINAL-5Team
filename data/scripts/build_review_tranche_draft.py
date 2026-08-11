@@ -90,7 +90,8 @@ def render_drafts(
         # 내용만 채우고 승인 상태는 건드리지 않는다.
         target["review_normalized_exercise_id"] = str(spec["stable_code"])
         target["review_display_name_ko"] = name_ko
-        target["review_taxonomy_code"] = str(spec["movement_pattern_code"]).lower()
+        # taxonomy 코드는 승인된 registry의 표기(대문자)를 그대로 쓴다.
+        target["review_taxonomy_code"] = str(spec["movement_pattern_code"])
         target["reviewer_notes"] = f"{DRAFT_SOURCE_MARK}: 기계 초안. 승인 전 반드시 확인 필요."
 
         attribute_rows.append(

@@ -292,6 +292,37 @@ class ValidateKspoFitness100ReviewResultsTests(unittest.TestCase):
             ):
                 result_validator.validate_review_results(batch, mapping, evidence)
 
+    def test_unapproved_taxonomy_code_fails_closed(self) -> None:
+        """승인된 registry에 없는 코드는 형식이 맞아도 거부한다."""
+
+        with workspace_directory() as root:
+            batch = make_batch(root)
+            mapping, evidence = result_copies(batch, root)
+            mapping_fields, mapping_rows = read_rows(mapping)
+            self.complete_mapping_row(mapping_rows[0])
+            mapping_rows[0]["review_taxonomy_code"] = "INVENTED_PATTERN"
+            write_rows(mapping, mapping_fields, mapping_rows)
+            evidence_fields, evidence_rows = read_rows(evidence)
+            self.complete_evidence_for_candidate(
+                evidence_rows, mapping_rows[0]["source_candidate_id"]
+            )
+            write_rows(evidence, evidence_fields, evidence_rows)
+
+            with self.assertRaisesRegex(
+                result_validator.PipelineError, "not an approved movement pattern"
+            ):
+                result_validator.validate_review_results(batch, mapping, evidence)
+
+    def test_unapproved_registry_blocks_validation(self) -> None:
+        with workspace_directory() as root:
+            batch = make_batch(root)
+            mapping, evidence = result_copies(batch, root)
+            registry = root / "draft_registry.json"
+            registry.write_text(json.dumps({"status": "DRAFT", "code_sets": {}}), encoding="utf-8")
+
+            with self.assertRaisesRegex(result_validator.PipelineError, "not APPROVED"):
+                result_validator.validate_review_results(batch, mapping, evidence, registry)
+
     def test_exclude_requires_a_reason(self) -> None:
         with workspace_directory() as root:
             batch = make_batch(root)
@@ -332,7 +363,7 @@ class ValidateKspoFitness100ReviewResultsTests(unittest.TestCase):
             {
                 "review_normalized_exercise_id": "chest_opening_stretch",
                 "review_display_name_ko": "가슴 펴기 스트레칭",
-                "review_taxonomy_code": "thoracic_mobility",
+                "review_taxonomy_code": "MOBILITY_STRETCH",
                 "review_beginner_suitability": "YES",
                 "review_execution_guidance_status": "APPROVED",
                 "review_media_rights_status": "APPROVED",

@@ -206,7 +206,7 @@ python data/scripts/build_exercise_catalog_seed.py template kspo `
 python data/scripts/build_exercise_catalog_seed.py readiness kspo `
   "<batch>" "<mapping-results.csv>" "<evidence-results.csv>" `
   --attributes "<attributes.csv>" `
-  --taxonomy-registry data/normalized/exercise_taxonomy_codes.draft.json
+  --taxonomy-registry data/normalized/exercise_taxonomy_codes.json
 ```
 
 모든 조건이 충족되면 seed를 만듭니다.
@@ -228,7 +228,8 @@ python data/scripts/build_exercise_catalog_seed.py build kspo `
 - `body_area_code`가 `docs/DOMAIN_RULES.md`의 13개 코드에 없음
 - 정규화 ID 중복 또는 한국어 표시명 중복
 
-현재 taxonomy registry는 `DRAFT`이고 검토 완료 행이 0건이므로 `build`는 항상 실패합니다.
+taxonomy registry는 2026-08-11에 개발 리드가 승인했습니다. 검토 완료 행이 0건인 동안에는
+`build`가 계속 실패합니다.
 생성된 seed도 `production_eligible=false`이며 DB 적재는 별도 승격 게이트가 필요합니다.
 
 ## 한국어 표시명 검수 규칙

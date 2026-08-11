@@ -104,8 +104,8 @@ official API
 3번과 5번의 taxonomy 코드는 `docs/API_CONTRACT.md`의 미확정 계약이므로 파이프라인이 임의로
 정하지 않는다. 원천 어휘 실측과 승인된 문서 문장에서 도출한 제안을
 [normalized/EXERCISE_TAXONOMY_CODE_PROPOSAL.md](normalized/EXERCISE_TAXONOMY_CODE_PROPOSAL.md)와
-`normalized/exercise_taxonomy_codes.draft.json`에 두었다. **승인 전까지 `DRAFT`이며**
-validator는 계속 코드 형식만 검사한다. `body_area_code`는 `docs/DOMAIN_RULES.md`에서 이미
+`normalized/exercise_taxonomy_codes.json`에 두었다. 개발 리드가 2026-08-11에
+승인했으므로 결과 validator가 `review_taxonomy_code`의 목록 소속을 검사한다. `body_area_code`는 `docs/DOMAIN_RULES.md`에서 이미
 확정되어 있다.
 
 FITT·MET 참고 원천은 [FITT_REFERENCE_ASSESSMENT.md](FITT_REFERENCE_ASSESSMENT.md)에서

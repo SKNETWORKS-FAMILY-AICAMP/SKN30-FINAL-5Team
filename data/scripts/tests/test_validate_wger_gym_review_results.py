@@ -273,7 +273,7 @@ class ValidateWgerGymReviewResultsTests(unittest.TestCase):
             {
                 "review_normalized_exercise_id": "neutral_grip_lat_pulldown",
                 "review_display_name_ko": "뉴트럴 그립 랫풀다운",
-                "review_taxonomy_code": "vertical_pull",
+                "review_taxonomy_code": "VERTICAL_PULL",
                 "review_beginner_suitability": "YES",
                 "review_execution_guidance_status": "APPROVED",
                 "review_license_status": "APPROVED",
