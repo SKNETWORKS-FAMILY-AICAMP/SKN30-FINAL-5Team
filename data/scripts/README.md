@@ -187,6 +187,50 @@ python data/scripts/validate_wger_gym_review_results.py `
 증적이 없으면 실패한다. 검증 성공도 프로덕션 승격을 의미하지 않으며 결과의
 `production_eligible`은 항상 `false`다.
 
+## 운동 카탈로그 seed 생성
+
+`build_exercise_catalog_seed.py`는 승인 증적이 없으면 아무것도 만들지 않습니다.
+
+검토 배치에는 `docs/DATA_MODEL.md` 5.2절이 요구하는 값 중 일부가 없습니다. 운동 유형,
+운동 패턴, 난이도, 수행 시간, 휴식, 실행 안내는 별도 attribute 시트에 도메인 검토자가
+작성합니다. 매핑 검토에서 `INCLUDE`/`MERGE`가 나온 뒤 템플릿을 만듭니다.
+
+```powershell
+python data/scripts/build_exercise_catalog_seed.py template kspo `
+  "<batch>" "<mapping-results.csv>" --out "<attributes.csv>"
+```
+
+무엇이 남았는지 확인합니다. 이 명령은 실패시키지 않고 보고만 합니다.
+
+```powershell
+python data/scripts/build_exercise_catalog_seed.py readiness kspo `
+  "<batch>" "<mapping-results.csv>" "<evidence-results.csv>" `
+  --attributes "<attributes.csv>" `
+  --taxonomy-registry data/normalized/exercise_taxonomy_codes.draft.json
+```
+
+모든 조건이 충족되면 seed를 만듭니다.
+
+```powershell
+python data/scripts/build_exercise_catalog_seed.py build kspo `
+  "<batch>" "<mapping-results.csv>" "<evidence-results.csv>" `
+  "<attributes.csv>" "<taxonomy-registry.json>" --version-code v0.1.0
+```
+
+다음 중 하나라도 어긋나면 산출물을 만들지 않고 실패합니다.
+
+- review batch 해시 검증 실패
+- mapping·evidence가 기존 결과 validator를 통과하지 못함
+- taxonomy registry가 `APPROVED`가 아님
+- 운동에 `DOMAIN_REVIEWER`의 `DOMAIN_APPROVED` 증적이 없음
+- attribute 필수 값 누락, 승인되지 않은 코드 사용
+- `default_transition_seconds`가 10~20 범위 밖
+- `body_area_code`가 `docs/DOMAIN_RULES.md`의 13개 코드에 없음
+- 정규화 ID 중복 또는 한국어 표시명 중복
+
+현재 taxonomy registry는 `DRAFT`이고 검토 완료 행이 0건이므로 `build`는 항상 실패합니다.
+생성된 seed도 `production_eligible=false`이며 DB 적재는 별도 승격 게이트가 필요합니다.
+
 ## 한국어 표시명 검수 규칙
 
 `korean_display_name_rules.py`는 두 트랙의 결과 validator가 함께 사용하는 표시명 규칙이다.

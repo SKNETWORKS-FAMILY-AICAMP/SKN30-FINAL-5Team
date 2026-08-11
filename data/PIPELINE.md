@@ -113,7 +113,13 @@ FITT·MET 참고 원천은 [FITT_REFERENCE_ASSESSMENT.md](FITT_REFERENCE_ASSESSM
 세션 시간 구조는 이미 `docs/DOMAIN_RULES.md`에 확정되어 있으며, 해당 문서들은 공개
 API가 아니라 라이선스 제한이 있는 저작물이다.
 
-7번 seed generator는 taxonomy 코드 목록이 확정되고 검토 결과가 입력된 뒤에 구현한다.
+7번 seed generator는 `scripts/build_exercise_catalog_seed.py`로 구현했다. 승인 증적이
+없으면 아무것도 생성하지 않는다. 현재는 taxonomy registry가 `DRAFT`이고 검토 완료 행이
+0건이므로 `build`가 항상 실패하며 이는 의도된 동작이다.
+
+`readiness` 명령이 무엇이 비어 있는지 기계적으로 보고하므로, 남은 작업을 추정하지 않고
+확인할 수 있다. 검토 배치에 없는 DATA_MODEL 필드는 `template` 명령이 만드는 catalog
+attribute 시트에 도메인 검토자가 작성한다.
 
 ### 원천 단위 주의
 

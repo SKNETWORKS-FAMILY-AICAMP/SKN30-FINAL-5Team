@@ -13,11 +13,16 @@ from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "kspo_fitness100_pipeline.py"
-SPEC = importlib.util.spec_from_file_location("kspo_fitness100_pipeline", SCRIPT_PATH)
-assert SPEC is not None and SPEC.loader is not None
-kspo_fitness100_pipeline = importlib.util.module_from_spec(SPEC)
-sys.modules[SPEC.name] = kspo_fitness100_pipeline
-SPEC.loader.exec_module(kspo_fitness100_pipeline)
+# 이미 로드된 모듈을 다시 실행하면 PipelineError 같은 클래스가 서로 다른 객체로
+# 두 개 생겨 다른 테스트의 except/assertRaises가 빗나간다.
+if "kspo_fitness100_pipeline" in sys.modules:
+    kspo_fitness100_pipeline = sys.modules["kspo_fitness100_pipeline"]
+else:
+    SPEC = importlib.util.spec_from_file_location("kspo_fitness100_pipeline", SCRIPT_PATH)
+    assert SPEC is not None and SPEC.loader is not None
+    kspo_fitness100_pipeline = importlib.util.module_from_spec(SPEC)
+    sys.modules[SPEC.name] = kspo_fitness100_pipeline
+    SPEC.loader.exec_module(kspo_fitness100_pipeline)
 
 
 @contextmanager

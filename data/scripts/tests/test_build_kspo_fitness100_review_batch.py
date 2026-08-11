@@ -22,6 +22,10 @@ if str(SCRIPT_DIR) not in sys.path:
 
 
 def load_module(name: str, path: Path) -> ModuleType:
+    # 캐시를 확인하지 않으면 같은 모듈이 두 번 실행되어 PipelineError 같은 클래스가
+    # 서로 다른 객체로 두 개 생긴다. 그러면 except/assertRaises가 빗나간다.
+    if name in sys.modules:
+        return sys.modules[name]
     spec = importlib.util.spec_from_file_location(name, path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
