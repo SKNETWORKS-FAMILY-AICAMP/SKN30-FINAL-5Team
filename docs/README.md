@@ -9,14 +9,19 @@
 | 우선순위 | 문서 | 역할 |
 |---:|---|---|
 | 1 | `AGENTS.md` | 저장소 전체 작업·안전·품질 규칙 |
-| 2 | `docs/MVP_SCOPE.md` | MVP 포함·제외 범위 |
-| 3 | `docs/DOMAIN_RULES.md` | 안전·시간·주간 주기·상태 전이 불변식 |
-| 4 | `docs/API_CONTRACT.md`, `docs/DATA_MODEL.md` | 외부 계약과 영속화 계약 |
-| 5 | `docs/ARCHITECTURE.md`, `docs/TECHNICAL_PLAN.md` | 구성 요소 경계와 기술 선택 |
-| 6 | `docs/IMPLEMENTATION_PLAN.md` | 선행 관계와 구현 순서 |
-| 7 | 작업 문서·ADR | 특정 변경의 범위와 결정 이력 |
+| 2 | `docs/requirements/요구사항_정의서.ndjson` | 제품 요구사항과 기능·정책·비기능 기준 |
+| 3 | `docs/MVP_SCOPE.md` | MVP 포함·제외 범위 |
+| 4 | `docs/DOMAIN_RULES.md` | 안전·시간·주간 주기·상태 전이 불변식 |
+| 5 | `docs/API_CONTRACT.md`, `docs/DATA_MODEL.md` | 외부 계약과 영속화 계약 |
+| 6 | `docs/ARCHITECTURE.md`, `docs/TECHNICAL_PLAN.md` | 구성 요소 경계와 기술 선택 |
+| 7 | `docs/IMPLEMENTATION_PLAN.md` | 선행 관계와 구현 순서 |
+| 8 | 작업 문서·ADR | 특정 변경의 범위와 결정 이력 |
 
-같은 우선순위 문서끼리 충돌하면 구현하지 않고 개발팀장과 PM이 함께 결정한다. 건강·안전 규칙 충돌은 외부 도메인 검수 전까지 보수적 상태인 `NEEDS_INPUT`, `BLOCKED` 또는 `FAILED`로 남긴다.
+요구사항 정의서는 제품 범위와 기능 존재 여부의 기준이다. 기술 문서와 충돌하면 구현하지 않고 요구사항에 맞춰 기술 문서를 갱신한다. 같은 우선순위 문서끼리 충돌하면 개발팀장과 PM이 함께 결정한다. 건강·안전 규칙 충돌은 외부 도메인 검수 전까지 보수적 상태인 `NEEDS_INPUT`, `BLOCKED` 또는 `FAILED`로 남긴다.
+
+멀티 에이전트 로직은 현재 설계 전 단계다. proposal·coordinator·공개 회의 요약의 상세 계약과 관련 테스트는 멀티 에이전트 로직 설계 후 확정하며, 설계 전 문서의 해당 항목은 잠정 상태로 표시한다. 결정적 안전 veto와 실패 안전 규칙은 설계 전에도 변경하지 않는다.
+
+`PROPOSED` ADR은 문서 정합성을 위한 제안일 뿐 구현 승인을 뜻하지 않는다. 해당 변경의 필수 승인자가 확인하고 ADR이 `ACCEPTED`되거나 승인 증적이 연결되기 전에는 관련 API·DB·제품 정책을 동결된 계약으로 사용하지 않는다.
 
 ## 3. 핵심 문서
 
@@ -33,6 +38,7 @@
 - `TEST_STRATEGY.md`: 테스트 계층과 필수 시나리오
 - `LOCAL_DEVELOPMENT.md`: 로컬 환경 계약
 - `TRACEABILITY.md`: 요구사항-계약-테스트 추적성
+- `requirements/요구사항_정의서.ndjson`: 제품 요구사항 원문
 
 ## 4. 결정 기록
 
