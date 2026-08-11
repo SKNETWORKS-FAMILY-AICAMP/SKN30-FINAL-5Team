@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parents[1]
+DATA_ROOT = SCRIPTS.parent
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
@@ -177,6 +178,59 @@ class BuildExerciseAlternativesTests(unittest.TestCase):
         path.write_text(path.read_text(encoding="utf-8") + "{}\n", encoding="utf-8")
         with self.assertRaisesRegex(alternatives.PipelineError, "hash or size mismatch"):
             alternatives.verify_alternatives(output)
+
+
+class ExpandedAlternativePolicyTests(unittest.TestCase):
+    def test_tranche_3_policy_preserves_exact_goals_without_forcing_mobility_match(self) -> None:
+        seeds = [
+            DATA_ROOT / "generated" / "exercise-catalog-seed-wger-mvp-v0.2.0",
+            DATA_ROOT / "generated" / "exercise-catalog-seed-kspo-mvp-v0.2.0",
+            DATA_ROOT / "generated" / "exercise-catalog-seed-wger-tranche3-v0.1.0",
+            DATA_ROOT / "generated" / "exercise-catalog-seed-kspo-tranche3-v0.1.0",
+        ]
+        policy = alternatives.load_policy(
+            DATA_ROOT / "normalized" / "exercise_alternative_policy.json"
+        )
+        exercises = alternatives.load_catalogs(seeds)
+        rows = alternatives.build_relations(policy, exercises)
+        pairs = {
+            (
+                row["source_exercise_stable_code"],
+                row["alternative_exercise_stable_code"],
+                row["reason_code"],
+            )
+            for row in rows
+        }
+        participants = {str(row["source_exercise_stable_code"]) for row in rows} | {
+            str(row["alternative_exercise_stable_code"]) for row in rows
+        }
+
+        self.assertEqual(policy["policy_version"], "1.1.0")
+        self.assertIn(
+            (
+                "dumbbell_overhead_triceps_extension",
+                "cable_triceps_pushdown",
+                "DIFFICULTY",
+            ),
+            pairs,
+        )
+        self.assertNotIn(
+            (
+                "cable_triceps_pushdown",
+                "dumbbell_overhead_triceps_extension",
+                "DIFFICULTY",
+            ),
+            pairs,
+        )
+        self.assertTrue(
+            {
+                "quadruped_scapular_press",
+                "standing_band_pulldown",
+                "dumbbell_shoulder_press",
+            }.issubset(participants)
+        )
+        self.assertNotIn("seated_spinal_flexion_extension", participants)
+        self.assertTrue(all(int(str(row["difficulty_delta"])) <= 0 for row in rows))
 
 
 if __name__ == "__main__":

@@ -1,11 +1,11 @@
 {
   "schema_version": "1.0",
-  "policy_version": "1.0.0",
+  "policy_version": "1.1.0",
   "status": "APPROVED_FOR_DRAFT_PIPELINE",
   "review_method_code": "AGENT_ONLY",
   "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
   "production_eligible": false,
-  "reviewed_at": "2026-08-11T18:00:00+09:00",
+  "reviewed_at": "2026-08-11T17:13:27+09:00",
   "interpretation_guards": [
     "ALTERNATIVE_RELATION_IS_NOT_A_FINAL_SAFETY_DECISION",
     "APPLY_SAFETY_LOCATION_AND_EQUIPMENT_FILTERS_AT_SELECTION_TIME",
@@ -65,7 +65,8 @@
         "standing_cable_chest_press",
         "dumbbell_side_punch",
         "incline_dumbbell_bench_press",
-        "push_up"
+        "push_up",
+        "quadruped_scapular_press"
       ]
     },
     {
@@ -100,7 +101,8 @@
       "goal_preservation_code": "VERTICAL_PULL_STRENGTH",
       "exercise_codes": [
         "neutral_grip_lat_pulldown",
-        "half_kneeling_single_arm_lat_pulldown"
+        "half_kneeling_single_arm_lat_pulldown",
+        "standing_band_pulldown"
       ]
     },
     {
@@ -108,7 +110,15 @@
       "exercise_codes": [
         "machine_shoulder_press",
         "barbell_overhead_press",
-        "dumbbell_arnold_press"
+        "dumbbell_arnold_press",
+        "dumbbell_shoulder_press"
+      ]
+    },
+    {
+      "goal_preservation_code": "ELBOW_EXTENSION",
+      "exercise_codes": [
+        "dumbbell_overhead_triceps_extension",
+        "cable_triceps_pushdown"
       ]
     }
   ],

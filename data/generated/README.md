@@ -11,7 +11,7 @@
 | `exercise-catalog-seed-wger-tranche3-v0.1.0` | wger 증분 카탈로그 | 3 |
 | `exercise-catalog-seed-kspo-tranche3-v0.1.0` | KSPO 증분 카탈로그 | 3 |
 | `exercise-safety-rules-mvp-v0.3.0` | 부위별 제외·주의 규칙 | 354 |
-| `exercise-alternatives-mvp-v0.1.0` | 방향성 운동 대체 관계 | 224 |
+| `exercise-alternatives-mvp-v0.2.0` | 목표 보존 운동 대체 관계 | 238 |
 
 이전 tranche 1 v0.1.0 산출물은 재현·비교를 위해 보존한다. 최신 카탈로그 매니페스트는
 리뷰 배치, 매핑, 증적, 속성, taxonomy 입력 해시를 기록한다. 안전 규칙 매니페스트는
@@ -35,5 +35,5 @@ python data/scripts/build_tranche_3_catalog_seed.py verify
 python data/scripts/build_exercise_safety_rules.py verify `
   data/generated/exercise-safety-rules-mvp-v0.3.0
 python data/scripts/build_exercise_alternatives.py verify `
-  data/generated/exercise-alternatives-mvp-v0.1.0
+  data/generated/exercise-alternatives-mvp-v0.2.0
 ```
