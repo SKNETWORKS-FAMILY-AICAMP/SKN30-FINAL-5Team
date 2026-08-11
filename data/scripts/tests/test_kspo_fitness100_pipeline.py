@@ -4,13 +4,13 @@ import importlib.util
 import json
 import shutil
 import sys
+import tempfile
 import unittest
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
-from uuid import uuid4
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "kspo_fitness100_pipeline.py"
 # 이미 로드된 모듈을 다시 실행하면 PipelineError 같은 클래스가 서로 다른 객체로
@@ -27,12 +27,13 @@ else:
 
 @contextmanager
 def workspace_directory() -> Iterator[Path]:
-    path = Path.cwd() / f"test-work-{uuid4().hex}"
-    path.mkdir()
+    # 저장소 안에 만들면 Windows 백신·인덱서가 새 파일을 스캔하며 핸들을 잡아
+    # partial 디렉터리 rename이 WinError 5로 실패한다. OS 임시 디렉터리를 쓴다.
+    path = Path(tempfile.mkdtemp(prefix="helkki-test-"))
     try:
         yield path
     finally:
-        shutil.rmtree(path)
+        shutil.rmtree(path, ignore_errors=True)
 
 
 def response_bytes(*, page_no: int, total_count: int, items: list[dict]) -> bytes:

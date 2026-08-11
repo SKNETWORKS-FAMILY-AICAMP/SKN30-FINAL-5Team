@@ -4,6 +4,7 @@ import importlib.util
 import json
 import shutil
 import sys
+import tempfile
 import unittest
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -11,7 +12,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from types import ModuleType
 from urllib.parse import urlparse
-from uuid import uuid4
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1]
 
@@ -33,12 +33,13 @@ wger_profile = load_script("profile_wger_exercises", "profile_wger_exercises.py"
 
 @contextmanager
 def workspace_directory() -> Iterator[Path]:
-    path = Path.cwd() / f"test-work-{uuid4().hex}"
-    path.mkdir()
+    # 저장소 안에 만들면 Windows 백신·인덱서가 새 파일을 스캔하며 핸들을 잡아
+    # partial 디렉터리 rename이 WinError 5로 실패한다. OS 임시 디렉터리를 쓴다.
+    path = Path(tempfile.mkdtemp(prefix="helkki-test-"))
     try:
         yield path
     finally:
-        shutil.rmtree(path)
+        shutil.rmtree(path, ignore_errors=True)
 
 
 def translation(
