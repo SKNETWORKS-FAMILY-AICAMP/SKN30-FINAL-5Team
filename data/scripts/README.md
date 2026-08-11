@@ -232,6 +232,39 @@ taxonomy registry는 2026-08-11에 개발 리드가 승인했습니다. 검토 �
 `build`가 계속 실패합니다.
 생성된 seed도 `production_eligible=false`이며 DB 적재는 별도 승격 게이트가 필요합니다.
 
+## 운동 안전 규칙 생성
+
+`build_exercise_safety_rules.py`는 `docs/DATA_MODEL.md` 5.9절의 `exercise_safety_rules`
+행을 만듭니다. 승인된 카탈로그 seed의 부하 부위와
+`normalized/exercise_safety_rule_policy.json`에서만 도출하며 값을 추측하지 않습니다.
+
+```powershell
+python data/scripts/build_exercise_safety_rules.py build `
+  data/generated/exercise-catalog-seed-wger-tranche1-v0.1.0 `
+  data/generated/exercise-catalog-seed-kspo-tranche1-v0.1.0 `
+  --version-code tranche1-v0.1.0
+
+python data/scripts/build_exercise_safety_rules.py verify `
+  data/generated/exercise-safety-rules-tranche1-v0.1.0
+```
+
+`coverage` 명령은 부위·심각도별로 선택 가능한 운동이 남는지 보고합니다.
+`docs/DOMAIN_RULES.md` 4.3이 목표 보존형 대체를 요구하므로, 남는 운동이 없으면 대체가
+불가능하다는 뜻입니다.
+
+다음 중 하나라도 어긋나면 아무것도 만들지 않고 실패합니다.
+
+- 정책 파일이 `APPROVED`가 아님
+- seed 해시 불일치 또는 `DOMAIN_APPROVED`가 아닌 운동 포함
+- **패턴 규칙이 그 패턴의 어떤 운동에서 성립하지 않음** (과일반화 차단)
+- `exercise`와 `movement_pattern` 중 정확히 하나가 아닌 행
+- 심각도 구간이 뒤집혔거나 `NONE`을 포함
+- `body_area_code`가 `docs/DOMAIN_RULES.md`의 13개 코드에 없음
+
+`SEVERE`는 `docs/DOMAIN_RULES.md` 4.2에 따라 세션 단위 `REST`이므로 이 규칙표는 `MILD`와
+`MODERATE` 판단에 사용합니다. 범위와 한계는
+[../normalized/SAFETY_RULES_DECISION.md](../normalized/SAFETY_RULES_DECISION.md)에 있습니다.
+
 ## 한국어 표시명 검수 규칙
 
 `korean_display_name_rules.py`는 두 트랙의 결과 validator가 함께 사용하는 표시명 규칙이다.

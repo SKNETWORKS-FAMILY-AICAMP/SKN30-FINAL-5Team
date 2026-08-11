@@ -111,6 +111,17 @@ official API
 카탈로그이며 사용자 노출 승인이 아니다. 나머지 86행은 `PENDING`으로 남아 있고 같은
 절차로 tranche 2를 진행한다.
 
+6번의 안전 규칙도 같은 위임으로 작성했다. `scripts/build_exercise_safety_rules.py`가
+승인된 seed의 부하 부위와 `normalized/exercise_safety_rule_policy.json`에서 규칙을
+도출하며, 결과는 `generated/exercise-safety-rules-tranche1-v0.1.0`의 139행이다. 범위와
+한계, 그리고 커버리지 공백은
+[normalized/SAFETY_RULES_DECISION.md](normalized/SAFETY_RULES_DECISION.md)에 있다.
+
+대체 관계(`exercise_alternatives`)는 아직 없다. 안전 규칙은 무엇을 빼는지만 정하고
+무엇으로 바꿀지는 정하지 않는다.
+
+칼로리 산식·계수는 개발 리드 결정으로 데이터 파트 범위에서 제외한다(2026-08-11).
+
 3번과 5번의 taxonomy 코드는 `docs/API_CONTRACT.md`의 미확정 계약이므로 파이프라인이 임의로
 정하지 않는다. 원천 어휘 실측과 승인된 문서 문장에서 도출한 제안을
 [normalized/EXERCISE_TAXONOMY_CODE_PROPOSAL.md](normalized/EXERCISE_TAXONOMY_CODE_PROPOSAL.md)와
