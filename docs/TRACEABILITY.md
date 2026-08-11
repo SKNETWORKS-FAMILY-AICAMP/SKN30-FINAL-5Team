@@ -19,6 +19,8 @@
 
 기준 NDJSON에는 47개 상위 그룹과 447개 세부 요구사항이 있다. 아래 표는 상위 그룹별 요약이며, 실제 구현·검수의 기준 ID는 `F###-#-#`, `POL-###-#-#`, `NFR-###-#-#` 형태의 세부 ID다. WBS·AC·TC ID는 WBS 추적표와 동일하게 유지하고, 상태가 `초안`, `탐색`, `정책안`, `가설`, `잠정`인 항목은 구현 완료로 간주하지 않는다.
 
+POL-009~013은 2026-08-11 사용자 명시 승인과 `ACCEPTED` ADR-0004로 제품 문서 기준 승인이 완료되었다. 다만 사용자 요청에 따라 `docs/requirements/**` 원본의 `정책안`·`가설` 표기는 수정하지 않았으므로 아래 상태에 원본 미동기화를 명시한다.
+
 | 요구사항 | WBS 연결 | 계약·문서 | 인수조건 | 테스트 | 상태 |
 |---|---|---|---|---|---|
 | F001 | 1.2, 1.3, 4.1, 5.1 | MVP_SCOPE·PROJECT_BRIEF | AC-F001-01 | TC-F001-01 | 초안 |
@@ -45,11 +47,11 @@
 | POL-006 | 4.8, 4.9, 5.2 | API_CONTRACT·DATA_MODEL·TEST_STRATEGY | AC-POL006-01 | TC-POL006-01 | 초안 |
 | POL-007 | 3.2, 3.3, 3.4, 3.5, 4.5, 4.7, 5.2, 5.3 | DOMAIN_RULES·API_CONTRACT | AC-POL007-01 | TC-POL007-01 | 확정 |
 | POL-008 | 2.7, 3.2, 3.4, 3.7, 3.8, 5.3 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-POL008-01 | TC-POL008-01 | 확정 |
-| POL-009 | 2.1, 2.5, 4.4, 4.10, 4.11, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-POL009-01 | TC-POL009-01 | 정책안 |
-| POL-010 | 2.1, 2.3, 2.4, 2.5, 2.8, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-POL010-01 | TC-POL010-01 | 정책안 |
-| POL-011 | 2.4, 2.5, 4.4, 4.11, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-POL011-01 | TC-POL011-01 | 정책안 |
-| POL-012 | 보완-03, 4.4, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-POL012-01 | TC-POL012-01 | 정책안 |
-| POL-013 | 1.3, 보완-04 | MVP_SCOPE·API_CONTRACT | AC-POL013-01 | TC-POL013-01 | 가설 |
+| POL-009 | 2.1, 2.5, 4.4, 4.10, 4.11, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-POL009-01 | TC-POL009-01 | 승인·원본 미동기화 |
+| POL-010 | 2.1, 2.3, 2.4, 2.5, 2.8, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-POL010-01 | TC-POL010-01 | 승인·원본 미동기화 |
+| POL-011 | 2.4, 2.5, 4.4, 4.11, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-POL011-01 | TC-POL011-01 | 승인·원본 미동기화 |
+| POL-012 | 보완-03, 4.4, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-POL012-01 | TC-POL012-01 | 승인·원본 미동기화 |
+| POL-013 | 1.3, 보완-04 | MVP_SCOPE·API_CONTRACT | AC-POL013-01 | TC-POL013-01 | 승인·원본 미동기화 |
 | NFR-001 | 3.5, 4.6, 4.9, 5.2 | MVP_SCOPE·API_CONTRACT·DATA_MODEL | AC-NFR001-01 | TC-NFR001-01 | 필수 |
 | NFR-002 | 1.2, 5.1, 5.7 | TRACEABILITY | AC-NFR002-01 | TC-NFR002-01 | 필수 |
 | NFR-003 | 3.4, 3.5, 3.8, 5.3 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-NFR003-01 | TC-NFR003-01 | 필수 |
@@ -82,6 +84,7 @@ F012~F023은 요구사항 정의서상 MVP 이후 확장 기능이다. 각 ID는
 - F002의 멀티 에이전트 구조는 `TrainingAgent`, `RecoveryAgent`, `SafetyAgent`의 3개 proposal과 `Coordinator`(의장)의 최종 통합으로 추적한다. `F002-1-34`, `F002-1-35`, `F002-1-38`, `F002-1-48~60`은 이 계약과 연결한다.
 - F029의 회의 UI는 `TrainingAgent`, `RecoveryAgent`, `SafetyAgent`, `Coordinator`, `FinalSafetyGate` 요약을 표시하되, `F029-1-13`에 따라 원래 루틴 선택 UI는 제공하지 않는다.
 - `F002-1-51`, `F002-1-52`, `F002-1-56`에 따라 lighter·original은 공개 선택지로 추적하지 않고 내부 후보·안전 검증 기록으로만 관리한다.
+- `F002-1-55` 제목의 `primary`는 요구사항 원문의 legacy 명칭이며 공개 계약의 `FINAL_ROUTINE`에 매핑한다. 요구사항 원문 제목 변경은 PM만 수행한다.
 
 ## 4. PR 적용
 

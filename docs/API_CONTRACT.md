@@ -52,7 +52,7 @@ Authorization: Bearer {firebase_id_token}
 - API 요청 body로 Firebase UID를 받지 않는다.
 - 모든 사용자 리소스는 검증된 현재 사용자 범위로 제한한다.
 - 삭제 대기 또는 비활성 계정은 일반 API 접근을 거부한다.
-- 1년 이상 활동이 없는 계정은 법정 휴면이 아닌 DORMANT 서비스 분류로 기록하고 30일 전 통지 후 삭제한다. 재활성화·삭제 감사 세부 계약은 출시 전 확정한다.
+- 1년 이상 활동이 없는 계정은 DORMANT 서비스 분류와 30일 전 통지 후 삭제 정책을 적용한다. 법정 휴면으로 표현하지 않으며 재활성화·삭제 감사 세부 계약은 출시 전 확정한다.
 - 외부 인증 검증은 integration adapter 뒤에 둔다.
 
 Kakao와 Naver의 모바일 OAuth 교환은 다음 공개 endpoint를 사용한다.
@@ -200,7 +200,7 @@ health endpoint는 인증 없이 호출할 수 있지만 민감한 설정, DB �
 
 | 메서드 | 경로 | 설명 |
 |---|---|---|
-| POST | /api/v1/auth/social/{provider_code}/exchange | Google/Kakao/Naver authorization code를 검증하고 세션 교환 |
+| POST | /api/v1/auth/social/{provider_code}/exchange | Kakao/Naver authorization code를 검증하고 Firebase custom token으로 교환 |
 | GET | /api/v1/me | 현재 사용자와 온보딩 상태 |
 | PUT | /api/v1/me/onboarding | 프로필, 장비, 주의 부위 저장 |
 | PATCH | /api/v1/me/preferences | 코치 문구 성향 등 선택 설정 |
@@ -227,6 +227,8 @@ health endpoint는 인증 없이 호출할 수 있지만 민감한 설정, DB �
 exercise 목록 전체와 카탈로그 관리 API는 초기 공개 API에 포함하지 않는다.
 
 ### 6.3.1 외부 연동·수기활동 입력 계약
+
+이 절의 인증·연동·저장 상위 경계는 `ACCEPTED` ADR-0003을 따른다. provider와 세부 payload는 프론트엔드·백엔드·개발팀장 검토로 확정하며, 구현 시 Pydantic 스키마, migration과 호환성 테스트를 함께 갱신한다.
 
 캘린더:
 
@@ -409,6 +411,8 @@ ManualActivityResponse
   "updated_at": "2026-08-06T10:00:00+09:00"
 }
 ~~~
+
+`ai_trial_started_at`, `ai_trial_ends_at`, `premium_status_code`는 승인된 POL-013의 14일 AI 코치 무료 체험을 표현한다. 체험 종료 후 접근 범위는 구현 전 PM·개발팀장 검토로 확정한다.
 
 ### 7.3 계정 삭제
 
@@ -651,9 +655,9 @@ Guidance
 | REST | null | 필수 |
 | STOP_AND_SEEK_HELP | null | 필수 |
 
-STOP_AND_SEEK_HELP에는 선택 가능한 운동 option을 제공하지 않는다. `REST`는 최종 루틴이 없는 상태에서 별도 selection으로 저장한다.
+STOP_AND_SEEK_HELP에는 option을 제공하지 않으며 `options`는 빈 목록이다. 서버가 REST를 권고한 응답은 `final_plan=null`이고 선택 가능한 `REST` option 하나를 둘 수 있다.
 
-KEEP, DOWNSHIFT, CHANGE, RECOVERY에서는 사용자가 운동 대신 쉴 수 있도록 `REST` option을 options에 포함할 수 있다. 이 option은 final plan이 아니며 plan_id는 null이다.
+KEEP, DOWNSHIFT, CHANGE, RECOVERY에서는 `FINAL_ROUTINE` option을 정확히 하나 반환하고, 사용자가 운동 대신 쉴 수 있도록 `REST` opt-out을 추가할 수 있다. 이 REST option은 운동 계획이 아니므로 `plan_id=null`이며, 사용자의 휴식 선택은 서버의 원래 추천 action과 별도의 selection으로 저장한다.
 
 ### 10.4 REST 응답 예
 
@@ -1058,6 +1062,8 @@ DB 저장에 실패한 decision 결과는 성공 응답하지 않는다.
 
 ## 17. 개인정보와 삭제
 
+아래 보유·삭제 기간은 `ACCEPTED` ADR-0004의 승인된 기본 계약이다. 법률상 예외가 확인되거나 기간을 바꿀 때는 새 ADR과 관련 API·DB·운영 작업을 함께 갱신한다.
+
 - direct identifier와 원시 건강 기록을 LLM에 전달하지 않는다.
 - 웨어러블 연동 시 일 단위 최소 요약만 API로 받는다.
 - GPS 전체 경로와 초 단위 심박 샘플은 받지 않는다.
@@ -1088,7 +1094,7 @@ DB 저장에 실패한 decision 결과는 성공 응답하지 않는다.
 - 클라이언트가 에이전트 가중치와 운동 후보를 지정하는 요청
 - 안전 거부 후에도 원래 계획을 강제 선택하는 API
 - LLM이 생성한 자유 형식 계획 응답
-- REST와 운동 계획을 동시에 반환하는 응답
+- action_code가 REST 또는 STOP_AND_SEEK_HELP인데 final_plan이 null이 아닌 응답
 - GraphQL과 비동기 decision job
 
 ---
