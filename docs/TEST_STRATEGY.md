@@ -22,6 +22,8 @@
 
 ## 3. 필수 골든 시나리오
 
+POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT·무료 체험 시나리오는 필수 production 게이트다.
+
 1. 정상 상태는 원래 루틴 `KEEP`
 2. 40분 상체·피로 MODERATE는 40분 요청과 CORE를 유지한 강도 `DOWNSHIFT`
 3. 프로필 40분에서 사용자가 당일 30분으로 변경하면 30분을 사용하고 추가 축소하지 않음
@@ -96,6 +98,27 @@
 
 정확한 명령은 프로젝트 초기화 PR에서 확정한다. 실행하지 않은 테스트를 통과로 보고하지 않는다.
 
+### Python 린터와 타입 체커
+
+TASK-DATA-001의 Python 린터·포매터는 ruff, 타입 체커는 mypy로 선택했다. 설정과 고정
+버전은 해당 코드와 함께 루트 `pyproject.toml`로 통합한다. `pyproject.toml`이 아직 없는
+브랜치에서는 아래 명령을 계획된 게이트로만 취급하고 실행됐다고 보고하지 않는다. 초기 검사
+범위는 `data/scripts`이며, backend 코드가 추가되면 같은 설정을 확장한다.
+
+```powershell
+python -m pip install --group dev  # Python 패키지 도구 확정 전 실행 예시
+ruff check .
+ruff format --check .
+mypy
+python -m unittest discover -s data/scripts/tests
+```
+
+Python 패키지 도구는 `TECHNICAL_PLAN.md`와 `LOCAL_DEVELOPMENT.md`의 미확정 항목을 따른다. `uv` 등으로 확정하면 설치 명령과 CI 명령을 같은 PR에서 갱신한다.
+
+Pyright를 선택하지 않은 이유는 저장소의 Python 산출물이 표준 라이브러리 기반이고 CI에서
+ruff와 동일한 Python 툴체인으로 실행하는 편이 단순하기 때문이다. 프론트엔드 타입 검사는
+이 결정과 무관하다.
+
 프론트 component 테스트는 최상단 count-up timer, 중앙 마스코트, 하단 순서형 운동 블록, 자세·설명 펼침, 체크·밀기 완료, 다음 블록 이동, 칼로리 추정치의 참고 문구, 캘린더 등록·권한 거부, 웨어러블 수동 폴백을 검증한다. 타이머 값과 타이머 이벤트만 변경했을 때 블록과 세션 상태가 바뀌지 않는 음성 테스트를 포함한다.
 
 ## 7. 대안과 선택 이유
@@ -105,6 +128,5 @@ E2E만으로 검증하지 않는다. 원인 파악이 느리고 안전 규칙의
 ## 8. 아직 확정되지 않은 사항과 질문
 
 - React Native E2E 도구
-- type checker를 mypy와 Pyright 중 무엇으로 할지
 - 성능 목표와 부하 테스트 임계값
 - 외부 도메인 검수자가 승인할 골든 결과 형식

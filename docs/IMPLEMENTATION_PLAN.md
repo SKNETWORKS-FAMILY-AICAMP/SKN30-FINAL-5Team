@@ -31,7 +31,7 @@ flowchart LR
   API --> FLOW
   COORD --> FLOW
   FLOW --> WEEK["주간 리포트·다음 계획 게이트"]
-  WEEK --> OPT["MVP 외부 어댑터·선택적 LLM/소셜 확장"]
+  WEEK --> OPT["MVP 외부 어댑터·소셜 provider 통합·선택적 LLM"]
 ```
 
 ## 4. 단계별 계획
@@ -41,6 +41,7 @@ flowchart LR
 - 현재 설계 문서 팀 리뷰
 - P0 결정의 추적성 행 확정
 - 첫 수직 슬라이스 API 예제 승인
+- `ACCEPTED` ADR-0002의 Training·Recovery·Safety 상위 구조를 기준으로 proposal 스키마, Coordinator 입력·조정 순서, 버전·실패 상세 계약 확정
 - 안전 미확정 항목을 owner와 due date가 있는 작업으로 분리
 
 완료 기준: 공개 enum과 필드의 변경 요청이 PR로 관리된다.
@@ -61,8 +62,8 @@ flowchart LR
 - 시간 계산기
 - SafetyPrecheck와 FinalSafetyGate
 - FITT CandidateBuilder
-- Training·Recovery·Safety proposal
-- 결정적 Coordinator
+- 단계 0에서 승인된 계약에 따른 Training·Recovery·Safety proposal
+- 단계 0에서 승인된 결정적 Coordinator
 - 재현 기록 저장
 
 ### 단계 3 — 첫 수직 슬라이스
@@ -113,7 +114,7 @@ flowchart LR
 - 성능·보안·삭제 리허설
 - MVP에서 선택한 웨어러블·캘린더 어댑터 통합 검증
 - 체중 기반 예상 소모 칼로리 추정치와 비의료적 안내 검증
-- 멀티 에이전트 로직 설계 완료 후 proposal·coordinator·회의 UI 계약 확정 및 회귀 테스트 갱신
+- 승인된 proposal·Coordinator 계약을 기준으로 공개 회의 UI 표시 세부사항 확정 및 회귀 테스트 갱신
 - MVP에서 선택한 provider 외 추가 웨어러블·캘린더 provider는 후속 기능으로 분리
 
 ## 5. 병렬 작업 스트림
