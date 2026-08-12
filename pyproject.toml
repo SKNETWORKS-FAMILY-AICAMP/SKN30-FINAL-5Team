@@ -1,0 +1,33 @@
+# Python 개발 도구 설정.
+#
+# 대상 버전은 docs/TECHNICAL_PLAN.md의 백엔드 기준(Python 3.12+)을 따른다.
+# 린터는 ruff, 타입 체커는 mypy를 사용한다. 이 선택은 docs/TEST_STRATEGY.md에 기록한다.
+
+[dependency-groups]
+dev = [
+    "mypy==2.3.0",
+    "ruff==0.16.2",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["tmp"]
+
+[tool.ruff.lint]
+# E/F 기본 검사에 import 정렬(I), 문법 현대화(UP), 버그 유발 패턴(B)을 추가한다.
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["data/scripts"]
+# 데이터 스크립트는 표준 라이브러리만 사용하고 모든 함수에 주석이 있다.
+disallow_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+
+[[tool.mypy.overrides]]
+# 테스트는 importlib로 스크립트를 로드하므로 모듈 경로를 정적으로 알 수 없다.
+module = "tests.*"
+ignore_errors = true

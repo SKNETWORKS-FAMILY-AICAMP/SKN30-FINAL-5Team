@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "source_id": "kspo_fitness100_video",
+  "title": "서울올림픽기념국민체육진흥공단_국민체력100 동영상 정보",
+  "provider": "서울올림픽기념국민체육진흥공단",
+  "dataset_id": "15108846",
+  "dataset_url": "https://www.data.go.kr/data/15108846/openapi.do",
+  "api_base_url": "https://apis.data.go.kr/B551014/SRVC_TODZ_VDO_PKG",
+  "license": {
+    "code": "KOGL_TYPE_1",
+    "name": "공공누리 제1유형",
+    "attribution_required": true,
+    "commercial_use_allowed": true,
+    "derivatives_allowed": true,
+    "third_party_rights_included": true
+  },
+  "collection_policy": {
+    "allowed": [
+      "api_json_metadata"
+    ],
+    "blocked_pending_rights_review": [
+      "video_binary",
+      "thumbnail_binary"
+    ]
+  },
+  "review_status": "DRAFT",
+  "production_eligible": false
+}

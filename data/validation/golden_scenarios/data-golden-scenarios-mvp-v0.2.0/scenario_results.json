@@ -1,0 +1,180 @@
+{
+  "evaluation_version": "mvp-v0.2.0",
+  "production_eligible": false,
+  "results": [
+    {
+      "actual_action_code": "KEEP",
+      "alternative_candidate_codes": [],
+      "checks": {
+        "action": true,
+        "maximum_candidates": true,
+        "minimum_candidates": true,
+        "original_excluded": true
+      },
+      "original_excluded": false,
+      "passed": true,
+      "proposal_accepted": null,
+      "scenario_code": "HEALTHY_KEEP_LEG_PRESS"
+    },
+    {
+      "actual_action_code": "CHANGE",
+      "alternative_candidate_codes": [
+        "dumbbell_deadlift",
+        "kettlebell_sumo_deadlift"
+      ],
+      "checks": {
+        "action": true,
+        "maximum_candidates": true,
+        "minimum_candidates": true,
+        "original_excluded": true
+      },
+      "original_excluded": true,
+      "passed": true,
+      "proposal_accepted": null,
+      "scenario_code": "KNEE_MILD_GYM_CHANGE"
+    },
+    {
+      "actual_action_code": "CHANGE",
+      "alternative_candidate_codes": [
+        "quadruped_leg_raise",
+        "stability_ball_hip_hinge_lift",
+        "standing_weighted_hip_hinge",
+        "supine_hip_bridge",
+        "supported_standing_hip_extension"
+      ],
+      "checks": {
+        "action": true,
+        "maximum_candidates": true,
+        "minimum_candidates": true,
+        "original_excluded": true
+      },
+      "original_excluded": true,
+      "passed": true,
+      "proposal_accepted": null,
+      "scenario_code": "KNEE_MILD_HOME_CHANGE"
+    },
+    {
+      "actual_action_code": "FALLBACK_REQUIRED",
+      "alternative_candidate_codes": [],
+      "checks": {
+        "action": true,
+        "maximum_candidates": true,
+        "minimum_candidates": true,
+        "original_excluded": true
+      },
+      "original_excluded": true,
+      "passed": true,
+      "proposal_accepted": null,
+      "scenario_code": "KNEE_MODERATE_FALLBACK"
+    },
+    {
+      "actual_action_code": "FALLBACK_REQUIRED",
+      "alternative_candidate_codes": [],
+      "checks": {
+        "action": true,
+        "maximum_candidates": true,
+        "minimum_candidates": true,
+        "original_excluded": true,
+        "proposal_veto": true
+      },
+      "original_excluded": true,
+      "passed": true,
+      "proposal_accepted": false,
+      "scenario_code": "SAFETY_VETO_COORDINATOR_ALTERNATIVE"
+    },
+    {
+      "actual_action_code": "FALLBACK_REQUIRED",
+      "alternative_candidate_codes": [],
+      "checks": {
+        "action": true,
+        "maximum_candidates": true,
+        "minimum_candidates": true,
+        "original_excluded": true
+      },
+      "original_excluded": true,
+      "passed": true,
+      "proposal_accepted": null,
+      "scenario_code": "KNEE_MILD_EQUIPMENT_GAP"
+    },
+    {
+      "actual_action_code": "KEEP",
+      "alternative_candidate_codes": [],
+      "checks": {
+        "action": true,
+        "maximum_candidates": true,
+        "minimum_candidates": true,
+        "original_excluded": true
+      },
+      "original_excluded": false,
+      "passed": true,
+      "proposal_accepted": null,
+      "scenario_code": "HEALTHY_KEEP_DUMBBELL_SHOULDER_PRESS"
+    },
+    {
+      "actual_action_code": "CHANGE",
+      "alternative_candidate_codes": [
+        "cable_triceps_pushdown"
+      ],
+      "checks": {
+        "action": true,
+        "maximum_candidates": true,
+        "minimum_candidates": true,
+        "original_excluded": true
+      },
+      "original_excluded": true,
+      "passed": true,
+      "proposal_accepted": null,
+      "scenario_code": "TRICEPS_UPPER_BACK_MODERATE_CHANGE"
+    },
+    {
+      "actual_action_code": "FALLBACK_REQUIRED",
+      "alternative_candidate_codes": [],
+      "checks": {
+        "action": true,
+        "maximum_candidates": true,
+        "minimum_candidates": true,
+        "original_excluded": true
+      },
+      "original_excluded": true,
+      "passed": true,
+      "proposal_accepted": null,
+      "scenario_code": "SEATED_MOBILITY_LOWER_BACK_MILD_FALLBACK"
+    },
+    {
+      "actual_action_code": "FALLBACK_REQUIRED",
+      "alternative_candidate_codes": [],
+      "checks": {
+        "action": true,
+        "maximum_candidates": true,
+        "minimum_candidates": true,
+        "original_excluded": true
+      },
+      "original_excluded": true,
+      "passed": true,
+      "proposal_accepted": null,
+      "scenario_code": "BAND_PULLDOWN_SHOULDER_MILD_FALLBACK"
+    },
+    {
+      "actual_action_code": "FALLBACK_REQUIRED",
+      "alternative_candidate_codes": [],
+      "checks": {
+        "action": true,
+        "maximum_candidates": true,
+        "minimum_candidates": true,
+        "original_excluded": true
+      },
+      "original_excluded": true,
+      "passed": true,
+      "proposal_accepted": null,
+      "scenario_code": "QUADRUPED_PUSH_WRIST_MODERATE_FALLBACK"
+    }
+  ],
+  "scenario_set_version": "mvp-v0.2.0",
+  "schema_version": "1.0",
+  "status": "PASSED",
+  "summary": {
+    "failed": 0,
+    "passed": 11,
+    "scenarios": 11
+  }
+}

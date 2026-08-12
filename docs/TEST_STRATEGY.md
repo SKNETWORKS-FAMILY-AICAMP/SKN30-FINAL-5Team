@@ -100,13 +100,12 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 
 ### Python 린터와 타입 체커
 
-TASK-DATA-001의 Python 린터·포매터는 ruff, 타입 체커는 mypy로 선택했다. 설정과 고정
-버전은 해당 코드와 함께 루트 `pyproject.toml`로 통합한다. `pyproject.toml`이 아직 없는
-브랜치에서는 아래 명령을 계획된 게이트로만 취급하고 실행됐다고 보고하지 않는다. 초기 검사
-범위는 `data/scripts`이며, backend 코드가 추가되면 같은 설정을 확장한다.
+Python 린터·포매터는 ruff, 타입 체커는 mypy로 확정했다. 설정과 고정 버전은 루트
+`pyproject.toml`에 둔다. 현재 검사 범위는 `data/scripts`이며, backend 코드가 추가되면
+같은 설정을 확장한다.
 
 ```powershell
-python -m pip install --group dev  # Python 패키지 도구 확정 전 실행 예시
+python -m pip install --group dev  # 또는 uv sync --group dev
 ruff check .
 ruff format --check .
 mypy

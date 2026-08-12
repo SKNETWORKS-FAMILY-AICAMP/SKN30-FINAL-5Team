@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0",
+  "generator_version": "0.1.0",
+  "catalog_version": {
+    "version_code": "kspo-tranche3-v0.1.0",
+    "status_code": "DRAFT"
+  },
+  "source": {
+    "track": "kspo",
+    "review_batch_directory": "review-tranche-3-agent-json",
+    "taxonomy_registry_sha256": "89e61bba1baf1ccedca94adcb88127f32f529a1b46162ee8392f2cd2ef1372c7",
+    "input_artifacts": [
+      {
+        "role": "review_results",
+        "path": "review_tranche_3_results.json",
+        "sha256": "2efe80bd14a93940e4bd5e0b4b072ecb12c17a738bd7e638e041b9f8988404ae",
+        "bytes": 29073
+      },
+      {
+        "role": "review_plan",
+        "path": "review_tranche_3.agent.json",
+        "sha256": "6e006eccfa9c04cd6d2dd5613ec43037ba7d49ce5224e83c629cda567c05ece4",
+        "bytes": 9107
+      },
+      {
+        "role": "taxonomy_registry",
+        "path": "exercise_taxonomy_codes.json",
+        "sha256": "89e61bba1baf1ccedca94adcb88127f32f529a1b46162ee8392f2cd2ef1372c7",
+        "bytes": 9144
+      },
+      {
+        "role": "safety_policy",
+        "path": "exercise_safety_rule_policy.json",
+        "sha256": "376e01a98449bdc9fd26c11492fb05753928cb0caf71c3a3ab4dbf8a510de165",
+        "bytes": 5097
+      }
+    ]
+  },
+  "review": {
+    "status": "DOMAIN_APPROVED",
+    "review_method_code": "AGENT_ONLY",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
+    "production_eligible": false
+  },
+  "summary": {
+    "exercise_records": 3
+  },
+  "files": [
+    {
+      "path": "exercises.jsonl",
+      "sha256": "a7359a0af8b109cd62775a09b503eb5044f99029ac2bf58c7284fa9ccb43b98c",
+      "bytes": 3702,
+      "records": 3
+    }
+  ]
+}

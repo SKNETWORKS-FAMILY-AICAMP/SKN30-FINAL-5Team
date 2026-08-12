@@ -1,0 +1,66 @@
+{
+  "schema_version": "1.0",
+  "review_batch_version": "0.2.0",
+  "source": {
+    "profile_directory": "20260810T053458Z-training-video-profile-v0.2.0",
+    "profile_manifest_sha256": "b548630b21eff5fc3f31879f973770a7ba149fc463156be09e631fd2803007c8"
+  },
+  "selection": {
+    "status": "DRAFT_REVIEW_QUEUE",
+    "method_codes": [
+      "MVP_SCOPE_REVIEW_ONLY",
+      "UNIQUE_SOURCE_TRAINING_NAME_REPRESENTATIVE",
+      "LOWEST_MISSING_SOURCE_METADATA_COUNT",
+      "RAW_PLACE_TOOL_GROUP_ROUND_ROBIN"
+    ],
+    "interpretation_guards": [
+      "REVIEW_BATCH_IS_NOT_FINAL_SHORTLIST",
+      "REVIEW_BATCH_IS_NOT_TAXONOMY_MAPPING",
+      "REVIEW_BATCH_IS_NOT_BEGINNER_SUITABILITY_APPROVAL",
+      "REVIEW_BATCH_IS_NOT_DOMAIN_SAFETY_APPROVAL",
+      "BLANK_SOURCE_TOOL_IS_UNSPECIFIED_NOT_BODYWEIGHT",
+      "SOURCE_VIDEO_LENGTH_IS_NOT_EXERCISE_DOSAGE",
+      "MEDIA_REFERENCE_IS_NOT_REDISTRIBUTION_PERMISSION",
+      "ALTERNATIVE_RELATION_REQUIRES_SEPARATE_REVIEW"
+    ]
+  },
+  "review": {
+    "status": "DRAFT",
+    "production_eligible": false
+  },
+  "summary": {
+    "mvp_scope_candidate_pairs": 231,
+    "unique_source_training_names": 227,
+    "duplicate_source_training_name_groups": 4,
+    "raw_place_tool_groups": 46,
+    "requested_batch_size": 50,
+    "selected_batch_size": 50,
+    "review_evidence_template_records": 200
+  },
+  "files": [
+    {
+      "path": "review_batch.jsonl",
+      "sha256": "f54e34a10540083a49be52a0499227f4047876452d742d2c011d79123b912f04",
+      "bytes": 89821,
+      "records": 50
+    },
+    {
+      "path": "review_batch.csv",
+      "sha256": "fc42d1dc6a390728daca623afb27b3b6bda32f46c8f0564e5c39b2ef3b4706fe",
+      "bytes": 27351,
+      "records": 50
+    },
+    {
+      "path": "catalog_review_records_template.jsonl",
+      "sha256": "1a6bc5aba7c3bc7a149a9f6e11bca2df1392e896a8290773fceb23bf5692876a",
+      "bytes": 87892,
+      "records": 200
+    },
+    {
+      "path": "catalog_review_records_template.csv",
+      "sha256": "7e26bad3b29c9fa02b0f55a3035d47f813db726afde1624fd3e30b4afc83b1e5",
+      "bytes": 40277,
+      "records": 200
+    }
+  ]
+}

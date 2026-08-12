@@ -1,0 +1,124 @@
+{
+  "schema_version": "1.0",
+  "review_batch_version": "0.1.0",
+  "source": {
+    "profile_directory": "20260810T063833Z-wger-exercise-catalog-profile-v0.1.0",
+    "profile_manifest_sha256": "bae7822b11ea190169ab77e7e28a09a2dd9c4d01f52e329e1b9847e518c68add"
+  },
+  "selection": {
+    "status": "DRAFT_REVIEW_QUEUE",
+    "method_codes": [
+      "DRAFT_GYM_CANDIDATES_WITH_ENGLISH_NAME_ONLY",
+      "UNIQUE_PRIMARY_SOURCE_NAME_REPRESENTATIVE",
+      "USER_REQUESTED_SOURCE_NAME_SEEDS_FIRST",
+      "TARGET_FAMILY_QUOTA_ROUND_ROBIN",
+      "CATEGORY_EQUIPMENT_COVERAGE_FILL",
+      "SOURCE_METADATA_COMPLETENESS_TIE_BREAK"
+    ],
+    "target_quotas": {
+      "LAT_PULLDOWN": 6,
+      "DUMBBELL_ROW": 5,
+      "SEATED_OR_CABLE_ROW": 5,
+      "CHEST_OR_BENCH_PRESS": 8,
+      "SHOULDER_PRESS": 6,
+      "LEG_PRESS": 4,
+      "LEG_EXTENSION": 2,
+      "LEG_CURL": 3,
+      "SQUAT": 8,
+      "DEADLIFT": 6
+    },
+    "user_requested_source_name_seeds": [
+      "Neutral Grip Lat Pulldown",
+      "Incline Dumbbell Row",
+      "Seated Cable Row"
+    ],
+    "interpretation_guards": [
+      "REVIEW_BATCH_IS_NOT_FINAL_CATALOG",
+      "SOURCE_NAME_MATCH_IS_NOT_NORMALIZED_TAXONOMY",
+      "SELECTION_IS_NOT_BEGINNER_SUITABILITY_APPROVAL",
+      "SELECTION_IS_NOT_DOMAIN_SAFETY_APPROVAL",
+      "SOURCE_MUSCLE_METADATA_IS_NOT_CONTRAINDICATION_DATA",
+      "SOURCE_DESCRIPTION_IS_NOT_APPROVED_EXECUTION_GUIDANCE",
+      "MEDIA_REFERENCE_IS_NOT_REDISTRIBUTION_PERMISSION",
+      "ALTERNATIVE_RELATION_REQUIRES_SEPARATE_REVIEW"
+    ]
+  },
+  "review": {
+    "status": "DRAFT",
+    "production_eligible": false
+  },
+  "summary": {
+    "input_gym_candidates": 400,
+    "eligible_candidates_with_english_primary_name": 398,
+    "excluded_missing_english_primary_name": 2,
+    "eligible_unique_primary_names": 398,
+    "duplicate_primary_name_groups": 0,
+    "requested_batch_size": 60,
+    "selected_batch_size": 60,
+    "target_quotas": {
+      "LAT_PULLDOWN": 6,
+      "DUMBBELL_ROW": 5,
+      "SEATED_OR_CABLE_ROW": 5,
+      "CHEST_OR_BENCH_PRESS": 8,
+      "SHOULDER_PRESS": 6,
+      "LEG_PRESS": 4,
+      "LEG_EXTENSION": 2,
+      "LEG_CURL": 3,
+      "SQUAT": 8,
+      "DEADLIFT": 6
+    },
+    "selected_target_counts": {
+      "CHEST_OR_BENCH_PRESS": 8,
+      "DEADLIFT": 6,
+      "DUMBBELL_ROW": 5,
+      "LAT_PULLDOWN": 6,
+      "LEG_CURL": 3,
+      "LEG_EXTENSION": 2,
+      "LEG_PRESS": 4,
+      "SEATED_OR_CABLE_ROW": 5,
+      "SHOULDER_PRESS": 6,
+      "SQUAT": 8
+    },
+    "selected_category_counts": {
+      "Abs": 7,
+      "Arms": 6,
+      "Back": 13,
+      "Calves": 2,
+      "Chest": 6,
+      "Legs": 20,
+      "Shoulders": 6
+    },
+    "selected_equipment_counts": {
+      "Barbell": 12,
+      "Bench": 7,
+      "Cable machine": 11,
+      "Dumbbell": 17,
+      "Gym mat": 1,
+      "Incline bench": 5,
+      "Kettlebell": 4,
+      "Pull-up bar": 1,
+      "Resistance band": 1,
+      "SZ-Bar": 1,
+      "Swiss Ball": 1
+    },
+    "selection_reason_counts": {
+      "CATEGORY_EQUIPMENT_COVERAGE_FILL": 7,
+      "TARGET_FAMILY_QUOTA": 50,
+      "USER_REQUESTED_SOURCE_NAME_SEED": 3
+    }
+  },
+  "files": [
+    {
+      "path": "gym_core_review_batch.jsonl",
+      "sha256": "1ce0d73470f634cbc8726861848ca7fdadfc8e48ea7a5fe9ef0ed39f1c7936a7",
+      "bytes": 151408,
+      "records": 60
+    },
+    {
+      "path": "gym_core_review_batch.csv",
+      "sha256": "cded0b61171b1b7775260372816d9dde7440b90ba0e7329a3e0d45615bde50a5",
+      "bytes": 33007,
+      "records": 60
+    }
+  ]
+}

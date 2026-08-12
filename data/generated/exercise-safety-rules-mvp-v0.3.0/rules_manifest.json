@@ -1,0 +1,66 @@
+{
+  "schema_version": "1.0",
+  "generator_version": "0.1.0",
+  "rule_set_version": {
+    "version_code": "mvp-v0.3.0",
+    "status_code": "DRAFT"
+  },
+  "source": {
+    "catalog_seeds": [
+      "exercise-catalog-seed-wger-mvp-v0.2.0",
+      "exercise-catalog-seed-kspo-mvp-v0.2.0",
+      "exercise-catalog-seed-wger-tranche3-v0.1.0",
+      "exercise-catalog-seed-kspo-tranche3-v0.1.0"
+    ],
+    "catalog_seed_artifacts": [
+      {
+        "directory": "exercise-catalog-seed-wger-mvp-v0.2.0",
+        "seed_manifest_sha256": "d42aed06781c59b58261f0d2d8983ddc3f98b5b01d11cb0045d5e72088350afd",
+        "exercises_sha256": "e33c10cc252203f2fcaadba031b1ec2608a0515dac9a335da5a817e1fe5a52cf"
+      },
+      {
+        "directory": "exercise-catalog-seed-kspo-mvp-v0.2.0",
+        "seed_manifest_sha256": "344fb546e7f92e09394fe9a408ddbad75dfe0ea4f49903737c2c1acd647823ce",
+        "exercises_sha256": "fc06aeb4e3200b546f8e7f1bdcf5d30e29f718d6da9d7fdd4f18992767ed34e8"
+      },
+      {
+        "directory": "exercise-catalog-seed-wger-tranche3-v0.1.0",
+        "seed_manifest_sha256": "bba4d1a799e7c516df56360160386e2e6327a01af56241142a4eed692486e66b",
+        "exercises_sha256": "7de22794076231717d8769d00c4413cbf5a04aa10e08375d09202710ef47512c"
+      },
+      {
+        "directory": "exercise-catalog-seed-kspo-tranche3-v0.1.0",
+        "seed_manifest_sha256": "1ed49cd57db4783984edd2e676235254ffa353ebfec49cc44f901e88ab0325c3",
+        "exercises_sha256": "a7359a0af8b109cd62775a09b503eb5044f99029ac2bf58c7284fa9ccb43b98c"
+      }
+    ],
+    "policy_sha256": "376e01a98449bdc9fd26c11492fb05753928cb0caf71c3a3ab4dbf8a510de165",
+    "policy_version": "1.0.0"
+  },
+  "review": {
+    "status": "DOMAIN_APPROVED",
+    "review_method_code": "AGENT_ONLY",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
+    "production_eligible": false
+  },
+  "summary": {
+    "rule_records": 354,
+    "exercise_records": 56,
+    "pattern_scope_rules": 96,
+    "exercise_scope_rules": 258
+  },
+  "files": [
+    {
+      "path": "safety_rules.jsonl",
+      "sha256": "f48259b536ec1d02ad827b284892a60daecf87c288f522a715edaf64d93f23f1",
+      "bytes": 145703,
+      "records": 354
+    },
+    {
+      "path": "coverage_report.json",
+      "sha256": "34bae42917c36a527cfff76bf97f57951d2891279c3a274150f24da5c3f323da",
+      "bytes": 14838,
+      "records": 1
+    }
+  ]
+}

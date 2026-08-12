@@ -1,0 +1,102 @@
+{
+  "schema_version": "1.0",
+  "selection_version": "0.1.0",
+  "status": "DRAFT",
+  "review_method_code": "AGENT_ONLY",
+  "production_eligible": false,
+  "selected_on": "2026-08-11",
+  "basis_documents": [
+    "docs/references/외부데이터_수집.md",
+    "docs/references/운동지속관리_데이터수집_정리.pdf",
+    "docs/tasks/TASK-DATA-005.md"
+  ],
+  "interpretation_guards": [
+    "SELECTION_IS_NOT_CATALOG_INCLUSION",
+    "SELECTION_IS_NOT_DOMAIN_SAFETY_APPROVAL",
+    "SOURCE_MUSCLE_IS_NOT_CONTRAINDICATION_DATA",
+    "SOURCE_DOSAGE_IS_NOT_APPLICATION_DOSAGE",
+    "SOURCE_MEDICAL_CLAIMS_ARE_NOT_ADOPTED",
+    "MET_VALUES_MUST_NOT_BE_ASSIGNED_BY_NAME_MATCH",
+    "ALL_EXISTING_REVIEW_GATES_REMAIN_REQUIRED"
+  ],
+  "sources": {
+    "kspo": {
+      "profile_directory": "data/validation/profiles/20260810T053458Z-training-video-profile-v0.2.0",
+      "inventory_file": "candidate_inventory.jsonl",
+      "excluded_review_batch": "data/validation/review_batches/20260810T053458Z-training-video-profile-v0.2.0-review-batch-v0.2.0/review_batch.jsonl"
+    },
+    "wger": {
+      "profile_directory": "data/validation/profiles/20260810T063833Z-wger-exercise-catalog-profile-v0.1.0",
+      "inventory_file": "gym_candidate_inventory.jsonl",
+      "excluded_review_batch": "data/validation/review_batches/20260810T063833Z-wger-exercise-catalog-profile-v0.1.0-gym-core-review-v0.2.0/gym_core_review_batch.jsonl"
+    }
+  },
+  "candidates": [
+    {
+      "track": "kspo",
+      "source_identity": "ee82ac56c7d744489bff26d9d39a5f029173475135db8a167dacc92454b82dc6",
+      "target_movement_pattern_code": "HORIZONTAL_PUSH",
+      "selection_reason_codes": ["LOWER_BARRIER_PUSH_VARIANT", "HOME_EQUIPMENT_COVERAGE"]
+    },
+    {
+      "track": "kspo",
+      "source_identity": "0643bf2548537c1284fe95e5e0b40af45e72c225e6ea50c44852222b9bf53a29",
+      "target_movement_pattern_code": "VERTICAL_PULL",
+      "selection_reason_codes": ["HOME_VERTICAL_PULL_GAP", "RESISTANCE_BAND_COVERAGE"]
+    },
+    {
+      "track": "kspo",
+      "source_identity": "2b59da9534638a2c0b8af314e4377b96f1bbcbb217485628e5fefa19f48b31d6",
+      "target_movement_pattern_code": "HORIZONTAL_PUSH",
+      "selection_reason_codes": ["LOWER_BARRIER_PUSH_VARIANT", "SOURCE_EQUIPMENT_AMBIGUITY_REVIEW"]
+    },
+    {
+      "track": "kspo",
+      "source_identity": "85322f21d3e5676af548cad0795f2dded36ead619c91bd0a11dce4c1992f415c",
+      "target_movement_pattern_code": "GAIT",
+      "selection_reason_codes": ["MODERATE_INTENSITY_GAIT_CANDIDATE", "OUTDOOR_CARDIO_VARIANT_REVIEW"]
+    },
+    {
+      "track": "kspo",
+      "source_identity": "c367af763a34ce423ccf17918b57be734dee9877a4125c363287465f54ad246d",
+      "target_movement_pattern_code": "ISOLATION",
+      "selection_reason_codes": ["DISTAL_UPPER_BODY_COVERAGE", "DUMBBELL_ACCESSORY_CANDIDATE"]
+    },
+    {
+      "track": "kspo",
+      "source_identity": "493b5c9d6b2de695a0e3837068cb225115055de52a94aa779af7ee9728d2cbc4",
+      "target_movement_pattern_code": "MOBILITY_STRETCH",
+      "selection_reason_codes": ["SEATED_MOBILITY_GAP", "LOWER_BARRIER_RECOVERY_CANDIDATE"]
+    },
+    {
+      "track": "kspo",
+      "source_identity": "d5fc8a3a8a6c8afa72061580a6035306fdefd630354abbc8a058081e38879fb8",
+      "target_movement_pattern_code": "MOBILITY_STRETCH",
+      "selection_reason_codes": ["DYNAMIC_WARMUP_GAP", "SOURCE_CONTEXT_REVIEW"]
+    },
+    {
+      "track": "wger",
+      "source_identity": 1127,
+      "target_movement_pattern_code": "VERTICAL_PULL",
+      "selection_reason_codes": ["GRIP_VARIANT_REVIEW", "CABLE_VERTICAL_PULL_COVERAGE"]
+    },
+    {
+      "track": "wger",
+      "source_identity": 567,
+      "target_movement_pattern_code": "VERTICAL_PUSH",
+      "selection_reason_codes": ["BILATERAL_DUMBBELL_PUSH_VARIANT", "GYM_EQUIPMENT_COVERAGE"]
+    },
+    {
+      "track": "wger",
+      "source_identity": 211,
+      "target_movement_pattern_code": "ISOLATION",
+      "selection_reason_codes": ["TRICEPS_ACCESSORY_GAP", "DUMBBELL_ACCESSORY_CANDIDATE"]
+    },
+    {
+      "track": "wger",
+      "source_identity": 805,
+      "target_movement_pattern_code": "ISOLATION",
+      "selection_reason_codes": ["TRICEPS_ACCESSORY_GAP", "CABLE_ACCESSORY_CANDIDATE"]
+    }
+  ]
+}

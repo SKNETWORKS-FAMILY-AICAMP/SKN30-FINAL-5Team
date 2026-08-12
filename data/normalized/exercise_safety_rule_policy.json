@@ -1,0 +1,123 @@
+{
+  "schema_version": "1.0",
+  "status": "APPROVED",
+  "production_eligible": false,
+  "policy_version": "1.0.0",
+  "basis_documents": [
+    "docs/DOMAIN_RULES.md#3.2",
+    "docs/DOMAIN_RULES.md#3.3",
+    "docs/DOMAIN_RULES.md#4.2",
+    "docs/DOMAIN_RULES.md#4.3",
+    "docs/DATA_MODEL.md#5.9",
+    "data/validation/review_results/TRANCHE1_REVIEW_DECISION.md"
+  ],
+  "interpretation_guards": [
+    "SEVERE_IS_SESSION_LEVEL_REST_NOT_PER_EXERCISE",
+    "PATTERN_RULE_MUST_HOLD_FOR_EVERY_EXERCISE_OF_THE_PATTERN",
+    "RULES_ONLY_ADD_RESTRICTION_NEVER_REMOVE",
+    "NO_DIAGNOSIS_OR_TREATMENT_INFORMATION_IN_RULES"
+  ],
+  "severity_order": ["NONE", "MILD", "MODERATE", "SEVERE"],
+  "severity_effects": {
+    "PRIMARY": [
+      {
+        "minimum_severity_code": "MILD",
+        "maximum_severity_code": "SEVERE",
+        "effect_code": "EXCLUDE",
+        "reason_code": "DIRECT_JOINT_LOAD",
+        "basis": "docs/DOMAIN_RULES.md 4.3은 심각도가 MILD 또는 MODERATE일 때 충돌 운동을 제외하고 대체를 만든다고 규정한다. 동작의 직접 부하를 받는 부위는 MILD부터 충돌로 본다."
+      }
+    ],
+    "SECONDARY": [
+      {
+        "minimum_severity_code": "MILD",
+        "maximum_severity_code": "MILD",
+        "effect_code": "CAUTION",
+        "reason_code": "STABILIZER_LOAD",
+        "basis": "docs/DOMAIN_RULES.md 3.3의 MILD는 '관련 동작 수정 또는 제외 검토'다. 보조 부하 부위는 제거보다 수정이 적절하며, 보조 일치까지 모두 제외하면 목표 보존형 대체 계획을 만들 수 없다."
+      },
+      {
+        "minimum_severity_code": "MODERATE",
+        "maximum_severity_code": "SEVERE",
+        "effect_code": "EXCLUDE",
+        "reason_code": "STABILIZER_LOAD",
+        "basis": "docs/DOMAIN_RULES.md 3.3의 MODERATE는 '관련 동작 제외, 대체 또는 회복안'이다."
+      }
+    ]
+  },
+  "severe_handling": {
+    "note": "SEVERE는 docs/DOMAIN_RULES.md 4.2에 따라 세션 단위로 REST를 반환하므로 운동 선택 자체가 일어나지 않는다. 규칙 범위에 SEVERE를 포함한 것은 구간을 닫아 두기 위한 것이며, 세션 로직이 SEVERE를 개별 운동 판단으로 넘기더라도 안전한 쪽으로 동작하게 한다.",
+    "session_level_action": "REST"
+  },
+  "pattern_rules": {
+    "_comment": "동작 패턴의 정의상 항상 참인 부하만 적는다. 특정 운동에만 해당하는 부하는 운동 단위 규칙으로 내려간다. 예를 들어 KNEE_DOMINANT에 HIP을 넣지 않는 이유는 레그 익스텐션이 엉덩관절을 고정한 채 수행되기 때문이다.",
+    "VERTICAL_PULL": {
+      "primary": ["SHOULDER"],
+      "secondary": ["ELBOW"]
+    },
+    "HORIZONTAL_PULL": {
+      "primary": ["SHOULDER", "UPPER_BACK"],
+      "secondary": ["ELBOW"]
+    },
+    "HORIZONTAL_PUSH": {
+      "primary": ["SHOULDER", "CHEST"],
+      "secondary": ["ELBOW"]
+    },
+    "VERTICAL_PUSH": {
+      "primary": ["SHOULDER"],
+      "secondary": ["ELBOW", "NECK"]
+    },
+    "KNEE_DOMINANT": {
+      "primary": ["KNEE"],
+      "secondary": []
+    },
+    "HIP_DOMINANT": {
+      "primary": ["HIP"],
+      "secondary": []
+    },
+    "KNEE_FLEXION": {
+      "primary": ["KNEE"],
+      "secondary": []
+    },
+    "ISOLATION": {
+      "primary": [],
+      "secondary": [],
+      "note": "단순 보조 동작은 대상 관절이 운동마다 달라 패턴 공통 부하가 없다. 운동 단위 규칙만 사용한다."
+    },
+    "GAIT": {
+      "primary": ["ANKLE_FOOT", "KNEE", "HIP"],
+      "secondary": []
+    },
+    "CORE_BRACE": {
+      "primary": ["ABDOMEN", "LOWER_BACK"],
+      "secondary": []
+    },
+    "MOBILITY_STRETCH": {
+      "primary": [],
+      "secondary": [],
+      "note": "스트레칭 대상 부위가 운동마다 달라 패턴 공통 부하가 없다. 운동 단위 규칙만 사용한다."
+    }
+  },
+  "reason_codes": [
+    {
+      "code": "DIRECT_JOINT_LOAD",
+      "label_ko": "동작의 직접 부하 부위",
+      "description": "이 동작이 부하를 직접 싣는 관절 또는 부위다."
+    },
+    {
+      "code": "STABILIZER_LOAD",
+      "label_ko": "자세 유지 부하 부위",
+      "description": "자세를 유지하거나 보조 동작으로 부하를 받는 부위다."
+    }
+  ],
+  "approval": {
+    "domain_reviewer": {
+      "decision": "APPROVED",
+      "decided_on": "2026-08-11",
+      "decided_by": "AGENT-CLAUDE-DOMAIN-01",
+      "delegation": "개발 리드가 데이터 파트 총괄 권한으로 위임 (2026-08-11). tranche 1 카탈로그 검토와 같은 방식이다.",
+      "scope": "부하 부위 역할과 불편 심각도를 제외·주의 효과로 옮기는 매핑, 그리고 동작 패턴의 정의상 공통 부하.",
+      "limits": "자격을 갖춘 운동·재활 전문가의 검수가 아니다. 개별 사용자의 상태를 고려하지 않으며 질환·금기 판단을 포함하지 않는다. docs/DOMAIN_RULES.md 16절의 '각 신체 부위와 운동 패턴의 제외 규칙'은 이 정책으로 초안이 생겼을 뿐 외부 최종 검수는 남아 있다."
+    }
+  }
+}

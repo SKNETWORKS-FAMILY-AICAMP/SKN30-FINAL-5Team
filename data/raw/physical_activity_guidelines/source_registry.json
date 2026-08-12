@@ -1,0 +1,94 @@
+{
+  "schema_version": "1.0",
+  "collection_version": "0.1.0",
+  "status": "DRAFT",
+  "review_method_code": "AGENT_ONLY",
+  "production_eligible": false,
+  "interpretation_guards": [
+    "PUBLIC_HEALTH_GUIDANCE_IS_NOT_INDIVIDUAL_PRESCRIPTION",
+    "SOURCE_FACTS_MUST_NOT_OVERRIDE_SAFETY_VETO",
+    "SOURCE_CONTENT_IS_NOT_REDISTRIBUTED",
+    "THIRD_PARTY_MEDIA_RIGHTS_ARE_NOT_ASSUMED",
+    "MET_VALUES_MUST_NOT_BE_CHANGED",
+    "MET_ROWS_MUST_NOT_BE_AUTO_MAPPED_TO_EXERCISES"
+  ],
+  "endpoints": [
+    {
+      "source_id": "WHO_PA_GUIDELINE_LANDING_2020",
+      "provider": "World Health Organization",
+      "title": "WHO guidelines on physical activity and sedentary behaviour",
+      "url": "https://www.who.int/publications/i/item/9789240015128",
+      "document_date": "2020-11-25",
+      "collection_method_code": "HTTP_RESPONSE_HASH",
+      "license_code": "CC_BY_NC_SA_3_0_IGO",
+      "commercial_reuse_allowed": false,
+      "usage_guards": ["COMMERCIAL_USE_REQUIRES_WHO_PERMISSION", "ATTRIBUTION_REQUIRED"]
+    },
+    {
+      "source_id": "WHO_PA_GUIDELINE_PDF_2020",
+      "provider": "World Health Organization",
+      "title": "WHO physical activity guideline PDF",
+      "url": "https://iris.who.int/bitstream/handle/10665/336656/9789240015128-eng.pdf",
+      "document_date": "2020-11-25",
+      "collection_method_code": "BROWSER_VERIFIED_FACT_HASH",
+      "license_code": "CC_BY_NC_SA_3_0_IGO",
+      "commercial_reuse_allowed": false,
+      "usage_guards": ["HASH_ONLY_NO_REPOSITORY_REDISTRIBUTION", "ATTRIBUTION_REQUIRED"]
+    },
+    {
+      "source_id": "CDC_PA_INTENSITY_2025",
+      "provider": "U.S. Centers for Disease Control and Prevention",
+      "title": "How to Measure Physical Activity Intensity",
+      "url": "https://www.cdc.gov/physical-activity-basics/measuring/index.html",
+      "document_date": "2025-12-04",
+      "collection_method_code": "BROWSER_VERIFIED_FACT_HASH",
+      "license_code": "US_GOVERNMENT_CONTENT_WITH_EXCEPTIONS",
+      "commercial_reuse_allowed": true,
+      "usage_guards": ["VERIFY_THIRD_PARTY_MATERIAL", "CITE_CONTENT_SOURCE"]
+    },
+    {
+      "source_id": "CDC_ADULT_PA_2023",
+      "provider": "U.S. Centers for Disease Control and Prevention",
+      "title": "What Counts as Physical Activity for Adults",
+      "url": "https://www.cdc.gov/physical-activity-basics/adding-adults/what-counts.html",
+      "document_date": "2023-12-06",
+      "collection_method_code": "BROWSER_VERIFIED_FACT_HASH",
+      "license_code": "US_GOVERNMENT_CONTENT_WITH_EXCEPTIONS",
+      "commercial_reuse_allowed": true,
+      "usage_guards": ["VERIFY_THIRD_PARTY_MATERIAL", "CITE_CONTENT_SOURCE"]
+    },
+    {
+      "source_id": "KDCA_PA_GUIDANCE_2026",
+      "provider": "Korea Disease Control and Prevention Agency",
+      "title": "신체활동! 알려드리겠습니다!",
+      "url": "https://health.kdca.go.kr/healthinfo/biz/health/gnrlzHealthInfo/gnrlzHealthInfo/gnrlzHealthInfoView.do?cntnts_sn=6251",
+      "document_date": "2026-07-27",
+      "collection_method_code": "HTTP_RESPONSE_HASH",
+      "license_code": "SOURCE_TERMS_REVIEW_REQUIRED",
+      "commercial_reuse_allowed": false,
+      "usage_guards": ["DERIVATIVE_REUSE_NOT_ASSUMED", "FACTS_ONLY_WITH_SOURCE_LINK"]
+    },
+    {
+      "source_id": "ADULT_COMPENDIUM_HOME_2024",
+      "provider": "Compendium of Physical Activities",
+      "title": "2024 Compendium of Physical Activities",
+      "url": "https://pacompendium.com/",
+      "document_date": "2024-01-01",
+      "collection_method_code": "HTTP_RESPONSE_HASH",
+      "license_code": "OFFICIAL_SITE_PERMISSION_STATEMENT",
+      "commercial_reuse_allowed": true,
+      "usage_guards": ["DO_NOT_CHANGE_MET_VALUES", "DO_NOT_COMBINE_DIFFERENT_MET_LEVELS", "CITATION_REQUIRED"]
+    },
+    {
+      "source_id": "ADULT_COMPENDIUM_PDF_2024",
+      "provider": "Compendium of Physical Activities",
+      "title": "2024 Adult Compendium PDF",
+      "url": "https://pacompendium.com/wp-content/uploads/2025/02/1_2024-adult-compendium_1_2024.pdf",
+      "document_date": "2024-01-01",
+      "collection_method_code": "HTTP_RESPONSE_HASH",
+      "license_code": "OFFICIAL_SITE_PERMISSION_STATEMENT",
+      "commercial_reuse_allowed": true,
+      "usage_guards": ["HASH_ONLY_NO_PDF_REDISTRIBUTION", "DO_NOT_CHANGE_MET_VALUES", "CITATION_REQUIRED"]
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "schema_version": "1.0",
+  "reference_version": "0.1.0",
+  "reference_type": "INTENSITY_CLASSIFICATION_REFERENCE",
+  "status": "DRAFT",
+  "review_method_code": "AGENT_ONLY",
+  "production_eligible": false,
+  "population_code": "GENERAL_ADULT",
+  "interpretation_guards": [
+    "PUBLIC_HEALTH_REFERENCE_IS_NOT_INDIVIDUAL_PRESCRIPTION",
+    "REFERENCE_MUST_NOT_OVERRIDE_SAFETY_VETO",
+    "SCHEMA_TARGET_UNRESOLVED",
+    "NO_AUTOMATIC_EXERCISE_MET_MAPPING",
+    "NO_DIAGNOSIS_TREATMENT_OR_REHABILITATION_INFERENCE"
+  ],
+  "absolute_met_rules": [
+    {
+      "reference_code": "BELOW_MODERATE_MET",
+      "minimum": null,
+      "maximum": 3.0,
+      "minimum_inclusive": false,
+      "maximum_inclusive": false,
+      "derivation_code": "COMPLEMENT_BELOW_CDC_MODERATE_THRESHOLD",
+      "usage_note": "Reference bucket only; this does not create an application LIGHT code.",
+      "source_fact_ids": [
+        "CDC_ABSOLUTE_MODERATE_MET_RANGE"
+      ]
+    },
+    {
+      "reference_code": "MODERATE_MET",
+      "minimum": 3.0,
+      "maximum": 5.9,
+      "minimum_inclusive": true,
+      "maximum_inclusive": true,
+      "derivation_code": "DIRECT_SOURCE_RANGE",
+      "source_fact_ids": [
+        "CDC_ABSOLUTE_MODERATE_MET_RANGE"
+      ]
+    },
+    {
+      "reference_code": "VIGOROUS_MET",
+      "minimum": 6.0,
+      "maximum": null,
+      "minimum_inclusive": true,
+      "maximum_inclusive": false,
+      "derivation_code": "DIRECT_SOURCE_RANGE",
+      "source_fact_ids": [
+        "CDC_ABSOLUTE_VIGOROUS_MET_MINIMUM"
+      ]
+    }
+  ],
+  "relative_effort_references": [
+    {
+      "reference_code": "MODERATE_EFFORT_0_10",
+      "minimum": 5,
+      "maximum": 6,
+      "classification_mode_code": "RANGE",
+      "source_fact_ids": [
+        "CDC_RELATIVE_MODERATE_EFFORT_RANGE"
+      ]
+    },
+    {
+      "reference_code": "VIGOROUS_EFFORT_ONSET_0_10",
+      "minimum": 7,
+      "maximum": 8,
+      "classification_mode_code": "ONSET_REFERENCE_NOT_COMPLETE_RANGE",
+      "source_fact_ids": [
+        "CDC_RELATIVE_VIGOROUS_EFFORT_START"
+      ]
+    }
+  ],
+  "source_ids": [
+    "CDC_PA_INTENSITY_2025"
+  ]
+}

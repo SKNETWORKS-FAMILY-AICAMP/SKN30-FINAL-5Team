@@ -1,0 +1,776 @@
+{
+  "schema_version": "1.0",
+  "profiler_version": "0.1.0",
+  "review": {
+    "status": "DRAFT",
+    "production_eligible": false
+  },
+  "matching_policy": {
+    "evidence_type": "SOURCE_ENGLISH_NAME_OR_ALIAS_TEXT_MATCH",
+    "normalized_taxonomy_created": false,
+    "equivalence_asserted": false
+  },
+  "targets": [
+    {
+      "code": "LAT_PULLDOWN",
+      "label_ko": "랫풀다운 계열",
+      "query_terms": [
+        "lat pulldown",
+        "lat pull-down",
+        "pulldown"
+      ],
+      "source_name_match_count": 23,
+      "samples": [
+        {
+          "source_exercise_id": 158,
+          "source_exercise_uuid": "63fbb8e5-6ebc-4def-8844-3e65e097213b",
+          "source_names_en": [
+            "Close-grip Lat Pull Down"
+          ],
+          "source_equipment_names": []
+        },
+        {
+          "source_exercise_id": 354,
+          "source_exercise_uuid": "8c496646-baa8-4ed3-97b1-702e213fdeca",
+          "source_names_en": [
+            "Lat Pull Down (Leaning Back)"
+          ],
+          "source_equipment_names": []
+        },
+        {
+          "source_exercise_id": 355,
+          "source_exercise_uuid": "fff05d7a-f374-4c8a-9885-39f49076918f",
+          "source_names_en": [
+            "Lat Pull Down (Straight Back)"
+          ],
+          "source_equipment_names": []
+        },
+        {
+          "source_exercise_id": 628,
+          "source_exercise_uuid": "0f5fc602-afb6-4500-87da-f115f3ef3f47",
+          "source_names_en": [
+            "Straight-arm Pull Down (bar Attachment)"
+          ],
+          "source_equipment_names": [
+            "Cable machine"
+          ]
+        },
+        {
+          "source_exercise_id": 629,
+          "source_exercise_uuid": "2f7149c3-77ce-4313-a59c-aef82b5a730a",
+          "source_names_en": [
+            "Straight-arm Pull Down (rope Attachment)"
+          ],
+          "source_equipment_names": [
+            "Cable machine"
+          ]
+        },
+        {
+          "source_exercise_id": 684,
+          "source_exercise_uuid": "76965848-9776-4be5-b879-e3c97033b80f",
+          "source_names_en": [
+            "Underhand Lat Pull Down"
+          ],
+          "source_equipment_names": []
+        },
+        {
+          "source_exercise_id": 695,
+          "source_exercise_uuid": "d847301e-1613-4987-85cd-61d3ff9d7ef8",
+          "source_names_en": [
+            "V-Bar Pulldown"
+          ],
+          "source_equipment_names": [
+            "Cable machine"
+          ]
+        },
+        {
+          "source_exercise_id": 723,
+          "source_exercise_uuid": "55b9d286-c4cc-4a29-97ad-58cb13c2bb7e",
+          "source_names_en": [
+            "Wide-grip Pulldown"
+          ],
+          "source_equipment_names": [
+            "Cable machine"
+          ]
+        },
+        {
+          "source_exercise_id": 1125,
+          "source_exercise_uuid": "d33f3b19-436f-48a2-aff6-946582c94bdb",
+          "source_names_en": [
+            "Wide-grip supinated lat pulldown"
+          ],
+          "source_equipment_names": [
+            "Cable machine"
+          ]
+        },
+        {
+          "source_exercise_id": 1127,
+          "source_exercise_uuid": "4eb41bfb-cbeb-4683-b9c6-902ee7e028e0",
+          "source_names_en": [
+            "Close-grip supinated lat pulldown"
+          ],
+          "source_equipment_names": [
+            "Cable machine"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "DUMBBELL_ROW",
+      "label_ko": "덤벨로우 계열",
+      "query_terms": [
+        "dumbbell row",
+        "row + dumbbell"
+      ],
+      "source_name_match_count": 5,
+      "samples": [
+        {
+          "source_exercise_id": 310,
+          "source_exercise_uuid": "27eb3d4a-8677-4c1f-bf34-251e2b4741cb",
+          "source_names_en": [
+            "Incline Dumbbell Row"
+          ],
+          "source_equipment_names": [
+            "Dumbbell",
+            "Incline bench"
+          ]
+        },
+        {
+          "source_exercise_id": 923,
+          "source_exercise_uuid": "dab7400b-e86e-4224-bcea-4a915dc928e0",
+          "source_names_en": [
+            "Lying Dumbbell Row SS Seated Shrug"
+          ],
+          "source_equipment_names": [
+            "Dumbbell"
+          ]
+        },
+        {
+          "source_exercise_id": 1227,
+          "source_exercise_uuid": "adb6067f-fd48-4a25-a9b4-0793c5f158fa",
+          "source_names_en": [
+            "Dumbbell rear delt row"
+          ],
+          "source_equipment_names": [
+            "Dumbbell"
+          ]
+        },
+        {
+          "source_exercise_id": 1283,
+          "source_exercise_uuid": "51a2d520-b510-4b6e-bd65-9fc40365e8de",
+          "source_names_en": [
+            "Incline Chest-Supported Dumbbell Row"
+          ],
+          "source_equipment_names": [
+            "Bench",
+            "Dumbbell"
+          ]
+        },
+        {
+          "source_exercise_id": 1463,
+          "source_exercise_uuid": "1dca10f9-a976-4a09-ab85-b95fafaa1a28",
+          "source_names_en": [
+            "Dumbbell Underhand Dead Row"
+          ],
+          "source_equipment_names": [
+            "Dumbbell"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "SEATED_OR_CABLE_ROW",
+      "label_ko": "시티드·케이블로우 계열",
+      "query_terms": [
+        "seated row",
+        "cable row"
+      ],
+      "source_name_match_count": 5,
+      "samples": [
+        {
+          "source_exercise_id": 1117,
+          "source_exercise_uuid": "0ecfec6f-5d0f-4e8a-8d37-f6203a8923b8",
+          "source_names_en": [
+            "Seated Cable Row"
+          ],
+          "source_equipment_names": [
+            "Cable machine"
+          ]
+        },
+        {
+          "source_exercise_id": 1486,
+          "source_exercise_uuid": "45251627-5f89-4858-bf0c-8884a21cbb1f",
+          "source_names_en": [
+            "Alternating High Cable Row"
+          ],
+          "source_equipment_names": [
+            "Cable machine"
+          ]
+        },
+        {
+          "source_exercise_id": 1621,
+          "source_exercise_uuid": "c1a9297d-6786-45dc-9047-5539fb61db9c",
+          "source_names_en": [
+            "Unilateral Cable row"
+          ],
+          "source_equipment_names": [
+            "Bench",
+            "Cable machine"
+          ]
+        },
+        {
+          "source_exercise_id": 1725,
+          "source_exercise_uuid": "9bcc7b4f-4172-4db7-be95-d7b659c486f5",
+          "source_names_en": [
+            "Seated Row (Machine)"
+          ],
+          "source_equipment_names": []
+        },
+        {
+          "source_exercise_id": 1928,
+          "source_exercise_uuid": "b2ca4a13-6fe2-4c4f-85b2-dcb5af28d2be",
+          "source_names_en": [
+            "Seated V-Grip Row"
+          ],
+          "source_equipment_names": [
+            "Cable machine"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "CHEST_OR_BENCH_PRESS",
+      "label_ko": "체스트·벤치프레스 계열",
+      "query_terms": [
+        "chest press",
+        "bench press"
+      ],
+      "source_name_match_count": 23,
+      "samples": [
+        {
+          "source_exercise_id": 73,
+          "source_exercise_uuid": "3717d144-7815-4a97-9a56-956fb889c996",
+          "source_names_en": [
+            "Bench Press"
+          ],
+          "source_equipment_names": [
+            "Barbell",
+            "Bench"
+          ]
+        },
+        {
+          "source_exercise_id": 76,
+          "source_exercise_uuid": "3db63138-a047-4a4d-b616-1a0b7dfca105",
+          "source_names_en": [
+            "Bench Press Narrow Grip"
+          ],
+          "source_equipment_names": [
+            "Barbell",
+            "Bench"
+          ]
+        },
+        {
+          "source_exercise_id": 129,
+          "source_exercise_uuid": "5c414175-fe72-455a-ba8f-a0575cf792bd",
+          "source_names_en": [
+            "Chest Press"
+          ],
+          "source_equipment_names": []
+        },
+        {
+          "source_exercise_id": 185,
+          "source_exercise_uuid": "bcd801f0-9a38-4615-a91c-900153c8c234",
+          "source_names_en": [
+            "Decline Bench Press Barbell"
+          ],
+          "source_equipment_names": [
+            "Barbell",
+            "Bench"
+          ]
+        },
+        {
+          "source_exercise_id": 186,
+          "source_exercise_uuid": "dda69c96-62d4-4690-aa07-a4a0f6ceb63a",
+          "source_names_en": [
+            "Decline Bench Press Dumbbell"
+          ],
+          "source_equipment_names": [
+            "Bench",
+            "Dumbbell"
+          ]
+        },
+        {
+          "source_exercise_id": 379,
+          "source_exercise_uuid": "82aec7f9-ee03-4b24-8994-f6bde07c6a41",
+          "source_names_en": [
+            "Leverage Machine Chest Press"
+          ],
+          "source_equipment_names": []
+        },
+        {
+          "source_exercise_id": 498,
+          "source_exercise_uuid": "1b95d961-1d5c-4ded-b25e-c090295ffe37",
+          "source_names_en": [
+            "Reverse Grip Bench Press"
+          ],
+          "source_equipment_names": [
+            "Barbell",
+            "Bench"
+          ]
+        },
+        {
+          "source_exercise_id": 537,
+          "source_exercise_uuid": "57e17672-52b9-43cf-8d0d-4b3f06a0c0d0",
+          "source_names_en": [
+            "Incline Bench Press - Dumbbell"
+          ],
+          "source_equipment_names": [
+            "Dumbbell",
+            "Incline bench"
+          ]
+        },
+        {
+          "source_exercise_id": 538,
+          "source_exercise_uuid": "275fb49f-975c-4d6e-9d63-2c86ed740f40",
+          "source_names_en": [
+            "Incline Bench Press - Barbell"
+          ],
+          "source_equipment_names": [
+            "Barbell",
+            "Incline bench"
+          ]
+        },
+        {
+          "source_exercise_id": 539,
+          "source_exercise_uuid": "60e9a0c0-5458-46cd-ab41-7d7b85225cf8",
+          "source_names_en": [
+            "Incline Bench Press - MP"
+          ],
+          "source_equipment_names": []
+        }
+      ]
+    },
+    {
+      "code": "SHOULDER_PRESS",
+      "label_ko": "숄더·오버헤드프레스 계열",
+      "query_terms": [
+        "shoulder press",
+        "overhead press",
+        "military press"
+      ],
+      "source_name_match_count": 12,
+      "samples": [
+        {
+          "source_exercise_id": 20,
+          "source_exercise_uuid": "f24cb758-9c0d-42d4-ad9e-6025c527dd13",
+          "source_names_en": [
+            "Arnold Shoulder Press"
+          ],
+          "source_equipment_names": [
+            "Dumbbell"
+          ]
+        },
+        {
+          "source_exercise_id": 193,
+          "source_exercise_uuid": "14d5cdbc-9b17-4296-a282-0a81cd3c4c4e",
+          "source_names_en": [
+            "Diagonal Shoulder Press"
+          ],
+          "source_equipment_names": [
+            "Bench"
+          ]
+        },
+        {
+          "source_exercise_id": 418,
+          "source_exercise_uuid": "7b1e458f-1857-4c2f-8463-7d67d4b2db93",
+          "source_names_en": [
+            "Military Press mit SZ-Bar"
+          ],
+          "source_equipment_names": [
+            "SZ-Bar"
+          ]
+        },
+        {
+          "source_exercise_id": 543,
+          "source_exercise_uuid": "5912d7ed-6a0e-4b4c-b30a-fc9f3f890fc1",
+          "source_names_en": [
+            "Shoulder Press, on Machine"
+          ],
+          "source_equipment_names": []
+        },
+        {
+          "source_exercise_id": 566,
+          "source_exercise_uuid": "8b0a0371-c0a9-42a7-aab7-68d520542fb2",
+          "source_names_en": [
+            "Shoulder Press, Barbell"
+          ],
+          "source_equipment_names": [
+            "Barbell"
+          ]
+        },
+        {
+          "source_exercise_id": 567,
+          "source_exercise_uuid": "87affa4b-395b-437c-9581-2bd20ea5aa7c",
+          "source_names_en": [
+            "Shoulder Press, Dumbbells"
+          ],
+          "source_equipment_names": [
+            "Dumbbell"
+          ]
+        },
+        {
+          "source_exercise_id": 569,
+          "source_exercise_uuid": "141bc870-56be-4749-a3b9-e56d5d5618b4",
+          "source_names_en": [
+            "Shoulder Press, on Multi Press"
+          ],
+          "source_equipment_names": []
+        },
+        {
+          "source_exercise_id": 687,
+          "source_exercise_uuid": "f4467e9a-9bb1-4e93-bec6-10a5d7738ffb",
+          "source_names_en": [
+            "Overhead Press"
+          ],
+          "source_equipment_names": [
+            "Barbell"
+          ]
+        },
+        {
+          "source_exercise_id": 1575,
+          "source_exercise_uuid": "083bc8a6-0eb4-4049-b2ef-88415aa15459",
+          "source_names_en": [
+            "Standing Dowel Shoulder press"
+          ],
+          "source_equipment_names": [
+            "Barbell"
+          ]
+        },
+        {
+          "source_exercise_id": 1716,
+          "source_exercise_uuid": "743690d3-dbfb-417a-a049-8b77fd5df31b",
+          "source_names_en": [
+            "Incline Shoulder Press Up"
+          ],
+          "source_equipment_names": [
+            "Bench"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "LEG_PRESS",
+      "label_ko": "레그프레스 계열",
+      "query_terms": [
+        "leg press"
+      ],
+      "source_name_match_count": 4,
+      "samples": [
+        {
+          "source_exercise_id": 146,
+          "source_exercise_uuid": "0d79f259-3b28-4258-8a08-cffec062a710",
+          "source_names_en": [
+            "Calf Press Using Leg Press Machine"
+          ],
+          "source_equipment_names": []
+        },
+        {
+          "source_exercise_id": 371,
+          "source_exercise_uuid": "66a42396-c207-44da-bc75-758a89d32404",
+          "source_names_en": [
+            "Leg Press"
+          ],
+          "source_equipment_names": []
+        },
+        {
+          "source_exercise_id": 375,
+          "source_exercise_uuid": "18104387-4567-4c1e-8d03-db0b274646dd",
+          "source_names_en": [
+            "Leg Press on Hackenschmidt Machine"
+          ],
+          "source_equipment_names": []
+        },
+        {
+          "source_exercise_id": 1515,
+          "source_exercise_uuid": "0cc9c8ed-57f1-42c3-a4c4-6e57e6a1b878",
+          "source_names_en": [
+            "Leg Press Toe Press"
+          ],
+          "source_equipment_names": []
+        }
+      ]
+    },
+    {
+      "code": "LEG_EXTENSION",
+      "label_ko": "레그익스텐션 계열",
+      "query_terms": [
+        "leg extension"
+      ],
+      "source_name_match_count": 2,
+      "samples": [
+        {
+          "source_exercise_id": 71,
+          "source_exercise_uuid": "046fce45-69f2-46f7-a5b6-79a25a485af1",
+          "source_names_en": [
+            "Single Leg Extension"
+          ],
+          "source_equipment_names": []
+        },
+        {
+          "source_exercise_id": 369,
+          "source_exercise_uuid": "62170477-90ec-463c-907e-9e523abc0a15",
+          "source_names_en": [
+            "Leg Extension"
+          ],
+          "source_equipment_names": []
+        }
+      ]
+    },
+    {
+      "code": "LEG_CURL",
+      "label_ko": "레그컬 계열",
+      "query_terms": [
+        "leg curl"
+      ],
+      "source_name_match_count": 3,
+      "samples": [
+        {
+          "source_exercise_id": 364,
+          "source_exercise_uuid": "48836f44-efcd-4471-a456-5f024936025a",
+          "source_names_en": [
+            "Leg Curl"
+          ],
+          "source_equipment_names": []
+        },
+        {
+          "source_exercise_id": 1603,
+          "source_exercise_uuid": "ca514fad-c6ce-47b0-93a0-dc73a3507099",
+          "source_names_en": [
+            "Leg curl with elastic"
+          ],
+          "source_equipment_names": [
+            "Resistance band"
+          ]
+        },
+        {
+          "source_exercise_id": 2495,
+          "source_exercise_uuid": "c690034b-400c-4da8-8c71-37afac81ec3f",
+          "source_names_en": [
+            "Machine Leg Flexion"
+          ],
+          "source_equipment_names": [
+            "Cable machine"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "SQUAT",
+      "label_ko": "스쿼트 계열",
+      "query_terms": [
+        "squat"
+      ],
+      "source_name_match_count": 46,
+      "samples": [
+        {
+          "source_exercise_id": 43,
+          "source_exercise_uuid": "dae6f6ed-9408-4e62-a59a-1a33f4e8ab36",
+          "source_names_en": [
+            "Barbell Hack Squats"
+          ],
+          "source_equipment_names": [
+            "Barbell"
+          ]
+        },
+        {
+          "source_exercise_id": 124,
+          "source_exercise_uuid": "8c6428f3-d41d-4ffc-8444-bb9b823bc42b",
+          "source_names_en": [
+            "Braced Squat"
+          ],
+          "source_equipment_names": []
+        },
+        {
+          "source_exercise_id": 203,
+          "source_exercise_uuid": "b7c6a444-90ea-4f5b-9fea-748311606eaa",
+          "source_names_en": [
+            "Dumbbell Goblet Squat"
+          ],
+          "source_equipment_names": [
+            "Dumbbell"
+          ]
+        },
+        {
+          "source_exercise_id": 257,
+          "source_exercise_uuid": "d677de4c-5bd9-412a-91f1-857116a666a2",
+          "source_names_en": [
+            "Front Squats"
+          ],
+          "source_equipment_names": [
+            "Barbell"
+          ]
+        },
+        {
+          "source_exercise_id": 291,
+          "source_exercise_uuid": "1d610575-eed0-42cf-8737-29788a372af6",
+          "source_names_en": [
+            "Hindu Squats"
+          ],
+          "source_equipment_names": []
+        },
+        {
+          "source_exercise_id": 341,
+          "source_exercise_uuid": "316aca47-6f5b-40b7-b04f-f69e68387354",
+          "source_names_en": [
+            "Squats on Multipress"
+          ],
+          "source_equipment_names": []
+        },
+        {
+          "source_exercise_id": 397,
+          "source_exercise_uuid": "183e7279-f052-4c70-8381-bbbda3bb9afe",
+          "source_names_en": [
+            "Low Box Squat - Wide Stance"
+          ],
+          "source_equipment_names": [
+            "Barbell"
+          ]
+        },
+        {
+          "source_exercise_id": 441,
+          "source_exercise_uuid": "bc45125b-58da-4ee9-8895-16a7b930b789",
+          "source_names_en": [
+            "Overhead Squat"
+          ],
+          "source_equipment_names": []
+        },
+        {
+          "source_exercise_id": 456,
+          "source_exercise_uuid": "fe04cf35-1af5-4b51-89d4-c38d7eaa0db1",
+          "source_names_en": [
+            "Pistol Squat"
+          ],
+          "source_equipment_names": []
+        },
+        {
+          "source_exercise_id": 614,
+          "source_exercise_uuid": "5c0824dc-f2fb-4d19-a1e5-7c33219ad51d",
+          "source_names_en": [
+            "Squat Jumps"
+          ],
+          "source_equipment_names": []
+        }
+      ]
+    },
+    {
+      "code": "DEADLIFT",
+      "label_ko": "데드리프트 계열",
+      "query_terms": [
+        "deadlift"
+      ],
+      "source_name_match_count": 16,
+      "samples": [
+        {
+          "source_exercise_id": 184,
+          "source_exercise_uuid": "ee8e8db4-2d82-49e1-ab7f-891e9a354934",
+          "source_names_en": [
+            "Deadlifts"
+          ],
+          "source_equipment_names": [
+            "Barbell"
+          ]
+        },
+        {
+          "source_exercise_id": 189,
+          "source_exercise_uuid": "e7a964cd-e68e-4926-bc7c-577065137e18",
+          "source_names_en": [
+            "Deficit Deadlift"
+          ],
+          "source_equipment_names": [
+            "Barbell"
+          ]
+        },
+        {
+          "source_exercise_id": 484,
+          "source_exercise_uuid": "a6c2a970-a621-4e03-be1d-4a29118b1687",
+          "source_names_en": [
+            "Rack Deadlift"
+          ],
+          "source_equipment_names": []
+        },
+        {
+          "source_exercise_id": 507,
+          "source_exercise_uuid": "2e7ffff9-e603-4b28-98c8-31d1a6ce8cd9",
+          "source_names_en": [
+            "Romanian Deadlift"
+          ],
+          "source_equipment_names": [
+            "Barbell"
+          ]
+        },
+        {
+          "source_exercise_id": 604,
+          "source_exercise_uuid": "b1051c3e-78a9-4b73-899c-c700098cf1a8",
+          "source_names_en": [
+            "Speed Deadlift"
+          ],
+          "source_equipment_names": []
+        },
+        {
+          "source_exercise_id": 627,
+          "source_exercise_uuid": "22c59ede-970b-43e1-bb51-ac1c2be0b0e0",
+          "source_names_en": [
+            "Stiff-legged Deadlifts"
+          ],
+          "source_equipment_names": [
+            "Barbell"
+          ]
+        },
+        {
+          "source_exercise_id": 630,
+          "source_exercise_uuid": "0c2d9b74-3d1e-481f-a7bf-3b3532f7d6b0",
+          "source_names_en": [
+            "Sumo Deadlift"
+          ],
+          "source_equipment_names": []
+        },
+        {
+          "source_exercise_id": 1003,
+          "source_exercise_uuid": "9b5f8c6e-2436-4ded-aea9-8c698b0c8768",
+          "source_names_en": [
+            "Kettlebell deadlifts"
+          ],
+          "source_equipment_names": [
+            "Kettlebell"
+          ]
+        },
+        {
+          "source_exercise_id": 1088,
+          "source_exercise_uuid": "0c30c543-e2cc-499b-bc31-8c28db445ed2",
+          "source_names_en": [
+            "Dumbbell sumo deadlift"
+          ],
+          "source_equipment_names": [
+            "Dumbbell"
+          ]
+        },
+        {
+          "source_exercise_id": 1370,
+          "source_exercise_uuid": "b199baca-7353-4dee-bbcf-620f96dba5b4",
+          "source_names_en": [
+            "Dumbbell Deadlift"
+          ],
+          "source_equipment_names": [
+            "Dumbbell"
+          ]
+        }
+      ]
+    }
+  ],
+  "source": {
+    "snapshot_id": "20260810T063833Z-wger-exercise-catalog",
+    "source_id": "wger_exercise_catalog",
+    "retrieved_at": "2026-08-10T06:38:33Z",
+    "data_license_mode": "PER_ENTRY_LICENSE"
+  }
+}
