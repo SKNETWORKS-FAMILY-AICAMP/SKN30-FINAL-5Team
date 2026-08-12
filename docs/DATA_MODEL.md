@@ -6,7 +6,7 @@
 
 실제 SQLAlchemy 모델과 Alembic 마이그레이션은 이 문서와 API 계약이 승인된 다음 작성한다.
 
-멀티 에이전트 로직은 설계 전 단계다. `agent_proposals`, 조정 결과, 공개 요약의 세부 JSON 구조와 버전 필드는 멀티 에이전트 로직 설계 후 확정하며, 현재 컬럼과 JSONB 예시는 잠정 계약으로 관리한다. 외부 연동·무료 체험·개인정보 보유기간의 상위 경계는 `ACCEPTED` ADR-0003·0004와 POL-013을 따르며, 관련 컬럼은 실제 migration과 호환성 검토가 승인되기 전까지 논리 모델이다. 결정 재현에 필요한 입력·정책·카탈로그·그래프 버전과 안전 veto 기록은 현재 확정한다.
+멀티 에이전트 핵심 흐름은 [ADR-0007](adr/0007-multi-agent-structure-correction.md)에 따라 Training·Recovery·Safety·Feasibility 네 proposal의 병렬 실행과 Coordinator 최종 결정으로 확정한다. `agent_proposals`, 조정 결과, 공개 요약의 세부 JSON 구조와 버전 필드는 증상 사용자 시나리오 검증 결과에 따라 추후 보완할 수 있으며, 독립적인 최종 Safety 재검사 결과는 저장하지 않는다. 외부 연동·무료 체험·개인정보 보유기간의 상위 경계는 `ACCEPTED` ADR-0003·0004와 POL-013을 따르며, 관련 컬럼은 실제 migration과 호환성 검토가 승인되기 전까지 논리 모델이다. 결정 재현에 필요한 입력·정책·카탈로그·그래프 버전과 안전 veto 기록은 현재 확정한다.
 
 ---
 
@@ -80,8 +80,8 @@ PostgreSQL ENUM을 광범위하게 사용하지 않는다. 자주 변경될 수 
 | 컬럼 | 설명 |
 |---|---|
 | user_id | users FK, PK |
+| date_of_birth | 생년월일, NOT NULL, 암호화 저장 및 프로필 서비스 접근 제한 |
 | nickname | 사용자 표시용 닉네임 |
-| adult_confirmed | 기존 호환 필드, 만 14세 이상 이용 자격 확인, NOT NULL |
 | primary_goal_code | 운동 목표 코드 |
 | experience_level_code | 운동 경험 |
 | timezone | IANA timezone |
@@ -89,7 +89,6 @@ PostgreSQL ENUM을 광범위하게 사용하지 않는다. 자주 변경될 수 
 | default_requested_duration_minutes | 사용자의 기본 희망 운동 시간 |
 | desired_weekly_workout_count | 주간 희망 운동 횟수 |
 | coaching_style_code | SUPPORTIVE, CONCISE, ENERGETIC |
-| age_band_code | 만 14세 이상 허용 연령대, NOT NULL |
 | height_cm | 선택, 현재 핵심 판단에 사용하지 않음 |
 | weight_kg | 선택, 체중 기반 칼로리 추정에만 사용 |
 | sex_code | 선택, 현재 핵심 판단에 사용하지 않음 |
@@ -97,7 +96,7 @@ PostgreSQL ENUM을 광범위하게 사용하지 않는다. 자주 변경될 수 
 | created_at | 생성 시각 |
 | updated_at | 수정 시각 |
 
-adult_confirmed는 기존 호환 필드이며 만 14세 이상 이용 자격 확인을 위해 true여야 온보딩을 완료할 수 있다. age_band_code도 필수이며 정확한 생년월일은 수집하지 않는다.
+`date_of_birth`는 수정 가능한 암호화 원본값이다. 서버는 사용자 timezone의 로컬 날짜를 기준으로 만 나이를 일시 계산해 만 14세 이상 이용 자격을 검증하고 프로필 표시값을 만든다. 만 나이는 DB에 저장하지 않는다. 수정 결과가 만 14세 미만이면 이용을 차단한다.
 
 nickname은 중복을 허용하는 표시값이며 인증·리소스 소유권에 사용하지 않는다. 키와 성별은 MVP 핵심 결정에 사용하지 않는다. 체중은 선택 입력이며 제공된 경우에만 체중 기반 예상 소모 칼로리 추정에 사용하고, 진단·안전 판정에는 사용하지 않는다.
 
@@ -115,7 +114,36 @@ nickname은 중복을 허용하는 표시값이며 인증·리소스 소유권�
 | created_at | 생성 시각 |
 | updated_at | 수정 시각 |
 
-user_id와 consent_type_code 조합은 유일하다. 철회 시 해당 처리와 외부 동기화를 즉시 중단하고, 연동 해제와 사용자 데이터 삭제는 별도 작업으로 기록한다.
+user_id와 consent_type_code 조합은 유일하다. `user_consents`는 사용자별 동의 유형의 현재 상태만 보관하며 과거 변경 이력은 저장하지 않는다. 동의·철회 상태가 변경되면 현재 상태 갱신과 `user_consent_events` append를 하나의 트랜잭션으로 처리한다. 동일한 멱등 재시도는 중복 event를 만들지 않는다. 철회 시 해당 처리와 외부 동기화를 즉시 중단하고, 연동 해제와 사용자 데이터 삭제는 별도 작업으로 기록한다.
+
+### 4.3.2 user_consent_events
+
+동의·철회 mutation의 append-only 이력이다. 정상 처리에서는 기존 event를 수정하거나 삭제하지 않는다.
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| user_id | users FK |
+| consent_type_code | user_consents와 동일한 동의 유형 코드 |
+| event_code | GRANTED 또는 REVOKED |
+| policy_version | 적용한 동의 문서 버전 |
+| occurred_at | 사용자가 동의·철회한 시각 |
+| created_at | 서버 저장 시각 |
+
+동일 mutation의 재시도는 API 멱등성 키 또는 서버가 식별한 동일 요청 기준으로 기존 결과를 반환하고 event를 중복 추가하지 않는다. 계정 삭제 시 이력의 삭제·보유 처리는 사용자 연결 데이터 삭제 정책을 따른다.
+
+### 4.3.3 생년월일 개인정보 처리
+
+- API 응답 제외
+- 애플리케이션 로그 제외
+- 분석 이벤트 제외
+- decision snapshot에는 생년월일과 만 나이를 저장하지 않음
+- LLM·에이전트에는 생년월일과 만 나이를 전달하지 않음
+- 프로필 응답에는 계산된 만 나이만 표시
+- 가입 자격 확인과 프로필 표시 외에는 만 나이를 사용하지 않음
+- 구체적인 암호화 키 관리와 접근 제어 구현은 클라우드 확정 후 결정
+- 계정 삭제 시 운영 DB 7일 이내 삭제
+- 백업 30일 이내 만료
 
 ### 4.4 user_equipment
 
@@ -343,7 +371,7 @@ DOMAIN_REVIEWER는 건강운동관리사, 물리치료사 또는 동등한 수�
 | training_type_code | STRENGTH, CARDIO, MOBILITY, MIXED 등 |
 | body_focus_code | UPPER_BODY, LOWER_BODY 등, nullable |
 | requested_duration_minutes | 사용자가 요청한 권장 운동 길이 |
-| estimated_duration_seconds | 구성에 따른 서버 예상 시간 |
+| estimated_duration_seconds | requested_duration_minutes와 정확히 일치하는 계획 시간 합계 |
 | estimated_calories_burned | 체중 기반 예상 소모 칼로리 추정치, nullable |
 
 ### 6.3 routine_items
@@ -402,9 +430,11 @@ tier_code는 routine item의 문맥 속성이다.
 | external_event_id | 외부 이벤트 식별자 |
 | start_at | 등록한 운동 시작 시각 |
 | end_at | 등록한 운동 종료 시각 |
+| performed | 등록된 운동 일정의 수행 여부 확인값, nullable |
+| performance_checked_at | 수행 여부 확인 시각, nullable |
 | created_at | 등록 시각 |
 
-캘린더 이벤트는 시간 후보와 계획 등록을 위한 보조 기록이며 운동 세션의 공식 상태를 생성하거나 변경하지 않는다.
+캘린더 이벤트는 시간 후보와 계획 등록을 위한 보조 기록이다. 등록된 운동 일정에 대해서는 `performed` 여부와 확인 시각만 확인·저장할 수 있고 세부 운동·수행 시간·강도 기록은 저장하지 않는다. provider가 수행 여부를 제공하지 않으면 `performed`는 `null`이다. 확인 결과는 운동 세션의 공식 상태를 생성하거나 변경하지 않는다. 웨어러블 운동 데이터로 캘린더 이벤트를 자동 생성하거나 갱신하지 않는다.
 
 ---
 
@@ -483,7 +513,7 @@ PK는 daily_context_id와 reaction_code 조합이다.
 | requested_at | 동기화 요청 시각 |
 | completed_at | 처리 완료 시각, nullable |
 
-기기 미연동·권한 거부·API 오류도 실패 상태로 기록하며, 실패 때문에 수동 체크인·수기활동 경로를 차단하지 않는다.
+기기 미연동·권한 거부·API 오류도 실패 상태로 기록하며, 실패 때문에 수동 체크인·앱 운동 블록 체크 경로를 차단하지 않는다.
 
 ### 7.6 wearable_raw_payloads
 
@@ -502,7 +532,7 @@ PK는 daily_context_id와 reaction_code 조합이다.
 
 ### 7.7 wearable_summaries
 
-웨어러블 요약 연동은 MVP 입력 경로다. 다만 웨어러블 없이도 동일한 핵심 흐름을 사용할 수 있어야 하며, 검증된 사용자별 일별 요약만 결정 입력에 포함한다.
+웨어러블 요약 연동은 MVP 입력 경로다. 다만 웨어러블 없이도 동일한 핵심 흐름을 사용할 수 있어야 하며, 검증된 사용자별 일별 요약만 결정 입력에 포함한다. 이 테이블은 공개 mutation 대상이 아니며, `POST /api/v1/wearables/sync`의 서버 수집·정규화·품질 검증이 성공한 경우에만 내부적으로 생성·교체한다. 클라이언트는 요약 수치, provider 원본, `source_sync_run_id`, `normalization_version`을 직접 지정할 수 없다.
 
 | 컬럼 | 설명 |
 |---|---|
@@ -519,11 +549,12 @@ PK는 daily_context_id와 reaction_code 조합이다.
 | last_workout_ended_at | 최근 운동 종료 시각, nullable |
 | last_workout_duration_minutes | 최근 운동 시간, nullable |
 | average_heart_rate | 선택 평균 심박, nullable |
-| resting_heart_rate_trend | 안정시 심박 추세, nullable |
+| resting_heart_rate_trend | 서버 정규화 코드 `UPWARD`, `STABLE`, `DOWNWARD`, nullable |
+| normalization_version | 서버 웨어러블 정규화 규칙 버전, NOT NULL |
 | source_sync_run_id | wearable_sync_runs FK |
 | created_at | 생성 시각 |
 
-사용자와 local_date, provider_code 조합은 유일하다. 요약은 출처·동기화 실행·정규화 버전을 추적할 수 있어야 하며, 웨어러블 값만으로 안전 결정을 내리지 않는다.
+사용자와 local_date, provider_code 조합은 유일하다. `source_sync_run_id`와 `wearable_sync_runs.source_manifest`는 제공자·API·원천 필드 버전을 추적하고, `normalization_version`은 서버 정규화 규칙 버전을 행마다 추적한다. 동일한 정규화 버전은 API의 `WearableDailySummary.normalization_version`으로 공개하며, 결정 입력에 사용한 경우 `input_snapshot`에도 함께 복사한다. `resting_heart_rate_trend`와 그 밖의 웨어러블 값만으로 안전 결정을 내리지 않는다.
 
 ---
 
@@ -557,7 +588,7 @@ PK는 daily_context_id와 reaction_code 조합이다.
 - source_summary JSONB
 - created_at
 
-이 가중치는 비안전 조정·설명 선호에만 사용하고, 안전 veto나 FinalSafetyGate 결과를 바꾸는 데 사용하지 않는다.
+이 가중치는 비안전 조정·설명 선호에만 사용하고, SafetyAgent의 안전 veto나 안전 상태를 바꾸는 데 사용하지 않는다.
 
 복귀 모드 자체는 별도 영구 플래그보다 scheduled_workouts와 workout_sessions로부터 계산하고 decision input snapshot에 결과를 저장한다.
 
@@ -592,13 +623,27 @@ PK는 daily_context_id와 reaction_code 조합이다.
 
 같은 사용자, local_date, input_hash, policy_version_id에 대한 중복 실행을 제한하는 unique 또는 idempotency 제약을 둔다.
 
+`input_snapshot.profile`이 포함될 경우 허용 필드는 다음으로 제한한다.
+
+- `primary_goal_code`
+- `experience_level_code`
+- `preferred_location_code`
+- `equipment_codes`
+- `attention_area_codes`
+- `preferred_exercise_type_codes`
+- `default_requested_duration_minutes`
+- `desired_weekly_workout_count`
+- `coaching_style_code`
+
+`input_snapshot.profile`에는 `date_of_birth`, `age` 및 그 밖의 연령 관련 파생값을 포함하지 않는다. 닉네임·성별·키·체중도 포함하지 않으며, 체중 기반 칼로리 추정은 운동 계획·세션 경계에서만 처리한다. 수동 외부 기록은 MVP에 포함하지 않는다.
+
 ### 9.2 agent_proposals
 
 | 컬럼 | 설명 |
 |---|---|
 | id | UUID, PK |
 | decision_run_id | decision_runs FK |
-| agent_type_code | TRAINING, RECOVERY, SAFETY |
+| agent_type_code | TRAINING, RECOVERY, SAFETY, FEASIBILITY |
 | recommended_action_code | 제안 액션 |
 | proposal_schema_version | JSON 구조 버전 |
 | proposal | 구조화 JSONB |
@@ -621,13 +666,13 @@ decision_run_id와 agent_type_code 조합은 유일하다.
 | cooldown_seconds | 마무리 |
 | requested_duration_minutes | 사용자 요청 시간 |
 | duration_adjustment_source_code | PROFILE 또는 USER_OVERRIDE |
-| estimated_duration_seconds | 권장 전체 예상 시간 |
+| estimated_duration_seconds | requested_duration_minutes와 정확히 일치하는 계획 시간 합계 |
 | estimated_calories_burned | 체중 기반 예상 소모 칼로리 추정치, nullable |
 | goal_preservation_score | 비안전 목적 점수 |
 | duration_rule_version | 시간 규칙 버전 |
 | created_at | 생성 시각 |
 
-requested_duration_minutes는 사용자 입력에서만 가져오며 시스템이 임의 축소하지 않는다. estimated_duration_seconds는 권장 정보이고 hard limit 또는 완료 조건이 아니다. estimated_calories_burned는 제공된 체중이 있을 때만 계산하며 진단·안전 판정의 단독 근거로 사용하지 않는다.
+requested_duration_minutes는 사용자 입력에서만 가져오며 시스템이 임의 변경하지 않는다. 계획이 있는 후보의 estimated_duration_seconds는 `requested_duration_minutes * 60`과 정확히 일치해야 한다. 이는 계획 단계의 hard target이지만 실제 수행의 hard execution limit이나 완료 조건은 아니다. estimated_calories_burned는 제공된 체중이 있을 때만 계산하며 진단·안전 판정의 단독 근거로 사용하지 않는다.
 
 ### 9.4 plan_items
 
@@ -709,15 +754,15 @@ requested_duration_minutes는 사용자 입력에서만 가져오며 시스템�
 - source_code: TEMPLATE 또는 LLM
 - summary
 - reason_codes
-- agent_summaries, Training·Recovery·Safety·Coordinator의 제한된 요약 JSONB, 잠정 구조
-- final_safety_summary, FinalSafetyGate 결과 요약 JSONB, 잠정 구조
+- agent_summaries, Training·Recovery·Safety·Feasibility·Coordinator의 제한된 요약 JSONB, 잠정 구조
+- safety_summary, SafetyAgent의 상태·veto·근거 요약 JSONB, 잠정 구조
 - final_adjustment_reason, 최종 조정 이유 요약
 - coaching_style_code
 - prompt_version, nullable
 - model_code, nullable
 - created_at
 
-안전 문구와 일반 설명을 분리하고 내부 추론을 저장하지 않는다. agent_summaries와 final_safety_summary는 공개 가능한 입력·판단 결과의 제한된 요약만 저장하며 멀티 에이전트 로직 설계 전에는 구조를 고정하지 않는다.
+안전 문구와 일반 설명을 분리하고 내부 추론을 저장하지 않는다. agent_summaries와 safety_summary는 공개 가능한 입력·판단 결과의 제한된 요약만 저장하며 증상 사용자 시나리오 검증 결과에 따라 상세 구조를 추후 보완할 수 있다. 독립적인 최종 Safety 재검사 결과는 저장하지 않는다.
 
 ---
 
@@ -783,9 +828,9 @@ COMPLETED로 바꾸면 completed_at을 기록하고, 세션 종료 전 PENDING�
 
 추가 운동은 계획 블록 체크나 공식 세션 상태를 변경하지 않으며 패턴 분석과 주간 리포트 입력으로 사용한다.
 
-### 10.2.3 manual_activity_records
+### 10.2.3 manual_activity_records (MVP 이후)
 
-웨어러블을 사용하지 않는 사용자의 운동 기록은 세션과 독립적으로도 저장할 수 있다.
+수동 외부 운동 기록은 MVP에서 제외하고 추후 기능으로 분류한다. 후속 기능에서 웨어러블을 사용하지 않는 사용자의 외부 운동 기록을 세션과 독립적으로 저장할 수 있다.
 
 | 컬럼 | 설명 |
 |---|---|
@@ -801,7 +846,7 @@ COMPLETED로 바꾸면 completed_at을 기록하고, 세션 종료 전 PENDING�
 | calculation_version | 칼로리 산식 버전, nullable |
 | created_at | 기록 시각 |
 
-운동 종류·시간·강도는 필수이며 체중은 칼로리 추정 시 선택 입력이다. 입력값이 부족하거나 계산에 실패하면 `UNKNOWN` 또는 `FAILED`로 기록하고 추측값을 저장하지 않는다. 수기활동은 공식 workout block 완료 상태를 생성하거나 변경하지 않는다.
+운동 종류·시간·강도는 후속 기능에서 필수로 검토하며 체중은 칼로리 추정 시 선택 입력이다. 입력값이 부족하거나 계산에 실패하면 `UNKNOWN` 또는 `FAILED`로 기록하고 추측값을 저장하지 않는다. 후속 수동 외부 기록은 공식 workout block 완료 상태를 생성하거나 변경하지 않는다.
 
 ### 10.3 workout_safety_events
 
@@ -877,7 +922,7 @@ workout_feedback_discomforts와 workout_feedback_adverse_reactions에 부위, �
 | completed_count | 운동 블록 체크로 계산한 COMPLETED 수 |
 | partial_count | PARTIAL 수 |
 | not_completed_count | NOT_COMPLETED 수 |
-| safety_stopped_count | STOPPED_FOR_SAFETY 수 |
+| stopped_for_safety | STOPPED_FOR_SAFETY 수 |
 | primary_miss_reason_code | 가장 많은 미수행 이유, nullable |
 | completion_rate | 계획 대비 완료율 |
 | persistence_rate | 연속 수행·재개 등 지속성 지표 |
@@ -904,14 +949,14 @@ workout_feedback_discomforts와 workout_feedback_adverse_reactions에 부위, �
 | target_user_week_id | 다음 계획 대상 주 FK |
 | source_weekly_report_id | 직전 주 리포트 FK, 최초 가입자 첫 주는 nullable |
 | revision_sequence | 대상 주 안에서 증가하는 전체 수정 순서 |
-| ai_revision_number | AI 수정이면 1 또는 2, 그 외 null |
-| revision_source_code | INITIAL, AI, USER |
-| routine_id | 생성·편집된 routine FK |
+| ai_revision_number | Coordinator 기반 AI 수정이면 1 또는 2, `INITIAL`·`USER`이면 null |
+| revision_source_code | `INITIAL`은 `/weeks/{week_start}/plan`, `AI`·`USER`는 `/weeks/{week_start}/plan-revisions`에서만 생성 |
+| routine_id | 생성·편집된 routine FK, nullable. `NEEDS_INPUT`, `BLOCKED`, `FAILED` revision은 반드시 NULL |
 | safety_status_code | PASS, NEEDS_INPUT, REVISE, BLOCKED, FAILED |
 | finalized_at | 최종 확정 시각, nullable |
 | created_at | 생성 시각 |
 
-AI 수정은 최대 2회다. USER 편집 횟수와 낙관적 잠금은 revision_sequence로 관리한다. 최초 가입자의 첫 주 계획은 `source_weekly_report_id`가 null일 수 있으며, 그 이후에는 source report가 ACKNOWLEDGED가 아니면 `finalized_at`을 설정할 수 없다. USER 편집도 최종 안전 검증을 통과해야 한다. agent_summaries의 상세 구조는 멀티 에이전트 로직 설계 후 확정한다.
+콜드스타트·최초 계획·다음 주 초기 계획은 `/weeks/{week_start}/plan`이 `INITIAL` revision으로 생성한다. 기존 계획의 AI 또는 USER 수정은 `/weeks/{week_start}/plan-revisions`가 생성하며, 두 엔드포인트는 서로의 source code를 생성하지 않는다. AI 수정은 최대 2회다. USER 편집 횟수와 낙관적 잠금은 revision_sequence로 관리한다. 최초 가입자의 첫 주 계획은 `source_weekly_report_id`가 null일 수 있으며, 그 이후에는 source report가 `ACKNOWLEDGED`가 아니면 `finalized_at`을 설정할 수 없다. `NEEDS_INPUT`, `BLOCKED`, `FAILED` revision은 `routine_id=NULL`과 `finalized_at=NULL`로 저장한다. `PASS` 또는 `REVISE` revision은 routine이 생성·편집된 경우에만 `routine_id`를 채우며, `finalized_at`은 콜드스타트 예외 또는 직전 주 리포트 `ACKNOWLEDGED` 상태이고 `safety_status_code`가 `PASS` 또는 `REVISE`인 경우에만 설정할 수 있다. `finalized_at`이 있으면 `routine_id`는 반드시 non-null이어야 한다. USER 편집도 요청 시간·장소·장비 제약과 SafetyAgent 의견 반영 여부를 확인한다. 독립적인 최종 Safety 재검사는 수행하지 않으며 agent_summaries의 상세 구조는 증상 사용자 시나리오 검증 후 보완할 수 있다.
 
 ---
 
@@ -921,6 +966,7 @@ AI 수정은 최대 2회다. USER 편집 횟수와 낙관적 잠금은 revision_
 users
   ├─ 1:N user_identities
   ├─ 1:1 user_profiles
+  ├─ 1:N user_consent_events
   ├─ 1:N routines ─ 1:N routine_days ─ 1:N routine_items
   ├─ 1:N scheduled_workouts
   ├─ 1:N daily_contexts
@@ -929,7 +975,7 @@ users
   └─ 1:N user_weeks ─ 1:0..1 weekly_reports
 
 decision_runs
-  ├─ 1:3 agent_proposals (Training, Recovery, Safety)
+  ├─ 1:4 agent_proposals (Training, Recovery, Safety, Feasibility)
   ├─ 1:N plan_candidates ─ 1:N plan_items
   ├─ 1:N safety_reviews
   ├─ 1:N decision_options
@@ -956,7 +1002,7 @@ decision_runs
 - exercise_safety_rules(body_area_code, minimum_severity_code, review_status_code)
 - user_weeks(user_id, week_start_local_date)
 - weekly_reports(user_week_id, status_code)
-- manual_activity_records(user_id, created_at)
+- manual_activity_records(user_id, created_at) — MVP 이후 인덱스
 
 필수 CHECK:
 
@@ -969,6 +1015,7 @@ decision_runs
 - exercise default_transition_seconds는 10~20
 - plan이 있는 최종 option은 승인된 safety review를 가져야 함
 - 사용자의 USER_OVERRIDE 없이 requested_duration_minutes 변경 금지
+- plan이 있는 후보의 estimated_duration_seconds = requested_duration_minutes * 60
 - weekly_plan_revisions의 ai_revision_number는 null, 1, 2 중 하나
 
 마지막 조건처럼 여러 테이블을 참조하는 규칙은 서비스 계층과 통합 테스트로 보장한다.
@@ -981,7 +1028,7 @@ decision_runs
 
 1. users.status_code를 DELETION_PENDING으로 바꾸고 접근을 차단한다.
 2. Firebase 계정과 외부 연동을 해제한다.
-3. 운영 DB의 사용자 연결 데이터를 7일 이내 hard delete한다.
+3. 생년월일을 포함한 운영 DB의 사용자 연결 데이터를 7일 이내 hard delete한다.
 4. 사용자 캐시와 작업 데이터를 삭제한다.
 5. 백업은 최대 30일 순환 주기 후 소멸시킨다.
 
