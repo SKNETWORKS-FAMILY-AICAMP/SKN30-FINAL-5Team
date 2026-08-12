@@ -105,12 +105,14 @@ Python 린터·포매터는 ruff, 타입 체커는 mypy로 확정했다. 설정�
 같은 설정을 확장한다.
 
 ```powershell
-pip install --group dev
+python -m pip install --group dev  # 또는 uv sync --group dev
 ruff check .
 ruff format --check .
 mypy
 python -m unittest discover -s data/scripts/tests
 ```
+
+Python 패키지 도구는 `TECHNICAL_PLAN.md`와 `LOCAL_DEVELOPMENT.md`의 미확정 항목을 따른다. `uv` 등으로 확정하면 설치 명령과 CI 명령을 같은 PR에서 갱신한다.
 
 Pyright를 선택하지 않은 이유는 저장소의 Python 산출물이 표준 라이브러리 기반이고 CI에서
 ruff와 동일한 Python 툴체인으로 실행하는 편이 단순하기 때문이다. 프론트엔드 타입 검사는
