@@ -10,12 +10,15 @@ from backend.app.core.errors import register_exception_handlers
 from backend.app.core.logging import configure_logging
 from backend.app.core.middleware import RequestContextMiddleware
 from backend.app.db.session import DatabaseManager
+from backend.app.integrations.firebase_auth import build_firebase_token_verifier
+from backend.app.modules.identity.ports import FirebaseTokenVerifier
 
 
 def create_app(
     *,
     settings: Settings | None = None,
     readiness_probe: Callable[[], None] | None = None,
+    firebase_token_verifier: FirebaseTokenVerifier | None = None,
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
     configure_logging(resolved_settings.log_level)
@@ -39,6 +42,11 @@ def create_app(
     application.state.settings = resolved_settings
     application.state.database_manager = database_manager
     application.state.readiness_probe = readiness_probe or database_manager.readiness_probe
+    application.state.firebase_token_verifier = (
+        firebase_token_verifier
+        if firebase_token_verifier is not None
+        else build_firebase_token_verifier(resolved_settings.firebase_project_id)
+    )
     application.add_middleware(RequestContextMiddleware)
     register_exception_handlers(application)
     application.include_router(api_router, prefix=resolved_settings.api_v1_prefix)

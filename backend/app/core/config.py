@@ -21,6 +21,7 @@ class Settings(BaseSettings):
         "postgresql+psycopg://exercise_app:local_dev_only@localhost:5432/exercise_app"
     )
     catalog_manifest_paths: tuple[Path, ...] = ()
+    firebase_project_id: str | None = None
 
     @field_validator("api_v1_prefix")
     @classmethod
@@ -36,6 +37,14 @@ class Settings(BaseSettings):
         if normalized not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:
             raise ValueError("LOG_LEVEL is not supported")
         return normalized
+
+    @field_validator("firebase_project_id", mode="before")
+    @classmethod
+    def normalize_firebase_project_id(cls, value: object) -> object:
+        if isinstance(value, str):
+            normalized = value.strip()
+            return normalized or None
+        return value
 
 
 @lru_cache
