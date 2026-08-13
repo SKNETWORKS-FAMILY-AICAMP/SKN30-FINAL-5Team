@@ -19,16 +19,17 @@ class AgeRequirementNotMetError(Exception):
 
 @dataclass(frozen=True)
 class AgeEligibility:
-    age: int
     local_date: date
 
 
-def _age_on(birthdate: date, local_date: date) -> int:
-    birthday_has_passed = (local_date.month, local_date.day) >= (
-        birthdate.month,
-        birthdate.day,
-    )
-    return local_date.year - birthdate.year - (not birthday_has_passed)
+def _latest_eligible_birthdate(local_date: date) -> date:
+    eligible_year = local_date.year - MINIMUM_AGE_YEARS
+    try:
+        return local_date.replace(year=eligible_year)
+    except ValueError:
+        # A February 29 birthdate reaches the boundary on March 1 in a
+        # non-leap year, so February 28 keeps the eligibility check conservative.
+        return local_date.replace(year=eligible_year, day=28)
 
 
 def evaluate_age_eligibility(
@@ -49,10 +50,9 @@ def evaluate_age_eligibility(
     if birthdate > local_date:
         raise InvalidBirthdateError
 
-    age = _age_on(birthdate, local_date)
-    if age < MINIMUM_AGE_YEARS:
+    if birthdate > _latest_eligible_birthdate(local_date):
         raise AgeRequirementNotMetError
-    return AgeEligibility(age=age, local_date=local_date)
+    return AgeEligibility(local_date=local_date)
 
 
 __all__ = [

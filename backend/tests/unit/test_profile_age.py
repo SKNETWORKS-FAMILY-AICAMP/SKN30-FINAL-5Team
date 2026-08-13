@@ -17,7 +17,7 @@ def test_exact_fourteenth_birthday_is_eligible() -> None:
         at=datetime(2026, 8, 12, 15, 0, tzinfo=UTC),
     )
 
-    assert result.age == 14
+    assert not hasattr(result, "age")
     assert result.local_date == date(2026, 8, 13)
 
 
@@ -38,6 +38,24 @@ def test_timezone_local_date_controls_boundary() -> None:
         evaluate_age_eligibility(date(2012, 8, 13), "America/Los_Angeles", at=instant)
 
     assert seoul.local_date == date(2026, 8, 13)
+
+
+def test_february_29_birthdate_becomes_eligible_on_march_1() -> None:
+    with pytest.raises(AgeRequirementNotMetError):
+        evaluate_age_eligibility(
+            date(2012, 2, 29),
+            "Asia/Seoul",
+            at=datetime(2026, 2, 27, 15, 0, tzinfo=UTC),
+        )
+
+    result = evaluate_age_eligibility(
+        date(2012, 2, 29),
+        "Asia/Seoul",
+        at=datetime(2026, 2, 28, 15, 0, tzinfo=UTC),
+    )
+
+    assert result.local_date == date(2026, 3, 1)
+    assert not hasattr(result, "age")
 
 
 def test_future_birthdate_is_rejected_without_value_in_error() -> None:
