@@ -11,13 +11,13 @@
 | 영역 | 선택 |
 |---|---|
 | 모바일 | React Native, TypeScript, Expo Development Build |
-| 백엔드 | Python 3.12+, FastAPI, Pydantic 2 |
-| 데이터 | PostgreSQL, SQLAlchemy 2, Alembic |
+| 백엔드 | Python 3.12+, FastAPI, Pydantic 2, `uv` |
+| 데이터 | PostgreSQL 16 CI baseline, SQLAlchemy 2, Alembic |
 | 인증 | Firebase Authentication과 provider adapter |
 | 테스트 | pytest 계열, 프론트 도구는 초기화 PR에서 확정 |
 | 배포 | FastAPI 단일 배포 단위 + 관리형 PostgreSQL + 모바일 빌드 |
 
-Python 패키지 도구, Node 패키지 도구, 정확한 PostgreSQL 버전은 기반 구현 PR에서 한 번 결정한다.
+Python package manager는 기반 구현에서 `uv`로 결정하고 `uv.lock`을 커밋한다. CI 기준 Python은 3.12, PostgreSQL은 16이다. 실제 배포 환경의 지원 minor와 upgrade 정책은 배포 provider를 정할 때 확정한다. Node package manager는 프론트엔드 초기화 PR에서 결정한다.
 
 ## 3. 기본 아키텍처
 
@@ -289,7 +289,7 @@ opaque confidence 점수는 MVP에서 사용하지 않는다. 입력 완전성�
 
 ## 15. 아직 확정되지 않은 사항
 
-- package manager와 정확한 runtime version
+- production Python patch와 PostgreSQL minor version
 - 실제 deployment provider와 staging 분리 여부
 - logging/monitoring provider
 - 소셜 provider 앱 심사·secret 소유자
@@ -297,6 +297,6 @@ opaque confidence 점수는 MVP에서 사용하지 않는다. 입력 완전성�
 
 ## 16. 팀 확인 질문
 
-- 기반 PR에서 `uv`와 어떤 Node package manager를 표준으로 할 것인가?
+- 프론트엔드 기반 PR에서 어떤 Node package manager를 표준으로 할 것인가?
 - staging과 production DB를 처음부터 분리할 것인가?
 - OpenAPI client는 생성 코드를 커밋할지 CI artifact로 만들지?
