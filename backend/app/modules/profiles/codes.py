@@ -1,0 +1,40 @@
+from enum import StrEnum
+
+PROFILE_CODE_SET_VERSION = "profile-mvp-v1"
+CONSENT_RESPONSE_SCHEMA_VERSION = "consent-response-v1"
+ONBOARDING_RESPONSE_SCHEMA_VERSION = "onboarding-response-v1"
+
+
+class CoachingStyleCode(StrEnum):
+    SUPPORTIVE = "SUPPORTIVE"
+    CONCISE = "CONCISE"
+    ENERGETIC = "ENERGETIC"
+
+
+class ConsentTypeCode(StrEnum):
+    GENERAL_PERSONAL_DATA = "GENERAL_PERSONAL_DATA"
+    SENSITIVE_DATA = "SENSITIVE_DATA"
+    WEARABLE_INTEGRATION = "WEARABLE_INTEGRATION"
+    CALENDAR_INTEGRATION = "CALENDAR_INTEGRATION"
+    MARKETING = "MARKETING"
+
+
+class ConsentEventCode(StrEnum):
+    GRANTED = "GRANTED"
+    REVOKED = "REVOKED"
+
+
+class MutationEndpointCode(StrEnum):
+    ONBOARDING = "PUT_ME_ONBOARDING"
+    CONSENTS = "PUT_ME_CONSENTS"
+
+
+__all__ = [
+    "CONSENT_RESPONSE_SCHEMA_VERSION",
+    "ONBOARDING_RESPONSE_SCHEMA_VERSION",
+    "PROFILE_CODE_SET_VERSION",
+    "CoachingStyleCode",
+    "ConsentEventCode",
+    "ConsentTypeCode",
+    "MutationEndpointCode",
+]

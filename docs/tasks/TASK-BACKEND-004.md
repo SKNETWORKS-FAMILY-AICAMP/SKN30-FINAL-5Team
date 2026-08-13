@@ -23,7 +23,7 @@
 - 사용자 UUID를 AES-GCM additional authenticated data로 결합
 - 단위 테스트와 개인정보 비노출 검증
 
-## 승인 후 후속 범위
+## Wave 3 보완 구현 범위
 
 - `PUT /api/v1/me/onboarding`
 - `PUT /api/v1/me/consents`
@@ -31,6 +31,8 @@
 - 장비·주의 부위·선호 운동 유형 관계 저장
 - 동의 mutation 멱등성 및 원자성
 - 공개 API·PostgreSQL integration test와 Alembic migration
+- UUID `Idempotency-Key`와 최초 성공 응답 저장
+- 배포 승인 code/policy가 없을 때 fail-closed
 
 ## 제외 범위
 
@@ -40,16 +42,15 @@
 - production KMS adapter와 cloud key lifecycle
 - 닉네임 금칙어·표시 문구 정책
 
-## 현재 차단 조건
+## 이번 보완에서 적용한 계약 해소 방식
 
-1. `primary_goal_code`, `experience_level_code`의 첫 수직 슬라이스 machine code 승인이 필요하다.
-2. 온보딩 boolean 동의 요청을 DB의 필수 `policy_version`에 매핑할 승인된 버전이 필요하다.
-3. `adult_confirmed`, `age_band_code`를 무시할지 별도 API 버전을 사용할지 호환 전략 승인이 필요하다.
+1. `primary_goal_code`, `experience_level_code`는 배포 설정의 승인 목록으로만 허용하며 빈 목록은 fail-closed한다.
+2. 온보딩 boolean 동의는 배포 설정의 승인된 `CONSENT_POLICY_VERSION`으로 매핑한다.
+3. `adult_confirmed`, `age_band_code`는 자동 무시하지 않고 요청의 미지원 필드로 거부한다.
 4. 닉네임 최소 길이·금칙어 정책은 PM 검토 전 임의 구현하지 않는다.
-5. 현재 `API_CONTRACT.md`의 `/me.age` 계산·응답 계약은 이번 결정과 충돌하므로 공개 endpoint 연결
-   전에 개발팀장·프론트엔드·백엔드 승인으로 계약과 호환 전략을 갱신해야 한다.
-6. 만 14세 이상 확인을 일반 개인정보 동의와 분리된 자격 확인으로 저장할지, consent policy에
-   포함할지에 대한 요청 필드와 감사 저장 계약 승인이 필요하다.
+5. `/me.age` 조회는 이번 Wave 3 보완 범위에서 제외하고 후속 `/me` 조회 구현에서 ADR-0005의
+   일시 계산·응답 계약을 적용한다.
+6. 만 14세 적격성은 동의 항목으로 저장하지 않고 온보딩 처리 시 생년월일에서 재검증한다.
 
 ## 인수 조건
 
@@ -104,6 +105,7 @@
 
 ## 알려진 제한과 후속 작업
 
-- 공개 온보딩·동의 API와 persistence는 위 차단 조건 승인 후 같은 Wave 3 범위에서 이어간다.
-- local/test key의 환경 변수 이름·rotation은 API wiring 시 config와 함께 추가한다.
-- production KMS 공급자와 key 접근 감사는 cloud 결정 후 별도 adapter로 구현한다.
+- `/me` 조회, identity 목록과 계정 삭제는 각각의 후속 수직 슬라이스에서 구현한다.
+- 닉네임 금칙어·표시 문구는 PM 정책 승인 후 추가한다.
+- production KMS 공급자와 key rotation·접근 감사는 AWS 배포 ADR 승인 후 별도 adapter로 구현한다.
+- local/test AES-GCM adapter가 없는 staging/production에서는 온보딩을 fail-closed한다.

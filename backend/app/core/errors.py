@@ -80,6 +80,13 @@ async def validation_error_handler(
     request: Request,
     exc: RequestValidationError,
 ) -> JSONResponse:
+    if any(error["loc"][-1:] == ("date_of_birth",) for error in exc.errors()):
+        return _error_response(
+            request,
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+            code="INVALID_DATE_OF_BIRTH",
+            message="생년월일이 올바르지 않습니다.",
+        )
     details = [
         {
             "field": ".".join(str(part) for part in error["loc"]),
