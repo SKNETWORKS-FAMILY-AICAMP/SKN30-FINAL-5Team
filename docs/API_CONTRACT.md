@@ -206,6 +206,11 @@ DOWNWARD
 
 health endpoint는 인증 없이 호출할 수 있지만 민감한 설정, DB 주소, 예외 stack을 반환하지 않는다.
 
+- `GET /api/v1/health/live` 성공 응답: `200 {"status_code":"OK"}`
+- `GET /api/v1/health/ready` 성공 응답: `200 {"status_code":"READY"}`
+- readiness에서 DB 확인이 실패하면 공통 오류 형식의 `503 DATABASE_UNAVAILABLE`을 반환한다.
+- 모든 health 응답에는 서버가 생성한 UUID `X-Request-ID` header를 포함한다.
+
 ### 6.2 인증, 사용자와 온보딩
 
 | 메서드 | 경로 | 설명 |

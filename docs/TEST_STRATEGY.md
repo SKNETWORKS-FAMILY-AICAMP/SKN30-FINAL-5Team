@@ -121,7 +121,7 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 - frontend format/lint/type/component/build
 - migration up/down 또는 forward-fix validation
 
-정확한 명령은 프로젝트 초기화 PR에서 확정한다. 실행하지 않은 테스트를 통과로 보고하지 않는다.
+백엔드 기반 명령은 TASK-BACKEND-001에서 아래와 같이 확정한다. 프론트엔드 명령은 해당 초기화 PR에서 확정한다. 실행하지 않은 테스트를 통과로 보고하지 않는다.
 
 ### Python 린터와 타입 체커
 
@@ -131,14 +131,13 @@ TASK-DATA-001의 Python 린터·포매터는 ruff, 타입 체커는 mypy로 선�
 범위는 `data/scripts`이며, backend 코드가 추가되면 같은 설정을 확장한다.
 
 ```powershell
-python -m pip install --group dev  # Python 패키지 도구 확정 전 실행 예시
-ruff check .
-ruff format --check .
-mypy
-python -m unittest discover -s data/scripts/tests
+uv sync --frozen --group dev
+uv run ruff check backend data/scripts
+uv run ruff format --check backend data/scripts
+uv run mypy
+uv run pytest
+uv run python -m unittest discover -s data/scripts/tests
 ```
-
-Python 패키지 도구는 `TECHNICAL_PLAN.md`와 `LOCAL_DEVELOPMENT.md`의 미확정 항목을 따른다. `uv` 등으로 확정하면 설치 명령과 CI 명령을 같은 PR에서 갱신한다.
 
 Pyright를 선택하지 않은 이유는 저장소의 Python 산출물이 표준 라이브러리 기반이고 CI에서
 ruff와 동일한 Python 툴체인으로 실행하는 편이 단순하기 때문이다. 프론트엔드 타입 검사는

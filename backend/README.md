@@ -1,6 +1,16 @@
 # Backend
 
-Python/FastAPI 모듈형 모놀리스 영역입니다. 아직 실행 코드나 패키지는 생성하지 않았습니다.
+Python/FastAPI 모듈형 모놀리스 영역입니다.
+
+기반 실행과 검증:
+
+```powershell
+uv sync --frozen --group dev
+uv run uvicorn backend.app.main:app --reload
+uv run pytest
+```
+
+설정 예시는 `.env.example`, 전체 로컬 절차는 `docs/LOCAL_DEVELOPMENT.md`를 따릅니다.
 
 예정 계층:
 
