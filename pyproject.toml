@@ -5,6 +5,7 @@ description = "Personalized multi-agent exercise wellness service"
 requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.15,<2",
+    "cryptography>=45,<51",
     "fastapi>=0.115,<1",
     "firebase-admin>=7,<8",
     "psycopg[binary]>=3.2,<4",
