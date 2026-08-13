@@ -188,12 +188,27 @@ PK는 user_id와 exercise_type_code의 조합이다.
 |---|---|
 | id | UUID, PK |
 | version_code | 사람이 읽을 수 있는 유일 버전 |
-| status_code | DRAFT, ACTIVE, RETIRED |
-| source_manifest_hash | 원천 목록 해시 |
+| status_code | DRAFT, ACTIVE, RETIRED. 첫 importer slice는 DRAFT만 생성 |
+| manifest_schema_version | 검증한 seed manifest schema version |
+| generator_version | seed를 만든 generator version |
+| code_set_version | importer가 검증한 machine code 집합 버전. 최초 값은 `mvp-v1` |
+| source_manifest_hash | `seed_manifest.json` 원문 byte의 SHA-256 |
+| source_track_code | 기존 산출물의 source track machine code (`wger`, `kspo`) |
+| review_status_code | 산출물 검수 상태. 최초 importer는 DOMAIN_APPROVED만 입력 가능 |
+| review_method_code | 검수 방법. 최초 importer는 AGENT_ONLY |
+| status_interpretation_code | 검수 상태 해석. 최초 importer는 PIPELINE_COMPATIBILITY_ONLY |
+| production_eligible | 운영 사용 가능 여부. DRAFT importer 행은 반드시 false |
+| exercise_record_count | manifest와 검증한 exercise record 수 |
+| manifest_metadata | 검증된 manifest 전체의 versioned metadata JSONB |
 | activated_at | 활성화 시각 |
 | created_at | 생성 시각 |
 
 한 시점에 하나의 ACTIVE 버전만 허용한다.
+
+`DOMAIN_APPROVED`는 파이프라인 호환 상태이며 그 문자열만으로 ACTIVE 또는 production-safe로
+승격하지 않는다. `production_eligible=false`인 version은 사용자 추천에 사용할 수 없다.
+동일한 `version_code`와 동일한 `source_manifest_hash` 재적재는 멱등 처리하고, 동일
+`version_code`에 다른 hash가 들어오면 fail-closed한다.
 
 ### 5.2 exercises
 
@@ -205,6 +220,7 @@ PK는 user_id와 exercise_type_code의 조합이다.
 | name_ko | 한국어 표시명 |
 | name_en | 선택적 영문명 |
 | training_type_code | STRENGTH, CARDIO, MOBILITY 등 |
+| body_focus_code | body_focuses FK |
 | primary_movement_pattern_code | movement_patterns FK |
 | difficulty_code | 난이도 |
 | beginner_suitable | 초보자 적합 여부 |
@@ -220,6 +236,8 @@ PK는 user_id와 exercise_type_code의 조합이다.
 | mascot_animation_asset_key | 운동 실행 중앙 마스코트 애니메이션 참조, nullable |
 | instruction_content_version | 설명 콘텐츠 버전 |
 | review_status_code | DRAFT, TECH_REVIEWED, DOMAIN_APPROVED, REJECTED, DEPRECATED |
+| source_track_code | 기존 산출물 source track machine code |
+| source_identity | source 안의 운동 불변 식별자 |
 | created_at | 생성 시각 |
 | updated_at | 수정 시각 |
 
@@ -241,6 +259,12 @@ UNIQUE 제약은 catalog_version_id와 stable_code 조합에 둔다.
 
 body_areas의 MVP 허용 코드는 DOMAIN_RULES.md의 불편 부위 코드와 일치해야 한다.
 
+각 lookup 행은 `code_set_version`을 저장한다. 최초 catalog importer의 `mvp-v1`은 실제
+DRAFT 카탈로그 산출물이 사용하는 코드만 Pydantic `StrEnum`으로 검증한다. 기존 machine
+code를 한국어 label로 바꾸거나 삭제하지 않으며 새 코드는 후속 version에 추가한다.
+`display_name_ko`는 machine code와 분리하고 PM 승인값만 저장한다. PM 승인 표시명이 아직
+없는 body area는 machine code를 임시 표시명으로 복제하지 않고 null로 유지한다.
+
 ### 5.4 exercise_body_parts
 
 | 컬럼 | 설명 |
@@ -258,6 +282,10 @@ PK는 exercise_id, body_area_code, role_code 조합이다.
 | exercise_id | exercises FK |
 | equipment_code | equipment FK |
 | requirement_code | REQUIRED 또는 OPTIONAL |
+
+첫 importer slice의 산출물은 모든 장비를 필수 장비로 표현하므로 `mvp-v1`은 REQUIRED만
+적재한다. OPTIONAL code는 이름을 변경하거나 삭제하지 않고 후속 입력 schema와 migration을
+추가하는 방식으로 확장한다.
 
 ### 5.6 exercise_locations
 
@@ -321,6 +349,22 @@ exercise_id와 movement_pattern_code 중 정확히 하나를 지정해야 한다
 | raw_content_hash | 원본 해시 |
 
 exercise_source_links로 운동과 출처를 연결한다.
+
+최초 DRAFT importer 산출물에는 source URL과 license code가 포함되지 않으므로 이를
+추정해 `catalog_sources`를 만들지 않는다. 대신 manifest의 source metadata와 exercise의
+source track/identity를 보존한다. URL·license 근거가 포함된 후속 산출물 schema가 승인되면
+`catalog_sources`와 link 적재를 추가한다.
+
+### 5.10.1 DRAFT catalog importer transaction
+
+- importer는 local/test 환경에서만 실행하며 staging/production에서는 DB 접근 전에 거부한다.
+- manifest와 JSONL은 Pydantic schema, code set version, hash, byte count, record count를 모두
+  검증한 뒤 하나의 DB transaction에서 catalog version, lookup, exercise와 관계를 적재한다.
+- manifest의 파일 경로는 resolve한 결과가 artifact directory 내부일 때만 허용한다.
+- 검증 또는 repository 처리 하나라도 실패하면 catalog와 exercise 부분 행을 남기지 않는다.
+- JSONB는 `manifest_metadata`와 `form_cues_ko`에만 사용하고 자주 조회하는 source, status,
+  version, code와 timing 값은 typed column으로 저장한다.
+- 안전 rule reason code, alternatives와 미확정 임계값은 이 importer 계약에 포함하지 않는다.
 
 ### 5.11 catalog_review_records
 

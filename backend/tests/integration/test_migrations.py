@@ -12,11 +12,12 @@ from backend.app.core.config import get_settings
 ALEMBIC_CONFIG = Path("backend/alembic.ini")
 
 
-def test_migration_history_has_single_baseline_head() -> None:
+def test_migration_history_has_catalog_core_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0001_backend_baseline"]
+    assert scripts.get_heads() == ["0002_catalog_core"]
+    assert scripts.get_revision("0002_catalog_core").down_revision == "0001_backend_baseline"
     assert scripts.get_revision("0001_backend_baseline").down_revision is None
 
 

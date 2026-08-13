@@ -1,0 +1,273 @@
+from datetime import datetime
+from typing import Any
+from uuid import UUID, uuid4
+
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    Uuid,
+    func,
+)
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from backend.app.db.base import Base
+
+
+class CatalogVersion(Base):
+    __tablename__ = "catalog_versions"
+    __table_args__ = (
+        CheckConstraint("status_code IN ('DRAFT')", name="ck_catalog_versions_status_code"),
+        CheckConstraint(
+            "manifest_schema_version IN ('1.0')",
+            name="ck_catalog_versions_manifest_schema_version",
+        ),
+        CheckConstraint(
+            "code_set_version IN ('mvp-v1')",
+            name="ck_catalog_versions_code_set_version",
+        ),
+        CheckConstraint(
+            "source_track_code IN ('wger', 'kspo')",
+            name="ck_catalog_versions_source_track_code",
+        ),
+        CheckConstraint(
+            "review_status_code IN ('DOMAIN_APPROVED')",
+            name="ck_catalog_versions_review_status_code",
+        ),
+        CheckConstraint(
+            "review_method_code IN ('AGENT_ONLY')",
+            name="ck_catalog_versions_review_method_code",
+        ),
+        CheckConstraint(
+            "status_interpretation_code IN ('PIPELINE_COMPATIBILITY_ONLY')",
+            name="ck_catalog_versions_status_interpretation_code",
+        ),
+        CheckConstraint(
+            "production_eligible = false",
+            name="ck_catalog_versions_production_ineligible",
+        ),
+        CheckConstraint("exercise_record_count >= 0", name="ck_catalog_versions_record_count"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    version_code: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    status_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    manifest_schema_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    generator_version: Mapped[str] = mapped_column(String(80), nullable=False)
+    code_set_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_manifest_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_track_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    review_status_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    review_method_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    status_interpretation_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    production_eligible: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    exercise_record_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    manifest_metadata: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    exercises: Mapped[list["Exercise"]] = relationship(
+        back_populates="catalog_version",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class TrainingType(Base):
+    __tablename__ = "training_types"
+
+    code: Mapped[str] = mapped_column(String(64), primary_key=True)
+    code_set_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    display_name_ko: Mapped[str | None] = mapped_column(String(120), nullable=True)
+
+
+class BodyFocus(Base):
+    __tablename__ = "body_focuses"
+
+    code: Mapped[str] = mapped_column(String(64), primary_key=True)
+    code_set_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    display_name_ko: Mapped[str | None] = mapped_column(String(120), nullable=True)
+
+
+class MovementPattern(Base):
+    __tablename__ = "movement_patterns"
+
+    code: Mapped[str] = mapped_column(String(64), primary_key=True)
+    code_set_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    display_name_ko: Mapped[str | None] = mapped_column(String(120), nullable=True)
+
+
+class Equipment(Base):
+    __tablename__ = "equipment"
+
+    code: Mapped[str] = mapped_column(String(64), primary_key=True)
+    code_set_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    display_name_ko: Mapped[str | None] = mapped_column(String(120), nullable=True)
+
+
+class Location(Base):
+    __tablename__ = "locations"
+
+    code: Mapped[str] = mapped_column(String(64), primary_key=True)
+    code_set_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    display_name_ko: Mapped[str | None] = mapped_column(String(120), nullable=True)
+
+
+class BodyArea(Base):
+    __tablename__ = "body_areas"
+
+    code: Mapped[str] = mapped_column(String(64), primary_key=True)
+    code_set_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    display_name_ko: Mapped[str | None] = mapped_column(String(120), nullable=True)
+
+
+class Exercise(Base):
+    __tablename__ = "exercises"
+    __table_args__ = (
+        UniqueConstraint(
+            "catalog_version_id",
+            "stable_code",
+            name="uq_exercises_catalog_version_stable_code",
+        ),
+        CheckConstraint(
+            "difficulty_code IN ('BEGINNER', 'INTERMEDIATE')",
+            name="ck_exercises_difficulty_code",
+        ),
+        CheckConstraint(
+            "timing_mode_code IN ('REPS', 'DURATION')",
+            name="ck_exercises_timing_mode_code",
+        ),
+        CheckConstraint(
+            "review_status_code IN ('DOMAIN_APPROVED')",
+            name="ck_exercises_review_status_code",
+        ),
+        CheckConstraint(
+            "source_track_code IN ('wger', 'kspo')",
+            name="ck_exercises_source_track_code",
+        ),
+        CheckConstraint("default_rest_seconds >= 0", name="ck_exercises_rest_seconds"),
+        CheckConstraint(
+            "default_transition_seconds BETWEEN 10 AND 20",
+            name="ck_exercises_transition_seconds",
+        ),
+        CheckConstraint(
+            "(timing_mode_code = 'REPS' AND default_seconds_per_rep > 0 "
+            "AND default_work_seconds IS NULL) OR "
+            "(timing_mode_code = 'DURATION' AND default_work_seconds > 0 "
+            "AND default_seconds_per_rep IS NULL)",
+            name="ck_exercises_timing_values",
+        ),
+        Index("ix_exercises_catalog_review", "catalog_version_id", "review_status_code"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    catalog_version_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("catalog_versions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    stable_code: Mapped[str] = mapped_column(String(120), nullable=False)
+    name_ko: Mapped[str] = mapped_column(String(200), nullable=False)
+    name_en: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    training_type_code: Mapped[str] = mapped_column(
+        String(64), ForeignKey("training_types.code"), nullable=False
+    )
+    body_focus_code: Mapped[str] = mapped_column(
+        String(64), ForeignKey("body_focuses.code"), nullable=False
+    )
+    primary_movement_pattern_code: Mapped[str] = mapped_column(
+        String(64), ForeignKey("movement_patterns.code"), nullable=False
+    )
+    difficulty_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    beginner_suitable: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    timing_mode_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    default_seconds_per_rep: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    default_work_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    default_rest_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    default_transition_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    recovery_eligible: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    instruction_summary_ko: Mapped[str] = mapped_column(Text, nullable=False)
+    form_cues_ko: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    instruction_content_version: Mapped[str] = mapped_column(String(80), nullable=False)
+    review_status_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_track_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_identity: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+    catalog_version: Mapped[CatalogVersion] = relationship(back_populates="exercises")
+    body_parts: Mapped[list["ExerciseBodyPart"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True
+    )
+    equipment_links: Mapped[list["ExerciseEquipment"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True
+    )
+    location_links: Mapped[list["ExerciseLocation"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True
+    )
+
+
+class ExerciseBodyPart(Base):
+    __tablename__ = "exercise_body_parts"
+    __table_args__ = (
+        CheckConstraint(
+            "role_code IN ('PRIMARY', 'SECONDARY')",
+            name="ck_exercise_body_parts_role_code",
+        ),
+    )
+
+    exercise_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("exercises.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    body_area_code: Mapped[str] = mapped_column(
+        String(64), ForeignKey("body_areas.code"), primary_key=True
+    )
+    role_code: Mapped[str] = mapped_column(String(16), primary_key=True)
+
+
+class ExerciseEquipment(Base):
+    __tablename__ = "exercise_equipment"
+    __table_args__ = (
+        CheckConstraint(
+            "requirement_code IN ('REQUIRED')",
+            name="ck_exercise_equipment_requirement_code",
+        ),
+    )
+
+    exercise_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("exercises.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    equipment_code: Mapped[str] = mapped_column(
+        String(64), ForeignKey("equipment.code"), primary_key=True
+    )
+    requirement_code: Mapped[str] = mapped_column(String(16), primary_key=True)
+
+
+class ExerciseLocation(Base):
+    __tablename__ = "exercise_locations"
+
+    exercise_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("exercises.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    location_code: Mapped[str] = mapped_column(
+        String(64), ForeignKey("locations.code"), primary_key=True
+    )
