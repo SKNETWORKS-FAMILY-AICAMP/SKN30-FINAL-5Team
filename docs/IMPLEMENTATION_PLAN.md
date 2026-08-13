@@ -24,9 +24,8 @@ flowchart LR
   C --> DB["DB 모델·마이그레이션"]
   C --> API["API 스키마·mock"]
   CAT --> RULE["SafetyRuleEngine·시간 계산"]
-  RULE --> CAND["CandidateBuilder"]
-  CAND --> AG["Training·Recovery·Safety proposal"]
-  AG --> COORD["Coordinator(의장)·FinalSafetyGate"]
+  RULE --> AG["공통 입력·기본 후보 기반 Training·Recovery·Safety·Feasibility proposal 병렬 실행"]
+  AG --> COORD["Coordinator(의장)"]
   DB --> FLOW["온보딩→세션 수직 슬라이스"]
   API --> FLOW
   COORD --> FLOW
@@ -41,7 +40,8 @@ flowchart LR
 - 현재 설계 문서 팀 리뷰
 - P0 결정의 추적성 행 확정
 - 첫 수직 슬라이스 API 예제 승인
-- `ACCEPTED` ADR-0002의 Training·Recovery·Safety 상위 구조를 기준으로 proposal 스키마, Coordinator 입력·조정 순서, 버전·실패 상세 계약 확정
+- Training·Recovery·Safety·Feasibility proposal의 역할별 입력·출력과 Coordinator 입력·조정 계약, 버전·실패 상세 계약 확정
+- 기존 클라이언트의 `adult_confirmed`·`age_band_code` 처리 방식을 구현 전에 확정한다. deprecation 기간 동안 구필드를 무시하고 서버 계산값을 사용하는 방식 또는 별도 API 버전 전략을 선택하고, 선택한 전략의 프론트엔드·백엔드 호환성 테스트를 완료한다.
 - 안전 미확정 항목을 owner와 due date가 있는 작업으로 분리
 
 완료 기준: 공개 enum과 필드의 변경 요청이 PR로 관리된다.
@@ -60,9 +60,9 @@ flowchart LR
 
 - 정규화 운동 seed와 검수 상태
 - 시간 계산기
-- SafetyPrecheck와 FinalSafetyGate
-- FITT CandidateBuilder
-- 단계 0에서 승인된 계약에 따른 Training·Recovery·Safety proposal
+- 공통 입력 스냅샷과 기본 후보
+- 결정적 Safety 규칙과 시간 계산
+- 단계 0에서 승인된 계약에 따른 Training·Recovery·Safety·Feasibility proposal 병렬 실행
 - 단계 0에서 승인된 결정적 Coordinator
 - 재현 기록 저장
 
@@ -70,23 +70,24 @@ flowchart LR
 
 범위:
 
-1. 테스트 로그인과 만 14세 이상 이용 자격 확인
+1. 테스트 로그인, 생년월일(`YYYY-MM-DD`) 입력, 사용자 timezone의 로컬 날짜 기준 서버 만 나이 계산·만 14세 미만 가입 차단, 생년월일 암호화 저장, 프로필에는 계산된 만 나이만 표시, 생년월일 수정 시 재검증, 에이전트·decision 입력에는 생년월일과 만 나이를 전달하지 않음
 2. 홈·맨몸·상체 목표 온보딩
 3. 검수된 40분 기본 루틴
 4. 피로 MODERATE, 통증 없음, 희망 시간 40분 확인
-5. 세 proposal과 Coordinator가 선택한 요청 시간 40분의 최종 루틴
-6. 최종 루틴 선택, 상단 0초 경과 타이머 시작
-7. 중앙 마스코트와 하단 순서형 운동 블록 표시
-8. 운동 블록별 사용자 완료 체크와 다음 블록 이동
-9. 모든 블록 체크로 `COMPLETED` 저장과 피드백
+5. 증상 사용자 입력에서 SafetyAgent의 `REVISE` 의견과 다른 Agent 의견을 함께 확인
+6. 네 proposal과 Coordinator가 결정한 요청 시간 40분의 최종 루틴
+7. 최종 루틴 선택, 상단 0초 경과 타이머 시작
+8. 중앙 마스코트와 하단 순서형 운동 블록 표시
+9. 운동 블록별 사용자 완료 체크와 다음 블록 이동
+10. 모든 블록 체크로 `COMPLETED` 저장과 피드백
 
 완료 기준:
 
 - React Native → FastAPI → PostgreSQL 실제 연결
-- LLM 없이 실행하고, 웨어러블 미연동·권한 거부 시 수동 입력으로 실행
+- LLM 없이 실행하고, 웨어러블 미연동·권한 거부 시 수동 체크인으로 실행
 - 동일 입력·버전에서 동일 결정
-- 준비·휴식·전환·마무리를 포함한 권장 예상 시간 제공
-- 사용자 동의 없이 requested duration을 축소하지 않음
+- 준비·휴식·전환·마무리를 포함한 예상 시간을 요청 시간과 정확히 일치시킴
+- 사용자 동의 없이 requested duration을 변경하지 않음
 - 경과 시간과 무관하게 운동 블록 체크로 상태 계산
 - proposal과 최종 결과 분리 저장
 
@@ -105,7 +106,7 @@ flowchart LR
 - 요청 시 리포트 생성
 - 리포트 확인 전 다음 주 계획 확정 차단
 - AI 수정 최대 2회와 이후 직접 편집
-- 직접 편집 결과 최종 안전 재검증
+- 직접 편집 결과 요청 시간·장소·장비 제약과 SafetyAgent 의견 반영 확인
 
 ### 단계 6 — MVP 외부 연동·안정화와 후속 기능 분리
 
@@ -135,7 +136,7 @@ flowchart LR
 3. auth and onboarding
 4. catalog normalization and approved seed
 5. safety/time rule engine
-6. routine and candidate builder
+6. routine and common base candidate
 7. agent proposals and coordinator
 8. decision API and persistence
 9. mobile decision flow
