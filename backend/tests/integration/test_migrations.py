@@ -12,11 +12,14 @@ from backend.app.core.config import get_settings
 ALEMBIC_CONFIG = Path("backend/alembic.ini")
 
 
-def test_migration_history_has_identity_auth_boundary_head() -> None:
+def test_migration_history_has_onboarding_consent_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0003_identity_auth_boundary"]
+    assert scripts.get_heads() == ["0004_onboarding_consent"]
+    assert scripts.get_revision("0004_onboarding_consent").down_revision == (
+        "0003_identity_auth_boundary"
+    )
     assert scripts.get_revision("0003_identity_auth_boundary").down_revision == "0002_catalog_core"
     assert scripts.get_revision("0002_catalog_core").down_revision == "0001_backend_baseline"
     assert scripts.get_revision("0001_backend_baseline").down_revision is None

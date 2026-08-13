@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     )
     catalog_manifest_paths: tuple[Path, ...] = ()
     firebase_project_id: str | None = None
+    birthdate_encryption_key_base64: SecretStr | None = None
+    birthdate_encryption_key_id: str = "local-v1"
+    consent_policy_version: str | None = None
+    onboarding_primary_goal_codes: tuple[str, ...] = ()
+    onboarding_experience_level_codes: tuple[str, ...] = ()
 
     @field_validator("api_v1_prefix")
     @classmethod
@@ -44,6 +49,32 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             normalized = value.strip()
             return normalized or None
+        return value
+
+    @field_validator("consent_policy_version", mode="before")
+    @classmethod
+    def normalize_optional_version(cls, value: object) -> object:
+        if isinstance(value, str):
+            normalized = value.strip()
+            return normalized or None
+        return value
+
+    @field_validator("birthdate_encryption_key_base64", mode="before")
+    @classmethod
+    def normalize_birthdate_key(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
+    @field_validator(
+        "onboarding_primary_goal_codes",
+        "onboarding_experience_level_codes",
+        mode="before",
+    )
+    @classmethod
+    def parse_code_tuple(cls, value: object) -> object:
+        if isinstance(value, str):
+            return tuple(part.strip() for part in value.split(",") if part.strip())
         return value
 
 

@@ -21,3 +21,17 @@ def test_blank_firebase_project_id_is_treated_as_unconfigured() -> None:
     settings = Settings(firebase_project_id="   ")
 
     assert settings.firebase_project_id is None
+
+
+def test_onboarding_deployment_configuration_loads_json_code_lists(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ONBOARDING_PRIMARY_GOAL_CODES", '["GENERAL_FITNESS"]')
+    monkeypatch.setenv("ONBOARDING_EXPERIENCE_LEVEL_CODES", '["BEGINNER"]')
+    monkeypatch.setenv("BIRTHDATE_ENCRYPTION_KEY_BASE64", "")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.onboarding_primary_goal_codes == ("GENERAL_FITNESS",)
+    assert settings.onboarding_experience_level_codes == ("BEGINNER",)
+    assert settings.birthdate_encryption_key_base64 is None

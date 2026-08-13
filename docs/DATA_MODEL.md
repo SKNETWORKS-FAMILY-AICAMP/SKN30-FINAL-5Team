@@ -86,7 +86,7 @@ PostgreSQL ENUM을 광범위하게 사용하지 않는다. 자주 변경될 수 
 | 컬럼 | 설명 |
 |---|---|
 | user_id | users FK, PK |
-| date_of_birth | 생년월일, NOT NULL, 암호화 저장 및 프로필 서비스 접근 제한 |
+| protected_birthdate | 생년월일 AES-GCM/KMS 암호화 envelope, NOT NULL, 프로필 서비스 접근 제한 |
 | nickname | 사용자 표시용 닉네임 |
 | primary_goal_code | 운동 목표 코드 |
 | experience_level_code | 운동 경험 |
@@ -102,7 +102,7 @@ PostgreSQL ENUM을 광범위하게 사용하지 않는다. 자주 변경될 수 
 | created_at | 생성 시각 |
 | updated_at | 수정 시각 |
 
-`date_of_birth`는 수정 가능한 암호화 원본값이다. 서버는 사용자 timezone의 로컬 날짜를 기준으로 만 나이를 일시 계산해 만 14세 이상 이용 자격을 검증하고 프로필 표시값을 만든다. 만 나이는 DB에 저장하지 않는다. 수정 결과가 만 14세 미만이면 이용을 차단한다.
+`protected_birthdate`는 수정 가능한 생년월일 원본값의 암호화 envelope다. 서버는 복호화한 값을 사용자 timezone의 로컬 날짜를 기준으로 일시 계산해 만 14세 이상 이용 자격을 검증하고 프로필 표시값을 만든다. 평문 생년월일과 만 나이는 DB에 저장하지 않는다. 수정 결과가 만 14세 미만이면 이용을 차단한다.
 
 nickname은 중복을 허용하는 표시값이며 인증·리소스 소유권에 사용하지 않는다. 키와 성별은 MVP 핵심 결정에 사용하지 않는다. 체중은 선택 입력이며 제공된 경우에만 체중 기반 예상 소모 칼로리 추정에 사용하고, 진단·안전 판정에는 사용하지 않는다.
 
@@ -137,6 +137,13 @@ user_id와 consent_type_code 조합은 유일하다. `user_consents`는 사용�
 | created_at | 서버 저장 시각 |
 
 동일 mutation의 재시도는 API 멱등성 키 또는 서버가 식별한 동일 요청 기준으로 기존 결과를 반환하고 event를 중복 추가하지 않는다. 계정 삭제 시 이력의 삭제·보유 처리는 사용자 연결 데이터 삭제 정책을 따른다.
+
+### 4.3.2.1 mutation_idempotency_records
+
+온보딩·동의 mutation의 최초 성공 응답을 동일하게 재현하기 위한 사용자별 멱등성 기록이다.
+`(user_id, endpoint_code, idempotency_key)`는 유일하며 요청 본문 SHA-256, 버전이 있는 응답
+JSONB와 생성 시각을 저장한다. 같은 키의 다른 요청 hash는 거부하고 계정 삭제 시 함께 삭제한다.
+요청 원문, 생년월일, 인증 토큰은 저장하지 않는다.
 
 ### 4.3.3 생년월일 개인정보 처리
 

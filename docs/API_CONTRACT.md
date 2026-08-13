@@ -431,6 +431,12 @@ ManualActivityResponse
 
 `PUT /api/v1/me/onboarding`의 최초 동의 저장과 `PUT /api/v1/me/consents`의 동의·철회 변경은 동일한 동의 mutation 서비스가 처리한다. 각 동의 유형의 현재 상태는 `user_consents`에 갱신하고, `GRANTED` 또는 `REVOKED` event를 `user_consent_events`에 append하며 두 작업은 하나의 DB 트랜잭션으로 성공·실패를 함께 처리한다. 멱등 재시도는 같은 event를 중복 생성하지 않는다.
 
+두 endpoint는 UUID `Idempotency-Key` header가 필수다. 서버가 배포 설정으로 승인한
+`consent_policy_version`, `primary_goal_code`, `experience_level_code`가 없으면 임의 기본값을
+사용하지 않고 `503 PROFILE_CONFIGURATION_UNAVAILABLE`로 차단한다. 기존
+`adult_confirmed`·`age_band_code`는 자동 무시하지 않고 미지원 요청 필드로 거부하며
+`date_of_birth` 계약을 사용하는 클라이언트만 지원한다.
+
 키와 성별은 현재 핵심 결정에 사용하지 않는다. 체중은 선택 입력이며 제공된 경우에만 예상 소모 칼로리 추정에 사용한다. 칼로리 추정은 진단·안전 판정의 단독 근거가 아니다.
 
 ### 7.2 OnboardingResponse

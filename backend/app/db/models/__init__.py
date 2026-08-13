@@ -12,6 +12,15 @@ from backend.app.db.models.catalog import (
     TrainingType,
 )
 from backend.app.db.models.identity import User, UserIdentity
+from backend.app.db.models.profile import (
+    MutationIdempotencyRecord,
+    UserAttentionArea,
+    UserConsent,
+    UserConsentEvent,
+    UserEquipment,
+    UserPreferredExerciseType,
+    UserProfile,
+)
 
 __all__ = [
     "BodyArea",
@@ -24,7 +33,14 @@ __all__ = [
     "ExerciseLocation",
     "Location",
     "MovementPattern",
+    "MutationIdempotencyRecord",
     "TrainingType",
     "User",
+    "UserAttentionArea",
+    "UserConsent",
+    "UserConsentEvent",
+    "UserEquipment",
     "UserIdentity",
+    "UserPreferredExerciseType",
+    "UserProfile",
 ]
