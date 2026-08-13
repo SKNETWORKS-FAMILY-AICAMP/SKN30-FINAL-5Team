@@ -4,7 +4,7 @@
 
 이 문서는 채택된 제품 결정을 구현 기술과 저장소 경계로 변환한다. 상세 컴포넌트 흐름은 `ARCHITECTURE.md`, 도메인 불변식은 `DOMAIN_RULES.md`, 외부 계약은 `API_CONTRACT.md`, 영속화는 `DATA_MODEL.md`를 따른다.
 
-멀티 에이전트 로직은 설계 전 단계다. 에이전트 구현·조정 순서·공개 요약의 상세 기술 선택은 멀티 에이전트 로직 설계 후 확정하며, 현재 문서의 관련 항목은 잠정이다.
+멀티 에이전트 핵심 흐름은 Training·Recovery·Safety·Feasibility 네 proposal의 병렬 실행과 Coordinator 최종 결정으로 확정한다. 에이전트 구현의 상세 필드·공개 요약은 증상 사용자 시나리오 검증 결과에 따라 추후 보완할 수 있다.
 
 ## 2. 확정 기술
 
@@ -23,13 +23,13 @@ Python 패키지 도구, Node 패키지 도구, 정확한 PostgreSQL 버전은 �
 
 - 백엔드는 모듈형 모놀리스다.
 - API request 안에서 결정 파이프라인을 동기 실행한다.
-- Training·Recovery·Safety proposal 에이전트는 Python/Pydantic 기반 논리 모듈이며 MVP에서는 순차 실행한다. Coordinator는 세 proposal을 취합하는 의장 모듈이다.
+- Training·Recovery·Safety·Feasibility proposal 에이전트는 Python/Pydantic 기반 논리 모듈이며 MVP에서는 병렬 실행한다. Coordinator는 네 proposal을 취합하는 의장 모듈이다.
 - PostgreSQL이 사용자·결정·주간 리포트의 단일 진실 공급원이다.
 - 안전·통증 제외·시간·복귀·후보 선택은 결정적 Python 규칙이다.
 - 요청 시간은 사용자가 명시적으로 변경하지 않는 한 유지하고, 다운시프트는 강도·부하·세트·반복·운동 유형·휴식 구성을 조정한다.
 - 예상 시간과 0초부터 증가하는 실제 경과 시간은 정보값이며 완료는 운동 블록 체크로 계산한다.
 - 체중 기반 예상 소모 칼로리는 참고용 추정치이며 진단·안전 판정의 단독 근거로 사용하지 않는다.
-- 웨어러블·캘린더 어댑터는 MVP 범위에 포함하되 권한 거부·미연동 수동 폴백과 공식 수행 판정 분리를 보장한다.
+- 웨어러블·캘린더 어댑터는 MVP 범위에 포함하되 권한 거부·미연동 수동 체크인 폴백과 공식 수행 판정 분리를 보장한다. 캘린더는 수행 여부만 확인하고, 웨어러블 운동 데이터는 캘린더에 자동 등록하지 않는다. 수동 외부 기록은 MVP 이후로 분리한다.
 - LLM은 검수 reason code의 설명 생성에만 선택적으로 사용한다.
 - 주간 리포트는 요청 시 생성하므로 worker와 scheduler를 기본 도입하지 않는다.
 
@@ -95,6 +95,11 @@ project/
 │  │  │  └─ weekly_reports/
 │  │  ├─ domain/
 │  │  │  ├─ agents/
+│  │  │  │  ├─ training.py
+│  │  │  │  ├─ recovery.py
+│  │  │  │  ├─ safety.py
+│  │  │  │  ├─ feasibility.py
+│  │  │  │  └─ coordinator.py
 │  │  │  └─ rules/
 │  │  ├─ db/
 │  │  │  ├─ models/
@@ -159,6 +164,7 @@ repository/integration -------|
 - return mode
 - catalog/policy/safety/duration versions
 - optional normalized wearable summary
+- available duration, location, equipment, schedule, preference/avoidance constraints
 
 공통 출력 `AgentProposal`:
 
@@ -176,7 +182,15 @@ repository/integration -------|
 - evidence references
 - policy version
 
-opaque confidence 점수는 MVP에서 사용하지 않는다. 입력 완전성과 proposal 상태를 명시한다. Coordinator는 이미 만들어진 candidate ID 중 최종 루틴 한 개만 선택한다.
+Agent별 책임:
+
+- `TrainingAgent`: 목표·진척·FITT 관점의 후보와 조정 의견
+- `RecoveryAgent`: 회복 상태와 강도 조정 의견
+- `SafetyAgent`: `PASS / NEEDS_INPUT / REVISE / BLOCKED`와 위험 운동·수정 의견
+- `FeasibilityAgent`: 시간·장소·장비·일정·선호를 반영한 실행 가능한 후보·대체안
+- `Coordinator`: 네 proposal의 우선순위를 종합해 최종 루틴·FITT 조정·변경 이유 결정
+
+opaque confidence 점수는 MVP에서 사용하지 않는다. 입력 완전성과 proposal 상태를 명시한다. Coordinator는 공통 기본 후보 ID 중 최종 루틴 한 개만 선택한다.
 
 ## 7. API 원칙
 
@@ -245,7 +259,7 @@ opaque confidence 점수는 MVP에서 사용하지 않는다. 입력 완전성�
 2. 저장소·도구 기반
 3. auth/onboarding/catalog/Google·Kakao·Naver provider
 4. 시간·안전 규칙과 승인 seed
-5. routine/candidate/Training·Recovery·Safety/Coordinator
+5. routine/candidate/Training·Recovery·Safety·Feasibility/Coordinator
 6. decision 저장과 API
 7. 모바일 수직 슬라이스
 8. partial/miss/safety/return
@@ -261,7 +275,7 @@ opaque confidence 점수는 MVP에서 사용하지 않는다. 입력 완전성�
 - frontend type/component/build
 - OpenAPI compatibility
 - PostgreSQL migration
-- golden scenario, safety invariant, LLM fallback, reproducibility
+- golden scenario, 증상 사용자 Safety 의견 반영, 역할 분리, Single-Agent 대비, LLM fallback, reproducibility
 - deletion and sensitive log checks
 
 필수 케이스와 CI 구분은 `TEST_STRATEGY.md`를 따른다.

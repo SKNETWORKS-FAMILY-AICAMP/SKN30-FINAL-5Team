@@ -4,7 +4,7 @@
 
 초기 시스템은 React Native 모바일 앱, FastAPI 모듈형 모놀리스, PostgreSQL로 구성한다. 멀티에이전트는 별도 서비스가 아니라 백엔드 도메인 내부의 독립된 결정 모듈로 구현한다.
 
-멀티 에이전트 로직은 설계 전 단계다. 에이전트 내부 흐름과 공개 요약의 상세 계약은 설계 후 확정하며, 현재 문서의 모듈 경계와 버전 필드는 잠정이다. 안전 게이트와 실패 안전 경계는 현재 확정한다.
+멀티 에이전트 핵심 흐름은 Training·Recovery·Safety·Feasibility 네 proposal의 병렬 실행과 Coordinator 최종 결정으로 확정한다. 에이전트 내부 상세 흐름과 공개 요약 필드는 증상 사용자 시나리오 검증 결과에 따라 추후 보완할 수 있다. 독립적인 최종 Safety 재검사는 현재 범위에 포함하지 않는다.
 
 ```mermaid
 flowchart LR
@@ -12,7 +12,7 @@ flowchart LR
   API --> MOD["모듈형 애플리케이션 서비스"]
   MOD --> DEC["결정 오케스트레이터"]
   DEC --> RULES["결정적 규칙·안전 게이트"]
-  DEC --> AGENTS["Training·Recovery·Safety proposal + Coordinator"]
+  DEC --> AGENTS["Training·Recovery·Safety·Feasibility proposal + Coordinator"]
   MOD --> DB[("PostgreSQL")]
   MOD --> AUTH["인증 어댑터"]
   MOD -. 선택적 설명 .-> LLM["LLM 어댑터"]
@@ -23,7 +23,7 @@ flowchart LR
 - 4명 팀이 한 배포 단위에서 명확한 모듈 경계를 유지할 수 있다.
 - 하나의 결정이 사용자, 루틴, 안전 규칙, 후보, 제안, 선택을 일관되게 저장해야 한다.
 - 안전과 재현성을 네트워크 경계보다 코드·데이터 계약으로 강제하기 쉽다.
-- 웨어러블·캘린더·LLM 장애가 수동 입력을 포함한 핵심 흐름에 영향을 주지 않는다.
+- 웨어러블·캘린더·LLM 장애가 수동 체크인을 포함한 핵심 흐름에 영향을 주지 않는다.
 
 대안은 에이전트별 마이크로서비스와 워크플로 프레임워크다. 독립 배포·대규모 병렬 처리가 필요해질 때 재검토할 수 있으나, MVP에서는 운영 복잡성과 분산 트랜잭션 비용 때문에 선택하지 않는다.
 
@@ -58,33 +58,33 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-  A["정규화 입력 스냅샷"] --> B["SafetyPrecheck"]
-  B -->|"NEEDS_INPUT / BLOCKED / FAILED"| Z["계획 없는 결과"]
-  B -->|"PASS / REVISE"| C["FITT CandidateBuilder"]
-  C --> D1["TrainingAgent"]
-  C --> D2["RecoveryAgent"]
-  C --> D3["SafetyAgent"]
+  A["정규화 입력 스냅샷·공통 기본 후보"] --> D1["TrainingAgent"]
+  A --> D2["RecoveryAgent"]
+  A --> D3["SafetyAgent"]
+  A --> D4["FeasibilityAgent"]
   D1 --> E["Deterministic Coordinator"]
   D2 --> E
   D3 --> E
-  E --> F["FinalSafetyGate"]
-  F -->|"통과"| G["결정·제안·후보 원자적 저장"]
-  F -->|"거부"| Z
+  D4 --> E
+  E -->|"결정"| G["결정·제안·후보 원자적 저장"]
   G --> H["템플릿 또는 선택적 LLM 설명"]
 ```
 
-전문 proposal 에이전트는 MVP에서 순차 실행한다. 세 proposal 중 하나라도 필수 proposal을 만들지 못하면 결정 실행은 `FAILED`이며 운동 계획을 성공 응답하지 않는다. Coordinator는 proposal을 생성하지 않고 취합·선택을 담당한다.
+MVP에서는 Training·Recovery·Safety·Feasibility 네 proposal Agent를 병렬 실행하고 Coordinator가 의견과 우선순위를 종합해 최종 운동 계획을 결정한다. 네 proposal 중 하나라도 누락되거나 `FAILED`이면 결정 실행은 `FAILED`이며 운동 계획을 성공 응답하지 않는다. 독립적인 Safety 최종 재검사는 현재 범위에 포함하지 않는다.
 
 ## 5. 에이전트 책임
 
 - `TrainingAgent`: 주간 FITT와 목표 태그, CORE 보존 제약을 제안한다.
 - `RecoveryAgent`: 피로·수면·최근 부하·불편·복귀 상한을 제안한다.
-- `SafetyAgent`: 결정적 안전 규칙과 충돌 운동 제외에 필요한 구조화 판단을 제안한다. 최종 안전 권한은 FinalSafetyGate가 갖는다.
-- `Coordinator`: 세 proposal과 검수된 후보를 취합해 최종 루틴 한 개를 선택한다. 안전 veto를 해제하거나 카탈로그 밖 운동을 만들 수 없다.
+- `SafetyAgent`: 통증·금기·환경 조건을 기준으로 `PASS/NEEDS_INPUT/REVISE/BLOCKED`와 위험 운동·수정 의견을 제안한다. `BLOCKED` 의견은 Coordinator가 우선 반영한다.
+- `FeasibilityAgent`: 정규화된 공통 입력과 공통 기본 후보만 받아 가능 시간·장소·장비·일정·선호·기피 조건을 반영한 실제 수행 가능한 종류·순서·구성·대체안을 제안한다.
+- `Coordinator`: 네 proposal과 공통 기본 후보, 사용자 목표·선호·요청 운동 시간을 종합해 최종 루틴·FITT 조정안·변경 이유를 결정한다.
+
+Coordinator는 운동 계획을 반환하는 경우 계획 구성요소의 합계인 `estimated_duration_seconds`를 `requested_duration_minutes * 60`과 정확히 일치시킨다. 검수된 후보와 안전 규칙만으로 정확히 구성할 수 없으면 시간을 임의로 축소·초과하지 않고 계획을 반환하지 않는다. 이 값은 계획 단계의 hard target이며 실제 경과 시간이나 완료 판정의 기준은 아니다.
 
 조정기는 운동을 자유 생성하거나 안전 veto를 해제하지 않는다. LLM은 reason code를 설명 문장으로 바꾸는 선택 기능일 뿐이다.
 
-현재 멀티 에이전트 로직의 proposal·coordinator·회의 UI 상세는 설계 후 확정한다. 공개 요약은 내부 추론을 포함하지 않는다.
+현재 멀티 에이전트의 네 proposal 병렬 실행과 Coordinator 결정은 확정한다. proposal·Coordinator·회의 UI의 상세 필드는 증상 사용자 시나리오 검증 결과에 따라 보완할 수 있으며 공개 요약은 내부 추론을 포함하지 않는다.
 
 ## 6. 안전 상태와 최종 액션
 
@@ -94,7 +94,7 @@ flowchart TD
 |---|---|---|
 | `PASS` | 안전 규칙 통과 | 허용 |
 | `NEEDS_INPUT` | 필수 안전 입력 부족 | 없음 |
-| `REVISE` | 충돌 후보 제거·대체 필요 | 재검증 후 허용 |
+| `REVISE` | 충돌 후보 제거·대체 필요 | Coordinator가 수정 후보에 반영 |
 | `BLOCKED` | 현재 입력으로 운동 제공 불가 | 없음 |
 | `FAILED` | 필수 규칙·에이전트·저장 실패 | 없음 |
 
@@ -147,12 +147,12 @@ flowchart LR
 ## 10. 데이터와 트랜잭션 경계
 
 - PostgreSQL이 단일 진실 공급원이다.
-- decision run, 세 proposal, 후보, 안전 평가, 조정 결과를 분리 저장한다.
+- decision run, 네 proposal, 후보, Safety 평가, Coordinator 결정 결과를 분리 저장한다.
 - 성공 응답 전에 해당 결정 기록이 원자적으로 저장돼야 한다.
 - 주간 리포트는 닫힌 주의 불변 집계 스냅샷과 생성 정책 버전을 저장한다.
 - 주간 리포트는 패턴 요약, 조정 방향, 다음 행동과 잠정 agent summary를 함께 저장한다.
 - 체중 기반 예상 소모 칼로리는 참고 정보로 저장하며 진단·안전 판정의 단독 근거로 사용하지 않는다.
-- 일반·민감·웨어러블·캘린더·마케팅 동의와 철회 이력을 분리 저장한다.
+- `user_consents`는 일반·민감·웨어러블·캘린더·마케팅 동의의 현재 상태를 저장하고, `user_consent_events`는 동의·철회 append-only 이력을 저장한다. 모든 동의 mutation은 두 테이블의 현재 상태 갱신과 event 추가를 하나의 트랜잭션으로 처리한다.
 - JSONB는 입력 스냅샷·proposal·확장 메타데이터에만 사용한다.
 - 계정 삭제 요청 즉시 접근을 막고 운영 DB 사용자 연결 데이터는 7일 이내, 백업은 30일 이내 만료한다.
 
@@ -178,7 +178,7 @@ MVP 배포는 관리형 PostgreSQL 하나와 컨테이너 또는 단일 애플�
 ## 13. 선택하지 않은 대안
 
 - 에이전트 마이크로서비스: 작은 팀에서 배포·인증·추적 비용이 크다.
-- LangGraph 기본 도입: 현재 흐름은 결정적 순차 파이프라인으로 충분하다.
+- LangGraph 기본 도입: 현재 흐름은 결정적 병렬 proposal과 Coordinator 조정으로 충분하다.
 - Redis/Celery/scheduler: 요청 시 리포트와 동기 결정에 필요하지 않다.
 - 벡터 DB/RAG: 검수된 정규화 카탈로그 조회 문제에 맞지 않는다.
 - 이벤트 소싱: 감사 요구를 충족하는 명시적 기록 테이블보다 복잡하다.
@@ -191,7 +191,6 @@ MVP 배포는 관리형 PostgreSQL 하나와 컨테이너 또는 단일 애플�
 - 소셜 OAuth provider별 앱 심사 일정과 Firebase custom token 운영 방식
 - 수면·부하·복귀 볼륨의 외부 검수된 수치
 - 외부 도메인 검수자와 승인 증적 형식
-- 요청 시간과 예상 시간의 허용 편차·표시 문구
 - 운동 완료 제스처를 체크 버튼, 격파, 좌측 밀기 중 어떤 조합으로 제공할지
 
 ## 15. 팀 확인 질문
