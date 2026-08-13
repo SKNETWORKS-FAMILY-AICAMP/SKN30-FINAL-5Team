@@ -51,6 +51,7 @@ PostgreSQL ENUM을 광범위하게 사용하지 않는다. 자주 변경될 수 
 |---|---|
 | id | 내부 사용자 UUID, PK |
 | status_code | ACTIVE, DORMANT, DELETION_PENDING, DISABLED |
+| code_set_version | identity machine code 집합 버전. 최초 값은 `identity-mvp-v1` |
 | last_active_at | 인증된 서비스 활동 시각 |
 | created_at | 생성 시각 |
 | updated_at | 수정 시각 |
@@ -70,10 +71,15 @@ PostgreSQL ENUM을 광범위하게 사용하지 않는다. 자주 변경될 수 
 | provider_code | FIREBASE, GOOGLE, KAKAO, NAVER |
 | provider_subject | provider가 발급한 불변 subject |
 | firebase_subject | 최종 Firebase 사용자 연결 subject |
+| code_set_version | identity machine code 집합 버전. 최초 값은 `identity-mvp-v1` |
 | created_at | 연결 시각 |
 | revoked_at | 연결 해제 시각, nullable |
 
 활성 identity의 `(provider_code, provider_subject)`와 `firebase_subject`는 유일해야 한다. provider access/refresh token, 이메일, 전체 이름은 저장하지 않는다.
+
+첫 인증 수직 슬라이스의 `identity-mvp-v1` provider code는 실제 사용하는 `FIREBASE`만
+검증한다. 문서에 예약된 `GOOGLE`, `KAKAO`, `NAVER` 연결은 해당 adapter가 구현될 때 기존 code를
+변경하지 않고 새 code-set version과 CHECK migration으로 추가한다.
 
 ### 4.3 user_profiles
 

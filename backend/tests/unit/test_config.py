@@ -15,3 +15,9 @@ def test_database_url_is_masked_in_settings_representation() -> None:
 def test_api_prefix_cannot_drift_from_contract() -> None:
     with pytest.raises(ValidationError, match="must remain /api/v1"):
         Settings(api_v1_prefix="/api/v2")
+
+
+def test_blank_firebase_project_id_is_treated_as_unconfigured() -> None:
+    settings = Settings(firebase_project_id="   ")
+
+    assert settings.firebase_project_id is None
