@@ -28,7 +28,7 @@ def test_verifies_with_revocation_check_and_returns_only_subject(
 
     def verify(token: str, *, app: object, check_revoked: bool) -> dict[str, str]:
         captured.update(token=token, app=app, check_revoked=check_revoked)
-        return {"uid": "firebase-subject", "email": "must-not-cross-boundary@example.com"}
+        return {"uid": "firebase-subject", "email": "sensitive-claim-not-consumed"}
 
     monkeypatch.setattr(auth, "verify_id_token", verify)
 
