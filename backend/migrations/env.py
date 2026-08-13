@@ -4,7 +4,10 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from backend.app.core.config import get_settings
+from backend.app.db import models as db_models
 from backend.app.db.base import Base
+
+_ = db_models
 
 config = context.config
 if config.config_file_name is not None:
