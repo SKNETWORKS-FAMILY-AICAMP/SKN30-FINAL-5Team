@@ -27,7 +27,7 @@ from backend.app.domain.rules.duration import (
 )
 from backend.app.domain.rules.safety import SafetyStatusCode
 
-COORDINATOR_VERSION: Final[Literal["0.1.0"]] = "0.1.0"
+COORDINATOR_VERSION: Final[Literal["0.2.0"]] = "0.2.0"
 _MACHINE_REFERENCE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
 _PLAN_ACTIONS = frozenset(
     {
@@ -144,7 +144,7 @@ class CoordinatorInput(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
-    coordinator_version: Literal["0.1.0"] = COORDINATOR_VERSION
+    coordinator_version: Literal["0.2.0"] = COORDINATOR_VERSION
     proposals: tuple[AgentProposal, ...]
     candidates: tuple[CoordinatorCandidate, ...]
     profile_duration_minutes: int = Field(gt=0)
@@ -152,6 +152,10 @@ class CoordinatorInput(BaseModel):
     duration_adjustment_source_code: DurationAdjustmentSourceCode
     policy_version: str
     catalog_version: str
+    catalog_status_code: Literal["ACTIVE"]
+    catalog_review_status_code: Literal["DOMAIN_APPROVED"]
+    catalog_production_eligible: Literal[True]
+    catalog_activated: Literal[True]
     safety_rule_version: str
     duration_rule_version: str
 
@@ -171,7 +175,7 @@ class CoordinatorResult(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
-    coordinator_version: Literal["0.1.0"] = COORDINATOR_VERSION
+    coordinator_version: Literal["0.2.0"] = COORDINATOR_VERSION
     status_code: CoordinatorStatusCode
     safety_status_code: SafetyStatusCode
     final_action_code: RecommendedActionCode | None

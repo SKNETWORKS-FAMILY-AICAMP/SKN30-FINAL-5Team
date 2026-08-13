@@ -110,6 +110,10 @@ def _input(
         duration_adjustment_source_code=DurationAdjustmentSourceCode.PROFILE,
         policy_version="policy-v1",
         catalog_version="approved-catalog-v1",
+        catalog_status_code="ACTIVE",
+        catalog_review_status_code="DOMAIN_APPROVED",
+        catalog_production_eligible=True,
+        catalog_activated=True,
         safety_rule_version="approved-safety-v1",
         duration_rule_version=DURATION_RULE_VERSION,
     )

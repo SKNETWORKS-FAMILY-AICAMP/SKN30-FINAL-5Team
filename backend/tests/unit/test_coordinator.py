@@ -134,6 +134,10 @@ def _input(
         duration_adjustment_source_code=duration_adjustment_source_code,
         policy_version="policy-v1",
         catalog_version="catalog-v1",
+        catalog_status_code="ACTIVE",
+        catalog_review_status_code="DOMAIN_APPROVED",
+        catalog_production_eligible=True,
+        catalog_activated=True,
         safety_rule_version="safety-v1",
         duration_rule_version=duration_rule_version,
     )
@@ -287,6 +291,16 @@ def test_proposal_cannot_reference_exercise_outside_common_candidates() -> None:
     assert result.status_code is CoordinatorStatusCode.FAILED
     assert result.reason_codes == ("PROPOSAL_EXERCISE_OUTSIDE_COMMON_CANDIDATES",)
     assert result.selected_candidate_id is None
+
+
+def test_candidate_without_explicit_required_goal_link_is_not_selected() -> None:
+    candidate_without_goal_link = _candidate(goal_tags=())
+
+    result = coordinate(_input(candidates=(candidate_without_goal_link,)))
+
+    assert result.status_code is CoordinatorStatusCode.BLOCKED
+    assert result.selected_candidate_id is None
+    assert "CANDIDATE_MISSING_REQUIRED_GOAL" in result.blocked_reason_codes
 
 
 def test_non_exact_duration_candidate_is_never_selected() -> None:
@@ -477,6 +491,25 @@ def test_unknown_duration_rule_version_fails_closed() -> None:
 
     assert result.status_code is CoordinatorStatusCode.FAILED
     assert result.reason_codes == ("DURATION_RULE_VERSION_UNSUPPORTED",)
+
+
+@pytest.mark.parametrize(
+    ("field_name", "invalid_value"),
+    [
+        ("catalog_status_code", "DRAFT"),
+        ("catalog_review_status_code", "TECH_REVIEWED"),
+        ("catalog_production_eligible", False),
+        ("catalog_activated", False),
+    ],
+)
+def test_input_rejects_non_production_catalog_snapshot(
+    field_name: str,
+    invalid_value: object,
+) -> None:
+    valid_input = _input()
+
+    with pytest.raises(ValidationError):
+        CoordinatorInput.model_validate({**valid_input.__dict__, field_name: invalid_value})
 
 
 def test_input_forbids_sensitive_or_free_form_extra_fields_and_emits_no_log(
