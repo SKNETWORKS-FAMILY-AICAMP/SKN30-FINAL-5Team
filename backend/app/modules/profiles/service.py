@@ -145,6 +145,9 @@ class ProfileService:
             experience_level_code=request.experience_level_code,
             timezone=request.timezone,
             preferred_location_code=request.preferred_location_code,
+            available_location_codes=tuple(
+                request.available_location_codes or (request.preferred_location_code,)
+            ),
             default_requested_duration_minutes=request.default_requested_duration_minutes,
             desired_weekly_workout_count=request.desired_weekly_workout_count,
             coaching_style_code=request.coaching_style_code,

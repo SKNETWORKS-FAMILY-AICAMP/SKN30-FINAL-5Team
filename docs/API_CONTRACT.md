@@ -394,6 +394,7 @@ ManualActivityResponse
   "experience_level_code": "string",
   "timezone": "Asia/Seoul",
   "preferred_location_code": "HOME",
+  "available_location_codes": ["HOME", "GYM"],
   "default_requested_duration_minutes": 40,
   "desired_weekly_workout_count": 3,
   "equipment_codes": ["BODYWEIGHT", "RESISTANCE_BAND"],
@@ -525,6 +526,15 @@ DELETE /api/v1/me는 202 Accepted를 반환한다.
 
 서버는 현재 사용자 프로필, 장비, 장소와 DOMAIN_APPROVED 운동만 사용해 보수적인 기본 루틴을 만든다. 클라이언트는 운동 ID, 세트 또는 tier를 임의 지정하지 않는다.
 
+`POST /api/v1/routines`는 `Idempotency-Key`가 필수이며 성공 시 `201`을 반환한다.
+서버는 `ACTIVE`, `DOMAIN_APPROVED`, `production_eligible=true`이고 도메인 검수 증적이
+있는 단 하나의 catalog version과 승인된 목표 연결·처방만 사용한다. 사용자별 routine
+version은 1부터 단조 증가하며, 같은 사용자의 동시 생성은 직렬화한다.
+
+`GET /api/v1/routines/current?local_date=YYYY-MM-DD`는 인증된 현재 사용자에게 해당 날짜에
+활성인 루틴만 반환한다. 활성 루틴이 없으면 `404 ROUTINE_NOT_FOUND`이며 다른 사용자의
+루틴은 조회 후보에 포함하지 않는다.
+
 ### 8.2 RoutineResponse
 
 ~~~text
@@ -554,6 +564,7 @@ RoutineItem
 - exercise_id: UUID
 - exercise_name: string
 - sequence: integer
+- phase_code: WARMUP | MAIN | COOLDOWN
 - tier_code: CORE | SUPPORT | OPTIONAL
 - sets: integer
 - reps: integer | null
@@ -563,6 +574,17 @@ RoutineItem
 ~~~
 
 requested duration은 사용자 선택값이다. 운동 계획을 반환하는 경우 estimated duration은 `requested_duration_minutes * 60`과 정확히 일치해야 한다. 실제 운동 경과 시간은 사용자 속도에 따라 달라질 수 있으며 완료 판정에는 사용하지 않는다.
+
+모든 routine day는 `WARMUP -> MAIN -> COOLDOWN` 순서로 구성한다. WARMUP과 COOLDOWN은
+승인된 스트레칭·가동성 처방이고 MAIN에는 목표와 직접 연결된 CORE 운동이 하나 이상
+포함되어야 한다. 각 단계가 없거나 승인된 처방으로 요청 시간을 정확히 맞출 수 없으면
+짧거나 긴 루틴을 반환하지 않는다. 기본 routine day는 특정 요일을 강제하지 않고 ROTATION
+순서로 수행한다.
+
+사용자 가능 장소는 `HOME`, `GYM`, `OUTDOOR` 개별 코드 배열로 관리한다. `HOME`과 `GYM`을
+모두 선택한 사용자는 두 장소 중 하나 이상을 지원하는 운동만 받을 수 있다. 기존
+`preferred_location_code`는 호환 기간 동안 유지하고, `available_location_codes`가 없으면
+해당 단일 값을 사용한다.
 
 ### 8.3 운동 자세·설명
 
@@ -1131,11 +1153,11 @@ SafetySummary
 | 400 | INVALID_REQUEST |
 | 401 | AUTHENTICATION_REQUIRED, INVALID_TOKEN |
 | 403 | ACCOUNT_DISABLED, AGE_REQUIREMENT_NOT_MET |
-| 404 | RESOURCE_NOT_FOUND |
-| 409 | STALE_CONTEXT, INVALID_STATE_TRANSITION, OPTION_NOT_SELECTABLE, IDEMPOTENCY_KEY_REUSED, AUTHORIZATION_CODE_REUSED, WEEK_NOT_CLOSED, REPORT_ACKNOWLEDGEMENT_REQUIRED, AI_REVISION_LIMIT_REACHED, CONSENT_REQUIRED, WEARABLE_NOT_CONNECTED, CALENDAR_NOT_CONNECTED |
-| 422 | INVALID_DOMAIN_CODE, INVALID_DURATION, DUPLICATE_BODY_AREA, INVALID_DATE_OF_BIRTH, NEEDS_INPUT, INVALID_WEEK_START |
+| 404 | RESOURCE_NOT_FOUND, ROUTINE_NOT_FOUND |
+| 409 | STALE_CONTEXT, INVALID_STATE_TRANSITION, OPTION_NOT_SELECTABLE, IDEMPOTENCY_KEY_REUSED, ROUTINE_VERSION_CONFLICT, AUTHORIZATION_CODE_REUSED, WEEK_NOT_CLOSED, REPORT_ACKNOWLEDGEMENT_REQUIRED, AI_REVISION_LIMIT_REACHED, CONSENT_REQUIRED, WEARABLE_NOT_CONNECTED, CALENDAR_NOT_CONNECTED |
+| 422 | INVALID_DOMAIN_CODE, INVALID_DURATION, ROUTINE_DURATION_UNAVAILABLE, ROUTINE_CONTENT_UNAVAILABLE, DUPLICATE_BODY_AREA, INVALID_DATE_OF_BIRTH, NEEDS_INPUT, INVALID_WEEK_START |
 | 500 | INTERNAL_ERROR, DECISION_FAILED |
-| 503 | DATABASE_UNAVAILABLE, AUTH_PROVIDER_UNAVAILABLE |
+| 503 | DATABASE_UNAVAILABLE, AUTH_PROVIDER_UNAVAILABLE, APPROVED_CATALOG_UNAVAILABLE |
 
 안전한 후보가 없어 REST를 정상 반환하는 것은 오류가 아니다.
 
