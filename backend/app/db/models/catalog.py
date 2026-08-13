@@ -14,6 +14,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -24,7 +25,10 @@ from backend.app.db.base import Base
 class CatalogVersion(Base):
     __tablename__ = "catalog_versions"
     __table_args__ = (
-        CheckConstraint("status_code IN ('DRAFT')", name="ck_catalog_versions_status_code"),
+        CheckConstraint(
+            "status_code IN ('DRAFT', 'ACTIVE', 'DEPRECATED')",
+            name="ck_catalog_versions_status_code",
+        ),
         CheckConstraint(
             "manifest_schema_version IN ('1.0')",
             name="ck_catalog_versions_manifest_schema_version",
@@ -42,18 +46,28 @@ class CatalogVersion(Base):
             name="ck_catalog_versions_review_status_code",
         ),
         CheckConstraint(
-            "review_method_code IN ('AGENT_ONLY')",
+            "review_method_code IN ('AGENT_ONLY', 'DOMAIN_REVIEWER')",
             name="ck_catalog_versions_review_method_code",
         ),
         CheckConstraint(
-            "status_interpretation_code IN ('PIPELINE_COMPATIBILITY_ONLY')",
+            "status_interpretation_code IN ('PIPELINE_COMPATIBILITY_ONLY', 'PRODUCTION_APPROVED')",
             name="ck_catalog_versions_status_interpretation_code",
         ),
         CheckConstraint(
-            "production_eligible = false",
-            name="ck_catalog_versions_production_ineligible",
+            "production_eligible = false OR "
+            "(status_code = 'ACTIVE' AND review_status_code = 'DOMAIN_APPROVED' "
+            "AND review_method_code = 'DOMAIN_REVIEWER' "
+            "AND status_interpretation_code = 'PRODUCTION_APPROVED' "
+            "AND activated_at IS NOT NULL)",
+            name="ck_catalog_versions_production_approval",
         ),
         CheckConstraint("exercise_record_count >= 0", name="ck_catalog_versions_record_count"),
+        Index(
+            "uq_catalog_versions_single_active",
+            "status_code",
+            unique=True,
+            postgresql_where=text("status_code = 'ACTIVE'"),
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
@@ -270,4 +284,84 @@ class ExerciseLocation(Base):
     )
     location_code: Mapped[str] = mapped_column(
         String(64), ForeignKey("locations.code"), primary_key=True
+    )
+
+
+class ExerciseGoalTagLink(Base):
+    __tablename__ = "exercise_goal_tag_links"
+    __table_args__ = (
+        CheckConstraint(
+            "role_eligibility_code IN ('CORE', 'SUPPORT', 'OPTIONAL')",
+            name="ck_exercise_goal_tag_links_role",
+        ),
+        CheckConstraint(
+            "review_status_code = 'DOMAIN_APPROVED'",
+            name="ck_exercise_goal_tag_links_review",
+        ),
+    )
+
+    exercise_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("exercises.id", ondelete="CASCADE"), primary_key=True
+    )
+    goal_code: Mapped[str] = mapped_column(String(64), primary_key=True)
+    role_eligibility_code: Mapped[str] = mapped_column(String(16), nullable=False)
+    review_status_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class ExercisePrescriptionProfile(Base):
+    __tablename__ = "exercise_prescription_profiles"
+    __table_args__ = (
+        UniqueConstraint(
+            "exercise_id",
+            "goal_code",
+            "experience_level_code",
+            "phase_code",
+            name="uq_exercise_prescription_profile",
+        ),
+        CheckConstraint(
+            "phase_code IN ('WARMUP', 'MAIN', 'COOLDOWN')",
+            name="ck_exercise_prescription_profiles_phase",
+        ),
+        CheckConstraint("sets > 0", name="ck_exercise_prescription_profiles_sets"),
+        CheckConstraint(
+            "(reps > 0 AND work_seconds_per_set IS NULL) OR "
+            "(reps IS NULL AND work_seconds_per_set > 0)",
+            name="ck_exercise_prescription_profiles_timing",
+        ),
+        CheckConstraint(
+            "rest_seconds_per_set >= 0",
+            name="ck_exercise_prescription_profiles_rest",
+        ),
+        CheckConstraint(
+            "review_status_code = 'DOMAIN_APPROVED'",
+            name="ck_exercise_prescription_profiles_review",
+        ),
+        Index(
+            "ix_exercise_prescriptions_lookup",
+            "goal_code",
+            "experience_level_code",
+            "phase_code",
+            "review_status_code",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    exercise_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("exercises.id", ondelete="CASCADE"), nullable=False
+    )
+    goal_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    experience_level_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    phase_code: Mapped[str] = mapped_column(String(16), nullable=False)
+    sets: Mapped[int] = mapped_column(Integer, nullable=False)
+    reps: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    work_seconds_per_set: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    rest_seconds_per_set: Mapped[int] = mapped_column(Integer, nullable=False)
+    intensity_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    prescription_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    review_status_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )

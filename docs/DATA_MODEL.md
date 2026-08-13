@@ -201,7 +201,7 @@ PK는 user_id와 exercise_type_code의 조합이다.
 |---|---|
 | id | UUID, PK |
 | version_code | 사람이 읽을 수 있는 유일 버전 |
-| status_code | DRAFT, ACTIVE, RETIRED. 첫 importer slice는 DRAFT만 생성 |
+| status_code | DRAFT, ACTIVE, DEPRECATED. 첫 importer slice는 DRAFT만 생성 |
 | manifest_schema_version | 검증한 seed manifest schema version |
 | generator_version | seed를 만든 generator version |
 | code_set_version | importer가 검증한 machine code 집합 버전. 최초 값은 `mvp-v1` |
@@ -216,7 +216,11 @@ PK는 user_id와 exercise_type_code의 조합이다.
 | activated_at | 활성화 시각 |
 | created_at | 생성 시각 |
 
-한 시점에 하나의 ACTIVE 버전만 허용한다.
+한 시점에 하나의 ACTIVE 버전만 허용한다. 운영 사용 가능한 ACTIVE version은
+`review_status_code=DOMAIN_APPROVED`, `review_method_code=DOMAIN_REVIEWER`,
+`status_interpretation_code=PRODUCTION_APPROVED`, `production_eligible=true`,
+`activated_at IS NOT NULL`을 모두 만족해야 한다. DRAFT importer는 계속 `AGENT_ONLY`,
+`PIPELINE_COMPATIBILITY_ONLY`, `production_eligible=false`만 생성한다.
 
 `DOMAIN_APPROVED`는 파이프라인 호환 상태이며 그 문자열만으로 ACTIVE 또는 production-safe로
 승격하지 않는다. `production_eligible=false`인 version은 사용자 추천에 사용할 수 없다.
@@ -415,6 +419,9 @@ DOMAIN_REVIEWER는 건강운동관리사, 물리치료사 또는 동등한 수�
 | created_at | 생성 시각 |
 
 사용자별 version은 유일하다. 완료된 decision이 참조하는 루틴 버전은 수정하지 않고 새 버전을 만든다.
+실제 루틴은 `ACTIVE`, `DOMAIN_APPROVED`, `production_eligible=true`, 도메인 검수 방식과
+승격 시각을 모두 가진 단 하나의 catalog version만 참조한다. 사용자별 생성 transaction은
+advisory lock을 사용하고 `(user_id, version)` UNIQUE로 동시 생성에서도 단조 증가를 보장한다.
 
 ### 6.2 routine_days
 
@@ -429,6 +436,7 @@ DOMAIN_REVIEWER는 건강운동관리사, 물리치료사 또는 동등한 수�
 | body_focus_code | UPPER_BODY, LOWER_BODY 등, nullable |
 | requested_duration_minutes | 사용자가 요청한 권장 운동 길이 |
 | estimated_duration_seconds | requested_duration_minutes와 정확히 일치하는 계획 시간 합계 |
+| setup_seconds | 0~60초 장비 준비 시간 |
 | estimated_calories_burned | 체중 기반 예상 소모 칼로리 추정치, nullable |
 
 ### 6.3 routine_items
@@ -439,6 +447,7 @@ DOMAIN_REVIEWER는 건강운동관리사, 물리치료사 또는 동등한 수�
 | routine_day_id | routine_days FK |
 | exercise_id | exercises FK |
 | sequence | 수행 순서 |
+| phase_code | WARMUP, MAIN, COOLDOWN |
 | tier_code | CORE, SUPPORT, OPTIONAL |
 | sets | 세트 수 |
 | reps | 반복 수, nullable |
@@ -447,6 +456,30 @@ DOMAIN_REVIEWER는 건강운동관리사, 물리치료사 또는 동등한 수�
 | intensity_code | 비의료적 운동 강도 코드 |
 
 tier_code는 routine item의 문맥 속성이다.
+각 routine day는 WARMUP, MAIN, COOLDOWN을 이 순서로 하나 이상 포함하고 MAIN에는 CORE가
+하나 이상 있어야 한다. 단계 순서와 CORE 존재는 service 및 통합 테스트로 검증한다.
+`estimated_duration_seconds = requested_duration_minutes * 60`은 DB CHECK와 duration service
+양쪽에서 검증한다. `schedule_rule=ROTATION`이며 특정 요일을 저장하지 않는다.
+
+### 6.3.1 user_available_locations
+
+| 컬럼 | 설명 |
+|---|---|
+| user_id | users FK |
+| location_code | locations FK, HOME, GYM, OUTDOOR 개별 코드 |
+| created_at | 생성 시각 |
+
+PK는 `(user_id, location_code)`다. 기존 `user_profiles.preferred_location_code`는 하위 호환을
+위해 유지하고 migration에서 현재 값을 관계 테이블로 backfill한다. 복합 장소 enum은 만들지
+않는다.
+
+### 6.3.2 exercise_goal_tag_links와 exercise_prescription_profiles
+
+`exercise_goal_tag_links`는 승인된 운동과 `goal_code`, `CORE/SUPPORT/OPTIONAL` 역할 가능성을
+명시적으로 연결한다. `exercise_prescription_profiles`는 운동·목표·경험 수준·
+`WARMUP/MAIN/COOLDOWN` 단계별 세트, 반복 또는 시간, 휴식, 강도와 prescription version을
+저장한다. 두 테이블 모두 `DOMAIN_APPROVED` 행만 루틴 생성에 사용한다. 운동 이름이나
+training type에서 목표·처방을 추론하지 않는다.
 
 ### 6.4 scheduled_workouts
 

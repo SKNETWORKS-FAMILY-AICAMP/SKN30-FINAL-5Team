@@ -40,6 +40,7 @@ class OnboardingUpsertRequest(BaseModel):
     experience_level_code: str = Field(pattern=r"^[A-Z][A-Z0-9_]{0,63}$")
     timezone: str = Field(min_length=1, max_length=64)
     preferred_location_code: LocationCode
+    available_location_codes: list[LocationCode] | None = None
     default_requested_duration_minutes: int = Field(gt=0, le=240)
     desired_weekly_workout_count: int = Field(gt=0, le=7)
     equipment_codes: list[EquipmentCode] = Field(min_length=1)
@@ -63,9 +64,12 @@ class OnboardingUpsertRequest(BaseModel):
         "equipment_codes",
         "attention_area_codes",
         "preferred_exercise_type_codes",
+        "available_location_codes",
     )
     @classmethod
-    def reject_duplicate_codes(cls, value: list[object]) -> list[object]:
+    def reject_duplicate_codes(cls, value: list[object] | None) -> list[object] | None:
+        if value is None:
+            return value
         if len(value) != len(set(value)):
             raise ValueError("codes must not contain duplicates")
         return value

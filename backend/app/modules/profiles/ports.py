@@ -29,6 +29,7 @@ class OnboardingProfileValues:
     experience_level_code: str
     timezone: str
     preferred_location_code: str
+    available_location_codes: tuple[str, ...]
     default_requested_duration_minutes: int
     desired_weekly_workout_count: int
     coaching_style_code: str

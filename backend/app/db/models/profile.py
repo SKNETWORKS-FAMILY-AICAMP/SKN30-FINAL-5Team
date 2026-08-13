@@ -89,6 +89,20 @@ class UserEquipment(Base):
     )
 
 
+class UserAvailableLocation(Base):
+    __tablename__ = "user_available_locations"
+
+    user_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    location_code: Mapped[str] = mapped_column(
+        String(64), ForeignKey("locations.code"), primary_key=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class UserAttentionArea(Base):
     __tablename__ = "user_attention_areas"
     __table_args__ = (UniqueConstraint("user_id", "body_area_code", name="uq_user_attention_area"),)
@@ -188,7 +202,7 @@ class MutationIdempotencyRecord(Base):
             name="uq_mutation_idempotency_scope",
         ),
         CheckConstraint(
-            "endpoint_code IN ('PUT_ME_ONBOARDING', 'PUT_ME_CONSENTS')",
+            "endpoint_code IN ('PUT_ME_ONBOARDING', 'PUT_ME_CONSENTS', 'POST_ROUTINES')",
             name="ck_mutation_idempotency_endpoint",
         ),
     )
@@ -209,6 +223,7 @@ class MutationIdempotencyRecord(Base):
 
 __all__ = [
     "MutationIdempotencyRecord",
+    "UserAvailableLocation",
     "UserAttentionArea",
     "UserConsent",
     "UserConsentEvent",

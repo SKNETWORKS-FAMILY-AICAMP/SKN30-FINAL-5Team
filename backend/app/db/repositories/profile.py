@@ -9,6 +9,7 @@ from backend.app.db.models.identity import User
 from backend.app.db.models.profile import (
     MutationIdempotencyRecord,
     UserAttentionArea,
+    UserAvailableLocation,
     UserConsent,
     UserConsentEvent,
     UserEquipment,
@@ -134,6 +135,9 @@ class ProfileRepository:
             profile.updated_at = now
 
         session.execute(delete(UserEquipment).where(UserEquipment.user_id == user_id))
+        session.execute(
+            delete(UserAvailableLocation).where(UserAvailableLocation.user_id == user_id)
+        )
         session.execute(delete(UserAttentionArea).where(UserAttentionArea.user_id == user_id))
         session.execute(
             delete(UserPreferredExerciseType).where(UserPreferredExerciseType.user_id == user_id)
@@ -142,6 +146,10 @@ class ProfileRepository:
             [
                 UserEquipment(user_id=user_id, equipment_code=code, created_at=now)
                 for code in values.equipment_codes
+            ]
+            + [
+                UserAvailableLocation(user_id=user_id, location_code=code, created_at=now)
+                for code in values.available_location_codes
             ]
             + [
                 UserAttentionArea(
