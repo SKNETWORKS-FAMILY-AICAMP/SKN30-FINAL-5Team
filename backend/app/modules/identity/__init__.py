@@ -4,12 +4,17 @@ from backend.app.modules.identity.codes import (
     PremiumStatusCode,
     UserStatusCode,
 )
-from backend.app.modules.identity.service import CurrentUser, CurrentUserService
+from backend.app.modules.identity.service import (
+    CurrentUser,
+    CurrentUserService,
+    DeletionLifecycleUserService,
+)
 
 __all__ = [
     "IDENTITY_CODE_SET_VERSION",
     "CurrentUser",
     "CurrentUserService",
+    "DeletionLifecycleUserService",
     "IdentityProviderCode",
     "PremiumStatusCode",
     "UserStatusCode",

@@ -10,6 +10,7 @@ from sqlalchemy.exc import OperationalError
 from backend.app.api.dependencies import (
     get_current_user,
     get_db_session,
+    get_deletion_lifecycle_user,
     get_identity_repository,
 )
 from backend.app.core.config import Settings
@@ -53,6 +54,7 @@ class FakeIdentityRepository:
     def __init__(self, status_code: UserStatusCode = UserStatusCode.ACTIVE) -> None:
         self.record: IdentityUserRecord | None = None
         self.status_code = status_code
+        self.created_count = 0
 
     def acquire_subject_lock(self, session: FakeSession, firebase_subject: str) -> None:
         del session, firebase_subject
@@ -72,6 +74,7 @@ class FakeIdentityRepository:
         now: datetime,
     ) -> IdentityUserRecord:
         del session, firebase_subject, now
+        self.created_count += 1
         self.record = IdentityUserRecord(user_id=uuid4(), status_code=self.status_code)
         return self.record
 
@@ -111,6 +114,21 @@ def protected_app(
         return {"user_id": str(current_user.user_id)}
 
     application.add_api_route("/api/v1/test-protected", protected)
+    return application
+
+
+def deletion_lifecycle_app(repository: FakeIdentityRepository):
+    application = protected_app(StaticVerifier(), repository)
+
+    def deletion_lifecycle(
+        current_user: Annotated[CurrentUser, Depends(get_deletion_lifecycle_user)],
+    ) -> dict[str, str]:
+        return {"status_code": current_user.status_code}
+
+    application.add_api_route(
+        "/api/v1/test-deletion-lifecycle",
+        deletion_lifecycle,
+    )
     return application
 
 
@@ -178,6 +196,50 @@ def test_inactive_internal_account_is_blocked() -> None:
 
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "ACCOUNT_DISABLED"
+
+
+def test_deletion_pending_account_is_blocked_from_ordinary_api() -> None:
+    repository = FakeIdentityRepository(UserStatusCode.DELETION_PENDING)
+    application = protected_app(StaticVerifier(), repository)
+
+    with TestClient(application) as client:
+        response = client.get(
+            "/api/v1/test-protected",
+            headers={"Authorization": "Bearer safe-id-token"},
+        )
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "ACCOUNT_DISABLED"
+
+
+def test_deletion_lifecycle_auth_allows_existing_pending_account() -> None:
+    repository = FakeIdentityRepository(UserStatusCode.DELETION_PENDING)
+    repository.record = IdentityUserRecord(
+        user_id=uuid4(),
+        status_code=UserStatusCode.DELETION_PENDING,
+    )
+    with TestClient(deletion_lifecycle_app(repository)) as client:
+        response = client.get(
+            "/api/v1/test-deletion-lifecycle",
+            headers={"Authorization": "Bearer safe-id-token"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"status_code": "DELETION_PENDING"}
+    assert repository.created_count == 0
+
+
+def test_deletion_lifecycle_auth_does_not_recreate_hard_deleted_account() -> None:
+    repository = FakeIdentityRepository()
+    with TestClient(deletion_lifecycle_app(repository)) as client:
+        response = client.get(
+            "/api/v1/test-deletion-lifecycle",
+            headers={"Authorization": "Bearer safe-id-token"},
+        )
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "AUTHENTICATION_REQUIRED"
+    assert repository.created_count == 0
 
 
 def test_database_failure_uses_safe_service_unavailable_error() -> None:

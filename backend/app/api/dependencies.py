@@ -8,6 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from backend.app.core.errors import AppError
+from backend.app.db.repositories.account_deletion import AccountDeletionRepository
 from backend.app.db.repositories.checkin import DailyContextRepository
 from backend.app.db.repositories.decision import DecisionRepository
 from backend.app.db.repositories.identity import IdentityRepository
@@ -16,6 +17,7 @@ from backend.app.db.repositories.routine import RoutineRepository
 from backend.app.db.repositories.weekly_plan import WeeklyPlanRepository
 from backend.app.db.repositories.weekly_report import WeeklyReportRepository
 from backend.app.db.repositories.workout import WorkoutRepository
+from backend.app.modules.account_deletion.ports import AccountDeletionRepositoryPort
 from backend.app.modules.checkins.ports import DailyContextRepositoryPort
 from backend.app.modules.decisions.ports import DecisionRepositoryPort
 from backend.app.modules.identity.ports import (
@@ -26,8 +28,10 @@ from backend.app.modules.identity.ports import (
 )
 from backend.app.modules.identity.service import (
     AccountAccessBlockedError,
+    AccountAuthenticationRequiredError,
     CurrentUser,
     CurrentUserService,
+    DeletionLifecycleUserService,
 )
 from backend.app.modules.profiles.ports import BirthdateCipher, ProfileRepositoryPort
 from backend.app.modules.routines.ports import RoutineRepositoryPort
@@ -44,6 +48,7 @@ _decision_repository = DecisionRepository()
 _workout_repository = WorkoutRepository()
 _weekly_report_repository = WeeklyReportRepository()
 _weekly_plan_repository = WeeklyPlanRepository()
+_account_deletion_repository = AccountDeletionRepository()
 
 
 def get_db_session(request: Request) -> Iterator[Session]:
@@ -56,6 +61,10 @@ def get_firebase_token_verifier(request: Request) -> FirebaseTokenVerifier:
 
 def get_identity_repository() -> IdentityRepositoryPort:
     return _identity_repository
+
+
+def get_account_deletion_repository() -> AccountDeletionRepositoryPort:
+    return _account_deletion_repository
 
 
 def get_profile_repository() -> ProfileRepositoryPort:
@@ -132,8 +141,51 @@ def get_current_user(
         ) from None
 
 
+def get_deletion_lifecycle_user(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer_scheme)],
+    session: Annotated[Session, Depends(get_db_session)],
+    verifier: Annotated[FirebaseTokenVerifier, Depends(get_firebase_token_verifier)],
+    repository: Annotated[IdentityRepositoryPort, Depends(get_identity_repository)],
+) -> CurrentUser:
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise AppError(
+            status_code=HTTPStatus.UNAUTHORIZED,
+            code="AUTHENTICATION_REQUIRED",
+            message="인증이 필요합니다.",
+        )
+    service = DeletionLifecycleUserService(verifier, repository)
+    try:
+        return service.authenticate(session, credentials.credentials)
+    except (InvalidFirebaseTokenError, AccountAuthenticationRequiredError):
+        raise AppError(
+            status_code=HTTPStatus.UNAUTHORIZED,
+            code="AUTHENTICATION_REQUIRED",
+            message="인증이 필요합니다.",
+        ) from None
+    except FirebaseVerifierUnavailableError:
+        raise AppError(
+            status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+            code="AUTH_PROVIDER_UNAVAILABLE",
+            message="인증 제공자를 일시적으로 사용할 수 없습니다.",
+        ) from None
+    except AccountAccessBlockedError:
+        raise AppError(
+            status_code=HTTPStatus.FORBIDDEN,
+            code="ACCOUNT_DISABLED",
+            message="현재 이 계정으로 접근할 수 없습니다.",
+        ) from None
+    except SQLAlchemyError:
+        raise AppError(
+            status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+            code="DATABASE_UNAVAILABLE",
+            message="데이터베이스를 일시적으로 사용할 수 없습니다.",
+        ) from None
+
+
 __all__ = [
+    "get_account_deletion_repository",
     "get_current_user",
+    "get_deletion_lifecycle_user",
     "get_daily_context_repository",
     "get_decision_repository",
     "get_birthdate_cipher",

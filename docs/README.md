@@ -37,6 +37,7 @@
 - `OWNERSHIP.md`: 역할별 소유권과 승인 경계
 - `TEST_STRATEGY.md`: 테스트 계층과 필수 시나리오
 - `LOCAL_DEVELOPMENT.md`: 로컬 환경 계약
+- `runbooks/account-deletion-operations.md`: 계정 삭제 one-shot 실행과 실패 복구 경계
 - `TRACEABILITY.md`: 요구사항-계약-테스트 추적성
 - `requirements/요구사항_정의서.ndjson`: 제품 요구사항 원문
 
