@@ -16,6 +16,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -66,6 +67,9 @@ class UserWeek(Base):
 
     report: Mapped["WeeklyReport | None"] = relationship(
         back_populates="user_week", uselist=False, cascade="all, delete-orphan"
+    )
+    plan_revisions: Mapped[list["WeeklyPlanRevision"]] = relationship(
+        back_populates="target_user_week", cascade="all, delete-orphan"
     )
 
 
@@ -133,6 +137,92 @@ class WeeklyReport(Base):
     acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     user_week: Mapped[UserWeek] = relationship(back_populates="report")
+    sourced_plan_revisions: Mapped[list["WeeklyPlanRevision"]] = relationship(
+        back_populates="source_weekly_report"
+    )
 
 
-__all__ = ["UserWeek", "WeeklyReport"]
+class WeeklyPlanRevision(Base):
+    __tablename__ = "weekly_plan_revisions"
+    __table_args__ = (
+        UniqueConstraint(
+            "target_user_week_id",
+            "revision_sequence",
+            name="uq_weekly_plan_revisions_week_sequence",
+        ),
+        UniqueConstraint(
+            "target_user_week_id",
+            "ai_revision_number",
+            name="uq_weekly_plan_revisions_week_ai_number",
+        ),
+        CheckConstraint("revision_sequence > 0", name="ck_weekly_plan_revisions_sequence"),
+        CheckConstraint(
+            "(revision_source_code = 'AI' AND "
+            "((safety_status_code IN ('PASS','REVISE') AND ai_revision_number IN (1, 2)) OR "
+            "(safety_status_code IN ('NEEDS_INPUT','BLOCKED','FAILED') "
+            "AND ai_revision_number IS NULL))) OR "
+            "(revision_source_code IN ('INITIAL', 'USER') AND ai_revision_number IS NULL)",
+            name="ck_weekly_plan_revisions_source_ai_number",
+        ),
+        CheckConstraint(
+            "safety_status_code IN ('PASS','NEEDS_INPUT','REVISE','BLOCKED','FAILED')",
+            name="ck_weekly_plan_revisions_safety_status",
+        ),
+        CheckConstraint(
+            "(safety_status_code IN ('PASS','REVISE') AND routine_id IS NOT NULL "
+            "AND selected_location_code IS NOT NULL) OR "
+            "(safety_status_code IN ('NEEDS_INPUT','BLOCKED','FAILED') AND routine_id IS NULL "
+            "AND selected_location_code IS NULL)",
+            name="ck_weekly_plan_revisions_routine_status",
+        ),
+        CheckConstraint(
+            "finalized_at IS NULL OR "
+            "(routine_id IS NOT NULL AND safety_status_code IN ('PASS','REVISE'))",
+            name="ck_weekly_plan_revisions_finalize",
+        ),
+        CheckConstraint("length(input_hash) = 64", name="ck_weekly_plan_revisions_input_hash"),
+        Index(
+            "uq_weekly_plan_revisions_initial",
+            "target_user_week_id",
+            unique=True,
+            postgresql_where=text("revision_source_code = 'INITIAL'"),
+            sqlite_where=text("revision_source_code = 'INITIAL'"),
+        ),
+        Index(
+            "ix_weekly_plan_revisions_week_created",
+            "target_user_week_id",
+            "created_at",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    target_user_week_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("user_weeks.id", ondelete="CASCADE"), nullable=False
+    )
+    source_weekly_report_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("weekly_reports.id", ondelete="CASCADE"), nullable=True
+    )
+    revision_sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    ai_revision_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    revision_source_code: Mapped[str] = mapped_column(String(16), nullable=False)
+    routine_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("routines.id", ondelete="RESTRICT"), nullable=True
+    )
+    selected_location_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    safety_status_code: Mapped[str] = mapped_column(String(16), nullable=False)
+    input_schema_version: Mapped[str] = mapped_column(String(48), nullable=False)
+    input_snapshot: Mapped[dict[str, Any]] = mapped_column(_JSON_TYPE, nullable=False)
+    input_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    weekly_plan_policy_version: Mapped[str] = mapped_column(String(48), nullable=False)
+    revision_reason_codes: Mapped[list[str]] = mapped_column(_JSON_TYPE, nullable=False)
+    finalization_reason_codes: Mapped[list[str]] = mapped_column(_JSON_TYPE, nullable=False)
+    finalized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    target_user_week: Mapped[UserWeek] = relationship(back_populates="plan_revisions")
+    source_weekly_report: Mapped[WeeklyReport | None] = relationship(
+        back_populates="sourced_plan_revisions"
+    )
+
+
+__all__ = ["UserWeek", "WeeklyPlanRevision", "WeeklyReport"]

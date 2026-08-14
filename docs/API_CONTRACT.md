@@ -1173,50 +1173,97 @@ UUID `Idempotency-Key` header가 필수다. 최초 acknowledgement 시각만 저
 
 POST /api/v1/weeks/{week_start}/plan
 
-~~~text
-InitialPlanRequest
-- no `source_code`; 서버가 사용자 이력과 대상 주 상태로 COLD_START 또는 WEEKLY_REPORT를 결정
+UUID `Idempotency-Key` header가 필수이며 request body는 빈 객체다. `source_code`나 안전 상태는
+클라이언트가 지정하지 않는다.
 
+~~~json
+{}
+~~~
+
+~~~text
 InitialPlanResponse
 - revision_id: UUID
 - revision_sequence: integer
+- ai_revision_count: 0
 - source_code: INITIAL
+- source_weekly_report_id: UUID | null
 - safety_status_code: PASS | NEEDS_INPUT | REVISE | BLOCKED | FAILED
 - routine: RoutineResponse | null
+- selected_location_code: string | null
 - finalized: boolean
+- finalized_at: datetime | null
+- revision_reason_codes: string[]
+- finalization_reason_codes: string[]
+- created_at: datetime
 ~~~
 
 이 엔드포인트는 콜드스타트·최초 계획·다음 주 초기 계획만 생성한다. 서버는 사용자 이력과 주간 리포트 상태를 검증한 뒤 `revision_source_code=INITIAL`인 revision을 생성하며, AI 또는 USER 수정은 처리하지 않는다. 최초 가입자의 콜드스타트는 `source_weekly_report_id=null`로 생성할 수 있다.
 
 직전 주 리포트가 `ACKNOWLEDGED`가 아니면 다음 주 초기 계획은 draft로 저장할 수 있지만 `finalized=false`만 허용한다. `finalized=true`는 콜드스타트 예외 또는 직전 주 리포트 `ACKNOWLEDGED` 상태이며, 동시에 `safety_status_code=PASS` 또는 `REVISE`, `routine!=null`인 경우에만 허용한다.
 
-### 13.4 다음 계획 수정
+콜드스타트가 아닌 주에는 닫힌 직전 주 리포트가 필요하다. 리포트가 없으면 409
+`PREVIOUS_WEEKLY_REPORT_REQUIRED`, 이미 초기 revision이 있으면 409
+`INITIAL_PLAN_ALREADY_EXISTS`, 대상 주가 닫혔으면 409 `TARGET_WEEK_CLOSED`다.
+
+### 13.5 다음 계획 수정
 
 POST /api/v1/weeks/{week_start}/plan-revisions
 
-~~~text
-PlanRevisionRequest
-- source_code: AI | USER
-- expected_revision_sequence: integer
-- user_edits: object | null
+UUID `Idempotency-Key` header가 필수다.
 
+AI 수정 요청:
+
+~~~json
+{
+  "source_code": "AI",
+  "expected_revision_sequence": 1,
+  "user_edits": null
+}
+~~~
+
+USER 수정 요청:
+
+~~~json
+{
+  "source_code": "USER",
+  "expected_revision_sequence": 2,
+  "user_edits": {
+    "routine_id": "uuid",
+    "location_code": "HOME"
+  }
+}
+~~~
+
+~~~text
 PlanRevisionResponse
 - revision_id: UUID
 - revision_sequence: integer
 - ai_revision_count: 0 | 1 | 2
 - source_code: AI | USER
+- source_weekly_report_id: UUID | null
 - safety_status_code: PASS | NEEDS_INPUT | REVISE | BLOCKED | FAILED
 - routine: RoutineResponse | null
+- selected_location_code: string | null
 - finalized: boolean
+- finalized_at: datetime | null
+- revision_reason_codes: string[]
+- finalization_reason_codes: string[]
+- created_at: datetime
 ~~~
 
 이 엔드포인트는 기존 `INITIAL` 계획에 대한 `AI` 또는 `USER` 수정만 처리한다. `INITIAL` revision은 이 엔드포인트에서 생성하지 않으며 `/weeks/{week_start}/plan`에서만 생성한다.
 
 `source_code=AI`는 LLM이 루틴을 생성하거나 선택한다는 뜻이 아니다. Training·Recovery·Safety·Feasibility proposal을 병렬 실행한 뒤 멀티에이전트 Coordinator가 요청 내용을 반영한 수정 루틴을 결정하는 서버 흐름이다. `source_code=USER`는 사용자의 직접 편집 흐름이다.
 
-AI 수정은 Coordinator 기반으로 최대 2회다. 성공한 Coordinator 기반 수정 루틴만 `ai_revision_count`에 집계하며, 세 번째 AI 요청은 `409 AI_REVISION_LIMIT_REACHED`다. LLM은 reason code·조정 결과의 설명 문구를 생성하는 선택 기능일 뿐 수정 루틴·요청 시간·안전 상태·veto·후보 선택을 결정하거나 변경하지 않는다. LLM 장애 시 검수된 템플릿 설명을 사용하고 Coordinator 결정과 루틴은 유지한다. USER 편집은 허용하지만 요청 시간·장소·장비 제약과 SafetyAgent 의견 반영 여부를 확인하며, 독립적인 최종 Safety 재검사는 수행하지 않는다. 증상 사용자 시나리오 검증 결과에 따라 revision의 agent 관련 상세 필드는 추후 보완할 수 있다.
+AI 수정은 Coordinator 권한의 서버 선택으로 최대 2회다. 서버가 현재 유효한 routine version을 선택하며 클라이언트는 AI 요청에 `user_edits`를 보낼 수 없다. 성공한 Coordinator 기반 수정 루틴만 `ai_revision_count`에 집계하며, 세 번째 AI 요청은 `409 AI_REVISION_LIMIT_REACHED`다. LLM은 reason code·조정 결과의 설명 문구를 생성하는 선택 기능일 뿐 수정 루틴·요청 시간·안전 상태·veto·후보 선택을 결정하거나 변경하지 않는다. LLM 장애 시 검수된 템플릿 설명을 사용하고 Coordinator 결정과 루틴은 유지한다.
+
+USER 편집은 임의 운동 JSON 대신 사용자 소유의 저장된 routine version과 실행 장소를 참조한다. 서버는 routine의 모든 day가 요청 시간을 보존하는지, 모든 운동이 선택 장소를 지원하는지, 필요 장비가 사용자 장비의 부분집합인지, 저장된 최신 SafetyAgent 제외 운동과 의견을 반영했는지 다시 조회한다. 클라이언트가 안전 상태·의견 반영 코드를 제출할 수 없으며 독립적인 최종 Safety 재검사는 수행하지 않는다. 위반 시 422 `PLAN_REVISION_REJECTED`와 machine-readable reason code를 반환한다.
 
 `NEEDS_INPUT`, `BLOCKED`, `FAILED` revision은 `routine=null`, `finalized=false`로 저장한다. `PASS` 또는 `REVISE` revision은 생성·편집된 routine이 있을 때만 `routine`을 반환하며, `finalized=true`는 콜드스타트 예외 또는 직전 주 리포트 `ACKNOWLEDGED` 상태이고 `safety_status_code=PASS` 또는 `REVISE`, `routine!=null`인 경우에만 허용한다.
+
+`expected_revision_sequence`가 최신 값과 다르면 409 `STALE_PLAN_REVISION`이다. 동일 UUID
+`Idempotency-Key`와 동일 요청은 저장된 응답을 반환하고, 같은 키의 다른 요청은 409
+`IDEMPOTENCY_KEY_REUSED`다.
 
 ---
 
