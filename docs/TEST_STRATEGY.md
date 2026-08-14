@@ -110,6 +110,24 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 - raw reference data는 unit fixture로 직접 쓰지 않고 승인된 최소 normalized seed를 사용한다.
 - 골든 결과는 policy/catalog/ruleset version과 함께 저장한다.
 
+### 5.1 Decision 골든 계약
+
+Wave 6의 decision 저장·API 매핑 테스트는
+`backend/tests/scenarios/decision_golden_fixtures.py`의 버전화된 fixture를 기준으로 한다.
+각 case는 catalog, policy, safety rule, duration rule, graph, coordinator와 proposal schema
+version을 모두 명시한다. 합성된 정규화 context reference만 사용하며 직접 식별자, 생년월일,
+만 나이, 토큰과 원시 건강·웨어러블 데이터는 포함하지 않는다.
+
+전문 Agent proposal 기대값과 Coordinator final result 기대값은 별도 레코드로 비교한다.
+골든 결과 비교의 필수 축은 status, action, selected candidate, safety status, reason code,
+blocked reason code, requested duration, duration adjustment source와 estimated duration이다.
+자유 형식 summary·guidance·LLM 문구는 결정 재현성 비교에 포함하지 않는다. LLM 미사용과
+설명 생성 실패는 같은 입력·version에서 동일한 결정 결과를 만들어야 한다.
+
+Wave 6 저장 계층은 네 proposal을 agent별 레코드로 저장하고 final result와 덮어쓰거나
+합치지 않는다. 공개 API 매핑은 기존 `API_CONTRACT.md` 필드만 사용하며 fixture의
+`graph_version` 등 내부 감사 version을 임의로 공개 필드로 추가하지 않는다.
+
 ## 6. CI 게이트
 
 구현 단계에서 다음 job을 독립 실행하도록 구성한다.
