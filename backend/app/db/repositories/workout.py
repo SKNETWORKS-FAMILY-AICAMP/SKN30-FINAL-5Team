@@ -1,9 +1,9 @@
-from datetime import datetime
+from datetime import date, datetime
 from hashlib import sha256
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session, selectinload
 
 from backend.app.db.models.decision import DecisionRun, PlanCandidate, PlanItem
@@ -11,12 +11,25 @@ from backend.app.db.models.profile import MutationIdempotencyRecord
 from backend.app.db.models.workout import (
     DecisionSelection,
     WorkoutAdditionalActivity,
+    WorkoutFeedback,
+    WorkoutFeedbackAdverseReaction,
+    WorkoutFeedbackDiscomfort,
+    WorkoutSafetyEvent,
+    WorkoutSafetyEventAdverseReaction,
+    WorkoutSafetyEventDiscomfort,
     WorkoutSession,
     WorkoutSessionItem,
+    WorkoutSkipFeedback,
     WorkoutTimerEvent,
 )
+from backend.app.domain.rules.safety import EMERGENCY_REACTION_CODES
 from backend.app.modules.workouts.codes import WORKOUT_RESPONSE_SCHEMA_VERSION
-from backend.app.modules.workouts.ports import IdempotencyRecord, SelectionSource, SessionState
+from backend.app.modules.workouts.ports import (
+    IdempotencyRecord,
+    ReturnHistory,
+    SelectionSource,
+    SessionState,
+)
 
 
 class WorkoutRepository:
@@ -200,6 +213,7 @@ class WorkoutRepository:
             tuple(
                 (plan_item_id, status, completed_at) for plan_item_id, status, completed_at in items
             ),
+            workout.estimated_calories_burned,
         )
 
     def start_session(
@@ -290,6 +304,235 @@ class WorkoutRepository:
             )
         )
         session.flush()
+
+    def create_safety_event(
+        self,
+        session: Session,
+        *,
+        event_id: UUID,
+        session_id: UUID,
+        occurred_at: datetime,
+        instruction_code: str,
+        resulting_action_code: str | None,
+        session_status_code: str,
+        guidance_code: str,
+        reason_code: str,
+        rule_version: str,
+        discomforts: tuple[tuple[str, str], ...],
+        adverse_reaction_codes: tuple[str, ...],
+        now: datetime,
+    ) -> None:
+        session.add(
+            WorkoutSafetyEvent(
+                id=event_id,
+                workout_session_id=session_id,
+                occurred_at=occurred_at,
+                instruction_code=instruction_code,
+                resulting_action_code=resulting_action_code,
+                guidance_code=guidance_code,
+                reason_code=reason_code,
+                rule_version=rule_version,
+                created_at=now,
+            )
+        )
+        session.add_all(
+            [
+                WorkoutSafetyEventDiscomfort(
+                    id=uuid4(),
+                    workout_safety_event_id=event_id,
+                    body_area_code=body_area_code,
+                    severity_code=severity_code,
+                )
+                for body_area_code, severity_code in discomforts
+            ]
+        )
+        session.add_all(
+            [
+                WorkoutSafetyEventAdverseReaction(
+                    workout_safety_event_id=event_id, reaction_code=reaction_code
+                )
+                for reaction_code in adverse_reaction_codes
+            ]
+        )
+        if session_status_code == "STOPPED_FOR_SAFETY":
+            self.finish_session(
+                session,
+                session_id=session_id,
+                status_code=session_status_code,
+                ended_at=occurred_at,
+                actual_elapsed_seconds=None,
+            )
+        session.flush()
+
+    def finish_session(
+        self,
+        session: Session,
+        *,
+        session_id: UUID,
+        status_code: str,
+        ended_at: datetime,
+        actual_elapsed_seconds: int | None,
+    ) -> None:
+        workout = session.get(WorkoutSession, session_id)
+        if workout is None:
+            raise LookupError("locked workout session disappeared")
+        workout.status_code = status_code
+        workout.ended_at = ended_at
+        workout.actual_elapsed_seconds = actual_elapsed_seconds
+        session.flush()
+
+    def create_skip_feedback(
+        self,
+        session: Session,
+        *,
+        session_id: UUID,
+        reason_code: str,
+        now: datetime,
+    ) -> None:
+        session.add(
+            WorkoutSkipFeedback(
+                workout_session_id=session_id,
+                reason_code=reason_code,
+                created_at=now,
+            )
+        )
+        session.flush()
+
+    def feedback_exists(self, session: Session, session_id: UUID) -> bool:
+        return (
+            session.scalar(
+                select(WorkoutFeedback.workout_session_id).where(
+                    WorkoutFeedback.workout_session_id == session_id
+                )
+            )
+            is not None
+        )
+
+    def create_feedback(
+        self,
+        session: Session,
+        *,
+        session_id: UUID,
+        difficulty_code: str,
+        fatigue_code: str | None,
+        satisfaction_code: str | None,
+        pain_occurred: bool,
+        discomforts: tuple[tuple[str, str], ...],
+        adverse_reaction_codes: tuple[str, ...],
+        now: datetime,
+    ) -> None:
+        session.add(
+            WorkoutFeedback(
+                workout_session_id=session_id,
+                difficulty_code=difficulty_code,
+                fatigue_code=fatigue_code,
+                satisfaction_code=satisfaction_code,
+                pain_occurred=pain_occurred,
+                created_at=now,
+            )
+        )
+        session.add_all(
+            [
+                WorkoutFeedbackDiscomfort(
+                    id=uuid4(),
+                    workout_session_id=session_id,
+                    body_area_code=body_area_code,
+                    severity_code=severity_code,
+                )
+                for body_area_code, severity_code in discomforts
+            ]
+        )
+        session.add_all(
+            [
+                WorkoutFeedbackAdverseReaction(
+                    workout_session_id=session_id, reaction_code=reaction_code
+                )
+                for reaction_code in adverse_reaction_codes
+            ]
+        )
+        session.flush()
+
+    def get_return_history(
+        self, session: Session, user_id: UUID, before_local_date: date
+    ) -> ReturnHistory:
+        base = (
+            select(WorkoutSession.status_code, DecisionRun.local_date)
+            .join(
+                DecisionSelection,
+                DecisionSelection.id == WorkoutSession.decision_selection_id,
+            )
+            .join(DecisionRun, DecisionRun.id == DecisionSelection.decision_run_id)
+            .where(
+                WorkoutSession.user_id == user_id,
+                DecisionRun.local_date < before_local_date,
+            )
+            .subquery()
+        )
+        last_completed = session.scalar(
+            select(func.max(base.c.local_date)).where(base.c.status_code == "COMPLETED")
+        )
+        not_completed_count = session.scalar(
+            select(func.count()).select_from(base).where(base.c.status_code == "NOT_COMPLETED")
+        )
+        return ReturnHistory(
+            last_completed_local_date=last_completed,
+            not_completed_history_count=int(not_completed_count or 0),
+        )
+
+    def is_pressure_notification_suppressed(
+        self, session: Session, user_id: UUID, local_date: date
+    ) -> bool:
+        rest_selected = session.scalar(
+            select(DecisionSelection.id)
+            .join(DecisionRun, DecisionRun.id == DecisionSelection.decision_run_id)
+            .where(
+                DecisionRun.user_id == user_id,
+                DecisionRun.local_date == local_date,
+                DecisionSelection.selected_action_code == "REST",
+            )
+            .limit(1)
+        )
+        if rest_selected is not None:
+            return True
+        stop_action = session.scalar(
+            select(WorkoutSafetyEvent.id)
+            .join(WorkoutSession, WorkoutSession.id == WorkoutSafetyEvent.workout_session_id)
+            .join(
+                DecisionSelection,
+                DecisionSelection.id == WorkoutSession.decision_selection_id,
+            )
+            .join(DecisionRun, DecisionRun.id == DecisionSelection.decision_run_id)
+            .where(
+                WorkoutSession.user_id == user_id,
+                DecisionRun.local_date == local_date,
+                WorkoutSafetyEvent.resulting_action_code.in_({"REST", "STOP_AND_SEEK_HELP"}),
+            )
+            .limit(1)
+        )
+        if stop_action is not None:
+            return True
+        emergency_codes = tuple(code.value for code in EMERGENCY_REACTION_CODES)
+        return (
+            session.scalar(
+                select(WorkoutFeedbackAdverseReaction.workout_session_id)
+                .join(
+                    WorkoutSession,
+                    WorkoutSession.id == WorkoutFeedbackAdverseReaction.workout_session_id,
+                )
+                .join(
+                    DecisionSelection,
+                    DecisionSelection.id == WorkoutSession.decision_selection_id,
+                )
+                .join(DecisionRun, DecisionRun.id == DecisionSelection.decision_run_id)
+                .where(
+                    WorkoutSession.user_id == user_id,
+                    DecisionRun.local_date == local_date,
+                    WorkoutFeedbackAdverseReaction.reaction_code.in_(emergency_codes),
+                )
+                .limit(1)
+            )
+            is not None
+        )
 
 
 __all__ = ["WorkoutRepository"]

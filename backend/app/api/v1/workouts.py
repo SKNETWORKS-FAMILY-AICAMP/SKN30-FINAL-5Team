@@ -15,8 +15,16 @@ from backend.app.modules.workouts.schemas import (
     DecisionSelectionResponse,
     WorkoutAdditionalActivityRequest,
     WorkoutAdditionalActivityResponse,
+    WorkoutFeedbackRequest,
+    WorkoutFeedbackResponse,
+    WorkoutSafetyEventRequest,
+    WorkoutSafetyEventResponse,
+    WorkoutSessionFinishRequest,
+    WorkoutSessionFinishResponse,
     WorkoutSessionItemUpdateRequest,
     WorkoutSessionItemUpdateResponse,
+    WorkoutSessionNotCompletedRequest,
+    WorkoutSessionNotCompletedResponse,
     WorkoutSessionStartRequest,
     WorkoutSessionStartResponse,
     WorkoutTimerEventRequest,
@@ -24,8 +32,11 @@ from backend.app.modules.workouts.schemas import (
 )
 from backend.app.modules.workouts.service import (
     DecisionAlreadySelectedError,
+    FeedbackAlreadyExistsError,
     IdempotencyKeyReusedError,
+    InvalidSafetyEventInputError,
     InvalidSessionStateError,
+    NotCompletedReasonRequiredServiceError,
     OptionNotSelectableError,
     SessionEndedError,
     WorkoutResourceNotFoundError,
@@ -73,6 +84,24 @@ def _error(exc: Exception) -> AppError:
             code="IDEMPOTENCY_KEY_REUSED",
             message="같은 멱등성 키를 다른 요청에 사용할 수 없습니다.",
         )
+    if isinstance(exc, NotCompletedReasonRequiredServiceError):
+        return AppError(
+            status_code=409,
+            code="NOT_COMPLETED_REASON_REQUIRED",
+            message="완료한 운동 블록이 없으면 미수행 사유와 함께 종료해야 합니다.",
+        )
+    if isinstance(exc, InvalidSafetyEventInputError):
+        return AppError(
+            status_code=422,
+            code="INVALID_SAFETY_EVENT",
+            message="불편 부위 또는 이상 반응을 한 가지 이상 입력해야 합니다.",
+        )
+    if isinstance(exc, FeedbackAlreadyExistsError):
+        return AppError(
+            status_code=409,
+            code="FEEDBACK_ALREADY_EXISTS",
+            message="이 운동 세션의 피드백이 이미 저장되었습니다.",
+        )
     if isinstance(exc, IntegrityError):
         return AppError(
             status_code=409,
@@ -93,6 +122,9 @@ _WORKOUT_ERRORS = (
     SessionEndedError,
     InvalidSessionStateError,
     IdempotencyKeyReusedError,
+    NotCompletedReasonRequiredServiceError,
+    InvalidSafetyEventInputError,
+    FeedbackAlreadyExistsError,
     IntegrityError,
     SQLAlchemyError,
 )
@@ -191,6 +223,76 @@ def record_additional_activity(
 ) -> WorkoutAdditionalActivityResponse:
     try:
         return WorkoutService(repository).record_additional_activity(
+            session, current_user.user_id, session_id, payload, idempotency_key
+        )
+    except _WORKOUT_ERRORS as exc:
+        raise _error(exc) from None
+
+
+@router.post(
+    "/{session_id}/safety-events", response_model=WorkoutSafetyEventResponse, status_code=201
+)
+def record_safety_event(
+    session_id: UUID,
+    payload: WorkoutSafetyEventRequest,
+    idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db_session)],
+    repository: Annotated[WorkoutRepositoryPort, Depends(get_workout_repository)],
+) -> WorkoutSafetyEventResponse:
+    try:
+        return WorkoutService(repository).record_safety_event(
+            session, current_user.user_id, session_id, payload, idempotency_key
+        )
+    except _WORKOUT_ERRORS as exc:
+        raise _error(exc) from None
+
+
+@router.patch("/{session_id}/finish", response_model=WorkoutSessionFinishResponse)
+def finish_session(
+    session_id: UUID,
+    payload: WorkoutSessionFinishRequest,
+    idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db_session)],
+    repository: Annotated[WorkoutRepositoryPort, Depends(get_workout_repository)],
+) -> WorkoutSessionFinishResponse:
+    try:
+        return WorkoutService(repository).finish_session(
+            session, current_user.user_id, session_id, payload, idempotency_key
+        )
+    except _WORKOUT_ERRORS as exc:
+        raise _error(exc) from None
+
+
+@router.patch("/{session_id}/not-completed", response_model=WorkoutSessionNotCompletedResponse)
+def mark_not_completed(
+    session_id: UUID,
+    payload: WorkoutSessionNotCompletedRequest,
+    idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db_session)],
+    repository: Annotated[WorkoutRepositoryPort, Depends(get_workout_repository)],
+) -> WorkoutSessionNotCompletedResponse:
+    try:
+        return WorkoutService(repository).mark_not_completed(
+            session, current_user.user_id, session_id, payload, idempotency_key
+        )
+    except _WORKOUT_ERRORS as exc:
+        raise _error(exc) from None
+
+
+@router.post("/{session_id}/feedback", response_model=WorkoutFeedbackResponse, status_code=201)
+def record_feedback(
+    session_id: UUID,
+    payload: WorkoutFeedbackRequest,
+    idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db_session)],
+    repository: Annotated[WorkoutRepositoryPort, Depends(get_workout_repository)],
+) -> WorkoutFeedbackResponse:
+    try:
+        return WorkoutService(repository).record_feedback(
             session, current_user.user_id, session_id, payload, idempotency_key
         )
     except _WORKOUT_ERRORS as exc:

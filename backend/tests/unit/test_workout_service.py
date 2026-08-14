@@ -9,12 +9,17 @@ from backend.app.modules.workouts.ports import IdempotencyRecord, SelectionSourc
 from backend.app.modules.workouts.schemas import (
     DecisionSelectionRequest,
     WorkoutAdditionalActivityRequest,
+    WorkoutFeedbackRequest,
+    WorkoutSafetyEventRequest,
+    WorkoutSessionFinishRequest,
     WorkoutSessionItemUpdateRequest,
+    WorkoutSessionNotCompletedRequest,
     WorkoutSessionStartRequest,
     WorkoutTimerEventRequest,
 )
 from backend.app.modules.workouts.service import (
     IdempotencyKeyReusedError,
+    NotCompletedReasonRequiredServiceError,
     OptionNotSelectableError,
     SessionEndedError,
     WorkoutService,
@@ -37,6 +42,9 @@ class FakeWorkoutRepository:
         self.created_selection: dict[str, Any] | None = None
         self.timer_events: list[dict[str, Any]] = []
         self.additional_activities: list[dict[str, Any]] = []
+        self.safety_events: list[dict[str, Any]] = []
+        self.skip_feedback: dict[str, Any] | None = None
+        self.feedback: dict[str, Any] | None = None
         self.item_update_count = 0
 
     def acquire_idempotency_lock(self, *args: Any) -> None:
@@ -121,6 +129,37 @@ class FakeWorkoutRepository:
     def create_additional_activity(self, session: Any, **values: Any) -> None:
         self.additional_activities.append(values)
 
+    def create_safety_event(self, session: Any, **values: Any) -> None:
+        self.safety_events.append(values)
+        if values["session_status_code"] == "STOPPED_FOR_SAFETY":
+            self.finish_session(
+                session,
+                session_id=values["session_id"],
+                status_code="STOPPED_FOR_SAFETY",
+                ended_at=values["occurred_at"],
+                actual_elapsed_seconds=None,
+            )
+
+    def finish_session(self, session: Any, **values: Any) -> None:
+        assert self.session_state is not None
+        self.session_state = SessionState(
+            self.session_state.session_id,
+            values["status_code"],
+            self.session_state.started_at,
+            values["ended_at"],
+            self.session_state.items,
+            self.session_state.estimated_calories_burned,
+        )
+
+    def create_skip_feedback(self, session: Any, **values: Any) -> None:
+        self.skip_feedback = values
+
+    def feedback_exists(self, session: Any, session_id: UUID) -> bool:
+        return self.feedback is not None
+
+    def create_feedback(self, session: Any, **values: Any) -> None:
+        self.feedback = values
+
 
 def _source(*, option_code: str = "FINAL_ROUTINE", vetoed: bool = False) -> SelectionSource:
     decision_id = uuid4()
@@ -185,6 +224,7 @@ def test_rest_selection_does_not_create_workout_session() -> None:
     repository = FakeWorkoutRepository(_source(option_code="REST"))
     _, response = _select(repository, uuid4())
     assert response.workout_session is None
+    assert response.pressure_notifications_allowed is False
     assert repository.session_state is None
     assert repository.created_selection["workout_session_id"] is None  # type: ignore[index]
 
@@ -377,3 +417,132 @@ def test_every_wave_7a_mutation_rejects_an_ended_session() -> None:
     for call in calls:
         with pytest.raises(SessionEndedError):
             call()
+
+
+def _in_progress_repository(
+    statuses: tuple[str, ...] = ("PENDING", "PENDING"),
+) -> tuple[FakeWorkoutRepository, WorkoutService, UUID, UUID]:
+    repository = FakeWorkoutRepository(_source())
+    user_id = uuid4()
+    service, selection = _select(repository, user_id)
+    session_id = selection.workout_session.session_id
+    repository.session_state = SessionState(
+        session_id,
+        "IN_PROGRESS",
+        NOW,
+        None,
+        tuple(
+            (item_id, status, NOW if status == "COMPLETED" else None)
+            for item_id, status in zip(repository.source.plan_item_ids, statuses, strict=True)
+        ),
+    )
+    return repository, service, user_id, session_id
+
+
+@pytest.mark.parametrize(
+    ("statuses", "elapsed_seconds", "expected_status"),
+    [
+        (("COMPLETED", "COMPLETED"), 0, "COMPLETED"),
+        (("COMPLETED", "PENDING"), 99_999, "PARTIAL"),
+    ],
+)
+def test_finish_uses_only_explicit_block_completion(
+    statuses: tuple[str, ...], elapsed_seconds: int, expected_status: str
+) -> None:
+    repository, service, user_id, session_id = _in_progress_repository(statuses)
+    response = service.finish_session(
+        FakeSession(),  # type: ignore[arg-type]
+        user_id,
+        session_id,
+        WorkoutSessionFinishRequest(
+            finished_at=NOW + timedelta(minutes=10),
+            actual_elapsed_seconds=elapsed_seconds,
+        ),
+        uuid4(),
+    )
+    assert response.status_code == expected_status
+    assert repository.session_state.status_code == expected_status
+
+
+def test_zero_checked_blocks_require_not_completed_reason_without_penalty() -> None:
+    repository, service, user_id, session_id = _in_progress_repository()
+    with pytest.raises(NotCompletedReasonRequiredServiceError):
+        service.finish_session(
+            FakeSession(),  # type: ignore[arg-type]
+            user_id,
+            session_id,
+            WorkoutSessionFinishRequest(finished_at=NOW, actual_elapsed_seconds=3600),
+            uuid4(),
+        )
+    response = service.mark_not_completed(
+        FakeSession(),  # type: ignore[arg-type]
+        user_id,
+        session_id,
+        WorkoutSessionNotCompletedRequest(ended_at=NOW, reason_code="TIME_SHORTAGE"),
+        uuid4(),
+    )
+    assert response.status_code == "NOT_COMPLETED"
+    assert response.penalty_applied is False
+    assert repository.skip_feedback["reason_code"] == "TIME_SHORTAGE"
+
+
+def test_severe_and_emergency_safety_events_stop_session_without_pressure() -> None:
+    repository, service, user_id, session_id = _in_progress_repository()
+    severe = service.record_safety_event(
+        FakeSession(),  # type: ignore[arg-type]
+        user_id,
+        session_id,
+        WorkoutSafetyEventRequest(
+            occurred_at=NOW,
+            discomforts=[{"body_area_code": "KNEE", "severity_code": "SEVERE"}],
+        ),
+        uuid4(),
+    )
+    assert severe.instruction_code == "STOP_SESSION"
+    assert severe.resulting_action_code == "REST"
+    assert severe.session_status_code == "STOPPED_FOR_SAFETY"
+    assert severe.pressure_notifications_allowed is False
+
+    emergency_repository, emergency_service, emergency_user, emergency_session = (
+        _in_progress_repository()
+    )
+    emergency = emergency_service.record_safety_event(
+        FakeSession(),  # type: ignore[arg-type]
+        emergency_user,
+        emergency_session,
+        WorkoutSafetyEventRequest(
+            occurred_at=NOW,
+            adverse_reaction_codes=["CHEST_DISCOMFORT"],
+        ),
+        uuid4(),
+    )
+    assert emergency.instruction_code == "STOP_AND_SEEK_HELP"
+    assert emergency.pressure_notifications_allowed is False
+    assert emergency_repository.session_state.status_code == "STOPPED_FOR_SAFETY"
+
+
+def test_feedback_is_informational_and_uses_non_diagnostic_guidance() -> None:
+    repository, service, user_id, session_id = _in_progress_repository(("COMPLETED", "COMPLETED"))
+    repository.session_state = SessionState(
+        session_id,
+        "COMPLETED",
+        NOW,
+        NOW + timedelta(minutes=10),
+        repository.session_state.items,
+    )
+    response = service.record_feedback(
+        FakeSession(),  # type: ignore[arg-type]
+        user_id,
+        session_id,
+        WorkoutFeedbackRequest(
+            difficulty_code="HARD",
+            pain_occurred=True,
+            adverse_reaction_codes=["CHEST_DISCOMFORT"],
+        ),
+        uuid4(),
+    )
+    assert response.session_status_code == "COMPLETED"
+    assert repository.session_state.status_code == "COMPLETED"
+    assert response.pressure_notifications_allowed is False
+    assert response.guidance is not None
+    assert not {"진단", "치료", "처방"} & set(response.guidance.split())

@@ -2,7 +2,11 @@ from datetime import datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints, field_validator
+
+from backend.app.domain.rules.safety import AdverseReactionCode, BodyAreaCode
+from backend.app.domain.rules.workout_execution import WorkoutNotCompletedReasonCode
+from backend.app.modules.checkins.codes import DiscomfortSeverityCode
 
 MachineCode = Annotated[
     str,
@@ -27,6 +31,7 @@ class DecisionSelectionResponse(BaseModel):
     selected_action_code: Literal["KEEP", "DOWNSHIFT", "CHANGE", "RECOVERY", "REST"]
     workout_session: WorkoutSessionSummary | None
     selected_at: datetime
+    pressure_notifications_allowed: bool | None = None
 
 
 class WorkoutSessionStartRequest(BaseModel):
@@ -99,15 +104,139 @@ class WorkoutAdditionalActivityResponse(BaseModel):
     session_status_code: Literal["IN_PROGRESS"]
 
 
+class WorkoutDiscomfortInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    body_area_code: BodyAreaCode
+    severity_code: DiscomfortSeverityCode
+
+
+class WorkoutSafetyEventRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    occurred_at: AwareDatetime
+    discomforts: list[WorkoutDiscomfortInput] = Field(default_factory=list)
+    adverse_reaction_codes: list[AdverseReactionCode] = Field(default_factory=list)
+
+    @field_validator("discomforts")
+    @classmethod
+    def reject_duplicate_body_areas(
+        cls, value: list[WorkoutDiscomfortInput]
+    ) -> list[WorkoutDiscomfortInput]:
+        if len({item.body_area_code for item in value}) != len(value):
+            raise ValueError("body_area_code must not be duplicated")
+        return value
+
+    @field_validator("adverse_reaction_codes")
+    @classmethod
+    def reject_duplicate_reactions(
+        cls, value: list[AdverseReactionCode]
+    ) -> list[AdverseReactionCode]:
+        if len(set(value)) != len(value):
+            raise ValueError("adverse_reaction_codes must not contain duplicates")
+        return value
+
+
+class WorkoutSafetyEventResponse(BaseModel):
+    event_id: UUID
+    instruction_code: Literal["SHOW_CAUTION", "STOP_SESSION", "STOP_AND_SEEK_HELP"]
+    resulting_action_code: Literal["REST", "STOP_AND_SEEK_HELP"] | None
+    session_status_code: Literal["IN_PROGRESS", "STOPPED_FOR_SAFETY"]
+    guidance_code: str
+    guidance: str
+    pressure_notifications_allowed: bool
+
+
+class WorkoutSessionFinishRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    finished_at: AwareDatetime
+    actual_elapsed_seconds: int = Field(ge=0)
+
+
+class WorkoutSessionFinishResponse(BaseModel):
+    session_id: UUID
+    status_code: Literal["COMPLETED", "PARTIAL"]
+    ended_at: datetime
+    completed_item_count: int
+    total_item_count: int
+    actual_elapsed_seconds: int
+    estimated_calories_burned: float | None
+
+
+class WorkoutSessionNotCompletedRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    ended_at: AwareDatetime
+    reason_code: WorkoutNotCompletedReasonCode
+
+
+class WorkoutSessionNotCompletedResponse(BaseModel):
+    session_id: UUID
+    status_code: Literal["NOT_COMPLETED"]
+    ended_at: datetime
+    reason_code: WorkoutNotCompletedReasonCode
+    completed_item_count: Literal[0]
+    total_item_count: int
+    penalty_applied: Literal[False]
+
+
+class WorkoutFeedbackRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    difficulty_code: Literal["EASY", "APPROPRIATE", "HARD"]
+    fatigue_code: MachineCode | None = None
+    satisfaction_code: MachineCode | None = None
+    pain_occurred: bool
+    discomforts: list[WorkoutDiscomfortInput] = Field(default_factory=list)
+    adverse_reaction_codes: list[AdverseReactionCode] = Field(default_factory=list)
+
+    @field_validator("discomforts")
+    @classmethod
+    def reject_duplicate_body_areas(
+        cls, value: list[WorkoutDiscomfortInput]
+    ) -> list[WorkoutDiscomfortInput]:
+        if len({item.body_area_code for item in value}) != len(value):
+            raise ValueError("body_area_code must not be duplicated")
+        return value
+
+    @field_validator("adverse_reaction_codes")
+    @classmethod
+    def reject_duplicate_reactions(
+        cls, value: list[AdverseReactionCode]
+    ) -> list[AdverseReactionCode]:
+        if len(set(value)) != len(value):
+            raise ValueError("adverse_reaction_codes must not contain duplicates")
+        return value
+
+
+class WorkoutFeedbackResponse(BaseModel):
+    session_id: UUID
+    session_status_code: Literal["COMPLETED", "PARTIAL", "NOT_COMPLETED", "STOPPED_FOR_SAFETY"]
+    created_at: datetime
+    guidance_code: str | None
+    guidance: str | None
+    pressure_notifications_allowed: bool
+
+
 __all__ = [
     "DecisionSelectionRequest",
     "DecisionSelectionResponse",
     "WorkoutAdditionalActivityRequest",
     "WorkoutAdditionalActivityResponse",
+    "WorkoutDiscomfortInput",
+    "WorkoutFeedbackRequest",
+    "WorkoutFeedbackResponse",
+    "WorkoutSafetyEventRequest",
+    "WorkoutSafetyEventResponse",
+    "WorkoutSessionFinishRequest",
+    "WorkoutSessionFinishResponse",
     "WorkoutSessionItemUpdateRequest",
     "WorkoutSessionItemUpdateResponse",
     "WorkoutSessionStartRequest",
     "WorkoutSessionStartResponse",
+    "WorkoutSessionNotCompletedRequest",
+    "WorkoutSessionNotCompletedResponse",
     "WorkoutTimerEventRequest",
     "WorkoutTimerEventResponse",
 ]
