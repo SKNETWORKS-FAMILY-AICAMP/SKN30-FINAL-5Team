@@ -55,13 +55,45 @@ Authorization: Bearer {firebase_id_token}
 - 1년 이상 활동이 없는 계정은 DORMANT 서비스 분류와 30일 전 통지 후 삭제 정책을 적용한다. 법정 휴면으로 표현하지 않으며 재활성화·삭제 감사 세부 계약은 출시 전 확정한다.
 - 외부 인증 검증은 integration adapter 뒤에 둔다.
 
-Kakao와 Naver의 모바일 OAuth 교환은 다음 공개 endpoint를 사용한다.
+Kakao와 Naver의 모바일 OAuth 시작·교환은 다음 공개 endpoint를 사용한다. 첫 구현 provider는
+`KAKAO`이며 `NAVER`는 별도 증분에서 활성화한다.
+
+~~~http
+POST /api/v1/auth/social/{provider_code}/authorize-init
+~~~
+
+`authorize-init`은 Firebase 인증 전 호출한다. 클라이언트는 KAKAO Developers에 등록된
+`redirect_uri`와 PKCE S256 challenge를 보내고, 서버는 독립적인 state·nonce, 600초 만료 시각과
+KAKAO authorization URL을 반환한다. 개인정보 scope는 요청하지 않는다.
+
+~~~text
+SocialAuthorizationInitRequest
+- redirect_uri: string
+- code_challenge: string
+- code_challenge_method: S256
+
+SocialAuthorizationInitResponse
+- provider_code: KAKAO
+- authorization_url: string
+- state: string
+- nonce: string
+- expires_at: ISO 8601 timezone-aware timestamp
+~~~
+
+state와 nonce 원문은 응답 후 서버 DB·cache·로그에 저장하지 않는다. PostgreSQL에는 각각의
+SHA-256, redirect URI SHA-256, PKCE challenge와 만료 시각만 저장한다. state는 single-use이며
+정상 교환 시 row를 즉시 삭제한다. 600초 경계 이후는 `422 OAUTH_STATE_EXPIRED`, 불일치·이미
+소비된 state는 `422 INVALID_OAUTH_STATE`다.
 
 ~~~http
 POST /api/v1/auth/social/{provider_code}/exchange
 ~~~
 
-`provider_code`는 KAKAO 또는 NAVER다. 클라이언트는 provider authorization code, 등록된 redirect URI, state/nonce와 provider가 지원하는 경우 PKCE code verifier를 보낸다. 백엔드는 redirect URI와 state/nonce를 검증하고 provider subject를 내부 identity에 연결한 뒤 Firebase custom token을 반환한다. provider access token을 요청 body로 받거나 저장하지 않는다. 이 endpoint는 Firebase 인증 전 호출되므로 별도 rate limit, 재사용 방지, 민감 응답 로그 제거가 필요하다.
+`provider_code`는 KAKAO 또는 NAVER 예약 코드이며 현재 활성 값은 KAKAO다. 클라이언트는 provider
+authorization code, 등록된 redirect URI, 서버가 발급한 state/nonce와 PKCE code verifier를 보낸다.
+백엔드는 redirect URI, state/nonce와 S256 verifier를 검증하고 KAKAO OIDC ID token의 RS256 서명,
+issuer, audience, expiry와 nonce를 검증한다. 검증된 `sub`만 내부 identity에 연결한 뒤 Firebase
+custom token을 반환한다. provider access token을 요청 body로 받거나 저장하지 않는다.
 
 ~~~text
 SocialTokenExchangeRequest
@@ -69,14 +101,25 @@ SocialTokenExchangeRequest
 - redirect_uri: string
 - state: string
 - nonce: string
-- code_verifier: string | null
+- code_verifier: string | null (KAKAO는 필수)
 
 SocialTokenExchangeResponse
 - token_type: FIREBASE_CUSTOM_TOKEN
 - firebase_custom_token: string
 ~~~
 
-authorization code는 한 번만 사용할 수 있고 같은 code의 재요청은 409 AUTHORIZATION_CODE_REUSED다. custom token은 응답 후 서버 cache나 도메인 DB에 저장하지 않는다.
+authorization code는 한 번만 사용할 수 있다. KAKAO의 만료·재사용·미존재 code는 모두
+`KOE320 invalid_grant`이므로 민감한 provider 설명 없이 `409 AUTHORIZATION_CODE_REUSED`로
+fail-closed 매핑한다. custom token은 응답 후 서버 cache나 도메인 DB에 저장하지 않는다.
+
+두 비인증 social endpoint에는 PostgreSQL fixed-window 제한을 함께 적용한다.
+
+- 요청 IP: 10회/분
+- `(provider_code, redirect_uri)`: 60회/시간
+
+제한 키는 운영 secret 기반 HMAC-SHA256만 저장하며 원시 IP와 redirect URI는 rate-limit row나
+로그에 남기지 않는다. 초과 요청은 provider 호출 없이 `429 RATE_LIMITED`다. KAKAO timeout,
+일시 오류와 5xx는 `503 PROVIDER_UNAVAILABLE`이며 provider 원본 응답을 오류에 포함하지 않는다.
 
 ---
 
@@ -215,6 +258,7 @@ health endpoint는 인증 없이 호출할 수 있지만 민감한 설정, DB �
 
 | 메서드 | 경로 | 설명 |
 |---|---|---|
+| POST | /api/v1/auth/social/{provider_code}/authorize-init | 서버 state·nonce와 KAKAO PKCE authorization URL 발급 |
 | POST | /api/v1/auth/social/{provider_code}/exchange | Kakao/Naver authorization code를 검증하고 Firebase custom token으로 교환 |
 | GET | /api/v1/me | 현재 사용자와 온보딩 상태 |
 | GET | /api/v1/me/identities | 현재 사용자에 연결된 인증 provider 목록 |
@@ -1358,9 +1402,10 @@ SafetySummary
 | 403 | ACCOUNT_DISABLED, AGE_REQUIREMENT_NOT_MET |
 | 404 | RESOURCE_NOT_FOUND, ROUTINE_NOT_FOUND, DAILY_CONTEXT_NOT_FOUND |
 | 409 | STALE_CONTEXT, INVALID_STATE_TRANSITION, OPTION_NOT_SELECTABLE, IDEMPOTENCY_KEY_REUSED, ROUTINE_VERSION_CONFLICT, AUTHORIZATION_CODE_REUSED, WEEK_NOT_CLOSED, REPORT_ACKNOWLEDGEMENT_REQUIRED, AI_REVISION_LIMIT_REACHED, CONSENT_REQUIRED, WEARABLE_NOT_CONNECTED, CALENDAR_NOT_CONNECTED |
-| 422 | INVALID_DOMAIN_CODE, INVALID_DURATION, ROUTINE_DURATION_UNAVAILABLE, ROUTINE_CONTENT_UNAVAILABLE, DUPLICATE_BODY_AREA, INVALID_DATE_OF_BIRTH, NEEDS_INPUT, INVALID_WEEK_START |
+| 422 | INVALID_DOMAIN_CODE, INVALID_DURATION, ROUTINE_DURATION_UNAVAILABLE, ROUTINE_CONTENT_UNAVAILABLE, DUPLICATE_BODY_AREA, INVALID_DATE_OF_BIRTH, NEEDS_INPUT, INVALID_WEEK_START, INVALID_OAUTH_STATE, OAUTH_STATE_EXPIRED |
+| 429 | RATE_LIMITED |
 | 500 | INTERNAL_ERROR, DECISION_FAILED |
-| 503 | DATABASE_UNAVAILABLE, AUTH_PROVIDER_UNAVAILABLE, APPROVED_CATALOG_UNAVAILABLE |
+| 503 | DATABASE_UNAVAILABLE, AUTH_PROVIDER_UNAVAILABLE, APPROVED_CATALOG_UNAVAILABLE, PROVIDER_UNAVAILABLE |
 
 안전한 후보가 없어 REST를 정상 반환하는 것은 오류가 아니다.
 
@@ -1457,7 +1502,6 @@ DB 저장에 실패한 decision 결과는 성공 응답하지 않는다.
 
 ## 20. 팀 확인 질문
 
-- 비인증 social exchange endpoint의 rate limit과 state/nonce 만료 시간을 얼마로 둘지?
 - USER 계획 편집 request의 최소 필드와 낙관적 잠금 오류 코드는 무엇인지?
 - 외부 안전 문구 검수 후 최종 copy version
 

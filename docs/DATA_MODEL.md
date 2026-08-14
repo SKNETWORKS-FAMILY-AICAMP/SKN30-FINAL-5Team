@@ -78,8 +78,60 @@ PostgreSQL ENUM을 광범위하게 사용하지 않는다. 자주 변경될 수 
 활성 identity의 `(provider_code, provider_subject)`와 `firebase_subject`는 유일해야 한다. provider access/refresh token, 이메일, 전체 이름은 저장하지 않는다.
 
 첫 인증 수직 슬라이스의 `identity-mvp-v1` provider code는 실제 사용하는 `FIREBASE`만
-검증한다. 문서에 예약된 `GOOGLE`, `KAKAO`, `NAVER` 연결은 해당 adapter가 구현될 때 기존 code를
-변경하지 않고 새 code-set version과 CHECK migration으로 추가한다.
+검증한다. KAKAO adapter 증분은 `identity-social-v1`을 새 code-set version으로 추가하고 이 version의
+`KAKAO` identity를 허용한다. 기존 `identity-mvp-v1` 값과 row는 변경하거나 rewrite하지 않는다.
+문서에 예약된 `GOOGLE`, `NAVER` 연결은 각 adapter가 구현될 때 별도 code-set version과 CHECK
+migration으로 추가한다.
+
+KAKAO `provider_subject`는 OIDC ID token의 검증된 `sub`만 사용한다. 이 값은 app-scoped service
+user ID이며 KAKAO 공식 문서상 OIDC에서는 String, 원천 API에서는 Long이다. 공식 최대 문자열
+길이는 공개되지 않았으므로 기존 255자 저장 상한을 넘는 값은 provider schema 오류로 거부하고
+이메일·전화번호 등 변경 가능한 값을 대체 subject로 사용하지 않는다.
+
+### 4.2.1 social_oauth_authorization_requests
+
+Firebase 인증 전 KAKAO authorization 요청을 600초 동안 검증하기 위한 transient row다. 사용자
+계정이나 provider subject와 연결하지 않는다.
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| provider_code | 현재 KAKAO만 허용 |
+| state_hash | state 원문의 SHA-256 lowercase hex, unique |
+| nonce_hash | nonce 원문의 SHA-256 lowercase hex |
+| redirect_uri_hash | 등록 redirect URI 원문의 SHA-256 lowercase hex |
+| code_challenge | RFC 7636 S256 challenge |
+| code_challenge_method | S256 고정 |
+| created_at | 발급 시각, timestamptz |
+| expires_at | `created_at + 600초`, timestamptz |
+
+state·nonce 원문, PKCE verifier, authorization code와 provider token은 저장하지 않는다. exchange는
+state hash row를 잠그고 redirect URI hash, nonce hash, S256 verifier와 만료를 확인한 뒤 같은
+transaction에서 row를 삭제한다. row가 없으면 `INVALID_OAUTH_STATE`, row가 존재하지만
+`expires_at` 경계에 도달했으면 삭제 후 `OAUTH_STATE_EXPIRED`다. 만료 row는 init/exchange 요청 시
+논리적으로 정리하며 scheduler를 추가하지 않는다.
+
+### 4.2.2 social_oauth_rate_limit_windows
+
+비인증 social init/exchange의 PostgreSQL fixed-window counter다.
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| provider_code | 현재 KAKAO만 허용 |
+| dimension_code | IP 또는 PROVIDER_REDIRECT |
+| key_digest | 운영 secret 기반 HMAC-SHA256 lowercase hex |
+| window_started_at | UTC fixed-window 시작 시각 |
+| window_seconds | IP는 60, PROVIDER_REDIRECT는 3600 |
+| request_count | 원자적으로 증가하는 양의 정수 |
+| expires_at | window 종료 시각 |
+| created_at | row 생성 시각 |
+| updated_at | 마지막 증가 시각 |
+
+`(provider_code, dimension_code, key_digest, window_started_at)`은 유일하다. IP window는 10회,
+`(provider_code, redirect_uri)` window는 60회를 초과할 수 없다. raw IP, redirect URI, state,
+nonce와 token은 저장하지 않으며 keyed-digest secret은 DB·로그·fixture에 두지 않는다. 만료 row는
+요청 시 논리적으로 삭제한다.
 
 ### 4.3 user_profiles
 
