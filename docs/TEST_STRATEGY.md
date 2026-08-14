@@ -91,6 +91,13 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 65. 마지막 활성 로그인 수단 일반 해제는 거부하고 account deletion 전체 해제는 허용
 66. token·email·name·nickname·provider 원본 응답과 subject가 로그·snapshot·metric label에 없음
 67. Google은 Firebase 기본 provider와 추가 scope 없음, Kakao/Naver 직접 adapter는 `openid`만 허용
+68. 캘린더 미연동 사용자는 수동 체크인·앱 운동 블록 체크로 핵심 흐름을 정상 수행
+69. 캘린더 권한 거부는 운동 계획을 변경하지 않고 수동 경로를 유지
+70. calendar `performed=true|false|null`은 공식 workout 상태를 변경하지 않음
+71. Google Calendar `performed=null`은 검수 fallback 안내이며 오류가 아님
+72. calendar provider timeout·5xx·quota는 `PROVIDER_UNAVAILABLE`이고 계획을 삭제·변경하지 않음
+73. 하루 전체 busy는 빈 후보 배열이며 사용자 희망 운동시간을 단축하지 않음
+74. freebusy 종일 구간은 event 본문 조회 없이 busy로 처리
 
 ## 4. 속성·불변식 테스트
 
@@ -167,6 +174,17 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 - Google Firebase 경로는 backend direct exchange route를 호출하지 않음
 - Kakao는 state·nonce·PKCE S256, Naver는 state·PKCE S256을 적용하고 미문서 nonce를 추정하지 않음
 - 독립 identity unlink는 총 5회·24시간 예산 뒤 REVIEW 상태이며 account deletion은 ADR-0008을 따름
+- 캘린더 동의·연결 gate 이전에는 provider port를 호출하지 않음
+- availability 30/31회와 전체 calendar 60/61회 fixed-window 경계에서 provider 호출 전 차단함
+- freebusy의 겹치거나 맞닿은 구간은 병합하고 후보 전후 15분 buffer를 적용함
+- 최소 빈 구간은 사용자 희망 운동시간 + 30분이며 1분 미달 경계를 후보에서 제외함
+- availability 후보는 시작 시각 오름차순 최대 8개이고 시간대·특정 요일 필터가 없음
+- 로컬 자정 경계와 DST 23/25시간 날짜를 UTC instant로 정확히 처리함
+- freebusy가 반환한 종일 포함 모든 busy 구간을 점유로 처리하고 event list를 조회하지 않음
+- 후보 없음은 빈 배열이며 `requested_duration_minutes`를 변경하지 않음
+- performance는 공식 종료 상태 이후, 10분 경계부터 재확인할 수 있음
+- Google performance는 항상 `null`이고 캘린더 관찰값은 공식 workout 상태를 변경할 수 없음
+- calendar 제목·설명·참석자·위치·token·raw payload/error가 log·response·fixture에 없음
 
 ## 5. 테스트 데이터
 
@@ -255,6 +273,22 @@ digest row 소비·삭제, 실패 시 새 init, verifier ownership, OIDC verifie
 PostgreSQL concurrent unique/rollback, additive Alembic round trip과 frontend callback contract를 추가한다. 실제 adapter test는
 official discovery/JWKS에서 만든 최소 합성 fixture와 합성 HTTP failure를 사용하며 live provider나 실제
 credential을 CI 필수 조건으로 만들지 않는다. Google은 기존 Firebase 경로를 유지하고 Naver는 후속 독립 PR이다.
+
+### 5.6 Calendar 외부 컨텍스트 골든·개인정보 계약
+
+캘린더 fixture는 합성 UUIDv4, IANA timezone, local date, freebusy의 start/end 구간,
+`external-context-policy-v1`과 provider/failure machine code만 사용한다. 제목, 설명, 참석자, 위치,
+calendar ID, provider subject, external event ID, access/refresh token과 원시 provider payload/error는
+fixture·snapshot·로그 기대값에 포함하지 않는다.
+
+domain unit은 동의·연결 gate, 30/31·60/61 rate limit, 10분 performance 재확인, busy 병합,
+15분 buffer, 최소 길이 ±1분, 후보 8개 상한, 자정/DST와 공식 completion 불변을 검증한다. golden
+suite는 미연동, 권한 거부, `performed=true`, Google `performed=null`, provider 장애, 하루 전체 busy와
+종일 busy를 고정한다. privacy test는 observability allowlist와 금지 field 비노출을 검증한다.
+
+ADR-0010 승인 뒤 9C-2는 OAuth 600초 state·PKCE, secret reference, provider 호출 전 rate limit,
+연결·동기화·해제 멱등성, transaction rollback, PostgreSQL/Alembic round trip과 합성 Google HTTP
+응답 adapter test를 추가한다. live provider와 실제 credential은 CI 필수 조건으로 만들지 않는다.
 
 ## 6. CI 게이트
 

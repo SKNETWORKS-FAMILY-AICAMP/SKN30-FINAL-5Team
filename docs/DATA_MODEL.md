@@ -649,12 +649,16 @@ training type에서 목표·처방을 추론하지 않는다.
 | user_id | users FK |
 | provider_code | 캘린더 제공자 코드 |
 | provider_subject | 외부 계정의 불변 subject, nullable |
+| token_secret_ref | secret manager token 참조, nullable (`PROPOSED` ADR-0010; token 원문 금지) |
 | status_code | ACTIVE, REVOKED |
 | granted_at | 권한 부여 시각 |
 | revoked_at | 연동 해제 시각, nullable |
 | created_at | 생성 시각 |
 
-외부 access/refresh token과 캘린더 본문 텍스트는 저장하지 않는다. `CALENDAR_INTEGRATION` 동의가 없거나 철회된 상태에서는 연결·조회·등록을 처리하지 않으며, 동의 철회 또는 연동 해제 시 동기화를 즉시 중단한다.
+외부 access/refresh token과 캘린더 본문 텍스트는 저장하지 않는다. `token_secret_ref`는 실제 token이
+아니라 secret manager 참조만 허용하며 ADR-0010 승인과 additive migration 전에는 논리 제안 필드다.
+`CALENDAR_INTEGRATION` 동의가 없거나 철회된 상태에서는 연결·조회·등록을 처리하지 않으며, 동의 철회
+또는 연동 해제 시 동기화를 즉시 중단한다. Google freebusy 원본 payload는 영속화하지 않는다.
 
 ### 6.6 calendar_event_links
 
@@ -670,7 +674,7 @@ training type에서 목표·처방을 추론하지 않는다.
 | performance_checked_at | 수행 여부 확인 시각, nullable |
 | created_at | 등록 시각 |
 
-캘린더 이벤트는 시간 후보와 계획 등록을 위한 보조 기록이다. 등록된 운동 일정에 대해서는 `performed` 여부와 확인 시각만 확인·저장할 수 있고 세부 운동·수행 시간·강도 기록은 저장하지 않는다. provider가 수행 여부를 제공하지 않으면 `performed`는 `null`이다. 확인 결과는 운동 세션의 공식 상태를 생성하거나 변경하지 않는다. 웨어러블 운동 데이터로 캘린더 이벤트를 자동 생성하거나 갱신하지 않는다.
+캘린더 이벤트는 시간 후보와 계획 등록을 위한 보조 기록이다. 등록된 운동 일정에 대해서는 `performed` 여부와 확인 시각만 확인·저장할 수 있고 세부 운동·수행 시간·강도 기록은 저장하지 않는다. Google Calendar는 수행 여부를 제공하지 않으므로 `performed`는 항상 `null`이다. `external_event_id`는 Google Event `id`의 5~1024자를 허용하고 `iCalUID`와 혼용하지 않는다. 확인 결과는 운동 세션의 공식 상태를 생성하거나 변경하지 않는다. 웨어러블 운동 데이터로 캘린더 이벤트를 자동 생성하거나 갱신하지 않는다.
 
 ---
 

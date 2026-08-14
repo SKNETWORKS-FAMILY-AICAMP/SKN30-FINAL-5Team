@@ -324,10 +324,25 @@ exercise 목록 전체와 카탈로그 관리 API는 초기 공개 API에 포함
 캘린더:
 
 ~~~text
+[PROPOSED ADR-0010]
+POST /api/v1/calendar/connection/authorize-init
+CalendarConnectionAuthorizeInitRequest
+- provider_code: GOOGLE_CALENDAR
+- redirect_uri_key: string (server allowlist key)
+- code_challenge_s256: string
+- consent_version: string
+
+CalendarConnectionAuthorizeInitResponse
+- authorization_url: string
+- state: string
+- expires_at: datetime (요청 생성 후 600초)
+
 POST /api/v1/calendar/connection
 CalendarConnectionRequest
 - provider_code: string
 - authorization_code: string
+- state: string (`PROPOSED` ADR-0010, 승인 뒤 additive 적용)
+- code_verifier: string (`PROPOSED` ADR-0010, 승인 뒤 Google Calendar에서 필수)
 - consent_version: string
 
 CalendarAvailabilityResponse
@@ -349,6 +364,33 @@ CalendarPerformanceResponse
 ~~~
 
 `CALENDAR_INTEGRATION` 동의와 외부 권한이 없으면 연결·조회·등록·수행 여부 확인을 수행하지 않는다. 일정 본문 텍스트는 저장하지 않고, 캘린더에는 운동 계획 일정만 등록한다. 캘린더에서는 등록된 운동 일정의 수행 여부만 확인할 수 있으며 세부 운동·수행 시간·강도 기록은 저장하지 않는다. 확인 결과는 보조 자료로만 사용하고 공식 운동 수행 상태를 변경하지 않는다. 권한 거부·조회 실패·등록 실패·수행 여부 확인 실패는 상태와 안내만 반환하며 운동 계획을 삭제하거나 임의 변경하지 않는다. 특정 요일을 필수 운동일로 강제하지 않는다.
+
+Wave 9C의 첫 provider는 Google Calendar API v3(`GOOGLE_CALENDAR`)다. 실제 adapter는
+`PROPOSED` ADR-0010 승인 뒤 추가한다. availability는 `POST /calendar/v3/freeBusy`와
+`https://www.googleapis.com/auth/calendar.freebusy`, 운동 이벤트는 앱이 만든 보조 캘린더에 한정하는
+`https://www.googleapis.com/auth/calendar.app.created`만 사용한다. event list와 일정 제목·설명·참석자·
+위치·organizer·creator를 조회하지 않는다. 사용자 timezone은 저장된 IANA timezone을 사용하며
+`calendar.settings.readonly`를 요청하지 않는다.
+
+동기화는 on-demand pull 전용이고 availability를 cache하지 않으므로 stale 판정이 없다. webhook, push,
+polling worker와 scheduler를 사용하지 않는다. 사용자별 availability는 30회/시간, calendar endpoint
+전체는 60회/시간이며 초과 시 provider 호출 없이 `429 RATE_LIMITED`다. provider의 403/429 quota,
+timeout과 5xx는 원문 없이 `503 PROVIDER_UNAVAILABLE`로 처리하고 수동 체크인·앱 운동 블록 체크를
+유지한다.
+
+빈 시간은 요청 `local_date`의 사용자 로컬 00:00부터 다음 날 00:00까지 계산한다. freebusy의 겹치거나
+맞닿은 구간을 병합하고, 종일 여부를 추정하지 않고 provider가 반환한 모든 busy 구간을 점유 시간으로
+처리한다. 후보 앞뒤에 15분씩 buffer를 두며 사용자 희망 운동시간과 buffer 30분을 수용하지 못한
+구간은 제외한다. 후보는 시작 시각 오름차순 최대 8개다. 후보가 없으면 빈 배열을 반환하고 희망
+운동시간을 임의 단축하지 않는다.
+
+Google Calendar에는 운동 수행 여부 필드가 없으므로 `performed`는 항상 `null`이다. 확인은 공식
+scheduled workout 종료 상태 이후에만 허용하고 같은 link는 `performance_checked_at`부터 10분 뒤에
+재확인할 수 있다. 일정의 confirmed/tentative/cancelled 또는 삭제를 수행 여부로 해석하지 않는다.
+
+ADR-0010은 600초 single-use server-issued state와 PKCE S256을 제안한다. 승인 뒤 additive
+`POST /api/v1/calendar/connection/authorize-init` 계약을 추가하고 `CalendarConnectionRequest`의
+`state`·`code_verifier`를 활성화한다. 승인 전에는 해당 route와 Google adapter를 제공하지 않는다.
 
 웨어러블:
 
@@ -1526,7 +1568,6 @@ DB 저장에 실패한 decision 결과는 성공 응답하지 않는다.
 - 높은 피로 외 수면·부하 파생 규칙
 - 운동 중 MILD 또는 MODERATE 불편에 대한 세션 재구성 정책
 - 멀티 에이전트 로직 설계 후 공개 회의 UI의 agent summary 상세 필드
-- MVP 캘린더 provider·availability/event/performance adapter의 세부 payload
 - 체중 기반 칼로리 추정 산식·계수 버전
 - training_type_code와 body_focus_code의 전체 목록
 - 운동 자세·설명 콘텐츠의 승인 및 버전 갱신 정책

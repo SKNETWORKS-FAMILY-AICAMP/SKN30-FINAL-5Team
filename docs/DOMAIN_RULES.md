@@ -494,6 +494,8 @@ NOT_COMPLETED, STOPPED_FOR_SAFETY로 종료된 세션의 블록과 상태는 변
 | 상황 | 필수 처리 |
 |---|---|
 | 웨어러블 없음 또는 권한 거부 | 수동 체크인과 앱 운동 블록 체크로 정상 처리 |
+| 캘린더 미연결·권한 거부 | 수동 체크인과 앱 운동 블록 체크를 유지하고 계획을 변경하지 않음 |
+| 캘린더 provider 장애 | `PROVIDER_UNAVAILABLE`, 계획을 삭제·변경하지 않고 수동 경로 유지 |
 | 선택 데이터 누락 | 칼로리 값은 `null`로 유지하고 의료 상태를 추론하지 않음 |
 | LLM 장애 | 템플릿 설명 사용 |
 | 필수 전문 에이전트 하나라도 장애 | FAILED, 운동 계획을 성공 응답으로 반환하지 않음 |
@@ -610,6 +612,35 @@ CACHE_AND_WORK_DELETE -> AUDIT_DEIDENTIFICATION -> BACKUP_EXPIRY_VERIFICATION`�
 - 계정 삭제의 provider 해제는 위 독립 해제 예산이 아니라 ADR-0008의 7일·로컬 hard-delete 우선
   계약을 사용한다.
 
+### 13.3 캘린더 외부 컨텍스트 정책
+
+Google Calendar의 provider별 상세 계약은 `PROPOSED` ADR-0010과
+`external-context-policy-v1`을 따른다. ADR이 `ACCEPTED`가 되기 전에는 실제 route·HTTP adapter·
+repository·migration을 구현하지 않는다.
+
+- 캘린더는 선택적 보조 컨텍스트다. 미연결·권한 거부·provider 장애에서도 수동 체크인과 앱 운동
+  블록 체크를 포함한 핵심 흐름이 동작한다.
+- `CALENDAR_INTEGRATION` 동의가 없거나 철회되면 provider 호출을 수행하지 않는다.
+- availability는 저장된 사용자 IANA timezone의 로컬 하루를 Google freebusy 전용 scope로 조회한다.
+  event list, 제목, 설명, 참석자, 위치와 calendar 본문은 조회하지 않는다.
+- freebusy는 종일 여부를 제공하지 않으므로 종일 여부를 시간 경계로 추정하지 않는다. provider가
+  반환한 종일 포함 모든 busy 구간을 점유 시간으로 처리한다.
+- 겹치거나 맞닿은 busy 구간을 병합한 뒤 각 빈 구간의 앞뒤 15분을 buffer로 제외한다. 남은 구간이
+  사용자의 희망 운동시간보다 짧으면 후보를 만들지 않는다.
+- 시간대 필터와 필수 운동 요일을 적용하지 않는다. 후보는 시작 시각 오름차순으로 최대 8개다.
+- 후보가 없으면 빈 배열을 반환하고 사용자 희망 운동시간을 임의 단축하지 않는다.
+- 사용자별 availability 30회/시간과 전체 calendar endpoint 60회/시간을 provider 호출 전에 적용한다.
+- availability는 cache하지 않아 stale 판정이 없다. performance는 공식 workout 종료 상태 이후,
+  같은 link의 직전 `performance_checked_at`부터 10분 뒤에만 재확인한다.
+- Google Calendar는 운동 수행 필드가 없으므로 `performed=null`과 검수 fallback 안내를 반환한다.
+  confirmed, tentative, cancelled, 삭제와 참석 응답을 운동 수행 여부로 해석하지 않는다.
+- 캘린더 관찰 결과는 공식 `COMPLETED`, `PARTIAL`, `NOT_COMPLETED`, `STOPPED_FOR_SAFETY`를 생성·
+  변경할 수 없다. 안전 veto와 수동 체크인보다 우선할 수 없다.
+- raw freebusy/event payload 보유기간은 0시간이다. token 원문, calendar 본문과 provider 원시 오류를
+  DB, cache, log, metric, trace, snapshot, fixture와 LLM 입력에 포함하지 않는다.
+- 연동 해제는 로컬 `REVOKED`와 token secret 폐기를 provider revoke보다 우선한다. provider 실패는
+  로컬 해제를 되돌리지 않으며 반복 해제는 성공 no-op이다. 계정 삭제는 ADR-0008 port를 재사용한다.
+
 ---
 
 ## 14. 재현성과 감사
@@ -676,6 +707,13 @@ CACHE_AND_WORK_DELETE -> AUDIT_DEIDENTIFICATION -> BACKUP_EXPIRY_VERIFICATION`�
 40. identity DB commit 실패: 전체 rollback, custom token·성공 응답 없음
 41. token·email·name·nickname·subject·원시 provider 응답이 로그·snapshot에 없음
 42. 마지막 활성 identity 일반 해제 차단, 계정 삭제 전체 해제는 허용
+43. 캘린더 미연동: 수동 체크인과 앱 운동 블록 체크로 정상 핵심 흐름
+44. 캘린더 권한 거부: 수동 경로 유지, 기존 운동 계획 불변
+45. 캘린더 `performed=true`: 공식 세션 상태 불변
+46. Google `performed=null`: fallback 안내 반환, 오류 아님
+47. 캘린더 provider 장애: `PROVIDER_UNAVAILABLE`, 계획 삭제·변경 없음
+48. 하루 전체 busy: 빈 후보 배열, 희망 운동시간 단축 없음
+49. freebusy 종일 구간: busy로 처리하며 일정 본문 조회 없음
 
 ---
 
