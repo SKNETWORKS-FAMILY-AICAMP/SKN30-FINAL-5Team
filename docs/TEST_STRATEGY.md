@@ -44,7 +44,7 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 18. 타이머 START/PAUSE/RESUME/END 이력이 상태를 변경하지 않음
 19. 추가 운동 기록이 공식 블록 상태를 변경하지 않음
 20. 닫힌 주 리포트 확인 전 다음 주 계획 확정 차단
-21. 7일 또는 3회 미수행 복귀 모드
+21. 마지막 공식 완료 후 13일에는 일반 상태, 14일에는 복귀 모드이며 연속 미수행은 학습 신호만 생성
 22. 계정 삭제 요청 즉시 접근 차단
 23. 동의 철회 시 해당 동기화·토큰 즉시 중단
 24. 보유기간(28일/24시간/90일/12개월)과 관리자 로그 2년 검증
@@ -78,8 +78,16 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 - estimated duration과 actual elapsed time이 완료 상태에 영향을 주지 않음
 - 운동 블록 완료 mutation의 중복 요청이 한 번만 반영됨
 - 완료 취소는 세션 종료 전에만 PENDING으로 되돌릴 수 있음
+- 종료된 COMPLETED/PARTIAL/NOT_COMPLETED/STOPPED_FOR_SAFETY 세션은 변경할 수 없음
 - 다음 운동은 sequence상 첫 PENDING 블록임
+- 긴급 안전 이벤트는 STOP_AND_SEEK_HELP veto를 유지하고 SEVERE·급성 신호는 STOP_SESSION + REST로 종료됨
+- MILD/MODERATE 안전 이벤트는 SHOW_CAUTION이며 진행 중 계획을 자동 재작성하지 않음
 - REST/STOP 응답에는 plan 없음
+- REST 선택 당일에는 추가 압박 알림을 보내지 않음
+- 복귀 모드는 마지막 공식 COMPLETED 후 14일 공백으로만 활성화됨
+- NOT_COMPLETED 이력은 복귀 트리거·벌점이 아닌 학습 신호임
+- 복귀 모드에서 승인된 load/volume cap port가 없거나 미승인이면 계획을 fail-closed 처리함
+- 승인된 복귀 cap 적용 전후 requested duration이 정확히 보존됨
 - 승인되지 않은 exercise/rule/alternative가 plan에 없음
 - Training·Recovery·Safety·Feasibility 네 proposal이 final decision과 분리되고 Coordinator가 최종 루틴 한 개를 선택한다.
 - 증상 사용자 시나리오에서 SafetyAgent의 `PASS`/`REVISE`/`BLOCKED` 의견은 Coordinator 결정에 반영하고, `NEEDS_INPUT`과 `FAILED`는 계획을 반환하지 않는 fail-closed 결과로 처리하며, 독립적인 최종 Safety 재검사는 실행하지 않는다.
