@@ -9,10 +9,12 @@ from sqlalchemy.orm import Session
 
 from backend.app.core.errors import AppError
 from backend.app.db.repositories.checkin import DailyContextRepository
+from backend.app.db.repositories.decision import DecisionRepository
 from backend.app.db.repositories.identity import IdentityRepository
 from backend.app.db.repositories.profile import ProfileRepository
 from backend.app.db.repositories.routine import RoutineRepository
 from backend.app.modules.checkins.ports import DailyContextRepositoryPort
+from backend.app.modules.decisions.ports import DecisionRepositoryPort
 from backend.app.modules.identity.ports import (
     FirebaseTokenVerifier,
     FirebaseVerifierUnavailableError,
@@ -32,6 +34,7 @@ _identity_repository = IdentityRepository()
 _profile_repository = ProfileRepository()
 _routine_repository = RoutineRepository()
 _daily_context_repository = DailyContextRepository()
+_decision_repository = DecisionRepository()
 
 
 def get_db_session(request: Request) -> Iterator[Session]:
@@ -56,6 +59,10 @@ def get_routine_repository() -> RoutineRepositoryPort:
 
 def get_daily_context_repository() -> DailyContextRepositoryPort:
     return _daily_context_repository
+
+
+def get_decision_repository() -> DecisionRepositoryPort:
+    return _decision_repository
 
 
 def get_birthdate_cipher(request: Request) -> BirthdateCipher | None:
@@ -107,6 +114,7 @@ def get_current_user(
 __all__ = [
     "get_current_user",
     "get_daily_context_repository",
+    "get_decision_repository",
     "get_birthdate_cipher",
     "get_db_session",
     "get_firebase_token_verifier",

@@ -8,3 +8,6 @@ __all__ = ["ProfileRepository"]
 from backend.app.db.repositories.routine import RoutineRepository
 
 __all__ = ["RoutineRepository"]
+from backend.app.db.repositories.decision import DecisionRepository
+
+__all__ = ["DecisionRepository"]

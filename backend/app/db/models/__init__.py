@@ -18,6 +18,15 @@ from backend.app.db.models.checkin import (
     DailyContextAdverseReaction,
     DailyContextDiscomfort,
 )
+from backend.app.db.models.decision import (
+    AgentProposalRecord,
+    DecisionOption,
+    DecisionPolicyVersion,
+    DecisionRun,
+    PlanCandidate,
+    PlanItem,
+    SafetyReview,
+)
 from backend.app.db.models.identity import User, UserIdentity
 from backend.app.db.models.profile import (
     MutationIdempotencyRecord,
@@ -34,6 +43,10 @@ from backend.app.db.models.routine import Routine, RoutineDay, RoutineItem
 __all__ = [
     "BodyArea",
     "BodyFocus",
+    "AgentProposalRecord",
+    "DecisionOption",
+    "DecisionPolicyVersion",
+    "DecisionRun",
     "CatalogVersion",
     "DailyContext",
     "DailyContextAdverseReaction",
@@ -47,9 +60,12 @@ __all__ = [
     "ExercisePrescriptionProfile",
     "Location",
     "MovementPattern",
+    "PlanCandidate",
+    "PlanItem",
     "Routine",
     "RoutineDay",
     "RoutineItem",
+    "SafetyReview",
     "MutationIdempotencyRecord",
     "TrainingType",
     "User",

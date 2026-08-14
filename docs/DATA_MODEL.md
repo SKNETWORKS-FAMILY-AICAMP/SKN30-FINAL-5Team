@@ -691,6 +691,16 @@ PK는 daily_context_id와 reaction_code 조합이다.
 
 ### 9.1 decision_runs
 
+Wave 6 물리 모델은 `daily_context_version`, 최소화된 `input_snapshot`/`input_hash`,
+`catalog_version_id`, `policy_version_id`, `safety_rule_version`, `duration_rule_version`,
+`graph_version`, `coordinator_version` 및 구조화된 `coordinator_result`를 함께 저장한다.
+상태는 `RUNNING | COMPLETED | NEEDS_INPUT | FAILED`이며 성공 plan은 `COMPLETED` 중
+`PASS | REVISE`에만 연결된다. `date_of_birth`, 만 나이, 이름, 성별, 키, 체중은 결정 입력
+snapshot에 저장하지 않는다.
+
+`decision_policy_versions`는 실행 시 사용한 결정 정책을 FK로 고정한다. Wave 6 기본 정책은
+`decision-policy-v1`이고 migration에서 활성 버전을 설치한다.
+
 | 컬럼 | 설명 |
 |---|---|
 | id | UUID, PK |
@@ -732,6 +742,10 @@ PK는 daily_context_id와 reaction_code 조합이다.
 
 ### 9.2 agent_proposals
 
+Wave 6에서는 `proposal_payload` JSONB에 검증된 구조화 proposal을 저장하고
+`(decision_run_id, agent_type_code)`를 unique로 강제한다. 네 agent proposal과 최종
+Coordinator 결과는 서로 다른 레코드에 저장한다.
+
 | 컬럼 | 설명 |
 |---|---|
 | id | UUID, PK |
@@ -747,6 +761,10 @@ PK는 daily_context_id와 reaction_code 조합이다.
 decision_run_id와 agent_type_code 조합은 유일하다.
 
 ### 9.3 plan_candidates
+
+`selected=true`인 성공 후보는 반드시 `estimated_duration_seconds =
+requested_duration_minutes * 60`을 만족한다. Coordinator가 거절한 재현용 후보는 실제 계산값을
+보존하므로 이 등식이 성립하지 않을 수 있고 `decision_options`와 연결하지 않는다.
 
 | 컬럼 | 설명 |
 |---|---|
@@ -808,6 +826,9 @@ requested_duration_minutes는 사용자 입력에서만 가져오며 시스템�
 최종 운동 옵션은 approved=true이고 veto=false인 safety review가 있어야 한다.
 
 ### 9.6 decision_options
+
+Wave 6는 option의 생성과 조회까지만 구현한다. option 선택과 workout session 연결은 Wave 7에서
+구현한다. Safety veto된 후보는 `FINAL_ROUTINE` option으로 공개하지 않는다.
 
 공개 가능한 최종 루틴과 사용자의 REST 선택을 같은 선택 모델에서 표현하기 위한 테이블이다. STOP_AND_SEEK_HELP는 사용자가 선택하는 option이 아니므로 decision run의 최종 action으로만 기록하고 이 테이블에 행을 만들지 않는다.
 
