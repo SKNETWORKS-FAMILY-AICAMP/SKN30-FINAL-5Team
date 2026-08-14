@@ -69,6 +69,18 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 43. 증상 사용자 시나리오에서 SafetyAgent의 `REVISE` 의견이 Coordinator 최종 결정에 반영되고 요청 운동 시간이 보존됨
 44. 기존 클라이언트 구필드 호환 전략과 선택한 deprecation 또는 API 버전 전략의 프론트엔드·백엔드 호환성 테스트
 45. 동일 입력·정책·카탈로그에서 Single-Agent와 네 proposal 병렬 구조를 비교하고 역할별 판단·Safety 의견 반영·요청 시간 보존을 검증함
+46. ACTIVE 사용자 삭제 요청은 즉시 DELETION_PENDING과 단 하나의 request/job을 생성
+47. 삭제 요청 직후 일반 인증 사용자 API와 외부 동기화를 차단
+48. 같은 키와 새 키 재요청 모두 최초 request ID·deadline을 반환하고 새 job을 만들지 않음
+49. job은 요청 즉시 실행할 수 있고 requested_at + 7일 전후 경계에서 운영 DB 삭제 기한을 판정
+50. provider 실패는 기한 전 재시도하고 기한 후 로컬 삭제·backup 만료를 거쳐 COMPLETED_WITH_EXTERNAL_REVOCATION_FAILURE
+51. 일부 repository 삭제 transaction 실패는 부분 commit 없이 실패 단계부터 재실행
+52. 재실행은 완료 checkpoint를 건너뛰고 같은 policy version에서 같은 순서·대상을 사용
+53. 사용자 연결 decision·proposal·feedback·생년월일·idempotency·cache/work payload 삭제
+54. 재식별 가능 집계는 삭제하고 불가역 비식별 집계만 보존
+55. opaque 감사·로그·snapshot에 사용자/provider 식별자, token, 원시 건강·오류가 없음
+56. keyed-digest restore tombstone은 일치 backup 복원 계정을 차단하고 요청 후 30일에 만료
+57. 마지막 관련 recovery point 만료 증적 전에는 deletion job COMPLETED 전이 금지
 
 ## 4. 속성·불변식 테스트
 
@@ -121,6 +133,22 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 - `date_of_birth`가 유효한 `YYYY-MM-DD`이며 온보딩 필수이고, 만 나이는 사용자 로컬 날짜 기준으로 일시 계산되며 DB에 저장되지 않음
 - 일반·민감·웨어러블·캘린더·마케팅 동의가 분리 저장됨
 - agent proposal과 final decision이 분리되고 내부 추론이 노출되지 않음
+- 계정 삭제의 7일은 job 실행 대기기간이 아니라 운영 DB hard-delete 완료 상한임
+- ACTIVE에서 DELETION_PENDING 전이와 최초 deletion request/job 생성은 하나의 transaction임
+- DELETION_PENDING 사용자의 일반 제품 API는 차단되고 deletion lifecycle 멱등 재요청만 허용됨
+- 같은 사용자에게 활성 deletion request/job은 하나이며 새 idempotency key도 최초 receipt를 재사용함
+- 삭제 단계는 ACCESS_BLOCK, EXTERNAL_REVOCATION, OPERATIONAL_DATA_DELETE,
+  CACHE_AND_WORK_DELETE, AUDIT_DEIDENTIFICATION, BACKUP_EXPIRY_VERIFICATION의 고정 prefix임
+- 재실행은 성공 checkpoint를 반복하지 않고 실패 단계부터 재개함
+- provider 해제 실패가 로컬 사용자 연결 데이터의 7일 이상 보유 근거가 되지 않음
+- provider 최종 실패 경로의 backup 완료 상태는 COMPLETED_WITH_EXTERNAL_REVOCATION_FAILURE임
+- 운영 DB hard delete 실패는 FAILED_REQUIRES_REVIEW이며 성공이나 접근 복구로 매핑되지 않음
+- 계정 삭제는 일반 데이터별 보유기간보다 우선하고 가명·재식별 가능 집계를 삭제함
+- opaque 감사 field allowlist에 user/provider ID, 생년월일, token, idempotency key, 원시 payload가 없음
+- restore-block tombstone은 HMAC-SHA256 keyed digest만 저장하며 key는 row·로그·fixture에 없음
+- tombstone은 requested_at + 30일을 넘겨 보존하지 않고 opaque 감사 TTL은 승인된 retention
+  policy 없이는 하드코딩되지 않음
+- backup expiry 증적이 없으면 단순 시간 경과만으로 COMPLETED를 만들지 않음
 
 ## 5. 테스트 데이터
 
@@ -175,6 +203,20 @@ separator)의 SHA-256이다. 집합 의미의 context reference 순서는 hash�
 검증한다. 실제 SQLAlchemy round trip, transaction rollback, idempotency, 조회 API와
 `NEEDS_INPUT`/`DECISION_FAILED` HTTP 매핑은 backend 소유 integration suite에서 같은 골든
 fixture를 사용해 추가 검증해야 한다.
+
+### 5.4 Account deletion 골든·개인정보 계약
+
+계정 삭제 골든 fixture는 합성 UUIDv4, timezone-aware 시각, provider 성공·실패 machine code,
+고정 stage checkpoint와 `account-deletion-policy-v1`만 사용한다. 이메일, 이름, 생년월일,
+Firebase/provider subject, token, 실제 건강·웨어러블 값은 fixture에 포함하지 않는다.
+
+domain unit은 즉시 접근 차단, 새 키 resource-level 멱등성, 7일/30일 경계, provider 최종 실패,
+retention 분류, HMAC tombstone과 opaque 감사 allowlist를 검증한다. golden scenario는 부분 실패,
+재실행, decision/proposal/feedback 삭제, 비식별 집계 구분과 backup 증적 gate를 검증한다.
+
+실제 SQLAlchemy 구현 PR은 동일 contract에 repository transaction rollback, FK delete graph,
+동시 요청 unique, Alembic round trip과 PostgreSQL integration test를 추가해야 한다. 실제 provider,
+scheduler/queue, AWS backup 리소스는 adapter·운영 task로 분리한다.
 
 ## 6. CI 게이트
 

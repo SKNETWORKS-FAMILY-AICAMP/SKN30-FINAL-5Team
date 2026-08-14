@@ -511,6 +511,27 @@ DELETE /api/v1/me는 202 Accepted를 반환한다.
 
 삭제 요청 직후 일반 접근을 차단한다. 운영 DB의 사용자 연결 데이터는 7일 이내 삭제하고 백업은 최대 30일 순환 주기 후 소멸한다.
 
+상세 의미는 `ACCEPTED` ADR-0008과 `account-deletion-policy-v1`을 따른다.
+
+- 삭제 요청은 철회할 수 없다.
+- `operational_data_delete_by`는 `requested_at + 7일`인 완료 상한이다. job은 요청 직후 실행할
+  수 있으며 7일 후부터 실행하는 대기 계약이 아니다.
+- 이미 `DELETION_PENDING`인 사용자가 같은 키 또는 새로운 UUID `Idempotency-Key`로 다시
+  요청하면 `409`나 새 request를 만들지 않고 최초 `deletion_request_id`, status와 deadline을
+  동일한 `202 Accepted`로 반환한다.
+- 동일 사용자의 활성 deletion request/job은 하나다. 동시 요청도 저장된 최초 결과로 수렴한다.
+- `DELETION_PENDING` 사용자는 이 endpoint의 멱등 재요청 외 모든 인증 사용자 제품 API와
+  외부 동기화를 `403 ACCOUNT_DISABLED`로 차단한다. 비인증 health endpoint는 영향을 받지 않는다.
+- provider 해제가 7일 기한까지 실패해도 로컬 사용자 연결 데이터는 기한 내 hard delete한다.
+  backup 만료 확인 후 내부 job은 `COMPLETED_WITH_EXTERNAL_REVOCATION_FAILURE`로 끝날 수 있다.
+  이 내부 job 상태는 기존 공개 응답에 새 필드로 노출하지 않는다.
+- hard delete 후 Firebase token이나 provider subject가 내부 사용자와 연결되지 않으면 일반 인증
+  실패를 반환하고 삭제 request의 존재 여부를 공개하지 않는다.
+- request/job ID는 UUIDv4다. hard delete 후 감사에는 사용자/provider 식별자, token,
+  idempotency key, 요청·응답·원시 오류·건강 snapshot을 남기지 않는다.
+- backup 복원 차단용 HMAC-SHA256 keyed-digest tombstone은 요청 후 최대 30일만 보유한다.
+  backup 만료는 단순 시간 경과가 아니라 마지막 관련 recovery point 만료 운영 증적으로 확인한다.
+
 ---
 
 ## 8. 루틴 스키마

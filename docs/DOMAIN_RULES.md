@@ -515,6 +515,66 @@ NOT_COMPLETED, STOPPED_FOR_SAFETY로 종료된 세션의 블록과 상태는 변
 - 탈퇴·삭제 요청 즉시 접근과 동기화를 차단하고 운영 DB 연결 데이터는 7일 이내 삭제, 백업은 30일 이내 순환 삭제한다. 관리자 접속기록은 2년 보관한다.
 - 마스킹 오류 로그는 7일 이내 보유하며, 삭제 후 재식별 가능한 decision·proposal·feedback은 기본 보존하지 않는다.
 
+계정 삭제의 상세 상태·실패 복구·backup restore 계약은 `ACCEPTED` ADR-0008과
+`account-deletion-policy-v1`을 따른다.
+
+### 13.1.1 계정 삭제 상태와 접근
+
+- 사용자 상태는 `ACTIVE -> DELETION_PENDING -> users row hard delete`다. 완료 상태를 위해
+  사용자 row를 유지하지 않는다.
+- 삭제 요청은 철회할 수 없다.
+- `DELETION_PENDING` 전환 즉시 모든 인증 사용자 제품 API와 외부 동기화를 차단한다. 비인증
+  health와 기존 삭제 요청을 멱등 재처리하는 deletion lifecycle 경계만 허용한다.
+- 이미 `DELETION_PENDING`인 사용자가 새 `Idempotency-Key`로 요청해도 최초 request ID와
+  deadline을 반환하고 새 request/job을 만들지 않는다.
+- 7일은 `requested_at`부터 기다리는 기간이 아니라 즉시 실행 가능한 운영 DB hard delete의
+  완료 상한이다. backup과 restore-block tombstone은 `requested_at + 30일` 이내 만료한다.
+
+삭제 job 상태는 다음 machine code를 사용한다.
+
+```text
+PENDING
+RUNNING
+RETRY_PENDING
+BACKUP_EXPIRY_PENDING
+COMPLETED
+COMPLETED_WITH_EXTERNAL_REVOCATION_FAILURE
+FAILED_REQUIRES_REVIEW
+```
+
+고정 단계는 `ACCESS_BLOCK -> EXTERNAL_REVOCATION -> OPERATIONAL_DATA_DELETE ->
+CACHE_AND_WORK_DELETE -> AUDIT_DEIDENTIFICATION -> BACKUP_EXPIRY_VERIFICATION`이다. 완료 단계는
+재실행 시 건너뛰고 실패 단계부터 재개한다. 존재하지 않는 대상 삭제는 성공으로 처리하며 외부
+호출을 운영 DB hard-delete transaction 안에 포함하지 않는다.
+
+### 13.1.2 provider 실패와 최종 상태
+
+- provider 해제 실패는 `RETRY_PENDING`으로 두고 운영 DB 삭제 기한 전까지 재시도한다.
+- 기한까지 실패하면 provider 상태를 `FAILED_FINAL`로 확정하고 provider 식별자를 더 보존하지 않는다.
+- provider 실패와 무관하게 로컬 사용자 연결 데이터는 7일 이내 hard delete한다.
+- backup 만료 증적 확인 후 최종 job 상태는
+  `COMPLETED_WITH_EXTERNAL_REVOCATION_FAILURE`다.
+- 운영 DB 삭제 자체가 기한 내 완료되지 않으면 `FAILED_REQUIRES_REVIEW`이며 접근 차단을 유지하고
+  개인정보 사고 대응 대상으로 에스컬레이션한다.
+
+### 13.1.3 삭제 대상·비식별 집계·감사
+
+- identity, profile, 암호화 생년월일, consent, routine/context, integration, decision/proposal,
+  workout/feedback, weekly report/plan, idempotency, cache/work payload 등 모든 user-linked 또는
+  재식별 가능한 데이터는 7일 기한을 적용한다.
+- 일반 데이터별 28일·90일·12개월 보유기간보다 명시적 계정 삭제 기한이 우선한다.
+- 개인과 다시 연결할 수 없고 다른 데이터와 결합해도 singling-out할 수 없는 집계만 보존할 수
+  있다. 가명·해시·user ID 제거만으로는 비식별 집계가 아니다.
+- hard delete 후 감사에는 UUIDv4 request/job ID, 상태·단계·policy version, attempt count,
+  구조화 failure code와 기한·완료 시각만 허용한다. user/provider ID, 생년월일, token,
+  idempotency key, 요청·응답, 원시 오류·건강 snapshot을 금지한다.
+- restore-block tombstone은 `requested_at + 30일`을 넘겨 보존하지 않는다. identifier-free opaque
+  감사의 정확한 보존기간은 별도 PM·법률/개인정보 승인 전까지 하드코딩하지 않는다.
+- restore-block tombstone은 내부 user UUID의 HMAC-SHA256 keyed digest, opaque request ID,
+  policy version, 생성·만료 시각만 가진다. key는 secret manager 경계에 두고 분석·추적에 재사용하지 않는다.
+- backup expiry는 단순 경과 시간이 아니라 해당 사용자를 포함할 수 있는 마지막 recovery point의
+  만료 증적이 확인된 경우에만 완료된다.
+
 ---
 
 ## 14. 재현성과 감사
@@ -560,6 +620,17 @@ NOT_COMPLETED, STOPPED_FOR_SAFETY로 종료된 세션의 블록과 상태는 변
 19. 닫히지 않은 주 리포트 요청: 거부
 20. 직전 주 리포트 미확인 상태의 다음 계획 확정: 거부
 21. AI 수정 2회 이후 추가 AI 수정: 거부, 직접 편집 경로 제공
+22. ACTIVE 사용자 삭제 요청: 즉시 `DELETION_PENDING`, 동일 요청과 새 키 재요청은 최초 request 반환
+23. 삭제 요청 직후 인증 사용자 제품 API와 외부 동기화 차단
+24. 삭제 job은 요청 즉시 실행 가능하고 7일 경계까지 운영 DB hard delete 완료
+25. provider 해제 실패: 기한 전 재시도, 기한 후 로컬 삭제와 최종 실패 상태 보존
+26. 일부 repository 삭제 transaction 실패: 부분 commit 없이 같은 단계 재실행
+27. 재실행: 완료 checkpoint를 건너뛰고 실패 단계부터 결정적으로 재개
+28. 사용자 연결 decision·proposal·feedback·생년월일·idempotency 삭제
+29. 재식별 가능 집계는 삭제하고 불가역 비식별 집계만 보존
+30. opaque 감사·로그·snapshot에 사용자/provider 식별정보와 원시 건강 데이터 없음
+31. backup restore tombstone은 일치 계정을 차단하고 요청 후 30일에 만료
+32. backup expiry 운영 증적 전에는 삭제 job `COMPLETED` 금지
 
 ---
 

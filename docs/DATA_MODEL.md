@@ -191,6 +191,96 @@ PK는 user_id와 equipment_code의 조합이다.
 
 PK는 user_id와 exercise_type_code의 조합이다.
 
+### 4.7 account_deletion_requests (논리 계약)
+
+`account-deletion-policy-v1`의 사용자 연결 요청 레코드다. 실제 SQLAlchemy model과 migration은
+backend owner가 TASK-BACKEND-005에서 구현한다.
+
+| 컬럼 | 설명 |
+|---|---|
+| id | opaque UUIDv4, PK, 공개 `deletion_request_id` |
+| user_id | users FK, hard delete 전까지만 유지 |
+| deletion_job_id | opaque UUIDv4, 활성 job 참조 |
+| status_code | DELETION_PENDING |
+| policy_version | `account-deletion-policy-v1` |
+| requested_at | 요청 시각 |
+| operational_delete_by | requested_at + 7일 |
+| backup_expiry_due_at | requested_at + 30일 |
+| created_at | 생성 시각 |
+
+사용자별 활성 request는 하나다. 이미 `DELETION_PENDING`인 사용자의 같은 키 또는 새
+`Idempotency-Key` 요청은 이 행과 최초 deadline을 반환하며 새 행을 만들지 않는다. 요청은 철회할
+수 없다. 운영 DB hard delete 완료 시 user FK와 idempotency 연관을 제거하고 4.9의 opaque 감사
+형태로만 남긴다.
+
+### 4.8 account_deletion_jobs (논리 계약)
+
+| 컬럼 | 설명 |
+|---|---|
+| id | opaque UUIDv4, PK |
+| deletion_request_id | 삭제 request 참조 |
+| status_code | PENDING, RUNNING, RETRY_PENDING, BACKUP_EXPIRY_PENDING, COMPLETED, COMPLETED_WITH_EXTERNAL_REVOCATION_FAILURE, FAILED_REQUIRES_REVIEW |
+| current_stage_code | ACCESS_BLOCK, EXTERNAL_REVOCATION, OPERATIONAL_DATA_DELETE, CACHE_AND_WORK_DELETE, AUDIT_DEIDENTIFICATION, BACKUP_EXPIRY_VERIFICATION |
+| external_revocation_status_code | NOT_REQUIRED, PENDING, SUCCEEDED, RETRY_PENDING, FAILED_FINAL |
+| completed_stage_codes | 완료 checkpoint의 고정 순서 표현. 구현은 typed child rows 또는 검증된 JSONB 중 backend review로 선택 |
+| attempt_count | 실행 시도 횟수 |
+| failure_code | allowlist machine code, nullable |
+| policy_version | `account-deletion-policy-v1` |
+| requested_at | 요청 시각 |
+| operational_delete_by | 운영 DB hard-delete 완료 상한 |
+| operational_deleted_at | 사용자 연결 데이터 hard delete 완료 시각, nullable |
+| backup_expiry_due_at | 마지막 관련 recovery point 만료 상한 |
+| backup_expiry_verified_at | AWS 운영 증적 확인 시각, nullable |
+| completed_at | 최종 완료 시각, nullable |
+| created_at | 생성 시각 |
+| updated_at | 갱신 시각 |
+
+완료 checkpoint는 prefix 순서만 허용한다. retry는 실패 단계부터 재개하고 이전 완료 단계를
+반복하지 않는다. provider 실패가 7일까지 지속되면 `FAILED_FINAL`로 확정한 뒤 로컬 hard
+delete를 완료하고 backup 만료 확인 후
+`COMPLETED_WITH_EXTERNAL_REVOCATION_FAILURE`로 끝낸다. 운영 DB hard delete 실패는
+`FAILED_REQUIRES_REVIEW`이며 성공 상태가 아니다.
+
+### 4.9 account_deletion_audits (hard delete 후 논리 계약)
+
+| 컬럼 | 설명 |
+|---|---|
+| deletion_request_id | opaque UUIDv4, PK |
+| deletion_job_id | opaque UUIDv4, UNIQUE |
+| status_code | job 상태 |
+| current_stage_code | 마지막 단계 |
+| external_revocation_status_code | provider 최종 상태 |
+| completion_code | 구조화 완료 결과, nullable |
+| policy_version | `account-deletion-policy-v1` |
+| attempt_count | 실행 시도 횟수 |
+| failure_code | allowlist machine code, nullable |
+| requested_at | 요청 시각 |
+| operational_delete_by | 운영 DB 삭제 기한 |
+| operational_deleted_at | 운영 DB 삭제 완료 시각 |
+| backup_expiry_due_at | backup 만료 기한 |
+| backup_expiry_verified_at | 운영 증적 확인 시각, nullable |
+| completed_at | 최종 완료 시각, nullable |
+| audit_expires_at | 별도 승인된 opaque audit retention policy의 만료 시각. 기본값 없음 |
+
+user ID/FK, Firebase/provider subject, 이메일, 이름, 생년월일·암호문, IP, token,
+`Idempotency-Key`, 요청·응답 payload, 원시 exception/stack, 건강·웨어러블 snapshot을 금지한다.
+감사 레코드는 사용자와 다시 연결할 수 없어야 한다. 정확한 보존기간은 출시 전 PM·법률/개인정보
+검토에서 승인하고, 그 전에는 임의 default나 영구 보존을 두지 않는다.
+
+### 4.10 account_deletion_restore_tombstones (논리 계약)
+
+| 컬럼 | 설명 |
+|---|---|
+| deletion_request_id | opaque UUIDv4, PK |
+| subject_digest | 내부 user UUID의 HMAC-SHA256 keyed digest, UNIQUE |
+| policy_version | `account-deletion-policy-v1` |
+| created_at | 삭제 요청 시각 |
+| expires_at | created_at + 30일 |
+
+HMAC key는 DB·로그·fixture에 저장하지 않고 secret manager 경계에서 주입한다. tombstone은
+backup restore 직후 사용자 접근 차단과 동일 삭제 policy 재적용에만 사용하고 분석·사용자 추적에
+사용하지 않는다. 만료 시 삭제하며 30일을 연장하지 않는다. digest는 가명정보로 분류한다.
+
 ---
 
 ## 5. 운동 카탈로그
@@ -1172,13 +1262,16 @@ decision_runs
 
 ## 14. 삭제와 보존
 
-계정 삭제 절차:
+`ACCEPTED` ADR-0008과 `account-deletion-policy-v1`에 따른 계정 삭제 절차:
 
-1. users.status_code를 DELETION_PENDING으로 바꾸고 접근을 차단한다.
-2. Firebase 계정과 외부 연동을 해제한다.
-3. 생년월일을 포함한 운영 DB의 사용자 연결 데이터를 7일 이내 hard delete한다.
-4. 사용자 캐시와 작업 데이터를 삭제한다.
-5. 백업은 최대 30일 순환 주기 후 소멸시킨다.
+1. 한 트랜잭션에서 `users.status_code=DELETION_PENDING`과 단 하나의 request/job을 만들고 접근·동기화를 차단한다.
+2. job을 요청 즉시 시작하고 Firebase 계정과 외부 연동 해제를 시도한다.
+3. provider 실패는 7일 기한 전까지 재시도한다. 기한까지 실패하면 `FAILED_FINAL`로 확정한다.
+4. provider 결과와 무관하게 생년월일을 포함한 운영 DB 사용자 연결 데이터를 7일 이내 hard delete한다.
+5. 사용자 cache·work payload를 삭제하고 감사 레코드를 opaque 필드로 비식별화한다.
+6. restore-block keyed-digest tombstone으로 backup 복원 시 접근과 재삭제를 강제한다.
+7. AWS 운영 증적으로 마지막 관련 recovery point 만료를 확인한 뒤 job을 최종 완료한다.
+8. tombstone은 요청 시각부터 최대 30일 후 삭제한다. opaque 감사 TTL은 별도 승인된 policy를 적용한다.
 
 사용자 소유 테이블은 users 삭제 시 안전하게 제거할 수 있도록 FK와 삭제 순서를 설계한다. 카탈로그와 집계 기준 데이터는 삭제하지 않는다.
 
@@ -1189,7 +1282,14 @@ decision_runs
 - 체크인 원자료 28일, 웨어러블 원본 24시간, 일별 요약·상세 수행·설문 90일, 주간 리포트 12개월
 - 관리자 접속기록 2년, 마스킹 오류 로그 7일
 
-가명처리만 한 체크인, decision, agent proposal은 기본 보존하지 않는다. 삭제 작업의 운영 상태는 사용자 식별자를 포함하지 않는 opaque job ID로 감사할 수 있다.
+위 데이터별 일반 보유기간은 명시적 계정 삭제 요청이 없을 때의 상한이다. 계정 삭제 시 승인된
+법적 예외가 없는 모든 user-linked·재식별 가능 데이터에는 7일 기한이 우선한다. 관리자
+접속기록과 마스킹 오류 로그에도 삭제 사용자의 식별자·원시 건강 정보를 남기지 않는다.
+
+가명처리만 한 체크인, decision, agent proposal은 기본 보존하지 않는다. 삭제 작업의 운영 상태는
+사용자 식별자를 포함하지 않는 opaque UUIDv4 request/job ID로만 감사하며, 정확한 TTL은 별도
+승인된 opaque audit retention policy를 적용한다.
+비식별 통계는 결합 가능한 키가 없고 개인을 singling-out할 수 없는 경우에만 보존한다.
 
 실제 출시 전 개인정보 처리방침, 동의 철회·연동 해제, 운영 DB 삭제, 인증 제공자 삭제, 백업 만료 절차를 법률 또는 개인정보보호 담당자에게 검토받는다. 1년 미접속은 법정 휴면이 아닌 DORMANT 서비스 분류로 처리하고 30일 전 통지 후 삭제한다.
 
@@ -1259,6 +1359,6 @@ DEPRECATED
 - 닉네임의 변경 횟수와 금칙어를 DB 제약과 서비스 정책 중 어디까지 둘 것인가?
 - MVP 이후 주간 리포트 정정이 필요할 때 새 version과 관리자 감사 절차를 어떻게 설계할지?
 - 1년 DORMANT 상태의 재활성화와 삭제 작업을 어떤 테이블로 감사할지?
-- 실제 GitHub/운영 환경에서 계정 삭제 job의 owner와 실행 증적을 누가 관리할지?
+- 실제 GitHub/운영 환경에서 계정 삭제 job, provider 실패 incident와 AWS backup 만료 증적을 누가 관리할지?
 
 이 항목을 구현하기 전에 API 계약과 도메인 규칙을 함께 갱신한다.
