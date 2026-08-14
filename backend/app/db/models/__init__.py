@@ -39,6 +39,14 @@ from backend.app.db.models.profile import (
     UserProfile,
 )
 from backend.app.db.models.routine import Routine, RoutineDay, RoutineItem
+from backend.app.db.models.workout import (
+    DecisionSelection,
+    ScheduledWorkout,
+    WorkoutAdditionalActivity,
+    WorkoutSession,
+    WorkoutSessionItem,
+    WorkoutTimerEvent,
+)
 
 __all__ = [
     "BodyArea",
@@ -47,6 +55,7 @@ __all__ = [
     "DecisionOption",
     "DecisionPolicyVersion",
     "DecisionRun",
+    "DecisionSelection",
     "CatalogVersion",
     "DailyContext",
     "DailyContextAdverseReaction",
@@ -66,6 +75,7 @@ __all__ = [
     "RoutineDay",
     "RoutineItem",
     "SafetyReview",
+    "ScheduledWorkout",
     "MutationIdempotencyRecord",
     "TrainingType",
     "User",
@@ -77,4 +87,8 @@ __all__ = [
     "UserIdentity",
     "UserPreferredExerciseType",
     "UserProfile",
+    "WorkoutAdditionalActivity",
+    "WorkoutSession",
+    "WorkoutSessionItem",
+    "WorkoutTimerEvent",
 ]
