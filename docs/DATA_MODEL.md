@@ -548,9 +548,12 @@ training type에서 목표·처방을 추론하지 않는다.
 | created_at | 생성 시각 |
 | updated_at | 수정 시각 |
 
-user_id와 local_date 조합은 유일하다.
+user_id와 local_date 조합은 유일하다. 최초 버전은 1이며 기존 행을 전체 교체할 때마다 1씩
+증가한다. 쓰기는 현재 버전을 비교하는 낙관적 잠금과 사용자·날짜 단위 트랜잭션 잠금을 함께
+사용한다. 체크인 PUT의 멱등 응답은 `mutation_idempotency_records`에
+`PUT_DAILY_CONTEXT` endpoint code로 저장한다.
 
-피로 코드는 사용자의 주관적 제품 입력이며 의료 상태를 뜻하지 않는다. 수면 부족과 최근 부하의 파생 임계값은 별도 정책 버전으로 관리한다.
+피로 코드는 사용자의 주관적 제품 입력이며 의료 상태를 뜻하지 않는다. 수면 부족과 최근 부하의 파생 임계값은 별도 정책 버전으로 관리한다. 선택 입력이 null이면 unknown으로 유지하며 다른 값으로 채우거나 건강 상태를 추론하지 않는다. 생년월일과 만 나이는 이 테이블 및 이후 decision 입력에 복제하지 않는다.
 
 ### 7.2 daily_context_discomforts
 
@@ -559,7 +562,7 @@ user_id와 local_date 조합은 유일하다.
 | id | UUID, PK |
 | daily_context_id | daily_contexts FK |
 | body_area_code | body_areas FK |
-| severity_code | NONE, MILD, MODERATE, SEVERE |
+| severity_code | MILD, MODERATE, SEVERE |
 
 daily_context_id와 body_area_code 조합은 유일하다. NONE 항목은 저장하지 않고 빈 목록으로 표현할 수 있다.
 

@@ -643,6 +643,21 @@ ExerciseDetailResponse
 
 PUT은 전체 체크인 표현을 교체한다. 빈 discomforts와 adverse_reaction_codes는 기존 항목을 삭제한다.
 
+필수 mutation 헤더:
+
+~~~http
+Idempotency-Key: uuid
+~~~
+
+최초 생성에는 `If-Match`를 보내지 않는다. 기존 체크인을 교체할 때는 GET 또는 직전 PUT에서
+받은 `context_version`을 `If-Match: "2"` 형식으로 보낸다. 기존 체크인에 `If-Match`가
+누락됐거나 버전이 다르면 `409 STALE_CONTEXT`다. 동일한 `Idempotency-Key`와 동일한 요청의
+재시도는 최초 성공 응답을 반환하며 버전을 다시 증가시키지 않는다. 같은 키를 다른 날짜 또는
+본문에 재사용하면 `409 IDEMPOTENCY_KEY_REUSED`다.
+
+`fasting_state_code`와 `hydration_state_code`는 선택적인 사용자 제공 machine code다. 승인된
+후보 목록이 확정되기 전까지 서버는 누락값을 보완하거나 수면·공복·수분 상태를 추론하지 않는다.
+
 ### 9.2 DailyContextResponse
 
 요청 필드에 다음을 추가한다.
@@ -1153,7 +1168,7 @@ SafetySummary
 | 400 | INVALID_REQUEST |
 | 401 | AUTHENTICATION_REQUIRED, INVALID_TOKEN |
 | 403 | ACCOUNT_DISABLED, AGE_REQUIREMENT_NOT_MET |
-| 404 | RESOURCE_NOT_FOUND, ROUTINE_NOT_FOUND |
+| 404 | RESOURCE_NOT_FOUND, ROUTINE_NOT_FOUND, DAILY_CONTEXT_NOT_FOUND |
 | 409 | STALE_CONTEXT, INVALID_STATE_TRANSITION, OPTION_NOT_SELECTABLE, IDEMPOTENCY_KEY_REUSED, ROUTINE_VERSION_CONFLICT, AUTHORIZATION_CODE_REUSED, WEEK_NOT_CLOSED, REPORT_ACKNOWLEDGEMENT_REQUIRED, AI_REVISION_LIMIT_REACHED, CONSENT_REQUIRED, WEARABLE_NOT_CONNECTED, CALENDAR_NOT_CONNECTED |
 | 422 | INVALID_DOMAIN_CODE, INVALID_DURATION, ROUTINE_DURATION_UNAVAILABLE, ROUTINE_CONTENT_UNAVAILABLE, DUPLICATE_BODY_AREA, INVALID_DATE_OF_BIRTH, NEEDS_INPUT, INVALID_WEEK_START |
 | 500 | INTERNAL_ERROR, DECISION_FAILED |

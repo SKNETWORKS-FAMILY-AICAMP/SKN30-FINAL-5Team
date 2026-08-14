@@ -13,6 +13,11 @@ from backend.app.db.models.catalog import (
     MovementPattern,
     TrainingType,
 )
+from backend.app.db.models.checkin import (
+    DailyContext,
+    DailyContextAdverseReaction,
+    DailyContextDiscomfort,
+)
 from backend.app.db.models.identity import User, UserIdentity
 from backend.app.db.models.profile import (
     MutationIdempotencyRecord,
@@ -30,6 +35,9 @@ __all__ = [
     "BodyArea",
     "BodyFocus",
     "CatalogVersion",
+    "DailyContext",
+    "DailyContextAdverseReaction",
+    "DailyContextDiscomfort",
     "Equipment",
     "Exercise",
     "ExerciseBodyPart",

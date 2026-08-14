@@ -8,9 +8,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from backend.app.core.errors import AppError
+from backend.app.db.repositories.checkin import DailyContextRepository
 from backend.app.db.repositories.identity import IdentityRepository
 from backend.app.db.repositories.profile import ProfileRepository
 from backend.app.db.repositories.routine import RoutineRepository
+from backend.app.modules.checkins.ports import DailyContextRepositoryPort
 from backend.app.modules.identity.ports import (
     FirebaseTokenVerifier,
     FirebaseVerifierUnavailableError,
@@ -29,6 +31,7 @@ _bearer_scheme = HTTPBearer(auto_error=False)
 _identity_repository = IdentityRepository()
 _profile_repository = ProfileRepository()
 _routine_repository = RoutineRepository()
+_daily_context_repository = DailyContextRepository()
 
 
 def get_db_session(request: Request) -> Iterator[Session]:
@@ -49,6 +52,10 @@ def get_profile_repository() -> ProfileRepositoryPort:
 
 def get_routine_repository() -> RoutineRepositoryPort:
     return _routine_repository
+
+
+def get_daily_context_repository() -> DailyContextRepositoryPort:
+    return _daily_context_repository
 
 
 def get_birthdate_cipher(request: Request) -> BirthdateCipher | None:
@@ -99,6 +106,7 @@ def get_current_user(
 
 __all__ = [
     "get_current_user",
+    "get_daily_context_repository",
     "get_birthdate_cipher",
     "get_db_session",
     "get_firebase_token_verifier",

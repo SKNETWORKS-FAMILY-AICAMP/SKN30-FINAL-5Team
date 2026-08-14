@@ -202,7 +202,8 @@ class MutationIdempotencyRecord(Base):
             name="uq_mutation_idempotency_scope",
         ),
         CheckConstraint(
-            "endpoint_code IN ('PUT_ME_ONBOARDING', 'PUT_ME_CONSENTS', 'POST_ROUTINES')",
+            "endpoint_code IN ('PUT_ME_ONBOARDING', 'PUT_ME_CONSENTS', "
+            "'POST_ROUTINES', 'PUT_DAILY_CONTEXT')",
             name="ck_mutation_idempotency_endpoint",
         ),
     )

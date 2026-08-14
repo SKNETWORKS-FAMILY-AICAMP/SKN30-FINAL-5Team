@@ -87,6 +87,17 @@ async def validation_error_handler(
             code="INVALID_DATE_OF_BIRTH",
             message="생년월일이 올바르지 않습니다.",
         )
+    if any(
+        error["loc"][-1:] == ("discomforts",)
+        and "body_area_code must not be duplicated" in error["msg"]
+        for error in exc.errors()
+    ):
+        return _error_response(
+            request,
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+            code="DUPLICATE_BODY_AREA",
+            message="불편 부위는 중복해서 선택할 수 없습니다.",
+        )
     details = [
         {
             "field": ".".join(str(part) for part in error["loc"]),
