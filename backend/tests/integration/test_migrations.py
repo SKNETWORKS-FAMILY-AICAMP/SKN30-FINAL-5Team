@@ -12,11 +12,14 @@ from backend.app.core.config import get_settings
 ALEMBIC_CONFIG = Path("backend/alembic.ini")
 
 
-def test_migration_history_has_workout_session_outcomes_head() -> None:
+def test_migration_history_has_weekly_report_flow_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0009_workout_session_outcomes"]
+    assert scripts.get_heads() == ["0010_weekly_report_flow"]
+    assert scripts.get_revision("0010_weekly_report_flow").down_revision == (
+        "0009_workout_session_outcomes"
+    )
     assert scripts.get_revision("0009_workout_session_outcomes").down_revision == (
         "0008_workout_session_flow"
     )

@@ -1064,6 +1064,30 @@ HARD
 
 `week_start`는 사용자 timezone 기준 월요일의 `YYYY-MM-DD`다. 월요일이 아닌 날짜는 422 INVALID_WEEK_START다.
 
+### 13.0 주 상태 조회
+
+GET /api/v1/weeks/{week_start}
+
+~~~json
+{
+  "week_id": "uuid",
+  "week_start": "2026-08-03",
+  "week_end": "2026-08-09",
+  "timezone": "Asia/Seoul",
+  "target_workout_count": 4,
+  "plan_origin_code": "COLD_START",
+  "cold_start_applied": true,
+  "status_code": "CLOSED",
+  "closed_at": "2026-08-09T15:00:00Z",
+  "report_id": null,
+  "report_status_code": null
+}
+~~~
+
+서버는 요청 시 사용자 timezone의 현재 로컬 날짜를 계산한다. 일요일까지는 `OPEN`이며 다음
+월요일 00:00이 되면 scheduler 없이 `CLOSED`로 논리 마감한다. 주가 처음 조회되는 시점의
+timezone과 목표 횟수를 `user_weeks`에 스냅샷으로 저장한다.
+
 ### 13.1 리포트 생성
 
 POST /api/v1/weeks/{week_start}/report
@@ -1089,6 +1113,10 @@ POST /api/v1/weeks/{week_start}/report
     "stopped_for_safety": 0
   },
   "primary_miss_reason_code": "TIME_SHORTAGE",
+  "completion_rate": 0.5,
+  "persistence_rate": 0.75,
+  "negotiation_success_rate": 1.0,
+  "weekday_failure_summary": {},
   "pattern_summary": {
     "high_completion_windows": [],
     "high_completion_exercise_types": [],
@@ -1107,7 +1135,26 @@ POST /api/v1/weeks/{week_start}/report
 
 열린 주에는 409 WEEK_NOT_CLOSED를 반환한다. 같은 입력과 Idempotency-Key에는 기존 리포트를 반환한다. `pattern_summary`, `decision_summary`, `adjustment_direction_code`, `next_action`은 요구사항 기반 요약이며, `agent_summaries`의 상세 구조는 증상 사용자 시나리오 검증 결과에 따라 추후 보완할 수 있다. 내부 추론은 포함하지 않는다.
 
-### 13.2 리포트 확인
+UUID `Idempotency-Key` header가 필수다. 서로 다른 키를 사용하더라도 동일한 닫힌 주의
+`input_hash`가 같으면 저장된 동일 리포트를 반환한다. 리포트 생성 후 집계 입력이 달라지면
+불변 리포트를 덮어쓰지 않고 409 `REPORT_INPUT_CHANGED`를 반환한다. 종료되지 않은 세션 또는
+미수행 이유가 없는 `NOT_COMPLETED` 세션이 있으면 409 `WEEK_OUTCOMES_INCOMPLETE`를 반환한다.
+
+`completion_rate`는 `COMPLETED / target_workout_count`, `persistence_rate`는
+`(COMPLETED + PARTIAL) / target_workout_count`이며 1을 상한으로 한다.
+`negotiation_success_rate`는 `DOWNSHIFT | CHANGE | RECOVERY`로 선택된 세션 중 하나 이상의
+계획 블록을 완료한 `COMPLETED | PARTIAL` 비율이고 대상 세션이 없으면 null이다. 이 공식 상태와
+비율에는 타이머·경과 시간·웨어러블·캘린더·추가 활동을 사용하지 않는다.
+
+### 13.2 리포트 조회
+
+GET /api/v1/weekly-reports/{report_id}
+
+현재 사용자 소유의 생성된 리포트를 13.1과 같은 응답 구조로 반환한다. 리포트 조회는
+acknowledgement를 암묵적으로 기록하거나 상태를 변경하지 않는다. 존재하지 않거나 다른 사용자
+소유인 리포트에는 404 `WEEKLY_REPORT_NOT_FOUND`를 반환한다.
+
+### 13.3 리포트 확인
 
 POST /api/v1/weekly-reports/{report_id}/acknowledgement
 
@@ -1119,7 +1166,10 @@ POST /api/v1/weekly-reports/{report_id}/acknowledgement
 
 확인은 명시적 mutation이며 멱등하다. 최초 가입자의 첫 주 계획은 이전 리포트 없이 생성할 수 있다. 그 이후 직전 주 리포트가 GENERATED 상태이면 다음 계획을 draft로 만들 수는 있어도 finalized 상태로 확정할 수 없다.
 
-### 13.3 다음 계획 초기 생성
+UUID `Idempotency-Key` header가 필수다. 최초 acknowledgement 시각만 저장하며 이후 재요청은
+기존 `acknowledged_at`을 바꾸지 않고 `ACKNOWLEDGED` 리포트를 반환한다.
+
+### 13.4 다음 계획 초기 생성
 
 POST /api/v1/weeks/{week_start}/plan
 

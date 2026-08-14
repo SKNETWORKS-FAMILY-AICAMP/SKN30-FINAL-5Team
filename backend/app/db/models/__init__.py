@@ -39,6 +39,7 @@ from backend.app.db.models.profile import (
     UserProfile,
 )
 from backend.app.db.models.routine import Routine, RoutineDay, RoutineItem
+from backend.app.db.models.weekly_report import UserWeek, WeeklyReport
 from backend.app.db.models.workout import (
     DecisionSelection,
     ScheduledWorkout,
@@ -94,6 +95,7 @@ __all__ = [
     "UserIdentity",
     "UserPreferredExerciseType",
     "UserProfile",
+    "UserWeek",
     "WorkoutAdditionalActivity",
     "WorkoutFeedback",
     "WorkoutFeedbackAdverseReaction",
@@ -105,4 +107,5 @@ __all__ = [
     "WorkoutSessionItem",
     "WorkoutSkipFeedback",
     "WorkoutTimerEvent",
+    "WeeklyReport",
 ]
