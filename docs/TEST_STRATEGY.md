@@ -128,6 +128,24 @@ Wave 6 저장 계층은 네 proposal을 agent별 레코드로 저장하고 final
 합치지 않는다. 공개 API 매핑은 기존 `API_CONTRACT.md` 필드만 사용하며 fixture의
 `graph_version` 등 내부 감사 version을 임의로 공개 필드로 추가하지 않는다.
 
+### 5.2 Decision 재현성 통합 게이트
+
+저장 전 domain 경계는 식별자가 없는 최소 input snapshot과 별도 proposal·candidate,
+catalog/policy/safety/duration/graph/coordinator version 조합을 사용해 Coordinator 입력을
+복원할 수 있어야 한다. input hash 기준은 UTF-8 canonical JSON(sorted object key, compact
+separator)의 SHA-256이다. 집합 의미의 context reference 순서는 hash에 영향을 주지 않지만,
+운동 sequence처럼 의미 있는 배열 순서는 임의로 정렬하지 않는다.
+
+조회 후 재실행 결과는 저장된 action, selected candidate, safety status, reason code와 duration
+결과에 일치해야 한다. 네 proposal은 agent별로 분리되어야 하며 누락·중복·FAILED를 성공
+결정으로 복원할 수 없다. Safety `BLOCKED` 또는 veto 결과에는 `FINAL_ROUTINE` option을
+연결할 수 없고, 저장 transaction이 실패하면 성공 응답을 공개할 수 없다.
+
+`feat/decision-api-persistence`가 제공되기 전에는 위 항목을 domain-level replay contract로
+검증한다. 실제 SQLAlchemy round trip, transaction rollback, idempotency, 조회 API와
+`NEEDS_INPUT`/`DECISION_FAILED` HTTP 매핑은 backend 소유 integration suite에서 같은 골든
+fixture를 사용해 추가 검증해야 한다.
+
 ## 6. CI 게이트
 
 구현 단계에서 다음 job을 독립 실행하도록 구성한다.
