@@ -114,10 +114,10 @@ def test_daily_context_persists_replaces_relations_and_locks_version(
 
     assert first.id == second.id
     assert second.context_version == 2
+    with pytest.raises(StaleContextError):
+        service.replace(postgres_session, user_id, LOCAL_DATE, _request(discomforts=[]), uuid4(), 1)
     assert postgres_session.scalar(select(func.count()).select_from(DailyContext)) == 1
     assert postgres_session.scalar(select(func.count()).select_from(DailyContextDiscomfort)) == 0
     assert (
         postgres_session.scalar(select(func.count()).select_from(DailyContextAdverseReaction)) == 0
     )
-    with pytest.raises(StaleContextError):
-        service.replace(postgres_session, user_id, LOCAL_DATE, _request(discomforts=[]), uuid4(), 1)
