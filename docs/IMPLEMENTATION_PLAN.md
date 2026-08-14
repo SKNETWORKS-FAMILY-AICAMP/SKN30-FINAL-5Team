@@ -96,7 +96,7 @@ flowchart LR
 - 무릎 MILD/MODERATE 대체 시나리오
 - SEVERE REST, 중대한 이상 반응 STOP
 - `PARTIAL`, `NOT_COMPLETED`, `STOPPED_FOR_SAFETY`
-- 미수행 이유와 7일/3회 복귀 모드
+- 미수행 이유 학습 신호와 마지막 공식 완료 후 14일 복귀 모드
 - 오프라인 임시 진행 상태와 중복 요청 복구
 
 ### 단계 5 — 주간 폐쇄 루프

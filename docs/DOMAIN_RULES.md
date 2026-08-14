@@ -279,22 +279,26 @@ TIME_SHORTAGE 미수행 이력이 반복돼도 agent가 요청 시간을 자동 
 
 ## 7. 복귀 모드
 
-복귀 모드는 다음 조건 중 하나면 활성화한다.
+복귀 모드는 마지막 공식 완료 운동 이후 14일 이상 경과했을 때만 활성화한다.
 
 ~~~text
-마지막 완료 운동 이후 7일 이상 경과
-OR
-예정 운동 3회 연속 미수행
+마지막 공식 COMPLETED 세션 이후 14일 이상 경과
 ~~~
 
 정책 설정:
 
 ~~~text
-RETURN_MODE_INACTIVITY_DAYS=7
-RETURN_MODE_CONSECUTIVE_MISSES=3
+RETURN_MODE_COMPLETION_GAP_DAYS=14
 ~~~
 
-7일과 3회는 의학적 기준이 아니라 MVP 운영 기준이다. 값은 버전화된 정책 설정으로 관리한다.
+14일은 의학적 기준이 아니라 MVP 운영 기준이다. 값은 버전화된 정책 설정으로 관리한다.
+`NOT_COMPLETED` 이력과 연속 미수행 횟수는 다음 계획의 학습 신호로만 사용하며 복귀 모드를
+활성화하거나 벌점을 부과하지 않는다. 마지막 공식 완료 이력이 없는 콜드스타트 사용자는
+미수행 이력만으로 복귀 모드에 들어가지 않는다.
+
+POL-012의 14일 미접속 서비스 분류는 계정 참여 상태를 위한 별도 운영 정책이며, 운동 복귀
+모드를 활성화하는 근거가 아니다. 운동 복귀 모드의 유일한 날짜 근거는 마지막 공식
+`COMPLETED` 세션이다.
 
 복귀 모드에서는 다음을 적용한다.
 
@@ -306,10 +310,10 @@ RETURN_MODE_CONSECUTIVE_MISSES=3
 
 정확한 복귀 볼륨 비율은 외부 도메인 검수 전 임의로 정하지 않는다.
 
-운동 공백은 별도로 분류한다.
+운동 공백은 다음과 같이 분류한다.
 
-- 14일 미만: 일반 공백 또는 위 복귀 모드 규칙 적용
-- 14일 이상: `LONG_ABSENCE`로 분류하고 체크인과 복귀 상한을 반드시 재평가
+- 14일 미만: 일반 공백이며 복귀 모드를 적용하지 않음
+- 14일 이상: `RETURN_MODE`로 분류하고 체크인과 복귀 상한을 반드시 재평가
 - 1년 이상 서비스 활동 없음: 법정 휴면이 아닌 `DORMANT` 서비스 분류와 30일 전 통지 후 삭제 정책을 적용한다.
 
 14일과 1년은 의료 기준이 아니라 MVP 운영·데이터 정책 기준이다.
@@ -413,6 +417,20 @@ PLANNED -> IN_PROGRESS -> COMPLETED
 
 최종 수행 상태는 서로 배타적이다. 모든 계획 블록이 COMPLETED면 세션은 COMPLETED, 하나 이상 완료됐지만 PENDING 블록이 남으면 PARTIAL, 완료 블록이 없으면 NOT_COMPLETED다. NOT_COMPLETED에는 가장 큰 이유 하나만 저장한다.
 
+운동 중 안전 이벤트는 다음 결정적 코드를 사용한다.
+
+| 조건 | instruction | resulting action | session status | reason code | guidance code |
+|---|---|---|---|---|---|
+| MILD 불편 | `SHOW_CAUTION` | null | `IN_PROGRESS` | `MILD_DISCOMFORT` | `MILD_DISCOMFORT_CAUTION` |
+| MODERATE 불편 | `SHOW_CAUTION` | null | `IN_PROGRESS` | `MODERATE_DISCOMFORT` | `MODERATE_DISCOMFORT_CAUTION` |
+| SEVERE 불편 | `STOP_SESSION` | `REST` | `STOPPED_FOR_SAFETY` | `SEVERE_DISCOMFORT` | `SEVERE_OR_ACUTE_STOP` |
+| 급성 근골격 신호 | `STOP_SESSION` | `REST` | `STOPPED_FOR_SAFETY` | `ACUTE_MUSCULOSKELETAL_REACTION` | `SEVERE_OR_ACUTE_STOP` |
+| 긴급 중단 그룹 | `STOP_AND_SEEK_HELP` | `STOP_AND_SEEK_HELP` | `STOPPED_FOR_SAFETY` | `EMERGENCY_ADVERSE_REACTION` | `SERIOUS_ADVERSE_REACTION_STOP` |
+
+긴급 중단 그룹은 다른 안전 이벤트보다 우선하며 veto를 유지한다. MILD 또는 MODERATE 이벤트는
+검수된 동적 재구성 정책이 없으므로 진행 중 계획을 자동 변경하지 않는다. COMPLETED, PARTIAL,
+NOT_COMPLETED, STOPPED_FOR_SAFETY로 종료된 세션의 블록과 상태는 변경할 수 없다.
+
 ## 11. 주간 주기와 리포트 게이트
 
 - 주간 범위는 사용자 timezone의 월요일 00:00부터 일요일 23:59:59까지다.
@@ -509,19 +527,21 @@ PLANNED -> IN_PROGRESS -> COMPLETED
 4. 무릎 MILD 또는 MODERATE: 검수된 충돌 운동 제외와 대체 후보
 5. 무릎 SEVERE: REST, 운동 계획 없음
 6. 긴급 중단 그룹 입력: STOP_AND_SEEK_HELP, 운동 계획 없음
-7. 마지막 완료 후 7일: 복귀 모드 활성화
-8. 예정 운동 3회 연속 미수행: 복귀 모드 활성화
-9. 웨어러블 없음: 수동 체크인으로 정상 결정
-10. LLM 실패: 동일 계획과 템플릿 설명
-11. 안전 veto된 후보: 최종 루틴으로 반환하지 않음
-12. REST 선택: 당일 압박 알림 차단
-13. 필수 agent 하나 실패: FAILED, 운동 계획 없음
-14. 운동 블록 일부 완료 체크: 경과 시간과 무관하게 PARTIAL
-15. 모든 운동 블록 완료 체크: 경과 시간과 무관하게 COMPLETED
-16. 완료 블록 없음: 경과 시간이 길어도 NOT_COMPLETED
-17. 닫히지 않은 주 리포트 요청: 거부
-18. 직전 주 리포트 미확인 상태의 다음 계획 확정: 거부
-19. AI 수정 2회 이후 추가 AI 수정: 거부, 직접 편집 경로 제공
+7. 마지막 공식 완료 후 13일: 복귀 모드 비활성
+8. 마지막 공식 완료 후 14일: 복귀 모드 활성화
+9. 예정 운동 연속 미수행: 복귀 모드 비활성, 비벌점 학습 신호만 생성
+10. 웨어러블 없음: 수동 체크인으로 정상 결정
+11. LLM 실패: 동일 계획과 템플릿 설명
+12. 안전 veto된 후보: 최종 루틴으로 반환하지 않음
+13. REST 선택: 당일 압박 알림 차단
+14. 필수 agent 하나 실패: FAILED, 운동 계획 없음
+15. 운동 블록 일부 완료 체크: 경과 시간과 무관하게 PARTIAL
+16. 모든 운동 블록 완료 체크: 경과 시간과 무관하게 COMPLETED
+17. 완료 블록 없음: 경과 시간이 길어도 NOT_COMPLETED
+18. 운동 중 안전 중단: STOPPED_FOR_SAFETY와 승인 reason/guidance code
+19. 닫히지 않은 주 리포트 요청: 거부
+20. 직전 주 리포트 미확인 상태의 다음 계획 확정: 거부
+21. AI 수정 2회 이후 추가 AI 수정: 거부, 직접 편집 경로 제공
 
 ---
 

@@ -493,7 +493,8 @@ training type에서 목표·처방을 추론하지 않는다.
 | created_at | 생성 시각 |
 | resolved_at | 상태 확정 시각 |
 
-복귀 모드의 예정 운동 3회 연속 미수행을 재현하기 위해 필요하다. user_id와 scheduled_local_date, routine_day_id 조합은 유일하다.
+미수행 이력을 벌점 없는 학습 신호와 주간 집계로 재현하기 위해 필요하다. 미수행 횟수는
+복귀 모드를 활성화하지 않는다. user_id와 scheduled_local_date, routine_day_id 조합은 유일하다.
 
 ### 6.5 calendar_connections
 
@@ -659,8 +660,7 @@ PK는 daily_context_id와 reaction_code 조합이다.
 |---|---|
 | id | UUID, PK |
 | version_code | 정책 버전 |
-| return_mode_inactivity_days | 기본 7 |
-| return_mode_consecutive_misses | 기본 3 |
+| return_mode_completion_gap_days | 기본 14, 마지막 공식 COMPLETED 세션 기준 |
 | duration_rule_version | 시간 규칙 버전 |
 | safety_rule_version | 안전 규칙 버전 |
 | policy_data | 확장 JSONB |
@@ -683,7 +683,9 @@ PK는 daily_context_id와 reaction_code 조합이다.
 
 이 가중치는 비안전 조정·설명 선호에만 사용하고, SafetyAgent의 안전 veto나 안전 상태를 바꾸는 데 사용하지 않는다.
 
-복귀 모드 자체는 별도 영구 플래그보다 scheduled_workouts와 workout_sessions로부터 계산하고 decision input snapshot에 결과를 저장한다.
+복귀 모드 자체는 별도 영구 플래그보다 workout_sessions의 마지막 공식 COMPLETED 시점으로부터
+계산하고 decision input snapshot에 결과를 저장한다. scheduled_workouts의 NOT_COMPLETED 이력은
+비벌점 학습 신호로만 사용하며 복귀 트리거가 아니다.
 
 ---
 
