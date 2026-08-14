@@ -47,7 +47,7 @@ def postgres_session(monkeypatch: pytest.MonkeyPatch) -> Iterator[Session]:
     engine: Engine = create_engine(test_database_url)
     connection = engine.connect()
     transaction = connection.begin()
-    session = Session(bind=connection)
+    session = Session(bind=connection, join_transaction_mode="create_savepoint")
     try:
         yield session
     finally:
