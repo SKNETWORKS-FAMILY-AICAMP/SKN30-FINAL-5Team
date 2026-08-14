@@ -69,13 +69,16 @@ PostgreSQL ENUM을 광범위하게 사용하지 않는다. 자주 변경될 수 
 | id | UUID, PK |
 | user_id | users FK |
 | provider_code | FIREBASE, GOOGLE, KAKAO, NAVER |
-| provider_subject | provider가 발급한 불변 subject |
+| provider_subject | provider가 발급한 불변 subject, 최대 255자; 변환·절단 금지 |
 | firebase_subject | 최종 Firebase 사용자 연결 subject |
 | code_set_version | identity machine code 집합 버전. 최초 값은 `identity-mvp-v1` |
 | created_at | 연결 시각 |
 | revoked_at | 연결 해제 시각, nullable |
 
-활성 identity의 `(provider_code, provider_subject)`와 `firebase_subject`는 유일해야 한다. provider access/refresh token, 이메일, 전체 이름은 저장하지 않는다.
+활성 identity의 `(provider_code, provider_subject)`와 `firebase_subject`는 유일해야 한다. 같은
+subject 반복 로그인은 같은 row를 재사용하고 다른 user에 연결된 subject는 충돌한다. provider
+access/refresh/ID token, Firebase custom token, email, name, nickname, picture, phone, birthday,
+birthyear, age, gender, locale과 provider 원본 JSON은 저장하거나 자동 병합에 사용하지 않는다.
 
 첫 인증 수직 슬라이스의 `identity-mvp-v1` provider code는 실제 사용하는 `FIREBASE`만
 검증한다. KAKAO adapter 증분은 `identity-social-v1`을 새 code-set version으로 추가하고 이 version의
@@ -1277,8 +1280,12 @@ decision_runs
 
 필수 인덱스:
 
-- user_identities(provider_code, provider_subject)
-- user_identities(firebase_subject)
+- user_identities(provider_code, provider_subject) UNIQUE for active identity
+- user_identities(firebase_subject) UNIQUE for active identity
+- social_oauth_authorization_requests(state_hash) UNIQUE
+- social_oauth_authorization_requests(expires_at)
+- social_oauth_rate_limit_windows(provider_code, dimension_code, key_digest, window_started_at) UNIQUE
+- social_oauth_rate_limit_windows(expires_at)
 - daily_contexts(user_id, local_date)
 - routines(user_id, status_code, effective_from)
 - scheduled_workouts(user_id, scheduled_local_date, status_code)
@@ -1319,7 +1326,8 @@ decision_runs
 1. 한 트랜잭션에서 `users.status_code=DELETION_PENDING`과 단 하나의 request/job을 만들고 접근·동기화를 차단한다.
 2. job을 요청 즉시 시작하고 Firebase 계정과 외부 연동 해제를 시도한다.
 3. provider 실패는 7일 기한 전까지 재시도한다. 기한까지 실패하면 `FAILED_FINAL`로 확정한다.
-4. provider 결과와 무관하게 생년월일을 포함한 운영 DB 사용자 연결 데이터를 7일 이내 hard delete한다.
+4. provider 결과와 무관하게 firebase principal, provider identity와 생년월일을 포함한 운영 DB
+   사용자 연결 데이터를 7일 이내 hard delete한다.
 5. 사용자 cache·work payload를 삭제하고 감사 레코드를 opaque 필드로 비식별화한다.
 6. restore-block keyed-digest tombstone으로 backup 복원 시 접근과 재삭제를 강제한다.
 7. AWS 운영 증적으로 마지막 관련 recovery point 만료를 확인한 뒤 job을 최종 완료한다.
