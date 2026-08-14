@@ -942,6 +942,10 @@ COMPLETED로 바꾸면 completed_at을 기록하고, 세션 종료 전 PENDING�
 
 추가 운동은 계획 블록 체크나 공식 세션 상태를 변경하지 않으며 패턴 분석과 주간 리포트 입력으로 사용한다.
 
+Wave 7A의 모든 mutation은 `mutation_idempotency_records`에 사용자·endpoint·요청 키·요청
+hash·최초 응답을 저장한다. 같은 키와 다른 요청 hash는 거부한다. 종료 상태 또는 `ended_at`이
+있는 세션에는 block, timer event, additional activity 행을 더 쓰지 않는다.
+
 ### 10.2.3 manual_activity_records (MVP 이후)
 
 수동 외부 운동 기록은 MVP에서 제외하고 추후 기능으로 분류한다. 후속 기능에서 웨어러블을 사용하지 않는 사용자의 외부 운동 기록을 세션과 독립적으로 저장할 수 있다.

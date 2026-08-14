@@ -859,6 +859,11 @@ KEEP, DOWNSHIFT, CHANGE, RECOVERY에서는 `FINAL_ROUTINE` option을 정확히 �
 
 REST 선택에는 workout_session이 null이다. 이 경우 해당 local_date의 압박 알림 차단 상태가 함께 기록된다.
 
+이 mutation은 UUID `Idempotency-Key` header가 필수다. 같은 키와 같은 요청은 최초의 selection 및
+session 응답을 반환하며, 같은 키에 다른 `decision_id` 또는 `option_id`를 보내면
+`409 IDEMPOTENCY_KEY_REUSED`를 반환한다. 이미 다른 키로 선택이 확정된 decision은
+`409 DECISION_ALREADY_SELECTED`를 반환한다.
+
 ---
 
 ## 12. 운동 세션
@@ -877,6 +882,8 @@ PATCH /api/v1/workout-sessions/{id}/start
 
 PLANNED 세션만 시작할 수 있다.
 
+UUID `Idempotency-Key` header가 필수다. 같은 키와 같은 시작 요청은 최초 응답을 반환한다.
+
 응답은 `started_at`, 모든 운동 블록의 PENDING 상태, 첫 번째 current_plan_item_id를 반환한다. 클라이언트는 0초부터 증가하는 전체 경과 타이머를 시작하고 일시정지·재개를 로컬 상태로 관리한다. 서버는 이 타이머로 운동 완료를 판정하지 않는다.
 
 ### 12.2 운동 블록 완료
@@ -894,17 +901,47 @@ PATCH /api/v1/workout-sessions/{session_id}/items/{plan_item_id}
 
 응답은 갱신된 블록, `completed_item_count`, `total_item_count`, `next_pending_plan_item_id`를 반환한다. 클라이언트의 체크 버튼·블록 격파·좌측 밀기는 동일한 mutation을 사용한다. 세트·반복·유산소 권장 시간과 경과 타이머는 이 상태를 자동 변경하지 않는다.
 
+UUID `Idempotency-Key` header가 필수다. 이미 같은 상태인 블록에 대한 요청은 `completed_at`을
+다시 쓰지 않고 현재 응답을 반환한다.
+
 ### 12.2.1 타이머 이력
 
 POST /api/v1/workout-sessions/{session_id}/timer-events
 
 요청의 `event_code`는 `START`, `PAUSE`, `RESUME`, `END` 중 하나이며 `occurred_at`과 클라이언트 기록 시각을 함께 저장한다. 이력은 수행 시간과 이용 패턴 분석용이며 운동 블록 상태나 공식 세션 상태를 변경하지 않는다.
 
+~~~json
+{
+  "event_code": "PAUSE",
+  "occurred_at": "2026-08-06T10:12:00+09:00",
+  "client_recorded_at": "2026-08-06T10:12:01+09:00"
+}
+~~~
+
+UUID `Idempotency-Key` header가 필수다. 성공 응답은 `event_id`, 저장 시각과 변경되지 않은
+`session_status_code=IN_PROGRESS`를 반환한다.
+
 ### 12.2.2 추가 운동 기록
 
 POST /api/v1/workout-sessions/{session_id}/additional-activities
 
 계획 외 운동의 유형, 지속 시간, 강도와 선택 메모를 저장한다. 추가 운동은 공식 계획 블록 체크 상태를 변경하지 않으며 주간 패턴 분석과 리포트 입력으로만 사용한다.
+
+~~~json
+{
+  "activity_type_code": "WALKING",
+  "duration_seconds": 1200,
+  "intensity_code": "LOW",
+  "note": null
+}
+~~~
+
+`duration_seconds`는 0보다 커야 하고 `note`는 최대 500자다. UUID `Idempotency-Key` header가
+필수다. 성공 응답은 `activity_id`와 변경되지 않은 `session_status_code=IN_PROGRESS`를 반환한다.
+
+Wave 7A의 start·block·timer·additional-activity mutation은 `ended_at`이 있거나 상태가
+`COMPLETED`, `PARTIAL`, `NOT_COMPLETED`, `STOPPED_FOR_SAFETY`인 세션을 모두
+`409 SESSION_ENDED`로 거부한다. 타이머 `END` 이벤트 자체는 공식 세션 종료가 아니다.
 
 ### 12.3 운동 중 안전 이벤트
 
