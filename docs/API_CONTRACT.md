@@ -32,7 +32,9 @@
 
 ## 3. 인증
 
-MVP 인증 공급자는 Firebase Authentication이다.
+MVP 세션 권한 공급자는 Firebase Authentication이며 첫 직접 social OAuth 구현 provider는 KAKAO다.
+상세 provider-neutral 계약과 구현 순서는 `PROPOSED` ADR-0009와 `auth-provider-policy-v1`을 따른다.
+ADR-0009가 `ACCEPTED`되기 전 아래 KAKAO endpoint는 예약 계약이며 구현하지 않는다.
 
 클라이언트는 다음 헤더를 보낸다.
 
@@ -42,29 +44,35 @@ Authorization: Bearer {firebase_id_token}
 
 백엔드는 Firebase ID Token을 검증하고 token의 subject를 내부 user identity와 연결한다.
 
-- Google은 Firebase 기본 provider를 사용한다.
-- Kakao/Naver는 provider OAuth 결과를 백엔드 adapter가 검증한 뒤 Firebase custom token으로 교환한다.
+- Google은 Firebase 기본 provider를 사용하고 backend 직접 OAuth endpoint를 호출하지 않는다.
+- KAKAO는 승인된 후 첫 독립 PR에서 provider OAuth 결과를 backend adapter가 검증하고 Firebase custom
+  token으로 교환한다. Naver는 후속 독립 PR이다.
 - FastAPI가 최종 권한으로 인정하는 것은 Firebase ID Token뿐이다.
 
 규칙:
 
-- 이메일, 전체 이름, ID Token을 애플리케이션 로그에 기록하지 않는다.
+- 이메일, 이름, 닉네임, 전화번호, provider/Firebase subject, ID Token과 provider 원시 응답을
+  애플리케이션 로그·trace·metric label에 기록하지 않는다.
 - API 요청 body로 Firebase UID를 받지 않는다.
 - 모든 사용자 리소스는 검증된 현재 사용자 범위로 제한한다.
 - 삭제 대기 또는 비활성 계정은 일반 API 접근을 거부한다.
 - 1년 이상 활동이 없는 계정은 DORMANT 서비스 분류와 30일 전 통지 후 삭제 정책을 적용한다. 법정 휴면으로 표현하지 않으며 재활성화·삭제 감사 세부 계약은 출시 전 확정한다.
 - 외부 인증 검증은 integration adapter 뒤에 둔다.
 
+Google Firebase 로그인은 client 공식 SDK가 소유한다. 앱은 추가 Google OAuth scope를 요청하지
+않고 로그인 후 Firebase ID Token만 공통 Authorization header로 보낸다.
+
 Kakao와 Naver의 모바일 OAuth 시작·교환은 다음 공개 endpoint를 사용한다. 첫 구현 provider는
-`KAKAO`이며 `NAVER`는 별도 증분에서 활성화한다.
+`KAKAO`이며 `NAVER`는 별도 증분에서 활성화한다. ADR-0009 승인 전에는 예약 계약이다.
 
 ~~~http
 POST /api/v1/auth/social/{provider_code}/authorize-init
+POST /api/v1/auth/social/{provider_code}/exchange
 ~~~
 
-`authorize-init`은 Firebase 인증 전 호출한다. 클라이언트는 KAKAO Developers에 등록된
-`redirect_uri`와 PKCE S256 challenge를 보내고, 서버는 독립적인 state·nonce, 600초 만료 시각과
-KAKAO authorization URL을 반환한다. 개인정보 scope는 요청하지 않는다.
+`authorize-init`은 Firebase 인증 전 호출한다. client는 KAKAO Developers에 등록된 redirect URI와
+PKCE S256 challenge를 보내고 server는 독립적인 state·nonce와 600초 만료 authorization URL을 반환한다.
+redirect URI는 server allowlist 값과 정확히 일치해야 하며 개인정보 scope는 요청하지 않는다.
 
 ~~~text
 SocialAuthorizationInitRequest
@@ -84,6 +92,10 @@ state와 nonce 원문은 응답 후 서버 DB·cache·로그에 저장하지 않
 SHA-256, redirect URI SHA-256, PKCE challenge와 만료 시각만 저장한다. state는 single-use이며
 정상 교환 시 row를 즉시 삭제한다. 600초 경계 이후는 `422 OAUTH_STATE_EXPIRED`, 불일치·이미
 소비된 state는 `422 INVALID_OAUTH_STATE`다.
+
+authorize-init은 PostgreSQL fixed window로 canonical client IP 10회/분과 `(provider_code,
+registered_redirect_uri_key)` 60회/시간을 적용한다. raw IP/URI는 저장하지 않고 HMAC digest와
+window/count/expiry만 저장한다.
 
 ~~~http
 POST /api/v1/auth/social/{provider_code}/exchange
@@ -120,6 +132,25 @@ fail-closed 매핑한다. custom token은 응답 후 서버 cache나 도메인 D
 제한 키는 운영 secret 기반 HMAC-SHA256만 저장하며 원시 IP와 redirect URI는 rate-limit row나
 로그에 남기지 않는다. 초과 요청은 provider 호출 없이 `429 RATE_LIMITED`다. KAKAO timeout,
 일시 오류와 5xx는 `503 PROVIDER_UNAVAILABLE`이며 provider 원본 응답을 오류에 포함하지 않는다.
+
+Kakao는 `openid`, state, nonce, PKCE S256이 필수다. Naver 도입 시에는 `openid`, state, PKCE S256이
+필수이며 확인한 공식 문서가 nonce를 명시하지 않으므로 nonce를 임의 검증하지 않는다. email,
+profile, nickname, birthday, phone scope는 허용하지 않는다.
+
+server는 client가 반환한 nonce를 저장 digest와 먼저 비교하고 KAKAO ID token의 nonce claim도 같은
+digest와 constant-time 비교한다. 둘 중 하나라도 다르면 identity를 만들지 않는다.
+
+MVP에서는 명시적 account-link endpoint를 제공하지 않는다. 연결되지 않은 KAKAO subject는 별도
+user를 만들고 기존 로그인 user에 자동 연결하거나 email·name으로 병합하지 않는다.
+
+authorization code와 flow는 한 번만 사용할 수 있고 재요청은 `409 AUTHORIZATION_CODE_REUSED`다.
+signature, issuer, audience, expiry, subject와 적용 가능한 nonce 검증 후 provider code와 불변
+subject만 identity service에 전달한다. access/refresh/ID token과 Firebase custom token은 처리
+후 server cache나 도메인 DB에 저장하지 않는다.
+
+같은 subject 반복 로그인은 최초 user를 반환한다. 이미 다른 user에 연결된 subject는
+`409 IDENTITY_ALREADY_LINKED`이며 email·이름으로 병합하지 않는다. DB commit 실패 시 custom
+token을 반환하지 않고 `503 DATABASE_UNAVAILABLE`로 rollback한다.
 
 ---
 
@@ -258,8 +289,8 @@ health endpoint는 인증 없이 호출할 수 있지만 민감한 설정, DB �
 
 | 메서드 | 경로 | 설명 |
 |---|---|---|
-| POST | /api/v1/auth/social/{provider_code}/authorize-init | 서버 state·nonce와 KAKAO PKCE authorization URL 발급 |
-| POST | /api/v1/auth/social/{provider_code}/exchange | Kakao/Naver authorization code를 검증하고 Firebase custom token으로 교환 |
+| POST | /api/v1/auth/social/{provider_code}/authorize-init | [예약] KAKAO server-bound OAuth flow 시작 |
+| POST | /api/v1/auth/social/{provider_code}/exchange | [예약] KAKAO authorization code를 검증하고 Firebase custom token으로 교환 |
 | GET | /api/v1/me | 현재 사용자와 온보딩 상태 |
 | GET | /api/v1/me/identities | 현재 사용자에 연결된 인증 provider 목록 |
 | PUT | /api/v1/me/onboarding | 프로필, 장비, 주의 부위 저장 |
@@ -1397,15 +1428,15 @@ SafetySummary
 
 | HTTP | 대표 코드 |
 |---:|---|
-| 400 | INVALID_REQUEST |
-| 401 | AUTHENTICATION_REQUIRED, INVALID_TOKEN |
+| 400 | INVALID_REQUEST, INVALID_OAUTH_NONCE, INVALID_PKCE_VERIFIER, INVALID_IDENTITY_SCOPE |
+| 401 | AUTHENTICATION_REQUIRED, INVALID_TOKEN, INVALID_PROVIDER_TOKEN, PROVIDER_TOKEN_EXPIRED, PROVIDER_ISSUER_MISMATCH, PROVIDER_AUDIENCE_MISMATCH, PROVIDER_SUBJECT_MISSING |
 | 403 | ACCOUNT_DISABLED, AGE_REQUIREMENT_NOT_MET |
 | 404 | RESOURCE_NOT_FOUND, ROUTINE_NOT_FOUND, DAILY_CONTEXT_NOT_FOUND |
-| 409 | STALE_CONTEXT, INVALID_STATE_TRANSITION, OPTION_NOT_SELECTABLE, IDEMPOTENCY_KEY_REUSED, ROUTINE_VERSION_CONFLICT, AUTHORIZATION_CODE_REUSED, WEEK_NOT_CLOSED, REPORT_ACKNOWLEDGEMENT_REQUIRED, AI_REVISION_LIMIT_REACHED, CONSENT_REQUIRED, WEARABLE_NOT_CONNECTED, CALENDAR_NOT_CONNECTED |
+| 409 | STALE_CONTEXT, INVALID_STATE_TRANSITION, OPTION_NOT_SELECTABLE, IDEMPOTENCY_KEY_REUSED, ROUTINE_VERSION_CONFLICT, AUTHORIZATION_CODE_REUSED, IDENTITY_ALREADY_LINKED, LAST_IDENTITY_UNLINK_FORBIDDEN, WEEK_NOT_CLOSED, REPORT_ACKNOWLEDGEMENT_REQUIRED, AI_REVISION_LIMIT_REACHED, CONSENT_REQUIRED, WEARABLE_NOT_CONNECTED, CALENDAR_NOT_CONNECTED |
 | 422 | INVALID_DOMAIN_CODE, INVALID_DURATION, ROUTINE_DURATION_UNAVAILABLE, ROUTINE_CONTENT_UNAVAILABLE, DUPLICATE_BODY_AREA, INVALID_DATE_OF_BIRTH, NEEDS_INPUT, INVALID_WEEK_START, INVALID_OAUTH_STATE, OAUTH_STATE_EXPIRED |
 | 429 | RATE_LIMITED |
 | 500 | INTERNAL_ERROR, DECISION_FAILED |
-| 503 | DATABASE_UNAVAILABLE, AUTH_PROVIDER_UNAVAILABLE, APPROVED_CATALOG_UNAVAILABLE, PROVIDER_UNAVAILABLE |
+| 503 | DATABASE_UNAVAILABLE, AUTH_PROVIDER_UNAVAILABLE, PROVIDER_UNAVAILABLE, APPROVED_CATALOG_UNAVAILABLE |
 
 안전한 후보가 없어 REST를 정상 반환하는 것은 오류가 아니다.
 

@@ -81,6 +81,16 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 55. opaque 감사·로그·snapshot에 사용자/provider 식별자, token, 원시 건강·오류가 없음
 56. keyed-digest restore tombstone은 일치 backup 복원 계정을 차단하고 요청 후 30일에 만료
 57. 마지막 관련 recovery point 만료 증적 전에는 deletion job COMPLETED 전이 금지
+58. invalid state·nonce·PKCE 또는 만료·재사용 flow는 identity 조회 전에 거부
+59. provider token issuer·audience 불일치, 만료·변조와 subject 누락은 user를 만들지 않음
+60. provider timeout·5xx·rate limit은 retryable `PROVIDER_UNAVAILABLE`이고 원시 오류 비노출
+61. 다른 user에 연결된 subject는 `IDENTITY_ALREADY_LINKED`이며 email 기반 자동 병합 없음
+62. 같은 subject 반복 로그인은 같은 내부 user·identity를 재사용
+63. provider 연결 해제 반복 호출은 이미 REVOKED일 때 성공 no-op
+64. identity DB 저장 실패는 전체 rollback하고 custom token·성공 응답 없음
+65. 마지막 활성 로그인 수단 일반 해제는 거부하고 account deletion 전체 해제는 허용
+66. token·email·name·nickname·provider 원본 응답과 subject가 로그·snapshot·metric label에 없음
+67. Google은 Firebase 기본 provider와 추가 scope 없음, Kakao/Naver 직접 adapter는 `openid`만 허용
 
 ## 4. 속성·불변식 테스트
 
@@ -149,6 +159,14 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 - tombstone은 requested_at + 30일을 넘겨 보존하지 않고 opaque 감사 TTL은 승인된 retention
   policy 없이는 하드코딩되지 않음
 - backup expiry 증적이 없으면 단순 시간 경과만으로 COMPLETED를 만들지 않음
+- Firebase subject와 provider subject는 별도 principal/identity로 취급하고 같은 값으로 추정하지 않음
+- 활성 `(provider_code, provider_subject)`와 Firebase principal subject는 각각 전역 unique임
+- email·name·nickname·phone·birthday·profile claim은 identity 조회·생성·병합 입력이 아님
+- direct OAuth flow는 UUIDv4, 10분 TTL, state/nonce digest, PKCE S256 challenge만 저장함
+- raw authorization code·state·nonce·verifier와 모든 token은 영속화되지 않음
+- Google Firebase 경로는 backend direct exchange route를 호출하지 않음
+- Kakao는 state·nonce·PKCE S256, Naver는 state·PKCE S256을 적용하고 미문서 nonce를 추정하지 않음
+- 독립 identity unlink는 총 5회·24시간 예산 뒤 REVIEW 상태이며 account deletion은 ADR-0008을 따름
 
 ## 5. 테스트 데이터
 
@@ -217,6 +235,26 @@ retention 분류, HMAC tombstone과 opaque 감사 allowlist를 검증한다. gol
 실제 SQLAlchemy 구현 PR은 동일 contract에 repository transaction rollback, FK delete graph,
 동시 요청 unique, Alembic round trip과 PostgreSQL integration test를 추가해야 한다. 실제 provider,
 scheduler/queue, AWS backup 리소스는 adapter·운영 task로 분리한다.
+
+### 5.5 Auth provider 골든·보안 계약
+
+인증 provider fixture는 합성 UUIDv4, 고정 timezone-aware 시각, provider·failure machine code와
+`auth-provider-policy-v1`과 `identity-social-v1`만 사용한다. 실제 authorization code, access/refresh/ID/custom token,
+state, nonce, verifier, Firebase/provider subject, email, name, nickname과 provider 원본 응답은
+fixture·snapshot에 포함하지 않는다. subject가 필요한 검증은 의미 없는 합성 문자열만 메모리에서
+사용하고 로그·snapshot 기대값에는 포함하지 않는다.
+
+domain unit은 Google Firebase 경로, provider별 허용 scope, state/nonce/PKCE, issuer/audience/
+signature/expiry/subject, 반복 identity 해석, 충돌, 해제 retry와 observability allowlist를 검증한다.
+golden suite는 필수 10개 시나리오인 invalid state/nonce, issuer/audience 불일치, 만료·변조 token,
+timeout/5xx, subject 누락, subject uniqueness 충돌, 반복 로그인, 연결 해제 반복, DB rollback,
+token·profile·원본 응답 비노출을 고정한다.
+
+Kakao 첫 adapter PR은 authorize-init 10/11·60/61 fixed-window 경계, 600초 만료, provider 호출 전
+digest row 소비·삭제, 실패 시 새 init, verifier ownership, OIDC verifier·service·API tests,
+PostgreSQL concurrent unique/rollback, additive Alembic round trip과 frontend callback contract를 추가한다. 실제 adapter test는
+official discovery/JWKS에서 만든 최소 합성 fixture와 합성 HTTP failure를 사용하며 live provider나 실제
+credential을 CI 필수 조건으로 만들지 않는다. Google은 기존 Firebase 경로를 유지하고 Naver는 후속 독립 PR이다.
 
 ## 6. CI 게이트
 

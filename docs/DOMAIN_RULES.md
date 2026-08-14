@@ -575,6 +575,41 @@ CACHE_AND_WORK_DELETE -> AUDIT_DEIDENTIFICATION -> BACKUP_EXPIRY_VERIFICATION`�
 - backup expiry는 단순 경과 시간이 아니라 해당 사용자를 포함할 수 있는 마지막 recovery point의
   만료 증적이 확인된 경우에만 완료된다.
 
+### 13.2 인증 provider와 identity 연결
+
+인증 provider의 상세 계약은 `PROPOSED` ADR-0009와 `auth-provider-policy-v1`을 따른다. ADR이
+`ACCEPTED`가 되기 전에는 실제 route·adapter·migration을 구현하지 않는다.
+
+- 첫 구현 provider는 KAKAO backend authorization-code/OIDC다. FastAPI의 최종 권한은 항상
+  Firebase ID Token이며 Google은 Firebase 기본 provider 경로만 사용한다.
+- 신뢰 경로는 `verified provider subject -> Firebase principal -> internal user UUID`다. Firebase
+  subject와 provider subject를 같은 값으로 추정하지 않는다.
+- 같은 `(provider_code, provider_subject)` 반복 로그인은 같은 내부 user를 반환한다. 다른 user에
+  연결된 subject는 `IDENTITY_ALREADY_LINKED`이며 email·이름·닉네임으로 자동 병합하지 않는다.
+- 연결되지 않은 KAKAO subject는 별도 user로 만들고 로그인 결과를 현재 user에 암묵 연결하지 않는다.
+  명시적 계정 연결 API는 MVP에서 제외한다. 향후 단독 해제는 마지막 활성 로그인 수단 제거를
+  거부하며 이미 해제된 identity 재요청은 성공 no-op이어야 한다.
+- 저장 가능한 identity 값은 내부 UUID/FK, provider code, 불변 provider subject, 상태·정책 버전,
+  연결·해제·재시도 시각과 allowlist failure code다.
+- email, email_verified, name, nickname, picture, phone, birthday, birthyear, age, gender, locale,
+  provider 원본 응답과 모든 token은 identity 판단·저장·로그·snapshot·metric label에서 금지한다.
+- Google은 추가 OAuth scope를 요청하지 않는다. Kakao/Naver 직접 adapter는 `openid`만 허용한다.
+- 직접 adapter의 OAuth flow는 UUIDv4 flow ID, server-bound state, server allowlist redirect URI와
+  PKCE S256을 사용한다. Kakao는 nonce도 필수다. Naver nonce는 확인한 공식 문서에 없으므로
+  지원을 추정하지 않고 도입 전 재검토한다.
+- authorization flow는 10분 후 만료하며 state·nonce·등록 redirect URI digest와 PKCE challenge만
+  보관한다. exchange는 이를 검증하고 provider 호출 전에 row를 삭제·commit한다. 소비 row가 없으면
+  `INVALID_OAUTH_STATE`이며 외부 실패에도 되살리지 않는다. authorization code, verifier,
+  access/refresh/ID/custom token은 저장하지 않고 처리 후 폐기한다.
+- authorize-init과 exchange는 PostgreSQL fixed window로 canonical IP 10회/분 및 provider·등록
+  redirect URI 60회/시간을 제한한다. raw IP/URI 대신 secret-key HMAC digest만 window 동안 보관한다.
+- timeout·5xx·provider rate limit은 retryable `PROVIDER_UNAVAILABLE`이다. signature·issuer·audience·
+  expiry·nonce·subject 검증 실패를 provider 장애나 성공으로 매핑하지 않는다.
+- 독립 연결 해제 실패는 1분, 5분, 30분, 2시간, 12시간 backoff로 총 5회·24시간 내 재시도한다.
+  이후 `REVOCATION_FAILED_REQUIRES_REVIEW`이며 해당 identity 로그인 차단을 유지한다.
+- 계정 삭제의 provider 해제는 위 독립 해제 예산이 아니라 ADR-0008의 7일·로컬 hard-delete 우선
+  계약을 사용한다.
+
 ---
 
 ## 14. 재현성과 감사
@@ -631,6 +666,16 @@ CACHE_AND_WORK_DELETE -> AUDIT_DEIDENTIFICATION -> BACKUP_EXPIRY_VERIFICATION`�
 30. opaque 감사·로그·snapshot에 사용자/provider 식별정보와 원시 건강 데이터 없음
 31. backup restore tombstone은 일치 계정을 차단하고 요청 후 30일에 만료
 32. backup expiry 운영 증적 전에는 삭제 job `COMPLETED` 금지
+33. invalid state 또는 nonce: identity 조회 전에 거부
+34. issuer 또는 audience 불일치: provider token 거부
+35. 만료·변조 token과 subject 누락: user 생성 없음
+36. provider timeout·5xx: `PROVIDER_UNAVAILABLE`, 원시 오류 비노출
+37. 이미 다른 user에 연결된 subject: 자동 병합 없이 충돌
+38. 같은 subject 반복 로그인: 같은 내부 user와 identity 재사용
+39. provider 연결 해제 반복 호출: 이미 REVOKED면 성공 no-op
+40. identity DB commit 실패: 전체 rollback, custom token·성공 응답 없음
+41. token·email·name·nickname·subject·원시 provider 응답이 로그·snapshot에 없음
+42. 마지막 활성 identity 일반 해제 차단, 계정 삭제 전체 해제는 허용
 
 ---
 
@@ -644,6 +689,10 @@ CACHE_AND_WORK_DELETE -> AUDIT_DEIDENTIFICATION -> BACKUP_EXPIRY_VERIFICATION`�
 - 안전 문구의 외부 도메인 최종 검수
 - PAR-Q+ 문항 사용 여부와 번역·라이선스
 - 주간 리포트 acknowledgement UX
+- 첫 출시 국가와 대상 사용자가 대한민국인지
+- Kakao 앱·REST key·client secret·production redirect URI owner와 등록 완료일
+- Google/Firebase 프로젝트 및 Naver 앱 등록·심사 담당자와 완료일
+- Naver user token 영구 저장 없이 계정 삭제 시 revocation을 완료하는 방식
 
 이 항목은 별도의 승인 없이 임의의 의료 또는 안전 기준으로 구현하지 않는다.
 

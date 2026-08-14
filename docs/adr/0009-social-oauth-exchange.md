@@ -1,189 +1,156 @@
-# ADR-0009: KAKAO 소셜 OAuth 교환과 최소 identity 연결
+# ADR-0009: KAKAO 소셜 OAuth 교환과 provider 경계
 
 - 상태: PROPOSED
 - 날짜: 2026-08-14
-- 소유자: 백엔드 담당
-- 승인자: 프론트엔드 담당, 백엔드 담당, 개발팀장, PM·개인정보 검토자, 운영 담당
-- 관련 요구사항/이슈: `F010-1-2`, `F010-1-4`, `F010-1-5`, Wave 9B
-- 정책 버전: `identity-social-v1`
+- 소유자: 개발팀장
+- 승인자: 프론트엔드, 백엔드, 개발팀장, PM·개인정보 검토자, 운영 담당
+- 관련 요구사항: `F010-1-1`~`F010-1-5`, `F025-1-1`, `NFR-004`, `NFR-005`, Wave 9B
+- 정책 버전: `auth-provider-policy-v1`
+- 신규 code-set: `identity-social-v1` (`identity-mvp-v1`은 변경하지 않음)
 
-## 배경
+## 구현 게이트
 
-기존 계약은 Kakao/Naver authorization code를 백엔드 adapter가 검증하고 Firebase custom
-token으로 교환한다고 정했지만, 서버가 검증할 state와 nonce를 발급하는 API가 없었다. 비인증
-교환 endpoint의 rate limit, state/nonce 만료, KAKAO OIDC·PKCE 검증, provider 오류 매핑도
-확정되지 않았다. state를 서버가 발급하지 않으면 CSRF·재생 방지 검증을 신뢰할 수 없고,
-provider 응답이나 토큰을 저장하면 개인정보 최소화 원칙을 위반한다.
+이 ADR은 공통 계약 제안이다. 필수 승인자가 확인해 상태를 `ACCEPTED`로 변경하기 전에는 API route,
+provider HTTP adapter, repository, `0013` migration과 credential 등록을 구현하지 않는다. 승인 전에는
+문서, 결정적 domain rule과 contract/golden/security test만 허용한다.
 
-## 결정
+## 현재 경계
 
-### provider와 최종 권한
+FastAPI의 최종 세션 권한은 Firebase ID Token이다. verifier는 Firebase UID만 `CurrentUserService`로
+전달하고 email 등 profile claim을 폐기한다. 현재 `user_identities`는 `FIREBASE`와
+`identity-mvp-v1`만 허용하며 Firebase subject와 provider identity가 한 row에 결합돼 있다. KAKAO
+subject 추가는 기존 row를 rewrite하지 않는 additive migration이어야 한다.
 
-- 이 증분의 provider는 `KAKAO` 하나다. `NAVER`는 별도 브랜치·ADR 증분으로 구현한다.
-- 클라이언트의 최종 세션 권한은 기존과 동일하게 Firebase ID Token이다.
-- KAKAO authorization code는 백엔드 adapter가 토큰 endpoint에서 교환하고 OIDC ID token을
-  검증한다. 검증된 `sub`만 identity service에 전달한다.
-- KAKAO 이메일·이름·닉네임·전화번호·생일·프로필 이미지를 scope로 요청하거나 읽거나 저장하지
-  않는다. OIDC를 활성화하고 추가 개인정보 scope 없이 ID token의 `sub`만 사용한다.
+frontend에는 실제 로그인 흐름이 없고 provider 환경 변수 자리만 있다. 저장소에서 출시 국가, 실제
+Kakao 앱과 credential 확보 여부는 확인되지 않았다. F010의 Google/Kakao/Naver MVP 범위는 유지하며
+아래 결정은 구현 순서다.
 
-### 공식 provider 계약
+## provider 비교와 선택
 
-2026-08-14에 KAKAO 공식 개발자 문서를 확인했다.
+| 기준 | Google | Kakao | Naver |
+|---|---|---|---|
+| 권장 경로 | Firebase 기본 provider | backend authorization code + OIDC + Firebase custom token | backend authorization code + OIDC + Firebase custom token |
+| Firebase 중복 | 높음 | 낮음 | 낮음 |
+| 최소 scope | Firebase 결과에서 UID만 소비 | `openid`만 | `openid`만 |
+| state/nonce/PKCE | Firebase SDK 관리 | state·nonce·PKCE S256 | state·PKCE S256; 공식 문서에서 nonce 미확인 |
+| 연결 해제 | Firebase Admin/SDK 경계 | Admin key + subject unlink | 사용자 token revoke + disconnect callback |
+| 출시 전 확인 | Firebase/Google console | Kakao 앱·REST key·redirect URI·OIDC | 앱 공개 검수·redirect URI·revoke 운영 |
+| 운영 복잡도 | 낮음 | 중간 | 높음 |
 
-- issuer: `https://kauth.kakao.com`
-- authorization endpoint: `https://kauth.kakao.com/oauth/authorize`
-- token endpoint: `https://kauth.kakao.com/oauth/token`
-- discovery: `https://kauth.kakao.com/.well-known/openid-configuration`
-- JWKS: `https://kauth.kakao.com/.well-known/jwks.json`
-- ID token: RS256, `iss`·`aud`·`exp`·`nonce`와 서명 검증 필수
-- PKCE: discovery의 `code_challenge_methods_supported`가 `S256`만 허용
-- subject: app-scoped service user ID인 ID token `sub`; 공식 문서의 원천 타입은 `Long`이고
-  OIDC claim은 `String`이며 별도 최대 문자열 길이는 공개되지 않음
-- unlink: `POST https://kapi.kakao.com/v1/user/unlink`
-- redirect URI: 사전 등록·정확 일치, HTTP/HTTPS만 허용, 기본 최대 10개, 임의 path parameter 금지
+첫 직접 OAuth 구현 provider는 **KAKAO**다. backend가 authorization code를 교환하고 OIDC ID token을
+검증한 뒤 Firebase custom token을 발급한다. 이는 대한민국 대상 사용자라는 제품 가정과 Firebase와
+중복되지 않는 adapter 경계를 먼저 검증하기 위한 순서이며, 출시 국가와 credential은 승인 전에 확인한다.
+Google은 기존 Firebase 경로만 사용하고 backend 직접 OAuth를 중복 구현하지 않는다. Naver는 Kakao
+수직 슬라이스 안정화, 앱 공개 검수와 token revoke 운영 계약 승인 뒤 두 번째 직접 adapter로 도입한다.
 
-공식 출처:
+## Kakao 공식 계약
 
-- [Kakao Login REST API](https://developers.kakao.com/docs/en/kakaologin/rest-api)
-- [Kakao Login 활용하기](https://developers.kakao.com/docs/ko/kakaologin/utilize)
-- [Kakao Login 설정하기](https://developers.kakao.com/docs/ko/kakaologin/prerequisite)
-- [Kakao 앱 Redirect URI 설정](https://developers.kakao.com/docs/ko/app-setting/app#platform-key-redirect-uri)
-- [Kakao Login 오류 코드](https://developers.kakao.com/docs/en/kakaologin/trouble-shooting)
+2026-08-14에 Kakao 공식 문서를 확인했다.
 
-### authorize-init
+- issuer `https://kauth.kakao.com`, ID token RS256
+- authorization `https://kauth.kakao.com/oauth/authorize`, token `https://kauth.kakao.com/oauth/token`
+- discovery `https://kauth.kakao.com/.well-known/openid-configuration`, JWKS 공개
+- `iss`, `aud`, `exp`, `nonce`, 서명과 non-empty `sub` 검증 필수
+- discovery가 PKCE `S256`을 제공
+- redirect URI는 사전 등록 값과 정확히 일치
+- subject는 app-scoped service user ID이며 OIDC claim은 String; 공식 최대 길이는 공개되지 않음
+- subject 기반 unlink 지원
 
-새 비인증 endpoint를 추가한다.
+## authorization flow
 
-```http
-POST /api/v1/auth/social/{provider_code}/authorize-init
-```
+`POST /api/v1/auth/social/{provider_code}/authorize-init`는 Firebase 인증 전에 호출한다. 현재
+`provider_code`는 KAKAO만 허용한다. client는 등록된 `redirect_uri`와 client-generated PKCE S256
+challenge를 보내고 server는 CSPRNG로 독립 state·nonce를 발급해 authorization URL, state, nonce와
+600초 만료 시각을 반환한다. client는 callback 완료까지만 state·nonce·verifier를 보관한다.
 
-- 현재 `provider_code`는 `KAKAO`만 허용한다.
-- 클라이언트는 등록된 `redirect_uri`, PKCE `code_challenge`, 고정값 `S256`을 보낸다.
-- 서버는 CSPRNG로 독립적인 state와 nonce를 발급하고 만료 시각과 KAKAO authorization URL을
-  반환한다. URL에는 state, nonce, PKCE challenge를 포함하고 개인정보 scope는 포함하지 않는다.
-- state·nonce 원문은 응답 후 서버 메모리, 로그, DB에 남기지 않는다.
-- PostgreSQL에는 state·nonce SHA-256, redirect URI SHA-256, PKCE challenge, provider code,
-  생성·만료 시각만 저장한다.
-- TTL은 정확히 600초다. 만료된 요청은 `422 OAUTH_STATE_EXPIRED`, 일치하지 않거나 이미 소비된
-  요청은 `422 INVALID_OAUTH_STATE`다.
-- 정상 교환에서 state 검증과 row 삭제는 하나의 transaction으로 수행한다. single-use row는
-  provider 호출 전 소비하며 외부 실패 시 되살리지 않는다. 사용자는 새 init부터 다시 시작한다.
+PostgreSQL transient row에는 UUID, provider code, state·nonce·redirect URI SHA-256, PKCE challenge,
+생성·만료 시각만 저장한다. raw state·nonce·verifier·authorization code·token은 DB, cache, 로그에
+저장하지 않는다. exchange transaction은 row를 잠그고 state, redirect URI, client-returned nonce,
+expiry와 S256 verifier를 검증한 뒤 provider 호출 전에 row를 삭제하고 commit한다. provider 호출 중
+DB lock을 유지하지 않으며 외부 또는 후속 DB 실패에도 row를 되살리지 않고 새 init부터 시작한다.
 
-### PKCE와 nonce
+provider 교환 후 ID token nonce도 직전에 검증한 nonce digest와 constant-time 비교한다. KAKAO의
+만료·재사용·미존재 authorization code `KOE320 invalid_grant`은 원본 설명 없이
+`409 AUTHORIZATION_CODE_REUSED`로 fail closed 매핑한다. 공식 문서는 authorization-code 숫자 TTL을
+공개하지 않으므로 600초는 우리 authorization request 상한이며 provider TTL로 추정하지 않는다.
 
-- 클라이언트가 RFC 7636 verifier를 생성하고 `authorize-init`에는 S256 challenge를,
-  `exchange`에는 원문 verifier를 전달한다.
-- KAKAO 교환의 `code_verifier`는 필수다. 기존 nullable 공개 필드는 삭제하지 않고 KAKAO에 대한
-  조건부 필수 검증으로 좁힌다.
-- 서버는 verifier의 S256 결과를 저장된 challenge와 constant-time 비교한다.
-- KAKAO OIDC가 nonce를 지원하므로 ID token `nonce`는 저장된 nonce SHA-256과 반드시 일치해야 한다.
-- issuer, audience, expiry, algorithm, kid와 JWKS 서명 검증 중 하나라도 실패하면 identity를 만들지
-  않는다. JWKS는 process-local bounded cache만 허용하고 Redis를 추가하지 않는다.
+access/refresh/ID token과 Firebase custom token은 요청 메모리에서만 사용하고 즉시 폐기한다. 현재
+제품에는 provider token을 영구 저장해야 하는 기능이 없다.
 
-### rate limit
+## abuse control과 오류
 
-두 fixed-window 제한을 PostgreSQL에서 원자적으로 증가시킨다.
+authorize-init과 exchange 모두 PostgreSQL fixed window를 적용한다.
 
-- 요청 IP 기준: 10회/60초
-- `(provider_code, redirect_uri)` 기준: 60회/3600초
+- canonical client IP 10회/60초
+- `(provider_code, registered_redirect_uri)` 60회/3600초
 
-모든 `authorize-init`과 `exchange` 요청에 두 제한을 적용한다. IP와 redirect URI 원문은 rate-limit
-테이블에 저장하지 않는다. 운영 secret을 사용하는 HMAC-SHA256 keyed digest만 저장하고 window가
-끝나면 요청 시 논리 삭제한다. 임의의 `X-Forwarded-For`를 신뢰하지 않고 승인된 reverse proxy가
-설정한 client address만 사용한다. 초과 응답은 공통 오류 envelope의 `429 RATE_LIMITED`이며
-provider를 호출하지 않는다.
+신뢰 proxy가 설정한 client address만 forwarded 값으로 인정하고 그 외에는 socket peer를 사용한다.
+DB에는 운영 secret HMAC-SHA256 key와 window/count/expiry만 저장하며 raw IP/URI는 저장하지 않는다.
+window 종료 뒤 요청 시 논리 삭제한다.
 
-### authorization code와 provider 오류
+| HTTP | code | 의미 |
+|---|---|---|
+| 422 | `INVALID_OAUTH_STATE` | state/nonce/redirect/PKCE 불일치 또는 이미 소비된 request |
+| 422 | `OAUTH_STATE_EXPIRED` | row가 존재하고 600초 경계에 도달 |
+| 409 | `AUTHORIZATION_CODE_REUSED` | Kakao `KOE320 invalid_grant` fail-closed 매핑 |
+| 409 | `IDENTITY_ALREADY_LINKED` | subject가 다른 user에 이미 연결됨 |
+| 429 | `RATE_LIMITED` | 애플리케이션 fixed-window 초과 |
+| 503 | `PROVIDER_UNAVAILABLE` | timeout, transport, 일시 오류, 5xx, JWKS 장애 |
 
-- authorization code, access token, refresh token, ID token, Firebase custom token은 로그·오류·DB·
-  cache에 저장하지 않는다.
-- KAKAO는 재사용·만료·미존재 authorization code를 모두 `KOE320 invalid_grant`로 반환하며 공식
-  문서에 숫자 code TTL을 공개하지 않는다. 정보 노출 없이 fail-closed하기 위해 이 응답을
-  `409 AUTHORIZATION_CODE_REUSED`로 안정적으로 매핑한다.
-- provider timeout, transport 오류, `KOE003`, 5xx와 검증용 JWKS 장애는
-  `503 PROVIDER_UNAVAILABLE`로 매핑한다.
-- 잘못된 issuer·audience·서명·expiry·nonce, subject 누락과 schema 오류는 민감한 provider
-  payload 없이 `401 INVALID_TOKEN`으로 매핑한다.
+issuer·audience·서명·expiry·nonce·subject 실패는 user를 만들지 않고 안전한 인증 오류로 반환한다.
+provider URL, payload, exception message는 공개 오류나 로그에 포함하지 않는다.
 
-### identity transaction과 자동 병합 금지
+## identity와 계정 정책
 
-- 검증된 KAKAO `sub`에 대해 provider별 lock과 활성
-  `(provider_code, provider_subject)` unique를 적용한다.
-- 같은 KAKAO subject의 반복 로그인은 같은 내부 user UUID와 firebase subject를 사용한다.
-- 다른 사용자에 이미 연결된 subject는 `409 INVALID_STATE_TRANSITION`으로 실패하며 자동 병합하지
-  않는다. 이메일은 수집하지 않으므로 병합 근거로 사용할 수 없다.
-- 최초 KAKAO 로그인은 `users`와 KAKAO `user_identities`를 하나의 transaction에서 생성한다.
-  두 row의 code-set version은 `identity-social-v1`이다. 기존 `identity-mvp-v1` row는 변경하지 않는다.
-- DB commit 후에만 Firebase custom token을 만들고 성공 응답한다. DB 실패는 전부 rollback하며,
-  custom token 발급 실패 시 저장된 identity를 삭제하거나 성공으로 응답하지 않는다.
+- trust chain은 `verified provider subject -> Firebase principal -> internal user UUID`다.
+- 저장 허용값은 internal UUID/FK, provider code, opaque subject, status, policy/code-set version,
+  연결·해제·재시도 시각과 allowlist failure code다.
+- 활성 `(provider_code, provider_subject)`와 Firebase principal subject는 각각 전역 unique다.
+- 같은 subject 반복 로그인은 같은 user/principal/identity를 재사용한다.
+- 연결되지 않은 KAKAO subject의 첫 로그인은 별도 user를 만든다.
+- 다른 user에 연결된 subject는 `IDENTITY_ALREADY_LINKED`; email/name 기반 자동 병합은 금지한다.
+- 명시적 account-link API는 MVP에서 제외하고 로그인 결과를 현재 로그인 user에 암묵 연결하지 않는다.
+- email, email_verified, name, nickname, picture, phone, birthday, birthyear, age, gender, locale과
+  provider 원본 응답은 scope로 요청하거나 저장·병합 판단·로그에 사용하지 않는다.
 
-### account deletion 연결 해제
+user/identity mutation은 한 DB transaction이다. commit 뒤에만 Firebase custom token을 발급한다.
+DB 실패는 전부 rollback하고 custom token을 반환하지 않는다. custom-token 발급 실패 시 이미 commit된
+identity를 임의 삭제하지 않으며 다음 동일 subject 로그인은 멱등 재사용한다.
 
-- ADR-0008의 provider revocation port와 상태 코드를 재사용한다.
-- provider token을 저장하지 않으므로 KAKAO Admin key와 검증·저장된 service user ID를 사용해
-  unlink한다. Admin key는 client secret과 함께 개발팀장·운영 담당이 secret manager에서 관리한다.
-- unlink 성공, 이미 연결되지 않음은 멱등 성공으로 처리한다. timeout·4xx·5xx는 기존 계정 삭제
-  retry/final-failure 상태로 매핑하며 raw provider 오류를 저장하지 않는다.
+## 연결 해제와 계정 삭제
 
-### 공개 오류 코드
+MVP 공개 account-link/standalone-unlink API는 만들지 않는다. 계정 삭제는 새 삭제 상태를 추가하지 않고
+ADR-0008 provider revocation port/checkpoint를 재사용한다. provider token을 저장하지 않으므로 Kakao
+Admin key와 저장된 subject로 unlink한다. 성공과 이미 해제는 멱등 성공이며 실패는 ADR-0008의 7일
+retry budget 안에서 재시도한다. 기한 뒤 local hard delete를 우선하고 기존
+`COMPLETED_WITH_EXTERNAL_REVOCATION_FAILURE`를 허용한다.
 
-- `429 RATE_LIMITED`
-- `422 INVALID_OAUTH_STATE`
-- `422 OAUTH_STATE_EXPIRED`
-- `503 PROVIDER_UNAVAILABLE`
-- `409 AUTHORIZATION_CODE_REUSED` 유지
+## 개인정보·운영 경계
 
-## 결정 이유
+로그·metric label·trace·snapshot·fixture·오류 details에 code/token/state/nonce/verifier,
+provider/Firebase subject, raw IP/URI, email/name/profile 또는 provider 원본 응답을 남기지 않는다.
+client secret, Admin key, Firebase credential과 rate-limit HMAC key는 개발팀장·운영 담당 소유의 secret
+manager에서만 로드한다. local/CI는 실제 secret 없는 stub adapter를 사용한다.
 
-서버 발급 single-use state와 nonce는 클라이언트가 임의로 만든 값보다 검증 가능한 CSRF·replay
-경계를 제공한다. PostgreSQL fixed-window는 현재 배포 단위에 Redis를 추가하지 않고도 동시 요청을
-원자적으로 제한한다. OIDC `sub`만 사용하면 추가 userinfo 호출과 개인정보 scope가 필요 없다.
-최종 권한을 Firebase로 유지하면 기존 보호 API 인증 경계를 바꾸지 않는다.
+## 공식 문서 근거
 
-## 검토한 대안
+모두 공식 문서이며 확인일은 **2026-08-14**다.
 
-- 클라이언트가 state와 nonce를 임의 발급
-- state와 nonce 원문 또는 provider 전체 응답 저장
-- provider access token을 보관해 unlink에 사용
-- 이메일 기반 기존 계정 자동 병합
-- Redis rate limiter 또는 공통 OAuth framework 도입
-- KAKAO OIDC를 끄고 userinfo API에서 subject 조회
+- Firebase Auth/Google/custom token/link/delete/session: https://firebase.google.com/docs/auth , https://firebase.google.com/docs/auth/web/google-signin , https://firebase.google.com/docs/auth/admin/create-custom-tokens , https://firebase.google.com/docs/auth/web/account-linking , https://firebase.google.com/docs/auth/admin/manage-users , https://firebase.google.com/docs/auth/admin/manage-sessions
+- Google OIDC: https://developers.google.com/identity/openid-connect/openid-connect
+- Kakao REST/OIDC/state/nonce/PKCE/unlink: https://developers.kakao.com/docs/en/kakaologin/rest-api
+- Kakao OIDC 검증·보안: https://developers.kakao.com/docs/ko/kakaologin/utilize
+- Kakao 앱·redirect URI·scope: https://developers.kakao.com/docs/ko/kakaologin/prerequisite , https://developers.kakao.com/docs/ko/app-setting/app#platform-key-redirect-uri
+- Kakao 오류: https://developers.kakao.com/docs/en/kakaologin/trouble-shooting
+- Naver OIDC/PKCE/등록·검수: https://developers.naver.com/docs/login/devguide/devguide.md
+- Naver token revoke: https://developers.naver.com/docs/login/api/api.md
 
-## 선택하지 않은 대안과 이유
+## 승인 전 확인 사항
 
-- 클라이언트 단독 state는 서버가 발급·수명·single-use를 증명할 수 없다.
-- 원문과 provider 응답 저장은 재생·개인정보 노출 범위를 늘린다.
-- token 보관은 제품 계약에 필요하지 않고 삭제·침해 위험을 증가시킨다.
-- 이메일은 요청하지 않으며 변경 가능하므로 병합 근거가 아니다.
-- Redis와 범용 OAuth framework는 단일 provider MVP에 불필요한 운영·의존성 비용이다.
-- OIDC `sub` 검증은 userinfo 전체 응답보다 수집 범위가 작고 nonce 검증을 제공한다.
+- PM: 출시 국가·대상 사용자가 대한민국인지, 세 provider 모두를 MVP 출시 게이트로 유지하는지
+- 운영/개발팀장: Kakao 앱, OIDC/client secret, REST/Admin key, production redirect URI와 secret 경로
+- 프론트엔드/백엔드: 600초 동안 state·nonce·verifier를 보관하는 mobile/web callback handoff
+- 운영: trusted proxy client IP 전달, Kakao test app PKCE와 unlink
+- Kakao가 공개하지 않은 authorization-code 숫자 TTL과 provider token rate-limit
 
-## 결과와 영향
-
-공개 API 두 개와 PostgreSQL transient authorization/rate-limit 모델, KAKAO identity CHECK가 필요하다.
-기존 Firebase Bearer 인증과 `identity-mvp-v1` row는 유지된다. frontend는 init 응답의 authorization
-URL로 이동하고 state·nonce·PKCE verifier를 600초 동안만 로컬 보관해야 한다.
-
-## 보안·개인정보·호환성 영향
-
-비인증 endpoint에는 abuse·enumeration·token 유출 위험이 있다. rate-limit digest key, KAKAO client
-secret, Admin key와 Firebase credential은 secret manager에 두고 source·fixture·DB·로그에 저장하지
-않는다. 오류는 allowlist machine code만 반환한다. 공개 `code_verifier` 필드는 삭제하지 않고 KAKAO에
-대해서만 필수화하므로 schema 형태는 호환되지만 기존 KAKAO 호출자는 init 선행과 PKCE가 필요하다.
-
-## 아직 확정되지 않은 사항
-
-- staging·production에 등록할 정확한 redirect URI 값과 KAKAO 앱 심사 완료 시각
-- KAKAO 앱에서 OIDC·client secret 활성화 및 Admin key의 실제 secret-manager 경로
-- 공식 문서가 discovery에는 PKCE S256을 노출하지만 authorization/token parameter 표에는 관련
-  필드를 별도 기재하지 않은 문서 공백의 production test-project 검증
-- KAKAO가 공개하지 않은 authorization-code 숫자 TTL과 token 발급 rate-limit 수치
-- 배포 reverse proxy의 신뢰 가능한 client IP 전달 설정
-
-## 후속 작업
-
-1. 필수 승인자가 본 ADR과 API·DB 계약을 검토하고 승인 증적을 남긴다.
-2. ADR 상태가 `ACCEPTED`가 된 뒤 backend owner가 TASK-BACKEND-006을 구현한다.
-3. 운영 담당이 KAKAO test app에서 OIDC·PKCE·redirect·unlink를 수동 검증한다.
-4. NAVER는 별도 ADR·브랜치·PR로 추가한다.
+이 항목과 ADR 상태가 `ACCEPTED`되기 전 Phase 3 구현을 시작하지 않는다.
