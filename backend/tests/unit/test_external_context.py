@@ -7,6 +7,8 @@ import pytest
 
 from backend.app.domain.rules.external_context import (
     CALENDAR_AVAILABILITY_RATE_LIMIT,
+    CALENDAR_AVAILABILITY_SCHEMA_VERSION,
+    CALENDAR_PERFORMANCE_SCHEMA_VERSION,
     CALENDAR_TOTAL_RATE_LIMIT,
     EXTERNAL_CONTEXT_POLICY_VERSION,
     FORBIDDEN_CALENDAR_FIELDS,
@@ -15,6 +17,9 @@ from backend.app.domain.rules.external_context import (
     MAX_AVAILABILITY_SLOTS,
     PERFORMANCE_RECHECK_INTERVAL,
     SAFE_CALENDAR_OBSERVABILITY_FIELDS,
+    AvailabilitySlot,
+    CalendarAvailability,
+    CalendarAvailabilitySourceCode,
     CalendarConnectionState,
     CalendarConnectionStatusCode,
     CalendarDisconnectActionCode,
@@ -25,12 +30,13 @@ from backend.app.domain.rules.external_context import (
     CalendarProviderFailureKindCode,
     ExternalContextContractError,
     FixedWindowCounter,
+    ManualAvailabilityOverride,
     OfficialWorkoutState,
-    OfficialWorkoutStatusCode,
     ProviderBusyInterval,
     ScheduledWorkoutState,
     ScheduledWorkoutStatusCode,
     calculate_calendar_availability,
+    calendar_performance_guidance,
     classify_calendar_provider_failure,
     commit_calendar_connection_mutation,
     evaluate_calendar_access,
@@ -39,8 +45,10 @@ from backend.app.domain.rules.external_context import (
     google_calendar_performance_observation,
     preserve_official_workout_state,
     request_calendar_disconnect,
+    select_availability,
     validate_calendar_observability_fields,
 )
+from backend.app.domain.rules.workout_execution import WorkoutSessionStatusCode
 
 SEOUL = ZoneInfo("Asia/Seoul")
 LOCAL_DATE = date(2026, 8, 14)
@@ -70,6 +78,8 @@ def test_google_calendar_contract_uses_only_minimal_scopes() -> None:
         "https://www.googleapis.com/auth/calendar.app.created"
     )
     assert EXTERNAL_CONTEXT_POLICY_VERSION == "external-context-policy-v1"
+    assert CALENDAR_AVAILABILITY_SCHEMA_VERSION == "calendar-availability-v1"
+    assert CALENDAR_PERFORMANCE_SCHEMA_VERSION == "calendar-performance-v1"
 
 
 def test_freebusy_input_and_availability_output_expose_only_normalized_fields() -> None:
@@ -84,8 +94,6 @@ def test_freebusy_input_and_availability_output_expose_only_normalized_fields() 
         "local_date",
         "timezone",
         "slots",
-        "requested_duration_minutes",
-        "policy_version",
     }
 
 
@@ -134,7 +142,7 @@ def test_permission_denial_is_not_invented_as_a_new_public_error() -> None:
     decision = classify_calendar_provider_failure(CalendarProviderFailureKindCode.PERMISSION_DENIED)
 
     assert decision.status_code is CalendarOutcomeStatusCode.PERMISSION_DENIED
-    assert decision.failure_code is None
+    assert decision.failure_code is CalendarFailureCode.CALENDAR_NOT_CONNECTED
     assert decision.manual_fallback.manual_checkin_available is True
 
 
@@ -150,7 +158,7 @@ def test_disconnect_is_local_first_and_repeated_request_is_a_noop() -> None:
         requested_at=NOW + timedelta(seconds=1),
     )
 
-    assert first.action_code is CalendarDisconnectActionCode.REVOKE_PROVIDER
+    assert first.action_code is CalendarDisconnectActionCode.DESTROY_SECRET_LOCALLY
     assert first.state.status_code is CalendarConnectionStatusCode.REVOKED
     assert first.state.revoked_at == NOW
     assert repeated.action_code is CalendarDisconnectActionCode.NOOP_ALREADY_REVOKED
@@ -273,7 +281,6 @@ def test_freebusy_all_day_interval_is_treated_as_busy_under_approved_policy() ->
     )
 
     assert result.slots == ()
-    assert result.requested_duration_minutes == 30
 
 
 def test_slots_are_sorted_and_capped_at_eight() -> None:
@@ -369,7 +376,7 @@ def test_calendar_performance_cannot_mutate_official_completion(
     performed: bool | None,
 ) -> None:
     workout_id = uuid4()
-    official = OfficialWorkoutState(workout_id, OfficialWorkoutStatusCode.PARTIAL)
+    official = OfficialWorkoutState(workout_id, WorkoutSessionStatusCode.PARTIAL)
     observation = CalendarPerformanceObservation(workout_id, performed, NOW)
 
     preserved = preserve_official_workout_state(
@@ -378,8 +385,12 @@ def test_calendar_performance_cannot_mutate_official_completion(
     )
 
     assert preserved is official
-    assert preserved.status_code is OfficialWorkoutStatusCode.PARTIAL
-    assert "status_code" not in {field.name for field in fields(observation)}
+    assert preserved.status_code is WorkoutSessionStatusCode.PARTIAL
+    assert {field.name for field in fields(observation)} == {
+        "scheduled_workout_id",
+        "performed",
+        "performance_checked_at",
+    }
 
 
 def test_google_performance_is_always_null_with_fallback_guidance() -> None:
@@ -389,8 +400,26 @@ def test_google_performance_is_always_null_with_fallback_guidance() -> None:
     )
 
     assert observation.performed is None
-    assert observation.guidance is not None
-    assert "앱의 운동 블록 체크" in observation.guidance
+    guidance = calendar_performance_guidance(observation)
+    assert guidance is not None
+    assert "앱의 운동 블록 체크" in guidance
+
+
+def test_manual_availability_wins_even_when_the_user_explicitly_selects_none() -> None:
+    calendar = CalendarAvailability(
+        local_date=LOCAL_DATE,
+        timezone="Asia/Seoul",
+        slots=(AvailabilitySlot(_local(10), _local(11)),),
+    )
+
+    selected = select_availability(
+        manual_override=ManualAvailabilityOverride(slots=()),
+        calendar_availability=calendar,
+    )
+
+    assert selected.source_code is CalendarAvailabilitySourceCode.MANUAL
+    assert selected.slots == ()
+    assert selected.manual_choice_preserved is True
 
 
 def test_calendar_observability_is_allowlist_only(caplog: pytest.LogCaptureFixture) -> None:

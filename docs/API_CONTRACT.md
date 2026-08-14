@@ -384,9 +384,15 @@ timeout과 5xx는 원문 없이 `503 PROVIDER_UNAVAILABLE`로 처리하고 수�
 구간은 제외한다. 후보는 시작 시각 오름차순 최대 8개다. 후보가 없으면 빈 배열을 반환하고 희망
 운동시간을 임의 단축하지 않는다.
 
+사용자가 수동 가능 시간을 명시하면 명시적 빈 목록을 포함해 calendar 후보보다 항상 우선한다. Calendar
+결과는 사용자의 명시적 가능 시간, REST 선택, 기존 routine 또는 safety veto를 덮어쓰지 않는다.
+
 Google Calendar에는 운동 수행 여부 필드가 없으므로 `performed`는 항상 `null`이다. 확인은 공식
 scheduled workout 종료 상태 이후에만 허용하고 같은 link는 `performance_checked_at`부터 10분 뒤에
 재확인할 수 있다. 일정의 confirmed/tentative/cancelled 또는 삭제를 수행 여부로 해석하지 않는다.
+
+연동 해제는 로컬 상태를 `REVOKED`로 바꾸고 secret을 파기하는 멱등 처리다. Firebase 로그인과 동일한
+Google Cloud project를 공유하므로 Calendar 해제에서 Google token revoke endpoint를 호출하지 않는다.
 
 ADR-0010은 600초 single-use server-issued state와 PKCE S256을 제안한다. 승인 뒤 additive
 `POST /api/v1/calendar/connection/authorize-init` 계약을 추가하고 `CalendarConnectionRequest`의

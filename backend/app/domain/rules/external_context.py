@@ -8,7 +8,11 @@ from enum import StrEnum
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from backend.app.domain.rules.workout_execution import WorkoutSessionStatusCode
+
 EXTERNAL_CONTEXT_POLICY_VERSION = "external-context-policy-v1"
+CALENDAR_AVAILABILITY_SCHEMA_VERSION = "calendar-availability-v1"
+CALENDAR_PERFORMANCE_SCHEMA_VERSION = "calendar-performance-v1"
 GOOGLE_CALENDAR_FREEBUSY_SCOPE = "https://www.googleapis.com/auth/calendar.freebusy"
 GOOGLE_CALENDAR_APP_CREATED_SCOPE = "https://www.googleapis.com/auth/calendar.app.created"
 CALENDAR_RATE_LIMIT_WINDOW = timedelta(hours=1)
@@ -63,8 +67,14 @@ class CalendarOutcomeStatusCode(StrEnum):
     PROVIDER_UNAVAILABLE = "PROVIDER_UNAVAILABLE"
 
 
+class CalendarAvailabilitySourceCode(StrEnum):
+    MANUAL = "MANUAL"
+    CALENDAR = "CALENDAR"
+    ROUTINE_DEFAULT = "ROUTINE_DEFAULT"
+
+
 class CalendarDisconnectActionCode(StrEnum):
-    REVOKE_PROVIDER = "REVOKE_PROVIDER"
+    DESTROY_SECRET_LOCALLY = "DESTROY_SECRET_LOCALLY"
     NOOP_ALREADY_REVOKED = "NOOP_ALREADY_REVOKED"
 
 
@@ -83,13 +93,6 @@ class ScheduledWorkoutStatusCode(StrEnum):
     PARTIAL = "PARTIAL"
     NOT_COMPLETED = "NOT_COMPLETED"
     REST_SELECTED = "REST_SELECTED"
-
-
-class OfficialWorkoutStatusCode(StrEnum):
-    COMPLETED = "COMPLETED"
-    PARTIAL = "PARTIAL"
-    NOT_COMPLETED = "NOT_COMPLETED"
-    STOPPED_FOR_SAFETY = "STOPPED_FOR_SAFETY"
 
 
 FINAL_SCHEDULED_WORKOUT_STATUSES = frozenset(
@@ -174,7 +177,7 @@ def classify_calendar_provider_failure(
     if failure_kind_code is CalendarProviderFailureKindCode.PERMISSION_DENIED:
         return CalendarProviderFailureDecision(
             status_code=CalendarOutcomeStatusCode.PERMISSION_DENIED,
-            failure_code=None,
+            failure_code=CalendarFailureCode.CALENDAR_NOT_CONNECTED,
         )
     return CalendarProviderFailureDecision(
         status_code=CalendarOutcomeStatusCode.PROVIDER_UNAVAILABLE,
@@ -215,7 +218,7 @@ def request_calendar_disconnect(
             state=state,
         )
     return CalendarDisconnectDecision(
-        action_code=CalendarDisconnectActionCode.REVOKE_PROVIDER,
+        action_code=CalendarDisconnectActionCode.DESTROY_SECRET_LOCALLY,
         state=replace(
             state,
             status_code=CalendarConnectionStatusCode.REVOKED,
@@ -344,8 +347,53 @@ class CalendarAvailability:
     local_date: date
     timezone: str
     slots: tuple[AvailabilitySlot, ...]
-    requested_duration_minutes: int
-    policy_version: str = EXTERNAL_CONTEXT_POLICY_VERSION
+
+    def __post_init__(self) -> None:
+        zone = _timezone(self.timezone)
+        if not isinstance(self.slots, tuple):
+            raise ValueError("slots must be an immutable tuple")
+        if len(self.slots) > MAX_AVAILABILITY_SLOTS:
+            raise ValueError("availability cannot expose more than eight slots")
+        if tuple(sorted(self.slots, key=lambda slot: slot.start_at.astimezone(UTC))) != self.slots:
+            raise ValueError("availability slots must be ordered by start time")
+        for slot in self.slots:
+            if slot.start_at.astimezone(zone).date() != self.local_date:
+                raise ValueError("slot start must belong to local_date")
+
+
+@dataclass(frozen=True, slots=True)
+class ManualAvailabilityOverride:
+    slots: tuple[AvailabilitySlot, ...]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.slots, tuple) or any(
+            not isinstance(slot, AvailabilitySlot) for slot in self.slots
+        ):
+            raise ValueError("manual availability must contain immutable slots")
+
+
+@dataclass(frozen=True, slots=True)
+class AvailabilitySelection:
+    source_code: CalendarAvailabilitySourceCode
+    slots: tuple[AvailabilitySlot, ...]
+    manual_choice_preserved: bool = True
+
+
+def select_availability(
+    *,
+    manual_override: ManualAvailabilityOverride | None,
+    calendar_availability: CalendarAvailability | None,
+) -> AvailabilitySelection:
+    """Preserve an explicit manual choice, including an empty choice."""
+
+    if manual_override is not None:
+        return AvailabilitySelection(CalendarAvailabilitySourceCode.MANUAL, manual_override.slots)
+    if calendar_availability is not None:
+        return AvailabilitySelection(
+            CalendarAvailabilitySourceCode.CALENDAR,
+            calendar_availability.slots,
+        )
+    return AvailabilitySelection(CalendarAvailabilitySourceCode.ROUTINE_DEFAULT, ())
 
 
 def _merged_busy_intervals(
@@ -379,7 +427,11 @@ def calculate_calendar_availability(
     requested_duration_minutes: int,
     busy_intervals: tuple[ProviderBusyInterval, ...],
 ) -> CalendarAvailability:
-    if requested_duration_minutes <= 0:
+    if (
+        isinstance(requested_duration_minutes, bool)
+        or not isinstance(requested_duration_minutes, int)
+        or requested_duration_minutes <= 0
+    ):
         raise ValueError("requested_duration_minutes must be positive")
     zone = _timezone(timezone_name)
     day_start_local = datetime.combine(local_date, time.min, tzinfo=zone)
@@ -420,14 +472,13 @@ def calculate_calendar_availability(
         local_date=local_date,
         timezone=timezone_name,
         slots=tuple(slots),
-        requested_duration_minutes=requested_duration_minutes,
     )
 
 
 @dataclass(frozen=True, slots=True)
 class OfficialWorkoutState:
     scheduled_workout_id: UUID
-    status_code: OfficialWorkoutStatusCode
+    status_code: WorkoutSessionStatusCode
 
 
 @dataclass(frozen=True, slots=True)
@@ -440,11 +491,11 @@ class ScheduledWorkoutState:
 class CalendarPerformanceObservation:
     scheduled_workout_id: UUID
     performed: bool | None
-    performance_checked_at: datetime
-    guidance: str | None = None
+    performance_checked_at: datetime | None
 
     def __post_init__(self) -> None:
-        _require_aware(self.performance_checked_at, field_name="performance_checked_at")
+        if self.performance_checked_at is not None:
+            _require_aware(self.performance_checked_at, field_name="performance_checked_at")
 
 
 def google_calendar_performance_observation(
@@ -456,8 +507,13 @@ def google_calendar_performance_observation(
         scheduled_workout_id=scheduled_workout_id,
         performed=None,
         performance_checked_at=performance_checked_at,
-        guidance=PERFORMANCE_UNAVAILABLE_GUIDANCE,
     )
+
+
+def calendar_performance_guidance(observation: CalendarPerformanceObservation) -> str | None:
+    if observation.performed is None:
+        return PERFORMANCE_UNAVAILABLE_GUIDANCE
+    return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -546,6 +602,8 @@ def validate_calendar_observability_fields(field_names: frozenset[str]) -> None:
 __all__ = [
     "AVAILABILITY_BUFFER",
     "CALENDAR_AVAILABILITY_RATE_LIMIT",
+    "CALENDAR_AVAILABILITY_SCHEMA_VERSION",
+    "CALENDAR_PERFORMANCE_SCHEMA_VERSION",
     "CALENDAR_RATE_LIMIT_WINDOW",
     "CALENDAR_TOTAL_RATE_LIMIT",
     "EXTERNAL_CONTEXT_POLICY_VERSION",
@@ -559,8 +617,10 @@ __all__ = [
     "PERFORMANCE_UNAVAILABLE_GUIDANCE",
     "SAFE_CALENDAR_OBSERVABILITY_FIELDS",
     "AvailabilitySlot",
+    "AvailabilitySelection",
     "CalendarAccessDecision",
     "CalendarAvailability",
+    "CalendarAvailabilitySourceCode",
     "CalendarConnectionStatusCode",
     "CalendarConnectionState",
     "CalendarDisconnectActionCode",
@@ -576,13 +636,14 @@ __all__ = [
     "FixedWindowCounter",
     "ExternalContextContractError",
     "ManualFallback",
+    "ManualAvailabilityOverride",
     "OfficialWorkoutState",
-    "OfficialWorkoutStatusCode",
     "PerformanceRecheckDecision",
     "ProviderBusyInterval",
     "ScheduledWorkoutState",
     "ScheduledWorkoutStatusCode",
     "calculate_calendar_availability",
+    "calendar_performance_guidance",
     "classify_calendar_provider_failure",
     "commit_calendar_connection_mutation",
     "evaluate_calendar_access",
@@ -591,5 +652,6 @@ __all__ = [
     "google_calendar_performance_observation",
     "preserve_official_workout_state",
     "request_calendar_disconnect",
+    "select_availability",
     "validate_calendar_observability_fields",
 ]

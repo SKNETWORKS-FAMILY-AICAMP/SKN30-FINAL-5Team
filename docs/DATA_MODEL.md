@@ -659,6 +659,8 @@ training type에서 목표·처방을 추론하지 않는다.
 아니라 secret manager 참조만 허용하며 ADR-0010 승인과 additive migration 전에는 논리 제안 필드다.
 `CALENDAR_INTEGRATION` 동의가 없거나 철회된 상태에서는 연결·조회·등록을 처리하지 않으며, 동의 철회
 또는 연동 해제 시 동기화를 즉시 중단한다. Google freebusy 원본 payload는 영속화하지 않는다.
+연동 해제는 `REVOKED` 전환과 secret 파기를 로컬에서 완료한다. Firebase 로그인과 동일한 Google Cloud
+project에서는 Calendar 단독 remote token revoke를 호출하지 않는다.
 
 ### 6.6 calendar_event_links
 

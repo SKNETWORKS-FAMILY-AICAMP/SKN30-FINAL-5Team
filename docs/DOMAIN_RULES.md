@@ -629,6 +629,7 @@ repository·migration을 구현하지 않는다.
   사용자의 희망 운동시간보다 짧으면 후보를 만들지 않는다.
 - 시간대 필터와 필수 운동 요일을 적용하지 않는다. 후보는 시작 시각 오름차순으로 최대 8개다.
 - 후보가 없으면 빈 배열을 반환하고 사용자 희망 운동시간을 임의 단축하지 않는다.
+- 사용자가 수동 가능 시간을 명시하면 명시적 빈 목록을 포함해 calendar 후보보다 항상 우선한다.
 - 사용자별 availability 30회/시간과 전체 calendar endpoint 60회/시간을 provider 호출 전에 적용한다.
 - availability는 cache하지 않아 stale 판정이 없다. performance는 공식 workout 종료 상태 이후,
   같은 link의 직전 `performance_checked_at`부터 10분 뒤에만 재확인한다.
@@ -638,8 +639,9 @@ repository·migration을 구현하지 않는다.
   변경할 수 없다. 안전 veto와 수동 체크인보다 우선할 수 없다.
 - raw freebusy/event payload 보유기간은 0시간이다. token 원문, calendar 본문과 provider 원시 오류를
   DB, cache, log, metric, trace, snapshot, fixture와 LLM 입력에 포함하지 않는다.
-- 연동 해제는 로컬 `REVOKED`와 token secret 폐기를 provider revoke보다 우선한다. provider 실패는
-  로컬 해제를 되돌리지 않으며 반복 해제는 성공 no-op이다. 계정 삭제는 ADR-0008 port를 재사용한다.
+- 연동 해제는 로컬 `REVOKED`와 token secret 폐기로 완료하며 반복 해제는 성공 no-op이다. Firebase
+  로그인과 동일한 Google Cloud project에서는 Calendar 단독 provider revoke를 호출하지 않는다.
+  계정 삭제는 ADR-0008 checkpoint를 재사용한다.
 
 ---
 

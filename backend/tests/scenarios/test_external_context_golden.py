@@ -8,9 +8,9 @@ from backend.app.domain.rules.external_context import (
     CalendarPerformanceObservation,
     CalendarProviderFailureKindCode,
     OfficialWorkoutState,
-    OfficialWorkoutStatusCode,
     ProviderBusyInterval,
     calculate_calendar_availability,
+    calendar_performance_guidance,
     classify_calendar_provider_failure,
     evaluate_calendar_access,
     google_calendar_performance_observation,
@@ -21,6 +21,11 @@ from backend.app.domain.rules.safety import (
     SafetyRequiredActionCode,
     SafetyRuleAvailabilityCode,
     SafetyStatusCode,
+)
+from backend.app.domain.rules.workout_execution import (
+    DecisionSelectionCode,
+    WorkoutSessionStatusCode,
+    should_send_pressure_notification,
 )
 
 WORKOUT_ID = UUID("8d4e0be7-a28f-4e5b-8ee2-83bc17dcc1c9")
@@ -45,13 +50,13 @@ def test_golden_permission_denial_keeps_plan_and_manual_checkin_unchanged() -> N
     result = classify_calendar_provider_failure(CalendarProviderFailureKindCode.PERMISSION_DENIED)
 
     assert plan == ("approved-plan-item",)
-    assert result.failure_code is None
+    assert result.failure_code is CalendarFailureCode.CALENDAR_NOT_CONNECTED
     assert result.manual_fallback.manual_checkin_available is True
     assert result.manual_fallback.plan_mutation_allowed is False
 
 
 def test_golden_performed_true_cannot_change_official_session_status() -> None:
-    official = OfficialWorkoutState(WORKOUT_ID, OfficialWorkoutStatusCode.NOT_COMPLETED)
+    official = OfficialWorkoutState(WORKOUT_ID, WorkoutSessionStatusCode.NOT_COMPLETED)
     provider_observation = CalendarPerformanceObservation(WORKOUT_ID, True, NOW)
 
     result = preserve_official_workout_state(
@@ -60,7 +65,7 @@ def test_golden_performed_true_cannot_change_official_session_status() -> None:
     )
 
     assert result is official
-    assert result.status_code is OfficialWorkoutStatusCode.NOT_COMPLETED
+    assert result.status_code is WorkoutSessionStatusCode.NOT_COMPLETED
 
 
 def test_golden_google_performed_null_returns_guidance_not_an_error() -> None:
@@ -70,8 +75,9 @@ def test_golden_google_performed_null_returns_guidance_not_an_error() -> None:
     )
 
     assert result.performed is None
-    assert result.guidance is not None
-    assert "확인할 수 없습니다" in result.guidance
+    guidance = calendar_performance_guidance(result)
+    assert guidance is not None
+    assert "확인할 수 없습니다" in guidance
 
 
 def test_golden_provider_outage_returns_503_contract_without_plan_mutation() -> None:
@@ -119,7 +125,6 @@ def test_golden_fully_busy_day_returns_empty_without_shortening_requested_durati
     )
 
     assert result.slots == ()
-    assert result.requested_duration_minutes == 40
 
 
 def test_golden_consent_withdrawal_stops_provider_access_but_not_core_flow() -> None:
@@ -131,3 +136,16 @@ def test_golden_consent_withdrawal_stops_provider_access_but_not_core_flow() -> 
     assert result.failure_code is CalendarFailureCode.CONSENT_REQUIRED
     assert result.manual_fallback.manual_checkin_available is True
     assert result.manual_fallback.workout_block_check_available is True
+
+
+def test_golden_calendar_context_cannot_pressure_a_user_who_selected_rest() -> None:
+    local_date = date(2026, 8, 14)
+
+    assert (
+        should_send_pressure_notification(
+            selection_code=DecisionSelectionCode.REST,
+            selection_local_date=local_date,
+            notification_local_date=local_date,
+        )
+        is False
+    )

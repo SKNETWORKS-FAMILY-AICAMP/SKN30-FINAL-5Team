@@ -13,6 +13,10 @@ class CalendarProviderUnavailableError(Exception):
     """The optional provider cannot serve the request; no provider payload is exposed."""
 
 
+class CalendarProviderPermissionDeniedError(Exception):
+    """The user denied or revoked the required calendar permission."""
+
+
 @dataclass(frozen=True, slots=True)
 class CalendarEventCreate:
     scheduled_workout_id: UUID
@@ -55,12 +59,11 @@ class CalendarProviderPort(Protocol):
         checked_at: datetime,
     ) -> CalendarPerformanceObservation: ...
 
-    def revoke(self, *, token_secret_ref: str) -> None: ...
-
 
 __all__ = [
     "CalendarEventCreate",
     "CalendarEventReference",
+    "CalendarProviderPermissionDeniedError",
     "CalendarProviderPort",
     "CalendarProviderUnavailableError",
 ]

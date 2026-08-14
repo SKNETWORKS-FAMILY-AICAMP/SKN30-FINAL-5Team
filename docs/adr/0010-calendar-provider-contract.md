@@ -47,7 +47,8 @@ Google 공식 문서를 2026-08-14에 확인했다.
 - Google quota는 per-project/per-user sliding window를 사용하고 초과 시 `403` 또는 `429 usageLimits`가
   가능하다. provider quota 오류는 원문 없이 `PROVIDER_UNAVAILABLE`로 처리한다.
 - token revoke는 `POST https://oauth2.googleapis.com/revoke`다. 성공은 200이며 revoke는 동일 project에
-  부여된 OAuth scope와 token에 폭넓게 영향을 줄 수 있으므로 9C-2 운영 검증 항목으로 둔다.
+  부여된 OAuth scope와 token에 폭넓게 영향을 줄 수 있다. Firebase 로그인과 동일 project를 공유하는
+  현재 구조에서는 Calendar 단독 해제에 이 endpoint를 사용하지 않는다.
 - Google 사용자 timezone 경로는 `GET /calendar/v3/users/me/settings/timezone`이지만 별도
   `calendar.settings.readonly` scope가 필요하므로 사용하지 않는다.
 
@@ -84,6 +85,7 @@ Google 공식 문서를 2026-08-14에 확인했다.
   수용하지 못하면 후보에서 제외한다.
 - 후보는 시작 시각 오름차순으로 하루 최대 8개다.
 - 후보가 없어도 빈 배열을 반환하고 사용자 희망 운동시간을 임의 단축하지 않는다.
+- 사용자가 수동 가능 시간을 명시하면 명시적 빈 목록을 포함해 calendar 후보보다 항상 우선한다.
 - DST 날짜는 로컬 자정 두 개를 UTC instant로 변환해 실제 23시간 또는 25시간 경계를 보존한다.
 
 ### 동의, 연결, rate limit과 performance
@@ -101,9 +103,9 @@ Google 공식 문서를 2026-08-14에 확인했다.
 ### 연결 해제와 계정 삭제
 
 - `DELETE /api/v1/calendar/connection`은 로컬 상태를 `REVOKED`로 바꾸고 `revoked_at`을 기록한 뒤
-  secret manager token을 폐기하고 provider revoke를 시도한다.
-- provider revoke 실패가 로컬 해제를 막지 않으며 반복 요청은 성공 no-op이다.
-- 계정 삭제는 ADR-0008의 provider revocation port와 기존 상태를 재사용한다.
+  secret manager token을 폐기한다. 반복 요청은 성공 no-op이다.
+- Firebase 로그인과 동일한 Google Cloud project에서는 Calendar 단독 provider revoke를 호출하지 않는다.
+- 계정 삭제는 새 상태 없이 ADR-0008의 provider revocation checkpoint를 재사용한다.
 
 ### OAuth state와 credential 경로
 
@@ -138,7 +140,8 @@ MVP on-demand 계약에 필요하지 않다. token 원문 저장은 secret 경�
 
 ## 결과와 영향
 
-`external-context-policy-v1` 결정 규칙, provider port, unavailable 합성 adapter와 golden/privacy test를
+`external-context-policy-v1`, `calendar-availability-v1`, `calendar-performance-v1` 결정 규칙과
+schema, provider port, unavailable/synthetic adapter와 golden/privacy test를
 9C-1에서 추가한다. API route, DB model, migration과 Google HTTP adapter는 ADR 승인 뒤 9C-2에서
 추가한다. 기존 API 필드를 삭제하거나 기존 completion 상태를 변경하지 않는다.
 
@@ -146,13 +149,12 @@ MVP on-demand 계약에 필요하지 않다. token 원문 저장은 secret 경�
 
 normalized availability와 nullable performance 외 calendar 원문을 application 경계로 전달하지 않는다.
 observability는 allowlist field만 허용한다. 제안 API와 DB 필드는 additive이며 승인·migration 전에는
-production 계약으로 사용하지 않는다. 동일 project token revoke의 영향은 실제 test project에서 로그인
-세션과 재동의 흐름을 검증해야 한다.
+production 계약으로 사용하지 않는다. 동일 project의 Firebase 로그인 grant를 보호하기 위해 Calendar
+단독 remote revoke를 금지한다.
 
 ## 아직 확정되지 않은 사항
 
 - `calendar.app.created` 전용 보조 캘린더의 고정 사용자 표시 이름과 삭제 UX
-- 동일 Google Cloud project revoke가 Firebase Google 로그인 재인증에 미치는 실제 영향
 - secret manager의 실제 product/path와 운영 credential owner 증적
 - 모바일 callback이 600초 state와 verifier를 보관·반환하는 최종 UI 계약
 
@@ -160,4 +162,5 @@ production 계약으로 사용하지 않는다. 동일 project token revoke의 �
 
 1. 프론트엔드·백엔드·개발팀장·PM/개인정보·운영 검토 후 ADR 상태를 결정한다.
 2. ACCEPTED 뒤 TASK-BACKEND-007의 9C-2 route, service, repository, migration과 Google adapter를 구현한다.
-3. Google test project에서 최소 scope, 전용 보조 캘린더, quota, revoke와 재동의 흐름을 검증한다.
+3. Google test project에서 최소 scope, 전용 보조 캘린더, quota와 local disconnect 뒤 Firebase 로그인
+   유지 여부를 검증한다.

@@ -277,14 +277,16 @@ credential을 CI 필수 조건으로 만들지 않는다. Google은 기존 Fireb
 ### 5.6 Calendar 외부 컨텍스트 골든·개인정보 계약
 
 캘린더 fixture는 합성 UUIDv4, IANA timezone, local date, freebusy의 start/end 구간,
-`external-context-policy-v1`과 provider/failure machine code만 사용한다. 제목, 설명, 참석자, 위치,
+`external-context-policy-v1`, `calendar-availability-v1`, `calendar-performance-v1`과
+provider/failure machine code만 사용한다. 제목, 설명, 참석자, 위치,
 calendar ID, provider subject, external event ID, access/refresh token과 원시 provider payload/error는
 fixture·snapshot·로그 기대값에 포함하지 않는다.
 
 domain unit은 동의·연결 gate, 30/31·60/61 rate limit, 10분 performance 재확인, busy 병합,
 15분 buffer, 최소 길이 ±1분, 후보 8개 상한, 자정/DST와 공식 completion 불변을 검증한다. golden
 suite는 미연동, 권한 거부, `performed=true`, Google `performed=null`, provider 장애, 하루 전체 busy와
-종일 busy를 고정한다. privacy test는 observability allowlist와 금지 field 비노출을 검증한다.
+종일 busy, 명시적 수동 가능 시간 우선과 REST 무압박을 고정한다. privacy test는 observability
+allowlist와 금지 field 비노출을 검증한다.
 
 ADR-0010 승인 뒤 9C-2는 OAuth 600초 state·PKCE, secret reference, provider 호출 전 rate limit,
 연결·동기화·해제 멱등성, transaction rollback, PostgreSQL/Alembic round trip과 합성 Google HTTP

@@ -21,7 +21,7 @@
 - availability 30회/시간, 전체 calendar endpoint 60회/시간 fixed window 계약
 - freebusy busy 병합, 전후 15분 buffer, 희망 시간 보존, 최대 8개 후보와 DST 규칙
 - performance 10분 재확인, Google `performed=null`, 공식 completion 불변
-- `CalendarProviderPort`와 local/CI unavailable null object
+- `CalendarProviderPort`와 local/CI unavailable null object·synthetic contract adapter
 - API/Data/Domain/Test/Traceability 계약과 unit/golden/privacy test
 
 ## 9C-1 제외 범위
@@ -41,20 +41,22 @@
 5. 겹치거나 맞닿은 busy를 병합하고 후보 앞뒤 15분 buffer를 둔다.
 6. 최소 빈 구간은 희망 시간 + 30분이며 후보 없음에도 희망 시간을 단축하지 않는다.
 7. 후보는 시작 시각 오름차순 최대 8개이며 DST 23/25시간 로컬 하루를 보존한다.
-8. 동의 철회·미연결·권한 거부·provider 장애에서 수동 체크인과 앱 블록 체크를 유지한다.
-9. 30/31·60/61 fixed-window 경계를 provider 호출 전에 판정한다.
-10. performance는 공식 종료 상태 이후 10분 간격이며 Google 결과는 항상 `null`이다.
-11. 어떤 calendar 관찰값도 공식 workout 상태나 Safety veto를 변경하지 않는다.
-12. calendar 본문, token, raw payload/error는 DB·log·metric·trace·snapshot·fixture·LLM에 없다.
-13. 실제 provider가 없는 local/CI에서 unavailable null adapter가 안전한 실패를 반환한다.
-14. ADR 승인 전 실제 route·adapter·migration을 구현하지 않는다.
+8. 명시적 수동 가능 시간은 빈 목록을 포함해 calendar 후보보다 우선한다.
+9. 동의 철회·미연결·권한 거부·provider 장애에서 수동 체크인과 앱 블록 체크를 유지한다.
+10. 30/31·60/61 fixed-window 경계를 provider 호출 전에 판정한다.
+11. performance는 공식 종료 상태 이후 10분 간격이며 Google 결과는 항상 `null`이다.
+12. 어떤 calendar 관찰값도 공식 workout 상태나 Safety veto를 변경하지 않는다.
+13. calendar 본문, token, raw payload/error는 DB·log·metric·trace·snapshot·fixture·LLM에 없다.
+14. 실제 provider가 없는 local/CI에서 unavailable null adapter와 synthetic adapter를 검증한다.
+15. disconnect는 local `REVOKED`와 secret 파기로 완료하고 동일 Google project에서 remote revoke하지 않는다.
+16. ADR 승인 전 실제 route·adapter·migration을 구현하지 않는다.
 
 ## 9C-2 승인 전 확인
 
 - ADR-0010 필수 reviewer 승인과 `ACCEPTED` 상태
 - 동일 Google Cloud project의 OAuth client·redirect URI·secret manager 경로
 - `calendar.app.created` 전용 보조 캘린더 UX
-- token revoke가 Firebase Google 로그인 재인증에 미치는 test project 검증
+- local disconnect 뒤 Firebase Google 로그인이 유지되는지 test project 검증
 - 모바일의 600초 state·PKCE verifier 보관·callback 계약
 - `calendar_connections.token_secret_ref`와 calendar OAuth transient schema/migration 승인
 
