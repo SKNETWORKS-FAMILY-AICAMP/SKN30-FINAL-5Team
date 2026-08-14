@@ -435,6 +435,7 @@ NOT_COMPLETED, STOPPED_FOR_SAFETY로 종료된 세션의 블록과 상태는 변
 
 - 주간 범위는 사용자 timezone의 월요일 00:00부터 일요일 23:59:59까지다.
 - 로그인 여부와 관계없이 날짜가 경계를 지나면 주는 논리적으로 닫힌다.
+- 경계는 저장된 IANA timezone으로 계산하며 다음 로컬 월요일 00:00부터 직전 주를 `CLOSED`로 판정한다. scheduler 상태나 마지막 로그인 시각은 이 판정의 입력이 아니다.
 - 열린 주는 최종 주간 리포트를 생성할 수 없다.
 - 닫힌 주 리포트는 사용자가 요청할 때 생성한다.
 - 공식 집계는 앱 운동 블록 체크로 계산한 COMPLETED, PARTIAL, NOT_COMPLETED, STOPPED_FOR_SAFETY를 사용한다.
@@ -446,6 +447,23 @@ NOT_COMPLETED, STOPPED_FOR_SAFETY로 종료된 세션의 블록과 상태는 변
 - 주간 리포트 생성과 계획 수정에서 필수 규칙 또는 에이전트가 실패하면 `FAILED`이며 추정값으로 계속하지 않는다.
 
 주간 리포트 확인은 최초 열람으로 추정하지 않고 사용자의 명시적 acknowledgement mutation으로 기록한다.
+
+### 11.1 닫힌 주 집계 입력 계약
+
+- 리포트 입력은 timezone, 월요일·일요일 로컬 날짜, 네 공식 세션 상태의 횟수, 선택적인 대표 미수행 reason code와 버전만 가진 불변 최소 집계다.
+- `NOT_COMPLETED`는 `NOT_COMPLETED` 학습 신호로만 전달하고 penalty 또는 감점 필드를 허용하지 않는다.
+- 원시 체크인, 원시 건강 기록, 원시 웨어러블 샘플, 캘린더 본문과 직접 식별자는 집계 스냅샷에 복제하지 않는다.
+- 집계 schema version과 report policy version을 함께 고정한다. 같은 불변 집계와 같은 policy version은 같은 domain 판정을 만든다.
+
+### 11.2 다음 계획 revision과 finalize 정책
+
+- 초기 계획 endpoint는 `INITIAL`만, 수정 endpoint는 `AI` 또는 `USER`만 생성한다.
+- `AI` revision의 루틴 결정 주체는 결정적 Coordinator이며 Safety 상태·의견은 SafetyAgent 결과를 보존한다. LLM은 설명 문구에만 사용할 수 있고 루틴, 요청 시간, 안전 상태, veto 또는 후보를 변경할 수 없다.
+- 성공한 Coordinator 기반 `AI` revision만 횟수에 포함하며 1회와 2회는 허용하고 세 번째 요청은 `AI_REVISION_LIMIT_REACHED`로 차단한다. `NEEDS_INPUT`, `BLOCKED`, `FAILED` 결과는 성공 횟수를 늘리지 않는다.
+- `USER` revision은 AI 수정 횟수와 무관하게 허용할 수 있지만 요청 시간 일치, 허용 장소, 사용 가능한 장비, SafetyAgent 의견 반영을 모두 검증한다. 하나라도 불일치하면 해당 routine을 허용하지 않는다.
+- `NEEDS_INPUT`, `BLOCKED`, `FAILED` revision에는 routine이 없으며 finalized는 항상 false다. `PASS` 또는 `REVISE`도 routine이 없으면 finalize할 수 없다.
+- `finalized=true`는 직전 리포트가 명시적으로 `ACKNOWLEDGED`된 경우에만 허용한다. `is_first_user_week=true`, `cold_start_applied=true`, 직전 리포트 없음이 동시에 성립하는 최초 한 주만 acknowledgement를 생략할 수 있다.
+- weekly report aggregate schema와 weekly report/plan policy는 각각 version을 가지며, 입력과 version이 같으면 revision 및 finalize 판정도 같아야 한다.
 
 ---
 
