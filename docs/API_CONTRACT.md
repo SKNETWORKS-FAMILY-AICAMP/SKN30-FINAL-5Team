@@ -696,6 +696,18 @@ Idempotency-Key: uuid
 
 ### 10.2 DecisionResponse
 
+Wave 6 구현 계약:
+
+- `POST /api/v1/decisions`는 UUID 형식의 `Idempotency-Key`를 필수로 받고 생성 성공 시 201을 반환한다.
+- `GET /api/v1/decisions/{decision_id}`는 인증 사용자 소유의 `COMPLETED` 결정만 반환한다.
+- 네 proposal 중 누락 또는 `FAILED`가 있으면 `503 DECISION_FAILED`, 추가 입력이 필요하면
+  `422 NEEDS_INPUT`을 반환하며 두 오류 응답 모두 plan을 포함하지 않는다.
+- `BLOCKED`는 저장이 완료된 정상 결정 응답이지만 `final_plan=null`이다. Safety veto는
+  Coordinator 결과와 무관하게 유지된다.
+- 성공 응답은 decision run, 네 agent proposal, 후보와 항목, safety review, 공개 option 및
+  Coordinator 결과가 동일 트랜잭션에 저장된 뒤에만 반환된다.
+- 이 API는 LLM을 호출하지 않으며 selection과 workout session 생성은 Wave 7 범위다.
+
 ~~~text
 DecisionResponse
 - decision_id: UUID

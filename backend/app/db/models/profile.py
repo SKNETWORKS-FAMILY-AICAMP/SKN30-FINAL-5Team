@@ -203,7 +203,7 @@ class MutationIdempotencyRecord(Base):
         ),
         CheckConstraint(
             "endpoint_code IN ('PUT_ME_ONBOARDING', 'PUT_ME_CONSENTS', "
-            "'POST_ROUTINES', 'PUT_DAILY_CONTEXT')",
+            "'POST_ROUTINES', 'PUT_DAILY_CONTEXT', 'POST_DECISIONS')",
             name="ck_mutation_idempotency_endpoint",
         ),
     )
