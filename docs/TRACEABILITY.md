@@ -35,7 +35,7 @@ POL-009~013은 2026-08-11 사용자 명시 승인과 `ACCEPTED` ADR-0004에 따�
 | F008 | 2.4, 2.8, 보완-02, 4.9, 5.2 | MVP_SCOPE·DATA_MODEL | AC-F008-01 | TC-F008-01 | 초안 |
 | F009 | 3.5, 4.9, 5.2 | MVP_SCOPE·API_CONTRACT·DATA_MODEL | AC-F009-01 | TC-F009-01 | 초안 |
 | F010 | 4.4, 4.11, 5.2, 5.4 | MVP_SCOPE·ARCHITECTURE·DOMAIN_RULES·API_CONTRACT·DATA_MODEL·TEST_STRATEGY·ADR-0009·TASK-BACKEND-006 | AC-F010-01 | TC-F010-01·backend/tests/unit/test_auth_provider.py·backend/tests/scenarios/test_auth_provider_golden.py | 계약 제안·ADR 승인 대기 |
-| F011 | 4.1, 4.10, 4.11, 5.2 | MVP_SCOPE·API_CONTRACT·DATA_MODEL·ADR-0006 | AC-F011-01 | TC-F011-01 | 초안 |
+| F011 | 4.1, 4.10, 4.11, 5.2 | MVP_SCOPE·DOMAIN_RULES·API_CONTRACT·DATA_MODEL·TEST_STRATEGY·ADR-0010·TASK-BACKEND-007 | AC-F011-01 | TC-F011-01·backend/tests/unit/test_external_context.py·backend/tests/scenarios/test_external_context_golden.py | 정책 코어 구현·ADR 승인 대기 |
 | F025 | 2.1, 2.4, 4.1, 4.4, 4.11, 5.2, 5.4 | MVP_SCOPE·API_CONTRACT·DATA_MODEL·DOMAIN_RULES·TEST_STRATEGY·IMPLEMENTATION_PLAN·ADR-0005 | AC-F025-01 | TC-F025-01 | PLANNED |
 | F026 | 3.2, 3.3, 3.5, 4.5, 4.11, 5.2 | MVP_SCOPE·DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-F026-01 | TC-F026-01 | 초안 |
 | F027 | 3.5, 4.5, 4.7, 4.11, 5.2 | MVP_SCOPE·API_CONTRACT·DATA_MODEL | AC-F027-01 | TC-F027-01 | 초안 |
@@ -103,7 +103,7 @@ F012~F023은 요구사항 정의서상 MVP 이후 확장 기능이다. 각 ID는
 - 증상 사용자 시나리오에서 네 Agent proposal과 Coordinator 결정의 역할 분리·Safety 의견 반영을 검증하고, 결과에 따라 후속 수정 필요성을 검토한다. 현재는 독립적인 최종 Safety 재검사를 확정하지 않는다.
 - F003 웨어러블의 지원 기기·제공자와 원본·요약 필드의 품질·라이선스 기준
 - F004 체중 기반 예상 소모 칼로리 산식·단위·반올림 기준
-- F011 캘린더 제공자·조회 범위·시간대·빈 시간 계산 규칙
+- F011 production redirect URI·secret backend·전용 secondary calendar 명명 규칙과 ADR-0010 승인
 - 첫 출시 국가와 Firebase/Google·Kakao·Naver 앱·credential owner 및 등록·심사 완료일
 - Naver user token을 영구 저장하지 않는 계정 삭제 revocation 방식
 - 추적성 검사를 CI에서 자동화할 시점
