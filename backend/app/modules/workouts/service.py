@@ -8,10 +8,34 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from backend.app.domain.rules.safety import (
+    AdverseReactionCode,
+    BodyAreaCode,
+    Discomfort,
+    DiscomfortSeverityCode,
+    SafetyContext,
+)
+from backend.app.domain.rules.workout_execution import (
+    InvalidSessionTransitionError,
+    InvalidWorkoutSafetyEventError,
+    NotCompletedReasonRequiredError,
+    WorkoutBlockStatusCode,
+    WorkoutCompletionEvidence,
+    WorkoutSessionStatusCode,
+    classify_workout_safety_event,
+    mark_session_not_completed,
+)
+from backend.app.domain.rules.workout_execution import (
+    finish_session as derive_finished_status,
+)
 from backend.app.modules.workouts.codes import (
     ADDITIONAL_ACTIVITY_ENDPOINT_CODE,
+    FEEDBACK_ENDPOINT_CODE,
+    SAFETY_EVENT_ENDPOINT_CODE,
     SELECTION_ENDPOINT_CODE,
+    SESSION_FINISH_ENDPOINT_CODE,
     SESSION_ITEM_ENDPOINT_CODE,
+    SESSION_NOT_COMPLETED_ENDPOINT_CODE,
     SESSION_START_ENDPOINT_CODE,
     TERMINAL_SESSION_STATUS_CODES,
     TIMER_EVENT_ENDPOINT_CODE,
@@ -22,9 +46,18 @@ from backend.app.modules.workouts.schemas import (
     DecisionSelectionResponse,
     WorkoutAdditionalActivityRequest,
     WorkoutAdditionalActivityResponse,
+    WorkoutDiscomfortInput,
+    WorkoutFeedbackRequest,
+    WorkoutFeedbackResponse,
+    WorkoutSafetyEventRequest,
+    WorkoutSafetyEventResponse,
+    WorkoutSessionFinishRequest,
+    WorkoutSessionFinishResponse,
     WorkoutSessionItemResponse,
     WorkoutSessionItemUpdateRequest,
     WorkoutSessionItemUpdateResponse,
+    WorkoutSessionNotCompletedRequest,
+    WorkoutSessionNotCompletedResponse,
     WorkoutSessionStartRequest,
     WorkoutSessionStartResponse,
     WorkoutSessionSummary,
@@ -57,6 +90,30 @@ class SessionEndedError(Exception):
 
 class IdempotencyKeyReusedError(Exception):
     pass
+
+
+class NotCompletedReasonRequiredServiceError(Exception):
+    pass
+
+
+class InvalidSafetyEventInputError(Exception):
+    pass
+
+
+class FeedbackAlreadyExistsError(Exception):
+    pass
+
+
+_GUIDANCE: dict[str, str] = {
+    "MILD_DISCOMFORT_CAUTION": "불편함이 계속되거나 심해지면 운동을 중단하세요.",
+    "MODERATE_DISCOMFORT_CAUTION": (
+        "현재 동작을 멈추고 상태를 확인하세요. 불편함이 계속되면 운동을 중단하세요."
+    ),
+    "SEVERE_OR_ACUTE_STOP": (
+        "운동을 중단하고 휴식하세요. 증상이 지속되거나 악화되면 적절한 도움을 요청하세요."
+    ),
+    "SERIOUS_ADVERSE_REACTION_STOP": "운동을 즉시 중단하고 지역 응급의료 도움을 요청하세요.",
+}
 
 
 def _utc_now() -> datetime:
@@ -201,6 +258,7 @@ class WorkoutService:
                 if workout_session_id is None
                 else WorkoutSessionSummary(session_id=workout_session_id, status_code="PLANNED"),
                 selected_at=now,
+                pressure_notifications_allowed=source.option_action_code != "REST",
             )
             self._save_response(
                 session,
@@ -428,6 +486,278 @@ class WorkoutService:
             )
         return response
 
+    def record_safety_event(
+        self,
+        session: Session,
+        user_id: UUID,
+        session_id: UUID,
+        request: WorkoutSafetyEventRequest,
+        idempotency_key: UUID,
+    ) -> WorkoutSafetyEventResponse:
+        request_hash = _request_hash({"session_id": str(session_id)}, request)
+        with session.begin():
+            prior = self._prior_response(
+                session,
+                user_id=user_id,
+                endpoint_code=SAFETY_EVENT_ENDPOINT_CODE,
+                idempotency_key=idempotency_key,
+                request_hash=request_hash,
+                response_type=WorkoutSafetyEventResponse,
+            )
+            if prior is not None:
+                return prior
+            state = self._required_in_progress(session, user_id, session_id)
+            context = self._safety_context(request.discomforts, request.adverse_reaction_codes)
+            try:
+                decision = classify_workout_safety_event(
+                    WorkoutSessionStatusCode(state.status_code), context
+                )
+            except InvalidWorkoutSafetyEventError as exc:
+                raise InvalidSafetyEventInputError from exc
+            now = self._clock()
+            event_id = self._uuid_factory()
+            action_code = (
+                None
+                if decision.resulting_action_code is None
+                else decision.resulting_action_code.value
+            )
+            self._repository.create_safety_event(
+                session,
+                event_id=event_id,
+                session_id=session_id,
+                occurred_at=request.occurred_at,
+                instruction_code=decision.instruction_code.value,
+                resulting_action_code=action_code,
+                session_status_code=decision.session_status_code.value,
+                guidance_code=decision.guidance_code.value,
+                reason_code=decision.reason_code.value,
+                rule_version=decision.safety_event_rule_version,
+                discomforts=tuple(
+                    (item.body_area_code.value, item.severity_code.value)
+                    for item in request.discomforts
+                ),
+                adverse_reaction_codes=tuple(code.value for code in request.adverse_reaction_codes),
+                now=now,
+            )
+            response = WorkoutSafetyEventResponse(
+                event_id=event_id,
+                instruction_code=decision.instruction_code.value,
+                resulting_action_code=cast(
+                    Literal["REST", "STOP_AND_SEEK_HELP"] | None, action_code
+                ),
+                session_status_code=cast(
+                    Literal["IN_PROGRESS", "STOPPED_FOR_SAFETY"],
+                    decision.session_status_code.value,
+                ),
+                guidance_code=decision.guidance_code.value,
+                guidance=_GUIDANCE[decision.guidance_code.value],
+                pressure_notifications_allowed=action_code is None,
+            )
+            self._save_response(
+                session,
+                user_id=user_id,
+                endpoint_code=SAFETY_EVENT_ENDPOINT_CODE,
+                idempotency_key=idempotency_key,
+                request_hash=request_hash,
+                response=response,
+                now=now,
+            )
+        return response
+
+    def finish_session(
+        self,
+        session: Session,
+        user_id: UUID,
+        session_id: UUID,
+        request: WorkoutSessionFinishRequest,
+        idempotency_key: UUID,
+    ) -> WorkoutSessionFinishResponse:
+        request_hash = _request_hash({"session_id": str(session_id)}, request)
+        with session.begin():
+            prior = self._prior_response(
+                session,
+                user_id=user_id,
+                endpoint_code=SESSION_FINISH_ENDPOINT_CODE,
+                idempotency_key=idempotency_key,
+                request_hash=request_hash,
+                response_type=WorkoutSessionFinishResponse,
+            )
+            if prior is not None:
+                return prior
+            state = self._required_in_progress(session, user_id, session_id)
+            evidence = self._completion_evidence(state, request.actual_elapsed_seconds)
+            try:
+                status = derive_finished_status(
+                    WorkoutSessionStatusCode(state.status_code), evidence
+                )
+            except NotCompletedReasonRequiredError as exc:
+                raise NotCompletedReasonRequiredServiceError from exc
+            except InvalidSessionTransitionError as exc:
+                raise InvalidSessionStateError from exc
+            self._repository.finish_session(
+                session,
+                session_id=session_id,
+                status_code=status.value,
+                ended_at=request.finished_at,
+                actual_elapsed_seconds=request.actual_elapsed_seconds,
+            )
+            response = WorkoutSessionFinishResponse(
+                session_id=session_id,
+                status_code=cast(Literal["COMPLETED", "PARTIAL"], status.value),
+                ended_at=request.finished_at,
+                completed_item_count=evidence.completed_block_count,
+                total_item_count=evidence.total_block_count,
+                actual_elapsed_seconds=request.actual_elapsed_seconds,
+                estimated_calories_burned=state.estimated_calories_burned,
+            )
+            now = self._clock()
+            self._save_response(
+                session,
+                user_id=user_id,
+                endpoint_code=SESSION_FINISH_ENDPOINT_CODE,
+                idempotency_key=idempotency_key,
+                request_hash=request_hash,
+                response=response,
+                now=now,
+            )
+        return response
+
+    def mark_not_completed(
+        self,
+        session: Session,
+        user_id: UUID,
+        session_id: UUID,
+        request: WorkoutSessionNotCompletedRequest,
+        idempotency_key: UUID,
+    ) -> WorkoutSessionNotCompletedResponse:
+        request_hash = _request_hash({"session_id": str(session_id)}, request)
+        with session.begin():
+            prior = self._prior_response(
+                session,
+                user_id=user_id,
+                endpoint_code=SESSION_NOT_COMPLETED_ENDPOINT_CODE,
+                idempotency_key=idempotency_key,
+                request_hash=request_hash,
+                response_type=WorkoutSessionNotCompletedResponse,
+            )
+            if prior is not None:
+                return prior
+            state = self._required_state(session, user_id, session_id)
+            self._reject_ended(state)
+            evidence = self._completion_evidence(state, 0)
+            try:
+                status = mark_session_not_completed(
+                    WorkoutSessionStatusCode(state.status_code), evidence, request.reason_code
+                )
+            except InvalidSessionTransitionError as exc:
+                raise InvalidSessionStateError from exc
+            now = self._clock()
+            self._repository.finish_session(
+                session,
+                session_id=session_id,
+                status_code=status.value,
+                ended_at=request.ended_at,
+                actual_elapsed_seconds=None,
+            )
+            self._repository.create_skip_feedback(
+                session,
+                session_id=session_id,
+                reason_code=request.reason_code.value,
+                now=now,
+            )
+            response = WorkoutSessionNotCompletedResponse(
+                session_id=session_id,
+                status_code="NOT_COMPLETED",
+                ended_at=request.ended_at,
+                reason_code=request.reason_code,
+                completed_item_count=0,
+                total_item_count=evidence.total_block_count,
+                penalty_applied=False,
+            )
+            self._save_response(
+                session,
+                user_id=user_id,
+                endpoint_code=SESSION_NOT_COMPLETED_ENDPOINT_CODE,
+                idempotency_key=idempotency_key,
+                request_hash=request_hash,
+                response=response,
+                now=now,
+            )
+        return response
+
+    def record_feedback(
+        self,
+        session: Session,
+        user_id: UUID,
+        session_id: UUID,
+        request: WorkoutFeedbackRequest,
+        idempotency_key: UUID,
+    ) -> WorkoutFeedbackResponse:
+        request_hash = _request_hash({"session_id": str(session_id)}, request)
+        with session.begin():
+            prior = self._prior_response(
+                session,
+                user_id=user_id,
+                endpoint_code=FEEDBACK_ENDPOINT_CODE,
+                idempotency_key=idempotency_key,
+                request_hash=request_hash,
+                response_type=WorkoutFeedbackResponse,
+            )
+            if prior is not None:
+                return prior
+            state = self._required_state(session, user_id, session_id)
+            if state.status_code not in TERMINAL_SESSION_STATUS_CODES:
+                raise InvalidSessionStateError
+            if self._repository.feedback_exists(session, session_id):
+                raise FeedbackAlreadyExistsError
+            now = self._clock()
+            self._repository.create_feedback(
+                session,
+                session_id=session_id,
+                difficulty_code=request.difficulty_code,
+                fatigue_code=request.fatigue_code,
+                satisfaction_code=request.satisfaction_code,
+                pain_occurred=request.pain_occurred,
+                discomforts=tuple(
+                    (item.body_area_code.value, item.severity_code.value)
+                    for item in request.discomforts
+                ),
+                adverse_reaction_codes=tuple(code.value for code in request.adverse_reaction_codes),
+                now=now,
+            )
+            guidance_code: str | None = None
+            guidance: str | None = None
+            pressure_allowed = True
+            if request.discomforts or request.adverse_reaction_codes:
+                context = self._safety_context(request.discomforts, request.adverse_reaction_codes)
+                decision = classify_workout_safety_event(
+                    WorkoutSessionStatusCode.IN_PROGRESS, context
+                )
+                guidance_code = decision.guidance_code.value
+                guidance = _GUIDANCE[guidance_code]
+                pressure_allowed = decision.resulting_action_code is None
+            response = WorkoutFeedbackResponse(
+                session_id=session_id,
+                session_status_code=cast(
+                    Literal["COMPLETED", "PARTIAL", "NOT_COMPLETED", "STOPPED_FOR_SAFETY"],
+                    state.status_code,
+                ),
+                created_at=now,
+                guidance_code=guidance_code,
+                guidance=guidance,
+                pressure_notifications_allowed=pressure_allowed,
+            )
+            self._save_response(
+                session,
+                user_id=user_id,
+                endpoint_code=FEEDBACK_ENDPOINT_CODE,
+                idempotency_key=idempotency_key,
+                request_hash=request_hash,
+                response=response,
+                now=now,
+            )
+        return response
+
     def _required_state(self, session: Session, user_id: UUID, session_id: UUID) -> SessionState:
         state = self._repository.get_session_state(session, user_id, session_id)
         if state is None:
@@ -459,11 +789,43 @@ class WorkoutService:
             for plan_item_id, status_code, completed_at in state.items
         ]
 
+    @staticmethod
+    def _completion_evidence(
+        state: SessionState, actual_elapsed_seconds: int
+    ) -> WorkoutCompletionEvidence:
+        return WorkoutCompletionEvidence(
+            block_status_codes=tuple(
+                WorkoutBlockStatusCode(status_code) for _, status_code, _ in state.items
+            ),
+            actual_elapsed_seconds=actual_elapsed_seconds,
+        )
+
+    @staticmethod
+    def _safety_context(
+        discomforts: list[WorkoutDiscomfortInput],
+        adverse_reaction_codes: list[AdverseReactionCode],
+    ) -> SafetyContext:
+        return SafetyContext(
+            discomforts=tuple(
+                Discomfort(
+                    BodyAreaCode(item.body_area_code),
+                    DiscomfortSeverityCode[item.severity_code.value],
+                )
+                for item in discomforts
+            ),
+            adverse_reaction_codes=tuple(
+                AdverseReactionCode(code) for code in adverse_reaction_codes
+            ),
+        )
+
 
 __all__ = [
     "DecisionAlreadySelectedError",
+    "FeedbackAlreadyExistsError",
     "IdempotencyKeyReusedError",
     "InvalidSessionStateError",
+    "InvalidSafetyEventInputError",
+    "NotCompletedReasonRequiredServiceError",
     "OptionNotSelectableError",
     "SessionEndedError",
     "WorkoutResourceNotFoundError",

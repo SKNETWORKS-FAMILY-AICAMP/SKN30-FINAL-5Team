@@ -684,8 +684,12 @@ PK는 daily_context_id와 reaction_code 조합이다.
 이 가중치는 비안전 조정·설명 선호에만 사용하고, SafetyAgent의 안전 veto나 안전 상태를 바꾸는 데 사용하지 않는다.
 
 복귀 모드 자체는 별도 영구 플래그보다 workout_sessions의 마지막 공식 COMPLETED 시점으로부터
-계산하고 decision input snapshot에 결과를 저장한다. scheduled_workouts의 NOT_COMPLETED 이력은
+계산하고 decision input snapshot에 결과를 저장한다. workout_sessions의 NOT_COMPLETED 이력은
 비벌점 학습 신호로만 사용하며 복귀 트리거가 아니다.
+
+다음 decision 조립 전 복귀 이력 query는 대상 로컬 날짜보다 앞선 `decision_runs.local_date`와
+연결된 `workout_sessions`만 조회한다. `COMPLETED`의 마지막 로컬 날짜와 `NOT_COMPLETED` 건수를
+각각 반환하며, 미수행 건수는 학습 신호일 뿐 복귀 여부나 벌점을 직접 결정하지 않는다.
 
 ---
 
@@ -978,6 +982,8 @@ hash·최초 응답을 저장한다. 같은 키와 다른 요청 hash는 거부�
 | instruction_code | SHOW_CAUTION, STOP_SESSION, STOP_AND_SEEK_HELP |
 | resulting_action_code | REST, STOP_AND_SEEK_HELP 또는 null |
 | guidance_code | 검수된 안내 문구 코드 |
+| reason_code | 결정론적 안전 분류 사유 코드 |
+| rule_version | 적용한 workout safety event 규칙 버전 |
 | created_at | 서버 저장 시각 |
 
 workout_safety_event_discomforts와 workout_safety_event_adverse_reactions에 부위, 심각도, 이상 반응을 정규화해 저장한다.

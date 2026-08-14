@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Protocol
 from uuid import UUID
 
@@ -40,6 +40,13 @@ class SessionState:
     started_at: datetime | None
     ended_at: datetime | None
     items: tuple[tuple[UUID, str, datetime | None], ...]
+    estimated_calories_burned: float | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ReturnHistory:
+    last_completed_local_date: date | None
+    not_completed_history_count: int
 
 
 class WorkoutRepositoryPort(Protocol):
@@ -121,5 +128,72 @@ class WorkoutRepositoryPort(Protocol):
         now: datetime,
     ) -> None: ...
 
+    def create_safety_event(
+        self,
+        session: Session,
+        *,
+        event_id: UUID,
+        session_id: UUID,
+        occurred_at: datetime,
+        instruction_code: str,
+        resulting_action_code: str | None,
+        session_status_code: str,
+        guidance_code: str,
+        reason_code: str,
+        rule_version: str,
+        discomforts: tuple[tuple[str, str], ...],
+        adverse_reaction_codes: tuple[str, ...],
+        now: datetime,
+    ) -> None: ...
 
-__all__ = ["IdempotencyRecord", "SelectionSource", "SessionState", "WorkoutRepositoryPort"]
+    def finish_session(
+        self,
+        session: Session,
+        *,
+        session_id: UUID,
+        status_code: str,
+        ended_at: datetime,
+        actual_elapsed_seconds: int | None,
+    ) -> None: ...
+
+    def create_skip_feedback(
+        self,
+        session: Session,
+        *,
+        session_id: UUID,
+        reason_code: str,
+        now: datetime,
+    ) -> None: ...
+
+    def feedback_exists(self, session: Session, session_id: UUID) -> bool: ...
+
+    def create_feedback(
+        self,
+        session: Session,
+        *,
+        session_id: UUID,
+        difficulty_code: str,
+        fatigue_code: str | None,
+        satisfaction_code: str | None,
+        pain_occurred: bool,
+        discomforts: tuple[tuple[str, str], ...],
+        adverse_reaction_codes: tuple[str, ...],
+        now: datetime,
+    ) -> None: ...
+
+    def get_return_history(
+        self, session: Session, user_id: UUID, before_local_date: date
+    ) -> ReturnHistory: ...
+
+    def is_pressure_notification_suppressed(
+        self, session: Session, user_id: UUID, local_date: date
+    ) -> bool: ...
+
+
+__all__ = [
+    "IdempotencyRecord",
+    "ReturnHistory",
+    "SelectionSource",
+    "SessionState",
+    "WorkoutRepositoryPort",
+]

@@ -968,8 +968,14 @@ SafetyEventResponse
 - instruction_code: SHOW_CAUTION | STOP_SESSION | STOP_AND_SEEK_HELP
 - resulting_action_code: REST | STOP_AND_SEEK_HELP | null
 - session_status_code: IN_PROGRESS | STOPPED_FOR_SAFETY
+- guidance_code: MILD_DISCOMFORT_CAUTION | MODERATE_DISCOMFORT_CAUTION | SEVERE_OR_ACUTE_STOP | SERIOUS_ADVERSE_REACTION_STOP
 - guidance: Guidance
+- pressure_notifications_allowed: boolean
 ~~~
+
+`resulting_action_code`가 `REST` 또는 `STOP_AND_SEEK_HELP`이면
+`pressure_notifications_allowed=false`이며, 해당 로컬 날짜의 추가 압박 알림 대상에서 제외한다.
+안내 문구는 상태를 진단하거나 치료·처방하지 않고 중단과 도움 요청만 안내한다.
 
 긴급 중단 그룹은 instruction_code=STOP_AND_SEEK_HELP와 resulting_action_code=STOP_AND_SEEK_HELP를 반환하고 세션을 STOPPED_FOR_SAFETY로 바꾼다.
 
@@ -1044,6 +1050,9 @@ HARD
 ~~~
 
 `fatigue_code`와 `satisfaction_code`는 선택형 사후 설문 값이며 후보 코드와 세부 척도는 개발 전 확정한다. 설문은 운동 수행 상태를 대체하거나 변경하지 않는다. 미수행 세션은 리포트 생성 전에 `/not-completed`의 `reason_code`를 먼저 저장해야 한다.
+
+후보 코드가 확정되기 전에는 두 필드를 선택적 대문자 machine code로만 저장하며,
+공식 상태 계산이나 다음 결정 규칙에는 사용하지 않는다. 피드백은 종료 상태의 세션에 한 번만 저장한다.
 
 피드백에 긴급 중단 그룹이 있으면 다음 추천까지 기다리지 않고 동일한 안전 guidance를 반환한다.
 

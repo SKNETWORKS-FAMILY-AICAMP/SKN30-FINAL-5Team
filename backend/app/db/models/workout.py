@@ -120,6 +120,9 @@ class WorkoutSession(Base):
     items: Mapped[list["WorkoutSessionItem"]] = relationship(
         cascade="all, delete-orphan", passive_deletes=True
     )
+    safety_events: Mapped[list["WorkoutSafetyEvent"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True
+    )
 
 
 class WorkoutSessionItem(Base):
@@ -187,11 +190,170 @@ class WorkoutAdditionalActivity(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class WorkoutSafetyEvent(Base):
+    __tablename__ = "workout_safety_events"
+    __table_args__ = (
+        CheckConstraint(
+            "instruction_code IN ('SHOW_CAUTION','STOP_SESSION','STOP_AND_SEEK_HELP')",
+            name="ck_workout_safety_events_instruction",
+        ),
+        CheckConstraint(
+            "resulting_action_code IS NULL OR "
+            "resulting_action_code IN ('REST','STOP_AND_SEEK_HELP')",
+            name="ck_workout_safety_events_action",
+        ),
+        CheckConstraint(
+            "guidance_code IN ('MILD_DISCOMFORT_CAUTION','MODERATE_DISCOMFORT_CAUTION',"
+            "'SEVERE_OR_ACUTE_STOP','SERIOUS_ADVERSE_REACTION_STOP')",
+            name="ck_workout_safety_events_guidance",
+        ),
+        CheckConstraint(
+            "reason_code IN ('MILD_DISCOMFORT','MODERATE_DISCOMFORT','SEVERE_DISCOMFORT',"
+            "'ACUTE_MUSCULOSKELETAL_REACTION','EMERGENCY_ADVERSE_REACTION')",
+            name="ck_workout_safety_events_reason",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    workout_session_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("workout_sessions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    instruction_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    resulting_action_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    guidance_code: Mapped[str] = mapped_column(String(48), nullable=False)
+    reason_code: Mapped[str] = mapped_column(String(48), nullable=False)
+    rule_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    discomforts: Mapped[list["WorkoutSafetyEventDiscomfort"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True
+    )
+    adverse_reactions: Mapped[list["WorkoutSafetyEventAdverseReaction"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True
+    )
+
+
+class WorkoutSafetyEventDiscomfort(Base):
+    __tablename__ = "workout_safety_event_discomforts"
+    __table_args__ = (
+        UniqueConstraint(
+            "workout_safety_event_id",
+            "body_area_code",
+            name="uq_workout_safety_event_discomfort_body",
+        ),
+        CheckConstraint(
+            "severity_code IN ('MILD','MODERATE','SEVERE')",
+            name="ck_workout_safety_event_discomfort_severity",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    workout_safety_event_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("workout_safety_events.id", ondelete="CASCADE"), nullable=False
+    )
+    body_area_code: Mapped[str] = mapped_column(
+        String(64), ForeignKey("body_areas.code", ondelete="RESTRICT"), nullable=False
+    )
+    severity_code: Mapped[str] = mapped_column(String(16), nullable=False)
+
+
+class WorkoutSafetyEventAdverseReaction(Base):
+    __tablename__ = "workout_safety_event_adverse_reactions"
+
+    workout_safety_event_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("workout_safety_events.id", ondelete="CASCADE"), primary_key=True
+    )
+    reaction_code: Mapped[str] = mapped_column(String(80), primary_key=True)
+
+
+class WorkoutFeedback(Base):
+    __tablename__ = "workout_feedback"
+    __table_args__ = (
+        CheckConstraint(
+            "difficulty_code IN ('EASY','APPROPRIATE','HARD')",
+            name="ck_workout_feedback_difficulty",
+        ),
+    )
+
+    workout_session_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("workout_sessions.id", ondelete="CASCADE"), primary_key=True
+    )
+    difficulty_code: Mapped[str] = mapped_column(String(16), nullable=False)
+    fatigue_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    satisfaction_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    pain_occurred: Mapped[bool] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    discomforts: Mapped[list["WorkoutFeedbackDiscomfort"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True
+    )
+    adverse_reactions: Mapped[list["WorkoutFeedbackAdverseReaction"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True
+    )
+
+
+class WorkoutFeedbackDiscomfort(Base):
+    __tablename__ = "workout_feedback_discomforts"
+    __table_args__ = (
+        UniqueConstraint(
+            "workout_session_id", "body_area_code", name="uq_workout_feedback_discomfort_body"
+        ),
+        CheckConstraint(
+            "severity_code IN ('MILD','MODERATE','SEVERE')",
+            name="ck_workout_feedback_discomfort_severity",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    workout_session_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("workout_feedback.workout_session_id", ondelete="CASCADE"), nullable=False
+    )
+    body_area_code: Mapped[str] = mapped_column(
+        String(64), ForeignKey("body_areas.code", ondelete="RESTRICT"), nullable=False
+    )
+    severity_code: Mapped[str] = mapped_column(String(16), nullable=False)
+
+
+class WorkoutFeedbackAdverseReaction(Base):
+    __tablename__ = "workout_feedback_adverse_reactions"
+
+    workout_session_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("workout_feedback.workout_session_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    reaction_code: Mapped[str] = mapped_column(String(80), primary_key=True)
+
+
+class WorkoutSkipFeedback(Base):
+    __tablename__ = "workout_skip_feedback"
+    __table_args__ = (
+        CheckConstraint(
+            "reason_code IN ('TIME_SHORTAGE','FATIGUE','MUSCLE_SORENESS','PAIN',"
+            "'SCHEDULE_CHANGE','LOCATION_EQUIPMENT','WEATHER','DIFFICULTY',"
+            "'LOW_INTEREST','LOW_MOTIVATION')",
+            name="ck_workout_skip_feedback_reason",
+        ),
+    )
+
+    workout_session_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("workout_sessions.id", ondelete="CASCADE"), primary_key=True
+    )
+    reason_code: Mapped[str] = mapped_column(String(48), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 __all__ = [
     "DecisionSelection",
     "ScheduledWorkout",
     "WorkoutAdditionalActivity",
+    "WorkoutFeedback",
+    "WorkoutFeedbackAdverseReaction",
+    "WorkoutFeedbackDiscomfort",
+    "WorkoutSafetyEvent",
+    "WorkoutSafetyEventAdverseReaction",
+    "WorkoutSafetyEventDiscomfort",
     "WorkoutSession",
     "WorkoutSessionItem",
+    "WorkoutSkipFeedback",
     "WorkoutTimerEvent",
 ]

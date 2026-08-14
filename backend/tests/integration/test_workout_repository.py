@@ -16,8 +16,15 @@ from backend.app.db.models.decision import (
 from backend.app.db.models.workout import (
     DecisionSelection,
     WorkoutAdditionalActivity,
+    WorkoutFeedback,
+    WorkoutFeedbackAdverseReaction,
+    WorkoutFeedbackDiscomfort,
+    WorkoutSafetyEvent,
+    WorkoutSafetyEventAdverseReaction,
+    WorkoutSafetyEventDiscomfort,
     WorkoutSession,
     WorkoutSessionItem,
+    WorkoutSkipFeedback,
     WorkoutTimerEvent,
 )
 from backend.app.db.repositories.workout import WorkoutRepository
@@ -41,6 +48,13 @@ def test_repository_round_trip_keeps_timer_and_additional_activity_informational
             WorkoutSessionItem.__table__,
             WorkoutTimerEvent.__table__,
             WorkoutAdditionalActivity.__table__,
+            WorkoutSafetyEvent.__table__,
+            WorkoutSafetyEventDiscomfort.__table__,
+            WorkoutSafetyEventAdverseReaction.__table__,
+            WorkoutFeedback.__table__,
+            WorkoutFeedbackDiscomfort.__table__,
+            WorkoutFeedbackAdverseReaction.__table__,
+            WorkoutSkipFeedback.__table__,
         ],
     )
     user_id = uuid4()
@@ -157,6 +171,16 @@ def test_repository_round_trip_keeps_timer_and_additional_activity_informational
             idempotency_key=uuid4(),
             now=NOW,
         )
+        assert not repository.is_pressure_notification_suppressed(
+            session, user_id, date(2026, 8, 14)
+        )
+        selection = session.get(DecisionSelection, selection_id)
+        assert selection is not None
+        selection.selected_action_code = "REST"
+        session.flush()
+        assert repository.is_pressure_notification_suppressed(session, user_id, date(2026, 8, 14))
+        selection.selected_action_code = "KEEP"
+        session.flush()
         state = repository.start_session(session, workout_session_id, NOW)
         assert state.status_code == "IN_PROGRESS"
         assert state.items == ((plan_item_id, "PENDING", None),)
@@ -191,3 +215,61 @@ def test_repository_round_trip_keeps_timer_and_additional_activity_informational
         assert updated is not None
         assert updated.status_code == "IN_PROGRESS"
         assert updated.items[0][1] == "COMPLETED"
+
+        repository.finish_session(
+            session,
+            session_id=workout_session_id,
+            status_code="COMPLETED",
+            ended_at=NOW,
+            actual_elapsed_seconds=0,
+        )
+        completed_history = repository.get_return_history(session, user_id, date(2026, 8, 15))
+        assert completed_history.last_completed_local_date == date(2026, 8, 14)
+        assert completed_history.not_completed_history_count == 0
+
+        repository.create_feedback(
+            session,
+            session_id=workout_session_id,
+            difficulty_code="APPROPRIATE",
+            fatigue_code="MODERATE",
+            satisfaction_code="SATISFIED",
+            pain_occurred=False,
+            discomforts=(),
+            adverse_reaction_codes=(),
+            now=NOW,
+        )
+        assert repository.feedback_exists(session, workout_session_id)
+
+        repository.finish_session(
+            session,
+            session_id=workout_session_id,
+            status_code="NOT_COMPLETED",
+            ended_at=NOW,
+            actual_elapsed_seconds=None,
+        )
+        repository.create_skip_feedback(
+            session,
+            session_id=workout_session_id,
+            reason_code="TIME_SHORTAGE",
+            now=NOW,
+        )
+        missed_history = repository.get_return_history(session, user_id, date(2026, 8, 15))
+        assert missed_history.last_completed_local_date is None
+        assert missed_history.not_completed_history_count == 1
+
+        repository.create_safety_event(
+            session,
+            event_id=uuid4(),
+            session_id=workout_session_id,
+            occurred_at=NOW,
+            instruction_code="STOP_AND_SEEK_HELP",
+            resulting_action_code="STOP_AND_SEEK_HELP",
+            session_status_code="STOPPED_FOR_SAFETY",
+            guidance_code="SERIOUS_ADVERSE_REACTION_STOP",
+            reason_code="EMERGENCY_ADVERSE_REACTION",
+            rule_version="1.0.0",
+            discomforts=(),
+            adverse_reaction_codes=("CHEST_DISCOMFORT",),
+            now=NOW,
+        )
+        assert repository.is_pressure_notification_suppressed(session, user_id, date(2026, 8, 14))
