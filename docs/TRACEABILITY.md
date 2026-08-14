@@ -21,7 +21,7 @@
 
 기준 NDJSON에는 47개 상위 그룹과 447개 세부 요구사항이 있다. 아래 표는 상위 그룹별 요약이며, 실제 구현·검수의 기준 ID는 `F###-#-#`, `POL-###-#-#`, `NFR-###-#-#` 형태의 세부 ID다. WBS 상세 행이 존재하는 그룹은 WBS의 세부 AC/TC ID를 사용하고, 아래 상위 그룹 요약 행은 요약용 AC/TC ID를 사용한다. 상태가 `초안`, `탐색`, `정책안`, `가설`, `잠정`인 항목은 구현 완료로 간주하지 않는다.
 
-POL-009~013은 2026-08-11 사용자 명시 승인과 `ACCEPTED` ADR-0004에 따라 승인 운영 기준으로 적용한다. 멀티 에이전트 구조와 관련된 F002·F029 추적은 `ACCEPTED` ADR-0007을 기준으로 하며, `docs/requirements/**` 원본의 상태 표기도 동일하게 동기화한다.
+POL-009~013은 2026-08-11 사용자 명시 승인과 `ACCEPTED` ADR-0004에 따라 승인 운영 기준으로 적용한다. POL-011의 삭제 상태·provider 실패·30일 restore tombstone 상세 계약은 2026-08-14 사용자 명시 승인과 `ACCEPTED` ADR-0008을 따른다. 멀티 에이전트 구조와 관련된 F002·F029 추적은 `ACCEPTED` ADR-0007을 기준으로 하며, `docs/requirements/**` 원본의 상태 표기도 동일하게 동기화한다.
 
 | 요구사항 | WBS 연결 | 계약·문서 | 인수조건 | 테스트 | 상태 |
 |---|---|---|---|---|---|
@@ -51,14 +51,14 @@ POL-009~013은 2026-08-11 사용자 명시 승인과 `ACCEPTED` ADR-0004에 따�
 | POL-008 | 2.7, 3.2, 3.4, 3.7, 3.8, 5.3 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-POL008-01 | TC-POL008-01 | 확정 |
 | POL-009 | 2.1, 2.5, 4.4, 4.10, 4.11, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-POL009-01 | TC-POL009-01 | 승인 운영 기준 |
 | POL-010 | 2.1, 2.3, 2.4, 2.5, 2.8, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-POL010-01 | TC-POL010-01 | 승인 운영 기준 |
-| POL-011 | 2.4, 2.5, 4.4, 4.11, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-POL011-01 | TC-POL011-01 | 승인 운영 기준 |
+| POL-011 | 2.4, 2.5, 4.4, 4.11, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL·TEST_STRATEGY·ADR-0008·TASK-BACKEND-005 | AC-POL011-1-1~1-8 | TC-POL011-1-1~1-8 | 승인 운영 기준 |
 | POL-012 | 보완-03, 4.4, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-POL012-01 | TC-POL012-01 | 승인 운영 기준 |
 | POL-013 | 1.3, 보완-04 | MVP_SCOPE·API_CONTRACT | AC-POL013-01 | TC-POL013-01 | 승인 운영 기준 |
 | NFR-001 | 3.5, 4.6, 4.9, 5.2 | MVP_SCOPE·API_CONTRACT·DATA_MODEL | AC-NFR001-01 | TC-NFR001-01 | 필수 |
 | NFR-002 | 1.2, 5.1, 5.7 | TRACEABILITY | AC-NFR002-01 | TC-NFR002-01 | 필수 |
 | NFR-003 | 3.4, 3.5, 3.8, 5.3 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-NFR003-01 | TC-NFR003-01 | 필수 |
-| NFR-004 | 2.1, 2.5, 3.5, 4.4, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-NFR004-01 | TC-NFR004-01 | 필수 |
-| NFR-005 | 2.5, 4.4, 4.10, 4.11, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-NFR005-01 | TC-NFR005-01 | 필수 |
+| NFR-004 | 2.1, 2.5, 3.5, 4.4, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL·ADR-0008 | AC-NFR004-01 | TC-NFR004-01 | 필수 |
+| NFR-005 | 2.5, 4.4, 4.10, 4.11, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL·TEST_STRATEGY·ADR-0008 | AC-NFR005-01 | TC-NFR005-01 | 필수 |
 | NFR-006 | 1.2, 3.7, 5.1, 5.2, 5.3, 5.7 | TRACEABILITY·TEST_STRATEGY | AC-NFR006-01 | TC-NFR006-01 | 필수 |
 
 F012~F023은 요구사항 정의서상 MVP 이후 확장 기능이다. 각 ID는 삭제·재사용하지 않고, 별도 확장 WBS·AC·TC를 만들기 전까지 `POST_MVP/PLANNED`로 관리한다.
