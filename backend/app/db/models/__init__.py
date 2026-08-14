@@ -1,3 +1,4 @@
+from backend.app.db.models.account_deletion import AccountDeletionAudit, AccountDeletionJob
 from backend.app.db.models.catalog import (
     BodyArea,
     BodyFocus,
@@ -57,6 +58,8 @@ from backend.app.db.models.workout import (
 )
 
 __all__ = [
+    "AccountDeletionAudit",
+    "AccountDeletionJob",
     "BodyArea",
     "BodyFocus",
     "AgentProposalRecord",

@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from backend.app.api.v1.account_deletion import router as account_deletion_router
 from backend.app.api.v1.daily_contexts import router as daily_contexts_router
 from backend.app.api.v1.decisions import router as decisions_router
 from backend.app.api.v1.health import router as health_router
@@ -12,6 +13,7 @@ from backend.app.api.v1.workouts import router as workouts_router
 from backend.app.api.v1.workouts import selection_router as workout_selection_router
 
 api_router = APIRouter()
+api_router.include_router(account_deletion_router)
 api_router.include_router(daily_contexts_router)
 api_router.include_router(decisions_router)
 api_router.include_router(health_router)

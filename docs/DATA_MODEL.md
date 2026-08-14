@@ -1291,6 +1291,37 @@ decision_runs
 승인된 opaque audit retention policy를 적용한다.
 비식별 통계는 결합 가능한 키가 없고 개인을 singling-out할 수 없는 경우에만 보존한다.
 
+### 14.1 account_deletion_jobs
+
+hard delete 전의 임시 작업 상태다. `user_id`는 `users.id`를 참조하며 unique이므로 사용자별
+활성 삭제 요청은 최대 1개다. provider subject와 token은 이 테이블에 복사하지 않는다.
+
+- status_code: PENDING, RUNNING, RETRY_PENDING, FAILED_REQUIRES_REVIEW
+- current_stage_code: ACCESS_BLOCK, EXTERNAL_REVOCATION, OPERATIONAL_DATA_DELETE,
+  CACHE_AND_WORK_DELETE, AUDIT_DEIDENTIFICATION
+- external_revocation_status_code: NOT_REQUIRED, PENDING, SUCCEEDED, RETRY_PENDING,
+  FAILED_FINAL
+- requested_at부터 실행 가능
+- operational_data_delete_by = requested_at + 7일
+- backup_expiry_due_at = requested_at + 30일
+
+### 14.2 account_deletion_audits
+
+운영 DB hard delete transaction에서 linked job을 제거하며 생성하는 opaque 감사 레코드다.
+`user_id`·provider subject·token·Idempotency-Key·요청 본문·원시 오류·건강 snapshot 컬럼과
+FK가 없다. 허용 필드는 다음으로 제한한다.
+
+- deletion_request_id, deletion_job_id
+- status_code, current_stage_code, external_revocation_status_code, completion_code
+- policy_version, attempt_count
+- requested_at, operational_data_delete_by, operational_deleted_at
+- backup_expiry_due_at, backup_expiry_verified_at, completed_at
+- allowlist failure_code, nullable audit_expires_at
+
+`BACKUP_EXPIRY_PENDING`에서 시간이 경과한 것만으로 `COMPLETED`로 전이하지 않는다.
+backup verification port가 마지막 관련 recovery point의 만료 증적을 확인해야 한다. 정확한
+감사 TTL은 아직 승인되지 않았으므로 `audit_expires_at` 기본값과 purge scheduler는 없다.
+
 실제 출시 전 개인정보 처리방침, 동의 철회·연동 해제, 운영 DB 삭제, 인증 제공자 삭제, 백업 만료 절차를 법률 또는 개인정보보호 담당자에게 검토받는다. 1년 미접속은 법정 휴면이 아닌 DORMANT 서비스 분류로 처리하고 30일 전 통지 후 삭제한다.
 
 ---

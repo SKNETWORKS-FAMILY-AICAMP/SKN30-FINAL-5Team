@@ -12,11 +12,14 @@ from backend.app.core.config import get_settings
 ALEMBIC_CONFIG = Path("backend/alembic.ini")
 
 
-def test_migration_history_has_weekly_plan_revisions_head() -> None:
+def test_migration_history_has_account_deletion_retention_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0011_weekly_plan_revisions"]
+    assert scripts.get_heads() == ["0012_account_deletion_retention"]
+    assert scripts.get_revision("0012_account_deletion_retention").down_revision == (
+        "0011_weekly_plan_revisions"
+    )
     assert scripts.get_revision("0011_weekly_plan_revisions").down_revision == (
         "0010_weekly_report_flow"
     )

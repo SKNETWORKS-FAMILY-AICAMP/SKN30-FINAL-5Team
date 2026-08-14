@@ -210,7 +210,7 @@ class MutationIdempotencyRecord(Base):
             "'PATCH_WORKOUT_SESSION_FINISH', 'PATCH_WORKOUT_SESSION_NOT_COMPLETED', "
             "'POST_WORKOUT_FEEDBACK', 'POST_WEEKLY_REPORT', "
             "'POST_WEEKLY_REPORT_ACKNOWLEDGEMENT', 'POST_WEEKLY_PLAN', "
-            "'POST_WEEKLY_PLAN_REVISION')",
+            "'POST_WEEKLY_PLAN_REVISION', 'DELETE_ME')",
             name="ck_mutation_idempotency_endpoint",
         ),
     )

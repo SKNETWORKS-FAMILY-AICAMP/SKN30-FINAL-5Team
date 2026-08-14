@@ -509,7 +509,19 @@ DELETE /api/v1/me는 202 Accepted를 반환한다.
 }
 ~~~
 
-삭제 요청 직후 일반 접근을 차단한다. 운영 DB의 사용자 연결 데이터는 7일 이내 삭제하고 백업은 최대 30일 순환 주기 후 소멸한다.
+`Idempotency-Key`는 UUID여야 한다. 최초 요청은 사용자 상태와 삭제 request/job을 같은
+transaction에서 저장한다. 같은 키 또는 새로운 키로 재요청해도 최초
+`deletion_request_id`와 deadline을 반환하며 사용자별 활성 삭제 job을 추가하지 않는다.
+
+삭제 요청 직후 일반 접근과 외부 동기화를 차단한다. `DELETION_PENDING` 사용자는 일반
+인증 dependency에서 `403 ACCOUNT_DISABLED`로 차단되지만 이 endpoint의 재요청에는
+제한된 삭제 lifecycle 인증 경계를 사용한다. hard delete 후에는 삭제 기록의 존재를
+공개하지 않고 일반 인증 실패를 반환한다.
+
+job은 `requested_at`부터 즉시 실행할 수 있다. `operational_data_delete_by`는 대기 시작
+시각이 아니라 운영 DB hard delete의 최대 완료 기한인 `requested_at + 7일`이다. 백업은
+요청 시각부터 30일 이내 만료해야 하며, 시간이 지났다는 이유만으로 완료 처리하지 않고
+승인된 운영 증적 확인 후 완료 처리한다.
 
 상세 의미는 `ACCEPTED` ADR-0008과 `account-deletion-policy-v1`을 따른다.
 
