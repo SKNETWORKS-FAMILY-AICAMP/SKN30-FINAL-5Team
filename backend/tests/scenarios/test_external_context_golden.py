@@ -1,28 +1,26 @@
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from backend.app.domain.rules.external_context import (
-    CALENDAR_PERFORMANCE_UNAVAILABLE_MESSAGE_KO,
-    CalendarBusyInterval,
     CalendarConnectionStatusCode,
-    CalendarFallbackReasonCode,
-    CalendarPerformanceGuidanceCode,
+    CalendarFailureCode,
     CalendarPerformanceObservation,
     CalendarProviderFailureKindCode,
-    CalendarPublicFailureCode,
+    OfficialWorkoutState,
+    ProviderBusyInterval,
     calculate_calendar_availability,
-    calendar_provider_failure_fallback,
+    calendar_performance_guidance,
+    classify_calendar_provider_failure,
     evaluate_calendar_access,
     google_calendar_performance_observation,
-    preserve_official_completion_status,
+    preserve_official_workout_state,
 )
 from backend.app.domain.rules.safety import (
-    AdverseReactionCode,
-    SafetyCandidate,
-    SafetyCandidateItem,
-    SafetyContext,
+    SafetyEvaluation,
     SafetyRequiredActionCode,
-    evaluate_safety,
+    SafetyRuleAvailabilityCode,
+    SafetyStatusCode,
 )
 from backend.app.domain.rules.workout_execution import (
     DecisionSelectionCode,
@@ -30,116 +28,119 @@ from backend.app.domain.rules.workout_execution import (
     should_send_pressure_notification,
 )
 
-NOW = datetime(2026, 8, 14, 0, 0, tzinfo=UTC)
-WORKOUT_ID = UUID("e6d11237-717b-48f5-bc87-9bb4560c9be2")
+WORKOUT_ID = UUID("8d4e0be7-a28f-4e5b-8ee2-83bc17dcc1c9")
+NOW = datetime(2026, 8, 14, 3, 0, tzinfo=UTC)
+SEOUL = ZoneInfo("Asia/Seoul")
 
 
-def test_golden_calendar_not_connected_keeps_all_core_manual_flows() -> None:
+def test_golden_unconnected_calendar_keeps_every_core_manual_path() -> None:
     result = evaluate_calendar_access(
         consent_granted=True,
         connection_status_code=None,
     )
 
-    assert result.failure_code is CalendarPublicFailureCode.CALENDAR_NOT_CONNECTED
-    assert result.manual_fallback_required is True
-    assert result.workout_plan_preserved is True
-    assert result.official_completion_unchanged is True
+    assert result.failure_code is CalendarFailureCode.CALENDAR_NOT_CONNECTED
+    assert result.manual_fallback.manual_checkin_available is True
+    assert result.manual_fallback.workout_block_check_available is True
+    assert result.manual_fallback.plan_mutation_allowed is False
 
 
-def test_golden_permission_denied_keeps_manual_checkin_and_plan() -> None:
-    result = calendar_provider_failure_fallback(CalendarProviderFailureKindCode.PERMISSION_DENIED)
+def test_golden_permission_denial_keeps_plan_and_manual_checkin_unchanged() -> None:
+    plan = ("approved-plan-item",)
+    result = classify_calendar_provider_failure(CalendarProviderFailureKindCode.PERMISSION_DENIED)
 
-    assert result.fallback_reason_code is CalendarFallbackReasonCode.PERMISSION_DENIED
-    assert result.manual_fallback_required is True
-    assert result.workout_plan_preserved is True
+    assert plan == ("approved-plan-item",)
+    assert result.failure_code is CalendarFailureCode.CALENDAR_NOT_CONNECTED
+    assert result.manual_fallback.manual_checkin_available is True
+    assert result.manual_fallback.plan_mutation_allowed is False
 
 
-def test_golden_performed_true_cannot_complete_an_unchecked_workout() -> None:
-    observation = CalendarPerformanceObservation(
+def test_golden_performed_true_cannot_change_official_session_status() -> None:
+    official = OfficialWorkoutState(WORKOUT_ID, WorkoutSessionStatusCode.NOT_COMPLETED)
+    provider_observation = CalendarPerformanceObservation(WORKOUT_ID, True, NOW)
+
+    result = preserve_official_workout_state(
+        official_workout_state=official,
+        observation=provider_observation,
+    )
+
+    assert result is official
+    assert result.status_code is WorkoutSessionStatusCode.NOT_COMPLETED
+
+
+def test_golden_google_performed_null_returns_guidance_not_an_error() -> None:
+    result = google_calendar_performance_observation(
         scheduled_workout_id=WORKOUT_ID,
-        performed=True,
         performance_checked_at=NOW,
     )
-    result = preserve_official_completion_status(
-        official_session_status_code=WorkoutSessionStatusCode.NOT_COMPLETED,
-        observation=observation,
+
+    assert result.performed is None
+    guidance = calendar_performance_guidance(result)
+    assert guidance is not None
+    assert "확인할 수 없습니다" in guidance
+
+
+def test_golden_provider_outage_returns_503_contract_without_plan_mutation() -> None:
+    plan = ("approved-plan-item",)
+    result = classify_calendar_provider_failure(CalendarProviderFailureKindCode.TIMEOUT)
+
+    assert result.failure_code is CalendarFailureCode.PROVIDER_UNAVAILABLE
+    assert result.manual_fallback.plan_mutation_allowed is False
+    assert plan == ("approved-plan-item",)
+
+
+def test_golden_provider_outage_cannot_bypass_safety_veto() -> None:
+    safety = SafetyEvaluation(
+        status_code=SafetyStatusCode.BLOCKED,
+        required_action_code=SafetyRequiredActionCode.REST,
+        veto=True,
+        plan_allowed=False,
+        excluded_exercise_codes=(),
+        caution_exercise_codes=(),
+        applied_rule_codes=(),
+        reason_codes=("SEVERE_DISCOMFORT",),
+        emergency_reaction_codes=(),
+        acute_reaction_codes=(),
+        severe_body_area_codes=(),
+        safety_rule_set_version=None,
+        rule_availability_code=SafetyRuleAvailabilityCode.NOT_REQUIRED,
     )
 
-    assert result.official_session_status_code is WorkoutSessionStatusCode.NOT_COMPLETED
+    provider_failure = classify_calendar_provider_failure(CalendarProviderFailureKindCode.TIMEOUT)
+
+    assert provider_failure.manual_fallback.plan_mutation_allowed is False
+    assert safety.status_code is SafetyStatusCode.BLOCKED
+    assert safety.veto is True
+    assert safety.plan_allowed is False
 
 
-def test_golden_google_performed_null_is_supported_fallback_not_an_error() -> None:
-    observation = google_calendar_performance_observation(
-        scheduled_workout_id=WORKOUT_ID,
-        checked_at=NOW,
-    )
-    result = preserve_official_completion_status(
-        official_session_status_code=WorkoutSessionStatusCode.COMPLETED,
-        observation=observation,
-    )
-
-    assert observation.performed is None
-    assert (
-        result.guidance_code is CalendarPerformanceGuidanceCode.PROVIDER_DOES_NOT_REPORT_PERFORMANCE
-    )
-    assert result.guidance_message == CALENDAR_PERFORMANCE_UNAVAILABLE_MESSAGE_KO
-    assert result.official_session_status_code is WorkoutSessionStatusCode.COMPLETED
-
-
-def test_golden_provider_outage_returns_safe_503_without_deleting_plan() -> None:
-    result = calendar_provider_failure_fallback(CalendarProviderFailureKindCode.UNAVAILABLE)
-
-    assert result.failure_code is CalendarPublicFailureCode.PROVIDER_UNAVAILABLE
-    assert result.workout_plan_preserved is True
-    assert result.manual_fallback_required is True
-
-
-def test_golden_full_day_busy_returns_empty_without_shortening_requested_duration() -> None:
-    requested_duration_minutes = 40
-    availability = calculate_calendar_availability(
+def test_golden_fully_busy_day_returns_empty_without_shortening_requested_duration() -> None:
+    day_start = datetime(2026, 8, 14, 0, 0, tzinfo=SEOUL)
+    day_end = datetime(2026, 8, 15, 0, 0, tzinfo=SEOUL)
+    result = calculate_calendar_availability(
         local_date=date(2026, 8, 14),
-        timezone_name="UTC",
-        requested_duration_minutes=requested_duration_minutes,
-        busy_intervals=(CalendarBusyInterval(start_at=NOW, end_at=NOW + timedelta(days=1)),),
+        timezone_name="Asia/Seoul",
+        requested_duration_minutes=40,
+        busy_intervals=(ProviderBusyInterval(day_start, day_end),),
     )
 
-    assert availability.slots == ()
-    assert requested_duration_minutes == 40
+    assert result.slots == ()
 
 
-def test_golden_external_context_cannot_bypass_emergency_safety_veto() -> None:
-    safety = evaluate_safety(
-        SafetyContext(adverse_reaction_codes=(AdverseReactionCode.CHEST_DISCOMFORT,)),
-        SafetyCandidate(
-            items=(
-                SafetyCandidateItem(
-                    exercise_code="SYNTHETIC_WALK",
-                    catalog_version_code="catalog-test-v1",
-                    movement_pattern_code="LOCOMOTION",
-                ),
-            )
-        ),
-        None,
-    )
-    calendar = evaluate_calendar_access(
-        consent_granted=True,
+def test_golden_consent_withdrawal_stops_provider_access_but_not_core_flow() -> None:
+    result = evaluate_calendar_access(
+        consent_granted=False,
         connection_status_code=CalendarConnectionStatusCode.ACTIVE,
     )
 
-    assert calendar.provider_call_allowed is True
-    assert safety.veto is True
-    assert safety.required_action_code is SafetyRequiredActionCode.STOP_AND_SEEK_HELP
-    assert safety.plan_allowed is False
+    assert result.failure_code is CalendarFailureCode.CONSENT_REQUIRED
+    assert result.manual_fallback.manual_checkin_available is True
+    assert result.manual_fallback.workout_block_check_available is True
 
 
 def test_golden_calendar_context_cannot_pressure_a_user_who_selected_rest() -> None:
     local_date = date(2026, 8, 14)
-    calendar = evaluate_calendar_access(
-        consent_granted=True,
-        connection_status_code=CalendarConnectionStatusCode.ACTIVE,
-    )
 
-    assert calendar.provider_call_allowed is True
     assert (
         should_send_pressure_notification(
             selection_code=DecisionSelectionCode.REST,

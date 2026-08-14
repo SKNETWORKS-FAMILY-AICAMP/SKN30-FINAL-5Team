@@ -649,48 +649,18 @@ training type에서 목표·처방을 추론하지 않는다.
 | user_id | users FK |
 | provider_code | 캘린더 제공자 코드 |
 | provider_subject | 외부 계정의 불변 subject, nullable |
+| token_secret_ref | secret manager token 참조, nullable (`PROPOSED` ADR-0010; token 원문 금지) |
 | status_code | ACTIVE, REVOKED |
-| token_secret_ref | access/refresh token을 보관한 외부 secret backend의 opaque 참조, nullable |
 | granted_at | 권한 부여 시각 |
 | revoked_at | 연동 해제 시각, nullable |
 | created_at | 생성 시각 |
 
-provider code는 `GOOGLE_CALENDAR`다. 외부 access/refresh token과 캘린더 본문 텍스트는 애플리케이션
-DB에 저장하지 않는다. token은 승인된 secret backend에만 저장하고 DB에는 opaque `token_secret_ref`만
-둔다. `CALENDAR_INTEGRATION` 동의가 없거나 철회된 상태에서는 연결·조회·등록을 처리하지 않으며, 동의 철회
-또는 연동 해제 시 즉시 `REVOKED`로 전환하고 secret을 파기한다. Firebase 로그인과 같은 Google Cloud
-project를 공유하므로 Calendar local disconnect는 Google token revoke endpoint를 호출하지 않는다.
-
-### 6.5.1 calendar_oauth_authorization_requests (논리 모델)
-
-| 컬럼 | 설명 |
-|---|---|
-| id | UUID, PK |
-| user_id | users FK |
-| provider_code | `GOOGLE_CALENDAR` |
-| state_hash | state의 단방향 digest, UNIQUE |
-| redirect_uri_hash | 승인된 redirect URI의 digest |
-| pkce_challenge | S256 challenge |
-| created_at | 생성 시각 |
-| expires_at | 생성 후 600초 |
-| consumed_at | 단일 사용 소비 시각, nullable |
-
-authorization code, state 원문, verifier와 token은 저장하지 않는다. flow는 600초 안에 한 번만 소비하며
-검증 실패·만료·재사용 시 provider identity나 calendar connection을 생성하지 않는다.
-
-### 6.5.2 calendar_rate_limit_windows (논리 모델)
-
-| 컬럼 | 설명 |
-|---|---|
-| user_id | users FK |
-| dimension_code | `AVAILABILITY` 또는 `TOTAL` |
-| window_started_at | UTC 기준 fixed-hour window 시작 |
-| request_count | 해당 window의 허용 요청 수 |
-| expires_at | 정리 가능 시각 |
-
-availability는 사용자별 시간당 30회, 전체 calendar endpoint 합계는 사용자별 시간당 60회다. 31번째와
-61번째 요청은 `RATE_LIMITED`이고 다음 fixed window에서 초기화한다. 실제 구현은 동시 요청에서도 한도를
-초과 승인하지 않는 원자적 저장소를 사용해야 한다.
+외부 access/refresh token과 캘린더 본문 텍스트는 저장하지 않는다. `token_secret_ref`는 실제 token이
+아니라 secret manager 참조만 허용하며 ADR-0010 승인과 additive migration 전에는 논리 제안 필드다.
+`CALENDAR_INTEGRATION` 동의가 없거나 철회된 상태에서는 연결·조회·등록을 처리하지 않으며, 동의 철회
+또는 연동 해제 시 동기화를 즉시 중단한다. Google freebusy 원본 payload는 영속화하지 않는다.
+연동 해제는 `REVOKED` 전환과 secret 파기를 로컬에서 완료한다. Firebase 로그인과 동일한 Google Cloud
+project에서는 Calendar 단독 remote token revoke를 호출하지 않는다.
 
 ### 6.6 calendar_event_links
 
@@ -699,23 +669,14 @@ availability는 사용자별 시간당 30회, 전체 calendar endpoint 합계는
 | id | UUID, PK |
 | calendar_connection_id | calendar_connections FK |
 | scheduled_workout_id | scheduled_workouts FK |
-| external_event_id | Google 이벤트 식별자, 5~1024자 |
+| external_event_id | 외부 이벤트 식별자 |
 | start_at | 등록한 운동 시작 시각 |
 | end_at | 등록한 운동 종료 시각 |
 | performed | 등록된 운동 일정의 수행 여부 확인값, nullable |
 | performance_checked_at | 수행 여부 확인 시각, nullable |
 | created_at | 등록 시각 |
 
-캘린더 이벤트는 앱 전용 secondary calendar에 등록한 계획의 최소 연결 기록이다. Google Calendar의
-`performed`는 항상 `null`이며 scheduled workout이 최종 상태가 된 뒤에만 확인할 수 있다. 같은 link의
-재확인은 직전 `performance_checked_at`부터 10분 뒤에 허용한다. 세부 운동·수행 시간·강도 기록은 저장하지
-않는다. 확인 결과는 운동 세션의 공식 상태를 생성하거나
-변경하지 않는다. 웨어러블 운동 데이터로 캘린더 이벤트를 자동 생성하거나 갱신하지 않는다.
-
-calendar availability는 영속 모델이 아니다. Freebusy의 busy interval과 계산한 slot은 요청 메모리에서만
-사용하며 DB, cache, 로그, snapshot에 저장하지 않는다. 일정 제목·설명·참석자·위치·회의 링크·메모·원본
-payload도 수집·저장하지 않는다. 사용자 IANA timezone과 local date는 기존 사용자 설정과 요청 경계에서만
-참조한다.
+캘린더 이벤트는 시간 후보와 계획 등록을 위한 보조 기록이다. 등록된 운동 일정에 대해서는 `performed` 여부와 확인 시각만 확인·저장할 수 있고 세부 운동·수행 시간·강도 기록은 저장하지 않는다. Google Calendar는 수행 여부를 제공하지 않으므로 `performed`는 항상 `null`이다. `external_event_id`는 Google Event `id`의 5~1024자를 허용하고 `iCalUID`와 혼용하지 않는다. 확인 결과는 운동 세션의 공식 상태를 생성하거나 변경하지 않는다. 웨어러블 운동 데이터로 캘린더 이벤트를 자동 생성하거나 갱신하지 않는다.
 
 ---
 
@@ -1331,12 +1292,6 @@ decision_runs
 - social_oauth_authorization_requests(expires_at)
 - social_oauth_rate_limit_windows(provider_code, dimension_code, key_digest, window_started_at) UNIQUE
 - social_oauth_rate_limit_windows(expires_at)
-- calendar_oauth_authorization_requests(state_hash) UNIQUE
-- calendar_oauth_authorization_requests(expires_at)
-- calendar_rate_limit_windows(user_id, dimension_code, window_started_at) UNIQUE
-- calendar_rate_limit_windows(expires_at)
-- calendar_connections(user_id, status_code)
-- calendar_event_links(calendar_connection_id, scheduled_workout_id) UNIQUE
 - daily_contexts(user_id, local_date)
 - routines(user_id, status_code, effective_from)
 - scheduled_workouts(user_id, scheduled_local_date, status_code)
@@ -1391,7 +1346,6 @@ decision_runs
 - 개인을 다시 식별할 수 없는 집계 통계
 - 법령상 별도 보존 의무가 확인된 최소 정보
 - 체크인 원자료 28일, 웨어러블 원본 24시간, 일별 요약·상세 수행·설문 90일, 주간 리포트 12개월
-- 캘린더 원본 payload·본문·busy interval·availability slot은 0시간(영속·cache 보관 금지)
 - 관리자 접속기록 2년, 마스킹 오류 로그 7일
 
 위 데이터별 일반 보유기간은 명시적 계정 삭제 요청이 없을 때의 상한이다. 계정 삭제 시 승인된

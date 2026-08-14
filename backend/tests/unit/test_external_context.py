@@ -1,431 +1,440 @@
-import logging
 from dataclasses import fields
 from datetime import UTC, date, datetime, timedelta
-from uuid import UUID
+from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 import pytest
 
 from backend.app.domain.rules.external_context import (
     CALENDAR_AVAILABILITY_RATE_LIMIT,
-    CALENDAR_MAX_AVAILABILITY_SLOTS,
-    CALENDAR_PERFORMANCE_UNAVAILABLE_MESSAGE_KO,
+    CALENDAR_AVAILABILITY_SCHEMA_VERSION,
+    CALENDAR_PERFORMANCE_SCHEMA_VERSION,
     CALENDAR_TOTAL_RATE_LIMIT,
+    EXTERNAL_CONTEXT_POLICY_VERSION,
     FORBIDDEN_CALENDAR_FIELDS,
+    GOOGLE_CALENDAR_APP_CREATED_SCOPE,
+    GOOGLE_CALENDAR_FREEBUSY_SCOPE,
+    MAX_AVAILABILITY_SLOTS,
+    PERFORMANCE_RECHECK_INTERVAL,
     SAFE_CALENDAR_OBSERVABILITY_FIELDS,
     AvailabilitySlot,
     CalendarAvailability,
     CalendarAvailabilitySourceCode,
-    CalendarBusyInterval,
+    CalendarConnectionState,
     CalendarConnectionStatusCode,
-    CalendarEndpointCode,
-    CalendarFallbackReasonCode,
-    CalendarPerformanceCheckReasonCode,
-    CalendarPerformanceGuidanceCode,
+    CalendarDisconnectActionCode,
+    CalendarFailureCode,
+    CalendarOperationCode,
+    CalendarOutcomeStatusCode,
     CalendarPerformanceObservation,
     CalendarProviderFailureKindCode,
-    CalendarPublicFailureCode,
+    ExternalContextContractError,
+    FixedWindowCounter,
     ManualAvailabilityOverride,
+    OfficialWorkoutState,
+    ProviderBusyInterval,
+    ScheduledWorkoutState,
     ScheduledWorkoutStatusCode,
-    UnsafeCalendarObservabilityFieldError,
     calculate_calendar_availability,
-    calendar_provider_failure_fallback,
-    disconnect_calendar,
+    calendar_performance_guidance,
+    classify_calendar_provider_failure,
+    commit_calendar_connection_mutation,
     evaluate_calendar_access,
     evaluate_calendar_rate_limit,
-    evaluate_performance_check,
+    evaluate_performance_recheck,
     google_calendar_performance_observation,
-    preserve_official_completion_status,
+    preserve_official_workout_state,
+    request_calendar_disconnect,
     select_availability,
     validate_calendar_observability_fields,
 )
 from backend.app.domain.rules.workout_execution import WorkoutSessionStatusCode
-from backend.app.integrations.calendar_provider import (
-    SyntheticCalendarProvider,
-    UnavailableCalendarProvider,
-    build_calendar_provider,
-)
-from backend.app.modules.external_context.ports import (
-    CalendarAvailabilityQuery,
-    CalendarEventCreateCommand,
-    CalendarProviderUnavailableError,
-)
 
-NOW = datetime(2026, 8, 14, 0, 0, tzinfo=UTC)
-WORKOUT_ID = UUID("e6d11237-717b-48f5-bc87-9bb4560c9be2")
+SEOUL = ZoneInfo("Asia/Seoul")
+LOCAL_DATE = date(2026, 8, 14)
+NOW = datetime(2026, 8, 14, 9, 0, tzinfo=SEOUL)
 
 
-def _busy(start_hour: int, end_hour: int) -> CalendarBusyInterval:
-    return CalendarBusyInterval(
-        start_at=NOW + timedelta(hours=start_hour),
-        end_at=NOW + timedelta(hours=end_hour),
+def _local(hour: int, minute: int = 0, *, day: int = 14) -> datetime:
+    return datetime(2026, 8, day, hour, minute, tzinfo=SEOUL)
+
+
+def _busy(
+    start_hour: int,
+    end_hour: int,
+    *,
+    start_minute: int = 0,
+    end_minute: int = 0,
+) -> ProviderBusyInterval:
+    return ProviderBusyInterval(
+        _local(start_hour, start_minute),
+        _local(end_hour, end_minute),
     )
 
 
-def test_consent_and_connection_gate_preserve_manual_flow() -> None:
-    without_consent = evaluate_calendar_access(
+def test_google_calendar_contract_uses_only_minimal_scopes() -> None:
+    assert GOOGLE_CALENDAR_FREEBUSY_SCOPE == ("https://www.googleapis.com/auth/calendar.freebusy")
+    assert GOOGLE_CALENDAR_APP_CREATED_SCOPE == (
+        "https://www.googleapis.com/auth/calendar.app.created"
+    )
+    assert EXTERNAL_CONTEXT_POLICY_VERSION == "external-context-policy-v1"
+    assert CALENDAR_AVAILABILITY_SCHEMA_VERSION == "calendar-availability-v1"
+    assert CALENDAR_PERFORMANCE_SCHEMA_VERSION == "calendar-performance-v1"
+
+
+def test_freebusy_input_and_availability_output_expose_only_normalized_fields() -> None:
+    assert {field.name for field in fields(ProviderBusyInterval)} == {"start_at", "end_at"}
+    result = calculate_calendar_availability(
+        local_date=LOCAL_DATE,
+        timezone_name="Asia/Seoul",
+        requested_duration_minutes=30,
+        busy_intervals=(),
+    )
+    assert {field.name for field in fields(result)} == {
+        "local_date",
+        "timezone",
+        "slots",
+    }
+
+
+def test_consent_and_connection_gate_preserve_manual_fallback() -> None:
+    consent_required = evaluate_calendar_access(
         consent_granted=False,
         connection_status_code=CalendarConnectionStatusCode.ACTIVE,
     )
-    disconnected = evaluate_calendar_access(
+    not_connected = evaluate_calendar_access(
         consent_granted=True,
         connection_status_code=None,
     )
-    active = evaluate_calendar_access(
+    allowed = evaluate_calendar_access(
         consent_granted=True,
         connection_status_code=CalendarConnectionStatusCode.ACTIVE,
     )
 
-    assert without_consent.failure_code is CalendarPublicFailureCode.CONSENT_REQUIRED
-    assert without_consent.fallback_reason_code is CalendarFallbackReasonCode.CONSENT_MISSING
-    assert disconnected.failure_code is CalendarPublicFailureCode.CALENDAR_NOT_CONNECTED
-    assert disconnected.manual_fallback_required is True
-    assert disconnected.workout_plan_preserved is True
-    assert active.provider_call_allowed is True
+    assert consent_required.failure_code is CalendarFailureCode.CONSENT_REQUIRED
+    assert not_connected.failure_code is CalendarFailureCode.CALENDAR_NOT_CONNECTED
+    assert allowed.allowed is True and allowed.failure_code is None
+    for decision in (consent_required, not_connected, allowed):
+        assert decision.manual_fallback.manual_checkin_available is True
+        assert decision.manual_fallback.workout_block_check_available is True
+        assert decision.manual_fallback.plan_mutation_allowed is False
 
 
 @pytest.mark.parametrize(
-    ("kind", "failure", "reason"),
+    "kind",
     [
-        (
-            CalendarProviderFailureKindCode.PERMISSION_DENIED,
-            CalendarPublicFailureCode.CALENDAR_NOT_CONNECTED,
-            CalendarFallbackReasonCode.PERMISSION_DENIED,
-        ),
-        (
-            CalendarProviderFailureKindCode.UNAVAILABLE,
-            CalendarPublicFailureCode.PROVIDER_UNAVAILABLE,
-            CalendarFallbackReasonCode.PROVIDER_UNAVAILABLE,
-        ),
+        CalendarProviderFailureKindCode.TIMEOUT,
+        CalendarProviderFailureKindCode.HTTP_5XX,
+        CalendarProviderFailureKindCode.PROVIDER_RATE_LIMITED,
     ],
 )
-def test_provider_failures_have_deterministic_manual_fallback(
+def test_provider_failures_use_safe_public_error_and_manual_fallback(
     kind: CalendarProviderFailureKindCode,
-    failure: CalendarPublicFailureCode,
-    reason: CalendarFallbackReasonCode,
 ) -> None:
-    decision = calendar_provider_failure_fallback(kind)
+    decision = classify_calendar_provider_failure(kind)
 
-    assert decision.failure_code is failure
-    assert decision.fallback_reason_code is reason
-    assert decision.manual_fallback_required is True
-    assert decision.official_completion_unchanged is True
+    assert decision.status_code is CalendarOutcomeStatusCode.PROVIDER_UNAVAILABLE
+    assert decision.failure_code is CalendarFailureCode.PROVIDER_UNAVAILABLE
+    assert decision.manual_fallback.plan_mutation_allowed is False
 
 
-def test_rate_limit_boundaries_are_30_availability_and_60_total() -> None:
-    thirtieth = evaluate_calendar_rate_limit(
-        endpoint_code=CalendarEndpointCode.AVAILABILITY,
-        availability_count_before_attempt=CALENDAR_AVAILABILITY_RATE_LIMIT - 1,
-        total_count_before_attempt=CALENDAR_AVAILABILITY_RATE_LIMIT - 1,
-        attempted_at=NOW + timedelta(minutes=59),
-        window_started_at=NOW,
-    )
-    thirty_first = evaluate_calendar_rate_limit(
-        endpoint_code=CalendarEndpointCode.AVAILABILITY,
-        availability_count_before_attempt=CALENDAR_AVAILABILITY_RATE_LIMIT,
-        total_count_before_attempt=CALENDAR_AVAILABILITY_RATE_LIMIT,
-        attempted_at=NOW + timedelta(minutes=59),
-        window_started_at=NOW,
-    )
-    sixtieth = evaluate_calendar_rate_limit(
-        endpoint_code=CalendarEndpointCode.PERFORMANCE,
-        availability_count_before_attempt=10,
-        total_count_before_attempt=CALENDAR_TOTAL_RATE_LIMIT - 1,
-        attempted_at=NOW + timedelta(minutes=59),
-        window_started_at=NOW,
-    )
-    sixty_first = evaluate_calendar_rate_limit(
-        endpoint_code=CalendarEndpointCode.EVENT_CREATE,
-        availability_count_before_attempt=10,
-        total_count_before_attempt=CALENDAR_TOTAL_RATE_LIMIT,
-        attempted_at=NOW + timedelta(minutes=59),
-        window_started_at=NOW,
+def test_permission_denial_is_not_invented_as_a_new_public_error() -> None:
+    decision = classify_calendar_provider_failure(CalendarProviderFailureKindCode.PERMISSION_DENIED)
+
+    assert decision.status_code is CalendarOutcomeStatusCode.PERMISSION_DENIED
+    assert decision.failure_code is CalendarFailureCode.CALENDAR_NOT_CONNECTED
+    assert decision.manual_fallback.manual_checkin_available is True
+
+
+def test_disconnect_is_local_first_and_repeated_request_is_a_noop() -> None:
+    original = CalendarConnectionState(
+        connection_id=uuid4(),
+        status_code=CalendarConnectionStatusCode.ACTIVE,
     )
 
-    assert thirtieth.allowed is True
-    assert thirty_first.allowed is False
-    assert thirty_first.failure_code is CalendarPublicFailureCode.RATE_LIMITED
-    assert sixtieth.allowed is True
-    assert sixty_first.allowed is False
+    first = request_calendar_disconnect(original, requested_at=NOW)
+    repeated = request_calendar_disconnect(
+        first.state,
+        requested_at=NOW + timedelta(seconds=1),
+    )
+
+    assert first.action_code is CalendarDisconnectActionCode.DESTROY_SECRET_LOCALLY
+    assert first.state.status_code is CalendarConnectionStatusCode.REVOKED
+    assert first.state.revoked_at == NOW
+    assert repeated.action_code is CalendarDisconnectActionCode.NOOP_ALREADY_REVOKED
+    assert repeated.state is first.state
 
 
-def test_rate_limit_resets_at_exactly_one_hour() -> None:
-    result = evaluate_calendar_rate_limit(
-        endpoint_code=CalendarEndpointCode.AVAILABILITY,
-        availability_count_before_attempt=30,
-        total_count_before_attempt=60,
+def test_failed_connection_persistence_does_not_expose_proposed_disconnect() -> None:
+    original = CalendarConnectionState(uuid4(), CalendarConnectionStatusCode.ACTIVE)
+    proposed = request_calendar_disconnect(original, requested_at=NOW).state
+
+    with pytest.raises(ExternalContextContractError) as captured:
+        commit_calendar_connection_mutation(
+            proposed=proposed,
+            persistence_succeeded=False,
+        )
+
+    assert captured.value.code is CalendarFailureCode.DATABASE_UNAVAILABLE
+    assert original.status_code is CalendarConnectionStatusCode.ACTIVE
+
+
+def test_calendar_rate_limits_have_exact_boundaries_and_reset() -> None:
+    total = FixedWindowCounter(CALENDAR_TOTAL_RATE_LIMIT - 1, NOW)
+    availability = FixedWindowCounter(CALENDAR_AVAILABILITY_RATE_LIMIT - 1, NOW)
+    allowed = evaluate_calendar_rate_limit(
+        operation_code=CalendarOperationCode.AVAILABILITY,
+        total_counter=total,
+        availability_counter=availability,
+        attempted_at=NOW + timedelta(minutes=59),
+    )
+    blocked = evaluate_calendar_rate_limit(
+        operation_code=CalendarOperationCode.AVAILABILITY,
+        total_counter=allowed.total_counter,
+        availability_counter=allowed.availability_counter,
+        attempted_at=NOW + timedelta(minutes=59),
+    )
+    reset = evaluate_calendar_rate_limit(
+        operation_code=CalendarOperationCode.AVAILABILITY,
+        total_counter=blocked.total_counter,
+        availability_counter=blocked.availability_counter,
         attempted_at=NOW + timedelta(hours=1),
-        window_started_at=NOW,
     )
 
-    assert result.allowed is True
-    assert result.availability_count_after_attempt == 1
-    assert result.total_count_after_attempt == 1
+    assert allowed.allowed is True
+    assert allowed.availability_counter is not None
+    assert allowed.availability_counter.count == CALENDAR_AVAILABILITY_RATE_LIMIT
+    assert blocked.allowed is False
+    assert blocked.failure_code is CalendarFailureCode.RATE_LIMITED
+    assert blocked.retry_after == timedelta(minutes=1)
+    assert reset.allowed is True
+    assert reset.total_counter.count == 1
+    assert reset.availability_counter is not None
+    assert reset.availability_counter.count == 1
 
 
-def test_disconnect_is_local_idempotent_and_never_revokes_shared_google_grant() -> None:
-    first = disconnect_calendar(CalendarConnectionStatusCode.ACTIVE)
-    replay = disconnect_calendar(CalendarConnectionStatusCode.REVOKED)
+def test_total_calendar_rate_limit_applies_to_non_availability_operations() -> None:
+    allowed = evaluate_calendar_rate_limit(
+        operation_code=CalendarOperationCode.EVENT_CREATE,
+        total_counter=FixedWindowCounter(CALENDAR_TOTAL_RATE_LIMIT - 1, NOW),
+        availability_counter=None,
+        attempted_at=NOW,
+    )
+    blocked = evaluate_calendar_rate_limit(
+        operation_code=CalendarOperationCode.PERFORMANCE,
+        total_counter=allowed.total_counter,
+        availability_counter=None,
+        attempted_at=NOW + timedelta(minutes=1),
+    )
 
-    assert first.status_code is CalendarConnectionStatusCode.REVOKED
-    assert first.destroy_secret is True
-    assert first.call_provider_revoke is False
-    assert first.idempotent_replay is False
-    assert replay.idempotent_replay is True
+    assert allowed.allowed is True
+    assert blocked.allowed is False
+    assert blocked.total_counter.count == CALENDAR_TOTAL_RATE_LIMIT + 1
 
 
 def test_overlapping_busy_intervals_are_merged_before_slot_calculation() -> None:
-    availability = calculate_calendar_availability(
-        local_date=date(2026, 8, 14),
-        timezone_name="UTC",
+    result = calculate_calendar_availability(
+        local_date=LOCAL_DATE,
+        timezone_name="Asia/Seoul",
         requested_duration_minutes=30,
         busy_intervals=(
-            _busy(6, 8),
-            CalendarBusyInterval(
-                start_at=NOW + timedelta(hours=7, minutes=30),
-                end_at=NOW + timedelta(hours=9),
-            ),
+            _busy(1, 2),
+            _busy(1, 3, start_minute=30),
         ),
     )
 
-    assert [(slot.start_at.hour, slot.end_at.hour) for slot in availability.slots] == [
-        (0, 5),
-        (9, 23),
-    ]
-    assert availability.slots[0].start_at.minute == 15
-    assert availability.slots[0].end_at.minute == 45
-
-
-def test_adjacent_busy_intervals_are_merged_without_creating_a_false_gap() -> None:
-    availability = calculate_calendar_availability(
-        local_date=date(2026, 8, 14),
-        timezone_name="UTC",
-        requested_duration_minutes=30,
-        busy_intervals=(_busy(6, 8), _busy(8, 10)),
+    assert result.slots == (
+        result.slots[0].__class__(_local(0, 15), _local(0, 45)),
+        result.slots[1].__class__(_local(3, 15), _local(23, 45)),
     )
-
-    assert [(slot.start_at.hour, slot.end_at.hour) for slot in availability.slots] == [
-        (0, 5),
-        (10, 23),
-    ]
 
 
 @pytest.mark.parametrize(
-    ("free_minutes", "expected_slots"),
-    [(59, 0), (60, 1), (61, 1)],
+    ("gap_minutes", "expected_count"),
+    [(60, 1), (59, 0)],
 )
-def test_buffer_and_minimum_slot_boundary(
-    free_minutes: int,
-    expected_slots: int,
+def test_buffer_and_minimum_slot_length_boundaries(
+    gap_minutes: int,
+    expected_count: int,
 ) -> None:
-    availability = calculate_calendar_availability(
-        local_date=date(2026, 8, 14),
-        timezone_name="UTC",
+    gap_start = _local(1)
+    gap_end = gap_start + timedelta(minutes=gap_minutes)
+    result = calculate_calendar_availability(
+        local_date=LOCAL_DATE,
+        timezone_name="Asia/Seoul",
         requested_duration_minutes=30,
         busy_intervals=(
-            CalendarBusyInterval(
-                start_at=NOW + timedelta(minutes=free_minutes),
-                end_at=NOW + timedelta(days=1),
-            ),
+            ProviderBusyInterval(_local(0), gap_start),
+            ProviderBusyInterval(gap_end, _local(0, day=15)),
         ),
     )
 
-    assert len(availability.slots) == expected_slots
+    assert len(result.slots) == expected_count
+
+
+def test_freebusy_all_day_interval_is_treated_as_busy_under_approved_policy() -> None:
+    result = calculate_calendar_availability(
+        local_date=LOCAL_DATE,
+        timezone_name="Asia/Seoul",
+        requested_duration_minutes=30,
+        busy_intervals=(ProviderBusyInterval(_local(0), _local(0, day=15)),),
+    )
+
+    assert result.slots == ()
 
 
 def test_slots_are_sorted_and_capped_at_eight() -> None:
     busy_intervals = tuple(
-        CalendarBusyInterval(
-            start_at=NOW + timedelta(hours=hour),
-            end_at=NOW + timedelta(hours=hour, minutes=30),
+        ProviderBusyInterval(
+            _local(hour),
+            _local(hour, 15),
         )
         for hour in range(1, 20, 2)
     )
-
-    availability = calculate_calendar_availability(
-        local_date=date(2026, 8, 14),
-        timezone_name="UTC",
-        requested_duration_minutes=10,
+    result = calculate_calendar_availability(
+        local_date=LOCAL_DATE,
+        timezone_name="Asia/Seoul",
+        requested_duration_minutes=30,
         busy_intervals=busy_intervals,
     )
 
-    assert len(availability.slots) == CALENDAR_MAX_AVAILABILITY_SLOTS
-    assert availability.slots == tuple(sorted(availability.slots, key=lambda slot: slot.start_at))
+    assert len(result.slots) == MAX_AVAILABILITY_SLOTS
+    assert list(result.slots) == sorted(result.slots, key=lambda slot: slot.start_at)
 
 
-def test_busy_interval_crossing_midnight_is_clipped_to_requested_local_date() -> None:
-    availability = calculate_calendar_availability(
-        local_date=date(2026, 8, 14),
-        timezone_name="Asia/Tokyo",
+def test_busy_interval_crossing_local_midnight_is_clipped_to_requested_day() -> None:
+    result = calculate_calendar_availability(
+        local_date=LOCAL_DATE,
+        timezone_name="Asia/Seoul",
         requested_duration_minutes=30,
         busy_intervals=(
-            CalendarBusyInterval(
-                start_at=datetime(2026, 8, 13, 23, 30, tzinfo=ZoneInfo("Asia/Tokyo")),
-                end_at=datetime(2026, 8, 14, 1, 0, tzinfo=ZoneInfo("Asia/Tokyo")),
+            ProviderBusyInterval(
+                datetime(2026, 8, 13, 14, 30, tzinfo=UTC),
+                datetime(2026, 8, 13, 16, 0, tzinfo=UTC),
             ),
         ),
     )
 
-    assert len(availability.slots) == 1
-    assert availability.slots[0].start_at == datetime(
-        2026, 8, 14, 1, 15, tzinfo=ZoneInfo("Asia/Tokyo")
-    )
+    assert result.slots[0].start_at == _local(1, 15)
 
 
-def test_dst_day_uses_real_iana_midnight_boundaries() -> None:
-    availability = calculate_calendar_availability(
-        local_date=date(2026, 3, 8),
+@pytest.mark.parametrize(
+    ("local_date", "expected_absolute_hours"),
+    [
+        (date(2026, 3, 8), 22.5),
+        (date(2026, 11, 1), 24.5),
+    ],
+)
+def test_dst_day_boundaries_use_local_midnights(
+    local_date: date,
+    expected_absolute_hours: float,
+) -> None:
+    result = calculate_calendar_availability(
+        local_date=local_date,
         timezone_name="America/New_York",
         requested_duration_minutes=30,
         busy_intervals=(),
     )
 
-    slot = availability.slots[0]
-    assert slot.start_at.hour == 0 and slot.start_at.minute == 15
-    assert slot.end_at.hour == 23 and slot.end_at.minute == 45
-    assert slot.end_at.astimezone(UTC) - slot.start_at.astimezone(UTC) == timedelta(
-        hours=22, minutes=30
+    assert len(result.slots) == 1
+    duration = result.slots[0].end_at.astimezone(UTC) - result.slots[0].start_at.astimezone(UTC)
+    assert duration == timedelta(hours=expected_absolute_hours)
+
+
+def test_performance_recheck_requires_final_status_and_ten_minutes() -> None:
+    workout_id = uuid4()
+    final_state = ScheduledWorkoutState(workout_id, ScheduledWorkoutStatusCode.COMPLETED)
+    checked_at = NOW
+
+    before = evaluate_performance_recheck(
+        scheduled_workout_state=final_state,
+        performance_checked_at=checked_at,
+        requested_at=checked_at + PERFORMANCE_RECHECK_INTERVAL - timedelta(microseconds=1),
+    )
+    boundary = evaluate_performance_recheck(
+        scheduled_workout_state=final_state,
+        performance_checked_at=checked_at,
+        requested_at=checked_at + PERFORMANCE_RECHECK_INTERVAL,
     )
 
-
-def test_manual_availability_override_wins_even_when_explicitly_empty() -> None:
-    calendar = CalendarAvailability(
-        local_date=date(2026, 8, 14),
-        timezone="UTC",
-        slots=(
-            AvailabilitySlot(
-                start_at=NOW + timedelta(hours=10),
-                end_at=NOW + timedelta(hours=11),
+    assert before.allowed is False
+    assert before.retry_after == timedelta(microseconds=1)
+    assert boundary.allowed is True
+    with pytest.raises(ValueError, match="finalized"):
+        evaluate_performance_recheck(
+            scheduled_workout_state=ScheduledWorkoutState(
+                workout_id,
+                ScheduledWorkoutStatusCode.STARTED,
             ),
-        ),
-    )
-
-    result = select_availability(
-        manual_override=ManualAvailabilityOverride(slots=()),
-        calendar_availability=calendar,
-    )
-
-    assert result.source_code is CalendarAvailabilitySourceCode.MANUAL
-    assert result.slots == ()
-    assert result.manual_choice_preserved is True
-
-
-def test_performance_check_requires_final_status_and_ten_minute_interval() -> None:
-    not_final = evaluate_performance_check(
-        scheduled_workout_status_code=ScheduledWorkoutStatusCode.STARTED,
-        checked_at=NOW,
-        last_performance_checked_at=None,
-    )
-    before_boundary = evaluate_performance_check(
-        scheduled_workout_status_code=ScheduledWorkoutStatusCode.COMPLETED,
-        checked_at=NOW + timedelta(minutes=9, seconds=59),
-        last_performance_checked_at=NOW,
-    )
-    at_boundary = evaluate_performance_check(
-        scheduled_workout_status_code=ScheduledWorkoutStatusCode.COMPLETED,
-        checked_at=NOW + timedelta(minutes=10),
-        last_performance_checked_at=NOW,
-    )
-
-    assert not_final.reason_code is CalendarPerformanceCheckReasonCode.SCHEDULED_WORKOUT_NOT_FINAL
-    assert not_final.provider_call_allowed is False
-    assert before_boundary.reason_code is CalendarPerformanceCheckReasonCode.RECHECK_TOO_SOON
-    assert before_boundary.retry_after == timedelta(seconds=1)
-    assert at_boundary.provider_call_allowed is True
+            performance_checked_at=None,
+            requested_at=NOW,
+        )
 
 
 @pytest.mark.parametrize("performed", [True, False, None])
-def test_calendar_performance_can_never_change_official_completion(
+def test_calendar_performance_cannot_mutate_official_completion(
     performed: bool | None,
 ) -> None:
-    observation = CalendarPerformanceObservation(
-        scheduled_workout_id=WORKOUT_ID,
-        performed=performed,
-        performance_checked_at=NOW,
-    )
+    workout_id = uuid4()
+    official = OfficialWorkoutState(workout_id, WorkoutSessionStatusCode.PARTIAL)
+    observation = CalendarPerformanceObservation(workout_id, performed, NOW)
 
-    result = preserve_official_completion_status(
-        official_session_status_code=WorkoutSessionStatusCode.NOT_COMPLETED,
+    preserved = preserve_official_workout_state(
+        official_workout_state=official,
         observation=observation,
     )
 
-    assert result.official_session_status_code is WorkoutSessionStatusCode.NOT_COMPLETED
-    assert result.official_completion_unchanged is True
-
-
-def test_google_calendar_performance_is_always_unknown_with_fallback_guidance() -> None:
-    observation = google_calendar_performance_observation(
-        scheduled_workout_id=WORKOUT_ID,
-        checked_at=NOW,
-    )
-    result = preserve_official_completion_status(
-        official_session_status_code=WorkoutSessionStatusCode.COMPLETED,
-        observation=observation,
-    )
-
-    assert observation.performed is None
-    assert (
-        result.guidance_code is CalendarPerformanceGuidanceCode.PROVIDER_DOES_NOT_REPORT_PERFORMANCE
-    )
-    assert result.guidance_message == CALENDAR_PERFORMANCE_UNAVAILABLE_MESSAGE_KO
-
-
-def test_unavailable_and_synthetic_adapters_follow_the_same_port_contract() -> None:
-    unavailable = build_calendar_provider()
-    with pytest.raises(CalendarProviderUnavailableError):
-        unavailable.fetch_busy_intervals(
-            CalendarAvailabilityQuery(local_date=date(2026, 8, 14), timezone="UTC")
-        )
-
-    synthetic = build_calendar_provider(SyntheticCalendarProvider(busy_intervals=(_busy(8, 9),)))
-    assert synthetic.fetch_busy_intervals(
-        CalendarAvailabilityQuery(local_date=date(2026, 8, 14), timezone="UTC")
-    ) == (_busy(8, 9),)
-    created = synthetic.create_app_event(
-        CalendarEventCreateCommand(
-            scheduled_workout_id=WORKOUT_ID,
-            start_at=NOW + timedelta(hours=10),
-            end_at=NOW + timedelta(hours=11),
-        )
-    )
-    assert 5 <= len(created.external_event_id) <= 1024
-    assert isinstance(unavailable, UnavailableCalendarProvider)
-
-
-def test_normalized_contracts_have_no_raw_calendar_or_completion_mutation_fields() -> None:
-    availability_fields = {field.name for field in fields(CalendarAvailability)}
-    performance_fields = {field.name for field in fields(CalendarPerformanceObservation)}
-
-    assert availability_fields == {"local_date", "timezone", "slots"}
-    assert performance_fields == {
+    assert preserved is official
+    assert preserved.status_code is WorkoutSessionStatusCode.PARTIAL
+    assert {field.name for field in fields(observation)} == {
         "scheduled_workout_id",
         "performed",
         "performance_checked_at",
     }
-    assert availability_fields.isdisjoint(FORBIDDEN_CALENDAR_FIELDS)
-    assert performance_fields.isdisjoint(FORBIDDEN_CALENDAR_FIELDS)
 
 
-def test_calendar_observability_allowlist_blocks_sensitive_fields(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
+def test_google_performance_is_always_null_with_fallback_guidance() -> None:
+    observation = google_calendar_performance_observation(
+        scheduled_workout_id=uuid4(),
+        performance_checked_at=NOW,
+    )
+
+    assert observation.performed is None
+    guidance = calendar_performance_guidance(observation)
+    assert guidance is not None
+    assert "앱의 운동 블록 체크" in guidance
+
+
+def test_manual_availability_wins_even_when_the_user_explicitly_selects_none() -> None:
+    calendar = CalendarAvailability(
+        local_date=LOCAL_DATE,
+        timezone="Asia/Seoul",
+        slots=(AvailabilitySlot(_local(10), _local(11)),),
+    )
+
+    selected = select_availability(
+        manual_override=ManualAvailabilityOverride(slots=()),
+        calendar_availability=calendar,
+    )
+
+    assert selected.source_code is CalendarAvailabilitySourceCode.MANUAL
+    assert selected.slots == ()
+    assert selected.manual_choice_preserved is True
+
+
+def test_calendar_observability_is_allowlist_only(caplog: pytest.LogCaptureFixture) -> None:
+    import logging
+
+    caplog.set_level(logging.INFO, logger="calendar-policy-test")
     validate_calendar_observability_fields(SAFE_CALENDAR_OBSERVABILITY_FIELDS)
-    with pytest.raises(UnsafeCalendarObservabilityFieldError):
-        validate_calendar_observability_fields(frozenset({"title"}))
+    assert SAFE_CALENDAR_OBSERVABILITY_FIELDS.isdisjoint(FORBIDDEN_CALENDAR_FIELDS)
+    for field_name in FORBIDDEN_CALENDAR_FIELDS:
+        with pytest.raises(ValueError, match="unsafe"):
+            validate_calendar_observability_fields(frozenset({field_name}))
 
-    safe_event = {
-        "event_id": "7b2adf5f-8318-4be6-98cf-8c1fde688055",
-        "request_id": "77a768f7-8814-49d9-bf0d-c0b7826ef74e",
-        "provider_code": "GOOGLE_CALENDAR",
-        "endpoint_code": "AVAILABILITY",
-        "outcome_code": "FALLBACK",
-        "failure_code": "PROVIDER_UNAVAILABLE",
-        "policy_version": "external-context-policy-v1",
-        "occurred_at": "2026-08-14T00:00:00+00:00",
-        "latency_bucket": "LT_1S",
-    }
-    with caplog.at_level(logging.INFO):
-        logging.getLogger("calendar-policy-test").info("calendar_event=%s", safe_event)
-
-    assert frozenset(safe_event) == SAFE_CALENDAR_OBSERVABILITY_FIELDS
-    assert all(field_name not in caplog.text for field_name in FORBIDDEN_CALENDAR_FIELDS)
+    logging.getLogger("calendar-policy-test").info(
+        "calendar provider unavailable",
+        extra={"operation_code": CalendarOperationCode.AVAILABILITY},
+    )
+    logged = caplog.text.casefold()
+    assert all(field_name.casefold() not in logged for field_name in FORBIDDEN_CALENDAR_FIELDS)

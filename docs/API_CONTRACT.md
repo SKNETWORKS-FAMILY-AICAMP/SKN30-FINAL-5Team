@@ -306,8 +306,7 @@ health endpoint는 인증 없이 호출할 수 있지만 민감한 설정, DB �
 | POST | /api/v1/routines | 기본 루틴 생성 |
 | GET | /api/v1/routines/current?local_date=YYYY-MM-DD | 해당 날짜의 활성 루틴 |
 | POST | /api/v1/weeks/{week_start}/plan | 콜드스타트·최초 계획·다음 주 초기 계획 생성 (`INITIAL` revision) |
-| POST | /api/v1/calendar/connection/authorize-init | Google Calendar OAuth state·PKCE 연결 시작 |
-| POST | /api/v1/calendar/connection | authorization code 검증과 캘린더 연결 완료 |
+| POST | /api/v1/calendar/connection | 캘린더 제공자 선택과 권한 연결 시작 |
 | GET | /api/v1/calendar/availability?local_date=YYYY-MM-DD | 일정과 빈 시간 후보 조회 |
 | POST | /api/v1/calendar/events | 운동 계획을 캘린더에 등록 |
 | GET | /api/v1/calendar/performance?local_date=YYYY-MM-DD | 등록된 운동 일정의 수행 여부만 확인 |
@@ -320,31 +319,30 @@ exercise 목록 전체와 카탈로그 관리 API는 초기 공개 API에 포함
 
 ### 6.3.1 외부 연동 입력 계약
 
-이 절의 인증·연동·저장 상위 경계는 `ACCEPTED` ADR-0003을 따른다. Google Calendar 세부 계약은
-`PROPOSED` ADR-0010의 승인 전 구현 금지 게이트를 적용한다. 실제 adapter 구현 시 Pydantic 스키마,
-migration과 호환성 테스트를 함께 갱신한다.
+이 절의 인증·연동·저장 상위 경계는 `ACCEPTED` ADR-0003을 따른다. provider와 세부 payload는 프론트엔드·백엔드·개발팀장 검토로 확정하며, 구현 시 Pydantic 스키마, migration과 호환성 테스트를 함께 갱신한다.
 
 캘린더:
 
 ~~~text
+[PROPOSED ADR-0010]
 POST /api/v1/calendar/connection/authorize-init
-CalendarAuthorizationInitRequest
+CalendarConnectionAuthorizeInitRequest
 - provider_code: GOOGLE_CALENDAR
-- redirect_uri: string
-- code_challenge: string
-- code_challenge_method: S256
+- redirect_uri_key: string (server allowlist key)
+- code_challenge_s256: string
+- consent_version: string
 
-CalendarAuthorizationInitResponse
+CalendarConnectionAuthorizeInitResponse
 - authorization_url: string
 - state: string
-- expires_at: datetime
+- expires_at: datetime (요청 생성 후 600초)
 
 POST /api/v1/calendar/connection
 CalendarConnectionRequest
-- provider_code: GOOGLE_CALENDAR
+- provider_code: string
 - authorization_code: string
-- state: string
-- code_verifier: string
+- state: string (`PROPOSED` ADR-0010, 승인 뒤 additive 적용)
+- code_verifier: string (`PROPOSED` ADR-0010, 승인 뒤 Google Calendar에서 필수)
 - consent_version: string
 
 CalendarAvailabilityResponse
@@ -365,31 +363,40 @@ CalendarPerformanceResponse
 - performance_checked_at: datetime | null
 ~~~
 
-`CALENDAR_INTEGRATION` 동의와 외부 권한이 없으면 연결·조회·등록·수행 여부 확인을 수행하지 않는다.
-연결은 state와 PKCE S256을 검증하며 authorization request는 600초 단일 사용이다. 권한은 빈 시간 조회용
-`calendar.freebusy`와 앱 전용 보조 캘린더 생성·이벤트 접근용 `calendar.app.created`만 요청한다. 앱 운동
-이벤트는 전용 secondary calendar에만 생성한다. 서버에 이미 저장된 사용자 IANA timezone을 사용하므로
-Google settings scope는 요청하지 않는다.
+`CALENDAR_INTEGRATION` 동의와 외부 권한이 없으면 연결·조회·등록·수행 여부 확인을 수행하지 않는다. 일정 본문 텍스트는 저장하지 않고, 캘린더에는 운동 계획 일정만 등록한다. 캘린더에서는 등록된 운동 일정의 수행 여부만 확인할 수 있으며 세부 운동·수행 시간·강도 기록은 저장하지 않는다. 확인 결과는 보조 자료로만 사용하고 공식 운동 수행 상태를 변경하지 않는다. 권한 거부·조회 실패·등록 실패·수행 여부 확인 실패는 상태와 안내만 반환하며 운동 계획을 삭제하거나 임의 변경하지 않는다. 특정 요일을 필수 운동일로 강제하지 않는다.
 
-availability는 Freebusy의 `busy[].start/end`만 메모리에서 정규화하고 원본 응답이나 계산 결과를 캐시·저장하지
-않는다. Freebusy 응답만으로 종일 일정 여부를 구분할 수 없으므로 반환된 모든 interval을 busy로 처리한다.
-로컬 날짜 경계로 자른 뒤 겹치거나 맞닿은 busy interval을 합치고 양쪽 15분 buffer를 적용한다. 요청 운동
-시간에 30분을 더한 길이 이상인 빈 구간만 시작 시각 오름차순으로 최대 8개 반환한다. 계산은 UTC instant로
-수행하고 응답만 사용자 IANA timezone으로 변환해 DST와 자정 경계를 보존한다. 사용자가 수동 가능 시간을
-명시하면 빈 목록을 포함해 수동 입력이 provider 후보보다 항상 우선한다.
+Wave 9C의 첫 provider는 Google Calendar API v3(`GOOGLE_CALENDAR`)다. 실제 adapter는
+`PROPOSED` ADR-0010 승인 뒤 추가한다. availability는 `POST /calendar/v3/freeBusy`와
+`https://www.googleapis.com/auth/calendar.freebusy`, 운동 이벤트는 앱이 만든 보조 캘린더에 한정하는
+`https://www.googleapis.com/auth/calendar.app.created`만 사용한다. event list와 일정 제목·설명·참석자·
+위치·organizer·creator를 조회하지 않는다. 사용자 timezone은 저장된 IANA timezone을 사용하며
+`calendar.settings.readonly`를 요청하지 않는다.
 
-availability는 사용자별 fixed-window 시간당 30회, calendar 전체 endpoint 합계는 시간당 60회다. 경계
-안의 31번째 또는 61번째 요청은 `RATE_LIMITED`로 거부하고 다음 고정 window에서 초기화한다. 동의·연결 없음,
-권한 거부, 403/429, timeout/5xx는 공개 machine code와 결정적 수동 fallback만 반환하며 기존 routine,
-사용자 선택, safety veto와 공식 completion을 바꾸지 않는다.
+동기화는 on-demand pull 전용이고 availability를 cache하지 않으므로 stale 판정이 없다. webhook, push,
+polling worker와 scheduler를 사용하지 않는다. 사용자별 availability는 30회/시간, calendar endpoint
+전체는 60회/시간이며 초과 시 provider 호출 없이 `429 RATE_LIMITED`다. provider의 403/429 quota,
+timeout과 5xx는 원문 없이 `503 PROVIDER_UNAVAILABLE`로 처리하고 수동 체크인·앱 운동 블록 체크를
+유지한다.
 
-일정 본문 텍스트는 저장하지 않는다. Google Calendar는 이벤트 참석 여부로 운동 수행 여부를 제공하지 않으므로
-`performed`는 항상 `null`이다. performance 조회는 scheduled workout이 최종 상태에 도달한 뒤에만 가능하고,
-같은 event link의 재확인은 직전 `performance_checked_at`부터 10분 뒤에 허용한다. `null`이면 정적 안내
-문구를 사용한다. 외부 결과는 보조 자료일 뿐 공식 운동 수행 상태를 생성하거나
-변경하지 않는다. 연동 해제는 `REVOKED` 전환과 secret 파기만 수행하는 멱등 local disconnect다. Firebase
-로그인과 동일 Google Cloud project를 공유하므로 Calendar 해제에서 Google token revoke endpoint를 호출하지
-않는다. 특정 요일을 필수 운동일로 강제하지 않는다.
+빈 시간은 요청 `local_date`의 사용자 로컬 00:00부터 다음 날 00:00까지 계산한다. freebusy의 겹치거나
+맞닿은 구간을 병합하고, 종일 여부를 추정하지 않고 provider가 반환한 모든 busy 구간을 점유 시간으로
+처리한다. 후보 앞뒤에 15분씩 buffer를 두며 사용자 희망 운동시간과 buffer 30분을 수용하지 못한
+구간은 제외한다. 후보는 시작 시각 오름차순 최대 8개다. 후보가 없으면 빈 배열을 반환하고 희망
+운동시간을 임의 단축하지 않는다.
+
+사용자가 수동 가능 시간을 명시하면 명시적 빈 목록을 포함해 calendar 후보보다 항상 우선한다. Calendar
+결과는 사용자의 명시적 가능 시간, REST 선택, 기존 routine 또는 safety veto를 덮어쓰지 않는다.
+
+Google Calendar에는 운동 수행 여부 필드가 없으므로 `performed`는 항상 `null`이다. 확인은 공식
+scheduled workout 종료 상태 이후에만 허용하고 같은 link는 `performance_checked_at`부터 10분 뒤에
+재확인할 수 있다. 일정의 confirmed/tentative/cancelled 또는 삭제를 수행 여부로 해석하지 않는다.
+
+연동 해제는 로컬 상태를 `REVOKED`로 바꾸고 secret을 파기하는 멱등 처리다. Firebase 로그인과 동일한
+Google Cloud project를 공유하므로 Calendar 해제에서 Google token revoke endpoint를 호출하지 않는다.
+
+ADR-0010은 600초 single-use server-issued state와 PKCE S256을 제안한다. 승인 뒤 additive
+`POST /api/v1/calendar/connection/authorize-init` 계약을 추가하고 `CalendarConnectionRequest`의
+`state`·`code_verifier`를 활성화한다. 승인 전에는 해당 route와 Google adapter를 제공하지 않는다.
 
 웨어러블:
 
@@ -1448,7 +1455,6 @@ SafetySummary
 - chain-of-thought 또는 숨은 추론
 - 다른 사용자 데이터
 - 원시 웨어러블 샘플
-- 캘린더 제목·설명·참석자·위치·회의 링크·메모·원본 payload
 - 내부 점수와 보안 규칙 상세
 
 `public_agent_summaries`는 위 고정 순서의 Training·Recovery·Safety·Feasibility·Coordinator 요약을 제공한다. Safety 요약은 SafetyAgent의 `safety_status_code`와 `vetoed` 의견을 나타내며, 독립적인 최종 Safety 재검사 결과는 제공하지 않는다.
@@ -1534,7 +1540,6 @@ DB 저장에 실패한 decision 결과는 성공 응답하지 않는다.
 - 비식별 집계는 개인과 다시 연결할 수 없어야 한다.
 - 실제 출시 전 삭제와 백업 절차를 법률 또는 개인정보보호 담당자에게 검토받는다.
 - 체크인 원자료는 28일, 웨어러블 원본은 24시간, 일별 요약·상세 수행·설문은 90일, 주간 리포트는 12개월을 기본 보유한다.
-- 캘린더 원본 payload·본문·busy interval·availability slot은 영속·cache 보관하지 않는다(0시간).
 - 관리자 접속기록은 2년, 마스킹 오류 로그는 7일 보유한다. 동의 철회·연동 해제와 데이터 삭제는 별도 제어한다.
 
 ---
@@ -1569,7 +1574,6 @@ DB 저장에 실패한 decision 결과는 성공 응답하지 않는다.
 - 높은 피로 외 수면·부하 파생 규칙
 - 운동 중 MILD 또는 MODERATE 불편에 대한 세션 재구성 정책
 - 멀티 에이전트 로직 설계 후 공개 회의 UI의 agent summary 상세 필드
-- Google Calendar production redirect URI·secret backend·전용 secondary calendar 운영 명명 규칙
 - 체중 기반 칼로리 추정 산식·계수 버전
 - training_type_code와 body_focus_code의 전체 목록
 - 운동 자세·설명 콘텐츠의 승인 및 버전 갱신 정책

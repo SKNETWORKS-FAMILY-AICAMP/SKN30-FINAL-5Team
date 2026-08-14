@@ -32,7 +32,6 @@
 - 웨어러블 데이터만으로 안전 결정을 내리지 않는다.
 - 웨어러블은 MVP의 선택적 입력 경로이며 권한 거부·미연동 사용자는 수동 체크인으로 동일한 핵심 흐름을 사용한다.
 - 캘린더는 빈 시간·계획 등록과 등록된 일정의 수행 여부만 확인하는 보조 경로다. 세부 운동 기록은 저장하지 않으며 공식 수행 상태를 변경하지 않는다.
-- 캘린더 후보는 사용자가 명시한 가능 시간·REST 선택·기존 routine·안전 veto를 덮어쓸 수 없다.
 - 웨어러블 운동 데이터는 캘린더에 자동 등록하지 않는다.
 - 안전 거부는 조정 에이전트와 LLM이 무시할 수 없다.
 - 내부 원래 후보의 안전 검증 결과는 최종 추천 루틴 반환 여부를 결정하며, 원래 후보를 사용자 선택지로 공개하지 않는다.
@@ -495,9 +494,8 @@ NOT_COMPLETED, STOPPED_FOR_SAFETY로 종료된 세션의 블록과 상태는 변
 | 상황 | 필수 처리 |
 |---|---|
 | 웨어러블 없음 또는 권한 거부 | 수동 체크인과 앱 운동 블록 체크로 정상 처리 |
-| 캘린더 동의·연결 없음 또는 권한 거부 | 수동 가능 시간을 사용하고 핵심 흐름 유지 |
-| 캘린더 403/429·timeout·5xx | 결정적 수동 fallback, 기존 routine과 사용자 선택 보존 |
-| 캘린더 수행 여부 미지원 | `performed=null`, 정적 안내, 공식 completion 보존 |
+| 캘린더 미연결·권한 거부 | 수동 체크인과 앱 운동 블록 체크를 유지하고 계획을 변경하지 않음 |
+| 캘린더 provider 장애 | `PROVIDER_UNAVAILABLE`, 계획을 삭제·변경하지 않고 수동 경로 유지 |
 | 선택 데이터 누락 | 칼로리 값은 `null`로 유지하고 의료 상태를 추론하지 않음 |
 | LLM 장애 | 템플릿 설명 사용 |
 | 필수 전문 에이전트 하나라도 장애 | FAILED, 운동 계획을 성공 응답으로 반환하지 않음 |
@@ -506,29 +504,6 @@ NOT_COMPLETED, STOPPED_FOR_SAFETY로 종료된 세션의 블록과 상태는 변
 | DB 저장 실패 | 재현할 수 없는 계획을 클라이언트에 반환하지 않음 |
 | 중복 mutation | Idempotency-Key의 기존 결과 반환 |
 | 오래된 체크인 버전 | STALE_CONTEXT 오류 |
-
-### 13.0.1 Google Calendar 외부 컨텍스트 정책
-
-- provider code는 `GOOGLE_CALENDAR`, connection status는 `ACTIVE | REVOKED`다.
-- `CALENDAR_INTEGRATION` 동의와 활성 연결이 모두 있어야 provider를 호출한다.
-- OAuth는 state와 PKCE S256을 검증하고 authorization request는 600초 단일 사용이다.
-- 권한은 `calendar.freebusy`, `calendar.app.created`만 사용하며 앱 전용 secondary calendar에만 운동
-  이벤트를 생성한다. 사용자 IANA timezone은 내부 프로필 값을 사용한다.
-- availability는 저장·cache하지 않는다. Freebusy가 반환한 모든 interval을 busy로 보고 겹치거나 맞닿은
-  구간을 합친 뒤 양쪽 15분 buffer를 적용한다. 요청 시간 + 30분 이상인 빈 구간만 시간순 최대 8개다.
-- UTC instant로 계산하고 사용자 timezone으로 표현한다. DST와 자정 경계에서도 같은 입력과 정책 버전은
-  같은 결과를 만든다.
-- 명시적 수동 가능 시간은 provider 결과보다 우선한다. 명시적 빈 목록도 유효한 사용자 선택이다.
-- availability는 사용자별 fixed-window 30회/시간, calendar endpoint 합계는 60회/시간이다. 초과 요청은
-  `RATE_LIMITED`이며 다음 fixed window에서 초기화한다.
-- Google Calendar의 `performed`는 항상 `null`이다. scheduled workout의 최종 상태 뒤에만 확인하고,
-  같은 link 재확인은 직전 확인부터 10분 뒤에 허용하며 정적 안내만 제공한다.
-- calendar event, timer, wearable, 외부 운동은 공식 completion을 생성·변경할 수 없다. REST 선택일에는
-  calendar 신호를 근거로 추가 압박을 만들지 않고, 외부 데이터는 safety veto를 우회할 수 없다.
-- 연동 해제는 `REVOKED` 전환과 secret 파기의 멱등 local disconnect다. 같은 Google Cloud project의
-  Firebase 로그인 권한을 보호하기 위해 Calendar 해제에서 provider revoke를 호출하지 않는다.
-- 일정 제목·설명·참석자·위치·회의 링크·메모·원본 payload·busy interval·availability slot은 DB, cache,
-  로그, snapshot, LLM 입력에 남기지 않는다.
 
 ---
 
@@ -539,7 +514,6 @@ NOT_COMPLETED, STOPPED_FOR_SAFETY로 종료된 세션의 블록과 상태는 변
 - 일반 개인정보, 민감정보, 웨어러블 연동, 캘린더 연동, 마케팅 동의를 별도로 기록한다.
 - 동의 철회 시 해당 수집·동기화와 외부 토큰을 즉시 중단하며, 연동 해제와 데이터 삭제는 별도 조작으로 제공한다.
 - 체크인 원자료는 28일, 웨어러블 원본은 24시간, 일별 요약·상세 수행·설문은 90일, 주간 리포트는 12개월을 기본 보유기간으로 한다.
-- 캘린더 원본 payload·본문·busy interval·availability slot의 영속·cache 보유기간은 0시간이다.
 - 탈퇴·삭제 요청 즉시 접근과 동기화를 차단하고 운영 DB 연결 데이터는 7일 이내 삭제, 백업은 30일 이내 순환 삭제한다. 관리자 접속기록은 2년 보관한다.
 - 마스킹 오류 로그는 7일 이내 보유하며, 삭제 후 재식별 가능한 decision·proposal·feedback은 기본 보존하지 않는다.
 
@@ -638,6 +612,37 @@ CACHE_AND_WORK_DELETE -> AUDIT_DEIDENTIFICATION -> BACKUP_EXPIRY_VERIFICATION`�
 - 계정 삭제의 provider 해제는 위 독립 해제 예산이 아니라 ADR-0008의 7일·로컬 hard-delete 우선
   계약을 사용한다.
 
+### 13.3 캘린더 외부 컨텍스트 정책
+
+Google Calendar의 provider별 상세 계약은 `PROPOSED` ADR-0010과
+`external-context-policy-v1`을 따른다. ADR이 `ACCEPTED`가 되기 전에는 실제 route·HTTP adapter·
+repository·migration을 구현하지 않는다.
+
+- 캘린더는 선택적 보조 컨텍스트다. 미연결·권한 거부·provider 장애에서도 수동 체크인과 앱 운동
+  블록 체크를 포함한 핵심 흐름이 동작한다.
+- `CALENDAR_INTEGRATION` 동의가 없거나 철회되면 provider 호출을 수행하지 않는다.
+- availability는 저장된 사용자 IANA timezone의 로컬 하루를 Google freebusy 전용 scope로 조회한다.
+  event list, 제목, 설명, 참석자, 위치와 calendar 본문은 조회하지 않는다.
+- freebusy는 종일 여부를 제공하지 않으므로 종일 여부를 시간 경계로 추정하지 않는다. provider가
+  반환한 종일 포함 모든 busy 구간을 점유 시간으로 처리한다.
+- 겹치거나 맞닿은 busy 구간을 병합한 뒤 각 빈 구간의 앞뒤 15분을 buffer로 제외한다. 남은 구간이
+  사용자의 희망 운동시간보다 짧으면 후보를 만들지 않는다.
+- 시간대 필터와 필수 운동 요일을 적용하지 않는다. 후보는 시작 시각 오름차순으로 최대 8개다.
+- 후보가 없으면 빈 배열을 반환하고 사용자 희망 운동시간을 임의 단축하지 않는다.
+- 사용자가 수동 가능 시간을 명시하면 명시적 빈 목록을 포함해 calendar 후보보다 항상 우선한다.
+- 사용자별 availability 30회/시간과 전체 calendar endpoint 60회/시간을 provider 호출 전에 적용한다.
+- availability는 cache하지 않아 stale 판정이 없다. performance는 공식 workout 종료 상태 이후,
+  같은 link의 직전 `performance_checked_at`부터 10분 뒤에만 재확인한다.
+- Google Calendar는 운동 수행 필드가 없으므로 `performed=null`과 검수 fallback 안내를 반환한다.
+  confirmed, tentative, cancelled, 삭제와 참석 응답을 운동 수행 여부로 해석하지 않는다.
+- 캘린더 관찰 결과는 공식 `COMPLETED`, `PARTIAL`, `NOT_COMPLETED`, `STOPPED_FOR_SAFETY`를 생성·
+  변경할 수 없다. 안전 veto와 수동 체크인보다 우선할 수 없다.
+- raw freebusy/event payload 보유기간은 0시간이다. token 원문, calendar 본문과 provider 원시 오류를
+  DB, cache, log, metric, trace, snapshot, fixture와 LLM 입력에 포함하지 않는다.
+- 연동 해제는 로컬 `REVOKED`와 token secret 폐기로 완료하며 반복 해제는 성공 no-op이다. Firebase
+  로그인과 동일한 Google Cloud project에서는 Calendar 단독 provider revoke를 호출하지 않는다.
+  계정 삭제는 ADR-0008 checkpoint를 재사용한다.
+
 ---
 
 ## 14. 재현성과 감사
@@ -704,13 +709,13 @@ CACHE_AND_WORK_DELETE -> AUDIT_DEIDENTIFICATION -> BACKUP_EXPIRY_VERIFICATION`�
 40. identity DB commit 실패: 전체 rollback, custom token·성공 응답 없음
 41. token·email·name·nickname·subject·원시 provider 응답이 로그·snapshot에 없음
 42. 마지막 활성 identity 일반 해제 차단, 계정 삭제 전체 해제는 허용
-43. 캘린더 동의·연결 없음 또는 권한 거부: 수동 가능 시간으로 핵심 흐름 유지
-44. 캘린더 장애·rate limit: 기존 routine·사용자 선택을 보존하는 결정적 fallback
-45. 겹치거나 맞닿은 busy interval: 병합 후 양쪽 15분 buffer와 요청 시간 + 30분 최소 길이 적용
-46. 자정·DST 경계: UTC instant 계산과 IANA timezone 응답이 결정적으로 일치
-47. 명시적 수동 가능 시간 또는 빈 목록: provider 후보보다 우선
-48. Google Calendar performance: 최종 상태에서 `performed=null`, 같은 link 10분 재확인 경계와 공식 completion 불변
-49. 캘린더 원본·본문·식별정보: 로그·snapshot·cache·LLM 입력에 없음
+43. 캘린더 미연동: 수동 체크인과 앱 운동 블록 체크로 정상 핵심 흐름
+44. 캘린더 권한 거부: 수동 경로 유지, 기존 운동 계획 불변
+45. 캘린더 `performed=true`: 공식 세션 상태 불변
+46. Google `performed=null`: fallback 안내 반환, 오류 아님
+47. 캘린더 provider 장애: `PROVIDER_UNAVAILABLE`, 계획 삭제·변경 없음
+48. 하루 전체 busy: 빈 후보 배열, 희망 운동시간 단축 없음
+49. freebusy 종일 구간: busy로 처리하며 일정 본문 조회 없음
 
 ---
 

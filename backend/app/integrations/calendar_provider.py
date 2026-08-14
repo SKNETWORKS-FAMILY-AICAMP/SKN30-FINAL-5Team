@@ -1,85 +1,85 @@
-"""Unavailable and synthetic calendar adapters; no live provider calls belong here yet."""
-
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from backend.app.domain.rules.external_context import (
-    CalendarBusyInterval,
     CalendarPerformanceObservation,
+    ProviderBusyInterval,
     google_calendar_performance_observation,
 )
 from backend.app.modules.external_context.ports import (
-    CalendarAvailabilityQuery,
-    CalendarCreatedEvent,
-    CalendarEventCreateCommand,
+    CalendarEventCreate,
+    CalendarEventReference,
     CalendarProviderPort,
     CalendarProviderUnavailableError,
 )
 
 
 class UnavailableCalendarProvider:
-    def fetch_busy_intervals(
+    """Local/CI null object used until the approved Google adapter is installed."""
+
+    def get_busy_intervals(
         self,
-        query: CalendarAvailabilityQuery,
-    ) -> tuple[CalendarBusyInterval, ...]:
-        del query
+        *,
+        local_date: date,
+        timezone_name: str,
+    ) -> tuple[ProviderBusyInterval, ...]:
+        del local_date, timezone_name
         raise CalendarProviderUnavailableError
 
-    def create_app_event(self, command: CalendarEventCreateCommand) -> CalendarCreatedEvent:
-        del command
+    def create_workout_event(self, request: CalendarEventCreate) -> CalendarEventReference:
+        del request
         raise CalendarProviderUnavailableError
 
-    def check_performance(
+    def get_performance(
         self,
         *,
         scheduled_workout_id: UUID,
+        external_event_id: str,
         checked_at: datetime,
     ) -> CalendarPerformanceObservation:
-        del scheduled_workout_id, checked_at
+        del scheduled_workout_id, external_event_id, checked_at
         raise CalendarProviderUnavailableError
 
 
 @dataclass(frozen=True, slots=True)
 class SyntheticCalendarProvider:
-    """Synthetic contract adapter with no credential, event text, or provider payload fields."""
+    """Credential-free contract adapter for unit and golden tests."""
 
-    busy_intervals: tuple[CalendarBusyInterval, ...] = ()
-    created_event_id: str = "syntheticevent1"
+    busy_intervals: tuple[ProviderBusyInterval, ...] = ()
+    external_event_id: str = "syntheticevent1"
 
-    def fetch_busy_intervals(
+    def get_busy_intervals(
         self,
-        query: CalendarAvailabilityQuery,
-    ) -> tuple[CalendarBusyInterval, ...]:
-        del query
+        *,
+        local_date: date,
+        timezone_name: str,
+    ) -> tuple[ProviderBusyInterval, ...]:
+        del local_date, timezone_name
         return self.busy_intervals
 
-    def create_app_event(self, command: CalendarEventCreateCommand) -> CalendarCreatedEvent:
-        del command
-        return CalendarCreatedEvent(external_event_id=self.created_event_id)
+    def create_workout_event(self, request: CalendarEventCreate) -> CalendarEventReference:
+        del request
+        return CalendarEventReference(self.external_event_id)
 
-    def check_performance(
+    def get_performance(
         self,
         *,
         scheduled_workout_id: UUID,
+        external_event_id: str,
         checked_at: datetime,
     ) -> CalendarPerformanceObservation:
+        del external_event_id
         return google_calendar_performance_observation(
             scheduled_workout_id=scheduled_workout_id,
-            checked_at=checked_at,
+            performance_checked_at=checked_at,
         )
 
 
 def build_calendar_provider(
     provider: CalendarProviderPort | None = None,
 ) -> CalendarProviderPort:
-    if provider is None:
-        return UnavailableCalendarProvider()
-    return provider
+    return provider if provider is not None else UnavailableCalendarProvider()
 
 
-__all__ = [
-    "SyntheticCalendarProvider",
-    "UnavailableCalendarProvider",
-    "build_calendar_provider",
-]
+__all__ = ["SyntheticCalendarProvider", "UnavailableCalendarProvider", "build_calendar_provider"]

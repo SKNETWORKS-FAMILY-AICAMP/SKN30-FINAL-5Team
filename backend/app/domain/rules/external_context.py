@@ -1,11 +1,10 @@
-"""Deterministic, provider-neutral calendar context policies."""
+"""Deterministic privacy boundary for optional calendar context."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, time, timedelta
 from enum import StrEnum
-from typing import Literal
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -14,16 +13,17 @@ from backend.app.domain.rules.workout_execution import WorkoutSessionStatusCode
 EXTERNAL_CONTEXT_POLICY_VERSION = "external-context-policy-v1"
 CALENDAR_AVAILABILITY_SCHEMA_VERSION = "calendar-availability-v1"
 CALENDAR_PERFORMANCE_SCHEMA_VERSION = "calendar-performance-v1"
-
+GOOGLE_CALENDAR_FREEBUSY_SCOPE = "https://www.googleapis.com/auth/calendar.freebusy"
+GOOGLE_CALENDAR_APP_CREATED_SCOPE = "https://www.googleapis.com/auth/calendar.app.created"
 CALENDAR_RATE_LIMIT_WINDOW = timedelta(hours=1)
 CALENDAR_AVAILABILITY_RATE_LIMIT = 30
 CALENDAR_TOTAL_RATE_LIMIT = 60
-CALENDAR_PERFORMANCE_RECHECK_INTERVAL = timedelta(minutes=10)
-CALENDAR_BUSY_BUFFER = timedelta(minutes=15)
-CALENDAR_MAX_AVAILABILITY_SLOTS = 8
-CALENDAR_PERFORMANCE_UNAVAILABLE_MESSAGE_KO = (
-    "캘린더에서는 실제 운동 수행 여부를 확인할 수 없습니다. "
-    "앱에서 완료한 운동 블록만 공식 기록에 반영됩니다."
+PERFORMANCE_RECHECK_INTERVAL = timedelta(minutes=10)
+AVAILABILITY_BUFFER = timedelta(minutes=15)
+MAX_AVAILABILITY_SLOTS = 8
+PERFORMANCE_UNAVAILABLE_GUIDANCE = (
+    "Google Calendar에서는 운동 수행 여부를 확인할 수 없습니다. "
+    "공식 기록은 앱의 운동 블록 체크를 기준으로 합니다."
 )
 
 
@@ -36,29 +36,32 @@ class CalendarConnectionStatusCode(StrEnum):
     REVOKED = "REVOKED"
 
 
-class CalendarEndpointCode(StrEnum):
-    CONNECTION_AUTHORIZE_INIT = "CONNECTION_AUTHORIZE_INIT"
-    CONNECTION_CREATE = "CONNECTION_CREATE"
-    CONNECTION_DELETE = "CONNECTION_DELETE"
+class CalendarOperationCode(StrEnum):
+    CONNECTION = "CONNECTION"
     AVAILABILITY = "AVAILABILITY"
     EVENT_CREATE = "EVENT_CREATE"
     PERFORMANCE = "PERFORMANCE"
+    DISCONNECTION = "DISCONNECTION"
 
 
-class CalendarPublicFailureCode(StrEnum):
+class CalendarFailureCode(StrEnum):
+    CONSENT_REQUIRED = "CONSENT_REQUIRED"
+    CALENDAR_NOT_CONNECTED = "CALENDAR_NOT_CONNECTED"
     RATE_LIMITED = "RATE_LIMITED"
     PROVIDER_UNAVAILABLE = "PROVIDER_UNAVAILABLE"
-    CALENDAR_NOT_CONNECTED = "CALENDAR_NOT_CONNECTED"
-    CONSENT_REQUIRED = "CONSENT_REQUIRED"
+    DATABASE_UNAVAILABLE = "DATABASE_UNAVAILABLE"
 
 
 class CalendarProviderFailureKindCode(StrEnum):
     PERMISSION_DENIED = "PERMISSION_DENIED"
-    UNAVAILABLE = "UNAVAILABLE"
+    TIMEOUT = "TIMEOUT"
+    HTTP_5XX = "HTTP_5XX"
+    PROVIDER_RATE_LIMITED = "PROVIDER_RATE_LIMITED"
 
 
-class CalendarFallbackReasonCode(StrEnum):
-    CONSENT_MISSING = "CONSENT_MISSING"
+class CalendarOutcomeStatusCode(StrEnum):
+    AVAILABLE = "AVAILABLE"
+    CONSENT_REQUIRED = "CONSENT_REQUIRED"
     NOT_CONNECTED = "NOT_CONNECTED"
     PERMISSION_DENIED = "PERMISSION_DENIED"
     PROVIDER_UNAVAILABLE = "PROVIDER_UNAVAILABLE"
@@ -70,15 +73,17 @@ class CalendarAvailabilitySourceCode(StrEnum):
     ROUTINE_DEFAULT = "ROUTINE_DEFAULT"
 
 
-class CalendarPerformanceCheckReasonCode(StrEnum):
-    READY = "READY"
-    SCHEDULED_WORKOUT_NOT_FINAL = "SCHEDULED_WORKOUT_NOT_FINAL"
-    RECHECK_TOO_SOON = "RECHECK_TOO_SOON"
+class CalendarDisconnectActionCode(StrEnum):
+    DESTROY_SECRET_LOCALLY = "DESTROY_SECRET_LOCALLY"
+    NOOP_ALREADY_REVOKED = "NOOP_ALREADY_REVOKED"
 
 
-class CalendarPerformanceGuidanceCode(StrEnum):
-    ADVISORY_ONLY = "ADVISORY_ONLY"
-    PROVIDER_DOES_NOT_REPORT_PERFORMANCE = "PROVIDER_DOES_NOT_REPORT_PERFORMANCE"
+class ExternalContextContractError(ValueError):
+    """A safe external-context failure containing only an approved machine code."""
+
+    def __init__(self, code: CalendarFailureCode) -> None:
+        self.code = code
+        super().__init__(code)
 
 
 class ScheduledWorkoutStatusCode(StrEnum):
@@ -100,49 +105,36 @@ FINAL_SCHEDULED_WORKOUT_STATUSES = frozenset(
 )
 
 
-class ExternalContextPolicyError(ValueError):
-    """Base error for structurally invalid external-context policy input."""
-
-
-class InvalidCalendarContextError(ExternalContextPolicyError):
-    """Raised when normalized calendar input violates the provider-neutral contract."""
-
-
-class UnsafeCalendarObservabilityFieldError(ExternalContextPolicyError):
-    """Raised when an event attempts to expose forbidden calendar material."""
-
-
 def _require_aware(value: datetime, *, field_name: str) -> None:
     if value.tzinfo is None or value.utcoffset() is None:
-        raise InvalidCalendarContextError(f"{field_name} must include timezone information")
+        raise ValueError(f"{field_name} must include timezone information")
 
 
-def _require_uuid4(value: UUID, *, field_name: str) -> None:
-    if not isinstance(value, UUID) or value.version != 4:
-        raise InvalidCalendarContextError(f"{field_name} must be an opaque UUIDv4")
+def _timezone(timezone_name: str) -> ZoneInfo:
+    if not isinstance(timezone_name, str) or not timezone_name.strip():
+        raise ValueError("timezone_name must be a non-empty IANA timezone")
+    try:
+        return ZoneInfo(timezone_name)
+    except ZoneInfoNotFoundError as exc:
+        raise ValueError("timezone_name must be a valid IANA timezone") from exc
+
+
+@dataclass(frozen=True, slots=True)
+class ManualFallback:
+    manual_checkin_available: bool = True
+    workout_block_check_available: bool = True
+    plan_mutation_allowed: bool = False
+
+
+MANUAL_FALLBACK = ManualFallback()
 
 
 @dataclass(frozen=True, slots=True)
 class CalendarAccessDecision:
-    provider_call_allowed: bool
-    manual_fallback_required: bool
-    workout_plan_preserved: Literal[True] = True
-    official_completion_unchanged: Literal[True] = True
-    failure_code: CalendarPublicFailureCode | None = None
-    fallback_reason_code: CalendarFallbackReasonCode | None = None
-    policy_version: str = EXTERNAL_CONTEXT_POLICY_VERSION
-
-    def __post_init__(self) -> None:
-        if self.provider_call_allowed:
-            if self.manual_fallback_required or self.failure_code or self.fallback_reason_code:
-                raise InvalidCalendarContextError(
-                    "an allowed provider call cannot also require a fallback"
-                )
-            return
-        if not self.manual_fallback_required or self.failure_code is None:
-            raise InvalidCalendarContextError(
-                "a blocked provider call must preserve the plan through manual fallback"
-            )
+    allowed: bool
+    status_code: CalendarOutcomeStatusCode
+    failure_code: CalendarFailureCode | None
+    manual_fallback: ManualFallback
 
 
 def evaluate_calendar_access(
@@ -150,120 +142,192 @@ def evaluate_calendar_access(
     consent_granted: bool,
     connection_status_code: CalendarConnectionStatusCode | None,
 ) -> CalendarAccessDecision:
-    """Gate provider calls without blocking the manual daily flow."""
-
     if not consent_granted:
         return CalendarAccessDecision(
-            provider_call_allowed=False,
-            manual_fallback_required=True,
-            failure_code=CalendarPublicFailureCode.CONSENT_REQUIRED,
-            fallback_reason_code=CalendarFallbackReasonCode.CONSENT_MISSING,
+            allowed=False,
+            status_code=CalendarOutcomeStatusCode.CONSENT_REQUIRED,
+            failure_code=CalendarFailureCode.CONSENT_REQUIRED,
+            manual_fallback=MANUAL_FALLBACK,
         )
     if connection_status_code is not CalendarConnectionStatusCode.ACTIVE:
         return CalendarAccessDecision(
-            provider_call_allowed=False,
-            manual_fallback_required=True,
-            failure_code=CalendarPublicFailureCode.CALENDAR_NOT_CONNECTED,
-            fallback_reason_code=CalendarFallbackReasonCode.NOT_CONNECTED,
+            allowed=False,
+            status_code=CalendarOutcomeStatusCode.NOT_CONNECTED,
+            failure_code=CalendarFailureCode.CALENDAR_NOT_CONNECTED,
+            manual_fallback=MANUAL_FALLBACK,
         )
     return CalendarAccessDecision(
-        provider_call_allowed=True,
-        manual_fallback_required=False,
+        allowed=True,
+        status_code=CalendarOutcomeStatusCode.AVAILABLE,
+        failure_code=None,
+        manual_fallback=MANUAL_FALLBACK,
     )
 
 
-def calendar_provider_failure_fallback(
+@dataclass(frozen=True, slots=True)
+class CalendarProviderFailureDecision:
+    status_code: CalendarOutcomeStatusCode
+    failure_code: CalendarFailureCode | None
+    manual_fallback: ManualFallback = MANUAL_FALLBACK
+
+
+def classify_calendar_provider_failure(
     failure_kind_code: CalendarProviderFailureKindCode,
-) -> CalendarAccessDecision:
-    """Map provider failures to safe public codes while preserving the workout plan."""
-
+) -> CalendarProviderFailureDecision:
     if failure_kind_code is CalendarProviderFailureKindCode.PERMISSION_DENIED:
-        return CalendarAccessDecision(
-            provider_call_allowed=False,
-            manual_fallback_required=True,
-            failure_code=CalendarPublicFailureCode.CALENDAR_NOT_CONNECTED,
-            fallback_reason_code=CalendarFallbackReasonCode.PERMISSION_DENIED,
+        return CalendarProviderFailureDecision(
+            status_code=CalendarOutcomeStatusCode.PERMISSION_DENIED,
+            failure_code=CalendarFailureCode.CALENDAR_NOT_CONNECTED,
         )
-    return CalendarAccessDecision(
-        provider_call_allowed=False,
-        manual_fallback_required=True,
-        failure_code=CalendarPublicFailureCode.PROVIDER_UNAVAILABLE,
-        fallback_reason_code=CalendarFallbackReasonCode.PROVIDER_UNAVAILABLE,
+    return CalendarProviderFailureDecision(
+        status_code=CalendarOutcomeStatusCode.PROVIDER_UNAVAILABLE,
+        failure_code=CalendarFailureCode.PROVIDER_UNAVAILABLE,
     )
+
+
+@dataclass(frozen=True, slots=True)
+class CalendarConnectionState:
+    connection_id: UUID
+    status_code: CalendarConnectionStatusCode
+    revoked_at: datetime | None = None
+
+    def __post_init__(self) -> None:
+        if self.revoked_at is not None:
+            _require_aware(self.revoked_at, field_name="revoked_at")
+        if self.status_code is CalendarConnectionStatusCode.ACTIVE and self.revoked_at is not None:
+            raise ValueError("active calendar connection cannot have revoked_at")
+        if self.status_code is CalendarConnectionStatusCode.REVOKED and self.revoked_at is None:
+            raise ValueError("revoked calendar connection requires revoked_at")
+
+
+@dataclass(frozen=True, slots=True)
+class CalendarDisconnectDecision:
+    action_code: CalendarDisconnectActionCode
+    state: CalendarConnectionState
+
+
+def request_calendar_disconnect(
+    state: CalendarConnectionState,
+    *,
+    requested_at: datetime,
+) -> CalendarDisconnectDecision:
+    _require_aware(requested_at, field_name="requested_at")
+    if state.status_code is CalendarConnectionStatusCode.REVOKED:
+        return CalendarDisconnectDecision(
+            action_code=CalendarDisconnectActionCode.NOOP_ALREADY_REVOKED,
+            state=state,
+        )
+    return CalendarDisconnectDecision(
+        action_code=CalendarDisconnectActionCode.DESTROY_SECRET_LOCALLY,
+        state=replace(
+            state,
+            status_code=CalendarConnectionStatusCode.REVOKED,
+            revoked_at=requested_at,
+        ),
+    )
+
+
+def commit_calendar_connection_mutation(
+    *,
+    proposed: CalendarConnectionState,
+    persistence_succeeded: bool,
+) -> CalendarConnectionState:
+    """Expose a local connection state only after its transaction commits."""
+
+    if not persistence_succeeded:
+        raise ExternalContextContractError(CalendarFailureCode.DATABASE_UNAVAILABLE)
+    return proposed
+
+
+@dataclass(frozen=True, slots=True)
+class FixedWindowCounter:
+    count: int
+    window_started_at: datetime
+
+    def __post_init__(self) -> None:
+        if self.count < 0:
+            raise ValueError("rate-limit count cannot be negative")
+        _require_aware(self.window_started_at, field_name="window_started_at")
 
 
 @dataclass(frozen=True, slots=True)
 class CalendarRateLimitDecision:
     allowed: bool
-    availability_count_after_attempt: int
-    total_count_after_attempt: int
+    total_counter: FixedWindowCounter
+    availability_counter: FixedWindowCounter | None
+    failure_code: CalendarFailureCode | None
     retry_after: timedelta | None
-    failure_code: CalendarPublicFailureCode | None
+
+
+def _advance_counter(
+    counter: FixedWindowCounter,
+    *,
+    attempted_at: datetime,
+) -> tuple[FixedWindowCounter, datetime]:
+    attempted_in_utc = attempted_at.astimezone(UTC)
+    window_end = counter.window_started_at.astimezone(UTC) + CALENDAR_RATE_LIMIT_WINDOW
+    if attempted_in_utc >= window_end:
+        return FixedWindowCounter(1, attempted_at), attempted_at + CALENDAR_RATE_LIMIT_WINDOW
+    return FixedWindowCounter(counter.count + 1, counter.window_started_at), window_end
 
 
 def evaluate_calendar_rate_limit(
     *,
-    endpoint_code: CalendarEndpointCode,
-    availability_count_before_attempt: int,
-    total_count_before_attempt: int,
+    operation_code: CalendarOperationCode,
+    total_counter: FixedWindowCounter,
+    availability_counter: FixedWindowCounter | None,
     attempted_at: datetime,
-    window_started_at: datetime,
 ) -> CalendarRateLimitDecision:
-    """Apply one deterministic user-scoped fixed window before a provider call."""
-
     _require_aware(attempted_at, field_name="attempted_at")
-    _require_aware(window_started_at, field_name="window_started_at")
-    if availability_count_before_attempt < 0 or total_count_before_attempt < 0:
-        raise InvalidCalendarContextError("rate-limit counts cannot be negative")
-    if availability_count_before_attempt > total_count_before_attempt:
-        raise InvalidCalendarContextError(
-            "availability count cannot exceed the total calendar endpoint count"
+    next_total, total_window_end = _advance_counter(total_counter, attempted_at=attempted_at)
+    total_allowed = next_total.count <= CALENDAR_TOTAL_RATE_LIMIT
+
+    next_availability: FixedWindowCounter | None = availability_counter
+    availability_allowed = True
+    availability_window_end: datetime | None = None
+    if operation_code is CalendarOperationCode.AVAILABILITY:
+        if availability_counter is None:
+            raise ValueError("availability requests require an availability counter")
+        next_availability, availability_window_end = _advance_counter(
+            availability_counter,
+            attempted_at=attempted_at,
         )
+        availability_allowed = next_availability.count <= CALENDAR_AVAILABILITY_RATE_LIMIT
 
-    window_end = window_started_at + CALENDAR_RATE_LIMIT_WINDOW
-    if attempted_at >= window_end:
-        availability_count_before_attempt = 0
-        total_count_before_attempt = 0
-        window_started_at = attempted_at
-        window_end = attempted_at + CALENDAR_RATE_LIMIT_WINDOW
-
-    availability_count_after_attempt = availability_count_before_attempt
-    if endpoint_code is CalendarEndpointCode.AVAILABILITY:
-        availability_count_after_attempt += 1
-    total_count_after_attempt = total_count_before_attempt + 1
-    allowed = (
-        availability_count_after_attempt <= CALENDAR_AVAILABILITY_RATE_LIMIT
-        and total_count_after_attempt <= CALENDAR_TOTAL_RATE_LIMIT
-    )
+    allowed = total_allowed and availability_allowed
+    if allowed:
+        retry_after = None
+    else:
+        blocked_until = [
+            window_end
+            for is_allowed, window_end in (
+                (total_allowed, total_window_end),
+                (availability_allowed, availability_window_end),
+            )
+            if not is_allowed and window_end is not None
+        ]
+        retry_after = max(blocked_until) - attempted_at
     return CalendarRateLimitDecision(
         allowed=allowed,
-        availability_count_after_attempt=availability_count_after_attempt,
-        total_count_after_attempt=total_count_after_attempt,
-        retry_after=None if allowed else window_end - attempted_at,
-        failure_code=None if allowed else CalendarPublicFailureCode.RATE_LIMITED,
+        total_counter=next_total,
+        availability_counter=next_availability,
+        failure_code=None if allowed else CalendarFailureCode.RATE_LIMITED,
+        retry_after=retry_after,
     )
 
 
 @dataclass(frozen=True, slots=True)
-class CalendarDisconnectDecision:
-    status_code: CalendarConnectionStatusCode
-    destroy_secret: Literal[True]
-    call_provider_revoke: Literal[False]
-    idempotent_replay: bool
-    policy_version: str = EXTERNAL_CONTEXT_POLICY_VERSION
+class ProviderBusyInterval:
+    """A freeBusy-only interval; event text and all-day metadata are intentionally absent."""
 
+    start_at: datetime
+    end_at: datetime
 
-def disconnect_calendar(
-    status_code: CalendarConnectionStatusCode,
-) -> CalendarDisconnectDecision:
-    """Finish local disconnect even when Google OAuth is shared with Firebase login."""
-
-    return CalendarDisconnectDecision(
-        status_code=CalendarConnectionStatusCode.REVOKED,
-        destroy_secret=True,
-        call_provider_revoke=False,
-        idempotent_replay=status_code is CalendarConnectionStatusCode.REVOKED,
-    )
+    def __post_init__(self) -> None:
+        _require_aware(self.start_at, field_name="start_at")
+        _require_aware(self.end_at, field_name="end_at")
+        if self.end_at.astimezone(UTC) <= self.start_at.astimezone(UTC):
+            raise ValueError("busy interval end_at must be after start_at")
 
 
 @dataclass(frozen=True, slots=True)
@@ -275,136 +339,26 @@ class AvailabilitySlot:
         _require_aware(self.start_at, field_name="start_at")
         _require_aware(self.end_at, field_name="end_at")
         if self.end_at.astimezone(UTC) <= self.start_at.astimezone(UTC):
-            raise InvalidCalendarContextError("availability slot end must be after start")
-
-
-@dataclass(frozen=True, slots=True)
-class CalendarBusyInterval:
-    """Transient freebusy interval; event text and raw payloads cannot enter this type."""
-
-    start_at: datetime
-    end_at: datetime
-
-    def __post_init__(self) -> None:
-        _require_aware(self.start_at, field_name="start_at")
-        _require_aware(self.end_at, field_name="end_at")
-        if self.end_at.astimezone(UTC) <= self.start_at.astimezone(UTC):
-            raise InvalidCalendarContextError("busy interval end must be after start")
+            raise ValueError("availability slot end_at must be after start_at")
 
 
 @dataclass(frozen=True, slots=True)
 class CalendarAvailability:
-    """Public normalized availability contract; do not add provider metadata or event text."""
-
     local_date: date
     timezone: str
     slots: tuple[AvailabilitySlot, ...]
 
     def __post_init__(self) -> None:
-        if not isinstance(self.local_date, date):
-            raise InvalidCalendarContextError("local_date must be a date")
-        try:
-            timezone = ZoneInfo(self.timezone)
-        except (TypeError, ZoneInfoNotFoundError) as exc:
-            raise InvalidCalendarContextError("timezone must be an IANA timezone") from exc
+        zone = _timezone(self.timezone)
         if not isinstance(self.slots, tuple):
-            raise InvalidCalendarContextError("slots must be an immutable tuple")
-        if len(self.slots) > CALENDAR_MAX_AVAILABILITY_SLOTS:
-            raise InvalidCalendarContextError("availability cannot expose more than eight slots")
-        if any(not isinstance(slot, AvailabilitySlot) for slot in self.slots):
-            raise InvalidCalendarContextError("slots must contain only AvailabilitySlot values")
+            raise ValueError("slots must be an immutable tuple")
+        if len(self.slots) > MAX_AVAILABILITY_SLOTS:
+            raise ValueError("availability cannot expose more than eight slots")
         if tuple(sorted(self.slots, key=lambda slot: slot.start_at.astimezone(UTC))) != self.slots:
-            raise InvalidCalendarContextError("availability slots must be ordered by start time")
+            raise ValueError("availability slots must be ordered by start time")
         for slot in self.slots:
-            local_start = slot.start_at.astimezone(timezone)
-            local_end = slot.end_at.astimezone(timezone)
-            if local_start.date() != self.local_date:
-                raise InvalidCalendarContextError("slot start must belong to local_date")
-            if local_end.date() not in {self.local_date, self.local_date + timedelta(days=1)}:
-                raise InvalidCalendarContextError(
-                    "slot end must stay inside the local day boundary"
-                )
-
-
-def _calendar_day_bounds(
-    local_date: date, timezone_name: str
-) -> tuple[ZoneInfo, datetime, datetime]:
-    try:
-        timezone = ZoneInfo(timezone_name)
-    except (TypeError, ZoneInfoNotFoundError) as exc:
-        raise InvalidCalendarContextError("timezone must be an IANA timezone") from exc
-    day_start = datetime.combine(local_date, time.min, timezone).astimezone(UTC)
-    day_end = datetime.combine(local_date + timedelta(days=1), time.min, timezone).astimezone(UTC)
-    return timezone, day_start, day_end
-
-
-def calculate_calendar_availability(
-    *,
-    local_date: date,
-    timezone_name: str,
-    requested_duration_minutes: int,
-    busy_intervals: tuple[CalendarBusyInterval, ...],
-) -> CalendarAvailability:
-    """Return free windows without caching, shortening duration, or reading event content."""
-
-    if (
-        isinstance(requested_duration_minutes, bool)
-        or not isinstance(requested_duration_minutes, int)
-        or requested_duration_minutes <= 0
-    ):
-        raise InvalidCalendarContextError("requested_duration_minutes must be a positive integer")
-    if not isinstance(busy_intervals, tuple) or any(
-        not isinstance(interval, CalendarBusyInterval) for interval in busy_intervals
-    ):
-        raise InvalidCalendarContextError(
-            "busy_intervals must contain only immutable CalendarBusyInterval values"
-        )
-
-    timezone, day_start, day_end = _calendar_day_bounds(local_date, timezone_name)
-    clipped: list[tuple[datetime, datetime]] = []
-    for interval in busy_intervals:
-        interval_start = max(interval.start_at.astimezone(UTC), day_start)
-        interval_end = min(interval.end_at.astimezone(UTC), day_end)
-        if interval_start < interval_end:
-            clipped.append((interval_start, interval_end))
-    clipped.sort(key=lambda interval: (interval[0], interval[1]))
-
-    merged: list[tuple[datetime, datetime]] = []
-    for interval_start, interval_end in clipped:
-        if merged and interval_start <= merged[-1][1]:
-            previous_start, previous_end = merged[-1]
-            merged[-1] = (previous_start, max(previous_end, interval_end))
-        else:
-            merged.append((interval_start, interval_end))
-
-    free_intervals: list[tuple[datetime, datetime]] = []
-    cursor = day_start
-    for busy_start, busy_end in merged:
-        if cursor < busy_start:
-            free_intervals.append((cursor, busy_start))
-        cursor = max(cursor, busy_end)
-    if cursor < day_end:
-        free_intervals.append((cursor, day_end))
-
-    minimum_window = timedelta(minutes=requested_duration_minutes) + 2 * CALENDAR_BUSY_BUFFER
-    slots: list[AvailabilitySlot] = []
-    for free_start, free_end in free_intervals:
-        if free_end - free_start < minimum_window:
-            continue
-        slots.append(
-            AvailabilitySlot(
-                start_at=(free_start + CALENDAR_BUSY_BUFFER).astimezone(timezone),
-                end_at=(free_end - CALENDAR_BUSY_BUFFER).astimezone(timezone),
-            )
-        )
-        if len(slots) == CALENDAR_MAX_AVAILABILITY_SLOTS:
-            break
-
-    return CalendarAvailability(
-        local_date=local_date,
-        timezone=timezone_name,
-        slots=tuple(slots),
-    )
+            if slot.start_at.astimezone(zone).date() != self.local_date:
+                raise ValueError("slot start must belong to local_date")
 
 
 @dataclass(frozen=True, slots=True)
@@ -415,16 +369,14 @@ class ManualAvailabilityOverride:
         if not isinstance(self.slots, tuple) or any(
             not isinstance(slot, AvailabilitySlot) for slot in self.slots
         ):
-            raise InvalidCalendarContextError(
-                "manual availability must contain immutable AvailabilitySlot values"
-            )
+            raise ValueError("manual availability must contain immutable slots")
 
 
 @dataclass(frozen=True, slots=True)
 class AvailabilitySelection:
     source_code: CalendarAvailabilitySourceCode
     slots: tuple[AvailabilitySlot, ...]
-    manual_choice_preserved: Literal[True] = True
+    manual_choice_preserved: bool = True
 
 
 def select_availability(
@@ -432,124 +384,190 @@ def select_availability(
     manual_override: ManualAvailabilityOverride | None,
     calendar_availability: CalendarAvailability | None,
 ) -> AvailabilitySelection:
-    """Manual availability, including an explicit empty choice, always wins."""
+    """Preserve an explicit manual choice, including an empty choice."""
 
     if manual_override is not None:
-        return AvailabilitySelection(
-            source_code=CalendarAvailabilitySourceCode.MANUAL,
-            slots=manual_override.slots,
-        )
+        return AvailabilitySelection(CalendarAvailabilitySourceCode.MANUAL, manual_override.slots)
     if calendar_availability is not None:
         return AvailabilitySelection(
-            source_code=CalendarAvailabilitySourceCode.CALENDAR,
-            slots=calendar_availability.slots,
+            CalendarAvailabilitySourceCode.CALENDAR,
+            calendar_availability.slots,
         )
-    return AvailabilitySelection(
-        source_code=CalendarAvailabilitySourceCode.ROUTINE_DEFAULT,
-        slots=(),
+    return AvailabilitySelection(CalendarAvailabilitySourceCode.ROUTINE_DEFAULT, ())
+
+
+def _merged_busy_intervals(
+    *,
+    busy_intervals: tuple[ProviderBusyInterval, ...],
+    day_start: datetime,
+    day_end: datetime,
+) -> tuple[tuple[datetime, datetime], ...]:
+    clipped: list[tuple[datetime, datetime]] = []
+    for interval in busy_intervals:
+        start_at = max(interval.start_at.astimezone(UTC), day_start)
+        end_at = min(interval.end_at.astimezone(UTC), day_end)
+        if start_at < end_at:
+            clipped.append((start_at, end_at))
+    clipped.sort(key=lambda value: (value[0], value[1]))
+
+    merged: list[tuple[datetime, datetime]] = []
+    for start_at, end_at in clipped:
+        if not merged or start_at > merged[-1][1]:
+            merged.append((start_at, end_at))
+            continue
+        previous_start, previous_end = merged[-1]
+        merged[-1] = (previous_start, max(previous_end, end_at))
+    return tuple(merged)
+
+
+def calculate_calendar_availability(
+    *,
+    local_date: date,
+    timezone_name: str,
+    requested_duration_minutes: int,
+    busy_intervals: tuple[ProviderBusyInterval, ...],
+) -> CalendarAvailability:
+    if (
+        isinstance(requested_duration_minutes, bool)
+        or not isinstance(requested_duration_minutes, int)
+        or requested_duration_minutes <= 0
+    ):
+        raise ValueError("requested_duration_minutes must be positive")
+    zone = _timezone(timezone_name)
+    day_start_local = datetime.combine(local_date, time.min, tzinfo=zone)
+    day_end_local = datetime.combine(local_date + timedelta(days=1), time.min, tzinfo=zone)
+    day_start = day_start_local.astimezone(UTC)
+    day_end = day_end_local.astimezone(UTC)
+    required_duration = timedelta(minutes=requested_duration_minutes)
+    merged_busy = _merged_busy_intervals(
+        busy_intervals=busy_intervals,
+        day_start=day_start,
+        day_end=day_end,
+    )
+
+    gaps: list[tuple[datetime, datetime]] = []
+    cursor = day_start
+    for busy_start, busy_end in merged_busy:
+        if cursor < busy_start:
+            gaps.append((cursor, busy_start))
+        cursor = max(cursor, busy_end)
+    if cursor < day_end:
+        gaps.append((cursor, day_end))
+
+    slots: list[AvailabilitySlot] = []
+    for gap_start, gap_end in gaps:
+        slot_start = gap_start + AVAILABILITY_BUFFER
+        slot_end = gap_end - AVAILABILITY_BUFFER
+        if slot_end - slot_start < required_duration:
+            continue
+        slots.append(
+            AvailabilitySlot(
+                start_at=slot_start.astimezone(zone),
+                end_at=slot_end.astimezone(zone),
+            )
+        )
+        if len(slots) == MAX_AVAILABILITY_SLOTS:
+            break
+    return CalendarAvailability(
+        local_date=local_date,
+        timezone=timezone_name,
+        slots=tuple(slots),
     )
 
 
 @dataclass(frozen=True, slots=True)
-class CalendarPerformanceCheckDecision:
-    provider_call_allowed: bool
-    reason_code: CalendarPerformanceCheckReasonCode
-    retry_after: timedelta | None
+class OfficialWorkoutState:
+    scheduled_workout_id: UUID
+    status_code: WorkoutSessionStatusCode
 
 
-def evaluate_performance_check(
-    *,
-    scheduled_workout_status_code: ScheduledWorkoutStatusCode,
-    checked_at: datetime,
-    last_performance_checked_at: datetime | None,
-) -> CalendarPerformanceCheckDecision:
-    """Allow on-demand checks only after finalization and at ten-minute intervals."""
-
-    _require_aware(checked_at, field_name="checked_at")
-    if last_performance_checked_at is not None:
-        _require_aware(last_performance_checked_at, field_name="last_performance_checked_at")
-        if last_performance_checked_at > checked_at:
-            raise InvalidCalendarContextError("last performance check cannot be in the future")
-    if scheduled_workout_status_code not in FINAL_SCHEDULED_WORKOUT_STATUSES:
-        return CalendarPerformanceCheckDecision(
-            provider_call_allowed=False,
-            reason_code=CalendarPerformanceCheckReasonCode.SCHEDULED_WORKOUT_NOT_FINAL,
-            retry_after=None,
-        )
-    if last_performance_checked_at is not None:
-        next_allowed_at = last_performance_checked_at + CALENDAR_PERFORMANCE_RECHECK_INTERVAL
-        if checked_at < next_allowed_at:
-            return CalendarPerformanceCheckDecision(
-                provider_call_allowed=False,
-                reason_code=CalendarPerformanceCheckReasonCode.RECHECK_TOO_SOON,
-                retry_after=next_allowed_at - checked_at,
-            )
-    return CalendarPerformanceCheckDecision(
-        provider_call_allowed=True,
-        reason_code=CalendarPerformanceCheckReasonCode.READY,
-        retry_after=None,
-    )
+@dataclass(frozen=True, slots=True)
+class ScheduledWorkoutState:
+    scheduled_workout_id: UUID
+    status_code: ScheduledWorkoutStatusCode
 
 
 @dataclass(frozen=True, slots=True)
 class CalendarPerformanceObservation:
-    """Normalized advisory evidence; it has no field capable of mutating official completion."""
-
     scheduled_workout_id: UUID
     performed: bool | None
     performance_checked_at: datetime | None
 
     def __post_init__(self) -> None:
-        _require_uuid4(self.scheduled_workout_id, field_name="scheduled_workout_id")
-        if self.performed is not None and not isinstance(self.performed, bool):
-            raise InvalidCalendarContextError("performed must be a boolean or null")
         if self.performance_checked_at is not None:
             _require_aware(self.performance_checked_at, field_name="performance_checked_at")
-
-
-@dataclass(frozen=True, slots=True)
-class CalendarPerformanceResolution:
-    observation: CalendarPerformanceObservation
-    official_session_status_code: WorkoutSessionStatusCode
-    guidance_code: CalendarPerformanceGuidanceCode
-    guidance_message: str | None
-    official_completion_unchanged: Literal[True] = True
-
-
-def preserve_official_completion_status(
-    *,
-    official_session_status_code: WorkoutSessionStatusCode,
-    observation: CalendarPerformanceObservation,
-) -> CalendarPerformanceResolution:
-    """Return the official block-derived status unchanged for every calendar value."""
-
-    return CalendarPerformanceResolution(
-        observation=observation,
-        official_session_status_code=official_session_status_code,
-        guidance_code=(
-            CalendarPerformanceGuidanceCode.PROVIDER_DOES_NOT_REPORT_PERFORMANCE
-            if observation.performed is None
-            else CalendarPerformanceGuidanceCode.ADVISORY_ONLY
-        ),
-        guidance_message=(
-            CALENDAR_PERFORMANCE_UNAVAILABLE_MESSAGE_KO if observation.performed is None else None
-        ),
-    )
 
 
 def google_calendar_performance_observation(
     *,
     scheduled_workout_id: UUID,
-    checked_at: datetime,
+    performance_checked_at: datetime,
 ) -> CalendarPerformanceObservation:
-    """Google Calendar exposes schedule state, not actual workout performance."""
-
     return CalendarPerformanceObservation(
         scheduled_workout_id=scheduled_workout_id,
         performed=None,
-        performance_checked_at=checked_at,
+        performance_checked_at=performance_checked_at,
     )
 
+
+def calendar_performance_guidance(observation: CalendarPerformanceObservation) -> str | None:
+    if observation.performed is None:
+        return PERFORMANCE_UNAVAILABLE_GUIDANCE
+    return None
+
+
+@dataclass(frozen=True, slots=True)
+class PerformanceRecheckDecision:
+    allowed: bool
+    retry_after: timedelta | None
+
+
+def evaluate_performance_recheck(
+    *,
+    scheduled_workout_state: ScheduledWorkoutState,
+    performance_checked_at: datetime | None,
+    requested_at: datetime,
+) -> PerformanceRecheckDecision:
+    _require_aware(requested_at, field_name="requested_at")
+    if scheduled_workout_state.status_code not in FINAL_SCHEDULED_WORKOUT_STATUSES:
+        raise ValueError("performance checks require a finalized official workout status")
+    if performance_checked_at is None:
+        return PerformanceRecheckDecision(allowed=True, retry_after=None)
+    _require_aware(performance_checked_at, field_name="performance_checked_at")
+    next_allowed_at = performance_checked_at + PERFORMANCE_RECHECK_INTERVAL
+    if requested_at >= next_allowed_at:
+        return PerformanceRecheckDecision(allowed=True, retry_after=None)
+    return PerformanceRecheckDecision(
+        allowed=False,
+        retry_after=next_allowed_at - requested_at,
+    )
+
+
+def preserve_official_workout_state(
+    *,
+    official_workout_state: OfficialWorkoutState,
+    observation: CalendarPerformanceObservation,
+) -> OfficialWorkoutState:
+    """Return the immutable official state unchanged after observing calendar context."""
+
+    if official_workout_state.scheduled_workout_id != observation.scheduled_workout_id:
+        raise ValueError("calendar observation must reference the same scheduled workout")
+    return official_workout_state
+
+
+SAFE_CALENDAR_OBSERVABILITY_FIELDS = frozenset(
+    {
+        "event_id",
+        "operation_code",
+        "provider_code",
+        "outcome_code",
+        "failure_code",
+        "policy_version",
+        "attempt_count",
+        "occurred_at",
+        "latency_bucket",
+    }
+)
 
 FORBIDDEN_CALENDAR_FIELDS = frozenset(
     {
@@ -558,94 +576,82 @@ FORBIDDEN_CALENDAR_FIELDS = frozenset(
         "description",
         "attendees",
         "location",
+        "organizer",
+        "creator",
         "conference_data",
-        "conferenceData",
         "hangout_link",
-        "hangoutLink",
-        "meeting_link",
-        "notes",
-        "raw_payload",
-        "raw_response",
-        "calendar_body",
         "calendar_id",
         "external_event_id",
         "provider_subject",
-        "authorization_code",
         "access_token",
         "refresh_token",
-        "id_token",
-        "client_secret",
+        "authorization_code",
         "token_secret_ref",
-    }
-)
-
-SAFE_CALENDAR_OBSERVABILITY_FIELDS = frozenset(
-    {
-        "event_id",
-        "request_id",
-        "provider_code",
-        "endpoint_code",
-        "outcome_code",
-        "failure_code",
-        "policy_version",
-        "occurred_at",
-        "latency_bucket",
+        "raw_payload",
+        "raw_response",
+        "raw_error",
     }
 )
 
 
 def validate_calendar_observability_fields(field_names: frozenset[str]) -> None:
-    if not field_names <= SAFE_CALENDAR_OBSERVABILITY_FIELDS:
-        raise UnsafeCalendarObservabilityFieldError(
-            "calendar observability fields must use the approved allowlist"
-        )
+    if not field_names.issubset(SAFE_CALENDAR_OBSERVABILITY_FIELDS):
+        raise ValueError("unsafe calendar observability field")
 
 
 __all__ = [
+    "AVAILABILITY_BUFFER",
     "CALENDAR_AVAILABILITY_RATE_LIMIT",
     "CALENDAR_AVAILABILITY_SCHEMA_VERSION",
-    "CALENDAR_BUSY_BUFFER",
-    "CALENDAR_MAX_AVAILABILITY_SLOTS",
-    "CALENDAR_PERFORMANCE_RECHECK_INTERVAL",
-    "CALENDAR_PERFORMANCE_UNAVAILABLE_MESSAGE_KO",
     "CALENDAR_PERFORMANCE_SCHEMA_VERSION",
     "CALENDAR_RATE_LIMIT_WINDOW",
     "CALENDAR_TOTAL_RATE_LIMIT",
     "EXTERNAL_CONTEXT_POLICY_VERSION",
+    "FINAL_SCHEDULED_WORKOUT_STATUSES",
     "FORBIDDEN_CALENDAR_FIELDS",
+    "GOOGLE_CALENDAR_APP_CREATED_SCOPE",
+    "GOOGLE_CALENDAR_FREEBUSY_SCOPE",
+    "MANUAL_FALLBACK",
+    "MAX_AVAILABILITY_SLOTS",
+    "PERFORMANCE_RECHECK_INTERVAL",
+    "PERFORMANCE_UNAVAILABLE_GUIDANCE",
     "SAFE_CALENDAR_OBSERVABILITY_FIELDS",
-    "AvailabilitySelection",
     "AvailabilitySlot",
+    "AvailabilitySelection",
     "CalendarAccessDecision",
     "CalendarAvailability",
     "CalendarAvailabilitySourceCode",
-    "CalendarBusyInterval",
     "CalendarConnectionStatusCode",
+    "CalendarConnectionState",
+    "CalendarDisconnectActionCode",
     "CalendarDisconnectDecision",
-    "CalendarEndpointCode",
-    "CalendarFallbackReasonCode",
-    "CalendarPerformanceCheckDecision",
-    "CalendarPerformanceCheckReasonCode",
-    "CalendarPerformanceGuidanceCode",
+    "CalendarFailureCode",
+    "CalendarOperationCode",
+    "CalendarOutcomeStatusCode",
     "CalendarPerformanceObservation",
-    "CalendarPerformanceResolution",
     "CalendarProviderCode",
+    "CalendarProviderFailureDecision",
     "CalendarProviderFailureKindCode",
-    "CalendarPublicFailureCode",
     "CalendarRateLimitDecision",
-    "ExternalContextPolicyError",
-    "InvalidCalendarContextError",
+    "FixedWindowCounter",
+    "ExternalContextContractError",
+    "ManualFallback",
     "ManualAvailabilityOverride",
+    "OfficialWorkoutState",
+    "PerformanceRecheckDecision",
+    "ProviderBusyInterval",
+    "ScheduledWorkoutState",
     "ScheduledWorkoutStatusCode",
-    "UnsafeCalendarObservabilityFieldError",
     "calculate_calendar_availability",
-    "calendar_provider_failure_fallback",
-    "disconnect_calendar",
+    "calendar_performance_guidance",
+    "classify_calendar_provider_failure",
+    "commit_calendar_connection_mutation",
     "evaluate_calendar_access",
     "evaluate_calendar_rate_limit",
-    "evaluate_performance_check",
+    "evaluate_performance_recheck",
     "google_calendar_performance_observation",
-    "preserve_official_completion_status",
+    "preserve_official_workout_state",
+    "request_calendar_disconnect",
     "select_availability",
     "validate_calendar_observability_fields",
 ]
