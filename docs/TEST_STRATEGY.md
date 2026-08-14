@@ -88,6 +88,17 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 - NOT_COMPLETED 이력은 복귀 트리거·벌점이 아닌 학습 신호임
 - 복귀 모드에서 승인된 load/volume cap port가 없거나 미승인이면 계획을 fail-closed 처리함
 - 승인된 복귀 cap 적용 전후 requested duration이 정확히 보존됨
+- IANA timezone별 동일 instant를 사용자 로컬 날짜로 변환해 월요일 00:00~다음 월요일 00:00 경계를 판정함
+- 열린 주는 최종 report 생성을 차단하고, 닫힌 주만 불변 최소 집계 입력을 허용함
+- 닫힌 주 집계에는 원시 체크인·건강·웨어러블·캘린더 본문과 직접 식별자가 없으며 NOT_COMPLETED는 벌점 없는 학습 신호임
+- GENERATED report는 다음 계획 finalize를 차단하고 명시적 ACKNOWLEDGED 뒤에만 허용함
+- 첫 사용자 주에 cold_start가 명시되고 직전 report가 없는 경우만 acknowledgement 예외를 허용함
+- INITIAL은 초기 계획 흐름, AI/USER는 revision 흐름에서만 생성함
+- 성공한 Coordinator 기반 AI revision 1·2회는 허용하고 3회는 차단하며 비성공 상태는 횟수를 늘리지 않음
+- NEEDS_INPUT/BLOCKED/FAILED revision은 routine이 없고 finalize할 수 없음
+- USER 편집은 요청 시간·장소·장비·SafetyAgent 의견을 모두 준수함
+- LLM은 weekly routine·안전 상태·veto·후보를 변경하지 않음
+- 같은 weekly aggregate/revision 입력과 policy version은 같은 판정 결과를 만듦
 - 승인되지 않은 exercise/rule/alternative가 plan에 없음
 - Training·Recovery·Safety·Feasibility 네 proposal이 final decision과 분리되고 Coordinator가 최종 루틴 한 개를 선택한다.
 - 증상 사용자 시나리오에서 SafetyAgent의 `PASS`/`REVISE`/`BLOCKED` 의견은 Coordinator 결정에 반영하고, `NEEDS_INPUT`과 `FAILED`는 계획을 반환하지 않는 fail-closed 결과로 처리하며, 독립적인 최종 Safety 재검사는 실행하지 않는다.
@@ -118,7 +129,18 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 - raw reference data는 unit fixture로 직접 쓰지 않고 승인된 최소 normalized seed를 사용한다.
 - 골든 결과는 policy/catalog/ruleset version과 함께 저장한다.
 
-### 5.1 Decision 골든 계약
+### 5.1 Weekly policy 골든 계약
+
+주간 골든 fixture는 합성된 IANA timezone, 월요일·일요일 경계, 네 공식 세션 상태의 최소
+집계, acknowledgement 상태, revision source, 성공한 AI revision 횟수, 요청 시간·장소·장비와
+SafetyAgent opinion code만 사용한다. 원시 체크인·건강·웨어러블·캘린더 본문과 직접 식별자는
+포함하지 않는다.
+
+골든 비교 축은 OPEN/CLOSED, report 허용 여부, 학습 신호와 penalty 미적용, revision 허용 여부,
+AI revision 결과 횟수, routine 허용 여부, finalized와 policy/schema version이다. 설명 문구나 LLM
+출력은 비교 입력 또는 결정 결과에 포함하지 않는다.
+
+### 5.2 Decision 골든 계약
 
 Wave 6의 decision 저장·API 매핑 테스트는
 `backend/tests/scenarios/decision_golden_fixtures.py`의 버전화된 fixture를 기준으로 한다.
@@ -136,7 +158,7 @@ Wave 6 저장 계층은 네 proposal을 agent별 레코드로 저장하고 final
 합치지 않는다. 공개 API 매핑은 기존 `API_CONTRACT.md` 필드만 사용하며 fixture의
 `graph_version` 등 내부 감사 version을 임의로 공개 필드로 추가하지 않는다.
 
-### 5.2 Decision 재현성 통합 게이트
+### 5.3 Decision 재현성 통합 게이트
 
 저장 전 domain 경계는 식별자가 없는 최소 input snapshot과 별도 proposal·candidate,
 catalog/policy/safety/duration/graph/coordinator version 조합을 사용해 Coordinator 입력을
