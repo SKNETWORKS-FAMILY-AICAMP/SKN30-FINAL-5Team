@@ -13,6 +13,7 @@ from backend.app.db.repositories.decision import DecisionRepository
 from backend.app.db.repositories.identity import IdentityRepository
 from backend.app.db.repositories.profile import ProfileRepository
 from backend.app.db.repositories.routine import RoutineRepository
+from backend.app.db.repositories.weekly_plan import WeeklyPlanRepository
 from backend.app.db.repositories.weekly_report import WeeklyReportRepository
 from backend.app.db.repositories.workout import WorkoutRepository
 from backend.app.modules.checkins.ports import DailyContextRepositoryPort
@@ -30,6 +31,7 @@ from backend.app.modules.identity.service import (
 )
 from backend.app.modules.profiles.ports import BirthdateCipher, ProfileRepositoryPort
 from backend.app.modules.routines.ports import RoutineRepositoryPort
+from backend.app.modules.weekly_plans.ports import WeeklyPlanRepositoryPort
 from backend.app.modules.weekly_reports.ports import WeeklyReportRepositoryPort
 from backend.app.modules.workouts.ports import WorkoutRepositoryPort
 
@@ -41,6 +43,7 @@ _daily_context_repository = DailyContextRepository()
 _decision_repository = DecisionRepository()
 _workout_repository = WorkoutRepository()
 _weekly_report_repository = WeeklyReportRepository()
+_weekly_plan_repository = WeeklyPlanRepository()
 
 
 def get_db_session(request: Request) -> Iterator[Session]:
@@ -77,6 +80,10 @@ def get_workout_repository() -> WorkoutRepositoryPort:
 
 def get_weekly_report_repository() -> WeeklyReportRepositoryPort:
     return _weekly_report_repository
+
+
+def get_weekly_plan_repository() -> WeeklyPlanRepositoryPort:
+    return _weekly_plan_repository
 
 
 def get_birthdate_cipher(request: Request) -> BirthdateCipher | None:
@@ -137,4 +144,5 @@ __all__ = [
     "get_routine_repository",
     "get_workout_repository",
     "get_weekly_report_repository",
+    "get_weekly_plan_repository",
 ]

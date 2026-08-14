@@ -5,6 +5,7 @@ from backend.app.api.v1.decisions import router as decisions_router
 from backend.app.api.v1.health import router as health_router
 from backend.app.api.v1.profiles import router as profiles_router
 from backend.app.api.v1.routines import router as routines_router
+from backend.app.api.v1.weekly_plans import router as weekly_plans_router
 from backend.app.api.v1.weekly_reports import router as weekly_reports_router
 from backend.app.api.v1.weekly_reports import weeks_router
 from backend.app.api.v1.workouts import router as workouts_router
@@ -20,3 +21,4 @@ api_router.include_router(workout_selection_router)
 api_router.include_router(workouts_router)
 api_router.include_router(weeks_router)
 api_router.include_router(weekly_reports_router)
+api_router.include_router(weekly_plans_router)

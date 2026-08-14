@@ -1087,11 +1087,22 @@ negotiation_success_rate는 조정 액션 세션 중 `COMPLETED | PARTIAL` 비�
 | ai_revision_number | Coordinator 기반 AI 수정이면 1 또는 2, `INITIAL`·`USER`이면 null |
 | revision_source_code | `INITIAL`은 `/weeks/{week_start}/plan`, `AI`·`USER`는 `/weeks/{week_start}/plan-revisions`에서만 생성 |
 | routine_id | 생성·편집된 routine FK, nullable. `NEEDS_INPUT`, `BLOCKED`, `FAILED` revision은 반드시 NULL |
+| selected_location_code | 해당 routine version을 실행할 검증된 장소, routine이 없으면 null |
 | safety_status_code | PASS, NEEDS_INPUT, REVISE, BLOCKED, FAILED |
+| input_schema_version | revision 입력 snapshot 스키마 버전 |
+| input_snapshot | 주·리포트·제약·Safety 의견·routine evidence의 최소 JSONB |
+| input_hash | 입력 snapshot SHA-256 |
+| weekly_plan_policy_version | revision/finalize 결정 정책 버전 |
+| revision_reason_codes | revision 정책 reason code JSONB |
+| finalization_reason_codes | finalize gate reason code JSONB |
 | finalized_at | 최종 확정 시각, nullable |
 | created_at | 생성 시각 |
 
-콜드스타트·최초 계획·다음 주 초기 계획은 `/weeks/{week_start}/plan`이 `INITIAL` revision으로 생성한다. 기존 계획의 AI 또는 USER 수정은 `/weeks/{week_start}/plan-revisions`가 생성하며, 두 엔드포인트는 서로의 source code를 생성하지 않는다. AI 수정은 최대 2회다. USER 편집 횟수와 낙관적 잠금은 revision_sequence로 관리한다. 최초 가입자의 첫 주 계획은 `source_weekly_report_id`가 null일 수 있으며, 그 이후에는 source report가 `ACKNOWLEDGED`가 아니면 `finalized_at`을 설정할 수 없다. `NEEDS_INPUT`, `BLOCKED`, `FAILED` revision은 `routine_id=NULL`과 `finalized_at=NULL`로 저장한다. `PASS` 또는 `REVISE` revision은 routine이 생성·편집된 경우에만 `routine_id`를 채우며, `finalized_at`은 콜드스타트 예외 또는 직전 주 리포트 `ACKNOWLEDGED` 상태이고 `safety_status_code`가 `PASS` 또는 `REVISE`인 경우에만 설정할 수 있다. `finalized_at`이 있으면 `routine_id`는 반드시 non-null이어야 한다. USER 편집도 요청 시간·장소·장비 제약과 SafetyAgent 의견 반영 여부를 확인한다. 독립적인 최종 Safety 재검사는 수행하지 않으며 agent_summaries의 상세 구조는 증상 사용자 시나리오 검증 후 보완할 수 있다.
+콜드스타트·최초 계획·다음 주 초기 계획은 `/weeks/{week_start}/plan`이 `INITIAL` revision으로 생성한다. 기존 계획의 AI 또는 USER 수정은 `/weeks/{week_start}/plan-revisions`가 생성하며, 두 엔드포인트는 서로의 source code를 생성하지 않는다. AI 수정은 최대 2회다. 성공한 `PASS|REVISE` AI revision만 `ai_revision_number` 1 또는 2를 가지며 `NEEDS_INPUT|BLOCKED|FAILED` AI revision은 null이고 횟수를 소비하지 않는다. USER 편집 횟수와 낙관적 잠금은 revision_sequence로 관리한다. 최초 가입자의 첫 주 계획은 `source_weekly_report_id`가 null일 수 있으며, 그 이후에는 source report가 `ACKNOWLEDGED`가 아니면 `finalized_at`을 설정할 수 없다. `NEEDS_INPUT`, `BLOCKED`, `FAILED` revision은 `routine_id=NULL`, `selected_location_code=NULL`, `finalized_at=NULL`로 저장한다. `PASS` 또는 `REVISE` revision은 routine이 생성·편집된 경우에만 `routine_id`를 채우며, `finalized_at`은 콜드스타트 예외 또는 직전 주 리포트 `ACKNOWLEDGED` 상태이고 `safety_status_code`가 `PASS` 또는 `REVISE`인 경우에만 설정할 수 있다. `finalized_at`이 있으면 `routine_id`는 반드시 non-null이어야 한다. USER 편집은 저장된 사용자 소유 routine version을 참조하며 서버가 요청 시간·장소·장비 제약과 저장된 SafetyAgent 의견 반영 여부를 조회해 확인한다. 독립적인 최종 Safety 재검사는 수행하지 않는다.
+
+input_snapshot은 사용자 직접 식별자나 원시 체크인·건강·웨어러블·캘린더 값을 복제하지 않는다.
+대상 주 경계, source report 상태, revision 순서·source, 정규화된 시간·장소·장비 제약,
+SafetyAgent opinion code와 제외 운동 참조, routine version evidence만 저장한다.
 
 ---
 
@@ -1108,6 +1119,7 @@ users
   ├─ 1:N decision_runs
   ├─ 1:N workout_sessions
   └─ 1:N user_weeks ─ 1:0..1 weekly_reports
+                    └─ 1:N weekly_plan_revisions
 
 decision_runs
   ├─ 1:4 agent_proposals (Training, Recovery, Safety, Feasibility)
@@ -1137,6 +1149,7 @@ decision_runs
 - exercise_safety_rules(body_area_code, minimum_severity_code, review_status_code)
 - user_weeks(user_id, week_start_local_date)
 - weekly_reports(user_week_id, status_code)
+- weekly_plan_revisions(target_user_week_id, created_at)
 - manual_activity_records(user_id, created_at) — MVP 이후 인덱스
 
 필수 CHECK:
@@ -1151,7 +1164,7 @@ decision_runs
 - plan이 있는 최종 option은 승인된 safety review를 가져야 함
 - 사용자의 USER_OVERRIDE 없이 requested_duration_minutes 변경 금지
 - plan이 있는 후보의 estimated_duration_seconds = requested_duration_minutes * 60
-- weekly_plan_revisions의 ai_revision_number는 null, 1, 2 중 하나
+- weekly_plan_revisions의 성공 AI ai_revision_number는 1 또는 2이고 비성공 AI·INITIAL·USER는 null
 
 마지막 조건처럼 여러 테이블을 참조하는 규칙은 서비스 계층과 통합 테스트로 보장한다.
 
