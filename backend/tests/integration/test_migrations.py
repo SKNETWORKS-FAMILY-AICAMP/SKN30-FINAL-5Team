@@ -5,6 +5,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.engine import make_url
 
 from backend.app.core.config import get_settings
@@ -12,11 +13,15 @@ from backend.app.core.config import get_settings
 ALEMBIC_CONFIG = Path("backend/alembic.ini")
 
 
-def test_migration_history_has_account_deletion_retention_head() -> None:
+def test_migration_history_has_calendar_persistence_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0012_account_deletion_retention"]
+    assert scripts.get_heads() == ["0013_calendar_persistence"]
+    assert scripts.get_revision("0013_calendar_persistence").down_revision == (
+        "0012_account_deletion_retention"
+    )
+    assert all(len(revision.revision) <= 32 for revision in scripts.walk_revisions())
     assert scripts.get_revision("0012_account_deletion_retention").down_revision == (
         "0011_weekly_plan_revisions"
     )
@@ -55,5 +60,28 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
     get_settings.cache_clear()
     config = Config(str(ALEMBIC_CONFIG))
     command.upgrade(config, "head")
+    engine = create_engine(test_database_url)
+    try:
+        inspector = inspect(engine)
+        assert {
+            "calendar_connections",
+            "calendar_event_links",
+            "calendar_oauth_requests",
+            "calendar_rate_limit_counters",
+        }.issubset(inspector.get_table_names())
+        assert {column["name"] for column in inspector.get_columns("calendar_connections")} == {
+            "id",
+            "user_id",
+            "provider_code",
+            "provider_subject",
+            "token_secret_ref",
+            "status_code",
+            "granted_at",
+            "revoked_at",
+            "created_at",
+            "updated_at",
+        }
+    finally:
+        engine.dispose()
     command.downgrade(config, "base")
     command.upgrade(config, "head")
