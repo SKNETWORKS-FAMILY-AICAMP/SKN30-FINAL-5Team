@@ -8,13 +8,20 @@ from enum import StrEnum
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from backend.app.domain.rules.workout_execution import WorkoutSessionStatusCode
+from backend.app.domain.rules.workout_execution import (
+    TERMINAL_WORKOUT_SESSION_STATUSES,
+    WorkoutSessionStatusCode,
+)
 
-EXTERNAL_CONTEXT_POLICY_VERSION = "external-context-policy-v1"
+EXTERNAL_CONTEXT_POLICY_VERSION = "external-context-policy-v2"
 CALENDAR_AVAILABILITY_SCHEMA_VERSION = "calendar-availability-v1"
-CALENDAR_PERFORMANCE_SCHEMA_VERSION = "calendar-performance-v1"
+CALENDAR_PERFORMANCE_SCHEMA_VERSION = "calendar-performance-v2"
+CALENDAR_CREDENTIAL_SCHEMA_VERSION = "calendar-credential-v1"
 GOOGLE_CALENDAR_FREEBUSY_SCOPE = "https://www.googleapis.com/auth/calendar.freebusy"
 GOOGLE_CALENDAR_APP_CREATED_SCOPE = "https://www.googleapis.com/auth/calendar.app.created"
+GOOGLE_PRIMARY_CALENDAR_ID = "primary"
+GOOGLE_APP_CALENDAR_SUMMARY = "헬끼 운동 일정"
+GOOGLE_WORKOUT_EVENT_SUMMARY = "헬끼 운동"
 CALENDAR_RATE_LIMIT_WINDOW = timedelta(hours=1)
 CALENDAR_AVAILABILITY_RATE_LIMIT = 30
 CALENDAR_TOTAL_RATE_LIMIT = 60
@@ -33,11 +40,13 @@ class CalendarProviderCode(StrEnum):
 
 class CalendarConnectionStatusCode(StrEnum):
     ACTIVE = "ACTIVE"
+    REVOKE_PENDING = "REVOKE_PENDING"
     REVOKED = "REVOKED"
 
 
 class CalendarOperationCode(StrEnum):
-    CONNECTION = "CONNECTION"
+    AUTHORIZE_INIT = "AUTHORIZE_INIT"
+    CONNECTION_EXCHANGE = "CONNECTION_EXCHANGE"
     AVAILABILITY = "AVAILABILITY"
     EVENT_CREATE = "EVENT_CREATE"
     PERFORMANCE = "PERFORMANCE"
@@ -84,25 +93,6 @@ class ExternalContextContractError(ValueError):
     def __init__(self, code: CalendarFailureCode) -> None:
         self.code = code
         super().__init__(code)
-
-
-class ScheduledWorkoutStatusCode(StrEnum):
-    SCHEDULED = "SCHEDULED"
-    STARTED = "STARTED"
-    COMPLETED = "COMPLETED"
-    PARTIAL = "PARTIAL"
-    NOT_COMPLETED = "NOT_COMPLETED"
-    REST_SELECTED = "REST_SELECTED"
-
-
-FINAL_SCHEDULED_WORKOUT_STATUSES = frozenset(
-    {
-        ScheduledWorkoutStatusCode.COMPLETED,
-        ScheduledWorkoutStatusCode.PARTIAL,
-        ScheduledWorkoutStatusCode.NOT_COMPLETED,
-        ScheduledWorkoutStatusCode.REST_SELECTED,
-    }
-)
 
 
 def _require_aware(value: datetime, *, field_name: str) -> None:
@@ -194,8 +184,11 @@ class CalendarConnectionState:
     def __post_init__(self) -> None:
         if self.revoked_at is not None:
             _require_aware(self.revoked_at, field_name="revoked_at")
-        if self.status_code is CalendarConnectionStatusCode.ACTIVE and self.revoked_at is not None:
-            raise ValueError("active calendar connection cannot have revoked_at")
+        if (
+            self.status_code is not CalendarConnectionStatusCode.REVOKED
+            and self.revoked_at is not None
+        ):
+            raise ValueError("non-revoked calendar connection cannot have revoked_at")
         if self.status_code is CalendarConnectionStatusCode.REVOKED and self.revoked_at is None:
             raise ValueError("revoked calendar connection requires revoked_at")
 
@@ -221,9 +214,26 @@ def request_calendar_disconnect(
         action_code=CalendarDisconnectActionCode.DESTROY_SECRET_LOCALLY,
         state=replace(
             state,
-            status_code=CalendarConnectionStatusCode.REVOKED,
-            revoked_at=requested_at,
+            status_code=CalendarConnectionStatusCode.REVOKE_PENDING,
+            revoked_at=None,
         ),
+    )
+
+
+def complete_calendar_disconnect(
+    state: CalendarConnectionState,
+    *,
+    completed_at: datetime,
+) -> CalendarConnectionState:
+    """Finalize revocation only after the local credential has been destroyed."""
+
+    _require_aware(completed_at, field_name="completed_at")
+    if state.status_code is not CalendarConnectionStatusCode.REVOKE_PENDING:
+        raise ValueError("calendar disconnect completion requires revoke-pending state")
+    return replace(
+        state,
+        status_code=CalendarConnectionStatusCode.REVOKED,
+        revoked_at=completed_at,
     )
 
 
@@ -477,19 +487,19 @@ def calculate_calendar_availability(
 
 @dataclass(frozen=True, slots=True)
 class OfficialWorkoutState:
-    scheduled_workout_id: UUID
+    workout_session_id: UUID
     status_code: WorkoutSessionStatusCode
 
 
 @dataclass(frozen=True, slots=True)
-class ScheduledWorkoutState:
-    scheduled_workout_id: UUID
-    status_code: ScheduledWorkoutStatusCode
+class WorkoutSessionState:
+    workout_session_id: UUID
+    status_code: WorkoutSessionStatusCode
 
 
 @dataclass(frozen=True, slots=True)
 class CalendarPerformanceObservation:
-    scheduled_workout_id: UUID
+    workout_session_id: UUID
     performed: bool | None
     performance_checked_at: datetime | None
 
@@ -500,11 +510,11 @@ class CalendarPerformanceObservation:
 
 def google_calendar_performance_observation(
     *,
-    scheduled_workout_id: UUID,
+    workout_session_id: UUID,
     performance_checked_at: datetime,
 ) -> CalendarPerformanceObservation:
     return CalendarPerformanceObservation(
-        scheduled_workout_id=scheduled_workout_id,
+        workout_session_id=workout_session_id,
         performed=None,
         performance_checked_at=performance_checked_at,
     )
@@ -524,12 +534,12 @@ class PerformanceRecheckDecision:
 
 def evaluate_performance_recheck(
     *,
-    scheduled_workout_state: ScheduledWorkoutState,
+    workout_session_state: WorkoutSessionState,
     performance_checked_at: datetime | None,
     requested_at: datetime,
 ) -> PerformanceRecheckDecision:
     _require_aware(requested_at, field_name="requested_at")
-    if scheduled_workout_state.status_code not in FINAL_SCHEDULED_WORKOUT_STATUSES:
+    if workout_session_state.status_code not in TERMINAL_WORKOUT_SESSION_STATUSES:
         raise ValueError("performance checks require a finalized official workout status")
     if performance_checked_at is None:
         return PerformanceRecheckDecision(allowed=True, retry_after=None)
@@ -550,8 +560,8 @@ def preserve_official_workout_state(
 ) -> OfficialWorkoutState:
     """Return the immutable official state unchanged after observing calendar context."""
 
-    if official_workout_state.scheduled_workout_id != observation.scheduled_workout_id:
-        raise ValueError("calendar observation must reference the same scheduled workout")
+    if official_workout_state.workout_session_id != observation.workout_session_id:
+        raise ValueError("calendar observation must reference the same workout session")
     return official_workout_state
 
 
@@ -578,7 +588,10 @@ FORBIDDEN_CALENDAR_FIELDS = frozenset(
         "location",
         "organizer",
         "creator",
+        "email",
+        "full_name",
         "conference_data",
+        "meeting_link",
         "hangout_link",
         "calendar_id",
         "external_event_id",
@@ -586,9 +599,20 @@ FORBIDDEN_CALENDAR_FIELDS = frozenset(
         "access_token",
         "refresh_token",
         "authorization_code",
+        "authorization_url",
+        "state",
+        "code_verifier",
+        "code_challenge_s256",
+        "redirect_uri",
         "token_secret_ref",
+        "secondary_calendar_id",
+        "notes",
+        "recurrence",
+        "reminders",
+        "extended_properties",
         "raw_payload",
         "raw_response",
+        "raw_token_response",
         "raw_error",
     }
 )
@@ -603,14 +627,17 @@ __all__ = [
     "AVAILABILITY_BUFFER",
     "CALENDAR_AVAILABILITY_RATE_LIMIT",
     "CALENDAR_AVAILABILITY_SCHEMA_VERSION",
+    "CALENDAR_CREDENTIAL_SCHEMA_VERSION",
     "CALENDAR_PERFORMANCE_SCHEMA_VERSION",
     "CALENDAR_RATE_LIMIT_WINDOW",
     "CALENDAR_TOTAL_RATE_LIMIT",
     "EXTERNAL_CONTEXT_POLICY_VERSION",
-    "FINAL_SCHEDULED_WORKOUT_STATUSES",
     "FORBIDDEN_CALENDAR_FIELDS",
     "GOOGLE_CALENDAR_APP_CREATED_SCOPE",
     "GOOGLE_CALENDAR_FREEBUSY_SCOPE",
+    "GOOGLE_APP_CALENDAR_SUMMARY",
+    "GOOGLE_PRIMARY_CALENDAR_ID",
+    "GOOGLE_WORKOUT_EVENT_SUMMARY",
     "MANUAL_FALLBACK",
     "MAX_AVAILABILITY_SLOTS",
     "PERFORMANCE_RECHECK_INTERVAL",
@@ -640,11 +667,11 @@ __all__ = [
     "OfficialWorkoutState",
     "PerformanceRecheckDecision",
     "ProviderBusyInterval",
-    "ScheduledWorkoutState",
-    "ScheduledWorkoutStatusCode",
+    "WorkoutSessionState",
     "calculate_calendar_availability",
     "calendar_performance_guidance",
     "classify_calendar_provider_failure",
+    "complete_calendar_disconnect",
     "commit_calendar_connection_mutation",
     "evaluate_calendar_access",
     "evaluate_calendar_rate_limit",

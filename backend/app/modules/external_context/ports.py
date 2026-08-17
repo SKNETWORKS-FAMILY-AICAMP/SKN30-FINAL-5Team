@@ -3,10 +3,7 @@ from datetime import UTC, date, datetime
 from typing import Protocol
 from uuid import UUID
 
-from backend.app.domain.rules.external_context import (
-    CalendarPerformanceObservation,
-    ProviderBusyInterval,
-)
+from backend.app.domain.rules.external_context import ProviderBusyInterval
 
 
 class CalendarProviderUnavailableError(Exception):
@@ -19,7 +16,7 @@ class CalendarProviderPermissionDeniedError(Exception):
 
 @dataclass(frozen=True, slots=True)
 class CalendarEventCreate:
-    scheduled_workout_id: UUID
+    workout_session_id: UUID
     start_at: datetime
     end_at: datetime
 
@@ -50,14 +47,6 @@ class CalendarProviderPort(Protocol):
     ) -> tuple[ProviderBusyInterval, ...]: ...
 
     def create_workout_event(self, request: CalendarEventCreate) -> CalendarEventReference: ...
-
-    def get_performance(
-        self,
-        *,
-        scheduled_workout_id: UUID,
-        external_event_id: str,
-        checked_at: datetime,
-    ) -> CalendarPerformanceObservation: ...
 
 
 __all__ = [

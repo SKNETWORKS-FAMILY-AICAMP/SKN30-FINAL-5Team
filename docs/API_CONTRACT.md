@@ -306,10 +306,12 @@ health endpoint는 인증 없이 호출할 수 있지만 민감한 설정, DB �
 | POST | /api/v1/routines | 기본 루틴 생성 |
 | GET | /api/v1/routines/current?local_date=YYYY-MM-DD | 해당 날짜의 활성 루틴 |
 | POST | /api/v1/weeks/{week_start}/plan | 콜드스타트·최초 계획·다음 주 초기 계획 생성 (`INITIAL` revision) |
-| POST | /api/v1/calendar/connection | 캘린더 제공자 선택과 권한 연결 시작 |
+| POST | /api/v1/calendar/connection/authorize-init | Google Calendar OAuth state·PKCE 연결 시작 |
+| POST | /api/v1/calendar/connection | authorization code 교환과 연결 활성화 |
+| GET | /api/v1/calendar/connection | 현재 캘린더 연결 상태 조회 |
 | GET | /api/v1/calendar/availability?local_date=YYYY-MM-DD | 일정과 빈 시간 후보 조회 |
 | POST | /api/v1/calendar/events | 운동 계획을 캘린더에 등록 |
-| GET | /api/v1/calendar/performance?local_date=YYYY-MM-DD | 등록된 운동 일정의 수행 여부만 확인 |
+| GET | /api/v1/calendar/performance?workout_session_id=UUID | 등록된 운동 일정의 보조 수행 관찰값 확인 |
 | DELETE | /api/v1/calendar/connection | 캘린더 연동 해제 |
 | POST | /api/v1/wearables/connection | 웨어러블 기기 선택과 인증 연결 시작 |
 | POST | /api/v1/wearables/sync | 웨어러블 요약·동기화 실행 및 상태 반환 |
@@ -324,7 +326,7 @@ exercise 목록 전체와 카탈로그 관리 API는 초기 공개 API에 포함
 캘린더:
 
 ~~~text
-[PROPOSED ADR-0010]
+[PROPOSED ADR-0010, external-context-policy-v2]
 POST /api/v1/calendar/connection/authorize-init
 CalendarConnectionAuthorizeInitRequest
 - provider_code: GOOGLE_CALENDAR
@@ -339,38 +341,86 @@ CalendarConnectionAuthorizeInitResponse
 
 POST /api/v1/calendar/connection
 CalendarConnectionRequest
-- provider_code: string
+- provider_code: GOOGLE_CALENDAR
 - authorization_code: string
-- state: string (`PROPOSED` ADR-0010, 승인 뒤 additive 적용)
-- code_verifier: string (`PROPOSED` ADR-0010, 승인 뒤 Google Calendar에서 필수)
+- state: string
+- code_verifier: string
 - consent_version: string
+
+CalendarConnectionResponse
+- connection_id: UUID
+- provider_code: GOOGLE_CALENDAR
+- status_code: ACTIVE
+- granted_at: datetime
+- policy_version: external-context-policy-v2
+
+GET /api/v1/calendar/connection
+CalendarConnectionStatusResponse
+- connection_id: UUID | null
+- provider_code: GOOGLE_CALENDAR
+- status_code: ACTIVE | REVOKE_PENDING | REVOKED | NOT_CONNECTED
+- granted_at: datetime | null
+- revoked_at: datetime | null
 
 CalendarAvailabilityResponse
 - local_date: date
 - timezone: IANA timezone
+- source_code: CALENDAR
+- freshness_code: LIVE
+- generated_at: datetime
+- policy_version: external-context-policy-v2
+- schema_version: calendar-availability-v1
 - slots: {start_at: datetime, end_at: datetime}[]
 
 POST /api/v1/calendar/events
 CalendarEventCreateRequest
-- decision_id: UUID
-- option_id: UUID
+- workout_session_id: UUID
+- start_at: datetime
+
+CalendarEventCreateResponse
+- event_link_id: UUID
+- workout_session_id: UUID
 - start_at: datetime
 - end_at: datetime
+- created_at: datetime
 
 CalendarPerformanceResponse
-- scheduled_workout_id: UUID
+- workout_session_id: UUID
 - performed: boolean | null
 - performance_checked_at: datetime | null
+- guidance_code: CALENDAR_PERFORMANCE_UNAVAILABLE
+- policy_version: external-context-policy-v2
+- schema_version: calendar-performance-v2
+
+DELETE /api/v1/calendar/connection
+CalendarConnectionDeleteResponse
+- connection_id: UUID | null
+- provider_code: GOOGLE_CALENDAR
+- status_code: REVOKED | NOT_CONNECTED
+- revoked_at: datetime | null
+- remote_calendar_retained: true
 ~~~
 
-`CALENDAR_INTEGRATION` 동의와 외부 권한이 없으면 연결·조회·등록·수행 여부 확인을 수행하지 않는다. 일정 본문 텍스트는 저장하지 않고, 캘린더에는 운동 계획 일정만 등록한다. 캘린더에서는 등록된 운동 일정의 수행 여부만 확인할 수 있으며 세부 운동·수행 시간·강도 기록은 저장하지 않는다. 확인 결과는 보조 자료로만 사용하고 공식 운동 수행 상태를 변경하지 않는다. 권한 거부·조회 실패·등록 실패·수행 여부 확인 실패는 상태와 안내만 반환하며 운동 계획을 삭제하거나 임의 변경하지 않는다. 특정 요일을 필수 운동일로 강제하지 않는다.
+authorize-init은 raw state를 저장하지 않으므로 `Idempotency-Key`를 받지 않는다. 호출마다 이전 미소비
+flow를 폐기하고 새 600초 state를 발급하며 client는 마지막 응답만 사용한다. event create는 UUID
+`Idempotency-Key`가 필수이고 같은 key와 같은 요청은 최초 응답을 반환하며 다른 요청은
+`409 IDEMPOTENCY_KEY_REUSED`다. connection exchange는 single-use state가 at-most-once mutation key이며
+성공 여부와 관계없이 provider 호출 전에 소비된다. 반복 요청은 `422 INVALID_OAUTH_STATE`다. delete는
+현재 connection 기준 멱등이며 미연결·이미 해제 상태에서도 성공 no-op이다.
+
+`CALENDAR_INTEGRATION` 동의와 외부 권한이 없으면 연결·조회·등록·수행 여부 확인을 수행하지 않는다.
+일정 본문 텍스트는 저장하지 않고, 캘린더에는 운동 계획 일정만 등록한다. 권한 거부·조회 실패·등록
+실패·수행 여부 확인 실패는 상태와 안내만 반환하며 운동 계획을 삭제하거나 임의 변경하지 않는다.
+특정 요일을 필수 운동일로 강제하지 않는다.
 
 Wave 9C의 첫 provider는 Google Calendar API v3(`GOOGLE_CALENDAR`)다. 실제 adapter는
-`PROPOSED` ADR-0010 승인 뒤 추가한다. availability는 `POST /calendar/v3/freeBusy`와
+`PROPOSED` ADR-0010 승인 뒤 추가한다. availability는 literal `primary` calendar 하나를
+`POST /calendar/v3/freeBusy`와
 `https://www.googleapis.com/auth/calendar.freebusy`, 운동 이벤트는 앱이 만든 보조 캘린더에 한정하는
 `https://www.googleapis.com/auth/calendar.app.created`만 사용한다. event list와 일정 제목·설명·참석자·
-위치·organizer·creator를 조회하지 않는다. 사용자 timezone은 저장된 IANA timezone을 사용하며
-`calendar.settings.readonly`를 요청하지 않는다.
+위치·organizer·creator 및 CalendarList를 조회하지 않는다. 사용자 timezone은 저장된 IANA timezone을
+사용하며 `calendar.settings.readonly`를 요청하지 않는다. secondary/shared calendar를 합산하지 않는
+MVP 제한은 응답 UI에 표시한다.
 
 동기화는 on-demand pull 전용이고 availability를 cache하지 않으므로 stale 판정이 없다. webhook, push,
 polling worker와 scheduler를 사용하지 않는다. 사용자별 availability는 30회/시간, calendar endpoint
@@ -388,15 +438,24 @@ timeout과 5xx는 원문 없이 `503 PROVIDER_UNAVAILABLE`로 처리하고 수�
 결과는 사용자의 명시적 가능 시간, REST 선택, 기존 routine 또는 safety veto를 덮어쓰지 않는다.
 
 Google Calendar에는 운동 수행 여부 필드가 없으므로 `performed`는 항상 `null`이다. 확인은 공식
-scheduled workout 종료 상태 이후에만 허용하고 같은 link는 `performance_checked_at`부터 10분 뒤에
-재확인할 수 있다. 일정의 confirmed/tentative/cancelled 또는 삭제를 수행 여부로 해석하지 않는다.
+workout session이 `COMPLETED/PARTIAL/NOT_COMPLETED/STOPPED_FOR_SAFETY`가 된 뒤에만 허용하고 같은
+link는 `performance_checked_at`부터 10분 뒤에 재확인할 수 있다. Google event를 다시 조회하지 않으며
+일정의 confirmed/tentative/cancelled 또는 삭제를 수행 여부로 해석하지 않는다.
 
-연동 해제는 로컬 상태를 `REVOKED`로 바꾸고 secret을 파기하는 멱등 처리다. Firebase 로그인과 동일한
-Google Cloud project를 공유하므로 Calendar 해제에서 Google token revoke endpoint를 호출하지 않는다.
+운동 이벤트는 사용자 소유 `PLANNED` workout session에만 생성한다. client는 `workout_session_id`와
+`start_at`만 보내며 server가 선택된 계획의 요청 시간으로 `end_at`을 계산한다. 보조 캘린더와 이벤트의
+고정 summary는 각각 `헬끼 운동 일정`, `헬끼 운동`이고 그 밖의 본문·위치·참석자·회의 링크·메모는
+보내지 않는다.
 
-ADR-0010은 600초 single-use server-issued state와 PKCE S256을 제안한다. 승인 뒤 additive
-`POST /api/v1/calendar/connection/authorize-init` 계약을 추가하고 `CalendarConnectionRequest`의
-`state`·`code_verifier`를 활성화한다. 승인 전에는 해당 route와 Google adapter를 제공하지 않는다.
+연동 해제는 먼저 `REVOKE_PENDING`으로 provider 접근을 막고 secret 파기 뒤 `REVOKED`로 확정하는
+멱등 처리다. Firebase 로그인과 동일한 Google Cloud project를 공유하므로 Calendar 해제에서 Google
+token revoke endpoint를 호출하지 않는다. 원격 보조 캘린더와 기존 이벤트는 남고 사용자가 Google
+Calendar에서 직접 삭제할 수 있음을 UI가 안내한다.
+
+Calendar OAuth는 9B 구현에 의존하지 않는 전용 transient row를 사용한다. 모바일은 state와 verifier를
+OS 보안 저장소에 최대 600초만 보관하고 callback 직후 삭제한다. raw state·verifier·code·token은
+DB·일반 저장소·로그·analytics·crash report에 포함하지 않는다. 승인 전에는 해당 route와 Google
+adapter를 제공하지 않는다.
 
 웨어러블:
 
@@ -1480,7 +1539,7 @@ SafetySummary
 | 401 | AUTHENTICATION_REQUIRED, INVALID_TOKEN, INVALID_PROVIDER_TOKEN, PROVIDER_TOKEN_EXPIRED, PROVIDER_ISSUER_MISMATCH, PROVIDER_AUDIENCE_MISMATCH, PROVIDER_SUBJECT_MISSING |
 | 403 | ACCOUNT_DISABLED, AGE_REQUIREMENT_NOT_MET |
 | 404 | RESOURCE_NOT_FOUND, ROUTINE_NOT_FOUND, DAILY_CONTEXT_NOT_FOUND |
-| 409 | STALE_CONTEXT, INVALID_STATE_TRANSITION, OPTION_NOT_SELECTABLE, IDEMPOTENCY_KEY_REUSED, ROUTINE_VERSION_CONFLICT, AUTHORIZATION_CODE_REUSED, IDENTITY_ALREADY_LINKED, LAST_IDENTITY_UNLINK_FORBIDDEN, WEEK_NOT_CLOSED, REPORT_ACKNOWLEDGEMENT_REQUIRED, AI_REVISION_LIMIT_REACHED, CONSENT_REQUIRED, WEARABLE_NOT_CONNECTED, CALENDAR_NOT_CONNECTED |
+| 409 | STALE_CONTEXT, INVALID_STATE_TRANSITION, OPTION_NOT_SELECTABLE, IDEMPOTENCY_KEY_REUSED, ROUTINE_VERSION_CONFLICT, AUTHORIZATION_CODE_REUSED, IDENTITY_ALREADY_LINKED, LAST_IDENTITY_UNLINK_FORBIDDEN, WEEK_NOT_CLOSED, REPORT_ACKNOWLEDGEMENT_REQUIRED, AI_REVISION_LIMIT_REACHED, CONSENT_REQUIRED, WEARABLE_NOT_CONNECTED, CALENDAR_NOT_CONNECTED, CALENDAR_EVENT_ALREADY_LINKED |
 | 422 | INVALID_DOMAIN_CODE, INVALID_DURATION, ROUTINE_DURATION_UNAVAILABLE, ROUTINE_CONTENT_UNAVAILABLE, DUPLICATE_BODY_AREA, INVALID_DATE_OF_BIRTH, NEEDS_INPUT, INVALID_WEEK_START, INVALID_OAUTH_STATE, OAUTH_STATE_EXPIRED |
 | 429 | RATE_LIMITED |
 | 500 | INTERNAL_ERROR, DECISION_FAILED |

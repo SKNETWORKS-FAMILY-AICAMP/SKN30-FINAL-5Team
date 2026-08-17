@@ -649,18 +649,27 @@ training type에서 목표·처방을 추론하지 않는다.
 | user_id | users FK |
 | provider_code | 캘린더 제공자 코드 |
 | provider_subject | 외부 계정의 불변 subject, nullable |
-| token_secret_ref | secret manager token 참조, nullable (`PROPOSED` ADR-0010; token 원문 금지) |
-| status_code | ACTIVE, REVOKED |
+| token_secret_ref | opaque logical secret 참조, nullable (`calendar-credential-v1`; token 원문 금지) |
+| status_code | ACTIVE, REVOKE_PENDING, REVOKED |
 | granted_at | 권한 부여 시각 |
 | revoked_at | 연동 해제 시각, nullable |
 | created_at | 생성 시각 |
+| updated_at | 최종 갱신 시각 |
 
-외부 access/refresh token과 캘린더 본문 텍스트는 저장하지 않는다. `token_secret_ref`는 실제 token이
-아니라 secret manager 참조만 허용하며 ADR-0010 승인과 additive migration 전에는 논리 제안 필드다.
+외부 access/refresh token, 보조 calendar ID와 캘린더 본문 텍스트는 PostgreSQL에 저장하지 않는다.
+`token_secret_ref`는 `calendar-credential://{environment}/{connection_id}` 형식의 opaque logical
+reference만 허용한다. 실제 secret-manager path나 ARN은 DB·API·로그에 넣지 않는다. ACTIVE는
+`token_secret_ref`가 필수이고 `revoked_at`이 null이며, REVOKED는 secret ref가 null이고
+`revoked_at`이 필수다. `(user_id, provider_code)` ACTIVE partial unique index와 secret ref unique를 둔다.
+Google은 openid/profile scope를 요청하지 않으므로 `provider_subject`는 null이다.
+
+`calendar-credential-v1` secret에는 refresh token, 앱 보조 calendar ID, 허용 scope code와 생성·갱신
+시각만 허용한다. access token은 요청 메모리에만 둔다.
+
 `CALENDAR_INTEGRATION` 동의가 없거나 철회된 상태에서는 연결·조회·등록을 처리하지 않으며, 동의 철회
 또는 연동 해제 시 동기화를 즉시 중단한다. Google freebusy 원본 payload는 영속화하지 않는다.
-연동 해제는 `REVOKED` 전환과 secret 파기를 로컬에서 완료한다. Firebase 로그인과 동일한 Google Cloud
-project에서는 Calendar 단독 remote token revoke를 호출하지 않는다.
+연동 해제는 `REVOKE_PENDING`으로 접근을 차단하고 secret 파기 뒤 `REVOKED`로 완료한다. Firebase
+로그인과 동일한 Google Cloud project에서는 Calendar 단독 remote token revoke를 호출하지 않는다.
 
 ### 6.6 calendar_event_links
 
@@ -668,15 +677,56 @@ project에서는 Calendar 단독 remote token revoke를 호출하지 않는다.
 |---|---|
 | id | UUID, PK |
 | calendar_connection_id | calendar_connections FK |
-| scheduled_workout_id | scheduled_workouts FK |
+| workout_session_id | workout_sessions FK, unique |
 | external_event_id | 외부 이벤트 식별자 |
 | start_at | 등록한 운동 시작 시각 |
 | end_at | 등록한 운동 종료 시각 |
 | performed | 등록된 운동 일정의 수행 여부 확인값, nullable |
 | performance_checked_at | 수행 여부 확인 시각, nullable |
 | created_at | 등록 시각 |
+| updated_at | 최종 갱신 시각 |
 
-캘린더 이벤트는 시간 후보와 계획 등록을 위한 보조 기록이다. 등록된 운동 일정에 대해서는 `performed` 여부와 확인 시각만 확인·저장할 수 있고 세부 운동·수행 시간·강도 기록은 저장하지 않는다. Google Calendar는 수행 여부를 제공하지 않으므로 `performed`는 항상 `null`이다. `external_event_id`는 Google Event `id`의 5~1024자를 허용하고 `iCalUID`와 혼용하지 않는다. 확인 결과는 운동 세션의 공식 상태를 생성하거나 변경하지 않는다. 웨어러블 운동 데이터로 캘린더 이벤트를 자동 생성하거나 갱신하지 않는다.
+캘린더 이벤트는 시간 후보와 계획 등록을 위한 보조 기록이다. `workout_session_id`와
+`(calendar_connection_id, external_event_id)`는 각각 unique이고 `end_at > start_at` CHECK를 둔다.
+등록된 운동 일정에 대해서는 `performed`와 확인 시각만 저장할 수 있고 세부 운동·수행 시간·강도
+기록은 저장하지 않는다. Google Calendar는 수행 여부를 제공하지 않으므로 `performed`는 항상
+`null`이다. `external_event_id`는 Google Event `id`의 5~1024자를 허용하고 `iCalUID`와 혼용하지
+않는다. 확인 결과는 연결된 workout session의 공식 상태를 생성하거나 변경하지 않는다. 웨어러블
+운동 데이터로 캘린더 이벤트를 자동 생성하거나 갱신하지 않는다.
+
+### 6.7 calendar_oauth_requests
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| user_id | users FK, CASCADE |
+| provider_code | GOOGLE_CALENDAR |
+| state_digest | server state SHA-256 hex, unique |
+| redirect_uri_key | server allowlist key; raw URI 금지 |
+| code_challenge_s256 | client PKCE S256 challenge |
+| consent_version | authorize-init 시 활성 동의 version |
+| created_at | 생성 시각 |
+| expires_at | 생성 후 600초 |
+
+`(user_id, provider_code)`는 unique다. 새 authorize-init은 기존 미소비 row를 삭제하고 대체한다. raw
+state, verifier, authorization code, redirect URI와 token은 저장하지 않는다. callback transaction은
+row를 잠그고 user·digest·redirect key·expiry·PKCE를 검증한 뒤 provider 호출 전에 row를 삭제·commit한다.
+만료 row는 최대 24시간 이내 cleanup한다.
+
+### 6.8 calendar_rate_limit_counters
+
+| 컬럼 | 설명 |
+|---|---|
+| user_id | users FK, CASCADE |
+| bucket_code | TOTAL, AVAILABILITY |
+| count | 현재 fixed-window count, 0 이상 |
+| window_started_at | window 시작 시각 |
+| window_ends_at | window 종료 시각 |
+| updated_at | 마지막 원자 갱신 시각 |
+
+`(user_id, bucket_code)`가 PK다. `window_ends_at > window_started_at`과 non-negative count CHECK를 둔다.
+row lock 또는 원자 upsert로 provider 호출 전에 증가시키며 provider transaction과 분리 commit한다.
+provider 실패로 counter를 rollback하지 않는다. account deletion 때 CASCADE한다.
 
 ---
 
@@ -1295,6 +1345,13 @@ decision_runs
 - daily_contexts(user_id, local_date)
 - routines(user_id, status_code, effective_from)
 - scheduled_workouts(user_id, scheduled_local_date, status_code)
+- calendar_connections(user_id, provider_code) UNIQUE WHERE status_code = ACTIVE
+- calendar_connections(token_secret_ref) UNIQUE WHERE token_secret_ref IS NOT NULL
+- calendar_event_links(workout_session_id) UNIQUE
+- calendar_event_links(calendar_connection_id, external_event_id) UNIQUE
+- calendar_oauth_requests(state_digest) UNIQUE
+- calendar_oauth_requests(user_id, provider_code) UNIQUE
+- calendar_rate_limit_counters(user_id, bucket_code) PRIMARY KEY
 - wearable_connections(user_id, status_code)
 - wearable_sync_runs(wearable_connection_id, status_code, requested_at)
 - wearable_summaries(user_id, local_date, provider_code)
@@ -1330,10 +1387,13 @@ decision_runs
 `ACCEPTED` ADR-0008과 `account-deletion-policy-v1`에 따른 계정 삭제 절차:
 
 1. 한 트랜잭션에서 `users.status_code=DELETION_PENDING`과 단 하나의 request/job을 만들고 접근·동기화를 차단한다.
-2. job을 요청 즉시 시작하고 Firebase 계정과 외부 연동 해제를 시도한다.
+2. job을 요청 즉시 시작하고 Firebase 계정과 외부 연동 해제를 시도한다. Calendar는 provider revoke가
+   아니라 `REVOKE_PENDING` 전환과 secret-manager credential 파기를 수행한다.
 3. provider 실패는 7일 기한 전까지 재시도한다. 기한까지 실패하면 `FAILED_FINAL`로 확정한다.
 4. provider 결과와 무관하게 firebase principal, provider identity와 생년월일을 포함한 운영 DB
-   사용자 연결 데이터를 7일 이내 hard delete한다.
+   사용자 연결 데이터를 7일 이내 hard delete한다. Calendar secret은 애플리케이션이 관리하는 로컬
+   credential이므로 hard delete 완료 전에 반드시 파기하고, 실패하면 deadline 위험 incident로
+   재시도·에스컬레이션한다.
 5. 사용자 cache·work payload를 삭제하고 감사 레코드를 opaque 필드로 비식별화한다.
 6. restore-block keyed-digest tombstone으로 backup 복원 시 접근과 재삭제를 강제한다.
 7. AWS 운영 증적으로 마지막 관련 recovery point 만료를 확인한 뒤 job을 최종 완료한다.
