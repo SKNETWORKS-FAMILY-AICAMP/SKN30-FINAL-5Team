@@ -290,7 +290,7 @@ suite는 미연동, 권한 거부, `performed=true`, Google `performed=null`, pr
 종일 busy, 명시적 수동 가능 시간 우선과 REST 무압박을 고정한다. privacy test는 observability
 allowlist와 금지 field 비노출을 검증한다.
 
-ADR-0010 승인 뒤 9C-2는 OAuth 600초 state·PKCE, secret reference, provider 호출 전 rate limit,
+`ACCEPTED` ADR-0010에 따라 9C-2는 OAuth 600초 state·PKCE, secret reference, provider 호출 전 rate limit,
 연결·동기화·해제 멱등성, transaction rollback, PostgreSQL/Alembic round trip과 합성 Google HTTP
 응답 adapter test를 추가한다. 특히 다음을 필수로 검증한다.
 

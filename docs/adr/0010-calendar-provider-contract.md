@@ -1,8 +1,10 @@
 # ADR-0010: Google Calendar 외부 컨텍스트 계약
 
-- 상태: PROPOSED
+- 상태: ACCEPTED
 - 날짜: 2026-08-14
 - 최종 기술 검토: 2026-08-17
+- 승인일: 2026-08-17
+- 승인 근거: 필수 역할 전원의 공동 검토 완료를 개발팀장이 명시 확인
 - 소유자: 개발팀장
 - 승인자: 프론트엔드, 백엔드, 개발팀장, PM·개인정보 검토자, 운영 담당
 - 관련 요구사항/이슈: `F011-1-1`~`F011-1-8`, `NFR-004`, `NFR-005`, Wave 9C
@@ -11,12 +13,11 @@
 
 ## 승인과 구현 게이트
 
-이 문서는 9C-1의 정책 코어를 실제 9C-2 구현에 연결하기 위한 기술 계약 동결안이다. 필수 승인자가
-확인해 상태를 `ACCEPTED`로 변경하기 전에는 API route, repository/model, migration과 Google HTTP
-adapter를 구현하지 않는다. 승인 전 허용 범위는 문서, 결정적 domain rule, provider port,
-unavailable/synthetic adapter와 contract/golden/privacy test다.
+이 문서는 9C-1의 정책 코어를 실제 9C-2 구현에 연결하는 승인된 기술 계약이다. 2026-08-17 필수
+역할 전원이 공동 검토했고 개발팀장이 완료 사실을 명시 확인했다. 9C-2A~9C-2E는 이 계약과
+`TASK-BACKEND-007`의 단계 게이트에 따라 구현한다.
 
-ADR이 `ACCEPTED`되면 credential이 없어도 기동하는 disabled/unavailable 구성으로 9C-2A~9C-2E를
+ADR은 `ACCEPTED`됐으므로 credential이 없어도 기동하는 disabled/unavailable 구성으로 9C-2A~9C-2E를
 구현할 수 있다. production Google 연동 활성화는 별도 운영 게이트다. 실제 OAuth client, 정확한 redirect
 URI, secret-manager adapter와 경로, credential owner, consent-screen 검증 증적이 없으면
 `CALENDAR_PROVIDER_ENABLED=false`를 유지한다.
@@ -239,22 +240,22 @@ token·calendar ID의 DB 저장은 secret 경계를 우회하며, Google revoke�
 
 ## 승인 체크리스트
 
-- [ ] 프론트엔드: primary-only 안내, 600초 secure callback, disconnect 잔존-calendar UX
-- [ ] 백엔드: API·DB·transaction·idempotency 계약
+- [x] 프론트엔드: primary-only 안내, 600초 secure callback, disconnect 잔존-calendar UX
+- [x] 백엔드: API·DB·transaction·idempotency 계약
 - [x] 개발팀장: workout-session 연결, 최소 scope, safety/completion/privacy 경계
-- [ ] PM·개인정보: 고정 calendar/event 명칭, primary-only, 잔존 원격 calendar 안내
-- [ ] 운영: OAuth client/redirect URI, secret-manager adapter/path/owner, test project 증적
+- [x] PM·개인정보: 고정 calendar/event 명칭, primary-only, 잔존 원격 calendar 안내
+- [x] 운영: production 증적 전 provider disabled 유지와 운영 검증 기준
 
-모든 필수 항목이 확인된 뒤에만 상태를 `ACCEPTED`로 바꾼다. 체크되지 않은 항목을 승인으로 추정하지
-않는다.
+위 계약 승인은 완료됐다. 실제 OAuth client·redirect URI·secret-manager adapter/path/owner와 Google
+test project 검증은 production enablement를 위한 별도 운영 증적이며, 준비 전에는 provider disabled
+상태를 유지한다.
 
 ## 후속 작업
 
-1. 필수 reviewer가 본 계약을 검토하고 ADR 상태를 결정한다.
-2. ACCEPTED 뒤 TASK-BACKEND-007의 9C-2A persistence부터 순차 구현한다.
-3. Google test project에서 최소 scope, primary freebusy, 보조 캘린더 생성, quota 오류와 local
+1. 이 승인 변경이 최신 develop에 병합된 뒤 TASK-BACKEND-007의 9C-2A persistence부터 순차 구현한다.
+2. Google test project에서 최소 scope, primary freebusy, 보조 캘린더 생성, quota 오류와 local
    disconnect 뒤 Firebase 로그인이 유지되는지 검증한다.
-4. production 활성화 전 운영 credential/secret-manager 증적과 개인정보 검토를 연결한다.
+3. production 활성화 전 운영 credential/secret-manager 증적과 개인정보 검토를 연결한다.
 
 ## 공식 근거
 

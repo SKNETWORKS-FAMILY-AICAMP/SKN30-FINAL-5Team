@@ -326,7 +326,7 @@ exercise 목록 전체와 카탈로그 관리 API는 초기 공개 API에 포함
 캘린더:
 
 ~~~text
-[PROPOSED ADR-0010, external-context-policy-v2]
+[ACCEPTED ADR-0010, external-context-policy-v2]
 POST /api/v1/calendar/connection/authorize-init
 CalendarConnectionAuthorizeInitRequest
 - provider_code: GOOGLE_CALENDAR
@@ -414,7 +414,8 @@ flow를 폐기하고 새 600초 state를 발급하며 client는 마지막 응답
 특정 요일을 필수 운동일로 강제하지 않는다.
 
 Wave 9C의 첫 provider는 Google Calendar API v3(`GOOGLE_CALENDAR`)다. 실제 adapter는
-`PROPOSED` ADR-0010 승인 뒤 추가한다. availability는 literal `primary` calendar 하나를
+`ACCEPTED` ADR-0010과 TASK-BACKEND-007의 단계에 따라 추가한다. availability는 literal `primary`
+calendar 하나를
 `POST /calendar/v3/freeBusy`와
 `https://www.googleapis.com/auth/calendar.freebusy`, 운동 이벤트는 앱이 만든 보조 캘린더에 한정하는
 `https://www.googleapis.com/auth/calendar.app.created`만 사용한다. event list와 일정 제목·설명·참석자·
@@ -454,8 +455,8 @@ Calendar에서 직접 삭제할 수 있음을 UI가 안내한다.
 
 Calendar OAuth는 9B 구현에 의존하지 않는 전용 transient row를 사용한다. 모바일은 state와 verifier를
 OS 보안 저장소에 최대 600초만 보관하고 callback 직후 삭제한다. raw state·verifier·code·token은
-DB·일반 저장소·로그·analytics·crash report에 포함하지 않는다. 승인 전에는 해당 route와 Google
-adapter를 제공하지 않는다.
+DB·일반 저장소·로그·analytics·crash report에 포함하지 않는다. route와 Google adapter는 각각
+9C-2D와 9C-2C에서 추가하며 production 증적 전에는 provider disabled를 유지한다.
 
 웨어러블:
 
