@@ -614,9 +614,9 @@ CACHE_AND_WORK_DELETE -> AUDIT_DEIDENTIFICATION -> BACKUP_EXPIRY_VERIFICATION`�
 
 ### 13.3 캘린더 외부 컨텍스트 정책
 
-Google Calendar의 provider별 상세 계약은 `PROPOSED` ADR-0010과
-`external-context-policy-v2`를 따른다. ADR이 `ACCEPTED`가 되기 전에는 실제 route·HTTP adapter·
-repository·migration을 구현하지 않는다.
+Google Calendar의 provider별 상세 계약은 `ACCEPTED` ADR-0010과
+`external-context-policy-v2`를 따른다. 실제 route·HTTP adapter·repository·migration은
+TASK-BACKEND-007의 단계별 게이트를 따른다.
 
 - 캘린더는 선택적 보조 컨텍스트다. 미연결·권한 거부·provider 장애에서도 수동 체크인과 앱 운동
   블록 체크를 포함한 핵심 흐름이 동작한다.

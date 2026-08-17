@@ -12,16 +12,15 @@
 ## 단계와 게이트
 
 - 9C-1: 결정적 policy, provider port, unavailable/synthetic adapter, golden/privacy test 완료.
-- 9C-1B contract freeze: workout-session 연결, API/DB/OAuth/secret/삭제 계약을 ADR-0010에 고정하고
-  필수 reviewer 승인을 받는다.
+- 9C-1B contract freeze: workout-session 연결, API/DB/OAuth/secret/삭제 계약과 필수 reviewer 승인 완료.
 - 9C-2A persistence foundation
 - 9C-2B OAuth·credential service boundary
 - 9C-2C Google provider adapter
 - 9C-2D Calendar API integration
 - 9C-2E integration/privacy/operation hardening
 
-ADR-0010이 `ACCEPTED`되기 전에는 9C-2A를 시작하지 않는다. 각 단계는 앞 단계가 최신 develop에
-병합된 뒤 새 브랜치·worktree에서 시작한다. production provider는 OAuth client, redirect URI,
+ADR-0010은 `ACCEPTED`다. 각 단계는 앞 단계가 최신 develop에 병합된 뒤 새 브랜치·worktree에서
+시작한다. production provider는 OAuth client, redirect URI,
 secret-manager adapter/path/owner 증적이 없으면 disabled 상태를 유지한다.
 
 ## 확정된 9C-1B 계약
@@ -154,7 +153,7 @@ secret-manager adapter/path/owner 증적이 없으면 disabled 상태를 유지�
 
 ## Backend adapter handoff checklist
 
-- [ ] ADR-0010이 모든 필수 reviewer 확인 후 `ACCEPTED`
+- [x] ADR-0010이 모든 필수 reviewer 확인 후 `ACCEPTED`
 - [ ] 앞 단계가 develop에 병합되고 새 worktree가 최신 origin/develop에서 생성됨
 - [ ] migration head와 다른 feature migration 충돌 없음
 - [ ] provider port는 normalized 값만 반환하고 raw payload type을 domain에 노출하지 않음
@@ -173,5 +172,5 @@ secret-manager adapter/path/owner 증적이 없으면 disabled 상태를 유지�
 - 운영: 실제 OAuth client, redirect URI, consent screen, test users, secret-manager product/path/owner
 - Google test project: local disconnect 뒤 Firebase Google 로그인 유지와 quota/error 검증
 
-이 항목은 production enablement를 차단한다. 필수 reviewer가 ADR 자체를 승인하기 전에는 9C-2A도
-시작하지 않는다.
+이 항목은 production enablement를 차단하지만, disabled/unavailable 기본 구성의 9C-2A 착수를
+차단하지 않는다.
