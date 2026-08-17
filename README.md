@@ -7,43 +7,32 @@
 ## Team 콩닥
 
 
+
 <table>
   <tr>
     <td align="center" width="25%">
       <img src="assets/team/onion-chae-donghyeon.jpg" width="140" height="140" alt="채동현 캐릭터 이미지" /><br />
       <strong>채동현</strong><br />
       <sub>@chromerao</sub><br />
-      <sub>개발 리드 · AI/데이터</sub><br /><br />
-      아키텍처·도메인 규칙<br />
-      멀티 에이전트·안전 정책<br />
-      데이터 검증 체계
+      <sub>개발 리드 · 데이터</sub><br /><br />
     </td>
     <td align="center" width="25%">
       <img src="assets/team/riceball-kim-beomjung.jpg" width="140" height="140" alt="김범중 캐릭터 이미지" /><br />
       <strong>김범중</strong><br />
       <sub>@bumshark2</sub><br />
       <sub>프론트엔드</sub><br /><br />
-      React Native·Expo 앱<br />
-      화면·공용 UI 컴포넌트<br />
-      프론트엔드 테스트
     </td>
     <td align="center" width="25%">
       <img src="assets/team/ddonggun-jang-gyuwon.jpg" width="140" height="140" alt="장규원 캐릭터 이미지" /><br />
       <strong>장규원</strong><br />
       <sub>@gyuwon02</sub><br />
       <sub>백엔드</sub><br /><br />
-      FastAPI API·서비스<br />
-      PostgreSQL·Alembic migration<br />
-      인증·운동·주간 플로우
     </td>
     <td align="center" width="25%">
       <img src="assets/team/celery-park-sebin.jpg" width="140" height="140" alt="박세빈 캐릭터 이미지" /><br />
       <strong>박세빈</strong><br />
       <sub>@sebin1030</sub><br />
       <sub>PM · 문서 기획</sub><br /><br />
-      요구사항·MVP 범위·WBS<br />
-      ADR 문서 정합성<br />
-      제품 정책 관리
     </td>
   </tr>
 </table>
