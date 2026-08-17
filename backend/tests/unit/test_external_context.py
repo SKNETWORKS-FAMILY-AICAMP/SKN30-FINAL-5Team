@@ -8,12 +8,16 @@ import pytest
 from backend.app.domain.rules.external_context import (
     CALENDAR_AVAILABILITY_RATE_LIMIT,
     CALENDAR_AVAILABILITY_SCHEMA_VERSION,
+    CALENDAR_CREDENTIAL_SCHEMA_VERSION,
     CALENDAR_PERFORMANCE_SCHEMA_VERSION,
     CALENDAR_TOTAL_RATE_LIMIT,
     EXTERNAL_CONTEXT_POLICY_VERSION,
     FORBIDDEN_CALENDAR_FIELDS,
+    GOOGLE_APP_CALENDAR_SUMMARY,
     GOOGLE_CALENDAR_APP_CREATED_SCOPE,
     GOOGLE_CALENDAR_FREEBUSY_SCOPE,
+    GOOGLE_PRIMARY_CALENDAR_ID,
+    GOOGLE_WORKOUT_EVENT_SUMMARY,
     MAX_AVAILABILITY_SLOTS,
     PERFORMANCE_RECHECK_INTERVAL,
     SAFE_CALENDAR_OBSERVABILITY_FIELDS,
@@ -33,12 +37,12 @@ from backend.app.domain.rules.external_context import (
     ManualAvailabilityOverride,
     OfficialWorkoutState,
     ProviderBusyInterval,
-    ScheduledWorkoutState,
-    ScheduledWorkoutStatusCode,
+    WorkoutSessionState,
     calculate_calendar_availability,
     calendar_performance_guidance,
     classify_calendar_provider_failure,
     commit_calendar_connection_mutation,
+    complete_calendar_disconnect,
     evaluate_calendar_access,
     evaluate_calendar_rate_limit,
     evaluate_performance_recheck,
@@ -77,9 +81,13 @@ def test_google_calendar_contract_uses_only_minimal_scopes() -> None:
     assert GOOGLE_CALENDAR_APP_CREATED_SCOPE == (
         "https://www.googleapis.com/auth/calendar.app.created"
     )
-    assert EXTERNAL_CONTEXT_POLICY_VERSION == "external-context-policy-v1"
+    assert EXTERNAL_CONTEXT_POLICY_VERSION == "external-context-policy-v2"
     assert CALENDAR_AVAILABILITY_SCHEMA_VERSION == "calendar-availability-v1"
-    assert CALENDAR_PERFORMANCE_SCHEMA_VERSION == "calendar-performance-v1"
+    assert CALENDAR_PERFORMANCE_SCHEMA_VERSION == "calendar-performance-v2"
+    assert CALENDAR_CREDENTIAL_SCHEMA_VERSION == "calendar-credential-v1"
+    assert GOOGLE_PRIMARY_CALENDAR_ID == "primary"
+    assert GOOGLE_APP_CALENDAR_SUMMARY == "헬끼 운동 일정"
+    assert GOOGLE_WORKOUT_EVENT_SUMMARY == "헬끼 운동"
 
 
 def test_freebusy_input_and_availability_output_expose_only_normalized_fields() -> None:
@@ -106,6 +114,10 @@ def test_consent_and_connection_gate_preserve_manual_fallback() -> None:
         consent_granted=True,
         connection_status_code=None,
     )
+    revoke_pending = evaluate_calendar_access(
+        consent_granted=True,
+        connection_status_code=CalendarConnectionStatusCode.REVOKE_PENDING,
+    )
     allowed = evaluate_calendar_access(
         consent_granted=True,
         connection_status_code=CalendarConnectionStatusCode.ACTIVE,
@@ -113,6 +125,7 @@ def test_consent_and_connection_gate_preserve_manual_fallback() -> None:
 
     assert consent_required.failure_code is CalendarFailureCode.CONSENT_REQUIRED
     assert not_connected.failure_code is CalendarFailureCode.CALENDAR_NOT_CONNECTED
+    assert revoke_pending.failure_code is CalendarFailureCode.CALENDAR_NOT_CONNECTED
     assert allowed.allowed is True and allowed.failure_code is None
     for decision in (consent_required, not_connected, allowed):
         assert decision.manual_fallback.manual_checkin_available is True
@@ -153,19 +166,31 @@ def test_disconnect_is_local_first_and_repeated_request_is_a_noop() -> None:
     )
 
     first = request_calendar_disconnect(original, requested_at=NOW)
-    repeated = request_calendar_disconnect(
+    pending_retry = request_calendar_disconnect(
         first.state,
         requested_at=NOW + timedelta(seconds=1),
     )
+    completed = complete_calendar_disconnect(
+        pending_retry.state,
+        completed_at=NOW + timedelta(seconds=2),
+    )
+    repeated = request_calendar_disconnect(
+        completed,
+        requested_at=NOW + timedelta(seconds=3),
+    )
 
     assert first.action_code is CalendarDisconnectActionCode.DESTROY_SECRET_LOCALLY
-    assert first.state.status_code is CalendarConnectionStatusCode.REVOKED
-    assert first.state.revoked_at == NOW
+    assert first.state.status_code is CalendarConnectionStatusCode.REVOKE_PENDING
+    assert first.state.revoked_at is None
+    assert pending_retry.action_code is CalendarDisconnectActionCode.DESTROY_SECRET_LOCALLY
+    assert pending_retry.state == first.state
+    assert completed.status_code is CalendarConnectionStatusCode.REVOKED
+    assert completed.revoked_at == NOW + timedelta(seconds=2)
     assert repeated.action_code is CalendarDisconnectActionCode.NOOP_ALREADY_REVOKED
-    assert repeated.state is first.state
+    assert repeated.state is completed
 
 
-def test_failed_connection_persistence_does_not_expose_proposed_disconnect() -> None:
+def test_failed_connection_persistence_does_not_expose_revoke_pending_state() -> None:
     original = CalendarConnectionState(uuid4(), CalendarConnectionStatusCode.ACTIVE)
     proposed = request_calendar_disconnect(original, requested_at=NOW).state
 
@@ -343,16 +368,16 @@ def test_dst_day_boundaries_use_local_midnights(
 
 def test_performance_recheck_requires_final_status_and_ten_minutes() -> None:
     workout_id = uuid4()
-    final_state = ScheduledWorkoutState(workout_id, ScheduledWorkoutStatusCode.COMPLETED)
+    final_state = WorkoutSessionState(workout_id, WorkoutSessionStatusCode.COMPLETED)
     checked_at = NOW
 
     before = evaluate_performance_recheck(
-        scheduled_workout_state=final_state,
+        workout_session_state=final_state,
         performance_checked_at=checked_at,
         requested_at=checked_at + PERFORMANCE_RECHECK_INTERVAL - timedelta(microseconds=1),
     )
     boundary = evaluate_performance_recheck(
-        scheduled_workout_state=final_state,
+        workout_session_state=final_state,
         performance_checked_at=checked_at,
         requested_at=checked_at + PERFORMANCE_RECHECK_INTERVAL,
     )
@@ -360,11 +385,20 @@ def test_performance_recheck_requires_final_status_and_ten_minutes() -> None:
     assert before.allowed is False
     assert before.retry_after == timedelta(microseconds=1)
     assert boundary.allowed is True
+    safety_stopped = evaluate_performance_recheck(
+        workout_session_state=WorkoutSessionState(
+            workout_id,
+            WorkoutSessionStatusCode.STOPPED_FOR_SAFETY,
+        ),
+        performance_checked_at=None,
+        requested_at=NOW,
+    )
+    assert safety_stopped.allowed is True
     with pytest.raises(ValueError, match="finalized"):
         evaluate_performance_recheck(
-            scheduled_workout_state=ScheduledWorkoutState(
+            workout_session_state=WorkoutSessionState(
                 workout_id,
-                ScheduledWorkoutStatusCode.STARTED,
+                WorkoutSessionStatusCode.IN_PROGRESS,
             ),
             performance_checked_at=None,
             requested_at=NOW,
@@ -387,7 +421,7 @@ def test_calendar_performance_cannot_mutate_official_completion(
     assert preserved is official
     assert preserved.status_code is WorkoutSessionStatusCode.PARTIAL
     assert {field.name for field in fields(observation)} == {
-        "scheduled_workout_id",
+        "workout_session_id",
         "performed",
         "performance_checked_at",
     }
@@ -395,7 +429,7 @@ def test_calendar_performance_cannot_mutate_official_completion(
 
 def test_google_performance_is_always_null_with_fallback_guidance() -> None:
     observation = google_calendar_performance_observation(
-        scheduled_workout_id=uuid4(),
+        workout_session_id=uuid4(),
         performance_checked_at=NOW,
     )
 

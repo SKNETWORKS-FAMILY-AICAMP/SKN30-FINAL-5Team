@@ -1,8 +1,10 @@
+from dataclasses import asdict
 from datetime import UTC, date, datetime
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from backend.app.domain.rules.external_context import (
+    FORBIDDEN_CALENDAR_FIELDS,
     CalendarConnectionStatusCode,
     CalendarFailureCode,
     CalendarPerformanceObservation,
@@ -70,7 +72,7 @@ def test_golden_performed_true_cannot_change_official_session_status() -> None:
 
 def test_golden_google_performed_null_returns_guidance_not_an_error() -> None:
     result = google_calendar_performance_observation(
-        scheduled_workout_id=WORKOUT_ID,
+        workout_session_id=WORKOUT_ID,
         performance_checked_at=NOW,
     )
 
@@ -149,3 +151,15 @@ def test_golden_calendar_context_cannot_pressure_a_user_who_selected_rest() -> N
         )
         is False
     )
+
+
+def test_golden_normalized_snapshot_has_no_raw_payload_or_identifying_fields() -> None:
+    normalized = CalendarPerformanceObservation(WORKOUT_ID, None, NOW)
+    snapshot = asdict(normalized)
+
+    assert set(snapshot).isdisjoint(FORBIDDEN_CALENDAR_FIELDS)
+    assert set(snapshot) == {
+        "workout_session_id",
+        "performed",
+        "performance_checked_at",
+    }

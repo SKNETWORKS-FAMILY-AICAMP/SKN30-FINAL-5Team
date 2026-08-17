@@ -30,11 +30,6 @@ def test_unavailable_provider_fails_every_external_operation_without_payload() -
             timezone_name="Asia/Seoul",
         ),
         lambda: provider.create_workout_event(request),
-        lambda: provider.get_performance(
-            scheduled_workout_id=request.scheduled_workout_id,
-            external_event_id="abcde",
-            checked_at=NOW,
-        ),
     )
 
     for operation in operations:
@@ -56,11 +51,3 @@ def test_synthetic_provider_uses_normalized_values_without_credentials() -> None
         == ()
     )
     assert provider.create_workout_event(request).external_event_id == "syntheticevent1"
-    assert (
-        provider.get_performance(
-            scheduled_workout_id=request.scheduled_workout_id,
-            external_event_id="syntheticevent1",
-            checked_at=NOW,
-        ).performed
-        is None
-    )

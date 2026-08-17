@@ -277,12 +277,14 @@ credential을 CI 필수 조건으로 만들지 않는다. Google은 기존 Fireb
 ### 5.6 Calendar 외부 컨텍스트 골든·개인정보 계약
 
 캘린더 fixture는 합성 UUIDv4, IANA timezone, local date, freebusy의 start/end 구간,
-`external-context-policy-v1`, `calendar-availability-v1`, `calendar-performance-v1`과
+`external-context-policy-v2`, `calendar-availability-v1`, `calendar-performance-v2`,
+`calendar-credential-v1`과
 provider/failure machine code만 사용한다. 제목, 설명, 참석자, 위치,
 calendar ID, provider subject, external event ID, access/refresh token과 원시 provider payload/error는
 fixture·snapshot·로그 기대값에 포함하지 않는다.
 
-domain unit은 동의·연결 gate, 30/31·60/61 rate limit, 10분 performance 재확인, busy 병합,
+domain unit은 동의·연결 gate, `primary` calendar 고정, 고정 비식별 calendar/event summary,
+30/31·60/61 rate limit, 10분 performance 재확인, busy 병합,
 15분 buffer, 최소 길이 ±1분, 후보 8개 상한, 자정/DST와 공식 completion 불변을 검증한다. golden
 suite는 미연동, 권한 거부, `performed=true`, Google `performed=null`, provider 장애, 하루 전체 busy와
 종일 busy, 명시적 수동 가능 시간 우선과 REST 무압박을 고정한다. privacy test는 observability
@@ -290,7 +292,21 @@ allowlist와 금지 field 비노출을 검증한다.
 
 ADR-0010 승인 뒤 9C-2는 OAuth 600초 state·PKCE, secret reference, provider 호출 전 rate limit,
 연결·동기화·해제 멱등성, transaction rollback, PostgreSQL/Alembic round trip과 합성 Google HTTP
-응답 adapter test를 추가한다. live provider와 실제 credential은 CI 필수 조건으로 만들지 않는다.
+응답 adapter test를 추가한다. 특히 다음을 필수로 검증한다.
+
+- calendar event link가 `workout_session_id`만 참조하고 PLANNED session당 하나만 생성됨
+- session의 `STOPPED_FOR_SAFETY`를 포함한 공식 종료 상태만 performance gate를 통과함
+- client `start_at`과 계획 요청 시간으로 server가 `end_at`을 계산하고 client가 시간을 단축하지 못함
+- Calendar OAuth row가 provider 호출 전에 소비되고 실패·재사용 시 되살아나지 않음
+- secret 저장/DB commit의 양방향 보상, refresh version 교체와 invalid_grant cleanup
+- `REVOKE_PENDING`에서 provider 접근 차단, secret 파기 재시도와 최종 REVOKED
+- 동의 철회와 계정 삭제가 Calendar secret을 남기지 않음
+- primary-only freebusy이고 CalendarList/event list endpoint를 호출하지 않음
+- authorize-init 재호출의 이전 state 폐기, event create idempotency와 concurrent unique/rate-limit counter
+
+live provider와 실제 credential은 CI 필수 조건으로 만들지 않는다. production enablement는 별도 Google
+test project에서 최소 scope, redirect URI, 보조 캘린더, local disconnect 뒤 Firebase 로그인 유지와
+secret-manager adapter를 검증한다.
 
 ## 6. CI 게이트
 

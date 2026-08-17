@@ -54,6 +54,12 @@ flowchart LR
 
 모듈 간 호출은 공개 service/port를 통하고, 다른 모듈의 repository나 ORM model을 직접 조작하지 않는다.
 
+Calendar는 `external-context-policy-v2`에 따라 integration adapter가 Google 원본을 즉시 normalized
+freebusy 구간으로 바꾸고 application service에는 raw payload나 token을 전달하지 않는다. event link는
+공식 block completion을 소유한 `workout_session_id`를 참조하고, Calendar 관찰값은 workout 상태나
+safety veto를 변경할 수 없다. DB에는 opaque credential reference만 두며 실제 credential은 별도
+secret-manager port 뒤에 둔다.
+
 ## 4. 결정 파이프라인
 
 ```mermaid
