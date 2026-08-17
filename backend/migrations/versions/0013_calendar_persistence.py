@@ -1,6 +1,6 @@
 """Add Calendar connection, event, OAuth, and rate-limit persistence.
 
-Revision ID: 0013_calendar_persistence_foundation
+Revision ID: 0013_calendar_persistence
 Revises: 0012_account_deletion_retention
 Create Date: 2026-08-17
 """
@@ -10,7 +10,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0013_calendar_persistence_foundation"
+revision: str = "0013_calendar_persistence"
 down_revision: str | None = "0012_account_deletion_retention"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None

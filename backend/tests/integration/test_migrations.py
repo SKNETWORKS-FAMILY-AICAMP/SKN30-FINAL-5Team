@@ -17,10 +17,11 @@ def test_migration_history_has_calendar_persistence_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0013_calendar_persistence_foundation"]
-    assert scripts.get_revision("0013_calendar_persistence_foundation").down_revision == (
+    assert scripts.get_heads() == ["0013_calendar_persistence"]
+    assert scripts.get_revision("0013_calendar_persistence").down_revision == (
         "0012_account_deletion_retention"
     )
+    assert all(len(revision.revision) <= 32 for revision in scripts.walk_revisions())
     assert scripts.get_revision("0012_account_deletion_retention").down_revision == (
         "0011_weekly_plan_revisions"
     )
