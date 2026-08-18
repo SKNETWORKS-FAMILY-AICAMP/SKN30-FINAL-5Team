@@ -8,12 +8,20 @@ from backend.app.integrations.firebase_auth import (
     UnavailableFirebaseTokenVerifier,
     build_firebase_token_verifier,
 )
+from backend.app.integrations.llm_provider import (
+    OpenAiNarrationProvider,
+    UnavailableNarrationProvider,
+    build_narration_provider,
+)
 
 __all__ = [
     "FirebaseAdminTokenVerifier",
+    "OpenAiNarrationProvider",
     "SyntheticCalendarProvider",
     "UnavailableCalendarProvider",
     "UnavailableFirebaseTokenVerifier",
+    "UnavailableNarrationProvider",
     "build_calendar_provider",
     "build_firebase_token_verifier",
+    "build_narration_provider",
 ]

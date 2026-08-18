@@ -9,6 +9,8 @@ from backend.app.domain.agents.contracts import REQUIRED_AGENT_TYPES, AgentTypeC
 from backend.app.domain.agents.coordinator import CoordinatorInput, coordinate
 from backend.app.domain.rules.duration import DURATION_RULE_VERSION
 from backend.app.modules.decisions.codes import DECISION_POLICY_VERSION
+from backend.app.modules.decisions.explanations import ExplanationSourceCode
+from backend.app.modules.decisions.ports import NarrationCompletion, NarrationPrompt
 from backend.tests.scenarios.decision_service_golden_fixtures import (
     SERVICE_DECISION_GOLDEN_CASES,
     ServiceDecisionGoldenCase,
@@ -215,6 +217,17 @@ def test_moderate_exclusion_uses_only_approved_replacement_and_preserves_duratio
     assert all(proposal.estimated_duration_seconds == 2400 for proposal in proposals)
 
 
+class UnreachableNarrationProvider:
+    """Stands in for any provider outage: timeout, quota, malformed response."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def narrate(self, prompt: NarrationPrompt) -> NarrationCompletion:
+        self.calls += 1
+        raise TimeoutError("provider timeout")
+
+
 def test_llm_disabled_and_failure_modes_cannot_change_decision_or_use_network(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -225,11 +238,13 @@ def test_llm_disabled_and_failure_modes_cannot_change_decision_or_use_network(
 
     monkeypatch.setattr(socket, "create_connection", fail_network)
     disabled_response, disabled_repository = execute_service_case(case)
-    failed_response, failed_repository = execute_service_case(case)
+    provider = UnreachableNarrationProvider()
+    failed_response, failed_repository = execute_service_case(case, narration_provider=provider)
     assert disabled_repository.persisted is not None
     assert failed_repository.persisted is not None
 
     assert case.explanation_execution_modes == ("LLM_DISABLED", "LLM_FAILED")
+    assert provider.calls == 1
     assert disabled_repository.persisted["proposals"] == failed_repository.persisted["proposals"]
     assert disabled_repository.persisted["result"] == failed_repository.persisted["result"]
     assert disabled_repository.persisted["input_hash"] == failed_repository.persisted["input_hash"]
@@ -238,6 +253,16 @@ def test_llm_disabled_and_failure_modes_cannot_change_decision_or_use_network(
     assert failed_response.final_plan is not None
     assert disabled_response.final_plan.estimated_duration_seconds == 2400
     assert failed_response.final_plan.estimated_duration_seconds == 2400
+    # 두 mode 모두 검수된 템플릿 문구를 남기고 model/prompt version을 기록하지 않는다.
+    disabled_explanation = disabled_repository.persisted["explanation"]
+    failed_explanation = failed_repository.persisted["explanation"]
+    assert disabled_explanation.source_code is ExplanationSourceCode.TEMPLATE
+    assert failed_explanation.source_code is ExplanationSourceCode.TEMPLATE
+    assert failed_explanation.summary == disabled_explanation.summary
+    assert failed_explanation.model_code is None
+    assert failed_explanation.prompt_version is None
+    assert disabled_explanation.fallback_reason_code == "LLM_DISABLED"
+    assert failed_explanation.fallback_reason_code == "LLM_PROVIDER_FAILED"
 
 
 @pytest.mark.parametrize(

@@ -21,7 +21,7 @@ from backend.app.db.repositories.workout import WorkoutRepository
 from backend.app.modules.account_deletion.ports import AccountDeletionRepositoryPort
 from backend.app.modules.catalog.service import ExerciseReadRepositoryPort
 from backend.app.modules.checkins.ports import DailyContextRepositoryPort
-from backend.app.modules.decisions.ports import DecisionRepositoryPort
+from backend.app.modules.decisions.ports import DecisionRepositoryPort, NarrationProviderPort
 from backend.app.modules.identity.ports import (
     FirebaseTokenVerifier,
     FirebaseVerifierUnavailableError,
@@ -104,6 +104,10 @@ def get_weekly_plan_repository() -> WeeklyPlanRepositoryPort:
 
 def get_birthdate_cipher(request: Request) -> BirthdateCipher | None:
     return request.app.state.birthdate_cipher
+
+
+def get_narration_provider(request: Request) -> NarrationProviderPort:
+    return request.app.state.narration_provider
 
 
 def get_current_user(
@@ -200,6 +204,7 @@ __all__ = [
     "get_db_session",
     "get_firebase_token_verifier",
     "get_identity_repository",
+    "get_narration_provider",
     "get_profile_repository",
     "get_routine_repository",
     "get_workout_repository",

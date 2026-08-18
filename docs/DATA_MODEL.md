@@ -958,12 +958,15 @@ snapshot에 저장하지 않는다.
 | policy_version_id | 정책 버전 |
 | graph_version | 조정 흐름 버전 |
 | coordinator_version | 조정기 버전 |
-| prompt_version | LLM 미사용 시 null |
 | status_code | RUNNING, COMPLETED, FAILED |
 | recommended_action_code | 최종 추천 액션 |
 | started_at | 시작 시각 |
 | completed_at | 종료 시각 |
 | failure_code | 실패 코드, nullable |
+
+prompt version과 model code는 문구 전용 정보이므로 `decision_runs`가 아니라 9.8절
+`decision_explanations`에 저장한다. 결정 재현에 필요한 graph·policy·catalog·safety rule·duration rule
+version은 `decision_runs`가 계속 보유한다.
 
 같은 사용자, local_date, input_hash, policy_version_id에 대한 중복 실행을 제한하는 unique 또는 idempotency 제약을 둔다.
 
@@ -1112,19 +1115,35 @@ Wave 6는 option의 생성과 조회까지만 구현한다. option 선택과 wor
 
 ### 9.8 decision_explanations
 
-- decision_run_id
-- source_code: TEMPLATE 또는 LLM
-- summary
-- reason_codes
-- agent_summaries, Training·Recovery·Safety·Feasibility·Coordinator의 제한된 요약 JSONB, 잠정 구조
-- safety_summary, SafetyAgent의 상태·veto·근거 요약 JSONB, 잠정 구조
-- final_adjustment_reason, 최종 조정 이유 요약
-- coaching_style_code
-- prompt_version, nullable
-- model_code, nullable
-- created_at
+`ACCEPTED` 예정 ADR-0011의 narration 계약을 구현한 물리 테이블이다. decision 생성 트랜잭션에서 한 번
+저장하고 조회 시 재생성하지 않는다. `(decision_run_id)`는 unique이며 run 삭제 시 cascade한다.
 
-안전 문구와 일반 설명을 분리하고 내부 추론을 저장하지 않는다. agent_summaries와 safety_summary는 공개 가능한 입력·판단 결과의 제한된 요약만 저장하며 증상 사용자 시나리오 검증 결과에 따라 상세 구조를 추후 보완할 수 있다. 독립적인 최종 Safety 재검사 결과는 저장하지 않는다.
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| decision_run_id | decision_runs FK, UNIQUE |
+| source_code | TEMPLATE 또는 LLM |
+| summary | 공개 요약 문장 |
+| reason_codes | 공개 reason code JSONB, 최대 2건 |
+| agent_summaries | Training·Recovery·Safety·Feasibility·Coordinator의 제한된 요약 JSONB |
+| safety_summary | SafetyAgent의 상태·veto·근거 요약 JSONB |
+| final_adjustment_reason | 최종 조정 이유 요약, nullable |
+| coaching_style_code | 문구 톤 입력값 |
+| template_version | 검수 템플릿 버전 |
+| prompt_version | LLM 미사용 시 null |
+| model_code | LLM 미사용 시 null |
+| fallback_reason_code | 템플릿을 사용한 이유, LLM 문구 사용 시 null |
+| created_at | 생성 시각 |
+
+제약:
+
+- `source_code = 'LLM'`과 `prompt_version`·`model_code`가 모두 존재하는 조건은 동치다.
+- `source_code = 'TEMPLATE'`과 `fallback_reason_code` 존재는 동치다.
+
+`fallback_reason_code`는 `LLM_DISABLED`, `SAFETY_TONE_TEMPLATE_REQUIRED`, `NO_PUBLIC_PLAN`,
+`PAYLOAD_NOT_SHAREABLE`, `LLM_PROVIDER_FAILED`, `LLM_OUTPUT_REJECTED`를 사용한다.
+
+안전 문구와 일반 설명을 분리하고 내부 추론과 prompt 원문을 저장하지 않는다. agent_summaries와 safety_summary는 공개 가능한 입력·판단 결과의 제한된 요약만 저장하며 증상 사용자 시나리오 검증 결과에 따라 상세 구조를 추후 보완할 수 있다. 독립적인 최종 Safety 재검사 결과는 저장하지 않는다. safety_summary 문장은 LLM 경로에서도 템플릿 문구를 유지한다.
 
 ---
 

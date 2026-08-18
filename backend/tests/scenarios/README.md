@@ -22,6 +22,12 @@ Coordinator에 합성 assembly만 제공하며 안전 판단을 테스트 코드
 | `CHRONIC_KNEE_ATTENTION_CAUTION` | LOW, 40분 | 당일 불편 없음, KNEE 주의 | 없음 | Safety DOWNSHIFT, no veto | DOWNSHIFT / REVISE / false | 제거 없음 | approved-downshift / 2400초 | template / canonical 동일 |
 
 기존 USER_OVERRIDE, MILD EXCLUDE 레코드 해석, SEVERE REST, 중대 이상반응 STOP,
-필수 agent 실패 시나리오도 Coordinator/replay fixture에 유지합니다. 결정 API에는 LLM adapter가
-없으므로 LLM failure mode는 외부 네트워크가 차단된 동일 production decision 경로와 template
-fallback 동등성까지만 검증합니다.
+필수 agent 실패 시나리오도 Coordinator/replay fixture에 유지합니다. LLM failure mode는 실패하는
+narration provider를 주입한 동일 production decision 경로로 검증하며, 두 mode의 proposal·
+Coordinator 결과·input hash·계획과 template 문구가 같고 model·prompt version이 기록되지 않음을
+확인합니다. 실제 외부 네트워크 호출은 socket 차단으로 막습니다.
+
+`test_llm_narration_golden.py`는 narration 경계를 따로 고정합니다. veto가 걸린 결정과 REST·
+STOP_AND_SEEK_HELP는 provider에 도달하지 않고, provider가 결정을 뒤집는 문장을 돌려줘도 action·
+safety status·veto·reason code가 그대로 유지되며, 전송 payload에 식별자와 불편 부위 원문이 없음을
+검증합니다.

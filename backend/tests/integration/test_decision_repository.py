@@ -23,6 +23,7 @@ from backend.app.db.models.catalog import (
 )
 from backend.app.db.models.decision import (
     AgentProposalRecord,
+    DecisionExplanationRecord,
     DecisionOption,
     DecisionRun,
     PlanCandidate,
@@ -365,7 +366,7 @@ def _stored_run(session: Session, user_id: UUID) -> DecisionRun:
     return run
 
 
-def _decision_record_counts(session: Session) -> tuple[int, int, int, int, int]:
+def _decision_record_counts(session: Session) -> tuple[int, int, int, int, int, int]:
     return tuple(
         int(session.scalar(select(func.count()).select_from(model)) or 0)
         for model in (
@@ -374,6 +375,7 @@ def _decision_record_counts(session: Session) -> tuple[int, int, int, int, int]:
             PlanCandidate,
             SafetyReview,
             DecisionOption,
+            DecisionExplanationRecord,
         )
     )  # type: ignore[return-value]
 
@@ -626,6 +628,26 @@ def test_decision_repository_assembles_and_persists_active_profile_attention_are
         _request(empty_context_id),
         uuid4(),
     )
+    explanation = postgres_session.scalar(
+        select(DecisionExplanationRecord)
+        .join(DecisionRun, DecisionRun.id == DecisionExplanationRecord.decision_run_id)
+        .where(DecisionRun.user_id == empty_owner_id)
+    )
+    assert explanation is not None
+    # LLM 미설정 환경에서는 검수된 템플릿 문구와 폴백 사유만 남는다.
+    assert explanation.source_code == "TEMPLATE"
+    assert explanation.template_version == "decision-explanation-template-v1"
+    assert explanation.prompt_version is None
+    assert explanation.model_code is None
+    assert explanation.fallback_reason_code == "LLM_DISABLED"
+    assert explanation.coaching_style_code == "SUPPORTIVE"
+    assert [summary["agent_type_code"] for summary in explanation.agent_summaries] == [
+        "TRAINING",
+        "RECOVERY",
+        "SAFETY",
+        "FEASIBILITY",
+        "COORDINATOR",
+    ]
     record_counts = _decision_record_counts(postgres_session)
     postgres_session.rollback()
 

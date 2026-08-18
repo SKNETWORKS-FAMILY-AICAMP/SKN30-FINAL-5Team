@@ -32,6 +32,7 @@ from backend.app.modules.decisions.ports import (
     AlternativeItemData,
     CandidateItemData,
     DecisionAssembly,
+    NarrationProviderPort,
     StoredIdempotency,
 )
 from backend.app.modules.decisions.schemas import DecisionCreateRequest, DecisionResponse
@@ -429,9 +430,17 @@ def safety_proposal(repository: RecordingDecisionRepository) -> AgentProposal:
 
 def execute_service_case(
     case: ServiceDecisionGoldenCase,
+    *,
+    narration_provider: NarrationProviderPort | None = None,
 ) -> tuple[DecisionResponse, RecordingDecisionRepository]:
+    """Run the production decision service; narration stays optional and non-deciding."""
+
     repository = RecordingDecisionRepository(case)
-    response = DecisionService(repository, clock=lambda: NOW).create(
+    response = DecisionService(
+        repository,
+        narration_provider=narration_provider,
+        clock=lambda: NOW,
+    ).create(
         GoldenSession(),  # type: ignore[arg-type]
         USER_ID,
         DecisionCreateRequest(
