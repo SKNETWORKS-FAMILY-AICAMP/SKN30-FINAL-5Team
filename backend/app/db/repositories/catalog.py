@@ -29,15 +29,123 @@ from backend.app.modules.catalog.codes import (
 )
 from backend.app.modules.catalog.service import (
     AlternativeArtifact,
+    ApprovedCatalogRecord,
     CatalogArtifact,
     CatalogImportError,
     DerivedSetState,
     ExerciseDetailRecord,
+    ExerciseListRecord,
     SafetyRuleArtifact,
 )
 
 
 class CatalogRepository:
+    def get_approved_catalog(self, session: Session) -> ApprovedCatalogRecord | None:
+        catalog = session.scalar(
+            select(CatalogVersion).where(
+                CatalogVersion.status_code == "ACTIVE",
+                CatalogVersion.review_status_code == "DOMAIN_APPROVED",
+                CatalogVersion.review_method_code == "DOMAIN_REVIEWER",
+                CatalogVersion.status_interpretation_code == "PRODUCTION_APPROVED",
+                CatalogVersion.production_eligible.is_(True),
+                CatalogVersion.activated_at.is_not(None),
+            )
+        )
+        if catalog is None:
+            return None
+        return ApprovedCatalogRecord(
+            catalog_version_id=catalog.id,
+            version_code=catalog.version_code,
+        )
+
+    def list_approved_exercises(
+        self,
+        session: Session,
+        catalog_version_id: UUID,
+        *,
+        body_area_code: str | None,
+        equipment_code: str | None,
+        training_type_code: str | None,
+        difficulty_code: str | None,
+        after_exercise_id: UUID | None,
+        limit: int,
+    ) -> tuple[ExerciseListRecord, ...]:
+        statement = select(
+            Exercise.id,
+            Exercise.name_ko,
+            Exercise.training_type_code,
+            Exercise.difficulty_code,
+        ).where(
+            Exercise.catalog_version_id == catalog_version_id,
+            Exercise.review_status_code == "DOMAIN_APPROVED",
+        )
+        if body_area_code is not None:
+            statement = statement.where(
+                select(ExerciseBodyPart.exercise_id)
+                .where(
+                    ExerciseBodyPart.exercise_id == Exercise.id,
+                    ExerciseBodyPart.body_area_code == body_area_code,
+                    ExerciseBodyPart.role_code == BodyAreaRoleCode.PRIMARY,
+                )
+                .exists()
+            )
+        if equipment_code is not None:
+            statement = statement.where(
+                select(ExerciseEquipment.exercise_id)
+                .where(
+                    ExerciseEquipment.exercise_id == Exercise.id,
+                    ExerciseEquipment.equipment_code == equipment_code,
+                    ExerciseEquipment.requirement_code == EquipmentRequirementCode.REQUIRED,
+                )
+                .exists()
+            )
+        if training_type_code is not None:
+            statement = statement.where(Exercise.training_type_code == training_type_code)
+        if difficulty_code is not None:
+            statement = statement.where(Exercise.difficulty_code == difficulty_code)
+        if after_exercise_id is not None:
+            statement = statement.where(Exercise.id > after_exercise_id)
+
+        rows = session.execute(statement.order_by(Exercise.id).limit(limit)).all()
+        exercise_ids = [row.id for row in rows]
+        primary_body_areas: dict[UUID, list[str]] = {
+            exercise_id: [] for exercise_id in exercise_ids
+        }
+        required_equipment: dict[UUID, list[str]] = {
+            exercise_id: [] for exercise_id in exercise_ids
+        }
+        if exercise_ids:
+            for exercise_id, code in session.execute(
+                select(ExerciseBodyPart.exercise_id, ExerciseBodyPart.body_area_code)
+                .where(
+                    ExerciseBodyPart.exercise_id.in_(exercise_ids),
+                    ExerciseBodyPart.role_code == BodyAreaRoleCode.PRIMARY,
+                )
+                .order_by(ExerciseBodyPart.exercise_id, ExerciseBodyPart.body_area_code)
+            ):
+                primary_body_areas[exercise_id].append(code)
+            for exercise_id, code in session.execute(
+                select(ExerciseEquipment.exercise_id, ExerciseEquipment.equipment_code)
+                .where(
+                    ExerciseEquipment.exercise_id.in_(exercise_ids),
+                    ExerciseEquipment.requirement_code == EquipmentRequirementCode.REQUIRED,
+                )
+                .order_by(ExerciseEquipment.exercise_id, ExerciseEquipment.equipment_code)
+            ):
+                required_equipment[exercise_id].append(code)
+
+        return tuple(
+            ExerciseListRecord(
+                exercise_id=row.id,
+                exercise_name=row.name_ko,
+                training_type_code=row.training_type_code,
+                difficulty_code=row.difficulty_code,
+                primary_body_area_codes=tuple(primary_body_areas[row.id]),
+                required_equipment_codes=tuple(required_equipment[row.id]),
+            )
+            for row in rows
+        )
+
     def get_exercise_detail(
         self,
         session: Session,

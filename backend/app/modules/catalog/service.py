@@ -1,4 +1,7 @@
+import base64
+import binascii
 import hashlib
+import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -11,12 +14,18 @@ from sqlalchemy.orm import Session
 from backend.app.modules.catalog.codes import (
     APPROVED_TAXONOMY_REGISTRY_SHA256,
     CATALOG_CODE_SET_VERSION,
+    BodyAreaCode,
+    DifficultyCode,
+    EquipmentCode,
+    TrainingTypeCode,
 )
 from backend.app.modules.catalog.schemas import (
     AlternativeManifest,
     CatalogManifest,
     ExerciseAlternativeRecord,
     ExerciseDetailResponse,
+    ExerciseListItem,
+    ExerciseListResponse,
     ExerciseRecord,
     ExerciseSafetyRuleRecord,
     ManifestFile,
@@ -92,11 +101,56 @@ class ExerciseDetailRecord:
     instruction_content_version: str
 
 
+@dataclass(frozen=True)
+class ApprovedCatalogRecord:
+    catalog_version_id: UUID
+    version_code: str
+
+
+@dataclass(frozen=True)
+class ExerciseListRecord:
+    exercise_id: UUID
+    exercise_name: str
+    training_type_code: str
+    difficulty_code: str
+    primary_body_area_codes: tuple[str, ...]
+    required_equipment_codes: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ExerciseListCursor:
+    catalog_version_id: UUID
+    exercise_id: UUID
+
+
 class ExerciseNotFoundError(Exception):
     """No reviewed exercise with this id is available to the caller."""
 
 
+class ExerciseCatalogUnavailableError(Exception):
+    """No active, domain-approved production catalog is available."""
+
+
+class InvalidExerciseListQueryError(Exception):
+    """The exercise list cursor is malformed or belongs to another catalog."""
+
+
 class ExerciseReadRepositoryPort(Protocol):
+    def get_approved_catalog(self, session: Session) -> ApprovedCatalogRecord | None: ...
+
+    def list_approved_exercises(
+        self,
+        session: Session,
+        catalog_version_id: UUID,
+        *,
+        body_area_code: str | None,
+        equipment_code: str | None,
+        training_type_code: str | None,
+        difficulty_code: str | None,
+        after_exercise_id: UUID | None,
+        limit: int,
+    ) -> tuple[ExerciseListRecord, ...]: ...
+
     def get_exercise_detail(
         self,
         session: Session,
@@ -109,6 +163,67 @@ class ExerciseReadService:
 
     def __init__(self, repository: ExerciseReadRepositoryPort) -> None:
         self._repository = repository
+
+    def list_exercises(
+        self,
+        session: Session,
+        *,
+        body_area_code: str | None,
+        equipment_code: str | None,
+        training_type_code: str | None,
+        difficulty_code: str | None,
+        cursor: str | None,
+        limit: int,
+    ) -> ExerciseListResponse:
+        catalog = self._repository.get_approved_catalog(session)
+        if catalog is None:
+            raise ExerciseCatalogUnavailableError
+
+        decoded_cursor = _decode_exercise_list_cursor(cursor) if cursor is not None else None
+        if decoded_cursor is not None and (
+            decoded_cursor.catalog_version_id != catalog.catalog_version_id
+        ):
+            raise InvalidExerciseListQueryError
+
+        records = self._repository.list_approved_exercises(
+            session,
+            catalog.catalog_version_id,
+            body_area_code=body_area_code,
+            equipment_code=equipment_code,
+            training_type_code=training_type_code,
+            difficulty_code=difficulty_code,
+            after_exercise_id=(decoded_cursor.exercise_id if decoded_cursor is not None else None),
+            limit=limit + 1,
+        )
+        page = records[:limit]
+        next_cursor = None
+        if len(records) > limit and page:
+            next_cursor = _encode_exercise_list_cursor(
+                ExerciseListCursor(
+                    catalog_version_id=catalog.catalog_version_id,
+                    exercise_id=page[-1].exercise_id,
+                )
+            )
+        return ExerciseListResponse(
+            items=[
+                ExerciseListItem(
+                    id=record.exercise_id,
+                    name=record.exercise_name,
+                    training_type_code=TrainingTypeCode(record.training_type_code),
+                    difficulty_code=DifficultyCode(record.difficulty_code),
+                    primary_body_area_codes=[
+                        BodyAreaCode(code) for code in record.primary_body_area_codes
+                    ],
+                    required_equipment_codes=[
+                        EquipmentCode(code) for code in record.required_equipment_codes
+                    ],
+                    media_asset_key=None,
+                )
+                for record in page
+            ],
+            next_cursor=next_cursor,
+            catalog_version=catalog.version_code,
+        )
 
     def get_detail(self, session: Session, exercise_id: UUID) -> ExerciseDetailResponse:
         record = self._repository.get_exercise_detail(session, exercise_id)
@@ -127,6 +242,41 @@ class ExerciseReadService:
             mascot_animation_asset_key=None,
             instruction_content_version=record.instruction_content_version,
         )
+
+
+def _encode_exercise_list_cursor(cursor: ExerciseListCursor) -> str:
+    payload = json.dumps(
+        {
+            "catalog_version_id": str(cursor.catalog_version_id),
+            "exercise_id": str(cursor.exercise_id),
+            "version": 1,
+        },
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode()
+    return base64.urlsafe_b64encode(payload).decode().rstrip("=")
+
+
+def _decode_exercise_list_cursor(value: str) -> ExerciseListCursor:
+    try:
+        padding = "=" * (-len(value) % 4)
+        raw = base64.b64decode(value + padding, altchars=b"-_", validate=True)
+        payload = json.loads(raw)
+        if not isinstance(payload, dict) or set(payload) != {
+            "catalog_version_id",
+            "exercise_id",
+            "version",
+        }:
+            raise ValueError
+        cursor = ExerciseListCursor(
+            catalog_version_id=UUID(payload["catalog_version_id"]),
+            exercise_id=UUID(payload["exercise_id"]),
+        )
+        if payload["version"] != 1 or _encode_exercise_list_cursor(cursor) != value:
+            raise ValueError
+        return cursor
+    except (binascii.Error, json.JSONDecodeError, TypeError, ValueError):
+        raise InvalidExerciseListQueryError from None
 
 
 class CatalogVersionRecord(Protocol):
