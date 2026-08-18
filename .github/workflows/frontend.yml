@@ -1,0 +1,59 @@
+name: frontend
+
+on:
+  pull_request:
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend.yml"
+  push:
+    branches: [develop]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-quality:
+    name: frontend-quality
+    runs-on: ubuntu-latest
+    env:
+      CI: "true"
+      EXPO_NO_TELEMETRY: "1"
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Pin npm version
+        run: npm install --global npm@11.13.0
+      - name: Report npm version
+        run: npm --version
+      - name: Install dependencies
+        id: install-dependencies
+        run: npm ci
+      - name: Check formatting
+        if: ${{ !cancelled() && steps.install-dependencies.outcome == 'success' }}
+        run: npm run format:check
+      - name: Lint
+        if: ${{ !cancelled() && steps.install-dependencies.outcome == 'success' }}
+        run: npm run lint
+      - name: Type check
+        if: ${{ !cancelled() && steps.install-dependencies.outcome == 'success' }}
+        run: npm run typecheck
+      - name: Test
+        if: ${{ !cancelled() && steps.install-dependencies.outcome == 'success' }}
+        run: npm test
+      - name: Build production bundles
+        if: ${{ !cancelled() && steps.install-dependencies.outcome == 'success' }}
+        run: npm run build:production
