@@ -10,12 +10,25 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
 from backend.app.core.config import get_settings
-from backend.app.db.models.catalog import CatalogVersion, Exercise
+from backend.app.db.models.catalog import (
+    CatalogVersion,
+    Exercise,
+    ExerciseAlternative,
+    ExerciseSafetyRule,
+)
 from backend.app.db.repositories.catalog import CatalogRepository
-from backend.app.modules.catalog.service import CatalogImporter
+from backend.app.modules.catalog.service import CatalogDataBundleImporter, CatalogImporter
 
 ALEMBIC_CONFIG = Path("backend/alembic.ini")
 GENERATED_ARTIFACT = Path("data/generated/exercise-catalog-seed-kspo-tranche3-v0.1.0")
+BUNDLE_CATALOGS = (
+    Path("data/generated/exercise-catalog-seed-kspo-mvp-v0.2.0"),
+    Path("data/generated/exercise-catalog-seed-wger-mvp-v0.2.0"),
+    Path("data/generated/exercise-catalog-seed-kspo-tranche3-v0.1.0"),
+    Path("data/generated/exercise-catalog-seed-wger-tranche3-v0.1.0"),
+)
+BUNDLE_SAFETY = Path("data/generated/exercise-safety-rules-mvp-v0.3.0")
+BUNDLE_ALTERNATIVES = Path("data/generated/exercise-alternatives-mvp-v0.2.0")
 
 
 @pytest.fixture
@@ -87,3 +100,46 @@ def test_repository_failure_rolls_back_catalog_and_exercises(
 
     assert postgres_session.scalar(select(func.count()).select_from(CatalogVersion)) == 0
     assert postgres_session.scalar(select(func.count()).select_from(Exercise)) == 0
+
+
+@pytest.mark.integration
+def test_imports_complete_bundle_with_metadata_and_is_idempotent(
+    postgres_session: Session,
+) -> None:
+    importer = CatalogDataBundleImporter(CatalogRepository(), "test")
+
+    first = importer.import_bundle(
+        postgres_session, BUNDLE_CATALOGS, BUNDLE_SAFETY, BUNDLE_ALTERNATIVES
+    )
+    second = importer.import_bundle(
+        postgres_session, BUNDLE_CATALOGS, BUNDLE_SAFETY, BUNDLE_ALTERNATIVES
+    )
+
+    assert first.safety_rules.record_count == 354
+    assert first.alternatives.record_count == 238
+    assert second.safety_rules.imported is False
+    assert second.alternatives.imported is False
+    assert postgres_session.scalar(select(func.count()).select_from(CatalogVersion)) == 4
+    assert postgres_session.scalar(select(func.count()).select_from(Exercise)) == 56
+    assert postgres_session.scalar(select(func.count()).select_from(ExerciseSafetyRule)) == 354
+    assert postgres_session.scalar(select(func.count()).select_from(ExerciseAlternative)) == 238
+    assert (
+        postgres_session.scalar(
+            select(func.count())
+            .select_from(ExerciseSafetyRule)
+            .where(ExerciseSafetyRule.production_eligible.is_(True))
+        )
+        == 0
+    )
+    assert (
+        postgres_session.scalar(
+            select(func.count())
+            .select_from(ExerciseAlternative)
+            .where(ExerciseAlternative.production_eligible.is_(True))
+        )
+        == 0
+    )
+    safety = postgres_session.scalar(select(ExerciseSafetyRule).limit(1))
+    alternative = postgres_session.scalar(select(ExerciseAlternative).limit(1))
+    assert safety is not None and "catalog_seed_artifacts" in safety.source_metadata["source"]
+    assert alternative is not None and "input_artifacts" in alternative.source_metadata["source"]

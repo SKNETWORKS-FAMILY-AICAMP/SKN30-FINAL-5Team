@@ -1,4 +1,5 @@
-from typing import Annotated, Literal
+from datetime import datetime
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -154,3 +155,95 @@ class ExerciseDetailResponse(BaseModel):
     media_asset_key: str | None = None
     mascot_animation_asset_key: str | None = None
     instruction_content_version: str
+
+
+class DerivedArtifactVersion(CatalogInputModel):
+    version_code: Annotated[str, Field(min_length=1, max_length=120)]
+    status_code: CatalogVersionStatusCode
+
+
+class DerivedArtifactSummary(CatalogInputModel):
+    rule_records: Annotated[int, Field(ge=0)] | None = None
+    exercise_records: Annotated[int, Field(ge=0)] | None = None
+    pattern_scope_rules: Annotated[int, Field(ge=0)] | None = None
+    exercise_scope_rules: Annotated[int, Field(ge=0)] | None = None
+    alternative_records: Annotated[int, Field(ge=0)] | None = None
+    sources_with_alternatives: Annotated[int, Field(ge=0)] | None = None
+
+
+class DerivedArtifactManifest(CatalogInputModel):
+    schema_version: Literal["1.0"]
+    generator_version: Annotated[str, Field(min_length=1, max_length=80)]
+    source: dict[str, Any]
+    review: ManifestReview
+    summary: DerivedArtifactSummary
+    files: list[ManifestFile]
+
+
+class SafetyRuleManifest(DerivedArtifactManifest):
+    rule_set_version: DerivedArtifactVersion
+
+    @model_validator(mode="after")
+    def validate_rule_file(self) -> "SafetyRuleManifest":
+        entries = [entry for entry in self.files if entry.path == "safety_rules.jsonl"]
+        if len(entries) != 1 or self.summary.rule_records != entries[0].records:
+            raise ValueError("manifest must describe one matching safety rule JSONL file")
+        return self
+
+
+class ExerciseSafetyRuleRecord(CatalogInputModel):
+    body_area_code: BodyAreaCode
+    body_part_role_code: Literal["PRIMARY", "SECONDARY"]
+    catalog_version_code: Annotated[str, Field(min_length=1, max_length=120)]
+    effect_code: Literal["EXCLUDE", "CAUTION"]
+    exercise_stable_code: StableCode | None
+    maximum_severity_code: Literal["MILD", "MODERATE", "SEVERE"]
+    minimum_severity_code: Literal["MILD", "MODERATE", "SEVERE"]
+    movement_pattern_code: MovementPatternCode | None
+    reason_code: Literal["DIRECT_JOINT_LOAD", "STABILIZER_LOAD"]
+    review_status_code: CatalogReviewStatusCode
+    rule_scope: Literal["EXERCISE", "MOVEMENT_PATTERN"]
+    rule_version: Annotated[str, Field(min_length=1, max_length=80)]
+
+    @model_validator(mode="after")
+    def validate_scope_target(self) -> "ExerciseSafetyRuleRecord":
+        if self.rule_scope == "EXERCISE":
+            valid = self.exercise_stable_code is not None and self.movement_pattern_code is None
+        else:
+            valid = self.exercise_stable_code is None and self.movement_pattern_code is not None
+        if not valid:
+            raise ValueError("safety rule must target exactly the declared scope")
+        return self
+
+
+class AlternativeManifest(DerivedArtifactManifest):
+    alternative_set_version: DerivedArtifactVersion
+
+    @model_validator(mode="after")
+    def validate_alternative_file(self) -> "AlternativeManifest":
+        entries = [entry for entry in self.files if entry.path == "alternatives.jsonl"]
+        if len(entries) != 1 or self.summary.alternative_records != entries[0].records:
+            raise ValueError("manifest must describe one matching alternatives JSONL file")
+        return self
+
+
+class ExerciseAlternativeRecord(CatalogInputModel):
+    alternative_catalog_version_code: Annotated[str, Field(min_length=1, max_length=120)]
+    alternative_exercise_stable_code: StableCode
+    created_at: datetime
+    difficulty_delta: Literal[-1, 0]
+    goal_preservation_code: Annotated[str, Field(pattern=r"^[A-Z][A-Z0-9_]*$", max_length=80)]
+    reason_code: Literal["DIFFICULTY", "EQUIPMENT", "LOCATION", "DISCOMFORT"]
+    review_method_code: ReviewMethodCode
+    review_status_code: CatalogReviewStatusCode
+    rule_version: Annotated[str, Field(min_length=1, max_length=80)]
+    source_catalog_version_code: Annotated[str, Field(min_length=1, max_length=120)]
+    source_exercise_stable_code: StableCode
+    status_interpretation: ReviewStatusInterpretationCode
+
+    @field_validator("created_at")
+    @classmethod
+    def validate_timezone_aware_created_at(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("created_at must include timezone information")
+        return value

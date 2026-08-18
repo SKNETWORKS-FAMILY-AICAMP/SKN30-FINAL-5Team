@@ -13,11 +13,14 @@ from backend.app.core.config import get_settings
 ALEMBIC_CONFIG = Path("backend/alembic.ini")
 
 
-def test_migration_history_has_calendar_persistence_head() -> None:
+def test_migration_history_has_catalog_derived_data_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0013_calendar_persistence"]
+    assert scripts.get_heads() == ["0014_catalog_derived_data"]
+    assert scripts.get_revision("0014_catalog_derived_data").down_revision == (
+        "0013_calendar_persistence"
+    )
     assert scripts.get_revision("0013_calendar_persistence").down_revision == (
         "0012_account_deletion_retention"
     )
@@ -68,6 +71,8 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
             "calendar_event_links",
             "calendar_oauth_requests",
             "calendar_rate_limit_counters",
+            "exercise_safety_rules",
+            "exercise_alternatives",
         }.issubset(inspector.get_table_names())
         assert {column["name"] for column in inspector.get_columns("calendar_connections")} == {
             "id",
