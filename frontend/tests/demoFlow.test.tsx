@@ -20,19 +20,20 @@ import { ApiClient, createIdempotencyKey } from '../src/api/client';
 import { ApiError } from '../src/api/errors';
 import { createApi, type Api } from '../src/api/endpoints';
 import type {
+  DailyContextResponse,
   DecisionResponse,
   MeResponse,
   RoutineResponse,
   SessionItem,
+  WeekResponse,
   WorkoutPlan,
 } from '../src/api/types';
 import { resolveEnvConfig } from '../src/config/env';
 import { MascotStage } from '../src/components/brand/BrandChrome';
 import { CalendarStatusScreen } from '../src/features/calendar/CalendarStatusScreen';
-import { DecisionScreen } from '../src/features/decision/DecisionScreen';
+import { HomeContainer } from '../src/features/home/HomeContainer';
 import { MascotHouseScreen } from '../src/features/house/MascotHouseScreen';
 import { OnboardingScreen } from '../src/features/onboarding/OnboardingScreen';
-import { TodayScreen } from '../src/features/today/TodayScreen';
 import { SessionCarousel } from '../src/features/workout/SessionCarousel';
 import { SessionScreen } from '../src/features/workout/SessionScreen';
 
@@ -130,6 +131,68 @@ function routine(): RoutineResponse {
   };
 }
 
+function dailyContext(): DailyContextResponse {
+  return {
+    id: 'context-1',
+    local_date: '2026-08-17',
+    context_version: 1,
+    fatigue_level_code: 'MODERATE',
+    requested_duration_minutes: 30,
+    duration_adjustment_source_code: 'PROFILE',
+    location_code: 'HOME',
+    sleep_minutes: 420,
+    discomforts: [],
+    adverse_reaction_codes: [],
+    created_at: '2026-08-17T00:00:00+09:00',
+    updated_at: '2026-08-17T00:00:00+09:00',
+  };
+}
+
+function week(): WeekResponse {
+  return {
+    week_id: 'week-1',
+    week_start: '2026-08-17',
+    week_end: '2026-08-23',
+    timezone: 'Asia/Seoul',
+    target_workout_count: 4,
+    plan_origin_code: 'INITIAL',
+    cold_start_applied: true,
+    status_code: 'OPEN',
+    closed_at: null,
+    report_id: null,
+    report_status_code: null,
+  };
+}
+
+function me(): MeResponse {
+  return {
+    user_id: 'user-1',
+    status_code: 'ACTIVE',
+    onboarding_completed: true,
+    premium_status_code: 'TRIAL',
+    ai_trial_started_at: '2026-08-01T00:00:00+09:00',
+    ai_trial_ends_at: '2026-08-31T00:00:00+09:00',
+    profile: {
+      nickname: '데모',
+      age: null,
+      primary_goal_code: 'GENERAL_FITNESS',
+      experience_level_code: 'BEGINNER',
+      timezone: 'Asia/Seoul',
+      preferred_location_code: 'HOME',
+      available_location_codes: ['HOME'],
+      default_requested_duration_minutes: 30,
+      desired_weekly_workout_count: 4,
+      coaching_style_code: 'FRIENDLY',
+      equipment_codes: [],
+      attention_area_codes: [],
+      preferred_exercise_type_codes: [],
+      profile_version: 1,
+      created_at: '2026-08-01T00:00:00+09:00',
+      updated_at: '2026-08-01T00:00:00+09:00',
+    },
+  };
+}
+
 function stubApi(overrides: Partial<Api> = {}): Api {
   return {
     getMe: jest.fn(),
@@ -150,6 +213,8 @@ function stubApi(overrides: Partial<Api> = {}): Api {
     markNotCompleted: jest.fn(),
     submitFeedback: jest.fn(),
     getWeek: jest.fn(),
+    createInitialWeeklyPlan: jest.fn(),
+    createPlanRevision: jest.fn(),
     createWeeklyReport: jest.fn(),
     getWeeklyReport: jest.fn(),
     acknowledgeWeeklyReport: jest.fn(),
@@ -208,119 +273,122 @@ describe('idempotency keys', () => {
   });
 });
 
-describe('DecisionScreen', () => {
-  it('shows the final routine and a rest opt-out, and nothing else', () => {
-    render(
-      <DecisionScreen
-        api={stubApi()}
-        decision={decision()}
-        onSessionStarted={jest.fn()}
-        onRestChosen={jest.fn()}
-        onBack={jest.fn()}
-      />,
+describe('HomeContainer', () => {
+  function homeApi(overrides: Partial<Api> = {}): Api {
+    return stubApi({
+      getCurrentRoutine: jest.fn(async () => routine()),
+      getDailyContext: jest.fn(notFound),
+      getWeek: jest.fn(async () => week()),
+      ...overrides,
+    } as unknown as Partial<Api>);
+  }
+
+  function renderHome(api: Api, overrides: Record<string, unknown> = {}) {
+    const base = {
+      api,
+      me: me(),
+      restToday: false,
+      decision: null,
+      onDecisionChange: jest.fn(),
+      planRevision: null,
+      onPlanRevisionChange: jest.fn(),
+      onSessionStarted: jest.fn(),
+      onRestChosen: jest.fn(),
+      onTab: jest.fn(),
+      onOpenCalendar: jest.fn(),
+    };
+    return render(<HomeContainer {...base} {...overrides} />);
+  }
+
+  it("shows a loading state while today's data is pending", () => {
+    const pending = new Promise<never>(() => undefined);
+    renderHome(
+      homeApi({
+        getCurrentRoutine: jest.fn(() => pending),
+        getDailyContext: jest.fn(() => pending),
+        getWeek: jest.fn(() => pending),
+      } as unknown as Partial<Api>),
     );
 
-    expect(screen.getByText('이 루틴으로 운동 시작')).toBeTruthy();
-    expect(screen.getByText('오늘은 쉬기')).toBeTruthy();
-    // Internal candidates must never appear as public plan alternatives.
-    expect(screen.queryByText(/원래 루틴/)).toBeNull();
-    expect(screen.queryByText(/가벼운 루틴/)).toBeNull();
+    expect(screen.getByText('오늘 상태를 불러오는 중이에요')).toBeTruthy();
   });
 
-  it('offers no workout option when safety blocked the plan', () => {
-    render(
-      <DecisionScreen
-        api={stubApi()}
-        decision={decision({
-          safety_status_code: 'BLOCKED',
-          action_code: 'REST',
-          final_plan: null,
-          options: [
-            {
-              option_id: 'option-rest',
-              option_code: 'REST',
-              action_code: 'REST',
-              plan_id: null,
-              selectable: true,
-              blocked_reason_code: null,
-            },
-          ],
-          guidance: {
-            code: 'REST_AND_RECHECK',
-            title: '오늘은 운동을 쉬어주세요.',
-            message: '상태를 다시 확인한 뒤 조정할게요.',
-            tone_code: 'SERIOUS',
-          },
-        })}
-        onSessionStarted={jest.fn()}
-        onRestChosen={jest.fn()}
-        onBack={jest.fn()}
-      />,
-    );
+  it('offers one check-in entry point before the check-in', async () => {
+    renderHome(homeApi());
 
-    expect(screen.queryByText('이 루틴으로 운동 시작')).toBeNull();
-    expect(screen.getByText('오늘은 쉬기')).toBeTruthy();
-    expect(screen.getByText('오늘은 운동을 쉬어주세요.')).toBeTruthy();
+    expect(
+      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+    ).toBeTruthy();
+    expect(screen.getByText('아직 오늘의 운동이 없어요')).toBeTruthy();
   });
 
-  it('shows a serious stop screen with no options for STOP_AND_SEEK_HELP', () => {
-    render(
-      <DecisionScreen
-        api={stubApi()}
-        decision={decision({
-          safety_status_code: 'BLOCKED',
-          action_code: 'STOP_AND_SEEK_HELP',
-          final_plan: null,
-          options: [],
-          guidance: {
-            code: 'STOP_AND_SEEK_HELP',
-            title: '운동을 즉시 중단해주세요.',
-            message: '지역 응급의료 도움을 요청하세요.',
-            tone_code: 'SERIOUS',
-          },
-        })}
-        onSessionStarted={jest.fn()}
-        onRestChosen={jest.fn()}
-        onBack={jest.fn()}
-      />,
+  it('offers routine creation when none exists yet', async () => {
+    renderHome(
+      homeApi({
+        getCurrentRoutine: jest.fn(notFound),
+      } as unknown as Partial<Api>),
     );
 
-    expect(screen.getByText('운동을 중단해주세요')).toBeTruthy();
-    expect(screen.queryByText('이 루틴으로 운동 시작')).toBeNull();
-    expect(screen.queryByText('오늘은 쉬기')).toBeNull();
+    expect(await screen.findByText('기본 루틴이 아직 없어요')).toBeTruthy();
   });
 
-  it('disables an option the server marked non-selectable', () => {
-    render(
-      <DecisionScreen
-        api={stubApi()}
-        decision={decision({
-          options: [
-            {
-              option_id: 'option-routine',
-              option_code: 'FINAL_ROUTINE',
-              action_code: 'KEEP',
-              plan_id: 'plan-1',
-              selectable: false,
-              blocked_reason_code: 'SAFETY_VETO',
-            },
-          ],
-        })}
-        onSessionStarted={jest.fn()}
-        onRestChosen={jest.fn()}
-        onBack={jest.fn()}
-      />,
+  it('writes the check-in and renders the decision the server returned', async () => {
+    const replaceDailyContext = jest.fn(async () => dailyContext());
+    const createDecision = jest.fn(async () => decision());
+    const onDecisionChange = jest.fn();
+
+    renderHome(
+      homeApi({
+        replaceDailyContext,
+        createDecision,
+      } as unknown as Partial<Api>),
+      { onDecisionChange },
     );
 
-    const button = screen.getByRole('button', {
-      name: '이 루틴으로 운동 시작',
-    });
-    expect(button.props.accessibilityState.disabled).toBe(true);
-    expect(screen.getByText(/지금은 선택할 수 없는 옵션이에요/)).toBeTruthy();
+    fireEvent.press(
+      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+
+    await waitFor(() => expect(createDecision).toHaveBeenCalled());
+    expect(replaceDailyContext).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        fatigue_level_code: 'MODERATE',
+        discomforts: [],
+        adverse_reaction_codes: [],
+      }),
+      undefined,
+    );
+    // The decision is owned above this screen, so a tab switch cannot lose it.
+    expect(onDecisionChange).toHaveBeenCalledWith(
+      expect.objectContaining({ decision_id: 'decision-1' }),
+    );
+  });
+
+  it('leaves an unset optional value unset rather than inferring it', async () => {
+    const replaceDailyContext = jest.fn(async () => dailyContext());
+    renderHome(
+      homeApi({
+        replaceDailyContext,
+        createDecision: jest.fn(async () => decision()),
+      } as unknown as Partial<Api>),
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+
+    await waitFor(() => expect(replaceDailyContext).toHaveBeenCalled());
+    expect(replaceDailyContext).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ sleep_minutes: null }),
+      undefined,
+    );
   });
 
   it('reports a rest selection without creating a session', async () => {
-    const onRestChosen = jest.fn();
     const selectOption = jest.fn(async () => ({
       selection_id: 'sel-1',
       decision_id: 'decision-1',
@@ -330,85 +398,96 @@ describe('DecisionScreen', () => {
       selected_at: '2026-08-17T02:00:00+09:00',
       pressure_notifications_allowed: false,
     }));
+    const onRestChosen = jest.fn();
+    const onSessionStarted = jest.fn();
 
-    render(
-      <DecisionScreen
-        api={stubApi({ selectOption } as unknown as Partial<Api>)}
-        decision={decision()}
-        onSessionStarted={jest.fn()}
-        onRestChosen={onRestChosen}
-        onBack={jest.fn()}
-      />,
-    );
+    renderHome(homeApi({ selectOption } as unknown as Partial<Api>), {
+      decision: decision(),
+      onRestChosen,
+      onSessionStarted,
+    });
 
-    fireEvent.press(screen.getByText('오늘은 쉬기'));
+    fireEvent.press(await screen.findByText('오늘은 쉬기'));
+
     await waitFor(() => expect(onRestChosen).toHaveBeenCalled());
+    expect(selectOption).toHaveBeenCalledWith('decision-1', 'option-rest');
+    expect(onSessionStarted).not.toHaveBeenCalled();
   });
-});
 
-describe('TodayScreen', () => {
-  it('shows no workout prompt on a day the user chose rest', async () => {
-    render(
-      <TodayScreen
-        api={stubApi({
-          getCurrentRoutine: jest.fn(async () => routine()),
-          getDailyContext: jest.fn(notFound),
-        } as unknown as Partial<Api>)}
-        nickname="데모"
-        restToday
-        onCheckIn={jest.fn()}
-        onTab={jest.fn()}
-        onOpenCalendar={jest.fn()}
-      />,
+  it('hands the started session to the flow above', async () => {
+    const selectOption = jest.fn(async () => ({
+      selection_id: 'sel-2',
+      decision_id: 'decision-1',
+      option_id: 'option-routine',
+      selected_action_code: 'KEEP' as const,
+      workout_session: {
+        session_id: 'session-1',
+        status_code: 'PLANNED' as const,
+      },
+      selected_at: '2026-08-17T02:00:00+09:00',
+      pressure_notifications_allowed: null,
+    }));
+    const onSessionStarted = jest.fn();
+
+    renderHome(homeApi({ selectOption } as unknown as Partial<Api>), {
+      decision: decision(),
+      onSessionStarted,
+    });
+
+    fireEvent.press(await screen.findByText('운동 시작하기  ›'));
+
+    await waitFor(() =>
+      expect(onSessionStarted).toHaveBeenCalledWith(
+        'session-1',
+        expect.objectContaining({ plan_id: 'plan-1' }),
+      ),
     );
+  });
+
+  it('shows no workout prompt on a day the user chose rest', async () => {
+    renderHome(homeApi(), { restToday: true, decision: decision() });
 
     expect(await screen.findByText('오늘은 휴식하기로 했어요')).toBeTruthy();
-    expect(screen.queryByText('체크인 하기')).toBeNull();
-    expect(screen.queryByText('오늘의 루틴 받기')).toBeNull();
-  });
-
-  it('offers routine creation when none exists yet', async () => {
-    render(
-      <TodayScreen
-        api={stubApi({
-          getCurrentRoutine: jest.fn(notFound),
-          getDailyContext: jest.fn(notFound),
-        } as unknown as Partial<Api>)}
-        nickname="데모"
-        restToday={false}
-        onCheckIn={jest.fn()}
-        onTab={jest.fn()}
-        onOpenCalendar={jest.fn()}
-      />,
-    );
-
-    expect(await screen.findByText('기본 루틴이 아직 없어요')).toBeTruthy();
+    expect(screen.queryByText('오늘 루틴 체크인')).toBeNull();
+    expect(screen.queryByText('운동 시작하기  ›')).toBeNull();
   });
 
   it('surfaces a retryable error state', async () => {
-    render(
-      <TodayScreen
-        api={stubApi({
-          getCurrentRoutine: jest.fn(async () => {
-            throw new ApiError({
-              kind: 'network',
-              code: 'NETWORK_UNAVAILABLE',
-              status: 0,
-              message: '서버에 연결하지 못했습니다.',
-            });
-          }),
-          getDailyContext: jest.fn(notFound),
-        } as unknown as Partial<Api>)}
-        nickname="데모"
-        restToday={false}
-        onCheckIn={jest.fn()}
-        onTab={jest.fn()}
-        onOpenCalendar={jest.fn()}
-      />,
+    renderHome(
+      homeApi({
+        getCurrentRoutine: jest.fn(async () => {
+          throw new ApiError({
+            kind: 'network',
+            code: 'NETWORK_UNAVAILABLE',
+            status: 0,
+            message: '서버에 연결하지 못했습니다.',
+          });
+        }),
+      } as unknown as Partial<Api>),
     );
 
     expect(await screen.findByText('서버에 연결하지 못했습니다.')).toBeTruthy();
     expect(screen.getByText('다시 시도')).toBeTruthy();
+  });
+
+  it('shows a non-retryable permission-denied state', async () => {
+    renderHome(
+      homeApi({
+        getCurrentRoutine: jest.fn(async () => {
+          throw new ApiError({
+            kind: 'permission',
+            code: 'ACCOUNT_DISABLED',
+            status: 403,
+            message: '접근할 수 없습니다.',
+          });
+        }),
+      } as unknown as Partial<Api>),
+    );
+
+    expect(
+      await screen.findByText('오늘의 운동 정보에 접근할 권한이 없어요.'),
+    ).toBeTruthy();
+    expect(screen.queryByText('다시 시도')).toBeNull();
   });
 });
 

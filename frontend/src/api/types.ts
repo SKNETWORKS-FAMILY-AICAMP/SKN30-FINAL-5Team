@@ -338,6 +338,46 @@ export type WeekResponse = {
   report_status_code: string | null;
 };
 
+export type PlanRevisionSourceCode = 'INITIAL' | 'AI' | 'USER';
+
+export type PlanSafetyStatusCode =
+  'PASS' | 'NEEDS_INPUT' | 'REVISE' | 'BLOCKED' | 'FAILED';
+
+/**
+ * A USER plan revision references a stored routine version and a location, not
+ * an arbitrary exercise list. The server re-checks duration, location,
+ * equipment and the saved safety exclusions against it.
+ */
+export type WeeklyPlanUserEdits = {
+  routine_id: string;
+  location_code: string;
+};
+
+export type WeeklyPlanRevisionRequest = {
+  source_code: 'AI' | 'USER';
+  expected_revision_sequence: number;
+  user_edits: WeeklyPlanUserEdits | null;
+};
+
+export type WeeklyPlanRevisionResponse = {
+  revision_id: string;
+  week_start: string;
+  week_end: string;
+  revision_sequence: number;
+  /** Coordinator-authored revisions only; the third AI request is refused. */
+  ai_revision_count: 0 | 1 | 2;
+  source_code: PlanRevisionSourceCode;
+  source_weekly_report_id: string | null;
+  safety_status_code: PlanSafetyStatusCode;
+  routine: RoutineResponse | null;
+  selected_location_code: string | null;
+  finalized: boolean;
+  finalized_at: string | null;
+  revision_reason_codes: string[];
+  finalization_reason_codes: string[];
+  created_at: string;
+};
+
 export type WeeklyReportResponse = {
   report_id: string;
   week_start: string;

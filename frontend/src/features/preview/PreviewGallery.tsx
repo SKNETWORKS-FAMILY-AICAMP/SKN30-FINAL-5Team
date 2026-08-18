@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -19,6 +19,7 @@ import {
 import { SignUpScreen } from '../auth/SignUpScreen';
 import { CalendarReportScreen } from '../home/CalendarReportScreen';
 import { HOME_PREVIEW_OPTIONS, type HomePreviewState } from '../home/homeModel';
+import { HomeContainer } from '../home/HomeContainer';
 import { HomeScreen } from '../home/HomeScreen';
 import {
   CALENDAR_REPORT_PREVIEW_OPTIONS,
@@ -42,6 +43,13 @@ import {
   WORKOUT_PREVIEW_OPTIONS,
   type WorkoutPreviewState,
 } from '../workout/workoutModel';
+import { homePreviewProps } from './homePreview';
+import {
+  createTodayPreviewApi,
+  PREVIEW_ME,
+  TODAY_PREVIEW_OPTIONS,
+  type TodayPreviewState,
+} from './todayPreview';
 
 const APP_CANVAS = { width: 390, height: 844 } as const;
 export const SPLASH_DEVICE_PREVIEWS = [
@@ -69,6 +77,7 @@ const PREVIEW_SCREENS = [
   { id: 'login', label: 'Login' },
   { id: 'signup', label: 'SignUp' },
   { id: 'profile', label: 'Profile' },
+  { id: 'today', label: 'Home (API)' },
   { id: 'home', label: 'Home' },
   { id: 'home-map', label: 'Home map' },
   { id: 'calendar-report', label: 'Calendar/report' },
@@ -76,13 +85,17 @@ const PREVIEW_SCREENS = [
   { id: 'workout', label: 'Workout' },
 ] as const;
 
-type PreviewScreenId = (typeof PREVIEW_SCREENS)[number]['id'];
+export type PreviewScreenId = (typeof PREVIEW_SCREENS)[number]['id'];
 type SplashPreviewState = 'pending' | 'error';
 type SplashDevicePreviewId = (typeof SPLASH_DEVICE_PREVIEWS)[number]['id'];
 
-export function PreviewGallery() {
+export function PreviewGallery({
+  initialScreenId = 'splash',
+}: {
+  initialScreenId?: PreviewScreenId;
+}) {
   const { width } = useWindowDimensions();
-  const [screenId, setScreenId] = useState<PreviewScreenId>('splash');
+  const [screenId, setScreenId] = useState<PreviewScreenId>(initialScreenId);
   const [splashState, setSplashState] = useState<SplashPreviewState>('pending');
   const [splashDevicePreviewId, setSplashDevicePreviewId] =
     useState<SplashDevicePreviewId>('reference');
@@ -92,6 +105,8 @@ export function PreviewGallery() {
   const [profileState, setProfileState] =
     useState<ProfilePreviewState>('editing');
   const [homeState, setHomeState] = useState<HomePreviewState>('pre-checkin');
+  const [todayState, setTodayState] =
+    useState<TodayPreviewState>('pre-checkin');
   const [mapHomeState, setMapHomeState] = useState<MapHomePreviewState>('map');
   const [calendarReportState, setCalendarReportState] =
     useState<CalendarReportPreviewState>('calendar');
@@ -105,6 +120,10 @@ export function PreviewGallery() {
       (preview) => preview.id === splashDevicePreviewId,
     ) ?? SPLASH_DEVICE_PREVIEWS[1];
   const canvasViewport = screenId === 'splash' ? splashViewport : APP_CANVAS;
+  const todayApi = useMemo(
+    () => createTodayPreviewApi(todayState),
+    [todayState],
+  );
 
   return (
     <ScrollView
@@ -260,6 +279,21 @@ export function PreviewGallery() {
           </>
         ) : null}
 
+        {screenId === 'today' ? (
+          <>
+            <PreviewStateOptions
+              label="Today API 응답 상태"
+              options={TODAY_PREVIEW_OPTIONS}
+              selected={todayState}
+              onSelect={setTodayState}
+            />
+            <Text style={styles.contractNotice}>
+              개발 확인 전용: 실제 홈 화면에 서버 응답 fixture만 주입합니다.
+              운동 추천이나 조정 판단은 프론트엔드에서 만들지 않습니다.
+            </Text>
+          </>
+        ) : null}
+
         {screenId === 'home-map' ? (
           <>
             <PreviewStateOptions
@@ -370,7 +404,24 @@ export function PreviewGallery() {
               previewState={profileState}
             />
           ) : null}
-          {screenId === 'home' ? <HomeScreen previewState={homeState} /> : null}
+          {screenId === 'home' ? (
+            <HomeScreen {...homePreviewProps(homeState)} />
+          ) : null}
+          {screenId === 'today' ? (
+            <HomeContainer
+              api={todayApi}
+              me={PREVIEW_ME}
+              restToday={todayState === 'rest'}
+              decision={null}
+              onDecisionChange={() => undefined}
+              planRevision={null}
+              onPlanRevisionChange={() => undefined}
+              onSessionStarted={() => undefined}
+              onRestChosen={() => setTodayState('rest')}
+              onTab={() => undefined}
+              onOpenCalendar={() => undefined}
+            />
+          ) : null}
           {screenId === 'home-map' ? (
             <MapHomeScreen previewState={mapHomeState} />
           ) : null}

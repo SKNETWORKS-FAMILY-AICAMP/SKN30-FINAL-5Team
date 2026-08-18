@@ -38,6 +38,20 @@ describe('App boot navigation', () => {
     expect(bootResolver).not.toHaveBeenCalled();
   });
 
+  it('opens the API-backed home preview without starting app boot', async () => {
+    const bootResolver = jest.fn(async () => 'Auth' as const);
+
+    await render(<App bootResolver={bootResolver} previewMode="today" />);
+
+    expect(
+      screen.getByRole('header', { name: 'Preview Gallery' }),
+    ).toBeOnTheScreen();
+    expect(
+      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+    ).toBeOnTheScreen();
+    expect(bootResolver).not.toHaveBeenCalled();
+  });
+
   it.each([
     {
       mode: 'login' as const,

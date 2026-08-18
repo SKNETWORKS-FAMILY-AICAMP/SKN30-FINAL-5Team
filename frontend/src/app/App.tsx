@@ -13,6 +13,7 @@ import { CalendarReportScreen } from '../features/home/CalendarReportScreen';
 import { HomeScreen } from '../features/home/HomeScreen';
 import { MapHomeScreen } from '../features/home/MapHomeScreen';
 import { MyPageScreen } from '../features/home/MyPageScreen';
+import { homePreviewProps } from '../features/preview/homePreview';
 import { PreviewGallery } from '../features/preview/PreviewGallery';
 import { ProfileScreen } from '../features/profile/ProfileScreen';
 import { SplashScreen } from '../features/splash/SplashScreen';
@@ -156,12 +157,14 @@ export function App({
     <SafeAreaProvider>
       {activePreview === 'gallery' ? (
         <PreviewGallery />
+      ) : activePreview === 'today' ? (
+        <PreviewGallery initialScreenId="today" />
       ) : activePreview === 'workout' ? (
         <WorkoutScreen />
       ) : activePreview === 'calendar-report' ? (
         <CalendarReportScreen />
       ) : activePreview === 'home' ? (
-        <HomeScreen />
+        <HomeScreen {...homePreviewProps('pre-checkin')} />
       ) : activePreview === 'home-map' ? (
         <MapHomeScreen />
       ) : activePreview === 'login' ? (

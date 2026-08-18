@@ -1,3 +1,20 @@
+/**
+ * The home screen: the product's entry point.
+ *
+ * Today's state, the server's final routine, and the way into the workout sit
+ * on one surface, so the user never leaves home to check in or to see what was
+ * decided. This file is presentation only — it receives stored server values
+ * and callbacks, and re-derives no safety, duration or coordinator decision.
+ *
+ * Invariants it renders rather than reproduces:
+ *
+ * - one final routine, plus the server's optional REST opt-out; no "lighter"
+ *   or "original" plan alternatives are ever offered
+ * - a safety veto (`BLOCKED`) has no plan and cannot be dismissed here
+ * - `STOP_AND_SEEK_HELP` drops every playful element and shows a serious notice
+ * - once the user chose rest, nothing on this screen prompts them to train
+ */
+
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import {
@@ -11,13 +28,45 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, Card } from '../../components/primitives';
-import { colors, spacing } from '../../components/theme';
-import { fontFamilies, useBrandFonts } from '../../app/fonts';
 import {
-  HOME_CHECKIN_OPTIONS,
-  HOME_ROUTINE_ITEMS,
-  HOME_WEEK_DAYS,
+  actionDescription,
+  actionLabel,
+  ADVERSE_REACTION_OPTIONS,
+  agentTypeLabel,
+  bodyAreaLabel,
+  BODY_AREA_OPTIONS,
+  FATIGUE_OPTIONS,
+  SEVERITY_OPTIONS,
+} from '../../api/labels';
+import type {
+  DailyContextResponse,
+  DecisionResponse,
+  DiscomfortSeverityCode,
+  RoutineResponse,
+  WeeklyPlanRevisionResponse,
+  WeekResponse,
+} from '../../api/types';
+import { fontFamilies, useBrandFonts } from '../../app/fonts';
+import type { TabId } from '../../components/brand/BrandChrome';
+import { Button, Card } from '../../components/primitives';
+import {
+  ErrorState,
+  LoadingState,
+  SafetyNotice,
+} from '../../components/states/ScreenState';
+import { colors, spacing } from '../../components/theme';
+import {
+  checkinDraftFromContext,
+  emptyCheckinDraft,
+  formatHomeDate,
+  formatWeekRange,
+  HOME_DURATION_CHOICES,
+  HOME_WEEK_DAY_LABELS,
+  planSummary,
+  planTitle,
+  routineItemsFromDay,
+  routineItemsFromPlan,
+  type HomeCheckinDraft,
   type HomePreviewState,
   type HomeRoutineItem,
 } from './homeModel';
@@ -34,89 +83,138 @@ export const HOME_LAYOUT = {
   sheetBottomPadding: 30,
 } as const;
 
-type CheckinKey = keyof typeof HOME_CHECKIN_OPTIONS;
+/**
+ * The contract's fixed cap on Coordinator-authored revisions per week, shown
+ * as a remaining count. The server stays the authority: a third request is
+ * refused with `AI_REVISION_LIMIT_REACHED` whatever this screen displays.
+ */
+export const AI_REVISION_LIMIT = 2;
 
-type HomeScreenProps = {
-  onEditRoutine?: () => void;
-  onNavigateTab?: (tab: 'home' | 'log' | 'report' | 'my') => void;
-  onOpenCheckin?: () => void;
-  onRequestAlternative?: () => void;
-  onSaveCheckin?: () => void;
-  onSaveEdit?: (items: readonly HomeRoutineItem[]) => void;
+/** Which server call is in flight, so only that control shows progress. */
+export type HomeBusyKind = 'checkin' | 'revision' | 'starting';
+
+type SheetName = 'none' | 'checkin' | 'editing';
+
+export type HomeUserEdits = {
+  routineId: string;
+  locationCode: string;
+};
+
+export type HomeScreenProps = {
+  nickname: string;
+  /** The user's own `YYYY-MM-DD`; every daily resource is keyed by it. */
+  localDate: string;
+
+  status?: 'loading' | 'error' | 'ready';
+  errorMessage?: string;
+  permissionDenied?: boolean;
+  onRetry?: () => void;
+
+  routine?: RoutineResponse | null;
+  context?: DailyContextResponse | null;
+  decision?: DecisionResponse | null;
+  week?: WeekResponse | null;
+  planRevision?: WeeklyPlanRevisionResponse | null;
+
+  /** Set once the user chose REST today; suppresses every workout prompt. */
+  restToday?: boolean;
+
+  /** Profile default, used for the first check-in of the day. */
+  defaultDurationMinutes?: number;
+  /** Locations from the profile, for a USER plan revision. */
+  locationCodes?: readonly string[];
+
+  busy?: HomeBusyKind | null;
+  actionError?: string | null;
+  /** The stored check-in moved on; the retry re-reads its version first. */
+  staleContext?: boolean;
+  onRetryCheckin?: () => void;
+
+  onCreateRoutine?: () => void;
+  onSubmitCheckin?: (draft: HomeCheckinDraft) => void;
   onStartWorkout?: () => void;
+  onChooseRest?: () => void;
+  onRequestAiRevision?: () => void;
+  onSubmitUserEdits?: (edits: HomeUserEdits) => void;
+  onNavigateTab?: (tab: TabId) => void;
+  onOpenCalendar?: () => void;
+
+  /** Development preview only: opens a sheet on mount. */
   previewState?: HomePreviewState;
 };
 
 export function HomeScreen({ previewState, ...props }: HomeScreenProps) {
-  const initialState = previewState ?? 'pre-checkin';
-
+  // Remounting on a preview change resets the sheet state, which is what the
+  // gallery wants when it jumps between fixed states.
   return (
     <HomeScreenContent
-      key={initialState}
+      key={previewState ?? 'live'}
       {...props}
-      initialState={initialState}
+      previewState={previewState}
     />
   );
 }
 
 function HomeScreenContent({
-  initialState,
-  onEditRoutine,
-  onNavigateTab,
-  onOpenCheckin,
-  onRequestAlternative,
-  onSaveCheckin,
-  onSaveEdit,
+  nickname,
+  localDate,
+  status = 'ready',
+  errorMessage,
+  permissionDenied = false,
+  onRetry,
+  routine = null,
+  context = null,
+  decision = null,
+  week = null,
+  planRevision = null,
+  restToday = false,
+  defaultDurationMinutes,
+  locationCodes = [],
+  busy = null,
+  actionError = null,
+  staleContext = false,
+  onRetryCheckin,
+  onCreateRoutine,
+  onSubmitCheckin,
   onStartWorkout,
-}: Omit<HomeScreenProps, 'previewState'> & {
-  initialState: HomePreviewState;
-}) {
+  onChooseRest,
+  onRequestAiRevision,
+  onSubmitUserEdits,
+  onNavigateTab,
+  onOpenCalendar,
+  previewState,
+}: HomeScreenProps) {
   const brandFonts = useBrandFonts();
-  const [screenState, setScreenState] =
-    useState<HomePreviewState>(initialState);
-  const [showWeeklyTip, setShowWeeklyTip] = useState(false);
-  const [checkin, setCheckin] = useState({
-    condition: '보통이에요',
-    discomfort: '없음',
-    fatigue: '보통이에요',
-    sleep: '보통이에요',
-  });
-  const [minutes, setMinutes] = useState('40');
-  const [steps, setSteps] = useState('');
-  const [editItems, setEditItems] = useState<HomeRoutineItem[]>(() =>
-    HOME_ROUTINE_ITEMS.map((item) => ({ ...item })),
-  );
   const useJua = brandFonts.loaded && !brandFonts.failed;
-  const showRoutine = ['routine', 'adjusted', 'editing'].includes(screenState);
 
-  const openCheckin = () => {
-    setScreenState('checkin');
-    onOpenCheckin?.();
-  };
+  const [sheet, setSheet] = useState<SheetName>(
+    previewState === 'checkin'
+      ? 'checkin'
+      : previewState === 'editing'
+        ? 'editing'
+        : 'none',
+  );
+  const [showWeeklyTip, setShowWeeklyTip] = useState(false);
 
-  const saveCheckin = () => {
-    setScreenState('generating');
-    onSaveCheckin?.();
-  };
+  const plan = decision?.final_plan ?? null;
+  const routineDay = routine?.days[0] ?? null;
+  const isSerious = decision?.action_code === 'STOP_AND_SEEK_HELP';
+  const isBlocked = decision?.safety_status_code === 'BLOCKED';
+  const generating =
+    busy === 'checkin' || busy === 'revision' || previewState === 'generating';
 
-  const openEdit = () => {
-    setScreenState('editing');
-    onEditRoutine?.();
-  };
+  const routineOption =
+    decision?.options.find(
+      (option) => option.option_code === 'FINAL_ROUTINE',
+    ) ?? null;
+  const restOption =
+    decision?.options.find((option) => option.option_code === 'REST') ?? null;
 
-  const requestAlternative = () => {
-    setScreenState('generating');
-    onRequestAlternative?.();
-  };
-
-  const saveEdit = () => {
-    setScreenState('routine');
-    onSaveEdit?.(editItems);
-  };
-
-  const updateCheckin = (key: CheckinKey, value: string) => {
-    setCheckin((current) => ({ ...current, [key]: value }));
-  };
+  const startingDuration =
+    context?.requested_duration_minutes ??
+    defaultDurationMinutes ??
+    routineDay?.requested_duration_minutes ??
+    HOME_DURATION_CHOICES[1];
 
   return (
     <SafeAreaView edges={['left', 'right']} style={styles.screen}>
@@ -132,71 +230,180 @@ function HomeScreenContent({
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
       >
-        <HomeHeader />
-        <WeeklyRoutineCard />
-        <WeeklyProgressCard
-          showTip={showWeeklyTip}
-          onToggleTip={() => setShowWeeklyTip((current) => !current)}
+        <HomeHeader
+          nickname={nickname}
+          dateLabel={formatHomeDate(localDate)}
+          onOpenProfile={onNavigateTab ? () => onNavigateTab('my') : undefined}
         />
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="오늘 루틴 체크인"
-          onPress={openCheckin}
-          style={({ pressed }) => [
-            styles.checkinButton,
-            pressed && styles.pressed,
-          ]}
-        >
-          <Text style={[styles.checkinLabel, useJua && styles.juaLabel]}>
-            오늘 루틴 체크인🍌
-          </Text>
-          <Text style={styles.checkinArrow}>›</Text>
-        </Pressable>
-
-        {screenState === 'pre-checkin' || screenState === 'checkin' ? (
-          <EmptyRoutineCard />
-        ) : null}
-
-        {screenState === 'generating' ? <GeneratingRoutineCard /> : null}
-
-        {showRoutine ? (
-          <RoutineCard
-            adjusted={screenState === 'adjusted'}
-            items={editItems}
-            onEdit={openEdit}
-            onRequestAlternative={requestAlternative}
-            onStart={onStartWorkout}
-            useJua={useJua}
+        {status === 'loading' ? (
+          <LoadingState label="오늘 상태를 불러오는 중이에요" />
+        ) : status === 'error' ? (
+          <ErrorState
+            message={
+              permissionDenied
+                ? '오늘의 운동 정보에 접근할 권한이 없어요.'
+                : (errorMessage ?? '오늘 상태를 불러오지 못했어요.')
+            }
+            onRetry={permissionDenied ? undefined : onRetry}
           />
-        ) : null}
+        ) : (
+          <>
+            <WeeklyRoutineCard week={week} localDate={localDate} />
+            <WeeklyProgressCard
+              week={week}
+              showTip={showWeeklyTip}
+              onToggleTip={() => setShowWeeklyTip((current) => !current)}
+              onOpenCalendar={onOpenCalendar}
+            />
+
+            {/* Rest wins over every other prompt, including routine setup. */}
+            {restToday ? (
+              <RestCard />
+            ) : routine === null ? (
+              <NoRoutineCard
+                onCreateRoutine={onCreateRoutine}
+                pending={busy === 'checkin'}
+                useJua={useJua}
+              />
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="오늘 루틴 체크인"
+                onPress={() => setSheet('checkin')}
+                style={({ pressed }) => [
+                  styles.checkinButton,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text style={[styles.checkinLabel, useJua && styles.juaLabel]}>
+                  {context === null
+                    ? '오늘 루틴 체크인🍌'
+                    : '체크인 다시 하기🍌'}
+                </Text>
+                <Text style={styles.checkinArrow}>›</Text>
+              </Pressable>
+            )}
+
+            {actionError ? (
+              <Card style={formStyles.alertCard}>
+                <Text accessibilityRole="alert" style={formStyles.alertText}>
+                  {actionError}
+                </Text>
+                {staleContext && onRetryCheckin ? (
+                  <Button
+                    label="최신 상태로 다시 시도"
+                    tone="secondary"
+                    onPress={onRetryCheckin}
+                  />
+                ) : null}
+              </Card>
+            ) : null}
+
+            {isSerious && decision ? (
+              <SafetyNotice
+                title={decision.guidance?.title ?? '운동을 멈춰주세요'}
+                message={
+                  decision.guidance?.message ??
+                  '안내를 확인하고 도움을 받아주세요. 오늘은 운동 계획을 제공하지 않아요.'
+                }
+              />
+            ) : null}
+
+            {!isSerious && isBlocked && plan === null ? (
+              <BlockedCard summary={decision?.summary ?? null} />
+            ) : null}
+
+            {generating ? <GeneratingRoutineCard /> : null}
+
+            {!generating &&
+            !restToday &&
+            routine !== null &&
+            plan === null &&
+            !isSerious &&
+            !isBlocked ? (
+              <EmptyRoutineCard hasContext={context !== null} />
+            ) : null}
+
+            {!generating && !restToday && plan !== null && decision !== null ? (
+              <RoutineCard
+                decision={decision}
+                items={routineItemsFromPlan(plan)}
+                startSelectable={routineOption?.selectable ?? false}
+                startBlockedReason={routineOption?.blocked_reason_code ?? null}
+                aiRevisionsLeft={
+                  planRevision === null
+                    ? null
+                    : AI_REVISION_LIMIT - planRevision.ai_revision_count
+                }
+                starting={busy === 'starting'}
+                onEdit={() => setSheet('editing')}
+                onRequestAiRevision={onRequestAiRevision}
+                onStart={onStartWorkout}
+                useJua={useJua}
+              />
+            ) : null}
+
+            {/*
+              The REST opt-out lives outside the routine card because a safety
+              veto leaves no plan to attach it to, and the user must still be
+              able to take it.
+            */}
+            {!restToday && restOption !== null ? (
+              <View style={formStyles.restOption}>
+                <Button
+                  label="오늘은 쉬기"
+                  tone="secondary"
+                  disabled={!restOption.selectable || busy === 'starting'}
+                  onPress={onChooseRest}
+                />
+              </View>
+            ) : null}
+          </>
+        )}
       </ScrollView>
 
       <HomeBottomNavigation activeTab="home" onNavigate={onNavigateTab} />
 
-      {screenState === 'checkin' ? (
+      {sheet === 'checkin' ? (
         <CheckinSheet
-          checkin={checkin}
-          minutes={minutes}
-          onChange={updateCheckin}
-          onChangeMinutes={setMinutes}
-          onChangeSteps={setSteps}
-          onClose={() => setScreenState('pre-checkin')}
-          onSave={saveCheckin}
-          steps={steps}
+          initialDraft={
+            context === null
+              ? emptyCheckinDraft(startingDuration)
+              : checkinDraftFromContext(context)
+          }
+          pending={busy === 'checkin'}
+          onClose={() => setSheet('none')}
+          onSave={(draft) => {
+            setSheet('none');
+            onSubmitCheckin?.(draft);
+          }}
           useJua={useJua}
         />
       ) : null}
 
-      {screenState === 'editing' ? (
+      {sheet === 'editing' ? (
         <EditRoutineSheet
-          items={editItems}
-          onChangeItems={setEditItems}
-          onClose={() => setScreenState('routine')}
-          onReset={() =>
-            setEditItems(HOME_ROUTINE_ITEMS.map((item) => ({ ...item })))
+          routine={planRevision?.routine ?? routine}
+          locationCodes={locationCodes}
+          selectedLocationCode={
+            planRevision?.selected_location_code ??
+            context?.location_code ??
+            null
           }
-          onSave={saveEdit}
+          items={
+            routineDay === null
+              ? plan === null
+                ? []
+                : routineItemsFromPlan(plan)
+              : routineItemsFromDay(routineDay)
+          }
+          pending={busy === 'revision'}
+          onClose={() => setSheet('none')}
+          onSave={(edits) => {
+            setSheet('none');
+            onSubmitUserEdits?.(edits);
+          }}
           useJua={useJua}
         />
       ) : null}
@@ -204,82 +411,110 @@ function HomeScreenContent({
   );
 }
 
-function HomeHeader() {
+function HomeHeader({
+  dateLabel,
+  nickname,
+  onOpenProfile,
+}: {
+  dateLabel: string;
+  nickname: string;
+  onOpenProfile?: () => void;
+}) {
   return (
     <View style={styles.header}>
       <View style={styles.headerCopy}>
         <Text accessibilityRole="header" style={styles.greeting}>
-          안녕하세요, <Text style={styles.greetingName}>헬끼님!</Text>
+          안녕하세요, <Text style={styles.greetingName}>{nickname}님!</Text>
         </Text>
-        <Text style={styles.date}>2026.08.11 (화)</Text>
+        <Text style={styles.date}>{dateLabel}</Text>
       </View>
       <View style={styles.headerActions}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="알림 보기"
-          style={styles.notificationButton}
-        >
-          <Text style={styles.notificationIcon}>♢</Text>
-          <View accessibilityLabel="읽지 않은 알림 있음" style={styles.badge} />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="프로필 열기"
+          accessibilityLabel="마이페이지 열기"
+          onPress={onOpenProfile}
           style={styles.profileButton}
         >
-          <Text style={styles.profileMark}>헬</Text>
+          <Text style={styles.profileMark}>{nickname.slice(0, 1)}</Text>
         </Pressable>
       </View>
     </View>
   );
 }
 
-function WeeklyRoutineCard() {
+/**
+ * The week strip. Per-day completion has no read endpoint while the week is
+ * open, so the strip marks today and points at where the record lives instead
+ * of showing checks the client cannot substantiate.
+ */
+function WeeklyRoutineCard({
+  localDate,
+  week,
+}: {
+  localDate: string;
+  week: WeekResponse | null;
+}) {
+  const todayIndex = weekdayIndex(localDate);
+
   return (
     <Card style={styles.summaryCard}>
       <Text style={styles.cardTitle}>
-        이번 주 남은 루틴은 <Text style={styles.greenText}>2회</Text>예요
+        {week === null ? (
+          '이번 주 목표를 불러오지 못했어요'
+        ) : (
+          <>
+            이번 주 목표는{' '}
+            <Text style={styles.greenText}>{week.target_workout_count}회</Text>
+            예요
+          </>
+        )}
       </Text>
       <View style={styles.weekRow}>
-        {HOME_WEEK_DAYS.map((day) => (
-          <View key={day.label} style={styles.weekDay}>
-            <View
-              style={[
-                styles.weekCircle,
-                day.completed && styles.weekCircleCompleted,
-              ]}
-            >
-              <Text
+        {HOME_WEEK_DAY_LABELS.map((label, index) => {
+          const isToday = index === todayIndex;
+          return (
+            <View key={label} style={styles.weekDay}>
+              <View
                 style={[
-                  styles.weekCircleText,
-                  day.completed && styles.weekCircleTextCompleted,
+                  styles.weekCircle,
+                  isToday && styles.weekCircleCompleted,
                 ]}
               >
-                {day.completed ? '✓' : '·'}
+                <Text
+                  style={[
+                    styles.weekCircleText,
+                    isToday && styles.weekCircleTextCompleted,
+                  ]}
+                >
+                  ·
+                </Text>
+              </View>
+              <Text
+                style={[styles.weekLabel, isToday && styles.weekLabelCompleted]}
+              >
+                {label}
               </Text>
             </View>
-            <Text
-              style={[
-                styles.weekLabel,
-                day.completed && styles.weekLabelCompleted,
-              ]}
-            >
-              {day.label}
-            </Text>
-          </View>
-        ))}
+          );
+        })}
       </View>
     </Card>
   );
 }
 
 function WeeklyProgressCard({
+  onOpenCalendar,
   onToggleTip,
   showTip,
+  week,
 }: {
+  onOpenCalendar?: () => void;
   onToggleTip: () => void;
   showTip: boolean;
+  week: WeekResponse | null;
 }) {
+  const range = week === null ? null : formatWeekRange(week.week_start);
+
   return (
     <Card style={styles.progressCard}>
       <View style={styles.progressHeader}>
@@ -295,10 +530,11 @@ function WeeklyProgressCard({
           </Pressable>
         </View>
         <View style={styles.progressTitleRow}>
-          <Text style={styles.weekRange}>8.11 ~ 8.17 (1주차)</Text>
+          <Text style={styles.weekRange}>{range ?? '이번 주'}</Text>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="월별·연별 기록 달력 보기"
+            accessibilityLabel="캘린더 연동 상태 보기"
+            onPress={onOpenCalendar}
             style={styles.iconTouch}
           >
             <Text style={styles.calendarIcon}>▦</Text>
@@ -309,29 +545,32 @@ function WeeklyProgressCard({
       {showTip ? (
         <View accessibilityRole="summary" style={styles.tip}>
           <Text style={styles.tipText}>
-            이번 주에 완료한 운동 횟수예요. 목표만큼 채우면 한 주가 마무리돼요.
+            이번 주에 목표한 운동 횟수예요. 완료한 횟수는 주가 끝난 뒤 주간
+            리포트에서 확인할 수 있어요.
           </Text>
         </View>
       ) : null}
 
       <View style={styles.countRow}>
         <Text style={styles.countLabel}>
-          목표 <Text style={styles.countValue}>4</Text> 회
+          목표{' '}
+          <Text style={styles.countValue}>
+            {week === null ? '-' : week.target_workout_count}
+          </Text>{' '}
+          회
         </Text>
         <Text style={styles.countLabel}>
-          완료 <Text style={styles.countValue}>2</Text> 회
+          {week === null
+            ? '주 상태 확인 중'
+            : week.status_code === 'CLOSED'
+              ? '이번 주 종료'
+              : '진행 중'}
         </Text>
       </View>
       <View style={styles.progressCells}>
-        {[true, true, false, false].map((completed, index) => (
-          <View
-            key={`progress-${index}`}
-            style={[
-              styles.progressCell,
-              completed && styles.progressCellCompleted,
-            ]}
-          >
-            <Text style={styles.progressCellMark}>{completed ? '✓' : '•'}</Text>
+        {Array.from({ length: week?.target_workout_count ?? 0 }, (_, index) => (
+          <View key={`progress-${index}`} style={styles.progressCell}>
+            <Text style={styles.progressCellMark}>•</Text>
           </View>
         ))}
       </View>
@@ -339,12 +578,39 @@ function WeeklyProgressCard({
   );
 }
 
-function EmptyRoutineCard() {
+function NoRoutineCard({
+  onCreateRoutine,
+  pending,
+  useJua,
+}: {
+  onCreateRoutine?: () => void;
+  pending: boolean;
+  useJua: boolean;
+}) {
+  return (
+    <Card style={styles.messageCard}>
+      <Text style={styles.messageTitle}>기본 루틴이 아직 없어요</Text>
+      <Text style={styles.messageText}>
+        프로필을 바탕으로 검수된 운동만 사용해 기본 루틴을 만들어요.
+      </Text>
+      <Button
+        label={pending ? '만드는 중…' : '기본 루틴 만들기'}
+        labelStyle={useJua ? styles.juaLabel : undefined}
+        disabled={pending}
+        onPress={onCreateRoutine}
+      />
+    </Card>
+  );
+}
+
+function EmptyRoutineCard({ hasContext }: { hasContext: boolean }) {
   return (
     <Card style={styles.messageCard}>
       <Text style={styles.messageTitle}>아직 오늘의 운동이 없어요</Text>
       <Text style={styles.messageText}>
-        오늘 체크인을 하면 컨디션에 맞는 추천 루틴을 받아볼 수 있어요.
+        {hasContext
+          ? '체크인은 저장했어요. 다시 체크인하면 오늘의 최종 루틴을 받을 수 있어요.'
+          : '오늘 체크인을 하면 컨디션에 맞는 추천 루틴을 받아볼 수 있어요.'}
       </Text>
     </Card>
   );
@@ -364,50 +630,80 @@ function GeneratingRoutineCard() {
   );
 }
 
+/** The user chose rest. Nothing here asks them to train again today. */
+function RestCard() {
+  return (
+    <Card style={styles.messageCard}>
+      <Text style={styles.messageTitle}>오늘은 휴식하기로 했어요</Text>
+      <Text style={styles.messageText}>
+        푹 쉬고 내일 다시 만나요. 오늘은 더 이상 운동을 권하지 않을게요.
+      </Text>
+    </Card>
+  );
+}
+
+/** A safety veto. The client offers no way to override or retry it. */
+function BlockedCard({ summary }: { summary: string | null }) {
+  return (
+    <Card style={formStyles.blockedCard}>
+      <Text style={formStyles.blockedTitle}>
+        오늘은 운동 계획을 제공하지 않아요
+      </Text>
+      <Text style={formStyles.blockedBody}>
+        {summary ??
+          '안전 기준에 따라 오늘은 운동 대신 회복을 권해요. 이 판단은 앱에서 해제할 수 없어요.'}
+      </Text>
+    </Card>
+  );
+}
+
 function RoutineCard({
-  adjusted,
+  aiRevisionsLeft,
+  decision,
   items,
   onEdit,
-  onRequestAlternative,
+  onRequestAiRevision,
   onStart,
+  starting,
+  startBlockedReason,
+  startSelectable,
   useJua,
 }: {
-  adjusted: boolean;
+  aiRevisionsLeft: number | null;
+  decision: DecisionResponse;
   items: readonly HomeRoutineItem[];
   onEdit: () => void;
-  onRequestAlternative: () => void;
+  onRequestAiRevision?: () => void;
   onStart?: () => void;
+  starting: boolean;
+  startBlockedReason: string | null;
+  startSelectable: boolean;
   useJua: boolean;
 }) {
+  const plan = decision.final_plan;
+  if (plan === null) {
+    return null;
+  }
+  const adjusted = decision.action_code !== 'KEEP';
+  const revisionExhausted = aiRevisionsLeft !== null && aiRevisionsLeft <= 0;
+
   return (
     <Card style={styles.routineCard}>
       <View style={styles.routineBadge}>
         <Text style={styles.routineBadgeText}>오늘의 운동</Text>
       </View>
-      <Text style={styles.routineTitle}>
-        {adjusted ? '컨디션 맞춤 루틴' : '상체 근력 루틴'}
-      </Text>
-      <Text style={styles.routineSummary}>
-        {adjusted
-          ? '상체 근력 · 희망 운동 시간 40분'
-          : '상체 근력 · 희망 운동 시간 40분'}
-      </Text>
+      <Text style={styles.routineTitle}>{planTitle(plan)}</Text>
+      <Text style={styles.routineSummary}>{planSummary(plan)}</Text>
       <View style={styles.routineNotes}>
+        <Text style={styles.routineNote}>{decision.summary}</Text>
         <Text style={styles.routineNote}>
-          오늘 컨디션과 운동 목표를 반영했어요.
-        </Text>
-        <Text style={styles.routineNote}>
-          현재 장소와 장비로 진행할 수 있는 구성이에요.
+          {actionDescription(decision.action_code)}
         </Text>
       </View>
 
       <View style={styles.routineList}>
-        <Text style={styles.orderHint}>핸들을 끌어 순서를 바꿔보세요</Text>
         {items.map((item) => (
           <View key={item.id} style={styles.routineRow}>
-            <Text accessibilityLabel="순서 변경 핸들" style={styles.dragMark}>
-              ≡
-            </Text>
             <Text style={styles.routineItemText}>
               {item.name}
               {item.prescription ? ` · ${item.prescription}` : ''}
@@ -420,33 +716,73 @@ function RoutineCard({
       {adjusted ? (
         <View style={styles.adjustmentNote}>
           <Text style={styles.adjustmentText}>
-            무릎 부담을 줄이도록 강도를 조정했어요.
+            {actionLabel(decision.action_code)} ·{' '}
+            {decision.guidance?.message ??
+              actionDescription(decision.action_code)}
           </Text>
         </View>
       ) : null}
 
+      {/*
+        The contract's meeting UI. The order of `public_agent_summaries` is
+        fixed by the server and is not re-sorted here, and only the public
+        summary is shown — never internal reasoning.
+      */}
+      {decision.public_agent_summaries &&
+      decision.public_agent_summaries.length > 0 ? (
+        <View style={formStyles.agentBlock}>
+          <Text style={formStyles.agentHeading}>이렇게 결정했어요</Text>
+          {decision.public_agent_summaries.map((summary) => (
+            <View key={summary.agent_type_code} style={formStyles.agentRow}>
+              <Text style={formStyles.agentName}>
+                {agentTypeLabel(summary.agent_type_code)}
+              </Text>
+              <Text style={formStyles.agentSummary}>{summary.summary}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
       <Button
-        label="운동 시작하기  ›"
+        label={starting ? '준비 중…' : '운동 시작하기  ›'}
         labelStyle={[styles.startLabel, useJua && styles.juaLabel]}
+        disabled={!startSelectable || starting}
         onPress={onStart}
         style={styles.startButton}
       />
+      {!startSelectable ? (
+        <Text style={formStyles.disabledNote}>
+          지금은 시작할 수 없는 루틴이에요
+          {startBlockedReason ? ` (${startBlockedReason})` : ''}.
+        </Text>
+      ) : null}
+
       <View style={styles.routineActions}>
         <Button
-          label="✎  운동 수정하기"
+          label="✎  운동 계획 수정"
           labelStyle={styles.routineActionLabel}
           onPress={onEdit}
           style={styles.routineAction}
           tone="secondary"
         />
         <Button
-          label="↻  다른 루틴 · 2회 남음"
+          label={
+            aiRevisionsLeft === null
+              ? '↻  다른 루틴'
+              : `↻  다른 루틴 · ${aiRevisionsLeft}회 남음`
+          }
           labelStyle={styles.routineActionLabel}
-          onPress={onRequestAlternative}
+          disabled={revisionExhausted}
+          onPress={onRequestAiRevision}
           style={styles.routineAction}
           tone="secondary"
         />
       </View>
+      {revisionExhausted ? (
+        <Text style={formStyles.disabledNote}>
+          이번 주 계획 수정 요청을 모두 사용했어요.
+        </Text>
+      ) : null}
     </Card>
   );
 }
@@ -455,12 +791,12 @@ export function HomeBottomNavigation({
   activeTab,
   onNavigate,
 }: {
-  activeTab: 'home' | 'log' | 'report' | 'my';
-  onNavigate?: (tab: 'home' | 'log' | 'report' | 'my') => void;
+  activeTab: TabId;
+  onNavigate?: (tab: TabId) => void;
 }) {
   const tabs = [
     { id: 'home', icon: '⌂', label: '홈' },
-    { id: 'log', icon: '⌁', label: '끼끼의 집' },
+    { id: 'house', icon: '⌁', label: '끼끼의 집' },
     { id: 'report', icon: '▥', label: '리포트' },
     { id: 'my', icon: '●', label: '마이페이지' },
   ] as const;
@@ -524,27 +860,53 @@ function SheetFrame({
   );
 }
 
+/**
+ * The manual check-in, in the contract's own fields.
+ *
+ * This is the fallback that must always work: there is no wearable
+ * integration, so a complete manual check-in has to be sufficient on its own.
+ * Nothing optional is guessed at — an unset value is sent unset.
+ */
 function CheckinSheet({
-  checkin,
-  minutes,
-  onChange,
-  onChangeMinutes,
-  onChangeSteps,
+  initialDraft,
   onClose,
   onSave,
-  steps,
+  pending,
   useJua,
 }: {
-  checkin: Record<CheckinKey, string>;
-  minutes: string;
-  onChange: (key: CheckinKey, value: string) => void;
-  onChangeMinutes: (value: string) => void;
-  onChangeSteps: (value: string) => void;
+  initialDraft: HomeCheckinDraft;
   onClose: () => void;
-  onSave: () => void;
-  steps: string;
+  onSave: (draft: HomeCheckinDraft) => void;
+  pending: boolean;
   useJua: boolean;
 }) {
+  const [draft, setDraft] = useState<HomeCheckinDraft>(initialDraft);
+  const [openArea, setOpenArea] = useState<string | null>(null);
+
+  const selectedAreas = Object.keys(draft.discomforts);
+  const sleepInvalid = sleepHoursInvalid(draft.sleepHours);
+
+  const setSeverity = (code: string, severity: DiscomfortSeverityCode) => {
+    setDraft((current) => {
+      const next = { ...current.discomforts };
+      if (next[code] === severity) {
+        delete next[code];
+      } else {
+        next[code] = severity;
+      }
+      return { ...current, discomforts: next };
+    });
+  };
+
+  const toggleReaction = (code: string) => {
+    setDraft((current) => ({
+      ...current,
+      adverseReactionCodes: current.adverseReactionCodes.includes(code)
+        ? current.adverseReactionCodes.filter((entry) => entry !== code)
+        : [...current.adverseReactionCodes, code],
+    }));
+  };
+
   return (
     <SheetFrame onClose={onClose} title="오늘 컨디션 체크">
       <Text style={styles.sheetIntro}>
@@ -554,77 +916,157 @@ function CheckinSheet({
         contentContainerStyle={styles.sheetScrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {(Object.keys(HOME_CHECKIN_OPTIONS) as CheckinKey[]).map((key) => (
-          <View key={key} style={styles.checkinSection}>
-            <Text style={styles.checkinSectionTitle}>
-              {getCheckinLabel(key)}
-            </Text>
-            <View style={styles.choiceRow}>
-              {HOME_CHECKIN_OPTIONS[key].map((option) => {
-                const selected = checkin[key] === option;
-                return (
-                  <Pressable
-                    key={option}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    onPress={() => onChange(key, option)}
-                    style={[
-                      styles.choiceButton,
-                      selected && styles.choiceButtonSelected,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.choiceButtonText,
-                        selected && styles.choiceButtonTextSelected,
-                      ]}
-                    >
-                      {option}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+        <View style={styles.checkinSection}>
+          <Text style={styles.checkinSectionTitle}>피로도</Text>
+          <View style={styles.choiceRow}>
+            {FATIGUE_OPTIONS.map((option) => (
+              <Choice
+                key={option.code}
+                label={option.label}
+                selected={draft.fatigueLevelCode === option.code}
+                onPress={() =>
+                  setDraft((current) => ({
+                    ...current,
+                    fatigueLevelCode: option.code,
+                  }))
+                }
+              />
+            ))}
           </View>
-        ))}
+        </View>
+
+        <View style={styles.checkinSection}>
+          <Text style={styles.checkinSectionTitle}>통증 부위</Text>
+          <View style={styles.choiceRow}>
+            <Choice
+              label="없음"
+              selected={selectedAreas.length === 0}
+              onPress={() => {
+                setOpenArea(null);
+                setDraft((current) => ({ ...current, discomforts: {} }));
+              }}
+            />
+            {BODY_AREA_OPTIONS.map((area) => (
+              <Choice
+                key={area.code}
+                label={area.label}
+                selected={draft.discomforts[area.code] !== undefined}
+                onPress={() =>
+                  setOpenArea((current) =>
+                    current === area.code ? null : area.code,
+                  )
+                }
+              />
+            ))}
+          </View>
+          {openArea ? (
+            <View style={formStyles.severityBlock}>
+              <Text style={formStyles.severityLabel}>
+                {bodyAreaLabel(openArea)} 정도
+              </Text>
+              <View style={styles.choiceRow}>
+                {SEVERITY_OPTIONS.map((severity) => (
+                  <Choice
+                    key={severity.code}
+                    label={severity.label}
+                    selected={draft.discomforts[openArea] === severity.code}
+                    onPress={() => setSeverity(openArea, severity.code)}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
+          {/*
+            The server's SafetyAgent only has approved rules for SEVERE input.
+            Per-body-area MILD and MODERATE rules have not been domain-reviewed,
+            so it fails closed rather than guessing. Saying so here is more
+            honest than letting the request fail without explanation.
+          */}
+          <Text style={formStyles.hint}>
+            현재는 &apos;심함&apos;만 처리할 수 있어요. 부위별
+            &apos;가벼움&apos;·&apos;보통&apos; 판단 규칙은 아직 도메인 검수
+            전이라, 선택하면 추천을 만들지 않고 중단해요.
+          </Text>
+        </View>
+
+        <View style={formStyles.seriousSection}>
+          <Text style={formStyles.seriousTitle}>이런 증상이 있나요?</Text>
+          <Text style={formStyles.seriousBody}>
+            해당하는 항목이 있으면 선택해주세요. 안전을 위해 운동을 중단하도록
+            안내할 수 있어요.
+          </Text>
+          <View style={styles.choiceRow}>
+            {ADVERSE_REACTION_OPTIONS.map((option) => (
+              <Choice
+                key={option.code}
+                label={option.label}
+                selected={draft.adverseReactionCodes.includes(option.code)}
+                onPress={() => toggleReaction(option.code)}
+              />
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.checkinSection}>
+          <Text style={styles.checkinSectionTitle}>원하는 운동 시간</Text>
+          <View style={styles.choiceRow}>
+            {HOME_DURATION_CHOICES.map((minutes) => (
+              <Choice
+                key={minutes}
+                label={`${minutes}분`}
+                selected={draft.requestedDurationMinutes === minutes}
+                onPress={() =>
+                  setDraft((current) => ({
+                    ...current,
+                    requestedDurationMinutes: minutes,
+                  }))
+                }
+              />
+            ))}
+          </View>
+          <Text style={formStyles.hint}>
+            시간은 그대로 두고 부담만 조절해요. 시간을 줄이려면 직접
+            선택해주세요.
+          </Text>
+        </View>
 
         <View style={styles.numberRow}>
-          <Text style={styles.numberLabel}>원하는 운동 시간</Text>
+          <Text style={styles.numberLabel}>
+            수면 시간 <Text style={styles.optionalText}>(선택)</Text>
+          </Text>
           <View style={styles.numberInputGroup}>
             <TextInput
-              accessibilityLabel="원하는 운동 시간 (분)"
+              accessibilityLabel="어젯밤 수면 시간 (시간)"
               inputMode="numeric"
-              onChangeText={onChangeMinutes}
+              onChangeText={(value) =>
+                setDraft((current) => ({ ...current, sleepHours: value }))
+              }
+              placeholder="0"
+              placeholderTextColor={colors.placeholder}
               style={styles.numberInput}
-              value={minutes}
+              value={draft.sleepHours}
             />
-            <Text style={styles.numberSuffix}>분</Text>
+            <Text style={styles.numberSuffix}>시간</Text>
           </View>
         </View>
-        <View style={styles.numberRow}>
-          <Text style={styles.numberLabel}>
-            걸음 수 <Text style={styles.optionalText}>(선택)</Text>
+        {sleepInvalid ? (
+          <Text accessibilityRole="alert" style={formStyles.alertText}>
+            수면 시간은 0~24 사이로 입력해주세요.
           </Text>
-          <TextInput
-            accessibilityLabel="오늘 걸음 수"
-            inputMode="numeric"
-            onChangeText={onChangeSteps}
-            placeholder="0"
-            placeholderTextColor={colors.placeholder}
-            style={[styles.numberInput, styles.stepsInput]}
-            value={steps}
-          />
-        </View>
+        ) : null}
+
         <Pressable
           accessibilityRole="button"
-          onPress={onSave}
+          accessibilityState={{ disabled: pending || sleepInvalid }}
+          disabled={pending || sleepInvalid}
+          onPress={() => onSave(draft)}
           style={({ pressed }) => [
             styles.sheetSaveButton,
             pressed && styles.pressed,
           ]}
         >
           <Text style={[styles.sheetSaveLabel, useJua && styles.juaLabel]}>
-            체크인 !
+            {pending ? '보내는 중…' : '체크인 !'}
           </Text>
         </Pressable>
       </ScrollView>
@@ -632,68 +1074,116 @@ function CheckinSheet({
   );
 }
 
+/**
+ * A USER plan revision.
+ *
+ * The contract takes a stored routine version and a training location, not an
+ * arbitrary exercise list, and the server re-checks duration, location,
+ * equipment and the saved safety exclusions against it. So this sheet chooses
+ * where to train and shows what the resulting plan holds; it never lets the
+ * client author or reinstate an exercise the safety rules removed.
+ */
 function EditRoutineSheet({
   items,
-  onChangeItems,
+  locationCodes,
   onClose,
-  onReset,
   onSave,
+  pending,
+  routine,
+  selectedLocationCode,
   useJua,
 }: {
-  items: HomeRoutineItem[];
-  onChangeItems: (items: HomeRoutineItem[]) => void;
+  items: readonly HomeRoutineItem[];
+  locationCodes: readonly string[];
   onClose: () => void;
-  onReset: () => void;
-  onSave: () => void;
+  onSave: (edits: HomeUserEdits) => void;
+  pending: boolean;
+  routine: RoutineResponse | null;
+  selectedLocationCode: string | null;
   useJua: boolean;
 }) {
-  const updateName = (id: string, name: string) => {
-    onChangeItems(
-      items.map((item) => (item.id === id ? { ...item, name } : item)),
-    );
-  };
+  const [locationCode, setLocationCode] = useState<string | null>(
+    selectedLocationCode ?? locationCodes[0] ?? null,
+  );
+  const canSave = routine !== null && locationCode !== null && !pending;
 
   return (
     <SheetFrame onClose={onClose} title="오늘의 운동 수정">
       <Text style={styles.sheetIntro}>
-        항목을 직접 고치고 추천 순서로 되돌릴 수 있어요.
+        운동할 장소를 고르면 서버가 시간·장비·안전 기준을 다시 확인해 계획을
+        수정해요.
       </Text>
       <ScrollView
         contentContainerStyle={styles.editList}
         showsVerticalScrollIndicator={false}
       >
-        {items.map((item) => (
-          <View key={item.id} style={styles.editRow}>
-            <Text style={styles.editHandle}>≡</Text>
-            <TextInput
-              accessibilityLabel={`${item.name} 운동명`}
-              onChangeText={(value) => updateName(item.id, value)}
-              style={styles.editNameInput}
-              value={item.name}
-            />
-            <Text style={styles.editPrescription}>
-              {item.prescription ?? '시간 자유'}
-            </Text>
+        <View style={styles.checkinSection}>
+          <Text style={styles.checkinSectionTitle}>운동 장소</Text>
+          <View style={styles.choiceRow}>
+            {locationCodes.map((code) => (
+              <Choice
+                key={code}
+                label={code}
+                selected={locationCode === code}
+                onPress={() => setLocationCode(code)}
+              />
+            ))}
           </View>
-        ))}
+          {locationCodes.length === 0 ? (
+            <Text style={formStyles.hint}>
+              프로필에 저장된 운동 장소가 없어요. 마이페이지에서 먼저
+              설정해주세요.
+            </Text>
+          ) : null}
+        </View>
+
+        <View style={styles.checkinSection}>
+          <Text style={styles.checkinSectionTitle}>
+            현재 계획 {routine === null ? '' : `v${routine.version}`}
+          </Text>
+          {items.map((item) => (
+            <View key={item.id} style={styles.editRow}>
+              <Text style={styles.editNameInput}>{item.name}</Text>
+              <Text style={styles.editPrescription}>
+                {item.prescription ?? '시간 자유'}
+              </Text>
+            </View>
+          ))}
+          {/*
+            Exercise names, order and prescriptions are the server's output. The
+            contract refuses arbitrary exercise edits, and letting the client
+            reinstate an excluded movement would step over a safety decision.
+          */}
+          <Text style={formStyles.hint}>
+            운동 구성은 안전 기준에 따라 서버가 정해요. 직접 바꿀 수는 없지만,
+            장소를 바꾸면 그에 맞게 다시 구성해요.
+          </Text>
+        </View>
+
         <View style={styles.editActions}>
           <Button
-            label="추천으로 되돌리기"
+            label="닫기"
             labelStyle={styles.resetLabel}
-            onPress={onReset}
+            onPress={onClose}
             style={styles.resetButton}
             tone="secondary"
           />
           <Pressable
             accessibilityRole="button"
-            onPress={onSave}
+            accessibilityState={{ disabled: !canSave }}
+            disabled={!canSave}
+            onPress={() =>
+              routine !== null && locationCode !== null
+                ? onSave({ routineId: routine.id, locationCode })
+                : undefined
+            }
             style={({ pressed }) => [
               styles.editSaveButton,
               pressed && styles.pressed,
             ]}
           >
             <Text style={[styles.sheetSaveLabel, useJua && styles.juaLabel]}>
-              저장하기
+              {pending ? '저장 중…' : '저장하기'}
             </Text>
           </Pressable>
         </View>
@@ -702,14 +1192,140 @@ function EditRoutineSheet({
   );
 }
 
-function getCheckinLabel(key: CheckinKey) {
-  return {
-    condition: '컨디션',
-    discomfort: '통증 부위',
-    fatigue: '피로도',
-    sleep: '수면',
-  }[key];
+function Choice({
+  label,
+  onPress,
+  selected,
+}: {
+  label: string;
+  onPress: () => void;
+  selected: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={[styles.choiceButton, selected && styles.choiceButtonSelected]}
+    >
+      <Text
+        style={[
+          styles.choiceButtonText,
+          selected && styles.choiceButtonTextSelected,
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
 }
+
+function sleepHoursInvalid(hours: string): boolean {
+  const trimmed = hours.trim();
+  if (trimmed === '') {
+    return false;
+  }
+  const value = Number(trimmed);
+  return !Number.isFinite(value) || value < 0 || value > 24;
+}
+
+/** Monday-first index of `YYYY-MM-DD`, matching the week strip's order. */
+function weekdayIndex(localDate: string): number {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(localDate);
+  if (!match) {
+    return -1;
+  }
+  const [, year, month, day] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  return (date.getDay() + 6) % 7;
+}
+
+const formStyles = StyleSheet.create({
+  hint: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  severityBlock: {
+    gap: spacing.sm,
+  },
+  severityLabel: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  seriousSection: {
+    gap: spacing.sm,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.dangerBorder,
+    backgroundColor: colors.dangerSurface,
+    padding: spacing.md,
+  },
+  seriousTitle: {
+    color: colors.dangerText,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  seriousBody: {
+    color: colors.dangerText,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  alertCard: {
+    gap: spacing.sm,
+  },
+  alertText: {
+    color: colors.dangerText,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  blockedCard: {
+    gap: spacing.sm,
+  },
+  blockedTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  blockedBody: {
+    color: colors.textSub,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  disabledNote: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  restOption: {
+    gap: spacing.sm,
+  },
+  agentBlock: {
+    gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+    paddingTop: spacing.md,
+  },
+  agentHeading: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  agentRow: {
+    gap: 3,
+  },
+  agentName: {
+    color: colors.greenText,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  agentSummary: {
+    color: colors.textSub,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+});
 
 const cardShadow = {
   shadowColor: '#2F5233',

@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Card } from '../../components/primitives';
 import { colors } from '../../components/theme';
+import type { TabId } from '../../components/brand/BrandChrome';
 import { HomeBottomNavigation } from './HomeScreen';
 import {
   CALENDAR_DAY_VISUALS,
@@ -26,7 +27,7 @@ export const CALENDAR_REPORT_LAYOUT = {
 
 type CalendarReportScreenProps = {
   onChangeMonth?: (direction: 'previous' | 'next') => void;
-  onNavigateTab?: (tab: 'home' | 'log' | 'report' | 'my') => void;
+  onNavigateTab?: (tab: TabId) => void;
   onOpenWeeklyReport?: (weekId: string) => void;
   previewState?: CalendarReportPreviewState;
 };

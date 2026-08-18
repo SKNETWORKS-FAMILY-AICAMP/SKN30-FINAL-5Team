@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card } from '../../components/primitives';
 import { colors } from '../../components/theme';
 import { fontFamilies, useBrandFonts } from '../../app/fonts';
+import type { TabId } from '../../components/brand/BrandChrome';
 import { HomeBottomNavigation } from './HomeScreen';
 import {
   MY_PAGE_ACCOUNT_ROWS,
@@ -25,7 +26,7 @@ type MyPageScreenProps = {
   onConfirmLogout?: () => void;
   onConfirmWithdraw?: () => void;
   onEditProfile?: (row?: string) => void;
-  onNavigateTab?: (tab: 'home' | 'log' | 'report' | 'my') => void;
+  onNavigateTab?: (tab: TabId) => void;
   onNotificationChange?: (key: string, enabled: boolean) => void;
   onOpenSettings?: () => void;
   previewState?: MyPagePreviewState;
