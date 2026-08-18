@@ -1,4 +1,5 @@
 from contextlib import nullcontext
+from dataclasses import replace
 from datetime import UTC, date, datetime
 from typing import Any
 from uuid import UUID, uuid4
@@ -154,7 +155,12 @@ class FakeRepository:
         }
 
 
-def _context(*, version: int = 2, discomforts: tuple[tuple[str, str], ...] = ()) -> DecisionContext:
+def _context(
+    *,
+    version: int = 2,
+    discomforts: tuple[tuple[str, str], ...] = (),
+    attention_area_codes: tuple[str, ...] = (),
+) -> DecisionContext:
     return DecisionContext(
         date(2026, 8, 14),
         uuid4(),
@@ -172,6 +178,7 @@ def _context(*, version: int = 2, discomforts: tuple[tuple[str, str], ...] = ())
         "GENERAL_FITNESS",
         "BEGINNER",
         (),
+        attention_area_codes,
     )
 
 
@@ -195,6 +202,51 @@ def test_decision_persists_four_proposals_before_success_and_is_idempotent() -> 
     snapshot = repository.persisted["input_snapshot"]  # type: ignore[index]
     assert "date_of_birth" not in str(snapshot)
     assert "age" not in snapshot.get("profile", {})
+    assert snapshot["profile"]["attention_area_codes"] == []
+
+
+def test_attention_areas_are_canonical_snapshot_inputs_without_changing_outcome() -> None:
+    base_context = _context()
+    first_repository = FakeRepository(
+        replace(base_context, attention_area_codes=("SHOULDER", "KNEE", "SHOULDER"))
+    )
+    reordered_repository = FakeRepository(
+        replace(base_context, attention_area_codes=("KNEE", "SHOULDER"))
+    )
+    different_repository = FakeRepository(
+        replace(base_context, attention_area_codes=("LOWER_BACK",))
+    )
+    empty_repository = FakeRepository(base_context)
+
+    for repository in (
+        first_repository,
+        reordered_repository,
+        different_repository,
+        empty_repository,
+    ):
+        context = repository.assembly.context
+        DecisionService(repository, clock=lambda: NOW).create(
+            FakeSession(), uuid4(), _request(context), uuid4()
+        )  # type: ignore[arg-type]
+
+    first_snapshot = first_repository.persisted["input_snapshot"]  # type: ignore[index]
+    reordered_snapshot = reordered_repository.persisted["input_snapshot"]  # type: ignore[index]
+    assert first_repository.assembly.context.attention_area_codes == ("KNEE", "SHOULDER")
+    assert first_snapshot == reordered_snapshot
+    assert first_snapshot["profile"]["attention_area_codes"] == ["KNEE", "SHOULDER"]
+    assert (
+        first_repository.persisted["input_hash"]  # type: ignore[index]
+        == reordered_repository.persisted["input_hash"]  # type: ignore[index]
+    )
+    assert (
+        first_repository.persisted["input_hash"]  # type: ignore[index]
+        != different_repository.persisted["input_hash"]  # type: ignore[index]
+    )
+    assert first_repository.persisted["result"] == reordered_repository.persisted["result"]  # type: ignore[index]
+    assert first_repository.persisted["result"] == empty_repository.persisted["result"]  # type: ignore[index]
+    assert first_repository.persisted["result"].status_code.value == "PASS"  # type: ignore[index]
+    assert first_repository.persisted["result"].safety_status_code.value == "PASS"  # type: ignore[index]
+    assert first_repository.persisted["result"].final_action_code.value == "KEEP"  # type: ignore[index]
 
 
 def test_one_missing_proposal_makes_whole_decision_failed_without_plan() -> None:
@@ -247,6 +299,7 @@ def test_safety_veto_cannot_return_a_success_plan() -> None:
         base.primary_goal_code,
         base.experience_level_code,
         base.equipment_codes,
+        base.attention_area_codes,
     )
     response = DecisionService(FakeRepository(context), clock=lambda: NOW).create(
         FakeSession(), uuid4(), _request(context), uuid4()

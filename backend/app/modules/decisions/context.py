@@ -21,6 +21,14 @@ class DecisionContext:
     primary_goal_code: str
     experience_level_code: str
     equipment_codes: tuple[str, ...]
+    attention_area_codes: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "attention_area_codes",
+            tuple(sorted(set(self.attention_area_codes))),
+        )
 
     def snapshot(self) -> dict[str, object]:
         return {
@@ -44,5 +52,6 @@ class DecisionContext:
                 "experience_level_code": self.experience_level_code,
                 "default_requested_duration_minutes": self.profile_duration_minutes,
                 "equipment_codes": list(self.equipment_codes),
+                "attention_area_codes": list(self.attention_area_codes),
             },
         }
