@@ -1,3 +1,4 @@
+import json
 import os
 from collections.abc import Iterator
 from datetime import UTC, date, datetime, timedelta
@@ -10,10 +11,24 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import Engine, create_engine, func, select
 from sqlalchemy.engine import make_url
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from backend.app.core.config import get_settings
-from backend.app.db.models.decision import DecisionExplanationRecord, DecisionRun
+from backend.app.db.models.catalog import (
+    CatalogVersion,
+    Exercise,
+    ExerciseAlternative,
+    ExerciseLocation,
+    ExerciseSafetyRule,
+)
+from backend.app.db.models.decision import (
+    AgentProposalRecord,
+    DecisionExplanationRecord,
+    DecisionOption,
+    DecisionRun,
+    PlanCandidate,
+    SafetyReview,
+)
 from backend.app.db.models.identity import User
 from backend.app.db.models.profile import (
     UserAttentionArea,
@@ -21,15 +36,36 @@ from backend.app.db.models.profile import (
     UserEquipment,
     UserProfile,
 )
+from backend.app.db.models.routine import Routine, RoutineDay
 from backend.app.db.repositories.checkin import DailyContextRepository
 from backend.app.db.repositories.decision import DecisionRepository
 from backend.app.db.repositories.profile import ProfileRepository
 from backend.app.db.repositories.routine import RoutineRepository
+from backend.app.domain.agents.contracts import (
+    AGENT_PROPOSAL_SCHEMA_VERSION,
+    AgentProposal,
+    RecommendedActionCode,
+)
+from backend.app.domain.agents.coordinator import (
+    COORDINATOR_VERSION,
+    CoordinatorCandidate,
+    CoordinatorInput,
+    CoordinatorResult,
+    DownshiftAdjustmentCode,
+    coordinate,
+)
+from backend.app.domain.rules.duration import (
+    DURATION_RULE_VERSION,
+    DurationAdjustmentSourceCode,
+    DurationPlan,
+    PlanItemDuration,
+)
 from backend.app.modules.checkins.schemas import DailyContextUpsertRequest
 from backend.app.modules.checkins.service import DailyContextService
 from backend.app.modules.decisions.codes import (
     DECISION_GRAPH_VERSION,
     DECISION_INPUT_SCHEMA_VERSION,
+    DECISION_POLICY_VERSION,
 )
 from backend.app.modules.decisions.schemas import DecisionCreateRequest
 from backend.app.modules.decisions.service import DecisionFailedError, DecisionService
@@ -134,7 +170,13 @@ def _add_user(
     return user_id
 
 
-def _prepare_decision_inputs(session: Session, user_id: UUID) -> UUID:
+def _prepare_decision_inputs(
+    session: Session,
+    user_id: UUID,
+    *,
+    fatigue_level_code: str = "LOW",
+    discomforts: list[dict[str, str]] | None = None,
+) -> UUID:
     RoutineService(RoutineRepository(), clock=lambda: NOW).create(
         session,
         user_id,
@@ -147,11 +189,11 @@ def _prepare_decision_inputs(session: Session, user_id: UUID) -> UUID:
         LOCAL_DATE,
         DailyContextUpsertRequest.model_validate(
             {
-                "fatigue_level_code": "LOW",
+                "fatigue_level_code": fatigue_level_code,
                 "requested_duration_minutes": 30,
                 "duration_adjustment_source_code": "PROFILE",
                 "location_code": "HOME",
-                "discomforts": [],
+                "discomforts": discomforts or [],
                 "adverse_reaction_codes": [],
             }
         ),
@@ -161,12 +203,374 @@ def _prepare_decision_inputs(session: Session, user_id: UUID) -> UUID:
     return context.id
 
 
+def _install_synthetic_safety_data(
+    session: Session,
+    user_id: UUID,
+    *,
+    severity_code: str,
+    effect_code: str,
+    with_alternative: bool = False,
+) -> tuple[UUID, UUID | None]:
+    routine = session.scalar(
+        select(Routine)
+        .options(selectinload(Routine.days).selectinload(RoutineDay.items))
+        .where(Routine.user_id == user_id, Routine.status_code == "ACTIVE")
+    )
+    assert routine is not None
+    day = routine.days[
+        (LOCAL_DATE.toordinal() - routine.effective_from.toordinal()) % len(routine.days)
+    ]
+    source_item = next(item for item in day.items if item.phase_code == "MAIN")
+    source_id = source_item.exercise_id
+    rule_set_version = f"golden-integration-{severity_code.lower()}-{effect_code.lower()}"
+    session.add(
+        ExerciseSafetyRule(
+            catalog_version_id=routine.catalog_version_id,
+            exercise_id=source_id,
+            movement_pattern_code=None,
+            body_area_code="KNEE",
+            body_part_role_code="PRIMARY",
+            minimum_severity_code=severity_code,
+            maximum_severity_code=severity_code,
+            effect_code=effect_code,
+            reason_code="DIRECT_JOINT_LOAD",
+            review_status_code="DOMAIN_APPROVED",
+            rule_version="golden-integration-v1",
+            rule_set_version_code=rule_set_version,
+            production_eligible=True,
+            source_manifest_hash="0" * 64,
+            source_metadata={"synthetic": True, "scope": "integration-test"},
+            created_at=NOW,
+            updated_at=NOW,
+        )
+    )
+    if not with_alternative:
+        session.flush()
+        session.commit()
+        return source_id, None
+
+    existing_ids = {item.exercise_id for item in day.items}
+    alternative = session.scalar(
+        select(Exercise)
+        .join(ExerciseLocation, ExerciseLocation.exercise_id == Exercise.id)
+        .where(
+            Exercise.catalog_version_id == routine.catalog_version_id,
+            Exercise.review_status_code == "DOMAIN_APPROVED",
+            Exercise.id.not_in(existing_ids),
+            ExerciseLocation.location_code == "HOME",
+        )
+        .order_by(Exercise.stable_code)
+    )
+    assert alternative is not None
+    alternative_id = alternative.id
+    session.add(
+        ExerciseAlternative(
+            source_exercise_id=source_id,
+            alternative_exercise_id=alternative_id,
+            reason_code="DISCOMFORT",
+            goal_preservation_code="GENERAL_FITNESS",
+            difficulty_delta=0,
+            review_status_code="DOMAIN_APPROVED",
+            rule_version="golden-integration-v1",
+            alternative_set_version_code="golden-integration-alternatives-v1",
+            production_eligible=True,
+            source_manifest_hash="1" * 64,
+            source_metadata={"synthetic": True, "scope": "integration-test"},
+            created_at=NOW,
+        )
+    )
+    session.flush()
+    session.commit()
+    return source_id, alternative_id
+
+
+def _replay_stored_decision(session: Session, run: DecisionRun) -> CoordinatorResult:
+    catalog = session.get(CatalogVersion, run.catalog_version_id)
+    assert catalog is not None
+    proposals = tuple(
+        AgentProposal.model_validate_json(json.dumps(record.proposal_payload))
+        for record in sorted(run.proposals, key=lambda value: value.agent_type_code)
+    )
+    candidates = tuple(
+        CoordinatorCandidate(
+            candidate_id=candidate.candidate_code,
+            action_code=RecommendedActionCode(candidate.action_code),
+            exercise_ids=tuple(sorted({str(item.exercise_id) for item in candidate.items})),
+            goal_tags=tuple(candidate.goal_tags),
+            downshift_adjustment_codes=(
+                (DownshiftAdjustmentCode.INTENSITY_REDUCED,)
+                if candidate.action_code == "DOWNSHIFT"
+                else ()
+            ),
+            catalog_version=catalog.version_code,
+            duration_plan=DurationPlan(
+                setup_seconds=candidate.setup_seconds,
+                warmup_seconds=candidate.warmup_seconds,
+                items=tuple(
+                    PlanItemDuration(
+                        item.work_seconds,
+                        item.rest_seconds,
+                        item.transition_seconds,
+                    )
+                    for item in candidate.items
+                    if item.phase_code == "MAIN"
+                ),
+                cooldown_seconds=candidate.cooldown_seconds,
+            ),
+        )
+        for candidate in sorted(run.candidates, key=lambda value: value.candidate_code)
+    )
+    snapshot = run.input_snapshot
+    return coordinate(
+        CoordinatorInput(
+            proposals=proposals,
+            candidates=candidates,
+            profile_duration_minutes=snapshot["profile"]["default_requested_duration_minutes"],
+            requested_duration_minutes=snapshot["requested_duration_minutes"],
+            duration_adjustment_source_code=DurationAdjustmentSourceCode(
+                snapshot["duration_adjustment_source_code"]
+            ),
+            policy_version=proposals[0].policy_version,
+            catalog_version=catalog.version_code,
+            catalog_status_code="ACTIVE",
+            catalog_review_status_code="DOMAIN_APPROVED",
+            catalog_production_eligible=True,
+            catalog_activated=True,
+            safety_rule_version=run.safety_rule_version,
+            duration_rule_version=run.duration_rule_version,
+            coordinator_version=run.coordinator_version,
+        )
+    )
+
+
 def _request(daily_context_id: UUID) -> DecisionCreateRequest:
     return DecisionCreateRequest(
         local_date=LOCAL_DATE,
         daily_context_id=daily_context_id,
         expected_context_version=1,
     )
+
+
+def _stored_run(session: Session, user_id: UUID) -> DecisionRun:
+    run = session.scalar(
+        select(DecisionRun)
+        .options(
+            selectinload(DecisionRun.proposals),
+            selectinload(DecisionRun.candidates).selectinload(PlanCandidate.items),
+            selectinload(DecisionRun.safety_reviews),
+            selectinload(DecisionRun.options),
+        )
+        .where(DecisionRun.user_id == user_id)
+    )
+    assert run is not None
+    return run
+
+
+def _decision_record_counts(session: Session) -> tuple[int, int, int, int, int, int]:
+    return tuple(
+        int(session.scalar(select(func.count()).select_from(model)) or 0)
+        for model in (
+            DecisionRun,
+            AgentProposalRecord,
+            PlanCandidate,
+            SafetyReview,
+            DecisionOption,
+            DecisionExplanationRecord,
+        )
+    )  # type: ignore[return-value]
+
+
+@pytest.mark.integration
+def test_mild_caution_result_round_trips_with_four_proposals_and_replay(
+    postgres_session: Session,
+) -> None:
+    owner_id = _add_user(postgres_session, attention_areas=())
+    context_id = _prepare_decision_inputs(
+        postgres_session,
+        owner_id,
+        discomforts=[{"body_area_code": "KNEE", "severity_code": "MILD"}],
+    )
+    source_id, _ = _install_synthetic_safety_data(
+        postgres_session,
+        owner_id,
+        severity_code="MILD",
+        effect_code="CAUTION",
+    )
+
+    response = DecisionService(DecisionRepository(), clock=lambda: NOW).create(
+        postgres_session,
+        owner_id,
+        _request(context_id),
+        uuid4(),
+    )
+    run = _stored_run(postgres_session, owner_id)
+    safety = run.safety_reviews[0]
+    selected = next(candidate for candidate in run.candidates if candidate.selected)
+
+    assert response.action_code == "DOWNSHIFT"
+    assert response.safety_status_code == "REVISE"
+    assert response.requested_duration_minutes == 30
+    assert response.final_plan is not None
+    assert response.final_plan.estimated_duration_seconds == 1800
+    assert len(run.proposals) == 4
+    assert run.input_schema_version == DECISION_INPUT_SCHEMA_VERSION
+    assert run.graph_version == DECISION_GRAPH_VERSION
+    assert run.coordinator_version == COORDINATOR_VERSION
+    assert run.duration_rule_version == DURATION_RULE_VERSION
+    assert run.safety_rule_version == "golden-integration-mild-caution"
+    assert all(record.schema_version == AGENT_PROPOSAL_SCHEMA_VERSION for record in run.proposals)
+    assert all(
+        record.proposal_payload["policy_version"] == DECISION_POLICY_VERSION
+        for record in run.proposals
+    )
+    assert "proposals" not in run.coordinator_result
+    assert "date_of_birth" not in str(run.input_snapshot)
+    assert "raw_health" not in str(run.input_snapshot)
+    assert all(
+        record.proposal_payload["requested_duration_minutes"] == 30 for record in run.proposals
+    )
+    assert all(
+        record.proposal_payload["estimated_duration_seconds"] == 1800 for record in run.proposals
+    )
+    assert safety.safety_status_code == "REVISE"
+    assert safety.vetoed is False
+    assert safety.excluded_exercise_ids == []
+    assert selected.action_code == "DOWNSHIFT"
+    assert selected.estimated_duration_seconds == 1800
+    assert str(source_id) in {str(item.exercise_id) for item in selected.items}
+    assert (
+        _replay_stored_decision(postgres_session, run).model_dump(mode="json")
+        == run.coordinator_result
+    )
+
+
+@pytest.mark.integration
+def test_moderate_approved_alternative_round_trips_without_reintroducing_exclusion(
+    postgres_session: Session,
+) -> None:
+    owner_id = _add_user(postgres_session, attention_areas=())
+    context_id = _prepare_decision_inputs(
+        postgres_session,
+        owner_id,
+        discomforts=[{"body_area_code": "KNEE", "severity_code": "MODERATE"}],
+    )
+    source_id, alternative_id = _install_synthetic_safety_data(
+        postgres_session,
+        owner_id,
+        severity_code="MODERATE",
+        effect_code="EXCLUDE",
+        with_alternative=True,
+    )
+    assert alternative_id is not None
+    assert not postgres_session.in_transaction()
+
+    response = DecisionService(DecisionRepository(), clock=lambda: NOW).create(
+        postgres_session,
+        owner_id,
+        _request(context_id),
+        uuid4(),
+    )
+    run = _stored_run(postgres_session, owner_id)
+    safety = run.safety_reviews[0]
+    selected = next(candidate for candidate in run.candidates if candidate.selected)
+    selected_exercise_ids = {item.exercise_id for item in selected.items}
+    relation = postgres_session.scalar(
+        select(ExerciseAlternative).where(
+            ExerciseAlternative.source_exercise_id == source_id,
+            ExerciseAlternative.alternative_exercise_id == alternative_id,
+        )
+    )
+    alternative = postgres_session.get(Exercise, alternative_id)
+
+    assert relation is not None
+    assert relation.reason_code == "DISCOMFORT"
+    assert relation.review_status_code == "DOMAIN_APPROVED"
+    assert relation.production_eligible is True
+    assert alternative is not None
+    assert alternative.review_status_code == "DOMAIN_APPROVED"
+    assert response.action_code == "CHANGE"
+    assert response.safety_status_code == "REVISE"
+    assert response.requested_duration_minutes == 30
+    assert response.final_plan is not None
+    assert response.final_plan.estimated_duration_seconds == 1800
+    assert len(run.proposals) == 4
+    assert safety.vetoed is True
+    assert safety.excluded_exercise_ids == [str(source_id)]
+    assert source_id not in selected_exercise_ids
+    assert alternative_id in selected_exercise_ids
+    assert selected.action_code == "CHANGE"
+    assert selected.estimated_duration_seconds == 1800
+    assert all(
+        record.proposal_payload["requested_duration_minutes"] == 30 for record in run.proposals
+    )
+    assert all(
+        record.proposal_payload["estimated_duration_seconds"] == 1800 for record in run.proposals
+    )
+    assert (
+        _replay_stored_decision(postgres_session, run).model_dump(mode="json")
+        == run.coordinator_result
+    )
+
+
+@pytest.mark.integration
+def test_chronic_attention_snapshot_is_canonical_immutable_and_replayable(
+    postgres_session: Session,
+) -> None:
+    owner_id = _add_user(
+        postgres_session,
+        attention_areas=(("KNEE", True),),
+    )
+    context_id = _prepare_decision_inputs(postgres_session, owner_id)
+    _install_synthetic_safety_data(
+        postgres_session,
+        owner_id,
+        severity_code="MILD",
+        effect_code="CAUTION",
+    )
+
+    response = DecisionService(DecisionRepository(), clock=lambda: NOW).create(
+        postgres_session,
+        owner_id,
+        _request(context_id),
+        uuid4(),
+    )
+    run = _stored_run(postgres_session, owner_id)
+    old_snapshot = json.loads(json.dumps(run.input_snapshot))
+
+    assert response.action_code == "DOWNSHIFT"
+    assert response.safety_status_code == "REVISE"
+    assert response.requested_duration_minutes == 30
+    assert response.final_plan is not None
+    assert response.final_plan.estimated_duration_seconds == 1800
+    assert run.input_snapshot["discomforts"] == []
+    assert run.input_snapshot["profile"]["attention_area_codes"] == ["KNEE"]
+    assert len(run.proposals) == 4
+    assert run.safety_reviews[0].vetoed is False
+    assert run.safety_reviews[0].excluded_exercise_ids == []
+    assert (
+        _replay_stored_decision(postgres_session, run).model_dump(mode="json")
+        == run.coordinator_result
+    )
+    postgres_session.rollback()
+
+    ProfileService(
+        ProfileRepository(),
+        None,
+        primary_goal_codes=("GENERAL_FITNESS",),
+        experience_level_codes=("BEGINNER",),
+        consent_policy_version=None,
+        clock=lambda: NOW,
+    ).update_profile_settings(
+        postgres_session,
+        owner_id,
+        ProfileSettingsUpdateRequest.model_validate({"attention_area_codes": []}),
+        uuid4(),
+        1,
+    )
+    unchanged = _stored_run(postgres_session, owner_id)
+
+    assert unchanged.input_snapshot == old_snapshot
+    assert unchanged.input_snapshot["profile"]["attention_area_codes"] == ["KNEE"]
 
 
 @pytest.mark.integration
@@ -244,9 +648,7 @@ def test_decision_repository_assembles_and_persists_active_profile_attention_are
         "FEASIBILITY",
         "COORDINATOR",
     ]
-    run_count = postgres_session.scalar(
-        select(func.count()).select_from(DecisionRun).where(DecisionRun.user_id == owner_id)
-    )
+    record_counts = _decision_record_counts(postgres_session)
     postgres_session.rollback()
 
     with pytest.raises(RuntimeError, match="synthetic persist failure"):
@@ -256,12 +658,7 @@ def test_decision_repository_assembles_and_persists_active_profile_attention_are
             _request(owner_context_id),
             uuid4(),
         )
-    assert (
-        postgres_session.scalar(
-            select(func.count()).select_from(DecisionRun).where(DecisionRun.user_id == owner_id)
-        )
-        == run_count
-    )
+    assert _decision_record_counts(postgres_session) == record_counts
 
 
 @pytest.mark.integration

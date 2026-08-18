@@ -5,6 +5,9 @@ from backend.app.domain.agents.coordinator import CoordinatorStatusCode
 from backend.app.domain.rules.safety import SAFETY_ENGINE_VERSION
 from backend.app.modules.decisions.codes import DECISION_POLICY_VERSION
 from backend.tests.scenarios.decision_golden_fixtures import DECISION_GOLDEN_CASES
+from backend.tests.scenarios.decision_service_golden_fixtures import (
+    SERVICE_DECISION_GOLDEN_CASES,
+)
 
 _FORBIDDEN_KEYS = {
     "age",
@@ -18,7 +21,9 @@ _FORBIDDEN_KEYS = {
     "user_id",
 }
 _REQUIRED_CASE_CODES = {
+    "CHRONIC_KNEE_ATTENTION_CAUTION",
     "HEALTHY_KEEP",
+    "KNEE_MILD_CAUTION_DOWNSHIFT",
     "KNEE_MILD_APPROVED_REPLACEMENT",
     "KNEE_MODERATE_APPROVED_REPLACEMENT",
     "KNEE_SEVERE_REST",
@@ -109,3 +114,44 @@ def test_plan_and_non_plan_duration_shapes_are_contract_exact() -> None:
         else:
             assert expected.selected_candidate_id is None
             assert expected.estimated_duration_seconds is None
+
+
+def test_service_golden_matrix_covers_required_wave_4_paths() -> None:
+    case_codes = {case.case_code for case in SERVICE_DECISION_GOLDEN_CASES}
+
+    assert case_codes == {
+        "CHRONIC_KNEE_ATTENTION_CAUTION",
+        "HEALTHY_KEEP",
+        "KNEE_MILD_CAUTION_DOWNSHIFT",
+        "KNEE_MODERATE_APPROVED_ALTERNATIVE",
+        "KNEE_MODERATE_APPROVED_REPLACEMENT",
+        "LLM_DISABLED_OR_FAILED_SAME_DECISION",
+        "REQUESTED_DURATION_PRESERVING_DOWNSHIFT",
+        "SAFETY_VETO_BYPASS_BLOCKED",
+        "WEARABLE_MISSING_MANUAL_FALLBACK",
+    }
+    assert len(case_codes) == len(SERVICE_DECISION_GOLDEN_CASES)
+    for case in SERVICE_DECISION_GOLDEN_CASES:
+        assert case.requested_duration_minutes > 0
+        assert case.profile_duration_minutes > 0
+        assert case.expected.action_code
+
+
+def test_manual_wearable_fallback_machine_codes_remain_in_golden_contract() -> None:
+    case = next(
+        item
+        for item in DECISION_GOLDEN_CASES
+        if item.case_code == "WEARABLE_MISSING_MANUAL_FALLBACK"
+    )
+    feasibility = next(
+        proposal
+        for proposal in case.expected_proposals
+        if proposal.agent_type_code.value == "FEASIBILITY"
+    )
+
+    assert feasibility.reason_codes == (
+        "MANUAL_CHECK_IN_FALLBACK",
+        "WEARABLE_UNAVAILABLE",
+    )
+    assert feasibility.requested_duration_minutes == 40
+    assert feasibility.estimated_duration_seconds == 2400
