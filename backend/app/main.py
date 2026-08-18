@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.api.v1.router import api_router
 from backend.app.core.catalog_guard import validate_catalog_manifests
@@ -72,6 +73,18 @@ def create_app(
         if birthdate_cipher is not None
         else _build_birthdate_cipher(resolved_settings)
     )
+    if resolved_settings.cors_allowed_origins:
+        # Only the listed origins, and only the headers the client actually
+        # sends. Needed for the browser-based demo; native builds send no
+        # Origin header and leave this unset.
+        application.add_middleware(
+            CORSMiddleware,
+            allow_origins=list(resolved_settings.cors_allowed_origins),
+            allow_credentials=False,
+            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+            allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "If-Match"],
+            expose_headers=["X-Request-ID"],
+        )
     application.add_middleware(RequestContextMiddleware)
     register_exception_handlers(application)
     application.include_router(api_router, prefix=resolved_settings.api_v1_prefix)
