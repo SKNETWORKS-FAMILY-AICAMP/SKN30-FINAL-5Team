@@ -663,6 +663,49 @@ ManualActivityResponse
 
 `ai_trial_started_at`, `ai_trial_ends_at`, `premium_status_code`는 승인된 POL-013의 14일 AI 코치 무료 체험을 표현한다. 체험 종료 후 접근 범위는 구현 전 PM·개발팀장 검토로 확정한다.
 
+### 7.2.0 현재 사용자 조회 (구현됨)
+
+GET /api/v1/me
+
+인증된 사용자의 계정 상태와 온보딩 완료 여부, 저장된 프로필을 반환한다. 클라이언트는 이 응답으로
+온보딩 화면과 메인 흐름을 분기한다.
+
+~~~text
+MeResponse
+- user_id: UUID
+- status_code: string
+- onboarding_completed: boolean
+- premium_status_code: string
+- ai_trial_started_at: datetime
+- ai_trial_ends_at: datetime
+- profile: MeProfile | null
+
+MeProfile
+- nickname: string
+- age: integer | null
+- primary_goal_code: string
+- experience_level_code: string
+- timezone: IANA timezone
+- preferred_location_code: string
+- available_location_codes: string[]
+- default_requested_duration_minutes: integer
+- desired_weekly_workout_count: integer
+- coaching_style_code: string
+- equipment_codes: string[]
+- attention_area_codes: string[]
+- preferred_exercise_type_codes: string[]
+- profile_version: integer
+- created_at: datetime
+- updated_at: datetime
+~~~
+
+온보딩 전 사용자는 `onboarding_completed=false`, `profile=null`이다. 내부 사용자 레코드를 찾을 수
+없으면 `404 RESOURCE_NOT_FOUND`다.
+
+`age`는 §7.2의 계약대로 요청 시 사용자 timezone 기준으로 계산하며 DB에 저장하지 않는다. 배포에
+birthdate cipher가 없거나 저장된 값을 복호화할 수 없으면 읽기를 실패시키지 않고 `age=null`을
+반환한다. `date_of_birth`와 `protected_birthdate`는 응답에 포함하지 않는다.
+
 ### 7.2.1 연결된 인증 identity 조회
 
 GET /api/v1/me/identities
@@ -820,6 +863,11 @@ ExerciseDetailResponse
 ~~~
 
 자세·설명 콘텐츠는 검수된 정보만 반환하며 카메라 자세 인식이나 자동 자세 판정을 의미하지 않는다.
+
+구현 상태: 이 endpoint는 구현됐다. 인증된 사용자만 호출할 수 있고 `review_status_code`가
+`DOMAIN_APPROVED`인 운동만 반환하며, 그 외에는 `404 RESOURCE_NOT_FOUND`다. `exercises` 테이블에는
+아직 미디어·마스코트 자산 컬럼이 없으므로 `media_asset_key`와 `mascot_animation_asset_key`는 항상
+`null`이다. 두 필드는 nullable 계약이므로 자산 컬럼이 추가되면 하위 호환을 유지한 채 채울 수 있다.
 
 ---
 

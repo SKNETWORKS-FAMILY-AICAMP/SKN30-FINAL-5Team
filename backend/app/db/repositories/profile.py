@@ -26,12 +26,75 @@ from backend.app.modules.profiles.codes import (
 from backend.app.modules.profiles.ports import (
     ConsentRecord,
     IdempotencyRecord,
+    MeProfileRecord,
+    MeRecord,
     OnboardingProfileValues,
     OnboardingRecord,
 )
 
 
 class ProfileRepository:
+    def get_me(self, session: Session, user_id: UUID) -> MeRecord | None:
+        user = session.get(User, user_id)
+        if user is None:
+            return None
+        profile = session.get(UserProfile, user_id)
+        profile_record = None
+        if profile is not None:
+            profile_record = MeProfileRecord(
+                nickname=profile.nickname,
+                protected_birthdate=profile.protected_birthdate,
+                primary_goal_code=profile.primary_goal_code,
+                experience_level_code=profile.experience_level_code,
+                timezone=profile.timezone,
+                preferred_location_code=profile.preferred_location_code,
+                available_location_codes=tuple(
+                    session.scalars(
+                        select(UserAvailableLocation.location_code)
+                        .where(UserAvailableLocation.user_id == user_id)
+                        .order_by(UserAvailableLocation.location_code)
+                    )
+                ),
+                default_requested_duration_minutes=profile.default_requested_duration_minutes,
+                desired_weekly_workout_count=profile.desired_weekly_workout_count,
+                coaching_style_code=profile.coaching_style_code,
+                equipment_codes=tuple(
+                    session.scalars(
+                        select(UserEquipment.equipment_code)
+                        .where(UserEquipment.user_id == user_id)
+                        .order_by(UserEquipment.equipment_code)
+                    )
+                ),
+                attention_area_codes=tuple(
+                    session.scalars(
+                        select(UserAttentionArea.body_area_code)
+                        .where(
+                            UserAttentionArea.user_id == user_id,
+                            UserAttentionArea.is_active.is_(True),
+                        )
+                        .order_by(UserAttentionArea.body_area_code)
+                    )
+                ),
+                preferred_exercise_type_codes=tuple(
+                    session.scalars(
+                        select(UserPreferredExerciseType.exercise_type_code)
+                        .where(UserPreferredExerciseType.user_id == user_id)
+                        .order_by(UserPreferredExerciseType.exercise_type_code)
+                    )
+                ),
+                profile_version=profile.profile_version,
+                created_at=profile.created_at,
+                updated_at=profile.updated_at,
+            )
+        return MeRecord(
+            user_id=user_id,
+            status_code=user.status_code,
+            premium_status_code=user.premium_status_code,
+            ai_trial_started_at=user.ai_trial_started_at,
+            ai_trial_ends_at=user.ai_trial_ends_at,
+            profile=profile_record,
+        )
+
     def acquire_idempotency_lock(
         self,
         session: Session,

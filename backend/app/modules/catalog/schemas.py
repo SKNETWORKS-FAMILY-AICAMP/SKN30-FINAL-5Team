@@ -1,4 +1,5 @@
 from typing import Annotated, Literal
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -135,3 +136,21 @@ class ExerciseRecord(CatalogInputModel):
         if not self.equipment_codes or not self.location_codes:
             raise ValueError("at least one equipment and location code is required")
         return self
+
+
+class ExerciseDetailResponse(BaseModel):
+    """Reviewed instruction content for one planned exercise block.
+
+    This is presentation content only and never implies camera-based posture
+    detection or automated form judgement.
+    """
+
+    exercise_id: UUID
+    exercise_name: str
+    training_type_code: str
+    primary_body_area_codes: list[str]
+    instruction_summary: str
+    form_cues: list[str]
+    media_asset_key: str | None = None
+    mascot_animation_asset_key: str | None = None
+    instruction_content_version: str

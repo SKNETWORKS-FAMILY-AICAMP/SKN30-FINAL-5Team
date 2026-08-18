@@ -32,6 +32,32 @@ def _latest_eligible_birthdate(local_date: date) -> date:
         return local_date.replace(year=eligible_year, day=28)
 
 
+def calculate_age(
+    birthdate: date,
+    timezone_name: str,
+    *,
+    at: datetime | None = None,
+) -> int:
+    """Return the completed-year age on the user's local date.
+
+    The value is derived per request and never persisted.
+    """
+    try:
+        timezone = ZoneInfo(timezone_name)
+    except (ZoneInfoNotFoundError, ValueError) as exc:
+        raise InvalidTimezoneError from exc
+
+    instant = at or datetime.now(UTC)
+    if instant.tzinfo is None or instant.utcoffset() is None:
+        raise ValueError("at must be timezone-aware")
+    local_date = instant.astimezone(timezone).date()
+    if birthdate > local_date:
+        raise InvalidBirthdateError
+
+    had_birthday = (local_date.month, local_date.day) >= (birthdate.month, birthdate.day)
+    return local_date.year - birthdate.year - (0 if had_birthday else 1)
+
+
 def evaluate_age_eligibility(
     birthdate: date,
     timezone_name: str,
@@ -61,5 +87,6 @@ __all__ = [
     "AgeRequirementNotMetError",
     "InvalidBirthdateError",
     "InvalidTimezoneError",
+    "calculate_age",
     "evaluate_age_eligibility",
 ]

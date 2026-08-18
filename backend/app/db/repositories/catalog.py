@@ -1,6 +1,6 @@
 from collections.abc import Iterable
 from enum import StrEnum
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -24,10 +24,38 @@ from backend.app.modules.catalog.codes import (
     EquipmentRequirementCode,
     approved_display_name,
 )
-from backend.app.modules.catalog.service import CatalogArtifact
+from backend.app.modules.catalog.service import CatalogArtifact, ExerciseDetailRecord
 
 
 class CatalogRepository:
+    def get_exercise_detail(
+        self,
+        session: Session,
+        exercise_id: UUID,
+    ) -> ExerciseDetailRecord | None:
+        exercise = session.get(Exercise, exercise_id)
+        if exercise is None or exercise.review_status_code != "DOMAIN_APPROVED":
+            return None
+        primary_body_area_codes = tuple(
+            session.scalars(
+                select(ExerciseBodyPart.body_area_code)
+                .where(
+                    ExerciseBodyPart.exercise_id == exercise_id,
+                    ExerciseBodyPart.role_code == BodyAreaRoleCode.PRIMARY,
+                )
+                .order_by(ExerciseBodyPart.body_area_code)
+            )
+        )
+        return ExerciseDetailRecord(
+            exercise_id=exercise.id,
+            exercise_name=exercise.name_ko,
+            training_type_code=exercise.training_type_code,
+            primary_body_area_codes=primary_body_area_codes,
+            instruction_summary=exercise.instruction_summary_ko,
+            form_cues=tuple(exercise.form_cues_ko),
+            instruction_content_version=exercise.instruction_content_version,
+        )
+
     def get_by_version_code(
         self,
         session: Session,

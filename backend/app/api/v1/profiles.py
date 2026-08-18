@@ -23,6 +23,7 @@ from backend.app.modules.profiles.ports import BirthdateCipher, ProfileRepositor
 from backend.app.modules.profiles.schemas import (
     ConsentResponse,
     ConsentValues,
+    MeResponse,
     OnboardingResponse,
     OnboardingUpsertRequest,
 )
@@ -32,6 +33,7 @@ from backend.app.modules.profiles.service import (
     ProfileConfigurationError,
     ProfileService,
     RequiredConsentMissingError,
+    UserNotFoundError,
 )
 
 router = APIRouter(prefix="/me", tags=["profile"])
@@ -104,6 +106,26 @@ def _translate_profile_error(exc: Exception) -> AppError:
         code="PROFILE_OPERATION_FAILED",
         message="온보딩 요청을 처리하지 못했습니다.",
     )
+
+
+@router.get("", response_model=MeResponse)
+def get_me(
+    request: Request,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db_session)],
+    repository: Annotated[ProfileRepositoryPort, Depends(get_profile_repository)],
+    birthdate_cipher: Annotated[BirthdateCipher | None, Depends(get_birthdate_cipher)],
+) -> MeResponse:
+    try:
+        return _service(request, repository, birthdate_cipher).get_me(session, current_user.user_id)
+    except UserNotFoundError:
+        raise AppError(
+            status_code=HTTPStatus.NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message="사용자를 찾을 수 없습니다.",
+        ) from None
+    except SQLAlchemyError as exc:
+        raise _translate_profile_error(exc) from None
 
 
 @router.put("/onboarding", response_model=OnboardingResponse)
