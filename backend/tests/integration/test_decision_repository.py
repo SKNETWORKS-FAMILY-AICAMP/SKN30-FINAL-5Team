@@ -23,12 +23,15 @@ from backend.app.db.models.profile import (
 )
 from backend.app.db.repositories.checkin import DailyContextRepository
 from backend.app.db.repositories.decision import DecisionRepository
+from backend.app.db.repositories.profile import ProfileRepository
 from backend.app.db.repositories.routine import RoutineRepository
 from backend.app.modules.checkins.schemas import DailyContextUpsertRequest
 from backend.app.modules.checkins.service import DailyContextService
 from backend.app.modules.decisions.codes import DECISION_INPUT_SCHEMA_VERSION
 from backend.app.modules.decisions.schemas import DecisionCreateRequest
 from backend.app.modules.decisions.service import DecisionFailedError, DecisionService
+from backend.app.modules.profiles.schemas import ProfileSettingsUpdateRequest
+from backend.app.modules.profiles.service import ProfileService
 from backend.app.modules.routines.schemas import RoutineCreateRequest
 from backend.app.modules.routines.service import RoutineService
 from backend.scripts.demo_seed import seed_catalog
@@ -180,6 +183,7 @@ def test_decision_repository_assembles_and_persists_active_profile_attention_are
     assembly = repository.assemble(postgres_session, owner_id, owner_context_id)
     assert assembly is not None
     assert assembly.context.attention_area_codes == ("KNEE", "SHOULDER")
+    assert assembly.context.profile_preferred_location_code == "HOME"
     assert assembly.context.snapshot()["profile"]["attention_area_codes"] == [
         "KNEE",
         "SHOULDER",
@@ -200,7 +204,7 @@ def test_decision_repository_assembles_and_persists_active_profile_attention_are
         )
     stored = postgres_session.scalar(select(DecisionRun).where(DecisionRun.user_id == owner_id))
     assert stored is not None
-    assert stored.input_schema_version == DECISION_INPUT_SCHEMA_VERSION == "decision-input-v2"
+    assert stored.input_schema_version == DECISION_INPUT_SCHEMA_VERSION == "decision-input-v3"
     assert stored.input_snapshot["profile"]["attention_area_codes"] == ["KNEE", "SHOULDER"]
     assert tuple(stored.input_snapshot["profile"]["attention_area_codes"]) == (
         "KNEE",
@@ -232,3 +236,60 @@ def test_decision_repository_assembles_and_persists_active_profile_attention_are
         )
         == run_count
     )
+
+
+@pytest.mark.integration
+def test_profile_update_changes_only_future_decision_context_snapshots(
+    postgres_session: Session,
+) -> None:
+    owner_id = _add_user(postgres_session, attention_areas=())
+    context_id = _prepare_decision_inputs(postgres_session, owner_id)
+    repository = DecisionRepository()
+    DecisionService(repository, clock=lambda: NOW).create(
+        postgres_session,
+        owner_id,
+        _request(context_id),
+        uuid4(),
+    )
+    stored = postgres_session.scalar(select(DecisionRun).where(DecisionRun.user_id == owner_id))
+    assert stored is not None
+    old_snapshot = stored.input_snapshot
+    assert old_snapshot["profile"]["primary_goal_code"] == "GENERAL_FITNESS"
+    assert old_snapshot["profile"]["preferred_location_code"] == "HOME"
+    assert old_snapshot["profile"]["attention_area_codes"] == []
+    postgres_session.rollback()
+
+    ProfileService(
+        ProfileRepository(),
+        None,
+        primary_goal_codes=("GENERAL_FITNESS", "MUSCLE_GAIN"),
+        experience_level_codes=("BEGINNER",),
+        consent_policy_version=None,
+        clock=lambda: NOW,
+    ).update_profile_settings(
+        postgres_session,
+        owner_id,
+        ProfileSettingsUpdateRequest.model_validate(
+            {
+                "primary_goal_code": "MUSCLE_GAIN",
+                "preferred_location_code": "GYM",
+                "available_location_codes": ["GYM"],
+                "equipment_codes": ["MAT"],
+                "attention_area_codes": ["KNEE"],
+            }
+        ),
+        uuid4(),
+        1,
+    )
+
+    updated = repository.assemble(postgres_session, owner_id, context_id)
+    assert updated is not None
+    assert updated.context.primary_goal_code == "MUSCLE_GAIN"
+    assert updated.context.profile_preferred_location_code == "GYM"
+    assert updated.context.equipment_codes == ("MAT",)
+    assert updated.context.attention_area_codes == ("KNEE",)
+    postgres_session.rollback()
+
+    unchanged = postgres_session.scalar(select(DecisionRun).where(DecisionRun.user_id == owner_id))
+    assert unchanged is not None
+    assert unchanged.input_snapshot == old_snapshot

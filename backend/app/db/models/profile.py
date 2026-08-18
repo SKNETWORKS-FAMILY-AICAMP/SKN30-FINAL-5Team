@@ -203,6 +203,7 @@ class MutationIdempotencyRecord(Base):
         ),
         CheckConstraint(
             "endpoint_code IN ('PUT_ME_ONBOARDING', 'PUT_ME_CONSENTS', "
+            "'PATCH_ME_PROFILE', "
             "'POST_ROUTINES', 'PUT_DAILY_CONTEXT', 'POST_DECISIONS', "
             "'POST_DECISION_SELECTION', 'PATCH_WORKOUT_SESSION_START', "
             "'PATCH_WORKOUT_SESSION_ITEM', 'POST_WORKOUT_TIMER_EVENT', "

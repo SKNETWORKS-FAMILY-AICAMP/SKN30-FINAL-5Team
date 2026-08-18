@@ -202,6 +202,7 @@ class DecisionRepository:
             profile.experience_level_code,
             equipment,
             attention_areas,
+            profile.preferred_location_code,
         )
         item_data: list[CandidateItemData] = []
         main_durations: list[PlanItemDuration] = []

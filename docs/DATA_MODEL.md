@@ -159,6 +159,10 @@ nonce와 token은 저장하지 않으며 keyed-digest secret은 DB·로그·fixt
 
 `protected_birthdate`는 수정 가능한 생년월일 원본값의 암호화 envelope다. 서버는 복호화한 값을 사용자 timezone의 로컬 날짜를 기준으로 일시 계산해 만 14세 이상 이용 자격을 검증하고 프로필 표시값을 만든다. 평문 생년월일과 만 나이는 DB에 저장하지 않는다. 수정 결과가 만 14세 미만이면 이용을 차단한다.
 
+프로필 부분 수정은 `user_profiles` row를 transaction에서 잠근 뒤 요청 version과
+`profile_version`을 비교한다. 일치할 때만 요청된 scalar와 관계를 변경하고 version을 정확히 1
+증가시킨다. 관계 변경 실패 시 scalar와 version 증가도 함께 rollback한다.
+
 nickname은 중복을 허용하는 표시값이며 인증·리소스 소유권에 사용하지 않는다. 성별·키·체중은 온보딩 API 요청에서 필수지만 온보딩 이전에 생성된 기존 행과 임의 기본값 금지 원칙을 위해 DB 컬럼은 nullable로 유지한다. 키와 성별은 MVP 핵심 결정에 사용하지 않는다. 체중은 체중 기반 예상 소모 칼로리 추정에만 사용하고, 진단·안전 판정에는 사용하지 않는다.
 
 ### 4.3.1 user_consents
@@ -195,10 +199,15 @@ user_id와 consent_type_code 조합은 유일하다. `user_consents`는 사용�
 
 ### 4.3.2.1 mutation_idempotency_records
 
-온보딩·동의 mutation의 최초 성공 응답을 동일하게 재현하기 위한 사용자별 멱등성 기록이다.
+온보딩·동의·프로필 설정 mutation의 최초 성공 응답을 동일하게 재현하기 위한 사용자별 멱등성 기록이다.
 `(user_id, endpoint_code, idempotency_key)`는 유일하며 요청 본문 SHA-256, 버전이 있는 응답
 JSONB와 생성 시각을 저장한다. 같은 키의 다른 요청 hash는 거부하고 계정 삭제 시 함께 삭제한다.
 요청 원문, 생년월일, 인증 토큰은 저장하지 않는다.
+
+프로필 설정은 안정적인 endpoint code `PATCH_ME_PROFILE`을 사용하고 hash에 PATCH 본문과 요청 당시
+expected `profile_version`을 함께 포함한다. endpoint CHECK 확장은 migration `0017_profile_settings`가
+담당한다. downgrade는 기존 endpoint 기록을 보존하고, 이전 CHECK로 복원하기 전에 이 migration이
+추가한 `PATCH_ME_PROFILE` 기록만 제거한다.
 
 ### 4.3.3 생년월일 개인정보 처리
 
@@ -970,6 +979,9 @@ snapshot에 저장하지 않는다.
 - `coaching_style_code`
 
 `input_snapshot.profile`에는 `date_of_birth`, `age` 및 그 밖의 연령 관련 파생값을 포함하지 않는다. 닉네임·성별·키·체중도 포함하지 않으며, 체중 기반 칼로리 추정은 운동 계획·세션 경계에서만 처리한다. 수동 외부 기록은 MVP에 포함하지 않는다.
+
+`decision-input-v3`부터 새 decision 조립 시점의 최신 `preferred_location_code`를 위 allowlist 안에서
+snapshot에 포함한다. 이미 저장된 이전 decision snapshot과 그 schema version은 변경하지 않는다.
 
 ### 9.2 agent_proposals
 

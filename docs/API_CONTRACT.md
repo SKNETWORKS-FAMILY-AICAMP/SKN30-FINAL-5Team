@@ -330,7 +330,7 @@ health endpoint는 인증 없이 호출할 수 있지만 민감한 설정, DB �
 | GET | /api/v1/me | 현재 사용자와 온보딩 상태 |
 | GET | /api/v1/me/identities | 현재 사용자에 연결된 인증 provider 목록 |
 | PUT | /api/v1/me/onboarding | 프로필, 장비, 주의 부위 저장 |
-| PATCH | /api/v1/me/preferences | 코치 문구 성향 등 선택 설정 |
+| PATCH | /api/v1/me/profile | 온보딩 이후 프로필 운동 설정 부분 수정 |
 | PUT | /api/v1/me/consents | 일반·민감·웨어러블·캘린더·마케팅 현재 상태 저장·교체 및 이력 기록 |
 | DELETE | /api/v1/me | 계정과 연결 데이터 삭제 요청 |
 
@@ -861,6 +861,46 @@ job은 `requested_at`부터 즉시 실행할 수 있다. `operational_data_delet
 
 `primary_goal_code`와 `experience_level_code`는 배포 설정으로 승인된 코드만 허용한다. 7.1과
 동일하게 승인 목록이 없으면 `503 PROFILE_CONFIGURATION_UNAVAILABLE`로 차단한다.
+
+#### 7.4.1 프로필 설정 부분 수정
+
+~~~text
+PATCH /api/v1/me/profile
+Idempotency-Key: client-generated-uuid
+If-Match: "current-profile-version"
+~~~
+
+요청 본문은 §7.4에서 `가능`으로 표시한 필드만 받을 수 있으며 모든 필드는 선택 사항이다. 단,
+빈 객체, 알 수 없는 필드, 명시적 `null`, 중복 배열 코드는 `400 INVALID_REQUEST`로 거부한다.
+
+~~~json
+{
+  "desired_weekly_workout_count": 4,
+  "preferred_location_code": "GYM",
+  "available_location_codes": ["HOME", "GYM"],
+  "equipment_codes": ["BODYWEIGHT", "DUMBBELL"]
+}
+~~~
+
+`attention_area_codes`의 빈 배열은 허용하고, `equipment_codes`는 요청 후 최종 상태에 최소 한 개가
+남아야 한다. `preferred_location_code`는 기존 값과 요청 값을 병합한 최종
+`available_location_codes`에 포함되어야 한다. 요청하지 않은 scalar와 관계는 유지하며 요청에
+포함된 관계만 교체한다.
+
+`If-Match`는 따옴표를 포함한 양의 정수 형식(예: `"1"`)으로 필수 전송한다. 누락 또는 다른 형식은
+`400 INVALID_REQUEST`, 현재 `profile_version`과 다르면 `409 STALE_PROFILE`이다. 성공한 수정은 scalar,
+관계 교체, `profile_version` 1 증가와 멱등성 결과 저장을 한 transaction에서 처리한다.
+
+~~~text
+ProfileSettingsUpdateResponse
+- profile_version: integer
+- updated_at: datetime
+~~~
+
+같은 사용자·endpoint·`Idempotency-Key`에서 동일한 PATCH 본문과 동일한 `If-Match` version을
+재시도하면 최초 성공 응답을 재생하고 version을 다시 증가시키지 않는다. 본문 또는 expected
+version이 다르면 `409 IDEMPOTENCY_KEY_REUSED`다. 응답에는 생년월일, 암호화 값, 키·체중·성별,
+주의 부위를 반복하지 않는다. 온보딩 프로필이 없으면 `404 RESOURCE_NOT_FOUND`다.
 
 ---
 
@@ -1798,11 +1838,11 @@ SafetySummary
 | 401 | AUTHENTICATION_REQUIRED, INVALID_TOKEN, INVALID_PROVIDER_TOKEN, PROVIDER_TOKEN_EXPIRED, PROVIDER_ISSUER_MISMATCH, PROVIDER_AUDIENCE_MISMATCH, PROVIDER_SUBJECT_MISSING |
 | 403 | ACCOUNT_DISABLED, AGE_REQUIREMENT_NOT_MET |
 | 404 | RESOURCE_NOT_FOUND, ROUTINE_NOT_FOUND, DAILY_CONTEXT_NOT_FOUND |
-| 409 | STALE_CONTEXT, INVALID_STATE_TRANSITION, OPTION_NOT_SELECTABLE, IDEMPOTENCY_KEY_REUSED, ROUTINE_VERSION_CONFLICT, AUTHORIZATION_CODE_REUSED, IDENTITY_ALREADY_LINKED, LAST_IDENTITY_UNLINK_FORBIDDEN, WEEK_NOT_CLOSED, REPORT_ACKNOWLEDGEMENT_REQUIRED, AI_REVISION_LIMIT_REACHED, CONSENT_REQUIRED, WEARABLE_NOT_CONNECTED, CALENDAR_NOT_CONNECTED, CALENDAR_EVENT_ALREADY_LINKED |
+| 409 | STALE_CONTEXT, STALE_PROFILE, INVALID_STATE_TRANSITION, OPTION_NOT_SELECTABLE, IDEMPOTENCY_KEY_REUSED, ROUTINE_VERSION_CONFLICT, AUTHORIZATION_CODE_REUSED, IDENTITY_ALREADY_LINKED, LAST_IDENTITY_UNLINK_FORBIDDEN, WEEK_NOT_CLOSED, REPORT_ACKNOWLEDGEMENT_REQUIRED, AI_REVISION_LIMIT_REACHED, CONSENT_REQUIRED, WEARABLE_NOT_CONNECTED, CALENDAR_NOT_CONNECTED, CALENDAR_EVENT_ALREADY_LINKED |
 | 422 | INVALID_DOMAIN_CODE, INVALID_DURATION, ROUTINE_DURATION_UNAVAILABLE, ROUTINE_CONTENT_UNAVAILABLE, DUPLICATE_BODY_AREA, INVALID_DATE_OF_BIRTH, NEEDS_INPUT, INVALID_WEEK_START, INVALID_OAUTH_STATE, OAUTH_STATE_EXPIRED |
 | 429 | RATE_LIMITED |
 | 500 | INTERNAL_ERROR, DECISION_FAILED |
-| 503 | DATABASE_UNAVAILABLE, AUTH_PROVIDER_UNAVAILABLE, PROVIDER_UNAVAILABLE, APPROVED_CATALOG_UNAVAILABLE |
+| 503 | DATABASE_UNAVAILABLE, AUTH_PROVIDER_UNAVAILABLE, PROVIDER_UNAVAILABLE, APPROVED_CATALOG_UNAVAILABLE, PROFILE_CONFIGURATION_UNAVAILABLE |
 
 안전한 후보가 없어 REST를 정상 반환하는 것은 오류가 아니다.
 

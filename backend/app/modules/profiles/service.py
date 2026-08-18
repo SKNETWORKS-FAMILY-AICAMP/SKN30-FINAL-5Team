@@ -16,6 +16,7 @@ from backend.app.modules.profiles.age import (
 from backend.app.modules.profiles.codes import (
     CONSENT_RESPONSE_SCHEMA_VERSION,
     ONBOARDING_RESPONSE_SCHEMA_VERSION,
+    PROFILE_SETTINGS_RESPONSE_SCHEMA_VERSION,
     CoachingStyleCode,
     MutationEndpointCode,
 )
@@ -26,6 +27,8 @@ from backend.app.modules.profiles.ports import (
     MeProfileRecord,
     OnboardingProfileValues,
     ProfileRepositoryPort,
+    ProfileSettingsChanges,
+    ProfileSettingsRecord,
 )
 from backend.app.modules.profiles.schemas import (
     ConsentResponse,
@@ -35,6 +38,8 @@ from backend.app.modules.profiles.schemas import (
     MeResponse,
     OnboardingResponse,
     OnboardingUpsertRequest,
+    ProfileSettingsUpdateRequest,
+    ProfileSettingsUpdateResponse,
 )
 
 
@@ -56,6 +61,18 @@ class IdempotencyKeyReusedError(Exception):
 
 class UserNotFoundError(Exception):
     """No internal user is linked to the authenticated principal."""
+
+
+class ProfileNotFoundError(Exception):
+    """The authenticated user has not completed onboarding."""
+
+
+class StaleProfileError(Exception):
+    """The expected profile version no longer matches the stored version."""
+
+
+class InvalidProfileSettingsError(Exception):
+    """The merged profile settings violate a cross-field invariant."""
 
 
 def _utc_now() -> datetime:
@@ -107,8 +124,10 @@ class ProfileService:
         endpoint_code: MutationEndpointCode,
         idempotency_key: UUID,
         request_hash: str,
-        response_type: type[OnboardingResponse] | type[ConsentResponse],
-    ) -> OnboardingResponse | ConsentResponse | None:
+        response_type: (
+            type[OnboardingResponse] | type[ConsentResponse] | type[ProfileSettingsUpdateResponse]
+        ),
+    ) -> OnboardingResponse | ConsentResponse | ProfileSettingsUpdateResponse | None:
         existing = self._repository.get_idempotency_record(
             session, user_id, endpoint_code, idempotency_key
         )
@@ -117,6 +136,114 @@ class ProfileService:
         if existing.request_hash != request_hash:
             raise IdempotencyKeyReusedError
         return response_type.model_validate(existing.response_payload)
+
+    def _require_profile_settings_configuration(self) -> None:
+        if not self._primary_goal_codes or not self._experience_level_codes:
+            raise ProfileConfigurationError
+
+    def _validate_profile_codes(self, request: ProfileSettingsUpdateRequest) -> None:
+        if (
+            "primary_goal_code" in request.model_fields_set
+            and request.primary_goal_code not in self._primary_goal_codes
+        ):
+            raise InvalidOnboardingCodeError
+        if (
+            "experience_level_code" in request.model_fields_set
+            and request.experience_level_code not in self._experience_level_codes
+        ):
+            raise InvalidOnboardingCodeError
+
+    def _protected_birthdate_for_update(
+        self,
+        user_id: UUID,
+        request: ProfileSettingsUpdateRequest,
+        current: ProfileSettingsRecord,
+        now: datetime,
+    ) -> str | None:
+        changes_age_inputs = bool(
+            {"date_of_birth", "timezone"}.intersection(request.model_fields_set)
+        )
+        if not changes_age_inputs:
+            return None
+        if self._birthdate_cipher is None:
+            raise ProfileConfigurationError
+
+        if "date_of_birth" in request.model_fields_set:
+            birthdate = request.date_of_birth
+            assert birthdate is not None
+        else:
+            try:
+                birthdate = self._birthdate_cipher.decrypt(user_id, current.protected_birthdate)
+            except BirthdateDecryptionError:
+                raise ProfileConfigurationError from None
+        timezone_name = (
+            request.timezone if "timezone" in request.model_fields_set else current.timezone
+        )
+        assert timezone_name is not None
+        evaluate_age_eligibility(birthdate, timezone_name, at=now)
+
+        if "date_of_birth" not in request.model_fields_set:
+            return None
+        try:
+            return self._birthdate_cipher.encrypt(user_id, birthdate)
+        except BirthdateEncryptionError:
+            raise ProfileConfigurationError from None
+
+    @staticmethod
+    def _profile_settings_changes(
+        request: ProfileSettingsUpdateRequest,
+        current: ProfileSettingsRecord,
+        protected_birthdate: str | None,
+    ) -> ProfileSettingsChanges:
+        payload = request.model_dump(mode="json", exclude_unset=True)
+        preferred_location = str(
+            payload.get("preferred_location_code", current.preferred_location_code)
+        )
+        available_locations = tuple(
+            str(code)
+            for code in payload.get("available_location_codes", current.available_location_codes)
+        )
+        if preferred_location not in available_locations:
+            raise InvalidProfileSettingsError
+        equipment_codes = tuple(
+            str(code) for code in payload.get("equipment_codes", current.equipment_codes)
+        )
+        if not equipment_codes:
+            raise InvalidProfileSettingsError
+
+        relationship_fields = {
+            "available_location_codes",
+            "equipment_codes",
+            "attention_area_codes",
+            "preferred_exercise_type_codes",
+        }
+        scalar_values = {
+            field_name: value
+            for field_name, value in payload.items()
+            if field_name not in relationship_fields and field_name != "date_of_birth"
+        }
+        return ProfileSettingsChanges(
+            protected_birthdate=protected_birthdate,
+            scalar_values=scalar_values,
+            available_location_codes=(
+                available_locations
+                if "available_location_codes" in request.model_fields_set
+                else None
+            ),
+            equipment_codes=(
+                equipment_codes if "equipment_codes" in request.model_fields_set else None
+            ),
+            attention_area_codes=(
+                tuple(str(code) for code in payload["attention_area_codes"])
+                if "attention_area_codes" in request.model_fields_set
+                else None
+            ),
+            preferred_exercise_type_codes=(
+                tuple(str(code) for code in payload["preferred_exercise_type_codes"])
+                if "preferred_exercise_type_codes" in request.model_fields_set
+                else None
+            ),
+        )
 
     def get_me(self, session: Session, user_id: UUID) -> MeResponse:
         record = self._repository.get_me(session, user_id)
@@ -339,14 +466,86 @@ class ProfileService:
             )
         return response
 
+    def update_profile_settings(
+        self,
+        session: Session,
+        user_id: UUID,
+        request: ProfileSettingsUpdateRequest,
+        idempotency_key: UUID,
+        expected_version: int,
+    ) -> ProfileSettingsUpdateResponse:
+        request_payload = request.model_dump(mode="json", exclude_unset=True)
+        request_hash = _request_hash(
+            {"payload": request_payload, "expected_profile_version": expected_version}
+        )
+        now = self._clock()
+
+        try:
+            with session.begin():
+                self._repository.acquire_idempotency_lock(
+                    session,
+                    user_id,
+                    MutationEndpointCode.PROFILE_SETTINGS,
+                    idempotency_key,
+                )
+                existing = self._existing_response(
+                    session,
+                    user_id,
+                    MutationEndpointCode.PROFILE_SETTINGS,
+                    idempotency_key,
+                    request_hash,
+                    ProfileSettingsUpdateResponse,
+                )
+                if existing is not None:
+                    assert isinstance(existing, ProfileSettingsUpdateResponse)
+                    return existing
+
+                current = self._repository.get_profile_for_update(session, user_id)
+                if current is None:
+                    raise ProfileNotFoundError
+                if current.profile_version != expected_version:
+                    raise StaleProfileError
+
+                self._require_profile_settings_configuration()
+                self._validate_profile_codes(request)
+                protected_birthdate = self._protected_birthdate_for_update(
+                    user_id, request, current, now
+                )
+                changes = self._profile_settings_changes(request, current, protected_birthdate)
+                profile_version, updated_at = self._repository.update_profile_settings(
+                    session, user_id, changes, now
+                )
+                response = ProfileSettingsUpdateResponse(
+                    profile_version=profile_version,
+                    updated_at=updated_at,
+                )
+                self._repository.save_idempotency_record(
+                    session,
+                    user_id,
+                    MutationEndpointCode.PROFILE_SETTINGS,
+                    idempotency_key,
+                    request_hash,
+                    response.model_dump(mode="json"),
+                    PROFILE_SETTINGS_RESPONSE_SCHEMA_VERSION,
+                    now,
+                )
+            return response
+        except AgeRequirementNotMetError:
+            with session.begin():
+                self._repository.disable_user_for_age(session, user_id, now)
+            raise
+
 
 __all__ = [
     "IdempotencyKeyReusedError",
     "InvalidBirthdateError",
     "InvalidOnboardingCodeError",
+    "InvalidProfileSettingsError",
     "InvalidTimezoneError",
     "ProfileConfigurationError",
+    "ProfileNotFoundError",
     "ProfileService",
     "RequiredConsentMissingError",
+    "StaleProfileError",
     "UserNotFoundError",
 ]

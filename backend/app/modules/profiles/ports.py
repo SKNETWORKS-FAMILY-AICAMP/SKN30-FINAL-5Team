@@ -103,6 +103,37 @@ class IdempotencyRecord:
     response_payload: dict[str, Any]
 
 
+@dataclass(frozen=True)
+class ProfileSettingsRecord:
+    protected_birthdate: str
+    nickname: str
+    primary_goal_code: str
+    experience_level_code: str
+    timezone: str
+    preferred_location_code: str
+    available_location_codes: tuple[str, ...]
+    default_requested_duration_minutes: int
+    desired_weekly_workout_count: int
+    coaching_style_code: str
+    height_cm: float | None
+    weight_kg: float | None
+    sex_code: str | None
+    equipment_codes: tuple[str, ...]
+    attention_area_codes: tuple[str, ...]
+    preferred_exercise_type_codes: tuple[str, ...]
+    profile_version: int
+
+
+@dataclass(frozen=True)
+class ProfileSettingsChanges:
+    protected_birthdate: str | None
+    scalar_values: dict[str, object]
+    available_location_codes: tuple[str, ...] | None
+    equipment_codes: tuple[str, ...] | None
+    attention_area_codes: tuple[str, ...] | None
+    preferred_exercise_type_codes: tuple[str, ...] | None
+
+
 class ProfileRepositoryPort(Protocol):
     def get_me(self, session: Session, user_id: UUID) -> MeRecord | None: ...
 
@@ -143,6 +174,18 @@ class ProfileRepositoryPort(Protocol):
         now: datetime,
     ) -> OnboardingRecord: ...
 
+    def get_profile_for_update(
+        self, session: Session, user_id: UUID
+    ) -> ProfileSettingsRecord | None: ...
+
+    def update_profile_settings(
+        self,
+        session: Session,
+        user_id: UUID,
+        changes: ProfileSettingsChanges,
+        now: datetime,
+    ) -> tuple[int, datetime]: ...
+
     def replace_consents(
         self,
         session: Session,
@@ -165,5 +208,7 @@ __all__ = [
     "MeRecord",
     "OnboardingProfileValues",
     "OnboardingRecord",
+    "ProfileSettingsChanges",
+    "ProfileSettingsRecord",
     "ProfileRepositoryPort",
 ]
