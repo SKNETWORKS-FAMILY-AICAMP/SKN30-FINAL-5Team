@@ -173,6 +173,27 @@ describe('PreviewGallery', () => {
     expect(screen.getByText('단독 진입: ?preview=home')).toBeOnTheScreen();
   });
 
+  it('previews the API-backed home states without authentication', async () => {
+    await render(<PreviewGallery initialScreenId="today" />);
+
+    const canvas = within(screen.getByTestId('preview-app-canvas'));
+    expect(screen.getByRole('radio', { name: 'Home (API)' })).toBeChecked();
+    expect(
+      await canvas.findByRole('button', { name: '오늘 루틴 체크인' }),
+    ).toBeOnTheScreen();
+    expect(canvas.getByText('아직 오늘의 운동이 없어요')).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByRole('radio', { name: '체크인 후' }));
+    expect(await canvas.findByText('체크인 다시 하기🍌')).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByRole('radio', { name: '권한 없음' }));
+    expect(
+      await canvas.findByText('오늘의 운동 정보에 접근할 권한이 없어요.'),
+    ).toBeOnTheScreen();
+    expect(canvas.queryByRole('button', { name: '다시 시도' })).toBeNull();
+    expect(screen.getByText('단독 진입: ?preview=today')).toBeOnTheScreen();
+  });
+
   it('switches the three Home secondary screens and their mock states', async () => {
     await render(<PreviewGallery />);
 

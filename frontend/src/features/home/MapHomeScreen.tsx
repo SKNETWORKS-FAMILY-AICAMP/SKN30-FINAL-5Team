@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors } from '../../components/theme';
 import { fontFamilies, useAuthFonts } from '../../app/fonts';
+import type { TabId } from '../../components/brand/BrandChrome';
 import { HomeBottomNavigation } from './HomeScreen';
 import type { MapHomePreviewState } from './homeSecondaryModel';
 
@@ -22,7 +23,7 @@ export const MAP_HOME_LAYOUT = {
 } as const;
 
 type MapHomeScreenProps = {
-  onNavigateTab?: (tab: 'home' | 'log' | 'report' | 'my') => void;
+  onNavigateTab?: (tab: TabId) => void;
   onOpenCheckin?: () => void;
   onSelectRest?: () => void;
   onStartWorkout?: () => void;
@@ -121,7 +122,7 @@ function MapHomeScreenContent({
         ) : null}
       </View>
 
-      <HomeBottomNavigation activeTab="log" onNavigate={onNavigateTab} />
+      <HomeBottomNavigation activeTab="house" onNavigate={onNavigateTab} />
     </SafeAreaView>
   );
 }

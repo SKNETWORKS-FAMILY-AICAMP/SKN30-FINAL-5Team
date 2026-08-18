@@ -23,6 +23,8 @@ import type {
   SessionItemUpdateResponse,
   SessionNotCompletedResponse,
   SessionStartResponse,
+  WeeklyPlanRevisionRequest,
+  WeeklyPlanRevisionResponse,
   WeeklyReportResponse,
   WeekResponse,
 } from './types';
@@ -229,6 +231,34 @@ export function createApi(client: ApiClient) {
       return client.request<WeekResponse>({
         path: `/weeks/${weekStart}`,
         signal,
+      });
+    },
+
+    /**
+     * Creates the week's `INITIAL` plan revision. The response carries the
+     * `revision_sequence` and `ai_revision_count` that a later revision needs;
+     * there is no read endpoint for them, so the caller must keep what it gets.
+     */
+    createInitialWeeklyPlan(weekStart: string) {
+      return client.request<WeeklyPlanRevisionResponse>({
+        method: 'POST',
+        path: `/weeks/${weekStart}/plan`,
+        body: {},
+        idempotent: true,
+      });
+    },
+
+    /**
+     * `AI` asks the Coordinator for a revised routine (at most twice a week);
+     * `USER` submits a stored routine version and a location for the server to
+     * re-validate. Neither lets the client author exercises or safety state.
+     */
+    createPlanRevision(weekStart: string, body: WeeklyPlanRevisionRequest) {
+      return client.request<WeeklyPlanRevisionResponse>({
+        method: 'POST',
+        path: `/weeks/${weekStart}/plan-revisions`,
+        body,
+        idempotent: true,
       });
     },
 

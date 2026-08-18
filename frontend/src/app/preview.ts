@@ -8,6 +8,7 @@ export type PreviewMode =
   | 'profile'
   | 'signup'
   | 'splash'
+  | 'today'
   | 'workout'
   | null;
 

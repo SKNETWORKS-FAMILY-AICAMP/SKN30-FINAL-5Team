@@ -8,6 +8,7 @@ export type PreviewMode =
   | 'profile'
   | 'signup'
   | 'splash'
+  | 'today'
   | 'workout'
   | null;
 
@@ -30,6 +31,7 @@ export function getPreviewMode(): PreviewMode {
     requestedPreview === 'profile' ||
     requestedPreview === 'signup' ||
     requestedPreview === 'splash' ||
+    requestedPreview === 'today' ||
     requestedPreview === 'workout'
   ) {
     return requestedPreview;
