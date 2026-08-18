@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
@@ -12,7 +12,14 @@ from backend.app.core.config import Settings
 from backend.app.main import create_app
 from backend.app.modules.identity.codes import UserStatusCode
 from backend.app.modules.identity.service import CurrentUser
-from backend.app.modules.workouts.ports import SessionState
+from backend.app.modules.workouts.ports import (
+    SessionState,
+    WorkoutLogCursor,
+    WorkoutLogDetail,
+    WorkoutLogFeedback,
+    WorkoutLogItem,
+    WorkoutLogSummary,
+)
 from backend.tests.unit.test_workout_service import (
     FakeSession,
     FakeWorkoutRepository,
@@ -20,6 +27,65 @@ from backend.tests.unit.test_workout_service import (
 )
 
 NOW = datetime(2026, 8, 14, 1, 0, tzinfo=UTC)
+
+
+class FakeWorkoutLogRepository(FakeWorkoutRepository):
+    def __init__(self, owner_id: UUID, logs: tuple[WorkoutLogSummary, ...]) -> None:
+        super().__init__(_source())
+        self.owner_id = owner_id
+        self.logs = logs
+        self.details: dict[UUID, WorkoutLogDetail] = {}
+
+    def list_workout_logs(
+        self,
+        session: object,
+        user_id: UUID,
+        *,
+        from_local_date: date | None,
+        to_local_date: date | None,
+        status_code: str | None,
+        cursor: WorkoutLogCursor | None,
+        limit: int,
+    ) -> tuple[WorkoutLogSummary, ...]:
+        if user_id != self.owner_id:
+            return ()
+        rows = [
+            row
+            for row in self.logs
+            if (from_local_date is None or row.local_date >= from_local_date)
+            and (to_local_date is None or row.local_date <= to_local_date)
+            and (status_code is None or row.status_code == status_code)
+            and (
+                cursor is None
+                or (row.local_date, row.session_id) < (cursor.local_date, cursor.session_id)
+            )
+        ]
+        return tuple(
+            sorted(rows, key=lambda row: (row.local_date, row.session_id), reverse=True)[:limit]
+        )
+
+    def get_workout_log_detail(
+        self, session: object, user_id: UUID, session_id: UUID
+    ) -> WorkoutLogDetail | None:
+        if user_id != self.owner_id:
+            return None
+        return self.details.get(session_id)
+
+
+def _log(index: int, *, status_code: str = "COMPLETED") -> WorkoutLogSummary:
+    local_date = date(2026, 8, 14) - timedelta(days=index // 2)
+    return WorkoutLogSummary(
+        session_id=UUID(int=index + 1),
+        local_date=local_date,
+        status_code=status_code,
+        completed_item_count=1 if status_code == "COMPLETED" else 0,
+        total_item_count=1,
+        requested_duration_minutes=30,
+        training_type_code="STRENGTH",
+        not_completed_reason_code="TIME_SHORTAGE" if status_code == "NOT_COMPLETED" else None,
+        started_at=NOW,
+        finished_at=NOW + timedelta(minutes=30),
+    )
 
 
 def _client(repository: FakeWorkoutRepository, user_id: UUID) -> TestClient:
@@ -43,6 +109,124 @@ def _client(repository: FakeWorkoutRepository, user_id: UUID) -> TestClient:
 
 def _key() -> dict[str, str]:
     return {"Idempotency-Key": str(uuid4())}
+
+
+def test_workout_log_list_requires_authentication() -> None:
+    user_id = uuid4()
+    repository = FakeWorkoutLogRepository(user_id, ())
+    app = create_app(
+        settings=Settings(
+            app_env="test", database_url="postgresql+psycopg://test:test@localhost/test"
+        ),
+        readiness_probe=lambda: None,
+    )
+
+    def session_override():
+        yield FakeSession()
+
+    app.dependency_overrides[get_db_session] = session_override
+    app.dependency_overrides[get_workout_repository] = lambda: repository
+    with TestClient(app) as client:
+        response = client.get("/api/v1/workout-sessions")
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "AUTHENTICATION_REQUIRED"
+
+
+def test_workout_log_list_filters_and_uses_default_limit() -> None:
+    user_id = uuid4()
+    logs = tuple(
+        _log(index, status_code="NOT_COMPLETED" if index % 3 == 0 else "COMPLETED")
+        for index in range(25)
+    )
+    repository = FakeWorkoutLogRepository(user_id, logs)
+    with _client(repository, user_id) as client:
+        first_page = client.get("/api/v1/workout-sessions")
+        filtered = client.get(
+            "/api/v1/workout-sessions",
+            params={
+                "from_local_date": "2026-08-10",
+                "to_local_date": "2026-08-12",
+                "status_code": "COMPLETED",
+            },
+        )
+    assert first_page.status_code == 200
+    assert len(first_page.json()["items"]) == 20
+    assert first_page.json()["next_cursor"] is not None
+    assert filtered.status_code == 200
+    assert all(item["status_code"] == "COMPLETED" for item in filtered.json()["items"])
+    assert all(
+        "2026-08-10" <= item["local_date"] <= "2026-08-12" for item in filtered.json()["items"]
+    )
+
+
+def test_workout_log_list_cursor_is_stable_and_limit_is_validated() -> None:
+    user_id = uuid4()
+    repository = FakeWorkoutLogRepository(user_id, tuple(_log(index) for index in range(25)))
+    with _client(repository, user_id) as client:
+        first = client.get("/api/v1/workout-sessions", params={"limit": 10})
+        second = client.get(
+            "/api/v1/workout-sessions",
+            params={"limit": 10, "cursor": first.json()["next_cursor"]},
+        )
+        maximum = client.get("/api/v1/workout-sessions", params={"limit": 100})
+        over_maximum = client.get("/api/v1/workout-sessions", params={"limit": 101})
+        bad_cursor = client.get("/api/v1/workout-sessions", params={"cursor": "not-a-cursor"})
+    first_ids = {item["session_id"] for item in first.json()["items"]}
+    second_ids = {item["session_id"] for item in second.json()["items"]}
+    assert first.status_code == second.status_code == maximum.status_code == 200
+    assert first_ids.isdisjoint(second_ids)
+    assert over_maximum.status_code == 400
+    assert bad_cursor.status_code == 400
+    assert bad_cursor.json()["error"]["code"] == "INVALID_REQUEST"
+
+
+def test_workout_log_detail_is_owner_scoped_and_redacts_health_details() -> None:
+    owner_id = uuid4()
+    session_id = uuid4()
+    plan_item_id = uuid4()
+    repository = FakeWorkoutLogRepository(owner_id, ())
+    repository.details[session_id] = WorkoutLogDetail(
+        session_id=session_id,
+        local_date=date(2026, 8, 14),
+        status_code="COMPLETED",
+        requested_duration_minutes=30,
+        items=(
+            WorkoutLogItem(
+                plan_item_id=plan_item_id,
+                exercise_id=uuid4(),
+                exercise_name="합성 스쿼트",
+                status_code="COMPLETED",
+                sets=3,
+                reps=10,
+                work_seconds_per_set=None,
+                completed_at=NOW,
+            ),
+        ),
+        feedback=WorkoutLogFeedback(
+            perceived_difficulty_code="APPROPRIATE",
+            post_workout_discomfort_reported=True,
+        ),
+        not_completed_reason_code=None,
+        started_at=NOW,
+        finished_at=NOW + timedelta(minutes=30),
+    )
+    with _client(repository, owner_id) as owner_client:
+        own = owner_client.get(f"/api/v1/workout-sessions/{session_id}")
+        missing = owner_client.get(f"/api/v1/workout-sessions/{uuid4()}")
+    with _client(repository, uuid4()) as other_client:
+        other = other_client.get(f"/api/v1/workout-sessions/{session_id}")
+    assert own.status_code == 200
+    assert own.json()["completed_item_count"] == 1
+    assert own.json()["items"][0]["exercise_name"] == "합성 스쿼트"
+    assert own.json()["feedback"] == {
+        "perceived_difficulty_code": "APPROPRIATE",
+        "post_workout_discomfort_reported": True,
+    }
+    serialized = own.text
+    assert "body_area" not in serialized
+    assert "severity" not in serialized
+    assert missing.status_code == other.status_code == 404
+    assert missing.json()["error"]["code"] == other.json()["error"]["code"] == "RESOURCE_NOT_FOUND"
 
 
 def test_selection_start_blocks_timer_and_additional_activity_contract() -> None:
