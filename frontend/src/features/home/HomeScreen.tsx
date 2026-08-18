@@ -460,7 +460,7 @@ export function HomeBottomNavigation({
 }) {
   const tabs = [
     { id: 'home', icon: '⌂', label: '홈' },
-    { id: 'log', icon: '⌁', label: '헬끼의 집' },
+    { id: 'log', icon: '⌁', label: '끼끼의 집' },
     { id: 'report', icon: '▥', label: '리포트' },
     { id: 'my', icon: '●', label: '마이페이지' },
   ] as const;

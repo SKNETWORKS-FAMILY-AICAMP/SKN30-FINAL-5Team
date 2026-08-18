@@ -22,7 +22,9 @@ import {
   type BootDestinationResolver,
   resolveBootDestination,
 } from './bootstrap';
+import { DemoApp } from './DemoApp';
 import { getPreviewMode, type PreviewMode } from './preview';
+import { SessionProvider } from './SessionProvider';
 
 export type RootStackParamList = {
   Splash: undefined;
@@ -172,8 +174,15 @@ export function App({
         <SignUpScreen />
       ) : activePreview === 'splash' ? (
         <SplashScreen />
-      ) : (
+      ) : navigatorProps.bootResolver !== undefined ||
+        navigatorProps.onNavigationTransition !== undefined ? (
+        // The boot-resolver navigator is retained for the existing boot tests.
         <AppNavigator {...navigatorProps} />
+      ) : (
+        // Default entry is the real user flow, not the preview gallery.
+        <SessionProvider>
+          <DemoApp />
+        </SessionProvider>
       )}
     </SafeAreaProvider>
   );
