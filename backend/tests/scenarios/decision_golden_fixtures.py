@@ -290,13 +290,20 @@ def _healthy_case(
 
 
 def _downshift_case() -> DecisionGoldenCase:
+    source = DurationAdjustmentSourceCode.USER_OVERRIDE
     feasibility = _proposal(
         AgentTypeCode.FEASIBILITY,
         action_code=RecommendedActionCode.DOWNSHIFT,
+        minutes=30,
+        duration_source=source,
         intensity_delta=-1,
         reason_codes=("TIME_SHORTAGE_PATTERN",),
     )
-    proposals = _proposals({AgentTypeCode.FEASIBILITY: feasibility})
+    proposals = _proposals(
+        {AgentTypeCode.FEASIBILITY: feasibility},
+        minutes=30,
+        duration_source=source,
+    )
     return _case(
         "REQUESTED_DURATION_PRESERVING_DOWNSHIFT",
         proposals=proposals,
@@ -305,9 +312,13 @@ def _downshift_case() -> DecisionGoldenCase:
                 "candidate-goal-preserving-downshift",
                 RecommendedActionCode.DOWNSHIFT,
                 ("push_up", "supported_row"),
+                minutes=30,
                 downshift_adjustment_codes=(DownshiftAdjustmentCode.INTENSITY_REDUCED,),
             ),
         ),
+        profile_minutes=40,
+        requested_minutes=30,
+        duration_source=source,
         context_reference_codes=("CHECK_IN.FATIGUE_MODERATE", "HISTORY.TIME_SHORTAGE"),
         expected=_expected(
             status=CoordinatorStatusCode.PASS,
@@ -319,6 +330,8 @@ def _downshift_case() -> DecisionGoldenCase:
                 "COMMON_CANDIDATE_SELECTED",
                 "TIME_SHORTAGE_PATTERN",
             ),
+            minutes=30,
+            duration_source=source,
         ),
     )
 
@@ -397,6 +410,51 @@ def _knee_replacement_case(severity: str) -> DecisionGoldenCase:
                 "BASE_CANDIDATE_ACCEPTED",
                 "COMMON_CANDIDATE_SELECTED",
                 f"KNEE_{severity}",
+            ),
+        ),
+    )
+
+
+def _caution_downshift_case(
+    case_code: str,
+    *,
+    reason_code: str,
+    context_reference_codes: tuple[str, ...],
+) -> DecisionGoldenCase:
+    safety = _proposal(
+        AgentTypeCode.SAFETY,
+        action_code=RecommendedActionCode.DOWNSHIFT,
+        intensity_delta=-1,
+        reason_codes=(reason_code,),
+        safety_status=SafetyStatusCode.REVISE,
+        safety_vetoed=False,
+    )
+    proposals = _proposals({AgentTypeCode.SAFETY: safety})
+    return _case(
+        case_code,
+        proposals=proposals,
+        candidates=(
+            _candidate(
+                "candidate-caution-downshift",
+                RecommendedActionCode.DOWNSHIFT,
+                ("push_up", "supported_row"),
+                downshift_adjustment_codes=(DownshiftAdjustmentCode.INTENSITY_REDUCED,),
+            ),
+        ),
+        context_reference_codes=context_reference_codes,
+        expected=_expected(
+            status=CoordinatorStatusCode.REVISE,
+            safety_status=SafetyStatusCode.REVISE,
+            action=RecommendedActionCode.DOWNSHIFT,
+            candidate_id="candidate-caution-downshift",
+            reason_codes=tuple(
+                sorted(
+                    (
+                        "BASE_CANDIDATE_ACCEPTED",
+                        "COMMON_CANDIDATE_SELECTED",
+                        reason_code,
+                    )
+                )
             ),
         ),
     )
@@ -552,6 +610,16 @@ DECISION_GOLDEN_CASES: Final[tuple[DecisionGoldenCase, ...]] = (
     _user_override_case(),
     _knee_replacement_case("MILD"),
     _knee_replacement_case("MODERATE"),
+    _caution_downshift_case(
+        "KNEE_MILD_CAUTION_DOWNSHIFT",
+        reason_code="SAFETY_CAUTION_APPLIED",
+        context_reference_codes=("CHECK_IN.KNEE_MILD", "RULE.KNEE_CAUTION"),
+    ),
+    _caution_downshift_case(
+        "CHRONIC_KNEE_ATTENTION_CAUTION",
+        reason_code="ATTENTION_AREA_CAUTION_APPLIED",
+        context_reference_codes=("PROFILE.ATTENTION_KNEE", "CHECK_IN.NO_DISCOMFORT"),
+    ),
     _blocked_case(
         "KNEE_SEVERE_REST",
         action=RecommendedActionCode.REST,
