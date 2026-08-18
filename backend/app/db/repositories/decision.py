@@ -558,7 +558,7 @@ class DecisionRepository:
             SafetyReview(
                 id=uuid4(),
                 decision_run_id=run.id,
-                plan_candidate_id=base_plan.id,
+                plan_candidate_id=(selected_plan.id if selected_plan is not None else base_plan.id),
                 safety_status_code=result.safety_status_code.value,
                 vetoed=bool(safety.safety_vetoed),
                 ruleset_version=result.safety_rule_version,

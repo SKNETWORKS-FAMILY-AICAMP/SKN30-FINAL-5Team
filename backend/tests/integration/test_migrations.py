@@ -24,11 +24,14 @@ BUNDLE_SAFETY = Path("data/generated/exercise-safety-rules-mvp-v0.3.0")
 BUNDLE_ALTERNATIVES = Path("data/generated/exercise-alternatives-mvp-v0.2.0")
 
 
-def test_migration_history_has_profile_settings_head() -> None:
+def test_migration_history_has_agent_proposal_policy_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0017_profile_settings"]
+    assert scripts.get_heads() == ["0018_agent_proposal_policy"]
+    assert scripts.get_revision("0018_agent_proposal_policy").down_revision == (
+        "0017_profile_settings"
+    )
     assert scripts.get_revision("0017_profile_settings").down_revision == (
         "0016_approve_safety_data"
     )
