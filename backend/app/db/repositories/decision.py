@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import datetime
 from hashlib import sha256
 from typing import Any
@@ -6,7 +7,14 @@ from uuid import UUID, uuid4
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session, selectinload
 
-from backend.app.db.models.catalog import CatalogVersion, Exercise
+from backend.app.db.models.catalog import (
+    CatalogVersion,
+    Exercise,
+    ExerciseAlternative,
+    ExerciseEquipment,
+    ExerciseLocation,
+    ExerciseSafetyRule,
+)
 from backend.app.db.models.checkin import (
     DailyContext,
     DailyContextAdverseReaction,
@@ -35,6 +43,17 @@ from backend.app.domain.agents.coordinator import (
     CoordinatorStatusCode,
 )
 from backend.app.domain.rules.duration import DURATION_RULE_VERSION, DurationPlan, PlanItemDuration
+from backend.app.domain.rules.safety import (
+    BodyAreaCode,
+    DiscomfortSeverityCode,
+    SafetyCandidate,
+    SafetyCandidateItem,
+    SafetyReviewStatusCode,
+    SafetyRule,
+    SafetyRuleEffectCode,
+    SafetyRuleScopeCode,
+    SafetyRuleSet,
+)
 from backend.app.modules.decisions.codes import (
     DECISION_ENDPOINT_CODE,
     DECISION_INPUT_SCHEMA_VERSION,
@@ -43,10 +62,25 @@ from backend.app.modules.decisions.codes import (
 )
 from backend.app.modules.decisions.context import DecisionContext
 from backend.app.modules.decisions.ports import (
+    AlternativeItemData,
     CandidateItemData,
     DecisionAssembly,
     StoredIdempotency,
 )
+
+
+def replace_candidate_item_exercise(
+    source: CandidateItemData,
+    alternative: Exercise,
+) -> CandidateItemData:
+    """Keep the approved duration prescription while changing catalog content."""
+
+    return replace(
+        source,
+        exercise_id=alternative.id,
+        instruction_content_version=alternative.instruction_content_version,
+        display_name=alternative.name_ko,
+    )
 
 
 class DecisionRepository:
@@ -237,6 +271,107 @@ class DecisionRepository:
             "cooldown_seconds": cooldown_seconds,
             "goal_tags": [routine.goal_code],
         }
+        safety_candidate = SafetyCandidate(
+            items=tuple(
+                SafetyCandidateItem(
+                    str(exercise_id),
+                    catalog.version_code,
+                    exercises[exercise_id].primary_movement_pattern_code,
+                )
+                for exercise_id in sorted(set(exercise_ids), key=str)
+            )
+        )
+        safety_rule_rows = session.scalars(
+            select(ExerciseSafetyRule).where(
+                ExerciseSafetyRule.catalog_version_id == catalog.id,
+            )
+        ).all()
+        rule_set_versions = {row.rule_set_version_code for row in safety_rule_rows}
+        safety_rule_set = None
+        if safety_rule_rows and len(rule_set_versions) == 1:
+            safety_rule_set = SafetyRuleSet(
+                version_code=next(iter(rule_set_versions)),
+                review_status_code=SafetyReviewStatusCode.DOMAIN_APPROVED,
+                production_eligible=all(row.production_eligible for row in safety_rule_rows),
+                rules=tuple(
+                    SafetyRule(
+                        rule_code=str(row.id),
+                        catalog_version_code=catalog.version_code,
+                        body_area_code=BodyAreaCode(row.body_area_code),
+                        minimum_severity_code=DiscomfortSeverityCode[row.minimum_severity_code],
+                        maximum_severity_code=DiscomfortSeverityCode[row.maximum_severity_code],
+                        effect_code=SafetyRuleEffectCode(row.effect_code),
+                        reason_code=row.reason_code,
+                        scope_code=(
+                            SafetyRuleScopeCode.EXERCISE
+                            if row.exercise_id is not None
+                            else SafetyRuleScopeCode.MOVEMENT_PATTERN
+                        ),
+                        rule_version=row.rule_version,
+                        exercise_code=(str(row.exercise_id) if row.exercise_id else None),
+                        movement_pattern_code=row.movement_pattern_code,
+                        review_status_code=SafetyReviewStatusCode(row.review_status_code),
+                    )
+                    for row in sorted(safety_rule_rows, key=lambda value: str(value.id))
+                ),
+            )
+
+        alternative_rows = session.execute(
+            select(ExerciseAlternative, Exercise)
+            .join(Exercise, Exercise.id == ExerciseAlternative.alternative_exercise_id)
+            .where(
+                ExerciseAlternative.source_exercise_id.in_(exercise_ids),
+                ExerciseAlternative.review_status_code == "DOMAIN_APPROVED",
+                ExerciseAlternative.production_eligible.is_(True),
+                Exercise.catalog_version_id == catalog.id,
+                Exercise.review_status_code == "DOMAIN_APPROVED",
+            )
+            .order_by(
+                ExerciseAlternative.source_exercise_id,
+                ExerciseAlternative.difficulty_delta,
+                ExerciseAlternative.alternative_exercise_id,
+            )
+        ).all()
+        alternative_exercise_ids = {exercise.id for _, exercise in alternative_rows}
+        required_equipment: dict[UUID, set[str]] = {
+            exercise_id: set() for exercise_id in alternative_exercise_ids
+        }
+        available_locations: dict[UUID, set[str]] = {
+            exercise_id: set() for exercise_id in alternative_exercise_ids
+        }
+        if alternative_exercise_ids:
+            for exercise_id, equipment_code in session.execute(
+                select(ExerciseEquipment.exercise_id, ExerciseEquipment.equipment_code).where(
+                    ExerciseEquipment.exercise_id.in_(alternative_exercise_ids)
+                )
+            ):
+                required_equipment[exercise_id].add(equipment_code)
+            for exercise_id, location_code in session.execute(
+                select(ExerciseLocation.exercise_id, ExerciseLocation.location_code).where(
+                    ExerciseLocation.exercise_id.in_(alternative_exercise_ids)
+                )
+            ):
+                available_locations[exercise_id].add(location_code)
+        source_items = {item.exercise_id: item for item in item_data}
+        alternative_items: list[AlternativeItemData] = []
+        for relation, alternative in alternative_rows:
+            if not required_equipment[alternative.id].issubset(set(equipment)):
+                continue
+            if daily.location_code not in available_locations[alternative.id]:
+                continue
+            source_item = source_items[relation.source_exercise_id]
+            alternative_items.append(
+                AlternativeItemData(
+                    source_exercise_id=relation.source_exercise_id,
+                    item=replace_candidate_item_exercise(source_item, alternative),
+                    safety_item=SafetyCandidateItem(
+                        str(alternative.id),
+                        catalog.version_code,
+                        alternative.primary_movement_pattern_code,
+                    ),
+                    evidence_reference_code=f"ALTERNATIVE/{relation.id}",
+                )
+            )
         return DecisionAssembly(
             context,
             routine.id,
@@ -249,6 +384,9 @@ class DecisionRepository:
             candidate,
             candidate_data,
             tuple(item_data),
+            safety_candidate,
+            safety_rule_set,
+            tuple(alternative_items),
         )
 
     def persist(
@@ -324,32 +462,49 @@ class DecisionRepository:
                 for p in proposals
             ]
         )
-        plan = PlanCandidate(
-            id=uuid4(),
-            decision_run_id=run.id,
-            action_code=assembly.candidate.action_code.value,
-            duration_adjustment_source_code=assembly.context.duration_adjustment_source_code,
-            duration_rule_version=DURATION_RULE_VERSION,
-            selected=result.selected_candidate_id == assembly.candidate.candidate_id,
-            created_at=now,
-            **assembly.candidate_data,
-        )
-        session.add(plan)
-        # plan_items, safety_reviews and decision_options carry a raw
-        # plan_candidate_id rather than a relationship, so the unit of work does
-        # not know it must insert this row first. Flush it explicitly before the
-        # rows that reference it. Everything still shares the caller's
-        # transaction, so the decision record stays atomic.
-        session.flush()
-        session.add_all(
-            [
-                PlanItem(
-                    id=uuid4(),
-                    plan_candidate_id=plan.id,
-                    **{name: getattr(item, name) for name in item.__dataclass_fields__},
-                )
-                for item in assembly.items
-            ]
+        candidate_records = [
+            (
+                assembly.candidate,
+                assembly.candidate_data,
+                assembly.items,
+            ),
+            *(
+                (adjusted.candidate, adjusted.candidate_data, adjusted.items)
+                for adjusted in assembly.adjusted_candidates
+            ),
+        ]
+        plans_by_candidate_id: dict[str, PlanCandidate] = {}
+        for candidate, candidate_data, items in candidate_records:
+            plan = PlanCandidate(
+                id=uuid4(),
+                decision_run_id=run.id,
+                action_code=candidate.action_code.value,
+                duration_adjustment_source_code=assembly.context.duration_adjustment_source_code,
+                duration_rule_version=DURATION_RULE_VERSION,
+                selected=result.selected_candidate_id == candidate.candidate_id,
+                created_at=now,
+                **candidate_data,
+            )
+            session.add(plan)
+            # Referencing rows use raw foreign keys, so establish each candidate
+            # before inserting its item records inside the same transaction.
+            session.flush()
+            session.add_all(
+                [
+                    PlanItem(
+                        id=uuid4(),
+                        plan_candidate_id=plan.id,
+                        **{name: getattr(item, name) for name in item.__dataclass_fields__},
+                    )
+                    for item in items
+                ]
+            )
+            plans_by_candidate_id[candidate.candidate_id] = plan
+        base_plan = plans_by_candidate_id[assembly.candidate.candidate_id]
+        selected_plan = (
+            plans_by_candidate_id.get(result.selected_candidate_id)
+            if result.selected_candidate_id is not None
+            else None
         )
         safety = next(p for p in proposals if p.agent_type_code.value == "SAFETY")
         guidance = (
@@ -361,7 +516,7 @@ class DecisionRepository:
             SafetyReview(
                 id=uuid4(),
                 decision_run_id=run.id,
-                plan_candidate_id=plan.id,
+                plan_candidate_id=base_plan.id,
                 safety_status_code=result.safety_status_code.value,
                 vetoed=bool(safety.safety_vetoed),
                 ruleset_version=result.safety_rule_version,
@@ -373,6 +528,8 @@ class DecisionRepository:
         if result.status_code in {CoordinatorStatusCode.PASS, CoordinatorStatusCode.REVISE}:
             if result.final_action_code is None:
                 raise RuntimeError("successful coordinator result is missing an action")
+            if selected_plan is None:
+                raise RuntimeError("successful coordinator result is missing a selected plan")
             session.add_all(
                 [
                     DecisionOption(
@@ -380,7 +537,7 @@ class DecisionRepository:
                         decision_run_id=run.id,
                         option_code="FINAL_ROUTINE",
                         action_code=result.final_action_code.value,
-                        plan_candidate_id=plan.id,
+                        plan_candidate_id=selected_plan.id if selected_plan else None,
                         display_order=1,
                         selectable=True,
                     ),
@@ -511,6 +668,9 @@ class DecisionRepository:
                 for o in sorted(run.options, key=lambda value: value.display_order)
             ],
             "reason_codes": list(run.coordinator_result.get("reason_codes", []))[:2],
+            "adjustment_reason_codes": (
+                safety.reason_codes[:2] if plan is not None and plan.action_code != "KEEP" else None
+            ),
             "summary": "오늘의 운동 계획이 준비되었습니다."
             if plan
             else "오늘은 안전을 위해 운동 계획을 제공하지 않습니다.",

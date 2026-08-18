@@ -84,6 +84,7 @@ class DecisionResponse(BaseModel):
     final_plan: DecisionPlan | None
     options: list[DecisionOptionResponse]
     reason_codes: list[str]
+    adjustment_reason_codes: list[str] | None = None
     summary: str
     guidance: Guidance | None = None
     public_agent_summaries: list[PublicAgentSummary] | None = None

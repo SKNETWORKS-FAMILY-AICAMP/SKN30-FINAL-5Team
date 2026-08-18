@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from backend.app.domain.agents.contracts import REQUIRED_AGENT_TYPES
 from backend.app.domain.agents.coordinator import CoordinatorStatusCode
+from backend.app.domain.rules.safety import SAFETY_ENGINE_VERSION
+from backend.app.modules.decisions.codes import DECISION_POLICY_VERSION
 from backend.tests.scenarios.decision_golden_fixtures import DECISION_GOLDEN_CASES
 
 _FORBIDDEN_KEYS = {
@@ -59,6 +61,8 @@ def test_golden_cases_have_unique_codes_and_complete_version_references() -> Non
         assert versions.coordinator_version == coordinator_input.coordinator_version
         assert versions.graph_version
         assert versions.proposal_schema_version
+        assert versions.policy_version == DECISION_POLICY_VERSION
+        assert versions.safety_rule_version == SAFETY_ENGINE_VERSION
 
 
 def test_golden_proposals_and_final_result_are_separate_records() -> None:

@@ -20,6 +20,7 @@ from backend.app.db.models.catalog import (
     MovementPattern,
     TrainingType,
 )
+from backend.app.modules.catalog.approvals import get_derived_data_approval
 from backend.app.modules.catalog.codes import (
     CATALOG_CODE_SET_VERSION,
     BodyAreaRoleCode,
@@ -258,6 +259,11 @@ class CatalogRepository:
         manifest = artifact.manifest
         version_code = manifest.rule_set_version.version_code
         metadata = manifest.model_dump(mode="json")
+        approval = get_derived_data_approval(
+            "SAFETY_RULES", version_code, artifact.manifest_hash, len(artifact.records)
+        )
+        if approval is not None:
+            metadata["production_approval"] = approval.metadata()
         for record in artifact.records:
             catalog_id = catalog_ids.get(record.catalog_version_code)
             if catalog_id is None:
@@ -289,7 +295,7 @@ class CatalogRepository:
                     review_status_code=record.review_status_code,
                     rule_version=record.rule_version,
                     rule_set_version_code=version_code,
-                    production_eligible=False,
+                    production_eligible=approval is not None,
                     source_manifest_hash=artifact.manifest_hash,
                     source_metadata=metadata,
                 )
@@ -301,6 +307,11 @@ class CatalogRepository:
         manifest = artifact.manifest
         version_code = manifest.alternative_set_version.version_code
         metadata = manifest.model_dump(mode="json")
+        approval = get_derived_data_approval(
+            "ALTERNATIVES", version_code, artifact.manifest_hash, len(artifact.records)
+        )
+        if approval is not None:
+            metadata["production_approval"] = approval.metadata()
         for record in artifact.records:
             source_id = exercise_ids.get(
                 (record.source_catalog_version_code, record.source_exercise_stable_code)
@@ -327,7 +338,7 @@ class CatalogRepository:
                     review_status_code=record.review_status_code,
                     rule_version=record.rule_version,
                     alternative_set_version_code=version_code,
-                    production_eligible=False,
+                    production_eligible=approval is not None,
                     source_manifest_hash=artifact.manifest_hash,
                     source_metadata=metadata,
                     created_at=record.created_at,

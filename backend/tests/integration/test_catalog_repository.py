@@ -129,7 +129,7 @@ def test_imports_complete_bundle_with_metadata_and_is_idempotent(
             .select_from(ExerciseSafetyRule)
             .where(ExerciseSafetyRule.production_eligible.is_(True))
         )
-        == 0
+        == 354
     )
     assert (
         postgres_session.scalar(
@@ -137,9 +137,11 @@ def test_imports_complete_bundle_with_metadata_and_is_idempotent(
             .select_from(ExerciseAlternative)
             .where(ExerciseAlternative.production_eligible.is_(True))
         )
-        == 0
+        == 238
     )
     safety = postgres_session.scalar(select(ExerciseSafetyRule).limit(1))
     alternative = postgres_session.scalar(select(ExerciseAlternative).limit(1))
     assert safety is not None and "catalog_seed_artifacts" in safety.source_metadata["source"]
     assert alternative is not None and "input_artifacts" in alternative.source_metadata["source"]
+    assert safety.source_metadata["production_approval"]["scope"] == "ALL_RECORDS"
+    assert alternative.source_metadata["production_approval"]["scope"] == "ALL_RECORDS"

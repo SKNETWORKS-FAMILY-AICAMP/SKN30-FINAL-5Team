@@ -28,12 +28,13 @@ from backend.app.domain.rules.duration import (
     DurationPlan,
     PlanItemDuration,
 )
-from backend.app.domain.rules.safety import SafetyStatusCode
+from backend.app.domain.rules.safety import SAFETY_ENGINE_VERSION, SafetyStatusCode
+from backend.app.modules.decisions.codes import DECISION_POLICY_VERSION
 
-GOLDEN_CONTRACT_VERSION: Final[str] = "decision-golden-v1"
+GOLDEN_CONTRACT_VERSION: Final[str] = "decision-golden-v2"
 CATALOG_VERSION: Final[str] = "golden-approved-catalog-v1"
-POLICY_VERSION: Final[str] = "golden-policy-v1"
-SAFETY_RULE_VERSION: Final[str] = "golden-safety-v1"
+POLICY_VERSION: Final[str] = DECISION_POLICY_VERSION
+SAFETY_RULE_VERSION: Final[str] = SAFETY_ENGINE_VERSION
 GRAPH_VERSION: Final[str] = "golden-decision-graph-v1"
 
 
