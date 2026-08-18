@@ -30,6 +30,8 @@ from backend.app.modules.profiles.ports import (
     MeRecord,
     OnboardingProfileValues,
     OnboardingRecord,
+    ProfileSettingsChanges,
+    ProfileSettingsRecord,
 )
 
 
@@ -249,6 +251,124 @@ class ProfileRepository:
             created_at=profile.created_at,
             updated_at=profile.updated_at,
         )
+
+    def get_profile_for_update(
+        self, session: Session, user_id: UUID
+    ) -> ProfileSettingsRecord | None:
+        profile = session.scalar(
+            select(UserProfile).where(UserProfile.user_id == user_id).with_for_update()
+        )
+        if profile is None:
+            return None
+        return ProfileSettingsRecord(
+            protected_birthdate=profile.protected_birthdate,
+            nickname=profile.nickname,
+            primary_goal_code=profile.primary_goal_code,
+            experience_level_code=profile.experience_level_code,
+            timezone=profile.timezone,
+            preferred_location_code=profile.preferred_location_code,
+            available_location_codes=tuple(
+                session.scalars(
+                    select(UserAvailableLocation.location_code)
+                    .where(UserAvailableLocation.user_id == user_id)
+                    .order_by(UserAvailableLocation.location_code)
+                )
+            ),
+            default_requested_duration_minutes=profile.default_requested_duration_minutes,
+            desired_weekly_workout_count=profile.desired_weekly_workout_count,
+            coaching_style_code=profile.coaching_style_code,
+            height_cm=profile.height_cm,
+            weight_kg=profile.weight_kg,
+            sex_code=profile.sex_code,
+            equipment_codes=tuple(
+                session.scalars(
+                    select(UserEquipment.equipment_code)
+                    .where(UserEquipment.user_id == user_id)
+                    .order_by(UserEquipment.equipment_code)
+                )
+            ),
+            attention_area_codes=tuple(
+                session.scalars(
+                    select(UserAttentionArea.body_area_code)
+                    .where(
+                        UserAttentionArea.user_id == user_id,
+                        UserAttentionArea.is_active.is_(True),
+                    )
+                    .order_by(UserAttentionArea.body_area_code)
+                )
+            ),
+            preferred_exercise_type_codes=tuple(
+                session.scalars(
+                    select(UserPreferredExerciseType.exercise_type_code)
+                    .where(UserPreferredExerciseType.user_id == user_id)
+                    .order_by(UserPreferredExerciseType.exercise_type_code)
+                )
+            ),
+            profile_version=profile.profile_version,
+        )
+
+    def update_profile_settings(
+        self,
+        session: Session,
+        user_id: UUID,
+        changes: ProfileSettingsChanges,
+        now: datetime,
+    ) -> tuple[int, datetime]:
+        profile = session.get(UserProfile, user_id)
+        if profile is None:
+            raise RuntimeError("locked profile does not exist")
+
+        if changes.protected_birthdate is not None:
+            profile.protected_birthdate = changes.protected_birthdate
+        for field_name, value in changes.scalar_values.items():
+            setattr(profile, field_name, value)
+
+        if changes.available_location_codes is not None:
+            session.execute(
+                delete(UserAvailableLocation).where(UserAvailableLocation.user_id == user_id)
+            )
+            session.add_all(
+                UserAvailableLocation(user_id=user_id, location_code=code, created_at=now)
+                for code in changes.available_location_codes
+            )
+        if changes.equipment_codes is not None:
+            session.execute(delete(UserEquipment).where(UserEquipment.user_id == user_id))
+            session.add_all(
+                UserEquipment(user_id=user_id, equipment_code=code, created_at=now)
+                for code in changes.equipment_codes
+            )
+        if changes.attention_area_codes is not None:
+            session.execute(delete(UserAttentionArea).where(UserAttentionArea.user_id == user_id))
+            session.add_all(
+                UserAttentionArea(
+                    id=uuid4(),
+                    user_id=user_id,
+                    body_area_code=code,
+                    is_active=True,
+                    created_at=now,
+                    updated_at=now,
+                )
+                for code in changes.attention_area_codes
+            )
+        if changes.preferred_exercise_type_codes is not None:
+            session.execute(
+                delete(UserPreferredExerciseType).where(
+                    UserPreferredExerciseType.user_id == user_id
+                )
+            )
+            session.add_all(
+                UserPreferredExerciseType(
+                    user_id=user_id,
+                    exercise_type_code=code,
+                    created_at=now,
+                )
+                for code in changes.preferred_exercise_type_codes
+            )
+
+        profile.profile_version += 1
+        profile.updated_at = now
+        session.flush()
+        return profile.profile_version, profile.updated_at
 
     def replace_consents(
         self,

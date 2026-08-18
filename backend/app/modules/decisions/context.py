@@ -22,6 +22,7 @@ class DecisionContext:
     experience_level_code: str
     equipment_codes: tuple[str, ...]
     attention_area_codes: tuple[str, ...]
+    profile_preferred_location_code: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -53,5 +54,6 @@ class DecisionContext:
                 "default_requested_duration_minutes": self.profile_duration_minutes,
                 "equipment_codes": list(self.equipment_codes),
                 "attention_area_codes": list(self.attention_area_codes),
+                "preferred_location_code": self.profile_preferred_location_code,
             },
         }

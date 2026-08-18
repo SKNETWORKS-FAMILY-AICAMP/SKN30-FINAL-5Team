@@ -3,6 +3,7 @@ from enum import StrEnum
 PROFILE_CODE_SET_VERSION = "profile-mvp-v1"
 CONSENT_RESPONSE_SCHEMA_VERSION = "consent-response-v1"
 ONBOARDING_RESPONSE_SCHEMA_VERSION = "onboarding-response-v1"
+PROFILE_SETTINGS_RESPONSE_SCHEMA_VERSION = "profile-settings-response-v1"
 
 
 class CoachingStyleCode(StrEnum):
@@ -27,11 +28,13 @@ class ConsentEventCode(StrEnum):
 class MutationEndpointCode(StrEnum):
     ONBOARDING = "PUT_ME_ONBOARDING"
     CONSENTS = "PUT_ME_CONSENTS"
+    PROFILE_SETTINGS = "PATCH_ME_PROFILE"
 
 
 __all__ = [
     "CONSENT_RESPONSE_SCHEMA_VERSION",
     "ONBOARDING_RESPONSE_SCHEMA_VERSION",
+    "PROFILE_SETTINGS_RESPONSE_SCHEMA_VERSION",
     "PROFILE_CODE_SET_VERSION",
     "CoachingStyleCode",
     "ConsentEventCode",

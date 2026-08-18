@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from backend.app.modules.catalog.codes import (
     BodyAreaCode,
@@ -88,6 +88,62 @@ class OnboardingResponse(BaseModel):
     updated_at: datetime
 
 
+class ProfileSettingsUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    primary_goal_code: str | None = Field(default=None, pattern=r"^[A-Z][A-Z0-9_]{0,63}$")
+    desired_weekly_workout_count: int | None = Field(default=None, gt=0, le=7)
+    default_requested_duration_minutes: int | None = Field(default=None, gt=0, le=240)
+    preferred_location_code: LocationCode | None = None
+    available_location_codes: list[LocationCode] | None = None
+    equipment_codes: list[EquipmentCode] | None = Field(default=None, min_length=1)
+    attention_area_codes: list[BodyAreaCode] | None = None
+    preferred_exercise_type_codes: list[TrainingTypeCode] | None = None
+    coaching_style_code: CoachingStyleCode | None = None
+    experience_level_code: str | None = Field(default=None, pattern=r"^[A-Z][A-Z0-9_]{0,63}$")
+    nickname: str | None = Field(default=None, min_length=1, max_length=64)
+    height_cm: float | None = Field(default=None, ge=80, le=250)
+    weight_kg: float | None = Field(default=None, ge=25, le=300)
+    sex_code: Literal["FEMALE", "MALE", "PREFER_NOT_TO_SAY"] | None = None
+    timezone: str | None = Field(default=None, min_length=1, max_length=64)
+    date_of_birth: date | None = None
+
+    @field_validator("nickname")
+    @classmethod
+    def normalize_nickname(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("nickname must not be blank")
+        return normalized
+
+    @field_validator(
+        "equipment_codes",
+        "attention_area_codes",
+        "preferred_exercise_type_codes",
+        "available_location_codes",
+    )
+    @classmethod
+    def reject_duplicate_codes(cls, value: list[object] | None) -> list[object] | None:
+        if value is not None and len(value) != len(set(value)):
+            raise ValueError("codes must not contain duplicates")
+        return value
+
+    @model_validator(mode="after")
+    def reject_empty_or_null_patch(self) -> "ProfileSettingsUpdateRequest":
+        if not self.model_fields_set:
+            raise ValueError("at least one profile setting is required")
+        if any(getattr(self, field_name) is None for field_name in self.model_fields_set):
+            raise ValueError("profile settings must not be null")
+        return self
+
+
+class ProfileSettingsUpdateResponse(BaseModel):
+    profile_version: int
+    updated_at: datetime
+
+
 class MeProfile(BaseModel):
     """Profile view of the authenticated user.
 
@@ -143,4 +199,6 @@ __all__ = [
     "MeResponse",
     "OnboardingResponse",
     "OnboardingUpsertRequest",
+    "ProfileSettingsUpdateRequest",
+    "ProfileSettingsUpdateResponse",
 ]
