@@ -75,7 +75,7 @@ def postgres_session(monkeypatch: pytest.MonkeyPatch) -> Iterator[Session]:
     engine: Engine = create_engine(test_database_url)
     connection = engine.connect()
     transaction = connection.begin()
-    session = Session(bind=connection)
+    session = Session(bind=connection, join_transaction_mode="create_savepoint")
     try:
         yield session
     finally:
@@ -184,11 +184,11 @@ def test_profile_settings_update_is_partial_atomic_versioned_and_idempotent(
             "nickname": "수정 사용자",
             "primary_goal_code": "MUSCLE_GAIN",
             "experience_level_code": "INTERMEDIATE",
-            "preferred_location_code": "GYM",
-            "available_location_codes": ["GYM"],
+            "preferred_location_code": "HOME",
+            "available_location_codes": ["HOME"],
             "equipment_codes": ["MAT", "RESISTANCE_BAND"],
             "attention_area_codes": [],
-            "preferred_exercise_type_codes": ["CARDIO"],
+            "preferred_exercise_type_codes": ["MOBILITY"],
             "date_of_birth": "1999-01-02",
         }
     )
@@ -229,7 +229,7 @@ def test_profile_settings_update_is_partial_atomic_versioned_and_idempotent(
                 UserAvailableLocation.user_id == current_user.user_id
             )
         )
-    ) == ["GYM"]
+    ) == ["HOME"]
     assert (
         postgres_session.scalar(
             select(func.count())
