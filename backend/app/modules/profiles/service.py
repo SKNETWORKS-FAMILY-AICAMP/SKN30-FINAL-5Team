@@ -10,6 +10,7 @@ from backend.app.modules.profiles.age import (
     AgeRequirementNotMetError,
     InvalidBirthdateError,
     InvalidTimezoneError,
+    calculate_age,
     evaluate_age_eligibility,
 )
 from backend.app.modules.profiles.codes import (
@@ -20,7 +21,9 @@ from backend.app.modules.profiles.codes import (
 )
 from backend.app.modules.profiles.ports import (
     BirthdateCipher,
+    BirthdateDecryptionError,
     BirthdateEncryptionError,
+    MeProfileRecord,
     OnboardingProfileValues,
     ProfileRepositoryPort,
 )
@@ -28,6 +31,8 @@ from backend.app.modules.profiles.schemas import (
     ConsentResponse,
     ConsentState,
     ConsentValues,
+    MeProfile,
+    MeResponse,
     OnboardingResponse,
     OnboardingUpsertRequest,
 )
@@ -47,6 +52,10 @@ class RequiredConsentMissingError(Exception):
 
 class IdempotencyKeyReusedError(Exception):
     """An idempotency key was reused with a different request body."""
+
+
+class UserNotFoundError(Exception):
+    """No internal user is linked to the authenticated principal."""
 
 
 def _utc_now() -> datetime:
@@ -108,6 +117,61 @@ class ProfileService:
         if existing.request_hash != request_hash:
             raise IdempotencyKeyReusedError
         return response_type.model_validate(existing.response_payload)
+
+    def get_me(self, session: Session, user_id: UUID) -> MeResponse:
+        record = self._repository.get_me(session, user_id)
+        if record is None:
+            raise UserNotFoundError
+
+        profile = None
+        if record.profile is not None:
+            profile = MeProfile(
+                nickname=record.profile.nickname,
+                age=self._derive_age(user_id, record.profile),
+                primary_goal_code=record.profile.primary_goal_code,
+                experience_level_code=record.profile.experience_level_code,
+                timezone=record.profile.timezone,
+                preferred_location_code=record.profile.preferred_location_code,
+                available_location_codes=list(record.profile.available_location_codes),
+                default_requested_duration_minutes=(
+                    record.profile.default_requested_duration_minutes
+                ),
+                desired_weekly_workout_count=record.profile.desired_weekly_workout_count,
+                coaching_style_code=CoachingStyleCode(record.profile.coaching_style_code),
+                equipment_codes=list(record.profile.equipment_codes),
+                attention_area_codes=list(record.profile.attention_area_codes),
+                preferred_exercise_type_codes=list(record.profile.preferred_exercise_type_codes),
+                profile_version=record.profile.profile_version,
+                created_at=record.profile.created_at,
+                updated_at=record.profile.updated_at,
+            )
+        return MeResponse(
+            user_id=record.user_id,
+            status_code=record.status_code,
+            onboarding_completed=record.profile is not None,
+            premium_status_code=record.premium_status_code,
+            ai_trial_started_at=record.ai_trial_started_at,
+            ai_trial_ends_at=record.ai_trial_ends_at,
+            profile=profile,
+        )
+
+    def _derive_age(self, user_id: UUID, profile: MeProfileRecord) -> int | None:
+        """Derive the age, returning null rather than failing the read.
+
+        A deployment without a birthdate cipher, or a value this deployment
+        cannot authenticate, must still be able to serve the profile.
+        """
+        if self._birthdate_cipher is None:
+            return None
+        try:
+            birthdate = self._birthdate_cipher.decrypt(user_id, profile.protected_birthdate)
+            return calculate_age(birthdate, profile.timezone, at=self._clock())
+        except (
+            BirthdateDecryptionError,
+            InvalidBirthdateError,
+            InvalidTimezoneError,
+        ):
+            return None
 
     def upsert_onboarding(
         self,
@@ -284,4 +348,5 @@ __all__ = [
     "ProfileConfigurationError",
     "ProfileService",
     "RequiredConsentMissingError",
+    "UserNotFoundError",
 ]

@@ -95,3 +95,65 @@ def test_unhandled_error_does_not_expose_exception_message() -> None:
     assert response.json()["error"]["code"] == "INTERNAL_ERROR"
     assert response.json()["error"]["request_id"] == response.headers["X-Request-ID"]
     assert secret not in response.text
+
+
+def test_cors_preflight_allows_a_configured_browser_origin() -> None:
+    app = create_app(
+        settings=Settings(
+            app_env="test",
+            database_url="postgresql+psycopg://test:test@localhost/test",
+            cors_allowed_origins="http://localhost:8081",
+        ),
+        readiness_probe=lambda: None,
+    )
+    with TestClient(app) as client:
+        response = client.options(
+            "/api/v1/me",
+            headers={
+                "Origin": "http://localhost:8081",
+                "Access-Control-Request-Method": "GET",
+                "Access-Control-Request-Headers": "authorization",
+            },
+        )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:8081"
+
+
+def test_cors_preflight_rejects_an_unlisted_origin() -> None:
+    app = create_app(
+        settings=Settings(
+            app_env="test",
+            database_url="postgresql+psycopg://test:test@localhost/test",
+            cors_allowed_origins="http://localhost:8081",
+        ),
+        readiness_probe=lambda: None,
+    )
+    with TestClient(app) as client:
+        response = client.options(
+            "/api/v1/me",
+            headers={
+                "Origin": "http://evil.example",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+    assert "access-control-allow-origin" not in response.headers
+
+
+def test_no_cors_headers_when_origins_are_not_configured() -> None:
+    app = create_app(
+        # Passed explicitly: Settings() would otherwise inherit an ambient
+        # CORS_ALLOWED_ORIGINS from the developer's shell.
+        settings=Settings(
+            app_env="test",
+            database_url="postgresql+psycopg://test:test@localhost/test",
+            cors_allowed_origins=(),
+        ),
+        readiness_probe=lambda: None,
+    )
+    with TestClient(app) as client:
+        response = client.get(
+            "/api/v1/health/live",
+            headers={"Origin": "http://localhost:8081"},
+        )
+    assert response.status_code == 200
+    assert "access-control-allow-origin" not in response.headers

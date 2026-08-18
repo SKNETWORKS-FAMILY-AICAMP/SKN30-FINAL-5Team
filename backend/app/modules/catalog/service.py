@@ -11,7 +11,11 @@ from backend.app.modules.catalog.codes import (
     APPROVED_TAXONOMY_REGISTRY_SHA256,
     CATALOG_CODE_SET_VERSION,
 )
-from backend.app.modules.catalog.schemas import CatalogManifest, ExerciseRecord
+from backend.app.modules.catalog.schemas import (
+    CatalogManifest,
+    ExerciseDetailResponse,
+    ExerciseRecord,
+)
 
 
 class CatalogImportError(RuntimeError):
@@ -34,6 +38,54 @@ class CatalogImportResult:
     manifest_hash: str
     exercise_record_count: int
     imported: bool
+
+
+@dataclass(frozen=True)
+class ExerciseDetailRecord:
+    exercise_id: UUID
+    exercise_name: str
+    training_type_code: str
+    primary_body_area_codes: tuple[str, ...]
+    instruction_summary: str
+    form_cues: tuple[str, ...]
+    instruction_content_version: str
+
+
+class ExerciseNotFoundError(Exception):
+    """No reviewed exercise with this id is available to the caller."""
+
+
+class ExerciseReadRepositoryPort(Protocol):
+    def get_exercise_detail(
+        self,
+        session: Session,
+        exercise_id: UUID,
+    ) -> ExerciseDetailRecord | None: ...
+
+
+class ExerciseReadService:
+    """Serve reviewed instruction content for a planned exercise block."""
+
+    def __init__(self, repository: ExerciseReadRepositoryPort) -> None:
+        self._repository = repository
+
+    def get_detail(self, session: Session, exercise_id: UUID) -> ExerciseDetailResponse:
+        record = self._repository.get_exercise_detail(session, exercise_id)
+        if record is None:
+            raise ExerciseNotFoundError
+        # Media and mascot assets have no approved catalog column yet, so the
+        # contract's nullable keys stay null rather than inventing asset keys.
+        return ExerciseDetailResponse(
+            exercise_id=record.exercise_id,
+            exercise_name=record.exercise_name,
+            training_type_code=record.training_type_code,
+            primary_body_area_codes=list(record.primary_body_area_codes),
+            instruction_summary=record.instruction_summary,
+            form_cues=list(record.form_cues),
+            media_asset_key=None,
+            mascot_animation_asset_key=None,
+            instruction_content_version=record.instruction_content_version,
+        )
 
 
 class CatalogVersionRecord(Protocol):

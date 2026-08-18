@@ -54,6 +54,42 @@ class OnboardingRecord:
 
 
 @dataclass(frozen=True)
+class MeProfileRecord:
+    """Stored profile values needed to describe the authenticated user.
+
+    `protected_birthdate` stays encrypted here; only the derived age leaves the
+    service layer and the birthdate itself is never part of a response.
+    """
+
+    nickname: str
+    protected_birthdate: str
+    primary_goal_code: str
+    experience_level_code: str
+    timezone: str
+    preferred_location_code: str
+    available_location_codes: tuple[str, ...]
+    default_requested_duration_minutes: int
+    desired_weekly_workout_count: int
+    coaching_style_code: str
+    equipment_codes: tuple[str, ...]
+    attention_area_codes: tuple[str, ...]
+    preferred_exercise_type_codes: tuple[str, ...]
+    profile_version: int
+    created_at: datetime
+    updated_at: datetime
+
+
+@dataclass(frozen=True)
+class MeRecord:
+    user_id: UUID
+    status_code: str
+    premium_status_code: str
+    ai_trial_started_at: datetime
+    ai_trial_ends_at: datetime
+    profile: MeProfileRecord | None
+
+
+@dataclass(frozen=True)
 class ConsentRecord:
     consent_type_code: ConsentTypeCode
     granted: bool
@@ -68,6 +104,8 @@ class IdempotencyRecord:
 
 
 class ProfileRepositoryPort(Protocol):
+    def get_me(self, session: Session, user_id: UUID) -> MeRecord | None: ...
+
     def acquire_idempotency_lock(
         self,
         session: Session,
@@ -123,6 +161,8 @@ __all__ = [
     "BirthdateEncryptionError",
     "ConsentRecord",
     "IdempotencyRecord",
+    "MeProfileRecord",
+    "MeRecord",
     "OnboardingProfileValues",
     "OnboardingRecord",
     "ProfileRepositoryPort",

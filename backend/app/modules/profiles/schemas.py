@@ -87,6 +87,41 @@ class OnboardingResponse(BaseModel):
     updated_at: datetime
 
 
+class MeProfile(BaseModel):
+    """Profile view of the authenticated user.
+
+    `age` is derived per request from the protected birthdate and is null when
+    the deployment cannot decrypt it. The birthdate itself is never returned.
+    """
+
+    nickname: str
+    age: int | None = None
+    primary_goal_code: str
+    experience_level_code: str
+    timezone: str
+    preferred_location_code: str
+    available_location_codes: list[str]
+    default_requested_duration_minutes: int
+    desired_weekly_workout_count: int
+    coaching_style_code: CoachingStyleCode
+    equipment_codes: list[str]
+    attention_area_codes: list[str]
+    preferred_exercise_type_codes: list[str]
+    profile_version: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class MeResponse(BaseModel):
+    user_id: UUID
+    status_code: str
+    onboarding_completed: bool
+    premium_status_code: str
+    ai_trial_started_at: datetime
+    ai_trial_ends_at: datetime
+    profile: MeProfile | None = None
+
+
 class ConsentState(BaseModel):
     consent_type_code: ConsentTypeCode
     granted: bool
@@ -103,6 +138,8 @@ __all__ = [
     "ConsentResponse",
     "ConsentState",
     "ConsentValues",
+    "MeProfile",
+    "MeResponse",
     "OnboardingResponse",
     "OnboardingUpsertRequest",
 ]

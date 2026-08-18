@@ -317,6 +317,12 @@ class DecisionRepository:
             **assembly.candidate_data,
         )
         session.add(plan)
+        # plan_items, safety_reviews and decision_options carry a raw
+        # plan_candidate_id rather than a relationship, so the unit of work does
+        # not know it must insert this row first. Flush it explicitly before the
+        # rows that reference it. Everything still shares the caller's
+        # transaction, so the decision record stays atomic.
+        session.flush()
         session.add_all(
             [
                 PlanItem(

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.core.errors import AppError
 from backend.app.db.repositories.account_deletion import AccountDeletionRepository
+from backend.app.db.repositories.catalog import CatalogRepository
 from backend.app.db.repositories.checkin import DailyContextRepository
 from backend.app.db.repositories.decision import DecisionRepository
 from backend.app.db.repositories.identity import IdentityRepository
@@ -18,6 +19,7 @@ from backend.app.db.repositories.weekly_plan import WeeklyPlanRepository
 from backend.app.db.repositories.weekly_report import WeeklyReportRepository
 from backend.app.db.repositories.workout import WorkoutRepository
 from backend.app.modules.account_deletion.ports import AccountDeletionRepositoryPort
+from backend.app.modules.catalog.service import ExerciseReadRepositoryPort
 from backend.app.modules.checkins.ports import DailyContextRepositoryPort
 from backend.app.modules.decisions.ports import DecisionRepositoryPort
 from backend.app.modules.identity.ports import (
@@ -40,6 +42,7 @@ from backend.app.modules.weekly_reports.ports import WeeklyReportRepositoryPort
 from backend.app.modules.workouts.ports import WorkoutRepositoryPort
 
 _bearer_scheme = HTTPBearer(auto_error=False)
+_catalog_repository = CatalogRepository()
 _identity_repository = IdentityRepository()
 _profile_repository = ProfileRepository()
 _routine_repository = RoutineRepository()
@@ -61,6 +64,10 @@ def get_firebase_token_verifier(request: Request) -> FirebaseTokenVerifier:
 
 def get_identity_repository() -> IdentityRepositoryPort:
     return _identity_repository
+
+
+def get_catalog_repository() -> ExerciseReadRepositoryPort:
+    return _catalog_repository
 
 
 def get_account_deletion_repository() -> AccountDeletionRepositoryPort:
@@ -184,6 +191,7 @@ def get_deletion_lifecycle_user(
 
 __all__ = [
     "get_account_deletion_repository",
+    "get_catalog_repository",
     "get_current_user",
     "get_deletion_lifecycle_user",
     "get_daily_context_repository",
