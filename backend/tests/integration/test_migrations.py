@@ -108,13 +108,15 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
                 connection.execute(
                     text(
                         "SELECT version_code, status_code FROM decision_policy_versions "
-                        "WHERE version_code IN ('decision-policy-v1', 'decision-policy-v2')"
+                        "WHERE version_code IN ("
+                        "'decision-policy-v1', 'decision-policy-v2', 'decision-policy-v3')"
                     )
                 ).all()
             )
         assert policy_statuses == {
             "decision-policy-v1": "DEPRECATED",
-            "decision-policy-v2": "ACTIVE",
+            "decision-policy-v2": "DEPRECATED",
+            "decision-policy-v3": "ACTIVE",
         }
     finally:
         engine.dispose()

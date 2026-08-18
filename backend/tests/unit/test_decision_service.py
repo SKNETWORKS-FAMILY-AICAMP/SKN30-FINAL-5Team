@@ -404,6 +404,27 @@ def test_mild_caution_returns_duration_preserving_downshift() -> None:
     assert repository.persisted["result"].safety_rule_version == "safety-v2"  # type: ignore[index]
 
 
+def test_moderate_fatigue_returns_duration_preserving_downshift() -> None:
+    context = replace(_context(), fatigue_level_code="MODERATE")
+    repository = FakeRepository(context)
+
+    response = DecisionService(repository, clock=lambda: NOW).create(
+        FakeSession(), uuid4(), _request(context), uuid4()
+    )  # type: ignore[arg-type]
+
+    recovery = next(
+        proposal
+        for proposal in repository.persisted["proposals"]  # type: ignore[index]
+        if proposal.agent_type_code is AgentTypeCode.RECOVERY
+    )
+    assert response.action_code == "DOWNSHIFT"
+    assert response.requested_duration_minutes == 10
+    assert response.final_plan is not None
+    assert response.final_plan.estimated_duration_seconds == 600
+    assert recovery.recommended_action_code is RecommendedActionCode.DOWNSHIFT
+    assert repository.persisted["assembly"].adjusted_candidates[0].items[0].intensity_code == "LOW"  # type: ignore[index]
+
+
 def test_moderate_exclusion_uses_approved_alternative_and_preserves_duration() -> None:
     context = _context(discomforts=(("KNEE", "MODERATE"),))
     repository = FakeRepository(
@@ -455,7 +476,7 @@ def test_safety_veto_cannot_return_a_success_plan() -> None:
         base.local_date,
         base.daily_context_id,
         base.context_version,
-        base.fatigue_level_code,
+        "MODERATE",
         base.requested_duration_minutes,
         base.duration_adjustment_source_code,
         base.location_code,

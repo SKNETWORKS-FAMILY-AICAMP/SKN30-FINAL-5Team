@@ -23,6 +23,9 @@ class DecisionContext:
     equipment_codes: tuple[str, ...]
     attention_area_codes: tuple[str, ...]
     profile_preferred_location_code: str | None = None
+    recent_workout_status_codes: tuple[str, ...] = ()
+    candidate_required_equipment_codes: tuple[str, ...] | None = None
+    candidate_supported_location_codes: tuple[str, ...] | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -30,6 +33,18 @@ class DecisionContext:
             "attention_area_codes",
             tuple(sorted(set(self.attention_area_codes))),
         )
+        object.__setattr__(
+            self,
+            "recent_workout_status_codes",
+            tuple(self.recent_workout_status_codes),
+        )
+        for field_name in (
+            "candidate_required_equipment_codes",
+            "candidate_supported_location_codes",
+        ):
+            values = getattr(self, field_name)
+            if values is not None:
+                object.__setattr__(self, field_name, tuple(sorted(set(values))))
 
     def snapshot(self) -> dict[str, object]:
         return {
@@ -48,6 +63,19 @@ class DecisionContext:
                 for area, severity in self.discomforts
             ],
             "adverse_reaction_codes": list(self.adverse_reaction_codes),
+            "recent_workout_status_codes": list(self.recent_workout_status_codes),
+            "candidate_constraints": {
+                "required_equipment_codes": (
+                    None
+                    if self.candidate_required_equipment_codes is None
+                    else list(self.candidate_required_equipment_codes)
+                ),
+                "supported_location_codes": (
+                    None
+                    if self.candidate_supported_location_codes is None
+                    else list(self.candidate_supported_location_codes)
+                ),
+            },
             "profile": {
                 "primary_goal_code": self.primary_goal_code,
                 "experience_level_code": self.experience_level_code,

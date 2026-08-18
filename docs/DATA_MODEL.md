@@ -938,8 +938,9 @@ Wave 6 물리 모델은 `daily_context_version`, 최소화된 `input_snapshot`/`
 `PASS | REVISE`에만 연결된다. `date_of_birth`, 만 나이, 이름, 성별, 키, 체중은 결정 입력
 snapshot에 저장하지 않는다.
 
-`decision_policy_versions`는 실행 시 사용한 결정 정책을 FK로 고정한다. Wave 6 기본 정책은
-`decision-policy-v1`이고 migration에서 활성 버전을 설치한다.
+`decision_policy_versions`는 실행 시 사용한 결정 정책을 FK로 고정한다. 전문 agent 제안이
+완성된 현재 활성 정책은 `decision-policy-v3`이며 이전 정책은 migration에서 `DEPRECATED`로
+보존한다.
 
 | 컬럼 | 설명 |
 |---|---|
@@ -982,6 +983,10 @@ snapshot에 저장하지 않는다.
 
 `decision-input-v3`부터 새 decision 조립 시점의 최신 `preferred_location_code`를 위 allowlist 안에서
 snapshot에 포함한다. 이미 저장된 이전 decision snapshot과 그 schema version은 변경하지 않는다.
+
+`decision-input-v4`부터 식별자를 제외한 최근 공식 workout 상태 코드(최신 7건)와 공통 후보의
+필수 장비·지원 장소 집계를 snapshot에 포함한다. Recovery는 이 요약만 참조하고 원시 운동 기록을
+복제하지 않으며, Feasibility는 현재 장소·보유 장비와 후보 제약을 결정적으로 비교한다.
 
 ### 9.2 agent_proposals
 
