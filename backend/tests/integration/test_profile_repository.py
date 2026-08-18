@@ -173,10 +173,10 @@ def test_profile_settings_update_is_partial_atomic_versioned_and_idempotent(
         consent_policy_version="privacy-v1",
         clock=lambda: NOW,
     )
-    service.upsert_onboarding(postgres_session, current_user.user_id, _request(), uuid4())
-    original = postgres_session.get(UserProfile, current_user.user_id)
-    assert original is not None
-    original_created_at = original.created_at
+    onboarding = service.upsert_onboarding(
+        postgres_session, current_user.user_id, _request(), uuid4()
+    )
+    original_created_at = onboarding.created_at
 
     key = uuid4()
     request = ProfileSettingsUpdateRequest.model_validate(
@@ -186,7 +186,7 @@ def test_profile_settings_update_is_partial_atomic_versioned_and_idempotent(
             "experience_level_code": "INTERMEDIATE",
             "preferred_location_code": "GYM",
             "available_location_codes": ["GYM"],
-            "equipment_codes": ["BODYWEIGHT", "DUMBBELL"],
+            "equipment_codes": ["MAT", "RESISTANCE_BAND"],
             "attention_area_codes": [],
             "preferred_exercise_type_codes": ["CARDIO"],
             "date_of_birth": "1999-01-02",
@@ -212,7 +212,7 @@ def test_profile_settings_update_is_partial_atomic_versioned_and_idempotent(
                 UserEquipment.user_id == current_user.user_id
             )
         )
-    ) == {"BODYWEIGHT", "DUMBBELL"}
+    ) == {"MAT", "RESISTANCE_BAND"}
     assert (
         list(
             postgres_session.scalars(
@@ -238,6 +238,7 @@ def test_profile_settings_update_is_partial_atomic_versioned_and_idempotent(
         )
         == 1
     )
+    postgres_session.commit()
 
     with pytest.raises(IdempotencyKeyReusedError):
         service.update_profile_settings(
@@ -250,6 +251,7 @@ def test_profile_settings_update_is_partial_atomic_versioned_and_idempotent(
     before_stale = postgres_session.get(UserProfile, current_user.user_id)
     assert before_stale is not None
     before_stale_nickname = before_stale.nickname
+    postgres_session.commit()
     with pytest.raises(StaleProfileError):
         service.update_profile_settings(
             postgres_session,
@@ -297,7 +299,9 @@ def test_profile_settings_relationship_failure_rolls_back_every_change(
         failing_service.update_profile_settings(
             postgres_session,
             current_user.user_id,
-            ProfileSettingsUpdateRequest(nickname="rollback 대상", equipment_codes=["DUMBBELL"]),
+            ProfileSettingsUpdateRequest(
+                nickname="rollback 대상", equipment_codes=["RESISTANCE_BAND"]
+            ),
             uuid4(),
             1,
         )
@@ -364,7 +368,7 @@ def test_concurrent_profile_updates_allow_only_one_expected_version(
             )
         )
         setup.add(UserAvailableLocation(user_id=user_id, location_code="HOME"))
-        setup.add(UserEquipment(user_id=user_id, equipment_code="BODYWEIGHT"))
+        setup.add(UserEquipment(user_id=user_id, equipment_code="MAT"))
         setup.commit()
 
     barrier = Barrier(2)
