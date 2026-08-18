@@ -5,7 +5,7 @@ from backend.app.domain.agents.contracts import (
     RecommendedActionCode,
 )
 from backend.app.domain.agents.coordinator import CoordinatorCandidate
-from backend.app.domain.agents.runner import ProposalRequest
+from backend.app.domain.agents.runner import ProposalAgent, ProposalRequest
 from backend.app.domain.rules.safety import (
     ACUTE_MUSCULOSKELETAL_REACTION_CODES,
     EMERGENCY_REACTION_CODES,
@@ -15,35 +15,175 @@ from backend.app.modules.decisions.codes import DECISION_POLICY_VERSION
 from backend.app.modules.decisions.context import DecisionContext
 
 
-class DeterministicProposalAgent:
+class _ProposalAgent:
     policy_version = DECISION_POLICY_VERSION
 
-    def __init__(self, agent_type_code: AgentTypeCode) -> None:
-        self.agent_type_code = agent_type_code
+    agent_type_code: AgentTypeCode
+
+    def _ready(
+        self,
+        request: ProposalRequest[DecisionContext, CoordinatorCandidate],
+        *,
+        action: RecommendedActionCode,
+        reason_codes: tuple[str, ...],
+        evidence_reference_codes: tuple[str, ...],
+        intensity_delta: int = 0,
+        required_goal_tags: tuple[str, ...] = (),
+        hard_constraint_codes: tuple[str, ...] = (),
+    ) -> AgentProposal:
+        return AgentProposal(
+            agent_type_code=self.agent_type_code,
+            proposal_status_code=ProposalStatusCode.READY,
+            recommended_action_code=action,
+            requested_duration_minutes=request.requested_duration_minutes,
+            estimated_duration_seconds=request.requested_duration_minutes * 60,
+            duration_adjustment_source_code=request.duration_adjustment_source_code,
+            intensity_delta=intensity_delta,
+            required_goal_tags=tuple(sorted(set(required_goal_tags))),
+            hard_constraint_codes=tuple(sorted(set(hard_constraint_codes))),
+            reason_codes=tuple(sorted(set(reason_codes))),
+            evidence_reference_codes=tuple(sorted(set(evidence_reference_codes))),
+            policy_version=self.policy_version,
+        )
+
+    def _needs_input(
+        self,
+        request: ProposalRequest[DecisionContext, CoordinatorCandidate],
+        *,
+        reason_codes: tuple[str, ...],
+        evidence_reference_codes: tuple[str, ...],
+        hard_constraint_codes: tuple[str, ...] = (),
+    ) -> AgentProposal:
+        return AgentProposal(
+            agent_type_code=self.agent_type_code,
+            proposal_status_code=ProposalStatusCode.NEEDS_INPUT,
+            requested_duration_minutes=request.requested_duration_minutes,
+            duration_adjustment_source_code=request.duration_adjustment_source_code,
+            hard_constraint_codes=tuple(sorted(set(hard_constraint_codes))),
+            reason_codes=tuple(sorted(set(reason_codes))),
+            evidence_reference_codes=tuple(sorted(set(evidence_reference_codes))),
+            policy_version=self.policy_version,
+        )
+
+
+class TrainingProposalAgent(_ProposalAgent):
+    agent_type_code = AgentTypeCode.TRAINING
 
     def propose(
         self,
         request: ProposalRequest[DecisionContext, CoordinatorCandidate],
     ) -> AgentProposal:
-        if self.agent_type_code is AgentTypeCode.SAFETY:
-            return self._safety(request)
-        reason = {
-            AgentTypeCode.TRAINING: "ACTIVE_ROUTINE_AVAILABLE",
-            AgentTypeCode.RECOVERY: "MANUAL_CONTEXT_REVIEWED",
-            AgentTypeCode.FEASIBILITY: "LOCATION_AND_DURATION_MATCHED",
-        }[self.agent_type_code]
-        return AgentProposal(
-            agent_type_code=self.agent_type_code,
-            proposal_status_code=ProposalStatusCode.READY,
-            recommended_action_code=RecommendedActionCode.KEEP,
-            requested_duration_minutes=request.requested_duration_minutes,
-            estimated_duration_seconds=request.requested_duration_minutes * 60,
-            duration_adjustment_source_code=request.duration_adjustment_source_code,
-            reason_codes=(reason,),
-            policy_version=self.policy_version,
+        experience_reason = {
+            "BEGINNER": "BEGINNER_GOAL_ROUTINE_SELECTED",
+            "INTERMEDIATE": "INTERMEDIATE_GOAL_ROUTINE_SELECTED",
+            "ADVANCED": "ADVANCED_GOAL_ROUTINE_SELECTED",
+        }.get(request.context.experience_level_code, "EXPERIENCE_LEVEL_REVIEWED")
+        return self._ready(
+            request,
+            action=RecommendedActionCode.KEEP,
+            reason_codes=(experience_reason, "PRIMARY_GOAL_PRESERVED"),
+            evidence_reference_codes=(
+                "PROFILE/experience_level_code",
+                "PROFILE/primary_goal_code",
+            ),
+            required_goal_tags=(request.context.primary_goal_code,),
+            hard_constraint_codes=("PRIMARY_GOAL_REQUIRED",),
         )
 
-    def _safety(
+
+class RecoveryProposalAgent(_ProposalAgent):
+    agent_type_code = AgentTypeCode.RECOVERY
+
+    def propose(
+        self,
+        request: ProposalRequest[DecisionContext, CoordinatorCandidate],
+    ) -> AgentProposal:
+        evidence = ["CONTEXT/fatigue_level_code"]
+        reasons = ["RECOVERY_CONTEXT_REVIEWED"]
+        if request.context.sleep_minutes is not None:
+            evidence.append("CONTEXT/sleep_minutes")
+            reasons.append("SLEEP_INPUT_RECORDED_WITHOUT_UNAPPROVED_THRESHOLD")
+        if request.context.recent_workout_status_codes:
+            evidence.append("HISTORY/recent_workout_status_codes")
+            reasons.append("RECENT_EXECUTION_HISTORY_REVIEWED")
+
+        if request.context.fatigue_level_code == "HIGH":
+            return self._needs_input(
+                request,
+                reason_codes=(*reasons, "APPROVED_RECOVERY_CANDIDATE_UNAVAILABLE"),
+                evidence_reference_codes=tuple(evidence),
+                hard_constraint_codes=("DOMAIN_APPROVED_RECOVERY_CONTENT_REQUIRED",),
+            )
+        if request.context.fatigue_level_code == "MODERATE":
+            return self._ready(
+                request,
+                action=RecommendedActionCode.DOWNSHIFT,
+                reason_codes=(*reasons, "MODERATE_FATIGUE_DOWNSHIFT"),
+                evidence_reference_codes=tuple(evidence),
+                intensity_delta=-1,
+                hard_constraint_codes=("REQUESTED_DURATION_PRESERVED",),
+            )
+        return self._ready(
+            request,
+            action=RecommendedActionCode.KEEP,
+            reason_codes=(*reasons, "LOW_FATIGUE_LOAD_ACCEPTED"),
+            evidence_reference_codes=tuple(evidence),
+            hard_constraint_codes=("REQUESTED_DURATION_PRESERVED",),
+        )
+
+
+class FeasibilityProposalAgent(_ProposalAgent):
+    agent_type_code = AgentTypeCode.FEASIBILITY
+
+    def propose(
+        self,
+        request: ProposalRequest[DecisionContext, CoordinatorCandidate],
+    ) -> AgentProposal:
+        required_equipment = request.context.candidate_required_equipment_codes
+        supported_locations = request.context.candidate_supported_location_codes
+        evidence = (
+            "CANDIDATE/required_equipment_codes",
+            "CANDIDATE/supported_location_codes",
+            "CONTEXT/equipment_codes",
+            "CONTEXT/location_code",
+            "CONTEXT/requested_duration_minutes",
+        )
+        if required_equipment is not None and not set(required_equipment).issubset(
+            request.context.equipment_codes
+        ):
+            return self._needs_input(
+                request,
+                reason_codes=("AVAILABLE_EQUIPMENT_INSUFFICIENT",),
+                evidence_reference_codes=evidence,
+                hard_constraint_codes=("AVAILABLE_EQUIPMENT_REQUIRED",),
+            )
+        if (
+            supported_locations is not None
+            and request.context.location_code not in supported_locations
+        ):
+            return self._needs_input(
+                request,
+                reason_codes=("CURRENT_LOCATION_UNSUPPORTED",),
+                evidence_reference_codes=evidence,
+                hard_constraint_codes=("CURRENT_LOCATION_REQUIRED",),
+            )
+        return self._ready(
+            request,
+            action=RecommendedActionCode.KEEP,
+            reason_codes=("TIME_LOCATION_EQUIPMENT_MATCHED",),
+            evidence_reference_codes=evidence,
+            hard_constraint_codes=(
+                "AVAILABLE_EQUIPMENT_SUFFICIENT",
+                "CURRENT_LOCATION_SUPPORTED",
+                "REQUESTED_DURATION_PRESERVED",
+            ),
+        )
+
+
+class SafetyProposalAgent(_ProposalAgent):
+    agent_type_code = AgentTypeCode.SAFETY
+
+    def propose(
         self,
         request: ProposalRequest[DecisionContext, CoordinatorCandidate],
     ) -> AgentProposal:
@@ -221,5 +361,10 @@ class DeterministicProposalAgent:
         )
 
 
-def default_agents() -> tuple[DeterministicProposalAgent, ...]:
-    return tuple(DeterministicProposalAgent(code) for code in AgentTypeCode)
+def default_agents() -> tuple[ProposalAgent[DecisionContext, CoordinatorCandidate], ...]:
+    return (
+        TrainingProposalAgent(),
+        RecoveryProposalAgent(),
+        SafetyProposalAgent(),
+        FeasibilityProposalAgent(),
+    )

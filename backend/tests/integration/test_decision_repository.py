@@ -27,7 +27,10 @@ from backend.app.db.repositories.profile import ProfileRepository
 from backend.app.db.repositories.routine import RoutineRepository
 from backend.app.modules.checkins.schemas import DailyContextUpsertRequest
 from backend.app.modules.checkins.service import DailyContextService
-from backend.app.modules.decisions.codes import DECISION_INPUT_SCHEMA_VERSION
+from backend.app.modules.decisions.codes import (
+    DECISION_GRAPH_VERSION,
+    DECISION_INPUT_SCHEMA_VERSION,
+)
 from backend.app.modules.decisions.schemas import DecisionCreateRequest
 from backend.app.modules.decisions.service import DecisionFailedError, DecisionService
 from backend.app.modules.profiles.schemas import ProfileSettingsUpdateRequest
@@ -204,12 +207,15 @@ def test_decision_repository_assembles_and_persists_active_profile_attention_are
         )
     stored = postgres_session.scalar(select(DecisionRun).where(DecisionRun.user_id == owner_id))
     assert stored is not None
-    assert stored.input_schema_version == DECISION_INPUT_SCHEMA_VERSION == "decision-input-v3"
+    assert stored.input_schema_version == DECISION_INPUT_SCHEMA_VERSION == "decision-input-v4"
+    assert stored.graph_version == DECISION_GRAPH_VERSION == "decision-graph-v2"
     assert stored.input_snapshot["profile"]["attention_area_codes"] == ["KNEE", "SHOULDER"]
     assert tuple(stored.input_snapshot["profile"]["attention_area_codes"]) == (
         "KNEE",
         "SHOULDER",
     )
+    assert len(stored.proposals) == 4
+    assert "proposals" not in stored.coordinator_result
     assert stored.status_code == "FAILED"
     postgres_session.rollback()
     DecisionService(repository, clock=lambda: NOW).create(

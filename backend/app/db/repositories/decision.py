@@ -36,6 +36,7 @@ from backend.app.db.models.profile import (
     UserProfile,
 )
 from backend.app.db.models.routine import Routine, RoutineDay
+from backend.app.db.models.workout import WorkoutSession
 from backend.app.domain.agents.contracts import RecommendedActionCode
 from backend.app.domain.agents.coordinator import (
     CoordinatorCandidate,
@@ -56,6 +57,7 @@ from backend.app.domain.rules.safety import (
 )
 from backend.app.modules.decisions.codes import (
     DECISION_ENDPOINT_CODE,
+    DECISION_GRAPH_VERSION,
     DECISION_INPUT_SCHEMA_VERSION,
     DECISION_POLICY_VERSION,
     DECISION_RESPONSE_SCHEMA_VERSION,
@@ -184,6 +186,42 @@ class DecisionRepository:
                 )
             )
         )
+        recent_workout_status_codes = tuple(
+            session.scalars(
+                select(WorkoutSession.status_code)
+                .where(
+                    WorkoutSession.user_id == user_id,
+                    WorkoutSession.status_code.in_(
+                        ("COMPLETED", "PARTIAL", "NOT_COMPLETED", "STOPPED_FOR_SAFETY")
+                    ),
+                    WorkoutSession.ended_at.is_not(None),
+                    WorkoutSession.ended_at <= daily.updated_at,
+                )
+                .order_by(WorkoutSession.ended_at.desc(), WorkoutSession.id.desc())
+                .limit(7)
+            ).all()
+        )
+        required_equipment_codes = tuple(
+            sorted(
+                set(
+                    session.scalars(
+                        select(ExerciseEquipment.equipment_code).where(
+                            ExerciseEquipment.exercise_id.in_(exercise_ids)
+                        )
+                    ).all()
+                )
+            )
+        )
+        exercise_locations: dict[UUID, set[str]] = {
+            exercise_id: set() for exercise_id in set(exercise_ids)
+        }
+        for exercise_id, location_code in session.execute(
+            select(ExerciseLocation.exercise_id, ExerciseLocation.location_code).where(
+                ExerciseLocation.exercise_id.in_(exercise_ids)
+            )
+        ):
+            exercise_locations[exercise_id].add(location_code)
+        supported_location_codes = tuple(sorted(set.intersection(*exercise_locations.values())))
         context = DecisionContext(
             daily.local_date,
             daily.id,
@@ -203,6 +241,9 @@ class DecisionRepository:
             equipment,
             attention_areas,
             profile.preferred_location_code,
+            recent_workout_status_codes,
+            required_equipment_codes,
+            supported_location_codes,
         )
         item_data: list[CandidateItemData] = []
         main_durations: list[PlanItemDuration] = []
@@ -423,7 +464,7 @@ class DecisionRepository:
             policy_version_id=policy.id,
             safety_rule_version=result.safety_rule_version,
             duration_rule_version=DURATION_RULE_VERSION,
-            graph_version="decision-graph-v1",
+            graph_version=DECISION_GRAPH_VERSION,
             coordinator_version=result.coordinator_version,
             status_code=(
                 "COMPLETED"
@@ -517,7 +558,7 @@ class DecisionRepository:
             SafetyReview(
                 id=uuid4(),
                 decision_run_id=run.id,
-                plan_candidate_id=base_plan.id,
+                plan_candidate_id=(selected_plan.id if selected_plan is not None else base_plan.id),
                 safety_status_code=result.safety_status_code.value,
                 vetoed=bool(safety.safety_vetoed),
                 ruleset_version=result.safety_rule_version,
@@ -612,6 +653,27 @@ class DecisionRepository:
             return None
         plan = next((p for p in run.candidates if p.selected), None)
         safety = run.safety_reviews[0]
+        adjustment_reason_codes: list[str] | None = None
+        if plan is not None and plan.action_code != "KEEP":
+            proposal_priority = (
+                ("SAFETY",)
+                if run.safety_status_code == "REVISE"
+                else ("FEASIBILITY", "RECOVERY", "TRAINING", "SAFETY")
+            )
+            matching_proposal = next(
+                (
+                    proposal
+                    for agent_type in proposal_priority
+                    for proposal in run.proposals
+                    if proposal.agent_type_code == agent_type
+                    and proposal.proposal_payload.get("recommended_action_code") == plan.action_code
+                ),
+                None,
+            )
+            if matching_proposal is not None:
+                adjustment_reason_codes = list(
+                    matching_proposal.proposal_payload.get("reason_codes", [])
+                )[:2]
         return {
             "decision_id": run.id,
             "local_date": run.local_date,
@@ -669,9 +731,7 @@ class DecisionRepository:
                 for o in sorted(run.options, key=lambda value: value.display_order)
             ],
             "reason_codes": list(run.coordinator_result.get("reason_codes", []))[:2],
-            "adjustment_reason_codes": (
-                safety.reason_codes[:2] if plan is not None and plan.action_code != "KEEP" else None
-            ),
+            "adjustment_reason_codes": adjustment_reason_codes,
             "summary": "오늘의 운동 계획이 준비되었습니다."
             if plan
             else "오늘은 안전을 위해 운동 계획을 제공하지 않습니다.",

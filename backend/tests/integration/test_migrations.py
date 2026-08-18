@@ -24,11 +24,14 @@ BUNDLE_SAFETY = Path("data/generated/exercise-safety-rules-mvp-v0.3.0")
 BUNDLE_ALTERNATIVES = Path("data/generated/exercise-alternatives-mvp-v0.2.0")
 
 
-def test_migration_history_has_profile_settings_head() -> None:
+def test_migration_history_has_agent_proposal_policy_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0017_profile_settings"]
+    assert scripts.get_heads() == ["0018_agent_proposal_policy"]
+    assert scripts.get_revision("0018_agent_proposal_policy").down_revision == (
+        "0017_profile_settings"
+    )
     assert scripts.get_revision("0017_profile_settings").down_revision == (
         "0016_approve_safety_data"
     )
@@ -108,13 +111,15 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
                 connection.execute(
                     text(
                         "SELECT version_code, status_code FROM decision_policy_versions "
-                        "WHERE version_code IN ('decision-policy-v1', 'decision-policy-v2')"
+                        "WHERE version_code IN ("
+                        "'decision-policy-v1', 'decision-policy-v2', 'decision-policy-v3')"
                     )
                 ).all()
             )
         assert policy_statuses == {
             "decision-policy-v1": "DEPRECATED",
-            "decision-policy-v2": "ACTIVE",
+            "decision-policy-v2": "DEPRECATED",
+            "decision-policy-v3": "ACTIVE",
         }
     finally:
         engine.dispose()

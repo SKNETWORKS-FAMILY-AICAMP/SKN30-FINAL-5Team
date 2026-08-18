@@ -121,8 +121,8 @@ def _build_adjusted_candidates(
     base_evaluation: SafetyEvaluation,
 ) -> tuple[AdjustedCandidateData, ...]:
     adjusted: list[AdjustedCandidateData] = []
-    if base_evaluation.caution_exercise_codes:
-        candidate_id = f"{assembly.candidate.candidate_id}-safety-downshift"
+    if base_evaluation.caution_exercise_codes or assembly.context.fatigue_level_code == "MODERATE":
+        candidate_id = f"{assembly.candidate.candidate_id}-approved-downshift"
         candidate = assembly.candidate.model_copy(
             update={
                 "candidate_id": candidate_id,
