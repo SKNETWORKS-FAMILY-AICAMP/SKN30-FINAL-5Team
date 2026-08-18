@@ -269,6 +269,42 @@ DOWNWARD
 
 ---
 
+### 5.10 불편 부위 노출 범위
+
+코드 집합의 원본은 DOMAIN_RULES 3.2다. 코드는 13개로 유지하고 클라이언트 노출만 좁힌다.
+코드를 줄이면 이미 승인된 안전 규칙을 재매핑해야 하기 때문이다.
+
+노출 범위는 승인된 규칙 분포를 근거로 정한다. 괄호 안은
+`exercise-safety-rules-mvp-v0.3.0` 기준 규칙 수다.
+
+**기본 노출**
+
+~~~text
+WRIST_HAND (53)   LOWER_BACK (48)   SHOULDER (41)   ELBOW (41)
+KNEE (38)         UPPER_BACK (36)   HIP (33)        ANKLE_FOOT (24)
+~~~
+
+**확장 시 노출**
+
+~~~text
+NECK (18)   ABDOMEN (15)   CHEST (7)
+~~~
+
+**노출하지 않음**
+
+~~~text
+GENERALIZED (0)   OTHER (0)
+~~~
+
+`GENERALIZED`와 `OTHER`는 현재 DOMAIN_APPROVED 규칙이 없다. 사용자가 선택하면
+DOMAIN_RULES 4.3.1의 fail-closed 경로로 빠져 계획이 반환되지 않는다. 규칙이 추가되기 전까지
+노출하지 않는다.
+
+노출 목록 변경은 안전 커버리지 변경이다. 서버는 13개 코드를 모두 계속 수용하므로 목록을
+넓히는 변경에 서버 수정이 필요하지 않다.
+
+---
+
 ## 6. 엔드포인트 요약
 
 ### 6.1 상태
@@ -590,9 +626,9 @@ ManualActivityResponse
   "attention_area_codes": ["KNEE"],
   "preferred_exercise_type_codes": ["STRENGTH"],
   "coaching_style_code": "SUPPORTIVE",
-  "height_cm": null,
-  "weight_kg": null,
-  "sex_code": null,
+  "height_cm": 172.0,
+  "weight_kg": 68.5,
+  "sex_code": "FEMALE",
   "consents": {
     "general_personal_data": true,
     "sensitive_data": true,
@@ -616,6 +652,14 @@ ManualActivityResponse
 - timezone은 유효한 IANA timezone이어야 한다.
 - default_requested_duration_minutes는 0보다 커야 하며 사용자가 희망하는 권장 운동 길이다.
 - equipment, location, attention area는 서버의 허용 코드여야 한다.
+- `sex_code`, `height_cm`, `weight_kg`는 필수다. 누락하면 `422`로 거부한다.
+  - `sex_code`는 `FEMALE`, `MALE`, `PREFER_NOT_TO_SAY` 중 하나다.
+    `PREFER_NOT_TO_SAY`는 유효한 응답이며 재질문하지 않는다.
+  - `height_cm`은 80 이상 250 이하, `weight_kg`은 25 이상 300 이하다. 범위를 벗어나면
+    입력 오류로 처리하고 값을 보정하지 않는다.
+- `attention_area_codes`는 필수이며 빈 배열을 허용한다. 빈 배열은 "주의 부위 없음"이라는
+  명시적 응답이고, 필드 누락과 구분한다. 클라이언트는 있음·없음을 먼저 묻고 있음일 때만
+  부위를 입력받는다.
 - coaching_style_code가 없으면 SUPPORTIVE를 사용한다.
 - consents는 일반 개인정보·민감정보·웨어러블 연동·캘린더 연동·마케팅을 분리해 저장한다. 마케팅 동의는 선택이며, 민감정보·웨어러블·캘린더 동의 철회 시 해당 처리와 외부 동기화를 즉시 중단한다.
 
@@ -627,7 +671,17 @@ ManualActivityResponse
 `adult_confirmed`·`age_band_code`는 자동 무시하지 않고 미지원 요청 필드로 거부하며
 `date_of_birth` 계약을 사용하는 클라이언트만 지원한다.
 
-키와 성별은 현재 핵심 결정에 사용하지 않는다. 체중은 선택 입력이며 제공된 경우에만 예상 소모 칼로리 추정에 사용한다. 칼로리 추정은 진단·안전 판정의 단독 근거가 아니다.
+성별·키·체중은 필수 입력이며 예상 소모 칼로리 추정과 이후 개인화에 사용한다. 칼로리 추정은
+진단·안전 판정의 단독 근거가 아니다.
+
+**세 값은 안전 판단에 사용하지 않는다.** 안전 결정은 DOMAIN_RULES 4.3과 4.3.1의 결정적 규칙으로만
+내린다. 신체 치수로 위험도를 추정하거나 의학적 상태를 추론하지 않는다.
+
+세 값은 건강 관련 정보다. 로그에 남기지 않고, LLM에 직접 전송하지 않는다.
+
+DB 컬럼은 nullable로 유지한다. 필수화는 요청 스키마 계층에서만 적용한다. 온보딩 이전에 생성된
+행이 남아 있을 수 있고, 신체 값에 임의 기본값을 채우는 것은 건강 데이터로서 허용되지 않기
+때문이다. 저장된 값이 모두 채워진 것이 확인된 뒤에야 컬럼 제약 변경을 별도로 검토한다.
 
 ### 7.2 OnboardingResponse
 
@@ -775,6 +829,38 @@ job은 `requested_at`부터 즉시 실행할 수 있다. `operational_data_delet
   idempotency key, 요청·응답·원시 오류·건강 snapshot을 남기지 않는다.
 - backup 복원 차단용 HMAC-SHA256 keyed-digest tombstone은 요청 후 최대 30일만 보유한다.
   backup 만료는 단순 시간 경과가 아니라 마지막 관련 recovery point 만료 운영 증적으로 확인한다.
+
+---
+
+### 7.4 온보딩 이후 수정 가능 필드
+
+온보딩에서 받은 값 중 사용자가 이후에 바꿀 수 있는 항목이다. 마이페이지는 이 목록을 운동 설정
+중심으로 구성하며, 저장된 코드 값을 그대로 노출하지 않고 사용자 언어로 표시한다.
+
+| 필드 | 수정 | 비고 |
+|---|---|---|
+| `primary_goal_code` | 가능 | 다음 결정부터 반영 |
+| `desired_weekly_workout_count` | 가능 | 진행 중인 주에는 소급 적용하지 않는다 |
+| `default_requested_duration_minutes` | 가능 | |
+| `preferred_location_code` | 가능 | |
+| `available_location_codes` | 가능 | |
+| `equipment_codes` | 가능 | 최소 1개 유지 |
+| `attention_area_codes` | 가능 | 빈 배열 허용 |
+| `preferred_exercise_type_codes` | 가능 | |
+| `coaching_style_code` | 가능 | |
+| `experience_level_code` | 가능 | |
+| `nickname` | 가능 | |
+| `height_cm`, `weight_kg` | 가능 | 건강 정보. 로그에 남기지 않는다 |
+| `sex_code` | 가능 | |
+| `timezone` | 가능 | 변경 시 당일 날짜 경계가 달라질 수 있다 |
+| `date_of_birth` | 가능 | 7.1의 연령 검증을 다시 적용한다 |
+| `consents` | 별도 endpoint | `PUT /api/v1/me/consents` |
+
+부분 수정을 지원하며 보내지 않은 필드는 변경하지 않는다. 낙관적 잠금에 프로필 version을
+사용하고, 서로 다른 클라이언트의 동시 수정은 stale version으로 거부한다.
+
+`primary_goal_code`와 `experience_level_code`는 배포 설정으로 승인된 코드만 허용한다. 7.1과
+동일하게 승인 목록이 없으면 `503 PROFILE_CONFIGURATION_UNAVAILABLE`로 차단한다.
 
 ---
 
