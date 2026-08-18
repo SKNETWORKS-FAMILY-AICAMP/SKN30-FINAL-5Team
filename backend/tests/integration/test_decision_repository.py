@@ -261,10 +261,11 @@ def _install_synthetic_safety_data(
         .order_by(Exercise.stable_code)
     )
     assert alternative is not None
+    alternative_id = alternative.id
     session.add(
         ExerciseAlternative(
             source_exercise_id=source_id,
-            alternative_exercise_id=alternative.id,
+            alternative_exercise_id=alternative_id,
             reason_code="DISCOMFORT",
             goal_preservation_code="GENERAL_FITNESS",
             difficulty_delta=0,
@@ -279,7 +280,7 @@ def _install_synthetic_safety_data(
     )
     session.flush()
     session.commit()
-    return source_id, alternative.id
+    return source_id, alternative_id
 
 
 def _replay_stored_decision(session: Session, run: DecisionRun) -> CoordinatorResult:
@@ -459,6 +460,7 @@ def test_moderate_approved_alternative_round_trips_without_reintroducing_exclusi
         with_alternative=True,
     )
     assert alternative_id is not None
+    assert not postgres_session.in_transaction()
 
     response = DecisionService(DecisionRepository(), clock=lambda: NOW).create(
         postgres_session,
