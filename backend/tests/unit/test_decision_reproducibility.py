@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 
 import pytest
 from pydantic import ValidationError
@@ -16,9 +17,14 @@ from backend.app.domain.agents.reproducibility import (
 )
 from backend.app.domain.rules.duration import DurationAdjustmentSourceCode
 from backend.app.domain.rules.safety import SafetyStatusCode
+from backend.app.modules.decisions import service as decision_service_module
 from backend.tests.scenarios.decision_golden_fixtures import (
     DECISION_GOLDEN_CASES,
     DecisionGoldenCase,
+)
+from backend.tests.scenarios.decision_service_golden_fixtures import (
+    case_by_code,
+    execute_service_case,
 )
 
 
@@ -155,3 +161,74 @@ def test_success_response_requires_persistence_and_public_success_status() -> No
         result=failed_result,
         persistence_succeeded=True,
     )
+
+
+def test_production_snapshot_hash_is_canonical_for_attention_area_order_and_duplicates() -> None:
+    case = case_by_code("CHRONIC_KNEE_ATTENTION_CAUTION")
+    _, canonical_repository = execute_service_case(case)
+    _, duplicate_repository = execute_service_case(
+        replace(case, attention_area_codes=("KNEE", "KNEE"))
+    )
+    assert canonical_repository.persisted is not None
+    assert duplicate_repository.persisted is not None
+
+    assert (
+        canonical_repository.persisted["input_snapshot"]
+        == duplicate_repository.persisted["input_snapshot"]
+    )
+    assert (
+        canonical_repository.persisted["input_hash"] == duplicate_repository.persisted["input_hash"]
+    )
+    assert canonical_repository.persisted["result"] == duplicate_repository.persisted["result"]
+
+
+def test_production_hash_changes_for_safety_duration_and_version_inputs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    healthy = case_by_code("HEALTHY_KEEP")
+    _, healthy_repository = execute_service_case(healthy)
+    _, safety_repository = execute_service_case(case_by_code("KNEE_MILD_CAUTION_DOWNSHIFT"))
+    _, duration_repository = execute_service_case(
+        replace(
+            healthy,
+            requested_duration_minutes=30,
+            profile_duration_minutes=40,
+            duration_source=DurationAdjustmentSourceCode.USER_OVERRIDE,
+        )
+    )
+    monkeypatch.setattr(
+        decision_service_module,
+        "DECISION_GRAPH_VERSION",
+        "decision-graph-replay-drift",
+    )
+    _, version_repository = execute_service_case(healthy)
+    repositories = (
+        healthy_repository,
+        safety_repository,
+        duration_repository,
+        version_repository,
+    )
+    assert all(repository.persisted is not None for repository in repositories)
+    hashes = {repository.persisted["input_hash"] for repository in repositories}  # type: ignore[index]
+
+    assert len(hashes) == 4
+
+
+def test_production_records_keep_snapshot_proposals_and_final_result_separate() -> None:
+    _, repository = execute_service_case(case_by_code("KNEE_MODERATE_APPROVED_ALTERNATIVE"))
+    assert repository.persisted is not None
+
+    snapshot = repository.persisted["input_snapshot"]
+    proposals = repository.persisted["proposals"]
+    result = repository.persisted["result"]
+    assert "proposals" not in snapshot
+    assert "coordinator_result" not in snapshot
+    assert len(proposals) == 4
+    assert all(proposal.model_dump() != result.model_dump() for proposal in proposals)
+    assert result.catalog_version
+    assert result.policy_version
+    assert result.safety_rule_version
+    assert result.duration_rule_version
+    assert result.coordinator_version
+    assert "date_of_birth" not in str(snapshot)
+    assert "raw_health" not in str(snapshot)
