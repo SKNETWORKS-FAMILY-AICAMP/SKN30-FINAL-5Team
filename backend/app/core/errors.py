@@ -10,6 +10,13 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 logger = logging.getLogger("backend.error")
 
+_ONBOARDING_UNPROCESSABLE_FIELDS = {
+    "attention_area_codes",
+    "height_cm",
+    "sex_code",
+    "weight_kg",
+}
+
 
 class ErrorBody(BaseModel):
     code: str
@@ -105,9 +112,15 @@ async def validation_error_handler(
         }
         for error in exc.errors()
     ]
+    status_code = HTTPStatus.BAD_REQUEST
+    if request.url.path.endswith("/me/onboarding") and any(
+        error["loc"][-1:] and error["loc"][-1] in _ONBOARDING_UNPROCESSABLE_FIELDS
+        for error in exc.errors()
+    ):
+        status_code = HTTPStatus.UNPROCESSABLE_ENTITY
     return _error_response(
         request,
-        status_code=HTTPStatus.BAD_REQUEST,
+        status_code=status_code,
         code="INVALID_REQUEST",
         message="요청 값이 올바르지 않습니다.",
         details=details,

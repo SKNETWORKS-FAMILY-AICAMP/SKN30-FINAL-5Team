@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -44,12 +45,12 @@ class OnboardingUpsertRequest(BaseModel):
     default_requested_duration_minutes: int = Field(gt=0, le=240)
     desired_weekly_workout_count: int = Field(gt=0, le=7)
     equipment_codes: list[EquipmentCode] = Field(min_length=1)
-    attention_area_codes: list[BodyAreaCode] = Field(default_factory=list)
+    attention_area_codes: list[BodyAreaCode]
     preferred_exercise_type_codes: list[TrainingTypeCode] = Field(default_factory=list)
     coaching_style_code: CoachingStyleCode = CoachingStyleCode.SUPPORTIVE
-    height_cm: float | None = Field(default=None, gt=0)
-    weight_kg: float | None = Field(default=None, gt=0)
-    sex_code: str | None = Field(default=None, pattern=r"^[A-Z][A-Z0-9_]{0,31}$")
+    height_cm: float = Field(ge=80, le=250)
+    weight_kg: float = Field(ge=25, le=300)
+    sex_code: Literal["FEMALE", "MALE", "PREFER_NOT_TO_SAY"]
     consents: ConsentValues
 
     @field_validator("nickname")

@@ -150,16 +150,16 @@ nonce와 token은 저장하지 않으며 keyed-digest secret은 DB·로그·fixt
 | default_requested_duration_minutes | 사용자의 기본 희망 운동 시간 |
 | desired_weekly_workout_count | 주간 희망 운동 횟수 |
 | coaching_style_code | SUPPORTIVE, CONCISE, ENERGETIC |
-| height_cm | 선택, 현재 핵심 판단에 사용하지 않음 |
-| weight_kg | 선택, 체중 기반 칼로리 추정에만 사용 |
-| sex_code | 선택, 현재 핵심 판단에 사용하지 않음 |
+| height_cm | 온보딩 요청 필수, DB nullable 유지, 현재 핵심 판단에 사용하지 않음 |
+| weight_kg | 온보딩 요청 필수, DB nullable 유지, 체중 기반 칼로리 추정에만 사용 |
+| sex_code | 온보딩 요청 필수, DB nullable 유지, 현재 핵심 판단에 사용하지 않음 |
 | profile_version | 낙관적 잠금 버전 |
 | created_at | 생성 시각 |
 | updated_at | 수정 시각 |
 
 `protected_birthdate`는 수정 가능한 생년월일 원본값의 암호화 envelope다. 서버는 복호화한 값을 사용자 timezone의 로컬 날짜를 기준으로 일시 계산해 만 14세 이상 이용 자격을 검증하고 프로필 표시값을 만든다. 평문 생년월일과 만 나이는 DB에 저장하지 않는다. 수정 결과가 만 14세 미만이면 이용을 차단한다.
 
-nickname은 중복을 허용하는 표시값이며 인증·리소스 소유권에 사용하지 않는다. 키와 성별은 MVP 핵심 결정에 사용하지 않는다. 체중은 선택 입력이며 제공된 경우에만 체중 기반 예상 소모 칼로리 추정에 사용하고, 진단·안전 판정에는 사용하지 않는다.
+nickname은 중복을 허용하는 표시값이며 인증·리소스 소유권에 사용하지 않는다. 성별·키·체중은 온보딩 API 요청에서 필수지만 온보딩 이전에 생성된 기존 행과 임의 기본값 금지 원칙을 위해 DB 컬럼은 nullable로 유지한다. 키와 성별은 MVP 핵심 결정에 사용하지 않는다. 체중은 체중 기반 예상 소모 칼로리 추정에만 사용하고, 진단·안전 판정에는 사용하지 않는다.
 
 ### 4.3.1 user_consents
 

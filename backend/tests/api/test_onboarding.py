@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 
 from backend.app.api.dependencies import (
@@ -138,9 +139,9 @@ def _payload() -> dict[str, object]:
         "attention_area_codes": ["KNEE"],
         "preferred_exercise_type_codes": ["STRENGTH"],
         "coaching_style_code": "SUPPORTIVE",
-        "height_cm": None,
-        "weight_kg": None,
-        "sex_code": None,
+        "height_cm": 172.0,
+        "weight_kg": 68.5,
+        "sex_code": "FEMALE",
         "consents": {
             "general_personal_data": True,
             "sensitive_data": True,
@@ -201,8 +202,161 @@ def test_onboarding_is_atomic_idempotent_and_does_not_expose_birthdate() -> None
     assert second.json() == first.json()
     assert repository.profile_version == 1
     assert repository.consent_events == 5
+    assert set(first.json()) == {
+        "user_id",
+        "onboarding_completed",
+        "profile_version",
+        "coaching_style_code",
+        "ai_trial_started_at",
+        "ai_trial_ends_at",
+        "premium_status_code",
+        "created_at",
+        "updated_at",
+    }
     assert "date_of_birth" not in first.text
     assert "2000-08-11" not in first.text
+
+
+@pytest.mark.parametrize("field_name", ["sex_code", "height_cm", "weight_kg"])
+@pytest.mark.parametrize("explicit_null", [False, True])
+def test_required_body_metrics_reject_missing_and_null_values(
+    field_name: str,
+    explicit_null: bool,
+) -> None:
+    repository = FakeProfileRepository()
+    payload = _payload()
+    if explicit_null:
+        payload[field_name] = None
+    else:
+        payload.pop(field_name)
+
+    with _client(repository) as client:
+        response = client.put(
+            "/api/v1/me/onboarding",
+            json=payload,
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+
+    assert response.status_code == 422
+    assert repository.profile_version == 0
+
+
+def test_invalid_sex_code_is_rejected() -> None:
+    repository = FakeProfileRepository()
+    payload = _payload()
+    payload["sex_code"] = "OTHER"
+
+    with _client(repository) as client:
+        response = client.put(
+            "/api/v1/me/onboarding",
+            json=payload,
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+
+    assert response.status_code == 422
+
+
+def test_prefer_not_to_say_sex_code_is_accepted() -> None:
+    repository = FakeProfileRepository()
+    payload = _payload()
+    payload["sex_code"] = "PREFER_NOT_TO_SAY"
+
+    with _client(repository) as client:
+        response = client.put(
+            "/api/v1/me/onboarding",
+            json=payload,
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+
+    assert response.status_code == 200
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    [
+        ("height_cm", 80),
+        ("height_cm", 250),
+        ("weight_kg", 25),
+        ("weight_kg", 300),
+    ],
+)
+def test_body_metric_boundaries_are_accepted(field_name: str, value: int) -> None:
+    repository = FakeProfileRepository()
+    payload = _payload()
+    payload[field_name] = value
+
+    with _client(repository) as client:
+        response = client.put(
+            "/api/v1/me/onboarding",
+            json=payload,
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+
+    assert response.status_code == 200
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    [
+        ("height_cm", 79.9),
+        ("height_cm", 250.1),
+        ("weight_kg", 24.9),
+        ("weight_kg", 300.1),
+    ],
+)
+def test_body_metrics_outside_boundaries_are_rejected(
+    field_name: str,
+    value: float,
+) -> None:
+    repository = FakeProfileRepository()
+    payload = _payload()
+    payload[field_name] = value
+
+    with _client(repository) as client:
+        response = client.put(
+            "/api/v1/me/onboarding",
+            json=payload,
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+
+    assert response.status_code == 422
+
+
+def test_attention_area_codes_is_required() -> None:
+    repository = FakeProfileRepository()
+    payload = _payload()
+    payload.pop("attention_area_codes")
+
+    with _client(repository) as client:
+        response = client.put(
+            "/api/v1/me/onboarding",
+            json=payload,
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+
+    assert response.status_code == 422
+    assert repository.profile_version == 0
+
+
+@pytest.mark.parametrize(
+    "attention_area_codes",
+    [[], ["KNEE"], ["KNEE", "SHOULDER"]],
+)
+def test_valid_attention_area_responses_are_accepted(
+    attention_area_codes: list[str],
+) -> None:
+    repository = FakeProfileRepository()
+    payload = _payload()
+    payload["attention_area_codes"] = attention_area_codes
+
+    with _client(repository) as client:
+        response = client.put(
+            "/api/v1/me/onboarding",
+            json=payload,
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+
+    assert response.status_code == 200
 
 
 def test_reusing_idempotency_key_with_another_payload_returns_conflict() -> None:
