@@ -21,7 +21,12 @@ from backend.app.db.models.decision import (
     PlanItem,
     SafetyReview,
 )
-from backend.app.db.models.profile import MutationIdempotencyRecord, UserEquipment, UserProfile
+from backend.app.db.models.profile import (
+    MutationIdempotencyRecord,
+    UserAttentionArea,
+    UserEquipment,
+    UserProfile,
+)
 from backend.app.db.models.routine import Routine, RoutineDay
 from backend.app.domain.agents.contracts import RecommendedActionCode
 from backend.app.domain.agents.coordinator import (
@@ -133,6 +138,18 @@ class DecisionRepository:
                 ).all()
             )
         )
+        attention_areas = tuple(
+            sorted(
+                set(
+                    session.scalars(
+                        select(UserAttentionArea.body_area_code).where(
+                            UserAttentionArea.user_id == user_id,
+                            UserAttentionArea.is_active.is_(True),
+                        )
+                    ).all()
+                )
+            )
+        )
         context = DecisionContext(
             daily.local_date,
             daily.id,
@@ -150,6 +167,7 @@ class DecisionRepository:
             profile.primary_goal_code,
             profile.experience_level_code,
             equipment,
+            attention_areas,
         )
         item_data: list[CandidateItemData] = []
         main_durations: list[PlanItemDuration] = []
