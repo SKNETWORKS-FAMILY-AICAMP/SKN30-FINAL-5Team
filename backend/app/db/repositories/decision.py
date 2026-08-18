@@ -22,6 +22,7 @@ from backend.app.db.models.checkin import (
 )
 from backend.app.db.models.decision import (
     AgentProposalRecord,
+    DecisionExplanationRecord,
     DecisionOption,
     DecisionPolicyVersion,
     DecisionRun,
@@ -63,6 +64,7 @@ from backend.app.modules.decisions.codes import (
     DECISION_RESPONSE_SCHEMA_VERSION,
 )
 from backend.app.modules.decisions.context import DecisionContext
+from backend.app.modules.decisions.explanations import DecisionExplanation
 from backend.app.modules.decisions.ports import (
     AlternativeItemData,
     CandidateItemData,
@@ -429,6 +431,7 @@ class DecisionRepository:
             safety_candidate,
             safety_rule_set,
             tuple(alternative_items),
+            coaching_style_code=profile.coaching_style_code,
         )
 
     def persist(
@@ -441,6 +444,7 @@ class DecisionRepository:
         input_hash: str,
         proposals: tuple[Any, ...],
         result: CoordinatorResult,
+        explanation: DecisionExplanation,
         now: datetime,
     ) -> UUID:
         policy = session.scalar(
@@ -567,6 +571,24 @@ class DecisionRepository:
                 public_guidance=guidance,
             )
         )
+        session.add(
+            DecisionExplanationRecord(
+                id=uuid4(),
+                decision_run_id=run.id,
+                source_code=explanation.source_code.value,
+                summary=explanation.summary,
+                reason_codes=list(explanation.reason_codes),
+                agent_summaries=explanation.agent_summaries_payload(),
+                safety_summary=explanation.safety_summary_payload(),
+                final_adjustment_reason=explanation.final_adjustment_reason,
+                coaching_style_code=explanation.coaching_style_code,
+                template_version=explanation.template_version,
+                prompt_version=explanation.prompt_version,
+                model_code=explanation.model_code,
+                fallback_reason_code=explanation.fallback_reason_code,
+                created_at=now,
+            )
+        )
         if result.status_code in {CoordinatorStatusCode.PASS, CoordinatorStatusCode.REVISE}:
             if result.final_action_code is None:
                 raise RuntimeError("successful coordinator result is missing an action")
@@ -646,6 +668,7 @@ class DecisionRepository:
                 selectinload(DecisionRun.candidates).selectinload(PlanCandidate.items),
                 selectinload(DecisionRun.safety_reviews),
                 selectinload(DecisionRun.options),
+                selectinload(DecisionRun.explanations),
             )
             .where(DecisionRun.id == decision_id, DecisionRun.user_id == user_id)
         )
@@ -653,6 +676,9 @@ class DecisionRepository:
             return None
         plan = next((p for p in run.candidates if p.selected), None)
         safety = run.safety_reviews[0]
+        # Narration is stored once at decision time. Runs created before the narration
+        # record exists keep the reviewed default sentences.
+        explanation = run.explanations[0] if run.explanations else None
         adjustment_reason_codes: list[str] | None = None
         if plan is not None and plan.action_code != "KEEP":
             proposal_priority = (
@@ -732,40 +758,57 @@ class DecisionRepository:
             ],
             "reason_codes": list(run.coordinator_result.get("reason_codes", []))[:2],
             "adjustment_reason_codes": adjustment_reason_codes,
-            "summary": "오늘의 운동 계획이 준비되었습니다."
-            if plan
-            else "오늘은 안전을 위해 운동 계획을 제공하지 않습니다.",
-            "guidance": self._guidance(safety.public_guidance),
-            "public_agent_summaries": [
-                {
-                    "agent_type_code": p.agent_type_code,
-                    "recommendation_code": p.proposal_payload.get("recommended_action_code"),
-                    "reason_codes": p.proposal_payload.get("reason_codes", [])[:2],
-                    "summary": "규칙 기반 제안이 반영되었습니다.",
-                }
-                for p in sorted(
-                    run.proposals,
-                    key=lambda value: ("TRAINING", "RECOVERY", "SAFETY", "FEASIBILITY").index(
-                        value.agent_type_code
-                    ),
+            "summary": (
+                explanation.summary
+                if explanation is not None
+                else (
+                    "오늘의 운동 계획이 준비되었습니다."
+                    if plan
+                    else "오늘은 안전을 위해 운동 계획을 제공하지 않습니다."
                 )
-            ]
-            + [
-                {
-                    "agent_type_code": "COORDINATOR",
-                    "recommendation_code": run.recommended_action_code,
-                    "reason_codes": list(run.coordinator_result.get("reason_codes", []))[:2],
-                    "summary": "규칙 기반 최종 결정이 완료되었습니다.",
+            ),
+            "guidance": self._guidance(safety.public_guidance),
+            "public_agent_summaries": (
+                explanation.agent_summaries
+                if explanation is not None
+                else self._default_agent_summaries(run)
+            ),
+            "safety_summary": (
+                explanation.safety_summary
+                if explanation is not None
+                else {
+                    "safety_status_code": safety.safety_status_code,
+                    "vetoed": safety.vetoed,
+                    "reason_codes": safety.reason_codes[:2],
+                    "summary": "저장된 안전 검토 결과입니다.",
                 }
-            ],
-            "safety_summary": {
-                "safety_status_code": safety.safety_status_code,
-                "vetoed": safety.vetoed,
-                "reason_codes": safety.reason_codes[:2],
-                "summary": "저장된 안전 검토 결과입니다.",
-            },
+            ),
             "created_at": run.created_at,
         }
+
+    @staticmethod
+    def _default_agent_summaries(run: DecisionRun) -> list[dict[str, Any]]:
+        return [
+            {
+                "agent_type_code": p.agent_type_code,
+                "recommendation_code": p.proposal_payload.get("recommended_action_code"),
+                "reason_codes": p.proposal_payload.get("reason_codes", [])[:2],
+                "summary": "규칙 기반 제안이 반영되었습니다.",
+            }
+            for p in sorted(
+                run.proposals,
+                key=lambda value: ("TRAINING", "RECOVERY", "SAFETY", "FEASIBILITY").index(
+                    value.agent_type_code
+                ),
+            )
+        ] + [
+            {
+                "agent_type_code": "COORDINATOR",
+                "recommendation_code": run.recommended_action_code,
+                "reason_codes": list(run.coordinator_result.get("reason_codes", []))[:2],
+                "summary": "규칙 기반 최종 결정이 완료되었습니다.",
+            }
+        ]
 
     @staticmethod
     def _guidance(code: str | None) -> dict[str, str] | None:

@@ -15,6 +15,8 @@ from backend.app.core.middleware import RequestContextMiddleware
 from backend.app.db.session import DatabaseManager
 from backend.app.integrations.birthdate_crypto import LocalAesGcmBirthdateCipher
 from backend.app.integrations.firebase_auth import build_firebase_token_verifier
+from backend.app.integrations.llm_provider import build_narration_provider
+from backend.app.modules.decisions.ports import NarrationProviderPort
 from backend.app.modules.identity.ports import FirebaseTokenVerifier
 from backend.app.modules.profiles.ports import BirthdateCipher
 
@@ -40,6 +42,7 @@ def create_app(
     readiness_probe: Callable[[], None] | None = None,
     firebase_token_verifier: FirebaseTokenVerifier | None = None,
     birthdate_cipher: BirthdateCipher | None = None,
+    narration_provider: NarrationProviderPort | None = None,
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
     configure_logging(resolved_settings.log_level)
@@ -72,6 +75,11 @@ def create_app(
         birthdate_cipher
         if birthdate_cipher is not None
         else _build_birthdate_cipher(resolved_settings)
+    )
+    application.state.narration_provider = (
+        narration_provider
+        if narration_provider is not None
+        else build_narration_provider(resolved_settings)
     )
     if resolved_settings.cors_allowed_origins:
         # Only the listed origins, and only the headers the client actually

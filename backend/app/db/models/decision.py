@@ -94,6 +94,9 @@ class DecisionRun(Base):
     options: Mapped[list["DecisionOption"]] = relationship(
         cascade="all, delete-orphan", passive_deletes=True
     )
+    explanations: Mapped[list["DecisionExplanationRecord"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True
+    )
 
 
 class AgentProposalRecord(Base):
@@ -201,6 +204,44 @@ class SafetyReview(Base):
     public_guidance: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class DecisionExplanationRecord(Base):
+    """Public narration for one decision run; internal prompts and reasoning stay out."""
+
+    __tablename__ = "decision_explanations"
+    __table_args__ = (
+        CheckConstraint(
+            "source_code IN ('TEMPLATE','LLM')", name="ck_decision_explanations_source"
+        ),
+        CheckConstraint(
+            "(source_code = 'LLM') = (prompt_version IS NOT NULL AND model_code IS NOT NULL)",
+            name="ck_decision_explanations_llm_versions",
+        ),
+        CheckConstraint(
+            "(source_code = 'TEMPLATE') = (fallback_reason_code IS NOT NULL)",
+            name="ck_decision_explanations_fallback_reason",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    decision_run_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("decision_runs.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    source_code: Mapped[str] = mapped_column(String(16), nullable=False)
+    summary: Mapped[str] = mapped_column(String(500), nullable=False)
+    reason_codes: Mapped[list[str]] = mapped_column(_JSON, nullable=False)
+    agent_summaries: Mapped[list[dict[str, Any]]] = mapped_column(_JSON, nullable=False)
+    safety_summary: Mapped[dict[str, Any]] = mapped_column(_JSON, nullable=False)
+    final_adjustment_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    coaching_style_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    template_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    prompt_version: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    model_code: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    fallback_reason_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class DecisionOption(Base):
     __tablename__ = "decision_options"
     __table_args__ = (
@@ -223,6 +264,7 @@ class DecisionOption(Base):
 
 __all__ = [
     "AgentProposalRecord",
+    "DecisionExplanationRecord",
     "DecisionOption",
     "DecisionPolicyVersion",
     "DecisionRun",

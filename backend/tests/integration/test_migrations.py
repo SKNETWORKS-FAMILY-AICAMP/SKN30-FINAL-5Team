@@ -24,11 +24,14 @@ BUNDLE_SAFETY = Path("data/generated/exercise-safety-rules-mvp-v0.3.0")
 BUNDLE_ALTERNATIVES = Path("data/generated/exercise-alternatives-mvp-v0.2.0")
 
 
-def test_migration_history_has_agent_proposal_policy_head() -> None:
+def test_migration_history_has_decision_explanation_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0018_agent_proposal_policy"]
+    assert scripts.get_heads() == ["0019_decision_explanations"]
+    assert scripts.get_revision("0019_decision_explanations").down_revision == (
+        "0018_agent_proposal_policy"
+    )
     assert scripts.get_revision("0018_agent_proposal_policy").down_revision == (
         "0017_profile_settings"
     )
@@ -91,9 +94,26 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
             "calendar_event_links",
             "calendar_oauth_requests",
             "calendar_rate_limit_counters",
+            "decision_explanations",
             "exercise_safety_rules",
             "exercise_alternatives",
         }.issubset(inspector.get_table_names())
+        assert {column["name"] for column in inspector.get_columns("decision_explanations")} == {
+            "id",
+            "decision_run_id",
+            "source_code",
+            "summary",
+            "reason_codes",
+            "agent_summaries",
+            "safety_summary",
+            "final_adjustment_reason",
+            "coaching_style_code",
+            "template_version",
+            "prompt_version",
+            "model_code",
+            "fallback_reason_code",
+            "created_at",
+        }
         assert {column["name"] for column in inspector.get_columns("calendar_connections")} == {
             "id",
             "user_id",

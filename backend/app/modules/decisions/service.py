@@ -39,11 +39,13 @@ from backend.app.modules.decisions.codes import (
     DECISION_POLICY_VERSION,
 )
 from backend.app.modules.decisions.context import DecisionContext
+from backend.app.modules.decisions.explanations import build_explanation
 from backend.app.modules.decisions.ports import (
     AdjustedCandidateData,
     AlternativeItemData,
     DecisionAssembly,
     DecisionRepositoryPort,
+    NarrationProviderPort,
 )
 from backend.app.modules.decisions.schemas import DecisionCreateRequest, DecisionResponse
 
@@ -275,11 +277,14 @@ class DecisionService:
         repository: DecisionRepositoryPort,
         *,
         agents: Sequence[ProposalAgent[DecisionContext, CoordinatorCandidate]] | None = None,
+        narration_provider: NarrationProviderPort | None = None,
         clock: Callable[[], datetime] = _utc_now,
     ) -> None:
         self._repository = repository
         self._context_assembler = DecisionContextAssembler(repository)
         self._agents = tuple(agents) if agents is not None else default_agents()
+        # Optional narration only. Its absence or failure never changes the decision.
+        self._narration_provider = narration_provider
         self._clock = clock
 
     def create(
@@ -369,6 +374,12 @@ class DecisionService:
                         duration_rule_version=DURATION_RULE_VERSION,
                     )
                 )
+                explanation = build_explanation(
+                    result=result,
+                    proposals=batch.proposals,
+                    coaching_style_code=assembly.coaching_style_code,
+                    provider=self._narration_provider,
+                )
                 decision_id = self._repository.persist(
                     session,
                     user_id=user_id,
@@ -377,6 +388,7 @@ class DecisionService:
                     input_hash=input_hash,
                     proposals=batch.proposals,
                     result=result,
+                    explanation=explanation,
                     now=self._clock(),
                 )
                 outcome = result.status_code.value

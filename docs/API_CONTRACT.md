@@ -1146,7 +1146,12 @@ Wave 6 구현 계약:
   Coordinator 결과와 무관하게 유지된다.
 - 성공 응답은 decision run, 네 agent proposal, 후보와 항목, safety review, 공개 option 및
   Coordinator 결과가 동일 트랜잭션에 저장된 뒤에만 반환된다.
-- 이 API는 LLM을 호출하지 않으며 selection과 workout session 생성은 Wave 7 범위다.
+- 라우트는 LLM을 직접 호출하지 않는다. 선택적 narration은 decision 생성 시점에 서비스가 adapter로
+  수행하고 결과 문구만 저장하며, `GET`은 저장된 문구를 읽는다. narration이 비활성이거나 실패하면
+  검수된 템플릿 문구를 사용하고 `action_code`, `safety_status_code`, `final_plan`, option은 바뀌지
+  않는다. `summary`, `public_agent_summaries[].summary`, `safety_summary.summary` 문자열만 영향을
+  받으며 내부 prompt와 추론 과정은 응답에 포함하지 않는다.
+- selection과 workout session 생성은 Wave 7 범위다.
 
 ~~~text
 DecisionResponse

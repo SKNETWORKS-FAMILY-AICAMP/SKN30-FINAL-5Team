@@ -6,9 +6,14 @@ from fastapi import APIRouter, Depends, Header
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from backend.app.api.dependencies import get_current_user, get_db_session, get_decision_repository
+from backend.app.api.dependencies import (
+    get_current_user,
+    get_db_session,
+    get_decision_repository,
+    get_narration_provider,
+)
 from backend.app.core.errors import AppError
-from backend.app.modules.decisions.ports import DecisionRepositoryPort
+from backend.app.modules.decisions.ports import DecisionRepositoryPort, NarrationProviderPort
 from backend.app.modules.decisions.schemas import DecisionCreateRequest, DecisionResponse
 from backend.app.modules.decisions.service import (
     DecisionContextNotFoundError,
@@ -79,9 +84,11 @@ def create_decision(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_db_session)],
     repository: Annotated[DecisionRepositoryPort, Depends(get_decision_repository)],
+    narration_provider: Annotated[NarrationProviderPort, Depends(get_narration_provider)],
 ) -> DecisionResponse:
+    # The route never calls a provider itself; narration stays inside the service.
     try:
-        return DecisionService(repository).create(
+        return DecisionService(repository, narration_provider=narration_provider).create(
             session, current_user.user_id, payload, idempotency_key
         )
     except (

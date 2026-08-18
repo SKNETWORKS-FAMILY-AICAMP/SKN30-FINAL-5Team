@@ -1,6 +1,8 @@
-from dataclasses import dataclass
+from __future__ import annotations
+
+from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -9,6 +11,9 @@ from backend.app.domain.agents.contracts import AgentProposal
 from backend.app.domain.agents.coordinator import CoordinatorCandidate, CoordinatorResult
 from backend.app.domain.rules.safety import SafetyCandidate, SafetyCandidateItem, SafetyRuleSet
 from backend.app.modules.decisions.context import DecisionContext
+
+if TYPE_CHECKING:  # pragma: no cover - import cycle only exists for type checking
+    from backend.app.modules.decisions.explanations import DecisionExplanation
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,6 +68,8 @@ class DecisionAssembly:
     safety_rule_set: SafetyRuleSet | None = None
     alternative_items: tuple[AlternativeItemData, ...] = ()
     adjusted_candidates: tuple[AdjustedCandidateData, ...] = ()
+    # Narration tone only. It is not a decision input and stays out of the input snapshot.
+    coaching_style_code: str = "SUPPORTIVE"
 
     @property
     def coordinator_candidates(self) -> tuple[CoordinatorCandidate, ...]:
@@ -95,6 +102,7 @@ class DecisionRepositoryPort(Protocol):
         input_hash: str,
         proposals: tuple[AgentProposal, ...],
         result: CoordinatorResult,
+        explanation: DecisionExplanation,
         now: datetime,
     ) -> UUID: ...
     def save_idempotency(
@@ -110,3 +118,33 @@ class DecisionRepositoryPort(Protocol):
     def get_response(
         self, session: Session, user_id: UUID, decision_id: UUID
     ) -> dict[str, Any] | None: ...
+
+
+class NarrationProviderUnavailableError(Exception):
+    """No approved narration provider is configured for this environment."""
+
+
+class NarrationProviderFailedError(Exception):
+    """The configured provider did not return a usable narration payload."""
+
+
+@dataclass(frozen=True, slots=True)
+class NarrationPrompt:
+    """Codes-only narration request; the payload never carries free text or identifiers."""
+
+    prompt_version: str
+    instruction: str
+    slot_codes: tuple[str, ...]
+    payload: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class NarrationCompletion:
+    """One sentence per requested slot, plus the model that produced them."""
+
+    model_code: str
+    sentences: dict[str, str] = field(default_factory=dict)
+
+
+class NarrationProviderPort(Protocol):
+    def narrate(self, prompt: NarrationPrompt) -> NarrationCompletion: ...

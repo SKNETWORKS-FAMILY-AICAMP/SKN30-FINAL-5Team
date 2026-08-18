@@ -1,10 +1,13 @@
 import json
+import re
 from functools import lru_cache
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
-from pydantic import SecretStr, field_validator
+from pydantic import SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+_MACHINE_REFERENCE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
 
 
 class Settings(BaseSettings):
@@ -26,6 +29,14 @@ class Settings(BaseSettings):
     birthdate_encryption_key_base64: SecretStr | None = None
     birthdate_encryption_key_id: str = "local-v1"
     consent_policy_version: str | None = None
+    # Narration은 선택 기능이다. 기본값은 비활성이며 결정적 템플릿만 사용한다.
+    llm_enabled: bool = False
+    llm_provider_code: Literal["NONE", "OPENAI"] = "NONE"
+    llm_model_code: str = "gpt-5.1-mini"
+    llm_api_base_url: str = "https://api.openai.com/v1"
+    llm_timeout_seconds: float = 3.0
+    llm_max_output_tokens: int = 400
+    openai_api_key: SecretStr | None = None
     # NoDecode hands the raw environment string to the validator below. Without
     # it pydantic-settings JSON-decodes these fields first, so a plain
     # comma-separated value fails at startup with an opaque SettingsError.
@@ -57,6 +68,44 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             normalized = value.strip()
             return normalized or None
+        return value
+
+    @field_validator("openai_api_key", mode="before")
+    @classmethod
+    def normalize_openai_api_key(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
+    @field_validator("llm_model_code")
+    @classmethod
+    def validate_llm_model_code(cls, value: str) -> str:
+        normalized = value.strip()
+        if not _MACHINE_REFERENCE_PATTERN.fullmatch(normalized):
+            raise ValueError("LLM_MODEL_CODE must be a machine reference without free text")
+        return normalized
+
+    @field_validator("llm_api_base_url")
+    @classmethod
+    def validate_llm_api_base_url(cls, value: str) -> str:
+        normalized = value.strip().rstrip("/")
+        if not normalized.startswith("https://"):
+            raise ValueError("LLM_API_BASE_URL must use https")
+        return normalized
+
+    @field_validator("llm_timeout_seconds")
+    @classmethod
+    def validate_llm_timeout_seconds(cls, value: float) -> float:
+        # 결정 생성은 동기 흐름이므로 narration이 응답 시간을 지배하지 못하게 상한을 둔다.
+        if not 0 < value <= 10:
+            raise ValueError("LLM_TIMEOUT_SECONDS must be within (0, 10]")
+        return value
+
+    @field_validator("llm_max_output_tokens")
+    @classmethod
+    def validate_llm_max_output_tokens(cls, value: int) -> int:
+        if not 0 < value <= 2000:
+            raise ValueError("LLM_MAX_OUTPUT_TOKENS must be within (0, 2000]")
         return value
 
     @field_validator("consent_policy_version", mode="before")
@@ -106,6 +155,15 @@ class Settings(BaseSettings):
         if any(origin.strip() == "*" for origin in value):
             raise ValueError("CORS_ALLOWED_ORIGINS must list exact origins, not '*'")
         return value
+
+    @model_validator(mode="after")
+    def validate_llm_provider_credentials(self) -> Self:
+        # 자격 증명이 없는 상태에서 활성화하면 조용히 실패하는 대신 기동을 막는다.
+        if self.llm_enabled and self.llm_provider_code == "NONE":
+            raise ValueError("LLM_ENABLED requires LLM_PROVIDER_CODE")
+        if self.llm_enabled and self.llm_provider_code == "OPENAI" and self.openai_api_key is None:
+            raise ValueError("LLM_PROVIDER_CODE=OPENAI requires OPENAI_API_KEY")
+        return self
 
 
 @lru_cache
