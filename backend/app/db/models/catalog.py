@@ -365,3 +365,162 @@ class ExercisePrescriptionProfile(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class ExerciseSafetyRule(Base):
+    __tablename__ = "exercise_safety_rules"
+    __table_args__ = (
+        CheckConstraint(
+            "(exercise_id IS NOT NULL AND movement_pattern_code IS NULL) OR "
+            "(exercise_id IS NULL AND movement_pattern_code IS NOT NULL)",
+            name="ck_exercise_safety_rules_exact_target",
+        ),
+        CheckConstraint(
+            "body_part_role_code IN ('PRIMARY', 'SECONDARY')",
+            name="ck_exercise_safety_rules_body_part_role",
+        ),
+        CheckConstraint(
+            "minimum_severity_code IN ('MILD', 'MODERATE', 'SEVERE') AND "
+            "maximum_severity_code IN ('MILD', 'MODERATE', 'SEVERE')",
+            name="ck_exercise_safety_rules_severity",
+        ),
+        CheckConstraint(
+            "effect_code IN ('EXCLUDE', 'CAUTION')",
+            name="ck_exercise_safety_rules_effect",
+        ),
+        CheckConstraint(
+            "reason_code IN ('DIRECT_JOINT_LOAD', 'STABILIZER_LOAD')",
+            name="ck_exercise_safety_rules_reason",
+        ),
+        CheckConstraint(
+            "review_status_code = 'DOMAIN_APPROVED'",
+            name="ck_exercise_safety_rules_review",
+        ),
+        CheckConstraint(
+            "production_eligible = false",
+            name="ck_exercise_safety_rules_production_ineligible",
+        ),
+        CheckConstraint(
+            "source_manifest_hash ~ '^[0-9a-f]{64}$'",
+            name="ck_exercise_safety_rules_manifest_hash",
+        ),
+        Index(
+            "uq_exercise_safety_rules_exercise_scope",
+            "rule_set_version_code",
+            "catalog_version_id",
+            "exercise_id",
+            "body_area_code",
+            "minimum_severity_code",
+            "maximum_severity_code",
+            "effect_code",
+            unique=True,
+            postgresql_where=text("exercise_id IS NOT NULL"),
+        ),
+        Index(
+            "uq_exercise_safety_rules_pattern_scope",
+            "rule_set_version_code",
+            "catalog_version_id",
+            "movement_pattern_code",
+            "body_area_code",
+            "minimum_severity_code",
+            "maximum_severity_code",
+            "effect_code",
+            unique=True,
+            postgresql_where=text("movement_pattern_code IS NOT NULL"),
+        ),
+        Index(
+            "ix_exercise_safety_rules_lookup",
+            "body_area_code",
+            "minimum_severity_code",
+            "review_status_code",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    catalog_version_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("catalog_versions.id", ondelete="CASCADE"), nullable=False
+    )
+    exercise_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("exercises.id", ondelete="CASCADE"), nullable=True
+    )
+    movement_pattern_code: Mapped[str | None] = mapped_column(
+        String(64), ForeignKey("movement_patterns.code"), nullable=True
+    )
+    body_area_code: Mapped[str] = mapped_column(
+        String(64), ForeignKey("body_areas.code"), nullable=False
+    )
+    body_part_role_code: Mapped[str] = mapped_column(String(16), nullable=False)
+    minimum_severity_code: Mapped[str] = mapped_column(String(16), nullable=False)
+    maximum_severity_code: Mapped[str] = mapped_column(String(16), nullable=False)
+    effect_code: Mapped[str] = mapped_column(String(16), nullable=False)
+    reason_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    review_status_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    rule_version: Mapped[str] = mapped_column(String(80), nullable=False)
+    rule_set_version_code: Mapped[str] = mapped_column(String(120), nullable=False)
+    production_eligible: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    source_manifest_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_metadata: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+
+class ExerciseAlternative(Base):
+    __tablename__ = "exercise_alternatives"
+    __table_args__ = (
+        UniqueConstraint(
+            "alternative_set_version_code",
+            "source_exercise_id",
+            "alternative_exercise_id",
+            "reason_code",
+            "goal_preservation_code",
+            "rule_version",
+            name="uq_exercise_alternatives_relation",
+        ),
+        CheckConstraint(
+            "source_exercise_id <> alternative_exercise_id",
+            name="ck_exercise_alternatives_distinct_exercises",
+        ),
+        CheckConstraint(
+            "reason_code IN ('DIFFICULTY', 'EQUIPMENT', 'LOCATION', 'DISCOMFORT')",
+            name="ck_exercise_alternatives_reason",
+        ),
+        CheckConstraint(
+            "difficulty_delta IN (-1, 0)",
+            name="ck_exercise_alternatives_difficulty_delta",
+        ),
+        CheckConstraint(
+            "review_status_code = 'DOMAIN_APPROVED'",
+            name="ck_exercise_alternatives_review",
+        ),
+        CheckConstraint(
+            "production_eligible = false",
+            name="ck_exercise_alternatives_production_ineligible",
+        ),
+        CheckConstraint(
+            "source_manifest_hash ~ '^[0-9a-f]{64}$'",
+            name="ck_exercise_alternatives_manifest_hash",
+        ),
+        Index("ix_exercise_alternatives_source", "source_exercise_id", "review_status_code"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    source_exercise_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("exercises.id", ondelete="CASCADE"), nullable=False
+    )
+    alternative_exercise_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("exercises.id", ondelete="CASCADE"), nullable=False
+    )
+    reason_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    goal_preservation_code: Mapped[str] = mapped_column(String(80), nullable=False)
+    difficulty_delta: Mapped[int] = mapped_column(Integer, nullable=False)
+    review_status_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    rule_version: Mapped[str] = mapped_column(String(80), nullable=False)
+    alternative_set_version_code: Mapped[str] = mapped_column(String(120), nullable=False)
+    production_eligible: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    source_manifest_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_metadata: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

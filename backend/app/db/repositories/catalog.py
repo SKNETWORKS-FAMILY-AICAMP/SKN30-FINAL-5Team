@@ -2,7 +2,7 @@ from collections.abc import Iterable
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from backend.app.db.models.catalog import (
@@ -11,9 +11,11 @@ from backend.app.db.models.catalog import (
     CatalogVersion,
     Equipment,
     Exercise,
+    ExerciseAlternative,
     ExerciseBodyPart,
     ExerciseEquipment,
     ExerciseLocation,
+    ExerciseSafetyRule,
     Location,
     MovementPattern,
     TrainingType,
@@ -24,7 +26,14 @@ from backend.app.modules.catalog.codes import (
     EquipmentRequirementCode,
     approved_display_name,
 )
-from backend.app.modules.catalog.service import CatalogArtifact, ExerciseDetailRecord
+from backend.app.modules.catalog.service import (
+    AlternativeArtifact,
+    CatalogArtifact,
+    CatalogImportError,
+    DerivedSetState,
+    ExerciseDetailRecord,
+    SafetyRuleArtifact,
+)
 
 
 class CatalogRepository:
@@ -191,6 +200,140 @@ class CatalogRepository:
 
         session.flush()
         return catalog_version
+
+    def get_safety_rule_set_state(
+        self, session: Session, version_code: str
+    ) -> DerivedSetState | None:
+        count, minimum_hash, maximum_hash = session.execute(
+            select(
+                func.count(ExerciseSafetyRule.id),
+                func.min(ExerciseSafetyRule.source_manifest_hash),
+                func.max(ExerciseSafetyRule.source_manifest_hash),
+            ).where(ExerciseSafetyRule.rule_set_version_code == version_code)
+        ).one()
+        if count == 0:
+            return None
+        if minimum_hash != maximum_hash or minimum_hash is None:
+            raise CatalogImportError(
+                "DERIVED_SET_CONFLICT", "safety rule set contains mixed manifest hashes"
+            )
+        return DerivedSetState(record_count=count, manifest_hash=minimum_hash)
+
+    def get_alternative_set_state(
+        self, session: Session, version_code: str
+    ) -> DerivedSetState | None:
+        count, minimum_hash, maximum_hash = session.execute(
+            select(
+                func.count(ExerciseAlternative.id),
+                func.min(ExerciseAlternative.source_manifest_hash),
+                func.max(ExerciseAlternative.source_manifest_hash),
+            ).where(ExerciseAlternative.alternative_set_version_code == version_code)
+        ).one()
+        if count == 0:
+            return None
+        if minimum_hash != maximum_hash or minimum_hash is None:
+            raise CatalogImportError(
+                "DERIVED_SET_CONFLICT", "alternative set contains mixed manifest hashes"
+            )
+        return DerivedSetState(record_count=count, manifest_hash=minimum_hash)
+
+    def _catalog_ids(self, session: Session) -> dict[str, UUID]:
+        rows = session.execute(select(CatalogVersion.version_code, CatalogVersion.id))
+        return {version_code: catalog_id for version_code, catalog_id in rows}
+
+    def _exercise_ids(self, session: Session) -> dict[tuple[str, str], UUID]:
+        rows = session.execute(
+            select(CatalogVersion.version_code, Exercise.stable_code, Exercise.id).join(
+                Exercise, Exercise.catalog_version_id == CatalogVersion.id
+            )
+        )
+        return {
+            (version_code, stable_code): exercise_id
+            for version_code, stable_code, exercise_id in rows
+        }
+
+    def create_safety_rules(self, session: Session, artifact: SafetyRuleArtifact) -> None:
+        catalog_ids = self._catalog_ids(session)
+        exercise_ids = self._exercise_ids(session)
+        manifest = artifact.manifest
+        version_code = manifest.rule_set_version.version_code
+        metadata = manifest.model_dump(mode="json")
+        for record in artifact.records:
+            catalog_id = catalog_ids.get(record.catalog_version_code)
+            if catalog_id is None:
+                raise CatalogImportError(
+                    "CATALOG_REFERENCE_NOT_FOUND", "safety rule references an unknown catalog"
+                )
+            exercise_id = None
+            if record.exercise_stable_code is not None:
+                exercise_id = exercise_ids.get(
+                    (record.catalog_version_code, record.exercise_stable_code)
+                )
+                if exercise_id is None:
+                    raise CatalogImportError(
+                        "EXERCISE_REFERENCE_NOT_FOUND",
+                        "safety rule references an unknown exercise",
+                    )
+            session.add(
+                ExerciseSafetyRule(
+                    id=uuid4(),
+                    catalog_version_id=catalog_id,
+                    exercise_id=exercise_id,
+                    movement_pattern_code=record.movement_pattern_code,
+                    body_area_code=record.body_area_code,
+                    body_part_role_code=record.body_part_role_code,
+                    minimum_severity_code=record.minimum_severity_code,
+                    maximum_severity_code=record.maximum_severity_code,
+                    effect_code=record.effect_code,
+                    reason_code=record.reason_code,
+                    review_status_code=record.review_status_code,
+                    rule_version=record.rule_version,
+                    rule_set_version_code=version_code,
+                    production_eligible=False,
+                    source_manifest_hash=artifact.manifest_hash,
+                    source_metadata=metadata,
+                )
+            )
+        session.flush()
+
+    def create_alternatives(self, session: Session, artifact: AlternativeArtifact) -> None:
+        exercise_ids = self._exercise_ids(session)
+        manifest = artifact.manifest
+        version_code = manifest.alternative_set_version.version_code
+        metadata = manifest.model_dump(mode="json")
+        for record in artifact.records:
+            source_id = exercise_ids.get(
+                (record.source_catalog_version_code, record.source_exercise_stable_code)
+            )
+            alternative_id = exercise_ids.get(
+                (
+                    record.alternative_catalog_version_code,
+                    record.alternative_exercise_stable_code,
+                )
+            )
+            if source_id is None or alternative_id is None:
+                raise CatalogImportError(
+                    "EXERCISE_REFERENCE_NOT_FOUND",
+                    "alternative references an unknown exercise",
+                )
+            session.add(
+                ExerciseAlternative(
+                    id=uuid4(),
+                    source_exercise_id=source_id,
+                    alternative_exercise_id=alternative_id,
+                    reason_code=record.reason_code,
+                    goal_preservation_code=record.goal_preservation_code,
+                    difficulty_delta=record.difficulty_delta,
+                    review_status_code=record.review_status_code,
+                    rule_version=record.rule_version,
+                    alternative_set_version_code=version_code,
+                    production_eligible=False,
+                    source_manifest_hash=artifact.manifest_hash,
+                    source_metadata=metadata,
+                    created_at=record.created_at,
+                )
+            )
+        session.flush()
 
 
 __all__ = ["CatalogRepository"]

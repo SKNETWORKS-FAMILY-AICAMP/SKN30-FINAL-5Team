@@ -471,6 +471,10 @@ PK는 exercise_id, body_area_code, role_code 조합이다.
 | difficulty_delta | 난이도 변화 |
 | review_status_code | 검수 상태 |
 | rule_version | 대체 관계 버전 |
+| alternative_set_version_code | 적재한 대체 관계 산출물 버전 |
+| production_eligible | 운영 사용 가능 여부. DRAFT importer 행은 반드시 false |
+| source_manifest_hash | 대체 관계 매니페스트 SHA-256 |
+| source_metadata | 매니페스트 전체의 버전 있는 source·review·file 메타데이터 JSONB |
 | created_at | 생성 시각 |
 
 대체 관계는 방향성이 있다. A가 B를 대체한다고 해서 B가 A를 자동으로 대체하지 않는다.
@@ -492,6 +496,10 @@ DOMAIN_APPROVED 관계만 계획 생성에 사용한다.
 | reason_code | 구조화된 안전 이유 |
 | review_status_code | 검수 상태 |
 | rule_version | 규칙 버전 |
+| rule_set_version_code | 적재한 안전 규칙 산출물 버전 |
+| production_eligible | 운영 사용 가능 여부. DRAFT importer 행은 반드시 false |
+| source_manifest_hash | 안전 규칙 매니페스트 SHA-256 |
+| source_metadata | 매니페스트 전체의 버전 있는 source·review·file 메타데이터 JSONB |
 | created_at | 생성 시각 |
 | updated_at | 수정 시각 |
 
@@ -527,6 +535,19 @@ source track/identity를 보존한다. URL·license 근거가 포함된 후속 �
 - JSONB는 `manifest_metadata`와 `form_cues_ko`에만 사용하고 자주 조회하는 source, status,
   version, code와 timing 값은 typed column으로 저장한다.
 - 안전 rule reason code, alternatives와 미확정 임계값은 이 importer 계약에 포함하지 않는다.
+
+### 5.10.2 DRAFT derived catalog bundle importer transaction
+
+- `exercise-safety-rules-mvp-v0.3.0`과 `exercise-alternatives-mvp-v0.2.0`이 참조하는
+  `kspo-mvp-v0.2.0`, `wger-mvp-v0.2.0`, `kspo-tranche3-v0.1.0`,
+  `wger-tranche3-v0.1.0` 네 카탈로그를 하나의 bundle 선행 입력으로 사용한다.
+- 네 카탈로그, 안전 규칙 354개, 방향성 대체 관계 238개는 하나의 DB transaction에서
+  적재하며 일부 단계가 실패하면 어느 신규 행도 남기지 않는다.
+- 동일 version과 manifest hash·record count의 재실행은 기존 결과를 반환한다. 같은 version의
+  hash 또는 record count가 다르면 덮어쓰지 않고 충돌로 실패한다.
+- 모든 bundle 행은 `production_eligible=false`이고 local/test 환경에서만 적재한다.
+- source metadata는 매니페스트 전체를 JSONB로 보존한다. 현재 생성 매니페스트에 없는 URL이나
+  license code는 raw 자료에서 추정하지 않으며, 후속 매니페스트에 추가되면 같은 필드에 보존한다.
 
 ### 5.11 catalog_review_records
 
