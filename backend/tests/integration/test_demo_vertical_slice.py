@@ -160,6 +160,9 @@ def _onboard(client: TestClient, *, duration_minutes: int = 30) -> dict[str, obj
             "attention_area_codes": [],
             "preferred_exercise_type_codes": ["STRENGTH"],
             "coaching_style_code": "SUPPORTIVE",
+            "height_cm": 175.0,
+            "weight_kg": 70.0,
+            "sex_code": "MALE",
             "consents": {
                 "general_personal_data": True,
                 "sensitive_data": True,

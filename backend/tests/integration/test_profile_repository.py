@@ -84,6 +84,9 @@ def _request(nickname: str = "러너01") -> OnboardingUpsertRequest:
             "equipment_codes": ["MAT"],
             "attention_area_codes": ["SHOULDER"],
             "preferred_exercise_type_codes": ["STRENGTH"],
+            "height_cm": 175.0,
+            "weight_kg": 70.0,
+            "sex_code": "MALE",
             "consents": {
                 "general_personal_data": True,
                 "sensitive_data": True,
