@@ -40,6 +40,41 @@ describe('PreviewGallery', () => {
     expect(screen.getByRole('radio', { name: 'pending' })).toBeChecked();
   });
 
+  it('shows Splash at three real phone viewport sizes without changing other screens', async () => {
+    await render(<PreviewGallery />);
+
+    expect(
+      screen.getByRole('radio', { name: '원본 기준 · 390 × 844' }),
+    ).toBeChecked();
+
+    fireEvent.press(
+      screen.getByRole('radio', { name: 'Android compact · 360 × 800' }),
+    );
+    expect(
+      StyleSheet.flatten(screen.getByTestId('preview-app-canvas').props.style),
+    ).toEqual(expect.objectContaining({ width: 360, height: 800 }));
+    expect(
+      StyleSheet.flatten(screen.getByTestId('question-mark').props.style),
+    ).toEqual(
+      expect.objectContaining({
+        left: (129 * 360) / 390,
+        top: (345 * 800) / 844,
+      }),
+    );
+
+    fireEvent.press(
+      screen.getByRole('radio', { name: 'Large phone · 430 × 932' }),
+    );
+    expect(
+      StyleSheet.flatten(screen.getByTestId('preview-app-canvas').props.style),
+    ).toEqual(expect.objectContaining({ width: 430, height: 932 }));
+
+    fireEvent.press(screen.getByRole('radio', { name: 'Login' }));
+    expect(
+      StyleSheet.flatten(screen.getByTestId('preview-app-canvas').props.style),
+    ).toEqual(expect.objectContaining({ width: 390, height: 844 }));
+  });
+
   it('toggles reduced motion for the selected screen', async () => {
     await render(<PreviewGallery />);
 

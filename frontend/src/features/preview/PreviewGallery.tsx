@@ -44,6 +44,26 @@ import {
 } from '../workout/workoutModel';
 
 const APP_CANVAS = { width: 390, height: 844 } as const;
+export const SPLASH_DEVICE_PREVIEWS = [
+  {
+    id: 'compact',
+    label: 'Android compact · 360 × 800',
+    width: 360,
+    height: 800,
+  },
+  {
+    id: 'reference',
+    label: '원본 기준 · 390 × 844',
+    width: 390,
+    height: 844,
+  },
+  {
+    id: 'large',
+    label: 'Large phone · 430 × 932',
+    width: 430,
+    height: 932,
+  },
+] as const;
 const PREVIEW_SCREENS = [
   { id: 'splash', label: 'Splash' },
   { id: 'login', label: 'Login' },
@@ -58,11 +78,14 @@ const PREVIEW_SCREENS = [
 
 type PreviewScreenId = (typeof PREVIEW_SCREENS)[number]['id'];
 type SplashPreviewState = 'pending' | 'error';
+type SplashDevicePreviewId = (typeof SPLASH_DEVICE_PREVIEWS)[number]['id'];
 
 export function PreviewGallery() {
   const { width } = useWindowDimensions();
   const [screenId, setScreenId] = useState<PreviewScreenId>('splash');
   const [splashState, setSplashState] = useState<SplashPreviewState>('pending');
+  const [splashDevicePreviewId, setSplashDevicePreviewId] =
+    useState<SplashDevicePreviewId>('reference');
   const [loginState, setLoginState] = useState<LoginPreviewState>('idle');
   const [signUpState, setSignUpState] = useState<SignUpPreviewState>('idle');
   const [profileStep, setProfileStep] = useState(1);
@@ -77,6 +100,11 @@ export function PreviewGallery() {
     useState<WorkoutPreviewState>('active');
   const [reducedMotion, setReducedMotion] = useState(false);
   const useWideLayout = width >= 920;
+  const splashViewport =
+    SPLASH_DEVICE_PREVIEWS.find(
+      (preview) => preview.id === splashDevicePreviewId,
+    ) ?? SPLASH_DEVICE_PREVIEWS[1];
+  const canvasViewport = screenId === 'splash' ? splashViewport : APP_CANVAS;
 
   return (
     <ScrollView
@@ -125,6 +153,19 @@ export function PreviewGallery() {
                   selected={splashState === 'error'}
                   onPress={() => setSplashState('error')}
                 />
+              </View>
+            </ControlGroup>
+
+            <ControlGroup label="Splash 기기 비율">
+              <View style={styles.deviceOptionColumn}>
+                {SPLASH_DEVICE_PREVIEWS.map((preview) => (
+                  <OptionButton
+                    key={preview.id}
+                    label={preview.label}
+                    selected={splashDevicePreviewId === preview.id}
+                    onPress={() => setSplashDevicePreviewId(preview.id)}
+                  />
+                ))}
               </View>
             </ControlGroup>
 
@@ -287,15 +328,26 @@ export function PreviewGallery() {
       <View style={styles.stage}>
         <View style={styles.canvasHeading}>
           <Text style={styles.canvasTitle}>App canvas</Text>
-          <Text style={styles.canvasSize}>390 × 844</Text>
+          <Text style={styles.canvasSize}>
+            {canvasViewport.width} × {canvasViewport.height}
+          </Text>
         </View>
-        <View testID="preview-app-canvas" style={styles.canvas}>
+        <View
+          testID="preview-app-canvas"
+          style={[
+            styles.canvas,
+            {
+              width: canvasViewport.width,
+              height: canvasViewport.height,
+            },
+          ]}
+        >
           {screenId === 'splash' ? (
             <SplashScreen
               bootStatus={splashState}
               onRetry={() => setSplashState('pending')}
               reducedMotionOverride={reducedMotion}
-              viewportOverride={APP_CANVAS}
+              viewportOverride={splashViewport}
             />
           ) : null}
           {screenId === 'login' ? (
@@ -474,6 +526,10 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
+  deviceOptionColumn: {
+    alignItems: 'stretch',
+    gap: 8,
+  },
   optionButton: {
     minWidth: 88,
     alignItems: 'center',
@@ -545,8 +601,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   canvas: {
-    width: APP_CANVAS.width,
-    height: APP_CANVAS.height,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#AEB7C0',
