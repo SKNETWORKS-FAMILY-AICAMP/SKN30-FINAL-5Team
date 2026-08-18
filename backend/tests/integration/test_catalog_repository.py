@@ -1,6 +1,8 @@
 import os
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
+from uuid import UUID
 
 import pytest
 from alembic import command
@@ -14,10 +16,13 @@ from backend.app.db.models.catalog import (
     CatalogVersion,
     Exercise,
     ExerciseAlternative,
+    ExerciseBodyPart,
     ExerciseSafetyRule,
 )
 from backend.app.db.repositories.catalog import CatalogRepository
+from backend.app.modules.catalog.codes import BodyAreaCode, BodyAreaRoleCode
 from backend.app.modules.catalog.service import CatalogDataBundleImporter, CatalogImporter
+from backend.scripts.demo_seed import seed_catalog
 
 ALEMBIC_CONFIG = Path("backend/alembic.ini")
 GENERATED_ARTIFACT = Path("data/generated/exercise-catalog-seed-kspo-tranche3-v0.1.0")
@@ -100,6 +105,112 @@ def test_repository_failure_rolls_back_catalog_and_exercises(
 
     assert postgres_session.scalar(select(func.count()).select_from(CatalogVersion)) == 0
     assert postgres_session.scalar(select(func.count()).select_from(Exercise)) == 0
+
+
+@pytest.mark.integration
+def test_lists_only_the_approved_catalog_with_filters_and_stable_keyset_pagination(
+    postgres_session: Session,
+) -> None:
+    repository = CatalogRepository()
+    importer = CatalogImporter(repository, "test")
+    importer.import_artifact(postgres_session, GENERATED_ARTIFACT)
+    draft_exercise_ids = set(postgres_session.scalars(select(Exercise.id)))
+
+    # A domain-approved import is still ineligible while its catalog is DRAFT
+    # and lacks the explicit production-review metadata.
+    assert repository.get_approved_catalog(postgres_session) is None
+
+    catalog_id = seed_catalog(postgres_session, datetime(2026, 8, 18, tzinfo=UTC))
+    postgres_session.flush()
+    catalog = repository.get_approved_catalog(postgres_session)
+    assert catalog is not None
+    assert catalog.catalog_version_id == catalog_id
+    assert catalog.version_code == "demo-synthetic-v1"
+
+    all_records = repository.list_approved_exercises(
+        postgres_session,
+        catalog_id,
+        body_area_code=None,
+        equipment_code=None,
+        training_type_code=None,
+        difficulty_code=None,
+        after_exercise_id=None,
+        limit=200,
+    )
+    assert all_records
+    assert [row.exercise_id for row in all_records] == sorted(
+        row.exercise_id for row in all_records
+    )
+    assert len({row.exercise_id for row in all_records}) == len(all_records)
+    assert draft_exercise_ids.isdisjoint(row.exercise_id for row in all_records)
+    assert all(
+        row.primary_body_area_codes == tuple(sorted(row.primary_body_area_codes))
+        and row.required_equipment_codes == tuple(sorted(row.required_equipment_codes))
+        for row in all_records
+    )
+
+    reference = all_records[0]
+    filtered = repository.list_approved_exercises(
+        postgres_session,
+        catalog_id,
+        body_area_code=reference.primary_body_area_codes[0],
+        equipment_code=reference.required_equipment_codes[0],
+        training_type_code=reference.training_type_code,
+        difficulty_code=reference.difficulty_code,
+        after_exercise_id=None,
+        limit=200,
+    )
+    assert reference.exercise_id in {row.exercise_id for row in filtered}
+    assert all(
+        reference.primary_body_area_codes[0] in row.primary_body_area_codes
+        and reference.required_equipment_codes[0] in row.required_equipment_codes
+        and row.training_type_code == reference.training_type_code
+        and row.difficulty_code == reference.difficulty_code
+        for row in filtered
+    )
+
+    secondary_only_code = next(
+        code for code in BodyAreaCode if code not in reference.primary_body_area_codes
+    )
+    postgres_session.add(
+        ExerciseBodyPart(
+            exercise_id=reference.exercise_id,
+            body_area_code=secondary_only_code,
+            role_code=BodyAreaRoleCode.SECONDARY,
+        )
+    )
+    postgres_session.flush()
+    secondary_filter = repository.list_approved_exercises(
+        postgres_session,
+        catalog_id,
+        body_area_code=secondary_only_code,
+        equipment_code=None,
+        training_type_code=None,
+        difficulty_code=None,
+        after_exercise_id=None,
+        limit=200,
+    )
+    assert reference.exercise_id not in {row.exercise_id for row in secondary_filter}
+
+    paged_ids: list[UUID] = []
+    after_exercise_id: UUID | None = None
+    while True:
+        page = repository.list_approved_exercises(
+            postgres_session,
+            catalog_id,
+            body_area_code=None,
+            equipment_code=None,
+            training_type_code=None,
+            difficulty_code=None,
+            after_exercise_id=after_exercise_id,
+            limit=2,
+        )
+        if not page:
+            break
+        paged_ids.extend(row.exercise_id for row in page)
+        after_exercise_id = page[-1].exercise_id
+
+    assert paged_ids == [row.exercise_id for row in all_records]
 
 
 @pytest.mark.integration

@@ -157,6 +157,22 @@ class ExerciseDetailResponse(BaseModel):
     instruction_content_version: str
 
 
+class ExerciseListItem(BaseModel):
+    id: UUID
+    name: str
+    training_type_code: TrainingTypeCode
+    difficulty_code: DifficultyCode
+    primary_body_area_codes: list[BodyAreaCode]
+    required_equipment_codes: list[EquipmentCode]
+    media_asset_key: str | None = None
+
+
+class ExerciseListResponse(BaseModel):
+    items: list[ExerciseListItem]
+    next_cursor: str | None
+    catalog_version: str
+
+
 class DerivedArtifactVersion(CatalogInputModel):
     version_code: Annotated[str, Field(min_length=1, max_length=120)]
     status_code: CatalogVersionStatusCode
