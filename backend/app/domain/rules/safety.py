@@ -4,7 +4,7 @@ from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from enum import IntEnum, StrEnum
 
-SAFETY_ENGINE_VERSION = "1.0.0"
+SAFETY_ENGINE_VERSION = "1.1.0"
 
 
 class BodyAreaCode(StrEnum):
@@ -140,23 +140,31 @@ class Discomfort:
 class SafetyContext:
     discomforts: tuple[Discomfort, ...] = ()
     adverse_reaction_codes: tuple[AdverseReactionCode, ...] = ()
+    attention_area_codes: tuple[BodyAreaCode, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.discomforts, tuple):
             raise InvalidSafetyInputError("discomforts must be an immutable tuple")
         if not isinstance(self.adverse_reaction_codes, tuple):
             raise InvalidSafetyInputError("adverse_reaction_codes must be an immutable tuple")
+        if not isinstance(self.attention_area_codes, tuple):
+            raise InvalidSafetyInputError("attention_area_codes must be an immutable tuple")
         if any(not isinstance(value, Discomfort) for value in self.discomforts):
             raise InvalidSafetyInputError("discomforts must contain only Discomfort values")
         if any(not isinstance(value, AdverseReactionCode) for value in self.adverse_reaction_codes):
             raise InvalidSafetyInputError(
                 "adverse_reaction_codes must contain only AdverseReactionCode values"
             )
+        if any(not isinstance(value, BodyAreaCode) for value in self.attention_area_codes):
+            raise InvalidSafetyInputError(
+                "attention_area_codes must contain only BodyAreaCode values"
+            )
         _require_unique(
             tuple(discomfort.body_area_code for discomfort in self.discomforts),
             field_name="discomfort body areas",
         )
         _require_unique(self.adverse_reaction_codes, field_name="adverse_reaction_codes")
+        _require_unique(self.attention_area_codes, field_name="attention_area_codes")
 
 
 @dataclass(frozen=True, slots=True)
@@ -253,6 +261,21 @@ class SafetyRule:
         if self.body_area_code is not discomfort.body_area_code:
             return False
         if not self.minimum_severity_code <= discomfort.severity_code <= self.maximum_severity_code:
+            return False
+        if self.scope_code is SafetyRuleScopeCode.EXERCISE:
+            return self.exercise_code == item.exercise_code
+        return self.movement_pattern_code == item.movement_pattern_code
+
+    def targets(self, body_area_code: BodyAreaCode, item: SafetyCandidateItem) -> bool:
+        """Match a chronic attention area without inventing a severity.
+
+        Chronic attention may only add caution. The record still owns the body-area,
+        catalog, exercise and movement-pattern scope used to select that caution.
+        """
+
+        if self.catalog_version_code != item.catalog_version_code:
+            return False
+        if self.body_area_code is not body_area_code:
             return False
         if self.scope_code is SafetyRuleScopeCode.EXERCISE:
             return self.exercise_code == item.exercise_code
@@ -419,7 +442,7 @@ def evaluate_safety(
             context=context,
         )
 
-    if not context.discomforts:
+    if not context.discomforts and not context.attention_area_codes:
         return SafetyEvaluation(
             status_code=SafetyStatusCode.PASS,
             required_action_code=None,
@@ -454,6 +477,20 @@ def evaluate_safety(
                 if rule.effect_code is SafetyRuleEffectCode.EXCLUDE:
                     excluded.add(item.exercise_code)
                 elif item.exercise_code not in excluded:
+                    cautions.add(item.exercise_code)
+
+    daily_discomfort_areas = {discomfort.body_area_code for discomfort in context.discomforts}
+    for attention_area_code in context.attention_area_codes:
+        if attention_area_code in daily_discomfort_areas:
+            continue
+        for item in candidate.items:
+            matching_rules = [
+                rule for rule in rule_set.rules if rule.targets(attention_area_code, item)
+            ]
+            for rule in matching_rules:
+                applied_rules.add(rule.rule_code)
+                reasons.add(rule.reason_code)
+                if item.exercise_code not in excluded:
                     cautions.add(item.exercise_code)
 
     cautions.difference_update(excluded)

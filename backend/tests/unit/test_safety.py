@@ -431,4 +431,27 @@ def test_semantically_equal_reordered_input_produces_same_result() -> None:
     assert result_a == result_b
     assert result_a.excluded_exercise_codes == ("squat",)
     assert result_a.caution_exercise_codes == ("row",)
-    assert result_a.safety_engine_version == "1.0.0"
+    assert result_a.safety_engine_version == SAFETY_ENGINE_VERSION
+
+
+def test_chronic_attention_area_applies_caution_without_exclusion() -> None:
+    context = SafetyContext(attention_area_codes=(BodyAreaCode.KNEE,))
+
+    result = evaluate_safety(context, _candidate(), _approved_rule_set())
+
+    assert result.status_code is SafetyStatusCode.REVISE
+    assert result.caution_exercise_codes == ("squat",)
+    assert result.excluded_exercise_codes == ()
+    assert result.veto is False
+
+
+def test_daily_discomfort_effect_takes_priority_over_chronic_attention() -> None:
+    context = SafetyContext(
+        discomforts=(Discomfort(BodyAreaCode.KNEE, DiscomfortSeverityCode.MODERATE),),
+        attention_area_codes=(BodyAreaCode.KNEE,),
+    )
+
+    result = evaluate_safety(context, _candidate(), _approved_rule_set())
+
+    assert result.excluded_exercise_codes == ("squat",)
+    assert result.caution_exercise_codes == ()

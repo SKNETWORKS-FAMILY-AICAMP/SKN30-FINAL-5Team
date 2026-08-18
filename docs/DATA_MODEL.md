@@ -355,7 +355,7 @@ backup restore 직후 사용자 접근 차단과 동일 삭제 policy 재적용�
 | review_status_code | 산출물 검수 상태. 최초 importer는 DOMAIN_APPROVED만 입력 가능 |
 | review_method_code | 검수 방법. 최초 importer는 AGENT_ONLY |
 | status_interpretation_code | 검수 상태 해석. 최초 importer는 PIPELINE_COMPATIBILITY_ONLY |
-| production_eligible | 운영 사용 가능 여부. DRAFT importer 행은 반드시 false |
+| production_eligible | 운영 사용 가능 여부. 승인 registry의 version/hash/count가 모두 일치할 때만 true |
 | exercise_record_count | manifest와 검증한 exercise record 수 |
 | manifest_metadata | 검증된 manifest 전체의 versioned metadata JSONB |
 | activated_at | 활성화 시각 |
@@ -479,7 +479,8 @@ PK는 exercise_id, body_area_code, role_code 조합이다.
 
 대체 관계는 방향성이 있다. A가 B를 대체한다고 해서 B가 A를 자동으로 대체하지 않는다.
 
-DOMAIN_APPROVED 관계만 계획 생성에 사용한다.
+DOMAIN_APPROVED이면서 `production_eligible=true`인 관계만 계획 생성에 사용한다. Issue 53에서
+승인된 `mvp-v0.2.0` 전체 238건은 매니페스트 hash와 건수가 정확히 일치할 때만 승격한다.
 
 ### 5.9 exercise_safety_rules
 
@@ -497,7 +498,7 @@ DOMAIN_APPROVED 관계만 계획 생성에 사용한다.
 | review_status_code | 검수 상태 |
 | rule_version | 규칙 버전 |
 | rule_set_version_code | 적재한 안전 규칙 산출물 버전 |
-| production_eligible | 운영 사용 가능 여부. DRAFT importer 행은 반드시 false |
+| production_eligible | 운영 사용 가능 여부. 승인 registry의 version/hash/count가 모두 일치할 때만 true |
 | source_manifest_hash | 안전 규칙 매니페스트 SHA-256 |
 | source_metadata | 매니페스트 전체의 버전 있는 source·review·file 메타데이터 JSONB |
 | created_at | 생성 시각 |
@@ -505,7 +506,9 @@ DOMAIN_APPROVED 관계만 계획 생성에 사용한다.
 
 exercise_id와 movement_pattern_code 중 정확히 하나를 지정해야 한다.
 
-프로덕션 판단에는 DOMAIN_APPROVED 규칙만 사용한다. 이 테이블에 질환 진단이나 치료 정보를 저장하지 않는다.
+프로덕션 판단에는 DOMAIN_APPROVED이면서 `production_eligible=true`인 규칙만 사용한다. Issue
+53에서 승인된 `mvp-v0.3.0` 전체 354건은 매니페스트 hash와 건수가 정확히 일치할 때만
+승격한다. 이 테이블에 질환 진단이나 치료 정보를 저장하지 않는다.
 
 ### 5.10 catalog_sources
 

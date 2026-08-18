@@ -397,8 +397,8 @@ class ExerciseSafetyRule(Base):
             name="ck_exercise_safety_rules_review",
         ),
         CheckConstraint(
-            "production_eligible = false",
-            name="ck_exercise_safety_rules_production_ineligible",
+            "production_eligible = false OR review_status_code = 'DOMAIN_APPROVED'",
+            name="ck_exercise_safety_rules_production_approval",
         ),
         CheckConstraint(
             "source_manifest_hash ~ '^[0-9a-f]{64}$'",
@@ -497,8 +497,8 @@ class ExerciseAlternative(Base):
             name="ck_exercise_alternatives_review",
         ),
         CheckConstraint(
-            "production_eligible = false",
-            name="ck_exercise_alternatives_production_ineligible",
+            "production_eligible = false OR review_status_code = 'DOMAIN_APPROVED'",
+            name="ck_exercise_alternatives_production_approval",
         ),
         CheckConstraint(
             "source_manifest_hash ~ '^[0-9a-f]{64}$'",

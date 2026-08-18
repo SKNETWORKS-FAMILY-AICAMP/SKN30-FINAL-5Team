@@ -1120,6 +1120,7 @@ DecisionResponse
 - final_plan: WorkoutPlan | null
 - options: DecisionOption[]
 - reason_codes: string[]  # 최대 2개
+- adjustment_reason_codes: string[] | null  # optional, 안전 조정이 적용된 공개 사유 코드
 - summary: string
 - guidance: Guidance | null
 - public_agent_summaries: AgentSummary[] | null

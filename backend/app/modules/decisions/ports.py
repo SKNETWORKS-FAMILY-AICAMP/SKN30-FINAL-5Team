@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.domain.agents.contracts import AgentProposal
 from backend.app.domain.agents.coordinator import CoordinatorCandidate, CoordinatorResult
+from backend.app.domain.rules.safety import SafetyCandidate, SafetyCandidateItem, SafetyRuleSet
 from backend.app.modules.decisions.context import DecisionContext
 
 
@@ -29,6 +30,23 @@ class CandidateItemData:
 
 
 @dataclass(frozen=True, slots=True)
+class AlternativeItemData:
+    source_exercise_id: UUID
+    item: CandidateItemData
+    safety_item: SafetyCandidateItem
+    evidence_reference_code: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class AdjustedCandidateData:
+    candidate: CoordinatorCandidate
+    candidate_data: dict[str, Any]
+    items: tuple[CandidateItemData, ...]
+    safety_candidate: SafetyCandidate
+    evidence_reference_codes: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class DecisionAssembly:
     context: DecisionContext
     routine_id: UUID
@@ -41,6 +59,16 @@ class DecisionAssembly:
     candidate: CoordinatorCandidate
     candidate_data: dict[str, Any]
     items: tuple[CandidateItemData, ...]
+    safety_candidate: SafetyCandidate | None = None
+    safety_rule_set: SafetyRuleSet | None = None
+    alternative_items: tuple[AlternativeItemData, ...] = ()
+    adjusted_candidates: tuple[AdjustedCandidateData, ...] = ()
+
+    @property
+    def coordinator_candidates(self) -> tuple[CoordinatorCandidate, ...]:
+        return (self.candidate,) + tuple(
+            adjusted.candidate for adjusted in self.adjusted_candidates
+        )
 
 
 @dataclass(frozen=True, slots=True)

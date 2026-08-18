@@ -15,6 +15,7 @@ from backend.app.domain.agents.contracts import (
     ProposalBatch,
 )
 from backend.app.domain.rules.duration import DurationAdjustmentSourceCode
+from backend.app.domain.rules.safety import SafetyEvaluation
 
 _MACHINE_REFERENCE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
 
@@ -38,6 +39,8 @@ class ProposalRequest[ContextT, CandidateT]:
     requested_duration_minutes: int
     duration_adjustment_source_code: DurationAdjustmentSourceCode
     policy_version: str
+    candidate_safety_evaluations: tuple[tuple[str, SafetyEvaluation], ...] = ()
+    candidate_evidence_reference_codes: tuple[tuple[str, tuple[str, ...]], ...] = ()
 
     def __post_init__(self) -> None:
         if self.context is None:
@@ -59,6 +62,34 @@ class ProposalRequest[ContextT, CandidateT]:
         if not isinstance(self.duration_adjustment_source_code, DurationAdjustmentSourceCode):
             raise ValueError("duration_adjustment_source_code is invalid")
         _require_machine_reference(self.policy_version, field_name="policy_version")
+        safety_candidate_ids = tuple(
+            candidate_id for candidate_id, _ in self.candidate_safety_evaluations
+        )
+        if len(safety_candidate_ids) != len(set(safety_candidate_ids)):
+            raise ValueError("candidate safety evaluations must have unique candidate IDs")
+        if safety_candidate_ids and safety_candidate_ids != tuple(sorted(safety_candidate_ids)):
+            raise ValueError("candidate safety evaluations must use canonical candidate order")
+        candidate_ids = {
+            str(getattr(candidate, "candidate_id", "")) for candidate in self.candidates
+        }
+        if not set(safety_candidate_ids).issubset(candidate_ids):
+            raise ValueError("safety evaluation references an unknown candidate")
+        evidence_candidate_ids = tuple(
+            candidate_id for candidate_id, _ in self.candidate_evidence_reference_codes
+        )
+        if len(evidence_candidate_ids) != len(set(evidence_candidate_ids)):
+            raise ValueError("candidate evidence must have unique candidate IDs")
+        if evidence_candidate_ids and evidence_candidate_ids != tuple(
+            sorted(evidence_candidate_ids)
+        ):
+            raise ValueError("candidate evidence must use canonical candidate order")
+        if not set(evidence_candidate_ids).issubset(candidate_ids):
+            raise ValueError("candidate evidence references an unknown candidate")
+        for _, references in self.candidate_evidence_reference_codes:
+            if references != tuple(sorted(set(references))):
+                raise ValueError("candidate evidence references must be canonical")
+            for reference in references:
+                _require_machine_reference(reference, field_name="candidate evidence reference")
 
 
 class ProposalAgent[ContextT, CandidateT](Protocol):

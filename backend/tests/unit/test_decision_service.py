@@ -9,9 +9,22 @@ import pytest
 from backend.app.domain.agents.contracts import AgentTypeCode, RecommendedActionCode
 from backend.app.domain.agents.coordinator import CoordinatorCandidate
 from backend.app.domain.rules.duration import DurationPlan, PlanItemDuration
+from backend.app.domain.rules.safety import (
+    BodyAreaCode,
+    DiscomfortSeverityCode,
+    SafetyCandidate,
+    SafetyCandidateItem,
+    SafetyReviewStatusCode,
+    SafetyRule,
+    SafetyRuleEffectCode,
+    SafetyRuleScopeCode,
+    SafetyRuleSet,
+)
 from backend.app.modules.decisions.agents import default_agents
 from backend.app.modules.decisions.context import DecisionContext
 from backend.app.modules.decisions.ports import (
+    AlternativeItemData,
+    CandidateItemData,
     DecisionAssembly,
     StoredIdempotency,
 )
@@ -23,6 +36,8 @@ from backend.app.modules.decisions.service import (
 )
 
 NOW = datetime(2026, 8, 14, tzinfo=UTC)
+BASE_EXERCISE_ID = UUID("00000000-0000-0000-0000-000000000001")
+ALTERNATIVE_EXERCISE_ID = UUID("00000000-0000-0000-0000-000000000002")
 
 
 class FakeSession:
@@ -31,11 +46,17 @@ class FakeSession:
 
 
 class FakeRepository:
-    def __init__(self, context: DecisionContext) -> None:
+    def __init__(
+        self,
+        context: DecisionContext,
+        *,
+        safety_rule_set: SafetyRuleSet | None = None,
+        with_alternative: bool = False,
+    ) -> None:
         candidate = CoordinatorCandidate(
             candidate_id="candidate-1",
             action_code=RecommendedActionCode.KEEP,
-            exercise_ids=("00000000-0000-0000-0000-000000000001",),
+            exercise_ids=(str(BASE_EXERCISE_ID),),
             goal_tags=("GENERAL_FITNESS",),
             catalog_version="catalog-v1",
             duration_plan=DurationPlan(
@@ -44,6 +65,30 @@ class FakeRepository:
                 items=(PlanItemDuration(465, 0, 15),),
                 cooldown_seconds=60,
             ),
+        )
+        item = CandidateItemData(
+            exercise_id=BASE_EXERCISE_ID,
+            sequence=1,
+            phase_code="MAIN",
+            tier_code="CORE",
+            sets=1,
+            reps=None,
+            work_seconds_per_set=465,
+            rest_seconds_per_set=0,
+            transition_seconds=15,
+            intensity_code="MODERATE",
+            instruction_content_version="1.0.0",
+            display_name="기본 운동",
+            work_seconds=465,
+            rest_seconds=0,
+        )
+        alternative_item = CandidateItemData(
+            **{
+                **{name: getattr(item, name) for name in item.__dataclass_fields__},
+                "exercise_id": ALTERNATIVE_EXERCISE_ID,
+                "intensity_code": "LOW",
+                "display_name": "대체 운동",
+            }
         )
         self.assembly = DecisionAssembly(
             context=context,
@@ -56,7 +101,25 @@ class FakeRepository:
             catalog_activated=True,
             candidate=candidate,
             candidate_data={},
-            items=(),
+            items=(item,),
+            safety_candidate=SafetyCandidate(
+                items=(SafetyCandidateItem(str(BASE_EXERCISE_ID), "catalog-v1", "KNEE_DOMINANT"),)
+            ),
+            safety_rule_set=safety_rule_set,
+            alternative_items=(
+                (
+                    AlternativeItemData(
+                        source_exercise_id=BASE_EXERCISE_ID,
+                        item=alternative_item,
+                        safety_item=SafetyCandidateItem(
+                            str(ALTERNATIVE_EXERCISE_ID), "catalog-v1", "HIP_DOMINANT"
+                        ),
+                        evidence_reference_code="ALTERNATIVE/relation-1",
+                    ),
+                )
+                if with_alternative
+                else ()
+            ),
         )
         self.prior: StoredIdempotency | None = None
         self.persisted: dict[str, Any] | None = None
@@ -111,17 +174,22 @@ class FakeRepository:
         if result.selected_candidate_id is None:
             return None
         context = self.assembly.context
+        safety_proposal = next(
+            proposal
+            for proposal in self.persisted["proposals"]
+            if proposal.agent_type_code is AgentTypeCode.SAFETY
+        )
         return {
             "decision_id": decision_id,
             "local_date": context.local_date,
             "status_code": "COMPLETED",
-            "safety_status_code": "PASS",
-            "action_code": "KEEP",
+            "safety_status_code": result.safety_status_code.value,
+            "action_code": result.final_action_code.value,
             "requested_duration_minutes": 10,
             "duration_adjustment_source_code": "PROFILE",
             "final_plan": {
                 "plan_id": uuid4(),
-                "action_code": "KEEP",
+                "action_code": result.final_action_code.value,
                 "training_type_code": "STRENGTH",
                 "body_focus_code": None,
                 "requested_duration_minutes": 10,
@@ -136,7 +204,7 @@ class FakeRepository:
                 {
                     "option_id": uuid4(),
                     "option_code": "FINAL_ROUTINE",
-                    "action_code": "KEEP",
+                    "action_code": result.final_action_code.value,
                     "plan_id": uuid4(),
                 },
                 {
@@ -147,6 +215,11 @@ class FakeRepository:
                 },
             ],
             "reason_codes": [],
+            "adjustment_reason_codes": (
+                list(safety_proposal.reason_codes)[:2]
+                if result.final_action_code is not RecommendedActionCode.KEEP
+                else None
+            ),
             "summary": "ready",
             "guidance": None,
             "public_agent_summaries": None,
@@ -190,6 +263,33 @@ def _request(context: DecisionContext, version: int = 2) -> DecisionCreateReques
     )
 
 
+def _approved_rule_set(effect: SafetyRuleEffectCode) -> SafetyRuleSet:
+    severity = (
+        DiscomfortSeverityCode.MILD
+        if effect is SafetyRuleEffectCode.CAUTION
+        else DiscomfortSeverityCode.MODERATE
+    )
+    return SafetyRuleSet(
+        version_code="safety-v2",
+        review_status_code=SafetyReviewStatusCode.DOMAIN_APPROVED,
+        production_eligible=True,
+        rules=(
+            SafetyRule(
+                rule_code=f"KNEE_{effect.value}",
+                catalog_version_code="catalog-v1",
+                body_area_code=BodyAreaCode.KNEE,
+                minimum_severity_code=severity,
+                maximum_severity_code=severity,
+                effect_code=effect,
+                reason_code="DIRECT_JOINT_LOAD",
+                scope_code=SafetyRuleScopeCode.MOVEMENT_PATTERN,
+                rule_version="2.0.0",
+                movement_pattern_code="KNEE_DOMINANT",
+            ),
+        ),
+    )
+
+
 def test_decision_persists_four_proposals_before_success_and_is_idempotent() -> None:
     context = _context()
     repository = FakeRepository(context)
@@ -205,16 +305,20 @@ def test_decision_persists_four_proposals_before_success_and_is_idempotent() -> 
     assert snapshot["profile"]["attention_area_codes"] == []
 
 
-def test_attention_areas_are_canonical_snapshot_inputs_without_changing_outcome() -> None:
+def test_attention_areas_are_canonical_snapshot_inputs_and_apply_caution() -> None:
     base_context = _context()
+    rule_set = _approved_rule_set(SafetyRuleEffectCode.CAUTION)
     first_repository = FakeRepository(
-        replace(base_context, attention_area_codes=("SHOULDER", "KNEE", "SHOULDER"))
+        replace(base_context, attention_area_codes=("SHOULDER", "KNEE", "SHOULDER")),
+        safety_rule_set=rule_set,
     )
     reordered_repository = FakeRepository(
-        replace(base_context, attention_area_codes=("KNEE", "SHOULDER"))
+        replace(base_context, attention_area_codes=("KNEE", "SHOULDER")),
+        safety_rule_set=rule_set,
     )
     different_repository = FakeRepository(
-        replace(base_context, attention_area_codes=("LOWER_BACK",))
+        replace(base_context, attention_area_codes=("LOWER_BACK",)),
+        safety_rule_set=rule_set,
     )
     empty_repository = FakeRepository(base_context)
 
@@ -243,10 +347,10 @@ def test_attention_areas_are_canonical_snapshot_inputs_without_changing_outcome(
         != different_repository.persisted["input_hash"]  # type: ignore[index]
     )
     assert first_repository.persisted["result"] == reordered_repository.persisted["result"]  # type: ignore[index]
-    assert first_repository.persisted["result"] == empty_repository.persisted["result"]  # type: ignore[index]
-    assert first_repository.persisted["result"].status_code.value == "PASS"  # type: ignore[index]
-    assert first_repository.persisted["result"].safety_status_code.value == "PASS"  # type: ignore[index]
-    assert first_repository.persisted["result"].final_action_code.value == "KEEP"  # type: ignore[index]
+    assert first_repository.persisted["result"] != empty_repository.persisted["result"]  # type: ignore[index]
+    assert first_repository.persisted["result"].status_code.value == "REVISE"  # type: ignore[index]
+    assert first_repository.persisted["result"].safety_status_code.value == "REVISE"  # type: ignore[index]
+    assert first_repository.persisted["result"].final_action_code.value == "DOWNSHIFT"  # type: ignore[index]
 
 
 def test_one_missing_proposal_makes_whole_decision_failed_without_plan() -> None:
@@ -278,6 +382,71 @@ def test_unavailable_discomfort_rules_fail_closed_and_stale_version_is_rejected(
         DecisionService(FakeRepository(context), clock=lambda: NOW).create(
             FakeSession(), uuid4(), _request(context, 1), uuid4()
         )  # type: ignore[arg-type]
+
+
+def test_mild_caution_returns_duration_preserving_downshift() -> None:
+    context = _context(discomforts=(("KNEE", "MILD"),))
+    repository = FakeRepository(
+        context,
+        safety_rule_set=_approved_rule_set(SafetyRuleEffectCode.CAUTION),
+    )
+
+    response = DecisionService(repository, clock=lambda: NOW).create(
+        FakeSession(), uuid4(), _request(context), uuid4()
+    )  # type: ignore[arg-type]
+
+    assert response.safety_status_code == "REVISE"
+    assert response.action_code == "DOWNSHIFT"
+    assert response.requested_duration_minutes == 10
+    assert response.final_plan is not None
+    assert response.final_plan.estimated_duration_seconds == 600
+    assert "SAFETY_CAUTION_APPLIED" in (response.adjustment_reason_codes or [])
+    assert repository.persisted["result"].safety_rule_version == "safety-v2"  # type: ignore[index]
+
+
+def test_moderate_exclusion_uses_approved_alternative_and_preserves_duration() -> None:
+    context = _context(discomforts=(("KNEE", "MODERATE"),))
+    repository = FakeRepository(
+        context,
+        safety_rule_set=_approved_rule_set(SafetyRuleEffectCode.EXCLUDE),
+        with_alternative=True,
+    )
+
+    response = DecisionService(repository, clock=lambda: NOW).create(
+        FakeSession(), uuid4(), _request(context), uuid4()
+    )  # type: ignore[arg-type]
+
+    assert response.safety_status_code == "REVISE"
+    assert response.action_code == "CHANGE"
+    assert response.final_plan is not None
+    assert response.final_plan.estimated_duration_seconds == 600
+    assert "SAFETY_EXERCISES_REPLACED" in (response.adjustment_reason_codes or [])
+    prepared = repository.persisted["assembly"]  # type: ignore[index]
+    assert prepared.adjusted_candidates[-1].candidate.exercise_ids == (
+        str(ALTERNATIVE_EXERCISE_ID),
+    )
+    safety_proposal = next(
+        proposal
+        for proposal in repository.persisted["proposals"]  # type: ignore[index]
+        if proposal.agent_type_code is AgentTypeCode.SAFETY
+    )
+    assert "ALTERNATIVE/relation-1" in safety_proposal.evidence_reference_codes
+
+
+def test_moderate_exclusion_without_approved_alternative_returns_rest() -> None:
+    context = _context(discomforts=(("KNEE", "MODERATE"),))
+    repository = FakeRepository(
+        context,
+        safety_rule_set=_approved_rule_set(SafetyRuleEffectCode.EXCLUDE),
+    )
+
+    response = DecisionService(repository, clock=lambda: NOW).create(
+        FakeSession(), uuid4(), _request(context), uuid4()
+    )  # type: ignore[arg-type]
+
+    assert response.safety_status_code == "BLOCKED"
+    assert response.action_code == "REST"
+    assert response.final_plan is None
 
 
 def test_safety_veto_cannot_return_a_success_plan() -> None:
