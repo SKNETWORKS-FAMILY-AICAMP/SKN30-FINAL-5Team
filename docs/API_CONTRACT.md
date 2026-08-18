@@ -302,6 +302,7 @@ health endpoint는 인증 없이 호출할 수 있지만 민감한 설정, DB �
 
 | 메서드 | 경로 | 설명 |
 |---|---|---|
+| GET | /api/v1/exercises | 검수된 운동 목록 조회 |
 | GET | /api/v1/exercises/{exercise_id} | 계획에 포함된 검수 운동 상세 |
 | POST | /api/v1/routines | 기본 루틴 생성 |
 | GET | /api/v1/routines/current?local_date=YYYY-MM-DD | 해당 날짜의 활성 루틴 |
@@ -317,7 +318,10 @@ health endpoint는 인증 없이 호출할 수 있지만 민감한 설정, DB �
 | POST | /api/v1/wearables/sync | 웨어러블 요약·동기화 실행 및 상태 반환 |
 | DELETE | /api/v1/wearables/connection | 웨어러블 연동 해제 |
 
-exercise 목록 전체와 카탈로그 관리 API는 초기 공개 API에 포함하지 않는다.
+카탈로그 관리 API는 공개 API에 포함하지 않는다. 운동 목록 조회는 8.4 계약으로 공개한다.
+초기에는 노출할 검수 데이터가 없어 제외했으나, 승인된 카탈로그가 적재되면서 사용자가 어떤
+운동이 있는지 확인할 수 있어야 한다는 요구가 확인됐다. 목록에는 `DOMAIN_APPROVED` 운동만
+포함한다.
 
 ### 6.3.1 외부 연동 입력 계약
 
@@ -532,6 +536,8 @@ ManualActivityResponse
 
 | 메서드 | 경로 | 설명 |
 |---|---|---|
+| GET | /api/v1/workout-sessions | 본인의 운동 수행 기록 목록 |
+| GET | /api/v1/workout-sessions/{session_id} | 단일 수행 기록 상세 |
 | PATCH | /api/v1/workout-sessions/{session_id}/start | 운동 시작 |
 | PATCH | /api/v1/workout-sessions/{session_id}/items/{plan_item_id} | 운동 블록 완료 또는 실행 중 되돌리기 |
 | POST | /api/v1/workout-sessions/{session_id}/safety-events | 운동 중 통증·이상 반응 보고 |
@@ -868,6 +874,50 @@ ExerciseDetailResponse
 `DOMAIN_APPROVED`인 운동만 반환하며, 그 외에는 `404 RESOURCE_NOT_FOUND`다. `exercises` 테이블에는
 아직 미디어·마스코트 자산 컬럼이 없으므로 `media_asset_key`와 `mascot_animation_asset_key`는 항상
 `null`이다. 두 필드는 nullable 계약이므로 자산 컬럼이 추가되면 하위 호환을 유지한 채 채울 수 있다.
+
+---
+
+### 8.4 운동 목록 조회
+
+GET /api/v1/exercises
+
+검수된 운동 목록을 반환한다. 사용자가 어떤 운동이 있는지 둘러보기 위한 읽기 전용 계약이며
+계획 생성과 무관하다.
+
+쿼리 파라미터는 모두 선택이다.
+
+| 파라미터 | 타입 | 설명 |
+|---|---|---|
+| `body_area_code` | string | 주 자극 부위로 필터 |
+| `equipment_code` | string | 필요 장비로 필터 |
+| `training_type_code` | string | 운동 유형으로 필터 |
+| `difficulty_code` | string | 난이도로 필터 |
+| `cursor` | string | 다음 페이지 커서 |
+| `limit` | integer | 1~100, 기본 20 |
+
+~~~text
+ExerciseListResponse
+- items: ExerciseListItem[]
+- next_cursor: string | null
+- catalog_version: string
+
+ExerciseListItem
+- id: UUID
+- name: string
+- training_type_code: string
+- difficulty_code: string
+- primary_body_area_codes: string[]
+- required_equipment_codes: string[]
+- media_asset_key: string | null
+~~~
+
+- `review_status_code`가 `DOMAIN_APPROVED`인 운동만 반환한다. 미검수 콘텐츠는 어떤
+  파라미터 조합으로도 노출되지 않는다.
+- 인증된 사용자만 호출할 수 있다.
+- 상세 정보는 8.3의 `GET /api/v1/exercises/{exercise_id}`를 사용한다.
+- 목록은 안전 판단과 무관하다. 사용자의 불편 부위에 따른 제외는 계획 생성 시점에만 적용하며,
+  이 목록을 부위별로 걸러 안전하다고 표시하지 않는다.
+- 정렬은 안정적이어야 하며 커서 페이지네이션 중 항목이 중복되거나 누락되지 않아야 한다.
 
 ---
 
@@ -1321,6 +1371,79 @@ HARD
 피드백에 긴급 중단 그룹이 있으면 다음 추천까지 기다리지 않고 동일한 안전 guidance를 반환한다.
 
 웨어러블 또는 외부 운동 API는 공식 세션 상태를 생성하거나 변경할 수 없다. 캘린더의 수행 여부 확인 결과도 공식 세션 상태를 생성하거나 변경할 수 없다.
+
+---
+
+### 12.7 운동 수행 기록 조회
+
+GET /api/v1/workout-sessions
+GET /api/v1/workout-sessions/{session_id}
+
+본인의 운동 수행 기록을 조회한다. 사용자가 몇 개 블록까지 수행했는지, 어떤 강도를 선택했는지
+확인하기 위한 계약이다.
+
+목록 쿼리 파라미터는 모두 선택이다.
+
+| 파라미터 | 타입 | 설명 |
+|---|---|---|
+| `from_local_date` | date | 조회 시작일 |
+| `to_local_date` | date | 조회 종료일 |
+| `status_code` | string | 세션 상태로 필터 |
+| `cursor` | string | 다음 페이지 커서 |
+| `limit` | integer | 1~100, 기본 20 |
+
+~~~text
+WorkoutSessionListResponse
+- items: WorkoutSessionSummary[]
+- next_cursor: string | null
+
+WorkoutSessionSummary
+- session_id: UUID
+- local_date: date
+- status_code: string
+- completed_item_count: integer
+- total_item_count: integer
+- requested_duration_minutes: integer
+- training_type_code: string
+- not_completed_reason_code: string | null
+- started_at: datetime | null
+- finished_at: datetime | null
+
+WorkoutSessionDetailResponse
+- session_id: UUID
+- local_date: date
+- status_code: string
+- completed_item_count: integer
+- total_item_count: integer
+- requested_duration_minutes: integer
+- items: WorkoutSessionItemResult[]
+- feedback: WorkoutFeedbackSummary | null
+- not_completed_reason_code: string | null
+- started_at: datetime | null
+- finished_at: datetime | null
+
+WorkoutSessionItemResult
+- plan_item_id: UUID
+- exercise_id: UUID
+- exercise_name: string
+- status_code: string
+- sets: integer
+- reps: integer | null
+- work_seconds_per_set: integer | null
+- completed_at: datetime | null
+
+WorkoutFeedbackSummary
+- perceived_difficulty_code: string | null
+- post_workout_discomfort_reported: boolean
+~~~
+
+- 본인의 기록만 반환한다. 다른 사용자의 `session_id`로 호출하면 `404 RESOURCE_NOT_FOUND`다.
+  존재 여부를 알려주지 않기 위해 `403`을 쓰지 않는다.
+- `completed_item_count`는 명시적 운동 블록 완료 기록만 센다. 경과 시간, 웨어러블 데이터,
+  캘린더 확인 결과는 이 값에 영향을 주지 않는다.
+- `perceived_difficulty_code`는 사용자가 고른 주관적 난이도이며 의료적 해석 대상이 아니다.
+- 운동 후 불편의 상세 부위·심각도는 이 응답에 포함하지 않는다. 보고 여부만 노출한다.
+- 타이머 이력과 추가 운동 기록은 이 계약에 포함하지 않는다. 필요해지면 별도 절로 추가한다.
 
 ---
 
