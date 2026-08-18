@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -219,6 +219,54 @@ class WorkoutFeedbackResponse(BaseModel):
     pressure_notifications_allowed: bool
 
 
+class WorkoutSessionLogSummary(BaseModel):
+    session_id: UUID
+    local_date: date
+    status_code: str
+    completed_item_count: int
+    total_item_count: int
+    requested_duration_minutes: int
+    training_type_code: str
+    not_completed_reason_code: str | None
+    started_at: datetime | None
+    finished_at: datetime | None
+
+
+class WorkoutSessionListResponse(BaseModel):
+    items: list[WorkoutSessionLogSummary]
+    next_cursor: str | None
+
+
+class WorkoutSessionItemResult(BaseModel):
+    plan_item_id: UUID
+    exercise_id: UUID
+    exercise_name: str
+    status_code: str
+    sets: int
+    reps: int | None
+    work_seconds_per_set: int | None
+    completed_at: datetime | None
+
+
+class WorkoutFeedbackSummary(BaseModel):
+    perceived_difficulty_code: str | None
+    post_workout_discomfort_reported: bool
+
+
+class WorkoutSessionDetailResponse(BaseModel):
+    session_id: UUID
+    local_date: date
+    status_code: str
+    completed_item_count: int
+    total_item_count: int
+    requested_duration_minutes: int
+    items: list[WorkoutSessionItemResult]
+    feedback: WorkoutFeedbackSummary | None
+    not_completed_reason_code: str | None
+    started_at: datetime | None
+    finished_at: datetime | None
+
+
 __all__ = [
     "DecisionSelectionRequest",
     "DecisionSelectionResponse",
@@ -227,16 +275,21 @@ __all__ = [
     "WorkoutDiscomfortInput",
     "WorkoutFeedbackRequest",
     "WorkoutFeedbackResponse",
+    "WorkoutFeedbackSummary",
     "WorkoutSafetyEventRequest",
     "WorkoutSafetyEventResponse",
     "WorkoutSessionFinishRequest",
     "WorkoutSessionFinishResponse",
+    "WorkoutSessionDetailResponse",
     "WorkoutSessionItemUpdateRequest",
     "WorkoutSessionItemUpdateResponse",
     "WorkoutSessionStartRequest",
     "WorkoutSessionStartResponse",
     "WorkoutSessionNotCompletedRequest",
     "WorkoutSessionNotCompletedResponse",
+    "WorkoutSessionItemResult",
+    "WorkoutSessionListResponse",
+    "WorkoutSessionLogSummary",
     "WorkoutTimerEventRequest",
     "WorkoutTimerEventResponse",
 ]

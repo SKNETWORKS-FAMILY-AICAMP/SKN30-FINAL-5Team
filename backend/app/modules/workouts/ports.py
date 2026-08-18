@@ -49,6 +49,57 @@ class ReturnHistory:
     not_completed_history_count: int
 
 
+@dataclass(frozen=True, slots=True)
+class WorkoutLogCursor:
+    local_date: date
+    session_id: UUID
+
+
+@dataclass(frozen=True, slots=True)
+class WorkoutLogSummary:
+    session_id: UUID
+    local_date: date
+    status_code: str
+    completed_item_count: int
+    total_item_count: int
+    requested_duration_minutes: int
+    training_type_code: str
+    not_completed_reason_code: str | None
+    started_at: datetime | None
+    finished_at: datetime | None
+
+
+@dataclass(frozen=True, slots=True)
+class WorkoutLogItem:
+    plan_item_id: UUID
+    exercise_id: UUID
+    exercise_name: str
+    status_code: str
+    sets: int
+    reps: int | None
+    work_seconds_per_set: int | None
+    completed_at: datetime | None
+
+
+@dataclass(frozen=True, slots=True)
+class WorkoutLogFeedback:
+    perceived_difficulty_code: str | None
+    post_workout_discomfort_reported: bool
+
+
+@dataclass(frozen=True, slots=True)
+class WorkoutLogDetail:
+    session_id: UUID
+    local_date: date
+    status_code: str
+    requested_duration_minutes: int
+    items: tuple[WorkoutLogItem, ...]
+    feedback: WorkoutLogFeedback | None
+    not_completed_reason_code: str | None
+    started_at: datetime | None
+    finished_at: datetime | None
+
+
 class WorkoutRepositoryPort(Protocol):
     def acquire_idempotency_lock(
         self, session: Session, user_id: UUID, endpoint_code: str, key: UUID
@@ -189,11 +240,32 @@ class WorkoutRepositoryPort(Protocol):
         self, session: Session, user_id: UUID, local_date: date
     ) -> bool: ...
 
+    def list_workout_logs(
+        self,
+        session: Session,
+        user_id: UUID,
+        *,
+        from_local_date: date | None,
+        to_local_date: date | None,
+        status_code: str | None,
+        cursor: WorkoutLogCursor | None,
+        limit: int,
+    ) -> tuple[WorkoutLogSummary, ...]: ...
+
+    def get_workout_log_detail(
+        self, session: Session, user_id: UUID, session_id: UUID
+    ) -> WorkoutLogDetail | None: ...
+
 
 __all__ = [
     "IdempotencyRecord",
     "ReturnHistory",
     "SelectionSource",
     "SessionState",
+    "WorkoutLogCursor",
+    "WorkoutLogDetail",
+    "WorkoutLogFeedback",
+    "WorkoutLogItem",
+    "WorkoutLogSummary",
     "WorkoutRepositoryPort",
 ]

@@ -3,9 +3,10 @@ from hashlib import sha256
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, select, text
+from sqlalchemy import and_, func, or_, select, text
 from sqlalchemy.orm import Session, selectinload
 
+from backend.app.db.models.catalog import Exercise
 from backend.app.db.models.decision import DecisionRun, PlanCandidate, PlanItem
 from backend.app.db.models.profile import MutationIdempotencyRecord
 from backend.app.db.models.workout import (
@@ -29,6 +30,11 @@ from backend.app.modules.workouts.ports import (
     ReturnHistory,
     SelectionSource,
     SessionState,
+    WorkoutLogCursor,
+    WorkoutLogDetail,
+    WorkoutLogFeedback,
+    WorkoutLogItem,
+    WorkoutLogSummary,
 )
 
 
@@ -532,6 +538,168 @@ class WorkoutRepository:
                 .limit(1)
             )
             is not None
+        )
+
+    def list_workout_logs(
+        self,
+        session: Session,
+        user_id: UUID,
+        *,
+        from_local_date: date | None,
+        to_local_date: date | None,
+        status_code: str | None,
+        cursor: WorkoutLogCursor | None,
+        limit: int,
+    ) -> tuple[WorkoutLogSummary, ...]:
+        completed_count = (
+            select(func.count())
+            .select_from(WorkoutSessionItem)
+            .where(
+                WorkoutSessionItem.workout_session_id == WorkoutSession.id,
+                WorkoutSessionItem.status_code == "COMPLETED",
+            )
+            .correlate(WorkoutSession)
+            .scalar_subquery()
+        )
+        total_count = (
+            select(func.count())
+            .select_from(WorkoutSessionItem)
+            .where(WorkoutSessionItem.workout_session_id == WorkoutSession.id)
+            .correlate(WorkoutSession)
+            .scalar_subquery()
+        )
+        not_completed_reason = (
+            select(WorkoutSkipFeedback.reason_code)
+            .where(WorkoutSkipFeedback.workout_session_id == WorkoutSession.id)
+            .correlate(WorkoutSession)
+            .scalar_subquery()
+        )
+        statement = (
+            select(
+                WorkoutSession.id,
+                DecisionRun.local_date,
+                WorkoutSession.status_code,
+                completed_count,
+                total_count,
+                PlanCandidate.requested_duration_minutes,
+                PlanCandidate.training_type_code,
+                not_completed_reason,
+                WorkoutSession.started_at,
+                WorkoutSession.ended_at,
+            )
+            .join(PlanCandidate, PlanCandidate.id == WorkoutSession.plan_candidate_id)
+            .join(DecisionRun, DecisionRun.id == PlanCandidate.decision_run_id)
+            .where(WorkoutSession.user_id == user_id)
+        )
+        if from_local_date is not None:
+            statement = statement.where(DecisionRun.local_date >= from_local_date)
+        if to_local_date is not None:
+            statement = statement.where(DecisionRun.local_date <= to_local_date)
+        if status_code is not None:
+            statement = statement.where(WorkoutSession.status_code == status_code)
+        if cursor is not None:
+            statement = statement.where(
+                or_(
+                    DecisionRun.local_date < cursor.local_date,
+                    and_(
+                        DecisionRun.local_date == cursor.local_date,
+                        WorkoutSession.id < cursor.session_id,
+                    ),
+                )
+            )
+        rows = session.execute(
+            statement.order_by(DecisionRun.local_date.desc(), WorkoutSession.id.desc()).limit(limit)
+        ).all()
+        return tuple(
+            WorkoutLogSummary(
+                session_id=row[0],
+                local_date=row[1],
+                status_code=row[2],
+                completed_item_count=int(row[3]),
+                total_item_count=int(row[4]),
+                requested_duration_minutes=row[5],
+                training_type_code=row[6],
+                not_completed_reason_code=row[7],
+                started_at=row[8],
+                finished_at=row[9],
+            )
+            for row in rows
+        )
+
+    def get_workout_log_detail(
+        self, session: Session, user_id: UUID, session_id: UUID
+    ) -> WorkoutLogDetail | None:
+        row = session.execute(
+            select(
+                WorkoutSession.id,
+                DecisionRun.local_date,
+                WorkoutSession.status_code,
+                PlanCandidate.requested_duration_minutes,
+                WorkoutSkipFeedback.reason_code,
+                WorkoutSession.started_at,
+                WorkoutSession.ended_at,
+                WorkoutFeedback.difficulty_code,
+                WorkoutFeedback.pain_occurred,
+            )
+            .join(PlanCandidate, PlanCandidate.id == WorkoutSession.plan_candidate_id)
+            .join(DecisionRun, DecisionRun.id == PlanCandidate.decision_run_id)
+            .outerjoin(
+                WorkoutSkipFeedback,
+                WorkoutSkipFeedback.workout_session_id == WorkoutSession.id,
+            )
+            .outerjoin(
+                WorkoutFeedback,
+                WorkoutFeedback.workout_session_id == WorkoutSession.id,
+            )
+            .where(WorkoutSession.id == session_id, WorkoutSession.user_id == user_id)
+        ).one_or_none()
+        if row is None:
+            return None
+        item_rows = session.execute(
+            select(
+                WorkoutSessionItem.plan_item_id,
+                PlanItem.exercise_id,
+                Exercise.name_ko,
+                WorkoutSessionItem.status_code,
+                PlanItem.sets,
+                PlanItem.reps,
+                PlanItem.work_seconds_per_set,
+                WorkoutSessionItem.completed_at,
+            )
+            .join(PlanItem, PlanItem.id == WorkoutSessionItem.plan_item_id)
+            .join(Exercise, Exercise.id == PlanItem.exercise_id)
+            .where(WorkoutSessionItem.workout_session_id == session_id)
+            .order_by(PlanItem.sequence)
+        ).all()
+        items = tuple(
+            WorkoutLogItem(
+                plan_item_id=item[0],
+                exercise_id=item[1],
+                exercise_name=item[2],
+                status_code=item[3],
+                sets=item[4],
+                reps=item[5],
+                work_seconds_per_set=item[6],
+                completed_at=item[7],
+            )
+            for item in item_rows
+        )
+        feedback = None
+        if row[7] is not None:
+            feedback = WorkoutLogFeedback(
+                perceived_difficulty_code=row[7],
+                post_workout_discomfort_reported=bool(row[8]),
+            )
+        return WorkoutLogDetail(
+            session_id=row[0],
+            local_date=row[1],
+            status_code=row[2],
+            requested_duration_minutes=row[3],
+            items=items,
+            feedback=feedback,
+            not_completed_reason_code=row[4],
+            started_at=row[5],
+            finished_at=row[6],
         )
 
 

@@ -1,8 +1,9 @@
+from datetime import date
 from http import HTTPStatus
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends, Header, Query
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -19,10 +20,12 @@ from backend.app.modules.workouts.schemas import (
     WorkoutFeedbackResponse,
     WorkoutSafetyEventRequest,
     WorkoutSafetyEventResponse,
+    WorkoutSessionDetailResponse,
     WorkoutSessionFinishRequest,
     WorkoutSessionFinishResponse,
     WorkoutSessionItemUpdateRequest,
     WorkoutSessionItemUpdateResponse,
+    WorkoutSessionListResponse,
     WorkoutSessionNotCompletedRequest,
     WorkoutSessionNotCompletedResponse,
     WorkoutSessionStartRequest,
@@ -36,9 +39,11 @@ from backend.app.modules.workouts.service import (
     IdempotencyKeyReusedError,
     InvalidSafetyEventInputError,
     InvalidSessionStateError,
+    InvalidWorkoutLogQueryError,
     NotCompletedReasonRequiredServiceError,
     OptionNotSelectableError,
     SessionEndedError,
+    WorkoutLogNotFoundError,
     WorkoutResourceNotFoundError,
     WorkoutService,
 )
@@ -128,6 +133,75 @@ _WORKOUT_ERRORS = (
     IntegrityError,
     SQLAlchemyError,
 )
+
+WorkoutSessionStatusQuery = Literal[
+    "PLANNED",
+    "IN_PROGRESS",
+    "COMPLETED",
+    "PARTIAL",
+    "NOT_COMPLETED",
+    "STOPPED_FOR_SAFETY",
+]
+
+
+def _read_error(exc: Exception) -> AppError:
+    if isinstance(exc, WorkoutLogNotFoundError):
+        return AppError(
+            status_code=HTTPStatus.NOT_FOUND,
+            code="RESOURCE_NOT_FOUND",
+            message="요청한 리소스를 찾을 수 없습니다.",
+        )
+    if isinstance(exc, InvalidWorkoutLogQueryError):
+        return AppError(
+            status_code=HTTPStatus.BAD_REQUEST,
+            code="INVALID_REQUEST",
+            message="조회 조건이 올바르지 않습니다.",
+        )
+    return AppError(
+        status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+        code="DATABASE_UNAVAILABLE",
+        message="운동 세션 저장소를 일시적으로 사용할 수 없습니다.",
+    )
+
+
+@router.get("", response_model=WorkoutSessionListResponse)
+def list_workout_sessions(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db_session)],
+    repository: Annotated[WorkoutRepositoryPort, Depends(get_workout_repository)],
+    from_local_date: Annotated[date | None, Query()] = None,
+    to_local_date: Annotated[date | None, Query()] = None,
+    status_code: Annotated[WorkoutSessionStatusQuery | None, Query()] = None,
+    cursor: Annotated[str | None, Query(min_length=1, max_length=1024)] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> WorkoutSessionListResponse:
+    try:
+        return WorkoutService(repository).list_workout_logs(
+            session,
+            current_user.user_id,
+            from_local_date=from_local_date,
+            to_local_date=to_local_date,
+            status_code=status_code,
+            cursor=cursor,
+            limit=limit,
+        )
+    except (WorkoutLogNotFoundError, InvalidWorkoutLogQueryError, SQLAlchemyError) as exc:
+        raise _read_error(exc) from None
+
+
+@router.get("/{session_id}", response_model=WorkoutSessionDetailResponse)
+def get_workout_session(
+    session_id: UUID,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db_session)],
+    repository: Annotated[WorkoutRepositoryPort, Depends(get_workout_repository)],
+) -> WorkoutSessionDetailResponse:
+    try:
+        return WorkoutService(repository).get_workout_log_detail(
+            session, current_user.user_id, session_id
+        )
+    except (WorkoutLogNotFoundError, SQLAlchemyError) as exc:
+        raise _read_error(exc) from None
 
 
 @selection_router.post(

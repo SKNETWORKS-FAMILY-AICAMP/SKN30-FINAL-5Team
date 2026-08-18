@@ -1,7 +1,9 @@
+import base64
+import binascii
 import hashlib
 import json
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Literal, TypeVar, cast
 from uuid import UUID, uuid4
 
@@ -40,7 +42,11 @@ from backend.app.modules.workouts.codes import (
     TERMINAL_SESSION_STATUS_CODES,
     TIMER_EVENT_ENDPOINT_CODE,
 )
-from backend.app.modules.workouts.ports import SessionState, WorkoutRepositoryPort
+from backend.app.modules.workouts.ports import (
+    SessionState,
+    WorkoutLogCursor,
+    WorkoutRepositoryPort,
+)
 from backend.app.modules.workouts.schemas import (
     DecisionSelectionRequest,
     DecisionSelectionResponse,
@@ -49,13 +55,18 @@ from backend.app.modules.workouts.schemas import (
     WorkoutDiscomfortInput,
     WorkoutFeedbackRequest,
     WorkoutFeedbackResponse,
+    WorkoutFeedbackSummary,
     WorkoutSafetyEventRequest,
     WorkoutSafetyEventResponse,
+    WorkoutSessionDetailResponse,
     WorkoutSessionFinishRequest,
     WorkoutSessionFinishResponse,
     WorkoutSessionItemResponse,
+    WorkoutSessionItemResult,
     WorkoutSessionItemUpdateRequest,
     WorkoutSessionItemUpdateResponse,
+    WorkoutSessionListResponse,
+    WorkoutSessionLogSummary,
     WorkoutSessionNotCompletedRequest,
     WorkoutSessionNotCompletedResponse,
     WorkoutSessionStartRequest,
@@ -104,6 +115,14 @@ class FeedbackAlreadyExistsError(Exception):
     pass
 
 
+class WorkoutLogNotFoundError(Exception):
+    pass
+
+
+class InvalidWorkoutLogQueryError(Exception):
+    pass
+
+
 _GUIDANCE: dict[str, str] = {
     "MILD_DISCOMFORT_CAUTION": "불편함이 계속되거나 심해지면 운동을 중단하세요.",
     "MODERATE_DISCOMFORT_CAUTION": (
@@ -127,6 +146,35 @@ def _request_hash(resource: dict[str, object], request: BaseModel) -> str:
     ).hexdigest()
 
 
+def _encode_log_cursor(cursor: WorkoutLogCursor) -> str:
+    payload = json.dumps(
+        {"date": cursor.local_date.isoformat(), "session_id": str(cursor.session_id), "version": 1},
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    return base64.urlsafe_b64encode(payload).rstrip(b"=").decode("ascii")
+
+
+def _decode_log_cursor(value: str) -> WorkoutLogCursor:
+    try:
+        padding = "=" * (-len(value) % 4)
+        decoded = base64.b64decode(value + padding, altchars=b"-_", validate=True)
+        payload = json.loads(decoded)
+        if not isinstance(payload, dict) or set(payload) != {"date", "session_id", "version"}:
+            raise ValueError
+        if payload["version"] != 1:
+            raise ValueError
+        cursor = WorkoutLogCursor(
+            local_date=date.fromisoformat(payload["date"]),
+            session_id=UUID(payload["session_id"]),
+        )
+    except (binascii.Error, json.JSONDecodeError, TypeError, ValueError):
+        raise InvalidWorkoutLogQueryError from None
+    if _encode_log_cursor(cursor) != value:
+        raise InvalidWorkoutLogQueryError
+    return cursor
+
+
 class WorkoutService:
     def __init__(
         self,
@@ -138,6 +186,74 @@ class WorkoutService:
         self._repository = repository
         self._clock = clock
         self._uuid_factory = uuid_factory
+
+    def list_workout_logs(
+        self,
+        session: Session,
+        user_id: UUID,
+        *,
+        from_local_date: date | None,
+        to_local_date: date | None,
+        status_code: str | None,
+        cursor: str | None,
+        limit: int,
+    ) -> WorkoutSessionListResponse:
+        if (
+            from_local_date is not None
+            and to_local_date is not None
+            and from_local_date > to_local_date
+        ):
+            raise InvalidWorkoutLogQueryError
+        decoded_cursor = None if cursor is None else _decode_log_cursor(cursor)
+        rows = self._repository.list_workout_logs(
+            session,
+            user_id,
+            from_local_date=from_local_date,
+            to_local_date=to_local_date,
+            status_code=status_code,
+            cursor=decoded_cursor,
+            limit=limit + 1,
+        )
+        page = rows[:limit]
+        next_cursor = None
+        if len(rows) > limit and page:
+            last = page[-1]
+            next_cursor = _encode_log_cursor(
+                WorkoutLogCursor(local_date=last.local_date, session_id=last.session_id)
+            )
+        return WorkoutSessionListResponse(
+            items=[
+                WorkoutSessionLogSummary.model_validate(row, from_attributes=True) for row in page
+            ],
+            next_cursor=next_cursor,
+        )
+
+    def get_workout_log_detail(
+        self, session: Session, user_id: UUID, session_id: UUID
+    ) -> WorkoutSessionDetailResponse:
+        record = self._repository.get_workout_log_detail(session, user_id, session_id)
+        if record is None:
+            raise WorkoutLogNotFoundError
+        items = [
+            WorkoutSessionItemResult.model_validate(item, from_attributes=True)
+            for item in record.items
+        ]
+        feedback = None
+        if record.feedback is not None:
+            feedback = WorkoutFeedbackSummary.model_validate(record.feedback, from_attributes=True)
+        return WorkoutSessionDetailResponse(
+            session_id=record.session_id,
+            local_date=record.local_date,
+            status_code=record.status_code,
+            completed_item_count=sum(item.status_code == "COMPLETED" for item in record.items),
+            total_item_count=len(record.items),
+            requested_duration_minutes=record.requested_duration_minutes,
+            items=items,
+            feedback=feedback,
+            not_completed_reason_code=record.not_completed_reason_code,
+            started_at=record.started_at,
+            finished_at=record.finished_at,
+        )
 
     def _prior_response(
         self,
@@ -825,9 +941,11 @@ __all__ = [
     "IdempotencyKeyReusedError",
     "InvalidSessionStateError",
     "InvalidSafetyEventInputError",
+    "InvalidWorkoutLogQueryError",
     "NotCompletedReasonRequiredServiceError",
     "OptionNotSelectableError",
     "SessionEndedError",
     "WorkoutResourceNotFoundError",
+    "WorkoutLogNotFoundError",
     "WorkoutService",
 ]
