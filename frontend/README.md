@@ -1,6 +1,35 @@
 # Frontend
 
-React Native, TypeScript, Expo Development Build 기반 모바일 앱 영역입니다.
+React Native, TypeScript, Expo SDK 57 Development Build 기반 모바일 앱 영역입니다.
+
+## 시작하기
+
+Node 24.18.1과 npm 11을 사용합니다. 상세 결정과 근거는 `TECHNICAL_DECISIONS.md`에 있습니다.
+
+```bash
+npm ci
+npm start
+```
+
+Development Build 네이티브 앱은 Android에서 `npm run android`, macOS/iOS에서 `npm run ios`로 생성합니다.
+
+브라우저에서 Splash를 고정해 시각 수정하려면 웹 개발 서버를 연 뒤 아래 주소를 사용합니다.
+
+```bash
+npx expo start --web
+```
+
+`http://localhost:8081/?preview=splash`
+
+품질 검증 명령:
+
+```bash
+npm run format:check
+npm run lint
+npm run typecheck
+npm test
+npm run build:production
+```
 
 예정 구조:
 
@@ -12,7 +41,7 @@ React Native, TypeScript, Expo Development Build 기반 모바일 앱 영역입�
 - `src/assets/`: 마스코트와 정적 자산
 - `tests/`: component와 E2E 테스트
 
-프로젝트 초기화와 패키지 설치는 별도 구현 PR에서 수행합니다.
+현재 첫 이관 slice는 typed navigation, 재시도 가능한 앱 bootstrap 경계, 반응형 Splash 화면을 포함합니다.
 
 운동 실행 화면의 기본 계약:
 
