@@ -7,6 +7,33 @@ export type CalendarDayStatus =
 export type CalendarWeekState =
   'progress' | 'make' | 'unread' | 'read' | 'upcoming';
 
+export type CalendarDay = {
+  day: string;
+  status: CalendarDayStatus;
+  inCurrentMonth: boolean;
+  localDate?: string;
+  sessionIds?: readonly string[];
+};
+
+export type CalendarMonthStat = {
+  key: 'done' | 'partial' | 'rest' | 'miss';
+  label: string;
+  value: number;
+  color: string;
+};
+
+export type CalendarWeek = {
+  id: string;
+  weekStart: string;
+  label: string;
+  range: string;
+  state: CalendarWeekState;
+  bandColor: string;
+  days: readonly CalendarDay[];
+  stats: readonly number[];
+  note: string;
+};
+
 export const MAP_HOME_PREVIEW_OPTIONS = [
   { id: 'map', label: '맵 기본' },
   { id: 'routine', label: '최종 루틴' },
@@ -150,11 +177,12 @@ export const CALENDAR_MONTH_STATS = [
   { key: 'partial', label: '부분 수행', value: 3, color: '#B58A1E' },
   { key: 'rest', label: '휴식', value: 3, color: '#6F6B63' },
   { key: 'miss', label: '미수행', value: 1, color: '#C0BBB1' },
-] as const;
+] as const satisfies readonly CalendarMonthStat[];
 
 export const CALENDAR_WEEKS = [
   {
     id: 'week-1',
+    weekStart: '2026-07-27',
     label: '1주차',
     range: '7.27 – 8.2',
     state: 'read',
@@ -173,6 +201,7 @@ export const CALENDAR_WEEKS = [
   },
   {
     id: 'week-2',
+    weekStart: '2026-08-03',
     label: '2주차',
     range: '8.3 – 8.9',
     state: 'make',
@@ -191,6 +220,7 @@ export const CALENDAR_WEEKS = [
   },
   {
     id: 'week-3',
+    weekStart: '2026-08-10',
     label: '3주차',
     range: '8.10 – 8.16',
     state: 'progress',
@@ -209,6 +239,7 @@ export const CALENDAR_WEEKS = [
   },
   {
     id: 'week-4',
+    weekStart: '2026-08-17',
     label: '4주차',
     range: '8.17 – 8.23',
     state: 'upcoming',
@@ -227,6 +258,7 @@ export const CALENDAR_WEEKS = [
   },
   {
     id: 'week-5',
+    weekStart: '2026-08-24',
     label: '5주차',
     range: '8.24 – 8.30',
     state: 'upcoming',
@@ -245,6 +277,7 @@ export const CALENDAR_WEEKS = [
   },
   {
     id: 'week-6',
+    weekStart: '2026-08-31',
     label: '6주차',
     range: '8.31 – 9.6',
     state: 'upcoming',
@@ -261,7 +294,7 @@ export const CALENDAR_WEEKS = [
     stats: [0, 0, 0, 0],
     note: '아직 시작하지 않은 주예요.',
   },
-] as const;
+] as const satisfies readonly CalendarWeek[];
 
 export const MY_PAGE_PROFILE_ROWS = [
   ['운동 목표', '체력 향상'],

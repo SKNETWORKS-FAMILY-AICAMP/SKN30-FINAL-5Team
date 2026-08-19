@@ -1,11 +1,12 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { useFonts } from 'expo-font';
-import { Animated, Platform, processColor, StyleSheet } from 'react-native';
+import { Platform, processColor, StyleSheet } from 'react-native';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 import { fontFamilies } from '../src/app/fonts';
 import { imageAssets } from '../src/assets';
 import {
+  getSplashWebTextStyle,
   getSplashLayout,
   SPLASH_ASSETS,
   SPLASH_ORIGINAL,
@@ -23,11 +24,6 @@ function expectSvgColor(actual: unknown, color: string) {
 }
 
 function getTextLayers(testID: 'splash-brand' | 'splash-slogan') {
-  if (Platform.OS === 'web') {
-    const text = screen.getByTestId(`${testID}-text`).props;
-    return { fill: text, outline: text };
-  }
-
   return {
     fill: screen.getByTestId(`${testID}-fill`).props,
     outline: screen.getByTestId(`${testID}-outline`).props,
@@ -41,10 +37,6 @@ describe('SplashScreen', () => {
         width: 390,
         height: 844,
         islandWidth: 351,
-        questionSize: 56,
-        questionLeft: 129,
-        questionTop: 345,
-        questionFloatDistance: 10,
         sloganLeft: 111,
         sloganTop: 203,
         sloganFontSize: 18,
@@ -63,10 +55,6 @@ describe('SplashScreen', () => {
     expect(getSplashLayout({ width: 195, height: 422 })).toEqual(
       expect.objectContaining({
         islandWidth: 175.5,
-        questionSize: 56,
-        questionLeft: 64.5,
-        questionTop: 172.5,
-        questionFloatDistance: 10,
         sloganLeft: 55.5,
         sloganTop: 101.5,
         sloganFontSize: 18,
@@ -81,16 +69,13 @@ describe('SplashScreen', () => {
     expect(getSplashLayout({ width: 780, height: 1688 })).toEqual(
       expect.objectContaining({
         islandWidth: 460,
-        questionSize: 56,
-        questionLeft: 258,
-        questionTop: 690,
         sloganFontSize: 18,
         brandFontSize: 26,
       }),
     );
   });
 
-  it('renders the registry assets with an in-flow centered island and root-relative overlays', async () => {
+  it('renders the centered island without the question-mark overlay', async () => {
     await render(
       <SplashScreen
         reducedMotionOverride
@@ -104,18 +89,11 @@ describe('SplashScreen', () => {
     const islandStyle = StyleSheet.flatten(
       screen.getByTestId('splash-island').props.style,
     );
-    const questionStyle = StyleSheet.flatten(
-      screen.getByTestId('question-mark').props.style,
-    );
-
     expect(SPLASH_ASSETS.splashIsland).toBe(imageAssets.splashIsland);
-    expect(SPLASH_ASSETS.questionMark).toBe(imageAssets.questionMark);
     expect(screen.getByTestId('splash-island').props.source).toBe(
       imageAssets.splashIsland,
     );
-    expect(screen.getByTestId('question-mark').props.source).toBe(
-      imageAssets.questionMark,
-    );
+    expect(screen.queryByTestId('question-mark')).toBeNull();
     expect(screenStyle).toEqual(
       expect.objectContaining({
         alignItems: 'center',
@@ -136,16 +114,6 @@ describe('SplashScreen', () => {
     expect(islandStyle.shadowColor).toBeUndefined();
     expect(islandStyle.shadowOpacity).toBeUndefined();
     expect(islandStyle.shadowRadius).toBeUndefined();
-    expect(questionStyle).toEqual(
-      expect.objectContaining({
-        position: 'absolute',
-        zIndex: 2,
-        left: 129,
-        top: 345,
-        width: 56,
-        height: 56,
-      }),
-    );
   });
 
   it('keeps one accessible label while painting outline behind fill from the exact top edge', async () => {
@@ -222,7 +190,7 @@ describe('SplashScreen', () => {
     expect(getTextLayers('splash-slogan').fill.font.fontFamily).toBeUndefined();
   });
 
-  it('uses native SVG paint-order on web without duplicating the label', async () => {
+  it('uses one painted text node on web instead of duplicated outline and fill nodes', async () => {
     const originalPlatform = Platform.OS;
     Object.defineProperty(Platform, 'OS', { configurable: true, value: 'web' });
 
@@ -234,11 +202,43 @@ describe('SplashScreen', () => {
         />,
       );
 
-      const brandText = screen.getByTestId('splash-brand-text').props;
+      const brandText = screen.getByTestId('splash-brand').props.children;
       expect(SPLASH_WEB_TEXT_PAINT_ORDER).toBe('stroke fill');
-      expectSvgColor(brandText.fill, '#EEDA30');
-      expectSvgColor(brandText.stroke, '#6B4A2B');
-      expect(brandText.alignmentBaseline).toBe('text-before-edge');
+      expect(
+        getSplashWebTextStyle({
+          fill: '#EEDA30',
+          fontFamily: fontFamilies.brand,
+          fontSize: 26,
+          fontWeight: '800',
+          letterSpacing: 0.52,
+          lineHeight: 26,
+          shadowColor: 'rgba(107,74,43,0.35)',
+          shadowOffsetY: 3,
+          stroke: '#6B4A2B',
+          strokeWidth: 6,
+        }),
+      ).toEqual({
+        color: '#EEDA30',
+        fontFamily: fontFamilies.brand,
+        fontSize: '26px',
+        fontWeight: '800',
+        height: '26px',
+        letterSpacing: '0.52px',
+        lineHeight: '26px',
+        margin: 0,
+        overflow: 'visible',
+        padding: 0,
+        paintOrder: 'stroke fill',
+        textShadow: '0 3px 0 rgba(107,74,43,0.35)',
+        WebkitTextFillColor: '#EEDA30',
+        WebkitTextStroke: '6px #6B4A2B',
+        whiteSpace: 'nowrap',
+        width: 'max-content',
+      });
+      expect(brandText.props.children).toBe('Helkki');
+      expect(brandText.props.style.color).toBe('#EEDA30');
+      expect(brandText.props.style.WebkitTextFillColor).toBe('#EEDA30');
+      expect(brandText.props.style.WebkitTextStroke).toBe('6px #6B4A2B');
       expect(screen.queryByTestId('splash-brand-outline')).toBeNull();
       expect(screen.queryByTestId('splash-brand-fill')).toBeNull();
     } finally {
@@ -247,52 +247,6 @@ describe('SplashScreen', () => {
         value: originalPlatform,
       });
     }
-  });
-
-  it('does not start the floating animation when reduced motion is enabled', async () => {
-    const loopSpy = jest.spyOn(Animated, 'loop');
-
-    await render(
-      <SplashScreen
-        reducedMotionOverride
-        viewportOverride={{ width: 390, height: 844 }}
-      />,
-    );
-
-    expect(loopSpy).not.toHaveBeenCalled();
-    loopSpy.mockRestore();
-  });
-
-  it('keeps the original 2.4 second float motion and stops it on unmount', async () => {
-    const stop = jest.fn();
-    const start = jest.fn();
-    const timingSpy = jest.spyOn(Animated, 'timing');
-    const loopSpy = jest
-      .spyOn(Animated, 'loop')
-      .mockReturnValue({ start, stop, reset: jest.fn() });
-
-    const view = await render(
-      <SplashScreen
-        reducedMotionOverride={false}
-        viewportOverride={{ width: 390, height: 844 }}
-      />,
-    );
-
-    expect(timingSpy).toHaveBeenNthCalledWith(
-      1,
-      expect.anything(),
-      expect.objectContaining({ toValue: -10, duration: 1200 }),
-    );
-    expect(timingSpy).toHaveBeenNthCalledWith(
-      2,
-      expect.anything(),
-      expect.objectContaining({ toValue: 0, duration: 1200 }),
-    );
-    expect(start).toHaveBeenCalledTimes(1);
-    await act(() => view.unmount());
-    expect(stop).toHaveBeenCalledTimes(1);
-    timingSpy.mockRestore();
-    loopSpy.mockRestore();
   });
 
   it('keeps the normal and error prototype boundary with retry isolated to error', async () => {

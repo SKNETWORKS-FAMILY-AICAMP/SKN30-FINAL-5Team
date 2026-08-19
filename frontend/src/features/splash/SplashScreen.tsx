@@ -1,13 +1,5 @@
+import { type ComponentType } from 'react';
 import {
-  type ComponentProps,
-  type ComponentType,
-  useEffect,
-  useState,
-} from 'react';
-import {
-  AccessibilityInfo,
-  Animated,
-  Easing,
   Image,
   Platform,
   Pressable,
@@ -30,11 +22,6 @@ export const SPLASH_ORIGINAL = {
   islandWidth: 460,
   islandMaxWidthRatio: 0.9,
   islandAspectRatio: 460 / 307,
-  questionSize: 56,
-  questionLeft: 129,
-  questionTop: 345,
-  questionFloatDistance: 10,
-  questionFloatDurationMs: 2400,
   sloganLeft: 111,
   sloganTop: 203,
   sloganFontSize: 18,
@@ -90,6 +77,79 @@ type OutlinedTextProps = {
   viewportWidth: number;
 };
 
+type SplashWebTextStyle = {
+  color: string;
+  fontFamily?: string;
+  fontSize: string;
+  fontWeight: '400' | '800';
+  height: string;
+  letterSpacing: string;
+  lineHeight: string;
+  margin: number;
+  overflow: 'visible';
+  padding: number;
+  paintOrder: typeof SPLASH_WEB_TEXT_PAINT_ORDER;
+  textShadow: string;
+  WebkitTextFillColor: string;
+  WebkitTextStroke: string;
+  whiteSpace: 'nowrap';
+  width: 'max-content';
+};
+
+type SplashWebTextStyleInput = Pick<
+  OutlinedTextProps,
+  | 'fill'
+  | 'fontFamily'
+  | 'fontSize'
+  | 'fontWeight'
+  | 'letterSpacing'
+  | 'lineHeight'
+  | 'shadowColor'
+  | 'shadowOffsetY'
+  | 'stroke'
+  | 'strokeWidth'
+>;
+
+export function getSplashWebTextStyle({
+  fill,
+  fontFamily,
+  fontSize,
+  fontWeight,
+  letterSpacing,
+  lineHeight,
+  shadowColor,
+  shadowOffsetY,
+  stroke,
+  strokeWidth,
+}: SplashWebTextStyleInput): SplashWebTextStyle {
+  return {
+    color: fill,
+    fontFamily,
+    fontSize: `${fontSize}px`,
+    fontWeight,
+    height: `${lineHeight}px`,
+    letterSpacing: `${letterSpacing}px`,
+    lineHeight: `${lineHeight}px`,
+    margin: 0,
+    overflow: 'visible',
+    padding: 0,
+    paintOrder: SPLASH_WEB_TEXT_PAINT_ORDER,
+    textShadow: `0 ${shadowOffsetY}px 0 ${shadowColor}`,
+    WebkitTextFillColor: fill,
+    WebkitTextStroke: `${strokeWidth}px ${stroke}`,
+    whiteSpace: 'nowrap',
+    width: 'max-content',
+  };
+}
+
+type WebTextElementProps = {
+  'aria-hidden': true;
+  children: string;
+  style: SplashWebTextStyle;
+};
+
+const WebTextElement = 'div' as unknown as ComponentType<WebTextElementProps>;
+
 export function getSplashLayout(viewport: SplashViewport) {
   const { width, height } = viewport;
   const x = (value: number) => (value * width) / BASE_W;
@@ -102,10 +162,6 @@ export function getSplashLayout(viewport: SplashViewport) {
       SPLASH_ORIGINAL.islandWidth,
       width * SPLASH_ORIGINAL.islandMaxWidthRatio,
     ),
-    questionSize: SPLASH_ORIGINAL.questionSize,
-    questionLeft: x(SPLASH_ORIGINAL.questionLeft),
-    questionTop: y(SPLASH_ORIGINAL.questionTop),
-    questionFloatDistance: SPLASH_ORIGINAL.questionFloatDistance,
     sloganLeft: x(SPLASH_ORIGINAL.sloganLeft),
     sloganTop: y(SPLASH_ORIGINAL.sloganTop),
     sloganFontSize: SPLASH_ORIGINAL.sloganFontSize,
@@ -142,6 +198,44 @@ function OutlinedText({
   top,
   viewportWidth,
 }: OutlinedTextProps) {
+  if (Platform.OS === 'web') {
+    const webTextStyle = getSplashWebTextStyle({
+      fill,
+      fontFamily,
+      fontSize,
+      fontWeight,
+      letterSpacing,
+      lineHeight,
+      shadowColor,
+      shadowOffsetY,
+      stroke,
+      strokeWidth,
+    });
+
+    return (
+      <View
+        accessible
+        accessibilityLabel={accessibilityLabel}
+        accessibilityRole={accessibilityRole}
+        pointerEvents="none"
+        style={[
+          styles.outlinedText,
+          {
+            left,
+            top,
+            width: Math.max(0, viewportWidth - left),
+            height: lineHeight,
+          },
+        ]}
+        testID={testID}
+      >
+        <WebTextElement aria-hidden style={webTextStyle}>
+          {text}
+        </WebTextElement>
+      </View>
+    );
+  }
+
   const sharedTextProps = {
     accessible: false,
     alignmentBaseline: 'text-before-edge' as const,
@@ -152,17 +246,12 @@ function OutlinedText({
     x: 0,
     y: 0,
   };
-  const shadowStyle = Platform.select({
-    web: {
-      filter: `drop-shadow(0px ${shadowOffsetY}px 0px ${shadowColor})`,
-    },
-    default: {
-      shadowColor,
-      shadowOffset: { width: 0, height: shadowOffsetY },
-      shadowOpacity: 1,
-      shadowRadius: 0,
-    },
-  });
+  const shadowStyle = {
+    shadowColor,
+    shadowOffset: { width: 0, height: shadowOffsetY },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+  };
 
   return (
     <Svg
@@ -175,119 +264,50 @@ function OutlinedText({
       testID={testID}
       width={Math.max(0, viewportWidth - left)}
     >
-      {Platform.OS === 'web' ? (
-        <WebPaintOrderedSvgText
+      <>
+        <SvgText
           {...sharedTextProps}
-          fill={fill}
+          fill="none"
           stroke={stroke}
           strokeLinejoin="round"
           strokeWidth={strokeWidth}
-          style={webTextPaintOrder}
-          testID={`${testID}-text`}
+          testID={`${testID}-outline`}
         >
-          <TSpan x={0} y={0}>
-            {text}
-          </TSpan>
-        </WebPaintOrderedSvgText>
-      ) : (
-        <>
-          <SvgText
-            {...sharedTextProps}
+          <TSpan
             fill="none"
             stroke={stroke}
             strokeLinejoin="round"
             strokeWidth={strokeWidth}
-            testID={`${testID}-outline`}
+            x={0}
+            y={0}
           >
-            <TSpan x={0} y={0}>
-              {text}
-            </TSpan>
-          </SvgText>
-          <SvgText
-            {...sharedTextProps}
-            fill={fill}
-            stroke="none"
-            testID={`${testID}-fill`}
-          >
-            <TSpan x={0} y={0}>
-              {text}
-            </TSpan>
-          </SvgText>
-        </>
-      )}
+            {text}
+          </TSpan>
+        </SvgText>
+        <SvgText
+          {...sharedTextProps}
+          fill={fill}
+          stroke="none"
+          testID={`${testID}-fill`}
+        >
+          <TSpan fill={fill} stroke="none" x={0} y={0}>
+            {text}
+          </TSpan>
+        </SvgText>
+      </>
     </Svg>
   );
-}
-
-function useReducedMotion(override?: boolean) {
-  const [isReducedMotionEnabled, setReducedMotionEnabled] = useState(true);
-
-  useEffect(() => {
-    if (override !== undefined) {
-      return;
-    }
-
-    let isMounted = true;
-    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
-      if (isMounted) {
-        setReducedMotionEnabled(enabled);
-      }
-    });
-
-    const subscription = AccessibilityInfo.addEventListener(
-      'reduceMotionChanged',
-      setReducedMotionEnabled,
-    );
-
-    return () => {
-      isMounted = false;
-      subscription.remove();
-    };
-  }, [override]);
-
-  return override ?? isReducedMotionEnabled;
 }
 
 export function SplashScreen({
   bootStatus = 'pending',
   onRetry,
-  reducedMotionOverride,
   viewportOverride,
 }: SplashScreenProps) {
   const scale = useScale();
   const layout = getSplashLayout(viewportOverride ?? scale);
-  const reduceMotion = useReducedMotion(reducedMotionOverride);
-  const [questionOffset] = useState(() => new Animated.Value(0));
   const brandFonts = useBrandFonts();
   const useLocalFonts = brandFonts.loaded && !brandFonts.failed;
-
-  useEffect(() => {
-    if (reduceMotion) {
-      questionOffset.stopAnimation();
-      questionOffset.setValue(0);
-      return;
-    }
-
-    const floatingAnimation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(questionOffset, {
-          toValue: -layout.questionFloatDistance,
-          duration: SPLASH_ORIGINAL.questionFloatDurationMs / 2,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: Platform.OS !== 'web',
-        }),
-        Animated.timing(questionOffset, {
-          toValue: 0,
-          duration: SPLASH_ORIGINAL.questionFloatDurationMs / 2,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: Platform.OS !== 'web',
-        }),
-      ]),
-    );
-
-    floatingAnimation.start();
-    return () => floatingAnimation.stop();
-  }, [layout.questionFloatDistance, questionOffset, reduceMotion]);
 
   return (
     <SafeAreaView
@@ -296,23 +316,6 @@ export function SplashScreen({
       testID="splash-screen"
     >
       <StatusBar style="light" />
-      <Animated.Image
-        accessible={false}
-        importantForAccessibility="no"
-        resizeMode="contain"
-        source={SPLASH_ASSETS.questionMark}
-        testID="question-mark"
-        style={[
-          styles.questionMark,
-          {
-            left: layout.questionLeft,
-            top: layout.questionTop,
-            width: layout.questionSize,
-            height: layout.questionSize,
-            transform: [{ translateY: questionOffset }],
-          },
-        ]}
-      />
       <Image
         accessible={false}
         importantForAccessibility="no"
@@ -384,17 +387,6 @@ export function SplashScreen({
   );
 }
 
-type WebPaintOrderedSvgTextProps = ComponentProps<typeof SvgText> & {
-  style?: { paintOrder: typeof SPLASH_WEB_TEXT_PAINT_ORDER };
-};
-
-const WebPaintOrderedSvgText =
-  SvgText as unknown as ComponentType<WebPaintOrderedSvgTextProps>;
-
-const webTextPaintOrder: WebPaintOrderedSvgTextProps['style'] = {
-  paintOrder: SPLASH_WEB_TEXT_PAINT_ORDER,
-};
-
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -412,10 +404,6 @@ const styles = StyleSheet.create({
   island: {
     alignSelf: 'center',
     zIndex: 1,
-  },
-  questionMark: {
-    position: 'absolute',
-    zIndex: 2,
   },
   errorCard: {
     position: 'absolute',

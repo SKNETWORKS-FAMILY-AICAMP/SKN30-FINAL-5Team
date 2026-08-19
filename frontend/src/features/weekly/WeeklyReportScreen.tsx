@@ -34,26 +34,50 @@ import { useState } from 'react';
 export function WeeklyReportScreen({
   api,
   onBack,
+  timeZone,
+  weekStart: selectedWeekStart,
 }: {
   api: Api;
   onBack: () => void;
+  timeZone?: string;
+  weekStart?: string;
 }) {
-  const weekStart = weekStartString();
-  const [report, setReport] = useState<WeeklyReportResponse | null>(null);
+  const weekStart = selectedWeekStart ?? weekStartString(new Date(), timeZone);
+  const [reportOverride, setReportOverride] = useState<{
+    weekStart: string;
+    report: WeeklyReportResponse;
+  } | null>(null);
 
-  const { state, reload } = useAsyncData<WeekResponse>(
-    (signal) => api.getWeek(weekStart, signal),
+  const { state, reload } = useAsyncData<{
+    week: WeekResponse;
+    storedReport: WeeklyReportResponse | null;
+  }>(
+    async (signal) => {
+      const week = await api.getWeek(weekStart, signal);
+      const storedReport =
+        week.report_id === null
+          ? null
+          : await api.getWeeklyReport(week.report_id, signal);
+      return { week, storedReport };
+    },
     [api, weekStart],
   );
 
   const generate = useAsyncAction(async () => {
-    setReport(await api.createWeeklyReport(weekStart));
+    setReportOverride({
+      weekStart,
+      report: await api.createWeeklyReport(weekStart),
+    });
   });
 
   const acknowledge = useAsyncAction(async (reportId: string) => {
-    setReport(
-      await api.acknowledgeWeeklyReport(reportId, new Date().toISOString()),
-    );
+    setReportOverride({
+      weekStart,
+      report: await api.acknowledgeWeeklyReport(
+        reportId,
+        new Date().toISOString(),
+      ),
+    });
   });
 
   if (state.status === 'loading') {
@@ -75,7 +99,11 @@ export function WeeklyReportScreen({
     );
   }
 
-  const week = state.data;
+  const { week, storedReport } = state.data;
+  const visibleReport =
+    reportOverride?.weekStart === weekStart
+      ? reportOverride.report
+      : storedReport;
 
   return (
     <ScreenShell bands>
@@ -102,7 +130,7 @@ export function WeeklyReportScreen({
         <InlineFeedback tone="warning" message={generate.error} />
       ) : null}
 
-      {report === null ? (
+      {visibleReport === null ? (
         <Button
           label={generate.pending ? '만드는 중…' : '리포트 생성하기'}
           disabled={generate.pending}
@@ -110,10 +138,10 @@ export function WeeklyReportScreen({
         />
       ) : (
         <ReportCard
-          report={report}
+          report={visibleReport}
           pending={acknowledge.pending}
           error={acknowledge.error}
-          onAcknowledge={() => void acknowledge.run(report.report_id)}
+          onAcknowledge={() => void acknowledge.run(visibleReport.report_id)}
         />
       )}
 

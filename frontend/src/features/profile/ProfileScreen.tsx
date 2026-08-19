@@ -25,7 +25,9 @@ import {
   GOAL_OPTIONS,
   LEVEL_OPTIONS,
   PLACE_OPTIONS,
+  PROFILE_BODY_LIMITS,
   PROFILE_INITIAL_FORM,
+  PROFILE_SEX_OPTIONS,
   PROFILE_STEPS,
   type ProfileForm,
   type ProfilePreviewState,
@@ -77,7 +79,7 @@ function ProfileScreenContent({
   const [form, setForm] = useState<ProfileForm>(() => ({
     ...PROFILE_INITIAL_FORM,
     ...(previewState === 'validation-error'
-      ? { height: '', weight: '', birth: '991332', adult: false }
+      ? { heightCm: '', weightKg: '', birth: '991332', adult: false }
       : null),
   }));
   const current = PROFILE_STEPS[step - 1] ?? PROFILE_STEPS[0];
@@ -297,6 +299,10 @@ function StepContent({
     update(key, next.length > 0 ? next : exclusive ? [exclusive] : []);
   };
 
+  const selectedSexLabel =
+    PROFILE_SEX_OPTIONS.find((option) => option.code === form.sexCode)?.label ??
+    '';
+
   switch (step) {
     case 1:
       return (
@@ -357,14 +363,20 @@ function StepContent({
         <ChoiceCard>
           <ChoiceRow
             grow
-            options={['여성', '남성', '선택 안 함']}
-            selected={[form.gender]}
-            onSelect={(value) => update('gender', value)}
+            options={PROFILE_SEX_OPTIONS.map((option) => option.label)}
+            selected={[selectedSexLabel]}
+            onSelect={(value) =>
+              update(
+                'sexCode',
+                PROFILE_SEX_OPTIONS.find((option) => option.label === value)
+                  ?.code ?? null,
+              )
+            }
           />
         </ChoiceCard>
       );
     case 4: {
-      const bodyInvalid = showValidation || !form.height || !form.weight;
+      const bodyInvalid = showValidation || !isProfileBodyValid(form);
       return (
         <Card style={[styles.bodyCard, bodyInvalid && styles.bodyCardInvalid]}>
           <View style={styles.bodyRow}>
@@ -372,21 +384,25 @@ function StepContent({
               accessibilityLabel="키"
               containerStyle={styles.bodyField}
               inputMode="decimal"
-              onChangeText={(value) => update('height', onlyDecimal(value, 5))}
+              onChangeText={(value) =>
+                update('heightCm', onlyDecimal(value, 5))
+              }
               placeholder="키"
               style={[styles.profileField, bodyInvalid && styles.fieldInvalid]}
               trailing={<Text style={styles.fieldSuffix}>cm</Text>}
-              value={form.height}
+              value={form.heightCm}
             />
             <TextField
               accessibilityLabel="체중"
               containerStyle={styles.bodyField}
               inputMode="decimal"
-              onChangeText={(value) => update('weight', onlyDecimal(value, 5))}
+              onChangeText={(value) =>
+                update('weightKg', onlyDecimal(value, 5))
+              }
               placeholder="체중"
               style={[styles.profileField, bodyInvalid && styles.fieldInvalid]}
               trailing={<Text style={styles.fieldSuffix}>kg</Text>}
-              value={form.weight}
+              value={form.weightKg}
             />
           </View>
           <Text
@@ -611,10 +627,14 @@ function SummaryCard({
   const rows = [
     ['닉네임', form.nickname || '미입력'],
     ['생년월일', form.birth || '미입력'],
-    ['성별', form.gender || '미선택'],
+    [
+      '성별',
+      PROFILE_SEX_OPTIONS.find((option) => option.code === form.sexCode)
+        ?.label ?? '미선택',
+    ],
     [
       '키 · 체중 (필수)',
-      `${form.height || '미입력'}cm · ${form.weight || '미입력'}kg`,
+      `${form.heightCm || '미입력'}cm · ${form.weightKg || '미입력'}kg`,
     ],
     ['목표', form.goal || '미선택'],
     ['경험 수준', form.level || '미선택'],
@@ -681,6 +701,23 @@ function onlyDecimal(value: string, maxLength: number) {
   return value.replace(/[^0-9.]/g, '').slice(0, maxLength);
 }
 
+function isValueInRange(value: string, limits: { min: number; max: number }) {
+  const parsed = Number(value);
+  return (
+    value.trim() !== '' &&
+    Number.isFinite(parsed) &&
+    parsed >= limits.min &&
+    parsed <= limits.max
+  );
+}
+
+function isProfileBodyValid(form: ProfileForm) {
+  return (
+    isValueInRange(form.heightCm, PROFILE_BODY_LIMITS.heightCm) &&
+    isValueInRange(form.weightKg, PROFILE_BODY_LIMITS.weightKg)
+  );
+}
+
 function isBirthValid(value: string) {
   if (!/^\d{6}$/.test(value)) return false;
   const month = Number(value.slice(2, 4));
@@ -698,9 +735,9 @@ function isStepValid(
     case 'birth':
       return isBirthValid(form.birth) && form.adult;
     case 'gender':
-      return form.gender.length > 0;
+      return form.sexCode !== null;
     case 'body':
-      return Number(form.height) > 0 && Number(form.weight) > 0;
+      return isProfileBodyValid(form);
     case 'goal':
       return form.goal.length > 0;
     case 'level':

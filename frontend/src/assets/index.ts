@@ -1,7 +1,8 @@
 import type { ImageSourcePropType } from 'react-native';
 
 export const imageAssets = {
-  splashIsland: require('./splash/splash-island.png') as ImageSourcePropType,
+  splashIsland:
+    require('./splash/splash-island-v2-hires.png') as ImageSourcePropType,
   questionMark: require('./splash/question-mark.png') as ImageSourcePropType,
   mailbox: require('./map/mailbox.png') as ImageSourcePropType,
   mailboxDone: require('./map/mailbox-done.png') as ImageSourcePropType,

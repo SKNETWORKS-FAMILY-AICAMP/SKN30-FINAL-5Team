@@ -24,21 +24,21 @@ import type {
 import { localDateString } from '../api/useAsync';
 import type { TabId } from '../components/brand/BrandChrome';
 import { CalendarStatusScreen } from '../features/calendar/CalendarStatusScreen';
+import { CalendarReportContainer } from '../features/home/CalendarReportContainer';
 import { HomeContainer } from '../features/home/HomeContainer';
 import { MascotHouseScreen } from '../features/house/MascotHouseScreen';
 import { AccountScreen } from '../features/profile/AccountScreen';
-import {
-  SessionScreen,
-  type SessionOutcome,
-} from '../features/workout/SessionScreen';
+import type { SessionOutcome } from '../features/workout/SessionScreen';
 import { SessionResultScreen } from '../features/workout/SessionResultScreen';
+import { WorkoutScreen } from '../features/workout/WorkoutScreen';
 import { WeeklyReportScreen } from '../features/weekly/WeeklyReportScreen';
 
 type Step =
   | { name: 'home' }
   | { name: 'session'; sessionId: string; plan: WorkoutPlan }
   | { name: 'result'; sessionId: string; outcome: SessionOutcome }
-  | { name: 'weekly' }
+  | { name: 'weekly'; weekStart: string }
+  | { name: 'calendar-report' }
   | { name: 'account' }
   | { name: 'house' }
   | { name: 'calendar' };
@@ -53,7 +53,10 @@ export function MainFlow({
   onSignOut: () => void;
 }) {
   const [step, setStep] = useState<Step>({ name: 'home' });
-  const [restDate, setRestDate] = useState<string | null>(null);
+  const [restChoice, setRestChoice] = useState<{
+    localDate: string;
+    pressureNotificationsAllowed: boolean;
+  } | null>(null);
   const [decision, setDecision] = useState<DecisionResponse | null>(null);
   const [planRevision, setPlanRevision] =
     useState<WeeklyPlanRevisionResponse | null>(null);
@@ -68,7 +71,7 @@ export function MainFlow({
       return;
     }
     if (tab === 'report') {
-      setStep({ name: 'weekly' });
+      setStep({ name: 'calendar-report' });
       return;
     }
     if (tab === 'my') {
@@ -77,12 +80,13 @@ export function MainFlow({
     }
     setStep({ name: 'home' });
   }, []);
-  const restToday = restDate === localDateString();
+  const localDate = localDateString(new Date(), me.profile?.timezone);
+  const restToday = restChoice?.localDate === localDate;
 
   switch (step.name) {
     case 'session':
       return (
-        <SessionScreen
+        <WorkoutScreen
           api={api}
           sessionId={step.sessionId}
           plan={step.plan}
@@ -113,11 +117,32 @@ export function MainFlow({
           api={api}
           nickname={me.profile?.nickname ?? '회원'}
           onNavigate={onTab}
+          timeZone={me.profile?.timezone}
         />
       );
 
     case 'weekly':
-      return <WeeklyReportScreen api={api} onBack={goHome} />;
+      return (
+        <WeeklyReportScreen
+          api={api}
+          onBack={() => setStep({ name: 'calendar-report' })}
+          timeZone={me.profile?.timezone}
+          weekStart={step.weekStart}
+        />
+      );
+
+    case 'calendar-report':
+      return (
+        <CalendarReportContainer
+          api={api}
+          timeZone={me.profile?.timezone}
+          restLocalDate={restChoice?.localDate}
+          onNavigateTab={onTab}
+          onOpenWeeklyReport={(weekStart) =>
+            setStep({ name: 'weekly', weekStart })
+          }
+        />
+      );
 
     case 'account':
       return (
@@ -146,9 +171,11 @@ export function MainFlow({
           onSessionStarted={(sessionId, plan) =>
             setStep({ name: 'session', sessionId, plan })
           }
-          onRestChosen={() => setRestDate(localDateString())}
+          onRestChosen={(pressureNotificationsAllowed) =>
+            setRestChoice({ localDate, pressureNotificationsAllowed })
+          }
           onTab={onTab}
-          onOpenCalendar={() => setStep({ name: 'calendar' })}
+          onOpenCalendar={() => setStep({ name: 'calendar-report' })}
         />
       );
   }

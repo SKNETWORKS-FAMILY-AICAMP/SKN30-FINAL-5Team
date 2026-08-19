@@ -13,7 +13,9 @@ import { CalendarReportScreen } from '../features/home/CalendarReportScreen';
 import { HomeScreen } from '../features/home/HomeScreen';
 import { MapHomeScreen } from '../features/home/MapHomeScreen';
 import { MyPageScreen } from '../features/home/MyPageScreen';
+import { OnboardingScreen } from '../features/onboarding/OnboardingScreen';
 import { homePreviewProps } from '../features/preview/homePreview';
+import { onboardingPreviewApi } from '../features/preview/onboardingPreview';
 import { PreviewGallery } from '../features/preview/PreviewGallery';
 import { ProfileScreen } from '../features/profile/ProfileScreen';
 import { SplashScreen } from '../features/splash/SplashScreen';
@@ -157,8 +159,18 @@ export function App({
     <SafeAreaProvider>
       {activePreview === 'gallery' ? (
         <PreviewGallery />
+      ) : activePreview === 'account' ? (
+        <PreviewGallery initialScreenId="account" />
+      ) : activePreview === 'mascot-house' ? (
+        <PreviewGallery initialScreenId="mascot-house" />
+      ) : activePreview === 'session' ? (
+        <PreviewGallery initialScreenId="session" />
+      ) : activePreview === 'session-result' ? (
+        <PreviewGallery initialScreenId="session-result" />
       ) : activePreview === 'today' ? (
         <PreviewGallery initialScreenId="today" />
+      ) : activePreview === 'weekly-report' ? (
+        <PreviewGallery initialScreenId="weekly-report" />
       ) : activePreview === 'workout' ? (
         <WorkoutScreen />
       ) : activePreview === 'calendar-report' ? (
@@ -171,6 +183,12 @@ export function App({
         <LoginScreen />
       ) : activePreview === 'my-page' ? (
         <MyPageScreen />
+      ) : activePreview === 'onboarding' ? (
+        <OnboardingScreen
+          api={onboardingPreviewApi}
+          onCompleted={() => undefined}
+          onSignOut={() => undefined}
+        />
       ) : activePreview === 'profile' ? (
         <ProfileScreen />
       ) : activePreview === 'signup' ? (

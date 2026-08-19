@@ -35,6 +35,19 @@ describe('ProfileScreen visual prototype', () => {
     ).toBeDisabled();
   });
 
+  it('uses the backend height and weight ranges for the body step', async () => {
+    await render(<ProfileScreen initialStep={4} />);
+
+    fireEvent.changeText(screen.getByLabelText('키'), '79.9');
+    expect(
+      screen.getByRole('button', { name: '입력이 필요해요' }),
+    ).toBeDisabled();
+
+    fireEvent.changeText(screen.getByLabelText('키'), '172.4');
+    fireEvent.changeText(screen.getByLabelText('체중'), '68.5');
+    expect(screen.getByRole('button', { name: '다음' })).toBeEnabled();
+  });
+
   it('opens summary rows for editing and exposes save retry as a callback', async () => {
     const onFinish = jest.fn();
     const view = await render(

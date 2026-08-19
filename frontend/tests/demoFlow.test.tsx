@@ -23,9 +23,11 @@ import type {
   DailyContextResponse,
   DecisionResponse,
   MeResponse,
+  OnboardingRequest,
   RoutineResponse,
   SessionItem,
   WeekResponse,
+  WeeklyPlanRevisionResponse,
   WorkoutPlan,
 } from '../src/api/types';
 import { resolveEnvConfig } from '../src/config/env';
@@ -164,6 +166,29 @@ function week(): WeekResponse {
   };
 }
 
+function planRevision(
+  overrides: Partial<WeeklyPlanRevisionResponse> = {},
+): WeeklyPlanRevisionResponse {
+  return {
+    revision_id: 'revision-1',
+    week_start: '2026-08-17',
+    week_end: '2026-08-23',
+    revision_sequence: 1,
+    ai_revision_count: 0,
+    source_code: 'INITIAL',
+    source_weekly_report_id: null,
+    safety_status_code: 'PASS',
+    routine: routine(),
+    selected_location_code: 'HOME',
+    finalized: true,
+    finalized_at: '2026-08-17T00:00:00+09:00',
+    revision_reason_codes: ['REVISION_ALLOWED'],
+    finalization_reason_codes: ['FINALIZE_ALLOWED'],
+    created_at: '2026-08-17T00:00:00+09:00',
+    ...overrides,
+  };
+}
+
 function me(): MeResponse {
   return {
     user_id: 'user-1',
@@ -184,7 +209,7 @@ function me(): MeResponse {
       desired_weekly_workout_count: 4,
       coaching_style_code: 'FRIENDLY',
       equipment_codes: [],
-      attention_area_codes: [],
+      attention_area_codes: ['KNEE'],
       preferred_exercise_type_codes: [],
       profile_version: 1,
       created_at: '2026-08-01T00:00:00+09:00',
@@ -205,6 +230,10 @@ function stubApi(overrides: Partial<Api> = {}): Api {
     createDecision: jest.fn(),
     getDecision: jest.fn(),
     selectOption: jest.fn(),
+    listWorkoutSessions: jest.fn(async () => ({
+      items: [],
+      next_cursor: null,
+    })),
     startSession: jest.fn(),
     updateSessionItem: jest.fn(),
     recordTimerEvent: jest.fn(),
@@ -322,6 +351,25 @@ describe('HomeContainer', () => {
     expect(screen.getByText('아직 오늘의 운동이 없어요')).toBeTruthy();
   });
 
+  it('opens the existing account screen route from the Home profile button', async () => {
+    const onTab = jest.fn();
+    renderHome(homeApi(), { onTab });
+
+    fireEvent.press(await screen.findByRole('button', { name: '프로필 열기' }));
+    expect(onTab).toHaveBeenCalledWith('my');
+  });
+
+  it('limits discomfort choices to attention areas saved during onboarding', async () => {
+    renderHome(homeApi());
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+    );
+    expect(screen.getByRole('button', { name: '무릎' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '어깨' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '허리' })).toBeNull();
+  });
+
   it('offers routine creation when none exists yet', async () => {
     renderHome(
       homeApi({
@@ -330,6 +378,66 @@ describe('HomeContainer', () => {
     );
 
     expect(await screen.findByText('기본 루틴이 아직 없어요')).toBeTruthy();
+  });
+
+  it('renders weekly progress from official workout-session records', async () => {
+    const listWorkoutSessions = jest.fn(async () => ({
+      items: [
+        {
+          session_id: 'session-completed',
+          local_date: '2026-08-17',
+          status_code: 'COMPLETED' as const,
+          completed_item_count: 2,
+          total_item_count: 2,
+          requested_duration_minutes: 30,
+          training_type_code: 'STRENGTH',
+          not_completed_reason_code: null,
+          started_at: '2026-08-17T09:00:00+09:00',
+          finished_at: '2026-08-17T09:30:00+09:00',
+        },
+      ],
+      next_cursor: null,
+    }));
+
+    renderHome(homeApi({ listWorkoutSessions }));
+
+    expect(await screen.findAllByTestId('day-done-image')).toHaveLength(1);
+    expect(listWorkoutSessions).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 100 }),
+      expect.anything(),
+    );
+  });
+
+  it('loads reviewed exercise instructions from a Home routine item', async () => {
+    const getExercise = jest.fn(async (exerciseId: string) => ({
+      exercise_id: exerciseId,
+      exercise_name: '운동 1',
+      training_type_code: 'STRENGTH',
+      primary_body_area_codes: ['FULL_BODY'],
+      instruction_summary: '검수된 운동 설명입니다.',
+      form_cues: ['천천히 움직이기'],
+      media_asset_key: null,
+      mascot_animation_asset_key: null,
+      instruction_content_version: 'test-v1',
+    }));
+    renderHome(
+      homeApi({
+        getDailyContext: jest.fn(async () => dailyContext()),
+        getExercise,
+      }),
+      { decision: decision() },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', {
+        name: /운동 1.*운동 설명 보기/,
+      }),
+    );
+
+    expect(
+      await screen.findByText('검수된 운동 설명입니다.'),
+    ).toBeOnTheScreen();
+    expect(getExercise).toHaveBeenCalledWith('exercise-1', expect.anything());
   });
 
   it('writes the check-in and renders the decision the server returned', async () => {
@@ -388,6 +496,111 @@ describe('HomeContainer', () => {
     );
   });
 
+  it('preserves stored optional check-in codes that have no approved UI choices', async () => {
+    const storedContext = {
+      ...dailyContext(),
+      fasting_state_code: 'FASTED',
+      hydration_state_code: 'LOW',
+    };
+    const replaceDailyContext = jest.fn(async () => storedContext);
+    renderHome(
+      homeApi({
+        getDailyContext: jest.fn(async () => storedContext),
+        replaceDailyContext,
+        createDecision: jest.fn(async () => decision()),
+      }),
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+
+    await waitFor(() => expect(replaceDailyContext).toHaveBeenCalled());
+    expect(replaceDailyContext).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        fasting_state_code: 'FASTED',
+        hydration_state_code: 'LOW',
+      }),
+      storedContext.context_version,
+    );
+  });
+
+  it('sends discomfort severity and adverse reactions as stable API codes', async () => {
+    const replaceDailyContext = jest.fn(async () => dailyContext());
+    renderHome(
+      homeApi({
+        replaceDailyContext,
+        createDecision: jest.fn(async () => decision()),
+      }),
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '무릎' }));
+    fireEvent.press(screen.getByRole('button', { name: '심함' }));
+    fireEvent.press(screen.getByRole('button', { name: '있어요' }));
+    fireEvent.press(screen.getByRole('button', { name: '심한 어지럼' }));
+    fireEvent.changeText(
+      screen.getByLabelText('어젯밤 수면 시간 (시간)'),
+      '6.5',
+    );
+    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+
+    await waitFor(() => expect(replaceDailyContext).toHaveBeenCalled());
+    expect(replaceDailyContext).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        sleep_minutes: 390,
+        discomforts: [{ body_area_code: 'KNEE', severity_code: 'SEVERE' }],
+        adverse_reaction_codes: ['SEVERE_DIZZINESS'],
+      }),
+      undefined,
+    );
+  });
+
+  it('sends multiple discomforts and the selected daily location', async () => {
+    const replaceDailyContext = jest.fn(async () => dailyContext());
+    const customMe = me();
+    customMe.profile = {
+      ...customMe.profile!,
+      available_location_codes: ['HOME', 'GYM'],
+      attention_area_codes: ['SHOULDER', 'KNEE'],
+    };
+    renderHome(
+      homeApi({
+        replaceDailyContext,
+        createDecision: jest.fn(async () => decision()),
+      }),
+      { me: customMe },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '헬스장' }));
+    fireEvent.press(screen.getByRole('button', { name: '어깨' }));
+    fireEvent.press(screen.getByRole('button', { name: '보통' }));
+    fireEvent.press(screen.getByRole('button', { name: '무릎' }));
+    fireEvent.press(screen.getAllByRole('button', { name: '심함' })[1]!);
+    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+
+    await waitFor(() => expect(replaceDailyContext).toHaveBeenCalled());
+    expect(replaceDailyContext).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        location_code: 'GYM',
+        discomforts: [
+          { body_area_code: 'SHOULDER', severity_code: 'MODERATE' },
+          { body_area_code: 'KNEE', severity_code: 'SEVERE' },
+        ],
+      }),
+      undefined,
+    );
+  });
+
   it('reports a rest selection without creating a session', async () => {
     const selectOption = jest.fn(async () => ({
       selection_id: 'sel-1',
@@ -409,9 +622,43 @@ describe('HomeContainer', () => {
 
     fireEvent.press(await screen.findByText('오늘은 쉬기'));
 
-    await waitFor(() => expect(onRestChosen).toHaveBeenCalled());
+    await waitFor(() => expect(onRestChosen).toHaveBeenCalledWith(false));
     expect(selectOption).toHaveBeenCalledWith('decision-1', 'option-rest');
     expect(onSessionStarted).not.toHaveBeenCalled();
+  });
+
+  it('shows the backend plan-revision reason instead of a generic error', async () => {
+    const createPlanRevision = jest.fn(async () => {
+      throw new ApiError({
+        kind: 'validation',
+        code: 'PLAN_REVISION_REJECTED',
+        status: 422,
+        message: 'generic',
+        details: [{ reason_code: 'LOCATION_CONSTRAINT_NOT_SATISFIED' }],
+      });
+    });
+    renderHome(
+      homeApi({
+        getDailyContext: jest.fn(async () => dailyContext()),
+        createInitialWeeklyPlan: jest.fn(async () => planRevision()),
+        createPlanRevision,
+      }),
+      { decision: decision() },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '다른 루틴 추천 받기' }),
+    );
+
+    expect(
+      await screen.findByText(
+        '선택한 장소에서 진행 가능한 구성을 찾지 못했어요.',
+      ),
+    ).toBeOnTheScreen();
+    expect(createPlanRevision).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ source_code: 'AI' }),
+    );
   });
 
   it('hands the started session to the flow above', async () => {
@@ -434,14 +681,70 @@ describe('HomeContainer', () => {
       onSessionStarted,
     });
 
-    fireEvent.press(await screen.findByText('운동 시작하기  ›'));
+    fireEvent.press(
+      await screen.findByRole('button', { name: '운동 시작하기' }),
+    );
 
     await waitFor(() =>
       expect(onSessionStarted).toHaveBeenCalledWith(
         'session-1',
-        expect.objectContaining({ plan_id: 'plan-1' }),
+        decision().final_plan,
       ),
     );
+  });
+
+  it('disables a routine option the backend marks as unselectable', async () => {
+    const selectOption = jest.fn();
+    const blockedDecision = decision({
+      options: decision().options.map((option) =>
+        option.option_code === 'FINAL_ROUTINE'
+          ? {
+              ...option,
+              selectable: false,
+              blocked_reason_code: 'CURRENT_LOCATION_UNSUPPORTED',
+            }
+          : option,
+      ),
+    });
+
+    renderHome(homeApi({ selectOption } as unknown as Partial<Api>), {
+      decision: blockedDecision,
+    });
+
+    expect(
+      await screen.findByText('현재 장소에서 가능한 운동을 확인했어요.'),
+    ).toBeOnTheScreen();
+    const startButton = screen.getByRole('button', {
+      name: '운동 시작하기',
+    });
+    expect(startButton.props.accessibilityState.disabled).toBe(true);
+    fireEvent.press(startButton);
+    expect(selectOption).not.toHaveBeenCalled();
+  });
+
+  it('does not offer a rest action the backend marks as unselectable', async () => {
+    const selectOption = jest.fn();
+    const blockedDecision = decision({
+      action_code: 'REST',
+      final_plan: null,
+      options: decision().options.map((option) =>
+        option.option_code === 'REST'
+          ? {
+              ...option,
+              selectable: false,
+              blocked_reason_code: 'OPTION_NOT_SELECTABLE',
+            }
+          : option,
+      ),
+    });
+
+    renderHome(homeApi({ selectOption } as unknown as Partial<Api>), {
+      decision: blockedDecision,
+    });
+
+    expect(await screen.findByText('오늘은 휴식을 추천해요')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: '오늘은 쉬기' })).toBeNull();
+    expect(selectOption).not.toHaveBeenCalled();
   });
 
   it('shows no workout prompt on a day the user chose rest', async () => {
@@ -732,6 +1035,50 @@ describe('default fetch binding', () => {
 });
 
 describe('OnboardingScreen', () => {
+  function fillRequiredOnboardingSteps({
+    birthdate = '1997-08-11',
+    selectOptionalPreferences = true,
+  }: {
+    birthdate?: string;
+    selectOptionalPreferences?: boolean;
+  } = {}) {
+    fireEvent.changeText(
+      screen.getByPlaceholderText('앱에서 불릴 이름'),
+      '헬끼',
+    );
+    fireEvent.changeText(
+      screen.getByPlaceholderText('예: 1997-08-11'),
+      birthdate,
+    );
+    fireEvent.press(screen.getByText('다음'));
+    fireEvent.press(screen.getByText('여성'));
+    fireEvent.press(screen.getByText('다음'));
+    fireEvent.changeText(screen.getByLabelText('키'), '172.4');
+    fireEvent.changeText(screen.getByLabelText('체중'), '68.5');
+    fireEvent.press(screen.getByText('다음'));
+    fireEvent.press(screen.getByText('건강 유지'));
+    fireEvent.press(screen.getByText('다음'));
+    fireEvent.press(screen.getByText('입문·초급'));
+    fireEvent.press(screen.getByText('다음'));
+    if (selectOptionalPreferences) {
+      fireEvent.press(screen.getByText('근력'));
+      fireEvent.press(screen.getByText('유산소'));
+    }
+    fireEvent.press(screen.getByText('다음'));
+    if (selectOptionalPreferences) {
+      fireEvent.press(screen.getByText('간결하게'));
+    }
+    fireEvent.press(screen.getByText('다음'));
+    fireEvent.press(screen.getByText('집'));
+    fireEvent.press(screen.getByText('다음'));
+    fireEvent.press(screen.getByText('맨몸'));
+    fireEvent.press(screen.getByText('다음'));
+    fireEvent.press(screen.getByText('다음'));
+    fireEvent.press(screen.getByText('다음'));
+    fireEvent.press(screen.getByText('없어요'));
+    fireEvent.press(screen.getByText('다음'));
+  }
+
   it('offers a way out for a signed-in account that has not onboarded', () => {
     const onSignOut = jest.fn();
     render(
@@ -742,10 +1089,270 @@ describe('OnboardingScreen', () => {
       />,
     );
 
-    // Without this the account is trapped: onboarding is the first screen, and
-    // the profile screen that holds sign-out is only reachable afterwards.
-    fireEvent.press(screen.getByText('다른 계정으로 로그인'));
+    // The first Previous action returns to login so an account cannot become
+    // trapped before onboarding has been completed.
+    fireEvent.press(screen.getByText('이전'));
     expect(onSignOut).toHaveBeenCalled();
+  });
+
+  it('shows one onboarding question at a time with progress navigation', () => {
+    render(
+      <OnboardingScreen
+        api={stubApi()}
+        onCompleted={jest.fn()}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText('1 / 13')).toBeOnTheScreen();
+    expect(screen.getByText('기본 정보를 알려주세요')).toBeOnTheScreen();
+    expect(screen.queryByText('성별을 선택해주세요')).not.toBeOnTheScreen();
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText('앱에서 불릴 이름'),
+      '헬끼',
+    );
+    fireEvent.changeText(
+      screen.getByPlaceholderText('예: 1997-08-11'),
+      '1997-08-11',
+    );
+    fireEvent.press(screen.getByText('다음'));
+
+    expect(screen.getByText('2 / 13')).toBeOnTheScreen();
+    expect(screen.getByText('성별을 선택해주세요')).toBeOnTheScreen();
+    expect(screen.queryByText('기본 정보를 알려주세요')).not.toBeOnTheScreen();
+  });
+
+  it('blocks invalid and future birthdates but leaves age eligibility to the server', () => {
+    render(
+      <OnboardingScreen
+        api={stubApi()}
+        onCompleted={jest.fn()}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText('앱에서 불릴 이름'),
+      '가'.repeat(70),
+    );
+    expect(screen.getByLabelText('닉네임')).toHaveProp(
+      'value',
+      '가'.repeat(64),
+    );
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText('예: 1997-08-11'),
+      '2026-99-99',
+    );
+    expect(
+      screen.getByText('달력에 있는 올바른 날짜를 입력해주세요.'),
+    ).toBeOnTheScreen();
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText('예: 1997-08-11'),
+      '2999-01-01',
+    );
+    expect(screen.getByText('미래 날짜는 입력할 수 없어요.')).toBeOnTheScreen();
+
+    const underAgeYear = new Date().getFullYear() - 10;
+    fireEvent.changeText(
+      screen.getByPlaceholderText('예: 1997-08-11'),
+      `${underAgeYear}-01-01`,
+    );
+    fireEvent.press(screen.getByText('다음'));
+    expect(screen.getByText('2 / 13')).toBeOnTheScreen();
+  });
+
+  it('sends an under-14 birthdate so the server can apply the account block', async () => {
+    const submitOnboarding = jest.fn(async () => {
+      throw new ApiError({
+        kind: 'permission',
+        code: 'AGE_REQUIREMENT_NOT_MET',
+        status: 403,
+        message: '만 14세 미만은 이용할 수 없습니다.',
+      });
+    });
+    const underAgeBirthdate = `${new Date().getFullYear() - 10}-01-01`;
+
+    render(
+      <OnboardingScreen
+        api={stubApi({ submitOnboarding })}
+        onCompleted={jest.fn()}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fillRequiredOnboardingSteps({ birthdate: underAgeBirthdate });
+    screen
+      .getAllByRole('checkbox')
+      .forEach((checkbox) => fireEvent.press(checkbox));
+    fireEvent.press(screen.getByText('시작하기'));
+
+    await waitFor(() => {
+      expect(submitOnboarding).toHaveBeenCalledWith(
+        expect.objectContaining({ date_of_birth: underAgeBirthdate }),
+      );
+      expect(screen.getByText('1 / 13')).toBeOnTheScreen();
+      expect(
+        screen.getByText('만 14세 미만은 이용할 수 없습니다.'),
+      ).toBeOnTheScreen();
+    });
+  });
+
+  it('requires explicit location, equipment, and attention answers', () => {
+    const { rerender } = render(
+      <OnboardingScreen
+        api={stubApi()}
+        initialStep={8}
+        onCompleted={jest.fn()}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: '입력이 필요해요' }),
+    ).toBeDisabled();
+    fireEvent.press(screen.getByText('집'));
+    fireEvent.press(screen.getByText('다음'));
+    expect(screen.getByText('사용할 수 있는 장비가 있나요?')).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', { name: '입력이 필요해요' }),
+    ).toBeDisabled();
+
+    rerender(
+      <OnboardingScreen
+        api={stubApi()}
+        initialStep={12}
+        onCompleted={jest.fn()}
+        onSignOut={jest.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole('button', { name: '입력이 필요해요' }),
+    ).toBeDisabled();
+    fireEvent.press(screen.getByText('있어요'));
+    expect(
+      screen.getByRole('button', { name: '입력이 필요해요' }),
+    ).toBeDisabled();
+    fireEvent.press(screen.getByText('무릎'));
+    expect(screen.getByRole('button', { name: '다음' })).toBeEnabled();
+  });
+
+  it('maps Profile gender and body values to the backend onboarding contract', async () => {
+    const submitOnboarding = jest.fn(async (_request: OnboardingRequest) => ({
+      user_id: 'user-1',
+      onboarding_completed: true,
+      profile_version: 1,
+      coaching_style_code: 'SUPPORTIVE',
+      ai_trial_started_at: '2026-08-18T00:00:00+09:00',
+      ai_trial_ends_at: '2026-09-17T00:00:00+09:00',
+      premium_status_code: 'TRIAL',
+      created_at: '2026-08-18T00:00:00+09:00',
+      updated_at: '2026-08-18T00:00:00+09:00',
+    }));
+    const onCompleted = jest.fn();
+
+    render(
+      <OnboardingScreen
+        api={stubApi({ submitOnboarding })}
+        onCompleted={onCompleted}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fillRequiredOnboardingSteps();
+    screen
+      .getAllByRole('checkbox')
+      .forEach((checkbox) => fireEvent.press(checkbox));
+    fireEvent.press(screen.getByText('시작하기'));
+
+    await waitFor(() => {
+      expect(submitOnboarding).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sex_code: 'FEMALE',
+          height_cm: 172.4,
+          weight_kg: 68.5,
+          primary_goal_code: 'GENERAL_FITNESS',
+          experience_level_code: 'BEGINNER',
+          preferred_exercise_type_codes: ['STRENGTH', 'CARDIO'],
+          coaching_style_code: 'CONCISE',
+        }),
+      );
+      expect(onCompleted).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('allows optional preferences to be skipped and uses the backend coaching default', async () => {
+    const submitOnboarding = jest.fn(async (_request: OnboardingRequest) => ({
+      user_id: 'user-1',
+      onboarding_completed: true,
+      profile_version: 1,
+      coaching_style_code: 'SUPPORTIVE',
+      ai_trial_started_at: '2026-08-18T00:00:00+09:00',
+      ai_trial_ends_at: '2026-09-17T00:00:00+09:00',
+      premium_status_code: 'TRIAL',
+      created_at: '2026-08-18T00:00:00+09:00',
+      updated_at: '2026-08-18T00:00:00+09:00',
+    }));
+
+    render(
+      <OnboardingScreen
+        api={stubApi({ submitOnboarding })}
+        onCompleted={jest.fn()}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fillRequiredOnboardingSteps({ selectOptionalPreferences: false });
+    screen
+      .getAllByRole('checkbox')
+      .forEach((checkbox) => fireEvent.press(checkbox));
+    fireEvent.press(screen.getByText('시작하기'));
+
+    await waitFor(() => {
+      const request = submitOnboarding.mock.calls[0]?.[0];
+      expect(request).toEqual(
+        expect.objectContaining({
+          preferred_exercise_type_codes: [],
+          attention_area_codes: [],
+          preferred_location_code: 'HOME',
+          equipment_codes: ['BODYWEIGHT'],
+        }),
+      );
+      expect(request).not.toHaveProperty('coaching_style_code');
+    });
+  });
+
+  it('returns to the field step when the server reports an onboarding field error', async () => {
+    const submitOnboarding = jest.fn(async () => {
+      throw new ApiError({
+        kind: 'validation',
+        code: 'INVALID_REQUEST',
+        status: 422,
+        message: '닉네임을 다시 확인해주세요.',
+        details: [{ field: 'body.nickname', type: 'string_too_long' }],
+      });
+    });
+
+    render(
+      <OnboardingScreen
+        api={stubApi({ submitOnboarding })}
+        onCompleted={jest.fn()}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fillRequiredOnboardingSteps();
+    screen
+      .getAllByRole('checkbox')
+      .forEach((checkbox) => fireEvent.press(checkbox));
+    fireEvent.press(screen.getByText('시작하기'));
+
+    await waitFor(() => {
+      expect(screen.getByText('1 / 13')).toBeOnTheScreen();
+      expect(screen.getByText('닉네임을 다시 확인해주세요.')).toBeOnTheScreen();
+    });
   });
 });
 

@@ -34,7 +34,7 @@ describe('App boot navigation', () => {
 
     expect(screen.getByRole('header', { name: '헬끼' })).toBeOnTheScreen();
     expect(screen.getByTestId('splash-island')).toBeOnTheScreen();
-    expect(screen.getByTestId('question-mark')).toBeOnTheScreen();
+    expect(screen.queryByTestId('question-mark')).toBeNull();
     expect(bootResolver).not.toHaveBeenCalled();
   });
 
@@ -54,6 +54,46 @@ describe('App boot navigation', () => {
 
   it.each([
     {
+      mode: 'account' as const,
+      label: 'Account (API)',
+      readyText: '내 프로필',
+    },
+    {
+      mode: 'mascot-house' as const,
+      label: 'Mascot house (API)',
+      readyText: '지금 내 루틴',
+    },
+    {
+      mode: 'session' as const,
+      label: 'Workout session (API)',
+      readyText: '0 / 3 블록 완료',
+    },
+    {
+      mode: 'session-result' as const,
+      label: 'Workout result (API)',
+      readyText: '오늘 운동을 마쳤어요',
+    },
+    {
+      mode: 'weekly-report' as const,
+      label: 'Weekly report (API)',
+      readyText: '마감된 주',
+    },
+  ])(
+    'opens the $mode API preview through the gallery',
+    async ({ label, mode, readyText }) => {
+      const bootResolver = jest.fn(async () => 'Auth' as const);
+
+      await render(<App bootResolver={bootResolver} previewMode={mode} />);
+
+      expect(screen.getByRole('radio', { name: label })).toBeChecked();
+      expect(await screen.findByText(readyText)).toBeOnTheScreen();
+      expect(screen.getByText(`단독 진입: ?preview=${mode}`)).toBeOnTheScreen();
+      expect(bootResolver).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    {
       mode: 'login' as const,
       heading: '오늘도 자신과의 싸움에서\n승리하러 왔군요',
     },
@@ -66,6 +106,10 @@ describe('App boot navigation', () => {
     },
     { mode: 'calendar-report' as const, heading: '운동 캘린더' },
     { mode: 'my-page' as const, heading: '마이페이지' },
+    {
+      mode: 'onboarding' as const,
+      heading: '온보딩',
+    },
     { mode: 'workout' as const, heading: '전신 기본 루틴' },
   ])(
     'opens the $mode direct preview without starting app boot',

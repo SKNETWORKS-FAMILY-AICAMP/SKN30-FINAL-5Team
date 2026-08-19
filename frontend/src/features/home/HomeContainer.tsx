@@ -24,6 +24,7 @@ import {
   messageForError,
   type ApiErrorKind,
 } from '../../api/errors';
+import { planRevisionReasonLabel } from '../../api/labels';
 import type {
   DailyContextResponse,
   DecisionResponse,
@@ -32,6 +33,7 @@ import type {
   WeeklyPlanRevisionResponse,
   WeekResponse,
   WorkoutPlan,
+  WorkoutSessionLogSummary,
 } from '../../api/types';
 import {
   localDateString,
@@ -50,10 +52,12 @@ type HomeData = {
   routine: RoutineResponse | null;
   context: DailyContextResponse | null;
   week: WeekResponse | null;
+  sessions: WorkoutSessionLogSummary[];
 };
 
 const FALLBACK_GOAL_CODE = 'GENERAL_FITNESS';
 const FALLBACK_LOCATION_CODE = 'HOME';
+const EMPTY_SESSIONS: WorkoutSessionLogSummary[] = [];
 
 /** Absent resources are a normal state here, not a failure to report. */
 function optional<T>(
@@ -66,6 +70,46 @@ function optional<T>(
     }
     throw error;
   });
+}
+
+function revisionMessage(revision: WeeklyPlanRevisionResponse): string {
+  const messages = Array.from(
+    new Set(
+      [...revision.revision_reason_codes, ...revision.finalization_reason_codes]
+        .map(planRevisionReasonLabel)
+        .filter((message): message is string => message !== null),
+    ),
+  );
+  if (messages.length > 0) {
+    return messages.join(' ');
+  }
+  if (revision.safety_status_code === 'NEEDS_INPUT') {
+    return '루틴을 조정하려면 상태를 조금 더 확인해야 해요.';
+  }
+  if (revision.safety_status_code === 'BLOCKED') {
+    return '안전 기준에 따라 이 루틴을 진행하지 않아요.';
+  }
+  return '안전 확인을 완료하지 못해 루틴을 적용하지 않았어요.';
+}
+
+function actionMessage(error: unknown): string {
+  if (isApiError(error) && error.code === 'PLAN_REVISION_REJECTED') {
+    const messages = Array.from(
+      new Set(
+        error.details
+          .map((detail) =>
+            detail.reason_code
+              ? planRevisionReasonLabel(detail.reason_code)
+              : null,
+          )
+          .filter((message): message is string => message !== null),
+      ),
+    );
+    if (messages.length > 0) {
+      return messages.join(' ');
+    }
+  }
+  return messageForError(error);
 }
 
 export function HomeContainer({
@@ -91,31 +135,48 @@ export function HomeContainer({
   planRevision: WeeklyPlanRevisionResponse | null;
   onPlanRevisionChange: (revision: WeeklyPlanRevisionResponse | null) => void;
   onSessionStarted: (sessionId: string, plan: WorkoutPlan) => void;
-  onRestChosen: () => void;
+  onRestChosen: (pressureNotificationsAllowed: boolean) => void;
   onTab: (tab: TabId) => void;
   onOpenCalendar: () => void;
 }) {
-  const localDate = localDateString();
-  const weekStart = weekStartString();
+  const profile = me.profile;
+  const now = new Date();
+  const localDate = localDateString(now, profile?.timezone);
+  const weekStart = weekStartString(now, profile?.timezone);
 
   const { state, reload, setData } = useAsyncData<HomeData>(
     async (signal) => {
-      const routine = await optional(api.getCurrentRoutine(localDate, signal), [
-        'notFound',
+      const [routine, context, week, sessionList] = await Promise.all([
+        optional(api.getCurrentRoutine(localDate, signal), ['notFound']),
+        optional(api.getDailyContext(localDate, signal), ['notFound']),
+        // Weekly summaries are secondary. They may be absent while the daily
+        // flow remains usable, but authentication and permission errors still
+        // surface through the Home state.
+        optional(api.getWeek(weekStart, signal), [
+          'notFound',
+          'validation',
+          'conflict',
+          'unavailable',
+          'server',
+        ]),
+        optional(
+          api.listWorkoutSessions(
+            {
+              fromLocalDate: weekStart,
+              toLocalDate: localDate,
+              limit: 100,
+            },
+            signal,
+          ),
+          ['notFound', 'validation', 'unavailable', 'server'],
+        ),
       ]);
-      const context = await optional(api.getDailyContext(localDate, signal), [
-        'notFound',
-      ]);
-      // The week card is secondary: a week the server cannot summarise must
-      // not blank out today's routine, but an auth failure still surfaces.
-      const week = await optional(api.getWeek(weekStart, signal), [
-        'notFound',
-        'validation',
-        'conflict',
-        'unavailable',
-        'server',
-      ]);
-      return { routine, context, week };
+      return {
+        routine,
+        context,
+        week,
+        sessions: sessionList?.items ?? [],
+      };
     },
     [api, localDate, weekStart],
   );
@@ -130,8 +191,8 @@ export function HomeContainer({
   const routine = data?.routine ?? null;
   const context = data?.context ?? null;
   const week = data?.week ?? null;
+  const sessions = data?.sessions ?? EMPTY_SESSIONS;
 
-  const profile = me.profile;
   // Memoised because it feeds the mutation callbacks' dependency lists; a new
   // array each render would rebuild them on every render.
   const locationCodes = useMemo(
@@ -157,7 +218,7 @@ export function HomeContainer({
 
     void action()
       .catch((error: unknown) => {
-        setActionError(messageForError(error));
+        setActionError(actionMessage(error));
         setStaleContext(isApiError(error) && error.kind === 'stale');
       })
       .finally(() => {
@@ -181,11 +242,13 @@ export function HomeContainer({
 
         // A previous attempt lost the optimistic-lock race, so the retry has to
         // carry the version that is stored now rather than the stale one.
-        let expectedVersion = context?.context_version;
+        let latestContext = context;
+        let expectedVersion = latestContext?.context_version;
         if (refreshVersion) {
           const current = await optional(api.getDailyContext(localDate), [
             'notFound',
           ]);
+          latestContext = current;
           expectedVersion = current?.context_version;
         }
 
@@ -203,11 +266,14 @@ export function HomeContainer({
                 ? 'PROFILE'
                 : 'USER_OVERRIDE',
             location_code:
-              context?.location_code ??
+              draft.locationCode ??
+              latestContext?.location_code ??
               profile?.preferred_location_code ??
               locationCodes[0] ??
               FALLBACK_LOCATION_CODE,
             sleep_minutes: sleepMinutes,
+            fasting_state_code: latestContext?.fasting_state_code ?? null,
+            hydration_state_code: latestContext?.hydration_state_code ?? null,
             discomforts: Object.entries(draft.discomforts).map(
               ([body_area_code, severity_code]) => ({
                 body_area_code,
@@ -225,7 +291,7 @@ export function HomeContainer({
           expected_context_version: saved.context_version,
         });
 
-        setData({ routine, context: saved, week });
+        setData({ routine, context: saved, week, sessions });
         onDecisionChange(next);
       });
     },
@@ -239,6 +305,7 @@ export function HomeContainer({
       routine,
       run,
       setData,
+      sessions,
       week,
     ],
   );
@@ -258,7 +325,7 @@ export function HomeContainer({
       return;
     }
     const option = decision.options.find(
-      (entry) => entry.option_code === 'FINAL_ROUTINE',
+      (entry) => entry.option_code === 'FINAL_ROUTINE' && entry.selectable,
     );
     if (option === undefined) {
       return;
@@ -282,15 +349,18 @@ export function HomeContainer({
       return;
     }
     const option = decision.options.find(
-      (entry) => entry.option_code === 'REST',
+      (entry) => entry.option_code === 'REST' && entry.selectable,
     );
     if (option === undefined) {
       return;
     }
 
     run('starting', async () => {
-      await api.selectOption(decision.decision_id, option.option_id);
-      onRestChosen();
+      const selection = await api.selectOption(
+        decision.decision_id,
+        option.option_id,
+      );
+      onRestChosen(selection.pressure_notifications_allowed ?? false);
     });
   }, [api, decision, onRestChosen, run]);
 
@@ -328,9 +398,7 @@ export function HomeContainer({
 
       if (revision.routine === null) {
         onDecisionChange(null);
-        setActionError(
-          '요청한 계획 수정을 적용하지 못했어요. 오늘 체크인을 다시 하면 현재 계획으로 추천을 받을 수 있어요.',
-        );
+        setActionError(revisionMessage(revision));
         return;
       }
       if (context === null) {
@@ -385,6 +453,7 @@ export function HomeContainer({
 
   return (
     <HomeScreen
+      attentionAreaCodes={profile?.attention_area_codes ?? []}
       nickname={profile?.nickname ?? '회원'}
       localDate={localDate}
       status={
@@ -395,12 +464,15 @@ export function HomeContainer({
             : 'loading'
       }
       errorMessage={state.status === 'error' ? state.message : undefined}
+      exerciseApi={api}
       permissionDenied={permissionDenied}
       onRetry={permissionDenied ? undefined : reload}
       routine={routine}
       context={context}
       decision={decision}
       week={week}
+      sessions={sessions}
+      weeklyGoalCount={profile?.desired_weekly_workout_count ?? 1}
       planRevision={planRevision}
       restToday={restToday}
       defaultDurationMinutes={profile?.default_requested_duration_minutes}
@@ -418,6 +490,7 @@ export function HomeContainer({
       onRequestAiRevision={requestAiRevision}
       onSubmitUserEdits={submitUserEdits}
       onNavigateTab={onTab}
+      onProfile={() => onTab('my')}
       onOpenCalendar={onOpenCalendar}
     />
   );

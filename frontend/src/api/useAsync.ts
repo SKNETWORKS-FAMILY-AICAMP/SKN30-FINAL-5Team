@@ -132,17 +132,60 @@ export function useAsyncAction<Args extends unknown[], T>(
 }
 
 /** The user's local `YYYY-MM-DD`, which the daily resources are keyed by. */
-export function localDateString(date: Date = new Date()): string {
-  const year = date.getFullYear();
+export function localDateString(
+  date: Date = new Date(),
+  timeZone?: string,
+): string {
+  const { year, month, day } = dateParts(date, timeZone);
+  return `${year}-${month}-${day}`;
+}
+
+function dateParts(date: Date, timeZone?: string) {
+  if (timeZone) {
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).formatToParts(date);
+      const part = (type: Intl.DateTimeFormatPartTypes) =>
+        parts.find((entry) => entry.type === type)?.value;
+      const year = part('year');
+      const month = part('month');
+      const day = part('day');
+      if (year && month && day) {
+        return { year, month, day };
+      }
+    } catch {
+      // An invalid or unsupported profile timezone falls back to device-local
+      // time so Home remains usable without inventing a server date.
+    }
+  }
+
+  const year = String(date.getFullYear());
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
+  return { year, month, day };
+}
+
+function utcDateString(date: Date): string {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
 /** Monday of the week containing `date`, as `YYYY-MM-DD`. */
-export function weekStartString(date: Date = new Date()): string {
-  const copy = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const weekday = (copy.getDay() + 6) % 7;
-  copy.setDate(copy.getDate() - weekday);
-  return localDateString(copy);
+export function weekStartString(
+  date: Date = new Date(),
+  timeZone?: string,
+): string {
+  const [year, month, day] = localDateString(date, timeZone)
+    .split('-')
+    .map(Number);
+  const copy = new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 1));
+  const weekday = (copy.getUTCDay() + 6) % 7;
+  copy.setUTCDate(copy.getUTCDate() - weekday);
+  return utcDateString(copy);
 }

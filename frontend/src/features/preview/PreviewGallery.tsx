@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 
+import { ScaleViewportProvider } from '../../components/scale';
 import { LoginScreen } from '../auth/LoginScreen';
 import {
   LOGIN_PREVIEW_OPTIONS,
@@ -19,7 +20,6 @@ import {
 import { SignUpScreen } from '../auth/SignUpScreen';
 import { CalendarReportScreen } from '../home/CalendarReportScreen';
 import { HOME_PREVIEW_OPTIONS, type HomePreviewState } from '../home/homeModel';
-import { HomeContainer } from '../home/HomeContainer';
 import { HomeScreen } from '../home/HomeScreen';
 import {
   CALENDAR_REPORT_PREVIEW_OPTIONS,
@@ -31,28 +31,56 @@ import {
 } from '../home/homeSecondaryModel';
 import { MapHomeScreen } from '../home/MapHomeScreen';
 import { MyPageScreen } from '../home/MyPageScreen';
+import { PreviousHomeScreen } from '../home/PreviousHomeScreen';
+import { MascotHouseScreen } from '../house/MascotHouseScreen';
+import {
+  ONBOARDING_STEPS,
+  OnboardingScreen,
+} from '../onboarding/OnboardingScreen';
 import {
   PROFILE_PREVIEW_OPTIONS,
   type ProfilePreviewState,
   PROFILE_STEPS,
 } from '../profile/profileModel';
 import { ProfileScreen } from '../profile/ProfileScreen';
+import { AccountScreen } from '../profile/AccountScreen';
 import { SplashScreen } from '../splash/SplashScreen';
+import { WeeklyReportScreen } from '../weekly/WeeklyReportScreen';
+import { SessionResultScreen } from '../workout/SessionResultScreen';
+import { SessionScreen } from '../workout/SessionScreen';
 import { WorkoutScreen } from '../workout/WorkoutScreen';
 import {
   WORKOUT_PREVIEW_OPTIONS,
   type WorkoutPreviewState,
 } from '../workout/workoutModel';
 import { homePreviewProps } from './homePreview';
+import { onboardingPreviewApi } from './onboardingPreview';
 import {
-  createTodayPreviewApi,
+  accountPreviewApi,
+  createHousePreviewApi,
+  createSessionPreviewApi,
+  createWeeklyReportPreviewApi,
+  HOUSE_PREVIEW_OPTIONS,
+  type HousePreviewState,
+  PREVIEW_PLAN,
+  SESSION_PREVIEW_OPTIONS,
+  type SessionPreviewState,
+  SESSION_RESULT_PREVIEW_OPTIONS,
+  type SessionResultPreviewState,
+  sessionResultPreviewApi,
+  sessionResultPreviewOutcome,
+  WEEKLY_REPORT_PREVIEW_OPTIONS,
+  type WeeklyReportPreviewState,
+} from './backendPreview';
+import {
   PREVIEW_ME,
+  previousHomePreviewProps,
   TODAY_PREVIEW_OPTIONS,
   type TodayPreviewState,
 } from './todayPreview';
 
 const APP_CANVAS = { width: 390, height: 844 } as const;
-export const SPLASH_DEVICE_PREVIEWS = [
+export const DEVICE_PREVIEWS = [
   {
     id: 'compact',
     label: 'Android compact · 360 × 800',
@@ -72,22 +100,29 @@ export const SPLASH_DEVICE_PREVIEWS = [
     height: 932,
   },
 ] as const;
+export const SPLASH_DEVICE_PREVIEWS = DEVICE_PREVIEWS;
 const PREVIEW_SCREENS = [
   { id: 'splash', label: 'Splash' },
-  { id: 'login', label: 'Login' },
-  { id: 'signup', label: 'SignUp' },
+  { id: 'login', label: 'Login (API)' },
+  { id: 'signup', label: 'SignUp (API)' },
   { id: 'profile', label: 'Profile' },
-  { id: 'today', label: 'Home (API)' },
-  { id: 'home', label: 'Home' },
+  { id: 'onboarding', label: 'Onboarding (API)' },
+  { id: 'today', label: 'Home previous (API)' },
+  { id: 'session', label: 'Workout session (API)' },
+  { id: 'session-result', label: 'Workout result (API)' },
+  { id: 'mascot-house', label: 'Mascot house (API)' },
+  { id: 'weekly-report', label: 'Weekly report (API)' },
+  { id: 'account', label: 'Account (API)' },
+  { id: 'home', label: 'Home (API)' },
   { id: 'home-map', label: 'Home map' },
-  { id: 'calendar-report', label: 'Calendar/report' },
+  { id: 'calendar-report', label: 'Calendar/report(API)' },
   { id: 'my-page', label: 'My page' },
-  { id: 'workout', label: 'Workout' },
+  { id: 'workout', label: 'Workout(API)' },
 ] as const;
 
 export type PreviewScreenId = (typeof PREVIEW_SCREENS)[number]['id'];
 type SplashPreviewState = 'pending' | 'error';
-type SplashDevicePreviewId = (typeof SPLASH_DEVICE_PREVIEWS)[number]['id'];
+type DevicePreviewId = (typeof DEVICE_PREVIEWS)[number]['id'];
 
 export function PreviewGallery({
   initialScreenId = 'splash',
@@ -97,16 +132,27 @@ export function PreviewGallery({
   const { width } = useWindowDimensions();
   const [screenId, setScreenId] = useState<PreviewScreenId>(initialScreenId);
   const [splashState, setSplashState] = useState<SplashPreviewState>('pending');
-  const [splashDevicePreviewId, setSplashDevicePreviewId] =
-    useState<SplashDevicePreviewId>('reference');
+  const [devicePreviewId, setDevicePreviewId] =
+    useState<DevicePreviewId>('reference');
   const [loginState, setLoginState] = useState<LoginPreviewState>('idle');
   const [signUpState, setSignUpState] = useState<SignUpPreviewState>('idle');
   const [profileStep, setProfileStep] = useState(1);
   const [profileState, setProfileState] =
     useState<ProfilePreviewState>('editing');
+  const [onboardingStep, setOnboardingStep] = useState(1);
   const [homeState, setHomeState] = useState<HomePreviewState>('pre-checkin');
+  const homeTransitionTimer = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const [todayState, setTodayState] =
     useState<TodayPreviewState>('pre-checkin');
+  const [sessionState, setSessionState] =
+    useState<SessionPreviewState>('active');
+  const [sessionResultState, setSessionResultState] =
+    useState<SessionResultPreviewState>('completed');
+  const [houseState, setHouseState] = useState<HousePreviewState>('loaded');
+  const [weeklyReportState, setWeeklyReportState] =
+    useState<WeeklyReportPreviewState>('closed');
   const [mapHomeState, setMapHomeState] = useState<MapHomePreviewState>('map');
   const [calendarReportState, setCalendarReportState] =
     useState<CalendarReportPreviewState>('calendar');
@@ -115,14 +161,46 @@ export function PreviewGallery({
     useState<WorkoutPreviewState>('active');
   const [reducedMotion, setReducedMotion] = useState(false);
   const useWideLayout = width >= 920;
-  const splashViewport =
-    SPLASH_DEVICE_PREVIEWS.find(
-      (preview) => preview.id === splashDevicePreviewId,
-    ) ?? SPLASH_DEVICE_PREVIEWS[1];
-  const canvasViewport = screenId === 'splash' ? splashViewport : APP_CANVAS;
-  const todayApi = useMemo(
-    () => createTodayPreviewApi(todayState),
-    [todayState],
+  const canvasViewport =
+    DEVICE_PREVIEWS.find((preview) => preview.id === devicePreviewId) ??
+    APP_CANVAS;
+  const sessionApi = useMemo(
+    () => createSessionPreviewApi(sessionState),
+    [sessionState],
+  );
+  const houseApi = useMemo(
+    () => createHousePreviewApi(houseState),
+    [houseState],
+  );
+  const weeklyReportApi = useMemo(
+    () => createWeeklyReportPreviewApi(weeklyReportState),
+    [weeklyReportState],
+  );
+  const selectHomeState = useCallback((next: HomePreviewState) => {
+    if (homeTransitionTimer.current !== null) {
+      clearTimeout(homeTransitionTimer.current);
+      homeTransitionTimer.current = null;
+    }
+    setHomeState(next);
+  }, []);
+  const runHomeTransition = useCallback(
+    (next: HomePreviewState) => {
+      selectHomeState('generating');
+      homeTransitionTimer.current = setTimeout(() => {
+        setHomeState(next);
+        homeTransitionTimer.current = null;
+      }, 600);
+    },
+    [selectHomeState],
+  );
+
+  useEffect(
+    () => () => {
+      if (homeTransitionTimer.current !== null) {
+        clearTimeout(homeTransitionTimer.current);
+      }
+    },
+    [],
   );
 
   return (
@@ -158,6 +236,19 @@ export function PreviewGallery({
           </View>
         </ControlGroup>
 
+        <ControlGroup label="기기 비율">
+          <View style={styles.deviceOptionColumn}>
+            {DEVICE_PREVIEWS.map((preview) => (
+              <OptionButton
+                key={preview.id}
+                label={preview.label}
+                selected={devicePreviewId === preview.id}
+                onPress={() => setDevicePreviewId(preview.id)}
+              />
+            ))}
+          </View>
+        </ControlGroup>
+
         {screenId === 'splash' ? (
           <>
             <ControlGroup label="Splash mock 상태">
@@ -172,19 +263,6 @@ export function PreviewGallery({
                   selected={splashState === 'error'}
                   onPress={() => setSplashState('error')}
                 />
-              </View>
-            </ControlGroup>
-
-            <ControlGroup label="Splash 기기 비율">
-              <View style={styles.deviceOptionColumn}>
-                {SPLASH_DEVICE_PREVIEWS.map((preview) => (
-                  <OptionButton
-                    key={preview.id}
-                    label={preview.label}
-                    selected={splashDevicePreviewId === preview.id}
-                    onPress={() => setSplashDevicePreviewId(preview.id)}
-                  />
-                ))}
               </View>
             </ControlGroup>
 
@@ -258,8 +336,29 @@ export function PreviewGallery({
               }}
             />
             <Text style={styles.contractNotice}>
-              시각 참고 전용: 생년월일·성별·키·체중 필수 시안은 현재 API/DB
-              계약과 충돌합니다.
+              시각 참고 전용입니다. 실제 백엔드 필드에 연결되는 가입 후 입력은
+              Onboarding (API) 화면에서 확인할 수 있습니다.
+            </Text>
+          </>
+        ) : null}
+
+        {screenId === 'onboarding' ? (
+          <>
+            <ControlGroup label="Onboarding 단계">
+              <View style={styles.optionRow}>
+                {ONBOARDING_STEPS.map((step, index) => (
+                  <OptionButton
+                    key={step.key}
+                    label={`${index + 1}. ${step.key}`}
+                    selected={onboardingStep === index + 1}
+                    onPress={() => setOnboardingStep(index + 1)}
+                  />
+                ))}
+              </View>
+            </ControlGroup>
+            <Text style={styles.contractNotice}>
+              개발 확인 전용 API를 사용합니다. 입력 내용은 저장되거나 네트워크로
+              전송되지 않지만, 실제 화면과 동일한 요청 필드로 구성됩니다.
             </Text>
           </>
         ) : null}
@@ -270,7 +369,7 @@ export function PreviewGallery({
               label="Home mock 상태"
               options={HOME_PREVIEW_OPTIONS}
               selected={homeState}
-              onSelect={setHomeState}
+              onSelect={selectHomeState}
             />
             <Text style={styles.contractNotice}>
               시각 참고 전용: 체크인·루틴 생성·조정 결과는 fixture이며 최종 추천
@@ -282,16 +381,82 @@ export function PreviewGallery({
         {screenId === 'today' ? (
           <>
             <PreviewStateOptions
-              label="Today API 응답 상태"
+              label="Previous Home API 응답 상태"
               options={TODAY_PREVIEW_OPTIONS}
               selected={todayState}
               onSelect={setTodayState}
             />
             <Text style={styles.contractNotice}>
-              개발 확인 전용: 실제 홈 화면에 서버 응답 fixture만 주입합니다.
-              운동 추천이나 조정 판단은 프론트엔드에서 만들지 않습니다.
+              비교 전용: Git의 이전 API 연동형 Home에 서버 응답 fixture를
+              주입합니다. 현재 Home과 실제 앱 경로는 변경하지 않습니다.
             </Text>
           </>
+        ) : null}
+
+        {screenId === 'session' ? (
+          <>
+            <PreviewStateOptions
+              label="Workout session API 응답 상태"
+              options={SESSION_PREVIEW_OPTIONS}
+              selected={sessionState}
+              onSelect={setSessionState}
+            />
+            <Text style={styles.contractNotice}>
+              세션 시작, 블록 완료, 타이머 이벤트, 안전 중단과 미수행 기록을
+              실제 API 응답 형태의 개발용 fixture로 확인합니다.
+            </Text>
+          </>
+        ) : null}
+
+        {screenId === 'session-result' ? (
+          <>
+            <PreviewStateOptions
+              label="Workout result 서버 결과"
+              options={SESSION_RESULT_PREVIEW_OPTIONS}
+              selected={sessionResultState}
+              onSelect={setSessionResultState}
+            />
+            <Text style={styles.contractNotice}>
+              서버가 확정한 완료·일부 완료·미수행·안전 중단 결과와 피드백 저장
+              화면을 표시합니다.
+            </Text>
+          </>
+        ) : null}
+
+        {screenId === 'mascot-house' ? (
+          <>
+            <PreviewStateOptions
+              label="Mascot house API 응답 상태"
+              options={HOUSE_PREVIEW_OPTIONS}
+              selected={houseState}
+              onSelect={setHouseState}
+            />
+            <Text style={styles.contractNotice}>
+              현재 루틴과 주간 목표를 백엔드 응답 형태의 fixture에서 읽습니다.
+            </Text>
+          </>
+        ) : null}
+
+        {screenId === 'weekly-report' ? (
+          <>
+            <PreviewStateOptions
+              label="Weekly report API 응답 상태"
+              options={WEEKLY_REPORT_PREVIEW_OPTIONS}
+              selected={weeklyReportState}
+              onSelect={setWeeklyReportState}
+            />
+            <Text style={styles.contractNotice}>
+              주 마감 상태, 리포트 생성과 사용자 확인 흐름을 개발용 응답으로
+              확인합니다.
+            </Text>
+          </>
+        ) : null}
+
+        {screenId === 'account' ? (
+          <Text style={styles.contractNotice}>
+            프로필 응답과 계정 삭제 접수 흐름을 확인합니다. 실제 계정이나
+            데이터는 변경되지 않습니다.
+          </Text>
         ) : null}
 
         {screenId === 'home-map' ? (
@@ -376,64 +541,122 @@ export function PreviewGallery({
             },
           ]}
         >
-          {screenId === 'splash' ? (
-            <SplashScreen
-              bootStatus={splashState}
-              onRetry={() => setSplashState('pending')}
-              reducedMotionOverride={reducedMotion}
-              viewportOverride={splashViewport}
-            />
-          ) : null}
-          {screenId === 'login' ? (
-            <LoginScreen
-              onRetry={() => setLoginState('idle')}
-              onSignUp={() => setScreenId('signup')}
-              previewState={loginState}
-            />
-          ) : null}
-          {screenId === 'signup' ? (
-            <SignUpScreen
-              onBack={() => setScreenId('login')}
-              previewState={signUpState}
-            />
-          ) : null}
-          {screenId === 'profile' ? (
-            <ProfileScreen
-              initialStep={profileStep}
-              onStepChange={setProfileStep}
-              previewState={profileState}
-            />
-          ) : null}
-          {screenId === 'home' ? (
-            <HomeScreen {...homePreviewProps(homeState)} />
-          ) : null}
-          {screenId === 'today' ? (
-            <HomeContainer
-              api={todayApi}
-              me={PREVIEW_ME}
-              restToday={todayState === 'rest'}
-              decision={null}
-              onDecisionChange={() => undefined}
-              planRevision={null}
-              onPlanRevisionChange={() => undefined}
-              onSessionStarted={() => undefined}
-              onRestChosen={() => setTodayState('rest')}
-              onTab={() => undefined}
-              onOpenCalendar={() => undefined}
-            />
-          ) : null}
-          {screenId === 'home-map' ? (
-            <MapHomeScreen previewState={mapHomeState} />
-          ) : null}
-          {screenId === 'calendar-report' ? (
-            <CalendarReportScreen previewState={calendarReportState} />
-          ) : null}
-          {screenId === 'my-page' ? (
-            <MyPageScreen previewState={myPageState} />
-          ) : null}
-          {screenId === 'workout' ? (
-            <WorkoutScreen previewState={workoutState} />
-          ) : null}
+          <ScaleViewportProvider viewport={canvasViewport}>
+            {screenId === 'splash' ? (
+              <SplashScreen
+                bootStatus={splashState}
+                onRetry={() => setSplashState('pending')}
+                reducedMotionOverride={reducedMotion}
+                viewportOverride={canvasViewport}
+              />
+            ) : null}
+            {screenId === 'login' ? (
+              <LoginScreen
+                onRetry={() => setLoginState('idle')}
+                onSignUp={() => setScreenId('signup')}
+                previewState={loginState}
+              />
+            ) : null}
+            {screenId === 'signup' ? (
+              <SignUpScreen
+                onBack={() => setScreenId('login')}
+                previewState={signUpState}
+              />
+            ) : null}
+            {screenId === 'profile' ? (
+              <ProfileScreen
+                initialStep={profileStep}
+                onStepChange={setProfileStep}
+                previewState={profileState}
+              />
+            ) : null}
+            {screenId === 'onboarding' ? (
+              <OnboardingScreen
+                api={onboardingPreviewApi}
+                initialStep={onboardingStep}
+                onCompleted={() => undefined}
+                onSignOut={() => undefined}
+                onStepChange={setOnboardingStep}
+              />
+            ) : null}
+            {screenId === 'home' ? (
+              <HomeScreen
+                {...homePreviewProps(homeState)}
+                onChooseRest={() => selectHomeState('rest')}
+                onNavigateTab={(tab) => {
+                  if (tab === 'house') {
+                    setScreenId('mascot-house');
+                  } else if (tab === 'report') {
+                    setScreenId('weekly-report');
+                  } else if (tab === 'my') {
+                    setScreenId('account');
+                  }
+                }}
+                onOpenCalendar={() => setScreenId('calendar-report')}
+                onProfile={() => setScreenId('account')}
+                onRequestAiRevision={() => runHomeTransition('adjusted')}
+                onStartWorkout={() => setScreenId('session')}
+                onSubmitCheckin={() => runHomeTransition('routine')}
+                onSubmitUserEdits={() => runHomeTransition('adjusted')}
+              />
+            ) : null}
+            {screenId === 'today' ? (
+              <PreviousHomeScreen {...previousHomePreviewProps(todayState)} />
+            ) : null}
+            {screenId === 'session' ? (
+              <SessionScreen
+                key={sessionState}
+                api={sessionApi}
+                sessionId="session-preview"
+                plan={PREVIEW_PLAN}
+                onOutcome={() => undefined}
+              />
+            ) : null}
+            {screenId === 'session-result' ? (
+              <SessionResultScreen
+                key={sessionResultState}
+                api={sessionResultPreviewApi}
+                sessionId="session-preview"
+                outcome={sessionResultPreviewOutcome(sessionResultState)}
+                onDone={() => undefined}
+              />
+            ) : null}
+            {screenId === 'mascot-house' ? (
+              <MascotHouseScreen
+                key={houseState}
+                api={houseApi}
+                nickname={PREVIEW_ME.profile?.nickname ?? '미리보기'}
+                onNavigate={() => undefined}
+              />
+            ) : null}
+            {screenId === 'weekly-report' ? (
+              <WeeklyReportScreen
+                key={weeklyReportState}
+                api={weeklyReportApi}
+                onBack={() => undefined}
+              />
+            ) : null}
+            {screenId === 'account' ? (
+              <AccountScreen
+                api={accountPreviewApi}
+                me={PREVIEW_ME}
+                onBack={() => undefined}
+                onSignOut={() => undefined}
+              />
+            ) : null}
+            {screenId === 'home-map' ? (
+              <MapHomeScreen previewState={mapHomeState} />
+            ) : null}
+            {screenId === 'calendar-report' ? (
+              <CalendarReportScreen previewState={calendarReportState} />
+            ) : null}
+            {screenId === 'my-page' ? (
+              <MyPageScreen previewState={myPageState} />
+            ) : null}
+            {screenId === 'workout' ? (
+              <WorkoutScreen previewState={workoutState} />
+            ) : null}
+          </ScaleViewportProvider>
         </View>
       </View>
     </ScrollView>

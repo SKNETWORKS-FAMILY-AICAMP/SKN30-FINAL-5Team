@@ -2,10 +2,13 @@ import type { Api } from '../../api/endpoints';
 import { ApiError } from '../../api/errors';
 import type {
   DailyContextResponse,
+  DecisionResponse,
   MeResponse,
   RoutineResponse,
   WeekResponse,
+  WorkoutPlan,
 } from '../../api/types';
+import type { PreviousHomeScreenProps } from '../home/PreviousHomeScreen';
 
 export const TODAY_PREVIEW_OPTIONS = [
   { id: 'loading', label: '로딩' },
@@ -36,10 +39,115 @@ const ROUTINE: RoutineResponse = {
       requested_duration_minutes: 30,
       estimated_duration_seconds: 1800,
       estimated_calories_burned: null,
-      items: [],
+      items: [
+        {
+          id: 'routine-item-squat',
+          exercise_id: 'exercise-squat',
+          exercise_name: '의자 스쿼트',
+          sequence: 1,
+          phase_code: 'MAIN',
+          tier_code: 'CORE',
+          sets: 3,
+          reps: 10,
+          work_seconds_per_set: null,
+          rest_seconds_per_set: 60,
+          instruction_available: true,
+        },
+        {
+          id: 'routine-item-pushup',
+          exercise_id: 'exercise-pushup',
+          exercise_name: '벽 푸시업',
+          sequence: 2,
+          phase_code: 'MAIN',
+          tier_code: 'CORE',
+          sets: 3,
+          reps: 10,
+          work_seconds_per_set: null,
+          rest_seconds_per_set: 60,
+          instruction_available: true,
+        },
+        {
+          id: 'routine-item-march',
+          exercise_id: 'exercise-march',
+          exercise_name: '제자리 걷기',
+          sequence: 3,
+          phase_code: 'COOLDOWN',
+          tier_code: 'SUPPORT',
+          sets: 1,
+          reps: null,
+          work_seconds_per_set: 300,
+          rest_seconds_per_set: 0,
+          instruction_available: true,
+        },
+      ],
     },
   ],
   created_at: '2026-08-18T00:00:00+09:00',
+};
+
+const PLAN: WorkoutPlan = {
+  plan_id: 'plan-preview',
+  action_code: 'KEEP',
+  training_type_code: 'STRENGTH',
+  body_focus_code: 'FULL_BODY',
+  requested_duration_minutes: 30,
+  estimated_duration_seconds: 1800,
+  estimated_calories_burned: null,
+  setup_seconds: 0,
+  warmup_seconds: 120,
+  cooldown_seconds: 60,
+  items:
+    ROUTINE.days[0]?.items.map((item) => ({
+      plan_item_id: `plan-${item.id}`,
+      exercise_id: item.exercise_id,
+      exercise_name: item.exercise_name,
+      sequence: item.sequence,
+      tier_code: item.tier_code,
+      sets: item.sets,
+      reps: item.reps,
+      work_seconds: item.work_seconds_per_set ?? 60,
+      rest_seconds: item.rest_seconds_per_set,
+      transition_seconds: 15,
+      estimated_item_seconds: 540,
+      instruction_available: item.instruction_available,
+      mascot_animation_asset_key: null,
+      replacement_of_exercise_id: null,
+    })) ?? [],
+};
+
+const DECISION: DecisionResponse = {
+  decision_id: 'decision-preview',
+  local_date: '2026-08-18',
+  status_code: 'COMPLETED',
+  safety_status_code: 'PASS',
+  action_code: 'KEEP',
+  requested_duration_minutes: 30,
+  duration_adjustment_source_code: 'PROFILE',
+  final_plan: PLAN,
+  options: [
+    {
+      option_id: 'option-routine-preview',
+      option_code: 'FINAL_ROUTINE',
+      action_code: 'KEEP',
+      plan_id: PLAN.plan_id,
+      selectable: true,
+      blocked_reason_code: null,
+    },
+    {
+      option_id: 'option-rest-preview',
+      option_code: 'REST',
+      action_code: 'REST',
+      plan_id: null,
+      selectable: true,
+      blocked_reason_code: null,
+    },
+  ],
+  reason_codes: [],
+  summary: '오늘은 계획대로 진행해요.',
+  guidance: null,
+  public_agent_summaries: null,
+  safety_summary: null,
+  created_at: '2026-08-18T08:05:00+09:00',
 };
 
 function dailyContext(localDate: string): DailyContextResponse {
@@ -170,4 +278,53 @@ export function createTodayPreviewApi(state: TodayPreviewState): Api {
   };
 
   return api as Api;
+}
+
+/**
+ * The previous API-driven Home presentation, kept only for visual comparison
+ * with the current Home transcription. These are typed server-shaped fixtures;
+ * no request leaves the preview gallery.
+ */
+export function previousHomePreviewProps(
+  state: TodayPreviewState,
+): PreviousHomeScreenProps {
+  const status =
+    state === 'loading'
+      ? 'loading'
+      : state === 'error' || state === 'permission'
+        ? 'error'
+        : 'ready';
+  const hasRoutine = state !== 'empty';
+  const hasContext = state === 'checked-in' || state === 'rest';
+
+  return {
+    nickname: PREVIEW_ME.profile?.nickname ?? '미리보기',
+    localDate: '2026-08-18',
+    status,
+    errorMessage:
+      state === 'error'
+        ? '서버에 연결하지 못했습니다. 네트워크를 확인해주세요.'
+        : state === 'permission'
+          ? '접근할 권한이 없습니다.'
+          : undefined,
+    permissionDenied: state === 'permission',
+    routine: hasRoutine ? ROUTINE : null,
+    context: hasContext ? dailyContext('2026-08-18') : null,
+    decision: state === 'checked-in' ? DECISION : null,
+    week: WEEK,
+    planRevision: null,
+    restToday: state === 'rest',
+    defaultDurationMinutes: 30,
+    locationCodes: ['HOME', 'GYM'],
+    busy: null,
+    onRetry: () => undefined,
+    onCreateRoutine: () => undefined,
+    onSubmitCheckin: () => undefined,
+    onStartWorkout: () => undefined,
+    onChooseRest: () => undefined,
+    onRequestAiRevision: () => undefined,
+    onSubmitUserEdits: () => undefined,
+    onNavigateTab: () => undefined,
+    onOpenCalendar: () => undefined,
+  };
 }
