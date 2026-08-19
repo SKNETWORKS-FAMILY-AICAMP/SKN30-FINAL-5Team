@@ -1,3 +1,4 @@
+import logging
 import re
 from http import HTTPStatus
 from typing import Annotated
@@ -43,7 +44,13 @@ from backend.app.modules.profiles.service import (
 )
 
 router = APIRouter(prefix="/me", tags=["profile"])
+logger = logging.getLogger("backend.profile")
 _PROFILE_VERSION_ETAG = re.compile(r'^"([1-9][0-9]*)"$')
+_PROFILE_CONFIGURATION_SETTINGS = (
+    ("CONSENT_POLICY_VERSION", "consent_policy_version"),
+    ("ONBOARDING_PRIMARY_GOAL_CODES", "onboarding_primary_goal_codes"),
+    ("ONBOARDING_EXPERIENCE_LEVEL_CODES", "onboarding_experience_level_codes"),
+)
 
 
 def _service(
@@ -61,7 +68,28 @@ def _service(
     )
 
 
-def _translate_profile_error(exc: Exception) -> AppError:
+def _missing_profile_configuration_keys(request: Request) -> list[str]:
+    settings = request.app.state.settings
+    missing_keys: list[str] = []
+    for environment_key, setting_name in _PROFILE_CONFIGURATION_SETTINGS:
+        value = getattr(settings, setting_name)
+        if value is None or (isinstance(value, str) and not value.strip()) or value == ():
+            missing_keys.append(environment_key)
+    return missing_keys
+
+
+def _log_profile_configuration_error(request: Request) -> None:
+    logger.error(
+        "profile_configuration_unavailable",
+        extra={
+            "event_code": "PROFILE_CONFIGURATION_UNAVAILABLE",
+            "request_id": str(getattr(request.state, "request_id", "unavailable")),
+            "missing_keys": _missing_profile_configuration_keys(request),
+        },
+    )
+
+
+def _translate_profile_error(exc: Exception, *, request: Request | None = None) -> AppError:
     if isinstance(exc, AgeRequirementNotMetError):
         return AppError(
             status_code=HTTPStatus.FORBIDDEN,
@@ -99,6 +127,8 @@ def _translate_profile_error(exc: Exception) -> AppError:
             message="동일한 멱등성 키를 다른 요청에 사용할 수 없습니다.",
         )
     if isinstance(exc, (ProfileConfigurationError, SQLAlchemyError)):
+        if isinstance(exc, ProfileConfigurationError) and request is not None:
+            _log_profile_configuration_error(request)
         return AppError(
             status_code=HTTPStatus.SERVICE_UNAVAILABLE,
             code=(
@@ -126,7 +156,7 @@ def _expected_profile_version(if_match: str | None) -> int:
     return int(match.group(1))
 
 
-def _translate_profile_update_error(exc: Exception) -> AppError:
+def _translate_profile_update_error(exc: Exception, *, request: Request) -> AppError:
     if isinstance(exc, ProfileNotFoundError):
         return AppError(
             status_code=HTTPStatus.NOT_FOUND,
@@ -151,7 +181,7 @@ def _translate_profile_update_error(exc: Exception) -> AppError:
             code="INVALID_DOMAIN_CODE",
             message="프로필에 허용되지 않은 코드가 포함되어 있습니다.",
         )
-    return _translate_profile_error(exc)
+    return _translate_profile_error(exc, request=request)
 
 
 @router.get("", response_model=MeResponse)
@@ -171,7 +201,7 @@ def get_me(
             message="사용자를 찾을 수 없습니다.",
         ) from None
     except SQLAlchemyError as exc:
-        raise _translate_profile_error(exc) from None
+        raise _translate_profile_error(exc, request=request) from None
 
 
 @router.put("/onboarding", response_model=OnboardingResponse)
@@ -199,7 +229,7 @@ def upsert_onboarding(
         IntegrityError,
         SQLAlchemyError,
     ) as exc:
-        raise _translate_profile_error(exc) from None
+        raise _translate_profile_error(exc, request=request) from None
 
 
 @router.get("/consents", response_model=ConsentResponse)
@@ -238,7 +268,7 @@ def replace_consents(
         IntegrityError,
         SQLAlchemyError,
     ) as exc:
-        raise _translate_profile_error(exc) from None
+        raise _translate_profile_error(exc, request=request) from None
 
 
 @router.patch("/profile", response_model=ProfileSettingsUpdateResponse)
@@ -273,7 +303,7 @@ def update_profile_settings(
         IntegrityError,
         SQLAlchemyError,
     ) as exc:
-        raise _translate_profile_update_error(exc) from None
+        raise _translate_profile_update_error(exc, request=request) from None
 
 
 __all__ = ["router"]

@@ -44,6 +44,12 @@ ID token을 사용한다.
 Firebase 값은 스크립트가 만들지 않는다. `FIREBASE_PROJECT_ID`와
 `GOOGLE_APPLICATION_CREDENTIALS`는 6절대로 직접 설정하고, 앱 설정은 7절대로 채운다.
 
+`api` 명령은 승인된 온보딩 데모값을 주입한 직후
+`CONSENT_POLICY_VERSION`, `ONBOARDING_PRIMARY_GOAL_CODES`,
+`ONBOARDING_EXPERIENCE_LEVEL_CODES`를 검사한다. null·빈 문자열·공백 또는 빈 코드 목록이면
+누락된 키 이름만 출력하고 non-zero로 종료하며 FastAPI를 시작하지 않는다. 이 사전검사는 서버의
+`503 PROFILE_CONFIGURATION_UNAVAILABLE` fail-closed 동작을 대체하거나 완화하지 않는다.
+
 아래는 스크립트가 실행하는 개별 단계다.
 
 ## 1. PostgreSQL 16 시작

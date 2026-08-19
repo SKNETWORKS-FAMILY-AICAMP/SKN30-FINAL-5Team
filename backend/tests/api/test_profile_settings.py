@@ -1,3 +1,4 @@
+import logging
 from contextlib import nullcontext
 from dataclasses import replace
 from datetime import UTC, date, datetime
@@ -299,14 +300,30 @@ def test_unapproved_configured_codes_are_rejected(payload: dict[str, object]) ->
     assert repository.update_count == 0
 
 
-def test_missing_approved_code_configuration_fails_closed() -> None:
+def test_missing_approved_code_configuration_fails_closed(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     client, repository = _client(configured=False)
-    with client:
-        response = client.patch("/api/v1/me/profile", json={"nickname": "변경"}, headers=_headers())
+    with caplog.at_level(logging.ERROR, logger="backend.profile"):
+        with client:
+            response = client.patch(
+                "/api/v1/me/profile", json={"nickname": "변경"}, headers=_headers()
+            )
 
     assert response.status_code == 503
     assert response.json()["error"]["code"] == "PROFILE_CONFIGURATION_UNAVAILABLE"
     assert repository.update_count == 0
+    records = [
+        record
+        for record in caplog.records
+        if getattr(record, "event_code", None) == "PROFILE_CONFIGURATION_UNAVAILABLE"
+    ]
+    assert len(records) == 1
+    assert records[0].missing_keys == [
+        "ONBOARDING_PRIMARY_GOAL_CODES",
+        "ONBOARDING_EXPERIENCE_LEVEL_CODES",
+    ]
+    assert records[0].request_id == response.headers["X-Request-ID"]
 
 
 @pytest.mark.parametrize("version", ["", "1", 'W/"1"', '"0"', '"-1"', '"abc"'])
