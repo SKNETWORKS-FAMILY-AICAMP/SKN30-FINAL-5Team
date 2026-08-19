@@ -78,6 +78,11 @@ describe('App boot navigation', () => {
       label: 'Weekly report (API)',
       readyText: '마감된 주',
     },
+    {
+      mode: 'workout' as const,
+      label: 'Workout(API)',
+      readyText: '완료 0 / 3',
+    },
   ])(
     'opens the $mode API preview through the gallery',
     async ({ label, mode, readyText }) => {
@@ -102,7 +107,7 @@ describe('App boot navigation', () => {
     { mode: 'home' as const, heading: '안녕하세요, 헬끼님!' },
     {
       mode: 'home-map' as const,
-      heading: '오늘의 운동 섬이에요. 표시를 눌러 루틴을 확인해보세요.',
+      heading: '목표 4회',
     },
     { mode: 'calendar-report' as const, heading: '운동 캘린더' },
     { mode: 'my-page' as const, heading: '마이페이지' },
@@ -110,7 +115,6 @@ describe('App boot navigation', () => {
       mode: 'onboarding' as const,
       heading: '온보딩',
     },
-    { mode: 'workout' as const, heading: '전신 기본 루틴' },
   ])(
     'opens the $mode direct preview without starting app boot',
     async ({ heading, mode }) => {

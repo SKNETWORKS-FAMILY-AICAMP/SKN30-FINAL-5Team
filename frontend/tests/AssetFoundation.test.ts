@@ -17,7 +17,7 @@ afterEach(() => {
 });
 
 describe('fidelity foundation', () => {
-  it('uses the exact 390 by 844 scale formulas and caps font growth', () => {
+  it('uses the 390 by 844 reference and caps all interface growth', () => {
     setDimensions({ width: 780, height: 1688, scale: 2, fontScale: 1 });
 
     const { result } = renderHook(() => useScale());
@@ -26,8 +26,8 @@ describe('fidelity foundation', () => {
     expect(BASE_H).toBe(844);
     expect(result.current.width).toBe(780);
     expect(result.current.height).toBe(1688);
-    expect(result.current.s(10)).toBe(20);
-    expect(result.current.sv(10)).toBe(20);
+    expect(result.current.s(10)).toBe(12);
+    expect(result.current.sv(10)).toBe(12);
     expect(result.current.f(10)).toBe(12);
   });
 

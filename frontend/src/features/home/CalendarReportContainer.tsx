@@ -17,6 +17,7 @@ import {
 import { CalendarReportScreen } from './CalendarReportScreen';
 import type { CalendarDay } from './homeSecondaryModel';
 import { WorkoutHistorySheet } from './WorkoutHistorySheet';
+import { assertWeekMatchesSelection } from '../weekly/weeklyReportModel';
 import {
   buildCalendarReportData,
   calendarGridRange,
@@ -90,6 +91,7 @@ export function CalendarReportContainer({
       const weeksPromise = Promise.all(
         readableWeekStarts.map(async (start) => {
           const week = await api.getWeek(start, signal);
+          assertWeekMatchesSelection(start, week);
           return [start, week] as const;
         }),
       );

@@ -440,6 +440,30 @@ describe('HomeContainer', () => {
     expect(getExercise).toHaveBeenCalledWith('exercise-1', expect.anything());
   });
 
+  it('stores a dragged Home order in the shared plan used to start Workout', async () => {
+    const original = decision();
+    const onDecisionChange = jest.fn();
+    renderHome(
+      homeApi({ getDailyContext: jest.fn(async () => dailyContext()) }),
+      { decision: original, onDecisionChange },
+    );
+
+    fireEvent(
+      await screen.findByTestId('routine-drag-item-1'),
+      'accessibilityAction',
+      { nativeEvent: { actionName: 'increment' } },
+    );
+
+    const update = onDecisionChange.mock.calls[0]?.[0] as (
+      current: DecisionResponse | null,
+    ) => DecisionResponse | null;
+    const reordered = update(original);
+    expect(reordered?.final_plan?.items).toEqual([
+      expect.objectContaining({ plan_item_id: 'item-2', sequence: 1 }),
+      expect.objectContaining({ plan_item_id: 'item-1', sequence: 2 }),
+    ]);
+  });
+
   it('writes the check-in and renders the decision the server returned', async () => {
     const replaceDailyContext = jest.fn(async () => dailyContext());
     const createDecision = jest.fn(async () => decision());
@@ -1492,7 +1516,7 @@ describe('MascotHouseScreen', () => {
     // The routine shown is the server's, not a fixture.
     expect(screen.getByText('지금 내 루틴')).toBeTruthy();
     // The real mascot artwork, not a drawn placeholder.
-    expect(screen.getByLabelText('끼끼와 운동 섬')).toBeTruthy();
+    expect(screen.getByLabelText('운동 섬과 마스코트')).toBeTruthy();
 
     fireEvent.press(screen.getByLabelText('홈'));
     expect(onNavigate).toHaveBeenCalledWith('home');

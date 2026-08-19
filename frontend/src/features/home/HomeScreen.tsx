@@ -201,6 +201,7 @@ export type HomeScreenProps = {
   onProfile?: () => void;
   onRequestAiRevision?: () => void;
   onRequestAlternative?: () => void;
+  onReorderPlan?: (from: number, to: number) => void;
   onRetry?: () => void;
   onRetryCheckin?: () => void;
   onSaveCheckin?: () => void;
@@ -273,6 +274,7 @@ function HomeScreenContent({
   onProfile,
   onRequestAiRevision,
   onRequestAlternative,
+  onReorderPlan,
   onRetry,
   onRetryCheckin,
   onSaveCheckin,
@@ -742,7 +744,7 @@ function HomeScreenContent({
                 minutes={routineMinutes}
                 notes={routineNotes}
                 onEdit={openEdit}
-                onMove={apiMode ? undefined : moveRoutineItem}
+                onMove={apiMode ? onReorderPlan : moveRoutineItem}
                 onOpenExercise={
                   exerciseApi ? (item) => setDetailItem(item) : undefined
                 }
@@ -1526,7 +1528,7 @@ export function HomeBottomNavigation({
         <TabButton
           active={activeTab === 'house'}
           icon={<LogTabIcon color={logColor} />}
-          label="헬끼의 집"
+          label="끼끼의 집"
           onPress={() => onNavigate?.('house')}
         />
         <TabButton

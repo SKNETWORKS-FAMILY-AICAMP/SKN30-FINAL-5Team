@@ -16,7 +16,14 @@
  *   sequence is likewise only known from a response this session created
  */
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 
 import type { Api } from '../../api/endpoints';
 import {
@@ -35,6 +42,7 @@ import type {
   WorkoutPlan,
   WorkoutSessionLogSummary,
 } from '../../api/types';
+import { moveWorkoutPlanItem } from '../../api/workoutPlan';
 import {
   localDateString,
   useAsyncData,
@@ -131,7 +139,7 @@ export function HomeContainer({
   restToday: boolean;
   /** Today's decision, held above so a tab switch does not discard it. */
   decision: DecisionResponse | null;
-  onDecisionChange: (decision: DecisionResponse | null) => void;
+  onDecisionChange: Dispatch<SetStateAction<DecisionResponse | null>>;
   planRevision: WeeklyPlanRevisionResponse | null;
   onPlanRevisionChange: (revision: WeeklyPlanRevisionResponse | null) => void;
   onSessionStarted: (sessionId: string, plan: WorkoutPlan) => void;
@@ -364,6 +372,21 @@ export function HomeContainer({
     });
   }, [api, decision, onRestChosen, run]);
 
+  const reorderPlan = useCallback(
+    (from: number, to: number) => {
+      onDecisionChange((current) => {
+        if (current?.final_plan === null || current?.final_plan === undefined) {
+          return current;
+        }
+        const finalPlan = moveWorkoutPlanItem(current.final_plan, from, to);
+        return finalPlan === current.final_plan
+          ? current
+          : { ...current, final_plan: finalPlan };
+      });
+    },
+    [onDecisionChange],
+  );
+
   /**
    * The revision sequence is only knowable from a response this client
    * received, so the first revision of a session creates the week's initial
@@ -488,6 +511,7 @@ export function HomeContainer({
       onStartWorkout={startWorkout}
       onChooseRest={chooseRest}
       onRequestAiRevision={requestAiRevision}
+      onReorderPlan={reorderPlan}
       onSubmitUserEdits={submitUserEdits}
       onNavigateTab={onTab}
       onProfile={() => onTab('my')}

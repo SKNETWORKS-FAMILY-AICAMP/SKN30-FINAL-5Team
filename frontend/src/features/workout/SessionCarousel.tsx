@@ -11,7 +11,7 @@
  * completion API or infers progress from position.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Animated,
   Platform,
@@ -22,6 +22,7 @@ import {
 } from 'react-native';
 
 import type { SessionItem, WorkoutPlanItem } from '../../api/types';
+import { orderedWorkoutPlanItems } from '../../api/workoutPlan';
 import { useBrandFontFamily } from '../../components/brand/BrandChrome';
 import { colors, radii, shadows, spacing } from '../../components/theme';
 import { WORKOUT_CAROUSEL } from './workoutModel';
@@ -52,6 +53,7 @@ export function SessionCarousel({
   // per-card interpolations, which a ref must not be used for.
   const [translateX] = useState(() => new Animated.Value(0));
   const family = useBrandFontFamily();
+  const orderedItems = useMemo(() => orderedWorkoutPlanItems(items), [items]);
 
   useEffect(() => {
     Animated.spring(translateX, {
@@ -78,7 +80,7 @@ export function SessionCarousel({
           { paddingLeft: leadingOffset, transform: [{ translateX }] },
         ]}
       >
-        {items.map((item, index) => {
+        {orderedItems.map((item, index) => {
           const state = states.find(
             (candidate) => candidate.plan_item_id === item.plan_item_id,
           );
@@ -116,7 +118,7 @@ export function SessionCarousel({
             >
               <View style={styles.cardHeader}>
                 <Text style={styles.sequence}>
-                  {item.sequence} / {items.length}
+                  {item.sequence} / {orderedItems.length}
                 </Text>
                 {done ? <Text style={styles.doneBadge}>완료</Text> : null}
               </View>

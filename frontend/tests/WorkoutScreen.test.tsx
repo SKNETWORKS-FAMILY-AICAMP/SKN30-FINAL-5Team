@@ -5,17 +5,20 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react-native';
 import { ScrollView, StyleSheet } from 'react-native';
 
 import type { Api } from '../src/api/endpoints';
 import type { WorkoutPlan } from '../src/api/types';
+import { imageAssets } from '../src/assets';
 import {
   clampWorkoutPageIndex,
   formatWorkoutTime,
   WorkoutScreen,
 } from '../src/features/workout/WorkoutScreen';
 import {
+  getWorkoutResponsiveLayout,
   SAFETY_GUIDANCE,
   WORKOUT_ARC,
   WORKOUT_BLOCKS,
@@ -120,6 +123,15 @@ function workoutApi(overrides: Partial<Api> = {}): Api {
 }
 
 describe('WorkoutScreen', () => {
+  it('shows the warm-up walking mascot beside the current workout copy', () => {
+    render(<WorkoutScreen />);
+
+    expect(screen.getByText('지금 할 운동')).toBeOnTheScreen();
+    expect(screen.getByTestId('workout-warmup-mascot').props.source).toBe(
+      imageAssets.mascotWarmupWalk,
+    );
+  });
+
   it('keeps the carousel and arc constants faithful to the handoff', () => {
     expect(WORKOUT_CAROUSEL).toEqual({
       CARD_HEIGHT: 320,
@@ -136,11 +148,47 @@ describe('WorkoutScreen', () => {
     });
   });
 
+  it('uses bounded responsive metrics for short phones, tablets, and web', () => {
+    expect(getWorkoutResponsiveLayout({ width: 320, height: 568 })).toEqual(
+      expect.objectContaining({
+        cardHeight: 210,
+        cardWidth: 230,
+        headerTopPadding: 28,
+        mascotHeight: 90,
+        stride: 250,
+      }),
+    );
+    expect(getWorkoutResponsiveLayout({ width: 390, height: 844 })).toEqual(
+      expect.objectContaining({
+        cardHeight: 280,
+        cardWidth: 230,
+        mascotHeight: 180,
+        stride: 250,
+      }),
+    );
+    expect(getWorkoutResponsiveLayout({ width: 768, height: 1024 })).toEqual(
+      expect.objectContaining({
+        cardHeight: 320,
+        cardWidth: 300,
+        contentMaxWidth: 1100,
+        mascotHeight: 220,
+        stride: 324,
+      }),
+    );
+    expect(getWorkoutResponsiveLayout({ width: 1440, height: 900 })).toEqual(
+      expect.objectContaining({
+        cardWidth: 340,
+        contentMaxWidth: 1100,
+        stride: 364,
+      }),
+    );
+  });
+
   it('configures snap pagination and measures symmetric card padding', async () => {
     await render(<WorkoutScreen />);
 
     const carousel = screen.getByTestId('workout-carousel');
-    expect(carousel.props.snapToInterval).toBe(250);
+    expect(carousel.props.snapToInterval).toBe(324);
     expect(carousel.props.snapToAlignment).toBe('start');
     expect(carousel.props.decelerationRate).toBe('fast');
     expect(carousel.props.showsHorizontalScrollIndicator).toBe(false);
@@ -151,7 +199,7 @@ describe('WorkoutScreen', () => {
       StyleSheet.flatten(
         screen.getByTestId('workout-carousel').props.contentContainerStyle,
       ).paddingHorizontal,
-    ).toBe(80);
+    ).toBe(45);
   });
 
   it.each([
@@ -208,7 +256,7 @@ describe('WorkoutScreen', () => {
     ).toMatchObject({ backgroundColor: '#4E8B3A', height: 8, width: 8 });
 
     fireEvent.press(screen.getByRole('button', { name: '4번째 블록 보기' }));
-    expect(scrollTo).toHaveBeenLastCalledWith({ animated: true, x: 750 });
+    expect(scrollTo).toHaveBeenLastCalledWith({ animated: true, x: 972 });
     expect(
       StyleSheet.flatten(screen.getByTestId('workout-dot-3').props.style),
     ).toMatchObject({ backgroundColor: '#8B8780', height: 8, width: 22 });
@@ -227,6 +275,16 @@ describe('WorkoutScreen', () => {
 
     const collapse = screen.getByRole('button', { name: '설명 접기' });
     expect(collapse.props.accessibilityState).toEqual({ expanded: true });
+    expect(screen.getByTestId('workout-detail-overlay')).toBeOnTheScreen();
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('workout-detail-sheet').props.style,
+      ),
+    ).toMatchObject({ maxHeight: '82%', maxWidth: 640, width: '100%' });
+    expect(screen.getByTestId('workout-detail-scroll').props).toMatchObject({
+      nestedScrollEnabled: true,
+      showsVerticalScrollIndicator: true,
+    });
     WORKOUT_BLOCKS[1]!.tips.forEach((tip) => {
       expect(screen.getByText(tip)).toBeOnTheScreen();
     });
@@ -501,6 +559,52 @@ describe('WorkoutScreen', () => {
 });
 
 describe('WorkoutScreen API mode', () => {
+  it('loads reviewed exercise guidance inside the scrollable detail sheet', async () => {
+    const plan = {
+      ...API_PLAN,
+      items: [{ ...API_PLAN.items[0]!, instruction_available: true }],
+    };
+    const getExercise = jest.fn(async () => ({
+      exercise_id: 'exercise-api',
+      exercise_name: '의자 스쿼트',
+      training_type_code: 'STRENGTH',
+      primary_body_area_codes: ['KNEE'],
+      instruction_summary: '발바닥을 바닥에 고르게 두고 천천히 움직여요.',
+      form_cues: [
+        '무릎과 발끝의 방향을 맞춰요.',
+        '통증 없는 범위에서 진행해요.',
+      ],
+      media_asset_key: null,
+      mascot_animation_asset_key: null,
+      instruction_content_version: 'test-v1',
+    }));
+    const api = workoutApi({ getExercise });
+
+    render(
+      <WorkoutScreen
+        api={api}
+        sessionId="session-api"
+        plan={plan}
+        onOutcome={jest.fn()}
+      />,
+    );
+    await waitFor(() =>
+      expect(screen.queryByText('운동 세션을 준비하고 있어요…')).toBeNull(),
+    );
+    expect(screen.getByText('2세트 × 8회')).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByRole('button', { name: '자세 · 설명 보기' }));
+
+    expect(screen.getByTestId('workout-detail-scroll')).toBeOnTheScreen();
+    expect(
+      await screen.findByText('발바닥을 바닥에 고르게 두고 천천히 움직여요.'),
+    ).toBeOnTheScreen();
+    expect(getExercise).toHaveBeenCalledWith(
+      'exercise-api',
+      expect.any(AbortSignal),
+    );
+  });
+
   it('builds the carousel and progress count from every Home plan item', async () => {
     const names = ['워밍업 걷기', '스쿼트', '플랭크'];
     const plan: WorkoutPlan = {
@@ -548,6 +652,57 @@ describe('WorkoutScreen API mode', () => {
       expect(screen.getAllByText(name).length).toBeGreaterThan(0),
     );
     expect(screen.getAllByTestId(/workout-card-/)).toHaveLength(3);
+  });
+
+  it('uses the Home sequence even when the plan item array is unsorted', async () => {
+    const first = {
+      ...API_PLAN.items[0]!,
+      plan_item_id: 'ordered-first',
+      exercise_name: '먼저 할 운동',
+      sequence: 1,
+    };
+    const second = {
+      ...API_PLAN.items[0]!,
+      plan_item_id: 'ordered-second',
+      exercise_name: '나중에 할 운동',
+      sequence: 2,
+    };
+    const plan = { ...API_PLAN, items: [second, first] };
+    const api = workoutApi({
+      getWorkoutSession: jest.fn(async () => ({
+        ...sessionDetail('IN_PROGRESS'),
+        total_item_count: 2,
+        items: [second, first].map((item) => ({
+          plan_item_id: item.plan_item_id,
+          exercise_id: item.exercise_id,
+          exercise_name: item.exercise_name,
+          status_code: 'PENDING' as const,
+          sets: item.sets,
+          reps: item.reps,
+          work_seconds_per_set: item.work_seconds,
+          completed_at: null,
+        })),
+      })),
+    });
+
+    render(
+      <WorkoutScreen
+        api={api}
+        sessionId="session-api"
+        plan={plan}
+        onOutcome={jest.fn()}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(screen.queryByText('운동 세션을 준비하고 있어요…')).toBeNull(),
+    );
+    expect(
+      within(screen.getByTestId('workout-card-0')).getByText('먼저 할 운동'),
+    ).toBeOnTheScreen();
+    expect(
+      within(screen.getByTestId('workout-card-1')).getByText('나중에 할 운동'),
+    ).toBeOnTheScreen();
   });
 
   it('loads, starts and auto-finishes after the server confirms the last block', async () => {

@@ -15,10 +15,13 @@ function week(
   status: 'OPEN' | 'CLOSED',
   reportStatus: WeekResponse['report_status_code'] = null,
 ): WeekResponse {
+  const start = new Date(`${weekStart}T00:00:00Z`);
+  start.setUTCDate(start.getUTCDate() + 6);
+  const weekEnd = start.toISOString().slice(0, 10);
   return {
     week_id: `week-${weekStart}`,
     week_start: weekStart,
-    week_end: '',
+    week_end: weekEnd,
     timezone: 'Asia/Seoul',
     target_workout_count: 4,
     plan_origin_code: 'WEEKLY_REPORT',
@@ -180,6 +183,19 @@ describe('CalendarReportContainer', () => {
       screen.getByRole('button', { name: '주간 리포트 보기  ›' }),
     );
     expect(onOpenWeeklyReport).toHaveBeenCalledWith('2026-08-03');
+    fireEvent.press(
+      screen.getByRole('button', {
+        name: '3주차 진행 중, 요약 펼치기',
+      }),
+    );
+    expect(
+      screen.getByText(
+        '이번 주는 아직 진행 중이에요. 남은 요일에 루틴을 채워보세요.',
+      ),
+    ).toBeOnTheScreen();
+    expect(screen.queryByText('진행 중 요약 보기 ›')).toBeNull();
+    expect(screen.queryByRole('button', { name: /주간 리포트/ })).toBeNull();
+    expect(onOpenWeeklyReport).toHaveBeenCalledTimes(1);
     expect(listWorkoutSessions).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({ cursor: 'second-page', limit: 100 }),

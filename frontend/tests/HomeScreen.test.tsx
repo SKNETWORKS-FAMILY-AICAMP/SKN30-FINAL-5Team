@@ -108,6 +108,20 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.queryByText('8.11 ~ 8.17 (1주차)')).toBeNull();
   });
 
+  it('does not duplicate mascot-house content in Home API mode', () => {
+    render(<HomeScreen {...homePreviewProps('routine')} />);
+
+    expect(screen.queryByTestId('mascot-house-content')).toBeNull();
+    expect(screen.queryByLabelText('끼끼와 운동 섬')).toBeNull();
+  });
+
+  it('shows the same set prescription on the Home routine', () => {
+    render(<HomeScreen {...homePreviewProps('routine')} />);
+
+    expect(screen.getByText('준비 운동 · 1세트 × 3분')).toBeOnTheScreen();
+    expect(screen.getByText('푸시업 · 3세트 × 10회')).toBeOnTheScreen();
+  });
+
   it('uses session records for weekday completion when the week lookup is empty', () => {
     const props = homePreviewProps('routine');
     const completedSession = props.sessions?.[0];
@@ -205,10 +219,21 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.getByText('안전')).toBeOnTheScreen();
   });
 
-  it('keeps API exercise items read-only and names the supported edit accurately', () => {
-    render(<HomeScreen {...homePreviewProps('routine')} />);
+  it('lets API exercise items be reordered from the three-line handles', () => {
+    const onReorderPlan = jest.fn();
+    render(
+      <HomeScreen
+        {...homePreviewProps('routine')}
+        onReorderPlan={onReorderPlan}
+      />,
+    );
 
-    expect(screen.queryByTestId('routine-drag-plan-item-1')).toBeNull();
+    fireEvent(
+      screen.getByTestId('routine-drag-plan-item-1'),
+      'accessibilityAction',
+      { nativeEvent: { actionName: 'increment' } },
+    );
+    expect(onReorderPlan).toHaveBeenCalledWith(0, 1);
     fireEvent.press(screen.getByRole('button', { name: '운동 장소 변경' }));
     expect(
       screen.getByRole('header', { name: '운동 장소 변경' }),
@@ -506,7 +531,7 @@ describe('HomeScreen Home v1 transcription', () => {
     for (const label of labels) {
       expect(screen.getAllByLabelText(label).length).toBeGreaterThan(0);
     }
-    expect(screen.getByRole('tab', { name: '헬끼의 집' })).toBeOnTheScreen();
+    expect(screen.getByRole('tab', { name: '끼끼의 집' })).toBeOnTheScreen();
     expect(screen.queryByLabelText('운동 기록')).toBeNull();
 
     fireEvent.press(screen.getByRole('button', { name: '운동 수정하기' }));

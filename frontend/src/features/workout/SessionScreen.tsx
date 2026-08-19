@@ -32,6 +32,7 @@ import type {
   WorkoutPlan,
 } from '../../api/types';
 import { useAsyncAction } from '../../api/useAsync';
+import { orderedWorkoutPlanItems } from '../../api/workoutPlan';
 import {
   MascotStage,
   useBrandFontFamily,
@@ -72,6 +73,10 @@ export function SessionScreen({
   const [notCompletedOpen, setNotCompletedOpen] = useState(false);
   const started = useRef(false);
   const family = useBrandFontFamily();
+  const orderedPlanItems = useMemo(
+    () => orderedWorkoutPlanItems(plan.items),
+    [plan.items],
+  );
 
   const start = useAsyncAction(async () => {
     const response = await api.startSession(
@@ -183,15 +188,15 @@ export function SessionScreen({
     if (items === null) {
       return 0;
     }
-    const pendingIndex = plan.items.findIndex(
+    const pendingIndex = orderedPlanItems.findIndex(
       (item) =>
         items.find((state) => state.plan_item_id === item.plan_item_id)
           ?.status_code !== 'COMPLETED',
     );
     return pendingIndex === -1
-      ? Math.max(plan.items.length - 1, 0)
+      ? Math.max(orderedPlanItems.length - 1, 0)
       : pendingIndex;
-  }, [items, plan.items]);
+  }, [items, orderedPlanItems]);
 
   if (start.pending || items === null) {
     return (
@@ -213,7 +218,7 @@ export function SessionScreen({
   ).length;
   const canFinish = completedCount > 0;
   const allDone = completedCount === items.length;
-  const currentItem = plan.items[currentIndex];
+  const currentItem = orderedPlanItems[currentIndex];
   const serious = safetyOpen || caution !== null;
 
   return (
@@ -270,7 +275,7 @@ export function SessionScreen({
       ) : null}
 
       <SessionCarousel
-        items={plan.items}
+        items={orderedPlanItems}
         states={items}
         currentIndex={currentIndex}
         pending={toggleItem.pending}

@@ -1,4 +1,8 @@
-import { bodyFocusLabel, trainingTypeLabel } from '../../api/labels';
+import {
+  bodyFocusLabel,
+  formatExercisePrescription,
+  trainingTypeLabel,
+} from '../../api/labels';
 import type {
   DailyContextResponse,
   DiscomfortSeverityCode,
@@ -7,6 +11,7 @@ import type {
   WorkoutPlan,
   WorkoutSessionLogSummary,
 } from '../../api/types';
+import { orderedWorkoutPlanItems } from '../../api/workoutPlan';
 
 export type HomePreviewState =
   | 'pre-checkin'
@@ -47,6 +52,7 @@ export type HomeRoutineItem = {
   name: string;
   reps?: string;
   sets?: string;
+  workSeconds?: number;
 };
 
 export type HomeCheckin = {
@@ -210,30 +216,15 @@ export function checkinFromContext(
 }
 
 export function routineItemsFromPlan(plan: WorkoutPlan): HomeRoutineItem[] {
-  return [...plan.items]
-    .sort((left, right) => left.sequence - right.sequence)
-    .map((item) => {
-      if (item.reps !== null) {
-        return {
-          exerciseId: item.exercise_id,
-          id: item.plan_item_id,
-          instructionAvailable: item.instruction_available,
-          name: item.exercise_name,
-          sets: String(item.sets),
-          reps: String(item.reps),
-        };
-      }
-      const timed =
-        item.work_seconds > 0
-          ? ` · ${item.sets}세트 × ${item.work_seconds}초`
-          : '';
-      return {
-        exerciseId: item.exercise_id,
-        id: item.plan_item_id,
-        instructionAvailable: item.instruction_available,
-        name: `${item.exercise_name}${timed}`,
-      };
-    });
+  return orderedWorkoutPlanItems(plan.items).map((item) => ({
+    exerciseId: item.exercise_id,
+    id: item.plan_item_id,
+    instructionAvailable: item.instruction_available,
+    name: item.exercise_name,
+    reps: item.reps === null ? undefined : String(item.reps),
+    sets: String(item.sets),
+    workSeconds: item.reps === null ? item.work_seconds : undefined,
+  }));
 }
 
 export function routineTitleFromPlan(plan: WorkoutPlan): string {
@@ -385,7 +376,15 @@ export function formatRoutineItem(item: HomeRoutineItem): string | null {
   }
   const sets = String(item.sets ?? '').replace(/[^0-9]/g, '');
   const reps = String(item.reps ?? '').replace(/[^0-9]/g, '');
-  return sets && reps ? `${name} · ${sets}세트 × ${reps}회` : name;
+  const hasTimedPrescription =
+    item.workSeconds !== undefined && item.workSeconds > 0;
+  return sets && (reps || hasTimedPrescription)
+    ? `${name} · ${formatExercisePrescription({
+        reps: reps ? Number(reps) : null,
+        sets: Number(sets),
+        workSeconds: item.workSeconds,
+      })}`
+    : name;
 }
 
 export function getHomeRerollLabel(rerolls: number, loading: boolean) {

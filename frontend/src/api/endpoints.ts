@@ -21,6 +21,7 @@ import type {
   OnboardingRequest,
   OnboardingResponse,
   ProfileSettingsUpdateRequest,
+  ProfileSettingsUpdateResponse,
   RoutineResponse,
   SafetyEventResponse,
   SessionFinishResponse,
@@ -49,6 +50,19 @@ export function createApi(client: ApiClient) {
         path: '/me/onboarding',
         body,
         idempotent: true,
+      });
+    },
+
+    updateProfileSettings(
+      body: ProfileSettingsUpdateRequest,
+      expectedProfileVersion: number,
+    ) {
+      return client.request<ProfileSettingsUpdateResponse>({
+        method: 'PATCH',
+        path: '/me/profile',
+        body,
+        idempotent: true,
+        ifMatch: expectedProfileVersion,
       });
     },
 
@@ -399,20 +413,6 @@ export function createApi(client: ApiClient) {
       return client.request<ConsentResponse>({
         method: 'PUT',
         path: '/me/consents',
-        body,
-        idempotent: true,
-      });
-    },
-
-    /**
-     * Partial profile settings update; only the provided fields change.
-     * The caller re-reads `/me` afterwards — the response carries only the
-     * new profile version.
-     */
-    updateProfileSettings(body: ProfileSettingsUpdateRequest) {
-      return client.request<{ profile_version: number; updated_at: string }>({
-        method: 'PATCH',
-        path: '/me/profile',
         body,
         idempotent: true,
       });

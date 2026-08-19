@@ -14,6 +14,7 @@ import {
 } from '@testing-library/react-native';
 
 import type { Api } from '../src/api/endpoints';
+import { equipmentLabel } from '../src/api/labels';
 import type {
   ConsentResponse,
   ExerciseListResponse,
@@ -33,7 +34,7 @@ function exercisePage(
       training_type_code: 'STRENGTH',
       difficulty_code: 'BEGINNER',
       primary_body_area_codes: ['KNEE'],
-      required_equipment_codes: ['BODYWEIGHT'],
+      required_equipment_codes: ['MAT', 'STABILITY_BALL', 'CHAIR'],
       media_asset_key: null,
     })),
     next_cursor: nextCursor,
@@ -59,6 +60,7 @@ describe('ExerciseCatalogScreen', () => {
 
     expect(await screen.findByText('스쿼트')).toBeTruthy();
     expect(screen.getByText('런지')).toBeTruthy();
+    expect(screen.getAllByText('매트, 짐볼, 의자')).toHaveLength(2);
     expect(screen.getByText('카탈로그 버전 catalog-test-v1')).toBeTruthy();
 
     fireEvent.press(screen.getByText('가동성'));
@@ -67,6 +69,10 @@ describe('ExerciseCatalogScreen', () => {
     });
     expect(queries.at(-1)).toMatchObject({ trainingTypeCode: 'MOBILITY' });
   }, 15000);
+
+  it('falls back to an unknown equipment machine code', () => {
+    expect(equipmentLabel('FUTURE_EQUIPMENT')).toBe('FUTURE_EQUIPMENT');
+  });
 
   it('pages with the server cursor instead of refetching page one', async () => {
     const cursors: (string | undefined)[] = [];
@@ -111,6 +117,7 @@ function meWith(): MeResponse {
       default_requested_duration_minutes: 30,
       desired_weekly_workout_count: 3,
       coaching_style_code: 'SUPPORTIVE',
+      profile_version: 1,
       equipment_codes: ['BODYWEIGHT'],
       attention_area_codes: [],
       preferred_exercise_type_codes: [],
@@ -161,6 +168,23 @@ function accountApi() {
 }
 
 describe('AccountScreen editing', () => {
+  it('shows location and equipment machine codes as Korean labels', async () => {
+    const { api } = accountApi();
+    render(
+      <AccountScreen
+        api={api}
+        me={meWith()}
+        onBack={() => {}}
+        onSignOut={() => {}}
+      />,
+    );
+
+    expect(screen.getByText('집')).toBeOnTheScreen();
+    expect(screen.getByText('맨몸')).toBeOnTheScreen();
+    expect(screen.queryByText('HOME')).toBeNull();
+    expect(screen.queryByText('BODYWEIGHT')).toBeNull();
+  });
+
   it('sends only the changed goal fields through PATCH /me/profile', async () => {
     const { api, patched } = accountApi();
     render(

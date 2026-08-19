@@ -128,6 +128,38 @@ const LOCATION: Record<string, string> = {
   OUTDOOR: '야외',
 };
 
+const EQUIPMENT: Record<string, string> = {
+  BODYWEIGHT: '맨몸',
+  DUMBBELL: '덤벨',
+  BARBELL: '바벨',
+  KETTLEBELL: '케틀벨',
+  CABLE_MACHINE: '케이블',
+  MACHINE: '머신',
+  HOUSEHOLD_WEIGHT: '생활용품',
+  BENCH: '벤치',
+  PULL_UP_BAR: '철봉',
+  RESISTANCE_BAND: '밴드',
+  MAT: '매트',
+  STABILITY_BALL: '짐볼',
+  CHAIR: '의자',
+};
+
+const PRIMARY_GOAL: Record<string, string> = {
+  GENERAL_FITNESS: '건강 유지',
+};
+
+const EXPERIENCE_LEVEL: Record<string, string> = {
+  BEGINNER: '입문·초급',
+};
+
+const COACHING_STYLE: Record<string, string> = {
+  SUPPORTIVE: '든든하게',
+  CONCISE: '간결하게',
+  ENERGETIC: '활기차게',
+  // Older preview fixtures used this value before the stable contract landed.
+  FRIENDLY: '든든하게',
+};
+
 const AGENT_TYPE: Record<string, string> = {
   TRAINING: '트레이닝',
   RECOVERY: '회복',
@@ -139,6 +171,9 @@ const AGENT_TYPE: Record<string, string> = {
 const ADJUSTMENT_DIRECTION: Record<string, string> = {
   MAINTAIN: '현재 수준 유지',
   INCREASE: '조금 늘리기',
+  REDUCE: '조금 줄이기',
+  MIXED: '수행 결과에 맞춰 조정',
+  // Kept for older cached responses that predate the current API contract.
   DECREASE: '조금 줄이기',
 };
 
@@ -202,6 +237,12 @@ export const phaseLabel = (code: string) => lookup(PHASE, code);
 export const trainingTypeLabel = (code: string) => lookup(TRAINING_TYPE, code);
 export const bodyFocusLabel = (code: string) => lookup(BODY_FOCUS, code);
 export const locationLabel = (code: string) => lookup(LOCATION, code);
+export const equipmentLabel = (code: string) => lookup(EQUIPMENT, code);
+export const primaryGoalLabel = (code: string) => lookup(PRIMARY_GOAL, code);
+export const experienceLevelLabel = (code: string) =>
+  lookup(EXPERIENCE_LEVEL, code);
+export const coachingStyleLabel = (code: string) =>
+  lookup(COACHING_STYLE, code);
 export const agentTypeLabel = (code: string) => lookup(AGENT_TYPE, code);
 export const adjustmentDirectionLabel = (code: string) =>
   lookup(ADJUSTMENT_DIRECTION, code);
@@ -246,4 +287,32 @@ export function formatDuration(totalSeconds: number): string {
 
 export function formatMinutes(totalSeconds: number): string {
   return `${Math.round(totalSeconds / 60)}분`;
+}
+
+export function formatExercisePrescription({
+  reps,
+  sets,
+  workSeconds,
+}: {
+  reps: number | null;
+  sets: number;
+  workSeconds?: number;
+}): string {
+  const prescription =
+    reps === null
+      ? `${sets}세트${
+          workSeconds !== undefined && workSeconds > 0
+            ? ` × ${formatKoreanDuration(workSeconds)}`
+            : ''
+        }`
+      : `${sets}세트 × ${reps}회`;
+  return prescription;
+}
+
+function formatKoreanDuration(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes === 0) return `${seconds}초`;
+  if (seconds === 0) return `${minutes}분`;
+  return `${minutes}분 ${seconds}초`;
 }

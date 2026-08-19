@@ -5,7 +5,7 @@ export type MyPagePreviewState = 'profile' | 'logout' | 'withdraw';
 export type CalendarDayStatus =
   'done' | 'partial' | 'miss' | 'rest' | 'today' | 'upcoming';
 export type CalendarWeekState =
-  'progress' | 'make' | 'unread' | 'read' | 'upcoming';
+  'progress' | 'make' | 'unread' | 'read' | 'unavailable' | 'upcoming';
 
 export type CalendarDay = {
   day: string;
@@ -142,6 +142,13 @@ export const CALENDAR_WEEK_CHIPS = {
     backgroundColor: 'transparent',
     color: '#9A968E',
     borderColor: '#E2DED4',
+    borderStyle: 'solid',
+  },
+  unavailable: {
+    label: '리포트 오류',
+    backgroundColor: '#FDECE9',
+    color: '#C2402F',
+    borderColor: '#F5C9C1',
     borderStyle: 'solid',
   },
   upcoming: {
@@ -297,12 +304,16 @@ export const CALENDAR_WEEKS = [
 ] as const satisfies readonly CalendarWeek[];
 
 export const MY_PAGE_PROFILE_ROWS = [
-  ['운동 목표', '체력 향상'],
-  ['운동 경험', '초보'],
-  ['선호 운동', '근력 · 유산소'],
-  ['운동 장소', '헬스장'],
-  ['희망 시간', '40분'],
-  ['주의 부위', '무릎'],
+  ['date_of_birth', '나이', '만 29세'],
+  ['timezone', '시간대', 'Asia/Seoul'],
+  ['primary_goal_code', '운동 목표', '체력 향상'],
+  ['experience_level_code', '운동 경험', '초보'],
+  ['preferred_exercise_type_codes', '선호 운동', '근력 · 유산소'],
+  ['available_location_codes', '운동 장소', '헬스장'],
+  ['equipment_codes', '장비', '맨몸'],
+  ['default_requested_duration_minutes', '희망 시간', '40분'],
+  ['desired_weekly_workout_count', '주간 목표', '4회'],
+  ['attention_area_codes', '주의 부위', '무릎'],
 ] as const;
 
 export const MY_PAGE_ACCOUNT_ROWS = [
