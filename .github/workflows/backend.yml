@@ -1,0 +1,70 @@
+name: backend
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - "data/scripts/**"
+      - "docs/API_CONTRACT.md"
+      - "docs/DATA_MODEL.md"
+      - "docs/DOMAIN_RULES.md"
+      - "pyproject.toml"
+      - ".python-version"
+      - "uv.lock"
+      - ".github/workflows/backend.yml"
+  push:
+    branches: [develop]
+    paths:
+      - "backend/**"
+      - "data/scripts/**"
+      - "pyproject.toml"
+      - ".python-version"
+      - "uv.lock"
+
+permissions:
+  contents: read
+
+jobs:
+  quality-and-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: exercise_app
+          POSTGRES_PASSWORD: test_only_password
+          POSTGRES_DB: exercise_app_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U exercise_app -d exercise_app_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      APP_ENV: test
+      DATABASE_URL: postgresql+psycopg://exercise_app:test_only_password@localhost:5432/exercise_app_test
+      TEST_DATABASE_URL: postgresql+psycopg://exercise_app:test_only_password@localhost:5432/exercise_app_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install uv
+        run: python -m pip install uv==0.11.2
+      - name: Sync dependencies
+        run: uv sync --frozen --group dev
+      - name: Lint
+        run: uv run ruff check backend data/scripts
+      - name: Format check
+        run: uv run ruff format --check backend data/scripts
+      - name: Type check
+        run: uv run mypy
+      - name: Backend tests
+        run: uv run pytest
+      - name: Data pipeline tests
+        run: uv run python -m unittest discover -s data/scripts/tests
+      - name: Migration round trip
+        run: |
+          uv run alembic -c backend/alembic.ini downgrade base
+          uv run alembic -c backend/alembic.ini upgrade head

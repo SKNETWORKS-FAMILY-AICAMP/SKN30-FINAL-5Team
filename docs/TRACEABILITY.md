@@ -21,7 +21,7 @@
 
 기준 NDJSON에는 47개 상위 그룹과 447개 세부 요구사항이 있다. 아래 표는 상위 그룹별 요약이며, 실제 구현·검수의 기준 ID는 `F###-#-#`, `POL-###-#-#`, `NFR-###-#-#` 형태의 세부 ID다. WBS 상세 행이 존재하는 그룹은 WBS의 세부 AC/TC ID를 사용하고, 아래 상위 그룹 요약 행은 요약용 AC/TC ID를 사용한다. 상태가 `초안`, `탐색`, `정책안`, `가설`, `잠정`인 항목은 구현 완료로 간주하지 않는다.
 
-POL-009~013은 2026-08-11 사용자 명시 승인과 `ACCEPTED` ADR-0004에 따라 승인 운영 기준으로 적용한다. 멀티 에이전트 구조와 관련된 F002·F029 추적은 `ACCEPTED` ADR-0007을 기준으로 하며, `docs/requirements/**` 원본의 상태 표기도 동일하게 동기화한다.
+POL-009~013은 2026-08-11 사용자 명시 승인과 `ACCEPTED` ADR-0004에 따라 승인 운영 기준으로 적용한다. POL-011의 삭제 상태·provider 실패·30일 restore tombstone 상세 계약은 2026-08-14 사용자 명시 승인과 `ACCEPTED` ADR-0008을 따른다. F011의 Google Calendar 계약은 2026-08-17 필수 역할 공동 검토 완료를 개발팀장이 명시 확인한 `ACCEPTED` ADR-0010을 따른다. F010의 provider-neutral identity·OAuth 보안 경계와 구현 순서는 2026-08-14 `PROPOSED` ADR-0009에서 KAKAO 우선으로 제안하며, ADR 승인 전 adapter 구현을 중단하고 Google·Kakao·Naver MVP 요구는 유지한다. 멀티 에이전트 구조와 관련된 F002·F029 추적은 `ACCEPTED` ADR-0007을 기준으로 하며, `docs/requirements/**` 원본의 상태 표기도 동일하게 동기화한다.
 
 | 요구사항 | WBS 연결 | 계약·문서 | 인수조건 | 테스트 | 상태 |
 |---|---|---|---|---|---|
@@ -34,8 +34,8 @@ POL-009~013은 2026-08-11 사용자 명시 승인과 `ACCEPTED` ADR-0004에 따�
 | F007 | 2.4, 2.5, 보완-01, 4.7, 4.8, 4.9, 4.11, 5.2 | API_CONTRACT·DATA_MODEL | AC-F007-01 | TC-F007-01 | 초안 |
 | F008 | 2.4, 2.8, 보완-02, 4.9, 5.2 | MVP_SCOPE·DATA_MODEL | AC-F008-01 | TC-F008-01 | 초안 |
 | F009 | 3.5, 4.9, 5.2 | MVP_SCOPE·API_CONTRACT·DATA_MODEL | AC-F009-01 | TC-F009-01 | 초안 |
-| F010 | 4.4, 4.11, 5.2, 5.4 | MVP_SCOPE·API_CONTRACT | AC-F010-01 | TC-F010-01 | 초안 |
-| F011 | 4.1, 4.10, 4.11, 5.2 | MVP_SCOPE·API_CONTRACT·DATA_MODEL·ADR-0006 | AC-F011-01 | TC-F011-01 | 초안 |
+| F010 | 4.4, 4.11, 5.2, 5.4 | MVP_SCOPE·ARCHITECTURE·DOMAIN_RULES·API_CONTRACT·DATA_MODEL·TEST_STRATEGY·ADR-0009·TASK-BACKEND-006 | AC-F010-01 | TC-F010-01·backend/tests/unit/test_auth_provider.py·backend/tests/scenarios/test_auth_provider_golden.py | 계약 제안·ADR 승인 대기 |
+| F011 | 4.1, 4.10, 4.11, 5.2 | MVP_SCOPE·API_CONTRACT·DATA_MODEL·DOMAIN_RULES·TEST_STRATEGY·ADR-0006·ADR-0010·TASK-BACKEND-007 | AC-F011-1-1~1-8 | TC-F011-1-1~1-8·backend/tests/unit/test_external_context.py·backend/tests/scenarios/test_external_context_golden.py | v2 계약 승인·9C-2A 착수 가능 |
 | F025 | 2.1, 2.4, 4.1, 4.4, 4.11, 5.2, 5.4 | MVP_SCOPE·API_CONTRACT·DATA_MODEL·DOMAIN_RULES·TEST_STRATEGY·IMPLEMENTATION_PLAN·ADR-0005 | AC-F025-01 | TC-F025-01 | PLANNED |
 | F026 | 3.2, 3.3, 3.5, 4.5, 4.11, 5.2 | MVP_SCOPE·DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-F026-01 | TC-F026-01 | 초안 |
 | F027 | 3.5, 4.5, 4.7, 4.11, 5.2 | MVP_SCOPE·API_CONTRACT·DATA_MODEL | AC-F027-01 | TC-F027-01 | 초안 |
@@ -51,14 +51,14 @@ POL-009~013은 2026-08-11 사용자 명시 승인과 `ACCEPTED` ADR-0004에 따�
 | POL-008 | 2.7, 3.2, 3.4, 3.7, 3.8, 5.3 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-POL008-01 | TC-POL008-01 | 확정 |
 | POL-009 | 2.1, 2.5, 4.4, 4.10, 4.11, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-POL009-01 | TC-POL009-01 | 승인 운영 기준 |
 | POL-010 | 2.1, 2.3, 2.4, 2.5, 2.8, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-POL010-01 | TC-POL010-01 | 승인 운영 기준 |
-| POL-011 | 2.4, 2.5, 4.4, 4.11, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-POL011-01 | TC-POL011-01 | 승인 운영 기준 |
+| POL-011 | 2.4, 2.5, 4.4, 4.11, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL·TEST_STRATEGY·ADR-0008·TASK-BACKEND-005 | AC-POL011-1-1~1-8 | TC-POL011-1-1~1-8 | 승인 운영 기준 |
 | POL-012 | 보완-03, 4.4, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-POL012-01 | TC-POL012-01 | 승인 운영 기준 |
 | POL-013 | 1.3, 보완-04 | MVP_SCOPE·API_CONTRACT | AC-POL013-01 | TC-POL013-01 | 승인 운영 기준 |
 | NFR-001 | 3.5, 4.6, 4.9, 5.2 | MVP_SCOPE·API_CONTRACT·DATA_MODEL | AC-NFR001-01 | TC-NFR001-01 | 필수 |
 | NFR-002 | 1.2, 5.1, 5.7 | TRACEABILITY | AC-NFR002-01 | TC-NFR002-01 | 필수 |
 | NFR-003 | 3.4, 3.5, 3.8, 5.3 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-NFR003-01 | TC-NFR003-01 | 필수 |
-| NFR-004 | 2.1, 2.5, 3.5, 4.4, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-NFR004-01 | TC-NFR004-01 | 필수 |
-| NFR-005 | 2.5, 4.4, 4.10, 4.11, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-NFR005-01 | TC-NFR005-01 | 필수 |
+| NFR-004 | 2.1, 2.5, 3.5, 4.4, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL·ADR-0008 | AC-NFR004-01 | TC-NFR004-01 | 필수 |
+| NFR-005 | 2.5, 4.4, 4.10, 4.11, 5.4 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL·TEST_STRATEGY·ADR-0008 | AC-NFR005-01 | TC-NFR005-01 | 필수 |
 | NFR-006 | 1.2, 3.7, 5.1, 5.2, 5.3, 5.7 | TRACEABILITY·TEST_STRATEGY | AC-NFR006-01 | TC-NFR006-01 | 필수 |
 
 F012~F023은 요구사항 정의서상 MVP 이후 확장 기능이다. 각 ID는 삭제·재사용하지 않고, 별도 확장 WBS·AC·TC를 만들기 전까지 `POST_MVP/PLANNED`로 관리한다.
@@ -103,5 +103,8 @@ F012~F023은 요구사항 정의서상 MVP 이후 확장 기능이다. 각 ID는
 - 증상 사용자 시나리오에서 네 Agent proposal과 Coordinator 결정의 역할 분리·Safety 의견 반영을 검증하고, 결과에 따라 후속 수정 필요성을 검토한다. 현재는 독립적인 최종 Safety 재검사를 확정하지 않는다.
 - F003 웨어러블의 지원 기기·제공자와 원본·요약 필드의 품질·라이선스 기준
 - F004 체중 기반 예상 소모 칼로리 산식·단위·반올림 기준
-- F011 캘린더 제공자·조회 범위·시간대·빈 시간 계산 규칙
+- F011 production OAuth client·redirect URI·secret-manager adapter/path/owner 증적과 Google test project
+  검증. 실제 credential이 없으면 provider는 disabled 상태를 유지한다.
+- 첫 출시 국가와 Firebase/Google·Kakao·Naver 앱·credential owner 및 등록·심사 완료일
+- Naver user token을 영구 저장하지 않는 계정 삭제 revocation 방식
 - 추적성 검사를 CI에서 자동화할 시점

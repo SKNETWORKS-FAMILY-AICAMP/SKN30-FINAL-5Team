@@ -1,0 +1,65 @@
+[project]
+name = "exercise-wellness-service"
+version = "0.1.0"
+description = "Personalized multi-agent exercise wellness service"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.15,<2",
+    "cryptography>=45,<51",
+    "fastapi>=0.115,<1",
+    "firebase-admin>=7,<8",
+    "psycopg[binary]>=3.2,<4",
+    "pydantic-settings>=2.8,<3",
+    "sqlalchemy>=2.0.38,<3",
+    "uvicorn>=0.34,<1",
+]
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.10,<3",
+    "mypy==2.3.0",
+    "pytest>=8.3,<10",
+    "pytest-cov>=6,<8",
+    "ruff==0.16.2",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["tmp"]
+
+[tool.ruff.lint]
+# E/F 기본 검사에 import 정렬(I), 문법 현대화(UP), 버그 유발 패턴(B)을 추가한다.
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["data/scripts", "backend/app"]
+disallow_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+
+[[tool.mypy.overrides]]
+module = "alembic.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "firebase_admin.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# 테스트는 importlib로 스크립트를 로드하므로 모듈 경로를 정적으로 알 수 없다.
+module = "tests.*"
+ignore_errors = true
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+pythonpath = ["."]
+addopts = "-ra --strict-markers -p no:cacheprovider"
+markers = [
+    "integration: requires a PostgreSQL test database",
+]

@@ -54,6 +54,12 @@ flowchart LR
 
 모듈 간 호출은 공개 service/port를 통하고, 다른 모듈의 repository나 ORM model을 직접 조작하지 않는다.
 
+Calendar는 `external-context-policy-v2`에 따라 integration adapter가 Google 원본을 즉시 normalized
+freebusy 구간으로 바꾸고 application service에는 raw payload나 token을 전달하지 않는다. event link는
+공식 block completion을 소유한 `workout_session_id`를 참조하고, Calendar 관찰값은 workout 상태나
+safety veto를 변경할 수 없다. DB에는 opaque credential reference만 두며 실제 credential은 별도
+secret-manager port 뒤에 둔다.
+
 ## 4. 결정 파이프라인
 
 ```mermaid
@@ -104,12 +110,19 @@ Coordinator는 운동 계획을 반환하는 경우 계획 구성요소의 합�
 
 클라이언트가 사용하는 최종 세션 권한은 Firebase ID Token이다.
 
-- Google: Firebase 기본 provider
-- Kakao/Naver: provider OAuth 응답을 백엔드 adapter가 검증하고 Firebase custom token으로 교환
-- FastAPI: Firebase ID Token만 검증
-- DB: `users`와 provider-neutral `user_identities`를 분리
+- 첫 구현 provider: ADR-0009 승인 뒤 Kakao authorization-code/OIDC adapter를 독립 PR로 추가하고
+  Firebase custom token으로 교환한다.
+- Google: 기존 Firebase 기본 provider 경로만 사용하며 backend 직접 OAuth adapter를 중복 구현하지 않는다.
+- Naver: Kakao 수직 슬라이스 안정화, 공개 서비스 검수와 token 영구 저장 없는 해제 계약 승인 뒤 추가한다.
+- FastAPI: Firebase ID Token만 최종 권한으로 검증한다.
+- DB: 기존 `user_identities`에 additive `identity-social-v1` KAKAO row를 추가한다. Firebase
+  principal 분리는 실제 명시적 다중-provider 연결 요구가 생길 때 별도 설계한다.
 
-이메일 링크와 Apple 로그인은 MVP 이후 후보다. 공급자 token, 이메일, 전체 이름은 운동 도메인 DB와 로그에 저장하지 않는다.
+provider subject 검증은 signature, issuer, audience, expiry, subject와 지원 provider의 nonce를
+확인한 뒤 최소 `(provider_code, provider_subject)`만 반환한다. 이메일 링크와 Apple 로그인은 MVP
+이후 후보다. 공급자 token, 이메일, 전체 이름, 닉네임, 전화번호와 원시 provider 응답은 운동
+도메인 DB와 로그에 저장하지 않는다. 상세 계약과 공식 문서 근거는 `PROPOSED` ADR-0009와
+`auth-provider-policy-v1`을 따른다.
 
 ## 8. 주간 폐쇄 루프
 
@@ -187,7 +200,8 @@ MVP 배포는 관리형 PostgreSQL 하나와 컨테이너 또는 단일 애플�
 ## 14. 아직 확정되지 않은 사항
 
 - 배포 클라우드, 리전, 비용 상한
-- LLM 공급자와 LLM 설명 기능의 실제 MVP 포함 여부
+- LLM 설명 기능의 실제 MVP 활성화 여부와 비용 상한. 공급자와 경계는 ADR-0011에서 OpenAI adapter로
+  고정했고 기본값은 비활성이다.
 - 소셜 OAuth provider별 앱 심사 일정과 Firebase custom token 운영 방식
 - 수면·부하·복귀 볼륨의 외부 검수된 수치
 - 외부 도메인 검수자와 승인 증적 형식

@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "reference_version": "0.1.0",
+  "status": "DRAFT",
+  "review_method_code": "AGENT_ONLY",
+  "production_eligible": false,
+  "source_snapshot_manifest": {
+    "path": "raw/physical_activity_guidelines/snapshot_manifest.json",
+    "sha256": "01b9c19060a0400c9b3e24a4d672061c8ab7bc406c4dc001b1f0b62ff4bb9c13"
+  },
+  "files": [
+    {
+      "path": "intensity_reference.json",
+      "sha256": "8d74879475710073567e6440d2005b973ab4330161a23bca70fa0dc32a8e41cb",
+      "bytes": 2190
+    },
+    {
+      "path": "adult_weekly_fitt_reference.json",
+      "sha256": "169edeea19ae6787c77ca78ef50531c26aa2dbcbc3cb1fc9c2802030c92c8452",
+      "bytes": 5037
+    },
+    {
+      "path": "adult_compendium_reference_subset.json",
+      "sha256": "2ecf5d8f297896723c228a68b6b0eefa0b9b3b62d635d7a16b43c6645b74301e",
+      "bytes": 9350
+    }
+  ]
+}

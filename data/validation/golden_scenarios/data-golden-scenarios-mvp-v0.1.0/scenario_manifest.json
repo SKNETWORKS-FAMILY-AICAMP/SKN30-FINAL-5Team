@@ -1,0 +1,75 @@
+{
+  "schema_version": "1.0",
+  "generator_version": "0.1.0",
+  "evaluation_version": "mvp-v0.1.0",
+  "source": {
+    "input_artifacts": [
+      {
+        "role": "scenario_definition",
+        "path": "mvp_data_scenarios.json",
+        "sha256": "118a78f869f580d5d0480cb848b8397ed84cfd692c539d59579ec3d5d4503963",
+        "bytes": 2843
+      },
+      {
+        "role": "exercise-catalog-seed-wger-mvp-v0.2.0:manifest",
+        "path": "seed_manifest.json",
+        "sha256": "d42aed06781c59b58261f0d2d8983ddc3f98b5b01d11cb0045d5e72088350afd",
+        "bytes": 1950
+      },
+      {
+        "role": "exercise-catalog-seed-wger-mvp-v0.2.0:exercises",
+        "path": "exercises.jsonl",
+        "sha256": "e33c10cc252203f2fcaadba031b1ec2608a0515dac9a335da5a817e1fe5a52cf",
+        "bytes": 32462
+      },
+      {
+        "role": "exercise-catalog-seed-kspo-mvp-v0.2.0:manifest",
+        "path": "seed_manifest.json",
+        "sha256": "344fb546e7f92e09394fe9a408ddbad75dfe0ea4f49903737c2c1acd647823ce",
+        "bytes": 1940
+      },
+      {
+        "role": "exercise-catalog-seed-kspo-mvp-v0.2.0:exercises",
+        "path": "exercises.jsonl",
+        "sha256": "fc06aeb4e3200b546f8e7f1bdcf5d30e29f718d6da9d7fdd4f18992767ed34e8",
+        "bytes": 28001
+      },
+      {
+        "role": "safety_manifest",
+        "path": "rules_manifest.json",
+        "sha256": "2a5d1783c18048deeaa6465d0b67f186636faeafec8457bdfd90accf1fd7e0c9",
+        "bytes": 1744
+      },
+      {
+        "role": "safety_coverage",
+        "path": "coverage_report.json",
+        "sha256": "0f834009a3b2a234937df0068382aa6311caa8bd2bebb3111d29f1fe051a5545",
+        "bytes": 13507
+      },
+      {
+        "role": "alternatives_manifest",
+        "path": "alternatives_manifest.json",
+        "sha256": "938b09263e30c1e1b2000b523924a5e87187861b908a44ee671b89c9a21d8747",
+        "bytes": 2595
+      },
+      {
+        "role": "alternatives",
+        "path": "alternatives.jsonl",
+        "sha256": "a030d2007704da58faffe06a214e5d76da8e0ce3a9ed23b553677dea06fca096",
+        "bytes": 117692
+      }
+    ]
+  },
+  "review": {
+    "status": "DRAFT_VALIDATED",
+    "production_eligible": false
+  },
+  "files": [
+    {
+      "path": "scenario_results.json",
+      "sha256": "f057269e0781b6dd43a611eb1b7a6ca6f98367826e5b1a259c5312269263430c",
+      "bytes": 2900,
+      "records": 6
+    }
+  ]
+}

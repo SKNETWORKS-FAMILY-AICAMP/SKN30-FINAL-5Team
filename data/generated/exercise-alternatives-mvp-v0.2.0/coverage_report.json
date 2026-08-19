@@ -1,0 +1,69 @@
+{
+  "goal_counts": {
+    "CALF_STRENGTH": 2,
+    "CORE_STABILITY": 14,
+    "ELBOW_EXTENSION": 1,
+    "ELBOW_FLEXION": 2,
+    "HIP_EXTENSION_STRENGTH": 56,
+    "HORIZONTAL_PULL_STRENGTH": 14,
+    "HORIZONTAL_PUSH_STRENGTH": 21,
+    "KNEE_EXTENSION_STRENGTH": 26,
+    "KNEE_FLEXION_STRENGTH": 2,
+    "LOWER_BODY_STRENGTH": 85,
+    "SHOULDER_ISOLATION": 2,
+    "VERTICAL_PULL_STRENGTH": 4,
+    "VERTICAL_PUSH_STRENGTH": 7,
+    "WALKING": 2
+  },
+  "knee_discomfort": {
+    "MILD": {
+      "fallback_required_sources": [],
+      "maximum_safe_candidates": 7,
+      "minimum_safe_candidates": 7,
+      "source_exercises": 7,
+      "sources_with_safe_candidate": 7,
+      "sources_with_same_location_candidate": 7
+    },
+    "MODERATE": {
+      "fallback_required_sources": [
+        "barbell_back_squat",
+        "dumbbell_goblet_squat",
+        "dumbbell_split_squat",
+        "leg_extension",
+        "leg_press",
+        "seated_leg_extension",
+        "supported_sit_to_stand"
+      ],
+      "maximum_safe_candidates": 0,
+      "minimum_safe_candidates": 0,
+      "source_exercises": 7,
+      "sources_with_safe_candidate": 0,
+      "sources_with_same_location_candidate": 0
+    }
+  },
+  "production_eligible": false,
+  "reason_counts": {
+    "DIFFICULTY": 51,
+    "DISCOMFORT": 85,
+    "EQUIPMENT": 56,
+    "LOCATION": 46
+  },
+  "relation_records": 238,
+  "selection_guards": [
+    "REAPPLY_SAFETY_RULES",
+    "REQUIRE_CURRENT_LOCATION",
+    "REQUIRE_AVAILABLE_EQUIPMENT",
+    "DO_NOT_INCREASE_DIFFICULTY"
+  ],
+  "sources_with_alternatives": 49,
+  "sources_without_alternatives": [
+    "bent_over_triceps_kickback",
+    "cable_triceps_pushdown",
+    "machine_shoulder_press",
+    "seated_spinal_flexion_extension",
+    "standing_side_stretch",
+    "supine_chest_opening_stretch",
+    "two_hand_kettlebell_swing"
+  ],
+  "total_exercises": 56
+}

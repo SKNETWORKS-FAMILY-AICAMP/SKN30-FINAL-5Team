@@ -1,0 +1,15 @@
+﻿source_identity,review_normalized_exercise_id,review_display_name_ko,training_type_code,body_focus_code,primary_movement_pattern_code,difficulty_code,timing_mode_code,default_seconds_per_rep,default_work_seconds,default_rest_seconds,default_transition_seconds,recovery_eligible,primary_body_area_codes,secondary_body_area_codes,equipment_codes,location_codes,instruction_summary_ko,form_cues_ko,instruction_content_version,draft_source,attribute_status
+1510,neutral_grip_lat_pulldown,뉴트럴 그립 랫풀다운,STRENGTH,UPPER_BODY,VERTICAL_PULL,BEGINNER,REPS,4,,60,15,FALSE,,,CABLE_MACHINE,GYM,,,,AI_DRAFT_v0.1.0,PENDING
+1117,seated_cable_row,시티드 케이블 로우,STRENGTH,UPPER_BODY,HORIZONTAL_PULL,BEGINNER,REPS,4,,60,15,FALSE,,,CABLE_MACHINE,GYM,,,,AI_DRAFT_v0.1.0,PENDING
+1725,machine_seated_row,머신 시티드 로우,STRENGTH,UPPER_BODY,HORIZONTAL_PULL,BEGINNER,REPS,4,,60,15,FALSE,,,CABLE_MACHINE,GYM,,,,AI_DRAFT_v0.1.0,PENDING
+1283,incline_chest_supported_dumbbell_row,인클라인 체스트 서포티드 덤벨 로우,STRENGTH,UPPER_BODY,HORIZONTAL_PULL,INTERMEDIATE,REPS,4,,75,15,FALSE,,,DUMBBELL | BENCH,GYM,,,,AI_DRAFT_v0.1.0,PENDING
+1094,seated_bench_press,시티드 벤치프레스,STRENGTH,UPPER_BODY,HORIZONTAL_PUSH,BEGINNER,REPS,4,,75,15,FALSE,,,BENCH,GYM,,,,AI_DRAFT_v0.1.0,PENDING
+537,incline_dumbbell_bench_press,인클라인 덤벨 벤치프레스,STRENGTH,UPPER_BODY,HORIZONTAL_PUSH,INTERMEDIATE,REPS,4,,75,15,FALSE,,,DUMBBELL | BENCH,GYM,,,,AI_DRAFT_v0.1.0,PENDING
+543,machine_shoulder_press,머신 숄더프레스,STRENGTH,UPPER_BODY,VERTICAL_PUSH,BEGINNER,REPS,4,,60,15,FALSE,,,CABLE_MACHINE,GYM,,,,AI_DRAFT_v0.1.0,PENDING
+1893,barbell_overhead_press,바벨 오버헤드 프레스,STRENGTH,UPPER_BODY,VERTICAL_PUSH,INTERMEDIATE,REPS,4,,90,15,FALSE,,,BARBELL,GYM,,,,AI_DRAFT_v0.1.0,PENDING
+371,leg_press,레그프레스,STRENGTH,LOWER_BODY,KNEE_DOMINANT,BEGINNER,REPS,4,,90,15,FALSE,,,CABLE_MACHINE,GYM,,,,AI_DRAFT_v0.1.0,PENDING
+369,leg_extension,레그 익스텐션,STRENGTH,LOWER_BODY,KNEE_DOMINANT,BEGINNER,REPS,4,,60,15,FALSE,,,CABLE_MACHINE,GYM,,,,AI_DRAFT_v0.1.0,PENDING
+203,dumbbell_goblet_squat,덤벨 고블릿 스쿼트,STRENGTH,LOWER_BODY,KNEE_DOMINANT,INTERMEDIATE,REPS,4,,90,15,FALSE,,,DUMBBELL,GYM,,,,AI_DRAFT_v0.1.0,PENDING
+364,leg_curl,레그컬,STRENGTH,LOWER_BODY,KNEE_FLEXION,BEGINNER,REPS,4,,60,15,FALSE,,,CABLE_MACHINE,GYM,,,,AI_DRAFT_v0.1.0,PENDING
+507,romanian_deadlift,루마니안 데드리프트,STRENGTH,LOWER_BODY,HIP_DOMINANT,INTERMEDIATE,REPS,4,,90,15,FALSE,,,BARBELL,GYM,,,,AI_DRAFT_v0.1.0,PENDING
+1652,dumbbell_romanian_deadlift,덤벨 루마니안 데드리프트,STRENGTH,LOWER_BODY,HIP_DOMINANT,BEGINNER,REPS,4,,75,15,FALSE,,,DUMBBELL,GYM,,,,AI_DRAFT_v0.1.0,PENDING

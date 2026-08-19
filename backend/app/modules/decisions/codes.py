@@ -1,0 +1,7 @@
+DECISION_ENDPOINT_CODE = "POST_DECISIONS"
+DECISION_INPUT_SCHEMA_VERSION = "decision-input-v4"
+DECISION_RESPONSE_SCHEMA_VERSION = "decision-response-v2"
+DECISION_POLICY_VERSION = "decision-policy-v3"
+DECISION_GRAPH_VERSION = "decision-graph-v2"
+DECISION_EXPLANATION_TEMPLATE_VERSION = "decision-explanation-template-v1"
+DECISION_EXPLANATION_PROMPT_VERSION = "decision-explanation-prompt-v1"

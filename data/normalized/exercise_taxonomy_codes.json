@@ -1,0 +1,326 @@
+{
+  "schema_version": "1.0",
+  "status": "APPROVED",
+  "production_eligible": false,
+  "approval_required": [
+    "DEVELOPMENT_LEAD_CODE_LIST",
+    "PM_DISPLAY_LABEL",
+    "DOMAIN_REVIEWER_MOVEMENT_PATTERN"
+  ],
+  "basis_documents": [
+    "docs/MVP_SCOPE.md#5.3",
+    "docs/MVP_SCOPE.md#5.4",
+    "docs/DATA_MODEL.md#5.2",
+    "data/normalized/GYM_EXERCISE_SOURCE_COVERAGE.md"
+  ],
+  "interpretation_guards": [
+    "CODE_LIST_IS_NOT_PER_EXERCISE_ASSIGNMENT",
+    "SOURCE_MUSCLE_IS_NOT_BODY_AREA",
+    "BLANK_SOURCE_TOOL_IS_UNSPECIFIED_NOT_BODYWEIGHT",
+    "MOVEMENT_PATTERN_REQUIRES_DOMAIN_SAFETY_APPROVAL",
+    "TAXONOMY_APPROVAL_IS_NOT_SAFETY_RULE_APPROVAL"
+  ],
+  "code_sets": {
+    "training_type_code": [
+      {
+        "code": "STRENGTH",
+        "label_ko": "근력"
+      },
+      {
+        "code": "CARDIO",
+        "label_ko": "유산소"
+      },
+      {
+        "code": "MOBILITY",
+        "label_ko": "가동성"
+      }
+    ],
+    "body_focus_code": [
+      {
+        "code": "UPPER_BODY",
+        "label_ko": "상체",
+        "source_category_names": [
+          "Back",
+          "Arms",
+          "Shoulders",
+          "Chest"
+        ]
+      },
+      {
+        "code": "LOWER_BODY",
+        "label_ko": "하체",
+        "source_category_names": [
+          "Legs",
+          "Calves"
+        ]
+      },
+      {
+        "code": "CORE",
+        "label_ko": "코어",
+        "source_category_names": [
+          "Abs"
+        ]
+      },
+      {
+        "code": "FULL_BODY",
+        "label_ko": "전신",
+        "source_category_names": []
+      }
+    ],
+    "movement_pattern_code": [
+      {
+        "code": "VERTICAL_PULL",
+        "label_ko": "수직 당기기"
+      },
+      {
+        "code": "HORIZONTAL_PULL",
+        "label_ko": "수평 당기기"
+      },
+      {
+        "code": "HORIZONTAL_PUSH",
+        "label_ko": "수평 밀기"
+      },
+      {
+        "code": "VERTICAL_PUSH",
+        "label_ko": "수직 밀기"
+      },
+      {
+        "code": "KNEE_DOMINANT",
+        "label_ko": "무릎 중심 하체"
+      },
+      {
+        "code": "HIP_DOMINANT",
+        "label_ko": "엉덩관절 중심 하체"
+      },
+      {
+        "code": "KNEE_FLEXION",
+        "label_ko": "무릎 굽힘"
+      },
+      {
+        "code": "ISOLATION",
+        "label_ko": "단순 보조"
+      },
+      {
+        "code": "GAIT",
+        "label_ko": "걷기·가벼운 러닝"
+      },
+      {
+        "code": "CORE_BRACE",
+        "label_ko": "코어"
+      },
+      {
+        "code": "MOBILITY_STRETCH",
+        "label_ko": "스트레칭·가동성"
+      }
+    ],
+    "equipment_code": [
+      {
+        "code": "BODYWEIGHT",
+        "label_ko": "맨몸",
+        "source_equipment_names": [
+          "none (bodyweight exercise)"
+        ],
+        "source_tool_names": []
+      },
+      {
+        "code": "DUMBBELL",
+        "label_ko": "덤벨",
+        "source_equipment_names": [
+          "Dumbbell"
+        ],
+        "source_tool_names": [
+          "덤벨"
+        ]
+      },
+      {
+        "code": "BARBELL",
+        "label_ko": "바벨",
+        "source_equipment_names": [
+          "Barbell"
+        ],
+        "source_tool_names": [
+          "바벨"
+        ]
+      },
+      {
+        "code": "EZ_BAR",
+        "label_ko": "이지바",
+        "source_equipment_names": [
+          "SZ-Bar"
+        ],
+        "source_tool_names": []
+      },
+      {
+        "code": "KETTLEBELL",
+        "label_ko": "케틀벨",
+        "source_equipment_names": [
+          "Kettlebell"
+        ],
+        "source_tool_names": []
+      },
+      {
+        "code": "CABLE_MACHINE",
+        "label_ko": "케이블 머신",
+        "source_equipment_names": [
+          "Cable machine"
+        ],
+        "source_tool_names": []
+      },
+      {
+        "code": "MACHINE",
+        "label_ko": "웨이트 머신",
+        "source_equipment_names": [],
+        "source_tool_names": [],
+        "added_in": "1.1.0",
+        "reason": "원천 equipment가 비어 있는 머신 종목(Leg Press, Leg Extension, Leg Curl, Seated Row (Machine), Shoulder Press, on Machine)을 CABLE_MACHINE으로 표기하면 사용자에게 잘못된 기구를 안내한다. 케이블 머신과 구분되는 판·핀 로딩 머신 코드를 분리한다."
+      },
+      {
+        "code": "HOUSEHOLD_WEIGHT",
+        "label_ko": "생활 소도구",
+        "source_equipment_names": [],
+        "source_tool_names": [
+          "물병"
+        ],
+        "added_in": "1.1.0",
+        "reason": "KSPO 홈 트랙은 물병처럼 집에 있는 물건을 외부 부하로 쓴다. BODYWEIGHT는 외부 부하가 없다는 뜻이라 사실과 다르고, DUMBBELL은 없는 장비를 요구하는 것으로 읽힌다."
+      },
+      {
+        "code": "BENCH",
+        "label_ko": "벤치",
+        "source_equipment_names": [
+          "Bench",
+          "Incline bench"
+        ],
+        "source_tool_names": []
+      },
+      {
+        "code": "PULL_UP_BAR",
+        "label_ko": "풀업바",
+        "source_equipment_names": [
+          "Pull-up bar"
+        ],
+        "source_tool_names": []
+      },
+      {
+        "code": "RESISTANCE_BAND",
+        "label_ko": "밴드",
+        "source_equipment_names": [
+          "Resistance band"
+        ],
+        "source_tool_names": [
+          "밴드"
+        ]
+      },
+      {
+        "code": "MAT",
+        "label_ko": "매트",
+        "source_equipment_names": [
+          "Gym mat"
+        ],
+        "source_tool_names": [
+          "매트"
+        ]
+      },
+      {
+        "code": "STABILITY_BALL",
+        "label_ko": "짐볼",
+        "source_equipment_names": [
+          "Swiss Ball"
+        ],
+        "source_tool_names": [
+          "짐볼"
+        ]
+      },
+      {
+        "code": "CHAIR",
+        "label_ko": "의자",
+        "source_equipment_names": [],
+        "source_tool_names": [
+          "의자"
+        ]
+      }
+    ],
+    "location_code": [
+      {
+        "code": "HOME",
+        "label_ko": "홈",
+        "source_place_names": [
+          "실내"
+        ]
+      },
+      {
+        "code": "GYM",
+        "label_ko": "헬스장",
+        "source_place_names": [
+          "헬스장"
+        ]
+      },
+      {
+        "code": "OUTDOOR",
+        "label_ko": "실외",
+        "source_place_names": [
+          "실외"
+        ]
+      }
+    ]
+  },
+  "excluded_from_mvp": {
+    "location": [
+      "수영장"
+    ],
+    "source_tools": [
+      "풍선",
+      "라바콘",
+      "색테이프",
+      "사다리",
+      "테니스공",
+      "보슈"
+    ],
+    "reason": "MVP 지원 범위 밖이거나 유아기 체력측정용 도구"
+  },
+  "open_questions": [
+    "Incline bench를 BENCH로 통합할지 분리할지",
+    "BALANCE 운동 유형을 MVP에 포함할지",
+    "FULL_BODY 판정 기준"
+  ],
+  "registry_version": "1.1.0",
+  "approval": {
+    "development_lead": {
+      "decision": "APPROVED",
+      "decided_on": "2026-08-11",
+      "scope": "5개 코드 집합 전체. movement_pattern_code 11종을 명시적으로 승인."
+    },
+    "pm_display_label": {
+      "decision": "APPROVED",
+      "decided_on": "2026-08-11",
+      "decided_by": "AGENT-CLAUDE-PM-01",
+      "delegation": "개발 리드가 데이터 파트 총괄 권한으로 PM 표시명 확정을 위임 (2026-08-11).",
+      "scope": "label_ko 값을 카탈로그 내부 및 관리 화면 표시명으로 확정한다.",
+      "limits": "사용자 대면 화면의 최종 문구는 프론트엔드 카피 작업에서 다시 검토한다. 이 승인은 코드-라벨 대응이 정확한지에 대한 것이며 UX 문구 승인이 아니다."
+    },
+    "domain_reviewer_movement_pattern": {
+      "decision": "APPROVED_AS_RULE_UNIT",
+      "decided_on": "2026-08-11",
+      "decided_by": "AGENT-CLAUDE-DOMAIN-01",
+      "delegation": "개발 리드가 데이터 파트 총괄 권한으로 위임 (2026-08-11).",
+      "scope": "movement_pattern_code 11종을 exercise_safety_rules의 제외 규칙 단위로 사용하는 것이 적절함을 확인한다. 부하 부위와 동작 패턴이 분리되어 있어 body_area_code와 조합해 규칙을 표현할 수 있다.",
+      "limits": "개별 제외 규칙의 내용(어떤 부위 불편에서 어떤 패턴을 제외할지)은 이 승인에 포함되지 않는다. docs/DOMAIN_RULES.md 16절은 여전히 미승인이며 exercise_safety_rules 작성은 별도 작업이다."
+    }
+  },
+  "change_log": [
+    {
+      "version": "1.1.0",
+      "changed_on": "2026-08-11",
+      "changed_by": "AGENT-CLAUDE-DATA-OWNER-01",
+      "change": "equipment_code에 MACHINE, HOUSEHOLD_WEIGHT 추가. 기존 코드는 변경하지 않았으므로 하위 호환이다.",
+      "trigger": "tranche 1 도메인 검토에서 초안이 원천 equipment가 빈 머신 종목 5건을 CABLE_MACHINE으로, 물병 사용 종목 1건을 BODYWEIGHT로 잘못 채운 것을 확인했다."
+    },
+    {
+      "version": "1.0.0",
+      "changed_on": "2026-08-11",
+      "changed_by": "DEVELOPMENT_LEAD",
+      "change": "5개 코드 집합 최초 승인.",
+      "trigger": "docs/API_CONTRACT.md 19절 미확정 계약 해소."
+    }
+  ]
+}

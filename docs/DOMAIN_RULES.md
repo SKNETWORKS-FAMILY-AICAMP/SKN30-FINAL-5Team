@@ -81,6 +81,10 @@ OTHER
 
 한 체크인 또는 피드백에서 여러 부위를 선택할 수 있다.
 
+이 코드 집합은 안정적이며 화면 노출 범위와 분리한다. 클라이언트가 선택지를 줄이더라도 코드
+자체를 줄이지 않는다. 다만 **사용자가 고를 수 없는 부위는 해당 규칙이 발동하지 않는다.** 노출
+목록을 줄이는 변경은 안전 커버리지를 줄이는 변경이므로 4.3.1의 규칙 분포를 함께 확인한다.
+
 ### 3.3 불편 심각도
 
 | 값 | 코드 | 사용자 표시 | 제품 판단 |
@@ -204,6 +208,60 @@ REST에는 final_plan을 제공하지 않는다.
 
 MODERATE 불편이 있고 목표 보존형 대체 계획을 만들 수 없지만 검수된 저강도 회복 계획이 가능하면 RECOVERY를 반환한다. 안전한 회복 계획도 없으면 REST를 반환한다.
 
+### 4.3.1 안전 규칙 레코드 해석
+
+4.3은 "DOMAIN_APPROVED 상태의 통증 제외 규칙이 있음"을 전제로 한다. 이 절은 그 규칙 레코드를
+어떻게 읽는지 정한다. 규칙 자체를 새로 만들지 않으며, 4.3의 판단을 구현 가능한 수준으로 좁힌다.
+
+각 규칙 레코드는 자신이 적용되는 심각도 범위와 효과를 스스로 선언한다.
+
+| 필드 | 의미 |
+|---|---|
+| `body_area_code` | 규칙이 대응하는 불편 부위 |
+| `minimum_severity_code` | 이 규칙이 적용되기 시작하는 심각도 |
+| `maximum_severity_code` | 이 규칙이 적용되는 최대 심각도 |
+| `effect_code` | `EXCLUDE` 또는 `CAUTION` |
+| `rule_scope` | `EXERCISE` 또는 `MOVEMENT_PATTERN` |
+| `reason_code` | 규칙 근거. 사용자에게 노출하지 않는다 |
+| `review_status_code` | `DOMAIN_APPROVED`만 사용한다 |
+
+#### 적용 규칙
+
+1. 보고된 부위와 `body_area_code`가 일치하고, 보고된 심각도가
+   `[minimum_severity_code, maximum_severity_code]` 범위에 포함되는 규칙만 적용한다.
+2. 심각도별로 효과를 임의 매핑하지 않는다. **효과는 규칙 레코드가 결정한다.**
+   경미한 불편이라도 `EXCLUDE` 규칙이 걸리면 해당 운동을 제외한다.
+3. `EXCLUDE`는 해당 운동 또는 동작 패턴을 계획에서 제외한다.
+4. `CAUTION`은 제외하지 않고 부하를 낮춘다. 강도, 세트, 반복, 난이도, 휴식 구조로만 낮춘다.
+5. `rule_scope`가 `MOVEMENT_PATTERN`이면 해당 패턴에 속한 모든 운동에 적용한다.
+6. 한 운동에 여러 규칙이 걸리면 `EXCLUDE`가 `CAUTION`보다 우선한다.
+7. `review_status_code`가 `DOMAIN_APPROVED`가 아닌 규칙은 무시하지 않고 **적재 단계에서 배제한다.**
+   미검수 규칙이 결정 경로에 들어오면 안 된다.
+
+#### 적용 후 판단
+
+제외와 부하 조정을 적용한 뒤에도 4.3의 나머지 조건이 그대로 적용된다. 목표 보존형 대체 계획이
+만들어지면 CHANGE, 만들 수 없고 검수된 저강도 회복 계획이 가능하면 RECOVERY, 그것도 없으면 REST다.
+
+부위 불편이 있으나 해당 부위에 적용 가능한 DOMAIN_APPROVED 규칙이 하나도 없으면 계획을
+반환하지 않는다. 이는 fail-closed 동작이며 규칙 부재를 안전으로 간주하지 않겠다는 뜻이다.
+
+#### 요청 시간
+
+어떤 경우에도 요청 시간을 임의로 줄이지 않는다. 5절과 6절의 시간 보존 규칙이 그대로 적용된다.
+
+#### 만성 주의 부위
+
+온보딩에서 받은 주의 부위는 상시 입력으로 취급해 매일 다시 묻지 않는다. 당일 체크인에 해당
+부위의 불편이 보고되지 않았더라도 만성 주의 부위에 대해 `CAUTION` 효과를 적용한다. `EXCLUDE`는
+당일 보고된 불편에만 적용한다. 만성 입력만으로 운동을 제외하면 사용자가 영구적으로 특정 운동에
+접근할 수 없게 되기 때문이다.
+
+#### 사용자 문구
+
+12.1과 12.2의 검수된 문구를 그대로 사용한다. 규칙의 `reason_code`와 내부 규칙 식별자는
+사용자에게 노출하지 않는다.
+
 ### 4.4 피로와 회복 부족
 
 피로 입력은 사용자의 주관적 제품 입력이며 의료 상태로 해석하지 않는다.
@@ -279,22 +337,26 @@ TIME_SHORTAGE 미수행 이력이 반복돼도 agent가 요청 시간을 자동 
 
 ## 7. 복귀 모드
 
-복귀 모드는 다음 조건 중 하나면 활성화한다.
+복귀 모드는 마지막 공식 완료 운동 이후 14일 이상 경과했을 때만 활성화한다.
 
 ~~~text
-마지막 완료 운동 이후 7일 이상 경과
-OR
-예정 운동 3회 연속 미수행
+마지막 공식 COMPLETED 세션 이후 14일 이상 경과
 ~~~
 
 정책 설정:
 
 ~~~text
-RETURN_MODE_INACTIVITY_DAYS=7
-RETURN_MODE_CONSECUTIVE_MISSES=3
+RETURN_MODE_COMPLETION_GAP_DAYS=14
 ~~~
 
-7일과 3회는 의학적 기준이 아니라 MVP 운영 기준이다. 값은 버전화된 정책 설정으로 관리한다.
+14일은 의학적 기준이 아니라 MVP 운영 기준이다. 값은 버전화된 정책 설정으로 관리한다.
+`NOT_COMPLETED` 이력과 연속 미수행 횟수는 다음 계획의 학습 신호로만 사용하며 복귀 모드를
+활성화하거나 벌점을 부과하지 않는다. 마지막 공식 완료 이력이 없는 콜드스타트 사용자는
+미수행 이력만으로 복귀 모드에 들어가지 않는다.
+
+POL-012의 14일 미접속 서비스 분류는 계정 참여 상태를 위한 별도 운영 정책이며, 운동 복귀
+모드를 활성화하는 근거가 아니다. 운동 복귀 모드의 유일한 날짜 근거는 마지막 공식
+`COMPLETED` 세션이다.
 
 복귀 모드에서는 다음을 적용한다.
 
@@ -306,10 +368,10 @@ RETURN_MODE_CONSECUTIVE_MISSES=3
 
 정확한 복귀 볼륨 비율은 외부 도메인 검수 전 임의로 정하지 않는다.
 
-운동 공백은 별도로 분류한다.
+운동 공백은 다음과 같이 분류한다.
 
-- 14일 미만: 일반 공백 또는 위 복귀 모드 규칙 적용
-- 14일 이상: `LONG_ABSENCE`로 분류하고 체크인과 복귀 상한을 반드시 재평가
+- 14일 미만: 일반 공백이며 복귀 모드를 적용하지 않음
+- 14일 이상: `RETURN_MODE`로 분류하고 체크인과 복귀 상한을 반드시 재평가
 - 1년 이상 서비스 활동 없음: 법정 휴면이 아닌 `DORMANT` 서비스 분류와 30일 전 통지 후 삭제 정책을 적용한다.
 
 14일과 1년은 의료 기준이 아니라 MVP 운영·데이터 정책 기준이다.
@@ -413,10 +475,25 @@ PLANNED -> IN_PROGRESS -> COMPLETED
 
 최종 수행 상태는 서로 배타적이다. 모든 계획 블록이 COMPLETED면 세션은 COMPLETED, 하나 이상 완료됐지만 PENDING 블록이 남으면 PARTIAL, 완료 블록이 없으면 NOT_COMPLETED다. NOT_COMPLETED에는 가장 큰 이유 하나만 저장한다.
 
+운동 중 안전 이벤트는 다음 결정적 코드를 사용한다.
+
+| 조건 | instruction | resulting action | session status | reason code | guidance code |
+|---|---|---|---|---|---|
+| MILD 불편 | `SHOW_CAUTION` | null | `IN_PROGRESS` | `MILD_DISCOMFORT` | `MILD_DISCOMFORT_CAUTION` |
+| MODERATE 불편 | `SHOW_CAUTION` | null | `IN_PROGRESS` | `MODERATE_DISCOMFORT` | `MODERATE_DISCOMFORT_CAUTION` |
+| SEVERE 불편 | `STOP_SESSION` | `REST` | `STOPPED_FOR_SAFETY` | `SEVERE_DISCOMFORT` | `SEVERE_OR_ACUTE_STOP` |
+| 급성 근골격 신호 | `STOP_SESSION` | `REST` | `STOPPED_FOR_SAFETY` | `ACUTE_MUSCULOSKELETAL_REACTION` | `SEVERE_OR_ACUTE_STOP` |
+| 긴급 중단 그룹 | `STOP_AND_SEEK_HELP` | `STOP_AND_SEEK_HELP` | `STOPPED_FOR_SAFETY` | `EMERGENCY_ADVERSE_REACTION` | `SERIOUS_ADVERSE_REACTION_STOP` |
+
+긴급 중단 그룹은 다른 안전 이벤트보다 우선하며 veto를 유지한다. MILD 또는 MODERATE 이벤트는
+검수된 동적 재구성 정책이 없으므로 진행 중 계획을 자동 변경하지 않는다. COMPLETED, PARTIAL,
+NOT_COMPLETED, STOPPED_FOR_SAFETY로 종료된 세션의 블록과 상태는 변경할 수 없다.
+
 ## 11. 주간 주기와 리포트 게이트
 
 - 주간 범위는 사용자 timezone의 월요일 00:00부터 일요일 23:59:59까지다.
 - 로그인 여부와 관계없이 날짜가 경계를 지나면 주는 논리적으로 닫힌다.
+- 경계는 저장된 IANA timezone으로 계산하며 다음 로컬 월요일 00:00부터 직전 주를 `CLOSED`로 판정한다. scheduler 상태나 마지막 로그인 시각은 이 판정의 입력이 아니다.
 - 열린 주는 최종 주간 리포트를 생성할 수 없다.
 - 닫힌 주 리포트는 사용자가 요청할 때 생성한다.
 - 공식 집계는 앱 운동 블록 체크로 계산한 COMPLETED, PARTIAL, NOT_COMPLETED, STOPPED_FOR_SAFETY를 사용한다.
@@ -428,6 +505,23 @@ PLANNED -> IN_PROGRESS -> COMPLETED
 - 주간 리포트 생성과 계획 수정에서 필수 규칙 또는 에이전트가 실패하면 `FAILED`이며 추정값으로 계속하지 않는다.
 
 주간 리포트 확인은 최초 열람으로 추정하지 않고 사용자의 명시적 acknowledgement mutation으로 기록한다.
+
+### 11.1 닫힌 주 집계 입력 계약
+
+- 리포트 입력은 timezone, 월요일·일요일 로컬 날짜, 네 공식 세션 상태의 횟수, 선택적인 대표 미수행 reason code와 버전만 가진 불변 최소 집계다.
+- `NOT_COMPLETED`는 `NOT_COMPLETED` 학습 신호로만 전달하고 penalty 또는 감점 필드를 허용하지 않는다.
+- 원시 체크인, 원시 건강 기록, 원시 웨어러블 샘플, 캘린더 본문과 직접 식별자는 집계 스냅샷에 복제하지 않는다.
+- 집계 schema version과 report policy version을 함께 고정한다. 같은 불변 집계와 같은 policy version은 같은 domain 판정을 만든다.
+
+### 11.2 다음 계획 revision과 finalize 정책
+
+- 초기 계획 endpoint는 `INITIAL`만, 수정 endpoint는 `AI` 또는 `USER`만 생성한다.
+- `AI` revision의 루틴 결정 주체는 결정적 Coordinator이며 Safety 상태·의견은 SafetyAgent 결과를 보존한다. LLM은 설명 문구에만 사용할 수 있고 루틴, 요청 시간, 안전 상태, veto 또는 후보를 변경할 수 없다.
+- 성공한 Coordinator 기반 `AI` revision만 횟수에 포함하며 1회와 2회는 허용하고 세 번째 요청은 `AI_REVISION_LIMIT_REACHED`로 차단한다. `NEEDS_INPUT`, `BLOCKED`, `FAILED` 결과는 성공 횟수를 늘리지 않는다.
+- `USER` revision은 AI 수정 횟수와 무관하게 허용할 수 있지만 요청 시간 일치, 허용 장소, 사용 가능한 장비, SafetyAgent 의견 반영을 모두 검증한다. 하나라도 불일치하면 해당 routine을 허용하지 않는다.
+- `NEEDS_INPUT`, `BLOCKED`, `FAILED` revision에는 routine이 없으며 finalized는 항상 false다. `PASS` 또는 `REVISE`도 routine이 없으면 finalize할 수 없다.
+- `finalized=true`는 직전 리포트가 명시적으로 `ACKNOWLEDGED`된 경우에만 허용한다. `is_first_user_week=true`, `cold_start_applied=true`, 직전 리포트 없음이 동시에 성립하는 최초 한 주만 acknowledgement를 생략할 수 있다.
+- weekly report aggregate schema와 weekly report/plan policy는 각각 version을 가지며, 입력과 version이 같으면 revision 및 finalize 판정도 같아야 한다.
 
 ---
 
@@ -458,6 +552,8 @@ PLANNED -> IN_PROGRESS -> COMPLETED
 | 상황 | 필수 처리 |
 |---|---|
 | 웨어러블 없음 또는 권한 거부 | 수동 체크인과 앱 운동 블록 체크로 정상 처리 |
+| 캘린더 미연결·권한 거부 | 수동 체크인과 앱 운동 블록 체크를 유지하고 계획을 변경하지 않음 |
+| 캘린더 provider 장애 | `PROVIDER_UNAVAILABLE`, 계획을 삭제·변경하지 않고 수동 경로 유지 |
 | 선택 데이터 누락 | 칼로리 값은 `null`로 유지하고 의료 상태를 추론하지 않음 |
 | LLM 장애 | 템플릿 설명 사용 |
 | 필수 전문 에이전트 하나라도 장애 | FAILED, 운동 계획을 성공 응답으로 반환하지 않음 |
@@ -478,6 +574,143 @@ PLANNED -> IN_PROGRESS -> COMPLETED
 - 체크인 원자료는 28일, 웨어러블 원본은 24시간, 일별 요약·상세 수행·설문은 90일, 주간 리포트는 12개월을 기본 보유기간으로 한다.
 - 탈퇴·삭제 요청 즉시 접근과 동기화를 차단하고 운영 DB 연결 데이터는 7일 이내 삭제, 백업은 30일 이내 순환 삭제한다. 관리자 접속기록은 2년 보관한다.
 - 마스킹 오류 로그는 7일 이내 보유하며, 삭제 후 재식별 가능한 decision·proposal·feedback은 기본 보존하지 않는다.
+
+계정 삭제의 상세 상태·실패 복구·backup restore 계약은 `ACCEPTED` ADR-0008과
+`account-deletion-policy-v1`을 따른다.
+
+### 13.1.1 계정 삭제 상태와 접근
+
+- 사용자 상태는 `ACTIVE -> DELETION_PENDING -> users row hard delete`다. 완료 상태를 위해
+  사용자 row를 유지하지 않는다.
+- 삭제 요청은 철회할 수 없다.
+- `DELETION_PENDING` 전환 즉시 모든 인증 사용자 제품 API와 외부 동기화를 차단한다. 비인증
+  health와 기존 삭제 요청을 멱등 재처리하는 deletion lifecycle 경계만 허용한다.
+- 이미 `DELETION_PENDING`인 사용자가 새 `Idempotency-Key`로 요청해도 최초 request ID와
+  deadline을 반환하고 새 request/job을 만들지 않는다.
+- 7일은 `requested_at`부터 기다리는 기간이 아니라 즉시 실행 가능한 운영 DB hard delete의
+  완료 상한이다. backup과 restore-block tombstone은 `requested_at + 30일` 이내 만료한다.
+
+삭제 job 상태는 다음 machine code를 사용한다.
+
+```text
+PENDING
+RUNNING
+RETRY_PENDING
+BACKUP_EXPIRY_PENDING
+COMPLETED
+COMPLETED_WITH_EXTERNAL_REVOCATION_FAILURE
+FAILED_REQUIRES_REVIEW
+```
+
+고정 단계는 `ACCESS_BLOCK -> EXTERNAL_REVOCATION -> OPERATIONAL_DATA_DELETE ->
+CACHE_AND_WORK_DELETE -> AUDIT_DEIDENTIFICATION -> BACKUP_EXPIRY_VERIFICATION`이다. 완료 단계는
+재실행 시 건너뛰고 실패 단계부터 재개한다. 존재하지 않는 대상 삭제는 성공으로 처리하며 외부
+호출을 운영 DB hard-delete transaction 안에 포함하지 않는다.
+
+### 13.1.2 provider 실패와 최종 상태
+
+- provider 해제 실패는 `RETRY_PENDING`으로 두고 운영 DB 삭제 기한 전까지 재시도한다.
+- 기한까지 실패하면 provider 상태를 `FAILED_FINAL`로 확정하고 provider 식별자를 더 보존하지 않는다.
+- provider 실패와 무관하게 로컬 사용자 연결 데이터는 7일 이내 hard delete한다.
+- backup 만료 증적 확인 후 최종 job 상태는
+  `COMPLETED_WITH_EXTERNAL_REVOCATION_FAILURE`다.
+- 운영 DB 삭제 자체가 기한 내 완료되지 않으면 `FAILED_REQUIRES_REVIEW`이며 접근 차단을 유지하고
+  개인정보 사고 대응 대상으로 에스컬레이션한다.
+
+### 13.1.3 삭제 대상·비식별 집계·감사
+
+- identity, profile, 암호화 생년월일, consent, routine/context, integration, decision/proposal,
+  workout/feedback, weekly report/plan, idempotency, cache/work payload 등 모든 user-linked 또는
+  재식별 가능한 데이터는 7일 기한을 적용한다.
+- 일반 데이터별 28일·90일·12개월 보유기간보다 명시적 계정 삭제 기한이 우선한다.
+- 개인과 다시 연결할 수 없고 다른 데이터와 결합해도 singling-out할 수 없는 집계만 보존할 수
+  있다. 가명·해시·user ID 제거만으로는 비식별 집계가 아니다.
+- hard delete 후 감사에는 UUIDv4 request/job ID, 상태·단계·policy version, attempt count,
+  구조화 failure code와 기한·완료 시각만 허용한다. user/provider ID, 생년월일, token,
+  idempotency key, 요청·응답, 원시 오류·건강 snapshot을 금지한다.
+- restore-block tombstone은 `requested_at + 30일`을 넘겨 보존하지 않는다. identifier-free opaque
+  감사의 정확한 보존기간은 별도 PM·법률/개인정보 승인 전까지 하드코딩하지 않는다.
+- restore-block tombstone은 내부 user UUID의 HMAC-SHA256 keyed digest, opaque request ID,
+  policy version, 생성·만료 시각만 가진다. key는 secret manager 경계에 두고 분석·추적에 재사용하지 않는다.
+- backup expiry는 단순 경과 시간이 아니라 해당 사용자를 포함할 수 있는 마지막 recovery point의
+  만료 증적이 확인된 경우에만 완료된다.
+
+### 13.2 인증 provider와 identity 연결
+
+인증 provider의 상세 계약은 `PROPOSED` ADR-0009와 `auth-provider-policy-v1`을 따른다. ADR이
+`ACCEPTED`가 되기 전에는 실제 route·adapter·migration을 구현하지 않는다.
+
+- 첫 구현 provider는 KAKAO backend authorization-code/OIDC다. FastAPI의 최종 권한은 항상
+  Firebase ID Token이며 Google은 Firebase 기본 provider 경로만 사용한다.
+- 신뢰 경로는 `verified provider subject -> Firebase principal -> internal user UUID`다. Firebase
+  subject와 provider subject를 같은 값으로 추정하지 않는다.
+- 같은 `(provider_code, provider_subject)` 반복 로그인은 같은 내부 user를 반환한다. 다른 user에
+  연결된 subject는 `IDENTITY_ALREADY_LINKED`이며 email·이름·닉네임으로 자동 병합하지 않는다.
+- 연결되지 않은 KAKAO subject는 별도 user로 만들고 로그인 결과를 현재 user에 암묵 연결하지 않는다.
+  명시적 계정 연결 API는 MVP에서 제외한다. 향후 단독 해제는 마지막 활성 로그인 수단 제거를
+  거부하며 이미 해제된 identity 재요청은 성공 no-op이어야 한다.
+- 저장 가능한 identity 값은 내부 UUID/FK, provider code, 불변 provider subject, 상태·정책 버전,
+  연결·해제·재시도 시각과 allowlist failure code다.
+- email, email_verified, name, nickname, picture, phone, birthday, birthyear, age, gender, locale,
+  provider 원본 응답과 모든 token은 identity 판단·저장·로그·snapshot·metric label에서 금지한다.
+- Google은 추가 OAuth scope를 요청하지 않는다. Kakao/Naver 직접 adapter는 `openid`만 허용한다.
+- 직접 adapter의 OAuth flow는 UUIDv4 flow ID, server-bound state, server allowlist redirect URI와
+  PKCE S256을 사용한다. Kakao는 nonce도 필수다. Naver nonce는 확인한 공식 문서에 없으므로
+  지원을 추정하지 않고 도입 전 재검토한다.
+- authorization flow는 10분 후 만료하며 state·nonce·등록 redirect URI digest와 PKCE challenge만
+  보관한다. exchange는 이를 검증하고 provider 호출 전에 row를 삭제·commit한다. 소비 row가 없으면
+  `INVALID_OAUTH_STATE`이며 외부 실패에도 되살리지 않는다. authorization code, verifier,
+  access/refresh/ID/custom token은 저장하지 않고 처리 후 폐기한다.
+- authorize-init과 exchange는 PostgreSQL fixed window로 canonical IP 10회/분 및 provider·등록
+  redirect URI 60회/시간을 제한한다. raw IP/URI 대신 secret-key HMAC digest만 window 동안 보관한다.
+- timeout·5xx·provider rate limit은 retryable `PROVIDER_UNAVAILABLE`이다. signature·issuer·audience·
+  expiry·nonce·subject 검증 실패를 provider 장애나 성공으로 매핑하지 않는다.
+- 독립 연결 해제 실패는 1분, 5분, 30분, 2시간, 12시간 backoff로 총 5회·24시간 내 재시도한다.
+  이후 `REVOCATION_FAILED_REQUIRES_REVIEW`이며 해당 identity 로그인 차단을 유지한다.
+- 계정 삭제의 provider 해제는 위 독립 해제 예산이 아니라 ADR-0008의 7일·로컬 hard-delete 우선
+  계약을 사용한다.
+
+### 13.3 캘린더 외부 컨텍스트 정책
+
+Google Calendar의 provider별 상세 계약은 `ACCEPTED` ADR-0010과
+`external-context-policy-v2`를 따른다. 실제 route·HTTP adapter·repository·migration은
+TASK-BACKEND-007의 단계별 게이트를 따른다.
+
+- 캘린더는 선택적 보조 컨텍스트다. 미연결·권한 거부·provider 장애에서도 수동 체크인과 앱 운동
+  블록 체크를 포함한 핵심 흐름이 동작한다.
+- `CALENDAR_INTEGRATION` 동의가 없거나 철회되면 provider 호출을 수행하지 않는다.
+- availability는 저장된 사용자 IANA timezone의 로컬 하루와 literal `primary` calendar 하나를 Google
+  freebusy 전용 scope로 조회한다. CalendarList, secondary/shared calendar, event list, 제목, 설명,
+  참석자, 위치와 calendar 본문은 조회하지 않는다.
+- freebusy는 종일 여부를 제공하지 않으므로 종일 여부를 시간 경계로 추정하지 않는다. provider가
+  반환한 종일 포함 모든 busy 구간을 점유 시간으로 처리한다.
+- 겹치거나 맞닿은 busy 구간을 병합한 뒤 각 빈 구간의 앞뒤 15분을 buffer로 제외한다. 남은 구간이
+  사용자의 희망 운동시간보다 짧으면 후보를 만들지 않는다.
+- 시간대 필터와 필수 운동 요일을 적용하지 않는다. 후보는 시작 시각 오름차순으로 최대 8개다.
+- 후보가 없으면 빈 배열을 반환하고 사용자 희망 운동시간을 임의 단축하지 않는다.
+- 사용자가 수동 가능 시간을 명시하면 명시적 빈 목록을 포함해 calendar 후보보다 항상 우선한다.
+- 사용자별 availability 30회/시간과 전체 calendar endpoint 60회/시간을 provider 호출 전에 적용한다.
+- availability는 cache하지 않아 stale 판정이 없고 성공값은 `freshness_code=LIVE`다. performance는
+  공식 workout session 종료 상태 이후,
+  같은 link의 직전 `performance_checked_at`부터 10분 뒤에만 재확인한다.
+- Google Calendar는 운동 수행 필드가 없으므로 `performed=null`과 검수 fallback 안내를 반환한다.
+  Google event를 다시 조회하지 않고 confirmed, tentative, cancelled, 삭제와 참석 응답을 운동 수행
+  여부로 해석하지 않는다.
+- Calendar event link는 `scheduled_workout_id`가 아니라 공식 block completion을 가진
+  `workout_session_id`를 참조한다. 사용자 소유 `PLANNED` session에만 한 번 등록하고 server가 계획의
+  요청 시간으로 `end_at`을 계산한다.
+- 캘린더 관찰 결과는 workout session의 공식 `COMPLETED`, `PARTIAL`, `NOT_COMPLETED`,
+  `STOPPED_FOR_SAFETY`를 생성·
+  변경할 수 없다. 안전 veto와 수동 체크인보다 우선할 수 없다.
+- raw freebusy/event payload 보유기간은 0시간이다. token 원문, calendar 본문과 provider 원시 오류를
+  DB, cache, log, metric, trace, snapshot, fixture와 LLM 입력에 포함하지 않는다.
+- 보조 캘린더와 이벤트 summary는 각각 고정 `헬끼 운동 일정`, `헬끼 운동`이며 설명·위치·참석자·
+  회의 링크·메모를 보내지 않는다.
+- 연동 해제는 로컬 `REVOKE_PENDING`으로 접근을 차단하고 token secret 폐기 뒤 `REVOKED`로 완료한다.
+  반복 해제는 성공 no-op이다. Firebase 로그인과 동일한 Google Cloud project에서는 Calendar 단독
+  provider revoke를 호출하지 않는다. 원격 보조 캘린더는 남고 사용자가 직접 삭제한다.
+- 동의 철회는 즉시 provider 접근을 막고 같은 secret cleanup을 시작한다. 계정 삭제는 DB hard delete
+  전에 Calendar secret 파기를 완료하도록 ADR-0008 checkpoint를 확장한다.
 
 ---
 
@@ -509,19 +742,49 @@ PLANNED -> IN_PROGRESS -> COMPLETED
 4. 무릎 MILD 또는 MODERATE: 검수된 충돌 운동 제외와 대체 후보
 5. 무릎 SEVERE: REST, 운동 계획 없음
 6. 긴급 중단 그룹 입력: STOP_AND_SEEK_HELP, 운동 계획 없음
-7. 마지막 완료 후 7일: 복귀 모드 활성화
-8. 예정 운동 3회 연속 미수행: 복귀 모드 활성화
-9. 웨어러블 없음: 수동 체크인으로 정상 결정
-10. LLM 실패: 동일 계획과 템플릿 설명
-11. 안전 veto된 후보: 최종 루틴으로 반환하지 않음
-12. REST 선택: 당일 압박 알림 차단
-13. 필수 agent 하나 실패: FAILED, 운동 계획 없음
-14. 운동 블록 일부 완료 체크: 경과 시간과 무관하게 PARTIAL
-15. 모든 운동 블록 완료 체크: 경과 시간과 무관하게 COMPLETED
-16. 완료 블록 없음: 경과 시간이 길어도 NOT_COMPLETED
-17. 닫히지 않은 주 리포트 요청: 거부
-18. 직전 주 리포트 미확인 상태의 다음 계획 확정: 거부
-19. AI 수정 2회 이후 추가 AI 수정: 거부, 직접 편집 경로 제공
+7. 마지막 공식 완료 후 13일: 복귀 모드 비활성
+8. 마지막 공식 완료 후 14일: 복귀 모드 활성화
+9. 예정 운동 연속 미수행: 복귀 모드 비활성, 비벌점 학습 신호만 생성
+10. 웨어러블 없음: 수동 체크인으로 정상 결정
+11. LLM 실패: 동일 계획과 템플릿 설명
+12. 안전 veto된 후보: 최종 루틴으로 반환하지 않음
+13. REST 선택: 당일 압박 알림 차단
+14. 필수 agent 하나 실패: FAILED, 운동 계획 없음
+15. 운동 블록 일부 완료 체크: 경과 시간과 무관하게 PARTIAL
+16. 모든 운동 블록 완료 체크: 경과 시간과 무관하게 COMPLETED
+17. 완료 블록 없음: 경과 시간이 길어도 NOT_COMPLETED
+18. 운동 중 안전 중단: STOPPED_FOR_SAFETY와 승인 reason/guidance code
+19. 닫히지 않은 주 리포트 요청: 거부
+20. 직전 주 리포트 미확인 상태의 다음 계획 확정: 거부
+21. AI 수정 2회 이후 추가 AI 수정: 거부, 직접 편집 경로 제공
+22. ACTIVE 사용자 삭제 요청: 즉시 `DELETION_PENDING`, 동일 요청과 새 키 재요청은 최초 request 반환
+23. 삭제 요청 직후 인증 사용자 제품 API와 외부 동기화 차단
+24. 삭제 job은 요청 즉시 실행 가능하고 7일 경계까지 운영 DB hard delete 완료
+25. provider 해제 실패: 기한 전 재시도, 기한 후 로컬 삭제와 최종 실패 상태 보존
+26. 일부 repository 삭제 transaction 실패: 부분 commit 없이 같은 단계 재실행
+27. 재실행: 완료 checkpoint를 건너뛰고 실패 단계부터 결정적으로 재개
+28. 사용자 연결 decision·proposal·feedback·생년월일·idempotency 삭제
+29. 재식별 가능 집계는 삭제하고 불가역 비식별 집계만 보존
+30. opaque 감사·로그·snapshot에 사용자/provider 식별정보와 원시 건강 데이터 없음
+31. backup restore tombstone은 일치 계정을 차단하고 요청 후 30일에 만료
+32. backup expiry 운영 증적 전에는 삭제 job `COMPLETED` 금지
+33. invalid state 또는 nonce: identity 조회 전에 거부
+34. issuer 또는 audience 불일치: provider token 거부
+35. 만료·변조 token과 subject 누락: user 생성 없음
+36. provider timeout·5xx: `PROVIDER_UNAVAILABLE`, 원시 오류 비노출
+37. 이미 다른 user에 연결된 subject: 자동 병합 없이 충돌
+38. 같은 subject 반복 로그인: 같은 내부 user와 identity 재사용
+39. provider 연결 해제 반복 호출: 이미 REVOKED면 성공 no-op
+40. identity DB commit 실패: 전체 rollback, custom token·성공 응답 없음
+41. token·email·name·nickname·subject·원시 provider 응답이 로그·snapshot에 없음
+42. 마지막 활성 identity 일반 해제 차단, 계정 삭제 전체 해제는 허용
+43. 캘린더 미연동: 수동 체크인과 앱 운동 블록 체크로 정상 핵심 흐름
+44. 캘린더 권한 거부: 수동 경로 유지, 기존 운동 계획 불변
+45. 캘린더 `performed=true`: 공식 세션 상태 불변
+46. Google `performed=null`: fallback 안내 반환, 오류 아님
+47. 캘린더 provider 장애: `PROVIDER_UNAVAILABLE`, 계획 삭제·변경 없음
+48. 하루 전체 busy: 빈 후보 배열, 희망 운동시간 단축 없음
+49. freebusy 종일 구간: busy로 처리하며 일정 본문 조회 없음
 
 ---
 
@@ -535,6 +798,10 @@ PLANNED -> IN_PROGRESS -> COMPLETED
 - 안전 문구의 외부 도메인 최종 검수
 - PAR-Q+ 문항 사용 여부와 번역·라이선스
 - 주간 리포트 acknowledgement UX
+- 첫 출시 국가와 대상 사용자가 대한민국인지
+- Kakao 앱·REST key·client secret·production redirect URI owner와 등록 완료일
+- Google/Firebase 프로젝트 및 Naver 앱 등록·심사 담당자와 완료일
+- Naver user token 영구 저장 없이 계정 삭제 시 revocation을 완료하는 방식
 
 이 항목은 별도의 승인 없이 임의의 의료 또는 안전 기준으로 구현하지 않는다.
 

@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "source_id": "wger_exercise_catalog",
+  "title": "wger exercise catalog",
+  "provider": "wger project and community contributors",
+  "source_url": "https://wger.de/",
+  "api_base_url": "https://wger.de/api/v2",
+  "api_documentation_url": "https://wger.readthedocs.io/en/latest/api/api.html",
+  "source_repository_url": "https://github.com/wger-project/wger",
+  "license": {
+    "mode": "PER_ENTRY_LICENSE",
+    "known_codes": [
+      "CC-BY-SA 3",
+      "CC-BY-SA 4",
+      "CC-BY 4",
+      "CC0",
+      "ODbL"
+    ],
+    "note": "Exercise, translation, image, and video records can carry different licenses. Preserve each record's license and attribution metadata."
+  },
+  "collection_policy": {
+    "allowed": [
+      "api_json_metadata"
+    ],
+    "blocked_pending_rights_review": [
+      "image_binary",
+      "video_binary"
+    ]
+  },
+  "review_status": "DRAFT",
+  "production_eligible": false
+}

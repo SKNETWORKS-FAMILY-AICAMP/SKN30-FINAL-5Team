@@ -1,0 +1,458 @@
+{
+  "schema_version": "1.0",
+  "selection_version": "0.1.0",
+  "status": "DRAFT",
+  "review_method_code": "AGENT_ONLY",
+  "production_eligible": false,
+  "selected_on": "2026-08-11",
+  "policy": {
+    "path": "data/normalized/review_tranche_3_selection.json",
+    "sha256": "23d743b13767e13dd007dc44ad9edd28484422554506b5f2778f40d1b49b6335"
+  },
+  "interpretation_guards": [
+    "SELECTION_IS_NOT_CATALOG_INCLUSION",
+    "SELECTION_IS_NOT_DOMAIN_SAFETY_APPROVAL",
+    "SOURCE_MUSCLE_IS_NOT_CONTRAINDICATION_DATA",
+    "SOURCE_DOSAGE_IS_NOT_APPLICATION_DOSAGE",
+    "SOURCE_MEDICAL_CLAIMS_ARE_NOT_ADOPTED",
+    "MET_VALUES_MUST_NOT_BE_ASSIGNED_BY_NAME_MATCH",
+    "ALL_EXISTING_REVIEW_GATES_REMAIN_REQUIRED"
+  ],
+  "sources": {
+    "kspo": {
+      "profile_directory": "data/validation/profiles/20260810T053458Z-training-video-profile-v0.2.0",
+      "profile_manifest_sha256": "b548630b21eff5fc3f31879f973770a7ba149fc463156be09e631fd2803007c8",
+      "inventory_sha256": "0b47674fb099cb90f5000159569df8dfd513bc31d184e62c7d7d5b933838196c",
+      "excluded_review_batch": "data/validation/review_batches/20260810T053458Z-training-video-profile-v0.2.0-review-batch-v0.2.0/review_batch.jsonl",
+      "excluded_review_batch_sha256": "f54e34a10540083a49be52a0499227f4047876452d742d2c011d79123b912f04"
+    },
+    "wger": {
+      "profile_directory": "data/validation/profiles/20260810T063833Z-wger-exercise-catalog-profile-v0.1.0",
+      "profile_manifest_sha256": "bae7822b11ea190169ab77e7e28a09a2dd9c4d01f52e329e1b9847e518c68add",
+      "inventory_sha256": "6980072bb8dd667e931b40ae34c7d656f3c6bf33615047d0e33a549f12f742b3",
+      "excluded_review_batch": "data/validation/review_batches/20260810T063833Z-wger-exercise-catalog-profile-v0.1.0-gym-core-review-v0.2.0/gym_core_review_batch.jsonl",
+      "excluded_review_batch_sha256": "1ce0d73470f634cbc8726861848ca7fdadfc8e48ea7a5fe9ef0ed39f1c7936a7"
+    }
+  },
+  "summary": {
+    "candidate_count": 11,
+    "track_counts": {
+      "kspo": 7,
+      "wger": 4
+    }
+  },
+  "records": [
+    {
+      "queue_position": 1,
+      "track": "kspo",
+      "source_identity": "ee82ac56c7d744489bff26d9d39a5f029173475135db8a167dacc92454b82dc6",
+      "target_movement_pattern_code": "HORIZONTAL_PUSH",
+      "selection_reason_codes": [
+        "LOWER_BARRIER_PUSH_VARIANT",
+        "HOME_EQUIPMENT_COVERAGE"
+      ],
+      "source_facts": {
+        "source_name": "네발기기 자세에서 손바닥으로 바닥밀기",
+        "source_file_name": "0AUDLJ08S_00246.mp4",
+        "places": [
+          "실내"
+        ],
+        "tools": [
+          "매트"
+        ],
+        "age_groups": [
+          "공통"
+        ],
+        "source_frame_rows": 6
+      },
+      "required_review_codes": [
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "EXERCISE_TAXONOMY_MAPPING_REQUIRED",
+        "INSTRUCTION_CONTENT_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED",
+        "SOURCE_DOSAGE_UNSPECIFIED"
+      ],
+      "review_decision": "PENDING",
+      "review_status": "DRAFT",
+      "review_method_code": "AGENT_ONLY",
+      "production_eligible": false
+    },
+    {
+      "queue_position": 2,
+      "track": "kspo",
+      "source_identity": "0643bf2548537c1284fe95e5e0b40af45e72c225e6ea50c44852222b9bf53a29",
+      "target_movement_pattern_code": "VERTICAL_PULL",
+      "selection_reason_codes": [
+        "HOME_VERTICAL_PULL_GAP",
+        "RESISTANCE_BAND_COVERAGE"
+      ],
+      "source_facts": {
+        "source_name": "당겨내리기",
+        "source_file_name": "0AUDLJ08S_00279.mp4",
+        "places": [
+          "실내"
+        ],
+        "tools": [
+          "밴드"
+        ],
+        "age_groups": [
+          "공통"
+        ],
+        "source_frame_rows": 3
+      },
+      "required_review_codes": [
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "EXERCISE_TAXONOMY_MAPPING_REQUIRED",
+        "INSTRUCTION_CONTENT_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED",
+        "SOURCE_DOSAGE_UNSPECIFIED"
+      ],
+      "review_decision": "PENDING",
+      "review_status": "DRAFT",
+      "review_method_code": "AGENT_ONLY",
+      "production_eligible": false
+    },
+    {
+      "queue_position": 3,
+      "track": "kspo",
+      "source_identity": "2b59da9534638a2c0b8af314e4377b96f1bbcbb217485628e5fefa19f48b31d6",
+      "target_movement_pattern_code": "HORIZONTAL_PUSH",
+      "selection_reason_codes": [
+        "LOWER_BARRIER_PUSH_VARIANT",
+        "SOURCE_EQUIPMENT_AMBIGUITY_REVIEW"
+      ],
+      "source_facts": {
+        "source_name": "벽에서 팔 굽혀 펴기",
+        "source_file_name": "0AUDLJ08S_00257.mp4",
+        "places": [
+          "실내"
+        ],
+        "tools": [
+          "밴드"
+        ],
+        "age_groups": [
+          "공통"
+        ],
+        "source_frame_rows": 6
+      },
+      "required_review_codes": [
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "EXERCISE_TAXONOMY_MAPPING_REQUIRED",
+        "INSTRUCTION_CONTENT_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED",
+        "SOURCE_DOSAGE_UNSPECIFIED"
+      ],
+      "review_decision": "PENDING",
+      "review_status": "DRAFT",
+      "review_method_code": "AGENT_ONLY",
+      "production_eligible": false
+    },
+    {
+      "queue_position": 4,
+      "track": "kspo",
+      "source_identity": "85322f21d3e5676af548cad0795f2dded36ead619c91bd0a11dce4c1992f415c",
+      "target_movement_pattern_code": "GAIT",
+      "selection_reason_codes": [
+        "MODERATE_INTENSITY_GAIT_CANDIDATE",
+        "OUTDOOR_CARDIO_VARIANT_REVIEW"
+      ],
+      "source_facts": {
+        "source_name": "빠르게 걷기",
+        "source_file_name": "0AUDLJ08S_00182.mp4",
+        "places": [
+          "실외"
+        ],
+        "tools": [],
+        "age_groups": [
+          "공통"
+        ],
+        "source_frame_rows": 14
+      },
+      "required_review_codes": [
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "EXERCISE_TAXONOMY_MAPPING_REQUIRED",
+        "INSTRUCTION_CONTENT_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED",
+        "SOURCE_DOSAGE_UNSPECIFIED",
+        "TOOL_METADATA_UNSPECIFIED"
+      ],
+      "review_decision": "PENDING",
+      "review_status": "DRAFT",
+      "review_method_code": "AGENT_ONLY",
+      "production_eligible": false
+    },
+    {
+      "queue_position": 5,
+      "track": "kspo",
+      "source_identity": "c367af763a34ce423ccf17918b57be734dee9877a4125c363287465f54ad246d",
+      "target_movement_pattern_code": "ISOLATION",
+      "selection_reason_codes": [
+        "DISTAL_UPPER_BODY_COVERAGE",
+        "DUMBBELL_ACCESSORY_CANDIDATE"
+      ],
+      "source_facts": {
+        "source_name": "손목 펴기/굽히기",
+        "source_file_name": "0AUDLJ08S_00230.mp4",
+        "places": [
+          "헬스장"
+        ],
+        "tools": [
+          "덤벨"
+        ],
+        "age_groups": [
+          "공통"
+        ],
+        "source_frame_rows": 4
+      },
+      "required_review_codes": [
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "EXERCISE_TAXONOMY_MAPPING_REQUIRED",
+        "INSTRUCTION_CONTENT_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED",
+        "SOURCE_DOSAGE_UNSPECIFIED"
+      ],
+      "review_decision": "PENDING",
+      "review_status": "DRAFT",
+      "review_method_code": "AGENT_ONLY",
+      "production_eligible": false
+    },
+    {
+      "queue_position": 6,
+      "track": "kspo",
+      "source_identity": "493b5c9d6b2de695a0e3837068cb225115055de52a94aa779af7ee9728d2cbc4",
+      "target_movement_pattern_code": "MOBILITY_STRETCH",
+      "selection_reason_codes": [
+        "SEATED_MOBILITY_GAP",
+        "LOWER_BARRIER_RECOVERY_CANDIDATE"
+      ],
+      "source_facts": {
+        "source_name": "의자에 앉아 등 굽혔다 펴기",
+        "source_file_name": "0AUDLJ08S_00273.mp4",
+        "places": [
+          "실내"
+        ],
+        "tools": [
+          "의자"
+        ],
+        "age_groups": [
+          "공통"
+        ],
+        "source_frame_rows": 4
+      },
+      "required_review_codes": [
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "EXERCISE_TAXONOMY_MAPPING_REQUIRED",
+        "INSTRUCTION_CONTENT_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED",
+        "SOURCE_DOSAGE_UNSPECIFIED"
+      ],
+      "review_decision": "PENDING",
+      "review_status": "DRAFT",
+      "review_method_code": "AGENT_ONLY",
+      "production_eligible": false
+    },
+    {
+      "queue_position": 7,
+      "track": "kspo",
+      "source_identity": "d5fc8a3a8a6c8afa72061580a6035306fdefd630354abbc8a058081e38879fb8",
+      "target_movement_pattern_code": "MOBILITY_STRETCH",
+      "selection_reason_codes": [
+        "DYNAMIC_WARMUP_GAP",
+        "SOURCE_CONTEXT_REVIEW"
+      ],
+      "source_facts": {
+        "source_name": "다이나믹 스트레칭",
+        "source_file_name": "0AUDLJ08S_01020.mp4",
+        "places": [
+          "실내"
+        ],
+        "tools": [],
+        "age_groups": [
+          "공통"
+        ],
+        "source_frame_rows": 2
+      },
+      "required_review_codes": [
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "EXERCISE_TAXONOMY_MAPPING_REQUIRED",
+        "INSTRUCTION_CONTENT_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED",
+        "SOURCE_DOSAGE_UNSPECIFIED",
+        "TOOL_METADATA_UNSPECIFIED"
+      ],
+      "review_decision": "PENDING",
+      "review_status": "DRAFT",
+      "review_method_code": "AGENT_ONLY",
+      "production_eligible": false
+    },
+    {
+      "queue_position": 8,
+      "track": "wger",
+      "source_identity": 1127,
+      "target_movement_pattern_code": "VERTICAL_PULL",
+      "selection_reason_codes": [
+        "GRIP_VARIANT_REVIEW",
+        "CABLE_VERTICAL_PULL_COVERAGE"
+      ],
+      "source_facts": {
+        "source_name": "Close-grip supinated lat pulldown",
+        "source_exercise_uuid": "4eb41bfb-cbeb-4683-b9c6-902ee7e028e0",
+        "source_category": "Back",
+        "source_equipment": [
+          "Cable machine"
+        ],
+        "source_license": {
+          "short_name": "CC-BY-SA 4",
+          "url": "https://creativecommons.org/licenses/by-sa/4.0/deed.en",
+          "author": "Franpol"
+        }
+      },
+      "required_review_codes": [
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "EXERCISE_TAXONOMY_MAPPING_REQUIRED",
+        "INSTRUCTION_CONTENT_REVIEW_REQUIRED",
+        "KOREAN_LOCALIZATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED",
+        "SOURCE_LICENSE_REVIEW_REQUIRED"
+      ],
+      "review_decision": "PENDING",
+      "review_status": "DRAFT",
+      "review_method_code": "AGENT_ONLY",
+      "production_eligible": false
+    },
+    {
+      "queue_position": 9,
+      "track": "wger",
+      "source_identity": 567,
+      "target_movement_pattern_code": "VERTICAL_PUSH",
+      "selection_reason_codes": [
+        "BILATERAL_DUMBBELL_PUSH_VARIANT",
+        "GYM_EQUIPMENT_COVERAGE"
+      ],
+      "source_facts": {
+        "source_name": "Shoulder Press, Dumbbells",
+        "source_exercise_uuid": "87affa4b-395b-437c-9581-2bd20ea5aa7c",
+        "source_category": "Shoulders",
+        "source_equipment": [
+          "Dumbbell"
+        ],
+        "source_license": {
+          "short_name": "CC-BY-SA 3",
+          "url": "https://creativecommons.org/licenses/by-sa/3.0/deed.en",
+          "author": "wger.de"
+        }
+      },
+      "required_review_codes": [
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "EXERCISE_TAXONOMY_MAPPING_REQUIRED",
+        "INSTRUCTION_CONTENT_REVIEW_REQUIRED",
+        "KOREAN_LOCALIZATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED",
+        "SOURCE_LICENSE_REVIEW_REQUIRED"
+      ],
+      "review_decision": "PENDING",
+      "review_status": "DRAFT",
+      "review_method_code": "AGENT_ONLY",
+      "production_eligible": false
+    },
+    {
+      "queue_position": 10,
+      "track": "wger",
+      "source_identity": 211,
+      "target_movement_pattern_code": "ISOLATION",
+      "selection_reason_codes": [
+        "TRICEPS_ACCESSORY_GAP",
+        "DUMBBELL_ACCESSORY_CANDIDATE"
+      ],
+      "source_facts": {
+        "source_name": "Dumbbell Triceps Extension",
+        "source_exercise_uuid": "d8bddb58-91b0-4d7b-8ec1-cd742584b607",
+        "source_category": "Arms",
+        "source_equipment": [
+          "Dumbbell"
+        ],
+        "source_license": {
+          "short_name": "CC-BY-SA 3",
+          "url": "https://creativecommons.org/licenses/by-sa/3.0/deed.en",
+          "author": "tuninx"
+        }
+      },
+      "required_review_codes": [
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "EXERCISE_TAXONOMY_MAPPING_REQUIRED",
+        "INSTRUCTION_CONTENT_REVIEW_REQUIRED",
+        "KOREAN_LOCALIZATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED",
+        "SOURCE_LICENSE_REVIEW_REQUIRED"
+      ],
+      "review_decision": "PENDING",
+      "review_status": "DRAFT",
+      "review_method_code": "AGENT_ONLY",
+      "production_eligible": false
+    },
+    {
+      "queue_position": 11,
+      "track": "wger",
+      "source_identity": 805,
+      "target_movement_pattern_code": "ISOLATION",
+      "selection_reason_codes": [
+        "TRICEPS_ACCESSORY_GAP",
+        "CABLE_ACCESSORY_CANDIDATE"
+      ],
+      "source_facts": {
+        "source_name": "Tricep Pushdown on Cable",
+        "source_exercise_uuid": "ea63d85c-8579-4dda-b99f-c4c8930f9af6",
+        "source_category": "Arms",
+        "source_equipment": [
+          "Cable machine"
+        ],
+        "source_license": {
+          "short_name": "CC-BY-SA 4",
+          "url": "https://creativecommons.org/licenses/by-sa/4.0/deed.en",
+          "author": "cshep442"
+        }
+      },
+      "required_review_codes": [
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "EXERCISE_TAXONOMY_MAPPING_REQUIRED",
+        "INSTRUCTION_CONTENT_REVIEW_REQUIRED",
+        "KOREAN_LOCALIZATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED",
+        "SOURCE_LICENSE_REVIEW_REQUIRED"
+      ],
+      "review_decision": "PENDING",
+      "review_status": "DRAFT",
+      "review_method_code": "AGENT_ONLY",
+      "production_eligible": false
+    }
+  ]
+}

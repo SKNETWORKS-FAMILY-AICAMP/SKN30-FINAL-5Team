@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "generator_version": "0.1.0",
+  "catalog_version": {
+    "version_code": "wger-tranche1-v0.1.0",
+    "status_code": "DRAFT"
+  },
+  "source": {
+    "track": "wger",
+    "review_batch_directory": "20260810T063833Z-wger-exercise-catalog-profile-v0.1.0-gym-core-review-v0.2.0",
+    "taxonomy_registry_sha256": "32a2ebb189b0329882642c467f0855f30327dca3c6de21c22e2edbc85d29f09a"
+  },
+  "review": {
+    "status": "DOMAIN_APPROVED",
+    "production_eligible": false
+  },
+  "summary": {
+    "exercise_records": 14
+  },
+  "files": [
+    {
+      "path": "exercises.jsonl",
+      "sha256": "60cdc5bf4bb993d8cd85e9258062c89e09a84d4e2dc23bfbade87edf05a8f621",
+      "bytes": 17494,
+      "records": 14
+    }
+  ]
+}

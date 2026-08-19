@@ -1,0 +1,136 @@
+{
+  "schema_version": "1.0",
+  "policy_version": "1.1.0",
+  "status": "APPROVED_FOR_DRAFT_PIPELINE",
+  "review_method_code": "AGENT_ONLY",
+  "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
+  "production_eligible": false,
+  "reviewed_at": "2026-08-11T17:13:27+09:00",
+  "interpretation_guards": [
+    "ALTERNATIVE_RELATION_IS_NOT_A_FINAL_SAFETY_DECISION",
+    "APPLY_SAFETY_LOCATION_AND_EQUIPMENT_FILTERS_AT_SELECTION_TIME",
+    "ALTERNATIVE_MUST_NOT_INCREASE_DIFFICULTY",
+    "DO_NOT_INFER_MEDICAL_CONDITIONS",
+    "DOMAIN_APPROVED_IS_A_PIPELINE_COMPATIBILITY_STATUS_ONLY"
+  ],
+  "reason_codes": ["DIFFICULTY", "EQUIPMENT", "LOCATION", "DISCOMFORT"],
+  "difficulty_rank": {
+    "BEGINNER": 0,
+    "INTERMEDIATE": 1,
+    "ADVANCED": 2
+  },
+  "exact_goal_groups": [
+    {
+      "goal_preservation_code": "CORE_STABILITY",
+      "exercise_codes": [
+        "stability_ball_trunk_rotation",
+        "supine_ball_trunk_tilt",
+        "supine_bicycle",
+        "supine_leg_raise",
+        "cable_woodchop"
+      ]
+    },
+    {
+      "goal_preservation_code": "WALKING",
+      "exercise_codes": ["outdoor_walking", "treadmill_walking"]
+    },
+    {
+      "goal_preservation_code": "HIP_EXTENSION_STRENGTH",
+      "exercise_codes": [
+        "dumbbell_deadlift",
+        "kettlebell_sumo_deadlift",
+        "quadruped_leg_raise",
+        "stability_ball_hip_hinge_lift",
+        "standing_weighted_hip_hinge",
+        "supine_hip_bridge",
+        "supported_standing_hip_extension",
+        "dumbbell_romanian_deadlift",
+        "romanian_deadlift"
+      ]
+    },
+    {
+      "goal_preservation_code": "HORIZONTAL_PULL_STRENGTH",
+      "exercise_codes": [
+        "machine_seated_row",
+        "seated_cable_row",
+        "dumbbell_rear_delt_row",
+        "incline_chest_supported_dumbbell_row",
+        "inverted_row"
+      ]
+    },
+    {
+      "goal_preservation_code": "HORIZONTAL_PUSH_STRENGTH",
+      "exercise_codes": [
+        "seated_bench_press",
+        "standing_cable_chest_press",
+        "dumbbell_side_punch",
+        "incline_dumbbell_bench_press",
+        "push_up",
+        "quadruped_scapular_press"
+      ]
+    },
+    {
+      "goal_preservation_code": "SHOULDER_ISOLATION",
+      "exercise_codes": ["diagonal_arm_raise", "standing_lateral_raise"]
+    },
+    {
+      "goal_preservation_code": "ELBOW_FLEXION",
+      "exercise_codes": ["household_biceps_curl", "supported_dumbbell_curl"]
+    },
+    {
+      "goal_preservation_code": "CALF_STRENGTH",
+      "exercise_codes": ["machine_calf_press", "standing_calf_raise"]
+    },
+    {
+      "goal_preservation_code": "KNEE_EXTENSION_STRENGTH",
+      "exercise_codes": [
+        "leg_extension",
+        "leg_press",
+        "seated_leg_extension",
+        "supported_sit_to_stand",
+        "barbell_back_squat",
+        "dumbbell_goblet_squat",
+        "dumbbell_split_squat"
+      ]
+    },
+    {
+      "goal_preservation_code": "KNEE_FLEXION_STRENGTH",
+      "exercise_codes": ["band_leg_curl", "leg_curl"]
+    },
+    {
+      "goal_preservation_code": "VERTICAL_PULL_STRENGTH",
+      "exercise_codes": [
+        "neutral_grip_lat_pulldown",
+        "half_kneeling_single_arm_lat_pulldown",
+        "standing_band_pulldown"
+      ]
+    },
+    {
+      "goal_preservation_code": "VERTICAL_PUSH_STRENGTH",
+      "exercise_codes": [
+        "machine_shoulder_press",
+        "barbell_overhead_press",
+        "dumbbell_arnold_press",
+        "dumbbell_shoulder_press"
+      ]
+    },
+    {
+      "goal_preservation_code": "ELBOW_EXTENSION",
+      "exercise_codes": [
+        "dumbbell_overhead_triceps_extension",
+        "cable_triceps_pushdown"
+      ]
+    }
+  ],
+  "discomfort_cross_group_rules": [
+    {
+      "goal_preservation_code": "LOWER_BODY_STRENGTH",
+      "source_goal_group": "KNEE_EXTENSION_STRENGTH",
+      "alternative_goal_group": "HIP_EXTENSION_STRENGTH",
+      "alternative_difficulty_code": "BEGINNER",
+      "bidirectional": true,
+      "reason_code": "DISCOMFORT",
+      "basis": "무릎 중심 동작과 엉덩관절 중심 동작 사이에서 하체 강화 목표를 보존하되 실제 불편 부위 안전 규칙으로 다시 필터링한다."
+    }
+  ]
+}

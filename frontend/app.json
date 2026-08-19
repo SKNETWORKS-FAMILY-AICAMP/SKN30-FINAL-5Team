@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "헬끼",
+    "slug": "helkki-mobile",
+    "scheme": "helkki",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.helkki.mobile"
+    },
+    "android": {
+      "package": "com.helkki.mobile"
+    },
+    "plugins": [
+      "expo-dev-client",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./src/assets/fonts/Jua-Regular.ttf",
+            "./src/assets/fonts/Baloo2-Variable.ttf"
+          ]
+        }
+      ],
+      "expo-asset"
+    ]
+  }
+}

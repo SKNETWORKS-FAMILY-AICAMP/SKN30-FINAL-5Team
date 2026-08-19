@@ -4,6 +4,17 @@
 *.cmd text eol=crlf
 *.ps1 text eol=crlf
 
+# Hash-sealed data artifacts. manifest.json이 파일 바이트의 SHA-256을 보존하므로
+# Git이 줄바꿈을 정규화하면 재검증이 실패한다. 바이트를 그대로 저장한다.
+data/validation/profiles/**/*.csv        -text
+data/validation/profiles/**/*.json       -text
+data/validation/profiles/**/*.jsonl      -text
+data/validation/review_batches/**/*.csv  -text
+data/validation/review_batches/**/*.json -text
+data/validation/review_batches/**/*.jsonl -text
+data/generated/**/*.json                 -text
+data/generated/**/*.jsonl                -text
+
 *.png binary
 *.jpg binary
 *.jpeg binary

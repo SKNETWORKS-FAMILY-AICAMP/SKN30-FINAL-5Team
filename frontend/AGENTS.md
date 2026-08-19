@@ -7,6 +7,8 @@
 - The client shows a count-up elapsed timer from zero and preserves temporary block progress; elapsed time never decides completion.
 - Completion comes only from explicit exercise-block actions and is synchronized through the item-completion API.
 - The workout screen keeps elapsed time at the top, the current mascot animation in the center, and ordered exercise blocks at the bottom.
+- Home is the signed-in entry point: today's state, the check-in, and the server's final routine stay on that one screen instead of separate check-in and decision screens.
+- Home renders the server's decision; the check-in sheet must keep every input a safety decision needs, including discomfort severity and adverse reactions.
 - Provide loading, empty, network error, auth error, permission-denied, stale-context, non-selectable, and safety-stop states.
 - Pain and adverse-reaction screens use serious tone and suppress playful mascot animation.
 - Never persist or log auth tokens, emails, full names, or raw health/wearable records.
