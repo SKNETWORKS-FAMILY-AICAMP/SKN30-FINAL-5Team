@@ -1,0 +1,125 @@
+name: Sync GitHub issues to Notion
+
+on:
+  issues:
+    types: [opened]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: GitHub issue number to sync manually
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  issues: read
+
+env:
+  NOTION_API_URL: https://api.notion.com/v1
+  NOTION_VERSION: "2026-03-11"
+  NOTION_DATA_SOURCE_ID: eb846272-f11a-4fbf-9d29-f875dd3385b4
+
+jobs:
+  sync-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create the Notion task
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          ISSUE_EVENT_JSON: ${{ toJSON(github.event.issue) }}
+          ISSUE_NUMBER_INPUT: ${{ inputs.issue_number }}
+          EVENT_NAME: ${{ github.event_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${NOTION_TOKEN:?Set the NOTION_TOKEN repository secret}"
+
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
+            : "${ISSUE_NUMBER_INPUT:?Provide an issue number}"
+            issue_json="$(gh api --header 'Accept: application/vnd.github+json' \
+              "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER_INPUT}")"
+          else
+            issue_json="${ISSUE_EVENT_JSON}"
+          fi
+
+          issue_url="$(jq -er '.html_url' <<<"${issue_json}")"
+          issue_number="$(jq -er '.number' <<<"${issue_json}")"
+          issue_title="$(jq -r '.title' <<<"${issue_json}" | cut -c1-1950)"
+          issue_body="$(jq -r '.body // ""' <<<"${issue_json}" | cut -c1-1900)"
+          priority="$(jq -r '
+            [.labels[]?.name]
+            | map(select(. == "Critical" or . == "High" or . == "Medium" or . == "Low"))
+            | .[0] // "Medium"
+          ' <<<"${issue_json}")"
+
+          query_payload="$(jq -n --arg issue_url "${issue_url}" '{
+            filter: {
+              property: "GitHub 이슈",
+              url: { equals: $issue_url }
+            },
+            page_size: 1
+          }')"
+
+          existing="$(curl --silent --show-error --fail-with-body --retry 3 \
+            -X POST "${NOTION_API_URL}/data_sources/${NOTION_DATA_SOURCE_ID}/query" \
+            -H "Authorization: Bearer ${NOTION_TOKEN}" \
+            -H "Notion-Version: ${NOTION_VERSION}" \
+            -H "Content-Type: application/json" \
+            --data "${query_payload}")"
+
+          if ! jq -e 'has("results")' >/dev/null <<<"${existing}"; then
+            echo "Notion duplicate check did not return results." >&2
+            exit 1
+          fi
+
+          if jq -e '.results | length > 0' >/dev/null <<<"${existing}"; then
+            echo "Issue #${issue_number} is already registered in Notion."
+            exit 0
+          fi
+
+          create_payload="$(jq -n \
+            --arg data_source_id "${NOTION_DATA_SOURCE_ID}" \
+            --arg issue_title "${issue_title} (#${issue_number})" \
+            --arg issue_url "${issue_url}" \
+            --arg priority "${priority}" \
+            --arg issue_body "${issue_body}" '{
+              parent: { data_source_id: $data_source_id },
+              properties: {
+                "작업": {
+                  title: [{ type: "text", text: { content: $issue_title } }]
+                },
+                "GitHub 이슈": { url: $issue_url },
+                "상태": { status: { name: "Backlog" } },
+                "우선순위": { select: { name: $priority } }
+              },
+              children: (
+                if ($issue_body | length) == 0 then []
+                else [
+                  {
+                    object: "block",
+                    type: "heading_2",
+                    heading_2: {
+                      rich_text: [{ type: "text", text: { content: "GitHub 이슈 설명" } }]
+                    }
+                  },
+                  {
+                    object: "block",
+                    type: "paragraph",
+                    paragraph: {
+                      rich_text: [{ type: "text", text: { content: $issue_body } }]
+                    }
+                  }
+                ]
+                end
+              )
+            }')"
+
+          response="$(curl --silent --show-error --fail-with-body --retry 3 \
+            -X POST "${NOTION_API_URL}/pages" \
+            -H "Authorization: Bearer ${NOTION_TOKEN}" \
+            -H "Notion-Version: ${NOTION_VERSION}" \
+            -H "Content-Type: application/json" \
+            --data "${create_payload}")"
+
+          page_url="$(jq -er '.url' <<<"${response}")"
+          echo "Issue #${issue_number} registered in Notion: ${page_url}"
