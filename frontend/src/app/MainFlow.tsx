@@ -78,9 +78,7 @@ export function MainFlow({
 
     void (async () => {
       const [stored, sessions] = await Promise.all([
-        api
-          .getDecisionForDate(localDate, controller.signal)
-          .catch(() => null),
+        api.getDecisionForDate(localDate, controller.signal).catch(() => null),
         api
           .listWorkoutSessions(
             { fromLocalDate: localDate, toLocalDate: localDate },

@@ -208,7 +208,7 @@ describe('MainFlow restart recovery', () => {
     );
   });
 
-  it('does not resurrect the decision after the day\'s session already ended', async () => {
+  it("does not resurrect the decision after the day's session already ended", async () => {
     const { api, calls } = apiWithRoutes({
       '/decisions?': decision(),
       '/workout-sessions?': sessions([
