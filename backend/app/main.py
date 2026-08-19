@@ -69,7 +69,11 @@ def create_app(
     application.state.firebase_token_verifier = (
         firebase_token_verifier
         if firebase_token_verifier is not None
-        else build_firebase_token_verifier(resolved_settings.firebase_project_id)
+        else build_firebase_token_verifier(
+            resolved_settings.firebase_project_id,
+            resolved_settings.firebase_clock_skew_seconds,
+            resolved_settings.google_application_credentials,
+        )
     )
     application.state.birthdate_cipher = (
         birthdate_cipher

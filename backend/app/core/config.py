@@ -26,6 +26,16 @@ class Settings(BaseSettings):
     )
     catalog_manifest_paths: tuple[Path, ...] = ()
     firebase_project_id: str | None = None
+    # Firebase mints ID tokens against Google's clock. A server whose clock runs
+    # even a second behind reads a fresh token's `iat` as being in the future and
+    # rejects it as "used too early", which surfaces as an intermittent 401. The
+    # SDK default is zero tolerance, so a small allowance is configured here.
+    firebase_clock_skew_seconds: int = 60
+    # Path to a service account key. When set, it is handed to the Firebase SDK
+    # directly, so the credential no longer has to reach the process as an
+    # exported environment variable. Left empty, the SDK falls back to
+    # Application Default Credentials, which is what cloud deployments use.
+    google_application_credentials: Path | None = None
     birthdate_encryption_key_base64: SecretStr | None = None
     birthdate_encryption_key_id: str = "local-v1"
     consent_policy_version: str | None = None
@@ -68,6 +78,23 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             normalized = value.strip()
             return normalized or None
+        return value
+
+    @field_validator("google_application_credentials", mode="before")
+    @classmethod
+    def normalize_credentials_path(cls, value: object) -> object:
+        if isinstance(value, str):
+            normalized = value.strip()
+            return normalized or None
+        return value
+
+    @field_validator("firebase_clock_skew_seconds")
+    @classmethod
+    def validate_firebase_clock_skew_seconds(cls, value: int) -> int:
+        # The Firebase SDK accepts at most 60 seconds. A wider window would be
+        # rejected at verification time rather than at startup.
+        if not 0 <= value <= 60:
+            raise ValueError("FIREBASE_CLOCK_SKEW_SECONDS must be within [0, 60]")
         return value
 
     @field_validator("openai_api_key", mode="before")
