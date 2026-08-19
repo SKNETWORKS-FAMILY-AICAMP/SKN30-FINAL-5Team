@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -11,6 +11,23 @@ from backend.app.modules.catalog.codes import (
     TrainingTypeCode,
 )
 from backend.app.modules.profiles.codes import CoachingStyleCode, ConsentTypeCode
+
+
+def _exclude_explicit_null_from_patch_schema(schema: dict[str, Any]) -> None:
+    """Keep PATCH fields optional while documenting explicit null as invalid."""
+
+    for property_schema in schema.get("properties", {}).values():
+        variants = property_schema.get("anyOf")
+        if not isinstance(variants, list):
+            continue
+        non_null_variants = [variant for variant in variants if variant.get("type") != "null"]
+        if len(non_null_variants) != 1 or len(non_null_variants) == len(variants):
+            continue
+        title = property_schema.get("title")
+        property_schema.clear()
+        property_schema.update(non_null_variants[0])
+        if title is not None:
+            property_schema["title"] = title
 
 
 class ConsentValues(BaseModel):
@@ -89,7 +106,10 @@ class OnboardingResponse(BaseModel):
 
 
 class ProfileSettingsUpdateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra=_exclude_explicit_null_from_patch_schema,
+    )
 
     primary_goal_code: str | None = Field(default=None, pattern=r"^[A-Z][A-Z0-9_]{0,63}$")
     desired_weekly_workout_count: int | None = Field(default=None, gt=0, le=7)
@@ -108,15 +128,10 @@ class ProfileSettingsUpdateRequest(BaseModel):
     timezone: str | None = Field(default=None, min_length=1, max_length=64)
     date_of_birth: date | None = None
 
-    @field_validator("nickname")
+    @field_validator("nickname", mode="before")
     @classmethod
-    def normalize_nickname(cls, value: str | None) -> str | None:
-        if value is None:
-            return value
-        normalized = value.strip()
-        if not normalized:
-            raise ValueError("nickname must not be blank")
-        return normalized
+    def normalize_nickname(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
 
     @field_validator(
         "equipment_codes",
