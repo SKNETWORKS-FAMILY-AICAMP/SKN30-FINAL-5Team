@@ -46,7 +46,7 @@ export function DemoApp() {
 
     case 'signedOut':
       return session.auth ? (
-        <SignInScreen auth={session.auth} />
+        <SignInScreen auth={session.auth} notice={session.status.notice} />
       ) : (
         <ConfigurationRequiredScreen
           issues={[
