@@ -179,6 +179,19 @@ def _headers(*, key: str | None = None, version: str = '"1"') -> dict[str, str]:
     }
 
 
+def _assert_common_error(response: Any, *, status_code: int, code: str) -> None:
+    assert response.status_code == status_code
+    payload = response.json()
+    assert set(payload) == {"error"}
+    assert set(payload["error"]) == {"code", "message", "details", "request_id"}
+    assert payload["error"]["code"] == code
+    assert isinstance(payload["error"]["message"], str)
+    assert payload["error"]["message"]
+    assert payload["error"]["details"] == []
+    UUID(payload["error"]["request_id"])
+    assert payload["error"]["request_id"] == response.headers["X-Request-ID"]
+
+
 @pytest.mark.parametrize(
     "payload",
     [
@@ -326,17 +339,29 @@ def test_missing_approved_code_configuration_fails_closed(
     assert records[0].request_id == response.headers["X-Request-ID"]
 
 
+def test_if_match_is_required_and_uses_common_error_schema() -> None:
+    client, repository = _client()
+    before = repository.record
+    with client:
+        response = client.patch(
+            "/api/v1/me/profile",
+            json={"nickname": "변경"},
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+
+    _assert_common_error(response, status_code=400, code="INVALID_REQUEST")
+    assert repository.record == before
+    assert repository.update_count == 0
+
+
 @pytest.mark.parametrize("version", ["", "1", 'W/"1"', '"0"', '"-1"', '"abc"'])
 def test_if_match_must_be_a_quoted_positive_integer(version: str) -> None:
     client, repository = _client()
-    headers = {"Idempotency-Key": str(uuid4())}
-    if version:
-        headers["If-Match"] = version
+    headers = {"Idempotency-Key": str(uuid4()), "If-Match": version}
     with client:
         response = client.patch("/api/v1/me/profile", json={"nickname": "변경"}, headers=headers)
 
-    assert response.status_code == 400
-    assert response.json()["error"]["code"] == "INVALID_REQUEST"
+    _assert_common_error(response, status_code=400, code="INVALID_REQUEST")
     assert repository.update_count == 0
 
 
@@ -357,6 +382,7 @@ def test_idempotency_key_must_be_a_uuid(idempotency_key: str | None) -> None:
 def test_stale_profile_changes_nothing() -> None:
     client, repository = _client()
     before = repository.record
+    assert before is not None
     with client:
         response = client.patch(
             "/api/v1/me/profile",
@@ -364,10 +390,28 @@ def test_stale_profile_changes_nothing() -> None:
             headers=_headers(version='"2"'),
         )
 
-    assert response.status_code == 409
-    assert response.json()["error"]["code"] == "STALE_PROFILE"
+    _assert_common_error(response, status_code=409, code="STALE_PROFILE")
     assert repository.record == before
+    assert repository.record.profile_version == before.profile_version
     assert repository.update_count == 0
+
+
+def test_matching_if_match_increments_profile_version() -> None:
+    client, repository = _client()
+    assert repository.record is not None
+    before_version = repository.record.profile_version
+    with client:
+        response = client.patch(
+            "/api/v1/me/profile",
+            json={"nickname": "변경"},
+            headers=_headers(version=f'"{before_version}"'),
+        )
+
+    assert response.status_code == 200
+    assert response.json()["profile_version"] == before_version + 1
+    assert repository.record is not None
+    assert repository.record.profile_version == before_version + 1
+    assert repository.update_count == 1
 
 
 def test_idempotent_retry_replays_response_without_incrementing_version() -> None:
