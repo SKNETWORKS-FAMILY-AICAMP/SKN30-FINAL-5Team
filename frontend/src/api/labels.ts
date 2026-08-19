@@ -72,6 +72,8 @@ const BODY_AREA: Record<string, string> = {
   ANKLE_FOOT: '발목·발',
   CHEST: '가슴',
   ABDOMEN: '복부',
+  GENERALIZED: '전신',
+  OTHER: '기타 부위',
 };
 
 const ADVERSE_REACTION: Record<string, string> = {
@@ -120,6 +122,12 @@ const BODY_FOCUS: Record<string, string> = {
   FULL_BODY: '전신',
 };
 
+const LOCATION: Record<string, string> = {
+  HOME: '집',
+  GYM: '헬스장',
+  OUTDOOR: '야외',
+};
+
 const AGENT_TYPE: Record<string, string> = {
   TRAINING: '트레이닝',
   RECOVERY: '회복',
@@ -132,6 +140,47 @@ const ADJUSTMENT_DIRECTION: Record<string, string> = {
   MAINTAIN: '현재 수준 유지',
   INCREASE: '조금 늘리기',
   DECREASE: '조금 줄이기',
+};
+
+const DECISION_REASON: Record<string, string> = {
+  PRIMARY_GOAL_PRESERVED: '운동 목표를 유지했어요.',
+  MODERATE_FATIGUE_DOWNSHIFT: '오늘의 피로도를 고려해 부담을 낮췄어요.',
+  LOW_FATIGUE_LOAD_ACCEPTED: '현재 피로도에 맞는 운동량을 유지했어요.',
+  AVAILABLE_EQUIPMENT_INSUFFICIENT: '사용 가능한 장비를 고려했어요.',
+  CURRENT_LOCATION_UNSUPPORTED: '현재 장소에서 가능한 운동을 확인했어요.',
+  TIME_LOCATION_EQUIPMENT_MATCHED:
+    '희망 시간과 장소, 장비 조건을 모두 확인했어요.',
+  EMERGENCY_REACTION_REPORTED: '보고한 이상 반응을 안전 판단에 반영했어요.',
+  ACUTE_OR_SEVERE_INPUT_REPORTED:
+    '강한 통증이나 이상 반응을 안전 판단에 반영했어요.',
+  NO_SAFETY_SIGNAL_REPORTED: '보고된 위험 신호가 없는지 확인했어요.',
+  SAFETY_EXERCISES_REPLACED:
+    '부담이 될 수 있는 운동을 안전한 구성으로 바꿨어요.',
+  APPROVED_ALTERNATIVE_UNAVAILABLE: '안전하게 대체할 운동을 확인하지 못했어요.',
+  NO_APPLICABLE_SAFETY_RESTRICTION:
+    '현재 상태에 필요한 안전 제한을 확인했어요.',
+  COMMON_CANDIDATE_SELECTED: '여러 조건을 함께 만족하는 루틴을 선택했어요.',
+};
+
+const PLAN_REVISION_REASON: Record<string, string> = {
+  REVISION_ALLOWED: '요청한 루틴 조정을 적용했어요.',
+  AI_REVISION_LIMIT_REACHED: '이번 주 추천 가능 횟수를 모두 사용했어요.',
+  ROUTINE_REQUIRED: '적용할 수 있는 루틴이 필요해요.',
+  ROUTINE_FORBIDDEN: '현재 상태에서는 해당 루틴을 적용할 수 없어요.',
+  REQUESTED_DURATION_NOT_PRESERVED:
+    '희망 운동 시간을 유지할 수 없어 조정을 적용하지 않았어요.',
+  LOCATION_CONSTRAINT_NOT_SATISFIED:
+    '선택한 장소에서 진행 가능한 구성을 찾지 못했어요.',
+  EQUIPMENT_CONSTRAINT_NOT_SATISFIED:
+    '현재 장비로 진행 가능한 구성을 찾지 못했어요.',
+  SAFETY_OPINION_NOT_APPLIED:
+    '안전 기준을 충족하지 않아 조정을 적용하지 않았어요.',
+  REVISION_REJECTED: '요청한 루틴 조정을 적용하지 못했어요.',
+  REVISION_STATUS_BLOCKS_FINALIZE:
+    '안전 확인이 끝나지 않아 루틴을 확정하지 않았어요.',
+  PREVIOUS_REPORT_ACKNOWLEDGEMENT_REQUIRED:
+    '지난 주 리포트를 확인한 뒤 다음 계획을 확정할 수 있어요.',
+  FINALIZE_ALLOWED: '안전 확인을 마치고 루틴을 확정했어요.',
 };
 
 export const actionLabel = (code: ActionCode | string) => lookup(ACTION, code);
@@ -152,9 +201,14 @@ export const notCompletedReasonLabel = (
 export const phaseLabel = (code: string) => lookup(PHASE, code);
 export const trainingTypeLabel = (code: string) => lookup(TRAINING_TYPE, code);
 export const bodyFocusLabel = (code: string) => lookup(BODY_FOCUS, code);
+export const locationLabel = (code: string) => lookup(LOCATION, code);
 export const agentTypeLabel = (code: string) => lookup(AGENT_TYPE, code);
 export const adjustmentDirectionLabel = (code: string) =>
   lookup(ADJUSTMENT_DIRECTION, code);
+export const decisionReasonLabel = (code: string): string | null =>
+  DECISION_REASON[code] ?? null;
+export const planRevisionReasonLabel = (code: string): string | null =>
+  PLAN_REVISION_REASON[code] ?? null;
 
 export const BODY_AREA_OPTIONS = Object.entries(BODY_AREA).map(
   ([code, label]) => ({ code, label }),

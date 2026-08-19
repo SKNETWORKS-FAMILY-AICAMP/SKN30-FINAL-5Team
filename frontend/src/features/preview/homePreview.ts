@@ -12,12 +12,56 @@ import type {
   RoutineResponse,
   WeekResponse,
   WorkoutPlan,
+  WorkoutSessionLogSummary,
 } from '../../api/types';
+import type { Api } from '../../api/endpoints';
+import { localDateString, weekStartString } from '../../api/useAsync';
 import type { HomeScreenProps } from '../home/HomeScreen';
 import type { HomePreviewState } from '../home/homeModel';
 
-const LOCAL_DATE = '2026-08-11';
-const WEEK_START = '2026-08-10';
+const PREVIEW_TIME_ZONE = 'Asia/Seoul';
+const PREVIEW_NOW = new Date();
+const LOCAL_DATE = localDateString(PREVIEW_NOW, PREVIEW_TIME_ZONE);
+const WEEK_START = weekStartString(PREVIEW_NOW, PREVIEW_TIME_ZONE);
+const WEEK_END = addDays(WEEK_START, 6);
+const COMPLETED_DATES =
+  LOCAL_DATE === WEEK_START ? [LOCAL_DATE] : [WEEK_START, LOCAL_DATE];
+
+const SESSIONS: WorkoutSessionLogSummary[] = COMPLETED_DATES.map(
+  (localDate, index) => ({
+    session_id: `session-preview-${index + 1}`,
+    local_date: localDate,
+    status_code: 'COMPLETED',
+    completed_item_count: 3,
+    total_item_count: 3,
+    requested_duration_minutes: 40,
+    training_type_code: 'STRENGTH',
+    not_completed_reason_code: null,
+    started_at: `${localDate}T08:00:00+09:00`,
+    finished_at: `${localDate}T08:40:00+09:00`,
+  }),
+);
+
+const HOME_EXERCISE_PREVIEW_API: Pick<Api, 'getExercise'> = {
+  async getExercise(exerciseId: string) {
+    const names: Record<string, string> = {
+      'exercise-0': '준비 운동',
+      'exercise-1': '푸시업',
+      'exercise-2': '밴드 로우',
+    };
+    return {
+      exercise_id: exerciseId,
+      exercise_name: names[exerciseId] ?? '운동',
+      training_type_code: 'STRENGTH',
+      primary_body_area_codes: ['UPPER_BACK'],
+      instruction_summary: '통증이 없는 범위에서 천천히 움직여주세요.',
+      form_cues: ['호흡을 멈추지 않기', '편안한 가동 범위 유지하기'],
+      media_asset_key: null,
+      mascot_animation_asset_key: null,
+      instruction_content_version: 'home-preview-v1',
+    };
+  },
+};
 
 const ROUTINE: RoutineResponse = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -87,8 +131,8 @@ const CONTEXT: DailyContextResponse = {
 const WEEK: WeekResponse = {
   week_id: '44444444-4444-4444-8444-444444444444',
   week_start: WEEK_START,
-  week_end: '2026-08-16',
-  timezone: 'Asia/Seoul',
+  week_end: WEEK_END,
+  timezone: PREVIEW_TIME_ZONE,
   target_workout_count: 4,
   plan_origin_code: 'INITIAL',
   cold_start_applied: true,
@@ -97,6 +141,17 @@ const WEEK: WeekResponse = {
   report_id: null,
   report_status_code: null,
 };
+
+function addDays(localDate: string, days: number): string {
+  const [year, month, day] = localDate.split('-').map(Number);
+  const date = new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 1));
+  date.setUTCDate(date.getUTCDate() + days);
+  return [
+    date.getUTCFullYear(),
+    String(date.getUTCMonth() + 1).padStart(2, '0'),
+    String(date.getUTCDate()).padStart(2, '0'),
+  ].join('-');
+}
 
 function plan(): WorkoutPlan {
   return {
@@ -191,7 +246,11 @@ function decision(adjusted: boolean): DecisionResponse {
         blocked_reason_code: null,
       },
     ],
-    reason_codes: [],
+    reason_codes: [
+      'PRIMARY_GOAL_PRESERVED',
+      ...(adjusted ? ['MODERATE_FATIGUE_DOWNSHIFT'] : []),
+    ],
+    adjustment_reason_codes: adjusted ? ['MODERATE_FATIGUE_DOWNSHIFT'] : null,
     summary: adjusted
       ? '오늘 컨디션에 맞춰 부담을 낮췄어요.'
       : '오늘은 계획대로 진행해요.',
@@ -203,8 +262,34 @@ function decision(adjusted: boolean): DecisionResponse {
           tone_code: 'NEUTRAL',
         }
       : null,
-    public_agent_summaries: null,
-    safety_summary: null,
+    public_agent_summaries: [
+      {
+        agent_type_code: 'TRAINING',
+        recommendation_code: adjusted ? 'DOWNSHIFT' : 'KEEP',
+        reason_codes: ['PRIMARY_GOAL_PRESERVED'],
+        summary: '운동 목표와 희망 운동 시간을 유지했어요.',
+      },
+      {
+        agent_type_code: 'SAFETY',
+        recommendation_code: adjusted ? 'DOWNSHIFT' : 'KEEP',
+        reason_codes: adjusted
+          ? ['MODERATE_FATIGUE_DOWNSHIFT']
+          : ['NO_SAFETY_SIGNAL_REPORTED'],
+        summary: adjusted
+          ? '오늘의 피로도를 고려해 부담을 낮췄어요.'
+          : '현재 체크인에서 운동을 막는 위험 신호는 확인되지 않았어요.',
+      },
+    ],
+    safety_summary: {
+      safety_status_code: adjusted ? 'REVISE' : 'PASS',
+      vetoed: false,
+      reason_codes: adjusted
+        ? ['MODERATE_FATIGUE_DOWNSHIFT']
+        : ['NO_SAFETY_SIGNAL_REPORTED'],
+      summary: adjusted
+        ? '안전 기준을 유지하면서 운동 부담을 조정했어요.'
+        : '현재 체크인에 적용할 안전 제한을 확인했어요.',
+    },
     created_at: `${LOCAL_DATE}T08:05:00+09:00`,
   };
 }
@@ -214,6 +299,7 @@ export function homePreviewProps(state: HomePreviewState): HomeScreenProps {
     state === 'routine' || state === 'adjusted' || state === 'editing';
 
   return {
+    attentionAreaCodes: ['SHOULDER', 'KNEE'],
     nickname: '헬끼',
     localDate: LOCAL_DATE,
     status: 'ready',
@@ -221,8 +307,11 @@ export function homePreviewProps(state: HomePreviewState): HomeScreenProps {
     context: state === 'pre-checkin' ? null : CONTEXT,
     decision: showsRoutine ? decision(state === 'adjusted') : null,
     week: WEEK,
+    sessions: SESSIONS,
     planRevision: null,
+    restToday: state === 'rest',
     defaultDurationMinutes: 40,
+    exerciseApi: HOME_EXERCISE_PREVIEW_API,
     locationCodes: ['HOME', 'GYM'],
     busy: state === 'generating' ? 'checkin' : null,
     previewState: state,

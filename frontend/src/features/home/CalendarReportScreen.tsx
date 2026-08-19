@@ -1,6 +1,14 @@
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Card } from '../../components/primitives';
@@ -14,7 +22,10 @@ import {
   CALENDAR_WEEKDAYS,
   CALENDAR_WEEKS,
   type CalendarDayStatus,
+  type CalendarDay,
+  type CalendarMonthStat,
   type CalendarReportPreviewState,
+  type CalendarWeek,
   type CalendarWeekState,
 } from './homeSecondaryModel';
 
@@ -29,8 +40,17 @@ type CalendarReportScreenProps = {
   onChangeMonth?: (direction: 'previous' | 'next') => void;
   onNavigateTab?: (tab: TabId) => void;
   onOpenWeeklyReport?: (weekId: string) => void;
+  onOpenDay?: (day: CalendarDay) => void;
   previewState?: CalendarReportPreviewState;
+  monthLabel?: string;
+  monthStats?: readonly CalendarMonthStat[];
+  weeks?: readonly CalendarWeek[];
+  selectedMonth?: string;
+  latestMonth?: string;
+  onSelectMonth?: (month: string) => void;
 };
+
+const MONTH_PICKER_ITEM_HEIGHT = 44;
 
 export function CalendarReportScreen({
   previewState = 'calendar',
@@ -48,8 +68,15 @@ export function CalendarReportScreen({
 function CalendarReportContent({
   onChangeMonth,
   onNavigateTab,
+  onOpenDay,
   onOpenWeeklyReport,
   previewState = 'calendar',
+  monthLabel = '2026년 8월',
+  monthStats = CALENDAR_MONTH_STATS,
+  weeks = CALENDAR_WEEKS,
+  selectedMonth = '2026-08',
+  latestMonth = '2026-08',
+  onSelectMonth,
 }: CalendarReportScreenProps) {
   const [expandedWeek, setExpandedWeek] = useState<string | null>(
     previewState === 'week-detail' ? 'week-2' : null,
@@ -76,11 +103,18 @@ function CalendarReportContent({
                 onPress={() => setPickerOpen((current) => !current)}
                 style={styles.monthPickerButton}
               >
-                <Text style={styles.monthTitle}>2026년 8월</Text>
+                <Text style={styles.monthTitle}>{monthLabel}</Text>
                 <Text style={styles.monthCaret}>⌄</Text>
               </Pressable>
               {pickerOpen ? (
-                <MonthPicker onClose={() => setPickerOpen(false)} />
+                <MonthPicker
+                  latestMonth={latestMonth}
+                  selectedMonth={selectedMonth}
+                  onConfirm={(month) => {
+                    onSelectMonth?.(month);
+                    setPickerOpen(false);
+                  }}
+                />
               ) : null}
             </View>
             <View style={styles.monthActions}>
@@ -91,13 +125,14 @@ function CalendarReportContent({
               />
               <MonthArrow
                 direction="next"
+                disabled={selectedMonth >= latestMonth}
                 label="다음 달"
                 onPress={() => onChangeMonth?.('next')}
               />
             </View>
           </View>
           <View style={styles.monthStats}>
-            {CALENDAR_MONTH_STATS.map((stat) => (
+            {monthStats.map((stat) => (
               <MonthStat
                 key={stat.key}
                 color={stat.color}
@@ -121,7 +156,7 @@ function CalendarReportContent({
         </View>
 
         <View style={styles.weekList}>
-          {CALENDAR_WEEKS.map((week) => {
+          {weeks.map((week) => {
             const expanded = expandedWeek === week.id;
             return (
               <View
@@ -147,13 +182,31 @@ function CalendarReportContent({
                     </View>
                     <StateChip state={week.state} weekId={week.id} />
                   </View>
-                  <View style={styles.dayRow}>
-                    {week.days.map((day, index) => (
-                      <View
+                </Pressable>
+                <View style={styles.dayRow}>
+                  {week.days.map((day, index) => {
+                    const canOpen =
+                      expanded &&
+                      day.localDate !== undefined &&
+                      (day.sessionIds?.length ?? 0) > 0;
+                    return (
+                      <Pressable
                         key={`${week.id}-${day.day}`}
+                        accessibilityLabel={
+                          canOpen
+                            ? `${day.localDate} 운동 기록 보기`
+                            : undefined
+                        }
+                        accessibilityRole={canOpen ? 'button' : undefined}
+                        accessibilityState={
+                          canOpen ? undefined : { disabled: true }
+                        }
+                        disabled={!canOpen}
+                        onPress={() => onOpenDay?.(day)}
                         style={[
                           styles.dayCell,
                           !day.inCurrentMonth && styles.dayCellOutsideMonth,
+                          canOpen && styles.dayCellSelectable,
                         ]}
                       >
                         <Text
@@ -168,15 +221,17 @@ function CalendarReportContent({
                           status={day.status}
                           testID={`calendar-day-${week.id}-${index}-mark`}
                         />
-                      </View>
-                    ))}
-                  </View>
-                </Pressable>
+                      </Pressable>
+                    );
+                  })}
+                </View>
 
                 {expanded ? (
                   <WeekDetail
                     note={week.note}
-                    onOpenReport={() => onOpenWeeklyReport?.(week.id)}
+                    onOpenReport={() =>
+                      onOpenWeeklyReport?.(week.weekStart ?? week.id)
+                    }
                     state={week.state}
                     stats={week.stats}
                     title={`${week.label} · 완료 ${week.stats[0]}회 / 부분 ${week.stats[1]}회`}
@@ -211,10 +266,12 @@ function CalendarReportContent({
 
 function MonthArrow({
   direction,
+  disabled = false,
   label,
   onPress,
 }: {
   direction: 'previous' | 'next';
+  disabled?: boolean;
   label: string;
   onPress: () => void;
 }) {
@@ -222,8 +279,10 @@ function MonthArrow({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={onPress}
-      style={styles.monthArrow}
+      style={[styles.monthArrow, disabled && styles.monthArrowDisabled]}
     >
       <Text style={styles.monthArrowText}>
         {direction === 'previous' ? '‹' : '›'}
@@ -232,28 +291,139 @@ function MonthArrow({
   );
 }
 
-function MonthPicker({ onClose }: { onClose: () => void }) {
+function MonthPicker({
+  latestMonth,
+  selectedMonth,
+  onConfirm,
+}: {
+  latestMonth: string;
+  selectedMonth: string;
+  onConfirm: (month: string) => void;
+}) {
+  const [initialYear, initialMonth] = selectedMonth.split('-').map(Number);
+  const [latestYear, latestMonthNumber] = latestMonth.split('-').map(Number);
+  const [year, setYear] = useState(initialYear ?? latestYear ?? 0);
+  const [month, setMonth] = useState(initialMonth ?? 1);
+  const maximumYear = latestYear ?? year;
+  const minimumYear = Math.min(maximumYear - 10, year);
+  const years = Array.from(
+    { length: maximumYear - minimumYear + 1 },
+    (_, index) => minimumYear + index,
+  );
+  const maximumMonth = year === maximumYear ? (latestMonthNumber ?? 12) : 12;
+  const months = Array.from({ length: maximumMonth }, (_, index) => index + 1);
+
+  const selectYear = (nextYear: number) => {
+    const nextMaximumMonth =
+      nextYear === maximumYear ? (latestMonthNumber ?? 12) : 12;
+    setYear(nextYear);
+    if (month > nextMaximumMonth) {
+      setMonth(nextMaximumMonth);
+    }
+  };
+
   return (
-    <View style={styles.picker}>
+    <View accessibilityViewIsModal style={styles.picker} testID="month-picker">
       <View style={styles.pickerColumns}>
-        <View style={styles.pickerColumn}>
-          <Text style={styles.pickerMuted}>2025년</Text>
-          <Text style={styles.pickerSelected}>2026년</Text>
-          <Text style={styles.pickerMuted}>2027년</Text>
-        </View>
-        <View style={styles.pickerColumn}>
-          <Text style={styles.pickerMuted}>7월</Text>
-          <Text style={styles.pickerSelected}>8월</Text>
-          <Text style={styles.pickerMuted}>9월</Text>
-        </View>
+        <MonthPickerWheel
+          accessibilityLabel="연도 선택 휠"
+          selectedValue={year}
+          suffix="년"
+          testID="month-picker-year-wheel"
+          values={years}
+          onSelect={selectYear}
+        />
+        <MonthPickerWheel
+          key={`${year}-${maximumMonth}`}
+          accessibilityLabel="월 선택 휠"
+          selectedValue={Math.min(month, maximumMonth)}
+          suffix="월"
+          testID="month-picker-month-wheel"
+          values={months}
+          onSelect={setMonth}
+        />
       </View>
       <Pressable
         accessibilityRole="button"
-        onPress={onClose}
+        onPress={() =>
+          onConfirm(
+            `${year}-${String(Math.min(month, maximumMonth)).padStart(2, '0')}`,
+          )
+        }
         style={styles.pickerDone}
       >
         <Text style={styles.pickerDoneText}>완료</Text>
       </Pressable>
+    </View>
+  );
+}
+
+function MonthPickerWheel({
+  accessibilityLabel,
+  selectedValue,
+  suffix,
+  testID,
+  values,
+  onSelect,
+}: {
+  accessibilityLabel: string;
+  selectedValue: number;
+  suffix: string;
+  testID: string;
+  values: readonly number[];
+  onSelect: (value: number) => void;
+}) {
+  const selectedIndex = Math.max(0, values.indexOf(selectedValue));
+  const selectFromScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const index = Math.max(
+      0,
+      Math.min(
+        values.length - 1,
+        Math.round(
+          event.nativeEvent.contentOffset.y / MONTH_PICKER_ITEM_HEIGHT,
+        ),
+      ),
+    );
+    const value = values[index];
+    if (value !== undefined && value !== selectedValue) onSelect(value);
+  };
+
+  return (
+    <View style={styles.pickerColumn}>
+      <ScrollView
+        accessibilityLabel={accessibilityLabel}
+        contentContainerStyle={styles.pickerWheelContent}
+        contentOffset={{
+          x: 0,
+          y: selectedIndex * MONTH_PICKER_ITEM_HEIGHT,
+        }}
+        decelerationRate="fast"
+        nestedScrollEnabled
+        onMomentumScrollEnd={selectFromScroll}
+        onScroll={selectFromScroll}
+        onScrollEndDrag={selectFromScroll}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        snapToAlignment="start"
+        snapToInterval={MONTH_PICKER_ITEM_HEIGHT}
+        style={styles.pickerWheel}
+        testID={testID}
+      >
+        {values.map((value) => (
+          <View key={value} style={styles.pickerWheelRow}>
+            <Text
+              style={
+                value === selectedValue
+                  ? styles.pickerSelected
+                  : styles.pickerMuted
+              }
+            >
+              {value}
+              {suffix}
+            </Text>
+          </View>
+        ))}
+      </ScrollView>
     </View>
   );
 }
@@ -414,6 +584,7 @@ const styles = StyleSheet.create({
     paddingBottom: CALENDAR_REPORT_LAYOUT.contentBottomPadding,
   },
   monthCard: {
+    zIndex: 100,
     overflow: 'visible',
     borderRadius: 22,
     padding: 14,
@@ -469,6 +640,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  monthArrowDisabled: {
+    opacity: 0.28,
+  },
   monthArrowText: {
     color: '#6F6B63',
     fontSize: 30,
@@ -503,7 +677,7 @@ const styles = StyleSheet.create({
   },
   picker: {
     position: 'absolute',
-    zIndex: 30,
+    zIndex: 1000,
     top: 58,
     left: -4,
     width: 286,
@@ -516,9 +690,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 0.2,
     shadowRadius: 15,
-    elevation: 8,
+    elevation: 24,
   },
   pickerColumns: {
+    height: MONTH_PICKER_ITEM_HEIGHT * 3,
     flexDirection: 'row',
     overflow: 'hidden',
     borderRadius: 14,
@@ -526,13 +701,23 @@ const styles = StyleSheet.create({
   },
   pickerColumn: {
     flex: 1,
+    height: MONTH_PICKER_ITEM_HEIGHT * 3,
+  },
+  pickerWheel: {
+    flex: 1,
+  },
+  pickerWheelContent: {
+    paddingVertical: MONTH_PICKER_ITEM_HEIGHT,
+  },
+  pickerWheelRow: {
+    height: MONTH_PICKER_ITEM_HEIGHT,
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 10,
+    justifyContent: 'center',
   },
   pickerMuted: {
     color: '#B7B2A8',
     fontSize: 14,
+    textAlign: 'center',
   },
   pickerSelected: {
     width: '90%',
@@ -640,6 +825,10 @@ const styles = StyleSheet.create({
   },
   dayCellOutsideMonth: {
     opacity: 0.35,
+  },
+  dayCellSelectable: {
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,.62)',
   },
   dayNumber: {
     color: '#6F6B63',

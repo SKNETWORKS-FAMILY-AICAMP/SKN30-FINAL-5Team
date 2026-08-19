@@ -19,6 +19,8 @@ export type FatigueLevelCode = 'LOW' | 'MODERATE' | 'HIGH';
 export type BlockStatusCode = 'PENDING' | 'COMPLETED';
 export type ToneCode = 'SERIOUS' | 'NEUTRAL';
 
+export type SexCode = 'FEMALE' | 'MALE' | 'PREFER_NOT_TO_SAY';
+
 export type SessionStatusCode =
   | 'PLANNED'
   | 'IN_PROGRESS'
@@ -82,6 +84,9 @@ export type ConsentValues = {
 export type OnboardingRequest = {
   nickname: string;
   date_of_birth: string;
+  sex_code: SexCode;
+  height_cm: number;
+  weight_kg: number;
   primary_goal_code: string;
   experience_level_code: string;
   timezone: string;
@@ -91,8 +96,8 @@ export type OnboardingRequest = {
   desired_weekly_workout_count: number;
   equipment_codes: string[];
   attention_area_codes: string[];
-  preferred_exercise_type_codes: string[];
-  coaching_style_code: string;
+  preferred_exercise_type_codes?: string[];
+  coaching_style_code?: string;
   consents: ConsentValues;
 };
 
@@ -156,6 +161,8 @@ export type DailyContextRequest = {
   duration_adjustment_source_code: 'PROFILE' | 'USER_OVERRIDE';
   location_code: string;
   sleep_minutes?: number | null;
+  fasting_state_code?: string | null;
+  hydration_state_code?: string | null;
   discomforts: DiscomfortInput[];
   adverse_reaction_codes: string[];
 };
@@ -240,6 +247,7 @@ export type DecisionResponse = {
   final_plan: WorkoutPlan | null;
   options: DecisionOption[];
   reason_codes: string[];
+  adjustment_reason_codes?: string[] | null;
   summary: string;
   guidance: Guidance | null;
   public_agent_summaries: AgentSummary[] | null;
@@ -250,6 +258,24 @@ export type DecisionResponse = {
 export type WorkoutSessionSummary = {
   session_id: string;
   status_code: 'PLANNED';
+};
+
+export type WorkoutSessionLogSummary = {
+  session_id: string;
+  local_date: string;
+  status_code: SessionStatusCode;
+  completed_item_count: number;
+  total_item_count: number;
+  requested_duration_minutes: number;
+  training_type_code: string;
+  not_completed_reason_code: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+};
+
+export type WorkoutSessionListResponse = {
+  items: WorkoutSessionLogSummary[];
+  next_cursor: string | null;
 };
 
 export type DecisionSelectionResponse = {
@@ -285,6 +311,17 @@ export type SessionItemUpdateResponse = {
   next_pending_plan_item_id: string | null;
 };
 
+export type WorkoutAdditionalActivityResponse = {
+  activity_id: string;
+  session_id: string;
+  activity_type_code: string;
+  duration_seconds: number;
+  intensity_code: string | null;
+  note: string | null;
+  created_at: string;
+  session_status_code: 'IN_PROGRESS';
+};
+
 export type SafetyEventResponse = {
   event_id: string;
   instruction_code: SafetyInstructionCode;
@@ -310,6 +347,46 @@ export type SessionNotCompletedResponse = {
   status_code: 'NOT_COMPLETED';
   reason_code: NotCompletedReasonCode;
   ended_at: string;
+};
+
+export type WorkoutSessionItemResult = {
+  plan_item_id: string;
+  exercise_id: string;
+  exercise_name: string;
+  status_code: BlockStatusCode;
+  sets: number;
+  reps: number | null;
+  work_seconds_per_set: number | null;
+  completed_at: string | null;
+};
+
+export type WorkoutFeedbackSummary = {
+  perceived_difficulty_code: string | null;
+  post_workout_discomfort_reported: boolean;
+};
+
+export type WorkoutFeedbackResponse = {
+  session_id: string;
+  session_status_code:
+    'COMPLETED' | 'PARTIAL' | 'NOT_COMPLETED' | 'STOPPED_FOR_SAFETY';
+  created_at: string;
+  guidance_code: string | null;
+  guidance: string | null;
+  pressure_notifications_allowed: boolean;
+};
+
+export type WorkoutSessionDetailResponse = {
+  session_id: string;
+  local_date: string;
+  status_code: SessionStatusCode;
+  completed_item_count: number;
+  total_item_count: number;
+  requested_duration_minutes: number;
+  items: WorkoutSessionItemResult[];
+  feedback: WorkoutFeedbackSummary | null;
+  not_completed_reason_code: string | null;
+  started_at: string | null;
+  finished_at: string | null;
 };
 
 export type ExerciseDetailResponse = {

@@ -19,7 +19,7 @@ export function ExerciseDetailSheet({
   api,
   exerciseId,
 }: {
-  api: Api;
+  api: Pick<Api, 'getExercise'>;
   exerciseId: string;
 }) {
   const { state, reload } = useAsyncData<ExerciseDetailResponse>(

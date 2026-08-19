@@ -301,16 +301,41 @@ describe('Home secondary visual prototypes', () => {
     fireEvent.press(
       screen.getByRole('button', { name: '주간 리포트 만들기  ›' }),
     );
-    expect(onOpenWeeklyReport).toHaveBeenCalledWith('week-2');
+    expect(onOpenWeeklyReport).toHaveBeenCalledWith('2026-08-03');
   });
 
-  it('keeps month selection as a visual-only picker', async () => {
+  it('keeps the month picker above the calendar and removes future choices', async () => {
     await render(<CalendarReportScreen previewState="month-picker" />);
 
     expect(screen.getByText('2025년')).toBeOnTheScreen();
-    expect(screen.getByText('9월')).toBeOnTheScreen();
+    expect(screen.queryByText('2027년')).toBeNull();
+    expect(screen.queryByText('9월')).toBeNull();
+    expect(
+      StyleSheet.flatten(screen.getByTestId('month-picker').props.style),
+    ).toMatchObject({
+      zIndex: 1000,
+      elevation: 24,
+    });
     fireEvent.press(screen.getByRole('button', { name: '완료' }));
     expect(screen.queryByText('2025년')).toBeNull();
+  });
+
+  it('uses the same scroll interaction for touch and local mouse wheels', async () => {
+    const onSelectMonth = jest.fn();
+    await render(
+      <CalendarReportScreen
+        latestMonth="2026-08"
+        onSelectMonth={onSelectMonth}
+        previewState="month-picker"
+        selectedMonth="2026-06"
+      />,
+    );
+
+    fireEvent.scroll(screen.getByTestId('month-picker-month-wheel'), {
+      nativeEvent: { contentOffset: { x: 0, y: 7 * 44 } },
+    });
+    fireEvent.press(screen.getByRole('button', { name: '완료' }));
+    expect(onSelectMonth).toHaveBeenCalledWith('2026-08');
   });
 
   it('returns notification and account actions through callbacks without persistence', async () => {

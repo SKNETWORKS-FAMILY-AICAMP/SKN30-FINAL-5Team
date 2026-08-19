@@ -27,6 +27,10 @@ import type {
   WeeklyPlanRevisionResponse,
   WeeklyReportResponse,
   WeekResponse,
+  WorkoutAdditionalActivityResponse,
+  WorkoutFeedbackResponse,
+  WorkoutSessionDetailResponse,
+  WorkoutSessionListResponse,
 } from './types';
 
 export function createApi(client: ApiClient) {
@@ -122,6 +126,36 @@ export function createApi(client: ApiClient) {
       });
     },
 
+    listWorkoutSessions(
+      query: {
+        fromLocalDate?: string;
+        toLocalDate?: string;
+        statusCode?: string;
+        cursor?: string;
+        limit?: number;
+      } = {},
+      signal?: AbortSignal,
+    ) {
+      return client.request<WorkoutSessionListResponse>({
+        path: '/workout-sessions',
+        query: {
+          from_local_date: query.fromLocalDate,
+          to_local_date: query.toLocalDate,
+          status_code: query.statusCode,
+          cursor: query.cursor,
+          limit: query.limit === undefined ? undefined : String(query.limit),
+        },
+        signal,
+      });
+    },
+
+    getWorkoutSession(sessionId: string, signal?: AbortSignal) {
+      return client.request<WorkoutSessionDetailResponse>({
+        path: `/workout-sessions/${sessionId}`,
+        signal,
+      });
+    },
+
     startSession(sessionId: string, startedAt: string) {
       return client.request<SessionStartResponse>({
         method: 'PATCH',
@@ -161,6 +195,23 @@ export function createApi(client: ApiClient) {
           occurred_at: occurredAt,
           client_recorded_at: occurredAt,
         },
+        idempotent: true,
+      });
+    },
+
+    recordAdditionalActivity(
+      sessionId: string,
+      body: {
+        activity_type_code: string;
+        duration_seconds: number;
+        intensity_code?: string | null;
+        note?: string | null;
+      },
+    ) {
+      return client.request<WorkoutAdditionalActivityResponse>({
+        method: 'POST',
+        path: `/workout-sessions/${sessionId}/additional-activities`,
+        body,
         idempotent: true,
       });
     },
@@ -214,12 +265,14 @@ export function createApi(client: ApiClient) {
       sessionId: string,
       body: {
         difficulty_code: 'EASY' | 'APPROPRIATE' | 'HARD';
+        fatigue_code?: string | null;
+        satisfaction_code?: string | null;
         pain_occurred: boolean;
         discomforts: { body_area_code: string; severity_code: string }[];
         adverse_reaction_codes: string[];
       },
     ) {
-      return client.request<{ feedback_id: string }>({
+      return client.request<WorkoutFeedbackResponse>({
         method: 'POST',
         path: `/workout-sessions/${sessionId}/feedback`,
         body,

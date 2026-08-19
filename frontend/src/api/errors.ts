@@ -22,6 +22,7 @@ export type ApiErrorKind =
 export type ApiErrorDetail = {
   field?: string;
   type?: string;
+  reason_code?: string;
 };
 
 export class ApiError extends Error {

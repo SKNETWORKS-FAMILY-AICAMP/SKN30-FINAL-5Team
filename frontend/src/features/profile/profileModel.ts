@@ -1,3 +1,5 @@
+import type { SexCode } from '../../api/types';
+
 export const PROFILE_STEPS = [
   {
     key: 'nickname',
@@ -101,13 +103,24 @@ export const PROFILE_PREVIEW_OPTIONS = [
 export type ProfilePreviewState =
   (typeof PROFILE_PREVIEW_OPTIONS)[number]['id'];
 
+export const PROFILE_SEX_OPTIONS = [
+  { code: 'FEMALE', label: '여성' },
+  { code: 'MALE', label: '남성' },
+  { code: 'PREFER_NOT_TO_SAY', label: '선택 안 함' },
+] as const satisfies readonly { code: SexCode; label: string }[];
+
+export const PROFILE_BODY_LIMITS = {
+  heightCm: { min: 80, max: 250 },
+  weightKg: { min: 25, max: 300 },
+} as const;
+
 export type ProfileForm = {
   nickname: string;
   birth: string;
   adult: boolean;
-  gender: string;
-  height: string;
-  weight: string;
+  sexCode: SexCode | null;
+  heightCm: string;
+  weightKg: string;
   goal: string;
   level: string;
   types: string[];
@@ -124,9 +137,9 @@ export const PROFILE_INITIAL_FORM: ProfileForm = {
   nickname: '헬끼친구',
   birth: '990312',
   adult: true,
-  gender: '선택 안 함',
-  height: '170',
-  weight: '65',
+  sexCode: 'PREFER_NOT_TO_SAY',
+  heightCm: '170',
+  weightKg: '65',
   goal: '건강 유지',
   level: '초급',
   types: ['근력', '스트레칭'],

@@ -47,14 +47,17 @@ export function MascotHouseScreen({
   api,
   nickname,
   onNavigate,
+  timeZone,
 }: {
   api: Api;
   nickname: string;
   onNavigate: (tab: TabId) => void;
+  timeZone?: string;
 }) {
   const family = useBrandFontFamily();
-  const localDate = localDateString();
-  const weekStart = weekStartString();
+  const now = new Date();
+  const localDate = localDateString(now, timeZone);
+  const weekStart = weekStartString(now, timeZone);
 
   const { state, reload } = useAsyncData<HouseData>(
     async (signal) => {
