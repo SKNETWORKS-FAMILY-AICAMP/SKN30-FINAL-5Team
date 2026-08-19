@@ -1,9 +1,10 @@
 import logging
 from contextlib import nullcontext
 from dataclasses import replace
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
@@ -16,9 +17,15 @@ from backend.app.api.dependencies import (
 from backend.app.core.config import Settings
 from backend.app.integrations.birthdate_crypto import LocalAesGcmBirthdateCipher
 from backend.app.main import create_app
+from backend.app.modules.catalog.codes import (
+    BodyAreaCode,
+    EquipmentCode,
+    LocationCode,
+    TrainingTypeCode,
+)
 from backend.app.modules.identity.codes import UserStatusCode
 from backend.app.modules.identity.service import CurrentUser
-from backend.app.modules.profiles.codes import MutationEndpointCode
+from backend.app.modules.profiles.codes import CoachingStyleCode, MutationEndpointCode
 from backend.app.modules.profiles.ports import (
     IdempotencyRecord,
     ProfileSettingsChanges,
@@ -26,6 +33,24 @@ from backend.app.modules.profiles.ports import (
 )
 
 NOW = datetime(2026, 8, 18, 6, 0, tzinfo=UTC)
+SUPPORTED_PROFILE_UPDATE_FIELDS = {
+    "primary_goal_code",
+    "desired_weekly_workout_count",
+    "default_requested_duration_minutes",
+    "preferred_location_code",
+    "available_location_codes",
+    "equipment_codes",
+    "attention_area_codes",
+    "preferred_exercise_type_codes",
+    "coaching_style_code",
+    "experience_level_code",
+    "nickname",
+    "height_cm",
+    "weight_kg",
+    "sex_code",
+    "timezone",
+    "date_of_birth",
+}
 
 
 class FakeSession:
@@ -187,9 +212,52 @@ def _assert_common_error(response: Any, *, status_code: int, code: str) -> None:
     assert payload["error"]["code"] == code
     assert isinstance(payload["error"]["message"], str)
     assert payload["error"]["message"]
-    assert payload["error"]["details"] == []
+    assert isinstance(payload["error"]["details"], list)
+    assert all(
+        set(detail) == {"field", "type"}
+        and isinstance(detail["field"], str)
+        and isinstance(detail["type"], str)
+        for detail in payload["error"]["details"]
+    )
     UUID(payload["error"]["request_id"])
     assert payload["error"]["request_id"] == response.headers["X-Request-ID"]
+
+
+def _assert_repository_unchanged(
+    repository: FakeProfileSettingsRepository,
+    before: ProfileSettingsRecord | None,
+) -> None:
+    assert repository.record == before
+    if before is not None:
+        assert repository.record is not None
+        assert repository.record.profile_version == before.profile_version
+    assert repository.update_count == 0
+
+
+def _schema_allows_null(schema: dict[str, Any]) -> bool:
+    if schema.get("type") == "null":
+        return True
+    return any(
+        _schema_allows_null(child)
+        for keyword in ("anyOf", "oneOf")
+        for child in schema.get(keyword, [])
+    )
+
+
+def _years_ago(local_date: date, years: int) -> date:
+    try:
+        return local_date.replace(year=local_date.year - years)
+    except ValueError:
+        return local_date.replace(year=local_date.year - years, day=28)
+
+
+def test_openapi_exposes_exactly_the_16_supported_non_null_fields() -> None:
+    client, _ = _client()
+    schema = client.app.openapi()["components"]["schemas"]["ProfileSettingsUpdateRequest"]
+
+    assert set(schema["properties"]) == SUPPORTED_PROFILE_UPDATE_FIELDS
+    assert schema.get("required", []) == []
+    assert not any(_schema_allows_null(field) for field in schema["properties"].values())
 
 
 @pytest.mark.parametrize(
@@ -228,7 +296,8 @@ def test_each_supported_field_can_be_updated_independently(
 
 def test_multiple_fields_update_without_resetting_omitted_values() -> None:
     client, repository = _client()
-    original_equipment = repository.record.equipment_codes if repository.record else ()
+    before = repository.record
+    assert before is not None
     with client:
         response = client.patch(
             "/api/v1/me/profile",
@@ -240,7 +309,120 @@ def test_multiple_fields_update_without_resetting_omitted_values() -> None:
     assert repository.record is not None
     assert repository.record.nickname == "변경"
     assert repository.record.desired_weekly_workout_count == 4
-    assert repository.record.equipment_codes == original_equipment
+    assert repository.record == replace(
+        before,
+        nickname="변경",
+        desired_weekly_workout_count=4,
+        profile_version=before.profile_version + 1,
+    )
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    [
+        ("desired_weekly_workout_count", 1),
+        ("desired_weekly_workout_count", 7),
+        ("default_requested_duration_minutes", 1),
+        ("default_requested_duration_minutes", 240),
+        ("height_cm", 80),
+        ("height_cm", 250),
+        ("weight_kg", 25),
+        ("weight_kg", 300),
+    ],
+)
+def test_numeric_boundaries_are_accepted(field_name: str, value: int) -> None:
+    client, repository = _client()
+    with client:
+        response = client.patch(
+            "/api/v1/me/profile",
+            json={field_name: value},
+            headers=_headers(),
+        )
+
+    assert response.status_code == 200
+    assert repository.record is not None
+    assert getattr(repository.record, field_name) == value
+    assert repository.record.profile_version == 2
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    [
+        ("desired_weekly_workout_count", 0),
+        ("desired_weekly_workout_count", 8),
+        ("default_requested_duration_minutes", 0),
+        ("default_requested_duration_minutes", 241),
+        ("height_cm", 79.9),
+        ("height_cm", 250.1),
+        ("weight_kg", 24.9),
+        ("weight_kg", 300.1),
+    ],
+)
+def test_values_outside_numeric_boundaries_are_rejected(
+    field_name: str,
+    value: float,
+) -> None:
+    client, repository = _client()
+    before = repository.record
+    with client:
+        response = client.patch(
+            "/api/v1/me/profile",
+            json={field_name: value},
+            headers=_headers(),
+        )
+
+    _assert_common_error(response, status_code=400, code="INVALID_REQUEST")
+    _assert_repository_unchanged(repository, before)
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        *(
+            {
+                "preferred_location_code": code.value,
+                "available_location_codes": [code.value],
+            }
+            for code in LocationCode
+        ),
+        {"equipment_codes": [code.value for code in EquipmentCode]},
+        {"attention_area_codes": [code.value for code in BodyAreaCode]},
+        {"preferred_exercise_type_codes": [code.value for code in TrainingTypeCode]},
+        *({"coaching_style_code": code.value} for code in CoachingStyleCode),
+        *({"sex_code": code} for code in ("FEMALE", "MALE", "PREFER_NOT_TO_SAY")),
+    ],
+)
+def test_all_declared_enum_values_are_accepted(payload: dict[str, object]) -> None:
+    client, repository = _client()
+    with client:
+        response = client.patch("/api/v1/me/profile", json=payload, headers=_headers())
+
+    assert response.status_code == 200
+    assert repository.update_count == 1
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"primary_goal_code": "not-valid"},
+        {"experience_level_code": "not-valid"},
+        {"preferred_location_code": "NOT_A_CODE"},
+        {"available_location_codes": ["NOT_A_CODE"]},
+        {"equipment_codes": ["NOT_A_CODE"]},
+        {"attention_area_codes": ["NOT_A_CODE"]},
+        {"preferred_exercise_type_codes": ["NOT_A_CODE"]},
+        {"coaching_style_code": "NOT_A_CODE"},
+        {"sex_code": "NOT_A_CODE"},
+    ],
+)
+def test_invalid_enum_and_code_values_are_rejected(payload: dict[str, object]) -> None:
+    client, repository = _client()
+    before = repository.record
+    with client:
+        response = client.patch("/api/v1/me/profile", json=payload, headers=_headers())
+
+    _assert_common_error(response, status_code=400, code="INVALID_REQUEST")
+    _assert_repository_unchanged(repository, before)
 
 
 @pytest.mark.parametrize(
@@ -248,19 +430,69 @@ def test_multiple_fields_update_without_resetting_omitted_values() -> None:
     [
         {},
         {"unknown": "value"},
-        {"nickname": None},
-        {"equipment_codes": []},
-        {"equipment_codes": ["MAT", "MAT"]},
-        {"attention_area_codes": ["KNEE", "KNEE"]},
     ],
 )
 def test_invalid_patch_payload_is_rejected(payload: dict[str, object]) -> None:
     client, repository = _client()
+    before = repository.record
     with client:
         response = client.patch("/api/v1/me/profile", json=payload, headers=_headers())
 
-    assert response.status_code in {400, 422}
-    assert repository.update_count == 0
+    _assert_common_error(response, status_code=400, code="INVALID_REQUEST")
+    _assert_repository_unchanged(repository, before)
+
+
+@pytest.mark.parametrize("field_name", sorted(SUPPORTED_PROFILE_UPDATE_FIELDS))
+def test_explicit_null_is_rejected_for_every_supported_field(field_name: str) -> None:
+    client, repository = _client()
+    before = repository.record
+    with client:
+        response = client.patch(
+            "/api/v1/me/profile",
+            json={field_name: None},
+            headers=_headers(),
+        )
+
+    _assert_common_error(response, status_code=400, code="INVALID_REQUEST")
+    _assert_repository_unchanged(repository, before)
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"equipment_codes": ["MAT", "MAT"]},
+        {"attention_area_codes": ["KNEE", "KNEE"]},
+        {"available_location_codes": ["HOME", "HOME"]},
+        {"preferred_exercise_type_codes": ["CARDIO", "CARDIO"]},
+    ],
+)
+def test_duplicate_array_codes_are_rejected(payload: dict[str, object]) -> None:
+    client, repository = _client()
+    before = repository.record
+    with client:
+        response = client.patch("/api/v1/me/profile", json=payload, headers=_headers())
+
+    _assert_common_error(response, status_code=400, code="INVALID_REQUEST")
+    _assert_repository_unchanged(repository, before)
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"available_location_codes": []},
+        {"equipment_codes": []},
+    ],
+)
+def test_arrays_that_must_retain_values_reject_empty_lists(
+    payload: dict[str, object],
+) -> None:
+    client, repository = _client()
+    before = repository.record
+    with client:
+        response = client.patch("/api/v1/me/profile", json=payload, headers=_headers())
+
+    _assert_common_error(response, status_code=400, code="INVALID_REQUEST")
+    _assert_repository_unchanged(repository, before)
 
 
 def test_empty_attention_areas_are_allowed() -> None:
@@ -277,6 +509,20 @@ def test_empty_attention_areas_are_allowed() -> None:
     assert repository.record.attention_area_codes == ()
 
 
+def test_empty_preferred_exercise_types_are_allowed() -> None:
+    client, repository = _client()
+    with client:
+        response = client.patch(
+            "/api/v1/me/profile",
+            json={"preferred_exercise_type_codes": []},
+            headers=_headers(),
+        )
+
+    assert response.status_code == 200
+    assert repository.record is not None
+    assert repository.record.preferred_exercise_type_codes == ()
+
+
 @pytest.mark.parametrize(
     "payload",
     [
@@ -288,12 +534,13 @@ def test_invalid_final_location_combination_is_rejected(
     payload: dict[str, object],
 ) -> None:
     client, repository = _client()
+    before = repository.record
     with client:
         response = client.patch("/api/v1/me/profile", json=payload, headers=_headers())
 
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "INVALID_REQUEST"
-    assert repository.update_count == 0
+    _assert_repository_unchanged(repository, before)
 
 
 @pytest.mark.parametrize(
@@ -305,12 +552,43 @@ def test_invalid_final_location_combination_is_rejected(
 )
 def test_unapproved_configured_codes_are_rejected(payload: dict[str, object]) -> None:
     client, repository = _client()
+    before = repository.record
     with client:
         response = client.patch("/api/v1/me/profile", json=payload, headers=_headers())
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "INVALID_ONBOARDING_CODE"
-    assert repository.update_count == 0
+    _assert_repository_unchanged(repository, before)
+
+
+@pytest.mark.parametrize("normalized", ["가", "가" * 64])
+def test_nickname_is_trimmed_before_the_length_limit_is_applied(normalized: str) -> None:
+    client, repository = _client()
+    with client:
+        response = client.patch(
+            "/api/v1/me/profile",
+            json={"nickname": f"  {normalized}  "},
+            headers=_headers(),
+        )
+
+    assert response.status_code == 200
+    assert repository.record is not None
+    assert repository.record.nickname == normalized
+
+
+@pytest.mark.parametrize("nickname", ["", "   ", "가" * 65])
+def test_blank_or_too_long_normalized_nickname_is_rejected(nickname: str) -> None:
+    client, repository = _client()
+    before = repository.record
+    with client:
+        response = client.patch(
+            "/api/v1/me/profile",
+            json={"nickname": nickname},
+            headers=_headers(),
+        )
+
+    _assert_common_error(response, status_code=400, code="INVALID_REQUEST")
+    _assert_repository_unchanged(repository, before)
 
 
 def test_missing_approved_code_configuration_fails_closed(
@@ -475,7 +753,9 @@ def test_user_without_onboarding_profile_gets_not_found() -> None:
 
 def test_underage_birthdate_disables_account_without_exposing_value() -> None:
     client, repository = _client()
-    secret_birthdate = "2020-01-01"
+    local_date = datetime.now(ZoneInfo("Asia/Seoul")).date()
+    secret_birthdate = (_years_ago(local_date, 14) + timedelta(days=1)).isoformat()
+    before = repository.record
     with client:
         response = client.patch(
             "/api/v1/me/profile",
@@ -487,36 +767,106 @@ def test_underage_birthdate_disables_account_without_exposing_value() -> None:
     assert response.json()["error"]["code"] == "AGE_REQUIREMENT_NOT_MET"
     assert secret_birthdate not in response.text
     assert repository.disabled is True
-    assert repository.update_count == 0
+    _assert_repository_unchanged(repository, before)
 
 
-def test_timezone_is_revalidated_with_existing_birthdate() -> None:
+def test_exact_minimum_age_birthdate_is_accepted_without_reflecting_it() -> None:
+    client, repository = _client()
+    local_date = datetime.now(ZoneInfo("Asia/Seoul")).date()
+    boundary_birthdate = _years_ago(local_date, 14).isoformat()
+    with client:
+        response = client.patch(
+            "/api/v1/me/profile",
+            json={"date_of_birth": boundary_birthdate},
+            headers=_headers(),
+        )
+
+    assert response.status_code == 200
+    assert boundary_birthdate not in response.text
+    assert repository.record is not None
+    assert repository.record.profile_version == 2
+    assert repository.disabled is False
+
+
+@pytest.mark.parametrize(
+    "invalid_birthdate",
+    [
+        "not-a-date",
+        (datetime.now(ZoneInfo("Asia/Seoul")).date() + timedelta(days=1)).isoformat(),
+    ],
+)
+def test_invalid_birthdate_is_rejected_without_reflecting_it(
+    invalid_birthdate: str,
+) -> None:
+    client, repository = _client()
+    before = repository.record
+    with client:
+        response = client.patch(
+            "/api/v1/me/profile",
+            json={"date_of_birth": invalid_birthdate},
+            headers=_headers(),
+        )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "INVALID_DATE_OF_BIRTH"
+    assert invalid_birthdate not in response.text
+    _assert_repository_unchanged(repository, before)
+
+
+def test_valid_iana_timezone_is_stored() -> None:
     client, repository = _client()
     with client:
         response = client.patch(
             "/api/v1/me/profile",
-            json={"timezone": "Not/A_Zone"},
+            json={"timezone": "America/New_York"},
+            headers=_headers(),
+        )
+
+    assert response.status_code == 200
+    assert repository.record is not None
+    assert repository.record.timezone == "America/New_York"
+
+
+def test_timezone_is_revalidated_with_existing_birthdate() -> None:
+    client, repository = _client()
+    before = repository.record
+    invalid_timezone = "Not/A_Zone"
+    with client:
+        response = client.patch(
+            "/api/v1/me/profile",
+            json={"timezone": invalid_timezone},
             headers=_headers(),
         )
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "INVALID_TIMEZONE"
-    assert repository.update_count == 0
+    assert invalid_timezone not in response.text
+    _assert_repository_unchanged(repository, before)
 
 
-def test_health_values_are_not_reflected_in_error_response() -> None:
+@pytest.mark.parametrize(
+    ("payload", "sensitive_values"),
+    [
+        ({"weight_kg": 999.123, "attention_area_codes": ["KNEE"]}, ("999.123", "KNEE")),
+        ({"height_cm": 999.456}, ("999.456",)),
+    ],
+)
+def test_health_values_are_not_reflected_in_error_response(
+    payload: dict[str, object],
+    sensitive_values: tuple[str, ...],
+) -> None:
     client, repository = _client()
+    before = repository.record
     with client:
         response = client.patch(
             "/api/v1/me/profile",
-            json={"weight_kg": 999.123, "attention_area_codes": ["KNEE"]},
+            json=payload,
             headers=_headers(),
         )
 
-    assert response.status_code in {400, 422}
-    assert "999.123" not in response.text
-    assert "KNEE" not in response.text
-    assert repository.update_count == 0
+    _assert_common_error(response, status_code=400, code="INVALID_REQUEST")
+    assert all(value not in response.text for value in sensitive_values)
+    _assert_repository_unchanged(repository, before)
 
 
 def test_unauthenticated_request_is_rejected() -> None:

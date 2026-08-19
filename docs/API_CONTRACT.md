@@ -840,30 +840,42 @@ job은 `requested_at`부터 즉시 실행할 수 있다. `operational_data_delet
 온보딩에서 받은 값 중 사용자가 이후에 바꿀 수 있는 항목이다. 마이페이지는 이 목록을 운동 설정
 중심으로 구성하며, 저장된 코드 값을 그대로 노출하지 않고 사용자 언어로 표시한다.
 
-| 필드 | 수정 | 비고 |
-|---|---|---|
-| `primary_goal_code` | 가능 | 다음 결정부터 반영 |
-| `desired_weekly_workout_count` | 가능 | 진행 중인 주에는 소급 적용하지 않는다 |
-| `default_requested_duration_minutes` | 가능 | |
-| `preferred_location_code` | 가능 | |
-| `available_location_codes` | 가능 | |
-| `equipment_codes` | 가능 | 최소 1개 유지 |
-| `attention_area_codes` | 가능 | 빈 배열 허용 |
-| `preferred_exercise_type_codes` | 가능 | |
-| `coaching_style_code` | 가능 | |
-| `experience_level_code` | 가능 | |
-| `nickname` | 가능 | |
-| `height_cm`, `weight_kg` | 가능 | 건강 정보. 로그에 남기지 않는다 |
-| `sex_code` | 가능 | |
-| `timezone` | 가능 | 변경 시 당일 날짜 경계가 달라질 수 있다 |
-| `date_of_birth` | 가능 | 7.1의 연령 검증을 다시 적용한다 |
-| `consents` | 별도 endpoint | `PUT /api/v1/me/consents` |
+PATCH가 지원하는 필드는 아래 16개다. 표의 `null 거부`는 필드 생략과 다르다. 필드를 보내지 않으면
+기존 값을 유지하지만 JSON `null`을 명시하면 `400 INVALID_REQUEST`다.
 
-부분 수정을 지원하며 보내지 않은 필드는 변경하지 않는다. 낙관적 잠금에 프로필 version을
-사용하고, 서로 다른 클라이언트의 동시 수정은 stale version으로 거부한다.
+| 필드 | 타입·허용 값 | 빈 값·중복 | 범위·정규화·교차 검증 | 실패 |
+|---|---|---|---|---|
+| `primary_goal_code` | string, `^[A-Z][A-Z0-9_]{0,63}$`, 배포 승인 코드 | 빈 문자열·null 거부 | trim·대소문자 변환 없음. 다음 결정부터 반영 | 형식 오류 `400 INVALID_REQUEST`; 미승인 코드 `422 INVALID_ONBOARDING_CODE`; 승인 목록 없음 `503 PROFILE_CONFIGURATION_UNAVAILABLE` |
+| `desired_weekly_workout_count` | integer | null 거부 | 1~7회. 진행 중인 주에는 소급 적용하지 않음 | 범위·타입 오류 `400 INVALID_REQUEST` |
+| `default_requested_duration_minutes` | integer | null 거부 | 1~240분 | 범위·타입 오류 `400 INVALID_REQUEST` |
+| `preferred_location_code` | `HOME`, `GYM`, `OUTDOOR` | 빈 문자열·null 거부 | 최종 `available_location_codes`에 반드시 포함 | enum·교차 검증 오류 `400 INVALID_REQUEST` |
+| `available_location_codes` | 위 location code 배열 | 빈 배열·null·중복 거부 | 현재 또는 함께 보낸 `preferred_location_code`를 포함. 순서 외 별도 정규화 없음 | enum·중복·교차 검증 오류 `400 INVALID_REQUEST` |
+| `equipment_codes` | `BODYWEIGHT`, `DUMBBELL`, `BARBELL`, `KETTLEBELL`, `CABLE_MACHINE`, `MACHINE`, `HOUSEHOLD_WEIGHT`, `BENCH`, `PULL_UP_BAR`, `RESISTANCE_BAND`, `MAT`, `STABILITY_BALL`, `CHAIR` 배열 | 빈 배열·null·중복 거부 | 최종 상태에 최소 1개 유지 | enum·중복·최소 개수 오류 `400 INVALID_REQUEST` |
+| `attention_area_codes` | `NECK`, `SHOULDER`, `ELBOW`, `WRIST_HAND`, `UPPER_BACK`, `LOWER_BACK`, `HIP`, `KNEE`, `ANKLE_FOOT`, `CHEST`, `ABDOMEN` 배열 | **빈 배열 허용**, null·중복 거부 | 건강 관련 정보. 빈 배열은 주의 부위 없음 | enum·중복 오류 `400 INVALID_REQUEST` |
+| `preferred_exercise_type_codes` | `STRENGTH`, `CARDIO`, `MOBILITY` 배열 | **빈 배열 허용**, null·중복 거부 | 순서 외 별도 정규화 없음 | enum·중복 오류 `400 INVALID_REQUEST` |
+| `coaching_style_code` | `SUPPORTIVE`, `CONCISE`, `ENERGETIC` | 빈 문자열·null 거부 | trim·대소문자 변환 없음 | enum 오류 `400 INVALID_REQUEST` |
+| `experience_level_code` | string, `^[A-Z][A-Z0-9_]{0,63}$`, 배포 승인 코드 | 빈 문자열·null 거부 | trim·대소문자 변환 없음 | 형식 오류 `400 INVALID_REQUEST`; 미승인 코드 `422 INVALID_ONBOARDING_CODE`; 승인 목록 없음 `503 PROFILE_CONFIGURATION_UNAVAILABLE` |
+| `nickname` | string | trim 후 빈 문자열·null 거부 | 앞뒤 공백 제거 후 1~64자. 내부 공백은 유지 | 길이·타입 오류 `400 INVALID_REQUEST` |
+| `height_cm` | number | null 거부 | 80~250cm, 보정·반올림 없음. 건강 관련 정보 | 범위·타입 오류 `400 INVALID_REQUEST` |
+| `weight_kg` | number | null 거부 | 25~300kg, 보정·반올림 없음. 건강 관련 정보 | 범위·타입 오류 `400 INVALID_REQUEST` |
+| `sex_code` | `FEMALE`, `MALE`, `PREFER_NOT_TO_SAY` | 빈 문자열·null 거부 | 대소문자 변환 없음. 건강 관련 정보 | enum 오류 `400 INVALID_REQUEST` |
+| `timezone` | 1~64자 IANA timezone string | 빈 문자열·null 거부 | trim 없음. 저장된 생년월일을 새 timezone으로 다시 검증 | 형식 오류 `400 INVALID_REQUEST`; 알 수 없는 timezone `422 INVALID_TIMEZONE`; 암호화 설정·복호화 불가 `503 PROFILE_CONFIGURATION_UNAVAILABLE` |
+| `date_of_birth` | ISO 8601 `date` (`YYYY-MM-DD`) | 빈 문자열·null 거부 | 미래 날짜 거부, 최종 timezone 기준 만 14세 규칙 재적용, 암호화 저장 | 형식·미래 날짜 `422 INVALID_DATE_OF_BIRTH`; 만 14세 미만 `403 AGE_REQUIREMENT_NOT_MET`; 암호화 설정 없음 `503 PROFILE_CONFIGURATION_UNAVAILABLE` |
 
-`primary_goal_code`와 `experience_level_code`는 배포 설정으로 승인된 코드만 허용한다. 7.1과
-동일하게 승인 목록이 없으면 `503 PROFILE_CONFIGURATION_UNAVAILABLE`로 차단한다.
+공통 규칙:
+
+- 부분 수정이다. 보내지 않은 scalar와 관계 필드는 기존 값을 유지하고, 보낸 관계 배열만 교체한다.
+- 16개 필드는 OpenAPI에서 모두 선택 사항이지만 nullable이 아니다. 빈 객체, 알 수 없는 필드와
+  명시적 `null`은 `400 INVALID_REQUEST`다.
+- 모든 코드 배열은 중복을 거부한다. `equipment_codes`는 최소 1개, `attention_area_codes`와
+  `preferred_exercise_type_codes`는 빈 배열을 허용한다.
+- `preferred_location_code`는 요청값과 기존값을 병합한 최종 `available_location_codes`에 포함돼야
+  한다.
+- `primary_goal_code`와 `experience_level_code`는 배포 승인 목록의 값만 허용한다.
+- 이 PATCH의 성공·오류 응답은 생년월일, 키·체중·성별과 주의 부위의 원값을 반복하지 않으며,
+  해당 값은 로그에도 남기지 않는다. 성공 응답은 새 version과 갱신 시각만 반환한다.
+- 낙관적 잠금과 멱등성은 §7.4.1의 기존 `If-Match`·`Idempotency-Key` 계약을 그대로 적용한다.
+- `consents`는 이 PATCH의 지원 필드가 아니며 `PUT /api/v1/me/consents`에서 변경한다.
 
 #### 7.4.1 프로필 설정 부분 수정
 
