@@ -98,6 +98,46 @@ function Set-DemoEnvironment {
     $env:CORS_ALLOWED_ORIGINS = $origins -join ','
 }
 
+function Test-DemoCodeList {
+    param([AllowNull()][object]$Value)
+
+    $text = [string]$Value
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        return $false
+    }
+
+    if ($text.TrimStart().StartsWith('[')) {
+        try {
+            $codes = @($text | ConvertFrom-Json -ErrorAction Stop)
+        }
+        catch {
+            return $false
+        }
+    }
+    else {
+        $codes = @($text -split ',')
+    }
+
+    return @($codes | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }).Count -gt 0
+}
+
+function Assert-DemoProfileConfiguration {
+    $missingKeys = @()
+    if ([string]::IsNullOrWhiteSpace($env:CONSENT_POLICY_VERSION)) {
+        $missingKeys += 'CONSENT_POLICY_VERSION'
+    }
+    if (-not (Test-DemoCodeList $env:ONBOARDING_PRIMARY_GOAL_CODES)) {
+        $missingKeys += 'ONBOARDING_PRIMARY_GOAL_CODES'
+    }
+    if (-not (Test-DemoCodeList $env:ONBOARDING_EXPERIENCE_LEVEL_CODES)) {
+        $missingKeys += 'ONBOARDING_EXPERIENCE_LEVEL_CODES'
+    }
+
+    if ($missingKeys.Count -gt 0) {
+        throw "Missing required demo configuration keys: $($missingKeys -join ', ')"
+    }
+}
+
 function Invoke-Psql {
     param(
         [Parameter(Mandatory = $true)][string]$Description,
@@ -199,6 +239,7 @@ switch ($Command) {
 
     'api' {
         Set-DemoEnvironment
+        Assert-DemoProfileConfiguration
         if (-not $env:FIREBASE_PROJECT_ID) {
             Write-Warning ('FIREBASE_PROJECT_ID is not set. Authentication will fail closed ' +
                 'with 503 AUTH_PROVIDER_UNAVAILABLE. Set it, and point ' +

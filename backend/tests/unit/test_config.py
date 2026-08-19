@@ -37,6 +37,19 @@ def test_onboarding_deployment_configuration_loads_json_code_lists(
     assert settings.birthdate_encryption_key_base64 is None
 
 
+def test_blank_onboarding_deployment_configuration_stays_unconfigured() -> None:
+    settings = Settings(
+        _env_file=None,
+        consent_policy_version="   ",
+        onboarding_primary_goal_codes="[]",
+        onboarding_experience_level_codes='["  "]',
+    )
+
+    assert settings.consent_policy_version is None
+    assert settings.onboarding_primary_goal_codes == ()
+    assert settings.onboarding_experience_level_codes == ()
+
+
 def test_cors_allowed_origins_defaults_to_disabled() -> None:
     # Asserted on the declared default rather than an instance, because
     # Settings() also reads the ambient environment and a shell that exports
