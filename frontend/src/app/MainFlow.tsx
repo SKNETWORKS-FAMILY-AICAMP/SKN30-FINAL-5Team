@@ -12,7 +12,7 @@
  * the rest of that day stops prompting them to work out.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { Api } from '../api/endpoints';
 import type {
@@ -24,6 +24,7 @@ import type {
 import { localDateString } from '../api/useAsync';
 import type { TabId } from '../components/brand/BrandChrome';
 import { CalendarStatusScreen } from '../features/calendar/CalendarStatusScreen';
+import { ExerciseCatalogScreen } from '../features/catalog/ExerciseCatalogScreen';
 import { CalendarReportContainer } from '../features/home/CalendarReportContainer';
 import { HomeContainer } from '../features/home/HomeContainer';
 import { MascotHouseScreen } from '../features/house/MascotHouseScreen';
@@ -40,6 +41,7 @@ type Step =
   | { name: 'weekly'; weekStart: string }
   | { name: 'calendar-report' }
   | { name: 'account' }
+  | { name: 'exercises' }
   | { name: 'house' }
   | { name: 'calendar' };
 
@@ -47,10 +49,12 @@ export function MainFlow({
   api,
   me,
   onSignOut,
+  onProfileUpdated,
 }: {
   api: Api;
   me: MeResponse;
   onSignOut: () => void;
+  onProfileUpdated?: () => void;
 }) {
   const [step, setStep] = useState<Step>({ name: 'home' });
   const [restChoice, setRestChoice] = useState<{
@@ -60,6 +64,60 @@ export function MainFlow({
   const [decision, setDecision] = useState<DecisionResponse | null>(null);
   const [planRevision, setPlanRevision] =
     useState<WeeklyPlanRevisionResponse | null>(null);
+  const restoreAttempted = useRef(false);
+
+  // A restart loses this flow's in-memory state, so recover today's stored
+  // decision — and an unfinished session — from the server exactly once.
+  // Nothing here re-runs agents; both calls only read what a decision run
+  // already persisted.
+  useEffect(() => {
+    if (restoreAttempted.current) {
+      return;
+    }
+    restoreAttempted.current = true;
+    const controller = new AbortController();
+    const localDate = localDateString(new Date(), me.profile?.timezone);
+
+    void (async () => {
+      const [stored, sessions] = await Promise.all([
+        api.getDecisionForDate(localDate, controller.signal).catch(() => null),
+        api
+          .listWorkoutSessions(
+            { fromLocalDate: localDate, toLocalDate: localDate },
+            controller.signal,
+          )
+          .catch(() => null),
+      ]);
+      if (controller.signal.aborted) {
+        return;
+      }
+      const todaySessions = sessions?.items ?? [];
+      const active = todaySessions.find(
+        (item) =>
+          item.status_code === 'PLANNED' || item.status_code === 'IN_PROGRESS',
+      );
+      if (active && stored?.final_plan) {
+        // The user already committed to today's routine; put them back in it.
+        setDecision(stored);
+        setStep({
+          name: 'session',
+          sessionId: active.session_id,
+          plan: stored.final_plan,
+        });
+        return;
+      }
+      if (todaySessions.length > 0) {
+        // The day's session already ended, so the decision no longer
+        // describes what the user can do next — same as after a workout.
+        return;
+      }
+      if (stored) {
+        setDecision(stored);
+      }
+    })();
+
+    return () => controller.abort();
+  }, [api, me.profile?.timezone]);
 
   const goHome = useCallback(() => setStep({ name: 'home' }), []);
 
@@ -151,6 +209,16 @@ export function MainFlow({
           me={me}
           onBack={goHome}
           onSignOut={onSignOut}
+          onProfileUpdated={onProfileUpdated}
+          onOpenExerciseCatalog={() => setStep({ name: 'exercises' })}
+        />
+      );
+
+    case 'exercises':
+      return (
+        <ExerciseCatalogScreen
+          api={api}
+          onBack={() => setStep({ name: 'account' })}
         />
       );
 

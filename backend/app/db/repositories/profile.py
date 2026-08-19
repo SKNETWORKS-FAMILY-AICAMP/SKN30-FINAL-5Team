@@ -370,6 +370,22 @@ class ProfileRepository:
         session.flush()
         return profile.profile_version, profile.updated_at
 
+    def get_consents(self, session: Session, user_id: UUID) -> tuple[ConsentRecord, ...]:
+        rows = session.scalars(
+            select(UserConsent)
+            .where(UserConsent.user_id == user_id)
+            .order_by(UserConsent.consent_type_code)
+        )
+        return tuple(
+            ConsentRecord(
+                consent_type_code=ConsentTypeCode(row.consent_type_code),
+                granted=row.granted,
+                policy_version=row.policy_version,
+                updated_at=row.updated_at,
+            )
+            for row in rows
+        )
+
     def replace_consents(
         self,
         session: Session,

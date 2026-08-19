@@ -186,6 +186,7 @@ class ProfileRepositoryPort(Protocol):
         now: datetime,
     ) -> tuple[int, datetime]: ...
 
+    def get_consents(self, session: Session, user_id: UUID) -> tuple[ConsentRecord, ...]: ...
     def replace_consents(
         self,
         session: Session,

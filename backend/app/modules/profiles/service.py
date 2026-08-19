@@ -405,6 +405,24 @@ class ProfileService:
             )
         return response
 
+    def get_consents(self, session: Session, user_id: UUID) -> ConsentResponse:
+        """Read the stored consent states; onboarding is the only writer of the
+        required pair, so an empty result simply means onboarding has not run."""
+
+        records = self._repository.get_consents(session, user_id)
+        return ConsentResponse(
+            user_id=user_id,
+            consents=[
+                ConsentState(
+                    consent_type_code=record.consent_type_code,
+                    granted=record.granted,
+                    policy_version=record.policy_version,
+                    updated_at=record.updated_at,
+                )
+                for record in records
+            ],
+        )
+
     def replace_consents(
         self,
         session: Session,

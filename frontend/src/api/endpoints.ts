@@ -8,15 +8,19 @@
 
 import type { ApiClient } from './client';
 import type {
+  ConsentResponse,
+  ConsentValues,
   DailyContextRequest,
   DailyContextResponse,
   DecisionResponse,
   DecisionSelectionResponse,
   ExerciseDetailResponse,
+  ExerciseListResponse,
   MeResponse,
   NotCompletedReasonCode,
   OnboardingRequest,
   OnboardingResponse,
+  ProfileSettingsUpdateRequest,
   RoutineResponse,
   SafetyEventResponse,
   SessionFinishResponse,
@@ -61,6 +65,35 @@ export function createApi(client: ApiClient) {
       return client.request<RoutineResponse>({
         path: '/routines/current',
         query: { local_date: localDate },
+        signal,
+      });
+    },
+
+    /**
+     * Reviewed catalog exercises only; the server never lists unapproved
+     * content. Filters combine with AND and paging follows `next_cursor`.
+     */
+    listExercises(
+      query: {
+        bodyAreaCode?: string;
+        equipmentCode?: string;
+        trainingTypeCode?: string;
+        difficultyCode?: string;
+        cursor?: string;
+        limit?: number;
+      } = {},
+      signal?: AbortSignal,
+    ) {
+      return client.request<ExerciseListResponse>({
+        path: '/exercises',
+        query: {
+          body_area_code: query.bodyAreaCode,
+          equipment_code: query.equipmentCode,
+          training_type_code: query.trainingTypeCode,
+          difficulty_code: query.difficultyCode,
+          cursor: query.cursor,
+          limit: query.limit === undefined ? undefined : String(query.limit),
+        },
         signal,
       });
     },
@@ -113,6 +146,19 @@ export function createApi(client: ApiClient) {
     getDecision(decisionId: string, signal?: AbortSignal) {
       return client.request<DecisionResponse>({
         path: `/decisions/${decisionId}`,
+        signal,
+      });
+    },
+
+    /**
+     * The day's stored decision, so a restarted client can resume it instead
+     * of forcing the user through the check-in again. 404 means the day has
+     * no completed decision yet.
+     */
+    getDecisionForDate(localDate: string, signal?: AbortSignal) {
+      return client.request<DecisionResponse>({
+        path: '/decisions',
+        query: { local_date: localDate },
         signal,
       });
     },
@@ -336,6 +382,38 @@ export function createApi(client: ApiClient) {
         method: 'POST',
         path: `/weekly-reports/${reportId}/acknowledgement`,
         body: { acknowledged_at: acknowledgedAt },
+        idempotent: true,
+      });
+    },
+
+    getConsents(signal?: AbortSignal) {
+      return client.request<ConsentResponse>({ path: '/me/consents', signal });
+    },
+
+    /**
+     * Replaces the full consent set. The required pair stays true from
+     * onboarding; this call exists so the optional consents can be changed
+     * and withdrawn after the fact.
+     */
+    replaceConsents(body: ConsentValues) {
+      return client.request<ConsentResponse>({
+        method: 'PUT',
+        path: '/me/consents',
+        body,
+        idempotent: true,
+      });
+    },
+
+    /**
+     * Partial profile settings update; only the provided fields change.
+     * The caller re-reads `/me` afterwards — the response carries only the
+     * new profile version.
+     */
+    updateProfileSettings(body: ProfileSettingsUpdateRequest) {
+      return client.request<{ profile_version: number; updated_at: string }>({
+        method: 'PATCH',
+        path: '/me/profile',
+        body,
         idempotent: true,
       });
     },
