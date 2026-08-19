@@ -331,6 +331,7 @@ health endpoint는 인증 없이 호출할 수 있지만 민감한 설정, DB �
 | GET | /api/v1/me/identities | 현재 사용자에 연결된 인증 provider 목록 |
 | PUT | /api/v1/me/onboarding | 프로필, 장비, 주의 부위 저장 |
 | PATCH | /api/v1/me/profile | 온보딩 이후 프로필 운동 설정 부분 수정 |
+| GET | /api/v1/me/consents | 저장된 동의 상태 조회. 온보딩 전에는 빈 목록 |
 | PUT | /api/v1/me/consents | 일반·민감·웨어러블·캘린더·마케팅 현재 상태 저장·교체 및 이력 기록 |
 | DELETE | /api/v1/me | 계정과 연결 데이터 삭제 요청 |
 
@@ -662,6 +663,8 @@ ManualActivityResponse
   부위를 입력받는다.
 - coaching_style_code가 없으면 SUPPORTIVE를 사용한다.
 - consents는 일반 개인정보·민감정보·웨어러블 연동·캘린더 연동·마케팅을 분리해 저장한다. 마케팅 동의는 선택이며, 민감정보·웨어러블·캘린더 동의 철회 시 해당 처리와 외부 동기화를 즉시 중단한다.
+
+`GET /api/v1/me/consents`는 저장된 동의 상태를 `ConsentResponse`와 같은 스키마로 반환하는 read 전용 경로다. 온보딩 전에는 빈 `consents` 목록을 반환하며 이력을 노출하지 않는다.
 
 `PUT /api/v1/me/onboarding`의 최초 동의 저장과 `PUT /api/v1/me/consents`의 동의·철회 변경은 동일한 동의 mutation 서비스가 처리한다. 각 동의 유형의 현재 상태는 `user_consents`에 갱신하고, `GRANTED` 또는 `REVOKED` event를 `user_consent_events`에 append하며 두 작업은 하나의 DB 트랜잭션으로 성공·실패를 함께 처리한다. 멱등 재시도는 같은 event를 중복 생성하지 않는다.
 

@@ -8,11 +8,14 @@
 
 import type { ApiClient } from './client';
 import type {
+  ConsentResponse,
+  ConsentValues,
   DailyContextRequest,
   DailyContextResponse,
   DecisionResponse,
   DecisionSelectionResponse,
   ExerciseDetailResponse,
+  ExerciseListResponse,
   MeResponse,
   NotCompletedReasonCode,
   OnboardingRequest,
@@ -62,6 +65,35 @@ export function createApi(client: ApiClient) {
       return client.request<RoutineResponse>({
         path: '/routines/current',
         query: { local_date: localDate },
+        signal,
+      });
+    },
+
+    /**
+     * Reviewed catalog exercises only; the server never lists unapproved
+     * content. Filters combine with AND and paging follows `next_cursor`.
+     */
+    listExercises(
+      query: {
+        bodyAreaCode?: string;
+        equipmentCode?: string;
+        trainingTypeCode?: string;
+        difficultyCode?: string;
+        cursor?: string;
+        limit?: number;
+      } = {},
+      signal?: AbortSignal,
+    ) {
+      return client.request<ExerciseListResponse>({
+        path: '/exercises',
+        query: {
+          body_area_code: query.bodyAreaCode,
+          equipment_code: query.equipmentCode,
+          training_type_code: query.trainingTypeCode,
+          difficulty_code: query.difficultyCode,
+          cursor: query.cursor,
+          limit: query.limit === undefined ? undefined : String(query.limit),
+        },
         signal,
       });
     },
@@ -350,6 +382,24 @@ export function createApi(client: ApiClient) {
         method: 'POST',
         path: `/weekly-reports/${reportId}/acknowledgement`,
         body: { acknowledged_at: acknowledgedAt },
+        idempotent: true,
+      });
+    },
+
+    getConsents(signal?: AbortSignal) {
+      return client.request<ConsentResponse>({ path: '/me/consents', signal });
+    },
+
+    /**
+     * Replaces the full consent set. The required pair stays true from
+     * onboarding; this call exists so the optional consents can be changed
+     * and withdrawn after the fact.
+     */
+    replaceConsents(body: ConsentValues) {
+      return client.request<ConsentResponse>({
+        method: 'PUT',
+        path: '/me/consents',
+        body,
         idempotent: true,
       });
     },

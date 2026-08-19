@@ -97,6 +97,20 @@ class FakeProfileRepository:
             updated_at=now,
         )
 
+    def get_consents(self, session: FakeSession, user_id: UUID) -> tuple[ConsentRecord, ...]:
+        del session, user_id
+        return tuple(
+            ConsentRecord(
+                consent_type_code=consent_type,
+                granted=granted,
+                policy_version="consent-policy-test",
+                updated_at=NOW,
+            )
+            for consent_type, granted in sorted(
+                self.consent_values.items(), key=lambda item: item[0].value
+            )
+        )
+
     def replace_consents(
         self,
         session: FakeSession,
@@ -455,3 +469,29 @@ def test_consent_replacement_is_idempotent_and_versioned() -> None:
     assert second.json() == first.json()
     assert repository.consent_events == 5
     assert {item["policy_version"] for item in first.json()["consents"]} == {"privacy-v1"}
+
+
+def test_get_consents_returns_stored_states() -> None:
+    repository = FakeProfileRepository()
+    client = _client(repository)
+    with client:
+        onboarded = client.put(
+            "/api/v1/me/onboarding",
+            headers={"Idempotency-Key": str(uuid4())},
+            json=_payload(),
+        )
+        read = client.get("/api/v1/me/consents")
+    assert onboarded.status_code == 200
+    assert read.status_code == 200
+    states = {item["consent_type_code"]: item["granted"] for item in read.json()["consents"]}
+    assert states["GENERAL_PERSONAL_DATA"] is True
+    assert states["SENSITIVE_DATA"] is True
+    assert states["MARKETING"] is False
+
+
+def test_get_consents_before_onboarding_is_empty() -> None:
+    client = _client(FakeProfileRepository())
+    with client:
+        read = client.get("/api/v1/me/consents")
+    assert read.status_code == 200
+    assert read.json()["consents"] == []

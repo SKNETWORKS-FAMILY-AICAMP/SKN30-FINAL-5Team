@@ -81,6 +81,18 @@ export type ConsentValues = {
   marketing: boolean;
 };
 
+export type ConsentState = {
+  consent_type_code: string;
+  granted: boolean;
+  policy_version: string;
+  updated_at: string;
+};
+
+export type ConsentResponse = {
+  user_id: string;
+  consents: ConsentState[];
+};
+
 export type OnboardingRequest = {
   nickname: string;
   date_of_birth: string;
@@ -401,6 +413,22 @@ export type WorkoutSessionDetailResponse = {
   not_completed_reason_code: string | null;
   started_at: string | null;
   finished_at: string | null;
+};
+
+export type ExerciseListItem = {
+  id: string;
+  name: string;
+  training_type_code: string;
+  difficulty_code: string;
+  primary_body_area_codes: string[];
+  required_equipment_codes: string[];
+  media_asset_key: string | null;
+};
+
+export type ExerciseListResponse = {
+  items: ExerciseListItem[];
+  next_cursor: string | null;
+  catalog_version: string;
 };
 
 export type ExerciseDetailResponse = {

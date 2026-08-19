@@ -24,6 +24,7 @@ import type {
 import { localDateString } from '../api/useAsync';
 import type { TabId } from '../components/brand/BrandChrome';
 import { CalendarStatusScreen } from '../features/calendar/CalendarStatusScreen';
+import { ExerciseCatalogScreen } from '../features/catalog/ExerciseCatalogScreen';
 import { CalendarReportContainer } from '../features/home/CalendarReportContainer';
 import { HomeContainer } from '../features/home/HomeContainer';
 import { MascotHouseScreen } from '../features/house/MascotHouseScreen';
@@ -40,6 +41,7 @@ type Step =
   | { name: 'weekly'; weekStart: string }
   | { name: 'calendar-report' }
   | { name: 'account' }
+  | { name: 'exercises' }
   | { name: 'house' }
   | { name: 'calendar' };
 
@@ -208,6 +210,15 @@ export function MainFlow({
           onBack={goHome}
           onSignOut={onSignOut}
           onProfileUpdated={onProfileUpdated}
+          onOpenExerciseCatalog={() => setStep({ name: 'exercises' })}
+        />
+      );
+
+    case 'exercises':
+      return (
+        <ExerciseCatalogScreen
+          api={api}
+          onBack={() => setStep({ name: 'account' })}
         />
       );
 

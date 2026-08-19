@@ -202,6 +202,22 @@ def upsert_onboarding(
         raise _translate_profile_error(exc) from None
 
 
+@router.get("/consents", response_model=ConsentResponse)
+def get_consents(
+    request: Request,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db_session)],
+    repository: Annotated[ProfileRepositoryPort, Depends(get_profile_repository)],
+    birthdate_cipher: Annotated[BirthdateCipher | None, Depends(get_birthdate_cipher)],
+) -> ConsentResponse:
+    try:
+        return _service(request, repository, birthdate_cipher).get_consents(
+            session, current_user.user_id
+        )
+    except SQLAlchemyError as exc:
+        raise _translate_profile_error(exc) from None
+
+
 @router.put("/consents", response_model=ConsentResponse)
 def replace_consents(
     payload: ConsentValues,
