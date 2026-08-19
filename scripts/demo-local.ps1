@@ -25,6 +25,12 @@
     api     Run FastAPI on 0.0.0.0:8000 (foreground; Ctrl+C to stop).
     share   Point the app at this machine's current LAN IP for a team demo.
     seed    Re-install the synthetic catalog (idempotent).
+    rules   Load the reviewed rule bundle and activate the catalog carrying it,
+            so a check-in that reports discomfort no longer fails closed.
+            Demo database only: that catalog has no recorded domain review.
+            Currently stops at activation - the imported catalog has no
+            prescription or goal-tag rows, so no routine could be built from
+            it. See docs/DEMO_VERTICAL_SLICE.md section 4.1.
     reset   Delete demo users, then re-install the catalog.
     test    Run the backend and frontend verification suites.
     psql    Open a psql shell on the demo database.
@@ -38,7 +44,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [ValidateSet('up', 'api', 'share', 'seed', 'reset', 'test', 'psql', 'down')]
+    [ValidateSet('up', 'api', 'share', 'seed', 'rules', 'reset', 'test', 'psql', 'down')]
     [string]$Command
 )
 
@@ -52,6 +58,10 @@ $ContainerName = 'helkki-demo-pg'
 $HostPort = 55432
 $DemoDatabase = 'exercise_app_demo'
 $TestDatabase = 'exercise_app_test'
+# Only one catalog version can be ACTIVE, and this is the only one in the
+# bundle that carries all three training types (CARDIO, MOBILITY, STRENGTH),
+# so it is the only one a warmup/main/cooldown routine can be built from.
+$RuleCatalogVersion = 'kspo-mvp-v0.2.0'
 
 Set-Location $RepoRoot
 
@@ -295,6 +305,27 @@ switch ($Command) {
         Set-DemoEnvironment
         Invoke-Native 'Reset demo data' { uv run python -m backend.scripts.demo_seed reset }
         Write-Host 'Demo users deleted. Sign in again in the app to restart from onboarding.'
+    }
+
+    'rules' {
+        # The synthetic seed carries no safety rules, so a check-in that reports
+        # discomfort evaluates with no rule set and fails closed (FAILED). This
+        # loads the reviewed rule bundle and activates the catalog that carries
+        # it. The catalog itself has no recorded domain review, so activation
+        # needs the demo-only override and must stay on the demo database.
+        Set-DemoEnvironment
+        Invoke-Native 'Load catalog bundle' {
+            uv run python -m backend.scripts.catalog_data_load load
+        }
+        Invoke-Native 'Activate rule-carrying catalog' {
+            uv run python -m backend.scripts.catalog_activate activate $RuleCatalogVersion `
+                --demo-unreviewed
+        }
+        Write-Host ''
+        Write-Host 'The synthetic catalog is now DEPRECATED, so routines built on it no'
+        Write-Host 'longer produce decisions. Run reset and sign in again:'
+        Write-Host '  .\scripts\demo-local.ps1 reset   # re-seeds the synthetic catalog'
+        Write-Host '  .\scripts\demo-local.ps1 rules   # then re-run this command'
     }
 
     'test' {

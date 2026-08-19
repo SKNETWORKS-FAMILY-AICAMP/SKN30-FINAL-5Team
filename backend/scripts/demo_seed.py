@@ -44,7 +44,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import create_engine, delete, select, update
+from sqlalchemy import create_engine, func, select, text, update
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
@@ -690,11 +690,22 @@ def seed_catalog(session: Session, now: datetime) -> UUID:
 
 
 def reset_users(session: Session) -> int:
-    """Delete every demo user; user-linked rows cascade from `users`."""
-    user_ids = list(session.scalars(select(User.id)))
-    if user_ids:
-        session.execute(delete(User).where(User.id.in_(user_ids)))
-    return len(user_ids)
+    """Delete every demo user and everything that hangs off them.
+
+    Truncated rather than deleted: several user-owned tables hold intentional
+    `ON DELETE RESTRICT` references to other user-owned rows, among them
+    `weekly_plan_revisions.routine_id`, `decision_runs.base_routine_id` and
+    `scheduled_workouts.routine_day_id`. A plain `DELETE FROM users` then
+    depends on the order PostgreSQL happens to process the cascade in, and
+    fails once a demo account has reached those flows. `TRUNCATE ... CASCADE`
+    is order independent and reaches exactly the tables that reference `users`,
+    so the catalog is left alone. `main` has already restricted this to a
+    *_demo or *_test database.
+    """
+    total = int(session.scalar(select(func.count()).select_from(User)) or 0)
+    if total:
+        session.execute(text("TRUNCATE TABLE users CASCADE"))
+    return total
 
 
 def main(argv: list[str] | None = None) -> int:
