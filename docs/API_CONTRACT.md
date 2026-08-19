@@ -1140,6 +1140,10 @@ Wave 6 구현 계약:
 
 - `POST /api/v1/decisions`는 UUID 형식의 `Idempotency-Key`를 필수로 받고 생성 성공 시 201을 반환한다.
 - `GET /api/v1/decisions/{decision_id}`는 인증 사용자 소유의 `COMPLETED` 결정만 반환한다.
+- `GET /api/v1/decisions?local_date=YYYY-MM-DD`는 해당 날짜의 가장 최근 `COMPLETED` 결정을
+  반환한다. 재시작한 클라이언트가 당일 결정을 복원하는 read 전용 경로이며 에이전트·narration을
+  다시 실행하지 않는다. 저장된 결정이 없으면 `404 DECISION_NOT_FOUND`다. 응답 스키마는
+  `GET /decisions/{decision_id}`와 동일하다.
 - 네 proposal 중 누락 또는 `FAILED`가 있으면 `503 DECISION_FAILED`, 추가 입력이 필요하면
   `422 NEEDS_INPUT`을 반환하며 두 오류 응답 모두 plan을 포함하지 않는다.
 - `BLOCKED`는 저장이 완료된 정상 결정 응답이지만 `final_plan=null`이다. Safety veto는

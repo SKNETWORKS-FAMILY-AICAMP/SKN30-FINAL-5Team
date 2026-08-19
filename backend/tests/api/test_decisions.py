@@ -133,3 +133,30 @@ def test_decision_api_still_succeeds_when_the_provider_fails() -> None:
     body = response.text
     assert "prompt" not in body.lower()
     assert "slot" not in body.lower()
+
+
+def test_get_decision_by_date_resumes_the_created_decision() -> None:
+    context = _context()
+    repository = FakeRepository(context)
+    client = _client(repository, uuid4())
+    with client:
+        created = client.post(
+            "/api/v1/decisions",
+            headers={"Idempotency-Key": str(uuid4())},
+            json={
+                "local_date": context.local_date.isoformat(),
+                "daily_context_id": str(context.daily_context_id),
+                "expected_context_version": context.context_version,
+            },
+        )
+        resumed = client.get(
+            "/api/v1/decisions", params={"local_date": context.local_date.isoformat()}
+        )
+        missing = client.get("/api/v1/decisions", params={"local_date": "2020-01-01"})
+    assert created.status_code == 201
+    assert resumed.status_code == 200
+    # 재시작한 클라이언트가 같은 결정을 그대로 복원한다.
+    assert resumed.json()["decision_id"] == created.json()["decision_id"]
+    assert resumed.json()["action_code"] == created.json()["action_code"]
+    assert missing.status_code == 404
+    assert missing.json()["error"]["code"] == "DECISION_NOT_FOUND"

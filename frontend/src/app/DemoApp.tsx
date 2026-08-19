@@ -110,6 +110,7 @@ export function DemoApp() {
           api={session.api}
           me={me}
           onSignOut={() => void session.signOut()}
+          onProfileUpdated={() => void session.refreshMe()}
         />
       );
     }

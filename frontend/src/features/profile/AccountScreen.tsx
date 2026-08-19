@@ -6,7 +6,7 @@
  */
 
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Api } from '../../api/endpoints';
 import { bodyAreaLabel, trainingTypeLabel } from '../../api/labels';
@@ -20,19 +20,38 @@ import {
 } from '../../components/states/ScreenState';
 import { colors, spacing } from '../../components/theme';
 
+const COACHING_STYLES = [
+  { code: 'SUPPORTIVE', label: '다정하게' },
+  { code: 'CONCISE', label: '간결하게' },
+  { code: 'ENERGETIC', label: '에너지 넘치게' },
+] as const;
+
 export function AccountScreen({
   api,
   me,
   onBack,
   onSignOut,
+  onProfileUpdated,
 }: {
   api: Api;
   me: MeResponse;
   onBack: () => void;
   onSignOut: () => void;
+  /** Called after a saved change so the flow above re-reads `/me`. */
+  onProfileUpdated?: () => void;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [deletedAt, setDeletedAt] = useState<string | null>(null);
+  const [pendingStyle, setPendingStyle] = useState<string | null>(null);
+
+  const saveCoachingStyle = useAsyncAction(async () => {
+    if (pendingStyle === null) {
+      return;
+    }
+    await api.updateProfileSettings({ coaching_style_code: pendingStyle });
+    setPendingStyle(null);
+    onProfileUpdated?.();
+  });
 
   const requestDeletion = useAsyncAction(async () => {
     const response = await api.requestAccountDeletion();
@@ -87,6 +106,51 @@ export function AccountScreen({
           />
         </Card>
       )}
+
+      {profile !== null ? (
+        <Card style={styles.card}>
+          <Text style={styles.sectionTitle}>코칭 스타일</Text>
+          <Text style={styles.body}>헬끼가 말을 거는 방식이 달라져요.</Text>
+          <View style={styles.styleRow}>
+            {COACHING_STYLES.map(({ code, label }) => {
+              const selected =
+                (pendingStyle ?? profile.coaching_style_code) === code;
+              return (
+                <Pressable
+                  key={code}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  onPress={() => setPendingStyle(code)}
+                  style={[
+                    styles.styleOption,
+                    selected && styles.styleOptionSelected,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.styleOptionText,
+                      selected && styles.styleOptionTextSelected,
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          {saveCoachingStyle.error ? (
+            <InlineFeedback tone="error" message={saveCoachingStyle.error} />
+          ) : null}
+          {pendingStyle !== null &&
+          pendingStyle !== profile.coaching_style_code ? (
+            <Button
+              label={saveCoachingStyle.pending ? '저장 중…' : '저장'}
+              disabled={saveCoachingStyle.pending}
+              onPress={() => void saveCoachingStyle.run()}
+            />
+          ) : null}
+        </Card>
+      ) : null}
 
       {deletedAt !== null ? (
         <SafetyNotice
@@ -167,6 +231,36 @@ const styles = StyleSheet.create({
     color: colors.textSub,
     fontSize: 14,
     lineHeight: 20,
+  },
+  sectionTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  styleRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  styleOption: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  styleOptionSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  styleOptionText: {
+    color: colors.textSub,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  styleOptionTextSelected: {
+    color: colors.surface,
   },
   dangerCard: {
     gap: spacing.md,

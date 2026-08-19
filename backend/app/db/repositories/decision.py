@@ -1,5 +1,5 @@
 from dataclasses import replace
-from datetime import datetime
+from datetime import date, datetime
 from hashlib import sha256
 from typing import Any
 from uuid import UUID, uuid4
@@ -657,6 +657,29 @@ class DecisionRepository:
                 created_at=now,
             )
         )
+
+    def get_response_for_date(
+        self, session: Session, user_id: UUID, local_date: date
+    ) -> dict[str, Any] | None:
+        """Return the day's most recent completed decision, or None.
+
+        A day can hold several runs when the user redoes the check-in, so the
+        newest completed run is the one the client resumes.
+        """
+
+        decision_id = session.scalar(
+            select(DecisionRun.id)
+            .where(
+                DecisionRun.user_id == user_id,
+                DecisionRun.local_date == local_date,
+                DecisionRun.status_code == "COMPLETED",
+            )
+            .order_by(DecisionRun.created_at.desc(), DecisionRun.id.desc())
+            .limit(1)
+        )
+        if decision_id is None:
+            return None
+        return self.get_response(session, user_id, decision_id)
 
     def get_response(
         self, session: Session, user_id: UUID, decision_id: UUID

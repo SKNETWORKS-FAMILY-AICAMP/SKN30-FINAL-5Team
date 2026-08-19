@@ -143,6 +143,16 @@ class FakeRepository:
     def save_idempotency(self, session: Any, **values: Any) -> None:
         self.prior = StoredIdempotency(values["request_hash"], values["payload"])
 
+    def get_response_for_date(
+        self, session: Any, user_id: UUID, local_date: Any
+    ) -> dict[str, Any] | None:
+        if self.persisted is None or self.assembly.context.local_date != local_date:
+            return None
+        result = self.persisted["result"]
+        if result.status_code.value in {"NEEDS_INPUT", "FAILED"}:
+            return None
+        return self.get_response(session, user_id, self.decision_id)
+
     def get_response(self, session: Any, user_id: UUID, decision_id: UUID) -> dict[str, Any] | None:
         if self.persisted is None:
             return None

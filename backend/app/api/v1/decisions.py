@@ -1,8 +1,9 @@
+from datetime import date
 from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends, Header, Query
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -100,6 +101,21 @@ def create_decision(
         IntegrityError,
         SQLAlchemyError,
     ) as exc:
+        raise _error(exc) from None
+
+
+@router.get("", response_model=DecisionResponse)
+def get_decision_for_date(
+    local_date: Annotated[date, Query()],
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db_session)],
+    repository: Annotated[DecisionRepositoryPort, Depends(get_decision_repository)],
+) -> DecisionResponse:
+    """Return the day's stored decision so a restarted client can resume it."""
+
+    try:
+        return DecisionService(repository).get_for_date(session, current_user.user_id, local_date)
+    except (DecisionNotFoundError, SQLAlchemyError) as exc:
         raise _error(exc) from None
 
 
