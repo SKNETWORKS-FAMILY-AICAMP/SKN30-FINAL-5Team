@@ -31,18 +31,17 @@ function getTextLayers(testID: 'splash-brand' | 'splash-slogan') {
 }
 
 describe('SplashScreen', () => {
-  it('transcribes the 390 x 844 source coordinates and 90vw island cap', () => {
+  it('transcribes the 390 x 844 vertical coordinates and 90vw island cap', () => {
     expect(getSplashLayout({ width: 390, height: 844 })).toEqual(
       expect.objectContaining({
         width: 390,
         height: 844,
+        islandLeft: 19.5,
         islandWidth: 351,
-        sloganLeft: 111,
         sloganTop: 203,
         sloganFontSize: 18,
         sloganLineHeight: 18,
         sloganStrokeWidth: 6,
-        brandLeft: 159,
         brandTop: 227,
         brandFontSize: 26,
         brandLineHeight: 26,
@@ -51,15 +50,14 @@ describe('SplashScreen', () => {
     );
   });
 
-  it('keeps visual sizes fixed while moving anchors by the reference ratios', () => {
+  it('keeps visual sizes fixed while moving vertical anchors by the reference ratio', () => {
     expect(getSplashLayout({ width: 195, height: 422 })).toEqual(
       expect.objectContaining({
         islandWidth: 175.5,
-        sloganLeft: 55.5,
+        islandLeft: 9.75,
         sloganTop: 101.5,
         sloganFontSize: 18,
         sloganStrokeWidth: 6,
-        brandLeft: 79.5,
         brandTop: 113.5,
         brandFontSize: 26,
         brandStrokeWidth: 6,
@@ -68,6 +66,7 @@ describe('SplashScreen', () => {
 
     expect(getSplashLayout({ width: 780, height: 1688 })).toEqual(
       expect.objectContaining({
+        islandLeft: 160,
         islandWidth: 460,
         sloganFontSize: 18,
         brandFontSize: 26,
@@ -116,7 +115,7 @@ describe('SplashScreen', () => {
     expect(islandStyle.shadowRadius).toBeUndefined();
   });
 
-  it('keeps one accessible label while painting outline behind fill from the exact top edge', async () => {
+  it('centers outlined text on the responsive island width', async () => {
     await render(
       <SplashScreen
         reducedMotionOverride
@@ -134,7 +133,8 @@ describe('SplashScreen', () => {
     );
     expect(brandStyle).toEqual(
       expect.objectContaining({
-        left: 159,
+        left: 19.5,
+        width: 351,
         top: 227,
         shadowColor: 'rgba(107,74,43,0.35)',
         shadowOffset: { width: 0, height: 3 },
@@ -149,6 +149,8 @@ describe('SplashScreen', () => {
     expect(brandText.fill.font.fontSize).toBe(26);
     expect(brandText.fill.font.fontWeight).toBe('800');
     expect(brandText.fill.font.letterSpacing).toBe(0.52);
+    expect(brandText.fill.font.textAnchor).toBe('middle');
+    expect(brandText.fill.x).toEqual(['50%']);
     expect(brandText.fill.alignmentBaseline).toBe('text-before-edge');
     expect(screen.queryByTestId('splash-brand-shadow')).toBeNull();
     expect(screen.queryByTestId('splash-brand-stroke')).toBeNull();
@@ -157,7 +159,8 @@ describe('SplashScreen', () => {
       StyleSheet.flatten(screen.getByTestId('splash-slogan').props.style),
     ).toEqual(
       expect.objectContaining({
-        left: 111,
+        left: 19.5,
+        width: 351,
         top: 203,
         shadowColor: 'rgba(47,82,51,0.35)',
         zIndex: 3,
@@ -171,10 +174,46 @@ describe('SplashScreen', () => {
     expect(sloganText.fill.font.fontSize).toBe(18);
     expect(sloganText.fill.font.fontWeight).toBe('400');
     expect(sloganText.fill.font.letterSpacing).toBeCloseTo(0.18);
+    expect(sloganText.fill.font.textAnchor).toBe('middle');
+    expect(sloganText.fill.x).toEqual(['50%']);
     expect(sloganText.fill.alignmentBaseline).toBe('text-before-edge');
     expect(screen.queryByTestId('splash-slogan-shadow')).toBeNull();
     expect(screen.queryByTestId('splash-slogan-stroke')).toBeNull();
   });
+
+  it.each([
+    { height: 422, islandWidth: 175.5, width: 195 },
+    { height: 1688, islandWidth: 460, width: 780 },
+  ])(
+    'keeps both text centers aligned with the island at $width x $height',
+    async ({ height, islandWidth, width }) => {
+      await render(
+        <SplashScreen
+          reducedMotionOverride
+          viewportOverride={{ width, height }}
+        />,
+      );
+
+      const expectedLeft = (width - islandWidth) / 2;
+      const layout = getSplashLayout({ width, height });
+
+      expect(layout.islandLeft + layout.islandWidth / 2).toBe(width / 2);
+
+      for (const testID of ['splash-brand', 'splash-slogan'] as const) {
+        const textStyle = StyleSheet.flatten(
+          screen.getByTestId(testID).props.style,
+        );
+        const textLayers = getTextLayers(testID);
+
+        expect(textStyle.left).toBe(expectedLeft);
+        expect(Math.abs(textStyle.width - islandWidth)).toBeLessThanOrEqual(
+          0.5,
+        );
+        expect(textLayers.fill.x).toEqual(['50%']);
+        expect(textLayers.fill.font.textAnchor).toBe('middle');
+      }
+    },
+  );
 
   it('keeps readable system font fallbacks when local font loading fails', async () => {
     useFontsMock.mockReturnValueOnce([false, new Error('font unavailable')]);

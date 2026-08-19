@@ -109,8 +109,8 @@ export function DemoApp() {
         <MainFlow
           api={session.api}
           me={me}
+          onRefreshMe={session.refreshMe}
           onSignOut={() => void session.signOut()}
-          onProfileUpdated={() => void session.refreshMe()}
         />
       );
     }

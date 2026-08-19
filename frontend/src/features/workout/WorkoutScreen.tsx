@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -20,6 +21,7 @@ import { messageForError } from '../../api/errors';
 import {
   ADVERSE_REACTION_OPTIONS,
   BODY_AREA_OPTIONS,
+  formatExercisePrescription,
   trainingTypeLabel,
 } from '../../api/labels';
 import type {
@@ -27,12 +29,16 @@ import type {
   SessionItem,
   WorkoutPlan,
 } from '../../api/types';
+import { orderedWorkoutPlanItems } from '../../api/workoutPlan';
+import { imageAssets } from '../../assets';
 import { colors, shadows } from '../../components/theme';
+import { useScale } from '../../components/scale';
 import { ExerciseDetailSheet } from './ExerciseDetailSheet';
 import type { SessionOutcome } from './SessionScreen';
 import {
   NOT_COMPLETED_REASONS,
   SAFETY_GUIDANCE,
+  getWorkoutResponsiveLayout,
   WORKOUT_ARC,
   WORKOUT_BLOCKS,
   WORKOUT_CAROUSEL,
@@ -41,6 +47,7 @@ import {
   type WorkoutBlock,
   type WorkoutBlockStatus,
   type WorkoutPreviewState,
+  type WorkoutResponsiveLayout,
   type WorkoutSafetyInstruction,
   type WorkoutSafetyReport,
 } from './workoutModel';
@@ -122,11 +129,15 @@ export function formatWorkoutTime(seconds: number) {
   return `${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`;
 }
 
-export function clampWorkoutPageIndex(offsetX: number, blockCount: number) {
+export function clampWorkoutPageIndex(
+  offsetX: number,
+  blockCount: number,
+  stride: number = WORKOUT_CAROUSEL.STRIDE,
+) {
   if (blockCount <= 0) {
     return 0;
   }
-  const nearest = Math.round(offsetX / WORKOUT_CAROUSEL.STRIDE);
+  const nearest = Math.round(offsetX / stride);
   return Math.max(0, Math.min(blockCount - 1, nearest));
 }
 
@@ -165,6 +176,15 @@ function WorkoutScreenContent({
   fixture: WorkoutFixture;
 }) {
   const brandFonts = useBrandFonts();
+  const { height: viewportHeight, width: viewportWidth } = useScale();
+  const responsiveLayout = useMemo(
+    () =>
+      getWorkoutResponsiveLayout({
+        height: viewportHeight,
+        width: viewportWidth,
+      }),
+    [viewportHeight, viewportWidth],
+  );
   const carouselRef = useRef<ScrollView | null>(null);
   const [scrollX] = useState(() => new Animated.Value(0));
   const [burstOpacity] = useState(() => new Animated.Value(0));
@@ -178,9 +198,7 @@ function WorkoutScreenContent({
   const [completedBlockIds, setCompletedBlockIds] = useState<readonly string[]>(
     fixture.completedBlockIds,
   );
-  const [expandedBlockIds, setExpandedBlockIds] = useState<
-    Readonly<Record<string, boolean>>
-  >({});
+  const [detailBlockId, setDetailBlockId] = useState<string | null>(null);
   const [restSeconds, setRestSeconds] = useState(60);
   const [carouselWidth, setCarouselWidth] = useState(0);
   const [visiblePageIndex, setVisiblePageIndex] = useState(() =>
@@ -217,14 +235,16 @@ function WorkoutScreenContent({
     if (apiConfig === undefined) {
       return WORKOUT_BLOCKS.map((block) => ({ ...block, status: 'PENDING' }));
     }
-    return apiConfig.plan.items.map((item) => ({
+    return orderedWorkoutPlanItems(apiConfig.plan.items).map((item) => ({
       id: item.plan_item_id,
       exerciseId: item.exercise_id,
       instructionAvailable: item.instruction_available,
       name: item.exercise_name,
-      meta: `${item.sets}세트${
-        item.reps === null ? ` · ${item.work_seconds}초` : ` × ${item.reps}회`
-      }${item.rest_seconds > 0 ? ` · 휴식 ${item.rest_seconds}초` : ''}`,
+      meta: formatExercisePrescription({
+        reps: item.reps,
+        sets: item.sets,
+        workSeconds: item.work_seconds,
+      }),
       tips: [],
       status: 'PENDING',
     }));
@@ -245,6 +265,8 @@ function WorkoutScreenContent({
     ? Math.max(0, blocks.length - 1)
     : pendingIndex;
   const currentBlock = blocks[currentIndex] ?? blocks[0]!;
+  const detailBlock =
+    blocks.find((block) => block.id === detailBlockId) ?? null;
   const completedCount = completedBlockIds.length;
   const isSafetyState =
     overlay === 'safety' ||
@@ -253,7 +275,7 @@ function WorkoutScreenContent({
     overlay === 'api-guidance';
   const carouselPadding = Math.max(
     0,
-    (carouselWidth - WORKOUT_CAROUSEL.CARD_WIDTH) / 2,
+    (carouselWidth - responsiveLayout.cardWidth) / 2,
   );
   const timerCaption =
     overlay === 'rest'
@@ -399,10 +421,10 @@ function WorkoutScreenContent({
       return;
     }
     carouselRef.current?.scrollTo({
-      x: currentIndex * WORKOUT_CAROUSEL.STRIDE,
+      x: currentIndex * responsiveLayout.stride,
       animated: true,
     });
-  }, [carouselWidth, currentIndex]);
+  }, [carouselWidth, currentIndex, responsiveLayout.stride]);
 
   useEffect(() => {
     if (burstKey === 0) {
@@ -482,7 +504,7 @@ function WorkoutScreenContent({
         : Math.min(currentIndex + 1, blocks.length - 1);
     setVisiblePageIndex(nextIndex);
     carouselRef.current?.scrollTo({
-      x: nextIndex * WORKOUT_CAROUSEL.STRIDE,
+      x: nextIndex * responsiveLayout.stride,
       animated: true,
     });
     setBurstKey((current) => current + 1);
@@ -497,7 +519,7 @@ function WorkoutScreenContent({
     if (blockIndex >= 0) {
       setVisiblePageIndex(blockIndex);
       carouselRef.current?.scrollTo({
-        x: blockIndex * WORKOUT_CAROUSEL.STRIDE,
+        x: blockIndex * responsiveLayout.stride,
         animated: true,
       });
     }
@@ -751,7 +773,7 @@ function WorkoutScreenContent({
   const selectVisiblePage = (index: number) => {
     setVisiblePageIndex(index);
     carouselRef.current?.scrollTo({
-      x: index * WORKOUT_CAROUSEL.STRIDE,
+      x: index * responsiveLayout.stride,
       animated: true,
     });
   };
@@ -764,7 +786,11 @@ function WorkoutScreenContent({
     event: NativeSyntheticEvent<NativeScrollEvent>,
   ) => {
     setVisiblePageIndex(
-      clampWorkoutPageIndex(event.nativeEvent.contentOffset.x, blocks.length),
+      clampWorkoutPageIndex(
+        event.nativeEvent.contentOffset.x,
+        blocks.length,
+        responsiveLayout.stride,
+      ),
     );
   };
 
@@ -784,76 +810,91 @@ function WorkoutScreenContent({
   return (
     <SafeAreaView edges={['left', 'right']} style={styles.screen}>
       <StatusBar style="light" />
-      <View style={styles.timerHeader}>
-        <View testID="workout-header-top-row" style={styles.headerTopRow}>
-          <View style={styles.timerCopy}>
-            <Text style={styles.timerCaption}>{timerCaption}</Text>
+      <View
+        style={[
+          styles.timerHeader,
+          { paddingTop: responsiveLayout.headerTopPadding },
+        ]}
+      >
+        <View
+          style={[
+            styles.timerHeaderContent,
+            { maxWidth: responsiveLayout.contentMaxWidth },
+          ]}
+        >
+          <View testID="workout-header-top-row" style={styles.headerTopRow}>
+            <View style={styles.timerCopy}>
+              <Text style={styles.timerCaption}>{timerCaption}</Text>
+              <Text
+                accessibilityLabel={`운동 시간 ${formatWorkoutTime(elapsedSeconds)}`}
+                style={[
+                  styles.timer,
+                  useJua && styles.jua,
+                  paused && styles.timerPaused,
+                ]}
+              >
+                {formatWorkoutTime(elapsedSeconds)}
+              </Text>
+            </View>
+            <View style={styles.timerActions}>
+              <Pressable
+                accessibilityLabel={paused ? '재개' : '일시정지'}
+                accessibilityRole="button"
+                onPress={togglePaused}
+                style={({ pressed }) => [
+                  styles.roundAction,
+                  pressed && styles.pressed,
+                ]}
+                testID="workout-pause-action"
+              >
+                <PlaybackMark paused={paused} />
+              </Pressable>
+              <Pressable
+                accessibilityLabel="안전 중단 및 이상 반응 보고"
+                accessibilityRole="button"
+                onPress={openSafety}
+                style={({ pressed }) => [
+                  styles.stopAction,
+                  pressed && styles.pressed,
+                ]}
+                testID="workout-stop-action"
+              >
+                <Text style={styles.stopActionLabel}>중단</Text>
+              </Pressable>
+            </View>
+          </View>
+          <View
+            accessibilityLabel="운동 블록 진행률"
+            style={styles.progressRow}
+          >
+            {blocks.map((block, index) => (
+              <View
+                key={block.id}
+                style={[
+                  styles.progressSegment,
+                  block.status === 'COMPLETED'
+                    ? styles.progressSegmentDone
+                    : index === currentIndex
+                      ? styles.progressSegmentCurrent
+                      : null,
+                ]}
+              />
+            ))}
+          </View>
+          <View style={styles.routineHeader}>
             <Text
-              accessibilityLabel={`운동 시간 ${formatWorkoutTime(elapsedSeconds)}`}
-              style={[
-                styles.timer,
-                useJua && styles.jua,
-                paused && styles.timerPaused,
-              ]}
+              accessibilityRole="header"
+              numberOfLines={1}
+              style={styles.routineTitle}
             >
-              {formatWorkoutTime(elapsedSeconds)}
+              {apiConfig === undefined
+                ? '전신 기본 루틴'
+                : `${trainingTypeLabel(apiConfig.plan.training_type_code)} 루틴`}
+            </Text>
+            <Text style={styles.routineStep}>
+              {Math.min(currentIndex + 1, blocks.length)} / {blocks.length} 블록
             </Text>
           </View>
-          <View style={styles.timerActions}>
-            <Pressable
-              accessibilityLabel={paused ? '재개' : '일시정지'}
-              accessibilityRole="button"
-              onPress={togglePaused}
-              style={({ pressed }) => [
-                styles.roundAction,
-                pressed && styles.pressed,
-              ]}
-              testID="workout-pause-action"
-            >
-              <PlaybackMark paused={paused} />
-            </Pressable>
-            <Pressable
-              accessibilityLabel="안전 중단 및 이상 반응 보고"
-              accessibilityRole="button"
-              onPress={openSafety}
-              style={({ pressed }) => [
-                styles.stopAction,
-                pressed && styles.pressed,
-              ]}
-              testID="workout-stop-action"
-            >
-              <Text style={styles.stopActionLabel}>중단</Text>
-            </Pressable>
-          </View>
-        </View>
-        <View accessibilityLabel="운동 블록 진행률" style={styles.progressRow}>
-          {blocks.map((block, index) => (
-            <View
-              key={block.id}
-              style={[
-                styles.progressSegment,
-                block.status === 'COMPLETED'
-                  ? styles.progressSegmentDone
-                  : index === currentIndex
-                    ? styles.progressSegmentCurrent
-                    : null,
-              ]}
-            />
-          ))}
-        </View>
-        <View style={styles.routineHeader}>
-          <Text
-            accessibilityRole="header"
-            numberOfLines={1}
-            style={styles.routineTitle}
-          >
-            {apiConfig === undefined
-              ? '전신 기본 루틴'
-              : `${trainingTypeLabel(apiConfig.plan.training_type_code)} 루틴`}
-          </Text>
-          <Text style={styles.routineStep}>
-            {Math.min(currentIndex + 1, blocks.length)} / {blocks.length} 블록
-          </Text>
         </View>
       </View>
 
@@ -871,11 +912,18 @@ function WorkoutScreenContent({
         burstKey={burstKey}
         burstOpacity={burstOpacity}
         burstScale={burstScale}
+        height={responsiveLayout.mascotHeight}
+        maxWidth={responsiveLayout.contentMaxWidth}
         serious={isSafetyState}
         useJua={useJua}
       />
 
-      <View style={styles.carouselRegion}>
+      <View
+        style={[
+          styles.carouselRegion,
+          { maxWidth: responsiveLayout.contentMaxWidth },
+        ]}
+      >
         <View style={styles.carouselGuide}>
           <Text style={styles.carouselHint}>
             {visiblePageIndex === currentIndex
@@ -891,7 +939,7 @@ function WorkoutScreenContent({
           ref={carouselRef}
           contentContainerStyle={[
             styles.blockCarousel,
-            { paddingHorizontal: carouselPadding },
+            { gap: responsiveLayout.gap, paddingHorizontal: carouselPadding },
           ]}
           decelerationRate="fast"
           horizontal
@@ -904,7 +952,7 @@ function WorkoutScreenContent({
           scrollEventThrottle={16}
           showsHorizontalScrollIndicator={false}
           snapToAlignment="start"
-          snapToInterval={WORKOUT_CAROUSEL.STRIDE}
+          snapToInterval={responsiveLayout.stride}
           testID="workout-carousel"
         >
           {blocks.map((block, index) => (
@@ -912,23 +960,19 @@ function WorkoutScreenContent({
               key={block.id}
               block={block}
               current={index === currentIndex && !allBlocksCompleted}
-              expanded={Boolean(expandedBlockIds[block.id])}
               index={index}
-              detail={
-                apiConfig !== undefined &&
-                block.exerciseId !== undefined &&
-                block.instructionAvailable ? (
-                  <ExerciseDetailSheet
-                    api={apiConfig.api}
-                    exerciseId={block.exerciseId}
-                  />
-                ) : null
+              expanded={detailBlockId === block.id}
+              hasDetails={
+                block.tips.length > 0 ||
+                (apiConfig !== undefined &&
+                  block.exerciseId !== undefined &&
+                  Boolean(block.instructionAvailable))
               }
+              layout={responsiveLayout}
               onToggleExpanded={() =>
-                setExpandedBlockIds((current) => ({
-                  ...current,
-                  [block.id]: !current[block.id],
-                }))
+                setDetailBlockId((current) =>
+                  current === block.id ? null : block.id,
+                )
               }
               onUndo={
                 block.status === 'COMPLETED'
@@ -966,7 +1010,12 @@ function WorkoutScreenContent({
         </View>
       </View>
 
-      <View style={styles.bottomBar}>
+      <View
+        style={[
+          styles.bottomBar,
+          { maxWidth: responsiveLayout.contentMaxWidth },
+        ]}
+      >
         <Pressable
           accessibilityLabel={
             canFinish ? '운동 마치기' : `${currentBlock.name} 블록 격파`
@@ -1027,6 +1076,29 @@ function WorkoutScreenContent({
           </Pressable>
         ) : null}
       </View>
+
+      {detailBlock && overlay === 'none' ? (
+        <ExerciseDetailOverlay
+          block={detailBlock}
+          detail={
+            apiConfig !== undefined && detailBlock.exerciseId !== undefined ? (
+              <ExerciseDetailSheet
+                api={apiConfig.api}
+                exerciseId={detailBlock.exerciseId}
+              />
+            ) : (
+              <View style={styles.tipList}>
+                {detailBlock.tips.map((tip) => (
+                  <Text key={tip} style={styles.tipText}>
+                    {tip}
+                  </Text>
+                ))}
+              </View>
+            )
+          }
+          onClose={() => setDetailBlockId(null)}
+        />
+      ) : null}
 
       {overlay === 'rest' ? (
         <RestSheet
@@ -1138,6 +1210,8 @@ function MascotStage({
   burstKey,
   burstOpacity,
   burstScale,
+  height,
+  maxWidth,
   serious,
   useJua,
 }: {
@@ -1145,19 +1219,33 @@ function MascotStage({
   burstKey: number;
   burstOpacity: Animated.Value;
   burstScale: Animated.Value;
+  height: number;
+  maxWidth: number;
   serious: boolean;
   useJua: boolean;
 }) {
   return (
     <View
       accessibilityLabel={serious ? '안전 안내 화면' : `${blockName} 운동 안내`}
-      style={[styles.mascotStage, serious && styles.mascotStageSerious]}
+      style={[
+        styles.mascotStage,
+        { height, maxWidth },
+        serious && styles.mascotStageSerious,
+      ]}
     >
-      <View style={[styles.mascot, serious && styles.mascotSerious]}>
-        <Text style={[styles.mascotMark, useJua && !serious && styles.jua]}>
-          {serious ? '!' : '헬'}
-        </Text>
-      </View>
+      {serious ? (
+        <View style={[styles.mascot, styles.mascotSerious]}>
+          <Text style={styles.mascotMark}>!</Text>
+        </View>
+      ) : (
+        <Image
+          accessible={false}
+          resizeMode="contain"
+          source={imageAssets.mascotWarmupWalk}
+          style={styles.mascotAnimation}
+          testID="workout-warmup-mascot"
+        />
+      )}
       <View style={styles.mascotCopy}>
         <Text style={styles.mascotEyebrow}>
           {serious ? '안전을 먼저 확인해주세요' : '지금 할 운동'}
@@ -1192,24 +1280,26 @@ function MascotStage({
 function ArcBlockCard({
   block,
   current,
-  detail,
   expanded,
+  hasDetails,
   index,
+  layout,
   onToggleExpanded,
   onUndo,
   scrollX,
 }: {
   block: WorkoutViewBlock;
   current: boolean;
-  detail: React.ReactNode;
   expanded: boolean;
+  hasDetails: boolean;
   index: number;
+  layout: WorkoutResponsiveLayout;
   onToggleExpanded: () => void;
   onUndo?: () => void;
   scrollX: Animated.Value;
 }) {
   const inputRange = WORKOUT_ARC.INPUT_OFFSETS.map(
-    (offset) => (index + offset) * WORKOUT_CAROUSEL.STRIDE,
+    (offset) => (index + offset) * layout.stride,
   );
   const rotate = scrollX.interpolate({
     extrapolate: 'clamp',
@@ -1233,12 +1323,12 @@ function ArcBlockCard({
   });
   const done = block.status === 'COMPLETED';
   const badgeLabel = done ? '완료' : current ? '진행 중' : 'PENDING';
-  const hasDetails = detail !== null || block.tips.length > 0;
 
   return (
     <Animated.View
       style={[
         styles.blockCard,
+        { height: layout.cardHeight, width: layout.cardWidth },
         current
           ? styles.blockCardCurrent
           : done
@@ -1247,9 +1337,9 @@ function ArcBlockCard({
         {
           opacity,
           transform: [
-            { translateY: WORKOUT_CAROUSEL.CARD_HEIGHT / 2 },
+            { translateY: layout.cardHeight / 2 },
             { rotate },
-            { translateY: -WORKOUT_CAROUSEL.CARD_HEIGHT / 2 },
+            { translateY: -layout.cardHeight / 2 },
             { translateY: lift },
             { scale },
           ],
@@ -1305,22 +1395,66 @@ function ArcBlockCard({
           style={styles.infoButton}
         >
           <Text style={styles.infoButtonText}>
-            {expanded ? '설명 접기' : '자세 · 설명 보기'}
+            {expanded ? '설명 보는 중' : '자세 · 설명 보기'}
           </Text>
         </Pressable>
       ) : null}
-      {expanded && hasDetails
-        ? (detail ?? (
-            <View style={styles.tipList}>
-              {block.tips.map((tip) => (
-                <Text key={tip} style={styles.tipText}>
-                  {tip}
-                </Text>
-              ))}
-            </View>
-          ))
-        : null}
     </Animated.View>
+  );
+}
+
+function ExerciseDetailOverlay({
+  block,
+  detail,
+  onClose,
+}: {
+  block: WorkoutViewBlock;
+  detail: React.ReactNode;
+  onClose: () => void;
+}) {
+  return (
+    <View
+      accessibilityLabel={`${block.name} 자세와 설명`}
+      accessibilityViewIsModal
+      style={styles.sheetOverlay}
+      testID="workout-detail-overlay"
+    >
+      <View
+        style={[styles.sheet, styles.detailSheet]}
+        testID="workout-detail-sheet"
+      >
+        <View style={styles.sheetHandle} />
+        <View style={styles.detailSheetHeader}>
+          <View style={styles.detailSheetHeading}>
+            <Text style={styles.detailSheetEyebrow}>운동 자세와 설명</Text>
+            <Text
+              accessibilityRole="header"
+              style={[styles.sheetTitle, styles.detailSheetTitle]}
+            >
+              {block.name}
+            </Text>
+          </View>
+          <Pressable
+            accessibilityLabel="설명 접기"
+            accessibilityRole="button"
+            accessibilityState={{ expanded: true }}
+            onPress={onClose}
+            style={styles.detailCloseButton}
+          >
+            <Text style={styles.detailCloseButtonText}>닫기</Text>
+          </Pressable>
+        </View>
+        <ScrollView
+          contentContainerStyle={styles.detailSheetContent}
+          nestedScrollEnabled
+          showsVerticalScrollIndicator
+          style={styles.detailSheetScroll}
+          testID="workout-detail-scroll"
+        >
+          {detail}
+        </ScrollView>
+      </View>
+    </View>
   );
 }
 
@@ -2032,7 +2166,7 @@ function getWorkoutFixture(state: WorkoutPreviewState): WorkoutFixture {
     case 'not-completed':
       return {
         ...base,
-        completedBlockIds: firstTwo,
+        completedBlockIds: [],
         elapsedSeconds: 802,
         overlay: 'not-completed',
         result: 'none',
@@ -2102,6 +2236,10 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     backgroundColor: colors.green,
     paddingTop: WORKOUT_LAYOUT.headerTopPadding,
+  },
+  timerHeaderContent: {
+    width: '100%',
+    alignSelf: 'center',
     paddingHorizontal: WORKOUT_LAYOUT.headerHorizontalPadding,
     paddingBottom: 14,
   },
@@ -2240,7 +2378,8 @@ const styles = StyleSheet.create({
   },
   apiBannerTextError: { color: colors.dangerText },
   mascotStage: {
-    height: 250,
+    width: '100%',
+    alignSelf: 'center',
     flexShrink: 0,
     flexDirection: 'row',
     alignItems: 'center',
@@ -2265,6 +2404,7 @@ const styles = StyleSheet.create({
     borderColor: colors.dangerBorder,
     backgroundColor: colors.surface,
   },
+  mascotAnimation: { width: 104, height: 96 },
   mascotMark: { color: colors.primary, fontSize: 25, fontWeight: '900' },
   mascotCopy: { maxWidth: 190 },
   mascotEyebrow: { color: colors.greenText, fontSize: 11.5, fontWeight: '800' },
@@ -2290,7 +2430,13 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     textAlign: 'center',
   },
-  carouselRegion: { minHeight: 0, flex: 1, overflow: 'hidden' },
+  carouselRegion: {
+    width: '100%',
+    minHeight: 0,
+    flex: 1,
+    alignSelf: 'center',
+    overflow: 'hidden',
+  },
   carouselGuide: {
     flexShrink: 0,
     flexDirection: 'row',
@@ -2305,13 +2451,10 @@ const styles = StyleSheet.create({
   carouselHint: { color: colors.textMuted, fontSize: 13, fontWeight: '800' },
   carouselCount: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
   blockCarousel: {
-    gap: WORKOUT_CAROUSEL.GAP,
     paddingTop: 14,
   },
   blockCard: {
     ...shadows.card,
-    width: WORKOUT_CAROUSEL.CARD_WIDTH,
-    height: WORKOUT_CAROUSEL.CARD_HEIGHT,
     borderWidth: 1.5,
     borderRadius: 22,
     padding: 16,
@@ -2421,6 +2564,8 @@ const styles = StyleSheet.create({
   dotDone: { backgroundColor: colors.green },
   dotVisiblePending: { backgroundColor: colors.textMuted },
   bottomBar: {
+    width: '100%',
+    alignSelf: 'center',
     flexShrink: 0,
     flexDirection: 'row',
     gap: 8,
@@ -2546,10 +2691,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     zIndex: 50,
+    alignItems: 'center',
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(20,32,16,.62)',
   },
   sheet: {
+    width: '100%',
+    maxWidth: 640,
     maxHeight: '92%',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
@@ -2570,6 +2718,51 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 19,
     fontWeight: '800',
+  },
+  detailSheet: {
+    maxHeight: '82%',
+  },
+  detailSheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 16,
+    marginTop: 14,
+  },
+  detailSheetHeading: {
+    minWidth: 0,
+    flex: 1,
+  },
+  detailSheetEyebrow: {
+    color: colors.greenText,
+    fontSize: 11.5,
+    fontWeight: '800',
+  },
+  detailSheetTitle: {
+    marginTop: 4,
+  },
+  detailCloseButton: {
+    minWidth: 52,
+    minHeight: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 13,
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 12,
+  },
+  detailCloseButtonText: {
+    color: colors.textSub,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  detailSheetScroll: {
+    flexShrink: 1,
+    marginTop: 14,
+  },
+  detailSheetContent: {
+    paddingBottom: 8,
   },
   sheetDescription: {
     marginTop: 6,

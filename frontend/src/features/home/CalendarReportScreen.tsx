@@ -520,15 +520,10 @@ function WeekDetail({
   title: string;
 }) {
   const labels = ['완료', '부분', '휴식', '미수행'];
-  const disabled = state === 'upcoming';
+  const canOpenReport =
+    state === 'make' || state === 'unread' || state === 'read';
   const actionLabel =
-    state === 'progress'
-      ? '진행 중 요약 보기'
-      : state === 'upcoming'
-        ? '예정된 주예요'
-        : state === 'make'
-          ? '주간 리포트 만들기'
-          : '주간 리포트 보기';
+    state === 'make' ? '주간 리포트 만들기' : '주간 리포트 보기';
 
   return (
     <View style={styles.weekDetail}>
@@ -542,29 +537,22 @@ function WeekDetail({
         ))}
       </View>
       <Text style={styles.weekNote}>{note}</Text>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ disabled }}
-        disabled={disabled}
-        onPress={onOpenReport}
-        style={[
-          styles.weekAction,
-          state === 'progress' && styles.weekActionSecondary,
-          state === 'make' && styles.weekActionMake,
-          disabled && styles.weekActionDisabled,
-        ]}
-      >
-        <Text
-          style={[
-            styles.weekActionText,
-            state === 'progress' && styles.weekActionTextSecondary,
-            state === 'make' && styles.weekActionTextMake,
-            disabled && styles.weekActionTextDisabled,
-          ]}
+      {canOpenReport ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={onOpenReport}
+          style={[styles.weekAction, state === 'make' && styles.weekActionMake]}
         >
-          {actionLabel} ›
-        </Text>
-      </Pressable>
+          <Text
+            style={[
+              styles.weekActionText,
+              state === 'make' && styles.weekActionTextMake,
+            ]}
+          >
+            {actionLabel} ›
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }

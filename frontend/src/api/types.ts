@@ -93,6 +93,30 @@ export type ConsentResponse = {
   consents: ConsentState[];
 };
 
+export type ProfileSettingsUpdateRequest = {
+  primary_goal_code?: string;
+  desired_weekly_workout_count?: number;
+  default_requested_duration_minutes?: number;
+  preferred_location_code?: string;
+  available_location_codes?: string[];
+  equipment_codes?: string[];
+  attention_area_codes?: string[];
+  preferred_exercise_type_codes?: string[];
+  coaching_style_code?: string;
+  experience_level_code?: string;
+  nickname?: string;
+  height_cm?: number;
+  weight_kg?: number;
+  sex_code?: SexCode;
+  timezone?: string;
+  date_of_birth?: string;
+};
+
+export type ProfileSettingsUpdateResponse = {
+  profile_version: number;
+  updated_at: string;
+};
+
 export type OnboardingRequest = {
   nickname: string;
   date_of_birth: string;
@@ -334,20 +358,6 @@ export type WorkoutAdditionalActivityResponse = {
   session_status_code: 'IN_PROGRESS';
 };
 
-export type ProfileSettingsUpdateRequest = {
-  primary_goal_code?: string;
-  desired_weekly_workout_count?: number;
-  default_requested_duration_minutes?: number;
-  preferred_location_code?: string;
-  available_location_codes?: string[];
-  equipment_codes?: string[];
-  attention_area_codes?: string[];
-  preferred_exercise_type_codes?: string[];
-  coaching_style_code?: string;
-  experience_level_code?: string;
-  nickname?: string;
-};
-
 export type SafetyEventResponse = {
   event_id: string;
   instruction_code: SafetyInstructionCode;
@@ -454,7 +464,7 @@ export type WeekResponse = {
   status_code: 'OPEN' | 'CLOSED';
   closed_at: string | null;
   report_id: string | null;
-  report_status_code: string | null;
+  report_status_code: 'GENERATED' | 'ACKNOWLEDGED' | 'FAILED' | null;
 };
 
 export type PlanRevisionSourceCode = 'INITIAL' | 'AI' | 'USER';

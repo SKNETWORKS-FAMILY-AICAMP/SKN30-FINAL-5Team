@@ -140,7 +140,14 @@ describe('MainFlow restart recovery', () => {
       '/workout-sessions?': sessions([]),
     });
 
-    render(<MainFlow api={api} me={me()} onSignOut={() => {}} />);
+    render(
+      <MainFlow
+        api={api}
+        me={me()}
+        onRefreshMe={async () => undefined}
+        onSignOut={() => {}}
+      />,
+    );
 
     await waitFor(() => {
       expect(calls.some((path) => path.startsWith('/decisions?'))).toBe(true);
@@ -195,7 +202,14 @@ describe('MainFlow restart recovery', () => {
       },
     });
 
-    render(<MainFlow api={api} me={me()} onSignOut={() => {}} />);
+    render(
+      <MainFlow
+        api={api}
+        me={me()}
+        onRefreshMe={async () => undefined}
+        onSignOut={() => {}}
+      />,
+    );
 
     // The workout screen resuming the session is observable as its detail read.
     await waitFor(
@@ -227,7 +241,14 @@ describe('MainFlow restart recovery', () => {
       ]),
     });
 
-    render(<MainFlow api={api} me={me()} onSignOut={() => {}} />);
+    render(
+      <MainFlow
+        api={api}
+        me={me()}
+        onRefreshMe={async () => undefined}
+        onSignOut={() => {}}
+      />,
+    );
 
     await waitFor(() => {
       expect(calls.some((path) => path.startsWith('/workout-sessions?'))).toBe(

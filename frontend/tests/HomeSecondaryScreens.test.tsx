@@ -6,6 +6,10 @@ import { CalendarReportScreen } from '../src/features/home/CalendarReportScreen'
 import { MapHomeScreen } from '../src/features/home/MapHomeScreen';
 import { MyPageScreen } from '../src/features/home/MyPageScreen';
 import {
+  PREVIEW_OPEN_WEEK,
+  PREVIEW_ROUTINE,
+} from '../src/features/preview/backendPreview';
+import {
   CALENDAR_DAY_VISUALS,
   CALENDAR_MONTH_STATS,
   CALENDAR_WEEK_CHIPS,
@@ -120,6 +124,7 @@ const EXPECTED_WEEK_CHIPS = [
   ['make', '리포트 만들기', '#FBD24E', '#3A320F', '#EFC02F', 'solid'],
   ['unread', '확인 필요', '#FDECE9', '#C2402F', '#F5C9C1', 'solid'],
   ['read', '확인 완료', 'transparent', '#9A968E', '#E2DED4', 'solid'],
+  ['unavailable', '리포트 오류', '#FDECE9', '#C2402F', '#F5C9C1', 'solid'],
   ['upcoming', '예정', 'transparent', '#B7B2A8', '#DFDBD2', 'dashed'],
 ] as const;
 
@@ -251,19 +256,41 @@ describe('Home secondary visual prototypes', () => {
     ).toBe('리포트 만들기');
   });
 
-  it('shows one map routine without the conflicting lighter public option', async () => {
+  it('shows API routine items below the map without map overlays', async () => {
     const onSelectRest = jest.fn();
     const onStartWorkout = jest.fn();
     await render(
       <MapHomeScreen
         onSelectRest={onSelectRest}
         onStartWorkout={onStartWorkout}
-        previewState="routine"
+        previewState="map"
+        routine={PREVIEW_ROUTINE}
+        week={PREVIEW_OPEN_WEEK}
       />,
     );
 
-    expect(screen.getByText('오늘의 운동 계획을 준비했어요')).toBeOnTheScreen();
+    expect(screen.getByText('이번 주')).toBeOnTheScreen();
+    expect(screen.getByText('목표 4회')).toBeOnTheScreen();
+    expect(
+      screen.getByText('진행 중인 주예요. 편한 날에 하나씩 채워요.'),
+    ).toBeOnTheScreen();
+    expect(screen.getByText('지금 내 루틴')).toBeOnTheScreen();
+    expect(screen.getByText('근력 · 30분 · 블록 3개')).toBeOnTheScreen();
+    expect(screen.getByText('의자 스쿼트')).toBeOnTheScreen();
+    expect(screen.getAllByText('3세트 × 10회')).toHaveLength(2);
+    expect(screen.getByText('제자리 걷기')).toBeOnTheScreen();
+    expect(screen.getByText('3세트 · 180초')).toBeOnTheScreen();
     expect(screen.queryByText('더 가벼운 루틴 보기')).toBeNull();
+    expect(screen.getByTestId('home-map-stage')).toBeOnTheScreen();
+    expect(screen.getByTestId('home-map-api-section')).toBeOnTheScreen();
+    expect(screen.queryByLabelText('근력 운동 위치')).toBeNull();
+    expect(screen.queryByLabelText('컨디션 창 열기')).toBeNull();
+    expect(screen.queryByLabelText('오늘 체크인')).toBeNull();
+    expect(
+      screen.queryByText(
+        '오늘의 운동 섬이에요. 표시를 눌러 루틴을 확인해보세요.',
+      ),
+    ).toBeNull();
 
     fireEvent.press(
       screen.getByRole('button', { name: '이 루틴으로 시작하기' }),
@@ -273,12 +300,17 @@ describe('Home secondary visual prototypes', () => {
     expect(onSelectRest).toHaveBeenCalledTimes(1);
   });
 
-  it('opens map condition information as a local visual state', async () => {
-    await render(<MapHomeScreen />);
+  it('shows an empty API state at the bottom without restoring map controls', async () => {
+    await render(<MapHomeScreen previewState="condition" />);
 
-    fireEvent.press(screen.getByRole('button', { name: '컨디션 창 열기' }));
-    expect(screen.getByText('4,200')).toBeOnTheScreen();
-    expect(screen.getByText('7시간')).toBeOnTheScreen();
+    expect(
+      screen.getByText(
+        '아직 보여줄 루틴이 없어요. 홈에서 기본 루틴을 만들어 주세요.',
+      ),
+    ).toBeOnTheScreen();
+    expect(screen.queryByText('4,200')).toBeNull();
+    expect(screen.queryByText('7시간')).toBeNull();
+    expect(screen.queryByLabelText('컨디션 창 열기')).toBeNull();
   });
 
   it('shows calendar week fixtures and exposes report navigation as a callback', async () => {

@@ -27,8 +27,8 @@ import { CalendarStatusScreen } from '../features/calendar/CalendarStatusScreen'
 import { ExerciseCatalogScreen } from '../features/catalog/ExerciseCatalogScreen';
 import { CalendarReportContainer } from '../features/home/CalendarReportContainer';
 import { HomeContainer } from '../features/home/HomeContainer';
+import { MyPageContainer } from '../features/home/MyPageContainer';
 import { MascotHouseScreen } from '../features/house/MascotHouseScreen';
-import { AccountScreen } from '../features/profile/AccountScreen';
 import type { SessionOutcome } from '../features/workout/SessionScreen';
 import { SessionResultScreen } from '../features/workout/SessionResultScreen';
 import { WorkoutScreen } from '../features/workout/WorkoutScreen';
@@ -48,13 +48,13 @@ type Step =
 export function MainFlow({
   api,
   me,
+  onRefreshMe,
   onSignOut,
-  onProfileUpdated,
 }: {
   api: Api;
   me: MeResponse;
+  onRefreshMe: () => Promise<void>;
   onSignOut: () => void;
-  onProfileUpdated?: () => void;
 }) {
   const [step, setStep] = useState<Step>({ name: 'home' });
   const [restChoice, setRestChoice] = useState<{
@@ -184,6 +184,7 @@ export function MainFlow({
         <WeeklyReportScreen
           api={api}
           onBack={() => setStep({ name: 'calendar-report' })}
+          onNavigateTab={onTab}
           timeZone={me.profile?.timezone}
           weekStart={step.weekStart}
         />
@@ -204,12 +205,12 @@ export function MainFlow({
 
     case 'account':
       return (
-        <AccountScreen
+        <MyPageContainer
           api={api}
           me={me}
-          onBack={goHome}
+          onNavigateTab={onTab}
+          onRefreshMe={onRefreshMe}
           onSignOut={onSignOut}
-          onProfileUpdated={onProfileUpdated}
           onOpenExerciseCatalog={() => setStep({ name: 'exercises' })}
         />
       );

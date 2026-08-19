@@ -35,6 +35,62 @@ export const WORKOUT_CAROUSEL = {
   CARD_HEIGHT: 320,
 } as const;
 
+export type WorkoutResponsiveLayout = {
+  cardHeight: number;
+  cardWidth: number;
+  contentMaxWidth: number;
+  gap: number;
+  headerTopPadding: number;
+  mascotHeight: number;
+  stride: number;
+};
+
+/**
+ * Keeps controls readable on large browser viewports without scaling the
+ * phone composition indefinitely, while reclaiming vertical space on short
+ * phones. The workout order stays timer -> mascot -> ordered blocks at every
+ * breakpoint.
+ */
+export function getWorkoutResponsiveLayout({
+  height,
+  width,
+}: {
+  height: number;
+  width: number;
+}): WorkoutResponsiveLayout {
+  const tablet = width >= 600;
+  const desktop = width >= 1024;
+  const cardWidth = desktop ? 340 : tablet ? 300 : WORKOUT_CAROUSEL.CARD_WIDTH;
+  const gap = tablet ? 24 : WORKOUT_CAROUSEL.GAP;
+
+  let cardHeight: number = WORKOUT_CAROUSEL.CARD_HEIGHT;
+  let mascotHeight = 220;
+  let headerTopPadding = 54;
+
+  if (height < 650) {
+    cardHeight = 210;
+    mascotHeight = 90;
+    headerTopPadding = 28;
+  } else if (height < 800) {
+    cardHeight = 240;
+    mascotHeight = 130;
+    headerTopPadding = 42;
+  } else if (height < 900) {
+    cardHeight = 280;
+    mascotHeight = 180;
+  }
+
+  return {
+    cardHeight,
+    cardWidth,
+    contentMaxWidth: 1100,
+    gap,
+    headerTopPadding,
+    mascotHeight,
+    stride: cardWidth + gap,
+  };
+}
+
 export const WORKOUT_ARC = {
   INPUT_OFFSETS: [-2, -1, 0, 1, 2],
   LIFT: [104, 26, 0, 26, 104],

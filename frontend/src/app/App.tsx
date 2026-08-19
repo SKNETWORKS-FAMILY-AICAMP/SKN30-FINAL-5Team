@@ -12,14 +12,16 @@ import { SignUpScreen } from '../features/auth/SignUpScreen';
 import { CalendarReportScreen } from '../features/home/CalendarReportScreen';
 import { HomeScreen } from '../features/home/HomeScreen';
 import { MapHomeScreen } from '../features/home/MapHomeScreen';
-import { MyPageScreen } from '../features/home/MyPageScreen';
 import { OnboardingScreen } from '../features/onboarding/OnboardingScreen';
+import {
+  PREVIEW_OPEN_WEEK,
+  PREVIEW_ROUTINE,
+} from '../features/preview/backendPreview';
 import { homePreviewProps } from '../features/preview/homePreview';
 import { onboardingPreviewApi } from '../features/preview/onboardingPreview';
 import { PreviewGallery } from '../features/preview/PreviewGallery';
 import { ProfileScreen } from '../features/profile/ProfileScreen';
 import { SplashScreen } from '../features/splash/SplashScreen';
-import { WorkoutScreen } from '../features/workout/WorkoutScreen';
 import {
   type BootDestination,
   type BootDestinationResolver,
@@ -172,17 +174,17 @@ export function App({
       ) : activePreview === 'weekly-report' ? (
         <PreviewGallery initialScreenId="weekly-report" />
       ) : activePreview === 'workout' ? (
-        <WorkoutScreen />
+        <PreviewGallery initialScreenId="workout" />
       ) : activePreview === 'calendar-report' ? (
         <CalendarReportScreen />
       ) : activePreview === 'home' ? (
         <HomeScreen {...homePreviewProps('pre-checkin')} />
       ) : activePreview === 'home-map' ? (
-        <MapHomeScreen />
+        <MapHomeScreen routine={PREVIEW_ROUTINE} week={PREVIEW_OPEN_WEEK} />
       ) : activePreview === 'login' ? (
         <LoginScreen />
       ) : activePreview === 'my-page' ? (
-        <MyPageScreen />
+        <PreviewGallery initialScreenId="my-page" />
       ) : activePreview === 'onboarding' ? (
         <OnboardingScreen
           api={onboardingPreviewApi}

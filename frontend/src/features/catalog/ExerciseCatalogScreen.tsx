@@ -10,7 +10,11 @@ import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { Api } from '../../api/endpoints';
-import { bodyAreaLabel, trainingTypeLabel } from '../../api/labels';
+import {
+  bodyAreaLabel,
+  equipmentLabel,
+  trainingTypeLabel,
+} from '../../api/labels';
 import type { ExerciseListItem, ExerciseListResponse } from '../../api/types';
 import { useAsyncAction, useAsyncData } from '../../api/useAsync';
 import { Button, Card, InlineFeedback } from '../../components/primitives';
@@ -37,25 +41,11 @@ const DIFFICULTY_FILTERS = [
   { code: 'INTERMEDIATE', label: '중급' },
 ] as const;
 
-const EQUIPMENT_LABELS: Record<string, string> = {
-  BODYWEIGHT: '맨몸',
-  DUMBBELL: '덤벨',
-  BARBELL: '바벨',
-  KETTLEBELL: '케틀벨',
-  CABLE_MACHINE: '케이블',
-  MACHINE: '머신',
-  HOUSEHOLD_WEIGHT: '생활용품',
-  BENCH: '벤치',
-  PULL_UP_BAR: '철봉',
-  RESISTANCE_BAND: '밴드',
-};
-
 const DIFFICULTY_LABELS: Record<string, string> = {
   BEGINNER: '입문',
   INTERMEDIATE: '중급',
 };
 
-const equipmentLabel = (code: string) => EQUIPMENT_LABELS[code] ?? code;
 const difficultyLabel = (code: string) => DIFFICULTY_LABELS[code] ?? code;
 
 export function ExerciseCatalogScreen({
