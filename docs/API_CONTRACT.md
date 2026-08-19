@@ -867,16 +867,19 @@ job은 `requested_at`부터 즉시 실행할 수 있다. `operational_data_delet
 
 #### 7.4.1 프로필 설정 부분 수정
 
-~~~text
-PATCH /api/v1/me/profile
-Idempotency-Key: client-generated-uuid
-If-Match: "current-profile-version"
-~~~
-
 요청 본문은 §7.4에서 `가능`으로 표시한 필드만 받을 수 있으며 모든 필드는 선택 사항이다. 단,
 빈 객체, 알 수 없는 필드, 명시적 `null`, 중복 배열 코드는 `400 INVALID_REQUEST`로 거부한다.
 
-~~~json
+완전한 요청 예시는 다음과 같다. `If-Match` 값의 큰따옴표는 HTTP 헤더 문법의 일부이므로 생략하면
+안 된다.
+
+~~~http
+PATCH /api/v1/me/profile HTTP/1.1
+Authorization: Bearer <Firebase-ID-Token>
+Content-Type: application/json
+Idempotency-Key: 7e225f2e-7f86-4b5e-96f7-23c18f948210
+If-Match: "1"
+
 {
   "desired_weekly_workout_count": 4,
   "preferred_location_code": "GYM",
@@ -890,9 +893,59 @@ If-Match: "current-profile-version"
 `available_location_codes`에 포함되어야 한다. 요청하지 않은 scalar와 관계는 유지하며 요청에
 포함된 관계만 교체한다.
 
-`If-Match`는 따옴표를 포함한 양의 정수 형식(예: `"1"`)으로 필수 전송한다. 누락 또는 다른 형식은
-`400 INVALID_REQUEST`, 현재 `profile_version`과 다르면 `409 STALE_PROFILE`이다. 성공한 수정은 scalar,
-관계 교체, `profile_version` 1 증가와 멱등성 결과 저장을 한 transaction에서 처리한다.
+`If-Match`는 따옴표를 포함한 양의 정수 형식(예: `"1"`)으로 필수 전송한다. 헤더가 없거나 `1`,
+`W/"1"`, `"0"`, 음수 또는 숫자가 아닌 값이면 다음 공통 오류 형식의
+`400 INVALID_REQUEST`를 반환한다.
+
+~~~http
+HTTP/1.1 400 Bad Request
+X-Request-ID: 20f092af-7335-414d-bbc9-1bd6ec175d4d
+
+{
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "If-Match는 현재 profile_version을 \"1\" 형식으로 포함해야 합니다.",
+    "details": [],
+    "request_id": "20f092af-7335-414d-bbc9-1bd6ec175d4d"
+  }
+}
+~~~
+
+형식은 올바르지만 값이 현재 `profile_version`과 다르면 저장소를 변경하지 않고 다음
+`409 STALE_PROFILE`을 반환한다.
+
+~~~http
+HTTP/1.1 409 Conflict
+X-Request-ID: 07b44c79-320f-4f15-b2e5-4966dc6a8c91
+
+{
+  "error": {
+    "code": "STALE_PROFILE",
+    "message": "프로필이 변경되었습니다. 최신 상태로 다시 시도해주세요.",
+    "details": [],
+    "request_id": "07b44c79-320f-4f15-b2e5-4966dc6a8c91"
+  }
+}
+~~~
+
+`STALE_PROFILE`을 받은 클라이언트는 자동으로 이전 요청을 덮어쓰지 않는다. 다음 순서로 충돌을
+해결한다.
+
+1. `GET /api/v1/me`를 호출해 최신 프로필과 `profile.profile_version`을 읽는다.
+2. 사용자가 의도한 변경을 최신 프로필에 다시 적용한다.
+3. 새 `Idempotency-Key`와 최신 version의 `If-Match`를 사용해 PATCH를 재시도한다.
+
+성공한 수정은 scalar, 관계 교체, `profile_version` 1 증가와 멱등성 결과 저장을 한 transaction에서
+처리한다. 예를 들어 `If-Match: "1"` 요청이 성공하면 다음과 같이 새 version을 반환한다.
+
+~~~http
+HTTP/1.1 200 OK
+
+{
+  "profile_version": 2,
+  "updated_at": "2026-08-19T02:30:00+00:00"
+}
+~~~
 
 ~~~text
 ProfileSettingsUpdateResponse
@@ -900,10 +953,13 @@ ProfileSettingsUpdateResponse
 - updated_at: datetime
 ~~~
 
-같은 사용자·endpoint·`Idempotency-Key`에서 동일한 PATCH 본문과 동일한 `If-Match` version을
-재시도하면 최초 성공 응답을 재생하고 version을 다시 증가시키지 않는다. 본문 또는 expected
-version이 다르면 `409 IDEMPOTENCY_KEY_REUSED`다. 응답에는 생년월일, 암호화 값, 키·체중·성별,
-주의 부위를 반복하지 않는다. 온보딩 프로필이 없으면 `404 RESOURCE_NOT_FOUND`다.
+성공 응답의 `profile_version`은 클라이언트가 다음 수정 요청의 `If-Match`에 사용한다. 같은
+사용자·endpoint·`Idempotency-Key`에서 동일한 PATCH 본문과 동일한 `If-Match` version을 재시도하면
+최초 성공 응답을 재생하고 version을 다시 증가시키지 않는다. 이미 성공한 키를 다른 본문 또는
+다른 expected version에 재사용하면 `409 IDEMPOTENCY_KEY_REUSED`다. 따라서 `STALE_PROFILE` 뒤 최신
+version으로 변경을 재적용하는 요청에는 새 `Idempotency-Key`를 사용한다. 응답에는 생년월일,
+암호화 값, 키·체중·성별, 주의 부위를 반복하지 않는다. 온보딩 프로필이 없으면
+`404 RESOURCE_NOT_FOUND`다.
 
 ---
 
