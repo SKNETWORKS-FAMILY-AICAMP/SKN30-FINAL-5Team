@@ -7,7 +7,7 @@
  * would not work if tapped.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useAsyncAction } from '../../api/useAsync';
@@ -17,19 +17,54 @@ import {
   ScreenShell,
 } from '../../components/states/ScreenState';
 import { colors, spacing } from '../../components/theme';
-import type { AuthAdapter } from '../../auth/firebase';
+import { AuthFailure, type AuthAdapter } from '../../auth/firebase';
 
 type Mode = 'signIn' | 'signUp';
 
-export function SignInScreen({ auth }: { auth: AuthAdapter }) {
+type SignInScreenProps = {
+  auth: AuthAdapter;
+  /** Why the previous session ended, when it did not end by choice. */
+  notice?: string | null;
+};
+
+export function SignInScreen({ auth, notice = null }: SignInScreenProps) {
   const [mode, setMode] = useState<Mode>('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [validation, setValidation] = useState<string | null>(null);
+  const [policyHint, setPolicyHint] = useState<string | null>(null);
+
+  const isSignUp = mode === 'signUp';
+
+  // The project's password policy is configured in the Firebase console, so the
+  // rule is fetched rather than hardcoded. Stating it up front is what stops a
+  // sign-up from being rejected only after the user submits.
+  useEffect(() => {
+    if (!isSignUp) {
+      return;
+    }
+    let active = true;
+    void auth.describePasswordPolicy().then((hint) => {
+      if (active) {
+        setPolicyHint(hint);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [auth, isSignUp]);
 
   const submit = useAsyncAction(async (nextMode: Mode) => {
     if (nextMode === 'signUp') {
+      // Only sign-up is gated on the policy. An existing account may hold a
+      // password that predates a stricter rule, and Firebase still accepts it,
+      // so checking here would lock the user out of their own account — and
+      // would put a network round trip in front of every login.
+      const check = await auth.checkPassword(password);
+      if (!check.ok) {
+        throw new AuthFailure(check.code, check.message);
+      }
       await auth.signUp(email, password);
       return;
     }
@@ -42,20 +77,14 @@ export function SignInScreen({ auth }: { auth: AuthAdapter }) {
       setValidation('이메일을 입력해주세요.');
       return;
     }
-    if (password.length < 6) {
-      setValidation('비밀번호는 6자 이상이어야 합니다.');
-      return;
-    }
     void submit.run(mode);
-  }, [email, mode, password, submit]);
+  }, [email, mode, submit]);
 
   const toggleMode = useCallback(() => {
     setValidation(null);
     submit.clearError();
     setMode((current) => (current === 'signIn' ? 'signUp' : 'signIn'));
   }, [submit]);
-
-  const isSignUp = mode === 'signUp';
 
   return (
     <ScreenShell contentStyle={styles.content}>
@@ -82,10 +111,15 @@ export function SignInScreen({ auth }: { auth: AuthAdapter }) {
         <TextField
           label="비밀번호"
           autoCapitalize="none"
+          // Sign-up must advertise a *new* password: browsers and keychains
+          // then offer to generate a strong one instead of reusing a saved
+          // credential, which is what triggers the "this password was found in
+          // a breach" prompt during a demo sign-up.
+          autoComplete={isSignUp ? 'new-password' : 'current-password'}
           onChangeText={setPassword}
-          placeholder="6자 이상"
+          placeholder="비밀번호"
           secureTextEntry={!showPassword}
-          textContentType="password"
+          textContentType={isSignUp ? 'newPassword' : 'password'}
           value={password}
           trailing={
             <Pressable
@@ -101,8 +135,12 @@ export function SignInScreen({ auth }: { auth: AuthAdapter }) {
             </Pressable>
           }
         />
+        {isSignUp && policyHint ? (
+          <Text style={styles.hint}>{`비밀번호 조건: ${policyHint}`}</Text>
+        ) : null}
       </View>
 
+      {notice ? <InlineFeedback tone="warning" message={notice} /> : null}
       {validation ? <InlineFeedback tone="error" message={validation} /> : null}
       {submit.error ? (
         <InlineFeedback tone="error" message={submit.error} />
@@ -142,6 +180,10 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: spacing.md,
+  },
+  hint: {
+    color: colors.textMuted,
+    fontSize: 12,
   },
   reveal: {
     color: colors.textMuted,

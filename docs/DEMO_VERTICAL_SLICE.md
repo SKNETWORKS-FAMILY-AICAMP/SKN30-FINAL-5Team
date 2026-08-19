@@ -90,11 +90,14 @@ $env:FIREBASE_PROJECT_ID = "<firebase-test-project-id>"
 `503 AUTH_PROVIDER_UNAVAILABLE`을 반환한다. 이는 의도된 동작이며 로컬 우회 경로는 제공하지 않는다.
 
 Firebase Admin이 ID token 서명을 검증하려면 서비스 계정 자격 증명이 필요하다. 저장소 밖 경로를
-가리키게 한다.
+가리키게 한다. 앱이 `backend/.env`에서 직접 읽으므로 셸에서 내보낼 필요는 없다.
 
-```powershell
-$env:GOOGLE_APPLICATION_CREDENTIALS = "C:\path\outside\repo\firebase-service-account.json"
 ```
+GOOGLE_APPLICATION_CREDENTIALS=C:/path/outside/repo/firebase-service-account.json
+```
+
+Windows 경로는 슬래시로 적는다. `.env`의 백슬래시는 이스케이프로 해석되어 경로가 조용히
+깨진다. 값을 비워 두면 Application Default Credentials로 대체된다.
 
 ## 3. 마이그레이션 적용
 

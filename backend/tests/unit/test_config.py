@@ -97,3 +97,15 @@ def test_tuple_settings_still_accept_json_array_environment_values(
     settings = Settings(database_url="postgresql+psycopg://test:test@localhost/test")
     assert settings.onboarding_primary_goal_codes == ("GENERAL_FITNESS",)
     assert settings.cors_allowed_origins == ("http://localhost:8081",)
+
+
+def test_clock_skew_defaults_to_a_tolerant_window() -> None:
+    # Zero tolerance makes a server clock that trails Google's by a second
+    # reject fresh tokens, so the default is not the SDK's.
+    assert Settings().firebase_clock_skew_seconds == 60
+
+
+@pytest.mark.parametrize("value", [-1, 61])
+def test_clock_skew_outside_the_sdk_range_is_refused_at_startup(value: int) -> None:
+    with pytest.raises(ValidationError):
+        Settings(firebase_clock_skew_seconds=value)
