@@ -1,6 +1,7 @@
 import type { Api } from '../../api/endpoints';
 import { ApiError } from '../../api/errors';
 import type {
+  ConsentValues,
   RoutineResponse,
   SafetyEventResponse,
   NotCompletedReasonCode,
@@ -385,7 +386,41 @@ export const accountPreviewApi = {
       backup_expiry_days: 30,
     };
   },
-} as Api;
+  async getConsents() {
+    return {
+      user_id: 'user-preview',
+      consents: [
+        'GENERAL_PERSONAL_DATA',
+        'SENSITIVE_DATA',
+        'WEARABLE_INTEGRATION',
+        'CALENDAR_INTEGRATION',
+        'MARKETING',
+      ].map((code) => ({
+        consent_type_code: code,
+        granted: code === 'GENERAL_PERSONAL_DATA' || code === 'SENSITIVE_DATA',
+        policy_version: 'consent-preview-v1',
+        updated_at: '2026-08-18T00:00:00+09:00',
+      })),
+    };
+  },
+  async replaceConsents(body: ConsentValues) {
+    return {
+      user_id: 'user-preview',
+      consents: Object.entries(body).map(([key, granted]) => ({
+        consent_type_code: key.toUpperCase(),
+        granted,
+        policy_version: 'consent-preview-v1',
+        updated_at: '2026-08-18T00:00:00+09:00',
+      })),
+    };
+  },
+  async updateProfileSettings() {
+    return {
+      profile_version: 2,
+      updated_at: '2026-08-18T00:00:00+09:00',
+    };
+  },
+} as unknown as Api;
 
 export const sessionResultPreviewApi = {
   async submitFeedback() {
