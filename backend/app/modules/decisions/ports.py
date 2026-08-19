@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 from uuid import UUID
 
@@ -117,6 +117,9 @@ class DecisionRepositoryPort(Protocol):
     ) -> None: ...
     def get_response(
         self, session: Session, user_id: UUID, decision_id: UUID
+    ) -> dict[str, Any] | None: ...
+    def get_response_for_date(
+        self, session: Session, user_id: UUID, local_date: date
     ) -> dict[str, Any] | None: ...
 
 

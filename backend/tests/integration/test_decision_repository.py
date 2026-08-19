@@ -648,6 +648,10 @@ def test_decision_repository_assembles_and_persists_active_profile_attention_are
         "FEASIBILITY",
         "COORDINATOR",
     ]
+    resumed = repository.get_response_for_date(postgres_session, empty_owner_id, LOCAL_DATE)
+    assert resumed is not None
+    assert resumed["status_code"] == "COMPLETED"
+    assert repository.get_response_for_date(postgres_session, owner_id, LOCAL_DATE) is None
     record_counts = _decision_record_counts(postgres_session)
     postgres_session.rollback()
 

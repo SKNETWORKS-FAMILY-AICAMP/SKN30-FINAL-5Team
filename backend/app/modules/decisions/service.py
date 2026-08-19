@@ -2,7 +2,7 @@ import hashlib
 import json
 from collections.abc import Callable, Sequence
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -428,6 +428,17 @@ class DecisionService:
 
     def get(self, session: Session, user_id: UUID, decision_id: UUID) -> DecisionResponse:
         payload = self._repository.get_response(session, user_id, decision_id)
+        if payload is None:
+            raise DecisionNotFoundError
+        return DecisionResponse.model_validate(payload)
+
+    def get_for_date(self, session: Session, user_id: UUID, local_date: date) -> DecisionResponse:
+        """Return the day's stored decision so a client restart can resume it.
+
+        Reading never re-runs agents or narration; it replays what was stored.
+        """
+
+        payload = self._repository.get_response_for_date(session, user_id, local_date)
         if payload is None:
             raise DecisionNotFoundError
         return DecisionResponse.model_validate(payload)
