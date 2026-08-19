@@ -22,7 +22,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, create_engine, delete, select
+from sqlalchemy import Engine, create_engine, delete, func, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
@@ -43,6 +43,7 @@ from backend.app.modules.identity.ports import VerifiedFirebaseIdentity
 from backend.scripts.demo_seed import (
     DEMO_CATALOG_VERSION_CODE,
     _require_demo_database,
+    reset_users,
     seed_catalog,
 )
 
@@ -86,7 +87,7 @@ def engine() -> Iterator[Engine]:
         # empty catalog, so this module has to leave the database as it found it.
         try:
             with Session(created) as session, session.begin():
-                session.execute(delete(User))
+                reset_users(session)
                 session.execute(
                     delete(CatalogVersion).where(
                         CatalogVersion.version_code == DEMO_CATALOG_VERSION_CODE
@@ -110,7 +111,7 @@ def client(engine: Engine) -> Iterator[TestClient]:
     with Session(engine) as session, session.begin():
         # Start from a clean slate: user rows cascade to routines and decisions,
         # which hold RESTRICT references to the catalog.
-        session.execute(delete(User))
+        reset_users(session)
         seed_catalog(session, datetime.now(UTC))
 
     settings = Settings(
@@ -135,7 +136,7 @@ def client(engine: Engine) -> Iterator[TestClient]:
         yield created
 
     with Session(engine) as session, session.begin():
-        session.execute(delete(User))
+        reset_users(session)
 
 
 def _key() -> dict[str, str]:
@@ -541,3 +542,42 @@ def test_demo_seed_refuses_a_non_demo_database() -> None:
 def test_demo_seed_accepts_demo_database_names() -> None:
     assert _require_demo_database("postgresql+psycopg://u:p@localhost:5432/app_test") == "app_test"
     assert _require_demo_database("postgresql+psycopg://u:p@localhost:5432/app_demo") == "app_demo"
+
+
+# Kept last: it clears every user-owned table, so it must not run before the
+# tests above.
+def test_reset_users_clears_user_data_and_keeps_the_catalog(
+    engine: Engine,
+    client: TestClient,
+) -> None:
+    """An initial weekly plan stores `weekly_plan_revisions.routine_id`, an
+    intentional RESTRICT reference to a row that also cascades from `users`.
+    A plain `DELETE FROM users` cannot resolve that by cascade order alone."""
+    _onboard(client)
+    _create_routine(client)
+    _decide(client, _check_in(client))
+    plan = client.post(f"/api/v1/weeks/{LOCAL_DATE.isoformat()}/plan", headers=_key(), json={})
+    assert plan.status_code == 201, plan.text
+
+    user_owned = ("routines", "decision_runs", "scheduled_workouts", "weekly_plan_revisions")
+    with Session(engine) as session:
+        catalog_exercises = session.scalar(text("select count(*) from exercises"))
+        assert session.scalar(select(func.count()).select_from(User)) > 0
+        # The reference that makes the plain delete fail must actually be here,
+        # otherwise this test would pass against the bug it guards.
+        blocking = session.scalar(
+            text("select count(*) from weekly_plan_revisions where routine_id is not null")
+        )
+        assert blocking > 0
+
+    with Session(engine) as session, session.begin():
+        removed = reset_users(session)
+
+    assert removed > 0
+    with Session(engine) as session:
+        assert session.scalar(select(func.count()).select_from(User)) == 0
+        for table in user_owned:
+            assert session.scalar(text(f"select count(*) from {table}")) == 0, table
+        # Truncation must stop at the tables that reference `users`.
+        assert session.scalar(text("select count(*) from exercises")) == catalog_exercises
+        assert session.scalar(select(func.count()).select_from(CatalogVersion)) >= 1

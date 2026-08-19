@@ -35,6 +35,7 @@ ID token을 사용한다.
 .\scripts\demo-local.ps1 api     # FastAPI 실행 (0.0.0.0:8000)
 .\scripts\demo-local.ps1 share   # 현재 LAN IP를 앱 설정에 반영하고 공유 주소 출력 (9.1절)
 .\scripts\demo-local.ps1 seed    # 합성 카탈로그만 다시 설치
+.\scripts\demo-local.ps1 rules   # 안전규칙 번들 적재 + 규칙 보유 카탈로그 활성화 (4.1절)
 .\scripts\demo-local.ps1 reset   # 데모 사용자 삭제 후 재seed
 .\scripts\demo-local.ps1 test    # 백엔드·프론트엔드 검증 전체
 .\scripts\demo-local.ps1 psql    # 데모 DB psql 접속
@@ -119,6 +120,69 @@ seed가 설치하는 내용:
 - 합성 카탈로그 1개(`demo-synthetic-v1`, `manifest_metadata.synthetic = true`)
 - 준비 3 / 본운동 17 / 마무리 3, 총 23개 운동과 목표 연결·처방
 - 10~60분 요청 시간에 대해 `estimated_duration_seconds`를 정확히 맞출 수 있는 구성
+
+## 4.1 안전규칙 적재와 카탈로그 활성화
+
+합성 카탈로그에는 **안전규칙이 하나도 없다.** 규칙이 없으면 `evaluate_safety`가
+`rule_set = None`을 받고 설계대로 fail-closed하여 `FAILED`를 반환한다. 결과적으로 체크인에서
+불편을 입력하거나 온보딩에서 주의 부위를 등록한 사용자는 루틴을 받지 못한다. 심각도와 무관하며
+`MILD`도 동일하다.
+
+승인된 규칙 354건과 대체운동 238건은 별도 번들에 있고, 규칙은 그 번들의 카탈로그에
+`catalog_version_id`로 붙어 있다. 따라서 적재만으로는 반영되지 않고 해당 카탈로그를 활성화해야
+한다.
+
+```powershell
+.\scripts\demo-local.ps1 rules
+```
+
+### 현재 이 명령은 활성화 단계에서 실패한다
+
+적재된 카탈로그에는 `exercise_prescription_profiles`와 `exercise_goal_tag_links`가 **0건**이다.
+`RoutineRepository.get_creation_context`가 이 두 테이블을 inner join하므로, 활성화해도 루틴 후보가
+하나도 나오지 않아 **루틴 생성 자체가 불가능해진다.** `CatalogImporter`는 이 두 테이블을 만들지
+않는다 — 합성 카탈로그가 존재하는 이유가 이것이다.
+
+`catalog_activate`는 이 상태를 감지하면 검수 여부와 무관하게 거부한다. 서명이 없는 게 아니라
+내용이 없는 문제이므로 `--demo-unreviewed`로도 통과하지 않는다.
+
+```
+refusing to activate 'kspo-mvp-v0.2.0': no routine could be built from it -
+exercise_prescription_profiles=0, exercise_goal_tag_links=0.
+```
+
+즉 안전규칙을 데모에 반영하려면 **적재된 카탈로그에 처방·목표 연결 데이터를 먼저 만들어야 한다.**
+승인 절차로 해결되는 문제가 아니다.
+
+이 명령은 두 단계를 수행한다.
+
+```powershell
+uv run python -m backend.scripts.catalog_data_load load
+uv run python -m backend.scripts.catalog_activate activate kspo-mvp-v0.2.0 --demo-unreviewed
+```
+
+`kspo-mvp-v0.2.0`을 쓰는 이유는 번들에서 CARDIO·MOBILITY·STRENGTH를 모두 가진 유일한 카탈로그이기
+때문이다. 나머지는 STRENGTH만 있어 준비·마무리 구간을 채울 수 없다.
+
+### `--demo-unreviewed`가 필요한 이유
+
+`ck_catalog_versions_production_approval`은 활성화된 카탈로그에
+`review_method_code = 'DOMAIN_REVIEWER'`와 `status_interpretation_code = 'PRODUCTION_APPROVED'`를
+요구한다. 번들 카탈로그는 `AGENT_ONLY` / `PIPELINE_COMPATIBILITY_ONLY`로 들어온다 —
+**운동 카탈로그 자체는 도메인 검수를 받은 적이 없다.** ISSUE-53은 규칙과 대체운동만 승인했다.
+
+`catalog_activate`는 이 조건을 만족하지 않는 카탈로그를 기본적으로 거부한다.
+`--demo-unreviewed`는 검수 완료 전 데모에서만 쓰는 우회로이며,
+`APP_ENV=local|test`와 `*_demo`/`*_test` 데이터베이스에서만 동작하고,
+누락된 검수를 `manifest_metadata.demo_activation`에 기록한다.
+**이 플래그로 만든 데이터베이스는 staging이나 production으로 승격하지 않는다.**
+
+### 활성화 이후 주의사항
+
+- ACTIVE 카탈로그는 하나뿐이므로 `demo-synthetic-v1`은 DEPRECATED가 된다. 그 카탈로그로 만든
+  기존 루틴은 결정 생성이 멈춘다. `reset` 후 다시 온보딩하면 새 카탈로그로 루틴이 생성된다.
+- `seed`와 `reset`은 합성 카탈로그를 다시 ACTIVE로 만든다. **둘 중 하나를 실행했다면 `rules`를
+  다시 실행해야 한다.**
 
 ## 5. FastAPI 실행
 
