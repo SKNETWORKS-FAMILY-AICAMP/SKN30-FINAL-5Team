@@ -40,6 +40,10 @@ const EQUIPMENT = [
 const MINIMUM_AGE = 14;
 const MIN_BIRTH_YEAR = 1900;
 const WHEEL_ITEM_HEIGHT = 44;
+const WEB_WHEEL_GESTURE_IDLE_MS = 45;
+const WEB_WHEEL_SINGLE_ITEM_DELTA = 240;
+const WEB_WHEEL_ACCELERATION_DELTA = 70;
+const WEB_WHEEL_MAX_ITEMS_PER_GESTURE = 18;
 const DURATION_STEP = 10;
 const MIN_DURATION = 10;
 const MAX_DURATION = 240;
@@ -913,13 +917,25 @@ function WheelColumn({
   const scrollRef = useRef<ScrollView>(null);
   const selectedIndex = Math.max(0, options.indexOf(selected));
   const currentIndexRef = useRef(selectedIndex);
+  const pendingInternalSelectionRef = useRef<number | null>(null);
   const webSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const webWheelGestureTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const webWheelDeltaRef = useRef(0);
   const draggingRef = useRef(false);
 
   const clearWebSettleTimer = () => {
     if (webSettleTimerRef.current !== null) {
       clearTimeout(webSettleTimerRef.current);
       webSettleTimerRef.current = null;
+    }
+  };
+
+  const clearWebWheelGestureTimer = () => {
+    if (webWheelGestureTimerRef.current !== null) {
+      clearTimeout(webWheelGestureTimerRef.current);
+      webWheelGestureTimerRef.current = null;
     }
   };
 
@@ -930,27 +946,50 @@ function WheelColumn({
     });
   };
 
-  const selectIndex = (index: number, animated = true) => {
+  const commitIndex = (index: number) => {
     const boundedIndex = Math.max(0, Math.min(options.length - 1, index));
     const value = options[boundedIndex];
     if (value === undefined) return;
     currentIndexRef.current = boundedIndex;
-    scrollToIndex(boundedIndex, animated);
-    if (value !== selected) onChange(value);
+    if (value !== selected) {
+      pendingInternalSelectionRef.current = value;
+      onChange(value);
+    }
   };
 
-  const settleAtOffset = (offsetY: number) => {
-    selectIndex(Math.round(offsetY / WHEEL_ITEM_HEIGHT));
+  const selectIndex = (index: number, animated = true) => {
+    const boundedIndex = Math.max(0, Math.min(options.length - 1, index));
+    scrollToIndex(boundedIndex, animated);
+    commitIndex(boundedIndex);
+  };
+
+  const settleAtOffset = (offsetY: number, align = true) => {
+    const index = Math.max(
+      0,
+      Math.min(options.length - 1, Math.round(offsetY / WHEEL_ITEM_HEIGHT)),
+    );
+    const targetOffset = index * WHEEL_ITEM_HEIGHT;
+    if (align && Math.abs(offsetY - targetOffset) > 1) {
+      scrollToIndex(index, true);
+    }
+    commitIndex(index);
   };
 
   useEffect(() => {
     currentIndexRef.current = selectedIndex;
+    // Let a tap or scroll finish its animation; hard-align only external changes.
+    if (pendingInternalSelectionRef.current === selected) {
+      pendingInternalSelectionRef.current = null;
+      return;
+    }
+    pendingInternalSelectionRef.current = null;
     scrollToIndex(selectedIndex, false);
   }, [options, selected, selectedIndex]);
 
   useEffect(
     () => () => {
       clearWebSettleTimer();
+      clearWebWheelGestureTimer();
     },
     [],
   );
@@ -958,7 +997,8 @@ function WheelColumn({
   const settleFromScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     clearWebSettleTimer();
     draggingRef.current = false;
-    settleAtOffset(event.nativeEvent.contentOffset.y);
+    // Momentum and snapToInterval already performed the final alignment.
+    settleAtOffset(event.nativeEvent.contentOffset.y, false);
   };
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -978,24 +1018,67 @@ function WheelColumn({
     }>,
   ) => {
     event.preventDefault();
-    clearWebSettleTimer();
-    const { deltaMode = 0, deltaY } = event.nativeEvent;
-    if (deltaY === 0) return;
-    const normalizedDelta =
-      deltaMode === 1
-        ? deltaY * 40
-        : deltaMode === 2
-          ? deltaY * WHEEL_ITEM_HEIGHT * 5
-          : deltaY;
-    const steps = Math.max(
-      1,
-      Math.min(
-        6,
-        Math.round(Math.abs(normalizedDelta) / (WHEEL_ITEM_HEIGHT * 2.5)),
-      ),
-    );
-    selectIndex(currentIndexRef.current + Math.sign(deltaY) * steps);
+    queueWheelDelta(event.nativeEvent.deltaY, event.nativeEvent.deltaMode);
   };
+
+  // Recreate this handler with the current options and selection, then rebind it below.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const queueWheelDelta = (deltaY: number, deltaMode = 0) => {
+    clearWebSettleTimer();
+    if (deltaY === 0) return;
+    const modeMultiplier =
+      deltaMode === 1 ? 16 : deltaMode === 2 ? WHEEL_ITEM_HEIGHT * 3 : 1;
+    const normalizedDelta = deltaY * modeMultiplier;
+    if (
+      webWheelDeltaRef.current !== 0 &&
+      Math.sign(webWheelDeltaRef.current) !== Math.sign(normalizedDelta)
+    ) {
+      webWheelDeltaRef.current = 0;
+    }
+    webWheelDeltaRef.current += normalizedDelta;
+    clearWebWheelGestureTimer();
+    webWheelGestureTimerRef.current = setTimeout(() => {
+      const accumulatedDelta = webWheelDeltaRef.current;
+      webWheelDeltaRef.current = 0;
+      webWheelGestureTimerRef.current = null;
+      const magnitude = Math.abs(accumulatedDelta);
+      const steps =
+        magnitude <= WEB_WHEEL_SINGLE_ITEM_DELTA
+          ? 1
+          : Math.min(
+              WEB_WHEEL_MAX_ITEMS_PER_GESTURE,
+              1 +
+                Math.round(
+                  (magnitude - WEB_WHEEL_SINGLE_ITEM_DELTA) /
+                    WEB_WHEEL_ACCELERATION_DELTA,
+                ),
+            );
+      selectIndex(
+        currentIndexRef.current + Math.sign(accumulatedDelta) * steps,
+      );
+    }, WEB_WHEEL_GESTURE_IDLE_MS);
+  };
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || scrollRef.current === null) return;
+
+    const scrollNode = scrollRef.current.getScrollableNode?.() as
+      HTMLElement | undefined;
+    if (scrollNode?.addEventListener === undefined) return;
+
+    const preventNativeWheelScroll = (event: WheelEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      queueWheelDelta(event.deltaY, event.deltaMode);
+    };
+
+    scrollNode.addEventListener('wheel', preventNativeWheelScroll, {
+      passive: false,
+    });
+    return () => {
+      scrollNode.removeEventListener('wheel', preventNativeWheelScroll);
+    };
+  }, [queueWheelDelta]);
 
   const webWheelProps =
     Platform.OS === 'web' ? { onWheel: handleWheel } : undefined;
@@ -1009,7 +1092,7 @@ function WheelColumn({
           ref={scrollRef}
           accessibilityLabel={`${label} 선택 스크롤`}
           decelerationRate="fast"
-          disableIntervalMomentum={false}
+          disableIntervalMomentum
           nestedScrollEnabled
           onMomentumScrollBegin={() => {
             draggingRef.current = true;
@@ -1446,10 +1529,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  wheelItemText: { color: colors.textMuted, fontSize: 14 },
+  wheelItemText: { color: colors.textMuted, fontSize: 16 },
   wheelItemTextSelected: {
     color: colors.primary,
-    fontSize: 16,
     fontWeight: '800',
   },
   bodyRow: { flexDirection: 'row', gap: 10 },

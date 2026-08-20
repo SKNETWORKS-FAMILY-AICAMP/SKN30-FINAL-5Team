@@ -432,7 +432,6 @@ function MonthPicker({
           onSelect={selectYear}
         />
         <MonthPickerWheel
-          key={`month-range-${maximumMonth}`}
           accessibilityLabel="월 선택 휠"
           selectedValue={Math.min(month, maximumMonth)}
           suffix="월"

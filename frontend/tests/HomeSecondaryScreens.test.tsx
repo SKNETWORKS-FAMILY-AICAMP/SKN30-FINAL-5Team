@@ -525,7 +525,7 @@ describe('Home secondary visual prototypes', () => {
     expect(onSelectMonth).toHaveBeenCalledWith('2026-04');
   });
 
-  it('keeps the month wheel mounted and selected while changing past years', async () => {
+  it('keeps the month wheel mounted and selected while changing years', async () => {
     const onSelectMonth = jest.fn();
     await render(
       <CalendarReportScreen
@@ -552,8 +552,50 @@ describe('Home secondary visual prototypes', () => {
       screen.getByTestId('month-picker-month-wheel-value-4').props
         .accessibilityState,
     ).toEqual({ selected: true });
+
+    fireEvent.scroll(screen.getByTestId('month-picker-year-wheel'), {
+      nativeEvent: { contentOffset: { x: 0, y: 10 * 44 } },
+    });
+
+    expect(screen.getByTestId('month-picker-month-wheel')).toBe(monthWheel);
+    expect(
+      screen.getByTestId('month-picker-month-wheel-value-4').props
+        .accessibilityState,
+    ).toEqual({ selected: true });
     fireEvent.press(screen.getByRole('button', { name: '완료' }));
-    expect(onSelectMonth).toHaveBeenCalledWith('2024-04');
+    expect(onSelectMonth).toHaveBeenCalledWith('2026-04');
+  });
+
+  it('clamps a future month without remounting when returning to the latest year', async () => {
+    const onSelectMonth = jest.fn();
+    await render(
+      <CalendarReportScreen
+        latestMonth="2026-08"
+        onSelectMonth={onSelectMonth}
+        previewState="month-picker"
+      />,
+    );
+
+    fireEvent.scroll(screen.getByTestId('month-picker-year-wheel'), {
+      nativeEvent: { contentOffset: { x: 0, y: 9 * 44 } },
+    });
+    fireEvent.scroll(screen.getByTestId('month-picker-month-wheel'), {
+      nativeEvent: { contentOffset: { x: 0, y: 11 * 44 } },
+    });
+    const monthWheel = screen.getByTestId('month-picker-month-wheel');
+
+    fireEvent.scroll(screen.getByTestId('month-picker-year-wheel'), {
+      nativeEvent: { contentOffset: { x: 0, y: 10 * 44 } },
+    });
+
+    expect(screen.getByTestId('month-picker-month-wheel')).toBe(monthWheel);
+    expect(screen.queryByText('9월')).toBeNull();
+    expect(
+      screen.getByTestId('month-picker-month-wheel-value-8').props
+        .accessibilityState,
+    ).toEqual({ selected: true });
+    fireEvent.press(screen.getByRole('button', { name: '완료' }));
+    expect(onSelectMonth).toHaveBeenCalledWith('2026-08');
   });
 
   it('returns notification and account actions through callbacks without persistence', async () => {

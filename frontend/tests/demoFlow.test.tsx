@@ -14,7 +14,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react-native';
-import { Image, Platform } from 'react-native';
+import { Image, Platform, ScrollView } from 'react-native';
 
 import { ApiClient, createIdempotencyKey } from '../src/api/client';
 import { ApiError } from '../src/api/errors';
@@ -1241,6 +1241,7 @@ describe('OnboardingScreen', () => {
 
   it('snaps mouse-wheel and touch scrolling to the nearest date item', () => {
     const originalPlatform = Platform.OS;
+    jest.useFakeTimers();
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       value: 'web',
@@ -1258,22 +1259,39 @@ describe('OnboardingScreen', () => {
       fireEvent.press(screen.getByLabelText('월 6월'));
       const monthWheel = screen.getByLabelText('월 선택 스크롤');
       const preventDefault = jest.fn();
+      expect(monthWheel).toHaveProp('disableIntervalMomentum', true);
 
       fireEvent(monthWheel, 'wheel', {
         nativeEvent: { deltaMode: 0, deltaY: 100 },
         preventDefault,
       });
       expect(preventDefault).toHaveBeenCalled();
+      fireEvent(monthWheel, 'wheel', {
+        nativeEvent: { deltaMode: 0, deltaY: 100 },
+        preventDefault,
+      });
+      expect(screen.getByLabelText('월 6월')).toHaveProp(
+        'accessibilityState',
+        expect.objectContaining({ selected: true }),
+      );
+
+      act(() => {
+        jest.advanceTimersByTime(45);
+      });
       expect(screen.getByLabelText('월 7월')).toHaveProp(
         'accessibilityState',
         expect.objectContaining({ selected: true }),
       );
 
+      // A strong wheel gesture keeps its intent and advances several items.
       fireEvent(monthWheel, 'wheel', {
-        nativeEvent: { deltaMode: 0, deltaY: 330 },
+        nativeEvent: { deltaMode: 0, deltaY: 540 },
         preventDefault,
       });
-      expect(screen.getByLabelText('월 10월')).toHaveProp(
+      act(() => {
+        jest.advanceTimersByTime(45);
+      });
+      expect(screen.getByLabelText('월 12월')).toHaveProp(
         'accessibilityState',
         expect.objectContaining({ selected: true }),
       );
@@ -1286,10 +1304,57 @@ describe('OnboardingScreen', () => {
         expect.objectContaining({ selected: true }),
       );
     } finally {
+      jest.clearAllTimers();
+      jest.useRealTimers();
       Object.defineProperty(Platform, 'OS', {
         configurable: true,
         value: originalPlatform,
       });
+    }
+  });
+
+  it('keeps the animated wheel movement when a date item is pressed', () => {
+    const scrollTo = jest.spyOn(ScrollView.prototype, 'scrollTo');
+    try {
+      render(
+        <OnboardingScreen
+          api={stubApi()}
+          onCompleted={jest.fn()}
+          onSignOut={jest.fn()}
+        />,
+      );
+      scrollTo.mockClear();
+
+      fireEvent.press(screen.getByLabelText('연도 1997년'));
+
+      const scrollRequests = scrollTo.mock.calls
+        .map(([request]) => request)
+        .filter(
+          (
+            request,
+          ): request is {
+            animated?: boolean;
+            x?: number;
+            y?: number;
+          } => typeof request === 'object' && request !== null,
+        );
+      const animatedSelection = scrollRequests.find(
+        (request) => request.animated === true,
+      );
+      expect(animatedSelection).toEqual({
+        animated: true,
+        y: expect.any(Number),
+      });
+      expect(scrollRequests).not.toContainEqual({
+        animated: false,
+        y: animatedSelection?.y,
+      });
+      expect(screen.getByLabelText('연도 1997년')).toHaveProp(
+        'accessibilityState',
+        expect.objectContaining({ selected: true }),
+      );
+    } finally {
+      scrollTo.mockRestore();
     }
   });
 
