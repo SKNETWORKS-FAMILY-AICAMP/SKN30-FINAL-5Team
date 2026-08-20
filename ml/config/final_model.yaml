@@ -1,0 +1,64 @@
+# Validation evidence is frozen before the first test evaluation.
+# Do not change this file in response to test metrics.
+freeze_version: 1
+locked: true
+frozen_at: "2026-08-20T13:26:21+09:00"
+
+selection_source: ml/outputs/selection.json
+validation_results_source: ml/outputs/experiments.csv
+validation_evidence:
+  experiment_count: 38
+  experiment_id: time_A3_histgb
+  split_part: val
+  selection_metric: pr_auc
+  selection_score: 0.7643486950569605
+  config_sha256: a0425fcc0ba351c8f6137f2997261229b374cf54a99904bc2ec4416c648a9549
+  source_fingerprint: 07d935d701aec7001ed59534be4c84d7176f5feaca0318ae978e512769d46373
+  git_commit: 84e53a05f01e9188b5d2ed16fdfc6d99da3afcf0
+
+final_candidate:
+  split_type: time
+  ablation_id: A3
+  model_id: histgb
+  seed: 42
+  refit_on: train_plus_validation
+  feature_columns:
+    - experience_level_code
+    - day_of_week
+    - is_weekend
+    - workout_completed_prev_day
+    - workout_count_7d
+    - workout_count_28d
+    - completion_rate_7d
+    - completion_rate_28d
+    - days_since_last_workout
+    - consecutive_workout_days
+    - consecutive_non_workout_days
+    - is_return_mode_candidate
+    - sleep_minutes_prev_day
+    - resting_hr_prev_day
+    - resting_hr_trend_code_prev_day
+    - last_workout_duration_min_prev_day
+    - last_workout_type_code_prev_day
+    - last_workout_calories_prev_day
+    - last_workout_avg_hr_prev_day
+  hyperparameters:
+    learning_rate: 0.1
+    max_iter: 300
+    random_state: 42
+  preprocessing:
+    categorical: native_ordinal_with_missing_token
+    numeric: median_imputation
+
+evaluation:
+  split_part: test
+  threshold: 0.5
+  calibration_bins: 10
+  permutation_repeats: 5
+  metrics: [precision, recall, f1, roc_auc, pr_auc, brier]
+  segments: [history_bucket, experience_level_code]
+
+guards:
+  excluded_ablations: [A5]
+  max_test_evaluations: 1
+  allow_reselection_after_test: false

@@ -19,7 +19,10 @@ identifiers:
   - user_id
   - local_date
 
-# 모델 입력에서 제외한다. 세그먼트 분석과 추적에만 사용한다.
+# 세그먼트 분석과 추적을 위해 예측 결과에 유지한다.
+# history_days/history_bucket은 모델 입력에서 제외한다.
+# experience_level_code는 A1 피처이며 세그먼트 분석에도 사용한다.
+# 모델 입력은 segments 목록을 일괄 제외하지 않고 활성 ablation의 feature_blocks로 결정한다.
 segments:
   - history_days
   - history_bucket
@@ -121,7 +124,7 @@ ablations:
     blocks: []
     model_override: majority
     transferable: true
-    note: 실측 기저율 0.5401이 정확도 상한
+    note: 관측 다수 클래스 baseline 정확도 0.5401
 
   A1:
     name: profile_calendar
@@ -222,6 +225,9 @@ splits:
 # 평가. 정확도만 보고하지 않는다.
 # ---------------------------------------------------------------------------
 evaluation:
+  threshold: 0.5
+  calibration_bins: 10
+  permutation_repeats: 5
   metrics:
     - precision
     - recall

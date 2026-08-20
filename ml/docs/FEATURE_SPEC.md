@@ -49,7 +49,7 @@
 | 주말 수행률 | **토 0.418 / 일 0.417** |
 
 자기상관은 존재하나 지배적이지 않다(격차 약 15%p). **요일 효과가 훨씬 크다**(평일-주말 약 17%p).
-`A0` 다수 클래스 baseline의 정확도 상한은 **0.5401**이다.
+`A0` 다수 클래스 baseline의 관측 정확도는 **0.5401**이다.
 
 > 요일 효과는 합성 생성기의 파라미터일 가능성이 높다. 한국 사용자의 실제 패턴은 반대일 수 있다.
 > 결과서에서 이를 실사용자 행동 근거로 쓰지 않는다.
@@ -96,7 +96,7 @@
 
 ## 3. 제외 컬럼과 근거
 
-### 3.1 누수 — 당일 결과성 값 (13개)
+### 3.1 누수 — 당일 결과성 값 (14개)
 
 운동 수행 후 생성되거나 타깃을 직접 노출한다. **당일 값으로는 절대 사용하지 않는다.**
 단, 전일로 이동(`shift(1)`)한 값은 정당한 피처이며 4절에서 사용한다.
@@ -162,6 +162,8 @@ sleep_performance   전 행이 100.0 (평균 100.0, 표준편차 0.0)
 
 `role`: `identifier` | `feature` | `segment` | `target`
 `identifier`와 `segment`는 **모델 입력에서 제외**한다.
+단, `experience_level_code`는 `A1` 피처이면서 세그먼트 분석에도 쓰는 **이중 용도**다.
+`A1`이 포함된 ablation에서는 모델 입력으로 사용하고, 예측 결과에도 세그먼트용으로 유지한다.
 
 모든 전일 피처는 `df.sort_values(["user_id","local_date"]).groupby("user_id").shift(1)`로 만든다.
 
@@ -254,15 +256,17 @@ sleep_performance   전 행이 100.0 (평균 100.0, 표준편차 0.0)
 | `respiratory_rate_prev_day` | float32 | `shift(1)` |
 | `skin_temp_deviation_prev_day` | float32 | `shift(1)` |
 
-### 4.8 세그먼트 (block `meta`, 모델 입력 제외)
+### 4.8 세그먼트 분석 컬럼
 
 **예측 결과 파일에 반드시 포함**한다.
+`history_days`와 `history_bucket`은 block `meta`이며 모델 입력에서 제외한다.
+`experience_level_code`는 `A1` 피처로 입력하면서 동시에 세그먼트 분석에 사용한다.
 
 | column_name | dtype | role | derivation |
 |---|---|---|---|
 | `history_days` | int16 | segment | 해당 행 시점까지 관측된 일수 |
 | `history_bucket` | category | segment | `0-7` / `8-28` / `29+` |
-| `experience_level_code` | category | segment | 4.3절과 동일 컬럼 |
+| `experience_level_code` | category | feature | 4.3절의 `A1` 피처이며 세그먼트 분석에도 사용 |
 
 > **가용성 플래그는 만들지 않는다.** 실측 결과 이 데이터셋에는 웨어러블 결측이 **전혀 없다**
 > (유일한 결측은 타깃 누수 컬럼인 `workout_time_of_day`). 플래그를 만들면 전 행이 `True`인
@@ -323,7 +327,7 @@ resting_hr_delta_28d <=  -2.0 bpm  ->  DOWNWARD
 
 | ID | 포함 블록 | 전이 가능성 | 목적 |
 |---|---|---|---|
-| `A0` | 없음 (다수 클래스) | — | 하한. 정확도 0.5401 |
+| `A0` | 없음 (다수 클래스) | — | 관측 baseline 정확도 0.5401 |
 | `A1` | `A1` | 높음 | 콜드스타트 구간 상한 |
 | `A2` | `A1`+`A2` | **최상** | 앱이 직접 기록하는 정보만 |
 | `A3` | `A1`+`A2`+`A3` | 높음 | 서비스 수집 가능 웨어러블 추가 효과 |
