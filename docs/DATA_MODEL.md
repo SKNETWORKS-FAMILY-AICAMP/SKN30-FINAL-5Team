@@ -779,6 +779,7 @@ provider 실패로 counter를 rollback하지 않는다. account deletion 때 CAS
 | sleep_minutes | 선택적 수동 또는 요약값 |
 | fasting_state_code | 선택 |
 | hydration_state_code | 선택 |
+| availability_source_code | MANUAL 또는 ROUTINE_DEFAULT. 기본값 ROUTINE_DEFAULT |
 | context_version | 낙관적 잠금 |
 | created_at | 생성 시각 |
 | updated_at | 수정 시각 |
@@ -809,6 +810,32 @@ daily_context_id와 body_area_code 조합은 유일하다. NONE 항목은 저장
 | reaction_code | DOMAIN_RULES.md의 이상 반응 코드 |
 
 PK는 daily_context_id와 reaction_code 조합이다.
+
+### 7.3.1 daily_context_availability_slots
+
+사용자가 체크인에서 직접 입력한 운동 가능 시간 구간이다. 외부 캘린더 연동은 보류 상태이므로
+(ADR-0010 "구현 보류") 이 테이블이 유일한 availability 입력원이다.
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| daily_context_id | daily_contexts FK, ON DELETE CASCADE |
+| start_at | timestamptz, 구간 시작 |
+| end_at | timestamptz, 구간 종료 |
+| slot_order | 0부터 시작하는 정규화된 순서 |
+
+- `(daily_context_id, slot_order)` 조합은 유일하다.
+- `end_at > start_at` CHECK를 둔다.
+- `slot_order >= 0` CHECK와 최대 8개 제한을 둔다. 상한은 도메인의 `MAX_AVAILABILITY_SLOTS`와
+  같은 값이며 애플리케이션 계층에서 강제한다.
+- 행은 체크인 교체마다 전량 삭제 후 재삽입한다. `daily_contexts.context_version`이 함께 증가한다.
+
+미입력과 명시적 빈 선택은 행 수로 구분하지 않고 `daily_contexts.availability_source_code`로
+구분한다. `ROUTINE_DEFAULT`는 미입력, `MANUAL`이면서 행이 0개면 사용자가 "가능한 시간 없음"을
+명시적으로 선택한 상태다.
+
+이 테이블은 참고 입력이며 공식 운동 수행 상태, 안전 판단, 운동 계획을 변경하지 않는다. 일정 제목,
+설명, 참석자, 장소, 링크 같은 캘린더 본문 성격의 값은 저장하지 않는다.
 
 ### 7.4 wearable_connections
 
