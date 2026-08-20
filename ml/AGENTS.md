@@ -1,13 +1,13 @@
 # ML working rules
 
 이 디렉터리는 **운동 수행 여부 예측 ML 과제**의 오프라인 분석 코드다.
-작업 전 `docs/ML_WORK_PLAN.md`를 읽는다.
+작업 전 `ml/docs/ML_WORK_PLAN.md`를 읽는다.
 
 ## 1. 범위
 
 - 이 과제는 **오프라인 분석 전용**이다. 런타임 결정에 연결하지 않는다.
 - `ml/` 밖의 파일을 수정하지 않는다. `backend/`, `frontend/`, `data/`, `docs/`는 건드리지 않는다.
-- 자기 트랙 소유 파일만 수정한다 (`docs/ML_WORK_PLAN.md` 8절).
+- 자기 트랙 소유 파일만 수정한다 (`ml/docs/ML_WORK_PLAN.md` 8절).
 - 딥러닝을 사용하지 않는다. 표 형식 데이터이며 GBDT 계열로 충분하다.
 
 ## 2. 데이터
