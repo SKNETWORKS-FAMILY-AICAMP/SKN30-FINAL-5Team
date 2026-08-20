@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -54,6 +55,8 @@ type CalendarReportScreenProps = {
 };
 
 const MONTH_PICKER_ITEM_HEIGHT = 44;
+const WEB_WHEEL_DELTA_PER_ITEM = 100;
+const WEB_WHEEL_IDLE_MS = 60;
 
 export function CalendarReportScreen({
   previewState = 'calendar',
@@ -429,7 +432,7 @@ function MonthPicker({
           onSelect={selectYear}
         />
         <MonthPickerWheel
-          key={`${year}-${maximumMonth}`}
+          key={`month-range-${maximumMonth}`}
           accessibilityLabel="월 선택 휠"
           selectedValue={Math.min(month, maximumMonth)}
           suffix="월"
@@ -470,10 +473,82 @@ function MonthPickerWheel({
 }) {
   const wheelRef = useRef<ScrollView | null>(null);
   const initialScrollApplied = useRef(false);
+  const webWheelDelta = useRef(0);
+  const webWheelIndex = useRef(Math.max(0, values.indexOf(selectedValue)));
+  const webWheelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [initialContentOffset] = useState(() => ({
     x: 0,
     y: Math.max(0, values.indexOf(selectedValue)) * MONTH_PICKER_ITEM_HEIGHT,
   }));
+
+  useEffect(() => {
+    webWheelIndex.current = Math.max(0, values.indexOf(selectedValue));
+  }, [selectedValue, values]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || wheelRef.current === null) return;
+
+    const scrollNode = wheelRef.current.getScrollableNode() as HTMLElement;
+    const handleWheel = (event: WheelEvent) => {
+      if (event.deltaY === 0) return;
+
+      event.preventDefault();
+      const modeMultiplier =
+        event.deltaMode === 1
+          ? 16
+          : event.deltaMode === 2
+            ? MONTH_PICKER_ITEM_HEIGHT * 5
+            : 1;
+      const normalizedDelta = event.deltaY * modeMultiplier;
+      if (
+        webWheelDelta.current !== 0 &&
+        Math.sign(webWheelDelta.current) !== Math.sign(normalizedDelta)
+      ) {
+        webWheelDelta.current = 0;
+      }
+      webWheelDelta.current += normalizedDelta;
+
+      if (webWheelTimer.current !== null) {
+        clearTimeout(webWheelTimer.current);
+      }
+      webWheelTimer.current = setTimeout(() => {
+        const accumulatedDelta = webWheelDelta.current;
+        webWheelDelta.current = 0;
+        webWheelTimer.current = null;
+
+        const itemDelta =
+          Math.sign(accumulatedDelta) *
+          Math.max(
+            1,
+            Math.round(Math.abs(accumulatedDelta) / WEB_WHEEL_DELTA_PER_ITEM),
+          );
+        const nextIndex = Math.max(
+          0,
+          Math.min(values.length - 1, webWheelIndex.current + itemDelta),
+        );
+        if (nextIndex === webWheelIndex.current) return;
+
+        webWheelIndex.current = nextIndex;
+        wheelRef.current?.scrollTo({
+          animated: true,
+          x: 0,
+          y: nextIndex * MONTH_PICKER_ITEM_HEIGHT,
+        });
+        const nextValue = values[nextIndex];
+        if (nextValue !== undefined) onSelect(nextValue);
+      }, WEB_WHEEL_IDLE_MS);
+    };
+
+    scrollNode.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      scrollNode.removeEventListener('wheel', handleWheel);
+      if (webWheelTimer.current !== null) {
+        clearTimeout(webWheelTimer.current);
+        webWheelTimer.current = null;
+      }
+    };
+  }, [onSelect, values]);
+
   const applyInitialScroll = () => {
     if (initialScrollApplied.current || wheelRef.current === null) return;
 

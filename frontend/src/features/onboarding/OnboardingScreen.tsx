@@ -1,7 +1,10 @@
 /** API-backed, one-question-per-page onboarding flow. */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Api } from '../../api/endpoints';
 import { isApiError } from '../../api/errors';
 import { BODY_AREA_OPTIONS } from '../../api/labels';
-import type { SexCode } from '../../api/types';
+import type { DiscomfortSeverityCode, SexCode } from '../../api/types';
 import { useAsyncAction } from '../../api/useAsync';
 import {
   Button,
@@ -23,10 +26,7 @@ import {
   TextField,
 } from '../../components/primitives';
 import { colors, radii, spacing } from '../../components/theme';
-import {
-  PROFILE_BODY_LIMITS,
-  PROFILE_SEX_OPTIONS,
-} from '../profile/profileModel';
+import { PROFILE_BODY_LIMITS } from '../profile/profileModel';
 
 const LOCATIONS = [
   { code: 'HOME', label: '집' },
@@ -37,8 +37,19 @@ const EQUIPMENT = [
   { code: 'MAT', label: '매트' },
   { code: 'RESISTANCE_BAND', label: '밴드' },
 ] as const;
-const DURATIONS = [20, 30, 40, 50] as const;
-const WEEKLY_COUNTS = [2, 3, 4, 5] as const;
+const MINIMUM_AGE = 14;
+const MIN_BIRTH_YEAR = 1900;
+const WHEEL_ITEM_HEIGHT = 44;
+const DURATION_STEP = 10;
+const MIN_DURATION = 10;
+const MAX_DURATION = 240;
+const MIN_WEEKLY_COUNT = 1;
+const MAX_WEEKLY_COUNT = 7;
+
+const SEX_OPTIONS = [
+  { code: 'FEMALE', label: '여성' },
+  { code: 'MALE', label: '남성' },
+] as const satisfies readonly { code: SexCode; label: string }[];
 
 // The complete goal and experience code lists are not yet public API
 // contracts. Keep these options to deployment-approved codes and extend them
@@ -60,8 +71,16 @@ const EXPERIENCE_OPTIONS = [
 const EXERCISE_TYPE_OPTIONS = [
   { code: 'STRENGTH', label: '근력' },
   { code: 'CARDIO', label: '유산소' },
-  { code: 'MOBILITY', label: '가동성' },
+  { code: 'MOBILITY', label: '스트레칭' },
 ] as const;
+const PAIN_SEVERITY_OPTIONS = [
+  { code: 'MILD', label: '조금 아픔' },
+  { code: 'MODERATE', label: '중간 정도 아픔' },
+  { code: 'SEVERE', label: '많이 아픔' },
+] as const satisfies readonly {
+  code: DiscomfortSeverityCode;
+  label: string;
+}[];
 const COACHING_STYLE_OPTIONS = [
   {
     code: 'SUPPORTIVE',
@@ -190,7 +209,20 @@ function OnboardingScreenContent({
 }: Props) {
   const [step, setStep] = useState(initialStep);
   const [nickname, setNickname] = useState('');
-  const [birthdate, setBirthdate] = useState('');
+  const today = useMemo(() => new Date(), []);
+  const latestEligibleBirthdate = useMemo(
+    () => getLatestEligibleBirthdate(today),
+    [today],
+  );
+  const [birthYear, setBirthYear] = useState(() =>
+    latestEligibleBirthdate.getFullYear(),
+  );
+  const [birthMonth, setBirthMonth] = useState(
+    () => latestEligibleBirthdate.getMonth() + 1,
+  );
+  const [birthDay, setBirthDay] = useState(() =>
+    latestEligibleBirthdate.getDate(),
+  );
   const [sexCode, setSexCode] = useState<SexCode | null>(null);
   const [heightCm, setHeightCm] = useState('');
   const [weightKg, setWeightKg] = useState('');
@@ -214,11 +246,36 @@ function OnboardingScreenContent({
     null,
   );
   const [attentionAreas, setAttentionAreas] = useState<string[]>([]);
+  const [attentionSeverities, setAttentionSeverities] = useState<
+    Partial<Record<string, DiscomfortSeverityCode>>
+  >({});
   const [generalConsent, setGeneralConsent] = useState(false);
   const [sensitiveConsent, setSensitiveConsent] = useState(false);
   const current = ONBOARDING_STEPS[step - 1] ?? ONBOARDING_STEPS[0];
-  const today = useMemo(() => new Date(), []);
-  const birthdateError = getBirthdateError(birthdate, today);
+  const birthdate = toIsoDate(birthYear, birthMonth, birthDay);
+  const birthYears = useMemo(
+    () =>
+      numberRange(
+        MIN_BIRTH_YEAR,
+        latestEligibleBirthdate.getFullYear(),
+      ).reverse(),
+    [latestEligibleBirthdate],
+  );
+  const birthMonths = useMemo(() => {
+    const lastMonth =
+      birthYear === latestEligibleBirthdate.getFullYear()
+        ? latestEligibleBirthdate.getMonth() + 1
+        : 12;
+    return numberRange(1, lastMonth);
+  }, [birthYear, latestEligibleBirthdate]);
+  const birthDays = useMemo(() => {
+    const lastDay =
+      birthYear === latestEligibleBirthdate.getFullYear() &&
+      birthMonth === latestEligibleBirthdate.getMonth() + 1
+        ? latestEligibleBirthdate.getDate()
+        : monthDays(birthYear, birthMonth);
+    return numberRange(1, lastDay);
+  }, [birthMonth, birthYear, latestEligibleBirthdate]);
 
   const timezone = useMemo(() => {
     try {
@@ -282,7 +339,6 @@ function OnboardingScreenContent({
 
   const valid = isStepValid(current.key, {
     birthdate,
-    birthdateError,
     coachingStyleCode,
     equipment,
     experienceLevelCode,
@@ -292,6 +348,7 @@ function OnboardingScreenContent({
     locations,
     nickname,
     attentionAreas,
+    attentionSeverities,
     preferredExerciseTypes,
     primaryGoalCode,
     sensitiveConsent,
@@ -315,6 +372,50 @@ function OnboardingScreenContent({
     else changeStep(step + 1);
   };
 
+  const changeBirthYear = (value: number) => {
+    const latestYear = latestEligibleBirthdate.getFullYear();
+    const nextMonth = Math.min(
+      birthMonth,
+      value === latestYear ? latestEligibleBirthdate.getMonth() + 1 : 12,
+    );
+    const nextMaximumDay =
+      value === latestYear &&
+      nextMonth === latestEligibleBirthdate.getMonth() + 1
+        ? latestEligibleBirthdate.getDate()
+        : monthDays(value, nextMonth);
+    setBirthYear(value);
+    setBirthMonth(nextMonth);
+    setBirthDay((currentDay) => Math.min(currentDay, nextMaximumDay));
+    submit.clearError();
+  };
+  const changeBirthMonth = (value: number) => {
+    const maximumDay =
+      birthYear === latestEligibleBirthdate.getFullYear() &&
+      value === latestEligibleBirthdate.getMonth() + 1
+        ? latestEligibleBirthdate.getDate()
+        : monthDays(birthYear, value);
+    setBirthMonth(value);
+    setBirthDay((currentDay) => Math.min(currentDay, maximumDay));
+    submit.clearError();
+  };
+  const changeBirthDay = (value: number) => {
+    setBirthDay(value);
+    submit.clearError();
+  };
+
+  const toggleAttentionArea = (code: string) => {
+    setAttentionAreas((values) => {
+      if (!values.includes(code)) return [...values, code];
+      setAttentionSeverities((currentValues) => {
+        const next = { ...currentValues };
+        delete next[code];
+        return next;
+      });
+      return values.filter((item) => item !== code);
+    });
+    submit.clearError();
+  };
+
   const renderStep = () => {
     switch (current.key) {
       case 'basic':
@@ -333,27 +434,45 @@ function OnboardingScreenContent({
               trailing={<Text style={styles.suffix}>{nickname.length}/64</Text>}
               value={nickname}
             />
-            <TextField
-              accessibilityLabel="생년월일"
-              error={birthdate ? (birthdateError ?? undefined) : undefined}
-              keyboardType="numbers-and-punctuation"
-              label="생년월일"
-              maxLength={10}
-              onChangeText={(value) => {
-                setBirthdate(value.slice(0, 10));
-                submit.clearError();
-              }}
-              placeholder="예: 1997-08-11"
-              style={styles.input}
-              value={birthdate}
-            />
-            <Text style={styles.hint}>YYYY-MM-DD 형식 · 시간대 {timezone}</Text>
+            <View
+              accessibilityLabel="생년월일 선택"
+              style={styles.birthdateBlock}
+            >
+              <Text style={styles.fieldLabel}>생년월일</Text>
+              <View style={styles.wheelRow}>
+                <WheelColumn
+                  label="연도"
+                  options={birthYears}
+                  selected={birthYear}
+                  suffix="년"
+                  onChange={changeBirthYear}
+                />
+                <WheelColumn
+                  label="월"
+                  options={birthMonths}
+                  selected={birthMonth}
+                  suffix="월"
+                  onChange={changeBirthMonth}
+                />
+                <WheelColumn
+                  label="일"
+                  options={birthDays}
+                  selected={birthDay}
+                  suffix="일"
+                  onChange={changeBirthDay}
+                />
+              </View>
+              <Text style={styles.hint}>
+                만 {MINIMUM_AGE}세 이상만 선택할 수 있어요. 선택 가능한 최근
+                날짜는 {formatDate(latestEligibleBirthdate)}예요.
+              </Text>
+            </View>
           </Card>
         );
       case 'sex':
         return (
           <ChoiceCard>
-            {PROFILE_SEX_OPTIONS.map((option) => (
+            {SEX_OPTIONS.map((option) => (
               <Chip
                 key={option.code}
                 grow
@@ -496,31 +615,29 @@ function OnboardingScreenContent({
         );
       case 'duration':
         return (
-          <ChoiceCard>
-            {DURATIONS.map((minutes) => (
-              <Chip
-                key={minutes}
-                grow
-                label={`${minutes}분`}
-                selected={duration === minutes}
-                onPress={() => setDuration(minutes)}
-              />
-            ))}
-          </ChoiceCard>
+          <StepCounter
+            decreaseLabel="운동 시간 10분 줄이기"
+            increaseLabel="운동 시간 10분 늘리기"
+            max={MAX_DURATION}
+            min={MIN_DURATION}
+            suffix="분"
+            value={duration}
+            onChange={setDuration}
+            step={DURATION_STEP}
+          />
         );
       case 'frequency':
         return (
-          <ChoiceCard>
-            {WEEKLY_COUNTS.map((count) => (
-              <Chip
-                key={count}
-                grow
-                label={`주 ${count}회`}
-                selected={weeklyCount === count}
-                onPress={() => setWeeklyCount(count)}
-              />
-            ))}
-          </ChoiceCard>
+          <StepCounter
+            decreaseLabel="주간 운동 횟수 1회 줄이기"
+            increaseLabel="주간 운동 횟수 1회 늘리기"
+            max={MAX_WEEKLY_COUNT}
+            min={MIN_WEEKLY_COUNT}
+            prefix="주 "
+            suffix="회"
+            value={weeklyCount}
+            onChange={setWeeklyCount}
+          />
         );
       case 'attention':
         return (
@@ -532,6 +649,7 @@ function OnboardingScreenContent({
               onPress={() => {
                 setHasAttentionAreas(false);
                 setAttentionAreas([]);
+                setAttentionSeverities({});
                 submit.clearError();
               }}
             />
@@ -544,19 +662,59 @@ function OnboardingScreenContent({
                 submit.clearError();
               }}
             />
-            {hasAttentionAreas === true
-              ? BODY_AREA_OPTIONS.map((item) => (
-                  <Chip
-                    key={item.code}
-                    label={item.label}
-                    selected={attentionAreas.includes(item.code)}
-                    onPress={() => {
-                      setAttentionAreas((values) => toggle(values, item.code));
-                      submit.clearError();
-                    }}
-                  />
-                ))
-              : null}
+            {hasAttentionAreas === true ? (
+              <View style={styles.painDetails}>
+                <View style={styles.painSection}>
+                  <Text style={styles.painSectionTitle}>통증 부위</Text>
+                  <View style={styles.painChoices}>
+                    {BODY_AREA_OPTIONS.map((item) => (
+                      <Chip
+                        key={item.code}
+                        label={item.label}
+                        selected={attentionAreas.includes(item.code)}
+                        onPress={() => toggleAttentionArea(item.code)}
+                      />
+                    ))}
+                  </View>
+                </View>
+                {attentionAreas.map((code) => {
+                  const area = BODY_AREA_OPTIONS.find(
+                    (item) => item.code === code,
+                  );
+                  return (
+                    <View key={code} style={styles.painSection}>
+                      <Text style={styles.painSectionTitle}>
+                        {area?.label ?? code} 통증 정도
+                      </Text>
+                      <View style={styles.painChoices}>
+                        {PAIN_SEVERITY_OPTIONS.map((severity) => (
+                          <Chip
+                            key={severity.code}
+                            label={severity.label}
+                            selected={
+                              attentionSeverities[code] === severity.code
+                            }
+                            onPress={() => {
+                              setAttentionSeverities((values) => ({
+                                ...values,
+                                [code]: severity.code,
+                              }));
+                              submit.clearError();
+                            }}
+                          />
+                        ))}
+                      </View>
+                    </View>
+                  );
+                })}
+                {attentionAreas.length > 0 ? (
+                  <Text style={styles.hint}>
+                    통증 정도는 온보딩 중 확인용이며, 현재 서버에는 부위만
+                    저장돼요.
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
           </ChoiceCard>
         );
       case 'consent':
@@ -678,7 +836,6 @@ function OnboardingScreenContent({
 type FormState = {
   nickname: string;
   birthdate: string;
-  birthdateError: string | null;
   sexCode: SexCode | null;
   heightCm: string;
   weightKg: string;
@@ -690,6 +847,7 @@ type FormState = {
   equipment: string[];
   hasAttentionAreas: boolean | null;
   attentionAreas: string[];
+  attentionSeverities: Partial<Record<string, DiscomfortSeverityCode>>;
   generalConsent: boolean;
   sensitiveConsent: boolean;
 };
@@ -703,8 +861,7 @@ function isStepValid(
       return (
         form.nickname.trim().length > 0 &&
         form.nickname.length <= 64 &&
-        form.birthdate.trim().length > 0 &&
-        form.birthdateError === null
+        form.birthdate.length > 0
       );
     case 'sex':
       return form.sexCode !== null;
@@ -727,13 +884,254 @@ function isStepValid(
     case 'attention':
       return (
         form.hasAttentionAreas !== null &&
-        (!form.hasAttentionAreas || form.attentionAreas.length > 0)
+        (!form.hasAttentionAreas ||
+          (form.attentionAreas.length > 0 &&
+            form.attentionAreas.every(
+              (code) => form.attentionSeverities[code] !== undefined,
+            )))
       );
     case 'consent':
       return form.generalConsent && form.sensitiveConsent;
     default:
       return true;
   }
+}
+
+function WheelColumn({
+  label,
+  onChange,
+  options,
+  selected,
+  suffix,
+}: {
+  label: string;
+  onChange: (value: number) => void;
+  options: number[];
+  selected: number;
+  suffix: string;
+}) {
+  const scrollRef = useRef<ScrollView>(null);
+  const selectedIndex = Math.max(0, options.indexOf(selected));
+  const currentIndexRef = useRef(selectedIndex);
+  const webSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draggingRef = useRef(false);
+
+  const clearWebSettleTimer = () => {
+    if (webSettleTimerRef.current !== null) {
+      clearTimeout(webSettleTimerRef.current);
+      webSettleTimerRef.current = null;
+    }
+  };
+
+  const scrollToIndex = (index: number, animated: boolean) => {
+    scrollRef.current?.scrollTo({
+      animated,
+      y: index * WHEEL_ITEM_HEIGHT,
+    });
+  };
+
+  const selectIndex = (index: number, animated = true) => {
+    const boundedIndex = Math.max(0, Math.min(options.length - 1, index));
+    const value = options[boundedIndex];
+    if (value === undefined) return;
+    currentIndexRef.current = boundedIndex;
+    scrollToIndex(boundedIndex, animated);
+    if (value !== selected) onChange(value);
+  };
+
+  const settleAtOffset = (offsetY: number) => {
+    selectIndex(Math.round(offsetY / WHEEL_ITEM_HEIGHT));
+  };
+
+  useEffect(() => {
+    currentIndexRef.current = selectedIndex;
+    scrollToIndex(selectedIndex, false);
+  }, [options, selected, selectedIndex]);
+
+  useEffect(
+    () => () => {
+      clearWebSettleTimer();
+    },
+    [],
+  );
+
+  const settleFromScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    clearWebSettleTimer();
+    draggingRef.current = false;
+    settleAtOffset(event.nativeEvent.contentOffset.y);
+  };
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (Platform.OS !== 'web' || draggingRef.current) return;
+    const offsetY = event.nativeEvent.contentOffset.y;
+    clearWebSettleTimer();
+    webSettleTimerRef.current = setTimeout(() => {
+      settleAtOffset(offsetY);
+      webSettleTimerRef.current = null;
+    }, 90);
+  };
+
+  const handleWheel = (
+    event: NativeSyntheticEvent<{
+      deltaMode?: number;
+      deltaY: number;
+    }>,
+  ) => {
+    event.preventDefault();
+    clearWebSettleTimer();
+    const { deltaMode = 0, deltaY } = event.nativeEvent;
+    if (deltaY === 0) return;
+    const normalizedDelta =
+      deltaMode === 1
+        ? deltaY * 40
+        : deltaMode === 2
+          ? deltaY * WHEEL_ITEM_HEIGHT * 5
+          : deltaY;
+    const steps = Math.max(
+      1,
+      Math.min(
+        6,
+        Math.round(Math.abs(normalizedDelta) / (WHEEL_ITEM_HEIGHT * 2.5)),
+      ),
+    );
+    selectIndex(currentIndexRef.current + Math.sign(deltaY) * steps);
+  };
+
+  const webWheelProps =
+    Platform.OS === 'web' ? { onWheel: handleWheel } : undefined;
+
+  return (
+    <View style={styles.wheelColumn}>
+      <Text style={styles.wheelLabel}>{label}</Text>
+      <View style={styles.wheelViewport}>
+        <View pointerEvents="none" style={styles.wheelSelection} />
+        <ScrollView
+          ref={scrollRef}
+          accessibilityLabel={`${label} 선택 스크롤`}
+          decelerationRate="fast"
+          disableIntervalMomentum={false}
+          nestedScrollEnabled
+          onMomentumScrollBegin={() => {
+            draggingRef.current = true;
+            clearWebSettleTimer();
+          }}
+          onMomentumScrollEnd={settleFromScroll}
+          onScroll={handleScroll}
+          onScrollBeginDrag={() => {
+            draggingRef.current = true;
+            clearWebSettleTimer();
+          }}
+          onScrollEndDrag={(event) => {
+            draggingRef.current = false;
+            const velocity = event.nativeEvent.velocity?.y;
+            if (velocity !== undefined && Math.abs(velocity) < 0.1) {
+              settleFromScroll(event);
+              return;
+            }
+            const offsetY = event.nativeEvent.contentOffset.y;
+            clearWebSettleTimer();
+            webSettleTimerRef.current = setTimeout(() => {
+              settleAtOffset(offsetY);
+              webSettleTimerRef.current = null;
+            }, 120);
+          }}
+          scrollEventThrottle={16}
+          showsVerticalScrollIndicator={false}
+          snapToAlignment="start"
+          snapToInterval={WHEEL_ITEM_HEIGHT}
+          style={styles.wheelScroll}
+          contentContainerStyle={styles.wheelContent}
+          {...webWheelProps}
+        >
+          {options.map((value, index) => {
+            const selectedOption = selected === value;
+            const optionLabel = `${value}${suffix}`;
+            return (
+              <Pressable
+                accessibilityLabel={`${label} ${optionLabel}`}
+                accessibilityRole="button"
+                accessibilityState={{ selected: selectedOption }}
+                key={value}
+                onPress={() => {
+                  selectIndex(index);
+                }}
+                style={styles.wheelItem}
+              >
+                <Text
+                  style={[
+                    styles.wheelItemText,
+                    selectedOption && styles.wheelItemTextSelected,
+                  ]}
+                >
+                  {optionLabel}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
+    </View>
+  );
+}
+
+function StepCounter({
+  decreaseLabel,
+  increaseLabel,
+  max,
+  min,
+  onChange,
+  prefix = '',
+  step = 1,
+  suffix,
+  value,
+}: {
+  decreaseLabel: string;
+  increaseLabel: string;
+  max: number;
+  min: number;
+  onChange: (value: number) => void;
+  prefix?: string;
+  step?: number;
+  suffix: string;
+  value: number;
+}) {
+  const canDecrease = value > min;
+  const canIncrease = value < max;
+  return (
+    <Card style={styles.counterCard}>
+      <Pressable
+        accessibilityLabel={decreaseLabel}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !canDecrease }}
+        disabled={!canDecrease}
+        onPress={() => onChange(Math.max(min, value - step))}
+        style={[
+          styles.counterButton,
+          !canDecrease && styles.counterButtonDisabled,
+        ]}
+      >
+        <Text style={styles.counterButtonText}>−</Text>
+      </Pressable>
+      <Text accessibilityLiveRegion="polite" style={styles.counterValue}>
+        {prefix}
+        {value}
+        {suffix}
+      </Text>
+      <Pressable
+        accessibilityLabel={increaseLabel}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !canIncrease }}
+        disabled={!canIncrease}
+        onPress={() => onChange(Math.min(max, value + step))}
+        style={[
+          styles.counterButton,
+          !canIncrease && styles.counterButtonDisabled,
+        ]}
+      >
+        <Text style={styles.counterButtonText}>+</Text>
+      </Pressable>
+    </Card>
+  );
 }
 
 function ChoiceCard({ children }: { children: React.ReactNode }) {
@@ -853,32 +1251,35 @@ function isInRange(value: string, limits: { min: number; max: number }) {
   );
 }
 
-function getBirthdateError(value: string, today: Date): string | null {
-  const normalized = value.trim();
-  if (!normalized) return null;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
-    return 'YYYY-MM-DD 형식으로 입력해주세요.';
-  }
+function getLatestEligibleBirthdate(today: Date) {
+  const eligibleYear = today.getFullYear() - MINIMUM_AGE;
+  const lastDay = monthDays(eligibleYear, today.getMonth() + 1);
+  return new Date(
+    eligibleYear,
+    today.getMonth(),
+    Math.min(today.getDate(), lastDay),
+  );
+}
 
-  const [yearText, monthText, dayText] = normalized.split('-');
-  const year = Number(yearText);
-  const month = Number(monthText);
-  const day = Number(dayText);
-  const daysInMonth = monthDays(year, month);
-  if (year < 1 || daysInMonth === 0 || day < 1 || day > daysInMonth) {
-    return '달력에 있는 올바른 날짜를 입력해주세요.';
-  }
+function toIsoDate(
+  year: number | null,
+  month: number | null,
+  day: number | null,
+) {
+  if (year === null || month === null || day === null) return '';
+  return `${year.toString().padStart(4, '0')}-${month
+    .toString()
+    .padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+}
 
-  const birthNumber = year * 10_000 + month * 100 + day;
-  const todayNumber =
-    today.getFullYear() * 10_000 +
-    (today.getMonth() + 1) * 100 +
-    today.getDate();
-  if (birthNumber > todayNumber) {
-    return '미래 날짜는 입력할 수 없어요.';
-  }
+function formatDate(value: Date) {
+  return toIsoDate(value.getFullYear(), value.getMonth() + 1, value.getDate());
+}
 
-  return null;
+function numberRange(start: number, end: number) {
+  return Array.from({ length: Math.max(0, end - start + 1) }, (_, index) =>
+    Number(start + index),
+  );
 }
 
 function monthDays(year: number, month: number): number {
@@ -1010,11 +1411,82 @@ const styles = StyleSheet.create({
   },
   cardGroup: { gap: 14 },
   input: { backgroundColor: colors.canvas },
+  birthdateBlock: { gap: spacing.sm },
+  fieldLabel: { color: colors.text, fontSize: 13, fontWeight: '700' },
+  wheelRow: { flexDirection: 'row', gap: spacing.sm },
+  wheelColumn: { minWidth: 0, flex: 1, gap: 5 },
+  wheelDisabled: { opacity: 0.45 },
+  wheelLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  wheelViewport: {
+    height: WHEEL_ITEM_HEIGHT * 3,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radii.control,
+    backgroundColor: colors.canvas,
+  },
+  wheelScroll: { zIndex: 1 },
+  wheelContent: { paddingVertical: WHEEL_ITEM_HEIGHT },
+  wheelSelection: {
+    position: 'absolute',
+    top: WHEEL_ITEM_HEIGHT,
+    right: 5,
+    left: 5,
+    height: WHEEL_ITEM_HEIGHT,
+    borderRadius: 9,
+    backgroundColor: '#E8F2E4',
+  },
+  wheelItem: {
+    height: WHEEL_ITEM_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  wheelItemText: { color: colors.textMuted, fontSize: 14 },
+  wheelItemTextSelected: {
+    color: colors.primary,
+    fontSize: 16,
+    fontWeight: '800',
+  },
   bodyRow: { flexDirection: 'row', gap: 10 },
   bodyField: { minWidth: 0, flex: 1 },
   suffix: { color: colors.textMuted, fontSize: 13 },
   hint: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
   choiceCard: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  counterCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.lg,
+  },
+  counterButton: {
+    width: 56,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: 28,
+    backgroundColor: colors.surface,
+  },
+  counterButtonDisabled: { borderColor: colors.border, opacity: 0.4 },
+  counterButtonText: {
+    color: colors.primary,
+    fontSize: 30,
+    fontWeight: '500',
+    lineHeight: 34,
+  },
+  counterValue: {
+    minWidth: 100,
+    color: colors.text,
+    fontSize: 24,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
   chip: {
     borderWidth: 1.5,
     borderColor: colors.border,
@@ -1052,6 +1524,15 @@ const styles = StyleSheet.create({
   descriptionTextSelected: {
     color: 'rgba(255, 255, 255, 0.75)',
   },
+  painDetails: { width: '100%', gap: spacing.md },
+  painSection: {
+    gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md,
+  },
+  painSectionTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  painChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   consentRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',

@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { fireEvent, render, screen } from '@testing-library/react-native';
-import { Animated, StyleSheet } from 'react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { Animated, Platform, ScrollView, StyleSheet } from 'react-native';
 
 import { CalendarReportScreen } from '../src/features/home/CalendarReportScreen';
 import { MapHomeScreen } from '../src/features/home/MapHomeScreen';
@@ -416,22 +416,80 @@ describe('Home secondary visual prototypes', () => {
     expect(onSelectMonth).toHaveBeenCalledWith('2026-08');
   });
 
-  it('uses the same scroll interaction for touch and local mouse wheels', async () => {
+  it('moves one item for a small web wheel gesture and several for a fast gesture', async () => {
     const onSelectMonth = jest.fn();
-    await render(
-      <CalendarReportScreen
-        latestMonth="2026-08"
-        onSelectMonth={onSelectMonth}
-        previewState="month-picker"
-        selectedMonth="2026-06"
-      />,
-    );
-
-    fireEvent.scroll(screen.getByTestId('month-picker-month-wheel'), {
-      nativeEvent: { contentOffset: { x: 0, y: 7 * 44 } },
+    const originalPlatform = Platform.OS;
+    const wheelNodes: {
+      handler?: (event: {
+        deltaMode: number;
+        deltaY: number;
+        preventDefault: () => void;
+      }) => void;
+    }[] = [];
+    const getScrollableNode = jest
+      .spyOn(ScrollView.prototype, 'getScrollableNode')
+      .mockImplementation(() => {
+        const node: (typeof wheelNodes)[number] = {};
+        wheelNodes.push(node);
+        return {
+          addEventListener: (
+            type: string,
+            handler: (typeof node)['handler'],
+          ) => {
+            if (type === 'wheel') node.handler = handler;
+          },
+          removeEventListener: () => undefined,
+        };
+      });
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'web',
     });
-    fireEvent.press(screen.getByRole('button', { name: '완료' }));
-    expect(onSelectMonth).toHaveBeenCalledWith('2026-08');
+
+    try {
+      await render(
+        <CalendarReportScreen
+          latestMonth="2026-12"
+          onSelectMonth={onSelectMonth}
+          previewState="month-picker"
+        />,
+      );
+
+      const wheelUp = (deltaY: number) => ({
+        deltaMode: 0,
+        deltaY,
+        preventDefault: jest.fn(),
+      });
+      await act(async () => {
+        wheelNodes.at(-1)?.handler?.(wheelUp(-20));
+        await new Promise((resolve) => setTimeout(resolve, 80));
+      });
+      expect(
+        screen.getByTestId('month-picker-month-wheel-value-11').props
+          .accessibilityState,
+      ).toEqual({ selected: true });
+
+      await act(async () => {
+        const handler = wheelNodes.at(-1)?.handler;
+        handler?.(wheelUp(-100));
+        handler?.(wheelUp(-100));
+        handler?.(wheelUp(-100));
+        await new Promise((resolve) => setTimeout(resolve, 80));
+      });
+      expect(
+        screen.getByTestId('month-picker-month-wheel-value-8').props
+          .accessibilityState,
+      ).toEqual({ selected: true });
+
+      fireEvent.press(screen.getByRole('button', { name: '완료' }));
+      expect(onSelectMonth).toHaveBeenCalledWith('2026-08');
+    } finally {
+      getScrollableNode.mockRestore();
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: originalPlatform,
+      });
+    }
   });
 
   it('keeps the initial current-month offset stable while the wheel is dragged', async () => {
@@ -465,6 +523,37 @@ describe('Home secondary visual prototypes', () => {
 
     fireEvent.press(screen.getByRole('button', { name: '완료' }));
     expect(onSelectMonth).toHaveBeenCalledWith('2026-04');
+  });
+
+  it('keeps the month wheel mounted and selected while changing past years', async () => {
+    const onSelectMonth = jest.fn();
+    await render(
+      <CalendarReportScreen
+        latestMonth="2026-08"
+        onSelectMonth={onSelectMonth}
+        previewState="month-picker"
+      />,
+    );
+
+    fireEvent.scroll(screen.getByTestId('month-picker-month-wheel'), {
+      nativeEvent: { contentOffset: { x: 0, y: 3 * 44 } },
+    });
+    fireEvent.scroll(screen.getByTestId('month-picker-year-wheel'), {
+      nativeEvent: { contentOffset: { x: 0, y: 9 * 44 } },
+    });
+    const monthWheel = screen.getByTestId('month-picker-month-wheel');
+
+    fireEvent.scroll(screen.getByTestId('month-picker-year-wheel'), {
+      nativeEvent: { contentOffset: { x: 0, y: 8 * 44 } },
+    });
+
+    expect(screen.getByTestId('month-picker-month-wheel')).toBe(monthWheel);
+    expect(
+      screen.getByTestId('month-picker-month-wheel-value-4').props
+        .accessibilityState,
+    ).toEqual({ selected: true });
+    fireEvent.press(screen.getByRole('button', { name: '완료' }));
+    expect(onSelectMonth).toHaveBeenCalledWith('2024-04');
   });
 
   it('returns notification and account actions through callbacks without persistence', async () => {

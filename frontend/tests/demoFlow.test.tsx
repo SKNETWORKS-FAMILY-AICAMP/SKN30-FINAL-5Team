@@ -14,7 +14,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react-native';
-import { Image } from 'react-native';
+import { Image, Platform } from 'react-native';
 
 import { ApiClient, createIdempotencyKey } from '../src/api/client';
 import { ApiError } from '../src/api/errors';
@@ -1066,9 +1066,11 @@ describe('default fetch binding', () => {
 
 describe('OnboardingScreen', () => {
   function fillRequiredOnboardingSteps({
+    attentionArea,
     birthdate = '1997-08-11',
     selectOptionalPreferences = true,
   }: {
+    attentionArea?: string;
     birthdate?: string;
     selectOptionalPreferences?: boolean;
   } = {}) {
@@ -1076,10 +1078,10 @@ describe('OnboardingScreen', () => {
       screen.getByPlaceholderText('앱에서 불릴 이름'),
       '헬끼',
     );
-    fireEvent.changeText(
-      screen.getByPlaceholderText('예: 1997-08-11'),
-      birthdate,
-    );
+    const [year, month, day] = birthdate.split('-').map(Number);
+    fireEvent.press(screen.getByLabelText(`연도 ${year}년`));
+    fireEvent.press(screen.getByLabelText(`월 ${month}월`));
+    fireEvent.press(screen.getByLabelText(`일 ${day}일`));
     fireEvent.press(screen.getByText('다음'));
     fireEvent.press(screen.getByText('여성'));
     fireEvent.press(screen.getByText('다음'));
@@ -1105,7 +1107,13 @@ describe('OnboardingScreen', () => {
     fireEvent.press(screen.getByText('다음'));
     fireEvent.press(screen.getByText('다음'));
     fireEvent.press(screen.getByText('다음'));
-    fireEvent.press(screen.getByText('없어요'));
+    if (attentionArea) {
+      fireEvent.press(screen.getByText('있어요'));
+      fireEvent.press(screen.getByText(attentionArea));
+      fireEvent.press(screen.getByText('조금 아픔'));
+    } else {
+      fireEvent.press(screen.getByText('없어요'));
+    }
     fireEvent.press(screen.getByText('다음'));
   }
 
@@ -1142,18 +1150,20 @@ describe('OnboardingScreen', () => {
       screen.getByPlaceholderText('앱에서 불릴 이름'),
       '헬끼',
     );
-    fireEvent.changeText(
-      screen.getByPlaceholderText('예: 1997-08-11'),
-      '1997-08-11',
-    );
+    fireEvent.press(screen.getByLabelText('연도 1997년'));
+    fireEvent.press(screen.getByLabelText('월 8월'));
+    fireEvent.press(screen.getByLabelText('일 11일'));
     fireEvent.press(screen.getByText('다음'));
 
     expect(screen.getByText('2 / 13')).toBeOnTheScreen();
     expect(screen.getByText('성별을 선택해주세요')).toBeOnTheScreen();
+    expect(screen.getByText('여성')).toBeOnTheScreen();
+    expect(screen.getByText('남성')).toBeOnTheScreen();
+    expect(screen.queryByText('선택 안 함')).not.toBeOnTheScreen();
     expect(screen.queryByText('기본 정보를 알려주세요')).not.toBeOnTheScreen();
   });
 
-  it('blocks invalid and future birthdates but leaves age eligibility to the server', () => {
+  it('only exposes birthdates that meet the age requirement', () => {
     render(
       <OnboardingScreen
         api={stubApi()}
@@ -1171,30 +1181,119 @@ describe('OnboardingScreen', () => {
       '가'.repeat(64),
     );
 
-    fireEvent.changeText(
-      screen.getByPlaceholderText('예: 1997-08-11'),
-      '2026-99-99',
+    const today = new Date();
+    const latestEligibleYear = today.getFullYear() - 14;
+    const latestEligibleMonth = today.getMonth() + 1;
+    const latestEligibleDay = Math.min(
+      today.getDate(),
+      new Date(latestEligibleYear, latestEligibleMonth, 0).getDate(),
     );
     expect(
-      screen.getByText('달력에 있는 올바른 날짜를 입력해주세요.'),
+      screen.getByLabelText(`연도 ${latestEligibleYear}년`),
     ).toBeOnTheScreen();
-
-    fireEvent.changeText(
-      screen.getByPlaceholderText('예: 1997-08-11'),
-      '2999-01-01',
+    expect(
+      screen.queryByLabelText(`연도 ${latestEligibleYear + 1}년`),
+    ).not.toBeOnTheScreen();
+    expect(screen.getByLabelText(`연도 ${latestEligibleYear}년`)).toHaveProp(
+      'accessibilityState',
+      expect.objectContaining({ selected: true }),
     );
-    expect(screen.getByText('미래 날짜는 입력할 수 없어요.')).toBeOnTheScreen();
-
-    const underAgeYear = new Date().getFullYear() - 10;
-    fireEvent.changeText(
-      screen.getByPlaceholderText('예: 1997-08-11'),
-      `${underAgeYear}-01-01`,
+    expect(screen.getByLabelText(`월 ${latestEligibleMonth}월`)).toHaveProp(
+      'accessibilityState',
+      expect.objectContaining({ selected: true }),
     );
+    expect(screen.getByLabelText(`일 ${latestEligibleDay}일`)).toHaveProp(
+      'accessibilityState',
+      expect.objectContaining({ selected: true }),
+    );
+    expect(screen.queryByLabelText('연도 선택')).not.toBeOnTheScreen();
+    expect(screen.getByText('다음')).toBeEnabled();
+
+    fireEvent(screen.getByLabelText('연도 선택 스크롤'), 'momentumScrollEnd', {
+      nativeEvent: { contentOffset: { y: 44 } },
+    });
+    expect(
+      screen.getByLabelText(`연도 ${latestEligibleYear - 1}년`),
+    ).toHaveProp(
+      'accessibilityState',
+      expect.objectContaining({ selected: true }),
+    );
+    expect(screen.getByLabelText('월 12월')).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByLabelText(`연도 ${latestEligibleYear}년`));
+    if (latestEligibleMonth < 12) {
+      expect(
+        screen.queryByLabelText(`월 ${latestEligibleMonth + 1}월`),
+      ).not.toBeOnTheScreen();
+    }
+    fireEvent.press(screen.getByLabelText(`월 ${latestEligibleMonth}월`));
+    expect(
+      screen.queryByLabelText(`일 ${latestEligibleDay + 1}일`),
+    ).not.toBeOnTheScreen();
+
+    fireEvent.press(screen.getByLabelText('연도 1997년'));
+    fireEvent.press(screen.getByLabelText('월 2월'));
+    expect(screen.queryByLabelText('일 30일')).not.toBeOnTheScreen();
+    fireEvent.press(screen.getByLabelText('일 28일'));
     fireEvent.press(screen.getByText('다음'));
     expect(screen.getByText('2 / 13')).toBeOnTheScreen();
   });
 
-  it('sends an under-14 birthdate so the server can apply the account block', async () => {
+  it('snaps mouse-wheel and touch scrolling to the nearest date item', () => {
+    const originalPlatform = Platform.OS;
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'web',
+    });
+    try {
+      render(
+        <OnboardingScreen
+          api={stubApi()}
+          onCompleted={jest.fn()}
+          onSignOut={jest.fn()}
+        />,
+      );
+
+      fireEvent.press(screen.getByLabelText('연도 1997년'));
+      fireEvent.press(screen.getByLabelText('월 6월'));
+      const monthWheel = screen.getByLabelText('월 선택 스크롤');
+      const preventDefault = jest.fn();
+
+      fireEvent(monthWheel, 'wheel', {
+        nativeEvent: { deltaMode: 0, deltaY: 100 },
+        preventDefault,
+      });
+      expect(preventDefault).toHaveBeenCalled();
+      expect(screen.getByLabelText('월 7월')).toHaveProp(
+        'accessibilityState',
+        expect.objectContaining({ selected: true }),
+      );
+
+      fireEvent(monthWheel, 'wheel', {
+        nativeEvent: { deltaMode: 0, deltaY: 330 },
+        preventDefault,
+      });
+      expect(screen.getByLabelText('월 10월')).toHaveProp(
+        'accessibilityState',
+        expect.objectContaining({ selected: true }),
+      );
+
+      fireEvent(monthWheel, 'momentumScrollEnd', {
+        nativeEvent: { contentOffset: { y: 2.6 * 44 } },
+      });
+      expect(screen.getByLabelText('월 4월')).toHaveProp(
+        'accessibilityState',
+        expect.objectContaining({ selected: true }),
+      );
+    } finally {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: originalPlatform,
+      });
+    }
+  });
+
+  it('still handles the server age block as a defense in depth', async () => {
     const submitOnboarding = jest.fn(async () => {
       throw new ApiError({
         kind: 'permission',
@@ -1203,8 +1302,6 @@ describe('OnboardingScreen', () => {
         message: '만 14세 미만은 이용할 수 없습니다.',
       });
     });
-    const underAgeBirthdate = `${new Date().getFullYear() - 10}-01-01`;
-
     render(
       <OnboardingScreen
         api={stubApi({ submitOnboarding })}
@@ -1213,7 +1310,7 @@ describe('OnboardingScreen', () => {
       />,
     );
 
-    fillRequiredOnboardingSteps({ birthdate: underAgeBirthdate });
+    fillRequiredOnboardingSteps();
     screen
       .getAllByRole('checkbox')
       .forEach((checkbox) => fireEvent.press(checkbox));
@@ -1221,7 +1318,7 @@ describe('OnboardingScreen', () => {
 
     await waitFor(() => {
       expect(submitOnboarding).toHaveBeenCalledWith(
-        expect.objectContaining({ date_of_birth: underAgeBirthdate }),
+        expect.objectContaining({ date_of_birth: '1997-08-11' }),
       );
       expect(screen.getByText('1 / 13')).toBeOnTheScreen();
       expect(
@@ -1266,7 +1363,44 @@ describe('OnboardingScreen', () => {
       screen.getByRole('button', { name: '입력이 필요해요' }),
     ).toBeDisabled();
     fireEvent.press(screen.getByText('무릎'));
+    expect(screen.getByText('무릎 통증 정도')).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', { name: '입력이 필요해요' }),
+    ).toBeDisabled();
+    fireEvent.press(screen.getByText('중간 정도 아픔'));
     expect(screen.getByRole('button', { name: '다음' })).toBeEnabled();
+  });
+
+  it('adjusts duration by 10 minutes and weekly frequency from 1 to 7', () => {
+    const view = render(
+      <OnboardingScreen
+        api={stubApi()}
+        initialStep={10}
+        onCompleted={jest.fn()}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText('30분')).toBeOnTheScreen();
+    fireEvent.press(screen.getByLabelText('운동 시간 10분 늘리기'));
+    expect(screen.getByText('40분')).toBeOnTheScreen();
+    fireEvent.press(screen.getByLabelText('운동 시간 10분 줄이기'));
+    expect(screen.getByText('30분')).toBeOnTheScreen();
+
+    view.rerender(
+      <OnboardingScreen
+        api={stubApi()}
+        initialStep={11}
+        onCompleted={jest.fn()}
+        onSignOut={jest.fn()}
+      />,
+    );
+    expect(screen.getByText('주 3회')).toBeOnTheScreen();
+    for (let count = 3; count < 7; count += 1) {
+      fireEvent.press(screen.getByLabelText('주간 운동 횟수 1회 늘리기'));
+    }
+    expect(screen.getByText('주 7회')).toBeOnTheScreen();
+    expect(screen.getByLabelText('주간 운동 횟수 1회 늘리기')).toBeDisabled();
   });
 
   it('maps Profile gender and body values to the backend onboarding contract', async () => {
@@ -1291,7 +1425,7 @@ describe('OnboardingScreen', () => {
       />,
     );
 
-    fillRequiredOnboardingSteps();
+    fillRequiredOnboardingSteps({ attentionArea: '무릎' });
     screen
       .getAllByRole('checkbox')
       .forEach((checkbox) => fireEvent.press(checkbox));
@@ -1307,7 +1441,11 @@ describe('OnboardingScreen', () => {
           experience_level_code: 'BEGINNER',
           preferred_exercise_type_codes: ['STRENGTH', 'CARDIO'],
           coaching_style_code: 'CONCISE',
+          attention_area_codes: ['KNEE'],
         }),
+      );
+      expect(submitOnboarding.mock.calls[0]?.[0]).not.toHaveProperty(
+        'attention_severities',
       );
       expect(onCompleted).toHaveBeenCalledTimes(1);
     });
