@@ -476,7 +476,6 @@ export function HomeContainer({
 
   return (
     <HomeScreen
-      attentionAreaCodes={profile?.attention_area_codes ?? []}
       nickname={profile?.nickname ?? '회원'}
       localDate={localDate}
       status={

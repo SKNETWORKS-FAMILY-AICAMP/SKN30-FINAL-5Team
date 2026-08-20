@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { StyleSheet } from 'react-native';
+import { Animated, StyleSheet } from 'react-native';
 
 import { CalendarReportScreen } from '../src/features/home/CalendarReportScreen';
 import { MapHomeScreen } from '../src/features/home/MapHomeScreen';
@@ -277,9 +277,9 @@ describe('Home secondary visual prototypes', () => {
     expect(screen.getByText('지금 내 루틴')).toBeOnTheScreen();
     expect(screen.getByText('근력 · 30분 · 블록 3개')).toBeOnTheScreen();
     expect(screen.getByText('의자 스쿼트')).toBeOnTheScreen();
-    expect(screen.getAllByText('3세트 × 10회')).toHaveLength(2);
+    expect(screen.getAllByText('3세트 × 10회')).toHaveLength(3);
     expect(screen.getByText('제자리 걷기')).toBeOnTheScreen();
-    expect(screen.getByText('3세트 · 180초')).toBeOnTheScreen();
+    expect(screen.queryByText('3세트 · 180초')).toBeNull();
     expect(screen.queryByText('더 가벼운 루틴 보기')).toBeNull();
     expect(screen.getByTestId('home-map-stage')).toBeOnTheScreen();
     expect(screen.getByTestId('home-map-api-section')).toBeOnTheScreen();
@@ -352,6 +352,70 @@ describe('Home secondary visual prototypes', () => {
     expect(screen.queryByText('2025년')).toBeNull();
   });
 
+  it('animates the date caret when the month picker opens and closes', async () => {
+    const timingSpy = jest.spyOn(Animated, 'timing');
+    await render(<CalendarReportScreen />);
+    const dateButton = screen.getByRole('button', {
+      name: '연도와 월 선택',
+    });
+
+    fireEvent.press(dateButton);
+    expect(timingSpy).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    );
+
+    fireEvent.press(dateButton);
+    expect(timingSpy).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    );
+    timingSpy.mockRestore();
+  });
+
+  it('defaults the first date selection to the current year and month', async () => {
+    const onSelectMonth = jest.fn();
+    await render(
+      <CalendarReportScreen
+        latestMonth="2026-08"
+        onSelectMonth={onSelectMonth}
+        selectedMonth="2025-12"
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: '연도와 월 선택' }));
+    expect(
+      screen.getByTestId('month-picker-year-wheel').props.contentOffset,
+    ).toEqual({ x: 0, y: 10 * 44 });
+    expect(
+      screen.getByTestId('month-picker-month-wheel').props.contentOffset,
+    ).toEqual({ x: 0, y: 7 * 44 });
+    expect(
+      screen.getByTestId('month-picker-year-wheel-value-2026').props
+        .accessibilityState,
+    ).toEqual({ selected: true });
+    expect(
+      screen.getByTestId('month-picker-month-wheel-value-8').props
+        .accessibilityState,
+    ).toEqual({ selected: true });
+
+    const selectionBandStyle = StyleSheet.flatten(
+      screen.getByTestId('month-picker-selection-band').props.style,
+    );
+    expect(selectionBandStyle).toMatchObject({ top: 2 * 44, height: 44 });
+
+    fireEvent.press(screen.getByRole('button', { name: '완료' }));
+    expect(onSelectMonth).toHaveBeenCalledWith('2026-08');
+  });
+
   it('uses the same scroll interaction for touch and local mouse wheels', async () => {
     const onSelectMonth = jest.fn();
     await render(
@@ -368,6 +432,39 @@ describe('Home secondary visual prototypes', () => {
     });
     fireEvent.press(screen.getByRole('button', { name: '완료' }));
     expect(onSelectMonth).toHaveBeenCalledWith('2026-08');
+  });
+
+  it('keeps the initial current-month offset stable while the wheel is dragged', async () => {
+    const onSelectMonth = jest.fn();
+    await render(
+      <CalendarReportScreen
+        latestMonth="2026-08"
+        onSelectMonth={onSelectMonth}
+        previewState="month-picker"
+        selectedMonth="2025-12"
+      />,
+    );
+
+    const initialOffset = screen.getByTestId('month-picker-month-wheel').props
+      .contentOffset;
+    expect(initialOffset).toEqual({ x: 0, y: 7 * 44 });
+
+    fireEvent.scroll(screen.getByTestId('month-picker-month-wheel'), {
+      nativeEvent: { contentOffset: { x: 0, y: 6 * 44 } },
+    });
+    expect(
+      screen.getByTestId('month-picker-month-wheel').props.contentOffset,
+    ).toBe(initialOffset);
+
+    fireEvent.scroll(screen.getByTestId('month-picker-month-wheel'), {
+      nativeEvent: { contentOffset: { x: 0, y: 3 * 44 } },
+    });
+    expect(
+      screen.getByTestId('month-picker-month-wheel').props.contentOffset,
+    ).toBe(initialOffset);
+
+    fireEvent.press(screen.getByRole('button', { name: '완료' }));
+    expect(onSelectMonth).toHaveBeenCalledWith('2026-04');
   });
 
   it('returns notification and account actions through callbacks without persistence', async () => {

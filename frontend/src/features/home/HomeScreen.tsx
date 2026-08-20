@@ -11,6 +11,7 @@ import {
 } from 'react';
 import {
   Animated,
+  Easing,
   Image,
   PanResponder,
   Platform,
@@ -51,6 +52,7 @@ import type {
   WeeklyPlanRevisionResponse,
   WorkoutSessionLogSummary,
 } from '../../api/types';
+import { moveArrayItem } from '../../api/workoutPlan';
 import { imageAssets } from '../../assets';
 import { fontFamilies, useBrandFonts } from '../../app/fonts';
 import type { TabId } from '../../components/brand/BrandChrome';
@@ -106,7 +108,18 @@ type WeekDay = {
   label: string;
   statusCodes?: readonly SessionStatusCode[];
 };
-const PREVIEW_DISCOMFORT_CODES = ['SHOULDER', 'LOWER_BACK', 'KNEE'] as const;
+// DOMAIN_RULES 3.2 / API_CONTRACT 5.10 기본 노출 범위. 프로필의 주의
+// 부위와 분리해 오늘 일시적으로 불편한 부위를 선택한다.
+const CHECKIN_DISCOMFORT_CODES = [
+  'WRIST_HAND',
+  'LOWER_BACK',
+  'SHOULDER',
+  'ELBOW',
+  'KNEE',
+  'UPPER_BACK',
+  'HIP',
+  'ANKLE_FOOT',
+] as const;
 
 type RevisionNotice = {
   serious: boolean;
@@ -178,7 +191,6 @@ export type HomeUserEdits = {
 
 export type HomeScreenProps = {
   actionError?: string | null;
-  attentionAreaCodes?: readonly string[];
   busy?: HomeBusyKind | null;
   currentDate?: string;
   context?: DailyContextResponse | null;
@@ -250,7 +262,6 @@ export function HomeScreen({ previewState, ...props }: HomeScreenProps) {
 
 function HomeScreenContent({
   actionError = null,
-  attentionAreaCodes = [],
   busy = null,
   context = null,
   currentDate = '2026.08.11 (화)',
@@ -565,10 +576,10 @@ function HomeScreenContent({
   };
 
   const moveRoutineItem = useCallback((from: number, to: number) => {
-    setRoutineItems((current) => moveItem(current, from, to));
+    setRoutineItems((current) => moveArrayItem(current, from, to));
   }, []);
   const moveEditItem = useCallback((from: number, to: number) => {
-    setEditDraft((current) => moveItem(current, from, to));
+    setEditDraft((current) => moveArrayItem(current, from, to));
   }, []);
   const contentReady = !apiMode || status === 'ready';
   const restRecommended = decision?.action_code === 'REST';
@@ -785,9 +796,6 @@ function HomeScreenContent({
 
         {checkinOpen ? (
           <CheckinSheet
-            attentionAreaCodes={
-              apiMode ? attentionAreaCodes : PREVIEW_DISCOMFORT_CODES
-            }
             draft={checkinDraft}
             locationCodes={apiMode ? locationCodes : []}
             onChangeLocation={(locationCode) =>
@@ -1358,7 +1366,13 @@ function RoutineCard({
           <Text style={styles.orderHint}>핸들을 끌어 순서를 바꿔보세요</Text>
         ) : null}
         {items.map((item, index) => {
-          const active = drag.activeIndex === index;
+          const { activeIndex, targetIndex } = drag;
+          const active = activeIndex === index;
+          const dropTarget =
+            activeIndex !== null &&
+            targetIndex !== null &&
+            targetIndex !== activeIndex &&
+            targetIndex === index;
           return (
             <View
               key={item.id}
@@ -1369,11 +1383,26 @@ function RoutineCard({
               ]}
               testID={`routine-row-${item.id}`}
             >
+              {dropTarget ? (
+                <View
+                  pointerEvents="none"
+                  style={styles.dropPlaceholder}
+                  testID={`routine-drop-placeholder-${item.id}`}
+                />
+              ) : null}
               <Animated.View
                 style={[
                   styles.routineRow,
                   active && styles.dragInnerRoutineActive,
-                  active && { transform: [{ translateY: drag.dragY }] },
+                  {
+                    transform: [
+                      {
+                        translateY: active
+                          ? drag.dragY
+                          : drag.getItemShift(index),
+                      },
+                    ],
+                  },
                 ]}
               >
                 {onMove ? (
@@ -1697,7 +1726,6 @@ function RecommendationReasonSheet({
 }
 
 function CheckinSheet({
-  attentionAreaCodes,
   draft,
   onChangeFatigue,
   onChangeLocation,
@@ -1714,7 +1742,6 @@ function CheckinSheet({
   pending,
   useJua,
 }: {
-  attentionAreaCodes: readonly string[];
   draft: HomeCheckin;
   onChangeFatigue: (value: string) => void;
   onChangeLocation: (code: string) => void;
@@ -1738,6 +1765,12 @@ function CheckinSheet({
   const [showAdverseDetails, setShowAdverseDetails] = useState(
     draft.adverseReactionCodes.length > 0,
   );
+  const [showDiscomfortDetails, setShowDiscomfortDetails] = useState(
+    Object.keys(draft.discomforts).length > 0,
+  );
+  const discomfortAreaCodes = Array.from(
+    new Set([...CHECKIN_DISCOMFORT_CODES, ...Object.keys(draft.discomforts)]),
+  );
   const sleepHours = draft.sleepHours.trim();
   const sleepInvalid =
     sleepHours !== '' &&
@@ -1750,8 +1783,14 @@ function CheckinSheet({
     Number(draft.workoutMinutes) > 180;
   const adverseSelectionMissing =
     showAdverseDetails && draft.adverseReactionCodes.length === 0;
+  const discomfortSelectionMissing =
+    showDiscomfortDetails && Object.keys(draft.discomforts).length === 0;
   const saveDisabled =
-    pending || sleepInvalid || durationInvalid || adverseSelectionMissing;
+    pending ||
+    sleepInvalid ||
+    durationInvalid ||
+    adverseSelectionMissing ||
+    discomfortSelectionMissing;
   return (
     <SheetFrame onClose={onClose} title="오늘 컨디션 체크" zIndex={20}>
       <Text style={styles.sheetIntro}>
@@ -1818,27 +1857,41 @@ function CheckinSheet({
             ))}
           </ChoiceBlock>
         ) : null}
-        <ChoiceBlock label="통증 부위">
+        <ChoiceBlock label="오늘 불편한 부위가 있나요?">
           <ChoiceButton
             label="없음"
-            onPress={onClearDiscomforts}
-            selected={Object.keys(draft.discomforts).length === 0}
+            onPress={() => {
+              setShowDiscomfortDetails(false);
+              onClearDiscomforts();
+            }}
+            selected={!showDiscomfortDetails}
           />
-          {attentionAreaCodes.map((code) => (
-            <ChoiceButton
-              key={code}
-              label={bodyAreaLabel(code)}
-              onPress={() => onToggleBodyArea(code)}
-              selected={draft.discomforts[code] !== undefined}
-            />
-          ))}
+          <ChoiceButton
+            label="있음"
+            onPress={() => setShowDiscomfortDetails(true)}
+            selected={showDiscomfortDetails}
+          />
         </ChoiceBlock>
-        {attentionAreaCodes.length === 0 ? (
-          <Text style={styles.messageText}>
-            온보딩에서 등록한 주의 부위가 없어요.
+        {showDiscomfortDetails ? (
+          <ChoiceBlock label="오늘 불편한 부위를 모두 선택해주세요" twoColumn>
+            {discomfortAreaCodes.map((code) => (
+              <ChoiceButton
+                key={code}
+                label={bodyAreaLabel(code)}
+                numberOfLines={2}
+                onPress={() => onToggleBodyArea(code)}
+                selected={draft.discomforts[code] !== undefined}
+                twoColumn
+              />
+            ))}
+          </ChoiceBlock>
+        ) : null}
+        {discomfortSelectionMissing ? (
+          <Text accessibilityRole="alert" style={styles.messageText}>
+            불편한 부위를 한 곳 이상 선택해주세요.
           </Text>
         ) : null}
-        {attentionAreaCodes
+        {discomfortAreaCodes
           .filter((code) => draft.discomforts[code] !== undefined)
           .map((code) => (
             <ChoiceBlock key={code} label={`${bodyAreaLabel(code)} 통증 정도`}>
@@ -1916,15 +1969,19 @@ function CheckinSheet({
 function ChoiceBlock({
   children,
   label,
+  twoColumn = false,
 }: {
   children: React.ReactNode;
   label: string;
+  twoColumn?: boolean;
 }) {
   const styles = useHomeStyles();
   return (
     <View style={styles.checkinSection}>
       <Text style={styles.checkinSectionTitle}>{label}</Text>
-      <View style={styles.choiceRow}>{children}</View>
+      <View style={[styles.choiceRow, twoColumn && styles.choiceRowTwoColumn]}>
+        {children}
+      </View>
     </View>
   );
 }
@@ -1934,11 +1991,13 @@ function ChoiceButton({
   numberOfLines = 1,
   onPress,
   selected,
+  twoColumn = false,
 }: {
   label: string;
   numberOfLines?: number;
   onPress: () => void;
   selected: boolean;
+  twoColumn?: boolean;
 }) {
   const styles = useHomeStyles();
   return (
@@ -1947,7 +2006,11 @@ function ChoiceButton({
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={[styles.choiceButton, selected && styles.choiceButtonSelected]}
+      style={[
+        styles.choiceButton,
+        twoColumn && styles.choiceButtonTwoColumn,
+        selected && styles.choiceButtonSelected,
+      ]}
     >
       <Text
         numberOfLines={numberOfLines}
@@ -2144,18 +2207,39 @@ function EditRoutineSheet({
       >
         <View style={styles.editList}>
           {items.map((item, index) => {
-            const active = drag.activeIndex === index;
+            const { activeIndex, targetIndex } = drag;
+            const active = activeIndex === index;
+            const dropTarget =
+              activeIndex !== null &&
+              targetIndex !== null &&
+              targetIndex !== activeIndex &&
+              targetIndex === index;
             return (
               <View
                 key={item.id}
                 onLayout={(event) => drag.register(index, event)}
                 style={[styles.dragOuterEdit, active && styles.dragOuterActive]}
               >
+                {dropTarget ? (
+                  <View
+                    pointerEvents="none"
+                    style={styles.dropPlaceholder}
+                    testID={`edit-drop-placeholder-${item.id}`}
+                  />
+                ) : null}
                 <Animated.View
                   style={[
                     styles.editRow,
                     active && styles.dragInnerEditActive,
-                    active && { transform: [{ translateY: drag.dragY }] },
+                    {
+                      transform: [
+                        {
+                          translateY: active
+                            ? drag.dragY
+                            : drag.getItemShift(index),
+                        },
+                      ],
+                    },
                   ]}
                 >
                   <DragHandle
@@ -2327,7 +2411,12 @@ function DragHandle({
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
+        onStartShouldSetPanResponderCapture: () => true,
         onMoveShouldSetPanResponder: (
+          _event: GestureResponderEvent,
+          gesture: PanResponderGestureState,
+        ) => Math.abs(gesture.dy) > 2,
+        onMoveShouldSetPanResponderCapture: (
           _event: GestureResponderEvent,
           gesture: PanResponderGestureState,
         ) => Math.abs(gesture.dy) > 2,
@@ -2338,12 +2427,15 @@ function DragHandle({
         ) => onMove(gesture.dy),
         onPanResponderRelease: onEnd,
         onPanResponderTerminate: onEnd,
+        onPanResponderTerminationRequest: () => false,
+        onShouldBlockNativeResponder: () => true,
       }),
     [index, onEnd, onMove, onStart],
   );
   return (
-    <Pressable
+    <View
       {...responder.panHandlers}
+      accessible
       accessibilityActions={[
         { name: 'increment', label: '아래로 이동' },
         { name: 'decrement', label: '위로 이동' },
@@ -2358,32 +2450,96 @@ function DragHandle({
           onKeyboardMove(-1);
         }
       }}
-      style={style}
+      style={[
+        style,
+        Platform.OS === 'web'
+          ? ({ touchAction: 'none' } as unknown as ViewStyle)
+          : undefined,
+      ]}
       testID={testID}
     >
       {children}
-    </Pressable>
+    </View>
   );
 }
 
 function useDragController(onMoveItem: (from: number, to: number) => void) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [targetIndex, setTargetIndex] = useState<number | null>(null);
   const activeRef = useRef<number | null>(null);
+  const targetRef = useRef<number | null>(null);
   const originCenter = useRef(0);
+  const dragOffset = useRef(0);
   const centers = useRef<number[]>([]);
   const [dragY] = useState(() => new Animated.Value(0));
+  const itemShifts = useRef<Animated.Value[]>([]);
+  const shiftAnimations = useRef<Animated.CompositeAnimation[]>([]);
+  const settleAnimation = useRef<Animated.CompositeAnimation | null>(null);
+  const getItemShift = useCallback((index: number) => {
+    while (itemShifts.current.length <= index) {
+      itemShifts.current.push(new Animated.Value(0));
+    }
+    return itemShifts.current[index]!;
+  }, []);
+  const stopShiftAnimations = useCallback(() => {
+    for (const animation of shiftAnimations.current) {
+      animation.stop();
+    }
+    shiftAnimations.current = [];
+  }, []);
+  const resetItemShifts = useCallback(() => {
+    stopShiftAnimations();
+    for (const shift of itemShifts.current) {
+      shift.setValue(0);
+    }
+  }, [stopShiftAnimations]);
+  const animateItemShifts = useCallback(
+    (from: number, target: number) => {
+      stopShiftAnimations();
+      shiftAnimations.current = itemShifts.current.map((shift, index) => {
+        let toValue = 0;
+        if (from < target && index > from && index <= target) {
+          const currentCenter = centers.current[index] ?? index * 60 + 30;
+          const previousCenter =
+            centers.current[index - 1] ?? (index - 1) * 60 + 30;
+          toValue = previousCenter - currentCenter;
+        } else if (from > target && index >= target && index < from) {
+          const currentCenter = centers.current[index] ?? index * 60 + 30;
+          const nextCenter =
+            centers.current[index + 1] ?? (index + 1) * 60 + 30;
+          toValue = nextCenter - currentCenter;
+        }
+        return Animated.timing(shift, {
+          toValue,
+          duration: 85,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        });
+      });
+      for (const animation of shiftAnimations.current) {
+        animation.start();
+      }
+    },
+    [stopShiftAnimations],
+  );
   const register = useCallback((index: number, event: LayoutChangeEvent) => {
     const { height, y } = event.nativeEvent.layout;
     centers.current[index] = y + height / 2;
   }, []);
   const start = useCallback(
     (index: number) => {
+      settleAnimation.current?.stop();
+      settleAnimation.current = null;
+      resetItemShifts();
       activeRef.current = index;
+      targetRef.current = index;
       originCenter.current = centers.current[index] ?? index * 60 + 30;
+      dragOffset.current = 0;
       dragY.setValue(0);
       setActiveIndex(index);
+      setTargetIndex(index);
     },
-    [dragY],
+    [dragY, resetItemShifts],
   );
   const move = useCallback(
     (dy: number) => {
@@ -2392,29 +2548,73 @@ function useDragController(onMoveItem: (from: number, to: number) => void) {
         return;
       }
       const pointerY = originCenter.current + dy;
-      let target = Math.max(0, centers.current.length - 1);
+      let target = from;
+      let closestDistance = Number.POSITIVE_INFINITY;
       for (let index = 0; index < centers.current.length; index += 1) {
         const center = centers.current[index];
-        if (center !== undefined && pointerY < center) {
+        if (center === undefined) {
+          continue;
+        }
+        const distance = Math.abs(pointerY - center);
+        if (distance < closestDistance) {
+          closestDistance = distance;
           target = index;
-          break;
         }
       }
-      if (target !== from) {
-        onMoveItem(from, target);
-        activeRef.current = target;
-        setActiveIndex(target);
+      if (targetRef.current !== target) {
+        targetRef.current = target;
+        setTargetIndex(target);
+        animateItemShifts(from, target);
       }
-      const slotCenter = centers.current[target] ?? pointerY;
-      dragY.setValue(pointerY - slotCenter);
+      dragOffset.current = dy;
+      dragY.setValue(dy);
     },
-    [dragY, onMoveItem],
+    [animateItemShifts, dragY],
   );
   const end = useCallback(() => {
+    const from = activeRef.current;
+    const target = targetRef.current;
+    if (from === null || target === null) {
+      return;
+    }
     activeRef.current = null;
-    setActiveIndex(null);
-    dragY.setValue(0);
-  }, [dragY]);
+    targetRef.current = null;
+    const targetCenter =
+      centers.current[target] ?? originCenter.current + (target - from) * 60;
+    const remainingOffset =
+      dragOffset.current - (targetCenter - originCenter.current);
+    resetItemShifts();
+    dragY.setValue(remainingOffset);
+    setActiveIndex(target);
+    setTargetIndex(target);
+    if (target !== from) {
+      onMoveItem(from, target);
+    }
+    const animation = Animated.timing(dragY, {
+      toValue: 0,
+      duration: 80,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    });
+    settleAnimation.current = animation;
+    animation.start(({ finished }) => {
+      if (settleAnimation.current === animation) {
+        settleAnimation.current = null;
+      }
+      if (finished) {
+        dragY.setValue(0);
+        setActiveIndex(null);
+        setTargetIndex(null);
+      }
+    });
+  }, [dragY, onMoveItem, resetItemShifts]);
+  useEffect(
+    () => () => {
+      settleAnimation.current?.stop();
+      stopShiftAnimations();
+    },
+    [stopShiftAnimations],
+  );
   const keyboardMove = useCallback(
     (index: number, direction: -1 | 1, length: number) => {
       const target = Math.max(0, Math.min(length - 1, index + direction));
@@ -2424,7 +2624,17 @@ function useDragController(onMoveItem: (from: number, to: number) => void) {
     },
     [onMoveItem],
   );
-  return { activeIndex, dragY, end, keyboardMove, move, register, start };
+  return {
+    activeIndex,
+    dragY,
+    end,
+    getItemShift,
+    keyboardMove,
+    move,
+    register,
+    start,
+    targetIndex,
+  };
 }
 
 function OutlinedLabel({
@@ -2714,16 +2924,6 @@ function cleanRoutineItems(items: readonly HomeRoutineItem[]) {
   return cleaned;
 }
 
-function moveItem<T>(items: readonly T[], from: number, to: number): T[] {
-  const next = Array.from(items);
-  const removed = next.splice(from, 1)[0];
-  if (removed === undefined) {
-    return next;
-  }
-  next.splice(to, 0, removed);
-  return next;
-}
-
 function createHomeStyles(
   s: (value: number) => number,
   f: (value: number) => number,
@@ -2891,12 +3091,14 @@ function createHomeStyles(
       minWidth: 0,
       flex: 1,
       aspectRatio: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
       borderRadius: s(14),
       padding: s(5),
     },
     progressCellCompleted: { backgroundColor: '#EDF5E2', opacity: 1 },
     progressCellIncomplete: { backgroundColor: '#F3F1EB', opacity: 0.55 },
-    progressImage: { width: '100%', height: '100%' },
+    progressImage: { width: '78%', height: '78%' },
     todoImage: { opacity: 1 },
     progressBadge: {
       position: 'absolute',
@@ -3041,21 +3243,34 @@ function createHomeStyles(
       letterSpacing: s(0.23),
     },
     dragOuterRoutine: {
+      position: 'relative',
       borderWidth: s(1.5),
       borderColor: 'transparent',
       borderRadius: s(12),
       backgroundColor: 'transparent',
     },
+    dropPlaceholder: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      borderWidth: s(1.5),
+      borderColor: '#7FAE5C',
+      borderRadius: s(12),
+      borderStyle: 'dashed',
+      backgroundColor: '#EDF5E2',
+    },
     dragOuterEdit: {
+      position: 'relative',
       borderWidth: s(1.5),
       borderColor: 'transparent',
       borderRadius: s(16),
       backgroundColor: 'transparent',
     },
     dragOuterActive: {
-      borderColor: '#7FAE5C',
-      borderStyle: 'dashed',
-      backgroundColor: '#EDF5E2',
+      zIndex: 10,
+      elevation: 4,
     },
     routineRow: {
       flexDirection: 'row',
@@ -3267,6 +3482,7 @@ function createHomeStyles(
       fontWeight: '700',
     },
     choiceRow: { flexDirection: 'row', gap: s(6), marginTop: s(10) },
+    choiceRowTwoColumn: { flexWrap: 'wrap' },
     choiceButton: {
       minWidth: 0,
       minHeight: s(44),
@@ -3279,6 +3495,11 @@ function createHomeStyles(
       backgroundColor: '#FAF7F1',
       paddingVertical: s(9),
       paddingHorizontal: s(6),
+    },
+    choiceButtonTwoColumn: {
+      minHeight: s(48),
+      flexBasis: '48%',
+      flexGrow: 1,
     },
     choiceButtonSelected: {
       borderColor: '#4E8B3A',

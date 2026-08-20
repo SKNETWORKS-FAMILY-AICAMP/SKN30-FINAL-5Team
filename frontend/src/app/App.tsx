@@ -4,9 +4,10 @@ import {
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { WEB_APP_MAX_WIDTH } from '../components/scale';
 import { LoginScreen } from '../features/auth/LoginScreen';
 import { SignUpScreen } from '../features/auth/SignUpScreen';
 import { CalendarReportScreen } from '../features/home/CalendarReportScreen';
@@ -157,61 +158,98 @@ export function App({
           : null
         : getPreviewMode();
 
+  const usesPreviewGallery =
+    activePreview === 'gallery' ||
+    activePreview === 'account' ||
+    activePreview === 'mascot-house' ||
+    activePreview === 'session' ||
+    activePreview === 'session-result' ||
+    activePreview === 'today' ||
+    activePreview === 'weekly-report' ||
+    activePreview === 'workout' ||
+    activePreview === 'my-page';
+
   return (
     <SafeAreaProvider>
-      {activePreview === 'gallery' ? (
-        <PreviewGallery />
-      ) : activePreview === 'account' ? (
-        <PreviewGallery initialScreenId="account" />
-      ) : activePreview === 'mascot-house' ? (
-        <PreviewGallery initialScreenId="mascot-house" />
-      ) : activePreview === 'session' ? (
-        <PreviewGallery initialScreenId="session" />
-      ) : activePreview === 'session-result' ? (
-        <PreviewGallery initialScreenId="session-result" />
-      ) : activePreview === 'today' ? (
-        <PreviewGallery initialScreenId="today" />
-      ) : activePreview === 'weekly-report' ? (
-        <PreviewGallery initialScreenId="weekly-report" />
-      ) : activePreview === 'workout' ? (
-        <PreviewGallery initialScreenId="workout" />
-      ) : activePreview === 'calendar-report' ? (
-        <CalendarReportScreen />
-      ) : activePreview === 'home' ? (
-        <HomeScreen {...homePreviewProps('pre-checkin')} />
-      ) : activePreview === 'home-map' ? (
-        <MapHomeScreen routine={PREVIEW_ROUTINE} week={PREVIEW_OPEN_WEEK} />
-      ) : activePreview === 'login' ? (
-        <LoginScreen />
-      ) : activePreview === 'my-page' ? (
-        <PreviewGallery initialScreenId="my-page" />
-      ) : activePreview === 'onboarding' ? (
-        <OnboardingScreen
-          api={onboardingPreviewApi}
-          onCompleted={() => undefined}
-          onSignOut={() => undefined}
-        />
-      ) : activePreview === 'profile' ? (
-        <ProfileScreen />
-      ) : activePreview === 'signup' ? (
-        <SignUpScreen />
-      ) : activePreview === 'splash' ? (
-        <SplashScreen />
-      ) : navigatorProps.bootResolver !== undefined ||
-        navigatorProps.onNavigationTransition !== undefined ? (
-        // The boot-resolver navigator is retained for the existing boot tests.
-        <AppNavigator {...navigatorProps} />
-      ) : (
-        // Default entry is the real user flow, not the preview gallery.
-        <SessionProvider>
-          <DemoApp />
-        </SessionProvider>
-      )}
+      <View style={styles.appShell} testID="app-shell">
+        <View
+          style={[
+            styles.appViewport,
+            Platform.OS === 'web' && !usesPreviewGallery
+              ? styles.webAppViewport
+              : undefined,
+          ]}
+          testID="app-viewport"
+        >
+          {activePreview === 'gallery' ? (
+            <PreviewGallery />
+          ) : activePreview === 'account' ? (
+            <PreviewGallery initialScreenId="account" />
+          ) : activePreview === 'mascot-house' ? (
+            <PreviewGallery initialScreenId="mascot-house" />
+          ) : activePreview === 'session' ? (
+            <PreviewGallery initialScreenId="session" />
+          ) : activePreview === 'session-result' ? (
+            <PreviewGallery initialScreenId="session-result" />
+          ) : activePreview === 'today' ? (
+            <PreviewGallery initialScreenId="today" />
+          ) : activePreview === 'weekly-report' ? (
+            <PreviewGallery initialScreenId="weekly-report" />
+          ) : activePreview === 'workout' ? (
+            <PreviewGallery initialScreenId="workout" />
+          ) : activePreview === 'calendar-report' ? (
+            <CalendarReportScreen />
+          ) : activePreview === 'home' ? (
+            <HomeScreen {...homePreviewProps('pre-checkin')} />
+          ) : activePreview === 'home-map' ? (
+            <MapHomeScreen routine={PREVIEW_ROUTINE} week={PREVIEW_OPEN_WEEK} />
+          ) : activePreview === 'login' ? (
+            <LoginScreen />
+          ) : activePreview === 'my-page' ? (
+            <PreviewGallery initialScreenId="my-page" />
+          ) : activePreview === 'onboarding' ? (
+            <OnboardingScreen
+              api={onboardingPreviewApi}
+              onCompleted={() => undefined}
+              onSignOut={() => undefined}
+            />
+          ) : activePreview === 'profile' ? (
+            <ProfileScreen />
+          ) : activePreview === 'signup' ? (
+            <SignUpScreen />
+          ) : activePreview === 'splash' ? (
+            <SplashScreen />
+          ) : navigatorProps.bootResolver !== undefined ||
+            navigatorProps.onNavigationTransition !== undefined ? (
+            // The boot-resolver navigator is retained for the existing boot tests.
+            <AppNavigator {...navigatorProps} />
+          ) : (
+            // Default entry is the real user flow, not the preview gallery.
+            <SessionProvider>
+              <DemoApp />
+            </SessionProvider>
+          )}
+        </View>
+      </View>
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
+  appShell: {
+    width: '100%',
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: '#EEF2E8',
+  },
+  appViewport: {
+    width: '100%',
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  webAppViewport: {
+    maxWidth: WEB_APP_MAX_WIDTH,
+  },
   placeholder: {
     flex: 1,
     alignItems: 'center',

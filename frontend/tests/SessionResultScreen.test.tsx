@@ -7,6 +7,7 @@ import {
 } from '@testing-library/react-native';
 
 import type { Api } from '../src/api/endpoints';
+import { colors } from '../src/components/theme';
 import { SessionResultScreen } from '../src/features/workout/SessionResultScreen';
 
 const finished = {
@@ -23,6 +24,21 @@ const finished = {
 };
 
 describe('SessionResultScreen feedback', () => {
+  it('uses the Workout canvas treatment for a completed result', () => {
+    render(
+      <SessionResultScreen
+        api={{ submitFeedback: jest.fn() } as unknown as Api}
+        sessionId="session-result"
+        outcome={finished}
+        onDone={jest.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole('header', { name: '오늘 운동을 마쳤어요' }),
+    ).toHaveStyle({ color: colors.text });
+  });
+
   it('submits every backend feedback field from the result UI', async () => {
     const submitFeedback = jest.fn<Api['submitFeedback']>(async () => ({
       session_id: 'session-result',

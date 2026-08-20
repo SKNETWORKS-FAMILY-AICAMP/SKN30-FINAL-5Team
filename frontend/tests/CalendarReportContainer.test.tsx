@@ -5,6 +5,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 
 import type { Api } from '../src/api/endpoints';
 import type { WeekResponse } from '../src/api/types';
@@ -34,6 +35,56 @@ function week(
 }
 
 describe('CalendarReportContainer', () => {
+  it('disables and darkens dates before the user started their routine', async () => {
+    const listWorkoutSessions = jest.fn<Api['listWorkoutSessions']>(
+      async () => ({ items: [], next_cursor: null }),
+    );
+    const getWeek = jest.fn<Api['getWeek']>(async (weekStart) =>
+      week(weekStart, weekStart === '2026-08-10' ? 'OPEN' : 'CLOSED'),
+    );
+
+    await render(
+      <CalendarReportContainer
+        api={{ listWorkoutSessions, getWeek } as unknown as Api}
+        now={new Date('2026-08-12T03:00:00Z')}
+        onOpenWeeklyReport={jest.fn()}
+        routineStartLocalDate="2026-08-06"
+        timeZone="Asia/Seoul"
+      />,
+    );
+
+    expect(await screen.findByText('2026년 8월')).toBeOnTheScreen();
+    expect(listWorkoutSessions).toHaveBeenCalledWith(
+      expect.objectContaining({ fromLocalDate: '2026-08-06' }),
+      expect.anything(),
+    );
+    expect(getWeek.mock.calls.map(([weekStart]) => weekStart)).toEqual([
+      '2026-08-03',
+      '2026-08-10',
+    ]);
+
+    const unavailableWeek = screen.getByRole('button', {
+      name: '1주차 루틴 시작 전, 선택할 수 없음',
+    });
+    expect(unavailableWeek.props.accessibilityState).toEqual({
+      disabled: true,
+    });
+    fireEvent.press(unavailableWeek);
+    expect(screen.queryByText('리포트를 확인한 주예요.')).toBeNull();
+
+    const unavailableDay = screen.getByRole('button', {
+      name: '2026-08-03 루틴 시작 전 날짜',
+    });
+    expect(unavailableDay.props.accessibilityState).toEqual({ disabled: true });
+    expect(StyleSheet.flatten(unavailableDay.props.style)).toMatchObject({
+      backgroundColor: '#C9C5BC',
+      opacity: 1,
+    });
+    expect(
+      screen.getByTestId('calendar-day-2026-08-03-0-mark-glyph').props.children,
+    ).toBe('');
+  });
+
   it('renders the existing calendar UI from paginated backend records', async () => {
     const listWorkoutSessions = jest
       .fn<Api['listWorkoutSessions']>()

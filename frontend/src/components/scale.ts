@@ -9,6 +9,7 @@ import { useWindowDimensions } from 'react-native';
 export const BASE_W = 390;
 export const BASE_H = 844;
 export const MAX_INTERFACE_SCALE = 1.2;
+export const WEB_APP_MAX_WIDTH = 640;
 
 export function getInterfaceScale(size: number, baseSize: number) {
   return Math.min(size / baseSize, MAX_INTERFACE_SCALE);

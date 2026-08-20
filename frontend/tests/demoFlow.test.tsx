@@ -359,15 +359,19 @@ describe('HomeContainer', () => {
     expect(onTab).toHaveBeenCalledWith('my');
   });
 
-  it('limits discomfort choices to attention areas saved during onboarding', async () => {
+  it('offers transient discomfort areas independently of onboarding attention areas', async () => {
     renderHome(homeApi());
 
     fireEvent.press(
       await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
     );
+    expect(screen.queryByRole('button', { name: '무릎' })).toBeNull();
+    fireEvent.press(screen.getByRole('button', { name: '있음' }));
     expect(screen.getByRole('button', { name: '무릎' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: '어깨' })).toBeNull();
-    expect(screen.queryByRole('button', { name: '허리' })).toBeNull();
+    expect(screen.getByRole('button', { name: '어깨' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '허리' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '전신' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '기타 부위' })).toBeNull();
   });
 
   it('offers routine creation when none exists yet', async () => {
@@ -563,6 +567,7 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
     );
+    fireEvent.press(screen.getByRole('button', { name: '있음' }));
     fireEvent.press(screen.getByRole('button', { name: '무릎' }));
     fireEvent.press(screen.getByRole('button', { name: '심함' }));
     fireEvent.press(screen.getByRole('button', { name: '있어요' }));
@@ -605,6 +610,7 @@ describe('HomeContainer', () => {
       await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
     );
     fireEvent.press(screen.getByRole('button', { name: '헬스장' }));
+    fireEvent.press(screen.getByRole('button', { name: '있음' }));
     fireEvent.press(screen.getByRole('button', { name: '어깨' }));
     fireEvent.press(screen.getByRole('button', { name: '보통' }));
     fireEvent.press(screen.getByRole('button', { name: '무릎' }));

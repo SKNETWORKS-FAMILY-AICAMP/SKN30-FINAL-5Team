@@ -98,7 +98,7 @@ export const HOME_DEFAULT_CHECKIN: HomeCheckin = {
 
 export const HOME_CHECKIN_OPTIONS = {
   fatigue: ['피곤해요', '보통이에요', '가벼워요'],
-  discomfort: ['없음', '어깨', '허리', '무릎'],
+  discomfort: ['없음', '있음'],
 } as const;
 
 export type HomeRoutineVariant = {
@@ -139,11 +139,11 @@ export const HOME_ROUTINE_VARIANTS: readonly HomeRoutineVariant[] = [
     title: '유산소 · 코어 루틴',
     focus: '유산소 · 코어',
     items: [
-      { id: 'walk-warm-up', name: '준비 걷기 · 5분' },
-      { id: 'interval-run', name: '인터벌 러닝 · 15분' },
-      { id: 'plank', name: '플랭크 · 3세트 × 40초' },
+      { id: 'walk-warm-up', name: '준비 걷기', sets: '1', reps: '10' },
+      { id: 'interval-run', name: '인터벌 러닝', sets: '3', reps: '10' },
+      { id: 'plank', name: '플랭크', sets: '3', reps: '10' },
       { id: 'core-bridge', name: '코어 브리지', sets: '2', reps: '15' },
-      { id: 'walk-cool-down', name: '마무리 걷기 · 5분' },
+      { id: 'walk-cool-down', name: '마무리 걷기', sets: '1', reps: '10' },
     ],
   },
 ] as const;

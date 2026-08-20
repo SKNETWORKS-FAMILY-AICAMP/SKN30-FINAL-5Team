@@ -173,7 +173,7 @@ function plan(): WorkoutPlan {
         sequence: 1,
         tier_code: 'SUPPORT',
         sets: 1,
-        reps: null,
+        reps: 10,
         work_seconds: 180,
         rest_seconds: 0,
         transition_seconds: 10,
@@ -299,7 +299,6 @@ export function homePreviewProps(state: HomePreviewState): HomeScreenProps {
     state === 'routine' || state === 'adjusted' || state === 'editing';
 
   return {
-    attentionAreaCodes: ['SHOULDER', 'KNEE'],
     nickname: '헬끼',
     localDate: LOCAL_DATE,
     status: 'ready',

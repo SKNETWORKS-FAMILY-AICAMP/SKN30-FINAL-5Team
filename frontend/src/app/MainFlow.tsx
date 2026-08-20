@@ -139,6 +139,9 @@ export function MainFlow({
     setStep({ name: 'home' });
   }, []);
   const localDate = localDateString(new Date(), me.profile?.timezone);
+  const routineStartLocalDate = me.profile
+    ? localDateString(new Date(me.profile.created_at), me.profile.timezone)
+    : undefined;
   const restToday = restChoice?.localDate === localDate;
 
   switch (step.name) {
@@ -185,6 +188,8 @@ export function MainFlow({
           api={api}
           onBack={() => setStep({ name: 'calendar-report' })}
           onNavigateTab={onTab}
+          onPlanRevisionChange={setPlanRevision}
+          planRevision={planRevision}
           timeZone={me.profile?.timezone}
           weekStart={step.weekStart}
         />
@@ -195,6 +200,7 @@ export function MainFlow({
         <CalendarReportContainer
           api={api}
           timeZone={me.profile?.timezone}
+          routineStartLocalDate={routineStartLocalDate}
           restLocalDate={restChoice?.localDate}
           onNavigateTab={onTab}
           onOpenWeeklyReport={(weekStart) =>

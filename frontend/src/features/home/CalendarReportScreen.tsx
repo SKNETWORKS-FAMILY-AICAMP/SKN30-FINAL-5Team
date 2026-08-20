@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,6 +11,7 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
 
 import { Card } from '../../components/primitives';
 import { colors } from '../../components/theme';
@@ -47,6 +49,7 @@ type CalendarReportScreenProps = {
   weeks?: readonly CalendarWeek[];
   selectedMonth?: string;
   latestMonth?: string;
+  routineStartLocalDate?: string;
   onSelectMonth?: (month: string) => void;
 };
 
@@ -76,12 +79,47 @@ function CalendarReportContent({
   weeks = CALENDAR_WEEKS,
   selectedMonth = '2026-08',
   latestMonth = '2026-08',
+  routineStartLocalDate,
   onSelectMonth,
 }: CalendarReportScreenProps) {
   const [expandedWeek, setExpandedWeek] = useState<string | null>(
     previewState === 'week-detail' ? 'week-2' : null,
   );
   const [pickerOpen, setPickerOpen] = useState(previewState === 'month-picker');
+  const hasOpenedPicker = useRef(previewState === 'month-picker');
+  const [pickerInitialMonth, setPickerInitialMonth] = useState(latestMonth);
+  const [caretRotation] = useState(
+    () => new Animated.Value(pickerOpen ? 1 : 0),
+  );
+
+  useEffect(() => {
+    const animation = Animated.timing(caretRotation, {
+      toValue: pickerOpen ? 1 : 0,
+      duration: 150,
+      useNativeDriver: true,
+    });
+    animation.start();
+
+    return () => animation.stop();
+  }, [caretRotation, pickerOpen]);
+
+  const toggleMonthPicker = () => {
+    if (pickerOpen) {
+      setPickerOpen(false);
+      return;
+    }
+
+    setPickerInitialMonth(
+      hasOpenedPicker.current ? selectedMonth : latestMonth,
+    );
+    hasOpenedPicker.current = true;
+    setPickerOpen(true);
+  };
+
+  const caretRotate = caretRotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '180deg'],
+  });
 
   return (
     <SafeAreaView edges={['left', 'right']} style={styles.screen}>
@@ -100,16 +138,36 @@ function CalendarReportContent({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="연도와 월 선택"
-                onPress={() => setPickerOpen((current) => !current)}
+                accessibilityState={{ expanded: pickerOpen }}
+                onPress={toggleMonthPicker}
                 style={styles.monthPickerButton}
               >
                 <Text style={styles.monthTitle}>{monthLabel}</Text>
-                <Text style={styles.monthCaret}>⌄</Text>
+                <Animated.View
+                  style={{ transform: [{ rotate: caretRotate }] }}
+                  testID="month-picker-caret"
+                >
+                  <Svg
+                    aria-hidden
+                    fill="none"
+                    height={16}
+                    viewBox="0 0 24 24"
+                    width={16}
+                  >
+                    <Path
+                      d="M6 9.5l6 6 6-6"
+                      stroke="#8B8780"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2.4}
+                    />
+                  </Svg>
+                </Animated.View>
               </Pressable>
               {pickerOpen ? (
                 <MonthPicker
                   latestMonth={latestMonth}
-                  selectedMonth={selectedMonth}
+                  selectedMonth={pickerInitialMonth}
                   onConfirm={(month) => {
                     onSelectMonth?.(month);
                     setPickerOpen(false);
@@ -158,6 +216,13 @@ function CalendarReportContent({
         <View style={styles.weekList}>
           {weeks.map((week) => {
             const expanded = expandedWeek === week.id;
+            const beforeRoutineStart =
+              routineStartLocalDate !== undefined &&
+              week.days.every(
+                (day) =>
+                  day.localDate !== undefined &&
+                  day.localDate < routineStartLocalDate,
+              );
             return (
               <View
                 key={week.id}
@@ -167,11 +232,19 @@ function CalendarReportContent({
                   week.state === 'upcoming' && styles.weekBandUpcoming,
                   expanded && styles.weekBandExpanded,
                   { backgroundColor: week.bandColor },
+                  beforeRoutineStart && styles.weekBandBeforeRoutine,
                 ]}
+                testID={`calendar-week-${week.id}`}
               >
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={`${week.label} ${CALENDAR_WEEK_CHIPS[week.state].label}, 요약 ${expanded ? '접기' : '펼치기'}`}
+                  accessibilityLabel={
+                    beforeRoutineStart
+                      ? `${week.label} 루틴 시작 전, 선택할 수 없음`
+                      : `${week.label} ${CALENDAR_WEEK_CHIPS[week.state].label}, 요약 ${expanded ? '접기' : '펼치기'}`
+                  }
+                  accessibilityState={{ disabled: beforeRoutineStart }}
+                  disabled={beforeRoutineStart}
                   onPress={() => setExpandedWeek(expanded ? null : week.id)}
                   style={styles.weekHeader}
                 >
@@ -180,24 +253,37 @@ function CalendarReportContent({
                       <Text style={styles.weekTitle}>{week.label}</Text>
                       <Text style={styles.weekRange}>{week.range}</Text>
                     </View>
-                    <StateChip state={week.state} weekId={week.id} />
+                    <StateChip
+                      beforeRoutineStart={beforeRoutineStart}
+                      state={week.state}
+                      weekId={week.id}
+                    />
                   </View>
                 </Pressable>
                 <View style={styles.dayRow}>
                   {week.days.map((day, index) => {
+                    const beforeRoutineStart =
+                      routineStartLocalDate !== undefined &&
+                      day.localDate !== undefined &&
+                      day.localDate < routineStartLocalDate;
                     const canOpen =
                       expanded &&
+                      !beforeRoutineStart &&
                       day.localDate !== undefined &&
                       (day.sessionIds?.length ?? 0) > 0;
                     return (
                       <Pressable
                         key={`${week.id}-${day.day}`}
                         accessibilityLabel={
-                          canOpen
-                            ? `${day.localDate} 운동 기록 보기`
-                            : undefined
+                          beforeRoutineStart
+                            ? `${day.localDate} 루틴 시작 전 날짜`
+                            : canOpen
+                              ? `${day.localDate} 운동 기록 보기`
+                              : undefined
                         }
-                        accessibilityRole={canOpen ? 'button' : undefined}
+                        accessibilityRole={
+                          canOpen || beforeRoutineStart ? 'button' : undefined
+                        }
                         accessibilityState={
                           canOpen ? undefined : { disabled: true }
                         }
@@ -207,17 +293,21 @@ function CalendarReportContent({
                           styles.dayCell,
                           !day.inCurrentMonth && styles.dayCellOutsideMonth,
                           canOpen && styles.dayCellSelectable,
+                          beforeRoutineStart && styles.dayCellBeforeRoutine,
                         ]}
+                        testID={`calendar-day-${week.id}-${index}`}
                       >
                         <Text
                           style={[
                             styles.dayNumber,
                             day.status === 'today' && styles.dayNumberToday,
+                            beforeRoutineStart && styles.dayNumberBeforeRoutine,
                           ]}
                         >
                           {day.day}
                         </Text>
                         <CalendarStatusMark
+                          beforeRoutineStart={beforeRoutineStart}
                           status={day.status}
                           testID={`calendar-day-${week.id}-${index}-mark`}
                         />
@@ -325,6 +415,11 @@ function MonthPicker({
   return (
     <View accessibilityViewIsModal style={styles.picker} testID="month-picker">
       <View style={styles.pickerColumns}>
+        <View
+          pointerEvents="none"
+          style={styles.pickerSelectionBand}
+          testID="month-picker-selection-band"
+        />
         <MonthPickerWheel
           accessibilityLabel="연도 선택 휠"
           selectedValue={year}
@@ -373,7 +468,21 @@ function MonthPickerWheel({
   values: readonly number[];
   onSelect: (value: number) => void;
 }) {
-  const selectedIndex = Math.max(0, values.indexOf(selectedValue));
+  const wheelRef = useRef<ScrollView | null>(null);
+  const initialScrollApplied = useRef(false);
+  const [initialContentOffset] = useState(() => ({
+    x: 0,
+    y: Math.max(0, values.indexOf(selectedValue)) * MONTH_PICKER_ITEM_HEIGHT,
+  }));
+  const applyInitialScroll = () => {
+    if (initialScrollApplied.current || wheelRef.current === null) return;
+
+    wheelRef.current.scrollTo({
+      ...initialContentOffset,
+      animated: false,
+    });
+    initialScrollApplied.current = true;
+  };
   const selectFromScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const index = Math.max(
       0,
@@ -391,14 +500,13 @@ function MonthPickerWheel({
   return (
     <View style={styles.pickerColumn}>
       <ScrollView
+        ref={wheelRef}
         accessibilityLabel={accessibilityLabel}
         contentContainerStyle={styles.pickerWheelContent}
-        contentOffset={{
-          x: 0,
-          y: selectedIndex * MONTH_PICKER_ITEM_HEIGHT,
-        }}
+        contentOffset={initialContentOffset}
         decelerationRate="fast"
         nestedScrollEnabled
+        onContentSizeChange={applyInitialScroll}
         onMomentumScrollEnd={selectFromScroll}
         onScroll={selectFromScroll}
         onScrollEndDrag={selectFromScroll}
@@ -412,11 +520,13 @@ function MonthPickerWheel({
         {values.map((value) => (
           <View key={value} style={styles.pickerWheelRow}>
             <Text
+              accessibilityState={{ selected: value === selectedValue }}
               style={
                 value === selectedValue
                   ? styles.pickerSelected
                   : styles.pickerMuted
               }
+              testID={`${testID}-value-${value}`}
             >
               {value}
               {suffix}
@@ -446,9 +556,11 @@ function MonthStat({
 }
 
 function CalendarStatusMark({
+  beforeRoutineStart = false,
   status,
   testID,
 }: {
+  beforeRoutineStart?: boolean;
   status: CalendarDayStatus;
   testID: string;
 }) {
@@ -459,8 +571,10 @@ function CalendarStatusMark({
       style={[
         styles.statusMark,
         {
-          backgroundColor: visual.backgroundColor,
-          borderColor: visual.borderColor,
+          backgroundColor: beforeRoutineStart
+            ? '#A9A49B'
+            : visual.backgroundColor,
+          borderColor: beforeRoutineStart ? '#8B8780' : visual.borderColor,
         },
       ]}
       testID={testID}
@@ -469,16 +583,18 @@ function CalendarStatusMark({
         style={[styles.statusMarkText, { color: visual.color }]}
         testID={`${testID}-glyph`}
       >
-        {visual.glyph}
+        {beforeRoutineStart ? '' : visual.glyph}
       </Text>
     </View>
   );
 }
 
 function StateChip({
+  beforeRoutineStart = false,
   state,
   weekId,
 }: {
+  beforeRoutineStart?: boolean;
   state: CalendarWeekState;
   weekId: string;
 }) {
@@ -489,18 +605,23 @@ function StateChip({
       style={[
         styles.stateChip,
         {
-          backgroundColor: chip.backgroundColor,
-          borderColor: chip.borderColor,
-          borderStyle: chip.borderStyle,
+          backgroundColor: beforeRoutineStart
+            ? '#C9C5BC'
+            : chip.backgroundColor,
+          borderColor: beforeRoutineStart ? '#9A968E' : chip.borderColor,
+          borderStyle: beforeRoutineStart ? 'solid' : chip.borderStyle,
         },
       ]}
       testID={`calendar-chip-${weekId}`}
     >
       <Text
-        style={[styles.stateChipText, { color: chip.color }]}
+        style={[
+          styles.stateChipText,
+          { color: beforeRoutineStart ? '#5F5B55' : chip.color },
+        ]}
         testID={`calendar-chip-${weekId}-label`}
       >
-        {chip.label}
+        {beforeRoutineStart ? '가입 전' : chip.label}
       </Text>
     </View>
   );
@@ -614,11 +735,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '800',
   },
-  monthCaret: {
-    color: '#4E8B3A',
-    fontSize: 18,
-    fontWeight: '800',
-  },
   monthActions: {
     flexDirection: 'row',
   },
@@ -681,21 +797,34 @@ const styles = StyleSheet.create({
     elevation: 24,
   },
   pickerColumns: {
-    height: MONTH_PICKER_ITEM_HEIGHT * 3,
+    position: 'relative',
+    height: MONTH_PICKER_ITEM_HEIGHT * 5,
     flexDirection: 'row',
     overflow: 'hidden',
     borderRadius: 14,
     backgroundColor: '#FBFBF8',
   },
+  pickerSelectionBand: {
+    position: 'absolute',
+    top: MONTH_PICKER_ITEM_HEIGHT * 2,
+    right: 0,
+    left: 0,
+    height: MONTH_PICKER_ITEM_HEIGHT,
+    borderWidth: 1.5,
+    borderColor: '#CBDDB4',
+    borderRadius: 10,
+    backgroundColor: '#EFF4E6',
+  },
   pickerColumn: {
+    zIndex: 1,
     flex: 1,
-    height: MONTH_PICKER_ITEM_HEIGHT * 3,
+    height: MONTH_PICKER_ITEM_HEIGHT * 5,
   },
   pickerWheel: {
     flex: 1,
   },
   pickerWheelContent: {
-    paddingVertical: MONTH_PICKER_ITEM_HEIGHT,
+    paddingVertical: MONTH_PICKER_ITEM_HEIGHT * 2,
   },
   pickerWheelRow: {
     height: MONTH_PICKER_ITEM_HEIGHT,
@@ -704,19 +833,14 @@ const styles = StyleSheet.create({
   },
   pickerMuted: {
     color: '#B7B2A8',
-    fontSize: 14,
+    fontSize: 16,
+    fontWeight: '600',
     textAlign: 'center',
   },
   pickerSelected: {
-    width: '90%',
-    borderWidth: 1.5,
-    borderColor: '#CBDDB4',
-    borderRadius: 10,
-    backgroundColor: '#EFF4E6',
     color: colors.text,
-    fontSize: 15,
+    fontSize: 18,
     fontWeight: '800',
-    paddingVertical: 10,
     textAlign: 'center',
   },
   pickerDone: {
@@ -762,6 +886,12 @@ const styles = StyleSheet.create({
     borderColor: '#DFDBD2',
     borderStyle: 'dashed',
     opacity: 0.5,
+  },
+  weekBandBeforeRoutine: {
+    borderColor: '#A9A49B',
+    borderStyle: 'solid',
+    backgroundColor: '#D9D6CF',
+    opacity: 1,
   },
   weekBandExpanded: {
     borderColor: '#7FAE5C',
@@ -818,6 +948,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,.62)',
   },
+  dayCellBeforeRoutine: {
+    borderRadius: 12,
+    backgroundColor: '#C9C5BC',
+    opacity: 1,
+  },
   dayNumber: {
     color: '#6F6B63',
     fontSize: 12,
@@ -826,6 +961,10 @@ const styles = StyleSheet.create({
   dayNumberToday: {
     color: colors.text,
     fontWeight: '800',
+  },
+  dayNumberBeforeRoutine: {
+    color: '#5F5B55',
+    fontWeight: '700',
   },
   statusMark: {
     width: 20,
