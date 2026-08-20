@@ -13,6 +13,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react-native';
 import { Image, Platform, ScrollView } from 'react-native';
 
@@ -25,6 +26,7 @@ import type {
   DecisionResponse,
   MeResponse,
   OnboardingRequest,
+  OnboardingResponse,
   RoutineResponse,
   SessionItem,
   WeekResponse,
@@ -33,6 +35,7 @@ import type {
 } from '../src/api/types';
 import { resolveEnvConfig } from '../src/config/env';
 import { MascotStage } from '../src/components/brand/BrandChrome';
+import { ScaleViewportProvider } from '../src/components/scale';
 import { CalendarStatusScreen } from '../src/features/calendar/CalendarStatusScreen';
 import { HomeContainer } from '../src/features/home/HomeContainer';
 import { MascotHouseScreen } from '../src/features/house/MascotHouseScreen';
@@ -253,6 +256,20 @@ function stubApi(overrides: Partial<Api> = {}): Api {
   } as unknown as Api;
 }
 
+function completedOnboarding(): OnboardingResponse {
+  return {
+    user_id: 'user-1',
+    onboarding_completed: true,
+    profile_version: 1,
+    coaching_style_code: 'SUPPORTIVE',
+    ai_trial_started_at: '2026-08-18T00:00:00+09:00',
+    ai_trial_ends_at: '2026-09-17T00:00:00+09:00',
+    premium_status_code: 'TRIAL',
+    created_at: '2026-08-18T00:00:00+09:00',
+    updated_at: '2026-08-18T00:00:00+09:00',
+  };
+}
+
 const notFound = () =>
   Promise.reject(
     new ApiError({
@@ -398,6 +415,14 @@ describe('HomeContainer', () => {
     expect(screen.getByRole('button', { name: '허리' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '전신' })).toBeNull();
     expect(screen.queryByRole('button', { name: '기타 부위' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '목' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '가슴' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '복부' })).toBeNull();
+
+    fireEvent.press(screen.getByRole('button', { name: '다른 부위 더 보기' }));
+    expect(screen.getByRole('button', { name: '목' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '가슴' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '복부' })).toBeTruthy();
   });
 
   it('offers routine creation when none exists yet', async () => {
@@ -1186,6 +1211,15 @@ describe('OnboardingScreen', () => {
     fireEvent.press(screen.getByText('다음'));
   }
 
+  function acceptRequiredConsents() {
+    fireEvent.press(
+      screen.getByRole('checkbox', { name: '개인정보 수집 및 이용' }),
+    );
+    fireEvent.press(
+      screen.getByRole('checkbox', { name: '건강 관련 민감정보 처리' }),
+    );
+  }
+
   it('offers a way out for a signed-in account that has not onboarded', () => {
     const onSignOut = jest.fn();
     render(
@@ -1427,6 +1461,156 @@ describe('OnboardingScreen', () => {
     }
   });
 
+  it('separates five consent checkboxes into required and optional items', () => {
+    render(
+      <OnboardingScreen
+        api={stubApi()}
+        initialStep={13}
+        onCompleted={jest.fn()}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    const requiredLabels = ['개인정보 수집 및 이용', '건강 관련 민감정보 처리'];
+    const optionalLabels = ['웨어러블 연동', '캘린더 연동', '마케팅 정보 수신'];
+
+    expect(screen.getAllByRole('checkbox')).toHaveLength(5);
+    requiredLabels.forEach((label) => {
+      expect(
+        within(screen.getByRole('checkbox', { name: label })).getByText('필수'),
+      ).toBeOnTheScreen();
+    });
+    optionalLabels.forEach((label) => {
+      expect(
+        within(screen.getByRole('checkbox', { name: label })).getByText('선택'),
+      ).toBeOnTheScreen();
+    });
+  });
+
+  it('explains the purpose of every consent item', () => {
+    render(
+      <OnboardingScreen
+        api={stubApi()}
+        initialStep={13}
+        onCompleted={jest.fn()}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    [
+      '닉네임·생년월일·키·체중으로 나에게 맞는 운동 강도를 계산해요.',
+      '통증 부위와 컨디션 체크인을 받아 위험한 동작을 빼요.',
+      '워치 데이터로 컨디션 입력을 줄여줘요. 없어도 앱은 그대로 써요.',
+      '지금은 연동 준비 중이에요. 준비되면 이 동의로 바로 쓸 수 있어요.',
+      '새 기능과 이벤트 소식을 보내요.',
+    ].forEach((description) => {
+      expect(screen.getByText(description)).toBeOnTheScreen();
+    });
+  });
+
+  it('names every remaining required consent and enables submission only after both are checked', () => {
+    render(
+      <OnboardingScreen
+        api={stubApi()}
+        initialStep={13}
+        onCompleted={jest.fn()}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: '입력이 필요해요' }),
+    ).toBeDisabled();
+    expect(
+      screen.getByText(
+        '남은 필수 동의: 개인정보 수집 및 이용, 건강 관련 민감정보 처리\n안전한 루틴을 만들려면 이 동의가 필요해요.',
+      ),
+    ).toBeOnTheScreen();
+
+    fireEvent.press(
+      screen.getByRole('checkbox', { name: '개인정보 수집 및 이용' }),
+    );
+    expect(
+      screen.getByText(
+        '남은 필수 동의: 건강 관련 민감정보 처리\n안전한 루틴을 만들려면 이 동의가 필요해요.',
+      ),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', { name: '입력이 필요해요' }),
+    ).toBeDisabled();
+
+    fireEvent.press(
+      screen.getByRole('checkbox', { name: '건강 관련 민감정보 처리' }),
+    );
+    expect(screen.getByRole('button', { name: '시작하기' })).toBeEnabled();
+    expect(screen.queryByText(/남은 필수 동의:/)).not.toBeOnTheScreen();
+  });
+
+  it('submits optional consents as false when only required consents are checked', async () => {
+    const submitOnboarding = jest.fn(async (_request: OnboardingRequest) =>
+      completedOnboarding(),
+    );
+    render(
+      <OnboardingScreen
+        api={stubApi({ submitOnboarding })}
+        onCompleted={jest.fn()}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fillRequiredOnboardingSteps();
+    acceptRequiredConsents();
+    fireEvent.press(screen.getByText('시작하기'));
+
+    await waitFor(() => {
+      expect(submitOnboarding).toHaveBeenCalledWith(
+        expect.objectContaining({
+          consents: {
+            general_personal_data: true,
+            sensitive_data: true,
+            wearable_integration: false,
+            calendar_integration: false,
+            marketing: false,
+          },
+        }),
+      );
+    });
+  });
+
+  it('submits enabled optional consent values instead of hardcoded false values', async () => {
+    const submitOnboarding = jest.fn(async (_request: OnboardingRequest) =>
+      completedOnboarding(),
+    );
+    render(
+      <OnboardingScreen
+        api={stubApi({ submitOnboarding })}
+        onCompleted={jest.fn()}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fillRequiredOnboardingSteps();
+    acceptRequiredConsents();
+    fireEvent.press(screen.getByRole('checkbox', { name: '웨어러블 연동' }));
+    fireEvent.press(screen.getByRole('checkbox', { name: '캘린더 연동' }));
+    fireEvent.press(screen.getByRole('checkbox', { name: '마케팅 정보 수신' }));
+    fireEvent.press(screen.getByText('시작하기'));
+
+    await waitFor(() => {
+      expect(submitOnboarding).toHaveBeenCalledWith(
+        expect.objectContaining({
+          consents: {
+            general_personal_data: true,
+            sensitive_data: true,
+            wearable_integration: true,
+            calendar_integration: true,
+            marketing: true,
+          },
+        }),
+      );
+    });
+  });
+
   it('still handles the server age block as a defense in depth', async () => {
     const submitOnboarding = jest.fn(async () => {
       throw new ApiError({
@@ -1445,9 +1629,7 @@ describe('OnboardingScreen', () => {
     );
 
     fillRequiredOnboardingSteps();
-    screen
-      .getAllByRole('checkbox')
-      .forEach((checkbox) => fireEvent.press(checkbox));
+    acceptRequiredConsents();
     fireEvent.press(screen.getByText('시작하기'));
 
     await waitFor(() => {
@@ -1499,10 +1681,57 @@ describe('OnboardingScreen', () => {
     fireEvent.press(screen.getByText('무릎'));
     expect(screen.getByText('무릎 통증 정도')).toBeOnTheScreen();
     expect(
+      screen.getByTestId('onboarding-pain-severity-options-KNEE'),
+    ).toHaveStyle({ flexDirection: 'row', flexWrap: 'nowrap' });
+    expect(
       screen.getByRole('button', { name: '입력이 필요해요' }),
     ).toBeDisabled();
     fireEvent.press(screen.getByText('중간 정도 아픔'));
     expect(screen.getByRole('button', { name: '다음' })).toBeEnabled();
+  });
+
+  it('scales pain severity labels with the available viewport width', () => {
+    const onboarding = (width: number) => (
+      <ScaleViewportProvider viewport={{ width, height: 844 }}>
+        <OnboardingScreen
+          api={stubApi()}
+          initialStep={12}
+          onCompleted={jest.fn()}
+          onSignOut={jest.fn()}
+        />
+      </ScaleViewportProvider>
+    );
+    const view = render(onboarding(320));
+
+    fireEvent.press(screen.getByText('있어요'));
+    fireEvent.press(screen.getByText('무릎'));
+    expect(screen.getByText('중간 정도 아픔')).toHaveStyle({ fontSize: 10 });
+
+    view.rerender(onboarding(468));
+    expect(screen.getByText('중간 정도 아픔')).toHaveStyle({ fontSize: 13.2 });
+  });
+
+  it('hides unsupported and extended attention areas until expanded', () => {
+    render(
+      <OnboardingScreen
+        api={stubApi()}
+        initialStep={12}
+        onCompleted={jest.fn()}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByText('있어요'));
+    expect(screen.queryByRole('button', { name: '전신' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '기타 부위' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '목' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '가슴' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '복부' })).toBeNull();
+
+    fireEvent.press(screen.getByRole('button', { name: '다른 부위 더 보기' }));
+    expect(screen.getByRole('button', { name: '목' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: '가슴' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: '복부' })).toBeOnTheScreen();
   });
 
   it('adjusts duration by 10 minutes and weekly frequency from 1 to 7', () => {
@@ -1560,9 +1789,7 @@ describe('OnboardingScreen', () => {
     );
 
     fillRequiredOnboardingSteps({ attentionArea: '무릎' });
-    screen
-      .getAllByRole('checkbox')
-      .forEach((checkbox) => fireEvent.press(checkbox));
+    acceptRequiredConsents();
     fireEvent.press(screen.getByText('시작하기'));
 
     await waitFor(() => {
@@ -1607,9 +1834,7 @@ describe('OnboardingScreen', () => {
     );
 
     fillRequiredOnboardingSteps({ selectOptionalPreferences: false });
-    screen
-      .getAllByRole('checkbox')
-      .forEach((checkbox) => fireEvent.press(checkbox));
+    acceptRequiredConsents();
     fireEvent.press(screen.getByText('시작하기'));
 
     await waitFor(() => {
@@ -1646,9 +1871,7 @@ describe('OnboardingScreen', () => {
     );
 
     fillRequiredOnboardingSteps();
-    screen
-      .getAllByRole('checkbox')
-      .forEach((checkbox) => fireEvent.press(checkbox));
+    acceptRequiredConsents();
     fireEvent.press(screen.getByText('시작하기'));
 
     await waitFor(() => {

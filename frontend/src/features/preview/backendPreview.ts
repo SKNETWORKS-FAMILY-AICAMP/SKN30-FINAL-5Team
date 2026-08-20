@@ -175,7 +175,21 @@ const PREVIEW_REPORT: WeeklyReportResponse = {
     not_completed: 0,
     stopped_for_safety: 0,
   },
-  primary_miss_reason_code: null,
+  weekday_failure_summary: {
+    WEDNESDAY: {
+      partial: 1,
+      not_completed: 0,
+      stopped_for_safety: 0,
+    },
+  },
+  pattern_summary: {
+    high_completion_windows: [],
+    high_completion_exercise_types: [],
+    high_completion_intensity_codes: [],
+    blocker_reason_codes: ['TIME_SHORTAGE'],
+  },
+  agent_summaries: null,
+  primary_miss_reason_code: 'TIME_SHORTAGE',
   completion_rate: 0.75,
   persistence_rate: 1,
   negotiation_success_rate: 1,

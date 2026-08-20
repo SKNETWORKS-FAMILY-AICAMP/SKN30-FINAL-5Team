@@ -34,7 +34,8 @@ import {
   ADVERSE_REACTION_OPTIONS,
   agentTypeLabel,
   bodyAreaLabel,
-  BODY_AREA_OPTIONS,
+  DEFAULT_BODY_AREA_OPTIONS,
+  EXTENDED_BODY_AREA_OPTIONS,
   FATIGUE_OPTIONS,
   SEVERITY_OPTIONS,
 } from '../../api/labels';
@@ -885,6 +886,11 @@ function CheckinSheet({
 }) {
   const [draft, setDraft] = useState<HomeCheckinDraft>(initialDraft);
   const [openArea, setOpenArea] = useState<string | null>(null);
+  const [showExtendedAreas, setShowExtendedAreas] = useState(() =>
+    Object.keys(initialDraft.discomforts).some((code) =>
+      EXTENDED_BODY_AREA_OPTIONS.some((option) => option.code === code),
+    ),
+  );
 
   const selectedAreas = Object.keys(draft.discomforts);
   const sleepInvalid = sleepHoursInvalid(draft.sleepHours);
@@ -949,7 +955,7 @@ function CheckinSheet({
                 setDraft((current) => ({ ...current, discomforts: {} }));
               }}
             />
-            {BODY_AREA_OPTIONS.map((area) => (
+            {DEFAULT_BODY_AREA_OPTIONS.map((area) => (
               <Choice
                 key={area.code}
                 label={area.label}
@@ -961,6 +967,25 @@ function CheckinSheet({
                 }
               />
             ))}
+            <Choice
+              label={showExtendedAreas ? '다른 부위 접기' : '다른 부위 더 보기'}
+              selected={showExtendedAreas}
+              onPress={() => setShowExtendedAreas((visible) => !visible)}
+            />
+            {showExtendedAreas
+              ? EXTENDED_BODY_AREA_OPTIONS.map((area) => (
+                  <Choice
+                    key={area.code}
+                    label={area.label}
+                    selected={draft.discomforts[area.code] !== undefined}
+                    onPress={() =>
+                      setOpenArea((current) =>
+                        current === area.code ? null : area.code,
+                      )
+                    }
+                  />
+                ))
+              : null}
           </View>
           {openArea ? (
             <View style={formStyles.severityBlock}>

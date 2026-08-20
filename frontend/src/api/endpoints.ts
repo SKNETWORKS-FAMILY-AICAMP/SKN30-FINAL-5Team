@@ -434,4 +434,19 @@ export function createApi(client: ApiClient) {
   };
 }
 
-export type Api = ReturnType<typeof createApi>;
+/**
+ * Forward-compatible read boundary for restoring the server-owned weekly plan
+ * revision after an app restart. The backend route is not available yet, so
+ * this capability stays optional and `createApi` does not issue a speculative
+ * request. Once the route is implemented, adding this method to `createApi`
+ * automatically enables MainFlow restoration.
+ */
+export type WeeklyPlanRevisionReadCapability = {
+  getLatestWeeklyPlanRevision(
+    weekStart: string,
+    signal?: AbortSignal,
+  ): Promise<WeeklyPlanRevisionResponse>;
+};
+
+export type Api = ReturnType<typeof createApi> &
+  Partial<WeeklyPlanRevisionReadCapability>;

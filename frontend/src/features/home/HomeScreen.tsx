@@ -35,9 +35,12 @@ import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
 
 import {
   ADVERSE_REACTION_OPTIONS,
+  actionLabel,
   agentTypeLabel,
   bodyAreaLabel,
   decisionReasonLabel,
+  DEFAULT_BODY_AREA_OPTIONS,
+  EXTENDED_BODY_AREA_OPTIONS,
   locationLabel,
   planRevisionReasonLabel,
   sessionStatusLabel,
@@ -45,6 +48,7 @@ import {
 } from '../../api/labels';
 import type { Api } from '../../api/endpoints';
 import type {
+  ActionCode,
   DailyContextResponse,
   DecisionResponse,
   DiscomfortSeverityCode,
@@ -112,19 +116,6 @@ type WeekDay = {
   label: string;
   statusCodes?: readonly SessionStatusCode[];
 };
-// DOMAIN_RULES 3.2 / API_CONTRACT 5.10 기본 노출 범위. 프로필의 주의
-// 부위와 분리해 오늘 일시적으로 불편한 부위를 선택한다.
-const CHECKIN_DISCOMFORT_CODES = [
-  'WRIST_HAND',
-  'LOWER_BACK',
-  'SHOULDER',
-  'ELBOW',
-  'KNEE',
-  'UPPER_BACK',
-  'HIP',
-  'ANKLE_FOOT',
-] as const;
-
 const EMPTY_AVAILABILITY_SLOT: HomeAvailabilitySlot = {
   startTime: '',
   endTime: '',
@@ -775,6 +766,13 @@ function HomeScreenContent({
             blockingRevisionNotice === null &&
             hasRoutine ? (
               <RoutineCard
+                actionCode={
+                  apiMode
+                    ? decision?.action_code
+                    : adjustedRoutine
+                      ? 'DOWNSHIFT'
+                      : 'KEEP'
+                }
                 editLabel={apiMode ? '운동 장소 변경' : '운동 수정하기'}
                 items={displayedRoutineItems}
                 minutes={routineMinutes}
@@ -1369,6 +1367,7 @@ const ROUTINE_NOTES = [
 ] as const;
 
 function RoutineCard({
+  actionCode,
   editLabel,
   focus,
   items,
@@ -1390,6 +1389,7 @@ function RoutineCard({
   title,
   useJua,
 }: {
+  actionCode?: ActionCode;
   editLabel: string;
   focus: string;
   items: readonly HomeRoutineItem[];
@@ -1414,10 +1414,32 @@ function RoutineCard({
   const styles = useHomeStyles();
   const drag = useDragController(onMove ?? (() => undefined));
   const rerollLabel = getHomeRerollLabel(rerolls, rerolling);
+  const routineActionLabel =
+    actionCode === undefined ? null : actionLabel(actionCode);
+  const adjustedAction =
+    actionCode === 'DOWNSHIFT' ||
+    actionCode === 'CHANGE' ||
+    actionCode === 'RECOVERY';
   return (
     <View style={styles.routineCard} testID="home-routine-state">
-      <View style={styles.routineBadge}>
-        <Text style={styles.routineBadgeText}>오늘의 운동</Text>
+      <View style={styles.routineBadgeRow}>
+        <View style={styles.routineBadge}>
+          <Text style={styles.routineBadgeText}>오늘의 운동</Text>
+        </View>
+        {routineActionLabel === null ? null : (
+          <View
+            accessible
+            accessibilityLabel={`루틴 진행 방식: ${routineActionLabel}`}
+            style={[
+              styles.routineActionBadge,
+              adjustedAction && styles.routineActionBadgeAdjusted,
+            ]}
+          >
+            <Text style={styles.routineActionBadgeText}>
+              {routineActionLabel}
+            </Text>
+          </View>
+        )}
       </View>
       <Text style={styles.routineTitle}>{title}</Text>
       <Text style={styles.routineSummary}>
@@ -1852,8 +1874,19 @@ function CheckinSheet({
   const [showDiscomfortDetails, setShowDiscomfortDetails] = useState(
     Object.keys(draft.discomforts).length > 0,
   );
-  const discomfortAreaCodes = Array.from(
-    new Set([...CHECKIN_DISCOMFORT_CODES, ...Object.keys(draft.discomforts)]),
+  const selectedDiscomfortCodes = Object.keys(draft.discomforts);
+  const [showExtendedAreas, setShowExtendedAreas] = useState(() =>
+    selectedDiscomfortCodes.some((code) =>
+      EXTENDED_BODY_AREA_OPTIONS.some((option) => option.code === code),
+    ),
+  );
+  const selectableCodes = new Set<string>(
+    [...DEFAULT_BODY_AREA_OPTIONS, ...EXTENDED_BODY_AREA_OPTIONS].map(
+      (option) => option.code,
+    ),
+  );
+  const legacySelectedCodes = selectedDiscomfortCodes.filter(
+    (code) => !selectableCodes.has(code),
   );
   const sleepHours = draft.sleepHours.trim();
   const sleepInvalid =
@@ -2038,38 +2071,73 @@ function CheckinSheet({
           />
         </ChoiceBlock>
         {showDiscomfortDetails ? (
-          <ChoiceBlock label="오늘 불편한 부위를 모두 선택해주세요" twoColumn>
-            {discomfortAreaCodes.map((code) => (
+          <>
+            <ChoiceBlock label="오늘 불편한 부위를 모두 선택해주세요" twoColumn>
+              {DEFAULT_BODY_AREA_OPTIONS.map((option) => (
+                <ChoiceButton
+                  key={option.code}
+                  label={option.label}
+                  numberOfLines={2}
+                  onPress={() => onToggleBodyArea(option.code)}
+                  selected={draft.discomforts[option.code] !== undefined}
+                  twoColumn
+                />
+              ))}
               <ChoiceButton
-                key={code}
-                label={bodyAreaLabel(code)}
+                label={
+                  showExtendedAreas ? '다른 부위 접기' : '다른 부위 더 보기'
+                }
                 numberOfLines={2}
-                onPress={() => onToggleBodyArea(code)}
-                selected={draft.discomforts[code] !== undefined}
+                onPress={() => setShowExtendedAreas((visible) => !visible)}
+                selected={showExtendedAreas}
                 twoColumn
               />
-            ))}
-          </ChoiceBlock>
+              {showExtendedAreas
+                ? EXTENDED_BODY_AREA_OPTIONS.map((option) => (
+                    <ChoiceButton
+                      key={option.code}
+                      label={option.label}
+                      numberOfLines={2}
+                      onPress={() => onToggleBodyArea(option.code)}
+                      selected={draft.discomforts[option.code] !== undefined}
+                      twoColumn
+                    />
+                  ))
+                : null}
+            </ChoiceBlock>
+            {legacySelectedCodes.length > 0 ? (
+              <ChoiceBlock label="이전에 저장된 부위 (해제만 가능)" twoColumn>
+                {legacySelectedCodes.map((code) => (
+                  <ChoiceButton
+                    key={code}
+                    label={bodyAreaLabel(code)}
+                    numberOfLines={2}
+                    onPress={() => onToggleBodyArea(code)}
+                    selected
+                    twoColumn
+                  />
+                ))}
+              </ChoiceBlock>
+            ) : null}
+          </>
         ) : null}
         {discomfortSelectionMissing ? (
           <Text accessibilityRole="alert" style={styles.messageText}>
             불편한 부위를 한 곳 이상 선택해주세요.
           </Text>
         ) : null}
-        {discomfortAreaCodes
-          .filter((code) => draft.discomforts[code] !== undefined)
-          .map((code) => (
-            <ChoiceBlock key={code} label={`${bodyAreaLabel(code)} 통증 정도`}>
-              {SEVERITY_OPTIONS.map((option) => (
-                <ChoiceButton
-                  key={option.code}
-                  label={option.label}
-                  onPress={() => onChangeSeverity(code, option.code)}
-                  selected={draft.discomforts[code] === option.code}
-                />
-              ))}
-            </ChoiceBlock>
-          ))}
+        {selectedDiscomfortCodes.map((code) => (
+          <ChoiceBlock key={code} label={`${bodyAreaLabel(code)} 통증 정도`}>
+            {SEVERITY_OPTIONS.map((option) => (
+              <ChoiceButton
+                key={option.code}
+                label={option.label}
+                onPress={() => onChangeSeverity(code, option.code)}
+                selected={draft.discomforts[code] === option.code}
+              />
+            ))}
+          </ChoiceBlock>
+        ))}
         <ChoiceBlock label="운동을 멈춰야 할 이상 반응">
           <ChoiceButton
             label="없어요"
@@ -3682,6 +3750,12 @@ function createHomeStyles(
       paddingBottom: s(8),
       ...shadow(6, 18, 0.1),
     },
+    routineBadgeRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: s(8),
+    },
     routineBadge: {
       alignSelf: 'flex-start',
       borderRadius: 999,
@@ -3690,6 +3764,24 @@ function createHomeStyles(
       paddingHorizontal: s(12),
     },
     routineBadgeText: { color: '#FFFFFF', fontSize: f(12), fontWeight: '700' },
+    routineActionBadge: {
+      alignSelf: 'flex-start',
+      borderWidth: s(1.5),
+      borderColor: '#CBDDB4',
+      borderRadius: 999,
+      backgroundColor: '#FFFFFF',
+      paddingVertical: s(4.5),
+      paddingHorizontal: s(11),
+    },
+    routineActionBadgeAdjusted: {
+      borderColor: '#4E8B3A',
+      backgroundColor: '#F1F6E7',
+    },
+    routineActionBadgeText: {
+      color: '#3E7A32',
+      fontSize: f(12),
+      fontWeight: '700',
+    },
     routineTitle: {
       marginTop: s(12),
       color: '#2A2A26',

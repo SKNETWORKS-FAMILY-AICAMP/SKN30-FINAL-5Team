@@ -25,6 +25,20 @@ const REPORT: WeeklyReportResponse = {
     not_completed: 1,
     stopped_for_safety: 0,
   },
+  weekday_failure_summary: {
+    THURSDAY: {
+      partial: 0,
+      not_completed: 1,
+      stopped_for_safety: 0,
+    },
+  },
+  pattern_summary: {
+    high_completion_windows: [],
+    high_completion_exercise_types: [],
+    high_completion_intensity_codes: [],
+    blocker_reason_codes: ['SCHEDULE_CHANGE'],
+  },
+  agent_summaries: null,
   primary_miss_reason_code: 'SCHEDULE_CHANGE',
   completion_rate: 0.75,
   persistence_rate: 1,
@@ -75,6 +89,33 @@ const NEXT_PLAN: WeeklyPlanRevisionResponse = {
   finalization_reason_codes: ['FINALIZE_ALLOWED'],
   created_at: '2026-08-10T09:03:00+09:00',
 };
+
+function renderExistingReport(report: WeeklyReportResponse = REPORT) {
+  return render(
+    <WeeklyReportScreen
+      api={
+        {
+          getWeek: async () => ({
+            week_id: 'week-1',
+            week_start: report.week_start,
+            week_end: report.week_end,
+            timezone: 'Asia/Seoul',
+            target_workout_count: 4,
+            plan_origin_code: 'WEEKLY_REPORT',
+            cold_start_applied: false,
+            status_code: 'CLOSED',
+            closed_at: '2026-08-10T00:00:00+09:00',
+            report_id: report.report_id,
+            report_status_code: report.status_code,
+          }),
+          getWeeklyReport: async () => report,
+        } as unknown as Api
+      }
+      weekStart={report.week_start}
+      onBack={jest.fn()}
+    />,
+  );
+}
 
 describe('WeeklyReportScreen selected week', () => {
   it('loads an existing report without creating or acknowledging it', async () => {
@@ -413,5 +454,127 @@ describe('WeeklyReportScreen selected week', () => {
       ),
     ).toBeOnTheScreen();
     expect(screen.queryByText('8.10 – 8.16')).toBeNull();
+  });
+
+  it('renders all four report steps in their visible tree order', async () => {
+    const view = renderExistingReport();
+
+    await screen.findByText(REPORT.summary);
+    const tree = JSON.stringify(view.toJSON());
+    const headings = [
+      '이번 주 수행 결과',
+      '지속 방해 요인',
+      'AI 조정 내역',
+      '다음 주 반영 사항',
+    ];
+    const positions = headings.map((heading) => tree.indexOf(heading));
+
+    expect(positions.every((position) => position >= 0)).toBe(true);
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+  });
+
+  it('keeps blocker details before the AI adjustment step', async () => {
+    const view = renderExistingReport();
+
+    await screen.findByText(REPORT.summary);
+    const tree = JSON.stringify(view.toJSON());
+
+    expect(tree.indexOf('지속 방해 요인')).toBeLessThan(
+      tree.indexOf('AI 조정 내역'),
+    );
+  });
+
+  it('shows every blocker reason in the server-provided order', async () => {
+    const view = renderExistingReport({
+      ...REPORT,
+      primary_miss_reason_code: null,
+      pattern_summary: {
+        ...REPORT.pattern_summary,
+        blocker_reason_codes: ['SCHEDULE_CHANGE', 'FATIGUE', 'WEATHER'],
+      },
+    });
+
+    await screen.findByText(REPORT.summary);
+    const tree = JSON.stringify(view.toJSON());
+    const positions = [
+      tree.indexOf('일정이 바뀌었어요'),
+      tree.indexOf('피로가 컸어요'),
+      tree.indexOf('날씨 때문이었어요'),
+    ];
+
+    expect(positions.every((position) => position >= 0)).toBe(true);
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+  });
+
+  it('shows only recorded weekdays with Korean labels in Monday-to-Sunday order', async () => {
+    const view = renderExistingReport({
+      ...REPORT,
+      primary_miss_reason_code: null,
+      weekday_failure_summary: {
+        SUNDAY: {
+          partial: 0,
+          not_completed: 1,
+          stopped_for_safety: 0,
+        },
+        TUESDAY: {
+          partial: 1,
+          not_completed: 0,
+          stopped_for_safety: 0,
+        },
+      },
+      pattern_summary: {
+        ...REPORT.pattern_summary,
+        blocker_reason_codes: [],
+      },
+    });
+
+    await screen.findByText(REPORT.summary);
+    const tree = JSON.stringify(view.toJSON());
+
+    expect(screen.getByText('화요일')).toBeOnTheScreen();
+    expect(screen.getByText('일요일')).toBeOnTheScreen();
+    expect(screen.queryByText('월요일')).toBeNull();
+    expect(screen.queryByText('수요일')).toBeNull();
+    expect(screen.queryByText('목요일')).toBeNull();
+    expect(screen.queryByText('금요일')).toBeNull();
+    expect(screen.queryByText('토요일')).toBeNull();
+    expect(tree.indexOf('화요일')).toBeLessThan(tree.indexOf('일요일'));
+  });
+
+  it('shows the blocker empty state when no blocker details were recorded', async () => {
+    renderExistingReport({
+      ...REPORT,
+      primary_miss_reason_code: null,
+      weekday_failure_summary: {},
+      pattern_summary: {
+        ...REPORT.pattern_summary,
+        blocker_reason_codes: [],
+      },
+    });
+
+    expect(
+      await screen.findByText('이번 주에는 걸림돌 기록이 없었어요'),
+    ).toBeOnTheScreen();
+  });
+
+  it('hides the negotiation rate when the server returns null', async () => {
+    renderExistingReport({ ...REPORT, negotiation_success_rate: null });
+
+    await screen.findByText(REPORT.summary);
+    expect(screen.queryByText('AI 조정 합의율')).toBeNull();
+  });
+
+  it('hides high-completion patterns when every pattern list is empty', async () => {
+    renderExistingReport();
+
+    await screen.findByText(REPORT.summary);
+    expect(screen.queryByText('잘 이어진 조건')).toBeNull();
+  });
+
+  it('does not use penalty language in the report', async () => {
+    const view = renderExistingReport();
+
+    await screen.findByText(REPORT.summary);
+    expect(JSON.stringify(view.toJSON())).not.toContain('벌점');
   });
 });

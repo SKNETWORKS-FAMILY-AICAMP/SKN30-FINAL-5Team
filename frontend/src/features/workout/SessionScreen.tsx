@@ -21,7 +21,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Api } from '../../api/endpoints';
 import {
   ADVERSE_REACTION_OPTIONS,
-  BODY_AREA_OPTIONS,
+  DEFAULT_BODY_AREA_OPTIONS,
+  EXTENDED_BODY_AREA_OPTIONS,
   formatDuration,
 } from '../../api/labels';
 import type {
@@ -353,6 +354,7 @@ function SafetyReportSheet({
 }) {
   const [area, setArea] = useState<string | null>(null);
   const [reaction, setReaction] = useState<string | null>(null);
+  const [showExtendedAreas, setShowExtendedAreas] = useState(false);
 
   return (
     <Card style={styles.sheet}>
@@ -363,7 +365,7 @@ function SafetyReportSheet({
 
       <Text style={styles.sheetLabel}>심한 통증이 있는 부위</Text>
       <View style={styles.chipRow}>
-        {BODY_AREA_OPTIONS.map((option) => (
+        {DEFAULT_BODY_AREA_OPTIONS.map((option) => (
           <Pressable
             key={option.code}
             accessibilityRole="button"
@@ -378,6 +380,36 @@ function SafetyReportSheet({
             <Text style={styles.chipLabel}>{option.label}</Text>
           </Pressable>
         ))}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ selected: showExtendedAreas }}
+          onPress={() => setShowExtendedAreas((visible) => !visible)}
+          style={[styles.chip, showExtendedAreas && styles.chipSelected]}
+        >
+          <Text style={styles.chipLabel}>
+            {showExtendedAreas ? '다른 부위 접기' : '다른 부위 더 보기'}
+          </Text>
+        </Pressable>
+        {showExtendedAreas
+          ? EXTENDED_BODY_AREA_OPTIONS.map((option) => (
+              <Pressable
+                key={option.code}
+                accessibilityRole="button"
+                accessibilityState={{ selected: area === option.code }}
+                onPress={() =>
+                  setArea((current) =>
+                    current === option.code ? null : option.code,
+                  )
+                }
+                style={[
+                  styles.chip,
+                  area === option.code && styles.chipSelected,
+                ]}
+              >
+                <Text style={styles.chipLabel}>{option.label}</Text>
+              </Pressable>
+            ))
+          : null}
       </View>
 
       <Text style={styles.sheetLabel}>이상 반응</Text>

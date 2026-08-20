@@ -14,6 +14,11 @@ import type {
   ProfileSettingsUpdateRequest,
 } from '../../api/types';
 import { Button, Card, InlineFeedback } from '../../components/primitives';
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+} from '../../components/states/ScreenState';
 import { colors } from '../../components/theme';
 import type { TabId } from '../../components/brand/BrandChrome';
 import { HomeBottomNavigation } from './HomeScreen';
@@ -54,6 +59,7 @@ type MyPageScreenProps = {
   onOpenExerciseCatalog?: () => void;
   onOpenSettings?: () => void;
   onProfileFieldChange?: (body: ProfileSettingsUpdateRequest) => void;
+  onRetryProfile?: () => void;
   onRetryConsents?: () => void;
   persistedSettingsAvailable?: boolean;
   previewState?: MyPagePreviewState;
@@ -91,6 +97,7 @@ function MyPageContent({
   onOpenExerciseCatalog,
   onOpenSettings,
   onProfileFieldChange,
+  onRetryProfile,
   onRetryConsents,
   persistedSettingsAvailable = true,
   previewState = 'profile',
@@ -134,12 +141,51 @@ function MyPageContent({
     : ['체력 향상', '초보', '주 4회'];
   const visibleDialog =
     dialog === 'withdraw' && deletionDeadline !== null ? null : dialog;
+  const pageState =
+    previewState === 'loading' ||
+    previewState === 'empty' ||
+    previewState === 'error' ||
+    previewState === 'permission'
+      ? previewState
+      : profile === null && apiBacked
+        ? 'empty'
+        : 'profile';
 
   const toggleNotification = (key: keyof typeof notifications) => {
     const enabled = !notifications[key];
     setNotifications((current) => ({ ...current, [key]: enabled }));
     onNotificationChange?.(key, enabled);
   };
+
+  if (pageState !== 'profile') {
+    return (
+      <SafeAreaView edges={['left', 'right']} style={styles.screen}>
+        <StatusBar style="dark" />
+        <View style={[styles.content, styles.stateContent]}>
+          <Text accessibilityRole="header" style={styles.title}>
+            마이페이지
+          </Text>
+          {pageState === 'loading' ? (
+            <LoadingState label="프로필 정보를 불러오고 있어요" />
+          ) : pageState === 'empty' ? (
+            <EmptyState
+              actionLabel={onRetryProfile ? '다시 불러오기' : undefined}
+              message="아직 등록된 프로필 정보가 없어요."
+              onAction={onRetryProfile}
+            />
+          ) : pageState === 'permission' ? (
+            <ErrorState message="이 계정으로는 프로필 정보에 접근할 수 없어요." />
+          ) : (
+            <ErrorState
+              message="프로필 정보를 불러오지 못했어요. 잠시 후 다시 시도해주세요."
+              onRetry={onRetryProfile}
+            />
+          )}
+        </View>
+        <HomeBottomNavigation activeTab="my" onNavigate={onNavigateTab} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView edges={['left', 'right']} style={styles.screen}>
@@ -186,7 +232,7 @@ function MyPageContent({
                 disabled: onProfileFieldChange === undefined,
               }}
               disabled={onProfileFieldChange === undefined}
-              onPress={() => setEditingField('nickname')}
+              onPress={() => setEditingField('basic_profile')}
               style={styles.editProfileButton}
             >
               <Text style={styles.editProfileLabel}>프로필 수정</Text>
@@ -575,6 +621,10 @@ const styles = StyleSheet.create({
     paddingTop: MY_PAGE_LAYOUT.contentTopPadding,
     paddingHorizontal: MY_PAGE_LAYOUT.contentHorizontalPadding,
     paddingBottom: MY_PAGE_LAYOUT.contentBottomPadding,
+  },
+  stateContent: {
+    flex: 1,
+    gap: 18,
   },
   header: {
     flexDirection: 'row',

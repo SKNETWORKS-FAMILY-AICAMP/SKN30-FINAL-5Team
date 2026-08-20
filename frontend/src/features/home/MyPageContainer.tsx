@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import type { Api } from '../../api/endpoints';
+import { isApiError } from '../../api/errors';
 import type {
   ConsentValues,
   MeResponse,
@@ -54,7 +55,14 @@ export function MyPageContainer({
   const updateProfile = useAsyncAction(
     async (body: ProfileSettingsUpdateRequest) => {
       if (profile === null) return;
-      await api.updateProfileSettings(body, profile.profile_version);
+      try {
+        await api.updateProfileSettings(body, profile.profile_version);
+      } catch (error) {
+        if (isApiError(error) && error.code === 'STALE_PROFILE') {
+          await onRefreshMe().catch(() => undefined);
+        }
+        throw error;
+      }
       await onRefreshMe();
     },
   );
@@ -101,8 +109,12 @@ export function MyPageContainer({
       coachingStyleError={updateProfile.error}
       onCoachingStyleChange={updateCoach}
       profileUpdatePending={updateProfile.pending}
-      profileUpdateError={updateProfile.error}
+      profileUpdateError={profileUpdateErrorMessage(
+        updateProfile.error,
+        updateProfile.lastError,
+      )}
       onProfileFieldChange={(body) => void updateProfile.run(body)}
+      onRetryProfile={() => void onRefreshMe()}
       consentValues={storedConsents}
       consentPending={
         consents.state.status === 'loading' || updateConsents.pending
@@ -127,4 +139,42 @@ export function MyPageContainer({
       previewState={previewState}
     />
   );
+}
+
+const PROFILE_FIELD_LABELS: Record<string, string> = {
+  primary_goal_code: '운동 목표',
+  desired_weekly_workout_count: '주간 목표',
+  default_requested_duration_minutes: '희망 시간',
+  preferred_location_code: '선호 장소',
+  available_location_codes: '운동 장소',
+  equipment_codes: '장비',
+  attention_area_codes: '주의 부위',
+  preferred_exercise_type_codes: '선호 운동',
+  coaching_style_code: '코칭 스타일',
+  experience_level_code: '운동 경험',
+  nickname: '닉네임',
+  height_cm: '키',
+  weight_kg: '체중',
+  sex_code: '성별',
+  date_of_birth: '생년월일',
+};
+
+function profileUpdateErrorMessage(
+  message: string | null,
+  error: unknown,
+): string | null {
+  if (message === null || !isApiError(error)) return message;
+  const fields = [
+    ...new Set(
+      error.details
+        .map((detail) => detail.field?.split('.').at(-1))
+        .filter((field): field is string => Boolean(field)),
+    ),
+  ];
+  const labels = fields
+    .map((field) => PROFILE_FIELD_LABELS[field])
+    .filter((label): label is string => Boolean(label));
+  return labels.length > 0
+    ? `${labels.join('·')} 값을 확인해주세요. ${message}`
+    : message;
 }

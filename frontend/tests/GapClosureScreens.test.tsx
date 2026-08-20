@@ -70,8 +70,8 @@ describe('ExerciseCatalogScreen', () => {
     expect(queries.at(-1)).toMatchObject({ trainingTypeCode: 'MOBILITY' });
   }, 15000);
 
-  it('falls back to an unknown equipment machine code', () => {
-    expect(equipmentLabel('FUTURE_EQUIPMENT')).toBe('FUTURE_EQUIPMENT');
+  it('does not expose an unknown equipment machine code', () => {
+    expect(equipmentLabel('FUTURE_EQUIPMENT')).toBe('확인되지 않은 항목');
   });
 
   it('pages with the server cursor instead of refetching page one', async () => {

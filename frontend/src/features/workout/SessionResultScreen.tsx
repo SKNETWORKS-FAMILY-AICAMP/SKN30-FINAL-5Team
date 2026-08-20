@@ -12,7 +12,9 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Api } from '../../api/endpoints';
 import {
   ADVERSE_REACTION_OPTIONS,
-  BODY_AREA_OPTIONS,
+  bodyAreaLabel,
+  DEFAULT_BODY_AREA_OPTIONS,
+  EXTENDED_BODY_AREA_OPTIONS,
   notCompletedReasonLabel,
   sessionStatusLabel,
 } from '../../api/labels';
@@ -175,6 +177,7 @@ function FeedbackCard({
   const [bodyAreaSeverities, setBodyAreaSeverities] = useState<
     Readonly<Record<string, string>>
   >({});
+  const [showExtendedAreas, setShowExtendedAreas] = useState(false);
   const [reactions, setReactions] = useState<readonly string[]>([]);
   const [saved, setSaved] = useState(false);
   const [savedGuidance, setSavedGuidance] = useState<string | null>(null);
@@ -278,7 +281,7 @@ function FeedbackCard({
       {painOccurred ? (
         <>
           <FeedbackSection multiple title="불편한 부위">
-            {BODY_AREA_OPTIONS.map((option) => (
+            {DEFAULT_BODY_AREA_OPTIONS.map((option) => (
               <FeedbackChoice
                 key={option.code}
                 label={option.label}
@@ -287,20 +290,35 @@ function FeedbackCard({
                 selected={bodyAreaSeverities[option.code] !== undefined}
               />
             ))}
+            <FeedbackChoice
+              label={showExtendedAreas ? '다른 부위 접기' : '다른 부위 더 보기'}
+              multiple
+              onPress={() => setShowExtendedAreas((visible) => !visible)}
+              selected={showExtendedAreas}
+            />
+            {showExtendedAreas
+              ? EXTENDED_BODY_AREA_OPTIONS.map((option) => (
+                  <FeedbackChoice
+                    key={option.code}
+                    label={option.label}
+                    multiple
+                    onPress={() => toggleBodyArea(option.code)}
+                    selected={bodyAreaSeverities[option.code] !== undefined}
+                  />
+                ))
+              : null}
           </FeedbackSection>
           {Object.keys(bodyAreaSeverities).map((bodyAreaCode) => {
-            const bodyArea = BODY_AREA_OPTIONS.find(
-              (option) => option.code === bodyAreaCode,
-            );
+            const bodyArea = bodyAreaLabel(bodyAreaCode);
             return (
               <FeedbackSection
                 key={bodyAreaCode}
-                title={`${bodyArea?.label ?? bodyAreaCode} 불편함 정도`}
+                title={`${bodyArea} 불편함 정도`}
               >
                 {DISCOMFORT_SEVERITIES.map((option) => (
                   <FeedbackChoice
                     key={option.code}
-                    accessibilityLabel={`${bodyArea?.label ?? bodyAreaCode} ${option.label}`}
+                    accessibilityLabel={`${bodyArea} ${option.label}`}
                     label={option.label}
                     onPress={() =>
                       setBodyAreaSeverities((current) => ({

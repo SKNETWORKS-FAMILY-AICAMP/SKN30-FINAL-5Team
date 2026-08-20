@@ -1,10 +1,7 @@
 /** API-backed, one-question-per-page onboarding flow. */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,7 +13,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Api } from '../../api/endpoints';
 import { isApiError } from '../../api/errors';
-import { BODY_AREA_OPTIONS } from '../../api/labels';
+import {
+  bodyAreaLabel,
+  DEFAULT_BODY_AREA_OPTIONS,
+  EXTENDED_BODY_AREA_OPTIONS,
+} from '../../api/labels';
 import type { DiscomfortSeverityCode, SexCode } from '../../api/types';
 import { useAsyncAction } from '../../api/useAsync';
 import {
@@ -25,6 +26,7 @@ import {
   InlineFeedback,
   TextField,
 } from '../../components/primitives';
+import { useScale } from '../../components/scale';
 import { colors, radii, spacing } from '../../components/theme';
 import { PROFILE_BODY_LIMITS } from '../profile/profileModel';
 import {
@@ -36,14 +38,7 @@ import {
   ONBOARDING_LOCATION_OPTIONS,
   ONBOARDING_WEEKLY_COUNT,
 } from './onboardingOptions';
-
-const MINIMUM_AGE = 14;
-const MIN_BIRTH_YEAR = 1900;
-const WHEEL_ITEM_HEIGHT = 44;
-const WEB_WHEEL_GESTURE_IDLE_MS = 45;
-const WEB_WHEEL_SINGLE_ITEM_DELTA = 240;
-const WEB_WHEEL_ACCELERATION_DELTA = 70;
-const WEB_WHEEL_MAX_ITEMS_PER_GESTURE = 18;
+import { BirthDateField, latestEligibleBirthdateIso } from './BirthDateField';
 
 const SEX_OPTIONS = [
   { code: 'FEMALE', label: '여성' },
@@ -75,6 +70,32 @@ const COACHING_STYLE_OPTIONS = [
     description: '밝고 힘찬 말투로 운동 흐름을 안내해요.',
   },
 ] as const;
+
+const CONSENT_OPTIONS = {
+  general_personal_data: {
+    label: '개인정보 수집 및 이용',
+    description:
+      '닉네임·생년월일·키·체중으로 나에게 맞는 운동 강도를 계산해요.',
+  },
+  sensitive_data: {
+    label: '건강 관련 민감정보 처리',
+    description: '통증 부위와 컨디션 체크인을 받아 위험한 동작을 빼요.',
+  },
+  wearable_integration: {
+    label: '웨어러블 연동',
+    description:
+      '워치 데이터로 컨디션 입력을 줄여줘요. 없어도 앱은 그대로 써요.',
+  },
+  calendar_integration: {
+    label: '캘린더 연동',
+    description:
+      '지금은 연동 준비 중이에요. 준비되면 이 동의로 바로 쓸 수 있어요.',
+  },
+  marketing: {
+    label: '마케팅 정보 수신',
+    description: '새 기능과 이벤트 소식을 보내요.',
+  },
+} as const;
 
 export const ONBOARDING_STEPS = [
   {
@@ -152,8 +173,8 @@ export const ONBOARDING_STEPS = [
   },
   {
     key: 'consent',
-    title: '필수 항목에 동의해주세요',
-    intro: '맞춤 운동 서비스를 제공하기 위해 필요한 동의예요.',
+    title: '동의 항목을 확인해주세요',
+    intro: '필수 2개만 동의하면 시작할 수 있어요.',
     required: true,
   },
 ] as const;
@@ -186,20 +207,7 @@ function OnboardingScreenContent({
 }: Props) {
   const [step, setStep] = useState(initialStep);
   const [nickname, setNickname] = useState('');
-  const today = useMemo(() => new Date(), []);
-  const latestEligibleBirthdate = useMemo(
-    () => getLatestEligibleBirthdate(today),
-    [today],
-  );
-  const [birthYear, setBirthYear] = useState(() =>
-    latestEligibleBirthdate.getFullYear(),
-  );
-  const [birthMonth, setBirthMonth] = useState(
-    () => latestEligibleBirthdate.getMonth() + 1,
-  );
-  const [birthDay, setBirthDay] = useState(() =>
-    latestEligibleBirthdate.getDate(),
-  );
+  const [birthdate, setBirthdate] = useState(latestEligibleBirthdateIso);
   const [sexCode, setSexCode] = useState<SexCode | null>(null);
   const [heightCm, setHeightCm] = useState('');
   const [weightKg, setWeightKg] = useState('');
@@ -223,37 +231,17 @@ function OnboardingScreenContent({
     null,
   );
   const [attentionAreas, setAttentionAreas] = useState<string[]>([]);
+  const [showExtendedAttentionAreas, setShowExtendedAttentionAreas] =
+    useState(false);
   const [attentionSeverities, setAttentionSeverities] = useState<
     Partial<Record<string, DiscomfortSeverityCode>>
   >({});
   const [generalConsent, setGeneralConsent] = useState(false);
   const [sensitiveConsent, setSensitiveConsent] = useState(false);
+  const [wearableConsent, setWearableConsent] = useState(false);
+  const [calendarConsent, setCalendarConsent] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const current = ONBOARDING_STEPS[step - 1] ?? ONBOARDING_STEPS[0];
-  const birthdate = toIsoDate(birthYear, birthMonth, birthDay);
-  const birthYears = useMemo(
-    () =>
-      numberRange(
-        MIN_BIRTH_YEAR,
-        latestEligibleBirthdate.getFullYear(),
-      ).reverse(),
-    [latestEligibleBirthdate],
-  );
-  const birthMonths = useMemo(() => {
-    const lastMonth =
-      birthYear === latestEligibleBirthdate.getFullYear()
-        ? latestEligibleBirthdate.getMonth() + 1
-        : 12;
-    return numberRange(1, lastMonth);
-  }, [birthYear, latestEligibleBirthdate]);
-  const birthDays = useMemo(() => {
-    const lastDay =
-      birthYear === latestEligibleBirthdate.getFullYear() &&
-      birthMonth === latestEligibleBirthdate.getMonth() + 1
-        ? latestEligibleBirthdate.getDate()
-        : monthDays(birthYear, birthMonth);
-    return numberRange(1, lastDay);
-  }, [birthMonth, birthYear, latestEligibleBirthdate]);
-
   const timezone = useMemo(() => {
     try {
       return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul';
@@ -298,9 +286,9 @@ function OnboardingScreenContent({
         consents: {
           general_personal_data: generalConsent,
           sensitive_data: sensitiveConsent,
-          wearable_integration: false,
-          calendar_integration: false,
-          marketing: false,
+          wearable_integration: wearableConsent,
+          calendar_integration: calendarConsent,
+          marketing: marketingConsent,
         },
       });
     } catch (error) {
@@ -335,6 +323,10 @@ function OnboardingScreenContent({
   const blockedByAge =
     isApiError(submit.lastError) &&
     submit.lastError.code === 'AGE_REQUIREMENT_NOT_MET';
+  const missingRequiredConsentLabels = [
+    !generalConsent ? CONSENT_OPTIONS.general_personal_data.label : null,
+    !sensitiveConsent ? CONSENT_OPTIONS.sensitive_data.label : null,
+  ].filter((label) => label !== null);
 
   const changeStep = (next: number) => {
     const bounded = clampStep(next);
@@ -347,37 +339,6 @@ function OnboardingScreenContent({
     if (!valid || submit.pending) return;
     if (step === ONBOARDING_STEPS.length) void submit.run();
     else changeStep(step + 1);
-  };
-
-  const changeBirthYear = (value: number) => {
-    const latestYear = latestEligibleBirthdate.getFullYear();
-    const nextMonth = Math.min(
-      birthMonth,
-      value === latestYear ? latestEligibleBirthdate.getMonth() + 1 : 12,
-    );
-    const nextMaximumDay =
-      value === latestYear &&
-      nextMonth === latestEligibleBirthdate.getMonth() + 1
-        ? latestEligibleBirthdate.getDate()
-        : monthDays(value, nextMonth);
-    setBirthYear(value);
-    setBirthMonth(nextMonth);
-    setBirthDay((currentDay) => Math.min(currentDay, nextMaximumDay));
-    submit.clearError();
-  };
-  const changeBirthMonth = (value: number) => {
-    const maximumDay =
-      birthYear === latestEligibleBirthdate.getFullYear() &&
-      value === latestEligibleBirthdate.getMonth() + 1
-        ? latestEligibleBirthdate.getDate()
-        : monthDays(birthYear, value);
-    setBirthMonth(value);
-    setBirthDay((currentDay) => Math.min(currentDay, maximumDay));
-    submit.clearError();
-  };
-  const changeBirthDay = (value: number) => {
-    setBirthDay(value);
-    submit.clearError();
   };
 
   const toggleAttentionArea = (code: string) => {
@@ -411,39 +372,13 @@ function OnboardingScreenContent({
               trailing={<Text style={styles.suffix}>{nickname.length}/64</Text>}
               value={nickname}
             />
-            <View
-              accessibilityLabel="생년월일 선택"
-              style={styles.birthdateBlock}
-            >
-              <Text style={styles.fieldLabel}>생년월일</Text>
-              <View style={styles.wheelRow}>
-                <WheelColumn
-                  label="연도"
-                  options={birthYears}
-                  selected={birthYear}
-                  suffix="년"
-                  onChange={changeBirthYear}
-                />
-                <WheelColumn
-                  label="월"
-                  options={birthMonths}
-                  selected={birthMonth}
-                  suffix="월"
-                  onChange={changeBirthMonth}
-                />
-                <WheelColumn
-                  label="일"
-                  options={birthDays}
-                  selected={birthDay}
-                  suffix="일"
-                  onChange={changeBirthDay}
-                />
-              </View>
-              <Text style={styles.hint}>
-                만 {MINIMUM_AGE}세 이상만 선택할 수 있어요. 선택 가능한 최근
-                날짜는 {formatDate(latestEligibleBirthdate)}예요.
-              </Text>
-            </View>
+            <BirthDateField
+              onChange={(value) => {
+                setBirthdate(value);
+                submit.clearError();
+              }}
+              value={birthdate}
+            />
           </Card>
         );
       case 'sex':
@@ -644,7 +579,7 @@ function OnboardingScreenContent({
                 <View style={styles.painSection}>
                   <Text style={styles.painSectionTitle}>통증 부위</Text>
                   <View style={styles.painChoices}>
-                    {BODY_AREA_OPTIONS.map((item) => (
+                    {DEFAULT_BODY_AREA_OPTIONS.map((item) => (
                       <Chip
                         key={item.code}
                         label={item.label}
@@ -652,20 +587,42 @@ function OnboardingScreenContent({
                         onPress={() => toggleAttentionArea(item.code)}
                       />
                     ))}
+                    <Chip
+                      label={
+                        showExtendedAttentionAreas
+                          ? '다른 부위 접기'
+                          : '다른 부위 더 보기'
+                      }
+                      selected={showExtendedAttentionAreas}
+                      onPress={() =>
+                        setShowExtendedAttentionAreas((visible) => !visible)
+                      }
+                    />
+                    {showExtendedAttentionAreas
+                      ? EXTENDED_BODY_AREA_OPTIONS.map((item) => (
+                          <Chip
+                            key={item.code}
+                            label={item.label}
+                            selected={attentionAreas.includes(item.code)}
+                            onPress={() => toggleAttentionArea(item.code)}
+                          />
+                        ))
+                      : null}
                   </View>
                 </View>
                 {attentionAreas.map((code) => {
-                  const area = BODY_AREA_OPTIONS.find(
-                    (item) => item.code === code,
-                  );
                   return (
                     <View key={code} style={styles.painSection}>
                       <Text style={styles.painSectionTitle}>
-                        {area?.label ?? code} 통증 정도
+                        {bodyAreaLabel(code)} 통증 정도
                       </Text>
-                      <View style={styles.painChoices}>
+                      <View
+                        style={styles.painSeverityChoices}
+                        testID={`onboarding-pain-severity-options-${code}`}
+                      >
                         {PAIN_SEVERITY_OPTIONS.map((severity) => (
                           <Chip
+                            compact
                             key={severity.code}
                             label={severity.label}
                             selected={
@@ -696,18 +653,51 @@ function OnboardingScreenContent({
         );
       case 'consent':
         return (
-          <Card style={styles.cardGroup}>
-            <ConsentRow
-              checked={generalConsent}
-              label="개인정보 수집 및 이용에 동의합니다."
-              onPress={() => setGeneralConsent((v) => !v)}
-            />
-            <ConsentRow
-              checked={sensitiveConsent}
-              label="건강 관련 민감정보 처리에 동의합니다."
-              onPress={() => setSensitiveConsent((v) => !v)}
-            />
-          </Card>
+          <View style={styles.consentGroups}>
+            <Card style={styles.cardGroup}>
+              <Text style={styles.fieldLabel}>필수 동의</Text>
+              <ConsentRow
+                checked={generalConsent}
+                description={CONSENT_OPTIONS.general_personal_data.description}
+                label={CONSENT_OPTIONS.general_personal_data.label}
+                required
+                onPress={() => setGeneralConsent((value) => !value)}
+              />
+              <ConsentRow
+                checked={sensitiveConsent}
+                description={CONSENT_OPTIONS.sensitive_data.description}
+                label={CONSENT_OPTIONS.sensitive_data.label}
+                required
+                onPress={() => setSensitiveConsent((value) => !value)}
+              />
+            </Card>
+            <Card style={styles.cardGroup}>
+              <Text style={styles.fieldLabel}>
+                선택 동의 · 나중에 마이페이지에서 언제든 바꿀 수 있어요
+              </Text>
+              <ConsentRow
+                checked={wearableConsent}
+                description={CONSENT_OPTIONS.wearable_integration.description}
+                label={CONSENT_OPTIONS.wearable_integration.label}
+                required={false}
+                onPress={() => setWearableConsent((value) => !value)}
+              />
+              <ConsentRow
+                checked={calendarConsent}
+                description={CONSENT_OPTIONS.calendar_integration.description}
+                label={CONSENT_OPTIONS.calendar_integration.label}
+                required={false}
+                onPress={() => setCalendarConsent((value) => !value)}
+              />
+              <ConsentRow
+                checked={marketingConsent}
+                description={CONSENT_OPTIONS.marketing.description}
+                label={CONSENT_OPTIONS.marketing.label}
+                required={false}
+                onPress={() => setMarketingConsent((value) => !value)}
+              />
+            </Card>
+          </View>
         );
     }
   };
@@ -767,13 +757,18 @@ function OnboardingScreenContent({
           <Text style={styles.stepIntro}>{current.intro}</Text>
         </View>
         {renderStep()}
-        {submit.error && !blockedByAge ? (
-          <InlineFeedback message={submit.error} tone="error" />
-        ) : null}
         {blockedByAge ? (
           <InlineFeedback
             message="만 14세 미만은 이용할 수 없습니다."
             tone="error"
+          />
+        ) : submit.error ? (
+          <InlineFeedback message={submit.error} tone="error" />
+        ) : current.key === 'consent' &&
+          missingRequiredConsentLabels.length > 0 ? (
+          <InlineFeedback
+            message={`남은 필수 동의: ${missingRequiredConsentLabels.join(', ')}\n안전한 루틴을 만들려면 이 동의가 필요해요.`}
+            tone="warning"
           />
         ) : null}
       </ScrollView>
@@ -875,262 +870,6 @@ function isStepValid(
   }
 }
 
-function WheelColumn({
-  label,
-  onChange,
-  options,
-  selected,
-  suffix,
-}: {
-  label: string;
-  onChange: (value: number) => void;
-  options: number[];
-  selected: number;
-  suffix: string;
-}) {
-  const scrollRef = useRef<ScrollView>(null);
-  const selectedIndex = Math.max(0, options.indexOf(selected));
-  const currentIndexRef = useRef(selectedIndex);
-  const pendingInternalSelectionRef = useRef<number | null>(null);
-  const webSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const webWheelGestureTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
-  const webWheelDeltaRef = useRef(0);
-  const draggingRef = useRef(false);
-
-  const clearWebSettleTimer = () => {
-    if (webSettleTimerRef.current !== null) {
-      clearTimeout(webSettleTimerRef.current);
-      webSettleTimerRef.current = null;
-    }
-  };
-
-  const clearWebWheelGestureTimer = () => {
-    if (webWheelGestureTimerRef.current !== null) {
-      clearTimeout(webWheelGestureTimerRef.current);
-      webWheelGestureTimerRef.current = null;
-    }
-  };
-
-  const scrollToIndex = (index: number, animated: boolean) => {
-    scrollRef.current?.scrollTo({
-      animated,
-      y: index * WHEEL_ITEM_HEIGHT,
-    });
-  };
-
-  const commitIndex = (index: number) => {
-    const boundedIndex = Math.max(0, Math.min(options.length - 1, index));
-    const value = options[boundedIndex];
-    if (value === undefined) return;
-    currentIndexRef.current = boundedIndex;
-    if (value !== selected) {
-      pendingInternalSelectionRef.current = value;
-      onChange(value);
-    }
-  };
-
-  const selectIndex = (index: number, animated = true) => {
-    const boundedIndex = Math.max(0, Math.min(options.length - 1, index));
-    scrollToIndex(boundedIndex, animated);
-    commitIndex(boundedIndex);
-  };
-
-  const settleAtOffset = (offsetY: number, align = true) => {
-    const index = Math.max(
-      0,
-      Math.min(options.length - 1, Math.round(offsetY / WHEEL_ITEM_HEIGHT)),
-    );
-    const targetOffset = index * WHEEL_ITEM_HEIGHT;
-    if (align && Math.abs(offsetY - targetOffset) > 1) {
-      scrollToIndex(index, true);
-    }
-    commitIndex(index);
-  };
-
-  useEffect(() => {
-    currentIndexRef.current = selectedIndex;
-    // Let a tap or scroll finish its animation; hard-align only external changes.
-    if (pendingInternalSelectionRef.current === selected) {
-      pendingInternalSelectionRef.current = null;
-      return;
-    }
-    pendingInternalSelectionRef.current = null;
-    scrollToIndex(selectedIndex, false);
-  }, [options, selected, selectedIndex]);
-
-  useEffect(
-    () => () => {
-      clearWebSettleTimer();
-      clearWebWheelGestureTimer();
-    },
-    [],
-  );
-
-  const settleFromScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    clearWebSettleTimer();
-    draggingRef.current = false;
-    // Momentum and snapToInterval already performed the final alignment.
-    settleAtOffset(event.nativeEvent.contentOffset.y, false);
-  };
-
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (Platform.OS !== 'web' || draggingRef.current) return;
-    const offsetY = event.nativeEvent.contentOffset.y;
-    clearWebSettleTimer();
-    webSettleTimerRef.current = setTimeout(() => {
-      settleAtOffset(offsetY);
-      webSettleTimerRef.current = null;
-    }, 90);
-  };
-
-  const handleWheel = (
-    event: NativeSyntheticEvent<{
-      deltaMode?: number;
-      deltaY: number;
-    }>,
-  ) => {
-    event.preventDefault();
-    queueWheelDelta(event.nativeEvent.deltaY, event.nativeEvent.deltaMode);
-  };
-
-  // Recreate this handler with the current options and selection, then rebind it below.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const queueWheelDelta = (deltaY: number, deltaMode = 0) => {
-    clearWebSettleTimer();
-    if (deltaY === 0) return;
-    const modeMultiplier =
-      deltaMode === 1 ? 16 : deltaMode === 2 ? WHEEL_ITEM_HEIGHT * 3 : 1;
-    const normalizedDelta = deltaY * modeMultiplier;
-    if (
-      webWheelDeltaRef.current !== 0 &&
-      Math.sign(webWheelDeltaRef.current) !== Math.sign(normalizedDelta)
-    ) {
-      webWheelDeltaRef.current = 0;
-    }
-    webWheelDeltaRef.current += normalizedDelta;
-    clearWebWheelGestureTimer();
-    webWheelGestureTimerRef.current = setTimeout(() => {
-      const accumulatedDelta = webWheelDeltaRef.current;
-      webWheelDeltaRef.current = 0;
-      webWheelGestureTimerRef.current = null;
-      const magnitude = Math.abs(accumulatedDelta);
-      const steps =
-        magnitude <= WEB_WHEEL_SINGLE_ITEM_DELTA
-          ? 1
-          : Math.min(
-              WEB_WHEEL_MAX_ITEMS_PER_GESTURE,
-              1 +
-                Math.round(
-                  (magnitude - WEB_WHEEL_SINGLE_ITEM_DELTA) /
-                    WEB_WHEEL_ACCELERATION_DELTA,
-                ),
-            );
-      selectIndex(
-        currentIndexRef.current + Math.sign(accumulatedDelta) * steps,
-      );
-    }, WEB_WHEEL_GESTURE_IDLE_MS);
-  };
-
-  useEffect(() => {
-    if (Platform.OS !== 'web' || scrollRef.current === null) return;
-
-    const scrollNode = scrollRef.current.getScrollableNode?.() as
-      HTMLElement | undefined;
-    if (scrollNode?.addEventListener === undefined) return;
-
-    const preventNativeWheelScroll = (event: WheelEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-      queueWheelDelta(event.deltaY, event.deltaMode);
-    };
-
-    scrollNode.addEventListener('wheel', preventNativeWheelScroll, {
-      passive: false,
-    });
-    return () => {
-      scrollNode.removeEventListener('wheel', preventNativeWheelScroll);
-    };
-  }, [queueWheelDelta]);
-
-  const webWheelProps =
-    Platform.OS === 'web' ? { onWheel: handleWheel } : undefined;
-
-  return (
-    <View style={styles.wheelColumn}>
-      <Text style={styles.wheelLabel}>{label}</Text>
-      <View style={styles.wheelViewport}>
-        <View pointerEvents="none" style={styles.wheelSelection} />
-        <ScrollView
-          ref={scrollRef}
-          accessibilityLabel={`${label} 선택 스크롤`}
-          decelerationRate="fast"
-          disableIntervalMomentum
-          nestedScrollEnabled
-          onMomentumScrollBegin={() => {
-            draggingRef.current = true;
-            clearWebSettleTimer();
-          }}
-          onMomentumScrollEnd={settleFromScroll}
-          onScroll={handleScroll}
-          onScrollBeginDrag={() => {
-            draggingRef.current = true;
-            clearWebSettleTimer();
-          }}
-          onScrollEndDrag={(event) => {
-            draggingRef.current = false;
-            const velocity = event.nativeEvent.velocity?.y;
-            if (velocity !== undefined && Math.abs(velocity) < 0.1) {
-              settleFromScroll(event);
-              return;
-            }
-            const offsetY = event.nativeEvent.contentOffset.y;
-            clearWebSettleTimer();
-            webSettleTimerRef.current = setTimeout(() => {
-              settleAtOffset(offsetY);
-              webSettleTimerRef.current = null;
-            }, 120);
-          }}
-          scrollEventThrottle={16}
-          showsVerticalScrollIndicator={false}
-          snapToAlignment="start"
-          snapToInterval={WHEEL_ITEM_HEIGHT}
-          style={styles.wheelScroll}
-          contentContainerStyle={styles.wheelContent}
-          {...webWheelProps}
-        >
-          {options.map((value, index) => {
-            const selectedOption = selected === value;
-            const optionLabel = `${value}${suffix}`;
-            return (
-              <Pressable
-                accessibilityLabel={`${label} ${optionLabel}`}
-                accessibilityRole="button"
-                accessibilityState={{ selected: selectedOption }}
-                key={value}
-                onPress={() => {
-                  selectIndex(index);
-                }}
-                style={styles.wheelItem}
-              >
-                <Text
-                  style={[
-                    styles.wheelItemText,
-                    selectedOption && styles.wheelItemTextSelected,
-                  ]}
-                >
-                  {optionLabel}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      </View>
-    </View>
-  );
-}
-
 function StepCounter({
   decreaseLabel,
   increaseLabel,
@@ -1196,16 +935,20 @@ function ChoiceCard({ children }: { children: React.ReactNode }) {
 }
 
 function Chip({
+  compact = false,
   grow = false,
   label,
   onPress,
   selected,
 }: {
+  compact?: boolean;
   grow?: boolean;
   label: string;
   onPress: () => void;
   selected: boolean;
 }) {
+  const { f } = useScale();
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -1214,10 +957,19 @@ function Chip({
       style={[
         styles.chip,
         grow && styles.chipGrow,
+        compact && styles.chipCompact,
         selected && styles.chipSelected,
       ]}
     >
-      <Text style={[styles.chipLabel, selected && styles.chipLabelSelected]}>
+      <Text
+        numberOfLines={compact ? 1 : undefined}
+        style={[
+          styles.chipLabel,
+          compact && styles.chipCompactLabel,
+          compact && { fontSize: Math.max(10, f(11)) },
+          selected && styles.chipLabelSelected,
+        ]}
+      >
         {label}
       </Text>
     </Pressable>
@@ -1261,15 +1013,21 @@ function DescriptionOption({
 
 function ConsentRow({
   checked,
+  description,
   label,
   onPress,
+  required,
 }: {
   checked: boolean;
+  description: string;
   label: string;
   onPress: () => void;
+  required: boolean;
 }) {
   return (
     <Pressable
+      accessibilityHint={description}
+      accessibilityLabel={label}
       accessibilityRole="checkbox"
       accessibilityState={{ checked }}
       onPress={onPress}
@@ -1280,7 +1038,15 @@ function ConsentRow({
           ✓
         </Text>
       </View>
-      <Text style={styles.consentText}>{label}</Text>
+      <View style={styles.consentContent}>
+        <View style={styles.consentLabelRow}>
+          <Text style={styles.consentText}>{label}</Text>
+          <Text style={required ? styles.requiredBadge : styles.optionalBadge}>
+            {required ? '필수' : '선택'}
+          </Text>
+        </View>
+        <Text style={styles.hint}>{description}</Text>
+      </View>
     </Pressable>
   );
 }
@@ -1306,46 +1072,6 @@ function isInRange(value: string, limits: { min: number; max: number }) {
     number >= limits.min &&
     number <= limits.max
   );
-}
-
-function getLatestEligibleBirthdate(today: Date) {
-  const eligibleYear = today.getFullYear() - MINIMUM_AGE;
-  const lastDay = monthDays(eligibleYear, today.getMonth() + 1);
-  return new Date(
-    eligibleYear,
-    today.getMonth(),
-    Math.min(today.getDate(), lastDay),
-  );
-}
-
-function toIsoDate(
-  year: number | null,
-  month: number | null,
-  day: number | null,
-) {
-  if (year === null || month === null || day === null) return '';
-  return `${year.toString().padStart(4, '0')}-${month
-    .toString()
-    .padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-}
-
-function formatDate(value: Date) {
-  return toIsoDate(value.getFullYear(), value.getMonth() + 1, value.getDate());
-}
-
-function numberRange(start: number, end: number) {
-  return Array.from({ length: Math.max(0, end - start + 1) }, (_, index) =>
-    Number(start + index),
-  );
-}
-
-function monthDays(year: number, month: number): number {
-  if (month < 1 || month > 12) return 0;
-  if (month === 2) {
-    const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
-    return leap ? 29 : 28;
-  }
-  return [4, 6, 9, 11].includes(month) ? 30 : 31;
 }
 
 function onboardingErrorStep(error: unknown): number | null {
@@ -1468,46 +1194,7 @@ const styles = StyleSheet.create({
   },
   cardGroup: { gap: 14 },
   input: { backgroundColor: colors.canvas },
-  birthdateBlock: { gap: spacing.sm },
   fieldLabel: { color: colors.text, fontSize: 13, fontWeight: '700' },
-  wheelRow: { flexDirection: 'row', gap: spacing.sm },
-  wheelColumn: { minWidth: 0, flex: 1, gap: 5 },
-  wheelDisabled: { opacity: 0.45 },
-  wheelLabel: {
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  wheelViewport: {
-    height: WHEEL_ITEM_HEIGHT * 3,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radii.control,
-    backgroundColor: colors.canvas,
-  },
-  wheelScroll: { zIndex: 1 },
-  wheelContent: { paddingVertical: WHEEL_ITEM_HEIGHT },
-  wheelSelection: {
-    position: 'absolute',
-    top: WHEEL_ITEM_HEIGHT,
-    right: 5,
-    left: 5,
-    height: WHEEL_ITEM_HEIGHT,
-    borderRadius: 9,
-    backgroundColor: '#E8F2E4',
-  },
-  wheelItem: {
-    height: WHEEL_ITEM_HEIGHT,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  wheelItemText: { color: colors.textMuted, fontSize: 16 },
-  wheelItemTextSelected: {
-    color: colors.primary,
-    fontWeight: '800',
-  },
   bodyRow: { flexDirection: 'row', gap: 10 },
   bodyField: { minWidth: 0, flex: 1 },
   suffix: { color: colors.textMuted, fontSize: 13 },
@@ -1552,6 +1239,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   chipGrow: { minWidth: 72, flexGrow: 1, alignItems: 'center' },
+  chipCompact: {
+    minWidth: 0,
+    flexGrow: 1,
+    flexShrink: 0,
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  chipCompactLabel: { letterSpacing: -0.4 },
   chipSelected: {
     borderColor: colors.primary,
     backgroundColor: colors.primary,
@@ -1589,6 +1284,12 @@ const styles = StyleSheet.create({
   },
   painSectionTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
   painChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  painSeverityChoices: {
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
+    gap: spacing.xs,
+  },
+  consentGroups: { gap: 14 },
   consentRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -1616,6 +1317,13 @@ const styles = StyleSheet.create({
   },
   checkmark: { color: colors.surface, fontSize: 12, fontWeight: '700' },
   checkmarkHidden: { color: 'transparent' },
+  consentContent: { minWidth: 0, flex: 1, gap: 4 },
+  consentLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
   consentText: {
     flex: 1,
     color: colors.text,

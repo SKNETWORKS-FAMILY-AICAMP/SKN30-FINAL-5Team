@@ -21,7 +21,7 @@ import type {
   WeeklyPlanRevisionResponse,
   WorkoutPlan,
 } from '../api/types';
-import { localDateString } from '../api/useAsync';
+import { localDateString, weekStartString } from '../api/useAsync';
 import type { TabId } from '../components/brand/BrandChrome';
 import { CalendarStatusScreen } from '../features/calendar/CalendarStatusScreen';
 import { ExerciseCatalogScreen } from '../features/catalog/ExerciseCatalogScreen';
@@ -77,9 +77,15 @@ export function MainFlow({
     restoreAttempted.current = true;
     const controller = new AbortController();
     const localDate = localDateString(new Date(), me.profile?.timezone);
+    const weekStart = weekStartString(new Date(), me.profile?.timezone);
+    const latestPlanRevisionRequest = api.getLatestWeeklyPlanRevision
+      ? api
+          .getLatestWeeklyPlanRevision(weekStart, controller.signal)
+          .catch(() => null)
+      : Promise.resolve(null);
 
     void (async () => {
-      const [stored, sessions] = await Promise.all([
+      const [stored, sessions, latestPlanRevision] = await Promise.all([
         api.getDecisionForDate(localDate, controller.signal).catch(() => null),
         api
           .listWorkoutSessions(
@@ -87,9 +93,13 @@ export function MainFlow({
             controller.signal,
           )
           .catch(() => null),
+        latestPlanRevisionRequest,
       ]);
       if (controller.signal.aborted) {
         return;
+      }
+      if (latestPlanRevision !== null) {
+        setPlanRevision(latestPlanRevision);
       }
       const todaySessions = sessions?.items ?? [];
       const active = todaySessions.find(

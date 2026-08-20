@@ -20,7 +20,9 @@ import type { Api } from '../../api/endpoints';
 import { messageForError } from '../../api/errors';
 import {
   ADVERSE_REACTION_OPTIONS,
-  BODY_AREA_OPTIONS,
+  bodyAreaLabel,
+  DEFAULT_BODY_AREA_OPTIONS,
+  EXTENDED_BODY_AREA_OPTIONS,
   formatExercisePrescription,
   trainingTypeLabel,
 } from '../../api/labels';
@@ -1722,6 +1724,11 @@ function ApiSafetySheet({
   selectedReactions: readonly string[];
 }) {
   const selectedBodyAreas = Object.keys(selectedBodySeverities);
+  const [showExtendedAreas, setShowExtendedAreas] = useState(() =>
+    selectedBodyAreas.some((code) =>
+      EXTENDED_BODY_AREA_OPTIONS.some((option) => option.code === code),
+    ),
+  );
   const canSubmit =
     selectedBodyAreas.length > 0 || selectedReactions.length > 0;
   return (
@@ -1732,7 +1739,7 @@ function ApiSafetySheet({
         </Text>
         <Text style={styles.choiceTitle}>불편한 부위</Text>
         <View style={styles.choiceWrap}>
-          {BODY_AREA_OPTIONS.map((option) => (
+          {DEFAULT_BODY_AREA_OPTIONS.map((option) => (
             <ChoiceButton
               key={option.code}
               label={option.label}
@@ -1741,21 +1748,34 @@ function ApiSafetySheet({
               selected={selectedBodyAreas.includes(option.code)}
             />
           ))}
+          <ChoiceButton
+            label={showExtendedAreas ? '다른 부위 접기' : '다른 부위 더 보기'}
+            multiple
+            onPress={() => setShowExtendedAreas((visible) => !visible)}
+            selected={showExtendedAreas}
+          />
+          {showExtendedAreas
+            ? EXTENDED_BODY_AREA_OPTIONS.map((option) => (
+                <ChoiceButton
+                  key={option.code}
+                  label={option.label}
+                  multiple
+                  onPress={() => onToggleBodyArea(option.code)}
+                  selected={selectedBodyAreas.includes(option.code)}
+                />
+              ))
+            : null}
         </View>
         {selectedBodyAreas.map((bodyAreaCode) => {
-          const bodyArea = BODY_AREA_OPTIONS.find(
-            (option) => option.code === bodyAreaCode,
-          );
+          const bodyArea = bodyAreaLabel(bodyAreaCode);
           return (
             <View key={bodyAreaCode}>
-              <Text style={styles.choiceTitle}>
-                {bodyArea?.label ?? bodyAreaCode} 불편함 정도
-              </Text>
+              <Text style={styles.choiceTitle}>{bodyArea} 불편함 정도</Text>
               <View style={styles.choiceWrap}>
                 {WORKOUT_SEVERITIES.map((severity) => (
                   <ChoiceButton
                     key={severity.code}
-                    accessibilityLabel={`${bodyArea?.label ?? bodyAreaCode} ${severity.label}`}
+                    accessibilityLabel={`${bodyArea} ${severity.label}`}
                     label={severity.label}
                     onPress={() =>
                       onSelectBodySeverity(bodyAreaCode, severity.code)
