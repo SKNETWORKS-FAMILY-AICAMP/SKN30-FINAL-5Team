@@ -659,6 +659,21 @@ PK는 `(user_id, location_code)`다. 기존 `user_profiles.preferred_location_co
 저장한다. 두 테이블 모두 `DOMAIN_APPROVED` 행만 루틴 생성에 사용한다. 운동 이름이나
 training type에서 목표·처방을 추론하지 않는다.
 
+병합 카탈로그 처방 산출물 `merged-mvp-v0.1.0`은 goal tag 32건과 prescription profile
+36건을 포함한다. importer는 산출물 manifest의 version/hash/count를 검증하고 운동을
+`(catalog_version_code, stable_code)`로 해석해 두 테이블에 원자적으로 적재한다. 적재된
+catalog의 `manifest_metadata.prescription_artifact`에는 처방 산출물 version, manifest hash,
+두 건수와 승인 metadata를 보존한다. 같은 version의 hash 또는 건수가 달라지면 재적재하지
+않고 실패한다.
+
+`catalog_versions.source_track_code=merged`는 카탈로그 컨테이너가 여러 source track을
+합쳤다는 뜻이다. 각 `exercises.source_track_code`는 계속 `wger` 또는 `kspo`만 허용해 운동별
+provenance를 보존한다. `MERGED-MVP-20260820-PM-DOMAIN-APPROVAL`은 다음 정확한 집합에만
+적용된다: catalog 56종, safety rules 282건, alternatives 238건, goal tags 32건,
+prescription profiles 36건. migration은 이미 적재된 행을 동일 기준으로 재검사하고 승인
+metadata를 기록하지만 ACTIVE 전환은 하지 않는다. `catalog_activate`가 처방/goal tag 존재와
+review 상태를 다시 확인한 뒤 단일 ACTIVE 제약 안에서 전환한다.
+
 ### 6.4 scheduled_workouts
 
 | 컬럼 | 설명 |

@@ -26,6 +26,7 @@ class ReviewStatusInterpretationCode(StrEnum):
 class SourceTrackCode(StrEnum):
     WGER = "wger"
     KSPO = "kspo"
+    MERGED = "merged"
 
 
 class TrainingTypeCode(StrEnum):

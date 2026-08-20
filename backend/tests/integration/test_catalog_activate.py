@@ -24,13 +24,18 @@ from backend.app.db.models.catalog import (
     TrainingType,
 )
 from backend.app.db.repositories.catalog import CatalogRepository
-from backend.app.modules.catalog.service import CatalogImporter
-from backend.scripts.catalog_activate import activate, missing_review_fields
+from backend.app.modules.catalog.service import CatalogDataBundleImporter, CatalogImporter
+from backend.scripts.catalog_activate import _routine_input_counts, activate, missing_review_fields
 from backend.scripts.demo_seed import DEMO_CATALOG_VERSION_CODE, seed_catalog
 
 ALEMBIC_CONFIG = Path("backend/alembic.ini")
 BUNDLE_CATALOG = Path("data/generated/exercise-catalog-seed-kspo-tranche3-v0.1.0")
 BUNDLE_VERSION_CODE = "kspo-tranche3-v0.1.0"
+MERGED_CATALOGS = (Path("data/generated/exercise-catalog-seed-merged-mvp-v0.4.0"),)
+MERGED_SAFETY = Path("data/generated/exercise-safety-rules-merged-mvp-v0.5.0")
+MERGED_ALTERNATIVES = Path("data/generated/exercise-alternatives-merged-mvp-v0.4.0")
+MERGED_PRESCRIPTIONS = Path("data/generated/exercise-prescriptions-merged-mvp-v0.1.0")
+MERGED_VERSION_CODE = "merged-mvp-v0.4.0"
 
 
 @pytest.fixture
@@ -255,3 +260,25 @@ def test_reviewed_catalog_activates_without_the_override(postgres_session: Sessi
         )
         == 1
     )
+
+
+@pytest.mark.integration
+def test_complete_merged_bundle_activates_without_override(
+    postgres_session: Session,
+) -> None:
+    result = CatalogDataBundleImporter(CatalogRepository(), "test").import_bundle(
+        postgres_session,
+        MERGED_CATALOGS,
+        MERGED_SAFETY,
+        MERGED_ALTERNATIVES,
+        MERGED_PRESCRIPTIONS,
+    )
+
+    catalog = activate(postgres_session, MERGED_VERSION_CODE, now=datetime.now(UTC))
+
+    assert result.prescriptions.record_count == 68
+    assert catalog.status_code == "ACTIVE"
+    assert catalog.production_eligible is True
+    assert catalog.review_method_code == "DOMAIN_REVIEWER"
+    assert catalog.status_interpretation_code == "PRODUCTION_APPROVED"
+    assert _routine_input_counts(postgres_session, catalog) == (36, 32)

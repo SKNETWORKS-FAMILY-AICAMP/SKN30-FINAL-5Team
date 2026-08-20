@@ -3,9 +3,9 @@
 Usage:
     uv run python -m backend.scripts.catalog_data_load load
 
-The fixed bundle contains four catalog versions, 354 safety rules, and 238
-directional alternatives. All rows remain production ineligible. The command
-is idempotent and fails closed if an existing version has different content.
+The fixed bundle contains one merged catalog, its reviewed safety rules,
+directional alternatives, goal tags, and prescriptions. The command is
+idempotent and fails closed if an existing version has different content.
 """
 
 from __future__ import annotations
@@ -23,14 +23,10 @@ from backend.app.modules.catalog.service import CatalogDataBundleImporter
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 GENERATED_ROOT = REPOSITORY_ROOT / "data" / "generated"
-CATALOG_DIRECTORIES = (
-    GENERATED_ROOT / "exercise-catalog-seed-kspo-mvp-v0.2.0",
-    GENERATED_ROOT / "exercise-catalog-seed-wger-mvp-v0.2.0",
-    GENERATED_ROOT / "exercise-catalog-seed-kspo-tranche3-v0.1.0",
-    GENERATED_ROOT / "exercise-catalog-seed-wger-tranche3-v0.1.0",
-)
-SAFETY_RULE_DIRECTORY = GENERATED_ROOT / "exercise-safety-rules-mvp-v0.3.0"
-ALTERNATIVE_DIRECTORY = GENERATED_ROOT / "exercise-alternatives-mvp-v0.2.0"
+CATALOG_DIRECTORIES = (GENERATED_ROOT / "exercise-catalog-seed-merged-mvp-v0.4.0",)
+SAFETY_RULE_DIRECTORY = GENERATED_ROOT / "exercise-safety-rules-merged-mvp-v0.5.0"
+ALTERNATIVE_DIRECTORY = GENERATED_ROOT / "exercise-alternatives-merged-mvp-v0.4.0"
+PRESCRIPTION_DIRECTORY = GENERATED_ROOT / "exercise-prescriptions-merged-mvp-v0.1.0"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -47,6 +43,7 @@ def main(argv: list[str] | None = None) -> int:
                 CATALOG_DIRECTORIES,
                 SAFETY_RULE_DIRECTORY,
                 ALTERNATIVE_DIRECTORY,
+                PRESCRIPTION_DIRECTORY,
             )
     finally:
         engine.dispose()
@@ -58,7 +55,9 @@ def main(argv: list[str] | None = None) -> int:
         f"safety_rules={result.safety_rules.record_count} "
         f"(new={result.safety_rules.imported}), "
         f"alternatives={result.alternatives.record_count} "
-        f"(new={result.alternatives.imported})"
+        f"(new={result.alternatives.imported}), "
+        f"prescription_rows={result.prescriptions.record_count} "
+        f"(new={result.prescriptions.imported})"
     )
     return 0
 

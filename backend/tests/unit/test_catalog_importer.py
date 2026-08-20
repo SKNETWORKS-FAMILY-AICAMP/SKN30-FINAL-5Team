@@ -25,6 +25,7 @@ GENERATED_CATALOG_ARTIFACTS = (
     ("exercise-catalog-seed-wger-mvp-v0.2.0", 27),
     ("exercise-catalog-seed-kspo-tranche3-v0.1.0", 3),
     ("exercise-catalog-seed-wger-tranche3-v0.1.0", 3),
+    ("exercise-catalog-seed-merged-mvp-v0.4.0", 56),
 )
 
 
@@ -144,6 +145,14 @@ def test_pydantic_strenum_rejects_unknown_machine_code() -> None:
     record["training_type_code"] = "UNKNOWN"
 
     with pytest.raises(ValidationError):
+        ExerciseRecord.model_validate(record)
+
+
+def test_exercise_record_rejects_merged_as_item_provenance() -> None:
+    record = _exercise_record()
+    record["source_track"] = "merged"
+
+    with pytest.raises(ValidationError, match="original source track"):
         ExerciseRecord.model_validate(record)
 
 

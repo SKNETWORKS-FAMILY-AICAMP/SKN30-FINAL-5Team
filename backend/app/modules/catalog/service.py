@@ -24,11 +24,14 @@ from backend.app.modules.catalog.schemas import (
     CatalogManifest,
     ExerciseAlternativeRecord,
     ExerciseDetailResponse,
+    ExerciseGoalTagRecord,
     ExerciseListItem,
     ExerciseListResponse,
+    ExercisePrescriptionRecord,
     ExerciseRecord,
     ExerciseSafetyRuleRecord,
     ManifestFile,
+    PrescriptionManifest,
     SafetyRuleManifest,
 )
 
@@ -70,6 +73,14 @@ class AlternativeArtifact:
 
 
 @dataclass(frozen=True)
+class PrescriptionArtifact:
+    manifest: PrescriptionManifest
+    manifest_hash: str
+    goal_tag_records: tuple[ExerciseGoalTagRecord, ...]
+    prescription_records: tuple[ExercisePrescriptionRecord, ...]
+
+
+@dataclass(frozen=True)
 class DerivedSetState:
     record_count: int
     manifest_hash: str
@@ -88,6 +99,7 @@ class CatalogDataBundleImportResult:
     catalogs: tuple[CatalogImportResult, ...]
     safety_rules: DerivedImportResult
     alternatives: DerivedImportResult
+    prescriptions: DerivedImportResult
 
 
 @dataclass(frozen=True)
@@ -311,6 +323,12 @@ class CatalogRepositoryPort(Protocol):
 
     def create_alternatives(self, session: Session, artifact: AlternativeArtifact) -> None: ...
 
+    def get_prescription_set_state(
+        self, session: Session, version_code: str
+    ) -> DerivedSetState | None: ...
+
+    def create_prescriptions(self, session: Session, artifact: PrescriptionArtifact) -> None: ...
+
 
 def _sha256(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()
@@ -470,6 +488,64 @@ def load_alternative_artifact(artifact_directory: Path) -> AlternativeArtifact:
     return AlternativeArtifact(manifest, _sha256(manifest_raw), records)
 
 
+def load_prescription_artifact(artifact_directory: Path) -> PrescriptionArtifact:
+    root = artifact_directory.resolve()
+    if not root.is_dir():
+        raise CatalogImportError("ARTIFACT_DIRECTORY_INVALID", "artifact directory is invalid")
+    manifest_raw = _read_bytes(root / "prescription_manifest.json", "MANIFEST_UNREADABLE")
+    try:
+        manifest = PrescriptionManifest.model_validate_json(manifest_raw)
+    except ValidationError as exc:
+        raise CatalogImportError("MANIFEST_INVALID", "prescription manifest is invalid") from exc
+    if manifest.review.production_eligible is not False:
+        raise CatalogImportError(
+            "PRODUCTION_ELIGIBILITY_INVALID",
+            "DRAFT prescriptions must remain production ineligible",
+        )
+    goal_raw = _load_derived_file(root, manifest.files, "goal_tag_links.jsonl")
+    profile_raw = _load_derived_file(root, manifest.files, "prescription_profiles.jsonl")
+    try:
+        goals = tuple(
+            ExerciseGoalTagRecord.model_validate_json(line)
+            for line in goal_raw.splitlines()
+            if line.strip()
+        )
+        profiles = tuple(
+            ExercisePrescriptionRecord.model_validate_json(line)
+            for line in profile_raw.splitlines()
+            if line.strip()
+        )
+    except ValidationError as exc:
+        raise CatalogImportError(
+            "PRESCRIPTION_RECORD_INVALID", "prescription record is invalid"
+        ) from exc
+    if len(goals) != manifest.summary.goal_tag_records or len(profiles) != (
+        manifest.summary.prescription_records
+    ):
+        raise CatalogImportError("RECORD_COUNT_MISMATCH", "prescription counts do not match")
+    goal_keys = {
+        (row.catalog_version_code, row.exercise_stable_code, row.goal_code) for row in goals
+    }
+    profile_keys = {
+        (
+            row.catalog_version_code,
+            row.exercise_stable_code,
+            row.goal_code,
+            row.experience_level_code,
+            row.phase_code,
+        )
+        for row in profiles
+    }
+    if len(goal_keys) != len(goals) or len(profile_keys) != len(profiles):
+        raise CatalogImportError("DUPLICATE_PRESCRIPTION", "prescription artifact has duplicates")
+    if any(
+        (row.catalog_version_code, row.exercise_stable_code, row.goal_code) not in goal_keys
+        for row in profiles
+    ):
+        raise CatalogImportError("GOAL_TAG_REFERENCE_NOT_FOUND", "prescription lacks a goal tag")
+    return PrescriptionArtifact(manifest, _sha256(manifest_raw), goals, profiles)
+
+
 class CatalogImporter:
     def __init__(self, repository: CatalogRepositoryPort, app_env: str) -> None:
         self._repository = repository
@@ -516,7 +592,7 @@ class CatalogImporter:
 
 
 class CatalogDataBundleImporter:
-    """Atomically import the four catalogs and their DRAFT derived datasets."""
+    """Atomically import catalogs and their DRAFT derived datasets."""
 
     def __init__(self, repository: CatalogRepositoryPort, app_env: str) -> None:
         self._repository = repository
@@ -528,6 +604,7 @@ class CatalogDataBundleImporter:
         catalog_directories: tuple[Path, ...],
         safety_rule_directory: Path,
         alternative_directory: Path,
+        prescription_directory: Path,
     ) -> CatalogDataBundleImportResult:
         if self._app_env not in {"local", "test"}:
             raise CatalogImportError(
@@ -538,6 +615,7 @@ class CatalogDataBundleImporter:
         catalog_artifacts = tuple(load_catalog_artifact(path) for path in catalog_directories)
         safety_artifact = load_safety_rule_artifact(safety_rule_directory)
         alternative_artifact = load_alternative_artifact(alternative_directory)
+        prescription_artifact = load_prescription_artifact(prescription_directory)
         supplied_versions = {
             artifact.manifest.catalog_version.version_code for artifact in catalog_artifacts
         }
@@ -551,6 +629,9 @@ class CatalogDataBundleImporter:
                 record.alternative_catalog_version_code,
             )
         }
+        referenced_versions |= {
+            row.catalog_version_code for row in prescription_artifact.goal_tag_records
+        } | {row.catalog_version_code for row in prescription_artifact.prescription_records}
         if supplied_versions != referenced_versions:
             raise CatalogImportError(
                 "CATALOG_BUNDLE_INCOMPLETE",
@@ -605,11 +686,23 @@ class CatalogDataBundleImporter:
                 self._repository.get_alternative_set_state,
                 lambda: self._repository.create_alternatives(session, alternative_artifact),
             )
+            prescription_count = len(prescription_artifact.goal_tag_records) + len(
+                prescription_artifact.prescription_records
+            )
+            prescription_result = self._import_derived_set(
+                session,
+                prescription_artifact.manifest.prescription_set_version.version_code,
+                prescription_artifact.manifest_hash,
+                prescription_count,
+                self._repository.get_prescription_set_state,
+                lambda: self._repository.create_prescriptions(session, prescription_artifact),
+            )
 
         return CatalogDataBundleImportResult(
             catalogs=tuple(catalog_results),
             safety_rules=safety_result,
             alternatives=alternative_result,
+            prescriptions=prescription_result,
         )
 
     def _import_derived_set(
@@ -644,8 +737,10 @@ __all__ = [
     "DerivedImportResult",
     "DerivedSetState",
     "AlternativeArtifact",
+    "PrescriptionArtifact",
     "SafetyRuleArtifact",
     "load_alternative_artifact",
     "load_catalog_artifact",
+    "load_prescription_artifact",
     "load_safety_rule_artifact",
 ]

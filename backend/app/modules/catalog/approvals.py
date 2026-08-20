@@ -1,12 +1,12 @@
 from dataclasses import dataclass
 from typing import Literal
 
-DerivedArtifactKind = Literal["SAFETY_RULES", "ALTERNATIVES"]
+ArtifactKind = Literal["CATALOG", "SAFETY_RULES", "ALTERNATIVES", "PRESCRIPTIONS"]
 
 
 @dataclass(frozen=True)
 class DerivedDataApproval:
-    artifact_kind: DerivedArtifactKind
+    artifact_kind: ArtifactKind
     version_code: str
     manifest_sha256: str
     record_count: int
@@ -26,6 +26,54 @@ class DerivedDataApproval:
 
 
 _APPROVALS = {
+    (
+        "CATALOG",
+        "merged-mvp-v0.4.0",
+    ): DerivedDataApproval(
+        artifact_kind="CATALOG",
+        version_code="merged-mvp-v0.4.0",
+        manifest_sha256="5686be3d379c8e3742e7e891b9fb5265215aaebd4c3b3c0ec76a000b3175a9a1",
+        record_count=56,
+        approval_record_code="MERGED-MVP-20260820-PM-DOMAIN-APPROVAL",
+        approved_on="2026-08-20",
+        approver_role_codes=("DEVELOPMENT_LEAD", "PM", "DOMAIN_REVIEWER"),
+    ),
+    (
+        "SAFETY_RULES",
+        "merged-mvp-v0.5.0",
+    ): DerivedDataApproval(
+        artifact_kind="SAFETY_RULES",
+        version_code="merged-mvp-v0.5.0",
+        manifest_sha256="e42133f2550b6bd4d82063668200f6c08fe57be1445fe8e462cba92487961172",
+        record_count=282,
+        approval_record_code="MERGED-MVP-20260820-PM-DOMAIN-APPROVAL",
+        approved_on="2026-08-20",
+        approver_role_codes=("DEVELOPMENT_LEAD", "PM", "DOMAIN_REVIEWER"),
+    ),
+    (
+        "ALTERNATIVES",
+        "merged-mvp-v0.4.0",
+    ): DerivedDataApproval(
+        artifact_kind="ALTERNATIVES",
+        version_code="merged-mvp-v0.4.0",
+        manifest_sha256="8acc955f5ce24b145b9e0041ff7c70df89274d4cefa0b9a69c9429e3ecf4bb24",
+        record_count=238,
+        approval_record_code="MERGED-MVP-20260820-PM-DOMAIN-APPROVAL",
+        approved_on="2026-08-20",
+        approver_role_codes=("DEVELOPMENT_LEAD", "PM", "DOMAIN_REVIEWER"),
+    ),
+    (
+        "PRESCRIPTIONS",
+        "merged-mvp-v0.1.0",
+    ): DerivedDataApproval(
+        artifact_kind="PRESCRIPTIONS",
+        version_code="merged-mvp-v0.1.0",
+        manifest_sha256="0ff5bf451345a57b6152cacc6d90e4aeb3cc9da5283093b2863ffbcd8af87273",
+        record_count=68,
+        approval_record_code="MERGED-MVP-20260820-PM-DOMAIN-APPROVAL",
+        approved_on="2026-08-20",
+        approver_role_codes=("DEVELOPMENT_LEAD", "PM", "DOMAIN_REVIEWER"),
+    ),
     (
         "SAFETY_RULES",
         "mvp-v0.3.0",
@@ -54,7 +102,7 @@ _APPROVALS = {
 
 
 def get_derived_data_approval(
-    artifact_kind: DerivedArtifactKind,
+    artifact_kind: ArtifactKind,
     version_code: str,
     manifest_sha256: str,
     record_count: int,
@@ -67,4 +115,10 @@ def get_derived_data_approval(
     return approval
 
 
-__all__ = ["DerivedDataApproval", "get_derived_data_approval"]
+def get_catalog_approval(
+    version_code: str, manifest_sha256: str, record_count: int
+) -> DerivedDataApproval | None:
+    return get_derived_data_approval("CATALOG", version_code, manifest_sha256, record_count)
+
+
+__all__ = ["DerivedDataApproval", "get_catalog_approval", "get_derived_data_approval"]
