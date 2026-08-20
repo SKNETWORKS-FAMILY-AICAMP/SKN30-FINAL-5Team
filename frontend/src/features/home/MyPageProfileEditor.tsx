@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import {
-  Modal,
+  type GestureResponderEvent,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -61,45 +61,55 @@ export function MyPageProfileEditor({
   pending = false,
   profile,
 }: Props) {
-  return (
-    <Modal animationType="fade" onRequestClose={onClose} transparent visible>
-      <View accessibilityViewIsModal style={styles.overlay}>
-        <View style={styles.sheet}>
-          <View style={styles.headingRow}>
-            <View style={styles.headingCopy}>
-              <Text accessibilityRole="header" style={styles.title}>
-                {TITLES[field]}
-              </Text>
-              <Text style={styles.description}>
-                온보딩과 같은 방식으로 선택하면 바로 반영돼요.
-              </Text>
-            </View>
-            <Pressable
-              accessibilityLabel="프로필 편집 닫기"
-              accessibilityRole="button"
-              onPress={onClose}
-              style={styles.closeButton}
-            >
-              <Text style={styles.closeText}>×</Text>
-            </Pressable>
-          </View>
+  const stopPropagation = (event: GestureResponderEvent) =>
+    event.stopPropagation();
 
-          <ScrollView
-            contentContainerStyle={styles.editorContent}
-            keyboardShouldPersistTaps="handled"
+  return (
+    <Pressable
+      accessibilityViewIsModal
+      onPress={onClose}
+      style={styles.overlay}
+      testID="profile-editor-backdrop"
+    >
+      <Pressable
+        onPress={stopPropagation}
+        style={styles.sheet}
+        testID="profile-editor-sheet"
+      >
+        <View style={styles.headingRow}>
+          <View style={styles.headingCopy}>
+            <Text accessibilityRole="header" style={styles.title}>
+              {TITLES[field]}
+            </Text>
+            <Text style={styles.description}>
+              온보딩과 같은 방식으로 선택하면 바로 반영돼요.
+            </Text>
+          </View>
+          <Pressable
+            accessibilityLabel="프로필 편집 닫기"
+            accessibilityRole="button"
+            onPress={onClose}
+            style={styles.closeButton}
           >
-            <EditorBody
-              field={field}
-              onChange={onChange}
-              pending={pending}
-              profile={profile}
-            />
-            {pending ? <Text style={styles.pending}>저장 중…</Text> : null}
-            {error ? <InlineFeedback message={error} tone="error" /> : null}
-          </ScrollView>
+            <Text style={styles.closeText}>×</Text>
+          </Pressable>
         </View>
-      </View>
-    </Modal>
+
+        <ScrollView
+          contentContainerStyle={styles.editorContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <EditorBody
+            field={field}
+            onChange={onChange}
+            pending={pending}
+            profile={profile}
+          />
+          {pending ? <Text style={styles.pending}>저장 중…</Text> : null}
+          {error ? <InlineFeedback message={error} tone="error" /> : null}
+        </ScrollView>
+      </Pressable>
+    </Pressable>
   );
 }
 
@@ -573,9 +583,15 @@ function mergeDescriptionOptions(
 
 const styles = StyleSheet.create({
   overlay: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(20,28,16,0.5)',
+    zIndex: 30,
+    elevation: 30,
   },
   sheet: {
     maxHeight: '82%',

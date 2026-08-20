@@ -392,6 +392,55 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.getByText('안전')).toBeOnTheScreen();
   });
 
+  it('shows a safety caution supplied through adjustment reason codes', () => {
+    const props = homePreviewProps('adjusted');
+    expect(props.decision).not.toBeNull();
+    const decision = {
+      ...props.decision!,
+      reason_codes: [],
+      adjustment_reason_codes: ['SAFETY_CAUTION_APPLIED'],
+      safety_summary: null,
+    };
+
+    render(<HomeScreen {...props} decision={decision} />);
+
+    fireEvent.press(screen.getByRole('button', { name: '추천 이유 보기' }));
+    expect(
+      screen.getByText('불편한 부위를 고려해 강도를 낮췄어요.'),
+    ).toBeOnTheScreen();
+  });
+
+  it('distinguishes adjusted and unchanged API routines by action label', () => {
+    const adjustedView = render(
+      <HomeScreen {...homePreviewProps('adjusted')} />,
+    );
+
+    expect(screen.getByText('강도 낮춰 진행')).toBeOnTheScreen();
+    expect(
+      screen.getByLabelText('루틴 진행 방식: 강도 낮춰 진행'),
+    ).toBeOnTheScreen();
+
+    adjustedView.rerender(<HomeScreen {...homePreviewProps('routine')} />);
+    expect(screen.getByText('계획대로 진행')).toBeOnTheScreen();
+    expect(
+      screen.getByLabelText('루틴 진행 방식: 계획대로 진행'),
+    ).toBeOnTheScreen();
+  });
+
+  it('renders the matching action badge in preview mode', () => {
+    const previewView = render(<HomeScreen previewState="routine" />);
+
+    expect(
+      screen.getByLabelText('루틴 진행 방식: 계획대로 진행'),
+    ).toBeOnTheScreen();
+
+    previewView.unmount();
+    render(<HomeScreen previewState="adjusted" />);
+    expect(
+      screen.getByLabelText('루틴 진행 방식: 강도 낮춰 진행'),
+    ).toBeOnTheScreen();
+  });
+
   it('lets API exercise items be reordered from the three-line handles', () => {
     const onReorderPlan = jest.fn();
     render(

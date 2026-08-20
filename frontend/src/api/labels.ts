@@ -103,6 +103,16 @@ const NOT_COMPLETED_REASON: Record<string, string> = {
   LOW_MOTIVATION: '오늘은 마음이 내키지 않았어요',
 };
 
+const WEEKDAY: Record<string, string> = {
+  MONDAY: '월요일',
+  TUESDAY: '화요일',
+  WEDNESDAY: '수요일',
+  THURSDAY: '목요일',
+  FRIDAY: '금요일',
+  SATURDAY: '토요일',
+  SUNDAY: '일요일',
+};
+
 const PHASE: Record<string, string> = {
   WARMUP: '준비',
   MAIN: '본운동',
@@ -178,7 +188,17 @@ const ADJUSTMENT_DIRECTION: Record<string, string> = {
 };
 
 const DECISION_REASON: Record<string, string> = {
+  BEGINNER_GOAL_ROUTINE_SELECTED: '초보자 단계에 맞는 구성을 골랐어요.',
+  INTERMEDIATE_GOAL_ROUTINE_SELECTED: '중급 단계에 맞는 구성을 골랐어요.',
+  ADVANCED_GOAL_ROUTINE_SELECTED: '숙련 단계에 맞는 구성을 골랐어요.',
+  EXPERIENCE_LEVEL_REVIEWED: '운동 경험 수준을 확인했어요.',
   PRIMARY_GOAL_PRESERVED: '운동 목표를 유지했어요.',
+  RECOVERY_CONTEXT_REVIEWED: '오늘의 회복 상태를 확인했어요.',
+  SLEEP_INPUT_RECORDED_WITHOUT_UNAPPROVED_THRESHOLD:
+    '입력한 수면 시간을 참고했어요.',
+  RECENT_EXECUTION_HISTORY_REVIEWED: '최근 운동 기록을 확인했어요.',
+  APPROVED_RECOVERY_CANDIDATE_UNAVAILABLE:
+    '피로도가 높아 권할 수 있는 회복 구성을 찾지 못했어요.',
   MODERATE_FATIGUE_DOWNSHIFT: '오늘의 피로도를 고려해 부담을 낮췄어요.',
   LOW_FATIGUE_LOAD_ACCEPTED: '현재 피로도에 맞는 운동량을 유지했어요.',
   AVAILABLE_EQUIPMENT_INSUFFICIENT: '사용 가능한 장비를 고려했어요.',
@@ -192,8 +212,23 @@ const DECISION_REASON: Record<string, string> = {
   SAFETY_EXERCISES_REPLACED:
     '부담이 될 수 있는 운동을 안전한 구성으로 바꿨어요.',
   APPROVED_ALTERNATIVE_UNAVAILABLE: '안전하게 대체할 운동을 확인하지 못했어요.',
+  SAFETY_CAUTION_APPLIED: '불편한 부위를 고려해 강도를 낮췄어요.',
+  ATTENTION_AREA_CAUTION_APPLIED:
+    '평소 주의가 필요한 부위를 고려해 강도를 낮췄어요.',
+  APPROVED_SAFETY_RULESET_UNAVAILABLE:
+    '안전 기준을 확인하지 못해 운동을 진행하지 않았어요.',
+  SAFETY_DOWNSHIFT_UNAVAILABLE: '강도를 낮춘 구성을 찾지 못했어요.',
   NO_APPLICABLE_SAFETY_RESTRICTION:
     '현재 상태에 필요한 안전 제한을 확인했어요.',
+  NO_ELIGIBLE_COMMON_CANDIDATE: '오늘 조건에 맞는 루틴을 찾지 못했어요.',
+  CANDIDATE_CONTAINS_EXCLUDED_EXERCISE:
+    '오늘 피해야 할 운동이 포함된 구성을 제외했어요.',
+  CANDIDATE_MISSING_REQUIRED_GOAL:
+    '운동 목표를 만족하지 못하는 구성을 제외했어요.',
+  CANDIDATE_DURATION_MISMATCH:
+    '요청한 운동 시간과 맞지 않는 구성을 제외했어요.',
+  CANDIDATE_REQUIRED_ACTION_UNAVAILABLE:
+    '필요한 조정을 적용할 수 있는 구성을 찾지 못했어요.',
   COMMON_CANDIDATE_SELECTED: '여러 조건을 함께 만족하는 루틴을 선택했어요.',
 };
 
@@ -233,6 +268,7 @@ export const adverseReactionLabel = (code: string) =>
 export const notCompletedReasonLabel = (
   code: NotCompletedReasonCode | string,
 ) => lookup(NOT_COMPLETED_REASON, code);
+export const weekdayLabel = (code: string) => lookup(WEEKDAY, code);
 export const phaseLabel = (code: string) => lookup(PHASE, code);
 export const trainingTypeLabel = (code: string) => lookup(TRAINING_TYPE, code);
 export const bodyFocusLabel = (code: string) => lookup(BODY_FOCUS, code);

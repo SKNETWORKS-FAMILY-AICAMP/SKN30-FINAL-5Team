@@ -176,6 +176,30 @@ describe('MyPageContainer', () => {
     expect(screen.queryByText('목표 저장')).toBeNull();
   });
 
+  it('keeps the profile editor inside the screen and closes from its backdrop', async () => {
+    await render(
+      <MyPageContainer
+        api={accountApi()}
+        me={me()}
+        now={new Date('2026-08-19T03:00:00Z')}
+        onNavigateTab={jest.fn()}
+        onRefreshMe={jest.fn(async () => undefined)}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: '희망 시간 수정' }));
+    fireEvent.press(screen.getByTestId('profile-editor-sheet'), {
+      stopPropagation: jest.fn(),
+    });
+    expect(
+      screen.getByRole('header', { name: '희망 시간 수정' }),
+    ).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByTestId('profile-editor-backdrop'));
+    expect(screen.queryByRole('header', { name: '희망 시간 수정' })).toBeNull();
+  });
+
   it('saves an optional consent immediately without a save button', async () => {
     const replaceConsents = jest.fn<Api['replaceConsents']>(async (body) => ({
       user_id: 'user-1',
@@ -212,7 +236,7 @@ describe('MyPageContainer', () => {
     expect(screen.queryByText('동의 변경 저장')).toBeNull();
   });
 
-  it('edits only the selected equipment field from its modal', async () => {
+  it('edits only the selected equipment field from its sheet', async () => {
     const updateProfileSettings = jest.fn<Api['updateProfileSettings']>(
       async () => ({
         profile_version: 8,

@@ -526,6 +526,21 @@ export type WeeklyReportResponse = {
     not_completed: number;
     stopped_for_safety: number;
   };
+  weekday_failure_summary: Record<
+    string,
+    {
+      partial: number;
+      not_completed: number;
+      stopped_for_safety: number;
+    }
+  >;
+  pattern_summary: {
+    high_completion_windows: string[];
+    high_completion_exercise_types: string[];
+    high_completion_intensity_codes: string[];
+    blocker_reason_codes: string[];
+  };
+  agent_summaries: Record<string, unknown> | null;
   primary_miss_reason_code: string | null;
   completion_rate: number;
   persistence_rate: number;

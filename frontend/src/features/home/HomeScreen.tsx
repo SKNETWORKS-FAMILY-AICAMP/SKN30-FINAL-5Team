@@ -35,6 +35,7 @@ import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
 
 import {
   ADVERSE_REACTION_OPTIONS,
+  actionLabel,
   agentTypeLabel,
   bodyAreaLabel,
   decisionReasonLabel,
@@ -45,6 +46,7 @@ import {
 } from '../../api/labels';
 import type { Api } from '../../api/endpoints';
 import type {
+  ActionCode,
   DailyContextResponse,
   DecisionResponse,
   DiscomfortSeverityCode,
@@ -775,6 +777,13 @@ function HomeScreenContent({
             blockingRevisionNotice === null &&
             hasRoutine ? (
               <RoutineCard
+                actionCode={
+                  apiMode
+                    ? decision?.action_code
+                    : adjustedRoutine
+                      ? 'DOWNSHIFT'
+                      : 'KEEP'
+                }
                 editLabel={apiMode ? '운동 장소 변경' : '운동 수정하기'}
                 items={displayedRoutineItems}
                 minutes={routineMinutes}
@@ -1369,6 +1378,7 @@ const ROUTINE_NOTES = [
 ] as const;
 
 function RoutineCard({
+  actionCode,
   editLabel,
   focus,
   items,
@@ -1390,6 +1400,7 @@ function RoutineCard({
   title,
   useJua,
 }: {
+  actionCode?: ActionCode;
   editLabel: string;
   focus: string;
   items: readonly HomeRoutineItem[];
@@ -1414,10 +1425,32 @@ function RoutineCard({
   const styles = useHomeStyles();
   const drag = useDragController(onMove ?? (() => undefined));
   const rerollLabel = getHomeRerollLabel(rerolls, rerolling);
+  const routineActionLabel =
+    actionCode === undefined ? null : actionLabel(actionCode);
+  const adjustedAction =
+    actionCode === 'DOWNSHIFT' ||
+    actionCode === 'CHANGE' ||
+    actionCode === 'RECOVERY';
   return (
     <View style={styles.routineCard} testID="home-routine-state">
-      <View style={styles.routineBadge}>
-        <Text style={styles.routineBadgeText}>오늘의 운동</Text>
+      <View style={styles.routineBadgeRow}>
+        <View style={styles.routineBadge}>
+          <Text style={styles.routineBadgeText}>오늘의 운동</Text>
+        </View>
+        {routineActionLabel === null ? null : (
+          <View
+            accessible
+            accessibilityLabel={`루틴 진행 방식: ${routineActionLabel}`}
+            style={[
+              styles.routineActionBadge,
+              adjustedAction && styles.routineActionBadgeAdjusted,
+            ]}
+          >
+            <Text style={styles.routineActionBadgeText}>
+              {routineActionLabel}
+            </Text>
+          </View>
+        )}
       </View>
       <Text style={styles.routineTitle}>{title}</Text>
       <Text style={styles.routineSummary}>
@@ -3682,6 +3715,12 @@ function createHomeStyles(
       paddingBottom: s(8),
       ...shadow(6, 18, 0.1),
     },
+    routineBadgeRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: s(8),
+    },
     routineBadge: {
       alignSelf: 'flex-start',
       borderRadius: 999,
@@ -3690,6 +3729,24 @@ function createHomeStyles(
       paddingHorizontal: s(12),
     },
     routineBadgeText: { color: '#FFFFFF', fontSize: f(12), fontWeight: '700' },
+    routineActionBadge: {
+      alignSelf: 'flex-start',
+      borderWidth: s(1.5),
+      borderColor: '#CBDDB4',
+      borderRadius: 999,
+      backgroundColor: '#FFFFFF',
+      paddingVertical: s(4.5),
+      paddingHorizontal: s(11),
+    },
+    routineActionBadgeAdjusted: {
+      borderColor: '#4E8B3A',
+      backgroundColor: '#F1F6E7',
+    },
+    routineActionBadgeText: {
+      color: '#3E7A32',
+      fontSize: f(12),
+      fontWeight: '700',
+    },
     routineTitle: {
       marginTop: s(12),
       color: '#2A2A26',

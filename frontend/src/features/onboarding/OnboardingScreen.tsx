@@ -25,6 +25,7 @@ import {
   InlineFeedback,
   TextField,
 } from '../../components/primitives';
+import { useScale } from '../../components/scale';
 import { colors, radii, spacing } from '../../components/theme';
 import { PROFILE_BODY_LIMITS } from '../profile/profileModel';
 import {
@@ -663,9 +664,13 @@ function OnboardingScreenContent({
                       <Text style={styles.painSectionTitle}>
                         {area?.label ?? code} 통증 정도
                       </Text>
-                      <View style={styles.painChoices}>
+                      <View
+                        style={styles.painSeverityChoices}
+                        testID={`onboarding-pain-severity-options-${code}`}
+                      >
                         {PAIN_SEVERITY_OPTIONS.map((severity) => (
                           <Chip
+                            compact
                             key={severity.code}
                             label={severity.label}
                             selected={
@@ -1196,16 +1201,20 @@ function ChoiceCard({ children }: { children: React.ReactNode }) {
 }
 
 function Chip({
+  compact = false,
   grow = false,
   label,
   onPress,
   selected,
 }: {
+  compact?: boolean;
   grow?: boolean;
   label: string;
   onPress: () => void;
   selected: boolean;
 }) {
+  const { f } = useScale();
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -1214,10 +1223,19 @@ function Chip({
       style={[
         styles.chip,
         grow && styles.chipGrow,
+        compact && styles.chipCompact,
         selected && styles.chipSelected,
       ]}
     >
-      <Text style={[styles.chipLabel, selected && styles.chipLabelSelected]}>
+      <Text
+        numberOfLines={compact ? 1 : undefined}
+        style={[
+          styles.chipLabel,
+          compact && styles.chipCompactLabel,
+          compact && { fontSize: Math.max(10, f(11)) },
+          selected && styles.chipLabelSelected,
+        ]}
+      >
         {label}
       </Text>
     </Pressable>
@@ -1552,6 +1570,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   chipGrow: { minWidth: 72, flexGrow: 1, alignItems: 'center' },
+  chipCompact: {
+    minWidth: 0,
+    flexGrow: 1,
+    flexShrink: 0,
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  chipCompactLabel: { letterSpacing: -0.4 },
   chipSelected: {
     borderColor: colors.primary,
     backgroundColor: colors.primary,
@@ -1589,6 +1615,11 @@ const styles = StyleSheet.create({
   },
   painSectionTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
   painChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  painSeverityChoices: {
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
+    gap: spacing.xs,
+  },
   consentRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
