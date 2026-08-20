@@ -17,6 +17,10 @@ class DailyContextValues:
     hydration_state_code: str | None
     discomforts: tuple[tuple[str, str], ...]
     adverse_reaction_codes: tuple[str, ...]
+    # ROUTINE_DEFAULT pairs with an empty tuple and means the user did not answer.
+    # MANUAL with an empty tuple is an explicit "no time today" choice.
+    availability_source_code: str
+    available_slots: tuple[tuple[datetime, datetime], ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,6 +31,10 @@ class IdempotencyRecord:
 
 class DailyContextRepositoryPort(Protocol):
     def acquire_mutation_lock(self, session: Session, user_id: UUID, local_date: date) -> None: ...
+
+    def get_user_timezone(self, session: Session, user_id: UUID) -> str | None:
+        """Return the verified profile IANA timezone used to bound availability slots."""
+        ...
 
     def get_idempotency_record(
         self, session: Session, user_id: UUID, idempotency_key: UUID

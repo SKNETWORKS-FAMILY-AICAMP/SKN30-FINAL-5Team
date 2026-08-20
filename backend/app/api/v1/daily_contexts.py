@@ -16,9 +16,11 @@ from backend.app.core.errors import AppError
 from backend.app.modules.checkins.ports import DailyContextRepositoryPort
 from backend.app.modules.checkins.schemas import DailyContextResponse, DailyContextUpsertRequest
 from backend.app.modules.checkins.service import (
+    AvailabilitySlotOutOfRangeError,
     DailyContextNotFoundError,
     DailyContextService,
     IdempotencyKeyReusedError,
+    ProfileTimezoneMissingError,
     StaleContextError,
 )
 from backend.app.modules.identity.service import CurrentUser
@@ -66,6 +68,18 @@ def _translate_error(exc: Exception) -> AppError:
             code="IDEMPOTENCY_KEY_REUSED",
             message="동일한 멱등성 키를 다른 요청에 사용할 수 없습니다.",
         )
+    if isinstance(exc, AvailabilitySlotOutOfRangeError):
+        return AppError(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+            code="INVALID_REQUEST",
+            message="가능한 시간은 해당 날짜 안에 있어야 합니다.",
+        )
+    if isinstance(exc, ProfileTimezoneMissingError):
+        return AppError(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+            code="INVALID_REQUEST",
+            message="가능한 시간을 입력하려면 프로필 시간대가 먼저 필요합니다.",
+        )
     if isinstance(exc, IntegrityError):
         return AppError(
             status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
@@ -102,6 +116,8 @@ def replace_daily_context(
         DailyContextNotFoundError,
         StaleContextError,
         IdempotencyKeyReusedError,
+        AvailabilitySlotOutOfRangeError,
+        ProfileTimezoneMissingError,
         IntegrityError,
         SQLAlchemyError,
     ) as exc:

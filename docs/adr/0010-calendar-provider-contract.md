@@ -1,6 +1,6 @@
 # ADR-0010: Google Calendar 외부 컨텍스트 계약
 
-- 상태: ACCEPTED
+- 상태: ACCEPTED · 구현 보류(DEFERRED) — 2026-08-20
 - 날짜: 2026-08-14
 - 최종 기술 검토: 2026-08-17
 - 승인일: 2026-08-17
@@ -11,11 +11,50 @@
 - 정책 버전: `external-context-policy-v2`
 - schema: `calendar-availability-v1`, `calendar-performance-v2`, `calendar-credential-v1`
 
+## 구현 보류 (2026-08-20)
+
+이 계약은 유효하고 `ACCEPTED` 상태를 유지한다. 다만 **9C-2B~9C-2E 구현을 무기한 보류한다.**
+이미 병합된 9C-2A persistence(`0013_calendar_persistence`)와 정책 코어는 그대로 둔다.
+
+보류 근거는 다음과 같다.
+
+1. 이 ADR 3절이 확정한 대로 Google은 수행 여부 필드를 제공하지 않는다. 따라서 `F011-1-6`의
+   "등록된 운동 일정의 수행 여부 확인"은 구현해도 항상 `performed=null`이며 실사용 가치가 없다.
+2. 운동 기록 조회는 앱 내 월간 캘린더와 주간 리포트가 이미 담당한다. Calendar 관찰값은
+   `DOMAIN_RULES` 13.3에 따라 공식 수행 상태·안전 판단·운동 계획을 변경할 수 없으므로 이 축에서
+   provider 연동의 기여도는 0이다.
+3. 남는 실질 가치는 `F011-1-4`·`F011-1-5`의 빈 시간 후보 계산 하나다. 이는 아래 대체 경로가
+   OAuth·secret manager·이중 쓰기 보상 없이 동일하게 제공한다.
+4. MVP freebusy 대상이 `primary` 하나이므로 업무용·공유 캘린더 사용자에게는 후보가 부정확하다.
+5. production 활성화에 필요한 OAuth client, redirect URI, consent screen, secret-manager
+   product/path/owner 증적이 확보되지 않았다.
+
+### 대체 경로: 사용자 수동 가능 시간
+
+이 ADR 4절은 이미 "사용자의 명시적 수동 가능 시간은 명시적 빈 목록을 포함해 Calendar보다 항상
+우선한다"를 확정했다. 보류 결정은 이 우선순위 규칙을 바꾸지 않고, **수동 입력을 유일한 availability
+입력원으로 승격**한다.
+
+- 수동 가능 시간은 일일 체크인(`daily_contexts`)의 선택 입력으로 받는다.
+- `select_availability`, `ManualAvailabilityOverride`, `AvailabilitySlot`,
+  `CalendarAvailabilitySourceCode`는 변경 없이 그대로 사용한다.
+- Calendar 연동이 나중에 재개되어도 이 계약은 그대로 유효하며, `CALENDAR` 입력원이 우선순위
+  하위에 추가될 뿐이다.
+
+### 보류 해제 조건
+
+다음이 모두 충족되면 9C-2B부터 재개할 수 있다.
+
+- 수동 입력만으로 빈 시간 후보 기능이 불충분하다는 사용자 근거
+- 운영 credential·secret-manager 증적 확보
+- PM·개발팀장의 MVP 범위 재승인
+
 ## 승인과 구현 게이트
 
 이 문서는 9C-1의 정책 코어를 실제 9C-2 구현에 연결하는 승인된 기술 계약이다. 2026-08-17 필수
 역할 전원이 공동 검토했고 개발팀장이 완료 사실을 명시 확인했다. 9C-2A~9C-2E는 이 계약과
-`TASK-BACKEND-007`의 단계 게이트에 따라 구현한다.
+`TASK-BACKEND-007`의 단계 게이트에 따라 구현한다. 위 "구현 보류"에 따라 9C-2B~9C-2E 착수는
+현재 중단 상태다.
 
 ADR은 `ACCEPTED`됐으므로 credential이 없어도 기동하는 disabled/unavailable 구성으로 9C-2A~9C-2E를
 구현할 수 있다. production Google 연동 활성화는 별도 운영 게이트다. 실제 OAuth client, 정확한 redirect
