@@ -1,0 +1,246 @@
+# 실험 설정
+#
+# 컬럼명은 ml/docs/FEATURE_SPEC.md를 단일 기준으로 삼는다.
+# 여기서 컬럼을 새로 만들거나 이름을 바꾸지 않는다.
+# 이 파일은 실제 데이터 파일(39개 컬럼)을 확인해 작성했다.
+
+seed: 42
+
+paths:
+  raw: "ml/data/Whoop Fitness Dataset/whoop_fitness_dataset_100k.csv"
+  processed: ml/data/processed
+  outputs: ml/outputs
+  models: ml/models
+  reports: ml/reports
+
+target: workout_completed
+
+identifiers:
+  - user_id
+  - local_date
+
+# 모델 입력에서 제외한다. 세그먼트 분석과 추적에만 사용한다.
+segments:
+  - history_days
+  - history_bucket
+  - experience_level_code
+
+# ---------------------------------------------------------------------------
+# 제외 컬럼. validate_leakage.py가 fail closed로 검증한다.
+# ---------------------------------------------------------------------------
+excluded:
+
+  same_day_leakage:        # 당일 값. 전일 이동본은 A3/A5에서 사용 가능
+    - activity_type
+    - activity_duration_min
+    - activity_strain
+    - activity_calories
+    - avg_heart_rate
+    - max_heart_rate
+    - hr_zone_1_min
+    - hr_zone_2_min
+    - hr_zone_3_min
+    - hr_zone_4_min
+    - hr_zone_5_min
+    - workout_time_of_day
+    - day_strain           # 당일 전체 부하. 운동 포함해 계산됨
+    - calories_burned      # 당일 전체 칼로리. 운동 포함해 계산됨
+
+  global_baseline:         # 사용자당 상수. 전기간(미래 포함) 평균 + 사용자 지문
+    - hrv_baseline
+    - rhr_baseline
+
+  policy:                  # DOMAIN_RULES 8절 및 전이 불가
+    - age
+    - gender
+    - primary_sport
+    - weight_kg
+    - height_cm
+
+  degenerate:              # 분산 0
+    - sleep_performance
+
+# ---------------------------------------------------------------------------
+# 피처 블록. FEATURE_SPEC.md 4절과 일치해야 한다.
+# ---------------------------------------------------------------------------
+feature_blocks:
+
+  A1:  # 프로필·달력
+    - experience_level_code
+    - day_of_week
+    - is_weekend
+
+  A2:  # 운동 이력 — 앱이 직접 기록. 전이 가능성 최상
+    - workout_completed_prev_day
+    - workout_count_7d
+    - workout_count_28d
+    - completion_rate_7d
+    - completion_rate_28d
+    - days_since_last_workout
+    - consecutive_workout_days
+    - consecutive_non_workout_days
+    - is_return_mode_candidate
+
+  A3:  # 전일 웨어러블 요약 — 서비스 wearable_summaries에 대응 컬럼 존재
+    - sleep_minutes_prev_day
+    - resting_hr_prev_day
+    - resting_hr_trend_code_prev_day
+    - last_workout_duration_min_prev_day
+    - last_workout_type_code_prev_day
+    - last_workout_calories_prev_day
+    - last_workout_avg_hr_prev_day
+
+  A4:  # 개인 기준선 대비 변화. 직접 인과 계산 (hrv_baseline/rhr_baseline 사용 금지)
+    - sleep_minutes_delta_28d
+    - resting_hr_delta_28d
+
+  A5:  # 서비스 미수집. 탐색 전용이며 제품 설계 근거로 쓰지 않는다
+    - hrv_prev_day
+    - hrv_delta_28d
+    - recovery_score_prev_day
+    - day_strain_prev_day
+    - calories_burned_prev_day
+    - sleep_efficiency_prev_day
+    - light_sleep_hours_prev_day
+    - rem_sleep_hours_prev_day
+    - deep_sleep_hours_prev_day
+    - wake_ups_prev_day
+    - time_to_fall_asleep_min_prev_day
+    - respiratory_rate_prev_day
+    - skin_temp_deviation_prev_day
+
+# ---------------------------------------------------------------------------
+# Ablation
+# 핵심 비교는 A2 -> A3 이다. 웨어러블이 앱 기록 대비 추가 정보를 주는가.
+# 이 비교가 "웨어러블 없는 사용자의 손실"도 대신 답한다 (FEATURE_SPEC 4.8절).
+# ---------------------------------------------------------------------------
+ablations:
+
+  A0:
+    name: baseline_majority
+    blocks: []
+    model_override: majority
+    transferable: true
+    note: 실측 기저율 0.5401이 정확도 상한
+
+  A1:
+    name: profile_calendar
+    blocks: [A1]
+    transferable: true
+    note: 콜드스타트 구간의 실질 성능 상한. 실측상 요일 효과가 가장 강함
+
+  A2:
+    name: plus_workout_history
+    blocks: [A1, A2]
+    transferable: true
+    note: 앱이 직접 기록하는 정보만 사용
+
+  A3:
+    name: plus_wearable_service
+    blocks: [A1, A2, A3]
+    transferable: true
+    note: 서비스가 수집 가능한 웨어러블까지. 핵심 비교 대상
+
+  A4:
+    name: plus_personal_baseline
+    blocks: [A1, A2, A3, A4]
+    transferable: true
+    note: 결과서에서 설계 근거로 쓸 수 있는 마지막 블록
+
+  A5:
+    name: plus_unavailable_metrics
+    blocks: [A1, A2, A3, A4, A5]
+    transferable: false
+    note: 서비스 미수집(HRV·recovery·수면세부 등). 결과서에 전이 불가로 표기
+
+  A2-lag1:
+    name: autocorrelation_reference
+    columns:
+      - workout_completed_prev_day
+      - day_of_week
+    transferable: true
+    note: 자기상관 참조선. 실측 lag-1 상관 0.155
+
+# ---------------------------------------------------------------------------
+# 모델. 전처리는 sklearn Pipeline 안에 넣는다. 분리 저장하지 않는다.
+# ---------------------------------------------------------------------------
+models:
+
+  majority:
+    estimator: sklearn.dummy.DummyClassifier
+    params:
+      strategy: most_frequent
+
+  logreg:
+    estimator: sklearn.linear_model.LogisticRegression
+    params:
+      max_iter: 1000
+    preprocessing:
+      categorical: onehot
+      numeric: standardize
+
+  rf:
+    estimator: sklearn.ensemble.RandomForestClassifier
+    params:
+      n_estimators: 300
+      min_samples_leaf: 5
+      n_jobs: -1
+    preprocessing:
+      categorical: onehot
+      numeric: passthrough
+
+  histgb:
+    estimator: sklearn.ensemble.HistGradientBoostingClassifier
+    params:
+      max_iter: 300
+      learning_rate: 0.1
+    preprocessing:
+      categorical: native
+      numeric: passthrough
+
+# ---------------------------------------------------------------------------
+# 분할. 무작위 분할을 쓰지 않는다.
+# 실측: 286 사용자, 2023-01-01 ~ 2024-02-03
+# ---------------------------------------------------------------------------
+splits:
+
+  time:
+    kind: temporal
+    ratios: [0.70, 0.15, 0.15]
+    order_by: local_date
+    note: 기존 사용자의 미래 행동 예측력
+
+  user:
+    kind: group
+    group_by: user_id
+    ratios: [0.70, 0.15, 0.15]
+    note: >
+      신규 사용자로의 일반화. 286명 기준 val/test 각 약 43명이므로
+      사용자 단위 불확실성이 크다. 결과서에 사용자 수를 함께 보고한다.
+
+# ---------------------------------------------------------------------------
+# 평가. 정확도만 보고하지 않는다.
+# ---------------------------------------------------------------------------
+evaluation:
+  metrics:
+    - precision
+    - recall
+    - f1
+    - roc_auc
+    - pr_auc
+    - brier
+  curves:
+    - calibration
+    - confusion_matrix
+
+  segments:
+    history_bucket: ["0-7", "8-28", "29+"]   # 가장 중요. 콜드스타트 구간
+    experience_level_code: "*"
+  # 웨어러블 유무 세그먼트는 없다. 원본에 결측이 없어 불가능하며,
+  # A2 vs A3 ablation이 같은 질문에 더 정확히 답한다.
+
+# 모델 선정은 validation PR-AUC 기준이다. test 성능을 보고 고르지 않는다.
+model_selection:
+  metric: pr_auc
+  split_part: val
+  exclude_ablations: [A5]        # 전이 불가 블록은 제출 모델 후보에서 제외

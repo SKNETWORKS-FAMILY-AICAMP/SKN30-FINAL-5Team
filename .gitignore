@@ -55,3 +55,9 @@ outputs/
 # Source descriptors and pipeline code remain tracked; fetched payloads are
 # reviewed before any explicit decision to redistribute or commit them.
 data/raw/*/snapshots/
+
+# ML 중간 산출물
+ml/data/interim/
+ml/data/processed/
+ml/outputs/predictions/
+*.joblib.tmp
