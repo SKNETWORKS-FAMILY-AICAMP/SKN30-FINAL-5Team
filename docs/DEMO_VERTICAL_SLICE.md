@@ -33,7 +33,7 @@ ID token을 사용한다.
 
 ```powershell
 .\scripts\demo-local.ps1 up      # PostgreSQL + migration + 합성 seed
-.\scripts\demo-local.ps1 api     # FastAPI 실행 (0.0.0.0:8000)
+.\scripts\demo-local.ps1 api     # 미적용 migration 반영 후 FastAPI 실행 (0.0.0.0:8000)
 .\scripts\demo-local.ps1 share   # 현재 LAN IP를 앱 설정에 반영하고 공유 주소 출력 (9.1절)
 .\scripts\demo-local.ps1 seed    # 합성 카탈로그만 다시 설치
 .\scripts\demo-local.ps1 rules   # 안전규칙 번들 적재 + 규칙 보유 카탈로그 활성화 (4.1절)

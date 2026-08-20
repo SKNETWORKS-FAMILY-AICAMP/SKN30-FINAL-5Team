@@ -22,7 +22,8 @@
 
 .PARAMETER Command
     up      Start PostgreSQL 16, apply migrations, install the synthetic seed.
-    api     Run FastAPI on 0.0.0.0:8000 (foreground; Ctrl+C to stop).
+    api     Apply pending migrations, then run FastAPI on 0.0.0.0:8000
+            (foreground; Ctrl+C to stop).
     share   Point the app at this machine's current LAN IP for a team demo.
     seed    Re-install the synthetic catalog (idempotent).
     rules   Load the reviewed rule bundle and activate the catalog carrying it,
@@ -250,6 +251,13 @@ switch ($Command) {
     'api' {
         Set-DemoEnvironment
         Assert-DemoProfileConfiguration
+        # Developers commonly restart only the API after pulling a branch. Keep
+        # the disposable demo database in lockstep with the checked-out models;
+        # otherwise a newly mapped column is surfaced to Home as the generic
+        # DATABASE_UNAVAILABLE response even though PostgreSQL itself is healthy.
+        Invoke-Native 'Apply pending demo migrations' {
+            uv run alembic -c backend/alembic.ini upgrade head
+        }
         if (-not $env:FIREBASE_PROJECT_ID) {
             Write-Warning ('FIREBASE_PROJECT_ID is not set. Authentication will fail closed ' +
                 'with 503 AUTH_PROVIDER_UNAVAILABLE. Set it, and point ' +
