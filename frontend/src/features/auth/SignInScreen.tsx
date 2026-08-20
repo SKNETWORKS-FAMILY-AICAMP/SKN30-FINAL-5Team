@@ -146,6 +146,11 @@ export function SignInScreen({ auth, notice = null }: SignInScreenProps) {
         <InlineFeedback tone="error" message={submit.error} />
       ) : null}
 
+      {isSignUp ? (
+        <Text style={styles.hint}>
+          가입 후 온보딩에서 개인정보 동의와 프로필을 안내해요.
+        </Text>
+      ) : null}
       <Button
         label={
           submit.pending

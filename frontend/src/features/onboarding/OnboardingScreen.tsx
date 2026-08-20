@@ -81,6 +81,32 @@ const COACHING_STYLE_OPTIONS = [
   },
 ] as const;
 
+const CONSENT_OPTIONS = {
+  general_personal_data: {
+    label: '개인정보 수집 및 이용',
+    description:
+      '닉네임·생년월일·키·체중으로 나에게 맞는 운동 강도를 계산해요.',
+  },
+  sensitive_data: {
+    label: '건강 관련 민감정보 처리',
+    description: '통증 부위와 컨디션 체크인을 받아 위험한 동작을 빼요.',
+  },
+  wearable_integration: {
+    label: '웨어러블 연동',
+    description:
+      '워치 데이터로 컨디션 입력을 줄여줘요. 없어도 앱은 그대로 써요.',
+  },
+  calendar_integration: {
+    label: '캘린더 연동',
+    description:
+      '지금은 연동 준비 중이에요. 준비되면 이 동의로 바로 쓸 수 있어요.',
+  },
+  marketing: {
+    label: '마케팅 정보 수신',
+    description: '새 기능과 이벤트 소식을 보내요.',
+  },
+} as const;
+
 export const ONBOARDING_STEPS = [
   {
     key: 'basic',
@@ -157,8 +183,8 @@ export const ONBOARDING_STEPS = [
   },
   {
     key: 'consent',
-    title: '필수 항목에 동의해주세요',
-    intro: '맞춤 운동 서비스를 제공하기 위해 필요한 동의예요.',
+    title: '동의 항목을 확인해주세요',
+    intro: '필수 2개만 동의하면 시작할 수 있어요.',
     required: true,
   },
 ] as const;
@@ -235,6 +261,9 @@ function OnboardingScreenContent({
   >({});
   const [generalConsent, setGeneralConsent] = useState(false);
   const [sensitiveConsent, setSensitiveConsent] = useState(false);
+  const [wearableConsent, setWearableConsent] = useState(false);
+  const [calendarConsent, setCalendarConsent] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const current = ONBOARDING_STEPS[step - 1] ?? ONBOARDING_STEPS[0];
   const birthdate = toIsoDate(birthYear, birthMonth, birthDay);
   const birthYears = useMemo(
@@ -305,9 +334,9 @@ function OnboardingScreenContent({
         consents: {
           general_personal_data: generalConsent,
           sensitive_data: sensitiveConsent,
-          wearable_integration: false,
-          calendar_integration: false,
-          marketing: false,
+          wearable_integration: wearableConsent,
+          calendar_integration: calendarConsent,
+          marketing: marketingConsent,
         },
       });
     } catch (error) {
@@ -342,6 +371,10 @@ function OnboardingScreenContent({
   const blockedByAge =
     isApiError(submit.lastError) &&
     submit.lastError.code === 'AGE_REQUIREMENT_NOT_MET';
+  const missingRequiredConsentLabels = [
+    !generalConsent ? CONSENT_OPTIONS.general_personal_data.label : null,
+    !sensitiveConsent ? CONSENT_OPTIONS.sensitive_data.label : null,
+  ].filter((label) => label !== null);
 
   const changeStep = (next: number) => {
     const bounded = clampStep(next);
@@ -725,18 +758,51 @@ function OnboardingScreenContent({
         );
       case 'consent':
         return (
-          <Card style={styles.cardGroup}>
-            <ConsentRow
-              checked={generalConsent}
-              label="개인정보 수집 및 이용에 동의합니다."
-              onPress={() => setGeneralConsent((v) => !v)}
-            />
-            <ConsentRow
-              checked={sensitiveConsent}
-              label="건강 관련 민감정보 처리에 동의합니다."
-              onPress={() => setSensitiveConsent((v) => !v)}
-            />
-          </Card>
+          <View style={styles.consentGroups}>
+            <Card style={styles.cardGroup}>
+              <Text style={styles.fieldLabel}>필수 동의</Text>
+              <ConsentRow
+                checked={generalConsent}
+                description={CONSENT_OPTIONS.general_personal_data.description}
+                label={CONSENT_OPTIONS.general_personal_data.label}
+                required
+                onPress={() => setGeneralConsent((value) => !value)}
+              />
+              <ConsentRow
+                checked={sensitiveConsent}
+                description={CONSENT_OPTIONS.sensitive_data.description}
+                label={CONSENT_OPTIONS.sensitive_data.label}
+                required
+                onPress={() => setSensitiveConsent((value) => !value)}
+              />
+            </Card>
+            <Card style={styles.cardGroup}>
+              <Text style={styles.fieldLabel}>
+                선택 동의 · 나중에 마이페이지에서 언제든 바꿀 수 있어요
+              </Text>
+              <ConsentRow
+                checked={wearableConsent}
+                description={CONSENT_OPTIONS.wearable_integration.description}
+                label={CONSENT_OPTIONS.wearable_integration.label}
+                required={false}
+                onPress={() => setWearableConsent((value) => !value)}
+              />
+              <ConsentRow
+                checked={calendarConsent}
+                description={CONSENT_OPTIONS.calendar_integration.description}
+                label={CONSENT_OPTIONS.calendar_integration.label}
+                required={false}
+                onPress={() => setCalendarConsent((value) => !value)}
+              />
+              <ConsentRow
+                checked={marketingConsent}
+                description={CONSENT_OPTIONS.marketing.description}
+                label={CONSENT_OPTIONS.marketing.label}
+                required={false}
+                onPress={() => setMarketingConsent((value) => !value)}
+              />
+            </Card>
+          </View>
         );
     }
   };
@@ -796,13 +862,18 @@ function OnboardingScreenContent({
           <Text style={styles.stepIntro}>{current.intro}</Text>
         </View>
         {renderStep()}
-        {submit.error && !blockedByAge ? (
-          <InlineFeedback message={submit.error} tone="error" />
-        ) : null}
         {blockedByAge ? (
           <InlineFeedback
             message="만 14세 미만은 이용할 수 없습니다."
             tone="error"
+          />
+        ) : submit.error ? (
+          <InlineFeedback message={submit.error} tone="error" />
+        ) : current.key === 'consent' &&
+          missingRequiredConsentLabels.length > 0 ? (
+          <InlineFeedback
+            message={`남은 필수 동의: ${missingRequiredConsentLabels.join(', ')}\n안전한 루틴을 만들려면 이 동의가 필요해요.`}
+            tone="warning"
           />
         ) : null}
       </ScrollView>
@@ -1303,15 +1374,21 @@ function DescriptionOption({
 
 function ConsentRow({
   checked,
+  description,
   label,
   onPress,
+  required,
 }: {
   checked: boolean;
+  description: string;
   label: string;
   onPress: () => void;
+  required: boolean;
 }) {
   return (
     <Pressable
+      accessibilityHint={description}
+      accessibilityLabel={label}
       accessibilityRole="checkbox"
       accessibilityState={{ checked }}
       onPress={onPress}
@@ -1322,7 +1399,15 @@ function ConsentRow({
           ✓
         </Text>
       </View>
-      <Text style={styles.consentText}>{label}</Text>
+      <View style={styles.consentContent}>
+        <View style={styles.consentLabelRow}>
+          <Text style={styles.consentText}>{label}</Text>
+          <Text style={required ? styles.requiredBadge : styles.optionalBadge}>
+            {required ? '필수' : '선택'}
+          </Text>
+        </View>
+        <Text style={styles.hint}>{description}</Text>
+      </View>
     </Pressable>
   );
 }
@@ -1644,6 +1729,7 @@ const styles = StyleSheet.create({
     flexWrap: 'nowrap',
     gap: spacing.xs,
   },
+  consentGroups: { gap: 14 },
   consentRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -1671,6 +1757,13 @@ const styles = StyleSheet.create({
   },
   checkmark: { color: colors.surface, fontSize: 12, fontWeight: '700' },
   checkmarkHidden: { color: 'transparent' },
+  consentContent: { minWidth: 0, flex: 1, gap: 4 },
+  consentLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
   consentText: {
     flex: 1,
     color: colors.text,

@@ -42,6 +42,33 @@ async function fillCredentials(password: string) {
 }
 
 describe('sign-in password policy', () => {
+  it('previews onboarding consent only while creating an account', async () => {
+    await render(<SignInScreen auth={adapter()} />);
+
+    expect(
+      screen.queryByText(
+        '가입 후 온보딩에서 개인정보 동의와 프로필을 안내해요.',
+      ),
+    ).not.toBeOnTheScreen();
+
+    fireEvent.press(
+      screen.getByRole('button', { name: '계정이 없어요. 회원가입하기' }),
+    );
+    await act(async () => undefined);
+    expect(
+      screen.getByText('가입 후 온보딩에서 개인정보 동의와 프로필을 안내해요.'),
+    ).toBeOnTheScreen();
+
+    fireEvent.press(
+      screen.getByRole('button', { name: '이미 계정이 있어요. 로그인하기' }),
+    );
+    expect(
+      screen.queryByText(
+        '가입 후 온보딩에서 개인정보 동의와 프로필을 안내해요.',
+      ),
+    ).not.toBeOnTheScreen();
+  });
+
   it('states the project policy instead of a hardcoded minimum', async () => {
     const auth = adapter({
       describePasswordPolicy: jest.fn(async () => '8자 이상 · 숫자 포함'),
