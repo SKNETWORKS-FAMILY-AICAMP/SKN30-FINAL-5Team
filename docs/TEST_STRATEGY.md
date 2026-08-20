@@ -6,6 +6,9 @@
 
 현재 멀티 에이전트 기준은 [ADR-0007](adr/0007-multi-agent-structure-correction.md)에 따른 Training·Recovery·Safety·Feasibility 네 proposal의 병렬 실행과 Coordinator의 최종 결정이다. 증상 사용자 시나리오에서 SafetyAgent 의견 반영 수준을 확인하며, 결과에 따른 후속 수정 가능성은 열어 둔다. 독립적인 최종 Safety 재검사는 현재 테스트 범위에 포함하지 않는다.
 
+ADR-0012의 2라운드 구조화 상호검토는 승인된 V2 목표지만 아직 production 테스트 기준이 아니다.
+A2/A3는 현재 V1 golden을 보존하면서 아래 V2 계약 suite를 별도로 통과해야 한다.
+
 ## 2. 계층
 
 | 계층 | 대상 | 주요 소유자 |
@@ -131,6 +134,23 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 - 승인되지 않은 exercise/rule/alternative가 plan에 없음
 - Training·Recovery·Safety·Feasibility 네 proposal이 final decision과 분리되고 Coordinator가 최종 루틴 한 개를 선택한다.
 - 증상 사용자 시나리오에서 SafetyAgent의 `PASS`/`REVISE`/`BLOCKED` 의견은 Coordinator 결정에 반영하고, `NEEDS_INPUT`과 `FAILED`는 계획을 반환하지 않는 fail-closed 결과로 처리하며, 독립적인 최종 Safety 재검사는 실행하지 않는다.
+
+ADR-0012 V2의 필수 속성·불변식:
+
+- no-conflict 입력은 Round 2 Agent를 호출하지 않고 `SKIPPED_NO_CONFLICT`이며, 네 Agent 모두
+  `NOT_REQUIRED` event를 가지고 V1과 같은 최종 결과다.
+- conflict code, review 대상, proposal/review hash는 실행 완료 순서와 무관하게 canonical하다.
+- 비대상 Agent는 누락이 아니라 `NOT_REQUIRED` review event를 가진다.
+- 대상 review 누락·FAILED는 decision FAILED, NEEDS_INPUT은 계획 없는 NEEDS_INPUT이다.
+- Safety veto는 `false -> true`만 가능하고 `true -> false`는 모든 입력 조합에서 거부된다.
+- Safety 제외 운동은 Round 2에서 제거되지 않고 추가 방향만 허용된다.
+- 요청 시간·시간 출처·승인 후보 집합·입력/정책/카탈로그/규칙 버전은 Round 2 전후 동일하다.
+- Feasibility hard constraint와 승인된 Recovery ceiling은 Training preference로 완화되지 않는다.
+- 모든 hard constraint와 Training 목표를 만족하는 후보가 없으면 목표·시간을 바꾼 성공 plan이 없다.
+- 동일 입력·모든 버전은 동일 conflict, review, candidate와 final action을 만든다.
+- LLM 비활성·실패·출력 거부는 conflict/review/final 결과를 바꾸지 않고 전체 템플릿을 사용한다.
+- review/LLM payload에 직접 식별자, 날짜, 자유 체크인, 원시 건강·웨어러블, application log가 없다.
+- constraint integrity validator는 Safety 규칙을 재실행하거나 독립 FinalSafetyGate 결과를 만들지 않는다.
 
 안전 상태와 API 결과의 매핑은 다음과 같다.
 

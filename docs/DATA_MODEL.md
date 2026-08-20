@@ -8,6 +8,10 @@
 
 멀티 에이전트 핵심 흐름은 [ADR-0007](adr/0007-multi-agent-structure-correction.md)에 따라 Training·Recovery·Safety·Feasibility 네 proposal의 병렬 실행과 Coordinator 최종 결정으로 확정한다. `agent_proposals`, 조정 결과, 공개 요약의 세부 JSON 구조와 버전 필드는 증상 사용자 시나리오 검증 결과에 따라 추후 보완할 수 있으며, 독립적인 최종 Safety 재검사 결과는 저장하지 않는다. 외부 연동·무료 체험·개인정보 보유기간의 상위 경계는 `ACCEPTED` ADR-0003·0004와 POL-013을 따르며, 관련 컬럼은 실제 migration과 호환성 검토가 승인되기 전까지 논리 모델이다. 결정 재현에 필요한 입력·정책·카탈로그·그래프 버전과 안전 veto 기록은 현재 확정한다.
 
+ADR-0012는 conflict와 조건부 Round 2 review를 별도 기록하는 additive V2 논리 모델을 승인된
+목표로 정의한다. 후속 persistence task의 Alembic migration이 병합되기 전에는 아래 9.2.1을 물리
+schema 또는 구현 완료로 간주하지 않으며 현재 `agent_proposals` 관계를 유지한다.
+
 ---
 
 ## 2. 설계 원칙
@@ -1053,6 +1057,51 @@ Coordinator 결과는 서로 다른 레코드에 저장한다.
 
 decision_run_id와 agent_type_code 조합은 유일하다.
 
+### 9.2.1 승인된 V2 논리 모델 — decision_deliberations와 agent_review_events
+
+후속 persistence task는 기존 `agent_proposals`를 Round 1 원본으로 유지하고, conflict detection과
+Round 2 결과를 additive 관계로 저장한다. 기존 decision을 backfill해 V2 실행으로 가장하지 않는다.
+
+`decision_deliberations`는 decision run당 0..1개다.
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| decision_run_id | decision_runs FK, UNIQUE |
+| deliberation_schema_version | conflict/review envelope schema version |
+| round_count | 1 또는 2 |
+| round_two_status_code | SKIPPED_NO_CONFLICT, COMPLETED, NEEDS_INPUT, FAILED |
+| conflict_detector_version | conflict code 생성 규칙 버전 |
+| precedence_version | constraint authority 규칙 버전 |
+| conflict_codes | canonical machine code JSONB |
+| conflict_hash | canonical conflict payload SHA-256 |
+| created_at | 생성 시각 |
+
+`agent_review_events`는 V2 deliberation당 정확히 네 Agent의 event를 저장한다. 실제 review 비대상도
+`NOT_REQUIRED`를 저장해 누락과 생략을 구분한다.
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| deliberation_id | decision_deliberations FK |
+| round_number | V2에서는 2 |
+| agent_type_code | TRAINING, RECOVERY, SAFETY, FEASIBILITY |
+| review_status_code | READY, NOT_REQUIRED, NEEDS_INPUT, FAILED |
+| revision_status_code | UNCHANGED, REVISED, NOT_REQUIRED, 또는 NEEDS_INPUT/FAILED이면 null |
+| review_schema_version | AgentReview JSON 구조 버전 |
+| baseline_proposal_hash | 해당 Agent Round 1 proposal hash |
+| reviewed_proposal_references | `(agent_type_code, proposal_hash)` canonical 구조 JSONB |
+| review_payload | constraint·conflict·reason·evidence와 optional revised proposal JSONB |
+| review_hash | canonical review payload SHA-256 |
+| created_at | 생성 시각 |
+
+`(deliberation_id, round_number, agent_type_code)`는 unique다. revised proposal은 기존 proposal과
+같은 승인 후보·시간·정책 검증을 통과해야 하며 Coordinator final result와 같은 JSON에 덮어쓰지
+않는다. Safety veto·제외 단조성 위반 review는 저장 가능한 성공 event가 아니다.
+
+V2 conflict/review는 사용자 연결 decision 데이터이므로 기존 decision과 같은 삭제·보존 정책을
+따른다. graph checkpoint, application log, 자유 reasoning과 직접 식별자는 이 테이블에 저장하지 않는다.
+
 ### 9.3 plan_candidates
 
 `selected=true`인 성공 후보는 반드시 `estimated_duration_seconds =
@@ -1426,6 +1475,8 @@ users
 
 decision_runs
   ├─ 1:4 agent_proposals (Training, Recovery, Safety, Feasibility)
+  ├─ 1:0..1 decision_deliberations [ADR-0012 ACCEPTED, 미구현]
+  │           └─ 1:4 agent_review_events (NOT_REQUIRED 포함)
   ├─ 1:N plan_candidates ─ 1:N plan_items
   ├─ 1:N safety_reviews
   ├─ 1:N decision_options
