@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { useState } from 'react';
 import {
   fireEvent,
   render,
@@ -7,7 +8,10 @@ import {
 } from '@testing-library/react-native';
 
 import type { Api } from '../src/api/endpoints';
-import type { WeeklyReportResponse } from '../src/api/types';
+import type {
+  WeeklyPlanRevisionResponse,
+  WeeklyReportResponse,
+} from '../src/api/types';
 import { WeeklyReportScreen } from '../src/features/weekly/WeeklyReportScreen';
 
 const REPORT: WeeklyReportResponse = {
@@ -31,6 +35,45 @@ const REPORT: WeeklyReportResponse = {
   summary: '선택한 주의 저장된 리포트입니다.',
   acknowledged_at: null,
   generated_at: '2026-08-10T00:00:00+09:00',
+};
+
+const NEXT_PLAN: WeeklyPlanRevisionResponse = {
+  revision_id: 'revision-next',
+  week_start: '2026-08-10',
+  week_end: '2026-08-16',
+  revision_sequence: 1,
+  ai_revision_count: 0,
+  source_code: 'INITIAL',
+  source_weekly_report_id: REPORT.report_id,
+  safety_status_code: 'PASS',
+  routine: {
+    id: 'routine-next',
+    version: 2,
+    goal_code: 'GENERAL_FITNESS',
+    status_code: 'ACTIVE',
+    effective_from: '2026-08-10',
+    catalog_version: 'catalog-v1',
+    days: [
+      {
+        id: 'day-next',
+        sequence: 1,
+        title: '전신 운동',
+        training_type_code: 'STRENGTH',
+        body_focus_code: 'FULL_BODY',
+        requested_duration_minutes: 30,
+        estimated_duration_seconds: 1800,
+        estimated_calories_burned: null,
+        items: [],
+      },
+    ],
+    created_at: '2026-08-10T09:03:00+09:00',
+  },
+  selected_location_code: 'HOME',
+  finalized: true,
+  finalized_at: '2026-08-10T09:03:00+09:00',
+  revision_reason_codes: ['REVISION_ALLOWED'],
+  finalization_reason_codes: ['FINALIZE_ALLOWED'],
+  created_at: '2026-08-10T09:03:00+09:00',
 };
 
 describe('WeeklyReportScreen selected week', () => {
@@ -113,22 +156,40 @@ describe('WeeklyReportScreen selected week', () => {
         acknowledged_at: '2026-08-10T09:02:00+09:00',
       }),
     );
-
-    await render(
-      <WeeklyReportScreen
-        api={
-          {
-            getWeek,
-            getWeeklyReport,
-            createWeeklyReport,
-            acknowledgeWeeklyReport,
-          } as unknown as Api
-        }
-        weekStart="2026-08-03"
-        onBack={onBack}
-        onNavigateTab={onNavigateTab}
-      />,
+    const createInitialWeeklyPlan = jest.fn<Api['createInitialWeeklyPlan']>(
+      async () => NEXT_PLAN,
     );
+    const onPlanRevisionChange = jest.fn();
+
+    function StatefulReport() {
+      const [planRevision, setPlanRevision] =
+        useState<WeeklyPlanRevisionResponse | null>(null);
+      return (
+        <WeeklyReportScreen
+          api={
+            {
+              getWeek,
+              getWeeklyReport,
+              createWeeklyReport,
+              acknowledgeWeeklyReport,
+              createInitialWeeklyPlan,
+            } as unknown as Api
+          }
+          now={new Date('2026-08-10T00:00:00+09:00')}
+          weekStart="2026-08-03"
+          onBack={onBack}
+          onNavigateTab={onNavigateTab}
+          onPlanRevisionChange={(revision) => {
+            onPlanRevisionChange(revision);
+            setPlanRevision(revision);
+          }}
+          planRevision={planRevision}
+          timeZone="Asia/Seoul"
+        />
+      );
+    }
+
+    await render(<StatefulReport />);
 
     expect(
       await screen.findByRole('header', { name: '주간 리포트' }),
@@ -162,9 +223,128 @@ describe('WeeklyReportScreen selected week', () => {
       ),
     );
     expect(await screen.findByText('리포트를 확인했어요')).toBeOnTheScreen();
+    await waitFor(() =>
+      expect(createInitialWeeklyPlan).toHaveBeenCalledWith('2026-08-10'),
+    );
+    expect(onPlanRevisionChange).toHaveBeenCalledWith(NEXT_PLAN);
+    expect(
+      await screen.findByText('다음 주 계획에 반영했어요'),
+    ).toBeOnTheScreen();
     expect(
       screen.queryByRole('button', { name: '리포트 확인했어요' }),
     ).toBeNull();
+  });
+
+  it('reuses the applied next plan after leaving and returning in the app', async () => {
+    const acknowledgedReport: WeeklyReportResponse = {
+      ...REPORT,
+      status_code: 'ACKNOWLEDGED',
+      acknowledged_at: '2026-08-10T09:02:00+09:00',
+    };
+    const createInitialWeeklyPlan = jest.fn<Api['createInitialWeeklyPlan']>();
+
+    await render(
+      <WeeklyReportScreen
+        api={
+          {
+            getWeek: async () => ({
+              week_id: 'week-1',
+              week_start: '2026-08-03',
+              week_end: '2026-08-09',
+              timezone: 'Asia/Seoul',
+              target_workout_count: 4,
+              plan_origin_code: 'WEEKLY_REPORT',
+              cold_start_applied: false,
+              status_code: 'CLOSED',
+              closed_at: '2026-08-10T00:00:00+09:00',
+              report_id: REPORT.report_id,
+              report_status_code: 'ACKNOWLEDGED',
+            }),
+            getWeeklyReport: async () => acknowledgedReport,
+            createInitialWeeklyPlan,
+          } as unknown as Api
+        }
+        now={new Date('2026-08-10T00:00:00+09:00')}
+        weekStart="2026-08-03"
+        onBack={jest.fn()}
+        onPlanRevisionChange={jest.fn()}
+        planRevision={NEXT_PLAN}
+        timeZone="Asia/Seoul"
+      />,
+    );
+
+    expect(
+      await screen.findByText('다음 주 계획에 반영했어요'),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByText(
+        '8.10 – 8.16 · 홈에서 해당 주의 최종 루틴을 확인할 수 있어요.',
+      ),
+    ).toBeOnTheScreen();
+    expect(createInitialWeeklyPlan).not.toHaveBeenCalled();
+  });
+
+  it('offers a retry when applying an acknowledged report fails', async () => {
+    const acknowledgedReport: WeeklyReportResponse = {
+      ...REPORT,
+      status_code: 'ACKNOWLEDGED',
+      acknowledged_at: '2026-08-10T09:02:00+09:00',
+    };
+    const createInitialWeeklyPlan = jest
+      .fn<Api['createInitialWeeklyPlan']>()
+      .mockRejectedValueOnce(new Error('계획을 준비하지 못했어요.'))
+      .mockResolvedValueOnce(NEXT_PLAN);
+
+    function StatefulAcknowledgedReport() {
+      const [planRevision, setPlanRevision] =
+        useState<WeeklyPlanRevisionResponse | null>(null);
+      return (
+        <WeeklyReportScreen
+          api={
+            {
+              getWeek: async () => ({
+                week_id: 'week-1',
+                week_start: '2026-08-03',
+                week_end: '2026-08-09',
+                timezone: 'Asia/Seoul',
+                target_workout_count: 4,
+                plan_origin_code: 'WEEKLY_REPORT',
+                cold_start_applied: false,
+                status_code: 'CLOSED',
+                closed_at: '2026-08-10T00:00:00+09:00',
+                report_id: REPORT.report_id,
+                report_status_code: 'ACKNOWLEDGED',
+              }),
+              getWeeklyReport: async () => acknowledgedReport,
+              createInitialWeeklyPlan,
+            } as unknown as Api
+          }
+          now={new Date('2026-08-10T00:00:00+09:00')}
+          weekStart="2026-08-03"
+          onBack={jest.fn()}
+          onPlanRevisionChange={setPlanRevision}
+          planRevision={planRevision}
+          timeZone="Asia/Seoul"
+        />
+      );
+    }
+
+    await render(<StatefulAcknowledgedReport />);
+    fireEvent.press(
+      await screen.findByRole('button', {
+        name: '다음 주 계획 반영하기',
+      }),
+    );
+
+    expect(
+      await screen.findByText('요청을 처리하지 못했습니다.'),
+    ).toBeOnTheScreen();
+    fireEvent.press(screen.getByRole('button', { name: '다시 반영하기' }));
+
+    expect(
+      await screen.findByText('다음 주 계획에 반영했어요'),
+    ).toBeOnTheScreen();
+    expect(createInitialWeeklyPlan).toHaveBeenCalledTimes(2);
   });
 
   it('does not expose report creation while the selected server week is open', async () => {

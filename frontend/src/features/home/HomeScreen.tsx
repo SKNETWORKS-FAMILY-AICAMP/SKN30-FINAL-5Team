@@ -11,6 +11,7 @@ import {
 } from 'react';
 import {
   Animated,
+  Easing,
   Image,
   PanResponder,
   Platform,
@@ -22,6 +23,8 @@ import {
   View,
   type GestureResponderEvent,
   type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   type PanResponderGestureState,
   type StyleProp,
   type TextStyle,
@@ -51,6 +54,7 @@ import type {
   WeeklyPlanRevisionResponse,
   WorkoutSessionLogSummary,
 } from '../../api/types';
+import { moveArrayItem } from '../../api/workoutPlan';
 import { imageAssets } from '../../assets';
 import { fontFamilies, useBrandFonts } from '../../app/fonts';
 import type { TabId } from '../../components/brand/BrandChrome';
@@ -73,10 +77,12 @@ import {
   routineFocusFromPlan,
   routineItemsFromPlan,
   routineTitleFromPlan,
+  validateAvailabilitySlots,
   weekDaysFromSessions,
   weekStartForLocalDate,
   type HomeCheckin,
   type HomeCheckinDraft,
+  type HomeAvailabilitySlot,
   type HomePreviewState,
   type HomeRoutineItem,
 } from './homeModel';
@@ -106,7 +112,35 @@ type WeekDay = {
   label: string;
   statusCodes?: readonly SessionStatusCode[];
 };
-const PREVIEW_DISCOMFORT_CODES = ['SHOULDER', 'LOWER_BACK', 'KNEE'] as const;
+// DOMAIN_RULES 3.2 / API_CONTRACT 5.10 기본 노출 범위. 프로필의 주의
+// 부위와 분리해 오늘 일시적으로 불편한 부위를 선택한다.
+const CHECKIN_DISCOMFORT_CODES = [
+  'WRIST_HAND',
+  'LOWER_BACK',
+  'SHOULDER',
+  'ELBOW',
+  'KNEE',
+  'UPPER_BACK',
+  'HIP',
+  'ANKLE_FOOT',
+] as const;
+
+const EMPTY_AVAILABILITY_SLOT: HomeAvailabilitySlot = {
+  startTime: '',
+  endTime: '',
+};
+const TIME_WHEEL_ITEM_HEIGHT = 44;
+const TIME_WHEEL_GESTURE_IDLE_MS = 45;
+const TIME_WHEEL_SINGLE_ITEM_DELTA = 240;
+const TIME_WHEEL_ACCELERATION_DELTA = 70;
+const TIME_WHEEL_MAX_ITEMS_PER_GESTURE = 18;
+const TIME_HOURS = Array.from({ length: 24 }, (_, index) => index);
+const TIME_MINUTES = Array.from({ length: 12 }, (_, index) => index * 5);
+
+type TimePickerTarget = {
+  field: keyof HomeAvailabilitySlot;
+  index: number;
+};
 
 type RevisionNotice = {
   serious: boolean;
@@ -178,7 +212,6 @@ export type HomeUserEdits = {
 
 export type HomeScreenProps = {
   actionError?: string | null;
-  attentionAreaCodes?: readonly string[];
   busy?: HomeBusyKind | null;
   currentDate?: string;
   context?: DailyContextResponse | null;
@@ -250,7 +283,6 @@ export function HomeScreen({ previewState, ...props }: HomeScreenProps) {
 
 function HomeScreenContent({
   actionError = null,
-  attentionAreaCodes = [],
   busy = null,
   context = null,
   currentDate = '2026.08.11 (화)',
@@ -310,6 +342,8 @@ function HomeScreenContent({
     : initialState !== 'pre-checkin' && initialState !== 'checkin';
   const [checkedIn, setCheckedIn] = useState(startsCheckedIn);
   const [checkinOpen, setCheckinOpen] = useState(initialState === 'checkin');
+  const [timePickerTarget, setTimePickerTarget] =
+    useState<TimePickerTarget | null>(null);
   const [editOpen, setEditOpen] = useState(initialState === 'editing');
   const [reasonOpen, setReasonOpen] = useState(false);
   const [detailItem, setDetailItem] = useState<HomeRoutineItem | null>(null);
@@ -494,6 +528,7 @@ function HomeScreenContent({
 
   const closeCheckin = () => {
     setCheckinDraft({ ...displayedCheckin });
+    setTimePickerTarget(null);
     setCheckinOpen(false);
   };
 
@@ -505,6 +540,7 @@ function HomeScreenContent({
     setCommittedCheckin(saved);
     setCheckinDraft(saved);
     setCheckedIn(true);
+    setTimePickerTarget(null);
     setCheckinOpen(false);
     if (apiMode) {
       onSubmitCheckin?.(apiCheckinDraft(saved));
@@ -565,10 +601,10 @@ function HomeScreenContent({
   };
 
   const moveRoutineItem = useCallback((from: number, to: number) => {
-    setRoutineItems((current) => moveItem(current, from, to));
+    setRoutineItems((current) => moveArrayItem(current, from, to));
   }, []);
   const moveEditItem = useCallback((from: number, to: number) => {
-    setEditDraft((current) => moveItem(current, from, to));
+    setEditDraft((current) => moveArrayItem(current, from, to));
   }, []);
   const contentReady = !apiMode || status === 'ready';
   const restRecommended = decision?.action_code === 'REST';
@@ -785,11 +821,23 @@ function HomeScreenContent({
 
         {checkinOpen ? (
           <CheckinSheet
-            attentionAreaCodes={
-              apiMode ? attentionAreaCodes : PREVIEW_DISCOMFORT_CODES
-            }
             draft={checkinDraft}
             locationCodes={apiMode ? locationCodes : []}
+            onAddAvailabilitySlot={() =>
+              setCheckinDraft((current) => ({
+                ...current,
+                availableSlots:
+                  current.availableSlots && current.availableSlots.length > 0
+                    ? [
+                        ...current.availableSlots,
+                        { ...EMPTY_AVAILABILITY_SLOT },
+                      ]
+                    : [
+                        { ...EMPTY_AVAILABILITY_SLOT },
+                        { ...EMPTY_AVAILABILITY_SLOT },
+                      ],
+              }))
+            }
             onChangeLocation={(locationCode) =>
               setCheckinDraft((current) => ({
                 ...current,
@@ -831,6 +879,17 @@ function HomeScreenContent({
               }))
             }
             onSave={saveCheckin}
+            onOpenTimePicker={(index, field) =>
+              setTimePickerTarget({ index, field })
+            }
+            onRemoveAvailabilitySlot={(index) =>
+              setCheckinDraft((current) => ({
+                ...current,
+                availableSlots: (current.availableSlots ?? []).filter(
+                  (_, slotIndex) => slotIndex !== index,
+                ),
+              }))
+            }
             onToggleAdverseReaction={(code) =>
               setCheckinDraft((current) => ({
                 ...current,
@@ -856,6 +915,33 @@ function HomeScreenContent({
             }
             pending={busy === 'checkin'}
             useJua={useJua}
+          />
+        ) : null}
+
+        {timePickerTarget ? (
+          <TimePickerSheet
+            initialValue={
+              checkinDraft.availableSlots?.[timePickerTarget.index]?.[
+                timePickerTarget.field
+              ] ?? ''
+            }
+            key={`${timePickerTarget.index}-${timePickerTarget.field}`}
+            onClose={() => setTimePickerTarget(null)}
+            onConfirm={(value) => {
+              setCheckinDraft((current) => {
+                const availableSlots =
+                  current.availableSlots && current.availableSlots.length > 0
+                    ? current.availableSlots.map((slot) => ({ ...slot }))
+                    : [{ ...EMPTY_AVAILABILITY_SLOT }];
+                const slot = availableSlots[timePickerTarget.index];
+                if (slot) {
+                  slot[timePickerTarget.field] = value;
+                }
+                return { ...current, availableSlots };
+              });
+              setTimePickerTarget(null);
+            }}
+            targetField={timePickerTarget.field}
           />
         ) : null}
 
@@ -1358,7 +1444,13 @@ function RoutineCard({
           <Text style={styles.orderHint}>핸들을 끌어 순서를 바꿔보세요</Text>
         ) : null}
         {items.map((item, index) => {
-          const active = drag.activeIndex === index;
+          const { activeIndex, targetIndex } = drag;
+          const active = activeIndex === index;
+          const dropTarget =
+            activeIndex !== null &&
+            targetIndex !== null &&
+            targetIndex !== activeIndex &&
+            targetIndex === index;
           return (
             <View
               key={item.id}
@@ -1369,11 +1461,26 @@ function RoutineCard({
               ]}
               testID={`routine-row-${item.id}`}
             >
+              {dropTarget ? (
+                <View
+                  pointerEvents="none"
+                  style={styles.dropPlaceholder}
+                  testID={`routine-drop-placeholder-${item.id}`}
+                />
+              ) : null}
               <Animated.View
                 style={[
                   styles.routineRow,
                   active && styles.dragInnerRoutineActive,
-                  active && { transform: [{ translateY: drag.dragY }] },
+                  {
+                    transform: [
+                      {
+                        translateY: active
+                          ? drag.dragY
+                          : drag.getItemShift(index),
+                      },
+                    ],
+                  },
                 ]}
               >
                 {onMove ? (
@@ -1697,8 +1804,8 @@ function RecommendationReasonSheet({
 }
 
 function CheckinSheet({
-  attentionAreaCodes,
   draft,
+  onAddAvailabilitySlot,
   onChangeFatigue,
   onChangeLocation,
   onChangeSeverity,
@@ -1707,15 +1814,17 @@ function CheckinSheet({
   onClearAdverseReactions,
   onClearDiscomforts,
   onClose,
+  onOpenTimePicker,
   onSave,
+  onRemoveAvailabilitySlot,
   onToggleAdverseReaction,
   onToggleBodyArea,
   locationCodes,
   pending,
   useJua,
 }: {
-  attentionAreaCodes: readonly string[];
   draft: HomeCheckin;
+  onAddAvailabilitySlot: () => void;
   onChangeFatigue: (value: string) => void;
   onChangeLocation: (code: string) => void;
   onChangeSeverity: (
@@ -1727,7 +1836,9 @@ function CheckinSheet({
   onClearAdverseReactions: () => void;
   onClearDiscomforts: () => void;
   onClose: () => void;
+  onOpenTimePicker: (index: number, field: keyof HomeAvailabilitySlot) => void;
   onSave: () => void;
+  onRemoveAvailabilitySlot: (index: number) => void;
   onToggleAdverseReaction: (code: string) => void;
   onToggleBodyArea: (code: string) => void;
   locationCodes: readonly string[];
@@ -1737,6 +1848,12 @@ function CheckinSheet({
   const styles = useHomeStyles();
   const [showAdverseDetails, setShowAdverseDetails] = useState(
     draft.adverseReactionCodes.length > 0,
+  );
+  const [showDiscomfortDetails, setShowDiscomfortDetails] = useState(
+    Object.keys(draft.discomforts).length > 0,
+  );
+  const discomfortAreaCodes = Array.from(
+    new Set([...CHECKIN_DISCOMFORT_CODES, ...Object.keys(draft.discomforts)]),
   );
   const sleepHours = draft.sleepHours.trim();
   const sleepInvalid =
@@ -1748,10 +1865,22 @@ function CheckinSheet({
     !/^\d+$/.test(draft.workoutMinutes) ||
     Number(draft.workoutMinutes) < 5 ||
     Number(draft.workoutMinutes) > 180;
+  const availabilityError = validateAvailabilitySlots(draft.availableSlots);
+  const availabilitySlots =
+    draft.availableSlots && draft.availableSlots.length > 0
+      ? draft.availableSlots
+      : [EMPTY_AVAILABILITY_SLOT];
   const adverseSelectionMissing =
     showAdverseDetails && draft.adverseReactionCodes.length === 0;
+  const discomfortSelectionMissing =
+    showDiscomfortDetails && Object.keys(draft.discomforts).length === 0;
   const saveDisabled =
-    pending || sleepInvalid || durationInvalid || adverseSelectionMissing;
+    pending ||
+    sleepInvalid ||
+    durationInvalid ||
+    availabilityError !== null ||
+    adverseSelectionMissing ||
+    discomfortSelectionMissing;
   return (
     <SheetFrame onClose={onClose} title="오늘 컨디션 체크" zIndex={20}>
       <Text style={styles.sheetIntro}>
@@ -1786,6 +1915,81 @@ function CheckinSheet({
             <Text style={styles.numberSuffix}>분</Text>
           </View>
         </View>
+        <View style={styles.availabilitySection}>
+          <View style={styles.availabilityHeader}>
+            <Text style={styles.numberLabel}>오늘 운동 가능한 시간대</Text>
+            <Text style={styles.optionalText}>(선택)</Text>
+          </View>
+          {availabilitySlots.map((slot, index) => (
+            <View key={index} style={styles.availabilitySlotRow}>
+              <Pressable
+                accessibilityLabel={`${index + 1}번째 가능 시간 시작 ${slot.startTime || '미선택'} 선택`}
+                accessibilityRole="button"
+                disabled={pending}
+                onPress={() => onOpenTimePicker(index, 'startTime')}
+                style={styles.availabilityTimeButton}
+              >
+                <Text
+                  style={[
+                    styles.availabilityTimeText,
+                    !slot.startTime && styles.availabilityTimePlaceholder,
+                  ]}
+                >
+                  {slot.startTime || '시간:분'}
+                </Text>
+              </Pressable>
+              <Text style={styles.availabilitySeparator}>~</Text>
+              <Pressable
+                accessibilityLabel={`${index + 1}번째 가능 시간 종료 ${slot.endTime || '미선택'} 선택`}
+                accessibilityRole="button"
+                disabled={pending}
+                onPress={() => onOpenTimePicker(index, 'endTime')}
+                style={styles.availabilityTimeButton}
+              >
+                <Text
+                  style={[
+                    styles.availabilityTimeText,
+                    !slot.endTime && styles.availabilityTimePlaceholder,
+                  ]}
+                >
+                  {slot.endTime || '시간:분'}
+                </Text>
+              </Pressable>
+              {availabilitySlots.length > 1 ? (
+                <Pressable
+                  accessibilityLabel={`${index + 1}번째 가능 시간대 삭제`}
+                  accessibilityRole="button"
+                  hitSlop={8}
+                  onPress={() => onRemoveAvailabilitySlot(index)}
+                  style={styles.availabilityRemoveButton}
+                >
+                  <DeleteIcon />
+                </Pressable>
+              ) : null}
+            </View>
+          ))}
+          <Pressable
+            accessibilityLabel="가능 시간대 추가"
+            accessibilityRole="button"
+            accessibilityState={{ disabled: availabilitySlots.length >= 8 }}
+            disabled={availabilitySlots.length >= 8}
+            onPress={onAddAvailabilitySlot}
+            style={[
+              styles.availabilityAddButton,
+              availabilitySlots.length >= 8 && styles.routineActionDisabled,
+            ]}
+          >
+            <Text style={styles.availabilityAddLabel}>＋ 시간대 추가</Text>
+          </Pressable>
+          <Text style={styles.availabilityHelpText}>
+            운동을 시작할 수 있는 시간 범위를 입력해주세요.
+          </Text>
+        </View>
+        {availabilityError ? (
+          <Text accessibilityRole="alert" style={styles.messageText}>
+            {availabilityError}
+          </Text>
+        ) : null}
         <View style={styles.numberRow}>
           <Text style={styles.numberLabel}>
             어젯밤 수면 시간 <Text style={styles.optionalText}>(선택)</Text>
@@ -1818,27 +2022,41 @@ function CheckinSheet({
             ))}
           </ChoiceBlock>
         ) : null}
-        <ChoiceBlock label="통증 부위">
+        <ChoiceBlock label="오늘 불편한 부위가 있나요?">
           <ChoiceButton
             label="없음"
-            onPress={onClearDiscomforts}
-            selected={Object.keys(draft.discomforts).length === 0}
+            onPress={() => {
+              setShowDiscomfortDetails(false);
+              onClearDiscomforts();
+            }}
+            selected={!showDiscomfortDetails}
           />
-          {attentionAreaCodes.map((code) => (
-            <ChoiceButton
-              key={code}
-              label={bodyAreaLabel(code)}
-              onPress={() => onToggleBodyArea(code)}
-              selected={draft.discomforts[code] !== undefined}
-            />
-          ))}
+          <ChoiceButton
+            label="있음"
+            onPress={() => setShowDiscomfortDetails(true)}
+            selected={showDiscomfortDetails}
+          />
         </ChoiceBlock>
-        {attentionAreaCodes.length === 0 ? (
-          <Text style={styles.messageText}>
-            온보딩에서 등록한 주의 부위가 없어요.
+        {showDiscomfortDetails ? (
+          <ChoiceBlock label="오늘 불편한 부위를 모두 선택해주세요" twoColumn>
+            {discomfortAreaCodes.map((code) => (
+              <ChoiceButton
+                key={code}
+                label={bodyAreaLabel(code)}
+                numberOfLines={2}
+                onPress={() => onToggleBodyArea(code)}
+                selected={draft.discomforts[code] !== undefined}
+                twoColumn
+              />
+            ))}
+          </ChoiceBlock>
+        ) : null}
+        {discomfortSelectionMissing ? (
+          <Text accessibilityRole="alert" style={styles.messageText}>
+            불편한 부위를 한 곳 이상 선택해주세요.
           </Text>
         ) : null}
-        {attentionAreaCodes
+        {discomfortAreaCodes
           .filter((code) => draft.discomforts[code] !== undefined)
           .map((code) => (
             <ChoiceBlock key={code} label={`${bodyAreaLabel(code)} 통증 정도`}>
@@ -1913,18 +2131,352 @@ function CheckinSheet({
   );
 }
 
+function TimePickerSheet({
+  initialValue,
+  onClose,
+  onConfirm,
+  targetField,
+}: {
+  initialValue: string;
+  onClose: () => void;
+  onConfirm: (value: string) => void;
+  targetField: keyof HomeAvailabilitySlot;
+}) {
+  const styles = useHomeStyles();
+  const match = /^(\d{2}):(\d{2})$/.exec(initialValue);
+  const parsedMinute = match ? Number(match[2]) : 0;
+  const normalizedMinute = Math.min(55, Math.round(parsedMinute / 5) * 5);
+  const [hour, setHour] = useState(
+    match ? Number(match[1]) : targetField === 'startTime' ? 0 : 12,
+  );
+  const [minute, setMinute] = useState(normalizedMinute);
+  const title =
+    targetField === 'startTime' ? '시작 시간 선택' : '종료 시간 선택';
+
+  return (
+    <SheetFrame onClose={onClose} title={title} zIndex={30}>
+      <Text style={styles.timePickerIntro}>
+        시간과 분을 스크롤해 선택해주세요.
+      </Text>
+      <View style={styles.timePickerRow}>
+        <TimeWheelColumn
+          accessibilityLabel="시간 선택 스크롤"
+          onChange={setHour}
+          options={TIME_HOURS}
+          selected={hour}
+          suffix="시"
+        />
+        <Text style={styles.timePickerColon}>:</Text>
+        <TimeWheelColumn
+          accessibilityLabel="분 선택 스크롤"
+          onChange={setMinute}
+          options={TIME_MINUTES}
+          selected={minute}
+          suffix="분"
+        />
+      </View>
+      <View style={styles.timePickerActions}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onClose}
+          style={styles.timePickerCancelButton}
+        >
+          <Text style={styles.timePickerCancelLabel}>취소</Text>
+        </Pressable>
+        <Pressable
+          accessibilityLabel="시간 선택 완료"
+          accessibilityRole="button"
+          onPress={() =>
+            onConfirm(
+              `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`,
+            )
+          }
+          style={styles.timePickerConfirmButton}
+        >
+          <Text style={styles.timePickerConfirmLabel}>선택</Text>
+        </Pressable>
+      </View>
+    </SheetFrame>
+  );
+}
+
+function TimeWheelColumn({
+  accessibilityLabel,
+  onChange,
+  options,
+  selected,
+  suffix,
+}: {
+  accessibilityLabel: string;
+  onChange: (value: number) => void;
+  options: readonly number[];
+  selected: number;
+  suffix: string;
+}) {
+  const styles = useHomeStyles();
+  const scrollRef = useRef<ScrollView>(null);
+  const selectedIndex = Math.max(0, options.indexOf(selected));
+  const currentIndexRef = useRef(selectedIndex);
+  const pendingInternalSelectionRef = useRef<number | null>(null);
+  const webSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const webWheelGestureTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const webWheelDeltaRef = useRef(0);
+  const draggingRef = useRef(false);
+
+  const clearWebSettleTimer = useCallback(() => {
+    if (webSettleTimerRef.current !== null) {
+      clearTimeout(webSettleTimerRef.current);
+      webSettleTimerRef.current = null;
+    }
+  }, []);
+
+  const clearWebWheelGestureTimer = useCallback(() => {
+    if (webWheelGestureTimerRef.current !== null) {
+      clearTimeout(webWheelGestureTimerRef.current);
+      webWheelGestureTimerRef.current = null;
+    }
+  }, []);
+
+  const scrollToIndex = useCallback((index: number, animated: boolean) => {
+    scrollRef.current?.scrollTo({
+      animated,
+      y: index * TIME_WHEEL_ITEM_HEIGHT,
+    });
+  }, []);
+
+  const commitIndex = useCallback(
+    (index: number) => {
+      const boundedIndex = Math.max(0, Math.min(options.length - 1, index));
+      const value = options[boundedIndex];
+      if (value === undefined) return;
+      currentIndexRef.current = boundedIndex;
+      if (value !== selected) {
+        pendingInternalSelectionRef.current = value;
+        onChange(value);
+      }
+    },
+    [onChange, options, selected],
+  );
+
+  const selectIndex = useCallback(
+    (index: number, animated = true) => {
+      const boundedIndex = Math.max(0, Math.min(options.length - 1, index));
+      scrollToIndex(boundedIndex, animated);
+      commitIndex(boundedIndex);
+    },
+    [commitIndex, options.length, scrollToIndex],
+  );
+
+  const settleAtOffset = useCallback(
+    (offsetY: number, align = true) => {
+      const index = Math.max(
+        0,
+        Math.min(
+          options.length - 1,
+          Math.round(offsetY / TIME_WHEEL_ITEM_HEIGHT),
+        ),
+      );
+      const targetOffset = index * TIME_WHEEL_ITEM_HEIGHT;
+      if (align && Math.abs(offsetY - targetOffset) > 1) {
+        scrollToIndex(index, true);
+      }
+      commitIndex(index);
+    },
+    [commitIndex, options.length, scrollToIndex],
+  );
+
+  useEffect(() => {
+    currentIndexRef.current = selectedIndex;
+    if (pendingInternalSelectionRef.current === selected) {
+      pendingInternalSelectionRef.current = null;
+      return;
+    }
+    pendingInternalSelectionRef.current = null;
+    scrollToIndex(selectedIndex, false);
+  }, [scrollToIndex, selected, selectedIndex]);
+
+  useEffect(
+    () => () => {
+      clearWebSettleTimer();
+      clearWebWheelGestureTimer();
+    },
+    [clearWebSettleTimer, clearWebWheelGestureTimer],
+  );
+
+  const settleFromScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    clearWebSettleTimer();
+    draggingRef.current = false;
+    settleAtOffset(event.nativeEvent.contentOffset.y, false);
+  };
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (Platform.OS !== 'web' || draggingRef.current) return;
+    const offsetY = event.nativeEvent.contentOffset.y;
+    clearWebSettleTimer();
+    webSettleTimerRef.current = setTimeout(() => {
+      settleAtOffset(offsetY);
+      webSettleTimerRef.current = null;
+    }, 90);
+  };
+
+  const queueWheelDelta = useCallback(
+    (deltaY: number, deltaMode = 0) => {
+      clearWebSettleTimer();
+      if (deltaY === 0) return;
+      const modeMultiplier =
+        deltaMode === 1 ? 16 : deltaMode === 2 ? TIME_WHEEL_ITEM_HEIGHT * 3 : 1;
+      const normalizedDelta = deltaY * modeMultiplier;
+      if (
+        webWheelDeltaRef.current !== 0 &&
+        Math.sign(webWheelDeltaRef.current) !== Math.sign(normalizedDelta)
+      ) {
+        webWheelDeltaRef.current = 0;
+      }
+      webWheelDeltaRef.current += normalizedDelta;
+      clearWebWheelGestureTimer();
+      webWheelGestureTimerRef.current = setTimeout(() => {
+        const accumulatedDelta = webWheelDeltaRef.current;
+        webWheelDeltaRef.current = 0;
+        webWheelGestureTimerRef.current = null;
+        const magnitude = Math.abs(accumulatedDelta);
+        const steps =
+          magnitude <= TIME_WHEEL_SINGLE_ITEM_DELTA
+            ? 1
+            : Math.min(
+                TIME_WHEEL_MAX_ITEMS_PER_GESTURE,
+                1 +
+                  Math.round(
+                    (magnitude - TIME_WHEEL_SINGLE_ITEM_DELTA) /
+                      TIME_WHEEL_ACCELERATION_DELTA,
+                  ),
+              );
+        selectIndex(
+          currentIndexRef.current + Math.sign(accumulatedDelta) * steps,
+        );
+      }, TIME_WHEEL_GESTURE_IDLE_MS);
+    },
+    [clearWebSettleTimer, clearWebWheelGestureTimer, selectIndex],
+  );
+
+  const handleWheel = (
+    event: NativeSyntheticEvent<{
+      deltaMode?: number;
+      deltaY: number;
+    }>,
+  ) => {
+    event.preventDefault();
+    queueWheelDelta(event.nativeEvent.deltaY, event.nativeEvent.deltaMode);
+  };
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || scrollRef.current === null) return;
+    const scrollNode = scrollRef.current.getScrollableNode?.() as
+      HTMLElement | undefined;
+    if (scrollNode?.addEventListener === undefined) return;
+    const preventNativeWheelScroll = (event: WheelEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      queueWheelDelta(event.deltaY, event.deltaMode);
+    };
+    scrollNode.addEventListener('wheel', preventNativeWheelScroll, {
+      passive: false,
+    });
+    return () => {
+      scrollNode.removeEventListener('wheel', preventNativeWheelScroll);
+    };
+  }, [queueWheelDelta]);
+
+  const webWheelProps =
+    Platform.OS === 'web' ? { onWheel: handleWheel } : undefined;
+
+  return (
+    <View style={styles.timeWheelColumn}>
+      <ScrollView
+        ref={scrollRef}
+        accessibilityLabel={accessibilityLabel}
+        contentContainerStyle={styles.timeWheelContent}
+        decelerationRate="fast"
+        disableIntervalMomentum
+        nestedScrollEnabled
+        onMomentumScrollBegin={() => {
+          draggingRef.current = true;
+          clearWebSettleTimer();
+        }}
+        onMomentumScrollEnd={settleFromScroll}
+        onScroll={handleScroll}
+        onScrollBeginDrag={() => {
+          draggingRef.current = true;
+          clearWebSettleTimer();
+        }}
+        onScrollEndDrag={(event) => {
+          draggingRef.current = false;
+          const velocity = event.nativeEvent.velocity?.y;
+          if (velocity !== undefined && Math.abs(velocity) < 0.1) {
+            settleFromScroll(event);
+            return;
+          }
+          const offsetY = event.nativeEvent.contentOffset.y;
+          clearWebSettleTimer();
+          webSettleTimerRef.current = setTimeout(() => {
+            settleAtOffset(offsetY);
+            webSettleTimerRef.current = null;
+          }, 120);
+        }}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        snapToAlignment="start"
+        snapToInterval={TIME_WHEEL_ITEM_HEIGHT}
+        style={styles.timeWheelScroll}
+        {...webWheelProps}
+      >
+        {options.map((value, index) => {
+          const selectedOption = selected === value;
+          const padded = String(value).padStart(2, '0');
+          return (
+            <Pressable
+              accessibilityLabel={`${accessibilityLabel.startsWith('시간') ? '시간' : '분'} ${padded}${suffix}`}
+              accessibilityRole="button"
+              accessibilityState={{ selected: selectedOption }}
+              key={value}
+              onPress={() => selectIndex(index)}
+              style={styles.timeWheelItem}
+            >
+              <Text
+                style={[
+                  styles.timeWheelItemText,
+                  selectedOption && styles.timeWheelItemTextSelected,
+                ]}
+              >
+                {padded}
+                <Text style={styles.timeWheelItemSuffix}> {suffix}</Text>
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      <View pointerEvents="none" style={styles.timeWheelSelection} />
+    </View>
+  );
+}
+
 function ChoiceBlock({
   children,
   label,
+  twoColumn = false,
 }: {
   children: React.ReactNode;
   label: string;
+  twoColumn?: boolean;
 }) {
   const styles = useHomeStyles();
   return (
     <View style={styles.checkinSection}>
       <Text style={styles.checkinSectionTitle}>{label}</Text>
-      <View style={styles.choiceRow}>{children}</View>
+      <View style={[styles.choiceRow, twoColumn && styles.choiceRowTwoColumn]}>
+        {children}
+      </View>
     </View>
   );
 }
@@ -1934,11 +2486,13 @@ function ChoiceButton({
   numberOfLines = 1,
   onPress,
   selected,
+  twoColumn = false,
 }: {
   label: string;
   numberOfLines?: number;
   onPress: () => void;
   selected: boolean;
+  twoColumn?: boolean;
 }) {
   const styles = useHomeStyles();
   return (
@@ -1947,7 +2501,11 @@ function ChoiceButton({
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={[styles.choiceButton, selected && styles.choiceButtonSelected]}
+      style={[
+        styles.choiceButton,
+        twoColumn && styles.choiceButtonTwoColumn,
+        selected && styles.choiceButtonSelected,
+      ]}
     >
       <Text
         numberOfLines={numberOfLines}
@@ -2144,18 +2702,39 @@ function EditRoutineSheet({
       >
         <View style={styles.editList}>
           {items.map((item, index) => {
-            const active = drag.activeIndex === index;
+            const { activeIndex, targetIndex } = drag;
+            const active = activeIndex === index;
+            const dropTarget =
+              activeIndex !== null &&
+              targetIndex !== null &&
+              targetIndex !== activeIndex &&
+              targetIndex === index;
             return (
               <View
                 key={item.id}
                 onLayout={(event) => drag.register(index, event)}
                 style={[styles.dragOuterEdit, active && styles.dragOuterActive]}
               >
+                {dropTarget ? (
+                  <View
+                    pointerEvents="none"
+                    style={styles.dropPlaceholder}
+                    testID={`edit-drop-placeholder-${item.id}`}
+                  />
+                ) : null}
                 <Animated.View
                   style={[
                     styles.editRow,
                     active && styles.dragInnerEditActive,
-                    active && { transform: [{ translateY: drag.dragY }] },
+                    {
+                      transform: [
+                        {
+                          translateY: active
+                            ? drag.dragY
+                            : drag.getItemShift(index),
+                        },
+                      ],
+                    },
                   ]}
                 >
                   <DragHandle
@@ -2327,7 +2906,12 @@ function DragHandle({
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
+        onStartShouldSetPanResponderCapture: () => true,
         onMoveShouldSetPanResponder: (
+          _event: GestureResponderEvent,
+          gesture: PanResponderGestureState,
+        ) => Math.abs(gesture.dy) > 2,
+        onMoveShouldSetPanResponderCapture: (
           _event: GestureResponderEvent,
           gesture: PanResponderGestureState,
         ) => Math.abs(gesture.dy) > 2,
@@ -2338,12 +2922,15 @@ function DragHandle({
         ) => onMove(gesture.dy),
         onPanResponderRelease: onEnd,
         onPanResponderTerminate: onEnd,
+        onPanResponderTerminationRequest: () => false,
+        onShouldBlockNativeResponder: () => true,
       }),
     [index, onEnd, onMove, onStart],
   );
   return (
-    <Pressable
+    <View
       {...responder.panHandlers}
+      accessible
       accessibilityActions={[
         { name: 'increment', label: '아래로 이동' },
         { name: 'decrement', label: '위로 이동' },
@@ -2358,32 +2945,96 @@ function DragHandle({
           onKeyboardMove(-1);
         }
       }}
-      style={style}
+      style={[
+        style,
+        Platform.OS === 'web'
+          ? ({ touchAction: 'none' } as unknown as ViewStyle)
+          : undefined,
+      ]}
       testID={testID}
     >
       {children}
-    </Pressable>
+    </View>
   );
 }
 
 function useDragController(onMoveItem: (from: number, to: number) => void) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [targetIndex, setTargetIndex] = useState<number | null>(null);
   const activeRef = useRef<number | null>(null);
+  const targetRef = useRef<number | null>(null);
   const originCenter = useRef(0);
+  const dragOffset = useRef(0);
   const centers = useRef<number[]>([]);
   const [dragY] = useState(() => new Animated.Value(0));
+  const itemShifts = useRef<Animated.Value[]>([]);
+  const shiftAnimations = useRef<Animated.CompositeAnimation[]>([]);
+  const settleAnimation = useRef<Animated.CompositeAnimation | null>(null);
+  const getItemShift = useCallback((index: number) => {
+    while (itemShifts.current.length <= index) {
+      itemShifts.current.push(new Animated.Value(0));
+    }
+    return itemShifts.current[index]!;
+  }, []);
+  const stopShiftAnimations = useCallback(() => {
+    for (const animation of shiftAnimations.current) {
+      animation.stop();
+    }
+    shiftAnimations.current = [];
+  }, []);
+  const resetItemShifts = useCallback(() => {
+    stopShiftAnimations();
+    for (const shift of itemShifts.current) {
+      shift.setValue(0);
+    }
+  }, [stopShiftAnimations]);
+  const animateItemShifts = useCallback(
+    (from: number, target: number) => {
+      stopShiftAnimations();
+      shiftAnimations.current = itemShifts.current.map((shift, index) => {
+        let toValue = 0;
+        if (from < target && index > from && index <= target) {
+          const currentCenter = centers.current[index] ?? index * 60 + 30;
+          const previousCenter =
+            centers.current[index - 1] ?? (index - 1) * 60 + 30;
+          toValue = previousCenter - currentCenter;
+        } else if (from > target && index >= target && index < from) {
+          const currentCenter = centers.current[index] ?? index * 60 + 30;
+          const nextCenter =
+            centers.current[index + 1] ?? (index + 1) * 60 + 30;
+          toValue = nextCenter - currentCenter;
+        }
+        return Animated.timing(shift, {
+          toValue,
+          duration: 85,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        });
+      });
+      for (const animation of shiftAnimations.current) {
+        animation.start();
+      }
+    },
+    [stopShiftAnimations],
+  );
   const register = useCallback((index: number, event: LayoutChangeEvent) => {
     const { height, y } = event.nativeEvent.layout;
     centers.current[index] = y + height / 2;
   }, []);
   const start = useCallback(
     (index: number) => {
+      settleAnimation.current?.stop();
+      settleAnimation.current = null;
+      resetItemShifts();
       activeRef.current = index;
+      targetRef.current = index;
       originCenter.current = centers.current[index] ?? index * 60 + 30;
+      dragOffset.current = 0;
       dragY.setValue(0);
       setActiveIndex(index);
+      setTargetIndex(index);
     },
-    [dragY],
+    [dragY, resetItemShifts],
   );
   const move = useCallback(
     (dy: number) => {
@@ -2392,29 +3043,73 @@ function useDragController(onMoveItem: (from: number, to: number) => void) {
         return;
       }
       const pointerY = originCenter.current + dy;
-      let target = Math.max(0, centers.current.length - 1);
+      let target = from;
+      let closestDistance = Number.POSITIVE_INFINITY;
       for (let index = 0; index < centers.current.length; index += 1) {
         const center = centers.current[index];
-        if (center !== undefined && pointerY < center) {
+        if (center === undefined) {
+          continue;
+        }
+        const distance = Math.abs(pointerY - center);
+        if (distance < closestDistance) {
+          closestDistance = distance;
           target = index;
-          break;
         }
       }
-      if (target !== from) {
-        onMoveItem(from, target);
-        activeRef.current = target;
-        setActiveIndex(target);
+      if (targetRef.current !== target) {
+        targetRef.current = target;
+        setTargetIndex(target);
+        animateItemShifts(from, target);
       }
-      const slotCenter = centers.current[target] ?? pointerY;
-      dragY.setValue(pointerY - slotCenter);
+      dragOffset.current = dy;
+      dragY.setValue(dy);
     },
-    [dragY, onMoveItem],
+    [animateItemShifts, dragY],
   );
   const end = useCallback(() => {
+    const from = activeRef.current;
+    const target = targetRef.current;
+    if (from === null || target === null) {
+      return;
+    }
     activeRef.current = null;
-    setActiveIndex(null);
-    dragY.setValue(0);
-  }, [dragY]);
+    targetRef.current = null;
+    const targetCenter =
+      centers.current[target] ?? originCenter.current + (target - from) * 60;
+    const remainingOffset =
+      dragOffset.current - (targetCenter - originCenter.current);
+    resetItemShifts();
+    dragY.setValue(remainingOffset);
+    setActiveIndex(target);
+    setTargetIndex(target);
+    if (target !== from) {
+      onMoveItem(from, target);
+    }
+    const animation = Animated.timing(dragY, {
+      toValue: 0,
+      duration: 80,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    });
+    settleAnimation.current = animation;
+    animation.start(({ finished }) => {
+      if (settleAnimation.current === animation) {
+        settleAnimation.current = null;
+      }
+      if (finished) {
+        dragY.setValue(0);
+        setActiveIndex(null);
+        setTargetIndex(null);
+      }
+    });
+  }, [dragY, onMoveItem, resetItemShifts]);
+  useEffect(
+    () => () => {
+      settleAnimation.current?.stop();
+      stopShiftAnimations();
+    },
+    [stopShiftAnimations],
+  );
   const keyboardMove = useCallback(
     (index: number, direction: -1 | 1, length: number) => {
       const target = Math.max(0, Math.min(length - 1, index + direction));
@@ -2424,7 +3119,17 @@ function useDragController(onMoveItem: (from: number, to: number) => void) {
     },
     [onMoveItem],
   );
-  return { activeIndex, dragY, end, keyboardMove, move, register, start };
+  return {
+    activeIndex,
+    dragY,
+    end,
+    getItemShift,
+    keyboardMove,
+    move,
+    register,
+    start,
+    targetIndex,
+  };
 }
 
 function OutlinedLabel({
@@ -2714,16 +3419,6 @@ function cleanRoutineItems(items: readonly HomeRoutineItem[]) {
   return cleaned;
 }
 
-function moveItem<T>(items: readonly T[], from: number, to: number): T[] {
-  const next = Array.from(items);
-  const removed = next.splice(from, 1)[0];
-  if (removed === undefined) {
-    return next;
-  }
-  next.splice(to, 0, removed);
-  return next;
-}
-
 function createHomeStyles(
   s: (value: number) => number,
   f: (value: number) => number,
@@ -2891,12 +3586,14 @@ function createHomeStyles(
       minWidth: 0,
       flex: 1,
       aspectRatio: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
       borderRadius: s(14),
       padding: s(5),
     },
     progressCellCompleted: { backgroundColor: '#EDF5E2', opacity: 1 },
     progressCellIncomplete: { backgroundColor: '#F3F1EB', opacity: 0.55 },
-    progressImage: { width: '100%', height: '100%' },
+    progressImage: { width: '78%', height: '78%' },
     todoImage: { opacity: 1 },
     progressBadge: {
       position: 'absolute',
@@ -3041,21 +3738,34 @@ function createHomeStyles(
       letterSpacing: s(0.23),
     },
     dragOuterRoutine: {
+      position: 'relative',
       borderWidth: s(1.5),
       borderColor: 'transparent',
       borderRadius: s(12),
       backgroundColor: 'transparent',
     },
+    dropPlaceholder: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      borderWidth: s(1.5),
+      borderColor: '#7FAE5C',
+      borderRadius: s(12),
+      borderStyle: 'dashed',
+      backgroundColor: '#EDF5E2',
+    },
     dragOuterEdit: {
+      position: 'relative',
       borderWidth: s(1.5),
       borderColor: 'transparent',
       borderRadius: s(16),
       backgroundColor: 'transparent',
     },
     dragOuterActive: {
-      borderColor: '#7FAE5C',
-      borderStyle: 'dashed',
-      backgroundColor: '#EDF5E2',
+      zIndex: 10,
+      elevation: 4,
     },
     routineRow: {
       flexDirection: 'row',
@@ -3267,6 +3977,7 @@ function createHomeStyles(
       fontWeight: '700',
     },
     choiceRow: { flexDirection: 'row', gap: s(6), marginTop: s(10) },
+    choiceRowTwoColumn: { flexWrap: 'wrap' },
     choiceButton: {
       minWidth: 0,
       minHeight: s(44),
@@ -3279,6 +3990,11 @@ function createHomeStyles(
       backgroundColor: '#FAF7F1',
       paddingVertical: s(9),
       paddingHorizontal: s(6),
+    },
+    choiceButtonTwoColumn: {
+      minHeight: s(48),
+      flexBasis: '48%',
+      flexGrow: 1,
     },
     choiceButtonSelected: {
       borderColor: '#4E8B3A',
@@ -3351,6 +4067,157 @@ function createHomeStyles(
       paddingVertical: s(11),
       paddingHorizontal: s(12),
       textAlign: 'right',
+    },
+    availabilitySection: {
+      gap: s(10),
+      borderRadius: s(18),
+      backgroundColor: '#FFFFFF',
+      padding: s(16),
+    },
+    availabilityHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: s(5),
+    },
+    availabilitySlotRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: s(8),
+    },
+    availabilityTimeButton: {
+      flex: 1,
+      minWidth: 0,
+      minHeight: s(44),
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: s(1),
+      borderColor: '#E7E3DB',
+      borderRadius: s(12),
+      backgroundColor: '#FAF7F1',
+      paddingVertical: s(11),
+      paddingHorizontal: s(10),
+    },
+    availabilityTimeText: {
+      color: '#2A2A26',
+      fontSize: f(14),
+      fontWeight: '700',
+      textAlign: 'center',
+    },
+    availabilityTimePlaceholder: { color: '#AAA69F', fontWeight: '600' },
+    availabilitySeparator: {
+      color: '#8B8780',
+      fontSize: f(15),
+      fontWeight: '700',
+    },
+    availabilityRemoveButton: {
+      width: s(28),
+      height: s(42),
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    availabilityAddButton: {
+      minHeight: s(44),
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: s(1),
+      borderColor: '#A8C78D',
+      borderStyle: 'dashed',
+      borderRadius: s(12),
+      backgroundColor: '#F6FAF2',
+    },
+    availabilityAddLabel: {
+      color: '#3E7A32',
+      fontSize: f(13),
+      fontWeight: '700',
+    },
+    availabilityHelpText: {
+      color: '#8B8780',
+      fontSize: f(12),
+      lineHeight: f(18),
+    },
+    timePickerIntro: {
+      marginTop: s(2),
+      color: '#8B8780',
+      fontSize: f(13),
+      lineHeight: f(19),
+    },
+    timePickerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: s(10),
+      marginTop: s(16),
+    },
+    timePickerColon: {
+      color: '#2A2A26',
+      fontSize: f(24),
+      fontWeight: '800',
+    },
+    timeWheelColumn: {
+      position: 'relative',
+      minWidth: 0,
+      height: TIME_WHEEL_ITEM_HEIGHT * 3,
+      flex: 1,
+      overflow: 'hidden',
+      borderWidth: s(1),
+      borderColor: '#E7E3DB',
+      borderRadius: s(14),
+      backgroundColor: '#FFFFFF',
+    },
+    timeWheelScroll: { zIndex: 2 },
+    timeWheelContent: { paddingVertical: TIME_WHEEL_ITEM_HEIGHT },
+    timeWheelSelection: {
+      position: 'absolute',
+      top: TIME_WHEEL_ITEM_HEIGHT,
+      right: s(5),
+      left: s(5),
+      height: TIME_WHEEL_ITEM_HEIGHT,
+      borderRadius: s(9),
+      backgroundColor: '#E8F2E4',
+    },
+    timeWheelItem: {
+      height: TIME_WHEEL_ITEM_HEIGHT,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    timeWheelItemText: {
+      color: '#8B8780',
+      fontSize: f(17),
+      fontWeight: '600',
+    },
+    timeWheelItemTextSelected: { color: '#3E7A32', fontWeight: '800' },
+    timeWheelItemSuffix: { fontSize: f(12), fontWeight: '600' },
+    timePickerActions: {
+      flexDirection: 'row',
+      gap: s(10),
+      marginTop: s(18),
+    },
+    timePickerCancelButton: {
+      minHeight: s(48),
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: s(1),
+      borderColor: '#D8D4CB',
+      borderRadius: s(14),
+      backgroundColor: '#FFFFFF',
+    },
+    timePickerCancelLabel: {
+      color: '#6F6B64',
+      fontSize: f(15),
+      fontWeight: '700',
+    },
+    timePickerConfirmButton: {
+      minHeight: s(48),
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: s(14),
+      backgroundColor: '#4E8B3A',
+    },
+    timePickerConfirmLabel: {
+      color: '#FFFFFF',
+      fontSize: f(15),
+      fontWeight: '800',
     },
     stepsInput: { width: s(110) },
     numberSuffix: { color: '#8B8780', fontSize: f(13) },

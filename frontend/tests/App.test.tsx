@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import { Platform, StyleSheet } from 'react-native';
 
 import { App } from '../src/app/App';
 
@@ -15,6 +16,39 @@ function createDeferred<T>() {
 }
 
 describe('App boot navigation', () => {
+  it('centers the app without constraining the preview gallery page', async () => {
+    const originalPlatform = Platform.OS;
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'web',
+    });
+
+    try {
+      const view = await render(<App previewMode="home" />);
+
+      expect(
+        StyleSheet.flatten(screen.getByTestId('app-shell').props.style),
+      ).toMatchObject({
+        alignItems: 'center',
+        backgroundColor: '#EEF2E8',
+      });
+      expect(
+        StyleSheet.flatten(screen.getByTestId('app-viewport').props.style),
+      ).toMatchObject({ maxWidth: 640, width: '100%' });
+
+      view.rerender(<App previewMode="gallery" />);
+      expect(
+        StyleSheet.flatten(screen.getByTestId('app-viewport').props.style)
+          .maxWidth,
+      ).toBeUndefined();
+    } finally {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: originalPlatform,
+      });
+    }
+  });
+
   it('opens the development gallery without starting app boot', async () => {
     const bootResolver = jest.fn(async () => 'Auth' as const);
 

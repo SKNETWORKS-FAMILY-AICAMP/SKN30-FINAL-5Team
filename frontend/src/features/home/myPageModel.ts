@@ -15,8 +15,6 @@ export type MyPageStats = {
 };
 
 export type MyPageProfileField =
-  | 'date_of_birth'
-  | 'timezone'
   | 'primary_goal_code'
   | 'experience_level_code'
   | 'preferred_exercise_type_codes'
@@ -36,12 +34,6 @@ export function buildMyPageProfileRows(
   profile: MeProfile,
 ): readonly MyPageProfileRow[] {
   return [
-    [
-      'date_of_birth',
-      '나이',
-      profile.age === null ? '미입력' : `만 ${profile.age}세`,
-    ],
-    ['timezone', '시간대', profile.timezone],
     [
       'primary_goal_code',
       '운동 목표',

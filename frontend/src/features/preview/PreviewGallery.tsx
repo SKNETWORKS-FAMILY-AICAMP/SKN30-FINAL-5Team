@@ -11,8 +11,15 @@ import {
 } from 'react-native';
 
 import type { Api } from '../../api/endpoints';
-import type { WorkoutSessionDetailResponse } from '../../api/types';
-import { ScaleViewportProvider } from '../../components/scale';
+import type {
+  DecisionResponse,
+  WorkoutSessionDetailResponse,
+} from '../../api/types';
+import { moveWorkoutPlanItem } from '../../api/workoutPlan';
+import {
+  ScaleViewportProvider,
+  WEB_APP_MAX_WIDTH,
+} from '../../components/scale';
 import type { TabId } from '../../components/brand/BrandChrome';
 import { LoginScreen } from '../auth/LoginScreen';
 import {
@@ -284,6 +291,9 @@ export function PreviewGallery({
     useState<ProfilePreviewState>('editing');
   const [onboardingStep, setOnboardingStep] = useState(1);
   const [homeState, setHomeState] = useState<HomePreviewState>('pre-checkin');
+  const [homeDecisionOverride, setHomeDecisionOverride] = useState<
+    DecisionResponse | undefined
+  >(undefined);
   const homeTransitionTimer = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -320,6 +330,7 @@ export function PreviewGallery({
     (preview) => preview.id === devicePreviewId,
   );
   const canvasViewport = selectedDevicePreview ?? customViewport;
+  const usesBoundedWebCanvas = canvasViewport.width > WEB_APP_MAX_WIDTH;
   const stageAvailableWidth = Math.max(
     320,
     useWideLayout ? width - 400 : width - 48,
@@ -368,8 +379,27 @@ export function PreviewGallery({
       clearTimeout(homeTransitionTimer.current);
       homeTransitionTimer.current = null;
     }
+    setHomeDecisionOverride(undefined);
     setHomeState(next);
   }, []);
+  const reorderHomePlan = useCallback(
+    (from: number, to: number) => {
+      setHomeDecisionOverride((current) => {
+        const decision = current ?? homePreviewProps(homeState).decision;
+        if (
+          decision?.final_plan === null ||
+          decision?.final_plan === undefined
+        ) {
+          return current;
+        }
+        const finalPlan = moveWorkoutPlanItem(decision.final_plan, from, to);
+        return finalPlan === decision.final_plan
+          ? decision
+          : { ...decision, final_plan: finalPlan };
+      });
+    },
+    [homeState],
+  );
   const runHomeTransition = useCallback(
     (next: HomePreviewState) => {
       selectHomeState('generating');
@@ -755,6 +785,9 @@ export function PreviewGallery({
       <View style={styles.stage}>
         <View style={styles.canvasHeading}>
           <Text style={styles.canvasTitle}>App canvas</Text>
+          {usesBoundedWebCanvas ? (
+            <Text style={styles.canvasLimit}>App max 640px</Text>
+          ) : null}
           <Text style={styles.canvasSize}>
             {canvasViewport.width} × {canvasViewport.height}
           </Text>
@@ -774,170 +807,192 @@ export function PreviewGallery({
               },
             ]}
           >
-            <ScaleViewportProvider viewport={canvasViewport}>
-              {screenId === 'splash' ? (
-                <SplashScreen
-                  bootStatus={splashState}
-                  onRetry={() => setSplashState('pending')}
-                  reducedMotionOverride={reducedMotion}
-                  viewportOverride={canvasViewport}
-                />
-              ) : null}
-              {screenId === 'login' ? (
-                <LoginScreen
-                  onRetry={() => setLoginState('idle')}
-                  onSignUp={() => setScreenId('signup')}
-                  previewState={loginState}
-                />
-              ) : null}
-              {screenId === 'signup' ? (
-                <SignUpScreen
-                  onBack={() => setScreenId('login')}
-                  previewState={signUpState}
-                />
-              ) : null}
-              {screenId === 'profile' ? (
-                <ProfileScreen
-                  initialStep={profileStep}
-                  onStepChange={setProfileStep}
-                  previewState={profileState}
-                />
-              ) : null}
-              {screenId === 'onboarding' ? (
-                <OnboardingScreen
-                  api={onboardingPreviewApi}
-                  initialStep={onboardingStep}
-                  onCompleted={() => undefined}
-                  onSignOut={() => undefined}
-                  onStepChange={setOnboardingStep}
-                />
-              ) : null}
-              {screenId === 'home' ? (
-                <HomeScreen
-                  {...homePreviewProps(homeState)}
-                  onChooseRest={() => selectHomeState('rest')}
-                  onNavigateTab={navigateHomeTab}
-                  onOpenCalendar={() => setScreenId('calendar-report')}
-                  onProfile={() => setScreenId('my-page')}
-                  onRequestAiRevision={() => runHomeTransition('adjusted')}
-                  onStartWorkout={startWorkoutPreview}
-                  onSubmitCheckin={() => runHomeTransition('routine')}
-                  onSubmitUserEdits={() => runHomeTransition('adjusted')}
-                />
-              ) : null}
-              {screenId === 'today' ? (
-                <PreviousHomeScreen {...previousHomePreviewProps(todayState)} />
-              ) : null}
-              {screenId === 'session' ? (
-                <SessionScreen
-                  key={sessionState}
-                  api={sessionApi}
-                  sessionId="session-preview"
-                  plan={PREVIEW_PLAN}
-                  onOutcome={() => undefined}
-                />
-              ) : null}
-              {screenId === 'session-result' ? (
-                <SessionResultScreen
-                  key={sessionResultState}
-                  api={sessionResultPreviewApi}
-                  sessionId="session-preview"
-                  outcome={sessionResultPreviewOutcome(sessionResultState)}
-                  onDone={() => undefined}
-                />
-              ) : null}
-              {screenId === 'mascot-house' ? (
-                <MascotHouseScreen
-                  key={houseState}
-                  api={houseApi}
-                  nickname={PREVIEW_ME.profile?.nickname ?? '미리보기'}
-                  onNavigate={() => undefined}
-                />
-              ) : null}
-              {screenId === 'weekly-report' ? (
-                <WeeklyReportScreen
-                  key={weeklyReportState}
-                  api={weeklyReportApi}
-                  onBack={() => setScreenId('calendar-report')}
-                  onNavigateTab={navigateHomeTab}
-                />
-              ) : null}
-              {screenId === 'account' ? (
-                <AccountScreen
-                  api={accountPreviewApi}
-                  me={PREVIEW_ME}
-                  onBack={() => undefined}
-                  onSignOut={() => undefined}
-                />
-              ) : null}
-              {screenId === 'home-map' ? (
-                <MapHomeScreen
-                  onNavigateTab={navigateHomeTab}
-                  previewState={mapHomeState}
-                  routine={PREVIEW_ROUTINE}
-                  week={PREVIEW_OPEN_WEEK}
-                />
-              ) : null}
-              {screenId === 'calendar-report' ? (
-                <>
-                  <CalendarReportScreen
-                    onNavigateTab={navigateHomeTab}
-                    onOpenDay={(day: CalendarDay) => {
-                      if (day.localDate && day.sessionIds?.length) {
-                        setCalendarHistoryDay({
-                          localDate: day.localDate,
-                          sessionIds: day.sessionIds,
-                        });
-                      }
-                    }}
-                    onOpenWeeklyReport={() => setScreenId('weekly-report')}
-                    previewState={calendarReportState}
-                    weeks={CALENDAR_HISTORY_PREVIEW_WEEKS}
-                  />
-                  {calendarHistoryDay ? (
-                    <WorkoutHistorySheet
-                      api={calendarHistoryPreviewApi}
-                      localDate={calendarHistoryDay.localDate}
-                      onClose={() => setCalendarHistoryDay(null)}
-                      sessionIds={calendarHistoryDay.sessionIds}
+            <View
+              style={[
+                styles.previewAppShell,
+                usesBoundedWebCanvas && styles.previewWebAppShell,
+              ]}
+            >
+              <View
+                style={[
+                  styles.previewAppContent,
+                  usesBoundedWebCanvas && styles.previewWebAppContent,
+                ]}
+                testID="preview-app-content"
+              >
+                <ScaleViewportProvider viewport={canvasViewport}>
+                  {screenId === 'splash' ? (
+                    <SplashScreen
+                      bootStatus={splashState}
+                      onRetry={() => setSplashState('pending')}
+                      reducedMotionOverride={reducedMotion}
+                      viewportOverride={canvasViewport}
                     />
                   ) : null}
-                </>
-              ) : null}
-              {screenId === 'my-page' ? (
-                <MyPageContainer
-                  api={accountPreviewApi}
-                  me={PREVIEW_ME}
-                  onNavigateTab={navigateHomeTab}
-                  onRefreshMe={async () => undefined}
-                  onSignOut={() => undefined}
-                  previewState={myPageState}
-                />
-              ) : null}
-              {screenId === 'workout' ? (
-                workoutState !== 'api-flow' ? (
-                  <WorkoutScreen previewState={workoutState} />
-                ) : workoutOutcome === null ? (
-                  <WorkoutScreen
-                    key={workoutRunKey}
-                    api={workoutApi}
-                    sessionId="session-preview"
-                    plan={PREVIEW_PLAN}
-                    onOutcome={setWorkoutOutcome}
-                  />
-                ) : (
-                  <SessionResultScreen
-                    api={workoutApi}
-                    sessionId="session-preview"
-                    outcome={workoutOutcome}
-                    onDone={() => {
-                      resetWorkoutFlow();
-                      setScreenId('home');
-                    }}
-                  />
-                )
-              ) : null}
-            </ScaleViewportProvider>
+                  {screenId === 'login' ? (
+                    <LoginScreen
+                      onRetry={() => setLoginState('idle')}
+                      onSignUp={() => setScreenId('signup')}
+                      previewState={loginState}
+                    />
+                  ) : null}
+                  {screenId === 'signup' ? (
+                    <SignUpScreen
+                      onBack={() => setScreenId('login')}
+                      previewState={signUpState}
+                    />
+                  ) : null}
+                  {screenId === 'profile' ? (
+                    <ProfileScreen
+                      initialStep={profileStep}
+                      onStepChange={setProfileStep}
+                      previewState={profileState}
+                    />
+                  ) : null}
+                  {screenId === 'onboarding' ? (
+                    <OnboardingScreen
+                      api={onboardingPreviewApi}
+                      initialStep={onboardingStep}
+                      onCompleted={() => undefined}
+                      onSignOut={() => undefined}
+                      onStepChange={setOnboardingStep}
+                    />
+                  ) : null}
+                  {screenId === 'home' ? (
+                    <HomeScreen
+                      {...homePreviewProps(homeState)}
+                      decision={
+                        homeDecisionOverride ??
+                        homePreviewProps(homeState).decision
+                      }
+                      onChooseRest={() => selectHomeState('rest')}
+                      onNavigateTab={navigateHomeTab}
+                      onOpenCalendar={() => setScreenId('calendar-report')}
+                      onProfile={() => setScreenId('my-page')}
+                      onReorderPlan={reorderHomePlan}
+                      onRequestAiRevision={() => runHomeTransition('adjusted')}
+                      onStartWorkout={startWorkoutPreview}
+                      onSubmitCheckin={() => runHomeTransition('routine')}
+                      onSubmitUserEdits={() => runHomeTransition('adjusted')}
+                    />
+                  ) : null}
+                  {screenId === 'today' ? (
+                    <PreviousHomeScreen
+                      {...previousHomePreviewProps(todayState)}
+                    />
+                  ) : null}
+                  {screenId === 'session' ? (
+                    <SessionScreen
+                      key={sessionState}
+                      api={sessionApi}
+                      sessionId="session-preview"
+                      plan={PREVIEW_PLAN}
+                      onOutcome={() => undefined}
+                    />
+                  ) : null}
+                  {screenId === 'session-result' ? (
+                    <SessionResultScreen
+                      key={sessionResultState}
+                      api={sessionResultPreviewApi}
+                      sessionId="session-preview"
+                      outcome={sessionResultPreviewOutcome(sessionResultState)}
+                      onDone={() => undefined}
+                    />
+                  ) : null}
+                  {screenId === 'mascot-house' ? (
+                    <MascotHouseScreen
+                      key={houseState}
+                      api={houseApi}
+                      nickname={PREVIEW_ME.profile?.nickname ?? '미리보기'}
+                      onNavigate={() => undefined}
+                    />
+                  ) : null}
+                  {screenId === 'weekly-report' ? (
+                    <WeeklyReportScreen
+                      key={weeklyReportState}
+                      api={weeklyReportApi}
+                      onBack={() => setScreenId('calendar-report')}
+                      onNavigateTab={navigateHomeTab}
+                    />
+                  ) : null}
+                  {screenId === 'account' ? (
+                    <AccountScreen
+                      api={accountPreviewApi}
+                      me={PREVIEW_ME}
+                      onBack={() => undefined}
+                      onSignOut={() => undefined}
+                    />
+                  ) : null}
+                  {screenId === 'home-map' ? (
+                    <MapHomeScreen
+                      onNavigateTab={navigateHomeTab}
+                      previewState={mapHomeState}
+                      routine={PREVIEW_ROUTINE}
+                      week={PREVIEW_OPEN_WEEK}
+                    />
+                  ) : null}
+                  {screenId === 'calendar-report' ? (
+                    <>
+                      <CalendarReportScreen
+                        onNavigateTab={navigateHomeTab}
+                        onOpenDay={(day: CalendarDay) => {
+                          if (day.localDate && day.sessionIds?.length) {
+                            setCalendarHistoryDay({
+                              localDate: day.localDate,
+                              sessionIds: day.sessionIds,
+                            });
+                          }
+                        }}
+                        onOpenWeeklyReport={() => setScreenId('weekly-report')}
+                        previewState={calendarReportState}
+                        weeks={CALENDAR_HISTORY_PREVIEW_WEEKS}
+                      />
+                      {calendarHistoryDay ? (
+                        <WorkoutHistorySheet
+                          api={calendarHistoryPreviewApi}
+                          localDate={calendarHistoryDay.localDate}
+                          onClose={() => setCalendarHistoryDay(null)}
+                          sessionIds={calendarHistoryDay.sessionIds}
+                        />
+                      ) : null}
+                    </>
+                  ) : null}
+                  {screenId === 'my-page' ? (
+                    <MyPageContainer
+                      api={accountPreviewApi}
+                      me={PREVIEW_ME}
+                      onNavigateTab={navigateHomeTab}
+                      onRefreshMe={async () => undefined}
+                      onSignOut={() => undefined}
+                      previewState={myPageState}
+                    />
+                  ) : null}
+                  {screenId === 'workout' ? (
+                    workoutState !== 'api-flow' ? (
+                      <WorkoutScreen previewState={workoutState} />
+                    ) : workoutOutcome === null ? (
+                      <WorkoutScreen
+                        key={workoutRunKey}
+                        api={workoutApi}
+                        sessionId="session-preview"
+                        plan={PREVIEW_PLAN}
+                        onOutcome={setWorkoutOutcome}
+                      />
+                    ) : (
+                      <SessionResultScreen
+                        api={workoutApi}
+                        sessionId="session-preview"
+                        outcome={workoutOutcome}
+                        onDone={() => {
+                          resetWorkoutFlow();
+                          setScreenId('home');
+                        }}
+                      />
+                    )
+                  ) : null}
+                </ScaleViewportProvider>
+              </View>
+            </View>
           </View>
         </View>
       </View>
@@ -1326,6 +1381,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
   },
+  canvasLimit: {
+    color: '#306B3A',
+    fontSize: 11,
+    fontWeight: '800',
+  },
   canvasSize: {
     color: '#68747F',
     fontSize: 12,
@@ -1343,5 +1403,21 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderRadius: 12,
     backgroundColor: '#FFFFFF',
+  },
+  previewAppShell: {
+    width: '100%',
+    flex: 1,
+  },
+  previewWebAppShell: {
+    alignItems: 'center',
+    backgroundColor: '#EEF2E8',
+  },
+  previewAppContent: {
+    width: '100%',
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  previewWebAppContent: {
+    maxWidth: WEB_APP_MAX_WIDTH,
   },
 });

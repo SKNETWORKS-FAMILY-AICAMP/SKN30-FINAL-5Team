@@ -18,6 +18,32 @@ export function orderedWorkoutPlanItems(
     .map(({ item }) => item);
 }
 
+/**
+ * Insert one item at a new index while preserving the relative order of every
+ * other item. For example, moving index 2 to 0 turns [1, 2, 3] into [3, 1, 2].
+ */
+export function moveArrayItem<T>(
+  source: readonly T[],
+  from: number,
+  to: number,
+): T[] {
+  const items = Array.from(source);
+  if (
+    from < 0 ||
+    from >= items.length ||
+    to < 0 ||
+    to >= items.length ||
+    from === to
+  ) {
+    return items;
+  }
+
+  const moved = items[from]!;
+  items.splice(from, 1);
+  items.splice(to, 0, moved);
+  return items;
+}
+
 /** Move one exercise and renumber the complete plan as one atomic value. */
 export function moveWorkoutPlanItem(
   plan: WorkoutPlan,
@@ -35,14 +61,13 @@ export function moveWorkoutPlanItem(
     return plan;
   }
 
-  const [moved] = items.splice(from, 1);
-  if (moved === undefined) {
-    return plan;
-  }
-  items.splice(to, 0, moved);
+  const reorderedItems = moveArrayItem(items, from, to);
 
   return {
     ...plan,
-    items: items.map((item, index) => ({ ...item, sequence: index + 1 })),
+    items: reorderedItems.map((item, index) => ({
+      ...item,
+      sequence: index + 1,
+    })),
   };
 }

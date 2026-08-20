@@ -123,6 +123,14 @@ function workoutApi(overrides: Partial<Api> = {}): Api {
 }
 
 describe('WorkoutScreen', () => {
+  it('uses set and repetition prescriptions for every preview workout block', () => {
+    render(<WorkoutScreen />);
+
+    expect(screen.getByText('1세트 × 10회 · 전신 가동성')).toBeOnTheScreen();
+    expect(screen.getByText('1세트 × 10회 · 호흡 정리')).toBeOnTheScreen();
+    expect(screen.queryByText(/세트 × \d+(?:분|초)/)).toBeNull();
+  });
+
   it('shows the warm-up walking mascot beside the current workout copy', () => {
     render(<WorkoutScreen />);
 

@@ -217,10 +217,9 @@ function OutlinedText({
         pointerEvents="none"
         style={[
           styles.outlinedText,
+          styles.webOutlinedText,
           {
-            left: containerLeft,
             top,
-            width: containerWidth,
             height: lineHeight,
           },
         ]}
@@ -399,6 +398,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     overflow: 'visible',
     zIndex: 3,
+  },
+  webOutlinedText: {
+    right: 0,
+    left: 0,
   },
   island: {
     alignSelf: 'center',
