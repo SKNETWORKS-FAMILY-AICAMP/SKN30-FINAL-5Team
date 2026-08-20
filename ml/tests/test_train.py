@@ -138,6 +138,43 @@ def test_pipeline_can_fit_small_in_memory_dataframe(config: dict[str, object]) -
     assert pipeline.predict_proba(dataframe[feature_columns]).shape == (6, 2)
 
 
+@pytest.mark.parametrize("model_id", ["logreg", "rf", "histgb"])
+def test_pipeline_handles_contractual_first_observation_missing_values(
+    config: dict[str, object], model_id: str
+) -> None:
+    feature_columns = get_ablation_features(config, "A3")
+    categorical = [
+        "experience_level_code",
+        "resting_hr_trend_code_prev_day",
+        "last_workout_type_code_prev_day",
+    ]
+    numeric = [column for column in feature_columns if column not in categorical]
+    dataframe = pd.DataFrame(
+        {
+            column: ([None, "STABLE", "UPWARD", "DOWNWARD", "STABLE", "UPWARD"]
+            if column == "resting_hr_trend_code_prev_day"
+            else [None, "NONE", "RUN", "NONE", "RUN", "NONE"]
+            if column == "last_workout_type_code_prev_day"
+            else ["BEGINNER", "INTERMEDIATE", "ADVANCED"] * 2)
+            for column in categorical
+        }
+    )
+    for index, column in enumerate(numeric):
+        dataframe[column] = [float("nan"), 1 + index, 2 + index, 3 + index, 4 + index, 5 + index]
+    dataframe["workout_completed"] = [0, 1, 0, 1, 0, 1]
+    pipeline = build_pipeline(
+        model_id,
+        config,
+        feature_columns,
+        categorical_features=categorical,
+        numeric_features=numeric,
+    )
+
+    pipeline.fit(dataframe[feature_columns], dataframe["workout_completed"])
+
+    assert pipeline.predict_proba(dataframe[feature_columns]).shape == (6, 2)
+
+
 def test_fit_candidate_uses_validation_pr_auc(config: dict[str, object]) -> None:
     dataframe = pd.DataFrame(
         {

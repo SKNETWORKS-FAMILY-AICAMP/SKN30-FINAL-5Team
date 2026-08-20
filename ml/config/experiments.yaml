@@ -225,6 +225,9 @@ splits:
 # 평가. 정확도만 보고하지 않는다.
 # ---------------------------------------------------------------------------
 evaluation:
+  threshold: 0.5
+  calibration_bins: 10
+  permutation_repeats: 5
   metrics:
     - precision
     - recall

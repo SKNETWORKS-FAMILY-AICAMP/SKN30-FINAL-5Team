@@ -14,9 +14,10 @@ import yaml
 from sklearn.compose import ColumnTransformer
 from sklearn.dummy import DummyClassifier
 from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
+from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, StandardScaler
 
 from ml.src.metrics import evaluate_binary_classification
 
@@ -267,39 +268,64 @@ def build_pipeline(
         f"config.models.{model_id}.preprocessing",
     )
 
-    if model_id == "histgb":
-        if preprocessing.get("categorical") != "native":
-            raise ExperimentConfigError(
-                "config.models.histgb.preprocessing.categorical must be 'native'"
-            )
-        model.set_params(categorical_features=categorical)
-        return Pipeline([("preprocessor", "passthrough"), ("model", model)])
-
     transformers: list[tuple[str, Any, list[str]]] = []
     if categorical:
-        if preprocessing.get("categorical") != "onehot":
-            raise ExperimentConfigError(
-                f"config.models.{model_id}.preprocessing.categorical must be 'onehot'"
+        categorical_mode = preprocessing.get("categorical")
+        if categorical_mode == "onehot":
+            categorical_transformer: Any = Pipeline(
+                [
+                    (
+                        "imputer",
+                        SimpleImputer(strategy="constant", fill_value="__MISSING__"),
+                    ),
+                    ("encoder", OneHotEncoder(handle_unknown="ignore")),
+                ]
             )
-        transformers.append(("categorical", OneHotEncoder(handle_unknown="ignore"), categorical))
+        elif model_id == "histgb" and categorical_mode == "native":
+            categorical_transformer = Pipeline(
+                [
+                    (
+                        "imputer",
+                        SimpleImputer(strategy="constant", fill_value="__MISSING__"),
+                    ),
+                    (
+                        "encoder",
+                        OrdinalEncoder(
+                            handle_unknown="use_encoded_value",
+                            unknown_value=-1,
+                            dtype=np.float64,
+                        ),
+                    ),
+                ]
+            )
+        else:
+            raise ExperimentConfigError(
+                f"unsupported categorical preprocessing '{categorical_mode}' "
+                f"for model '{model_id}'"
+            )
+        transformers.append(("categorical", categorical_transformer, categorical))
     if numeric:
-        numeric_transformer: Any
+        numeric_steps: list[tuple[str, Any]] = [("imputer", SimpleImputer(strategy="median"))]
         numeric_mode = preprocessing.get("numeric")
         if numeric_mode == "standardize":
-            numeric_transformer = StandardScaler()
+            numeric_steps.append(("scaler", StandardScaler()))
         elif numeric_mode == "passthrough":
-            numeric_transformer = "passthrough"
+            pass
         else:
             raise ExperimentConfigError(
                 f"unsupported numeric preprocessing '{numeric_mode}' for model '{model_id}'"
             )
-        transformers.append(("numeric", numeric_transformer, numeric))
+        transformers.append(("numeric", Pipeline(numeric_steps), numeric))
 
     preprocessor = ColumnTransformer(
         transformers=transformers,
         remainder="drop",
         verbose_feature_names_out=False,
     )
+    if model_id == "histgb":
+        # OrdinalEncoder retains one column per categorical feature. HistGB then
+        # performs native categorical splits on those leading encoded columns.
+        model.set_params(categorical_features=list(range(len(categorical))))
     return Pipeline([("preprocessor", preprocessor), ("model", model)])
 
 
