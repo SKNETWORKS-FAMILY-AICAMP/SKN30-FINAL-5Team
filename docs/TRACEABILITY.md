@@ -38,7 +38,7 @@
 | 정책·비기능 POL-001~013, NFR-001~006 | 14 | 5 | 0 | 0 |
 | 확장 기능 F012~F023 | 0 | 0 | 0 | 12 |
 
-POL-009~013은 2026-08-11 사용자 명시 승인과 `ACCEPTED` ADR-0004에 따라 계약 기준으로 적용한다. POL-011의 삭제 상태·provider 실패·30일 restore tombstone 상세 계약은 `ACCEPTED` ADR-0008을 따른다. F011의 Google Calendar 계약은 `ACCEPTED` ADR-0010에 있지만, PR #96에서 실제 연동을 보류했으므로 구현 상태는 `DEFERRED`다. F010의 provider-neutral 경계는 ADR-0009에 있으나 실제 server-side Google·Kakao·Naver exchange adapter/API가 없어 `PARTIAL`이다. 멀티 에이전트 구조는 `ACCEPTED` ADR-0007을 기준으로 한다.
+POL-009~013은 2026-08-11 사용자 명시 승인과 `ACCEPTED` ADR-0004에 따라 계약 기준으로 적용한다. POL-011의 삭제 상태·provider 실패·30일 restore tombstone 상세 계약은 `ACCEPTED` ADR-0008을 따른다. F011의 Google Calendar 계약은 `ACCEPTED` ADR-0010에 있지만, PR #96에서 실제 연동을 보류했으므로 구현 상태는 `DEFERRED`다. F010의 provider-neutral 경계는 ADR-0009에 있으나 실제 server-side Google·Kakao·Naver exchange adapter/API가 없어 `PARTIAL`이다. 멀티 에이전트 production 구조는 `ACCEPTED` ADR-0007을 기준으로 한다. ADR-0012와 TASK-AGENT-002는 2라운드 구조화 상호검토 V2의 승인된 목표 계약이지만 구현 전에는 F002·F029 완료 증거에 포함하지 않는다.
 
 ### 3.1 MVP 기능 구현 증거
 
@@ -149,6 +149,9 @@ F012~F023은 요구사항 정의서상 MVP 이후 확장 기능이다. 각 ID는
 - F029의 회의 UI는 `TrainingAgent`, `RecoveryAgent`, `SafetyAgent`, `FeasibilityAgent`, `Coordinator` 요약을 표시하되, `F029-1-13`에 따라 원래 루틴 선택 UI는 제공하지 않는다. 독립적인 최종 Safety 재검사 요약은 표시하지 않는다.
 - `F002-1-51`, `F002-1-52`, `F002-1-56`에 따라 lighter·original은 공개 선택지로 추적하지 않고 내부 후보·SafetyAgent 의견 반영 기록으로만 관리한다.
 - `F002-1-55~58`은 독립적인 최종 Safety 재검사가 아니라 SafetyAgent 의견의 Coordinator 반영 확인·근거 저장·거부 후보 처리를 추적한다.
+- A2 이후 F002의 후속 AC/TC는 Round 1 proposal, canonical conflict, 영향 Agent의
+  Round 2 review, constraint 단조성, Coordinator 결과와 additive persistence를 각각 추적한다.
+  TASK-AGENT-002 A1은 승인된 계약 동결 작업일 뿐 기존 구현 상태를 `IMPLEMENTED`로 올리지 않는다.
 
 ## 4. PR 적용
 

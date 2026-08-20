@@ -6,6 +6,10 @@
 
 멀티 에이전트 핵심 흐름은 Training·Recovery·Safety·Feasibility 네 proposal의 병렬 실행과 Coordinator 최종 결정으로 확정한다. 에이전트 내부 상세 흐름과 공개 요약 필드는 증상 사용자 시나리오 검증 결과에 따라 추후 보완할 수 있다. 독립적인 최종 Safety 재검사는 현재 범위에 포함하지 않는다.
 
+ADR-0012는 이 활성 흐름 사이에 결정적 conflict detection과 최대 한 번의 구조화 review를 넣는
+V2 목표를 채택한다. A2 기준 구현과 필수 검증이 병합되기 전까지 production 기준은 ADR-0007의
+현재 단일 proposal 흐름이며, ADR 승인을 V2 구현 완료로 간주하지 않는다.
+
 ```mermaid
 flowchart LR
   APP["React Native 앱"] -->|"HTTPS / JSON / Firebase ID Token"| API["FastAPI /api/v1"]
@@ -78,6 +82,30 @@ flowchart TD
 
 MVP에서는 Training·Recovery·Safety·Feasibility 네 proposal Agent를 병렬 실행하고 Coordinator가 의견과 우선순위를 종합해 최종 운동 계획을 결정한다. 네 proposal 중 하나라도 누락되거나 `FAILED`이면 결정 실행은 `FAILED`이며 운동 계획을 성공 응답하지 않는다. 독립적인 Safety 최종 재검사는 현재 범위에 포함하지 않는다.
 
+### 4.1 승인된 V2 목표 — bounded structured deliberation
+
+ADR-0012에 따라 다음 목표 흐름을 A2의 framework-independent domain core로 먼저 검증한다.
+
+```mermaid
+flowchart TD
+  A["정규화 입력·승인 후보"] --> R1["Round 1: 네 독립 proposal"]
+  R1 --> C["Deterministic conflict detector"]
+  C -->|"conflict 없음"| CO["Deterministic Coordinator"]
+  C -->|"conflict 있음"| R2["Round 2: 영향 Agent 구조화 review"]
+  R2 --> I["Constraint monotonicity validator"]
+  I --> CO
+  CO --> P["proposal·conflict·review·결정 원자적 저장"]
+  P --> N["템플릿 또는 선택적 LLM narration"]
+```
+
+- Round 1 누락·`FAILED`·`NEEDS_INPUT`은 Round 2로 진행하지 않는다.
+- conflict가 있을 때만 영향받는 Agent를 한 번 review한다. 비대상 Agent와 no-conflict의 네 Agent는
+  Agent 호출 없는 `NOT_REQUIRED` event로 기록해 누락과 생략을 구분한다.
+- review는 다른 proposal의 machine code·hash·constraint만 읽고 자유 텍스트 토론을 하지 않는다.
+- Safety veto·제외는 완화할 수 없고 요청 시간·승인 후보·버전은 Round 2에서 바꿀 수 없다.
+- 미해결 충돌에서 모든 hard constraint를 만족하는 후보가 없으면 계획을 반환하지 않는다.
+- integrity validator는 기존 Safety 의견 보존을 검사할 뿐 독립적인 FinalSafetyGate가 아니다.
+
 ## 5. 에이전트 책임
 
 - `TrainingAgent`: 주간 FITT와 목표 태그, CORE 보존 제약을 제안한다.
@@ -91,6 +119,11 @@ Coordinator는 운동 계획을 반환하는 경우 계획 구성요소의 합�
 조정기는 운동을 자유 생성하거나 안전 veto를 해제하지 않는다. LLM은 reason code를 설명 문장으로 바꾸는 선택 기능일 뿐이다.
 
 현재 멀티 에이전트의 네 proposal 병렬 실행과 Coordinator 결정은 확정한다. proposal·Coordinator·회의 UI의 상세 필드는 증상 사용자 시나리오 검증 결과에 따라 보완할 수 있으며 공개 요약은 내부 추론을 포함하지 않는다.
+
+V2 목표에서 각 Agent는 Round 1 hard constraint와 preference를 분리하고, Round 2에서는 영향받은
+preference만 수정한다. Safety veto·제외, Feasibility 불가능 조건, 승인된 Recovery ceiling과
+요청 시간은 다른 Agent의 선호로 완화할 수 없다. Training 목표까지 동시에 보존할 승인 후보가
+없으면 목표를 임의 교체하지 않고 계획 없는 기존 상태로 종료한다.
 
 ## 6. 안전 상태와 최종 액션
 
@@ -161,6 +194,8 @@ flowchart LR
 
 - PostgreSQL이 단일 진실 공급원이다.
 - decision run, 네 proposal, 후보, Safety 평가, Coordinator 결정 결과를 분리 저장한다.
+- V2 목표는 conflict detector 결과, `NOT_REQUIRED`를 포함한 review event와 revised proposal을
+  Coordinator 결과와 분리해 additive하게 저장한다. 물리 schema는 별도 migration 승인이 필요하다.
 - 성공 응답 전에 해당 결정 기록이 원자적으로 저장돼야 한다.
 - 주간 리포트는 닫힌 주의 불변 집계 스냅샷과 생성 정책 버전을 저장한다.
 - 주간 리포트는 패턴 요약, 조정 방향, 다음 행동과 잠정 agent summary를 함께 저장한다.
@@ -191,7 +226,9 @@ MVP 배포는 관리형 PostgreSQL 하나와 컨테이너 또는 단일 애플�
 ## 13. 선택하지 않은 대안
 
 - 에이전트 마이크로서비스: 작은 팀에서 배포·인증·추적 비용이 크다.
-- LangGraph 기본 도입: 현재 흐름은 결정적 병렬 proposal과 Coordinator 조정으로 충분하다.
+- LangGraph 기본 도입: 현재 흐름과 V2 기준 구현은 결정적 Python/Pydantic workflow로 먼저
+  검증한다. 중단·재개, streaming, human-in-the-loop 또는 복잡한 조건 분기의 필요성과 checkpoint
+  개인정보·보존 경계가 측정된 뒤 별도 ADR로 재검토한다.
 - Redis/Celery/scheduler: 요청 시 리포트와 동기 결정에 필요하지 않다.
 - 벡터 DB/RAG: 검수된 정규화 카탈로그 조회 문제에 맞지 않는다.
 - 이벤트 소싱: 감사 요구를 충족하는 명시적 기록 테이블보다 복잡하다.
@@ -202,6 +239,7 @@ MVP 배포는 관리형 PostgreSQL 하나와 컨테이너 또는 단일 애플�
 - 배포 클라우드, 리전, 비용 상한
 - LLM 설명 기능의 실제 MVP 활성화 여부와 비용 상한. 공급자와 경계는 ADR-0011에서 OpenAI adapter로
   고정했고 기본값은 비활성이다.
+- ADR-0012 V2의 기준 구현 비교 결과와 LangGraph 채택 여부
 - 소셜 OAuth provider별 앱 심사 일정과 Firebase custom token 운영 방식
 - 수면·부하·복귀 볼륨의 외부 검수된 수치
 - 외부 도메인 검수자와 승인 증적 형식

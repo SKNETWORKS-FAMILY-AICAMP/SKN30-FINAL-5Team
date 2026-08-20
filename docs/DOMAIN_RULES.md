@@ -8,6 +8,10 @@
 
 현재 멀티 에이전트 핵심 흐름은 Training·Recovery·Safety·Feasibility 네 proposal의 병렬 실행과 Coordinator 최종 결정으로 확정한다. 에이전트별 상세 입력·출력·proposal JSON 구조와 공개 요약 필드는 증상 사용자 시나리오 검증 결과에 따라 추후 보완할 수 있으며, 독립적인 최종 Safety 재검사는 현재 범위에 포함하지 않는다.
 
+ADR-0012의 2라운드 구조화 상호검토는 승인된 V2 목표다. A2 기준 구현과 필수 검증이 병합되기
+전에는 아래 현재 계약을 production 기준으로 유지하며, 8.1을 구현 완료나 새 안전 정책 승인으로
+해석하지 않는다.
+
 규칙의 적용 우선순위는 다음과 같다.
 
 1. 중대한 이상 반응 처리
@@ -426,6 +430,56 @@ Coordinator(의장 에이전트)는 공통 입력·기본 후보와 Training·Re
 
 독립적인 Safety 최종 재검사는 수행하지 않는다.
 
+### 8.1 승인된 V2 구조화 상호검토 목표 계약
+
+ADR-0012에 따라 A2는 현재 네 독립 proposal을 Round 1로 유지하고, 그 뒤 결정적 conflict detector와
+최대 한 번의 Round 2 review를 추가한다.
+
+#### 상태 전이
+
+1. Round 1 네 proposal 누락·`FAILED`는 decision `FAILED`다.
+2. `FAILED`가 없고 `NEEDS_INPUT`이 있으면 계획 없는 `NEEDS_INPUT`이다.
+3. 네 proposal이 `READY`일 때만 conflict detector를 실행한다.
+4. conflict가 없으면 Round 2를 `SKIPPED_NO_CONFLICT`로 기록하고, 네 Agent 모두 Agent 호출 없는
+   `NOT_REQUIRED` event를 남긴 뒤 Coordinator로 진행한다.
+5. conflict가 있으면 영향받는 Agent만 review 대상이며 나머지는 `NOT_REQUIRED` event를 남긴다.
+6. 대상 review 누락·`FAILED`는 decision `FAILED`, `NEEDS_INPUT`은 계획 없는 `NEEDS_INPUT`이다.
+7. Round 2 후 추가 토론은 하지 않고 constraint integrity 검증과 Coordinator로 종료한다.
+
+#### `AgentReview` 최소 논리 필드
+
+- `review_schema_version`, `round_number=2`, `agent_type_code`
+- `review_status_code`: `READY | NOT_REQUIRED | NEEDS_INPUT | FAILED`
+- `revision_status_code`: `UNCHANGED | REVISED | NOT_REQUIRED | null`. `NEEDS_INPUT`·`FAILED`에는 null
+- `baseline_proposal_hash`, canonical `(agent_type_code, proposal_hash)` 구조의
+  `reviewed_proposal_references`
+- canonical `reviewed_agent_types`
+- `accepted_constraint_codes`, `unresolved_conflict_codes`
+- `revision_reason_codes`, `evidence_reference_codes`
+- `revised_proposal`: `REVISED`일 때만 존재
+
+review는 machine code와 승인 후보 ID만 포함하고 자유 텍스트 reasoning, prompt, 예외 문자열을
+포함하지 않는다. revised proposal은 Round 1과 같은 Pydantic 불변식을 다시 통과해야 한다.
+
+#### 권한과 단조성
+
+- 요청 시간·시간 출처·승인 후보 집합·입력/정책/카탈로그/규칙 버전은 변경할 수 없다.
+- Safety `BLOCKED`, `REST`, `STOP_AND_SEEK_HELP`, veto와 제외 운동은 완화할 수 없다.
+- Safety Agent만 veto를 `false -> true`로 강화하거나 제외 운동을 추가할 수 있다.
+- Feasibility의 장소·장비·가용 시간 불가능 조건은 다른 Agent 선호로 해제할 수 없다.
+- 승인 정책이 만든 Recovery 최대 강도·부하·볼륨·복귀 상한을 Training이 초과할 수 없다.
+- Training primary goal은 위 hard constraint 안에서 보존한다. 동시에 만족할 후보가 없으면 목표나
+  시간을 임의로 바꾸지 않고 기존 계약의 `REST`, `NEEDS_INPUT` 또는 `FAILED`로 종료한다.
+- conflict detector와 integrity validator는 결정적 Python 규칙이며 LLM을 호출하지 않는다.
+- integrity validator는 Safety proposal 보존을 검사하며 안전 규칙을 재실행하는 FinalSafetyGate가 아니다.
+
+#### Agent Tool 경계
+
+Agent는 DB, repository, FastAPI, ORM, LLM SDK와 외부 API를 직접 호출하지 않는다. application
+service는 검수 catalog, 목표·루틴 policy, Recovery ceiling, Safety rule·대체, 정확한 시간 계산,
+장소·장비 호환성의 정규화·버전화된 결과를 immutable request로 조립한다. Tool 장애가 필수 판단을
+막으면 고정 failure code로 fail-closed하며 예외 원문이나 사용자 원문을 복사하지 않는다.
+
 ---
 
 ## 9. LLM 경계
@@ -445,8 +499,14 @@ Coordinator(의장 에이전트)는 공통 입력·기본 후보와 Training·Re
 
 - 검수된 reason code를 사용자 친화적인 문장으로 변환
 - 안전 결과를 바꾸지 않는 마스코트 문구
+- 최종 결정 이후 공개 가능한 deliberation event code의 사용자용 문장 변환
 
 LLM에는 직접 식별자, 원시 건강 기록, 원시 웨어러블 샘플을 보내지 않는다. LLM 실패 시 검수된 템플릿 문구를 사용하며 계획 결과는 바뀌지 않는다.
+
+V2 narration은 Agent별 provider 호출이나 자유 토론이 아니라 한 번의 bounded batch다.
+application log, 날짜, 자유 체크인, hidden reasoning, graph checkpoint를 입력으로 사용하지 않는다.
+safety status가 `PASS/REVISE`가 아니거나 최종 action이 `REST/STOP_AND_SEEK_HELP`이거나 Safety
+veto가 있는 결과는 LLM을 호출하지 않고 검수 템플릿을 사용한다.
 
 ---
 
@@ -747,6 +807,8 @@ TASK-BACKEND-007의 단계별 게이트를 따른다.
 - 시간 계산 규칙 버전
 - 조정기 버전
 - 전문 에이전트 proposal
+- V2 구현 사용 시 conflict detector·precedence version, canonical conflict code, review 대상과
+  `NOT_REQUIRED` event, revised proposal과 각 hash
 - 후보와 안전 검증 결과
 - 최종 옵션
 - LLM 사용 시 모델과 프롬프트 버전

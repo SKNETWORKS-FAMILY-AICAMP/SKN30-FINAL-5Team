@@ -6,6 +6,10 @@
 
 멀티 에이전트 핵심 흐름은 Training·Recovery·Safety·Feasibility 네 proposal의 병렬 실행과 Coordinator 최종 결정으로 확정한다. 에이전트 구현의 상세 필드·공개 요약은 증상 사용자 시나리오 검증 결과에 따라 추후 보완할 수 있다.
 
+ADR-0012는 결정적 conflict detection과 조건부 Round 2 review를 추가하는 V2 목표를 승인했다.
+A2 기준 구현과 필수 검증이 병합되기 전까지 아래 확정 기술과 production 동작은 현재 V1을
+기준으로 한다.
+
 ## 2. 확정 기술
 
 | 영역 | 선택 |
@@ -24,6 +28,9 @@ Python package manager는 기반 구현에서 `uv`로 결정하고 `uv.lock`을 
 - 백엔드는 모듈형 모놀리스다.
 - API request 안에서 결정 파이프라인을 동기 실행한다.
 - Training·Recovery·Safety·Feasibility proposal 에이전트는 Python/Pydantic 기반 논리 모듈이며 MVP에서는 병렬 실행한다. Coordinator는 네 proposal을 취합하는 의장 모듈이다.
+- V2 목표도 Python/Pydantic domain core가 Round 1, conflict detector, 최대 한 번의 구조화 review,
+  constraint integrity validator와 Coordinator를 소유한다. application service는 정규화 tool/port
+  결과를 조립하고 domain은 DB·외부 provider를 직접 호출하지 않는다.
 - PostgreSQL이 사용자·결정·주간 리포트의 단일 진실 공급원이다.
 - 안전·통증 제외·시간·복귀·후보 선택은 결정적 Python 규칙이다.
 - 요청 시간은 사용자가 명시적으로 변경하지 않는 한 유지하고, 다운시프트는 강도·부하·세트·반복·운동 유형·휴식 구성을 조정한다.
@@ -38,7 +45,7 @@ Python package manager는 기반 구현에서 `uv`로 결정하고 `uv.lock`을 
 - Redis, Celery, Kafka
 - Kubernetes
 - agent별 microservice
-- LangGraph
+- LangGraph production runtime/checkpointer. V2 기준 구현과 측정 후 별도 ADR 없이는 추가하지 않는다.
 - vector database와 RAG
 - 별도 object storage
 
