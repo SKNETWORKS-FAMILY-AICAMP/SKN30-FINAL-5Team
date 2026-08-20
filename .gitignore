@@ -56,6 +56,18 @@ outputs/
 # reviewed before any explicit decision to redistribute or commit them.
 data/raw/*/snapshots/
 
+# 문서 렌더링 작업 디렉터리.
+# 제출 산출물·생성 스크립트·양식 원본만 추적하고, LibreOffice 프로파일과
+# 중간 렌더 결과(page PNG, probe, tmp)는 재유입되지 않도록 제외한다.
+.docx_work/*
+!.docx_work/build_database_report.py
+!.docx_work/render_docx_windows.py
+!.docx_work/template.docx
+!.docx_work/decision_erd.png
+!.docx_work/final_render/
+.docx_work/final_render/*
+!.docx_work/final_render/*.pdf
+
 # ML 중간 산출물
 ml/data/interim/
 ml/data/processed/
