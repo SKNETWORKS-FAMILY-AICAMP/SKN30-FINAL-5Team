@@ -287,8 +287,26 @@ export const decisionReasonLabel = (code: string): string | null =>
 export const planRevisionReasonLabel = (code: string): string | null =>
   PLAN_REVISION_REASON[code] ?? null;
 
-export const BODY_AREA_OPTIONS = Object.entries(BODY_AREA).map(
-  ([code, label]) => ({ code, label }),
+// Client exposure follows API_CONTRACT.md section 5.10; all 13 labels remain available.
+const DEFAULT_BODY_AREA_CODES = [
+  'SHOULDER',
+  'ELBOW',
+  'WRIST_HAND',
+  'UPPER_BACK',
+  'LOWER_BACK',
+  'HIP',
+  'KNEE',
+  'ANKLE_FOOT',
+] as const;
+
+const EXTENDED_BODY_AREA_CODES = ['NECK', 'CHEST', 'ABDOMEN'] as const;
+
+export const DEFAULT_BODY_AREA_OPTIONS = DEFAULT_BODY_AREA_CODES.map(
+  (code) => ({ code, label: bodyAreaLabel(code) }),
+);
+
+export const EXTENDED_BODY_AREA_OPTIONS = EXTENDED_BODY_AREA_CODES.map(
+  (code) => ({ code, label: bodyAreaLabel(code) }),
 );
 
 export const ADVERSE_REACTION_OPTIONS = Object.entries(ADVERSE_REACTION).map(

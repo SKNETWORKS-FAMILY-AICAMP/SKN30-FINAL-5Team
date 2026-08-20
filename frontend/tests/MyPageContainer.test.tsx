@@ -304,6 +304,63 @@ describe('MyPageContainer', () => {
     expect(screen.queryByText('통증 부위')).toBeNull();
   });
 
+  it('opens extended attention areas when an extended value is already selected', async () => {
+    const current = me();
+    current.profile!.attention_area_codes = ['NECK'];
+
+    await render(
+      <MyPageContainer
+        api={accountApi()}
+        me={current}
+        now={new Date('2026-08-19T03:00:00Z')}
+        onNavigateTab={jest.fn()}
+        onRefreshMe={jest.fn(async () => undefined)}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: '주의 부위 수정' }));
+    expect(
+      screen.getByRole('checkbox', { name: '다른 부위 접기' }),
+    ).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: '목' })).toBeChecked();
+  });
+
+  it('renders a legacy attention area in Korean and only allows removing it', async () => {
+    const current = me();
+    current.profile!.attention_area_codes = ['GENERALIZED'];
+    const updateProfileSettings = jest.fn<Api['updateProfileSettings']>(
+      async () => ({
+        profile_version: 8,
+        updated_at: '2026-08-19T09:00:00+09:00',
+      }),
+    );
+
+    await render(
+      <MyPageContainer
+        api={accountApi({ updateProfileSettings })}
+        me={current}
+        now={new Date('2026-08-19T03:00:00Z')}
+        onNavigateTab={jest.fn()}
+        onRefreshMe={jest.fn(async () => undefined)}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: '주의 부위 수정' }));
+    expect(screen.getByText('이전에 저장된 부위 (해제만 가능)')).toBeTruthy();
+    expect(screen.getByRole('checkbox', { name: '전신' })).toBeChecked();
+    fireEvent.press(screen.getByRole('checkbox', { name: '전신' }));
+
+    await waitFor(() =>
+      expect(updateProfileSettings).toHaveBeenCalledWith(
+        { attention_area_codes: [] },
+        7,
+      ),
+    );
+    expect(screen.queryByRole('checkbox', { name: '전신' })).toBeNull();
+  });
+
   it('opens the reviewed exercise catalog from the local my-page screen', async () => {
     const onOpenExerciseCatalog = jest.fn();
 

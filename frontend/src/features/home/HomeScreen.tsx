@@ -39,6 +39,8 @@ import {
   agentTypeLabel,
   bodyAreaLabel,
   decisionReasonLabel,
+  DEFAULT_BODY_AREA_OPTIONS,
+  EXTENDED_BODY_AREA_OPTIONS,
   locationLabel,
   planRevisionReasonLabel,
   sessionStatusLabel,
@@ -114,19 +116,6 @@ type WeekDay = {
   label: string;
   statusCodes?: readonly SessionStatusCode[];
 };
-// DOMAIN_RULES 3.2 / API_CONTRACT 5.10 기본 노출 범위. 프로필의 주의
-// 부위와 분리해 오늘 일시적으로 불편한 부위를 선택한다.
-const CHECKIN_DISCOMFORT_CODES = [
-  'WRIST_HAND',
-  'LOWER_BACK',
-  'SHOULDER',
-  'ELBOW',
-  'KNEE',
-  'UPPER_BACK',
-  'HIP',
-  'ANKLE_FOOT',
-] as const;
-
 const EMPTY_AVAILABILITY_SLOT: HomeAvailabilitySlot = {
   startTime: '',
   endTime: '',
@@ -1885,8 +1874,19 @@ function CheckinSheet({
   const [showDiscomfortDetails, setShowDiscomfortDetails] = useState(
     Object.keys(draft.discomforts).length > 0,
   );
-  const discomfortAreaCodes = Array.from(
-    new Set([...CHECKIN_DISCOMFORT_CODES, ...Object.keys(draft.discomforts)]),
+  const selectedDiscomfortCodes = Object.keys(draft.discomforts);
+  const [showExtendedAreas, setShowExtendedAreas] = useState(() =>
+    selectedDiscomfortCodes.some((code) =>
+      EXTENDED_BODY_AREA_OPTIONS.some((option) => option.code === code),
+    ),
+  );
+  const selectableCodes = new Set<string>(
+    [...DEFAULT_BODY_AREA_OPTIONS, ...EXTENDED_BODY_AREA_OPTIONS].map(
+      (option) => option.code,
+    ),
+  );
+  const legacySelectedCodes = selectedDiscomfortCodes.filter(
+    (code) => !selectableCodes.has(code),
   );
   const sleepHours = draft.sleepHours.trim();
   const sleepInvalid =
@@ -2071,38 +2071,73 @@ function CheckinSheet({
           />
         </ChoiceBlock>
         {showDiscomfortDetails ? (
-          <ChoiceBlock label="오늘 불편한 부위를 모두 선택해주세요" twoColumn>
-            {discomfortAreaCodes.map((code) => (
+          <>
+            <ChoiceBlock label="오늘 불편한 부위를 모두 선택해주세요" twoColumn>
+              {DEFAULT_BODY_AREA_OPTIONS.map((option) => (
+                <ChoiceButton
+                  key={option.code}
+                  label={option.label}
+                  numberOfLines={2}
+                  onPress={() => onToggleBodyArea(option.code)}
+                  selected={draft.discomforts[option.code] !== undefined}
+                  twoColumn
+                />
+              ))}
               <ChoiceButton
-                key={code}
-                label={bodyAreaLabel(code)}
+                label={
+                  showExtendedAreas ? '다른 부위 접기' : '다른 부위 더 보기'
+                }
                 numberOfLines={2}
-                onPress={() => onToggleBodyArea(code)}
-                selected={draft.discomforts[code] !== undefined}
+                onPress={() => setShowExtendedAreas((visible) => !visible)}
+                selected={showExtendedAreas}
                 twoColumn
               />
-            ))}
-          </ChoiceBlock>
+              {showExtendedAreas
+                ? EXTENDED_BODY_AREA_OPTIONS.map((option) => (
+                    <ChoiceButton
+                      key={option.code}
+                      label={option.label}
+                      numberOfLines={2}
+                      onPress={() => onToggleBodyArea(option.code)}
+                      selected={draft.discomforts[option.code] !== undefined}
+                      twoColumn
+                    />
+                  ))
+                : null}
+            </ChoiceBlock>
+            {legacySelectedCodes.length > 0 ? (
+              <ChoiceBlock label="이전에 저장된 부위 (해제만 가능)" twoColumn>
+                {legacySelectedCodes.map((code) => (
+                  <ChoiceButton
+                    key={code}
+                    label={bodyAreaLabel(code)}
+                    numberOfLines={2}
+                    onPress={() => onToggleBodyArea(code)}
+                    selected
+                    twoColumn
+                  />
+                ))}
+              </ChoiceBlock>
+            ) : null}
+          </>
         ) : null}
         {discomfortSelectionMissing ? (
           <Text accessibilityRole="alert" style={styles.messageText}>
             불편한 부위를 한 곳 이상 선택해주세요.
           </Text>
         ) : null}
-        {discomfortAreaCodes
-          .filter((code) => draft.discomforts[code] !== undefined)
-          .map((code) => (
-            <ChoiceBlock key={code} label={`${bodyAreaLabel(code)} 통증 정도`}>
-              {SEVERITY_OPTIONS.map((option) => (
-                <ChoiceButton
-                  key={option.code}
-                  label={option.label}
-                  onPress={() => onChangeSeverity(code, option.code)}
-                  selected={draft.discomforts[code] === option.code}
-                />
-              ))}
-            </ChoiceBlock>
-          ))}
+        {selectedDiscomfortCodes.map((code) => (
+          <ChoiceBlock key={code} label={`${bodyAreaLabel(code)} 통증 정도`}>
+            {SEVERITY_OPTIONS.map((option) => (
+              <ChoiceButton
+                key={option.code}
+                label={option.label}
+                onPress={() => onChangeSeverity(code, option.code)}
+                selected={draft.discomforts[code] === option.code}
+              />
+            ))}
+          </ChoiceBlock>
+        ))}
         <ChoiceBlock label="운동을 멈춰야 할 이상 반응">
           <ChoiceButton
             label="없어요"

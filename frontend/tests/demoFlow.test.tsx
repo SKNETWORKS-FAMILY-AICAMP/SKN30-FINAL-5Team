@@ -399,6 +399,14 @@ describe('HomeContainer', () => {
     expect(screen.getByRole('button', { name: '허리' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '전신' })).toBeNull();
     expect(screen.queryByRole('button', { name: '기타 부위' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '목' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '가슴' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '복부' })).toBeNull();
+
+    fireEvent.press(screen.getByRole('button', { name: '다른 부위 더 보기' }));
+    expect(screen.getByRole('button', { name: '목' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '가슴' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '복부' })).toBeTruthy();
   });
 
   it('offers routine creation when none exists yet', async () => {
@@ -1528,6 +1536,29 @@ describe('OnboardingScreen', () => {
 
     view.rerender(onboarding(468));
     expect(screen.getByText('중간 정도 아픔')).toHaveStyle({ fontSize: 13.2 });
+  });
+
+  it('hides unsupported and extended attention areas until expanded', () => {
+    render(
+      <OnboardingScreen
+        api={stubApi()}
+        initialStep={12}
+        onCompleted={jest.fn()}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByText('있어요'));
+    expect(screen.queryByRole('button', { name: '전신' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '기타 부위' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '목' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '가슴' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '복부' })).toBeNull();
+
+    fireEvent.press(screen.getByRole('button', { name: '다른 부위 더 보기' }));
+    expect(screen.getByRole('button', { name: '목' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: '가슴' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: '복부' })).toBeOnTheScreen();
   });
 
   it('adjusts duration by 10 minutes and weekly frequency from 1 to 7', () => {

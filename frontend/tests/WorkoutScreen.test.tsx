@@ -898,6 +898,13 @@ describe('WorkoutScreen API mode', () => {
     fireEvent.press(
       screen.getByRole('button', { name: '불편·이상 반응 먼저 보고하기' }),
     );
+    expect(screen.queryByRole('checkbox', { name: '전신' })).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: '기타 부위' })).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: '목' })).toBeNull();
+    fireEvent.press(
+      screen.getByRole('checkbox', { name: '다른 부위 더 보기' }),
+    );
+    expect(screen.getByRole('checkbox', { name: '목' })).toBeOnTheScreen();
     fireEvent.press(screen.getByRole('checkbox', { name: '무릎' }));
     fireEvent.press(screen.getByRole('checkbox', { name: '어깨' }));
     fireEvent.press(screen.getByRole('radio', { name: '어깨 심함' }));

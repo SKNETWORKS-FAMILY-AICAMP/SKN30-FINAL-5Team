@@ -16,7 +16,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Api } from '../../api/endpoints';
 import { isApiError } from '../../api/errors';
-import { BODY_AREA_OPTIONS } from '../../api/labels';
+import {
+  bodyAreaLabel,
+  DEFAULT_BODY_AREA_OPTIONS,
+  EXTENDED_BODY_AREA_OPTIONS,
+} from '../../api/labels';
 import type { DiscomfortSeverityCode, SexCode } from '../../api/types';
 import { useAsyncAction } from '../../api/useAsync';
 import {
@@ -224,6 +228,8 @@ function OnboardingScreenContent({
     null,
   );
   const [attentionAreas, setAttentionAreas] = useState<string[]>([]);
+  const [showExtendedAttentionAreas, setShowExtendedAttentionAreas] =
+    useState(false);
   const [attentionSeverities, setAttentionSeverities] = useState<
     Partial<Record<string, DiscomfortSeverityCode>>
   >({});
@@ -645,7 +651,7 @@ function OnboardingScreenContent({
                 <View style={styles.painSection}>
                   <Text style={styles.painSectionTitle}>통증 부위</Text>
                   <View style={styles.painChoices}>
-                    {BODY_AREA_OPTIONS.map((item) => (
+                    {DEFAULT_BODY_AREA_OPTIONS.map((item) => (
                       <Chip
                         key={item.code}
                         label={item.label}
@@ -653,16 +659,34 @@ function OnboardingScreenContent({
                         onPress={() => toggleAttentionArea(item.code)}
                       />
                     ))}
+                    <Chip
+                      label={
+                        showExtendedAttentionAreas
+                          ? '다른 부위 접기'
+                          : '다른 부위 더 보기'
+                      }
+                      selected={showExtendedAttentionAreas}
+                      onPress={() =>
+                        setShowExtendedAttentionAreas((visible) => !visible)
+                      }
+                    />
+                    {showExtendedAttentionAreas
+                      ? EXTENDED_BODY_AREA_OPTIONS.map((item) => (
+                          <Chip
+                            key={item.code}
+                            label={item.label}
+                            selected={attentionAreas.includes(item.code)}
+                            onPress={() => toggleAttentionArea(item.code)}
+                          />
+                        ))
+                      : null}
                   </View>
                 </View>
                 {attentionAreas.map((code) => {
-                  const area = BODY_AREA_OPTIONS.find(
-                    (item) => item.code === code,
-                  );
                   return (
                     <View key={code} style={styles.painSection}>
                       <Text style={styles.painSectionTitle}>
-                        {area?.label ?? code} 통증 정도
+                        {bodyAreaLabel(code)} 통증 정도
                       </Text>
                       <View
                         style={styles.painSeverityChoices}

@@ -9,9 +9,11 @@ import {
 } from 'react-native';
 
 import {
-  BODY_AREA_OPTIONS,
+  bodyAreaLabel,
+  DEFAULT_BODY_AREA_OPTIONS,
   equipmentLabel,
   experienceLevelLabel,
+  EXTENDED_BODY_AREA_OPTIONS,
   locationLabel,
   primaryGoalLabel,
   trainingTypeLabel,
@@ -359,6 +361,23 @@ function AttentionAreaEditor({
 }) {
   const [hasAreas, setHasAreas] = useState(initial.length > 0);
   const [selected, setSelected] = useState([...initial]);
+  const [showExtendedAreas, setShowExtendedAreas] = useState(() =>
+    initial.some((code) =>
+      EXTENDED_BODY_AREA_OPTIONS.some((option) => option.code === code),
+    ),
+  );
+  const selectableCodes = new Set<string>(
+    [...DEFAULT_BODY_AREA_OPTIONS, ...EXTENDED_BODY_AREA_OPTIONS].map(
+      (option) => option.code,
+    ),
+  );
+  const legacySelected = selected.filter((code) => !selectableCodes.has(code));
+
+  const toggleSelected = (code: string) => {
+    const next = toggle(selected, code);
+    setSelected(next);
+    onChange(next);
+  };
 
   return (
     <ChoiceCard>
@@ -384,20 +403,51 @@ function AttentionAreaEditor({
         <View style={styles.painSection}>
           <Text style={styles.painSectionTitle}>통증 부위</Text>
           <View style={styles.painChoices}>
-            {BODY_AREA_OPTIONS.map((option) => (
+            {DEFAULT_BODY_AREA_OPTIONS.map((option) => (
               <ChipOption
                 key={option.code}
                 disabled={disabled}
                 label={option.label}
                 selected={selected.includes(option.code)}
-                onPress={() => {
-                  const next = toggle(selected, option.code);
-                  setSelected(next);
-                  onChange(next);
-                }}
+                onPress={() => toggleSelected(option.code)}
               />
             ))}
+            <ChipOption
+              disabled={disabled}
+              label={showExtendedAreas ? '다른 부위 접기' : '다른 부위 더 보기'}
+              selected={showExtendedAreas}
+              onPress={() => setShowExtendedAreas((visible) => !visible)}
+            />
+            {showExtendedAreas
+              ? EXTENDED_BODY_AREA_OPTIONS.map((option) => (
+                  <ChipOption
+                    key={option.code}
+                    disabled={disabled}
+                    label={option.label}
+                    selected={selected.includes(option.code)}
+                    onPress={() => toggleSelected(option.code)}
+                  />
+                ))
+              : null}
           </View>
+          {legacySelected.length > 0 ? (
+            <View style={styles.painSection}>
+              <Text style={styles.painSectionTitle}>
+                이전에 저장된 부위 (해제만 가능)
+              </Text>
+              <View style={styles.painChoices}>
+                {legacySelected.map((code) => (
+                  <ChipOption
+                    key={code}
+                    disabled={disabled}
+                    label={bodyAreaLabel(code)}
+                    selected
+                    onPress={() => toggleSelected(code)}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
         </View>
       ) : null}
     </ChoiceCard>
