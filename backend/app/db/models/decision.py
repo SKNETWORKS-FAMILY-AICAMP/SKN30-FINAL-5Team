@@ -97,6 +97,9 @@ class DecisionRun(Base):
     explanations: Mapped[list["DecisionExplanationRecord"]] = relationship(
         cascade="all, delete-orphan", passive_deletes=True
     )
+    deliberations: Mapped[list["DecisionDeliberationRecord"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True
+    )
 
 
 class AgentProposalRecord(Base):
@@ -120,6 +123,187 @@ class AgentProposalRecord(Base):
     proposal_status_code: Mapped[str] = mapped_column(String(24), nullable=False)
     schema_version: Mapped[str] = mapped_column(String(32), nullable=False)
     proposal_payload: Mapped[dict[str, Any]] = mapped_column(_JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class DecisionDeliberationRecord(Base):
+    """Versioned V2 conflict/review envelope kept separate from the final result."""
+
+    __tablename__ = "decision_deliberations"
+    __table_args__ = (
+        CheckConstraint("round_count IN (1,2)", name="ck_decision_deliberations_round_count"),
+        CheckConstraint(
+            "round_two_status_code IN ('SKIPPED_NO_CONFLICT','COMPLETED','NEEDS_INPUT','FAILED')",
+            name="ck_decision_deliberations_round_two_status",
+        ),
+        CheckConstraint(
+            "char_length(conflict_hash) = 64",
+            name="ck_decision_deliberations_conflict_hash",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    decision_run_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("decision_runs.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    policy_version_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("decision_policy_versions.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    deliberation_schema_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    graph_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    round_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    round_two_status_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    conflict_detector_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    precedence_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    conflict_codes: Mapped[list[str]] = mapped_column(_JSON, nullable=False)
+    conflict_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    proposal_revisions: Mapped[list["AgentProposalRevisionRecord"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True
+    )
+    review_events: Mapped[list["AgentReviewEventRecord"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True
+    )
+
+
+class AgentProposalRevisionRecord(Base):
+    """Canonical Round 1 link or a validated Round 2 proposal revision."""
+
+    __tablename__ = "agent_proposal_revisions"
+    __table_args__ = (
+        UniqueConstraint(
+            "decision_run_id",
+            "round_number",
+            "agent_type_code",
+            name="uq_agent_proposal_revisions_run_round_type",
+        ),
+        CheckConstraint("round_number IN (1,2)", name="ck_agent_proposal_revisions_round"),
+        CheckConstraint(
+            "agent_type_code IN ('TRAINING','RECOVERY','SAFETY','FEASIBILITY')",
+            name="ck_agent_proposal_revisions_type",
+        ),
+        CheckConstraint(
+            "proposal_status_code IN ('READY','NEEDS_INPUT','FAILED')",
+            name="ck_agent_proposal_revisions_status",
+        ),
+        CheckConstraint(
+            "(round_number = 1 AND source_proposal_id IS NOT NULL "
+            "AND baseline_revision_id IS NULL) OR "
+            "(round_number = 2 AND baseline_revision_id IS NOT NULL)",
+            name="ck_agent_proposal_revisions_lineage",
+        ),
+        CheckConstraint(
+            "char_length(proposal_hash) = 64",
+            name="ck_agent_proposal_revisions_hash",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    decision_run_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("decision_runs.id", ondelete="CASCADE"), nullable=False
+    )
+    deliberation_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("decision_deliberations.id", ondelete="CASCADE"), nullable=False
+    )
+    source_proposal_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("agent_proposals.id", ondelete="CASCADE"), nullable=True
+    )
+    baseline_revision_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("agent_proposal_revisions.id", ondelete="CASCADE"), nullable=True
+    )
+    policy_version_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("decision_policy_versions.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    round_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    agent_type_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    proposal_status_code: Mapped[str] = mapped_column(String(24), nullable=False)
+    proposal_schema_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    proposal_payload: Mapped[dict[str, Any]] = mapped_column(_JSON, nullable=False)
+    proposal_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class AgentReviewEventRecord(Base):
+    """One Round 2 event per Agent, including explicit NOT_REQUIRED events."""
+
+    __tablename__ = "agent_review_events"
+    __table_args__ = (
+        UniqueConstraint(
+            "decision_run_id",
+            "round_number",
+            "agent_type_code",
+            name="uq_agent_review_events_run_round_type",
+        ),
+        CheckConstraint("round_number = 2", name="ck_agent_review_events_round"),
+        CheckConstraint(
+            "agent_type_code IN ('TRAINING','RECOVERY','SAFETY','FEASIBILITY')",
+            name="ck_agent_review_events_type",
+        ),
+        CheckConstraint(
+            "review_status_code IN ('READY','NOT_REQUIRED','NEEDS_INPUT','FAILED')",
+            name="ck_agent_review_events_status",
+        ),
+        CheckConstraint(
+            "revision_status_code IS NULL OR revision_status_code IN "
+            "('UNCHANGED','REVISED','NOT_REQUIRED')",
+            name="ck_agent_review_events_revision_status",
+        ),
+        CheckConstraint(
+            "(review_status_code = 'READY' AND revision_status_code IN "
+            "('UNCHANGED','REVISED')) OR "
+            "(review_status_code = 'NOT_REQUIRED' AND "
+            "revision_status_code = 'NOT_REQUIRED') OR "
+            "(review_status_code IN ('NEEDS_INPUT','FAILED') AND "
+            "revision_status_code IS NULL)",
+            name="ck_agent_review_events_status_pair",
+        ),
+        CheckConstraint(
+            "(revision_status_code = 'REVISED') = (revised_revision_id IS NOT NULL)",
+            name="ck_agent_review_events_revised_link",
+        ),
+        CheckConstraint(
+            "char_length(baseline_proposal_hash) = 64 AND char_length(review_hash) = 64",
+            name="ck_agent_review_events_hashes",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    decision_run_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("decision_runs.id", ondelete="CASCADE"), nullable=False
+    )
+    deliberation_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("decision_deliberations.id", ondelete="CASCADE"), nullable=False
+    )
+    baseline_revision_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("agent_proposal_revisions.id", ondelete="CASCADE"), nullable=False
+    )
+    revised_revision_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("agent_proposal_revisions.id", ondelete="CASCADE"), nullable=True
+    )
+    round_number: Mapped[int] = mapped_column(Integer, nullable=False, default=2)
+    agent_type_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    review_status_code: Mapped[str] = mapped_column(String(24), nullable=False)
+    revision_status_code: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    review_schema_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    baseline_proposal_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    reviewed_proposal_references: Mapped[list[dict[str, str]]] = mapped_column(
+        _JSON, nullable=False
+    )
+    review_payload: Mapped[dict[str, Any]] = mapped_column(_JSON, nullable=False)
+    review_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -263,7 +447,10 @@ class DecisionOption(Base):
 
 
 __all__ = [
+    "AgentProposalRevisionRecord",
     "AgentProposalRecord",
+    "AgentReviewEventRecord",
+    "DecisionDeliberationRecord",
     "DecisionExplanationRecord",
     "DecisionOption",
     "DecisionPolicyVersion",
