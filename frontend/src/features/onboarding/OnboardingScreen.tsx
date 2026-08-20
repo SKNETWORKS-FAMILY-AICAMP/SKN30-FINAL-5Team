@@ -1,10 +1,7 @@
 /** API-backed, one-question-per-page onboarding flow. */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -41,14 +38,7 @@ import {
   ONBOARDING_LOCATION_OPTIONS,
   ONBOARDING_WEEKLY_COUNT,
 } from './onboardingOptions';
-
-const MINIMUM_AGE = 14;
-const MIN_BIRTH_YEAR = 1900;
-const WHEEL_ITEM_HEIGHT = 44;
-const WEB_WHEEL_GESTURE_IDLE_MS = 45;
-const WEB_WHEEL_SINGLE_ITEM_DELTA = 240;
-const WEB_WHEEL_ACCELERATION_DELTA = 70;
-const WEB_WHEEL_MAX_ITEMS_PER_GESTURE = 18;
+import { BirthDateField, latestEligibleBirthdateIso } from './BirthDateField';
 
 const SEX_OPTIONS = [
   { code: 'FEMALE', label: '여성' },
@@ -217,20 +207,7 @@ function OnboardingScreenContent({
 }: Props) {
   const [step, setStep] = useState(initialStep);
   const [nickname, setNickname] = useState('');
-  const today = useMemo(() => new Date(), []);
-  const latestEligibleBirthdate = useMemo(
-    () => getLatestEligibleBirthdate(today),
-    [today],
-  );
-  const [birthYear, setBirthYear] = useState(() =>
-    latestEligibleBirthdate.getFullYear(),
-  );
-  const [birthMonth, setBirthMonth] = useState(
-    () => latestEligibleBirthdate.getMonth() + 1,
-  );
-  const [birthDay, setBirthDay] = useState(() =>
-    latestEligibleBirthdate.getDate(),
-  );
+  const [birthdate, setBirthdate] = useState(latestEligibleBirthdateIso);
   const [sexCode, setSexCode] = useState<SexCode | null>(null);
   const [heightCm, setHeightCm] = useState('');
   const [weightKg, setWeightKg] = useState('');
@@ -265,31 +242,6 @@ function OnboardingScreenContent({
   const [calendarConsent, setCalendarConsent] = useState(false);
   const [marketingConsent, setMarketingConsent] = useState(false);
   const current = ONBOARDING_STEPS[step - 1] ?? ONBOARDING_STEPS[0];
-  const birthdate = toIsoDate(birthYear, birthMonth, birthDay);
-  const birthYears = useMemo(
-    () =>
-      numberRange(
-        MIN_BIRTH_YEAR,
-        latestEligibleBirthdate.getFullYear(),
-      ).reverse(),
-    [latestEligibleBirthdate],
-  );
-  const birthMonths = useMemo(() => {
-    const lastMonth =
-      birthYear === latestEligibleBirthdate.getFullYear()
-        ? latestEligibleBirthdate.getMonth() + 1
-        : 12;
-    return numberRange(1, lastMonth);
-  }, [birthYear, latestEligibleBirthdate]);
-  const birthDays = useMemo(() => {
-    const lastDay =
-      birthYear === latestEligibleBirthdate.getFullYear() &&
-      birthMonth === latestEligibleBirthdate.getMonth() + 1
-        ? latestEligibleBirthdate.getDate()
-        : monthDays(birthYear, birthMonth);
-    return numberRange(1, lastDay);
-  }, [birthMonth, birthYear, latestEligibleBirthdate]);
-
   const timezone = useMemo(() => {
     try {
       return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul';
@@ -389,37 +341,6 @@ function OnboardingScreenContent({
     else changeStep(step + 1);
   };
 
-  const changeBirthYear = (value: number) => {
-    const latestYear = latestEligibleBirthdate.getFullYear();
-    const nextMonth = Math.min(
-      birthMonth,
-      value === latestYear ? latestEligibleBirthdate.getMonth() + 1 : 12,
-    );
-    const nextMaximumDay =
-      value === latestYear &&
-      nextMonth === latestEligibleBirthdate.getMonth() + 1
-        ? latestEligibleBirthdate.getDate()
-        : monthDays(value, nextMonth);
-    setBirthYear(value);
-    setBirthMonth(nextMonth);
-    setBirthDay((currentDay) => Math.min(currentDay, nextMaximumDay));
-    submit.clearError();
-  };
-  const changeBirthMonth = (value: number) => {
-    const maximumDay =
-      birthYear === latestEligibleBirthdate.getFullYear() &&
-      value === latestEligibleBirthdate.getMonth() + 1
-        ? latestEligibleBirthdate.getDate()
-        : monthDays(birthYear, value);
-    setBirthMonth(value);
-    setBirthDay((currentDay) => Math.min(currentDay, maximumDay));
-    submit.clearError();
-  };
-  const changeBirthDay = (value: number) => {
-    setBirthDay(value);
-    submit.clearError();
-  };
-
   const toggleAttentionArea = (code: string) => {
     setAttentionAreas((values) => {
       if (!values.includes(code)) return [...values, code];
@@ -451,39 +372,13 @@ function OnboardingScreenContent({
               trailing={<Text style={styles.suffix}>{nickname.length}/64</Text>}
               value={nickname}
             />
-            <View
-              accessibilityLabel="생년월일 선택"
-              style={styles.birthdateBlock}
-            >
-              <Text style={styles.fieldLabel}>생년월일</Text>
-              <View style={styles.wheelRow}>
-                <WheelColumn
-                  label="연도"
-                  options={birthYears}
-                  selected={birthYear}
-                  suffix="년"
-                  onChange={changeBirthYear}
-                />
-                <WheelColumn
-                  label="월"
-                  options={birthMonths}
-                  selected={birthMonth}
-                  suffix="월"
-                  onChange={changeBirthMonth}
-                />
-                <WheelColumn
-                  label="일"
-                  options={birthDays}
-                  selected={birthDay}
-                  suffix="일"
-                  onChange={changeBirthDay}
-                />
-              </View>
-              <Text style={styles.hint}>
-                만 {MINIMUM_AGE}세 이상만 선택할 수 있어요. 선택 가능한 최근
-                날짜는 {formatDate(latestEligibleBirthdate)}예요.
-              </Text>
-            </View>
+            <BirthDateField
+              onChange={(value) => {
+                setBirthdate(value);
+                submit.clearError();
+              }}
+              value={birthdate}
+            />
           </Card>
         );
       case 'sex':
@@ -975,262 +870,6 @@ function isStepValid(
   }
 }
 
-function WheelColumn({
-  label,
-  onChange,
-  options,
-  selected,
-  suffix,
-}: {
-  label: string;
-  onChange: (value: number) => void;
-  options: number[];
-  selected: number;
-  suffix: string;
-}) {
-  const scrollRef = useRef<ScrollView>(null);
-  const selectedIndex = Math.max(0, options.indexOf(selected));
-  const currentIndexRef = useRef(selectedIndex);
-  const pendingInternalSelectionRef = useRef<number | null>(null);
-  const webSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const webWheelGestureTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
-  const webWheelDeltaRef = useRef(0);
-  const draggingRef = useRef(false);
-
-  const clearWebSettleTimer = () => {
-    if (webSettleTimerRef.current !== null) {
-      clearTimeout(webSettleTimerRef.current);
-      webSettleTimerRef.current = null;
-    }
-  };
-
-  const clearWebWheelGestureTimer = () => {
-    if (webWheelGestureTimerRef.current !== null) {
-      clearTimeout(webWheelGestureTimerRef.current);
-      webWheelGestureTimerRef.current = null;
-    }
-  };
-
-  const scrollToIndex = (index: number, animated: boolean) => {
-    scrollRef.current?.scrollTo({
-      animated,
-      y: index * WHEEL_ITEM_HEIGHT,
-    });
-  };
-
-  const commitIndex = (index: number) => {
-    const boundedIndex = Math.max(0, Math.min(options.length - 1, index));
-    const value = options[boundedIndex];
-    if (value === undefined) return;
-    currentIndexRef.current = boundedIndex;
-    if (value !== selected) {
-      pendingInternalSelectionRef.current = value;
-      onChange(value);
-    }
-  };
-
-  const selectIndex = (index: number, animated = true) => {
-    const boundedIndex = Math.max(0, Math.min(options.length - 1, index));
-    scrollToIndex(boundedIndex, animated);
-    commitIndex(boundedIndex);
-  };
-
-  const settleAtOffset = (offsetY: number, align = true) => {
-    const index = Math.max(
-      0,
-      Math.min(options.length - 1, Math.round(offsetY / WHEEL_ITEM_HEIGHT)),
-    );
-    const targetOffset = index * WHEEL_ITEM_HEIGHT;
-    if (align && Math.abs(offsetY - targetOffset) > 1) {
-      scrollToIndex(index, true);
-    }
-    commitIndex(index);
-  };
-
-  useEffect(() => {
-    currentIndexRef.current = selectedIndex;
-    // Let a tap or scroll finish its animation; hard-align only external changes.
-    if (pendingInternalSelectionRef.current === selected) {
-      pendingInternalSelectionRef.current = null;
-      return;
-    }
-    pendingInternalSelectionRef.current = null;
-    scrollToIndex(selectedIndex, false);
-  }, [options, selected, selectedIndex]);
-
-  useEffect(
-    () => () => {
-      clearWebSettleTimer();
-      clearWebWheelGestureTimer();
-    },
-    [],
-  );
-
-  const settleFromScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    clearWebSettleTimer();
-    draggingRef.current = false;
-    // Momentum and snapToInterval already performed the final alignment.
-    settleAtOffset(event.nativeEvent.contentOffset.y, false);
-  };
-
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (Platform.OS !== 'web' || draggingRef.current) return;
-    const offsetY = event.nativeEvent.contentOffset.y;
-    clearWebSettleTimer();
-    webSettleTimerRef.current = setTimeout(() => {
-      settleAtOffset(offsetY);
-      webSettleTimerRef.current = null;
-    }, 90);
-  };
-
-  const handleWheel = (
-    event: NativeSyntheticEvent<{
-      deltaMode?: number;
-      deltaY: number;
-    }>,
-  ) => {
-    event.preventDefault();
-    queueWheelDelta(event.nativeEvent.deltaY, event.nativeEvent.deltaMode);
-  };
-
-  // Recreate this handler with the current options and selection, then rebind it below.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const queueWheelDelta = (deltaY: number, deltaMode = 0) => {
-    clearWebSettleTimer();
-    if (deltaY === 0) return;
-    const modeMultiplier =
-      deltaMode === 1 ? 16 : deltaMode === 2 ? WHEEL_ITEM_HEIGHT * 3 : 1;
-    const normalizedDelta = deltaY * modeMultiplier;
-    if (
-      webWheelDeltaRef.current !== 0 &&
-      Math.sign(webWheelDeltaRef.current) !== Math.sign(normalizedDelta)
-    ) {
-      webWheelDeltaRef.current = 0;
-    }
-    webWheelDeltaRef.current += normalizedDelta;
-    clearWebWheelGestureTimer();
-    webWheelGestureTimerRef.current = setTimeout(() => {
-      const accumulatedDelta = webWheelDeltaRef.current;
-      webWheelDeltaRef.current = 0;
-      webWheelGestureTimerRef.current = null;
-      const magnitude = Math.abs(accumulatedDelta);
-      const steps =
-        magnitude <= WEB_WHEEL_SINGLE_ITEM_DELTA
-          ? 1
-          : Math.min(
-              WEB_WHEEL_MAX_ITEMS_PER_GESTURE,
-              1 +
-                Math.round(
-                  (magnitude - WEB_WHEEL_SINGLE_ITEM_DELTA) /
-                    WEB_WHEEL_ACCELERATION_DELTA,
-                ),
-            );
-      selectIndex(
-        currentIndexRef.current + Math.sign(accumulatedDelta) * steps,
-      );
-    }, WEB_WHEEL_GESTURE_IDLE_MS);
-  };
-
-  useEffect(() => {
-    if (Platform.OS !== 'web' || scrollRef.current === null) return;
-
-    const scrollNode = scrollRef.current.getScrollableNode?.() as
-      HTMLElement | undefined;
-    if (scrollNode?.addEventListener === undefined) return;
-
-    const preventNativeWheelScroll = (event: WheelEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-      queueWheelDelta(event.deltaY, event.deltaMode);
-    };
-
-    scrollNode.addEventListener('wheel', preventNativeWheelScroll, {
-      passive: false,
-    });
-    return () => {
-      scrollNode.removeEventListener('wheel', preventNativeWheelScroll);
-    };
-  }, [queueWheelDelta]);
-
-  const webWheelProps =
-    Platform.OS === 'web' ? { onWheel: handleWheel } : undefined;
-
-  return (
-    <View style={styles.wheelColumn}>
-      <Text style={styles.wheelLabel}>{label}</Text>
-      <View style={styles.wheelViewport}>
-        <View pointerEvents="none" style={styles.wheelSelection} />
-        <ScrollView
-          ref={scrollRef}
-          accessibilityLabel={`${label} 선택 스크롤`}
-          decelerationRate="fast"
-          disableIntervalMomentum
-          nestedScrollEnabled
-          onMomentumScrollBegin={() => {
-            draggingRef.current = true;
-            clearWebSettleTimer();
-          }}
-          onMomentumScrollEnd={settleFromScroll}
-          onScroll={handleScroll}
-          onScrollBeginDrag={() => {
-            draggingRef.current = true;
-            clearWebSettleTimer();
-          }}
-          onScrollEndDrag={(event) => {
-            draggingRef.current = false;
-            const velocity = event.nativeEvent.velocity?.y;
-            if (velocity !== undefined && Math.abs(velocity) < 0.1) {
-              settleFromScroll(event);
-              return;
-            }
-            const offsetY = event.nativeEvent.contentOffset.y;
-            clearWebSettleTimer();
-            webSettleTimerRef.current = setTimeout(() => {
-              settleAtOffset(offsetY);
-              webSettleTimerRef.current = null;
-            }, 120);
-          }}
-          scrollEventThrottle={16}
-          showsVerticalScrollIndicator={false}
-          snapToAlignment="start"
-          snapToInterval={WHEEL_ITEM_HEIGHT}
-          style={styles.wheelScroll}
-          contentContainerStyle={styles.wheelContent}
-          {...webWheelProps}
-        >
-          {options.map((value, index) => {
-            const selectedOption = selected === value;
-            const optionLabel = `${value}${suffix}`;
-            return (
-              <Pressable
-                accessibilityLabel={`${label} ${optionLabel}`}
-                accessibilityRole="button"
-                accessibilityState={{ selected: selectedOption }}
-                key={value}
-                onPress={() => {
-                  selectIndex(index);
-                }}
-                style={styles.wheelItem}
-              >
-                <Text
-                  style={[
-                    styles.wheelItemText,
-                    selectedOption && styles.wheelItemTextSelected,
-                  ]}
-                >
-                  {optionLabel}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      </View>
-    </View>
-  );
-}
-
 function StepCounter({
   decreaseLabel,
   increaseLabel,
@@ -1435,46 +1074,6 @@ function isInRange(value: string, limits: { min: number; max: number }) {
   );
 }
 
-function getLatestEligibleBirthdate(today: Date) {
-  const eligibleYear = today.getFullYear() - MINIMUM_AGE;
-  const lastDay = monthDays(eligibleYear, today.getMonth() + 1);
-  return new Date(
-    eligibleYear,
-    today.getMonth(),
-    Math.min(today.getDate(), lastDay),
-  );
-}
-
-function toIsoDate(
-  year: number | null,
-  month: number | null,
-  day: number | null,
-) {
-  if (year === null || month === null || day === null) return '';
-  return `${year.toString().padStart(4, '0')}-${month
-    .toString()
-    .padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-}
-
-function formatDate(value: Date) {
-  return toIsoDate(value.getFullYear(), value.getMonth() + 1, value.getDate());
-}
-
-function numberRange(start: number, end: number) {
-  return Array.from({ length: Math.max(0, end - start + 1) }, (_, index) =>
-    Number(start + index),
-  );
-}
-
-function monthDays(year: number, month: number): number {
-  if (month < 1 || month > 12) return 0;
-  if (month === 2) {
-    const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
-    return leap ? 29 : 28;
-  }
-  return [4, 6, 9, 11].includes(month) ? 30 : 31;
-}
-
 function onboardingErrorStep(error: unknown): number | null {
   if (!isApiError(error)) return null;
   if (
@@ -1595,46 +1194,7 @@ const styles = StyleSheet.create({
   },
   cardGroup: { gap: 14 },
   input: { backgroundColor: colors.canvas },
-  birthdateBlock: { gap: spacing.sm },
   fieldLabel: { color: colors.text, fontSize: 13, fontWeight: '700' },
-  wheelRow: { flexDirection: 'row', gap: spacing.sm },
-  wheelColumn: { minWidth: 0, flex: 1, gap: 5 },
-  wheelDisabled: { opacity: 0.45 },
-  wheelLabel: {
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  wheelViewport: {
-    height: WHEEL_ITEM_HEIGHT * 3,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radii.control,
-    backgroundColor: colors.canvas,
-  },
-  wheelScroll: { zIndex: 1 },
-  wheelContent: { paddingVertical: WHEEL_ITEM_HEIGHT },
-  wheelSelection: {
-    position: 'absolute',
-    top: WHEEL_ITEM_HEIGHT,
-    right: 5,
-    left: 5,
-    height: WHEEL_ITEM_HEIGHT,
-    borderRadius: 9,
-    backgroundColor: '#E8F2E4',
-  },
-  wheelItem: {
-    height: WHEEL_ITEM_HEIGHT,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  wheelItemText: { color: colors.textMuted, fontSize: 16 },
-  wheelItemTextSelected: {
-    color: colors.primary,
-    fontWeight: '800',
-  },
   bodyRow: { flexDirection: 'row', gap: 10 },
   bodyField: { minWidth: 0, flex: 1 },
   suffix: { color: colors.textMuted, fontSize: 13 },

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import {
   type GestureResponderEvent,
   Pressable,
@@ -18,8 +18,17 @@ import {
   primaryGoalLabel,
   trainingTypeLabel,
 } from '../../api/labels';
-import type { MeProfile, ProfileSettingsUpdateRequest } from '../../api/types';
-import { Card, InlineFeedback, TextField } from '../../components/primitives';
+import type {
+  MeProfile,
+  ProfileSettingsUpdateRequest,
+  SexCode,
+} from '../../api/types';
+import {
+  Button,
+  Card,
+  InlineFeedback,
+  TextField,
+} from '../../components/primitives';
 import { colors, radii, spacing } from '../../components/theme';
 import {
   ONBOARDING_DURATION,
@@ -30,9 +39,13 @@ import {
   ONBOARDING_LOCATION_OPTIONS,
   ONBOARDING_WEEKLY_COUNT,
 } from '../onboarding/onboardingOptions';
+import {
+  BirthDateField,
+  latestEligibleBirthdateIso,
+} from '../onboarding/BirthDateField';
 import type { MyPageProfileField } from './myPageModel';
 
-export type MyPageEditableField = MyPageProfileField | 'nickname';
+export type MyPageEditableField = MyPageProfileField | 'basic_profile';
 
 type Props = {
   error?: string | null;
@@ -44,7 +57,7 @@ type Props = {
 };
 
 const TITLES: Record<MyPageEditableField, string> = {
-  nickname: '닉네임 수정',
+  basic_profile: '기본 정보 수정',
   primary_goal_code: '운동 목표 수정',
   experience_level_code: '운동 경험 수정',
   preferred_exercise_type_codes: '선호 운동 수정',
@@ -121,14 +134,12 @@ function EditorBody({
   pending = false,
   profile,
 }: Pick<Props, 'field' | 'onChange' | 'pending' | 'profile'>) {
-  if (field === 'nickname') {
+  if (field === 'basic_profile') {
     return (
-      <ImmediateTextEditor
-        accessibilityLabel="닉네임 입력"
-        initialValue={profile.nickname}
-        onCommit={(nickname) => onChange({ nickname })}
+      <BasicProfileEditor
+        onChange={onChange}
         pending={pending}
-        placeholder="닉네임"
+        profile={profile}
       />
     );
   }
@@ -195,23 +206,17 @@ function EditorBody({
 
   if (field === 'available_location_codes') {
     return (
-      <MultipleChoiceEditor
+      <LocationEditor
         disabled={pending}
         initial={profile.available_location_codes}
+        initialPreferred={profile.preferred_location_code}
         options={mergeOptions(
           ONBOARDING_LOCATION_OPTIONS,
           profile.available_location_codes,
           locationLabel,
         )}
-        onChange={(available_location_codes) =>
-          onChange({
-            available_location_codes,
-            preferred_location_code: available_location_codes.includes(
-              profile.preferred_location_code,
-            )
-              ? profile.preferred_location_code
-              : available_location_codes[0],
-          })
+        onChange={(available_location_codes, preferred_location_code) =>
+          onChange({ available_location_codes, preferred_location_code })
         }
       />
     );
@@ -278,41 +283,134 @@ function EditorBody({
   );
 }
 
-function ImmediateTextEditor({
-  accessibilityLabel,
-  initialValue,
-  onCommit,
+const BASIC_SEX_OPTIONS = [
+  { code: 'FEMALE', label: '여성' },
+  { code: 'MALE', label: '남성' },
+] as const satisfies readonly { code: SexCode; label: string }[];
+
+function BasicProfileEditor({
+  onChange,
   pending,
-  placeholder,
+  profile,
 }: {
-  accessibilityLabel: string;
-  initialValue: string;
-  onCommit: (value: string) => void;
+  onChange: (body: ProfileSettingsUpdateRequest) => void;
   pending: boolean;
-  placeholder: string;
+  profile: MeProfile;
 }) {
-  const [value, setValue] = useState(initialValue);
-  const lastCommitted = useRef(initialValue);
-  const commit = () => {
-    const normalized = value.trim();
-    if (!normalized || normalized === lastCommitted.current || pending) return;
-    lastCommitted.current = normalized;
-    onCommit(normalized);
+  const [nickname, setNickname] = useState(profile.nickname);
+  const [dateOfBirth, setDateOfBirth] = useState(latestEligibleBirthdateIso);
+  const [dateOfBirthChanged, setDateOfBirthChanged] = useState(false);
+  const [sexCode, setSexCode] = useState<SexCode | null>(null);
+  const [heightCm, setHeightCm] = useState('');
+  const [weightKg, setWeightKg] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+
+  const nicknameError =
+    nickname.trim().length < 1 || nickname.trim().length > 64
+      ? '닉네임은 1~64자로 입력해주세요.'
+      : null;
+  const heightError = validateOptionalNumber(heightCm, 80, 250, '키');
+  const weightError = validateOptionalNumber(weightKg, 25, 300, '체중');
+  const hasChanges =
+    nickname.trim() !== profile.nickname ||
+    dateOfBirthChanged ||
+    sexCode !== null ||
+    heightCm !== '' ||
+    weightKg !== '';
+  const invalid = Boolean(nicknameError || heightError || weightError);
+
+  const save = () => {
+    setSubmitted(true);
+    if (!hasChanges || invalid || pending) return;
+    const body: ProfileSettingsUpdateRequest = {};
+    const normalizedNickname = nickname.trim();
+    if (normalizedNickname !== profile.nickname) {
+      body.nickname = normalizedNickname;
+    }
+    if (dateOfBirthChanged) body.date_of_birth = dateOfBirth;
+    if (sexCode) body.sex_code = sexCode;
+    if (heightCm) body.height_cm = Number(heightCm);
+    if (weightKg) body.weight_kg = Number(weightKg);
+    onChange(body);
   };
 
   return (
-    <TextField
-      accessibilityLabel={accessibilityLabel}
-      autoCapitalize="none"
-      editable={!pending}
-      onBlur={commit}
-      onChangeText={setValue}
-      onSubmitEditing={commit}
-      placeholder={placeholder}
-      returnKeyType="done"
-      value={value}
-    />
+    <View style={styles.basicForm}>
+      <InlineFeedback
+        message="생년월일·성별·키·체중은 개인정보 보호를 위해 기존 값을 다시 보여주지 않아요. 바꿀 항목만 입력해주세요."
+        tone="warning"
+      />
+      <TextField
+        accessibilityLabel="닉네임 입력"
+        editable={!pending}
+        error={submitted && nicknameError ? nicknameError : undefined}
+        label="닉네임"
+        maxLength={64}
+        onChangeText={setNickname}
+        value={nickname}
+      />
+      <BirthDateField
+        disabled={pending}
+        onChange={(value) => {
+          setDateOfBirth(value);
+          setDateOfBirthChanged(true);
+        }}
+        value={dateOfBirth}
+      />
+      <View style={styles.basicGroup}>
+        <Text style={styles.basicLabel}>성별</Text>
+        <View style={styles.basicChoices}>
+          {BASIC_SEX_OPTIONS.map((option) => (
+            <ChipOption
+              key={option.code}
+              disabled={pending}
+              label={option.label}
+              onPress={() => setSexCode(option.code)}
+              selected={sexCode === option.code}
+            />
+          ))}
+        </View>
+      </View>
+      <TextField
+        accessibilityLabel="키 입력"
+        editable={!pending}
+        error={submitted && heightError ? heightError : undefined}
+        inputMode="decimal"
+        label="키(cm)"
+        onChangeText={setHeightCm}
+        placeholder="80~250"
+        value={heightCm}
+      />
+      <TextField
+        accessibilityLabel="체중 입력"
+        editable={!pending}
+        error={submitted && weightError ? weightError : undefined}
+        inputMode="decimal"
+        label="체중(kg)"
+        onChangeText={setWeightKg}
+        placeholder="25~300"
+        value={weightKg}
+      />
+      <Button
+        disabled={!hasChanges || pending}
+        label={pending ? '저장 중…' : '기본 정보 저장'}
+        onPress={save}
+      />
+    </View>
   );
+}
+
+function validateOptionalNumber(
+  value: string,
+  min: number,
+  max: number,
+  label: string,
+): string | null {
+  if (!value) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= min && parsed <= max
+    ? null
+    : `${label}는 ${min}~${max} 범위로 입력해주세요.`;
 }
 
 function MultipleChoiceEditor({
@@ -347,6 +445,66 @@ function MultipleChoiceEditor({
         />
       ))}
     </ChoiceCard>
+  );
+}
+
+function LocationEditor({
+  disabled,
+  initial,
+  initialPreferred,
+  onChange,
+  options,
+}: {
+  disabled: boolean;
+  initial: readonly string[];
+  initialPreferred: string;
+  onChange: (available: string[], preferred: string) => void;
+  options: readonly ChoiceOption[];
+}) {
+  const [selected, setSelected] = useState([...initial]);
+  const [preferred, setPreferred] = useState(initialPreferred);
+
+  return (
+    <View style={styles.locationEditor}>
+      <ChoiceCard>
+        {options.map((option) => (
+          <ChipOption
+            key={option.code}
+            disabled={disabled}
+            label={option.label}
+            selected={selected.includes(option.code)}
+            onPress={() => {
+              const next = toggle(selected, option.code);
+              if (next.length === 0) return;
+              const nextPreferred = next.includes(preferred)
+                ? preferred
+                : (next[0] ?? preferred);
+              setSelected(next);
+              setPreferred(nextPreferred);
+              onChange(next, nextPreferred);
+            }}
+          />
+        ))}
+      </ChoiceCard>
+      <View style={styles.basicGroup}>
+        <Text style={styles.basicLabel}>주로 운동할 장소</Text>
+        {options
+          .filter((option) => selected.includes(option.code))
+          .map((option) => (
+            <DescriptionOption
+              key={option.code}
+              description="운동 계획에서 우선 적용해요."
+              disabled={disabled}
+              label={option.label}
+              selected={preferred === option.code}
+              onPress={() => {
+                setPreferred(option.code);
+                onChange(selected, option.code);
+              }}
+            />
+          ))}
+      </View>
+    </View>
   );
 }
 
@@ -575,6 +733,7 @@ function DescriptionOption({
 }) {
   return (
     <Pressable
+      accessibilityLabel={label}
       accessibilityRole="radio"
       accessibilityState={{ checked: selected, disabled }}
       disabled={disabled || selected}
@@ -670,6 +829,11 @@ const styles = StyleSheet.create({
   },
   closeText: { color: colors.text, fontSize: 25, lineHeight: 26 },
   editorContent: { gap: 14, paddingTop: 20 },
+  basicForm: { gap: spacing.md },
+  basicGroup: { gap: spacing.sm },
+  basicLabel: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
+  basicChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  locationEditor: { gap: spacing.md },
   pending: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
   choiceCard: {
     flexDirection: 'row',

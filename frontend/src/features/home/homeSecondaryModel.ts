@@ -1,7 +1,14 @@
 export type MapHomePreviewState = 'map' | 'routine' | 'condition';
 export type CalendarReportPreviewState =
   'calendar' | 'week-detail' | 'month-picker';
-export type MyPagePreviewState = 'profile' | 'logout' | 'withdraw';
+export type MyPagePreviewState =
+  | 'profile'
+  | 'loading'
+  | 'empty'
+  | 'error'
+  | 'permission'
+  | 'logout'
+  | 'withdraw';
 export type CalendarDayStatus =
   'done' | 'partial' | 'miss' | 'rest' | 'today' | 'upcoming';
 export type CalendarWeekState =
@@ -54,6 +61,10 @@ export const CALENDAR_REPORT_PREVIEW_OPTIONS = [
 
 export const MY_PAGE_PREVIEW_OPTIONS = [
   { id: 'profile', label: '마이페이지' },
+  { id: 'loading', label: '불러오는 중' },
+  { id: 'empty', label: '프로필 없음' },
+  { id: 'error', label: '불러오기 실패' },
+  { id: 'permission', label: '권한 없음' },
   { id: 'logout', label: '로그아웃 확인' },
   { id: 'withdraw', label: '회원 탈퇴 확인' },
 ] as const satisfies readonly {

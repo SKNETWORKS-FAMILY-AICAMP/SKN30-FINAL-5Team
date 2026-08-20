@@ -2,8 +2,8 @@
  * Presentation labels for stable machine codes.
  *
  * The server owns the decision; this file only owns how a code reads in Korean.
- * Unknown codes fall back to the code itself rather than guessing, so a new
- * server code shows up as visibly unmapped instead of silently mislabelled.
+ * Unknown codes use a neutral user-facing fallback. Machine codes are useful
+ * for diagnostics, but must never leak into product copy.
  */
 
 import type {
@@ -18,7 +18,7 @@ function lookup<T extends string>(
   table: Record<string, string>,
   code: T | string,
 ): string {
-  return table[code] ?? code;
+  return table[code] ?? '확인되지 않은 항목';
 }
 
 const ACTION: Record<string, string> = {
