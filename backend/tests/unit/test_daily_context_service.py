@@ -8,9 +8,11 @@ import pytest
 from backend.app.modules.checkins.ports import DailyContextValues, IdempotencyRecord
 from backend.app.modules.checkins.schemas import DailyContextUpsertRequest
 from backend.app.modules.checkins.service import (
+    AvailabilitySlotOutOfRangeError,
     DailyContextNotFoundError,
     DailyContextService,
     IdempotencyKeyReusedError,
+    ProfileTimezoneMissingError,
     StaleContextError,
 )
 
@@ -24,12 +26,17 @@ class FakeSession:
 
 
 class FakeDailyContextRepository:
-    def __init__(self) -> None:
+    def __init__(self, timezone_name: str | None = "Asia/Seoul") -> None:
         self.contexts: dict[tuple[UUID, date], dict[str, Any]] = {}
         self.idempotency: dict[tuple[UUID, UUID], IdempotencyRecord] = {}
+        self.timezone_name = timezone_name
 
     def acquire_mutation_lock(self, session: FakeSession, user_id: UUID, local_date: date) -> None:
         del session, user_id, local_date
+
+    def get_user_timezone(self, session: FakeSession, user_id: UUID) -> str | None:
+        del session, user_id
+        return self.timezone_name
 
     def get_idempotency_record(
         self, session: FakeSession, user_id: UUID, idempotency_key: UUID
@@ -90,6 +97,15 @@ class FakeDailyContextRepository:
                 for body, severity in values.discomforts
             ],
             "adverse_reaction_codes": list(values.adverse_reaction_codes),
+            "available_slots": (
+                None
+                if values.availability_source_code == "ROUTINE_DEFAULT"
+                else [
+                    {"start_at": start_at, "end_at": end_at}
+                    for start_at, end_at in values.available_slots
+                ]
+            ),
+            "availability_source_code": values.availability_source_code,
             "context_version": current["context_version"] + 1 if current else 1,
             "created_at": current["created_at"] if current else now,
             "updated_at": now,
@@ -98,20 +114,35 @@ class FakeDailyContextRepository:
         return payload
 
 
-def request(*, fatigue: str = "MODERATE", discomforts: list[dict[str, str]] | None = None):
-    return DailyContextUpsertRequest.model_validate(
-        {
-            "fatigue_level_code": fatigue,
-            "requested_duration_minutes": 40,
-            "duration_adjustment_source_code": "PROFILE",
-            "location_code": "HOME",
-            "sleep_minutes": None,
-            "fasting_state_code": None,
-            "hydration_state_code": None,
-            "discomforts": discomforts or [],
-            "adverse_reaction_codes": [],
-        }
-    )
+def request(
+    *,
+    fatigue: str = "MODERATE",
+    discomforts: list[dict[str, str]] | None = None,
+    available_slots: list[dict[str, str]] | None = None,
+):
+    payload: dict[str, Any] = {
+        "fatigue_level_code": fatigue,
+        "requested_duration_minutes": 40,
+        "duration_adjustment_source_code": "PROFILE",
+        "location_code": "HOME",
+        "sleep_minutes": None,
+        "fasting_state_code": None,
+        "hydration_state_code": None,
+        "discomforts": discomforts or [],
+        "adverse_reaction_codes": [],
+    }
+    if available_slots is not None:
+        payload["available_slots"] = available_slots
+    return DailyContextUpsertRequest.model_validate(payload)
+
+
+def slot(start_hour: int, end_hour: int) -> dict[str, str]:
+    """A same-day KST window for LOCAL_DATE."""
+
+    return {
+        "start_at": f"2026-08-14T{start_hour:02d}:00:00+09:00",
+        "end_at": f"2026-08-14T{end_hour:02d}:00:00+09:00",
+    }
 
 
 def test_manual_create_get_and_versioned_full_replacement() -> None:
@@ -177,3 +208,173 @@ def test_duplicate_body_area_is_rejected_without_health_inference() -> None:
                 {"body_area_code": "KNEE", "severity_code": "MODERATE"},
             ]
         )
+
+
+def test_missing_available_slots_is_routine_default_not_an_empty_manual_choice() -> None:
+    repository = FakeDailyContextRepository()
+    service = DailyContextService(repository, clock=lambda: NOW)
+
+    response = service.replace(FakeSession(), uuid4(), LOCAL_DATE, request(), uuid4(), None)
+
+    assert response.availability_source_code == "ROUTINE_DEFAULT"
+    assert response.available_slots is None
+
+
+def test_explicit_empty_choice_is_preserved_as_manual() -> None:
+    repository = FakeDailyContextRepository()
+    service = DailyContextService(repository, clock=lambda: NOW)
+
+    response = service.replace(
+        FakeSession(), uuid4(), LOCAL_DATE, request(available_slots=[]), uuid4(), None
+    )
+
+    assert response.availability_source_code == "MANUAL"
+    assert response.available_slots == []
+
+
+def test_manual_slots_are_stored_in_start_order() -> None:
+    repository = FakeDailyContextRepository()
+    service = DailyContextService(repository, clock=lambda: NOW)
+
+    response = service.replace(
+        FakeSession(),
+        uuid4(),
+        LOCAL_DATE,
+        request(available_slots=[slot(19, 21), slot(7, 9)]),
+        uuid4(),
+        None,
+    )
+
+    assert response.availability_source_code == "MANUAL"
+    assert [entry.start_at.hour for entry in response.available_slots or []] == [7, 19]
+
+
+def test_slot_order_does_not_change_the_idempotency_key_meaning() -> None:
+    repository = FakeDailyContextRepository()
+    service = DailyContextService(repository, clock=lambda: NOW)
+    user_id, key = uuid4(), uuid4()
+
+    first = service.replace(
+        FakeSession(),
+        user_id,
+        LOCAL_DATE,
+        request(available_slots=[slot(7, 9), slot(19, 21)]),
+        key,
+        None,
+    )
+    retry = service.replace(
+        FakeSession(),
+        user_id,
+        LOCAL_DATE,
+        request(available_slots=[slot(19, 21), slot(7, 9)]),
+        key,
+        None,
+    )
+
+    assert retry == first
+
+
+def test_slot_outside_the_local_date_is_rejected() -> None:
+    repository = FakeDailyContextRepository()
+    service = DailyContextService(repository, clock=lambda: NOW)
+
+    with pytest.raises(AvailabilitySlotOutOfRangeError):
+        service.replace(
+            FakeSession(),
+            uuid4(),
+            LOCAL_DATE,
+            request(
+                available_slots=[
+                    {
+                        "start_at": "2026-08-15T09:00:00+09:00",
+                        "end_at": "2026-08-15T11:00:00+09:00",
+                    }
+                ]
+            ),
+            uuid4(),
+            None,
+        )
+
+
+def test_slot_may_close_on_the_next_local_midnight() -> None:
+    repository = FakeDailyContextRepository()
+    service = DailyContextService(repository, clock=lambda: NOW)
+
+    response = service.replace(
+        FakeSession(),
+        uuid4(),
+        LOCAL_DATE,
+        request(
+            available_slots=[
+                {
+                    "start_at": "2026-08-14T22:00:00+09:00",
+                    "end_at": "2026-08-15T00:00:00+09:00",
+                }
+            ]
+        ),
+        uuid4(),
+        None,
+    )
+
+    assert len(response.available_slots or []) == 1
+
+
+def test_slots_need_a_profile_timezone() -> None:
+    repository = FakeDailyContextRepository(timezone_name=None)
+    service = DailyContextService(repository, clock=lambda: NOW)
+
+    with pytest.raises(ProfileTimezoneMissingError):
+        service.replace(
+            FakeSession(), uuid4(), LOCAL_DATE, request(available_slots=[slot(7, 9)]), uuid4(), None
+        )
+
+
+def test_a_check_in_without_slots_still_needs_no_timezone_lookup() -> None:
+    repository = FakeDailyContextRepository(timezone_name=None)
+    service = DailyContextService(repository, clock=lambda: NOW)
+
+    response = service.replace(FakeSession(), uuid4(), LOCAL_DATE, request(), uuid4(), None)
+
+    assert response.availability_source_code == "ROUTINE_DEFAULT"
+
+
+@pytest.mark.parametrize(
+    "slots",
+    [
+        pytest.param([slot(7, 9), slot(8, 10)], id="overlapping"),
+        pytest.param([slot(7, 9), slot(9, 11)], id="touching"),
+        pytest.param(
+            [
+                {
+                    "start_at": "2026-08-14T09:00:00+09:00",
+                    "end_at": "2026-08-14T09:00:00+09:00",
+                }
+            ],
+            id="empty-range",
+        ),
+        pytest.param(
+            [{"start_at": "2026-08-14T09:00:00", "end_at": "2026-08-14T11:00:00"}],
+            id="naive-datetime",
+        ),
+        pytest.param([slot(hour, hour + 1) for hour in range(0, 18, 2)], id="over-the-cap"),
+    ],
+)
+def test_invalid_slot_shapes_are_rejected(slots: list[dict[str, str]]) -> None:
+    with pytest.raises(ValueError):
+        request(available_slots=slots)
+
+
+def test_manual_slots_never_change_the_requested_duration() -> None:
+    repository = FakeDailyContextRepository()
+    service = DailyContextService(repository, clock=lambda: NOW)
+
+    response = service.replace(
+        FakeSession(),
+        uuid4(),
+        LOCAL_DATE,
+        request(available_slots=[slot(7, 8)]),
+        uuid4(),
+        None,
+    )
+
+    assert response.requested_duration_minutes == 40

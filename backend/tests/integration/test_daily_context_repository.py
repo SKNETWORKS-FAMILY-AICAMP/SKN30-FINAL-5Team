@@ -2,12 +2,12 @@ import os
 from collections.abc import Iterator
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import Engine, create_engine, func, select
+from sqlalchemy import Engine, create_engine, delete, func, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
@@ -16,9 +16,11 @@ from backend.app.db.models.catalog import BodyArea, Location
 from backend.app.db.models.checkin import (
     DailyContext,
     DailyContextAdverseReaction,
+    DailyContextAvailabilitySlot,
     DailyContextDiscomfort,
 )
 from backend.app.db.models.identity import User
+from backend.app.db.models.profile import UserProfile
 from backend.app.db.repositories.checkin import DailyContextRepository
 from backend.app.modules.checkins.schemas import DailyContextUpsertRequest
 from backend.app.modules.checkins.service import DailyContextService, StaleContextError
@@ -120,4 +122,155 @@ def test_daily_context_persists_replaces_relations_and_locks_version(
     assert postgres_session.scalar(select(func.count()).select_from(DailyContextDiscomfort)) == 0
     assert (
         postgres_session.scalar(select(func.count()).select_from(DailyContextAdverseReaction)) == 0
+    )
+
+
+def _availability_request(slots: list[dict[str, str]] | None) -> DailyContextUpsertRequest:
+    payload: dict[str, object] = {
+        "fatigue_level_code": "MODERATE",
+        "requested_duration_minutes": 40,
+        "duration_adjustment_source_code": "PROFILE",
+        "location_code": "HOME",
+        "sleep_minutes": None,
+        "fasting_state_code": None,
+        "hydration_state_code": None,
+        "discomforts": [],
+        "adverse_reaction_codes": [],
+    }
+    if slots is not None:
+        payload["available_slots"] = slots
+    return DailyContextUpsertRequest.model_validate(payload)
+
+
+def _seed_user_with_profile(session: Session, user_id: UUID) -> None:
+    session.add_all(
+        [
+            User(
+                id=user_id,
+                status_code=UserStatusCode.ACTIVE,
+                code_set_version=IDENTITY_CODE_SET_VERSION,
+                last_active_at=NOW,
+                created_at=NOW,
+                updated_at=NOW,
+                ai_trial_started_at=NOW,
+                ai_trial_ends_at=NOW + timedelta(days=7),
+                premium_status_code=PremiumStatusCode.NOT_AVAILABLE,
+            ),
+            Location(code="HOME", code_set_version="mvp-v1"),
+        ]
+    )
+    session.flush()
+    session.add(
+        UserProfile(
+            user_id=user_id,
+            protected_birthdate="synthetic-protected-value",
+            nickname="합성 사용자",
+            primary_goal_code="GENERAL_FITNESS",
+            experience_level_code="BEGINNER",
+            timezone="Asia/Seoul",
+            preferred_location_code="HOME",
+            default_requested_duration_minutes=30,
+            desired_weekly_workout_count=3,
+            coaching_style_code="SUPPORTIVE",
+            code_set_version="profile-mvp-v1",
+            profile_version=1,
+        )
+    )
+    session.flush()
+    session.commit()
+
+
+def _slot_count(session: Session) -> int:
+    """Read the slot count and end the autobegun transaction.
+
+    DailyContextService.replace opens its own ``session.begin()``, so a read left
+    inside an open transaction would make the next replace call fail.
+    """
+
+    count = session.scalar(select(func.count()).select_from(DailyContextAvailabilitySlot))
+    session.commit()
+    return count or 0
+
+
+@pytest.mark.integration
+def test_availability_slots_are_replaced_and_ordered_on_each_version(
+    postgres_session: Session,
+) -> None:
+    user_id = uuid4()
+    _seed_user_with_profile(postgres_session, user_id)
+    service = DailyContextService(DailyContextRepository(), clock=lambda: NOW)
+
+    first = service.replace(
+        postgres_session,
+        user_id,
+        LOCAL_DATE,
+        _availability_request(
+            [
+                {
+                    "start_at": "2026-08-14T19:00:00+09:00",
+                    "end_at": "2026-08-14T21:00:00+09:00",
+                },
+                {
+                    "start_at": "2026-08-14T07:00:00+09:00",
+                    "end_at": "2026-08-14T09:00:00+09:00",
+                },
+            ]
+        ),
+        uuid4(),
+        None,
+    )
+
+    assert first.availability_source_code == "MANUAL"
+    assert [slot.start_at.astimezone(UTC).hour for slot in first.available_slots or []] == [22, 10]
+    assert _slot_count(postgres_session) == 2
+
+    second = service.replace(
+        postgres_session,
+        user_id,
+        LOCAL_DATE,
+        _availability_request([]),
+        uuid4(),
+        1,
+    )
+
+    assert second.availability_source_code == "MANUAL"
+    assert second.available_slots == []
+    assert _slot_count(postgres_session) == 0
+
+    third = service.replace(
+        postgres_session, user_id, LOCAL_DATE, _availability_request(None), uuid4(), 2
+    )
+
+    assert third.availability_source_code == "ROUTINE_DEFAULT"
+    assert third.available_slots is None
+
+
+@pytest.mark.integration
+def test_deleting_the_context_cascades_to_availability_slots(
+    postgres_session: Session,
+) -> None:
+    user_id = uuid4()
+    _seed_user_with_profile(postgres_session, user_id)
+    service = DailyContextService(DailyContextRepository(), clock=lambda: NOW)
+    service.replace(
+        postgres_session,
+        user_id,
+        LOCAL_DATE,
+        _availability_request(
+            [
+                {
+                    "start_at": "2026-08-14T07:00:00+09:00",
+                    "end_at": "2026-08-14T09:00:00+09:00",
+                }
+            ]
+        ),
+        uuid4(),
+        None,
+    )
+
+    postgres_session.execute(delete(DailyContext).where(DailyContext.user_id == user_id))
+    postgres_session.flush()
+
+    assert (
+        postgres_session.scalar(select(func.count()).select_from(DailyContextAvailabilitySlot)) == 0
     )

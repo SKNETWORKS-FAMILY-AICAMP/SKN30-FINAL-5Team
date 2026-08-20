@@ -24,11 +24,14 @@ BUNDLE_SAFETY = Path("data/generated/exercise-safety-rules-mvp-v0.3.0")
 BUNDLE_ALTERNATIVES = Path("data/generated/exercise-alternatives-mvp-v0.2.0")
 
 
-def test_migration_history_has_decision_explanation_head() -> None:
+def test_migration_history_has_manual_availability_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0019_decision_explanations"]
+    assert scripts.get_heads() == ["0020_manual_availability"]
+    assert scripts.get_revision("0020_manual_availability").down_revision == (
+        "0019_decision_explanations"
+    )
     assert scripts.get_revision("0019_decision_explanations").down_revision == (
         "0018_agent_proposal_policy"
     )

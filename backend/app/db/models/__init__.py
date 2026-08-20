@@ -25,6 +25,7 @@ from backend.app.db.models.catalog import (
 from backend.app.db.models.checkin import (
     DailyContext,
     DailyContextAdverseReaction,
+    DailyContextAvailabilitySlot,
     DailyContextDiscomfort,
 )
 from backend.app.db.models.decision import (
@@ -84,6 +85,7 @@ __all__ = [
     "CatalogVersion",
     "DailyContext",
     "DailyContextAdverseReaction",
+    "DailyContextAvailabilitySlot",
     "DailyContextDiscomfort",
     "Equipment",
     "Exercise",
