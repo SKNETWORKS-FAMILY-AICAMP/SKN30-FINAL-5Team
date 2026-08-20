@@ -109,6 +109,13 @@ class ExerciseRecord(CatalogInputModel):
     source_track: SourceTrackCode
     source_identity: Annotated[str, Field(min_length=1, max_length=255)]
 
+    @field_validator("source_track")
+    @classmethod
+    def validate_exercise_source_track(cls, value: SourceTrackCode) -> SourceTrackCode:
+        if value is SourceTrackCode.MERGED:
+            raise ValueError("exercise records must retain their original source track")
+        return value
+
     @field_validator(
         "primary_body_area_codes",
         "secondary_body_area_codes",
@@ -263,3 +270,59 @@ class ExerciseAlternativeRecord(CatalogInputModel):
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("created_at must include timezone information")
         return value
+
+
+class PrescriptionArtifactSummary(CatalogInputModel):
+    exercise_records: Annotated[int, Field(gt=0)]
+    goal_tag_records: Annotated[int, Field(gt=0)]
+    prescription_records: Annotated[int, Field(gt=0)]
+
+
+class PrescriptionManifest(CatalogInputModel):
+    schema_version: Literal["1.0"]
+    generator_version: Annotated[str, Field(min_length=1, max_length=80)]
+    prescription_set_version: DerivedArtifactVersion
+    source: dict[str, Any]
+    review: ManifestReview
+    summary: PrescriptionArtifactSummary
+    files: list[ManifestFile]
+
+    @model_validator(mode="after")
+    def validate_files(self) -> "PrescriptionManifest":
+        entries = {entry.path: entry for entry in self.files}
+        if set(entries) != {"goal_tag_links.jsonl", "prescription_profiles.jsonl"}:
+            raise ValueError("prescription manifest must describe both JSONL files")
+        if entries["goal_tag_links.jsonl"].records != self.summary.goal_tag_records:
+            raise ValueError("goal tag count does not match manifest summary")
+        if entries["prescription_profiles.jsonl"].records != self.summary.prescription_records:
+            raise ValueError("prescription count does not match manifest summary")
+        return self
+
+
+class ExerciseGoalTagRecord(CatalogInputModel):
+    catalog_version_code: Annotated[str, Field(min_length=1, max_length=120)]
+    exercise_stable_code: StableCode
+    goal_code: Literal["GENERAL_FITNESS"]
+    role_eligibility_code: Literal["CORE", "SUPPORT", "OPTIONAL"]
+    review_status_code: CatalogReviewStatusCode
+
+
+class ExercisePrescriptionRecord(CatalogInputModel):
+    catalog_version_code: Annotated[str, Field(min_length=1, max_length=120)]
+    exercise_stable_code: StableCode
+    goal_code: Literal["GENERAL_FITNESS"]
+    experience_level_code: Literal["BEGINNER"]
+    phase_code: Literal["WARMUP", "MAIN", "COOLDOWN"]
+    sets: Annotated[int, Field(gt=0)]
+    reps: Annotated[int | None, Field(gt=0)] = None
+    work_seconds_per_set: Annotated[int | None, Field(gt=0)] = None
+    rest_seconds_per_set: Annotated[int, Field(ge=0)]
+    intensity_code: Literal["LOW", "MODERATE"]
+    prescription_version: Annotated[str, Field(min_length=1, max_length=64)]
+    review_status_code: CatalogReviewStatusCode
+
+    @model_validator(mode="after")
+    def validate_timing(self) -> "ExercisePrescriptionRecord":
+        if (self.reps is None) == (self.work_seconds_per_set is None):
+            raise ValueError("exactly one prescription timing value is required")
+        return self

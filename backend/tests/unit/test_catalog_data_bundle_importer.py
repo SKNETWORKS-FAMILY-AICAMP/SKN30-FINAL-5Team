@@ -14,20 +14,18 @@ from backend.app.modules.catalog.service import (
     CatalogImportError,
     CatalogRepositoryPort,
     DerivedSetState,
+    PrescriptionArtifact,
     SafetyRuleArtifact,
     load_alternative_artifact,
+    load_prescription_artifact,
     load_safety_rule_artifact,
 )
 
 GENERATED = Path("data/generated")
-CATALOG_DIRECTORIES = (
-    GENERATED / "exercise-catalog-seed-kspo-mvp-v0.2.0",
-    GENERATED / "exercise-catalog-seed-wger-mvp-v0.2.0",
-    GENERATED / "exercise-catalog-seed-kspo-tranche3-v0.1.0",
-    GENERATED / "exercise-catalog-seed-wger-tranche3-v0.1.0",
-)
-SAFETY_DIRECTORY = GENERATED / "exercise-safety-rules-mvp-v0.3.0"
-ALTERNATIVE_DIRECTORY = GENERATED / "exercise-alternatives-mvp-v0.2.0"
+CATALOG_DIRECTORIES = (GENERATED / "exercise-catalog-seed-merged-mvp-v0.4.0",)
+SAFETY_DIRECTORY = GENERATED / "exercise-safety-rules-merged-mvp-v0.5.0"
+ALTERNATIVE_DIRECTORY = GENERATED / "exercise-alternatives-merged-mvp-v0.4.0"
+PRESCRIPTION_DIRECTORY = GENERATED / "exercise-prescriptions-merged-mvp-v0.1.0"
 
 
 class FakeSession:
@@ -41,6 +39,7 @@ class FakeRepository:
         self.catalogs: dict[str, SimpleNamespace] = {}
         self.safety_state: DerivedSetState | None = None
         self.alternative_state: DerivedSetState | None = None
+        self.prescription_state: DerivedSetState | None = None
 
     def get_by_version_code(self, session: Session, version_code: str) -> SimpleNamespace | None:
         return self.catalogs.get(version_code)
@@ -72,17 +71,31 @@ class FakeRepository:
     def create_alternatives(self, session: Session, artifact: AlternativeArtifact) -> None:
         self.alternative_state = DerivedSetState(len(artifact.records), artifact.manifest_hash)
 
+    def get_prescription_set_state(
+        self, session: Session, version_code: str
+    ) -> DerivedSetState | None:
+        return self.prescription_state
+
+    def create_prescriptions(self, session: Session, artifact: PrescriptionArtifact) -> None:
+        self.prescription_state = DerivedSetState(
+            len(artifact.goal_tag_records) + len(artifact.prescription_records),
+            artifact.manifest_hash,
+        )
+
 
 def test_loads_current_derived_artifacts() -> None:
     safety = load_safety_rule_artifact(SAFETY_DIRECTORY)
     alternatives = load_alternative_artifact(ALTERNATIVE_DIRECTORY)
+    prescriptions = load_prescription_artifact(PRESCRIPTION_DIRECTORY)
 
-    assert len(safety.records) == 354
+    assert len(safety.records) == 282
     assert safety.manifest.review.production_eligible is False
     assert len(alternatives.records) == 238
     assert alternatives.manifest.review.production_eligible is False
     assert "catalog_seed_artifacts" in safety.manifest.source
     assert "input_artifacts" in alternatives.manifest.source
+    assert len(prescriptions.goal_tag_records) == 32
+    assert len(prescriptions.prescription_records) == 36
 
 
 def test_bundle_import_is_idempotent() -> None:
@@ -91,21 +104,32 @@ def test_bundle_import_is_idempotent() -> None:
     session = cast(Session, FakeSession())
 
     first = importer.import_bundle(
-        session, CATALOG_DIRECTORIES, SAFETY_DIRECTORY, ALTERNATIVE_DIRECTORY
+        session,
+        CATALOG_DIRECTORIES,
+        SAFETY_DIRECTORY,
+        ALTERNATIVE_DIRECTORY,
+        PRESCRIPTION_DIRECTORY,
     )
     second = importer.import_bundle(
-        session, CATALOG_DIRECTORIES, SAFETY_DIRECTORY, ALTERNATIVE_DIRECTORY
+        session,
+        CATALOG_DIRECTORIES,
+        SAFETY_DIRECTORY,
+        ALTERNATIVE_DIRECTORY,
+        PRESCRIPTION_DIRECTORY,
     )
 
-    assert [item.exercise_record_count for item in first.catalogs] == [23, 27, 3, 3]
+    assert [item.exercise_record_count for item in first.catalogs] == [56]
     assert all(item.imported for item in first.catalogs)
-    assert first.safety_rules.record_count == 354
+    assert first.safety_rules.record_count == 282
     assert first.safety_rules.imported is True
     assert first.alternatives.record_count == 238
     assert first.alternatives.imported is True
     assert not any(item.imported for item in second.catalogs)
     assert second.safety_rules.imported is False
     assert second.alternatives.imported is False
+    assert first.prescriptions.record_count == 68
+    assert first.prescriptions.imported is True
+    assert second.prescriptions.imported is False
 
 
 def test_bundle_rejects_missing_referenced_catalogs() -> None:
@@ -114,9 +138,10 @@ def test_bundle_rejects_missing_referenced_catalogs() -> None:
     with pytest.raises(CatalogImportError, match="exactly cover") as exc_info:
         importer.import_bundle(
             cast(Session, FakeSession()),
-            CATALOG_DIRECTORIES[:1],
+            (),
             SAFETY_DIRECTORY,
             ALTERNATIVE_DIRECTORY,
+            PRESCRIPTION_DIRECTORY,
         )
 
     assert exc_info.value.code == "CATALOG_BUNDLE_INCOMPLETE"
@@ -132,6 +157,7 @@ def test_bundle_rejects_non_local_environment_before_database_access() -> None:
             CATALOG_DIRECTORIES,
             SAFETY_DIRECTORY,
             ALTERNATIVE_DIRECTORY,
+            PRESCRIPTION_DIRECTORY,
         )
 
     assert exc_info.value.code == "CATALOG_IMPORT_ENVIRONMENT_FORBIDDEN"

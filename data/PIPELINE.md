@@ -154,6 +154,32 @@ API가 아니라 라이선스 제한이 있는 저작물이다.
 확인할 수 있다. 검토 배치에 없는 DATA_MODEL 필드는 `template` 명령이 만드는 catalog
 attribute 시트에 도메인 검토자가 작성한다.
 
+## 병합 카탈로그와 처방 산출물 (2026-08-20)
+
+런타임은 단일 ACTIVE 카탈로그만 조회하므로 KSPO와 wger의 승인 seed를
+`build_merged_catalog_seed.py`로 병합한다. 병합은 레코드 내용을 바꾸지 않으며 입력
+manifest hash를 다시 검사하고 stable code 충돌과 한국어 표시명 중복을 fail-closed로
+거부한다. 카탈로그 단위 source track은 `merged`, 운동 단위 source track/identity는 원본
+값을 보존한다.
+
+처방 파이프라인은 다음 순서를 따른다.
+
+1. `prescription_review_authoring.py`로 운동별 직접 검수 결과를 작성한다.
+2. `validate_exercise_prescription_review_results.py`가 CSV 계약, catalog 참조, timing mode,
+   검수 증적과 HOME·GYM × 20/30/40/50분의 정확한 시간 해 존재를 검증한다.
+3. `build_exercise_prescriptions.py`가 goal tag와 prescription profile을 분리된 JSONL 및
+   manifest로 생성한다.
+4. backend bundle importer가 catalog, safety rules, alternatives, goal tags,
+   prescriptions를 한 transaction에서 적재한다.
+5. 승인 registry와 migration은 정확한 version/hash/count에만 승인 metadata를 부여한다.
+6. `catalog_activate`가 처방과 goal tag의 존재를 다시 확인한 뒤 단일 ACTIVE catalog로
+   전환한다.
+
+현재 고정 산출물은 catalog `merged-mvp-v0.4.0` 56종, safety rules
+`merged-mvp-v0.5.0` 282건, alternatives `merged-mvp-v0.4.0` 238건, prescriptions
+`merged-mvp-v0.1.0`의 goal tag 32건 및 profile 36건이다. generated manifest는 항상
+production-ineligible로 남고, 운영 승인은 backend의 정확 일치 gate로만 표현한다.
+
 ### 원천 단위 주의
 
 `training-video` endpoint의 한 행은 운동 하나가 아니라 영상에서 추출한 이미지
