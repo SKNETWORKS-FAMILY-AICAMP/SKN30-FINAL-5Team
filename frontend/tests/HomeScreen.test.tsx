@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { StyleSheet } from 'react-native';
+import { Animated, Platform, StyleSheet } from 'react-native';
 
 import { ADVERSE_REACTION_OPTIONS } from '../src/api/labels';
 import { imageAssets } from '../src/assets';
@@ -17,6 +17,31 @@ import {
 import { homePreviewProps } from '../src/features/preview/homePreview';
 
 describe('HomeScreen Home v1 transcription', () => {
+  function selectAvailabilityTime(
+    fieldLabel: string,
+    hour: number,
+    minute: number,
+  ) {
+    fireEvent.press(screen.getByLabelText(fieldLabel));
+    fireEvent(
+      screen.getByLabelText('시간 선택 스크롤', {
+        includeHiddenElements: true,
+      }),
+      'momentumScrollEnd',
+      { nativeEvent: { contentOffset: { y: hour * 44 } } },
+    );
+    fireEvent(
+      screen.getByLabelText('분 선택 스크롤', {
+        includeHiddenElements: true,
+      }),
+      'momentumScrollEnd',
+      { nativeEvent: { contentOffset: { y: (minute / 5) * 44 } } },
+    );
+    fireEvent.press(
+      screen.getByLabelText('시간 선택 완료', { includeHiddenElements: true }),
+    );
+  }
+
   it('renders exactly one of the empty, loading, and routine branches', () => {
     const view = render(<HomeScreen previewState="pre-checkin" />);
 
@@ -71,6 +96,11 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.getAllByTestId('day-todo-image')[0]?.props.source).toEqual(
       imageAssets.dayTodo,
     );
+    expect(
+      StyleSheet.flatten(
+        screen.getAllByTestId('day-done-image')[0]?.props.style,
+      ),
+    ).toMatchObject({ height: '78%', width: '78%' });
   });
 
   it('renders seven weekday circles with the original completed and incomplete styles', () => {
@@ -118,8 +148,9 @@ describe('HomeScreen Home v1 transcription', () => {
   it('shows the same set prescription on the Home routine', () => {
     render(<HomeScreen {...homePreviewProps('routine')} />);
 
-    expect(screen.getByText('준비 운동 · 1세트 × 3분')).toBeOnTheScreen();
+    expect(screen.getByText('준비 운동 · 1세트 × 10회')).toBeOnTheScreen();
     expect(screen.getByText('푸시업 · 3세트 × 10회')).toBeOnTheScreen();
+    expect(screen.queryByText(/세트 × \d+(?:분|초)/)).toBeNull();
   });
 
   it('uses session records for weekday completion when the week lookup is empty', () => {
@@ -140,7 +171,18 @@ describe('HomeScreen Home v1 transcription', () => {
   });
 
   it('keeps weekday circles binary while exposing their completion state', () => {
-    render(<HomeScreen {...homePreviewProps('routine')} />);
+    const props = homePreviewProps('routine');
+    const session = props.sessions?.[0];
+    expect(session).toBeDefined();
+
+    render(
+      <HomeScreen
+        {...props}
+        localDate="2026-08-19"
+        week={null}
+        sessions={[{ ...session!, local_date: '2026-08-17' }]}
+      />,
+    );
 
     expect(screen.getByLabelText('월요일 완료')).toBeOnTheScreen();
     expect(screen.getByLabelText('목요일 기록 없음')).toBeOnTheScreen();
@@ -148,15 +190,25 @@ describe('HomeScreen Home v1 transcription', () => {
 
   it('leaves PARTIAL and NOT_COMPLETED weekdays unchecked', () => {
     const props = homePreviewProps('routine');
-    const [first, second] = props.sessions ?? [];
-    expect(first).toBeDefined();
-    expect(second).toBeDefined();
+    const session = props.sessions?.[0];
+    expect(session).toBeDefined();
     render(
       <HomeScreen
         {...props}
+        localDate="2026-08-19"
+        week={null}
         sessions={[
-          { ...first!, status_code: 'PARTIAL' },
-          { ...second!, status_code: 'NOT_COMPLETED' },
+          {
+            ...session!,
+            local_date: '2026-08-17',
+            status_code: 'PARTIAL',
+          },
+          {
+            ...session!,
+            session_id: 'session-preview-not-completed',
+            local_date: '2026-08-19',
+            status_code: 'NOT_COMPLETED',
+          },
         ]}
       />,
     );
@@ -167,7 +219,7 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.queryByTestId('progress-complete-badge')).toBeNull();
   });
 
-  it('submits multiple onboarding discomfort areas and the selected location', () => {
+  it('submits multiple transient discomfort areas and the selected location', () => {
     const onSubmitCheckin = jest.fn();
     render(
       <HomeScreen
@@ -178,6 +230,12 @@ describe('HomeScreen Home v1 transcription', () => {
 
     fireEvent.press(screen.getByRole('button', { name: '오늘 루틴 체크인' }));
     fireEvent.press(screen.getByRole('button', { name: '헬스장' }));
+    fireEvent.press(screen.getByRole('button', { name: '있음' }));
+    const bodyAreaButtonStyle = StyleSheet.flatten(
+      screen.getByRole('button', { name: '손목·손' }).props.style,
+    );
+    expect(bodyAreaButtonStyle).toMatchObject({ flexBasis: '48%' });
+    expect(bodyAreaButtonStyle.minHeight).toBeGreaterThanOrEqual(48);
     fireEvent.press(screen.getByRole('button', { name: '어깨' }));
     fireEvent.press(screen.getByRole('button', { name: '보통' }));
     fireEvent.press(screen.getByRole('button', { name: '무릎' }));
@@ -190,6 +248,121 @@ describe('HomeScreen Home v1 transcription', () => {
         discomforts: { SHOULDER: 'MODERATE', KNEE: 'SEVERE' },
       }),
     );
+  });
+
+  it('adds and submits multiple available-time rows', () => {
+    const onSubmitCheckin = jest.fn();
+    render(
+      <HomeScreen
+        {...homePreviewProps('pre-checkin')}
+        onSubmitCheckin={onSubmitCheckin}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: '오늘 루틴 체크인' }));
+    selectAvailabilityTime('1번째 가능 시간 시작 미선택 선택', 9, 0);
+    selectAvailabilityTime('1번째 가능 시간 종료 미선택 선택', 12, 0);
+    fireEvent.press(screen.getByRole('button', { name: '가능 시간대 추가' }));
+    selectAvailabilityTime('2번째 가능 시간 시작 미선택 선택', 13, 0);
+    selectAvailabilityTime('2번째 가능 시간 종료 미선택 선택', 15, 0);
+    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+
+    expect(onSubmitCheckin).toHaveBeenCalledWith(
+      expect.objectContaining({
+        availableSlots: [
+          { startTime: '09:00', endTime: '12:00' },
+          { startTime: '13:00', endTime: '15:00' },
+        ],
+      }),
+    );
+  });
+
+  it('blocks overlapping available-time rows', () => {
+    render(<HomeScreen {...homePreviewProps('pre-checkin')} />);
+
+    fireEvent.press(screen.getByRole('button', { name: '오늘 루틴 체크인' }));
+    selectAvailabilityTime('1번째 가능 시간 시작 미선택 선택', 9, 0);
+    selectAvailabilityTime('1번째 가능 시간 종료 미선택 선택', 12, 0);
+    fireEvent.press(screen.getByRole('button', { name: '가능 시간대 추가' }));
+    selectAvailabilityTime('2번째 가능 시간 시작 미선택 선택', 12, 0);
+    selectAvailabilityTime('2번째 가능 시간 종료 미선택 선택', 15, 0);
+
+    expect(
+      screen.getByText('가능한 시간대끼리는 겹치거나 맞닿을 수 없어요.'),
+    ).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: '체크인 !' })).toBeDisabled();
+  });
+
+  it('changes hours and five-minute values with the mouse wheel on web', () => {
+    const originalPlatform = Platform.OS;
+    jest.useFakeTimers();
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'web',
+    });
+    try {
+      render(<HomeScreen {...homePreviewProps('pre-checkin')} />);
+      fireEvent.press(screen.getByRole('button', { name: '오늘 루틴 체크인' }));
+      fireEvent.press(
+        screen.getByLabelText('1번째 가능 시간 시작 미선택 선택'),
+      );
+
+      const hourWheel = screen.getByLabelText('시간 선택 스크롤', {
+        includeHiddenElements: true,
+      });
+      const minuteWheel = screen.getByLabelText('분 선택 스크롤', {
+        includeHiddenElements: true,
+      });
+      const preventDefault = jest.fn();
+      expect(hourWheel).toHaveProp('disableIntervalMomentum', true);
+      expect(
+        screen.getByLabelText('시간 00시', { includeHiddenElements: true }),
+      ).toHaveProp(
+        'accessibilityState',
+        expect.objectContaining({ selected: true }),
+      );
+
+      fireEvent(hourWheel, 'wheel', {
+        nativeEvent: { deltaMode: 0, deltaY: 100 },
+        preventDefault,
+      });
+      fireEvent(minuteWheel, 'wheel', {
+        nativeEvent: { deltaMode: 0, deltaY: 100 },
+        preventDefault,
+      });
+      act(() => {
+        jest.advanceTimersByTime(45);
+      });
+
+      expect(preventDefault).toHaveBeenCalled();
+      expect(
+        screen.getByLabelText('시간 01시', { includeHiddenElements: true }),
+      ).toHaveProp(
+        'accessibilityState',
+        expect.objectContaining({ selected: true }),
+      );
+      expect(
+        screen.getByLabelText('분 05분', { includeHiddenElements: true }),
+      ).toHaveProp(
+        'accessibilityState',
+        expect.objectContaining({ selected: true }),
+      );
+      fireEvent.press(
+        screen.getByLabelText('시간 선택 완료', {
+          includeHiddenElements: true,
+        }),
+      );
+      expect(
+        screen.getByLabelText('1번째 가능 시간 시작 01:05 선택'),
+      ).toBeOnTheScreen();
+    } finally {
+      jest.clearAllTimers();
+      jest.useRealTimers();
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: originalPlatform,
+      });
+    }
   });
 
   it('opens reviewed exercise instructions from an API routine item', async () => {
@@ -240,6 +413,138 @@ describe('HomeScreen Home v1 transcription', () => {
     ).toBeOnTheScreen();
     expect(screen.getByText('현재 계획 v1')).toBeOnTheScreen();
     expect(screen.queryByLabelText('푸시업 운동명')).toBeNull();
+  });
+
+  it('opens a live gap in both directions and commits immediately on drop', () => {
+    const onReorderPlan = jest.fn();
+    const timingCompletions: ((result: { finished: boolean }) => void)[] = [];
+    const timingSpy = jest.spyOn(Animated, 'timing').mockImplementation(
+      () =>
+        ({
+          start: (callback?: (result: { finished: boolean }) => void) => {
+            if (callback) {
+              timingCompletions.push(callback);
+            }
+          },
+          stop: jest.fn(),
+          reset: jest.fn(),
+        }) as Animated.CompositeAnimation,
+    );
+    render(
+      <HomeScreen
+        {...homePreviewProps('routine')}
+        onReorderPlan={onReorderPlan}
+      />,
+    );
+
+    ['plan-item-1', 'plan-item-2', 'plan-item-3'].forEach((id, index) => {
+      fireEvent(screen.getByTestId(`routine-row-${id}`), 'layout', {
+        nativeEvent: {
+          layout: { height: 44, width: 300, x: 0, y: index * 60 },
+        },
+      });
+    });
+
+    const handle = screen.getByTestId('routine-drag-plan-item-1');
+    const panEvent = (currentY: number, previousY: number, time: number) => ({
+      nativeEvent: { touches: [{}] },
+      touchHistory: {
+        indexOfSingleActiveTouch: 0,
+        mostRecentTimeStamp: time,
+        numberActiveTouches: 1,
+        touchBank: [
+          {
+            touchActive: true,
+            startPageX: 0,
+            startPageY: 0,
+            startTimeStamp: 1,
+            currentPageX: 0,
+            currentPageY: currentY,
+            currentTimeStamp: time,
+            previousPageX: 0,
+            previousPageY: previousY,
+            previousTimeStamp: Math.max(0, time - 1),
+          },
+        ],
+      },
+    });
+    const startEvent = panEvent(0, 0, 1);
+    const moveEvent = panEvent(35, 0, 2);
+    expect(handle.props.onStartShouldSetResponderCapture(startEvent)).toBe(
+      true,
+    );
+    expect(handle.props.onResponderTerminationRequest(startEvent)).toBe(false);
+
+    fireEvent(handle, 'responderGrant', startEvent);
+    fireEvent(handle, 'responderMove', moveEvent);
+    expect(onReorderPlan).not.toHaveBeenCalled();
+    expect(
+      screen.getByTestId('routine-drop-placeholder-plan-item-2'),
+    ).toBeOnTheScreen();
+    fireEvent(handle, 'responderRelease', moveEvent);
+    expect(onReorderPlan).toHaveBeenCalledWith(0, 1);
+    expect(
+      screen.queryByTestId('routine-drop-placeholder-plan-item-2'),
+    ).toBeNull();
+    act(() => timingCompletions.shift()?.({ finished: true }));
+
+    const secondHandle = screen.getByTestId('routine-drag-plan-item-3');
+    const secondStartEvent = panEvent(0, 0, 3);
+    const middleMoveEvent = panEvent(-60, 0, 4);
+    const upwardMoveEvent = panEvent(-160, -60, 5);
+    fireEvent(secondHandle, 'responderGrant', secondStartEvent);
+    fireEvent(secondHandle, 'responderMove', middleMoveEvent);
+    const middlePlaceholder = screen.getByTestId(
+      'routine-drop-placeholder-plan-item-2',
+    );
+    expect(StyleSheet.flatten(middlePlaceholder.props.style)).toMatchObject({
+      backgroundColor: '#EDF5E2',
+      borderColor: '#7FAE5C',
+      borderStyle: 'dashed',
+    });
+    expect(
+      screen.queryByTestId('routine-drop-placeholder-plan-item-3'),
+    ).toBeNull();
+
+    fireEvent(secondHandle, 'responderMove', upwardMoveEvent);
+    expect(onReorderPlan).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByTestId('routine-drop-placeholder-plan-item-1'),
+    ).toBeOnTheScreen();
+    expect(
+      screen.queryByTestId('routine-drop-placeholder-plan-item-2'),
+    ).toBeNull();
+    fireEvent(secondHandle, 'responderRelease', upwardMoveEvent);
+    expect(onReorderPlan).toHaveBeenCalledTimes(2);
+    act(() => timingCompletions.shift()?.({ finished: true }));
+
+    expect(onReorderPlan).toHaveBeenNthCalledWith(1, 0, 1);
+    expect(onReorderPlan).toHaveBeenNthCalledWith(2, 2, 0);
+    expect(timingSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        duration: 85,
+        toValue: -60,
+        useNativeDriver: true,
+      }),
+    );
+    expect(timingSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        duration: 85,
+        toValue: 60,
+        useNativeDriver: true,
+      }),
+    );
+    expect(timingSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        duration: 80,
+        toValue: 0,
+        useNativeDriver: true,
+      }),
+    );
+    timingSpy.mockRestore();
   });
 
   it('uses a serious existing state card for a blocked plan revision', () => {
@@ -379,6 +684,7 @@ describe('HomeScreen Home v1 transcription', () => {
     render(<HomeScreen previewState="routine" />);
 
     fireEvent.press(screen.getByRole('button', { name: '오늘 루틴 체크인' }));
+    fireEvent.press(screen.getByRole('button', { name: '있음' }));
     fireEvent.press(screen.getByRole('button', { name: '어깨' }));
     expect(
       screen.queryByText('어깨 부담을 줄이도록 강도를 조정했어요.'),
@@ -390,11 +696,13 @@ describe('HomeScreen Home v1 transcription', () => {
       screen.getByRole('button', { name: '없음' }).props.accessibilityState
         .selected,
     ).toBe(true);
+    expect(screen.queryByRole('button', { name: '어깨' })).toBeNull();
+
+    fireEvent.press(screen.getByRole('button', { name: '있음' }));
     expect(
       screen.getByRole('button', { name: '어깨' }).props.accessibilityState
         .selected,
     ).toBe(false);
-
     fireEvent.press(screen.getByRole('button', { name: '어깨' }));
     fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
     expect(

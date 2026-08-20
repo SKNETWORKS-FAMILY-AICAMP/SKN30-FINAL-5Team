@@ -1,5 +1,6 @@
 import type { WorkoutPlan } from '../src/api/types';
 import {
+  moveArrayItem,
   moveWorkoutPlanItem,
   orderedWorkoutPlanItems,
 } from '../src/api/workoutPlan';
@@ -36,6 +37,11 @@ function plan(): WorkoutPlan {
 }
 
 describe('shared workout plan order', () => {
+  it('inserts only the dragged item and shifts the intervening items', () => {
+    expect(moveArrayItem([1, 2, 3], 2, 0)).toEqual([3, 1, 2]);
+    expect(moveArrayItem([1, 2, 3], 0, 2)).toEqual([2, 3, 1]);
+  });
+
   it('normalizes every consumer by sequence', () => {
     expect(
       orderedWorkoutPlanItems(plan().items).map((item) => item.plan_item_id),
@@ -51,6 +57,16 @@ describe('shared workout plan order', () => {
       ['item-2', 1],
       ['item-3', 2],
       ['item-1', 3],
+    ]);
+  });
+
+  it('moves the last plan item to the front without reversing the others', () => {
+    const reordered = moveWorkoutPlanItem(plan(), 2, 0);
+
+    expect(reordered.items.map((item) => item.plan_item_id)).toEqual([
+      'item-3',
+      'item-1',
+      'item-2',
     ]);
   });
 });

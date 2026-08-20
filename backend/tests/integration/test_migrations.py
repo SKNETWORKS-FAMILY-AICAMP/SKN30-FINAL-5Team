@@ -14,21 +14,26 @@ from backend.app.db.repositories.catalog import CatalogRepository
 from backend.app.modules.catalog.service import CatalogDataBundleImporter
 
 ALEMBIC_CONFIG = Path("backend/alembic.ini")
-BUNDLE_CATALOGS = (
-    Path("data/generated/exercise-catalog-seed-kspo-mvp-v0.2.0"),
-    Path("data/generated/exercise-catalog-seed-wger-mvp-v0.2.0"),
-    Path("data/generated/exercise-catalog-seed-kspo-tranche3-v0.1.0"),
-    Path("data/generated/exercise-catalog-seed-wger-tranche3-v0.1.0"),
-)
-BUNDLE_SAFETY = Path("data/generated/exercise-safety-rules-mvp-v0.3.0")
-BUNDLE_ALTERNATIVES = Path("data/generated/exercise-alternatives-mvp-v0.2.0")
+BUNDLE_CATALOGS = (Path("data/generated/exercise-catalog-seed-merged-mvp-v0.4.0"),)
+BUNDLE_SAFETY = Path("data/generated/exercise-safety-rules-merged-mvp-v0.5.0")
+BUNDLE_ALTERNATIVES = Path("data/generated/exercise-alternatives-merged-mvp-v0.4.0")
+BUNDLE_PRESCRIPTIONS = Path("data/generated/exercise-prescriptions-merged-mvp-v0.1.0")
 
 
-def test_migration_history_has_decision_explanation_head() -> None:
+def test_migration_history_has_merged_catalog_promotion_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0019_decision_explanations"]
+    assert scripts.get_heads() == ["0022_promote_merged_data"]
+    assert scripts.get_revision("0022_promote_merged_data").down_revision == (
+        "0021_merged_catalog_source"
+    )
+    assert scripts.get_revision("0021_merged_catalog_source").down_revision == (
+        "0020_manual_availability"
+    )
+    assert scripts.get_revision("0020_manual_availability").down_revision == (
+        "0019_decision_explanations"
+    )
     assert scripts.get_revision("0019_decision_explanations").down_revision == (
         "0018_agent_proposal_policy"
     )
@@ -163,10 +168,14 @@ def test_approval_migration_promotes_an_existing_complete_bundle(
         "backend.app.db.repositories.catalog.get_derived_data_approval",
         lambda *_args: None,
     )
+    monkeypatch.setattr(
+        "backend.app.db.repositories.catalog.get_catalog_approval",
+        lambda *_args: None,
+    )
     get_settings.cache_clear()
     config = Config(str(ALEMBIC_CONFIG))
     command.downgrade(config, "base")
-    command.upgrade(config, "0015_graded_safety_policy")
+    command.upgrade(config, "0021_merged_catalog_source")
     engine = create_engine(test_database_url)
     try:
         with Session(engine) as session:
@@ -175,6 +184,7 @@ def test_approval_migration_promotes_an_existing_complete_bundle(
                 BUNDLE_CATALOGS,
                 BUNDLE_SAFETY,
                 BUNDLE_ALTERNATIVES,
+                BUNDLE_PRESCRIPTIONS,
             )
             session.commit()
         command.upgrade(config, "head")
@@ -186,7 +196,7 @@ def test_approval_migration_promotes_an_existing_complete_bundle(
                         "WHERE production_eligible = true"
                     )
                 )
-                == 354
+                == 282
             )
             assert (
                 connection.scalar(
@@ -196,6 +206,17 @@ def test_approval_migration_promotes_an_existing_complete_bundle(
                     )
                 )
                 == 238
+            )
+            assert (
+                connection.scalar(
+                    text(
+                        "SELECT count(*) FROM catalog_versions "
+                        "WHERE version_code = 'merged-mvp-v0.4.0' "
+                        "AND review_method_code = 'DOMAIN_REVIEWER' "
+                        "AND status_interpretation_code = 'PRODUCTION_APPROVED'"
+                    )
+                )
+                == 1
             )
     finally:
         engine.dispose()

@@ -114,14 +114,13 @@ export function SessionResultScreen({
   const result = outcome.result;
 
   return (
-    <ScreenShell bands>
+    <ScreenShell>
       <ScreenHeading
         title={
           result.status_code === 'COMPLETED'
             ? '오늘 운동을 마쳤어요'
             : '오늘 운동을 기록했어요'
         }
-        onBand
       />
       <MascotStage
         eyebrow="오늘의 결과"

@@ -191,6 +191,11 @@ export type DiscomfortInput = {
   severity_code: DiscomfortSeverityCode;
 };
 
+export type AvailabilitySlotInput = {
+  start_at: string;
+  end_at: string;
+};
+
 export type DailyContextRequest = {
   fatigue_level_code: FatigueLevelCode;
   requested_duration_minutes: number;
@@ -201,11 +206,14 @@ export type DailyContextRequest = {
   hydration_state_code?: string | null;
   discomforts: DiscomfortInput[];
   adverse_reaction_codes: string[];
+  /** `null`/omitted means unanswered; `[]` means explicitly unavailable. */
+  available_slots?: AvailabilitySlotInput[] | null;
 };
 
 export type DailyContextResponse = DailyContextRequest & {
   id: string;
   local_date: string;
+  availability_source_code?: 'MANUAL' | 'ROUTINE_DEFAULT';
   context_version: number;
   created_at: string;
   updated_at: string;

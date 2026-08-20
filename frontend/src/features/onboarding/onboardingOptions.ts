@@ -1,0 +1,47 @@
+export const ONBOARDING_LOCATION_OPTIONS = [
+  { code: 'HOME', label: '집' },
+  { code: 'GYM', label: '헬스장' },
+] as const;
+
+export const ONBOARDING_EQUIPMENT_OPTIONS = [
+  { code: 'BODYWEIGHT', label: '맨몸' },
+  { code: 'MAT', label: '매트' },
+  { code: 'RESISTANCE_BAND', label: '밴드' },
+] as const;
+
+// The complete goal and experience code lists are not yet public API
+// contracts. Keep these options to deployment-approved codes and extend them
+// only when docs/API_CONTRACT.md defines the additional machine codes.
+export const ONBOARDING_GOAL_OPTIONS = [
+  {
+    code: 'GENERAL_FITNESS',
+    label: '건강 유지',
+    description: '꾸준히 움직이며 기초 체력을 만들고 싶어요.',
+  },
+] as const;
+
+export const ONBOARDING_EXPERIENCE_OPTIONS = [
+  {
+    code: 'BEGINNER',
+    label: '입문·초급',
+    description: '운동이 처음이거나 아직 정해진 루틴이 없어요.',
+  },
+] as const;
+
+export const ONBOARDING_EXERCISE_TYPE_OPTIONS = [
+  { code: 'STRENGTH', label: '근력' },
+  { code: 'CARDIO', label: '유산소' },
+  { code: 'MOBILITY', label: '스트레칭' },
+] as const;
+
+export const ONBOARDING_DURATION = {
+  min: 10,
+  max: 240,
+  step: 10,
+} as const;
+
+export const ONBOARDING_WEEKLY_COUNT = {
+  min: 1,
+  max: 7,
+  step: 1,
+} as const;

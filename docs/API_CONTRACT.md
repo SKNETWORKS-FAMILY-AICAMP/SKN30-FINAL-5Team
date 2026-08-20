@@ -1137,7 +1137,13 @@ ExerciseListItem
       "severity_code": "MILD"
     }
   ],
-  "adverse_reaction_codes": []
+  "adverse_reaction_codes": [],
+  "available_slots": [
+    {
+      "start_at": "2026-08-20T19:00:00+09:00",
+      "end_at": "2026-08-20T21:00:00+09:00"
+    }
+  ]
 }
 ~~~
 
@@ -1153,6 +1159,38 @@ ExerciseListItem
 - 웨어러블이 없어도 요청은 완전하게 유효하다.
 
 PUT은 전체 체크인 표현을 교체한다. 빈 discomforts와 adverse_reaction_codes는 기존 항목을 삭제한다.
+
+#### 9.1.1 available_slots — 사용자 수동 가능 시간
+
+`available_slots`는 사용자가 그날 운동할 수 있다고 직접 밝힌 시간 구간이다. 외부 캘린더 연동은
+보류 상태이므로(ADR-0010 "구현 보류") 이 입력이 유일한 availability 입력원이다.
+
+세 가지 상태를 구분한다. 이 구분은 계약이며 클라이언트가 임의로 바꿀 수 없다.
+
+| 전송 값 | 의미 | `availability_source_code` |
+|---|---|---|
+| 필드 생략 또는 `null` | 사용자가 가능 시간을 밝히지 않음 | `ROUTINE_DEFAULT` |
+| `[]` | 사용자가 "오늘은 가능한 시간이 없다"를 명시적으로 선택 | `MANUAL` |
+| `[{...}]` | 사용자가 가능 구간을 명시 | `MANUAL` |
+
+명시적 빈 목록은 미입력과 다르며 서버가 이를 미입력으로 취급하거나 다른 값으로 보완하지 않는다.
+
+검증:
+
+- `start_at`과 `end_at`은 timezone offset을 포함한 ISO 8601이다. naive datetime은 거부한다.
+- `end_at`은 `start_at`보다 뒤여야 한다.
+- 모든 구간은 사용자 프로필 timezone 기준으로 경로의 `local_date`에 속해야 한다. 종료 시각이
+  다음 날 00:00인 경계는 허용한다.
+- 구간끼리 겹치거나 맞닿을 수 없다.
+- 최대 8개다. 서버는 시작 시각 오름차순으로 정규화해 저장하고 반환한다.
+- 요청 순서가 달라도 정규화 결과가 같으면 동일한 멱등 요청으로 취급한다.
+
+이 값은 참고 입력이며 다음을 절대 하지 않는다.
+
+- `requested_duration_minutes`를 바꾸지 않는다.
+- 운동 계획, 안전 판단, 안전 veto에 영향을 주지 않는다.
+- 공식 운동 수행 상태를 바꾸지 않는다.
+- 특정 요일을 필수 운동일로 강제하지 않는다.
 
 필수 mutation 헤더:
 
@@ -1179,7 +1217,13 @@ Idempotency-Key: uuid
 - context_version: integer
 - created_at: datetime
 - updated_at: datetime
+- availability_source_code: MANUAL | ROUTINE_DEFAULT
 ~~~
+
+`available_slots`는 요청과 같은 규칙으로 반환한다. 미입력이면 `null`, 명시적 빈 선택이면 `[]`이며
+`availability_source_code`가 두 상태를 구분한다. 두 필드 모두 하위 호환을 위해 선택 필드이고,
+`availability_source_code`의 기본값은 `ROUTINE_DEFAULT`다. `CALENDAR`는 외부 캘린더 연동이
+재개될 때만 나타나는 예약 값이며 현재 응답에 사용하지 않는다.
 
 ---
 

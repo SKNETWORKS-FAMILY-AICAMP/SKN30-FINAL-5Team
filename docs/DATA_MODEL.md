@@ -659,6 +659,21 @@ PK는 `(user_id, location_code)`다. 기존 `user_profiles.preferred_location_co
 저장한다. 두 테이블 모두 `DOMAIN_APPROVED` 행만 루틴 생성에 사용한다. 운동 이름이나
 training type에서 목표·처방을 추론하지 않는다.
 
+병합 카탈로그 처방 산출물 `merged-mvp-v0.1.0`은 goal tag 32건과 prescription profile
+36건을 포함한다. importer는 산출물 manifest의 version/hash/count를 검증하고 운동을
+`(catalog_version_code, stable_code)`로 해석해 두 테이블에 원자적으로 적재한다. 적재된
+catalog의 `manifest_metadata.prescription_artifact`에는 처방 산출물 version, manifest hash,
+두 건수와 승인 metadata를 보존한다. 같은 version의 hash 또는 건수가 달라지면 재적재하지
+않고 실패한다.
+
+`catalog_versions.source_track_code=merged`는 카탈로그 컨테이너가 여러 source track을
+합쳤다는 뜻이다. 각 `exercises.source_track_code`는 계속 `wger` 또는 `kspo`만 허용해 운동별
+provenance를 보존한다. `MERGED-MVP-20260820-PM-DOMAIN-APPROVAL`은 다음 정확한 집합에만
+적용된다: catalog 56종, safety rules 282건, alternatives 238건, goal tags 32건,
+prescription profiles 36건. migration은 이미 적재된 행을 동일 기준으로 재검사하고 승인
+metadata를 기록하지만 ACTIVE 전환은 하지 않는다. `catalog_activate`가 처방/goal tag 존재와
+review 상태를 다시 확인한 뒤 단일 ACTIVE 제약 안에서 전환한다.
+
 ### 6.4 scheduled_workouts
 
 | 컬럼 | 설명 |
@@ -779,6 +794,7 @@ provider 실패로 counter를 rollback하지 않는다. account deletion 때 CAS
 | sleep_minutes | 선택적 수동 또는 요약값 |
 | fasting_state_code | 선택 |
 | hydration_state_code | 선택 |
+| availability_source_code | MANUAL 또는 ROUTINE_DEFAULT. 기본값 ROUTINE_DEFAULT |
 | context_version | 낙관적 잠금 |
 | created_at | 생성 시각 |
 | updated_at | 수정 시각 |
@@ -809,6 +825,32 @@ daily_context_id와 body_area_code 조합은 유일하다. NONE 항목은 저장
 | reaction_code | DOMAIN_RULES.md의 이상 반응 코드 |
 
 PK는 daily_context_id와 reaction_code 조합이다.
+
+### 7.3.1 daily_context_availability_slots
+
+사용자가 체크인에서 직접 입력한 운동 가능 시간 구간이다. 외부 캘린더 연동은 보류 상태이므로
+(ADR-0010 "구현 보류") 이 테이블이 유일한 availability 입력원이다.
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| daily_context_id | daily_contexts FK, ON DELETE CASCADE |
+| start_at | timestamptz, 구간 시작 |
+| end_at | timestamptz, 구간 종료 |
+| slot_order | 0부터 시작하는 정규화된 순서 |
+
+- `(daily_context_id, slot_order)` 조합은 유일하다.
+- `end_at > start_at` CHECK를 둔다.
+- `slot_order >= 0` CHECK와 최대 8개 제한을 둔다. 상한은 도메인의 `MAX_AVAILABILITY_SLOTS`와
+  같은 값이며 애플리케이션 계층에서 강제한다.
+- 행은 체크인 교체마다 전량 삭제 후 재삽입한다. `daily_contexts.context_version`이 함께 증가한다.
+
+미입력과 명시적 빈 선택은 행 수로 구분하지 않고 `daily_contexts.availability_source_code`로
+구분한다. `ROUTINE_DEFAULT`는 미입력, `MANUAL`이면서 행이 0개면 사용자가 "가능한 시간 없음"을
+명시적으로 선택한 상태다.
+
+이 테이블은 참고 입력이며 공식 운동 수행 상태, 안전 판단, 운동 계획을 변경하지 않는다. 일정 제목,
+설명, 참석자, 장소, 링크 같은 캘린더 본문 성격의 값은 저장하지 않는다.
 
 ### 7.4 wearable_connections
 

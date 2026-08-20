@@ -129,6 +129,7 @@ export function createApi(client: ApiClient) {
     /**
      * `expectedVersion` must come from a previous read. Omitting it on an
      * existing check-in is what the server answers with `409 STALE_CONTEXT`.
+     * Keep `available_slots` intact: `null` and `[]` have different meanings.
      */
     replaceDailyContext(
       localDate: string,

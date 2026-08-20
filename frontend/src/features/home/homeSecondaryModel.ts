@@ -304,8 +304,6 @@ export const CALENDAR_WEEKS = [
 ] as const satisfies readonly CalendarWeek[];
 
 export const MY_PAGE_PROFILE_ROWS = [
-  ['date_of_birth', '나이', '만 29세'],
-  ['timezone', '시간대', 'Asia/Seoul'],
   ['primary_goal_code', '운동 목표', '체력 향상'],
   ['experience_level_code', '운동 경험', '초보'],
   ['preferred_exercise_type_codes', '선호 운동', '근력 · 유산소'],

@@ -17,8 +17,17 @@ import {
   trainingTypeLabel,
 } from '../../api/labels';
 import type { MeProfile, ProfileSettingsUpdateRequest } from '../../api/types';
-import { Button, InlineFeedback, TextField } from '../../components/primitives';
-import { colors } from '../../components/theme';
+import { Card, InlineFeedback, TextField } from '../../components/primitives';
+import { colors, radii, spacing } from '../../components/theme';
+import {
+  ONBOARDING_DURATION,
+  ONBOARDING_EQUIPMENT_OPTIONS,
+  ONBOARDING_EXERCISE_TYPE_OPTIONS,
+  ONBOARDING_EXPERIENCE_OPTIONS,
+  ONBOARDING_GOAL_OPTIONS,
+  ONBOARDING_LOCATION_OPTIONS,
+  ONBOARDING_WEEKLY_COUNT,
+} from '../onboarding/onboardingOptions';
 import type { MyPageProfileField } from './myPageModel';
 
 export type MyPageEditableField = MyPageProfileField | 'nickname';
@@ -34,8 +43,6 @@ type Props = {
 
 const TITLES: Record<MyPageEditableField, string> = {
   nickname: '닉네임 수정',
-  date_of_birth: '나이 수정',
-  timezone: '시간대 수정',
   primary_goal_code: '운동 목표 수정',
   experience_level_code: '운동 경험 수정',
   preferred_exercise_type_codes: '선호 운동 수정',
@@ -45,26 +52,6 @@ const TITLES: Record<MyPageEditableField, string> = {
   desired_weekly_workout_count: '주간 목표 수정',
   attention_area_codes: '주의 부위 수정',
 };
-
-const GOAL_OPTIONS = [{ code: 'GENERAL_FITNESS', label: '건강 유지' }] as const;
-const EXPERIENCE_OPTIONS = [{ code: 'BEGINNER', label: '입문·초급' }] as const;
-const TRAINING_OPTIONS = ['STRENGTH', 'CARDIO', 'MOBILITY'] as const;
-const LOCATION_OPTIONS = ['HOME', 'GYM', 'OUTDOOR'] as const;
-const EQUIPMENT_OPTIONS = [
-  'BODYWEIGHT',
-  'DUMBBELL',
-  'BARBELL',
-  'KETTLEBELL',
-  'CABLE_MACHINE',
-  'MACHINE',
-  'HOUSEHOLD_WEIGHT',
-  'BENCH',
-  'PULL_UP_BAR',
-  'RESISTANCE_BAND',
-  'MAT',
-  'STABILITY_BALL',
-  'CHAIR',
-] as const;
 
 export function MyPageProfileEditor({
   error = null,
@@ -84,7 +71,7 @@ export function MyPageProfileEditor({
                 {TITLES[field]}
               </Text>
               <Text style={styles.description}>
-                변경하면 별도의 저장 버튼 없이 바로 반영돼요.
+                온보딩과 같은 방식으로 선택하면 바로 반영돼요.
               </Text>
             </View>
             <Pressable
@@ -134,79 +121,61 @@ function EditorBody({
     );
   }
 
-  if (field === 'date_of_birth') {
-    return (
-      <ImmediateTextEditor
-        accessibilityLabel="생년월일 입력"
-        helper="개인정보 보호를 위해 기존 생년월일은 표시하지 않아요. YYYY-MM-DD 형식으로 새 값을 입력하면 나이가 갱신돼요."
-        initialValue=""
-        onCommit={(date_of_birth) => onChange({ date_of_birth })}
-        pending={pending}
-        placeholder="예: 1997-08-19"
-      />
-    );
-  }
-
-  if (field === 'timezone') {
-    return (
-      <ImmediateTextEditor
-        accessibilityLabel="시간대 입력"
-        helper="IANA 시간대 이름을 입력해주세요."
-        initialValue={profile.timezone}
-        onCommit={(timezone) => onChange({ timezone })}
-        pending={pending}
-        placeholder="예: Asia/Seoul"
-      />
-    );
-  }
-
   if (field === 'primary_goal_code') {
     return (
-      <OptionList
-        current={[profile.primary_goal_code]}
-        disabled={pending}
-        options={withCurrentOption(
-          GOAL_OPTIONS,
+      <ChoiceCard>
+        {mergeDescriptionOptions(
+          ONBOARDING_GOAL_OPTIONS,
           profile.primary_goal_code,
-          primaryGoalLabel(profile.primary_goal_code),
-        )}
-        onPress={(code) => onChange({ primary_goal_code: code })}
-      />
+          primaryGoalLabel,
+        ).map((option) => (
+          <DescriptionOption
+            key={option.code}
+            description={option.description}
+            disabled={pending}
+            label={option.label}
+            selected={profile.primary_goal_code === option.code}
+            onPress={() => onChange({ primary_goal_code: option.code })}
+          />
+        ))}
+      </ChoiceCard>
     );
   }
 
   if (field === 'experience_level_code') {
     return (
-      <OptionList
-        current={[profile.experience_level_code]}
-        disabled={pending}
-        options={withCurrentOption(
-          EXPERIENCE_OPTIONS,
+      <ChoiceCard>
+        {mergeDescriptionOptions(
+          ONBOARDING_EXPERIENCE_OPTIONS,
           profile.experience_level_code,
-          experienceLevelLabel(profile.experience_level_code),
-        )}
-        onPress={(code) => onChange({ experience_level_code: code })}
-      />
+          experienceLevelLabel,
+        ).map((option) => (
+          <DescriptionOption
+            key={option.code}
+            description={option.description}
+            disabled={pending}
+            label={option.label}
+            selected={profile.experience_level_code === option.code}
+            onPress={() => onChange({ experience_level_code: option.code })}
+          />
+        ))}
+      </ChoiceCard>
     );
   }
 
   if (field === 'preferred_exercise_type_codes') {
     return (
-      <OptionList
-        current={profile.preferred_exercise_type_codes}
+      <MultipleChoiceEditor
+        allowEmpty
         disabled={pending}
-        multiple
-        options={TRAINING_OPTIONS.map((code) => ({
-          code,
-          label: trainingTypeLabel(code),
-        }))}
-        onPress={(code) =>
-          onChange({
-            preferred_exercise_type_codes: toggled(
-              profile.preferred_exercise_type_codes,
-              code,
-            ),
-          })
+        initial={profile.preferred_exercise_type_codes}
+        options={mergeOptions(
+          ONBOARDING_EXERCISE_TYPE_OPTIONS,
+          profile.preferred_exercise_type_codes,
+          trainingTypeLabel,
+        )}
+        onChange={(preferred_exercise_type_codes) =>
+          onChange({ preferred_exercise_type_codes })
         }
       />
     );
@@ -214,60 +183,49 @@ function EditorBody({
 
   if (field === 'available_location_codes') {
     return (
-      <OptionList
-        current={profile.available_location_codes}
+      <MultipleChoiceEditor
         disabled={pending}
-        multiple
-        options={LOCATION_OPTIONS.map((code) => ({
-          code,
-          label: locationLabel(code),
-        }))}
-        onPress={(code) => {
-          const next = toggled(profile.available_location_codes, code);
-          if (next.length === 0) return;
+        initial={profile.available_location_codes}
+        options={mergeOptions(
+          ONBOARDING_LOCATION_OPTIONS,
+          profile.available_location_codes,
+          locationLabel,
+        )}
+        onChange={(available_location_codes) =>
           onChange({
-            available_location_codes: next,
-            preferred_location_code: next.includes(
+            available_location_codes,
+            preferred_location_code: available_location_codes.includes(
               profile.preferred_location_code,
             )
               ? profile.preferred_location_code
-              : next[0],
-          });
-        }}
+              : available_location_codes[0],
+          })
+        }
       />
     );
   }
 
   if (field === 'equipment_codes') {
     return (
-      <OptionList
-        current={profile.equipment_codes}
+      <MultipleChoiceEditor
         disabled={pending}
-        multiple
-        options={EQUIPMENT_OPTIONS.map((code) => ({
-          code,
-          label: equipmentLabel(code),
-        }))}
-        onPress={(code) => {
-          const next = toggled(profile.equipment_codes, code);
-          if (next.length > 0) onChange({ equipment_codes: next });
-        }}
+        initial={profile.equipment_codes}
+        options={mergeOptions(
+          ONBOARDING_EQUIPMENT_OPTIONS,
+          profile.equipment_codes,
+          equipmentLabel,
+        )}
+        onChange={(equipment_codes) => onChange({ equipment_codes })}
       />
     );
   }
 
   if (field === 'attention_area_codes') {
     return (
-      <OptionList
-        current={profile.attention_area_codes}
+      <AttentionAreaEditor
         disabled={pending}
-        multiple
-        options={BODY_AREA_OPTIONS}
-        onPress={(code) =>
-          onChange({
-            attention_area_codes: toggled(profile.attention_area_codes, code),
-          })
-        }
+        initial={profile.attention_area_codes}
+        onChange={(attention_area_codes) => onChange({ attention_area_codes })}
       />
     );
   }
@@ -275,15 +233,16 @@ function EditorBody({
   if (field === 'default_requested_duration_minutes') {
     return (
       <ImmediateStepper
-        label="희망 운동 시간"
-        max={120}
-        min={10}
+        decreaseLabel="운동 시간 10분 줄이기"
+        increaseLabel="운동 시간 10분 늘리기"
+        max={ONBOARDING_DURATION.max}
+        min={ONBOARDING_DURATION.min}
         onChange={(default_requested_duration_minutes) =>
           onChange({ default_requested_duration_minutes })
         }
         pending={pending}
-        step={5}
-        unit="분"
+        step={ONBOARDING_DURATION.step}
+        suffix="분"
         value={profile.default_requested_duration_minutes}
       />
     );
@@ -291,15 +250,17 @@ function EditorBody({
 
   return (
     <ImmediateStepper
-      label="주간 목표"
-      max={7}
-      min={1}
+      decreaseLabel="주간 운동 횟수 1회 줄이기"
+      increaseLabel="주간 운동 횟수 1회 늘리기"
+      max={ONBOARDING_WEEKLY_COUNT.max}
+      min={ONBOARDING_WEEKLY_COUNT.min}
       onChange={(desired_weekly_workout_count) =>
         onChange({ desired_weekly_workout_count })
       }
       pending={pending}
-      step={1}
-      unit="회"
+      prefix="주 "
+      step={ONBOARDING_WEEKLY_COUNT.step}
+      suffix="회"
       value={profile.desired_weekly_workout_count}
     />
   );
@@ -307,14 +268,12 @@ function EditorBody({
 
 function ImmediateTextEditor({
   accessibilityLabel,
-  helper,
   initialValue,
   onCommit,
   pending,
   placeholder,
 }: {
   accessibilityLabel: string;
-  helper?: string;
   initialValue: string;
   onCommit: (value: string) => void;
   pending: boolean;
@@ -330,117 +289,286 @@ function ImmediateTextEditor({
   };
 
   return (
-    <View style={styles.textEditor}>
-      {helper ? <Text style={styles.helper}>{helper}</Text> : null}
-      <TextField
-        accessibilityLabel={accessibilityLabel}
-        autoCapitalize="none"
-        editable={!pending}
-        onBlur={commit}
-        onChangeText={setValue}
-        onSubmitEditing={commit}
-        placeholder={placeholder}
-        returnKeyType="done"
-        value={value}
-      />
-    </View>
+    <TextField
+      accessibilityLabel={accessibilityLabel}
+      autoCapitalize="none"
+      editable={!pending}
+      onBlur={commit}
+      onChangeText={setValue}
+      onSubmitEditing={commit}
+      placeholder={placeholder}
+      returnKeyType="done"
+      value={value}
+    />
   );
 }
 
-function OptionList({
-  current,
+function MultipleChoiceEditor({
+  allowEmpty = false,
   disabled,
-  multiple = false,
-  onPress,
+  initial,
+  onChange,
   options,
 }: {
-  current: readonly string[];
+  allowEmpty?: boolean;
   disabled: boolean;
-  multiple?: boolean;
-  onPress: (code: string) => void;
-  options: readonly { code: string; label: string }[];
+  initial: readonly string[];
+  onChange: (codes: string[]) => void;
+  options: readonly ChoiceOption[];
 }) {
+  const [selected, setSelected] = useState([...initial]);
+
   return (
-    <View style={styles.options}>
-      {options.map((option) => {
-        const selected = current.includes(option.code);
-        return (
-          <Pressable
-            key={option.code}
-            accessibilityRole={multiple ? 'checkbox' : 'radio'}
-            accessibilityState={{ checked: selected, disabled }}
-            disabled={disabled || (!multiple && selected)}
-            onPress={() => onPress(option.code)}
-            style={[styles.option, selected && styles.optionSelected]}
-          >
-            <Text
-              style={[styles.optionText, selected && styles.optionTextSelected]}
-            >
-              {option.label}
-            </Text>
-            <Text style={styles.optionMark}>{selected ? '✓' : ''}</Text>
-          </Pressable>
-        );
-      })}
-    </View>
+    <ChoiceCard>
+      {options.map((option) => (
+        <ChipOption
+          key={option.code}
+          disabled={disabled}
+          label={option.label}
+          selected={selected.includes(option.code)}
+          onPress={() => {
+            const next = toggle(selected, option.code);
+            if (!allowEmpty && next.length === 0) return;
+            setSelected(next);
+            onChange(next);
+          }}
+        />
+      ))}
+    </ChoiceCard>
+  );
+}
+
+function AttentionAreaEditor({
+  disabled,
+  initial,
+  onChange,
+}: {
+  disabled: boolean;
+  initial: readonly string[];
+  onChange: (codes: string[]) => void;
+}) {
+  const [hasAreas, setHasAreas] = useState(initial.length > 0);
+  const [selected, setSelected] = useState([...initial]);
+
+  return (
+    <ChoiceCard>
+      <ChipOption
+        disabled={disabled}
+        grow
+        label="없어요"
+        selected={!hasAreas}
+        onPress={() => {
+          setHasAreas(false);
+          setSelected([]);
+          if (selected.length > 0) onChange([]);
+        }}
+      />
+      <ChipOption
+        disabled={disabled}
+        grow
+        label="있어요"
+        selected={hasAreas}
+        onPress={() => setHasAreas(true)}
+      />
+      {hasAreas ? (
+        <View style={styles.painSection}>
+          <Text style={styles.painSectionTitle}>통증 부위</Text>
+          <View style={styles.painChoices}>
+            {BODY_AREA_OPTIONS.map((option) => (
+              <ChipOption
+                key={option.code}
+                disabled={disabled}
+                label={option.label}
+                selected={selected.includes(option.code)}
+                onPress={() => {
+                  const next = toggle(selected, option.code);
+                  setSelected(next);
+                  onChange(next);
+                }}
+              />
+            ))}
+          </View>
+        </View>
+      ) : null}
+    </ChoiceCard>
   );
 }
 
 function ImmediateStepper({
-  label,
+  decreaseLabel,
+  increaseLabel,
   max,
   min,
   onChange,
   pending,
+  prefix = '',
   step,
-  unit,
+  suffix,
   value,
 }: {
-  label: string;
+  decreaseLabel: string;
+  increaseLabel: string;
   max: number;
   min: number;
   onChange: (value: number) => void;
   pending: boolean;
+  prefix?: string;
   step: number;
-  unit: string;
+  suffix: string;
   value: number;
 }) {
+  const [current, setCurrent] = useState(value);
+  const canDecrease = !pending && current > min;
+  const canIncrease = !pending && current < max;
+  const update = (next: number) => {
+    setCurrent(next);
+    onChange(next);
+  };
+
   return (
-    <View style={styles.stepper}>
-      <Button
-        disabled={pending || value - step < min}
-        label={`${label} 줄이기`}
-        onPress={() => onChange(Math.max(min, value - step))}
-        tone="secondary"
-      />
-      <Text style={styles.stepperValue}>
-        {value}
-        {unit}
+    <Card style={styles.counterCard}>
+      <Pressable
+        accessibilityLabel={decreaseLabel}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !canDecrease }}
+        disabled={!canDecrease}
+        onPress={() => update(Math.max(min, current - step))}
+        style={[
+          styles.counterButton,
+          !canDecrease && styles.counterButtonDisabled,
+        ]}
+      >
+        <Text style={styles.counterButtonText}>−</Text>
+      </Pressable>
+      <Text accessibilityLiveRegion="polite" style={styles.counterValue}>
+        {prefix}
+        {current}
+        {suffix}
       </Text>
-      <Button
-        disabled={pending || value + step > max}
-        label={`${label} 늘리기`}
-        onPress={() => onChange(Math.min(max, value + step))}
-        tone="secondary"
-      />
-    </View>
+      <Pressable
+        accessibilityLabel={increaseLabel}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !canIncrease }}
+        disabled={!canIncrease}
+        onPress={() => update(Math.min(max, current + step))}
+        style={[
+          styles.counterButton,
+          !canIncrease && styles.counterButtonDisabled,
+        ]}
+      >
+        <Text style={styles.counterButtonText}>+</Text>
+      </Pressable>
+    </Card>
   );
 }
 
-function toggled(values: readonly string[], code: string): string[] {
+type ChoiceOption = { code: string; label: string };
+
+function ChoiceCard({ children }: { children: React.ReactNode }) {
+  return <Card style={styles.choiceCard}>{children}</Card>;
+}
+
+function ChipOption({
+  disabled,
+  grow = false,
+  label,
+  onPress,
+  selected,
+}: {
+  disabled: boolean;
+  grow?: boolean;
+  label: string;
+  onPress: () => void;
+  selected: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: selected, disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={[
+        styles.chip,
+        grow && styles.chipGrow,
+        selected && styles.chipSelected,
+      ]}
+    >
+      <Text style={[styles.chipLabel, selected && styles.chipLabelSelected]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function DescriptionOption({
+  description,
+  disabled,
+  label,
+  onPress,
+  selected,
+}: {
+  description: string;
+  disabled: boolean;
+  label: string;
+  onPress: () => void;
+  selected: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityState={{ checked: selected, disabled }}
+      disabled={disabled || selected}
+      onPress={onPress}
+      style={[styles.descriptionOption, selected && styles.chipSelected]}
+    >
+      <Text
+        style={[styles.descriptionTitle, selected && styles.chipLabelSelected]}
+      >
+        {label}
+      </Text>
+      <Text
+        style={[
+          styles.descriptionText,
+          selected && styles.descriptionTextSelected,
+        ]}
+      >
+        {description}
+      </Text>
+    </Pressable>
+  );
+}
+
+function toggle(values: readonly string[], code: string): string[] {
   return values.includes(code)
     ? values.filter((value) => value !== code)
     : [...values, code];
 }
 
-function withCurrentOption(
-  options: readonly { code: string; label: string }[],
-  currentCode: string,
-  currentLabel: string,
-): readonly { code: string; label: string }[] {
-  return options.some((option) => option.code === currentCode)
+function mergeOptions(
+  options: readonly ChoiceOption[],
+  current: readonly string[],
+  labelFor: (code: string) => string,
+): readonly ChoiceOption[] {
+  const known = new Set(options.map((option) => option.code));
+  return [
+    ...options,
+    ...current
+      .filter((code) => !known.has(code))
+      .map((code) => ({ code, label: labelFor(code) })),
+  ];
+}
+
+function mergeDescriptionOptions(
+  options: readonly { code: string; label: string; description: string }[],
+  current: string,
+  labelFor: (code: string) => string,
+): readonly { code: string; label: string; description: string }[] {
+  return options.some((option) => option.code === current)
     ? options
-    : [{ code: currentCode, label: currentLabel }, ...options];
+    : [
+        { code: current, label: labelFor(current), description: '현재 선택' },
+        ...options,
+      ];
 }
 
 const styles = StyleSheet.create({
@@ -476,30 +604,80 @@ const styles = StyleSheet.create({
   },
   closeText: { color: colors.text, fontSize: 25, lineHeight: 26 },
   editorContent: { gap: 14, paddingTop: 20 },
-  textEditor: { gap: 10 },
-  helper: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
   pending: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
-  options: { gap: 9 },
-  option: {
-    minHeight: 50,
+  choiceCard: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  chip: {
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radii.control,
+    backgroundColor: colors.canvas,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+  },
+  chipGrow: { minWidth: 72, flexGrow: 1, alignItems: 'center' },
+  chipSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  chipLabel: { color: colors.text, fontSize: 14, fontWeight: '600' },
+  chipLabelSelected: { color: colors.surface },
+  descriptionOption: {
+    width: '100%',
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radii.control,
+    backgroundColor: colors.canvas,
+    padding: 14,
+  },
+  descriptionTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  descriptionText: {
+    marginTop: 3,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  descriptionTextSelected: { color: 'rgba(255, 255, 255, 0.75)' },
+  painSection: {
+    width: '100%',
+    gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md,
+  },
+  painSectionTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  painChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  counterCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#D8E3C8',
-    borderRadius: 14,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 16,
+    gap: spacing.lg,
   },
-  optionSelected: { borderColor: colors.primary, backgroundColor: '#F1F6E7' },
-  optionText: { color: colors.text, fontSize: 14, fontWeight: '700' },
-  optionTextSelected: { color: '#3E7A32' },
-  optionMark: { color: colors.primary, fontSize: 16, fontWeight: '900' },
-  stepper: { gap: 12, alignItems: 'stretch' },
-  stepperValue: {
+  counterButton: {
+    width: 56,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: 28,
+    backgroundColor: colors.surface,
+  },
+  counterButtonDisabled: { borderColor: colors.border, opacity: 0.4 },
+  counterButtonText: {
+    color: colors.primary,
+    fontSize: 30,
+    fontWeight: '500',
+    lineHeight: 34,
+  },
+  counterValue: {
+    minWidth: 100,
     color: colors.text,
-    fontSize: 28,
-    fontWeight: '900',
+    fontSize: 24,
+    fontWeight: '800',
     textAlign: 'center',
   },
 });

@@ -102,6 +102,8 @@ describe('MyPageContainer', () => {
     expect(screen.getByText('함께한 지 7일째')).toBeOnTheScreen();
     expect(screen.getByText('근력')).toBeOnTheScreen();
     expect(screen.getByText('맨몸 · 밴드')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: '나이 수정' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '시간대 수정' })).toBeNull();
     expect(screen.queryByText('BODYWEIGHT')).toBeNull();
     expect(screen.queryByText('완료 운동')).toBeNull();
     expect(screen.queryByText('연속 기록')).toBeNull();
@@ -161,11 +163,13 @@ describe('MyPageContainer', () => {
     expect(
       screen.getByRole('header', { name: '희망 시간 수정' }),
     ).toBeOnTheScreen();
-    fireEvent.press(screen.getByText('희망 운동 시간 늘리기'));
+    fireEvent.press(
+      screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
+    );
 
     await waitFor(() =>
       expect(updateProfileSettings).toHaveBeenCalledWith(
-        { default_requested_duration_minutes: 35 },
+        { default_requested_duration_minutes: 40 },
         7,
       ),
     );
@@ -230,6 +234,9 @@ describe('MyPageContainer', () => {
     fireEvent.press(screen.getByRole('button', { name: '장비 수정' }));
     expect(screen.getByRole('header', { name: '장비 수정' })).toBeOnTheScreen();
     expect(screen.queryByRole('header', { name: '주의 부위 수정' })).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: '덤벨' })).toBeNull();
+    expect(screen.getByRole('checkbox', { name: '맨몸' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: '밴드' })).toBeChecked();
     fireEvent.press(screen.getByRole('checkbox', { name: '매트' }));
 
     await waitFor(() =>
@@ -238,6 +245,39 @@ describe('MyPageContainer', () => {
         7,
       ),
     );
+  });
+
+  it('uses the onboarding attention-area flow and can clear the selection', async () => {
+    const updateProfileSettings = jest.fn<Api['updateProfileSettings']>(
+      async () => ({
+        profile_version: 8,
+        updated_at: '2026-08-19T09:00:00+09:00',
+      }),
+    );
+
+    await render(
+      <MyPageContainer
+        api={accountApi({ updateProfileSettings })}
+        me={me()}
+        now={new Date('2026-08-19T03:00:00Z')}
+        onNavigateTab={jest.fn()}
+        onRefreshMe={jest.fn(async () => undefined)}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: '주의 부위 수정' }));
+    expect(screen.getByRole('checkbox', { name: '있어요' })).toBeChecked();
+    expect(screen.getByText('통증 부위')).toBeOnTheScreen();
+    fireEvent.press(screen.getByRole('checkbox', { name: '없어요' }));
+
+    await waitFor(() =>
+      expect(updateProfileSettings).toHaveBeenCalledWith(
+        { attention_area_codes: [] },
+        7,
+      ),
+    );
+    expect(screen.queryByText('통증 부위')).toBeNull();
   });
 
   it('opens the reviewed exercise catalog from the local my-page screen', async () => {
@@ -255,6 +295,7 @@ describe('MyPageContainer', () => {
       />,
     );
 
+    expect(screen.getByText('운동 도구')).toBeOnTheScreen();
     fireEvent.press(screen.getByText('운동 카탈로그'));
     expect(onOpenExerciseCatalog).toHaveBeenCalledTimes(1);
   });

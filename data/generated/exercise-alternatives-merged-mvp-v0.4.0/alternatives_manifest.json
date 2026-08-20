@@ -1,0 +1,71 @@
+{
+  "schema_version": "1.0",
+  "generator_version": "0.1.0",
+  "alternative_set_version": {
+    "version_code": "merged-mvp-v0.4.0",
+    "status_code": "DRAFT"
+  },
+  "source": {
+    "catalog_seeds": [
+      "exercise-catalog-seed-merged-mvp-v0.4.0"
+    ],
+    "safety_rule_set": "exercise-safety-rules-merged-mvp-v0.5.0",
+    "input_artifacts": [
+      {
+        "role": "alternative_policy",
+        "path": "exercise_alternative_policy.json",
+        "sha256": "422643ddd49ce1423c524a35fc0694e32b8e2bc61fea9f36657d1b98da193a6d",
+        "bytes": 4144
+      },
+      {
+        "role": "exercise-catalog-seed-merged-mvp-v0.4.0:manifest",
+        "path": "seed_manifest.json",
+        "sha256": "5686be3d379c8e3742e7e891b9fb5265215aaebd4c3b3c0ec76a000b3175a9a1",
+        "bytes": 1769
+      },
+      {
+        "role": "exercise-catalog-seed-merged-mvp-v0.4.0:exercises",
+        "path": "exercises.jsonl",
+        "sha256": "70889066bccba80110936553cdbd28a5c48556c5ca2b651f518a1447413bf1e7",
+        "bytes": 67751
+      },
+      {
+        "role": "safety_rules_manifest",
+        "path": "rules_manifest.json",
+        "sha256": "e42133f2550b6bd4d82063668200f6c08fe57be1445fe8e462cba92487961172",
+        "bytes": 1380
+      },
+      {
+        "role": "safety_coverage",
+        "path": "coverage_report.json",
+        "sha256": "e94fde133d68a5f769b2df2844a5db741f60e046d9677dfc51aad3d0820b4f33",
+        "bytes": 14305
+      }
+    ]
+  },
+  "review": {
+    "status": "DOMAIN_APPROVED",
+    "review_method_code": "AGENT_ONLY",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
+    "production_eligible": false
+  },
+  "summary": {
+    "exercise_records": 56,
+    "alternative_records": 238,
+    "sources_with_alternatives": 49
+  },
+  "files": [
+    {
+      "path": "alternatives.jsonl",
+      "sha256": "a37b6c0ffc8ab5716a056c4b6e3518c90f50e00d51fa96a463c121df9150436e",
+      "bytes": 126096,
+      "records": 238
+    },
+    {
+      "path": "coverage_report.json",
+      "sha256": "87317d7e21b1e747a79db4200973c5a918bb1ec82142088e2771e4f17a787f08",
+      "bytes": 1842,
+      "records": 1
+    }
+  ]
+}

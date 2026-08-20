@@ -7,7 +7,7 @@ from uuid import UUID
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import Engine, create_engine, func, select
+from sqlalchemy import Engine, create_engine, delete, func, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
@@ -17,6 +17,8 @@ from backend.app.db.models.catalog import (
     Exercise,
     ExerciseAlternative,
     ExerciseBodyPart,
+    ExerciseGoalTagLink,
+    ExercisePrescriptionProfile,
     ExerciseSafetyRule,
 )
 from backend.app.db.repositories.catalog import CatalogRepository
@@ -26,14 +28,10 @@ from backend.scripts.demo_seed import seed_catalog
 
 ALEMBIC_CONFIG = Path("backend/alembic.ini")
 GENERATED_ARTIFACT = Path("data/generated/exercise-catalog-seed-kspo-tranche3-v0.1.0")
-BUNDLE_CATALOGS = (
-    Path("data/generated/exercise-catalog-seed-kspo-mvp-v0.2.0"),
-    Path("data/generated/exercise-catalog-seed-wger-mvp-v0.2.0"),
-    Path("data/generated/exercise-catalog-seed-kspo-tranche3-v0.1.0"),
-    Path("data/generated/exercise-catalog-seed-wger-tranche3-v0.1.0"),
-)
-BUNDLE_SAFETY = Path("data/generated/exercise-safety-rules-mvp-v0.3.0")
-BUNDLE_ALTERNATIVES = Path("data/generated/exercise-alternatives-mvp-v0.2.0")
+BUNDLE_CATALOGS = (Path("data/generated/exercise-catalog-seed-merged-mvp-v0.4.0"),)
+BUNDLE_SAFETY = Path("data/generated/exercise-safety-rules-merged-mvp-v0.5.0")
+BUNDLE_ALTERNATIVES = Path("data/generated/exercise-alternatives-merged-mvp-v0.4.0")
+BUNDLE_PRESCRIPTIONS = Path("data/generated/exercise-prescriptions-merged-mvp-v0.1.0")
 
 
 @pytest.fixture
@@ -50,6 +48,8 @@ def postgres_session(monkeypatch: pytest.MonkeyPatch) -> Iterator[Session]:
     command.upgrade(Config(str(ALEMBIC_CONFIG)), "head")
 
     engine: Engine = create_engine(test_database_url)
+    with Session(engine) as cleanup, cleanup.begin():
+        cleanup.execute(delete(CatalogVersion))
     connection = engine.connect()
     transaction = connection.begin()
     session = Session(bind=connection)
@@ -60,6 +60,8 @@ def postgres_session(monkeypatch: pytest.MonkeyPatch) -> Iterator[Session]:
         if transaction.is_active:
             transaction.rollback()
         connection.close()
+        with Session(engine) as cleanup, cleanup.begin():
+            cleanup.execute(delete(CatalogVersion))
         engine.dispose()
         get_settings.cache_clear()
 
@@ -220,19 +222,29 @@ def test_imports_complete_bundle_with_metadata_and_is_idempotent(
     importer = CatalogDataBundleImporter(CatalogRepository(), "test")
 
     first = importer.import_bundle(
-        postgres_session, BUNDLE_CATALOGS, BUNDLE_SAFETY, BUNDLE_ALTERNATIVES
+        postgres_session,
+        BUNDLE_CATALOGS,
+        BUNDLE_SAFETY,
+        BUNDLE_ALTERNATIVES,
+        BUNDLE_PRESCRIPTIONS,
     )
     second = importer.import_bundle(
-        postgres_session, BUNDLE_CATALOGS, BUNDLE_SAFETY, BUNDLE_ALTERNATIVES
+        postgres_session,
+        BUNDLE_CATALOGS,
+        BUNDLE_SAFETY,
+        BUNDLE_ALTERNATIVES,
+        BUNDLE_PRESCRIPTIONS,
     )
 
-    assert first.safety_rules.record_count == 354
+    assert first.safety_rules.record_count == 282
     assert first.alternatives.record_count == 238
     assert second.safety_rules.imported is False
     assert second.alternatives.imported is False
-    assert postgres_session.scalar(select(func.count()).select_from(CatalogVersion)) == 4
+    assert first.prescriptions.record_count == 68
+    assert second.prescriptions.imported is False
+    assert postgres_session.scalar(select(func.count()).select_from(CatalogVersion)) == 1
     assert postgres_session.scalar(select(func.count()).select_from(Exercise)) == 56
-    assert postgres_session.scalar(select(func.count()).select_from(ExerciseSafetyRule)) == 354
+    assert postgres_session.scalar(select(func.count()).select_from(ExerciseSafetyRule)) == 282
     assert postgres_session.scalar(select(func.count()).select_from(ExerciseAlternative)) == 238
     assert (
         postgres_session.scalar(
@@ -240,7 +252,11 @@ def test_imports_complete_bundle_with_metadata_and_is_idempotent(
             .select_from(ExerciseSafetyRule)
             .where(ExerciseSafetyRule.production_eligible.is_(True))
         )
-        == 354
+        == 282
+    )
+    assert postgres_session.scalar(select(func.count()).select_from(ExerciseGoalTagLink)) == 32
+    assert (
+        postgres_session.scalar(select(func.count()).select_from(ExercisePrescriptionProfile)) == 36
     )
     assert (
         postgres_session.scalar(

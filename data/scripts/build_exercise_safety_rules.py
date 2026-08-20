@@ -444,6 +444,7 @@ def build_rules(
         coverage_path.write_text(
             json.dumps(coverage, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
+            newline="\n",
         )
         coverage_raw = coverage_path.read_bytes()
 
@@ -498,7 +499,9 @@ def build_rules(
             ],
         }
         (partial_dir / "rules_manifest.json").write_text(
-            json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+            json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+            newline="\n",
         )
         verify_rules(partial_dir)
         partial_dir.replace(final_dir)

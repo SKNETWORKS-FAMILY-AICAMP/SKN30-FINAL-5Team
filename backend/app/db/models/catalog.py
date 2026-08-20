@@ -38,7 +38,7 @@ class CatalogVersion(Base):
             name="ck_catalog_versions_code_set_version",
         ),
         CheckConstraint(
-            "source_track_code IN ('wger', 'kspo')",
+            "source_track_code IN ('wger', 'kspo', 'merged')",
             name="ck_catalog_versions_source_track_code",
         ),
         CheckConstraint(

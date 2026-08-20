@@ -16,7 +16,11 @@ import {
   adjustmentDirectionLabel,
   notCompletedReasonLabel,
 } from '../../api/labels';
-import type { WeeklyReportResponse, WeekResponse } from '../../api/types';
+import type {
+  WeeklyPlanRevisionResponse,
+  WeeklyReportResponse,
+  WeekResponse,
+} from '../../api/types';
 import {
   useAsyncAction,
   useAsyncData,
@@ -35,20 +39,28 @@ import {
 
 type WeeklyReportScreenProps = {
   api: Api;
+  now?: Date;
   onBack: () => void;
   onNavigateTab?: (tab: TabId) => void;
+  onPlanRevisionChange?: (revision: WeeklyPlanRevisionResponse) => void;
+  planRevision?: WeeklyPlanRevisionResponse | null;
   timeZone?: string;
   weekStart?: string;
 };
 
 export function WeeklyReportScreen({
   api,
+  now = new Date(),
   onBack,
   onNavigateTab,
+  onPlanRevisionChange,
+  planRevision = null,
   timeZone,
   weekStart: selectedWeekStart,
 }: WeeklyReportScreenProps) {
-  const weekStart = selectedWeekStart ?? weekStartString(new Date(), timeZone);
+  const weekStart = selectedWeekStart ?? weekStartString(now, timeZone);
+  const nextWeekStart = shiftLocalDate(weekStart, 7);
+  const canApplyNextPlan = nextWeekStart === weekStartString(now, timeZone);
   const [reportOverride, setReportOverride] = useState<{
     weekStart: string;
     report: WeeklyReportResponse;
@@ -88,6 +100,30 @@ export function WeeklyReportScreen({
     });
   });
 
+  const saveNextPlan = async (reportId: string) => {
+    if (
+      !canApplyNextPlan ||
+      nextWeekStart === null ||
+      onPlanRevisionChange === undefined
+    ) {
+      return;
+    }
+    const revision = await api.createInitialWeeklyPlan(nextWeekStart);
+    if (
+      revision.week_start !== nextWeekStart ||
+      revision.source_weekly_report_id !== reportId
+    ) {
+      throw new Error(
+        '다음 주 계획 정보가 리포트와 일치하지 않습니다. 다시 시도해주세요.',
+      );
+    }
+    onPlanRevisionChange(revision);
+  };
+
+  const applyNextPlan = useAsyncAction(async (reportId: string) => {
+    await saveNextPlan(reportId);
+  });
+
   const acknowledge = useAsyncAction(async (reportId: string) => {
     if (state.status !== 'ready') return;
     const report = await api.acknowledgeWeeklyReport(
@@ -99,6 +135,7 @@ export function WeeklyReportScreen({
       weekStart,
       report,
     });
+    await saveNextPlan(reportId);
   });
 
   if (state.status === 'loading') {
@@ -127,6 +164,12 @@ export function WeeklyReportScreen({
       ? reportOverride.report
       : storedReport;
   const availability = weeklyReportAvailability(week);
+  const appliedPlan =
+    visibleReport !== null &&
+    planRevision?.week_start === nextWeekStart &&
+    planRevision.source_weekly_report_id === visibleReport.report_id
+      ? planRevision
+      : null;
 
   return (
     <ReportPage onBack={onBack} onNavigateTab={onNavigateTab}>
@@ -149,6 +192,19 @@ export function WeeklyReportScreen({
           pending={acknowledge.pending}
           error={acknowledge.error}
           onAcknowledge={() => void acknowledge.run(visibleReport.report_id)}
+          nextPlan={appliedPlan}
+          nextPlanPending={applyNextPlan.pending}
+          nextPlanError={applyNextPlan.error}
+          onRetryNextPlan={
+            !canApplyNextPlan ||
+            onPlanRevisionChange === undefined ||
+            nextWeekStart === null
+              ? undefined
+              : () => {
+                  acknowledge.clearError();
+                  void applyNextPlan.run(visibleReport.report_id);
+                }
+          }
         />
       )}
     </ReportPage>
@@ -330,11 +386,19 @@ function ReportDetails({
   pending,
   error,
   onAcknowledge,
+  nextPlan,
+  nextPlanPending,
+  nextPlanError,
+  onRetryNextPlan,
 }: {
   report: WeeklyReportResponse;
   pending: boolean;
   error: string | null;
   onAcknowledge: () => void;
+  nextPlan: WeeklyPlanRevisionResponse | null;
+  nextPlanPending: boolean;
+  nextPlanError: string | null;
+  onRetryNextPlan?: () => void;
 }) {
   const acknowledged = report.acknowledged_at !== null;
 
@@ -396,20 +460,32 @@ function ReportDetails({
         </View>
       </View>
 
-      {error ? <InlineFeedback tone="error" message={error} /> : null}
+      {error && !acknowledged ? (
+        <InlineFeedback tone="error" message={error} />
+      ) : null}
 
       {acknowledged ? (
-        <View style={styles.acknowledgedCard}>
-          <View style={styles.acknowledgedMark}>
-            <Text style={styles.acknowledgedMarkText}>✓</Text>
+        <>
+          <View style={styles.acknowledgedCard}>
+            <View style={styles.acknowledgedMark}>
+              <Text style={styles.acknowledgedMarkText}>✓</Text>
+            </View>
+            <View style={styles.acknowledgedCopy}>
+              <Text style={styles.acknowledgedTitle}>리포트를 확인했어요</Text>
+              <Text style={styles.acknowledgedBody}>
+                확인한 내용을 다음 주 계획에 연결해요.
+              </Text>
+            </View>
           </View>
-          <View style={styles.acknowledgedCopy}>
-            <Text style={styles.acknowledgedTitle}>리포트를 확인했어요</Text>
-            <Text style={styles.acknowledgedBody}>
-              이제 다음 주 계획을 확정할 수 있어요.
-            </Text>
-          </View>
-        </View>
+          {onRetryNextPlan ? (
+            <NextPlanApplicationCard
+              error={error ?? nextPlanError}
+              onRetry={onRetryNextPlan}
+              pending={pending || nextPlanPending}
+              revision={nextPlan}
+            />
+          ) : null}
+        </>
       ) : (
         <View style={styles.acknowledgeSection}>
           <Text style={styles.acknowledgeHint}>
@@ -433,6 +509,64 @@ function ReportDetails({
         </View>
       )}
     </>
+  );
+}
+
+function NextPlanApplicationCard({
+  error,
+  onRetry,
+  pending,
+  revision,
+}: {
+  error: string | null;
+  onRetry: () => void;
+  pending: boolean;
+  revision: WeeklyPlanRevisionResponse | null;
+}) {
+  const finalized = revision?.finalized === true && revision.routine !== null;
+  const draft = revision !== null && !finalized;
+
+  return (
+    <View
+      accessibilityRole={error || draft ? 'alert' : undefined}
+      style={[
+        styles.applicationCard,
+        finalized && styles.applicationCardSuccess,
+        (error || draft) && styles.applicationCardWarning,
+      ]}
+    >
+      <Text style={styles.applicationEyebrow}>다음 주 계획</Text>
+      <Text style={styles.applicationTitle}>
+        {pending
+          ? '다음 주 계획에 반영하고 있어요'
+          : finalized
+            ? '다음 주 계획에 반영했어요'
+            : draft
+              ? '계획 초안은 저장됐지만 아직 확정되지 않았어요'
+              : '다음 주 계획 반영이 필요해요'}
+      </Text>
+      {revision ? (
+        <Text style={styles.applicationBody}>
+          {formatWeekRange(revision.week_start, revision.week_end)} · 홈에서
+          해당 주의 최종 루틴을 확인할 수 있어요.
+        </Text>
+      ) : null}
+      {error ? <InlineFeedback tone="error" message={error} /> : null}
+      {!pending && revision === null ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={onRetry}
+          style={({ pressed }) => [
+            styles.applicationButton,
+            pressed && styles.buttonPressed,
+          ]}
+        >
+          <Text style={styles.applicationButtonText}>
+            {error ? '다시 반영하기' : '다음 주 계획 반영하기'}
+          </Text>
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 
@@ -469,6 +603,16 @@ function formatWeekRange(weekStart: string, weekEnd: string): string {
     return `${Number(match[2])}.${Number(match[3])}`;
   };
   return `${compact(weekStart)} – ${compact(weekEnd)}`;
+}
+
+function shiftLocalDate(value: string, days: number): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (match === null) return null;
+  const date = new Date(
+    Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])),
+  );
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
 }
 
 const styles = StyleSheet.create({
@@ -939,6 +1083,53 @@ const styles = StyleSheet.create({
     color: colors.textSub,
     fontSize: 11.5,
     lineHeight: 17,
+  },
+  applicationCard: {
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 18,
+    backgroundColor: colors.surface,
+    padding: 15,
+  },
+  applicationCardSuccess: {
+    borderColor: colors.successBorder,
+    backgroundColor: colors.successSurface,
+  },
+  applicationCardWarning: {
+    borderColor: '#EFC02F',
+    backgroundColor: '#FFF8D9',
+  },
+  applicationEyebrow: {
+    color: colors.greenText,
+    fontSize: 10.5,
+    fontWeight: '800',
+  },
+  applicationTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '800',
+    lineHeight: 23,
+  },
+  applicationBody: {
+    color: colors.textSub,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  applicationButton: {
+    minHeight: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+    borderRadius: 14,
+    backgroundColor: colors.green,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  applicationButtonText: {
+    color: colors.surface,
+    fontSize: 14,
+    fontWeight: '800',
   },
   buttonPressed: {
     opacity: 0.82,

@@ -99,7 +99,7 @@ export const PREVIEW_PLAN: WorkoutPlan = {
       sequence: 3,
       tier_code: 'SUPPORT',
       sets: 3,
-      reps: null,
+      reps: 10,
       work_seconds: 180,
       rest_seconds: 60,
       transition_seconds: 15,

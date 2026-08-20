@@ -97,6 +97,10 @@ describe('PreviewGallery', () => {
     );
     expect(frameStyle.width / frameStyle.height).toBeCloseTo(1440 / 900);
     expect(frameStyle.width).toBeLessThanOrEqual(1440);
+    expect(
+      StyleSheet.flatten(screen.getByTestId('preview-app-content').props.style),
+    ).toMatchObject({ maxWidth: 640, width: '100%' });
+    expect(screen.getByText('App max 640px')).toBeOnTheScreen();
     expect(screen.getByText('1440 × 900')).toBeOnTheScreen();
   });
 
@@ -280,9 +284,12 @@ describe('PreviewGallery', () => {
     fireEvent.press(canvas.getByRole('button', { name: '오늘 루틴 체크인' }));
     expect(canvas.queryByText('컨디션')).toBeNull();
     expect(canvas.queryByLabelText('오늘 걸음 수')).toBeNull();
+    expect(canvas.queryByRole('button', { name: '어깨' })).toBeNull();
+    fireEvent.press(canvas.getByRole('button', { name: '있음' }));
     expect(canvas.getByRole('button', { name: '어깨' })).toBeOnTheScreen();
     expect(canvas.getByRole('button', { name: '무릎' })).toBeOnTheScreen();
-    expect(canvas.queryByRole('button', { name: '허리' })).toBeNull();
+    expect(canvas.getByRole('button', { name: '허리' })).toBeOnTheScreen();
+    expect(canvas.queryByRole('button', { name: '전신' })).toBeNull();
     expect(canvas.getByRole('button', { name: '집' })).toBeOnTheScreen();
     fireEvent.press(canvas.getByRole('button', { name: '헬스장' }));
     fireEvent.press(canvas.getByRole('button', { name: '어깨' }));
@@ -341,6 +348,35 @@ describe('PreviewGallery', () => {
     expect((await canvas.findAllByText('의자 스쿼트')).length).toBeGreaterThan(
       0,
     );
+  });
+
+  it('shows working reorder handles in the Home API preview', async () => {
+    await render(<PreviewGallery />);
+
+    fireEvent.press(screen.getByRole('radio', { name: 'Home (API)' }));
+    fireEvent.press(screen.getByRole('radio', { name: '최종 추천' }));
+    const canvas = within(screen.getByTestId('preview-app-canvas'));
+
+    const handles = canvas.getAllByLabelText('순서 변경 핸들');
+    expect(handles.map((handle) => handle.props.testID)).toEqual([
+      'routine-drag-plan-item-1',
+      'routine-drag-plan-item-2',
+      'routine-drag-plan-item-3',
+    ]);
+
+    fireEvent(handles[0]!, 'accessibilityAction', {
+      nativeEvent: { actionName: 'increment' },
+    });
+
+    expect(
+      canvas
+        .getAllByLabelText('순서 변경 핸들')
+        .map((handle) => handle.props.testID),
+    ).toEqual([
+      'routine-drag-plan-item-2',
+      'routine-drag-plan-item-1',
+      'routine-drag-plan-item-3',
+    ]);
   });
 
   it('restores the Workout detail-state controls', async () => {

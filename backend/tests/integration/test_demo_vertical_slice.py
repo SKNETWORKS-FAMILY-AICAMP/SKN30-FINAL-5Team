@@ -14,13 +14,15 @@ from __future__ import annotations
 import base64
 import os
 from collections.abc import Iterator
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 import pytest
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine, delete, func, select, text
 from sqlalchemy.engine import make_url
@@ -177,17 +179,26 @@ def _onboard(client: TestClient, *, duration_minutes: int = 30) -> dict[str, obj
     return dict(response.json())
 
 
-def _create_routine(client: TestClient) -> dict[str, object]:
+def _create_routine(
+    client: TestClient,
+    *,
+    effective_from: date = LOCAL_DATE,
+) -> dict[str, object]:
     response = client.post(
         "/api/v1/routines",
         headers=_key(),
-        json={"effective_from": LOCAL_DATE.isoformat(), "goal_code": "GENERAL_FITNESS"},
+        json={"effective_from": effective_from.isoformat(), "goal_code": "GENERAL_FITNESS"},
     )
     assert response.status_code == 201, response.text
     return dict(response.json())
 
 
-def _check_in(client: TestClient, **overrides: object) -> dict[str, object]:
+def _check_in(
+    client: TestClient,
+    *,
+    local_date: date = LOCAL_DATE,
+    **overrides: object,
+) -> dict[str, object]:
     payload: dict[str, object] = {
         "fatigue_level_code": "MODERATE",
         "requested_duration_minutes": 30,
@@ -198,7 +209,7 @@ def _check_in(client: TestClient, **overrides: object) -> dict[str, object]:
     }
     payload.update(overrides)
     response = client.put(
-        f"/api/v1/daily-contexts/{LOCAL_DATE.isoformat()}",
+        f"/api/v1/daily-contexts/{local_date.isoformat()}",
         headers=_key(),
         json=payload,
     )
@@ -206,12 +217,17 @@ def _check_in(client: TestClient, **overrides: object) -> dict[str, object]:
     return dict(response.json())
 
 
-def _decide(client: TestClient, context: dict[str, object]) -> dict[str, object]:
+def _decide(
+    client: TestClient,
+    context: dict[str, object],
+    *,
+    local_date: date = LOCAL_DATE,
+) -> dict[str, object]:
     response = client.post(
         "/api/v1/decisions",
         headers=_key(),
         json={
-            "local_date": LOCAL_DATE.isoformat(),
+            "local_date": local_date.isoformat(),
             "daily_context_id": context["id"],
             "expected_context_version": context["context_version"],
         },
@@ -509,6 +525,175 @@ def test_weekly_report_gate_requires_closed_week(client: TestClient) -> None:
     )
     assert report.status_code == 409
     assert report.json()["error"]["code"] in {"WEEK_NOT_CLOSED", "WEEK_OUTCOMES_INCOMPLETE"}
+
+
+def test_release_v1_full_postgresql_vertical_flow(
+    client: TestClient,
+    engine: Engine,
+) -> None:
+    """Exercise the release journey only through the stable V1 HTTP contract."""
+    assert engine.dialect.name == "postgresql"
+    alembic_config = Config(str(ALEMBIC_CONFIG))
+    expected_head = ScriptDirectory.from_config(alembic_config).get_current_head()
+    with engine.connect() as connection:
+        assert connection.scalar(text("select version_num from alembic_version")) == expected_head
+
+    local_today = datetime.now(ZoneInfo(DEMO_TIMEZONE)).date()
+    current_week_start = local_today - timedelta(days=local_today.weekday())
+    closed_week_start = current_week_start - timedelta(days=7)
+    completed_date = closed_week_start
+    not_completed_date = closed_week_start + timedelta(days=1)
+
+    unauthenticated = client.get("/api/v1/me", headers={"Authorization": ""})
+    assert unauthenticated.status_code == 401
+    assert unauthenticated.json()["error"]["code"] == "AUTHENTICATION_REQUIRED"
+
+    before_onboarding = client.get("/api/v1/me")
+    assert before_onboarding.status_code == 200, before_onboarding.text
+    assert before_onboarding.json()["onboarding_completed"] is False
+
+    onboarding = _onboard(client)
+    assert onboarding["onboarding_completed"] is True
+    routine = _create_routine(client, effective_from=closed_week_start)
+    assert routine["status_code"] == "ACTIVE"
+
+    completed_context = _check_in(client, local_date=completed_date)
+    completed_decision = _decide(
+        client,
+        completed_context,
+        local_date=completed_date,
+    )
+    assert completed_decision["status_code"] == "COMPLETED"
+    assert completed_decision["final_plan"] is not None
+    completed_option = next(
+        option
+        for option in completed_decision["options"]
+        if option["option_code"] == "FINAL_ROUTINE"
+    )
+    completed_selection = client.post(
+        f"/api/v1/decisions/{completed_decision['decision_id']}/selection",
+        headers=_key(),
+        json={"option_id": completed_option["option_id"]},
+    )
+    assert completed_selection.status_code in {200, 201}, completed_selection.text
+    completed_session_id = completed_selection.json()["workout_session"]["session_id"]
+    completed_started_at = datetime(
+        completed_date.year,
+        completed_date.month,
+        completed_date.day,
+        10,
+        tzinfo=ZoneInfo(DEMO_TIMEZONE),
+    )
+    completed_started = client.patch(
+        f"/api/v1/workout-sessions/{completed_session_id}/start",
+        headers=_key(),
+        json={"started_at": completed_started_at.isoformat()},
+    )
+    assert completed_started.status_code == 200, completed_started.text
+    completed_item_ids = [item["plan_item_id"] for item in completed_started.json()["items"]]
+    assert completed_item_ids
+    for index, plan_item_id in enumerate(completed_item_ids, start=1):
+        item_response = client.patch(
+            f"/api/v1/workout-sessions/{completed_session_id}/items/{plan_item_id}",
+            headers=_key(),
+            json={
+                "status_code": "COMPLETED",
+                "client_recorded_at": (completed_started_at + timedelta(minutes=index)).isoformat(),
+            },
+        )
+        assert item_response.status_code == 200, item_response.text
+
+    completed_finish = client.patch(
+        f"/api/v1/workout-sessions/{completed_session_id}/finish",
+        headers=_key(),
+        json={
+            "finished_at": (completed_started_at + timedelta(minutes=40)).isoformat(),
+            "actual_elapsed_seconds": 2400,
+        },
+    )
+    assert completed_finish.status_code == 200, completed_finish.text
+    assert completed_finish.json()["status_code"] == "COMPLETED"
+    completed_feedback = client.post(
+        f"/api/v1/workout-sessions/{completed_session_id}/feedback",
+        headers=_key(),
+        json={
+            "difficulty_code": "APPROPRIATE",
+            "pain_occurred": False,
+            "discomforts": [],
+            "adverse_reaction_codes": [],
+        },
+    )
+    assert completed_feedback.status_code == 201, completed_feedback.text
+
+    missed_context = _check_in(client, local_date=not_completed_date)
+    missed_decision = _decide(
+        client,
+        missed_context,
+        local_date=not_completed_date,
+    )
+    assert missed_decision["status_code"] == "COMPLETED"
+    missed_option = next(
+        option for option in missed_decision["options"] if option["option_code"] == "FINAL_ROUTINE"
+    )
+    missed_selection = client.post(
+        f"/api/v1/decisions/{missed_decision['decision_id']}/selection",
+        headers=_key(),
+        json={"option_id": missed_option["option_id"]},
+    )
+    assert missed_selection.status_code in {200, 201}, missed_selection.text
+    missed_session_id = missed_selection.json()["workout_session"]["session_id"]
+    missed_ended_at = datetime(
+        not_completed_date.year,
+        not_completed_date.month,
+        not_completed_date.day,
+        10,
+        5,
+        tzinfo=ZoneInfo(DEMO_TIMEZONE),
+    )
+    not_completed = client.patch(
+        f"/api/v1/workout-sessions/{missed_session_id}/not-completed",
+        headers=_key(),
+        json={"ended_at": missed_ended_at.isoformat(), "reason_code": "TIME_SHORTAGE"},
+    )
+    assert not_completed.status_code == 200, not_completed.text
+    assert not_completed.json()["status_code"] == "NOT_COMPLETED"
+    assert not_completed.json()["penalty_applied"] is False
+
+    week = client.get(f"/api/v1/weeks/{closed_week_start.isoformat()}")
+    assert week.status_code == 200, week.text
+    assert week.json()["status_code"] == "CLOSED"
+    report = client.post(
+        f"/api/v1/weeks/{closed_week_start.isoformat()}/report",
+        headers=_key(),
+        json={"expected_week_status_code": "CLOSED"},
+    )
+    assert report.status_code == 201, report.text
+    report_body = report.json()
+    assert report_body["status_code"] == "GENERATED"
+    assert report_body["counts"]["completed"] == 1
+    assert report_body["counts"]["not_completed"] == 1
+    assert report_body["primary_miss_reason_code"] == "TIME_SHORTAGE"
+
+    acknowledged_at = datetime.fromisoformat(report_body["generated_at"]) + timedelta(seconds=1)
+    acknowledgement = client.post(
+        f"/api/v1/weekly-reports/{report_body['report_id']}/acknowledgement",
+        headers=_key(),
+        json={"acknowledged_at": acknowledged_at.isoformat()},
+    )
+    assert acknowledgement.status_code == 200, acknowledgement.text
+    assert acknowledgement.json()["status_code"] == "ACKNOWLEDGED"
+
+    next_plan = client.post(
+        f"/api/v1/weeks/{current_week_start.isoformat()}/plan",
+        headers=_key(),
+        json={},
+    )
+    assert next_plan.status_code == 201, next_plan.text
+    next_plan_body = next_plan.json()
+    assert next_plan_body["source_code"] == "INITIAL"
+    assert next_plan_body["source_weekly_report_id"] == report_body["report_id"]
+    assert next_plan_body["finalized"] is True
+    assert next_plan_body["routine"] is not None
 
 
 def test_demo_seed_installs_exactly_one_active_catalog(

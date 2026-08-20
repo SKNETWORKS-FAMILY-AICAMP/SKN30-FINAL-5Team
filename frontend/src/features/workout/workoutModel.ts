@@ -112,7 +112,7 @@ export const WORKOUT_BLOCKS: readonly WorkoutBlock[] = [
   {
     id: 'warm-up',
     name: '준비 운동',
-    meta: '5분 · 전신 가동성',
+    meta: '1세트 × 10회 · 전신 가동성',
     tips: ['호흡을 편안하게 유지해요.', '천천히 움직임 범위를 넓혀요.'],
   },
   {
@@ -146,7 +146,7 @@ export const WORKOUT_BLOCKS: readonly WorkoutBlock[] = [
   {
     id: 'cool-down',
     name: '마무리 스트레칭',
-    meta: '5분 · 호흡 정리',
+    meta: '1세트 × 10회 · 호흡 정리',
     tips: ['반동 없이 편안한 범위에서 유지해요.'],
   },
 ] as const;

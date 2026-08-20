@@ -288,6 +288,40 @@ describe('SplashScreen', () => {
     }
   });
 
+  it('centers web text within the rendered splash container on wide viewports', async () => {
+    const originalPlatform = Platform.OS;
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'web' });
+
+    try {
+      await render(
+        <SplashScreen
+          reducedMotionOverride
+          viewportOverride={{ width: 1440, height: 900 }}
+        />,
+      );
+
+      for (const testID of ['splash-brand', 'splash-slogan'] as const) {
+        const textStyle = StyleSheet.flatten(
+          screen.getByTestId(testID).props.style,
+        );
+
+        expect(textStyle).toEqual(
+          expect.objectContaining({
+            left: 0,
+            right: 0,
+            alignItems: 'center',
+          }),
+        );
+        expect(textStyle.width).toBeUndefined();
+      }
+    } finally {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: originalPlatform,
+      });
+    }
+  });
+
   it('keeps the normal and error prototype boundary with retry isolated to error', async () => {
     const onRetry = jest.fn();
     const view = await render(

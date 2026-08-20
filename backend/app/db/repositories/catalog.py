@@ -14,13 +14,15 @@ from backend.app.db.models.catalog import (
     ExerciseAlternative,
     ExerciseBodyPart,
     ExerciseEquipment,
+    ExerciseGoalTagLink,
     ExerciseLocation,
+    ExercisePrescriptionProfile,
     ExerciseSafetyRule,
     Location,
     MovementPattern,
     TrainingType,
 )
-from backend.app.modules.catalog.approvals import get_derived_data_approval
+from backend.app.modules.catalog.approvals import get_catalog_approval, get_derived_data_approval
 from backend.app.modules.catalog.codes import (
     CATALOG_CODE_SET_VERSION,
     BodyAreaRoleCode,
@@ -35,6 +37,7 @@ from backend.app.modules.catalog.service import (
     DerivedSetState,
     ExerciseDetailRecord,
     ExerciseListRecord,
+    PrescriptionArtifact,
     SafetyRuleArtifact,
 )
 
@@ -238,6 +241,12 @@ class CatalogRepository:
         )
 
         manifest = artifact.manifest
+        approval = get_catalog_approval(
+            manifest.catalog_version.version_code, artifact.manifest_hash, len(records)
+        )
+        metadata = manifest.model_dump(mode="json")
+        if approval is not None:
+            metadata["production_approval"] = approval.metadata()
         catalog_version = CatalogVersion(
             id=uuid4(),
             version_code=manifest.catalog_version.version_code,
@@ -248,11 +257,17 @@ class CatalogRepository:
             source_manifest_hash=artifact.manifest_hash,
             source_track_code=manifest.source.track,
             review_status_code=manifest.review.status,
-            review_method_code=manifest.review.review_method_code,
-            status_interpretation_code=manifest.review.status_interpretation,
+            review_method_code=(
+                "DOMAIN_REVIEWER" if approval is not None else manifest.review.review_method_code
+            ),
+            status_interpretation_code=(
+                "PRODUCTION_APPROVED"
+                if approval is not None
+                else manifest.review.status_interpretation
+            ),
             production_eligible=manifest.review.production_eligible,
             exercise_record_count=len(records),
-            manifest_metadata=manifest.model_dump(mode="json"),
+            manifest_metadata=metadata,
         )
         session.add(catalog_version)
 
@@ -452,6 +467,106 @@ class CatalogRepository:
                     created_at=record.created_at,
                 )
             )
+        session.flush()
+
+    def get_prescription_set_state(
+        self, session: Session, version_code: str
+    ) -> DerivedSetState | None:
+        catalogs = session.scalars(select(CatalogVersion)).all()
+        for catalog in catalogs:
+            metadata = catalog.manifest_metadata.get("prescription_artifact")
+            if not isinstance(metadata, dict) or metadata.get("version_code") != version_code:
+                continue
+            exercise_ids = select(Exercise.id).where(Exercise.catalog_version_id == catalog.id)
+            goals = session.scalar(
+                select(func.count())
+                .select_from(ExerciseGoalTagLink)
+                .where(ExerciseGoalTagLink.exercise_id.in_(exercise_ids))
+            )
+            profiles = session.scalar(
+                select(func.count())
+                .select_from(ExercisePrescriptionProfile)
+                .where(ExercisePrescriptionProfile.exercise_id.in_(exercise_ids))
+            )
+            count = int(goals or 0) + int(profiles or 0)
+            manifest_hash = metadata.get("manifest_sha256")
+            if not isinstance(manifest_hash, str):
+                raise CatalogImportError(
+                    "DERIVED_SET_CONFLICT", "prescription metadata has no manifest hash"
+                )
+            return DerivedSetState(count, manifest_hash)
+        return None
+
+    def create_prescriptions(self, session: Session, artifact: PrescriptionArtifact) -> None:
+        exercise_ids = self._exercise_ids(session)
+        catalogs = {row.version_code: row for row in session.scalars(select(CatalogVersion)).all()}
+        for goal_record in artifact.goal_tag_records:
+            exercise_id = exercise_ids.get(
+                (goal_record.catalog_version_code, goal_record.exercise_stable_code)
+            )
+            if exercise_id is None:
+                raise CatalogImportError(
+                    "EXERCISE_REFERENCE_NOT_FOUND", "goal tag references an unknown exercise"
+                )
+            session.add(
+                ExerciseGoalTagLink(
+                    exercise_id=exercise_id,
+                    goal_code=goal_record.goal_code,
+                    role_eligibility_code=goal_record.role_eligibility_code,
+                    review_status_code=goal_record.review_status_code,
+                )
+            )
+        for profile_record in artifact.prescription_records:
+            exercise_id = exercise_ids.get(
+                (profile_record.catalog_version_code, profile_record.exercise_stable_code)
+            )
+            if exercise_id is None:
+                raise CatalogImportError(
+                    "EXERCISE_REFERENCE_NOT_FOUND",
+                    "prescription references an unknown exercise",
+                )
+            session.add(
+                ExercisePrescriptionProfile(
+                    exercise_id=exercise_id,
+                    goal_code=profile_record.goal_code,
+                    experience_level_code=profile_record.experience_level_code,
+                    phase_code=profile_record.phase_code,
+                    sets=profile_record.sets,
+                    reps=profile_record.reps,
+                    work_seconds_per_set=profile_record.work_seconds_per_set,
+                    rest_seconds_per_set=profile_record.rest_seconds_per_set,
+                    intensity_code=profile_record.intensity_code,
+                    prescription_version=profile_record.prescription_version,
+                    review_status_code=profile_record.review_status_code,
+                )
+            )
+        version_code = artifact.manifest.prescription_set_version.version_code
+        total = len(artifact.goal_tag_records) + len(artifact.prescription_records)
+        approval = get_derived_data_approval(
+            "PRESCRIPTIONS", version_code, artifact.manifest_hash, total
+        )
+        catalog_versions = {row.catalog_version_code for row in artifact.goal_tag_records} | {
+            row.catalog_version_code for row in artifact.prescription_records
+        }
+        for version in catalog_versions:
+            catalog = catalogs.get(version)
+            if catalog is None:
+                raise CatalogImportError(
+                    "CATALOG_REFERENCE_NOT_FOUND",
+                    "prescription references an unknown catalog",
+                )
+            prescription_metadata: dict[str, object] = {
+                "version_code": version_code,
+                "manifest_sha256": artifact.manifest_hash,
+                "goal_tag_records": len(artifact.goal_tag_records),
+                "prescription_records": len(artifact.prescription_records),
+            }
+            if approval is not None:
+                prescription_metadata["production_approval"] = approval.metadata()
+            catalog.manifest_metadata = {
+                **catalog.manifest_metadata,
+                "prescription_artifact": prescription_metadata,
+            }
         session.flush()
 
 
