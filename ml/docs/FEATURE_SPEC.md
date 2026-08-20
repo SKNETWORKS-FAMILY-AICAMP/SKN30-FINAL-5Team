@@ -373,3 +373,41 @@ resting_hr_delta_28d <=  -2.0 bpm  ->  DOWNWARD
 | `seed` | 고정 시드 |
 | `git_commit` | 재현용 |
 | `run_at` | ISO 8601 |
+
+---
+
+## 9. Track A 인계 1 재현·검증 기록
+
+인계 1의 분할 데이터셋은 중간 산출물이므로 `ml/data/processed/` Git 무시 규칙을 따른다.
+아래 기록은 **`f8a488a` 기준으로 원본 데이터에서 재생성한 결과**이며, 파일 자체는 Track B/C에
+별도 전달한다.
+
+생성 명령:
+
+```text
+python ml/src/prepare_data.py --overwrite --split-output-dir ml/data/processed/splits
+```
+
+| 파일 | 행 수 | 사용자 수 | SHA-256 |
+|---|---:|---:|---|
+| `time_train.csv` | 79,652 | 286 | `aed581f3a7d2b021adfca759101a2c8b4e5ed20178e639db02674b9cedd9d7b6` |
+| `time_val.csv` | 14,966 | 285 | `afd9c4dd92e39c3886907858d89863b674e562bc3568d1a1bb44e7a3d84ba963` |
+| `time_test.csv` | 5,382 | 168 | `dcc85c59bb45177ff955d7410e5ccb559684c1ab25955152a5bfbcd2f07505fd` |
+| `user_train.csv` | 69,956 | 200 | `5a4e53d25c626aef6b4e83f8369910f73ab0d3be2d7899e20f60d646a5ca2ccb` |
+| `user_val.csv` | 15,088 | 43 | `3654134d089b39c9170fd64e7056205e6cbe14ab07e30a7eccbaa25fcf7e583e` |
+| `user_test.csv` | 14,956 | 43 | `9c514fdf1d24ba1673be7a97b6c8b324cc1d13abc54cc5f2f90eede4329e616b` |
+
+시간 기반 분할은 날짜 279/60/60일이며, 범위는 각각
+`2023-01-01~2023-10-06`, `2023-10-07~2023-12-05`, `2023-12-06~2024-02-03`이다.
+사용자 기반 분할은 200/43/43명이고 세 사용자 집합은 서로 겹치지 않는다.
+
+`validate_leakage.py` 실행 출력:
+
+```text
+leakage_validation_passed input=ml/data/processed/splits/time_train.csv dataset_columns=39 excluded_columns=22
+leakage_validation_passed input=ml/data/processed/splits/time_val.csv dataset_columns=39 excluded_columns=22
+leakage_validation_passed input=ml/data/processed/splits/time_test.csv dataset_columns=39 excluded_columns=22
+leakage_validation_passed input=ml/data/processed/splits/user_train.csv dataset_columns=39 excluded_columns=22
+leakage_validation_passed input=ml/data/processed/splits/user_val.csv dataset_columns=39 excluded_columns=22
+leakage_validation_passed input=ml/data/processed/splits/user_test.csv dataset_columns=39 excluded_columns=22
+```
