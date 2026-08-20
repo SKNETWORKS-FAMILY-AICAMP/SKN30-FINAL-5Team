@@ -180,6 +180,18 @@ def _seed_user_with_profile(session: Session, user_id: UUID) -> None:
     session.commit()
 
 
+def _slot_count(session: Session) -> int:
+    """Read the slot count and end the autobegun transaction.
+
+    DailyContextService.replace opens its own ``session.begin()``, so a read left
+    inside an open transaction would make the next replace call fail.
+    """
+
+    count = session.scalar(select(func.count()).select_from(DailyContextAvailabilitySlot))
+    session.commit()
+    return count or 0
+
+
 @pytest.mark.integration
 def test_availability_slots_are_replaced_and_ordered_on_each_version(
     postgres_session: Session,
@@ -210,9 +222,7 @@ def test_availability_slots_are_replaced_and_ordered_on_each_version(
 
     assert first.availability_source_code == "MANUAL"
     assert [slot.start_at.astimezone(UTC).hour for slot in first.available_slots or []] == [22, 10]
-    assert (
-        postgres_session.scalar(select(func.count()).select_from(DailyContextAvailabilitySlot)) == 2
-    )
+    assert _slot_count(postgres_session) == 2
 
     second = service.replace(
         postgres_session,
@@ -225,9 +235,7 @@ def test_availability_slots_are_replaced_and_ordered_on_each_version(
 
     assert second.availability_source_code == "MANUAL"
     assert second.available_slots == []
-    assert (
-        postgres_session.scalar(select(func.count()).select_from(DailyContextAvailabilitySlot)) == 0
-    )
+    assert _slot_count(postgres_session) == 0
 
     third = service.replace(
         postgres_session, user_id, LOCAL_DATE, _availability_request(None), uuid4(), 2
