@@ -257,17 +257,6 @@ function MyPageContent({
 
         <SectionTitle label="내 운동 정보" />
         <View style={styles.rowsCard}>
-          {onOpenExerciseCatalog ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={onOpenExerciseCatalog}
-              style={styles.infoRow}
-            >
-              <Text style={styles.infoLabel}>운동 카탈로그</Text>
-              <Text style={styles.infoValue}>둘러보기</Text>
-              <Text style={styles.rowArrow}>›</Text>
-            </Pressable>
-          ) : null}
           {profileRows.map(([field, label, value]) => (
             <Pressable
               key={field}
@@ -286,6 +275,23 @@ function MyPageContent({
             </Pressable>
           ))}
         </View>
+
+        {onOpenExerciseCatalog ? (
+          <>
+            <SectionTitle label="운동 도구" />
+            <View style={styles.rowsCard}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={onOpenExerciseCatalog}
+                style={styles.infoRow}
+              >
+                <Text style={styles.infoLabel}>운동 카탈로그</Text>
+                <Text style={styles.infoValue}>둘러보기</Text>
+                <Text style={styles.rowArrow}>›</Text>
+              </Pressable>
+            </View>
+          </>
+        ) : null}
 
         <SectionTitle label="알림" />
         <View style={styles.rowsCard}>

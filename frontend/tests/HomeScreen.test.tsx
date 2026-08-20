@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { Animated, StyleSheet } from 'react-native';
+import { Animated, Platform, StyleSheet } from 'react-native';
 
 import { ADVERSE_REACTION_OPTIONS } from '../src/api/labels';
 import { imageAssets } from '../src/assets';
@@ -17,6 +17,31 @@ import {
 import { homePreviewProps } from '../src/features/preview/homePreview';
 
 describe('HomeScreen Home v1 transcription', () => {
+  function selectAvailabilityTime(
+    fieldLabel: string,
+    hour: number,
+    minute: number,
+  ) {
+    fireEvent.press(screen.getByLabelText(fieldLabel));
+    fireEvent(
+      screen.getByLabelText('시간 선택 스크롤', {
+        includeHiddenElements: true,
+      }),
+      'momentumScrollEnd',
+      { nativeEvent: { contentOffset: { y: hour * 44 } } },
+    );
+    fireEvent(
+      screen.getByLabelText('분 선택 스크롤', {
+        includeHiddenElements: true,
+      }),
+      'momentumScrollEnd',
+      { nativeEvent: { contentOffset: { y: (minute / 5) * 44 } } },
+    );
+    fireEvent.press(
+      screen.getByLabelText('시간 선택 완료', { includeHiddenElements: true }),
+    );
+  }
+
   it('renders exactly one of the empty, loading, and routine branches', () => {
     const view = render(<HomeScreen previewState="pre-checkin" />);
 
@@ -223,6 +248,121 @@ describe('HomeScreen Home v1 transcription', () => {
         discomforts: { SHOULDER: 'MODERATE', KNEE: 'SEVERE' },
       }),
     );
+  });
+
+  it('adds and submits multiple available-time rows', () => {
+    const onSubmitCheckin = jest.fn();
+    render(
+      <HomeScreen
+        {...homePreviewProps('pre-checkin')}
+        onSubmitCheckin={onSubmitCheckin}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: '오늘 루틴 체크인' }));
+    selectAvailabilityTime('1번째 가능 시간 시작 미선택 선택', 9, 0);
+    selectAvailabilityTime('1번째 가능 시간 종료 미선택 선택', 12, 0);
+    fireEvent.press(screen.getByRole('button', { name: '가능 시간대 추가' }));
+    selectAvailabilityTime('2번째 가능 시간 시작 미선택 선택', 13, 0);
+    selectAvailabilityTime('2번째 가능 시간 종료 미선택 선택', 15, 0);
+    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+
+    expect(onSubmitCheckin).toHaveBeenCalledWith(
+      expect.objectContaining({
+        availableSlots: [
+          { startTime: '09:00', endTime: '12:00' },
+          { startTime: '13:00', endTime: '15:00' },
+        ],
+      }),
+    );
+  });
+
+  it('blocks overlapping available-time rows', () => {
+    render(<HomeScreen {...homePreviewProps('pre-checkin')} />);
+
+    fireEvent.press(screen.getByRole('button', { name: '오늘 루틴 체크인' }));
+    selectAvailabilityTime('1번째 가능 시간 시작 미선택 선택', 9, 0);
+    selectAvailabilityTime('1번째 가능 시간 종료 미선택 선택', 12, 0);
+    fireEvent.press(screen.getByRole('button', { name: '가능 시간대 추가' }));
+    selectAvailabilityTime('2번째 가능 시간 시작 미선택 선택', 12, 0);
+    selectAvailabilityTime('2번째 가능 시간 종료 미선택 선택', 15, 0);
+
+    expect(
+      screen.getByText('가능한 시간대끼리는 겹치거나 맞닿을 수 없어요.'),
+    ).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: '체크인 !' })).toBeDisabled();
+  });
+
+  it('changes hours and five-minute values with the mouse wheel on web', () => {
+    const originalPlatform = Platform.OS;
+    jest.useFakeTimers();
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'web',
+    });
+    try {
+      render(<HomeScreen {...homePreviewProps('pre-checkin')} />);
+      fireEvent.press(screen.getByRole('button', { name: '오늘 루틴 체크인' }));
+      fireEvent.press(
+        screen.getByLabelText('1번째 가능 시간 시작 미선택 선택'),
+      );
+
+      const hourWheel = screen.getByLabelText('시간 선택 스크롤', {
+        includeHiddenElements: true,
+      });
+      const minuteWheel = screen.getByLabelText('분 선택 스크롤', {
+        includeHiddenElements: true,
+      });
+      const preventDefault = jest.fn();
+      expect(hourWheel).toHaveProp('disableIntervalMomentum', true);
+      expect(
+        screen.getByLabelText('시간 00시', { includeHiddenElements: true }),
+      ).toHaveProp(
+        'accessibilityState',
+        expect.objectContaining({ selected: true }),
+      );
+
+      fireEvent(hourWheel, 'wheel', {
+        nativeEvent: { deltaMode: 0, deltaY: 100 },
+        preventDefault,
+      });
+      fireEvent(minuteWheel, 'wheel', {
+        nativeEvent: { deltaMode: 0, deltaY: 100 },
+        preventDefault,
+      });
+      act(() => {
+        jest.advanceTimersByTime(45);
+      });
+
+      expect(preventDefault).toHaveBeenCalled();
+      expect(
+        screen.getByLabelText('시간 01시', { includeHiddenElements: true }),
+      ).toHaveProp(
+        'accessibilityState',
+        expect.objectContaining({ selected: true }),
+      );
+      expect(
+        screen.getByLabelText('분 05분', { includeHiddenElements: true }),
+      ).toHaveProp(
+        'accessibilityState',
+        expect.objectContaining({ selected: true }),
+      );
+      fireEvent.press(
+        screen.getByLabelText('시간 선택 완료', {
+          includeHiddenElements: true,
+        }),
+      );
+      expect(
+        screen.getByLabelText('1번째 가능 시간 시작 01:05 선택'),
+      ).toBeOnTheScreen();
+    } finally {
+      jest.clearAllTimers();
+      jest.useRealTimers();
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: originalPlatform,
+      });
+    }
   });
 
   it('opens reviewed exercise instructions from an API routine item', async () => {

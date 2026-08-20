@@ -27,16 +27,16 @@ import {
 } from '../../components/primitives';
 import { colors, radii, spacing } from '../../components/theme';
 import { PROFILE_BODY_LIMITS } from '../profile/profileModel';
+import {
+  ONBOARDING_DURATION,
+  ONBOARDING_EQUIPMENT_OPTIONS,
+  ONBOARDING_EXERCISE_TYPE_OPTIONS,
+  ONBOARDING_EXPERIENCE_OPTIONS,
+  ONBOARDING_GOAL_OPTIONS,
+  ONBOARDING_LOCATION_OPTIONS,
+  ONBOARDING_WEEKLY_COUNT,
+} from './onboardingOptions';
 
-const LOCATIONS = [
-  { code: 'HOME', label: '집' },
-  { code: 'GYM', label: '헬스장' },
-] as const;
-const EQUIPMENT = [
-  { code: 'BODYWEIGHT', label: '맨몸' },
-  { code: 'MAT', label: '매트' },
-  { code: 'RESISTANCE_BAND', label: '밴드' },
-] as const;
 const MINIMUM_AGE = 14;
 const MIN_BIRTH_YEAR = 1900;
 const WHEEL_ITEM_HEIGHT = 44;
@@ -44,39 +44,12 @@ const WEB_WHEEL_GESTURE_IDLE_MS = 45;
 const WEB_WHEEL_SINGLE_ITEM_DELTA = 240;
 const WEB_WHEEL_ACCELERATION_DELTA = 70;
 const WEB_WHEEL_MAX_ITEMS_PER_GESTURE = 18;
-const DURATION_STEP = 10;
-const MIN_DURATION = 10;
-const MAX_DURATION = 240;
-const MIN_WEEKLY_COUNT = 1;
-const MAX_WEEKLY_COUNT = 7;
 
 const SEX_OPTIONS = [
   { code: 'FEMALE', label: '여성' },
   { code: 'MALE', label: '남성' },
 ] as const satisfies readonly { code: SexCode; label: string }[];
 
-// The complete goal and experience code lists are not yet public API
-// contracts. Keep these options to deployment-approved codes and extend them
-// only when docs/API_CONTRACT.md defines the additional machine codes.
-const GOAL_OPTIONS = [
-  {
-    code: 'GENERAL_FITNESS',
-    label: '건강 유지',
-    description: '꾸준히 움직이며 기초 체력을 만들고 싶어요.',
-  },
-] as const;
-const EXPERIENCE_OPTIONS = [
-  {
-    code: 'BEGINNER',
-    label: '입문·초급',
-    description: '운동이 처음이거나 아직 정해진 루틴이 없어요.',
-  },
-] as const;
-const EXERCISE_TYPE_OPTIONS = [
-  { code: 'STRENGTH', label: '근력' },
-  { code: 'CARDIO', label: '유산소' },
-  { code: 'MOBILITY', label: '스트레칭' },
-] as const;
 const PAIN_SEVERITY_OPTIONS = [
   { code: 'MILD', label: '조금 아픔' },
   { code: 'MODERATE', label: '중간 정도 아픔' },
@@ -231,13 +204,13 @@ function OnboardingScreenContent({
   const [heightCm, setHeightCm] = useState('');
   const [weightKg, setWeightKg] = useState('');
   const [primaryGoalCode, setPrimaryGoalCode] = useState<
-    (typeof GOAL_OPTIONS)[number]['code'] | null
+    (typeof ONBOARDING_GOAL_OPTIONS)[number]['code'] | null
   >(null);
   const [experienceLevelCode, setExperienceLevelCode] = useState<
-    (typeof EXPERIENCE_OPTIONS)[number]['code'] | null
+    (typeof ONBOARDING_EXPERIENCE_OPTIONS)[number]['code'] | null
   >(null);
   const [preferredExerciseTypes, setPreferredExerciseTypes] = useState<
-    (typeof EXERCISE_TYPE_OPTIONS)[number]['code'][]
+    (typeof ONBOARDING_EXERCISE_TYPE_OPTIONS)[number]['code'][]
   >([]);
   const [coachingStyleCode, setCoachingStyleCode] = useState<
     (typeof COACHING_STYLE_OPTIONS)[number]['code'] | null
@@ -523,7 +496,7 @@ function OnboardingScreenContent({
       case 'goal':
         return (
           <ChoiceCard>
-            {GOAL_OPTIONS.map((item) => (
+            {ONBOARDING_GOAL_OPTIONS.map((item) => (
               <DescriptionOption
                 key={item.code}
                 description={item.description}
@@ -540,7 +513,7 @@ function OnboardingScreenContent({
       case 'experience':
         return (
           <ChoiceCard>
-            {EXPERIENCE_OPTIONS.map((item) => (
+            {ONBOARDING_EXPERIENCE_OPTIONS.map((item) => (
               <DescriptionOption
                 key={item.code}
                 description={item.description}
@@ -557,7 +530,7 @@ function OnboardingScreenContent({
       case 'exerciseType':
         return (
           <ChoiceCard>
-            {EXERCISE_TYPE_OPTIONS.map((item) => (
+            {ONBOARDING_EXERCISE_TYPE_OPTIONS.map((item) => (
               <Chip
                 key={item.code}
                 grow
@@ -593,7 +566,7 @@ function OnboardingScreenContent({
       case 'location':
         return (
           <ChoiceCard>
-            {LOCATIONS.map((item) => (
+            {ONBOARDING_LOCATION_OPTIONS.map((item) => (
               <Chip
                 key={item.code}
                 grow
@@ -607,7 +580,7 @@ function OnboardingScreenContent({
       case 'equipment':
         return (
           <ChoiceCard>
-            {EQUIPMENT.map((item) => (
+            {ONBOARDING_EQUIPMENT_OPTIONS.map((item) => (
               <Chip
                 key={item.code}
                 label={item.label}
@@ -622,12 +595,12 @@ function OnboardingScreenContent({
           <StepCounter
             decreaseLabel="운동 시간 10분 줄이기"
             increaseLabel="운동 시간 10분 늘리기"
-            max={MAX_DURATION}
-            min={MIN_DURATION}
+            max={ONBOARDING_DURATION.max}
+            min={ONBOARDING_DURATION.min}
             suffix="분"
             value={duration}
             onChange={setDuration}
-            step={DURATION_STEP}
+            step={ONBOARDING_DURATION.step}
           />
         );
       case 'frequency':
@@ -635,8 +608,8 @@ function OnboardingScreenContent({
           <StepCounter
             decreaseLabel="주간 운동 횟수 1회 줄이기"
             increaseLabel="주간 운동 횟수 1회 늘리기"
-            max={MAX_WEEKLY_COUNT}
-            min={MIN_WEEKLY_COUNT}
+            max={ONBOARDING_WEEKLY_COUNT.max}
+            min={ONBOARDING_WEEKLY_COUNT.min}
             prefix="주 "
             suffix="회"
             value={weeklyCount}
@@ -843,9 +816,10 @@ type FormState = {
   sexCode: SexCode | null;
   heightCm: string;
   weightKg: string;
-  primaryGoalCode: (typeof GOAL_OPTIONS)[number]['code'] | null;
-  experienceLevelCode: (typeof EXPERIENCE_OPTIONS)[number]['code'] | null;
-  preferredExerciseTypes: (typeof EXERCISE_TYPE_OPTIONS)[number]['code'][];
+  primaryGoalCode: (typeof ONBOARDING_GOAL_OPTIONS)[number]['code'] | null;
+  experienceLevelCode:
+    (typeof ONBOARDING_EXPERIENCE_OPTIONS)[number]['code'] | null;
+  preferredExerciseTypes: (typeof ONBOARDING_EXERCISE_TYPE_OPTIONS)[number]['code'][];
   coachingStyleCode: (typeof COACHING_STYLE_OPTIONS)[number]['code'] | null;
   locations: string[];
   equipment: string[];

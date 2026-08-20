@@ -23,6 +23,8 @@ import {
   View,
   type GestureResponderEvent,
   type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   type PanResponderGestureState,
   type StyleProp,
   type TextStyle,
@@ -75,10 +77,12 @@ import {
   routineFocusFromPlan,
   routineItemsFromPlan,
   routineTitleFromPlan,
+  validateAvailabilitySlots,
   weekDaysFromSessions,
   weekStartForLocalDate,
   type HomeCheckin,
   type HomeCheckinDraft,
+  type HomeAvailabilitySlot,
   type HomePreviewState,
   type HomeRoutineItem,
 } from './homeModel';
@@ -120,6 +124,23 @@ const CHECKIN_DISCOMFORT_CODES = [
   'HIP',
   'ANKLE_FOOT',
 ] as const;
+
+const EMPTY_AVAILABILITY_SLOT: HomeAvailabilitySlot = {
+  startTime: '',
+  endTime: '',
+};
+const TIME_WHEEL_ITEM_HEIGHT = 44;
+const TIME_WHEEL_GESTURE_IDLE_MS = 45;
+const TIME_WHEEL_SINGLE_ITEM_DELTA = 240;
+const TIME_WHEEL_ACCELERATION_DELTA = 70;
+const TIME_WHEEL_MAX_ITEMS_PER_GESTURE = 18;
+const TIME_HOURS = Array.from({ length: 24 }, (_, index) => index);
+const TIME_MINUTES = Array.from({ length: 12 }, (_, index) => index * 5);
+
+type TimePickerTarget = {
+  field: keyof HomeAvailabilitySlot;
+  index: number;
+};
 
 type RevisionNotice = {
   serious: boolean;
@@ -321,6 +342,8 @@ function HomeScreenContent({
     : initialState !== 'pre-checkin' && initialState !== 'checkin';
   const [checkedIn, setCheckedIn] = useState(startsCheckedIn);
   const [checkinOpen, setCheckinOpen] = useState(initialState === 'checkin');
+  const [timePickerTarget, setTimePickerTarget] =
+    useState<TimePickerTarget | null>(null);
   const [editOpen, setEditOpen] = useState(initialState === 'editing');
   const [reasonOpen, setReasonOpen] = useState(false);
   const [detailItem, setDetailItem] = useState<HomeRoutineItem | null>(null);
@@ -505,6 +528,7 @@ function HomeScreenContent({
 
   const closeCheckin = () => {
     setCheckinDraft({ ...displayedCheckin });
+    setTimePickerTarget(null);
     setCheckinOpen(false);
   };
 
@@ -516,6 +540,7 @@ function HomeScreenContent({
     setCommittedCheckin(saved);
     setCheckinDraft(saved);
     setCheckedIn(true);
+    setTimePickerTarget(null);
     setCheckinOpen(false);
     if (apiMode) {
       onSubmitCheckin?.(apiCheckinDraft(saved));
@@ -798,6 +823,21 @@ function HomeScreenContent({
           <CheckinSheet
             draft={checkinDraft}
             locationCodes={apiMode ? locationCodes : []}
+            onAddAvailabilitySlot={() =>
+              setCheckinDraft((current) => ({
+                ...current,
+                availableSlots:
+                  current.availableSlots && current.availableSlots.length > 0
+                    ? [
+                        ...current.availableSlots,
+                        { ...EMPTY_AVAILABILITY_SLOT },
+                      ]
+                    : [
+                        { ...EMPTY_AVAILABILITY_SLOT },
+                        { ...EMPTY_AVAILABILITY_SLOT },
+                      ],
+              }))
+            }
             onChangeLocation={(locationCode) =>
               setCheckinDraft((current) => ({
                 ...current,
@@ -839,6 +879,17 @@ function HomeScreenContent({
               }))
             }
             onSave={saveCheckin}
+            onOpenTimePicker={(index, field) =>
+              setTimePickerTarget({ index, field })
+            }
+            onRemoveAvailabilitySlot={(index) =>
+              setCheckinDraft((current) => ({
+                ...current,
+                availableSlots: (current.availableSlots ?? []).filter(
+                  (_, slotIndex) => slotIndex !== index,
+                ),
+              }))
+            }
             onToggleAdverseReaction={(code) =>
               setCheckinDraft((current) => ({
                 ...current,
@@ -864,6 +915,33 @@ function HomeScreenContent({
             }
             pending={busy === 'checkin'}
             useJua={useJua}
+          />
+        ) : null}
+
+        {timePickerTarget ? (
+          <TimePickerSheet
+            initialValue={
+              checkinDraft.availableSlots?.[timePickerTarget.index]?.[
+                timePickerTarget.field
+              ] ?? ''
+            }
+            key={`${timePickerTarget.index}-${timePickerTarget.field}`}
+            onClose={() => setTimePickerTarget(null)}
+            onConfirm={(value) => {
+              setCheckinDraft((current) => {
+                const availableSlots =
+                  current.availableSlots && current.availableSlots.length > 0
+                    ? current.availableSlots.map((slot) => ({ ...slot }))
+                    : [{ ...EMPTY_AVAILABILITY_SLOT }];
+                const slot = availableSlots[timePickerTarget.index];
+                if (slot) {
+                  slot[timePickerTarget.field] = value;
+                }
+                return { ...current, availableSlots };
+              });
+              setTimePickerTarget(null);
+            }}
+            targetField={timePickerTarget.field}
           />
         ) : null}
 
@@ -1727,6 +1805,7 @@ function RecommendationReasonSheet({
 
 function CheckinSheet({
   draft,
+  onAddAvailabilitySlot,
   onChangeFatigue,
   onChangeLocation,
   onChangeSeverity,
@@ -1735,7 +1814,9 @@ function CheckinSheet({
   onClearAdverseReactions,
   onClearDiscomforts,
   onClose,
+  onOpenTimePicker,
   onSave,
+  onRemoveAvailabilitySlot,
   onToggleAdverseReaction,
   onToggleBodyArea,
   locationCodes,
@@ -1743,6 +1824,7 @@ function CheckinSheet({
   useJua,
 }: {
   draft: HomeCheckin;
+  onAddAvailabilitySlot: () => void;
   onChangeFatigue: (value: string) => void;
   onChangeLocation: (code: string) => void;
   onChangeSeverity: (
@@ -1754,7 +1836,9 @@ function CheckinSheet({
   onClearAdverseReactions: () => void;
   onClearDiscomforts: () => void;
   onClose: () => void;
+  onOpenTimePicker: (index: number, field: keyof HomeAvailabilitySlot) => void;
   onSave: () => void;
+  onRemoveAvailabilitySlot: (index: number) => void;
   onToggleAdverseReaction: (code: string) => void;
   onToggleBodyArea: (code: string) => void;
   locationCodes: readonly string[];
@@ -1781,6 +1865,11 @@ function CheckinSheet({
     !/^\d+$/.test(draft.workoutMinutes) ||
     Number(draft.workoutMinutes) < 5 ||
     Number(draft.workoutMinutes) > 180;
+  const availabilityError = validateAvailabilitySlots(draft.availableSlots);
+  const availabilitySlots =
+    draft.availableSlots && draft.availableSlots.length > 0
+      ? draft.availableSlots
+      : [EMPTY_AVAILABILITY_SLOT];
   const adverseSelectionMissing =
     showAdverseDetails && draft.adverseReactionCodes.length === 0;
   const discomfortSelectionMissing =
@@ -1789,6 +1878,7 @@ function CheckinSheet({
     pending ||
     sleepInvalid ||
     durationInvalid ||
+    availabilityError !== null ||
     adverseSelectionMissing ||
     discomfortSelectionMissing;
   return (
@@ -1825,6 +1915,81 @@ function CheckinSheet({
             <Text style={styles.numberSuffix}>분</Text>
           </View>
         </View>
+        <View style={styles.availabilitySection}>
+          <View style={styles.availabilityHeader}>
+            <Text style={styles.numberLabel}>오늘 운동 가능한 시간대</Text>
+            <Text style={styles.optionalText}>(선택)</Text>
+          </View>
+          {availabilitySlots.map((slot, index) => (
+            <View key={index} style={styles.availabilitySlotRow}>
+              <Pressable
+                accessibilityLabel={`${index + 1}번째 가능 시간 시작 ${slot.startTime || '미선택'} 선택`}
+                accessibilityRole="button"
+                disabled={pending}
+                onPress={() => onOpenTimePicker(index, 'startTime')}
+                style={styles.availabilityTimeButton}
+              >
+                <Text
+                  style={[
+                    styles.availabilityTimeText,
+                    !slot.startTime && styles.availabilityTimePlaceholder,
+                  ]}
+                >
+                  {slot.startTime || '시간:분'}
+                </Text>
+              </Pressable>
+              <Text style={styles.availabilitySeparator}>~</Text>
+              <Pressable
+                accessibilityLabel={`${index + 1}번째 가능 시간 종료 ${slot.endTime || '미선택'} 선택`}
+                accessibilityRole="button"
+                disabled={pending}
+                onPress={() => onOpenTimePicker(index, 'endTime')}
+                style={styles.availabilityTimeButton}
+              >
+                <Text
+                  style={[
+                    styles.availabilityTimeText,
+                    !slot.endTime && styles.availabilityTimePlaceholder,
+                  ]}
+                >
+                  {slot.endTime || '시간:분'}
+                </Text>
+              </Pressable>
+              {availabilitySlots.length > 1 ? (
+                <Pressable
+                  accessibilityLabel={`${index + 1}번째 가능 시간대 삭제`}
+                  accessibilityRole="button"
+                  hitSlop={8}
+                  onPress={() => onRemoveAvailabilitySlot(index)}
+                  style={styles.availabilityRemoveButton}
+                >
+                  <DeleteIcon />
+                </Pressable>
+              ) : null}
+            </View>
+          ))}
+          <Pressable
+            accessibilityLabel="가능 시간대 추가"
+            accessibilityRole="button"
+            accessibilityState={{ disabled: availabilitySlots.length >= 8 }}
+            disabled={availabilitySlots.length >= 8}
+            onPress={onAddAvailabilitySlot}
+            style={[
+              styles.availabilityAddButton,
+              availabilitySlots.length >= 8 && styles.routineActionDisabled,
+            ]}
+          >
+            <Text style={styles.availabilityAddLabel}>＋ 시간대 추가</Text>
+          </Pressable>
+          <Text style={styles.availabilityHelpText}>
+            운동을 시작할 수 있는 시간 범위를 입력해주세요.
+          </Text>
+        </View>
+        {availabilityError ? (
+          <Text accessibilityRole="alert" style={styles.messageText}>
+            {availabilityError}
+          </Text>
+        ) : null}
         <View style={styles.numberRow}>
           <Text style={styles.numberLabel}>
             어젯밤 수면 시간 <Text style={styles.optionalText}>(선택)</Text>
@@ -1963,6 +2128,336 @@ function CheckinSheet({
         </Pressable>
       </ScrollView>
     </SheetFrame>
+  );
+}
+
+function TimePickerSheet({
+  initialValue,
+  onClose,
+  onConfirm,
+  targetField,
+}: {
+  initialValue: string;
+  onClose: () => void;
+  onConfirm: (value: string) => void;
+  targetField: keyof HomeAvailabilitySlot;
+}) {
+  const styles = useHomeStyles();
+  const match = /^(\d{2}):(\d{2})$/.exec(initialValue);
+  const parsedMinute = match ? Number(match[2]) : 0;
+  const normalizedMinute = Math.min(55, Math.round(parsedMinute / 5) * 5);
+  const [hour, setHour] = useState(
+    match ? Number(match[1]) : targetField === 'startTime' ? 0 : 12,
+  );
+  const [minute, setMinute] = useState(normalizedMinute);
+  const title =
+    targetField === 'startTime' ? '시작 시간 선택' : '종료 시간 선택';
+
+  return (
+    <SheetFrame onClose={onClose} title={title} zIndex={30}>
+      <Text style={styles.timePickerIntro}>
+        시간과 분을 스크롤해 선택해주세요.
+      </Text>
+      <View style={styles.timePickerRow}>
+        <TimeWheelColumn
+          accessibilityLabel="시간 선택 스크롤"
+          onChange={setHour}
+          options={TIME_HOURS}
+          selected={hour}
+          suffix="시"
+        />
+        <Text style={styles.timePickerColon}>:</Text>
+        <TimeWheelColumn
+          accessibilityLabel="분 선택 스크롤"
+          onChange={setMinute}
+          options={TIME_MINUTES}
+          selected={minute}
+          suffix="분"
+        />
+      </View>
+      <View style={styles.timePickerActions}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onClose}
+          style={styles.timePickerCancelButton}
+        >
+          <Text style={styles.timePickerCancelLabel}>취소</Text>
+        </Pressable>
+        <Pressable
+          accessibilityLabel="시간 선택 완료"
+          accessibilityRole="button"
+          onPress={() =>
+            onConfirm(
+              `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`,
+            )
+          }
+          style={styles.timePickerConfirmButton}
+        >
+          <Text style={styles.timePickerConfirmLabel}>선택</Text>
+        </Pressable>
+      </View>
+    </SheetFrame>
+  );
+}
+
+function TimeWheelColumn({
+  accessibilityLabel,
+  onChange,
+  options,
+  selected,
+  suffix,
+}: {
+  accessibilityLabel: string;
+  onChange: (value: number) => void;
+  options: readonly number[];
+  selected: number;
+  suffix: string;
+}) {
+  const styles = useHomeStyles();
+  const scrollRef = useRef<ScrollView>(null);
+  const selectedIndex = Math.max(0, options.indexOf(selected));
+  const currentIndexRef = useRef(selectedIndex);
+  const pendingInternalSelectionRef = useRef<number | null>(null);
+  const webSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const webWheelGestureTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const webWheelDeltaRef = useRef(0);
+  const draggingRef = useRef(false);
+
+  const clearWebSettleTimer = useCallback(() => {
+    if (webSettleTimerRef.current !== null) {
+      clearTimeout(webSettleTimerRef.current);
+      webSettleTimerRef.current = null;
+    }
+  }, []);
+
+  const clearWebWheelGestureTimer = useCallback(() => {
+    if (webWheelGestureTimerRef.current !== null) {
+      clearTimeout(webWheelGestureTimerRef.current);
+      webWheelGestureTimerRef.current = null;
+    }
+  }, []);
+
+  const scrollToIndex = useCallback((index: number, animated: boolean) => {
+    scrollRef.current?.scrollTo({
+      animated,
+      y: index * TIME_WHEEL_ITEM_HEIGHT,
+    });
+  }, []);
+
+  const commitIndex = useCallback(
+    (index: number) => {
+      const boundedIndex = Math.max(0, Math.min(options.length - 1, index));
+      const value = options[boundedIndex];
+      if (value === undefined) return;
+      currentIndexRef.current = boundedIndex;
+      if (value !== selected) {
+        pendingInternalSelectionRef.current = value;
+        onChange(value);
+      }
+    },
+    [onChange, options, selected],
+  );
+
+  const selectIndex = useCallback(
+    (index: number, animated = true) => {
+      const boundedIndex = Math.max(0, Math.min(options.length - 1, index));
+      scrollToIndex(boundedIndex, animated);
+      commitIndex(boundedIndex);
+    },
+    [commitIndex, options.length, scrollToIndex],
+  );
+
+  const settleAtOffset = useCallback(
+    (offsetY: number, align = true) => {
+      const index = Math.max(
+        0,
+        Math.min(
+          options.length - 1,
+          Math.round(offsetY / TIME_WHEEL_ITEM_HEIGHT),
+        ),
+      );
+      const targetOffset = index * TIME_WHEEL_ITEM_HEIGHT;
+      if (align && Math.abs(offsetY - targetOffset) > 1) {
+        scrollToIndex(index, true);
+      }
+      commitIndex(index);
+    },
+    [commitIndex, options.length, scrollToIndex],
+  );
+
+  useEffect(() => {
+    currentIndexRef.current = selectedIndex;
+    if (pendingInternalSelectionRef.current === selected) {
+      pendingInternalSelectionRef.current = null;
+      return;
+    }
+    pendingInternalSelectionRef.current = null;
+    scrollToIndex(selectedIndex, false);
+  }, [scrollToIndex, selected, selectedIndex]);
+
+  useEffect(
+    () => () => {
+      clearWebSettleTimer();
+      clearWebWheelGestureTimer();
+    },
+    [clearWebSettleTimer, clearWebWheelGestureTimer],
+  );
+
+  const settleFromScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    clearWebSettleTimer();
+    draggingRef.current = false;
+    settleAtOffset(event.nativeEvent.contentOffset.y, false);
+  };
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (Platform.OS !== 'web' || draggingRef.current) return;
+    const offsetY = event.nativeEvent.contentOffset.y;
+    clearWebSettleTimer();
+    webSettleTimerRef.current = setTimeout(() => {
+      settleAtOffset(offsetY);
+      webSettleTimerRef.current = null;
+    }, 90);
+  };
+
+  const queueWheelDelta = useCallback(
+    (deltaY: number, deltaMode = 0) => {
+      clearWebSettleTimer();
+      if (deltaY === 0) return;
+      const modeMultiplier =
+        deltaMode === 1 ? 16 : deltaMode === 2 ? TIME_WHEEL_ITEM_HEIGHT * 3 : 1;
+      const normalizedDelta = deltaY * modeMultiplier;
+      if (
+        webWheelDeltaRef.current !== 0 &&
+        Math.sign(webWheelDeltaRef.current) !== Math.sign(normalizedDelta)
+      ) {
+        webWheelDeltaRef.current = 0;
+      }
+      webWheelDeltaRef.current += normalizedDelta;
+      clearWebWheelGestureTimer();
+      webWheelGestureTimerRef.current = setTimeout(() => {
+        const accumulatedDelta = webWheelDeltaRef.current;
+        webWheelDeltaRef.current = 0;
+        webWheelGestureTimerRef.current = null;
+        const magnitude = Math.abs(accumulatedDelta);
+        const steps =
+          magnitude <= TIME_WHEEL_SINGLE_ITEM_DELTA
+            ? 1
+            : Math.min(
+                TIME_WHEEL_MAX_ITEMS_PER_GESTURE,
+                1 +
+                  Math.round(
+                    (magnitude - TIME_WHEEL_SINGLE_ITEM_DELTA) /
+                      TIME_WHEEL_ACCELERATION_DELTA,
+                  ),
+              );
+        selectIndex(
+          currentIndexRef.current + Math.sign(accumulatedDelta) * steps,
+        );
+      }, TIME_WHEEL_GESTURE_IDLE_MS);
+    },
+    [clearWebSettleTimer, clearWebWheelGestureTimer, selectIndex],
+  );
+
+  const handleWheel = (
+    event: NativeSyntheticEvent<{
+      deltaMode?: number;
+      deltaY: number;
+    }>,
+  ) => {
+    event.preventDefault();
+    queueWheelDelta(event.nativeEvent.deltaY, event.nativeEvent.deltaMode);
+  };
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || scrollRef.current === null) return;
+    const scrollNode = scrollRef.current.getScrollableNode?.() as
+      HTMLElement | undefined;
+    if (scrollNode?.addEventListener === undefined) return;
+    const preventNativeWheelScroll = (event: WheelEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      queueWheelDelta(event.deltaY, event.deltaMode);
+    };
+    scrollNode.addEventListener('wheel', preventNativeWheelScroll, {
+      passive: false,
+    });
+    return () => {
+      scrollNode.removeEventListener('wheel', preventNativeWheelScroll);
+    };
+  }, [queueWheelDelta]);
+
+  const webWheelProps =
+    Platform.OS === 'web' ? { onWheel: handleWheel } : undefined;
+
+  return (
+    <View style={styles.timeWheelColumn}>
+      <ScrollView
+        ref={scrollRef}
+        accessibilityLabel={accessibilityLabel}
+        contentContainerStyle={styles.timeWheelContent}
+        decelerationRate="fast"
+        disableIntervalMomentum
+        nestedScrollEnabled
+        onMomentumScrollBegin={() => {
+          draggingRef.current = true;
+          clearWebSettleTimer();
+        }}
+        onMomentumScrollEnd={settleFromScroll}
+        onScroll={handleScroll}
+        onScrollBeginDrag={() => {
+          draggingRef.current = true;
+          clearWebSettleTimer();
+        }}
+        onScrollEndDrag={(event) => {
+          draggingRef.current = false;
+          const velocity = event.nativeEvent.velocity?.y;
+          if (velocity !== undefined && Math.abs(velocity) < 0.1) {
+            settleFromScroll(event);
+            return;
+          }
+          const offsetY = event.nativeEvent.contentOffset.y;
+          clearWebSettleTimer();
+          webSettleTimerRef.current = setTimeout(() => {
+            settleAtOffset(offsetY);
+            webSettleTimerRef.current = null;
+          }, 120);
+        }}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        snapToAlignment="start"
+        snapToInterval={TIME_WHEEL_ITEM_HEIGHT}
+        style={styles.timeWheelScroll}
+        {...webWheelProps}
+      >
+        {options.map((value, index) => {
+          const selectedOption = selected === value;
+          const padded = String(value).padStart(2, '0');
+          return (
+            <Pressable
+              accessibilityLabel={`${accessibilityLabel.startsWith('시간') ? '시간' : '분'} ${padded}${suffix}`}
+              accessibilityRole="button"
+              accessibilityState={{ selected: selectedOption }}
+              key={value}
+              onPress={() => selectIndex(index)}
+              style={styles.timeWheelItem}
+            >
+              <Text
+                style={[
+                  styles.timeWheelItemText,
+                  selectedOption && styles.timeWheelItemTextSelected,
+                ]}
+              >
+                {padded}
+                <Text style={styles.timeWheelItemSuffix}> {suffix}</Text>
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      <View pointerEvents="none" style={styles.timeWheelSelection} />
+    </View>
   );
 }
 
@@ -3572,6 +4067,157 @@ function createHomeStyles(
       paddingVertical: s(11),
       paddingHorizontal: s(12),
       textAlign: 'right',
+    },
+    availabilitySection: {
+      gap: s(10),
+      borderRadius: s(18),
+      backgroundColor: '#FFFFFF',
+      padding: s(16),
+    },
+    availabilityHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: s(5),
+    },
+    availabilitySlotRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: s(8),
+    },
+    availabilityTimeButton: {
+      flex: 1,
+      minWidth: 0,
+      minHeight: s(44),
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: s(1),
+      borderColor: '#E7E3DB',
+      borderRadius: s(12),
+      backgroundColor: '#FAF7F1',
+      paddingVertical: s(11),
+      paddingHorizontal: s(10),
+    },
+    availabilityTimeText: {
+      color: '#2A2A26',
+      fontSize: f(14),
+      fontWeight: '700',
+      textAlign: 'center',
+    },
+    availabilityTimePlaceholder: { color: '#AAA69F', fontWeight: '600' },
+    availabilitySeparator: {
+      color: '#8B8780',
+      fontSize: f(15),
+      fontWeight: '700',
+    },
+    availabilityRemoveButton: {
+      width: s(28),
+      height: s(42),
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    availabilityAddButton: {
+      minHeight: s(44),
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: s(1),
+      borderColor: '#A8C78D',
+      borderStyle: 'dashed',
+      borderRadius: s(12),
+      backgroundColor: '#F6FAF2',
+    },
+    availabilityAddLabel: {
+      color: '#3E7A32',
+      fontSize: f(13),
+      fontWeight: '700',
+    },
+    availabilityHelpText: {
+      color: '#8B8780',
+      fontSize: f(12),
+      lineHeight: f(18),
+    },
+    timePickerIntro: {
+      marginTop: s(2),
+      color: '#8B8780',
+      fontSize: f(13),
+      lineHeight: f(19),
+    },
+    timePickerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: s(10),
+      marginTop: s(16),
+    },
+    timePickerColon: {
+      color: '#2A2A26',
+      fontSize: f(24),
+      fontWeight: '800',
+    },
+    timeWheelColumn: {
+      position: 'relative',
+      minWidth: 0,
+      height: TIME_WHEEL_ITEM_HEIGHT * 3,
+      flex: 1,
+      overflow: 'hidden',
+      borderWidth: s(1),
+      borderColor: '#E7E3DB',
+      borderRadius: s(14),
+      backgroundColor: '#FFFFFF',
+    },
+    timeWheelScroll: { zIndex: 2 },
+    timeWheelContent: { paddingVertical: TIME_WHEEL_ITEM_HEIGHT },
+    timeWheelSelection: {
+      position: 'absolute',
+      top: TIME_WHEEL_ITEM_HEIGHT,
+      right: s(5),
+      left: s(5),
+      height: TIME_WHEEL_ITEM_HEIGHT,
+      borderRadius: s(9),
+      backgroundColor: '#E8F2E4',
+    },
+    timeWheelItem: {
+      height: TIME_WHEEL_ITEM_HEIGHT,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    timeWheelItemText: {
+      color: '#8B8780',
+      fontSize: f(17),
+      fontWeight: '600',
+    },
+    timeWheelItemTextSelected: { color: '#3E7A32', fontWeight: '800' },
+    timeWheelItemSuffix: { fontSize: f(12), fontWeight: '600' },
+    timePickerActions: {
+      flexDirection: 'row',
+      gap: s(10),
+      marginTop: s(18),
+    },
+    timePickerCancelButton: {
+      minHeight: s(48),
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: s(1),
+      borderColor: '#D8D4CB',
+      borderRadius: s(14),
+      backgroundColor: '#FFFFFF',
+    },
+    timePickerCancelLabel: {
+      color: '#6F6B64',
+      fontSize: f(15),
+      fontWeight: '700',
+    },
+    timePickerConfirmButton: {
+      minHeight: s(48),
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: s(14),
+      backgroundColor: '#4E8B3A',
+    },
+    timePickerConfirmLabel: {
+      color: '#FFFFFF',
+      fontSize: f(15),
+      fontWeight: '800',
     },
     stepsInput: { width: s(110) },
     numberSuffix: { color: '#8B8780', fontSize: f(13) },

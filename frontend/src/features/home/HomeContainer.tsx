@@ -54,7 +54,11 @@ import {
   type HomeBusyKind,
   type HomeUserEdits,
 } from './HomeScreen';
-import { sleepMinutesFromHours, type HomeCheckinDraft } from './homeModel';
+import {
+  availabilitySlotsForRequest,
+  sleepMinutesFromHours,
+  type HomeCheckinDraft,
+} from './homeModel';
 
 type HomeData = {
   routine: RoutineResponse | null;
@@ -263,6 +267,10 @@ export function HomeContainer({
         const profileDuration =
           profile?.default_requested_duration_minutes ??
           routine.days[0]?.requested_duration_minutes;
+        const profileTimeZone =
+          profile?.timezone ??
+          Intl.DateTimeFormat().resolvedOptions().timeZone ??
+          'UTC';
 
         const saved = await api.replaceDailyContext(
           localDate,
@@ -289,6 +297,11 @@ export function HomeContainer({
               }),
             ),
             adverse_reaction_codes: draft.adverseReactionCodes,
+            available_slots: availabilitySlotsForRequest(
+              draft.availableSlots,
+              localDate,
+              profileTimeZone,
+            ),
           },
           expectedVersion,
         );
