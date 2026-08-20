@@ -15,6 +15,12 @@ data/validation/review_batches/**/*.jsonl -text
 data/generated/**/*.json                 -text
 data/generated/**/*.jsonl                -text
 
+# 해시 봉인 ML 아티팩트. MODEL_CARD/FINAL_VERIFICATION이 SHA-256을 기록하므로
+# 줄바꿈 정규화가 개입하면 재검증이 깨진다.
+*.parquet binary
+*.joblib binary
+*.docx binary
+
 *.png binary
 *.jpg binary
 *.jpeg binary

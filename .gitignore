@@ -59,5 +59,8 @@ data/raw/*/snapshots/
 # ML 중간 산출물
 ml/data/interim/
 ml/data/processed/
+# 루트의 일반 `outputs/` 규칙이 ml/outputs/까지 삼키므로 되살린 뒤
+# 예측 파일만 다시 제외한다. 선정·평가 증거는 추적 대상이다.
+!ml/outputs/
 ml/outputs/predictions/
 *.joblib.tmp

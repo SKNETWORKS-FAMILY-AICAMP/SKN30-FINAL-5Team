@@ -166,7 +166,7 @@ workout_completed = 1  해당 날짜에 운동 기록 있음
    → 전일 컨디션 값 shift(1)
    → 최근 7일·28일 이력 피처
    → 개인 기준선 delta
-   → 결측 처리 + 가용성 플래그
+   → 결측 처리 (가용성 플래그는 생성하지 않음)
    ```
 
 4. **누수 차단 검증 (자동화, fail closed)**
@@ -209,7 +209,8 @@ workout_completed = 1  해당 날짜에 운동 기록 있음
    그 자체가 유효한 결과다.
 
 3. **모델** — Logistic Regression, Random Forest, HistGradientBoosting
-4. **매트릭스** — 2개 분할 × 6개 ablation × 3개 모델 (`A0`는 분할당 1회)
+4. **매트릭스** — 총 7개 ID. 2개 분할 × 6개 모델 ablation
+   (`A1`~`A5`, `A2-lag1`) × 3개 모델 + `A0` baseline은 분할당 1회
 5. **하이퍼파라미터** — **기본값 우선.** 여유가 있을 때만 소폭 탐색.
    validation으로만 조정하고 **test는 최종 1회**만 사용한다
 6. **지표 산출** — Precision, Recall, F1, ROC-AUC, PR-AUC, **Brier**,
@@ -220,6 +221,8 @@ workout_completed = 1  해당 날짜에 운동 기록 있음
    |---|---|---|
    | `history_bucket` | `0-7` / `8-28` / `29+` | **콜드스타트 사용자에게 무엇이 가능한가** |
    | `experience_level_code` | 수준별 | 특정 집단에서만 작동하는가 |
+
+   `experience_level_code`는 `A1` 모델 피처이면서 예측 결과의 세그먼트 컬럼으로도 유지한다.
 
    **이력 길이가 가장 중요하다.** 서비스 타깃이 운동 초보자·복귀 사용자이고
    `docs/DOMAIN_RULES.md` 354행이 콜드스타트 사용자를 별도로 다룬다.
@@ -303,7 +306,11 @@ B가 모델과 그 평가를 함께 만들므로 **수치를 확인할 독립적
 
 따라서 웨어러블 블록을 둘로 분리했다.
 
-- `A3` 서비스 수집 가능: `sleep_minutes`, `resting_hr`(+3값 trend code), `active_minutes`, `steps`, `average_heart_rate`
+- `A3` 서비스 수집 가능: `sleep_minutes_prev_day`, `resting_hr_prev_day`,
+  `resting_hr_trend_code_prev_day`, `last_workout_duration_min_prev_day`,
+  `last_workout_type_code_prev_day`, `last_workout_calories_prev_day`,
+  `last_workout_avg_hr_prev_day`
+- `steps`와 `active_minutes`는 Whoop 원본에 없으므로 `A3`에서 제외한다.
 - `A5` 서비스 미수집: `hrv`, `recovery_score` — **결과가 좋아도 제품 설계 근거로 쓰지 않는다**
 
 또한 `age`·`gender`는 `docs/DOMAIN_RULES.md` 8절(만 나이를 에이전트 입력에 포함하지 않음)에 따라
@@ -587,7 +594,7 @@ develop
 컬럼명은 ml/docs/FEATURE_SPEC.md를 단일 기준으로 삼는다. 임의로 만들지 마라.
 ```
 
-**Track A**
+**Track A (채동현)**
 
 ```text
 담당: ml/src/prepare_data.py, features.py, validate_leakage.py, ml/docs/FEATURE_SPEC.md
@@ -620,10 +627,12 @@ develop
 담당: ml/src/train.py, metrics.py, evaluate.py, ml/config/experiments.yaml, ml/models/*.joblib
 
 1. FEATURE_SPEC.md의 block 태그로 ablation을 구성한다. 컬럼을 직접 나열하지 마라.
-   A0 다수클래스 / A1 기본 / A2 +이력 / A3 +웨어러블 / A4 +개인기준선 / A2-lag1 참조
+   총 7개 ID: A0 다수클래스 / A1 기본 / A2 +이력 / A3 +웨어러블 /
+   A4 +개인기준선 / A5 +서비스 미수집(탐색 전용) / A2-lag1 참조
 2. 모델: LogisticRegression, RandomForest, HistGradientBoosting.
    전처리(One-Hot, 표준화)는 sklearn Pipeline 안에 넣는다. 분리하지 마라.
-3. 매트릭스: 2개 분할 x 6개 ablation x 3개 모델. A0는 분할당 1회.
+3. 매트릭스: 총 7개 ID. 2개 분할 x 6개 모델 ablation
+   (A1~A5, A2-lag1) x 3개 모델 + A0 baseline은 분할당 1회.
 4. 하이퍼파라미터는 기본값을 쓴다. 조정이 필요하면 validation으로만 한다.
    test 세트는 최종 1회만 쓴다.
 5. 예측 결과를 ML_WORK_PLAN 4.2절 스키마로 저장한다.
