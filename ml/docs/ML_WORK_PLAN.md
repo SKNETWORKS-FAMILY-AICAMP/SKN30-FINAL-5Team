@@ -587,7 +587,7 @@ develop
 컬럼명은 ml/docs/FEATURE_SPEC.md를 단일 기준으로 삼는다. 임의로 만들지 마라.
 ```
 
-**Track A (채동현)**
+**Track A**
 
 ```text
 담당: ml/src/prepare_data.py, features.py, validate_leakage.py, ml/docs/FEATURE_SPEC.md

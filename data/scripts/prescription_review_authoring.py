@@ -120,16 +120,10 @@ _MOBILITY: tuple[AuthoredExercise, ...] = (
 # 버리므로(`has_core`) 홈·헬스장 각 트랙에 CORE가 충분히 있어야 한다.
 _MAIN: tuple[AuthoredExercise, ...] = (
     # --- 홈 트랙 ---
-    AuthoredExercise(
-        "supported_sit_to_stand", "CORE", (_reps("MAIN", 3, 10, 45, "MODERATE"),)
-    ),
+    AuthoredExercise("supported_sit_to_stand", "CORE", (_reps("MAIN", 3, 10, 45, "MODERATE"),)),
     AuthoredExercise("supine_hip_bridge", "CORE", (_reps("MAIN", 3, 12, 45, "MODERATE"),)),
-    AuthoredExercise(
-        "quadruped_scapular_press", "CORE", (_reps("MAIN", 3, 10, 30, "MODERATE"),)
-    ),
-    AuthoredExercise(
-        "standing_band_pulldown", "CORE", (_reps("MAIN", 3, 12, 45, "MODERATE"),)
-    ),
+    AuthoredExercise("quadruped_scapular_press", "CORE", (_reps("MAIN", 3, 10, 30, "MODERATE"),)),
+    AuthoredExercise("standing_band_pulldown", "CORE", (_reps("MAIN", 3, 12, 45, "MODERATE"),)),
     AuthoredExercise(
         "supported_standing_hip_extension", "SUPPORT", (_reps("MAIN", 3, 12, 45, "LOW"),)
     ),
@@ -146,9 +140,7 @@ _MAIN: tuple[AuthoredExercise, ...] = (
     AuthoredExercise("leg_press", "CORE", (_reps("MAIN", 3, 10, 90, "MODERATE"),)),
     AuthoredExercise("machine_seated_row", "CORE", (_reps("MAIN", 3, 10, 60, "MODERATE"),)),
     AuthoredExercise("seated_bench_press", "CORE", (_reps("MAIN", 3, 10, 75, "MODERATE"),)),
-    AuthoredExercise(
-        "neutral_grip_lat_pulldown", "CORE", (_reps("MAIN", 3, 10, 60, "MODERATE"),)
-    ),
+    AuthoredExercise("neutral_grip_lat_pulldown", "CORE", (_reps("MAIN", 3, 10, 60, "MODERATE"),)),
     AuthoredExercise("machine_shoulder_press", "SUPPORT", (_reps("MAIN", 3, 10, 60, "MODERATE"),)),
     AuthoredExercise("seated_cable_row", "SUPPORT", (_reps("MAIN", 3, 10, 60, "MODERATE"),)),
     AuthoredExercise(
@@ -181,7 +173,8 @@ def rows() -> list[dict[str, object]]:
                     "sets": prescription.sets,
                     "reps": "" if prescription.reps is None else prescription.reps,
                     "work_seconds_per_set": (
-                        "" if prescription.work_seconds_per_set is None
+                        ""
+                        if prescription.work_seconds_per_set is None
                         else prescription.work_seconds_per_set
                     ),
                     "rest_seconds_per_set": prescription.rest_seconds_per_set,
