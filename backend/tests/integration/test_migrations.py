@@ -20,11 +20,14 @@ BUNDLE_ALTERNATIVES = Path("data/generated/exercise-alternatives-merged-mvp-v0.4
 BUNDLE_PRESCRIPTIONS = Path("data/generated/exercise-prescriptions-merged-mvp-v0.1.0")
 
 
-def test_migration_history_has_v2_deliberation_head() -> None:
+def test_migration_history_has_vector_index_registry_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0023_v2_deliberation_store"]
+    assert scripts.get_heads() == ["0024_vector_index_registry"]
+    assert scripts.get_revision("0024_vector_index_registry").down_revision == (
+        "0023_v2_deliberation_store"
+    )
     assert scripts.get_revision("0023_v2_deliberation_store").down_revision == (
         "0022_promote_merged_data"
     )
@@ -106,9 +109,30 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
             "decision_deliberations",
             "agent_proposal_revisions",
             "agent_review_events",
+            "vector_index_registry",
             "exercise_safety_rules",
             "exercise_alternatives",
         }.issubset(inspector.get_table_names())
+        assert {
+            "id",
+            "catalog_version_id",
+            "collection_name",
+            "vector_index_version",
+            "source_manifest_hash",
+            "embedding_model_version",
+            "embedding_input_schema_version",
+            "distance_metric_code",
+            "vector_dimension",
+            "build_hash",
+            "status_code",
+            "built_at",
+            "activated_at",
+            "created_at",
+        } == {column["name"] for column in inspector.get_columns("vector_index_registry")}
+        assert {
+            constraint["name"]
+            for constraint in inspector.get_unique_constraints("vector_index_registry")
+        } == {"uq_vector_index_registry_version"}
         assert {
             "id",
             "decision_run_id",

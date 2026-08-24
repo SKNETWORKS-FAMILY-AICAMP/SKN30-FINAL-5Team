@@ -3,11 +3,13 @@ import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Literal, Self
+from urllib.parse import urlsplit
 
 from pydantic import SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 _MACHINE_REFERENCE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
+_QDRANT_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{0,127}$")
 
 
 class Settings(BaseSettings):
@@ -47,6 +49,21 @@ class Settings(BaseSettings):
     llm_timeout_seconds: float = 3.0
     llm_max_output_tokens: int = 400
     openai_api_key: SecretStr | None = None
+    # Qdrant is a rebuildable catalog index and remains disabled until an
+    # embedding contract and deployment credentials are explicitly approved.
+    qdrant_enabled: bool = False
+    qdrant_url: str = "http://localhost:6333"
+    qdrant_api_key: SecretStr | None = None
+    qdrant_timeout_seconds: float = 2.0
+    qdrant_collection_prefix: str = "exercise_catalog"
+    qdrant_collection_alias: str = "exercise_catalog_active"
+    qdrant_tls_enabled: bool = False
+    qdrant_batch_size: int = 64
+    embedding_provider_code: str = "UNCONFIGURED"
+    embedding_model_version: str = "unconfigured"
+    embedding_input_schema_version: str = "exercise-embedding-input-v1"
+    embedding_vector_dimension: int = 0
+    embedding_distance_metric_code: Literal["COSINE", "DOT", "EUCLID", "MANHATTAN"] = "COSINE"
     # NoDecode hands the raw environment string to the validator below. Without
     # it pydantic-settings JSON-decodes these fields first, so a plain
     # comma-separated value fails at startup with an opaque SettingsError.
@@ -103,6 +120,65 @@ class Settings(BaseSettings):
         if isinstance(value, str) and not value.strip():
             return None
         return value
+
+    @field_validator("qdrant_api_key", mode="before")
+    @classmethod
+    def normalize_qdrant_api_key(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
+    @field_validator("qdrant_url")
+    @classmethod
+    def validate_qdrant_url(cls, value: str) -> str:
+        normalized = value.strip().rstrip("/")
+        parsed = urlsplit(normalized)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            raise ValueError("QDRANT_URL must be an absolute http(s) URL")
+        if parsed.username is not None or parsed.password is not None:
+            raise ValueError("QDRANT_URL must not contain credentials")
+        return normalized
+
+    @field_validator("qdrant_timeout_seconds")
+    @classmethod
+    def validate_qdrant_timeout_seconds(cls, value: float) -> float:
+        if not 0 < value <= 10:
+            raise ValueError("QDRANT_TIMEOUT_SECONDS must be within (0, 10]")
+        return value
+
+    @field_validator("qdrant_batch_size")
+    @classmethod
+    def validate_qdrant_batch_size(cls, value: int) -> int:
+        if not 0 < value <= 1000:
+            raise ValueError("QDRANT_BATCH_SIZE must be within [1, 1000]")
+        return value
+
+    @field_validator("embedding_vector_dimension")
+    @classmethod
+    def validate_embedding_vector_dimension(cls, value: int) -> int:
+        if not 0 <= value <= 65536:
+            raise ValueError("EMBEDDING_VECTOR_DIMENSION must be within [0, 65536]")
+        return value
+
+    @field_validator("qdrant_collection_prefix", "qdrant_collection_alias")
+    @classmethod
+    def validate_qdrant_name(cls, value: str) -> str:
+        normalized = value.strip()
+        if not _QDRANT_NAME_PATTERN.fullmatch(normalized):
+            raise ValueError("Qdrant collection prefix and alias must be allowlisted names")
+        return normalized
+
+    @field_validator(
+        "embedding_provider_code",
+        "embedding_model_version",
+        "embedding_input_schema_version",
+    )
+    @classmethod
+    def validate_qdrant_machine_reference(cls, value: str) -> str:
+        normalized = value.strip()
+        if not _MACHINE_REFERENCE_PATTERN.fullmatch(normalized):
+            raise ValueError("Qdrant and embedding references must be machine codes")
+        return normalized
 
     @field_validator("llm_model_code")
     @classmethod
@@ -190,6 +266,18 @@ class Settings(BaseSettings):
             raise ValueError("LLM_ENABLED requires LLM_PROVIDER_CODE")
         if self.llm_enabled and self.llm_provider_code == "OPENAI" and self.openai_api_key is None:
             raise ValueError("LLM_PROVIDER_CODE=OPENAI requires OPENAI_API_KEY")
+        if self.qdrant_enabled:
+            if (
+                self.embedding_provider_code == "UNCONFIGURED"
+                or self.embedding_vector_dimension <= 0
+            ):
+                raise ValueError("QDRANT_ENABLED requires an approved embedding contract")
+            if self.qdrant_tls_enabled != self.qdrant_url.startswith("https://"):
+                raise ValueError("QDRANT_TLS_ENABLED must agree with QDRANT_URL")
+            if self.app_env in {"staging", "production"} and self.qdrant_api_key is None:
+                raise ValueError("staging/production Qdrant requires QDRANT_API_KEY")
+            if self.app_env in {"staging", "production"} and not self.qdrant_tls_enabled:
+                raise ValueError("staging/production Qdrant requires TLS")
         return self
 
 

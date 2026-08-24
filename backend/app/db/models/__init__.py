@@ -53,6 +53,7 @@ from backend.app.db.models.profile import (
     UserProfile,
 )
 from backend.app.db.models.routine import Routine, RoutineDay, RoutineItem
+from backend.app.db.models.vector_index import VectorIndexRegistry
 from backend.app.db.models.weekly_report import UserWeek, WeeklyPlanRevision, WeeklyReport
 from backend.app.db.models.workout import (
     DecisionSelection,
@@ -123,6 +124,7 @@ __all__ = [
     "UserPreferredExerciseType",
     "UserProfile",
     "UserWeek",
+    "VectorIndexRegistry",
     "WeeklyPlanRevision",
     "WorkoutAdditionalActivity",
     "WorkoutFeedback",
