@@ -1,5 +1,31 @@
 # Integrations
 
+## V3 structured Agent/Coordinator adapters
+
+`llm_agents/` implements the provider-neutral V3-A2 boundary from ADR-0013. It accepts an
+injected LangChain `BaseChatModel`, binds the approved domain output schema, retries a
+provider/schema failure at most once, and re-runs `SpecialistAgentInput.validate_proposal`
+or `PlanSpec.validate_against` from the approved domain contract. It never
+selects a provider, executes a deterministic fallback, or registers DB, repository, Qdrant,
+or free-form tools. Coordinator repair is one structured invocation; loop control remains a
+V3-A3 LangGraph responsibility.
+
+Only `langchain-core==1.6.0` is installed. This supplies `BaseChatModel` and structured-output
+parsing without a provider SDK or LangGraph. The exact version is locked because this
+boundary depends on `with_structured_output` behavior under Python 3.12 and Pydantic 2.
+
+The feature is disabled by default under `LLM_AGENTS_*`. An enabled but incomplete setup
+returns `LLM_AGENT_PROVIDER_UNAVAILABLE` without blocking application startup. An approved
+provider adapter must configure its network timeout from `LLM_AGENTS_TIMEOUT_SECONDS` before
+injecting the model. Prompt/request/response bodies and provider exception messages are not
+logged. LangSmith tracing and callbacks are disabled for every structured invocation so an
+ambient tracing configuration cannot export these bodies.
+
+Failures are all-or-nothing and expose only stable codes:
+`LLM_AGENT_PROVIDER_UNAVAILABLE`, `LLM_AGENT_PROVIDER_TIMEOUT`,
+`LLM_AGENT_SCHEMA_INVALID`, or `LLM_AGENT_DOMAIN_INVALID`. The adapter does not synthesize a
+proposal, return a partial PlanSpec, or execute the deterministic fallback owned by V3-A3.
+
 Firebase, Google/Kakao/Naver OAuth, 선택적 LLM을 adapter로 격리합니다. 외부 SDK 타입을 domain에 노출하지 않습니다.
 
 `qdrant/`는 ADR-0014의 rebuildable exercise derived index 경계입니다. PostgreSQL이 승인 운동과
