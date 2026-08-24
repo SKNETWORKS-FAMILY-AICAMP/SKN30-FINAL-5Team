@@ -168,6 +168,9 @@ const HOME_TAB_SCREENS: Record<TabId, PreviewScreenId> = {
   my: 'my-page',
 };
 
+/** Pins date-sensitive gallery screens to the fixture week on every run. */
+const GALLERY_PREVIEW_NOW = new Date('2026-08-22T10:00:00+09:00');
+
 type CalendarHistoryPreviewDay = {
   localDate: string;
   sessionIds: readonly string[];
@@ -911,8 +914,10 @@ export function PreviewGallery({
                     <WeeklyReportScreen
                       key={weeklyReportState}
                       api={weeklyReportApi}
+                      now={GALLERY_PREVIEW_NOW}
                       onBack={() => setScreenId('calendar-report')}
                       onNavigateTab={navigateHomeTab}
+                      timeZone="Asia/Seoul"
                     />
                   ) : null}
                   {screenId === 'account' ? (
