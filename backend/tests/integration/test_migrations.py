@@ -20,11 +20,14 @@ BUNDLE_ALTERNATIVES = Path("data/generated/exercise-alternatives-merged-mvp-v0.4
 BUNDLE_PRESCRIPTIONS = Path("data/generated/exercise-prescriptions-merged-mvp-v0.1.0")
 
 
-def test_migration_history_has_merged_catalog_promotion_head() -> None:
+def test_migration_history_has_v2_deliberation_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0022_promote_merged_data"]
+    assert scripts.get_heads() == ["0023_v2_deliberation_store"]
+    assert scripts.get_revision("0023_v2_deliberation_store").down_revision == (
+        "0022_promote_merged_data"
+    )
     assert scripts.get_revision("0022_promote_merged_data").down_revision == (
         "0021_merged_catalog_source"
     )
@@ -100,9 +103,49 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
             "calendar_oauth_requests",
             "calendar_rate_limit_counters",
             "decision_explanations",
+            "decision_deliberations",
+            "agent_proposal_revisions",
+            "agent_review_events",
             "exercise_safety_rules",
             "exercise_alternatives",
         }.issubset(inspector.get_table_names())
+        assert {
+            "id",
+            "decision_run_id",
+            "policy_version_id",
+            "deliberation_schema_version",
+            "graph_version",
+            "round_count",
+            "round_two_status_code",
+            "conflict_detector_version",
+            "precedence_version",
+            "conflict_codes",
+            "conflict_hash",
+            "created_at",
+        } == {column["name"] for column in inspector.get_columns("decision_deliberations")}
+        assert {
+            "id",
+            "decision_run_id",
+            "deliberation_id",
+            "source_proposal_id",
+            "baseline_revision_id",
+            "policy_version_id",
+            "round_number",
+            "agent_type_code",
+            "proposal_status_code",
+            "proposal_schema_version",
+            "proposal_payload",
+            "proposal_hash",
+            "created_at",
+        } == {column["name"] for column in inspector.get_columns("agent_proposal_revisions")}
+        assert {
+            constraint["name"]
+            for constraint in inspector.get_unique_constraints("agent_proposal_revisions")
+        } == {"uq_agent_proposal_revisions_run_round_type"}
+        assert {
+            constraint["name"]
+            for constraint in inspector.get_unique_constraints("agent_review_events")
+        } == {"uq_agent_review_events_run_round_type"}
         assert {column["name"] for column in inspector.get_columns("decision_explanations")} == {
             "id",
             "decision_run_id",

@@ -145,6 +145,11 @@ def _key() -> dict[str, str]:
     return {"Idempotency-Key": str(uuid4())}
 
 
+def _current_week_start() -> date:
+    local_today = datetime.now(ZoneInfo(DEMO_TIMEZONE)).date()
+    return local_today - timedelta(days=local_today.weekday())
+
+
 def _onboard(client: TestClient, *, duration_minutes: int = 30) -> dict[str, object]:
     response = client.put(
         "/api/v1/me/onboarding",
@@ -513,7 +518,7 @@ def test_unauthenticated_request_is_rejected(client: TestClient) -> None:
 
 def test_weekly_report_gate_requires_closed_week(client: TestClient) -> None:
     _onboard(client)
-    week_start = "2026-08-17"
+    week_start = _current_week_start().isoformat()
     week = client.get(f"/api/v1/weeks/{week_start}")
     assert week.status_code == 200, week.text
     assert week.json()["week_start"] == week_start
@@ -538,8 +543,7 @@ def test_release_v1_full_postgresql_vertical_flow(
     with engine.connect() as connection:
         assert connection.scalar(text("select version_num from alembic_version")) == expected_head
 
-    local_today = datetime.now(ZoneInfo(DEMO_TIMEZONE)).date()
-    current_week_start = local_today - timedelta(days=local_today.weekday())
+    current_week_start = _current_week_start()
     closed_week_start = current_week_start - timedelta(days=7)
     completed_date = closed_week_start
     not_completed_date = closed_week_start + timedelta(days=1)
@@ -738,10 +742,16 @@ def test_reset_users_clears_user_data_and_keeps_the_catalog(
     """An initial weekly plan stores `weekly_plan_revisions.routine_id`, an
     intentional RESTRICT reference to a row that also cascades from `users`.
     A plain `DELETE FROM users` cannot resolve that by cascade order alone."""
+    current_week_start = _current_week_start()
     _onboard(client)
-    _create_routine(client)
-    _decide(client, _check_in(client))
-    plan = client.post(f"/api/v1/weeks/{LOCAL_DATE.isoformat()}/plan", headers=_key(), json={})
+    _create_routine(client, effective_from=current_week_start)
+    context = _check_in(client, local_date=current_week_start)
+    _decide(client, context, local_date=current_week_start)
+    plan = client.post(
+        f"/api/v1/weeks/{current_week_start.isoformat()}/plan",
+        headers=_key(),
+        json={},
+    )
     assert plan.status_code == 201, plan.text
 
     user_owned = ("routines", "decision_runs", "scheduled_workouts", "weekly_plan_revisions")

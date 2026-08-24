@@ -1091,10 +1091,11 @@ V3 run은 `TRAINING`, `RECOVERY`, `FEASIBILITY` 세 Round 1 proposal만 저장�
 
 prompt 원문, chain-of-thought, provider 예외 문자열과 직접 식별자는 저장하지 않는다.
 
-### 9.2.1 승인된 V2 논리 모델 — decision_deliberations와 agent_review_events
+### 9.2.1 V2 물리 모델 — decision_deliberations, agent_proposal_revisions, agent_review_events
 
-후속 persistence task는 기존 `agent_proposals`를 Round 1 원본으로 유지하고, conflict detection과
-Round 2 결과를 additive 관계로 저장한다. 기존 decision을 backfill해 V2 실행으로 가장하지 않는다.
+Migration `0023_v2_deliberation_store`는 기존 `agent_proposals`를 Round 1 원본으로 유지하고,
+conflict detection, canonical proposal hash, Round 2 결과를 additive 관계로 저장한다. 기존 decision을
+backfill해 V2 실행으로 가장하지 않으며 기존 공개 API와 Coordinator 결과 컬럼을 변경하지 않는다.
 
 `decision_deliberations`는 decision run당 0..1개다.
 
@@ -1102,7 +1103,9 @@ Round 2 결과를 additive 관계로 저장한다. 기존 decision을 backfill�
 |---|---|
 | id | UUID, PK |
 | decision_run_id | decision_runs FK, UNIQUE |
+| policy_version_id | decision_policy_versions FK. decision run의 정책 버전과 같아야 함 |
 | deliberation_schema_version | conflict/review envelope schema version |
+| graph_version | decision run의 V2 graph version 스냅샷 |
 | round_count | 1 또는 2 |
 | round_two_status_code | SKIPPED_NO_CONFLICT, COMPLETED, NEEDS_INPUT, FAILED |
 | conflict_detector_version | conflict code 생성 규칙 버전 |
@@ -1111,13 +1114,39 @@ Round 2 결과를 additive 관계로 저장한다. 기존 decision을 backfill�
 | conflict_hash | canonical conflict payload SHA-256 |
 | created_at | 생성 시각 |
 
+`agent_proposal_revisions`는 기존 `agent_proposals`와 Coordinator 결과 사이를 덮어쓰지 않는 hash
+lineage다. Round 1 행은 기존 proposal을 가리키고 동일 payload의 canonical SHA-256을 저장한다.
+Round 2 행은 실제 `REVISED` proposal이 있을 때만 생성하고 해당 Agent의 Round 1 revision을 가리킨다.
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| decision_run_id | decision_runs FK |
+| deliberation_id | decision_deliberations FK |
+| source_proposal_id | Round 1이면 기존 agent_proposals FK, Round 2이면 null |
+| baseline_revision_id | Round 2이면 같은 Agent의 Round 1 revision FK, Round 1이면 null |
+| policy_version_id | decision_policy_versions FK. decision run의 정책 버전과 같아야 함 |
+| round_number | 1 또는 2 |
+| agent_type_code | TRAINING, RECOVERY, SAFETY, FEASIBILITY |
+| proposal_status_code | READY, NEEDS_INPUT, FAILED |
+| proposal_schema_version | proposal JSON 구조 버전 |
+| proposal_payload | 검증된 구조화 proposal JSONB |
+| proposal_hash | canonical proposal payload SHA-256 |
+| created_at | 생성 시각 |
+
+`(decision_run_id, round_number, agent_type_code)`는 unique다. Round 1의 네 행은 반드시 기존 네
+`agent_proposals`와 연결하며, Round 2 revision은 baseline hash lineage를 끊지 않는다.
+
 `agent_review_events`는 V2 deliberation당 정확히 네 Agent의 event를 저장한다. 실제 review 비대상도
 `NOT_REQUIRED`를 저장해 누락과 생략을 구분한다.
 
 | 컬럼 | 설명 |
 |---|---|
 | id | UUID, PK |
+| decision_run_id | decision_runs FK |
 | deliberation_id | decision_deliberations FK |
+| baseline_revision_id | 해당 Agent Round 1 proposal revision FK |
+| revised_revision_id | REVISED일 때 Round 2 proposal revision FK, 그 외 null |
 | round_number | V2에서는 2 |
 | agent_type_code | TRAINING, RECOVERY, SAFETY, FEASIBILITY |
 | review_status_code | READY, NOT_REQUIRED, NEEDS_INPUT, FAILED |
@@ -1125,16 +1154,24 @@ Round 2 결과를 additive 관계로 저장한다. 기존 decision을 backfill�
 | review_schema_version | AgentReview JSON 구조 버전 |
 | baseline_proposal_hash | 해당 Agent Round 1 proposal hash |
 | reviewed_proposal_references | `(agent_type_code, proposal_hash)` canonical 구조 JSONB |
-| review_payload | constraint·conflict·reason·evidence와 optional revised proposal JSONB |
+| review_payload | constraint·conflict·reason·evidence machine code JSONB |
 | review_hash | canonical review payload SHA-256 |
 | created_at | 생성 시각 |
 
-`(deliberation_id, round_number, agent_type_code)`는 unique다. revised proposal은 기존 proposal과
+`(decision_run_id, round_number, agent_type_code)`는 unique다. revised proposal은 기존 proposal과
 같은 승인 후보·시간·정책 검증을 통과해야 하며 Coordinator final result와 같은 JSON에 덮어쓰지
 않는다. Safety veto·제외 단조성 위반 review는 저장 가능한 성공 event가 아니다.
 
 V2 conflict/review는 사용자 연결 decision 데이터이므로 기존 decision과 같은 삭제·보존 정책을
-따른다. graph checkpoint, application log, 자유 reasoning과 직접 식별자는 이 테이블에 저장하지 않는다.
+따른다. `decision_runs` 삭제 시 세 테이블과 revision lineage는 `ON DELETE CASCADE`로 삭제된다.
+graph checkpoint, application log, 자유 reasoning, 직접 식별자, 자유 체크인, 원시 건강·웨어러블
+값은 이 테이블에 저장하지 않는다.
+
+건강 데이터 보존기간 검토 결과, 이 세 테이블은 원시 건강 데이터 저장소가 아니라 최소화된 decision
+파생 기록이다. 따라서 별도 장기 기억이나 독립 보존기간을 두지 않고 계정 삭제 시 user-linked decision과
+함께 7일 이내 hard delete한다. 일반 이용 중 decision·proposal 파생 기록의 구체적 보유기간 상한은
+아직 승인되지 않았으므로 migration에 임의 TTL을 추가하지 않는다. production purge 정책을 도입하기
+전 PM·개발팀장 및 법률/개인정보 검토로 상한과 법적 예외를 확정해야 한다.
 
 V3 deliberation은 graph version으로 V2와 구분하며 정확히 세 전문 Agent의 event를 저장한다. V3의
 `SAFETY` review event는 만들지 않는다. Safety constraint 위반은 canonical conflict code와 최종
@@ -1607,7 +1644,8 @@ users
 
 decision_runs
   ├─ 1:4 agent_proposals (Training, Recovery, Safety, Feasibility)
-  ├─ 1:0..1 decision_deliberations [ADR-0012 ACCEPTED, 미구현]
+  ├─ 1:0..1 decision_deliberations [migration 0023]
+  │           ├─ 1:N agent_proposal_revisions (Round 1 네 행 + 실제 Round 2 revision)
   │           └─ 1:4 agent_review_events (NOT_REQUIRED 포함)
   ├─ 1:N plan_candidates ─ 1:N plan_items
   ├─ 1:N safety_reviews
@@ -1630,6 +1668,10 @@ decision root [ADR-0013 PROPOSED]
 ## 13. 인덱스와 무결성
 
 필수 인덱스:
+
+- decision_deliberations(decision_run_id) UNIQUE
+- agent_proposal_revisions(decision_run_id, round_number, agent_type_code) UNIQUE
+- agent_review_events(decision_run_id, round_number, agent_type_code) UNIQUE
 
 - user_identities(provider_code, provider_subject) UNIQUE for active identity
 - user_identities(firebase_subject) UNIQUE for active identity

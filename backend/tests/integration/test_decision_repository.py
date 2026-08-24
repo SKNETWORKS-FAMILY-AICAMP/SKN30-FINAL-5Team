@@ -23,6 +23,9 @@ from backend.app.db.models.catalog import (
 )
 from backend.app.db.models.decision import (
     AgentProposalRecord,
+    AgentProposalRevisionRecord,
+    AgentReviewEventRecord,
+    DecisionDeliberationRecord,
     DecisionExplanationRecord,
     DecisionOption,
     DecisionRun,
@@ -39,6 +42,13 @@ from backend.app.db.models.profile import (
 from backend.app.db.models.routine import Routine, RoutineDay
 from backend.app.db.repositories.checkin import DailyContextRepository
 from backend.app.db.repositories.decision import DecisionRepository
+from backend.app.db.repositories.deliberation import (
+    DeliberationRepository,
+    ProposalReferenceWrite,
+    ReviewEventWrite,
+    RevisedProposalWrite,
+    canonical_payload_hash,
+)
 from backend.app.db.repositories.profile import ProfileRepository
 from backend.app.db.repositories.routine import RoutineRepository
 from backend.app.domain.agents.contracts import (
@@ -720,3 +730,126 @@ def test_profile_update_changes_only_future_decision_context_snapshots(
     unchanged = postgres_session.scalar(select(DecisionRun).where(DecisionRun.user_id == owner_id))
     assert unchanged is not None
     assert unchanged.input_snapshot == old_snapshot
+
+
+@pytest.mark.integration
+def test_deliberation_repository_separates_rounds_hashes_and_coordinator_result(
+    postgres_session: Session,
+) -> None:
+    owner_id = _add_user(postgres_session, attention_areas=())
+    context_id = _prepare_decision_inputs(postgres_session, owner_id)
+    DecisionService(DecisionRepository(), clock=lambda: NOW).create(
+        postgres_session,
+        owner_id,
+        _request(context_id),
+        uuid4(),
+    )
+    run = _stored_run(postgres_session, owner_id)
+    original_coordinator_result = json.loads(json.dumps(run.coordinator_result))
+    proposals = {proposal.agent_type_code: proposal for proposal in run.proposals}
+    proposal_hashes = {
+        agent_type_code: canonical_payload_hash(proposal.proposal_payload)
+        for agent_type_code, proposal in proposals.items()
+    }
+    references = tuple(
+        ProposalReferenceWrite(agent_type_code, proposal_hashes[agent_type_code])
+        for agent_type_code in sorted(proposal_hashes)
+    )
+    revised_training_payload = {
+        **proposals["TRAINING"].proposal_payload,
+        "preference_codes": ["PREFER_LOWER_IMPACT"],
+    }
+    reviews = tuple(
+        ReviewEventWrite(
+            agent_type_code=agent_type_code,
+            review_status_code="READY" if agent_type_code == "TRAINING" else "NOT_REQUIRED",
+            revision_status_code="REVISED" if agent_type_code == "TRAINING" else "NOT_REQUIRED",
+            review_schema_version="agent-review-v0.1",
+            reviewed_proposal_references=references,
+            review_payload={
+                "accepted_constraint_codes": ["RECOVERY_LOAD_CEILING"]
+                if agent_type_code == "TRAINING"
+                else [],
+                "unresolved_conflict_codes": [],
+            },
+            revised_proposal=(
+                RevisedProposalWrite(
+                    proposal_status_code="READY",
+                    proposal_schema_version="agent-proposal-v0.2",
+                    proposal_payload=revised_training_payload,
+                )
+                if agent_type_code == "TRAINING"
+                else None
+            ),
+        )
+        for agent_type_code in ("TRAINING", "RECOVERY", "SAFETY", "FEASIBILITY")
+    )
+
+    deliberation_id = DeliberationRepository().persist(
+        postgres_session,
+        decision_run_id=run.id,
+        deliberation_schema_version="decision-deliberation-v0.1",
+        round_count=2,
+        round_two_status_code="COMPLETED",
+        conflict_detector_version="conflict-detector-v1",
+        precedence_version="constraint-precedence-v1",
+        conflict_codes=("TRAINING_RECOVERY_LOAD_CONFLICT",),
+        reviews=reviews,
+        now=NOW,
+    )
+    postgres_session.commit()
+
+    deliberation = postgres_session.get(DecisionDeliberationRecord, deliberation_id)
+    revisions = tuple(
+        postgres_session.scalars(
+            select(AgentProposalRevisionRecord)
+            .where(AgentProposalRevisionRecord.decision_run_id == run.id)
+            .order_by(
+                AgentProposalRevisionRecord.round_number,
+                AgentProposalRevisionRecord.agent_type_code,
+            )
+        )
+    )
+    events = tuple(
+        postgres_session.scalars(
+            select(AgentReviewEventRecord)
+            .where(AgentReviewEventRecord.decision_run_id == run.id)
+            .order_by(AgentReviewEventRecord.agent_type_code)
+        )
+    )
+    stored_run = postgres_session.get(DecisionRun, run.id)
+
+    assert deliberation is not None
+    assert deliberation.graph_version == run.graph_version
+    assert deliberation.policy_version_id == run.policy_version_id
+    assert deliberation.deliberation_schema_version == "decision-deliberation-v0.1"
+    assert len([revision for revision in revisions if revision.round_number == 1]) == 4
+    assert len([revision for revision in revisions if revision.round_number == 2]) == 1
+    assert len(events) == 4
+    assert {event.review_status_code for event in events} == {"READY", "NOT_REQUIRED"}
+    assert all(
+        event.baseline_proposal_hash
+        == next(
+            revision.proposal_hash
+            for revision in revisions
+            if revision.round_number == 1 and revision.agent_type_code == event.agent_type_code
+        )
+        for event in events
+    )
+    assert stored_run is not None
+    assert stored_run.coordinator_result == original_coordinator_result
+    assert "review_payload" not in stored_run.coordinator_result
+
+    with pytest.raises(ValueError, match="already exists"):
+        DeliberationRepository().persist(
+            postgres_session,
+            decision_run_id=run.id,
+            deliberation_schema_version="decision-deliberation-v0.1",
+            round_count=2,
+            round_two_status_code="COMPLETED",
+            conflict_detector_version="conflict-detector-v1",
+            precedence_version="constraint-precedence-v1",
+            conflict_codes=("TRAINING_RECOVERY_LOAD_CONFLICT",),
+            reviews=reviews,
+            now=NOW,
+        )
