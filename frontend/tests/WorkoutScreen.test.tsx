@@ -126,7 +126,7 @@ describe('WorkoutScreen', () => {
   it('uses set and repetition prescriptions for every preview workout block', () => {
     render(<WorkoutScreen />);
 
-    expect(screen.getByText('1세트 × 10회 · 전신 가동성')).toBeOnTheScreen();
+    expect(screen.getByText('1세트 × 10회 · 스트레칭')).toBeOnTheScreen();
     expect(screen.getByText('1세트 × 10회 · 호흡 정리')).toBeOnTheScreen();
     expect(screen.queryByText(/세트 × \d+(?:분|초)/)).toBeNull();
   });

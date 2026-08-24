@@ -32,7 +32,7 @@ const TRAINING_TYPE_FILTERS = [
   { code: undefined, label: '전체' },
   { code: 'STRENGTH', label: '근력' },
   { code: 'CARDIO', label: '유산소' },
-  { code: 'MOBILITY', label: '가동성' },
+  { code: 'MOBILITY', label: '스트레칭' },
 ] as const;
 
 const DIFFICULTY_FILTERS = [

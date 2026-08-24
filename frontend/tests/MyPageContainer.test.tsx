@@ -111,6 +111,31 @@ describe('MyPageContainer', () => {
     expect(screen.queryByText('이번 주')).toBeNull();
   });
 
+  it('uses the stretching label consistently for the mobility preference', async () => {
+    const current = me();
+    current.profile!.preferred_exercise_type_codes = ['CARDIO', 'MOBILITY'];
+
+    await render(
+      <MyPageContainer
+        api={accountApi()}
+        me={current}
+        now={new Date('2026-08-19T03:00:00Z')}
+        onNavigateTab={jest.fn()}
+        onRefreshMe={jest.fn(async () => undefined)}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    expect(await screen.findByText('유산소 · 스트레칭')).toBeOnTheScreen();
+    expect(screen.queryByText('유산소 · 가동성')).toBeNull();
+
+    fireEvent.press(screen.getByRole('button', { name: '선호 운동 수정' }));
+    expect(
+      screen.getByRole('header', { name: '선호 운동 수정' }),
+    ).toBeOnTheScreen();
+    expect(screen.getByRole('checkbox', { name: '스트레칭' })).toBeChecked();
+  });
+
   it('never exposes an unmapped machine code', async () => {
     const current = me();
     current.profile!.primary_goal_code = 'NEW_APPROVED_GOAL';
