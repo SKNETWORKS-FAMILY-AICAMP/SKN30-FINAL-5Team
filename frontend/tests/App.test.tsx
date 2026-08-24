@@ -72,7 +72,7 @@ describe('App boot navigation', () => {
     expect(bootResolver).not.toHaveBeenCalled();
   });
 
-  it('opens the API-backed home preview without starting app boot', async () => {
+  it('opens the previous Home mock preview without starting app boot', async () => {
     const bootResolver = jest.fn(async () => 'Auth' as const);
 
     await render(<App bootResolver={bootResolver} previewMode="today" />);
@@ -88,8 +88,18 @@ describe('App boot navigation', () => {
 
   it.each([
     {
+      mode: 'auth' as const,
+      label: 'Auth (API)',
+      readyText: '헬끼에 로그인',
+    },
+    {
+      mode: 'background_test' as const,
+      label: 'background_test (mock)',
+      readyText: '집 꾸미기',
+    },
+    {
       mode: 'account' as const,
-      label: 'Account (API)',
+      label: 'Account (mock)',
       readyText: '내 프로필',
     },
     {
@@ -99,12 +109,12 @@ describe('App boot navigation', () => {
     },
     {
       mode: 'session' as const,
-      label: 'Workout session (API)',
+      label: 'Workout session (mock)',
       readyText: '0 / 3 블록 완료',
     },
     {
       mode: 'session-result' as const,
-      label: 'Workout result (API)',
+      label: 'Workout (API)',
       readyText: '오늘 운동을 마쳤어요',
     },
     {
@@ -114,22 +124,23 @@ describe('App boot navigation', () => {
     },
     {
       mode: 'workout' as const,
-      label: 'Workout(API)',
+      label: 'Workout (API)',
       readyText: '완료 0 / 3',
     },
-  ])(
-    'opens the $mode API preview through the gallery',
-    async ({ label, mode, readyText }) => {
-      const bootResolver = jest.fn(async () => 'Auth' as const);
+  ])('opens the $mode gallery preview', async ({ label, mode, readyText }) => {
+    const bootResolver = jest.fn(async () => 'Auth' as const);
 
-      await render(<App bootResolver={bootResolver} previewMode={mode} />);
+    await render(<App bootResolver={bootResolver} previewMode={mode} />);
 
-      expect(screen.getByRole('radio', { name: label })).toBeChecked();
-      expect(await screen.findByText(readyText)).toBeOnTheScreen();
-      expect(screen.getByText(`단독 진입: ?preview=${mode}`)).toBeOnTheScreen();
-      expect(bootResolver).not.toHaveBeenCalled();
-    },
-  );
+    expect(screen.getByRole('radio', { name: label })).toBeChecked();
+    expect(await screen.findByText(readyText)).toBeOnTheScreen();
+    expect(
+      screen.getByText(
+        `단독 진입: ?preview=${mode === 'session-result' ? 'workout' : mode}`,
+      ),
+    ).toBeOnTheScreen();
+    expect(bootResolver).not.toHaveBeenCalled();
+  });
 
   it.each([
     {

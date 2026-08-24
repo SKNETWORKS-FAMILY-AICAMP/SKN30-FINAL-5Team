@@ -1,0 +1,70 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #171717;
+  color: #eee;
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+.toolbar button { padding: 6px 12px; cursor: pointer; }
+.viewport {
+  width: min(94vw, 941px);
+  margin: 0 auto 30px;
+  overflow: auto;
+}
+.scene {
+  position: relative;
+  width: 941px;
+  height: 1672px;
+  overflow: hidden;
+  background: #000;
+  transform-origin: top left;
+}
+.background {
+  position: absolute;
+  inset: 0;
+  width: 941px;
+  height: 1672px;
+}
+.asset {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  z-index: var(--z);
+  pointer-events: none;
+  user-select: none;
+}
+@keyframes sway {
+  0%, 100% { transform: rotate(calc(var(--angle) * -1)); }
+  50% { transform: rotate(var(--angle)); }
+}
+@keyframes pendulum {
+  0%, 100% { transform: rotate(calc(var(--angle) * -1)); }
+  50% { transform: rotate(var(--angle)); }
+}
+@keyframes driftX {
+  0%, 100% { transform: translateX(calc(var(--distance) * -0.5)); }
+  50% { transform: translateX(calc(var(--distance) * 0.5)); }
+}
+.sway {
+  animation: sway var(--duration) ease-in-out var(--delay) infinite;
+  transform-origin: var(--pivot-x) var(--pivot-y);
+}
+.pendulum {
+  animation: pendulum var(--duration) ease-in-out var(--delay) infinite;
+  transform-origin: var(--pivot-x) var(--pivot-y);
+}
+.drift-x {
+  animation: driftX var(--duration) ease-in-out var(--delay) infinite;
+}
+.paused .asset { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) {
+  .asset { animation: none !important; }
+}

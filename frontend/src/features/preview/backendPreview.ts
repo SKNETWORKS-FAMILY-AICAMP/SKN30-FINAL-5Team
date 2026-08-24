@@ -10,13 +10,14 @@ import type {
   WeekResponse,
   WeeklyReportResponse,
   WorkoutPlan,
+  WorkoutSessionLogSummary,
 } from '../../api/types';
 import type { SessionOutcome } from '../workout/SessionScreen';
 
 export const HOUSE_PREVIEW_OPTIONS = [
-  { id: 'loaded', label: '루틴 있음' },
-  { id: 'empty', label: '루틴 없음' },
-  { id: 'error', label: '오류' },
+  { id: 'loaded', label: '기록 있음' },
+  { id: 'empty', label: '기록 없음' },
+  { id: 'error', label: '주간 오류' },
 ] as const;
 
 export type HousePreviewState = (typeof HOUSE_PREVIEW_OPTIONS)[number]['id'];
@@ -213,21 +214,51 @@ function previewError(
   });
 }
 
+/**
+ * The house reads the week and the week's sessions. It does not read the
+ * routine: Home owns that, and the house must not become a second place it is
+ * kept in step.
+ */
 export function createHousePreviewApi(state: HousePreviewState): Api {
+  const sessions: WorkoutSessionLogSummary[] =
+    state === 'loaded'
+      ? [
+          previewHouseSession('house-session-1', '2026-08-18', 'COMPLETED'),
+          previewHouseSession('house-session-2', '2026-08-20', 'PARTIAL'),
+          previewHouseSession('house-session-3', '2026-08-22', 'COMPLETED'),
+        ]
+      : [];
+
   return {
-    async getCurrentRoutine() {
-      if (state === 'empty') {
-        throw previewError('아직 만들어진 루틴이 없어요.', 'notFound');
-      }
-      if (state === 'error') {
-        throw previewError('루틴을 불러오지 못했습니다.');
-      }
-      return PREVIEW_ROUTINE;
-    },
     async getWeek() {
+      if (state === 'error') {
+        throw previewError('주간 정보를 불러오지 못했습니다.');
+      }
       return previewWeek('OPEN');
     },
+    async listWorkoutSessions() {
+      return { items: sessions, next_cursor: null };
+    },
   } as unknown as Api;
+}
+
+function previewHouseSession(
+  sessionId: string,
+  localDate: string,
+  statusCode: WorkoutSessionLogSummary['status_code'],
+): WorkoutSessionLogSummary {
+  return {
+    session_id: sessionId,
+    local_date: localDate,
+    status_code: statusCode,
+    completed_item_count: statusCode === 'COMPLETED' ? 5 : 2,
+    total_item_count: 5,
+    requested_duration_minutes: 30,
+    training_type_code: 'STRENGTH',
+    not_completed_reason_code: null,
+    started_at: `${localDate}T19:00:00+09:00`,
+    finished_at: `${localDate}T19:32:00+09:00`,
+  };
 }
 
 export function createSessionPreviewApi(state: SessionPreviewState): Api {
