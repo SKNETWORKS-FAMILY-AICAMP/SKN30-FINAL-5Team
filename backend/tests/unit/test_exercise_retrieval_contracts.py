@@ -135,6 +135,29 @@ def test_result_rejects_duplicate_ranked_ids() -> None:
         )
 
 
+def test_request_rejects_duplicate_previous_plan_ids_without_reordering() -> None:
+    request = _request(previous_plan_exercise_ids=(EXERCISE_B, EXERCISE_A))
+
+    assert request.previous_plan_exercise_ids == (EXERCISE_B, EXERCISE_A)
+    with pytest.raises(ValidationError, match="must not contain duplicates"):
+        _request(previous_plan_exercise_ids=(EXERCISE_A, EXERCISE_A))
+
+
+def test_request_applies_versioned_query_allowlist_and_limit_policy() -> None:
+    request = _request()
+    allowed = frozenset({"BEGINNER", "GENERAL_FITNESS", "HOME"})
+
+    request.validate_policy(allowed_query_codes=allowed, requested_limit_max=8)
+
+    with pytest.raises(ValueError, match="policy maximum"):
+        request.validate_policy(allowed_query_codes=allowed, requested_limit_max=7)
+    with pytest.raises(ValueError, match="non-allowlisted"):
+        request.validate_policy(
+            allowed_query_codes=frozenset({"BEGINNER"}),
+            requested_limit_max=8,
+        )
+
+
 def test_result_rejects_score_length_mismatch() -> None:
     with pytest.raises(ValidationError, match="must have equal length"):
         _result(similarity_scores=(0.9,))
