@@ -12,6 +12,9 @@ ADR-0012의 2라운드 구조화 상호검토는 승인된 V2 목표다. A2 기�
 전에는 아래 현재 계약을 production 기준으로 유지하며, 8.1을 구현 완료나 새 안전 정책 승인으로
 해석하지 않는다.
 
+ADR-0013의 Safety-first LLM 멀티에이전트 V3는 `PROPOSED` 목표다. 8.2와 9.1은 승인·구현 전까지
+현재 V1/V2의 네 proposal, 결정적 Coordinator와 narration-only LLM 경계를 바꾸지 않는다.
+
 규칙의 적용 우선순위는 다음과 같다.
 
 1. 중대한 이상 반응 처리
@@ -480,6 +483,57 @@ service는 검수 catalog, 목표·루틴 policy, Recovery ceiling, Safety rule�
 장소·장비 호환성의 정규화·버전화된 결과를 immutable request로 조립한다. Tool 장애가 필수 판단을
 막으면 고정 failure code로 fail-closed하며 예외 원문이나 사용자 원문을 복사하지 않는다.
 
+### 8.2 제안된 V3 Safety-first LLM Agent 계약
+
+V3는 Safety를 LLM Agent로 실행하지 않는다. 결정적 `SafetyPolicyEngine`이 Agent 호출 전에 다음을
+포함한 immutable `ConstraintEnvelope`를 만든다.
+
+- `plan_generation_allowed`, `required_action_code`, safety status와 veto
+- excluded exercise ID와 승인 대체 범위
+- 요청 시간과 시간 출처
+- primary goal과 required goal tag
+- intensity·load·volume·return ceiling
+- 장소·장비와 실행 가능 hard constraint
+- input, policy, safety, duration, catalog schema/version/hash
+
+application loader는 같은 catalog version에서 production-approved 운동을 방식 A로 사전 조회해
+canonical `ExercisePoolSnapshot`을 만든다. 각 항목은 exercise ID, goal/location/equipment tag,
+검수 처방 범위와 content version만 포함한다. Agent와 Coordinator는 DB·repository·ORM·raw SQL을
+직접 호출하지 않는다.
+
+Round 1 LLM Agent는 `TRAINING`, `RECOVERY`, `FEASIBILITY` 세 개다. 동일 envelope와 pool을 받아
+LangGraph에서 병렬 실행하고 LangChain/Pydantic structured output만 반환한다. Training은 pool 안에서
+PlanSpec 초안을 만들고, Recovery는 승인 ceiling 안의 조정, Feasibility는 장소·장비·시간 안의 실행
+가능성 proposal을 만든다.
+
+결정적 conflict detector는 Agent 상호 간뿐 아니라 envelope 위반도 검사한다. conflict가 있을 때만
+영향 Agent를 최대 한 번 review하고 비대상 Agent는 `NOT_REQUIRED`를 저장한다. Safety veto, 생성 금지,
+요청 시간, pool, version, Recovery/return ceiling과 Feasibility 불가능 조건은 review나 Coordinator가
+완화할 수 없다.
+
+LLM Coordinator는 proposal·review를 종합·선택해 하나의 `PlanSpec`을 반환한다. Plan Compiler는
+exercise reference, sequence, set/rep/work/rest/transition과 정확한 시간을 결정적으로 계산한다. 최종
+integrity validator는 원시 통증·이상 반응을 재분류하지 않고 compiled plan이 envelope의 safety,
+duration, goal, equipment/location, catalog와 schema constraint를 지켰는지만 검사한다.
+
+repairable violation은 machine code로 Coordinator에 한 번만 반환한다. 요청 시간, 세트·반복,
+Recovery ceiling, 순서·schema, 필수 목표, 장비, 승인 대체가 있는 제외 운동 위반만 repair 대상이다.
+`STOP_AND_SEEK_HELP`, 생성 금지 veto, 안전 운동 없음, 필수 입력 누락, 정책 데이터 불완전, provider
+전체 장애와 repair 재실패는 Coordinator로 돌아가지 않는다. deterministic fallback도 같은 compiler와
+validator를 통과해야 하며 `STOP_AND_SEEK_HELP`를 REST나 plan으로 바꿀 수 없다.
+
+#### V3 수동 재생성
+
+추가 입력 없는 재생성은 유효한 기존 snapshot·envelope·pool을 재사용하고 `RegenerationContext`를
+추가해 세 전문 Agent부터 다시 실행한다. Coordinator만 재실행하지 않는다. context에는 attempt,
+이전 plan hash·exercise 순서·구조, exact duplicate 금지와 variation code를 포함한다.
+
+새 plan은 핵심 운동, 운동 순서, 승인된 세트·반복 구조 또는 루틴 구성 방식 중 하나 이상이 의미 있게
+달라야 한다. 설명·UUID·미미한 시간 변경만으로는 통과하지 않는다. 안전하고 목표를 보존하는 대안이
+없으면 constraint를 약화하지 않고 `NO_ALTERNATIVE_AVAILABLE`로 종료한다. 성공 재생성은 root
+decision당 최대 두 번이고 idempotent하다. snapshot/envelope/pool이 stale하거나 safety·catalog·policy
+version이 바뀌면 새 decision/check-in 경로가 필요하다.
+
 ---
 
 ## 9. LLM 경계
@@ -507,6 +561,20 @@ V2 narration은 Agent별 provider 호출이나 자유 토론이 아니라 한 �
 application log, 날짜, 자유 체크인, hidden reasoning, graph checkpoint를 입력으로 사용하지 않는다.
 safety status가 `PASS/REVISE`가 아니거나 최종 action이 `REST/STOP_AND_SEEK_HELP`이거나 Safety
 veto가 있는 결과는 LLM을 호출하지 않고 검수 템플릿을 사용한다.
+
+### 9.1 제안된 V3 LLM 경계
+
+ADR-0013이 승인되면 LLM은 세 전문 proposal, conflict에 영향받은 Agent의 한 번 review, Coordinator
+initial/repair와 일반 narration에 참여할 수 있다. SafetyPolicyEngine, constraint builder, conflict
+detector, Plan Compiler, integrity validator와 fallback policy는 LLM을 호출하지 않는다.
+
+Agent input은 직접 식별자를 제거한 input snapshot, ConstraintEnvelope, ExercisePoolSnapshot,
+machine code와 최소 normalized summary로 제한한다. 날짜, 자유 체크인, raw 건강·웨어러블·캘린더 값,
+application log, prompt 원문, hidden reasoning, provider 예외 원문을 전달·저장하지 않는다.
+
+structured output validation 또는 required Agent가 최종 실패하면 부분 proposal로 계속하지 않는다.
+결정적 fallback을 사용하고 같은 envelope를 검증하거나 계획 없는 상태로 종료한다. LLM fresh inference의
+동일성은 보장하지 않으며 저장된 structured output과 version으로 provider 재호출 없이 replay한다.
 
 ---
 
@@ -622,6 +690,11 @@ NOT_COMPLETED, STOPPED_FOR_SAFETY로 종료된 세션의 블록과 상태는 변
 | DB 저장 실패 | 재현할 수 없는 계획을 클라이언트에 반환하지 않음 |
 | 중복 mutation | Idempotency-Key의 기존 결과 반환 |
 | 오래된 체크인 버전 | STALE_CONTEXT 오류 |
+
+V3에서는 `LLM 장애`를 narration과 decision Agent로 구분한다. narration 장애는 템플릿을 사용한다.
+필수 decision Agent·Coordinator provider 장애는 부분 LLM 결과를 버리고 검증된 결정적 fallback을
+사용하며, fallback이 없으면 `FAILED`다. SafetyPolicyEngine이 이미 `REST` 또는
+`STOP_AND_SEEK_HELP`를 확정한 경우 provider를 호출하지 않고 그 결과를 유지한다.
 
 ---
 
@@ -814,6 +887,10 @@ TASK-BACKEND-007의 단계별 게이트를 따른다.
 - LLM 사용 시 모델과 프롬프트 버전
 
 동일한 입력 스냅샷과 동일한 결정 규칙 버전은 동일한 운동 후보와 최종 액션을 만들어야 한다. LLM 문구는 결정 재현성의 일부로 사용하지 않는다.
+
+V3에서는 fresh LLM 재호출의 byte-identical 결과를 요구하지 않는다. 대신 envelope·pool·proposal·
+review·Coordinator output·compiler/validator 결과와 모든 model/prompt/graph version을 저장하고,
+저장된 structured output을 입력으로 provider 재호출 없이 동일 final result를 replay해야 한다.
 
 ---
 

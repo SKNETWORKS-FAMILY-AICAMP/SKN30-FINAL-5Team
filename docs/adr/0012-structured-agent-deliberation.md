@@ -5,6 +5,7 @@
 - 소유자: 백엔드 개발팀장
 - 승인자: 개발팀장 외 reviewer 1명 + 백엔드 owner + PM + 외부 도메인 검수자
 - 관계: ADR-0007의 단일 proposal orchestration을 확장하며, 네 Agent·Coordinator·Safety 경계는 유지
+- 후속 제안: ADR-0013(`PROPOSED`). 승인 전에는 본 ADR의 V2 목표 계약을 유지
 - 관련 요구사항/이슈: `F002`, `F029`, `POL-008`, `NFR-003`, `NFR-006`, `TASK-AGENT-002`
 
 ## 배경

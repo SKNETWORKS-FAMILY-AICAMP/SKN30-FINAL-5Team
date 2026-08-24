@@ -10,6 +10,10 @@ ADR-0012는 이 활성 흐름 사이에 결정적 conflict detection과 최대 �
 V2 목표를 채택한다. A2 기준 구현과 필수 검증이 병합되기 전까지 production 기준은 ADR-0007의
 현재 단일 proposal 흐름이며, ADR 승인을 V2 구현 완료로 간주하지 않는다.
 
+ADR-0013은 Safety를 결정적 정책 엔진으로 선행하고 Training·Recovery·Feasibility와 Coordinator를
+LLM Agent로 전환하며 LangChain·LangGraph를 도입하는 V3를 `PROPOSED` 상태로 정의한다. 필수 승인과
+구현·비교 검증 전에는 아래 V1/V2 production 기준을 대체하지 않는다.
+
 ```mermaid
 flowchart LR
   APP["React Native 앱"] -->|"HTTPS / JSON / Firebase ID Token"| API["FastAPI /api/v1"]
@@ -106,6 +110,44 @@ flowchart TD
 - 미해결 충돌에서 모든 hard constraint를 만족하는 후보가 없으면 계획을 반환하지 않는다.
 - integrity validator는 기존 Safety 의견 보존을 검사할 뿐 독립적인 FinalSafetyGate가 아니다.
 
+### 4.2 제안된 V3 목표 — Safety-first LLM Agent orchestration
+
+```mermaid
+flowchart TD
+  A["Application loader: 최소 입력 snapshot"] --> S["Deterministic SafetyPolicyEngine"]
+  S -->|"생성 금지"| X["REST / STOP_AND_SEEK_HELP / NEEDS_INPUT / FAILED"]
+  S --> E["ConstraintEnvelope + ExercisePoolSnapshot"]
+  E --> T["LangChain Training LLM Agent"]
+  E --> R["LangChain Recovery LLM Agent"]
+  E --> F["LangChain Feasibility LLM Agent"]
+  T --> C["Deterministic conflict detector"]
+  R --> C
+  F --> C
+  C -->|"conflict"| RV["영향 Agent 최대 1회 병렬 review"]
+  C -->|"no conflict"| CO["LLM Coordinator"]
+  RV --> CO
+  CO --> PC["Deterministic Plan Compiler"]
+  PC --> V["Constraint integrity validator"]
+  V -->|"pass"| P["원자적 저장 후 단일 추천 반환"]
+  V -->|"repairable, attempt 0"| CO
+  V -->|"non-repairable 또는 재실패"| FB["Deterministic fallback 또는 계획 없음"]
+```
+
+- LangGraph는 위 node·conditional edge·fan-out/fan-in과 bounded repair를 orchestration한다.
+- LangChain은 세 전문 Agent와 Coordinator의 provider adapter, prompt, Pydantic structured output을
+  담당한다.
+- SafetyPolicyEngine, constraint builder, conflict detector, compiler와 validator는 framework와
+  provider에 독립적인 Python/Pydantic domain core다.
+- application loader가 DB에서 승인 운동을 사전 조회해 canonical `ExercisePoolSnapshot`을 고정한다.
+  Agent와 Coordinator는 DB·repository·ORM·raw SQL Tool을 갖지 않는다.
+- 최종 validator는 안전 규칙을 다시 해석하지 않고 실제 compiled plan이 확정 envelope를 준수하는지만
+  검사한다.
+- persistent LangGraph checkpointer는 V3 첫 구현에 포함하지 않는다. PostgreSQL decision record가
+  canonical source of truth다.
+
+V3는 승인 전 목표 구조다. 승인되면 V1/V2 historical 실행과 response는 보존하고 새 `graph_version`
+에서만 활성화한다.
+
 ## 5. 에이전트 책임
 
 - `TrainingAgent`: 주간 FITT와 목표 태그, CORE 보존 제약을 제안한다.
@@ -113,6 +155,11 @@ flowchart TD
 - `SafetyAgent`: 통증·금기·환경 조건을 기준으로 `PASS/NEEDS_INPUT/REVISE/BLOCKED`와 위험 운동·수정 의견을 제안한다. `BLOCKED` 의견은 Coordinator가 우선 반영한다.
 - `FeasibilityAgent`: 정규화된 공통 입력과 공통 기본 후보만 받아 가능 시간·장소·장비·일정·선호·기피 조건을 반영한 실제 수행 가능한 종류·순서·구성·대체안을 제안한다.
 - `Coordinator`: 네 proposal과 공통 기본 후보, 사용자 목표·선호·요청 운동 시간을 종합해 최종 루틴·FITT 조정안·변경 이유를 결정한다.
+
+V3 목표에서는 Safety를 Agent 목록에서 제거하고 결정적 `SafetyPolicyEngine`으로 승격한다.
+Training은 승인 운동 pool 안에서 PlanSpec 초안을 만들고, Recovery와 Feasibility는 회복 상한과 실행
+가능성 proposal을 만들며, LLM Coordinator는 이를 종합·선택한다. Coordinator는 DB를 조회하거나
+새 안전 기준을 만들지 않는다.
 
 Coordinator는 운동 계획을 반환하는 경우 계획 구성요소의 합계인 `estimated_duration_seconds`를 `requested_duration_minutes * 60`과 정확히 일치시킨다. 검수된 후보와 안전 규칙만으로 정확히 구성할 수 없으면 시간을 임의로 축소·초과하지 않고 계획을 반환하지 않는다. 이 값은 계획 단계의 hard target이며 실제 경과 시간이나 완료 판정의 기준은 아니다.
 
@@ -196,6 +243,10 @@ flowchart LR
 - decision run, 네 proposal, 후보, Safety 평가, Coordinator 결정 결과를 분리 저장한다.
 - V2 목표는 conflict detector 결과, `NOT_REQUIRED`를 포함한 review event와 revised proposal을
   Coordinator 결과와 분리해 additive하게 저장한다. 물리 schema는 별도 migration 승인이 필요하다.
+- V3 목표는 ConstraintEnvelope, ExercisePoolSnapshot, 세 LLM proposal, model/prompt/output schema
+  version, conflict/review, Coordinator initial/repair attempt, compiler/validator 결과와 regeneration
+  lineage를 분리 저장한다.
+- LangGraph runtime state나 checkpoint를 canonical decision 기록으로 사용하지 않는다.
 - 성공 응답 전에 해당 결정 기록이 원자적으로 저장돼야 한다.
 - 주간 리포트는 닫힌 주의 불변 집계 스냅샷과 생성 정책 버전을 저장한다.
 - 주간 리포트는 패턴 요약, 조정 방향, 다음 행동과 잠정 agent summary를 함께 저장한다.
@@ -217,6 +268,10 @@ flowchart LR
 | 웨어러블 없음 | 수동 체크인 정상 흐름 |
 | 중복 mutation | 저장된 멱등 응답 반환 |
 
+V3에서는 필수 LLM Agent나 provider 실패 시 부분 proposal로 Coordinator를 실행하지 않는다. 동일한
+envelope를 만족하는 결정적 fallback을 compiler·validator로 검증해 반환하고, 안전한 fallback이 없으면
+원인별 계획 없는 상태로 종료한다. Coordinator repair는 repairable violation에 한 번만 허용한다.
+
 ## 12. 로컬 및 MVP 배포
 
 로컬 목표 구성은 mobile app, API, PostgreSQL이다. 실행 가능한 Compose 파일은 기반 구현 단계에서 API와 환경 변수가 확정된 뒤 추가한다.
@@ -226,9 +281,9 @@ MVP 배포는 관리형 PostgreSQL 하나와 컨테이너 또는 단일 애플�
 ## 13. 선택하지 않은 대안
 
 - 에이전트 마이크로서비스: 작은 팀에서 배포·인증·추적 비용이 크다.
-- LangGraph 기본 도입: 현재 흐름과 V2 기준 구현은 결정적 Python/Pydantic workflow로 먼저
-  검증한다. 중단·재개, streaming, human-in-the-loop 또는 복잡한 조건 분기의 필요성과 checkpoint
-  개인정보·보존 경계가 측정된 뒤 별도 ADR로 재검토한다.
+- V1/V2의 LangGraph 기본 도입: 현재 production 흐름에는 필요하지 않다. ADR-0013 V3는 병렬
+  fan-out/fan-in, 조건부 review, bounded repair와 regeneration 재진입 때문에 LangGraph runtime을
+  제안하되 persistent checkpointer는 별도 승인 전까지 사용하지 않는다.
 - Redis/Celery/scheduler: 요청 시 리포트와 동기 결정에 필요하지 않다.
 - 벡터 DB/RAG: 검수된 정규화 카탈로그 조회 문제에 맞지 않는다.
 - 이벤트 소싱: 감사 요구를 충족하는 명시적 기록 테이블보다 복잡하다.
@@ -240,6 +295,7 @@ MVP 배포는 관리형 PostgreSQL 하나와 컨테이너 또는 단일 애플�
 - LLM 설명 기능의 실제 MVP 활성화 여부와 비용 상한. 공급자와 경계는 ADR-0011에서 OpenAI adapter로
   고정했고 기본값은 비활성이다.
 - ADR-0012 V2의 기준 구현 비교 결과와 LangGraph 채택 여부
+- ADR-0013 V3의 필수 승인, production model·비용·latency 기준과 snapshot freshness TTL
 - 소셜 OAuth provider별 앱 심사 일정과 Firebase custom token 운영 방식
 - 수면·부하·복귀 볼륨의 외부 검수된 수치
 - 외부 도메인 검수자와 승인 증적 형식

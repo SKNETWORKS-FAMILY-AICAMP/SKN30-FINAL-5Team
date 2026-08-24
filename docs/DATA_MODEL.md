@@ -8,6 +8,9 @@
 
 멀티 에이전트 핵심 흐름은 [ADR-0007](adr/0007-multi-agent-structure-correction.md)에 따라 Training·Recovery·Safety·Feasibility 네 proposal의 병렬 실행과 Coordinator 최종 결정으로 확정한다. `agent_proposals`, 조정 결과, 공개 요약의 세부 JSON 구조와 버전 필드는 증상 사용자 시나리오 검증 결과에 따라 추후 보완할 수 있으며, 독립적인 최종 Safety 재검사 결과는 저장하지 않는다. 외부 연동·무료 체험·개인정보 보유기간의 상위 경계는 `ACCEPTED` ADR-0003·0004와 POL-013을 따르며, 관련 컬럼은 실제 migration과 호환성 검토가 승인되기 전까지 논리 모델이다. 결정 재현에 필요한 입력·정책·카탈로그·그래프 버전과 안전 veto 기록은 현재 확정한다.
 
+ADR-0013의 V3 persistence는 `PROPOSED` additive 논리 계약이다. 승인된 migration 전에는 물리 schema나
+구현 완료로 간주하지 않으며 V1/V2 row와 현재 관계를 파괴적으로 변경하지 않는다.
+
 ADR-0012는 conflict와 조건부 Round 2 review를 별도 기록하는 additive V2 논리 모델을 승인된
 목표로 정의한다. 후속 persistence task의 Alembic migration이 병합되기 전에는 아래 9.2.1을 물리
 schema 또는 구현 완료로 간주하지 않으며 현재 `agent_proposals` 관계를 유지한다.
@@ -1010,9 +1013,24 @@ snapshot에 저장하지 않는다.
 | completed_at | 종료 시각 |
 | failure_code | 실패 코드, nullable |
 
-prompt version과 model code는 문구 전용 정보이므로 `decision_runs`가 아니라 9.8절
+V1/V2의 prompt version과 model code는 문구 전용 정보이므로 `decision_runs`가 아니라 9.8절
 `decision_explanations`에 저장한다. 결정 재현에 필요한 graph·policy·catalog·safety rule·duration rule
 version은 `decision_runs`가 계속 보유한다.
+
+V3 후속 migration은 `decision_runs`에 다음 nullable/additive lineage metadata를 제안한다.
+
+| 컬럼 | 설명 |
+|---|---|
+| root_decision_run_id | 최초 run self FK |
+| parent_decision_run_id | 직전 regeneration run self FK, nullable |
+| generation_mode_code | ORIGINAL 또는 REGENERATED |
+| regeneration_sequence | 원본 0, 성공 재생성 1..2 |
+| decision_engine_code | DETERMINISTIC, LLM_MULTI_AGENT, DETERMINISTIC_FALLBACK |
+| langchain_contract_version | Agent adapter contract version |
+| langgraph_contract_version | graph state·routing contract version |
+
+같은 root에서 `(root_decision_run_id, regeneration_sequence)`는 unique다. V1/V2 row는 nullable
+metadata를 갖고 기존 의미를 유지한다.
 
 같은 사용자, local_date, input_hash, policy_version_id에 대한 중복 실행을 제한하는 unique 또는 idempotency 제약을 둔다.
 
@@ -1056,6 +1074,22 @@ Coordinator 결과는 서로 다른 레코드에 저장한다.
 | created_at | 생성 시각 |
 
 decision_run_id와 agent_type_code 조합은 유일하다.
+
+V3 run은 `TRAINING`, `RECOVERY`, `FEASIBILITY` 세 Round 1 proposal만 저장한다. Historical V1/V2의
+`SAFETY` row는 유지한다. 후속 additive migration은 다음 nullable metadata를 검토한다.
+
+| 컬럼 | 설명 |
+|---|---|
+| execution_engine_code | DETERMINISTIC 또는 LLM |
+| model_provider_code | LLM 실행 시 provider machine code |
+| model_code | provider 반환 model code |
+| prompt_version | prompt template version, 원문 아님 |
+| structured_output_schema_version | LangChain/Pydantic response contract |
+| input_hash | 최소 Agent input canonical hash |
+| output_hash | 검증된 structured proposal hash |
+| fallback_reason_code | deterministic proposal 사용 시 nullable code |
+
+prompt 원문, chain-of-thought, provider 예외 문자열과 직접 식별자는 저장하지 않는다.
 
 ### 9.2.1 승인된 V2 논리 모델 — decision_deliberations와 agent_review_events
 
@@ -1101,6 +1135,101 @@ Round 2 결과를 additive 관계로 저장한다. 기존 decision을 backfill�
 
 V2 conflict/review는 사용자 연결 decision 데이터이므로 기존 decision과 같은 삭제·보존 정책을
 따른다. graph checkpoint, application log, 자유 reasoning과 직접 식별자는 이 테이블에 저장하지 않는다.
+
+V3 deliberation은 graph version으로 V2와 구분하며 정확히 세 전문 Agent의 event를 저장한다. V3의
+`SAFETY` review event는 만들지 않는다. Safety constraint 위반은 canonical conflict code와 최종
+validation record로 저장한다.
+
+### 9.2.2 [V3 PROPOSED] decision_constraint_envelopes
+
+SafetyPolicyEngine과 constraint builder가 확정한 생성 경계를 decision lineage당 하나의 immutable
+record로 저장한다. regeneration run은 새 envelope를 복제하지 않고 같은 row를 참조한다.
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| root_decision_run_id | 최초 decision_runs FK, UNIQUE |
+| input_hash | envelope를 만든 최소 input hash |
+| envelope_schema_version | Pydantic contract version |
+| safety_policy_version | SafetyPolicyEngine version |
+| policy_version_id | policy_versions FK |
+| safety_rule_version | 적용 ruleset version |
+| duration_rule_version | 시간 hard target rule version |
+| plan_generation_allowed | boolean |
+| required_action_code | REST/STOP_AND_SEEK_HELP 또는 null |
+| veto | boolean |
+| envelope_payload | code·ID·정수·불리언 중심 immutable JSONB |
+| envelope_hash | canonical SHA-256 |
+| expires_at | regeneration freshness 경계 |
+| created_at | 생성 시각 |
+
+### 9.2.3 [V3 PROPOSED] decision_exercise_pools
+
+application loader가 방식 A로 사전 조회한 승인 운동 snapshot이다.
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| constraint_envelope_id | decision_constraint_envelopes FK, UNIQUE |
+| catalog_version_id | catalog_versions FK |
+| pool_schema_version | snapshot contract version |
+| filter_codes | deterministic filter code JSONB |
+| exercise_payload | 승인 exercise ID·tag·처방 범위·content version JSONB |
+| exercise_count | canonical item 수 |
+| pool_hash | canonical SHA-256 |
+| created_at | 생성 시각 |
+
+user ID, 자유 체크인, 원시 건강·웨어러블 값은 pool에 포함하지 않는다.
+
+### 9.2.4 [V3 PROPOSED] decision_coordination_attempts
+
+Coordinator initial과 optional repair를 덮어쓰지 않고 별도 저장한다.
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| decision_run_id | decision_runs FK |
+| attempt_number | 0 initial, 1 repair |
+| status_code | READY, FAILED |
+| input_hash | proposal·review·violation canonical hash |
+| coordinator_schema_version | structured output contract |
+| model_provider_code | provider code |
+| model_code | model code |
+| prompt_version | prompt version |
+| plan_spec | 검증된 structured JSONB 또는 null |
+| output_hash | plan_spec hash 또는 null |
+| repair_violation_codes | attempt 1 입력 code JSONB, initial은 null |
+| failure_code | nullable fixed code |
+| created_at | 생성 시각 |
+
+`(decision_run_id, attempt_number)`는 unique이고 attempt는 0 또는 1만 허용한다.
+
+### 9.2.5 [V3 PROPOSED] plan_integrity_validations
+
+Plan Compiler와 최종 validator 결과를 attempt별로 저장한다. 이는 원시 Safety 판단 재실행 결과가
+아니라 compiled plan의 ConstraintEnvelope 준수 기록이다.
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| decision_run_id | decision_runs FK |
+| coordination_attempt_number | 0 또는 1 |
+| plan_candidate_id | plan_candidates FK, compile 실패 시 null |
+| compiler_version | 결정적 compiler version |
+| validator_version | integrity validator version |
+| status_code | PASS, REPAIRABLE, FAILED |
+| violation_codes | canonical machine code JSONB |
+| meaningful_difference_codes | regeneration에서만 JSONB, 그 외 null |
+| validation_hash | canonical result SHA-256 |
+| created_at | 생성 시각 |
+
+`(decision_run_id, coordination_attempt_number)`는 unique다. PASS record가 없는 LLM plan은 final
+option과 연결할 수 없다.
+
+V3 migration은 새 테이블과 nullable column을 먼저 추가하고 V1/V2 read/write를 유지한 뒤 새
+`graph_version`에서만 V3 record를 쓰는 순서로 배포한다. production V3 write 전에는 새 객체를 제거하는
+rollback이 가능하다. V3 record가 생성된 뒤에는 historical audit row를 삭제하지 않고 nullable field나
+새 version을 추가하는 forward-fix를 사용한다. 기존 decision을 V3로 backfill하지 않는다.
 
 ### 9.3 plan_candidates
 
@@ -1235,6 +1364,9 @@ Wave 6는 option의 생성과 조회까지만 구현한다. option 선택과 wor
 `PAYLOAD_NOT_SHAREABLE`, `LLM_PROVIDER_FAILED`, `LLM_OUTPUT_REJECTED`를 사용한다.
 
 안전 문구와 일반 설명을 분리하고 내부 추론과 prompt 원문을 저장하지 않는다. agent_summaries와 safety_summary는 공개 가능한 입력·판단 결과의 제한된 요약만 저장하며 증상 사용자 시나리오 검증 결과에 따라 상세 구조를 추후 보완할 수 있다. 독립적인 최종 Safety 재검사 결과는 저장하지 않는다. safety_summary 문장은 LLM 경로에서도 템플릿 문구를 유지한다.
+
+V3의 `safety_summary`는 SafetyAgent proposal이 아니라 `SafetyPolicyEngine` 결과의 공개 projection이다.
+Historical V1/V2 JSON은 변경하지 않고 explanation schema version으로 의미를 구분한다.
 
 ---
 
@@ -1480,8 +1612,18 @@ decision_runs
   ├─ 1:N plan_candidates ─ 1:N plan_items
   ├─ 1:N safety_reviews
   ├─ 1:N decision_options
-  └─ 1:0..1 decision_selections
+  ├─ 1:0..1 decision_selections
+  ├─ 1:0..2 decision_coordination_attempts [ADR-0013 PROPOSED]
+  └─ 1:0..2 plan_integrity_validations [ADR-0013 PROPOSED]
+
+decision root [ADR-0013 PROPOSED]
+  ├─ 1:1 decision_constraint_envelopes
+  │           └─ 1:1 decision_exercise_pools
+  └─ 1:1..3 decision_runs (original + 최대 2 regeneration)
 ~~~
+
+위 `1:4 agent_proposals`와 `1:4 agent_review_events`는 V1/V2 관계다. V3 run은 각각 세 전문 Agent
+기준 `1:3`이며 `graph_version`으로 물리 무결성 조건을 구분한다.
 
 ---
 
