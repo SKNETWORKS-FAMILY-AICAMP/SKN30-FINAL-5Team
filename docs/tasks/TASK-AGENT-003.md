@@ -4,13 +4,13 @@
 - Reviewers: 개발팀장, 백엔드 owner, PM, 외부 도메인 검수자, 프론트엔드 owner
 - 관련 요구사항: `F002`, `F029`, `POL-008`, `NFR-003`, `NFR-006`
 - 관련 ADR: `ADR-0007`, `ADR-0011`, `ADR-0012`, `ADR-0013`(`ACCEPTED`),
-  `ADR-0014`(`PROPOSED`)
+  `ADR-0014`(`ACCEPTED`)
 - 목표 브랜치: `docs/TASK-AGENT-003-vector-contracts`
-- 현재 상태: `READY_FOR_REVIEW`
+- 현재 상태: `IN_PROGRESS`
 
-상태 정합성: ADR-0013은 2026-08-24 `ACCEPTED`되었고 V3 목표 계약을 승인한다. 구현·migration·
-shadow 검증과 production 전환은 완료되지 않았다. ADR-0014는 Qdrant retrieval의 신규 초안이므로
-필수 승인 전 구현하지 않는다.
+상태 정합성: ADR-0013과 ADR-0014는 2026-08-24 `ACCEPTED`되었고 V3 목표 계약과 Qdrant retrieval
+경계를 승인한다. 공통 retrieval domain contract 구현에 착수했지만 Qdrant adapter·migration·LLM graph,
+shadow 검증과 production 전환은 완료되지 않았다.
 
 ## 배경과 사용자 가치
 
@@ -139,7 +139,7 @@ Coordinator가 구조화 결과를 종합·선택하도록 한다. 사용자는 
 도입한다. `agent_proposals`의 model/prompt/output schema metadata 확장과 V1/V2 historical row
 호환 전략을 포함해야 한다.
 
-ADR-0014 승인 후 persistence task는 `vector_index_registry`, `decision_exercise_retrievals`와
+ADR-0014에 따른 후속 persistence task는 `vector_index_registry`, `decision_exercise_retrievals`와
 `decision_exercise_pools` retrieval metadata를 additive하게 도입한다. 온보딩 점수는 별도
 `user_onboarding_pain_areas` 논리 모델을 검토하고 legacy attention/feedback row를 rewrite하지 않는다.
 
@@ -156,11 +156,10 @@ ADR-0014 승인 후 persistence task는 `vector_index_registry`, `decision_exerc
 ## 선행 관계와 차단 요소
 
 - ADR-0013은 `ACCEPTED`지만 구현·검증과 production 전환 승인은 별도다.
-- ADR-0014와 `pain-intensity-map-v1`은 각각 필수 reviewer와 개발팀장·PM·외부 도메인 검수 승인이
-  필요하다.
-- `backend/app/domain/agents/AGENTS.md`의 deterministic-only/missing-agent-FAILED 규칙은 V3 LLM Agent와
-  deterministic fallback 계약과 충돌한다. development/data lead가 해당 소유 문서를 승인·수정하기
-  전 production Agent 구현을 시작하지 않는다.
+- ADR-0014 필수 승인은 완료됐다. 별도 안전 계약인 `pain-intensity-map-v1`은 개발팀장·PM·외부 도메인
+  검수 승인이 필요하다.
+- `backend/app/domain/agents/AGENTS.md`는 V1/V2 production과 승인된 V3 목표를 구분하도록 갱신했다.
+  production Agent 구현은 이 문서의 구조화 출력·결정적 Safety/fallback 경계를 계속 준수한다.
 - 신규 LangChain·LangGraph dependency와 provider SDK는 별도 구현 PR에서 설명·검증한다.
 - 새로운 안전 수치가 필요하면 별도 Safety task와 승인으로 분리한다.
 - 공개 API와 DB migration은 프론트엔드·백엔드 owner의 별도 구현 승인이 필요하다.

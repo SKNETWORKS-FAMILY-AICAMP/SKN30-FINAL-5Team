@@ -85,7 +85,7 @@ POL-009~013은 2026-08-11 사용자 명시 승인과 `ACCEPTED` ADR-0004에 따�
 | 요구사항 | WBS 연결 | 계약·문서 | 인수조건 | 테스트 | 상태 |
 |---|---|---|---|---|---|
 | F001 | 1.2, 1.3, 4.1, 5.1 | MVP_SCOPE·PROJECT_BRIEF | AC-F001-01 | TC-F001-01 | `IMPLEMENTED` |
-| F002 | 2.4, 2.7, 3.2, 3.3, 3.5, 4.5, 4.7, 5.2, 5.3 | MVP_SCOPE·PROJECT_BRIEF·ARCHITECTURE·DOMAIN_RULES·API_CONTRACT·DATA_MODEL·TECHNICAL_PLAN·IMPLEMENTATION_PLAN·TEST_STRATEGY·ADR-0007·ADR-0012·ADR-0013(ACCEPTED 목표)·ADR-0014(PROPOSED) | AC-F002-1-1~1-60 | TC-F002-1-1~1-60 | `PARTIAL` |
+| F002 | 2.4, 2.7, 3.2, 3.3, 3.5, 4.5, 4.7, 5.2, 5.3 | MVP_SCOPE·PROJECT_BRIEF·ARCHITECTURE·DOMAIN_RULES·API_CONTRACT·DATA_MODEL·TECHNICAL_PLAN·IMPLEMENTATION_PLAN·TEST_STRATEGY·ADR-0007·ADR-0012·ADR-0013(ACCEPTED 목표)·ADR-0014(ACCEPTED 목표) | AC-F002-1-1~1-60 | TC-F002-1-1~1-60 | `PARTIAL` |
 | F003 | 2.1, 2.2, 2.3, 2.8, 4.10, 4.11, 5.2 | MVP_SCOPE·API_CONTRACT·DATA_MODEL·ADR-0006 | AC-F003-01 | TC-F003-01 | `DEFERRED` |
 | F004 | 2.4, 2.7, 2.8, 3.3, 4.8, 4.10, 4.11, 5.2 | MVP_SCOPE·API_CONTRACT·DATA_MODEL·ADR-0006 | AC-F004-01 | TC-F004-01 | `MVP_EXCLUDED` |
 | F005 | 2.4, 3.5, 4.9, 4.11, 5.2 | MVP_SCOPE·DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-F005-01 | TC-F005-01 | `IMPLEMENTED` |
@@ -155,7 +155,7 @@ F012~F023은 요구사항 정의서상 MVP 이후 확장 기능이다. 각 ID는
 - ACCEPTED ADR-0013 V3 목표의 F002 후속 AC/TC는 결정적 SafetyPolicyEngine·ConstraintEnvelope,
   ExercisePoolSnapshot, 세 LLM proposal, LangGraph routing, conflict/review, LLM Coordinator,
   Plan Compiler·integrity validator, deterministic fallback과 provider-free replay를 각각 추적한다.
-- PROPOSED ADR-0014가 승인되면 F002 후속 AC/TC는 PostgreSQL eligible/mandatory filter, Qdrant ranking,
+- ACCEPTED ADR-0014의 F002 후속 AC/TC는 PostgreSQL eligible/mandatory filter, Qdrant ranking,
   PostgreSQL 재검증, mandatory 보존, Vector failure fallback과 catalog/collection/index/embedding replay를
   추가 추적한다.
 - V3 재생성은 F002 후속 AC/TC로 root/parent lineage, 최대 두 번, idempotency, stale context,

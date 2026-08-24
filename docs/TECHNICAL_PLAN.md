@@ -12,8 +12,8 @@ A2 기준 구현과 필수 검증이 병합되기 전까지 아래 확정 기술
 
 ADR-0013은 LangChain structured LLM Agent와 LangGraph orchestration을 사용하는 V3 목표 계약으로
 `ACCEPTED`되었다. dependency 검토·구현·shadow 평가와 production 전환 승인 전에는 현재 production
-기술로 간주하지 않는다. ADR-0014의 Qdrant ExercisePool retrieval은 `ACCEPTED`이며 승인 전 dependency나
-adapter를 추가하지 않는다.
+기술로 간주하지 않는다. ADR-0014의 Qdrant ExercisePool retrieval은 `ACCEPTED`이며 dependency와
+adapter는 별도 구현 PR에서 검증해 추가한다.
 
 ## 2. 확정 기술
 
@@ -55,8 +55,8 @@ Python package manager는 기반 구현에서 `uv`로 결정하고 `uv.lock`을 
 - Kubernetes
 - agent별 microservice
 - LangGraph production runtime/checkpointer. V2 기준 구현과 측정 후 별도 ADR 없이는 추가하지 않는다.
-- vector database와 RAG. 단, ADR-0014의 Qdrant derived index는 승인 후 V3 ExercisePool ranking에만
-  도입할 수 있음
+- vector database와 RAG. 단, ADR-0014의 Qdrant derived index는 승인된 V3 ExercisePool ranking
+  경계에서만 도입할 수 있음
 - 별도 object storage
 
 필요성이 실제 요구사항과 측정으로 확인되면 ADR을 거쳐 추가한다.

@@ -14,8 +14,8 @@ ADR-0012의 2라운드 구조화 상호검토는 승인된 V2 목표다. A2 기�
 
 ADR-0013의 Safety-first LLM 멀티에이전트 V3 목표 계약은 `ACCEPTED`다. 8.2와 9.1은 구현·비교
 검증과 production 전환 승인 전까지 현재 V1/V2의 네 proposal, 결정적 Coordinator와
-narration-only LLM production 경계를 바꾸지 않는다. Qdrant 세부 계약은 ADR-0014가
-`PROPOSED`이며 승인 전 구현 계약이 아니다.
+narration-only LLM production 경계를 바꾸지 않는다. Qdrant 세부 목표 계약인 ADR-0014는
+`ACCEPTED` 상태이지만 adapter·migration·shadow 검증 전에는 production 구현 완료로 간주하지 않는다.
 
 규칙의 적용 우선순위는 다음과 같다.
 
@@ -534,7 +534,7 @@ V3는 Safety를 LLM Agent로 실행하지 않는다. 결정적 `SafetyPolicyEngi
 - input, policy, safety, duration, catalog schema/version/hash
 
 application loader는 같은 catalog version의 PostgreSQL에서 production-approved 운동을 결정적으로
-필터링해 eligible/mandatory ID를 먼저 만든다. ADR-0014가 승인되면 `ExerciseRetriever`가 별도 Qdrant
+필터링해 eligible/mandatory ID를 먼저 만든다. ADR-0014에 따라 `ExerciseRetriever`가 별도 Qdrant
 derived index에서 eligible 범위 안의 순위·다양성만 계산하고, application loader가 결과를
 PostgreSQL에서 다시 조회·검증해 canonical `ExercisePoolSnapshot`을 만든다. 필수 목표 운동과 승인된
 안전 대체는 Vector 결과와 무관하게 보존한다. 각 항목은 exercise ID, goal/location/equipment tag,

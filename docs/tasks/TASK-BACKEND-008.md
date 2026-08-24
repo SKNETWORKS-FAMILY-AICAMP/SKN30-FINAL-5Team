@@ -4,7 +4,7 @@
 - Primary owner: 백엔드 담당
 - Contract owner: 개발리드
 - Reviewers: 개발리드, AI/data lead, PM, 외부 도메인 검수자, 프론트엔드 owner
-- 관련 ADR: ADR-0013(`ACCEPTED`), ADR-0014(`PROPOSED`)
+- 관련 ADR: ADR-0013(`ACCEPTED`), ADR-0014(`ACCEPTED`)
 - 기준 branch: `origin/develop@52a71f1`
 - 검증일: 2026-08-24
 
@@ -362,7 +362,7 @@ column을 삭제하지 않고 다음 순서로 전환한다.
 - fake adapter unit test와 별도 Qdrant integration marker
 - 운영 TLS/auth, backup, monitoring, retention과 rollback runbook
 
-Production dependency와 `pyproject.toml`/`uv.lock` 변경은 ADR-0014 승인 후 별도 PR에서 수행한다.
+Production dependency와 `pyproject.toml`/`uv.lock` 변경은 ADR-0014의 후속 구현 PR에서 수행한다.
 
 ## Expected implementation files
 
@@ -400,12 +400,12 @@ Pain과 feedback 후속 구현 예상:
 - 실제 PostgreSQL UUID 56개를 사용한 index build는 수행하지 않았다.
 - 대규모 eligible allowlist 성능과 MMR 품질 승격 기준은 미검증이다.
 - Query-level server timeout, replica consistency와 운영 topology는 검증하지 않았다.
-- ADR-0014는 `PROPOSED`이므로 production dependency/adapter/migration을 시작할 수 없다.
+- 이 PoC에는 production dependency/adapter/migration이 없으며 ADR-0014 후속 구현 PR에서 검증한다.
 - 통증 threshold는 현재 develop 문서와 사용자 결정이 충돌해 필수 안전 승인이 필요하다.
 
 ## Questions requiring team-lead decision
 
-1. ADR-0014 필수 reviewer 승인과 `ACCEPTED` 전환 여부
+1. ADR-0014 공통 domain contract와 production adapter의 분리·병합 순서
 2. embedding model/revision/license/dimension/distance와 품질 승격 기준
 3. collection allowlist naming, Qdrant topology와 운영 owner
 4. `user_onboarding_pain_areas` 별도 테이블과 기존 테이블 nullable column 중 물리 모델
@@ -418,6 +418,6 @@ Pain과 feedback 후속 구현 예상:
 1. `rg -n "Qdrant|ExercisePoolSnapshot|eligible_exercise_ids" docs`
 2. `rg -n "pain-intensity-map-v1|pain_intensity_score|difficulty_code|pain_report_count" docs`
 3. `git diff --check`
-4. ADR-0014가 `PROPOSED`이고 production dependency/migration이 추가되지 않았는지 확인
+4. ADR-0014 후속 구현과 분리된 PoC에 production dependency/migration이 추가되지 않았는지 확인
 5. 보고서에 사용자 식별자, 건강 원문, token, secret 또는 실제 user UUID가 없는지 확인
 6. 후속 승인 PoC에서는 pinned image로 UUID upsert, filter, MMR, missing ID, timeout과 alias switch를 재실행
