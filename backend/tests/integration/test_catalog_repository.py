@@ -28,6 +28,7 @@ from backend.app.db.repositories.vector_index import (
 )
 from backend.app.modules.catalog.codes import BodyAreaCode, BodyAreaRoleCode
 from backend.app.modules.catalog.service import CatalogDataBundleImporter, CatalogImporter
+from backend.scripts.catalog_activate import activate
 from backend.scripts.demo_seed import seed_catalog
 
 ALEMBIC_CONFIG = Path("backend/alembic.ini")
@@ -290,6 +291,10 @@ def test_vector_index_registry_round_trip_uses_only_production_catalog(
         BUNDLE_PRESCRIPTIONS,
     )
     repository = VectorIndexRepository()
+    assert repository.list_indexable_exercises(postgres_session, "merged-mvp-v0.4.0") == ()
+
+    now = datetime(2026, 8, 24, tzinfo=UTC)
+    activate(postgres_session, "merged-mvp-v0.4.0", now=now)
     records = repository.list_indexable_exercises(postgres_session, "merged-mvp-v0.4.0")
 
     assert len(records) == 56
@@ -308,7 +313,6 @@ def test_vector_index_registry_round_trip_uses_only_production_catalog(
             build_hash="b" * 64,
         ),
     )
-    now = datetime(2026, 8, 24, tzinfo=UTC)
     repository.mark_ready(postgres_session, registry, built_at=now)
     repository.activate(postgres_session, registry, activated_at=now)
 
