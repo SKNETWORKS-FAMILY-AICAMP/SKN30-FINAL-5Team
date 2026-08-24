@@ -30,7 +30,7 @@ describe('App boot navigation', () => {
         StyleSheet.flatten(screen.getByTestId('app-shell').props.style),
       ).toMatchObject({
         alignItems: 'center',
-        backgroundColor: '#EEF2E8',
+        backgroundColor: '#FFF4DC',
       });
       expect(
         StyleSheet.flatten(screen.getByTestId('app-viewport').props.style),
@@ -95,7 +95,7 @@ describe('App boot navigation', () => {
     {
       mode: 'mascot-house' as const,
       label: 'Mascot house (API)',
-      readyText: '지금 내 루틴',
+      readyText: '집 꾸미기',
     },
     {
       mode: 'session' as const,

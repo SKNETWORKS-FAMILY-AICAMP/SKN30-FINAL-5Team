@@ -1,5 +1,5 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   createContext,
   useCallback,
@@ -63,6 +63,7 @@ import { imageAssets } from '../../assets';
 import { fontFamilies, useBrandFonts } from '../../app/fonts';
 import type { TabId } from '../../components/brand/BrandChrome';
 import { useScale } from '../../components/scale';
+import { colors } from '../../components/theme';
 import { ExerciseDetailSheet } from '../workout/ExerciseDetailSheet';
 import {
   HOME_CHECKIN_OPTIONS,
@@ -91,12 +92,7 @@ import {
   type HomeRoutineItem,
 } from './homeModel';
 
-export const HOME_GRADIENT = {
-  colors: ['#8ECB4E', '#A8D66A', '#D8E6B4', '#F2EFE2', '#FAF7F1'] as const,
-  locations: [0, 0.22, 0.46, 0.66, 0.82] as const,
-  start: { x: 0.5, y: 0 },
-  end: { x: 0.5, y: 1 },
-} as const;
+export const HOME_BACKGROUND_COLOR = '#FFF8E5';
 
 export const HOME_LAYOUT = {
   contentHorizontalPadding: 18,
@@ -620,14 +616,10 @@ function HomeScreenContent({
   return (
     <HomeStyleContext.Provider value={styles}>
       <View style={styles.screen}>
-        <StatusBar style="light" />
-        <LinearGradient
-          testID="home-gradient"
-          colors={HOME_GRADIENT.colors}
-          locations={HOME_GRADIENT.locations}
-          start={HOME_GRADIENT.start}
-          end={HOME_GRADIENT.end}
-          style={styles.gradient}
+        <StatusBar style="dark" />
+        <View
+          style={[styles.gradient, { backgroundColor: HOME_BACKGROUND_COLOR }]}
+          testID="home-background"
         >
           <ScrollView
             contentContainerStyle={styles.scrollContent}
@@ -658,9 +650,7 @@ function HomeScreenContent({
                 />
               </>
             ) : null}
-            {showCheckin ? (
-              <CheckinButton onPress={openCheckin} useJua={useJua} />
-            ) : null}
+            {showCheckin ? <CheckinButton onPress={openCheckin} /> : null}
 
             {apiMode && status === 'loading' ? (
               <HomeStateCard
@@ -813,7 +803,7 @@ function HomeScreenContent({
               />
             ) : null}
           </ScrollView>
-        </LinearGradient>
+        </View>
 
         <HomeBottomNavigation activeTab="home" onNavigate={onNavigateTab} />
 
@@ -1241,13 +1231,7 @@ function WeeklyProgressCard({
   );
 }
 
-function CheckinButton({
-  onPress,
-  useJua,
-}: {
-  onPress: () => void;
-  useJua: boolean;
-}) {
+function CheckinButton({ onPress }: { onPress: () => void }) {
   const styles = useHomeStyles();
   return (
     <View style={styles.checkinWrapper}>
@@ -1257,17 +1241,28 @@ function CheckinButton({
         onPress={onPress}
         style={({ pressed }) => [
           styles.checkinButton,
-          pressed ? styles.checkinButtonPressed : styles.checkinButtonIdle,
+          pressed && styles.checkinButtonPressed,
         ]}
       >
-        <OutlinedLabel
-          label="오늘 루틴 체크인"
-          outlineColor="#FFF0B8"
-          style={[styles.checkinLabel, useJua && styles.juaLabel]}
-          suffix="🍌"
-          suffixStyle={styles.checkinSuffix}
+        <LinearGradient
+          colors={['#FEE8B1', '#FEDA99', '#FFD790']}
+          end={{ x: 0.5, y: 1 }}
+          locations={[0, 0.55, 1]}
+          pointerEvents="none"
+          start={{ x: 0.5, y: 0 }}
+          style={styles.checkinGradient}
+          testID="home-checkin-gradient"
         />
-        <CheckinChevronIcon />
+        <Text numberOfLines={1} style={styles.checkinLabel}>
+          오늘 루틴 체크인
+        </Text>
+        <View
+          pointerEvents="none"
+          style={styles.checkinChevron}
+          testID="home-checkin-chevron"
+        >
+          <CheckinChevronIcon />
+        </View>
       </Pressable>
     </View>
   );
@@ -1578,7 +1573,7 @@ function RoutineCard({
       >
         <OutlinedLabel
           label="운동 시작하기"
-          outlineColor="#2F5233"
+          outlineColor="#5A4636"
           style={[styles.startLabel, useJua && styles.juaLabel]}
         />
         <StartChevronIcon />
@@ -1606,7 +1601,7 @@ function RoutineCard({
             rerolls >= 2 && styles.routineActionDisabled,
           ]}
         >
-          <RerollIcon color={rerolls >= 2 ? '#B0ACA4' : '#3E7A32'} />
+          <RerollIcon color={rerolls >= 2 ? '#B0ACA4' : '#A45F00'} />
           <Text
             numberOfLines={1}
             style={[
@@ -1641,10 +1636,10 @@ export function HomeBottomNavigation({
   onNavigate?: (tab: HomeTab) => void;
 }) {
   const styles = useHomeStyles();
-  const homeColor = activeTab === 'home' ? '#3E7A32' : '#B0ACA4';
-  const logColor = activeTab === 'house' ? '#3E7A32' : '#B0ACA4';
-  const reportColor = activeTab === 'report' ? '#3E7A32' : '#B0ACA4';
-  const myColor = activeTab === 'my' ? '#3E7A32' : '#B0ACA4';
+  const homeColor = activeTab === 'home' ? '#A45F00' : '#B0ACA4';
+  const logColor = activeTab === 'house' ? '#A45F00' : '#B0ACA4';
+  const reportColor = activeTab === 'report' ? '#A45F00' : '#B0ACA4';
+  const myColor = activeTab === 'my' ? '#A45F00' : '#B0ACA4';
   return (
     <View style={styles.bottomBarOuter}>
       <View accessibilityRole="tablist" style={styles.bottomBar}>
@@ -2190,6 +2185,15 @@ function CheckinSheet({
             saveDisabled && styles.routineActionDisabled,
           ]}
         >
+          <LinearGradient
+            colors={['#FEE8B1', '#FEDA99', '#FFD790']}
+            end={{ x: 0.5, y: 1 }}
+            locations={[0, 0.55, 1]}
+            pointerEvents="none"
+            start={{ x: 0.5, y: 0 }}
+            style={styles.sheetSaveGradient}
+            testID="home-checkin-submit-gradient"
+          />
           <Text style={[styles.sheetSaveLabel, useJua && styles.juaLabel]}>
             {pending ? '보내는 중…' : '체크인 !'}
           </Text>
@@ -2822,7 +2826,7 @@ function EditRoutineSheet({
                     accessibilityLabel={`${item.name || '빈 항목'} 운동명`}
                     onChangeText={(name) => patchItem(item.id, { name })}
                     placeholder="운동명"
-                    placeholderTextColor="#B5B0A6"
+                    placeholderTextColor="#B8AA9E"
                     style={styles.editNameInput}
                     value={item.name}
                   />
@@ -2833,7 +2837,7 @@ function EditRoutineSheet({
                       patchItem(item.id, { sets: digitsOnly(sets) })
                     }
                     placeholder="0"
-                    placeholderTextColor="#B5B0A6"
+                    placeholderTextColor="#B8AA9E"
                     style={styles.editSetsInput}
                     value={item.sets ?? ''}
                   />
@@ -2845,7 +2849,7 @@ function EditRoutineSheet({
                       patchItem(item.id, { reps: digitsOnly(reps) })
                     }
                     placeholder="0"
-                    placeholderTextColor="#B5B0A6"
+                    placeholderTextColor="#B8AA9E"
                     style={styles.editRepsInput}
                     value={item.reps ?? ''}
                   />
@@ -2870,7 +2874,7 @@ function EditRoutineSheet({
               accessibilityLabel="추가할 운동명"
               onChangeText={(name) => onChangeNew({ ...newItem, name })}
               placeholder="운동명"
-              placeholderTextColor="#B5B0A6"
+              placeholderTextColor="#B8AA9E"
               style={styles.addNameInput}
               value={newItem.name}
             />
@@ -2881,7 +2885,7 @@ function EditRoutineSheet({
                 onChangeNew({ ...newItem, sets: digitsOnly(sets) })
               }
               placeholder="0"
-              placeholderTextColor="#B5B0A6"
+              placeholderTextColor="#B8AA9E"
               style={styles.addSetsInput}
               value={newItem.sets ?? ''}
             />
@@ -2893,7 +2897,7 @@ function EditRoutineSheet({
                 onChangeNew({ ...newItem, reps: digitsOnly(reps) })
               }
               placeholder="0"
-              placeholderTextColor="#B5B0A6"
+              placeholderTextColor="#B8AA9E"
               style={styles.addRepsInput}
               value={newItem.reps ?? ''}
             />
@@ -3238,13 +3242,13 @@ function NotificationIcon() {
     <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
       <Path
         d="M12 3.5a5.5 5.5 0 0 0-5.5 5.5v3.2L5 15.5h14l-1.5-3.3V9A5.5 5.5 0 0 0 12 3.5Z"
-        stroke="#2A2A26"
+        stroke="#5A4636"
         strokeWidth={1.7}
         strokeLinejoin="round"
       />
       <Path
         d="M10 18.2a2 2 0 0 0 4 0"
-        stroke="#2A2A26"
+        stroke="#5A4636"
         strokeWidth={1.7}
         strokeLinecap="round"
       />
@@ -3257,7 +3261,7 @@ function DayCheckIcon() {
     <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
       <Path
         d="M6 12.5l4 4 8-9"
-        stroke="#FFFFFF"
+        stroke="#5A4636"
         strokeWidth={3.2}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -3269,14 +3273,14 @@ function DayCheckIcon() {
 function InfoIcon() {
   return (
     <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-      <Circle cx={12} cy={12} r={9} stroke="#9A968E" strokeWidth={1.6} />
+      <Circle cx={12} cy={12} r={9} stroke="#AA9A8D" strokeWidth={1.6} />
       <Path
         d="M12 10.6v6"
-        stroke="#9A968E"
+        stroke="#AA9A8D"
         strokeWidth={1.8}
         strokeLinecap="round"
       />
-      <Circle cx={12} cy={7.6} r={1.1} fill="#9A968E" />
+      <Circle cx={12} cy={7.6} r={1.1} fill="#AA9A8D" />
     </Svg>
   );
 }
@@ -3290,17 +3294,17 @@ function CalendarIcon() {
         width={17}
         height={15}
         rx={3.5}
-        stroke="#4E8B3A"
+        stroke="#F6BA50"
         strokeWidth={1.7}
       />
       <Path
         d="M3.5 10h17M8.5 3.5v4M15.5 3.5v4"
-        stroke="#4E8B3A"
+        stroke="#F6BA50"
         strokeWidth={1.7}
         strokeLinecap="round"
       />
-      <Circle cx={8.5} cy={14} r={1.2} fill="#4E8B3A" />
-      <Circle cx={12.5} cy={14} r={1.2} fill="#4E8B3A" />
+      <Circle cx={8.5} cy={14} r={1.2} fill="#F6BA50" />
+      <Circle cx={12.5} cy={14} r={1.2} fill="#F6BA50" />
     </Svg>
   );
 }
@@ -3310,7 +3314,7 @@ function ProgressCheckIcon() {
     <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
       <Path
         d="M6 12.5l4 4 8-9"
-        stroke="#FFFFFF"
+        stroke="#5A4636"
         strokeWidth={3.2}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -3324,7 +3328,7 @@ function CheckinChevronIcon() {
     <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
       <Path
         d="M9 5.5L16 12l-7 6.5"
-        stroke="#2A2A26"
+        stroke="#5A4636"
         strokeWidth={2.2}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -3350,7 +3354,7 @@ function StartChevronIcon() {
     <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
       <Path
         d="M9 5.5L16 12l-7 6.5"
-        stroke="#FFFFFF"
+        stroke="#5A4636"
         strokeWidth={2.2}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -3364,7 +3368,7 @@ function EditIcon() {
     <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
       <Path
         d="M4 16.5 15.5 5l3.5 3.5L7.5 20H4v-3.5Z"
-        stroke="#3E7A32"
+        stroke="#A45F00"
         strokeWidth={1.8}
         strokeLinejoin="round"
       />
@@ -3495,14 +3499,14 @@ function createHomeStyles(
   const shadow = (y: number, blur: number, opacity: number) => ({
     ...Platform.select({
       ios: {
-        shadowColor: '#2F5233',
+        shadowColor: '#5A4636',
         shadowOffset: { width: 0, height: s(y) },
         shadowOpacity: opacity,
         shadowRadius: s(blur / 2),
       },
       android: { elevation: y <= 4 ? 2 : 3 },
       default: {
-        shadowColor: '#2F5233',
+        shadowColor: '#5A4636',
         shadowOffset: { width: 0, height: s(y) },
         shadowOpacity: opacity,
         shadowRadius: s(blur / 2),
@@ -3510,7 +3514,7 @@ function createHomeStyles(
     }),
   });
   return StyleSheet.create({
-    screen: { flex: 1, overflow: 'hidden', backgroundColor: '#FAF7F1' },
+    screen: { flex: 1, overflow: 'hidden', backgroundColor: '#FFF8E5' },
     gradient: { flex: 1 },
     scroll: { flex: 1 },
     scrollContent: {
@@ -3529,7 +3533,7 @@ function createHomeStyles(
     },
     headerCopy: { minWidth: 0, flex: 1 },
     greeting: {
-      color: '#FFFFFF',
+      color: '#5A4636',
       fontSize: f(22),
       fontWeight: '800',
       lineHeight: f(27.5),
@@ -3537,10 +3541,10 @@ function createHomeStyles(
       textShadowOffset: { width: 0, height: s(1) },
       textShadowRadius: s(2),
     },
-    greetingName: { color: '#FFD84D' },
+    greetingName: { color: '#F6BA50' },
     date: {
       marginTop: s(6),
-      color: '#F3FBE4',
+      color: colors.text,
       fontSize: f(13),
       fontWeight: '600',
       opacity: 0.95,
@@ -3553,7 +3557,7 @@ function createHomeStyles(
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: s(14),
-      backgroundColor: '#FBF6DF',
+      backgroundColor: '#FFF8E5',
       ...shadow(4, 10, 0.14),
     },
     notificationDot: {
@@ -3578,7 +3582,7 @@ function createHomeStyles(
       width: '100%',
       height: '100%',
       borderRadius: s(24),
-      backgroundColor: '#F1F6E7',
+      backgroundColor: '#FFF8E5',
     },
     summaryCard: {
       marginBottom: s(14),
@@ -3587,8 +3591,8 @@ function createHomeStyles(
       padding: s(16),
       ...shadow(6, 18, 0.1),
     },
-    cardTitle: { color: '#2A2A26', fontSize: f(15), fontWeight: '800' },
-    greenText: { color: '#3E7A32' },
+    cardTitle: { color: '#5A4636', fontSize: f(15), fontWeight: '800' },
+    greenText: { color: '#A45F00' },
     weekRow: { flexDirection: 'row', gap: s(6), marginTop: s(14) },
     weekDay: { minWidth: 0, flex: 1, alignItems: 'center', gap: s(6) },
     weekCircle: {
@@ -3599,14 +3603,14 @@ function createHomeStyles(
       borderWidth: s(2),
       borderRadius: s(16),
     },
-    weekCircleCompleted: { borderColor: '#4E8B3A', backgroundColor: '#4E8B3A' },
+    weekCircleCompleted: { borderColor: '#F6BA50', backgroundColor: '#F6BA50' },
     weekCircleIncomplete: {
       borderColor: '#D8D4CB',
       borderStyle: 'dashed',
       backgroundColor: '#FFFFFF',
     },
     weekLabel: { fontSize: f(11.5), fontWeight: '700' },
-    weekLabelCompleted: { color: '#3E7A32' },
+    weekLabelCompleted: { color: '#A45F00' },
     weekLabelIncomplete: { color: '#B0ACA4' },
     progressCard: {
       marginBottom: s(14),
@@ -3630,11 +3634,11 @@ function createHomeStyles(
       gap: s(2),
     },
     iconButton: { alignItems: 'center', justifyContent: 'center' },
-    weekRange: { color: '#8B8780', fontSize: f(12), fontWeight: '600' },
+    weekRange: { color: '#958476', fontSize: f(12), fontWeight: '600' },
     tip: {
       marginTop: s(10),
       borderRadius: s(12),
-      backgroundColor: '#F1F6E7',
+      backgroundColor: '#FFF8E5',
       paddingVertical: s(10),
       paddingHorizontal: s(12),
     },
@@ -3646,8 +3650,8 @@ function createHomeStyles(
       gap: s(10),
       marginTop: s(14),
     },
-    countLabel: { color: '#2A2A26', fontSize: f(15), fontWeight: '800' },
-    countValue: { color: '#3E7A32', fontSize: f(22) },
+    countLabel: { color: '#5A4636', fontSize: f(15), fontWeight: '800' },
+    countValue: { color: '#A45F00', fontSize: f(22) },
     progressCells: { flexDirection: 'row', gap: s(8), marginTop: s(12) },
     progressCell: {
       position: 'relative',
@@ -3659,7 +3663,7 @@ function createHomeStyles(
       borderRadius: s(14),
       padding: s(5),
     },
-    progressCellCompleted: { backgroundColor: '#EDF5E2', opacity: 1 },
+    progressCellCompleted: { backgroundColor: '#FFF3D4', opacity: 1 },
     progressCellIncomplete: { backgroundColor: '#F3F1EB', opacity: 0.55 },
     progressImage: { width: '78%', height: '78%' },
     todoImage: { opacity: 1 },
@@ -3674,39 +3678,48 @@ function createHomeStyles(
       borderWidth: s(2),
       borderColor: '#FFFFFF',
       borderRadius: s(10),
-      backgroundColor: '#4E8B3A',
+      backgroundColor: '#F6BA50',
     },
     checkinWrapper: { marginBottom: s(16) },
     checkinButton: {
+      position: 'relative',
       width: '100%',
-      minHeight: s(64),
-      flexDirection: 'row',
+      height: s(58),
       alignItems: 'center',
-      gap: s(6),
-      borderRadius: s(20),
-      paddingVertical: s(19),
-      paddingHorizontal: s(20),
-    },
-    checkinButtonIdle: {
-      borderBottomWidth: s(6),
-      borderBottomColor: '#E0AF25',
-      backgroundColor: '#FBD24E',
+      justifyContent: 'center',
+      borderWidth: s(1),
+      borderColor: 'rgba(244, 166, 42, 0.8)',
+      borderRadius: s(18),
+      paddingHorizontal: s(48),
+      shadowColor: '#AD741D',
+      shadowOffset: { width: 0, height: s(5) },
+      shadowOpacity: 0.11,
+      shadowRadius: s(6),
+      elevation: 3,
     },
     checkinButtonPressed: {
-      transform: [{ translateY: s(3) }],
-      borderBottomWidth: s(2),
-      borderBottomColor: 'rgba(47,82,51,.18)',
-      backgroundColor: '#EFC02F',
+      transform: [{ translateY: s(1) }],
+    },
+    checkinGradient: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      borderRadius: s(18),
     },
     checkinLabel: {
-      paddingLeft: s(22),
-      color: '#342E17',
-      fontSize: f(21),
-      fontWeight: '400',
-      letterSpacing: s(0.5),
+      color: colors.text,
+      fontSize: f(18),
+      fontWeight: '700',
       textAlign: 'center',
     },
-    checkinSuffix: { fontSize: f(21) },
+    checkinChevron: {
+      position: 'absolute',
+      right: s(20),
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     juaLabel: { fontFamily: fontFamilies.slogan, fontWeight: '400' },
     messageCard: {
       alignItems: 'center',
@@ -3718,7 +3731,7 @@ function createHomeStyles(
       ...shadow(6, 18, 0.1),
     },
     messageTitle: {
-      color: '#2A2A26',
+      color: '#5A4636',
       fontSize: f(15),
       fontWeight: '800',
       textAlign: 'center',
@@ -3726,7 +3739,7 @@ function createHomeStyles(
     loadingTitle: { marginTop: s(14) },
     messageText: {
       marginTop: s(8),
-      color: '#8B8780',
+      color: '#958476',
       fontSize: f(13),
       lineHeight: f(19.5),
       textAlign: 'center',
@@ -3735,8 +3748,8 @@ function createHomeStyles(
       width: s(26),
       height: s(26),
       borderWidth: s(3),
-      borderColor: '#E3EDD3',
-      borderTopColor: '#4E8B3A',
+      borderColor: '#F1D39A',
+      borderTopColor: '#F6BA50',
       borderRadius: s(13),
     },
     routineCard: {
@@ -3759,45 +3772,45 @@ function createHomeStyles(
     routineBadge: {
       alignSelf: 'flex-start',
       borderRadius: 999,
-      backgroundColor: '#4E8B3A',
+      backgroundColor: '#F6BA50',
       paddingVertical: s(6),
       paddingHorizontal: s(12),
     },
-    routineBadgeText: { color: '#FFFFFF', fontSize: f(12), fontWeight: '700' },
+    routineBadgeText: { color: '#5A4636', fontSize: f(12), fontWeight: '700' },
     routineActionBadge: {
       alignSelf: 'flex-start',
       borderWidth: s(1.5),
-      borderColor: '#CBDDB4',
+      borderColor: '#F1D39A',
       borderRadius: 999,
       backgroundColor: '#FFFFFF',
       paddingVertical: s(4.5),
       paddingHorizontal: s(11),
     },
     routineActionBadgeAdjusted: {
-      borderColor: '#4E8B3A',
-      backgroundColor: '#F1F6E7',
+      borderColor: '#F6BA50',
+      backgroundColor: '#FFF8E5',
     },
     routineActionBadgeText: {
-      color: '#3E7A32',
+      color: '#A45F00',
       fontSize: f(12),
       fontWeight: '700',
     },
     routineTitle: {
       marginTop: s(12),
-      color: '#2A2A26',
+      color: '#5A4636',
       fontSize: f(26),
       fontWeight: '800',
       letterSpacing: s(-0.5),
     },
     routineSummary: {
       marginTop: s(10),
-      color: '#3E7A32',
+      color: '#A45F00',
       fontSize: f(14),
       fontWeight: '700',
     },
     routineNotes: { gap: s(4), marginTop: s(10) },
     routineNote: {
-      color: '#6F6B63',
+      color: '#7B695B',
       fontSize: f(13.5),
       fontWeight: '500',
       lineHeight: f(20.925),
@@ -3810,7 +3823,7 @@ function createHomeStyles(
       paddingRight: s(12),
     },
     reasonLinkText: {
-      color: '#3E7A32',
+      color: '#A45F00',
       fontSize: f(12.5),
       fontWeight: '700',
       textDecorationLine: 'underline',
@@ -3819,7 +3832,7 @@ function createHomeStyles(
       gap: s(8),
       marginTop: s(14),
       borderTopWidth: s(1),
-      borderTopColor: '#E2DED4',
+      borderTopColor: '#E8D8C2',
       borderStyle: 'dashed',
       paddingTop: s(12),
     },
@@ -3843,10 +3856,10 @@ function createHomeStyles(
       bottom: 0,
       left: 0,
       borderWidth: s(1.5),
-      borderColor: '#7FAE5C',
+      borderColor: '#E0A742',
       borderRadius: s(12),
       borderStyle: 'dashed',
-      backgroundColor: '#EDF5E2',
+      backgroundColor: '#FFF3D4',
     },
     dragOuterEdit: {
       position: 'relative',
@@ -3891,7 +3904,7 @@ function createHomeStyles(
     routineItemText: {
       minWidth: 0,
       flex: 1,
-      color: '#2A2A26',
+      color: '#5A4636',
       fontSize: f(13.5),
       fontWeight: '700',
       lineHeight: f(19.575),
@@ -3900,12 +3913,12 @@ function createHomeStyles(
       width: s(6),
       height: s(6),
       borderRadius: s(3),
-      backgroundColor: '#4E8B3A',
+      backgroundColor: '#F6BA50',
     },
     adjustmentNote: {
       marginTop: s(12),
       borderRadius: s(12),
-      backgroundColor: '#F1F6E7',
+      backgroundColor: '#FFF8E5',
       paddingVertical: s(10),
       paddingHorizontal: s(12),
     },
@@ -3923,10 +3936,10 @@ function createHomeStyles(
       marginTop: s(16),
       marginBottom: s(10),
       borderRadius: s(16),
-      backgroundColor: '#4E8B3A',
+      backgroundColor: '#F6BA50',
       padding: s(16),
     },
-    startLabel: { color: '#FFFFFF', fontSize: f(17), fontWeight: '400' },
+    startLabel: { color: '#5A4636', fontSize: f(17), fontWeight: '400' },
     routineActions: {
       flexDirection: 'row',
       gap: s(8),
@@ -3941,23 +3954,23 @@ function createHomeStyles(
       justifyContent: 'center',
       gap: s(6),
       borderWidth: s(1.5),
-      borderColor: '#CBDDB4',
+      borderColor: '#F1D39A',
       borderRadius: s(16),
       backgroundColor: '#FFFFFF',
       paddingVertical: s(14),
       paddingHorizontal: s(6),
     },
-    routineActionDisabled: { borderColor: '#E7E3DB' },
-    editActionLabel: { color: '#3E7A32', fontSize: f(13.5), fontWeight: '700' },
+    routineActionDisabled: { borderColor: '#EEDFCB' },
+    editActionLabel: { color: '#A45F00', fontSize: f(13.5), fontWeight: '700' },
     rerollActionLabel: {
-      color: '#3E7A32',
+      color: '#A45F00',
       fontSize: f(12.5),
       fontWeight: '700',
     },
     rerollActionLabelDisabled: { color: '#B0ACA4' },
     bottomBarOuter: {
       flexShrink: 0,
-      backgroundColor: '#FAF7F1',
+      backgroundColor: '#FFF8E5',
       paddingTop: s(8),
       paddingHorizontal: s(14),
       paddingBottom: s(26),
@@ -3985,7 +3998,7 @@ function createHomeStyles(
       fontWeight: '700',
       textAlign: 'center',
     },
-    tabActive: { color: '#3E7A32' },
+    tabActive: { color: '#A45F00' },
     sheetOverlay: {
       position: 'absolute',
       top: 0,
@@ -4000,7 +4013,7 @@ function createHomeStyles(
       maxHeight: '88%',
       borderTopLeftRadius: s(28),
       borderTopRightRadius: s(28),
-      backgroundColor: '#FAF7F1',
+      backgroundColor: '#FFF8E5',
       paddingTop: s(20),
       paddingHorizontal: s(18),
       paddingBottom: s(30),
@@ -4011,7 +4024,7 @@ function createHomeStyles(
       justifyContent: 'space-between',
       gap: s(10),
     },
-    sheetTitle: { color: '#2A2A26', fontSize: f(18), fontWeight: '800' },
+    sheetTitle: { color: '#5A4636', fontSize: f(18), fontWeight: '800' },
     closeButton: {
       width: s(44),
       height: s(44),
@@ -4021,10 +4034,10 @@ function createHomeStyles(
       marginRight: s(-12),
       marginBottom: s(-10),
     },
-    closeText: { color: '#8B8780', fontSize: f(22) },
+    closeText: { color: '#958476', fontSize: f(22) },
     sheetIntro: {
       marginTop: s(4),
-      color: '#8B8780',
+      color: '#958476',
       fontSize: f(13),
       lineHeight: f(19.5),
     },
@@ -4036,11 +4049,11 @@ function createHomeStyles(
       padding: s(16),
     },
     reasonRow: { flexDirection: 'row', alignItems: 'flex-start', gap: s(7) },
-    reasonBullet: { color: '#4E8B3A', fontSize: f(14), lineHeight: f(20) },
+    reasonBullet: { color: '#F6BA50', fontSize: f(14), lineHeight: f(20) },
     reasonText: {
       minWidth: 0,
       flex: 1,
-      color: '#6F6B63',
+      color: '#7B695B',
       fontSize: f(13),
       lineHeight: f(19.5),
     },
@@ -4053,7 +4066,7 @@ function createHomeStyles(
     safetyReasonText: { color: '#6F2F29' },
     agentSummary: { gap: s(4) },
     agentSummaryLabel: {
-      color: '#3E7A32',
+      color: '#A45F00',
       fontSize: f(12),
       fontWeight: '800',
     },
@@ -4064,7 +4077,7 @@ function createHomeStyles(
       padding: s(16),
     },
     checkinSectionTitle: {
-      color: '#2A2A26',
+      color: '#5A4636',
       fontSize: f(14),
       fontWeight: '700',
     },
@@ -4077,9 +4090,9 @@ function createHomeStyles(
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: s(1.5),
-      borderColor: '#E7E3DB',
+      borderColor: '#EEDFCB',
       borderRadius: s(12),
-      backgroundColor: '#FAF7F1',
+      backgroundColor: '#FFF8E5',
       paddingVertical: s(9),
       paddingHorizontal: s(6),
     },
@@ -4089,11 +4102,11 @@ function createHomeStyles(
       flexGrow: 1,
     },
     choiceButtonSelected: {
-      borderColor: '#4E8B3A',
-      backgroundColor: '#4E8B3A',
+      borderColor: '#F6BA50',
+      backgroundColor: '#F6BA50',
     },
-    choiceButtonText: { color: '#2A2A26', fontSize: f(13), fontWeight: '700' },
-    choiceButtonTextSelected: { color: '#FFFFFF' },
+    choiceButtonText: { color: '#5A4636', fontSize: f(13), fontWeight: '700' },
+    choiceButtonTextSelected: { color: '#5A4636' },
     adverseSection: {
       gap: s(8),
       borderWidth: s(1),
@@ -4144,16 +4157,16 @@ function createHomeStyles(
       backgroundColor: '#FFFFFF',
       padding: s(16),
     },
-    numberLabel: { color: '#2A2A26', fontSize: f(14), fontWeight: '700' },
-    optionalText: { color: '#8B8780', fontWeight: '500' },
+    numberLabel: { color: '#5A4636', fontSize: f(14), fontWeight: '700' },
+    optionalText: { color: '#958476', fontWeight: '500' },
     numberInputGroup: { flexDirection: 'row', alignItems: 'center', gap: s(6) },
     numberInput: {
       width: s(84),
       borderWidth: s(1),
-      borderColor: '#E7E3DB',
+      borderColor: '#EEDFCB',
       borderRadius: s(12),
-      backgroundColor: '#FAF7F1',
-      color: '#2A2A26',
+      backgroundColor: '#FFF8E5',
+      color: '#5A4636',
       fontSize: f(14),
       fontWeight: '700',
       paddingVertical: s(11),
@@ -4183,21 +4196,21 @@ function createHomeStyles(
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: s(1),
-      borderColor: '#E7E3DB',
+      borderColor: '#EEDFCB',
       borderRadius: s(12),
-      backgroundColor: '#FAF7F1',
+      backgroundColor: '#FFF8E5',
       paddingVertical: s(11),
       paddingHorizontal: s(10),
     },
     availabilityTimeText: {
-      color: '#2A2A26',
+      color: '#5A4636',
       fontSize: f(14),
       fontWeight: '700',
       textAlign: 'center',
     },
     availabilityTimePlaceholder: { color: '#AAA69F', fontWeight: '600' },
     availabilitySeparator: {
-      color: '#8B8780',
+      color: '#958476',
       fontSize: f(15),
       fontWeight: '700',
     },
@@ -4212,24 +4225,24 @@ function createHomeStyles(
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: s(1),
-      borderColor: '#A8C78D',
+      borderColor: '#E0A742',
       borderStyle: 'dashed',
       borderRadius: s(12),
-      backgroundColor: '#F6FAF2',
+      backgroundColor: '#FFF8E5',
     },
     availabilityAddLabel: {
-      color: '#3E7A32',
+      color: '#A45F00',
       fontSize: f(13),
       fontWeight: '700',
     },
     availabilityHelpText: {
-      color: '#8B8780',
+      color: '#958476',
       fontSize: f(12),
       lineHeight: f(18),
     },
     timePickerIntro: {
       marginTop: s(2),
-      color: '#8B8780',
+      color: '#958476',
       fontSize: f(13),
       lineHeight: f(19),
     },
@@ -4240,7 +4253,7 @@ function createHomeStyles(
       marginTop: s(16),
     },
     timePickerColon: {
-      color: '#2A2A26',
+      color: '#5A4636',
       fontSize: f(24),
       fontWeight: '800',
     },
@@ -4251,7 +4264,7 @@ function createHomeStyles(
       flex: 1,
       overflow: 'hidden',
       borderWidth: s(1),
-      borderColor: '#E7E3DB',
+      borderColor: '#EEDFCB',
       borderRadius: s(14),
       backgroundColor: '#FFFFFF',
     },
@@ -4264,7 +4277,7 @@ function createHomeStyles(
       left: s(5),
       height: TIME_WHEEL_ITEM_HEIGHT,
       borderRadius: s(9),
-      backgroundColor: '#E8F2E4',
+      backgroundColor: '#FFF3D4',
     },
     timeWheelItem: {
       height: TIME_WHEEL_ITEM_HEIGHT,
@@ -4272,11 +4285,11 @@ function createHomeStyles(
       justifyContent: 'center',
     },
     timeWheelItemText: {
-      color: '#8B8780',
+      color: '#958476',
       fontSize: f(17),
       fontWeight: '600',
     },
-    timeWheelItemTextSelected: { color: '#3E7A32', fontWeight: '800' },
+    timeWheelItemTextSelected: { color: '#A45F00', fontWeight: '800' },
     timeWheelItemSuffix: { fontSize: f(12), fontWeight: '600' },
     timePickerActions: {
       flexDirection: 'row',
@@ -4304,27 +4317,40 @@ function createHomeStyles(
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: s(14),
-      backgroundColor: '#4E8B3A',
+      backgroundColor: '#F6BA50',
     },
     timePickerConfirmLabel: {
-      color: '#FFFFFF',
+      color: '#5A4636',
       fontSize: f(15),
       fontWeight: '800',
     },
     stepsInput: { width: s(110) },
-    numberSuffix: { color: '#8B8780', fontSize: f(13) },
+    numberSuffix: { color: '#958476', fontSize: f(13) },
     sheetSaveButton: {
+      position: 'relative',
       width: '100%',
       alignItems: 'center',
       justifyContent: 'center',
       marginTop: s(8),
-      borderBottomWidth: s(5),
-      borderBottomColor: '#E0AF25',
+      borderWidth: s(1),
+      borderColor: 'rgba(244, 166, 42, 0.8)',
       borderRadius: s(18),
-      backgroundColor: '#FBD24E',
       padding: s(17),
+      shadowColor: '#AD741D',
+      shadowOffset: { width: 0, height: s(5) },
+      shadowOpacity: 0.11,
+      shadowRadius: s(6),
+      elevation: 3,
     },
-    sheetSaveLabel: { color: '#2A2A26', fontSize: f(18), fontWeight: '400' },
+    sheetSaveGradient: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      borderRadius: s(18),
+    },
+    sheetSaveLabel: { color: '#5A4636', fontSize: f(18), fontWeight: '400' },
     editScrollContent: { paddingBottom: s(5) },
     editList: { gap: s(8), marginTop: s(14) },
     editRow: {
@@ -4348,7 +4374,7 @@ function createHomeStyles(
     editNameInput: {
       minWidth: 0,
       flex: 1,
-      color: '#2A2A26',
+      color: '#5A4636',
       fontSize: f(13.5),
       fontWeight: '700',
       paddingVertical: s(6),
@@ -4356,10 +4382,10 @@ function createHomeStyles(
     editSetsInput: {
       width: s(38),
       borderWidth: s(1),
-      borderColor: '#E7E3DB',
+      borderColor: '#EEDFCB',
       borderRadius: s(10),
-      backgroundColor: '#FAF7F1',
-      color: '#2A2A26',
+      backgroundColor: '#FFF8E5',
+      color: '#5A4636',
       fontSize: f(13),
       fontWeight: '700',
       paddingVertical: s(8),
@@ -4369,10 +4395,10 @@ function createHomeStyles(
     editRepsInput: {
       width: s(44),
       borderWidth: s(1),
-      borderColor: '#E7E3DB',
+      borderColor: '#EEDFCB',
       borderRadius: s(10),
-      backgroundColor: '#FAF7F1',
-      color: '#2A2A26',
+      backgroundColor: '#FFF8E5',
+      color: '#5A4636',
       fontSize: f(13),
       fontWeight: '700',
       paddingVertical: s(8),
@@ -4389,13 +4415,13 @@ function createHomeStyles(
     addBox: {
       marginTop: s(12),
       borderWidth: s(1.5),
-      borderColor: '#CBDDB4',
+      borderColor: '#F1D39A',
       borderStyle: 'dashed',
       borderRadius: s(16),
       backgroundColor: '#FFFFFF',
       padding: s(12),
     },
-    addTitle: { color: '#3E7A32', fontSize: f(12), fontWeight: '700' },
+    addTitle: { color: '#A45F00', fontSize: f(12), fontWeight: '700' },
     addInputRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -4406,10 +4432,10 @@ function createHomeStyles(
       minWidth: 0,
       flex: 1,
       borderWidth: s(1),
-      borderColor: '#E7E3DB',
+      borderColor: '#EEDFCB',
       borderRadius: s(10),
-      backgroundColor: '#FAF7F1',
-      color: '#2A2A26',
+      backgroundColor: '#FFF8E5',
+      color: '#5A4636',
       fontSize: f(13.5),
       fontWeight: '700',
       padding: s(10),
@@ -4417,10 +4443,10 @@ function createHomeStyles(
     addSetsInput: {
       width: s(38),
       borderWidth: s(1),
-      borderColor: '#E7E3DB',
+      borderColor: '#EEDFCB',
       borderRadius: s(10),
-      backgroundColor: '#FAF7F1',
-      color: '#2A2A26',
+      backgroundColor: '#FFF8E5',
+      color: '#5A4636',
       fontSize: f(13),
       fontWeight: '700',
       paddingVertical: s(10),
@@ -4430,10 +4456,10 @@ function createHomeStyles(
     addRepsInput: {
       width: s(44),
       borderWidth: s(1),
-      borderColor: '#E7E3DB',
+      borderColor: '#EEDFCB',
       borderRadius: s(10),
-      backgroundColor: '#FAF7F1',
-      color: '#2A2A26',
+      backgroundColor: '#FFF8E5',
+      color: '#5A4636',
       fontSize: f(13),
       fontWeight: '700',
       paddingVertical: s(10),
@@ -4446,14 +4472,14 @@ function createHomeStyles(
       borderRadius: s(12),
       padding: s(12),
     },
-    addButtonEnabled: { backgroundColor: '#4E8B3A' },
-    addButtonDisabled: { backgroundColor: '#E7E3DB' },
+    addButtonEnabled: { backgroundColor: '#F6BA50' },
+    addButtonDisabled: { backgroundColor: '#EEDFCB' },
     addButtonText: {
       fontSize: f(13.5),
       fontWeight: '700',
       textAlign: 'center',
     },
-    addButtonTextEnabled: { color: '#FFFFFF' },
+    addButtonTextEnabled: { color: '#5A4636' },
     addButtonTextDisabled: { color: '#B0ACA4' },
     editActions: { flexDirection: 'row', gap: s(8), marginTop: s(16) },
     resetButton: {
@@ -4461,21 +4487,21 @@ function createHomeStyles(
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: s(1.5),
-      borderColor: '#E7E3DB',
+      borderColor: '#EEDFCB',
       borderRadius: s(18),
       backgroundColor: '#FFFFFF',
       paddingVertical: s(16),
       paddingHorizontal: s(8),
     },
-    resetLabel: { color: '#8B8780', fontSize: f(12.5), fontWeight: '700' },
+    resetLabel: { color: '#958476', fontSize: f(12.5), fontWeight: '700' },
     editSaveButton: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
       borderBottomWidth: s(5),
-      borderBottomColor: '#E0AF25',
+      borderBottomColor: '#D98B16',
       borderRadius: s(18),
-      backgroundColor: '#FBD24E',
+      backgroundColor: '#F6BA50',
       padding: s(16),
     },
     outlineContainer: {

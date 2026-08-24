@@ -2271,7 +2271,7 @@ const styles = StyleSheet.create({
   },
   timerCopy: { minWidth: 0 },
   timerCaption: {
-    color: colors.surface,
+    color: colors.text,
     fontSize: 11.5,
     fontWeight: '700',
     letterSpacing: 0.6,
@@ -2279,7 +2279,7 @@ const styles = StyleSheet.create({
   },
   timer: {
     marginTop: 2,
-    color: colors.surface,
+    color: colors.text,
     fontSize: 38,
     fontWeight: '900',
     letterSpacing: 1,
@@ -2301,7 +2301,7 @@ const styles = StyleSheet.create({
     width: 3.6,
     height: 14,
     borderRadius: 1.4,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.text,
   },
   playMark: {
     width: 0,
@@ -2312,7 +2312,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: 11,
     borderTopColor: 'transparent',
     borderBottomColor: 'transparent',
-    borderLeftColor: colors.surface,
+    borderLeftColor: colors.text,
   },
   stopAction: {
     height: 52,
@@ -2324,7 +2324,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     paddingHorizontal: 14,
   },
-  stopActionLabel: { color: colors.surface, fontSize: 13.5, fontWeight: '800' },
+  stopActionLabel: { color: colors.text, fontSize: 13.5, fontWeight: '800' },
   progressRow: { flexDirection: 'row', gap: 5, marginTop: 14 },
   progressSegment: {
     height: 6,
@@ -2333,7 +2333,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,.28)',
   },
   progressSegmentCurrent: { backgroundColor: 'rgba(255,255,255,.75)' },
-  progressSegmentDone: { backgroundColor: colors.surface },
+  progressSegmentDone: { backgroundColor: colors.text },
   routineHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2344,11 +2344,11 @@ const styles = StyleSheet.create({
   routineTitle: {
     minWidth: 0,
     flex: 1,
-    color: colors.surface,
+    color: colors.text,
     fontSize: 12.5,
     fontWeight: '700',
   },
-  routineStep: { color: colors.surface, fontSize: 12.5, fontWeight: '700' },
+  routineStep: { color: colors.text, fontSize: 12.5, fontWeight: '700' },
   offlineBanner: {
     flexShrink: 0,
     flexDirection: 'row',
@@ -2365,7 +2365,7 @@ const styles = StyleSheet.create({
     height: 8,
     flexShrink: 0,
     borderRadius: 4,
-    backgroundColor: '#D89B1F',
+    backgroundColor: '#EE875B',
   },
   offlineText: {
     flex: 1,
@@ -2483,7 +2483,7 @@ const styles = StyleSheet.create({
     borderColor: colors.greenBorder,
     backgroundColor: colors.surface,
   },
-  blockCardDone: { borderColor: '#EAE7E0', backgroundColor: '#F1F6E7' },
+  blockCardDone: { borderColor: '#EAE7E0', backgroundColor: '#FFF8E5' },
   blockCardPending: { borderColor: '#EAE7E0', backgroundColor: '#F7F5F0' },
   blockCardHeader: {
     flexDirection: 'row',
@@ -2505,7 +2505,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.3,
   },
-  blockBadgeTextEmphasis: { color: colors.surface },
+  blockBadgeTextEmphasis: { color: colors.text },
   blockBadgeTextCurrent: { color: '#342E17' },
   blockOrder: { color: '#B0ACA4', fontSize: 11.5, fontWeight: '700' },
   blockName: {
@@ -2610,7 +2610,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#CFCCC5',
   },
   smashActionText: {
-    color: colors.surface,
+    color: colors.text,
     fontSize: 18,
     fontWeight: '900',
     letterSpacing: 0.5,
@@ -2658,7 +2658,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   restLabel: {
-    color: colors.surface,
+    color: colors.text,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.6,
@@ -2666,7 +2666,7 @@ const styles = StyleSheet.create({
   },
   restTimer: {
     marginTop: 2,
-    color: colors.surface,
+    color: colors.text,
     fontSize: 44,
     fontWeight: '900',
     lineHeight: 44,
@@ -2683,7 +2683,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
   },
   restAddButtonText: {
-    color: colors.surface,
+    color: colors.text,
     fontSize: 13.5,
     fontWeight: '700',
   },
@@ -2698,7 +2698,7 @@ const styles = StyleSheet.create({
   restEndButtonText: { color: '#342E17', fontSize: 16, fontWeight: '900' },
   restDescription: {
     marginTop: 10,
-    color: colors.surface,
+    color: colors.text,
     fontSize: 12.5,
     fontWeight: '600',
     lineHeight: 18,
@@ -2859,7 +2859,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.green,
   },
   choiceButtonText: { color: colors.text, fontSize: 13, fontWeight: '700' },
-  choiceButtonTextSelected: { color: colors.surface },
+  choiceButtonTextSelected: { color: colors.text },
   noteInput: {
     minHeight: 76,
     marginTop: 9,
@@ -3022,5 +3022,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.green,
     padding: 18,
   },
-  resultButtonText: { color: colors.surface, fontSize: 19, fontWeight: '900' },
+  resultButtonText: { color: colors.text, fontSize: 19, fontWeight: '900' },
 });

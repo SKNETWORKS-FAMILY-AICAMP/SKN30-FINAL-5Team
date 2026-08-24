@@ -76,16 +76,16 @@ export const CALENDAR_DAY_VISUALS = {
   done: {
     label: '완료',
     glyph: '✓',
-    backgroundColor: '#4E8B3A',
+    backgroundColor: '#F6BA50',
     color: '#FFFFFF',
-    borderColor: '#4E8B3A',
+    borderColor: '#F6BA50',
   },
   partial: {
     label: '부분 수행',
     glyph: '◐',
-    backgroundColor: '#FBD24E',
+    backgroundColor: '#F6BA50',
     color: '#6B520C',
-    borderColor: '#FBD24E',
+    borderColor: '#F6BA50',
   },
   miss: {
     label: '미수행',
@@ -105,8 +105,8 @@ export const CALENDAR_DAY_VISUALS = {
     label: '오늘',
     glyph: '●',
     backgroundColor: '#FFFFFF',
-    color: '#3E7A32',
-    borderColor: '#4E8B3A',
+    color: '#A45F00',
+    borderColor: '#F6BA50',
   },
   upcoming: {
     label: '예정',
@@ -130,15 +130,15 @@ export const CALENDAR_WEEK_CHIPS = {
   progress: {
     label: '진행 중',
     backgroundColor: '#FFFFFF',
-    color: '#3E7A32',
-    borderColor: '#CBDDB4',
+    color: '#A45F00',
+    borderColor: '#F1D39A',
     borderStyle: 'solid',
   },
   make: {
     label: '리포트 만들기',
-    backgroundColor: '#FBD24E',
+    backgroundColor: '#F6BA50',
     color: '#3A320F',
-    borderColor: '#EFC02F',
+    borderColor: '#D98B16',
     borderStyle: 'solid',
   },
   unread: {
@@ -191,8 +191,8 @@ export const CALENDAR_WEEKDAYS = [
 ] as const;
 
 export const CALENDAR_MONTH_STATS = [
-  { key: 'done', label: '완료', value: 4, color: '#3E7A32' },
-  { key: 'partial', label: '부분 수행', value: 3, color: '#B58A1E' },
+  { key: 'done', label: '완료', value: 4, color: '#A45F00' },
+  { key: 'partial', label: '부분 수행', value: 3, color: '#EE875B' },
   { key: 'rest', label: '휴식', value: 3, color: '#6F6B63' },
   { key: 'miss', label: '미수행', value: 1, color: '#C0BBB1' },
 ] as const satisfies readonly CalendarMonthStat[];
@@ -204,7 +204,7 @@ export const CALENDAR_WEEKS = [
     label: '1주차',
     range: '7.27 – 8.2',
     state: 'read',
-    bandColor: '#EFF4E6',
+    bandColor: '#FFF8E5',
     days: [
       { day: '27', status: 'done', inCurrentMonth: false },
       { day: '28', status: 'done', inCurrentMonth: false },
@@ -242,7 +242,7 @@ export const CALENDAR_WEEKS = [
     label: '3주차',
     range: '8.10 – 8.16',
     state: 'progress',
-    bandColor: '#DCEBC4',
+    bandColor: '#FFEBC2',
     days: [
       { day: '10', status: 'done', inCurrentMonth: true },
       { day: '11', status: 'partial', inCurrentMonth: true },

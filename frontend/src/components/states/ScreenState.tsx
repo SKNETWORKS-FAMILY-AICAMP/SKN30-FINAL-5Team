@@ -211,10 +211,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   titleOnBand: {
-    color: colors.surface,
+    color: colors.text,
   },
   subtitleOnBand: {
-    color: colors.greenTint,
+    color: colors.textSub,
   },
   subtitle: {
     color: colors.textSub,

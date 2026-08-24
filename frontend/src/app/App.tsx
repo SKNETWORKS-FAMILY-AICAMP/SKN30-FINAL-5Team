@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     width: '100%',
     flex: 1,
     alignItems: 'center',
-    backgroundColor: '#EEF2E8',
+    backgroundColor: '#FFF4DC',
   },
   appViewport: {
     width: '100%',
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   placeholderText: {
-    color: '#2F5233',
+    color: '#5A4636',
     fontSize: 20,
     fontWeight: '700',
   },

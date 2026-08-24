@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
     left: 5,
     height: WHEEL_ITEM_HEIGHT,
     borderRadius: 9,
-    backgroundColor: '#E8F2E4',
+    backgroundColor: '#FFF3D4',
   },
   wheelItem: {
     height: WHEEL_ITEM_HEIGHT,

@@ -97,7 +97,7 @@ describe('SplashScreen', () => {
       expect.objectContaining({
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#8ECB4E',
+        backgroundColor: '#F6BA50',
       }),
     );
     expect(islandStyle).toEqual(
@@ -142,8 +142,8 @@ describe('SplashScreen', () => {
       }),
     );
     const brandText = getTextLayers('splash-brand');
-    expectSvgColor(brandText.fill.fill, '#EEDA30');
-    expectSvgColor(brandText.outline.stroke, '#6B4A2B');
+    expectSvgColor(brandText.fill.fill, '#F6BA50');
+    expectSvgColor(brandText.outline.stroke, '#5A4636');
     expect(brandText.outline.strokeWidth).toBe(6);
     expect(brandText.fill.font.fontFamily).toBe(fontFamilies.brand);
     expect(brandText.fill.font.fontSize).toBe(26);
@@ -162,13 +162,13 @@ describe('SplashScreen', () => {
         left: 19.5,
         width: 351,
         top: 203,
-        shadowColor: 'rgba(47,82,51,0.35)',
+        shadowColor: 'rgba(90,70,54,0.35)',
         zIndex: 3,
       }),
     );
     const sloganText = getTextLayers('splash-slogan');
     expectSvgColor(sloganText.fill.fill, '#FFFFFF');
-    expectSvgColor(sloganText.outline.stroke, '#2F5233');
+    expectSvgColor(sloganText.outline.stroke, '#5A4636');
     expect(sloganText.outline.strokeWidth).toBe(6);
     expect(sloganText.fill.font.fontFamily).toBe(fontFamilies.slogan);
     expect(sloganText.fill.font.fontSize).toBe(18);
@@ -245,7 +245,7 @@ describe('SplashScreen', () => {
       expect(SPLASH_WEB_TEXT_PAINT_ORDER).toBe('stroke fill');
       expect(
         getSplashWebTextStyle({
-          fill: '#EEDA30',
+          fill: '#F6BA50',
           fontFamily: fontFamilies.brand,
           fontSize: 26,
           fontWeight: '800',
@@ -253,11 +253,11 @@ describe('SplashScreen', () => {
           lineHeight: 26,
           shadowColor: 'rgba(107,74,43,0.35)',
           shadowOffsetY: 3,
-          stroke: '#6B4A2B',
+          stroke: '#5A4636',
           strokeWidth: 6,
         }),
       ).toEqual({
-        color: '#EEDA30',
+        color: '#F6BA50',
         fontFamily: fontFamilies.brand,
         fontSize: '26px',
         fontWeight: '800',
@@ -269,15 +269,15 @@ describe('SplashScreen', () => {
         padding: 0,
         paintOrder: 'stroke fill',
         textShadow: '0 3px 0 rgba(107,74,43,0.35)',
-        WebkitTextFillColor: '#EEDA30',
-        WebkitTextStroke: '6px #6B4A2B',
+        WebkitTextFillColor: '#F6BA50',
+        WebkitTextStroke: '6px #5A4636',
         whiteSpace: 'nowrap',
         width: 'max-content',
       });
       expect(brandText.props.children).toBe('Helkki');
-      expect(brandText.props.style.color).toBe('#EEDA30');
-      expect(brandText.props.style.WebkitTextFillColor).toBe('#EEDA30');
-      expect(brandText.props.style.WebkitTextStroke).toBe('6px #6B4A2B');
+      expect(brandText.props.style.color).toBe('#F6BA50');
+      expect(brandText.props.style.WebkitTextFillColor).toBe('#F6BA50');
+      expect(brandText.props.style.WebkitTextStroke).toBe('6px #5A4636');
       expect(screen.queryByTestId('splash-brand-outline')).toBeNull();
       expect(screen.queryByTestId('splash-brand-fill')).toBeNull();
     } finally {

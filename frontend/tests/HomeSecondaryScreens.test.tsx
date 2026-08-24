@@ -111,17 +111,17 @@ const EXPECTED_CALENDAR_WEEKS = [
 ] as const;
 
 const EXPECTED_DAY_VISUALS = [
-  ['done', '✓', 0x2713, '#4E8B3A', '#FFFFFF', '#4E8B3A'],
-  ['partial', '◐', 0x25d0, '#FBD24E', '#6B520C', '#FBD24E'],
+  ['done', '✓', 0x2713, '#F6BA50', '#FFFFFF', '#F6BA50'],
+  ['partial', '◐', 0x25d0, '#F6BA50', '#6B520C', '#F6BA50'],
   ['miss', '×', 0x00d7, '#FFFFFF', '#C0BBB1', '#E2DED4'],
   ['rest', '–', 0x2013, '#EDEAE2', '#8B8780', '#EDEAE2'],
-  ['today', '●', 0x25cf, '#FFFFFF', '#3E7A32', '#4E8B3A'],
+  ['today', '●', 0x25cf, '#FFFFFF', '#A45F00', '#F6BA50'],
   ['upcoming', '', undefined, 'transparent', 'transparent', 'transparent'],
 ] as const;
 
 const EXPECTED_WEEK_CHIPS = [
-  ['progress', '진행 중', '#FFFFFF', '#3E7A32', '#CBDDB4', 'solid'],
-  ['make', '리포트 만들기', '#FBD24E', '#3A320F', '#EFC02F', 'solid'],
+  ['progress', '진행 중', '#FFFFFF', '#A45F00', '#F1D39A', 'solid'],
+  ['make', '리포트 만들기', '#F6BA50', '#3A320F', '#D98B16', 'solid'],
   ['unread', '확인 필요', '#FDECE9', '#C2402F', '#F5C9C1', 'solid'],
   ['read', '확인 완료', 'transparent', '#9A968E', '#E2DED4', 'solid'],
   ['unavailable', '리포트 오류', '#FDECE9', '#C2402F', '#F5C9C1', 'solid'],
@@ -247,8 +247,8 @@ describe('Home secondary visual prototypes', () => {
         screen.getByTestId('calendar-chip-week-2').props.style,
       ),
     ).toMatchObject({
-      backgroundColor: '#FBD24E',
-      borderColor: '#EFC02F',
+      backgroundColor: '#F6BA50',
+      borderColor: '#D98B16',
       borderStyle: 'solid',
     });
     expect(

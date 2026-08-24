@@ -2,11 +2,15 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { Animated, Platform, StyleSheet } from 'react-native';
+import { Animated, Platform, processColor, StyleSheet } from 'react-native';
 
 import { ADVERSE_REACTION_OPTIONS } from '../src/api/labels';
 import { imageAssets } from '../src/assets';
-import { HOME_GRADIENT, HomeScreen } from '../src/features/home/HomeScreen';
+import { colors } from '../src/components/theme';
+import {
+  HOME_BACKGROUND_COLOR,
+  HomeScreen,
+} from '../src/features/home/HomeScreen';
 import {
   HOME_CHECKIN_OPTIONS,
   formatRoutineItem,
@@ -60,21 +64,18 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.getByTestId('home-routine-state')).toBeOnTheScreen();
   });
 
-  it('uses the original five gradient colors, stops, and direction', () => {
+  it('uses one solid background color without a gradient', () => {
     render(<HomeScreen />);
-    const gradient = screen.getByTestId('home-gradient');
+    const background = screen.getByTestId('home-background');
 
-    expect(HOME_GRADIENT.colors).toEqual([
-      '#8ECB4E',
-      '#A8D66A',
-      '#D8E6B4',
-      '#F2EFE2',
-      '#FAF7F1',
-    ]);
-    expect(gradient.props.colors).toHaveLength(5);
-    expect(gradient.props.locations).toEqual(HOME_GRADIENT.locations);
-    expect(HOME_GRADIENT.start).toEqual({ x: 0.5, y: 0 });
-    expect(HOME_GRADIENT.end).toEqual({ x: 0.5, y: 1 });
+    expect(HOME_BACKGROUND_COLOR).toBe('#FFF8E5');
+    expect(StyleSheet.flatten(background.props.style)).toMatchObject({
+      backgroundColor: '#FFF8E5',
+    });
+    expect(
+      StyleSheet.flatten(screen.getByText('2026.08.11 (화)').props.style),
+    ).toMatchObject({ color: colors.text });
+    expect(screen.queryByTestId('home-gradient')).toBeNull();
   });
 
   it('renders goal-sized progress cells with real shared assets and badges only for completed cells', () => {
@@ -113,8 +114,8 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(
       StyleSheet.flatten(screen.getByTestId('week-day-월').props.style),
     ).toMatchObject({
-      backgroundColor: '#4E8B3A',
-      borderColor: '#4E8B3A',
+      backgroundColor: '#F6BA50',
+      borderColor: '#F6BA50',
     });
     expect(
       StyleSheet.flatten(screen.getByTestId('week-day-수').props.style),
@@ -125,7 +126,7 @@ describe('HomeScreen Home v1 transcription', () => {
     });
     expect(
       StyleSheet.flatten(screen.getByText('월').props.style),
-    ).toMatchObject({ color: '#3E7A32' });
+    ).toMatchObject({ color: '#A45F00' });
     expect(
       StyleSheet.flatten(screen.getByText('수').props.style),
     ).toMatchObject({ color: '#B0ACA4' });
@@ -547,8 +548,8 @@ describe('HomeScreen Home v1 transcription', () => {
       'routine-drop-placeholder-plan-item-2',
     );
     expect(StyleSheet.flatten(middlePlaceholder.props.style)).toMatchObject({
-      backgroundColor: '#EDF5E2',
-      borderColor: '#7FAE5C',
+      backgroundColor: '#FFF3D4',
+      borderColor: '#E0A742',
       borderStyle: 'dashed',
     });
     expect(
@@ -896,12 +897,63 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.getByLabelText('닫기')).toBeOnTheScreen();
   });
 
-  it('renders a compact outline and one unoutlined banana glyph', () => {
+  it('renders a centered filled-gradient check-in CTA without the banana glyph', () => {
     render(<HomeScreen previewState="routine" />);
 
-    expect(screen.getAllByText('오늘 루틴 체크인')).toHaveLength(9);
-    expect(screen.getAllByText('🍌')).toHaveLength(1);
+    const button = screen.getByRole('button', { name: '오늘 루틴 체크인' });
+    const buttonStyle = StyleSheet.flatten(button.props.style);
+    const labelStyle = StyleSheet.flatten(
+      screen.getByText('오늘 루틴 체크인').props.style,
+    );
+    const chevronStyle = StyleSheet.flatten(
+      screen.getByTestId('home-checkin-chevron').props.style,
+    );
+    const gradient = screen.getByTestId('home-checkin-gradient');
+
+    expect(screen.getAllByText('오늘 루틴 체크인')).toHaveLength(1);
+    expect(screen.queryByText('🍌')).toBeNull();
+    expect(buttonStyle).toMatchObject({
+      alignItems: 'center',
+      borderColor: 'rgba(244, 166, 42, 0.8)',
+      borderWidth: expect.any(Number),
+      justifyContent: 'center',
+      position: 'relative',
+      shadowColor: '#AD741D',
+      shadowOpacity: 0.11,
+    });
+    expect(buttonStyle.backgroundColor).toBeUndefined();
+    expect(gradient.props.colors).toEqual(
+      ['#FEE8B1', '#FEDA99', '#FFD790'].map(processColor),
+    );
+    expect(gradient.props.locations).toEqual([0, 0.55, 1]);
+    expect(labelStyle).toMatchObject({
+      color: colors.text,
+      fontWeight: '700',
+      textAlign: 'center',
+    });
+    expect(chevronStyle).toMatchObject({
+      position: 'absolute',
+      right: expect.any(Number),
+    });
     expect(screen.getAllByText('운동 시작하기')).toHaveLength(9);
+
+    fireEvent.press(button);
+    const submitButton = screen.getByRole('button', { name: '체크인 !' });
+    const submitButtonStyle = StyleSheet.flatten(submitButton.props.style);
+    const submitGradient = screen.getByTestId('home-checkin-submit-gradient');
+
+    expect(submitButtonStyle).toMatchObject({
+      borderColor: 'rgba(244, 166, 42, 0.8)',
+      borderWidth: expect.any(Number),
+      shadowColor: '#AD741D',
+      shadowOpacity: 0.11,
+    });
+    expect(submitButtonStyle.backgroundColor).toBeUndefined();
+    expect(submitButtonStyle.borderBottomWidth).toBeUndefined();
+    expect(submitGradient.props.colors).toEqual(
+      ['#FEE8B1', '#FEDA99', '#FFD790'].map(processColor),
+    );
+    expect(submitGradient.props.locations).toEqual([0, 0.55, 1]);
   });
 
   it('keeps source parity with the sixteen original SVG definitions', () => {

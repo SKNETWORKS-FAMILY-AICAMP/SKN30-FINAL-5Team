@@ -601,7 +601,7 @@ const OPTIONAL_CONSENTS = [
 }[];
 
 const shadow = {
-  shadowColor: '#2F5233',
+  shadowColor: '#5A4636',
   shadowOffset: { width: 0, height: 4 },
   shadowOpacity: 0.08,
   shadowRadius: 6,
@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 14,
-    backgroundColor: '#FBF6DF',
+    backgroundColor: '#FFF8E5',
   },
   settingsIcon: {
     color: colors.text,
@@ -669,10 +669,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 32,
-    backgroundColor: '#F1F6E7',
+    backgroundColor: '#FFF8E5',
   },
   avatarText: {
-    color: '#3E7A32',
+    color: '#A45F00',
     fontSize: 22,
     fontWeight: '900',
   },
@@ -701,7 +701,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   editProfileLabel: {
-    color: '#3E7A32',
+    color: '#A45F00',
     fontSize: 12.5,
     fontWeight: '800',
   },
@@ -713,14 +713,14 @@ const styles = StyleSheet.create({
   },
   tag: {
     borderWidth: 1.5,
-    borderColor: '#CBDDB4',
+    borderColor: '#F1D39A',
     borderRadius: 999,
-    backgroundColor: '#F1F6E7',
+    backgroundColor: '#FFF8E5',
     paddingHorizontal: 11,
     paddingVertical: 6,
   },
   tagText: {
-    color: '#3E7A32',
+    color: '#A45F00',
     fontSize: 11.5,
     fontWeight: '800',
   },
@@ -737,7 +737,7 @@ const styles = StyleSheet.create({
   coachCard: {
     marginTop: MY_PAGE_LAYOUT.sectionGap,
     borderRadius: 20,
-    backgroundColor: '#DCEBC4',
+    backgroundColor: '#FFEBC2',
     paddingHorizontal: 14,
     paddingTop: 14,
     paddingBottom: 16,
@@ -755,14 +755,14 @@ const styles = StyleSheet.create({
   },
   coachBadge: {
     borderWidth: 1.5,
-    borderColor: '#CBDDB4',
+    borderColor: '#F1D39A',
     borderRadius: 999,
     backgroundColor: colors.surface,
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
   coachBadgeText: {
-    color: '#3E7A32',
+    color: '#A45F00',
     fontSize: 11,
     fontWeight: '800',
   },
@@ -783,7 +783,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#CBDDB4',
+    borderColor: '#F1D39A',
     borderRadius: 12,
     backgroundColor: colors.surface,
     paddingHorizontal: 4,
@@ -793,12 +793,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   coachOptionText: {
-    color: '#3E7A32',
+    color: '#A45F00',
     fontSize: 12,
     fontWeight: '700',
   },
   coachOptionTextSelected: {
-    color: colors.surface,
+    color: colors.text,
   },
   sectionTitle: {
     marginTop: 16,
@@ -873,7 +873,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 3,
   },
   switchTrackOn: {
-    backgroundColor: '#4E8B3A',
+    backgroundColor: '#F6BA50',
   },
   switchKnob: {
     width: 20,

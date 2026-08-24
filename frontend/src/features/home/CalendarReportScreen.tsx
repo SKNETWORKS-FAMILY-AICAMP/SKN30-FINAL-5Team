@@ -771,7 +771,7 @@ const styles = StyleSheet.create({
     overflow: 'visible',
     borderRadius: 22,
     padding: 14,
-    shadowColor: '#2F5233',
+    shadowColor: '#5A4636',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 6,
@@ -864,7 +864,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: colors.surface,
     padding: 12,
-    shadowColor: '#2F5233',
+    shadowColor: '#5A4636',
     shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 0.2,
     shadowRadius: 15,
@@ -885,9 +885,9 @@ const styles = StyleSheet.create({
     left: 0,
     height: MONTH_PICKER_ITEM_HEIGHT,
     borderWidth: 1.5,
-    borderColor: '#CBDDB4',
+    borderColor: '#F1D39A',
     borderRadius: 10,
-    backgroundColor: '#EFF4E6',
+    backgroundColor: '#FFF8E5',
   },
   pickerColumn: {
     zIndex: 1,
@@ -921,7 +921,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
     borderRadius: 14,
-    backgroundColor: '#FBD24E',
+    backgroundColor: '#F6BA50',
     padding: 13,
   },
   pickerDoneText: {
@@ -949,12 +949,12 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: 'transparent',
     borderRadius: 20,
-    backgroundColor: '#EFF4E6',
+    backgroundColor: '#FFF8E5',
     padding: 10,
   },
   weekBandCurrent: {
-    borderColor: '#7FAE5C',
-    backgroundColor: '#DCEBC4',
+    borderColor: '#E0A742',
+    backgroundColor: '#FFEBC2',
   },
   weekBandUpcoming: {
     borderColor: '#DFDBD2',
@@ -968,7 +968,7 @@ const styles = StyleSheet.create({
     opacity: 1,
   },
   weekBandExpanded: {
-    borderColor: '#7FAE5C',
+    borderColor: '#E0A742',
   },
   weekHeader: {
     padding: 2,
@@ -1081,7 +1081,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   weekStatValue: {
-    color: '#3E7A32',
+    color: '#A45F00',
     fontSize: 15,
     fontWeight: '800',
   },
@@ -1101,18 +1101,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 12,
     borderRadius: 14,
-    backgroundColor: '#4E8B3A',
+    backgroundColor: '#F6BA50',
     padding: 14,
   },
   weekActionSecondary: {
     borderWidth: 1.5,
-    borderColor: '#CBDDB4',
+    borderColor: '#F1D39A',
     backgroundColor: colors.surface,
   },
   weekActionMake: {
     borderBottomWidth: 4,
-    borderBottomColor: '#E0AF25',
-    backgroundColor: '#FBD24E',
+    borderBottomColor: '#D98B16',
+    backgroundColor: '#F6BA50',
   },
   weekActionDisabled: {
     borderWidth: 1.5,
@@ -1121,12 +1121,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   weekActionText: {
-    color: colors.surface,
+    color: colors.text,
     fontSize: 14,
     fontWeight: '800',
   },
   weekActionTextSecondary: {
-    color: '#3E7A32',
+    color: '#A45F00',
   },
   weekActionTextMake: {
     color: colors.text,

@@ -623,7 +623,7 @@ function EmptyRoutineCard({ hasContext }: { hasContext: boolean }) {
 function GeneratingRoutineCard() {
   return (
     <Card style={styles.messageCard}>
-      <ActivityIndicator color="#4E8B3A" size="small" />
+      <ActivityIndicator color="#F6BA50" size="small" />
       <Text style={[styles.messageTitle, styles.loadingTitle]}>
         새로운 루틴을 받고 있어요
       </Text>
@@ -1356,7 +1356,7 @@ const formStyles = StyleSheet.create({
 });
 
 const cardShadow = {
-  shadowColor: '#2F5233',
+  shadowColor: '#5A4636',
   shadowOffset: { width: 0, height: 6 },
   shadowOpacity: 0.1,
   shadowRadius: 9,
@@ -1378,11 +1378,11 @@ const styles = StyleSheet.create({
   },
   backgroundGreen: {
     height: 245,
-    backgroundColor: '#8ECB4E',
+    backgroundColor: '#F6BA50',
   },
   backgroundMist: {
     height: 250,
-    backgroundColor: '#D8E6B4',
+    backgroundColor: '#FFEBC2',
   },
   backgroundCanvas: {
     flex: 1,
@@ -1410,13 +1410,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   greeting: {
-    color: colors.surface,
+    color: colors.text,
     fontSize: 22,
     fontWeight: '800',
     lineHeight: 28,
   },
   greetingName: {
-    color: '#FFD84D',
+    color: '#F6BA50',
   },
   date: {
     marginTop: 6,
@@ -1436,7 +1436,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 14,
-    backgroundColor: '#FBF6DF',
+    backgroundColor: '#FFF8E5',
   },
   notificationIcon: {
     color: colors.text,
@@ -1450,9 +1450,9 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderWidth: 1.5,
-    borderColor: '#FBF6DF',
+    borderColor: '#FFF8E5',
     borderRadius: 4,
-    backgroundColor: '#E65D42',
+    backgroundColor: '#EE875B',
   },
   profileButton: {
     width: 48,
@@ -1462,7 +1462,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: colors.surface,
     borderRadius: 24,
-    backgroundColor: '#FBD24E',
+    backgroundColor: '#F6BA50',
   },
   profileMark: {
     color: '#3E512D',
@@ -1480,7 +1480,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   greenText: {
-    color: '#3E7A32',
+    color: '#A45F00',
   },
   weekRow: {
     flexDirection: 'row',
@@ -1502,7 +1502,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0EEE8',
   },
   weekCircleCompleted: {
-    backgroundColor: '#4E8B3A',
+    backgroundColor: '#F6BA50',
   },
   weekCircleText: {
     color: '#B7B1A7',
@@ -1510,7 +1510,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   weekCircleTextCompleted: {
-    color: colors.surface,
+    color: colors.text,
   },
   weekLabel: {
     color: '#9A968E',
@@ -1518,7 +1518,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   weekLabelCompleted: {
-    color: '#3E7A32',
+    color: '#A45F00',
     fontWeight: '800',
   },
   progressCard: {
@@ -1555,13 +1555,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   calendarIcon: {
-    color: '#4E8B3A',
+    color: '#F6BA50',
     fontSize: 18,
   },
   tip: {
     marginTop: 10,
     borderRadius: 12,
-    backgroundColor: '#F1F6E7',
+    backgroundColor: '#FFF8E5',
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
@@ -1582,7 +1582,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   countValue: {
-    color: '#3E7A32',
+    color: '#A45F00',
     fontSize: 22,
   },
   progressCells: {
@@ -1599,10 +1599,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0EEE8',
   },
   progressCellCompleted: {
-    backgroundColor: '#E3EFCF',
+    backgroundColor: '#FFEBC2',
   },
   progressCellMark: {
-    color: '#4E8B3A',
+    color: '#F6BA50',
     fontSize: 20,
     fontWeight: '800',
   },
@@ -1611,9 +1611,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 18,
-    backgroundColor: '#FBD24E',
+    backgroundColor: '#F6BA50',
     paddingHorizontal: 18,
-    shadowColor: '#A87814',
+    shadowColor: '#D98B16',
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 1,
     shadowRadius: 0,
@@ -1673,12 +1673,12 @@ const styles = StyleSheet.create({
   routineBadge: {
     alignSelf: 'flex-start',
     borderRadius: 999,
-    backgroundColor: '#4E8B3A',
+    backgroundColor: '#F6BA50',
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
   routineBadgeText: {
-    color: colors.surface,
+    color: colors.text,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -1691,7 +1691,7 @@ const styles = StyleSheet.create({
   },
   routineSummary: {
     marginTop: 10,
-    color: '#3E7A32',
+    color: '#A45F00',
     fontSize: 14,
     fontWeight: '700',
   },
@@ -1746,12 +1746,12 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#4E8B3A',
+    backgroundColor: '#F6BA50',
   },
   adjustmentNote: {
     marginTop: 12,
     borderRadius: 12,
-    backgroundColor: '#F1F6E7',
+    backgroundColor: '#FFF8E5',
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
@@ -1764,10 +1764,10 @@ const styles = StyleSheet.create({
     minHeight: 54,
     marginTop: 16,
     borderRadius: 16,
-    backgroundColor: '#4E8B3A',
+    backgroundColor: '#F6BA50',
   },
   startLabel: {
-    color: colors.surface,
+    color: colors.text,
     fontSize: 17,
   },
   routineActions: {
@@ -1780,12 +1780,12 @@ const styles = StyleSheet.create({
     minWidth: 0,
     minHeight: 48,
     flex: 1,
-    borderColor: '#CBDDB4',
+    borderColor: '#F1D39A',
     borderRadius: 16,
     paddingHorizontal: 6,
   },
   routineActionLabel: {
-    color: '#3E7A32',
+    color: '#A45F00',
     fontSize: 12.5,
   },
   bottomBarOuter: {
@@ -1802,7 +1802,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     paddingHorizontal: 6,
     paddingVertical: 10,
-    shadowColor: '#2F5233',
+    shadowColor: '#5A4636',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.07,
     shadowRadius: 7,
@@ -1826,7 +1826,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   tabActive: {
-    color: '#3E7A32',
+    color: '#A45F00',
   },
   sheetOverlay: {
     position: 'absolute',
@@ -1909,8 +1909,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   choiceButtonSelected: {
-    borderColor: '#4E8B3A',
-    backgroundColor: '#4E8B3A',
+    borderColor: '#F6BA50',
+    backgroundColor: '#F6BA50',
   },
   choiceButtonText: {
     color: colors.text,
@@ -1918,7 +1918,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   choiceButtonTextSelected: {
-    color: colors.surface,
+    color: colors.text,
   },
   numberRow: {
     minHeight: 68,
@@ -1971,8 +1971,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 5,
     borderRadius: 18,
-    backgroundColor: '#FBD24E',
-    shadowColor: '#E0AF25',
+    backgroundColor: '#F6BA50',
+    shadowColor: '#D98B16',
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 1,
     shadowRadius: 0,
@@ -2038,6 +2038,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 18,
-    backgroundColor: '#FBD24E',
+    backgroundColor: '#F6BA50',
   },
 });
