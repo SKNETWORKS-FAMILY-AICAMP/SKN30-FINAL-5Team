@@ -152,6 +152,16 @@ class ExerciseRetrievalRequest(BaseModel):
     ) -> tuple[UUID, ...]:
         return _validate_canonical_uuids(value, field_name=info.field_name or "exercise IDs")
 
+    @field_validator("previous_plan_exercise_ids")
+    @classmethod
+    def validate_previous_plan_exercise_ids(
+        cls,
+        values: tuple[UUID, ...],
+    ) -> tuple[UUID, ...]:
+        # Previous-plan order is semantically meaningful, so canonicalization
+        # validates UUIDs and uniqueness without sorting the sequence.
+        return _validate_unique(values, field_name="previous_plan_exercise_ids")
+
     @field_validator("normalized_query_codes")
     @classmethod
     def validate_normalized_query_codes(cls, values: tuple[str, ...]) -> tuple[str, ...]:
@@ -174,6 +184,22 @@ class ExerciseRetrievalRequest(BaseModel):
         if not set(self.mandatory_exercise_ids).issubset(eligible_ids):
             raise ValueError("mandatory_exercise_ids must be a subset of eligible_exercise_ids")
         return self
+
+    def validate_policy(
+        self,
+        *,
+        allowed_query_codes: frozenset[str],
+        requested_limit_max: int,
+    ) -> None:
+        """Apply versioned policy without adding fields to the wire contract."""
+
+        if requested_limit_max <= 0:
+            raise ValueError("requested_limit_max must be positive")
+        if self.requested_limit > requested_limit_max:
+            raise ValueError("requested_limit exceeds the retrieval policy maximum")
+        unknown_codes = set(self.normalized_query_codes) - allowed_query_codes
+        if unknown_codes:
+            raise ValueError("normalized_query_codes contains a non-allowlisted machine code")
 
 
 class ExerciseRetrievalResult(BaseModel):
