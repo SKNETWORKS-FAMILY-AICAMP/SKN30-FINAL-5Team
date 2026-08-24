@@ -10,7 +10,8 @@
 
 ADR-0013의 V3 persistence는 승인된 목표의 additive 논리 계약이다. 승인된 migration 전에는 물리
 schema나 구현 완료로 간주하지 않으며 V1/V2 row와 현재 관계를 파괴적으로 변경하지 않는다.
-ADR-0014의 Qdrant retrieval persistence는 `PROPOSED`이며 별도 승인 전 migration 대상이 아니다.
+ADR-0014의 Qdrant retrieval persistence는 `ACCEPTED` 목표 계약이다. 아래 논리 모델은 별도 migration과
+repository 구현이 병합되기 전까지 물리 schema나 구현 완료로 간주하지 않는다.
 
 ADR-0012는 conflict와 조건부 Round 2 review를 별도 기록하는 additive V2 논리 모델을 승인된
 목표로 정의한다. 후속 persistence task의 Alembic migration이 병합되기 전에는 아래 9.2.1을 물리
@@ -411,7 +412,7 @@ backup restore 직후 사용자 접근 차단과 동일 삭제 policy 재적용�
 동일한 `version_code`와 동일한 `source_manifest_hash` 재적재는 멱등 처리하고, 동일
 `version_code`에 다른 hash가 들어오면 fail-closed한다.
 
-### 5.1.1 [ADR-0014 PROPOSED] vector_index_registry
+### 5.1.1 [ADR-0014 ACCEPTED 목표] vector_index_registry
 
 Qdrant collection을 PostgreSQL catalog와 연결하는 재구축 가능한 derived-index registry다.
 
@@ -1272,7 +1273,7 @@ application loader가 방식 A로 사전 조회한 승인 운동 snapshot이다.
 mandatory ID는 `exercise_payload`의 부분집합이어야 한다. user ID, 자유 체크인, 통증 부위·점수,
 원시 건강·웨어러블 값은 pool에 포함하지 않는다. `created_at`은 `pool_hash` 입력에서 제외한다.
 
-### 9.2.3.1 [ADR-0014 PROPOSED] decision_exercise_retrievals
+### 9.2.3.1 [ADR-0014 ACCEPTED 목표] decision_exercise_retrievals
 
 Vector 호출과 PostgreSQL 재검증/fallback을 Qdrant 재호출 없이 replay하기 위한 immutable record다.
 
@@ -1761,11 +1762,11 @@ decision_runs
 decision root [ADR-0013 V3 목표]
   ├─ 1:1 decision_constraint_envelopes
   │           └─ 1:1 decision_exercise_pools
-  │                       └─ 1:1 decision_exercise_retrievals [ADR-0014 PROPOSED]
+  │                       └─ 1:1 decision_exercise_retrievals [ADR-0014 ACCEPTED 목표]
   └─ 1:1..3 decision_runs (original + 최대 2 regeneration)
 
 catalog_versions
-  └─ 1:N vector_index_registry [ADR-0014 PROPOSED]
+  └─ 1:N vector_index_registry [ADR-0014 ACCEPTED 목표]
 ~~~
 
 위 `1:4 agent_proposals`와 `1:4 agent_review_events`는 V1/V2 관계다. V3 run은 각각 세 전문 Agent

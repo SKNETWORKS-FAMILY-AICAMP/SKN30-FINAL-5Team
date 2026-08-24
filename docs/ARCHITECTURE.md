@@ -12,8 +12,8 @@ V2 목표를 채택한다. A2 기준 구현과 필수 검증이 병합되기 전
 
 ADR-0013은 Safety를 결정적 정책 엔진으로 선행하고 Training·Recovery·Feasibility와 Coordinator를
 LLM Agent로 전환하며 LangChain·LangGraph를 도입하는 V3 목표 계약으로 `ACCEPTED`되었다. 구현·비교
-검증과 production 전환 승인 전에는 아래 V1/V2 production 기준을 대체하지 않는다. ADR-0014는
-ExercisePool의 Qdrant retrieval 세부 계약을 `PROPOSED` 상태로 추가한다.
+검증과 production 전환 승인 전에는 아래 V1/V2 production 기준을 대체하지 않는다. `ACCEPTED`
+ADR-0014는 ExercisePool의 Qdrant retrieval 세부 목표 계약을 추가한다.
 
 ```mermaid
 flowchart LR
@@ -146,7 +146,7 @@ flowchart TD
 - SafetyPolicyEngine, constraint builder, conflict detector, compiler와 validator는 framework와
   provider에 독립적인 Python/Pydantic domain core다.
 - application loader가 PostgreSQL에서 승인된 eligible/mandatory 운동 ID를 결정적으로 먼저 계산한다.
-  ADR-0014 승인 시 별도 Qdrant derived index는 eligible 범위 안의 순위·다양성만 정하고, 결과를 같은
+  ADR-0014에 따라 별도 Qdrant derived index는 eligible 범위 안의 순위·다양성만 정하고, 결과를 같은
   catalog version의 PostgreSQL에서 다시 조회·검증한 뒤 canonical `ExercisePoolSnapshot`을 고정한다.
 - 필수 목표 운동과 승인 안전 대체는 Vector 결과와 무관하게 보존한다. Qdrant 장애·stale/version
   mismatch는 결정적 pool fallback으로 처리하며 Safety 결과를 바꾸지 않는다.
@@ -257,7 +257,7 @@ flowchart LR
 - V3 목표는 ConstraintEnvelope, ExercisePoolSnapshot, 세 LLM proposal, model/prompt/output schema
   version, conflict/review, Coordinator initial/repair attempt, compiler/validator 결과와 regeneration
   lineage를 분리 저장한다.
-- ADR-0014 승인 시 V3 목표는 catalog, collection, vector index, embedding model, query, retrieval
+- ADR-0014에 따라 V3 목표는 catalog, collection, vector index, embedding model, query, retrieval
   request/result와 deterministic fallback version을 PostgreSQL에 함께 저장한다. Qdrant는 canonical
   decision 기록이 아니다.
 - LangGraph runtime state나 checkpoint를 canonical decision 기록으로 사용하지 않는다.

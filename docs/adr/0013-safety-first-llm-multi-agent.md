@@ -6,7 +6,7 @@
 - 승인자: 개발팀장 + 백엔드 owner + PM + 외부 도메인 검수자 + 프론트엔드 owner(API)
 - 관계: ADR-0007의 네 proposal·결정적 Coordinator 구조와 ADR-0012의 narration-only·LangGraph
   보류 결정을 V3 목표 계약에서 대체하고, ADR-0011의 안전 문구·provider adapter 경계는 유지.
-  PROPOSED ADR-0014는 `ExercisePoolSnapshot` 생성의 Vector retrieval 세부 계약을 추가 제안
+  ACCEPTED ADR-0014는 `ExercisePoolSnapshot` 생성의 Vector retrieval 세부 계약을 추가
 - 관련 요구사항/이슈: `F002`, `F029`, `POL-008`, `NFR-003`, `NFR-006`, `TASK-AGENT-003`
 
 ## 배경
@@ -38,7 +38,7 @@ Coordinator다. ADR-0012는 결정적 conflict detection과 한 번의 구조화
 3. 결정적 constraint builder가 Safety 결과, 요청 시간, 목표, 장소·장비, recovery 정책과 version을
    `ConstraintEnvelope`로 고정한다.
 4. application loader는 동일 catalog version에서 production-approved 운동을 방식 A로 사전 조회하고
-   canonical `ExercisePoolSnapshot`과 hash를 만든다. ADR-0014가 승인되면 이 단계는 PostgreSQL의
+   canonical `ExercisePoolSnapshot`과 hash를 만든다. ADR-0014에 따라 이 단계는 PostgreSQL의
    결정적 eligible/mandatory 계산, Qdrant 순위화, PostgreSQL 재검증 순서로 구체화된다.
 5. Training·Recovery·Feasibility 세 LLM Agent가 동일한 envelope와 pool을 받아 병렬 proposal을
    만든다.
