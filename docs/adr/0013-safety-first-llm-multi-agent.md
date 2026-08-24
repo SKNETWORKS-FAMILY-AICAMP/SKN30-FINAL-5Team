@@ -1,6 +1,6 @@
 # ADR-0013: Safety-first LangGraph LLM 멀티에이전트 루틴 합성
 
-- 상태: PROPOSED
+- 상태: ACCEPTED
 - 날짜: 2026-08-24
 - 소유자: AI/data lead
 - 승인자: 개발팀장 + 백엔드 owner + PM + 외부 도메인 검수자 + 프론트엔드 owner(API)
@@ -135,7 +135,6 @@ exact duplicate 금지 및 variation code를 자동으로 넣는다. 사용자�
 의미 있는 차이는 다음 중 하나 이상이다.
 
 - 핵심 운동 하나 이상 변경
-- 운동 순서의 실질적 변경
 - 승인 범위 안의 세트·반복 구조 변경
 - 루틴 구성 방식 변경
 
