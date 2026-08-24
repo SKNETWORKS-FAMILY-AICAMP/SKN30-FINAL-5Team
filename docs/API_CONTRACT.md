@@ -10,9 +10,10 @@
 
 멀티 에이전트 핵심 흐름은 [ADR-0007](adr/0007-multi-agent-structure-correction.md)에 따라 네 proposal 병렬 실행과 Coordinator 최종 결정으로 확정한다. ADR-0002의 이전 독립 안전 게이트 구조는 대체되었다. proposal·Coordinator·공개 회의 요약의 상세 스키마와 설명 필드는 증상 사용자 시나리오 검증 결과에 따라 추후 보완할 수 있다. 결정적 안전 veto, 요청 시간 보존, 실패 안전과 운동 블록 체크 기반 상태 판정은 확정 계약이다.
 
-[ADR-0013](adr/0013-safety-first-llm-multi-agent.md)은 Safety-first LLM 멀티에이전트 V3와
-재생성 API를 `PROPOSED` additive 계약으로 정의한다. 승인·구현 전에는 아래 기존 endpoint와 응답을
-바꾸지 않으며 V3 필드는 optional이다.
+[ADR-0013](adr/0013-safety-first-llm-multi-agent.md)은 Safety-first LLM 멀티에이전트 V3 목표 계약으로
+`ACCEPTED`되었다. 구현·비교 검증과 production 전환 승인 전에는 아래 기존 endpoint와 응답을 바꾸지
+않으며 V3 필드는 optional이다. [ADR-0014](adr/0014-qdrant-exercise-pool-vector-retrieval.md)는 내부
+ExercisePool retrieval 계약의 `PROPOSED` 초안이며 Qdrant metadata를 public API에 노출하지 않는다.
 
 ---
 
@@ -273,39 +274,17 @@ DOWNWARD
 
 ---
 
-### 5.10 불편 부위 노출 범위
+### 5.10 온보딩 통증 부위 노출 범위
 
-코드 집합의 원본은 DOMAIN_RULES 3.2다. 코드는 13개로 유지하고 클라이언트 노출만 좁힌다.
-코드를 줄이면 이미 승인된 안전 규칙을 재매핑해야 하기 때문이다.
+코드 집합의 원본은 DOMAIN_RULES 3.2다. 신규 온보딩 UI는 통증 있음/없음을 먼저 묻고, 있음이면
+`NECK`, `LOWER_BACK`, `SHOULDER`를 기본 노출한다. `OTHER`는 저장 가능한 body area가 아니라 나머지
+실제 `body_area_code` 목록을 여는 UI control이다. 기타 목록에서는 `OTHER`를 제외한 실제 code를
+복수 선택하고 각 code의 점수 1..10을 입력한다.
 
-노출 범위는 승인된 규칙 분포를 근거로 정한다. 괄호 안은
-`exercise-safety-rules-mvp-v0.3.0` 기준 규칙 수다.
-
-**기본 노출**
-
-~~~text
-WRIST_HAND (53)   LOWER_BACK (48)   SHOULDER (41)   ELBOW (41)
-KNEE (38)         UPPER_BACK (36)   HIP (33)        ANKLE_FOOT (24)
-~~~
-
-**확장 시 노출**
-
-~~~text
-NECK (18)   ABDOMEN (15)   CHEST (7)
-~~~
-
-**노출하지 않음**
-
-~~~text
-GENERALIZED (0)   OTHER (0)
-~~~
-
-`GENERALIZED`와 `OTHER`는 현재 DOMAIN_APPROVED 규칙이 없다. 사용자가 선택하면
-DOMAIN_RULES 4.3.1의 fail-closed 경로로 빠져 계획이 반환되지 않는다. 규칙이 추가되기 전까지
-노출하지 않는다.
-
-노출 목록 변경은 안전 커버리지 변경이다. 서버는 13개 코드를 모두 계속 수용하므로 목록을
-넓히는 변경에 서버 수정이 필요하지 않다.
+서버의 기존 body area code 집합과 기존 데이터는 삭제·재매핑하지 않는다. `GENERALIZED`처럼 승인된
+안전 규칙이 없는 code가 입력되면 DOMAIN_RULES 4.3.1의 fail-closed 경계를 유지한다. 기본/기타 노출
+변경과 1..10 severity 매핑은 안전 커버리지 변경이므로 개발팀장·PM·외부 도메인 승인 전 UI와
+production validation을 활성화하지 않는다.
 
 ---
 
@@ -571,7 +550,7 @@ ManualActivityResponse
 | GET | /api/v1/daily-contexts/{local_date} | 당일 체크인 조회 |
 | POST | /api/v1/decisions | 현재 컨텍스트로 결정 실행 |
 | GET | /api/v1/decisions/{decision_id} | 저장된 결정 조회 |
-| POST | /api/v1/decisions/{decision_id}/regenerations | [V3 PROPOSED] 추가 입력 없이 다른 루틴 재생성 |
+| POST | /api/v1/decisions/{decision_id}/regenerations | [V3 목표, 미구현] 추가 입력 없이 다른 루틴 재생성 |
 | POST | /api/v1/decisions/{decision_id}/selection | 서버가 허용한 옵션 선택 |
 
 ### 6.5 운동 세션
@@ -690,6 +669,42 @@ ManualActivityResponse
 DB 컬럼은 nullable로 유지한다. 필수화는 요청 스키마 계층에서만 적용한다. 온보딩 이전에 생성된
 행이 남아 있을 수 있고, 신체 값에 임의 기본값을 채우는 것은 건강 데이터로서 허용되지 않기
 때문이다. 저장된 값이 모두 채워진 것이 확인된 뒤에야 컬럼 제약 변경을 별도로 검토한다.
+
+#### 7.1.1 온보딩 통증 V2 목표 계약과 호환 전략
+
+후속 additive rollout의 신규 request shape는 다음 필드를 사용한다. 이번 0단계에서는 현재 OpenAPI,
+Pydantic schema와 물리 DB를 변경하지 않는다.
+
+~~~text
+PainAreaInput
+- body_area_code: string
+- intensity_score: integer  # 1..10
+
+OnboardingPainInput
+- pain_present: boolean
+- pain_areas: PainAreaInput[]
+~~~
+
+검증:
+
+- `pain_present=false`이면 `pain_areas`는 빈 목록이어야 한다.
+- `pain_present=true`이면 `pain_areas`는 한 개 이상이어야 한다.
+- 같은 `body_area_code`를 두 번 보낼 수 없다.
+- `OTHER`는 UI control이므로 직접 저장·전송할 수 없다.
+- 선택된 모든 부위에 1..10의 정수 `intensity_score`가 필수다.
+- `pain-intensity-map-v1`은 1..3=`MILD`, 4..6=`MODERATE`, 7..10=`SEVERE`로 변환한다. 원점수와
+  policy version을 함께 보존하며 승인 전 production에 적용하지 않는다.
+
+호환 rollout은 다음 순서를 지킨다.
+
+1. 현재 `attention_area_codes`를 즉시 삭제하거나 의미를 바꾸지 않는다.
+2. 후속 API/schema 단계에서 신규 pain pair를 additive하게 받고 legacy `attention_area_codes`와
+   동시 전송은 `400 INVALID_REQUEST`로 거부해 모호한 병합을 막는다.
+3. legacy 요청은 기존 `user_attention_areas` 의미로 계속 저장하고 intensity를 추정·backfill하지 않는다.
+4. 신규 client가 전환된 뒤 legacy field를 deprecated로 문서화하고 사용량·호환 테스트·프론트/백엔드
+   owner 승인을 거쳐 별도 release에서 제거를 검토한다.
+
+통증 부위와 점수는 LLM 또는 Qdrant vector, payload, embedding input/query에 포함하지 않는다.
 
 ### 7.2 OnboardingResponse
 
@@ -1401,7 +1416,7 @@ KEEP, DOWNSHIFT, CHANGE, RECOVERY에서는 `FINAL_ROUTINE` option을 정확히 �
 - 마스코트 애니메이션 키를 반환하지 않음
 - 증상 원인이나 질환명을 반환하지 않음
 
-### 10.6 [V3 PROPOSED] 사용자 수동 루틴 재생성
+### 10.6 [V3 목표, 미구현] 사용자 수동 루틴 재생성
 
 ~~~http
 POST /api/v1/decisions/{decision_id}/regenerations
@@ -1656,14 +1671,11 @@ LOW_MOTIVATION
 
 ### 12.6 운동 후 피드백
 
+신규 공개 입력의 목표 계약은 한 필드만 사용한다.
+
 ~~~json
 {
-  "difficulty_code": "APPROPRIATE",
-  "fatigue_code": "MODERATE",
-  "satisfaction_code": "SATISFIED",
-  "pain_occurred": false,
-  "discomforts": [],
-  "adverse_reaction_codes": []
+  "difficulty_code": "APPROPRIATE"
 }
 ~~~
 
@@ -1675,12 +1687,20 @@ APPROPRIATE
 HARD
 ~~~
 
-`fatigue_code`와 `satisfaction_code`는 선택형 사후 설문 값이며 후보 코드와 세부 척도는 개발 전 확정한다. 설문은 운동 수행 상태를 대체하거나 변경하지 않는다. 미수행 세션은 리포트 생성 전에 `/not-completed`의 `reason_code`를 먼저 저장해야 한다.
+표시 문구는 `EASY=쉬웠어요`, `APPROPRIATE=적당했어요`, `HARD=어려워요`를 유지한다. 피드백은 종료
+상태의 세션에 한 번만 저장하고 공식 수행 상태를 변경하지 않는다. 미수행 세션은 리포트 생성 전에
+`/not-completed`의 `reason_code`를 먼저 저장해야 한다.
 
-후보 코드가 확정되기 전에는 두 필드를 선택적 대문자 machine code로만 저장하며,
-공식 상태 계산이나 다음 결정 규칙에는 사용하지 않는다. 피드백은 종료 상태의 세션에 한 번만 저장한다.
+현재 구현의 `fatigue_code`, `satisfaction_code`, `pain_occurred`, `discomforts`,
+`adverse_reaction_codes`는 즉시 삭제하지 않는다. 후속 호환 단계에서 다음 순서로 전환한다.
 
-피드백에 긴급 중단 그룹이 있으면 다음 추천까지 기다리지 않고 동일한 안전 guidance를 반환한다.
+1. 기존 request를 계속 수용하고 기존 row/column과 read response를 보존한다.
+2. 위 legacy field를 optional+deprecated로 바꿔 신규 client의 difficulty-only request를 허용한다.
+3. legacy 값을 보낸 요청은 기존 의미로 저장하되 누락값을 추정하거나 `pain_occurred=false`로 채우지 않는다.
+4. 신규 통증·이상 반응 입력은 유지되는 `/safety-events` API를 사용한다. feedback endpoint가 Safety
+   Event를 대신 만들거나 안전 결과를 재분류하지 않는다.
+5. 사용량·compatibility test와 프론트/백엔드 owner 승인 후 별도 migration/release에서 legacy write
+   종료와 nullable/삭제를 검토한다. historical read와 주간 집계는 version으로 보존한다.
 
 웨어러블 또는 외부 운동 API는 공식 세션 상태를 생성하거나 변경할 수 없다. 캘린더의 수행 여부 확인 결과도 공식 세션 상태를 생성하거나 변경할 수 없다.
 
@@ -1844,6 +1864,12 @@ UUID `Idempotency-Key` header가 필수다. 서로 다른 키를 사용하더라
 `negotiation_success_rate`는 `DOWNSHIFT | CHANGE | RECOVERY`로 선택된 세션 중 하나 이상의
 계획 블록을 완료한 `COMPLETED | PARTIAL` 비율이고 대상 세션이 없으면 null이다. 이 공식 상태와
 비율에는 타이머·경과 시간·웨어러블·캘린더·추가 활동을 사용하지 않는다.
+
+내부 집계의 `pain_report_count`는 신규 aggregate version부터 해당 주에 discomfort가 기록된 distinct
+workout safety-event session 수를 사용한다. 한 session의 여러 event/부위는 한 번만 센다. legacy
+`workout_feedback.pain_occurred=true`는 safety event가 없는 historical session에 한해 호환 집계하고
+중복하지 않는다. onboarding pain과 daily context는 이 지표의 원천이 아니다. 이 내부 집계값을 public
+response에 새로 노출하는 변경은 별도 API 승인 없이는 수행하지 않는다.
 
 ### 13.2 리포트 조회
 

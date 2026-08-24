@@ -38,7 +38,7 @@
 | 정책·비기능 POL-001~013, NFR-001~006 | 14 | 5 | 0 | 0 |
 | 확장 기능 F012~F023 | 0 | 0 | 0 | 12 |
 
-POL-009~013은 2026-08-11 사용자 명시 승인과 `ACCEPTED` ADR-0004에 따라 계약 기준으로 적용한다. POL-011의 삭제 상태·provider 실패·30일 restore tombstone 상세 계약은 `ACCEPTED` ADR-0008을 따른다. F011의 Google Calendar 계약은 `ACCEPTED` ADR-0010에 있지만, PR #96에서 실제 연동을 보류했으므로 구현 상태는 `DEFERRED`다. F010의 provider-neutral 경계는 ADR-0009에 있으나 실제 server-side Google·Kakao·Naver exchange adapter/API가 없어 `PARTIAL`이다. 멀티 에이전트 production 구조는 `ACCEPTED` ADR-0007을 기준으로 한다. ADR-0012와 TASK-AGENT-002는 2라운드 구조화 상호검토 V2의 승인된 목표 계약이지만 구현 전에는 F002·F029 완료 증거에 포함하지 않는다. ADR-0013과 TASK-AGENT-003은 Safety-first LangChain/LangGraph LLM 멀티에이전트 V3의 `PROPOSED` 계약이며 승인·구현·shadow 평가 전에는 기존 상태를 올리거나 완료 증거로 사용하지 않는다.
+POL-009~013은 2026-08-11 사용자 명시 승인과 `ACCEPTED` ADR-0004에 따라 계약 기준으로 적용한다. POL-011의 삭제 상태·provider 실패·30일 restore tombstone 상세 계약은 `ACCEPTED` ADR-0008을 따른다. F011의 Google Calendar 계약은 `ACCEPTED` ADR-0010에 있지만, PR #96에서 실제 연동을 보류했으므로 구현 상태는 `DEFERRED`다. F010의 provider-neutral 경계는 ADR-0009에 있으나 실제 server-side Google·Kakao·Naver exchange adapter/API가 없어 `PARTIAL`이다. 멀티 에이전트 production 구조는 `ACCEPTED` ADR-0007을 기준으로 한다. ADR-0012와 TASK-AGENT-002는 2라운드 구조화 상호검토 V2의 승인된 목표 계약이지만 구현 전에는 F002·F029 완료 증거에 포함하지 않는다. ADR-0013과 TASK-AGENT-003은 Safety-first LangChain/LangGraph LLM 멀티에이전트 V3의 `ACCEPTED` 목표 계약이지만 구현·shadow 평가와 production 전환 전에는 기존 상태를 올리거나 완료 증거로 사용하지 않는다. Qdrant retrieval ADR-0014는 `PROPOSED`다.
 
 ### 3.1 MVP 기능 구현 증거
 
@@ -85,7 +85,7 @@ POL-009~013은 2026-08-11 사용자 명시 승인과 `ACCEPTED` ADR-0004에 따�
 | 요구사항 | WBS 연결 | 계약·문서 | 인수조건 | 테스트 | 상태 |
 |---|---|---|---|---|---|
 | F001 | 1.2, 1.3, 4.1, 5.1 | MVP_SCOPE·PROJECT_BRIEF | AC-F001-01 | TC-F001-01 | `IMPLEMENTED` |
-| F002 | 2.4, 2.7, 3.2, 3.3, 3.5, 4.5, 4.7, 5.2, 5.3 | MVP_SCOPE·PROJECT_BRIEF·ARCHITECTURE·DOMAIN_RULES·API_CONTRACT·DATA_MODEL·TECHNICAL_PLAN·IMPLEMENTATION_PLAN·TEST_STRATEGY·ADR-0007·ADR-0012·ADR-0013(PROPOSED) | AC-F002-1-1~1-60 | TC-F002-1-1~1-60 | `PARTIAL` |
+| F002 | 2.4, 2.7, 3.2, 3.3, 3.5, 4.5, 4.7, 5.2, 5.3 | MVP_SCOPE·PROJECT_BRIEF·ARCHITECTURE·DOMAIN_RULES·API_CONTRACT·DATA_MODEL·TECHNICAL_PLAN·IMPLEMENTATION_PLAN·TEST_STRATEGY·ADR-0007·ADR-0012·ADR-0013(ACCEPTED 목표)·ADR-0014(PROPOSED) | AC-F002-1-1~1-60 | TC-F002-1-1~1-60 | `PARTIAL` |
 | F003 | 2.1, 2.2, 2.3, 2.8, 4.10, 4.11, 5.2 | MVP_SCOPE·API_CONTRACT·DATA_MODEL·ADR-0006 | AC-F003-01 | TC-F003-01 | `DEFERRED` |
 | F004 | 2.4, 2.7, 2.8, 3.3, 4.8, 4.10, 4.11, 5.2 | MVP_SCOPE·API_CONTRACT·DATA_MODEL·ADR-0006 | AC-F004-01 | TC-F004-01 | `MVP_EXCLUDED` |
 | F005 | 2.4, 3.5, 4.9, 4.11, 5.2 | MVP_SCOPE·DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-F005-01 | TC-F005-01 | `IMPLEMENTED` |
@@ -99,7 +99,7 @@ POL-009~013은 2026-08-11 사용자 명시 승인과 `ACCEPTED` ADR-0004에 따�
 | F026 | 3.2, 3.3, 3.5, 4.5, 4.11, 5.2 | MVP_SCOPE·DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-F026-01 | TC-F026-01 | `IMPLEMENTED` |
 | F027 | 3.5, 4.5, 4.7, 4.11, 5.2 | MVP_SCOPE·API_CONTRACT·DATA_MODEL | AC-F027-01 | TC-F027-01 | `IMPLEMENTED` |
 | F028 | 보완-01, 4.7, 4.11, 5.2, 5.3 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-F028-01 | TC-F028-01 | `IMPLEMENTED` |
-| F029 | 3.5, 4.6, 5.2 | MVP_SCOPE·API_CONTRACT·DATA_MODEL·TEST_STRATEGY·ADR-0007·ADR-0013(PROPOSED) | AC-F029-1-1~1-15 | TC-F029-1-1~1-15 | `IMPLEMENTED` |
+| F029 | 3.5, 4.6, 5.2 | MVP_SCOPE·API_CONTRACT·DATA_MODEL·TEST_STRATEGY·ADR-0007·ADR-0013(ACCEPTED 목표) | AC-F029-1-1~1-15 | TC-F029-1-1~1-15 | `IMPLEMENTED` |
 | POL-001 | 3.5, 4.9, 5.2 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-POL001-01 | TC-POL001-01 | `IMPLEMENTED` |
 | POL-002 | 4.9, 4.11, 5.2 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-POL002-01 | TC-POL002-01 | `IMPLEMENTED` |
 | POL-003 | 3.5, 4.9, 4.11, 5.2 | DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-POL003-01 | TC-POL003-01 | `IMPLEMENTED` |
@@ -152,12 +152,15 @@ F012~F023은 요구사항 정의서상 MVP 이후 확장 기능이다. 각 ID는
 - A2 이후 F002의 후속 AC/TC는 Round 1 proposal, canonical conflict, 영향 Agent의
   Round 2 review, constraint 단조성, Coordinator 결과와 additive persistence를 각각 추적한다.
   TASK-AGENT-002 A1은 승인된 계약 동결 작업일 뿐 기존 구현 상태를 `IMPLEMENTED`로 올리지 않는다.
-- ADR-0013 V3가 승인되면 F002 후속 AC/TC는 결정적 SafetyPolicyEngine·ConstraintEnvelope,
+- ACCEPTED ADR-0013 V3 목표의 F002 후속 AC/TC는 결정적 SafetyPolicyEngine·ConstraintEnvelope,
   ExercisePoolSnapshot, 세 LLM proposal, LangGraph routing, conflict/review, LLM Coordinator,
   Plan Compiler·integrity validator, deterministic fallback과 provider-free replay를 각각 추적한다.
+- PROPOSED ADR-0014가 승인되면 F002 후속 AC/TC는 PostgreSQL eligible/mandatory filter, Qdrant ranking,
+  PostgreSQL 재검증, mandatory 보존, Vector failure fallback과 catalog/collection/index/embedding replay를
+  추가 추적한다.
 - V3 재생성은 F002 후속 AC/TC로 root/parent lineage, 최대 두 번, idempotency, stale context,
   exact duplicate 거부와 meaningful difference를 추적한다. 신규 API·DB·frontend 구현 전에는
-  `PARTIAL` 또는 proposed 상태이며 기존 F029 `IMPLEMENTED` 증거를 V3 UI 완료로 해석하지 않는다.
+  `PARTIAL` 또는 미구현 목표 상태이며 기존 F029 `IMPLEMENTED` 증거를 V3 UI 완료로 해석하지 않는다.
 - V3의 `SAFETY` 공개 요약은 historical API 호환 projection일 수 있지만 내부 Agent proposal이 아니다.
   SafetyPolicyEngine record와 세 Agent proposal을 별도로 추적한다.
 
