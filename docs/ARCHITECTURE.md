@@ -11,8 +11,9 @@ V2 목표를 채택한다. A2 기준 구현과 필수 검증이 병합되기 전
 현재 단일 proposal 흐름이며, ADR 승인을 V2 구현 완료로 간주하지 않는다.
 
 ADR-0013은 Safety를 결정적 정책 엔진으로 선행하고 Training·Recovery·Feasibility와 Coordinator를
-LLM Agent로 전환하며 LangChain·LangGraph를 도입하는 V3를 `PROPOSED` 상태로 정의한다. 필수 승인과
-구현·비교 검증 전에는 아래 V1/V2 production 기준을 대체하지 않는다.
+LLM Agent로 전환하며 LangChain·LangGraph를 도입하는 V3 목표 계약으로 `ACCEPTED`되었다. 구현·비교
+검증과 production 전환 승인 전에는 아래 V1/V2 production 기준을 대체하지 않는다. ADR-0014는
+ExercisePool의 Qdrant retrieval 세부 계약을 `PROPOSED` 상태로 추가한다.
 
 ```mermaid
 flowchart LR
@@ -110,16 +111,22 @@ flowchart TD
 - 미해결 충돌에서 모든 hard constraint를 만족하는 후보가 없으면 계획을 반환하지 않는다.
 - integrity validator는 기존 Safety 의견 보존을 검사할 뿐 독립적인 FinalSafetyGate가 아니다.
 
-### 4.2 제안된 V3 목표 — Safety-first LLM Agent orchestration
+### 4.2 승인된 V3 목표 — Safety-first LLM Agent orchestration
 
 ```mermaid
 flowchart TD
   A["Application loader: 최소 입력 snapshot"] --> S["Deterministic SafetyPolicyEngine"]
   S -->|"생성 금지"| X["REST / STOP_AND_SEEK_HELP / NEEDS_INPUT / FAILED"]
-  S --> E["ConstraintEnvelope + ExercisePoolSnapshot"]
-  E --> T["LangChain Training LLM Agent"]
-  E --> R["LangChain Recovery LLM Agent"]
-  E --> F["LangChain Feasibility LLM Agent"]
+  S --> E["ConstraintEnvelope"]
+  E --> PF["PostgreSQL deterministic eligible/mandatory filter"]
+  PF --> Q["Qdrant ranking within eligible IDs"]
+  Q --> PV["PostgreSQL canonical revalidation"]
+  PV --> EP["ExercisePoolSnapshot"]
+  Q -. "장애/version mismatch" .-> DF["Deterministic pool fallback"]
+  DF --> PV
+  EP --> T["LangChain Training LLM Agent"]
+  EP --> R["LangChain Recovery LLM Agent"]
+  EP --> F["LangChain Feasibility LLM Agent"]
   T --> C["Deterministic conflict detector"]
   R --> C
   F --> C
@@ -138,15 +145,19 @@ flowchart TD
   담당한다.
 - SafetyPolicyEngine, constraint builder, conflict detector, compiler와 validator는 framework와
   provider에 독립적인 Python/Pydantic domain core다.
-- application loader가 DB에서 승인 운동을 사전 조회해 canonical `ExercisePoolSnapshot`을 고정한다.
-  Agent와 Coordinator는 DB·repository·ORM·raw SQL Tool을 갖지 않는다.
+- application loader가 PostgreSQL에서 승인된 eligible/mandatory 운동 ID를 결정적으로 먼저 계산한다.
+  ADR-0014 승인 시 별도 Qdrant derived index는 eligible 범위 안의 순위·다양성만 정하고, 결과를 같은
+  catalog version의 PostgreSQL에서 다시 조회·검증한 뒤 canonical `ExercisePoolSnapshot`을 고정한다.
+- 필수 목표 운동과 승인 안전 대체는 Vector 결과와 무관하게 보존한다. Qdrant 장애·stale/version
+  mismatch는 결정적 pool fallback으로 처리하며 Safety 결과를 바꾸지 않는다.
+- Agent와 Coordinator는 DB·repository·ORM·raw SQL·Qdrant Tool을 갖지 않는다.
 - 최종 validator는 안전 규칙을 다시 해석하지 않고 실제 compiled plan이 확정 envelope를 준수하는지만
   검사한다.
 - persistent LangGraph checkpointer는 V3 첫 구현에 포함하지 않는다. PostgreSQL decision record가
   canonical source of truth다.
 
-V3는 승인 전 목표 구조다. 승인되면 V1/V2 historical 실행과 response는 보존하고 새 `graph_version`
-에서만 활성화한다.
+V3는 승인된 목표 구조지만 아직 미구현이다. V1/V2 historical 실행과 response를 보존하고 구현·검증
+후 별도 production 전환 승인으로 새 `graph_version`에서만 활성화한다.
 
 ## 5. 에이전트 책임
 
@@ -246,6 +257,9 @@ flowchart LR
 - V3 목표는 ConstraintEnvelope, ExercisePoolSnapshot, 세 LLM proposal, model/prompt/output schema
   version, conflict/review, Coordinator initial/repair attempt, compiler/validator 결과와 regeneration
   lineage를 분리 저장한다.
+- ADR-0014 승인 시 V3 목표는 catalog, collection, vector index, embedding model, query, retrieval
+  request/result와 deterministic fallback version을 PostgreSQL에 함께 저장한다. Qdrant는 canonical
+  decision 기록이 아니다.
 - LangGraph runtime state나 checkpoint를 canonical decision 기록으로 사용하지 않는다.
 - 성공 응답 전에 해당 결정 기록이 원자적으로 저장돼야 한다.
 - 주간 리포트는 닫힌 주의 불변 집계 스냅샷과 생성 정책 버전을 저장한다.

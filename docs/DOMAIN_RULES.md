@@ -12,8 +12,10 @@ ADR-0012의 2라운드 구조화 상호검토는 승인된 V2 목표다. A2 기�
 전에는 아래 현재 계약을 production 기준으로 유지하며, 8.1을 구현 완료나 새 안전 정책 승인으로
 해석하지 않는다.
 
-ADR-0013의 Safety-first LLM 멀티에이전트 V3는 `PROPOSED` 목표다. 8.2와 9.1은 승인·구현 전까지
-현재 V1/V2의 네 proposal, 결정적 Coordinator와 narration-only LLM 경계를 바꾸지 않는다.
+ADR-0013의 Safety-first LLM 멀티에이전트 V3 목표 계약은 `ACCEPTED`다. 8.2와 9.1은 구현·비교
+검증과 production 전환 승인 전까지 현재 V1/V2의 네 proposal, 결정적 Coordinator와
+narration-only LLM production 경계를 바꾸지 않는다. Qdrant 세부 계약은 ADR-0014가
+`PROPOSED`이며 승인 전 구현 계약이 아니다.
 
 규칙의 적용 우선순위는 다음과 같다.
 
@@ -86,7 +88,10 @@ GENERALIZED
 OTHER
 ~~~
 
-한 체크인 또는 피드백에서 여러 부위를 선택할 수 있다.
+한 체크인 또는 안전 이벤트에서 여러 부위를 선택할 수 있다. `OTHER`는 온보딩 저장값이 아니다.
+온보딩 UI에서 기본 노출되지 않은 실제 `body_area_code` 목록을 여는 control code로만 사용하고,
+사용자가 고른 각 실제 code를 저장한다. Qdrant payload/vector/embedding query에는 어떤 통증 부위도
+포함하지 않는다.
 
 이 코드 집합은 안정적이며 화면 노출 범위와 분리한다. 클라이언트가 선택지를 줄이더라도 코드
 자체를 줄이지 않는다. 다만 **사용자가 고를 수 없는 부위는 해당 규칙이 발동하지 않는다.** 노출
@@ -102,6 +107,38 @@ OTHER
 | 3 | SEVERE | 운동하기 어려움 | 운동 계획 제공 중단, 휴식·확인 안내 |
 
 이 값은 의료적 통증 척도로 해석하지 않는다.
+
+### 3.3.1 온보딩 통증 입력과 점수 변환
+
+신규 온보딩 계약은 `pain_present`와 `PainAreaInput[] pain_areas`를 사용한다.
+
+```text
+PainAreaInput
+- body_area_code
+- intensity_score: integer 1..10
+```
+
+검증은 결정적이다.
+
+- `pain_present=false`이면 `pain_areas=[]`여야 한다.
+- `pain_present=true`이면 `pain_areas`가 한 개 이상이어야 한다.
+- `body_area_code`는 중복할 수 없고 `OTHER`를 직접 저장할 수 없다.
+- 선택한 모든 부위에는 1..10의 정수 `intensity_score`가 필수다.
+- UI는 `NECK`, `LOWER_BACK`, `SHOULDER`를 기본 노출한다. `OTHER` control을 누르면 `OTHER`를
+  제외한 나머지 실제 body area code를 복수 선택할 수 있다.
+
+결정 정책 `pain-intensity-map-v1`은 점수를 기존 severity로 다음과 같이 변환한다.
+
+| intensity_score | severity_code |
+|---:|---|
+| 1..3 | `MILD` |
+| 4..6 | `MODERATE` |
+| 7..10 | `SEVERE` |
+
+원점수와 변환된 code, `pain-intensity-map-v1`을 함께 보존해 재현한다. 이 구간은 안전·통증 정책
+변경이므로 개발팀장, PM과 외부 도메인 검수 승인 전 production에서 활성화하지 않는다. 승인 전에는
+기존 `attention_area_codes` 계약과 기존 severity 입력 경로를 유지하며 점수를 추정하거나 backfill하지
+않는다.
 
 ### 3.4 이상 반응 코드
 
@@ -483,7 +520,7 @@ service는 검수 catalog, 목표·루틴 policy, Recovery ceiling, Safety rule�
 장소·장비 호환성의 정규화·버전화된 결과를 immutable request로 조립한다. Tool 장애가 필수 판단을
 막으면 고정 failure code로 fail-closed하며 예외 원문이나 사용자 원문을 복사하지 않는다.
 
-### 8.2 제안된 V3 Safety-first LLM Agent 계약
+### 8.2 승인된 V3 Safety-first LLM Agent 목표 계약
 
 V3는 Safety를 LLM Agent로 실행하지 않는다. 결정적 `SafetyPolicyEngine`이 Agent 호출 전에 다음을
 포함한 immutable `ConstraintEnvelope`를 만든다.
@@ -496,10 +533,18 @@ V3는 Safety를 LLM Agent로 실행하지 않는다. 결정적 `SafetyPolicyEngi
 - 장소·장비와 실행 가능 hard constraint
 - input, policy, safety, duration, catalog schema/version/hash
 
-application loader는 같은 catalog version에서 production-approved 운동을 방식 A로 사전 조회해
-canonical `ExercisePoolSnapshot`을 만든다. 각 항목은 exercise ID, goal/location/equipment tag,
-검수 처방 범위와 content version만 포함한다. Agent와 Coordinator는 DB·repository·ORM·raw SQL을
-직접 호출하지 않는다.
+application loader는 같은 catalog version의 PostgreSQL에서 production-approved 운동을 결정적으로
+필터링해 eligible/mandatory ID를 먼저 만든다. ADR-0014가 승인되면 `ExerciseRetriever`가 별도 Qdrant
+derived index에서 eligible 범위 안의 순위·다양성만 계산하고, application loader가 결과를
+PostgreSQL에서 다시 조회·검증해 canonical `ExercisePoolSnapshot`을 만든다. 필수 목표 운동과 승인된
+안전 대체는 Vector 결과와 무관하게 보존한다. 각 항목은 exercise ID, goal/location/equipment tag,
+검수 처방 범위와 content version만 포함한다. Agent와 Coordinator는 DB·repository·ORM·raw SQL·
+Qdrant를 직접 호출하지 않는다.
+
+Qdrant unavailable/not-ready/timeout, stale result와 catalog/index/embedding version mismatch에서는
+결과를 폐기하고 같은 envelope를 만족하는 결정적 후보 생성으로 fallback한다. fallback도 PostgreSQL
+재검증과 mandatory 보존을 통과해야 한다. Vector 장애는 Safety veto를 완화하거나 새 안전 실패를
+만들지 않는다.
 
 Round 1 LLM Agent는 `TRAINING`, `RECOVERY`, `FEASIBILITY` 세 개다. 동일 envelope와 pool을 받아
 LangGraph에서 병렬 실행하고 LangChain/Pydantic structured output만 반환한다. Training은 pool 안에서
@@ -562,15 +607,17 @@ application log, 날짜, 자유 체크인, hidden reasoning, graph checkpoint를
 safety status가 `PASS/REVISE`가 아니거나 최종 action이 `REST/STOP_AND_SEEK_HELP`이거나 Safety
 veto가 있는 결과는 LLM을 호출하지 않고 검수 템플릿을 사용한다.
 
-### 9.1 제안된 V3 LLM 경계
+### 9.1 승인된 V3 목표 LLM 경계
 
-ADR-0013이 승인되면 LLM은 세 전문 proposal, conflict에 영향받은 Agent의 한 번 review, Coordinator
+V3가 구현·검증되어 production 전환되면 LLM은 세 전문 proposal, conflict에 영향받은 Agent의 한 번 review, Coordinator
 initial/repair와 일반 narration에 참여할 수 있다. SafetyPolicyEngine, constraint builder, conflict
 detector, Plan Compiler, integrity validator와 fallback policy는 LLM을 호출하지 않는다.
 
 Agent input은 직접 식별자를 제거한 input snapshot, ConstraintEnvelope, ExercisePoolSnapshot,
 machine code와 최소 normalized summary로 제한한다. 날짜, 자유 체크인, raw 건강·웨어러블·캘린더 값,
 application log, prompt 원문, hidden reasoning, provider 예외 원문을 전달·저장하지 않는다.
+통증 부위와 `intensity_score`/severity는 Qdrant vector, payload, embedding input/query에도 포함하지
+않는다.
 
 structured output validation 또는 required Agent가 최종 실패하면 부분 proposal로 계속하지 않는다.
 결정적 fallback을 사용하고 같은 envelope를 검증하거나 계획 없는 상태로 종료한다. LLM fresh inference의
@@ -617,6 +664,12 @@ PLANNED -> IN_PROGRESS -> COMPLETED
 검수된 동적 재구성 정책이 없으므로 진행 중 계획을 자동 변경하지 않는다. COMPLETED, PARTIAL,
 NOT_COMPLETED, STOPPED_FOR_SAFETY로 종료된 세션의 블록과 상태는 변경할 수 없다.
 
+운동 후 신규 공개 feedback은 `difficulty_code=EASY|APPROPRIATE|HARD` 하나만 받는다. 표시 문구는
+각각 `쉬웠어요`, `적당했어요`, `어려워요`다. 운동 후 통증·이상 반응 수집을 feedback에 중복하지
+않고 운동 중 Safety Event API를 유지한다. 기존 fatigue/satisfaction/pain/discomfort/adverse 필드는
+호환 기간 동안만 읽기·legacy write를 지원하고 새 client는 보내지 않는다. 기존 값을 삭제하거나
+통증 없음으로 재해석하지 않는다.
+
 ## 11. 주간 주기와 리포트 게이트
 
 - 주간 범위는 사용자 timezone의 월요일 00:00부터 일요일 23:59:59까지다.
@@ -640,6 +693,11 @@ NOT_COMPLETED, STOPPED_FOR_SAFETY로 종료된 세션의 블록과 상태는 변
 - `NOT_COMPLETED`는 `NOT_COMPLETED` 학습 신호로만 전달하고 penalty 또는 감점 필드를 허용하지 않는다.
 - 원시 체크인, 원시 건강 기록, 원시 웨어러블 샘플, 캘린더 본문과 직접 식별자는 집계 스냅샷에 복제하지 않는다.
 - 집계 schema version과 report policy version을 함께 고정한다. 같은 불변 집계와 같은 policy version은 같은 domain 판정을 만든다.
+- 신규 `pain_report_count`의 canonical 원천은 해당 주의 `workout_safety_event_discomforts`가 존재하는
+  distinct workout session 수다. 동일 세션의 여러 event/부위는 한 번만 센다. 호환 기간의 legacy
+  `workout_feedback.pain_occurred=true`는 safety event가 없는 historical session에 한해 한 번 포함하고
+  중복 집계하지 않는다. onboarding pain과 daily check-in은 주간 운동 중 통증 보고 수에 포함하지
+  않는다. 집계 전환은 새 aggregate schema/report policy version으로 구분한다.
 
 ### 11.2 다음 계획 revision과 finalize 정책
 
@@ -690,11 +748,17 @@ NOT_COMPLETED, STOPPED_FOR_SAFETY로 종료된 세션의 블록과 상태는 변
 | DB 저장 실패 | 재현할 수 없는 계획을 클라이언트에 반환하지 않음 |
 | 중복 mutation | Idempotency-Key의 기존 결과 반환 |
 | 오래된 체크인 버전 | STALE_CONTEXT 오류 |
+| Qdrant unavailable/not-ready/version mismatch/timeout/stale 결과 | 결과 폐기, PostgreSQL 결정적 pool fallback |
 
 V3에서는 `LLM 장애`를 narration과 decision Agent로 구분한다. narration 장애는 템플릿을 사용한다.
 필수 decision Agent·Coordinator provider 장애는 부분 LLM 결과를 버리고 검증된 결정적 fallback을
 사용하며, fallback이 없으면 `FAILED`다. SafetyPolicyEngine이 이미 `REST` 또는
 `STOP_AND_SEEK_HELP`를 확정한 경우 provider를 호출하지 않고 그 결과를 유지한다.
+
+Vector retrieval 원인 code는 `VECTOR_INDEX_UNAVAILABLE`, `VECTOR_INDEX_NOT_READY`,
+`VECTOR_INDEX_VERSION_MISMATCH`, `VECTOR_SEARCH_TIMEOUT`, `VECTOR_RESULT_STALE`,
+`VECTOR_RESULT_NOT_CANONICAL`, `VECTOR_RESULT_INSUFFICIENT`다. 결정적 pool을 실제 사용하면 원인과
+별도로 `DETERMINISTIC_POOL_FALLBACK_USED`를 저장한다.
 
 ---
 

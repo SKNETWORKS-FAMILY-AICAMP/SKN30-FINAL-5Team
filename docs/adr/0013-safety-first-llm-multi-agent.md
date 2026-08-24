@@ -4,8 +4,9 @@
 - 날짜: 2026-08-24
 - 소유자: AI/data lead
 - 승인자: 개발팀장 + 백엔드 owner + PM + 외부 도메인 검수자 + 프론트엔드 owner(API)
-- 관계: 승인 시 ADR-0007의 네 proposal·결정적 Coordinator 구조와 ADR-0012의 narration-only·
-  LangGraph 보류 결정을 대체하고, ADR-0011의 안전 문구·provider adapter 경계는 유지
+- 관계: ADR-0007의 네 proposal·결정적 Coordinator 구조와 ADR-0012의 narration-only·LangGraph
+  보류 결정을 V3 목표 계약에서 대체하고, ADR-0011의 안전 문구·provider adapter 경계는 유지.
+  PROPOSED ADR-0014는 `ExercisePoolSnapshot` 생성의 Vector retrieval 세부 계약을 추가 제안
 - 관련 요구사항/이슈: `F002`, `F029`, `POL-008`, `NFR-003`, `NFR-006`, `TASK-AGENT-003`
 
 ## 배경
@@ -25,7 +26,8 @@ Coordinator다. ADR-0012는 결정적 conflict detection과 한 번의 구조화
 
 ## 결정
 
-이 ADR은 승인·구현 전까지 production 기준을 바꾸지 않는 V3 목표 계약이다.
+이 ADR은 승인된 V3 목표 계약이다. 별도 구현·migration·shadow 검증과 production 전환 승인이
+완료되기 전까지 현재 production 기준은 바뀌지 않는다.
 
 ### 1. Safety-first 실행 순서
 
@@ -36,7 +38,8 @@ Coordinator다. ADR-0012는 결정적 conflict detection과 한 번의 구조화
 3. 결정적 constraint builder가 Safety 결과, 요청 시간, 목표, 장소·장비, recovery 정책과 version을
    `ConstraintEnvelope`로 고정한다.
 4. application loader는 동일 catalog version에서 production-approved 운동을 방식 A로 사전 조회하고
-   canonical `ExercisePoolSnapshot`과 hash를 만든다.
+   canonical `ExercisePoolSnapshot`과 hash를 만든다. ADR-0014가 승인되면 이 단계는 PostgreSQL의
+   결정적 eligible/mandatory 계산, Qdrant 순위화, PostgreSQL 재검증 순서로 구체화된다.
 5. Training·Recovery·Feasibility 세 LLM Agent가 동일한 envelope와 pool을 받아 병렬 proposal을
    만든다.
 6. 결정적 conflict detector가 proposal 상호 간 및 envelope 위반을 canonical code로 만든다.
@@ -195,7 +198,7 @@ hidden reasoning과 prompt 원문은 저장하지 않는다. 공개 가능 summa
 
 ## 결과와 영향
 
-- 승인 시 SafetyAgent proposal은 V3에서 제거되고 결정적 SafetyPolicyEngine record로 대체된다.
+- V3가 production 전환되면 SafetyAgent proposal은 제거되고 결정적 SafetyPolicyEngine record로 대체된다.
 - 전문 Agent 수는 세 개이며 Coordinator는 별도 LLM Agent다.
 - LLM failure가 더 이상 항상 동일 plan을 뜻하지 않으며 결정적 fallback 사용 여부가 decision 결과에
   포함된다. Safety·시간·목표 hard constraint는 fallback에서도 동일하다.
@@ -225,7 +228,7 @@ hidden reasoning과 prompt 원문은 저장하지 않는다. 공개 가능 summa
 
 ## 후속 작업
 
-1. 필수 reviewer가 ADR-0013과 안전·API·DB 계약을 검토한다.
+1. ADR-0013 승인 증적을 관련 계약 문서와 task 상태에 반영한다.
 2. LangChain structured Agent와 pure domain contract를 구현한다.
 3. LangGraph orchestration을 persistent checkpointer 없이 구현한다.
 4. additive persistence와 migration, rollback/forward-fix를 구현한다.

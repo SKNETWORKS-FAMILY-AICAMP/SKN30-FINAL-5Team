@@ -9,8 +9,9 @@
 ADR-0012의 2라운드 구조화 상호검토는 승인된 V2 목표지만 아직 production 테스트 기준이 아니다.
 A2/A3는 현재 V1 golden을 보존하면서 아래 V2 계약 suite를 별도로 통과해야 한다.
 
-ADR-0013의 Safety-first LLM 멀티에이전트 V3는 `PROPOSED`이며 별도 V3 suite와 shadow 비교가
-production 전환 게이트다. V3 계약 테스트가 현재 V1/V2 통과 증거를 대체하지 않는다.
+ADR-0013의 Safety-first LLM 멀티에이전트 V3 목표 계약은 `ACCEPTED`이며 별도 V3 suite와 shadow
+비교가 production 전환 게이트다. ADR-0014 Qdrant retrieval은 `PROPOSED`다. V3 계약 테스트가 현재
+V1/V2 통과 증거를 대체하지 않는다.
 
 ## 2. 계층
 
@@ -119,6 +120,21 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 82. [V3] 재생성 exact duplicate와 설명·UUID·미미한 시간만 다른 plan은 거부함
 83. [V3] 재생성 성공 1·2회는 허용하고 세 번째는 `REGENERATION_LIMIT_REACHED`이며 idempotent함
 84. [V3] stale envelope·pool 또는 version mismatch는 `REGENERATION_CONTEXT_STALE`이고 LLM을 호출하지 않음
+85. [V3/Vector] Safety veto·REST·STOP_AND_SEEK_HELP에서는 Qdrant 호출이 0회임
+86. [V3/Vector] PostgreSQL eligible allowlist 밖 Qdrant ID와 stale/non-canonical row는 제거되고
+    `VECTOR_RESULT_NOT_CANONICAL` 또는 `VECTOR_RESULT_STALE`을 기록함
+87. [V3/Vector] mandatory 목표 운동과 승인 안전 대체는 Vector top-k 누락에도 snapshot에 보존됨
+88. [V3/Vector] unavailable/not-ready/timeout/index-version mismatch는 같은 envelope의 deterministic
+    pool fallback과 stable hash를 만들거나 안전한 pool이 없으면 계획 없이 종료함
+89. [V3/Vector] stored retrieval request/result와 catalog/collection/index/embedding/graph/prompt/model
+    version으로 Qdrant/provider 재호출 없이 replay함
+90. [Onboarding pain] false/empty, true/non-empty, 부위 중복 금지, `OTHER` 저장 금지와 모든 1..10 점수
+    필수를 검증함
+91. [Onboarding pain] `pain-intensity-map-v1` 경계 1/3/4/6/7/10과 policy version 저장을 검증함
+92. [Feedback] 신규 difficulty-only와 legacy request 양쪽을 호환 기간에 수용하고 historical field를
+    삭제·false backfill하지 않음
+93. [Weekly pain] safety-event distinct session을 집계하고 legacy feedback과 중복하지 않으며 onboarding/
+    daily pain은 `pain_report_count`에 포함하지 않음
 
 ## 4. 속성·불변식 테스트
 
@@ -194,6 +210,11 @@ ADR-0013 V3의 필수 속성·불변식:
 - stored envelope·pool·proposal·review·Coordinator output·compiler/validation과 version으로 provider
   재호출 없이 같은 final result를 replay한다.
 - LangGraph persistent checkpoint와 외부 trace 전송은 초기 V3에서 발생하지 않는다.
+- PostgreSQL이 eligible/mandatory ID를 먼저 계산하고 Qdrant는 eligible 범위의 순위·다양성만 결정한다.
+- Qdrant 결과는 같은 catalog version의 PostgreSQL 재검증 뒤에만 snapshot에 들어간다.
+- mandatory 목표 운동과 승인 안전 대체는 Vector 결과와 무관하게 보존된다.
+- Agent와 Coordinator dependency graph에는 repository/Qdrant port나 client가 없다.
+- 통증 부위·점수, 직접 식별자와 raw health/wearable 값은 vector/payload/embedding query/log에 없다.
 
 안전 상태와 API 결과의 매핑은 다음과 같다.
 
@@ -303,11 +324,16 @@ separator)의 SHA-256이다. 집합 의미의 context reference 순서는 hash�
 `NEEDS_INPUT`/`DECISION_FAILED` HTTP 매핑은 backend 소유 integration suite에서 같은 골든
 fixture를 사용해 추가 검증해야 한다.
 
-### 5.3.1 [V3 PROPOSED] LLM graph replay와 regeneration 계약
+### 5.3.1 [V3 목표] LLM graph, Vector retrieval replay와 regeneration 계약
 
 V3 replay fixture는 input, ConstraintEnvelope, ExercisePoolSnapshot, 세 structured proposal, conflict,
 review, Coordinator initial/repair output, compiled plan, validation result와 모든 version/hash를 분리한다.
 replay는 provider를 mock으로도 호출하지 않고 저장된 structured output에서 final result를 복원한다.
+
+ADR-0014 fixture는 eligible/mandatory ID, retrieval request/result, collection/index/embedding/query version,
+Qdrant ranked ID·score, PostgreSQL revalidation, fallback code/version과 pool hash를 분리한다. privacy
+fixture는 통증 부위·점수, user identifier와 raw health/wearable 값이 vector/payload/query/log에 없는지
+allowlist로 검증한다.
 
 fresh LLM inference의 byte-identical 결과는 재현성 기준이 아니다. 대신 schema/pool/constraint 위반율,
 deterministic fallback율, expert agreement, safety invariant 100%, p50/p95 latency와 decision당 비용을
@@ -394,6 +420,7 @@ secret-manager adapter를 검증한다.
 - backend API/integration with PostgreSQL
 - safety golden/fallback/reproducibility
 - [V3] LangChain structured output, LangGraph routing, privacy payload, replay와 regeneration contract
+- [V3/Vector] Qdrant adapter contract, PostgreSQL revalidation, deterministic fallback와 privacy/replay
 - frontend format/lint/type/component/build
 - migration up/down 또는 forward-fix validation
 

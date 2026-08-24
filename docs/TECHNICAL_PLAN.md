@@ -10,9 +10,10 @@ ADR-0012는 결정적 conflict detection과 조건부 Round 2 review를 추가�
 A2 기준 구현과 필수 검증이 병합되기 전까지 아래 확정 기술과 production 동작은 현재 V1을
 기준으로 한다.
 
-ADR-0013은 LangChain structured LLM Agent와 LangGraph orchestration을 사용하는 V3를
-`PROPOSED` 상태로 정의한다. 필수 승인·dependency 검토·shadow 평가 전에는 확정 production 기술로
-간주하지 않는다.
+ADR-0013은 LangChain structured LLM Agent와 LangGraph orchestration을 사용하는 V3 목표 계약으로
+`ACCEPTED`되었다. dependency 검토·구현·shadow 평가와 production 전환 승인 전에는 현재 production
+기술로 간주하지 않는다. ADR-0014의 Qdrant ExercisePool retrieval은 `PROPOSED`이며 승인 전 dependency나
+adapter를 추가하지 않는다.
 
 ## 2. 확정 기술
 
@@ -54,12 +55,13 @@ Python package manager는 기반 구현에서 `uv`로 결정하고 `uv.lock`을 
 - Kubernetes
 - agent별 microservice
 - LangGraph production runtime/checkpointer. V2 기준 구현과 측정 후 별도 ADR 없이는 추가하지 않는다.
-- vector database와 RAG
+- vector database와 RAG. 단, ADR-0014의 Qdrant derived index는 승인 후 V3 ExercisePool ranking에만
+  도입할 수 있음
 - 별도 object storage
 
 필요성이 실제 요구사항과 측정으로 확인되면 ADR을 거쳐 추가한다.
 
-ADR-0013 승인 시 위 LangGraph 제외는 V1/V2에만 적용된다. V3는 runtime을 도입하되 persistent
+ADR-0013에 따라 위 LangGraph 제외는 V1/V2에만 적용된다. V3는 구현 단계에서 runtime을 도입하되 persistent
 checkpointer, 장기 memory, LangSmith SaaS 전송은 별도 승인 없이는 포함하지 않는다.
 
 ## 4. 목표 저장소 구조
@@ -200,21 +202,25 @@ repository/integration -------|
 - evidence references
 - policy version
 
-### 6.1 제안된 V3 기술 계약
+### 6.1 승인된 V3 목표 기술 계약
 
 V3 typed graph state의 최소 필드는 다음이다.
 
 - minimized input snapshot/hash와 freshness metadata
 - `ConstraintEnvelope`와 schema/version/hash
 - `ExercisePoolSnapshot`과 catalog version/hash
+- deterministic eligible/mandatory exercise ID, `ExerciseRetrievalRequest/Result`, collection/index/
+  embedding/query/fallback version과 retrieval failure code
 - generation mode, regeneration root/sequence와 이전 plan signature
 - 세 Round 1 proposal과 invocation metadata
 - conflict code, review target와 optional revised proposal
 - Coordinator initial/repair output와 attempt
 - compiled plan, integrity validation result와 fallback metadata
 
-LangGraph node 구성은 `load_context -> safety_constraints -> build_exercise_pool -> parallel_agents ->
-detect_conflicts -> optional_reviews -> coordinator -> compile -> validate -> persist`다. validate의
+LangGraph node 구성은 `load_context -> safety_constraints -> deterministic_pool_filter ->
+vector_rank -> postgres_revalidate -> build_exercise_pool -> parallel_agents -> detect_conflicts ->
+optional_reviews -> coordinator -> compile -> validate -> persist`다. Qdrant 장애·stale/version mismatch는
+`vector_rank`에서 deterministic pool fallback으로 `postgres_revalidate`에 합류한다. validate의
 repairable edge는 Coordinator로 한 번만 돌아가며 non-repairable edge는 fallback 또는 계획 없는 종료로
 간다. regeneration은 저장된 snapshot·envelope·pool의 freshness를 확인한 뒤 `parallel_agents` 앞에서
 새 invocation을 시작한다.
@@ -223,8 +229,9 @@ LangChain Agent는 Pydantic `response_format`을 사용하며 domain schema vali
 한다. provider-native schema가 있더라도 exercise pool membership, constraint monotonicity, exact
 duration과 meaningful regeneration difference는 domain validator가 검사한다.
 
-application loader와 persistence node만 repository port를 호출한다. 초기 V3의 Agent와 Coordinator는
-DB/catalog Tool을 갖지 않고 동일한 사전 조회 `ExercisePoolSnapshot`을 사용한다. Coordinator에는
+application loader/retrieval adapter와 persistence node만 PostgreSQL/Qdrant port를 호출한다. 초기 V3의
+Agent와 Coordinator는 DB/catalog/Qdrant Tool을 갖지 않고 동일한 사전 조회
+`ExercisePoolSnapshot`을 사용한다. Coordinator에는
 필요할 경우 duration estimate나 constraint precheck 같은 순수 결정적 Tool만 허용한다.
 
 LangGraph state는 canonical persistence가 아니다. 성공 응답 전에 PostgreSQL에 envelope, pool,
