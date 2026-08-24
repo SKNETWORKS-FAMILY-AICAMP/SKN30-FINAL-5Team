@@ -10,6 +10,10 @@ ADR-0012는 결정적 conflict detection과 조건부 Round 2 review를 추가�
 A2 기준 구현과 필수 검증이 병합되기 전까지 아래 확정 기술과 production 동작은 현재 V1을
 기준으로 한다.
 
+ADR-0013은 LangChain structured LLM Agent와 LangGraph orchestration을 사용하는 V3를
+`PROPOSED` 상태로 정의한다. 필수 승인·dependency 검토·shadow 평가 전에는 확정 production 기술로
+간주하지 않는다.
+
 ## 2. 확정 기술
 
 | 영역 | 선택 |
@@ -20,6 +24,10 @@ A2 기준 구현과 필수 검증이 병합되기 전까지 아래 확정 기술
 | 인증 | Firebase Authentication과 provider adapter |
 | 테스트 | pytest 계열, 프론트 도구는 초기화 PR에서 확정 |
 | 배포 | FastAPI 단일 배포 단위 + 관리형 PostgreSQL + 모바일 빌드 |
+
+V3 제안 기술은 Python/Pydantic domain core를 유지하면서 LangChain 1.x 계열과 LangGraph 1.x 계열을
+추가하는 것이다. 정확한 package patch와 provider integration은 구현 PR에서 `uv lock`과 호환성
+테스트로 고정한다.
 
 Python package manager는 기반 구현에서 `uv`로 결정하고 `uv.lock`을 커밋한다. CI 기준 Python은 3.12, PostgreSQL은 16이다. 실제 배포 환경의 지원 minor와 upgrade 정책은 배포 provider를 정할 때 확정한다. Node package manager는 프론트엔드 초기화 PR에서 결정한다.
 
@@ -50,6 +58,9 @@ Python package manager는 기반 구현에서 `uv`로 결정하고 `uv.lock`을 
 - 별도 object storage
 
 필요성이 실제 요구사항과 측정으로 확인되면 ADR을 거쳐 추가한다.
+
+ADR-0013 승인 시 위 LangGraph 제외는 V1/V2에만 적용된다. V3는 runtime을 도입하되 persistent
+checkpointer, 장기 memory, LangSmith SaaS 전송은 별도 승인 없이는 포함하지 않는다.
 
 ## 4. 목표 저장소 구조
 
@@ -188,6 +199,39 @@ repository/integration -------|
 - reason codes
 - evidence references
 - policy version
+
+### 6.1 제안된 V3 기술 계약
+
+V3 typed graph state의 최소 필드는 다음이다.
+
+- minimized input snapshot/hash와 freshness metadata
+- `ConstraintEnvelope`와 schema/version/hash
+- `ExercisePoolSnapshot`과 catalog version/hash
+- generation mode, regeneration root/sequence와 이전 plan signature
+- 세 Round 1 proposal과 invocation metadata
+- conflict code, review target와 optional revised proposal
+- Coordinator initial/repair output와 attempt
+- compiled plan, integrity validation result와 fallback metadata
+
+LangGraph node 구성은 `load_context -> safety_constraints -> build_exercise_pool -> parallel_agents ->
+detect_conflicts -> optional_reviews -> coordinator -> compile -> validate -> persist`다. validate의
+repairable edge는 Coordinator로 한 번만 돌아가며 non-repairable edge는 fallback 또는 계획 없는 종료로
+간다. regeneration은 저장된 snapshot·envelope·pool의 freshness를 확인한 뒤 `parallel_agents` 앞에서
+새 invocation을 시작한다.
+
+LangChain Agent는 Pydantic `response_format`을 사용하며 domain schema validation을 별도로 통과해야
+한다. provider-native schema가 있더라도 exercise pool membership, constraint monotonicity, exact
+duration과 meaningful regeneration difference는 domain validator가 검사한다.
+
+application loader와 persistence node만 repository port를 호출한다. 초기 V3의 Agent와 Coordinator는
+DB/catalog Tool을 갖지 않고 동일한 사전 조회 `ExercisePoolSnapshot`을 사용한다. Coordinator에는
+필요할 경우 duration estimate나 constraint precheck 같은 순수 결정적 Tool만 허용한다.
+
+LangGraph state는 canonical persistence가 아니다. 성공 응답 전에 PostgreSQL에 envelope, pool,
+proposal, review, coordination, compile/validation과 final option을 원자적으로 저장한다. persistent
+checkpointer와 외부 trace 전송은 보존·삭제·암호화 계약이 승인될 때까지 사용하지 않는다.
+
+### 6.2 현재 V1/V2 Agent 책임
 
 Agent별 책임:
 

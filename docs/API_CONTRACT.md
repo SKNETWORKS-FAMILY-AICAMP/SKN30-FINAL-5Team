@@ -10,6 +10,10 @@
 
 멀티 에이전트 핵심 흐름은 [ADR-0007](adr/0007-multi-agent-structure-correction.md)에 따라 네 proposal 병렬 실행과 Coordinator 최종 결정으로 확정한다. ADR-0002의 이전 독립 안전 게이트 구조는 대체되었다. proposal·Coordinator·공개 회의 요약의 상세 스키마와 설명 필드는 증상 사용자 시나리오 검증 결과에 따라 추후 보완할 수 있다. 결정적 안전 veto, 요청 시간 보존, 실패 안전과 운동 블록 체크 기반 상태 판정은 확정 계약이다.
 
+[ADR-0013](adr/0013-safety-first-llm-multi-agent.md)은 Safety-first LLM 멀티에이전트 V3와
+재생성 API를 `PROPOSED` additive 계약으로 정의한다. 승인·구현 전에는 아래 기존 endpoint와 응답을
+바꾸지 않으며 V3 필드는 optional이다.
+
 ---
 
 ## 2. 공통 원칙
@@ -567,6 +571,7 @@ ManualActivityResponse
 | GET | /api/v1/daily-contexts/{local_date} | 당일 체크인 조회 |
 | POST | /api/v1/decisions | 현재 컨텍스트로 결정 실행 |
 | GET | /api/v1/decisions/{decision_id} | 저장된 결정 조회 |
+| POST | /api/v1/decisions/{decision_id}/regenerations | [V3 PROPOSED] 추가 입력 없이 다른 루틴 재생성 |
 | POST | /api/v1/decisions/{decision_id}/selection | 서버가 허용한 옵션 선택 |
 
 ### 6.5 운동 세션
@@ -1289,6 +1294,12 @@ DecisionResponse
 - guidance: Guidance | null
 - public_agent_summaries: AgentSummary[] | null
 - safety_summary: SafetySummary | null
+- generation_mode_code: ORIGINAL | REGENERATED | null  # V3 additive optional
+- decision_engine_code: DETERMINISTIC | LLM_MULTI_AGENT | DETERMINISTIC_FALLBACK | null
+- root_decision_id: UUID | null  # V3 lineage, 원본에서는 self 또는 null
+- parent_decision_id: UUID | null
+- regeneration_sequence: integer | null  # 원본 0, 성공 재생성 1..2
+- meaningful_difference_codes: string[] | null
 - created_at: datetime
 
 DecisionOption
@@ -1389,6 +1400,56 @@ KEEP, DOWNSHIFT, CHANGE, RECOVERY에서는 `FINAL_ROUTINE` option을 정확히 �
 - tone_code는 SERIOUS
 - 마스코트 애니메이션 키를 반환하지 않음
 - 증상 원인이나 질환명을 반환하지 않음
+
+### 10.6 [V3 PROPOSED] 사용자 수동 루틴 재생성
+
+~~~http
+POST /api/v1/decisions/{decision_id}/regenerations
+Idempotency-Key: uuid
+Content-Type: application/json
+~~~
+
+~~~json
+{
+  "expected_plan_id": "uuid",
+  "expected_regeneration_sequence": 0
+}
+~~~
+
+사용자는 상태, 사유 또는 `different` 자유 문구를 다시 입력하지 않는다. 서버는 소유권이 확인된 기존
+decision에서 최소 input snapshot, `ConstraintEnvelope`, `ExercisePoolSnapshot`, 이전 plan signature와
+lineage를 읽어 내부 `RegenerationContext`를 만든다. body의 plan과 sequence는 stale client가 다른
+루틴을 기준으로 재생성하지 않게 하는 optimistic concurrency 값이다.
+
+일반 성공은 새 `decision_id`를 가진 `DecisionResponse`와 HTTP 201이다. 새 run은
+`generation_mode_code=REGENERATED`, 같은 `root_decision_id`, 직전 결과의 `parent_decision_id`, 증가한
+`regeneration_sequence`를 가진다. 기존 decision을 덮어쓰지 않는다.
+
+V3 graph는 Coordinator만 다시 호출하지 않고 Training·Recovery·Feasibility 세 Agent부터 실행한다.
+이전 plan과 정확히 같은 결과는 금지하며 다음 중 하나 이상을 만족해야 한다.
+
+- `CORE_EXERCISE_CHANGED`: 핵심 운동 하나 이상 변경
+- `EXERCISE_ORDER_CHANGED`: 운동 순서의 실질적 변경
+- `SET_REP_STRUCTURE_CHANGED`: 승인 범위 안의 세트·반복 구조 변경
+- `ROUTINE_STRUCTURE_CHANGED`: 루틴 구성 방식 변경
+
+설명·UUID·표시 순서 key 또는 미미한 시간 변경만으로는 의미 있는 차이로 인정하지 않는다. 새 plan은
+동일한 Safety veto·제외, 요청 시간, 목표, recovery ceiling, 장소·장비, 승인 catalog를 만족하고
+Plan Compiler와 integrity validator를 다시 통과해야 한다.
+
+root decision당 성공 재생성은 최대 두 번이다. 같은 Idempotency-Key와 같은 요청은 저장된 응답을
+반환하고, 같은 키의 다른 요청은 `409 IDEMPOTENCY_KEY_REUSED`다.
+
+| 조건 | HTTP / error.code |
+|---|---|
+| plan 또는 sequence 불일치 | `409 STALE_REGENERATION` |
+| snapshot/envelope/pool 만료 또는 version 불일치 | `409 REGENERATION_CONTEXT_STALE` |
+| 성공 재생성 2회 초과 | `409 REGENERATION_LIMIT_REACHED` |
+| 안전하고 목표를 보존하는 의미 있는 대안 없음 | `422 NO_ALTERNATIVE_AVAILABLE` |
+| 필수 LLM 실패 후 검증된 deterministic fallback도 없음 | `503 DECISION_FAILED` |
+
+`STOP_AND_SEEK_HELP`, plan generation을 금지한 Safety veto와 `final_plan=null`인 decision은 재생성
+대상이 아니다. REST opt-out을 사용자가 선택한 사실도 압박성 재생성 제안을 만들지 않는다.
 
 ---
 
@@ -1941,6 +2002,12 @@ SafetySummary
 
 `public_agent_summaries`는 위 고정 순서의 Training·Recovery·Safety·Feasibility·Coordinator 요약을 제공한다. Safety 요약은 SafetyAgent의 `safety_status_code`와 `vetoed` 의견을 나타내며, 독립적인 최종 Safety 재검사 결과는 제공하지 않는다.
 
+V3 response에서도 기존 필드 타입은 유지한다. V1/V2 historical response는 위 다섯 요약을 그대로
+반환한다. V3의 실제 LLM Agent는 Training·Recovery·Feasibility·Coordinator 네 개이며 Safety는
+결정적 `SafetyPolicyEngine`이다. V3도 기존 순서와 길이를 유지하기 위해 세 번째
+`agent_type_code=SAFETY`를 policy engine의 호환 projection으로 반환하며 이를 LLM proposal로
+해석하지 않는다. `safety_summary`도 policy engine의 공개 가능한 상태·veto·reason code를 나타낸다.
+
 ---
 
 ## 15. 공통 오류
@@ -2004,6 +2071,8 @@ setup_seconds
 - duration rules
 - coordinator
 - prompt와 model, LLM 사용 시에만
+- V3에서는 ConstraintEnvelope, ExercisePoolSnapshot, LangChain/LangGraph contract, structured output,
+  conflict/review, Coordinator attempt, compiler/validator와 fallback version
 
 DB 저장에 실패한 decision 결과는 성공 응답하지 않는다.
 
@@ -2014,6 +2083,8 @@ DB 저장에 실패한 decision 결과는 성공 응답하지 않는다.
 아래 보유·삭제 기간은 `ACCEPTED` ADR-0004의 승인된 기본 계약이다. 법률상 예외가 확인되거나 기간을 바꿀 때는 새 ADR과 관련 API·DB·운영 작업을 함께 갱신한다.
 
 - direct identifier와 원시 건강 기록을 LLM에 전달하지 않는다.
+- Agent와 Coordinator에 DB·repository·ORM·raw SQL Tool을 제공하지 않는다. application loader가
+  사용자 범위를 확인하고 최소화 snapshot과 승인 exercise pool을 만든다.
 - 웨어러블 연동 시 일 단위 최소 요약만 API로 받는다.
 - GPS 전체 경로와 초 단위 심박 샘플은 받지 않는다.
 - DELETE /me 후 사용자 연결 데이터의 운영 DB 삭제 목표는 7일이다.

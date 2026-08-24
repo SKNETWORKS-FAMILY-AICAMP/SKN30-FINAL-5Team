@@ -9,6 +9,9 @@
 ADR-0012의 2라운드 구조화 상호검토는 승인된 V2 목표지만 아직 production 테스트 기준이 아니다.
 A2/A3는 현재 V1 golden을 보존하면서 아래 V2 계약 suite를 별도로 통과해야 한다.
 
+ADR-0013의 Safety-first LLM 멀티에이전트 V3는 `PROPOSED`이며 별도 V3 suite와 shadow 비교가
+production 전환 게이트다. V3 계약 테스트가 현재 V1/V2 통과 증거를 대체하지 않는다.
+
 ## 2. 계층
 
 | 계층 | 대상 | 주요 소유자 |
@@ -101,6 +104,21 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 72. calendar provider timeout·5xx·quota는 `PROVIDER_UNAVAILABLE`이고 계획을 삭제·변경하지 않음
 73. 하루 전체 busy는 빈 후보 배열이며 사용자 희망 운동시간을 단축하지 않음
 74. freebusy 종일 구간은 event 본문 조회 없이 busy로 처리
+75. [V3] SafetyPolicyEngine이 `STOP_AND_SEEK_HELP` 또는 생성 금지 veto를 확정하면 LLM Agent와
+    Coordinator를 호출하지 않고 plan을 반환하지 않음
+76. [V3] Training·Recovery·Feasibility 세 LLM Agent가 같은 envelope·pool hash로 병렬 실행되고
+    완료 순서와 무관하게 canonical proposal ordering을 가짐
+77. [V3] Agent가 pool 밖 exercise ID를 반환하면 structured output을 거부하고 부분 proposal로
+    Coordinator를 실행하지 않음
+78. [V3] repairable duration/ceiling/schema 위반은 Coordinator를 정확히 한 번 repair하고 재검증함
+79. [V3] non-repairable veto·필수 입력·정책 데이터 오류와 repair 재실패는 Coordinator로 돌아가지 않음
+80. [V3] provider 전체 장애는 같은 envelope를 만족하는 deterministic fallback을 검증해 반환하거나
+    안전한 fallback이 없으면 계획 없는 `FAILED`임
+81. [V3] 수동 재생성은 추가 사용자 입력 없이 같은 유효 snapshot·envelope·pool에서 세 Agent부터
+    시작하고 이전 plan과 의미 있게 다름
+82. [V3] 재생성 exact duplicate와 설명·UUID·미미한 시간만 다른 plan은 거부함
+83. [V3] 재생성 성공 1·2회는 허용하고 세 번째는 `REGENERATION_LIMIT_REACHED`이며 idempotent함
+84. [V3] stale envelope·pool 또는 version mismatch는 `REGENERATION_CONTEXT_STALE`이고 LLM을 호출하지 않음
 
 ## 4. 속성·불변식 테스트
 
@@ -151,6 +169,31 @@ ADR-0012 V2의 필수 속성·불변식:
 - LLM 비활성·실패·출력 거부는 conflict/review/final 결과를 바꾸지 않고 전체 템플릿을 사용한다.
 - review/LLM payload에 직접 식별자, 날짜, 자유 체크인, 원시 건강·웨어러블, application log가 없다.
 - constraint integrity validator는 Safety 규칙을 재실행하거나 독립 FinalSafetyGate 결과를 만들지 않는다.
+
+ADR-0013 V3의 필수 속성·불변식:
+
+- SafetyPolicyEngine 출력과 ConstraintEnvelope는 세 Agent, review, Coordinator, repair와 regeneration에서
+  완화되거나 version/hash가 바뀌지 않는다.
+- ExercisePoolSnapshot은 production-approved catalog row만 포함하고 canonical order/hash를 가지며
+  모든 LLM exercise reference는 pool의 부분집합이다.
+- Agent와 Coordinator invocation에는 직접 식별자, 날짜, 자유 체크인, raw 건강·웨어러블·캘린더,
+  application log, prompt 원문과 provider 예외 원문이 없다.
+- Agent와 Coordinator는 DB·repository·ORM·raw SQL Tool을 등록하거나 호출하지 않는다.
+- 세 Round 1 Agent의 fan-out은 병렬이며 fan-in 전 누락·invalid·timeout 결과로 Coordinator를 실행하지
+  않는다.
+- conflict code와 review target은 LLM 없이 canonical하며 review는 영향 Agent당 최대 한 번이다.
+- Coordinator initial/repair output은 Pydantic schema, pool membership와 envelope constraint를 통과해야
+  하고 repair attempt는 0 또는 1뿐이다.
+- Plan Compiler 산술은 deterministic하고 plan 구성요소 합계가 requested duration과 정확히 일치한다.
+- 최종 validator는 원시 Safety 분류를 재실행하지 않고 envelope 준수 assertion만 수행한다.
+- `STOP_AND_SEEK_HELP`는 REST, fallback plan 또는 Coordinator repair로 바뀌지 않는다.
+- deterministic fallback도 compiler와 같은 integrity validator를 통과해야 final option이 된다.
+- regeneration은 root/parent/sequence lineage를 보존하고 exact duplicate를 거부하며 네 meaningful
+  difference code 중 하나 이상을 갖는다.
+- 같은 Idempotency-Key는 같은 regeneration response를 반환하고 다른 payload 재사용은 409다.
+- stored envelope·pool·proposal·review·Coordinator output·compiler/validation과 version으로 provider
+  재호출 없이 같은 final result를 replay한다.
+- LangGraph persistent checkpoint와 외부 trace 전송은 초기 V3에서 발생하지 않는다.
 
 안전 상태와 API 결과의 매핑은 다음과 같다.
 
@@ -260,6 +303,20 @@ separator)의 SHA-256이다. 집합 의미의 context reference 순서는 hash�
 `NEEDS_INPUT`/`DECISION_FAILED` HTTP 매핑은 backend 소유 integration suite에서 같은 골든
 fixture를 사용해 추가 검증해야 한다.
 
+### 5.3.1 [V3 PROPOSED] LLM graph replay와 regeneration 계약
+
+V3 replay fixture는 input, ConstraintEnvelope, ExercisePoolSnapshot, 세 structured proposal, conflict,
+review, Coordinator initial/repair output, compiled plan, validation result와 모든 version/hash를 분리한다.
+replay는 provider를 mock으로도 호출하지 않고 저장된 structured output에서 final result를 복원한다.
+
+fresh LLM inference의 byte-identical 결과는 재현성 기준이 아니다. 대신 schema/pool/constraint 위반율,
+deterministic fallback율, expert agreement, safety invariant 100%, p50/p95 latency와 decision당 비용을
+V1 shadow 결과와 비교한다.
+
+regeneration fixture는 원본과 최대 두 개의 child run, idempotency key, 이전/new plan hash와 meaningful
+difference code를 포함한다. stale TTL·version mismatch, exact duplicate, 대안 없음과 concurrent sequence
+충돌을 각각 검증한다.
+
 ### 5.4 Account deletion 골든·개인정보 계약
 
 계정 삭제 골든 fixture는 합성 UUIDv4, timezone-aware 시각, provider 성공·실패 machine code,
@@ -336,6 +393,7 @@ secret-manager adapter를 검증한다.
 - backend format/lint/type/unit
 - backend API/integration with PostgreSQL
 - safety golden/fallback/reproducibility
+- [V3] LangChain structured output, LangGraph routing, privacy payload, replay와 regeneration contract
 - frontend format/lint/type/component/build
 - migration up/down 또는 forward-fix validation
 
