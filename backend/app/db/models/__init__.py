@@ -30,6 +30,9 @@ from backend.app.db.models.checkin import (
 )
 from backend.app.db.models.decision import (
     AgentProposalRecord,
+    AgentProposalRevisionRecord,
+    AgentReviewEventRecord,
+    DecisionDeliberationRecord,
     DecisionExplanationRecord,
     DecisionOption,
     DecisionPolicyVersion,
@@ -76,7 +79,10 @@ __all__ = [
     "CalendarRateLimitCounter",
     "BodyArea",
     "BodyFocus",
+    "AgentProposalRevisionRecord",
     "AgentProposalRecord",
+    "AgentReviewEventRecord",
+    "DecisionDeliberationRecord",
     "DecisionExplanationRecord",
     "DecisionOption",
     "DecisionPolicyVersion",
