@@ -38,7 +38,7 @@
 | 정책·비기능 POL-001~013, NFR-001~006 | 14 | 5 | 0 | 0 |
 | 확장 기능 F012~F023 | 0 | 0 | 0 | 12 |
 
-POL-009~013은 2026-08-11 사용자 명시 승인과 `ACCEPTED` ADR-0004에 따라 계약 기준으로 적용한다. POL-011의 삭제 상태·provider 실패·30일 restore tombstone 상세 계약은 `ACCEPTED` ADR-0008을 따른다. F011의 Google Calendar 계약은 `ACCEPTED` ADR-0010에 있지만, PR #96에서 실제 연동을 보류했으므로 구현 상태는 `DEFERRED`다. F010의 provider-neutral 경계는 ADR-0009에 있으나 실제 server-side Google·Kakao·Naver exchange adapter/API가 없어 `PARTIAL`이다. 멀티 에이전트 production 구조는 `ACCEPTED` ADR-0007을 기준으로 한다. ADR-0012와 TASK-AGENT-002는 2라운드 구조화 상호검토 V2의 승인된 목표 계약이지만 구현 전에는 F002·F029 완료 증거에 포함하지 않는다. ADR-0013과 TASK-AGENT-003은 Safety-first LangChain/LangGraph LLM 멀티에이전트 V3의 `ACCEPTED` 목표 계약이지만 구현·shadow 평가와 production 전환 전에는 기존 상태를 올리거나 완료 증거로 사용하지 않는다. Qdrant retrieval ADR-0014는 `PROPOSED`다.
+POL-009~013은 2026-08-11 사용자 명시 승인과 `ACCEPTED` ADR-0004에 따라 계약 기준으로 적용한다. POL-011의 삭제 상태·provider 실패·30일 restore tombstone 상세 계약은 `ACCEPTED` ADR-0008을 따른다. F011의 Google Calendar 계약은 `ACCEPTED` ADR-0010에 있지만, PR #96에서 실제 연동을 보류했으므로 구현 상태는 `DEFERRED`다. F010의 provider-neutral 경계는 ADR-0009에 있으나 실제 server-side Google·Kakao·Naver exchange adapter/API가 없어 `PARTIAL`이다. 멀티 에이전트 production 구조는 `ACCEPTED` ADR-0007을 기준으로 한다. ADR-0012와 TASK-AGENT-002는 2라운드 구조화 상호검토 V2의 승인된 목표 계약이지만 구현 전에는 F002·F029 완료 증거에 포함하지 않는다. ADR-0013과 TASK-AGENT-003은 Safety-first LangChain/LangGraph LLM 멀티에이전트 V3의 `ACCEPTED` 목표 계약이지만 구현·shadow 평가와 production 전환 전에는 기존 상태를 올리거나 완료 증거로 사용하지 않는다. Qdrant retrieval ADR-0014는 `ACCEPTED`다.
 
 ### 3.1 MVP 기능 구현 증거
 

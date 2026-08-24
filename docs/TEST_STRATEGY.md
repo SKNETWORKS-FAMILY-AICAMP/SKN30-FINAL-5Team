@@ -10,7 +10,7 @@ ADR-0012의 2라운드 구조화 상호검토는 승인된 V2 목표지만 아�
 A2/A3는 현재 V1 golden을 보존하면서 아래 V2 계약 suite를 별도로 통과해야 한다.
 
 ADR-0013의 Safety-first LLM 멀티에이전트 V3 목표 계약은 `ACCEPTED`이며 별도 V3 suite와 shadow
-비교가 production 전환 게이트다. ADR-0014 Qdrant retrieval은 `PROPOSED`다. V3 계약 테스트가 현재
+비교가 production 전환 게이트다. ADR-0014 Qdrant retrieval은 `ACCEPTED`다. V3 계약 테스트가 현재
 V1/V2 통과 증거를 대체하지 않는다.
 
 ## 2. 계층

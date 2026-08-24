@@ -12,7 +12,7 @@ A2 기준 구현과 필수 검증이 병합되기 전까지 아래 확정 기술
 
 ADR-0013은 LangChain structured LLM Agent와 LangGraph orchestration을 사용하는 V3 목표 계약으로
 `ACCEPTED`되었다. dependency 검토·구현·shadow 평가와 production 전환 승인 전에는 현재 production
-기술로 간주하지 않는다. ADR-0014의 Qdrant ExercisePool retrieval은 `PROPOSED`이며 승인 전 dependency나
+기술로 간주하지 않는다. ADR-0014의 Qdrant ExercisePool retrieval은 `ACCEPTED`이며 승인 전 dependency나
 adapter를 추가하지 않는다.
 
 ## 2. 확정 기술
