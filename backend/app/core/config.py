@@ -49,6 +49,13 @@ class Settings(BaseSettings):
     llm_timeout_seconds: float = 3.0
     llm_max_output_tokens: int = 400
     openai_api_key: SecretStr | None = None
+    # V3 structured agents are independent from the optional narration provider.
+    # A provider-specific BaseChatModel is injected only after deployment approval.
+    llm_agents_enabled: bool = False
+    llm_agents_provider_code: str = "UNCONFIGURED"
+    llm_agents_model_code: str = "unconfigured"
+    llm_agents_timeout_seconds: float = 5.0
+    llm_agents_max_attempts: int = 2
     # Qdrant is a rebuildable catalog index and remains disabled until an
     # embedding contract and deployment credentials are explicitly approved.
     qdrant_enabled: bool = False
@@ -188,6 +195,14 @@ class Settings(BaseSettings):
             raise ValueError("LLM_MODEL_CODE must be a machine reference without free text")
         return normalized
 
+    @field_validator("llm_agents_provider_code", "llm_agents_model_code")
+    @classmethod
+    def validate_llm_agent_machine_references(cls, value: str) -> str:
+        normalized = value.strip()
+        if not _MACHINE_REFERENCE_PATTERN.fullmatch(normalized):
+            raise ValueError("LLM agent provider and model must be machine references")
+        return normalized
+
     @field_validator("llm_api_base_url")
     @classmethod
     def validate_llm_api_base_url(cls, value: str) -> str:
@@ -202,6 +217,20 @@ class Settings(BaseSettings):
         # 결정 생성은 동기 흐름이므로 narration이 응답 시간을 지배하지 못하게 상한을 둔다.
         if not 0 < value <= 10:
             raise ValueError("LLM_TIMEOUT_SECONDS must be within (0, 10]")
+        return value
+
+    @field_validator("llm_agents_timeout_seconds")
+    @classmethod
+    def validate_llm_agents_timeout_seconds(cls, value: float) -> float:
+        if not 0 < value <= 30:
+            raise ValueError("LLM_AGENTS_TIMEOUT_SECONDS must be within (0, 30]")
+        return value
+
+    @field_validator("llm_agents_max_attempts")
+    @classmethod
+    def validate_llm_agents_max_attempts(cls, value: int) -> int:
+        if value not in {1, 2}:
+            raise ValueError("LLM_AGENTS_MAX_ATTEMPTS must be one or two")
         return value
 
     @field_validator("llm_max_output_tokens")
