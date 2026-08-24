@@ -9,8 +9,21 @@
 - 현재 상태: `IN_PROGRESS`
 
 상태 정합성: ADR-0013과 ADR-0014는 2026-08-24 `ACCEPTED`되었고 V3 목표 계약과 Qdrant retrieval
-경계를 승인한다. 공통 retrieval domain contract 구현에 착수했지만 Qdrant adapter·migration·LLM graph,
-shadow 검증과 production 전환은 완료되지 않았다.
+경계를 승인한다. 공통 retrieval domain contract, deterministic pool builder, Qdrant adapter/index
+infrastructure와 `vector_index_registry` migration은 병합됐다. V3-A2의 framework-independent Pydantic
+Agent/Coordinator contract는 구현 중이며 LangChain adapter·LLM graph·shadow 검증과 production 전환은
+완료되지 않았다.
+
+V3-A2 domain schema version은 기존 V1/V2 contract와 분리해 다음으로 고정한다.
+
+- `constraint-envelope-v3`
+- `recovery-ceiling-v1`
+- `regeneration-context-v1`
+- `specialist-agent-input-v1`
+- `specialist-agent-proposal-v1`
+- `llm-invocation-metadata-v1`
+- `v3-coordinator-input-v1`
+- `plan-spec-v1`
 
 ## 배경과 사용자 가치
 
@@ -192,7 +205,7 @@ ADR-0014에 따른 후속 persistence task는 `vector_index_registry`, `decision
 
 ## 알려진 제한과 후속 작업
 
-- V3-A2: Pydantic domain contract와 LangChain Agent adapter 구현
+- V3-A2: framework-independent Pydantic domain contract 병합 후 LangChain Agent adapter 구현
 - V3-A3: LangGraph orchestration, timeout, repair와 deterministic fallback 구현
 - V3-B1: additive persistence와 Alembic migration
 - V3-B2: regeneration API와 frontend compatibility 구현
