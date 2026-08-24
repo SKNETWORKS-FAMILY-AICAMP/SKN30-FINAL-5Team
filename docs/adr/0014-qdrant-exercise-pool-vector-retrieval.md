@@ -1,6 +1,6 @@
 # ADR-0014: Qdrant 기반 ExercisePool Vector Retrieval
 
-- 상태: PROPOSED
+- 상태: ACCEPTED
 - 날짜: 2026-08-24
 - 소유자: AI/data lead
 - 필수 승인자: 개발팀장 + 백엔드 owner + PM + 외부 도메인 검수자
