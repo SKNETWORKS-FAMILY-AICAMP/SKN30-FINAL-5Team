@@ -2,6 +2,17 @@
 
 Firebase, Google/Kakao/Naver OAuth, 선택적 LLM을 adapter로 격리합니다. 외부 SDK 타입을 domain에 노출하지 않습니다.
 
+`qdrant/`는 ADR-0014의 rebuildable exercise derived index 경계입니다. PostgreSQL이 승인 운동과
+registry의 진실 공급원이며 Qdrant는 PostgreSQL eligible UUID 안에서 순위만 계산합니다. 공식
+`qdrant-client==1.18.0`을 고정한 이유는 Qdrant 1.18.2에서 제거된 legacy search API 대신
+`query_points`, UUID point, named vector와 atomic alias API를 typed contract로 사용하기 위해서입니다.
+embedding provider/model은 이 PR에서 선택하지 않으며 승인된 `EmbeddingContract`가 주입될 때만
+`QDRANT_ENABLED=true`를 허용합니다.
+
+Qdrant payload와 query에는 catalog/index/embedding version과 비민감 운동 code만 포함합니다. 사용자
+ID, decision ID, 통증 부위·점수·severity, raw check-in·wearable·calendar 값은 금지합니다. API key,
+URL credential과 provider 원문 오류는 로그 또는 domain result로 전달하지 않습니다.
+
 `firebase_auth.py`는 Firebase Admin SDK와 Application Default Credentials를 사용해 ID Token을
 검증합니다. `FIREBASE_PROJECT_ID`가 없으면 애플리케이션은 기동하되 보호 API 인증을
 `AUTH_PROVIDER_UNAVAILABLE`로 닫습니다. token과 decoded subject는 로그에 남기지 않습니다.

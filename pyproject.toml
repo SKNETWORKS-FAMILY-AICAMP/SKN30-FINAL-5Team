@@ -10,6 +10,7 @@ dependencies = [
     "firebase-admin>=7,<8",
     "psycopg[binary]>=3.2,<4",
     "pydantic-settings>=2.8,<3",
+    "qdrant-client==1.18.0",
     "sqlalchemy>=2.0.38,<3",
     "uvicorn>=0.34,<1",
 ]
@@ -62,4 +63,5 @@ pythonpath = ["."]
 addopts = "-ra --strict-markers -p no:cacheprovider"
 markers = [
     "integration: requires a PostgreSQL test database",
+    "qdrant_integration: exercises the official Qdrant client in local or server mode",
 ]

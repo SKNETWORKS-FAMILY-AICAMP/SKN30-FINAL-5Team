@@ -10,8 +10,9 @@
 
 ADR-0013의 V3 persistence는 승인된 목표의 additive 논리 계약이다. 승인된 migration 전에는 물리
 schema나 구현 완료로 간주하지 않으며 V1/V2 row와 현재 관계를 파괴적으로 변경하지 않는다.
-ADR-0014의 Qdrant retrieval persistence는 `ACCEPTED` 목표 계약이다. 아래 논리 모델은 별도 migration과
-repository 구현이 병합되기 전까지 물리 schema나 구현 완료로 간주하지 않는다.
+ADR-0014의 Qdrant retrieval persistence는 `ACCEPTED` 목표 계약이다. `vector_index_registry`는
+additive migration `0024_vector_index_registry`와 repository로 구현한다. 사용자 연결 retrieval audit과
+V3 decision persistence는 별도 후속 migration이 병합되기 전까지 논리 모델로 유지한다.
 
 ADR-0012는 conflict와 조건부 Round 2 review를 별도 기록하는 additive V2 논리 모델을 승인된
 목표로 정의한다. 후속 persistence task의 Alembic migration이 병합되기 전에는 아래 9.2.1을 물리
@@ -412,7 +413,7 @@ backup restore 직후 사용자 접근 차단과 동일 삭제 policy 재적용�
 동일한 `version_code`와 동일한 `source_manifest_hash` 재적재는 멱등 처리하고, 동일
 `version_code`에 다른 hash가 들어오면 fail-closed한다.
 
-### 5.1.1 [ADR-0014 ACCEPTED 목표] vector_index_registry
+### 5.1.1 [ADR-0014, migration 0024] vector_index_registry
 
 Qdrant collection을 PostgreSQL catalog와 연결하는 재구축 가능한 derived-index registry다.
 

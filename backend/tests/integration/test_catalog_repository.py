@@ -22,8 +22,13 @@ from backend.app.db.models.catalog import (
     ExerciseSafetyRule,
 )
 from backend.app.db.repositories.catalog import CatalogRepository
+from backend.app.db.repositories.vector_index import (
+    VectorIndexBuildWrite,
+    VectorIndexRepository,
+)
 from backend.app.modules.catalog.codes import BodyAreaCode, BodyAreaRoleCode
 from backend.app.modules.catalog.service import CatalogDataBundleImporter, CatalogImporter
+from backend.scripts.catalog_activate import activate
 from backend.scripts.demo_seed import seed_catalog
 
 ALEMBIC_CONFIG = Path("backend/alembic.ini")
@@ -272,3 +277,46 @@ def test_imports_complete_bundle_with_metadata_and_is_idempotent(
     assert alternative is not None and "input_artifacts" in alternative.source_metadata["source"]
     assert safety.source_metadata["production_approval"]["scope"] == "ALL_RECORDS"
     assert alternative.source_metadata["production_approval"]["scope"] == "ALL_RECORDS"
+
+
+@pytest.mark.integration
+def test_vector_index_registry_round_trip_uses_only_production_catalog(
+    postgres_session: Session,
+) -> None:
+    CatalogDataBundleImporter(CatalogRepository(), "test").import_bundle(
+        postgres_session,
+        BUNDLE_CATALOGS,
+        BUNDLE_SAFETY,
+        BUNDLE_ALTERNATIVES,
+        BUNDLE_PRESCRIPTIONS,
+    )
+    repository = VectorIndexRepository()
+    assert repository.list_indexable_exercises(postgres_session, "merged-mvp-v0.4.0") == ()
+
+    now = datetime(2026, 8, 24, tzinfo=UTC)
+    activate(postgres_session, "merged-mvp-v0.4.0", now=now)
+    records = repository.list_indexable_exercises(postgres_session, "merged-mvp-v0.4.0")
+
+    assert len(records) == 56
+    assert all(record.production_eligible for record in records)
+    registry = repository.create_build(
+        postgres_session,
+        VectorIndexBuildWrite(
+            catalog_version_id=records[0].catalog_version_id,
+            collection_name="exercise_catalog__test__merged_v0_4_0__fake_v1__index_v1",
+            vector_index_version="index-v1",
+            source_manifest_hash=records[0].catalog_manifest_hash,
+            embedding_model_version="fake-v1",
+            embedding_input_schema_version="exercise-embedding-input-v1",
+            distance_metric_code="COSINE",
+            vector_dimension=4,
+            build_hash="b" * 64,
+        ),
+    )
+    repository.mark_ready(postgres_session, registry, built_at=now)
+    repository.activate(postgres_session, registry, activated_at=now)
+
+    loaded = repository.get_by_version(postgres_session, "index-v1")
+    active = repository.get_active_for_catalog(postgres_session, records[0].catalog_version_id)
+    assert loaded is not None and loaded.status_code == "ACTIVE"
+    assert active is not None and active.id == loaded.id
