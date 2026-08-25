@@ -243,4 +243,9 @@ additive하게 도입한다. 온보딩 점수는 별도
   expert review template과 deterministic report CLI 구현 완료.
   실제 사용자/provider shadow 실행, 완료된 전문가 검토, 승인 pricing 자료와 latency·cost·fallback
   threshold 결정은 포함하지 않으며 production 활성화 근거가 아님
-- V3-C2: 기준 충족 후 ADR-0013에 따른 production graph 전환 승인 검토
+- V3-C2 (`COMPLETE`, evaluator/CLI 구현 범위): 승인된 versioned threshold reference와 C1 summary,
+  manifest, result, completed expert review, pricing evidence를 fail-closed로 검증하는 framework-independent
+  promotion 계약과 offline CLI 구현 완료. 결과는 `NOT_EVALUATED`, `BLOCKED`,
+  `READY_FOR_HUMAN_APPROVAL`로 제한하며 feature flag나 production 상태를 변경하지 않음.
+  실제 staging/provider evidence 수집, threshold 수치 승인, PM·개발팀장·backend owner·외부 전문가 승인과
+  production composition/flag 변경은 별도 수동 절차와 후속 PR이 필요함
