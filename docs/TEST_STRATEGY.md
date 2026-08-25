@@ -346,6 +346,15 @@ cost, fallback, structured-output, review/repair와 expert agreement threshold�
 전문가 검토가 없거나 token/pricing 근거가 불완전하면 0으로 대체하지 않고 `NOT_REVIEWED` 또는 `null`로
 남긴다. 상세 실행·report schema와 해석 기준은 `docs/runbooks/v3-shadow-evaluation.md`를 따른다.
 
+V3-C2의 `v3_promotion.py`는 승인된 versioned threshold JSON이 있을 때만 C1 evidence를 평가한다.
+manifest file hash·record count, summary/result 내부 hash, fixture/harness/graph/policy/catalog/prompt/provider/
+model version, completed expert review와 pricing 정합성을 다시 검증한다. safety invariant 100%, veto override
+0건과 constraint violation 0건은 threshold가 완화할 수 없는 hard gate다. nullable latency/token/cost/review
+metric은 0으로 추정하지 않으며 필요한 값이 unavailable이면 canonical reason code와 `BLOCKED`를 반환한다.
+동일 입력은 stable decision hash와 byte-stable JSON을 만든다. `READY_FOR_HUMAN_APPROVAL`은 자동 production
+승인이 아니며 feature flag를 변경하지 않는다. 상세 절차는 `docs/runbooks/v3-production-promotion.md`를
+따른다.
+
 regeneration fixture는 원본과 최대 두 개의 child run, idempotency key, 이전/new plan hash와 meaningful
 difference code를 포함한다. stale TTL·version mismatch, exact duplicate, 대안 없음과 concurrent sequence
 충돌을 각각 검증한다.

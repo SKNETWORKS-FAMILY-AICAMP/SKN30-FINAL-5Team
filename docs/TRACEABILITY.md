@@ -52,6 +52,12 @@ V3-C1은 versioned synthetic 20-case fixture, 순수 `V3ShadowExecutionResult` m
 구현 상태만 나타내며 실제 사용자 shadow, 전문가 검토, 성능·비용 threshold 승인 또는 production V3
 전환 완료를 의미하지 않는다. 따라서 F002의 `PARTIAL` 상태는 유지한다.
 
+V3-C2 promotion evaluator와 offline CLI는 versioned threshold reference, C1 artifact hash/count/version,
+completed expert review, pricing/token/cost evidence를 fail-closed로 검증하고 `NOT_EVALUATED`, `BLOCKED`,
+`READY_FOR_HUMAN_APPROVAL`만 반환한다. 이는 인간 승인 검토 가능성에 대한 구현 증거이며 실제 threshold
+승인, staging evidence 수집, PM·개발팀장·backend owner·외부 전문가 승인 또는 production flag 변경
+증거가 아니다. F002의 `PARTIAL` 상태와 기존 V1/V2 production 경로는 유지한다.
+
 ### 3.1 MVP 기능 구현 증거
 
 | 요구사항 | 인수조건 | API·DB | 코드 | 테스트 | 병합 PR | 상태 |
@@ -181,6 +187,10 @@ F012~F023은 요구사항 정의서상 MVP 이후 확장 기능이다. 각 ID는
   provider factory와 `backend/tests/unit/test_v3_shadow_runtime.py` / `test_openai_shadow_factory.py`로
   추적한다. 이는 synthetic harness 구현 증거이며 실제 shadow 결과, expert review 또는 production
   graph 승인 증거가 아니다. public V1/V2와 regeneration gate는 계속 독립·비활성 상태다.
+- V3-C2 promotion gate는 `backend/app/modules/decisions/v3_promotion.py`,
+  `backend/scripts/evaluate_v3_promotion.py`, `backend/tests/unit/test_v3_promotion*.py`와
+  `docs/runbooks/v3-production-promotion.md`로 추적한다. READY 결과도 production 승인이나 feature flag
+  변경을 수행하지 않는다.
 
 ## 4. PR 적용
 
