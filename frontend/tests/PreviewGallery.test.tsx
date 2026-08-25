@@ -419,7 +419,7 @@ describe('PreviewGallery', () => {
     ]);
   });
 
-  it('restores the Workout detail-state controls', async () => {
+  it('shows API-backed Workout controls without mock-only symptom states', async () => {
     await render(<PreviewGallery initialScreenId="workout" />);
 
     expect(screen.getByRole('radio', { name: 'API 실제 흐름' })).toBeChecked();
@@ -429,13 +429,10 @@ describe('PreviewGallery', () => {
     expect(
       screen.getByRole('radio', { name: '안전 중단 확인' }),
     ).toBeOnTheScreen();
-    fireEvent.press(screen.getByRole('radio', { name: '중대한 이상 반응' }));
-
+    expect(screen.queryByRole('radio', { name: '경미한 불편' })).toBeNull();
     expect(
-      within(screen.getByTestId('preview-app-canvas')).getByText(
-        '운동을 즉시 중단해주세요. 가슴의 압박감이나 통증, 예상하지 못한 심한 숨참, 실신 또는 심한 어지럼 등의 증상이 있다면 즉시 지역 응급의료 도움을 요청하세요.',
-      ),
-    ).toBeOnTheScreen();
+      screen.queryByRole('radio', { name: '중대한 이상 반응' }),
+    ).toBeNull();
   });
 
   it('starts a fresh workout after leaving a completed result through the gallery', async () => {
