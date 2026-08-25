@@ -59,6 +59,9 @@ class Settings(BaseSettings):
     # V3 graph construction is separately gated so incomplete provider/domain
     # wiring cannot alter the existing V1/V2 production decision path.
     v3_langgraph_enabled: bool = False
+    # Manual V3 regeneration has its own server-side activation gate. Provider
+    # credentials and V3_LANGGRAPH_ENABLED never opt users into this mutation.
+    v3_regeneration_enabled: bool = False
     # Qdrant is a rebuildable catalog index and remains disabled until an
     # embedding contract and deployment credentials are explicitly approved.
     qdrant_enabled: bool = False
