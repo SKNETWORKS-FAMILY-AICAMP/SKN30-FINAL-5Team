@@ -16,20 +16,21 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-
-DEFAULT_INTEGRATED = Path(__file__).resolve().parents[1] / "reports" / "integrated_exercise_review_updated.csv"
-DEFAULT_TAXONOMY = Path(__file__).resolve().parents[1] / "reports" / "representative_exercise_taxonomy_reviewed.csv"
+DEFAULT_INTEGRATED = (
+    Path(__file__).resolve().parents[1] / "reports" / "integrated_exercise_review_updated.csv"
+)
+DEFAULT_TAXONOMY = (
+    Path(__file__).resolve().parents[1]
+    / "reports"
+    / "representative_exercise_taxonomy_reviewed.csv"
+)
 DEFAULT_MET = (
     Path(__file__).resolve().parents[1]
     / "generated"
     / "exercise-met-mapping-v0.1.0"
     / "exercise_met_mapping_reviewed.csv"
 )
-DEFAULT_OUTPUT = (
-    Path(__file__).resolve().parents[1]
-    / "generated"
-    / "exercise-alternatives-v0.3.0"
-)
+DEFAULT_OUTPUT = Path(__file__).resolve().parents[1] / "generated" / "exercise-alternatives-v0.3.0"
 
 RELATION_COLUMNS = [
     "source_exercise_id",
@@ -120,9 +121,10 @@ def equipment_burden(value: str) -> int | None:
     if not values:
         return None
     scores = [EQUIPMENT_BURDEN.get(item) for item in values]
-    if any(score is None for score in scores):
+    known_scores = [score for score in scores if score is not None]
+    if len(known_scores) != len(scores):
         return None
-    return max(scores)  # type: ignore[arg-type]
+    return max(known_scores)
 
 
 def canonical_target(value: str) -> str:
@@ -173,8 +175,10 @@ def taxonomy_for(rep_id: str, taxonomy: dict[str, dict[str, str]]) -> dict[str, 
 
 def pattern_for(row: dict[str, str], taxonomy: dict[str, dict[str, str]]) -> str:
     rep = taxonomy_for(row.get("representative_id", ""), taxonomy)
-    value = rep.get("reviewed_movement_pattern") or rep.get("movement_pattern") or row.get(
-        "movement_pattern_code_candidate", ""
+    value = (
+        rep.get("reviewed_movement_pattern")
+        or rep.get("movement_pattern")
+        or row.get("movement_pattern_code_candidate", "")
     )
     return value.strip().upper()
 
@@ -231,7 +235,7 @@ def difficulty_delta(source: dict[str, str], alternative: dict[str, str]) -> str
     return str(alternative_rank - source_rank)
 
 
-def met_value(met: dict[str, str], exercise_id: str) -> float:
+def met_value(met: dict[str, dict[str, str]], exercise_id: str) -> float:
     try:
         return float(met[exercise_id]["met_value"])
     except (KeyError, TypeError, ValueError) as exc:
@@ -266,7 +270,9 @@ def eligible_rows(
     return result
 
 
-def candidate_pool(source: dict[str, Any], exercises: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+def candidate_pool(
+    source: dict[str, Any], exercises: dict[str, dict[str, Any]]
+) -> list[dict[str, Any]]:
     result = []
     for alternative in exercises.values():
         if alternative["name"] == "" or alternative["pattern"] in {"", "REVIEW_REQUIRED"}:
@@ -290,11 +296,17 @@ def candidate_pool(source: dict[str, Any], exercises: dict[str, dict[str, Any]])
     return result
 
 
-def explicit_safety_pairs(exercises: dict[str, dict[str, Any]]) -> list[tuple[dict[str, Any], dict[str, Any]]]:
+def explicit_safety_pairs(
+    exercises: dict[str, dict[str, Any]],
+) -> list[tuple[dict[str, Any], dict[str, Any]]]:
     # Both source records are explicitly marked HIGH impact in the catalog; the
     # destination is a lower-impact, bodyweight stepping activity.
     pairs = [("NEX-000158", "NEX-000171"), ("NEX-000164", "NEX-000171")]
-    return [(exercises[source], exercises[alternative]) for source, alternative in pairs if source in exercises and alternative in exercises]
+    return [
+        (exercises[source], exercises[alternative])
+        for source, alternative in pairs
+        if source in exercises and alternative in exercises
+    ]
 
 
 def relation(
@@ -329,10 +341,12 @@ def relation(
         "direction": "A_TO_B",
         "confidence": confidence,
         "evidence_basis": (
-            f"integrated_catalog(source_pattern={source['pattern']}, source_equipment={source['row'].get('equipment_code_candidate', '')}, "
-            f"source_difficulty={source['difficulty']}; alternative_pattern={alternative['pattern']}, "
+            f"integrated_catalog(source_pattern={source['pattern']}, source_equipment="
+            f"{source['row'].get('equipment_code_candidate', '')}, source_difficulty="
+            f"{source['difficulty']}; alternative_pattern={alternative['pattern']}, "
             f"alternative_equipment={alternative['row'].get('equipment_code_candidate', '')}, "
-            f"alternative_difficulty={alternative['difficulty']}); representative_taxonomy={taxonomy_status}; "
+            f"alternative_difficulty={alternative['difficulty']}); "
+            f"representative_taxonomy={taxonomy_status}; "
             f"MET_mapping=APPROVED({source['met']:.1f}->{alternative['met']:.1f})"
         ),
         "review_status": "REVIEW_REQUIRED",
@@ -342,6 +356,18 @@ def relation(
 
 def taxonomy_status_text(source: dict[str, str], alternative: dict[str, str]) -> str:
     return f"{source.get('representative_id', '')}->{alternative.get('representative_id', '')}"
+
+
+def ordered_candidates(candidates: list[dict[str, Any]], source_met: float) -> list[dict[str, Any]]:
+    return sorted(
+        candidates,
+        key=lambda item: (
+            source_met - item["met"],
+            item["equipment_burden"] if item["equipment_burden"] is not None else 99,
+            item["row"]["normalized_exercise_id"],
+        ),
+        reverse=True,
+    )[:2]
 
 
 def build_relations(exercises: dict[str, dict[str, Any]]) -> list[dict[str, str]]:
@@ -369,7 +395,8 @@ def build_relations(exercises: dict[str, dict[str, Any]]) -> list[dict[str, str]
                 alternative,
                 "SAFETY",
                 False,
-                "고충격 유산소를 저충격 스테핑으로 전환하여 cardio 목표를 유지하고 충격 부담을 낮춘다.",
+                "고충격 유산소를 저충격 스테핑으로 전환하여 cardio 목표를 유지하고 "
+                "충격 부담을 낮춘다.",
                 "통증·관절 부담·고충격 동작 회피 필요",
                 "LOW",
                 "CARDIO_ENDURANCE",
@@ -397,46 +424,36 @@ def build_relations(exercises: dict[str, dict[str, Any]]) -> list[dict[str, str]
         recovery_candidates = [
             candidate
             for candidate in pool
-            if source["met"] - candidate["met"] >= 1.0
-            and candidate not in intensity_candidates
+            if source["met"] - candidate["met"] >= 1.0 and candidate not in intensity_candidates
         ]
 
-        def ordered(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
-            return sorted(
-                candidates,
-                key=lambda candidate: (
-                    source["met"] - candidate["met"],
-                    candidate["equipment_burden"] if candidate["equipment_burden"] is not None else 99,
-                    candidate["row"]["normalized_exercise_id"],
-                ),
-                reverse=True,
-            )[:2]
-
-        for candidate in ordered(constraint_candidates):
+        for candidate in ordered_candidates(constraint_candidates, source["met"]):
             add(
                 relation(
                     source,
                     candidate,
                     "CONSTRAINT",
                     True,
-                    "장비 또는 장소 제약 시 동일 목표와 movement pattern을 유지하면서 장비 부담이 낮은 운동으로 전환한다.",
+                    "장비 또는 장소 제약 시 동일 목표와 movement pattern을 유지하면서 "
+                    "장비 부담이 낮은 운동으로 전환한다.",
                     "사용 가능한 장비가 없거나 현재 장소에서 원 장비를 사용할 수 없음",
                     "HIGH",
                 )
             )
-        for candidate in ordered(intensity_candidates):
+        for candidate in ordered_candidates(intensity_candidates, source["met"]):
             add(
                 relation(
                     source,
                     candidate,
                     "INTENSITY",
                     True,
-                    "운동 목적과 movement pattern을 유지하되 난이도와 MET가 낮은 운동으로 조절한다.",
+                    "운동 목적과 movement pattern을 유지하되 난이도와 MET가 낮은 "
+                    "운동으로 조절한다.",
                     "초보자·수행 실패 가능성·현재 체력 부족",
                     "MEDIUM",
                 )
             )
-        for candidate in ordered(recovery_candidates):
+        for candidate in ordered_candidates(recovery_candidates, source["met"]):
             add(
                 relation(
                     source,
@@ -449,7 +466,13 @@ def build_relations(exercises: dict[str, dict[str, Any]]) -> list[dict[str, str]
                 )
             )
 
-    rows.sort(key=lambda row: (row["source_exercise_id"], row["alternative_type"], row["alternative_exercise_id"]))
+    rows.sort(
+        key=lambda row: (
+            row["source_exercise_id"],
+            row["alternative_type"],
+            row["alternative_exercise_id"],
+        )
+    )
     return rows
 
 
@@ -463,10 +486,13 @@ def build_review_log(relations: list[dict[str, str]]) -> list[dict[str, str]]:
             "alternative_type": row["alternative_type"],
             "issue_type": "RELATION_DOMAIN_REVIEW_REQUIRED",
             "reason": (
-                f"{row['reason']} 현재 catalog가 DRAFT 또는 관계 승인이 없으므로 자동 승인하지 않으며, "
+                f"{row['reason']} 현재 catalog가 DRAFT 또는 관계 승인이 없으므로 "
+                "자동 승인하지 않으며, "
                 "목표 보존·장비/강도 조건·안전 적합성을 사람이 확인해야 한다."
             ),
-            "suggested_action": "원천 운동과 대체 운동의 실제 수행 조건을 확인한 뒤 관계를 승인하거나 반려",
+            "suggested_action": (
+                "원천 운동과 대체 운동의 실제 수행 조건을 확인한 뒤 관계를 승인하거나 반려"
+            ),
             "required_decision": "대체 관계 승인 여부 및 trigger_condition 확정",
             "review_status": "REVIEW_REQUIRED",
             "production_eligible": "false",
@@ -482,62 +508,232 @@ def validate(
     met: dict[str, dict[str, str]],
 ) -> list[dict[str, str]]:
     catalog_ids = {row["normalized_exercise_id"] for row in integrated}
-    met_approved_ids = {key for key, row in met.items() if row.get("review_status") == "APPROVED" and row.get("met_value", "").strip()}
+    met_approved_ids = {
+        key
+        for key, row in met.items()
+        if row.get("review_status") == "APPROVED" and row.get("met_value", "").strip()
+    }
     report: list[dict[str, str]] = []
 
     def check(code: str, name: str, expected: str, actual: str, status: str, details: str) -> None:
-        report.append({"check_code": code, "check_name": name, "expected": expected, "actual": actual, "status": status, "details": details})
+        report.append(
+            {
+                "check_code": code,
+                "check_name": name,
+                "expected": expected,
+                "actual": actual,
+                "status": status,
+                "details": details,
+            }
+        )
 
-    endpoint_ok = all(row["source_exercise_id"] in catalog_ids and row["alternative_exercise_id"] in catalog_ids for row in relations)
-    check("EXERCISE_ID_EXISTENCE", "source/alternative exercise_id 존재", "all endpoints exist", str(endpoint_ok).lower(), "PASS" if endpoint_ok else "FAIL", "통합 카탈로그 ID 집합과 비교")
+    endpoint_ok = all(
+        row["source_exercise_id"] in catalog_ids and row["alternative_exercise_id"] in catalog_ids
+        for row in relations
+    )
+    check(
+        "EXERCISE_ID_EXISTENCE",
+        "source/alternative exercise_id 존재",
+        "all endpoints exist",
+        str(endpoint_ok).lower(),
+        "PASS" if endpoint_ok else "FAIL",
+        "통합 카탈로그 ID 집합과 비교",
+    )
 
-    keys = [(row["source_exercise_id"], row["alternative_exercise_id"], row["alternative_type"]) for row in relations]
+    keys = [
+        (row["source_exercise_id"], row["alternative_exercise_id"], row["alternative_type"])
+        for row in relations
+    ]
     duplicate_count = len(keys) - len(set(keys))
-    check("DUPLICATE_RELATION", "동일 방향·유형 중복", "0", str(duplicate_count), "PASS" if duplicate_count == 0 else "FAIL", "natural key=(source, alternative, type)")
+    check(
+        "DUPLICATE_RELATION",
+        "동일 방향·유형 중복",
+        "0",
+        str(duplicate_count),
+        "PASS" if duplicate_count == 0 else "FAIL",
+        "natural key=(source, alternative, type)",
+    )
 
     pairs = {(row["source_exercise_id"], row["alternative_exercise_id"]) for row in relations}
     reverse_count = sum((alternative, source) in pairs for source, alternative in pairs)
-    check("REVERSE_DIRECTION", "역방향 자동 생성 없음", "0", str(reverse_count), "PASS" if reverse_count == 0 else "FAIL", "direction은 A_TO_B만 허용")
+    check(
+        "REVERSE_DIRECTION",
+        "역방향 자동 생성 없음",
+        "0",
+        str(reverse_count),
+        "PASS" if reverse_count == 0 else "FAIL",
+        "direction은 A_TO_B만 허용",
+    )
 
     by_id = {row["normalized_exercise_id"]: row for row in integrated}
     variant_count = sum(
-        by_id[row["source_exercise_id"]].get("representative_id") == by_id[row["alternative_exercise_id"]].get("representative_id")
-        or by_id[row["source_exercise_id"]].get("exercise_family") == by_id[row["alternative_exercise_id"]].get("exercise_family")
+        by_id[row["source_exercise_id"]].get("representative_id")
+        == by_id[row["alternative_exercise_id"]].get("representative_id")
+        or by_id[row["source_exercise_id"]].get("exercise_family")
+        == by_id[row["alternative_exercise_id"]].get("exercise_family")
         for row in relations
     )
-    check("VARIANT_EXCLUSION", "Variant 관계 제외", "0", str(variant_count), "PASS" if variant_count == 0 else "FAIL", "동일 representative_id 또는 exercise_family 관계를 차단")
+    check(
+        "VARIANT_EXCLUSION",
+        "Variant 관계 제외",
+        "0",
+        str(variant_count),
+        "PASS" if variant_count == 0 else "FAIL",
+        "동일 representative_id 또는 exercise_family 관계를 차단",
+    )
 
     invalid_type = sum(row["alternative_type"] not in VALID_TYPES for row in relations)
-    check("ALTERNATIVE_TYPE", "alternative_type 허용값", "0 invalid", str(invalid_type), "PASS" if invalid_type == 0 else "FAIL", "CONSTRAINT/INTENSITY/RECOVERY/SAFETY")
+    check(
+        "ALTERNATIVE_TYPE",
+        "alternative_type 허용값",
+        "0 invalid",
+        str(invalid_type),
+        "PASS" if invalid_type == 0 else "FAIL",
+        "CONSTRAINT/INTENSITY/RECOVERY/SAFETY",
+    )
 
     missing_trigger = sum(not row["trigger_condition"].strip() for row in relations)
-    check("TRIGGER_CONDITION", "trigger_condition 기록", "0 missing", str(missing_trigger), "PASS" if missing_trigger == 0 else "FAIL", "대체 발생 조건 필수")
+    check(
+        "TRIGGER_CONDITION",
+        "trigger_condition 기록",
+        "0 missing",
+        str(missing_trigger),
+        "PASS" if missing_trigger == 0 else "FAIL",
+        "대체 발생 조건 필수",
+    )
 
-    missing_goal = sum(row["goal_match"] != "true" or not row["goal_code"].strip() for row in relations)
-    check("GOAL_MATCH", "goal_match 근거 필드", "0 missing", str(missing_goal), "PASS" if missing_goal == 0 else "FAIL", "동일 목표 코드와 보존 여부 기록")
+    missing_goal = sum(
+        row["goal_match"] != "true" or not row["goal_code"].strip() for row in relations
+    )
+    check(
+        "GOAL_MATCH",
+        "goal_match 근거 필드",
+        "0 missing",
+        str(missing_goal),
+        "PASS" if missing_goal == 0 else "FAIL",
+        "동일 목표 코드와 보존 여부 기록",
+    )
 
-    missing_met = sum(row["source_exercise_id"] not in met_approved_ids or row["alternative_exercise_id"] not in met_approved_ids for row in relations)
-    check("MET_DATA", "양 끝점 approved MET", "0 missing", str(missing_met), "PASS" if missing_met == 0 else "FAIL", "exercise_met_mapping_reviewed.csv의 APPROVED만 사용")
+    missing_met = sum(
+        row["source_exercise_id"] not in met_approved_ids
+        or row["alternative_exercise_id"] not in met_approved_ids
+        for row in relations
+    )
+    check(
+        "MET_DATA",
+        "양 끝점 approved MET",
+        "0 missing",
+        str(missing_met),
+        "PASS" if missing_met == 0 else "FAIL",
+        "exercise_met_mapping_reviewed.csv의 APPROVED만 사용",
+    )
 
     met_increase = sum(float(row["met_difference"]) > 0 for row in relations)
-    check("MET_INCREASE", "대체 운동 MET 증가 차단", "0", str(met_increase), "PASS" if met_increase == 0 else "FAIL", "강도 증가 방향은 생성하지 않음")
+    check(
+        "MET_INCREASE",
+        "대체 운동 MET 증가 차단",
+        "0",
+        str(met_increase),
+        "PASS" if met_increase == 0 else "FAIL",
+        "강도 증가 방향은 생성하지 않음",
+    )
 
-    log_keys = {(row["source_exercise_id"], row["alternative_exercise_id"], row["alternative_type"]) for row in review_log}
-    missing_log = sum((row["source_exercise_id"], row["alternative_exercise_id"], row["alternative_type"]) not in log_keys for row in relations)
-    check("REVIEW_REASON", "review_required 사유 기록", "0 missing", str(missing_log), "PASS" if missing_log == 0 else "FAIL", "관계별 review log 존재")
+    log_keys = {
+        (row["source_exercise_id"], row["alternative_exercise_id"], row["alternative_type"])
+        for row in review_log
+    }
+    missing_log = sum(
+        (row["source_exercise_id"], row["alternative_exercise_id"], row["alternative_type"])
+        not in log_keys
+        for row in relations
+    )
+    check(
+        "REVIEW_REASON",
+        "review_required 사유 기록",
+        "0 missing",
+        str(missing_log),
+        "PASS" if missing_log == 0 else "FAIL",
+        "관계별 review log 존재",
+    )
 
-    production_true = sum(row["production_eligible"] != "false" or row["review_status"] != "REVIEW_REQUIRED" for row in relations)
-    check("PRODUCTION_GATE", "검수 전 production eligibility", "0 eligible", str(production_true), "PASS" if production_true == 0 else "FAIL", "승인 전 관계는 모두 REVIEW_REQUIRED/false")
+    production_true = sum(
+        row["production_eligible"] != "false" or row["review_status"] != "REVIEW_REQUIRED"
+        for row in relations
+    )
+    check(
+        "PRODUCTION_GATE",
+        "검수 전 production eligibility",
+        "0 eligible",
+        str(production_true),
+        "PASS" if production_true == 0 else "FAIL",
+        "승인 전 관계는 모두 REVIEW_REQUIRED/false",
+    )
 
     source_count = len({row["source_exercise_id"] for row in relations})
-    check("SOURCE_COVERAGE", "관계가 생성된 source 수", "informational", str(source_count), "PASS", "근거 부족/variant-only source는 자동 관계를 생성하지 않음")
-    check("CATALOG_EXERCISE_COUNT", "통합 카탈로그 exercise 수", "208", str(len(catalog_ids)), "PASS" if len(catalog_ids) == 208 else "FAIL", "입력 통합 카탈로그 기준")
-    check("MET_APPROVED_COUNT", "Alternative endpoint로 사용 가능한 approved MET 수", "207", str(len(met_approved_ids)), "PASS" if len(met_approved_ids) == 207 else "FAIL", "REVIEW_REQUIRED MET는 endpoint에서 제외")
-    check("MET_REVIEW_REQUIRED_COUNT", "MET REVIEW_REQUIRED 수", "1", str(len(catalog_ids - met_approved_ids)), "PASS" if len(catalog_ids - met_approved_ids) == 1 else "FAIL", "NEX-000173은 MET 미확정으로 관계 생성에서 제외")
-    check("SOURCES_WITHOUT_RELATIONS", "자동 관계 미생성 source 수", "informational", str(len(catalog_ids - {row['source_exercise_id'] for row in relations})), "PASS", "근거 부족/variant-only/패턴 불명확 source")
-    check("REVIEW_LOG_COUNT", "관계별 review log 수", str(len(relations)), str(len(review_log)), "PASS" if len(relations) == len(review_log) else "FAIL", "모든 생성 관계는 사람이 승인해야 함")
-    check("RELATION_COUNT", "생성 관계 수", "informational", str(len(relations)), "PASS", "새 관계는 domain review 대기 상태")
-    check("TYPE_COUNTS", "유형별 관계 수", "informational", str(dict(sorted(Counter(row["alternative_type"] for row in relations).items()))), "PASS", "검수 우선순위 산정용")
+    check(
+        "SOURCE_COVERAGE",
+        "관계가 생성된 source 수",
+        "informational",
+        str(source_count),
+        "PASS",
+        "근거 부족/variant-only source는 자동 관계를 생성하지 않음",
+    )
+    check(
+        "CATALOG_EXERCISE_COUNT",
+        "통합 카탈로그 exercise 수",
+        "208",
+        str(len(catalog_ids)),
+        "PASS" if len(catalog_ids) == 208 else "FAIL",
+        "입력 통합 카탈로그 기준",
+    )
+    check(
+        "MET_APPROVED_COUNT",
+        "Alternative endpoint로 사용 가능한 approved MET 수",
+        "207",
+        str(len(met_approved_ids)),
+        "PASS" if len(met_approved_ids) == 207 else "FAIL",
+        "REVIEW_REQUIRED MET는 endpoint에서 제외",
+    )
+    check(
+        "MET_REVIEW_REQUIRED_COUNT",
+        "MET REVIEW_REQUIRED 수",
+        "1",
+        str(len(catalog_ids - met_approved_ids)),
+        "PASS" if len(catalog_ids - met_approved_ids) == 1 else "FAIL",
+        "NEX-000173은 MET 미확정으로 관계 생성에서 제외",
+    )
+    check(
+        "SOURCES_WITHOUT_RELATIONS",
+        "자동 관계 미생성 source 수",
+        "informational",
+        str(len(catalog_ids - {row["source_exercise_id"] for row in relations})),
+        "PASS",
+        "근거 부족/variant-only/패턴 불명확 source",
+    )
+    check(
+        "REVIEW_LOG_COUNT",
+        "관계별 review log 수",
+        str(len(relations)),
+        str(len(review_log)),
+        "PASS" if len(relations) == len(review_log) else "FAIL",
+        "모든 생성 관계는 사람이 승인해야 함",
+    )
+    check(
+        "RELATION_COUNT",
+        "생성 관계 수",
+        "informational",
+        str(len(relations)),
+        "PASS",
+        "새 관계는 domain review 대기 상태",
+    )
+    check(
+        "TYPE_COUNTS",
+        "유형별 관계 수",
+        "informational",
+        str(dict(sorted(Counter(row["alternative_type"] for row in relations).items()))),
+        "PASS",
+        "검수 우선순위 산정용",
+    )
     return report
 
 

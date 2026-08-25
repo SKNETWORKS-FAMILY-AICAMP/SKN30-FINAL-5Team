@@ -29,7 +29,9 @@ from align_source_candidates import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_STRENGTH = REPO_ROOT / "data/validation/review_batches/gymvisual_strength_representative_review.csv"
+DEFAULT_STRENGTH = (
+    REPO_ROOT / "data/validation/review_batches/gymvisual_strength_representative_review.csv"
+)
 DEFAULT_CARDIO = REPO_ROOT / "data/validation/review_batches/gymvisual_cardio_review.csv"
 DEFAULT_MOBILITY = REPO_ROOT / "data/validation/review_batches/gymvisual_mobility_review.csv"
 DEFAULT_POLICY = REPO_ROOT / "data/normalized/source_gap_policy.json"
@@ -46,7 +48,12 @@ def pipe_values(row: dict[str, str], field: str) -> list[str]:
     return [value for value in row.get(field, "").split("|") if value]
 
 
-def coverage_profile(strength: Iterable[dict[str, str]], cardio: Iterable[dict[str, str]], mobility: Iterable[dict[str, str]], policy: dict[str, Any] | None = None) -> dict[str, Any]:
+def coverage_profile(
+    strength: Iterable[dict[str, str]],
+    cardio: Iterable[dict[str, str]],
+    mobility: Iterable[dict[str, str]],
+    policy: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     strength_rows = list(strength)
     cardio_rows = list(cardio)
     mobility_rows = list(mobility)
@@ -58,12 +65,24 @@ def coverage_profile(strength: Iterable[dict[str, str]], cardio: Iterable[dict[s
         return dict(sorted(counter.items()))
 
     low_impact_home = sum(
-        "LOW" == row.get("impact_level_candidate") and "HOME" in pipe_values(row, "location_code_candidates")
+        "LOW" == row.get("impact_level_candidate")
+        and "HOME" in pipe_values(row, "location_code_candidates")
         for row in cardio_rows
     )
     policy = policy or {
-        "gaps": {"HOME_LOW_IMPACT_CARDIO": {"minimum_selected": 3, "priority_source": "kspo", "fallback_source": "wger"}},
-        "covered_checks": {"STRENGTH_MACHINE_CABLE_BAND": {"required_values": ["MACHINE", "CABLE_MACHINE", "RESISTANCE_BAND"], "priority_source": "wger"}},
+        "gaps": {
+            "HOME_LOW_IMPACT_CARDIO": {
+                "minimum_selected": 3,
+                "priority_source": "kspo",
+                "fallback_source": "wger",
+            }
+        },
+        "covered_checks": {
+            "STRENGTH_MACHINE_CABLE_BAND": {
+                "required_values": ["MACHINE", "CABLE_MACHINE", "RESISTANCE_BAND"],
+                "priority_source": "wger",
+            }
+        },
     }
     gap_policy = policy["gaps"]["HOME_LOW_IMPACT_CARDIO"]
     gaps = []
@@ -82,21 +101,29 @@ def coverage_profile(strength: Iterable[dict[str, str]], cardio: Iterable[dict[s
     # These are explicit checks, not targets.  They prove that no source
     # supplementation is requested where Gym Visual already covers the class.
     equipment = set(counts(strength_rows, "equipment_code_candidate"))
-    required_equipment = set(policy["covered_checks"]["STRENGTH_MACHINE_CABLE_BAND"]["required_values"])
+    required_equipment = set(
+        policy["covered_checks"]["STRENGTH_MACHINE_CABLE_BAND"]["required_values"]
+    )
     if required_equipment <= equipment:
         equipment_gap = None
     else:
         equipment_gap = {
             "gap_code": "STRENGTH_MACHINE_CABLE_BAND",
             "missing_values": sorted(required_equipment - equipment),
-            "priority_source": policy["covered_checks"]["STRENGTH_MACHINE_CABLE_BAND"]["priority_source"],
+            "priority_source": policy["covered_checks"]["STRENGTH_MACHINE_CABLE_BAND"][
+                "priority_source"
+            ],
         }
 
     return {
         "policy_version": policy.get("policy_version", "inline-test-policy"),
         "status": "DRAFT_REVIEW_QUEUE",
         "production_eligible": False,
-        "selected_counts": {"strength": len(strength_rows), "cardio": len(cardio_rows), "mobility": len(mobility_rows)},
+        "selected_counts": {
+            "strength": len(strength_rows),
+            "cardio": len(cardio_rows),
+            "mobility": len(mobility_rows),
+        },
         "coverage": {
             "strength_targets": counts(strength_rows, "target"),
             "strength_movement_patterns": counts(strength_rows, "movement_pattern_candidate"),
@@ -131,7 +158,9 @@ def candidate_matches_gap(row: dict[str, str], gap: dict[str, Any]) -> bool:
         return False
     source_location = row["source_location"]
     source_name = row["source_name"]
-    if "실내" not in source_location or any(token in source_location for token in ("헬스장", "수영장")):
+    if "실내" not in source_location or any(
+        token in source_location for token in ("헬스장", "수영장")
+    ):
         return False
     low_impact_tokens = ("걷", "스텝", "제자리", "사이드", "실내자전거", "펀치스텝")
     high_impact_tokens = ("점프", "뛰", "달리", "런지", "계단", "줄넘기")
@@ -140,7 +169,9 @@ def candidate_matches_gap(row: dict[str, str], gap: dict[str, Any]) -> bool:
     )
 
 
-def build_queue(rows: Iterable[dict[str, str]], gaps: Iterable[dict[str, Any]]) -> list[dict[str, str]]:
+def build_queue(
+    rows: Iterable[dict[str, str]], gaps: Iterable[dict[str, Any]]
+) -> list[dict[str, str]]:
     gaps_list = list(gaps)
     queue: list[dict[str, str]] = []
     for row in rows:
@@ -157,7 +188,9 @@ def build_queue(rows: Iterable[dict[str, str]], gaps: Iterable[dict[str, Any]]) 
     return queue
 
 
-def write_outputs(profile: dict[str, Any], queue: list[dict[str, str]], *, output: Path, report: Path) -> None:
+def write_outputs(
+    profile: dict[str, Any], queue: list[dict[str, str]], *, output: Path, report: Path
+) -> None:
     if output.exists() or report.exists():
         raise FileExistsError("기존 gap 산출물을 덮어쓰지 않기 위해 새 출력 경로가 필요합니다.")
     output.mkdir(parents=True)

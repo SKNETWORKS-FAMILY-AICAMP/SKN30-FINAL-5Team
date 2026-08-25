@@ -10,12 +10,10 @@ from __future__ import annotations
 
 import argparse
 import csv
-import re
 from pathlib import Path
 from typing import Any
-from zipfile import ZipFile
 from xml.etree import ElementTree as ET
-
+from zipfile import ZipFile
 
 DECISION_FIELDS = [
     "exercise_id",
@@ -84,9 +82,14 @@ def read_xlsx_recommendations(path: Path) -> list[dict[str, str]]:
             ]
         workbook = ET.fromstring(archive.read("xl/workbook.xml"))
         relationships = ET.fromstring(archive.read("xl/_rels/workbook.xml.rels"))
-        relation_map = {item.attrib["Id"]: item.attrib["Target"].lstrip("/") for item in relationships}
+        relation_map = {
+            item.attrib["Id"]: item.attrib["Target"].lstrip("/") for item in relationships
+        }
         target = None
-        for sheet in workbook.find("a:sheets", NS):
+        sheets = workbook.find("a:sheets", NS)
+        if sheets is None:
+            raise ValueError("workbook sheets are missing")
+        for sheet in sheets:
             if sheet.attrib["name"] == "MET_Review_Recommendations":
                 target = relation_map[sheet.attrib[f"{{{REL_NS}}}id"]]
                 break
@@ -105,7 +108,10 @@ def read_xlsx_recommendations(path: Path) -> list[dict[str, str]]:
             if cells:
                 raw_rows.append([cells.get(index, "") for index in range(max(cells) + 1)])
     headers = raw_rows[0]
-    return [dict(zip(headers, row + [""] * (len(headers) - len(row)))) for row in raw_rows[1:]]
+    return [
+        dict(zip(headers, row + [""] * (len(headers) - len(row)), strict=False))
+        for row in raw_rows[1:]
+    ]
 
 
 def read_recommendations(path: Path) -> list[dict[str, str]]:
@@ -124,8 +130,10 @@ def write_csv(path: Path, fields: list[str], rows: list[dict[str, Any]]) -> None
 
 def pending_decision(row: dict[str, str]) -> str:
     return (
-        f"{row.get('recommendation_basis', 'NO_CONFIDENT_MAPPING')}: 권장값은 제안값일 뿐 승인 근거가 아님. "
-        "공식 Compendium 활동·강도·속도·중량·반복수·휴식 조건을 확인한 뒤 승인하거나 REVIEW_REQUIRED 유지"
+        f"{row.get('recommendation_basis', 'NO_CONFIDENT_MAPPING')}: "
+        "권장값은 제안값일 뿐 승인 근거가 아님. "
+        "공식 Compendium 활동·강도·속도·중량·반복수·휴식 조건을 확인한 뒤 "
+        "승인하거나 REVIEW_REQUIRED 유지"
     )
 
 
@@ -150,7 +158,9 @@ def build_decision_required(
                 "recommended_met": recommendation.get("recommended_met", ""),
                 "recommended_intensity": recommendation.get("recommended_intensity", ""),
                 "alternative_met_options": recommendation.get("alternative_met_options", ""),
-                "compendium_reference": recommendation.get("compendium_reference", mapping.get("met_source", "")),
+                "compendium_reference": recommendation.get(
+                    "compendium_reference", mapping.get("met_source", "")
+                ),
                 "recommendation_basis": recommendation.get("recommendation_basis", ""),
                 "recommendation_reason": recommendation.get("recommendation_reason", ""),
                 "decision_required": pending_decision(recommendation),
@@ -161,7 +171,9 @@ def build_decision_required(
     return rows
 
 
-def build_reviewed_mapping(mapping_rows: list[dict[str, str]], recommendation_ids: set[str]) -> list[dict[str, Any]]:
+def build_reviewed_mapping(
+    mapping_rows: list[dict[str, str]], recommendation_ids: set[str]
+) -> list[dict[str, Any]]:
     reviewed = []
     for source in mapping_rows:
         row = dict(source)
@@ -195,7 +207,9 @@ def build_change_log(
                     + "; "
                     + recommendation.get("recommendation_reason", "")
                 ),
-                "compendium_source": recommendation.get("compendium_reference", mapping.get("met_source", "")),
+                "compendium_source": recommendation.get(
+                    "compendium_reference", mapping.get("met_source", "")
+                ),
             }
         )
     return rows
@@ -215,14 +229,18 @@ def main() -> None:
     mapping_rows = read_csv(args.mapping)
     mapping_by_id = {row["exercise_id"]: row for row in mapping_rows}
     recommendation_ids = {row["exercise_id"] for row in recommendations}
-    review_ids = {row["exercise_id"] for row in mapping_rows if row["review_status"] == "REVIEW_REQUIRED"}
+    review_ids = {
+        row["exercise_id"] for row in mapping_rows if row["review_status"] == "REVIEW_REQUIRED"
+    }
     if len(recommendations) != 207 or recommendation_ids != review_ids:
         raise ValueError("recommendations must contain exactly the 207 REVIEW_REQUIRED mapping IDs")
     decision_rows = build_decision_required(recommendations, mapping_by_id)
     reviewed_mapping = build_reviewed_mapping(mapping_rows, recommendation_ids)
     change_log = build_change_log(recommendations, mapping_by_id)
     write_csv(args.output_dir / "met_review_decision_required.csv", DECISION_FIELDS, decision_rows)
-    write_csv(args.output_dir / "exercise_met_mapping_reviewed.csv", MAPPING_FIELDS, reviewed_mapping)
+    write_csv(
+        args.output_dir / "exercise_met_mapping_reviewed.csv", MAPPING_FIELDS, reviewed_mapping
+    )
     write_csv(args.output_dir / "met_review_change_log.csv", CHANGE_FIELDS, change_log)
 
 

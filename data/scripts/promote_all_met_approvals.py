@@ -65,9 +65,9 @@ def promote(
     if len(manifest) != 1:
         raise ValueError("exactly one approval manifest row is required")
     decision = manifest[0]
-    required = {
-        field for field in MANIFEST_FIELDS if not decision.get(field)
-    } - {"production_eligible"}
+    required = {field for field in MANIFEST_FIELDS if not decision.get(field)} - {
+        "production_eligible"
+    }
     if required:
         raise ValueError(f"approval manifest missing fields: {sorted(required)}")
     if (

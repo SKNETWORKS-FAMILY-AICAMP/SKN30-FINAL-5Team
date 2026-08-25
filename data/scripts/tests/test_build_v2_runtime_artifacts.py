@@ -20,7 +20,7 @@ class V2RuntimeArtifactTests(unittest.TestCase):
             report = runtime_artifacts.build(output)
 
             self.assertEqual(report["representative_records"], 102)
-            self.assertEqual(report["alternative_records"], 116)
+            self.assertEqual(report["alternative_records"], 285)
             self.assertEqual(report["safety_rule_records"], 394)
             self.assertFalse(report["production_eligible"])
 
@@ -35,7 +35,7 @@ class V2RuntimeArtifactTests(unittest.TestCase):
             )
             self.assertEqual(catalog_manifest["review"]["status"], "DOMAIN_APPROVED")
             self.assertFalse(catalog_manifest["review"]["production_eligible"])
-            self.assertEqual(alternative_manifest["summary"]["alternative_records"], 116)
+            self.assertEqual(alternative_manifest["summary"]["alternative_records"], 285)
             self.assertEqual(safety_manifest["summary"]["rule_records"], 394)
 
 

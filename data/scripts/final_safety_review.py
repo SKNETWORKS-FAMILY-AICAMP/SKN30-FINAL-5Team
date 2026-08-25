@@ -253,8 +253,7 @@ def render_markdown(report: dict[str, Any]) -> str:
     ]
     for row in report["review_required"]:
         lines.append(
-            f"- `{row['stable_code']}` {row['name_ko']}: "
-            + ", ".join(row["reason_codes"])
+            f"- `{row['stable_code']}` {row['name_ko']}: " + ", ".join(row["reason_codes"])
         )
     lines.extend(["", "### 제외", "", "없음.", ""])
     queue = report["review_queue"]

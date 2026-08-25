@@ -89,10 +89,7 @@ def source_codes(row: dict[str, str]) -> list[str]:
 
 def load_integrated(path: Path) -> dict[str, dict[str, str]]:
     with path.open(encoding="utf-8", newline="") as handle:
-        return {
-            f"{row['source_system']}:{row['source_id']}": row
-            for row in csv.DictReader(handle)
-        }
+        return {f"{row['source_system']}:{row['source_id']}": row for row in csv.DictReader(handle)}
 
 
 def parse_variant_list(value: str) -> list[dict[str, str]]:
@@ -184,7 +181,10 @@ def review_row(
         "FAMILY": (row.get("exercise_family", ""), family, family_reason, family_ok),
         "VARIANT_RELATION": (row.get("variant_list", ""), variant, variant_reason, variant_ok),
         "MOVEMENT_PATTERN": (
-            row.get("movement_pattern", ""), movement, movement_reason, movement_ok
+            row.get("movement_pattern", ""),
+            movement,
+            movement_reason,
+            movement_ok,
         ),
         "EQUIPMENT": (row.get("equipment", ""), equipment, equipment_reason, equipment_ok),
         "CARDIO_EQUIPMENT": (row.get("equipment", ""), cardio, cardio_reason, cardio_ok),
@@ -306,9 +306,7 @@ def write_csv(path: Path, rows: list[dict[str, str]], fields: Iterable[str]) -> 
 
 def write_summary(path: Path, rows: list[dict[str, str]], log: list[dict[str, str]]) -> None:
     decision_counts = Counter(row["review_decision"] for row in rows)
-    remaining = Counter(
-        code for row in rows for code in split_codes(row["review_required_codes"])
-    )
+    remaining = Counter(code for row in rows for code in split_codes(row["review_required_codes"]))
     pending_items = [
         f"- `{row['representative_id']}` {row['representative_name_ko']}: "
         f"family={row['reviewed_family']}, movement={row['reviewed_movement_pattern']}, "

@@ -9,6 +9,7 @@ import hashlib
 import json
 import sys
 from datetime import datetime
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -19,10 +20,13 @@ if str(PROJECT_ROOT) not in sys.path:
 from backend.app.modules.catalog.schemas import (  # noqa: E402
     AlternativeManifest,
     CatalogManifest,
+    DerivedArtifactVersion,
     ExerciseAlternativeRecord,
     ExerciseRecord,
     ExerciseSafetyRuleRecord,
+    ManifestCatalogVersion,
     ManifestFile,
+    ManifestReview,
     SafetyRuleManifest,
 )
 
@@ -44,6 +48,127 @@ GENERATED_AT = datetime.fromisoformat("2026-08-24T00:00:00+09:00")
 
 class RuntimeArtifactError(ValueError):
     """Raised when a reviewed runtime artifact cannot be materialized safely."""
+
+
+class V2BodyFocusCode(StrEnum):
+    """Reviewed V2 data codes awaiting the separate backend code-set migration."""
+
+    CHEST = "CHEST"
+    BACK = "BACK"
+    SHOULDERS = "SHOULDERS"
+    BICEPS = "BICEPS"
+    TRICEPS = "TRICEPS"
+    FOREARMS = "FOREARMS"
+    GLUTES = "GLUTES"
+    QUADRICEPS = "QUADRICEPS"
+    HAMSTRINGS = "HAMSTRINGS"
+    CALVES = "CALVES"
+    CORE = "CORE"
+    FULL_BODY = "FULL_BODY"
+    CARDIO = "CARDIO"
+    MOBILITY = "MOBILITY"
+
+
+class V2ReviewMethodCode(StrEnum):
+    DOMAIN_REVIEWER = "DOMAIN_REVIEWER"
+
+
+class V2CatalogVersionStatusCode(StrEnum):
+    ACTIVE = "ACTIVE"
+
+
+class V2ManifestCatalogVersion(ManifestCatalogVersion):
+    status_code: V2CatalogVersionStatusCode  # type: ignore[assignment]
+
+
+class V2DerivedArtifactVersion(DerivedArtifactVersion):
+    status_code: V2CatalogVersionStatusCode  # type: ignore[assignment]
+
+
+class V2ManifestReview(ManifestReview):
+    review_method_code: V2ReviewMethodCode  # type: ignore[assignment]
+
+
+V2ManifestCatalogVersion.model_rebuild(
+    _types_namespace={"V2CatalogVersionStatusCode": V2CatalogVersionStatusCode}
+)
+V2DerivedArtifactVersion.model_rebuild(
+    _types_namespace={"V2CatalogVersionStatusCode": V2CatalogVersionStatusCode}
+)
+V2ManifestReview.model_rebuild(_types_namespace={"V2ReviewMethodCode": V2ReviewMethodCode})
+
+
+class V2CatalogManifest(CatalogManifest):
+    catalog_version: V2ManifestCatalogVersion
+    review: V2ManifestReview
+
+
+class V2AlternativeManifest(AlternativeManifest):
+    review: V2ManifestReview
+    alternative_set_version: V2DerivedArtifactVersion
+
+
+class V2SafetyRuleManifest(SafetyRuleManifest):
+    review: V2ManifestReview
+    rule_set_version: V2DerivedArtifactVersion
+
+
+V2CatalogManifest.model_rebuild(
+    _types_namespace={
+        "V2ManifestCatalogVersion": V2ManifestCatalogVersion,
+        "V2ManifestReview": V2ManifestReview,
+    }
+)
+V2AlternativeManifest.model_rebuild(
+    _types_namespace={
+        "V2DerivedArtifactVersion": V2DerivedArtifactVersion,
+        "V2ManifestReview": V2ManifestReview,
+    }
+)
+V2SafetyRuleManifest.model_rebuild(
+    _types_namespace={
+        "V2DerivedArtifactVersion": V2DerivedArtifactVersion,
+        "V2ManifestReview": V2ManifestReview,
+    }
+)
+
+
+class V2ExerciseRecord(ExerciseRecord):
+    """Production-ineligible V2 artifact record with its reviewed body-focus code set."""
+
+    body_focus_code: V2BodyFocusCode  # type: ignore[assignment]
+
+
+V2ExerciseRecord.model_rebuild(_types_namespace={"V2BodyFocusCode": V2BodyFocusCode})
+
+
+class V2ExerciseAlternativeRecord(ExerciseAlternativeRecord):
+    """Reviewed V2 alternative record kept separate from the MVP API code set."""
+
+    review_method_code: V2ReviewMethodCode  # type: ignore[assignment]
+    alternative_set_version_code: str
+    production_eligible: bool
+    source_manifest_hash: str
+    source_metadata: dict[str, Any]
+
+
+V2ExerciseAlternativeRecord.model_rebuild(
+    _types_namespace={"V2ReviewMethodCode": V2ReviewMethodCode, "Any": Any}
+)
+
+
+class V2ExerciseSafetyRuleRecord(ExerciseSafetyRuleRecord):
+    """Reviewed, production-ineligible V2 safety artifact record."""
+
+    rule_set_version_code: str
+    production_eligible: bool
+    source_manifest_hash: str
+    source_metadata: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+
+V2ExerciseSafetyRuleRecord.model_rebuild(_types_namespace={"Any": Any, "datetime": datetime})
 
 
 def read_csv(path: Path) -> list[dict[str, str]]:
@@ -104,12 +229,12 @@ def int_value(value: str, field: str, key: str) -> int:
     return parsed
 
 
-def representative_records(rows: list[dict[str, str]]) -> list[ExerciseRecord]:
-    records: list[ExerciseRecord] = []
+def representative_records(rows: list[dict[str, str]]) -> list[V2ExerciseRecord]:
+    records: list[V2ExerciseRecord] = []
     for row in rows:
         key = row["representative_exercise_id"]
         timing_mode = row["timing_mode_code"]
-        record = ExerciseRecord.model_validate(
+        record = V2ExerciseRecord.model_validate(
             {
                 "stable_code": row["stable_code"],
                 "name_ko": row["name_ko"],
@@ -163,7 +288,7 @@ def representative_records(rows: list[dict[str, str]]) -> list[ExerciseRecord]:
     return records
 
 
-def stable_code_index(records: list[ExerciseRecord]) -> dict[str, str]:
+def stable_code_index(records: list[V2ExerciseRecord]) -> dict[str, str]:
     output: dict[str, str] = {}
     for record in records:
         output[record.stable_code] = record.stable_code
@@ -171,13 +296,14 @@ def stable_code_index(records: list[ExerciseRecord]) -> dict[str, str]:
 
 
 def materialize_alternatives(
-    records: list[ExerciseRecord], decisions: dict[str, Any]
-) -> list[ExerciseAlternativeRecord]:
+    records: list[V2ExerciseRecord], decisions: dict[str, Any]
+) -> list[V2ExerciseAlternativeRecord]:
     source_rows = read_csv(ALTERNATIVES_PATH)
     policy = decisions["alternative_materialization"]
     stable_codes = {record.stable_code for record in records}
     seen: dict[tuple[str, str, str, str], dict[str, str]] = {}
-    result: list[ExerciseAlternativeRecord] = []
+    result: list[V2ExerciseAlternativeRecord] = []
+    source_hash = sha256(ALTERNATIVES_PATH)
     for source in source_rows:
         source_stable = source["source_exercise_stable_code"]
         alternative_stable = source["alternative_exercise_stable_code"]
@@ -222,7 +348,7 @@ def materialize_alternatives(
                 )
             continue
         seen[key] = source
-        record = ExerciseAlternativeRecord.model_validate(
+        record = V2ExerciseAlternativeRecord.model_validate(
             {
                 "alternative_catalog_version_code": "exercise-catalog-v2.0.0-final",
                 "alternative_exercise_stable_code": alternative_stable,
@@ -233,6 +359,14 @@ def materialize_alternatives(
                 "review_method_code": decisions["domain_review"]["review_method_code"],
                 "review_status_code": decisions["domain_review"]["status"],
                 "rule_version": policy["rule_version"],
+                "alternative_set_version_code": source["alternative_set_version_code"],
+                "production_eligible": False,
+                "source_manifest_hash": source_hash,
+                "source_metadata": {
+                    **json.loads(source["source_metadata"]),
+                    "source_relation_key": source["source_relation_key"],
+                    "materialization_version": decisions["decision_version"],
+                },
                 "source_catalog_version_code": "exercise-catalog-v2.0.0-final",
                 "source_exercise_stable_code": source_stable,
                 "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
@@ -245,11 +379,11 @@ def materialize_alternatives(
 
 
 def materialize_safety(
-    records: list[ExerciseRecord], decisions: dict[str, Any]
-) -> list[ExerciseSafetyRuleRecord]:
+    records: list[V2ExerciseRecord], decisions: dict[str, Any]
+) -> list[V2ExerciseSafetyRuleRecord]:
     policy = decisions["safety_materialization"]
     source_hash = sha256(SAFETY_MAPPING_PATH)
-    result: list[ExerciseSafetyRuleRecord] = []
+    result: list[V2ExerciseSafetyRuleRecord] = []
     for exercise in records:
         areas = [(area, "PRIMARY") for area in exercise.primary_body_area_codes]
         areas.extend((area, "SECONDARY") for area in exercise.secondary_body_area_codes)
@@ -264,7 +398,7 @@ def materialize_safety(
             )
             for minimum, maximum, effect, reason in specs:
                 result.append(
-                    ExerciseSafetyRuleRecord.model_validate(
+                    V2ExerciseSafetyRuleRecord.model_validate(
                         {
                             "body_area_code": area,
                             "body_part_role_code": role,
@@ -344,53 +478,68 @@ def build(output_dir: Path = DEFAULT_OUTPUT_DIR) -> dict[str, Any]:
             }
         ],
     }
-    catalog_manifest = CatalogManifest(
-        schema_version="1.0",
-        generator_version="v2-runtime-materializer-1.0.0",
-        catalog_version={"version_code": "exercise-catalog-v2.0.0-final", "status_code": "ACTIVE"},
-        source=source,
-        review=common_review,
-        summary={"exercise_records": representative_count},
-        files=[
-            ManifestFile(
-                path="representative_exercises.jsonl",
-                sha256=representative_hash,
-                bytes=representative_bytes,
-                records=representative_count,
-            )
-        ],
+    catalog_manifest = V2CatalogManifest.model_validate(
+        {
+            "schema_version": "1.0",
+            "generator_version": "v2-runtime-materializer-1.0.0",
+            "catalog_version": {
+                "version_code": "exercise-catalog-v2.0.0-final",
+                "status_code": "ACTIVE",
+            },
+            "source": source,
+            "review": common_review,
+            "summary": {"exercise_records": representative_count},
+            "files": [
+                ManifestFile(
+                    path="representative_exercises.jsonl",
+                    sha256=representative_hash,
+                    bytes=representative_bytes,
+                    records=representative_count,
+                )
+            ],
+        }
     )
-    alternative_manifest = AlternativeManifest(
-        schema_version="1.0",
-        generator_version="v2-runtime-materializer-1.0.0",
-        source=source,
-        review=common_review,
-        summary={"alternative_records": alternative_count},
-        files=[
-            ManifestFile(
-                path="alternatives.jsonl",
-                sha256=alternative_hash,
-                bytes=alternative_bytes,
-                records=alternative_count,
-            )
-        ],
-        alternative_set_version={"version_code": "alternative-set-v2.0.0", "status_code": "ACTIVE"},
+    alternative_manifest = V2AlternativeManifest.model_validate(
+        {
+            "schema_version": "1.0",
+            "generator_version": "v2-runtime-materializer-1.0.0",
+            "source": source,
+            "review": common_review,
+            "summary": {"alternative_records": alternative_count},
+            "files": [
+                ManifestFile(
+                    path="alternatives.jsonl",
+                    sha256=alternative_hash,
+                    bytes=alternative_bytes,
+                    records=alternative_count,
+                )
+            ],
+            "alternative_set_version": {
+                "version_code": "alternative-set-v2.0.0",
+                "status_code": "ACTIVE",
+            },
+        }
     )
-    safety_manifest = SafetyRuleManifest(
-        schema_version="1.0",
-        generator_version="v2-runtime-materializer-1.0.0",
-        source=source,
-        review=common_review,
-        summary={"rule_records": safety_count},
-        files=[
-            ManifestFile(
-                path="safety_rules.jsonl",
-                sha256=safety_hash,
-                bytes=safety_bytes,
-                records=safety_count,
-            )
-        ],
-        rule_set_version={"version_code": "safety-rule-set-v2.0.0", "status_code": "ACTIVE"},
+    safety_manifest = V2SafetyRuleManifest.model_validate(
+        {
+            "schema_version": "1.0",
+            "generator_version": "v2-runtime-materializer-1.0.0",
+            "source": source,
+            "review": common_review,
+            "summary": {"rule_records": safety_count},
+            "files": [
+                ManifestFile(
+                    path="safety_rules.jsonl",
+                    sha256=safety_hash,
+                    bytes=safety_bytes,
+                    records=safety_count,
+                )
+            ],
+            "rule_set_version": {
+                "version_code": "safety-rule-set-v2.0.0",
+                "status_code": "ACTIVE",
+            },
+        }
     )
     write_manifest(output_dir / "catalog_manifest.json", catalog_manifest)
     write_manifest(output_dir / "alternatives_manifest.json", alternative_manifest)

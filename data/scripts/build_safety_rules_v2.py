@@ -218,7 +218,8 @@ def pain_score_decisions(level: str, action: str) -> list[dict[str, Any]]:
                 "service_action_code": service_action,
                 "alternative_strategy_code": band["alternative_strategy_code"],
                 "fallback_action_code": band.get(
-                    "fallback_action_code", "ROM_REDUCED" if service_action == "LOAD_REDUCED" else service_action
+                    "fallback_action_code",
+                    "ROM_REDUCED" if service_action == "LOAD_REDUCED" else service_action,
                 ),
                 "alternative_available": service_action != "STOP_EXERCISE",
                 "decision_scope": (
@@ -324,8 +325,8 @@ def load_catalog_and_patterns(
     return merged
 
 
-def legacy_v2_rows(legacy_rules: list[dict[str, Any]]) -> list[dict[str, str]]:
-    migrated: list[dict[str, str]] = []
+def legacy_v2_rows(legacy_rules: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    migrated: list[dict[str, Any]] = []
     for rule in legacy_rules:
         scope = rule["rule_scope"]
         if scope == "MOVEMENT_PATTERN":
@@ -405,9 +406,9 @@ def bridge_rule_specs(catalog: list[dict[str, Any]]) -> list[tuple[str, str, str
 
 def bridge_v2_rows(
     catalog: list[dict[str, Any]], legacy_rules: list[dict[str, Any]]
-) -> list[dict[str, str]]:
+) -> list[dict[str, Any]]:
     matches = legacy_matches_by_effect(legacy_rules)
-    rows: list[dict[str, str]] = []
+    rows: list[dict[str, Any]] = []
     for index, (pattern, area, level, action, reason) in enumerate(bridge_rule_specs(catalog), 1):
         source_ids = matches.get((area, level, action, reason), [])
         # A newly introduced direct body-area assignment has no equivalent
@@ -437,7 +438,7 @@ def bridge_v2_rows(
 
 
 def mapping_rows(
-    catalog: list[dict[str, Any]], bridge_rules: list[dict[str, str]]
+    catalog: list[dict[str, Any]], bridge_rules: list[dict[str, Any]]
 ) -> list[dict[str, str]]:
     by_key = {
         (
@@ -566,9 +567,7 @@ def template_rows() -> list[dict[str, str]]:
             **values,
             "field_name": "pain_score_decisions",
             "data_type": "json-array",
-            "allowed_values": (
-                "1-3=LOAD_REDUCED;4-6=SKIP_AFFECTED_AREA;7-10=STOP_EXERCISE"
-            ),
+            "allowed_values": ("1-3=LOAD_REDUCED;4-6=SKIP_AFFECTED_AREA;7-10=STOP_EXERCISE"),
             "validation_rule": "ordered non-overlapping score bands; 7-10 has no alternative",
             "operational_note": "red-flag codes override every score band with STOP_AND_SEEK_HELP.",
         },

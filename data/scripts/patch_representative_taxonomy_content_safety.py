@@ -17,7 +17,6 @@ from generate_representative_content_safety import (
     write_csv,
 )
 
-
 PATCHES = {
     "REX-000059": {
         "exercise_family": "CARDIO",
@@ -74,13 +73,7 @@ def patch_taxonomy(path: Path) -> list[dict[str, str]]:
         raise ValueError("one or more target IDs are missing from taxonomy")
     for representative_id, patch in PATCHES.items():
         row = by_id[representative_id]
-        row.update(
-            {
-                key: value
-                for key, value in patch.items()
-                if key not in {"reason"}
-            }
-        )
+        row.update({key: value for key, value in patch.items() if key not in {"reason"}})
         row.update(
             {
                 "removable_review_required_codes": "",
@@ -123,7 +116,9 @@ def patch_derived(output_dir: Path, taxonomy_rows: list[dict[str, str]]) -> None
                 "difficulty": source["difficulty"],
                 "source_ids": source["source_ids"],
                 "taxonomy_review_status": source["taxonomy_review_status"],
-                "generation_basis_code": f"TAXONOMY:{source['movement_pattern']}|NAME:{source['exercise_family']}",
+                "generation_basis_code": (
+                    f"TAXONOMY:{source['movement_pattern']}|NAME:{source['exercise_family']}"
+                ),
                 "content_review_status": "GENERATED_CONTENT_REVIEW_REQUIRED",
             }
         )
@@ -144,14 +139,18 @@ def patch_derived(output_dir: Path, taxonomy_rows: list[dict[str, str]]) -> None
         )
         return row
 
-    content_rows = [update_content(row) for row in read_output("representative_exercise_content.csv")]
+    content_rows = [
+        update_content(row) for row in read_output("representative_exercise_content.csv")
+    ]
     safety_rows = [update_safety(row) for row in read_output("exercise_safety_rules.csv")]
     log_rows = read_output("content_safety_review_log.csv")
     for row in log_rows:
         if row["representative_id"] not in ids:
             continue
         source = taxonomy_by_id[row["representative_id"]]
-        safety = next(item for item in safety_rows if item["representative_id"] == row["representative_id"])
+        safety = next(
+            item for item in safety_rows if item["representative_id"] == row["representative_id"]
+        )
         row.update(
             {
                 "exercise_name_ko": source["representative_name_ko"],

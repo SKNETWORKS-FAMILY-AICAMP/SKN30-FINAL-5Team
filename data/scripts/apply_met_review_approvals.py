@@ -16,7 +16,6 @@ from typing import Any
 
 from process_met_review_recommendations import read_recommendations
 
-
 MAPPING_FIELDS = [
     "exercise_id",
     "exercise_name",
@@ -41,7 +40,9 @@ COMPENDIUM_URL = "https://pacompendium.com/"
 COMPENDIUM_NAMES = {
     "02022": "Calisthenics, moderate effort",
     "02048": "Elliptical trainer, moderate effort",
-    "02050": "Resistance (weight lifting - free weight, nautilus or universal-type), vigorous effort",
+    "02050": (
+        "Resistance (weight lifting - free weight, nautilus or universal-type), vigorous effort"
+    ),
     "02052": "Resistance (weight) training, squats, deadlift, slow or explosive effort",
     "02054": "Resistance (weight) training, multiple exercises, 8-15 reps at varied resistance",
     "02056": "Body weight resistance exercises, general",
@@ -95,9 +96,13 @@ def main() -> None:
         raise ValueError("duplicate exercise_id in source mapping")
     if decision_ids != set(recommendation_by_id):
         raise ValueError("decision-required and recommendation IDs do not match")
-    review_ids = {row["exercise_id"] for row in mapping_rows if row["review_status"] == "REVIEW_REQUIRED"}
+    review_ids = {
+        row["exercise_id"] for row in mapping_rows if row["review_status"] == "REVIEW_REQUIRED"
+    }
     if set(all_recommendation_by_id) != review_ids:
-        raise ValueError("all recommendations must contain exactly the 207 REVIEW_REQUIRED mapping IDs")
+        raise ValueError(
+            "all recommendations must contain exactly the 207 REVIEW_REQUIRED mapping IDs"
+        )
     if not decision_ids <= set(mapping_by_id):
         raise ValueError("recommendation contains an unknown exercise_id")
 
@@ -125,7 +130,9 @@ def main() -> None:
     if approved_ids & no_recommendation_ids:
         raise ValueError("NO_RECOMMENDATION row cannot be approved")
     if approved_ids | no_recommendation_ids != set(all_recommendation_by_id):
-        raise ValueError("recommendation rows must have either an approved value or NO_RECOMMENDATION")
+        raise ValueError(
+            "recommendation rows must have either an approved value or NO_RECOMMENDATION"
+        )
 
     reviewed_rows: list[dict[str, Any]] = []
     for source in mapping_rows:
@@ -137,8 +144,12 @@ def main() -> None:
             row["met_value"] = recommendation["recommended_met"]
             row["intensity_level"] = recommendation["recommended_intensity"]
             row["met_source"] = f"ADULT_COMPENDIUM_2024;activity_code={code};url={COMPENDIUM_URL}"
-            row["source_activity_name"] = recommendation.get("compendium_activity_name", "") or COMPENDIUM_NAMES.get(code, "")
-            recommendation_label = recommendation.get("recommendation_type", "") or recommendation.get("recommendation_basis", "")
+            row["source_activity_name"] = recommendation.get(
+                "compendium_activity_name", ""
+            ) or COMPENDIUM_NAMES.get(code, "")
+            recommendation_label = recommendation.get(
+                "recommendation_type", ""
+            ) or recommendation.get("recommendation_basis", "")
             row["mapping_basis"] = f"USER_APPROVED_{recommendation_label}"
             row["review_status"] = "APPROVED"
         elif recommendation is not None and source["exercise_id"] in no_recommendation_ids:
@@ -173,13 +184,16 @@ def main() -> None:
                 "recommended_met": applied_recommendation.get("recommended_met", ""),
                 "final_decision": final_decision,
                 "decision_basis": (
-                    f"{basis_prefix}; recommendation_type={applied_recommendation.get('recommendation_type', '')}; "
-                    f"assumed_execution_condition={applied_recommendation.get('assumed_execution_condition', '')}; "
+                    f"{basis_prefix}; recommendation_type="
+                    f"{applied_recommendation.get('recommendation_type', '')}; "
+                    "assumed_execution_condition="
+                    f"{applied_recommendation.get('assumed_execution_condition', '')}; "
                     f"reason={applied_recommendation.get('recommendation_reason', '')}"
                 ),
                 "compendium_source": (
                     applied_recommendation.get("compendium_reference", "")
-                    or f"ADULT_COMPENDIUM_2024;activity_code={selected_code(applied_recommendation)};url={COMPENDIUM_URL}"
+                    or "ADULT_COMPENDIUM_2024;activity_code="
+                    f"{selected_code(applied_recommendation)};url={COMPENDIUM_URL}"
                 ),
             }
         )

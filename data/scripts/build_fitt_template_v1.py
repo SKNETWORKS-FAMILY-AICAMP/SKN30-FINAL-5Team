@@ -11,9 +11,7 @@ from pathlib import Path
 
 PATTERN_REVIEW_PATH = Path("data/validation/review_results/movement_pattern_review.csv")
 OUTPUT_PATH = Path("data/normalized/fitt_template_v1.csv")
-REQUIRED_PATTERNS = {
-    "SQUAT", "HINGE", "LUNGE", "PUSH", "PULL", "CORE", "MOBILITY", "CARDIO"
-}
+REQUIRED_PATTERNS = {"SQUAT", "HINGE", "LUNGE", "PUSH", "PULL", "CORE", "MOBILITY", "CARDIO"}
 FIELDNAMES = [
     "fitt_template_id",
     "template_name",

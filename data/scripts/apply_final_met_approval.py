@@ -99,8 +99,7 @@ def validate_approval(
         )
     if row["decision"] not in {"APPROVED", "DOMAIN_APPROVED"}:
         raise ValueError(
-            "only APPROVED or DOMAIN_APPROVED decisions can be applied: "
-            f"{row['exercise_id']}"
+            f"only APPROVED or DOMAIN_APPROVED decisions can be applied: {row['exercise_id']}"
         )
     if row["production_eligible"].lower() == "true" and row["decision"] != "DOMAIN_APPROVED":
         raise ValueError("production_eligible=true requires DOMAIN_APPROVED")

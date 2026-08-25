@@ -105,9 +105,7 @@ def source_metadata(row: dict[str, str], integrated: dict[str, dict[str, str]]) 
     return {
         "media_source": source.get("source_media_reference", "") or "REVIEW_REQUIRED",
         "license_type": (
-            source.get("license_name", "")
-            or source.get("source_license", "")
-            or "REVIEW_REQUIRED"
+            source.get("license_name", "") or source.get("source_license", "") or "REVIEW_REQUIRED"
         ),
         "attribution_text": source.get("attribution_text", "") or "REVIEW_REQUIRED",
         # Source metadata is not the same as a completed rights decision.
@@ -211,9 +209,7 @@ def run(
     write_csv(production_path, production_rows, fields)
 
     unresolved = Counter(
-        code
-        for row in reviewed_rows
-        for code in split_codes(row["review_required_codes"])
+        code for row in reviewed_rows for code in split_codes(row["review_required_codes"])
     )
     return {
         "input": str(input_path),

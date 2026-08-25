@@ -717,14 +717,18 @@ def build_alternatives(
         alternative_strategy_code: str = "",
     ) -> None:
         key: tuple[str, ...] = (
-            source_row["stable_code"],
-            alternative_row["stable_code"],
-            reason_code,
-            relation_key,
-        ) if reason_code == "DISCOMFORT" else (
-            source_row["stable_code"],
-            alternative_row["stable_code"],
-            reason_code,
+            (
+                source_row["stable_code"],
+                alternative_row["stable_code"],
+                reason_code,
+                relation_key,
+            )
+            if reason_code == "DISCOMFORT"
+            else (
+                source_row["stable_code"],
+                alternative_row["stable_code"],
+                reason_code,
+            )
         )
         if key in seen:
             return
@@ -818,23 +822,25 @@ def build_alternatives(
         )
 
     for spec in decisions.get("approved_equipment_relations", []):
-        source_row = by_rex.get(str(spec.get("source_representative_exercise_id", "")))
-        alternative_row = by_rex.get(str(spec.get("alternative_representative_exercise_id", "")))
-        if source_row is None or alternative_row is None:
+        equipment_source = by_rex.get(str(spec.get("source_representative_exercise_id", "")))
+        equipment_alternative = by_rex.get(
+            str(spec.get("alternative_representative_exercise_id", ""))
+        )
+        if equipment_source is None or equipment_alternative is None:
             raise FinalizationError("approved equipment relation endpoint is not in V2 catalog")
-        if "STRETCH_STRAP" not in source_row["equipment_codes"].split("|"):
+        if "STRETCH_STRAP" not in equipment_source["equipment_codes"].split("|"):
             raise FinalizationError("approved strap relation source is not STRETCH_STRAP")
-        if "BODYWEIGHT" not in alternative_row["equipment_codes"].split("|"):
+        if "BODYWEIGHT" not in equipment_alternative["equipment_codes"].split("|"):
             raise FinalizationError("approved strap relation target is not BODYWEIGHT")
         append_relation(
-            source_row,
-            alternative_row,
+            equipment_source,
+            equipment_alternative,
             reason_code="EQUIPMENT",
             goal=str(spec["goal_preservation_code"]),
             delta=int(spec["difficulty_delta"]),
             relation_key=(
-                f"policy:{source_row['representative_exercise_id']}:"
-                f"{alternative_row['representative_exercise_id']}:EQUIPMENT"
+                f"policy:{equipment_source['representative_exercise_id']}:"
+                f"{equipment_alternative['representative_exercise_id']}:EQUIPMENT"
             ),
             metadata={
                 "source_path": str(DECISIONS_PATH.relative_to(DATA_ROOT)),
@@ -860,36 +866,41 @@ def build_alternatives(
         if score_band not in {"NRS_1_3", "NRS_4_6"}:
             raise FinalizationError(f"unsupported discomfort score band: {score_band}")
         expected_scores = {"NRS_1_3": (1, 3), "NRS_4_6": (4, 6)}[score_band]
-        if (
-            mapping.get("pain_score_min") != str(expected_scores[0])
-            or mapping.get("pain_score_max") != str(expected_scores[1])
-        ):
+        if mapping.get("pain_score_min") != str(expected_scores[0]) or mapping.get(
+            "pain_score_max"
+        ) != str(expected_scores[1]):
             raise FinalizationError(f"discomfort score range is invalid: {score_band}")
-        source_row = by_rex.get(mapping.get("source_representative_exercise_id", ""))
-        alternative_row = by_rex.get(mapping.get("alternative_representative_exercise_id", ""))
-        if source_row is None or alternative_row is None:
+        discomfort_source = by_rex.get(mapping.get("source_representative_exercise_id", ""))
+        discomfort_alternative = by_rex.get(
+            mapping.get("alternative_representative_exercise_id", "")
+        )
+        if discomfort_source is None or discomfort_alternative is None:
             raise FinalizationError("discomfort mapping endpoint is not in V2 catalog")
         pain_area = mapping.get("body_area_code", "")
         source_areas = set(
-            json.loads(source_row["primary_body_area_codes"])
-            + json.loads(source_row["secondary_body_area_codes"])
+            json.loads(discomfort_source["primary_body_area_codes"])
+            + json.loads(discomfort_source["secondary_body_area_codes"])
         )
         alternative_areas = set(
-            json.loads(alternative_row["primary_body_area_codes"])
-            + json.loads(alternative_row["secondary_body_area_codes"])
+            json.loads(discomfort_alternative["primary_body_area_codes"])
+            + json.loads(discomfort_alternative["secondary_body_area_codes"])
         )
         if pain_area not in source_areas:
             raise FinalizationError(
-                f"discomfort source does not load pain area: {pain_area}:{source_row['stable_code']}"
+                "discomfort source does not load pain area: "
+                f"{pain_area}:{discomfort_source['stable_code']}"
             )
-        if source_row["target_muscle_status"] != "APPROVED":
-            raise FinalizationError(f"source target muscle is not approved: {source_row['stable_code']}")
-        if alternative_row["target_muscle_status"] != "APPROVED":
+        if discomfort_source["target_muscle_status"] != "APPROVED":
             raise FinalizationError(
-                f"alternative target muscle is not approved: {alternative_row['stable_code']}"
+                f"source target muscle is not approved: {discomfort_source['stable_code']}"
             )
-        source_difficulty = difficulty_rank[source_row["difficulty_code"]]
-        alternative_difficulty = difficulty_rank[alternative_row["difficulty_code"]]
+        if discomfort_alternative["target_muscle_status"] != "APPROVED":
+            raise FinalizationError(
+                "alternative target muscle is not approved: "
+                f"{discomfort_alternative['stable_code']}"
+            )
+        discomfort_source_rank = difficulty_rank[discomfort_source["difficulty_code"]]
+        discomfort_alternative_rank = difficulty_rank[discomfort_alternative["difficulty_code"]]
         service_action = mapping.get("service_action_code", "")
         strategy = mapping.get("alternative_strategy_code", "")
         if score_band == "NRS_1_3":
@@ -898,55 +909,65 @@ def build_alternatives(
             if mapping.get("goal_preservation_code") != "SAME_GOAL":
                 raise FinalizationError("NRS_1_3 must preserve the original goal")
             if (
-                mapping.get("source_goal_group") != source_row["primary_movement_pattern_code"]
-                or mapping.get("source_target_muscle_code") != source_row["body_focus_code"]
+                mapping.get("source_goal_group")
+                != discomfort_source["primary_movement_pattern_code"]
+                or mapping.get("source_target_muscle_code") != discomfort_source["body_focus_code"]
             ):
                 raise FinalizationError("NRS_1_3 source goal or target muscle is stale")
             if not (
-                mapping.get("alternative_goal_group") == alternative_row["primary_movement_pattern_code"]
+                mapping.get("alternative_goal_group")
+                == discomfort_alternative["primary_movement_pattern_code"]
                 and (
-                    alternative_row["body_focus_code"] == source_row["body_focus_code"]
-                    or alternative_row["primary_movement_pattern_code"]
-                    == source_row["primary_movement_pattern_code"]
+                    discomfort_alternative["body_focus_code"]
+                    == discomfort_source["body_focus_code"]
+                    or discomfort_alternative["primary_movement_pattern_code"]
+                    == discomfort_source["primary_movement_pattern_code"]
                 )
             ):
                 raise FinalizationError("NRS_1_3 candidate does not preserve the goal")
-            if alternative_difficulty > source_difficulty:
+            if discomfort_alternative_rank > discomfort_source_rank:
                 raise FinalizationError("NRS_1_3 candidate increases difficulty")
         else:
-            if service_action != "SKIP_AFFECTED_AREA" or strategy != "AVOID_PAIN_AREA_ACTIVE_RECOVERY":
+            if (
+                service_action != "SKIP_AFFECTED_AREA"
+                or strategy != "AVOID_PAIN_AREA_ACTIVE_RECOVERY"
+            ):
                 raise FinalizationError("NRS_4_6 must skip the affected area with active recovery")
             if pain_area in alternative_areas:
                 raise FinalizationError(
-                    f"NRS_4_6 candidate uses pain area: {pain_area}:{alternative_row['stable_code']}"
+                    "NRS_4_6 candidate uses pain area: "
+                    f"{pain_area}:{discomfort_alternative['stable_code']}"
                 )
-            if alternative_row["difficulty_code"] not in allowed_difficulty:
+            if discomfort_alternative["difficulty_code"] not in allowed_difficulty:
                 raise FinalizationError(
-                    f"NRS_4_6 candidate is not low difficulty: {alternative_row['stable_code']}"
+                    "NRS_4_6 candidate is not low difficulty: "
+                    f"{discomfort_alternative['stable_code']}"
                 )
-            if alternative_row["fitt_intensity_level"] not in allowed_fitt_intensity:
+            if discomfort_alternative["fitt_intensity_level"] not in allowed_fitt_intensity:
                 raise FinalizationError(
-                    f"NRS_4_6 candidate is not low FITT intensity: {alternative_row['stable_code']}"
+                    "NRS_4_6 candidate is not low FITT intensity: "
+                    f"{discomfort_alternative['stable_code']}"
                 )
             if mapping.get("goal_preservation_code") != "ACTIVE_RECOVERY":
                 raise FinalizationError("NRS_4_6 must use ACTIVE_RECOVERY as the fallback goal")
         append_relation(
-            source_row,
-            alternative_row,
+            discomfort_source,
+            discomfort_alternative,
             reason_code="DISCOMFORT",
             goal=mapping["goal_preservation_code"],
-            delta=alternative_difficulty - source_difficulty,
+            delta=discomfort_alternative_rank - discomfort_source_rank,
             relation_key=(
-                f"mapping:{pain_area}:{score_band}:{source_row['representative_exercise_id']}:"
-                f"{alternative_row['representative_exercise_id']}:DISCOMFORT"
+                f"mapping:{pain_area}:{score_band}:"
+                f"{discomfort_source['representative_exercise_id']}:"
+                f"{discomfort_alternative['representative_exercise_id']}:DISCOMFORT"
             ),
             metadata={
                 "source_path": str(DISCOMFORT_MAPPING_PATH.relative_to(DATA_ROOT)),
                 "selection_basis": "DOMAIN_APPROVED_SCORE_BAND_AND_TARGET_MUSCLE_POLICY",
                 "body_area_code": pain_area,
                 "score_band_code": score_band,
-                "source_target_muscle_code": source_row["body_focus_code"],
-                "alternative_target_muscle_code": alternative_row["body_focus_code"],
+                "source_target_muscle_code": discomfort_source["body_focus_code"],
+                "alternative_target_muscle_code": discomfort_alternative["body_focus_code"],
             },
             pain_score_min=mapping["pain_score_min"],
             pain_score_max=mapping["pain_score_max"],

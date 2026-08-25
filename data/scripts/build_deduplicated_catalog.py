@@ -77,8 +77,7 @@ GYMVISUAL_DUPLICATE_GROUPS = (
         "reference_id": "0662",
         "reference_name": "push-up",
         "reason": (
-            "두 설명 모두 플랭크 정렬에서 팔꿈치를 굽혀 가슴을 낮췄다가 밀어 올리는 "
-            "팔굽혀펴기"
+            "두 설명 모두 플랭크 정렬에서 팔꿈치를 굽혀 가슴을 낮췄다가 밀어 올리는 팔굽혀펴기"
         ),
     },
     {
@@ -104,8 +103,7 @@ GYMVISUAL_DUPLICATE_GROUPS = (
         "reference_id": "0416",
         "reference_name": "dumbbell standing biceps curl",
         "reason": (
-            "두 설명 모두 팔꿈치를 몸 옆에 고정하고 저항을 어깨 쪽으로 올리는 "
-            "스탠딩 바이셉스 컬"
+            "두 설명 모두 팔꿈치를 몸 옆에 고정하고 저항을 어깨 쪽으로 올리는 스탠딩 바이셉스 컬"
         ),
     },
     {
@@ -128,8 +126,7 @@ GYMVISUAL_DUPLICATE_GROUPS = (
         "reference_id": "1760",
         "reference_name": "dumbbell goblet squat",
         "reason": (
-            "두 설명 모두 덤벨을 가슴 앞에 들고 엉덩이와 무릎을 굽혔다가 일어나는 "
-            "고블릿 스쿼트"
+            "두 설명 모두 덤벨을 가슴 앞에 들고 엉덩이와 무릎을 굽혔다가 일어나는 고블릿 스쿼트"
         ),
     },
     {
@@ -137,8 +134,7 @@ GYMVISUAL_DUPLICATE_GROUPS = (
         "reference_id": "0116",
         "reference_name": "barbell straight leg deadlift",
         "reason": (
-            "두 설명 모두 무릎을 약간 굽힌 채 엉덩이를 뒤로 보내 바벨을 다리 가까이 "
-            "내리는 RDL 계열"
+            "두 설명 모두 무릎을 약간 굽힌 채 엉덩이를 뒤로 보내 바벨을 다리 가까이 내리는 RDL 계열"
         ),
     },
     {
@@ -170,8 +166,7 @@ GYMVISUAL_DUPLICATE_GROUPS = (
         "reference_id": "0201",
         "reference_name": "cable pushdown",
         "reason": (
-            "두 설명 모두 상단 케이블에서 위팔을 몸통 옆에 고정하고 팔꿈치를 펴는 "
-            "케이블 푸시다운"
+            "두 설명 모두 상단 케이블에서 위팔을 몸통 옆에 고정하고 팔꿈치를 펴는 케이블 푸시다운"
         ),
     },
     {
@@ -179,8 +174,7 @@ GYMVISUAL_DUPLICATE_GROUPS = (
         "reference_id": "0794",
         "reference_name": "standing lateral stretch",
         "reason": (
-            "두 설명 모두 서서 몸통을 한쪽으로 기울여 옆구리·광배근을 늘리는 "
-            "스탠딩 사이드 스트레치"
+            "두 설명 모두 서서 몸통을 한쪽으로 기울여 옆구리·광배근을 늘리는 스탠딩 사이드 스트레치"
         ),
     },
     {
@@ -424,7 +418,7 @@ def consolidate() -> tuple[
                 matching_key = key
                 original = seen[key]
                 break
-        if matching_key is None:
+        if matching_key is None or original is None:
             kept.append(record)
             for key in duplicate_keys(record):
                 seen[key] = record

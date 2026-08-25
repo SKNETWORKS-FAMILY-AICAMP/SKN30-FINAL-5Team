@@ -19,7 +19,6 @@ import re
 from pathlib import Path
 from typing import Any
 
-
 MET_SOURCE = "ADULT_COMPENDIUM_PDF_2024"
 MET_SOURCE_URL = "https://pacompendium.com/adult-compendium/"
 OUTPUT_FIELDS = [
@@ -57,9 +56,18 @@ OFFICIAL_CANDIDATES = {
     ],
     "stepmill": [("02065", 9.3, "Stair treadmill ergometer, general")],
     "resistance": [
-        ("02050", 6.0, "Resistance (weight lifting - free weight, nautilus or universal-type), power lifting or body building, vigorous effort"),
+        (
+            "02050",
+            6.0,
+            "Resistance (weight lifting - free weight, nautilus or universal-type), "
+            "power lifting or body building, vigorous effort",
+        ),
         ("02052", 5.0, "Resistance (weight) training, squats, deadlift, slow or explosive effort"),
-        ("02054", 3.5, "Resistance (weight) training, multiple exercises, 8-15 reps at varied resistance"),
+        (
+            "02054",
+            3.5,
+            "Resistance (weight) training, multiple exercises, 8-15 reps at varied resistance",
+        ),
     ],
     "bodyweight": [
         ("02020", 7.5, "Calisthenics, vigorous effort"),
@@ -106,9 +114,25 @@ def candidate_rows(name: str, row: dict[str, str]) -> list[tuple[str, float, str
         return OFFICIAL_CANDIDATES["elliptical"]
     if "stepmill" in normalized:
         return OFFICIAL_CANDIDATES["stepmill"]
-    if any(token in normalized for token in ("deadlift", "squat", "press", "curl", "raise", "row", "fly", "pulldown", "push up")):
+    if any(
+        token in normalized
+        for token in (
+            "deadlift",
+            "squat",
+            "press",
+            "curl",
+            "raise",
+            "row",
+            "fly",
+            "pulldown",
+            "push up",
+        )
+    ):
         return OFFICIAL_CANDIDATES["resistance"]
-    if any(token in normalized for token in ("crunch", "plank", "lunge", "push up", "pull up", "jump", "high knee", "step")):
+    if any(
+        token in normalized
+        for token in ("crunch", "plank", "lunge", "push up", "pull up", "jump", "high knee", "step")
+    ):
         return OFFICIAL_CANDIDATES["bodyweight"]
     if any(token in normalized for token in ("stretch", "pose", "circles")):
         return OFFICIAL_CANDIDATES["stretching"]
@@ -123,9 +147,25 @@ def issue_type(name: str, row: dict[str, str]) -> str:
     normalized = normalize(name)
     if name.startswith("UNNAMED") or row.get("source_category") == "training_video":
         return "AMBIGUOUS_EXERCISE_NAME"
-    if "jump rope" in normalized or "elliptical" in normalized or "run" in normalized or "walk" in normalized or "stepmill" in normalized:
+    if (
+        "jump rope" in normalized
+        or "elliptical" in normalized
+        or "run" in normalized
+        or "walk" in normalized
+        or "stepmill" in normalized
+    ):
         return "MET_RANGE_POSSIBLE"
-    if any(token in normalized for token in ("with", "pass through", "on stability ball", "one arm", "alternating", "contralateral")):
+    if any(
+        token in normalized
+        for token in (
+            "with",
+            "pass through",
+            "on stability ball",
+            "one arm",
+            "alternating",
+            "contralateral",
+        )
+    ):
         return "COMPOUND_EXERCISE"
     if row.get("equipment_code_candidate", "") not in {"", "BODYWEIGHT"}:
         return "EQUIPMENT_CONDITION_VARIANCE"
@@ -140,7 +180,10 @@ def candidate_text(candidates: list[tuple[str, float, str]]) -> str:
 
 def source_text(candidates: list[tuple[str, float, str]], activity_code: str = "") -> str:
     if activity_code:
-        return f"{MET_SOURCE};activity_code={activity_code};source_locator=PDF page 2;url={MET_SOURCE_URL}"
+        return (
+            f"{MET_SOURCE};activity_code={activity_code};source_locator=PDF page 2;"
+            f"url={MET_SOURCE_URL}"
+        )
     codes = ",".join(code for code, _, _ in candidates)
     suffix = f";candidate_activity_codes={codes}" if codes else ";no_direct_activity_code"
     return f"{MET_SOURCE}{suffix};url={MET_SOURCE_URL}"
@@ -151,7 +194,9 @@ def load_compendium(path: Path) -> dict[str, dict[str, Any]]:
     return {str(activity["activity_code"]): activity for activity in data["activities"]}
 
 
-def build_mapping(rows: list[dict[str, str]], compendium: dict[str, dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def build_mapping(
+    rows: list[dict[str, str]], compendium: dict[str, dict[str, Any]]
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     mapping_rows: list[dict[str, Any]] = []
     review_rows: list[dict[str, Any]] = []
     for row in rows:
@@ -196,7 +241,8 @@ def build_mapping(rows: list[dict[str, str]], compendium: dict[str, dict[str, An
             }
         )
         reason = (
-            "정확한 운동·강도·장비 조건이 Compendium 항목과 완전히 대응하지 않아 자동 확정할 수 없음. "
+            "정확한 운동·강도·장비 조건이 Compendium 항목과 완전히 대응하지 않아 "
+            "자동 확정할 수 없음. "
             "후보 MET는 참고 선택지이며 현재 매핑값으로 사용하지 않음."
         )
         if not candidates:
@@ -212,7 +258,10 @@ def build_mapping(rows: list[dict[str, str]], compendium: dict[str, dict[str, An
                 "issue_type": kind,
                 "reason": reason,
                 "suggested_mapping": candidate_text(candidates),
-                "required_decision": "수행 강도·속도·반복수·장비 조건을 확인한 후 하나의 Compendium 활동을 선택하고 APPROVED 처리하거나 REVIEW_REQUIRED 유지",
+                "required_decision": (
+                    "수행 강도·속도·반복수·장비 조건을 확인한 후 하나의 Compendium "
+                    "활동을 선택하고 APPROVED 처리하거나 REVIEW_REQUIRED 유지"
+                ),
             }
         )
     return mapping_rows, review_rows
@@ -228,7 +277,9 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    mapping_rows, review_rows = build_mapping(read_csv(args.catalog), load_compendium(args.compendium))
+    mapping_rows, review_rows = build_mapping(
+        read_csv(args.catalog), load_compendium(args.compendium)
+    )
     write_csv(args.output_dir / "exercise_met_mapping.csv", OUTPUT_FIELDS, mapping_rows)
     write_csv(args.output_dir / "met_mapping_review_log.csv", REVIEW_FIELDS, review_rows)
 

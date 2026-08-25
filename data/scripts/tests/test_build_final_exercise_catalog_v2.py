@@ -181,7 +181,7 @@ class FinalExerciseCatalogV2Tests(unittest.TestCase):
             self.assertEqual(strap_to_bodyweight["production_eligible"], "false")
             discomfort = [row for row in alternatives if row["reason_code"] == "DISCOMFORT"]
             self.assertEqual(len(discomfort), 520)
-            score_band_counts = {}
+            score_band_counts: dict[str, int] = {}
             for row in discomfort:
                 metadata = json.loads(row["source_metadata"])
                 score_band = row["pain_score_min"] + "-" + row["pain_score_max"]
@@ -196,7 +196,9 @@ class FinalExerciseCatalogV2Tests(unittest.TestCase):
                 else:
                     self.assertEqual(score_band, "4-6")
                     self.assertEqual(row["service_action_code"], "SKIP_AFFECTED_AREA")
-                    self.assertEqual(row["alternative_strategy_code"], "AVOID_PAIN_AREA_ACTIVE_RECOVERY")
+                    self.assertEqual(
+                        row["alternative_strategy_code"], "AVOID_PAIN_AREA_ACTIVE_RECOVERY"
+                    )
                     self.assertNotIn(metadata["body_area_code"], alternative_areas)
             self.assertEqual(score_band_counts, {"1-3": 259, "4-6": 261})
             self.assertTrue(

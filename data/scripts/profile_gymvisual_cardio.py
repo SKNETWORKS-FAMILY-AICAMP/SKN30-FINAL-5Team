@@ -765,9 +765,7 @@ def create_profile(raw_dir: Path) -> dict[str, Any]:
     screened_candidates = [
         build_candidate(record, SCREENING[record["id"]], source) for record in cardio
     ]
-    disposition_counts = Counter(
-        item["screening"]["decision"] for item in screened_candidates
-    )
+    disposition_counts = Counter(item["screening"]["decision"] for item in screened_candidates)
     candidates = [
         item for item in screened_candidates if item["screening"]["decision"] == "INCLUDE"
     ]

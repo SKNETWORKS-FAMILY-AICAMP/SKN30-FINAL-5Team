@@ -29,6 +29,7 @@ COMPOUND_PATTERNS = {"SQUAT", "HINGE", "LUNGE", "PUSH", "PULL"}
 ISOLATION_PATTERNS = {"SQUAT", "HINGE", "PUSH", "PULL", "CARRY"}
 BODYWEIGHT_PATTERNS = {"SQUAT", "HINGE", "PUSH", "PULL", "LUNGE"}
 
+
 def load_rows(path: Path) -> list[dict[str, str]]:
     with path.open(encoding="utf-8", newline="") as input_file:
         return list(csv.DictReader(input_file))

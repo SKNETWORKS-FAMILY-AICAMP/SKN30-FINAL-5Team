@@ -14,9 +14,12 @@ import re
 from collections import Counter, defaultdict
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
-INPUT = ROOT / "data/validation/review_batches/gymvisual-integrated-review-v0.1.0/integrated_exercise_review.csv"
+INPUT = (
+    ROOT
+    / "data/validation/review_batches/gymvisual-integrated-review-v0.1.0"
+    / "integrated_exercise_review.csv"
+)
 CATALOG_OUTPUT = ROOT / "data/reports/representative_exercise_catalog.csv"
 UPDATED_OUTPUT = ROOT / "data/reports/integrated_exercise_review_updated.csv"
 
@@ -361,7 +364,11 @@ def variant_code(row: dict[str, str], representative: dict[str, str]) -> str:
 
 
 def difficulty(row: dict[str, str]) -> str:
-    return row.get("difficulty_code_candidate") or row.get("reviewed_difficulty_code") or "REVIEW_REQUIRED"
+    return (
+        row.get("difficulty_code_candidate")
+        or row.get("reviewed_difficulty_code")
+        or "REVIEW_REQUIRED"
+    )
 
 
 def beginner(row: dict[str, str]) -> str:
@@ -372,10 +379,17 @@ def beginner(row: dict[str, str]) -> str:
 def merge_basis(rows: list[dict[str, str]], family: str) -> str:
     if is_provisional_family(family):
         return (
-            "원천 후보를 대표 카탈로그에 포함하되 family taxonomy가 미확정이므로 자동 병합하지 않은 "
+            "원천 후보를 대표 카탈로그에 포함하되 family taxonomy가 미확정이므로 "
+            "자동 병합하지 않은 "
             "provisional singleton이다. 사람 검토 후 family 통합 또는 분리를 확정해야 한다."
         )
-    patterns = sorted({r.get("movement_pattern_candidate", "") for r in rows if r.get("movement_pattern_candidate")})
+    patterns = sorted(
+        {
+            r.get("movement_pattern_candidate", "")
+            for r in rows
+            if r.get("movement_pattern_candidate")
+        }
+    )
     if len(rows) == 1:
         return "단일 원본 레코드이며 동일 family 내 병합 대상이 없음."
     pattern_text = ", ".join(patterns) if patterns else "미확정 패턴"
@@ -388,7 +402,10 @@ def merge_basis(rows: list[dict[str, str]], family: str) -> str:
 
 def selection_reason(rep: dict[str, str], rows: list[dict[str, str]], family: str) -> str:
     if is_provisional_family(family):
-        return "대표 후보로는 포함하되 family·movement pattern taxonomy와 운영 적합성 검토가 남아 있어 provisional로 표시함."
+        return (
+            "대표 후보로는 포함하되 family·movement pattern taxonomy와 운영 적합성 검토가 "
+            "남아 있어 provisional로 표시함."
+        )
     reasons = ["family 내 대표 1개를 선택"]
     name = normalized_name(rep)
     if any(name == anchor for anchor in ANCHORS.get(family, ())):
@@ -420,17 +437,27 @@ def main() -> None:
     if missing_labels:
         raise RuntimeError(f"Missing Korean representative labels: {missing_labels}")
 
-    family_ids = {family: f"REX-{index:06d}" for index, family in enumerate(sorted(grouped), start=1)}
+    family_ids = {
+        family: f"REX-{index:06d}" for index, family in enumerate(sorted(grouped), start=1)
+    }
     representative_by_family: dict[str, dict[str, str]] = {}
     for family, family_rows in grouped.items():
-        representative_by_family[family] = max(family_rows, key=lambda row: candidate_score(row, family))
+        representative_by_family[family] = max(
+            family_rows, key=lambda row: candidate_score(row, family)
+        )
 
     catalog_rows: list[dict[str, str]] = []
     for family in sorted(grouped):
         family_rows = grouped[family]
         rep = representative_by_family[family]
-        current_codes = sorted({code for row in family_rows for code in codes(row.get("review_required_codes", ""))})
-        removable = [] if is_provisional_family(family) else [code for code in current_codes if code in REMOVABLE_CODES]
+        current_codes = sorted(
+            {code for row in family_rows for code in codes(row.get("review_required_codes", ""))}
+        )
+        removable = (
+            []
+            if is_provisional_family(family)
+            else [code for code in current_codes if code in REMOVABLE_CODES]
+        )
         remaining = [code for code in current_codes if code not in REMOVABLE_CODES]
         variants = [
             {
@@ -446,10 +473,16 @@ def main() -> None:
                 "representative_name_ko": FAMILY_KO[family],
                 "exercise_family": family,
                 "variant_list": json.dumps(variants, ensure_ascii=False, separators=(",", ":")),
-                "source_ids": "|".join(f"{r.get('source_track', '')}:{r.get('source_id', '')}" for r in family_rows),
+                "source_ids": "|".join(
+                    f"{r.get('source_track', '')}:{r.get('source_id', '')}" for r in family_rows
+                ),
                 "source_count": str(len(family_rows)),
-                "movement_pattern": Counter(r.get("movement_pattern_candidate", "REVIEW_REQUIRED") for r in family_rows).most_common(1)[0][0],
-                "training_type": Counter(r.get("training_type_code_candidate", "REVIEW_REQUIRED") for r in family_rows).most_common(1)[0][0],
+                "movement_pattern": Counter(
+                    r.get("movement_pattern_candidate", "REVIEW_REQUIRED") for r in family_rows
+                ).most_common(1)[0][0],
+                "training_type": Counter(
+                    r.get("training_type_code_candidate", "REVIEW_REQUIRED") for r in family_rows
+                ).most_common(1)[0][0],
                 "target_muscle": normalize_target(family_rows),
                 "equipment": normalize_equipment(rep.get("source_equipment", "")),
                 "difficulty": difficulty(rep),
@@ -458,14 +491,20 @@ def main() -> None:
                 "merge_judgement": (
                     "PROVISIONAL_SINGLETON_REVIEW_REQUIRED"
                     if is_provisional_family(family)
-                    else "MERGE_TO_FAMILY_KEEP_VARIANTS" if len(family_rows) > 1 else "SINGLETON_FAMILY"
+                    else "MERGE_TO_FAMILY_KEEP_VARIANTS"
+                    if len(family_rows) > 1
+                    else "SINGLETON_FAMILY"
                 ),
                 "merge_basis": merge_basis(family_rows, family),
                 "removable_review_required_codes": "|".join(removable),
                 "additional_review_required_codes": "|".join(remaining),
-                "representative_source_id": f"{rep.get('source_track', '')}:{rep.get('source_id', '')}",
+                "representative_source_id": (
+                    f"{rep.get('source_track', '')}:{rep.get('source_id', '')}"
+                ),
                 "representative_source_name": rep.get("source_name", ""),
-                "representative_review_status": "REVIEW_REQUIRED" if is_provisional_family(family) else "FAMILY_SELECTION_COMPLETE",
+                "representative_review_status": "REVIEW_REQUIRED"
+                if is_provisional_family(family)
+                else "FAMILY_SELECTION_COMPLETE",
             }
         )
 
@@ -483,7 +522,9 @@ def main() -> None:
                 row["representative_selected"] = "true" if row is rep else "false"
                 if not is_provisional_family(family):
                     remaining_codes = [
-                        code for code in codes(row.get("review_required_codes", "")) if code not in REMOVABLE_CODES
+                        code
+                        for code in codes(row.get("review_required_codes", ""))
+                        if code not in REMOVABLE_CODES
                     ]
                     row["review_required_codes"] = "|".join(remaining_codes)
                     row["review_required"] = "true" if remaining_codes else "false"
@@ -497,15 +538,25 @@ def main() -> None:
         writer.writeheader()
         writer.writerows(catalog_rows)
 
-    print(json.dumps({
-        "input_rows": len(rows),
-        "resolved_families": len(grouped),
-        "unresolved_rows": sum(row.get("exercise_family_candidate") == "REVIEW_REQUIRED" for row in rows),
-        "catalog_rows": len(catalog_rows),
-        "representatives_selected": sum(row["representative_selected"] == "true" for row in rows),
-        "catalog_output": str(CATALOG_OUTPUT),
-        "updated_output": str(UPDATED_OUTPUT),
-    }, ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            {
+                "input_rows": len(rows),
+                "resolved_families": len(grouped),
+                "unresolved_rows": sum(
+                    row.get("exercise_family_candidate") == "REVIEW_REQUIRED" for row in rows
+                ),
+                "catalog_rows": len(catalog_rows),
+                "representatives_selected": sum(
+                    row["representative_selected"] == "true" for row in rows
+                ),
+                "catalog_output": str(CATALOG_OUTPUT),
+                "updated_output": str(UPDATED_OUTPUT),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":
