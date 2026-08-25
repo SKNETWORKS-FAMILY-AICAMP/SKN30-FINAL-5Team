@@ -6,6 +6,7 @@ from backend.app.db.repositories.deliberation import DeliberationRepository
 from backend.app.db.repositories.identity import IdentityRepository
 from backend.app.db.repositories.profile import ProfileRepository
 from backend.app.db.repositories.routine import RoutineRepository
+from backend.app.db.repositories.v3_decision import V3DecisionRepository
 from backend.app.db.repositories.vector_index import VectorIndexRepository
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "ProfileRepository",
     "RoutineRepository",
     "VectorIndexRepository",
+    "V3DecisionRepository",
 ]

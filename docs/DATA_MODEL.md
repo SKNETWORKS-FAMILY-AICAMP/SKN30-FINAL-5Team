@@ -8,11 +8,14 @@
 
 멀티 에이전트 핵심 흐름은 [ADR-0007](adr/0007-multi-agent-structure-correction.md)에 따라 Training·Recovery·Safety·Feasibility 네 proposal의 병렬 실행과 Coordinator 최종 결정으로 확정한다. `agent_proposals`, 조정 결과, 공개 요약의 세부 JSON 구조와 버전 필드는 증상 사용자 시나리오 검증 결과에 따라 추후 보완할 수 있으며, 독립적인 최종 Safety 재검사 결과는 저장하지 않는다. 외부 연동·무료 체험·개인정보 보유기간의 상위 경계는 `ACCEPTED` ADR-0003·0004와 POL-013을 따르며, 관련 컬럼은 실제 migration과 호환성 검토가 승인되기 전까지 논리 모델이다. 결정 재현에 필요한 입력·정책·카탈로그·그래프 버전과 안전 veto 기록은 현재 확정한다.
 
-ADR-0013의 V3 persistence는 승인된 목표의 additive 논리 계약이다. 승인된 migration 전에는 물리
-schema나 구현 완료로 간주하지 않으며 V1/V2 row와 현재 관계를 파괴적으로 변경하지 않는다.
+ADR-0013의 V3 persistence는 승인된 additive 계약이다. Migration
+`0025_v3_decision_persistence`가 V3-B1 물리 계약을 구현하며, 배포·production write 활성화 전까지
+현재 V1/V2 실행 기준을 변경하지 않는다.
 ADR-0014의 Qdrant retrieval persistence는 `ACCEPTED` 목표 계약이다. `vector_index_registry`는
 additive migration `0024_vector_index_registry`와 repository로 구현한다. 사용자 연결 retrieval audit과
-V3 decision persistence는 별도 후속 migration이 병합되기 전까지 논리 모델로 유지한다.
+`decision_exercise_retrievals`와 나머지 V3 decision audit table은 migration 0025에서 함께 생성한다.
+이 migration의 downgrade는 production V3 write 전까지만 안전하다. V3 audit row가 생성된 뒤에는
+historical row를 제거하지 않고 additive forward-fix migration을 사용한다.
 
 ADR-0012는 conflict와 조건부 Round 2 review를 별도 기록하는 additive V2 논리 모델을 승인된
 목표로 정의한다. 후속 persistence task의 Alembic migration이 병합되기 전에는 아래 9.2.1을 물리
@@ -1074,7 +1077,8 @@ V1/V2의 prompt version과 model code는 문구 전용 정보이므로 `decision
 `decision_explanations`에 저장한다. 결정 재현에 필요한 graph·policy·catalog·safety rule·duration rule
 version은 `decision_runs`가 계속 보유한다.
 
-V3 후속 migration은 `decision_runs`에 다음 nullable/additive lineage metadata를 제안한다.
+Migration `0025_v3_decision_persistence`는 `decision_runs`에 다음 nullable/additive lineage metadata를
+추가한다.
 
 | 컬럼 | 설명 |
 |---|---|
@@ -1133,7 +1137,8 @@ Coordinator 결과는 서로 다른 레코드에 저장한다.
 decision_run_id와 agent_type_code 조합은 유일하다.
 
 V3 run은 `TRAINING`, `RECOVERY`, `FEASIBILITY` 세 Round 1 proposal만 저장한다. Historical V1/V2의
-`SAFETY` row는 유지한다. 후속 additive migration은 다음 nullable metadata를 검토한다.
+`SAFETY` row는 유지한다. 다음 표는 계약 동결 당시 검토한 논리 후보이며, migration 0025는 중복
+lineage를 `decision_runs`와 아래 확정 invocation metadata로 분리한다.
 
 | 컬럼 | 설명 |
 |---|---|
@@ -1147,6 +1152,25 @@ V3 run은 `TRAINING`, `RECOVERY`, `FEASIBILITY` 세 Round 1 proposal만 저장�
 | fallback_reason_code | deterministic proposal 사용 시 nullable code |
 
 prompt 원문, chain-of-thought, provider 예외 문자열과 직접 식별자는 저장하지 않는다.
+
+Migration `0025_v3_decision_persistence`는 기존 V1/V2 row를 backfill하지 않고 다음 nullable V3 LLM
+invocation metadata를 `agent_proposals`에 추가한다.
+
+| 컬럼 | 설명 |
+|---|---|
+| invocation_metadata_schema_version | `llm-invocation-metadata-v1` |
+| proposal_hash | 검증된 structured proposal canonical SHA-256 |
+| prompt_version | prompt template version. 원문 아님 |
+| provider_code | provider machine code |
+| model_code | model/version machine code |
+| output_schema_version | structured output contract version |
+| attempt_number | bounded attempt 0 또는 1 |
+| invocation_status_code | SUCCEEDED, FAILED, TIMEOUT, INVALID_OUTPUT |
+| latency_ms | 비민감 운영 지표, 0 이상 |
+
+V3 metadata는 all-or-none이며 V1/V2 row에서는 모두 null이다. 따라서 historical `SAFETY` proposal과
+기존 네 Agent read/write는 유지되고, V3 여부와 3-Agent cardinality는 `decision_runs.graph_version`과
+lineage metadata 및 repository 계약으로 구분한다.
 
 ### 9.2.1 V2 물리 모델 — decision_deliberations, agent_proposal_revisions, agent_review_events
 
@@ -1234,7 +1258,7 @@ V3 deliberation은 graph version으로 V2와 구분하며 정확히 세 전문 A
 `SAFETY` review event는 만들지 않는다. Safety constraint 위반은 canonical conflict code와 최종
 validation record로 저장한다.
 
-### 9.2.2 [V3 목표] decision_constraint_envelopes
+### 9.2.2 [migration 0025] decision_constraint_envelopes
 
 SafetyPolicyEngine과 constraint builder가 확정한 생성 경계를 decision lineage당 하나의 immutable
 record로 저장한다. regeneration run은 새 envelope를 복제하지 않고 같은 row를 참조한다.
@@ -1257,7 +1281,7 @@ record로 저장한다. regeneration run은 새 envelope를 복제하지 않고 
 | expires_at | regeneration freshness 경계 |
 | created_at | 생성 시각 |
 
-### 9.2.3 [V3 목표] decision_exercise_pools
+### 9.2.3 [migration 0025] decision_exercise_pools
 
 application loader가 방식 A로 사전 조회한 승인 운동 snapshot이다.
 
@@ -1280,7 +1304,7 @@ application loader가 방식 A로 사전 조회한 승인 운동 snapshot이다.
 mandatory ID는 `exercise_payload`의 부분집합이어야 한다. user ID, 자유 체크인, 통증 부위·점수,
 원시 건강·웨어러블 값은 pool에 포함하지 않는다. `created_at`은 `pool_hash` 입력에서 제외한다.
 
-### 9.2.3.1 [ADR-0014 ACCEPTED 목표] decision_exercise_retrievals
+### 9.2.3.1 [migration 0025, ADR-0014] decision_exercise_retrievals
 
 Vector 호출과 PostgreSQL 재검증/fallback을 Qdrant 재호출 없이 replay하기 위한 immutable record다.
 
@@ -1318,7 +1342,7 @@ Vector 호출과 PostgreSQL 재검증/fallback을 Qdrant 재호출 없이 replay
 사용되면 원인과 별도로 `DETERMINISTIC_POOL_FALLBACK_USED` audit event를 metadata에 저장한다.
 query 원문, 직접 식별자, 통증 부위·점수, 원시 건강·웨어러블 값과 provider 예외 원문은 저장하지 않는다.
 
-### 9.2.4 [V3 목표] decision_coordination_attempts
+### 9.2.4 [migration 0025] decision_coordination_attempts
 
 Coordinator initial과 optional repair를 덮어쓰지 않고 별도 저장한다.
 
@@ -1341,7 +1365,7 @@ Coordinator initial과 optional repair를 덮어쓰지 않고 별도 저장한�
 
 `(decision_run_id, attempt_number)`는 unique이고 attempt는 0 또는 1만 허용한다.
 
-### 9.2.5 [V3 목표] plan_integrity_validations
+### 9.2.5 [migration 0025] plan_integrity_validations
 
 Plan Compiler와 최종 validator 결과를 attempt별로 저장한다. 이는 원시 Safety 판단 재실행 결과가
 아니라 compiled plan의 ConstraintEnvelope 준수 기록이다.
@@ -1350,6 +1374,7 @@ Plan Compiler와 최종 validator 결과를 attempt별로 저장한다. 이는 �
 |---|---|
 | id | UUID, PK |
 | decision_run_id | decision_runs FK |
+| coordination_attempt_id | 같은 run·attempt의 decision_coordination_attempts FK, UNIQUE |
 | coordination_attempt_number | 0 또는 1 |
 | plan_candidate_id | plan_candidates FK, compile 실패 시 null |
 | compiler_version | 결정적 compiler version |
@@ -1360,7 +1385,8 @@ Plan Compiler와 최종 validator 결과를 attempt별로 저장한다. 이는 �
 | validation_hash | canonical result SHA-256 |
 | created_at | 생성 시각 |
 
-`(decision_run_id, coordination_attempt_number)`는 unique다. PASS record가 없는 LLM plan은 final
+`(decision_run_id, coordination_attempt_number)`와 `coordination_attempt_id`는 각각 unique다. 저장
+repository는 attempt의 run·number와 validation을 대조한다. PASS record가 없는 LLM plan은 final
 option과 연결할 수 없다.
 
 V3 migration은 새 테이블과 nullable column을 먼저 추가하고 V1/V2 read/write를 유지한 뒤 새
@@ -1763,8 +1789,8 @@ decision_runs
   ├─ 1:N safety_reviews
   ├─ 1:N decision_options
   ├─ 1:0..1 decision_selections
-  ├─ 1:0..2 decision_coordination_attempts [ADR-0013 V3 목표]
-  └─ 1:0..2 plan_integrity_validations [ADR-0013 V3 목표]
+  ├─ 1:0..2 decision_coordination_attempts [migration 0025]
+  └─ 1:0..2 plan_integrity_validations [migration 0025]
 
 decision root [ADR-0013 V3 목표]
   ├─ 1:1 decision_constraint_envelopes

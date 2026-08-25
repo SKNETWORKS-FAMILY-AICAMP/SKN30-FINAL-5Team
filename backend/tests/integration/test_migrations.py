@@ -20,11 +20,14 @@ BUNDLE_ALTERNATIVES = Path("data/generated/exercise-alternatives-merged-mvp-v0.4
 BUNDLE_PRESCRIPTIONS = Path("data/generated/exercise-prescriptions-merged-mvp-v0.1.0")
 
 
-def test_migration_history_has_vector_index_registry_head() -> None:
+def test_migration_history_has_v3_decision_persistence_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0024_vector_index_registry"]
+    assert scripts.get_heads() == ["0025_v3_decision_persistence"]
+    assert scripts.get_revision("0025_v3_decision_persistence").down_revision == (
+        "0024_vector_index_registry"
+    )
     assert scripts.get_revision("0024_vector_index_registry").down_revision == (
         "0023_v2_deliberation_store"
     )
@@ -110,9 +113,33 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
             "agent_proposal_revisions",
             "agent_review_events",
             "vector_index_registry",
+            "decision_constraint_envelopes",
+            "decision_exercise_pools",
+            "decision_exercise_retrievals",
+            "decision_coordination_attempts",
+            "plan_integrity_validations",
             "exercise_safety_rules",
             "exercise_alternatives",
         }.issubset(inspector.get_table_names())
+        assert {
+            "root_decision_run_id",
+            "parent_decision_run_id",
+            "generation_mode_code",
+            "regeneration_sequence",
+            "decision_engine_code",
+            "langchain_contract_version",
+            "langgraph_contract_version",
+        }.issubset({column["name"] for column in inspector.get_columns("decision_runs")})
+        assert {
+            "proposal_hash",
+            "prompt_version",
+            "provider_code",
+            "model_code",
+            "output_schema_version",
+            "attempt_number",
+            "invocation_status_code",
+            "latency_ms",
+        }.issubset({column["name"] for column in inspector.get_columns("agent_proposals")})
         assert {
             "id",
             "catalog_version_id",

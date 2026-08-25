@@ -40,6 +40,11 @@
 
 POL-009~013은 2026-08-11 사용자 명시 승인과 `ACCEPTED` ADR-0004에 따라 계약 기준으로 적용한다. POL-011의 삭제 상태·provider 실패·30일 restore tombstone 상세 계약은 `ACCEPTED` ADR-0008을 따른다. F011의 Google Calendar 계약은 `ACCEPTED` ADR-0010에 있지만, PR #96에서 실제 연동을 보류했으므로 구현 상태는 `DEFERRED`다. F010의 provider-neutral 경계는 ADR-0009에 있으나 실제 server-side Google·Kakao·Naver exchange adapter/API가 없어 `PARTIAL`이다. 멀티 에이전트 production 구조는 `ACCEPTED` ADR-0007을 기준으로 한다. ADR-0012와 TASK-AGENT-002는 2라운드 구조화 상호검토 V2의 승인된 목표 계약이지만 구현 전에는 F002·F029 완료 증거에 포함하지 않는다. ADR-0013과 TASK-AGENT-003은 Safety-first LangChain/LangGraph LLM 멀티에이전트 V3의 `ACCEPTED` 목표 계약이지만 구현·shadow 평가와 production 전환 전에는 기존 상태를 올리거나 완료 증거로 사용하지 않는다. Qdrant retrieval ADR-0014는 `ACCEPTED`다.
 
+V3-A3 orchestration domain과 persistent-checkpointer 없는 LangGraph runtime은 `origin/develop`에
+병합됐다. V3-B1 additive persistence는 migration `0025_v3_decision_persistence`, 별도 V3 SQLAlchemy
+model/repository와 PostgreSQL integration test로 `IN_PROGRESS`다. 이는 production V3 활성화나
+TASK-AGENT-003 전체 완료 증거가 아니며 F002의 `PARTIAL` 상태를 변경하지 않는다.
+
 ### 3.1 MVP 기능 구현 증거
 
 | 요구사항 | 인수조건 | API·DB | 코드 | 테스트 | 병합 PR | 상태 |
