@@ -5,11 +5,16 @@
 현재 구현은 DRAFT catalog와 파생 안전 규칙·대체 관계 bundle importer를 포함합니다.
 
 - local/test에서만 `seed_manifest.json`과 exercise JSONL을 검증·적재합니다.
-- Pydantic `StrEnum`의 `mvp-v1` code set과 승인 taxonomy hash를 사용합니다.
+- Pydantic `StrEnum`의 기존 `mvp-v1`과 additive `catalog-v2` code set을 사용합니다. V2 import는
+  14개 body-focus만 허용하고 legacy `UPPER_BODY`·`LOWER_BODY`, `BENCH`·`CHAIR`, `OUTDOOR`
+  대체관계를 fail-closed로 거부합니다.
 - version/hash 멱등성, artifact 경계, hash/byte/record count와 transaction 원자성을
   fail-closed로 검증합니다.
 - 원본 DRAFT 매니페스트의 `DOMAIN_APPROVED`는 파이프라인 호환 상태이며 그 자체로 production
   승격을 뜻하지 않습니다.
+- V2 안전 규칙·대체관계의 version, source hash/metadata, timezone audit timestamp를 검증하며
+  입력의 `production_eligible`은 반드시 false여야 합니다. repository는 검증된 manifest에서
+  canonical DB metadata를 만들고 record metadata를 그대로 신뢰해 승격하지 않습니다.
 - `python -m backend.scripts.catalog_data_load load`는 네 카탈로그와 안전 규칙 354개,
   대체 관계 238개를 한 transaction으로 적재하며 재실행은 멱등합니다.
 - Issue 53에서 별도 승인된 안전 규칙 `mvp-v0.3.0` 354건과 대체 관계 `mvp-v0.2.0`

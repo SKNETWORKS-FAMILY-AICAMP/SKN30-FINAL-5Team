@@ -24,7 +24,6 @@ from backend.app.db.models.catalog import (
 )
 from backend.app.modules.catalog.approvals import get_catalog_approval, get_derived_data_approval
 from backend.app.modules.catalog.codes import (
-    CATALOG_CODE_SET_VERSION,
     BodyAreaRoleCode,
     EquipmentRequirementCode,
     approved_display_name,
@@ -196,13 +195,15 @@ class CatalogRepository:
         | type[Location]
         | type[BodyArea],
         codes: Iterable[StrEnum],
+        *,
+        code_set_version: str,
     ) -> None:
         for code in sorted(set(codes), key=str):
             if session.get(model, str(code)) is None:
                 session.add(
                     model(
                         code=str(code),
-                        code_set_version=CATALOG_CODE_SET_VERSION,
+                        code_set_version=code_set_version,
                         display_name_ko=approved_display_name(code),
                     )
                 )
@@ -213,22 +214,36 @@ class CatalogRepository:
         artifact: CatalogArtifact,
     ) -> CatalogVersion:
         records = artifact.records
-        self._ensure_lookup_rows(session, TrainingType, (row.training_type_code for row in records))
-        self._ensure_lookup_rows(session, BodyFocus, (row.body_focus_code for row in records))
+        code_set_version = artifact.code_set_version
+        self._ensure_lookup_rows(
+            session,
+            TrainingType,
+            (row.training_type_code for row in records),
+            code_set_version=code_set_version,
+        )
+        self._ensure_lookup_rows(
+            session,
+            BodyFocus,
+            (row.body_focus_code for row in records),
+            code_set_version=code_set_version,
+        )
         self._ensure_lookup_rows(
             session,
             MovementPattern,
             (row.primary_movement_pattern_code for row in records),
+            code_set_version=code_set_version,
         )
         self._ensure_lookup_rows(
             session,
             Equipment,
             (code for row in records for code in row.equipment_codes),
+            code_set_version=code_set_version,
         )
         self._ensure_lookup_rows(
             session,
             Location,
             (code for row in records for code in row.location_codes),
+            code_set_version=code_set_version,
         )
         self._ensure_lookup_rows(
             session,
@@ -238,6 +253,7 @@ class CatalogRepository:
                 for row in records
                 for code in (*row.primary_body_area_codes, *row.secondary_body_area_codes)
             ),
+            code_set_version=code_set_version,
         )
 
         manifest = artifact.manifest
@@ -253,7 +269,7 @@ class CatalogRepository:
             status_code=manifest.catalog_version.status_code,
             manifest_schema_version=manifest.schema_version,
             generator_version=manifest.generator_version,
-            code_set_version=CATALOG_CODE_SET_VERSION,
+            code_set_version=artifact.code_set_version,
             source_manifest_hash=artifact.manifest_hash,
             source_track_code=manifest.source.track,
             review_status_code=manifest.review.status,

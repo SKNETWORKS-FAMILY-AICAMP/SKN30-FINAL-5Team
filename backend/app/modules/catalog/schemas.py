@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 from backend.app.modules.catalog.codes import (
+    V2_BODY_FOCUS_CODES,
     BodyAreaCode,
     BodyAreaRoleCode,
     BodyFocusCode,
@@ -111,6 +112,24 @@ class ExerciseRecord(CatalogInputModel):
     source_track: SourceTrackCode
     source_identity: Annotated[str, Field(min_length=1, max_length=255)]
 
+    @field_validator("body_focus_code", mode="before")
+    @classmethod
+    def validate_v2_body_focus_code(
+        cls,
+        value: object,
+        info: ValidationInfo,
+    ) -> object:
+        context = info.context if isinstance(info.context, dict) else {}
+        if not context.get("v2_import"):
+            return value
+        try:
+            code = value if isinstance(value, BodyFocusCode) else BodyFocusCode(str(value))
+        except (TypeError, ValueError) as exc:
+            raise ValueError("unsupported V2 body focus code") from exc
+        if code not in V2_BODY_FOCUS_CODES:
+            raise ValueError("body focus code is not allowed in V2 artifacts")
+        return code
+
     @field_validator("equipment_codes", mode="before")
     @classmethod
     def normalize_v2_equipment_codes(
@@ -145,7 +164,7 @@ class ExerciseRecord(CatalogInputModel):
         return value
 
     @model_validator(mode="after")
-    def validate_timing_fields(self) -> "ExerciseRecord":
+    def validate_timing_fields(self, info: ValidationInfo) -> "ExerciseRecord":
         if self.timing_mode_code is TimingModeCode.REPS:
             if self.default_seconds_per_rep is None or self.default_work_seconds is not None:
                 raise ValueError("REPS requires seconds_per_rep and forbids work_seconds")
@@ -159,6 +178,19 @@ class ExerciseRecord(CatalogInputModel):
             raise ValueError("at least one primary body area is required")
         if not self.equipment_codes or not self.location_codes:
             raise ValueError("at least one equipment and location code is required")
+        context = info.context if isinstance(info.context, dict) else {}
+        if context.get("v2_import"):
+            expected_focus = {
+                TrainingTypeCode.CARDIO: BodyFocusCode.CARDIO,
+                TrainingTypeCode.MOBILITY: BodyFocusCode.MOBILITY,
+            }.get(self.training_type_code)
+            if expected_focus is not None and self.body_focus_code is not expected_focus:
+                raise ValueError("V2 cardio and mobility records require their matching focus code")
+            if self.training_type_code is TrainingTypeCode.STRENGTH and self.body_focus_code in {
+                BodyFocusCode.CARDIO,
+                BodyFocusCode.MOBILITY,
+            }:
+                raise ValueError("V2 strength records cannot use cardio or mobility focus codes")
         return self
 
 
@@ -243,6 +275,19 @@ class ExerciseSafetyRuleRecord(CatalogInputModel):
     review_status_code: CatalogReviewStatusCode
     rule_scope: Literal["EXERCISE", "MOVEMENT_PATTERN"]
     rule_version: Annotated[str, Field(min_length=1, max_length=80)]
+    rule_set_version_code: Annotated[str, Field(min_length=1, max_length=120)] | None = None
+    production_eligible: bool | None = None
+    source_manifest_hash: Sha256 | None = None
+    source_metadata: dict[str, Any] | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    @field_validator("created_at", "updated_at")
+    @classmethod
+    def validate_timezone_aware_audit_timestamp(cls, value: datetime | None) -> datetime | None:
+        if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+            raise ValueError("audit timestamps must include timezone information")
+        return value
 
     @model_validator(mode="after")
     def validate_scope_target(self) -> "ExerciseSafetyRuleRecord":
@@ -282,12 +327,24 @@ class ExerciseAlternativeRecord(CatalogInputModel):
     source_catalog_version_code: Annotated[str, Field(min_length=1, max_length=120)]
     source_exercise_stable_code: StableCode
     status_interpretation: ReviewStatusInterpretationCode
+    alternative_set_version_code: Annotated[str, Field(min_length=1, max_length=120)] | None = None
+    production_eligible: bool | None = None
+    source_manifest_hash: Sha256 | None = None
+    source_metadata: dict[str, Any] | None = None
+    updated_at: datetime | None = None
 
     @field_validator("created_at")
     @classmethod
     def validate_timezone_aware_created_at(cls, value: datetime) -> datetime:
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("created_at must include timezone information")
+        return value
+
+    @field_validator("updated_at")
+    @classmethod
+    def validate_timezone_aware_updated_at(cls, value: datetime | None) -> datetime | None:
+        if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+            raise ValueError("updated_at must include timezone information")
         return value
 
     @field_validator("goal_preservation_code")

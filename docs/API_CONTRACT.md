@@ -1035,7 +1035,7 @@ RoutineDay
 - sequence: integer
 - title: string
 - training_type_code: string  # STRENGTH, CARDIO 등
-- body_focus_code: string | null  # UPPER_BODY, LOWER_BODY 등
+- body_focus_code: string | null  # versioned catalog machine code
 - requested_duration_minutes: integer
 - estimated_duration_seconds: integer
 - estimated_calories_burned: number | null  # 체중 기반 추정치
@@ -1054,6 +1054,12 @@ RoutineItem
 - rest_seconds_per_set: integer
 - instruction_available: boolean
 ~~~
+
+`catalog-v2`의 `body_focus_code` 허용값은 `CHEST`, `BACK`, `SHOULDERS`, `BICEPS`, `TRICEPS`,
+`FOREARMS`, `GLUTES`, `QUADRICEPS`, `HAMSTRINGS`, `CALVES`, `CORE`, `FULL_BODY`, `CARDIO`,
+`MOBILITY`다. 기존 V1 응답의 `UPPER_BODY`, `LOWER_BODY` decoding은 하위 호환을 위해 유지하지만
+V2 importer는 두 legacy code를 새 catalog row에 허용하지 않는다. 필드의 nullable 여부와 이름은
+변경하지 않는다.
 
 requested duration은 사용자 선택값이다. 운동 계획을 반환하는 경우 estimated duration은 `requested_duration_minutes * 60`과 정확히 일치해야 한다. 실제 운동 경과 시간은 사용자 속도에 따라 달라질 수 있으며 완료 판정에는 사용하지 않는다.
 
@@ -2154,7 +2160,7 @@ DB 저장에 실패한 decision 결과는 성공 응답하지 않는다.
 - 운동 중 MILD 또는 MODERATE 불편에 대한 세션 재구성 정책
 - 멀티 에이전트 로직 설계 후 공개 회의 UI의 agent summary 상세 필드
 - 체중 기반 칼로리 추정 산식·계수 버전
-- training_type_code와 body_focus_code의 전체 목록
+- 후속 catalog code-set에서 추가할 training_type_code와 body_focus_code
 - 운동 자세·설명 콘텐츠의 승인 및 버전 갱신 정책
 
 ## 20. 팀 확인 질문

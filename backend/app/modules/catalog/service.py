@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from backend.app.modules.catalog.codes import (
     APPROVED_TAXONOMY_REGISTRY_SHA256,
     CATALOG_CODE_SET_VERSION,
+    CATALOG_V2_CODE_SET_VERSION,
     BodyAreaCode,
     DifficultyCode,
     EquipmentCode,
@@ -48,6 +49,7 @@ class CatalogArtifact:
     manifest: CatalogManifest
     manifest_hash: str
     records: tuple[ExerciseRecord, ...]
+    code_set_version: str = CATALOG_CODE_SET_VERSION
 
 
 @dataclass(frozen=True)
@@ -429,6 +431,7 @@ def load_catalog_artifact(
         manifest=manifest,
         manifest_hash=_sha256(manifest_raw),
         records=tuple(records),
+        code_set_version=(CATALOG_V2_CODE_SET_VERSION if v2_import else CATALOG_CODE_SET_VERSION),
     )
 
 
@@ -448,7 +451,56 @@ def _load_derived_file(
     return data_raw
 
 
-def load_safety_rule_artifact(artifact_directory: Path) -> SafetyRuleArtifact:
+def _validate_v2_safety_metadata(
+    manifest: SafetyRuleManifest,
+    records: tuple[ExerciseSafetyRuleRecord, ...],
+) -> None:
+    if manifest.review.review_method_code != "DOMAIN_REVIEWER":
+        raise CatalogImportError(
+            "V2_REVIEW_METHOD_INVALID",
+            "V2 safety artifacts require DOMAIN_REVIEWER evidence",
+        )
+    expected_version = manifest.rule_set_version.version_code
+    for record in records:
+        if (
+            record.rule_set_version_code is None
+            or record.production_eligible is None
+            or record.source_manifest_hash is None
+            or record.source_metadata is None
+            or record.created_at is None
+            or record.updated_at is None
+        ):
+            raise CatalogImportError(
+                "V2_SAFETY_METADATA_REQUIRED",
+                "V2 safety records require versioned audit metadata",
+            )
+        if record.rule_set_version_code != expected_version:
+            raise CatalogImportError(
+                "DERIVED_VERSION_MISMATCH",
+                "safety record version does not match its manifest",
+            )
+        if record.production_eligible is not False:
+            raise CatalogImportError(
+                "PRODUCTION_ELIGIBILITY_INVALID",
+                "unapproved V2 safety records must remain production ineligible",
+            )
+        if record.updated_at < record.created_at:
+            raise CatalogImportError(
+                "V2_AUDIT_TIMESTAMP_INVALID",
+                "safety updated_at must not precede created_at",
+            )
+    if len({record.source_manifest_hash for record in records}) != 1:
+        raise CatalogImportError(
+            "V2_SOURCE_MANIFEST_MIXED",
+            "V2 safety records must share one source manifest hash",
+        )
+
+
+def load_safety_rule_artifact(
+    artifact_directory: Path,
+    *,
+    v2_import: bool = False,
+) -> SafetyRuleArtifact:
     root = artifact_directory.resolve()
     if not root.is_dir():
         raise CatalogImportError("ARTIFACT_DIRECTORY_INVALID", "artifact directory is invalid")
@@ -475,10 +527,64 @@ def load_safety_rule_artifact(artifact_directory: Path) -> SafetyRuleArtifact:
         raise CatalogImportError("RECORD_COUNT_MISMATCH", "safety rule count does not match")
     if len({record.model_dump_json() for record in records}) != len(records):
         raise CatalogImportError("DUPLICATE_SAFETY_RULE", "safety rules contain duplicates")
+    if v2_import:
+        _validate_v2_safety_metadata(manifest, records)
     return SafetyRuleArtifact(manifest, _sha256(manifest_raw), records)
 
 
-def load_alternative_artifact(artifact_directory: Path) -> AlternativeArtifact:
+def _validate_v2_alternative_metadata(
+    manifest: AlternativeManifest,
+    records: tuple[ExerciseAlternativeRecord, ...],
+) -> None:
+    if manifest.review.review_method_code != "DOMAIN_REVIEWER":
+        raise CatalogImportError(
+            "V2_REVIEW_METHOD_INVALID",
+            "V2 alternative artifacts require DOMAIN_REVIEWER evidence",
+        )
+    expected_version = manifest.alternative_set_version.version_code
+    for record in records:
+        if (
+            record.alternative_set_version_code is None
+            or record.production_eligible is None
+            or record.source_manifest_hash is None
+            or record.source_metadata is None
+        ):
+            raise CatalogImportError(
+                "V2_ALTERNATIVE_METADATA_REQUIRED",
+                "V2 alternative records require versioned audit metadata",
+            )
+        if record.alternative_set_version_code != expected_version:
+            raise CatalogImportError(
+                "DERIVED_VERSION_MISMATCH",
+                "alternative record version does not match its manifest",
+            )
+        if record.production_eligible is not False:
+            raise CatalogImportError(
+                "PRODUCTION_ELIGIBILITY_INVALID",
+                "unapproved V2 alternative records must remain production ineligible",
+            )
+        if record.review_method_code != "DOMAIN_REVIEWER":
+            raise CatalogImportError(
+                "V2_REVIEW_METHOD_INVALID",
+                "V2 alternative records require DOMAIN_REVIEWER evidence",
+            )
+        if record.updated_at is not None and record.updated_at < record.created_at:
+            raise CatalogImportError(
+                "V2_AUDIT_TIMESTAMP_INVALID",
+                "alternative updated_at must not precede created_at",
+            )
+    if len({record.source_manifest_hash for record in records}) != 1:
+        raise CatalogImportError(
+            "V2_SOURCE_MANIFEST_MIXED",
+            "V2 alternative records must share one source manifest hash",
+        )
+
+
+def load_alternative_artifact(
+    artifact_directory: Path,
+    *,
+    v2_import: bool = False,
+) -> AlternativeArtifact:
     root = artifact_directory.resolve()
     if not root.is_dir():
         raise CatalogImportError("ARTIFACT_DIRECTORY_INVALID", "artifact directory is invalid")
@@ -517,6 +623,8 @@ def load_alternative_artifact(artifact_directory: Path) -> AlternativeArtifact:
     }
     if len(relationship_keys) != len(records):
         raise CatalogImportError("DUPLICATE_ALTERNATIVE", "alternatives contain duplicates")
+    if v2_import:
+        _validate_v2_alternative_metadata(manifest, records)
     return AlternativeArtifact(manifest, _sha256(manifest_raw), records)
 
 
@@ -765,8 +873,14 @@ class CatalogDataBundleImporter:
             )
             for path in catalog_directories
         )
-        safety_artifact = load_safety_rule_artifact(safety_rule_directory)
-        alternative_artifact = load_alternative_artifact(alternative_directory)
+        safety_artifact = load_safety_rule_artifact(
+            safety_rule_directory,
+            v2_import=self._v2_import,
+        )
+        alternative_artifact = load_alternative_artifact(
+            alternative_directory,
+            v2_import=self._v2_import,
+        )
         prescription_artifact = load_prescription_artifact(prescription_directory)
         supplied_versions = {
             artifact.manifest.catalog_version.version_code for artifact in catalog_artifacts

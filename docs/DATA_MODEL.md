@@ -393,7 +393,7 @@ backup restore 직후 사용자 접근 차단과 동일 삭제 policy 재적용�
 | status_code | DRAFT, ACTIVE, DEPRECATED. 첫 importer slice는 DRAFT만 생성 |
 | manifest_schema_version | 검증한 seed manifest schema version |
 | generator_version | seed를 만든 generator version |
-| code_set_version | importer가 검증한 machine code 집합 버전. 최초 값은 `mvp-v1` |
+| code_set_version | importer가 검증한 machine code 집합 버전. `mvp-v1` 또는 migration 0026의 `catalog-v2` |
 | source_manifest_hash | `seed_manifest.json` 원문 byte의 SHA-256 |
 | source_track_code | 기존 산출물의 source track machine code (`wger`, `kspo`, `gymvisual`) |
 | review_status_code | 산출물 검수 상태. 최초 importer는 DOMAIN_APPROVED만 입력 가능 |
@@ -408,8 +408,9 @@ backup restore 직후 사용자 접근 차단과 동일 삭제 policy 재적용�
 한 시점에 하나의 ACTIVE 버전만 허용한다. 운영 사용 가능한 ACTIVE version은
 `review_status_code=DOMAIN_APPROVED`, `review_method_code=DOMAIN_REVIEWER`,
 `status_interpretation_code=PRODUCTION_APPROVED`, `production_eligible=true`,
-`activated_at IS NOT NULL`을 모두 만족해야 한다. DRAFT importer는 계속 `AGENT_ONLY`,
-`PIPELINE_COMPATIBILITY_ONLY`, `production_eligible=false`만 생성한다.
+`activated_at IS NOT NULL`을 모두 만족해야 한다. DRAFT importer는 `AGENT_ONLY` 또는 검증된
+`DOMAIN_REVIEWER` 증적을 수용하지만 `PIPELINE_COMPATIBILITY_ONLY`, `production_eligible=false`만
+생성한다.
 
 `DOMAIN_APPROVED`는 파이프라인 호환 상태이며 그 문자열만으로 ACTIVE 또는 production-safe로
 승격하지 않는다. `production_eligible=false`인 version은 사용자 추천에 사용할 수 없다.
@@ -497,8 +498,15 @@ UNIQUE 제약은 catalog_version_id와 stable_code 조합에 둔다.
 body_areas의 MVP 허용 코드는 DOMAIN_RULES.md의 불편 부위 코드와 일치해야 한다.
 
 각 lookup 행은 `code_set_version`을 저장한다. 최초 catalog importer의 `mvp-v1`은 실제
-DRAFT 카탈로그 산출물이 사용하는 코드만 Pydantic `StrEnum`으로 검증한다. 기존 machine
-code를 한국어 label로 바꾸거나 삭제하지 않으며 새 코드는 후속 version에 추가한다.
+DRAFT 카탈로그 산출물이 사용하는 코드만 Pydantic `StrEnum`으로 검증한다. migration 0026은
+`catalog-v2`와 14개 body-focus code를 additive하게 허용한다. `CORE`, `FULL_BODY`처럼 두 code-set이
+공유하는 stable code는 전역 code PK의 기존 lookup 행을 재사용한다. 기존 machine code를 한국어
+label로 바꾸거나 삭제하지 않으며 새 코드는 후속 version에 추가한다.
+
+`catalog-v2` body-focus code는 `CHEST`, `BACK`, `SHOULDERS`, `BICEPS`, `TRICEPS`, `FOREARMS`,
+`GLUTES`, `QUADRICEPS`, `HAMSTRINGS`, `CALVES`, `CORE`, `FULL_BODY`, `CARDIO`, `MOBILITY`다.
+V2 import에서는 legacy `UPPER_BODY`, `LOWER_BODY`를 거부하지만 V1 row와 응답의 decoding은 유지한다.
+`CARDIO`와 `MOBILITY` training type은 같은 이름의 body-focus를 사용한다.
 `display_name_ko`는 machine code와 분리하고 PM 승인값만 저장한다. PM 승인 표시명이 아직
 없는 body area는 machine code를 임시 표시명으로 복제하지 않고 null로 유지한다.
 
