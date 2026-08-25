@@ -17,6 +17,7 @@ from backend.app.modules.catalog.codes import (
     BodyAreaCode,
     DifficultyCode,
     EquipmentCode,
+    LocationCode,
     TrainingTypeCode,
 )
 from backend.app.modules.catalog.schemas import (
@@ -351,7 +352,12 @@ def _resolve_inside(root: Path, referenced_path: str) -> Path:
     return candidate
 
 
-def load_catalog_artifact(artifact_directory: Path) -> CatalogArtifact:
+def load_catalog_artifact(
+    artifact_directory: Path,
+    *,
+    v2_import: bool = False,
+    v2_taxonomy_registry_sha256: str | None = None,
+) -> CatalogArtifact:
     root = artifact_directory.resolve()
     if not root.is_dir():
         raise CatalogImportError("ARTIFACT_DIRECTORY_INVALID", "artifact directory is invalid")
@@ -367,8 +373,19 @@ def load_catalog_artifact(artifact_directory: Path) -> CatalogArtifact:
             "PRODUCTION_ELIGIBILITY_INVALID",
             "DRAFT catalog artifact must remain production ineligible",
         )
-    if manifest.source.taxonomy_registry_sha256 != APPROVED_TAXONOMY_REGISTRY_SHA256:
-        raise CatalogImportError("CODE_SET_MISMATCH", "catalog code set is not MVP v1")
+    if v2_import and v2_taxonomy_registry_sha256 is None:
+        raise CatalogImportError(
+            "V2_TAXONOMY_REGISTRY_NOT_CONFIGURED",
+            "V2 import requires an explicitly approved taxonomy registry hash",
+        )
+    expected_taxonomy_hash = (
+        v2_taxonomy_registry_sha256 if v2_import else APPROVED_TAXONOMY_REGISTRY_SHA256
+    )
+    if manifest.source.taxonomy_registry_sha256 != expected_taxonomy_hash:
+        raise CatalogImportError(
+            "CODE_SET_MISMATCH",
+            "catalog taxonomy registry hash is not the approved import hash",
+        )
 
     for input_artifact in manifest.source.input_artifacts:
         _resolve_inside(root, input_artifact.path)
@@ -387,7 +404,12 @@ def load_catalog_artifact(artifact_directory: Path) -> CatalogArtifact:
     try:
         for line in data_raw.splitlines():
             if line.strip():
-                records.append(ExerciseRecord.model_validate_json(line))
+                records.append(
+                    ExerciseRecord.model_validate_json(
+                        line,
+                        context={"v2_import": v2_import},
+                    )
+                )
     except ValidationError as exc:
         raise CatalogImportError("EXERCISE_RECORD_INVALID", "exercise record is invalid") from exc
 
@@ -483,7 +505,17 @@ def load_alternative_artifact(artifact_directory: Path) -> AlternativeArtifact:
         ) from exc
     if len(records) != manifest.summary.alternative_records:
         raise CatalogImportError("RECORD_COUNT_MISMATCH", "alternative count does not match")
-    if len({record.model_dump_json() for record in records}) != len(records):
+    relationship_keys = {
+        (
+            record.source_catalog_version_code,
+            record.source_exercise_stable_code,
+            record.alternative_catalog_version_code,
+            record.alternative_exercise_stable_code,
+            record.reason_code,
+        )
+        for record in records
+    }
+    if len(relationship_keys) != len(records):
         raise CatalogImportError("DUPLICATE_ALTERNATIVE", "alternatives contain duplicates")
     return AlternativeArtifact(manifest, _sha256(manifest_raw), records)
 
@@ -546,10 +578,110 @@ def load_prescription_artifact(artifact_directory: Path) -> PrescriptionArtifact
     return PrescriptionArtifact(manifest, _sha256(manifest_raw), goals, profiles)
 
 
+def _validate_bundle_exercise_references(
+    catalog_artifacts: tuple[CatalogArtifact, ...],
+    safety_artifact: SafetyRuleArtifact,
+    alternative_artifact: AlternativeArtifact,
+    prescription_artifact: PrescriptionArtifact,
+    *,
+    v2_import: bool,
+) -> None:
+    exercise_records = {
+        (artifact.manifest.catalog_version.version_code, record.stable_code): record
+        for artifact in catalog_artifacts
+        for record in artifact.records
+    }
+    exercise_keys = set(exercise_records)
+    referenced_keys = {
+        (record.catalog_version_code, record.exercise_stable_code)
+        for record in safety_artifact.records
+        if record.exercise_stable_code is not None
+    }
+    referenced_keys |= {
+        key
+        for record in alternative_artifact.records
+        for key in (
+            (
+                record.source_catalog_version_code,
+                record.source_exercise_stable_code,
+            ),
+            (
+                record.alternative_catalog_version_code,
+                record.alternative_exercise_stable_code,
+            ),
+        )
+    }
+    referenced_keys |= {
+        (record.catalog_version_code, record.exercise_stable_code)
+        for record in prescription_artifact.goal_tag_records
+    }
+    referenced_keys |= {
+        (record.catalog_version_code, record.exercise_stable_code)
+        for record in prescription_artifact.prescription_records
+    }
+    if missing := referenced_keys - exercise_keys:
+        missing_version, missing_stable_code = min(missing)
+        raise CatalogImportError(
+            "EXERCISE_REFERENCE_NOT_FOUND",
+            "derived data references an exercise absent from its catalog: "
+            f"{missing_version}/{missing_stable_code}",
+        )
+    if not v2_import:
+        return
+
+    strap_sources = {
+        key
+        for key, exercise in exercise_records.items()
+        if EquipmentCode.STRETCH_STRAP in exercise.equipment_codes
+    }
+    strap_sources_with_bodyweight_alternative: set[tuple[str, str]] = set()
+    for record in alternative_artifact.records:
+        source_key = (
+            record.source_catalog_version_code,
+            record.source_exercise_stable_code,
+        )
+        alternative_key = (
+            record.alternative_catalog_version_code,
+            record.alternative_exercise_stable_code,
+        )
+        source = exercise_records[source_key]
+        alternative = exercise_records[alternative_key]
+        if LocationCode.OUTDOOR in source.location_codes or (
+            LocationCode.OUTDOOR in alternative.location_codes
+        ):
+            raise CatalogImportError(
+                "ALTERNATIVE_LOCATION_FORBIDDEN",
+                "V2 alternative relationships allow HOME and GYM exercises only",
+            )
+        if EquipmentCode.STRETCH_STRAP in source.equipment_codes:
+            if (
+                record.reason_code == "EQUIPMENT"
+                and EquipmentCode.BODYWEIGHT in alternative.equipment_codes
+            ):
+                strap_sources_with_bodyweight_alternative.add(source_key)
+
+    if missing_strap_fallback := strap_sources - strap_sources_with_bodyweight_alternative:
+        missing_version, missing_stable_code = min(missing_strap_fallback)
+        raise CatalogImportError(
+            "STRETCH_STRAP_FALLBACK_MISSING",
+            "STRETCH_STRAP exercise lacks an EQUIPMENT bodyweight alternative: "
+            f"{missing_version}/{missing_stable_code}",
+        )
+
+
 class CatalogImporter:
-    def __init__(self, repository: CatalogRepositoryPort, app_env: str) -> None:
+    def __init__(
+        self,
+        repository: CatalogRepositoryPort,
+        app_env: str,
+        *,
+        v2_import: bool = False,
+        v2_taxonomy_registry_sha256: str | None = None,
+    ) -> None:
         self._repository = repository
         self._app_env = app_env
+        self._v2_import = v2_import
+        self._v2_taxonomy_registry_sha256 = v2_taxonomy_registry_sha256
 
     def import_artifact(
         self,
@@ -562,7 +694,11 @@ class CatalogImporter:
                 "DRAFT catalog import is allowed only in local or test",
             )
 
-        artifact = load_catalog_artifact(artifact_directory)
+        artifact = load_catalog_artifact(
+            artifact_directory,
+            v2_import=self._v2_import,
+            v2_taxonomy_registry_sha256=self._v2_taxonomy_registry_sha256,
+        )
         version_code = artifact.manifest.catalog_version.version_code
 
         with session.begin():
@@ -594,9 +730,18 @@ class CatalogImporter:
 class CatalogDataBundleImporter:
     """Atomically import catalogs and their DRAFT derived datasets."""
 
-    def __init__(self, repository: CatalogRepositoryPort, app_env: str) -> None:
+    def __init__(
+        self,
+        repository: CatalogRepositoryPort,
+        app_env: str,
+        *,
+        v2_import: bool = False,
+        v2_taxonomy_registry_sha256: str | None = None,
+    ) -> None:
         self._repository = repository
         self._app_env = app_env
+        self._v2_import = v2_import
+        self._v2_taxonomy_registry_sha256 = v2_taxonomy_registry_sha256
 
     def import_bundle(
         self,
@@ -612,7 +757,14 @@ class CatalogDataBundleImporter:
                 "DRAFT catalog data import is allowed only in local or test",
             )
 
-        catalog_artifacts = tuple(load_catalog_artifact(path) for path in catalog_directories)
+        catalog_artifacts = tuple(
+            load_catalog_artifact(
+                path,
+                v2_import=self._v2_import,
+                v2_taxonomy_registry_sha256=self._v2_taxonomy_registry_sha256,
+            )
+            for path in catalog_directories
+        )
         safety_artifact = load_safety_rule_artifact(safety_rule_directory)
         alternative_artifact = load_alternative_artifact(alternative_directory)
         prescription_artifact = load_prescription_artifact(prescription_directory)
@@ -637,6 +789,13 @@ class CatalogDataBundleImporter:
                 "CATALOG_BUNDLE_INCOMPLETE",
                 "catalog bundle must exactly cover every derived-data catalog reference",
             )
+        _validate_bundle_exercise_references(
+            catalog_artifacts,
+            safety_artifact,
+            alternative_artifact,
+            prescription_artifact,
+            v2_import=self._v2_import,
+        )
 
         catalog_results: list[CatalogImportResult] = []
         with session.begin():

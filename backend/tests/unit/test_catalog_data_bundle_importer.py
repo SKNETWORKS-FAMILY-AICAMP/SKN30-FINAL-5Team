@@ -1,12 +1,20 @@
+import hashlib
+import json
 from contextlib import AbstractContextManager, contextmanager
+from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
 from uuid import uuid4
 
 import pytest
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
+from backend.app.modules.catalog.schemas import (
+    ExerciseAlternativeRecord,
+    ExerciseSafetyRuleRecord,
+)
 from backend.app.modules.catalog.service import (
     AlternativeArtifact,
     CatalogArtifact,
@@ -16,7 +24,9 @@ from backend.app.modules.catalog.service import (
     DerivedSetState,
     PrescriptionArtifact,
     SafetyRuleArtifact,
+    _validate_bundle_exercise_references,
     load_alternative_artifact,
+    load_catalog_artifact,
     load_prescription_artifact,
     load_safety_rule_artifact,
 )
@@ -96,6 +106,166 @@ def test_loads_current_derived_artifacts() -> None:
     assert "input_artifacts" in alternatives.manifest.source
     assert len(prescriptions.goal_tag_records) == 32
     assert len(prescriptions.prescription_records) == 36
+
+
+def test_safety_rule_rejects_reversed_severity_range() -> None:
+    payload = load_safety_rule_artifact(SAFETY_DIRECTORY).records[0].model_dump(mode="json")
+    payload["minimum_severity_code"] = "SEVERE"
+    payload["maximum_severity_code"] = "MILD"
+
+    with pytest.raises(ValidationError, match="minimum severity"):
+        ExerciseSafetyRuleRecord.model_validate(payload)
+
+
+def test_alternative_rejects_runtime_downshift_as_goal_preservation() -> None:
+    payload = load_alternative_artifact(ALTERNATIVE_DIRECTORY).records[0].model_dump(mode="json")
+    payload["goal_preservation_code"] = "INTENSITY_REDUCED"
+
+    with pytest.raises(ValidationError, match="runtime downshift"):
+        ExerciseAlternativeRecord.model_validate(payload)
+
+
+def test_alternative_loader_rejects_duplicate_relationship_key(tmp_path: Path) -> None:
+    artifact = load_alternative_artifact(ALTERNATIVE_DIRECTORY)
+    first = artifact.records[0]
+    duplicate = first.model_copy(
+        update={
+            "created_at": first.created_at + timedelta(seconds=1),
+            "rule_version": f"{first.rule_version}-duplicate",
+        }
+    )
+    raw = b"".join((record.model_dump_json() + "\n").encode() for record in (first, duplicate))
+    root = tmp_path / "alternatives"
+    root.mkdir()
+    (root / "alternatives.jsonl").write_bytes(raw)
+    manifest = artifact.manifest.model_dump(mode="json")
+    manifest["summary"]["alternative_records"] = 2
+    file_entry = next(entry for entry in manifest["files"] if entry["path"] == "alternatives.jsonl")
+    file_entry.update(
+        {
+            "sha256": hashlib.sha256(raw).hexdigest(),
+            "bytes": len(raw),
+            "records": 2,
+        }
+    )
+    (root / "alternatives_manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CatalogImportError) as exc_info:
+        load_alternative_artifact(root)
+
+    assert exc_info.value.code == "DUPLICATE_ALTERNATIVE"
+
+
+def test_v2_bundle_rejects_outdoor_alternative_endpoint() -> None:
+    catalog = load_catalog_artifact(CATALOG_DIRECTORIES[0])
+    safety = load_safety_rule_artifact(SAFETY_DIRECTORY)
+    alternatives = load_alternative_artifact(ALTERNATIVE_DIRECTORY)
+    prescriptions = load_prescription_artifact(PRESCRIPTION_DIRECTORY)
+    relation = alternatives.records[0]
+    records = tuple(
+        record.model_copy(update={"location_codes": ["OUTDOOR"]})
+        if record.stable_code == relation.source_exercise_stable_code
+        else record
+        for record in catalog.records
+    )
+
+    with pytest.raises(CatalogImportError) as exc_info:
+        _validate_bundle_exercise_references(
+            (CatalogArtifact(catalog.manifest, catalog.manifest_hash, records),),
+            safety,
+            alternatives,
+            prescriptions,
+            v2_import=True,
+        )
+
+    assert exc_info.value.code == "ALTERNATIVE_LOCATION_FORBIDDEN"
+
+
+def test_v2_bundle_requires_bodyweight_equipment_fallback_for_stretch_strap() -> None:
+    catalog = load_catalog_artifact(CATALOG_DIRECTORIES[0])
+    safety = load_safety_rule_artifact(SAFETY_DIRECTORY)
+    alternatives = load_alternative_artifact(ALTERNATIVE_DIRECTORY)
+    prescriptions = load_prescription_artifact(PRESCRIPTION_DIRECTORY)
+    relation = alternatives.records[0].model_copy(update={"reason_code": "LOCATION"})
+    records = tuple(
+        record.model_copy(update={"equipment_codes": ["STRETCH_STRAP"]})
+        if record.stable_code == relation.source_exercise_stable_code
+        else record
+        for record in catalog.records
+    )
+
+    with pytest.raises(CatalogImportError) as exc_info:
+        _validate_bundle_exercise_references(
+            (CatalogArtifact(catalog.manifest, catalog.manifest_hash, records),),
+            safety,
+            AlternativeArtifact(
+                alternatives.manifest,
+                alternatives.manifest_hash,
+                (relation,),
+            ),
+            prescriptions,
+            v2_import=True,
+        )
+
+    assert exc_info.value.code == "STRETCH_STRAP_FALLBACK_MISSING"
+
+
+def test_v2_bundle_accepts_equipment_bodyweight_fallback_for_stretch_strap() -> None:
+    catalog = load_catalog_artifact(CATALOG_DIRECTORIES[0])
+    safety = load_safety_rule_artifact(SAFETY_DIRECTORY)
+    alternatives = load_alternative_artifact(ALTERNATIVE_DIRECTORY)
+    prescriptions = load_prescription_artifact(PRESCRIPTION_DIRECTORY)
+    relation = alternatives.records[0].model_copy(update={"reason_code": "EQUIPMENT"})
+    records = tuple(
+        record.model_copy(update={"equipment_codes": ["STRETCH_STRAP"], "location_codes": ["HOME"]})
+        if record.stable_code == relation.source_exercise_stable_code
+        else record.model_copy(
+            update={"equipment_codes": ["BODYWEIGHT"], "location_codes": ["GYM"]}
+        )
+        if record.stable_code == relation.alternative_exercise_stable_code
+        else record
+        for record in catalog.records
+    )
+
+    _validate_bundle_exercise_references(
+        (CatalogArtifact(catalog.manifest, catalog.manifest_hash, records),),
+        safety,
+        AlternativeArtifact(
+            alternatives.manifest,
+            alternatives.manifest_hash,
+            (relation,),
+        ),
+        prescriptions,
+        v2_import=True,
+    )
+
+
+def test_bundle_rejects_missing_exercise_reference_before_repository_access() -> None:
+    catalog = load_catalog_artifact(CATALOG_DIRECTORIES[0])
+    safety = load_safety_rule_artifact(SAFETY_DIRECTORY)
+    alternatives = load_alternative_artifact(ALTERNATIVE_DIRECTORY)
+    prescriptions = load_prescription_artifact(PRESCRIPTION_DIRECTORY)
+    invalid_relation = alternatives.records[0].model_copy(
+        update={"alternative_exercise_stable_code": "missing_exercise"}
+    )
+
+    with pytest.raises(CatalogImportError) as exc_info:
+        _validate_bundle_exercise_references(
+            (catalog,),
+            safety,
+            AlternativeArtifact(
+                alternatives.manifest,
+                alternatives.manifest_hash,
+                (invalid_relation,),
+            ),
+            prescriptions,
+            v2_import=True,
+        )
+
+    assert exc_info.value.code == "EXERCISE_REFERENCE_NOT_FOUND"
 
 
 def test_bundle_import_is_idempotent() -> None:

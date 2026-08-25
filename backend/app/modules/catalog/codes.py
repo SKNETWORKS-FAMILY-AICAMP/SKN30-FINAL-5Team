@@ -26,6 +26,7 @@ class ReviewStatusInterpretationCode(StrEnum):
 class SourceTrackCode(StrEnum):
     WGER = "wger"
     KSPO = "kspo"
+    GYMVISUAL = "gymvisual"
     MERGED = "merged"
 
 
@@ -43,6 +44,9 @@ class BodyFocusCode(StrEnum):
 
 
 class MovementPatternCode(StrEnum):
+    BALANCE = "BALANCE"
+    CYCLING = "CYCLING"
+    ELLIPTICAL = "ELLIPTICAL"
     VERTICAL_PULL = "VERTICAL_PULL"
     HORIZONTAL_PULL = "HORIZONTAL_PULL"
     HORIZONTAL_PUSH = "HORIZONTAL_PUSH"
@@ -54,12 +58,14 @@ class MovementPatternCode(StrEnum):
     GAIT = "GAIT"
     CORE_BRACE = "CORE_BRACE"
     MOBILITY_STRETCH = "MOBILITY_STRETCH"
+    JUMP_PLYOMETRIC = "JUMP_PLYOMETRIC"
 
 
 class EquipmentCode(StrEnum):
     BODYWEIGHT = "BODYWEIGHT"
     DUMBBELL = "DUMBBELL"
     BARBELL = "BARBELL"
+    EZ_BAR = "EZ_BAR"
     KETTLEBELL = "KETTLEBELL"
     CABLE_MACHINE = "CABLE_MACHINE"
     MACHINE = "MACHINE"
@@ -67,9 +73,64 @@ class EquipmentCode(StrEnum):
     BENCH = "BENCH"
     PULL_UP_BAR = "PULL_UP_BAR"
     RESISTANCE_BAND = "RESISTANCE_BAND"
+    STRETCH_STRAP = "STRETCH_STRAP"
     MAT = "MAT"
     STABILITY_BALL = "STABILITY_BALL"
+    ELLIPTICAL_MACHINE = "ELLIPTICAL_MACHINE"
+    JUMP_ROPE = "JUMP_ROPE"
+    FOAM_ROLLER = "FOAM_ROLLER"
+    STATIONARY_BIKE = "STATIONARY_BIKE"
+    STEP_BOX = "STEP_BOX"
     CHAIR = "CHAIR"
+
+
+# BENCH and CHAIR remain enum members so historical DB rows and API responses
+# can still be decoded. They are deliberately absent from the V2 import set.
+V2_EQUIPMENT_CODES = frozenset(
+    {
+        EquipmentCode.BODYWEIGHT,
+        EquipmentCode.DUMBBELL,
+        EquipmentCode.BARBELL,
+        EquipmentCode.EZ_BAR,
+        EquipmentCode.KETTLEBELL,
+        EquipmentCode.CABLE_MACHINE,
+        EquipmentCode.MACHINE,
+        EquipmentCode.HOUSEHOLD_WEIGHT,
+        EquipmentCode.PULL_UP_BAR,
+        EquipmentCode.RESISTANCE_BAND,
+        EquipmentCode.STRETCH_STRAP,
+        EquipmentCode.MAT,
+        EquipmentCode.STABILITY_BALL,
+        EquipmentCode.ELLIPTICAL_MACHINE,
+        EquipmentCode.JUMP_ROPE,
+        EquipmentCode.FOAM_ROLLER,
+        EquipmentCode.STATIONARY_BIKE,
+        EquipmentCode.STEP_BOX,
+    }
+)
+
+V2_EQUIPMENT_CODE_ALIASES: dict[str, EquipmentCode] = {
+    "CABLE": EquipmentCode.CABLE_MACHINE,
+    "CABLE|MACHINE": EquipmentCode.CABLE_MACHINE,
+    "BAND": EquipmentCode.RESISTANCE_BAND,
+    "ROPE": EquipmentCode.STRETCH_STRAP,
+    "ROLLER": EquipmentCode.FOAM_ROLLER,
+    "WEIGHTED": EquipmentCode.HOUSEHOLD_WEIGHT,
+}
+
+
+def normalize_v2_equipment_code(value: str | EquipmentCode) -> EquipmentCode:
+    """Return one approved V2 equipment code or fail closed."""
+
+    raw = value.value if isinstance(value, EquipmentCode) else value
+    normalized = V2_EQUIPMENT_CODE_ALIASES.get(raw, raw)
+    try:
+        code = EquipmentCode(normalized)
+    except ValueError as exc:
+        raise ValueError(f"unsupported V2 equipment code: {raw}") from exc
+    if code not in V2_EQUIPMENT_CODES:
+        raise ValueError(f"equipment code is not allowed in V2 artifacts: {raw}")
+    return code
 
 
 class LocationCode(StrEnum):
