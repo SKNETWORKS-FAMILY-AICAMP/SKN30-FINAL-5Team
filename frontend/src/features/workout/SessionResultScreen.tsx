@@ -20,7 +20,12 @@ import {
 } from '../../api/labels';
 import { useAsyncAction } from '../../api/useAsync';
 import { MascotStage } from '../../components/brand/BrandChrome';
-import { Button, Card, InlineFeedback } from '../../components/primitives';
+import {
+  Button,
+  Card,
+  GradientActionButton,
+  InlineFeedback,
+} from '../../components/primitives';
 import {
   SafetyNotice,
   ScreenHeading,
@@ -66,8 +71,8 @@ export function SessionResultScreen({
 }) {
   if (outcome.kind === 'safetyStop') {
     return (
-      <ScreenShell bands>
-        <ScreenHeading title="운동을 중단했어요" onBand />
+      <ScreenShell>
+        <ScreenHeading title="운동을 중단했어요" />
         <MascotStage
           serious
           eyebrow="안전 안내"
@@ -89,8 +94,8 @@ export function SessionResultScreen({
 
   if (outcome.kind === 'notCompleted') {
     return (
-      <ScreenShell bands>
-        <ScreenHeading title="오늘 기록을 저장했어요" onBand />
+      <ScreenShell>
+        <ScreenHeading title="오늘 기록을 저장했어요" />
         <MascotStage
           eyebrow="기록 완료"
           title="오늘도 확인했어요"
@@ -348,10 +353,12 @@ function FeedbackCard({
       {feedback.error ? (
         <InlineFeedback tone="error" message={feedback.error} />
       ) : null}
-      <Button
-        label={feedback.pending ? '저장 중…' : '피드백 저장'}
+      <GradientActionButton
         disabled={feedback.pending || difficulty === null}
+        label={feedback.pending ? '저장 중…' : '피드백 저장'}
         onPress={() => void feedback.run()}
+        showChevron={false}
+        testID="session-feedback-save"
       />
     </Card>
   );

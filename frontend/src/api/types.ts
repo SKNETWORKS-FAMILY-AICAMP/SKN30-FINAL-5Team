@@ -46,6 +46,7 @@ export type NotCompletedReasonCode =
 
 export type MeProfile = {
   nickname: string;
+  profile_image_url?: string | null;
   age: number | null;
   primary_goal_code: string;
   experience_level_code: string;
@@ -113,6 +114,22 @@ export type ProfileSettingsUpdateRequest = {
 };
 
 export type ProfileSettingsUpdateResponse = {
+  profile_version: number;
+  updated_at: string;
+};
+
+/** A device-picked image ready for the profile image multipart endpoint. */
+export type ProfileImageUpload = {
+  uri: string;
+  fileName: string;
+  mimeType: string;
+  fileSize?: number;
+  /** Expo provides a File on web; native uploads use uri/name/type instead. */
+  webFile?: Blob;
+};
+
+export type ProfileImageMutationResponse = {
+  profile_image_url: string | null;
   profile_version: number;
   updated_at: string;
 };

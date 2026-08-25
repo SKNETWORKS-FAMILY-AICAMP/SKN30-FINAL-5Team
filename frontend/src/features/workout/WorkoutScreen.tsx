@@ -1,8 +1,11 @@
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Image,
+  PanResponder,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,6 +15,8 @@ import {
   type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
+  type PanResponderGestureState,
+  type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -143,6 +148,22 @@ export function clampWorkoutPageIndex(
   return Math.max(0, Math.min(blockCount - 1, nearest));
 }
 
+export function workoutPageAfterHorizontalDrag(
+  currentIndex: number,
+  blockCount: number,
+  dragX: number,
+  velocityX: number,
+) {
+  if (blockCount <= 0) {
+    return 0;
+  }
+  const swipeX =
+    Math.abs(dragX) >= 36 ? dragX : Math.abs(velocityX) >= 0.25 ? velocityX : 0;
+  const nextIndex =
+    swipeX === 0 ? currentIndex : currentIndex + (swipeX < 0 ? 1 : -1);
+  return Math.max(0, Math.min(blockCount - 1, nextIndex));
+}
+
 export function WorkoutScreen(props: WorkoutScreenProps) {
   if ('api' in props) {
     return (
@@ -188,6 +209,7 @@ function WorkoutScreenContent({
     [viewportHeight, viewportWidth],
   );
   const carouselRef = useRef<ScrollView | null>(null);
+  const carouselDragStartOffset = useRef(0);
   const [scrollX] = useState(() => new Animated.Value(0));
   const [burstOpacity] = useState(() => new Animated.Value(0));
   const [burstScale] = useState(() => new Animated.Value(0.7));
@@ -631,6 +653,11 @@ function WorkoutScreenContent({
     onPauseChange?.(false);
   };
 
+  const returnToSafetyConfirm = () => {
+    setApiError(null);
+    setOverlay('safety');
+  };
+
   const finishWorkout = async () => {
     if (apiConfig === undefined || actionPending || !sessionReady) {
       onSafetyStopRequest?.();
@@ -772,13 +799,56 @@ function WorkoutScreenContent({
     }
   };
 
-  const selectVisiblePage = (index: number) => {
-    setVisiblePageIndex(index);
-    carouselRef.current?.scrollTo({
-      x: index * responsiveLayout.stride,
-      animated: true,
-    });
-  };
+  const selectVisiblePage = useCallback(
+    (index: number) => {
+      setVisiblePageIndex(index);
+      carouselRef.current?.scrollTo({
+        x: index * responsiveLayout.stride,
+        animated: true,
+      });
+    },
+    [responsiveLayout.stride],
+  );
+
+  const beginCarouselDrag = useCallback(() => {
+    carouselDragStartOffset.current =
+      visiblePageIndex * responsiveLayout.stride;
+  }, [responsiveLayout.stride, visiblePageIndex]);
+
+  const moveCarouselDrag = useCallback(
+    (gesture: PanResponderGestureState) => {
+      const maxOffset = Math.max(
+        0,
+        (blocks.length - 1) * responsiveLayout.stride,
+      );
+      const nextOffset = Math.max(
+        0,
+        Math.min(maxOffset, carouselDragStartOffset.current - gesture.dx),
+      );
+      scrollX.setValue(nextOffset);
+      carouselRef.current?.scrollTo({ x: nextOffset, animated: false });
+    },
+    [blocks.length, responsiveLayout.stride, scrollX],
+  );
+
+  const finishCarouselDrag = useCallback(
+    (gesture: PanResponderGestureState) => {
+      selectVisiblePage(
+        workoutPageAfterHorizontalDrag(
+          visiblePageIndex,
+          blocks.length,
+          gesture.dx,
+          gesture.vx,
+        ),
+      );
+    },
+    [blocks.length, selectVisiblePage, visiblePageIndex],
+  );
+
+  const cancelCarouselDrag = useCallback(
+    () => selectVisiblePage(visiblePageIndex),
+    [selectVisiblePage, visiblePageIndex],
+  );
 
   const handleCarouselLayout = (event: LayoutChangeEvent) => {
     setCarouselWidth(event.nativeEvent.layout.width);
@@ -937,54 +1007,64 @@ function WorkoutScreenContent({
           </Text>
         </View>
 
-        <Animated.ScrollView
-          ref={carouselRef}
-          contentContainerStyle={[
-            styles.blockCarousel,
-            { gap: responsiveLayout.gap, paddingHorizontal: carouselPadding },
-          ]}
-          decelerationRate="fast"
-          horizontal
-          onLayout={handleCarouselLayout}
-          onMomentumScrollEnd={handleMomentumEnd}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-            { useNativeDriver: true },
-          )}
-          scrollEventThrottle={16}
-          showsHorizontalScrollIndicator={false}
-          snapToAlignment="start"
-          snapToInterval={responsiveLayout.stride}
-          testID="workout-carousel"
+        <WorkoutCarouselDragSurface
+          onCancel={cancelCarouselDrag}
+          onEnd={finishCarouselDrag}
+          onMove={moveCarouselDrag}
+          onStart={beginCarouselDrag}
         >
-          {blocks.map((block, index) => (
-            <ArcBlockCard
-              key={block.id}
-              block={block}
-              current={index === currentIndex && !allBlocksCompleted}
-              index={index}
-              expanded={detailBlockId === block.id}
-              hasDetails={
-                block.tips.length > 0 ||
-                (apiConfig !== undefined &&
-                  block.exerciseId !== undefined &&
-                  Boolean(block.instructionAvailable))
-              }
-              layout={responsiveLayout}
-              onToggleExpanded={() =>
-                setDetailBlockId((current) =>
-                  current === block.id ? null : block.id,
-                )
-              }
-              onUndo={
-                block.status === 'COMPLETED'
-                  ? () => void reopenBlock(block)
-                  : undefined
-              }
-              scrollX={scrollX}
-            />
-          ))}
-        </Animated.ScrollView>
+          <Animated.ScrollView
+            ref={carouselRef}
+            contentContainerStyle={[
+              styles.blockCarousel,
+              {
+                gap: responsiveLayout.gap,
+                paddingHorizontal: carouselPadding,
+              },
+            ]}
+            decelerationRate="fast"
+            horizontal
+            onLayout={handleCarouselLayout}
+            onMomentumScrollEnd={handleMomentumEnd}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+              { useNativeDriver: true },
+            )}
+            scrollEventThrottle={16}
+            showsHorizontalScrollIndicator={false}
+            snapToAlignment="start"
+            snapToInterval={responsiveLayout.stride}
+            testID="workout-carousel"
+          >
+            {blocks.map((block, index) => (
+              <ArcBlockCard
+                key={block.id}
+                block={block}
+                current={index === currentIndex && !allBlocksCompleted}
+                index={index}
+                expanded={detailBlockId === block.id}
+                hasDetails={
+                  block.tips.length > 0 ||
+                  (apiConfig !== undefined &&
+                    block.exerciseId !== undefined &&
+                    Boolean(block.instructionAvailable))
+                }
+                layout={responsiveLayout}
+                onToggleExpanded={() =>
+                  setDetailBlockId((current) =>
+                    current === block.id ? null : block.id,
+                  )
+                }
+                onUndo={
+                  block.status === 'COMPLETED'
+                    ? () => void reopenBlock(block)
+                    : undefined
+                }
+                scrollX={scrollX}
+              />
+            ))}
+          </Animated.ScrollView>
+        </WorkoutCarouselDragSurface>
 
         <View style={styles.dotRow}>
           {blocks.map((block, index) => {
@@ -1120,31 +1200,30 @@ function WorkoutScreenContent({
       ) : null}
       {overlay === 'safety' ? (
         <SafetyConfirmSheet
-          completedCount={completedCount}
-          elapsedSeconds={elapsedSeconds}
           onClose={closeSheets}
           onOpenReport={() =>
             setOverlay(apiConfig === undefined ? 'symptom' : 'api-safety')
           }
           onStop={() => void finishWorkout()}
-          totalCount={blocks.length}
+          useJua={useJua}
         />
       ) : null}
       {overlay === 'symptom' ? (
         <SymptomSheet
           instruction={fixture.instruction ?? 'SHOW_CAUTION'}
-          onClose={closeSheets}
+          onClose={returnToSafetyConfirm}
           onSelectSeverity={setSelectedSeverity}
           onSelectSymptom={setSelectedSymptom}
           onSubmit={submitSafetyEvent}
           selectedSeverity={selectedSeverity}
           selectedSymptom={selectedSymptom}
+          useJua={useJua}
         />
       ) : null}
       {overlay === 'api-safety' ? (
         <ApiSafetySheet
           error={apiError}
-          onClose={closeSheets}
+          onClose={returnToSafetyConfirm}
           onToggleBodyArea={toggleBodyArea}
           onToggleReaction={toggleReaction}
           onSelectBodySeverity={selectBodySeverity}
@@ -1152,6 +1231,7 @@ function WorkoutScreenContent({
           pending={actionPending}
           selectedBodySeverities={selectedBodySeverities}
           selectedReactions={selectedReactions}
+          useJua={useJua}
         />
       ) : null}
       {overlay === 'api-guidance' && apiGuidance ? (
@@ -1240,13 +1320,15 @@ function MascotStage({
           <Text style={styles.mascotMark}>!</Text>
         </View>
       ) : (
-        <Image
-          accessible={false}
-          resizeMode="contain"
-          source={imageAssets.mascotWarmupWalk}
-          style={styles.mascotAnimation}
-          testID="workout-warmup-mascot"
-        />
+        <View style={styles.mascotFrame} testID="workout-mascot-frame">
+          <Image
+            accessible={false}
+            resizeMode="contain"
+            source={imageAssets.mascotWarmupWalk}
+            style={styles.mascotAnimation}
+            testID="workout-warmup-mascot"
+          />
+        </View>
       )}
       <View style={styles.mascotCopy}>
         <Text style={styles.mascotEyebrow}>
@@ -1275,6 +1357,62 @@ function MascotStage({
           격파!
         </Animated.Text>
       ) : null}
+    </View>
+  );
+}
+
+function WorkoutCarouselDragSurface({
+  children,
+  onCancel,
+  onEnd,
+  onMove,
+  onStart,
+}: {
+  children: React.ReactNode;
+  onCancel: () => void;
+  onEnd: (gesture: PanResponderGestureState) => void;
+  onMove: (gesture: PanResponderGestureState) => void;
+  onStart: () => void;
+}) {
+  const responder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (
+          _event,
+          gesture: PanResponderGestureState,
+        ) =>
+          Math.abs(gesture.dx) > 6 &&
+          Math.abs(gesture.dx) > Math.abs(gesture.dy),
+        onMoveShouldSetPanResponderCapture: (
+          _event,
+          gesture: PanResponderGestureState,
+        ) =>
+          Math.abs(gesture.dx) > 6 &&
+          Math.abs(gesture.dx) > Math.abs(gesture.dy),
+        onPanResponderGrant: onStart,
+        onPanResponderMove: (_event, gesture: PanResponderGestureState) =>
+          onMove(gesture),
+        onPanResponderRelease: (_event, gesture: PanResponderGestureState) =>
+          onEnd(gesture),
+        onPanResponderTerminate: onCancel,
+        onPanResponderTerminationRequest: () => false,
+        onShouldBlockNativeResponder: () => true,
+      }),
+    [onCancel, onEnd, onMove, onStart],
+  );
+
+  return (
+    <View
+      {...(Platform.OS === 'web' ? responder.panHandlers : undefined)}
+      style={[
+        styles.carouselDragSurface,
+        Platform.OS === 'web'
+          ? ({ cursor: 'grab', touchAction: 'pan-y' } as unknown as ViewStyle)
+          : undefined,
+      ]}
+      testID="workout-carousel-drag-surface"
+    >
+      {children}
     </View>
   );
 }
@@ -1570,32 +1708,39 @@ function SheetFrame({
 }
 
 function SafetyConfirmSheet({
-  completedCount,
-  elapsedSeconds,
   onClose,
   onOpenReport,
   onStop,
-  totalCount,
+  useJua,
 }: {
-  completedCount: number;
-  elapsedSeconds: number;
   onClose: () => void;
   onOpenReport: () => void;
   onStop?: () => void;
-  totalCount: number;
+  useJua: boolean;
 }) {
   return (
     <SheetFrame title="지금 운동을 중단할까요?">
       <Text style={styles.sheetDescription}>
-        경과 {formatWorkoutTime(elapsedSeconds)} · {completedCount}/{totalCount}
-        블록 완료. 여기까지 완료한 블록은 그대로 기록돼요.
+        불편·이상 반응을 보고하면 운동을 중단할지, 계속할지 끼끼가 알려줘요
       </Text>
       <Pressable
         accessibilityRole="button"
         onPress={onStop}
-        style={styles.dangerButton}
+        style={styles.stopConfirmButton}
+        testID="workout-stop-confirm"
       >
-        <Text style={styles.dangerButtonText}>중단하기</Text>
+        <LinearGradient
+          colors={['#D97260', '#CC5A47', '#C2503C']}
+          end={{ x: 0.5, y: 1 }}
+          locations={[0, 0.55, 1]}
+          pointerEvents="none"
+          start={{ x: 0.5, y: 0 }}
+          style={styles.stopConfirmGradient}
+          testID="workout-stop-confirm-gradient"
+        />
+        <Text style={[styles.stopConfirmButtonText, useJua && styles.jua]}>
+          중단하기
+        </Text>
       </Pressable>
       <Pressable
         accessibilityRole="button"
@@ -1625,6 +1770,7 @@ function SymptomSheet({
   onSubmit,
   selectedSeverity,
   selectedSymptom,
+  useJua,
 }: {
   instruction: WorkoutSafetyInstruction;
   onClose: () => void;
@@ -1633,6 +1779,7 @@ function SymptomSheet({
   onSubmit: () => void;
   selectedSeverity: WorkoutSafetyReport['severityCode'];
   selectedSymptom: WorkoutSafetyReport['symptomCode'];
+  useJua: boolean;
 }) {
   const severe = instruction !== 'SHOW_CAUTION';
   const guidance =
@@ -1677,9 +1824,27 @@ function SymptomSheet({
         <Pressable
           accessibilityRole="button"
           onPress={onSubmit}
-          style={styles.dangerButton}
+          style={severe ? styles.dangerButton : styles.stopConfirmButton}
+          testID={!severe ? 'workout-report-continue' : undefined}
         >
-          <Text style={styles.dangerButtonText}>
+          {!severe ? (
+            <LinearGradient
+              colors={['#D97260', '#CC5A47', '#C2503C']}
+              end={{ x: 0.5, y: 1 }}
+              locations={[0, 0.55, 1]}
+              pointerEvents="none"
+              start={{ x: 0.5, y: 0 }}
+              style={styles.stopConfirmGradient}
+              testID="workout-report-continue-gradient"
+            />
+          ) : null}
+          <Text
+            style={
+              severe
+                ? styles.dangerButtonText
+                : [styles.stopConfirmButtonText, useJua && styles.jua]
+            }
+          >
             {severe ? '보고하고 안전 중단' : '보고만 하고 계속하기'}
           </Text>
         </Pressable>
@@ -1707,6 +1872,7 @@ function ApiSafetySheet({
   pending,
   selectedBodySeverities,
   selectedReactions,
+  useJua,
 }: {
   error: string | null;
   onClose: () => void;
@@ -1722,6 +1888,7 @@ function ApiSafetySheet({
     Record<string, WorkoutSafetyReport['severityCode']>
   >;
   selectedReactions: readonly string[];
+  useJua: boolean;
 }) {
   const selectedBodyAreas = Object.keys(selectedBodySeverities);
   const [showExtendedAreas, setShowExtendedAreas] = useState(() =>
@@ -1808,11 +1975,21 @@ function ApiSafetySheet({
           disabled={pending || !canSubmit}
           onPress={onSubmit}
           style={[
-            styles.dangerButton,
+            styles.stopConfirmButton,
             (pending || !canSubmit) && styles.actionDisabled,
           ]}
+          testID="workout-api-safety-submit"
         >
-          <Text style={styles.dangerButtonText}>
+          <LinearGradient
+            colors={['#D97260', '#CC5A47', '#C2503C']}
+            end={{ x: 0.5, y: 1 }}
+            locations={[0, 0.55, 1]}
+            pointerEvents="none"
+            start={{ x: 0.5, y: 0 }}
+            style={styles.stopConfirmGradient}
+            testID="workout-api-safety-submit-gradient"
+          />
+          <Text style={[styles.stopConfirmButtonText, useJua && styles.jua]}>
             {pending ? '확인 중…' : '보고하고 안전 안내 확인'}
           </Text>
         </Pressable>
@@ -2424,7 +2601,17 @@ const styles = StyleSheet.create({
     borderColor: colors.dangerBorder,
     backgroundColor: colors.surface,
   },
-  mascotAnimation: { width: 104, height: 96 },
+  mascotFrame: {
+    width: 104,
+    height: 104,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    borderRadius: 52,
+    backgroundColor: colors.surface,
+    ...shadows.card,
+  },
+  mascotAnimation: { width: 94, height: 94 },
   mascotMark: { color: colors.primary, fontSize: 25, fontWeight: '900' },
   mascotCopy: { maxWidth: 190 },
   mascotEyebrow: { color: colors.greenText, fontSize: 11.5, fontWeight: '800' },
@@ -2467,6 +2654,9 @@ const styles = StyleSheet.create({
     paddingRight: 20,
     paddingBottom: 8,
     paddingLeft: 20,
+  },
+  carouselDragSurface: {
+    width: '100%',
   },
   carouselHint: { color: colors.textMuted, fontSize: 13, fontWeight: '800' },
   carouselCount: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
@@ -2822,6 +3012,36 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontSize: 15,
     fontWeight: '900',
+    textAlign: 'center',
+  },
+  stopConfirmButton: {
+    position: 'relative',
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(142, 50, 38, 0.8)',
+    borderRadius: 18,
+    padding: 17,
+    shadowColor: '#8E3226',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.11,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  stopConfirmGradient: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    borderRadius: 18,
+  },
+  stopConfirmButtonText: {
+    color: colors.surface,
+    fontSize: 18,
+    fontWeight: '400',
     textAlign: 'center',
   },
   textButton: {

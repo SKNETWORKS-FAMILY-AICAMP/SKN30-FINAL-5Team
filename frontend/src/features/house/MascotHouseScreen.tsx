@@ -7,9 +7,8 @@
  * repeating it here would be a second place to keep in step.
  *
  * A week that fails to load does not take the house down with it. The room is
- * a place the user can visit; the failure is shown inline with a retry instead
- * of replacing the screen, and every value that depends on the week degrades
- * to "unknown" rather than to a guess.
+ * a place the user can visit, and every value that depends on the week
+ * degrades to "unknown" rather than to a guess.
  *
  * The mascot reacts to progress but never to a shortfall. A missed or
  * unfinished week is a learning signal, so the copy stays level and no
@@ -32,18 +31,26 @@ import {
   ScreenShell,
 } from '../../components/states/ScreenState';
 import { HomeBottomNavigation } from '../home/HomeScreen';
-import { MascotHouseContent, type HouseFeedback } from './MascotHouseContent';
+import { MascotHouseContent } from './MascotHouseContent';
+import {
+  randomHouseBananaPoseArt,
+  randomHouseRegularPoseArt,
+  type HouseArtSlot,
+} from './houseArtSlots';
 import {
   buyItem,
   claimDailyGift,
   feedMascot,
   grantWorkoutRewards,
-  objectParticle,
   petMascot,
+  placeHouseItem,
   registerVisit,
   restingPose,
+  selectBackground,
   buildHouseView,
+  type HouseBackgroundId,
   type HouseItemId,
+  type HouseItemPlacement,
   type HousePose,
   type HouseState,
 } from './houseModel';
@@ -53,13 +60,15 @@ import {
   type HouseStore,
 } from './houseStorage';
 
-/** How long a reaction pose is held before the mascot settles back. */
+/** How long ordinary reactions are held before the mascot settles back. */
 const POSE_HOLD_MS = 2600;
+
+/** Feeding stays visible about three seconds longer than it did originally. */
+export const FEED_POSE_HOLD_MS = POSE_HOLD_MS + 3000;
 
 type HouseRemote = {
   week: WeekResponse | null;
   sessions: WorkoutSessionLogSummary[];
-  weekFailed: boolean;
 };
 
 export function MascotHouseScreen({
@@ -85,19 +94,19 @@ export function MascotHouseScreen({
 
   const houseStore = useMemo(() => store ?? createHouseStore(), [store]);
   const [houseState, setHouseState] = useState<HouseState | null>(null);
-  const [feedback, setFeedback] = useState<HouseFeedback | null>(null);
-  const [dismissedWeekFailure, setDismissedWeekFailure] = useState<
-    string | null
-  >(null);
   const [reactionPose, setReactionPose] = useState<HousePose | null>(null);
+  const [reactionArt, setReactionArt] = useState<HouseArtSlot | null>(null);
+  const [settledArt, setSettledArt] = useState<HouseArtSlot | null>(null);
+  const lastBananaArt = useRef<HouseArtSlot['source']>(null);
+  const lastRegularArt = useRef<HouseArtSlot['source']>(null);
   const poseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** The latest house state, readable from an async callback without a stale closure. */
   const liveState = useRef<HouseState | null>(null);
 
-  const { state: remote, reload } = useAsyncData<HouseRemote>(
+  const { state: remote } = useAsyncData<HouseRemote>(
     async (signal) => {
       // Neither request rejects: the house stays reachable offline, and the
-      // screen says which part is missing instead of failing whole.
+      // weekly card degrades locally instead of failing the whole screen.
       const week = await api
         .getWeek(weekStart, signal)
         .catch(() => 'failed' as const);
@@ -111,7 +120,6 @@ export function MascotHouseScreen({
       return {
         week: week === 'failed' ? null : week,
         sessions,
-        weekFailed: week === 'failed',
       };
     },
     [api, localDate, weekStart],
@@ -133,11 +141,24 @@ export function MascotHouseScreen({
     [houseStore],
   );
 
-  const react = useCallback((pose: HousePose) => {
-    setReactionPose(pose);
-    if (poseTimer.current !== null) clearTimeout(poseTimer.current);
-    poseTimer.current = setTimeout(() => setReactionPose(null), POSE_HOLD_MS);
-  }, []);
+  const react = useCallback(
+    (
+      pose: HousePose,
+      art: HouseArtSlot | null = null,
+      holdMs: number = POSE_HOLD_MS,
+      nextSettledArt: HouseArtSlot | null = null,
+    ) => {
+      setReactionPose(pose);
+      setReactionArt(art);
+      if (poseTimer.current !== null) clearTimeout(poseTimer.current);
+      poseTimer.current = setTimeout(() => {
+        setReactionPose(null);
+        setReactionArt(null);
+        if (nextSettledArt !== null) setSettledArt(nextSettledArt);
+      }, holdMs);
+    },
+    [],
+  );
 
   const sessions = remote.status === 'ready' ? remote.data.sessions : null;
 
@@ -163,12 +184,6 @@ export function MascotHouseScreen({
       );
       if (held !== null && rewarded.state === base) return;
       persist(rewarded.state);
-      if (rewarded.granted > 0) {
-        setFeedback({
-          tone: 'success',
-          message: `운동 기록으로 바나나 ${rewarded.granted}개가 들어왔어요.`,
-        });
-      }
     });
 
     return () => {
@@ -197,95 +212,51 @@ export function MascotHouseScreen({
     today: localDate,
   });
 
-  const shownFeedback: HouseFeedback | null =
-    remote.data.weekFailed && dismissedWeekFailure !== weekStart
-      ? {
-          tone: 'warning',
-          message: '이번 주 목표를 불러오지 못했어요. 집은 그대로 있어요.',
-          onRetry: reload,
-        }
-      : feedback;
-
   return (
     <MascotHouseContent
-      feedback={shownFeedback}
       footer={tabBar}
       nickname={nickname}
       onBuyItem={(itemId: HouseItemId) => {
-        const item = view.lockedItems.find(
-          (candidate) => candidate.id === itemId,
-        );
         const next = buyItem(houseState, itemId);
-        if (next === null) {
-          setFeedback({
-            tone: 'warning',
-            message: `바나나가 조금 더 필요해요. 다음에 놓아 줘요.`,
-          });
-          return;
-        }
+        if (next === null) return;
         persist(next);
-        const label = item?.label ?? '새 물건';
-        setFeedback({
-          tone: 'success',
-          message: `${label}${objectParticle(label)} 집에 놓았어요.`,
-        });
         react('happy');
       }}
       onClaimGift={() => {
         const claimed = claimDailyGift(houseState, localDate);
-        if (claimed === null) {
-          setFeedback({
-            tone: 'warning',
-            message: '오늘의 선물은 이미 받았어요. 내일 또 있어요.',
-          });
-          return;
-        }
+        if (claimed === null) return;
         persist(claimed.state);
-        setFeedback({
-          tone: 'success',
-          message: `오늘의 선물로 바나나 ${claimed.granted}개를 받았어요.`,
-        });
         react('happy');
-      }}
-      onDismissFeedback={() => {
-        if (remote.data.weekFailed && dismissedWeekFailure !== weekStart) {
-          setDismissedWeekFailure(weekStart);
-          return;
-        }
-        setFeedback(null);
       }}
       onFeed={() => {
         const next = feedMascot(houseState, localDate);
-        if (next === null) {
-          setFeedback({
-            tone: 'warning',
-            message: '바나나가 조금 더 필요해요.',
-          });
-          return;
-        }
+        if (next === null) return;
         persist(next);
-        setFeedback({
-          tone: 'success',
-          message: '끼끼가 맛있게 먹었어요.',
-        });
-        react('eating');
+        const bananaArt = randomHouseBananaPoseArt(lastBananaArt.current);
+        const regularArt = randomHouseRegularPoseArt(lastRegularArt.current);
+        lastBananaArt.current = bananaArt.source;
+        lastRegularArt.current = regularArt.source;
+        react('eating', bananaArt, FEED_POSE_HOLD_MS, regularArt);
       }}
       onPet={() => {
         const next = petMascot(houseState, localDate);
-        if (next === null) {
-          setFeedback({
-            tone: 'warning',
-            message: '바나나가 조금 더 필요해요.',
-          });
-          return;
-        }
+        if (next === null) return;
         persist(next);
-        setFeedback({
-          tone: 'success',
-          message: '끼끼가 기분이 좋아졌어요.',
-        });
         react('petted');
       }}
+      onPlaceItem={(itemId: HouseItemId, placement: HouseItemPlacement) => {
+        const base = liveState.current ?? houseState;
+        const next = placeHouseItem(base, itemId, placement);
+        if (next === null) return;
+        persist(next);
+      }}
+      onSelectBackground={(backgroundId: HouseBackgroundId) => {
+        const next = selectBackground(houseState, backgroundId);
+        persist(next);
+      }}
+      mascotArt={
+        (reactionPose === null ? settledArt : reactionArt) ?? undefined
+      }
       pose={reactionPose ?? restingPose(view)}
       view={view}
     />

@@ -1,3 +1,5 @@
+export type WorkoutMockPreviewState = 'symptom-mild' | 'symptom-severe';
+
 export type WorkoutPreviewState =
   | 'active'
   | 'offline'
@@ -6,8 +8,7 @@ export type WorkoutPreviewState =
   | 'rest'
   | 'not-completed'
   | 'safety'
-  | 'symptom-mild'
-  | 'symptom-severe'
+  | WorkoutMockPreviewState
   | 'completed'
   | 'stopped';
 
@@ -19,12 +20,23 @@ export const WORKOUT_PREVIEW_OPTIONS = [
   { id: 'rest', label: '선택 휴식' },
   { id: 'not-completed', label: '미수행 이유' },
   { id: 'safety', label: '안전 중단 확인' },
-  { id: 'symptom-mild', label: '경미한 불편' },
-  { id: 'symptom-severe', label: '중대한 이상 반응' },
   { id: 'completed', label: '완료 결과' },
   { id: 'stopped', label: '안전 중단 결과' },
 ] as const satisfies readonly {
   id: WorkoutPreviewState;
+  label: string;
+}[];
+
+/**
+ * Mock-only legacy symptom sheets. They do not use the workout safety-event
+ * API and are intentionally excluded from the Preview Gallery. Keep them
+ * named here while isolated component tests still cover their old UI states.
+ */
+export const WORKOUT_MOCK_PREVIEW_OPTIONS = [
+  { id: 'symptom-mild', label: '경미한 불편 (mock)' },
+  { id: 'symptom-severe', label: '중대한 이상 반응 (mock)' },
+] as const satisfies readonly {
+  id: WorkoutMockPreviewState;
   label: string;
 }[];
 

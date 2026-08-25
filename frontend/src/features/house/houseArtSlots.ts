@@ -13,9 +13,14 @@
 
 import type { ImageSourcePropType } from 'react-native';
 
-import { imageAssets } from '../../assets';
+import { houseMascotMonkeySources, imageAssets } from '../../assets';
 import { colors } from '../../components/theme';
-import type { HouseItemId, HousePose } from './houseModel';
+import {
+  DEFAULT_HOUSE_BACKGROUND_ID,
+  type HouseBackgroundId,
+  type HouseItemId,
+  type HousePose,
+} from './houseModel';
 
 export type HouseArtSlot = {
   id: string;
@@ -49,14 +54,50 @@ function slot(
  * `MascotHouseContent` sizes this at half of its former cover dimensions,
  * fixes it to the top and keeps its horizontal centre aligned.
  */
-export const houseRoomArt: HouseArtSlot = slot(
-  'room',
-  '끼끼의 캠핑장 저녁 배경',
-  imageAssets.houseCampingDinnerBackground,
-  '#F3E3C6',
-  '#D8BE93',
-  'cover',
-);
+export const houseBackgroundLabels: Record<HouseBackgroundId, string> = {
+  morning_camp: '아침 캠핑장',
+  dinner_camp: '저녁 캠핑장',
+  indoor_treehouse: '햇살 나무집',
+  snowing_onsen: '눈 내리는 온천',
+};
+
+export const houseBackgroundArt: Record<HouseBackgroundId, HouseArtSlot> = {
+  morning_camp: slot(
+    'background-morning-camp',
+    '끼끼의 캠핑장 아침 배경',
+    imageAssets.houseCampingMorningBackground,
+    '#F3E3C6',
+    '#D8BE93',
+    'cover',
+  ),
+  dinner_camp: slot(
+    'background-dinner-camp',
+    '끼끼의 캠핑장 저녁 배경',
+    imageAssets.houseCampingDinnerBackground,
+    '#493A28',
+    '#241C14',
+    'cover',
+  ),
+  indoor_treehouse: slot(
+    'background-indoor-treehouse',
+    '끼끼의 실내 나무집 배경',
+    imageAssets.houseIndoorBackground,
+    '#F4E2BC',
+    '#C9A66F',
+    'cover',
+  ),
+  snowing_onsen: slot(
+    'background-snowing-onsen',
+    '끼끼의 눈 내리는 온천 배경',
+    imageAssets.houseSnowingOnsenBackground,
+    '#F4EEE2',
+    '#C7C5C3',
+    'cover',
+  ),
+};
+
+/** Default room art retained for previews that do not own house state. */
+export const houseRoomArt = houseBackgroundArt[DEFAULT_HOUSE_BACKGROUND_ID];
 
 /**
  * The gradient standing in for the backdrop until the illustration arrives.
@@ -72,9 +113,8 @@ export const HOUSE_BACKDROP_FALLBACK = [
 /**
  * Poses.
  *
- * Until pose-specific house artwork is selected, every house pose deliberately
- * reuses the same transparent monkey asset so interactions do not fall back to
- * placeholders or to a different mascot design.
+ * The shared defaults use one transparent monkey asset. Feeding replaces the
+ * `eating` default with one of `houseBananaPoseArt` for the reaction duration.
  */
 export const housePoseArt: Record<HousePose, HouseArtSlot> = {
   greeting: slot(
@@ -113,6 +153,74 @@ export const housePoseArt: Record<HousePose, HouseArtSlot> = {
     colors.borderSoft,
   ),
 };
+
+/** Every reviewed `banana_` mascot image under the monkey asset folders. */
+export const houseBananaPoseArt: readonly HouseArtSlot[] = [
+  imageAssets.houseMascotBananaSheet01Monkey07,
+  imageAssets.houseMascotBananaSheet01Monkey08,
+  imageAssets.houseMascotBananaSheet02Monkey05,
+  imageAssets.houseMascotBananaSheet02Monkey13,
+  imageAssets.houseMascotBananaSheet02Monkey20,
+  imageAssets.houseMascotBananaSheet02Monkey22,
+].map((source) =>
+  slot(
+    'pose-eating',
+    '바나나를 먹는 끼끼',
+    source,
+    colors.yellowSoft,
+    colors.yellowDeep,
+  ),
+);
+
+/** All normal monkey poses; `banana_` and `unused_` files are not registered. */
+export const houseRegularPoseArt: readonly HouseArtSlot[] =
+  houseMascotMonkeySources.map((source) =>
+    slot(
+      'pose-random',
+      '다른 모습의 끼끼',
+      source,
+      colors.brandFill,
+      colors.brandOutline,
+    ),
+  );
+
+function randomNonRepeatingArt(
+  artwork: readonly HouseArtSlot[],
+  previousSource: ImageSourcePropType | null,
+  random: () => number,
+): HouseArtSlot {
+  const fallback = artwork[0];
+  if (fallback === undefined) {
+    throw new Error('No mascot artwork is registered.');
+  }
+  const candidates = artwork.filter(
+    (candidate) => candidate.source !== previousSource,
+  );
+  const randomIndex = Math.min(
+    Math.floor(Math.max(0, random()) * candidates.length),
+    candidates.length - 1,
+  );
+  return candidates[randomIndex] ?? fallback;
+}
+
+/**
+ * Picks a banana pose and avoids immediately repeating the visible artwork
+ * when the user feeds the mascot again during the same visit.
+ */
+export function randomHouseBananaPoseArt(
+  previousSource: ImageSourcePropType | null = null,
+  random: () => number = Math.random,
+): HouseArtSlot {
+  return randomNonRepeatingArt(houseBananaPoseArt, previousSource, random);
+}
+
+/** Picks a normal pose, excluding an immediately repeated source. */
+export function randomHouseRegularPoseArt(
+  previousSource: ImageSourcePropType | null = null,
+  random: () => number = Math.random,
+): HouseArtSlot {
+  return randomNonRepeatingArt(houseRegularPoseArt, previousSource, random);
+}
 
 /** Decorations. All pending, each with its own colour so the room reads. */
 export const houseItemArt: Record<HouseItemId, HouseArtSlot> = {

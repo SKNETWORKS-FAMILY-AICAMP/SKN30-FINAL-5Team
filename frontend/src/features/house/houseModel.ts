@@ -45,6 +45,17 @@ export const HOUSE_ACTION_COST = {
 
 export type HousePose = 'greeting' | 'happy' | 'eating' | 'petted' | 'resting';
 
+export const HOUSE_BACKGROUND_IDS = [
+  'morning_camp',
+  'dinner_camp',
+  'indoor_treehouse',
+  'snowing_onsen',
+] as const;
+
+export type HouseBackgroundId = (typeof HOUSE_BACKGROUND_IDS)[number];
+
+export const DEFAULT_HOUSE_BACKGROUND_ID: HouseBackgroundId = 'morning_camp';
+
 export type HouseItemId =
   | 'yoga_mat'
   | 'dumbbell'
@@ -60,6 +71,20 @@ export type HouseItem = {
   cost: number;
 };
 
+/**
+ * A decoration's top-left position inside the full-screen house canvas.
+ * Normalized coordinates keep the layout stable across phone and web sizes
+ * and are ready to move behind a future persistence adapter unchanged.
+ */
+export type HouseItemPlacement = {
+  x: number;
+  y: number;
+};
+
+export type HouseItemPlacements = Partial<
+  Record<HouseItemId, HouseItemPlacement>
+>;
+
 /** Purchasable decorations, cheapest first so the list reads as a ladder. */
 export const HOUSE_ITEMS: readonly HouseItem[] = [
   { id: 'yoga_mat', label: '요가 매트', cost: 20 },
@@ -70,6 +95,16 @@ export const HOUSE_ITEMS: readonly HouseItem[] = [
   { id: 'star_frame', label: '별 액자', cost: 35 },
   { id: 'window', label: '창문 커튼', cost: 40 },
 ] as const;
+
+const DEFAULT_ITEM_PLACEMENTS: Record<HouseItemId, HouseItemPlacement> = {
+  yoga_mat: { x: 0.24, y: 0.57 },
+  dumbbell: { x: 0.62, y: 0.57 },
+  plant: { x: 0.1, y: 0.46 },
+  cushion: { x: 0.72, y: 0.47 },
+  lamp: { x: 0.82, y: 0.34 },
+  star_frame: { x: 0.18, y: 0.25 },
+  window: { x: 0.66, y: 0.2 },
+};
 
 /** The cheapest decoration, shown on the 집 꾸미기 action tile. */
 export const CHEAPEST_ITEM_COST = HOUSE_ITEMS.reduce(
@@ -86,7 +121,9 @@ export const CHEAPEST_ITEM_COST = HOUSE_ITEMS.reduce(
 export type HouseState = {
   version: number;
   bananas: number;
+  selectedBackgroundId: HouseBackgroundId;
   ownedItemIds: HouseItemId[];
+  itemPlacements: HouseItemPlacements;
   /** Sessions already paid for, so a reload cannot grant the same one twice. */
   rewardedSessionIds: string[];
   claimedGiftLocalDate: string | null;
@@ -103,7 +140,9 @@ export function createHouseState(): HouseState {
   return {
     version: HOUSE_STATE_VERSION,
     bananas: 0,
+    selectedBackgroundId: DEFAULT_HOUSE_BACKGROUND_ID,
     ownedItemIds: [],
+    itemPlacements: {},
     rewardedSessionIds: [],
     claimedGiftLocalDate: null,
     fedLocalDate: null,
@@ -128,12 +167,23 @@ export function parseHouseState(raw: unknown): HouseState | null {
   }
 
   const knownItemIds = new Set<string>(HOUSE_ITEMS.map((item) => item.id));
+  const selectedBackgroundId = HOUSE_BACKGROUND_IDS.includes(
+    value.selectedBackgroundId as HouseBackgroundId,
+  )
+    ? (value.selectedBackgroundId as HouseBackgroundId)
+    : DEFAULT_HOUSE_BACKGROUND_ID;
+  const itemPlacements = parseItemPlacements(
+    value.itemPlacements,
+    knownItemIds,
+  );
   return {
     version: HOUSE_STATE_VERSION,
     bananas: Math.max(0, Math.floor(value.bananas)),
+    selectedBackgroundId,
     ownedItemIds: stringList(value.ownedItemIds).filter(
       (id): id is HouseItemId => knownItemIds.has(id),
     ),
+    itemPlacements,
     rewardedSessionIds: stringList(value.rewardedSessionIds).slice(
       -MAX_REMEMBERED_SESSIONS,
     ),
@@ -255,11 +305,41 @@ export function buyItem(
     ...state,
     bananas: state.bananas - item.cost,
     ownedItemIds: [...state.ownedItemIds, itemId],
+    itemPlacements: {
+      ...state.itemPlacements,
+      [itemId]: DEFAULT_ITEM_PLACEMENTS[itemId],
+    },
   };
+}
+
+/** Updates a purchased decoration only; locked catalogue items cannot move. */
+export function placeHouseItem(
+  state: HouseState,
+  itemId: HouseItemId,
+  placement: HouseItemPlacement,
+): HouseState | null {
+  if (!state.ownedItemIds.includes(itemId)) return null;
+  const next = normalizePlacement(placement);
+  const current = state.itemPlacements[itemId];
+  if (current?.x === next.x && current.y === next.y) return state;
+  return {
+    ...state,
+    itemPlacements: { ...state.itemPlacements, [itemId]: next },
+  };
+}
+
+/** Changes only the room skin; backgrounds are free and never spend rewards. */
+export function selectBackground(
+  state: HouseState,
+  backgroundId: HouseBackgroundId,
+): HouseState {
+  if (state.selectedBackgroundId === backgroundId) return state;
+  return { ...state, selectedBackgroundId: backgroundId };
 }
 
 export type HouseView = {
   bananas: number;
+  selectedBackgroundId: HouseBackgroundId;
   /** `null` when the week could not be read; the screen says so rather than guessing. */
   weekTargetCount: number | null;
   weekCompletedCount: number;
@@ -273,6 +353,7 @@ export type HouseView = {
   fedToday: boolean;
   pettedToday: boolean;
   ownedItems: readonly HouseItem[];
+  itemPlacements: Record<HouseItemId, HouseItemPlacement>;
   lockedItems: readonly HouseItem[];
   canFeed: boolean;
   canPet: boolean;
@@ -304,6 +385,7 @@ export function buildHouseView({
 
   return {
     bananas: state.bananas,
+    selectedBackgroundId: state.selectedBackgroundId,
     weekTargetCount: target,
     weekCompletedCount,
     weekProgress:
@@ -318,11 +400,65 @@ export function buildHouseView({
     fedToday: state.fedLocalDate === today,
     pettedToday: state.pettedLocalDate === today,
     ownedItems: HOUSE_ITEMS.filter((item) => owned.has(item.id)),
+    itemPlacements: HOUSE_ITEMS.reduce<Record<HouseItemId, HouseItemPlacement>>(
+      (placements, item) => {
+        placements[item.id] =
+          state.itemPlacements[item.id] ?? DEFAULT_ITEM_PLACEMENTS[item.id];
+        return placements;
+      },
+      {} as Record<HouseItemId, HouseItemPlacement>,
+    ),
     lockedItems,
     canFeed: state.bananas >= HOUSE_ACTION_COST.feed,
     canPet: state.bananas >= HOUSE_ACTION_COST.pet,
     canDecorate: lockedItems.some((item) => state.bananas >= item.cost),
   };
+}
+
+function normalizePlacement(placement: HouseItemPlacement): HouseItemPlacement {
+  return {
+    x: clampUnit(placement.x),
+    y: clampUnit(placement.y),
+  };
+}
+
+function parseItemPlacements(
+  raw: unknown,
+  knownItemIds: ReadonlySet<string>,
+): HouseItemPlacements {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {};
+  const parsed: HouseItemPlacements = {};
+  for (const [itemId, placement] of Object.entries(
+    raw as Record<string, unknown>,
+  )) {
+    if (!knownItemIds.has(itemId)) continue;
+    if (
+      typeof placement !== 'object' ||
+      placement === null ||
+      Array.isArray(placement)
+    ) {
+      continue;
+    }
+    const candidate = placement as Record<string, unknown>;
+    if (
+      typeof candidate.x !== 'number' ||
+      !Number.isFinite(candidate.x) ||
+      typeof candidate.y !== 'number' ||
+      !Number.isFinite(candidate.y)
+    ) {
+      continue;
+    }
+    parsed[itemId as HouseItemId] = normalizePlacement({
+      x: candidate.x,
+      y: candidate.y,
+    });
+  }
+  return parsed;
+}
+
+function clampUnit(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(1, Math.max(0, value));
 }
 
 /**

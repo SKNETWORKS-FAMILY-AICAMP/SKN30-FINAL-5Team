@@ -26,6 +26,8 @@ type RequestOptions = {
   path: string;
   query?: Record<string, string | undefined>;
   body?: unknown;
+  /** Multipart payload. The runtime must set its own boundary header. */
+  formData?: FormData;
   /** Mutations must set this; the server rejects them without a UUID key. */
   idempotent?: boolean;
   ifMatch?: string | number;
@@ -93,6 +95,7 @@ export class ApiClient {
     path,
     query,
     body,
+    formData,
     idempotent = false,
     ifMatch,
     signal,
@@ -109,6 +112,11 @@ export class ApiClient {
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
+    if (body !== undefined && formData !== undefined) {
+      throw new Error(
+        'A request cannot contain both JSON and multipart bodies.',
+      );
+    }
     if (body !== undefined) {
       headers['Content-Type'] = 'application/json';
     }
@@ -124,7 +132,8 @@ export class ApiClient {
       response = await this.fetchImpl(url.toString(), {
         method,
         headers,
-        body: body === undefined ? undefined : JSON.stringify(body),
+        body:
+          formData ?? (body === undefined ? undefined : JSON.stringify(body)),
         signal,
       });
     } catch (caught) {
