@@ -34,7 +34,7 @@ class CatalogVersion(Base):
             name="ck_catalog_versions_manifest_schema_version",
         ),
         CheckConstraint(
-            "code_set_version IN ('mvp-v1')",
+            "code_set_version IN ('mvp-v1', 'catalog-v2')",
             name="ck_catalog_versions_code_set_version",
         ),
         CheckConstraint(
@@ -165,7 +165,7 @@ class Exercise(Base):
             name="ck_exercises_review_status_code",
         ),
         CheckConstraint(
-            "source_track_code IN ('wger', 'kspo')",
+            "source_track_code IN ('wger', 'kspo', 'gymvisual')",
             name="ck_exercises_source_track_code",
         ),
         CheckConstraint("default_rest_seconds >= 0", name="ck_exercises_rest_seconds"),

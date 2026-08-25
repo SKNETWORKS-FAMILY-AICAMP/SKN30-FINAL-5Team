@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.core.config import get_settings
 from backend.app.db.models.catalog import (
+    BodyFocus,
     CatalogVersion,
     Exercise,
     ExerciseAlternative,
@@ -27,7 +28,12 @@ from backend.app.db.repositories.vector_index import (
     VectorIndexRepository,
 )
 from backend.app.modules.catalog.codes import BodyAreaCode, BodyAreaRoleCode
-from backend.app.modules.catalog.service import CatalogDataBundleImporter, CatalogImporter
+from backend.app.modules.catalog.service import (
+    CatalogArtifact,
+    CatalogDataBundleImporter,
+    CatalogImporter,
+    load_catalog_artifact,
+)
 from backend.scripts.catalog_activate import activate
 from backend.scripts.demo_seed import seed_catalog
 
@@ -90,6 +96,40 @@ def test_imports_catalog_atomically_and_is_idempotent(postgres_session: Session)
     assert version.code_set_version == "mvp-v1"
     assert version.production_eligible is False
     assert version.manifest_metadata["files"][0]["records"] == 3
+
+
+@pytest.mark.integration
+def test_repository_persists_catalog_v2_code_set_and_gymvisual_source(
+    postgres_session: Session,
+) -> None:
+    source = load_catalog_artifact(GENERATED_ARTIFACT)
+    record = source.records[0].model_copy(
+        update={
+            "stable_code": "catalog_v2_repository_contract",
+            "body_focus_code": "CHEST",
+            "equipment_codes": ["BODYWEIGHT"],
+            "source_track": "gymvisual",
+        }
+    )
+    artifact = CatalogArtifact(
+        source.manifest,
+        "f" * 64,
+        (record,),
+        code_set_version="catalog-v2",
+    )
+
+    version = CatalogRepository().create_from_artifact(postgres_session, artifact)
+    postgres_session.flush()
+
+    exercise = postgres_session.scalar(
+        select(Exercise).where(Exercise.catalog_version_id == version.id)
+    )
+    focus = postgres_session.get(BodyFocus, "CHEST")
+    assert version.code_set_version == "catalog-v2"
+    assert exercise is not None
+    assert exercise.body_focus_code == "CHEST"
+    assert exercise.source_track_code == "gymvisual"
+    assert focus is not None and focus.code_set_version == "catalog-v2"
 
 
 @pytest.mark.integration

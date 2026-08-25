@@ -1,7 +1,7 @@
 import hashlib
 import json
 from contextlib import AbstractContextManager, contextmanager
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
@@ -25,6 +25,8 @@ from backend.app.modules.catalog.service import (
     PrescriptionArtifact,
     SafetyRuleArtifact,
     _validate_bundle_exercise_references,
+    _validate_v2_alternative_metadata,
+    _validate_v2_safety_metadata,
     load_alternative_artifact,
     load_catalog_artifact,
     load_prescription_artifact,
@@ -106,6 +108,83 @@ def test_loads_current_derived_artifacts() -> None:
     assert "input_artifacts" in alternatives.manifest.source
     assert len(prescriptions.goal_tag_records) == 32
     assert len(prescriptions.prescription_records) == 36
+
+
+def test_v2_runtime_metadata_is_accepted_by_pydantic() -> None:
+    runtime = GENERATED / "exercise-catalog-v2.0.0-final" / "runtime"
+    safety_records = tuple(
+        ExerciseSafetyRuleRecord.model_validate_json(line)
+        for line in (runtime / "safety_rules.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    )
+    alternative_records = tuple(
+        ExerciseAlternativeRecord.model_validate_json(line)
+        for line in (runtime / "alternatives.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    )
+
+    safety = safety_records[0]
+    alternative = alternative_records[0]
+
+    assert len(safety_records) == 394
+    assert len(alternative_records) == 116
+    assert safety.rule_set_version_code == "safety-rule-set-v2.0.0"
+    assert safety.production_eligible is False
+    assert safety.created_at is not None and safety.updated_at is not None
+    assert alternative.alternative_set_version_code == "alternative-set-v2.0.0"
+    assert alternative.review_method_code == "DOMAIN_REVIEWER"
+    assert alternative.production_eligible is False
+
+
+def test_v2_metadata_validation_matches_manifest_and_stays_draft() -> None:
+    now = datetime(2026, 8, 25, tzinfo=UTC)
+    safety = load_safety_rule_artifact(SAFETY_DIRECTORY)
+    safety_manifest = safety.manifest.model_copy(
+        update={
+            "review": safety.manifest.review.model_copy(
+                update={"review_method_code": "DOMAIN_REVIEWER"}
+            )
+        }
+    )
+    safety_record = safety.records[0].model_copy(
+        update={
+            "rule_set_version_code": safety_manifest.rule_set_version.version_code,
+            "production_eligible": False,
+            "source_manifest_hash": "a" * 64,
+            "source_metadata": {"source": "synthetic-test"},
+            "created_at": now,
+            "updated_at": now,
+        }
+    )
+    _validate_v2_safety_metadata(safety_manifest, (safety_record,))
+
+    alternatives = load_alternative_artifact(ALTERNATIVE_DIRECTORY)
+    alternative_manifest = alternatives.manifest.model_copy(
+        update={
+            "review": alternatives.manifest.review.model_copy(
+                update={"review_method_code": "DOMAIN_REVIEWER"}
+            )
+        }
+    )
+    alternative_record = alternatives.records[0].model_copy(
+        update={
+            "alternative_set_version_code": (
+                alternative_manifest.alternative_set_version.version_code
+            ),
+            "production_eligible": False,
+            "source_manifest_hash": "b" * 64,
+            "source_metadata": {"source": "synthetic-test"},
+            "review_method_code": "DOMAIN_REVIEWER",
+        }
+    )
+    _validate_v2_alternative_metadata(alternative_manifest, (alternative_record,))
+
+    with pytest.raises(CatalogImportError) as exc_info:
+        _validate_v2_alternative_metadata(
+            alternative_manifest,
+            (alternative_record.model_copy(update={"production_eligible": True}),),
+        )
+    assert exc_info.value.code == "PRODUCTION_ELIGIBILITY_INVALID"
 
 
 def test_safety_rule_rejects_reversed_severity_range() -> None:

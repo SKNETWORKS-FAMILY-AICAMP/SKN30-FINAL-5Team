@@ -20,11 +20,14 @@ BUNDLE_ALTERNATIVES = Path("data/generated/exercise-alternatives-merged-mvp-v0.4
 BUNDLE_PRESCRIPTIONS = Path("data/generated/exercise-prescriptions-merged-mvp-v0.1.0")
 
 
-def test_migration_history_has_v3_decision_persistence_head() -> None:
+def test_migration_history_has_catalog_v2_code_set_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0025_v3_decision_persistence"]
+    assert scripts.get_heads() == ["0026_catalog_v2_code_set"]
+    assert scripts.get_revision("0026_catalog_v2_code_set").down_revision == (
+        "0025_v3_decision_persistence"
+    )
     assert scripts.get_revision("0025_v3_decision_persistence").down_revision == (
         "0024_vector_index_registry"
     )
@@ -213,6 +216,16 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
             "fallback_reason_code",
             "created_at",
         }
+        catalog_checks = {
+            constraint["name"]: constraint["sqltext"]
+            for constraint in inspector.get_check_constraints("catalog_versions")
+        }
+        exercise_checks = {
+            constraint["name"]: constraint["sqltext"]
+            for constraint in inspector.get_check_constraints("exercises")
+        }
+        assert "catalog-v2" in catalog_checks["ck_catalog_versions_code_set_version"]
+        assert "gymvisual" in exercise_checks["ck_exercises_source_track_code"]
         assert {column["name"] for column in inspector.get_columns("calendar_connections")} == {
             "id",
             "user_id",
@@ -226,6 +239,16 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
             "updated_at",
         }
         with engine.connect() as connection:
+            body_focus_codes = set(
+                connection.scalars(
+                    text(
+                        "SELECT code FROM body_focuses "
+                        "WHERE code IN ('CHEST', 'BACK', 'SHOULDERS', 'BICEPS', 'TRICEPS', "
+                        "'FOREARMS', 'GLUTES', 'QUADRICEPS', 'HAMSTRINGS', 'CALVES', "
+                        "'CORE', 'FULL_BODY', 'CARDIO', 'MOBILITY')"
+                    )
+                )
+            )
             policy_statuses = dict(
                 connection.execute(
                     text(
@@ -235,6 +258,22 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
                     )
                 ).all()
             )
+        assert body_focus_codes == {
+            "CHEST",
+            "BACK",
+            "SHOULDERS",
+            "BICEPS",
+            "TRICEPS",
+            "FOREARMS",
+            "GLUTES",
+            "QUADRICEPS",
+            "HAMSTRINGS",
+            "CALVES",
+            "CORE",
+            "FULL_BODY",
+            "CARDIO",
+            "MOBILITY",
+        }
         assert policy_statuses == {
             "decision-policy-v1": "DEPRECATED",
             "decision-policy-v2": "DEPRECATED",
