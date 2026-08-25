@@ -295,7 +295,6 @@ V2_UV_CACHE=/private/tmp/skn30-uv-cache UV_CACHE_DIR=$V2_UV_CACHE \
 bundle 내부 진입점은 `catalog/seed_manifest.json`, `safety/rules_manifest.json`,
 `alternatives/alternatives_manifest.json`, `prescriptions/prescription_manifest.json`이며,
 `bundle_manifest.json`이 각 내부 파일의 path·SHA-256·byte·record count를 기록한다.
-현재 runtime alternatives 285건 중 통증 구간별 의미가 backend natural key와 충돌하는 2건은
-importer projection에서 283건으로 축약된다. 원본 후보는
-`alternatives/input/alternative_projection_conflicts.json`에 보존하며 projection은
-`LOSSY_DRAFT_ONLY`다. 이 blocker가 해소되기 전에는 운영 적격으로 해석하지 않는다.
+runtime alternatives 285건은 backend의 `(source, alternative, reason, goal, rule_version)`
+관계 키로 손실 없이 importer에 전달된다. conflict report는 직접 전달 검증 결과를 보존하며,
+bundle과 모든 파생 산출물은 여전히 `DRAFT`·`production_eligible=false` 상태다.

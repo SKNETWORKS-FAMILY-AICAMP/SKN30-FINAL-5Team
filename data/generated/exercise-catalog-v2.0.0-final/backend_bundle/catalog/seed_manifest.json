@@ -5,10 +5,10 @@
   },
   "files": [
     {
-      "bytes": 124264,
+      "bytes": 124050,
       "path": "exercises.jsonl",
       "records": 102,
-      "sha256": "827c20c6ae1223b4ed0543fa03c6075334e92d11e56dcf3e833759b0092bf17f"
+      "sha256": "a4c4e9417380b810240a7c7c5b527ad0bf50ae9d642bd33b59eb505d6e5929b3"
     }
   ],
   "generator_version": "v2-backend-bundle-packager-1.0.0",
@@ -22,10 +22,10 @@
   "source": {
     "input_artifacts": [
       {
-        "bytes": 118909,
+        "bytes": 119003,
         "path": "input/representative_exercises_v2_final.csv",
         "role": "representative_catalog_csv",
-        "sha256": "a4a46273622addb95936d3f86dff1a8b8ccccca058af5f1088325beabec3c4be"
+        "sha256": "00a2da29a2754efbf888200fddeb65804edea6b1858e850916ddd63c9653d236"
       },
       {
         "bytes": 13074,
@@ -34,10 +34,10 @@
         "sha256": "79e487cc1a41ea39db9b4afb0799b3297840de878a2ae4ed621ef3e4403a0985"
       },
       {
-        "bytes": 902,
+        "bytes": 799,
         "path": "input/v2_backend_code_projection.json",
         "role": "backend_code_projection",
-        "sha256": "52101aad17d752dd9b85b0a5d54b67a58ce6fc39be2947e3884d54b206f0d0d4"
+        "sha256": "859bffdbc4d81f5ca7f632e07d142f073fe65a5507e3499861361223e43a31a9"
       }
     ],
     "review_batch_directory": "data/reports",

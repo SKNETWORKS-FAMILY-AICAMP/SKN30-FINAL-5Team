@@ -5,10 +5,10 @@
   },
   "files": [
     {
-      "bytes": 171835,
+      "bytes": 173024,
       "path": "alternatives.jsonl",
-      "records": 283,
-      "sha256": "1f02799ac3ed68e3ee6744a885dbb2b2d6f3364b23b6fe1d1948c9880055d985"
+      "records": 285,
+      "sha256": "90395a88f3fb8e7272d14c515da5cf0317d83dc67b5b60c155e35b68565c6b90"
     }
   ],
   "generator_version": "v2-backend-bundle-packager-1.0.0",
@@ -21,13 +21,13 @@
   "schema_version": "1.0",
   "source": {
     "catalog_version_code": "exercise-catalog-v2.0.0-final",
-    "importer_record_count": 283,
+    "importer_record_count": 285,
     "input_artifacts": [
       {
-        "bytes": 412724,
+        "bytes": 413334,
         "path": "input/exercise_alternatives_v2_final.csv",
         "role": "alternative_mapping_csv",
-        "sha256": "08e5579c08af06f7854644c52ee19ca7320daa722616c78a7f8b5ffada4357a0"
+        "sha256": "8326c872b5a430917bff3e8b6c3df364b4189978fa4776128f2d3c56fe4e9fdb"
       },
       {
         "bytes": 4341,
@@ -36,14 +36,14 @@
         "sha256": "23285ceaee094966779def8d33765b4fbac5be151f73f3ce1fe547e459f65643"
       }
     ],
-    "projection_conflict_count": 2,
-    "projection_status": "LOSSY_DRAFT_ONLY",
+    "projection_conflict_count": 0,
+    "projection_status": "DIRECT",
     "runtime_manifest_path": "runtime/alternatives_manifest.json",
-    "runtime_manifest_sha256": "fa35afb5f5abec9ef694316837f7fdd13ea6d5fb0663ee3e38cd210864ac5223",
+    "runtime_manifest_sha256": "0833760ba2ea10d8611deb2e90a371f8d60bc096f903825045f9b3b93c88e79c",
     "runtime_record_count": 285
   },
   "summary": {
-    "alternative_records": 283,
+    "alternative_records": 285,
     "exercise_records": null,
     "exercise_scope_rules": null,
     "pattern_scope_rules": null,

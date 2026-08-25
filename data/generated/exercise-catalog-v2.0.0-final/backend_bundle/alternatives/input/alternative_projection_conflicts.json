@@ -1,78 +1,9 @@
 {
-  "conflict_count": 2,
-  "conflicts": [
-    {
-      "backend_relationship_key": [
-        "rotation_variant_core_brace_cable_machine",
-        "bodyweight_crunch_core_brace_bodyweight",
-        "DISCOMFORT"
-      ],
-      "candidate_goal_preservation_codes": [
-        "ACTIVE_RECOVERY",
-        "SAME_GOAL"
-      ],
-      "candidate_source_metadata": [
-        {
-          "alternative_target_muscle_code": "CORE",
-          "body_area_code": "SHOULDER",
-          "materialization_version": "v2-representative-decisions-2026-08-24",
-          "score_band_code": "NRS_4_6",
-          "selection_basis": "DOMAIN_APPROVED_SCORE_BAND_AND_TARGET_MUSCLE_POLICY",
-          "source_path": "normalized/v2_discomfort_alternative_mapping.csv",
-          "source_relation_key": "mapping:SHOULDER:NRS_4_6:REX-000075:REX-000009:DISCOMFORT",
-          "source_target_muscle_code": "CORE"
-        },
-        {
-          "alternative_target_muscle_code": "CORE",
-          "body_area_code": "ABDOMEN",
-          "materialization_version": "v2-representative-decisions-2026-08-24",
-          "score_band_code": "NRS_1_3",
-          "selection_basis": "DOMAIN_APPROVED_SCORE_BAND_AND_TARGET_MUSCLE_POLICY",
-          "source_path": "normalized/v2_discomfort_alternative_mapping.csv",
-          "source_relation_key": "mapping:ABDOMEN:NRS_1_3:REX-000075:REX-000009:DISCOMFORT",
-          "source_target_muscle_code": "CORE"
-        }
-      ],
-      "resolution": "ACTIVE_RECOVERY_PRECEDENCE_FOR_DRAFT_IMPORT_ONLY"
-    },
-    {
-      "backend_relationship_key": [
-        "spine_core_brace_core_brace_mat",
-        "bodyweight_crunch_core_brace_bodyweight",
-        "DISCOMFORT"
-      ],
-      "candidate_goal_preservation_codes": [
-        "ACTIVE_RECOVERY",
-        "SAME_GOAL"
-      ],
-      "candidate_source_metadata": [
-        {
-          "alternative_target_muscle_code": "CORE",
-          "body_area_code": "HIP",
-          "materialization_version": "v2-representative-decisions-2026-08-24",
-          "score_band_code": "NRS_4_6",
-          "selection_basis": "DOMAIN_APPROVED_SCORE_BAND_AND_TARGET_MUSCLE_POLICY",
-          "source_path": "normalized/v2_discomfort_alternative_mapping.csv",
-          "source_relation_key": "mapping:HIP:NRS_4_6:REX-000090:REX-000009:DISCOMFORT",
-          "source_target_muscle_code": "CORE"
-        },
-        {
-          "alternative_target_muscle_code": "CORE",
-          "body_area_code": "ABDOMEN",
-          "materialization_version": "v2-representative-decisions-2026-08-24",
-          "score_band_code": "NRS_1_3",
-          "selection_basis": "DOMAIN_APPROVED_SCORE_BAND_AND_TARGET_MUSCLE_POLICY",
-          "source_path": "normalized/v2_discomfort_alternative_mapping.csv",
-          "source_relation_key": "mapping:ABDOMEN:NRS_1_3:REX-000090:REX-000009:DISCOMFORT",
-          "source_target_muscle_code": "CORE"
-        }
-      ],
-      "resolution": "ACTIVE_RECOVERY_PRECEDENCE_FOR_DRAFT_IMPORT_ONLY"
-    }
-  ],
-  "importer_record_count": 283,
+  "conflict_count": 0,
+  "conflicts": [],
+  "importer_record_count": 285,
   "production_eligible": false,
-  "projection_status": "LOSSY_DRAFT_ONLY",
+  "projection_status": "DIRECT",
   "runtime_record_count": 285,
   "status": "DRAFT"
 }

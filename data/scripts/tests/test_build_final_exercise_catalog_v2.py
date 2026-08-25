@@ -70,6 +70,14 @@ class FinalExerciseCatalogV2Tests(unittest.TestCase):
                 )["met_status"],
                 "DOMAIN_APPROVED",
             )
+            self.assertEqual(
+                next(
+                    row
+                    for row in representatives
+                    if row["representative_exercise_id"] == "REX-000066"
+                )["body_focus_code"],
+                "MOBILITY",
+            )
             deadlift = next(
                 row for row in representatives if row["representative_exercise_id"] == "REX-000004"
             )

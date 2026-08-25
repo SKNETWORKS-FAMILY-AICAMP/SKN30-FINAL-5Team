@@ -32,23 +32,6 @@ POLICY_SOURCE = DATA_ROOT / "normalized/v2_prescription_review_policy.json"
 REVIEW_SOURCE = DATA_ROOT / "validation/review_results/v2_prescription_review_input.csv"
 PROJECTION_SOURCE = DATA_ROOT / "normalized/v2_backend_code_projection.json"
 
-BODY_FOCUS_PROJECTION = {
-    "BACK": "UPPER_BODY",
-    "BICEPS": "UPPER_BODY",
-    "CALVES": "LOWER_BODY",
-    "CARDIO": "FULL_BODY",
-    "CHEST": "UPPER_BODY",
-    "CORE": "CORE",
-    "FOREARMS": "UPPER_BODY",
-    "FULL_BODY": "FULL_BODY",
-    "GLUTES": "LOWER_BODY",
-    "HAMSTRINGS": "LOWER_BODY",
-    "MOBILITY": "FULL_BODY",
-    "QUADRICEPS": "LOWER_BODY",
-    "SHOULDERS": "UPPER_BODY",
-    "TRICEPS": "UPPER_BODY",
-}
-
 
 def _file_entry(
     path: Path, *, records: int | None = None, role: str | None = None
@@ -117,12 +100,11 @@ def _package_catalog(root: Path, runtime: Path) -> list[Path]:
     projected_records = []
     for record in runtime_records:
         projected = dict(record)
-        try:
-            projected["body_focus_code"] = BODY_FOCUS_PROJECTION[record["body_focus_code"]]
-        except KeyError as exc:
+        if projected["body_focus_code"] in {"UPPER_BODY", "LOWER_BODY", "UNSPECIFIED"}:
             raise PipelineError(
-                f"V2 body_focus_code lacks backend projection: {record.get('body_focus_code')}"
-            ) from exc
+                "legacy body_focus_code is not allowed in V2 bundle: "
+                f"{projected['body_focus_code']}"
+            )
         projected_records.append(projected)
     (catalog_root / "exercises.jsonl").write_text(
         "".join(
@@ -215,40 +197,7 @@ def _package_derived(
     projected_rows = []
     projection_conflicts: list[dict[str, Any]] = []
     if name == "alternatives":
-        grouped: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
         for row in runtime_rows:
-            key = (
-                row["source_exercise_stable_code"],
-                row["alternative_exercise_stable_code"],
-                row["reason_code"],
-            )
-            grouped.setdefault(key, []).append(row)
-        for key in sorted(grouped):
-            candidates = sorted(
-                grouped[key],
-                key=lambda row: json.dumps(row, ensure_ascii=False, sort_keys=True),
-            )
-            if len(candidates) > 1:
-                projection_conflicts.append(
-                    {
-                        "backend_relationship_key": list(key),
-                        "candidate_goal_preservation_codes": sorted(
-                            {row["goal_preservation_code"] for row in candidates}
-                        ),
-                        "candidate_source_metadata": [
-                            row.get("source_metadata", {}) for row in candidates
-                        ],
-                        "resolution": "ACTIVE_RECOVERY_PRECEDENCE_FOR_DRAFT_IMPORT_ONLY",
-                    }
-                )
-            row = next(
-                (
-                    candidate
-                    for candidate in candidates
-                    if candidate.get("goal_preservation_code") == "ACTIVE_RECOVERY"
-                ),
-                candidates[0],
-            )
             projected = {key_name: value for key_name, value in row.items() if key_name in allowed}
             projected["review_method_code"] = "AGENT_ONLY"
             projected_rows.append(projected)
@@ -270,7 +219,7 @@ def _package_derived(
             {
                 "status": "DRAFT",
                 "production_eligible": False,
-                "projection_status": "LOSSY_DRAFT_ONLY",
+                "projection_status": "DIRECT",
                 "runtime_record_count": len(runtime_rows),
                 "importer_record_count": len(projected_rows),
                 "conflict_count": len(projection_conflicts),
@@ -287,7 +236,7 @@ def _package_derived(
         "input_artifacts": inputs,
         "runtime_manifest_sha256": sha256_bytes((runtime / source_manifest_name).read_bytes()),
         "runtime_manifest_path": f"runtime/{source_manifest_name}",
-        "projection_status": "LOSSY_DRAFT_ONLY" if name == "alternatives" else "DIRECT",
+        "projection_status": "DIRECT",
         "runtime_record_count": len(runtime_rows),
         "importer_record_count": len(projected_rows),
         "projection_conflict_count": len(projection_conflicts),
@@ -409,15 +358,15 @@ def build(
             "summary": {
                 "catalog_records": 102,
                 "safety_rule_records": 394,
-                "alternative_records": 283,
+                "alternative_records": 285,
                 "goal_tag_records": 102,
                 "prescription_records": 137,
             },
             "projection": {
-                "status": "LOSSY_DRAFT_ONLY",
+                "status": "DIRECT",
                 "runtime_alternative_records": 285,
-                "importer_alternative_records": 283,
-                "alternative_conflict_count": 2,
+                "importer_alternative_records": 285,
+                "alternative_conflict_count": 0,
                 "conflict_report_path": "alternatives/input/alternative_projection_conflicts.json",
             },
             "files": files,

@@ -24,10 +24,10 @@
     "importer_record_count": 394,
     "input_artifacts": [
       {
-        "bytes": 102367,
+        "bytes": 102774,
         "path": "input/representative_exercise_safety_mapping_v2_final.csv",
         "role": "safety_mapping_csv",
-        "sha256": "9340e5f60bb229cbc97a1429a694ad7379ae532a0981d1580c9ec2e62c5a88cb"
+        "sha256": "b150659f216b1df7cc425ddb44d088e552278e00af7683b3a48868c72ae1eca0"
       },
       {
         "bytes": 4341,
@@ -39,7 +39,7 @@
     "projection_conflict_count": 0,
     "projection_status": "DIRECT",
     "runtime_manifest_path": "runtime/safety_manifest.json",
-    "runtime_manifest_sha256": "893f38f7cdb7e6afe634d568c41315c77b39adb81f9b3223f9382d0aec8c02b7",
+    "runtime_manifest_sha256": "8888a88cd9b95236759aa6b37427514140a75d518387303ef22f2e053aa8bc39",
     "runtime_record_count": 394
   },
   "summary": {

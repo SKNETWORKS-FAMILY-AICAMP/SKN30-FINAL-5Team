@@ -99,7 +99,7 @@ def validate(bundle: Path = DEFAULT_BUNDLE) -> dict[str, Any]:
             and safety_record.exercise_stable_code not in stable_codes
         ):
             raise PipelineError(f"safety rule FK is missing: {safety_record.exercise_stable_code}")
-    relation_keys: set[tuple[str, str, str]] = set()
+    relation_keys: set[tuple[str, str, str, str, str]] = set()
     for alternative_record in alternatives.records:
         if (
             alternative_record.source_exercise_stable_code not in stable_codes
@@ -115,6 +115,8 @@ def validate(bundle: Path = DEFAULT_BUNDLE) -> dict[str, Any]:
             alternative_record.source_exercise_stable_code,
             alternative_record.alternative_exercise_stable_code,
             alternative_record.reason_code,
+            alternative_record.goal_preservation_code,
+            alternative_record.rule_version,
         )
         if key in relation_keys:
             raise PipelineError(f"duplicate alternative relation: {key}")
@@ -145,16 +147,17 @@ def validate(bundle: Path = DEFAULT_BUNDLE) -> dict[str, Any]:
     projection = bundle_manifest.get("projection", {})
     conflict_report = bundle / projection.get("conflict_report_path", "")
     if (
-        projection.get("status") != "LOSSY_DRAFT_ONLY"
+        projection.get("status") != "DIRECT"
         or projection.get("runtime_alternative_records") != 285
         or projection.get("importer_alternative_records") != len(alternatives.records)
-        or projection.get("alternative_conflict_count") != 2
+        or projection.get("alternative_conflict_count") != 0
         or not conflict_report.is_file()
     ):
         raise PipelineError("V2 alternative projection blocker metadata is incomplete")
     conflict_data = json.loads(conflict_report.read_text(encoding="utf-8"))
     if (
-        conflict_data.get("conflict_count") != 2
+        conflict_data.get("conflict_count") != 0
+        or conflict_data.get("projection_status") != "DIRECT"
         or conflict_data.get("production_eligible") is not False
     ):
         raise PipelineError("V2 alternative projection conflict report is invalid")
