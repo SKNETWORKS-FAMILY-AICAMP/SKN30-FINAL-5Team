@@ -1,0 +1,48 @@
+{
+  "alignment_version": "gymvisual-source-alignment-v0.4.0",
+  "status": "DRAFT_REVIEW_QUEUE",
+  "production_eligible": false,
+  "inputs": [
+    {
+      "path": "data/validation/profiles/20260810T063833Z-wger-exercise-catalog-profile-v0.1.0/gym_candidate_inventory.jsonl",
+      "sha256": "6980072bb8dd667e931b40ae34c7d656f3c6bf33615047d0e33a549f12f742b3"
+    },
+    {
+      "path": "data/validation/profiles/20260810T053458Z-training-video-profile-v0.2.0/candidate_inventory.jsonl",
+      "sha256": "0b47674fb099cb90f5000159569df8dfd513bc31d184e62c7d7d5b933838196c"
+    },
+    {
+      "path": "data/validation/review_results/wger_mapping_results.csv",
+      "sha256": "bcf55292013136140dfd8a51e996471a5dd94eabc390e5aef7facd951ff8db57"
+    },
+    {
+      "path": "data/validation/review_results/kspo_mapping_results.csv",
+      "sha256": "3fab8fd83dfee617c0a67597a6d5d47feafc2addf409b134aa13dfd06f57dda9"
+    }
+  ],
+  "outputs": {
+    "csv": {
+      "path": "data/validation/review_batches/gymvisual-source-alignment-v0.4.0/aligned_review_batch.csv",
+      "sha256": "b228785886986b5b3cac50e89aa8b01fa13986ad803599edb31ade489ee5f5e6"
+    },
+    "jsonl": {
+      "path": "data/validation/review_batches/gymvisual-source-alignment-v0.4.0/aligned_review_batch.jsonl",
+      "sha256": "f7de49474e8c9c214d306f86aefa63bcee33d51d6a6962801a076d9c8500681d"
+    }
+  },
+  "validation": {
+    "status": "PASS",
+    "row_count": 791,
+    "errors": []
+  },
+  "value_policy": {
+    "reference": "Gym Visual review batch candidate vocabulary",
+    "unknown_value": "REVIEW_REQUIRED",
+    "raw_inputs_unchanged": true,
+    "generated_catalog_created": false
+  },
+  "source_track_counts": {
+    "kspo": 391,
+    "wger": 400
+  }
+}

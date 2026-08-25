@@ -68,6 +68,16 @@ CHANGE
 RECOVERY
 REST
 STOP_AND_SEEK_HELP
+
+Safety service actions:
+
+```text
+LOAD_REDUCED
+ROM_REDUCED
+ACTIVE_RECOVERY
+SKIP_AFFECTED_AREA
+STOP_EXERCISE
+```
 ~~~
 
 ### 3.2 불편 부위
@@ -127,16 +137,17 @@ PainAreaInput
 - UI는 `NECK`, `LOWER_BACK`, `SHOULDER`를 기본 노출한다. `OTHER` control을 누르면 `OTHER`를
   제외한 나머지 실제 body area code를 복수 선택할 수 있다.
 
-결정 정책 `pain-intensity-map-v1`은 점수를 기존 severity로 다음과 같이 변환한다.
+결정 정책 `pain-intensity-action-v2`는 원점수 구간별 서비스 액션을 다음과 같이 결정한다.
 
-| intensity_score | severity_code |
-|---:|---|
-| 1..3 | `MILD` |
-| 4..6 | `MODERATE` |
-| 7..10 | `SEVERE` |
+| intensity_score | severity_code | service_action | alternative policy |
+|---:|---|---|---|
+| 1..3 | `MILD` | `LOAD_REDUCED` | 같은 목표 → 부하 감소 → ROM 감소 → 쉬운 변형 |
+| 4..7 | `MODERATE` | `SKIP_AFFECTED_AREA` | 통증 부위 제외 → `ACTIVE_RECOVERY` |
+| 8..10 | `SEVERE` | `STOP_EXERCISE` | 대체운동 없음 |
 
-원점수와 변환된 code, `pain-intensity-map-v1`을 함께 보존해 재현한다. 이 구간은 안전·통증 정책
-변경이므로 개발팀장, PM과 외부 도메인 검수 승인 전 production에서 활성화하지 않는다. 승인 전에는
+원점수와 변환된 code, `pain-intensity-action-v2`를 함께 보존해 재현한다. 이 구간은 안전·통증 정책
+변경이므로 개발팀장, PM과 외부 도메인 검수 승인 전 production에서 활성화하지 않는다. 현재 데이터는
+도메인 승인 입력으로 생성하지만 `production_eligible=false`다. 승인 전에는
 기존 `attention_area_codes` 계약과 기존 severity 입력 경로를 유지하며 점수를 추정하거나 backfill하지
 않는다.
 
@@ -228,29 +239,30 @@ FAILED
 
 ### 4.2 심한 통증과 급성 근골격 신호
 
-다음 중 하나면 REST를 반환한다.
+다음 중 하나면 `STOP_EXERCISE`를 반환한다.
 
-- 한 부위라도 심각도가 SEVERE
+- 한 부위라도 NRS 7–10
 - 급성 근골격 신호 그룹의 코드가 있음
-- 안전 검증을 통과한 계획을 만들 수 없음
-- 사용자가 명시적으로 휴식을 선택함
+- 운동 중 통증 증가·갑작스러운 통증·부종·감각 이상·체중부하 불가가 발생함
 
-REST에는 final_plan을 제공하지 않는다.
+`STOP_EXERCISE`에는 대체 운동과 final_plan을 제공하지 않는다. 긴급 중단 그룹은
+`STOP_AND_SEEK_HELP`로 별도 처리한다.
 
 ### 4.3 특정 부위 불편
 
-다음 조건을 모두 만족하면 충돌 운동을 제외하고 검수된 대체 후보를 만든다.
+NRS 구간별로 다음과 같이 처리한다.
 
 - 불편 부위가 명확함
-- 심각도가 MILD 또는 MODERATE
+- NRS 1–3: 원래 목표를 유지하고 부하 감소, ROM 감소, 쉬운 변형 순으로 적용한다.
+- NRS 4–6: 통증 부위를 primary·secondary 모두에서 제외하고 저강도 `ACTIVE_RECOVERY` 후보를 사용한다.
+- NRS 7–10: 대체 후보를 만들지 않고 `STOP_EXERCISE`를 반환한다.
 - 긴급 중단 그룹과 급성 근골격 신호 그룹이 모두 비어 있음
-- DOMAIN_APPROVED 상태의 통증 제외 규칙이 있음
-- DOMAIN_APPROVED 상태의 대체 운동이 있음
+- 후보가 있는 경우 `DOMAIN_APPROVED` 상태의 대체 운동이어야 함
 - 대체 운동이 현재 장소와 장비를 충족함
 
-원래 목표를 안전하게 보존하는 대체 계획이 만들어지면 CHANGE를 반환한다.
-
-MODERATE 불편이 있고 목표 보존형 대체 계획을 만들 수 없지만 검수된 저강도 회복 계획이 가능하면 RECOVERY를 반환한다. 안전한 회복 계획도 없으면 REST를 반환한다.
+NRS 1–3의 서비스 액션은 `LOAD_REDUCED` 또는 `ROM_REDUCED`이며, 후보가 없으면 원 운동에
+해당 다운시프트를 적용한다. NRS 4–6의 서비스 액션은 `SKIP_AFFECTED_AREA`이며
+`ACTIVE_RECOVERY` 후보를 제공한다. NRS 7–10은 대체 운동을 제공하지 않는다.
 
 ### 4.3.1 안전 규칙 레코드 해석
 
@@ -654,14 +666,14 @@ PLANNED -> IN_PROGRESS -> COMPLETED
 
 | 조건 | instruction | resulting action | session status | reason code | guidance code |
 |---|---|---|---|---|---|
-| MILD 불편 | `SHOW_CAUTION` | null | `IN_PROGRESS` | `MILD_DISCOMFORT` | `MILD_DISCOMFORT_CAUTION` |
-| MODERATE 불편 | `SHOW_CAUTION` | null | `IN_PROGRESS` | `MODERATE_DISCOMFORT` | `MODERATE_DISCOMFORT_CAUTION` |
-| SEVERE 불편 | `STOP_SESSION` | `REST` | `STOPPED_FOR_SAFETY` | `SEVERE_DISCOMFORT` | `SEVERE_OR_ACUTE_STOP` |
-| 급성 근골격 신호 | `STOP_SESSION` | `REST` | `STOPPED_FOR_SAFETY` | `ACUTE_MUSCULOSKELETAL_REACTION` | `SEVERE_OR_ACUTE_STOP` |
+| NRS 1–3 | `SHOW_CAUTION` | `LOAD_REDUCED` 또는 `ROM_REDUCED` | `IN_PROGRESS` | `MILD_DISCOMFORT` | `MILD_DISCOMFORT_CAUTION` |
+| NRS 4–6 | `SHOW_CAUTION` | `SKIP_AFFECTED_AREA` 또는 `ACTIVE_RECOVERY` | `IN_PROGRESS` | `MODERATE_DISCOMFORT` | `MODERATE_DISCOMFORT_CAUTION` |
+| NRS 7–10 | `STOP_SESSION` | `STOP_EXERCISE` | `STOPPED_FOR_SAFETY` | `SEVERE_DISCOMFORT` | `SEVERE_OR_ACUTE_STOP` |
+| 급성 근골격 신호 | `STOP_SESSION` | `STOP_EXERCISE` | `STOPPED_FOR_SAFETY` | `ACUTE_MUSCULOSKELETAL_REACTION` | `SEVERE_OR_ACUTE_STOP` |
 | 긴급 중단 그룹 | `STOP_AND_SEEK_HELP` | `STOP_AND_SEEK_HELP` | `STOPPED_FOR_SAFETY` | `EMERGENCY_ADVERSE_REACTION` | `SERIOUS_ADVERSE_REACTION_STOP` |
 
-긴급 중단 그룹은 다른 안전 이벤트보다 우선하며 veto를 유지한다. MILD 또는 MODERATE 이벤트는
-검수된 동적 재구성 정책이 없으므로 진행 중 계획을 자동 변경하지 않는다. COMPLETED, PARTIAL,
+긴급 중단 그룹은 다른 안전 이벤트보다 우선하며 veto를 유지한다. NRS 1–7 이벤트는 위의
+검수된 동적 재구성 정책에 따라 처리한다. COMPLETED, PARTIAL,
 NOT_COMPLETED, STOPPED_FOR_SAFETY로 종료된 세션의 블록과 상태는 변경할 수 없다.
 
 운동 후 신규 공개 feedback은 `difficulty_code=EASY|APPROPRIATE|HARD` 하나만 받는다. 표시 문구는

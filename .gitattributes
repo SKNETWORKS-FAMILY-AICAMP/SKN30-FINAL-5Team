@@ -12,6 +12,8 @@ data/validation/profiles/**/*.jsonl      -text
 data/validation/review_batches/**/*.csv  -text
 data/validation/review_batches/**/*.json -text
 data/validation/review_batches/**/*.jsonl -text
+data/normalized/**/*.json            -text
+data/normalized/**/*.jsonl           -text
 data/generated/**/*.json                 -text
 data/generated/**/*.jsonl                -text
 

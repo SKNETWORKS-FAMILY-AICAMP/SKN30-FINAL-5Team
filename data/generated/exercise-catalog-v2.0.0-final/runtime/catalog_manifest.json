@@ -1,0 +1,38 @@
+{
+  "catalog_version": {
+    "status_code": "ACTIVE",
+    "version_code": "exercise-catalog-v2.0.0-final"
+  },
+  "files": [
+    {
+      "bytes": 124195,
+      "path": "representative_exercises.jsonl",
+      "records": 102,
+      "sha256": "cf0d64d68a903b81560ee3cc8845a7c791ca989ac526daf723951fe0bba20a0d"
+    }
+  ],
+  "generator_version": "v2-runtime-materializer-1.0.0",
+  "review": {
+    "production_eligible": false,
+    "review_method_code": "DOMAIN_REVIEWER",
+    "status": "DOMAIN_APPROVED",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
+  },
+  "schema_version": "1.0",
+  "source": {
+    "input_artifacts": [
+      {
+        "bytes": 121682,
+        "path": "generated/exercise-catalog-v2.0.0-final/representative_exercises_v2_final.csv",
+        "role": "representative_csv",
+        "sha256": "d42b7f53b7c0005afec245a910ac345d5245771f2f94ee658d804f1ee34f1370"
+      }
+    ],
+    "review_batch_directory": "data/reports",
+    "taxonomy_registry_sha256": "79e487cc1a41ea39db9b4afb0799b3297840de878a2ae4ed621ef3e4403a0985",
+    "track": "merged"
+  },
+  "summary": {
+    "exercise_records": 102
+  }
+}

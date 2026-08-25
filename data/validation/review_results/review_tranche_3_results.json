@@ -8,12 +8,12 @@
   "reviewed_at": "2026-08-11T19:30:00+09:00",
   "inputs": {
     "queue_path": "data/normalized/review_tranche_3_candidates.json",
-    "queue_sha256": "82ceb7dfe8afdca55ba1dc5d1b632b493f8445753c2e88caa4ccdfe9ef70ce08",
+    "queue_sha256": "d4fff4e4cbba4eb257fc96518e7a3b640d9460769f12f9f528fa12b23aa4bc11",
     "plan_path": "data/normalized/review_tranche_3.agent.json",
-    "plan_sha256": "6e006eccfa9c04cd6d2dd5613ec43037ba7d49ce5224e83c629cda567c05ece4",
+    "plan_sha256": "e3e36b1ec02dfbb0d20448746c20de09c67ac420c0a1aaf4e0d8f7139932a0f7",
     "policy_path": "data/normalized/agent_review_policy.json",
     "policy_sha256": "7a2d41c5cbdb982bea5a84680bb8d2a1327500aca355d2b45c994c3a61b897f6",
-    "taxonomy_sha256": "89e61bba1baf1ccedca94adcb88127f32f529a1b46162ee8392f2cd2ef1372c7"
+    "taxonomy_sha256": "79e487cc1a41ea39db9b4afb0799b3297840de878a2ae4ed621ef3e4403a0985"
   },
   "summary": {
     "candidate_count": 11,

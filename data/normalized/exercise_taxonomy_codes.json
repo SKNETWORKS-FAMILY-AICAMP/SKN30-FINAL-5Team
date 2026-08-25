@@ -44,7 +44,8 @@
           "Arms",
           "Shoulders",
           "Chest"
-        ]
+        ],
+        "deprecated": false
       },
       {
         "code": "LOWER_BODY",
@@ -52,19 +53,50 @@
         "source_category_names": [
           "Legs",
           "Calves"
-        ]
+        ],
+        "deprecated": false
       },
       {
-        "code": "CORE",
-        "label_ko": "코어",
-        "source_category_names": [
-          "Abs"
-        ]
+        "code": "CHEST", "label_ko": "가슴", "source_category_names": ["Chest"]
       },
       {
-        "code": "FULL_BODY",
-        "label_ko": "전신",
-        "source_category_names": []
+        "code": "BACK", "label_ko": "등", "source_category_names": ["Back"]
+      },
+      {
+        "code": "SHOULDERS", "label_ko": "어깨", "source_category_names": ["Shoulders"]
+      },
+      {
+        "code": "BICEPS", "label_ko": "이두근", "source_category_names": ["Biceps"]
+      },
+      {
+        "code": "TRICEPS", "label_ko": "삼두근", "source_category_names": ["Triceps"]
+      },
+      {
+        "code": "FOREARMS", "label_ko": "전완", "source_category_names": ["Forearms"]
+      },
+      {
+        "code": "GLUTES", "label_ko": "둔근", "source_category_names": ["Glutes"]
+      },
+      {
+        "code": "QUADRICEPS", "label_ko": "대퇴사두근", "source_category_names": ["Quadriceps"]
+      },
+      {
+        "code": "HAMSTRINGS", "label_ko": "햄스트링", "source_category_names": ["Hamstrings"]
+      },
+      {
+        "code": "CALVES", "label_ko": "종아리", "source_category_names": ["Calves"]
+      },
+      {
+        "code": "CORE", "label_ko": "코어", "source_category_names": ["Abs"]
+      },
+      {
+        "code": "FULL_BODY", "label_ko": "전신", "source_category_names": []
+      },
+      {
+        "code": "CARDIO", "label_ko": "유산소", "source_category_names": []
+      },
+      {
+        "code": "MOBILITY", "label_ko": "가동성", "source_category_names": []
       }
     ],
     "movement_pattern_code": [
@@ -111,6 +143,22 @@
       {
         "code": "MOBILITY_STRETCH",
         "label_ko": "스트레칭·가동성"
+      },
+      {
+        "code": "BALANCE",
+        "label_ko": "균형"
+      },
+      {
+        "code": "CYCLING",
+        "label_ko": "사이클"
+      },
+      {
+        "code": "ELLIPTICAL",
+        "label_ko": "일립티컬"
+      },
+      {
+        "code": "JUMP_PLYOMETRIC",
+        "label_ko": "점프·플라이오메트릭"
       }
     ],
     "equipment_code": [
@@ -212,6 +260,16 @@
         ]
       },
       {
+        "code": "STRETCH_STRAP",
+        "label_ko": "스트레치 스트랩",
+        "source_equipment_names": [
+          "Stretch strap"
+        ],
+        "source_tool_names": [
+          "스트레치 스트랩"
+        ]
+      },
+      {
         "code": "MAT",
         "label_ko": "매트",
         "source_equipment_names": [
@@ -238,6 +296,54 @@
         "source_tool_names": [
           "의자"
         ]
+      },
+      {
+        "code": "ELLIPTICAL_MACHINE",
+        "label_ko": "일립티컬 머신",
+        "source_equipment_names": [
+          "Elliptical machine"
+        ],
+        "source_tool_names": []
+      },
+      {
+        "code": "JUMP_ROPE",
+        "label_ko": "줄넘기",
+        "source_equipment_names": [
+          "Jump rope"
+        ],
+        "source_tool_names": []
+      },
+      {
+        "code": "ROLLER",
+        "label_ko": "롤러",
+        "source_equipment_names": [
+          "Roller"
+        ],
+        "source_tool_names": []
+      },
+      {
+        "code": "STATIONARY_BIKE",
+        "label_ko": "실내 자전거",
+        "source_equipment_names": [
+          "Stationary bike"
+        ],
+        "source_tool_names": []
+      },
+      {
+        "code": "STEP_BOX",
+        "label_ko": "스텝박스",
+        "source_equipment_names": [
+          "Step box"
+        ],
+        "source_tool_names": []
+      },
+      {
+        "code": "WEIGHTED",
+        "label_ko": "중량 부하",
+        "source_equipment_names": [
+          "Weighted"
+        ],
+        "source_tool_names": []
       }
     ],
     "location_code": [
@@ -283,12 +389,12 @@
     "BALANCE 운동 유형을 MVP에 포함할지",
     "FULL_BODY 판정 기준"
   ],
-  "registry_version": "1.1.0",
+  "registry_version": "1.3.0",
   "approval": {
     "development_lead": {
       "decision": "APPROVED",
       "decided_on": "2026-08-11",
-      "scope": "5개 코드 집합 전체. movement_pattern_code 11종을 명시적으로 승인."
+      "scope": "5개 코드 집합 전체. movement_pattern_code 15종을 명시적으로 승인."
     },
     "pm_display_label": {
       "decision": "APPROVED",
@@ -303,11 +409,25 @@
       "decided_on": "2026-08-11",
       "decided_by": "AGENT-CLAUDE-DOMAIN-01",
       "delegation": "개발 리드가 데이터 파트 총괄 권한으로 위임 (2026-08-11).",
-      "scope": "movement_pattern_code 11종을 exercise_safety_rules의 제외 규칙 단위로 사용하는 것이 적절함을 확인한다. 부하 부위와 동작 패턴이 분리되어 있어 body_area_code와 조합해 규칙을 표현할 수 있다.",
+      "scope": "movement_pattern_code 15종을 exercise_safety_rules의 제외 규칙 단위로 사용하는 것이 적절함을 확인한다. 부하 부위와 동작 패턴이 분리되어 있어 body_area_code와 조합해 규칙을 표현할 수 있다.",
       "limits": "개별 제외 규칙의 내용(어떤 부위 불편에서 어떤 패턴을 제외할지)은 이 승인에 포함되지 않는다. docs/DOMAIN_RULES.md 16절은 여전히 미승인이며 exercise_safety_rules 작성은 별도 작업이다."
     }
   },
   "change_log": [
+    {
+      "version": "1.3.0",
+      "changed_on": "2026-08-24",
+      "changed_by": "CODEX-DATA-PIPELINE-01",
+      "change": "V2 대표운동 원천에 실제 사용된 EZ_BAR 및 cardio/accessory equipment 코드를 registry와 런타임 enum에 추가하고 BAND·CABLE은 canonical code로 정규화한다.",
+      "trigger": "대표운동 JSONL Pydantic 검증에서 원천 장비 코드가 허용 코드셋과 불일치한 것을 확인했다. 원천 의미를 잃지 않도록 별도 코드로 승인·보존한다."
+    },
+    {
+      "version": "1.2.0",
+      "changed_on": "2026-08-24",
+      "changed_by": "CODEX-DATA-PIPELINE-01",
+      "change": "movement_pattern_code에 BALANCE, CYCLING, ELLIPTICAL, JUMP_PLYOMETRIC을 추가하고 equipment_code에 STRETCH_STRAP을 추가했다.",
+      "trigger": "V2 schema alignment review의 정책 결정 반영. 개별 운동 배정과 도메인 안전규칙 승인은 별도 검수 대상으로 유지한다."
+    },
     {
       "version": "1.1.0",
       "changed_on": "2026-08-11",

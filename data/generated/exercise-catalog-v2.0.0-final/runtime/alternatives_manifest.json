@@ -1,0 +1,43 @@
+{
+  "alternative_set_version": {
+    "status_code": "ACTIVE",
+    "version_code": "alternative-set-v2.0.0"
+  },
+  "files": [
+    {
+      "bytes": 120183,
+      "path": "alternatives.jsonl",
+      "records": 116,
+      "sha256": "beef016efffe57e63ec87191e976145241deee1543b07196c949ca098b690cdc"
+    }
+  ],
+  "generator_version": "v2-runtime-materializer-1.0.0",
+  "review": {
+    "production_eligible": false,
+    "review_method_code": "DOMAIN_REVIEWER",
+    "status": "DOMAIN_APPROVED",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
+  },
+  "schema_version": "1.0",
+  "source": {
+    "input_artifacts": [
+      {
+        "bytes": 121682,
+        "path": "generated/exercise-catalog-v2.0.0-final/representative_exercises_v2_final.csv",
+        "role": "representative_csv",
+        "sha256": "d42b7f53b7c0005afec245a910ac345d5245771f2f94ee658d804f1ee34f1370"
+      }
+    ],
+    "review_batch_directory": "data/reports",
+    "taxonomy_registry_sha256": "79e487cc1a41ea39db9b4afb0799b3297840de878a2ae4ed621ef3e4403a0985",
+    "track": "merged"
+  },
+  "summary": {
+    "alternative_records": 116,
+    "exercise_records": null,
+    "exercise_scope_rules": null,
+    "pattern_scope_rules": null,
+    "rule_records": null,
+    "sources_with_alternatives": null
+  }
+}

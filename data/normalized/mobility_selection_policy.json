@@ -1,0 +1,138 @@
+{
+  "schema_version": "1.0",
+  "policy_version": "mobility-selection-v0.1.0",
+  "status": "DRAFT_REVIEW_QUEUE",
+  "production_eligible": false,
+  "purpose": "Gym Visual 원천에서 초보·복귀 사용자용 스트레칭·가동성 대표 후보를 선정하고 family/variant 검토 큐를 만드는 단계",
+  "source": {
+    "source_name": "exercises-dataset",
+    "raw_directory": "data/raw/gym_visual",
+    "selection_basis": [
+      "BEGINNER_RETURNING_USER_UTILITY",
+      "BODY_AREA_COVERAGE",
+      "MOBILITY_GOAL_COVERAGE",
+      "FAMILY_DUPLICATE_REDUCTION",
+      "DIFFICULTY_DIVERSITY_WITH_BEGINNER_PRIORITY"
+    ],
+    "source_fields_used": ["id", "name", "body_part", "target", "equipment", "media_id", "image", "gif_url"]
+  },
+  "selection_guards": [
+    "STRETCHING_IS_NOT_A_STRENGTH_ALTERNATIVE",
+    "FAMILY_AND_VARIANT_ARE_NOT_ALTERNATIVE_RELATIONS",
+    "NAME_ONLY_VERSION_SUFFIX_IS_NOT_A_VARIANT",
+    "RAW_SOURCE_IS_READ_ONLY",
+    "NO_SAFETY_RULE_OR_ALTERNATIVE_IS_CREATED_BEFORE_DOMAIN_REVIEW",
+    "NO_MEDICAL_CONTRAINDICATION_IS_INFERRED_FROM_SOURCE_TEXT"
+  ],
+  "candidate_groups": [
+    {
+      "mobility_goal_code": "CERVICAL_MOBILITY",
+      "body_area_codes": ["NECK", "SHOULDER"],
+      "candidates": [
+        {"id": "1403", "family": "NECK_LATERAL_STRETCH", "variant_group": "NECK_LATERAL_STRETCH", "rank": 1, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"},
+        {"id": "0716", "family": "NECK_LATERAL_STRETCH", "variant_group": "NECK_LATERAL_STRETCH", "rank": 2, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"}
+      ]
+    },
+    {
+      "mobility_goal_code": "SHOULDER_CHEST_MOBILITY",
+      "body_area_codes": ["CHEST", "SHOULDER", "UPPER_BACK"],
+      "candidates": [
+        {"id": "1271", "family": "CHEST_FRONT_SHOULDER_STRETCH", "variant_group": "CHEST_OPENING_STRETCH", "rank": 1, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"},
+        {"id": "1167", "family": "DYNAMIC_CHEST_STRETCH", "variant_group": "CHEST_OPENING_STRETCH", "rank": 2, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"},
+        {"id": "0669", "family": "REAR_DELTOID_STRETCH", "variant_group": "SHOULDER_CROSS_BODY_STRETCH", "rank": 3, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"},
+        {"id": "1365", "family": "UPPER_BACK_STRETCH", "variant_group": "UPPER_BACK_STRETCH", "rank": 4, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"},
+        {"id": "1346", "family": "KNEELING_LAT_STRETCH", "variant_group": "LAT_STRETCH", "rank": 5, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"}
+      ]
+    },
+    {
+      "mobility_goal_code": "UPPER_LIMB_MOBILITY",
+      "body_area_codes": ["ELBOW", "WRIST_HAND", "SHOULDER"],
+      "candidates": [
+        {"id": "0643", "family": "OVERHEAD_TRICEPS_STRETCH", "variant_group": "TRICEPS_STRETCH", "rank": 1, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"},
+        {"id": "0817", "family": "TRICEPS_STRETCH", "variant_group": "TRICEPS_STRETCH", "rank": 2, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"},
+        {"id": "0721", "family": "SIDE_WRIST_PULL_STRETCH", "variant_group": "WRIST_FOREARM_STRETCH", "rank": 3, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"},
+        {"id": "1428", "family": "WRIST_CIRCLES", "variant_group": "WRIST_MOBILITY", "rank": 4, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"}
+      ]
+    },
+    {
+      "mobility_goal_code": "SPINAL_MOBILITY",
+      "body_area_codes": ["UPPER_BACK", "LOWER_BACK", "ABDOMEN"],
+      "candidates": [
+        {"id": "1363", "family": "SPINE_STRETCH", "variant_group": "SPINAL_FLEXION_STRETCH", "rank": 1, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"},
+        {"id": "2329", "family": "SPINE_TWIST", "variant_group": "SPINAL_ROTATION", "rank": 2, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"},
+        {"id": "0690", "family": "SEATED_LOWER_BACK_STRETCH", "variant_group": "LOWER_BACK_STRETCH", "rank": 3, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"},
+        {"id": "0794", "family": "STANDING_LATERAL_STRETCH", "variant_group": "LATERAL_TRUNK_STRETCH", "rank": 4, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"}
+      ]
+    },
+    {
+      "mobility_goal_code": "HIP_QUADRICEPS_MOBILITY",
+      "body_area_codes": ["HIP", "KNEE"],
+      "candidates": [
+        {"id": "1564", "family": "HIP_FLEXOR_QUADRICEPS_STRETCH", "variant_group": "HIP_FLEXOR_QUAD_STRETCH", "rank": 1, "difficulty": "INTERMEDIATE", "beginner_fit": "CONDITIONAL"},
+        {"id": "1548", "family": "CHAIR_LEG_EXTENDED_STRETCH", "variant_group": "QUADRICEPS_STRETCH", "rank": 2, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"},
+        {"id": "0613", "family": "SIDE_LYING_QUADRICEPS_STRETCH", "variant_group": "QUADRICEPS_STRETCH", "rank": 3, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"},
+        {"id": "1512", "family": "ALL_FOURS_SQUAT_STRETCH", "variant_group": "QUADRICEPS_HIP_MOBILITY", "rank": 4, "difficulty": "INTERMEDIATE", "beginner_fit": "CONDITIONAL"}
+      ]
+    },
+    {
+      "mobility_goal_code": "ADDUCTOR_GLUTE_MOBILITY",
+      "body_area_codes": ["HIP", "KNEE"],
+      "candidates": [
+        {"id": "1494", "family": "BUTTERFLY_ADDUCTOR_STRETCH", "variant_group": "ADDUCTOR_STRETCH", "rank": 1, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"},
+        {"id": "1587", "family": "SEATED_WIDE_ANGLE_STRETCH", "variant_group": "ADDUCTOR_HAMSTRING_STRETCH", "rank": 2, "difficulty": "INTERMEDIATE", "beginner_fit": "CONDITIONAL"},
+        {"id": "1424", "family": "SEATED_GLUTE_STRETCH", "variant_group": "GLUTE_STRETCH", "rank": 3, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"},
+        {"id": "2567", "family": "SEATED_PIRIFORMIS_STRETCH", "variant_group": "GLUTE_STRETCH", "rank": 4, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"}
+      ]
+    },
+    {
+      "mobility_goal_code": "HAMSTRING_MOBILITY",
+      "body_area_codes": ["HIP", "KNEE", "ANKLE_FOOT"],
+      "candidates": [
+        {"id": "1511", "family": "HAMSTRING_STRETCH", "variant_group": "HAMSTRING_STRETCH", "rank": 1, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"},
+        {"id": "1576", "family": "LEG_UP_HAMSTRING_STRETCH", "variant_group": "HAMSTRING_STRETCH", "rank": 2, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"},
+        {"id": "1585", "family": "RUNNERS_STRETCH", "variant_group": "HAMSTRING_CALF_STRETCH", "rank": 3, "difficulty": "BEGINNER", "beginner_fit": "CONDITIONAL"},
+        {"id": "1604", "family": "WORLD_GREATEST_STRETCH", "variant_group": "MULTI_AREA_MOBILITY", "rank": 4, "difficulty": "INTERMEDIATE", "beginner_fit": "CONDITIONAL"},
+        {"id": "1599", "family": "STANDING_HAMSTRING_CALF_STRAP_STRETCH", "variant_group": "HAMSTRING_CALF_STRETCH", "rank": 5, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"}
+      ]
+    },
+    {
+      "mobility_goal_code": "CALF_ANKLE_MOBILITY",
+      "body_area_codes": ["ANKLE_FOOT", "KNEE"],
+      "candidates": [
+        {"id": "1368", "family": "ANKLE_CIRCLES", "variant_group": "ANKLE_MOBILITY", "rank": 1, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"},
+        {"id": "1377", "family": "WALL_CALF_STRETCH", "variant_group": "CALF_STRETCH", "rank": 2, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"},
+        {"id": "1390", "family": "SEATED_CALF_STRETCH", "variant_group": "CALF_STRETCH", "rank": 3, "difficulty": "BEGINNER", "beginner_fit": "REVIEW_REQUIRED"},
+        {"id": "1388", "family": "PERONEAL_STRETCH", "variant_group": "LOWER_LEG_STRETCH", "rank": 4, "difficulty": "INTERMEDIATE", "beginner_fit": "CONDITIONAL"}
+      ]
+    },
+    {
+      "mobility_goal_code": "EQUIPMENT_ASSISTED_MOBILITY",
+      "body_area_codes": ["LOWER_BACK", "HIP"],
+      "candidates": [
+        {"id": "2208", "family": "ROLLER_BACK_STRETCH", "variant_group": "ROLLER_ASSISTED_MOBILITY", "rank": 1, "difficulty": "INTERMEDIATE", "beginner_fit": "CONDITIONAL"},
+        {"id": "2202", "family": "ROLLER_HIP_STRETCH", "variant_group": "ROLLER_ASSISTED_MOBILITY", "rank": 2, "difficulty": "INTERMEDIATE", "beginner_fit": "CONDITIONAL"},
+        {"id": "1559", "family": "EXERCISE_BALL_HIP_FLEXOR_STRETCH", "variant_group": "BALL_ASSISTED_MOBILITY", "rank": 3, "difficulty": "INTERMEDIATE", "beginner_fit": "CONDITIONAL"}
+      ]
+    }
+  ],
+  "review_required_codes": [
+    "EXERCISE_FAMILY_REVIEW_REQUIRED",
+    "VARIANT_RELATION_REVIEW_REQUIRED",
+    "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+    "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+    "DOMAIN_SAFETY_REVIEW_REQUIRED",
+    "LOAD_PROFILE_REVIEW_REQUIRED",
+    "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+    "MEDIA_RIGHTS_REVIEW_REQUIRED"
+  ],
+  "next_stage_gate": {
+    "requires": [
+      "human_family_variant_review_results",
+      "integrated_catalog_selection",
+      "load_review",
+      "domain_safety_policy_review"
+    ],
+    "generated_output_allowed": false,
+    "alternative_generation_allowed": false
+  }
+}

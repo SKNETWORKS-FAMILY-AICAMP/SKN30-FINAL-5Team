@@ -392,7 +392,7 @@ backup restore 직후 사용자 접근 차단과 동일 삭제 policy 재적용�
 | generator_version | seed를 만든 generator version |
 | code_set_version | importer가 검증한 machine code 집합 버전. 최초 값은 `mvp-v1` |
 | source_manifest_hash | `seed_manifest.json` 원문 byte의 SHA-256 |
-| source_track_code | 기존 산출물의 source track machine code (`wger`, `kspo`) |
+| source_track_code | 기존 산출물의 source track machine code (`wger`, `kspo`, `gymvisual`) |
 | review_status_code | 산출물 검수 상태. 최초 importer는 DOMAIN_APPROVED만 입력 가능 |
 | review_method_code | 검수 방법. 최초 importer는 AGENT_ONLY |
 | status_interpretation_code | 검수 상태 해석. 최초 importer는 PIPELINE_COMPATIBILITY_ONLY |
@@ -465,10 +465,15 @@ payload는 exercise ID와 catalog/index version metadata만 허용하고 사용�
 | mascot_animation_asset_key | 운동 실행 중앙 마스코트 애니메이션 참조, nullable |
 | instruction_content_version | 설명 콘텐츠 버전 |
 | review_status_code | DRAFT, TECH_REVIEWED, DOMAIN_APPROVED, REJECTED, DEPRECATED |
-| source_track_code | 기존 산출물 source track machine code |
+| source_track_code | 기존 산출물 source track machine code (`wger`, `kspo`, `gymvisual`) |
 | source_identity | source 안의 운동 불변 식별자 |
 | created_at | 생성 시각 |
 | updated_at | 수정 시각 |
+
+미디어 바이너리와 운영 미디어 메타데이터는 로컬 파일 저장소나 로컬 DB에 적재하지 않는다. 운영
+미디어 저장·메타데이터 DB는 AWS 관리형 경계에서 소유하며, 애플리케이션 카탈로그에는 승인된
+외부 자산 참조 키만 nullable로 연결한다. V2 생성기는 미디어를 업로드하지 않고, 권리 승인 전에는
+로컬 산출물에도 자산 행을 만들지 않는다.
 
 UNIQUE 제약은 catalog_version_id와 stable_code 조합에 둔다.
 
@@ -725,7 +730,8 @@ catalog의 `manifest_metadata.prescription_artifact`에는 처방 산출물 vers
 않고 실패한다.
 
 `catalog_versions.source_track_code=merged`는 카탈로그 컨테이너가 여러 source track을
-합쳤다는 뜻이다. 각 `exercises.source_track_code`는 계속 `wger` 또는 `kspo`만 허용해 운동별
+합쳤다는 뜻이다. 각 `exercises.source_track_code`는 `wger`, `kspo`, `gymvisual` 중 하나를
+허용해 운동별
 provenance를 보존한다. `MERGED-MVP-20260820-PM-DOMAIN-APPROVAL`은 다음 정확한 집합에만
 적용된다: catalog 56종, safety rules 282건, alternatives 238건, goal tags 32건,
 prescription profiles 36건. migration은 이미 적재된 행을 동일 기준으로 재검사하고 승인

@@ -7,7 +7,7 @@
   "reviewed_at": "2026-08-11T19:30:00+09:00",
   "queue": {
     "path": "data/normalized/review_tranche_3_candidates.json",
-    "sha256": "82ceb7dfe8afdca55ba1dc5d1b632b493f8445753c2e88caa4ccdfe9ef70ce08"
+    "sha256": "d4fff4e4cbba4eb257fc96518e7a3b640d9460769f12f9f528fa12b23aa4bc11"
   },
   "review_policy": {
     "path": "data/normalized/agent_review_policy.json",

@@ -11,8 +11,13 @@ dependencies = [
     "langchain-core==1.6.0",
     "langgraph==1.2.11",
     "psycopg[binary]>=3.2,<4",
+    "pydantic>=2.10,<3",
     "pydantic-settings>=2.8,<3",
     "qdrant-client==1.18.0",
+    "numpy>=2,<3",
+    "pandas>=2.2,<3",
+    "pyyaml>=6,<7",
+    "scikit-learn>=1.6,<2",
     "sqlalchemy>=2.0.38,<3",
     "uvicorn>=0.34,<1",
 ]
@@ -20,6 +25,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "httpx2>=2.10,<3",
+    "jsonschema>=4.25,<5",
     "mypy==2.3.0",
     "pytest>=8.3,<10",
     "pytest-cov>=6,<8",
