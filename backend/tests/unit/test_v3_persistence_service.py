@@ -6,8 +6,11 @@ from uuid import UUID, uuid4
 import pytest
 
 from backend.app.domain.agents.retrieval import (
+    ExercisePoolSnapshot,
     ExerciseRetrievalRequest,
     ExerciseRetrievalResult,
+    RetrievalFailureCode,
+    RetrievalMetadata,
     RetrievalModeCode,
     RetrievalStatusCode,
 )
@@ -37,7 +40,22 @@ VALIDATOR_VERSION = "integrity-validator-v1"
 
 def make_bundle() -> V3DecisionPersistenceBundle:
     current_envelope = envelope()
-    current_pool = pool(current_envelope)
+    base_pool = pool(current_envelope)
+    current_pool = ExercisePoolSnapshot.create(
+        catalog_version=base_pool.catalog_version,
+        constraint_envelope_hash=base_pool.constraint_envelope_hash,
+        exercises=base_pool.exercises,
+        mandatory_exercise_ids=base_pool.mandatory_exercise_ids,
+        vector_ranked_exercise_ids=(),
+        retrieval_metadata=RetrievalMetadata(
+            query_hash=base_pool.retrieval_metadata.query_hash,
+            retrieval_status_code=RetrievalStatusCode.VECTOR_INDEX_UNAVAILABLE,
+            retrieval_failure_codes=(RetrievalFailureCode.VECTOR_INDEX_UNAVAILABLE,),
+            deterministic_fallback_version="deterministic-pool-v1",
+            deterministic_pool_fallback_used=True,
+        ),
+        created_at=base_pool.created_at,
+    )
     current_proposals = proposals(current_envelope, current_pool)
     conflicts = detect_proposal_conflicts(current_proposals, current_envelope, current_pool)
     current_input = coordinator_input(current_envelope, current_pool)

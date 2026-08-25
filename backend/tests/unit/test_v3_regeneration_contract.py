@@ -39,9 +39,15 @@ def test_regeneration_command_is_strict_frozen_and_transport_independent() -> No
 
     assert command.expected_regeneration_sequence == 0
     assert "different" not in V3RegenerationCommand.model_fields
-    with pytest.raises(ValidationError):
+    assert (
         V3RegenerationCommand.model_validate(
             {**command.model_dump(), "expected_regeneration_sequence": 2}
+        ).expected_regeneration_sequence
+        == 2
+    )
+    with pytest.raises(ValidationError):
+        V3RegenerationCommand.model_validate(
+            {**command.model_dump(), "expected_regeneration_sequence": 3}
         )
     with pytest.raises(ValidationError):
         V3RegenerationCommand.model_validate({**command.model_dump(), "reason": "different"})

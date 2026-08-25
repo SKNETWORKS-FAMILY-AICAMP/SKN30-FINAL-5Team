@@ -118,6 +118,17 @@ def test_qdrant_is_disabled_and_secret_is_masked_by_default() -> None:
     assert "synthetic-secret" not in repr(settings)
 
 
+def test_v3_regeneration_requires_its_own_server_side_flag() -> None:
+    settings = Settings(
+        _env_file=None,
+        openai_api_key="synthetic-secret",
+        llm_agents_enabled=True,
+        v3_langgraph_enabled=True,
+    )
+
+    assert settings.v3_regeneration_enabled is False
+
+
 def test_qdrant_enabled_requires_an_explicit_embedding_contract() -> None:
     with pytest.raises(ValidationError, match="approved embedding contract"):
         Settings(qdrant_enabled=True)
