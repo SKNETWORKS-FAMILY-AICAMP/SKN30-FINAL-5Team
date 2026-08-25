@@ -68,3 +68,69 @@ backend\.venv\Scripts\python.exe -m pytest backend/tests/unit/test_v3_evaluation
 
 Review `manifest.json` hashes before transferring artifacts. Do not commit generated output, inject
 production credentials, or interpret a synthetic pass as production readiness.
+
+## Staging one-shot live evidence
+
+The stored/fake command above remains the default development and CI path. It never constructs a
+provider. A live staging run uses the separate `backend.scripts.run_v3_staging_shadow` entry point;
+it is not imported by FastAPI startup or connected to a public request path.
+
+The operator must provide these environment variable names through the staging process environment
+or deployment secret store. Do not place their values in this document, shell history, fixtures, or
+committed files:
+
+- `APP_ENV`
+- `LLM_AGENTS_ENABLED`
+- `LLM_AGENTS_PROVIDER_CODE`
+- `LLM_AGENTS_MODEL_CODE`
+- `LLM_AGENTS_APPROVED_MODEL_CODES`
+- `LLM_AGENTS_MAX_ATTEMPTS`
+- `LLM_AGENTS_TIMEOUT_SECONDS`
+- `LLM_AGENTS_MAX_OUTPUT_TOKENS`
+- `V3_LANGGRAPH_ENABLED`
+- `V3_SHADOW_EVALUATION_ENABLED`
+- `OPENAI_API_KEY`
+
+The staging CLI deliberately disables dotenv loading. It consumes only the current process
+environment, so it does not read `backend/.env`. Before running, confirm the selected model is in the
+deployment-approved allowlist and verify the current provider pricing in the separately approved
+pricing source. Do not estimate or write a cost when that reference is absent.
+
+Calculate the conservative call upper bound before opt-in:
+
+```text
+fixture case count × repeat count × 8 bounded graph invocation slots × maximum attempts
+```
+
+The eight slots are three initial specialists, up to three reviews, one Coordinator call, and one
+repair. Safety-terminal cases still make zero provider calls, but the declared budget intentionally
+uses the larger worst case. The CLI rejects a smaller budget before constructing the provider.
+
+Use a unique structured run ID and replace the placeholders only in the local command invocation:
+
+```powershell
+.venv\Scripts\python.exe -m backend.scripts.run_v3_staging_shadow `
+  --run-id <unique-run-id> `
+  --repeat-count <bounded-repeat-count> `
+  --maximum-provider-calls <calculated-upper-bound> `
+  --run-timeout-seconds <bounded-timeout> `
+  --allow-provider-calls
+```
+
+Omitting `--allow-provider-calls`, using a non-staging environment, missing any gate, selecting a
+model outside the allowlist, omitting the credential, or declaring insufficient budget fails before
+provider construction. Timeout, interruption, provider exception, partial results, and report-write
+failure return a non-zero exit. Evidence stores only canonical failure codes; raw responses,
+exceptions, prompts, messages, credentials, identifiers, raw health/wearable values, vectors, and
+embeddings are not manifest fields.
+
+Successful output is written only beneath `outputs/v3-shadow/<run-id>/` and includes the five C1
+reports plus `staging_run_manifest.json`. The staging manifest records the request/budget hash,
+provider/model and graph/policy/catalog/prompt versions, expected and actual counts, timestamps, file
+hashes, status, and its own canonical hash. This directory is gitignored local evidence and must not
+be committed.
+
+After a run, verify every hash and record count, inspect the hard safety gates, and send the expert
+review template through the separately approved review process. A successful staging run does not
+approve thresholds, complete expert review, enable the production graph, or authorize use of real
+user data. Production promotion remains a separate development-lead decision.
