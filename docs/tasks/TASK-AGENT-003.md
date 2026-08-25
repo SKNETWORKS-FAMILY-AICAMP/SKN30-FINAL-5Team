@@ -13,8 +13,8 @@
 infrastructure와 `vector_index_registry` migration은 병합됐다. V3-A2의 framework-independent Pydantic
 Agent/Coordinator contract와 LangChain Training·Recovery·Feasibility·Coordinator adapter도 병합됐다.
 V3-A3의 framework-independent conflict/review/compiler/integrity/fallback/regeneration orchestration
-domain은 `IN_PROGRESS`이며 LangGraph runtime·persistence·API·shadow 검증과 production 전환은 완료되지
-않았다.
+domain과 persistent-checkpointer 없는 LangGraph runtime은 병합됐다. V3-B1 additive persistence는
+`IN_PROGRESS`이며 API·shadow 검증과 production 전환은 완료되지 않았다.
 
 V3-A2 domain schema version은 기존 V1/V2 contract와 분리해 다음으로 고정한다.
 
@@ -71,7 +71,7 @@ Coordinator가 구조화 결과를 종합·선택하도록 한다. 사용자는 
 - PostgreSQL additive 논리 모델과 LangGraph checkpoint 경계
 - V3 golden, safety, privacy, replay, regeneration, graph routing 테스트 계약
 
-## 제외 범위
+## 최초 계약 동결 단계의 제외 범위
 
 - `backend/app/**` production 구현
 - LangChain·LangGraph dependency 추가와 `uv.lock` 변경
@@ -162,14 +162,15 @@ Coordinator가 구조화 결과를 종합·선택하도록 한다. 사용자는 
 
 ## DB·마이그레이션 영향
 
-이번 task는 논리 계약만 정하며 migration은 만들지 않는다. 후속 persistence task는 기존 테이블을
+최초 계약 동결 단계는 논리 계약만 정했다. 현재 V3-B1 persistence 단계는 기존 테이블을
 파괴적으로 변경하지 않고 `decision_constraint_envelopes`, `decision_exercise_pools`,
 `decision_coordination_attempts`, `plan_integrity_validations`와 regeneration lineage를 additive하게
-도입한다. `agent_proposals`의 model/prompt/output schema metadata 확장과 V1/V2 historical row
-호환 전략을 포함해야 한다.
+도입한다. `agent_proposals`의 model/prompt/output schema metadata는 nullable additive column으로
+확장하며 V1/V2 historical row는 backfill하지 않는다.
 
-ADR-0014에 따른 후속 persistence task는 `vector_index_registry`, `decision_exercise_retrievals`와
-`decision_exercise_pools` retrieval metadata를 additive하게 도입한다. 온보딩 점수는 별도
+ADR-0014에 따라 `vector_index_registry`는 migration 0024에 구현됐고, V3-B1은
+`decision_exercise_retrievals`와 `decision_exercise_pools` retrieval metadata를 migration 0025로
+additive하게 도입한다. 온보딩 점수는 별도
 `user_onboarding_pain_areas` 논리 모델을 검토하고 legacy attention/feedback row를 rewrite하지 않는다.
 
 ## 안전·개인정보·보안 영향
@@ -222,12 +223,13 @@ ADR-0014에 따른 후속 persistence task는 `vector_index_registry`, `decision
 ## 알려진 제한과 후속 작업
 
 - V3-A2: framework-independent Pydantic domain contract와 LangChain Agent adapter 병합 완료
-- V3-A3: framework-independent orchestration domain 병합 후 LangGraph runtime, timeout과 graph 조립 구현
+- V3-A3: framework-independent orchestration domain과 LangGraph runtime 병합 완료
 - 현재 prescription에는 검수된 반복당 시간 정보가 없어 compiler는 `PlanSpec`의 exact-duration assertion을
   보존하지만 세트·반복 구성요소에서 시간을 재산출하지 않는다. 임의 반복 시간 상수는 추가하지 않는다.
 - integrity repairability의 승인 안전 대체 존재 여부는 Safety를 재판정하지 않고 upstream canonical
   safe-alternative ID projection으로만 받는다.
-- V3-B1: additive persistence와 Alembic migration
+- V3-B1 (`IN_PROGRESS`, backend owner): migration `0025_v3_decision_persistence`, V3 SQLAlchemy model,
+  framework-independent write DTO 기반 repository와 replay audit bundle. production write는 비활성
 - V3-B2: regeneration API와 frontend compatibility 구현
 - V3-C1: shadow evaluation, golden, expert review, latency·cost·fallback 측정
 - V3-C2: 기준 충족 후 ADR-0013에 따른 production graph 전환 승인 검토

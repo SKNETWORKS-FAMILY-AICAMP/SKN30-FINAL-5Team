@@ -10,6 +10,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -42,9 +43,47 @@ class DecisionPolicyVersion(Base):
 class DecisionRun(Base):
     __tablename__ = "decision_runs"
     __table_args__ = (
+        Index("ix_decision_runs_root", "root_decision_run_id"),
+        UniqueConstraint(
+            "root_decision_run_id",
+            "regeneration_sequence",
+            name="uq_decision_runs_root_sequence",
+        ),
         CheckConstraint(
             "status_code IN ('RUNNING','COMPLETED','FAILED','NEEDS_INPUT')",
             name="ck_decision_runs_status",
+        ),
+        CheckConstraint(
+            "generation_mode_code IS NULL OR generation_mode_code IN ('ORIGINAL','REGENERATED')",
+            name="ck_decision_runs_generation_mode",
+        ),
+        CheckConstraint(
+            "regeneration_sequence IS NULL OR regeneration_sequence BETWEEN 0 AND 2",
+            name="ck_decision_runs_regeneration_sequence",
+        ),
+        CheckConstraint(
+            "decision_engine_code IS NULL OR decision_engine_code IN "
+            "('DETERMINISTIC','LLM_MULTI_AGENT','DETERMINISTIC_FALLBACK')",
+            name="ck_decision_runs_engine",
+        ),
+        CheckConstraint(
+            "(root_decision_run_id IS NULL AND parent_decision_run_id IS NULL "
+            "AND generation_mode_code IS NULL AND regeneration_sequence IS NULL "
+            "AND decision_engine_code IS NULL AND langchain_contract_version IS NULL "
+            "AND langgraph_contract_version IS NULL) OR "
+            "(root_decision_run_id IS NOT NULL AND generation_mode_code IS NOT NULL "
+            "AND regeneration_sequence IS NOT NULL AND decision_engine_code IS NOT NULL "
+            "AND langchain_contract_version IS NOT NULL "
+            "AND langgraph_contract_version IS NOT NULL)",
+            name="ck_decision_runs_v3_lineage",
+        ),
+        CheckConstraint(
+            "generation_mode_code IS NULL OR "
+            "(generation_mode_code = 'ORIGINAL' AND regeneration_sequence = 0 "
+            "AND parent_decision_run_id IS NULL AND root_decision_run_id = id) OR "
+            "(generation_mode_code = 'REGENERATED' AND regeneration_sequence IN (1,2) "
+            "AND parent_decision_run_id IS NOT NULL AND root_decision_run_id <> id)",
+            name="ck_decision_runs_generation_shape",
         ),
     )
 
@@ -78,6 +117,17 @@ class DecisionRun(Base):
     recommended_action_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
     coordinator_result: Mapped[dict[str, Any]] = mapped_column(_JSON, nullable=False)
     failure_code: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    root_decision_run_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("decision_runs.id", ondelete="CASCADE"), nullable=True
+    )
+    parent_decision_run_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("decision_runs.id", ondelete="CASCADE"), nullable=True
+    )
+    generation_mode_code: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    regeneration_sequence: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    decision_engine_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    langchain_contract_version: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    langgraph_contract_version: Mapped[str | None] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -114,6 +164,31 @@ class AgentProposalRecord(Base):
             "proposal_status_code IN ('READY','NEEDS_INPUT','FAILED')",
             name="ck_agent_proposals_status",
         ),
+        CheckConstraint(
+            "attempt_number IS NULL OR attempt_number IN (0,1)",
+            name="ck_agent_proposals_invocation_attempt",
+        ),
+        CheckConstraint(
+            "invocation_status_code IS NULL OR invocation_status_code IN "
+            "('SUCCEEDED','FAILED','TIMEOUT','INVALID_OUTPUT')",
+            name="ck_agent_proposals_invocation_status",
+        ),
+        CheckConstraint(
+            "latency_ms IS NULL OR latency_ms >= 0",
+            name="ck_agent_proposals_invocation_latency",
+        ),
+        CheckConstraint(
+            "(invocation_metadata_schema_version IS NULL AND proposal_hash IS NULL "
+            "AND prompt_version IS NULL AND provider_code IS NULL AND model_code IS NULL "
+            "AND output_schema_version IS NULL AND attempt_number IS NULL "
+            "AND invocation_status_code IS NULL AND latency_ms IS NULL) OR "
+            "(invocation_metadata_schema_version IS NOT NULL AND proposal_hash IS NOT NULL "
+            "AND prompt_version IS NOT NULL AND provider_code IS NOT NULL "
+            "AND model_code IS NOT NULL AND output_schema_version IS NOT NULL "
+            "AND attempt_number IS NOT NULL AND invocation_status_code IS NOT NULL "
+            "AND latency_ms IS NOT NULL)",
+            name="ck_agent_proposals_invocation_all_or_none",
+        ),
     )
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     decision_run_id: Mapped[UUID] = mapped_column(
@@ -123,6 +198,17 @@ class AgentProposalRecord(Base):
     proposal_status_code: Mapped[str] = mapped_column(String(24), nullable=False)
     schema_version: Mapped[str] = mapped_column(String(32), nullable=False)
     proposal_payload: Mapped[dict[str, Any]] = mapped_column(_JSON, nullable=False)
+    invocation_metadata_schema_version: Mapped[str | None] = mapped_column(
+        String(64), nullable=True
+    )
+    proposal_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    prompt_version: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    provider_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    model_code: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    output_schema_version: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    attempt_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    invocation_status_code: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

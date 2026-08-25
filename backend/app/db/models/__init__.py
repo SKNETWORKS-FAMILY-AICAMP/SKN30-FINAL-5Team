@@ -53,6 +53,13 @@ from backend.app.db.models.profile import (
     UserProfile,
 )
 from backend.app.db.models.routine import Routine, RoutineDay, RoutineItem
+from backend.app.db.models.v3_decision import (
+    DecisionConstraintEnvelopeRecord,
+    DecisionCoordinationAttemptRecord,
+    DecisionExercisePoolRecord,
+    DecisionExerciseRetrievalRecord,
+    PlanIntegrityValidationRecord,
+)
 from backend.app.db.models.vector_index import VectorIndexRegistry
 from backend.app.db.models.weekly_report import UserWeek, WeeklyPlanRevision, WeeklyReport
 from backend.app.db.models.workout import (
@@ -84,6 +91,10 @@ __all__ = [
     "AgentProposalRecord",
     "AgentReviewEventRecord",
     "DecisionDeliberationRecord",
+    "DecisionConstraintEnvelopeRecord",
+    "DecisionCoordinationAttemptRecord",
+    "DecisionExercisePoolRecord",
+    "DecisionExerciseRetrievalRecord",
     "DecisionExplanationRecord",
     "DecisionOption",
     "DecisionPolicyVersion",
@@ -106,6 +117,7 @@ __all__ = [
     "Location",
     "MovementPattern",
     "PlanCandidate",
+    "PlanIntegrityValidationRecord",
     "PlanItem",
     "Routine",
     "RoutineDay",
