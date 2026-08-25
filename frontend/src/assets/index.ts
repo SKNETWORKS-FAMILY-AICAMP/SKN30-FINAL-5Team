@@ -15,6 +15,10 @@ export const imageAssets = {
   dayTodo: require('./mascot/day-todo.webp') as ImageSourcePropType,
   mascotWarmupWalk:
     require('./mascot/mascot-warmup-walk.gif') as ImageSourcePropType,
+  houseCampingDinnerBackground:
+    require('./house/camping/background/temp_back_dinner.png') as ImageSourcePropType,
+  houseMascotMonkey01:
+    require('./mascot/monkey/sheet_01/monkey_01.png') as ImageSourcePropType,
 } as const;
 
 export type ImageAssetKey = keyof typeof imageAssets;

@@ -122,7 +122,7 @@ const PHASE: Record<string, string> = {
 const TRAINING_TYPE: Record<string, string> = {
   STRENGTH: '근력',
   CARDIO: '유산소',
-  MOBILITY: '가동성',
+  MOBILITY: '스트레칭',
 };
 
 const BODY_FOCUS: Record<string, string> = {

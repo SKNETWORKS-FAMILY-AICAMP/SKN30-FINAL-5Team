@@ -1988,12 +1988,11 @@ describe('MascotStage', () => {
 });
 
 describe('MascotHouseScreen', () => {
-  it('is reachable from the tab bar and shows the real routine', async () => {
+  it('shows the room and the week the server reported', async () => {
     const onNavigate = jest.fn();
     render(
       <MascotHouseScreen
         api={stubApi({
-          getCurrentRoutine: jest.fn(async () => routine()),
           getWeek: jest.fn(async () => ({
             week_id: 'week-1',
             week_start: '2026-08-17',
@@ -2009,16 +2008,20 @@ describe('MascotHouseScreen', () => {
           })),
         } as unknown as Partial<Api>)}
         nickname="데모"
+        now={new Date('2026-08-22T10:00:00+09:00')}
         onNavigate={onNavigate}
+        timeZone="Asia/Seoul"
       />,
     );
 
-    expect(await screen.findByText('목표 3회')).toBeTruthy();
-    // The routine shown is the server's, not a fixture.
-    expect(screen.getByText('지금 내 루틴')).toBeTruthy();
-    // The real mascot artwork, not a drawn placeholder.
-    expect(screen.getByLabelText('운동 섬과 마스코트')).toBeTruthy();
+    // The week standing is the server's, not a fixture.
+    expect(await screen.findByText('주 3회 운동하기')).toBeTruthy();
+    expect(screen.getByText('0 / 3 회')).toBeTruthy();
+    expect(screen.getByTestId('house-scene')).toBeTruthy();
 
+    // 홈 is reached from the tab bar; the screen has no duplicate corner button.
+    expect(screen.queryByLabelText('홈으로')).toBeNull();
+    expect(screen.queryByLabelText('설정')).toBeNull();
     fireEvent.press(screen.getByLabelText('홈'));
     expect(onNavigate).toHaveBeenCalledWith('home');
   });
@@ -2027,7 +2030,6 @@ describe('MascotHouseScreen', () => {
     render(
       <MascotHouseScreen
         api={stubApi({
-          getCurrentRoutine: jest.fn(notFound),
           getWeek: jest.fn(async () => {
             throw new Error('unavailable');
           }),

@@ -43,6 +43,8 @@ describe('fidelity foundation', () => {
       'progressMascot',
       'dayTodo',
       'mascotWarmupWalk',
+      'houseCampingDinnerBackground',
+      'houseMascotMonkey01',
     ]);
     expect(Object.values(imageAssets).every(Boolean)).toBe(true);
   });

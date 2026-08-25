@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     overflow: 'hidden',
-    backgroundColor: '#6565C6',
+    backgroundColor: '#F7C65A',
   },
   content: {
     flex: 1,
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   routinePanel: {
     borderWidth: 3,
     borderColor: '#FFFDF6',
-    backgroundColor: '#FFF8D9',
+    backgroundColor: '#FFF3D4',
     padding: 14,
     shadowColor: '#142010',
     shadowOffset: { width: 4, height: 4 },

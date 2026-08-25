@@ -163,8 +163,8 @@ function noteForState(state: CalendarWeekState): string {
 }
 
 function bandColorForState(state: CalendarWeekState): string {
-  if (state === 'progress') return '#DCEBC4';
-  if (state === 'read') return '#EFF4E6';
+  if (state === 'progress') return '#FFEBC2';
+  if (state === 'read') return '#FFF8E5';
   if (state === 'make' || state === 'unread' || state === 'unavailable') {
     return '#F3F1EB';
   }
@@ -269,8 +269,8 @@ export function buildCalendarReportData({
   return {
     monthLabel: `${year}년 ${monthNumber}월`,
     stats: [
-      { key: 'done', label: '완료', value: done, color: '#3E7A32' },
-      { key: 'partial', label: '부분 수행', value: partial, color: '#B58A1E' },
+      { key: 'done', label: '완료', value: done, color: '#A45F00' },
+      { key: 'partial', label: '부분 수행', value: partial, color: '#EE875B' },
       { key: 'rest', label: '휴식', value: rest, color: '#6F6B63' },
       { key: 'miss', label: '미수행', value: miss, color: '#C0BBB1' },
     ],

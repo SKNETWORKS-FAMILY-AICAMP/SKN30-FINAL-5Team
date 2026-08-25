@@ -839,7 +839,7 @@ const styles = StyleSheet.create({
   },
   weekCard: {
     borderWidth: 1.5,
-    borderColor: '#7FAE5C',
+    borderColor: '#E0A742',
     borderRadius: 22,
     backgroundColor: colors.greenTint,
     padding: 16,
@@ -883,7 +883,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   statusChipMake: {
-    borderColor: '#EFC02F',
+    borderColor: '#D98B16',
     backgroundColor: colors.yellow,
   },
   statusChipText: {
@@ -903,7 +903,7 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 14,
     borderTopWidth: 1,
-    borderTopColor: '#D6E4C5',
+    borderTopColor: '#F1D39A',
     paddingTop: 12,
   },
   weekGoalCount: {
@@ -1051,7 +1051,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 5,
-    borderColor: '#7FAE5C',
+    borderColor: '#E0A742',
     borderRadius: 33,
     backgroundColor: colors.greenTint,
   },
@@ -1089,7 +1089,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   countValuePartial: {
-    color: '#B58A1E',
+    color: '#A45F00',
   },
   countValueMuted: {
     color: colors.textMuted,
@@ -1327,7 +1327,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   acknowledgeButtonText: {
-    color: colors.surface,
+    color: colors.text,
     fontSize: 15,
     fontWeight: '800',
   },
@@ -1350,7 +1350,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.green,
   },
   acknowledgedMarkText: {
-    color: colors.surface,
+    color: colors.text,
     fontSize: 17,
     fontWeight: '800',
   },
@@ -1382,8 +1382,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.successSurface,
   },
   applicationCardWarning: {
-    borderColor: '#EFC02F',
-    backgroundColor: '#FFF8D9',
+    borderColor: '#D98B16',
+    backgroundColor: '#FFF3D4',
   },
   applicationEyebrow: {
     color: colors.greenText,
@@ -1412,7 +1412,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   applicationButtonText: {
-    color: colors.surface,
+    color: colors.text,
     fontSize: 14,
     fontWeight: '800',
   },

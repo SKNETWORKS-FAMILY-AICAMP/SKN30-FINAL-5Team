@@ -356,7 +356,7 @@ export function SplashScreen({
         fontWeight="400"
         letterSpacing={layout.sloganLetterSpacing}
         lineHeight={layout.sloganLineHeight}
-        shadowColor="rgba(47,82,51,0.35)"
+        shadowColor="rgba(90,70,54,0.35)"
         shadowOffsetY={layout.sloganShadowOffsetY}
         stroke={colors.sloganOutline}
         strokeWidth={layout.sloganStrokeWidth}

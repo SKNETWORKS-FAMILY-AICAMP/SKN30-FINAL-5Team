@@ -182,14 +182,14 @@ const styles = StyleSheet.create({
   },
   bandMist: {
     height: 250,
-    backgroundColor: '#D8E6B4',
+    backgroundColor: '#FFEBC2',
   },
   bandCanvas: {
     flex: 1,
     backgroundColor: colors.canvas,
   },
   brandTitle: {
-    color: colors.surface,
+    color: colors.text,
     fontSize: 24,
     fontWeight: '700',
   },

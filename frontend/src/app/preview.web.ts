@@ -1,5 +1,7 @@
 export type PreviewMode =
   | 'account'
+  | 'auth'
+  | 'background_test'
   | 'calendar-report'
   | 'gallery'
   | 'home'
@@ -29,6 +31,8 @@ export function getPreviewMode(): PreviewMode {
 
   if (
     requestedPreview === 'account' ||
+    requestedPreview === 'auth' ||
+    requestedPreview === 'background_test' ||
     requestedPreview === 'calendar-report' ||
     requestedPreview === 'gallery' ||
     requestedPreview === 'home' ||

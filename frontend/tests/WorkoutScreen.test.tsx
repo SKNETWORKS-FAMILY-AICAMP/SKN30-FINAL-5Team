@@ -126,7 +126,7 @@ describe('WorkoutScreen', () => {
   it('uses set and repetition prescriptions for every preview workout block', () => {
     render(<WorkoutScreen />);
 
-    expect(screen.getByText('1세트 × 10회 · 전신 가동성')).toBeOnTheScreen();
+    expect(screen.getByText('1세트 × 10회 · 스트레칭')).toBeOnTheScreen();
     expect(screen.getByText('1세트 × 10회 · 호흡 정리')).toBeOnTheScreen();
     expect(screen.queryByText(/세트 × \d+(?:분|초)/)).toBeNull();
   });
@@ -255,19 +255,19 @@ describe('WorkoutScreen', () => {
 
     const initialDot = screen.getByTestId('workout-dot-2');
     expect(StyleSheet.flatten(initialDot.props.style)).toMatchObject({
-      backgroundColor: '#8B8780',
+      backgroundColor: '#958476',
       height: 8,
       width: 22,
     });
     expect(
       StyleSheet.flatten(screen.getByTestId('workout-dot-0').props.style),
-    ).toMatchObject({ backgroundColor: '#4E8B3A', height: 8, width: 8 });
+    ).toMatchObject({ backgroundColor: '#F6BA50', height: 8, width: 8 });
 
     fireEvent.press(screen.getByRole('button', { name: '4번째 블록 보기' }));
     expect(scrollTo).toHaveBeenLastCalledWith({ animated: true, x: 972 });
     expect(
       StyleSheet.flatten(screen.getByTestId('workout-dot-3').props.style),
-    ).toMatchObject({ backgroundColor: '#8B8780', height: 8, width: 22 });
+    ).toMatchObject({ backgroundColor: '#958476', height: 8, width: 22 });
     expect(screen.getByText('다른 블록 보는 중')).toBeOnTheScreen();
     scrollTo.mockRestore();
   });

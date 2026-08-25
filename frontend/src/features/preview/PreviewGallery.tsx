@@ -28,6 +28,7 @@ import {
   SIGN_UP_PREVIEW_OPTIONS,
   type SignUpPreviewState,
 } from '../auth/previewStates';
+import { SignInScreen } from '../auth/SignInScreen';
 import { SignUpScreen } from '../auth/SignUpScreen';
 import { CalendarReportScreen } from '../home/CalendarReportScreen';
 import { HOME_PREVIEW_OPTIONS, type HomePreviewState } from '../home/homeModel';
@@ -47,7 +48,9 @@ import { MapHomeScreen } from '../home/MapHomeScreen';
 import { MyPageContainer } from '../home/MyPageContainer';
 import { PreviousHomeScreen } from '../home/PreviousHomeScreen';
 import { WorkoutHistorySheet } from '../home/WorkoutHistorySheet';
+import { BackgroundTestScreen } from '../house/BackgroundTestScreen';
 import { MascotHouseScreen } from '../house/MascotHouseScreen';
+import { createMemoryHouseStore } from '../house/houseStorage';
 import {
   ONBOARDING_STEPS,
   OnboardingScreen,
@@ -68,6 +71,7 @@ import {
   WORKOUT_PREVIEW_OPTIONS,
   type WorkoutPreviewState,
 } from '../workout/workoutModel';
+import { authPreviewAdapter } from './authPreview';
 import { homePreviewProps } from './homePreview';
 import { onboardingPreviewApi } from './onboardingPreview';
 import {
@@ -124,35 +128,157 @@ export const DEVICE_PREVIEWS = [
   },
 ] as const;
 export const SPLASH_DEVICE_PREVIEWS = DEVICE_PREVIEWS;
-const PREVIEW_SCREENS = [
-  { id: 'splash', label: 'Splash' },
-  { id: 'login', label: 'Login (API)' },
-  { id: 'signup', label: 'SignUp (API)' },
-  { id: 'profile', label: 'Profile' },
-  { id: 'onboarding', label: 'Onboarding (API)' },
-  { id: 'today', label: 'Home previous (API)' },
-  { id: 'session', label: 'Workout session (API)' },
-  { id: 'session-result', label: 'Workout result (API)' },
-  { id: 'mascot-house', label: 'Mascot house (API)' },
-  { id: 'weekly-report', label: 'Weekly report (API)' },
-  { id: 'account', label: 'Account (API)' },
-  { id: 'home', label: 'Home (API)' },
-  { id: 'home-map', label: 'Home map' },
-  { id: 'calendar-report', label: 'Calendar/report(API)' },
-  { id: 'my-page', label: 'My page(API)' },
-  { id: 'workout', label: 'Workout(API)' },
-] as const;
+export type PreviewScreenId =
+  | 'splash'
+  | 'auth'
+  | 'login'
+  | 'signup'
+  | 'onboarding'
+  | 'profile'
+  | 'home'
+  | 'today'
+  | 'home-map'
+  | 'workout'
+  | 'session'
+  | 'mascot-house'
+  | 'background_test'
+  | 'calendar-report'
+  | 'weekly-report'
+  | 'my-page'
+  | 'account';
 
-export type PreviewScreenId = (typeof PREVIEW_SCREENS)[number]['id'];
-type WorkoutGalleryState = 'api-flow' | WorkoutPreviewState;
+type PreviewScreen = {
+  id: PreviewScreenId;
+  label: string;
+};
+
+const PREVIEW_SCREEN_GROUPS = [
+  {
+    label: 'App boot',
+    screens: [{ id: 'splash', label: 'Splash (API)' }],
+  },
+  {
+    label: 'Auth',
+    screens: [
+      { id: 'auth', label: 'Auth (API)' },
+      { id: 'login', label: 'Login (mock)' },
+      { id: 'signup', label: 'SignUp (mock)' },
+    ],
+  },
+  {
+    label: 'Onboarding',
+    screens: [
+      { id: 'onboarding', label: 'Onboarding (API)' },
+      { id: 'profile', label: 'Profile (mock)' },
+    ],
+  },
+  {
+    label: 'Home',
+    screens: [
+      { id: 'home', label: 'Home (API)' },
+      { id: 'today', label: 'Home previous (mock)' },
+      { id: 'home-map', label: 'Home map (mock)' },
+    ],
+  },
+  {
+    label: 'Workout',
+    screens: [
+      { id: 'workout', label: 'Workout (API)' },
+      { id: 'session', label: 'Workout session (mock)' },
+    ],
+  },
+  {
+    label: 'Mascot house',
+    screens: [
+      { id: 'mascot-house', label: 'Mascot house (API)' },
+      { id: 'background_test', label: 'background_test (mock)' },
+    ],
+  },
+  {
+    label: 'Calendar / report',
+    screens: [
+      { id: 'calendar-report', label: 'Calendar/report (API)' },
+      { id: 'weekly-report', label: 'Weekly report (API)' },
+    ],
+  },
+  {
+    label: 'My page',
+    screens: [
+      { id: 'my-page', label: 'My page (API)' },
+      { id: 'account', label: 'Account (mock)' },
+    ],
+  },
+] as const satisfies readonly {
+  label: string;
+  screens: readonly PreviewScreen[];
+}[];
+
+type WorkoutResultGalleryState =
+  | 'result-completed'
+  | 'result-partial'
+  | 'result-not-completed'
+  | 'result-safety-stop';
+
+type WorkoutGalleryState =
+  'api-flow' | WorkoutPreviewState | WorkoutResultGalleryState;
+
+const WORKOUT_RESULT_GALLERY_OPTIONS = [
+  {
+    id: 'result-completed',
+    label: `결과 · ${SESSION_RESULT_PREVIEW_OPTIONS[0].label}`,
+  },
+  {
+    id: 'result-partial',
+    label: `결과 · ${SESSION_RESULT_PREVIEW_OPTIONS[1].label}`,
+  },
+  {
+    id: 'result-not-completed',
+    label: `결과 · ${SESSION_RESULT_PREVIEW_OPTIONS[2].label}`,
+  },
+  {
+    id: 'result-safety-stop',
+    label: `결과 · ${SESSION_RESULT_PREVIEW_OPTIONS[3].label}`,
+  },
+] as const satisfies readonly {
+  id: WorkoutResultGalleryState;
+  label: string;
+}[];
+
+const WORKOUT_DETAIL_PREVIEW_OPTIONS = WORKOUT_PREVIEW_OPTIONS.filter(
+  (option) => option.id !== 'completed' && option.id !== 'stopped',
+);
 
 const WORKOUT_GALLERY_OPTIONS = [
   { id: 'api-flow', label: 'API 실제 흐름' },
-  ...WORKOUT_PREVIEW_OPTIONS,
+  ...WORKOUT_DETAIL_PREVIEW_OPTIONS,
+  ...WORKOUT_RESULT_GALLERY_OPTIONS,
 ] as const satisfies readonly {
   id: WorkoutGalleryState;
   label: string;
 }[];
+
+function workoutResultStateFor(
+  state: WorkoutGalleryState,
+): SessionResultPreviewState | null {
+  switch (state) {
+    case 'result-completed':
+      return 'completed';
+    case 'result-partial':
+      return 'partial';
+    case 'result-not-completed':
+      return 'not-completed';
+    case 'result-safety-stop':
+      return 'safety-stop';
+    default:
+      return null;
+  }
+}
+
+function isWorkoutPreviewState(
+  state: WorkoutGalleryState,
+): state is WorkoutPreviewState {
+  return WORKOUT_PREVIEW_OPTIONS.some((option) => option.id === state);
+}
 
 type SplashPreviewState = 'pending' | 'error';
 type DevicePreview = (typeof DEVICE_PREVIEWS)[number];
@@ -163,10 +289,15 @@ const CANVAS_HEIGHT_RANGE = { min: 568, max: 1440, step: 10 } as const;
 
 const HOME_TAB_SCREENS: Record<TabId, PreviewScreenId> = {
   home: 'home',
-  house: 'home-map',
+  // 끼끼의 집 goes to the house itself. 'Home map' stays in the gallery as the
+  // `Home-p2 v1.dc.html` transcription, reachable from the screen list.
+  house: 'mascot-house',
   report: 'calendar-report',
   my: 'my-page',
 };
+
+/** Pins date-sensitive gallery screens to the fixture week on every run. */
+const GALLERY_PREVIEW_NOW = new Date('2026-08-22T10:00:00+09:00');
 
 type CalendarHistoryPreviewDay = {
   localDate: string;
@@ -273,10 +404,12 @@ const calendarHistoryPreviewApi = {
 export function PreviewGallery({
   initialScreenId = 'splash',
 }: {
-  initialScreenId?: PreviewScreenId;
+  initialScreenId?: PreviewScreenId | 'session-result';
 }) {
   const { width } = useWindowDimensions();
-  const [screenId, setScreenId] = useState<PreviewScreenId>(initialScreenId);
+  const [screenId, setScreenId] = useState<PreviewScreenId>(
+    initialScreenId === 'session-result' ? 'workout' : initialScreenId,
+  );
   const [splashState, setSplashState] = useState<SplashPreviewState>('pending');
   const [devicePreviewId, setDevicePreviewId] =
     useState<DevicePreviewId>('reference');
@@ -301,8 +434,6 @@ export function PreviewGallery({
     useState<TodayPreviewState>('pre-checkin');
   const [sessionState, setSessionState] =
     useState<SessionPreviewState>('active');
-  const [sessionResultState, setSessionResultState] =
-    useState<SessionResultPreviewState>('completed');
   const [houseState, setHouseState] = useState<HousePreviewState>('loaded');
   const [weeklyReportState, setWeeklyReportState] =
     useState<WeeklyReportPreviewState>('closed');
@@ -319,8 +450,10 @@ export function PreviewGallery({
   const [workoutApi, setWorkoutApi] = useState(() =>
     createSessionPreviewApi('active'),
   );
-  const [workoutState, setWorkoutState] =
-    useState<WorkoutGalleryState>('api-flow');
+  const [workoutState, setWorkoutState] = useState<WorkoutGalleryState>(
+    initialScreenId === 'session-result' ? 'result-completed' : 'api-flow',
+  );
+  const selectedWorkoutResultState = workoutResultStateFor(workoutState);
   const [reducedMotion, setReducedMotion] = useState(false);
   const navigateHomeTab = useCallback((tab: TabId) => {
     setScreenId(HOME_TAB_SCREENS[tab]);
@@ -369,6 +502,13 @@ export function PreviewGallery({
   const houseApi = useMemo(
     () => createHousePreviewApi(houseState),
     [houseState],
+  );
+  // The house state lives in the gallery, not on the device: switching preview
+  // states must not leave bananas behind in a designer's browser.
+  const housePreviewStore = useMemo(() => createMemoryHouseStore(), []);
+  const backgroundTestPreviewStore = useMemo(
+    () => createMemoryHouseStore(),
+    [],
   );
   const weeklyReportApi = useMemo(
     () => createWeeklyReportPreviewApi(weeklyReportState),
@@ -449,18 +589,28 @@ export function PreviewGallery({
           앱 UI를 빠르게 비교하기 위한 개발 전용 화면입니다. 아래 제어는 앱
           캔버스에 포함되지 않습니다.
         </Text>
+        <Text style={styles.controlHint}>
+          (API)는 실제 앱 흐름에서 사용하는 UI, (mock)은 실제 앱에서 사용하지
+          않는 참고·레거시 UI입니다. 모든 갤러리 데이터와 어댑터는 네트워크 없는
+          개발용 mock입니다.
+        </Text>
 
         <ControlGroup label="화면">
-          <View style={styles.optionRow}>
-            {PREVIEW_SCREENS.map((screen) => (
-              <OptionButton
-                key={screen.id}
-                label={screen.label}
-                selected={screenId === screen.id}
-                onPress={() => setScreenId(screen.id)}
-              />
-            ))}
-          </View>
+          {PREVIEW_SCREEN_GROUPS.map((group) => (
+            <View key={group.label} style={styles.screenGroup}>
+              <Text style={styles.screenGroupLabel}>{group.label}</Text>
+              <View style={styles.optionRow}>
+                {group.screens.map((screen) => (
+                  <OptionButton
+                    key={screen.id}
+                    label={screen.label}
+                    selected={screenId === screen.id}
+                    onPress={() => setScreenId(screen.id)}
+                  />
+                ))}
+              </View>
+            </View>
+          ))}
         </ControlGroup>
 
         <ControlGroup label="캔버스 비율">
@@ -529,6 +679,13 @@ export function PreviewGallery({
               />
             </View>
           </>
+        ) : null}
+
+        {screenId === 'auth' ? (
+          <Text style={styles.contractNotice}>
+            실제 앱의 SignInScreen입니다. 인증 어댑터만 갤러리용 mock이라 계정과
+            네트워크를 변경하지 않습니다.
+          </Text>
         ) : null}
 
         {screenId === 'login' ? (
@@ -645,7 +802,7 @@ export function PreviewGallery({
         {screenId === 'session' ? (
           <>
             <PreviewStateOptions
-              label="Workout session API 응답 상태"
+              label="Workout session mock 상태"
               options={SESSION_PREVIEW_OPTIONS}
               selected={sessionState}
               onSelect={setSessionState}
@@ -653,21 +810,6 @@ export function PreviewGallery({
             <Text style={styles.contractNotice}>
               세션 시작, 블록 완료, 타이머 이벤트, 안전 중단과 미수행 기록을
               실제 API 응답 형태의 개발용 fixture로 확인합니다.
-            </Text>
-          </>
-        ) : null}
-
-        {screenId === 'session-result' ? (
-          <>
-            <PreviewStateOptions
-              label="Workout result 서버 결과"
-              options={SESSION_RESULT_PREVIEW_OPTIONS}
-              selected={sessionResultState}
-              onSelect={setSessionResultState}
-            />
-            <Text style={styles.contractNotice}>
-              서버가 확정한 완료·일부 완료·미수행·안전 중단 결과와 피드백 저장
-              화면을 표시합니다.
             </Text>
           </>
         ) : null}
@@ -681,7 +823,23 @@ export function PreviewGallery({
               onSelect={setHouseState}
             />
             <Text style={styles.contractNotice}>
-              현재 루틴과 주간 목표를 백엔드 응답 형태의 fixture에서 읽습니다.
+              주간 목표와 운동 기록을 백엔드 응답 형태의 fixture에서 읽습니다.
+              바나나·꾸미기 상태는 아직 서버에 없어 기기에만 저장됩니다.
+            </Text>
+          </>
+        ) : null}
+
+        {screenId === 'background_test' ? (
+          <>
+            <PreviewStateOptions
+              label="background_test mock 상태"
+              options={HOUSE_PREVIEW_OPTIONS}
+              selected={houseState}
+              onSelect={setHouseState}
+            />
+            <Text style={styles.contractNotice}>
+              독립된 background_test 화면에서 moving_temp 레이어의 반복 움직임만
+              시험합니다.
             </Text>
           </>
         ) : null}
@@ -772,7 +930,9 @@ export function PreviewGallery({
             <Text style={styles.contractNotice}>
               {workoutState === 'api-flow'
                 ? '개발 확인 전용 API를 사용합니다. 시작·타이머·블록·중단·안전 보고·피드백은 실제 프론트엔드 API 계약으로 연결되며, 데이터는 네트워크로 전송되지 않습니다.'
-                : '세부 화면 시각 확인용 fixture입니다. 타이머와 블록 체크는 공식 완료를 결정하지 않습니다.'}
+                : selectedWorkoutResultState !== null
+                  ? '실제 앱 흐름의 Workout 결과 UI입니다. 서버가 확정한 완료·일부 완료·미수행·안전 중단 결과를 갤러리 fixture로 표시합니다.'
+                  : '세부 화면 시각 확인용 fixture입니다. 타이머와 블록 체크는 공식 완료를 결정하지 않습니다.'}
             </Text>
           </>
         ) : null}
@@ -828,6 +988,9 @@ export function PreviewGallery({
                       reducedMotionOverride={reducedMotion}
                       viewportOverride={canvasViewport}
                     />
+                  ) : null}
+                  {screenId === 'auth' ? (
+                    <SignInScreen auth={authPreviewAdapter} />
                   ) : null}
                   {screenId === 'login' ? (
                     <LoginScreen
@@ -890,29 +1053,36 @@ export function PreviewGallery({
                       onOutcome={() => undefined}
                     />
                   ) : null}
-                  {screenId === 'session-result' ? (
-                    <SessionResultScreen
-                      key={sessionResultState}
-                      api={sessionResultPreviewApi}
-                      sessionId="session-preview"
-                      outcome={sessionResultPreviewOutcome(sessionResultState)}
-                      onDone={() => undefined}
-                    />
-                  ) : null}
                   {screenId === 'mascot-house' ? (
                     <MascotHouseScreen
                       key={houseState}
                       api={houseApi}
                       nickname={PREVIEW_ME.profile?.nickname ?? '미리보기'}
-                      onNavigate={() => undefined}
+                      now={GALLERY_PREVIEW_NOW}
+                      onNavigate={navigateHomeTab}
+                      store={housePreviewStore}
+                      timeZone="Asia/Seoul"
+                    />
+                  ) : null}
+                  {screenId === 'background_test' ? (
+                    <BackgroundTestScreen
+                      key={houseState}
+                      api={houseApi}
+                      nickname={PREVIEW_ME.profile?.nickname ?? '미리보기'}
+                      now={GALLERY_PREVIEW_NOW}
+                      onNavigate={navigateHomeTab}
+                      store={backgroundTestPreviewStore}
+                      timeZone="Asia/Seoul"
                     />
                   ) : null}
                   {screenId === 'weekly-report' ? (
                     <WeeklyReportScreen
                       key={weeklyReportState}
                       api={weeklyReportApi}
+                      now={GALLERY_PREVIEW_NOW}
                       onBack={() => setScreenId('calendar-report')}
                       onNavigateTab={navigateHomeTab}
+                      timeZone="Asia/Seoul"
                     />
                   ) : null}
                   {screenId === 'account' ? (
@@ -968,7 +1138,17 @@ export function PreviewGallery({
                     />
                   ) : null}
                   {screenId === 'workout' ? (
-                    workoutState !== 'api-flow' ? (
+                    selectedWorkoutResultState !== null ? (
+                      <SessionResultScreen
+                        key={selectedWorkoutResultState}
+                        api={sessionResultPreviewApi}
+                        sessionId="session-preview"
+                        outcome={sessionResultPreviewOutcome(
+                          selectedWorkoutResultState,
+                        )}
+                        onDone={() => undefined}
+                      />
+                    ) : isWorkoutPreviewState(workoutState) ? (
                       <WorkoutScreen previewState={workoutState} />
                     ) : workoutOutcome === null ? (
                       <WorkoutScreen
@@ -1234,6 +1414,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
   },
+  screenGroup: {
+    gap: 7,
+  },
+  screenGroupLabel: {
+    color: '#74808B',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
   optionRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1310,7 +1500,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#FFFFFF',
     borderRadius: 999,
-    backgroundColor: '#3E7A32',
+    backgroundColor: '#A45F00',
     shadowColor: '#16202A',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,

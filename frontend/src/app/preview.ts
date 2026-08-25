@@ -1,5 +1,7 @@
 export type PreviewMode =
   | 'account'
+  | 'auth'
+  | 'background_test'
   | 'calendar-report'
   | 'gallery'
   | 'home'

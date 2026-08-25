@@ -22,6 +22,8 @@ import { homePreviewProps } from '../features/preview/homePreview';
 import { onboardingPreviewApi } from '../features/preview/onboardingPreview';
 import { PreviewGallery } from '../features/preview/PreviewGallery';
 import { ProfileScreen } from '../features/profile/ProfileScreen';
+import { SceneEditor } from '../features/sceneEditor/SceneEditor';
+import { isSceneEditorRoute } from '../features/sceneEditor/sceneEditorRoute';
 import { SplashScreen } from '../features/splash/SplashScreen';
 import {
   type BootDestination,
@@ -149,6 +151,10 @@ export function App({
   splashPreview,
   ...navigatorProps
 }: AppProps) {
+  if (isSceneEditorRoute()) {
+    return <SceneEditor />;
+  }
+
   const activePreview =
     previewMode !== undefined
       ? previewMode
@@ -161,6 +167,8 @@ export function App({
   const usesPreviewGallery =
     activePreview === 'gallery' ||
     activePreview === 'account' ||
+    activePreview === 'auth' ||
+    activePreview === 'background_test' ||
     activePreview === 'mascot-house' ||
     activePreview === 'session' ||
     activePreview === 'session-result' ||
@@ -185,6 +193,10 @@ export function App({
             <PreviewGallery />
           ) : activePreview === 'account' ? (
             <PreviewGallery initialScreenId="account" />
+          ) : activePreview === 'auth' ? (
+            <PreviewGallery initialScreenId="auth" />
+          ) : activePreview === 'background_test' ? (
+            <PreviewGallery initialScreenId="background_test" />
           ) : activePreview === 'mascot-house' ? (
             <PreviewGallery initialScreenId="mascot-house" />
           ) : activePreview === 'session' ? (
@@ -240,7 +252,7 @@ const styles = StyleSheet.create({
     width: '100%',
     flex: 1,
     alignItems: 'center',
-    backgroundColor: '#EEF2E8',
+    backgroundColor: '#FFF4DC',
   },
   appViewport: {
     width: '100%',
@@ -257,7 +269,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   placeholderText: {
-    color: '#2F5233',
+    color: '#5A4636',
     fontSize: 20,
     fontWeight: '700',
   },

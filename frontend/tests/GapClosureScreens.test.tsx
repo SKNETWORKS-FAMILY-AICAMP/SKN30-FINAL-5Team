@@ -63,7 +63,7 @@ describe('ExerciseCatalogScreen', () => {
     expect(screen.getAllByText('매트, 짐볼, 의자')).toHaveLength(2);
     expect(screen.getByText('카탈로그 버전 catalog-test-v1')).toBeTruthy();
 
-    fireEvent.press(screen.getByText('가동성'));
+    fireEvent.press(screen.getByText('스트레칭'));
     await waitFor(() => {
       expect(queries.length).toBeGreaterThanOrEqual(2);
     });
