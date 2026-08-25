@@ -13,6 +13,8 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from pydantic import model_validator
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -72,6 +74,25 @@ class V2ReviewMethodCode(StrEnum):
 
 class V2ExerciseRecord(ExerciseRecord):
     body_focus_code: V2BodyFocusCode  # type: ignore[assignment]
+
+    @model_validator(mode="after")
+    def validate_training_focus_pair(self) -> V2ExerciseRecord:
+        expected_focus = {
+            "CARDIO": V2BodyFocusCode.CARDIO,
+            "MOBILITY": V2BodyFocusCode.MOBILITY,
+        }.get(str(self.training_type_code))
+        if expected_focus is not None and self.body_focus_code is not expected_focus:
+            raise RuntimeArtifactError(
+                "CARDIO and MOBILITY records must use their matching body_focus_code"
+            )
+        if str(self.training_type_code) == "STRENGTH" and self.body_focus_code in {
+            V2BodyFocusCode.CARDIO,
+            V2BodyFocusCode.MOBILITY,
+        }:
+            raise RuntimeArtifactError(
+                "STRENGTH records cannot use CARDIO or MOBILITY body_focus_code"
+            )
+        return self
 
 
 class V2ExerciseAlternativeRecord(ExerciseAlternativeRecord):

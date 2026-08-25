@@ -881,6 +881,10 @@ def build_alternatives(
             json.loads(discomfort_source["primary_body_area_codes"])
             + json.loads(discomfort_source["secondary_body_area_codes"])
         )
+        source_primary_areas = set(json.loads(discomfort_source["primary_body_area_codes"]))
+        alternative_primary_areas = set(
+            json.loads(discomfort_alternative["primary_body_area_codes"])
+        )
         alternative_areas = set(
             json.loads(discomfort_alternative["primary_body_area_codes"])
             + json.loads(discomfort_alternative["secondary_body_area_codes"])
@@ -922,6 +926,7 @@ def build_alternatives(
                     == discomfort_source["body_focus_code"]
                     or discomfort_alternative["primary_movement_pattern_code"]
                     == discomfort_source["primary_movement_pattern_code"]
+                    or bool(source_primary_areas & alternative_primary_areas)
                 )
             ):
                 raise FinalizationError("NRS_1_3 candidate does not preserve the goal")

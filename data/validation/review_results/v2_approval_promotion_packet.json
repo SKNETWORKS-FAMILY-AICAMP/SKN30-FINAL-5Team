@@ -1,0 +1,87 @@
+{
+  "schema_version": "1.0",
+  "packet_status": "APPROVED_FOR_BACKEND_PROMOTION",
+  "catalog_version_code": "exercise-catalog-v2.0.0-final",
+  "production_eligible": false,
+  "activation_status": "NOT_ACTIVATED",
+  "bundle_manifest_path": "generated/exercise-catalog-v2.0.0-final/backend_bundle/bundle_manifest.json",
+  "bundle_manifest_sha256": "22d90a1f6efa1b5af260573fa7d18b5cd699b6827474bc30d7711f872421a44d",
+  "artifacts": [
+    {
+      "artifact_kind": "CATALOG",
+      "version_code": "exercise-catalog-v2.0.0-final",
+      "manifest_path": "catalog/seed_manifest.json",
+      "manifest_sha256": "e3ad5c3eabf193d173aa3b01c4c503962a43074ad3ecbd44343efb1195677b24",
+      "record_count": 102
+    },
+    {
+      "artifact_kind": "SAFETY_RULES",
+      "version_code": "safety-rule-set-v2.0.0",
+      "manifest_path": "safety/rules_manifest.json",
+      "manifest_sha256": "53e8f597f4e312999cd9c04402c17ec7faa741692aae90ab8a67889f144c0807",
+      "record_count": 394
+    },
+    {
+      "artifact_kind": "ALTERNATIVES",
+      "version_code": "alternative-set-v2.0.0",
+      "manifest_path": "alternatives/alternatives_manifest.json",
+      "manifest_sha256": "4f78c1c735a3b1129d8396233612bb27b69c25672967990116cca91b7dd74b5c",
+      "record_count": 285
+    },
+    {
+      "artifact_kind": "PRESCRIPTIONS",
+      "version_code": "prescription-set-v2.0.0",
+      "manifest_path": "prescriptions/prescription_manifest.json",
+      "manifest_sha256": "e2237c1ab59784339969405e8b85ee65751459cb95ed119efa1070cffba25abe",
+      "record_count": 239,
+      "goal_tag_records": 102,
+      "prescription_records": 137
+    }
+  ],
+  "review_evidence": {
+    "review_status_code": "DOMAIN_APPROVED",
+    "reviewer_role_code": "DOMAIN_REVIEWER",
+    "reviewer_reference": "V2-PRESCRIPTION-DOMAIN-REVIEW-2026-08-25-R01",
+    "reviewed_at": "2026-08-25T15:00:00+09:00",
+    "evidence_reference": [
+      "ACSM/NSCA 권고 범위",
+      "원천데이터 내 공신력 있는 출처 자료",
+      "초보 입문자 적합성 기준",
+      "EXTERNAL-EXPERT-OPINION-XLSX-2026-08-23"
+    ],
+    "domain_scope": "대표운동·안전규칙·대체관계·처방",
+    "external_expert_opinion": {
+      "format": "XLSX",
+      "reviewed_on": "2026-08-23",
+      "artifact_available": false,
+      "artifact_sha256": null
+    }
+  },
+  "promotion_approval": {
+    "approval_reference": "V2-PROMOTION-APPROVAL-2026-08-25-R01",
+    "approved_at": "2026-08-25T15:00:00+09:00",
+    "approver_role_codes": ["PM", "DEVELOPMENT_LEAD"],
+    "waiver_reference": "V2-PROMOTION-WAIVER-2026-08-25-R01",
+    "waiver": "외부 전문가 의견 XLSX 원본은 작업 폴더에 보관되지 않았음을 인지하고 승인함."
+  },
+  "backend_handoff_required": true,
+  "backend_files_to_restore_then_reapply": [
+    {
+      "path": "backend/app/modules/catalog/service.py",
+      "required_change": "대체관계 중복 판정 키에 goal_preservation_code와 rule_version을 포함",
+      "reason": "V2 대체관계 285건의 서로 다른 목표 보존 방식·rule version을 동일 관계로 오판하지 않도록 함"
+    },
+    {
+      "path": "backend/tests/unit/test_catalog_data_bundle_importer.py",
+      "required_change": "V2 alternative_records 기대값을 285로 유지하고, 중복 fixture는 rule_version을 변경하지 않은 동일 관계로 구성",
+      "reason": "runtime 대체관계 285건과 service 중복 판정 계약을 검증"
+    }
+  ],
+  "backend_handoff_items": [
+    "위 두 backend 파일은 복원 후 동일 변경을 재적용",
+    "V2 approval registry에 네 artifact의 version/hash/count를 exact-match로 등록",
+    "승인 bundle import/promotion 경로 구현",
+    "promotion migration에서 catalog ACTIVE·production_eligible 및 derived artifact 승격",
+    "promotion 후 catalog_activate와 DB integration test 실행"
+  ]
+}

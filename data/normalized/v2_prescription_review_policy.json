@@ -7,10 +7,40 @@
   "experience_level_code": "BEGINNER",
   "review_status_code": "DOMAIN_APPROVED",
   "reviewer_role_code": "DOMAIN_REVIEWER",
-  "reviewer_reference": "V2-PRESCRIPTION-REVIEW-CANDIDATE-2026-08-25",
-  "evidence_reference": "validation/review_results/v2_prescription_review_input.csv",
-  "reviewed_at": "2026-08-25T00:00:00+09:00",
+  "reviewer_reference": "V2-PRESCRIPTION-DOMAIN-REVIEW-2026-08-25-R01",
+  "evidence_reference": "PRESCRIPTION-POLICY-V2;PRESCRIPTION-DOMAIN-REVIEW-20260825-R01",
+  "reviewed_at": "2026-08-25T15:00:00+09:00",
   "prescription_version": "v2.0.0-draft",
+  "external_basis": [
+    "ACSM/NSCA 권고 범위"
+  ],
+  "internal_decision": {
+    "scope": "초보·중급 GENERAL_FITNESS용 서비스 기본 처방값",
+    "default_strength_prescription": "2 sets / 8 reps / 45s rest",
+    "domain_review": "운동별 적용 적합성 확인"
+  },
+  "external_evidence": [
+    {
+      "reference": "EXTERNAL-EXPERT-OPINION-XLSX-2026-08-23",
+      "format": "XLSX",
+      "artifact_available": false,
+      "artifact_sha256": null,
+      "reviewed_on": "2026-08-23",
+      "scope": "대표운동·안전규칙·대체관계·처방",
+      "note": "외부 전문가 의견 원본은 작업 폴더에 보관되지 않은 외부 검수 근거임."
+    }
+  ],
+  "promotion_approval": {
+    "status": "APPROVED_FOR_BACKEND_PROMOTION",
+    "approval_reference": "V2-PROMOTION-APPROVAL-2026-08-25-R01",
+    "approved_at": "2026-08-25T15:00:00+09:00",
+    "approver_role_codes": ["PM", "DEVELOPMENT_LEAD"],
+    "waiver": {
+      "external_artifact_unavailable": true,
+      "waiver_reference": "V2-PROMOTION-WAIVER-2026-08-25-R01",
+      "accepted_by": ["PM", "DEVELOPMENT_LEAD"]
+    }
+  },
   "role_eligibility_by_movement_pattern": {
     "CORE": [
       "BALANCE",

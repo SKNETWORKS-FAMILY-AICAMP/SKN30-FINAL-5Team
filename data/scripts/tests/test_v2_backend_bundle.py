@@ -18,7 +18,7 @@ def test_v2_bundle_has_importer_paths_and_draft_projection(tmp_path: Path) -> No
         "status": "valid",
         "catalog_records": 102,
         "safety_rule_records": 394,
-        "alternative_records": 283,
+        "alternative_records": 285,
         "goal_tag_records": 102,
         "prescription_records": 137,
         "production_eligible": False,

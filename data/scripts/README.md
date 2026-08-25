@@ -500,8 +500,7 @@ V2_UV_CACHE=/private/tmp/skn30-uv-cache UV_CACHE_DIR=$V2_UV_CACHE \
 bundle은 `catalog/seed_manifest.json`, `safety/rules_manifest.json`,
 `alternatives/alternatives_manifest.json`, `prescriptions/prescription_manifest.json`을
 제공한다. `bundle_manifest.json`은 내부 input과 산출물의 path/hash/byte/count를 관리한다.
-backend의 현재 body-focus enum과 V2 세분화 코드는 `v2_backend_code_projection.json`으로
-importer 호환 projection만 만들며 runtime 원본을 바꾸지 않는다. alternatives의 통증
-구간 충돌 2건은 `LOSSY_DRAFT_ONLY` conflict report에 보존되므로 운영 승격 전 별도
-schema/domain 결정이 필요하다. `catalog_data_load`, `catalog_activate`, ACTIVE 전환은
-이 작업에서 실행하지 않는다.
+backend V2 code set은 `v2_backend_code_projection.json`으로 직접 전달하며 runtime 원본을
+변환하지 않는다. alternatives는 `(source, alternative, reason, goal, rule_version)` 키로
+285건을 손실 없이 보존한다. `catalog_data_load`, `catalog_activate`, ACTIVE 전환은 이
+작업에서 실행하지 않는다.
