@@ -83,6 +83,17 @@ class V3RootSnapshotPersistence(_FrozenModel):
         if self.retrieval_request.catalog_version != self.exercise_pool.catalog_version:
             raise ValueError("retrieval request and pool catalog versions differ")
         self.retrieval_result.validate_against(self.retrieval_request)
+        metadata = self.exercise_pool.retrieval_metadata
+        result = self.retrieval_result
+        if (
+            metadata.query_hash != result.query_hash
+            or metadata.retrieval_status_code is not result.retrieval_status_code
+            or metadata.deterministic_pool_fallback_used != result.fallback_used
+            or metadata.collection_name != result.collection_name
+            or metadata.vector_index_version != result.vector_index_version
+            or metadata.embedding_model_version != result.embedding_model_version
+        ):
+            raise ValueError("retrieval result and persisted pool metadata differ")
         return self
 
 

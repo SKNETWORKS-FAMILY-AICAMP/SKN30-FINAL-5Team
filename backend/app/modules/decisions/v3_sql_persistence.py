@@ -334,7 +334,11 @@ class V3SqlAlchemyPersistenceAdapter:
         payload = run.coordinator_result.get("v3_persistence_bundle")
         if not isinstance(payload, dict):
             return None
-        return V3DecisionPersistenceBundle.model_validate(payload)
+        # Strict frozen domain models intentionally reject Python lists for
+        # tuple fields. JSON-mode validation is the canonical DB replay path.
+        return V3DecisionPersistenceBundle.model_validate_json(
+            json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str)
+        )
 
     def get_root_snapshot(
         self, root_decision_execution_id: UUID
