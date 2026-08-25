@@ -29,11 +29,14 @@ export function HouseArtView({
   slot,
   style,
   showPlaceholderLabel = true,
+  showPlaceholderOutline = true,
 }: {
   slot: HouseArtSlot;
   style?: StyleProp<ViewStyle>;
   /** Off for small tiles, where the caption sits outside the frame. */
   showPlaceholderLabel?: boolean;
+  /** Off for placed decorations, which should look like objects, not slots. */
+  showPlaceholderOutline?: boolean;
 }) {
   if (slot.source !== null) {
     return (
@@ -54,6 +57,7 @@ export function HouseArtView({
       style={[
         styles.frame,
         styles.placeholder,
+        !showPlaceholderOutline && styles.placeholderWithoutOutline,
         { backgroundColor: slot.fill, borderColor: slot.outline },
         style,
       ]}
@@ -182,6 +186,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 14,
     textAlign: 'center',
+  },
+  placeholderWithoutOutline: {
+    borderWidth: 0,
   },
   banana: {
     borderColor: 'transparent',

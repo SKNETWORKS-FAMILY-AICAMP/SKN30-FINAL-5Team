@@ -23,9 +23,16 @@
 
 import { Asset } from 'expo-asset';
 import { LinearGradient } from 'expo-linear-gradient';
-import type { ReactNode } from 'react';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Children, type ReactNode } from 'react';
+import { useRef, useState } from 'react';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type GestureResponderEvent,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, {
   Defs,
@@ -38,7 +45,6 @@ import Svg, {
   Stop,
 } from 'react-native-svg';
 
-import { InlineFeedback } from '../../components/primitives';
 import { useScale } from '../../components/scale';
 import { colors, radii, shadows, spacing } from '../../components/theme';
 import {
@@ -50,25 +56,22 @@ import {
 } from './HouseArt';
 import {
   HOUSE_BACKDROP_FALLBACK,
+  houseBackgroundArt,
+  houseBackgroundLabels,
   houseItemArt,
   housePoseArt,
-  houseRoomArt,
+  type HouseArtSlot,
 } from './houseArtSlots';
 import {
-  CHEAPEST_ITEM_COST,
   HOUSE_ACTION_COST,
+  HOUSE_BACKGROUND_IDS,
   houseSpeech,
+  type HouseBackgroundId,
   type HouseItemId,
+  type HouseItemPlacement,
   type HousePose,
   type HouseView,
 } from './houseModel';
-export type HouseFeedback = {
-  tone: 'success' | 'warning';
-  message: string;
-  /** Present when the message is about something the user can try again. */
-  onRetry?: () => void;
-};
-
 /**
  * The controls stay phone-width however wide the window gets. Past this the
  * extra room goes to the scene, not to stretched buttons.
@@ -85,9 +88,6 @@ export const HOUSE_BACKDROP_ZOOM = 0.5;
 /** The selected mascot is displayed at 75% of the former 148px frame. */
 export const HOUSE_MASCOT_SIZE = 148 * 0.75;
 
-/** Moves the mascot and its speech bubble down from the original fixed anchor. */
-export const HOUSE_MASCOT_Y_OFFSET = 24;
-
 /** Fallback dimensions used only when a platform cannot resolve a local asset. */
 const HOUSE_BACKDROP_SOURCE_SIZE = { width: 1600, height: 976 } as const;
 
@@ -97,8 +97,15 @@ const HOUSE_BACKDROP_BLEND_BAND_PX = 160;
 /** Display pixels where the blurred extension overlaps the original artwork. */
 const HOUSE_BACKDROP_BLEND_OVERLAP = 48;
 
+/** Places the blend boundary halfway across the gap above the weekly panel. */
+const HOUSE_BACKDROP_WEEK_PANEL_GAP_OFFSET = spacing.sm / 2;
+
+const PLACED_ITEM_SIZE = 44;
+const DECORATE_GRID_GAP = spacing.sm;
+
 /**
- * Returns half of the size the artwork would have occupied with `cover`.
+ * Returns half of the size the artwork would have occupied with `cover`, then
+ * grows it proportionally when the control boundary requires a taller image.
  * `Backdrop` fixes the resulting frame to the top and centres it horizontally,
  * so any remaining horizontal crop is removed equally from the outer edges.
  */
@@ -107,6 +114,7 @@ export function houseBackdropSize(
   viewportHeight: number,
   sourceWidth: number = HOUSE_BACKDROP_SOURCE_SIZE.width,
   sourceHeight: number = HOUSE_BACKDROP_SOURCE_SIZE.height,
+  minimumHeight: number = 0,
 ): { width: number; height: number } {
   const width = Math.max(0, viewportWidth);
   const height = Math.max(0, viewportHeight);
@@ -116,45 +124,159 @@ export function houseBackdropSize(
     width / safeSourceWidth,
     height / safeSourceHeight,
   );
+  const requestedMinimumHeight = Math.min(Math.max(0, minimumHeight), height);
+  const displayScale = Math.max(
+    coverScale * HOUSE_BACKDROP_ZOOM,
+    requestedMinimumHeight / safeSourceHeight,
+  );
 
   return {
-    width: safeSourceWidth * coverScale * HOUSE_BACKDROP_ZOOM,
-    height: safeSourceHeight * coverScale * HOUSE_BACKDROP_ZOOM,
+    width: safeSourceWidth * displayScale,
+    height: safeSourceHeight * displayScale,
   };
 }
 
+function houseBackdropControlBoundary(
+  viewportHeight: number,
+  weekPanelTop: number | null,
+): number | null {
+  if (
+    weekPanelTop === null ||
+    !Number.isFinite(weekPanelTop) ||
+    weekPanelTop <= 0
+  ) {
+    return null;
+  }
+  return Math.min(
+    Math.max(0, weekPanelTop - HOUSE_BACKDROP_WEEK_PANEL_GAP_OFFSET),
+    Math.max(0, viewportHeight),
+  );
+}
+
+export function houseBackdropMinimumHeight(
+  viewportHeight: number,
+  weekPanelTop: number | null,
+): number {
+  const safeViewportHeight = Math.max(0, viewportHeight);
+  const controlBoundary = houseBackdropControlBoundary(
+    safeViewportHeight,
+    weekPanelTop,
+  );
+  if (controlBoundary === null) return 0;
+  return Math.min(
+    controlBoundary + HOUSE_BACKDROP_BLEND_OVERLAP,
+    safeViewportHeight,
+  );
+}
+
+export function houseBackdropContinuationTop(
+  artHeight: number,
+  viewportHeight: number,
+  weekPanelTop: number | null,
+): number {
+  const safeViewportHeight = Math.max(0, viewportHeight);
+  const imageEnd = Math.min(Math.max(0, artHeight), safeViewportHeight);
+  const imageBlendStart = Math.max(0, imageEnd - HOUSE_BACKDROP_BLEND_OVERLAP);
+  const controlBoundary = houseBackdropControlBoundary(
+    safeViewportHeight,
+    weekPanelTop,
+  );
+  if (controlBoundary === null) return imageBlendStart;
+  return Math.min(imageBlendStart, controlBoundary);
+}
+
 export function MascotHouseContent({
-  feedback,
   footer,
   nickname,
   onBuyItem,
   onClaimGift,
-  onDismissFeedback,
   onFeed,
   onPet,
+  onPlaceItem,
+  onSelectBackground,
+  mascotArt,
   pose,
   view,
 }: {
-  feedback: HouseFeedback | null;
   /** The tab bar, rendered inside the backdrop so the scene runs behind it. */
   footer?: ReactNode;
   nickname: string;
   onBuyItem: (itemId: HouseItemId) => void;
   onClaimGift: () => void;
-  onDismissFeedback: () => void;
   onFeed: () => void;
   onPet: () => void;
+  onPlaceItem: (itemId: HouseItemId, placement: HouseItemPlacement) => void;
+  onSelectBackground: (backgroundId: HouseBackgroundId) => void;
+  mascotArt?: HouseArtSlot;
   pose: HousePose;
   view: HouseView;
 }) {
   const [decorating, setDecorating] = useState(false);
+  const [columnTop, setColumnTop] = useState<number | null>(null);
+  const [actionAreaTop, setActionAreaTop] = useState<number | null>(null);
+  const [weekPanelLocalTop, setWeekPanelLocalTop] = useState<number | null>(
+    null,
+  );
+  const [decorationCanvas, setDecorationCanvas] = useState({
+    width: 0,
+    height: 0,
+  });
+  const weekPanelTop =
+    columnTop === null || actionAreaTop === null || weekPanelLocalTop === null
+      ? null
+      : columnTop + actionAreaTop + weekPanelLocalTop;
 
   return (
     <View style={styles.screen} testID="mascot-house-content">
-      <Backdrop />
+      <Backdrop
+        backgroundId={view.selectedBackgroundId}
+        weekPanelTop={weekPanelTop}
+      />
 
-      <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
-        <View style={styles.column} testID="house-content-column">
+      <View
+        pointerEvents="none"
+        style={styles.mascotSlot}
+        testID="house-mascot-slot"
+      >
+        <SpeechBubble text={houseSpeech(view, pose)} />
+        <HouseArtView
+          showPlaceholderLabel={false}
+          slot={mascotArt ?? housePoseArt[pose]}
+          style={styles.mascot}
+        />
+      </View>
+
+      <View
+        onLayout={(event) => setDecorationCanvas(event.nativeEvent.layout)}
+        pointerEvents={decorating ? 'box-none' : 'none'}
+        style={styles.decorationCanvas}
+        testID="house-decoration-canvas"
+      >
+        {view.ownedItems.map((item) => (
+          <DraggablePlacedItem
+            canvasHeight={decorationCanvas.height}
+            canvasWidth={decorationCanvas.width}
+            editable={decorating}
+            itemId={item.id}
+            key={item.id}
+            label={item.label}
+            onPlace={onPlaceItem}
+            placement={view.itemPlacements[item.id]}
+          />
+        ))}
+      </View>
+
+      <SafeAreaView
+        edges={['top', 'bottom']}
+        pointerEvents="box-none"
+        style={styles.safeArea}
+      >
+        <View
+          onLayout={(event) => setColumnTop(event.nativeEvent.layout.y)}
+          pointerEvents="box-none"
+          style={styles.column}
+          testID="house-content-column"
+        >
           {/* Title only. 홈 and 마이페이지 already sit in the tab bar below,
               and a second copy of both in the corners was two ways to reach the
               same two screens. */}
@@ -164,7 +286,11 @@ export function MascotHouseContent({
             </Text>
           </View>
 
-          <View style={styles.stage} testID="house-scene">
+          <View
+            pointerEvents="box-none"
+            style={styles.stage}
+            testID="house-scene"
+          >
             <View style={styles.railLeft}>
               <View style={styles.chip} testID="house-banana-count">
                 <BananaGlyph size={20} />
@@ -213,69 +339,16 @@ export function MascotHouseContent({
                 </View>
               ) : null}
             </View>
-
-            <View
-              pointerEvents="none"
-              style={styles.mascotSlot}
-              testID="house-mascot-slot"
-            >
-              <SpeechBubble text={houseSpeech(view, pose)} />
-              <HouseArtView
-                showPlaceholderLabel={false}
-                slot={housePoseArt[pose]}
-                style={styles.mascot}
-              />
-              <View style={styles.placedRow}>
-                {view.ownedItems.map((item) => (
-                  <HouseArtView
-                    key={item.id}
-                    showPlaceholderLabel={false}
-                    slot={houseItemArt[item.id]}
-                    style={styles.placedItem}
-                  />
-                ))}
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.feedbackSlot} testID="house-feedback-slot">
-            {feedback === null ? null : (
-              <InlineFeedback
-                action={
-                  <View style={styles.feedbackActions}>
-                    {feedback.onRetry === undefined ? null : (
-                      <Pressable
-                        accessibilityLabel="다시 시도"
-                        accessibilityRole="button"
-                        onPress={feedback.onRetry}
-                        style={styles.retryButton}
-                      >
-                        <Text style={styles.retryLabel}>다시 시도</Text>
-                      </Pressable>
-                    )}
-                    <Pressable
-                      accessibilityLabel="알림 닫기"
-                      accessibilityRole="button"
-                      onPress={onDismissFeedback}
-                      style={styles.dismissButton}
-                      testID="house-feedback-dismiss"
-                    >
-                      <Text style={styles.dismissLabel}>닫기</Text>
-                    </Pressable>
-                  </View>
-                }
-                message={feedback.message}
-                style={styles.feedback}
-                testID="house-feedback"
-                tone={feedback.tone}
-              />
-            )}
           </View>
 
           {/* The stack stays mounted while the decorate panel is open, and the
               panel covers it as an overlay. Swapping them would change the
               column's height, which would move the scene and the mascot. */}
-          <View style={styles.actionArea}>
+          <View
+            onLayout={(event) => setActionAreaTop(event.nativeEvent.layout.y)}
+            style={styles.actionArea}
+            testID="house-action-area"
+          >
             <View
               accessibilityElementsHidden={decorating}
               importantForAccessibility={
@@ -299,13 +372,18 @@ export function MascotHouseContent({
                 </Text>
               </Pressable>
 
-              <WeekPanel nickname={nickname} view={view} />
+              <WeekPanel
+                nickname={nickname}
+                onTopChange={setWeekPanelLocalTop}
+                view={view}
+              />
             </View>
 
             {decorating ? (
               <DecoratePanel
                 onBuyItem={onBuyItem}
                 onClose={() => setDecorating(false)}
+                onSelectBackground={onSelectBackground}
                 view={view}
               />
             ) : null}
@@ -325,9 +403,16 @@ export function MascotHouseContent({
  * dashed placeholder box: a full-bleed backdrop with a visible frame would
  * read as a bug, not as unfinished art.
  */
-function Backdrop() {
+function Backdrop({
+  backgroundId,
+  weekPanelTop,
+}: {
+  backgroundId: HouseBackgroundId;
+  weekPanelTop: number | null;
+}) {
   const viewport = useScale();
-  const roomSource = houseRoomArt.source;
+  const roomArt = houseBackgroundArt[backgroundId];
+  const roomSource = roomArt.source;
   const sourceModule = Array.isArray(roomSource) ? roomSource[0] : roomSource;
   const resolvedSource =
     sourceModule == null
@@ -343,16 +428,22 @@ function Backdrop() {
     resolvedSource?.height != null && resolvedSource.height > 1
       ? resolvedSource.height
       : HOUSE_BACKDROP_SOURCE_SIZE.height;
+  const minimumArtHeight = houseBackdropMinimumHeight(
+    viewport.height,
+    weekPanelTop,
+  );
   const artSize = houseBackdropSize(
     viewport.width,
     viewport.height,
     sourceWidth,
     sourceHeight,
+    minimumArtHeight,
   );
   const blendBandHeight = Math.min(sourceHeight, HOUSE_BACKDROP_BLEND_BAND_PX);
-  const continuationTop = Math.max(
-    0,
-    artSize.height - HOUSE_BACKDROP_BLEND_OVERLAP,
+  const continuationTop = houseBackdropContinuationTop(
+    artSize.height,
+    viewport.height,
+    weekPanelTop,
   );
   const continuationHeight = Math.max(1, viewport.height - continuationTop);
   const overlapRatio = Math.min(
@@ -382,7 +473,7 @@ function Backdrop() {
           <View style={[styles.backdropArtFrame, artSize]}>
             <HouseArtView
               showPlaceholderLabel={false}
-              slot={houseRoomArt}
+              slot={roomArt}
               style={StyleSheet.absoluteFill}
             />
           </View>
@@ -518,12 +609,24 @@ function FeedButton({
   );
 }
 
-function WeekPanel({ nickname, view }: { nickname: string; view: HouseView }) {
+function WeekPanel({
+  nickname,
+  onTopChange,
+  view,
+}: {
+  nickname: string;
+  onTopChange: (top: number) => void;
+  view: HouseView;
+}) {
   const ratio = view.weekProgress ?? 0;
   const known = view.weekTargetCount !== null;
 
   return (
-    <View style={styles.weekPanel} testID="house-week-panel">
+    <View
+      onLayout={(event) => onTopChange(event.nativeEvent.layout.y)}
+      style={styles.weekPanel}
+      testID="house-week-panel"
+    >
       <Text style={styles.weekEyebrow}>{nickname}님의 이번 주 목표</Text>
 
       <View style={styles.weekRow}>
@@ -570,12 +673,18 @@ function WeekPanel({ nickname, view }: { nickname: string; view: HouseView }) {
 function DecoratePanel({
   onBuyItem,
   onClose,
+  onSelectBackground,
   view,
 }: {
   onBuyItem: (itemId: HouseItemId) => void;
   onClose: () => void;
+  onSelectBackground: (backgroundId: HouseBackgroundId) => void;
   view: HouseView;
 }) {
+  const [category, setCategory] = useState<'background' | 'items'>(
+    'background',
+  );
+
   return (
     <View
       style={[styles.weekPanel, styles.decoratePanel]}
@@ -596,56 +705,280 @@ function DecoratePanel({
         </Pressable>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.itemGrid}
-        showsVerticalScrollIndicator={false}
-        style={styles.decorateGrid}
-      >
-        {view.ownedItems.map((item) => (
-          <View key={item.id} style={[styles.itemTile, styles.itemOwned]}>
-            <HouseArtView
-              showPlaceholderLabel={false}
-              slot={houseItemArt[item.id]}
-              style={styles.itemArt}
-            />
-            <Text style={styles.itemLabel}>{item.label}</Text>
-            <Text style={styles.itemOwnedLabel}>배치됨</Text>
-          </View>
-        ))}
+      <View style={styles.decorateTabs}>
+        <Pressable
+          accessibilityRole="tab"
+          accessibilityState={{ selected: category === 'background' }}
+          onPress={() => setCategory('background')}
+          style={[
+            styles.decorateTab,
+            category === 'background' && styles.decorateTabSelected,
+          ]}
+        >
+          <Text
+            style={[
+              styles.decorateTabLabel,
+              category === 'background' && styles.decorateTabLabelSelected,
+            ]}
+          >
+            배경
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="tab"
+          accessibilityState={{ selected: category === 'items' }}
+          onPress={() => setCategory('items')}
+          style={[
+            styles.decorateTab,
+            category === 'items' && styles.decorateTabSelected,
+          ]}
+        >
+          <Text
+            style={[
+              styles.decorateTabLabel,
+              category === 'items' && styles.decorateTabLabelSelected,
+            ]}
+          >
+            소품
+          </Text>
+        </Pressable>
+      </View>
 
-        {view.lockedItems.map((item) => {
-          const affordable = view.bananas >= item.cost;
-          return (
-            <Pressable
-              accessibilityLabel={`${item.label}, 바나나 ${item.cost}개`}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: !affordable }}
-              disabled={!affordable}
-              key={item.id}
-              onPress={() => onBuyItem(item.id)}
-              style={[styles.itemTile, !affordable && styles.spent]}
-              testID={`house-item-${item.id}`}
-            >
-              <HouseArtView
-                showPlaceholderLabel={false}
-                slot={houseItemArt[item.id]}
-                style={styles.itemArt}
-              />
-              <Text style={styles.itemLabel}>{item.label}</Text>
-              <View style={styles.itemCost}>
-                <BananaGlyph size={12} />
-                <Text style={styles.itemCostLabel}>{item.cost}</Text>
+      {category === 'background' ? (
+        <ScrollView
+          contentContainerStyle={styles.decorateGridContent}
+          showsVerticalScrollIndicator={false}
+          style={styles.decorateGrid}
+          testID="house-background-list"
+        >
+          <FixedGrid columns={2} testID="house-background-grid">
+            {HOUSE_BACKGROUND_IDS.map((backgroundId) => {
+              const selected = view.selectedBackgroundId === backgroundId;
+              const label = houseBackgroundLabels[backgroundId];
+              return (
+                <Pressable
+                  accessibilityLabel={
+                    selected
+                      ? `${label} 배경, 사용 중`
+                      : `${label} 배경으로 변경`
+                  }
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: selected, selected }}
+                  disabled={selected}
+                  key={backgroundId}
+                  onPress={() => onSelectBackground(backgroundId)}
+                  style={[
+                    styles.backgroundTile,
+                    selected && styles.backgroundTileSelected,
+                  ]}
+                  testID={`house-background-${backgroundId}`}
+                >
+                  <HouseArtView
+                    showPlaceholderLabel={false}
+                    slot={houseBackgroundArt[backgroundId]}
+                    style={styles.backgroundArt}
+                  />
+                  <Text style={styles.itemLabel}>{label}</Text>
+                  <Text style={styles.itemOwnedLabel}>
+                    {selected ? '사용 중' : '바꾸기'}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </FixedGrid>
+        </ScrollView>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.decorateGridContent}
+          showsVerticalScrollIndicator={false}
+          style={styles.decorateGrid}
+          testID="house-item-list"
+        >
+          <FixedGrid columns={3} testID="house-item-grid">
+            {view.ownedItems.map((item) => (
+              <View key={item.id} style={[styles.itemTile, styles.itemOwned]}>
+                <HouseArtView
+                  showPlaceholderLabel={false}
+                  showPlaceholderOutline={false}
+                  slot={houseItemArt[item.id]}
+                  style={styles.itemArt}
+                />
+                <Text style={styles.itemLabel}>{item.label}</Text>
+                <Text style={styles.itemOwnedLabel}>배치됨</Text>
               </View>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+            ))}
 
-      <Text style={styles.weekNote}>
-        가장 싼 물건은 바나나 {CHEAPEST_ITEM_COST}개예요.
-      </Text>
+            {view.lockedItems.map((item) => {
+              const affordable = view.bananas >= item.cost;
+              return (
+                <Pressable
+                  accessibilityLabel={`${item.label}, 바나나 ${item.cost}개`}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !affordable }}
+                  disabled={!affordable}
+                  key={item.id}
+                  onPress={() => onBuyItem(item.id)}
+                  style={[styles.itemTile, !affordable && styles.spent]}
+                  testID={`house-item-${item.id}`}
+                >
+                  <HouseArtView
+                    showPlaceholderLabel={false}
+                    showPlaceholderOutline={false}
+                    slot={houseItemArt[item.id]}
+                    style={styles.itemArt}
+                  />
+                  <Text style={styles.itemLabel}>{item.label}</Text>
+                  <View style={styles.itemCost}>
+                    <BananaGlyph size={12} />
+                    <Text style={styles.itemCostLabel}>{item.cost}</Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </FixedGrid>
+        </ScrollView>
+      )}
     </View>
   );
+}
+
+function FixedGrid({
+  children,
+  columns,
+  testID,
+}: {
+  children: ReactNode;
+  columns: number;
+  testID: string;
+}) {
+  const items = Children.toArray(children);
+  const rows: (typeof items)[] = [];
+  for (let index = 0; index < items.length; index += columns) {
+    rows.push(items.slice(index, index + columns));
+  }
+
+  return (
+    <View style={styles.fixedGrid} testID={testID}>
+      {rows.map((row, rowIndex) => (
+        <View
+          key={`${testID}-row-${rowIndex}`}
+          style={styles.fixedGridRow}
+          testID={`${testID}-row-${rowIndex}`}
+        >
+          {Array.from({ length: columns }, (_, columnIndex) => {
+            const child = row[columnIndex];
+            return (
+              <View
+                key={`${testID}-cell-${rowIndex}-${columnIndex}`}
+                pointerEvents={child === undefined ? 'none' : 'auto'}
+                style={styles.fixedGridCell}
+                testID={`${testID}-cell-${rowIndex}-${columnIndex}`}
+              >
+                {child}
+              </View>
+            );
+          })}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function DraggablePlacedItem({
+  canvasHeight,
+  canvasWidth,
+  editable,
+  itemId,
+  label,
+  onPlace,
+  placement,
+}: {
+  canvasHeight: number;
+  canvasWidth: number;
+  editable: boolean;
+  itemId: HouseItemId;
+  label: string;
+  onPlace: (itemId: HouseItemId, placement: HouseItemPlacement) => void;
+  placement: HouseItemPlacement;
+}) {
+  const [dragPlacement, setDragPlacement] = useState<HouseItemPlacement | null>(
+    null,
+  );
+  const livePlacementRef = useRef(placement);
+  const dragOrigin = useRef<{
+    pageX: number;
+    pageY: number;
+    placement: HouseItemPlacement;
+  } | null>(null);
+  const usableWidth = Math.max(0, canvasWidth - PLACED_ITEM_SIZE);
+  const usableHeight = Math.max(0, canvasHeight - PLACED_ITEM_SIZE);
+
+  const startDragging = (event: GestureResponderEvent) => {
+    livePlacementRef.current = placement;
+    dragOrigin.current = {
+      pageX: event.nativeEvent.pageX,
+      pageY: event.nativeEvent.pageY,
+      placement,
+    };
+  };
+  const continueDragging = (event: GestureResponderEvent) => {
+    const origin = dragOrigin.current;
+    if (origin === null || usableWidth <= 0 || usableHeight <= 0) return;
+    const next = {
+      x: clampUnit(
+        origin.placement.x +
+          (event.nativeEvent.pageX - origin.pageX) / usableWidth,
+      ),
+      y: clampUnit(
+        origin.placement.y +
+          (event.nativeEvent.pageY - origin.pageY) / usableHeight,
+      ),
+    };
+    livePlacementRef.current = next;
+    setDragPlacement(next);
+  };
+  const finishDragging = () => {
+    if (dragOrigin.current === null) return;
+    dragOrigin.current = null;
+    const next = livePlacementRef.current;
+    setDragPlacement(null);
+    onPlace(itemId, next);
+  };
+  const renderedPlacement = dragPlacement ?? placement;
+
+  return (
+    <View
+      accessibilityLabel={editable ? `${label}, 끌어서 위치 조정` : undefined}
+      accessibilityRole={editable ? 'adjustable' : undefined}
+      onMoveShouldSetResponder={() => editable}
+      onResponderGrant={startDragging}
+      onResponderMove={continueDragging}
+      onResponderRelease={finishDragging}
+      onResponderTerminate={finishDragging}
+      onResponderTerminationRequest={() => false}
+      onStartShouldSetResponder={() => editable}
+      onStartShouldSetResponderCapture={() => editable}
+      style={[
+        styles.placedItem,
+        {
+          left: renderedPlacement.x * usableWidth,
+          top: renderedPlacement.y * usableHeight,
+        },
+      ]}
+      testID={`house-placed-item-${itemId}`}
+    >
+      <HouseArtView
+        showPlaceholderLabel={false}
+        showPlaceholderOutline={false}
+        slot={houseItemArt[itemId]}
+        style={styles.placedItemArt}
+      />
+    </View>
+  );
+}
+
+function clampUnit(value: number): number {
+  return Math.min(1, Math.max(0, value));
 }
 
 /**
@@ -775,14 +1108,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   mascotSlot: {
-    position: 'relative',
-    height: 210,
+    position: 'absolute',
+    top: '45%',
+    right: 0,
+    left: 0,
+    height: HOUSE_MASCOT_SIZE,
     alignItems: 'center',
+    transform: [{ translateY: -HOUSE_MASCOT_SIZE / 2 }],
   },
   bubble: {
     position: 'absolute',
-    bottom:
-      34 + spacing.sm + HOUSE_MASCOT_SIZE + spacing.sm - HOUSE_MASCOT_Y_OFFSET,
+    bottom: HOUSE_MASCOT_SIZE + spacing.sm,
     maxWidth: 250,
     borderRadius: 18,
     backgroundColor: colors.surface,
@@ -811,65 +1147,26 @@ const styles = StyleSheet.create({
   },
   mascot: {
     position: 'absolute',
-    bottom: 34 + spacing.sm - HOUSE_MASCOT_Y_OFFSET,
+    top: 0,
     width: HOUSE_MASCOT_SIZE,
     height: HOUSE_MASCOT_SIZE,
   },
-  placedRow: {
+  decorationCanvas: {
     position: 'absolute',
+    top: 0,
     right: 0,
     bottom: 0,
     left: 0,
-    height: 34,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
   },
   placedItem: {
-    width: 34,
-    height: 34,
+    position: 'absolute',
+    width: PLACED_ITEM_SIZE,
+    height: PLACED_ITEM_SIZE,
+  },
+  placedItemArt: {
+    width: '100%',
+    height: '100%',
     borderRadius: radii.control,
-  },
-  feedbackSlot: {
-    height: 104,
-    justifyContent: 'center',
-  },
-  feedback: {
-    backgroundColor: colors.surface,
-  },
-  feedbackActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  retryButton: {
-    alignSelf: 'flex-start',
-    borderRadius: radii.control,
-    borderWidth: 1,
-    borderColor: colors.warningBorder,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  retryLabel: {
-    color: colors.warningText,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  dismissButton: {
-    alignSelf: 'flex-start',
-    borderRadius: radii.control,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    backgroundColor: 'rgba(255, 255, 255, 0.62)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  dismissLabel: {
-    color: colors.textSub,
-    fontSize: 12,
-    fontWeight: '700',
   },
   feedButton: {
     flexDirection: 'row',
@@ -913,6 +1210,7 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   actionArea: {
+    position: 'relative',
     gap: spacing.sm,
   },
   actionStack: {
@@ -984,6 +1282,31 @@ const styles = StyleSheet.create({
     minWidth: 0,
     gap: 2,
   },
+  decorateTabs: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    borderRadius: radii.control,
+    backgroundColor: colors.surfaceAlt,
+    padding: spacing.xs,
+  },
+  decorateTab: {
+    flex: 1,
+    alignItems: 'center',
+    borderRadius: radii.control,
+    paddingVertical: 6,
+  },
+  decorateTabSelected: {
+    backgroundColor: colors.surface,
+    ...shadows.card,
+  },
+  decorateTabLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  decorateTabLabelSelected: {
+    color: colors.brandOutline,
+  },
   closeButton: {
     borderRadius: radii.control,
     backgroundColor: colors.surfaceAlt,
@@ -995,13 +1318,42 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  itemGrid: {
+  decorateGridContent: {
+    width: '100%',
+  },
+  fixedGrid: {
+    width: '100%',
+    gap: DECORATE_GRID_GAP,
+  },
+  fixedGridRow: {
+    width: '100%',
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
+    gap: DECORATE_GRID_GAP,
+  },
+  fixedGridCell: {
+    flex: 1,
+    minWidth: 0,
+  },
+  backgroundTile: {
+    width: '100%',
+    gap: 3,
+    borderRadius: radii.control,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceAlt,
+    padding: spacing.xs,
+  },
+  backgroundTileSelected: {
+    borderColor: colors.greenBorder,
+    backgroundColor: colors.greenTint,
+  },
+  backgroundArt: {
+    width: '100%',
+    height: 62,
+    borderRadius: 9,
   },
   itemTile: {
-    width: 78,
+    width: '100%',
     alignItems: 'center',
     gap: 4,
     borderRadius: radii.control,

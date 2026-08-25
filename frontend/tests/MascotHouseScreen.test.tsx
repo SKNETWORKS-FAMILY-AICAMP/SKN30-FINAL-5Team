@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -12,13 +13,21 @@ import { imageAssets } from '../src/assets';
 import {
   HOUSE_BACKDROP_ZOOM,
   HOUSE_MASCOT_SIZE,
-  HOUSE_MASCOT_Y_OFFSET,
+  houseBackdropContinuationTop,
+  houseBackdropMinimumHeight,
   houseBackdropSize,
 } from '../src/features/house/MascotHouseContent';
-import { MascotHouseScreen } from '../src/features/house/MascotHouseScreen';
 import {
+  FEED_POSE_HOLD_MS,
+  MascotHouseScreen,
+} from '../src/features/house/MascotHouseScreen';
+import {
+  houseBananaPoseArt,
   housePoseArt,
+  houseRegularPoseArt,
   houseRoomArt,
+  randomHouseBananaPoseArt,
+  randomHouseRegularPoseArt,
 } from '../src/features/house/houseArtSlots';
 import {
   BANANA_REWARD,
@@ -140,9 +149,12 @@ describe('MascotHouseScreen', () => {
       expect(screen.getByText(`${BANANA_REWARD.completed}개`)).toBeTruthy(),
     );
     fireEvent.press(screen.getByTestId('house-decorate-action'));
+    fireEvent.press(screen.getByRole('tab', { name: '소품' }));
+    expect(screen.queryByText('가장 싼 소품은 바나나 20개예요.')).toBeNull();
     fireEvent.press(await screen.findByTestId('house-item-yoga_mat'));
 
-    expect(screen.getByText('요가 매트를 집에 놓았어요.')).toBeTruthy();
+    expect(screen.queryByTestId('house-feedback')).toBeNull();
+    expect(screen.queryByText('요가 매트를 집에 놓았어요.')).toBeNull();
     // Once in the room, once as an owned tile in the still-open panel.
     expect(screen.getAllByTestId('house-art-item-yoga_mat').length).toBe(2);
 
@@ -150,30 +162,151 @@ describe('MascotHouseScreen', () => {
     expect(screen.getAllByTestId('house-art-item-yoga_mat').length).toBe(1);
   });
 
-  it('keeps the house open when the week fails, and offers a retry', async () => {
+  it('uses scrolling responsive grids for backgrounds and decorations', async () => {
+    renderHouse(houseApi());
+
+    await screen.findByTestId('house-scene');
+    fireEvent.press(screen.getByTestId('house-decorate-action'));
+
+    expect(
+      screen.queryByText('배경은 바나나 없이 자유롭게 바꿀 수 있어요.'),
+    ).toBeNull();
+    const backgroundList = screen.getByTestId('house-background-list');
+    expect(backgroundList.props.horizontal).toBeFalsy();
+    expect(backgroundList.props.contentContainerStyle).toEqual(
+      expect.objectContaining({
+        width: '100%',
+      }),
+    );
+    expect(
+      screen.getByTestId('house-background-grid-row-0').props.children,
+    ).toHaveLength(2);
+    expect(
+      screen.getByTestId('house-background-grid-row-1').props.children,
+    ).toHaveLength(2);
+    expect(screen.getByTestId('house-background-morning_camp')).toHaveStyle({
+      width: '100%',
+    });
+
+    fireEvent.press(screen.getByRole('tab', { name: '소품' }));
+    const itemList = screen.getByTestId('house-item-list');
+
+    expect(itemList.props.contentContainerStyle).toEqual(
+      expect.objectContaining({
+        width: '100%',
+      }),
+    );
+    expect(
+      screen.getByTestId('house-item-grid-row-0').props.children,
+    ).toHaveLength(3);
+    expect(
+      screen.getByTestId('house-item-grid-row-1').props.children,
+    ).toHaveLength(3);
+    expect(
+      screen.getByTestId('house-item-grid-row-2').props.children,
+    ).toHaveLength(3);
+    expect(screen.getByTestId('house-item-yoga_mat')).toHaveStyle({
+      width: '100%',
+    });
+  });
+
+  it('allows drag placement only while 집 꾸미기 is open and persists it', async () => {
+    const { store } = renderHouse(houseApi());
+
+    await waitFor(() =>
+      expect(screen.getByText(`${BANANA_REWARD.completed}개`)).toBeTruthy(),
+    );
+    fireEvent.press(screen.getByTestId('house-decorate-action'));
+    fireEvent.press(screen.getByRole('tab', { name: '소품' }));
+    fireEvent.press(screen.getByTestId('house-item-yoga_mat'));
+    fireEvent(screen.getByTestId('house-decoration-canvas'), 'layout', {
+      nativeEvent: { layout: { height: 844, width: 390, x: 0, y: 0 } },
+    });
+
+    const placed = screen.getByTestId('house-placed-item-yoga_mat');
+    expect(
+      screen.getByTestId('house-decoration-canvas').props.pointerEvents,
+    ).toBe('box-none');
+    expect(placed.props.onStartShouldSetResponder()).toBe(true);
+    expect(screen.getAllByTestId('house-art-item-yoga_mat')[0]).toHaveStyle({
+      borderWidth: 0,
+    });
+
+    fireEvent(placed, 'responderGrant', {
+      nativeEvent: { pageX: 100, pageY: 100 },
+    });
+    fireEvent(placed, 'responderMove', {
+      nativeEvent: { pageX: 150, pageY: 180 },
+    });
+    fireEvent(placed, 'responderRelease');
+
+    await waitFor(async () =>
+      expect((await store.read())?.itemPlacements.yoga_mat).toEqual({
+        x: 0.24 + 50 / (390 - 44),
+        y: 0.57 + 80 / (844 - 44),
+      }),
+    );
+
+    fireEvent.press(screen.getByLabelText('집 꾸미기 닫기'));
+    expect(
+      screen.getByTestId('house-decoration-canvas').props.pointerEvents,
+    ).toBe('none');
+    expect(
+      screen
+        .getByTestId('house-placed-item-yoga_mat')
+        .props.onStartShouldSetResponder(),
+    ).toBe(false);
+  });
+
+  it('lists background candidates and persists the selected room', async () => {
+    const { store } = renderHouse(houseApi({ sessions: [] }));
+
+    await screen.findByTestId('house-scene');
+    fireEvent.press(screen.getByTestId('house-decorate-action'));
+
+    expect(
+      screen.getByRole('tab', { name: '배경' }).props.accessibilityState,
+    ).toEqual({ selected: true });
+    expect(screen.getByTestId('house-background-morning_camp')).toBeTruthy();
+    expect(screen.getByTestId('house-background-dinner_camp')).toBeTruthy();
+    expect(
+      screen.getByTestId('house-background-indoor_treehouse'),
+    ).toBeTruthy();
+    expect(screen.getByTestId('house-background-snowing_onsen')).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId('house-background-snowing_onsen'));
+
+    expect(screen.queryByTestId('house-feedback')).toBeNull();
+    expect(screen.queryByText('집 배경을 바꿨어요.')).toBeNull();
+    expect(
+      screen.getByTestId('house-background-snowing_onsen').props
+        .accessibilityState,
+    ).toEqual({ disabled: true, selected: true });
+    await waitFor(async () =>
+      expect((await store.read())?.selectedBackgroundId).toBe('snowing_onsen'),
+    );
+
+    fireEvent.press(screen.getByLabelText('집 꾸미기 닫기'));
+    expect(
+      screen.getByLabelText('끼끼의 눈 내리는 온천 배경').props.source,
+    ).toBe(imageAssets.houseSnowingOnsenBackground);
+
+    fireEvent.press(screen.getByTestId('house-decorate-action'));
+    expect(
+      screen.getByTestId('house-background-snowing_onsen').props
+        .accessibilityState,
+    ).toEqual({ disabled: true, selected: true });
+  });
+
+  it('keeps the house open without showing a transient notice when the week fails', async () => {
     const api = houseApi({ weekError: true });
     renderHouse(api);
 
     expect(await screen.findByTestId('house-scene')).toBeTruthy();
     expect(screen.getByText('목표를 불러오지 못했어요')).toBeTruthy();
-
-    fireEvent.press(screen.getByLabelText('다시 시도'));
-    await waitFor(() => expect(api.getWeek).toHaveBeenCalledTimes(2));
-  });
-
-  it('lets the user close the week-load warning', async () => {
-    renderHouse(houseApi({ sessions: [], weekError: true }));
-
-    await screen.findByText(
-      '이번 주 목표를 불러오지 못했어요. 집은 그대로 있어요.',
-    );
-    fireEvent.press(screen.getByLabelText('알림 닫기'));
-
     expect(screen.queryByTestId('house-feedback')).toBeNull();
-    expect(screen.getByTestId('house-feedback-slot')).toHaveStyle({
-      height: 104,
-    });
-    expect(screen.getByTestId('house-scene')).toBeTruthy();
+    expect(screen.queryByLabelText('다시 시도')).toBeNull();
+    expect(api.getWeek).toHaveBeenCalledTimes(1);
   });
 
   it('fills the screen with the scene instead of framing it in a card', async () => {
@@ -183,9 +316,9 @@ describe('MascotHouseScreen', () => {
     expect(scene).toBeTruthy();
     // The backdrop is a sibling that fills the screen, not a child of the
     // stage, so it runs under the top bar and behind the tab bar.
-    const backdrop = screen.getByLabelText('끼끼의 캠핑장 저녁 배경');
+    const backdrop = screen.getByLabelText('끼끼의 캠핑장 아침 배경');
     expect(backdrop.props.source).toBe(
-      imageAssets.houseCampingDinnerBackground,
+      imageAssets.houseCampingMorningBackground,
     );
     expect(backdrop.props.resizeMode).toBe('cover');
     expect(screen.getByTestId('house-backdrop')).toHaveStyle({
@@ -216,13 +349,109 @@ describe('MascotHouseScreen', () => {
     expect(wide.height).toBeCloseTo(257.4, 1);
   });
 
+  it('crossfades before a short image ends and follows later image resizing', () => {
+    expect(houseBackdropContinuationTop(700, 844, 526)).toBe(522);
+    expect(houseBackdropContinuationTop(422, 844, 526)).toBe(374);
+    expect(houseBackdropContinuationTop(422, 844, null)).toBe(374);
+    expect(houseBackdropContinuationTop(422, 844, 0)).toBe(374);
+    expect(houseBackdropContinuationTop(470, 844, 526)).toBe(422);
+  });
+
+  it('grows a portrait backdrop just enough to reach the control boundary', () => {
+    const minimumHeight = houseBackdropMinimumHeight(844, 526);
+    const art = houseBackdropSize(390, 844, 1312, 1199, minimumHeight);
+
+    expect(minimumHeight).toBe(570);
+    expect(art.height).toBe(570);
+    expect(art.width / art.height).toBeCloseTo(1312 / 1199);
+    expect(houseBackdropContinuationTop(art.height, 844, 526)).toBe(522);
+  });
+
+  it('derives the blur boundary from shared relative layout coordinates', async () => {
+    renderHouse(houseApi({ sessions: [] }));
+
+    await screen.findByTestId('house-scene');
+    fireEvent(screen.getByTestId('house-content-column'), 'layout', {
+      nativeEvent: { layout: { height: 760, width: 390, x: 0, y: 40 } },
+    });
+    fireEvent(screen.getByTestId('house-action-area'), 'layout', {
+      nativeEvent: { layout: { height: 250, width: 358, x: 16, y: 80 } },
+    });
+    fireEvent(screen.getByTestId('house-week-panel'), 'layout', {
+      nativeEvent: { layout: { height: 130, width: 358, x: 0, y: 200 } },
+    });
+
+    expect(screen.getByTestId('house-backdrop-continuation')).toHaveStyle({
+      top: 316,
+    });
+  });
+
   it('uses the selected monkey artwork for every temporary house pose', () => {
-    expect(houseRoomArt.source).toBe(imageAssets.houseCampingDinnerBackground);
+    expect(houseRoomArt.source).toBe(imageAssets.houseCampingMorningBackground);
     expect(
       Object.values(housePoseArt).every(
         (slot) => slot.source === imageAssets.houseMascotMonkey01,
       ),
     ).toBe(true);
+  });
+
+  it('registers every banana mascot and can select the full random range', () => {
+    expect(houseBananaPoseArt.map((slot) => slot.source)).toEqual([
+      imageAssets.houseMascotBananaSheet01Monkey07,
+      imageAssets.houseMascotBananaSheet01Monkey08,
+      imageAssets.houseMascotBananaSheet02Monkey05,
+      imageAssets.houseMascotBananaSheet02Monkey13,
+      imageAssets.houseMascotBananaSheet02Monkey20,
+      imageAssets.houseMascotBananaSheet02Monkey22,
+    ]);
+    expect(randomHouseBananaPoseArt(null, () => 0)).toBe(houseBananaPoseArt[0]);
+    expect(randomHouseBananaPoseArt(null, () => 0.999999)).toBe(
+      houseBananaPoseArt[houseBananaPoseArt.length - 1],
+    );
+  });
+
+  it('registers only normal monkey poses for the post-feed random range', () => {
+    expect(houseRegularPoseArt).toHaveLength(41);
+    expect(houseRegularPoseArt.every((slot) => slot.id === 'pose-random')).toBe(
+      true,
+    );
+    expect(randomHouseRegularPoseArt(null, () => 0)).toBe(
+      houseRegularPoseArt[0],
+    );
+    expect(randomHouseRegularPoseArt(null, () => 0.999999)).toBe(
+      houseRegularPoseArt[houseRegularPoseArt.length - 1],
+    );
+  });
+
+  it('keeps the banana pose for 5.6 seconds, then settles on a normal pose', async () => {
+    renderHouse(houseApi());
+
+    await waitFor(() =>
+      expect(screen.getByText(`${BANANA_REWARD.completed}개`)).toBeTruthy(),
+    );
+    const random = jest.spyOn(Math, 'random').mockReturnValue(0);
+    jest.useFakeTimers();
+
+    try {
+      fireEvent.press(screen.getByTestId('house-feed-action'));
+
+      expect(FEED_POSE_HOLD_MS).toBe(5600);
+      expect(screen.getByLabelText('바나나를 먹는 끼끼').props.source).toBe(
+        houseBananaPoseArt[0]?.source,
+      );
+
+      act(() => jest.advanceTimersByTime(FEED_POSE_HOLD_MS - 1));
+      expect(screen.getByLabelText('바나나를 먹는 끼끼')).toBeTruthy();
+
+      act(() => jest.advanceTimersByTime(1));
+      expect(screen.queryByLabelText('바나나를 먹는 끼끼')).toBeNull();
+      expect(screen.getByLabelText('다른 모습의 끼끼').props.source).toBe(
+        houseRegularPoseArt[0]?.source,
+      );
+    } finally {
+      jest.useRealTimers();
+      random.mockRestore();
+    }
   });
 
   it('renders the house mascot at 75 percent of its former size', async () => {
@@ -233,42 +462,39 @@ describe('MascotHouseScreen', () => {
     expect(mascot).toHaveStyle({ width: 111, height: 111 });
   });
 
-  it('keeps the mascot layout fixed while feedback opens and closes', async () => {
+  it('keeps the centered mascot stable and never renders interaction notices', async () => {
     renderHouse(houseApi());
 
     const initialMascot = await screen.findByTestId('house-art-pose-greeting');
     const mascotSlot = screen.getByTestId('house-mascot-slot');
-    const feedbackSlot = await screen.findByTestId('house-feedback-slot');
-    await screen.findByTestId('house-feedback');
 
-    expect(mascotSlot).toHaveStyle({ height: 210 });
-    expect(HOUSE_MASCOT_Y_OFFSET).toBe(24);
+    expect(mascotSlot).toHaveStyle({
+      position: 'absolute',
+      top: '45%',
+      height: 111,
+      transform: [{ translateY: -55.5 }],
+    });
     expect(initialMascot).toHaveStyle({
-      bottom: 18,
+      top: 0,
       width: 111,
       height: 111,
     });
-    expect(feedbackSlot).toHaveStyle({ height: 104 });
-
-    fireEvent.press(screen.getByLabelText('알림 닫기'));
+    expect(screen.queryByTestId('house-feedback-slot')).toBeNull();
     expect(screen.queryByTestId('house-feedback')).toBeNull();
-    expect(screen.getByTestId('house-feedback-slot')).toHaveStyle({
-      height: 104,
-    });
+    expect(screen.queryByTestId('house-feedback-overlay')).toBeNull();
 
     fireEvent.press(screen.getByTestId('house-feed-action'));
     expect(screen.getByTestId('house-art-pose-eating')).toHaveStyle({
-      bottom: 18,
+      top: 0,
       width: 111,
       height: 111,
     });
-    expect(screen.getByText('끼끼가 맛있게 먹었어요.')).toBeTruthy();
-
-    fireEvent.press(screen.getByTestId('house-feedback-dismiss'));
+    expect(houseBananaPoseArt.map((slot) => slot.source)).toContain(
+      screen.getByLabelText('바나나를 먹는 끼끼').props.source,
+    );
+    expect(screen.queryByText('끼끼가 맛있게 먹었어요.')).toBeNull();
     expect(screen.queryByTestId('house-feedback')).toBeNull();
-    expect(screen.getByTestId('house-feedback-slot')).toHaveStyle({
-      height: 104,
-    });
+    expect(screen.queryByTestId('house-feedback-overlay')).toBeNull();
   });
 
   it('uses translucent surfaces for every top control', async () => {

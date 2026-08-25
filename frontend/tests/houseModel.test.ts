@@ -3,6 +3,7 @@ import { describe, expect, it } from '@jest/globals';
 import type { WeekResponse, WorkoutSessionLogSummary } from '../src/api/types';
 import {
   BANANA_REWARD,
+  DEFAULT_HOUSE_BACKGROUND_ID,
   DAILY_GIFT_BANANAS,
   HOUSE_ACTION_COST,
   buildHouseView,
@@ -13,8 +14,10 @@ import {
   grantWorkoutRewards,
   parseHouseState,
   petMascot,
+  placeHouseItem,
   registerVisit,
   restingPose,
+  selectBackground,
   type HouseState,
 } from '../src/features/house/houseModel';
 
@@ -145,7 +148,30 @@ describe('spending', () => {
     const bought = buyItem(rich, 'yoga_mat');
     expect(bought?.bananas).toBe(30);
     expect(bought?.ownedItemIds).toEqual(['yoga_mat']);
+    expect(bought?.itemPlacements.yoga_mat).toEqual({ x: 0.24, y: 0.57 });
     expect(buyItem(bought ?? rich, 'yoga_mat')).toBeNull();
+  });
+
+  it('stores normalized positions only for purchased items', () => {
+    const rich = stateWith({ bananas: 50 });
+    const bought = buyItem(rich, 'yoga_mat') ?? rich;
+
+    expect(placeHouseItem(rich, 'yoga_mat', { x: 0.4, y: 0.5 })).toBeNull();
+    const placed = placeHouseItem(bought, 'yoga_mat', { x: 1.4, y: -0.2 });
+
+    expect(placed?.itemPlacements.yoga_mat).toEqual({ x: 1, y: 0 });
+  });
+});
+
+describe('background selection', () => {
+  it('changes the background without spending bananas', () => {
+    const state = stateWith({ bananas: 12 });
+
+    const selected = selectBackground(state, 'dinner_camp');
+
+    expect(selected.selectedBackgroundId).toBe('dinner_camp');
+    expect(selected.bananas).toBe(12);
+    expect(selectBackground(selected, 'dinner_camp')).toBe(selected);
   });
 });
 
@@ -224,5 +250,36 @@ describe('stored state', () => {
     });
     expect(cleaned?.bananas).toBe(0);
     expect(cleaned?.ownedItemIds).toEqual(['plant']);
+  });
+
+  it('defaults legacy or unknown background values without resetting the house', () => {
+    const legacy = { ...createHouseState() } as Record<string, unknown>;
+    delete legacy.selectedBackgroundId;
+
+    expect(parseHouseState(legacy)?.selectedBackgroundId).toBe(
+      DEFAULT_HOUSE_BACKGROUND_ID,
+    );
+    expect(
+      parseHouseState({
+        ...createHouseState(),
+        selectedBackgroundId: 'unknown-room',
+      })?.selectedBackgroundId,
+    ).toBe(DEFAULT_HOUSE_BACKGROUND_ID);
+  });
+
+  it('keeps valid stored positions and discards malformed placement data', () => {
+    const parsed = parseHouseState({
+      ...createHouseState(),
+      ownedItemIds: ['yoga_mat', 'plant'],
+      itemPlacements: {
+        yoga_mat: { x: 0.35, y: 0.65 },
+        plant: { x: 'left', y: 0.4 },
+        spaceship: { x: 0.1, y: 0.2 },
+      },
+    });
+
+    expect(parsed?.itemPlacements).toEqual({
+      yoga_mat: { x: 0.35, y: 0.65 },
+    });
   });
 });

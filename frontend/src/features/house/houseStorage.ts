@@ -7,9 +7,9 @@
  * `localStorage`, and every other platform keeps the state for the lifetime
  * of the process until a real store exists.
  *
- * Only the banana count, owned decoration ids, rewarded session ids and local
- * dates are written. Tokens, identifiers and health records must never reach
- * this module.
+ * Only the banana count, selected background id, owned decoration ids,
+ * rewarded session ids and local dates are written. Tokens, identifiers and
+ * health records must never reach this module.
  */
 
 import {
