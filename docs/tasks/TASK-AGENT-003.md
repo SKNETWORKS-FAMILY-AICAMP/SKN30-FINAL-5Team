@@ -238,6 +238,9 @@ additive하게 도입한다. 온보딩 점수는 별도
   round-trip·rollback 검증 완료, production write는 비활성
 - V3-B2: backend regeneration application orchestration과 API boundary 구현 완료. production graph
   activation과 frontend는 후속 작업
-- V3-C1: synthetic/offline·staging shadow harness와 provider composition 구현 완료. 실제 shadow 결과
-  수집, golden metric report, expert review, latency·cost 승격 판단은 미수행
+- V3-C1 (`COMPLETE`, synthetic/offline 구현 범위): staging shadow runner/provider composition, 20-case
+  golden fixture, 저장된 shadow result 전용 metric, safety hard gate, V1/V3 비교, privacy allowlist,
+  expert review template과 deterministic report CLI 구현 완료.
+  실제 사용자/provider shadow 실행, 완료된 전문가 검토, 승인 pricing 자료와 latency·cost·fallback
+  threshold 결정은 포함하지 않으며 production 활성화 근거가 아님
 - V3-C2: 기준 충족 후 ADR-0013에 따른 production graph 전환 승인 검토

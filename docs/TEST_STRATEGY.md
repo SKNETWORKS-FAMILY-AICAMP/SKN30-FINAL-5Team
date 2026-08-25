@@ -339,6 +339,13 @@ fresh LLM inference의 byte-identical 결과는 재현성 기준이 아니다. �
 deterministic fallback율, expert agreement, safety invariant 100%, p50/p95 latency와 decision당 비용을
 V1 shadow 결과와 비교한다.
 
+V3-C1의 offline harness는 `backend/app/modules/decisions/v3_evaluation.py`와 versioned synthetic fixture
+20개를 사용한다. 기본 CLI는 저장된 `V3ShadowExecutionResult`만 읽어 provider를 0회 호출하며 결과·요약·
+전문가 검토 template·manifest를 생성한다. 명시적 safety/constraint violation만 hard gate이고 latency,
+cost, fallback, structured-output, review/repair와 expert agreement threshold는 V3-C2 승인 전 report-only다.
+전문가 검토가 없거나 token/pricing 근거가 불완전하면 0으로 대체하지 않고 `NOT_REVIEWED` 또는 `null`로
+남긴다. 상세 실행·report schema와 해석 기준은 `docs/runbooks/v3-shadow-evaluation.md`를 따른다.
+
 regeneration fixture는 원본과 최대 두 개의 child run, idempotency key, 이전/new plan hash와 meaningful
 difference code를 포함한다. stale TTL·version mismatch, exact duplicate, 대안 없음과 concurrent sequence
 충돌을 각각 검증한다.
