@@ -2,10 +2,11 @@ from datetime import datetime
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 from backend.app.modules.catalog.codes import (
     BodyAreaCode,
+    BodyAreaRoleCode,
     BodyFocusCode,
     CatalogReviewStatusCode,
     CatalogVersionStatusCode,
@@ -18,6 +19,7 @@ from backend.app.modules.catalog.codes import (
     SourceTrackCode,
     TimingModeCode,
     TrainingTypeCode,
+    normalize_v2_equipment_code,
 )
 
 Sha256 = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
@@ -108,6 +110,20 @@ class ExerciseRecord(CatalogInputModel):
     review_status_code: CatalogReviewStatusCode
     source_track: SourceTrackCode
     source_identity: Annotated[str, Field(min_length=1, max_length=255)]
+
+    @field_validator("equipment_codes", mode="before")
+    @classmethod
+    def normalize_v2_equipment_codes(
+        cls,
+        value: object,
+        info: ValidationInfo,
+    ) -> object:
+        context = info.context if isinstance(info.context, dict) else {}
+        if not context.get("v2_import"):
+            return value
+        if not isinstance(value, list):
+            return value
+        return [normalize_v2_equipment_code(code) for code in value]
 
     @field_validator("source_track")
     @classmethod
@@ -216,7 +232,7 @@ class SafetyRuleManifest(DerivedArtifactManifest):
 
 class ExerciseSafetyRuleRecord(CatalogInputModel):
     body_area_code: BodyAreaCode
-    body_part_role_code: Literal["PRIMARY", "SECONDARY"]
+    body_part_role_code: BodyAreaRoleCode
     catalog_version_code: Annotated[str, Field(min_length=1, max_length=120)]
     effect_code: Literal["EXCLUDE", "CAUTION"]
     exercise_stable_code: StableCode | None
@@ -236,6 +252,9 @@ class ExerciseSafetyRuleRecord(CatalogInputModel):
             valid = self.exercise_stable_code is None and self.movement_pattern_code is not None
         if not valid:
             raise ValueError("safety rule must target exactly the declared scope")
+        severity_rank = {"MILD": 1, "MODERATE": 2, "SEVERE": 3}
+        if severity_rank[self.minimum_severity_code] > severity_rank[self.maximum_severity_code]:
+            raise ValueError("minimum severity must not exceed maximum severity")
         return self
 
 
@@ -269,6 +288,13 @@ class ExerciseAlternativeRecord(CatalogInputModel):
     def validate_timezone_aware_created_at(cls, value: datetime) -> datetime:
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("created_at must include timezone information")
+        return value
+
+    @field_validator("goal_preservation_code")
+    @classmethod
+    def reject_runtime_downshift_as_goal(cls, value: str) -> str:
+        if value == "INTENSITY_REDUCED":
+            raise ValueError("INTENSITY_REDUCED is a runtime downshift, not a preserved goal")
         return value
 
 

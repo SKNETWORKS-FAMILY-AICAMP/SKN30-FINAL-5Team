@@ -10,7 +10,12 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
-from backend.app.modules.catalog.codes import APPROVED_TAXONOMY_REGISTRY_SHA256
+from backend.app.modules.catalog.codes import (
+    APPROVED_TAXONOMY_REGISTRY_SHA256,
+    EquipmentCode,
+    MovementPatternCode,
+    SourceTrackCode,
+)
 from backend.app.modules.catalog.schemas import ExerciseRecord
 from backend.app.modules.catalog.service import (
     CatalogArtifact,
@@ -154,6 +159,96 @@ def test_exercise_record_rejects_merged_as_item_provenance() -> None:
 
     with pytest.raises(ValidationError, match="original source track"):
         ExerciseRecord.model_validate(record)
+
+
+def test_v2_code_sets_include_new_source_patterns_and_equipment() -> None:
+    assert SourceTrackCode("gymvisual") is SourceTrackCode.GYMVISUAL
+    assert {
+        "BALANCE",
+        "CYCLING",
+        "ELLIPTICAL",
+        "JUMP_PLYOMETRIC",
+    } <= {code.value for code in MovementPatternCode}
+    assert {
+        "EZ_BAR",
+        "STRETCH_STRAP",
+        "ELLIPTICAL_MACHINE",
+        "JUMP_ROPE",
+        "FOAM_ROLLER",
+        "STATIONARY_BIKE",
+        "STEP_BOX",
+    } <= {code.value for code in EquipmentCode}
+
+
+@pytest.mark.parametrize(
+    ("raw_code", "expected"),
+    [
+        ("CABLE", EquipmentCode.CABLE_MACHINE),
+        ("CABLE|MACHINE", EquipmentCode.CABLE_MACHINE),
+        ("BAND", EquipmentCode.RESISTANCE_BAND),
+        ("ROPE", EquipmentCode.STRETCH_STRAP),
+        ("ROLLER", EquipmentCode.FOAM_ROLLER),
+        ("WEIGHTED", EquipmentCode.HOUSEHOLD_WEIGHT),
+    ],
+)
+def test_v2_import_normalizes_equipment_aliases(
+    tmp_path: Path,
+    raw_code: str,
+    expected: EquipmentCode,
+) -> None:
+    record = _exercise_record()
+    record["equipment_codes"] = [raw_code]
+
+    artifact = load_catalog_artifact(
+        _write_artifact(tmp_path / "artifact", records=[record]),
+        v2_import=True,
+        v2_taxonomy_registry_sha256=APPROVED_TAXONOMY_REGISTRY_SHA256,
+    )
+
+    assert artifact.records[0].equipment_codes == [expected]
+
+
+@pytest.mark.parametrize("legacy_code", ["BENCH", "CHAIR"])
+def test_v2_import_rejects_legacy_equipment_but_v1_remains_readable(
+    tmp_path: Path,
+    legacy_code: str,
+) -> None:
+    record = _exercise_record()
+    record["equipment_codes"] = [legacy_code]
+    root = _write_artifact(tmp_path / "artifact", records=[record])
+
+    assert load_catalog_artifact(root).records[0].equipment_codes == [EquipmentCode(legacy_code)]
+    with pytest.raises(CatalogImportError) as exc_info:
+        load_catalog_artifact(
+            root,
+            v2_import=True,
+            v2_taxonomy_registry_sha256=APPROVED_TAXONOMY_REGISTRY_SHA256,
+        )
+
+    assert exc_info.value.code == "EXERCISE_RECORD_INVALID"
+
+
+def test_v2_import_rejects_duplicates_created_by_normalization(tmp_path: Path) -> None:
+    record = _exercise_record()
+    record["equipment_codes"] = ["CABLE", "CABLE_MACHINE"]
+
+    with pytest.raises(CatalogImportError) as exc_info:
+        load_catalog_artifact(
+            _write_artifact(tmp_path / "artifact", records=[record]),
+            v2_import=True,
+            v2_taxonomy_registry_sha256=APPROVED_TAXONOMY_REGISTRY_SHA256,
+        )
+
+    assert exc_info.value.code == "EXERCISE_RECORD_INVALID"
+
+
+def test_v2_import_requires_explicitly_approved_taxonomy_hash(tmp_path: Path) -> None:
+    root = _write_artifact(tmp_path / "artifact")
+
+    with pytest.raises(CatalogImportError) as exc_info:
+        load_catalog_artifact(root, v2_import=True)
+
+    assert exc_info.value.code == "V2_TAXONOMY_REGISTRY_NOT_CONFIGURED"
 
 
 def test_rejects_tampered_file_hash(tmp_path: Path) -> None:
