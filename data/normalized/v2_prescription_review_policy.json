@@ -1,0 +1,85 @@
+{
+  "schema_version": "1.0",
+  "policy_version": "v2-prescription-review-policy-2026-08-25",
+  "status": "DRAFT",
+  "production_eligible": false,
+  "goal_code": "GENERAL_FITNESS",
+  "experience_level_code": "BEGINNER",
+  "review_status_code": "DOMAIN_APPROVED",
+  "reviewer_role_code": "DOMAIN_REVIEWER",
+  "reviewer_reference": "V2-PRESCRIPTION-REVIEW-CANDIDATE-2026-08-25",
+  "evidence_reference": "validation/review_results/v2_prescription_review_input.csv",
+  "reviewed_at": "2026-08-25T00:00:00+09:00",
+  "prescription_version": "v2.0.0-draft",
+  "role_eligibility_by_movement_pattern": {
+    "CORE": [
+      "BALANCE",
+      "CYCLING",
+      "ELLIPTICAL",
+      "GAIT",
+      "HIP_DOMINANT",
+      "HORIZONTAL_PULL",
+      "HORIZONTAL_PUSH",
+      "JUMP_PLYOMETRIC",
+      "KNEE_DOMINANT",
+      "CORE_BRACE",
+      "VERTICAL_PULL",
+      "VERTICAL_PUSH"
+    ],
+    "SUPPORT": ["ISOLATION", "KNEE_FLEXION", "MOBILITY_STRETCH"],
+    "OPTIONAL": []
+  },
+  "prescription_by_training_type": {
+    "MOBILITY": {
+      "phases": [
+        {
+          "phase_code": "WARMUP",
+          "sets": 1,
+          "work_seconds_per_set": 60,
+          "rest_seconds_per_set": 0,
+          "intensity_code": "LOW"
+        },
+        {
+          "phase_code": "COOLDOWN",
+          "sets": 1,
+          "work_seconds_per_set": 45,
+          "rest_seconds_per_set": 0,
+          "intensity_code": "LOW"
+        }
+      ]
+    },
+    "STRENGTH": {"timing_mode_policy": "BY_CATALOG_TIMING_MODE"},
+    "CARDIO": {"timing_mode_policy": "BY_CATALOG_TIMING_MODE"}
+  },
+  "prescription_by_timing_mode": {
+    "REPS": {
+      "phases": [
+        {
+          "phase_code": "MAIN",
+          "sets": 2,
+          "reps": 8,
+          "rest_seconds_per_set": 45,
+          "intensity_code": "MODERATE"
+        }
+      ]
+    },
+    "DURATION": {
+      "phases": [
+        {
+          "phase_code": "MAIN",
+          "sets": 1,
+          "work_seconds_per_set": 60,
+          "rest_seconds_per_set": 0,
+          "intensity_code": "LOW"
+        }
+      ]
+    }
+  },
+  "guards": [
+    "goal_and_prescription_values_are_review_input_candidates",
+    "do_not_reuse_legacy_prescription_artifacts",
+    "do_not_assign_production_eligibility",
+    "catalog_stable_code_is_the_only_foreign_key",
+    "timing_mode_must_match_the_authored_value"
+  ]
+}

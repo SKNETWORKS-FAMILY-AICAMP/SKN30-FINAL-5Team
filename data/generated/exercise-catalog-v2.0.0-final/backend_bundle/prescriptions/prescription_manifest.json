@@ -1,0 +1,52 @@
+{
+  "files": [
+    {
+      "bytes": 24077,
+      "path": "goal_tag_links.jsonl",
+      "records": 102,
+      "sha256": "a601bd9b4d07ebece04a49a03d54f49210ed4c24bf3daa186594bbe1967b22da"
+    },
+    {
+      "bytes": 56211,
+      "path": "prescription_profiles.jsonl",
+      "records": 137,
+      "sha256": "da5574703f3ecf1ef9512a5ea71eb58b0a802527bf3a0824d81e9b97406f99b4"
+    }
+  ],
+  "generator_version": "v2-backend-bundle-packager-1.0.0",
+  "prescription_set_version": {
+    "status_code": "DRAFT",
+    "version_code": "prescription-set-v2.0.0"
+  },
+  "review": {
+    "production_eligible": false,
+    "review_method_code": "AGENT_ONLY",
+    "status": "DOMAIN_APPROVED",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
+  },
+  "schema_version": "1.0",
+  "source": {
+    "catalog_version_code": "exercise-catalog-v2.0.0-final",
+    "input_artifacts": [
+      {
+        "bytes": 39108,
+        "path": "input/v2_prescription_review_input.csv",
+        "role": "prescription_review_input",
+        "sha256": "0107d6d626932a0a8ea15586f3da430308a0e2ec49228f335b3ff3e55404a563"
+      },
+      {
+        "bytes": 2318,
+        "path": "input/v2_prescription_review_policy.json",
+        "role": "prescription_policy",
+        "sha256": "33bc60af3dc070c0b65f61fbd715d8fc31f4d5ad6f6cf65e0a3202357624e2b9"
+      }
+    ],
+    "source_prescription_manifest_path": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/generated/exercise-prescriptions-v2.0.0-draft/prescription_manifest.json",
+    "source_prescription_manifest_sha256": "5b12f7b5205a9c328bac0722a6c84af0c4b8e695d5f1bea6fcdf9c7b46508b63"
+  },
+  "summary": {
+    "exercise_records": 102,
+    "goal_tag_records": 102,
+    "prescription_records": 137
+  }
+}

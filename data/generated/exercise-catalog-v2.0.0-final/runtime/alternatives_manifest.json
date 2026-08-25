@@ -1,20 +1,20 @@
 {
   "alternative_set_version": {
-    "status_code": "ACTIVE",
+    "status_code": "DRAFT",
     "version_code": "alternative-set-v2.0.0"
   },
   "files": [
     {
-      "bytes": 120183,
+      "bytes": 347775,
       "path": "alternatives.jsonl",
-      "records": 116,
-      "sha256": "beef016efffe57e63ec87191e976145241deee1543b07196c949ca098b690cdc"
+      "records": 285,
+      "sha256": "8f80ccead081761109561723c1abfb707ecae99ff826a2db55ef5c35f78225f7"
     }
   ],
   "generator_version": "v2-runtime-materializer-1.0.0",
   "review": {
     "production_eligible": false,
-    "review_method_code": "DOMAIN_REVIEWER",
+    "review_method_code": "AGENT_ONLY",
     "status": "DOMAIN_APPROVED",
     "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
   },
@@ -22,10 +22,10 @@
   "source": {
     "input_artifacts": [
       {
-        "bytes": 121682,
+        "bytes": 118909,
         "path": "generated/exercise-catalog-v2.0.0-final/representative_exercises_v2_final.csv",
         "role": "representative_csv",
-        "sha256": "d42b7f53b7c0005afec245a910ac345d5245771f2f94ee658d804f1ee34f1370"
+        "sha256": "a4a46273622addb95936d3f86dff1a8b8ccccca058af5f1088325beabec3c4be"
       }
     ],
     "review_batch_directory": "data/reports",
@@ -33,7 +33,7 @@
     "track": "merged"
   },
   "summary": {
-    "alternative_records": 116,
+    "alternative_records": 285,
     "exercise_records": null,
     "exercise_scope_rules": null,
     "pattern_scope_rules": null,

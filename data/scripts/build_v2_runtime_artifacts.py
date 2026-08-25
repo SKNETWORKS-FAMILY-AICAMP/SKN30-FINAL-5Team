@@ -20,13 +20,10 @@ if str(PROJECT_ROOT) not in sys.path:
 from backend.app.modules.catalog.schemas import (  # noqa: E402
     AlternativeManifest,
     CatalogManifest,
-    DerivedArtifactVersion,
     ExerciseAlternativeRecord,
     ExerciseRecord,
     ExerciseSafetyRuleRecord,
-    ManifestCatalogVersion,
     ManifestFile,
-    ManifestReview,
     SafetyRuleManifest,
 )
 
@@ -51,7 +48,7 @@ class RuntimeArtifactError(ValueError):
 
 
 class V2BodyFocusCode(StrEnum):
-    """Reviewed V2 data codes awaiting the separate backend code-set migration."""
+    """V2 reviewed body-focus values; backend projection is a separate packaging step."""
 
     CHEST = "CHEST"
     BACK = "BACK"
@@ -73,78 +70,11 @@ class V2ReviewMethodCode(StrEnum):
     DOMAIN_REVIEWER = "DOMAIN_REVIEWER"
 
 
-class V2CatalogVersionStatusCode(StrEnum):
-    ACTIVE = "ACTIVE"
-
-
-class V2ManifestCatalogVersion(ManifestCatalogVersion):
-    status_code: V2CatalogVersionStatusCode  # type: ignore[assignment]
-
-
-class V2DerivedArtifactVersion(DerivedArtifactVersion):
-    status_code: V2CatalogVersionStatusCode  # type: ignore[assignment]
-
-
-class V2ManifestReview(ManifestReview):
-    review_method_code: V2ReviewMethodCode  # type: ignore[assignment]
-
-
-V2ManifestCatalogVersion.model_rebuild(
-    _types_namespace={"V2CatalogVersionStatusCode": V2CatalogVersionStatusCode}
-)
-V2DerivedArtifactVersion.model_rebuild(
-    _types_namespace={"V2CatalogVersionStatusCode": V2CatalogVersionStatusCode}
-)
-V2ManifestReview.model_rebuild(_types_namespace={"V2ReviewMethodCode": V2ReviewMethodCode})
-
-
-class V2CatalogManifest(CatalogManifest):
-    catalog_version: V2ManifestCatalogVersion
-    review: V2ManifestReview
-
-
-class V2AlternativeManifest(AlternativeManifest):
-    review: V2ManifestReview
-    alternative_set_version: V2DerivedArtifactVersion
-
-
-class V2SafetyRuleManifest(SafetyRuleManifest):
-    review: V2ManifestReview
-    rule_set_version: V2DerivedArtifactVersion
-
-
-V2CatalogManifest.model_rebuild(
-    _types_namespace={
-        "V2ManifestCatalogVersion": V2ManifestCatalogVersion,
-        "V2ManifestReview": V2ManifestReview,
-    }
-)
-V2AlternativeManifest.model_rebuild(
-    _types_namespace={
-        "V2DerivedArtifactVersion": V2DerivedArtifactVersion,
-        "V2ManifestReview": V2ManifestReview,
-    }
-)
-V2SafetyRuleManifest.model_rebuild(
-    _types_namespace={
-        "V2DerivedArtifactVersion": V2DerivedArtifactVersion,
-        "V2ManifestReview": V2ManifestReview,
-    }
-)
-
-
 class V2ExerciseRecord(ExerciseRecord):
-    """Production-ineligible V2 artifact record with its reviewed body-focus code set."""
-
     body_focus_code: V2BodyFocusCode  # type: ignore[assignment]
 
 
-V2ExerciseRecord.model_rebuild(_types_namespace={"V2BodyFocusCode": V2BodyFocusCode})
-
-
 class V2ExerciseAlternativeRecord(ExerciseAlternativeRecord):
-    """Reviewed V2 alternative record kept separate from the MVP API code set."""
-
     review_method_code: V2ReviewMethodCode  # type: ignore[assignment]
     alternative_set_version_code: str
     production_eligible: bool
@@ -152,14 +82,7 @@ class V2ExerciseAlternativeRecord(ExerciseAlternativeRecord):
     source_metadata: dict[str, Any]
 
 
-V2ExerciseAlternativeRecord.model_rebuild(
-    _types_namespace={"V2ReviewMethodCode": V2ReviewMethodCode, "Any": Any}
-)
-
-
 class V2ExerciseSafetyRuleRecord(ExerciseSafetyRuleRecord):
-    """Reviewed, production-ineligible V2 safety artifact record."""
-
     rule_set_version_code: str
     production_eligible: bool
     source_manifest_hash: str
@@ -168,6 +91,10 @@ class V2ExerciseSafetyRuleRecord(ExerciseSafetyRuleRecord):
     updated_at: datetime
 
 
+V2ExerciseRecord.model_rebuild(_types_namespace={"V2BodyFocusCode": V2BodyFocusCode})
+V2ExerciseAlternativeRecord.model_rebuild(
+    _types_namespace={"Any": Any, "V2ReviewMethodCode": V2ReviewMethodCode}
+)
 V2ExerciseSafetyRuleRecord.model_rebuild(_types_namespace={"Any": Any, "datetime": datetime})
 
 
@@ -288,7 +215,7 @@ def representative_records(rows: list[dict[str, str]]) -> list[V2ExerciseRecord]
     return records
 
 
-def stable_code_index(records: list[V2ExerciseRecord]) -> dict[str, str]:
+def stable_code_index(records: list[ExerciseRecord]) -> dict[str, str]:
     output: dict[str, str] = {}
     for record in records:
         output[record.stable_code] = record.stable_code
@@ -461,7 +388,7 @@ def build(output_dir: Path = DEFAULT_OUTPUT_DIR) -> dict[str, Any]:
     )
     common_review = {
         "status": decisions["domain_review"]["status"],
-        "review_method_code": decisions["domain_review"]["review_method_code"],
+        "review_method_code": "AGENT_ONLY",
         "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
         "production_eligible": False,
     }
@@ -478,13 +405,13 @@ def build(output_dir: Path = DEFAULT_OUTPUT_DIR) -> dict[str, Any]:
             }
         ],
     }
-    catalog_manifest = V2CatalogManifest.model_validate(
+    catalog_manifest = CatalogManifest.model_validate(
         {
             "schema_version": "1.0",
             "generator_version": "v2-runtime-materializer-1.0.0",
             "catalog_version": {
                 "version_code": "exercise-catalog-v2.0.0-final",
-                "status_code": "ACTIVE",
+                "status_code": "DRAFT",
             },
             "source": source,
             "review": common_review,
@@ -499,7 +426,7 @@ def build(output_dir: Path = DEFAULT_OUTPUT_DIR) -> dict[str, Any]:
             ],
         }
     )
-    alternative_manifest = V2AlternativeManifest.model_validate(
+    alternative_manifest = AlternativeManifest.model_validate(
         {
             "schema_version": "1.0",
             "generator_version": "v2-runtime-materializer-1.0.0",
@@ -516,11 +443,11 @@ def build(output_dir: Path = DEFAULT_OUTPUT_DIR) -> dict[str, Any]:
             ],
             "alternative_set_version": {
                 "version_code": "alternative-set-v2.0.0",
-                "status_code": "ACTIVE",
+                "status_code": "DRAFT",
             },
         }
     )
-    safety_manifest = V2SafetyRuleManifest.model_validate(
+    safety_manifest = SafetyRuleManifest.model_validate(
         {
             "schema_version": "1.0",
             "generator_version": "v2-runtime-materializer-1.0.0",
@@ -537,7 +464,7 @@ def build(output_dir: Path = DEFAULT_OUTPUT_DIR) -> dict[str, Any]:
             ],
             "rule_set_version": {
                 "version_code": "safety-rule-set-v2.0.0",
-                "status_code": "ACTIVE",
+                "status_code": "DRAFT",
             },
         }
     )

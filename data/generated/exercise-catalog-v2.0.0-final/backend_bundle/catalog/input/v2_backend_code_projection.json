@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "projection_version": "v2-backend-code-projection-2026-08-25",
+  "status": "DRAFT",
+  "production_eligible": false,
+  "purpose": "Importer compatibility projection only; runtime V2 body-focus values remain unchanged.",
+  "body_focus_code_to_backend_code": {
+    "BACK": "UPPER_BODY",
+    "BICEPS": "UPPER_BODY",
+    "CALVES": "LOWER_BODY",
+    "CARDIO": "FULL_BODY",
+    "CHEST": "UPPER_BODY",
+    "CORE": "CORE",
+    "FOREARMS": "UPPER_BODY",
+    "FULL_BODY": "FULL_BODY",
+    "GLUTES": "LOWER_BODY",
+    "HAMSTRINGS": "LOWER_BODY",
+    "MOBILITY": "FULL_BODY",
+    "QUADRICEPS": "LOWER_BODY",
+    "SHOULDERS": "UPPER_BODY",
+    "TRICEPS": "UPPER_BODY"
+  },
+  "guards": [
+    "does_not_change_runtime_jsonl",
+    "does_not_change_stable_code_or_foreign_keys",
+    "does_not_promote_v2_body_focus_codes",
+    "requires_backend_code_migration_before_production_use"
+  ]
+}
