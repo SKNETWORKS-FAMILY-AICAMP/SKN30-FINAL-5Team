@@ -1,0 +1,53 @@
+{
+  "alternative_set_version": {
+    "status_code": "DRAFT",
+    "version_code": "alternative-set-v2.0.0"
+  },
+  "files": [
+    {
+      "bytes": 171835,
+      "path": "alternatives.jsonl",
+      "records": 283,
+      "sha256": "1f02799ac3ed68e3ee6744a885dbb2b2d6f3364b23b6fe1d1948c9880055d985"
+    }
+  ],
+  "generator_version": "v2-backend-bundle-packager-1.0.0",
+  "review": {
+    "production_eligible": false,
+    "review_method_code": "AGENT_ONLY",
+    "status": "DOMAIN_APPROVED",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
+  },
+  "schema_version": "1.0",
+  "source": {
+    "catalog_version_code": "exercise-catalog-v2.0.0-final",
+    "importer_record_count": 283,
+    "input_artifacts": [
+      {
+        "bytes": 412724,
+        "path": "input/exercise_alternatives_v2_final.csv",
+        "role": "alternative_mapping_csv",
+        "sha256": "08e5579c08af06f7854644c52ee19ca7320daa722616c78a7f8b5ffada4357a0"
+      },
+      {
+        "bytes": 4341,
+        "path": "input/v2_representative_decisions.json",
+        "role": "v2_decisions",
+        "sha256": "23285ceaee094966779def8d33765b4fbac5be151f73f3ce1fe547e459f65643"
+      }
+    ],
+    "projection_conflict_count": 2,
+    "projection_status": "LOSSY_DRAFT_ONLY",
+    "runtime_manifest_path": "runtime/alternatives_manifest.json",
+    "runtime_manifest_sha256": "fa35afb5f5abec9ef694316837f7fdd13ea6d5fb0663ee3e38cd210864ac5223",
+    "runtime_record_count": 285
+  },
+  "summary": {
+    "alternative_records": 283,
+    "exercise_records": null,
+    "exercise_scope_rules": null,
+    "pattern_scope_rules": null,
+    "rule_records": null,
+    "sources_with_alternatives": null
+  }
+}

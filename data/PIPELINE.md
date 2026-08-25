@@ -262,3 +262,40 @@ production-ineligible로 남고, 운영 승인은 backend의 정확 일치 gate�
 현재 profiling 단계의 검토 후보 키는 `(file_nm, trng_nm)`이며, 서로 다른 영상의
 동일 운동명이 같은 운동인지 여부는 정규화 리뷰에서 결정한다. `vdo_len`은 영상
 길이이므로 운동 수행시간으로 사용하지 않는다.
+
+## V2 102개 처방·backend bundle (2026-08-25)
+
+V2 대표운동 102개를 기존 legacy 처방 입력과 분리해 작성한다. review input은 V2 대표 CSV와
+`normalized/v2_prescription_review_policy.json`에서 생성하며, stable code를 유일한 FK로
+사용한다. 운동명·legacy 처방 결과를 재사용하지 않는다.
+
+```bash
+python3 data/scripts/build_v2_prescription_review_input.py --force
+python3 data/scripts/validate_v2_prescription_review_input.py \
+  data/generated/exercise-catalog-v2.0.0-final/representative_exercises_v2_final.csv \
+  data/validation/review_results/v2_prescription_review_input.csv \
+  --policy data/normalized/v2_prescription_review_policy.json
+python3 data/scripts/build_v2_prescriptions.py --force
+```
+
+처방 산출물은 `generated/exercise-prescriptions-v2.0.0-draft/`의
+`goal_tag_links.jsonl` 102건, `prescription_profiles.jsonl` 137건과 manifest다. 모든
+version status는 `DRAFT`, `production_eligible`은 `false`다.
+
+runtime 산출물을 backend importer 디렉터리 구조로 패키징하고 검증한다.
+
+```bash
+python3 data/scripts/build_v2_backend_bundle.py --force
+V2_UV_CACHE=/private/tmp/skn30-uv-cache UV_CACHE_DIR=$V2_UV_CACHE \
+  uv run python data/scripts/validate_v2_backend_bundle.py
+V2_UV_CACHE=/private/tmp/skn30-uv-cache UV_CACHE_DIR=$V2_UV_CACHE \
+  uv run python data/scripts/build_v2_approval_registry_candidate.py
+```
+
+bundle 내부 진입점은 `catalog/seed_manifest.json`, `safety/rules_manifest.json`,
+`alternatives/alternatives_manifest.json`, `prescriptions/prescription_manifest.json`이며,
+`bundle_manifest.json`이 각 내부 파일의 path·SHA-256·byte·record count를 기록한다.
+현재 runtime alternatives 285건 중 통증 구간별 의미가 backend natural key와 충돌하는 2건은
+importer projection에서 283건으로 축약된다. 원본 후보는
+`alternatives/input/alternative_projection_conflicts.json`에 보존하며 projection은
+`LOSSY_DRAFT_ONLY`다. 이 blocker가 해소되기 전에는 운영 적격으로 해석하지 않는다.

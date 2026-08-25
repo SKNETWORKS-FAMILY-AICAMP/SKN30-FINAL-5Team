@@ -1,0 +1,125 @@
+{
+  "schema_version": "1.0",
+  "decision_version": "v2-representative-decisions-2026-08-24",
+  "status": "DOMAIN_REVIEW_COMPLETE_RUNTIME_ARTIFACTS_MATERIALIZED",
+  "domain_review": {
+    "status": "DOMAIN_APPROVED",
+    "review_method_code": "DOMAIN_REVIEWER",
+    "reviewer": "DOMAIN_EXPERT_REVIEW",
+    "reviewed_at": "2026-08-24T00:00:00+09:00",
+    "scope": "V2 representative exercise runtime materialization"
+  },
+  "stable_code_policy": "family_plus_movement_pattern_plus_equipment",
+  "runtime_materialization": {
+    "instruction_content_version": "representative-content-v0.1.0",
+    "beginner_suitable_by_review_code": {
+      "SUITABLE": true,
+      "CONDITIONAL": false,
+      "NOT_PRIORITY": false,
+      "REVIEW_REQUIRED": false
+    },
+    "recovery_eligible_by_training_type": {
+      "STRENGTH": false,
+      "CARDIO": false,
+      "MOBILITY": true
+    },
+    "default_seconds_per_rep": 4,
+    "default_work_seconds_by_training_type": {
+      "STRENGTH": 30,
+      "CARDIO": 60,
+      "MOBILITY": 30
+    },
+    "default_rest_seconds_by_training_type": {
+      "STRENGTH": 90,
+      "CARDIO": 60,
+      "MOBILITY": 30
+    },
+    "default_transition_seconds": 15
+  },
+  "alternative_materialization": {
+    "alternative_set_version_code": "alternative-set-v2.0.0",
+    "rule_version": "alternative-rule-v2.0.0",
+    "reason_code_by_relationship_type": {
+      "CONSTRAINT": "EQUIPMENT",
+      "INTENSITY": "DIFFICULTY",
+      "RECOVERY": "DIFFICULTY",
+      "SAFETY": "DISCOMFORT"
+    },
+    "difficulty_delta_by_relationship_type": {
+      "CONSTRAINT": 0,
+      "INTENSITY": -1,
+      "RECOVERY": -1,
+      "SAFETY": -1
+    }
+  },
+  "target_muscle_materialization": {
+    "status": "DOMAIN_APPROVED",
+    "review_method_code": "DOMAIN_EXPERT_REVIEW",
+    "reviewer": "DOMAIN_EXPERT_REVIEW",
+    "reviewed_at": "2026-08-25T00:00:00+09:00",
+    "scope": "All 102 V2 representative body_focus_code values",
+    "approved_status_code": "APPROVED"
+  },
+  "discomfort_materialization": {
+    "status": "DOMAIN_APPROVED",
+    "review_method_code": "DOMAIN_EXPERT_REVIEW",
+    "reviewer": "DOMAIN_EXPERT_REVIEW",
+    "reviewed_at": "2026-08-25T00:00:00+09:00",
+    "pain_action_policy_path": "normalized/v2_pain_action_policy.json",
+    "pain_action_policy_version": "pain-intensity-action-v2",
+    "severity_policy": {
+      "NRS_1_3": "Keep the goal and reduce load, then ROM, then use an easier variant.",
+      "NRS_4_6": "Skip exercises using the affected area and use low-intensity active recovery.",
+      "NRS_7_10": "Stop exercise and provide no alternative."
+    },
+    "low_intensity": {
+      "difficulty_codes": ["BEGINNER"],
+      "fitt_intensity_codes": ["LIGHT", "LIGHT_MODERATE"],
+      "runtime_action_code": "ACTIVE_RECOVERY"
+    },
+    "red_flag_override": "STOP_AND_SEEK_HELP",
+    "severe_policy": "STOP_EXERCISE"
+  },
+  "approved_equipment_relations": [
+    {
+      "source_representative_exercise_id": "REX-000094",
+      "alternative_representative_exercise_id": "REX-000034",
+      "reason_code": "EQUIPMENT",
+      "goal_preservation_code": "MOBILITY_HAMSTRING",
+      "difficulty_delta": 0,
+      "review_status_code": "DOMAIN_APPROVED",
+      "review_method_code": "USER_EXPLICIT_APPROVAL",
+      "reviewed_at": "2026-08-25T00:00:00+09:00",
+      "basis": "사용자 승인: 운동 설명상 스트랩 없이 수행 가능한 동일 목표의 맨몸 햄스트링 스트레칭으로 전환"
+    }
+  ],
+  "safety_materialization": {
+    "rule_set_version_code": "safety-rule-set-v2.0.0",
+    "rule_version": "safety-rule-v2.0.0"
+  },
+  "representative_overrides": {
+    "REX-000049": {
+      "equipment_codes": ["MACHINE"],
+      "decision_reason": "Seated chest press machine is not a bench."
+    },
+    "REX-000094": {
+      "equipment_codes": ["STRETCH_STRAP"],
+      "decision_reason": "A stretch strap is a distinct supported equipment code."
+    }
+  },
+  "equipment_aliases": {
+    "BAND": "RESISTANCE_BAND",
+    "CABLE": "CABLE_MACHINE",
+    "ROPE": "STRETCH_STRAP",
+    "SUSPENSION_STRAPS": "STRETCH_STRAP",
+    "ROLLER": "FOAM_ROLLER",
+    "WEIGHTED": "HOUSEHOLD_WEIGHT"
+  },
+  "review_guards": [
+    "CONDITIONAL_NOT_BOOLEAN",
+    "NOT_PRIORITY_NOT_BOOLEAN",
+    "REVIEW_REQUIRED_NOT_BOOLEAN",
+    "FITT_RANGE_NOT_AUTOMATICALLY_COLLAPSED",
+    "DOMAIN_APPROVED_NOT_AUTOMATICALLY_ASSIGNED"
+  ]
+}

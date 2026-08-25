@@ -5,13 +5,13 @@
   },
   "files": [
     {
-      "bytes": 124047,
-      "path": "representative_exercises.jsonl",
+      "bytes": 124264,
+      "path": "exercises.jsonl",
       "records": 102,
-      "sha256": "364d161659a05307d2592bb0517e4ae444872cd91c014b10423943a2f2c3079b"
+      "sha256": "827c20c6ae1223b4ed0543fa03c6075334e92d11e56dcf3e833759b0092bf17f"
     }
   ],
-  "generator_version": "v2-runtime-materializer-1.0.0",
+  "generator_version": "v2-backend-bundle-packager-1.0.0",
   "review": {
     "production_eligible": false,
     "review_method_code": "AGENT_ONLY",
@@ -23,9 +23,21 @@
     "input_artifacts": [
       {
         "bytes": 118909,
-        "path": "generated/exercise-catalog-v2.0.0-final/representative_exercises_v2_final.csv",
-        "role": "representative_csv",
+        "path": "input/representative_exercises_v2_final.csv",
+        "role": "representative_catalog_csv",
         "sha256": "a4a46273622addb95936d3f86dff1a8b8ccccca058af5f1088325beabec3c4be"
+      },
+      {
+        "bytes": 13074,
+        "path": "input/exercise_taxonomy_codes.json",
+        "role": "taxonomy_registry",
+        "sha256": "79e487cc1a41ea39db9b4afb0799b3297840de878a2ae4ed621ef3e4403a0985"
+      },
+      {
+        "bytes": 902,
+        "path": "input/v2_backend_code_projection.json",
+        "role": "backend_code_projection",
+        "sha256": "52101aad17d752dd9b85b0a5d54b67a58ce6fc39be2947e3884d54b206f0d0d4"
       }
     ],
     "review_batch_directory": "data/reports",

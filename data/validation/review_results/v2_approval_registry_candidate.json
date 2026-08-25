@@ -1,0 +1,27 @@
+{
+  "activation_status": "NOT_ACTIVATED",
+  "approval_evidence": [],
+  "bundle_manifest_path": "generated/exercise-catalog-v2.0.0-final/backend_bundle/bundle_manifest.json",
+  "bundle_manifest_sha256": "d59813e98ef23bd8c88b55f1a5dda680996f94bad80e59ea1b85e3cfb8442d0b",
+  "bundle_summary": {
+    "alternative_records": 283,
+    "catalog_records": 102,
+    "goal_tag_records": 102,
+    "prescription_records": 137,
+    "safety_rule_records": 394
+  },
+  "candidate_status": "DRAFT_CANDIDATE",
+  "catalog_version_code": "exercise-catalog-v2.0.0-final",
+  "production_eligible": false,
+  "projection_blockers": {
+    "alternative_conflict_count": 2,
+    "conflict_report_path": "alternatives/input/alternative_projection_conflicts.json"
+  },
+  "projection_status": "LOSSY_DRAFT_ONLY",
+  "required_follow_up": [
+    "independent data-side review of goal tags and prescription values",
+    "backend local/test importer verification with the approved taxonomy hash",
+    "development-lead and PM decision before any activation metadata is recorded"
+  ],
+  "schema_version": "1.0"
+}

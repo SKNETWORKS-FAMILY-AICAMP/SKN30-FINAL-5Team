@@ -469,3 +469,39 @@ python3 data/scripts/promote_all_met_approvals.py \
 후보에서 검토 큐로 보낸다. 현재 KSPO MVP 범위에서 3건이 `HOME_LOW_IMPACT_CARDIO` 검토 후보로
 추출되며, family/variant는 대체 관계가 아니다. 이 단계에서는 catalog·safety rule·
 alternative generated 데이터를 만들지 않는다.
+
+## V2 처방·goal tag와 backend bundle
+
+V2 102개 대표운동은 legacy 처방 결과와 분리된 review input을 사용한다.
+
+```bash
+python3 data/scripts/build_v2_prescription_review_input.py --force
+python3 data/scripts/validate_v2_prescription_review_input.py \
+  data/generated/exercise-catalog-v2.0.0-final/representative_exercises_v2_final.csv \
+  data/validation/review_results/v2_prescription_review_input.csv \
+  --policy data/normalized/v2_prescription_review_policy.json
+python3 data/scripts/build_v2_prescriptions.py --force
+```
+
+입력은 102개 goal tag와 137개 phase profile을 만든다. JSONL은 직접 수정하지 않고
+generator를 다시 실행한다. review policy, review input, prescription manifest는 모두
+DRAFT/`production_eligible=false`이며 backend 기록으로 자동 승인되지 않는다.
+
+runtime을 backend importer 형식으로 패키징한다.
+
+```bash
+python3 data/scripts/build_v2_backend_bundle.py --force
+V2_UV_CACHE=/private/tmp/skn30-uv-cache UV_CACHE_DIR=$V2_UV_CACHE \
+  uv run python data/scripts/validate_v2_backend_bundle.py
+V2_UV_CACHE=/private/tmp/skn30-uv-cache UV_CACHE_DIR=$V2_UV_CACHE \
+  uv run python data/scripts/build_v2_approval_registry_candidate.py
+```
+
+bundle은 `catalog/seed_manifest.json`, `safety/rules_manifest.json`,
+`alternatives/alternatives_manifest.json`, `prescriptions/prescription_manifest.json`을
+제공한다. `bundle_manifest.json`은 내부 input과 산출물의 path/hash/byte/count를 관리한다.
+backend의 현재 body-focus enum과 V2 세분화 코드는 `v2_backend_code_projection.json`으로
+importer 호환 projection만 만들며 runtime 원본을 바꾸지 않는다. alternatives의 통증
+구간 충돌 2건은 `LOSSY_DRAFT_ONLY` conflict report에 보존되므로 운영 승격 전 별도
+schema/domain 결정이 필요하다. `catalog_data_load`, `catalog_activate`, ACTIVE 전환은
+이 작업에서 실행하지 않는다.

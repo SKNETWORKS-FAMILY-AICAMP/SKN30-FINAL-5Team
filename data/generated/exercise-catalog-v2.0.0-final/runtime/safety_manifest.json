@@ -1,31 +1,31 @@
 {
   "files": [
     {
-      "bytes": 361339,
+      "bytes": 361081,
       "path": "safety_rules.jsonl",
       "records": 394,
-      "sha256": "2ddbd6f2db69bce25e16c65ae620ccaadc25c17ca15a0c6114b1681fc3eacd2a"
+      "sha256": "9154a616b294a9adee6afc954d618868572750c99553921d90e32ad5daa72dc6"
     }
   ],
   "generator_version": "v2-runtime-materializer-1.0.0",
   "review": {
     "production_eligible": false,
-    "review_method_code": "DOMAIN_REVIEWER",
+    "review_method_code": "AGENT_ONLY",
     "status": "DOMAIN_APPROVED",
     "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
   },
   "rule_set_version": {
-    "status_code": "ACTIVE",
+    "status_code": "DRAFT",
     "version_code": "safety-rule-set-v2.0.0"
   },
   "schema_version": "1.0",
   "source": {
     "input_artifacts": [
       {
-        "bytes": 121682,
+        "bytes": 118909,
         "path": "generated/exercise-catalog-v2.0.0-final/representative_exercises_v2_final.csv",
         "role": "representative_csv",
-        "sha256": "d42b7f53b7c0005afec245a910ac345d5245771f2f94ee658d804f1ee34f1370"
+        "sha256": "a4a46273622addb95936d3f86dff1a8b8ccccca058af5f1088325beabec3c4be"
       }
     ],
     "review_batch_directory": "data/reports",
