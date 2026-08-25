@@ -165,8 +165,10 @@ F012~F023은 요구사항 정의서상 MVP 이후 확장 기능이다. 각 ID는
   PostgreSQL 재검증, mandatory 보존, Vector failure fallback과 catalog/collection/index/embedding replay를
   추가 추적한다.
 - V3 재생성은 F002 후속 AC/TC로 root/parent lineage, 최대 두 번, idempotency, stale context,
-  exact duplicate 거부와 meaningful difference를 추적한다. 신규 API·DB·frontend 구현 전에는
-  `PARTIAL` 또는 미구현 목표 상태이며 기존 F029 `IMPLEMENTED` 증거를 V3 UI 완료로 해석하지 않는다.
+  exact duplicate 거부와 meaningful difference를 추적한다. backend additive API boundary와 transport/error
+  contract test는 `backend/tests/api/test_decision_regenerations.py`에 구현됐다. production regeneration
+  application service 활성화와 frontend는 미구현이므로 전체 상태는 `PARTIAL`이며 기존 F029
+  `IMPLEMENTED` 증거를 V3 UI 완료로 해석하지 않는다.
 - V3의 `SAFETY` 공개 요약은 historical API 호환 projection일 수 있지만 내부 Agent proposal이 아니다.
   SafetyPolicyEngine record와 세 Agent proposal을 별도로 추적한다.
 

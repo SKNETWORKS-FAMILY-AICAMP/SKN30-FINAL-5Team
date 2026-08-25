@@ -17,6 +17,7 @@ from backend.app.integrations.birthdate_crypto import LocalAesGcmBirthdateCipher
 from backend.app.integrations.firebase_auth import build_firebase_token_verifier
 from backend.app.integrations.llm_provider import build_narration_provider
 from backend.app.modules.decisions.ports import NarrationProviderPort
+from backend.app.modules.decisions.v3_regeneration import V3RegenerationServicePort
 from backend.app.modules.identity.ports import FirebaseTokenVerifier
 from backend.app.modules.profiles.ports import BirthdateCipher
 
@@ -43,6 +44,7 @@ def create_app(
     firebase_token_verifier: FirebaseTokenVerifier | None = None,
     birthdate_cipher: BirthdateCipher | None = None,
     narration_provider: NarrationProviderPort | None = None,
+    v3_regeneration_service: V3RegenerationServicePort | None = None,
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
     configure_logging(resolved_settings.log_level)
@@ -85,6 +87,7 @@ def create_app(
         if narration_provider is not None
         else build_narration_provider(resolved_settings)
     )
+    application.state.v3_regeneration_service = v3_regeneration_service
     if resolved_settings.cors_allowed_origins:
         # Only the listed origins, and only the headers the client actually
         # sends. Needed for the browser-based demo; native builds send no

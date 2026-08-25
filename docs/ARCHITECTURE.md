@@ -156,8 +156,9 @@ flowchart TD
 - persistent LangGraph checkpointer는 V3 첫 구현에 포함하지 않는다. PostgreSQL decision record가
   canonical source of truth다.
 
-V3는 승인된 목표 구조지만 아직 미구현이다. V1/V2 historical 실행과 response를 보존하고 구현·검증
-후 별도 production 전환 승인으로 새 `graph_version`에서만 활성화한다.
+V3 domain/runtime/persistence 기반과 regeneration API boundary는 단계적으로 구현 중이지만 production
+application wiring은 아직 비활성이다. V1/V2 historical 실행과 response를 보존하고 전체 구현·검증 후
+별도 production 전환 승인으로 새 `graph_version`에서만 활성화한다.
 
 ## 5. 에이전트 책임
 

@@ -233,6 +233,7 @@ additive하게 도입한다. 온보딩 점수는 별도
 - V3-B1 (`COMPLETE`, backend owner): migration `0025_v3_decision_persistence`, V3 SQLAlchemy model,
   framework-independent write DTO 기반 repository/adapter/UoW와 replay audit bundle. PostgreSQL
   round-trip·rollback 검증 완료, production write는 비활성
-- V3-B2: regeneration API와 frontend compatibility 구현
+- V3-B2: backend regeneration API boundary 구현 완료, production application wiring과 frontend
+  compatibility는 후속 작업
 - V3-C1: shadow evaluation, golden, expert review, latency·cost·fallback 측정
 - V3-C2: 기준 충족 후 ADR-0013에 따른 production graph 전환 승인 검토

@@ -12,6 +12,13 @@ class DecisionCreateRequest(BaseModel):
     expected_context_version: int = Field(gt=0)
 
 
+class DecisionRegenerationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_plan_id: UUID
+    expected_regeneration_sequence: Literal[0, 1]
+
+
 class DecisionPlanItem(BaseModel):
     plan_item_id: UUID
     exercise_id: UUID
@@ -89,7 +96,25 @@ class DecisionResponse(BaseModel):
     guidance: Guidance | None = None
     public_agent_summaries: list[PublicAgentSummary] | None = None
     safety_summary: SafetySummary | None = None
+    generation_mode_code: Literal["ORIGINAL", "REGENERATED"] | None = None
+    decision_engine_code: (
+        Literal["DETERMINISTIC", "LLM_MULTI_AGENT", "DETERMINISTIC_FALLBACK"] | None
+    ) = None
+    root_decision_id: UUID | None = None
+    parent_decision_id: UUID | None = None
+    regeneration_sequence: Literal[0, 1, 2] | None = None
+    meaningful_difference_codes: (
+        list[
+            Literal[
+                "CORE_EXERCISE_CHANGED",
+                "SET_REP_STRUCTURE_CHANGED",
+                "EXERCISE_ORDER_CHANGED",
+                "ROUTINE_STRUCTURE_CHANGED",
+            ]
+        ]
+        | None
+    ) = None
     created_at: datetime
 
 
-__all__ = ["DecisionCreateRequest", "DecisionResponse"]
+__all__ = ["DecisionCreateRequest", "DecisionRegenerationRequest", "DecisionResponse"]
