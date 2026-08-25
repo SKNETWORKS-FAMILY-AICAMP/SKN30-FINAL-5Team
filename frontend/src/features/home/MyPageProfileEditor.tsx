@@ -1,3 +1,4 @@
+import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import {
   type GestureResponderEvent,
@@ -20,6 +21,7 @@ import {
 } from '../../api/labels';
 import type {
   MeProfile,
+  ProfileImageUpload,
   ProfileSettingsUpdateRequest,
   SexCode,
 } from '../../api/types';
@@ -30,6 +32,7 @@ import {
   TextField,
 } from '../../components/primitives';
 import { colors, radii, spacing } from '../../components/theme';
+import { ProfileAvatar } from '../../components/profile/ProfileAvatar';
 import {
   ONBOARDING_DURATION,
   ONBOARDING_EQUIPMENT_OPTIONS,
@@ -46,10 +49,15 @@ import {
 import type { MyPageProfileField } from './myPageModel';
 
 export type MyPageEditableField = MyPageProfileField | 'basic_profile';
+export type ProfileImageChange = ProfileImageUpload | null;
 
 type Props = {
   error?: string | null;
   field: MyPageEditableField;
+  onBasicProfileChange?: (
+    body: ProfileSettingsUpdateRequest,
+    imageChange: ProfileImageChange | undefined,
+  ) => void;
   onChange: (body: ProfileSettingsUpdateRequest) => void;
   onClose: () => void;
   pending?: boolean;
@@ -71,6 +79,7 @@ const TITLES: Record<MyPageEditableField, string> = {
 export function MyPageProfileEditor({
   error = null,
   field,
+  onBasicProfileChange,
   onChange,
   onClose,
   pending = false,
@@ -116,6 +125,7 @@ export function MyPageProfileEditor({
         >
           <EditorBody
             field={field}
+            onBasicProfileChange={onBasicProfileChange}
             onChange={onChange}
             pending={pending}
             profile={profile}
@@ -130,13 +140,18 @@ export function MyPageProfileEditor({
 
 function EditorBody({
   field,
+  onBasicProfileChange,
   onChange,
   pending = false,
   profile,
-}: Pick<Props, 'field' | 'onChange' | 'pending' | 'profile'>) {
+}: Pick<
+  Props,
+  'field' | 'onBasicProfileChange' | 'onChange' | 'pending' | 'profile'
+>) {
   if (field === 'basic_profile') {
     return (
       <BasicProfileEditor
+        onBasicProfileChange={onBasicProfileChange}
         onChange={onChange}
         pending={pending}
         profile={profile}
@@ -289,15 +304,22 @@ const BASIC_SEX_OPTIONS = [
 ] as const satisfies readonly { code: SexCode; label: string }[];
 
 function BasicProfileEditor({
+  onBasicProfileChange,
   onChange,
   pending,
   profile,
 }: {
+  onBasicProfileChange?: Props['onBasicProfileChange'];
   onChange: (body: ProfileSettingsUpdateRequest) => void;
   pending: boolean;
   profile: MeProfile;
 }) {
   const [nickname, setNickname] = useState(profile.nickname);
+  const [profileImageChange, setProfileImageChange] = useState<
+    ProfileImageChange | undefined
+  >(undefined);
+  const [imagePickerError, setImagePickerError] = useState<string | null>(null);
+  const [imagePickerPending, setImagePickerPending] = useState(false);
   const [dateOfBirth, setDateOfBirth] = useState(latestEligibleBirthdateIso);
   const [dateOfBirthChanged, setDateOfBirthChanged] = useState(false);
   const [sexCode, setSexCode] = useState<SexCode | null>(null);
@@ -313,11 +335,64 @@ function BasicProfileEditor({
   const weightError = validateOptionalNumber(weightKg, 25, 300, '체중');
   const hasChanges =
     nickname.trim() !== profile.nickname ||
+    profileImageChange !== undefined ||
     dateOfBirthChanged ||
     sexCode !== null ||
     heightCm !== '' ||
     weightKg !== '';
   const invalid = Boolean(nicknameError || heightError || weightError);
+
+  const pickProfileImage = async () => {
+    if (pending || imagePickerPending) return;
+    setImagePickerPending(true);
+    setImagePickerError(null);
+    try {
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        setImagePickerError(
+          '사진을 선택하려면 기기 설정에서 사진 보관함 접근을 허용해주세요.',
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+      });
+      if (result.canceled || !result.assets[0]) return;
+
+      const asset = result.assets[0];
+      if (
+        asset.type === 'video' ||
+        (asset.mimeType && !asset.mimeType.startsWith('image/'))
+      ) {
+        setImagePickerError('이미지 파일만 프로필 사진으로 사용할 수 있어요.');
+        return;
+      }
+      if (asset.fileSize && asset.fileSize > MAX_PROFILE_IMAGE_BYTES) {
+        setImagePickerError('10MB 이하의 이미지를 선택해주세요.');
+        return;
+      }
+
+      const mimeType = asset.mimeType ?? 'image/jpeg';
+      setProfileImageChange({
+        uri: asset.uri,
+        fileName: asset.fileName ?? defaultImageFileName(mimeType),
+        mimeType,
+        fileSize: asset.fileSize ?? undefined,
+        webFile: asset.file ?? undefined,
+      });
+    } catch {
+      setImagePickerError(
+        '사진 보관함을 열지 못했어요. 잠시 후 다시 시도해주세요.',
+      );
+    } finally {
+      setImagePickerPending(false);
+    }
+  };
 
   const save = () => {
     setSubmitted(true);
@@ -331,7 +406,11 @@ function BasicProfileEditor({
     if (sexCode) body.sex_code = sexCode;
     if (heightCm) body.height_cm = Number(heightCm);
     if (weightKg) body.weight_kg = Number(weightKg);
-    onChange(body);
+    if (onBasicProfileChange) {
+      onBasicProfileChange(body, profileImageChange);
+    } else if (Object.keys(body).length > 0) {
+      onChange(body);
+    }
   };
 
   return (
@@ -349,6 +428,45 @@ function BasicProfileEditor({
         onChangeText={setNickname}
         value={nickname}
       />
+      <View style={styles.profileImageEditor}>
+        <ProfileAvatar
+          profileImageUrl={
+            profileImageChange === undefined
+              ? profile.profile_image_url
+              : profileImageChange?.uri
+          }
+          size={72}
+          testID="profile-editor-avatar-preview"
+        />
+        <View style={styles.profileImageActions}>
+          <Text style={styles.profileImageLabel}>프로필 사진</Text>
+          <Button
+            disabled={pending || imagePickerPending}
+            label={
+              imagePickerPending
+                ? '사진 보관함 여는 중…'
+                : '사진 보관함에서 선택'
+            }
+            onPress={() => void pickProfileImage()}
+            tone="secondary"
+          />
+          {(profileImageChange?.uri ?? profile.profile_image_url) ? (
+            <Button
+              disabled={pending || imagePickerPending}
+              label="기본 이미지로 되돌리기"
+              onPress={() => {
+                setImagePickerError(null);
+                setProfileImageChange(null);
+              }}
+              tone="secondary"
+            />
+          ) : null}
+          <Text style={styles.profileImageHint}>이미지 파일 · 최대 10MB</Text>
+        </View>
+      </View>
+      {imagePickerError ? (
+        <InlineFeedback message={imagePickerError} tone="error" />
+      ) : null}
       <BirthDateField
         disabled={pending}
         onChange={(value) => {
@@ -392,12 +510,19 @@ function BasicProfileEditor({
         value={weightKg}
       />
       <Button
-        disabled={!hasChanges || pending}
+        disabled={!hasChanges || pending || imagePickerPending}
         label={pending ? '저장 중…' : '기본 정보 저장'}
         onPress={save}
       />
     </View>
   );
+}
+
+const MAX_PROFILE_IMAGE_BYTES = 10 * 1024 * 1024;
+
+function defaultImageFileName(mimeType: string): string {
+  const extension = mimeType.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
+  return `profile.${extension}`;
 }
 
 function validateOptionalNumber(
@@ -830,6 +955,14 @@ const styles = StyleSheet.create({
   closeText: { color: colors.text, fontSize: 25, lineHeight: 26 },
   editorContent: { gap: 14, paddingTop: 20 },
   basicForm: { gap: spacing.md },
+  profileImageEditor: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+  },
+  profileImageActions: { minWidth: 0, flex: 1, gap: spacing.sm },
+  profileImageLabel: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  profileImageHint: { color: colors.textMuted, fontSize: 12 },
   basicGroup: { gap: spacing.sm },
   basicLabel: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
   basicChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },

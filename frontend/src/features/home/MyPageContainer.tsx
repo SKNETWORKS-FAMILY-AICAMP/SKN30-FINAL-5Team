@@ -15,6 +15,7 @@ import {
 import type { TabId } from '../../components/brand/BrandChrome';
 import type { MyPagePreviewState } from './homeSecondaryModel';
 import { MyPageScreen } from './MyPageScreen';
+import type { ProfileImageChange } from './MyPageProfileEditor';
 import { daysTogether } from './myPageModel';
 
 type MyPageContainerProps = {
@@ -67,6 +68,46 @@ export function MyPageContainer({
     },
   );
 
+  const updateBasicProfile = useAsyncAction(
+    async ({
+      body,
+      imageChange,
+    }: {
+      body: ProfileSettingsUpdateRequest;
+      imageChange: ProfileImageChange | undefined;
+    }) => {
+      if (profile === null) return;
+      let expectedVersion = profile.profile_version;
+      let profileWasUpdated = false;
+      try {
+        if (Object.keys(body).length > 0) {
+          const response = await api.updateProfileSettings(
+            body,
+            expectedVersion,
+          );
+          expectedVersion = response.profile_version;
+          profileWasUpdated = true;
+        }
+        if (imageChange !== undefined) {
+          if (imageChange === null) {
+            await api.deleteProfileImage(expectedVersion);
+          } else {
+            await api.uploadProfileImage(imageChange, expectedVersion);
+          }
+        }
+      } catch (error) {
+        if (
+          profileWasUpdated ||
+          (isApiError(error) && error.code === 'STALE_PROFILE')
+        ) {
+          await onRefreshMe().catch(() => undefined);
+        }
+        throw error;
+      }
+      await onRefreshMe();
+    },
+  );
+
   const updateCoach = (coachingStyleCode: string) => {
     if (profile === null) return;
     void updateProfile.run({ coaching_style_code: coachingStyleCode });
@@ -108,11 +149,14 @@ export function MyPageContainer({
       coachingStylePending={updateProfile.pending}
       coachingStyleError={updateProfile.error}
       onCoachingStyleChange={updateCoach}
-      profileUpdatePending={updateProfile.pending}
+      profileUpdatePending={updateProfile.pending || updateBasicProfile.pending}
       profileUpdateError={profileUpdateErrorMessage(
-        updateProfile.error,
-        updateProfile.lastError,
+        updateBasicProfile.error ?? updateProfile.error,
+        updateBasicProfile.lastError ?? updateProfile.lastError,
       )}
+      onBasicProfileChange={(body, imageChange) =>
+        void updateBasicProfile.run({ body, imageChange })
+      }
       onProfileFieldChange={(body) => void updateProfile.run(body)}
       onRetryProfile={() => void onRefreshMe()}
       consentValues={storedConsents}

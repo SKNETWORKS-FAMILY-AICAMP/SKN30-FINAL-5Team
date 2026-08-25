@@ -5,6 +5,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { Animated, Platform, processColor, StyleSheet } from 'react-native';
 
 import { ADVERSE_REACTION_OPTIONS } from '../src/api/labels';
+import { fontFamilies } from '../src/app/fonts';
 import { imageAssets } from '../src/assets';
 import { colors } from '../src/components/theme';
 import {
@@ -78,6 +79,26 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.queryByTestId('home-gradient')).toBeNull();
   });
 
+  it('uses monkey 10 by default and renders the profile image from My Page', () => {
+    const view = render(<HomeScreen />);
+
+    expect(screen.getByTestId('home-profile-avatar').props.source).toEqual(
+      imageAssets.profileDefault,
+    );
+
+    view.rerender(
+      <HomeScreen profileImageUrl="https://cdn.example.com/profile.jpg" />,
+    );
+    expect(screen.getByTestId('home-profile-avatar').props.source).toEqual({
+      uri: 'https://cdn.example.com/profile.jpg',
+    });
+
+    fireEvent(screen.getByTestId('home-profile-avatar'), 'error');
+    expect(screen.getByTestId('home-profile-avatar').props.source).toEqual(
+      imageAssets.profileDefault,
+    );
+  });
+
   it('renders goal-sized progress cells with real shared assets and badges only for completed cells', () => {
     render(
       <HomeScreen
@@ -92,10 +113,10 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.getAllByTestId('day-todo-image')).toHaveLength(2);
     expect(screen.getAllByTestId('progress-complete-badge')).toHaveLength(3);
     expect(screen.getAllByTestId('day-done-image')[0]?.props.source).toEqual(
-      imageAssets.mascotComplete,
+      imageAssets.weeklyProgressComplete,
     );
     expect(screen.getAllByTestId('day-todo-image')[0]?.props.source).toEqual(
-      imageAssets.dayTodo,
+      imageAssets.weeklyProgressIncomplete,
     );
     expect(
       StyleSheet.flatten(
@@ -634,11 +655,15 @@ describe('HomeScreen Home v1 transcription', () => {
   it('does not show a fake unread notification or enable an unwired bell', () => {
     const onNotifications = jest.fn();
     const view = render(<HomeScreen previewState="routine" />);
+    const disabledButton = screen.getByRole('button', { name: '알림 보기' });
 
+    expect(disabledButton.props.accessibilityState.disabled).toBe(true);
+    expect(StyleSheet.flatten(disabledButton.props.style)).toMatchObject({
+      backgroundColor: colors.text,
+    });
     expect(
-      screen.getByRole('button', { name: '알림 보기' }).props.accessibilityState
-        .disabled,
-    ).toBe(true);
+      StyleSheet.flatten(screen.getByText('헬끼님!').props.style),
+    ).toMatchObject({ color: colors.greenText });
     expect(
       StyleSheet.flatten(
         screen.getByLabelText('읽지 않은 알림 있음', {
@@ -928,19 +953,34 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(gradient.props.locations).toEqual([0, 0.55, 1]);
     expect(labelStyle).toMatchObject({
       color: colors.text,
-      fontWeight: '700',
+      fontFamily: fontFamilies.slogan,
+      fontWeight: '400',
       textAlign: 'center',
     });
     expect(chevronStyle).toMatchObject({
       position: 'absolute',
       right: expect.any(Number),
     });
-    expect(screen.getAllByText('운동 시작하기')).toHaveLength(9);
+    const startLabels = screen.getAllByText('운동 시작하기');
+    expect(startLabels).toHaveLength(1);
+    expect(StyleSheet.flatten(startLabels[0]?.props.style)).toMatchObject({
+      color: colors.text,
+      fontFamily: fontFamilies.slogan,
+      textAlign: 'center',
+    });
 
     fireEvent.press(button);
     const submitButton = screen.getByRole('button', { name: '체크인 !' });
     const submitButtonStyle = StyleSheet.flatten(submitButton.props.style);
+    const submitLabelStyle = StyleSheet.flatten(
+      screen.getByText('체크인 !').props.style,
+    );
     const submitGradient = screen.getByTestId('home-checkin-submit-gradient');
+
+    expect(labelStyle).toMatchObject({
+      fontFamily: submitLabelStyle.fontFamily,
+      fontWeight: submitLabelStyle.fontWeight,
+    });
 
     expect(submitButtonStyle).toMatchObject({
       borderColor: 'rgba(244, 166, 42, 0.8)',

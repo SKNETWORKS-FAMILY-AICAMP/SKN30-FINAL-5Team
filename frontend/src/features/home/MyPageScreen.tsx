@@ -21,6 +21,7 @@ import {
 } from '../../components/states/ScreenState';
 import { colors } from '../../components/theme';
 import type { TabId } from '../../components/brand/BrandChrome';
+import { ProfileAvatar } from '../../components/profile/ProfileAvatar';
 import { HomeBottomNavigation } from './HomeScreen';
 import {
   MY_PAGE_ACCOUNT_ROWS,
@@ -31,6 +32,7 @@ import { buildMyPageProfileRows } from './myPageModel';
 import {
   MyPageProfileEditor,
   type MyPageEditableField,
+  type ProfileImageChange,
 } from './MyPageProfileEditor';
 
 export const MY_PAGE_LAYOUT = {
@@ -58,6 +60,10 @@ type MyPageScreenProps = {
   onNotificationChange?: (key: string, enabled: boolean) => void;
   onOpenExerciseCatalog?: () => void;
   onOpenSettings?: () => void;
+  onBasicProfileChange?: (
+    body: ProfileSettingsUpdateRequest,
+    imageChange: ProfileImageChange | undefined,
+  ) => void;
   onProfileFieldChange?: (body: ProfileSettingsUpdateRequest) => void;
   onRetryProfile?: () => void;
   onRetryConsents?: () => void;
@@ -96,6 +102,7 @@ function MyPageContent({
   onNotificationChange,
   onOpenExerciseCatalog,
   onOpenSettings,
+  onBasicProfileChange,
   onProfileFieldChange,
   onRetryProfile,
   onRetryConsents,
@@ -131,7 +138,6 @@ function MyPageContent({
     ? buildMyPageProfileRows(profile)
     : MY_PAGE_PROFILE_ROWS;
   const nickname = profile?.nickname ?? '헬끼';
-  const avatarLabel = Array.from(nickname)[0] ?? '헬';
   const profileTags = profile
     ? [
         primaryGoalLabel(profile.primary_goal_code),
@@ -213,9 +219,13 @@ function MyPageContent({
 
         <Card style={styles.profileCard}>
           <View style={styles.profileRow}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{avatarLabel}</Text>
-            </View>
+            <ProfileAvatar
+              accessibilityLabel={`${nickname}님의 프로필 이미지`}
+              profileImageUrl={profile?.profile_image_url}
+              size={64}
+              style={styles.avatar}
+              testID="my-page-profile-avatar"
+            />
             <View style={styles.profileCopy}>
               <Text style={styles.nickname}>{nickname}님</Text>
               <Text style={styles.joinLine}>
@@ -229,9 +239,14 @@ function MyPageContent({
             <Pressable
               accessibilityRole="button"
               accessibilityState={{
-                disabled: onProfileFieldChange === undefined,
+                disabled:
+                  onProfileFieldChange === undefined &&
+                  onBasicProfileChange === undefined,
               }}
-              disabled={onProfileFieldChange === undefined}
+              disabled={
+                onProfileFieldChange === undefined &&
+                onBasicProfileChange === undefined
+              }
               onPress={() => setEditingField('basic_profile')}
               style={styles.editProfileButton}
             >
@@ -479,11 +494,15 @@ function MyPageContent({
         />
       ) : null}
 
-      {editingField && profile && onProfileFieldChange ? (
+      {editingField &&
+      profile &&
+      (onProfileFieldChange ||
+        (editingField === 'basic_profile' && onBasicProfileChange)) ? (
         <MyPageProfileEditor
           error={profileUpdateError}
           field={editingField}
-          onChange={onProfileFieldChange}
+          onBasicProfileChange={onBasicProfileChange}
+          onChange={onProfileFieldChange ?? (() => undefined)}
           onClose={() => setEditingField(null)}
           pending={profileUpdatePending}
           profile={profile}
@@ -666,15 +685,8 @@ const styles = StyleSheet.create({
   avatar: {
     width: 64,
     height: 64,
-    alignItems: 'center',
-    justifyContent: 'center',
     borderRadius: 32,
     backgroundColor: '#FFF8E5',
-  },
-  avatarText: {
-    color: '#A45F00',
-    fontSize: 22,
-    fontWeight: '900',
   },
   profileCopy: {
     minWidth: 0,

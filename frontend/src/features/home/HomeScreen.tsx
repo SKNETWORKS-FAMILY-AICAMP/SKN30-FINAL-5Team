@@ -27,7 +27,6 @@ import {
   type NativeSyntheticEvent,
   type PanResponderGestureState,
   type StyleProp,
-  type TextStyle,
   type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -62,7 +61,9 @@ import { moveArrayItem } from '../../api/workoutPlan';
 import { imageAssets } from '../../assets';
 import { fontFamilies, useBrandFonts } from '../../app/fonts';
 import type { TabId } from '../../components/brand/BrandChrome';
+import { ProfileAvatar } from '../../components/profile/ProfileAvatar';
 import { useScale } from '../../components/scale';
+import { GradientActionButton } from '../../components/primitives';
 import { colors } from '../../components/theme';
 import { ExerciseDetailSheet } from '../workout/ExerciseDetailSheet';
 import {
@@ -232,6 +233,7 @@ export type HomeScreenProps = {
   permissionDenied?: boolean;
   planRevision?: WeeklyPlanRevisionResponse | null;
   previewState?: HomePreviewState;
+  profileImageUrl?: string | null;
   restToday?: boolean;
   routine?: RoutineResponse | null;
   sessions?: readonly WorkoutSessionLogSummary[];
@@ -303,6 +305,7 @@ function HomeScreenContent({
   onSubmitUserEdits,
   permissionDenied = false,
   planRevision = null,
+  profileImageUrl = null,
   restToday = false,
   routine = null,
   sessions = [],
@@ -631,6 +634,7 @@ function HomeScreenContent({
               hasUnreadNotification={hasUnreadNotification}
               onNotifications={onNotifications}
               onProfile={onProfile}
+              profileImageUrl={profileImageUrl}
               userName={displayName}
             />
             {contentReady ? (
@@ -650,7 +654,9 @@ function HomeScreenContent({
                 />
               </>
             ) : null}
-            {showCheckin ? <CheckinButton onPress={openCheckin} /> : null}
+            {showCheckin ? (
+              <CheckinButton onPress={openCheckin} useJua={useJua} />
+            ) : null}
 
             {apiMode && status === 'loading' ? (
               <HomeStateCard
@@ -1020,15 +1026,18 @@ function HomeHeader({
   hasUnreadNotification,
   onNotifications,
   onProfile,
+  profileImageUrl,
   userName,
 }: {
   currentDate: string;
   hasUnreadNotification: boolean;
   onNotifications?: () => void;
   onProfile?: () => void;
+  profileImageUrl?: string | null;
   userName: string;
 }) {
   const styles = useHomeStyles();
+  const { s } = useScale();
   return (
     <View style={styles.header}>
       <View style={styles.headerCopy}>
@@ -1061,9 +1070,12 @@ function HomeHeader({
           onPress={onProfile}
           style={styles.profileButton}
         >
-          <View
-            testID="header-mascot-placeholder"
-            style={styles.profilePlaceholder}
+          <ProfileAvatar
+            accessibilityLabel={`${userName}님의 프로필 이미지`}
+            profileImageUrl={profileImageUrl}
+            size={s(48)}
+            style={styles.profileAvatar}
+            testID="home-profile-avatar"
           />
         </Pressable>
       </View>
@@ -1212,7 +1224,11 @@ function WeeklyProgressCard({
           >
             <Image
               resizeMode="contain"
-              source={isDone ? imageAssets.mascotComplete : imageAssets.dayTodo}
+              source={
+                isDone
+                  ? imageAssets.weeklyProgressComplete
+                  : imageAssets.weeklyProgressIncomplete
+              }
               style={[styles.progressImage, !isDone && styles.todoImage]}
               testID={isDone ? 'day-done-image' : 'day-todo-image'}
             />
@@ -1231,39 +1247,23 @@ function WeeklyProgressCard({
   );
 }
 
-function CheckinButton({ onPress }: { onPress: () => void }) {
+function CheckinButton({
+  onPress,
+  useJua,
+}: {
+  onPress: () => void;
+  useJua: boolean;
+}) {
   const styles = useHomeStyles();
   return (
     <View style={styles.checkinWrapper}>
-      <Pressable
-        accessibilityLabel="오늘 루틴 체크인"
-        accessibilityRole="button"
+      <GradientActionButton
+        label="오늘 루틴 체크인"
+        labelStyle={[styles.sheetSaveLabel, useJua && styles.juaLabel]}
         onPress={onPress}
-        style={({ pressed }) => [
-          styles.checkinButton,
-          pressed && styles.checkinButtonPressed,
-        ]}
-      >
-        <LinearGradient
-          colors={['#FEE8B1', '#FEDA99', '#FFD790']}
-          end={{ x: 0.5, y: 1 }}
-          locations={[0, 0.55, 1]}
-          pointerEvents="none"
-          start={{ x: 0.5, y: 0 }}
-          style={styles.checkinGradient}
-          testID="home-checkin-gradient"
-        />
-        <Text numberOfLines={1} style={styles.checkinLabel}>
-          오늘 루틴 체크인
-        </Text>
-        <View
-          pointerEvents="none"
-          style={styles.checkinChevron}
-          testID="home-checkin-chevron"
-        >
-          <CheckinChevronIcon />
-        </View>
-      </Pressable>
+        testID="home-checkin"
+        trailing={<CheckinChevronIcon />}
+      />
     </View>
   );
 }
@@ -1571,11 +1571,9 @@ function RoutineCard({
           (pending || !onStart) && styles.routineActionDisabled,
         ]}
       >
-        <OutlinedLabel
-          label="운동 시작하기"
-          outlineColor="#5A4636"
-          style={[styles.startLabel, useJua && styles.juaLabel]}
-        />
+        <Text style={[styles.startLabel, useJua && styles.juaLabel]}>
+          운동 시작하기
+        </Text>
         <StartChevronIcon />
       </Pressable>
       <View style={styles.routineActions}>
@@ -3204,51 +3202,18 @@ function useDragController(onMoveItem: (from: number, to: number) => void) {
   };
 }
 
-function OutlinedLabel({
-  label,
-  outlineColor,
-  style,
-  suffix,
-  suffixStyle,
-}: {
-  label: string;
-  outlineColor: string;
-  style: StyleProp<TextStyle>;
-  suffix?: string;
-  suffixStyle?: StyleProp<TextStyle>;
-}) {
-  const styles = useHomeStyles();
-  const outlineStyle = [styles.outlineText, style, { color: outlineColor }];
-  return (
-    <View accessible={false} style={styles.outlineContainer}>
-      <View style={styles.outlineTextContainer}>
-        <Text style={[outlineStyle, styles.outlineLeft]}>{label}</Text>
-        <Text style={[outlineStyle, styles.outlineRight]}>{label}</Text>
-        <Text style={[outlineStyle, styles.outlineTop]}>{label}</Text>
-        <Text style={[outlineStyle, styles.outlineBottom]}>{label}</Text>
-        <Text style={[outlineStyle, styles.outlineTopLeft]}>{label}</Text>
-        <Text style={[outlineStyle, styles.outlineTopRight]}>{label}</Text>
-        <Text style={[outlineStyle, styles.outlineBottomLeft]}>{label}</Text>
-        <Text style={[outlineStyle, styles.outlineBottomRight]}>{label}</Text>
-        <Text style={style}>{label}</Text>
-      </View>
-      {suffix ? <Text style={suffixStyle}>{suffix}</Text> : null}
-    </View>
-  );
-}
-
 function NotificationIcon() {
   return (
     <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
       <Path
         d="M12 3.5a5.5 5.5 0 0 0-5.5 5.5v3.2L5 15.5h14l-1.5-3.3V9A5.5 5.5 0 0 0 12 3.5Z"
-        stroke="#5A4636"
+        stroke={colors.surface}
         strokeWidth={1.7}
         strokeLinejoin="round"
       />
       <Path
         d="M10 18.2a2 2 0 0 0 4 0"
-        stroke="#5A4636"
+        stroke={colors.surface}
         strokeWidth={1.7}
         strokeLinecap="round"
       />
@@ -3541,7 +3506,7 @@ function createHomeStyles(
       textShadowOffset: { width: 0, height: s(1) },
       textShadowRadius: s(2),
     },
-    greetingName: { color: '#F6BA50' },
+    greetingName: { color: colors.greenText },
     date: {
       marginTop: s(6),
       color: colors.text,
@@ -3557,7 +3522,7 @@ function createHomeStyles(
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: s(14),
-      backgroundColor: '#FFF8E5',
+      backgroundColor: colors.text,
       ...shadow(4, 10, 0.14),
     },
     notificationDot: {
@@ -3567,6 +3532,8 @@ function createHomeStyles(
       width: s(9),
       height: s(9),
       borderRadius: s(4.5),
+      borderWidth: s(1.5),
+      borderColor: colors.surface,
       backgroundColor: '#E9503F',
     },
     hidden: { display: 'none' },
@@ -3578,12 +3545,7 @@ function createHomeStyles(
       backgroundColor: '#FFFFFF',
       ...shadow(4, 12, 0.18),
     },
-    profilePlaceholder: {
-      width: '100%',
-      height: '100%',
-      borderRadius: s(24),
-      backgroundColor: '#FFF8E5',
-    },
+    profileAvatar: { width: '100%', height: '100%' },
     summaryCard: {
       marginBottom: s(14),
       borderRadius: s(22),
@@ -3681,45 +3643,6 @@ function createHomeStyles(
       backgroundColor: '#F6BA50',
     },
     checkinWrapper: { marginBottom: s(16) },
-    checkinButton: {
-      position: 'relative',
-      width: '100%',
-      height: s(58),
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: s(1),
-      borderColor: 'rgba(244, 166, 42, 0.8)',
-      borderRadius: s(18),
-      paddingHorizontal: s(48),
-      shadowColor: '#AD741D',
-      shadowOffset: { width: 0, height: s(5) },
-      shadowOpacity: 0.11,
-      shadowRadius: s(6),
-      elevation: 3,
-    },
-    checkinButtonPressed: {
-      transform: [{ translateY: s(1) }],
-    },
-    checkinGradient: {
-      position: 'absolute',
-      top: 0,
-      right: 0,
-      bottom: 0,
-      left: 0,
-      borderRadius: s(18),
-    },
-    checkinLabel: {
-      color: colors.text,
-      fontSize: f(18),
-      fontWeight: '700',
-      textAlign: 'center',
-    },
-    checkinChevron: {
-      position: 'absolute',
-      right: s(20),
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     juaLabel: { fontFamily: fontFamilies.slogan, fontWeight: '400' },
     messageCard: {
       alignItems: 'center',
@@ -3939,7 +3862,12 @@ function createHomeStyles(
       backgroundColor: '#F6BA50',
       padding: s(16),
     },
-    startLabel: { color: '#5A4636', fontSize: f(17), fontWeight: '400' },
+    startLabel: {
+      color: colors.text,
+      fontSize: f(17),
+      fontWeight: '400',
+      textAlign: 'center',
+    },
     routineActions: {
       flexDirection: 'row',
       gap: s(8),
@@ -4503,36 +4431,6 @@ function createHomeStyles(
       borderRadius: s(18),
       backgroundColor: '#F6BA50',
       padding: s(16),
-    },
-    outlineContainer: {
-      minWidth: 0,
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    outlineTextContainer: {
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    outlineText: {
-      position: 'absolute',
-    },
-    outlineLeft: { transform: [{ translateX: s(-1) }] },
-    outlineRight: { transform: [{ translateX: s(1) }] },
-    outlineTop: { transform: [{ translateY: s(-1) }] },
-    outlineBottom: { transform: [{ translateY: s(1) }] },
-    outlineTopLeft: {
-      transform: [{ translateX: s(-1) }, { translateY: s(-1) }],
-    },
-    outlineTopRight: {
-      transform: [{ translateX: s(1) }, { translateY: s(-1) }],
-    },
-    outlineBottomLeft: {
-      transform: [{ translateX: s(-1) }, { translateY: s(1) }],
-    },
-    outlineBottomRight: {
-      transform: [{ translateX: s(1) }, { translateY: s(1) }],
     },
   });
 }

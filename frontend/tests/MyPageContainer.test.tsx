@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import * as ImagePicker from 'expo-image-picker';
 import {
   fireEvent,
   render,
@@ -49,6 +50,16 @@ function accountApi(overrides: Partial<Api> = {}): Api {
       next_cursor: null,
     })),
     updateProfileSettings: jest.fn(async () => ({
+      profile_version: 8,
+      updated_at: '2026-08-19T09:00:00+09:00',
+    })),
+    uploadProfileImage: jest.fn(async () => ({
+      profile_image_url: 'https://cdn.example.com/profiles/user-1.jpg',
+      profile_version: 8,
+      updated_at: '2026-08-19T09:00:00+09:00',
+    })),
+    deleteProfileImage: jest.fn(async () => ({
+      profile_image_url: null,
       profile_version: 8,
       updated_at: '2026-08-19T09:00:00+09:00',
     })),
@@ -264,6 +275,141 @@ describe('MyPageContainer', () => {
         7,
       ),
     );
+  });
+
+  it('renders a saved profile image and can restore the bundled default', async () => {
+    const current = me();
+    current.profile!.profile_image_url =
+      'https://cdn.example.com/profiles/user-1.jpg';
+    const deleteProfileImage = jest.fn<Api['deleteProfileImage']>(async () => ({
+      profile_image_url: null,
+      profile_version: 8,
+      updated_at: '2026-08-19T09:00:00+09:00',
+    }));
+
+    await render(
+      <MyPageContainer
+        api={accountApi({ deleteProfileImage })}
+        me={current}
+        now={new Date('2026-08-19T03:00:00Z')}
+        onNavigateTab={jest.fn()}
+        onRefreshMe={jest.fn(async () => undefined)}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('my-page-profile-avatar').props.source).toEqual({
+      uri: 'https://cdn.example.com/profiles/user-1.jpg',
+    });
+
+    fireEvent.press(screen.getByRole('button', { name: '프로필 수정' }));
+    fireEvent.press(
+      screen.getByRole('button', { name: '기본 이미지로 되돌리기' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '기본 정보 저장' }));
+
+    await waitFor(() => expect(deleteProfileImage).toHaveBeenCalledWith(7));
+  });
+
+  it('selects a device image, previews it, and uploads the file on save', async () => {
+    const updateProfileSettings = jest.fn<Api['updateProfileSettings']>();
+    const uploadProfileImage = jest.fn<Api['uploadProfileImage']>(async () => ({
+      profile_image_url: 'https://cdn.example.com/profiles/user-1.jpg',
+      profile_version: 8,
+      updated_at: '2026-08-19T09:00:00+09:00',
+    }));
+    jest
+      .mocked(ImagePicker.requestMediaLibraryPermissionsAsync)
+      .mockResolvedValueOnce({
+        granted: true,
+        status: ImagePicker.PermissionStatus.GRANTED,
+        canAskAgain: true,
+        expires: 'never',
+      });
+    jest.mocked(ImagePicker.launchImageLibraryAsync).mockResolvedValueOnce({
+      canceled: false,
+      assets: [
+        {
+          uri: 'file:///profile.jpg',
+          width: 800,
+          height: 800,
+          type: 'image',
+          fileName: 'profile.jpg',
+          fileSize: 123_456,
+          mimeType: 'image/jpeg',
+        },
+      ],
+    });
+
+    await render(
+      <MyPageContainer
+        api={accountApi({ updateProfileSettings, uploadProfileImage })}
+        me={me()}
+        now={new Date('2026-08-19T03:00:00Z')}
+        onNavigateTab={jest.fn()}
+        onRefreshMe={jest.fn(async () => undefined)}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: '프로필 수정' }));
+    fireEvent.press(
+      screen.getByRole('button', { name: '사진 보관함에서 선택' }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('profile-editor-avatar-preview').props.source,
+      ).toEqual({ uri: 'file:///profile.jpg' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '기본 정보 저장' }));
+
+    await waitFor(() =>
+      expect(uploadProfileImage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          uri: 'file:///profile.jpg',
+          fileName: 'profile.jpg',
+          mimeType: 'image/jpeg',
+          fileSize: 123_456,
+        }),
+        7,
+      ),
+    );
+    expect(updateProfileSettings).not.toHaveBeenCalled();
+  });
+
+  it('shows guidance when photo-library permission is denied', async () => {
+    const uploadProfileImage = jest.fn<Api['uploadProfileImage']>();
+    jest
+      .mocked(ImagePicker.requestMediaLibraryPermissionsAsync)
+      .mockResolvedValueOnce({
+        granted: false,
+        status: ImagePicker.PermissionStatus.DENIED,
+        canAskAgain: false,
+        expires: 'never',
+      });
+
+    await render(
+      <MyPageContainer
+        api={accountApi({ uploadProfileImage })}
+        me={me()}
+        now={new Date('2026-08-19T03:00:00Z')}
+        onNavigateTab={jest.fn()}
+        onRefreshMe={jest.fn(async () => undefined)}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: '프로필 수정' }));
+    fireEvent.press(
+      screen.getByRole('button', { name: '사진 보관함에서 선택' }),
+    );
+
+    expect(
+      await screen.findByText(
+        '사진을 선택하려면 기기 설정에서 사진 보관함 접근을 허용해주세요.',
+      ),
+    ).toBeOnTheScreen();
+    expect(uploadProfileImage).not.toHaveBeenCalled();
   });
 
   it('explains which field failed to save', async () => {
@@ -734,6 +880,53 @@ describe('profile settings API', () => {
         'If-Match': '"7"',
         'Idempotency-Key': expect.any(String),
       }),
+    );
+  });
+
+  it('uploads a picked image as multipart without overriding its boundary', async () => {
+    const fetchImpl = jest.fn<typeof fetch>(async () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            profile_image_url: 'https://cdn.example.com/profiles/user-1.jpg',
+            profile_version: 8,
+            updated_at: '2026-08-19T09:00:00+09:00',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      ),
+    );
+    const api = createApi(
+      new ApiClient({
+        baseUrl: 'http://127.0.0.1:8000',
+        getToken: async () => 'firebase-token',
+        fetchImpl,
+      }),
+    );
+
+    await api.uploadProfileImage(
+      {
+        uri: 'file:///profile.jpg',
+        fileName: 'profile.jpg',
+        mimeType: 'image/jpeg',
+        webFile: new Blob(['image'], { type: 'image/jpeg' }),
+      },
+      7,
+    );
+
+    const [url, init] = fetchImpl.mock.calls[0] ?? [];
+    expect(String(url)).toBe('http://127.0.0.1:8000/api/v1/me/profile-image');
+    expect(init?.method).toBe('POST');
+    expect(init?.body).toBeInstanceOf(FormData);
+    expect(init?.headers).toEqual(
+      expect.objectContaining({
+        Authorization: 'Bearer firebase-token',
+        'If-Match': '"7"',
+        'Idempotency-Key': expect.any(String),
+      }),
+    );
+    expect(init?.headers).not.toEqual(
+      expect.objectContaining({ 'Content-Type': expect.any(String) }),
     );
   });
 });

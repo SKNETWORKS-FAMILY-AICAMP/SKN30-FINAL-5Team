@@ -490,6 +490,7 @@ export function HomeContainer({
   return (
     <HomeScreen
       nickname={profile?.nickname ?? '회원'}
+      profileImageUrl={profile?.profile_image_url ?? null}
       localDate={localDate}
       status={
         state.status === 'ready'

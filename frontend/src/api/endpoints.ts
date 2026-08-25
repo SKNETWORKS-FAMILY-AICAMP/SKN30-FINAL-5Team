@@ -1,9 +1,9 @@
 /**
  * One function per implemented `/api/v1` endpoint.
  *
- * Only endpoints that exist in the backend router appear here. Calendar and
- * wearable routes are intentionally absent: Wave 9C-2A is persistence only, so
- * there is nothing to call and the client must not pretend otherwise.
+ * Profile-image methods are the frontend side of a proposed multipart contract;
+ * the backend must review and implement that contract before production use.
+ * Calendar and wearable routes remain absent while there is nothing to call.
  */
 
 import type { ApiClient } from './client';
@@ -20,6 +20,8 @@ import type {
   NotCompletedReasonCode,
   OnboardingRequest,
   OnboardingResponse,
+  ProfileImageMutationResponse,
+  ProfileImageUpload,
   ProfileSettingsUpdateRequest,
   ProfileSettingsUpdateResponse,
   RoutineResponse,
@@ -61,6 +63,38 @@ export function createApi(client: ApiClient) {
         method: 'PATCH',
         path: '/me/profile',
         body,
+        idempotent: true,
+        ifMatch: expectedProfileVersion,
+      });
+    },
+
+    uploadProfileImage(
+      image: ProfileImageUpload,
+      expectedProfileVersion: number,
+    ) {
+      const formData = new FormData();
+      const filePart =
+        image.webFile ??
+        ({
+          uri: image.uri,
+          name: image.fileName,
+          type: image.mimeType,
+        } as unknown as Blob);
+      formData.append('file', filePart, image.fileName);
+
+      return client.request<ProfileImageMutationResponse>({
+        method: 'POST',
+        path: '/me/profile-image',
+        formData,
+        idempotent: true,
+        ifMatch: expectedProfileVersion,
+      });
+    },
+
+    deleteProfileImage(expectedProfileVersion: number) {
+      return client.request<ProfileImageMutationResponse>({
+        method: 'DELETE',
+        path: '/me/profile-image',
         idempotent: true,
         ifMatch: expectedProfileVersion,
       });
