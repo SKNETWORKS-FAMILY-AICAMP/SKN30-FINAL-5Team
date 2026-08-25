@@ -42,8 +42,9 @@ POL-009~013은 2026-08-11 사용자 명시 승인과 `ACCEPTED` ADR-0004에 따�
 
 V3-A3 orchestration domain과 persistent-checkpointer 없는 LangGraph runtime은 `origin/develop`에
 병합됐다. V3-B1 additive persistence는 migration `0025_v3_decision_persistence`, 별도 V3 SQLAlchemy
-model/repository와 PostgreSQL integration test로 `IN_PROGRESS`다. 이는 production V3 활성화나
-TASK-AGENT-003 전체 완료 증거가 아니며 F002의 `PARTIAL` 상태를 변경하지 않는다.
+model/repository/adapter/UoW와 PR #132 PostgreSQL round-trip·rollback integration test로 `COMPLETE`다.
+이는 production V3 활성화나 TASK-AGENT-003 전체 완료 증거가 아니며 F002의 `PARTIAL` 상태를
+변경하지 않는다.
 
 ### 3.1 MVP 기능 구현 증거
 

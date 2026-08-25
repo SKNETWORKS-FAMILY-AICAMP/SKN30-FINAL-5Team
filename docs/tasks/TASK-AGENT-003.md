@@ -14,7 +14,9 @@ infrastructure와 `vector_index_registry` migration은 병합됐다. V3-A2의 fr
 Agent/Coordinator contract와 LangChain Training·Recovery·Feasibility·Coordinator adapter도 병합됐다.
 V3-A3의 framework-independent conflict/review/compiler/integrity/fallback/regeneration orchestration
 domain과 persistent-checkpointer 없는 LangGraph runtime은 병합됐다. V3-B1 additive persistence는
-`IN_PROGRESS`이며 API·shadow 검증과 production 전환은 완료되지 않았다.
+`COMPLETE`이며 domain bundle→SQL repository round-trip, provider-free replay, root snapshot 조회와
+transaction rollback이 PR #132 PostgreSQL CI에서 검증됐다. API·shadow 검증과 production 전환은
+완료되지 않았다.
 
 V3-A2 domain schema version은 기존 V1/V2 contract와 분리해 다음으로 고정한다.
 
@@ -228,8 +230,9 @@ additive하게 도입한다. 온보딩 점수는 별도
   보존하지만 세트·반복 구성요소에서 시간을 재산출하지 않는다. 임의 반복 시간 상수는 추가하지 않는다.
 - integrity repairability의 승인 안전 대체 존재 여부는 Safety를 재판정하지 않고 upstream canonical
   safe-alternative ID projection으로만 받는다.
-- V3-B1 (`IN_PROGRESS`, backend owner): migration `0025_v3_decision_persistence`, V3 SQLAlchemy model,
-  framework-independent write DTO 기반 repository와 replay audit bundle. production write는 비활성
+- V3-B1 (`COMPLETE`, backend owner): migration `0025_v3_decision_persistence`, V3 SQLAlchemy model,
+  framework-independent write DTO 기반 repository/adapter/UoW와 replay audit bundle. PostgreSQL
+  round-trip·rollback 검증 완료, production write는 비활성
 - V3-B2: regeneration API와 frontend compatibility 구현
 - V3-C1: shadow evaluation, golden, expert review, latency·cost·fallback 측정
 - V3-C2: 기준 충족 후 ADR-0013에 따른 production graph 전환 승인 검토
