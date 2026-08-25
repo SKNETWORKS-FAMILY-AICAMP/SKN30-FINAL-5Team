@@ -102,6 +102,7 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setenv("DATABASE_URL", test_database_url)
     get_settings.cache_clear()
     config = Config(str(ALEMBIC_CONFIG))
+    command.downgrade(config, "base")
     command.upgrade(config, "head")
     engine = create_engine(test_database_url)
     try:

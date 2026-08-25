@@ -74,7 +74,21 @@ def downgrade() -> None:
         END $$;
         """
     )
-    op.execute("DELETE FROM body_focuses WHERE code_set_version = 'catalog-v2'")
+    # CORE and FULL_BODY may be shared with an existing mvp-v1 catalog because
+    # body_focuses uses the stable code itself as its global primary key. Preserve
+    # every lookup row still referenced by either catalog exercises or routines.
+    op.execute(
+        """
+        DELETE FROM body_focuses candidate
+        WHERE candidate.code_set_version = 'catalog-v2'
+          AND NOT EXISTS (
+            SELECT 1 FROM exercises WHERE body_focus_code = candidate.code
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM routine_days WHERE body_focus_code = candidate.code
+          )
+        """
+    )
     op.drop_constraint("ck_exercises_source_track_code", "exercises", type_="check")
     op.create_check_constraint(
         "ck_exercises_source_track_code",
