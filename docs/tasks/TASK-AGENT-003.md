@@ -11,8 +11,10 @@
 상태 정합성: ADR-0013과 ADR-0014는 2026-08-24 `ACCEPTED`되었고 V3 목표 계약과 Qdrant retrieval
 경계를 승인한다. 공통 retrieval domain contract, deterministic pool builder, Qdrant adapter/index
 infrastructure와 `vector_index_registry` migration은 병합됐다. V3-A2의 framework-independent Pydantic
-Agent/Coordinator contract는 구현 중이며 LangChain adapter·LLM graph·shadow 검증과 production 전환은
-완료되지 않았다.
+Agent/Coordinator contract와 LangChain Training·Recovery·Feasibility·Coordinator adapter도 병합됐다.
+V3-A3의 framework-independent conflict/review/compiler/integrity/fallback/regeneration orchestration
+domain은 `IN_PROGRESS`이며 LangGraph runtime·persistence·API·shadow 검증과 production 전환은 완료되지
+않았다.
 
 V3-A2 domain schema version은 기존 V1/V2 contract와 분리해 다음으로 고정한다.
 
@@ -24,6 +26,20 @@ V3-A2 domain schema version은 기존 V1/V2 contract와 분리해 다음으로 �
 - `llm-invocation-metadata-v1`
 - `v3-coordinator-input-v1`
 - `plan-spec-v1`
+
+V3-A3 domain schema version은 다음으로 분리한다.
+
+- `v3-conflict-detection-v1`
+- `v3-agent-review-v1`
+- `v3-review-validation-v1`
+- `compiled-plan-v1`
+- `deterministic-fallback-plan-v1`
+- `plan-integrity-validation-v1`
+- `v3-fallback-request-v1`
+- `v3-fallback-outcome-v1`
+- `v3-regeneration-difference-v1`
+- `v3-terminal-result-v1`
+- `v3-graph-result-v1`
 
 ## 배경과 사용자 가치
 
@@ -205,8 +221,12 @@ ADR-0014에 따른 후속 persistence task는 `vector_index_registry`, `decision
 
 ## 알려진 제한과 후속 작업
 
-- V3-A2: framework-independent Pydantic domain contract 병합 후 LangChain Agent adapter 구현
-- V3-A3: LangGraph orchestration, timeout, repair와 deterministic fallback 구현
+- V3-A2: framework-independent Pydantic domain contract와 LangChain Agent adapter 병합 완료
+- V3-A3: framework-independent orchestration domain 병합 후 LangGraph runtime, timeout과 graph 조립 구현
+- 현재 prescription에는 검수된 반복당 시간 정보가 없어 compiler는 `PlanSpec`의 exact-duration assertion을
+  보존하지만 세트·반복 구성요소에서 시간을 재산출하지 않는다. 임의 반복 시간 상수는 추가하지 않는다.
+- integrity repairability의 승인 안전 대체 존재 여부는 Safety를 재판정하지 않고 upstream canonical
+  safe-alternative ID projection으로만 받는다.
 - V3-B1: additive persistence와 Alembic migration
 - V3-B2: regeneration API와 frontend compatibility 구현
 - V3-C1: shadow evaluation, golden, expert review, latency·cost·fallback 측정
