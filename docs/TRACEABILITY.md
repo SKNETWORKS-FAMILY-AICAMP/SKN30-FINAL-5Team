@@ -46,6 +46,12 @@ model/repository/adapter/UoW와 PR #132 PostgreSQL round-trip·rollback integrat
 이는 production V3 활성화나 TASK-AGENT-003 전체 완료 증거가 아니며 F002의 `PARTIAL` 상태를
 변경하지 않는다.
 
+V3-C1은 versioned synthetic 20-case fixture, 순수 `V3ShadowExecutionResult` metric evaluator, V1/V3
+비교, privacy allowlist, pending expert-review artifact와 offline CLI를 구현했다. 기본 실행은 stored/fake
+결과만 사용하며 live provider 호출은 구성하지 않는다. 이 증거는 safety hard gate와 report schema의
+구현 상태만 나타내며 실제 사용자 shadow, 전문가 검토, 성능·비용 threshold 승인 또는 production V3
+전환 완료를 의미하지 않는다. 따라서 F002의 `PARTIAL` 상태는 유지한다.
+
 ### 3.1 MVP 기능 구현 증거
 
 | 요구사항 | 인수조건 | API·DB | 코드 | 테스트 | 병합 PR | 상태 |
