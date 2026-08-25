@@ -12,8 +12,10 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from backend.app.modules.catalog.schemas import (
+    AlternativeManifest,
     ExerciseAlternativeRecord,
     ExerciseSafetyRuleRecord,
+    SafetyRuleManifest,
 )
 from backend.app.modules.catalog.service import (
     AlternativeArtifact,
@@ -112,6 +114,12 @@ def test_loads_current_derived_artifacts() -> None:
 
 def test_v2_runtime_metadata_is_accepted_by_pydantic() -> None:
     runtime = GENERATED / "exercise-catalog-v2.0.0-final" / "runtime"
+    safety_manifest = SafetyRuleManifest.model_validate_json(
+        (runtime / "safety_manifest.json").read_text(encoding="utf-8")
+    )
+    alternative_manifest = AlternativeManifest.model_validate_json(
+        (runtime / "alternatives_manifest.json").read_text(encoding="utf-8")
+    )
     safety_records = tuple(
         ExerciseSafetyRuleRecord.model_validate_json(line)
         for line in (runtime / "safety_rules.jsonl").read_text(encoding="utf-8").splitlines()
@@ -126,8 +134,8 @@ def test_v2_runtime_metadata_is_accepted_by_pydantic() -> None:
     safety = safety_records[0]
     alternative = alternative_records[0]
 
-    assert len(safety_records) == 394
-    assert len(alternative_records) == 116
+    assert len(safety_records) == safety_manifest.summary.rule_records
+    assert len(alternative_records) == alternative_manifest.summary.alternative_records
     assert safety.rule_set_version_code == "safety-rule-set-v2.0.0"
     assert safety.production_eligible is False
     assert safety.created_at is not None and safety.updated_at is not None
