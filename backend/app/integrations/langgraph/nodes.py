@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 
 from backend.app.domain.agents.v3_contracts import (
     SPECIALIST_AGENT_ORDER,
@@ -12,11 +13,56 @@ from backend.app.domain.agents.v3_contracts import (
     V3ProposalStatusCode,
 )
 from backend.app.domain.rules.safety import SafetyRequiredActionCode
-from backend.app.integrations.langgraph.state import AgentOutcome, V3GraphResult, V3GraphState
+from backend.app.integrations.langgraph.state import (
+    AgentOutcome,
+    InvocationAudit,
+    V3GraphResult,
+    V3GraphState,
+)
+from backend.app.integrations.llm_agents.models import (
+    LlmInvocationTelemetry,
+    StructuredAgentResult,
+)
 
 
 def _append_failure(state: V3GraphState, code: str) -> tuple[str, ...]:
     return tuple(sorted({*state.get("failure_codes", ()), code}))
+
+
+def _invocation_audit(
+    *,
+    role_code: str,
+    phase_code: str,
+    result: StructuredAgentResult[Any],
+) -> InvocationAudit:
+    telemetry = result.telemetry
+    failure = result.failure
+    if failure is None:
+        status = "SUCCEEDED"
+        failure_code = None
+        attempt_count = telemetry.attempt_count if telemetry is not None else 1
+    else:
+        if failure.code.value.endswith("TIMEOUT"):
+            status = "TIMEOUT"
+        elif failure.code.value.endswith(("SCHEMA_INVALID", "DOMAIN_INVALID")):
+            status = "INVALID_OUTPUT"
+        else:
+            status = "FAILED"
+        failure_code = failure.code.value
+        attempt_count = failure.attempt_count
+    return InvocationAudit(
+        role_code=role_code,
+        phase_code=phase_code,
+        status_code=status,
+        attempt_count=attempt_count,
+        latency_ms=telemetry.latency_ms if telemetry is not None else 0,
+        input_token_count=telemetry.input_token_count if telemetry is not None else None,
+        output_token_count=telemetry.output_token_count if telemetry is not None else None,
+        provider_usage_present=(
+            telemetry.provider_usage_present if telemetry is not None else False
+        ),
+        failure_code=failure_code,
+    )
 
 
 def _proposal_is_valid(
@@ -97,12 +143,21 @@ async def _run_specialist(
                 regeneration_context=graph_input.regeneration_context,
             )
     except TimeoutError:
-        outcome = AgentOutcome(agent_type, failure_code=f"V3_{agent_type.value}_TIMEOUT")
+        outcome = AgentOutcome(
+            agent_type,
+            failure_code=f"V3_{agent_type.value}_TIMEOUT",
+            telemetry=LlmInvocationTelemetry(
+                attempt_count=1,
+                latency_ms=max(0, int(graph_input.node_timeout_seconds * 1000)),
+            ),
+        )
     except Exception:
         outcome = AgentOutcome(agent_type, failure_code=f"V3_{agent_type.value}_FAILED")
     else:
         if result.failure is not None:
-            outcome = AgentOutcome(agent_type, failure_code=result.failure.code.value)
+            outcome = AgentOutcome(
+                agent_type, failure_code=result.failure.code.value, telemetry=result.telemetry
+            )
         elif (
             result.output is None
             or result.output.proposal_status_code is not V3ProposalStatusCode.READY
@@ -110,7 +165,7 @@ async def _run_specialist(
         ):
             outcome = AgentOutcome(agent_type, failure_code=f"V3_{agent_type.value}_NOT_READY")
         else:
-            outcome = AgentOutcome(agent_type, proposal=result.output)
+            outcome = AgentOutcome(agent_type, proposal=result.output, telemetry=result.telemetry)
     return {"agent_outcomes": (outcome,)}
 
 
@@ -143,9 +198,33 @@ def canonicalize_agents(state: V3GraphState) -> dict[str, object]:
             failures.append(outcome.failure_code)
         elif outcome.proposal is not None:
             proposals.append(outcome.proposal)
+    audits = tuple(
+        InvocationAudit(
+            role_code=outcome.agent_type.value,
+            phase_code="PROPOSE",
+            status_code=(
+                "SUCCEEDED"
+                if outcome.proposal is not None
+                else ("TIMEOUT" if (outcome.failure_code or "").endswith("TIMEOUT") else "FAILED")
+            ),
+            attempt_count=(outcome.telemetry.attempt_count if outcome.telemetry else 0),
+            latency_ms=(outcome.telemetry.latency_ms if outcome.telemetry else 0),
+            input_token_count=(outcome.telemetry.input_token_count if outcome.telemetry else None),
+            output_token_count=(
+                outcome.telemetry.output_token_count if outcome.telemetry else None
+            ),
+            provider_usage_present=(
+                outcome.telemetry.provider_usage_present if outcome.telemetry else False
+            ),
+            failure_code=outcome.failure_code,
+        )
+        for outcome in (by_role[role] for role in SPECIALIST_AGENT_ORDER if role in by_role)
+    )
     return {
         "proposals": tuple(proposals),
+        "round_one_proposals": tuple(proposals),
         "failure_codes": tuple(sorted(set(failures))),
+        "invocation_audits": audits,
     }
 
 
@@ -155,7 +234,7 @@ def detect_conflicts(state: V3GraphState) -> dict[str, object]:
         report = graph_input.conflict_detector.detect(state["proposals"])
     except Exception:
         return {"failure_codes": _append_failure(state, "V3_CONFLICT_DETECTION_FAILED")}
-    return {"conflict_report": report}
+    return {"conflict_report": report, "initial_conflict_report": report}
 
 
 def optional_reviews(state: V3GraphState) -> dict[str, object]:
@@ -182,12 +261,21 @@ async def _run_review(
                 exercise_pool=graph_input.exercise_pool,
             )
     except TimeoutError:
-        outcome = AgentOutcome(agent_type, failure_code=f"V3_{agent_type.value}_REVIEW_TIMEOUT")
+        outcome = AgentOutcome(
+            agent_type,
+            failure_code=f"V3_{agent_type.value}_REVIEW_TIMEOUT",
+            telemetry=LlmInvocationTelemetry(
+                attempt_count=1,
+                latency_ms=max(0, int(graph_input.node_timeout_seconds * 1000)),
+            ),
+        )
     except Exception:
         outcome = AgentOutcome(agent_type, failure_code=f"V3_{agent_type.value}_REVIEW_FAILED")
     else:
         if result.failure is not None:
-            outcome = AgentOutcome(agent_type, failure_code=result.failure.code.value)
+            outcome = AgentOutcome(
+                agent_type, failure_code=result.failure.code.value, telemetry=result.telemetry
+            )
         elif (
             result.output is None
             or result.output.proposal_status_code is not V3ProposalStatusCode.READY
@@ -198,7 +286,7 @@ async def _run_review(
                 failure_code=f"V3_{agent_type.value}_REVIEW_NOT_READY",
             )
         else:
-            outcome = AgentOutcome(agent_type, proposal=result.output)
+            outcome = AgentOutcome(agent_type, proposal=result.output, telemetry=result.telemetry)
     return {"review_outcomes": (outcome,)}
 
 
@@ -222,8 +310,33 @@ def finalize_reviews(state: V3GraphState) -> dict[str, object]:
             failures.append(outcome.failure_code)
         elif outcome.proposal is not None:
             replacements[outcome.agent_type] = outcome.proposal
+    audits = tuple(
+        InvocationAudit(
+            role_code=outcome.agent_type.value,
+            phase_code="REVIEW",
+            status_code=(
+                "SUCCEEDED"
+                if outcome.proposal is not None
+                else ("TIMEOUT" if (outcome.failure_code or "").endswith("TIMEOUT") else "FAILED")
+            ),
+            attempt_count=(outcome.telemetry.attempt_count if outcome.telemetry else 0),
+            latency_ms=(outcome.telemetry.latency_ms if outcome.telemetry else 0),
+            input_token_count=(outcome.telemetry.input_token_count if outcome.telemetry else None),
+            output_token_count=(
+                outcome.telemetry.output_token_count if outcome.telemetry else None
+            ),
+            provider_usage_present=(
+                outcome.telemetry.provider_usage_present if outcome.telemetry else False
+            ),
+            failure_code=outcome.failure_code,
+        )
+        for outcome in sorted(
+            state.get("review_outcomes", ()),
+            key=lambda item: SPECIALIST_AGENT_ORDER.index(item.agent_type),
+        )
+    )
     if failures:
-        return {"failure_codes": tuple(sorted(set(failures)))}
+        return {"failure_codes": tuple(sorted(set(failures))), "invocation_audits": audits}
     proposals = tuple(replacements.get(item.agent_type_code, item) for item in state["proposals"])
     try:
         report = state["graph_input"].conflict_detector.detect(proposals)
@@ -234,6 +347,7 @@ def finalize_reviews(state: V3GraphState) -> dict[str, object]:
         "proposals": proposals,
         "conflict_report": report,
         "failure_codes": tuple(failures),
+        "invocation_audits": audits,
     }
 
 
@@ -247,16 +361,38 @@ async def coordinator_initial(state: V3GraphState) -> dict[str, object]:
                 proposals=state["proposals"],
             )
     except TimeoutError:
-        return {"failure_codes": ("V3_COORDINATOR_TIMEOUT",), "plan_spec": None}
+        return {
+            "failure_codes": ("V3_COORDINATOR_TIMEOUT",),
+            "plan_spec": None,
+            "invocation_audits": (
+                InvocationAudit(
+                    role_code="COORDINATOR",
+                    phase_code="COORDINATE",
+                    status_code="TIMEOUT",
+                    attempt_count=1,
+                    latency_ms=max(0, int(graph_input.node_timeout_seconds * 1000)),
+                    failure_code="V3_COORDINATOR_TIMEOUT",
+                ),
+            ),
+        }
     except Exception:
         return {"failure_codes": ("V3_COORDINATOR_FAILED",), "plan_spec": None}
+    audit = _invocation_audit(role_code="COORDINATOR", phase_code="COORDINATE", result=result)
     if result.failure is not None:
-        return {"failure_codes": (result.failure.code.value,), "plan_spec": None}
-    return {"plan_spec": result.output}
+        return {
+            "failure_codes": (result.failure.code.value,),
+            "plan_spec": None,
+            "invocation_audits": (audit,),
+        }
+    return {
+        "plan_spec": result.output,
+        "coordinator_initial_plan": result.output,
+        "invocation_audits": (audit,),
+    }
 
 
 def compile_plan(state: V3GraphState) -> dict[str, object]:
-    plan_spec = state.get("plan_spec")
+    plan_spec = state.get("plan_spec") or state.get("fallback_plan_spec")
     if plan_spec is None:
         return {"failure_codes": _append_failure(state, "V3_PLAN_SPEC_MISSING")}
     try:
@@ -279,7 +415,7 @@ def validate_plan(state: V3GraphState) -> dict[str, object]:
         )
     except Exception:
         return {"failure_codes": _append_failure(state, "V3_VALIDATION_FAILED")}
-    return {"integrity_validation": validation}
+    return {"integrity_validation": validation, "integrity_validations": (validation,)}
 
 
 async def coordinator_repair(state: V3GraphState) -> dict[str, object]:
@@ -298,6 +434,16 @@ async def coordinator_repair(state: V3GraphState) -> dict[str, object]:
             "failure_codes": ("V3_COORDINATOR_REPAIR_TIMEOUT",),
             "plan_spec": None,
             "repair_attempts": 1,
+            "invocation_audits": (
+                InvocationAudit(
+                    role_code="COORDINATOR",
+                    phase_code="REPAIR",
+                    status_code="TIMEOUT",
+                    attempt_count=1,
+                    latency_ms=max(0, int(graph_input.node_timeout_seconds * 1000)),
+                    failure_code="V3_COORDINATOR_REPAIR_TIMEOUT",
+                ),
+            ),
         }
     except Exception:
         return {
@@ -305,13 +451,21 @@ async def coordinator_repair(state: V3GraphState) -> dict[str, object]:
             "plan_spec": None,
             "repair_attempts": 1,
         }
+    audit = _invocation_audit(role_code="COORDINATOR", phase_code="REPAIR", result=result)
     if result.failure is not None:
         return {
             "failure_codes": (result.failure.code.value,),
             "plan_spec": None,
             "repair_attempts": 1,
+            "invocation_audits": (audit,),
         }
-    return {"plan_spec": result.output, "compiled_plan": None, "repair_attempts": 1}
+    return {
+        "plan_spec": result.output,
+        "compiled_plan": None,
+        "repair_attempts": 1,
+        "coordinator_repair_plan": result.output,
+        "invocation_audits": (audit,),
+    }
 
 
 def fallback(state: V3GraphState) -> dict[str, object]:
@@ -320,7 +474,7 @@ def fallback(state: V3GraphState) -> dict[str, object]:
     if action in {SafetyRequiredActionCode.REST, SafetyRequiredActionCode.STOP_AND_SEEK_HELP}:
         return {"plan_spec": None}
     try:
-        plan_spec = graph_input.fallback.build(
+        fallback_plan_spec = graph_input.fallback.build(
             constraint_envelope=graph_input.constraint_envelope,
             exercise_pool=graph_input.exercise_pool,
             failure_codes=state.get("failure_codes", ()),
@@ -328,10 +482,16 @@ def fallback(state: V3GraphState) -> dict[str, object]:
     except Exception:
         return {
             "plan_spec": None,
+            "fallback_plan_spec": None,
             "failure_codes": _append_failure(state, "V3_FALLBACK_FAILED"),
             "used_fallback": True,
         }
-    return {"plan_spec": plan_spec, "compiled_plan": None, "used_fallback": True}
+    return {
+        "plan_spec": None,
+        "fallback_plan_spec": fallback_plan_spec,
+        "compiled_plan": None,
+        "used_fallback": True,
+    }
 
 
 def finalize(state: V3GraphState) -> dict[str, object]:
@@ -339,10 +499,18 @@ def finalize(state: V3GraphState) -> dict[str, object]:
     plan_spec = state.get("plan_spec")
     compiled_plan = state.get("compiled_plan")
     failure_codes = state.get("failure_codes", ())
-    if plan_spec is None or compiled_plan is None:
+    fallback_plan_spec = state.get("fallback_plan_spec")
+    if (plan_spec is None and fallback_plan_spec is None) or compiled_plan is None:
         return terminal(state)
     context = graph_input.regeneration_context
-    if context is not None:
+    if context is not None and plan_spec is None:
+        return terminal(
+            {
+                **state,
+                "failure_codes": _append_failure(state, "V3_REGENERATION_FALLBACK_NOT_DIFFERENT"),
+            }
+        )
+    if context is not None and plan_spec is not None:
         try:
             different = graph_input.meaningful_difference_validator.validate(plan_spec, context)
         except Exception:
@@ -356,6 +524,14 @@ def finalize(state: V3GraphState) -> dict[str, object]:
                 failure_codes=tuple(sorted({*failure_codes, "V3_REGENERATION_DUPLICATE"})),
                 used_fallback=state.get("used_fallback", False),
                 repair_attempts=state.get("repair_attempts", 0),
+                round_one_proposals=state.get("round_one_proposals", ()),
+                conflict_report=state.get("initial_conflict_report"),
+                review_outcomes=state.get("review_outcomes", ()),
+                coordinator_initial_plan=state.get("coordinator_initial_plan"),
+                coordinator_repair_plan=state.get("coordinator_repair_plan"),
+                integrity_validations=state.get("integrity_validations", ()),
+                invocation_audits=state.get("invocation_audits", ()),
+                fallback_plan_spec=state.get("fallback_plan_spec"),
             )
             return {"result": result}
     result = V3GraphResult(
@@ -366,6 +542,14 @@ def finalize(state: V3GraphState) -> dict[str, object]:
         failure_codes=failure_codes,
         used_fallback=state.get("used_fallback", False),
         repair_attempts=state.get("repair_attempts", 0),
+        round_one_proposals=state.get("round_one_proposals", ()),
+        conflict_report=state.get("initial_conflict_report"),
+        review_outcomes=state.get("review_outcomes", ()),
+        coordinator_initial_plan=state.get("coordinator_initial_plan"),
+        coordinator_repair_plan=state.get("coordinator_repair_plan"),
+        integrity_validations=state.get("integrity_validations", ()),
+        invocation_audits=state.get("invocation_audits", ()),
+        fallback_plan_spec=state.get("fallback_plan_spec"),
     )
     return {"result": result}
 
@@ -382,6 +566,14 @@ def terminal(state: V3GraphState) -> dict[str, object]:
         failure_codes=state.get("failure_codes", ()),
         used_fallback=state.get("used_fallback", False),
         repair_attempts=state.get("repair_attempts", 0),
+        round_one_proposals=state.get("round_one_proposals", ()),
+        conflict_report=state.get("initial_conflict_report"),
+        review_outcomes=state.get("review_outcomes", ()),
+        coordinator_initial_plan=state.get("coordinator_initial_plan"),
+        coordinator_repair_plan=state.get("coordinator_repair_plan"),
+        integrity_validations=state.get("integrity_validations", ()),
+        invocation_audits=state.get("invocation_audits", ()),
+        fallback_plan_spec=state.get("fallback_plan_spec"),
     )
     return {"result": result}
 

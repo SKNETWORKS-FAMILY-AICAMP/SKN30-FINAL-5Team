@@ -48,7 +48,7 @@ def after_validation(
 
 
 def after_fallback(state: V3GraphState) -> Literal["compile_fallback", "terminal"]:
-    return "compile_fallback" if state.get("plan_spec") is not None else "terminal"
+    return "compile_fallback" if state.get("fallback_plan_spec") is not None else "terminal"
 
 
 def after_fallback_validation(state: V3GraphState) -> Literal["finalize", "terminal"]:

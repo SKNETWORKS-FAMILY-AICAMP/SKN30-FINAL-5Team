@@ -287,6 +287,21 @@ V3에서는 필수 LLM Agent나 provider 실패 시 부분 proposal로 Coordinat
 envelope를 만족하는 결정적 fallback을 compiler·validator로 검증해 반환하고, 안전한 fallback이 없으면
 원인별 계획 없는 상태로 종료한다. Coordinator repair는 repairable violation에 한 번만 허용한다.
 
+### V3-C1 private shadow composition
+
+V3-C1은 FastAPI `create_app()`이나 production decision service에 연결하지 않는 별도 composition
+root다. `Settings → OpenAI BaseChatModel factory → StructuredChatInvoker → 세 Specialist/Coordinator
+adapter → stateless V3LangGraphRuntime` 순서로만 조립하며 immutable synthetic
+`ConstraintEnvelope`와 `ExercisePoolSnapshot`을 입력으로 받는다. SQLAlchemy, repository, Qdrant와
+사용자 식별자는 이 dependency graph에 존재하지 않는다.
+
+provider 호출은 public regeneration gate와 독립적인 `V3_SHADOW_EVALUATION_ENABLED` 및 모든 V3/LLM
+server gate, 승인 model allowlist, 실행 도구의 명시적 provider-call opt-in을 모두 요구한다. 결과는
+schema-versioned identifier-free JSONL로 `outputs/v3-shadow/**` 아래에만 기록한다. graph의 additive
+audit result는 Round 1 proposal, conflict/review, Coordinator initial/repair, compilation, validation,
+fallback과 invocation metric을 보존하지만 raw prompt/response와 provider exception은 보존하지 않는다.
+이 경로는 synthetic/offline·staging 평가 전용이며 public V1/V2 응답을 변경하지 않는다.
+
 ## 12. 로컬 및 MVP 배포
 
 로컬 목표 구성은 mobile app, API, PostgreSQL이다. 실행 가능한 Compose 파일은 기반 구현 단계에서 API와 환경 변수가 확정된 뒤 추가한다.

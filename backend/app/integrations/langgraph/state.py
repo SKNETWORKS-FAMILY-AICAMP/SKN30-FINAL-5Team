@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Annotated, Protocol, TypedDict, runtime_checkable
 
 from backend.app.domain.agents.retrieval import ExercisePoolSnapshot
+from backend.app.domain.agents.v3_compiler import DeterministicFallbackPlanSpec
 from backend.app.domain.agents.v3_contracts import (
     ConstraintEnvelope,
     PlanSpec,
@@ -15,7 +16,7 @@ from backend.app.domain.agents.v3_contracts import (
     SpecialistAgentProposal,
     SpecialistAgentTypeCode,
 )
-from backend.app.integrations.llm_agents.models import StructuredAgentResult
+from backend.app.integrations.llm_agents.models import LlmInvocationTelemetry, StructuredAgentResult
 
 
 @runtime_checkable
@@ -69,7 +70,7 @@ class ConflictDetectorPort(Protocol):
 
 
 class CompilationPort(Protocol):
-    def compile(self, plan_spec: PlanSpec) -> object: ...
+    def compile(self, plan_spec: PlanSpec | DeterministicFallbackPlanSpec) -> object: ...
 
 
 class IntegrityValidation(Protocol):
@@ -95,7 +96,7 @@ class FallbackPort(Protocol):
         constraint_envelope: ConstraintEnvelope,
         exercise_pool: ExercisePoolSnapshot,
         failure_codes: tuple[str, ...],
-    ) -> PlanSpec | None: ...
+    ) -> DeterministicFallbackPlanSpec | None: ...
 
 
 class MeaningfulDifferencePort(Protocol):
@@ -130,6 +131,20 @@ class AgentOutcome:
     agent_type: SpecialistAgentTypeCode
     proposal: SpecialistAgentProposal | None = None
     failure_code: str | None = None
+    telemetry: LlmInvocationTelemetry | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class InvocationAudit:
+    role_code: str
+    phase_code: str
+    status_code: str
+    attempt_count: int
+    latency_ms: int
+    input_token_count: int | None = None
+    output_token_count: int | None = None
+    provider_usage_present: bool = False
+    failure_code: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,6 +156,14 @@ class V3GraphResult:
     failure_codes: tuple[str, ...]
     used_fallback: bool
     repair_attempts: int
+    round_one_proposals: tuple[SpecialistAgentProposal, ...] = ()
+    conflict_report: object | None = None
+    review_outcomes: tuple[AgentOutcome, ...] = ()
+    coordinator_initial_plan: PlanSpec | None = None
+    coordinator_repair_plan: PlanSpec | None = None
+    fallback_plan_spec: DeterministicFallbackPlanSpec | None = None
+    integrity_validations: tuple[IntegrityValidation, ...] = ()
+    invocation_audits: tuple[InvocationAudit, ...] = ()
 
 
 class V3GraphState(TypedDict, total=False):
@@ -148,11 +171,18 @@ class V3GraphState(TypedDict, total=False):
     entry_failure_code: str
     agent_outcomes: Annotated[tuple[AgentOutcome, ...], operator.add]
     proposals: tuple[SpecialistAgentProposal, ...]
+    round_one_proposals: tuple[SpecialistAgentProposal, ...]
     conflict_report: ConflictReport
+    initial_conflict_report: ConflictReport
     review_outcomes: Annotated[tuple[AgentOutcome, ...], operator.add]
+    invocation_audits: Annotated[tuple[InvocationAudit, ...], operator.add]
     plan_spec: PlanSpec | None
+    fallback_plan_spec: DeterministicFallbackPlanSpec | None
     compiled_plan: object | None
     integrity_validation: IntegrityValidation
+    integrity_validations: Annotated[tuple[IntegrityValidation, ...], operator.add]
+    coordinator_initial_plan: PlanSpec | None
+    coordinator_repair_plan: PlanSpec | None
     repair_attempts: int
     failure_codes: tuple[str, ...]
     used_fallback: bool
@@ -168,6 +198,7 @@ __all__ = [
     "FallbackPort",
     "IntegrityValidation",
     "IntegrityValidatorPort",
+    "InvocationAudit",
     "MeaningfulDifferencePort",
     "SpecialistPort",
     "V3GraphInput",

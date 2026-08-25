@@ -236,6 +236,7 @@ def test_regeneration_dependency_uses_the_dedicated_activation_gate() -> None:
                     app_env="test",
                     database_url="postgresql+psycopg://test:test@localhost/test",
                     v3_langgraph_enabled=True,
+                    v3_shadow_evaluation_enabled=True,
                     v3_regeneration_enabled=False,
                 ),
                 v3_regeneration_service=service,

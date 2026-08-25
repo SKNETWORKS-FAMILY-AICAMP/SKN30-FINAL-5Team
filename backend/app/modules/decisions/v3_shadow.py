@@ -206,7 +206,11 @@ class V3ShadowCase(_FrozenContract):
 
     @classmethod
     def create(cls, **values: object) -> Self:
-        payload = {"schema_version": SHADOW_CASE_SCHEMA_VERSION, **values}
+        payload = {
+            "schema_version": SHADOW_CASE_SCHEMA_VERSION,
+            "baseline_plan": None,
+            **values,
+        }
         payload["case_hash"] = _canonical_hash(payload)
         return cls.model_validate(payload)
 

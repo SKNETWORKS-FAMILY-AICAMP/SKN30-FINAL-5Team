@@ -425,9 +425,16 @@ secret-manager adapter를 검증한다.
 - backend API/integration with PostgreSQL
 - safety golden/fallback/reproducibility
 - [V3] LangChain structured output, LangGraph routing, privacy payload, replay와 regeneration contract
+- [V3-C1] shadow/public gate 독립, OpenAI factory fail-closed, full audit artifact, provider usage와
+  versioned pricing, synthetic JSONL privacy contract
 - [V3/Vector] Qdrant adapter contract, PostgreSQL revalidation, deterministic fallback와 privacy/replay
 - frontend format/lint/type/component/build
 - migration up/down 또는 forward-fix validation
+
+V3-C1 CI는 fake `BaseChatModel`만 사용한다. live OpenAI 호출과 실제 key는 CI 필수 조건이 아니다.
+Safety veto/생성 금지는 provider·Qdrant zero-call, Specialist 일부 실패는 Coordinator zero-call,
+repair는 최대 한 번이어야 한다. 실제 shadow 결과 수집, latency/cost threshold 판정과 expert review는
+harness 구현 완료와 구분해 후속 staging evidence로 남긴다.
 
 백엔드 기반 명령은 TASK-BACKEND-001에서 아래와 같이 확정한다. 프론트엔드 명령은 해당 초기화 PR에서 확정한다. 실행하지 않은 테스트를 통과로 보고하지 않는다.
 
