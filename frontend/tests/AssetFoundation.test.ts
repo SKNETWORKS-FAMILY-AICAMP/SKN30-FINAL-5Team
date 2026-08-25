@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from '@jest/globals';
 import { renderHook } from '@testing-library/react-native';
 import { Dimensions, type ScaledSize } from 'react-native';
 
-import { imageAssets } from '../src/assets';
+import { houseMascotMonkeySources, imageAssets } from '../src/assets';
 import { BASE_H, BASE_W, useScale } from '../src/components/scale';
 
 const originalWindow = Dimensions.get('window');
@@ -42,10 +42,24 @@ describe('fidelity foundation', () => {
       'mascotComplete',
       'progressMascot',
       'dayTodo',
+      'profileDefault',
+      'weeklyProgressComplete',
+      'weeklyProgressIncomplete',
       'mascotWarmupWalk',
+      'houseCampingMorningBackground',
       'houseCampingDinnerBackground',
+      'houseIndoorBackground',
+      'houseSnowingOnsenBackground',
       'houseMascotMonkey01',
+      'houseMascotBananaSheet01Monkey07',
+      'houseMascotBananaSheet01Monkey08',
+      'houseMascotBananaSheet02Monkey05',
+      'houseMascotBananaSheet02Monkey13',
+      'houseMascotBananaSheet02Monkey20',
+      'houseMascotBananaSheet02Monkey22',
     ]);
     expect(Object.values(imageAssets).every(Boolean)).toBe(true);
+    expect(houseMascotMonkeySources).toHaveLength(41);
+    expect(houseMascotMonkeySources.every(Boolean)).toBe(true);
   });
 });
