@@ -56,9 +56,14 @@ class Settings(BaseSettings):
     llm_agents_model_code: str = "unconfigured"
     llm_agents_timeout_seconds: float = 5.0
     llm_agents_max_attempts: int = 2
+    llm_agents_max_output_tokens: int = 1200
+    llm_agents_approved_model_codes: Annotated[tuple[str, ...], NoDecode] = ()
     # V3 graph construction is separately gated so incomplete provider/domain
     # wiring cannot alter the existing V1/V2 production decision path.
     v3_langgraph_enabled: bool = False
+    # Offline/staging synthetic evaluation is deliberately independent from the
+    # public regeneration mutation. A CLI opt-in is still required at runtime.
+    v3_shadow_evaluation_enabled: bool = False
     # Manual V3 regeneration has its own server-side activation gate. Provider
     # credentials and V3_LANGGRAPH_ENABLED never opt users into this mutation.
     v3_regeneration_enabled: bool = False
@@ -239,6 +244,13 @@ class Settings(BaseSettings):
             raise ValueError("LLM_AGENTS_MAX_ATTEMPTS must be one or two")
         return value
 
+    @field_validator("llm_agents_max_output_tokens")
+    @classmethod
+    def validate_llm_agents_max_output_tokens(cls, value: int) -> int:
+        if not 0 < value <= 4000:
+            raise ValueError("LLM_AGENTS_MAX_OUTPUT_TOKENS must be within (0, 4000]")
+        return value
+
     @field_validator("llm_max_output_tokens")
     @classmethod
     def validate_llm_max_output_tokens(cls, value: int) -> int:
@@ -265,6 +277,7 @@ class Settings(BaseSettings):
         "onboarding_primary_goal_codes",
         "onboarding_experience_level_codes",
         "cors_allowed_origins",
+        "llm_agents_approved_model_codes",
         mode="before",
     )
     @classmethod
@@ -293,6 +306,16 @@ class Settings(BaseSettings):
         if any(origin.strip() == "*" for origin in value):
             raise ValueError("CORS_ALLOWED_ORIGINS must list exact origins, not '*'")
         return value
+
+    @field_validator("llm_agents_approved_model_codes")
+    @classmethod
+    def validate_approved_agent_models(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        normalized = tuple(item.strip() for item in value)
+        if normalized != tuple(sorted(set(normalized))):
+            raise ValueError("LLM_AGENTS_APPROVED_MODEL_CODES must be unique and sorted")
+        if any(not _MACHINE_REFERENCE_PATTERN.fullmatch(item) for item in normalized):
+            raise ValueError("approved LLM agent models must be machine references")
+        return normalized
 
     @model_validator(mode="after")
     def validate_llm_provider_credentials(self) -> Self:

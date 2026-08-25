@@ -16,7 +16,9 @@ V3-A3의 framework-independent conflict/review/compiler/integrity/fallback/regen
 domain과 persistent-checkpointer 없는 LangGraph runtime은 병합됐다. V3-B1 additive persistence는
 `COMPLETE`이며 domain bundle→SQL repository round-trip, provider-free replay, root snapshot 조회와
 transaction rollback이 PR #132 PostgreSQL CI에서 검증됐다. API·shadow 검증과 production 전환은
-완료되지 않았다.
+완료되지 않았다. V3-B2 application orchestration과 backend regeneration API boundary는 완료됐다.
+V3-C1 private shadow contract와 runtime/provider composition harness는 구현됐으나 실제 shadow 결과는
+수집하지 않았고 expert review와 production 전환은 승인되지 않았다.
 
 V3-A2 domain schema version은 기존 V1/V2 contract와 분리해 다음으로 고정한다.
 
@@ -192,7 +194,8 @@ additive하게 도입한다. 온보딩 점수는 별도
   검수 승인이 필요하다.
 - `backend/app/domain/agents/AGENTS.md`는 V1/V2 production과 승인된 V3 목표를 구분하도록 갱신했다.
   production Agent 구현은 이 문서의 구조화 출력·결정적 Safety/fallback 경계를 계속 준수한다.
-- 신규 LangChain·LangGraph dependency와 provider SDK는 별도 구현 PR에서 설명·검증한다.
+- OpenAI provider composition은 `langchain-openai==1.5.1`과 stateless shadow runtime에 한정해
+  구현하며 public production graph에는 연결하지 않는다.
 - 새로운 안전 수치가 필요하면 별도 Safety task와 승인으로 분리한다.
 - 공개 API와 DB migration은 프론트엔드·백엔드 owner의 별도 구현 승인이 필요하다.
 
@@ -233,7 +236,8 @@ additive하게 도입한다. 온보딩 점수는 별도
 - V3-B1 (`COMPLETE`, backend owner): migration `0025_v3_decision_persistence`, V3 SQLAlchemy model,
   framework-independent write DTO 기반 repository/adapter/UoW와 replay audit bundle. PostgreSQL
   round-trip·rollback 검증 완료, production write는 비활성
-- V3-B2: backend regeneration API boundary 구현 완료, production application wiring과 frontend
-  compatibility는 후속 작업
-- V3-C1: shadow evaluation, golden, expert review, latency·cost·fallback 측정
+- V3-B2: backend regeneration application orchestration과 API boundary 구현 완료. production graph
+  activation과 frontend는 후속 작업
+- V3-C1: synthetic/offline·staging shadow harness와 provider composition 구현 완료. 실제 shadow 결과
+  수집, golden metric report, expert review, latency·cost 승격 판단은 미수행
 - V3-C2: 기준 충족 후 ADR-0013에 따른 production graph 전환 승인 검토

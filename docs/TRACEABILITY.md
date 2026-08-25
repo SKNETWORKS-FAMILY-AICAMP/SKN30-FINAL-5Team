@@ -171,6 +171,10 @@ F012~F023은 요구사항 정의서상 MVP 이후 확장 기능이다. 각 ID는
   `IMPLEMENTED` 증거를 V3 UI 완료로 해석하지 않는다.
 - V3의 `SAFETY` 공개 요약은 historical API 호환 projection일 수 있지만 내부 Agent proposal이 아니다.
   SafetyPolicyEngine record와 세 Agent proposal을 별도로 추적한다.
+- V3-C1 private shadow composition은 `backend/app/integrations/langgraph/shadow_runtime.py`, OpenAI
+  provider factory와 `backend/tests/unit/test_v3_shadow_runtime.py` / `test_openai_shadow_factory.py`로
+  추적한다. 이는 synthetic harness 구현 증거이며 실제 shadow 결과, expert review 또는 production
+  graph 승인 증거가 아니다. public V1/V2와 regeneration gate는 계속 독립·비활성 상태다.
 
 ## 4. PR 적용
 

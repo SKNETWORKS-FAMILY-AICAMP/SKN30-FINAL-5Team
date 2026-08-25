@@ -5,7 +5,12 @@ from backend.app.integrations.llm_agents.models import (
     LlmAgentFailure,
     LlmAgentFailureCode,
     LlmAgentRoleCode,
+    LlmInvocationTelemetry,
     StructuredAgentResult,
+)
+from backend.app.integrations.llm_agents.openai import (
+    build_openai_shadow_chat_model,
+    openai_shadow_gates_ready,
 )
 from backend.app.integrations.llm_agents.provider import (
     StructuredChatInvoker,
@@ -25,9 +30,12 @@ __all__ = [
     "LlmAgentFailure",
     "LlmAgentFailureCode",
     "LlmAgentRoleCode",
+    "LlmInvocationTelemetry",
     "RecoveryAgentAdapter",
     "StructuredAgentResult",
     "StructuredChatInvoker",
     "TrainingAgentAdapter",
     "build_structured_chat_invoker",
+    "build_openai_shadow_chat_model",
+    "openai_shadow_gates_ready",
 ]

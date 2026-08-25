@@ -41,11 +41,35 @@ class LlmAgentFailure:
 
 
 @dataclass(frozen=True, slots=True)
+class LlmInvocationTelemetry:
+    """Sanitized measurements captured from one bounded structured invocation."""
+
+    attempt_count: int
+    latency_ms: int
+    input_token_count: int | None = None
+    output_token_count: int | None = None
+    provider_usage_present: bool = False
+
+    def __post_init__(self) -> None:
+        if self.attempt_count < 0 or self.latency_ms < 0:
+            raise ValueError("invocation telemetry values cannot be negative")
+        if (self.input_token_count is None) != (self.output_token_count is None):
+            raise ValueError("input and output token counts must be present together")
+        if self.input_token_count is not None and (
+            self.input_token_count < 0 or self.output_token_count < 0  # type: ignore[operator]
+        ):
+            raise ValueError("token counts cannot be negative")
+        if self.provider_usage_present != (self.input_token_count is not None):
+            raise ValueError("provider usage presence must match validated token counts")
+
+
+@dataclass(frozen=True, slots=True)
 class StructuredAgentResult[OutputT: BaseModel]:
     """All-or-nothing structured invocation result."""
 
     output: OutputT | None = None
     failure: LlmAgentFailure | None = None
+    telemetry: LlmInvocationTelemetry | None = None
 
     def __post_init__(self) -> None:
         if (self.output is None) == (self.failure is None):
@@ -56,8 +80,13 @@ class StructuredAgentResult[OutputT: BaseModel]:
         return self.output is not None
 
     @classmethod
-    def success(cls, output: OutputT) -> StructuredAgentResult[OutputT]:
-        return cls(output=output)
+    def success(
+        cls,
+        output: OutputT,
+        *,
+        telemetry: LlmInvocationTelemetry | None = None,
+    ) -> StructuredAgentResult[OutputT]:
+        return cls(output=output, telemetry=telemetry)
 
     @classmethod
     def failed(
@@ -69,6 +98,7 @@ class StructuredAgentResult[OutputT: BaseModel]:
         output_schema_version: str,
         model_code: str,
         attempt_count: int,
+        telemetry: LlmInvocationTelemetry | None = None,
     ) -> StructuredAgentResult[OutputT]:
         return cls(
             failure=LlmAgentFailure(
@@ -78,7 +108,8 @@ class StructuredAgentResult[OutputT: BaseModel]:
                 output_schema_version=output_schema_version,
                 model_code=model_code,
                 attempt_count=attempt_count,
-            )
+            ),
+            telemetry=telemetry,
         )
 
 
@@ -86,5 +117,6 @@ __all__ = [
     "LlmAgentFailure",
     "LlmAgentFailureCode",
     "LlmAgentRoleCode",
+    "LlmInvocationTelemetry",
     "StructuredAgentResult",
 ]

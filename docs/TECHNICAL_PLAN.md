@@ -338,6 +338,19 @@ opaque confidence 점수는 MVP에서 사용하지 않는다. 입력 완전성�
 
 필수 케이스와 CI 구분은 `TEST_STRATEGY.md`를 따른다.
 
+### V3-C1 shadow runtime
+
+- provider integration은 `langchain-openai==1.5.1`로 고정하고 기존 `langchain-core==1.6.0` lock과
+  resolver 호환성을 검증한다.
+- OpenAI model은 integrations 아래 factory에서만 만들며 temperature 0, bounded timeout,
+  provider retry 0을 고정한다. 전체 retry 상한은 기존 `StructuredChatInvoker`가 소유한다.
+- LangSmith tracing과 callbacks는 명시적으로 비활성화하고 provider raw body/error는 결과·로그에
+  전달하지 않는다.
+- token은 provider `AIMessage.usage_metadata`의 유효한 input/output count가 모두 있을 때만 기록한다.
+  비용은 exact model이 일치하는 외부 versioned pricing reference가 주입될 때만 계산한다.
+- `V3_REGENERATION_ENABLED=false`를 유지하며 production API composition과 shadow composition을
+  연결하지 않는다.
+
 ## 14. 대안과 제외 이유
 
 - Flutter: 구현 전 팀의 React Native 경험이 전혀 없을 때만 1회 재검토한다. 중간 전환은 금지한다.

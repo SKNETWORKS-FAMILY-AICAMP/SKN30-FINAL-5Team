@@ -100,7 +100,13 @@ class V3LangGraphRuntime:
 
     async def ainvoke(self, graph_input: V3GraphInput) -> V3GraphResult:
         final_state = await self.graph.ainvoke(
-            {"graph_input": graph_input, "agent_outcomes": (), "review_outcomes": ()},
+            {
+                "graph_input": graph_input,
+                "agent_outcomes": (),
+                "review_outcomes": (),
+                "invocation_audits": (),
+                "integrity_validations": (),
+            },
             config={"callbacks": [], "max_concurrency": 3},
         )
         result = final_state.get("result")
