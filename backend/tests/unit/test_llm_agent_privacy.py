@@ -188,14 +188,17 @@ def test_runtime_adapter_imports_and_constructors_have_no_operational_tools() ->
     assert not parameter_names & {"db", "orm", "repository", "qdrant", "tools"}
 
 
-def test_project_has_no_langgraph_or_provider_sdk_dependency() -> None:
+def test_project_has_only_approved_base_langgraph_and_no_provider_sdk_dependency() -> None:
     repository_root = Path(__file__).resolve().parents[3]
     project = tomllib.loads((repository_root / "pyproject.toml").read_text(encoding="utf-8"))
     dependencies = tuple(project["project"]["dependencies"])
 
     assert "langchain-core==1.6.0" in dependencies
+    assert "langgraph==1.2.11" in dependencies
     assert not any(
-        dependency.lower().startswith(("langgraph", "langchain-openai", "openai"))
+        dependency.lower().startswith(
+            ("langgraph-cli", "langgraph-sdk", "langchain-openai", "openai")
+        )
         for dependency in dependencies
     )
 

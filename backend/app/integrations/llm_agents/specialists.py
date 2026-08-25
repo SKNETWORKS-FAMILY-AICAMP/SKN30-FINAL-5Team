@@ -94,6 +94,50 @@ class LangChainSpecialistAdapter:
             domain_validator=validate,
         )
 
+    async def apropose(
+        self,
+        *,
+        constraint_envelope: ConstraintEnvelope,
+        exercise_pool: ExercisePoolSnapshot,
+        regeneration_context: RegenerationContext | None = None,
+    ) -> StructuredAgentResult[SpecialistAgentProposal]:
+        prompt = ROLE_PROMPTS[self.role_code]
+        try:
+            agent_input = SpecialistAgentInput(
+                agent_type_code=self.agent_type_code,
+                constraint_envelope=constraint_envelope,
+                envelope_hash=constraint_envelope.envelope_hash,
+                exercise_pool=exercise_pool,
+                pool_hash=exercise_pool.pool_hash,
+                regeneration_context=regeneration_context,
+            )
+            payload = specialist_payload(agent_input)
+        except (ValidationError, ValueError):
+            return self._invoker.failure(
+                code=LlmAgentFailureCode.DOMAIN_INVALID,
+                role_code=self.role_code,
+                prompt_version=prompt.version,
+                output_schema_version=self.output_schema_version,
+                attempt_count=0,
+            )
+
+        def validate(output: SpecialistAgentProposal) -> SpecialistAgentProposal:
+            agent_input.validate_proposal(output)
+            return output
+
+        return await self._invoker.ainvoke(
+            role_code=self.role_code,
+            prompt_version=prompt.version,
+            output_schema_version=self.output_schema_version,
+            output_schema=SpecialistAgentProposal,
+            messages=messages_for(
+                prompt,
+                output_schema_version=self.output_schema_version,
+                payload=payload,
+            ),
+            domain_validator=validate,
+        )
+
 
 class TrainingAgentAdapter(LangChainSpecialistAdapter):
     def __init__(self, *, invoker: StructuredChatInvoker) -> None:

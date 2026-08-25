@@ -120,6 +120,91 @@ class StructuredChatInvoker:
 
         raise AssertionError("bounded invocation loop did not return")
 
+    async def ainvoke(
+        self,
+        *,
+        role_code: LlmAgentRoleCode,
+        prompt_version: str,
+        output_schema_version: str,
+        output_schema: type[OutputT],
+        messages: Sequence[BaseMessage],
+        domain_validator: Callable[[OutputT], OutputT],
+    ) -> StructuredAgentResult[OutputT]:
+        """Invoke the provider's native async boundary with bounded attempts.
+
+        Cancellation is deliberately allowed to propagate. The graph owns node
+        deadlines and must be able to cancel an in-flight provider coroutine.
+        """
+
+        if self.chat_model is None:
+            return self.failure(
+                code=LlmAgentFailureCode.PROVIDER_UNAVAILABLE,
+                role_code=role_code,
+                prompt_version=prompt_version,
+                output_schema_version=output_schema_version,
+                attempt_count=0,
+            )
+
+        try:
+            structured_model = self.chat_model.with_structured_output(
+                output_schema.model_json_schema(),
+                include_raw=False,
+            )
+        except Exception:
+            return self.failure(
+                code=LlmAgentFailureCode.PROVIDER_UNAVAILABLE,
+                role_code=role_code,
+                prompt_version=prompt_version,
+                output_schema_version=output_schema_version,
+                attempt_count=0,
+            )
+
+        for attempt_count in range(1, self.max_attempts + 1):
+            try:
+                with tracing_context(enabled=False):
+                    raw_output = await structured_model.ainvoke(
+                        list(messages),
+                        config={"callbacks": []},
+                    )
+                encoded_output = json.dumps(
+                    raw_output,
+                    ensure_ascii=True,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    allow_nan=False,
+                )
+                parsed_output = output_schema.model_validate_json(encoded_output)
+            except (OutputParserException, ValidationError, TypeError, ValueError):
+                failure_code = LlmAgentFailureCode.SCHEMA_INVALID
+            except TimeoutError:
+                failure_code = LlmAgentFailureCode.PROVIDER_TIMEOUT
+            except Exception:
+                failure_code = LlmAgentFailureCode.PROVIDER_UNAVAILABLE
+            else:
+                try:
+                    validated_output = domain_validator(parsed_output)
+                    validated_output = output_schema.model_validate(validated_output)
+                except Exception:
+                    return self.failure(
+                        code=LlmAgentFailureCode.DOMAIN_INVALID,
+                        role_code=role_code,
+                        prompt_version=prompt_version,
+                        output_schema_version=output_schema_version,
+                        attempt_count=attempt_count,
+                    )
+                return StructuredAgentResult.success(validated_output)
+
+            if attempt_count == self.max_attempts:
+                return self.failure(
+                    code=failure_code,
+                    role_code=role_code,
+                    prompt_version=prompt_version,
+                    output_schema_version=output_schema_version,
+                    attempt_count=attempt_count,
+                )
+
+        raise AssertionError("bounded async invocation loop did not return")
+
     def failure(
         self,
         *,

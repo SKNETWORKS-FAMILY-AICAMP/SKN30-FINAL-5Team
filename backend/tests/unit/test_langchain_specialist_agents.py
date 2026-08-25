@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 
 import pytest
@@ -37,6 +38,28 @@ from backend.tests.unit.test_v3_agent_contracts import (
 
 def _adapter(adapter_type: type, model: object) -> object:
     return adapter_type(invoker=StructuredChatInvoker(chat_model=model, model_code="fake-model-v1"))
+
+
+def test_async_specialist_boundary_preserves_structured_contract() -> None:
+    current_envelope = envelope()
+    current_pool = pool(current_envelope)
+    expected = proposal(SpecialistAgentTypeCode.TRAINING, current_envelope, current_pool)
+    model = ToolCallingFakeChatModel(
+        responses=[tool_response(SpecialistAgentProposal, expected, 1)]
+    )
+    adapter = TrainingAgentAdapter(
+        invoker=StructuredChatInvoker(chat_model=model, model_code="fake-model-v1")
+    )
+
+    result = asyncio.run(
+        adapter.apropose(
+            constraint_envelope=current_envelope,
+            exercise_pool=current_pool,
+        )
+    )
+
+    assert result.output == expected
+    assert model.invocation_count == 1
 
 
 @pytest.mark.parametrize(
