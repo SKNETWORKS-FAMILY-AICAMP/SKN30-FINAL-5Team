@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 
 from langchain_core.messages import HumanMessage
@@ -24,6 +25,25 @@ def _adapter(model: ToolCallingFakeChatModel) -> LangChainCoordinatorAdapter:
     return LangChainCoordinatorAdapter(
         invoker=StructuredChatInvoker(chat_model=model, model_code="fake-model-v1")
     )
+
+
+def test_async_coordinator_boundary_returns_one_plan_spec() -> None:
+    current_envelope = envelope()
+    current_pool = pool(current_envelope)
+    current_proposals = proposals(current_envelope, current_pool)
+    expected = plan(coordinator_input(current_envelope, current_pool))
+    model = ToolCallingFakeChatModel(responses=[tool_response(PlanSpec, expected, 1)])
+
+    result = asyncio.run(
+        _adapter(model).acoordinate(
+            constraint_envelope=current_envelope,
+            exercise_pool=current_pool,
+            proposals=current_proposals,
+        )
+    )
+
+    assert result.output == expected
+    assert model.invocation_count == 1
 
 
 def test_coordinator_returns_actual_structured_validated_plan_spec() -> None:

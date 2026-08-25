@@ -69,6 +69,37 @@ class LangChainCoordinatorAdapter:
             repair_violation_codes=repair_violation_codes,
         )
 
+    async def acoordinate(
+        self,
+        *,
+        constraint_envelope: ConstraintEnvelope,
+        exercise_pool: ExercisePoolSnapshot,
+        proposals: tuple[SpecialistAgentProposal, ...],
+    ) -> StructuredAgentResult[PlanSpec]:
+        return await self._build_and_ainvoke(
+            constraint_envelope=constraint_envelope,
+            exercise_pool=exercise_pool,
+            proposals=proposals,
+            repair_attempt=0,
+            repair_violation_codes=(),
+        )
+
+    async def arepair(
+        self,
+        *,
+        constraint_envelope: ConstraintEnvelope,
+        exercise_pool: ExercisePoolSnapshot,
+        proposals: tuple[SpecialistAgentProposal, ...],
+        repair_violation_codes: tuple[str, ...],
+    ) -> StructuredAgentResult[PlanSpec]:
+        return await self._build_and_ainvoke(
+            constraint_envelope=constraint_envelope,
+            exercise_pool=exercise_pool,
+            proposals=proposals,
+            repair_attempt=1,
+            repair_violation_codes=repair_violation_codes,
+        )
+
     def _build_and_invoke(
         self,
         *,
@@ -103,6 +134,52 @@ class LangChainCoordinatorAdapter:
             return output
 
         return self._invoker.invoke(
+            role_code=role_code,
+            prompt_version=prompt.version,
+            output_schema_version=self.output_schema_version,
+            output_schema=PlanSpec,
+            messages=messages_for(
+                prompt,
+                output_schema_version=self.output_schema_version,
+                payload=payload,
+            ),
+            domain_validator=validate,
+        )
+
+    async def _build_and_ainvoke(
+        self,
+        *,
+        constraint_envelope: ConstraintEnvelope,
+        exercise_pool: ExercisePoolSnapshot,
+        proposals: tuple[SpecialistAgentProposal, ...],
+        repair_attempt: int,
+        repair_violation_codes: tuple[str, ...],
+    ) -> StructuredAgentResult[PlanSpec]:
+        role_code = LlmAgentRoleCode.COORDINATOR
+        prompt = ROLE_PROMPTS[role_code]
+        try:
+            coordinator_input = CoordinatorInput(
+                constraint_envelope=constraint_envelope,
+                exercise_pool=exercise_pool,
+                proposals=proposals,
+                repair_attempt=repair_attempt,
+                repair_violation_codes=repair_violation_codes,
+            )
+            payload = coordinator_payload(coordinator_input)
+        except (ValidationError, ValueError):
+            return self._invoker.failure(
+                code=LlmAgentFailureCode.DOMAIN_INVALID,
+                role_code=role_code,
+                prompt_version=prompt.version,
+                output_schema_version=self.output_schema_version,
+                attempt_count=0,
+            )
+
+        def validate(output: PlanSpec) -> PlanSpec:
+            output.validate_against(coordinator_input)
+            return output
+
+        return await self._invoker.ainvoke(
             role_code=role_code,
             prompt_version=prompt.version,
             output_schema_version=self.output_schema_version,
