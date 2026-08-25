@@ -234,6 +234,11 @@ CHANGE
 RECOVERY
 REST
 STOP_AND_SEEK_HELP
+LOAD_REDUCED
+ROM_REDUCED
+ACTIVE_RECOVERY
+SKIP_AFFECTED_AREA
+STOP_EXERCISE
 ~~~
 
 조정 결과:
@@ -315,13 +320,16 @@ MVP 기본 범위:
 필수 규칙:
 
 - 불편 부위와 충돌하는 운동 제외
-- MILD 또는 MODERATE에서 검수된 대체 운동 사용
-- SEVERE 또는 급성 근골격 신호에서 REST
+- NRS 1–3은 같은 목표를 유지하며 `LOAD_REDUCED` → `ROM_REDUCED` → 쉬운 변형 순으로 조정
+- NRS 4–6은 통증 부위를 제외하고 `ACTIVE_RECOVERY` 또는 `SKIP_AFFECTED_AREA` 사용
+- NRS 7–10 또는 급성 근골격 신호에서 `STOP_EXERCISE`, 대체 운동 없음
+- red flag는 NRS와 무관하게 `STOP_AND_SEEK_HELP`
 - 중대한 이상 반응에서 STOP_AND_SEEK_HELP
 - 사용할 수 없는 장비와 장소의 운동 제외
 - 복귀 모드 상한 초과 금지
 - 검수되지 않은 운동과 안전 규칙 제외
-- 안전한 후보가 없으면 REST
+- NRS 1–3은 후보가 없어도 원 운동에 부하·ROM 다운시프트를 적용
+- NRS 4–6은 통증 부위 제외 후보 또는 검수된 `ACTIVE_RECOVERY` 후보가 없으면 계획을 노출하지 않고 검수 보류
 - 안전 veto된 원래 계획 선택 차단
 
 안전 화면은 검수된 serious tone 문구를 사용하고 마스코트의 장난스러운 애니메이션을 중단한다.

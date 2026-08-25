@@ -1,0 +1,14 @@
+field_name,required,data_type,allowed_values,validation_rule,operational_note
+rule_id,YES,string,SRV2-LEGACY-*|SRV2-NEW-*,unique; immutable after publish,v2 loader uses this ID only.
+movement_pattern,YES,string,catalog-v1 proposed movement patterns; LEGACY_EXERCISE_SCOPE reference only,must exist in mapping or be legacy reference,legacy exercise scope is never an active pattern match.
+body_area,YES,string,NECK|SHOULDER|ELBOW|WRIST_HAND|UPPER_BACK|LOWER_BACK|HIP|KNEE|ANKLE_FOOT|CHEST|ABDOMEN|GENERALIZED,stable body-area machine code,match only the normalized check-in body area.
+pain_level,YES,string,MILD|MILD-SEVERE|MODERATE-SEVERE,inclusive severity interval,SEVERE session REST remains higher priority.
+pain_score_policy_version,YES,string,pain-intensity-action-v2,required stable policy version,store with the original score for reproducible decisions.
+pain_score_decisions,YES,json-array,1-3=LOAD_REDUCED;4-6=SKIP_AFFECTED_AREA;7-10=STOP_EXERCISE,ordered non-overlapping score bands; 7-10 has no alternative,red-flag codes override every score band with STOP_AND_SEEK_HELP.
+service_action_policy_version,YES,string,pain-intensity-action-v2,must match the approved score/action policy,service action is separate from legacy EXCLUDE or CAUTION effect.
+red_flag_override_code,YES,string,STOP_AND_SEEK_HELP,always takes precedence over score-band actions,the code list is maintained in v2_pain_action_policy.json.
+action,YES,string,EXCLUDE|CAUTION,EXCLUDE is higher priority than CAUTION,no free-text or LLM action is allowed.
+reason,YES,string,DIRECT_JOINT_LOAD|STABILIZER_LOAD,stable reason code,user-facing wording is maintained separately.
+priority,YES,string,P0|P1,EXCLUDE=P0; CAUTION=P1,lower priority cannot override P0.
+source_rule_id,YES,string,"LEGACY-RULE-####, pipe-separated when multiple, or NO_EXACT_LEGACY_RULE",LEGACY IDs resolve to immutable JSONL line order; no-exact lineage requires review,source rows are reference-only.
+migration_status,YES,string,MIGRATED_LEGACY_REFERENCE|LEGACY_EXERCISE_UNMAPPED_REVIEW_REQUIRED|NEW_PATTERN_RULE_REVIEW_REQUIRED|ACTIVE_V2,only reviewed ACTIVE_V2 rows may be enabled,runtime must load v2 files only and fail closed for non-ACTIVE_V2 rules.

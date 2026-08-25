@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0",
+  "policy_version": "pain-intensity-action-v2",
+  "status": "DOMAIN_APPROVED",
+  "review_method_code": "DOMAIN_EXPERT_REVIEW",
+  "reviewer": "DOMAIN_EXPERT_REVIEW",
+  "reviewed_at": "2026-08-25T00:00:00+09:00",
+  "score_bands": [
+    {
+      "minimum_score": 1,
+      "maximum_score": 3,
+      "severity_code": "MILD",
+      "service_action_code": "LOAD_REDUCED",
+      "alternative_strategy_code": "SAME_GOAL_LOWER_LOAD_ROM_EASIER_VARIANT",
+      "candidate_required": false,
+      "candidate_priority": ["LOAD_REDUCED", "ROM_REDUCED", "EASIER_VARIANT"]
+    },
+    {
+      "minimum_score": 4,
+      "maximum_score": 6,
+      "severity_code": "MODERATE",
+      "service_action_code": "SKIP_AFFECTED_AREA",
+      "fallback_action_code": "ACTIVE_RECOVERY",
+      "alternative_strategy_code": "AVOID_PAIN_AREA_ACTIVE_RECOVERY",
+      "candidate_required": true,
+      "candidate_constraints": ["PAIN_AREA_NOT_PRIMARY", "PAIN_AREA_NOT_SECONDARY", "LOW_INTENSITY"]
+    },
+    {
+      "minimum_score": 7,
+      "maximum_score": 10,
+      "severity_code": "SEVERE",
+      "service_action_code": "STOP_EXERCISE",
+      "alternative_strategy_code": "NO_ALTERNATIVE",
+      "candidate_required": false,
+      "alternative_exercise_id": null
+    }
+  ],
+  "red_flag_override": {
+    "service_action_code": "STOP_AND_SEEK_HELP",
+    "alternative_strategy_code": "NO_ALTERNATIVE",
+    "candidate_required": false,
+    "codes": [
+      "CHEST_DISCOMFORT",
+      "UNEXPECTED_SEVERE_SHORTNESS_OF_BREATH",
+      "SEVERE_DIZZINESS",
+      "FAINTING",
+      "SUDDEN_WEAKNESS_OR_NUMBNESS",
+      "RAPID_OR_IRREGULAR_HEARTBEAT_WITH_SYMPTOMS",
+      "SUDDEN_SEVERE_PAIN",
+      "ACUTE_SWELLING_OR_DEFORMITY",
+      "CANNOT_BEAR_WEIGHT",
+      "OTHER_SERIOUS_REACTION"
+    ]
+  },
+  "production_eligible": false
+}

@@ -870,7 +870,7 @@ PATCH가 지원하는 필드는 아래 16개다. 표의 `null 거부`는 필드 
 | `default_requested_duration_minutes` | integer | null 거부 | 1~240분 | 범위·타입 오류 `400 INVALID_REQUEST` |
 | `preferred_location_code` | `HOME`, `GYM`, `OUTDOOR` | 빈 문자열·null 거부 | 최종 `available_location_codes`에 반드시 포함 | enum·교차 검증 오류 `400 INVALID_REQUEST` |
 | `available_location_codes` | 위 location code 배열 | 빈 배열·null·중복 거부 | 현재 또는 함께 보낸 `preferred_location_code`를 포함. 순서 외 별도 정규화 없음 | enum·중복·교차 검증 오류 `400 INVALID_REQUEST` |
-| `equipment_codes` | `BODYWEIGHT`, `DUMBBELL`, `BARBELL`, `KETTLEBELL`, `CABLE_MACHINE`, `MACHINE`, `HOUSEHOLD_WEIGHT`, `BENCH`, `PULL_UP_BAR`, `RESISTANCE_BAND`, `MAT`, `STABILITY_BALL`, `CHAIR` 배열 | 빈 배열·null·중복 거부 | 최종 상태에 최소 1개 유지 | enum·중복·최소 개수 오류 `400 INVALID_REQUEST` |
+| `equipment_codes` | `BODYWEIGHT`, `DUMBBELL`, `BARBELL`, `KETTLEBELL`, `CABLE_MACHINE`, `MACHINE`, `HOUSEHOLD_WEIGHT`, `BENCH`, `PULL_UP_BAR`, `RESISTANCE_BAND`, `STRETCH_STRAP`, `MAT`, `STABILITY_BALL`, `CHAIR` 배열 | 빈 배열·null·중복 거부 | 최종 상태에 최소 1개 유지 | enum·중복·최소 개수 오류 `400 INVALID_REQUEST` |
 | `attention_area_codes` | `NECK`, `SHOULDER`, `ELBOW`, `WRIST_HAND`, `UPPER_BACK`, `LOWER_BACK`, `HIP`, `KNEE`, `ANKLE_FOOT`, `CHEST`, `ABDOMEN` 배열 | **빈 배열 허용**, null·중복 거부 | 건강 관련 정보. 빈 배열은 주의 부위 없음 | enum·중복 오류 `400 INVALID_REQUEST` |
 | `preferred_exercise_type_codes` | `STRENGTH`, `CARDIO`, `MOBILITY` 배열 | **빈 배열 허용**, null·중복 거부 | 순서 외 별도 정규화 없음 | enum·중복 오류 `400 INVALID_REQUEST` |
 | `coaching_style_code` | `SUPPORTIVE`, `CONCISE`, `ENERGETIC` | 빈 문자열·null 거부 | trim·대소문자 변환 없음 | enum 오류 `400 INVALID_REQUEST` |

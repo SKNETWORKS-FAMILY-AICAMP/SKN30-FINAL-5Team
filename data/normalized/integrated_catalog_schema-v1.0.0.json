@@ -1,0 +1,544 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "integrated-catalog-schema-v1.0.0",
+  "title": "Integrated Exercise Review Catalog Row",
+  "description": "CSV row schema; all values are serialized as strings.",
+  "type": "object",
+  "required": [
+    "catalog_id",
+    "normalized_exercise_id",
+    "source_system",
+    "source_id",
+    "name_en",
+    "name_ko",
+    "duplicate_candidate_group_id",
+    "duplicate_review_status",
+    "duplicate_review_note",
+    "legacy_review_normalized_exercise_id",
+    "review_required",
+    "review_required_codes",
+    "reviewer",
+    "reviewed_at",
+    "review_status",
+    "review_status_interpretation",
+    "reviewed_decision",
+    "production_eligible",
+    "production_eligibility_blockers",
+    "setup_guide",
+    "execution_steps",
+    "breathing_guide",
+    "finish_guide",
+    "guide_source_url",
+    "guide_review_status",
+    "guide_review_note",
+    "safety_warning",
+    "contraindications",
+    "common_mistakes",
+    "stop_conditions",
+    "safety_source_url",
+    "safety_review_status",
+    "source_url",
+    "source_author",
+    "license_id",
+    "license_name",
+    "license_version",
+    "license_url",
+    "is_modified",
+    "modification_note",
+    "accessed_at",
+    "metadata_license_id",
+    "instruction_license_id",
+    "image_license_id",
+    "gif_video_license_id",
+    "attribution_text",
+    "license_review_status",
+    "media_link_status",
+    "media_link_note",
+    "media_validation_status",
+    "media_source_reference",
+    "raw_source_record_json",
+    "raw_review_required",
+    "raw_review_required_codes",
+    "raw_review_status",
+    "raw_review_decision",
+    "raw_reviewed_decision",
+    "raw_review_normalized_exercise_id",
+    "raw_source_attribution",
+    "raw_source_license",
+    "raw_source_license_author",
+    "raw_source_media_reference",
+    "raw_source_instruction_en",
+    "raw_source_instruction_steps_en"
+  ],
+  "properties": {
+    "catalog_id": {
+      "type": "string"
+    },
+    "normalized_exercise_id": {
+      "type": "string"
+    },
+    "source_system": {
+      "type": "string",
+      "enum": [
+        "gymvisual",
+        "wger",
+        "kspo"
+      ]
+    },
+    "source_id": {
+      "type": "string"
+    },
+    "legacy_review_normalized_exercise_id": {
+      "type": "string"
+    },
+    "name_en": {
+      "type": "string"
+    },
+    "name_ko": {
+      "type": "string"
+    },
+    "duplicate_candidate_group_id": {
+      "type": "string"
+    },
+    "duplicate_review_status": {
+      "type": "string"
+    },
+    "duplicate_review_note": {
+      "type": "string"
+    },
+    "source_track": {
+      "type": "string"
+    },
+    "source_identity": {
+      "type": "string"
+    },
+    "candidate_id": {
+      "type": "string"
+    },
+    "source_name": {
+      "type": "string"
+    },
+    "source_display_name_ko": {
+      "type": "string"
+    },
+    "source_body_part": {
+      "type": "string"
+    },
+    "source_category": {
+      "type": "string"
+    },
+    "source_location": {
+      "type": "string"
+    },
+    "source_scope_status": {
+      "type": "string"
+    },
+    "source_target": {
+      "type": "string"
+    },
+    "source_equipment": {
+      "type": "string"
+    },
+    "source_media_reference": {
+      "type": "string"
+    },
+    "source_media_id": {
+      "type": "string"
+    },
+    "source_image": {
+      "type": "string"
+    },
+    "source_gif_url": {
+      "type": "string"
+    },
+    "target": {
+      "type": "string"
+    },
+    "mobility_goal_code": {
+      "type": "string"
+    },
+    "body_area_codes_candidate": {
+      "type": "string"
+    },
+    "movement_pattern_candidate": {
+      "type": "string"
+    },
+    "movement_pattern_code_candidate": {
+      "type": "string"
+    },
+    "exercise_family_candidate": {
+      "type": "string"
+    },
+    "variant_group_candidate": {
+      "type": "string"
+    },
+    "equipment_code_candidate": {
+      "type": "string"
+    },
+    "equipment_label_candidate": {
+      "type": "string"
+    },
+    "location_code_candidates": {
+      "type": "string"
+    },
+    "training_type_code_candidate": {
+      "type": "string"
+    },
+    "difficulty_code_candidate": {
+      "type": "string"
+    },
+    "beginner_suitability_candidate": {
+      "type": "string"
+    },
+    "impact_level_candidate": {
+      "type": "string"
+    },
+    "exercise_mode_candidates": {
+      "type": "string"
+    },
+    "space_noise_level_candidate": {
+      "type": "string"
+    },
+    "intensity_level_candidate": {
+      "type": "string"
+    },
+    "met_value": {
+      "type": "string"
+    },
+    "load_profile_candidate": {
+      "type": "string"
+    },
+    "screening_decision": {
+      "type": "string"
+    },
+    "screening_reason_code": {
+      "type": "string"
+    },
+    "screening_reason": {
+      "type": "string"
+    },
+    "selection_rank": {
+      "type": "string"
+    },
+    "selection_recommendation": {
+      "type": "string"
+    },
+    "review_required": {
+      "type": "string"
+    },
+    "review_required_codes": {
+      "type": "string"
+    },
+    "alternative_relation_status": {
+      "type": "string"
+    },
+    "visual_reference_status": {
+      "type": "string"
+    },
+    "review_decision": {
+      "type": "string"
+    },
+    "review_reason_code": {
+      "type": "string"
+    },
+    "review_note": {
+      "type": "string"
+    },
+    "review_family_code": {
+      "type": "string"
+    },
+    "review_variant_group": {
+      "type": "string"
+    },
+    "reviewer": {
+      "type": "string"
+    },
+    "reviewed_at": {
+      "type": "string"
+    },
+    "review_normalized_exercise_id": {
+      "type": "string"
+    },
+    "alignment_required_codes": {
+      "type": "string"
+    },
+    "alignment_status": {
+      "type": "string"
+    },
+    "review_status": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "INCLUSION_APPROVED",
+        "PARTIALLY_APPROVED",
+        "FINAL_APPROVED",
+        "REJECTED",
+        "DEPRECATED"
+      ]
+    },
+    "production_eligible": {
+      "type": "string"
+    },
+    "source_license": {
+      "type": "string"
+    },
+    "source_license_author": {
+      "type": "string"
+    },
+    "source_instruction_en": {
+      "type": "string"
+    },
+    "source_instruction_ko": {
+      "type": "string"
+    },
+    "source_muscle_group": {
+      "type": "string"
+    },
+    "source_secondary_muscles": {
+      "type": "string"
+    },
+    "source_attribution": {
+      "type": "string"
+    },
+    "supplement_category": {
+      "type": "string"
+    },
+    "selection_reason": {
+      "type": "string"
+    },
+    "source_video_title": {
+      "type": "string"
+    },
+    "source_description": {
+      "type": "string"
+    },
+    "source_review_decision": {
+      "type": "string"
+    },
+    "source_candidate_status": {
+      "type": "string"
+    },
+    "variant_relation_representative_ids": {
+      "type": "string"
+    },
+    "variant_relation_representative_names": {
+      "type": "string"
+    },
+    "variant_relation_equipment_codes": {
+      "type": "string"
+    },
+    "variant_relation_location_codes": {
+      "type": "string"
+    },
+    "variant_relation_media_ids": {
+      "type": "string"
+    },
+    "variant_relation_review_decision": {
+      "type": "string"
+    },
+    "variant_relation_note": {
+      "type": "string"
+    },
+    "reviewed_name_ko": {
+      "type": "string"
+    },
+    "reviewed_target": {
+      "type": "string"
+    },
+    "reviewed_body_area_codes": {
+      "type": "string"
+    },
+    "reviewed_training_type_code": {
+      "type": "string"
+    },
+    "reviewed_movement_pattern_code": {
+      "type": "string"
+    },
+    "reviewed_exercise_family": {
+      "type": "string"
+    },
+    "reviewed_variant_group": {
+      "type": "string"
+    },
+    "reviewed_equipment_codes": {
+      "type": "string"
+    },
+    "reviewed_location_codes": {
+      "type": "string"
+    },
+    "reviewed_difficulty_code": {
+      "type": "string"
+    },
+    "reviewed_beginner_suitability": {
+      "type": "string"
+    },
+    "reviewed_decision": {
+      "type": "string"
+    },
+    "review_status_interpretation": {
+      "type": "string"
+    },
+    "production_eligibility_blockers": {
+      "type": "string"
+    },
+    "setup_guide": {
+      "type": "string"
+    },
+    "execution_steps": {
+      "type": "string"
+    },
+    "breathing_guide": {
+      "type": "string"
+    },
+    "finish_guide": {
+      "type": "string"
+    },
+    "guide_source_url": {
+      "type": "string"
+    },
+    "guide_review_status": {
+      "type": "string"
+    },
+    "guide_review_note": {
+      "type": "string"
+    },
+    "safety_warning": {
+      "type": "string"
+    },
+    "contraindications": {
+      "type": "string"
+    },
+    "common_mistakes": {
+      "type": "string"
+    },
+    "stop_conditions": {
+      "type": "string"
+    },
+    "safety_source_url": {
+      "type": "string"
+    },
+    "safety_review_status": {
+      "type": "string"
+    },
+    "source_url": {
+      "type": "string"
+    },
+    "source_author": {
+      "type": "string"
+    },
+    "license_id": {
+      "type": "string"
+    },
+    "license_name": {
+      "type": "string"
+    },
+    "license_version": {
+      "type": "string"
+    },
+    "license_url": {
+      "type": "string"
+    },
+    "is_modified": {
+      "type": "string",
+      "enum": [
+        "true",
+        "false"
+      ]
+    },
+    "modification_note": {
+      "type": "string"
+    },
+    "accessed_at": {
+      "type": "string"
+    },
+    "metadata_license_id": {
+      "type": "string"
+    },
+    "instruction_license_id": {
+      "type": "string"
+    },
+    "image_license_id": {
+      "type": "string"
+    },
+    "gif_video_license_id": {
+      "type": "string"
+    },
+    "attribution_text": {
+      "type": "string"
+    },
+    "license_review_status": {
+      "type": "string"
+    },
+    "media_link_status": {
+      "type": "string"
+    },
+    "media_link_note": {
+      "type": "string"
+    },
+    "media_validation_status": {
+      "type": "string"
+    },
+    "media_source_reference": {
+      "type": "string"
+    },
+    "raw_source_record_json": {
+      "type": "string"
+    },
+    "raw_review_required": {
+      "type": "string"
+    },
+    "raw_review_required_codes": {
+      "type": "string"
+    },
+    "raw_review_status": {
+      "type": "string"
+    },
+    "raw_review_decision": {
+      "type": "string"
+    },
+    "raw_reviewed_decision": {
+      "type": "string"
+    },
+    "raw_review_normalized_exercise_id": {
+      "type": "string"
+    },
+    "raw_source_attribution": {
+      "type": "string"
+    },
+    "raw_source_license": {
+      "type": "string"
+    },
+    "raw_source_license_author": {
+      "type": "string"
+    },
+    "raw_source_media_reference": {
+      "type": "string"
+    },
+    "raw_source_instruction_en": {
+      "type": "string"
+    },
+    "raw_source_instruction_steps_en": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "x-controlled-vocabularies": {
+    "review_status": {
+      "DRAFT": "검토 대기 또는 원천 후보 상태. 운영 사용 불가.",
+      "INCLUSION_APPROVED": "통합 카탈로그 후보로 포함 승인. 전체 분류·안전·권리·미디어 승인이 아님.",
+      "PARTIALLY_APPROVED": "일부 영역만 승인. 미해결 검토 코드가 있으면 운영 사용 불가.",
+      "FINAL_APPROVED": "필수 분류·안전·가이드·출처·라이선스·미디어 검토를 완료한 최종 승인.",
+      "REJECTED": "카탈로그에서 제외.",
+      "DEPRECATED": "이력 보존용 비활성 상태."
+    },
+    "license_id": [
+      "CC-BY-SA 3",
+      "CC-BY-SA 4",
+      "CC0",
+      "KOGL_TYPE_1",
+      "MIT"
+    ],
+    "pending_sentinel": "REVIEW_REQUIRED",
+    "media_link_status": "PENDING_POST_INTEGRATION_VALIDATION"
+  }
+}

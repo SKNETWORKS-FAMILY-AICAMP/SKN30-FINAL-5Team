@@ -1,0 +1,20 @@
+{
+  "source_name": "exercises-dataset",
+  "retrieved_at": "2026-08-20T00:00:00+09:00",
+  "record_count": 1324,
+  "files": [
+    {
+      "path": "exercises.json",
+      "sha256": "656634224b8977b99a6d765470ee123260d4979715eaa4e7c0b7c8bb0d79f93d"
+    },
+    {
+      "path": "exercises.schema.json",
+      "sha256": "33fb14b439c68e12365e14a0759006c40564646ac27084efe1f2e956804b2d49"
+    }
+  ],
+  "license": "MIT",
+  "media_license_approved": true,
+  "media_license_scope": "GIFs may be used temporarily and free of charge during the limited student project with attribution.",
+  "media_license_attribution": "© Aliaksandr Makatserchyk - Gym visual - https://gymvisual.com/",
+  "status": "DRAFT"
+}

@@ -1,0 +1,1884 @@
+{
+  "schema_version": "1.0.0",
+  "registry_version": "integrated-catalog-id-registry-v1",
+  "purpose": "Permanent catalog and normalized exercise identifiers.",
+  "key": [
+    "source_system",
+    "source_id"
+  ],
+  "name_or_classification_changes_reissue_ids": false,
+  "records": [
+    {
+      "source_system": "gymvisual",
+      "source_id": "0032",
+      "catalog_id": "CAT-000001",
+      "normalized_exercise_id": "NEX-000001",
+      "normalized_key": "source:gymvisual:0032",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "BOOTSTRAPPED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0034",
+      "catalog_id": "CAT-000002",
+      "normalized_exercise_id": "NEX-000002",
+      "normalized_key": "source:gymvisual:0034",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0037",
+      "catalog_id": "CAT-000003",
+      "normalized_exercise_id": "NEX-000003",
+      "normalized_key": "source:gymvisual:0037",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0041",
+      "catalog_id": "CAT-000004",
+      "normalized_exercise_id": "NEX-000004",
+      "normalized_key": "source:gymvisual:0041",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0073",
+      "catalog_id": "CAT-000005",
+      "normalized_exercise_id": "NEX-000005",
+      "normalized_key": "source:gymvisual:0073",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0082",
+      "catalog_id": "CAT-000006",
+      "normalized_exercise_id": "NEX-000006",
+      "normalized_key": "source:gymvisual:0082",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0088",
+      "catalog_id": "CAT-000007",
+      "normalized_exercise_id": "NEX-000007",
+      "normalized_key": "source:gymvisual:0088",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0109",
+      "catalog_id": "CAT-000008",
+      "normalized_exercise_id": "NEX-000008",
+      "normalized_key": "source:gymvisual:0109",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0116",
+      "catalog_id": "CAT-000009",
+      "normalized_exercise_id": "NEX-000009",
+      "normalized_key": "source:gymvisual:0116",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0126",
+      "catalog_id": "CAT-000010",
+      "normalized_exercise_id": "NEX-000010",
+      "normalized_key": "source:gymvisual:0126",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0140",
+      "catalog_id": "CAT-000011",
+      "normalized_exercise_id": "NEX-000011",
+      "normalized_key": "source:gymvisual:0140",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0158",
+      "catalog_id": "CAT-000012",
+      "normalized_exercise_id": "NEX-000012",
+      "normalized_key": "source:gymvisual:0158",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0159",
+      "catalog_id": "CAT-000013",
+      "normalized_exercise_id": "NEX-000013",
+      "normalized_key": "source:gymvisual:0159",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0160",
+      "catalog_id": "CAT-000014",
+      "normalized_exercise_id": "NEX-000014",
+      "normalized_key": "source:gymvisual:0160",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0167",
+      "catalog_id": "CAT-000015",
+      "normalized_exercise_id": "NEX-000015",
+      "normalized_key": "source:gymvisual:0167",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0170",
+      "catalog_id": "CAT-000016",
+      "normalized_exercise_id": "NEX-000016",
+      "normalized_key": "source:gymvisual:0170",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0171",
+      "catalog_id": "CAT-000017",
+      "normalized_exercise_id": "NEX-000017",
+      "normalized_key": "source:gymvisual:0171",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0184",
+      "catalog_id": "CAT-000018",
+      "normalized_exercise_id": "NEX-000018",
+      "normalized_key": "source:gymvisual:0184",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0185",
+      "catalog_id": "CAT-000019",
+      "normalized_exercise_id": "NEX-000019",
+      "normalized_key": "source:gymvisual:0185",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0198",
+      "catalog_id": "CAT-000020",
+      "normalized_exercise_id": "NEX-000020",
+      "normalized_key": "source:gymvisual:0198",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0201",
+      "catalog_id": "CAT-000021",
+      "normalized_exercise_id": "NEX-000021",
+      "normalized_key": "source:gymvisual:0201",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0208",
+      "catalog_id": "CAT-000022",
+      "normalized_exercise_id": "NEX-000022",
+      "normalized_key": "source:gymvisual:0208",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0211",
+      "catalog_id": "CAT-000023",
+      "normalized_exercise_id": "NEX-000023",
+      "normalized_key": "source:gymvisual:0211",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0218",
+      "catalog_id": "CAT-000024",
+      "normalized_exercise_id": "NEX-000024",
+      "normalized_key": "source:gymvisual:0218",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0220",
+      "catalog_id": "CAT-000025",
+      "normalized_exercise_id": "NEX-000025",
+      "normalized_key": "source:gymvisual:0220",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0227",
+      "catalog_id": "CAT-000026",
+      "normalized_exercise_id": "NEX-000026",
+      "normalized_key": "source:gymvisual:0227",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0242",
+      "catalog_id": "CAT-000027",
+      "normalized_exercise_id": "NEX-000027",
+      "normalized_key": "source:gymvisual:0242",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0259",
+      "catalog_id": "CAT-000028",
+      "normalized_exercise_id": "NEX-000028",
+      "normalized_key": "source:gymvisual:0259",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0274",
+      "catalog_id": "CAT-000029",
+      "normalized_exercise_id": "NEX-000029",
+      "normalized_key": "source:gymvisual:0274",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0276",
+      "catalog_id": "CAT-000030",
+      "normalized_exercise_id": "NEX-000030",
+      "normalized_key": "source:gymvisual:0276",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0277",
+      "catalog_id": "CAT-000031",
+      "normalized_exercise_id": "NEX-000031",
+      "normalized_key": "source:gymvisual:0277",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0300",
+      "catalog_id": "CAT-000032",
+      "normalized_exercise_id": "NEX-000032",
+      "normalized_key": "source:gymvisual:0300",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0304",
+      "catalog_id": "CAT-000033",
+      "normalized_exercise_id": "NEX-000033",
+      "normalized_key": "source:gymvisual:0304",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0305",
+      "catalog_id": "CAT-000034",
+      "normalized_exercise_id": "NEX-000034",
+      "normalized_key": "source:gymvisual:0305",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0309",
+      "catalog_id": "CAT-000035",
+      "normalized_exercise_id": "NEX-000035",
+      "normalized_key": "source:gymvisual:0309",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0310",
+      "catalog_id": "CAT-000036",
+      "normalized_exercise_id": "NEX-000036",
+      "normalized_key": "source:gymvisual:0310",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0326",
+      "catalog_id": "CAT-000037",
+      "normalized_exercise_id": "NEX-000037",
+      "normalized_key": "source:gymvisual:0326",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0329",
+      "catalog_id": "CAT-000038",
+      "normalized_exercise_id": "NEX-000038",
+      "normalized_key": "source:gymvisual:0329",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0334",
+      "catalog_id": "CAT-000039",
+      "normalized_exercise_id": "NEX-000039",
+      "normalized_key": "source:gymvisual:0334",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0335",
+      "catalog_id": "CAT-000040",
+      "normalized_exercise_id": "NEX-000040",
+      "normalized_key": "source:gymvisual:0335",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0336",
+      "catalog_id": "CAT-000041",
+      "normalized_exercise_id": "NEX-000041",
+      "normalized_key": "source:gymvisual:0336",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0348",
+      "catalog_id": "CAT-000042",
+      "normalized_exercise_id": "NEX-000042",
+      "normalized_key": "source:gymvisual:0348",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0360",
+      "catalog_id": "CAT-000043",
+      "normalized_exercise_id": "NEX-000043",
+      "normalized_key": "source:gymvisual:0360",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0361",
+      "catalog_id": "CAT-000044",
+      "normalized_exercise_id": "NEX-000044",
+      "normalized_key": "source:gymvisual:0361",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0368",
+      "catalog_id": "CAT-000045",
+      "normalized_exercise_id": "NEX-000045",
+      "normalized_key": "source:gymvisual:0368",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0369",
+      "catalog_id": "CAT-000046",
+      "normalized_exercise_id": "NEX-000046",
+      "normalized_key": "source:gymvisual:0369",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0372",
+      "catalog_id": "CAT-000047",
+      "normalized_exercise_id": "NEX-000047",
+      "normalized_key": "source:gymvisual:0372",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0378",
+      "catalog_id": "CAT-000048",
+      "normalized_exercise_id": "NEX-000048",
+      "normalized_key": "source:gymvisual:0378",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0379",
+      "catalog_id": "CAT-000049",
+      "normalized_exercise_id": "NEX-000049",
+      "normalized_key": "source:gymvisual:0379",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0380",
+      "catalog_id": "CAT-000050",
+      "normalized_exercise_id": "NEX-000050",
+      "normalized_key": "source:gymvisual:0380",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0381",
+      "catalog_id": "CAT-000051",
+      "normalized_exercise_id": "NEX-000051",
+      "normalized_key": "source:gymvisual:0381",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0385",
+      "catalog_id": "CAT-000052",
+      "normalized_exercise_id": "NEX-000052",
+      "normalized_key": "source:gymvisual:0385",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0387",
+      "catalog_id": "CAT-000053",
+      "normalized_exercise_id": "NEX-000053",
+      "normalized_key": "source:gymvisual:0387",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0402",
+      "catalog_id": "CAT-000054",
+      "normalized_exercise_id": "NEX-000054",
+      "normalized_key": "source:gymvisual:0402",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0404",
+      "catalog_id": "CAT-000055",
+      "normalized_exercise_id": "NEX-000055",
+      "normalized_key": "source:gymvisual:0404",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0405",
+      "catalog_id": "CAT-000056",
+      "normalized_exercise_id": "NEX-000056",
+      "normalized_key": "source:gymvisual:0405",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0406",
+      "catalog_id": "CAT-000057",
+      "normalized_exercise_id": "NEX-000057",
+      "normalized_key": "source:gymvisual:0406",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0409",
+      "catalog_id": "CAT-000058",
+      "normalized_exercise_id": "NEX-000058",
+      "normalized_key": "source:gymvisual:0409",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0416",
+      "catalog_id": "CAT-000059",
+      "normalized_exercise_id": "NEX-000059",
+      "normalized_key": "source:gymvisual:0416",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0428",
+      "catalog_id": "CAT-000060",
+      "normalized_exercise_id": "NEX-000060",
+      "normalized_key": "source:gymvisual:0428",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0432",
+      "catalog_id": "CAT-000061",
+      "normalized_exercise_id": "NEX-000061",
+      "normalized_key": "source:gymvisual:0432",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0434",
+      "catalog_id": "CAT-000062",
+      "normalized_exercise_id": "NEX-000062",
+      "normalized_key": "source:gymvisual:0434",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0464",
+      "catalog_id": "CAT-000063",
+      "normalized_exercise_id": "NEX-000063",
+      "normalized_key": "source:gymvisual:0464",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0489",
+      "catalog_id": "CAT-000064",
+      "normalized_exercise_id": "NEX-000064",
+      "normalized_key": "source:gymvisual:0489",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0496",
+      "catalog_id": "CAT-000065",
+      "normalized_exercise_id": "NEX-000065",
+      "normalized_key": "source:gymvisual:0496",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0498",
+      "catalog_id": "CAT-000066",
+      "normalized_exercise_id": "NEX-000066",
+      "normalized_key": "source:gymvisual:0498",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0499",
+      "catalog_id": "CAT-000067",
+      "normalized_exercise_id": "NEX-000067",
+      "normalized_key": "source:gymvisual:0499",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0536",
+      "catalog_id": "CAT-000068",
+      "normalized_exercise_id": "NEX-000068",
+      "normalized_key": "source:gymvisual:0536",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0585",
+      "catalog_id": "CAT-000069",
+      "normalized_exercise_id": "NEX-000069",
+      "normalized_key": "source:gymvisual:0585",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0594",
+      "catalog_id": "CAT-000070",
+      "normalized_exercise_id": "NEX-000070",
+      "normalized_key": "source:gymvisual:0594",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0599",
+      "catalog_id": "CAT-000071",
+      "normalized_exercise_id": "NEX-000071",
+      "normalized_key": "source:gymvisual:0599",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0613",
+      "catalog_id": "CAT-000072",
+      "normalized_exercise_id": "NEX-000072",
+      "normalized_key": "source:gymvisual:0613",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0643",
+      "catalog_id": "CAT-000073",
+      "normalized_exercise_id": "NEX-000073",
+      "normalized_key": "source:gymvisual:0643",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0662",
+      "catalog_id": "CAT-000074",
+      "normalized_exercise_id": "NEX-000074",
+      "normalized_key": "source:gymvisual:0662",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0669",
+      "catalog_id": "CAT-000075",
+      "normalized_exercise_id": "NEX-000075",
+      "normalized_key": "source:gymvisual:0669",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0685",
+      "catalog_id": "CAT-000076",
+      "normalized_exercise_id": "NEX-000076",
+      "normalized_key": "source:gymvisual:0685",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0687",
+      "catalog_id": "CAT-000077",
+      "normalized_exercise_id": "NEX-000077",
+      "normalized_key": "source:gymvisual:0687",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0688",
+      "catalog_id": "CAT-000078",
+      "normalized_exercise_id": "NEX-000078",
+      "normalized_key": "source:gymvisual:0688",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0690",
+      "catalog_id": "CAT-000079",
+      "normalized_exercise_id": "NEX-000079",
+      "normalized_key": "source:gymvisual:0690",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0691",
+      "catalog_id": "CAT-000080",
+      "normalized_exercise_id": "NEX-000080",
+      "normalized_key": "source:gymvisual:0691",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0696",
+      "catalog_id": "CAT-000081",
+      "normalized_exercise_id": "NEX-000081",
+      "normalized_key": "source:gymvisual:0696",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0697",
+      "catalog_id": "CAT-000082",
+      "normalized_exercise_id": "NEX-000082",
+      "normalized_key": "source:gymvisual:0697",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0716",
+      "catalog_id": "CAT-000083",
+      "normalized_exercise_id": "NEX-000083",
+      "normalized_key": "source:gymvisual:0716",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0721",
+      "catalog_id": "CAT-000084",
+      "normalized_exercise_id": "NEX-000084",
+      "normalized_key": "source:gymvisual:0721",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0763",
+      "catalog_id": "CAT-000085",
+      "normalized_exercise_id": "NEX-000085",
+      "normalized_key": "source:gymvisual:0763",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0794",
+      "catalog_id": "CAT-000086",
+      "normalized_exercise_id": "NEX-000086",
+      "normalized_key": "source:gymvisual:0794",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0795",
+      "catalog_id": "CAT-000087",
+      "normalized_exercise_id": "NEX-000087",
+      "normalized_key": "source:gymvisual:0795",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0807",
+      "catalog_id": "CAT-000088",
+      "normalized_exercise_id": "NEX-000088",
+      "normalized_key": "source:gymvisual:0807",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0817",
+      "catalog_id": "CAT-000089",
+      "normalized_exercise_id": "NEX-000089",
+      "normalized_key": "source:gymvisual:0817",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0845",
+      "catalog_id": "CAT-000090",
+      "normalized_exercise_id": "NEX-000090",
+      "normalized_key": "source:gymvisual:0845",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0846",
+      "catalog_id": "CAT-000091",
+      "normalized_exercise_id": "NEX-000091",
+      "normalized_key": "source:gymvisual:0846",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0854",
+      "catalog_id": "CAT-000092",
+      "normalized_exercise_id": "NEX-000092",
+      "normalized_key": "source:gymvisual:0854",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0861",
+      "catalog_id": "CAT-000093",
+      "normalized_exercise_id": "NEX-000093",
+      "normalized_key": "source:gymvisual:0861",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0872",
+      "catalog_id": "CAT-000094",
+      "normalized_exercise_id": "NEX-000094",
+      "normalized_key": "source:gymvisual:0872",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0873",
+      "catalog_id": "CAT-000095",
+      "normalized_exercise_id": "NEX-000095",
+      "normalized_key": "source:gymvisual:0873",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0972",
+      "catalog_id": "CAT-000096",
+      "normalized_exercise_id": "NEX-000096",
+      "normalized_key": "source:gymvisual:0972",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0977",
+      "catalog_id": "CAT-000097",
+      "normalized_exercise_id": "NEX-000097",
+      "normalized_key": "source:gymvisual:0977",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0978",
+      "catalog_id": "CAT-000098",
+      "normalized_exercise_id": "NEX-000098",
+      "normalized_key": "source:gymvisual:0978",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0985",
+      "catalog_id": "CAT-000099",
+      "normalized_exercise_id": "NEX-000099",
+      "normalized_key": "source:gymvisual:0985",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0994",
+      "catalog_id": "CAT-000100",
+      "normalized_exercise_id": "NEX-000100",
+      "normalized_key": "source:gymvisual:0994",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0997",
+      "catalog_id": "CAT-000101",
+      "normalized_exercise_id": "NEX-000101",
+      "normalized_key": "source:gymvisual:0997",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "0999",
+      "catalog_id": "CAT-000102",
+      "normalized_exercise_id": "NEX-000102",
+      "normalized_key": "source:gymvisual:0999",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1000",
+      "catalog_id": "CAT-000103",
+      "normalized_exercise_id": "NEX-000103",
+      "normalized_key": "source:gymvisual:1000",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1009",
+      "catalog_id": "CAT-000104",
+      "normalized_exercise_id": "NEX-000104",
+      "normalized_key": "source:gymvisual:1009",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1016",
+      "catalog_id": "CAT-000105",
+      "normalized_exercise_id": "NEX-000105",
+      "normalized_key": "source:gymvisual:1016",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1018",
+      "catalog_id": "CAT-000106",
+      "normalized_exercise_id": "NEX-000106",
+      "normalized_key": "source:gymvisual:1018",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1023",
+      "catalog_id": "CAT-000107",
+      "normalized_exercise_id": "NEX-000107",
+      "normalized_key": "source:gymvisual:1023",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1167",
+      "catalog_id": "CAT-000108",
+      "normalized_exercise_id": "NEX-000108",
+      "normalized_key": "source:gymvisual:1167",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1262",
+      "catalog_id": "CAT-000109",
+      "normalized_exercise_id": "NEX-000109",
+      "normalized_key": "source:gymvisual:1262",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1271",
+      "catalog_id": "CAT-000110",
+      "normalized_exercise_id": "NEX-000110",
+      "normalized_key": "source:gymvisual:1271",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1346",
+      "catalog_id": "CAT-000111",
+      "normalized_exercise_id": "NEX-000111",
+      "normalized_key": "source:gymvisual:1346",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1352",
+      "catalog_id": "CAT-000112",
+      "normalized_exercise_id": "NEX-000112",
+      "normalized_key": "source:gymvisual:1352",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1355",
+      "catalog_id": "CAT-000113",
+      "normalized_exercise_id": "NEX-000113",
+      "normalized_key": "source:gymvisual:1355",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1363",
+      "catalog_id": "CAT-000114",
+      "normalized_exercise_id": "NEX-000114",
+      "normalized_key": "source:gymvisual:1363",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1365",
+      "catalog_id": "CAT-000115",
+      "normalized_exercise_id": "NEX-000115",
+      "normalized_key": "source:gymvisual:1365",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1368",
+      "catalog_id": "CAT-000116",
+      "normalized_exercise_id": "NEX-000116",
+      "normalized_key": "source:gymvisual:1368",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1369",
+      "catalog_id": "CAT-000117",
+      "normalized_exercise_id": "NEX-000117",
+      "normalized_key": "source:gymvisual:1369",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1373",
+      "catalog_id": "CAT-000118",
+      "normalized_exercise_id": "NEX-000118",
+      "normalized_key": "source:gymvisual:1373",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1377",
+      "catalog_id": "CAT-000119",
+      "normalized_exercise_id": "NEX-000119",
+      "normalized_key": "source:gymvisual:1377",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1379",
+      "catalog_id": "CAT-000120",
+      "normalized_exercise_id": "NEX-000120",
+      "normalized_key": "source:gymvisual:1379",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1386",
+      "catalog_id": "CAT-000121",
+      "normalized_exercise_id": "NEX-000121",
+      "normalized_key": "source:gymvisual:1386",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1387",
+      "catalog_id": "CAT-000122",
+      "normalized_exercise_id": "NEX-000122",
+      "normalized_key": "source:gymvisual:1387",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1388",
+      "catalog_id": "CAT-000123",
+      "normalized_exercise_id": "NEX-000123",
+      "normalized_key": "source:gymvisual:1388",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1390",
+      "catalog_id": "CAT-000124",
+      "normalized_exercise_id": "NEX-000124",
+      "normalized_key": "source:gymvisual:1390",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1403",
+      "catalog_id": "CAT-000125",
+      "normalized_exercise_id": "NEX-000125",
+      "normalized_key": "source:gymvisual:1403",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1424",
+      "catalog_id": "CAT-000126",
+      "normalized_exercise_id": "NEX-000126",
+      "normalized_key": "source:gymvisual:1424",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1428",
+      "catalog_id": "CAT-000127",
+      "normalized_exercise_id": "NEX-000127",
+      "normalized_key": "source:gymvisual:1428",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1460",
+      "catalog_id": "CAT-000128",
+      "normalized_exercise_id": "NEX-000128",
+      "normalized_key": "source:gymvisual:1460",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1494",
+      "catalog_id": "CAT-000129",
+      "normalized_exercise_id": "NEX-000129",
+      "normalized_key": "source:gymvisual:1494",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1511",
+      "catalog_id": "CAT-000130",
+      "normalized_exercise_id": "NEX-000130",
+      "normalized_key": "source:gymvisual:1511",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1512",
+      "catalog_id": "CAT-000131",
+      "normalized_exercise_id": "NEX-000131",
+      "normalized_key": "source:gymvisual:1512",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1548",
+      "catalog_id": "CAT-000132",
+      "normalized_exercise_id": "NEX-000132",
+      "normalized_key": "source:gymvisual:1548",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1559",
+      "catalog_id": "CAT-000133",
+      "normalized_exercise_id": "NEX-000133",
+      "normalized_key": "source:gymvisual:1559",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1564",
+      "catalog_id": "CAT-000134",
+      "normalized_exercise_id": "NEX-000134",
+      "normalized_key": "source:gymvisual:1564",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1576",
+      "catalog_id": "CAT-000135",
+      "normalized_exercise_id": "NEX-000135",
+      "normalized_key": "source:gymvisual:1576",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1585",
+      "catalog_id": "CAT-000136",
+      "normalized_exercise_id": "NEX-000136",
+      "normalized_key": "source:gymvisual:1585",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1587",
+      "catalog_id": "CAT-000137",
+      "normalized_exercise_id": "NEX-000137",
+      "normalized_key": "source:gymvisual:1587",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1599",
+      "catalog_id": "CAT-000138",
+      "normalized_exercise_id": "NEX-000138",
+      "normalized_key": "source:gymvisual:1599",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1604",
+      "catalog_id": "CAT-000139",
+      "normalized_exercise_id": "NEX-000139",
+      "normalized_key": "source:gymvisual:1604",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1646",
+      "catalog_id": "CAT-000140",
+      "normalized_exercise_id": "NEX-000140",
+      "normalized_key": "source:gymvisual:1646",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1647",
+      "catalog_id": "CAT-000141",
+      "normalized_exercise_id": "NEX-000141",
+      "normalized_key": "source:gymvisual:1647",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "1760",
+      "catalog_id": "CAT-000142",
+      "normalized_exercise_id": "NEX-000142",
+      "normalized_key": "source:gymvisual:1760",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "2138",
+      "catalog_id": "CAT-000143",
+      "normalized_exercise_id": "NEX-000143",
+      "normalized_key": "source:gymvisual:2138",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "2141",
+      "catalog_id": "CAT-000144",
+      "normalized_exercise_id": "NEX-000144",
+      "normalized_key": "source:gymvisual:2141",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "2202",
+      "catalog_id": "CAT-000145",
+      "normalized_exercise_id": "NEX-000145",
+      "normalized_key": "source:gymvisual:2202",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "2206",
+      "catalog_id": "CAT-000146",
+      "normalized_exercise_id": "NEX-000146",
+      "normalized_key": "source:gymvisual:2206",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "2208",
+      "catalog_id": "CAT-000147",
+      "normalized_exercise_id": "NEX-000147",
+      "normalized_key": "source:gymvisual:2208",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "2285",
+      "catalog_id": "CAT-000148",
+      "normalized_exercise_id": "NEX-000148",
+      "normalized_key": "source:gymvisual:2285",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "2293",
+      "catalog_id": "CAT-000149",
+      "normalized_exercise_id": "NEX-000149",
+      "normalized_key": "source:gymvisual:2293",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "2298",
+      "catalog_id": "CAT-000150",
+      "normalized_exercise_id": "NEX-000150",
+      "normalized_key": "source:gymvisual:2298",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "2311",
+      "catalog_id": "CAT-000151",
+      "normalized_exercise_id": "NEX-000151",
+      "normalized_key": "source:gymvisual:2311",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "2329",
+      "catalog_id": "CAT-000152",
+      "normalized_exercise_id": "NEX-000152",
+      "normalized_key": "source:gymvisual:2329",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "2335",
+      "catalog_id": "CAT-000153",
+      "normalized_exercise_id": "NEX-000153",
+      "normalized_key": "source:gymvisual:2335",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "2368",
+      "catalog_id": "CAT-000154",
+      "normalized_exercise_id": "NEX-000154",
+      "normalized_key": "source:gymvisual:2368",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "2371",
+      "catalog_id": "CAT-000155",
+      "normalized_exercise_id": "NEX-000155",
+      "normalized_key": "source:gymvisual:2371",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "2400",
+      "catalog_id": "CAT-000156",
+      "normalized_exercise_id": "NEX-000156",
+      "normalized_key": "source:gymvisual:2400",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "2567",
+      "catalog_id": "CAT-000157",
+      "normalized_exercise_id": "NEX-000157",
+      "normalized_key": "source:gymvisual:2567",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "2612",
+      "catalog_id": "CAT-000158",
+      "normalized_exercise_id": "NEX-000158",
+      "normalized_key": "source:gymvisual:2612",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "2796",
+      "catalog_id": "CAT-000159",
+      "normalized_exercise_id": "NEX-000159",
+      "normalized_key": "source:gymvisual:2796",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "3007",
+      "catalog_id": "CAT-000160",
+      "normalized_exercise_id": "NEX-000160",
+      "normalized_key": "source:gymvisual:3007",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "3010",
+      "catalog_id": "CAT-000161",
+      "normalized_exercise_id": "NEX-000161",
+      "normalized_key": "source:gymvisual:3010",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "3013",
+      "catalog_id": "CAT-000162",
+      "normalized_exercise_id": "NEX-000162",
+      "normalized_key": "source:gymvisual:3013",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "3122",
+      "catalog_id": "CAT-000163",
+      "normalized_exercise_id": "NEX-000163",
+      "normalized_key": "source:gymvisual:3122",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "3224",
+      "catalog_id": "CAT-000164",
+      "normalized_exercise_id": "NEX-000164",
+      "normalized_key": "source:gymvisual:3224",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "3470",
+      "catalog_id": "CAT-000165",
+      "normalized_exercise_id": "NEX-000165",
+      "normalized_key": "source:gymvisual:3470",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "3541",
+      "catalog_id": "CAT-000166",
+      "normalized_exercise_id": "NEX-000166",
+      "normalized_key": "source:gymvisual:3541",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "3635",
+      "catalog_id": "CAT-000167",
+      "normalized_exercise_id": "NEX-000167",
+      "normalized_key": "source:gymvisual:3635",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "3636",
+      "catalog_id": "CAT-000168",
+      "normalized_exercise_id": "NEX-000168",
+      "normalized_key": "source:gymvisual:3636",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "3656",
+      "catalog_id": "CAT-000169",
+      "normalized_exercise_id": "NEX-000169",
+      "normalized_key": "source:gymvisual:3656",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "3666",
+      "catalog_id": "CAT-000170",
+      "normalized_exercise_id": "NEX-000170",
+      "normalized_key": "source:gymvisual:3666",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "gymvisual",
+      "source_id": "3672",
+      "catalog_id": "CAT-000171",
+      "normalized_exercise_id": "NEX-000171",
+      "normalized_key": "source:gymvisual:3672",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "kspo",
+      "source_id": "00c41c823f6141adb2f3b7da95c1213fea98dac6cb3bfaf453f1a4989133d2d2",
+      "catalog_id": "CAT-000172",
+      "normalized_exercise_id": "NEX-000172",
+      "normalized_key": "source:kspo:00c41c823f6141adb2f3b7da95c1213fea98dac6cb3bfaf453f1a4989133d2d2",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "kspo",
+      "source_id": "19af0f76cad5e01830e662585e3cea621cf8563f1955f83114bef440606379c4",
+      "catalog_id": "CAT-000173",
+      "normalized_exercise_id": "NEX-000173",
+      "normalized_key": "source:kspo:19af0f76cad5e01830e662585e3cea621cf8563f1955f83114bef440606379c4",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "kspo",
+      "source_id": "46ea8fdbe34474fac354a051f63b114e0a6d20a21f71226ae0db5da216d14861",
+      "catalog_id": "CAT-000174",
+      "normalized_exercise_id": "NEX-000174",
+      "normalized_key": "source:kspo:46ea8fdbe34474fac354a051f63b114e0a6d20a21f71226ae0db5da216d14861",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "kspo",
+      "source_id": "66e29f752b845bd1bcfa4cb737be1ede40daa81d869ea4b531c882b02ffb3c28",
+      "catalog_id": "CAT-000175",
+      "normalized_exercise_id": "NEX-000175",
+      "normalized_key": "source:kspo:66e29f752b845bd1bcfa4cb737be1ede40daa81d869ea4b531c882b02ffb3c28",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "kspo",
+      "source_id": "72cc612abf8747105b33f64e0661b713012fb3f2ae378cd5c5142215eedc899b",
+      "catalog_id": "CAT-000176",
+      "normalized_exercise_id": "NEX-000176",
+      "normalized_key": "source:kspo:72cc612abf8747105b33f64e0661b713012fb3f2ae378cd5c5142215eedc899b",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "kspo",
+      "source_id": "9cbed9e85b778b40b4786394c774c081fcfb39e3cf13df612476c9d0bf56c9e7",
+      "catalog_id": "CAT-000177",
+      "normalized_exercise_id": "NEX-000177",
+      "normalized_key": "source:kspo:9cbed9e85b778b40b4786394c774c081fcfb39e3cf13df612476c9d0bf56c9e7",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "kspo",
+      "source_id": "ab41f78cd9e548e1217b4460122ca0a1e9824cd570da589f1b37ffe86d6db937",
+      "catalog_id": "CAT-000178",
+      "normalized_exercise_id": "NEX-000178",
+      "normalized_key": "source:kspo:ab41f78cd9e548e1217b4460122ca0a1e9824cd570da589f1b37ffe86d6db937",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "kspo",
+      "source_id": "ce0ab5a88d5e6c4243b2a910aa53ecff3aa783c716fa193711a1a6e44542b3a0",
+      "catalog_id": "CAT-000179",
+      "normalized_exercise_id": "NEX-000179",
+      "normalized_key": "source:kspo:ce0ab5a88d5e6c4243b2a910aa53ecff3aa783c716fa193711a1a6e44542b3a0",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "kspo",
+      "source_id": "ddff78f01b0aa7c568bb66781954f5bbb7a7f882745b3490702d63e6467f924e",
+      "catalog_id": "CAT-000180",
+      "normalized_exercise_id": "NEX-000180",
+      "normalized_key": "source:kspo:ddff78f01b0aa7c568bb66781954f5bbb7a7f882745b3490702d63e6467f924e",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "kspo",
+      "source_id": "dfd7eaa07d42e118610eb6756d8dcdc351f5b1f3c9a1262fa94aa18d92a87e09",
+      "catalog_id": "CAT-000181",
+      "normalized_exercise_id": "NEX-000181",
+      "normalized_key": "source:kspo:dfd7eaa07d42e118610eb6756d8dcdc351f5b1f3c9a1262fa94aa18d92a87e09",
+      "legacy_review_normalized_exercise_id": "",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "1094",
+      "catalog_id": "CAT-000182",
+      "normalized_exercise_id": "NEX-000182",
+      "normalized_key": "legacy:seated_bench_press",
+      "legacy_review_normalized_exercise_id": "seated_bench_press",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "1117",
+      "catalog_id": "CAT-000183",
+      "normalized_exercise_id": "NEX-000183",
+      "normalized_key": "legacy:seated_cable_row",
+      "legacy_review_normalized_exercise_id": "seated_cable_row",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "1227",
+      "catalog_id": "CAT-000184",
+      "normalized_exercise_id": "NEX-000184",
+      "normalized_key": "legacy:dumbbell_rear_delt_row",
+      "legacy_review_normalized_exercise_id": "dumbbell_rear_delt_row",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "1283",
+      "catalog_id": "CAT-000185",
+      "normalized_exercise_id": "NEX-000185",
+      "normalized_key": "legacy:incline_chest_supported_dumbbell_row",
+      "legacy_review_normalized_exercise_id": "incline_chest_supported_dumbbell_row",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "1370",
+      "catalog_id": "CAT-000186",
+      "normalized_exercise_id": "NEX-000186",
+      "normalized_key": "legacy:dumbbell_deadlift",
+      "legacy_review_normalized_exercise_id": "dumbbell_deadlift",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "145",
+      "catalog_id": "CAT-000187",
+      "normalized_exercise_id": "NEX-000187",
+      "normalized_key": "legacy:cable_woodchop",
+      "legacy_review_normalized_exercise_id": "cable_woodchop",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "146",
+      "catalog_id": "CAT-000188",
+      "normalized_exercise_id": "NEX-000188",
+      "normalized_key": "legacy:machine_calf_press",
+      "legacy_review_normalized_exercise_id": "machine_calf_press",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "1470",
+      "catalog_id": "CAT-000189",
+      "normalized_exercise_id": "NEX-000189",
+      "normalized_key": "legacy:half_kneeling_single_arm_lat_pulldown",
+      "legacy_review_normalized_exercise_id": "half_kneeling_single_arm_lat_pulldown",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "1510",
+      "catalog_id": "CAT-000190",
+      "normalized_exercise_id": "NEX-000190",
+      "normalized_key": "legacy:neutral_grip_lat_pulldown",
+      "legacy_review_normalized_exercise_id": "neutral_grip_lat_pulldown",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "1603",
+      "catalog_id": "CAT-000191",
+      "normalized_exercise_id": "NEX-000191",
+      "normalized_key": "legacy:band_leg_curl",
+      "legacy_review_normalized_exercise_id": "band_leg_curl",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "1612",
+      "catalog_id": "CAT-000192",
+      "normalized_exercise_id": "NEX-000192",
+      "normalized_key": "legacy:kettlebell_sumo_deadlift",
+      "legacy_review_normalized_exercise_id": "kettlebell_sumo_deadlift",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "1652",
+      "catalog_id": "CAT-000193",
+      "normalized_exercise_id": "NEX-000193",
+      "normalized_key": "legacy:dumbbell_romanian_deadlift",
+      "legacy_review_normalized_exercise_id": "dumbbell_romanian_deadlift",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "1656",
+      "catalog_id": "CAT-000194",
+      "normalized_exercise_id": "NEX-000194",
+      "normalized_key": "legacy:standing_cable_chest_press",
+      "legacy_review_normalized_exercise_id": "standing_cable_chest_press",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "1706",
+      "catalog_id": "CAT-000195",
+      "normalized_exercise_id": "NEX-000195",
+      "normalized_key": "legacy:dumbbell_split_squat",
+      "legacy_review_normalized_exercise_id": "dumbbell_split_squat",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "1725",
+      "catalog_id": "CAT-000196",
+      "normalized_exercise_id": "NEX-000196",
+      "normalized_key": "legacy:machine_seated_row",
+      "legacy_review_normalized_exercise_id": "machine_seated_row",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "1801",
+      "catalog_id": "CAT-000197",
+      "normalized_exercise_id": "NEX-000197",
+      "normalized_key": "legacy:barbell_back_squat",
+      "legacy_review_normalized_exercise_id": "barbell_back_squat",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "1893",
+      "catalog_id": "CAT-000198",
+      "normalized_exercise_id": "NEX-000198",
+      "normalized_key": "legacy:barbell_overhead_press",
+      "legacy_review_normalized_exercise_id": "barbell_overhead_press",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "1927",
+      "catalog_id": "CAT-000199",
+      "normalized_exercise_id": "NEX-000199",
+      "normalized_key": "legacy:inverted_row",
+      "legacy_review_normalized_exercise_id": "inverted_row",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "20",
+      "catalog_id": "CAT-000200",
+      "normalized_exercise_id": "NEX-000200",
+      "normalized_key": "legacy:dumbbell_arnold_press",
+      "legacy_review_normalized_exercise_id": "dumbbell_arnold_press",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "203",
+      "catalog_id": "CAT-000201",
+      "normalized_exercise_id": "NEX-000201",
+      "normalized_key": "legacy:dumbbell_goblet_squat",
+      "legacy_review_normalized_exercise_id": "dumbbell_goblet_squat",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "364",
+      "catalog_id": "CAT-000202",
+      "normalized_exercise_id": "NEX-000202",
+      "normalized_key": "legacy:leg_curl",
+      "legacy_review_normalized_exercise_id": "leg_curl",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "369",
+      "catalog_id": "CAT-000203",
+      "normalized_exercise_id": "NEX-000203",
+      "normalized_key": "legacy:leg_extension",
+      "legacy_review_normalized_exercise_id": "leg_extension",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "371",
+      "catalog_id": "CAT-000204",
+      "normalized_exercise_id": "NEX-000204",
+      "normalized_key": "legacy:leg_press",
+      "legacy_review_normalized_exercise_id": "leg_press",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "507",
+      "catalog_id": "CAT-000205",
+      "normalized_exercise_id": "NEX-000205",
+      "normalized_key": "legacy:romanian_deadlift",
+      "legacy_review_normalized_exercise_id": "romanian_deadlift",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "537",
+      "catalog_id": "CAT-000206",
+      "normalized_exercise_id": "NEX-000206",
+      "normalized_key": "legacy:incline_dumbbell_bench_press",
+      "legacy_review_normalized_exercise_id": "incline_dumbbell_bench_press",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "543",
+      "catalog_id": "CAT-000207",
+      "normalized_exercise_id": "NEX-000207",
+      "normalized_key": "legacy:machine_shoulder_press",
+      "legacy_review_normalized_exercise_id": "machine_shoulder_press",
+      "registry_assignment": "APPENDED"
+    },
+    {
+      "source_system": "wger",
+      "source_id": "9",
+      "catalog_id": "CAT-000208",
+      "normalized_exercise_id": "NEX-000208",
+      "normalized_key": "legacy:two_hand_kettlebell_swing",
+      "legacy_review_normalized_exercise_id": "two_hand_kettlebell_swing",
+      "registry_assignment": "APPENDED"
+    }
+  ]
+}
