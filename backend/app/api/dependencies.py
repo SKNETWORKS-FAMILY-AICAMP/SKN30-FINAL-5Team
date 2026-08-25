@@ -22,6 +22,12 @@ from backend.app.modules.account_deletion.ports import AccountDeletionRepository
 from backend.app.modules.catalog.service import ExerciseReadRepositoryPort
 from backend.app.modules.checkins.ports import DailyContextRepositoryPort
 from backend.app.modules.decisions.ports import DecisionRepositoryPort, NarrationProviderPort
+from backend.app.modules.decisions.v3_regeneration import (
+    V3EngineDisabledError,
+    V3RegenerationCommand,
+    V3RegenerationResult,
+    V3RegenerationServicePort,
+)
 from backend.app.modules.identity.ports import (
     FirebaseTokenVerifier,
     FirebaseVerifierUnavailableError,
@@ -52,6 +58,15 @@ _workout_repository = WorkoutRepository()
 _weekly_report_repository = WeeklyReportRepository()
 _weekly_plan_repository = WeeklyPlanRepository()
 _account_deletion_repository = AccountDeletionRepository()
+
+
+class _DisabledV3RegenerationService:
+    async def regenerate(self, command: V3RegenerationCommand) -> V3RegenerationResult:
+        del command
+        raise V3EngineDisabledError
+
+
+_disabled_v3_regeneration_service = _DisabledV3RegenerationService()
 
 
 def get_db_session(request: Request) -> Iterator[Session]:
@@ -108,6 +123,13 @@ def get_birthdate_cipher(request: Request) -> BirthdateCipher | None:
 
 def get_narration_provider(request: Request) -> NarrationProviderPort:
     return request.app.state.narration_provider
+
+
+def get_v3_regeneration_service(request: Request) -> V3RegenerationServicePort:
+    service: V3RegenerationServicePort | None = request.app.state.v3_regeneration_service
+    if not request.app.state.settings.v3_regeneration_enabled or service is None:
+        return _disabled_v3_regeneration_service
+    return service
 
 
 def get_current_user(

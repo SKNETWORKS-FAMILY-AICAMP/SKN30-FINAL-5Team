@@ -550,7 +550,7 @@ ManualActivityResponse
 | GET | /api/v1/daily-contexts/{local_date} | 당일 체크인 조회 |
 | POST | /api/v1/decisions | 현재 컨텍스트로 결정 실행 |
 | GET | /api/v1/decisions/{decision_id} | 저장된 결정 조회 |
-| POST | /api/v1/decisions/{decision_id}/regenerations | [V3 목표, 미구현] 추가 입력 없이 다른 루틴 재생성 |
+| POST | /api/v1/decisions/{decision_id}/regenerations | [V3 backend API 구현, 기본 비활성] 추가 입력 없이 다른 루틴 재생성 |
 | POST | /api/v1/decisions/{decision_id}/selection | 서버가 허용한 옵션 선택 |
 
 ### 6.5 운동 세션
@@ -1422,7 +1422,7 @@ KEEP, DOWNSHIFT, CHANGE, RECOVERY에서는 `FINAL_ROUTINE` option을 정확히 �
 - 마스코트 애니메이션 키를 반환하지 않음
 - 증상 원인이나 질환명을 반환하지 않음
 
-### 10.6 [V3 목표, 미구현] 사용자 수동 루틴 재생성
+### 10.6 [V3 backend API 구현, 기본 비활성] 사용자 수동 루틴 재생성
 
 ~~~http
 POST /api/v1/decisions/{decision_id}/regenerations
@@ -1454,6 +1454,16 @@ V3 graph는 Coordinator만 다시 호출하지 않고 Training·Recovery·Feasib
 - `SET_REP_STRUCTURE_CHANGED`: 승인 범위 안의 세트·반복 구조 변경
 - `ROUTINE_STRUCTURE_CHANGED`: 루틴 구성 방식 변경
 
+application domain code와 공개 API code는 다음처럼 명시적으로 projection한다. domain enum과 저장 hash는
+변경하지 않는다.
+
+| domain code | API code |
+|---|---|
+| `CORE_EXERCISE_CHANGED` | `CORE_EXERCISE_CHANGED` |
+| `SET_REPETITION_STRUCTURE_CHANGED` | `SET_REP_STRUCTURE_CHANGED` |
+| `EXERCISE_SEQUENCE_CHANGED` | `EXERCISE_ORDER_CHANGED` |
+| `ROUTINE_COMPOSITION_CHANGED` | `ROUTINE_STRUCTURE_CHANGED` |
+
 설명·UUID·표시 순서 key 또는 미미한 시간 변경만으로는 의미 있는 차이로 인정하지 않는다. 새 plan은
 동일한 Safety veto·제외, 요청 시간, 목표, recovery ceiling, 장소·장비, 승인 catalog를 만족하고
 Plan Compiler와 integrity validator를 다시 통과해야 한다.
@@ -1466,11 +1476,16 @@ root decision당 성공 재생성은 최대 두 번이다. 같은 Idempotency-Ke
 | plan 또는 sequence 불일치 | `409 STALE_REGENERATION` |
 | snapshot/envelope/pool 만료 또는 version 불일치 | `409 REGENERATION_CONTEXT_STALE` |
 | 성공 재생성 2회 초과 | `409 REGENERATION_LIMIT_REACHED` |
+| terminal/safety 상태 또는 `final_plan=null`로 재생성 불가 | `409 REGENERATION_NOT_ALLOWED` |
 | 안전하고 목표를 보존하는 의미 있는 대안 없음 | `422 NO_ALTERNATIVE_AVAILABLE` |
 | 필수 LLM 실패 후 검증된 deterministic fallback도 없음 | `503 DECISION_FAILED` |
+| V3 graph feature 비활성 또는 application service 미설정 | `503 V3_ENGINE_DISABLED` |
 
 `STOP_AND_SEEK_HELP`, plan generation을 금지한 Safety veto와 `final_plan=null`인 decision은 재생성
 대상이 아니다. REST opt-out을 사용자가 선택한 사실도 압박성 재생성 제안을 만들지 않는다.
+
+현재 backend route와 Pydantic/error projection은 구현됐지만 `v3_regeneration_enabled=false`가
+기본값이다. production composition wiring과 frontend 버튼은 별도 승인·구현 전까지 비활성이다.
 
 ---
 

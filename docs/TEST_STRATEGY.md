@@ -343,6 +343,11 @@ regeneration fixture는 원본과 최대 두 개의 child run, idempotency key, 
 difference code를 포함한다. stale TTL·version mismatch, exact duplicate, 대안 없음과 concurrent sequence
 충돌을 각각 검증한다.
 
+backend API 경계는 `backend/tests/api/test_decision_regenerations.py`에서 request/header validation,
+application port 단일 호출, lineage/engine/difference projection, stable error mapping, 기본 feature 비활성,
+V1/V2 response field 호환성을 검증한다. locking·동시성·실패 attempt와 성공 sequence 계산은 route가
+아니라 후속 regeneration application/repository integration suite의 책임이다.
+
 ### 5.4 Account deletion 골든·개인정보 계약
 
 계정 삭제 골든 fixture는 합성 UUIDv4, timezone-aware 시각, provider 성공·실패 machine code,
