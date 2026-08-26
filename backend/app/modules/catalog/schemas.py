@@ -68,6 +68,56 @@ class ManifestFile(CatalogInputModel):
     records: Annotated[int, Field(ge=0)]
 
 
+class BundleManifestFile(CatalogInputModel):
+    path: Annotated[str, Field(min_length=1, max_length=500)]
+    sha256: Sha256
+    bytes: Annotated[int, Field(ge=0)]
+    records: Annotated[int | None, Field(ge=0)] = None
+
+
+class BundleDerivedSetVersions(CatalogInputModel):
+    alternative_set_version_code: Annotated[str, Field(min_length=1, max_length=120)]
+    prescription_set_version_code: Annotated[str, Field(min_length=1, max_length=120)]
+    rule_set_version_code: Annotated[str, Field(min_length=1, max_length=120)]
+
+
+class BundleSummary(CatalogInputModel):
+    alternative_records: Annotated[int, Field(ge=0)]
+    catalog_records: Annotated[int, Field(ge=0)]
+    goal_tag_records: Annotated[int, Field(ge=0)]
+    prescription_records: Annotated[int, Field(ge=0)]
+    safety_rule_records: Annotated[int, Field(ge=0)]
+    media_asset_records: Annotated[int | None, Field(ge=0)] = None
+
+
+class CatalogBundleManifest(CatalogInputModel):
+    schema_version: Literal["1.0"]
+    bundle_version: Annotated[str, Field(min_length=1, max_length=120)]
+    catalog_version_code: Annotated[str, Field(min_length=1, max_length=120)]
+    derived_set_versions: BundleDerivedSetVersions
+    files: list[BundleManifestFile]
+    importer_paths: dict[str, Annotated[str, Field(min_length=1, max_length=500)]]
+    production_eligible: Literal[False]
+    projection: dict[str, Any] | None = None
+    status_code: Literal["DRAFT"]
+    summary: BundleSummary
+
+    @model_validator(mode="after")
+    def validate_paths(self) -> "CatalogBundleManifest":
+        required = {"catalog", "safety", "alternatives", "prescriptions"}
+        optional = {"media"}
+        if not required.issubset(self.importer_paths) or not set(self.importer_paths) <= (
+            required | optional
+        ):
+            raise ValueError("bundle importer paths are incomplete or unsupported")
+        paths = [entry.path for entry in self.files]
+        if len(paths) != len(set(paths)):
+            raise ValueError("bundle file paths must be unique")
+        if not set(self.importer_paths.values()).issubset(paths):
+            raise ValueError("bundle importer paths must reference listed files")
+        return self
+
+
 class CatalogManifest(CatalogInputModel):
     schema_version: Literal["1.0"]
     generator_version: Annotated[str, Field(min_length=1, max_length=80)]
@@ -379,6 +429,72 @@ class PrescriptionManifest(CatalogInputModel):
             raise ValueError("goal tag count does not match manifest summary")
         if entries["prescription_profiles.jsonl"].records != self.summary.prescription_records:
             raise ValueError("prescription count does not match manifest summary")
+        return self
+
+
+class MediaArtifactSummary(CatalogInputModel):
+    media_asset_records: Annotated[int, Field(ge=0)]
+
+
+class MediaManifest(CatalogInputModel):
+    schema_version: Literal["1.0"]
+    generator_version: Annotated[str, Field(min_length=1, max_length=80)]
+    media_set_version: DerivedArtifactVersion
+    catalog_version_code: Annotated[str, Field(min_length=1, max_length=120)]
+    source: dict[str, Any]
+    review: ManifestReview
+    summary: MediaArtifactSummary
+    files: list[ManifestFile]
+
+    @model_validator(mode="after")
+    def validate_file(self) -> "MediaManifest":
+        entries = [entry for entry in self.files if entry.path == "media_assets.jsonl"]
+        if len(entries) != 1 or entries[0].records != self.summary.media_asset_records:
+            raise ValueError("media manifest must describe one matching media JSONL file")
+        return self
+
+
+class MediaAssetRecord(CatalogInputModel):
+    representative_exercise_id: Annotated[
+        str,
+        Field(pattern=r"^(?:REX-[0-9]{6}|[a-z0-9]+(?:_[a-z0-9]+)*)$", max_length=120),
+    ]
+    s3_key: Annotated[
+        str,
+        Field(
+            pattern=r"^catalog-media/[a-z0-9](?:[a-z0-9_./-]*[a-z0-9_-])?\.(?:gif|jpe?g|mp4|png|webp)$",
+            max_length=500,
+        ),
+    ]
+    media_status: Literal["AVAILABLE", "UNAVAILABLE"]
+    rights_review_status: Literal["APPROVED", "PENDING", "REJECTED"]
+    rights_reviewer: Annotated[str | None, Field(max_length=255)] = None
+    rights_reviewed_at: datetime | None = None
+    rights_evidence_reference: Annotated[str | None, Field(max_length=500)] = None
+    source_metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("s3_key")
+    @classmethod
+    def validate_canonical_s3_key(cls, value: str) -> str:
+        if ".." in value or "//" in value:
+            raise ValueError("s3_key must be a canonical object key")
+        return value
+
+    @field_validator("rights_reviewed_at")
+    @classmethod
+    def validate_rights_reviewed_at(cls, value: datetime | None) -> datetime | None:
+        if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+            raise ValueError("rights_reviewed_at must include timezone information")
+        return value
+
+    @model_validator(mode="after")
+    def validate_rights_evidence(self) -> "MediaAssetRecord":
+        if self.rights_review_status == "APPROVED" and (
+            not self.rights_reviewer
+            or self.rights_reviewed_at is None
+            or not self.rights_evidence_reference
+        ):
+            raise ValueError("approved media requires reviewer, timestamp, and evidence")
         return self
 
 

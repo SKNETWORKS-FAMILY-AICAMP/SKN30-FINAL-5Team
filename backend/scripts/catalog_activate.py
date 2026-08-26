@@ -37,7 +37,9 @@ from backend.app.core.config import get_settings
 from backend.app.db.models.catalog import (
     CatalogVersion,
     Exercise,
+    ExerciseAlternative,
     ExerciseGoalTagLink,
+    ExerciseMediaAsset,
     ExercisePrescriptionProfile,
     ExerciseSafetyRule,
 )
@@ -45,6 +47,10 @@ from backend.scripts.demo_seed import _require_demo_database, _require_demo_envi
 
 REVIEWED_METHOD_CODE = "DOMAIN_REVIEWER"
 REVIEWED_INTERPRETATION_CODE = "PRODUCTION_APPROVED"
+V2_CATALOG_VERSION_CODE = "exercise-catalog-v2.0.0-final"
+V2_RULE_SET_VERSION = "safety-rule-set-v2.0.0"
+V2_ALTERNATIVE_SET_VERSION = "alternative-set-v2.0.0"
+V2_PRESCRIPTION_SET_VERSION = "prescription-set-v2.0.0"
 
 
 def missing_review_fields(catalog: CatalogVersion) -> tuple[str, ...]:
@@ -78,6 +84,63 @@ def _routine_input_counts(session: Session, catalog: CatalogVersion) -> tuple[in
     return int(prescriptions or 0), int(goal_links or 0)
 
 
+def validate_v2_activation(session: Session, catalog: CatalogVersion) -> None:
+    """Fail closed unless every approved V2 component is exact and exposable."""
+    if catalog.version_code != V2_CATALOG_VERSION_CODE:
+        return
+    if catalog.exercise_record_count != 102 or not isinstance(
+        catalog.manifest_metadata.get("production_approval"), dict
+    ):
+        raise SystemExit("refusing to activate V2: catalog approval hash/count is not recorded")
+    safety_count = session.scalar(
+        select(func.count())
+        .select_from(ExerciseSafetyRule)
+        .where(
+            ExerciseSafetyRule.catalog_version_id == catalog.id,
+            ExerciseSafetyRule.rule_set_version_code == V2_RULE_SET_VERSION,
+            ExerciseSafetyRule.production_eligible.is_(True),
+        )
+    )
+    alternative_count = session.scalar(
+        select(func.count())
+        .select_from(ExerciseAlternative)
+        .join(Exercise, Exercise.id == ExerciseAlternative.source_exercise_id)
+        .where(
+            Exercise.catalog_version_id == catalog.id,
+            ExerciseAlternative.alternative_set_version_code == V2_ALTERNATIVE_SET_VERSION,
+            ExerciseAlternative.production_eligible.is_(True),
+        )
+    )
+    prescription = catalog.manifest_metadata.get("prescription_artifact")
+    prescription_valid = (
+        isinstance(prescription, dict)
+        and prescription.get("version_code") == V2_PRESCRIPTION_SET_VERSION
+        and prescription.get("goal_tag_records") == 102
+        and prescription.get("prescription_records") == 137
+        and isinstance(prescription.get("production_approval"), dict)
+    )
+    if int(safety_count or 0) != 394 or int(alternative_count or 0) != 285:
+        raise SystemExit(
+            "refusing to activate V2: approved safety/alternative version or count mismatch"
+        )
+    if not prescription_valid:
+        raise SystemExit("refusing to activate V2: prescription version/hash/count mismatch")
+    unapproved_exposable_media = session.scalar(
+        select(func.count())
+        .select_from(ExerciseMediaAsset)
+        .where(
+            ExerciseMediaAsset.catalog_version_id == catalog.id,
+            ExerciseMediaAsset.media_status == "AVAILABLE",
+            ExerciseMediaAsset.rights_review_status == "APPROVED",
+            ExerciseMediaAsset.approval_metadata.is_(None),
+        )
+    )
+    if unapproved_exposable_media:
+        raise SystemExit(
+            "refusing to activate V2: an exposable media asset lacks registry approval"
+        )
+
+
 def activate(
     session: Session,
     version_code: str,
@@ -91,6 +154,8 @@ def activate(
     )
     if catalog is None:
         raise SystemExit(f"catalog version {version_code!r} not found")
+
+    validate_v2_activation(session, catalog)
 
     # `get_creation_context` inner joins prescription profiles and goal tag
     # links, and `CatalogImporter` writes neither, so an imported catalog

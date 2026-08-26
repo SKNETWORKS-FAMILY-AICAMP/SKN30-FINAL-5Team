@@ -26,6 +26,7 @@ from backend.app.db.models.catalog import (
 from backend.app.db.repositories.catalog import CatalogRepository
 from backend.app.modules.catalog.service import CatalogDataBundleImporter, CatalogImporter
 from backend.scripts.catalog_activate import _routine_input_counts, activate, missing_review_fields
+from backend.scripts.catalog_promote_v2 import DEFAULT_BUNDLE_DIRECTORY, promote_v2
 from backend.scripts.demo_seed import DEMO_CATALOG_VERSION_CODE, seed_catalog
 
 ALEMBIC_CONFIG = Path("backend/alembic.ini")
@@ -282,3 +283,24 @@ def test_complete_merged_bundle_activates_without_override(
     assert catalog.review_method_code == "DOMAIN_REVIEWER"
     assert catalog.status_interpretation_code == "PRODUCTION_APPROVED"
     assert _routine_input_counts(postgres_session, catalog) == (36, 32)
+
+
+@pytest.mark.integration
+def test_v2_import_promote_then_activate_preserves_approval_packet(
+    postgres_session: Session,
+) -> None:
+    result = promote_v2(postgres_session, DEFAULT_BUNDLE_DIRECTORY, app_env="test")
+
+    catalog = activate(
+        postgres_session,
+        "exercise-catalog-v2.0.0-final",
+        now=datetime.now(UTC),
+    )
+
+    assert result.safety_rules.record_count == 394
+    assert result.alternatives.record_count == 285
+    assert result.prescriptions.record_count == 239
+    assert catalog.status_code == "ACTIVE"
+    assert catalog.production_eligible is True
+    approval = catalog.manifest_metadata["production_approval"]
+    assert approval["waiver"]["reference"] == "V2-PROMOTION-WAIVER-2026-08-25-R01"

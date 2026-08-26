@@ -19,6 +19,7 @@ from backend.app.db.models.catalog import (
     ExerciseAlternative,
     ExerciseBodyPart,
     ExerciseGoalTagLink,
+    ExerciseMediaAsset,
     ExercisePrescriptionProfile,
     ExerciseSafetyRule,
 )
@@ -258,6 +259,72 @@ def test_lists_only_the_approved_catalog_with_filters_and_stable_keyset_paginati
         after_exercise_id = page[-1].exercise_id
 
     assert paged_ids == [row.exercise_id for row in all_records]
+
+
+@pytest.mark.integration
+def test_repository_exposes_only_registry_and_rights_approved_media(
+    postgres_session: Session,
+) -> None:
+    catalog_id = seed_catalog(postgres_session, datetime(2026, 8, 18, tzinfo=UTC))
+    exercise_ids = tuple(
+        postgres_session.scalars(
+            select(Exercise.id)
+            .where(Exercise.catalog_version_id == catalog_id)
+            .order_by(Exercise.id)
+            .limit(2)
+        )
+    )
+    assert len(exercise_ids) == 2
+    reviewed_at = datetime(2026, 8, 26, tzinfo=UTC)
+    common = {
+        "catalog_version_id": catalog_id,
+        "media_status": "AVAILABLE",
+        "rights_review_status": "APPROVED",
+        "rights_reviewer": "DOMAIN_REVIEWER",
+        "rights_reviewed_at": reviewed_at,
+        "rights_evidence_reference": "MEDIA-RIGHTS-R01",
+        "media_set_version_code": "media-set-v2",
+        "source_manifest_hash": "a" * 64,
+        "source_metadata": {"source": "synthetic-test"},
+    }
+    postgres_session.add_all(
+        (
+            ExerciseMediaAsset(
+                exercise_id=exercise_ids[0],
+                s3_key="catalog-media/exercises/unapproved.webp",
+                approval_metadata=None,
+                **common,
+            ),
+            ExerciseMediaAsset(
+                exercise_id=exercise_ids[1],
+                s3_key="catalog-media/exercises/approved.webp",
+                approval_metadata={"approval_record_code": "MEDIA-APPROVAL-R01"},
+                **common,
+            ),
+        )
+    )
+    postgres_session.flush()
+    repository = CatalogRepository()
+
+    rows = repository.list_approved_exercises(
+        postgres_session,
+        catalog_id,
+        body_area_code=None,
+        equipment_code=None,
+        training_type_code=None,
+        difficulty_code=None,
+        after_exercise_id=None,
+        limit=200,
+    )
+    media_by_exercise = {row.exercise_id: row.media_asset_key for row in rows}
+
+    assert media_by_exercise[exercise_ids[0]] is None
+    assert media_by_exercise[exercise_ids[1]] == "catalog-media/exercises/approved.webp"
+    assert repository.get_exercise_detail(postgres_session, exercise_ids[0]).media_asset_key is None  # type: ignore[union-attr]
+    assert (
+        repository.get_exercise_detail(postgres_session, exercise_ids[1]).media_asset_key  # type: ignore[union-attr]
+        == "catalog-media/exercises/approved.webp"
+    )
 
 
 @pytest.mark.integration

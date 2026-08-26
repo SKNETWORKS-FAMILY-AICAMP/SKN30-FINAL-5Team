@@ -465,7 +465,6 @@ payload는 exercise ID와 catalog/index version metadata만 허용하고 사용�
 | recovery_eligible | 회복안 후보 여부 |
 | instruction_summary_ko | 블록에서 펼쳐볼 자세·수행 설명 |
 | form_cues_ko | 검수된 핵심 자세 포인트 JSONB |
-| instruction_media_asset_key | 검수된 이미지·애니메이션 참조, nullable |
 | mascot_animation_asset_key | 운동 실행 중앙 마스코트 애니메이션 참조, nullable |
 | instruction_content_version | 설명 콘텐츠 버전 |
 | review_status_code | DRAFT, TECH_REVIEWED, DOMAIN_APPROVED, REJECTED, DEPRECATED |
@@ -474,14 +473,34 @@ payload는 exercise ID와 catalog/index version metadata만 허용하고 사용�
 | created_at | 생성 시각 |
 | updated_at | 수정 시각 |
 
-미디어 바이너리와 운영 미디어 메타데이터는 로컬 파일 저장소나 로컬 DB에 적재하지 않는다. 운영
-미디어 저장·메타데이터 DB는 AWS 관리형 경계에서 소유하며, 애플리케이션 카탈로그에는 승인된
-외부 자산 참조 키만 nullable로 연결한다. V2 생성기는 미디어를 업로드하지 않고, 권리 승인 전에는
-로컬 산출물에도 자산 행을 만들지 않는다.
+미디어 바이너리는 S3 경계에 남고 PostgreSQL에는 승인·권리 증적과 object key만 저장한다. V2
+backend importer는 S3 업로드를 수행하지 않으며 media artifact가 없는 카탈로그도 허용한다.
 
 UNIQUE 제약은 catalog_version_id와 stable_code 조합에 둔다.
 
 프로덕션 후보는 review_status_code가 DOMAIN_APPROVED인 운동만 사용한다.
+
+### 5.2.1 exercise_media_assets
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| catalog_version_id | catalog_versions FK, cascade delete |
+| exercise_id | 실제 exercises.id FK, cascade delete |
+| s3_key | canonical `catalog-media/...` object key, UNIQUE |
+| media_status | AVAILABLE, UNAVAILABLE |
+| rights_review_status | APPROVED, PENDING, REJECTED |
+| rights_reviewer | 권리 검토자 비식별 참조, 승인 시 필수 |
+| rights_reviewed_at | timezone 포함 검토 시각, 승인 시 필수 |
+| rights_evidence_reference | 권리 증적 참조, 승인 시 필수 |
+| media_set_version_code | media artifact version |
+| source_manifest_hash | media manifest SHA-256 |
+| source_metadata | 원본 source metadata JSONB |
+| approval_metadata | 승인 registry metadata와 waiver JSONB, nullable |
+
+`(catalog_version_id, exercise_id)`는 UNIQUE다. 조회는 `AVAILABLE` + `APPROVED` + non-null
+`approval_metadata`를 모두 만족하는 행만 노출한다. 승인되지 않은 행은 보존할 수 있지만 API에는
+노출하지 않으며, media 행이 없는 운동은 `media_asset_key=null`이다.
 
 ### 5.3 lookup tables
 
@@ -634,6 +653,12 @@ source track/identity를 보존한다. URL·license 근거가 포함된 후속 �
 - 모든 bundle 행은 `production_eligible=false`이고 local/test 환경에서만 적재한다.
 - source metadata는 매니페스트 전체를 JSONB로 보존한다. 현재 생성 매니페스트에 없는 URL이나
   license code는 raw 자료에서 추정하지 않으며, 후속 매니페스트에 추가되면 같은 필드에 보존한다.
+
+V2 전용 importer는 승인된 bundle manifest 자체의 hash와 모든 파일의 canonical hash/byte count,
+catalog·safety·alternatives·prescriptions의 version/hash/count, taxonomy registry hash를 exact-match로
+검증한다. 선택적 media manifest가 있으면 같은 검증 범위에 포함하고 REX ID를 stable code를 거쳐
+실제 exercise FK로 매핑한다. 모든 신규 행은 하나의 transaction에서 적재되어 중간 실패 시 전체
+rollback된다. 적재 완료 전 catalog는 DRAFT이며 activation은 별도 fail-closed gate를 통과해야 한다.
 
 ### 5.11 catalog_review_records
 
