@@ -21,7 +21,6 @@ import { ApiClient, createIdempotencyKey } from '../src/api/client';
 import { ApiError } from '../src/api/errors';
 import { createApi, type Api } from '../src/api/endpoints';
 import type {
-  DailyContextRequest,
   DailyContextResponse,
   DecisionResponse,
   MeResponse,
@@ -346,31 +345,6 @@ describe('HomeContainer', () => {
     return render(<HomeContainer {...base} {...overrides} />);
   }
 
-  function selectAvailabilityTime(
-    fieldLabel: string,
-    hour: number,
-    minute: number,
-  ) {
-    fireEvent.press(screen.getByLabelText(fieldLabel));
-    fireEvent(
-      screen.getByLabelText('시간 선택 스크롤', {
-        includeHiddenElements: true,
-      }),
-      'momentumScrollEnd',
-      { nativeEvent: { contentOffset: { y: hour * 44 } } },
-    );
-    fireEvent(
-      screen.getByLabelText('분 선택 스크롤', {
-        includeHiddenElements: true,
-      }),
-      'momentumScrollEnd',
-      { nativeEvent: { contentOffset: { y: (minute / 5) * 44 } } },
-    );
-    fireEvent.press(
-      screen.getByLabelText('시간 선택 완료', { includeHiddenElements: true }),
-    );
-  }
-
   it("shows a loading state while today's data is pending", () => {
     const pending = new Promise<never>(() => undefined);
     renderHome(
@@ -571,49 +545,6 @@ describe('HomeContainer', () => {
       expect.any(String),
       expect.objectContaining({ sleep_minutes: null, available_slots: null }),
       undefined,
-    );
-  });
-
-  it('sends multiple available-time ranges with the profile timezone offset', async () => {
-    const replaceDailyContext = jest.fn(
-      async (
-        _localDate: string,
-        _body: DailyContextRequest,
-        _expectedVersion?: number,
-      ) => dailyContext(),
-    );
-    renderHome(
-      homeApi({
-        replaceDailyContext,
-        createDecision: jest.fn(async () => decision()),
-      } as unknown as Partial<Api>),
-    );
-
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
-    selectAvailabilityTime('1번째 가능 시간 시작 미선택 선택', 9, 0);
-    selectAvailabilityTime('1번째 가능 시간 종료 미선택 선택', 12, 0);
-    fireEvent.press(screen.getByRole('button', { name: '가능 시간대 추가' }));
-    selectAvailabilityTime('2번째 가능 시간 시작 미선택 선택', 13, 0);
-    selectAvailabilityTime('2번째 가능 시간 종료 미선택 선택', 15, 0);
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
-
-    await waitFor(() => expect(replaceDailyContext).toHaveBeenCalled());
-    const [calledDate, body] = replaceDailyContext.mock.calls[0]!;
-    expect(body).toEqual(
-      expect.objectContaining({
-        available_slots: [
-          {
-            start_at: `${calledDate}T09:00:00+09:00`,
-            end_at: `${calledDate}T12:00:00+09:00`,
-          },
-          {
-            start_at: `${calledDate}T13:00:00+09:00`,
-            end_at: `${calledDate}T15:00:00+09:00`,
-          },
-        ],
-      }),
     );
   });
 

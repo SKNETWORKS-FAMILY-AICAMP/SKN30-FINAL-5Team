@@ -97,6 +97,16 @@ import {
 
 export const HOME_BACKGROUND_COLOR = '#FFF8E5';
 
+// Temporarily hide the optional availability-time editor while preserving its
+// draft and API values so it can be restored without a contract change.
+const CHECKIN_AVAILABILITY_INPUT_ENABLED: boolean = false;
+
+const CHECKIN_DURATION_MINUTES = {
+  min: 5,
+  max: 180,
+  step: 10,
+} as const;
+
 export const HOME_LAYOUT = {
   contentHorizontalPadding: 18,
   contentTopPadding: 58,
@@ -575,7 +585,11 @@ function HomeScreenContent({
   const saveCheckin = () => {
     const saved = {
       ...checkinDraft,
-      workoutMinutes: clampNumericString(checkinDraft.workoutMinutes, 5, 180),
+      workoutMinutes: clampNumericString(
+        checkinDraft.workoutMinutes,
+        CHECKIN_DURATION_MINUTES.min,
+        CHECKIN_DURATION_MINUTES.max,
+      ),
     };
     setCommittedCheckin(saved);
     setCheckinDraft(saved);
@@ -961,7 +975,7 @@ function HomeScreenContent({
           />
         ) : null}
 
-        {timePickerTarget ? (
+        {CHECKIN_AVAILABILITY_INPUT_ENABLED && timePickerTarget ? (
           <TimePickerSheet
             initialValue={
               checkinDraft.availableSlots?.[timePickerTarget.index]?.[
@@ -1968,9 +1982,20 @@ function CheckinSheet({
       Number(sleepHours) > 24);
   const durationInvalid =
     !/^\d+$/.test(draft.workoutMinutes) ||
-    Number(draft.workoutMinutes) < 5 ||
-    Number(draft.workoutMinutes) > 180;
-  const availabilityError = validateAvailabilitySlots(draft.availableSlots);
+    Number(draft.workoutMinutes) < CHECKIN_DURATION_MINUTES.min ||
+    Number(draft.workoutMinutes) > CHECKIN_DURATION_MINUTES.max;
+  const durationMinutes = Number(draft.workoutMinutes);
+  const canDecreaseDuration =
+    !pending &&
+    !durationInvalid &&
+    durationMinutes > CHECKIN_DURATION_MINUTES.min;
+  const canIncreaseDuration =
+    !pending &&
+    !durationInvalid &&
+    durationMinutes < CHECKIN_DURATION_MINUTES.max;
+  const availabilityError = CHECKIN_AVAILABILITY_INPUT_ENABLED
+    ? validateAvailabilitySlots(draft.availableSlots)
+    : null;
   const availabilitySlots =
     draft.availableSlots && draft.availableSlots.length > 0
       ? draft.availableSlots
@@ -2007,93 +2032,140 @@ function CheckinSheet({
         </ChoiceBlock>
         <View style={styles.numberRow}>
           <Text style={styles.numberLabel}>원하는 운동 시간</Text>
-          <View style={styles.numberInputGroup}>
-            <TextInput
-              accessibilityLabel="원하는 운동 시간 (분)"
-              inputMode="numeric"
-              onChangeText={(value) =>
-                onChangeWorkoutMinutes(digitsOnly(value))
+          <View style={styles.durationStepper}>
+            <Pressable
+              accessibilityLabel="운동 시간 10분 줄이기"
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !canDecreaseDuration }}
+              disabled={!canDecreaseDuration}
+              onPress={() =>
+                onChangeWorkoutMinutes(
+                  String(
+                    Math.max(
+                      CHECKIN_DURATION_MINUTES.min,
+                      durationMinutes - CHECKIN_DURATION_MINUTES.step,
+                    ),
+                  ),
+                )
               }
-              style={styles.numberInput}
-              value={draft.workoutMinutes}
-            />
-            <Text style={styles.numberSuffix}>분</Text>
+              style={[
+                styles.durationStepButton,
+                !canDecreaseDuration && styles.durationStepButtonDisabled,
+              ]}
+            >
+              <Text style={styles.durationStepButtonText}>−</Text>
+            </Pressable>
+            <Text
+              accessibilityLabel={`원하는 운동 시간 ${draft.workoutMinutes}분`}
+              accessibilityLiveRegion="polite"
+              style={styles.durationStepValue}
+            >
+              {draft.workoutMinutes}분
+            </Text>
+            <Pressable
+              accessibilityLabel="운동 시간 10분 늘리기"
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !canIncreaseDuration }}
+              disabled={!canIncreaseDuration}
+              onPress={() =>
+                onChangeWorkoutMinutes(
+                  String(
+                    Math.min(
+                      CHECKIN_DURATION_MINUTES.max,
+                      durationMinutes + CHECKIN_DURATION_MINUTES.step,
+                    ),
+                  ),
+                )
+              }
+              style={[
+                styles.durationStepButton,
+                !canIncreaseDuration && styles.durationStepButtonDisabled,
+              ]}
+            >
+              <Text style={styles.durationStepButtonText}>+</Text>
+            </Pressable>
           </View>
         </View>
-        <View style={styles.availabilitySection}>
-          <View style={styles.availabilityHeader}>
-            <Text style={styles.numberLabel}>오늘 운동 가능한 시간대</Text>
-            <Text style={styles.optionalText}>(선택)</Text>
-          </View>
-          {availabilitySlots.map((slot, index) => (
-            <View key={index} style={styles.availabilitySlotRow}>
+        {CHECKIN_AVAILABILITY_INPUT_ENABLED ? (
+          <>
+            <View style={styles.availabilitySection}>
+              <View style={styles.availabilityHeader}>
+                <Text style={styles.numberLabel}>오늘 운동 가능한 시간대</Text>
+                <Text style={styles.optionalText}>(선택)</Text>
+              </View>
+              {availabilitySlots.map((slot, index) => (
+                <View key={index} style={styles.availabilitySlotRow}>
+                  <Pressable
+                    accessibilityLabel={`${index + 1}번째 가능 시간 시작 ${slot.startTime || '미선택'} 선택`}
+                    accessibilityRole="button"
+                    disabled={pending}
+                    onPress={() => onOpenTimePicker(index, 'startTime')}
+                    style={styles.availabilityTimeButton}
+                  >
+                    <Text
+                      style={[
+                        styles.availabilityTimeText,
+                        !slot.startTime && styles.availabilityTimePlaceholder,
+                      ]}
+                    >
+                      {slot.startTime || '시간:분'}
+                    </Text>
+                  </Pressable>
+                  <Text style={styles.availabilitySeparator}>~</Text>
+                  <Pressable
+                    accessibilityLabel={`${index + 1}번째 가능 시간 종료 ${slot.endTime || '미선택'} 선택`}
+                    accessibilityRole="button"
+                    disabled={pending}
+                    onPress={() => onOpenTimePicker(index, 'endTime')}
+                    style={styles.availabilityTimeButton}
+                  >
+                    <Text
+                      style={[
+                        styles.availabilityTimeText,
+                        !slot.endTime && styles.availabilityTimePlaceholder,
+                      ]}
+                    >
+                      {slot.endTime || '시간:분'}
+                    </Text>
+                  </Pressable>
+                  {availabilitySlots.length > 1 ? (
+                    <Pressable
+                      accessibilityLabel={`${index + 1}번째 가능 시간대 삭제`}
+                      accessibilityRole="button"
+                      hitSlop={8}
+                      onPress={() => onRemoveAvailabilitySlot(index)}
+                      style={styles.availabilityRemoveButton}
+                    >
+                      <DeleteIcon />
+                    </Pressable>
+                  ) : null}
+                </View>
+              ))}
               <Pressable
-                accessibilityLabel={`${index + 1}번째 가능 시간 시작 ${slot.startTime || '미선택'} 선택`}
+                accessibilityLabel="가능 시간대 추가"
                 accessibilityRole="button"
-                disabled={pending}
-                onPress={() => onOpenTimePicker(index, 'startTime')}
-                style={styles.availabilityTimeButton}
+                accessibilityState={{
+                  disabled: availabilitySlots.length >= 8,
+                }}
+                disabled={availabilitySlots.length >= 8}
+                onPress={onAddAvailabilitySlot}
+                style={[
+                  styles.availabilityAddButton,
+                  availabilitySlots.length >= 8 && styles.routineActionDisabled,
+                ]}
               >
-                <Text
-                  style={[
-                    styles.availabilityTimeText,
-                    !slot.startTime && styles.availabilityTimePlaceholder,
-                  ]}
-                >
-                  {slot.startTime || '시간:분'}
-                </Text>
+                <Text style={styles.availabilityAddLabel}>＋ 시간대 추가</Text>
               </Pressable>
-              <Text style={styles.availabilitySeparator}>~</Text>
-              <Pressable
-                accessibilityLabel={`${index + 1}번째 가능 시간 종료 ${slot.endTime || '미선택'} 선택`}
-                accessibilityRole="button"
-                disabled={pending}
-                onPress={() => onOpenTimePicker(index, 'endTime')}
-                style={styles.availabilityTimeButton}
-              >
-                <Text
-                  style={[
-                    styles.availabilityTimeText,
-                    !slot.endTime && styles.availabilityTimePlaceholder,
-                  ]}
-                >
-                  {slot.endTime || '시간:분'}
-                </Text>
-              </Pressable>
-              {availabilitySlots.length > 1 ? (
-                <Pressable
-                  accessibilityLabel={`${index + 1}번째 가능 시간대 삭제`}
-                  accessibilityRole="button"
-                  hitSlop={8}
-                  onPress={() => onRemoveAvailabilitySlot(index)}
-                  style={styles.availabilityRemoveButton}
-                >
-                  <DeleteIcon />
-                </Pressable>
-              ) : null}
+              <Text style={styles.availabilityHelpText}>
+                운동을 시작할 수 있는 시간 범위를 입력해주세요.
+              </Text>
             </View>
-          ))}
-          <Pressable
-            accessibilityLabel="가능 시간대 추가"
-            accessibilityRole="button"
-            accessibilityState={{ disabled: availabilitySlots.length >= 8 }}
-            disabled={availabilitySlots.length >= 8}
-            onPress={onAddAvailabilitySlot}
-            style={[
-              styles.availabilityAddButton,
-              availabilitySlots.length >= 8 && styles.routineActionDisabled,
-            ]}
-          >
-            <Text style={styles.availabilityAddLabel}>＋ 시간대 추가</Text>
-          </Pressable>
-          <Text style={styles.availabilityHelpText}>
-            운동을 시작할 수 있는 시간 범위를 입력해주세요.
-          </Text>
-        </View>
-        {availabilityError ? (
-          <Text accessibilityRole="alert" style={styles.messageText}>
-            {availabilityError}
-          </Text>
+            {availabilityError ? (
+              <Text accessibilityRole="alert" style={styles.messageText}>
+                {availabilityError}
+              </Text>
+            ) : null}
+          </>
         ) : null}
         <View style={styles.numberRow}>
           <Text style={styles.numberLabel}>
@@ -4110,6 +4182,35 @@ function createHomeStyles(
     },
     numberLabel: { color: '#5A4636', fontSize: f(14), fontWeight: '700' },
     optionalText: { color: '#958476', fontWeight: '500' },
+    durationStepper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: s(10),
+    },
+    durationStepButton: {
+      width: s(44),
+      height: s(44),
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: s(1),
+      borderColor: '#EEDFCB',
+      borderRadius: s(12),
+      backgroundColor: '#FFF8E5',
+    },
+    durationStepButtonDisabled: { opacity: 0.4 },
+    durationStepButtonText: {
+      color: '#5A4636',
+      fontSize: f(22),
+      fontWeight: '800',
+      lineHeight: f(24),
+    },
+    durationStepValue: {
+      minWidth: s(46),
+      color: '#5A4636',
+      fontSize: f(15),
+      fontWeight: '800',
+      textAlign: 'center',
+    },
     numberInputGroup: { flexDirection: 'row', alignItems: 'center', gap: s(6) },
     numberInput: {
       width: s(84),
