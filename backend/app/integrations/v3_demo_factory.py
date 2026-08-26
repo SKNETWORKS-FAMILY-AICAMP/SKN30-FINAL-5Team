@@ -28,13 +28,16 @@ def build_optional_v3_demo_runtime(settings: Settings) -> V3DemoRuntimePort | No
     if settings.v3_execution_profile == "LEGACY":
         return None
     try:
-        from backend.app.integrations.langgraph.demo_runtime import (  # type: ignore[import-not-found]
+        from backend.app.integrations.langgraph.demo_runtime import (
             build_v3_demo_runtime,
         )
     except ImportError:
         return None
     try:
-        return build_v3_demo_runtime(settings)
+        return build_v3_demo_runtime(
+            settings,
+            execution_profile=settings.v3_execution_profile,
+        )
     except (RuntimeError, ValueError):
         # Missing provider configuration must not prevent safe application
         # startup. Never log the exception because adapters may attach payloads.

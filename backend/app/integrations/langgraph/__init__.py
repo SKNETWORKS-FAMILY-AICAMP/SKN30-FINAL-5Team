@@ -8,9 +8,9 @@ from backend.app.integrations.langgraph.demo_runtime import (
     V3DemoRuntimeError,
     V3DemoRuntimeMetadata,
     V3DemoRuntimeVersions,
-    V3RootSnapshotLoaderPort,
     build_v3_demo_runtime,
 )
+from backend.app.integrations.langgraph.fallback import DeterministicGraphFallbackProvider
 from backend.app.integrations.langgraph.graph import (
     V3LangGraphRuntime,
     build_v3_langgraph_runtime,
@@ -27,6 +27,7 @@ from backend.app.integrations.langgraph.state import V3GraphInput, V3GraphResult
 
 __all__ = [
     "BoundV3DemoIdentityProvider",
+    "DeterministicGraphFallbackProvider",
     "V3DemoDecisionIdentity",
     "V3DemoIdentityProvider",
     "V3DemoRuntime",
@@ -39,7 +40,6 @@ __all__ = [
     "V3ShadowPricingReference",
     "V3ShadowRuntime",
     "V3ShadowRuntimeVersions",
-    "V3RootSnapshotLoaderPort",
     "build_v3_demo_runtime",
     "build_v3_shadow_runtime",
     "build_v3_langgraph_runtime",

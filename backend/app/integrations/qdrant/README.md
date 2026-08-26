@@ -6,8 +6,15 @@
 PostgreSQL eligible UUIDs
 -> Qdrant query_points(has_id + version filters)
 -> UUID/score only
--> PostgreSQL canonical revalidation in the later application-loader integration
+-> PostgreSQL canonical revalidation in `QdrantExercisePoolSnapshotLoader`
 ```
+
+The loader implements the application `V3ExercisePoolSnapshotLoaderPort`. A
+PostgreSQL-owned adapter supplies canonical eligible/mandatory records and
+revalidates every selected ID. Timeout, unavailable, stale, version-mismatched,
+or noncanonical Vector results switch to the shared deterministic ordering;
+mandatory IDs remain present and Vector-ranked IDs are cleared in the fallback
+snapshot. Only allowlisted machine query codes reach the embedding boundary.
 
 Collection names are generated only from configured environment and catalog/embedding/index machine versions.
 New builds use immutable collections. Exact UUID count and `build_hash` are checked before one atomic alias update.

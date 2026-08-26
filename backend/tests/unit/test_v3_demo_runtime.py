@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 from uuid import uuid4
 
+import pytest
 from langchain_core.messages import AIMessage
 from pydantic import SecretStr
 
@@ -26,6 +28,7 @@ from backend.app.integrations.langgraph.demo_runtime import (
     BoundV3DemoIdentityProvider,
     build_v3_demo_runtime,
 )
+from backend.app.integrations.v3_demo_factory import V3DemoRuntimePort
 from backend.tests.unit.llm_agent_test_support import (
     RaisingStructuredChatModel,
     ToolCallingFakeChatModel,
@@ -34,17 +37,6 @@ from backend.tests.unit.llm_agent_test_support import (
 from backend.tests.unit.test_v3_agent_contracts import A, B, prescription
 from backend.tests.unit.test_v3_coordinator_contracts import coordinator_input, plan, proposals
 from backend.tests.unit.test_v3_persistence_service import make_bundle
-
-
-class SnapshotLoader:
-    def __init__(self, snapshot) -> None:
-        self.snapshot = snapshot
-        self.calls = 0
-
-    def load(self, constraint_envelope):
-        self.calls += 1
-        assert constraint_envelope == self.snapshot.constraint_envelope
-        return self.snapshot
 
 
 class FallbackProvider:
@@ -114,21 +106,19 @@ def _blocked_root_snapshot() -> V3RootSnapshotPersistence:
     )
 
 
-def test_initial_execute_returns_complete_persistence_bundle() -> None:
+def test_initial_create_returns_complete_persistence_bundle() -> None:
     root_snapshot = make_bundle().root_snapshot
-    loader = SnapshotLoader(root_snapshot)
     model = _successful_model(root_snapshot)
     runtime = build_v3_demo_runtime(
         _settings(),
         execution_profile="DEMO",
-        snapshot_loader=loader,
         chat_model=model,
     )
     assert runtime is not None
 
-    bundle = asyncio.run(runtime.execute(constraint_envelope=root_snapshot.constraint_envelope))
+    bundle = asyncio.run(runtime.create(root_snapshot=root_snapshot))
 
-    assert loader.calls == 1
+    assert bundle.root_snapshot is root_snapshot
     assert bundle.terminal_status_code is GraphTerminalStatusCode.COMPLETED
     assert bundle.final_plan is not None
     assert tuple(item.agent_type_code for item in bundle.agent_proposals) == SPECIALIST_AGENT_ORDER
@@ -136,12 +126,31 @@ def test_initial_execute_returns_complete_persistence_bundle() -> None:
     assert len(bundle.coordinator_attempts) == 1
     assert len(bundle.validations) == 1
     assert model.invocation_count == 4
+    assert all(
+        root_snapshot.exercise_pool.pool_hash in repr(messages)
+        for messages in model.seen_messages[:3]
+    )
     assert bundle.root_snapshot.exercise_pool.retrieval_metadata.deterministic_pool_fallback_used
     assert set(bundle.root_snapshot.exercise_pool.mandatory_exercise_ids).issubset(
         item.exercise_id for item in bundle.root_snapshot.exercise_pool.exercises
     )
     assert runtime.metadata.execution_profile == "DEMO"
     assert runtime.metadata.provider_code == "OPENAI"
+
+
+def test_runtime_matches_initial_and_regeneration_structural_contracts() -> None:
+    runtime_type = V3DemoRuntimePort
+
+    assert runtime_type is not None
+    assert tuple(inspect.signature(runtime_type.create).parameters) == (
+        "self",
+        "root_snapshot",
+    )
+    assert tuple(inspect.signature(runtime_type.regenerate).parameters) == (
+        "self",
+        "root_snapshot",
+        "regeneration_context",
+    )
 
 
 def test_runtime_factory_rejects_production_without_constructing_runtime() -> None:
@@ -151,7 +160,6 @@ def test_runtime_factory_rejects_production_without_constructing_runtime() -> No
     runtime = build_v3_demo_runtime(
         _settings(app_env="production"),
         execution_profile="DEMO",
-        snapshot_loader=SnapshotLoader(root_snapshot),
         chat_model=model,
     )
 
@@ -165,12 +173,11 @@ def test_safety_terminal_returns_planless_bundle_with_provider_zero_call() -> No
     runtime = build_v3_demo_runtime(
         _settings(),
         execution_profile="DEMO",
-        snapshot_loader=SnapshotLoader(root_snapshot),
         chat_model=model,
     )
     assert runtime is not None
 
-    bundle = asyncio.run(runtime.execute(constraint_envelope=root_snapshot.constraint_envelope))
+    bundle = asyncio.run(runtime.create(root_snapshot=root_snapshot))
 
     assert bundle.terminal_status_code is GraphTerminalStatusCode.STOP_AND_SEEK_HELP
     assert bundle.final_plan is None
@@ -203,13 +210,12 @@ def test_required_specialist_provider_failure_uses_validated_fallback() -> None:
     runtime = build_v3_demo_runtime(
         _settings(llm_agents_max_attempts=2),
         execution_profile="DEMO",
-        snapshot_loader=SnapshotLoader(root_snapshot),
         chat_model=model,
         fallback_provider=fallback_provider,
     )
     assert runtime is not None
 
-    bundle = asyncio.run(runtime.execute(constraint_envelope=root_snapshot.constraint_envelope))
+    bundle = asyncio.run(runtime.create(root_snapshot=root_snapshot))
 
     assert bundle.terminal_status_code is GraphTerminalStatusCode.COMPLETED
     assert bundle.fallback_used
@@ -219,6 +225,46 @@ def test_required_specialist_provider_failure_uses_validated_fallback() -> None:
     assert bundle.validations[0].integrity_validation.status_code.value == "PASS"
     assert fallback_provider.calls == 1
     assert "provider-secret-response-sentinel" not in repr(bundle)
+
+
+@pytest.mark.parametrize("failure_kind", ["timeout", "unavailable"])
+def test_default_graph_fallback_handles_provider_failures(failure_kind: str) -> None:
+    root_snapshot = make_bundle().root_snapshot
+    model = RaisingStructuredChatModel(
+        responses=[AIMessage(content="unused")],
+        failure_kind=failure_kind,
+        raw_error_text="provider-private-error-sentinel",
+    )
+    runtime = build_v3_demo_runtime(
+        _settings(llm_agents_max_attempts=2),
+        execution_profile="DEMO",
+        chat_model=model,
+    )
+    assert runtime is not None
+
+    bundle = asyncio.run(runtime.create(root_snapshot=root_snapshot))
+
+    assert bundle.fallback_used
+    assert bundle.final_plan is not None
+    assert model.invocation_count == 6
+    assert "provider-private-error-sentinel" not in repr(bundle)
+
+
+def test_default_graph_fallback_handles_invalid_structured_output() -> None:
+    root_snapshot = make_bundle().root_snapshot
+    model = ToolCallingFakeChatModel(responses=[AIMessage(content="invalid")])
+    runtime = build_v3_demo_runtime(
+        _settings(llm_agents_max_attempts=2),
+        execution_profile="DEMO",
+        chat_model=model,
+    )
+    assert runtime is not None
+
+    bundle = asyncio.run(runtime.create(root_snapshot=root_snapshot))
+
+    assert bundle.fallback_used
+    assert bundle.final_plan is not None
+    assert model.invocation_count == 6
 
 
 def test_regeneration_uses_stored_root_and_requires_meaningful_sequence_change() -> None:
@@ -235,7 +281,6 @@ def test_regeneration_uses_stored_root_and_requires_meaningful_sequence_change()
     runtime = build_v3_demo_runtime(
         _settings(),
         execution_profile="DEMO",
-        snapshot_loader=SnapshotLoader(root_snapshot),
         chat_model=_successful_model(root_snapshot, coordinator_plan=alternative),
         identity_provider=BoundV3DemoIdentityProvider(
             root_decision_execution_id=source.root_decision_execution_id,
