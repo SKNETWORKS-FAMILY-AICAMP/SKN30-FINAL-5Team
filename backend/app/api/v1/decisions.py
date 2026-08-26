@@ -10,13 +10,17 @@ from sqlalchemy.orm import Session
 from backend.app.api.dependencies import (
     get_current_user,
     get_db_session,
+    get_decision_creation_service,
     get_decision_repository,
-    get_narration_provider,
     get_v3_regeneration_service,
 )
 from backend.app.core.errors import AppError
 from backend.app.domain.agents.v3_orchestration import RegenerationDifferenceCode
-from backend.app.modules.decisions.ports import DecisionRepositoryPort, NarrationProviderPort
+from backend.app.modules.decisions.execution_profile import (
+    DecisionCreationServicePort,
+    V3CompositionUnavailableError,
+)
+from backend.app.modules.decisions.ports import DecisionRepositoryPort
 from backend.app.modules.decisions.schemas import (
     DecisionCreateRequest,
     DecisionRegenerationRequest,
@@ -140,19 +144,17 @@ def _regeneration_error(exc: V3RegenerationError) -> AppError:
 @router.post(
     "", response_model=DecisionResponse, response_model_exclude_unset=True, status_code=201
 )
-def create_decision(
+async def create_decision(
     payload: DecisionCreateRequest,
     idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_db_session)],
-    repository: Annotated[DecisionRepositoryPort, Depends(get_decision_repository)],
-    narration_provider: Annotated[NarrationProviderPort, Depends(get_narration_provider)],
+    service: Annotated[DecisionCreationServicePort, Depends(get_decision_creation_service)],
 ) -> DecisionResponse:
-    # The route never calls a provider itself; narration stays inside the service.
+    # Profile selection, business rules, provider calls and transactions all
+    # stay behind the application-service boundary.
     try:
-        return DecisionService(repository, narration_provider=narration_provider).create(
-            session, current_user.user_id, payload, idempotency_key
-        )
+        return await service.create(session, current_user.user_id, payload, idempotency_key)
     except (
         DecisionContextNotFoundError,
         StaleDecisionContextError,
@@ -163,6 +165,12 @@ def create_decision(
         SQLAlchemyError,
     ) as exc:
         raise _error(exc) from None
+    except V3CompositionUnavailableError:
+        raise AppError(
+            status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+            code="V3_COMPOSITION_UNAVAILABLE",
+            message="V3 실행 구성이 준비되지 않았습니다.",
+        ) from None
 
 
 @router.get("", response_model=DecisionResponse, response_model_exclude_unset=True)

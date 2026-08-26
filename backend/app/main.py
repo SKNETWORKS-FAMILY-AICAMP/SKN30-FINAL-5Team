@@ -16,7 +16,18 @@ from backend.app.db.session import DatabaseManager
 from backend.app.integrations.birthdate_crypto import LocalAesGcmBirthdateCipher
 from backend.app.integrations.firebase_auth import build_firebase_token_verifier
 from backend.app.integrations.llm_provider import build_narration_provider
-from backend.app.modules.decisions.ports import NarrationProviderPort
+from backend.app.integrations.v3_demo_factory import build_optional_v3_demo_runtime
+from backend.app.modules.decisions.execution_profile import (
+    DecisionCreationServicePort,
+    LegacyDecisionCreationService,
+    ProfiledDecisionCreationService,
+    StaticV3ProductionPromotionGate,
+    V3ExecutionProfile,
+    V3ProductionPromotionGatePort,
+    V3ShadowCreationPort,
+)
+from backend.app.modules.decisions.ports import DecisionRepositoryPort, NarrationProviderPort
+from backend.app.modules.decisions.service import DecisionService
 from backend.app.modules.decisions.v3_regeneration import V3RegenerationServicePort
 from backend.app.modules.identity.ports import FirebaseTokenVerifier
 from backend.app.modules.profiles.ports import BirthdateCipher
@@ -44,6 +55,9 @@ def create_app(
     firebase_token_verifier: FirebaseTokenVerifier | None = None,
     birthdate_cipher: BirthdateCipher | None = None,
     narration_provider: NarrationProviderPort | None = None,
+    v3_creation_service: DecisionCreationServicePort | None = None,
+    v3_shadow_service: V3ShadowCreationPort | None = None,
+    v3_promotion_gate: V3ProductionPromotionGatePort | None = None,
     v3_regeneration_service: V3RegenerationServicePort | None = None,
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
@@ -87,6 +101,31 @@ def create_app(
         if narration_provider is not None
         else build_narration_provider(resolved_settings)
     )
+    application.state.v3_demo_runtime = build_optional_v3_demo_runtime(resolved_settings)
+    promotion_gate = (
+        v3_promotion_gate
+        if v3_promotion_gate is not None
+        else StaticV3ProductionPromotionGate(resolved_settings.v3_production_promotion_approved)
+    )
+
+    def build_decision_creation_service(
+        repository: DecisionRepositoryPort,
+    ) -> DecisionCreationServicePort:
+        legacy_creation_service = LegacyDecisionCreationService(
+            DecisionService(
+                repository,
+                narration_provider=application.state.narration_provider,
+            )
+        )
+        return ProfiledDecisionCreationService(
+            profile=V3ExecutionProfile(resolved_settings.v3_execution_profile),
+            legacy=legacy_creation_service,
+            v3=v3_creation_service,
+            shadow=v3_shadow_service,
+            promotion_gate=promotion_gate,
+        )
+
+    application.state.decision_creation_service_factory = build_decision_creation_service
     application.state.v3_regeneration_service = v3_regeneration_service
     if resolved_settings.cors_allowed_origins:
         # Only the listed origins, and only the headers the client actually
