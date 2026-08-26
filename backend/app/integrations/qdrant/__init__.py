@@ -14,6 +14,11 @@ from backend.app.integrations.qdrant.exercise_retriever import (
     exercise_retrieval_query_hash,
 )
 from backend.app.integrations.qdrant.index_builder import ExerciseVectorIndexBuilder
+from backend.app.integrations.qdrant.openai_embedding import (
+    EmbeddingProviderError,
+    OpenAIEmbeddingAdapter,
+    build_openai_embedding_adapter,
+)
 from backend.app.integrations.qdrant.snapshot_loader import (
     EligibleExerciseProjection,
     PostgreSQLExercisePoolSourcePort,
@@ -25,9 +30,11 @@ __all__ = [
     "DeterministicFakeEmbeddingAdapter",
     "EmbeddingContract",
     "EmbeddingPort",
+    "EmbeddingProviderError",
     "EligibleExerciseProjection",
     "ExerciseVectorIndexBuilder",
     "OfficialQdrantClientAdapter",
+    "OpenAIEmbeddingAdapter",
     "PostgreSQLExercisePoolSourcePort",
     "QdrantCollectionManager",
     "QdrantExerciseRetriever",
@@ -36,4 +43,5 @@ __all__ = [
     "VectorIndexContract",
     "deterministic_retrieval_fallback",
     "exercise_retrieval_query_hash",
+    "build_openai_embedding_adapter",
 ]

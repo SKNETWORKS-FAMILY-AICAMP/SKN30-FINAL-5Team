@@ -112,3 +112,64 @@ provider payload는 기록하지 않는다.
 - 실제 사용자 shadow는 승인 범위가 아니다.
 - threshold 승인, PM·개발팀장·backend owner·외부 전문가 서명과 production composition/flag 변경은
   별도 수동 승인과 후속 PR이 필요하다.
+
+## 2026-08-26 진행 증적
+
+### 기준과 격리 환경
+
+- 기준 commit: `3fa46b5015dcf8386b32228b719f15748bd55cae`
+- branch: `codex/150-qdrant-v3-staging-evidence`
+- Docker Engine: `29.6.2`
+- PostgreSQL: `16.14`
+- Qdrant: `1.18.2`, repository 고정 digest 사용
+- 전용 DB: `exercise_app_v3_staging_20260826_test`
+- 전용 host port: PostgreSQL `55435`, Qdrant HTTP `6343`, gRPC `6344`
+
+기존 사용자 checkout의 미커밋 파일과 dump는 읽거나 복원하지 않았다. 전용 PostgreSQL/Qdrant
+container, network와 named volume만 사용했다.
+
+### 비밀값 없는 실제 PostgreSQL/Qdrant 통합
+
+ACTIVE `exercise-catalog-v2.0.0-final`의 production-approved exercise 102건을 PostgreSQL에서 읽고,
+test-only deterministic embedding contract로 실제 Qdrant collection을 구축했다. 이 단계는 OpenAI
+embedding 품질 또는 provider 승인이 아니라 DB/Qdrant integration과 privacy 경계 증적이다.
+
+| 항목 | 결과 |
+|---|---|
+| PostgreSQL ACTIVE catalog | 1개, production eligible, activated |
+| index input/point count | 102 / 102 |
+| vector dimension | 16, deterministic test-only |
+| registry status | `ACTIVE` |
+| build hash | `20f8c69f6bf47bbc9c89ad4e66292e677ca512247f76d3c7d5400a5ec4d95538` |
+| alias | `exercise_catalog_active` → 검증된 immutable collection |
+| 동일 version 재실행 | point/hash 일치, `alias_changed=false` |
+
+### 실행한 검증
+
+| 검증 | 결과 |
+|---|---|
+| V3 evaluation formatter | 6 files formatted |
+| V3 evaluation Ruff | 통과 |
+| V3 evaluation mypy | 3 source files, 문제 없음 |
+| V3 evaluation/staging CLI tests | 83 passed |
+| OpenAI embedding/index CLI/builder/config tests | 29 passed |
+| Qdrant retrieval/fallback/canonical re-read/scenario tests | 206 passed |
+| 실제 PostgreSQL/Qdrant index integration | 1 passed |
+| stored synthetic shadow | 20 records, `PASSED`, safety pass `1.000000`, veto override 0 |
+| 전체 Ruff format/check | 485 files, 통과 |
+| 전체 mypy | 278 source files, 문제 없음 |
+| 전체 backend pytest + PostgreSQL integration | 1417 passed, Qdrant opt-in 1 skipped |
+| data pipeline unittest | 117 passed |
+| promotion evaluator precheck | `NOT_EVALUATED`, `THRESHOLD_REFERENCE_MISSING` |
+
+### 아직 완료되지 않은 staging gate
+
+- 이전 로컬 OpenAI credential은 보안상 사용하지 않고 rotation이 필요하다.
+- AWS CLI `2.36.29`는 설치했으나 현재 AWS credential/profile이 없어 Secrets Manager와 ECS에
+  접근하지 못한다.
+- OpenAI Agent model, embedding model/dimension과 versioned pricing reference의 최종 승인 기록이
+  아직 없다.
+- 따라서 실제 OpenAI embedding index, staging one-shot shadow, 실제 token/cost/latency evidence와
+  최종 promotion 판정은 실행하지 않았고 task 상태는 완료로 변경하지 않는다. 합성 evidence에 대한
+  evaluator precheck는 승인 threshold가 없음을 `NOT_EVALUATED`로 fail-closed 기록했다.
+- `V3_PRODUCTION_PROMOTION_APPROVED=false`를 유지한다.

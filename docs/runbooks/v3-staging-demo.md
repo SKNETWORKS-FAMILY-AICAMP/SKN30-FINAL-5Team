@@ -31,6 +31,10 @@ QDRANT_URL=<staging-qdrant-https-url>
 QDRANT_TLS_ENABLED=true
 EMBEDDING_PROVIDER_CODE=OPENAI
 EMBEDDING_MODEL_VERSION=<approved-index-embedding-model>
+EMBEDDING_VECTOR_DIMENSION=<approved-vector-dimension>
+EMBEDDING_DISTANCE_METRIC_CODE=COSINE
+EMBEDDING_TIMEOUT_SECONDS=<bounded-seconds>
+QDRANT_API_KEY=<staging-secret-store-reference>
 ```
 
 The provider credential is supplied only by the deployment secret store. When the provider is
@@ -39,6 +43,25 @@ defined deterministic fallback and must not expose the provider exception as a 5
 The active PostgreSQL vector-index registry must match the configured embedding model, dimension,
 input schema and distance metric. Qdrant only ranks the PostgreSQL-approved eligible IDs; an index
 failure uses the recorded deterministic pool order and never makes an exercise eligible.
+
+## Build the immutable Qdrant index
+
+Run this one-shot command only in the staging task process after the environment above and both
+provider secrets have been injected by the deployment secret store. The command disables dotenv
+loading, requires an explicit provider-call opt-in, rejects a non-staging environment, and rejects
+any configuration that enables the production promotion gate.
+
+```powershell
+.venv\Scripts\python.exe -m backend.scripts.build_qdrant_index `
+  --catalog-version exercise-catalog-v2.0.0-final `
+  --vector-index-version <immutable-staging-index-version> `
+  --allow-provider-calls
+```
+
+The command prints only the collection name, index version, point count, build hash and whether the
+alias changed. It never prints a credential, provider request/response, exercise document or vector.
+Re-running the same index version is an idempotency check; it must validate the existing collection
+and report `alias_changed=false`. A different contract must use a new immutable index version.
 
 ## Profile behavior
 

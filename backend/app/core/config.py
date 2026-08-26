@@ -88,6 +88,7 @@ class Settings(BaseSettings):
     embedding_input_schema_version: str = "exercise-embedding-input-v1"
     embedding_vector_dimension: int = 0
     embedding_distance_metric_code: Literal["COSINE", "DOT", "EUCLID", "MANHATTAN"] = "COSINE"
+    embedding_timeout_seconds: float = 30.0
     # NoDecode hands the raw environment string to the validator below. Without
     # it pydantic-settings JSON-decodes these fields first, so a plain
     # comma-separated value fails at startup with an opaque SettingsError.
@@ -182,6 +183,13 @@ class Settings(BaseSettings):
     def validate_embedding_vector_dimension(cls, value: int) -> int:
         if not 0 <= value <= 65536:
             raise ValueError("EMBEDDING_VECTOR_DIMENSION must be within [0, 65536]")
+        return value
+
+    @field_validator("embedding_timeout_seconds")
+    @classmethod
+    def validate_embedding_timeout_seconds(cls, value: float) -> float:
+        if not 0 < value <= 120:
+            raise ValueError("EMBEDDING_TIMEOUT_SECONDS must be within (0, 120]")
         return value
 
     @field_validator("qdrant_collection_prefix", "qdrant_collection_alias")
