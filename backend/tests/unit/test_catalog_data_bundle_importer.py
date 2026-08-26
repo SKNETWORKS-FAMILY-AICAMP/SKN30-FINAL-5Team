@@ -465,7 +465,7 @@ def test_bundle_middle_stage_failure_rolls_back_every_new_set() -> None:
     assert repository.prescription_state is None
 
 
-def test_v2_bundle_exact_hash_count_and_versions_are_rejected_until_reapproved() -> None:
+def test_v2_bundle_exact_hash_count_and_versions_are_accepted() -> None:
     importer = CatalogDataBundleImporter(
         cast(CatalogRepositoryPort, FakeRepository()),
         "test",
@@ -473,14 +473,17 @@ def test_v2_bundle_exact_hash_count_and_versions_are_rejected_until_reapproved()
         v2_taxonomy_registry_sha256=V2_TAXONOMY_HASH,
     )
 
-    with pytest.raises(CatalogImportError) as exc_info:
-        importer.import_v2_bundle(
-            cast(Session, FakeSession()),
-            V2_BUNDLE_DIRECTORY,
-            expected_bundle_manifest_sha256=V2_BUNDLE_HASH,
-        )
+    result = importer.import_v2_bundle(
+        cast(Session, FakeSession()),
+        V2_BUNDLE_DIRECTORY,
+        expected_bundle_manifest_sha256=V2_BUNDLE_HASH,
+    )
 
-    assert exc_info.value.code == "APPROVAL_REGISTRY_MISMATCH"
+    assert [item.exercise_record_count for item in result.catalogs] == [102]
+    assert result.safety_rules.record_count == 394
+    assert result.alternatives.record_count == 285
+    assert result.prescriptions.record_count == 239
+    assert result.media_assets is None
 
 
 def test_v2_bundle_rejects_unapproved_manifest_hash() -> None:

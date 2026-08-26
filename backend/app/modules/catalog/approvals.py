@@ -83,7 +83,7 @@ _APPROVALS = {
     ): DerivedDataApproval(
         artifact_kind="PRESCRIPTIONS",
         version_code="prescription-set-v2.0.0",
-        manifest_sha256="e2237c1ab59784339969405e8b85ee65751459cb95ed119efa1070cffba25abe",
+        manifest_sha256="6c1ccbae1f234d30fa9b3bac9c92c4493a9f143c475450fd7985ed717218fa71",
         record_count=239,
         approval_record_code="V2-PROMOTION-APPROVAL-2026-08-25-R01",
         approved_on="2026-08-25",

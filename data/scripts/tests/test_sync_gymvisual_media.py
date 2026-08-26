@@ -155,7 +155,7 @@ class GymvisualMediaSyncTests(unittest.TestCase):
 
     def test_s3_source_upload_is_idempotent_and_requires_local_bytes(self) -> None:
         pairs = sync.validate_local_media()
-        source_heads = {
+        source_heads: dict[str, dict[str, object]] = {
             pair.video_key: {
                 "ContentLength": pair.video_path.stat().st_size,
                 "ContentType": "image/gif",
@@ -183,7 +183,7 @@ class GymvisualMediaSyncTests(unittest.TestCase):
 
     def test_source_validation_rejects_type_and_zero_length(self) -> None:
         pairs = sync.validate_local_media()
-        source_heads = {
+        source_heads: dict[str, dict[str, object]] = {
             key: {
                 "ContentLength": 0,
                 "ContentType": "image/jpeg" if key.startswith("images/") else "image/gif",
