@@ -147,6 +147,12 @@ const DECISION: DecisionResponse = {
   guidance: null,
   public_agent_summaries: null,
   safety_summary: null,
+  generation_mode_code: 'ORIGINAL',
+  decision_engine_code: 'DETERMINISTIC',
+  root_decision_id: 'decision-preview',
+  parent_decision_id: null,
+  regeneration_sequence: 0,
+  meaningful_difference_codes: null,
   created_at: '2026-08-18T08:05:00+09:00',
 };
 

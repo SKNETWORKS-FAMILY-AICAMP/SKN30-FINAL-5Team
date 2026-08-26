@@ -30,6 +30,7 @@ import {
 } from '../auth/previewStates';
 import { SignInScreen } from '../auth/SignInScreen';
 import { SignUpScreen } from '../auth/SignUpScreen';
+import { ExerciseCatalogScreen } from '../catalog/ExerciseCatalogScreen';
 import { CalendarReportContainer } from '../home/CalendarReportContainer';
 import { CalendarReportScreen } from '../home/CalendarReportScreen';
 import { HOME_PREVIEW_OPTIONS, type HomePreviewState } from '../home/homeModel';
@@ -74,6 +75,11 @@ import {
   type WorkoutPreviewState,
 } from '../workout/workoutModel';
 import { authPreviewAdapter } from './authPreview';
+import {
+  createExerciseCatalogPreviewApi,
+  EXERCISE_CATALOG_PREVIEW_OPTIONS,
+  type ExerciseCatalogPreviewState,
+} from './catalogPreview';
 import { homePreviewProps } from './homePreview';
 import { onboardingPreviewApi } from './onboardingPreview';
 import {
@@ -148,6 +154,7 @@ export type PreviewScreenId =
   | 'calendar-report'
   | 'weekly-report'
   | 'my-page'
+  | 'exercise-catalog'
   | 'account';
 
 type PreviewScreen = {
@@ -212,6 +219,7 @@ const PREVIEW_SCREEN_GROUPS = [
     label: 'My page',
     screens: [
       { id: 'my-page', label: 'My page (API)' },
+      { id: 'exercise-catalog', label: 'Exercise catalog (API)' },
       { id: 'account', label: 'Account (mock)' },
     ],
   },
@@ -474,6 +482,8 @@ export function PreviewGallery({
   const [calendarHistoryDay, setCalendarHistoryDay] =
     useState<CalendarHistoryPreviewDay | null>(null);
   const [myPageState, setMyPageState] = useState<MyPagePreviewState>('profile');
+  const [exerciseCatalogState, setExerciseCatalogState] =
+    useState<ExerciseCatalogPreviewState>('loaded');
   const [workoutOutcome, setWorkoutOutcome] = useState<SessionOutcome | null>(
     null,
   );
@@ -544,6 +554,10 @@ export function PreviewGallery({
   const weeklyReportApi = useMemo(
     () => createWeeklyReportPreviewApi(weeklyReportState),
     [weeklyReportState],
+  );
+  const exerciseCatalogApi = useMemo(
+    () => createExerciseCatalogPreviewApi(exerciseCatalogState),
+    [exerciseCatalogState],
   );
   const selectHomeState = useCallback((next: HomePreviewState) => {
     if (homeTransitionTimer.current !== null) {
@@ -961,6 +975,22 @@ export function PreviewGallery({
           </>
         ) : null}
 
+        {screenId === 'exercise-catalog' ? (
+          <>
+            <PreviewStateOptions
+              label="Exercise catalog API 응답 상태"
+              options={EXERCISE_CATALOG_PREVIEW_OPTIONS}
+              selected={exerciseCatalogState}
+              onSelect={setExerciseCatalogState}
+            />
+            <Text style={styles.contractNotice}>
+              실제 앱의 마이페이지에서 여는 승인 운동 목록과 상세 화면입니다.
+              목록·필터·페이지네이션·오류 응답은 네트워크 없는 fixture이며 실제
+              앱에서는 같은 화면이 /api/v1/exercises API를 사용합니다.
+            </Text>
+          </>
+        ) : null}
+
         {screenId === 'workout' ? (
           <>
             <PreviewStateOptions
@@ -1114,7 +1144,7 @@ export function PreviewGallery({
                       onOpenCalendar={() => setScreenId('calendar-report')}
                       onProfile={() => setScreenId('my-page')}
                       onReorderPlan={reorderHomePlan}
-                      onRequestAiRevision={() => runHomeTransition('adjusted')}
+                      onRegenerateDecision={() => runHomeTransition('adjusted')}
                       onStartWorkout={startWorkoutPreview}
                       onSubmitCheckin={() => runHomeTransition('routine')}
                       onSubmitUserEdits={() => runHomeTransition('adjusted')}
@@ -1213,9 +1243,18 @@ export function PreviewGallery({
                       api={accountPreviewApi}
                       me={PREVIEW_ME}
                       onNavigateTab={navigateHomeTab}
+                      onOpenExerciseCatalog={() =>
+                        setScreenId('exercise-catalog')
+                      }
                       onRefreshMe={async () => undefined}
                       onSignOut={() => undefined}
                       previewState={myPageState}
+                    />
+                  ) : null}
+                  {screenId === 'exercise-catalog' ? (
+                    <ExerciseCatalogScreen
+                      api={exerciseCatalogApi}
+                      onBack={() => setScreenId('my-page')}
                     />
                   ) : null}
                   {screenId === 'workout' ? (

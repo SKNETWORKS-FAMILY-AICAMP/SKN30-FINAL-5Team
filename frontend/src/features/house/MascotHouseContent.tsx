@@ -702,7 +702,9 @@ function FeedButton({
         start={{ x: 0.5, y: 0 }}
         style={styles.feedGradient}
       />
-      <Text style={styles.feedLabel}>바나나 주기</Text>
+      <Text style={styles.feedLabel}>
+        바나나 주기 · {HOUSE_ACTION_COST.feed}개
+      </Text>
       <BananaGlyph size={18} />
     </Pressable>
   );

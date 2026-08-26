@@ -452,17 +452,22 @@ export function HomeContainer({
     [api, context, localDate, onDecisionChange, onPlanRevisionChange, reload],
   );
 
-  const requestAiRevision = useCallback(() => {
-    run('revision', async () => {
-      const sequence = await revisionSequence();
-      const revision = await api.createPlanRevision(weekStart, {
-        source_code: 'AI',
-        expected_revision_sequence: sequence,
-        user_edits: null,
+  const regenerateDecision = useCallback(() => {
+    const plan = decision?.final_plan;
+    const sequence = decision?.regeneration_sequence;
+    if (!decision || !plan || (sequence !== 0 && sequence !== 1)) {
+      return;
+    }
+    const decisionId = decision.decision_id;
+
+    run('regeneration', async () => {
+      const next = await api.regenerateDecision(decisionId, {
+        expected_plan_id: plan.plan_id,
+        expected_regeneration_sequence: sequence,
       });
-      await applyRevision(revision);
+      onDecisionChange(next);
     });
-  }, [api, applyRevision, revisionSequence, run, weekStart]);
+  }, [api, decision, onDecisionChange, run]);
 
   const submitUserEdits = useCallback(
     (edits: HomeUserEdits) => {
@@ -523,7 +528,7 @@ export function HomeContainer({
       onSubmitCheckin={(draft) => submitCheckin(draft)}
       onStartWorkout={startWorkout}
       onChooseRest={chooseRest}
-      onRequestAiRevision={requestAiRevision}
+      onRegenerateDecision={regenerateDecision}
       onReorderPlan={reorderPlan}
       onSubmitUserEdits={submitUserEdits}
       onNavigateTab={onTab}

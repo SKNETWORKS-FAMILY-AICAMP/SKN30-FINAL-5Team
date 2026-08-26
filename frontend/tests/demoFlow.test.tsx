@@ -15,7 +15,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react-native';
-import { Image, Platform, ScrollView } from 'react-native';
+import { Image, Platform, ScrollView, StyleSheet } from 'react-native';
 
 import { ApiClient, createIdempotencyKey } from '../src/api/client';
 import { ApiError } from '../src/api/errors';
@@ -29,7 +29,6 @@ import type {
   RoutineResponse,
   SessionItem,
   WeekResponse,
-  WeeklyPlanRevisionResponse,
   WorkoutPlan,
 } from '../src/api/types';
 import { resolveEnvConfig } from '../src/config/env';
@@ -105,6 +104,12 @@ function decision(overrides: Partial<DecisionResponse> = {}): DecisionResponse {
     guidance: null,
     public_agent_summaries: null,
     safety_summary: null,
+    generation_mode_code: 'ORIGINAL',
+    decision_engine_code: 'DETERMINISTIC',
+    root_decision_id: 'decision-1',
+    parent_decision_id: null,
+    regeneration_sequence: 0,
+    meaningful_difference_codes: null,
     created_at: '2026-08-17T01:00:00+09:00',
     ...overrides,
   };
@@ -168,29 +173,6 @@ function week(): WeekResponse {
   };
 }
 
-function planRevision(
-  overrides: Partial<WeeklyPlanRevisionResponse> = {},
-): WeeklyPlanRevisionResponse {
-  return {
-    revision_id: 'revision-1',
-    week_start: '2026-08-17',
-    week_end: '2026-08-23',
-    revision_sequence: 1,
-    ai_revision_count: 0,
-    source_code: 'INITIAL',
-    source_weekly_report_id: null,
-    safety_status_code: 'PASS',
-    routine: routine(),
-    selected_location_code: 'HOME',
-    finalized: true,
-    finalized_at: '2026-08-17T00:00:00+09:00',
-    revision_reason_codes: ['REVISION_ALLOWED'],
-    finalization_reason_codes: ['FINALIZE_ALLOWED'],
-    created_at: '2026-08-17T00:00:00+09:00',
-    ...overrides,
-  };
-}
-
 function me(): MeResponse {
   return {
     user_id: 'user-1',
@@ -231,6 +213,7 @@ function stubApi(overrides: Partial<Api> = {}): Api {
     replaceDailyContext: jest.fn(),
     createDecision: jest.fn(),
     getDecision: jest.fn(),
+    regenerateDecision: jest.fn(),
     selectOption: jest.fn(),
     listWorkoutSessions: jest.fn(async () => ({
       items: [],
@@ -681,38 +664,34 @@ describe('HomeContainer', () => {
     expect(onSessionStarted).not.toHaveBeenCalled();
   });
 
-  it('shows the backend plan-revision reason instead of a generic error', async () => {
-    const createPlanRevision = jest.fn(async () => {
-      throw new ApiError({
-        kind: 'validation',
-        code: 'PLAN_REVISION_REJECTED',
-        status: 422,
-        message: 'generic',
-        details: [{ reason_code: 'LOCATION_CONSTRAINT_NOT_SATISFIED' }],
-      });
+  it('regenerates the current V3 decision with optimistic concurrency values', async () => {
+    const regenerated = decision({
+      decision_id: 'decision-2',
+      generation_mode_code: 'REGENERATED',
+      parent_decision_id: 'decision-1',
+      regeneration_sequence: 1,
+      meaningful_difference_codes: ['CORE_EXERCISE_CHANGED'],
     });
+    const regenerateDecision = jest.fn(async () => regenerated);
+    const onDecisionChange = jest.fn();
     renderHome(
       homeApi({
-        getDailyContext: jest.fn(async () => dailyContext()),
-        createInitialWeeklyPlan: jest.fn(async () => planRevision()),
-        createPlanRevision,
+        regenerateDecision,
       }),
-      { decision: decision() },
+      { decision: decision(), onDecisionChange },
     );
 
     fireEvent.press(
       await screen.findByRole('button', { name: '다른 루틴 추천 받기' }),
     );
 
-    expect(
-      await screen.findByText(
-        '선택한 장소에서 진행 가능한 구성을 찾지 못했어요.',
-      ),
-    ).toBeOnTheScreen();
-    expect(createPlanRevision).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({ source_code: 'AI' }),
-    );
+    await waitFor(() => {
+      expect(regenerateDecision).toHaveBeenCalledWith('decision-1', {
+        expected_plan_id: 'plan-1',
+        expected_regeneration_sequence: 0,
+      });
+      expect(onDecisionChange).toHaveBeenCalledWith(regenerated);
+    });
   });
 
   it('hands the started session to the flow above', async () => {
@@ -1092,10 +1071,14 @@ describe('OnboardingScreen', () => {
   function fillRequiredOnboardingSteps({
     attentionArea,
     birthdate = '1997-08-11',
+    equipmentLabel = '맨몸',
+    selectLocations,
     selectOptionalPreferences = true,
   }: {
     attentionArea?: string;
     birthdate?: string;
+    equipmentLabel?: string;
+    selectLocations?: () => void;
     selectOptionalPreferences?: boolean;
   } = {}) {
     fireEvent.changeText(
@@ -1125,9 +1108,13 @@ describe('OnboardingScreen', () => {
       fireEvent.press(screen.getByText('간결하게'));
     }
     fireEvent.press(screen.getByText('다음'));
-    fireEvent.press(screen.getByText('집'));
+    if (selectLocations) {
+      selectLocations();
+    } else {
+      fireEvent.press(screen.getByText('집'));
+    }
     fireEvent.press(screen.getByText('다음'));
-    fireEvent.press(screen.getByText('맨몸'));
+    fireEvent.press(screen.getByText(equipmentLabel));
     fireEvent.press(screen.getByText('다음'));
     fireEvent.press(screen.getByText('다음'));
     fireEvent.press(screen.getByText('다음'));
@@ -1630,6 +1617,72 @@ describe('OnboardingScreen', () => {
     expect(screen.getByRole('button', { name: '다음' })).toBeEnabled();
   });
 
+  it('fits equipment choices to their labels while aligning every row edge', () => {
+    render(
+      <OnboardingScreen
+        api={stubApi()}
+        initialStep={9}
+        onCompleted={jest.fn()}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('onboarding-equipment-grid').props.style,
+      ),
+    ).toMatchObject({
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+    });
+    for (const label of ['맨몸', '스트레칭 스트랩', '의자']) {
+      expect(
+        StyleSheet.flatten(
+          screen.getByRole('button', { name: label }).props.style,
+        ),
+      ).toMatchObject({ flexGrow: 1, flexShrink: 0, minHeight: 48 });
+      expect(screen.getByText(label).props.numberOfLines).toBe(1);
+    }
+  });
+
+  it('aligns multiple pain controls without wrapping labels and uses the safety-notice palette', () => {
+    render(
+      <OnboardingScreen
+        api={stubApi()}
+        initialStep={12}
+        onCompleted={jest.fn()}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByText('있어요'));
+    fireEvent.press(screen.getByText('손목·손'));
+    fireEvent.press(screen.getByText('발목·발'));
+
+    expect(screen.getAllByRole('adjustable')).toHaveLength(2);
+    expect(screen.getByText('손목·손 통증 정도').props.numberOfLines).toBe(1);
+    expect(screen.getByText('발목·발 통증 정도').props.numberOfLines).toBe(1);
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('onboarding-pain-slider-card-손목·손').props.style,
+      ),
+    ).toMatchObject({
+      backgroundColor: '#FBEAE7',
+      borderColor: '#F1BFAE',
+    });
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('onboarding-pain-intensity-value-손목·손').props
+          .style,
+      ),
+    ).toMatchObject({
+      backgroundColor: '#FFFFFF',
+      color: '#8E3226',
+      fontWeight: '400',
+    });
+  });
+
   it('lets users select every integer pain score from 1 to 10 on the slider', () => {
     render(
       <OnboardingScreen
@@ -1796,6 +1849,42 @@ describe('OnboardingScreen', () => {
         }),
       );
       expect(request).not.toHaveProperty('coaching_style_code');
+    });
+  });
+
+  it('submits outdoor separately as an available and preferred location with a backend equipment code', async () => {
+    const submitOnboarding = jest.fn(async (_request: OnboardingRequest) =>
+      completedOnboarding(),
+    );
+    render(
+      <OnboardingScreen
+        api={stubApi({ submitOnboarding })}
+        onCompleted={jest.fn()}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fillRequiredOnboardingSteps({
+      equipmentLabel: '폼롤러',
+      selectLocations: () => {
+        fireEvent.press(screen.getByText('집'));
+        fireEvent.press(screen.getByText('야외'));
+        fireEvent.press(
+          screen.getByRole('button', { name: '대표 운동 장소: 야외' }),
+        );
+      },
+    });
+    acceptRequiredConsents();
+    fireEvent.press(screen.getByText('시작하기'));
+
+    await waitFor(() => {
+      expect(submitOnboarding).toHaveBeenCalledWith(
+        expect.objectContaining({
+          available_location_codes: ['HOME', 'OUTDOOR'],
+          preferred_location_code: 'OUTDOOR',
+          equipment_codes: ['FOAM_ROLLER'],
+        }),
+      );
     });
   });
 

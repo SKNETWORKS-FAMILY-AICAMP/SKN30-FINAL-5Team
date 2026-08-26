@@ -203,7 +203,7 @@ export function MascotHouseScreen({
 
   if (remote.status !== 'ready' || houseState === null) {
     return (
-      <ScreenShell bands tallBands footer={tabBar}>
+      <ScreenShell footer={tabBar}>
         <LoadingState />
       </ScreenShell>
     );

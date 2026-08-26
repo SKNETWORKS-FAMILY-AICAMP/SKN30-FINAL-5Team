@@ -96,6 +96,12 @@ function decision(): DecisionResponse {
     options: [],
     reason_codes: [],
     summary: '오늘 조건에서는 준비된 루틴을 그대로 진행합니다.',
+    generation_mode_code: 'REGENERATED',
+    decision_engine_code: 'LLM_MULTI_AGENT',
+    root_decision_id: 'decision-root',
+    parent_decision_id: 'decision-root',
+    regeneration_sequence: 1,
+    meaningful_difference_codes: ['CORE_EXERCISE_CHANGED'],
     created_at: '2026-08-19T00:00:00+09:00',
   } as unknown as DecisionResponse;
 }

@@ -16,7 +16,9 @@ import { colors, shadows, spacing } from '../../components/theme';
 import { BananaGlyph } from '../house/HouseArt';
 import {
   BANANA_CATCH_TICK_MS,
+  PLAYER_HALF_WIDTH,
   advanceBananaCatch,
+  bananaBasketStage,
   bananaCatchSecondsLeft,
   createBananaCatchState,
   moveBananaCatcher,
@@ -25,17 +27,47 @@ import {
 
 const PLAYER_SIZE = 92;
 const BANANA_SIZE = 30;
-const PLAYER_MOVE_STEP = 0.09;
+const CATCHER_HEIGHT = PLAYER_SIZE + 16;
+const CATCHER_BOTTOM_RATIO = 0.05;
+const BASKET_LIP_RATIO_IN_ASSET = 0.4;
+const BASKET_WIDTH_RATIO_IN_ASSET = 0.42;
+const DEFAULT_CATCH_LINE_Y = 0.75;
+
+const COLLECTING_MASCOT_ASSETS = [
+  {
+    stage: 'empty' as const,
+    source: imageAssets.houseMascotCollectingBananasEmpty,
+  },
+  {
+    stage: 'medium' as const,
+    source: imageAssets.houseMascotCollectingBananasMedium,
+  },
+  {
+    stage: 'full' as const,
+    source: imageAssets.houseMascotCollectingBananasFull,
+  },
+];
 
 export function BananaCatchGameScreen({ onBack }: { onBack: () => void }) {
   const [game, setGame] = useState(createBananaCatchState);
   const [paused, setPaused] = useState(false);
   const arenaWidth = useRef(1);
+  const catchLineY = useRef(DEFAULT_CATCH_LINE_Y);
+  const catchHalfWidthX = useRef(PLAYER_HALF_WIDTH);
+  const catcherStage = bananaBasketStage(game.score);
 
   useEffect(() => {
     if (game.status !== 'playing' || paused) return undefined;
     const timer = setInterval(() => {
-      setGame((current) => advanceBananaCatch(current, BANANA_CATCH_TICK_MS));
+      setGame((current) =>
+        advanceBananaCatch(
+          current,
+          BANANA_CATCH_TICK_MS,
+          Math.random,
+          catchLineY.current,
+          catchHalfWidthX.current,
+        ),
+      );
     }, BANANA_CATCH_TICK_MS);
     return () => clearInterval(timer);
   }, [game.status, paused]);
@@ -54,14 +86,6 @@ export function BananaCatchGameScreen({ onBack }: { onBack: () => void }) {
   const start = () => {
     setPaused(false);
     setGame(startBananaCatch());
-  };
-  const nudge = (direction: -1 | 1) => {
-    setGame((current) =>
-      moveBananaCatcher(
-        current,
-        current.playerX + direction * PLAYER_MOVE_STEP,
-      ),
-    );
   };
 
   return (
@@ -91,18 +115,42 @@ export function BananaCatchGameScreen({ onBack }: { onBack: () => void }) {
           </View>
 
           <View
-            accessibilityLabel={`점수 ${game.score}점`}
+            accessibilityLabel={`점수 ${game.score}점, ${bananaCatchSecondsLeft(game)}초 남음`}
             style={styles.score}
           >
-            <BananaGlyph size={18} />
-            <Text style={styles.scoreText}>{game.score}</Text>
+            <View style={styles.scoreRow}>
+              <BananaGlyph size={18} />
+              <Text style={styles.scoreText}>{game.score}</Text>
+            </View>
+            <Text style={styles.timerValue}>
+              {bananaCatchSecondsLeft(game)}초
+            </Text>
           </View>
         </View>
 
         <View
           accessibilityLabel="바나나가 떨어지는 게임 공간"
           onLayout={(event) => {
-            arenaWidth.current = Math.max(1, event.nativeEvent.layout.width);
+            const { height, width } = event.nativeEvent.layout;
+            const safeWidth = Math.max(1, width);
+            arenaWidth.current = safeWidth;
+
+            // `y` is the banana centre. Subtracting half its size makes the
+            // score happen when its bottom edge first touches the basket lip.
+            const safeHeight = Math.max(1, height);
+            const basketLipY =
+              1 -
+              CATCHER_BOTTOM_RATIO -
+              (CATCHER_HEIGHT - PLAYER_SIZE * BASKET_LIP_RATIO_IN_ASSET) /
+                safeHeight;
+            catchLineY.current = Math.min(
+              1,
+              Math.max(0, basketLipY - BANANA_SIZE / 2 / safeHeight),
+            );
+            catchHalfWidthX.current =
+              (PLAYER_SIZE * BASKET_WIDTH_RATIO_IN_ASSET + BANANA_SIZE) /
+              2 /
+              safeWidth;
           }}
           onMoveShouldSetResponder={() => game.status === 'playing'}
           onResponderGrant={moveFromEvent}
@@ -124,6 +172,7 @@ export function BananaCatchGameScreen({ onBack }: { onBack: () => void }) {
                 {
                   left: `${banana.x * 100}%`,
                   top: `${banana.y * 100}%`,
+                  transform: [{ rotate: `${banana.rotationDeg}deg` }],
                 },
               ]}
               testID={`falling-banana-${banana.id}`}
@@ -138,13 +187,20 @@ export function BananaCatchGameScreen({ onBack }: { onBack: () => void }) {
             style={[styles.catcher, { left: `${game.playerX * 100}%` }]}
             testID="banana-catcher"
           >
-            <View style={styles.basket} />
-            <Image
-              accessibilityLabel="바나나를 받는 끼끼"
-              resizeMode="contain"
-              source={imageAssets.houseMascotMonkey01}
-              style={styles.mascot}
-            />
+            {COLLECTING_MASCOT_ASSETS.map(({ source, stage }) => {
+              const active = stage === catcherStage;
+              return (
+                <Image
+                  accessibilityLabel={active ? '바나나를 받는 끼끼' : undefined}
+                  accessible={active}
+                  key={stage}
+                  resizeMode="contain"
+                  source={source}
+                  style={[styles.mascot, !active && styles.hiddenMascot]}
+                  testID={`banana-catcher-mascot-${stage}`}
+                />
+              );
+            })}
           </View>
 
           {game.status === 'ready' ? (
@@ -177,40 +233,6 @@ export function BananaCatchGameScreen({ onBack }: { onBack: () => void }) {
               준비되면 이어서 받아요.
             </GameCard>
           ) : null}
-        </View>
-
-        <View style={styles.controls}>
-          <Pressable
-            accessibilityLabel="끼끼 왼쪽으로 움직이기"
-            accessibilityRole="button"
-            accessibilityState={{ disabled: game.status !== 'playing' }}
-            disabled={game.status !== 'playing'}
-            onPress={() => nudge(-1)}
-            style={styles.moveButton}
-            testID="banana-catch-left"
-          >
-            <Text style={styles.moveButtonText}>←</Text>
-          </Pressable>
-          <View style={styles.timer}>
-            <Text style={styles.timerCaption}>남은 시간</Text>
-            <Text
-              accessibilityLabel={`${bananaCatchSecondsLeft(game)}초 남음`}
-              style={styles.timerValue}
-            >
-              {bananaCatchSecondsLeft(game)}초
-            </Text>
-          </View>
-          <Pressable
-            accessibilityLabel="끼끼 오른쪽으로 움직이기"
-            accessibilityRole="button"
-            accessibilityState={{ disabled: game.status !== 'playing' }}
-            disabled={game.status !== 'playing'}
-            onPress={() => nudge(1)}
-            style={styles.moveButton}
-            testID="banana-catch-right"
-          >
-            <Text style={styles.moveButtonText}>→</Text>
-          </Pressable>
         </View>
       </SafeAreaView>
     </LinearGradient>
@@ -282,14 +304,19 @@ const styles = StyleSheet.create({
   subtitle: { color: colors.textSub, fontSize: 11, fontWeight: '600' },
   score: {
     minWidth: 64,
-    height: 44,
+    minHeight: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.86)',
+    paddingHorizontal: 10,
+    ...shadows.card,
+  },
+  scoreRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.86)',
-    ...shadows.card,
+    gap: 5,
   },
   scoreText: { color: colors.text, fontSize: 18, fontWeight: '900' },
   arena: {
@@ -312,6 +339,7 @@ const styles = StyleSheet.create({
   cloudRight: { top: 132, right: -36, width: 138 },
   fallingBanana: {
     position: 'absolute',
+    zIndex: 5,
     width: BANANA_SIZE,
     height: BANANA_SIZE,
     marginLeft: -BANANA_SIZE / 2,
@@ -322,29 +350,27 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
+    zIndex: 1,
     height: '13%',
     backgroundColor: '#92CC67',
   },
   catcher: {
     position: 'absolute',
     bottom: '5%',
+    zIndex: 3,
     width: PLAYER_SIZE,
-    height: PLAYER_SIZE + 16,
+    height: CATCHER_HEIGHT,
     marginLeft: -PLAYER_SIZE / 2,
     alignItems: 'center',
   },
-  mascot: { width: PLAYER_SIZE, height: PLAYER_SIZE },
-  basket: {
+  mascot: {
     position: 'absolute',
-    top: -4,
-    width: 66,
-    height: 24,
-    zIndex: 2,
-    borderWidth: 3,
-    borderColor: '#8D5A2B',
-    borderRadius: 8,
-    backgroundColor: '#D79A4D',
+    top: 0,
+    width: PLAYER_SIZE,
+    height: PLAYER_SIZE,
+    opacity: 1,
   },
+  hiddenMascot: { opacity: 0 },
   overlay: {
     position: 'absolute',
     top: 0,
@@ -388,25 +414,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   startButtonText: { color: colors.text, fontSize: 16, fontWeight: '900' },
-  controls: {
-    minHeight: 82,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-    paddingTop: spacing.md,
-  },
-  moveButton: {
-    width: 68,
-    height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 20,
-    backgroundColor: colors.surface,
-    ...shadows.card,
-  },
-  moveButtonText: { color: colors.text, fontSize: 27, fontWeight: '900' },
-  timer: { alignItems: 'center' },
-  timerCaption: { color: colors.textSub, fontSize: 11, fontWeight: '700' },
-  timerValue: { color: colors.text, fontSize: 22, fontWeight: '900' },
+  timerValue: { color: colors.textSub, fontSize: 12, fontWeight: '800' },
 });

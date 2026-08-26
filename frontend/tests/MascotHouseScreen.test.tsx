@@ -11,6 +11,7 @@ import {
 import type { Api } from '../src/api/endpoints';
 import type { WeekResponse, WorkoutSessionLogSummary } from '../src/api/types';
 import { imageAssets } from '../src/assets';
+import { BackgroundBands } from '../src/components/brand/BrandChrome';
 import {
   HOUSE_BACKDROP_ZOOM,
   HOUSE_MASCOT_SIZE,
@@ -96,7 +97,7 @@ function houseApi({
 
 function renderHouse(api: Api, store = createMemoryHouseStore()) {
   const onNavigate = jest.fn();
-  render(
+  const view = render(
     <MascotHouseScreen
       api={api}
       nickname="범중"
@@ -106,10 +107,21 @@ function renderHouse(api: Api, store = createMemoryHouseStore()) {
       timeZone={TIME_ZONE}
     />,
   );
-  return { onNavigate, store };
+  return { ...view, onNavigate, store };
 }
 
 describe('MascotHouseScreen', () => {
+  it('uses the shared solid canvas while the house is loading', () => {
+    const pendingApi = {
+      getWeek: jest.fn(() => new Promise<never>(() => undefined)),
+      listWorkoutSessions: jest.fn(() => new Promise<never>(() => undefined)),
+    } as unknown as Api;
+    const view = renderHouse(pendingApi);
+
+    expect(screen.getByText('불러오는 중이에요')).toBeTruthy();
+    expect(view.UNSAFE_queryByType(BackgroundBands)).toBeNull();
+  });
+
   it('shows the room, the week standing and the bananas the week earned', async () => {
     renderHouse(houseApi());
 
@@ -156,6 +168,9 @@ describe('MascotHouseScreen', () => {
     await waitFor(() =>
       expect(screen.getByText(`${BANANA_REWARD.completed}개`)).toBeTruthy(),
     );
+    expect(
+      screen.getByText(`바나나 주기 · ${HOUSE_ACTION_COST.feed}개`),
+    ).toBeTruthy();
     fireEvent.press(screen.getByTestId('house-feed-action'));
 
     const remaining = BANANA_REWARD.completed - HOUSE_ACTION_COST.feed;

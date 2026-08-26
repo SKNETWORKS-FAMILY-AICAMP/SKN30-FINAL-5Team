@@ -218,6 +218,9 @@ function OnboardingScreenContent({
     (typeof COACHING_STYLE_OPTIONS)[number]['code'] | null
   >(null);
   const [locations, setLocations] = useState<string[]>([]);
+  const [preferredLocationCode, setPreferredLocationCode] = useState<
+    string | null
+  >(null);
   const [equipment, setEquipment] = useState<string[]>([]);
   const [duration, setDuration] = useState(30);
   const [weeklyCount, setWeeklyCount] = useState(3);
@@ -245,12 +248,12 @@ function OnboardingScreenContent({
   }, []);
 
   const submit = useAsyncAction(async () => {
-    const preferredLocationCode = locations[0];
     if (
       sexCode === null ||
       primaryGoalCode === null ||
       experienceLevelCode === null ||
-      preferredLocationCode === undefined ||
+      preferredLocationCode === null ||
+      !locations.includes(preferredLocationCode) ||
       equipment.length === 0 ||
       hasAttentionAreas === null ||
       (hasAttentionAreas && attentionAreas.length === 0)
@@ -308,6 +311,7 @@ function OnboardingScreenContent({
     nickname,
     attentionAreas,
     painIntensityScores,
+    preferredLocationCode,
     preferredExerciseTypes,
     primaryGoalCode,
     sensitiveConsent,
@@ -350,6 +354,16 @@ function OnboardingScreenContent({
         return next;
       });
       return values.filter((item) => item !== code);
+    });
+    submit.clearError();
+  };
+
+  const toggleLocation = (code: string) => {
+    const next = toggle(locations, code);
+    setLocations(next);
+    setPreferredLocationCode((current) => {
+      if (current !== null && next.includes(current)) return current;
+      return next[0] ?? null;
     });
     submit.clearError();
   };
@@ -507,22 +521,48 @@ function OnboardingScreenContent({
                 grow
                 label={item.label}
                 selected={locations.includes(item.code)}
-                onPress={() => setLocations((v) => toggle(v, item.code))}
+                onPress={() => toggleLocation(item.code)}
               />
             ))}
+            {locations.length > 0 ? (
+              <View style={styles.preferredLocationSection}>
+                <Text style={styles.painSectionTitle}>주로 운동할 장소</Text>
+                <Text style={styles.hint}>
+                  선택한 장소 중 운동 계획에 우선 적용할 곳을 골라주세요.
+                </Text>
+                {ONBOARDING_LOCATION_OPTIONS.filter((item) =>
+                  locations.includes(item.code),
+                ).map((item) => (
+                  <DescriptionOption
+                    accessibilityLabel={`대표 운동 장소: ${item.label}`}
+                    description="운동 계획을 만들 때 우선 적용해요."
+                    key={item.code}
+                    label={item.label}
+                    selected={preferredLocationCode === item.code}
+                    onPress={() => {
+                      setPreferredLocationCode(item.code);
+                      submit.clearError();
+                    }}
+                  />
+                ))}
+              </View>
+            ) : null}
           </ChoiceCard>
         );
       case 'equipment':
         return (
           <ChoiceCard>
-            {ONBOARDING_EQUIPMENT_OPTIONS.map((item) => (
-              <Chip
-                key={item.code}
-                label={item.label}
-                selected={equipment.includes(item.code)}
-                onPress={() => setEquipment((v) => toggle(v, item.code))}
-              />
-            ))}
+            <View style={styles.optionGrid} testID="onboarding-equipment-grid">
+              {ONBOARDING_EQUIPMENT_OPTIONS.map((item) => (
+                <Chip
+                  flow
+                  key={item.code}
+                  label={item.label}
+                  selected={equipment.includes(item.code)}
+                  onPress={() => setEquipment((v) => toggle(v, item.code))}
+                />
+              ))}
+            </View>
           </ChoiceCard>
         );
       case 'duration':
@@ -578,9 +618,13 @@ function OnboardingScreenContent({
               <View style={styles.painDetails}>
                 <View style={styles.painSection}>
                   <Text style={styles.painSectionTitle}>통증 부위</Text>
-                  <View style={styles.painChoices}>
+                  <View
+                    style={styles.optionGrid}
+                    testID="onboarding-attention-area-grid"
+                  >
                     {DEFAULT_BODY_AREA_OPTIONS.map((item) => (
                       <Chip
+                        grid
                         key={item.code}
                         label={item.label}
                         selected={attentionAreas.includes(item.code)}
@@ -588,6 +632,7 @@ function OnboardingScreenContent({
                       />
                     ))}
                     <Chip
+                      fullWidth
                       label={
                         showExtendedAttentionAreas
                           ? '다른 부위 접기'
@@ -601,6 +646,7 @@ function OnboardingScreenContent({
                     {showExtendedAttentionAreas
                       ? EXTENDED_BODY_AREA_OPTIONS.map((item) => (
                           <Chip
+                            grid
                             key={item.code}
                             label={item.label}
                             selected={attentionAreas.includes(item.code)}
@@ -610,24 +656,34 @@ function OnboardingScreenContent({
                       : null}
                   </View>
                 </View>
-                {attentionAreas.map((code) => {
-                  const score = painIntensityScores[code] ?? PAIN_INTENSITY_MIN;
-                  return (
-                    <View key={code} style={styles.painSection}>
-                      <PainIntensitySlider
-                        bodyArea={bodyAreaLabel(code)}
-                        onChange={(value) => {
-                          setPainIntensityScores((values) => ({
-                            ...values,
-                            [code]: value,
-                          }));
-                          submit.clearError();
-                        }}
-                        value={score}
-                      />
-                    </View>
-                  );
-                })}
+                <View
+                  style={styles.painSliderList}
+                  testID="onboarding-pain-slider-list"
+                >
+                  {attentionAreas.map((code) => {
+                    const score =
+                      painIntensityScores[code] ?? PAIN_INTENSITY_MIN;
+                    return (
+                      <View
+                        key={code}
+                        style={styles.painSliderCard}
+                        testID={`onboarding-pain-slider-card-${bodyAreaLabel(code)}`}
+                      >
+                        <PainIntensitySlider
+                          bodyArea={bodyAreaLabel(code)}
+                          onChange={(value) => {
+                            setPainIntensityScores((values) => ({
+                              ...values,
+                              [code]: value,
+                            }));
+                            submit.clearError();
+                          }}
+                          value={score}
+                        />
+                      </View>
+                    );
+                  })}
+                </View>
               </View>
             ) : null}
           </ChoiceCard>
@@ -798,6 +854,7 @@ type FormState = {
   preferredExerciseTypes: (typeof ONBOARDING_EXERCISE_TYPE_OPTIONS)[number]['code'][];
   coachingStyleCode: (typeof COACHING_STYLE_OPTIONS)[number]['code'] | null;
   locations: string[];
+  preferredLocationCode: string | null;
   equipment: string[];
   hasAttentionAreas: boolean | null;
   attentionAreas: string[];
@@ -832,7 +889,11 @@ function isStepValid(
     case 'coachingStyle':
       return true;
     case 'location':
-      return form.locations.length > 0;
+      return (
+        form.locations.length > 0 &&
+        form.preferredLocationCode !== null &&
+        form.locations.includes(form.preferredLocationCode)
+      );
     case 'equipment':
       return form.equipment.length > 0;
     case 'attention':
@@ -958,10 +1019,13 @@ function PainIntensitySlider({
   return (
     <View style={styles.painIntensityControl}>
       <View style={styles.painIntensityHeading}>
-        <Text style={styles.painSectionTitle}>{label}</Text>
+        <Text numberOfLines={1} style={styles.painIntensityLabel}>
+          {label}
+        </Text>
         <Text
           accessibilityLiveRegion="polite"
           style={styles.painIntensityValue}
+          testID={`onboarding-pain-intensity-value-${bodyArea}`}
         >
           {boundedValue}
         </Text>
@@ -1019,12 +1083,18 @@ function ChoiceCard({ children }: { children: React.ReactNode }) {
 
 function Chip({
   compact = false,
+  flow = false,
+  fullWidth = false,
+  grid = false,
   grow = false,
   label,
   onPress,
   selected,
 }: {
   compact?: boolean;
+  flow?: boolean;
+  fullWidth?: boolean;
+  grid?: boolean;
   grow?: boolean;
   label: string;
   onPress: () => void;
@@ -1040,12 +1110,17 @@ function Chip({
       style={[
         styles.chip,
         grow && styles.chipGrow,
+        flow && styles.chipFlow,
+        grid && styles.chipGrid,
+        fullWidth && styles.chipFullWidth,
         compact && styles.chipCompact,
         selected && styles.chipSelected,
       ]}
     >
       <Text
-        numberOfLines={compact ? 1 : undefined}
+        adjustsFontSizeToFit={flow || grid}
+        minimumFontScale={flow || grid ? 0.85 : undefined}
+        numberOfLines={compact || flow || grid ? 1 : undefined}
         style={[
           styles.chipLabel,
           compact && styles.chipCompactLabel,
@@ -1060,11 +1135,13 @@ function Chip({
 }
 
 function DescriptionOption({
+  accessibilityLabel,
   description,
   label,
   onPress,
   selected,
 }: {
+  accessibilityLabel?: string;
   description: string;
   label: string;
   onPress: () => void;
@@ -1072,6 +1149,7 @@ function DescriptionOption({
 }) {
   return (
     <Pressable
+      accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
@@ -1283,6 +1361,7 @@ const styles = StyleSheet.create({
   suffix: { color: colors.textMuted, fontSize: 13 },
   hint: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
   choiceCard: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  preferredLocationSection: { width: '100%', gap: spacing.sm },
   counterCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1322,6 +1401,25 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   chipGrow: { minWidth: 72, flexGrow: 1, alignItems: 'center' },
+  chipFlow: {
+    minHeight: 48,
+    flexGrow: 1,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chipGrid: {
+    width: '48.5%',
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chipFullWidth: {
+    width: '100%',
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   chipCompact: {
     minWidth: 0,
     flexGrow: 1,
@@ -1366,7 +1464,23 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
   },
   painSectionTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
-  painChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  optionGrid: {
+    width: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    columnGap: spacing.sm,
+    rowGap: spacing.sm,
+  },
+  painSliderList: { gap: spacing.sm },
+  painSliderCard: {
+    borderWidth: 1,
+    borderColor: colors.dangerBorder,
+    borderRadius: radii.control,
+    backgroundColor: '#FBEAE7',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
   painIntensityControl: { gap: spacing.xs },
   painIntensityHeading: {
     flexDirection: 'row',
@@ -1374,13 +1488,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.md,
   },
+  painIntensityLabel: {
+    minWidth: 0,
+    flex: 1,
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
   painIntensityValue: {
     minWidth: 38,
+    flexShrink: 0,
+    borderWidth: 1,
+    borderColor: colors.dangerBorder,
     borderRadius: 12,
-    backgroundColor: colors.danger,
-    color: colors.surface,
+    backgroundColor: colors.surface,
+    color: '#8E3226',
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '400',
     lineHeight: 24,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
@@ -1398,7 +1522,7 @@ const styles = StyleSheet.create({
   painSliderFill: {
     height: '100%',
     borderRadius: 4,
-    backgroundColor: colors.danger,
+    backgroundColor: colors.dangerText,
   },
   painSliderThumb: {
     position: 'absolute',
@@ -1409,7 +1533,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: colors.surface,
     borderRadius: 12,
-    backgroundColor: colors.dangerText,
+    backgroundColor: '#8E3226',
   },
   painSliderRangeLabels: {
     flexDirection: 'row',
@@ -1418,7 +1542,7 @@ const styles = StyleSheet.create({
   painSliderRangeLabel: {
     color: colors.textMuted,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   consentGroups: { gap: 14 },
   consentRow: {

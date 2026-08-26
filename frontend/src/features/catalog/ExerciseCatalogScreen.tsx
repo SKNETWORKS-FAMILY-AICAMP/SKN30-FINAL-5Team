@@ -94,8 +94,8 @@ export function ExerciseCatalogScreen({
 
   if (openExerciseId !== null) {
     return (
-      <ScreenShell bands>
-        <ScreenHeading title="운동 설명" onBand />
+      <ScreenShell>
+        <ScreenHeading title="운동 설명" />
         <ExerciseDetailSheet api={api} exerciseId={openExerciseId} />
         <Button
           label="목록으로"
@@ -107,11 +107,10 @@ export function ExerciseCatalogScreen({
   }
 
   return (
-    <ScreenShell bands>
+    <ScreenShell>
       <ScreenHeading
         title="운동 카탈로그"
         subtitle="검수를 통과한 운동만 보여드려요"
-        onBand
       />
 
       <View style={styles.filterGroup}>

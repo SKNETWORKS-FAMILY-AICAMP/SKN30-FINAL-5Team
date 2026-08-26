@@ -254,7 +254,7 @@ function revisionNotice(
   }
 }
 
-export type HomeBusyKind = 'checkin' | 'revision' | 'starting';
+export type HomeBusyKind = 'checkin' | 'regeneration' | 'revision' | 'starting';
 
 export type HomeUserEdits = {
   routineId: string;
@@ -283,7 +283,7 @@ export type HomeScreenProps = {
   onOpenCalendar?: () => void;
   onOpenCheckin?: () => void;
   onProfile?: () => void;
-  onRequestAiRevision?: () => void;
+  onRegenerateDecision?: () => void;
   onRequestAlternative?: () => void;
   onReorderPlan?: (from: number, to: number) => void;
   onRetry?: () => void;
@@ -356,7 +356,7 @@ function HomeScreenContent({
   onOpenCalendar,
   onOpenCheckin,
   onProfile,
-  onRequestAiRevision,
+  onRegenerateDecision,
   onRequestAlternative,
   onReorderPlan,
   onRetry,
@@ -489,10 +489,10 @@ function HomeScreenContent({
   const progressPercent = weeklyCompletionPercentage(completed, goal);
   const effectiveCheckedIn = apiMode ? context !== null : checkedIn;
   const rerolls = apiMode
-    ? (planRevision?.ai_revision_count ?? 0)
+    ? (decision?.regeneration_sequence ?? 0)
     : previewRerolls;
   const rerollLoading = apiMode
-    ? busy === 'checkin' || busy === 'revision'
+    ? busy === 'regeneration'
     : rerolling && effectiveCheckedIn;
   const seriousDecision =
     decision?.action_code === 'STOP_AND_SEEK_HELP' ||
@@ -631,7 +631,7 @@ function HomeScreenContent({
       return;
     }
     if (apiMode) {
-      onRequestAiRevision?.();
+      onRegenerateDecision?.();
       return;
     }
     setRerolling(true);
@@ -854,7 +854,11 @@ function HomeScreenContent({
                     ? onChooseRest
                     : undefined
                 }
-                onRequestAlternative={requestAlternative}
+                onRequestAlternative={
+                  !apiMode || decision?.regeneration_sequence != null
+                    ? requestAlternative
+                    : undefined
+                }
                 onStart={
                   !apiMode || routineOption?.selectable
                     ? onStartWorkout
@@ -862,7 +866,7 @@ function HomeScreenContent({
                 }
                 painPart={painPart}
                 pending={busy !== null}
-                rerolling={apiMode ? busy === 'revision' : rerolling}
+                rerolling={apiMode ? busy === 'regeneration' : rerolling}
                 rerolls={rerolls}
                 revisionNotice={routineRevisionNotice?.text}
                 startBlockedReason={routineBlockedReason}
@@ -1469,7 +1473,7 @@ function RoutineCard({
   onOpenExercise?: (item: HomeRoutineItem) => void;
   onOpenReasons?: () => void;
   onRest?: () => void;
-  onRequestAlternative: () => void;
+  onRequestAlternative?: () => void;
   onStart?: () => void;
   painPart: string | null;
   pending: boolean;
@@ -1660,30 +1664,32 @@ function RoutineCard({
           <EditIcon />
           <Text style={styles.editActionLabel}>{editLabel}</Text>
         </Pressable>
-        <Pressable
-          accessibilityLabel="다른 루틴 추천 받기"
-          accessibilityRole="button"
-          accessibilityState={{
-            disabled: pending || rerolling || rerolls >= 2,
-          }}
-          disabled={pending || rerolling || rerolls >= 2}
-          onPress={onRequestAlternative}
-          style={[
-            styles.routineAction,
-            rerolls >= 2 && styles.routineActionDisabled,
-          ]}
-        >
-          <RerollIcon color={rerolls >= 2 ? '#B0ACA4' : '#A45F00'} />
-          <Text
-            numberOfLines={1}
+        {onRequestAlternative ? (
+          <Pressable
+            accessibilityLabel="다른 루틴 추천 받기"
+            accessibilityRole="button"
+            accessibilityState={{
+              disabled: pending || rerolling || rerolls >= 2,
+            }}
+            disabled={pending || rerolling || rerolls >= 2}
+            onPress={onRequestAlternative}
             style={[
-              styles.rerollActionLabel,
-              rerolls >= 2 && styles.rerollActionLabelDisabled,
+              styles.routineAction,
+              rerolls >= 2 && styles.routineActionDisabled,
             ]}
           >
-            {rerollLabel}
-          </Text>
-        </Pressable>
+            <RerollIcon color={rerolls >= 2 ? '#B0ACA4' : '#A45F00'} />
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.rerollActionLabel,
+                rerolls >= 2 && styles.rerollActionLabelDisabled,
+              ]}
+            >
+              {rerollLabel}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
       {onRest ? (
         <Pressable

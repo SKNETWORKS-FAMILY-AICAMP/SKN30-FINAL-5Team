@@ -12,13 +12,17 @@ export const BANANA_FALL_PER_MS = 1 / 4_200;
 export const PLAYER_HALF_WIDTH = 0.11;
 
 const BANANA_HALF_WIDTH = 0.035;
-const CATCH_LINE_Y = 0.82;
+const DEFAULT_CATCH_LINE_Y = 0.75;
 
 export type FallingBanana = {
   id: number;
   x: number;
   y: number;
+  rotationDeg: number;
+  rotationSpeedDegPerSecond: number;
 };
+
+export type BananaBasketStage = 'empty' | 'medium' | 'full';
 
 export type BananaCatchState = {
   status: 'ready' | 'playing' | 'finished';
@@ -65,6 +69,8 @@ export function advanceBananaCatch(
   state: BananaCatchState,
   deltaMs: number,
   random: () => number = Math.random,
+  catchLineY: number = DEFAULT_CATCH_LINE_Y,
+  catchHalfWidthX: number = PLAYER_HALF_WIDTH + BANANA_HALF_WIDTH,
 ): BananaCatchState {
   if (state.status !== 'playing' || deltaMs <= 0) return state;
 
@@ -74,17 +80,24 @@ export function advanceBananaCatch(
 
   const bananas = state.bananas.flatMap((banana) => {
     const nextY = banana.y + BANANA_FALL_PER_MS * stepMs;
-    const crossedCatchLine = banana.y < CATCH_LINE_Y && nextY >= CATCH_LINE_Y;
+    const crossedCatchLine = banana.y < catchLineY && nextY >= catchLineY;
     const overlapsCatcher =
-      Math.abs(banana.x - state.playerX) <=
-      PLAYER_HALF_WIDTH + BANANA_HALF_WIDTH;
+      Math.abs(banana.x - state.playerX) <= catchHalfWidthX;
 
     if (crossedCatchLine && overlapsCatcher) {
       score += 1;
       return [];
     }
     if (nextY > 1) return [];
-    return [{ ...banana, y: nextY }];
+    return [
+      {
+        ...banana,
+        y: nextY,
+        rotationDeg:
+          banana.rotationDeg +
+          banana.rotationSpeedDegPerSecond * (stepMs / 1_000),
+      },
+    ];
   });
 
   let spawnElapsedMs = state.spawnElapsedMs + stepMs;
@@ -116,11 +129,22 @@ export function bananaCatchSecondsLeft(state: BananaCatchState): number {
   );
 }
 
+/** The collecting mascot changes for each ten bananas caught. */
+export function bananaBasketStage(score: number): BananaBasketStage {
+  if (score >= 20) return 'full';
+  if (score >= 10) return 'medium';
+  return 'empty';
+}
+
 function spawnBanana(id: number, random: () => number): FallingBanana {
   return {
     id,
     x: clamp(random(), BANANA_HALF_WIDTH, 1 - BANANA_HALF_WIDTH),
     y: -0.08,
+    rotationDeg: (random() - 0.5) * 70,
+    // At most one turn per roughly ten seconds, with near-zero values making
+    // some bananas look almost still while others visibly tumble.
+    rotationSpeedDegPerSecond: (random() - 0.5) * 70,
   };
 }
 
