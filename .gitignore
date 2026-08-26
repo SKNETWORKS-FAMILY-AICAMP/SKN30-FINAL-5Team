@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+!infra/deployment/.env.staging.example
 *.pem
 *.key
 firebase-service-account*.json
