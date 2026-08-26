@@ -58,6 +58,7 @@ import {
   HOUSE_BACKDROP_FALLBACK,
   houseBackgroundArt,
   houseBackgroundLabels,
+  houseBackgroundThumbnailArt,
   houseItemArt,
   housePoseArt,
   type HouseArtSlot,
@@ -267,9 +268,10 @@ export function MascotHouseContent({
       </View>
 
       <SafeAreaView
-        edges={['top', 'bottom']}
+        edges={['top']}
         pointerEvents="box-none"
         style={styles.safeArea}
+        testID="house-safe-area"
       >
         <View
           onLayout={(event) => setColumnTop(event.nativeEvent.layout.y)}
@@ -277,15 +279,6 @@ export function MascotHouseContent({
           style={styles.column}
           testID="house-content-column"
         >
-          {/* Title only. 홈 and 마이페이지 already sit in the tab bar below,
-              and a second copy of both in the corners was two ways to reach the
-              same two screens. */}
-          <View style={styles.topBar}>
-            <Text accessibilityRole="header" style={styles.title}>
-              끼끼의 집
-            </Text>
-          </View>
-
           <View
             pointerEvents="box-none"
             style={styles.stage}
@@ -775,7 +768,7 @@ function DecoratePanel({
                 >
                   <HouseArtView
                     showPlaceholderLabel={false}
-                    slot={houseBackgroundArt[backgroundId]}
+                    slot={houseBackgroundThumbnailArt[backgroundId]}
                     style={styles.backgroundArt}
                   />
                   <Text style={styles.itemLabel}>{label}</Text>
@@ -1041,15 +1034,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
-  },
-  topBar: {
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-  },
-  title: {
-    color: colors.brandOutline,
-    fontSize: 19,
-    fontWeight: '800',
   },
   stage: {
     flex: 1,

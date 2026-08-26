@@ -1,6 +1,7 @@
 import {
   availabilitySlotsForRequest,
   validateAvailabilitySlots,
+  weeklyCompletionPercentage,
 } from '../src/features/home/homeModel';
 
 describe('Home check-in availability', () => {
@@ -66,5 +67,20 @@ describe('Home check-in availability', () => {
         end_at: '2026-08-21T00:00:00+09:00',
       },
     ]);
+  });
+});
+
+describe('Home weekly completion percentage', () => {
+  it('rounds the server-backed completion ratio to a whole percent', () => {
+    expect(weeklyCompletionPercentage(0, 3)).toBe(0);
+    expect(weeklyCompletionPercentage(1, 3)).toBe(33);
+    expect(weeklyCompletionPercentage(2, 3)).toBe(67);
+    expect(weeklyCompletionPercentage(3, 3)).toBe(100);
+  });
+
+  it('returns a safe bounded percentage for invalid or excessive counts', () => {
+    expect(weeklyCompletionPercentage(1, 0)).toBe(0);
+    expect(weeklyCompletionPercentage(-1, 3)).toBe(0);
+    expect(weeklyCompletionPercentage(4, 3)).toBe(100);
   });
 });

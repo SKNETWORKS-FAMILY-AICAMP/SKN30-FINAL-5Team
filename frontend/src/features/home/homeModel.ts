@@ -508,6 +508,19 @@ export function weekStartForLocalDate(localDate: string): string | null {
   );
 }
 
+export function weeklyCompletionPercentage(
+  completedCount: number,
+  targetCount: number,
+): number {
+  const target = Math.max(0, Math.floor(targetCount));
+  if (target === 0) {
+    return 0;
+  }
+
+  const completed = Math.max(0, Math.floor(completedCount));
+  return Math.min(100, Math.round((completed / target) * 100));
+}
+
 export function weekDaysFromSessions(
   weekStart: string,
   sessions: readonly WorkoutSessionLogSummary[],

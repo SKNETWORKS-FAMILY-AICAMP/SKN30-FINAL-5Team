@@ -1,6 +1,18 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { Animated, Platform, ScrollView, StyleSheet } from 'react-native';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react-native';
+import {
+  AccessibilityInfo,
+  Animated,
+  Platform,
+  ScrollView,
+  StyleSheet,
+} from 'react-native';
 
 import { CalendarReportScreen } from '../src/features/home/CalendarReportScreen';
 import { MapHomeScreen } from '../src/features/home/MapHomeScreen';
@@ -121,8 +133,8 @@ const EXPECTED_DAY_VISUALS = [
 
 const EXPECTED_WEEK_CHIPS = [
   ['progress', '진행 중', '#FFFFFF', '#A45F00', '#F1D39A', 'solid'],
-  ['make', '리포트 만들기', '#F6BA50', '#3A320F', '#D98B16', 'solid'],
-  ['unread', '확인 필요', '#FDECE9', '#C2402F', '#F5C9C1', 'solid'],
+  ['make', '리포트 생성 가능!', '#F6BA50', '#3A320F', '#D98B16', 'solid'],
+  ['unread', '리포트 확인하기', '#FDECE9', '#C2402F', '#F5C9C1', 'solid'],
   ['read', '확인 완료', 'transparent', '#9A968E', '#E2DED4', 'solid'],
   ['unavailable', '리포트 오류', '#FDECE9', '#C2402F', '#F5C9C1', 'solid'],
   ['upcoming', '예정', 'transparent', '#B7B2A8', '#DFDBD2', 'dashed'],
@@ -253,7 +265,30 @@ describe('Home secondary visual prototypes', () => {
     });
     expect(
       screen.getByTestId('calendar-chip-week-2-label').props.children,
-    ).toBe('리포트 만들기');
+    ).toBe('리포트 생성 가능!');
+  });
+
+  it('periodically shakes the report creation CTA when motion is allowed', async () => {
+    jest
+      .mocked(AccessibilityInfo.isReduceMotionEnabled)
+      .mockResolvedValueOnce(false);
+    const loopSpy = jest.spyOn(Animated, 'loop');
+    const timingSpy = jest.spyOn(Animated, 'timing');
+
+    render(<CalendarReportScreen />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(loopSpy).toHaveBeenCalledTimes(1));
+    expect(timingSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        toValue: -4,
+        duration: 55,
+        useNativeDriver: true,
+      }),
+    );
   });
 
   it('shows API routine items below the map without map overlays', async () => {
@@ -331,7 +366,7 @@ describe('Home secondary visual prototypes', () => {
       ),
     ).toBeOnTheScreen();
     fireEvent.press(
-      screen.getByRole('button', { name: '주간 리포트 만들기  ›' }),
+      screen.getByRole('button', { name: '2주차 리포트 생성 가능!' }),
     );
     expect(onOpenWeeklyReport).toHaveBeenCalledWith('2026-08-03');
   });

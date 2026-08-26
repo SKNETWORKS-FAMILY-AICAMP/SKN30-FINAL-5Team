@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
   Animated,
   Platform,
   Pressable,
@@ -10,6 +11,8 @@ import {
   View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
@@ -239,30 +242,40 @@ function CalendarReportContent({
                 ]}
                 testID={`calendar-week-${week.id}`}
               >
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    beforeRoutineStart
-                      ? `${week.label} 루틴 시작 전, 선택할 수 없음`
-                      : `${week.label} ${CALENDAR_WEEK_CHIPS[week.state].label}, 요약 ${expanded ? '접기' : '펼치기'}`
-                  }
-                  accessibilityState={{ disabled: beforeRoutineStart }}
-                  disabled={beforeRoutineStart}
-                  onPress={() => setExpandedWeek(expanded ? null : week.id)}
-                  style={styles.weekHeader}
-                >
+                <View style={styles.weekHeader}>
                   <View style={styles.weekHeadingRow}>
-                    <View style={styles.weekTitleGroup}>
-                      <Text style={styles.weekTitle}>{week.label}</Text>
-                      <Text style={styles.weekRange}>{week.range}</Text>
-                    </View>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        beforeRoutineStart
+                          ? `${week.label} 루틴 시작 전, 선택할 수 없음`
+                          : `${week.label} ${CALENDAR_WEEK_CHIPS[week.state].label}, 요약 ${expanded ? '접기' : '펼치기'}`
+                      }
+                      accessibilityState={{ disabled: beforeRoutineStart }}
+                      disabled={beforeRoutineStart}
+                      onPress={() => setExpandedWeek(expanded ? null : week.id)}
+                      style={styles.weekTitleButton}
+                    >
+                      <View style={styles.weekTitleGroup}>
+                        <Text style={styles.weekTitle}>{week.label}</Text>
+                        <Text style={styles.weekRange}>{week.range}</Text>
+                      </View>
+                    </Pressable>
                     <StateChip
                       beforeRoutineStart={beforeRoutineStart}
+                      onPress={
+                        !beforeRoutineStart &&
+                        (week.state === 'make' || week.state === 'unread')
+                          ? () =>
+                              onOpenWeeklyReport?.(week.weekStart ?? week.id)
+                          : undefined
+                      }
                       state={week.state}
                       weekId={week.id}
+                      weekLabel={week.label}
                     />
                   </View>
-                </Pressable>
+                </View>
                 <View style={styles.dayRow}>
                   {week.days.map((day, index) => {
                     const beforeRoutineStart =
@@ -665,39 +678,125 @@ function CalendarStatusMark({
 
 function StateChip({
   beforeRoutineStart = false,
+  onPress,
   state,
   weekId,
+  weekLabel,
 }: {
   beforeRoutineStart?: boolean;
+  onPress?: () => void;
   state: CalendarWeekState;
   weekId: string;
+  weekLabel: string;
 }) {
   const chip = CALENDAR_WEEK_CHIPS[state];
+  const [shakeX] = useState(() => new Animated.Value(0));
+  const [reduceMotionEnabled, setReduceMotionEnabled] = useState(true);
+
+  useEffect(() => {
+    if (state !== 'make') return undefined;
+
+    let mounted = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+      if (mounted && !enabled) setReduceMotionEnabled(false);
+    });
+    const subscription = AccessibilityInfo.addEventListener(
+      'reduceMotionChanged',
+      setReduceMotionEnabled,
+    );
+
+    return () => {
+      mounted = false;
+      subscription.remove();
+    };
+  }, [state]);
+
+  useEffect(() => {
+    shakeX.stopAnimation();
+    shakeX.setValue(0);
+    if (state !== 'make' || reduceMotionEnabled) return undefined;
+
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.delay(700),
+        Animated.timing(shakeX, {
+          toValue: -4,
+          duration: 55,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shakeX, {
+          toValue: 4,
+          duration: 80,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shakeX, {
+          toValue: -3,
+          duration: 70,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shakeX, {
+          toValue: 3,
+          duration: 70,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shakeX, {
+          toValue: 0,
+          duration: 55,
+          useNativeDriver: true,
+        }),
+        Animated.delay(2400),
+      ]),
+    );
+    animation.start();
+
+    return () => {
+      animation.stop();
+      shakeX.setValue(0);
+    };
+  }, [reduceMotionEnabled, shakeX, state]);
+
+  const chipStyle: StyleProp<ViewStyle> = [
+    styles.stateChip,
+    {
+      backgroundColor: beforeRoutineStart ? '#C9C5BC' : chip.backgroundColor,
+      borderColor: beforeRoutineStart ? '#9A968E' : chip.borderColor,
+      borderStyle: beforeRoutineStart ? 'solid' : chip.borderStyle,
+    },
+  ];
+  const label = beforeRoutineStart ? '가입 전' : chip.label;
+  const chipText = (
+    <Text
+      style={[
+        styles.stateChipText,
+        { color: beforeRoutineStart ? '#5F5B55' : chip.color },
+      ]}
+      testID={`calendar-chip-${weekId}-label`}
+    >
+      {label}
+    </Text>
+  );
 
   return (
-    <View
-      style={[
-        styles.stateChip,
-        {
-          backgroundColor: beforeRoutineStart
-            ? '#C9C5BC'
-            : chip.backgroundColor,
-          borderColor: beforeRoutineStart ? '#9A968E' : chip.borderColor,
-          borderStyle: beforeRoutineStart ? 'solid' : chip.borderStyle,
-        },
-      ]}
-      testID={`calendar-chip-${weekId}`}
+    <Animated.View
+      style={{ transform: [{ translateX: shakeX }] }}
+      testID={`calendar-chip-${weekId}-motion`}
     >
-      <Text
-        style={[
-          styles.stateChipText,
-          { color: beforeRoutineStart ? '#5F5B55' : chip.color },
-        ]}
-        testID={`calendar-chip-${weekId}-label`}
-      >
-        {beforeRoutineStart ? '가입 전' : chip.label}
-      </Text>
-    </View>
+      {onPress === undefined ? (
+        <View style={chipStyle} testID={`calendar-chip-${weekId}`}>
+          {chipText}
+        </View>
+      ) : (
+        <Pressable
+          accessibilityLabel={`${weekLabel} ${label}`}
+          accessibilityRole="button"
+          onPress={onPress}
+          style={chipStyle}
+          testID={`calendar-chip-${weekId}`}
+        >
+          {chipText}
+        </Pressable>
+      )}
+    </Animated.View>
   );
 }
 
@@ -984,6 +1083,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: 6,
+  },
+  weekTitleButton: {
+    minWidth: 0,
+    flex: 1,
+    paddingVertical: 4,
   },
   weekTitle: {
     color: colors.text,

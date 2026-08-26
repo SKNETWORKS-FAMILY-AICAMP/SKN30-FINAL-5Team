@@ -10,7 +10,11 @@ import {
 import { Platform, processColor, ScrollView, StyleSheet } from 'react-native';
 
 import type { Api } from '../src/api/endpoints';
-import type { WorkoutPlan } from '../src/api/types';
+import type {
+  SessionItemUpdateResponse,
+  WorkoutPlan,
+  WorkoutSessionDetailResponse,
+} from '../src/api/types';
 import { imageAssets } from '../src/assets';
 import {
   clampWorkoutPageIndex,
@@ -887,6 +891,215 @@ describe('WorkoutScreen API mode', () => {
     expect(
       within(screen.getByTestId('workout-card-1')).getByText('나중에 할 운동'),
     ).toBeOnTheScreen();
+  });
+
+  it('advances the block UI before the server confirms completion', async () => {
+    const secondItem = {
+      ...API_PLAN.items[0]!,
+      plan_item_id: 'plan-item-api-2',
+      exercise_id: 'exercise-api-2',
+      exercise_name: 'Second exercise',
+      sequence: 2,
+    };
+    const plan = { ...API_PLAN, items: [API_PLAN.items[0]!, secondItem] };
+    const firstResult = sessionDetail('IN_PROGRESS').items[0]!;
+    const detail = {
+      ...sessionDetail('IN_PROGRESS'),
+      total_item_count: 2,
+      items: [
+        firstResult,
+        {
+          ...firstResult,
+          plan_item_id: secondItem.plan_item_id,
+          exercise_id: secondItem.exercise_id,
+          exercise_name: secondItem.exercise_name,
+        },
+      ],
+    };
+    let releaseUpdate: (() => void) | undefined;
+    const updateSessionItem = jest.fn(
+      async (
+        _sessionId: string,
+        planItemId: string,
+        statusCode: 'PENDING' | 'COMPLETED',
+        recordedAt: string,
+      ) => {
+        await new Promise<void>((resolve) => {
+          releaseUpdate = resolve;
+        });
+        return {
+          session_id: 'session-api',
+          status_code: 'IN_PROGRESS' as const,
+          item: {
+            plan_item_id: planItemId,
+            status_code: statusCode,
+            completed_at: statusCode === 'COMPLETED' ? recordedAt : null,
+          },
+          completed_item_count: 1,
+          total_item_count: 2,
+          next_pending_plan_item_id: secondItem.plan_item_id,
+        };
+      },
+    );
+    const api = workoutApi({
+      getWorkoutSession: jest.fn(async () => detail),
+      updateSessionItem,
+    });
+
+    render(
+      <WorkoutScreen
+        api={api}
+        sessionId="session-api"
+        plan={plan}
+        onOutcome={jest.fn()}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('workout-smash-action').props.accessibilityState
+          .disabled,
+      ).toBe(false),
+    );
+    expect(
+      within(screen.getByTestId('workout-card-0')).queryByRole('button'),
+    ).toBeNull();
+
+    fireEvent.press(screen.getByTestId('workout-smash-action'));
+
+    expect(updateSessionItem).toHaveBeenCalledTimes(1);
+    expect(
+      within(screen.getByTestId('workout-card-0')).getByRole('button'),
+    ).toBeOnTheScreen();
+    expect(screen.getByTestId('workout-smash-burst')).toBeOnTheScreen();
+    expect(
+      screen.getByTestId('workout-smash-action').props.accessibilityState
+        .disabled,
+    ).toBe(true);
+
+    await act(async () => {
+      releaseUpdate?.();
+    });
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('workout-smash-action').props.accessibilityState
+          .disabled,
+      ).toBe(false),
+    );
+  });
+
+  it('rolls optimistic progress back after the server confirms it is pending', async () => {
+    const getWorkoutSession = jest.fn(async () => sessionDetail('IN_PROGRESS'));
+    let rejectUpdate: ((reason?: unknown) => void) | undefined;
+    const updateSessionItem = jest.fn(
+      () =>
+        new Promise<SessionItemUpdateResponse>((_, reject) => {
+          rejectUpdate = reject;
+        }),
+    );
+    const api = workoutApi({ getWorkoutSession, updateSessionItem });
+
+    render(
+      <WorkoutScreen
+        api={api}
+        sessionId="session-api"
+        plan={API_PLAN}
+        onOutcome={jest.fn()}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('workout-smash-action').props.accessibilityState
+          .disabled,
+      ).toBe(false),
+    );
+    fireEvent.press(screen.getByTestId('workout-smash-action'));
+    expect(
+      within(screen.getByTestId('workout-card-0')).getByRole('button'),
+    ).toBeOnTheScreen();
+
+    await act(async () => {
+      rejectUpdate?.(new Error('response lost'));
+    });
+
+    await waitFor(() =>
+      expect(
+        within(screen.getByTestId('workout-card-0')).queryByRole('button'),
+      ).toBeNull(),
+    );
+    expect(getWorkoutSession).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps optimistic progress when a reread confirms the lost response committed', async () => {
+    const secondItem = {
+      ...API_PLAN.items[0]!,
+      plan_item_id: 'plan-item-api-2',
+      exercise_id: 'exercise-api-2',
+      exercise_name: 'Second exercise',
+      sequence: 2,
+    };
+    const plan = { ...API_PLAN, items: [API_PLAN.items[0]!, secondItem] };
+    const firstResult = sessionDetail('IN_PROGRESS').items[0]!;
+    const pendingDetail: WorkoutSessionDetailResponse = {
+      ...sessionDetail('IN_PROGRESS'),
+      total_item_count: 2,
+      items: [
+        firstResult,
+        {
+          ...firstResult,
+          plan_item_id: secondItem.plan_item_id,
+          exercise_id: secondItem.exercise_id,
+          exercise_name: secondItem.exercise_name,
+        },
+      ],
+    };
+    const completedDetail: WorkoutSessionDetailResponse = {
+      ...pendingDetail,
+      completed_item_count: 1,
+      items: [
+        {
+          ...pendingDetail.items[0]!,
+          status_code: 'COMPLETED' as const,
+          completed_at: '2026-08-19T09:01:00+09:00',
+        },
+        pendingDetail.items[1]!,
+      ],
+    };
+    const getWorkoutSession = jest
+      .fn<Api['getWorkoutSession']>()
+      .mockResolvedValueOnce(pendingDetail)
+      .mockResolvedValueOnce(completedDetail);
+    const updateSessionItem = jest.fn(async () => {
+      throw new Error('response lost');
+    });
+    const api = workoutApi({ getWorkoutSession, updateSessionItem });
+
+    render(
+      <WorkoutScreen
+        api={api}
+        sessionId="session-api"
+        plan={plan}
+        onOutcome={jest.fn()}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('workout-smash-action').props.accessibilityState
+          .disabled,
+      ).toBe(false),
+    );
+    fireEvent.press(screen.getByTestId('workout-smash-action'));
+
+    await waitFor(() => expect(getWorkoutSession).toHaveBeenCalledTimes(2));
+    expect(
+      within(screen.getByTestId('workout-card-0')).getByRole('button'),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByTestId('workout-smash-action').props.accessibilityState
+        .disabled,
+    ).toBe(false);
   });
 
   it('loads, starts and auto-finishes after the server confirms the last block', async () => {

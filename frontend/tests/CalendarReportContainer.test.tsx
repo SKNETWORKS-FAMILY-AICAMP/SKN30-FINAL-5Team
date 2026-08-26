@@ -210,11 +210,11 @@ describe('CalendarReportContainer', () => {
     ).toBe('◐');
     expect(
       screen.getByTestId('calendar-chip-2026-08-03-label').props.children,
-    ).toBe('확인 필요');
+    ).toBe('리포트 확인하기');
 
     fireEvent.press(
       screen.getByRole('button', {
-        name: '2주차 확인 필요, 요약 펼치기',
+        name: '2주차 리포트 확인하기, 요약 펼치기',
       }),
     );
     fireEvent.press(

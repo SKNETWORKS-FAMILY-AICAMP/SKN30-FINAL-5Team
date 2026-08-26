@@ -40,7 +40,11 @@ export function ScreenShell({
   footer?: React.ReactNode;
 }) {
   return (
-    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+    <SafeAreaView
+      style={styles.screen}
+      edges={footer ? ['top'] : ['top', 'bottom']}
+      testID="screen-shell-safe-area"
+    >
       {bands ? <BackgroundBands tall={tallBands} /> : null}
       {scroll ? (
         <ScrollView

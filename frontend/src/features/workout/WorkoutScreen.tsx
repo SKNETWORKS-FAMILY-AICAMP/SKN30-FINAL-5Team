@@ -527,10 +527,6 @@ function WorkoutScreenContent({
         ? serverNextIndex
         : Math.min(currentIndex + 1, blocks.length - 1);
     setVisiblePageIndex(nextIndex);
-    carouselRef.current?.scrollTo({
-      x: nextIndex * responsiveLayout.stride,
-      animated: true,
-    });
     setBurstKey((current) => current + 1);
     onBlockStatusChange?.(block.id, 'COMPLETED');
   };
@@ -542,12 +538,19 @@ function WorkoutScreenContent({
     );
     if (blockIndex >= 0) {
       setVisiblePageIndex(blockIndex);
-      carouselRef.current?.scrollTo({
-        x: blockIndex * responsiveLayout.stride,
-        animated: true,
-      });
     }
     onBlockStatusChange?.(block.id, 'PENDING');
+  };
+
+  const applyServerBlockProgress = (items: readonly SessionItem[]) => {
+    const serverCompletedBlockIds = items
+      .filter((item) => item.status_code === 'COMPLETED')
+      .map((item) => item.plan_item_id);
+    setCompletedBlockIds(serverCompletedBlockIds);
+    setVisiblePageIndex(
+      firstPendingIndex(sourceBlocks, serverCompletedBlockIds),
+    );
+    return serverCompletedBlockIds;
   };
 
   const smashCurrentBlock = async () => {
@@ -566,23 +569,76 @@ function WorkoutScreenContent({
       }
       return;
     }
+
+    const previousCompletedBlockIds = completedBlockIds;
+    const previousVisiblePageIndex = visiblePageIndex;
+
+    // The server remains the official source of completion, but the visual
+    // response does not need to wait for a network round trip. The next block
+    // stays disabled through actionPending until this mutation is confirmed.
+    applyCompletedBlock(block);
     setActionPending(true);
     setApiError(null);
     try {
-      const response = await apiConfig.api.updateSessionItem(
-        apiConfig.sessionId,
-        block.id,
-        'COMPLETED',
-        new Date().toISOString(),
-      );
-      if (response.item.status_code === 'COMPLETED') {
-        applyCompletedBlock(block, response.next_pending_plan_item_id);
-        if (response.completed_item_count === response.total_item_count) {
-          await finalizeServerSession();
+      let shouldFinalize = false;
+      try {
+        const response = await apiConfig.api.updateSessionItem(
+          apiConfig.sessionId,
+          block.id,
+          'COMPLETED',
+          new Date().toISOString(),
+        );
+        if (response.item.status_code !== 'COMPLETED') {
+          throw new Error('server did not confirm block completion');
+        }
+        const serverNextIndex =
+          response.next_pending_plan_item_id === null
+            ? -1
+            : blocks.findIndex(
+                (item) => item.id === response.next_pending_plan_item_id,
+              );
+        if (serverNextIndex >= 0) {
+          setVisiblePageIndex(serverNextIndex);
+        }
+        shouldFinalize =
+          response.completed_item_count === response.total_item_count;
+      } catch (error) {
+        // A failed fetch is ambiguous: the server may have committed the block
+        // and only lost the response. Re-read before rolling the optimistic UI
+        // back so a completed block does not appear to come back unexpectedly.
+        try {
+          const detail = await apiConfig.api.getWorkoutSession(
+            apiConfig.sessionId,
+          );
+          const serverCompletedBlockIds = applyServerBlockProgress(
+            detail.items,
+          );
+          const serverConfirmedCompletion = serverCompletedBlockIds.includes(
+            block.id,
+          );
+
+          if (!serverConfirmedCompletion) {
+            setApiError(messageForError(error));
+          } else if (detail.status_code === 'IN_PROGRESS') {
+            shouldFinalize =
+              detail.completed_item_count === detail.total_item_count;
+          } else {
+            setApiError(messageForError(error));
+          }
+        } catch {
+          setCompletedBlockIds(previousCompletedBlockIds);
+          setVisiblePageIndex(previousVisiblePageIndex);
+          setApiError(messageForError(error));
         }
       }
-    } catch (error) {
-      setApiError(messageForError(error));
+
+      if (shouldFinalize) {
+        try {
+          await finalizeServerSession();
+        } catch (finishError) {
+          setApiError(messageForError(finishError));
+        }
+      }
     } finally {
       setActionPending(false);
     }
@@ -1117,6 +1173,7 @@ function WorkoutScreenContent({
             !(canSmash || canFinish) && styles.smashActionDisabled,
             pressed && styles.pressed,
           ]}
+          testID="workout-smash-action"
         >
           <Text style={[styles.smashActionText, useJua && styles.jua]}>
             {actionPending

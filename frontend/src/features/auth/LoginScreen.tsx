@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -12,6 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
 import { fontFamilies, useAuthFonts } from '../../app/fonts';
+import { useAsyncAction } from '../../api/useAsync';
+import type { AuthAdapter } from '../../auth/firebase';
 import {
   Button,
   Card,
@@ -35,9 +37,9 @@ export const LOGIN_LAYOUT = {
 } as const;
 
 type LoginFixture = {
-  id: string;
+  email: string;
   password: string;
-  idError?: string;
+  emailError?: string;
   passwordError?: string;
   feedback?: {
     message: string;
@@ -47,24 +49,24 @@ type LoginFixture = {
 };
 
 const LOGIN_FIXTURES: Record<LoginPreviewState, LoginFixture> = {
-  idle: { id: '', password: '' },
+  idle: { email: '', password: '' },
   validation: {
-    id: '',
+    email: '',
     password: 'short',
-    idError: '아이디를 입력해주세요.',
+    emailError: '이메일을 입력해주세요.',
     passwordError: '비밀번호는 8자 이상이에요.',
   },
-  loading: { id: 'prototype-user', password: 'password1' },
+  loading: { email: 'prototype@example.com', password: 'password1' },
   'credentials-error': {
-    id: 'prototype-user',
+    email: 'prototype@example.com',
     password: 'password1',
     feedback: {
-      message: '아이디 또는 비밀번호가 올바르지 않아요.',
+      message: '이메일 또는 비밀번호가 올바르지 않아요.',
       tone: 'error',
     },
   },
   'network-error': {
-    id: 'prototype-user',
+    email: 'prototype@example.com',
     password: 'password1',
     feedback: {
       message:
@@ -73,7 +75,7 @@ const LOGIN_FIXTURES: Record<LoginPreviewState, LoginFixture> = {
     },
   },
   notice: {
-    id: 'prototype-user',
+    email: 'prototype@example.com',
     password: '',
     feedback: {
       message: '프로필 등록이 완료되었습니다. 로그인해 주세요.',
@@ -81,7 +83,7 @@ const LOGIN_FIXTURES: Record<LoginPreviewState, LoginFixture> = {
     },
   },
   blocked: {
-    id: '',
+    email: '',
     password: '',
     feedback: {
       message: '현재 계정으로는 로그인을 계속할 수 없어요.',
@@ -89,7 +91,7 @@ const LOGIN_FIXTURES: Record<LoginPreviewState, LoginFixture> = {
     },
   },
   linked: {
-    id: '',
+    email: '',
     password: '',
     linkedProvider: 'Google',
     feedback: {
@@ -97,14 +99,16 @@ const LOGIN_FIXTURES: Record<LoginPreviewState, LoginFixture> = {
       tone: 'success',
     },
   },
-  'social-loading': { id: '', password: '' },
+  'social-loading': { email: '', password: '' },
 };
 
 type LoginScreenProps = {
+  auth?: AuthAdapter;
+  notice?: string | null;
   onRetry?: () => void;
   onSignUp?: () => void;
   onSocialPress?: (provider: string) => void;
-  onSubmit?: () => void;
+  onSubmit?: (email: string, password: string) => unknown;
   previewState?: LoginPreviewState;
 };
 
@@ -113,6 +117,8 @@ export function LoginScreen({ ...props }: LoginScreenProps) {
 }
 
 function LoginScreenContent({
+  auth,
+  notice = null,
   onRetry,
   onSignUp,
   onSocialPress,
@@ -120,12 +126,37 @@ function LoginScreenContent({
   previewState = 'idle',
 }: LoginScreenProps) {
   const fixture = LOGIN_FIXTURES[previewState];
-  const [id, setId] = useState(fixture.id);
+  const [email, setEmail] = useState(fixture.email);
   const [password, setPassword] = useState(fixture.password);
   const [showPassword, setShowPassword] = useState(false);
   const [saveId, setSaveId] = useState(false);
   const [autoLogin, setAutoLogin] = useState(false);
-  const isLoading = previewState === 'loading';
+  const [validation, setValidation] = useState<string | null>(null);
+  const submit = useAsyncAction(async () => {
+    if (!auth) {
+      return;
+    }
+    await auth.signIn(email, password);
+  });
+  const handleSubmit = useCallback(() => {
+    if (!auth) {
+      onSubmit?.(email, password);
+      return;
+    }
+    setValidation(null);
+    submit.clearError();
+    if (!email.trim()) {
+      setValidation('이메일을 입력해주세요.');
+      return;
+    }
+    if (!password) {
+      setValidation('비밀번호를 입력해주세요.');
+      return;
+    }
+    void submit.run();
+  }, [auth, email, onSubmit, password, submit]);
+  const isApiFlow = auth !== undefined;
+  const isLoading = previewState === 'loading' || submit.pending;
   const isSocialLoading = previewState === 'social-loading';
   const authFonts = useAuthFonts();
   const useLocalHeadingFont = authFonts.loaded && !authFonts.failed;
@@ -189,16 +220,26 @@ function LoginScreenContent({
             tone={fixture.feedback.tone}
           />
         ) : null}
+        {notice ? <InlineFeedback message={notice} tone="warning" /> : null}
+        {validation ? (
+          <InlineFeedback message={validation} tone="error" />
+        ) : null}
+        {submit.error ? (
+          <InlineFeedback message={submit.error} tone="error" />
+        ) : null}
 
         <View style={styles.form}>
           <TextField
-            accessibilityLabel="아이디"
+            accessibilityLabel="이메일"
             autoCapitalize="none"
-            error={fixture.idError}
-            onChangeText={setId}
-            placeholder="아이디"
+            autoComplete="email"
+            error={fixture.emailError}
+            keyboardType="email-address"
+            onChangeText={setEmail}
+            placeholder="이메일"
             style={styles.loginField}
-            value={id}
+            textContentType="emailAddress"
+            value={email}
           />
           <TextField
             accessibilityLabel="비밀번호"
@@ -222,20 +263,20 @@ function LoginScreenContent({
             value={password}
           />
 
-          <View style={styles.preferenceGroup}>
-            <CheckRow
-              checked={saveId}
-              description="다음 방문 시 아이디만 자동 입력돼요"
-              label="아이디 저장"
-              onPress={() => setSaveId((current) => !current)}
-            />
-            <CheckRow
-              checked={autoLogin}
-              description="로그인 상태를 유지해요 (비밀번호는 저장하지 않아요)"
-              label="자동 로그인"
-              onPress={() => setAutoLogin((current) => !current)}
-            />
-          </View>
+          {!isApiFlow ? (
+            <View style={styles.preferenceGroup}>
+              <CheckRow
+                checked={saveId}
+                label="이메일 저장"
+                onPress={() => setSaveId((current) => !current)}
+              />
+              <CheckRow
+                checked={autoLogin}
+                label="자동 로그인"
+                onPress={() => setAutoLogin((current) => !current)}
+              />
+            </View>
+          ) : null}
 
           <Button
             disabled={isLoading}
@@ -246,7 +287,7 @@ function LoginScreenContent({
                 <ActivityIndicator color={colors.surface} size="small" />
               ) : undefined
             }
-            onPress={onSubmit}
+            onPress={handleSubmit}
             style={isLoading ? styles.loadingButton : undefined}
           />
 
@@ -258,44 +299,52 @@ function LoginScreenContent({
             >
               <Text style={styles.primaryLink}>회원가입</Text>
             </Pressable>
-            <View style={styles.linkDivider} />
-            <Text style={styles.secondaryLink}>아이디 · 비밀번호 찾기</Text>
+            {!isApiFlow ? (
+              <>
+                <View style={styles.linkDivider} />
+                <Text style={styles.secondaryLink}>이메일 · 비밀번호 찾기</Text>
+              </>
+            ) : null}
           </View>
         </View>
 
-        <View style={styles.dividerRow}>
-          <View style={styles.divider} />
-          <Text style={styles.dividerLabel}>
-            {fixture.linkedProvider ? '연결한 계정으로 로그인' : '또는'}
-          </Text>
-          <View style={styles.divider} />
-        </View>
+        {!isApiFlow ? (
+          <>
+            <View style={styles.dividerRow}>
+              <View style={styles.divider} />
+              <Text style={styles.dividerLabel}>
+                {fixture.linkedProvider ? '연결한 계정으로 로그인' : '또는'}
+              </Text>
+              <View style={styles.divider} />
+            </View>
 
-        <View style={styles.socialGroup}>
-          <SocialButton
-            label={
-              fixture.linkedProvider === 'Google'
-                ? 'Google로 로그인'
-                : 'Google로 계속하기'
-            }
-            mark="G"
-            onPress={() => onSocialPress?.('Google')}
-            selected={fixture.linkedProvider === 'Google'}
-            tone="google"
-          />
-          <SocialButton
-            label="카카오로 계속하기"
-            mark="K"
-            onPress={() => onSocialPress?.('카카오')}
-            tone="kakao"
-          />
-          <SocialButton
-            label="네이버로 계속하기"
-            mark="N"
-            onPress={() => onSocialPress?.('네이버')}
-            tone="naver"
-          />
-        </View>
+            <View style={styles.socialGroup}>
+              <SocialButton
+                label={
+                  fixture.linkedProvider === 'Google'
+                    ? 'Google로 로그인'
+                    : 'Google로 계속하기'
+                }
+                mark="G"
+                onPress={() => onSocialPress?.('Google')}
+                selected={fixture.linkedProvider === 'Google'}
+                tone="google"
+              />
+              <SocialButton
+                label="카카오로 계속하기"
+                mark="K"
+                onPress={() => onSocialPress?.('카카오')}
+                tone="kakao"
+              />
+              <SocialButton
+                label="네이버로 계속하기"
+                mark="N"
+                onPress={() => onSocialPress?.('네이버')}
+                tone="naver"
+              />
+            </View>
+          </>
+        ) : null}
 
         <Text style={styles.terms}>
           계속하면 서비스 이용약관과 개인정보 처리방침에 동의하게 됩니다.
@@ -319,12 +368,10 @@ function LoginScreenContent({
 
 function CheckRow({
   checked,
-  description,
   label,
   onPress,
 }: {
   checked: boolean;
-  description: string;
   label: string;
   onPress: () => void;
 }) {
@@ -340,10 +387,7 @@ function CheckRow({
           ✓
         </Text>
       </View>
-      <View style={styles.checkCopy}>
-        <Text style={styles.checkLabel}>{label}</Text>
-        <Text style={styles.checkDescription}>{description}</Text>
-      </View>
+      <Text style={styles.checkLabel}>{label}</Text>
     </Pressable>
   );
 }
@@ -533,17 +577,10 @@ const styles = StyleSheet.create({
   checkMarkHidden: {
     color: 'transparent',
   },
-  checkCopy: {
-    gap: 1,
-  },
   checkLabel: {
     color: colors.text,
     fontSize: 13.5,
     fontWeight: '600',
-  },
-  checkDescription: {
-    color: colors.textMuted,
-    fontSize: 11.5,
   },
   accountLinks: {
     flexDirection: 'row',

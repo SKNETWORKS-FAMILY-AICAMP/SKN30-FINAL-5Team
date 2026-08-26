@@ -1,5 +1,5 @@
 /** API-backed, one-question-per-page onboarding flow. */
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -18,7 +18,7 @@ import {
   DEFAULT_BODY_AREA_OPTIONS,
   EXTENDED_BODY_AREA_OPTIONS,
 } from '../../api/labels';
-import type { DiscomfortSeverityCode, SexCode } from '../../api/types';
+import type { SexCode } from '../../api/types';
 import { useAsyncAction } from '../../api/useAsync';
 import {
   Button,
@@ -45,14 +45,8 @@ const SEX_OPTIONS = [
   { code: 'MALE', label: '남성' },
 ] as const satisfies readonly { code: SexCode; label: string }[];
 
-const PAIN_SEVERITY_OPTIONS = [
-  { code: 'MILD', label: '조금 아픔' },
-  { code: 'MODERATE', label: '중간 정도 아픔' },
-  { code: 'SEVERE', label: '많이 아픔' },
-] as const satisfies readonly {
-  code: DiscomfortSeverityCode;
-  label: string;
-}[];
+const PAIN_INTENSITY_MIN = 1;
+const PAIN_INTENSITY_MAX = 10;
 const COACHING_STYLE_OPTIONS = [
   {
     code: 'SUPPORTIVE',
@@ -233,8 +227,8 @@ function OnboardingScreenContent({
   const [attentionAreas, setAttentionAreas] = useState<string[]>([]);
   const [showExtendedAttentionAreas, setShowExtendedAttentionAreas] =
     useState(false);
-  const [attentionSeverities, setAttentionSeverities] = useState<
-    Partial<Record<string, DiscomfortSeverityCode>>
+  const [painIntensityScores, setPainIntensityScores] = useState<
+    Partial<Record<string, number>>
   >({});
   const [generalConsent, setGeneralConsent] = useState(false);
   const [sensitiveConsent, setSensitiveConsent] = useState(false);
@@ -313,7 +307,7 @@ function OnboardingScreenContent({
     locations,
     nickname,
     attentionAreas,
-    attentionSeverities,
+    painIntensityScores,
     preferredExerciseTypes,
     primaryGoalCode,
     sensitiveConsent,
@@ -343,8 +337,14 @@ function OnboardingScreenContent({
 
   const toggleAttentionArea = (code: string) => {
     setAttentionAreas((values) => {
-      if (!values.includes(code)) return [...values, code];
-      setAttentionSeverities((currentValues) => {
+      if (!values.includes(code)) {
+        setPainIntensityScores((currentValues) => ({
+          ...currentValues,
+          [code]: PAIN_INTENSITY_MIN,
+        }));
+        return [...values, code];
+      }
+      setPainIntensityScores((currentValues) => {
         const next = { ...currentValues };
         delete next[code];
         return next;
@@ -561,7 +561,7 @@ function OnboardingScreenContent({
               onPress={() => {
                 setHasAttentionAreas(false);
                 setAttentionAreas([]);
-                setAttentionSeverities({});
+                setPainIntensityScores({});
                 submit.clearError();
               }}
             />
@@ -611,42 +611,23 @@ function OnboardingScreenContent({
                   </View>
                 </View>
                 {attentionAreas.map((code) => {
+                  const score = painIntensityScores[code] ?? PAIN_INTENSITY_MIN;
                   return (
                     <View key={code} style={styles.painSection}>
-                      <Text style={styles.painSectionTitle}>
-                        {bodyAreaLabel(code)} 통증 정도
-                      </Text>
-                      <View
-                        style={styles.painSeverityChoices}
-                        testID={`onboarding-pain-severity-options-${code}`}
-                      >
-                        {PAIN_SEVERITY_OPTIONS.map((severity) => (
-                          <Chip
-                            compact
-                            key={severity.code}
-                            label={severity.label}
-                            selected={
-                              attentionSeverities[code] === severity.code
-                            }
-                            onPress={() => {
-                              setAttentionSeverities((values) => ({
-                                ...values,
-                                [code]: severity.code,
-                              }));
-                              submit.clearError();
-                            }}
-                          />
-                        ))}
-                      </View>
+                      <PainIntensitySlider
+                        bodyArea={bodyAreaLabel(code)}
+                        onChange={(value) => {
+                          setPainIntensityScores((values) => ({
+                            ...values,
+                            [code]: value,
+                          }));
+                          submit.clearError();
+                        }}
+                        value={score}
+                      />
                     </View>
                   );
                 })}
-                {attentionAreas.length > 0 ? (
-                  <Text style={styles.hint}>
-                    통증 정도는 온보딩 중 확인용이며, 현재 서버에는 부위만
-                    저장돼요.
-                  </Text>
-                ) : null}
               </View>
             ) : null}
           </ChoiceCard>
@@ -820,7 +801,7 @@ type FormState = {
   equipment: string[];
   hasAttentionAreas: boolean | null;
   attentionAreas: string[];
-  attentionSeverities: Partial<Record<string, DiscomfortSeverityCode>>;
+  painIntensityScores: Partial<Record<string, number>>;
   generalConsent: boolean;
   sensitiveConsent: boolean;
 };
@@ -859,9 +840,15 @@ function isStepValid(
         form.hasAttentionAreas !== null &&
         (!form.hasAttentionAreas ||
           (form.attentionAreas.length > 0 &&
-            form.attentionAreas.every(
-              (code) => form.attentionSeverities[code] !== undefined,
-            )))
+            form.attentionAreas.every((code) => {
+              const score = form.painIntensityScores[code];
+              return (
+                Number.isInteger(score) &&
+                score !== undefined &&
+                score >= PAIN_INTENSITY_MIN &&
+                score <= PAIN_INTENSITY_MAX
+              );
+            })))
       );
     case 'consent':
       return form.generalConsent && form.sensitiveConsent;
@@ -927,6 +914,102 @@ function StepCounter({
         <Text style={styles.counterButtonText}>+</Text>
       </Pressable>
     </Card>
+  );
+}
+
+function PainIntensitySlider({
+  bodyArea,
+  onChange,
+  value,
+}: {
+  bodyArea: string;
+  onChange: (value: number) => void;
+  value: number;
+}) {
+  const [trackWidth, setTrackWidth] = useState(0);
+  const boundedValue = Math.min(
+    PAIN_INTENSITY_MAX,
+    Math.max(PAIN_INTENSITY_MIN, Math.round(value)),
+  );
+  const progress =
+    (boundedValue - PAIN_INTENSITY_MIN) /
+    (PAIN_INTENSITY_MAX - PAIN_INTENSITY_MIN);
+  const label = `${bodyArea} 통증 정도`;
+
+  const updateFromTrack = (locationX: number) => {
+    if (trackWidth <= 0) return;
+    const ratio = Math.min(1, Math.max(0, locationX / trackWidth));
+    onChange(
+      Math.round(
+        PAIN_INTENSITY_MIN + ratio * (PAIN_INTENSITY_MAX - PAIN_INTENSITY_MIN),
+      ),
+    );
+  };
+
+  const adjust = (direction: -1 | 1) => {
+    onChange(
+      Math.min(
+        PAIN_INTENSITY_MAX,
+        Math.max(PAIN_INTENSITY_MIN, boundedValue + direction),
+      ),
+    );
+  };
+
+  return (
+    <View style={styles.painIntensityControl}>
+      <View style={styles.painIntensityHeading}>
+        <Text style={styles.painSectionTitle}>{label}</Text>
+        <Text
+          accessibilityLiveRegion="polite"
+          style={styles.painIntensityValue}
+        >
+          {boundedValue}
+        </Text>
+      </View>
+      <View
+        accessible
+        accessibilityActions={[
+          { name: 'increment', label: `${label} 1 높이기` },
+          { name: 'decrement', label: `${label} 1 낮추기` },
+        ]}
+        accessibilityLabel={label}
+        accessibilityRole="adjustable"
+        accessibilityValue={{
+          max: PAIN_INTENSITY_MAX,
+          min: PAIN_INTENSITY_MIN,
+          now: boundedValue,
+          text: `10점 중 ${boundedValue}점`,
+        }}
+        onAccessibilityAction={(event) => {
+          if (event.nativeEvent.actionName === 'increment') adjust(1);
+          else if (event.nativeEvent.actionName === 'decrement') adjust(-1);
+        }}
+        onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)}
+        onMoveShouldSetResponder={() => true}
+        onResponderGrant={(event) =>
+          updateFromTrack(event.nativeEvent.locationX)
+        }
+        onResponderMove={(event) =>
+          updateFromTrack(event.nativeEvent.locationX)
+        }
+        onStartShouldSetResponder={() => true}
+        style={styles.painSliderTouchTarget}
+        testID={`onboarding-pain-intensity-slider-${bodyArea}`}
+      >
+        <View pointerEvents="none" style={styles.painSliderTrack}>
+          <View
+            style={[styles.painSliderFill, { width: `${progress * 100}%` }]}
+          />
+          <View
+            style={[styles.painSliderThumb, { left: `${progress * 100}%` }]}
+          />
+        </View>
+      </View>
+      <View style={styles.painSliderRangeLabels}>
+        <Text style={styles.painSliderRangeLabel}>1</Text>
+        <Text style={styles.painSliderRangeLabel}>10</Text>
+      </View>
+    </View>
   );
 }
 
@@ -1284,10 +1367,58 @@ const styles = StyleSheet.create({
   },
   painSectionTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
   painChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  painSeverityChoices: {
+  painIntensityControl: { gap: spacing.xs },
+  painIntensityHeading: {
     flexDirection: 'row',
-    flexWrap: 'nowrap',
-    gap: spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  painIntensityValue: {
+    minWidth: 38,
+    borderRadius: 12,
+    backgroundColor: colors.danger,
+    color: colors.surface,
+    fontSize: 18,
+    fontWeight: '800',
+    lineHeight: 24,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    textAlign: 'center',
+  },
+  painSliderTouchTarget: {
+    height: 40,
+    justifyContent: 'center',
+  },
+  painSliderTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.dangerBorder,
+  },
+  painSliderFill: {
+    height: '100%',
+    borderRadius: 4,
+    backgroundColor: colors.danger,
+  },
+  painSliderThumb: {
+    position: 'absolute',
+    top: -8,
+    width: 24,
+    height: 24,
+    marginLeft: -12,
+    borderWidth: 3,
+    borderColor: colors.surface,
+    borderRadius: 12,
+    backgroundColor: colors.dangerText,
+  },
+  painSliderRangeLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  painSliderRangeLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '700',
   },
   consentGroups: { gap: 14 },
   consentRow: {

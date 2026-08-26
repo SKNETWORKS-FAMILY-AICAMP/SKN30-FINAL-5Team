@@ -77,6 +77,11 @@ describe('a session the server rejects', () => {
     );
     // Firebase must not stay authenticated while the app reports signed out.
     expect(signOutUser).toHaveBeenCalled();
+    expect(
+      screen.getByRole('header', {
+        name: '오늘도 자신과의 싸움에서\n승리하러 왔군요',
+      }),
+    ).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: '로그인' })).toBeOnTheScreen();
   });
 

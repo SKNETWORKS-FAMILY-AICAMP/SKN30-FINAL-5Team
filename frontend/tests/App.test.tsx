@@ -89,7 +89,7 @@ describe('App boot navigation', () => {
   it.each([
     {
       mode: 'auth' as const,
-      label: 'Auth (API)',
+      label: 'Auth (mock)',
       readyText: '헬끼에 로그인',
     },
     {
@@ -106,6 +106,11 @@ describe('App boot navigation', () => {
       mode: 'mascot-house' as const,
       label: 'Mascot house (API)',
       readyText: '집 꾸미기',
+    },
+    {
+      mode: 'loading' as const,
+      label: 'Page loading (API)',
+      readyText: '오늘 상태를 불러오는 중이에요',
     },
     {
       mode: 'session' as const,
