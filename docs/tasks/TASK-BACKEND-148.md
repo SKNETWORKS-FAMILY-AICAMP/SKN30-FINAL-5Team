@@ -1,6 +1,6 @@
 # TASK-BACKEND-148: V2 PostgreSQL 실제 릴리스 검증
 
-- 현재 상태: `APPROVED`
+- 현재 상태: `IN_PROGRESS`
 - 우선순위: `P0`
 - GitHub issue: `#148`
 - Primary owner: 백엔드·데이터 개발팀장
@@ -102,3 +102,73 @@ test pass/skip/fail 수를 기록한다. 실행하지 않은 검사는 통과로
 - 이 검증은 production migration 승인이 아니다.
 - 실제 Docker/Qdrant 통합은 `#149`, V3 staging provider evidence는 `#150`에서 수행한다.
 - RDS와 S3 운영 경계는 별도 승인 task가 필요하다.
+
+## 2026-08-26 실제 검증 증적
+
+### 기준과 환경
+
+- 기준 commit: `c682b992b7286fbad506298329762314fc4d911c`
+- branch: `codex/148-v2-postgresql-release`
+- PostgreSQL: `16.14`
+- Docker Engine: `29.6.2`
+- package manager: `uv 0.11.2`
+- 전용 DB: `exercise_app_v2_release_20260826_test`
+- 검증 전 public schema table count: `0`
+
+기존 사용자 checkout의 미커밋 파일과 `exercise_app.dump`는 읽거나 복원하지 않았다. PostgreSQL
+container credential은 process environment에만 전달했고 출력·문서·fixture에 기록하지 않았다.
+
+### Migration
+
+- Alembic single head: `0027_catalog_media_assets`
+- `upgrade head`: 성공
+- `downgrade base`: 성공
+- 두 번째 `upgrade head`: 성공
+
+### V2 import와 activation
+
+Activation 없는 첫 import 결과:
+
+| 항목 | 결과 |
+|---|---:|
+| catalog status | `DRAFT` |
+| exercises | 102 |
+| safety rules | 394 |
+| alternatives | 285 |
+| goal tags | 102 |
+| prescription profiles | 137 |
+| media assets | 0 |
+
+명시적 activation 후 `exercise-catalog-v2.0.0-final`만 `ACTIVE`이며
+`production_eligible=true`, `activated_at` non-null을 확인했다. 같은 bundle import와 activation을
+다시 실행한 뒤에도 ACTIVE catalog는 하나이고 모든 record count가 동일해 멱등성을 확인했다.
+
+실제 DB의 `ExerciseReadService` list/detail 조회 결과:
+
+- catalog version: `exercise-catalog-v2.0.0-final`
+- 첫 page 100건과 next cursor 반환
+- list의 `media_asset_key` 전부 null
+- detail의 `media_asset_key` null
+
+현재 승인 bundle에는 media artifact가 0건이다. Registry 승인 media 노출과 미승인 media 비노출은
+전체 PostgreSQL integration suite의 synthetic media fixture로 회귀 검증됐다.
+
+### 실행한 테스트
+
+| 명령 | 결과 |
+|---|---|
+| `uv sync --frozen --group dev` | 113 packages 설치 성공 |
+| `uv run ruff format --check backend data/scripts` | 477 files already formatted |
+| `uv run ruff check backend data/scripts` | 통과 |
+| `uv run mypy` | 277 source files, 문제 없음 |
+| `uv run pytest -q` | 1394 passed, skip 없음 |
+| `uv run python -m unittest discover -s data/scripts/tests` | 117 passed |
+
+### Rollback과 남은 완료 게이트
+
+동일한 빈 test DB에서 `downgrade base`와 재-upgrade를 실제 확인했다. 운영 rollback 승인이 아니며
+production migration에는 별도 release review가 필요하다. 검증 DB는 후속 CI 비교와 증적 재현을 위해
+현재 유지한다.
+
+`#147`의 V2 CI 자동화 PR이 아직 없어 실제 검증 명령과 CI 절차의 일치 여부를 확인하지 못했다.
+따라서 이 task는 `COMPLETE`가 아니며 #147 PR 검증 후 상태와 병합 근거를 갱신해야 한다.
