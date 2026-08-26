@@ -59,4 +59,5 @@ def test_staging_env_example_and_bootstrap_contain_no_secret_values() -> None:
     assert "sk-" not in env_example
     assert "sk-" not in user_data
     assert "v2.40.3" in user_data
+    assert "v0.36.1" in user_data
     assert "sha256sum --check" in user_data
