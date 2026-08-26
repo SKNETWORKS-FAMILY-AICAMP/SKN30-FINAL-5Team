@@ -41,6 +41,34 @@ class FakeS3:
 
 
 class GymvisualMediaSyncTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.media_tmp = tempfile.TemporaryDirectory()
+        media_root = Path(self.media_tmp.name)
+        image_dir = media_root / "images"
+        video_dir = media_root / "videos"
+        image_dir.mkdir()
+        video_dir.mkdir()
+        gymvisual_ids = {
+            row["source_identity"]
+            for row in sync.read_csv(sync.REPRESENTATIVE_PATH)
+            if row["source_track"] == "gymvisual"
+        }
+        for row in sync.read_json(sync.RAW_EXERCISES_PATH):
+            if str(row["id"]) not in gymvisual_ids:
+                continue
+            (image_dir / Path(str(row["image"])).name).write_bytes(b"synthetic-jpeg")
+            (video_dir / Path(str(row["gif_url"])).name).write_bytes(b"synthetic-gif")
+        self.media_patch = patch.multiple(
+            sync,
+            IMAGE_DIR=image_dir,
+            VIDEO_DIR=video_dir,
+        )
+        self.media_patch.start()
+
+    def tearDown(self) -> None:
+        self.media_patch.stop()
+        self.media_tmp.cleanup()
+
     def test_repository_local_media_has_87_exact_pairs_and_preserves_leading_zero(self) -> None:
         pairs = sync.validate_local_media()
         self.assertEqual(len(pairs), 87)
