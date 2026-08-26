@@ -1,6 +1,6 @@
 # TASK-BACKEND-149: API·PostgreSQL·Qdrant 로컬 Compose 구성
 
-- 현재 상태: `APPROVED`
+- 현재 상태: `IN_PROGRESS` (정적 구성 작성 완료, Docker·DB·Qdrant 실제 검증 대기)
 - 우선순위: `P1`
 - GitHub issue: `#149`
 - Primary owner: 백엔드 팀원

@@ -160,3 +160,11 @@ def test_production_qdrant_requires_tls_and_api_key() -> None:
             qdrant_tls_enabled=True,
             qdrant_api_key="synthetic-secret",
         )
+
+
+def test_embedding_timeout_is_bounded() -> None:
+    assert Settings(_env_file=None).embedding_timeout_seconds == 30.0
+    with pytest.raises(ValidationError, match="EMBEDDING_TIMEOUT_SECONDS"):
+        Settings(_env_file=None, embedding_timeout_seconds=0)
+    with pytest.raises(ValidationError, match="EMBEDDING_TIMEOUT_SECONDS"):
+        Settings(_env_file=None, embedding_timeout_seconds=121)
