@@ -415,7 +415,11 @@ def validate_plan(state: V3GraphState) -> dict[str, object]:
         )
     except Exception:
         return {"failure_codes": _append_failure(state, "V3_VALIDATION_FAILED")}
-    return {"integrity_validation": validation, "integrity_validations": (validation,)}
+    return {
+        "integrity_validation": validation,
+        "integrity_validations": (validation,),
+        "compiled_plans": (compiled_plan,),
+    }
 
 
 async def coordinator_repair(state: V3GraphState) -> dict[str, object]:
@@ -530,6 +534,7 @@ def finalize(state: V3GraphState) -> dict[str, object]:
                 coordinator_initial_plan=state.get("coordinator_initial_plan"),
                 coordinator_repair_plan=state.get("coordinator_repair_plan"),
                 integrity_validations=state.get("integrity_validations", ()),
+                compiled_plans=state.get("compiled_plans", ()),
                 invocation_audits=state.get("invocation_audits", ()),
                 fallback_plan_spec=state.get("fallback_plan_spec"),
             )
@@ -548,6 +553,7 @@ def finalize(state: V3GraphState) -> dict[str, object]:
         coordinator_initial_plan=state.get("coordinator_initial_plan"),
         coordinator_repair_plan=state.get("coordinator_repair_plan"),
         integrity_validations=state.get("integrity_validations", ()),
+        compiled_plans=state.get("compiled_plans", ()),
         invocation_audits=state.get("invocation_audits", ()),
         fallback_plan_spec=state.get("fallback_plan_spec"),
     )
@@ -572,6 +578,7 @@ def terminal(state: V3GraphState) -> dict[str, object]:
         coordinator_initial_plan=state.get("coordinator_initial_plan"),
         coordinator_repair_plan=state.get("coordinator_repair_plan"),
         integrity_validations=state.get("integrity_validations", ()),
+        compiled_plans=state.get("compiled_plans", ()),
         invocation_audits=state.get("invocation_audits", ()),
         fallback_plan_spec=state.get("fallback_plan_spec"),
     )

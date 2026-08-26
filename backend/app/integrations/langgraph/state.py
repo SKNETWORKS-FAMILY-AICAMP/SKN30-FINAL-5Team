@@ -163,6 +163,7 @@ class V3GraphResult:
     coordinator_repair_plan: PlanSpec | None = None
     fallback_plan_spec: DeterministicFallbackPlanSpec | None = None
     integrity_validations: tuple[IntegrityValidation, ...] = ()
+    compiled_plans: tuple[object, ...] = ()
     invocation_audits: tuple[InvocationAudit, ...] = ()
 
 
@@ -181,6 +182,7 @@ class V3GraphState(TypedDict, total=False):
     compiled_plan: object | None
     integrity_validation: IntegrityValidation
     integrity_validations: Annotated[tuple[IntegrityValidation, ...], operator.add]
+    compiled_plans: Annotated[tuple[object, ...], operator.add]
     coordinator_initial_plan: PlanSpec | None
     coordinator_repair_plan: PlanSpec | None
     repair_attempts: int

@@ -9,7 +9,9 @@ from backend.app.integrations.llm_agents.models import (
     StructuredAgentResult,
 )
 from backend.app.integrations.llm_agents.openai import (
+    build_openai_demo_chat_model,
     build_openai_shadow_chat_model,
+    openai_demo_gates_ready,
     openai_shadow_gates_ready,
 )
 from backend.app.integrations.llm_agents.provider import (
@@ -36,6 +38,8 @@ __all__ = [
     "StructuredChatInvoker",
     "TrainingAgentAdapter",
     "build_structured_chat_invoker",
+    "build_openai_demo_chat_model",
     "build_openai_shadow_chat_model",
+    "openai_demo_gates_ready",
     "openai_shadow_gates_ready",
 ]

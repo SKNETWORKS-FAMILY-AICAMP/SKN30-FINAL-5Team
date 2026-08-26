@@ -106,6 +106,7 @@ class V3LangGraphRuntime:
                 "review_outcomes": (),
                 "invocation_audits": (),
                 "integrity_validations": (),
+                "compiled_plans": (),
             },
             config={"callbacks": [], "max_concurrency": 3},
         )

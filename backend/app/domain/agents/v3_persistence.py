@@ -180,8 +180,13 @@ class V3DecisionPersistenceBundle(_FrozenModel):
     def validate_bundle(self) -> Self:
         roles = tuple(item.agent_type_code for item in self.agent_proposals)
         expected = tuple(SpecialistAgentTypeCode)
-        if roles != expected:
+        completed = self.terminal_status_code is GraphTerminalStatusCode.COMPLETED
+        if completed and not self.fallback_used and roles != expected:
             raise ValueError("exactly three canonically ordered specialist proposals are required")
+        if (not completed or self.fallback_used) and roles != tuple(
+            role for role in expected if role in set(roles)
+        ):
+            raise ValueError("partial proposal artifacts must use canonical role order")
         if self.catalog_version != self.root_snapshot.exercise_pool.catalog_version:
             raise ValueError("bundle catalog version mismatch")
         if (
@@ -194,7 +199,8 @@ class V3DecisionPersistenceBundle(_FrozenModel):
             raise ValueError("fallback use requires a fallback version")
         attempts = tuple(item.attempt_number for item in self.coordinator_attempts)
         validations = tuple(item.attempt_number for item in self.validations)
-        if not attempts or attempts not in ((0,), (0, 1)) or validations != attempts:
+        allowed_attempts = ((0,), (0, 1)) if completed else ((), (0,), (0, 1))
+        if attempts not in allowed_attempts or validations != attempts:
             raise ValueError("coordinator and validation attempts must be aligned and bounded")
         if self.final_plan is not None:
             final_validation = self.validations[-1].integrity_validation
