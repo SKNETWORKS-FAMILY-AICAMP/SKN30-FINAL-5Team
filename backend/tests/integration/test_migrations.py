@@ -20,11 +20,14 @@ BUNDLE_ALTERNATIVES = Path("data/generated/exercise-alternatives-merged-mvp-v0.4
 BUNDLE_PRESCRIPTIONS = Path("data/generated/exercise-prescriptions-merged-mvp-v0.1.0")
 
 
-def test_migration_history_has_catalog_v2_code_set_head() -> None:
+def test_migration_history_has_catalog_media_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0026_catalog_v2_code_set"]
+    assert scripts.get_heads() == ["0027_catalog_media_assets"]
+    assert scripts.get_revision("0027_catalog_media_assets").down_revision == (
+        "0026_catalog_v2_code_set"
+    )
     assert scripts.get_revision("0026_catalog_v2_code_set").down_revision == (
         "0025_v3_decision_persistence"
     )
@@ -124,7 +127,24 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
             "plan_integrity_validations",
             "exercise_safety_rules",
             "exercise_alternatives",
+            "exercise_media_assets",
         }.issubset(inspector.get_table_names())
+        assert {
+            "id",
+            "catalog_version_id",
+            "exercise_id",
+            "s3_key",
+            "media_status",
+            "rights_review_status",
+            "rights_reviewer",
+            "rights_reviewed_at",
+            "rights_evidence_reference",
+            "media_set_version_code",
+            "source_manifest_hash",
+            "source_metadata",
+            "approval_metadata",
+            "created_at",
+        } == {column["name"] for column in inspector.get_columns("exercise_media_assets")}
         assert {
             "root_decision_run_id",
             "parent_decision_run_id",

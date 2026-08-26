@@ -294,7 +294,9 @@ class ExerciseMediaAsset(Base):
     media_set_version_code: Mapped[str] = mapped_column(String(120), nullable=False)
     source_manifest_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     source_metadata: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
-    approval_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    approval_metadata: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB(none_as_null=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
