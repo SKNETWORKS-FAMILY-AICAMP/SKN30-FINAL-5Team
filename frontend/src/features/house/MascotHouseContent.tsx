@@ -101,6 +101,14 @@ const HOUSE_BACKDROP_BLEND_OVERLAP = 48;
 /** Places the blend boundary halfway across the gap above the weekly panel. */
 const HOUSE_BACKDROP_WEEK_PANEL_GAP_OFFSET = spacing.sm / 2;
 
+/** The weekly card keeps this outer gap between its bottom and the column. */
+const HOUSE_WEEK_PANEL_BOTTOM_MARGIN = spacing.xs;
+
+/** Vertical geometry shared by the flex column and its boundary calculation. */
+const HOUSE_COLUMN_TOP_PADDING = spacing.sm;
+const HOUSE_COLUMN_GAP = spacing.sm;
+const HOUSE_STAGE_MIN_HEIGHT = 210;
+
 const PLACED_ITEM_SIZE = 44;
 const DECORATE_GRID_GAP = spacing.sm;
 
@@ -186,6 +194,53 @@ export function houseBackdropContinuationTop(
   return Math.min(imageBlendStart, controlBoundary);
 }
 
+/**
+ * Derives the weekly card's screen-relative top from bottom-anchored sizes.
+ *
+ * React Native Web does not guarantee a new `onLayout` event when an element
+ * only changes position inside a flex parent. The column height does change
+ * with the viewport, though, and the weekly card is the last item in the
+ * bottom action stack. Using their heights therefore keeps the boundary in
+ * sync on both native and web without retaining a stale absolute y-coordinate.
+ */
+export function houseWeekPanelTop(
+  columnTop: number | null,
+  columnHeight: number | null,
+  actionAreaHeight: number | null,
+  weekPanelHeight: number | null,
+): number | null {
+  if (
+    columnTop === null ||
+    columnHeight === null ||
+    actionAreaHeight === null ||
+    weekPanelHeight === null ||
+    !Number.isFinite(columnTop) ||
+    !Number.isFinite(columnHeight) ||
+    !Number.isFinite(actionAreaHeight) ||
+    !Number.isFinite(weekPanelHeight) ||
+    columnHeight <= 0 ||
+    actionAreaHeight <= 0 ||
+    weekPanelHeight <= 0
+  ) {
+    return null;
+  }
+
+  const contentBottom =
+    columnTop +
+    Math.max(
+      columnHeight,
+      HOUSE_COLUMN_TOP_PADDING +
+        HOUSE_STAGE_MIN_HEIGHT +
+        HOUSE_COLUMN_GAP +
+        actionAreaHeight,
+    );
+
+  return Math.max(
+    0,
+    contentBottom - weekPanelHeight - HOUSE_WEEK_PANEL_BOTTOM_MARGIN,
+  );
+}
+
 export function MascotHouseContent({
   footer,
   nickname,
@@ -212,25 +267,46 @@ export function MascotHouseContent({
   pose: HousePose;
   view: HouseView;
 }) {
+  const scaleViewport = useScale();
   const [decorating, setDecorating] = useState(false);
-  const [columnTop, setColumnTop] = useState<number | null>(null);
-  const [actionAreaTop, setActionAreaTop] = useState<number | null>(null);
-  const [weekPanelLocalTop, setWeekPanelLocalTop] = useState<number | null>(
-    null,
-  );
+  const [measuredViewport, setMeasuredViewport] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const [columnLayout, setColumnLayout] = useState<{
+    y: number;
+    height: number;
+  } | null>(null);
+  const [actionAreaHeight, setActionAreaHeight] = useState<number | null>(null);
+  const [weekPanelHeight, setWeekPanelHeight] = useState<number | null>(null);
   const [decorationCanvas, setDecorationCanvas] = useState({
     width: 0,
     height: 0,
   });
-  const weekPanelTop =
-    columnTop === null || actionAreaTop === null || weekPanelLocalTop === null
-      ? null
-      : columnTop + actionAreaTop + weekPanelLocalTop;
+  const viewport = measuredViewport ?? scaleViewport;
+  const weekPanelTop = houseWeekPanelTop(
+    columnLayout?.y ?? null,
+    columnLayout?.height ?? null,
+    actionAreaHeight,
+    weekPanelHeight,
+  );
 
   return (
-    <View style={styles.screen} testID="mascot-house-content">
+    <View
+      onLayout={(event) => {
+        const { height, width } = event.nativeEvent.layout;
+        setMeasuredViewport((current) =>
+          current?.height === height && current.width === width
+            ? current
+            : { height, width },
+        );
+      }}
+      style={styles.screen}
+      testID="mascot-house-content"
+    >
       <Backdrop
         backgroundId={view.selectedBackgroundId}
+        viewport={viewport}
         weekPanelTop={weekPanelTop}
       />
 
@@ -274,7 +350,14 @@ export function MascotHouseContent({
         testID="house-safe-area"
       >
         <View
-          onLayout={(event) => setColumnTop(event.nativeEvent.layout.y)}
+          onLayout={(event) => {
+            const { height, y } = event.nativeEvent.layout;
+            setColumnLayout((current) =>
+              current?.height === height && current.y === y
+                ? current
+                : { height, y },
+            );
+          }}
           pointerEvents="box-none"
           style={styles.column}
           testID="house-content-column"
@@ -338,7 +421,9 @@ export function MascotHouseContent({
               panel covers it as an overlay. Swapping them would change the
               column's height, which would move the scene and the mascot. */}
           <View
-            onLayout={(event) => setActionAreaTop(event.nativeEvent.layout.y)}
+            onLayout={(event) =>
+              setActionAreaHeight(event.nativeEvent.layout.height)
+            }
             style={styles.actionArea}
             testID="house-action-area"
           >
@@ -367,7 +452,7 @@ export function MascotHouseContent({
 
               <WeekPanel
                 nickname={nickname}
-                onTopChange={setWeekPanelLocalTop}
+                onHeightChange={setWeekPanelHeight}
                 view={view}
               />
             </View>
@@ -398,12 +483,13 @@ export function MascotHouseContent({
  */
 function Backdrop({
   backgroundId,
+  viewport,
   weekPanelTop,
 }: {
   backgroundId: HouseBackgroundId;
+  viewport: { width: number; height: number };
   weekPanelTop: number | null;
 }) {
-  const viewport = useScale();
   const roomArt = houseBackgroundArt[backgroundId];
   const roomSource = roomArt.source;
   const sourceModule = Array.isArray(roomSource) ? roomSource[0] : roomSource;
@@ -439,6 +525,7 @@ function Backdrop({
     weekPanelTop,
   );
   const continuationHeight = Math.max(1, viewport.height - continuationTop);
+  const continuationWidth = Math.max(artSize.width, viewport.width);
   const overlapRatio = Math.min(
     0.3,
     HOUSE_BACKDROP_BLEND_OVERLAP / continuationHeight,
@@ -480,7 +567,7 @@ function Backdrop({
               style={styles.backdropContinuationStrip}
               testID="house-backdrop-blurred-band"
               viewBox={`0 0 ${sourceWidth} ${blendBandHeight}`}
-              width={artSize.width}
+              width={continuationWidth}
             >
               <Defs>
                 <Filter
@@ -551,7 +638,7 @@ function Backdrop({
           colors.canvas,
         ]}
         locations={[0, 0.62, 1]}
-        style={styles.bottomFade}
+        style={[styles.bottomFade, { top: continuationTop }]}
         testID="house-bottom-fade"
       />
     </View>
@@ -604,11 +691,11 @@ function FeedButton({
 
 function WeekPanel({
   nickname,
-  onTopChange,
+  onHeightChange,
   view,
 }: {
   nickname: string;
-  onTopChange: (top: number) => void;
+  onHeightChange: (height: number) => void;
   view: HouseView;
 }) {
   const ratio = view.weekProgress ?? 0;
@@ -616,7 +703,7 @@ function WeekPanel({
 
   return (
     <View
-      onLayout={(event) => onTopChange(event.nativeEvent.layout.y)}
+      onLayout={(event) => onHeightChange(event.nativeEvent.layout.height)}
       style={styles.weekPanel}
       testID="house-week-panel"
     >
@@ -1020,7 +1107,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    height: '34%',
   },
   safeArea: {
     flex: 1,
@@ -1031,13 +1117,13 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: CONTENT_MAX_WIDTH,
     alignSelf: 'center',
-    gap: spacing.sm,
+    gap: HOUSE_COLUMN_GAP,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
+    paddingTop: HOUSE_COLUMN_TOP_PADDING,
   },
   stage: {
     flex: 1,
-    minHeight: 210,
+    minHeight: HOUSE_STAGE_MIN_HEIGHT,
     justifyContent: 'flex-end',
   },
   railLeft: {

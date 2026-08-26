@@ -16,6 +16,7 @@ import {
   houseBackdropContinuationTop,
   houseBackdropMinimumHeight,
   houseBackdropSize,
+  houseWeekPanelTop,
 } from '../src/features/house/MascotHouseContent';
 import {
   FEED_POSE_HOLD_MS,
@@ -394,23 +395,49 @@ describe('MascotHouseScreen', () => {
     expect(houseBackdropContinuationTop(art.height, 844, 526)).toBe(522);
   });
 
-  it('derives the blur boundary from shared relative layout coordinates', async () => {
+  it('keeps the blur boundary attached to the bottom controls when height changes', async () => {
     renderHouse(houseApi({ sessions: [] }));
 
     await screen.findByTestId('house-scene');
+    fireEvent(screen.getByTestId('mascot-house-content'), 'layout', {
+      nativeEvent: { layout: { height: 844, width: 390, x: 0, y: 0 } },
+    });
     fireEvent(screen.getByTestId('house-content-column'), 'layout', {
       nativeEvent: { layout: { height: 760, width: 390, x: 0, y: 40 } },
     });
     fireEvent(screen.getByTestId('house-action-area'), 'layout', {
-      nativeEvent: { layout: { height: 250, width: 358, x: 16, y: 80 } },
+      nativeEvent: { layout: { height: 250, width: 358, x: 16, y: 510 } },
     });
     fireEvent(screen.getByTestId('house-week-panel'), 'layout', {
       nativeEvent: { layout: { height: 130, width: 358, x: 0, y: 200 } },
     });
 
+    expect(houseWeekPanelTop(40, 760, 250, 130)).toBe(666);
     expect(screen.getByTestId('house-backdrop-continuation')).toHaveStyle({
-      top: 316,
+      top: 662,
     });
+    expect(screen.getByTestId('house-bottom-fade')).toHaveStyle({
+      top: 662,
+    });
+
+    fireEvent(screen.getByTestId('mascot-house-content'), 'layout', {
+      nativeEvent: { layout: { height: 994, width: 390, x: 0, y: 0 } },
+    });
+    fireEvent(screen.getByTestId('house-content-column'), 'layout', {
+      nativeEvent: { layout: { height: 910, width: 390, x: 0, y: 40 } },
+    });
+
+    expect(houseWeekPanelTop(40, 910, 250, 130)).toBe(816);
+    expect(screen.getByTestId('house-backdrop-continuation')).toHaveStyle({
+      top: 812,
+    });
+    expect(screen.getByTestId('house-bottom-fade')).toHaveStyle({
+      top: 812,
+    });
+  });
+
+  it('keeps the control boundary below the minimum scene on short screens', () => {
+    expect(houseWeekPanelTop(0, 456.8, 239.3, 123.4)).toBeCloseTo(337.9, 1);
   });
 
   it('uses the selected monkey artwork for every temporary house pose', () => {
