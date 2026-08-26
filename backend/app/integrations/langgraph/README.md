@@ -41,6 +41,19 @@ The graph compiles with `checkpointer=False`, no store, and empty callbacks. Its
 return value is the framework-neutral `V3GraphResult`; PostgreSQL persistence is a
 later application step and remains the canonical source of truth.
 
+## Staging demo composition
+
+`build_v3_demo_runtime` is the concrete application composition boundary for the
+`DEMO` execution profile. It returns a runtime only when the environment is
+`staging` and all OpenAI, model allowlist, credential, and LangGraph gates are
+enabled. It does not depend on shadow opt-in or production promotion evaluation.
+
+Application code injects a `V3RootSnapshotLoaderPort` that owns PostgreSQL
+eligibility, optional Qdrant ranking, PostgreSQL revalidation, and deterministic
+pool fallback. `V3DemoRuntime.execute` and the `V3GraphRuntimePort`-compatible
+`regenerate` method return a `V3DecisionPersistenceBundle`; database and Qdrant
+handles are never passed into graph state or Agent inputs.
+
 ## Dependency
 
 The project directly pins only `langgraph==1.2.11`, the stable release verified as

@@ -1,4 +1,4 @@
-"""Production-bounded OpenAI chat model factory for private V3 shadow runs."""
+"""Production-bounded OpenAI chat model factories for V3 runtimes."""
 
 from __future__ import annotations
 
@@ -6,6 +6,25 @@ from langchain_core.language_models import BaseChatModel
 from langchain_openai import ChatOpenAI
 
 from backend.app.core.config import Settings
+
+
+def _build_openai_chat_model(settings: Settings) -> BaseChatModel:
+    """Build the shared bounded provider object after a caller-specific gate."""
+
+    api_key = settings.openai_api_key
+    assert api_key is not None
+    return ChatOpenAI(
+        model=settings.llm_agents_model_code,
+        api_key=api_key,
+        base_url=settings.llm_api_base_url,
+        temperature=0,
+        timeout=settings.llm_agents_timeout_seconds,
+        # StructuredChatInvoker owns the single bounded retry.
+        max_retries=0,
+        max_completion_tokens=settings.llm_agents_max_output_tokens,
+        callbacks=[],
+        disable_streaming=True,
+    )
 
 
 def openai_shadow_gates_ready(settings: Settings, *, allow_provider_calls: bool) -> bool:
@@ -33,19 +52,40 @@ def build_openai_shadow_chat_model(
 
     if not openai_shadow_gates_ready(settings, allow_provider_calls=allow_provider_calls):
         return None
-    api_key = settings.openai_api_key
-    assert api_key is not None
-    return ChatOpenAI(
-        model=settings.llm_agents_model_code,
-        api_key=api_key,
-        base_url=settings.llm_api_base_url,
-        temperature=0,
-        timeout=settings.llm_agents_timeout_seconds,
-        max_retries=0,
-        max_completion_tokens=settings.llm_agents_max_output_tokens,
-        callbacks=[],
-        disable_streaming=True,
+    return _build_openai_chat_model(settings)
+
+
+def openai_demo_gates_ready(settings: Settings, *, execution_profile: str) -> bool:
+    """Allow provider construction only for the explicit staging DEMO profile."""
+
+    return all(
+        (
+            settings.app_env == "staging",
+            execution_profile == "DEMO",
+            settings.llm_agents_enabled,
+            settings.llm_agents_provider_code == "OPENAI",
+            settings.llm_agents_model_code in settings.llm_agents_approved_model_codes,
+            settings.openai_api_key is not None,
+            settings.v3_langgraph_enabled,
+        )
     )
 
 
-__all__ = ["build_openai_shadow_chat_model", "openai_shadow_gates_ready"]
+def build_openai_demo_chat_model(
+    settings: Settings,
+    *,
+    execution_profile: str,
+) -> BaseChatModel | None:
+    """Build no provider object unless every staging demo gate is satisfied."""
+
+    if not openai_demo_gates_ready(settings, execution_profile=execution_profile):
+        return None
+    return _build_openai_chat_model(settings)
+
+
+__all__ = [
+    "build_openai_demo_chat_model",
+    "build_openai_shadow_chat_model",
+    "openai_demo_gates_ready",
+    "openai_shadow_gates_ready",
+]
