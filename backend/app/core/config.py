@@ -67,6 +67,12 @@ class Settings(BaseSettings):
     # Manual V3 regeneration has its own server-side activation gate. Provider
     # credentials and V3_LANGGRAPH_ENABLED never opt users into this mutation.
     v3_regeneration_enabled: bool = False
+    # Server-owned application composition profile. Existing V3 flags remain
+    # available during migration, but never change the default LEGACY path.
+    v3_execution_profile: Literal["LEGACY", "SHADOW", "DEMO", "PRODUCTION"] = "LEGACY"
+    # This is only the final deployment composition input. It must be set from
+    # the separately reviewed promotion record; the evaluator never edits it.
+    v3_production_promotion_approved: bool = False
     # Qdrant is a rebuildable catalog index and remains disabled until an
     # embedding contract and deployment credentials are explicitly approved.
     qdrant_enabled: bool = False
@@ -336,6 +342,8 @@ class Settings(BaseSettings):
                 raise ValueError("staging/production Qdrant requires QDRANT_API_KEY")
             if self.app_env in {"staging", "production"} and not self.qdrant_tls_enabled:
                 raise ValueError("staging/production Qdrant requires TLS")
+        if self.v3_execution_profile == "DEMO" and self.app_env != "staging":
+            raise ValueError("V3_EXECUTION_PROFILE=DEMO is allowed only when APP_ENV=staging")
         return self
 
 

@@ -21,6 +21,7 @@ from backend.app.db.repositories.workout import WorkoutRepository
 from backend.app.modules.account_deletion.ports import AccountDeletionRepositoryPort
 from backend.app.modules.catalog.service import ExerciseReadRepositoryPort
 from backend.app.modules.checkins.ports import DailyContextRepositoryPort
+from backend.app.modules.decisions.execution_profile import DecisionCreationServicePort
 from backend.app.modules.decisions.ports import DecisionRepositoryPort, NarrationProviderPort
 from backend.app.modules.decisions.v3_regeneration import (
     V3EngineDisabledError,
@@ -125,9 +126,20 @@ def get_narration_provider(request: Request) -> NarrationProviderPort:
     return request.app.state.narration_provider
 
 
+def get_decision_creation_service(
+    request: Request,
+    repository: Annotated[DecisionRepositoryPort, Depends(get_decision_repository)],
+) -> DecisionCreationServicePort:
+    return request.app.state.decision_creation_service_factory(repository)
+
+
 def get_v3_regeneration_service(request: Request) -> V3RegenerationServicePort:
     service: V3RegenerationServicePort | None = request.app.state.v3_regeneration_service
-    if not request.app.state.settings.v3_regeneration_enabled or service is None:
+    settings = request.app.state.settings
+    profile_enabled = settings.v3_execution_profile == "DEMO" or (
+        settings.v3_execution_profile == "PRODUCTION" and settings.v3_production_promotion_approved
+    )
+    if not (settings.v3_regeneration_enabled or profile_enabled) or service is None:
         return _disabled_v3_regeneration_service
     return service
 
@@ -222,6 +234,7 @@ __all__ = [
     "get_deletion_lifecycle_user",
     "get_daily_context_repository",
     "get_decision_repository",
+    "get_decision_creation_service",
     "get_birthdate_cipher",
     "get_db_session",
     "get_firebase_token_verifier",
