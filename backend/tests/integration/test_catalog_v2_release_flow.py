@@ -58,12 +58,16 @@ def postgres_session(monkeypatch: pytest.MonkeyPatch) -> Iterator[Session]:
     with Session(engine) as cleanup, cleanup.begin():
         cleanup.execute(delete(CatalogVersion))
 
+    connection = engine.connect()
+    transaction = connection.begin()
+    session = Session(bind=connection)
     try:
-        with Session(engine) as session:
-            yield session
+        yield session
     finally:
-        with Session(engine) as cleanup, cleanup.begin():
-            cleanup.execute(delete(CatalogVersion))
+        session.close()
+        if transaction.is_active:
+            transaction.rollback()
+        connection.close()
         engine.dispose()
         get_settings.cache_clear()
 
@@ -284,6 +288,7 @@ def test_v2_release_keeps_unregistered_media_hidden_and_blocks_activation(
     detail = CatalogRepository().get_exercise_detail(postgres_session, exercise.id)
     assert detail is not None
     assert detail.media_asset_key is None
+    postgres_session.commit()
     with postgres_session.begin():
         with pytest.raises(SystemExit, match="lacks registry approval"):
             activate(
