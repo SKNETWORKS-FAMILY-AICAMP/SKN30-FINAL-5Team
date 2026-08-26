@@ -31,7 +31,21 @@ Do not expose ports 8000, 6333, 6334 or 5432 in the EC2 security group. Public t
 only after a domain is attached and the TLS reverse proxy exposes 80/443. OpenAI credentials are
 not part of this baseline and require a separately rotated staging credential and provider approval.
 
-The current V2 bundle importer permits DRAFT catalog import only in `local` or `test`. It correctly
-rejects `APP_ENV=staging`; do not override that gate by changing the container environment. A reviewed
-staging release-import path is required before the approved V2 catalog can be activated in Aurora.
-Until then, successful migration and API readiness do not mean that staging contains catalog data.
+DRAFT catalog import still permits only `local` or `test`, and that gate stays closed in staging; do
+not reopen it by changing the container environment. The reviewed release path is separate: because
+`import_v2_bundle` reaches the importer only after all four manifests match an exact approval-registry
+entry, that one path is allowed to run under `APP_ENV=staging`. Production is still excluded and needs
+its own release decision.
+
+Load the approved catalog into Aurora with:
+
+```bash
+uv run --no-sync alembic -c backend/alembic.ini upgrade head
+uv run --no-sync python -m backend.scripts.catalog_promote_v2
+uv run --no-sync python -m backend.scripts.catalog_activate activate exercise-catalog-v2.0.0-final
+```
+
+`catalog_activate` is run without `--demo-unreviewed`: the registry already carries the
+`DOMAIN_REVIEWER` sign-off (`V2-PROMOTION-APPROVAL-2026-08-25-R01`), so the repository writes
+`PRODUCTION_APPROVED` on its own. Reaching for that flag here would record a review that did not
+happen. The four unreviewed KSPO/wger catalogs stay `DRAFT`/`AGENT_ONLY` and are never activated.

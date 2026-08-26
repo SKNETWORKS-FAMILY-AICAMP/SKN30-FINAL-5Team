@@ -445,6 +445,64 @@ def test_bundle_rejects_non_local_environment_before_database_access() -> None:
     assert repository.catalogs == {}
 
 
+def test_draft_bundle_stays_blocked_in_staging() -> None:
+    """Staging opened for the reviewed release must not reopen the DRAFT path."""
+    repository = FakeRepository()
+    importer = CatalogDataBundleImporter(cast(CatalogRepositoryPort, repository), "staging")
+
+    with pytest.raises(CatalogImportError) as exc_info:
+        importer.import_bundle(
+            cast(Session, FakeSession()),
+            CATALOG_DIRECTORIES,
+            SAFETY_DIRECTORY,
+            ALTERNATIVE_DIRECTORY,
+            PRESCRIPTION_DIRECTORY,
+        )
+
+    assert exc_info.value.code == "CATALOG_IMPORT_ENVIRONMENT_FORBIDDEN"
+    assert repository.catalogs == {}
+
+
+def test_approved_release_flag_alone_does_not_open_staging() -> None:
+    """approved_v2_bundle only counts inside the V2 importer mode."""
+    repository = FakeRepository()
+    importer = CatalogDataBundleImporter(cast(CatalogRepositoryPort, repository), "staging")
+
+    with pytest.raises(CatalogImportError) as exc_info:
+        importer.import_bundle(
+            cast(Session, FakeSession()),
+            CATALOG_DIRECTORIES,
+            SAFETY_DIRECTORY,
+            ALTERNATIVE_DIRECTORY,
+            PRESCRIPTION_DIRECTORY,
+            approved_v2_bundle=True,
+        )
+
+    assert exc_info.value.code == "CATALOG_IMPORT_ENVIRONMENT_FORBIDDEN"
+    assert repository.catalogs == {}
+
+
+def test_reviewed_release_import_stays_blocked_in_production() -> None:
+    """Production needs its own release decision, not the staging allowance."""
+    repository = FakeRepository()
+    importer = CatalogDataBundleImporter(
+        cast(CatalogRepositoryPort, repository), "production", v2_import=True
+    )
+
+    with pytest.raises(CatalogImportError) as exc_info:
+        importer.import_bundle(
+            cast(Session, FakeSession()),
+            CATALOG_DIRECTORIES,
+            SAFETY_DIRECTORY,
+            ALTERNATIVE_DIRECTORY,
+            PRESCRIPTION_DIRECTORY,
+            approved_v2_bundle=True,
+        )
+
+    assert exc_info.value.code == "CATALOG_IMPORT_ENVIRONMENT_FORBIDDEN"
+    assert repository.catalogs == {}
+
+
 def test_bundle_middle_stage_failure_rolls_back_every_new_set() -> None:
     repository = FailingAlternativeRepository()
     importer = CatalogDataBundleImporter(cast(CatalogRepositoryPort, repository), "test")
