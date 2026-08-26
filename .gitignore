@@ -76,3 +76,6 @@ ml/data/processed/
 !ml/outputs/
 ml/outputs/predictions/
 *.joblib.tmp
+
+# gymvisual 미디어 파일
+data/media/

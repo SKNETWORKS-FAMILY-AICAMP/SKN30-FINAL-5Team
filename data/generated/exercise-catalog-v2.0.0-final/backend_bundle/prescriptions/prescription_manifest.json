@@ -41,8 +41,8 @@
         "sha256": "09beba6ea28e5b3285f8973f44d4aeb6ad3886b1989f4870931f7c4109810214"
       }
     ],
-    "source_prescription_manifest_path": "data/generated/exercise-prescriptions-v2.0.0-draft/prescription_manifest.json",
-    "source_prescription_manifest_sha256": "7aa85fc38b327ff31817662774cc7d7abd28e86e1f2a39eafd79d07902e0f149"
+    "source_prescription_manifest_path": "generated/exercise-prescriptions-v2.0.0-draft/prescription_manifest.json",
+    "source_prescription_manifest_sha256": "5e6e9cf58e7ce5e7dc3ff63e06e3772454695a6abba2c8892d5eb1013165c4fa"
   },
   "summary": {
     "exercise_records": 102,

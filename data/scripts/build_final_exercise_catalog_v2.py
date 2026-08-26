@@ -17,6 +17,7 @@ import hashlib
 import json
 import re
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -48,6 +49,7 @@ CONTENT_PATH = (
     / "representative-exercise-content-safety-v0.1.0"
     / "representative_exercise_content.csv"
 )
+MEDIA_REVIEW_PATH = DATA_ROOT / "validation" / "review_results" / "gymvisual_media_reviewed.csv"
 
 EXPECTED_REPRESENTATIVES = 102
 MET_APPROVED_STATUSES = {"APPROVED", "DOMAIN_APPROVED"}
@@ -169,11 +171,75 @@ MEDIA_COLUMNS = (
     "representative_exercise_id",
     "s3_key",
     "media_status",
+    "s3_technical_status",
+    "verified_at",
     "rights_review_status",
     "rights_reviewer",
     "rights_reviewed_at",
     "rights_evidence_reference",
+    "production_eligibility",
+    "backend_visibility",
+    "source_image_s3_key",
+    "source_gif_s3_key",
+    "source_gif_content_type",
+    "source_gif_content_length",
+    "source_gif_etag",
+    "source_gif_checksum_algorithm",
+    "source_gif_checksum",
+    "source_image_content_type",
+    "source_image_content_length",
+    "source_image_etag",
+    "source_image_checksum_algorithm",
+    "source_image_checksum",
+    "gif_content_type",
+    "gif_content_length",
+    "gif_etag",
+    "gif_checksum_algorithm",
+    "gif_checksum",
+    "thumbnail_content_type",
+    "thumbnail_content_length",
+    "thumbnail_etag",
+    "thumbnail_checksum_algorithm",
+    "thumbnail_checksum",
 )
+MEDIA_REVIEW_COLUMNS = (
+    "representative_exercise_id",
+    "source_identity",
+    "source_image_s3_key",
+    "source_gif_s3_key",
+    "gif_s3_key",
+    "thumbnail_s3_key",
+    "media_status",
+    "source_gif_content_type",
+    "source_gif_content_length",
+    "source_gif_etag",
+    "source_gif_checksum_algorithm",
+    "source_gif_checksum",
+    "source_image_content_type",
+    "source_image_content_length",
+    "source_image_etag",
+    "source_image_checksum_algorithm",
+    "source_image_checksum",
+    "gif_content_type",
+    "gif_content_length",
+    "gif_etag",
+    "gif_checksum_algorithm",
+    "gif_checksum",
+    "thumbnail_content_type",
+    "thumbnail_content_length",
+    "thumbnail_etag",
+    "thumbnail_checksum_algorithm",
+    "thumbnail_checksum",
+    "s3_technical_status",
+    "verified_at",
+    "rights_review_status",
+    "rights_reviewer",
+    "rights_reviewed_at",
+    "rights_evidence_reference",
+    "production_eligibility",
+    "backend_visibility",
+)
+EXPECTED_GYMVISUAL_MEDIA_ASSETS = 87
 
 
 class FinalizationError(ValueError):
@@ -432,6 +498,157 @@ def index_unique(rows: list[dict[str, str]], key: str, label: str) -> dict[str, 
     if "" in index or len(index) != len(rows):
         raise FinalizationError(f"{label} must have unique non-empty {key}")
     return index
+
+
+def validate_rights_review(row: dict[str, str]) -> None:
+    status = row.get("rights_review_status", "")
+    if status not in {"APPROVED", "PENDING", "REJECTED"}:
+        raise FinalizationError(
+            f"unsupported rights_review_status for {row.get('representative_exercise_id', '')}"
+        )
+    if status == "APPROVED":
+        if not row.get("rights_reviewer") or not row.get("rights_reviewed_at"):
+            raise FinalizationError(
+                "approved media requires reviewer and timezone-aware reviewed_at"
+            )
+        try:
+            reviewed_at = datetime.fromisoformat(row["rights_reviewed_at"])
+        except ValueError as error:
+            raise FinalizationError("rights_reviewed_at must be ISO 8601") from error
+        if reviewed_at.tzinfo is None or reviewed_at.utcoffset() is None:
+            raise FinalizationError("rights_reviewed_at must include timezone information")
+        if not row.get("rights_evidence_reference"):
+            raise FinalizationError("approved media requires rights evidence")
+    elif any(row.get(field, "") for field in ("rights_reviewer", "rights_reviewed_at")):
+        raise FinalizationError("non-approved media must not contain reviewer or reviewed_at")
+
+
+def build_media_assets(
+    representative_rows: list[dict[str, str]], review_rows: list[dict[str, str]]
+) -> tuple[list[dict[str, str]], int]:
+    """Project the reviewed Gymvisual input into the backend's GIF-only artifact."""
+    if len(review_rows) != EXPECTED_GYMVISUAL_MEDIA_ASSETS:
+        raise FinalizationError(
+            f"Gymvisual media review must contain {EXPECTED_GYMVISUAL_MEDIA_ASSETS} rows"
+        )
+    if any(set(row) != set(MEDIA_REVIEW_COLUMNS) for row in review_rows):
+        raise FinalizationError("Gymvisual media review columns are invalid")
+
+    gymvisual = [row for row in representative_rows if row.get("source_track") == "gymvisual"]
+    if len(gymvisual) != EXPECTED_GYMVISUAL_MEDIA_ASSETS:
+        raise FinalizationError("representative catalog must contain 87 Gymvisual exercises")
+    representatives = index_unique(gymvisual, "representative_exercise_id", "Gymvisual catalog")
+    reviewed = index_unique(review_rows, "representative_exercise_id", "Gymvisual media review")
+    if set(reviewed) != set(representatives):
+        raise FinalizationError(
+            "Gymvisual media review must cover exactly the Gymvisual representatives"
+        )
+
+    source_identities: set[str] = set()
+    gif_keys: set[str] = set()
+    thumbnail_keys: set[str] = set()
+    final_rows: list[dict[str, str]] = []
+    for representative_id in sorted(representatives):
+        representative = representatives[representative_id]
+        row = reviewed[representative_id]
+        source_identity = row.get("source_identity", "")
+        if not source_identity or source_identity != representative.get("source_identity"):
+            raise FinalizationError(f"Gymvisual source_identity mismatch: {representative_id}")
+        stable_code = representative.get("stable_code", "")
+        expected_gif_key = f"catalog-media/gymvisual/{stable_code}/demo.gif"
+        expected_thumbnail_key = f"catalog-media/gymvisual/{stable_code}/thumbnail.jpg"
+        if row.get("gif_s3_key") != expected_gif_key:
+            raise FinalizationError(f"invalid Gymvisual GIF canonical key: {representative_id}")
+        if row.get("thumbnail_s3_key") != expected_thumbnail_key:
+            raise FinalizationError(
+                f"invalid Gymvisual thumbnail canonical key: {representative_id}"
+            )
+        for value, seen, label in (
+            (source_identity, source_identities, "source_identity"),
+            (row["gif_s3_key"], gif_keys, "gif_s3_key"),
+            (row["thumbnail_s3_key"], thumbnail_keys, "thumbnail_s3_key"),
+        ):
+            if value in seen:
+                raise FinalizationError(f"duplicate Gymvisual {label}: {value}")
+            seen.add(value)
+        for key in (row["gif_s3_key"], row["thumbnail_s3_key"]):
+            if not key.startswith("catalog-media/") or ".." in key or "//" in key:
+                raise FinalizationError(f"invalid canonical media key: {key}")
+        if not row.get("gif_s3_key", "").endswith(".gif"):
+            raise FinalizationError(f"Gymvisual GIF key must end in .gif: {representative_id}")
+        if row.get("media_status") not in {"AVAILABLE", "UNAVAILABLE"}:
+            raise FinalizationError(f"invalid media_status: {representative_id}")
+        if row.get("s3_technical_status") not in {"VERIFIED", "NOT_EXECUTED", "FAILED"}:
+            raise FinalizationError(f"invalid s3_technical_status: {representative_id}")
+        if row["media_status"] == "AVAILABLE" and row["s3_technical_status"] != "VERIFIED":
+            raise FinalizationError(
+                f"AVAILABLE media requires verified S3 metadata: {representative_id}"
+            )
+        if row["s3_technical_status"] == "VERIFIED":
+            if (
+                row.get("gif_content_type") != "image/gif"
+                or row.get("thumbnail_content_type") != "image/jpeg"
+            ):
+                raise FinalizationError(
+                    f"verified media Content-Type mismatch: {representative_id}"
+                )
+            for field in ("gif_content_length", "thumbnail_content_length"):
+                try:
+                    if int(row.get(field, "0")) <= 0:
+                        raise ValueError
+                except ValueError as error:
+                    raise FinalizationError(
+                        f"verified media size is invalid: {representative_id}"
+                    ) from error
+        validate_rights_review(row)
+        eligible = (
+            row["media_status"] == "AVAILABLE"
+            and row["s3_technical_status"] == "VERIFIED"
+            and row["rights_review_status"] == "APPROVED"
+        )
+        if row.get("production_eligibility") != str(eligible).lower():
+            raise FinalizationError(f"production eligibility mismatch: {representative_id}")
+        expected_visibility = "VISIBLE" if eligible else "HIDDEN"
+        if row.get("backend_visibility") != expected_visibility:
+            raise FinalizationError(f"backend visibility mismatch: {representative_id}")
+        final_rows.append(
+            {
+                "representative_exercise_id": representative_id,
+                "s3_key": row["gif_s3_key"],
+                "media_status": row["media_status"],
+                "s3_technical_status": row["s3_technical_status"],
+                "verified_at": row.get("verified_at", ""),
+                "rights_review_status": row["rights_review_status"],
+                "rights_reviewer": row.get("rights_reviewer", ""),
+                "rights_reviewed_at": row.get("rights_reviewed_at", ""),
+                "rights_evidence_reference": row.get("rights_evidence_reference", ""),
+                "production_eligibility": row["production_eligibility"],
+                "backend_visibility": row["backend_visibility"],
+                **{
+                    field: row.get(field, "")
+                    for field in MEDIA_COLUMNS
+                    if field
+                    not in {
+                        "representative_exercise_id",
+                        "s3_key",
+                        "media_status",
+                        "s3_technical_status",
+                        "verified_at",
+                        "rights_review_status",
+                        "rights_reviewer",
+                        "rights_reviewed_at",
+                        "rights_evidence_reference",
+                        "production_eligibility",
+                        "backend_visibility",
+                    }
+                },
+            }
+        )
+    approved_count = sum(
+        row["media_status"] == "AVAILABLE" and row["rights_review_status"] == "APPROVED"
+        for row in final_rows
+    )
+    return final_rows, approved_count
 
 
 def selected_nex_by_rex(integrated_rows: list[dict[str, str]]) -> dict[str, dict[str, str]]:
@@ -1090,6 +1307,9 @@ def build(output_dir: Path = DEFAULT_OUTPUT_DIR) -> dict[str, Any]:
     safety_rules, safety_mappings = build_safety(
         parse_jsonl(SAFETY_RULES_PATH), read_csv(SAFETY_MAPPING_PATH), integrated_rows
     )
+    media_rows, approved_media_asset_count = build_media_assets(
+        representative_rows, read_csv(MEDIA_REVIEW_PATH)
+    )
     runtime_blockers = runtime_json_blockers(representative_rows)
     output_dir.mkdir(parents=True, exist_ok=True)
     taxonomy_columns = tuple(taxonomy_rows[0])
@@ -1135,9 +1355,7 @@ def build(output_dir: Path = DEFAULT_OUTPUT_DIR) -> dict[str, Any]:
         SAFETY_MAPPING_COLUMNS,
         safety_mappings,
     )
-    # No source media currently has rights approval; emit a header-only registry
-    # rather than upload or expose an unapproved original.
-    write_csv(output_dir / "media_assets_v2_final.csv", MEDIA_COLUMNS, [])
+    write_csv(output_dir / "media_assets_v2_final.csv", MEDIA_COLUMNS, media_rows)
     artifact_names = (
         "representative_exercise_taxonomy_v2_final.csv",
         "representative_exercises_v2_final.csv",
@@ -1182,7 +1400,7 @@ def build(output_dir: Path = DEFAULT_OUTPUT_DIR) -> dict[str, Any]:
         "active_safety_bridge_rule_count": sum(
             row["activation_status"] == "ACTIVE" for row in safety_rules
         ),
-        "approved_media_asset_count": 0,
+        "approved_media_asset_count": approved_media_asset_count,
         "media_storage_backend": "AWS_MANAGED",
         "media_binary_local_storage": False,
         "media_local_db_storage": False,
@@ -1191,6 +1409,7 @@ def build(output_dir: Path = DEFAULT_OUTPUT_DIR) -> dict[str, Any]:
         "source_artifact_sha256": {
             "exercise_met_mapping_reviewed.csv": sha256(MET_PATH),
             "met_domain_approval_manifest.csv": sha256(MET_APPROVAL_MANIFEST_PATH),
+            "gymvisual_media_reviewed.csv": sha256(MEDIA_REVIEW_PATH),
         },
         "production_eligible": False,
     }

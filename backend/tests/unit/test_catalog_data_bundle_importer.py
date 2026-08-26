@@ -1,6 +1,7 @@
 import hashlib
 import json
-from contextlib import AbstractContextManager, contextmanager
+from collections.abc import Iterator
+from contextlib import contextmanager
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -43,13 +44,13 @@ SAFETY_DIRECTORY = GENERATED / "exercise-safety-rules-merged-mvp-v0.5.0"
 ALTERNATIVE_DIRECTORY = GENERATED / "exercise-alternatives-merged-mvp-v0.4.0"
 PRESCRIPTION_DIRECTORY = GENERATED / "exercise-prescriptions-merged-mvp-v0.1.0"
 V2_BUNDLE_DIRECTORY = GENERATED / "exercise-catalog-v2.0.0-final" / "backend_bundle"
-V2_BUNDLE_HASH = "22d90a1f6efa1b5af260573fa7d18b5cd699b6827474bc30d7711f872421a44d"
+V2_BUNDLE_HASH = "aa8e723f1c1973a3b114f3684e879f22f8757ea9b6aa9b86742b96bf6af1e0e6"
 V2_TAXONOMY_HASH = "79e487cc1a41ea39db9b4afb0799b3297840de878a2ae4ed621ef3e4403a0985"
 
 
 class FakeSession:
     @contextmanager
-    def begin(self) -> AbstractContextManager[None]:
+    def begin(self) -> Iterator[None]:
         yield
 
 
@@ -112,7 +113,7 @@ class RollbackFakeSession:
         self.repository = repository
 
     @contextmanager
-    def begin(self) -> AbstractContextManager[None]:
+    def begin(self) -> Iterator[None]:
         snapshot = deepcopy(self.repository.__dict__)
         try:
             yield
@@ -464,7 +465,7 @@ def test_bundle_middle_stage_failure_rolls_back_every_new_set() -> None:
     assert repository.prescription_state is None
 
 
-def test_v2_bundle_exact_hash_count_and_versions_are_accepted() -> None:
+def test_v2_bundle_exact_hash_count_and_versions_are_rejected_until_reapproved() -> None:
     importer = CatalogDataBundleImporter(
         cast(CatalogRepositoryPort, FakeRepository()),
         "test",
@@ -472,17 +473,14 @@ def test_v2_bundle_exact_hash_count_and_versions_are_accepted() -> None:
         v2_taxonomy_registry_sha256=V2_TAXONOMY_HASH,
     )
 
-    result = importer.import_v2_bundle(
-        cast(Session, FakeSession()),
-        V2_BUNDLE_DIRECTORY,
-        expected_bundle_manifest_sha256=V2_BUNDLE_HASH,
-    )
+    with pytest.raises(CatalogImportError) as exc_info:
+        importer.import_v2_bundle(
+            cast(Session, FakeSession()),
+            V2_BUNDLE_DIRECTORY,
+            expected_bundle_manifest_sha256=V2_BUNDLE_HASH,
+        )
 
-    assert [item.exercise_record_count for item in result.catalogs] == [102]
-    assert result.safety_rules.record_count == 394
-    assert result.alternatives.record_count == 285
-    assert result.prescriptions.record_count == 239
-    assert result.media_assets is None
+    assert exc_info.value.code == "APPROVAL_REGISTRY_MISMATCH"
 
 
 def test_v2_bundle_rejects_unapproved_manifest_hash() -> None:
