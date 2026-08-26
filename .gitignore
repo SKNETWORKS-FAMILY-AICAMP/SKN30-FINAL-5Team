@@ -38,6 +38,12 @@ coverage/
 *.db
 *.sqlite
 *.sqlite3
+
+# Database dumps taken for the Aurora restore. They carry catalog and user rows,
+# so they stay out of the repository even when the contents look synthetic.
+*.dump
+*.sql.gz
+
 *.log
 
 # Editors and operating systems

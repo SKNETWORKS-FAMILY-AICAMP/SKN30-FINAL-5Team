@@ -67,6 +67,50 @@ services:
         max-file: "3"
     restart: unless-stopped
 
+  caddy:
+    # Pinned by tag rather than digest: the operator resolves and pins the
+    # digest for the release they actually deploy, the same way qdrant below is
+    # pinned. Do not invent one here.
+    image: caddy:2.10-alpine
+    init: true
+    environment:
+      # Both are required. Caddy cannot request a certificate without a domain
+      # that already resolves to this host, and ACME needs a contact address.
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in .env.staging}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env.staging}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates and the ACME account key. Losing this volume means
+      # re-requesting certificates on every restart, which hits the Let's
+      # Encrypt rate limit quickly.
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - caddy
+        - version
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    mem_limit: 256m
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    restart: unless-stopped
+
   qdrant:
     image: qdrant/qdrant:v1.18.2@sha256:75eab8c4ba42096724fdcfde8b4de0b5713d529dde32f285a1f86fdcb2c9e50c
     expose:
@@ -97,3 +141,5 @@ services:
 
 volumes:
   qdrant_data:
+  caddy_data:
+  caddy_config:

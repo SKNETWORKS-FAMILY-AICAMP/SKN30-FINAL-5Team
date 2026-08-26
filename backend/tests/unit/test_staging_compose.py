@@ -4,6 +4,7 @@ from typing import Any
 import yaml
 
 COMPOSE_PATH = Path("infra/deployment/compose.staging.yaml")
+CADDYFILE_PATH = Path("infra/deployment/Caddyfile")
 ENV_EXAMPLE_PATH = Path("infra/deployment/.env.staging.example")
 USER_DATA_PATH = Path("infra/aws/user-data.sh")
 
@@ -20,12 +21,56 @@ def test_staging_compose_uses_aurora_and_keeps_internal_ports_private() -> None:
     compose = _compose()
     services = compose["services"]
 
-    assert set(services) == {"api", "qdrant"}
+    assert set(services) == {"api", "caddy", "qdrant"}
     assert "postgres" not in services
     assert services["api"]["ports"] == ["127.0.0.1:8000:8000"]
     assert "ports" not in services["qdrant"]
     assert set(services["qdrant"]["expose"]) == {"6333", "6334"}
     assert services["qdrant"]["volumes"] == ["qdrant_data:/qdrant/storage"]
+
+
+def test_only_caddy_is_publicly_published() -> None:
+    """The API port stays on loopback; 443 is the single public entry point."""
+    services = _compose()["services"]
+
+    assert services["caddy"]["ports"] == ["80:80", "443:443", "443:443/udp"]
+    # Anything bound without an explicit 127.0.0.1 prefix reaches the internet
+    # once the security group opens, so the API must never look like that.
+    for name, service in services.items():
+        if name == "caddy":
+            continue
+        for published in service.get("ports", []):
+            assert str(published).startswith("127.0.0.1:"), (
+                f"{name} publishes {published} beyond loopback"
+            )
+
+
+def test_caddy_persists_certificates_and_reverse_proxies_the_api() -> None:
+    """Losing /data would re-request certificates and hit the ACME rate limit."""
+    compose = _compose()
+    caddy = compose["services"]["caddy"]
+    caddyfile = CADDYFILE_PATH.read_text(encoding="utf-8")
+
+    assert "caddy_data:/data" in caddy["volumes"]
+    assert "./Caddyfile:/etc/caddy/Caddyfile:ro" in caddy["volumes"]
+    assert {"caddy_data", "caddy_config"} <= set(compose["volumes"])
+    assert caddy["depends_on"]["api"]["condition"] == "service_healthy"
+    assert "reverse_proxy api:8000" in caddyfile
+    # The domain and contact are supplied per deployment, never baked in.
+    assert "{$API_DOMAIN}" in caddyfile
+    assert "{$ACME_EMAIL}" in caddyfile
+
+
+def test_tls_configuration_carries_no_literal_domain_or_secret() -> None:
+    caddyfile = CADDYFILE_PATH.read_text(encoding="utf-8")
+    env_example = ENV_EXAMPLE_PATH.read_text(encoding="utf-8")
+
+    assert "API_DOMAIN=<" in env_example
+    assert "ACME_EMAIL=<" in env_example
+    assert ".rds.amazonaws.com" not in caddyfile
+    assert "sk-" not in caddyfile
+    # A wildcard origin plus a bearer token would let any site call the API.
+    assert "CORS_ALLOWED_ORIGINS=*" not in env_example
 
 
 def test_staging_baseline_is_fail_closed_and_contains_no_provider_secret() -> None:
