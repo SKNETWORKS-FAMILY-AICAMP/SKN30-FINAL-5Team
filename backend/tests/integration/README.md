@@ -55,3 +55,20 @@ uv run pytest backend/tests/integration/test_demo_vertical_slice.py::test_releas
 CI에서는 `backend` workflow의 `postgresql-release-flow` job이 PostgreSQL 16 service에서 같은 순서를
 독립적으로 실행한다. `TEST_DATABASE_URL`이 없으면 일반 개발 환경의 integration test는 skip하지만,
 CI job에는 값이 항상 설정되므로 skip은 실패로 취급한다.
+
+## V2 catalog PostgreSQL release flow
+
+`test_catalog_v2_release_flow.py`는 V1 수직 슬라이스와 분리된 V2 catalog 릴리스 게이트다. 승인된
+`backend_bundle`을 공개 importer와 repository 경계로 적재하고 다음을 확인한다.
+
+1. 현재 Alembic head와 PostgreSQL dialect, `_test` 데이터베이스 경계
+2. import 직후 DRAFT와 102/394/285/102/137 exact count
+3. 명시적 activation 뒤 단일 ACTIVE catalog
+4. import와 activation 재실행의 멱등성
+5. bundle file hash, record count, artifact version 불일치의 fail-closed와 zero partial row
+6. 중간 repository 실패 시 catalog와 모든 derived row의 transaction rollback
+7. media artifact 누락 시 nullable media와 registry approval 없는 media의 비노출·activation 차단
+
+CI의 `postgresql-v2-release-flow` job은 PostgreSQL 16의 `exercise_app_v2_release_test`에서
+`upgrade head -> downgrade base -> upgrade head` 뒤 unit/static fail-closed 검사와 이 모듈만
+실행한다. job timeout은 15분이며 첫 실패에서 종료해 실패 경계를 명확히 출력한다.
