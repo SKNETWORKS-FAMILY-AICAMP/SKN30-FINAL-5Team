@@ -610,7 +610,6 @@ function DecoratePanel({
     >
       <View style={styles.decorateHeader}>
         <View style={styles.decorateHeading}>
-          <Text style={styles.weekEyebrow}>바나나 {view.bananas}개</Text>
           <Text style={styles.weekTitle}>집 꾸미기</Text>
         </View>
         <Pressable

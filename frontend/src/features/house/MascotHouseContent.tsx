@@ -248,6 +248,7 @@ export function MascotHouseContent({
   onClaimGift,
   onFeed,
   onPet,
+  onPlayGame,
   onPlaceItem,
   onSelectBackground,
   mascotArt,
@@ -261,6 +262,7 @@ export function MascotHouseContent({
   onClaimGift: () => void;
   onFeed: () => void;
   onPet: () => void;
+  onPlayGame: () => void;
   onPlaceItem: (itemId: HouseItemId, placement: HouseItemPlacement) => void;
   onSelectBackground: (backgroundId: HouseBackgroundId) => void;
   mascotArt?: HouseArtSlot;
@@ -436,19 +438,36 @@ export function MascotHouseContent({
               style={styles.actionStack}
             >
               <FeedButton enabled={view.canFeed} onPress={onFeed} />
-              <Pressable
-                accessibilityLabel={`쓰다듬기, 바나나 ${HOUSE_ACTION_COST.pet}개`}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: !view.canPet }}
-                disabled={!view.canPet}
-                onPress={onPet}
-                style={[styles.petButton, !view.canPet && styles.spent]}
-                testID="house-pet-action"
-              >
-                <Text style={styles.petLabel}>
-                  쓰다듬기 · 바나나 {HOUSE_ACTION_COST.pet}개
-                </Text>
-              </Pressable>
+              <View style={styles.secondaryActionRow}>
+                <Pressable
+                  accessibilityLabel={`쓰다듬기, 바나나 ${HOUSE_ACTION_COST.pet}개`}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !view.canPet }}
+                  disabled={!view.canPet}
+                  onPress={onPet}
+                  style={[
+                    styles.petButton,
+                    styles.secondaryAction,
+                    !view.canPet && styles.spent,
+                  ]}
+                  testID="house-pet-action"
+                >
+                  <Text style={styles.petLabel}>
+                    쓰다듬기 · {HOUSE_ACTION_COST.pet}개
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  accessibilityLabel="바나나 받기 게임하기"
+                  accessibilityRole="button"
+                  onPress={onPlayGame}
+                  style={[styles.gameButton, styles.secondaryAction]}
+                  testID="house-play-game-action"
+                >
+                  <BananaGlyph size={16} />
+                  <Text style={styles.gameButtonLabel}>게임하기</Text>
+                </Pressable>
+              </View>
 
               <WeekPanel
                 nickname={nickname}
@@ -772,7 +791,6 @@ function DecoratePanel({
     >
       <View style={styles.decorateHeader}>
         <View style={styles.decorateHeading}>
-          <Text style={styles.weekEyebrow}>바나나 {view.bananas}개</Text>
           <Text style={styles.weekTitle}>집 꾸미기</Text>
         </View>
         <Pressable
@@ -1270,6 +1288,29 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSoft,
     backgroundColor: 'rgba(255, 255, 255, 0.86)',
     paddingVertical: 10,
+  },
+  secondaryActionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  secondaryAction: {
+    flex: 1,
+    minHeight: 42,
+    justifyContent: 'center',
+  },
+  gameButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(225, 158, 36, 0.72)',
+    backgroundColor: 'rgba(255, 231, 154, 0.9)',
+  },
+  gameButtonLabel: {
+    color: colors.brandOutline,
+    fontSize: 13,
+    fontWeight: '800',
   },
   petLabel: {
     color: colors.textSub,

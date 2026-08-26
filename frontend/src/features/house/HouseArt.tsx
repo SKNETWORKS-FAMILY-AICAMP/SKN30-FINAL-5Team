@@ -22,6 +22,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import { imageAssets } from '../../assets';
 import { colors, radii } from '../../components/theme';
 import type { HouseArtSlot } from './houseArtSlots';
 
@@ -72,21 +73,17 @@ export function HouseArtView({
   );
 }
 
-/** A curved banana, drawn as one arc of a circle. */
+/** The shared banana artwork used throughout the house and its mini-game. */
 export function BananaGlyph({ size = 16 }: { size?: number }) {
   return (
-    <View
+    <Image
+      accessible={false}
       accessibilityElementsHidden
       importantForAccessibility="no"
-      style={[
-        styles.banana,
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: Math.max(2, size / 5),
-        },
-      ]}
+      resizeMode="contain"
+      source={imageAssets.banana}
+      style={{ width: size, height: size }}
+      testID="house-banana-asset"
     />
   );
 }
@@ -189,12 +186,6 @@ const styles = StyleSheet.create({
   },
   placeholderWithoutOutline: {
     borderWidth: 0,
-  },
-  banana: {
-    borderColor: 'transparent',
-    borderBottomColor: colors.yellowDeep,
-    borderLeftColor: colors.yellowDeep,
-    transform: [{ rotate: '45deg' }],
   },
   gift: {
     alignItems: 'center',

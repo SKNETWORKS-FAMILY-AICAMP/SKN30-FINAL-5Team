@@ -5,6 +5,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react-native';
 
 import type { Api } from '../src/api/endpoints';
@@ -29,6 +30,7 @@ import {
   houseRegularPoseArt,
   houseRoomArt,
   randomHouseBananaPoseArt,
+  randomHousePettedPoseArt,
   randomHouseRegularPoseArt,
 } from '../src/features/house/houseArtSlots';
 import {
@@ -112,6 +114,13 @@ describe('MascotHouseScreen', () => {
     renderHouse(houseApi());
 
     expect(await screen.findByTestId('house-scene')).toBeTruthy();
+    expect(
+      screen
+        .getAllByTestId('house-banana-asset', {
+          includeHiddenElements: true,
+        })
+        .every((banana) => banana.props.source === imageAssets.banana),
+    ).toBe(true);
     expect(screen.queryByRole('header', { name: '끼끼의 집' })).toBeNull();
     expect(screen.getByText('주 3회 운동하기')).toBeTruthy();
     expect(screen.getByText('1 / 3 회')).toBeTruthy();
@@ -128,6 +137,17 @@ describe('MascotHouseScreen', () => {
 
     expect(screen.getByText(`${DAILY_GIFT_BANANAS}개`)).toBeTruthy();
     expect(screen.getByLabelText('오늘의 선물, 이미 받았어요')).toBeDisabled();
+  });
+
+  it('opens the banana catch game and returns to the same house', async () => {
+    renderHouse(houseApi());
+
+    await screen.findByTestId('house-scene');
+    fireEvent.press(screen.getByTestId('house-play-game-action'));
+    expect(screen.getByTestId('banana-catch-screen')).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
+    expect(screen.getByTestId('house-scene')).toBeTruthy();
   });
 
   it('spends bananas on feeding and keeps the balance in the store', async () => {
@@ -152,6 +172,11 @@ describe('MascotHouseScreen', () => {
       expect(screen.getByText(`${BANANA_REWARD.completed}개`)).toBeTruthy(),
     );
     fireEvent.press(screen.getByTestId('house-decorate-action'));
+    expect(
+      within(screen.getByTestId('house-decorate-panel')).queryByText(
+        `바나나 ${BANANA_REWARD.completed}개`,
+      ),
+    ).toBeNull();
     fireEvent.press(screen.getByRole('tab', { name: '소품' }));
     expect(screen.queryByText('가장 싼 소품은 바나나 20개예요.')).toBeNull();
     fireEvent.press(await screen.findByTestId('house-item-yoga_mat'));
@@ -475,6 +500,35 @@ describe('MascotHouseScreen', () => {
     expect(randomHouseRegularPoseArt(null, () => 0.999999)).toBe(
       houseRegularPoseArt[houseRegularPoseArt.length - 1],
     );
+  });
+
+  it('uses a random non-banana, non-unused pose when petted', async () => {
+    renderHouse(houseApi());
+
+    await waitFor(() =>
+      expect(screen.getByText(`${BANANA_REWARD.completed}개`)).toBeTruthy(),
+    );
+    const expected = randomHousePettedPoseArt(
+      housePoseArt.greeting.source,
+      () => 0,
+    );
+    const random = jest.spyOn(Math, 'random').mockReturnValue(0);
+
+    try {
+      fireEvent.press(screen.getByTestId('house-pet-action'));
+
+      const petted = screen.getByLabelText('쓰다듬어 주는 중');
+      expect(petted.props.source).toBe(expected.source);
+      expect(petted.props.source).not.toBe(housePoseArt.greeting.source);
+      expect(houseRegularPoseArt.map((slot) => slot.source)).toContain(
+        petted.props.source,
+      );
+      expect(houseBananaPoseArt.map((slot) => slot.source)).not.toContain(
+        petted.props.source,
+      );
+    } finally {
+      random.mockRestore();
+    }
   });
 
   it('keeps the banana pose for 5.6 seconds, then settles on a normal pose', async () => {

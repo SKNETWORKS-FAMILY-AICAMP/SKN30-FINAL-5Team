@@ -46,6 +46,7 @@ describe('fidelity foundation', () => {
       'mascotComplete',
       'progressMascot',
       'dayTodo',
+      'banana',
       'profileDefault',
       'weeklyProgressComplete',
       'weeklyProgressIncomplete',

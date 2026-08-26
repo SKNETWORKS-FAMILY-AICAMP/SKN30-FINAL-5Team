@@ -13,6 +13,7 @@ export const imageAssets = {
   progressMascot:
     require('./mascot/progress-mascot.webp') as ImageSourcePropType,
   dayTodo: require('./mascot/day-todo.webp') as ImageSourcePropType,
+  banana: require('./mascot/monkey/banana/banana.png') as ImageSourcePropType,
   profileDefault:
     require('./mascot/monkey/sheet_01/monkey_10.png') as ImageSourcePropType,
   weeklyProgressComplete:
