@@ -358,8 +358,8 @@ class V3DecisionRepository:
     ) -> tuple[UUID, ...]:
         run = self._require_v3_run(session, decision_run_id)
         roles = tuple(item.agent_type_code for item in proposals)
-        if roles != _SPECIALIST_ROLES:
-            raise ValueError("V3 requires TRAINING, RECOVERY, FEASIBILITY in canonical order")
+        if roles != tuple(role for role in _SPECIALIST_ROLES if role in set(roles)):
+            raise ValueError("V3 proposals must use canonical specialist order")
         for proposal in proposals:
             self._validate_proposal(proposal)
         existing = tuple(

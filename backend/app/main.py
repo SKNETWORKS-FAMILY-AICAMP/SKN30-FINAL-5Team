@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.exc import SQLAlchemyError
 
 from backend.app.api.v1.router import api_router
 from backend.app.core.catalog_guard import validate_catalog_manifests
@@ -16,7 +17,12 @@ from backend.app.db.session import DatabaseManager
 from backend.app.integrations.birthdate_crypto import LocalAesGcmBirthdateCipher
 from backend.app.integrations.firebase_auth import build_firebase_token_verifier
 from backend.app.integrations.llm_provider import build_narration_provider
+from backend.app.integrations.v3_application_composition import (
+    V3ApplicationCompositionError,
+    compose_v3_application_services,
+)
 from backend.app.integrations.v3_demo_factory import build_optional_v3_demo_runtime
+from backend.app.integrations.v3_demo_identity import SqlAlchemyV3DemoIdentityProvider
 from backend.app.modules.decisions.execution_profile import (
     DecisionCreationServicePort,
     LegacyDecisionCreationService,
@@ -59,6 +65,11 @@ def create_app(
     v3_shadow_service: V3ShadowCreationPort | None = None,
     v3_promotion_gate: V3ProductionPromotionGatePort | None = None,
     v3_regeneration_service: V3RegenerationServicePort | None = None,
+    v3_service_composer: Callable[
+        [Settings, DatabaseManager, object],
+        tuple[DecisionCreationServicePort, V3RegenerationServicePort],
+    ]
+    | None = None,
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
     configure_logging(resolved_settings.log_level)
@@ -101,12 +112,42 @@ def create_app(
         if narration_provider is not None
         else build_narration_provider(resolved_settings)
     )
-    application.state.v3_demo_runtime = build_optional_v3_demo_runtime(resolved_settings)
     promotion_gate = (
         v3_promotion_gate
         if v3_promotion_gate is not None
         else StaticV3ProductionPromotionGate(resolved_settings.v3_production_promotion_approved)
     )
+    profile = V3ExecutionProfile(resolved_settings.v3_execution_profile)
+    authoritative_v3 = profile is V3ExecutionProfile.DEMO or (
+        profile is V3ExecutionProfile.PRODUCTION and promotion_gate.allows_v3()
+    )
+    application.state.v3_authoritative_enabled = authoritative_v3
+    runtime = None
+    if authoritative_v3 and v3_creation_service is None and v3_regeneration_service is None:
+        runtime = build_optional_v3_demo_runtime(
+            resolved_settings,
+            identity_provider=SqlAlchemyV3DemoIdentityProvider(database_manager.new_session),
+            production_promotion_approved=promotion_gate.allows_v3(),
+        )
+    application.state.v3_demo_runtime = runtime
+    composer = v3_service_composer or compose_v3_application_services
+    if runtime is not None:
+        try:
+            composition_settings = resolved_settings.model_copy(
+                update={"v3_production_promotion_approved": authoritative_v3}
+            )
+            automatic_creation, automatic_regeneration = composer(
+                composition_settings, database_manager, runtime
+            )
+        except (SQLAlchemyError, V3ApplicationCompositionError):
+            # The request path returns the stable V3_COMPOSITION_UNAVAILABLE code.
+            # Do not log DB/provider exception details or fall back to legacy.
+            automatic_creation = None
+            automatic_regeneration = None
+        if v3_creation_service is None and automatic_creation is not None:
+            v3_creation_service = automatic_creation
+        if v3_regeneration_service is None and automatic_regeneration is not None:
+            v3_regeneration_service = automatic_regeneration
 
     def build_decision_creation_service(
         repository: DecisionRepositoryPort,
@@ -118,7 +159,7 @@ def create_app(
             )
         )
         return ProfiledDecisionCreationService(
-            profile=V3ExecutionProfile(resolved_settings.v3_execution_profile),
+            profile=profile,
             legacy=legacy_creation_service,
             v3=v3_creation_service,
             shadow=v3_shadow_service,

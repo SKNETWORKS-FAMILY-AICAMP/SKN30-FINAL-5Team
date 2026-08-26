@@ -142,6 +142,109 @@ def test_main_composes_staging_demo_creation_and_regeneration_services() -> None
     assert get_v3_regeneration_service(fake_request) is regeneration
 
 
+def test_direct_v3_service_injection_skips_runtime_factory(monkeypatch) -> None:
+    creation = StubCreationService("v3")
+
+    def unexpected_runtime_factory(settings):
+        del settings
+        raise AssertionError("runtime factory must not run for direct service injection")
+
+    monkeypatch.setattr(
+        "backend.app.main.build_optional_v3_demo_runtime", unexpected_runtime_factory
+    )
+    app = create_app(
+        settings=Settings(
+            app_env="staging",
+            database_url="postgresql+psycopg://test:test@localhost/test",
+            v3_execution_profile="DEMO",
+        ),
+        readiness_probe=lambda: None,
+        v3_creation_service=creation,
+    )
+
+    composed = app.state.decision_creation_service_factory(object())
+    assert asyncio.run(composed.create(object(), uuid4(), request(), uuid4())) == "v3"
+    assert app.state.v3_demo_runtime is None
+
+
+def test_staging_demo_composer_reuses_one_runtime_for_both_services(monkeypatch) -> None:
+    runtime = object()
+    creation = StubCreationService("automatic-v3")
+
+    class Regeneration:
+        async def regenerate(self, command):
+            del command
+            raise AssertionError("not invoked by composition test")
+
+    regeneration = Regeneration()
+    calls: list[tuple[Settings, object, object]] = []
+    monkeypatch.setattr(
+        "backend.app.main.build_optional_v3_demo_runtime",
+        lambda settings, **kwargs: runtime,
+    )
+
+    def compose(settings, database_manager, received_runtime):
+        calls.append((settings, database_manager, received_runtime))
+        return creation, regeneration
+
+    app = create_app(
+        settings=Settings(
+            app_env="staging",
+            database_url="postgresql+psycopg://test:test@localhost/test",
+            v3_execution_profile="DEMO",
+        ),
+        readiness_probe=lambda: None,
+        v3_service_composer=compose,
+    )
+
+    service = app.state.decision_creation_service_factory(object())
+    assert asyncio.run(service.create(object(), uuid4(), request(), uuid4())) == "automatic-v3"
+    fake_request = type("Request", (), {"app": app})()
+    assert get_v3_regeneration_service(fake_request) is regeneration
+    assert app.state.v3_demo_runtime is runtime
+    assert len(calls) == 1
+    assert calls[0][2] is runtime
+
+
+def test_injected_production_gate_enables_automatic_composition(monkeypatch) -> None:
+    runtime = object()
+    creation = StubCreationService("automatic-v3")
+
+    class Regeneration:
+        async def regenerate(self, command):
+            del command
+            raise AssertionError("not invoked by composition test")
+
+    regeneration = Regeneration()
+    composition_settings: list[Settings] = []
+    monkeypatch.setattr(
+        "backend.app.main.build_optional_v3_demo_runtime",
+        lambda settings, **kwargs: runtime,
+    )
+
+    def compose(settings, database_manager, received_runtime):
+        del database_manager
+        assert received_runtime is runtime
+        composition_settings.append(settings)
+        return creation, regeneration
+
+    app = create_app(
+        settings=Settings(
+            app_env="production",
+            database_url="postgresql+psycopg://test:test@localhost/test",
+            v3_execution_profile="PRODUCTION",
+            v3_production_promotion_approved=False,
+        ),
+        readiness_probe=lambda: None,
+        v3_promotion_gate=StaticV3ProductionPromotionGate(True),
+        v3_service_composer=compose,
+    )
+
+    assert composition_settings[0].v3_production_promotion_approved is True
+    fake_request = type("Request", (), {"app": app})()
+    assert get_v3_regeneration_service(fake_request) is regeneration
+
+
 def test_staging_demo_v3_success_keeps_public_api_contract() -> None:
     decision_id = uuid4()
 

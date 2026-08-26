@@ -62,8 +62,8 @@ class V3SqlPersistenceMetadata:
     def __post_init__(self) -> None:
         if self.now.tzinfo is None or self.root_snapshot_expires_at.tzinfo is None:
             raise ValueError("V3 SQL persistence timestamps must include timezone")
-        if len(self.proposal_invocations) != 3:
-            raise ValueError("exactly three specialist invocation records are required")
+        if len(self.proposal_invocations) > 3:
+            raise ValueError("at most three specialist invocation records are allowed")
 
 
 class V3PersistenceSqlMapper:
@@ -154,6 +154,8 @@ class V3PersistenceSqlMapper:
         bundle: V3DecisionPersistenceBundle,
         metadata: V3SqlPersistenceMetadata,
     ) -> tuple[AgentProposalWrite, ...]:
+        if len(bundle.agent_proposals) != len(metadata.proposal_invocations):
+            raise ValueError("proposal invocation metadata must align with persisted proposals")
         if any(
             item.model_version != invocation.model_code
             for item, invocation in zip(

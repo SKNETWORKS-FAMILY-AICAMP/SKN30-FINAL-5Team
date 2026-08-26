@@ -14,6 +14,7 @@ from backend.app.modules.decisions.v3_regeneration import (
     V3IdempotencyKeyReusedError,
     V3NoAlternativeAvailableError,
     V3RegenerationCommand,
+    V3RegenerationCompositionUnavailableError,
     V3RegenerationContextStaleError,
     V3RegenerationDecisionFailedError,
     V3RegenerationError,
@@ -43,6 +44,26 @@ class StubRegenerationService:
             raise self.error
         assert self.result is not None
         return self.result
+
+
+def test_composition_unavailable_has_stable_sanitized_error() -> None:
+    client, _, decision_id, plan_id = _create_stored_decision()
+    client.app.dependency_overrides[get_v3_regeneration_service] = lambda: StubRegenerationService(
+        error=V3RegenerationCompositionUnavailableError()
+    )
+
+    with client:
+        response = client.post(
+            f"/api/v1/decisions/{decision_id}/regenerations",
+            headers={"Idempotency-Key": str(uuid4())},
+            json={
+                "expected_plan_id": str(plan_id),
+                "expected_regeneration_sequence": 0,
+            },
+        )
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "V3_COMPOSITION_UNAVAILABLE"
 
 
 def _create_stored_decision() -> tuple[object, UUID, UUID, UUID]:

@@ -68,6 +68,7 @@ class V3CreationSource(_FrozenContract):
     local_date: date
     context_version: int = Field(gt=0)
     normalized_values: dict[str, object]
+    application_context: object | None = Field(default=None, exclude=True, repr=False)
 
     @field_validator("normalized_values")
     @classmethod
@@ -223,7 +224,12 @@ class V3InitialCreationService:
                     response=response,
                 )
             else:
-                root_snapshot = self._exercise_pool_loader.load(source=source, envelope=envelope)
+                try:
+                    root_snapshot = self._exercise_pool_loader.load(
+                        source=source, envelope=envelope
+                    )
+                except (RuntimeError, ValueError):
+                    raise DecisionFailedError from None
                 try:
                     bundle = await self._graph_runtime.create(root_snapshot=root_snapshot)
                 except TimeoutError:

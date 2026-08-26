@@ -55,6 +55,7 @@ _REGENERATION_ERROR_STATUS = {
     V3RegenerationFailureCode.NO_ALTERNATIVE_AVAILABLE: HTTPStatus.UNPROCESSABLE_ENTITY,
     V3RegenerationFailureCode.DECISION_FAILED: HTTPStatus.SERVICE_UNAVAILABLE,
     V3RegenerationFailureCode.V3_ENGINE_DISABLED: HTTPStatus.SERVICE_UNAVAILABLE,
+    V3RegenerationFailureCode.V3_COMPOSITION_UNAVAILABLE: HTTPStatus.SERVICE_UNAVAILABLE,
 }
 
 _REGENERATION_ERROR_MESSAGES = {
@@ -75,6 +76,7 @@ _REGENERATION_ERROR_MESSAGES = {
     ),
     V3RegenerationFailureCode.DECISION_FAILED: "안전한 운동 계획을 생성하지 못했습니다.",
     V3RegenerationFailureCode.V3_ENGINE_DISABLED: "루틴 재생성 기능을 사용할 수 없습니다.",
+    V3RegenerationFailureCode.V3_COMPOSITION_UNAVAILABLE: ("V3 실행 구성이 준비되지 않았습니다."),
 }
 
 _DIFFERENCE_CODE_TO_API = {
