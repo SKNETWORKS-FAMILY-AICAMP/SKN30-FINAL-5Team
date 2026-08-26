@@ -34,7 +34,7 @@ def _write_media_artifact(root: Path, records: list[dict[str, object]]) -> None:
         "schema_version": "1.0",
         "generator_version": "synthetic-test-v1",
         "media_set_version": {"version_code": "media-set-v2", "status_code": "DRAFT"},
-        "catalog_version_code": "exercise-catalog-v2.0.0-final",
+        "catalog_version_code": "exercise-catalog-v2.0.1-final",
         "source": {"kind": "synthetic-test"},
         "review": {
             "status": "DOMAIN_APPROVED",

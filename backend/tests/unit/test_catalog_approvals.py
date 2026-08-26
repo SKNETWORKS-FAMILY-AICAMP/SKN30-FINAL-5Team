@@ -39,26 +39,26 @@ def test_exact_v2_approvals_preserve_packet_metadata_and_waiver() -> None:
     artifacts = (
         (
             "CATALOG",
-            "exercise-catalog-v2.0.0-final",
-            "e3ad5c3eabf193d173aa3b01c4c503962a43074ad3ecbd44343efb1195677b24",
+            "exercise-catalog-v2.0.1-final",
+            "731182224ab367ffee526a90deeca9d967a894e16c2f9543aa0109b19e7f8994",
             102,
         ),
         (
             "SAFETY_RULES",
             "safety-rule-set-v2.0.0",
-            "53e8f597f4e312999cd9c04402c17ec7faa741692aae90ab8a67889f144c0807",
+            "5fbfff04c82aceb044d9f05dfb3c3367b6b66328ce749d6dc9993f203b54dbe3",
             394,
         ),
         (
             "ALTERNATIVES",
             "alternative-set-v2.0.0",
-            "4f78c1c735a3b1129d8396233612bb27b69c25672967990116cca91b7dd74b5c",
+            "23443a260056e2b5bb294089fc257e629ef4ab10a4d3265e1fa3ebc608af7b24",
             285,
         ),
         (
             "PRESCRIPTIONS",
             "prescription-set-v2.0.0",
-            "e2237c1ab59784339969405e8b85ee65751459cb95ed119efa1070cffba25abe",
+            "156c9702aa8156826cc5709cc9f80b660158f1a4225830efb0599894031f7641",
             239,
         ),
     )

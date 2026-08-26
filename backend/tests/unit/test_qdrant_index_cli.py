@@ -75,7 +75,7 @@ def test_cli_default_is_zero_call_and_reports_only_canonical_code(capsys) -> Non
     exit_code = build_qdrant_index.main(
         [
             "--catalog-version",
-            "exercise-catalog-v2.0.0-final",
+            "exercise-catalog-v2.0.1-final",
             "--vector-index-version",
             "staging-index-v1",
         ],

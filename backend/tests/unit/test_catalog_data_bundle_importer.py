@@ -42,8 +42,8 @@ CATALOG_DIRECTORIES = (GENERATED / "exercise-catalog-seed-merged-mvp-v0.4.0",)
 SAFETY_DIRECTORY = GENERATED / "exercise-safety-rules-merged-mvp-v0.5.0"
 ALTERNATIVE_DIRECTORY = GENERATED / "exercise-alternatives-merged-mvp-v0.4.0"
 PRESCRIPTION_DIRECTORY = GENERATED / "exercise-prescriptions-merged-mvp-v0.1.0"
-V2_BUNDLE_DIRECTORY = GENERATED / "exercise-catalog-v2.0.0-final" / "backend_bundle"
-V2_BUNDLE_HASH = "22d90a1f6efa1b5af260573fa7d18b5cd699b6827474bc30d7711f872421a44d"
+V2_BUNDLE_DIRECTORY = GENERATED / "exercise-catalog-v2.0.1-final" / "backend_bundle"
+V2_BUNDLE_HASH = "2364f152c227266e2cddf88acbbe3c5ade3a893a1935c1e04ad4c44b4b67196f"
 V2_TAXONOMY_HASH = "79e487cc1a41ea39db9b4afb0799b3297840de878a2ae4ed621ef3e4403a0985"
 
 
@@ -138,7 +138,7 @@ def test_loads_current_derived_artifacts() -> None:
 
 
 def test_v2_runtime_metadata_is_accepted_by_pydantic() -> None:
-    runtime = GENERATED / "exercise-catalog-v2.0.0-final" / "runtime"
+    runtime = GENERATED / "exercise-catalog-v2.0.1-final" / "runtime"
     safety_manifest = SafetyRuleManifest.model_validate_json(
         (runtime / "safety_manifest.json").read_text(encoding="utf-8")
     )

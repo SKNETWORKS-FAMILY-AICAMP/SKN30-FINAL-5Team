@@ -1,0 +1,42 @@
+{
+  "files": [
+    {
+      "bytes": 24077,
+      "path": "goal_tag_links.jsonl",
+      "records": 102,
+      "sha256": "0d0471438f9d2017861fd3dce3e1de6cce083fdccdb9fb50bf11729c4e754d9c"
+    },
+    {
+      "bytes": 56211,
+      "path": "prescription_profiles.jsonl",
+      "records": 137,
+      "sha256": "fa17926f1a52cb459feb06686bec03a1d07bfa66f5c8dc8cddfd546de9dd1760"
+    }
+  ],
+  "generator_version": "v2-prescription-generator-1.0.0",
+  "prescription_set_version": {
+    "status_code": "DRAFT",
+    "version_code": "prescription-set-v2.0.0"
+  },
+  "review": {
+    "production_eligible": false,
+    "review_method_code": "AGENT_ONLY",
+    "status": "DOMAIN_APPROVED",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
+  },
+  "schema_version": "1.0",
+  "source": {
+    "catalog_review_input_path": "C:\\Users\\playdata2\\SKN30_FINAL_5\\data\\generated\\exercise-catalog-v2.0.1-final\\representative_exercises_v2_final.csv",
+    "catalog_review_input_sha256": "6b832a51229b674d537905bc8d5ac0f994582cdf99d18494cb4e88e9560750ad",
+    "catalog_version_code": "exercise-catalog-v2.0.1-final",
+    "policy_path": "C:\\Users\\playdata2\\SKN30_FINAL_5\\data\\normalized\\v2_prescription_review_policy.json",
+    "policy_sha256": "09beba6ea28e5b3285f8973f44d4aeb6ad3886b1989f4870931f7c4109810214",
+    "review_results_path": "C:\\Users\\playdata2\\SKN30_FINAL_5\\data\\validation\\review_results\\v2_prescription_review_input.csv",
+    "review_results_sha256": "d45ad9eff3238211f02787127b3ff555b1753d53d713bf170376829d0afb5b8e"
+  },
+  "summary": {
+    "exercise_records": 102,
+    "goal_tag_records": 102,
+    "prescription_records": 137
+  }
+}

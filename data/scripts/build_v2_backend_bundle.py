@@ -13,19 +13,19 @@ from typing import Any
 from kspo_fitness100_pipeline import PipelineError, sha256_bytes
 
 DATA_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_RUNTIME = DATA_ROOT / "generated/exercise-catalog-v2.0.0-final/runtime"
-DEFAULT_PRESCRIPTIONS = DATA_ROOT / "generated/exercise-prescriptions-v2.0.0-draft"
-DEFAULT_BUNDLE = DATA_ROOT / "generated/exercise-catalog-v2.0.0-final/backend_bundle"
+DEFAULT_RUNTIME = DATA_ROOT / "generated/exercise-catalog-v2.0.1-final/runtime"
+DEFAULT_PRESCRIPTIONS = DATA_ROOT / "generated/exercise-prescriptions-v2.0.1-draft"
+DEFAULT_BUNDLE = DATA_ROOT / "generated/exercise-catalog-v2.0.1-final/backend_bundle"
 CATALOG_SOURCE = (
-    DATA_ROOT / "generated/exercise-catalog-v2.0.0-final/representative_exercises_v2_final.csv"
+    DATA_ROOT / "generated/exercise-catalog-v2.0.1-final/representative_exercises_v2_final.csv"
 )
 TAXONOMY_SOURCE = DATA_ROOT / "normalized/exercise_taxonomy_codes.json"
 SAFETY_SOURCE = (
     DATA_ROOT
-    / "generated/exercise-catalog-v2.0.0-final/representative_exercise_safety_mapping_v2_final.csv"
+    / "generated/exercise-catalog-v2.0.1-final/representative_exercise_safety_mapping_v2_final.csv"
 )
 ALTERNATIVE_SOURCE = (
-    DATA_ROOT / "generated/exercise-catalog-v2.0.0-final/exercise_alternatives_v2_final.csv"
+    DATA_ROOT / "generated/exercise-catalog-v2.0.1-final/exercise_alternatives_v2_final.csv"
 )
 DECISIONS_SOURCE = DATA_ROOT / "normalized/v2_representative_decisions.json"
 POLICY_SOURCE = DATA_ROOT / "normalized/v2_prescription_review_policy.json"
@@ -124,7 +124,7 @@ def _package_catalog(root: Path, runtime: Path) -> list[Path]:
         "schema_version": "1.0",
         "generator_version": "v2-backend-bundle-packager-1.0.0",
         "catalog_version": {
-            "version_code": "exercise-catalog-v2.0.0-final",
+            "version_code": "exercise-catalog-v2.0.1-final",
             "status_code": "DRAFT",
         },
         "source": {
@@ -232,7 +232,7 @@ def _package_derived(
     manifest["generator_version"] = "v2-backend-bundle-packager-1.0.0"
     manifest["review"] = _rewrite_review(source_manifest["review"])
     manifest["source"] = {
-        "catalog_version_code": "exercise-catalog-v2.0.0-final",
+        "catalog_version_code": "exercise-catalog-v2.0.1-final",
         "input_artifacts": inputs,
         "runtime_manifest_sha256": sha256_bytes((runtime / source_manifest_name).read_bytes()),
         "runtime_manifest_path": f"runtime/{source_manifest_name}",
@@ -271,7 +271,7 @@ def _package_prescriptions(root: Path, prescription_dir: Path) -> list[Path]:
     manifest["generator_version"] = "v2-backend-bundle-packager-1.0.0"
     manifest["review"] = _rewrite_review(source_manifest["review"])
     manifest["source"] = {
-        "catalog_version_code": "exercise-catalog-v2.0.0-final",
+        "catalog_version_code": "exercise-catalog-v2.0.1-final",
         "input_artifacts": [
             _internal_artifact(destination, REVIEW_SOURCE, "prescription_review_input"),
             _internal_artifact(destination, POLICY_SOURCE, "prescription_policy"),
@@ -343,7 +343,7 @@ def build(
             "bundle_version": "v2-backend-bundle-2026-08-25",
             "status_code": "DRAFT",
             "production_eligible": False,
-            "catalog_version_code": "exercise-catalog-v2.0.0-final",
+            "catalog_version_code": "exercise-catalog-v2.0.1-final",
             "derived_set_versions": {
                 "rule_set_version_code": "safety-rule-set-v2.0.0",
                 "alternative_set_version_code": "alternative-set-v2.0.0",

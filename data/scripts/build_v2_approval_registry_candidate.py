@@ -12,7 +12,7 @@ from kspo_fitness100_pipeline import PipelineError
 from validate_v2_backend_bundle import validate
 
 DEFAULT_BUNDLE = (
-    Path(__file__).resolve().parents[1] / "generated/exercise-catalog-v2.0.0-final/backend_bundle"
+    Path(__file__).resolve().parents[1] / "generated/exercise-catalog-v2.0.1-final/backend_bundle"
 )
 DEFAULT_OUTPUT = (
     Path(__file__).resolve().parents[1]
@@ -30,9 +30,9 @@ def build(bundle: Path = DEFAULT_BUNDLE, output: Path = DEFAULT_OUTPUT) -> Path:
         "candidate_status": "DRAFT_CANDIDATE",
         "production_eligible": False,
         "activation_status": "NOT_ACTIVATED",
-        "catalog_version_code": "exercise-catalog-v2.0.0-final",
+        "catalog_version_code": "exercise-catalog-v2.0.1-final",
         "bundle_manifest_path": (
-            "generated/exercise-catalog-v2.0.0-final/backend_bundle/bundle_manifest.json"
+            "generated/exercise-catalog-v2.0.1-final/backend_bundle/bundle_manifest.json"
         ),
         "bundle_manifest_sha256": hashlib.sha256(raw).hexdigest(),
         "bundle_summary": {key: value for key, value in report.items() if key.endswith("records")},

@@ -33,13 +33,20 @@ class DerivedDataApproval:
 
 
 _APPROVALS = {
+    # v2.0.1 differs from v2.0.0-final in exactly one column: beginner_suitable
+    # on the 25 MOBILITY representatives that v2.0.0 still carried as
+    # REVIEW_REQUIRED. Nothing else in the catalog, safety, alternative or
+    # prescription content changed; the derived manifests only re-hash because
+    # they name the new catalog version. The per-item split is recorded in
+    # beginner_suitability_review below so the source of that call stays
+    # auditable, since REVIEW_REQUIRED means a reviewer had not yet ruled.
     (
         "CATALOG",
-        "exercise-catalog-v2.0.0-final",
+        "exercise-catalog-v2.0.1-final",
     ): DerivedDataApproval(
         artifact_kind="CATALOG",
-        version_code="exercise-catalog-v2.0.0-final",
-        manifest_sha256="e3ad5c3eabf193d173aa3b01c4c503962a43074ad3ecbd44343efb1195677b24",
+        version_code="exercise-catalog-v2.0.1-final",
+        manifest_sha256="731182224ab367ffee526a90deeca9d967a894e16c2f9543aa0109b19e7f8994",
         record_count=102,
         approval_record_code="V2-PROMOTION-APPROVAL-2026-08-25-R01",
         approved_on="2026-08-25",
@@ -47,6 +54,33 @@ _APPROVALS = {
         approval_metadata={
             "reviewer_reference": "V2-PRESCRIPTION-DOMAIN-REVIEW-2026-08-25-R01",
             "reviewed_at": "2026-08-25T15:00:00+09:00",
+            "beginner_suitability_review": {
+                "applies_to": "25 MOBILITY_STRETCH representatives previously REVIEW_REQUIRED",
+                "classified_by": "ASSISTANT_CLASSIFICATION",
+                "classified_at": "2026-08-26",
+                "directed_by": "PROJECT_OWNER",
+                "rule": (
+                    "SUITABLE when unloaded, self-limiting range, stable position, "
+                    "no cervical or end-range spinal loading, no equipment; "
+                    "CONDITIONAL otherwise"
+                ),
+                "suitable_count": 17,
+                "conditional_count": 8,
+                "conditional_reasons": {
+                    "REX-000017": "deep hip adduction range",
+                    "REX-000039": "kneeling knee load with overhead shoulder end range",
+                    "REX-000045": "cervical spine",
+                    "REX-000084": "loaded seated spinal flexion",
+                    "REX-000085": "sciatic nerve proximity",
+                    "REX-000091": "spinal end range",
+                    "REX-000092": "rotational end range",
+                    "REX-000094": "strap required, over-leverage risk",
+                },
+                "outstanding": (
+                    "not a substitute for an external domain reviewer sign-off on "
+                    "beginner suitability"
+                ),
+            },
         },
         waiver={
             "reference": "V2-PROMOTION-WAIVER-2026-08-25-R01",
@@ -59,7 +93,7 @@ _APPROVALS = {
     ): DerivedDataApproval(
         artifact_kind="SAFETY_RULES",
         version_code="safety-rule-set-v2.0.0",
-        manifest_sha256="53e8f597f4e312999cd9c04402c17ec7faa741692aae90ab8a67889f144c0807",
+        manifest_sha256="5fbfff04c82aceb044d9f05dfb3c3367b6b66328ce749d6dc9993f203b54dbe3",
         record_count=394,
         approval_record_code="V2-PROMOTION-APPROVAL-2026-08-25-R01",
         approved_on="2026-08-25",
@@ -71,7 +105,7 @@ _APPROVALS = {
     ): DerivedDataApproval(
         artifact_kind="ALTERNATIVES",
         version_code="alternative-set-v2.0.0",
-        manifest_sha256="4f78c1c735a3b1129d8396233612bb27b69c25672967990116cca91b7dd74b5c",
+        manifest_sha256="23443a260056e2b5bb294089fc257e629ef4ab10a4d3265e1fa3ebc608af7b24",
         record_count=285,
         approval_record_code="V2-PROMOTION-APPROVAL-2026-08-25-R01",
         approved_on="2026-08-25",
@@ -83,7 +117,7 @@ _APPROVALS = {
     ): DerivedDataApproval(
         artifact_kind="PRESCRIPTIONS",
         version_code="prescription-set-v2.0.0",
-        manifest_sha256="e2237c1ab59784339969405e8b85ee65751459cb95ed119efa1070cffba25abe",
+        manifest_sha256="156c9702aa8156826cc5709cc9f80b660158f1a4225830efb0599894031f7641",
         record_count=239,
         approval_record_code="V2-PROMOTION-APPROVAL-2026-08-25-R01",
         approved_on="2026-08-25",

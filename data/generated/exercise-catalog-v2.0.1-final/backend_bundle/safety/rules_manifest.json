@@ -1,0 +1,53 @@
+{
+  "files": [
+    {
+      "bytes": 180235,
+      "path": "safety_rules.jsonl",
+      "records": 394,
+      "sha256": "3b3a9bd0dc8e16b36c174b4d84938630f34b74db7c881bc262d5ea351cd60137"
+    }
+  ],
+  "generator_version": "v2-backend-bundle-packager-1.0.0",
+  "review": {
+    "production_eligible": false,
+    "review_method_code": "AGENT_ONLY",
+    "status": "DOMAIN_APPROVED",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
+  },
+  "rule_set_version": {
+    "status_code": "DRAFT",
+    "version_code": "safety-rule-set-v2.0.0"
+  },
+  "schema_version": "1.0",
+  "source": {
+    "catalog_version_code": "exercise-catalog-v2.0.1-final",
+    "importer_record_count": 394,
+    "input_artifacts": [
+      {
+        "bytes": 102367,
+        "path": "input/representative_exercise_safety_mapping_v2_final.csv",
+        "role": "safety_mapping_csv",
+        "sha256": "9340e5f60bb229cbc97a1429a694ad7379ae532a0981d1580c9ec2e62c5a88cb"
+      },
+      {
+        "bytes": 4341,
+        "path": "input/v2_representative_decisions.json",
+        "role": "v2_decisions",
+        "sha256": "23285ceaee094966779def8d33765b4fbac5be151f73f3ce1fe547e459f65643"
+      }
+    ],
+    "projection_conflict_count": 0,
+    "projection_status": "DIRECT",
+    "runtime_manifest_path": "runtime/safety_manifest.json",
+    "runtime_manifest_sha256": "a28af848a1a3cc232c4656baf3ace3434a304ea37c99efffd15488213d016287",
+    "runtime_record_count": 394
+  },
+  "summary": {
+    "alternative_records": null,
+    "exercise_records": null,
+    "exercise_scope_rules": null,
+    "pattern_scope_rules": null,
+    "rule_records": 394,
+    "sources_with_alternatives": null
+  }
+}

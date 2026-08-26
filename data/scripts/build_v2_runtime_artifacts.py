@@ -30,14 +30,14 @@ from backend.app.modules.catalog.schemas import (  # noqa: E402
 )
 
 DATA_ROOT = PROJECT_ROOT / "data"
-FINAL_DIR = DATA_ROOT / "generated" / "exercise-catalog-v2.0.0-final"
+FINAL_DIR = DATA_ROOT / "generated" / "exercise-catalog-v2.0.1-final"
 DEFAULT_OUTPUT_DIR = FINAL_DIR / "runtime"
 DECISIONS_PATH = DATA_ROOT / "normalized" / "v2_representative_decisions.json"
 ALTERNATIVES_PATH = FINAL_DIR / "exercise_alternatives_v2_final.csv"
 SAFETY_MAPPING_PATH = (
     DATA_ROOT
     / "generated"
-    / "exercise-catalog-v2.0.0-final"
+    / "exercise-catalog-v2.0.1-final"
     / "representative_exercise_safety_mapping_v2_final.csv"
 )
 REPRESENTATIVES_PATH = FINAL_DIR / "representative_exercises_v2_final.csv"
@@ -298,7 +298,7 @@ def materialize_alternatives(
         seen[key] = source
         record = V2ExerciseAlternativeRecord.model_validate(
             {
-                "alternative_catalog_version_code": "exercise-catalog-v2.0.0-final",
+                "alternative_catalog_version_code": "exercise-catalog-v2.0.1-final",
                 "alternative_exercise_stable_code": alternative_stable,
                 "created_at": GENERATED_AT,
                 "difficulty_delta": difficulty_delta,
@@ -315,7 +315,7 @@ def materialize_alternatives(
                     "source_relation_key": source["source_relation_key"],
                     "materialization_version": decisions["decision_version"],
                 },
-                "source_catalog_version_code": "exercise-catalog-v2.0.0-final",
+                "source_catalog_version_code": "exercise-catalog-v2.0.1-final",
                 "source_exercise_stable_code": source_stable,
                 "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
             }
@@ -350,7 +350,7 @@ def materialize_safety(
                         {
                             "body_area_code": area,
                             "body_part_role_code": role,
-                            "catalog_version_code": "exercise-catalog-v2.0.0-final",
+                            "catalog_version_code": "exercise-catalog-v2.0.1-final",
                             "effect_code": effect,
                             "exercise_stable_code": exercise.stable_code,
                             "maximum_severity_code": maximum,
@@ -431,7 +431,7 @@ def build(output_dir: Path = DEFAULT_OUTPUT_DIR) -> dict[str, Any]:
             "schema_version": "1.0",
             "generator_version": "v2-runtime-materializer-1.0.0",
             "catalog_version": {
-                "version_code": "exercise-catalog-v2.0.0-final",
+                "version_code": "exercise-catalog-v2.0.1-final",
                 "status_code": "DRAFT",
             },
             "source": source,
