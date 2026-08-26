@@ -27,3 +27,34 @@
   적재합니다. 기본 동작은 DRAFT 유지이며 `--activate`를 명시해야 activation gate까지 실행합니다.
 - media artifact는 선택적입니다. 포함된 경우 canonical S3 key, 실제 exercise FK, rights evidence와
   media approval registry를 검증·보존하고, 승인 조건을 모두 만족한 media만 조회합니다.
+
+## V2 release verification runbook
+
+아래 절차는 실제 PostgreSQL을 사용할 권한이 있는 개발팀장이 빈 전용 `_test` 데이터베이스에서
+수행합니다. 코딩 에이전트는 DB 연결이나 migration 적용을 실행하지 않습니다.
+
+```powershell
+$env:APP_ENV = "test"
+$env:TEST_DATABASE_URL = "postgresql+psycopg://exercise_app:<test-password>@localhost:5432/exercise_app_v2_release_test"
+$env:DATABASE_URL = $env:TEST_DATABASE_URL
+uv run alembic -c backend/alembic.ini upgrade head
+uv run alembic -c backend/alembic.ini downgrade base
+uv run alembic -c backend/alembic.ini upgrade head
+uv run python -m backend.scripts.catalog_promote_v2
+uv run python -m backend.scripts.catalog_promote_v2
+uv run python -m backend.scripts.catalog_promote_v2 --activate
+uv run python -m backend.scripts.catalog_promote_v2 --activate
+uv run pytest backend/tests/unit/test_catalog_data_bundle_importer.py backend/tests/unit/test_backend_workflow.py -vv --maxfail=1
+uv run pytest backend/tests/integration/test_catalog_v2_release_flow.py -vv --maxfail=1
+```
+
+예상 결과는 current Alembic head, import 직후 DRAFT, catalog/safety/alternative/goal-tag/prescription
+각각 `102/394/285/102/137`, activation 후 ACTIVE 1건, 재실행 후 동일 count다. hash/count/version
+변조와 synthetic 중간 실패는 오류를 반환하고 catalog·derived table에 부분 행을 남기지 않아야 한다.
+현재 승인 bundle에는 media artifact가 없으므로 공개 repository 결과의 `media_asset_key`는 모두
+`null`이어야 하며, registry 승인 metadata가 없는 AVAILABLE media는 비노출되고 activation을
+차단해야 한다.
+
+실행 SHA, DB 이름, Alembic head, 각 count, ACTIVE count, media 결과와 rollback assertion을 PR에
+기록합니다. rollback은 이 PR을 revert해 V2 job과 테스트·runbook만 제거하는 방식이며 migration,
+V1 importer, DB schema와 적재 데이터에는 변경이 없습니다.

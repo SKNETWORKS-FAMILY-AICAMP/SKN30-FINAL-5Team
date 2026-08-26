@@ -1,6 +1,6 @@
 # TASK-BACKEND-147: V2 catalog release-flow CI 자동화
 
-- 현재 상태: `APPROVED`
+- 현재 상태: `IN_PROGRESS` (코드 작성 완료, PostgreSQL CI·개발팀장 검증 대기)
 - 우선순위: `P0`
 - GitHub issue: `#147`
 - Primary owner: 백엔드 팀원
