@@ -234,6 +234,74 @@ class Exercise(Base):
     )
 
 
+class ExerciseMediaAsset(Base):
+    __tablename__ = "exercise_media_assets"
+    __table_args__ = (
+        UniqueConstraint("s3_key", name="uq_exercise_media_assets_s3_key"),
+        UniqueConstraint(
+            "catalog_version_id",
+            "exercise_id",
+            name="uq_exercise_media_assets_catalog_exercise",
+        ),
+        CheckConstraint(
+            "media_status IN ('AVAILABLE', 'UNAVAILABLE')",
+            name="ck_exercise_media_assets_media_status",
+        ),
+        CheckConstraint(
+            "rights_review_status IN ('APPROVED', 'PENDING', 'REJECTED')",
+            name="ck_exercise_media_assets_rights_status",
+        ),
+        CheckConstraint(
+            "rights_review_status <> 'APPROVED' OR "
+            "(rights_reviewer IS NOT NULL AND rights_reviewed_at IS NOT NULL "
+            "AND rights_evidence_reference IS NOT NULL)",
+            name="ck_exercise_media_assets_approved_evidence",
+        ),
+        CheckConstraint(
+            "s3_key ~ '^catalog-media/[a-z0-9][a-z0-9_./-]*\\.(gif|jpe?g|mp4|png|webp)$' "
+            "AND position('..' in s3_key) = 0",
+            name="ck_exercise_media_assets_s3_key",
+        ),
+        Index(
+            "ix_exercise_media_assets_approved",
+            "catalog_version_id",
+            "exercise_id",
+            postgresql_where=text(
+                "media_status = 'AVAILABLE' AND rights_review_status = 'APPROVED'"
+            ),
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    catalog_version_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("catalog_versions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    exercise_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("exercises.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    s3_key: Mapped[str] = mapped_column(String(500), nullable=False)
+    media_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    rights_review_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    rights_reviewer: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    rights_reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    rights_evidence_reference: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    media_set_version_code: Mapped[str] = mapped_column(String(120), nullable=False)
+    source_manifest_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_metadata: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    approval_metadata: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB(none_as_null=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class ExerciseBodyPart(Base):
     __tablename__ = "exercise_body_parts"
     __table_args__ = (

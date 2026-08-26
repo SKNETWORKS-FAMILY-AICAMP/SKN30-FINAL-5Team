@@ -1,6 +1,7 @@
 import hashlib
 import json
 from contextlib import AbstractContextManager, contextmanager
+from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -26,6 +27,7 @@ from backend.app.modules.catalog.service import (
     DerivedSetState,
     PrescriptionArtifact,
     SafetyRuleArtifact,
+    _load_v2_bundle_manifest,
     _validate_bundle_exercise_references,
     _validate_v2_alternative_metadata,
     _validate_v2_safety_metadata,
@@ -40,6 +42,9 @@ CATALOG_DIRECTORIES = (GENERATED / "exercise-catalog-seed-merged-mvp-v0.4.0",)
 SAFETY_DIRECTORY = GENERATED / "exercise-safety-rules-merged-mvp-v0.5.0"
 ALTERNATIVE_DIRECTORY = GENERATED / "exercise-alternatives-merged-mvp-v0.4.0"
 PRESCRIPTION_DIRECTORY = GENERATED / "exercise-prescriptions-merged-mvp-v0.1.0"
+V2_BUNDLE_DIRECTORY = GENERATED / "exercise-catalog-v2.0.0-final" / "backend_bundle"
+V2_BUNDLE_HASH = "22d90a1f6efa1b5af260573fa7d18b5cd699b6827474bc30d7711f872421a44d"
+V2_TAXONOMY_HASH = "79e487cc1a41ea39db9b4afb0799b3297840de878a2ae4ed621ef3e4403a0985"
 
 
 class FakeSession:
@@ -95,6 +100,26 @@ class FakeRepository:
             len(artifact.goal_tag_records) + len(artifact.prescription_records),
             artifact.manifest_hash,
         )
+
+
+class FailingAlternativeRepository(FakeRepository):
+    def create_alternatives(self, session: Session, artifact: AlternativeArtifact) -> None:
+        raise RuntimeError("synthetic middle-stage failure")
+
+
+class RollbackFakeSession:
+    def __init__(self, repository: FakeRepository) -> None:
+        self.repository = repository
+
+    @contextmanager
+    def begin(self) -> AbstractContextManager[None]:
+        snapshot = deepcopy(self.repository.__dict__)
+        try:
+            yield
+        except Exception:
+            self.repository.__dict__.clear()
+            self.repository.__dict__.update(snapshot)
+            raise
 
 
 def test_loads_current_derived_artifacts() -> None:
@@ -218,7 +243,6 @@ def test_alternative_loader_rejects_duplicate_relationship_key(tmp_path: Path) -
     duplicate = first.model_copy(
         update={
             "created_at": first.created_at + timedelta(seconds=1),
-            "rule_version": f"{first.rule_version}-duplicate",
         }
     )
     raw = b"".join((record.model_dump_json() + "\n").encode() for record in (first, duplicate))
@@ -419,3 +443,53 @@ def test_bundle_rejects_non_local_environment_before_database_access() -> None:
 
     assert exc_info.value.code == "CATALOG_IMPORT_ENVIRONMENT_FORBIDDEN"
     assert repository.catalogs == {}
+
+
+def test_bundle_middle_stage_failure_rolls_back_every_new_set() -> None:
+    repository = FailingAlternativeRepository()
+    importer = CatalogDataBundleImporter(cast(CatalogRepositoryPort, repository), "test")
+
+    with pytest.raises(RuntimeError, match="middle-stage"):
+        importer.import_bundle(
+            cast(Session, RollbackFakeSession(repository)),
+            CATALOG_DIRECTORIES,
+            SAFETY_DIRECTORY,
+            ALTERNATIVE_DIRECTORY,
+            PRESCRIPTION_DIRECTORY,
+        )
+
+    assert repository.catalogs == {}
+    assert repository.safety_state is None
+    assert repository.alternative_state is None
+    assert repository.prescription_state is None
+
+
+def test_v2_bundle_exact_hash_count_and_versions_are_accepted() -> None:
+    importer = CatalogDataBundleImporter(
+        cast(CatalogRepositoryPort, FakeRepository()),
+        "test",
+        v2_import=True,
+        v2_taxonomy_registry_sha256=V2_TAXONOMY_HASH,
+    )
+
+    result = importer.import_v2_bundle(
+        cast(Session, FakeSession()),
+        V2_BUNDLE_DIRECTORY,
+        expected_bundle_manifest_sha256=V2_BUNDLE_HASH,
+    )
+
+    assert [item.exercise_record_count for item in result.catalogs] == [102]
+    assert result.safety_rules.record_count == 394
+    assert result.alternatives.record_count == 285
+    assert result.prescriptions.record_count == 239
+    assert result.media_assets is None
+
+
+def test_v2_bundle_rejects_unapproved_manifest_hash() -> None:
+    with pytest.raises(CatalogImportError) as exc_info:
+        _load_v2_bundle_manifest(
+            V2_BUNDLE_DIRECTORY,
+            expected_manifest_sha256="0" * 64,
+        )
+
+    assert exc_info.value.code == "BUNDLE_MANIFEST_HASH_MISMATCH"

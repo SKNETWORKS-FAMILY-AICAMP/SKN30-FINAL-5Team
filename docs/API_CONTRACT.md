@@ -1094,9 +1094,10 @@ ExerciseDetailResponse
 자세·설명 콘텐츠는 검수된 정보만 반환하며 카메라 자세 인식이나 자동 자세 판정을 의미하지 않는다.
 
 구현 상태: 이 endpoint는 구현됐다. 인증된 사용자만 호출할 수 있고 `review_status_code`가
-`DOMAIN_APPROVED`인 운동만 반환하며, 그 외에는 `404 RESOURCE_NOT_FOUND`다. `exercises` 테이블에는
-아직 미디어·마스코트 자산 컬럼이 없으므로 `media_asset_key`와 `mascot_animation_asset_key`는 항상
-`null`이다. 두 필드는 nullable 계약이므로 자산 컬럼이 추가되면 하위 호환을 유지한 채 채울 수 있다.
+`DOMAIN_APPROVED`인 운동만 반환하며, 그 외에는 `404 RESOURCE_NOT_FOUND`다. `media_asset_key`는
+미디어 상태가 `AVAILABLE`, 권리 검토가 `APPROVED`이고 승인 registry의 version/hash/count가 모두
+일치하는 자산에만 채워진다. 운동에 미디어가 없거나 어느 승인 조건이든 충족하지 않으면 `null`이다.
+`mascot_animation_asset_key`는 아직 항상 `null`이다.
 
 ---
 
@@ -1136,6 +1137,7 @@ ExerciseListItem
 
 - `review_status_code`가 `DOMAIN_APPROVED`인 운동만 반환한다. 미검수 콘텐츠는 어떤
   파라미터 조합으로도 노출되지 않는다.
+- `media_asset_key`는 상세 조회와 같은 승인 조건을 만족할 때만 채워지며, 그 외에는 `null`이다.
 - 인증된 사용자만 호출할 수 있다.
 - 상세 정보는 8.3의 `GET /api/v1/exercises/{exercise_id}`를 사용한다.
 - 목록은 안전 판단과 무관하다. 사용자의 불편 부위에 따른 제외는 계획 생성 시점에만 적용하며,

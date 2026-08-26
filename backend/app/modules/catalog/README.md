@@ -22,3 +22,8 @@
   적재됩니다. 그 밖의 파생 데이터는 계속 false로 fail-closed 처리합니다.
 - 현재 매니페스트에 없는 URL·license code는 추정하지 않습니다. source 매니페스트 전체를
   보존하므로 후속 schema가 해당 필드를 제공하면 손실 없이 저장할 수 있습니다.
+- `python -m backend.scripts.catalog_promote_v2`는 V1 경로와 분리된 V2 전용 명령입니다. 승인된
+  bundle·taxonomy hash와 네 artifact의 version/hash/count를 exact-match로 검증하고 한 transaction에
+  적재합니다. 기본 동작은 DRAFT 유지이며 `--activate`를 명시해야 activation gate까지 실행합니다.
+- media artifact는 선택적입니다. 포함된 경우 canonical S3 key, 실제 exercise FK, rights evidence와
+  media approval registry를 검증·보존하고, 승인 조건을 모두 만족한 media만 조회합니다.

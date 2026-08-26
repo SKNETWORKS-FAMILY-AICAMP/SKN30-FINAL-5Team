@@ -1,6 +1,8 @@
 import base64
 import binascii
+import csv
 import hashlib
+import io
 import json
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -11,6 +13,10 @@ from uuid import UUID
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
+from backend.app.modules.catalog.approvals import (
+    get_catalog_approval,
+    get_derived_data_approval,
+)
 from backend.app.modules.catalog.codes import (
     APPROVED_TAXONOMY_REGISTRY_SHA256,
     CATALOG_CODE_SET_VERSION,
@@ -23,6 +29,7 @@ from backend.app.modules.catalog.codes import (
 )
 from backend.app.modules.catalog.schemas import (
     AlternativeManifest,
+    CatalogBundleManifest,
     CatalogManifest,
     ExerciseAlternativeRecord,
     ExerciseDetailResponse,
@@ -33,6 +40,8 @@ from backend.app.modules.catalog.schemas import (
     ExerciseRecord,
     ExerciseSafetyRuleRecord,
     ManifestFile,
+    MediaAssetRecord,
+    MediaManifest,
     PrescriptionManifest,
     SafetyRuleManifest,
 )
@@ -84,6 +93,14 @@ class PrescriptionArtifact:
 
 
 @dataclass(frozen=True)
+class MediaArtifact:
+    manifest: MediaManifest
+    manifest_hash: str
+    records: tuple[MediaAssetRecord, ...]
+    exercise_stable_codes: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class DerivedSetState:
     record_count: int
     manifest_hash: str
@@ -103,6 +120,7 @@ class CatalogDataBundleImportResult:
     safety_rules: DerivedImportResult
     alternatives: DerivedImportResult
     prescriptions: DerivedImportResult
+    media_assets: DerivedImportResult | None = None
 
 
 @dataclass(frozen=True)
@@ -114,6 +132,7 @@ class ExerciseDetailRecord:
     instruction_summary: str
     form_cues: tuple[str, ...]
     instruction_content_version: str
+    media_asset_key: str | None = None
 
 
 @dataclass(frozen=True)
@@ -130,6 +149,7 @@ class ExerciseListRecord:
     difficulty_code: str
     primary_body_area_codes: tuple[str, ...]
     required_equipment_codes: tuple[str, ...]
+    media_asset_key: str | None = None
 
 
 @dataclass(frozen=True)
@@ -232,7 +252,7 @@ class ExerciseReadService:
                     required_equipment_codes=[
                         EquipmentCode(code) for code in record.required_equipment_codes
                     ],
-                    media_asset_key=None,
+                    media_asset_key=record.media_asset_key,
                 )
                 for record in page
             ],
@@ -244,8 +264,6 @@ class ExerciseReadService:
         record = self._repository.get_exercise_detail(session, exercise_id)
         if record is None:
             raise ExerciseNotFoundError
-        # Media and mascot assets have no approved catalog column yet, so the
-        # contract's nullable keys stay null rather than inventing asset keys.
         return ExerciseDetailResponse(
             exercise_id=record.exercise_id,
             exercise_name=record.exercise_name,
@@ -253,7 +271,7 @@ class ExerciseReadService:
             primary_body_area_codes=list(record.primary_body_area_codes),
             instruction_summary=record.instruction_summary,
             form_cues=list(record.form_cues),
-            media_asset_key=None,
+            media_asset_key=record.media_asset_key,
             mascot_animation_asset_key=None,
             instruction_content_version=record.instruction_content_version,
         )
@@ -331,6 +349,12 @@ class CatalogRepositoryPort(Protocol):
     ) -> DerivedSetState | None: ...
 
     def create_prescriptions(self, session: Session, artifact: PrescriptionArtifact) -> None: ...
+
+    def get_media_set_state(
+        self, session: Session, version_code: str
+    ) -> DerivedSetState | None: ...
+
+    def create_media_assets(self, session: Session, artifact: MediaArtifact) -> None: ...
 
 
 def _sha256(raw: bytes) -> str:
@@ -618,6 +642,8 @@ def load_alternative_artifact(
             record.alternative_catalog_version_code,
             record.alternative_exercise_stable_code,
             record.reason_code,
+            record.goal_preservation_code,
+            record.rule_version,
         )
         for record in records
     }
@@ -684,6 +710,124 @@ def load_prescription_artifact(artifact_directory: Path) -> PrescriptionArtifact
     ):
         raise CatalogImportError("GOAL_TAG_REFERENCE_NOT_FOUND", "prescription lacks a goal tag")
     return PrescriptionArtifact(manifest, _sha256(manifest_raw), goals, profiles)
+
+
+def load_media_artifact(
+    artifact_directory: Path,
+    *,
+    representative_to_stable_code: dict[str, str] | None = None,
+) -> MediaArtifact:
+    root = artifact_directory.resolve()
+    if not root.is_dir():
+        raise CatalogImportError(
+            "ARTIFACT_DIRECTORY_INVALID", "media artifact directory is invalid"
+        )
+    manifest_raw = _read_bytes(root / "media_manifest.json", "MANIFEST_UNREADABLE")
+    try:
+        manifest = MediaManifest.model_validate_json(manifest_raw)
+    except ValidationError as exc:
+        raise CatalogImportError("MANIFEST_INVALID", "media manifest is invalid") from exc
+    if manifest.review.production_eligible is not False:
+        raise CatalogImportError(
+            "PRODUCTION_ELIGIBILITY_INVALID",
+            "DRAFT media artifact must remain production ineligible",
+        )
+    data_raw = _load_derived_file(root, manifest.files, "media_assets.jsonl")
+    try:
+        records = tuple(
+            MediaAssetRecord.model_validate_json(line)
+            for line in data_raw.splitlines()
+            if line.strip()
+        )
+    except ValidationError as exc:
+        raise CatalogImportError("MEDIA_RECORD_INVALID", "media asset record is invalid") from exc
+    if len(records) != manifest.summary.media_asset_records:
+        raise CatalogImportError("RECORD_COUNT_MISMATCH", "media asset count does not match")
+    if len({record.s3_key for record in records}) != len(records):
+        raise CatalogImportError("DUPLICATE_MEDIA", "media assets contain duplicate S3 keys")
+    reference_map = representative_to_stable_code or {}
+    stable_codes = tuple(
+        reference_map.get(record.representative_exercise_id, record.representative_exercise_id)
+        for record in records
+    )
+    if len(set(stable_codes)) != len(stable_codes):
+        raise CatalogImportError("DUPLICATE_MEDIA", "media assets contain duplicate exercises")
+    return MediaArtifact(manifest, _sha256(manifest_raw), records, stable_codes)
+
+
+def _load_v2_bundle_manifest(
+    bundle_directory: Path,
+    *,
+    expected_manifest_sha256: str,
+) -> CatalogBundleManifest:
+    root = bundle_directory.resolve()
+    raw = _read_bytes(root / "bundle_manifest.json", "BUNDLE_MANIFEST_UNREADABLE")
+    if _sha256(raw) != expected_manifest_sha256:
+        raise CatalogImportError(
+            "BUNDLE_MANIFEST_HASH_MISMATCH", "bundle manifest hash is not approved"
+        )
+    try:
+        manifest = CatalogBundleManifest.model_validate_json(raw)
+    except ValidationError as exc:
+        raise CatalogImportError("BUNDLE_MANIFEST_INVALID", "bundle manifest is invalid") from exc
+    listed_files = {_resolve_inside(root, entry.path) for entry in manifest.files}
+    actual_files = {
+        path.resolve()
+        for path in root.rglob("*")
+        if path.is_file() and path.name != "bundle_manifest.json"
+    }
+    if actual_files != listed_files:
+        raise CatalogImportError(
+            "BUNDLE_FILE_SET_MISMATCH",
+            "bundle contains missing or unlisted files",
+        )
+    for entry in manifest.files:
+        candidate = _resolve_inside(root, entry.path)
+        content = _read_bytes(candidate, "BUNDLE_FILE_UNREADABLE")
+        candidates: tuple[bytes, ...] = (content,)
+        if candidate.suffix.lower() == ".csv":
+            canonical_crlf = content.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+            candidates = (content, canonical_crlf)
+        if not any(len(raw) == entry.bytes and _sha256(raw) == entry.sha256 for raw in candidates):
+            raise CatalogImportError(
+                "BUNDLE_FILE_INTEGRITY_MISMATCH",
+                f"bundle file does not match manifest: {entry.path}",
+            )
+    return manifest
+
+
+def _v2_representative_registry(
+    catalog_directory: Path,
+    catalog_artifact: CatalogArtifact,
+) -> dict[str, str]:
+    inputs = catalog_artifact.manifest.source.input_artifacts
+    registry_entry = next(
+        (entry for entry in inputs if entry.role == "representative_catalog_csv"), None
+    )
+    if registry_entry is None:
+        raise CatalogImportError(
+            "REPRESENTATIVE_REGISTRY_MISSING", "V2 catalog lacks representative ID mapping"
+        )
+    raw = _read_bytes(
+        catalog_directory / registry_entry.path,
+        "REPRESENTATIVE_REGISTRY_UNREADABLE",
+    )
+    rows = csv.DictReader(io.StringIO(raw.decode("utf-8-sig")))
+    mapping: dict[str, str] = {}
+    for row in rows:
+        representative_id = (row.get("representative_exercise_id") or "").strip()
+        stable_code = (row.get("stable_code") or "").strip()
+        if not representative_id or not stable_code or representative_id in mapping:
+            raise CatalogImportError(
+                "REPRESENTATIVE_REGISTRY_INVALID", "V2 representative ID mapping is invalid"
+            )
+        mapping[representative_id] = stable_code
+    if set(mapping.values()) != {record.stable_code for record in catalog_artifact.records}:
+        raise CatalogImportError(
+            "REPRESENTATIVE_REGISTRY_MISMATCH",
+            "V2 representative ID mapping does not exactly cover the catalog",
+        )
+    return mapping
 
 
 def _validate_bundle_exercise_references(
@@ -858,6 +1002,9 @@ class CatalogDataBundleImporter:
         safety_rule_directory: Path,
         alternative_directory: Path,
         prescription_directory: Path,
+        media_directory: Path | None = None,
+        media_reference_map: dict[str, str] | None = None,
+        approved_v2_bundle: bool = False,
     ) -> CatalogDataBundleImportResult:
         if self._app_env not in {"local", "test"}:
             raise CatalogImportError(
@@ -875,13 +1022,21 @@ class CatalogDataBundleImporter:
         )
         safety_artifact = load_safety_rule_artifact(
             safety_rule_directory,
-            v2_import=self._v2_import,
+            v2_import=self._v2_import and not approved_v2_bundle,
         )
         alternative_artifact = load_alternative_artifact(
             alternative_directory,
-            v2_import=self._v2_import,
+            v2_import=self._v2_import and not approved_v2_bundle,
         )
         prescription_artifact = load_prescription_artifact(prescription_directory)
+        media_artifact = (
+            load_media_artifact(
+                media_directory,
+                representative_to_stable_code=media_reference_map,
+            )
+            if media_directory is not None
+            else None
+        )
         supplied_versions = {
             artifact.manifest.catalog_version.version_code for artifact in catalog_artifacts
         }
@@ -910,6 +1065,17 @@ class CatalogDataBundleImporter:
             prescription_artifact,
             v2_import=self._v2_import,
         )
+        if media_artifact is not None:
+            catalog_stable_codes = {
+                record.stable_code for artifact in catalog_artifacts for record in artifact.records
+            }
+            if media_artifact.manifest.catalog_version_code not in supplied_versions or (
+                set(media_artifact.exercise_stable_codes) - catalog_stable_codes
+            ):
+                raise CatalogImportError(
+                    "MEDIA_EXERCISE_REFERENCE_NOT_FOUND",
+                    "media asset references an exercise absent from its catalog",
+                )
 
         catalog_results: list[CatalogImportResult] = []
         with session.begin():
@@ -970,12 +1136,141 @@ class CatalogDataBundleImporter:
                 self._repository.get_prescription_set_state,
                 lambda: self._repository.create_prescriptions(session, prescription_artifact),
             )
+            media_result = None
+            if media_artifact is not None:
+                media_result = self._import_derived_set(
+                    session,
+                    media_artifact.manifest.media_set_version.version_code,
+                    media_artifact.manifest_hash,
+                    len(media_artifact.records),
+                    self._repository.get_media_set_state,
+                    lambda: self._repository.create_media_assets(session, media_artifact),
+                )
 
         return CatalogDataBundleImportResult(
             catalogs=tuple(catalog_results),
             safety_rules=safety_result,
             alternatives=alternative_result,
             prescriptions=prescription_result,
+            media_assets=media_result,
+        )
+
+    def import_v2_bundle(
+        self,
+        session: Session,
+        bundle_directory: Path,
+        *,
+        expected_bundle_manifest_sha256: str,
+    ) -> CatalogDataBundleImportResult:
+        if not self._v2_import:
+            raise CatalogImportError("V2_IMPORT_REQUIRED", "V2 bundle importer mode is required")
+        root = bundle_directory.resolve()
+        bundle = _load_v2_bundle_manifest(
+            root,
+            expected_manifest_sha256=expected_bundle_manifest_sha256,
+        )
+        catalog_path = _resolve_inside(root, bundle.importer_paths["catalog"])
+        catalog_artifact = load_catalog_artifact(
+            catalog_path.parent,
+            v2_import=True,
+            v2_taxonomy_registry_sha256=self._v2_taxonomy_registry_sha256,
+        )
+        safety_path = _resolve_inside(root, bundle.importer_paths["safety"])
+        alternative_path = _resolve_inside(root, bundle.importer_paths["alternatives"])
+        prescription_path = _resolve_inside(root, bundle.importer_paths["prescriptions"])
+        safety = load_safety_rule_artifact(safety_path.parent)
+        alternatives = load_alternative_artifact(alternative_path.parent)
+        prescriptions = load_prescription_artifact(prescription_path.parent)
+        actual = {
+            "catalog": (
+                catalog_artifact.manifest.catalog_version.version_code,
+                catalog_artifact.manifest_hash,
+                len(catalog_artifact.records),
+            ),
+            "safety": (
+                safety.manifest.rule_set_version.version_code,
+                safety.manifest_hash,
+                len(safety.records),
+            ),
+            "alternatives": (
+                alternatives.manifest.alternative_set_version.version_code,
+                alternatives.manifest_hash,
+                len(alternatives.records),
+            ),
+            "prescriptions": (
+                prescriptions.manifest.prescription_set_version.version_code,
+                prescriptions.manifest_hash,
+                len(prescriptions.goal_tag_records) + len(prescriptions.prescription_records),
+            ),
+        }
+        expected = {
+            "catalog": (
+                bundle.catalog_version_code,
+                next(
+                    entry.sha256
+                    for entry in bundle.files
+                    if entry.path == bundle.importer_paths["catalog"]
+                ),
+                bundle.summary.catalog_records,
+            ),
+            "safety": (
+                bundle.derived_set_versions.rule_set_version_code,
+                next(
+                    entry.sha256
+                    for entry in bundle.files
+                    if entry.path == bundle.importer_paths["safety"]
+                ),
+                bundle.summary.safety_rule_records,
+            ),
+            "alternatives": (
+                bundle.derived_set_versions.alternative_set_version_code,
+                next(
+                    entry.sha256
+                    for entry in bundle.files
+                    if entry.path == bundle.importer_paths["alternatives"]
+                ),
+                bundle.summary.alternative_records,
+            ),
+            "prescriptions": (
+                bundle.derived_set_versions.prescription_set_version_code,
+                next(
+                    entry.sha256
+                    for entry in bundle.files
+                    if entry.path == bundle.importer_paths["prescriptions"]
+                ),
+                bundle.summary.goal_tag_records + bundle.summary.prescription_records,
+            ),
+        }
+        if actual != expected:
+            raise CatalogImportError(
+                "BUNDLE_CONTRACT_MISMATCH",
+                "bundle versions, manifest hashes, or record counts do not exactly match",
+            )
+        approvals = (
+            get_catalog_approval(*actual["catalog"]),
+            get_derived_data_approval("SAFETY_RULES", *actual["safety"]),
+            get_derived_data_approval("ALTERNATIVES", *actual["alternatives"]),
+            get_derived_data_approval("PRESCRIPTIONS", *actual["prescriptions"]),
+        )
+        if any(approval is None for approval in approvals):
+            raise CatalogImportError(
+                "APPROVAL_REGISTRY_MISMATCH",
+                "V2 artifact is not covered by an exact approval registry entry",
+            )
+        media_directory = None
+        media_reference_map = None
+        if media_path_value := bundle.importer_paths.get("media"):
+            media_directory = _resolve_inside(root, media_path_value).parent
+            media_reference_map = _v2_representative_registry(catalog_path.parent, catalog_artifact)
+        return self.import_bundle(
+            session,
+            (catalog_path.parent,),
+            safety_path.parent,
+            alternative_path.parent,
+            prescription_path.parent,
+            media_directory,
+            media_reference_map,
+            True,
         )
 
     def _import_derived_set(
@@ -1010,10 +1305,12 @@ __all__ = [
     "DerivedImportResult",
     "DerivedSetState",
     "AlternativeArtifact",
+    "MediaArtifact",
     "PrescriptionArtifact",
     "SafetyRuleArtifact",
     "load_alternative_artifact",
     "load_catalog_artifact",
+    "load_media_artifact",
     "load_prescription_artifact",
     "load_safety_rule_artifact",
 ]

@@ -2,7 +2,7 @@ from collections.abc import Iterable
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
 from backend.app.db.models.catalog import (
@@ -16,6 +16,7 @@ from backend.app.db.models.catalog import (
     ExerciseEquipment,
     ExerciseGoalTagLink,
     ExerciseLocation,
+    ExerciseMediaAsset,
     ExercisePrescriptionProfile,
     ExerciseSafetyRule,
     Location,
@@ -36,6 +37,7 @@ from backend.app.modules.catalog.service import (
     DerivedSetState,
     ExerciseDetailRecord,
     ExerciseListRecord,
+    MediaArtifact,
     PrescriptionArtifact,
     SafetyRuleArtifact,
 )
@@ -72,14 +74,27 @@ class CatalogRepository:
         after_exercise_id: UUID | None,
         limit: int,
     ) -> tuple[ExerciseListRecord, ...]:
-        statement = select(
-            Exercise.id,
-            Exercise.name_ko,
-            Exercise.training_type_code,
-            Exercise.difficulty_code,
-        ).where(
-            Exercise.catalog_version_id == catalog_version_id,
-            Exercise.review_status_code == "DOMAIN_APPROVED",
+        statement = (
+            select(
+                Exercise.id,
+                Exercise.name_ko,
+                Exercise.training_type_code,
+                Exercise.difficulty_code,
+                ExerciseMediaAsset.s3_key.label("media_asset_key"),
+            )
+            .outerjoin(
+                ExerciseMediaAsset,
+                and_(
+                    ExerciseMediaAsset.exercise_id == Exercise.id,
+                    ExerciseMediaAsset.media_status == "AVAILABLE",
+                    ExerciseMediaAsset.rights_review_status == "APPROVED",
+                    ExerciseMediaAsset.approval_metadata.is_not(None),
+                ),
+            )
+            .where(
+                Exercise.catalog_version_id == catalog_version_id,
+                Exercise.review_status_code == "DOMAIN_APPROVED",
+            )
         )
         if body_area_code is not None:
             statement = statement.where(
@@ -144,6 +159,7 @@ class CatalogRepository:
                 difficulty_code=row.difficulty_code,
                 primary_body_area_codes=tuple(primary_body_areas[row.id]),
                 required_equipment_codes=tuple(required_equipment[row.id]),
+                media_asset_key=row.media_asset_key,
             )
             for row in rows
         )
@@ -166,6 +182,15 @@ class CatalogRepository:
                 .order_by(ExerciseBodyPart.body_area_code)
             )
         )
+        media_asset_key = session.scalar(
+            select(ExerciseMediaAsset.s3_key).where(
+                ExerciseMediaAsset.exercise_id == exercise_id,
+                ExerciseMediaAsset.catalog_version_id == exercise.catalog_version_id,
+                ExerciseMediaAsset.media_status == "AVAILABLE",
+                ExerciseMediaAsset.rights_review_status == "APPROVED",
+                ExerciseMediaAsset.approval_metadata.is_not(None),
+            )
+        )
         return ExerciseDetailRecord(
             exercise_id=exercise.id,
             exercise_name=exercise.name_ko,
@@ -174,6 +199,7 @@ class CatalogRepository:
             instruction_summary=exercise.instruction_summary_ko,
             form_cues=tuple(exercise.form_cues_ko),
             instruction_content_version=exercise.instruction_content_version,
+            media_asset_key=media_asset_key,
         )
 
     def get_by_version_code(
@@ -583,6 +609,71 @@ class CatalogRepository:
                 **catalog.manifest_metadata,
                 "prescription_artifact": prescription_metadata,
             }
+        session.flush()
+
+    def get_media_set_state(self, session: Session, version_code: str) -> DerivedSetState | None:
+        count, minimum_hash, maximum_hash = session.execute(
+            select(
+                func.count(ExerciseMediaAsset.id),
+                func.min(ExerciseMediaAsset.source_manifest_hash),
+                func.max(ExerciseMediaAsset.source_manifest_hash),
+            ).where(ExerciseMediaAsset.media_set_version_code == version_code)
+        ).one()
+        if count == 0:
+            return None
+        if minimum_hash != maximum_hash or minimum_hash is None:
+            raise CatalogImportError(
+                "DERIVED_SET_CONFLICT", "media set contains mixed manifest hashes"
+            )
+        return DerivedSetState(record_count=count, manifest_hash=minimum_hash)
+
+    def create_media_assets(self, session: Session, artifact: MediaArtifact) -> None:
+        exercise_ids = self._exercise_ids(session)
+        manifest = artifact.manifest
+        version_code = manifest.media_set_version.version_code
+        approval = get_derived_data_approval(
+            "MEDIA_ASSETS", version_code, artifact.manifest_hash, len(artifact.records)
+        )
+        manifest_metadata = manifest.model_dump(mode="json")
+        for record, stable_code in zip(
+            artifact.records, artifact.exercise_stable_codes, strict=True
+        ):
+            exercise_id = exercise_ids.get((manifest.catalog_version_code, stable_code))
+            if exercise_id is None:
+                raise CatalogImportError(
+                    "MEDIA_EXERCISE_REFERENCE_NOT_FOUND",
+                    "media asset references an unknown exercise",
+                )
+            catalog = session.scalar(
+                select(CatalogVersion).where(
+                    CatalogVersion.version_code == manifest.catalog_version_code
+                )
+            )
+            if catalog is None:
+                raise CatalogImportError(
+                    "CATALOG_REFERENCE_NOT_FOUND", "media asset references an unknown catalog"
+                )
+            session.add(
+                ExerciseMediaAsset(
+                    id=uuid4(),
+                    catalog_version_id=catalog.id,
+                    exercise_id=exercise_id,
+                    s3_key=record.s3_key,
+                    media_status=record.media_status,
+                    rights_review_status=record.rights_review_status,
+                    rights_reviewer=record.rights_reviewer,
+                    rights_reviewed_at=record.rights_reviewed_at,
+                    rights_evidence_reference=record.rights_evidence_reference,
+                    media_set_version_code=version_code,
+                    source_manifest_hash=artifact.manifest_hash,
+                    source_metadata={
+                        "manifest": manifest_metadata,
+                        "record": record.source_metadata,
+                        "representative_exercise_id": record.representative_exercise_id,
+                    },
+                    approval_metadata=approval.metadata() if approval is not None else None,
+                )
+            )
         session.flush()
 
 

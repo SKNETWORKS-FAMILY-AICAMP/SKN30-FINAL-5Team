@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
-ArtifactKind = Literal["CATALOG", "SAFETY_RULES", "ALTERNATIVES", "PRESCRIPTIONS"]
+ArtifactKind = Literal["CATALOG", "SAFETY_RULES", "ALTERNATIVES", "PRESCRIPTIONS", "MEDIA_ASSETS"]
 
 
 @dataclass(frozen=True)
@@ -13,9 +13,11 @@ class DerivedDataApproval:
     approval_record_code: str
     approved_on: str
     approver_role_codes: tuple[str, ...]
+    approval_metadata: dict[str, Any] | None = None
+    waiver: dict[str, str] | None = None
 
     def metadata(self) -> dict[str, object]:
-        return {
+        metadata: dict[str, object] = {
             "approval_record_code": self.approval_record_code,
             "approved_on": self.approved_on,
             "approver_role_codes": list(self.approver_role_codes),
@@ -23,9 +25,70 @@ class DerivedDataApproval:
             "manifest_sha256": self.manifest_sha256,
             "record_count": self.record_count,
         }
+        if self.approval_metadata is not None:
+            metadata["approval_metadata"] = self.approval_metadata
+        if self.waiver is not None:
+            metadata["waiver"] = self.waiver
+        return metadata
 
 
 _APPROVALS = {
+    (
+        "CATALOG",
+        "exercise-catalog-v2.0.0-final",
+    ): DerivedDataApproval(
+        artifact_kind="CATALOG",
+        version_code="exercise-catalog-v2.0.0-final",
+        manifest_sha256="e3ad5c3eabf193d173aa3b01c4c503962a43074ad3ecbd44343efb1195677b24",
+        record_count=102,
+        approval_record_code="V2-PROMOTION-APPROVAL-2026-08-25-R01",
+        approved_on="2026-08-25",
+        approver_role_codes=("DEVELOPMENT_LEAD", "PM", "DOMAIN_REVIEWER"),
+        approval_metadata={
+            "reviewer_reference": "V2-PRESCRIPTION-DOMAIN-REVIEW-2026-08-25-R01",
+            "reviewed_at": "2026-08-25T15:00:00+09:00",
+        },
+        waiver={
+            "reference": "V2-PROMOTION-WAIVER-2026-08-25-R01",
+            "text": "외부 전문가 의견 XLSX 원본은 작업 폴더에 보관되지 않았음을 인지하고 승인함.",
+        },
+    ),
+    (
+        "SAFETY_RULES",
+        "safety-rule-set-v2.0.0",
+    ): DerivedDataApproval(
+        artifact_kind="SAFETY_RULES",
+        version_code="safety-rule-set-v2.0.0",
+        manifest_sha256="53e8f597f4e312999cd9c04402c17ec7faa741692aae90ab8a67889f144c0807",
+        record_count=394,
+        approval_record_code="V2-PROMOTION-APPROVAL-2026-08-25-R01",
+        approved_on="2026-08-25",
+        approver_role_codes=("DEVELOPMENT_LEAD", "PM", "DOMAIN_REVIEWER"),
+    ),
+    (
+        "ALTERNATIVES",
+        "alternative-set-v2.0.0",
+    ): DerivedDataApproval(
+        artifact_kind="ALTERNATIVES",
+        version_code="alternative-set-v2.0.0",
+        manifest_sha256="4f78c1c735a3b1129d8396233612bb27b69c25672967990116cca91b7dd74b5c",
+        record_count=285,
+        approval_record_code="V2-PROMOTION-APPROVAL-2026-08-25-R01",
+        approved_on="2026-08-25",
+        approver_role_codes=("DEVELOPMENT_LEAD", "PM", "DOMAIN_REVIEWER"),
+    ),
+    (
+        "PRESCRIPTIONS",
+        "prescription-set-v2.0.0",
+    ): DerivedDataApproval(
+        artifact_kind="PRESCRIPTIONS",
+        version_code="prescription-set-v2.0.0",
+        manifest_sha256="e2237c1ab59784339969405e8b85ee65751459cb95ed119efa1070cffba25abe",
+        record_count=239,
+        approval_record_code="V2-PROMOTION-APPROVAL-2026-08-25-R01",
+        approved_on="2026-08-25",
+        approver_role_codes=("DEVELOPMENT_LEAD", "PM", "DOMAIN_REVIEWER"),
+    ),
     (
         "CATALOG",
         "merged-mvp-v0.4.0",
