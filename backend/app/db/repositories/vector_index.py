@@ -57,6 +57,8 @@ class IndexableExerciseRecord:
     equipment_codes: tuple[str, ...]
     location_codes: tuple[str, ...]
     phase_codes: tuple[str, ...]
+    stable_code: str = ""
+    timing_mode_code: str = "REPS"
 
 
 class VectorIndexRepository:
@@ -153,6 +155,8 @@ class VectorIndexRepository:
                 equipment_codes=tuple(equipment[exercise.id]),
                 location_codes=tuple(locations[exercise.id]),
                 phase_codes=tuple(phases[exercise.id]),
+                stable_code=exercise.stable_code,
+                timing_mode_code=exercise.timing_mode_code,
             )
             for exercise in exercises
         )

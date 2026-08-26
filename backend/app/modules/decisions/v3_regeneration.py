@@ -15,7 +15,7 @@ from enum import StrEnum
 from typing import Literal, Protocol, Self, cast
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from backend.app.domain.agents.v3_compiler import CompiledPlan
 from backend.app.domain.agents.v3_contracts import RegenerationContext
@@ -45,6 +45,7 @@ class V3RegenerationFailureCode(StrEnum):
     NO_ALTERNATIVE_AVAILABLE = "NO_ALTERNATIVE_AVAILABLE"
     DECISION_FAILED = "DECISION_FAILED"
     V3_ENGINE_DISABLED = "V3_ENGINE_DISABLED"
+    V3_COMPOSITION_UNAVAILABLE = "V3_COMPOSITION_UNAVAILABLE"
 
 
 class V3RegenerationError(RuntimeError):
@@ -90,6 +91,10 @@ class V3RegenerationDecisionFailedError(V3RegenerationError):
 
 class V3EngineDisabledError(V3RegenerationError):
     code = V3RegenerationFailureCode.V3_ENGINE_DISABLED
+
+
+class V3RegenerationCompositionUnavailableError(V3RegenerationError):
+    code = V3RegenerationFailureCode.V3_COMPOSITION_UNAVAILABLE
 
 
 class _FrozenContract(BaseModel):
@@ -312,10 +317,13 @@ class V3RegenerationService:
                 return prior.result
             self._validate_source(command, source)
             context = _regeneration_context(source)
-            bundle = await self._graph_runtime.regenerate(
-                root_snapshot=source.root_snapshot,
-                regeneration_context=context,
-            )
+            try:
+                bundle = await self._graph_runtime.regenerate(
+                    root_snapshot=source.root_snapshot,
+                    regeneration_context=context,
+                )
+            except (RuntimeError, TimeoutError, ValidationError):
+                raise V3RegenerationDecisionFailedError from None
             result = self._validate_execution(source, bundle, context)
             work.decisions.persist_regeneration(
                 bundle=bundle,
@@ -407,6 +415,7 @@ __all__ = [
     "V3IdempotencyKeyReusedError",
     "V3NoAlternativeAvailableError",
     "V3RegenerationCommand",
+    "V3RegenerationCompositionUnavailableError",
     "V3RegenerationContextStaleError",
     "V3RegenerationDecisionFailedError",
     "V3RegenerationError",

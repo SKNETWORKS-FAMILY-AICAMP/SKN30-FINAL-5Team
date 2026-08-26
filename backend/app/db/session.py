@@ -17,6 +17,11 @@ class DatabaseManager:
         with self._session_factory() as db_session:
             yield db_session
 
+    def new_session(self) -> Session:
+        """Return an owned session for application Unit-of-Work adapters."""
+
+        return self._session_factory()
+
     def readiness_probe(self) -> None:
         with self.engine.connect() as connection:
             connection.execute(text("SELECT 1"))

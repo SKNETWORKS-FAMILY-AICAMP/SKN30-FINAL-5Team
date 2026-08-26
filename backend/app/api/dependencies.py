@@ -26,6 +26,7 @@ from backend.app.modules.decisions.ports import DecisionRepositoryPort, Narratio
 from backend.app.modules.decisions.v3_regeneration import (
     V3EngineDisabledError,
     V3RegenerationCommand,
+    V3RegenerationCompositionUnavailableError,
     V3RegenerationResult,
     V3RegenerationServicePort,
 )
@@ -67,7 +68,14 @@ class _DisabledV3RegenerationService:
         raise V3EngineDisabledError
 
 
+class _UnavailableV3RegenerationService:
+    async def regenerate(self, command: V3RegenerationCommand) -> V3RegenerationResult:
+        del command
+        raise V3RegenerationCompositionUnavailableError
+
+
 _disabled_v3_regeneration_service = _DisabledV3RegenerationService()
+_unavailable_v3_regeneration_service = _UnavailableV3RegenerationService()
 
 
 def get_db_session(request: Request) -> Iterator[Session]:
@@ -136,11 +144,19 @@ def get_decision_creation_service(
 def get_v3_regeneration_service(request: Request) -> V3RegenerationServicePort:
     service: V3RegenerationServicePort | None = request.app.state.v3_regeneration_service
     settings = request.app.state.settings
-    profile_enabled = settings.v3_execution_profile == "DEMO" or (
-        settings.v3_execution_profile == "PRODUCTION" and settings.v3_production_promotion_approved
+    profile_enabled = getattr(
+        request.app.state,
+        "v3_authoritative_enabled",
+        settings.v3_execution_profile == "DEMO"
+        or (
+            settings.v3_execution_profile == "PRODUCTION"
+            and settings.v3_production_promotion_approved
+        ),
     )
-    if not (settings.v3_regeneration_enabled or profile_enabled) or service is None:
+    if not (settings.v3_regeneration_enabled or profile_enabled):
         return _disabled_v3_regeneration_service
+    if service is None:
+        return _unavailable_v3_regeneration_service
     return service
 
 

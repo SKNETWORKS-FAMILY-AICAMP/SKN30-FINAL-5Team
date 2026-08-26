@@ -1483,12 +1483,13 @@ root decision당 성공 재생성은 최대 두 번이다. 같은 Idempotency-Ke
 | terminal/safety 상태 또는 `final_plan=null`로 재생성 불가 | `409 REGENERATION_NOT_ALLOWED` |
 | 안전하고 목표를 보존하는 의미 있는 대안 없음 | `422 NO_ALTERNATIVE_AVAILABLE` |
 | 필수 LLM 실패 후 검증된 deterministic fallback도 없음 | `503 DECISION_FAILED` |
-| V3 graph feature 비활성 또는 application service 미설정 | `503 V3_ENGINE_DISABLED` |
+| V3 graph feature 비활성 | `503 V3_ENGINE_DISABLED` |
+| DEMO/승인된 PRODUCTION에서 runtime 또는 필수 application adapter 미구성 | `503 V3_COMPOSITION_UNAVAILABLE` |
 
 `STOP_AND_SEEK_HELP`, plan generation을 금지한 Safety veto와 `final_plan=null`인 decision은 재생성
 대상이 아니다. REST opt-out을 사용자가 선택한 사실도 압박성 재생성 제안을 만들지 않는다.
 
-현재 backend route와 Pydantic/error projection은 구현됐지만 `v3_regeneration_enabled=false`가
+현재 backend route, Pydantic/error projection 및 DEMO application composition이 구현됐지만 `v3_regeneration_enabled=false`가
 기본값이다. production composition wiring과 frontend 버튼은 별도 승인·구현 전까지 비활성이다.
 
 ---

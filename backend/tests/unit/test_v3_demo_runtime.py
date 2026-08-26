@@ -16,10 +16,12 @@ from backend.app.domain.agents.retrieval import (
 from backend.app.domain.agents.v3_compiler import DeterministicFallbackPlanSpec
 from backend.app.domain.agents.v3_contracts import (
     SPECIALIST_AGENT_ORDER,
+    ExercisePrescription,
     PlanActionCode,
     PlanSpec,
     RegenerationContext,
     SpecialistAgentProposal,
+    SpecialistAgentTypeCode,
 )
 from backend.app.domain.agents.v3_orchestration import FallbackRequest, GraphTerminalStatusCode
 from backend.app.domain.agents.v3_persistence import V3RootSnapshotPersistence
@@ -34,7 +36,7 @@ from backend.tests.unit.llm_agent_test_support import (
     ToolCallingFakeChatModel,
     tool_response,
 )
-from backend.tests.unit.test_v3_agent_contracts import A, B, prescription
+from backend.tests.unit.test_v3_agent_contracts import A, B, prescription, proposal
 from backend.tests.unit.test_v3_coordinator_contracts import coordinator_input, plan, proposals
 from backend.tests.unit.test_v3_persistence_service import make_bundle
 
@@ -68,8 +70,65 @@ def _settings(**overrides: object) -> Settings:
 def _successful_model(root_snapshot, *, coordinator_plan=None) -> ToolCallingFakeChatModel:
     envelope = root_snapshot.constraint_envelope
     pool = root_snapshot.exercise_pool
-    specialist_proposals = proposals(envelope, pool)
-    expected_plan = coordinator_plan or plan(coordinator_input(envelope, pool))
+    if {A, B}.issubset({record.exercise_id for record in pool.exercises}):
+        specialist_proposals = proposals(envelope, pool)
+        expected_plan = coordinator_plan or plan(coordinator_input(envelope, pool))
+        return ToolCallingFakeChatModel(
+            responses=[
+                *(
+                    tool_response(SpecialistAgentProposal, item, index)
+                    for index, item in enumerate(reversed(specialist_proposals), start=1)
+                ),
+                tool_response(PlanSpec, expected_plan, 4),
+            ]
+        )
+    prescriptions = tuple(
+        ExercisePrescription(
+            exercise_id=record.exercise_id,
+            sequence=index,
+            sets=min(envelope.recovery_ceiling.maximum_sets_per_exercise or 1, 3),
+            repetitions_per_set=(
+                min(envelope.recovery_ceiling.maximum_repetitions_per_set or 1, 10)
+                if record.timing_mode_code == "REPS"
+                else None
+            ),
+            work_seconds_per_set=(
+                min(envelope.recovery_ceiling.maximum_work_seconds_per_set or 1, 30)
+                if record.timing_mode_code != "REPS"
+                else None
+            ),
+            rest_seconds_between_sets=(
+                envelope.recovery_ceiling.minimum_rest_seconds_between_sets or 0
+            ),
+            transition_seconds=15,
+            intensity_code=(envelope.recovery_ceiling.allowed_intensity_codes or ("LOW",))[0],
+            load_code=(envelope.recovery_ceiling.allowed_load_codes or (None,))[0],
+            location_code=next(
+                code for code in record.location_codes if code in envelope.allowed_location_codes
+            ),
+            equipment_codes=record.equipment_codes,
+        )
+        for index, record in enumerate(pool.exercises[:2], start=1)
+    )
+    specialist_proposals = tuple(
+        proposal(
+            agent_type,
+            envelope,
+            pool,
+            prescriptions=(prescriptions if agent_type is SpecialistAgentTypeCode.TRAINING else ()),
+            requested_duration_minutes=envelope.requested_duration_minutes,
+        )
+        for agent_type in SPECIALIST_AGENT_ORDER
+    )
+    expected_plan = coordinator_plan or plan(
+        coordinator_input(
+            envelope,
+            pool,
+            current_proposals=specialist_proposals,
+        ),
+        requested_duration_minutes=envelope.requested_duration_minutes,
+        plan_prescriptions=prescriptions,
+    )
     responses = [
         tool_response(SpecialistAgentProposal, proposal, index)
         for index, proposal in enumerate(reversed(specialist_proposals), start=1)
