@@ -48,11 +48,16 @@ later application step and remains the canonical source of truth.
 `staging` and all OpenAI, model allowlist, credential, and LangGraph gates are
 enabled. It does not depend on shadow opt-in or production promotion evaluation.
 
-Application code injects a `V3RootSnapshotLoaderPort` that owns PostgreSQL
-eligibility, optional Qdrant ranking, PostgreSQL revalidation, and deterministic
-pool fallback. `V3DemoRuntime.execute` and the `V3GraphRuntimePort`-compatible
-`regenerate` method return a `V3DecisionPersistenceBundle`; database and Qdrant
-handles are never passed into graph state or Agent inputs.
+Application code builds `V3RootSnapshotPersistence` before graph execution through
+`QdrantExercisePoolSnapshotLoader`, which owns PostgreSQL eligibility, optional
+Qdrant ranking, PostgreSQL revalidation, and deterministic pool fallback.
+`V3DemoRuntime.create` and the `V3GraphRuntimePort`-compatible `regenerate` method
+consume only that stored snapshot and return a `V3DecisionPersistenceBundle`;
+database and Qdrant handles are never passed into graph state or Agent inputs.
+The demo runtime defaults to `DeterministicGraphFallbackProvider`, which selects
+only snapshot exercises under the frozen Safety and recovery ceilings. Its output
+still passes through the normal compiler and integrity validator; if no safe
+prescription can be built, the graph returns a plan-less terminal bundle.
 
 ## Dependency
 

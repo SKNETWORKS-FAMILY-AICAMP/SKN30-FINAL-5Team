@@ -38,7 +38,7 @@ class VectorIndexContract:
     status_code: str
 
 
-def _query_hash(request: ExerciseRetrievalRequest) -> str:
+def exercise_retrieval_query_hash(request: ExerciseRetrievalRequest) -> str:
     canonical = json.dumps(
         {
             "request_schema_version": request.schema_version,
@@ -48,6 +48,42 @@ def _query_hash(request: ExerciseRetrievalRequest) -> str:
         separators=(",", ":"),
     ).encode()
     return hashlib.sha256(canonical).hexdigest()
+
+
+def _deterministic_fallback_ids(request: ExerciseRetrievalRequest) -> tuple[UUID, ...]:
+    mandatory = list(request.mandatory_exercise_ids)
+    mandatory_set = set(mandatory)
+    previous = set(request.previous_plan_exercise_ids)
+    fresh = [
+        exercise_id
+        for exercise_id in request.eligible_exercise_ids
+        if exercise_id not in mandatory_set and exercise_id not in previous
+    ]
+    repeated = [
+        exercise_id
+        for exercise_id in request.eligible_exercise_ids
+        if exercise_id not in mandatory_set and exercise_id in previous
+    ]
+    return tuple((mandatory + fresh + repeated)[: request.requested_limit])
+
+
+def deterministic_retrieval_fallback(
+    request: ExerciseRetrievalRequest,
+    status: RetrievalStatusCode,
+) -> ExerciseRetrievalResult:
+    """Return the shared deterministic pool ordering for any vector failure."""
+
+    ranked_ids = _deterministic_fallback_ids(request)
+    return ExerciseRetrievalResult(
+        ranked_exercise_ids=ranked_ids,
+        similarity_scores=tuple(None for _ in ranked_ids),
+        collection_name=None,
+        vector_index_version=None,
+        embedding_model_version=None,
+        query_hash=exercise_retrieval_query_hash(request),
+        retrieval_status_code=status,
+        fallback_used=True,
+    )
 
 
 class QdrantExerciseRetriever:
@@ -68,39 +104,12 @@ class QdrantExerciseRetriever:
         self._index = index
         self._max_provider_attempts = max_provider_attempts
 
-    @staticmethod
-    def _fallback_ids(request: ExerciseRetrievalRequest) -> tuple[UUID, ...]:
-        mandatory = list(request.mandatory_exercise_ids)
-        mandatory_set = set(mandatory)
-        previous = set(request.previous_plan_exercise_ids)
-        fresh = [
-            exercise_id
-            for exercise_id in request.eligible_exercise_ids
-            if exercise_id not in mandatory_set and exercise_id not in previous
-        ]
-        repeated = [
-            exercise_id
-            for exercise_id in request.eligible_exercise_ids
-            if exercise_id not in mandatory_set and exercise_id in previous
-        ]
-        return tuple((mandatory + fresh + repeated)[: request.requested_limit])
-
     def _fallback(
         self,
         request: ExerciseRetrievalRequest,
         status: RetrievalStatusCode,
     ) -> ExerciseRetrievalResult:
-        ranked_ids = self._fallback_ids(request)
-        return ExerciseRetrievalResult(
-            ranked_exercise_ids=ranked_ids,
-            similarity_scores=tuple(None for _ in ranked_ids),
-            collection_name=None,
-            vector_index_version=None,
-            embedding_model_version=None,
-            query_hash=_query_hash(request),
-            retrieval_status_code=status,
-            fallback_used=True,
-        )
+        return deterministic_retrieval_fallback(request, status)
 
     def _preflight_status(self, request: ExerciseRetrievalRequest) -> RetrievalStatusCode | None:
         if request.retrieval_mode is RetrievalModeCode.DETERMINISTIC_ONLY:
@@ -182,7 +191,7 @@ class QdrantExerciseRetriever:
             collection_name=self._index.collection_name,
             vector_index_version=self._index.vector_index_version,
             embedding_model_version=self._index.embedding_model_version,
-            query_hash=_query_hash(request),
+            query_hash=exercise_retrieval_query_hash(request),
             retrieval_status_code=RetrievalStatusCode.VECTOR_RETRIEVAL_SUCCEEDED,
             fallback_used=False,
         )
@@ -190,4 +199,9 @@ class QdrantExerciseRetriever:
         return result
 
 
-__all__ = ["QdrantExerciseRetriever", "VectorIndexContract"]
+__all__ = [
+    "QdrantExerciseRetriever",
+    "VectorIndexContract",
+    "deterministic_retrieval_fallback",
+    "exercise_retrieval_query_hash",
+]

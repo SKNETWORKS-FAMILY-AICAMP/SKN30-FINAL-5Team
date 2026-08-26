@@ -42,6 +42,7 @@ from backend.app.domain.agents.v3_validation import (
     IntegrityValidationResult,
     IntegrityViolationCode,
 )
+from backend.app.integrations.langgraph.fallback import DeterministicGraphFallbackProvider
 from backend.app.integrations.langgraph.graph import V3LangGraphRuntime, create_v3_graph
 from backend.app.integrations.langgraph.shadow_runtime import (
     _Compiler,
@@ -51,7 +52,6 @@ from backend.app.integrations.langgraph.shadow_runtime import (
     _IntegrityReport,
     _IntegrityValidator,
     _MeaningfulDifference,
-    _NoFallbackProvider,
 )
 from backend.app.integrations.langgraph.state import (
     AgentOutcome,
@@ -80,16 +80,6 @@ class V3DemoRuntimeError(RuntimeError):
     def __init__(self, code: str) -> None:
         super().__init__(code)
         self.code = code
-
-
-class V3RootSnapshotLoaderPort(Protocol):
-    """Application adapter for PostgreSQL filtering and optional Qdrant ranking.
-
-    Implementations must perform the ADR-0014 PostgreSQL re-read and return the
-    immutable retrieval request/result together with the resulting pool.
-    """
-
-    def load(self, constraint_envelope: ConstraintEnvelope) -> V3RootSnapshotPersistence: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -281,11 +271,12 @@ def _canonical_validations(
 @dataclass(slots=True)
 class V3DemoRuntime:
     settings: Settings
-    snapshot_loader: V3RootSnapshotLoaderPort
     graph_runtime: V3LangGraphRuntime
     invoker: StructuredChatInvoker
     identity_provider: V3DemoIdentityProvider = field(default_factory=BoundV3DemoIdentityProvider)
-    fallback_provider: DeterministicFallbackProvider = field(default_factory=_NoFallbackProvider)
+    fallback_provider: DeterministicFallbackProvider = field(
+        default_factory=DeterministicGraphFallbackProvider
+    )
     versions: V3DemoRuntimeVersions = field(default_factory=V3DemoRuntimeVersions)
     execution_profile: str = "DEMO"
 
@@ -299,12 +290,11 @@ class V3DemoRuntime:
             provider_code=self.versions.provider_code,
         )
 
-    async def execute(
+    async def create(
         self,
         *,
-        constraint_envelope: ConstraintEnvelope,
+        root_snapshot: V3RootSnapshotPersistence,
     ) -> V3DecisionPersistenceBundle:
-        root_snapshot = self.snapshot_loader.load(constraint_envelope)
         identity = self.identity_provider.initial()
         return await self._execute(root_snapshot, identity=identity)
 
@@ -446,7 +436,6 @@ def build_v3_demo_runtime(
     settings: Settings,
     *,
     execution_profile: str,
-    snapshot_loader: V3RootSnapshotLoaderPort,
     chat_model: BaseChatModel | None = None,
     fallback_provider: DeterministicFallbackProvider | None = None,
     identity_provider: V3DemoIdentityProvider | None = None,
@@ -461,9 +450,9 @@ def build_v3_demo_runtime(
     )
     if model is None:
         return None
+    resolved_versions = versions or V3DemoRuntimeVersions()
     return V3DemoRuntime(
         settings=settings,
-        snapshot_loader=snapshot_loader,
         graph_runtime=V3LangGraphRuntime(create_v3_graph()),
         invoker=StructuredChatInvoker(
             chat_model=model,
@@ -472,8 +461,9 @@ def build_v3_demo_runtime(
             use_native_json_schema=chat_model is None,
         ),
         identity_provider=identity_provider or BoundV3DemoIdentityProvider(),
-        fallback_provider=fallback_provider or _NoFallbackProvider(),
-        versions=versions or V3DemoRuntimeVersions(),
+        fallback_provider=fallback_provider
+        or DeterministicGraphFallbackProvider(fallback_version=resolved_versions.fallback_version),
+        versions=resolved_versions,
         execution_profile=execution_profile,
     )
 
@@ -486,6 +476,5 @@ __all__ = [
     "V3DemoRuntimeError",
     "V3DemoRuntimeMetadata",
     "V3DemoRuntimeVersions",
-    "V3RootSnapshotLoaderPort",
     "build_v3_demo_runtime",
 ]
