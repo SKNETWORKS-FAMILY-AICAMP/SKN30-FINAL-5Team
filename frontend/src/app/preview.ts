@@ -7,6 +7,7 @@ export type PreviewMode =
   | 'home'
   | 'home-map'
   | 'login'
+  | 'loading'
   | 'mascot-house'
   | 'my-page'
   | 'onboarding'

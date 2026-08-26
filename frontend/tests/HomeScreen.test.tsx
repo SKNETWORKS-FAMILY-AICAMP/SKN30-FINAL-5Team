@@ -6,11 +6,14 @@ import { Animated, Platform, processColor, StyleSheet } from 'react-native';
 
 import { ADVERSE_REACTION_OPTIONS } from '../src/api/labels';
 import { fontFamilies } from '../src/app/fonts';
-import { imageAssets } from '../src/assets';
+import { imageAssets, weeklyProgressMascotSources } from '../src/assets';
+import { ScaleViewportProvider } from '../src/components/scale';
 import { colors } from '../src/components/theme';
 import {
   HOME_BACKGROUND_COLOR,
+  HomeBottomNavigation,
   HomeScreen,
+  bottomNavigationBottomPadding,
 } from '../src/features/home/HomeScreen';
 import {
   HOME_CHECKIN_OPTIONS,
@@ -99,7 +102,7 @@ describe('HomeScreen Home v1 transcription', () => {
     );
   });
 
-  it('renders goal-sized progress cells with real shared assets and badges only for completed cells', () => {
+  it('renders goal-sized progress cells with distinct mascots and no completion badges', () => {
     render(
       <HomeScreen
         previewState="routine"
@@ -111,9 +114,35 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.getAllByLabelText(/번째 주간 진행/)).toHaveLength(5);
     expect(screen.getAllByTestId('day-done-image')).toHaveLength(3);
     expect(screen.getAllByTestId('day-todo-image')).toHaveLength(2);
-    expect(screen.getAllByTestId('progress-complete-badge')).toHaveLength(3);
-    expect(screen.getAllByTestId('day-done-image')[0]?.props.source).toEqual(
-      imageAssets.weeklyProgressComplete,
+    expect(screen.queryByTestId('progress-complete-badge')).toBeNull();
+    expect(screen.getByText('요일별 진행 상태')).toBeOnTheScreen();
+    expect(screen.getByText('이번 주 진행률')).toBeOnTheScreen();
+    expect(screen.getByText('목표 5회 중 3회 완료')).toBeOnTheScreen();
+    expect(screen.getByTestId('weekly-progress-percent')).toHaveTextContent(
+      '60%',
+    );
+    expect(
+      StyleSheet.flatten(screen.getByText('5회').props.style).fontSize,
+    ).toBeLessThan(
+      StyleSheet.flatten(
+        screen.getByTestId('weekly-completed-count').props.style,
+      ).fontSize,
+    );
+    expect(screen.getByTestId('weekly-progress-summary').props).toMatchObject({
+      accessibilityRole: 'progressbar',
+      accessibilityValue: { min: 0, max: 100, now: 60 },
+    });
+    const completedSources = screen
+      .getAllByTestId('day-done-image')
+      .map((image) => image.props.source);
+    expect(new Set(completedSources).size).toBe(3);
+    expect(
+      completedSources.every((source) =>
+        weeklyProgressMascotSources.includes(source),
+      ),
+    ).toBe(true);
+    expect(completedSources).not.toContain(
+      imageAssets.weeklyProgressIncomplete,
     );
     expect(screen.getAllByTestId('day-todo-image')[0]?.props.source).toEqual(
       imageAssets.weeklyProgressIncomplete,
@@ -123,6 +152,50 @@ describe('HomeScreen Home v1 transcription', () => {
         screen.getAllByTestId('day-done-image')[0]?.props.style,
       ),
     ).toMatchObject({ height: '78%', width: '78%' });
+  });
+
+  it('shows the same incomplete mascot in every slot before any routine is completed', () => {
+    render(
+      <HomeScreen
+        previewState="routine"
+        weeklyCompletedCount={0}
+        weeklyGoalCount={4}
+      />,
+    );
+
+    expect(screen.queryByTestId('day-done-image')).toBeNull();
+    const incompleteImages = screen.getAllByTestId('day-todo-image');
+    expect(incompleteImages).toHaveLength(4);
+    expect(
+      incompleteImages.every(
+        (image) => image.props.source === imageAssets.weeklyProgressIncomplete,
+      ),
+    ).toBe(true);
+  });
+
+  it('keeps completed mascots stable and reveals a new one after another completion', () => {
+    const view = render(
+      <HomeScreen
+        previewState="routine"
+        weeklyCompletedCount={1}
+        weeklyGoalCount={4}
+      />,
+    );
+    const firstMascot = screen.getByTestId('day-done-image').props.source;
+
+    view.rerender(
+      <HomeScreen
+        previewState="routine"
+        weeklyCompletedCount={2}
+        weeklyGoalCount={4}
+      />,
+    );
+
+    const completedMascots = screen
+      .getAllByTestId('day-done-image')
+      .map((image) => image.props.source);
+    expect(completedMascots[0]).toBe(firstMascot);
+    expect(completedMascots[1]).not.toBe(firstMascot);
   });
 
   it('renders seven weekday circles with the original completed and incomplete styles', () => {
@@ -903,7 +976,7 @@ describe('HomeScreen Home v1 transcription', () => {
     const labels = [
       '알림 보기',
       '프로필 열기',
-      '주간 진행 현황 설명 보기',
+      '이번 주 진행률 설명 보기',
       '월별·연별 기록 달력 보기',
       '오늘 루틴 체크인',
       '운동 시작하기',
@@ -920,6 +993,46 @@ describe('HomeScreen Home v1 transcription', () => {
     fireEvent.press(screen.getByRole('button', { name: '운동 수정하기' }));
     expect(screen.getAllByLabelText('항목 삭제').length).toBeGreaterThan(0);
     expect(screen.getByLabelText('닫기')).toBeOnTheScreen();
+  });
+
+  it('keeps the shared bottom navigation fixed across viewport widths', () => {
+    const view = render(
+      <ScaleViewportProvider viewport={{ width: 360, height: 844 }}>
+        <HomeBottomNavigation activeTab="home" />
+      </ScaleViewportProvider>,
+    );
+    const compactOuter = StyleSheet.flatten(
+      screen.getByTestId('bottom-navigation').props.style,
+    );
+    const compactTab = StyleSheet.flatten(
+      screen.getByRole('tab', { name: '홈' }).props.style,
+    );
+
+    view.rerender(
+      <ScaleViewportProvider viewport={{ width: 430, height: 844 }}>
+        <HomeBottomNavigation activeTab="home" />
+      </ScaleViewportProvider>,
+    );
+
+    expect(
+      StyleSheet.flatten(screen.getByTestId('bottom-navigation').props.style),
+    ).toMatchObject({
+      paddingTop: 8,
+      paddingHorizontal: 14,
+      paddingBottom: 26,
+    });
+    expect(
+      StyleSheet.flatten(screen.getByRole('tab', { name: '홈' }).props.style),
+    ).toMatchObject({ minHeight: 48, paddingVertical: 6 });
+    expect(compactOuter).toMatchObject({
+      paddingTop: 8,
+      paddingHorizontal: 14,
+      paddingBottom: 26,
+    });
+    expect(compactTab).toMatchObject({ minHeight: 48, paddingVertical: 6 });
+    expect(bottomNavigationBottomPadding(0)).toBe(26);
+    expect(bottomNavigationBottomPadding(20)).toBe(26);
+    expect(bottomNavigationBottomPadding(34)).toBe(34);
   });
 
   it('renders a centered filled-gradient check-in CTA without the banana glyph', () => {
@@ -996,11 +1109,11 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(submitGradient.props.locations).toEqual([0, 0.55, 1]);
   });
 
-  it('keeps source parity with the sixteen original SVG definitions', () => {
+  it('keeps source parity after removing the weekly progress badge icon', () => {
     const source = readFileSync(
       resolve(process.cwd(), 'src/features/home/HomeScreen.tsx'),
       'utf8',
     );
-    expect(source.match(/<Svg\b/g)).toHaveLength(16);
+    expect(source.match(/<Svg\b/g)).toHaveLength(15);
   });
 });

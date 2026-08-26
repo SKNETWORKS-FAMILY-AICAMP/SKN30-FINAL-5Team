@@ -35,7 +35,6 @@ import type {
 } from '../src/api/types';
 import { resolveEnvConfig } from '../src/config/env';
 import { MascotStage } from '../src/components/brand/BrandChrome';
-import { ScaleViewportProvider } from '../src/components/scale';
 import { CalendarStatusScreen } from '../src/features/calendar/CalendarStatusScreen';
 import { HomeContainer } from '../src/features/home/HomeContainer';
 import { MascotHouseScreen } from '../src/features/house/MascotHouseScreen';
@@ -1204,7 +1203,6 @@ describe('OnboardingScreen', () => {
     if (attentionArea) {
       fireEvent.press(screen.getByText('있어요'));
       fireEvent.press(screen.getByText(attentionArea));
-      fireEvent.press(screen.getByText('조금 아픔'));
     } else {
       fireEvent.press(screen.getByText('없어요'));
     }
@@ -1680,35 +1678,54 @@ describe('OnboardingScreen', () => {
     ).toBeDisabled();
     fireEvent.press(screen.getByText('무릎'));
     expect(screen.getByText('무릎 통증 정도')).toBeOnTheScreen();
-    expect(
-      screen.getByTestId('onboarding-pain-severity-options-KNEE'),
-    ).toHaveStyle({ flexDirection: 'row', flexWrap: 'nowrap' });
-    expect(
-      screen.getByRole('button', { name: '입력이 필요해요' }),
-    ).toBeDisabled();
-    fireEvent.press(screen.getByText('중간 정도 아픔'));
+    const slider = screen.getByRole('adjustable', {
+      name: '무릎 통증 정도',
+    });
+    expect(slider).toHaveAccessibilityValue({
+      min: 1,
+      max: 10,
+      now: 1,
+      text: '10점 중 1점',
+    });
+    fireEvent(slider, 'accessibilityAction', {
+      nativeEvent: { actionName: 'increment' },
+    });
+    expect(slider).toHaveAccessibilityValue({
+      min: 1,
+      max: 10,
+      now: 2,
+      text: '10점 중 2점',
+    });
     expect(screen.getByRole('button', { name: '다음' })).toBeEnabled();
   });
 
-  it('scales pain severity labels with the available viewport width', () => {
-    const onboarding = (width: number) => (
-      <ScaleViewportProvider viewport={{ width, height: 844 }}>
-        <OnboardingScreen
-          api={stubApi()}
-          initialStep={12}
-          onCompleted={jest.fn()}
-          onSignOut={jest.fn()}
-        />
-      </ScaleViewportProvider>
+  it('lets users select every integer pain score from 1 to 10 on the slider', () => {
+    render(
+      <OnboardingScreen
+        api={stubApi()}
+        initialStep={12}
+        onCompleted={jest.fn()}
+        onSignOut={jest.fn()}
+      />,
     );
-    const view = render(onboarding(320));
-
     fireEvent.press(screen.getByText('있어요'));
     fireEvent.press(screen.getByText('무릎'));
-    expect(screen.getByText('중간 정도 아픔')).toHaveStyle({ fontSize: 10 });
+    const slider = screen.getByRole('adjustable', {
+      name: '무릎 통증 정도',
+    });
 
-    view.rerender(onboarding(468));
-    expect(screen.getByText('중간 정도 아픔')).toHaveStyle({ fontSize: 13.2 });
+    fireEvent(slider, 'layout', { nativeEvent: { layout: { width: 180 } } });
+    fireEvent(slider, 'responderGrant', {
+      nativeEvent: { locationX: 120 },
+    });
+
+    expect(slider).toHaveAccessibilityValue({
+      min: 1,
+      max: 10,
+      now: 7,
+      text: '10점 중 7점',
+    });
+    expect(screen.getByText('7')).toBeOnTheScreen();
   });
 
   it('hides unsupported and extended attention areas until expanded', () => {

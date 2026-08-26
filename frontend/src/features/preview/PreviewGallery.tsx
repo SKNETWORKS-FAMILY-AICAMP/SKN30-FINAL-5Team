@@ -30,6 +30,7 @@ import {
 } from '../auth/previewStates';
 import { SignInScreen } from '../auth/SignInScreen';
 import { SignUpScreen } from '../auth/SignUpScreen';
+import { CalendarReportContainer } from '../home/CalendarReportContainer';
 import { CalendarReportScreen } from '../home/CalendarReportScreen';
 import { HOME_PREVIEW_OPTIONS, type HomePreviewState } from '../home/homeModel';
 import { HomeScreen } from '../home/HomeScreen';
@@ -46,6 +47,7 @@ import {
 } from '../home/homeSecondaryModel';
 import { MapHomeScreen } from '../home/MapHomeScreen';
 import { MyPageContainer } from '../home/MyPageContainer';
+import { MyPageScreen } from '../home/MyPageScreen';
 import { PreviousHomeScreen } from '../home/PreviousHomeScreen';
 import { WorkoutHistorySheet } from '../home/WorkoutHistorySheet';
 import { BackgroundTestScreen } from '../house/BackgroundTestScreen';
@@ -130,6 +132,7 @@ export const DEVICE_PREVIEWS = [
 export const SPLASH_DEVICE_PREVIEWS = DEVICE_PREVIEWS;
 export type PreviewScreenId =
   | 'splash'
+  | 'loading'
   | 'auth'
   | 'login'
   | 'signup'
@@ -158,11 +161,15 @@ const PREVIEW_SCREEN_GROUPS = [
     screens: [{ id: 'splash', label: 'Splash (API)' }],
   },
   {
+    label: 'States',
+    screens: [{ id: 'loading', label: 'Page loading (API)' }],
+  },
+  {
     label: 'Auth',
     screens: [
-      { id: 'auth', label: 'Auth (API)' },
-      { id: 'login', label: 'Login (mock)' },
-      { id: 'signup', label: 'SignUp (mock)' },
+      { id: 'auth', label: 'Auth (mock)' },
+      { id: 'login', label: 'Login (API)' },
+      { id: 'signup', label: 'SignUp (API)' },
     ],
   },
   {
@@ -281,6 +288,28 @@ function isWorkoutPreviewState(
 }
 
 type SplashPreviewState = 'pending' | 'error';
+type PageLoadingPreviewState = 'home' | 'house' | 'calendar-report' | 'my-page';
+
+const PAGE_LOADING_PREVIEW_OPTIONS = [
+  { id: 'home', label: 'Home · 오늘 상태' },
+  { id: 'house', label: '끼끼의 집' },
+  { id: 'calendar-report', label: '운동 캘린더' },
+  { id: 'my-page', label: '마이페이지' },
+] as const satisfies readonly {
+  id: PageLoadingPreviewState;
+  label: string;
+}[];
+
+function neverResolve<T>(): Promise<T> {
+  return new Promise(() => undefined);
+}
+
+/** Keeps production containers in their first-load branch without a request. */
+const PAGE_LOADING_PREVIEW_API = {
+  getWeek: () => neverResolve(),
+  listWorkoutSessions: () => neverResolve(),
+} as unknown as Api;
+
 type DevicePreview = (typeof DEVICE_PREVIEWS)[number];
 type DevicePreviewId = DevicePreview['id'] | 'custom';
 
@@ -411,6 +440,8 @@ export function PreviewGallery({
     initialScreenId === 'session-result' ? 'workout' : initialScreenId,
   );
   const [splashState, setSplashState] = useState<SplashPreviewState>('pending');
+  const [pageLoadingState, setPageLoadingState] =
+    useState<PageLoadingPreviewState>('home');
   const [devicePreviewId, setDevicePreviewId] =
     useState<DevicePreviewId>('reference');
   const [customViewport, setCustomViewport] = useState<{
@@ -681,16 +712,32 @@ export function PreviewGallery({
           </>
         ) : null}
 
+        {screenId === 'loading' ? (
+          <>
+            <PreviewStateOptions
+              label="페이지 전환 로딩"
+              options={PAGE_LOADING_PREVIEW_OPTIONS}
+              selected={pageLoadingState}
+              onSelect={setPageLoadingState}
+            />
+            <Text style={styles.contractNotice}>
+              실제 앱에서 주요 탭으로 이동한 직후 표시되는 로딩 UI입니다. 비교를
+              위해 API 응답만 대기 상태로 고정했으며 네트워크 요청은 보내지
+              않습니다.
+            </Text>
+          </>
+        ) : null}
+
         {screenId === 'auth' ? (
           <Text style={styles.contractNotice}>
-            실제 앱의 SignInScreen입니다. 인증 어댑터만 갤러리용 mock이라 계정과
-            네트워크를 변경하지 않습니다.
+            이전 통합 SignInScreen의 mock입니다. 현재 앱의 인증 진입에는
+            사용하지 않습니다.
           </Text>
         ) : null}
 
         {screenId === 'login' ? (
           <PreviewStateOptions
-            label="Login mock 상태"
+            label="Login API 상태"
             options={LOGIN_PREVIEW_OPTIONS}
             selected={loginState}
             onSelect={setLoginState}
@@ -700,14 +747,14 @@ export function PreviewGallery({
         {screenId === 'signup' ? (
           <>
             <PreviewStateOptions
-              label="SignUp mock 상태"
+              label="SignUp API 상태"
               options={SIGN_UP_PREVIEW_OPTIONS}
               selected={signUpState}
               onSelect={setSignUpState}
             />
             <Text style={styles.contractNotice}>
-              시각 참고 전용: 로컬 계정 유지 여부와 Firebase 인증 계약은
-              미확정입니다.
+              실제 앱의 Firebase 이메일·비밀번호 회원가입 UI입니다. 갤러리
+              상태는 계정과 네트워크를 변경하지 않는 fixture입니다.
             </Text>
           </>
         ) : null}
@@ -987,6 +1034,40 @@ export function PreviewGallery({
                       onRetry={() => setSplashState('pending')}
                       reducedMotionOverride={reducedMotion}
                       viewportOverride={canvasViewport}
+                    />
+                  ) : null}
+                  {screenId === 'loading' && pageLoadingState === 'home' ? (
+                    <HomeScreen
+                      {...homePreviewProps('pre-checkin')}
+                      status="loading"
+                    />
+                  ) : null}
+                  {screenId === 'loading' && pageLoadingState === 'house' ? (
+                    <MascotHouseScreen
+                      api={PAGE_LOADING_PREVIEW_API}
+                      nickname={PREVIEW_ME.profile?.nickname ?? '미리보기'}
+                      now={GALLERY_PREVIEW_NOW}
+                      onNavigate={navigateHomeTab}
+                      store={housePreviewStore}
+                      timeZone="Asia/Seoul"
+                    />
+                  ) : null}
+                  {screenId === 'loading' &&
+                  pageLoadingState === 'calendar-report' ? (
+                    <CalendarReportContainer
+                      api={PAGE_LOADING_PREVIEW_API}
+                      now={GALLERY_PREVIEW_NOW}
+                      onNavigateTab={navigateHomeTab}
+                      onOpenWeeklyReport={() => undefined}
+                      routineStartLocalDate="2026-08-01"
+                      timeZone="Asia/Seoul"
+                    />
+                  ) : null}
+                  {screenId === 'loading' && pageLoadingState === 'my-page' ? (
+                    <MyPageScreen
+                      me={PREVIEW_ME}
+                      onNavigateTab={navigateHomeTab}
+                      previewState="loading"
                     />
                   ) : null}
                   {screenId === 'auth' ? (

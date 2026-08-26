@@ -39,31 +39,34 @@ describe('PreviewGallery', () => {
     expect(screen.getByText('Auth')).toBeOnTheScreen();
     expect(screen.getByText('Workout')).toBeOnTheScreen();
     expect(screen.getByText('Calendar / report')).toBeOnTheScreen();
-    expect(screen.getByRole('radio', { name: 'Auth (API)' })).toBeOnTheScreen();
+    expect(
+      screen.getByRole('radio', { name: 'Auth (mock)' }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByRole('radio', { name: 'Login (API)' }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByRole('radio', { name: 'SignUp (API)' }),
+    ).toBeOnTheScreen();
     expect(
       screen.getByRole('radio', { name: 'Workout session (mock)' }),
     ).toBeOnTheScreen();
 
-    fireEvent.press(screen.getByRole('radio', { name: 'Auth (API)' }));
+    fireEvent.press(screen.getByRole('radio', { name: 'Login (API)' }));
     expect(
       within(screen.getByTestId('preview-app-canvas')).getByRole('header', {
-        name: '헬끼에 로그인',
+        name: '오늘도 자신과의 싸움에서\n승리하러 왔군요',
       }),
     ).toBeOnTheScreen();
     fireEvent.press(
       within(screen.getByTestId('preview-app-canvas')).getByRole('button', {
-        name: '계정이 없어요. 회원가입하기',
+        name: '회원가입',
       }),
     );
     expect(
       within(screen.getByTestId('preview-app-canvas')).getByRole('header', {
-        name: '헬끼 시작하기',
+        name: '회원가입',
       }),
-    ).toBeOnTheScreen();
-    expect(
-      await within(screen.getByTestId('preview-app-canvas')).findByText(
-        '비밀번호 조건: 6자 이상',
-      ),
     ).toBeOnTheScreen();
   });
 
@@ -76,6 +79,31 @@ describe('PreviewGallery', () => {
     fireEvent.press(screen.getByRole('button', { name: '다시 시도' }));
     expect(screen.queryByText('앱을 시작하지 못했어요')).not.toBeOnTheScreen();
     expect(screen.getByRole('radio', { name: 'pending' })).toBeChecked();
+  });
+
+  it('compares the production loading UI used by each main tab', async () => {
+    await render(<PreviewGallery />);
+
+    fireEvent.press(screen.getByRole('radio', { name: 'Page loading (API)' }));
+    const canvas = within(screen.getByTestId('preview-app-canvas'));
+
+    expect(canvas.getByText('오늘 상태를 불러오는 중이에요')).toBeOnTheScreen();
+    expect(screen.getByText('단독 진입: ?preview=loading')).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByRole('radio', { name: '끼끼의 집' }));
+    expect(canvas.getByText('불러오는 중이에요')).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByRole('radio', { name: '운동 캘린더' }));
+    expect(
+      canvas.getByRole('header', { name: '운동 캘린더' }),
+    ).toBeOnTheScreen();
+    expect(canvas.getByText('운동 기록을 불러오고 있어요')).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByRole('radio', { name: '마이페이지' }));
+    expect(
+      canvas.getByRole('header', { name: '마이페이지' }),
+    ).toBeOnTheScreen();
+    expect(canvas.getByText('프로필 정보를 불러오고 있어요')).toBeOnTheScreen();
   });
 
   it('applies the selected real phone viewport to Splash and the other screens', async () => {
@@ -103,7 +131,7 @@ describe('PreviewGallery', () => {
       StyleSheet.flatten(screen.getByTestId('preview-app-canvas').props.style),
     ).toEqual(expect.objectContaining({ width: 430, height: 932 }));
 
-    fireEvent.press(screen.getByRole('radio', { name: 'Login (mock)' }));
+    fireEvent.press(screen.getByRole('radio', { name: 'Login (API)' }));
     expect(
       StyleSheet.flatten(screen.getByTestId('preview-app-canvas').props.style),
     ).toEqual(expect.objectContaining({ width: 430, height: 932 }));
@@ -208,10 +236,10 @@ describe('PreviewGallery', () => {
     expect(reducedMotion).toBeChecked();
   });
 
-  it('switches Login mock states inside the fixed app canvas', async () => {
+  it('switches Login API preview states inside the fixed app canvas', async () => {
     await render(<PreviewGallery />);
 
-    fireEvent.press(screen.getByRole('radio', { name: 'Login (mock)' }));
+    fireEvent.press(screen.getByRole('radio', { name: 'Login (API)' }));
     expect(
       within(screen.getByTestId('preview-app-canvas')).getByRole('header', {
         name: '오늘도 자신과의 싸움에서\n승리하러 왔군요',
@@ -227,15 +255,33 @@ describe('PreviewGallery', () => {
     expect(screen.getByText('단독 진입: ?preview=login')).toBeOnTheScreen();
   });
 
-  it('marks SignUp as a contract-reference screen and changes its mock state', async () => {
+  it('shows the SignUp API contract and changes its preview state', async () => {
     await render(<PreviewGallery />);
 
-    fireEvent.press(screen.getByRole('radio', { name: 'SignUp (mock)' }));
+    fireEvent.press(screen.getByRole('radio', { name: 'SignUp (API)' }));
+    const canvas = within(screen.getByTestId('preview-app-canvas'));
     expect(
       screen.getByText(
-        '시각 참고 전용: 로컬 계정 유지 여부와 Firebase 인증 계약은 미확정입니다.',
+        '실제 앱의 Firebase 이메일·비밀번호 회원가입 UI입니다. 갤러리 상태는 계정과 네트워크를 변경하지 않는 fixture입니다.',
       ),
     ).toBeOnTheScreen();
+    expect(canvas.getByText('6자 이상 입력해주세요.')).toBeOnTheScreen();
+    expect(
+      canvas.queryByText(/로그인에 사용할 계정 정보만 입력해요/),
+    ).toBeNull();
+
+    fireEvent.changeText(
+      canvas.getByLabelText('회원가입 이메일'),
+      'preview@example.com',
+    );
+    fireEvent.changeText(canvas.getByLabelText('회원가입 비밀번호'), 'secret');
+    fireEvent.changeText(
+      canvas.getByLabelText('회원가입 비밀번호 확인'),
+      'secret',
+    );
+    expect(
+      canvas.getByRole('button', { name: '가입하고 프로필 등록하기' }),
+    ).toBeEnabled();
 
     fireEvent.press(screen.getByRole('radio', { name: '가입 실패' }));
     expect(

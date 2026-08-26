@@ -22,6 +22,7 @@ import {
   TextInput,
   View,
   type GestureResponderEvent,
+  type ImageSourcePropType,
   type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -58,7 +59,7 @@ import type {
   WorkoutSessionLogSummary,
 } from '../../api/types';
 import { moveArrayItem } from '../../api/workoutPlan';
-import { imageAssets } from '../../assets';
+import { imageAssets, weeklyProgressMascotSources } from '../../assets';
 import { fontFamilies, useBrandFonts } from '../../app/fonts';
 import type { TabId } from '../../components/brand/BrandChrome';
 import { ProfileAvatar } from '../../components/profile/ProfileAvatar';
@@ -85,6 +86,7 @@ import {
   routineTitleFromPlan,
   validateAvailabilitySlots,
   weekDaysFromSessions,
+  weeklyCompletionPercentage,
   weekStartForLocalDate,
   type HomeCheckin,
   type HomeCheckinDraft,
@@ -106,6 +108,57 @@ export const HOME_LAYOUT = {
   sheetHorizontalPadding: 18,
   sheetBottomPadding: 30,
 } as const;
+
+const bottomNavigationShadow =
+  Platform.select({
+    ios: {
+      shadowColor: '#5A4636',
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.07,
+      shadowRadius: 7,
+    },
+    android: { elevation: 2 },
+    default: {
+      shadowColor: '#5A4636',
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.07,
+      shadowRadius: 7,
+    },
+  }) ?? {};
+
+const bottomNavigationStyles = StyleSheet.create({
+  bottomBarOuter: {
+    flexShrink: 0,
+    backgroundColor: HOME_BACKGROUND_COLOR,
+    paddingTop: 8,
+    paddingHorizontal: HOME_LAYOUT.bottomBarHorizontalPadding,
+    paddingBottom: HOME_LAYOUT.bottomBarBottomPadding,
+  },
+  bottomBar: {
+    flexDirection: 'row',
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    ...bottomNavigationShadow,
+  },
+  tab: {
+    minHeight: 48,
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+  },
+  tabLabel: {
+    color: '#B0ACA4',
+    fontSize: 11.5,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  tabActive: { color: '#A45F00' },
+});
 
 type HomeTab = TabId;
 type WeekDay = {
@@ -423,10 +476,7 @@ function HomeScreenContent({
     () => Array.from({ length: goal }, (_, index) => index < completed),
     [completed, goal],
   );
-  const completedWeekDays = Array.from(weekDays).filter(
-    (day) => day.completed,
-  ).length;
-  const remainingCount = Math.max(0, goal - completedWeekDays);
+  const progressPercent = weeklyCompletionPercentage(completed, goal);
   const effectiveCheckedIn = apiMode ? context !== null : checkedIn;
   const rerolls = apiMode
     ? (planRevision?.ai_revision_count ?? 0)
@@ -639,16 +689,15 @@ function HomeScreenContent({
             />
             {contentReady ? (
               <>
-                <WeeklyRoutineCard
-                  remainingCount={remainingCount}
-                  weekDays={weekDays}
-                />
+                <WeeklyRoutineCard weekDays={weekDays} />
                 <WeeklyProgressCard
+                  key={displayWeekLabel}
                   completed={completed}
                   goal={goal}
                   onOpenCalendar={onOpenCalendar}
                   onToggleTip={() => setShowTip((current) => !current)}
                   progressDays={progressDays}
+                  progressPercent={progressPercent}
                   showTip={showTip}
                   weekLabel={displayWeekLabel}
                 />
@@ -1083,20 +1132,11 @@ function HomeHeader({
   );
 }
 
-function WeeklyRoutineCard({
-  remainingCount,
-  weekDays,
-}: {
-  remainingCount: number;
-  weekDays: readonly WeekDay[];
-}) {
+function WeeklyRoutineCard({ weekDays }: { weekDays: readonly WeekDay[] }) {
   const styles = useHomeStyles();
   return (
     <View style={styles.summaryCard}>
-      <Text style={styles.cardTitle}>
-        이번 주 남은 루틴은{' '}
-        <Text style={styles.greenText}>{remainingCount}회</Text>예요
-      </Text>
+      <Text style={styles.cardTitle}>요일별 진행 상태</Text>
       <View style={styles.weekRow} testID="weekly-day-row">
         {weekDays.map((day) => (
           <View
@@ -1143,12 +1183,25 @@ function weekdayAccessibilityLabel(day: WeekDay): string {
   return `${day.label}요일 ${statuses.map(sessionStatusLabel).join(', ')}`;
 }
 
+function randomizedWeeklyProgressMascots(): ImageSourcePropType[] {
+  const sources = Array.from(weeklyProgressMascotSources);
+  for (let index = sources.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [sources[index], sources[randomIndex]] = [
+      sources[randomIndex]!,
+      sources[index]!,
+    ];
+  }
+  return sources;
+}
+
 function WeeklyProgressCard({
   completed,
   goal,
   onOpenCalendar,
   onToggleTip,
   progressDays,
+  progressPercent,
   showTip,
   weekLabel,
 }: {
@@ -1157,19 +1210,21 @@ function WeeklyProgressCard({
   onOpenCalendar?: () => void;
   onToggleTip: () => void;
   progressDays: readonly boolean[];
+  progressPercent: number;
   showTip: boolean;
   weekLabel: string;
 }) {
   const styles = useHomeStyles();
+  const [completedMascots] = useState(randomizedWeeklyProgressMascots);
   return (
     <View style={styles.progressCard}>
       <View style={styles.progressHeader}>
         <View style={styles.progressTitleRow}>
           <Text numberOfLines={1} style={styles.cardTitle}>
-            주간 진행 현황
+            이번 주 진행률
           </Text>
           <Pressable
-            accessibilityLabel="주간 진행 현황 설명 보기"
+            accessibilityLabel="이번 주 진행률 설명 보기"
             accessibilityRole="button"
             hitSlop={14}
             onPress={onToggleTip}
@@ -1197,17 +1252,30 @@ function WeeklyProgressCard({
       {showTip ? (
         <View accessibilityLiveRegion="polite" style={styles.tip}>
           <Text style={styles.tipText}>
-            이번 주에 완료한 운동 횟수예요. 목표만큼 채우면 한 주가 마무리돼요.
+            완료한 루틴 수를 이번 주 목표 횟수로 나눈 진행률이에요.
           </Text>
         </View>
       ) : null}
 
-      <View style={styles.countRow}>
+      <View
+        accessibilityLabel={`목표 ${goal}회 중 ${completed}회 완료, 진행률 ${progressPercent}%`}
+        accessibilityRole="progressbar"
+        accessibilityValue={{ min: 0, max: 100, now: progressPercent }}
+        style={styles.countRow}
+        testID="weekly-progress-summary"
+      >
         <Text style={styles.countLabel}>
-          목표 <Text style={styles.countValue}>{goal}</Text> 회
+          목표 <Text style={styles.countValue}>{goal}회</Text> 중{' '}
+          <Text
+            style={styles.completedCountValue}
+            testID="weekly-completed-count"
+          >
+            {completed}회
+          </Text>{' '}
+          완료
         </Text>
-        <Text style={styles.countLabel}>
-          완료 <Text style={styles.countValue}>{completed}</Text> 회
+        <Text style={styles.progressPercent} testID="weekly-progress-percent">
+          {progressPercent}%
         </Text>
       </View>
       <View style={styles.progressCells} testID="weekly-progress-cells">
@@ -1226,20 +1294,12 @@ function WeeklyProgressCard({
               resizeMode="contain"
               source={
                 isDone
-                  ? imageAssets.weeklyProgressComplete
+                  ? completedMascots[index]
                   : imageAssets.weeklyProgressIncomplete
               }
               style={[styles.progressImage, !isDone && styles.todoImage]}
               testID={isDone ? 'day-done-image' : 'day-todo-image'}
             />
-            {isDone ? (
-              <View
-                style={styles.progressBadge}
-                testID="progress-complete-badge"
-              >
-                <ProgressCheckIcon />
-              </View>
-            ) : null}
           </View>
         ))}
       </View>
@@ -1633,14 +1693,23 @@ export function HomeBottomNavigation({
   activeTab: HomeTab;
   onNavigate?: (tab: HomeTab) => void;
 }) {
-  const styles = useHomeStyles();
+  const insets = useSafeAreaInsets();
   const homeColor = activeTab === 'home' ? '#A45F00' : '#B0ACA4';
   const logColor = activeTab === 'house' ? '#A45F00' : '#B0ACA4';
   const reportColor = activeTab === 'report' ? '#A45F00' : '#B0ACA4';
   const myColor = activeTab === 'my' ? '#A45F00' : '#B0ACA4';
   return (
-    <View style={styles.bottomBarOuter}>
-      <View accessibilityRole="tablist" style={styles.bottomBar}>
+    <View
+      style={[
+        bottomNavigationStyles.bottomBarOuter,
+        { paddingBottom: bottomNavigationBottomPadding(insets.bottom) },
+      ]}
+      testID="bottom-navigation"
+    >
+      <View
+        accessibilityRole="tablist"
+        style={bottomNavigationStyles.bottomBar}
+      >
         <TabButton
           active={activeTab === 'home'}
           icon={<HomeTabIcon color={homeColor} />}
@@ -1670,6 +1739,10 @@ export function HomeBottomNavigation({
   );
 }
 
+export function bottomNavigationBottomPadding(safeAreaBottom: number) {
+  return Math.max(HOME_LAYOUT.bottomBarBottomPadding, safeAreaBottom);
+}
+
 function TabButton({
   active,
   icon,
@@ -1681,17 +1754,23 @@ function TabButton({
   label: string;
   onPress: () => void;
 }) {
-  const styles = useHomeStyles();
   return (
     <Pressable
       accessibilityLabel={label}
       accessibilityRole="tab"
       accessibilityState={{ selected: active }}
       onPress={onPress}
-      style={styles.tab}
+      style={bottomNavigationStyles.tab}
     >
       {icon}
-      <Text style={[styles.tabLabel, active && styles.tabActive]}>{label}</Text>
+      <Text
+        style={[
+          bottomNavigationStyles.tabLabel,
+          active && bottomNavigationStyles.tabActive,
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -3274,20 +3353,6 @@ function CalendarIcon() {
   );
 }
 
-function ProgressCheckIcon() {
-  return (
-    <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M6 12.5l4 4 8-9"
-        stroke="#5A4636"
-        strokeWidth={3.2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
-
 function CheckinChevronIcon() {
   return (
     <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
@@ -3613,7 +3678,9 @@ function createHomeStyles(
       marginTop: s(14),
     },
     countLabel: { color: '#5A4636', fontSize: f(15), fontWeight: '800' },
-    countValue: { color: '#A45F00', fontSize: f(22) },
+    countValue: { color: '#A45F00', fontSize: f(15) },
+    completedCountValue: { color: '#A45F00', fontSize: f(22) },
+    progressPercent: { color: '#A45F00', fontSize: f(22), fontWeight: '800' },
     progressCells: { flexDirection: 'row', gap: s(8), marginTop: s(12) },
     progressCell: {
       position: 'relative',
@@ -3629,19 +3696,6 @@ function createHomeStyles(
     progressCellIncomplete: { backgroundColor: '#F3F1EB', opacity: 0.55 },
     progressImage: { width: '78%', height: '78%' },
     todoImage: { opacity: 1 },
-    progressBadge: {
-      position: 'absolute',
-      top: s(-4),
-      right: s(-4),
-      width: s(20),
-      height: s(20),
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: s(2),
-      borderColor: '#FFFFFF',
-      borderRadius: s(10),
-      backgroundColor: '#F6BA50',
-    },
     checkinWrapper: { marginBottom: s(16) },
     juaLabel: { fontFamily: fontFamilies.slogan, fontWeight: '400' },
     messageCard: {
@@ -3896,37 +3950,6 @@ function createHomeStyles(
       fontWeight: '700',
     },
     rerollActionLabelDisabled: { color: '#B0ACA4' },
-    bottomBarOuter: {
-      flexShrink: 0,
-      backgroundColor: '#FFF8E5',
-      paddingTop: s(8),
-      paddingHorizontal: s(14),
-      paddingBottom: s(26),
-    },
-    bottomBar: {
-      flexDirection: 'row',
-      borderRadius: s(22),
-      backgroundColor: '#FFFFFF',
-      paddingVertical: s(10),
-      paddingHorizontal: s(6),
-      ...shadow(-2, 14, 0.07),
-    },
-    tab: {
-      minHeight: s(48),
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: s(4),
-      paddingVertical: s(6),
-      paddingHorizontal: s(2),
-    },
-    tabLabel: {
-      color: '#B0ACA4',
-      fontSize: f(11.5),
-      fontWeight: '700',
-      textAlign: 'center',
-    },
-    tabActive: { color: '#A45F00' },
     sheetOverlay: {
       position: 'absolute',
       top: 0,

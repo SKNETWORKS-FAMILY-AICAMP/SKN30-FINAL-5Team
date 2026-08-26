@@ -158,7 +158,11 @@ export function BackgroundTestContent({
     <View style={styles.screen} testID="background-test-content">
       <Backdrop />
 
-      <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
+      <SafeAreaView
+        edges={['top']}
+        style={styles.safeArea}
+        testID="house-safe-area"
+      >
         <View style={styles.column} testID="house-content-column">
           {/* Title only. 홈 and 마이페이지 already sit in the tab bar below,
               and a second copy of both in the corners was two ways to reach the

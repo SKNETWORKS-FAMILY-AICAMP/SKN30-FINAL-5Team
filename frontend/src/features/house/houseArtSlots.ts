@@ -96,6 +96,33 @@ export const houseBackgroundArt: Record<HouseBackgroundId, HouseArtSlot> = {
   ),
 };
 
+/**
+ * Small background previews for the decorate grid. The full-size PNG artwork
+ * above remains the scene source; these JPGs avoid decoding four large images
+ * just to render phone-width selection cards.
+ */
+export const houseBackgroundThumbnailArt: Record<
+  HouseBackgroundId,
+  HouseArtSlot
+> = {
+  morning_camp: {
+    ...houseBackgroundArt.morning_camp,
+    source: imageAssets.houseCampingMorningBackgroundThumbnail,
+  },
+  dinner_camp: {
+    ...houseBackgroundArt.dinner_camp,
+    source: imageAssets.houseCampingDinnerBackgroundThumbnail,
+  },
+  indoor_treehouse: {
+    ...houseBackgroundArt.indoor_treehouse,
+    source: imageAssets.houseIndoorBackgroundThumbnail,
+  },
+  snowing_onsen: {
+    ...houseBackgroundArt.snowing_onsen,
+    source: imageAssets.houseSnowingOnsenBackgroundThumbnail,
+  },
+};
+
 /** Default room art retained for previews that do not own house state. */
 export const houseRoomArt = houseBackgroundArt[DEFAULT_HOUSE_BACKGROUND_ID];
 

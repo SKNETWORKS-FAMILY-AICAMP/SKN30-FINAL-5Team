@@ -7,6 +7,7 @@ export type PreviewMode =
   | 'home'
   | 'home-map'
   | 'login'
+  | 'loading'
   | 'mascot-house'
   | 'my-page'
   | 'onboarding'
@@ -38,6 +39,7 @@ export function getPreviewMode(): PreviewMode {
     requestedPreview === 'home' ||
     requestedPreview === 'home-map' ||
     requestedPreview === 'login' ||
+    requestedPreview === 'loading' ||
     requestedPreview === 'mascot-house' ||
     requestedPreview === 'my-page' ||
     requestedPreview === 'onboarding' ||

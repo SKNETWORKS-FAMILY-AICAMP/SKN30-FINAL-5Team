@@ -23,6 +23,7 @@ import {
 } from '../src/features/house/MascotHouseScreen';
 import {
   houseBananaPoseArt,
+  houseBackgroundArt,
   housePoseArt,
   houseRegularPoseArt,
   houseRoomArt,
@@ -110,6 +111,7 @@ describe('MascotHouseScreen', () => {
     renderHouse(houseApi());
 
     expect(await screen.findByTestId('house-scene')).toBeTruthy();
+    expect(screen.queryByRole('header', { name: '끼끼의 집' })).toBeNull();
     expect(screen.getByText('주 3회 운동하기')).toBeTruthy();
     expect(screen.getByText('1 / 3 회')).toBeTruthy();
     await waitFor(() =>
@@ -273,6 +275,27 @@ describe('MascotHouseScreen', () => {
       screen.getByTestId('house-background-indoor_treehouse'),
     ).toBeTruthy();
     expect(screen.getByTestId('house-background-snowing_onsen')).toBeTruthy();
+    expect(
+      screen
+        .getAllByLabelText(houseBackgroundArt.morning_camp.label)
+        .map((image) => image.props.source),
+    ).toEqual(
+      expect.arrayContaining([
+        imageAssets.houseCampingMorningBackground,
+        imageAssets.houseCampingMorningBackgroundThumbnail,
+      ]),
+    );
+    expect(
+      screen.getByLabelText(houseBackgroundArt.dinner_camp.label).props.source,
+    ).toBe(imageAssets.houseCampingDinnerBackgroundThumbnail);
+    expect(
+      screen.getByLabelText(houseBackgroundArt.indoor_treehouse.label).props
+        .source,
+    ).toBe(imageAssets.houseIndoorBackgroundThumbnail);
+    expect(
+      screen.getByLabelText(houseBackgroundArt.snowing_onsen.label).props
+        .source,
+    ).toBe(imageAssets.houseSnowingOnsenBackgroundThumbnail);
 
     fireEvent.press(screen.getByTestId('house-background-snowing_onsen'));
 
@@ -334,6 +357,10 @@ describe('MascotHouseScreen', () => {
     expect(screen.getByTestId('house-backdrop-blurred-source')).toBeTruthy();
     expect(screen.getByTestId('house-backdrop-continuation-fade')).toBeTruthy();
     expect(screen.getByTestId('house-bottom-fade')).toBeTruthy();
+    expect(screen.getByTestId('house-safe-area').props.edges).toMatchObject({
+      top: 'additive',
+      bottom: 'off',
+    });
     expect(screen.queryByTestId('moving-house-backdrop')).toBeNull();
     expect(screen.queryByTestId('background-test-content')).toBeNull();
   });

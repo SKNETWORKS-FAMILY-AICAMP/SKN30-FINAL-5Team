@@ -25,11 +25,7 @@ import {
   weekStartString,
 } from '../../api/useAsync';
 import type { TabId } from '../../components/brand/BrandChrome';
-import {
-  LoadingState,
-  ScreenHeading,
-  ScreenShell,
-} from '../../components/states/ScreenState';
+import { LoadingState, ScreenShell } from '../../components/states/ScreenState';
 import { HomeBottomNavigation } from '../home/HomeScreen';
 import { MascotHouseContent } from './MascotHouseContent';
 import {
@@ -198,7 +194,6 @@ export function MascotHouseScreen({
   if (remote.status !== 'ready' || houseState === null) {
     return (
       <ScreenShell bands tallBands footer={tabBar}>
-        <ScreenHeading title="끼끼의 집" onBand />
         <LoadingState />
       </ScreenShell>
     );

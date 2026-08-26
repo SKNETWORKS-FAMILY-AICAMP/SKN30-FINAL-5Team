@@ -29,6 +29,14 @@ export const imageAssets = {
     require('./house/camping/background/kkikki_indoor.png') as ImageSourcePropType,
   houseSnowingOnsenBackground:
     require('./house/camping/background/snowing_onsen.png') as ImageSourcePropType,
+  houseCampingMorningBackgroundThumbnail:
+    require('./house/camping/background/thumbnails/morning_camp.jpg') as ImageSourcePropType,
+  houseCampingDinnerBackgroundThumbnail:
+    require('./house/camping/background/thumbnails/temp_back_dinner.jpg') as ImageSourcePropType,
+  houseIndoorBackgroundThumbnail:
+    require('./house/camping/background/thumbnails/kkikki_indoor.jpg') as ImageSourcePropType,
+  houseSnowingOnsenBackgroundThumbnail:
+    require('./house/camping/background/thumbnails/snowing_onsen.jpg') as ImageSourcePropType,
   houseMascotMonkey01:
     require('./mascot/monkey/sheet_01/monkey_01.png') as ImageSourcePropType,
   houseMascotBananaSheet01Monkey07:
@@ -91,6 +99,23 @@ export const houseMascotMonkeySources: readonly ImageSourcePropType[] = [
   require('./mascot/monkey/sheet_02/monkey_21.png') as ImageSourcePropType,
   require('./mascot/monkey/sheet_02/monkey_23.png') as ImageSourcePropType,
   require('./mascot/monkey/sheet_02/monkey_24.png') as ImageSourcePropType,
+];
+
+/**
+ * Mascots that can celebrate completed routines on Home. The shared
+ * incomplete-slot mascot is excluded, and `unused_` artwork is never
+ * registered in the source lists above.
+ */
+export const weeklyProgressMascotSources: readonly ImageSourcePropType[] = [
+  ...houseMascotMonkeySources.filter(
+    (source) => source !== imageAssets.weeklyProgressIncomplete,
+  ),
+  imageAssets.houseMascotBananaSheet01Monkey07,
+  imageAssets.houseMascotBananaSheet01Monkey08,
+  imageAssets.houseMascotBananaSheet02Monkey05,
+  imageAssets.houseMascotBananaSheet02Monkey13,
+  imageAssets.houseMascotBananaSheet02Monkey20,
+  imageAssets.houseMascotBananaSheet02Monkey22,
 ];
 
 export type ImageAssetKey = keyof typeof imageAssets;

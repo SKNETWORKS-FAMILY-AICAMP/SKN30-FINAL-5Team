@@ -135,14 +135,14 @@ export const CALENDAR_WEEK_CHIPS = {
     borderStyle: 'solid',
   },
   make: {
-    label: '리포트 만들기',
+    label: '리포트 생성 가능!',
     backgroundColor: '#F6BA50',
     color: '#3A320F',
     borderColor: '#D98B16',
     borderStyle: 'solid',
   },
   unread: {
-    label: '확인 필요',
+    label: '리포트 확인하기',
     backgroundColor: '#FDECE9',
     color: '#C2402F',
     borderColor: '#F5C9C1',
