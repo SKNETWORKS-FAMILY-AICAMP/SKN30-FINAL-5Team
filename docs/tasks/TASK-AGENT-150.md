@@ -356,6 +356,32 @@ task is not `STAGING_EVIDENCE_COMPLETE`.
 - `openai_demo_gates_ready`와 V3 demo runtime 구성이 이 설정에서 통과함을 provider 호출 없이
   확인했다. `V3_PRODUCTION_PROMOTION_APPROVED=false`를 유지한다.
 
+### 2026-08-27 schema-v2 live retrieval 확인
+
+아래는 세 compose 파일을 병합했을 때 생성되는 것과 동일한 설정을 사용해, 실제 staging PostgreSQL과
+staging Qdrant를 대상으로 수행했다. 읽기 전용이며 decision을 생성하거나 두 저장소에 쓰지 않았다.
+
+| 항목 | 결과 |
+|---|---|
+| `openai_demo_gates_ready` | `True` |
+| PostgreSQL 승인 eligible pool | `102` |
+| `retrieval_status_code` | `VECTOR_RETRIEVAL_SUCCEEDED` |
+| `fallback_used` | `False` |
+| ranked count | `12` (requested limit `12`) |
+| vector index version | `v201-openai-text-embedding-3-large-d3072-inputv2-cosine-r1-helkki-staging` |
+| embedding model | `text-embedding-3-large` |
+| ranked ⊆ PostgreSQL eligible | `True` |
+| similarity score 범위·정렬 | `0.4531`–`0.4931`, 내림차순 |
+| app boot `v3_authoritative_enabled` | `True` |
+| app boot V3 demo runtime | 구성됨 |
+| `/api/v1/health/live` · `/ready` | `200 OK` · `200 READY` |
+
+Qdrant는 PostgreSQL이 승인한 ID만 순위화했고 자체적으로 eligibility를 만들지 않았다.
+
+한계: 이 확인은 개발자 workstation에서 staging backend를 대상으로 수행했고 EC2 staging host의
+task process에서 실행하지 않았다. 따라서 compose stack 배포 자체의 증적은 아니며 host 배포·TLS
+종단·`.env.staging` 생성 절차는 별도로 확인해야 한다. `STAGING_EVIDENCE_COMPLETE`도 아니다.
+
 ### 2026-08-27 v2.0.1 local PostgreSQL/Qdrant integration
 
 이 검증은 #149의 로컬 Compose를 `issue150v201` project로 격리해 수행했다. test-only deterministic
