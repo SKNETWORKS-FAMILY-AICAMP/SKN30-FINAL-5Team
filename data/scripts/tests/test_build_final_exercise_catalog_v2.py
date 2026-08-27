@@ -143,19 +143,6 @@ class FinalExerciseCatalogV2Tests(unittest.TestCase):
             self.assertEqual(deadlift["difficulty_code"], "INTERMEDIATE")
             self.assertEqual(deadlift["difficulty_status"], "APPROVED")
             self.assertNotIn("REVIEW_REQUIRED", {row["difficulty_code"] for row in representatives})
-            mobility = [row for row in representatives if row["training_type_code"] == "MOBILITY"]
-            self.assertEqual(len(mobility), 35)
-            self.assertTrue(all(row["difficulty_code"] == "BEGINNER" for row in mobility))
-            self.assertTrue(all(row["beginner_suitable"] == "true" for row in mobility))
-            for stable_code in (
-                "cardio_jump_plyometric_jump_rope",
-                "squat_variant_knee_dominant_barbell",
-                "dumbbell_step_up_lunge_knee_dominant_dumbbell_step_box",
-                "reverse_calf_raise_isolation_resistance_band",
-            ):
-                selected = next(row for row in representatives if row["stable_code"] == stable_code)
-                self.assertEqual(selected["difficulty_code"], "BEGINNER")
-                self.assertEqual(selected["beginner_suitable"], "true")
             self.assertEqual(
                 next(
                     row

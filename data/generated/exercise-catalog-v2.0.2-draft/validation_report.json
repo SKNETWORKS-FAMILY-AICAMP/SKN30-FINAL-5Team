@@ -14,7 +14,7 @@
   },
   "goal_tag_records": 102,
   "legacy_field_occurrences": 0,
-  "manifest_sha256": "941b6402a6ba078cd0b224505b44de217c69fa1432838f22d297d9c45e7d06ad",
+  "manifest_sha256": "27e9aa77bc9aa9b4dd884b216bfdb5a4a0322a3ad00c9211786c38efb669c213",
   "prescription_coverage": {
     "BEGINNER:BEGINNER": 100,
     "BEGINNER:INTERMEDIATE": 100,

@@ -10,7 +10,9 @@ import csv
 from pathlib import Path
 
 PATTERN_REVIEW_PATH = Path("data/validation/review_results/movement_pattern_review.csv")
-OUTPUT_PATH = Path("data/normalized/fitt_template_v1.csv")
+OUTPUT_PATH = Path(
+    "data/generated/exercise-prescriptions-v2.0.2-draft/fitt_template_beginner_v1.csv"
+)
 REQUIRED_PATTERNS = {"SQUAT", "HINGE", "LUNGE", "PUSH", "PULL", "CORE", "MOBILITY", "CARDIO"}
 FIELDNAMES = [
     "experience_level_code",

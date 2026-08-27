@@ -7,7 +7,9 @@ import hashlib
 import json
 from pathlib import Path
 
-BEGINNER_PATH = Path("data/normalized/fitt_template_v1.csv")
+BEGINNER_PATH = Path(
+    "data/generated/exercise-prescriptions-v2.0.2-draft/fitt_template_beginner_v1.csv"
+)
 OUTPUT_DIR = Path("data/generated/exercise-prescriptions-v2.0.2-draft")
 OUTPUT_PATH = OUTPUT_DIR / "fitt_template_intermediate_v1.json"
 MANIFEST_PATH = OUTPUT_DIR / "manifest.json"

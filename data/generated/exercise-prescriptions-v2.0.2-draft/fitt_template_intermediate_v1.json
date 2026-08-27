@@ -305,7 +305,7 @@
   "sources": [
     {
       "source_id": "REPOSITORY_BEGINNER_FITT",
-      "path": "data/normalized/fitt_template_v1.csv",
+      "path": "data/generated/exercise-prescriptions-v2.0.2-draft/fitt_template_beginner_v1.csv",
       "role": "초급 기준"
     },
     {

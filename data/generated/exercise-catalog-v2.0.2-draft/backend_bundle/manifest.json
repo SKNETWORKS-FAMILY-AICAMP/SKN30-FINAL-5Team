@@ -9,10 +9,10 @@
       "sha256": "4b8953d4757ee27679403f0ea5e956d7eaf19dac2fd59170a1a6bd1531c7378c"
     },
     {
-      "bytes": 67045,
+      "bytes": 66633,
       "path": "backend_bundle/catalog/catalog_enrichment.jsonl",
       "records": 102,
-      "sha256": "c1f965483ec00d1675cc26765d7c38d5da880a41d3c893fdc4cbab8ca70939e0"
+      "sha256": "42a49359f071073974f8b33ec23f4b3ca6948efcbc456d0cde07b79326564a4e"
     },
     {
       "bytes": 137944,
@@ -21,22 +21,22 @@
       "sha256": "de176814c516132d9eda4c04167fb32d1c8d864c69dea9726ae104b9e711795d"
     },
     {
-      "bytes": 211238,
+      "bytes": 210800,
       "path": "backend_bundle/catalog/exercises_v1_v2.csv",
       "records": 310,
-      "sha256": "fd0adafaca24330f6da9da37902cc1025d7430922bbfa5a68fd974271a2d1b1a"
+      "sha256": "7fa4eeca29cf924d2b0e8c418cf3c348e77c0989a12535708361e1da7b9902f8"
     },
     {
-      "bytes": 447656,
+      "bytes": 447218,
       "path": "backend_bundle/catalog/exercises_v1_v2.jsonl",
       "records": 310,
-      "sha256": "8c8ca4c7a82301aba2821d3028cd8f4f99eb924a5b80d869affe509220a4f24f"
+      "sha256": "f5b1d79e6206eb43cdd58c91d8ca4f161a3d302ca945359129b79a7f0e2f5d23"
     },
     {
-      "bytes": 238141,
+      "bytes": 238126,
       "path": "backend_bundle/catalog/v1_exercise_aliases.jsonl",
       "records": 208,
-      "sha256": "e0ddd34d0ba1afdc441f2b52515b5f7c1885ef0e8b75d6f11a38f6ebd49636fb"
+      "sha256": "068a9313051384f481a24e0c6c6f95559ac92159f7fe7c994c3d459c4af1478c"
     },
     {
       "bytes": 29789,
@@ -45,10 +45,10 @@
       "sha256": "663d9927aeb5538b5d702b3d7087cc82f1985daed84d3f0781cadc7815f91bc8"
     },
     {
-      "bytes": 130119,
+      "bytes": 130047,
       "path": "backend_bundle/prescriptions/prescription_profiles.jsonl",
       "records": 237,
-      "sha256": "51576446ab6c424942cd8dcc45b35d7e30ecf6780e535bba51cee8794d95ce25"
+      "sha256": "2ce94a1944b7ed7179685a883a8c36d58439e15f752f7c14d843605541dd71ba"
     },
     {
       "bytes": 361869,

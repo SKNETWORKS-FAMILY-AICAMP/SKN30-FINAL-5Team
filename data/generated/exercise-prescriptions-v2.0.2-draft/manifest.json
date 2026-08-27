@@ -9,14 +9,14 @@
   "files": [
     {
       "path": "fitt_template_intermediate_v1.json",
-      "bytes": 14806,
-      "sha256": "48fb96b63ae6201389c59f24007177046c266538491a76306e56c502f69d9657",
+      "bytes": 14850,
+      "sha256": "3c32b724dbb3746b71976104e6833fcde646afc86595de0703fe718721da016a",
       "records": 13,
       "role": "intermediate_fitt_template_prescription_draft"
     }
   ],
   "source": {
-    "baseline": "data/normalized/fitt_template_v1.csv",
+    "baseline": "data/generated/exercise-prescriptions-v2.0.2-draft/fitt_template_beginner_v1.csv",
     "external_references": [
       "https://pubmed.ncbi.nlm.nih.gov/19204579/",
       "https://acsm.org/resistance-training-guidelines-update-2026/",

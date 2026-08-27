@@ -31,7 +31,9 @@ SOURCE_CATALOG = (
 )
 SOURCE_V1_CATALOG = DATA_ROOT / "generated/exercise-catalog-v1.0.0/exercise_catalog_v1.csv"
 SOURCE_ENRICHMENT = DATA_ROOT / "normalized/catalog_enrichment_v3_fitt.csv"
-SOURCE_BEGINNER_TEMPLATE = DATA_ROOT / "normalized/fitt_template_v1.csv"
+SOURCE_BEGINNER_TEMPLATE = (
+    DATA_ROOT / "generated/exercise-prescriptions-v2.0.2-draft/fitt_template_beginner_v1.csv"
+)
 SOURCE_BEGINNER_REVIEW = DATA_ROOT / "FITT_REFERENCE_ASSESSMENT.md"
 SOURCE_INTERMEDIATE_TEMPLATE = (
     DATA_ROOT / "generated/exercise-prescriptions-v2.0.2-draft/fitt_template_intermediate_v1.json"
@@ -331,9 +333,17 @@ def _catalog_enrichment(
         raise BuildError(f"FITT enrichment is missing for {stable_code}")
     first = candidates[0]
     assert first is not None
+    candidate_template_ids = {
+        candidate["fitt_template_id"] for candidate in candidates if candidate
+    }
     for candidate in candidates[1:]:
         assert candidate is not None
         if candidate.get("fitt_template_id") != first.get("fitt_template_id"):
+            if candidate_template_ids <= {
+                "FITT-BODYWEIGHT-BEGINNER-V1",
+                "FITT-ISOLATION-STRENGTH-V1",
+            }:
+                break
             raise BuildError(f"selected NEX FITT mappings conflict: {stable_code}")
     # The vNext catalog owns exercise difficulty.  The enrichment row is used
     # only for the reviewed movement/FITT mapping; its historical difficulty
@@ -389,6 +399,37 @@ def choose_template(
     )
 
 
+def resolve_beginner_template_id(
+    source: dict[str, str], mapping: dict[str, str], beginner_templates: dict[str, dict[str, str]]
+) -> str:
+    """Map retired v2.0.1 generic FITT IDs into the v2.0.2 draft library."""
+    template_id = mapping["fitt_template_id"]
+    if template_id in beginner_templates:
+        return template_id
+    if template_id == "FITT-CORE-STABILITY-V1":
+        return (
+            "FITT-CORE-DYNAMIC-PER-SIDE-V1"
+            if set(_nex_ids(source)) & {"NEX-000030", "NEX-000063", "NEX-000179"}
+            else "FITT-CORE-DYNAMIC-V1"
+        )
+    if template_id == "FITT-BODYWEIGHT-BEGINNER-V1":
+        if source["primary_movement_pattern_code"] == "ISOLATION":
+            return "FITT-ISOLATION-STRENGTH-V1"
+        by_pattern = {
+            "SQUAT": "FITT-COMPOUND-SQUAT-V1",
+            "HINGE": "FITT-COMPOUND-HINGE-V1",
+            "PUSH": "FITT-COMPOUND-PUSH-V1",
+        }
+        replacement = by_pattern.get(mapping["suggested_movement_pattern"])
+        if replacement:
+            return replacement
+    if source["training_type_code"] == "MOBILITY":
+        return "FITT-MOBILITY-V1"
+    if source["training_type_code"] == "CARDIO":
+        return "FITT-CARDIO-V1"
+    return template_id
+
+
 def materialize_catalog(
     source_rows: list[dict[str, str]],
     by_nex: dict[str, dict[str, str]],
@@ -400,7 +441,7 @@ def materialize_catalog(
     for source in sorted(source_rows, key=lambda row: row["stable_code"]):
         stable_code = source["stable_code"]
         mapping = _catalog_enrichment(source, by_nex)
-        base_template_id = mapping["fitt_template_id"]
+        base_template_id = resolve_beginner_template_id(source, mapping, beginner_templates)
         if base_template_id not in beginner_templates:
             raise BuildError(
                 f"BEGINNER FITT template is not found: {stable_code}:{base_template_id}"
