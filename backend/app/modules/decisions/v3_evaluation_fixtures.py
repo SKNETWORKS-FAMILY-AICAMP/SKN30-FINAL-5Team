@@ -39,8 +39,9 @@ from backend.app.modules.decisions.v3_shadow import (
     V3ShadowUsageStatusCode,
 )
 
-SYNTHETIC_FIXTURE_VERSION: Final[str] = "v3-shadow-golden-v1"
+SYNTHETIC_FIXTURE_VERSION: Final[str] = "v3-shadow-golden-v2"
 SYNTHETIC_FIXTURE_SCHEMA_VERSION: Final[str] = "v3-shadow-fixture-bundle-v1"
+STAGING_CATALOG_VERSION: Final[str] = "exercise-catalog-v2.0.1-final"
 FIXED_TIME: Final[datetime] = datetime(2026, 8, 25, 9, 0, tzinfo=UTC)
 EXERCISE_A = UUID("00000000-0000-0000-0000-000000000001")
 EXERCISE_B = UUID("00000000-0000-0000-0000-000000000002")
@@ -76,7 +77,7 @@ def _hash(text: str) -> str:
 def _exercise(exercise_id: UUID) -> ExercisePoolExerciseRecord:
     return ExercisePoolExerciseRecord(
         exercise_id=exercise_id,
-        catalog_version="catalog-v3",
+        catalog_version=STAGING_CATALOG_VERSION,
         content_version=f"content-{exercise_id.int}",
         stable_code=f"synthetic-exercise-{exercise_id.int}",
         training_type_code="STRENGTH",
@@ -117,7 +118,7 @@ def _envelope(*, generation_allowed: bool = True) -> ConstraintEnvelope:
             SafetyRequiredActionCode.STOP_AND_SEEK_HELP if not generation_allowed else None
         ),
         policy_version="decision-policy-v3",
-        catalog_version="catalog-v3",
+        catalog_version=STAGING_CATALOG_VERSION,
         safety_rule_version="safety-rules-v3",
     )
 
@@ -142,7 +143,7 @@ def _pool(
         deterministic_pool_fallback_used=failed,
     )
     return ExercisePoolSnapshot.create(
-        catalog_version="catalog-v3",
+        catalog_version=STAGING_CATALOG_VERSION,
         constraint_envelope_hash=envelope.envelope_hash,
         exercises=tuple(_exercise(item) for item in (EXERCISE_A, EXERCISE_B, EXERCISE_C)),
         mandatory_exercise_ids=(EXERCISE_A,),

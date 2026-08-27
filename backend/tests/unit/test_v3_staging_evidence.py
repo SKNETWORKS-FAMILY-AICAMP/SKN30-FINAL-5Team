@@ -69,6 +69,11 @@ def test_request_and_budget_have_canonical_hashes_and_versions() -> None:
     assert request.provider_call_budget.expected_provider_call_upper_bound == 320
     assert request.harness_version == HARNESS_VERSION
     assert request.graph_version == V3ShadowRuntimeVersions().graph_version
+    assert request.catalog_version == CURRENT_CATALOG_VERSION
+    assert {
+        fixture.constraint_envelope.catalog_version
+        for fixture in build_synthetic_fixture_bundle().fixtures
+    } == {CURRENT_CATALOG_VERSION}
     assert len(request.request_hash) == 64
     assert len(request.provider_call_budget.budget_hash) == 64
 
