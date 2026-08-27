@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -21,6 +22,9 @@ from backend.scripts.run_v3_shadow_evaluation import HARNESS_VERSION
 from backend.scripts.run_v3_staging_shadow import build_staging_request
 
 FIXED_TIME = datetime(2026, 8, 25, 12, 0, tzinfo=UTC)
+CURRENT_CATALOG_VERSION = "exercise-catalog-v2.0.1-final"
+STALE_CATALOG_VERSION = "exercise-catalog-v2.0.0-final"
+APPROVED_VECTOR_INDEX_VERSION = "v201-openai-text-embedding-3-large-d3072-inputv1-cosine-r1"
 
 
 def _settings() -> Settings:
@@ -172,3 +176,23 @@ def test_staging_timestamps_must_be_timezone_aware() -> None:
             maximum_provider_calls=320,
             started_at=datetime(2026, 8, 25, 12, 0),
         )
+
+
+def test_staging_runbook_builds_only_the_current_catalog_contract() -> None:
+    runbook = Path("docs/runbooks/v3-staging-demo.md").read_text(encoding="utf-8")
+
+    assert f"--catalog-version {CURRENT_CATALOG_VERSION}" in runbook
+    assert f"--catalog-version {STALE_CATALOG_VERSION}" not in runbook
+    assert f"--vector-index-version {APPROVED_VECTOR_INDEX_VERSION}" in runbook
+    assert "EMBEDDING_MODEL_VERSION=text-embedding-3-large" in runbook
+    assert "EMBEDDING_VECTOR_DIMENSION=3072" in runbook
+    assert "EMBEDDING_INPUT_SCHEMA_VERSION=exercise-embedding-input-v1" in runbook
+    assert "EMBEDDING_DISTANCE_METRIC_CODE=COSINE" in runbook
+
+
+def test_task_keeps_v200_evidence_historical_and_v201_unexecuted() -> None:
+    task = Path("docs/tasks/TASK-AGENT-150.md").read_text(encoding="utf-8")
+
+    assert "Historical evidence — 2026-08-26 v2.0.0 local integration" in task
+    assert "v2.0.1 staging preflight" in task
+    assert "완료 evidence로 해석하지 않는다" in task

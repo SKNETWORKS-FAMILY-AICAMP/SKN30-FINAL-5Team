@@ -28,11 +28,13 @@ EXERCISE_A = UUID("00000000-0000-0000-0000-000000000001")
 EXERCISE_B = UUID("00000000-0000-0000-0000-000000000002")
 EXERCISE_C = UUID("00000000-0000-0000-0000-000000000003")
 OUTSIDE = UUID("00000000-0000-0000-0000-000000000099")
+CURRENT_CATALOG_VERSION = "exercise-catalog-v2.0.1-final"
+STALE_CATALOG_VERSION = "exercise-catalog-v2.0.0-final"
 
 
 def _request(**changes: object) -> ExerciseRetrievalRequest:
     values: dict[str, object] = {
-        "catalog_version": "catalog-v1",
+        "catalog_version": CURRENT_CATALOG_VERSION,
         "constraint_envelope_hash": "a" * 64,
         "eligible_exercise_ids": (EXERCISE_A, EXERCISE_B, EXERCISE_C),
         "mandatory_exercise_ids": (EXERCISE_A,),
@@ -47,7 +49,7 @@ def _request(**changes: object) -> ExerciseRetrievalRequest:
 
 def _index(**changes: object) -> VectorIndexContract:
     values: dict[str, object] = {
-        "catalog_version": "catalog-v1",
+        "catalog_version": CURRENT_CATALOG_VERSION,
         "collection_name": "exercise_catalog_active",
         "vector_index_version": "vector-index-v1",
         "embedding_model_version": "fake-model-v1",
@@ -178,7 +180,7 @@ def test_deterministic_mode_and_inactive_index_do_not_call_qdrant() -> None:
 @pytest.mark.parametrize(
     ("field", "value"),
     [
-        ("catalog_version", "catalog-v2"),
+        ("catalog_version", STALE_CATALOG_VERSION),
         ("embedding_model_version", "other-model-v1"),
         ("embedding_input_schema_version", "exercise-embedding-input-v2"),
         ("vector_dimension", 8),

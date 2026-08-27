@@ -1,6 +1,6 @@
 # TASK-AGENT-150: Qdrant index 및 V3 staging evidence 수집
 
-- 현재 상태: `APPROVED_FOR_STAGING_EVIDENCE`
+- 현재 상태: `BLOCKED` (v2.0.1 staging 자격증명·Qdrant 보안 토폴로지·Aurora read-only 증적 대기)
 - 우선순위: `P1`
 - GitHub issue: `#150`
 - Primary owner: 백엔드·데이터 개발팀장
@@ -113,7 +113,101 @@ provider payload는 기록하지 않는다.
 - threshold 승인, PM·개발팀장·backend owner·외부 전문가 서명과 production composition/flag 변경은
   별도 수동 승인과 후속 PR이 필요하다.
 
-## 2026-08-26 진행 증적
+## 2026-08-27 v2.0.1 staging preflight
+
+### 현재 목표 계약
+
+- target catalog: `exercise-catalog-v2.0.1-final`
+- catalog identity: staging PostgreSQL에서 읽은 ACTIVE catalog UUID로 고정, 아직 미확인
+- vector index version: `v201-openai-text-embedding-3-large-d3072-inputv1-cosine-r1`
+- provider/model/dimension: `OPENAI` / `text-embedding-3-large` / `3072`
+- distance metric: `COSINE`
+- input schema: `exercise-embedding-input-v1`
+- provider timeout/retry: 30초 / 자동 retry 0회
+- pricing reference: 2026-08-27 OpenAI 공식 model page, USD 0.13 / 1M input tokens
+- index provider-cost ceiling: aggregate input 300,000-token 상한 기준 USD 0.04
+- 승인: 백엔드·데이터 개발팀장, 2026-08-27; AI/data lead review 필요
+- production promotion: `V3_PRODUCTION_PROMOTION_APPROVED=false` 유지
+
+OpenAI 공식 문서는 `text-embedding-3-large`를 영어·비영어 텍스트 모두를 위한 가장 성능이 높은
+embedding model로 설명하고 기본 dimension을 3072로 명시한다. 102개 검수 운동의 한국어 이름과 설명
+검색 품질을 우선하고 저장량이 제한적이므로 축소 dimension 없이 사용한다. model page가 날짜가 붙은
+별도 snapshot code를 제공하지 않는 제한은 vector index version과 build hash로 보완한다.
+
+- model/pricing: <https://developers.openai.com/api/docs/models/text-embedding-3-large>
+- dimension/input limit: <https://developers.openai.com/api/docs/guides/embeddings>
+- dimensions parameter: <https://developers.openai.com/api/reference/ruby/resources/embeddings/methods/create>
+
+### 수행한 사전 점검
+
+- 기준 branch는 #149 병합 commit `ae8441f28c26385ca4f1f26736d307c01c667ae8`을 포함한 최신
+  `origin/develop` 위로 rebase했다.
+- 현재 작업 process에는 `APP_ENV`, `DATABASE_URL`, `OPENAI_API_KEY`, Qdrant endpoint/API key와
+  embedding 계약 환경변수가 설정돼 있지 않다. 값은 조회하거나 기록하지 않고 설정 여부만 확인했다.
+- `infra/deployment/.env.staging`은 이 worktree에 없고 AWS identity 확인도 실패했다. secret 값을
+  로컬 `.env`, 문서, 로그 또는 명령 인자에 복사하지 않는다.
+- #149 PR #165가 병합돼 Qdrant image/digest, healthcheck, safe defaults와 read-only handoff SQL은
+  확정됐다. 다만 #149 자체 상태는 staging Qdrant topology 승인과 Aurora read-only evidence 대기로
+  `BLOCKED`다.
+- `infra/deployment/compose.staging.yaml`은 Qdrant를 내부 HTTP로 선언하고 API의 safe default를
+  `QDRANT_ENABLED=false`, `QDRANT_TLS_ENABLED=false`로 유지한다. 반면 application settings는 staging에서
+  Qdrant를 활성화할 때 HTTPS와 API key를 요구한다. 승인된 외부 Qdrant 또는 승인된 TLS/auth 구성이
+  전달되기 전까지 실제 build를 실행하지 않는다.
+- Docker Engine `29.6.2`와 Compose CLI 접근은 확인했다. 다만 staging secret/env가 주입되지 않은
+  상태의 `docker compose -f infra/deployment/compose.staging.yaml config --quiet`는 필수
+  `API_DOMAIN`이 없어 fail-closed로 종료됐으며 staging Qdrant health는 실행하지 않았다.
+
+### 차단된 검증
+
+- staging PostgreSQL ACTIVE catalog UUID, 승인 상태, indexable exercise count 확인
+- 실제 `vector_index_registry` 전체/상태별 행 수와 v2.0.0 registry 존재 여부 확인
+- `exercise-catalog-v2.0.1-final` OpenAI embedding index build와 alias 전환
+- 동일 immutable version 재실행 idempotency 확인
+- staging live shadow의 token/cost/latency/fallback/safety evidence 수집
+
+위 항목은 credential 또는 실제 staging 실행 결과가 아니며, 완료 evidence로 해석하지 않는다.
+staging DB/Qdrant handoff와 embedding 계약 승인을 받은 뒤 read-only preflight부터 다시 수행한다.
+
+### 2026-08-27 v2.0.1 local PostgreSQL/Qdrant integration
+
+이 검증은 #149의 로컬 Compose를 `issue150v201` project로 격리해 수행했다. test-only deterministic
+embedding을 사용했으며 staging, OpenAI embedding 품질 또는 provider 승인을 의미하지 않는다.
+
+| 항목 | 실제 결과 |
+|---|---|
+| Docker / Compose | `29.6.2` / `v5.3.1` |
+| PostgreSQL / Qdrant | `16.14` / `1.18.2` 고정 digest |
+| 전용 host ports | PostgreSQL `55450`, Qdrant HTTP `6350`, gRPC `6351` |
+| migration head | `0027_catalog_media_assets` |
+| ACTIVE catalog | UUID `41074957-8de0-4e22-92e5-404d65e87b0a`, `exercise-catalog-v2.0.1-final` |
+| catalog approval | `DOMAIN_APPROVED`, `DOMAIN_REVIEWER`, `PRODUCTION_APPROVED`, production eligible |
+| indexable exercise / Qdrant points | `102 / 102` |
+| registry before / after | `0 / 1`, 최종 `ACTIVE` |
+| embedding contract | `DETERMINISTIC_TEST_ONLY`, dimension `16`, input schema v1, `COSINE` |
+| vector index version | `qdrant-integration-test-v1` |
+| build hash | `592404eca2aa720a5d886cacc0e851a732cf919e1a4545f7c1bfcefc98412c60` |
+| alias | `exercise_catalog_active` → 검증된 v2.0.1 immutable collection |
+| 동일 version 재실행 | point/hash 일치, `alias_changed=false` |
+| server integration test | `1 passed` |
+
+다른 작업의 container나 volume은 수정하지 않았다. 이 로컬 catalog UUID, registry ID, collection과
+build hash는 격리된 test evidence이며 실제 staging 값으로 복사하거나 재사용하지 않는다.
+
+### 로컬 회귀 검증
+
+| 검증 | 실제 결과 |
+|---|---|
+| `uv run ruff check backend data/scripts` | 통과 |
+| `uv run ruff format --check backend data/scripts` | 488 files, 변경 필요 없음 |
+| `uv run mypy` | 280 source files, 문제 없음 |
+| 지정 Qdrant/staging evidence tests | 70 passed |
+| 실제 v2.0.1 PostgreSQL/Qdrant server integration | 1 passed |
+| `uv run pytest -q` | 1358 passed, DB/Qdrant opt-in tests 81 skipped |
+
+skip은 `TEST_DATABASE_URL` 또는 명시적 PostgreSQL/Qdrant integration 환경이 제공되지 않아 발생했다.
+따라서 로컬 회귀 결과는 staging DB/Qdrant/OpenAI evidence를 대체하지 않는다.
+
+## Historical evidence — 2026-08-26 v2.0.0 local integration
 
 ### 기준과 격리 환경
 
@@ -130,9 +224,11 @@ container, network와 named volume만 사용했다.
 
 ### 비밀값 없는 실제 PostgreSQL/Qdrant 통합
 
-ACTIVE `exercise-catalog-v2.0.0-final`의 production-approved exercise 102건을 PostgreSQL에서 읽고,
+아래 결과는 ACTIVE `exercise-catalog-v2.0.0-final`의 production-approved exercise 102건을
+PostgreSQL에서 읽고,
 test-only deterministic embedding contract로 실제 Qdrant collection을 구축했다. 이 단계는 OpenAI
 embedding 품질 또는 provider 승인이 아니라 DB/Qdrant integration과 privacy 경계 증적이다.
+이 historical 결과와 collection은 v2.0.1 staging index 또는 live-provider evidence로 재사용하지 않는다.
 
 | 항목 | 결과 |
 |---|---|

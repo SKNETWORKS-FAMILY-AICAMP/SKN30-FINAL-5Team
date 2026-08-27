@@ -91,6 +91,12 @@ committed files:
 - `V3_SHADOW_EVALUATION_ENABLED`
 - `OPENAI_API_KEY`
 
+Before live shadow execution, verify that the request catalog version, the PostgreSQL active catalog
+and the active vector-index registry all identify `exercise-catalog-v2.0.1-final`. The registry's
+embedding model, dimension, input schema and distance metric must exactly match the process settings,
+and its Qdrant alias must resolve to the verified immutable collection. A missing registry or a
+v2.0.0 registry is a deterministic fallback case, not successful v2.0.1 vector evidence.
+
 The staging CLI deliberately disables dotenv loading. It consumes only the current process
 environment, so it does not read `backend/.env`. Before running, confirm the selected model is in the
 deployment-approved allowlist and verify the current provider pricing in the separately approved
