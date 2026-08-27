@@ -1,6 +1,6 @@
 # TASK-AGENT-150: Qdrant index 및 V3 staging evidence 수집
 
-- 현재 상태: `BLOCKED` (preflight·계약·EC2 secret 권한 완료, OpenAI 외부 전송 명시 승인 대기)
+- 현재 상태: `BLOCKED` (preflight·계약·권한·외부 전송 승인 완료, staging OpenAI key 교체 대기)
 - 우선순위: `P1`
 - GitHub issue: `#150`
 - Primary owner: 백엔드·데이터 개발팀장
@@ -181,9 +181,18 @@ embedding model로 설명하고 기본 dimension을 3072로 명시한다. 102개
   `GetSecretValue` inline policy를 추가했다. IAM 평가와 EC2 role session의 실제 secret 조회가 모두
   성공했으며 secret 값은 출력하지 않았다.
 - build 전 Qdrant inventory는 collection `0`, alias `0`이었다.
-- 실제 catalog embedding input을 OpenAI provider에 전송하는 별도 외부 데이터 전송 승인은 아직
+- 실제 catalog embedding input을 OpenAI provider에 전송하는 별도 외부 데이터 전송 승인이 당시
   확인되지 않아 provider 호출 직전 안전 게이트에서 중단됐다. collection, registry와 alias는 변경되지
   않았다.
+- 이후 개발팀장 겸 AI/data lead 권한 보유자가 승인된 운동 102개의 비사용자 catalog embedding input을
+  OpenAI Embeddings API에 전송하는 것을 비용 상한 USD 0.04와 staging-only 범위로 명시 승인했다.
+- 첫 build 시도는 provider 호출 전 `QDRANT_TIMEOUT_SECONDS=15`가 코드 상한 10초를 초과해
+  `SETTINGS_INVALID`로 종료됐다. Qdrant timeout을 10초로 수정한 두 번째 시도는 fail-closed
+  `QDRANT_INDEX_BUILD_FAILED`로 종료됐다.
+- 비사용자 connectivity probe 1건으로 원인을 분리한 결과 OpenAI가 HTTP `401`, error code
+  `invalid_api_key`를 반환했다. exception message, key와 provider 원문 응답은 기록하지 않았다.
+- 실패 후 Qdrant collection/alias는 각각 `0/0`, PostgreSQL `vector_index_registry`도 reader endpoint
+  재확인 기준 `0`행이었다. 실제 102개 embedding build, registry write와 alias 전환은 발생하지 않았다.
 - 실제 OpenAI 호출, Qdrant collection 생성, registry write와 alias 전환은 수행하지 않았다.
 - `V3_PRODUCTION_PROMOTION_APPROVED=false`를 변경하지 않았다.
 
@@ -193,9 +202,9 @@ embedding model로 설명하고 기본 dimension을 3072로 명시한다. 102개
 - 동일 immutable version 재실행 idempotency 확인
 - staging live shadow의 token/cost/latency/fallback/safety evidence 수집
 
-위 항목은 승인된 102개 catalog embedding input을 OpenAI API에 전송한다는 명시적 외부 전송 승인을
-받은 뒤에만 수행한다. 현재 상태는 실제 staging build 완료 evidence 또는 production promotion 승인이
-아니다.
+위 항목은 staging OpenAI secret을 유효한 프로젝트 API key로 교체하고 값 비노출 connectivity probe가
+성공한 뒤에만 다시 수행한다. 현재 상태는 실제 staging build 완료 evidence 또는 production promotion
+승인이 아니다.
 실제 OpenAI index build와 검증이 끝나기 전에는 완료 evidence로 해석하지 않는다.
 
 ### 2026-08-27 v2.0.1 local PostgreSQL/Qdrant integration
