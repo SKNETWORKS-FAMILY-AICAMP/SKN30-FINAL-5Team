@@ -1,6 +1,6 @@
 # TASK-AGENT-150: Qdrant index 및 V3 staging evidence 수집
 
-- 현재 상태: `READY_FOR_SHADOW` (v2.0.1 staging index·retrieval evidence 완료, live shadow 승인 대기)
+- 현재 상태: `READY_FOR_SHADOW_RERUN` (v2.0.1 index 완료, 첫 live shadow의 schema 실패 수정·재실행 승인 대기)
 - 우선순위: `P1`
 - GitHub issue: `#150`
 - Primary owner: 백엔드·데이터 개발팀장
@@ -235,6 +235,43 @@ live shadow는 합성 fixture를 별도의 OpenAI chat model로 전송하므로 
 수행한다. 현재 상태는 `STAGING_EVIDENCE_COMPLETE` 또는 production promotion 승인이 아니다.
 live shadow 전에는 전체 완료 evidence로 해석하지 않는다.
 
+### 2026-08-27 first v2.0.1 live Shadow attempt
+
+This attempt is retained as non-completion evidence. It must not be represented as successful V3
+quality evidence or production-promotion approval.
+
+| Item | Actual result |
+|---|---|
+| execution commit | `edd7d82f66e2c19fd64b7234b9926218dd37bc2f` |
+| run ID | `issue150-v201-live-20260827-edd7d82` |
+| fixture / catalog | `v3-shadow-golden-v2` / `exercise-catalog-v2.0.1-final` |
+| provider / exact model | `OPENAI` / `gpt-4o-mini-2024-07-18` |
+| started / finished UTC | `2026-08-27T06:23:33.697799Z` / `2026-08-27T06:26:57.993402Z` |
+| cases / repeat | `20 / 1` |
+| provider calls | actual `102`, approved maximum `320` |
+| terminal outcomes | `FAILED=17`, `STOP_AND_SEEK_HELP=3` |
+| structured outputs | `FAILED=17`, `SUCCEEDED=3` (the three successes were zero-call safety terminals) |
+| canonical failure | `LLM_AGENT_SCHEMA_INVALID=17`; specialist invocation failures `51` |
+| safety | invariant pass `100%`, veto override `0`, hard-gate violation `0` |
+| latency | decision p50 `11,383 ms`, p95 `14,496 ms` |
+| usage / cost | `UNAVAILABLE` for 17 provider cases; token and cost fields remain `null` and are not estimated |
+| staging manifest hash | `c3e912caf0ed294b6c60d77da062cd07765c12b758e2aacc14d46e74c7bc54c9` |
+| results SHA-256 | `06965b138bb20d5c5d04f9e395bb9f5ddc334b297d99fdcf4a351d1653433880` |
+| summary SHA-256 | `47312cdb86e2890e08280722283389318a40775ab23f1fdb7054862b9c21295d` |
+
+The harness process completed and wrote internally consistent reports, but all provider-backed cases
+failed before coordination. The provider schema incorrectly required the model to calculate
+`proposal_hash` (and would later have required `plan_hash`). These SHA-256 reproducibility fields are
+server-owned and cannot be delegated to an LLM. Commit
+`569298d6b38f0b1843aa987353f63bd8406b699c` removes those fields from provider schemas, parses the
+remaining JSON in strict JSON mode, and computes canonical hashes on the server. Its focused adapter
+and staging CLI suite passed `43` tests.
+
+The first evidence directory remains only on the staging host under the ignored evidence path. No
+prompt, raw provider response, credential, user data, or health record was written to the reports.
+A second provider run requires a new explicit call-budget approval. Until that rerun succeeds this
+task is not `STAGING_EVIDENCE_COMPLETE`.
+
 ### 2026-08-27 v2.0.1 local PostgreSQL/Qdrant integration
 
 이 검증은 #149의 로컬 Compose를 `issue150v201` project로 격리해 수행했다. test-only deterministic
@@ -269,7 +306,7 @@ build hash는 격리된 test evidence이며 실제 staging 값으로 복사하�
 | `uv run mypy` | 280 source files, 문제 없음 |
 | 지정 Qdrant/staging evidence tests | 94 passed, opt-in server test 1 skipped |
 | 실제 v2.0.1 PostgreSQL/Qdrant server integration | 1 passed |
-| `uv run pytest -q` | 1361 passed, DB/Qdrant opt-in tests 81 skipped, QdrantLocal warning 1 |
+| `uv run pytest -q` | 1362 passed, DB/Qdrant opt-in tests 81 skipped, QdrantLocal warning 1 |
 
 skip은 `TEST_DATABASE_URL` 또는 명시적 PostgreSQL/Qdrant integration 환경이 제공되지 않아 발생했다.
 따라서 로컬 회귀 결과는 staging DB/Qdrant/OpenAI evidence를 대체하지 않는다.

@@ -140,3 +140,7 @@ After a run, verify every hash and record count, inspect the hard safety gates, 
 review template through the separately approved review process. A successful staging run does not
 approve thresholds, complete expert review, enable the production graph, or authorize use of real
 user data. Production promotion remains a separate development-lead decision.
+
+Provider schemas must exclude reproducibility hashes such as `proposal_hash` and `plan_hash`.
+The server computes these fields after JSON-mode validation; a model-supplied hash is discarded and
+must never become canonical state.
