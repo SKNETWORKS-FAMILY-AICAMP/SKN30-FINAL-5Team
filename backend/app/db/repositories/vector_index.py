@@ -18,6 +18,7 @@ from backend.app.db.models.catalog import (
     ExercisePrescriptionProfile,
 )
 from backend.app.db.models.vector_index import VectorIndexRegistry
+from backend.app.domain.rules.training_level import is_exercise_prescription_compatible
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,7 +48,6 @@ class IndexableExerciseRecord:
     body_focus_code: str
     primary_movement_pattern_code: str
     difficulty_code: str
-    beginner_suitable: bool
     recovery_eligible: bool
     review_status_code: str
     review_method_code: str
@@ -57,6 +57,7 @@ class IndexableExerciseRecord:
     equipment_codes: tuple[str, ...]
     location_codes: tuple[str, ...]
     phase_codes: tuple[str, ...]
+    prescription_experience_level_codes: tuple[str, ...]
     stable_code: str = ""
     timing_mode_code: str = "REPS"
 
@@ -93,6 +94,7 @@ class VectorIndexRepository:
         equipment: dict[UUID, list[str]] = {exercise_id: [] for exercise_id in ids}
         locations: dict[UUID, list[str]] = {exercise_id: [] for exercise_id in ids}
         phases: dict[UUID, list[str]] = {exercise_id: [] for exercise_id in ids}
+        prescription_levels: dict[UUID, list[str]] = {exercise_id: [] for exercise_id in ids}
         if ids:
             for exercise_id, code in session.execute(
                 select(ExerciseGoalTagLink.exercise_id, ExerciseGoalTagLink.goal_code)
@@ -115,10 +117,12 @@ class VectorIndexRepository:
                 .order_by(ExerciseLocation.exercise_id, ExerciseLocation.location_code)
             ):
                 locations[exercise_id].append(code)
-            for exercise_id, code in session.execute(
+            difficulty_by_id = {exercise.id: exercise.difficulty_code for exercise in exercises}
+            for exercise_id, code, experience_level_code in session.execute(
                 select(
                     ExercisePrescriptionProfile.exercise_id,
                     ExercisePrescriptionProfile.phase_code,
+                    ExercisePrescriptionProfile.experience_level_code,
                 )
                 .where(
                     ExercisePrescriptionProfile.exercise_id.in_(ids),
@@ -130,7 +134,14 @@ class VectorIndexRepository:
                     ExercisePrescriptionProfile.phase_code,
                 )
             ):
-                phases[exercise_id].append(code)
+                if is_exercise_prescription_compatible(
+                    exercise_difficulty_code=difficulty_by_id[exercise_id],
+                    prescription_experience_level_code=experience_level_code,
+                ):
+                    if code not in phases[exercise_id]:
+                        phases[exercise_id].append(code)
+                    if experience_level_code not in prescription_levels[exercise_id]:
+                        prescription_levels[exercise_id].append(experience_level_code)
         return tuple(
             IndexableExerciseRecord(
                 exercise_id=exercise.id,
@@ -145,7 +156,6 @@ class VectorIndexRepository:
                 body_focus_code=exercise.body_focus_code,
                 primary_movement_pattern_code=exercise.primary_movement_pattern_code,
                 difficulty_code=exercise.difficulty_code,
-                beginner_suitable=exercise.beginner_suitable,
                 recovery_eligible=exercise.recovery_eligible,
                 review_status_code=exercise.review_status_code,
                 review_method_code=catalog.review_method_code,
@@ -155,6 +165,7 @@ class VectorIndexRepository:
                 equipment_codes=tuple(equipment[exercise.id]),
                 location_codes=tuple(locations[exercise.id]),
                 phase_codes=tuple(phases[exercise.id]),
+                prescription_experience_level_codes=tuple(sorted(prescription_levels[exercise.id])),
                 stable_code=exercise.stable_code,
                 timing_mode_code=exercise.timing_mode_code,
             )

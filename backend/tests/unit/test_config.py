@@ -118,6 +118,12 @@ def test_qdrant_is_disabled_and_secret_is_masked_by_default() -> None:
     assert "synthetic-secret" not in repr(settings)
 
 
+def test_embedding_input_schema_defaults_to_recommendation_level_contract() -> None:
+    assert Settings.model_fields["embedding_input_schema_version"].default == (
+        "exercise-embedding-input-v2"
+    )
+
+
 def test_v3_regeneration_requires_its_own_server_side_flag() -> None:
     settings = Settings(
         _env_file=None,

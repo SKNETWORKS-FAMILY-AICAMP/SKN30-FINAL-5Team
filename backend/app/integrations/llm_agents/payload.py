@@ -113,7 +113,6 @@ _POOL_EXERCISE_FIELDS: Final = (
     "movement_pattern_codes",
     "difficulty_code",
     "timing_mode_code",
-    "beginner_suitable",
     "recovery_eligible",
     "goal_codes",
     "equipment_codes",

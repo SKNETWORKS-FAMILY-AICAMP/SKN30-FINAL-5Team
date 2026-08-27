@@ -1,14 +1,43 @@
 from dataclasses import replace
+from uuid import UUID
 
+from backend.app.domain.agents.retrieval import ExercisePoolExerciseRecord
 from backend.app.modules.decisions.v3_application import (
     DeterministicV3SafetyPolicyAdapter,
+    PostgreSQLV3ExercisePoolSource,
     V3ApplicationContext,
 )
 from backend.app.modules.decisions.v3_creation import V3CreationSource
 from backend.tests.unit.test_decision_service import FakeRepository, _context
 
 
-def _source(*, emergency: bool = False) -> V3CreationSource:
+def _exercise(exercise_id: UUID, difficulty_code: str) -> ExercisePoolExerciseRecord:
+    return ExercisePoolExerciseRecord(
+        exercise_id=exercise_id,
+        catalog_version="catalog-v1",
+        content_version="content-v1",
+        stable_code=f"exercise-{exercise_id.int}",
+        training_type_code="STRENGTH",
+        body_focus_code="FULL_BODY",
+        movement_pattern_codes=("PUSH",),
+        difficulty_code=difficulty_code,
+        timing_mode_code="REPS",
+        recovery_eligible=False,
+        goal_codes=("GENERAL_FITNESS",),
+        equipment_codes=(),
+        location_codes=("HOME",),
+        prescription_reference_codes=(f"prescription-{difficulty_code.lower()}",),
+        source_reference_codes=("catalog-v1",),
+        review_reference_codes=("DOMAIN_APPROVED",),
+    )
+
+
+def _source(
+    *,
+    emergency: bool = False,
+    experience_level_code: str | None = None,
+    exercises: tuple[ExercisePoolExerciseRecord, ...] = (),
+) -> V3CreationSource:
     context = _context()
     if emergency:
         context = replace(context, adverse_reaction_codes=("CHEST_DISCOMFORT",))
@@ -18,10 +47,10 @@ def _source(*, emergency: bool = False) -> V3CreationSource:
         context_version=context.context_version,
         normalized_values={
             "duration_adjustment_source_code": context.duration_adjustment_source_code,
-            "experience_level_code": context.experience_level_code,
+            "experience_level_code": experience_level_code or context.experience_level_code,
             "location_code": context.location_code,
         },
-        application_context=V3ApplicationContext(assembly, ()),
+        application_context=V3ApplicationContext(assembly, exercises),
     )
 
 
@@ -39,3 +68,46 @@ def test_deterministic_safety_veto_is_immutable_and_terminal() -> None:
 
     assert not envelope.plan_generation_allowed
     assert envelope.safety_required_action_code == "STOP_AND_SEEK_HELP"
+
+
+def test_v3_pool_beginner_user_excludes_intermediate_exercise() -> None:
+    beginner_id = UUID(int=101)
+    intermediate_id = UUID(int=102)
+    source = _source(
+        experience_level_code="BEGINNER",
+        exercises=(
+            _exercise(beginner_id, "BEGINNER"),
+            _exercise(intermediate_id, "INTERMEDIATE"),
+        ),
+    )
+    envelope = DeterministicV3SafetyPolicyAdapter().evaluate(source)
+
+    eligible = PostgreSQLV3ExercisePoolSource().load_eligible(
+        source=source,
+        envelope=envelope,
+    )
+
+    assert tuple(item.exercise_id for item in eligible.exercises) == (beginner_id,)
+
+
+def test_v3_pool_intermediate_user_includes_both_difficulties() -> None:
+    beginner_id = UUID(int=101)
+    intermediate_id = UUID(int=102)
+    source = _source(
+        experience_level_code="INTERMEDIATE",
+        exercises=(
+            _exercise(beginner_id, "BEGINNER"),
+            _exercise(intermediate_id, "INTERMEDIATE"),
+        ),
+    )
+    envelope = DeterministicV3SafetyPolicyAdapter().evaluate(source)
+
+    eligible = PostgreSQLV3ExercisePoolSource().load_eligible(
+        source=source,
+        envelope=envelope,
+    )
+
+    assert tuple(item.exercise_id for item in eligible.exercises) == (
+        beginner_id,
+        intermediate_id,
+    )

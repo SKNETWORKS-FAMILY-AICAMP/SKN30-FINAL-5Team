@@ -455,8 +455,8 @@ payload는 exercise ID와 catalog/index version metadata만 허용하고 사용�
 | training_type_code | STRENGTH, CARDIO, MOBILITY 등 |
 | body_focus_code | body_focuses FK |
 | primary_movement_pattern_code | movement_patterns FK |
-| difficulty_code | 난이도 |
-| beginner_suitable | 초보자 적합 여부 |
+| difficulty_code | 운동 자체 난이도 (`BEGINNER`, `INTERMEDIATE`) |
+| beginner_suitable | 단계적 폐기 중인 legacy 컬럼. 신규 입력·추천·projection에서 사용 금지 |
 | timing_mode_code | REPS 또는 DURATION |
 | default_seconds_per_rep | 반복 기반 시간 추정값, nullable |
 | default_work_seconds | 시간 기반 동작 기본값, nullable |
@@ -479,6 +479,12 @@ backend importer는 S3 업로드를 수행하지 않으며 media artifact가 없
 UNIQUE 제약은 catalog_version_id와 stable_code 조합에 둔다.
 
 프로덕션 후보는 review_status_code가 DOMAIN_APPROVED인 운동만 사용한다.
+추천 후보는 사용자의 `experience_level_code`가 허용하는 누적 난이도를 따른다. `BEGINNER`는
+`BEGINNER` 운동만, `INTERMEDIATE`는 `BEGINNER`와 `INTERMEDIATE` 운동을 허용한다. 승인 처방도
+같은 방향성 호환성을 적용하므로 `BEGINNER` 운동에는 두 처방 레벨이 가능하고,
+`INTERMEDIATE` 운동에는 `INTERMEDIATE` 처방만 가능하다. `beginner_suitable`는 기존 DB 호환을
+위해 컬럼만 유지하며, 신규 catalog schema 1.1과 Qdrant/LLM payload에는 포함하지 않는다. 모든
+소비자와 기존 데이터 호환 기간이 끝난 뒤 별도 Alembic migration으로 삭제한다.
 
 ### 5.2.1 exercise_media_assets
 

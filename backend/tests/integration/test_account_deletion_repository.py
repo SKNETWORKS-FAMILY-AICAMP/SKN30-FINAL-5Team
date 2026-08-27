@@ -174,7 +174,6 @@ def _seed_linked_graph(session: Session, user_id: UUID, suffix: str) -> dict[str
             body_focus_code=focus_code,
             primary_movement_pattern_code=movement_code,
             difficulty_code="BEGINNER",
-            beginner_suitable=True,
             timing_mode_code="REPS",
             default_seconds_per_rep=3,
             default_work_seconds=None,

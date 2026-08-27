@@ -1125,7 +1125,7 @@ GET /api/v1/exercises
 | `body_area_code` | string | 주 자극 부위로 필터 |
 | `equipment_code` | string | 필요 장비로 필터 |
 | `training_type_code` | string | 운동 유형으로 필터 |
-| `difficulty_code` | string | 난이도로 필터 |
+| `difficulty_code` | string | 운동 자체 난이도(`BEGINNER`, `INTERMEDIATE`)로 필터 |
 | `cursor` | string | 다음 페이지 커서 |
 | `limit` | integer | 1~100, 기본 20 |
 
@@ -1180,11 +1180,13 @@ ExerciseVariantItem
 ~~~
 
 - 인증된 사용자만 호출할 수 있다.
-- source exercise는 현재 `ACTIVE`, `DOMAIN_APPROVED`, `production_eligible=true` catalog에 속한
-  `DOMAIN_APPROVED` 운동이어야 하며, 아니면 `404 RESOURCE_NOT_FOUND`다.
+- source exercise의 원본 catalog는 운영 승인된 `ACTIVE` 또는 `DEPRECATED` 상태여야 하고 source
+  exercise도 `DOMAIN_APPROVED`여야 한다. `DRAFT`, 미승인 catalog 또는 존재하지 않는 운동은
+  `404 RESOURCE_NOT_FOUND`다. 응답의 `catalog_version`은 현재 ACTIVE가 아니라 source exercise의
+  원본 catalog version이다.
 - 관계는 `exercise_alternatives.reason_code='EQUIPMENT'`, `review_status_code='DOMAIN_APPROVED'`,
   `production_eligible=true`인 행만 사용한다. `LOCATION`, `DIFFICULTY`, `DISCOMFORT`는 반환하지 않는다.
-- variant exercise도 source와 같은 활성 catalog에 속한 `DOMAIN_APPROVED` 운동이어야 한다.
+- variant exercise도 source와 같은 원본 catalog에 속한 `DOMAIN_APPROVED` 운동이어야 한다.
 - 변형운동이 없으면 `200`, `items=[]`, `alternative_set_version=null`을 반환한다. 클라이언트는 이때
   변형운동 버튼을 노출하지 않는다.
 - items는 `exercise_id`, `goal_preservation_code`, 관계 ID 순으로 결정적으로 정렬한다.

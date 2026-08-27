@@ -42,7 +42,6 @@ def exercise(exercise_id: UUID) -> ExercisePoolExerciseRecord:
         movement_pattern_codes=("PUSH",),
         difficulty_code="BEGINNER",
         timing_mode_code="REPS",
-        beginner_suitable=True,
         recovery_eligible=True,
         goal_codes=("GENERAL_FITNESS",),
         equipment_codes=("BODYWEIGHT",),

@@ -2,7 +2,7 @@ from collections.abc import Iterable
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from backend.app.db.models.catalog import (
@@ -208,18 +208,32 @@ class CatalogRepository:
     def get_equipment_variants(
         self,
         session: Session,
-        catalog_version_id: UUID,
         exercise_id: UUID,
     ) -> ExerciseVariantsRecord | None:
-        source_exercise = session.scalar(
-            select(Exercise).where(
+        source_row = session.execute(
+            select(Exercise, CatalogVersion.version_code)
+            .join(CatalogVersion, CatalogVersion.id == Exercise.catalog_version_id)
+            .where(
                 Exercise.id == exercise_id,
-                Exercise.catalog_version_id == catalog_version_id,
                 Exercise.review_status_code == "DOMAIN_APPROVED",
+                CatalogVersion.status_code.in_(("ACTIVE", "DEPRECATED")),
+                CatalogVersion.review_status_code == "DOMAIN_APPROVED",
+                CatalogVersion.review_method_code == "DOMAIN_REVIEWER",
+                CatalogVersion.status_interpretation_code == "PRODUCTION_APPROVED",
+                or_(
+                    CatalogVersion.status_code == "DEPRECATED",
+                    and_(
+                        CatalogVersion.status_code == "ACTIVE",
+                        CatalogVersion.production_eligible.is_(True),
+                        CatalogVersion.activated_at.is_not(None),
+                    ),
+                ),
             )
-        )
-        if source_exercise is None:
+        ).one_or_none()
+        if source_row is None:
             return None
+        source_exercise, catalog_version_code = source_row
+        catalog_version_id = source_exercise.catalog_version_id
 
         source_required_equipment_codes = tuple(
             session.scalars(
@@ -292,6 +306,7 @@ class CatalogRepository:
 
         return ExerciseVariantsRecord(
             source_exercise_id=exercise_id,
+            catalog_version=catalog_version_code,
             source_required_equipment_codes=source_required_equipment_codes,
             alternative_set_version=(
                 next(iter(alternative_set_versions)) if alternative_set_versions else None
@@ -432,7 +447,6 @@ class CatalogRepository:
                 body_focus_code=record.body_focus_code,
                 primary_movement_pattern_code=record.primary_movement_pattern_code,
                 difficulty_code=record.difficulty_code,
-                beginner_suitable=record.beginner_suitable,
                 timing_mode_code=record.timing_mode_code,
                 default_seconds_per_rep=record.default_seconds_per_rep,
                 default_work_seconds=record.default_work_seconds,

@@ -31,7 +31,6 @@ def _record() -> IndexableExerciseRecord:
         body_focus_code="FULL_BODY",
         primary_movement_pattern_code="SQUAT",
         difficulty_code="BEGINNER",
-        beginner_suitable=True,
         recovery_eligible=False,
         review_status_code="DOMAIN_APPROVED",
         review_method_code="DOMAIN_REVIEWER",
@@ -41,6 +40,7 @@ def _record() -> IndexableExerciseRecord:
         equipment_codes=("BODYWEIGHT",),
         location_codes=("HOME",),
         phase_codes=("MAIN",),
+        prescription_experience_level_codes=("BEGINNER", "INTERMEDIATE"),
     )
 
 
@@ -104,7 +104,7 @@ def _builder(
         EmbeddingContract(
             provider_code="FAKE",
             model_version="fake-v1",
-            input_schema_version="exercise-embedding-input-v1",
+            input_schema_version="exercise-embedding-input-v2",
             vector_dimension=4,
             distance_metric_code="COSINE",
         )
@@ -135,6 +135,8 @@ def test_index_builder_uses_uuid_points_and_privacy_allowlisted_payload() -> Non
     assert manager.activations == 1
     point = manager.points[0]
     assert point.exercise_id == _record().exercise_id
+    assert point.payload["payload_schema_version"] == 2
+    assert "beginner_suitable" not in point.payload
     forbidden = {
         "user_id",
         "decision_id",
@@ -195,5 +197,6 @@ def test_embedding_document_has_only_reviewed_catalog_projection() -> None:
 
     assert "합성 운동" in document
     assert "GENERAL_FITNESS" in document
+    assert "beginner_suitable" not in document
     for forbidden in ("pain_present", "severity", "user_id", "wearable", "calendar"):
         assert forbidden not in document

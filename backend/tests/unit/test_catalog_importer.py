@@ -47,7 +47,6 @@ def _exercise_record(stable_code: str = "supported_sit_to_stand") -> dict[str, A
         "body_focus_code": "LOWER_BODY",
         "primary_movement_pattern_code": "KNEE_DOMINANT",
         "difficulty_code": "BEGINNER",
-        "beginner_suitable": True,
         "timing_mode_code": "REPS",
         "default_seconds_per_rep": 4,
         "default_work_seconds": None,
@@ -87,7 +86,7 @@ def _write_artifact(
     target.write_bytes(raw)
     count = len(rows) if declared_records is None else declared_records
     manifest = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "generator_version": generator_version,
         "catalog_version": {"version_code": version_code, "status_code": "DRAFT"},
         "source": {
@@ -135,6 +134,16 @@ def test_loads_valid_draft_manifest_and_records(tmp_path: Path) -> None:
     assert artifact.manifest.catalog_version.status_code == "DRAFT"
     assert artifact.manifest.review.production_eligible is False
     assert [record.stable_code for record in artifact.records] == ["supported_sit_to_stand"]
+
+
+def test_new_catalog_schema_rejects_legacy_beginner_suitable(tmp_path: Path) -> None:
+    record = _exercise_record()
+    record["beginner_suitable"] = True
+
+    with pytest.raises(CatalogImportError) as exc_info:
+        load_catalog_artifact(_write_artifact(tmp_path / "artifact", records=[record]))
+
+    assert exc_info.value.code == "EXERCISE_RECORD_INVALID"
 
 
 @pytest.mark.parametrize(("directory_name", "record_count"), GENERATED_CATALOG_ARTIFACTS)

@@ -569,7 +569,6 @@ def _write_exercise(
         body_focus_code=definition.body_focus_code,
         primary_movement_pattern_code=definition.movement_pattern_code,
         difficulty_code="BEGINNER",
-        beginner_suitable=True,
         timing_mode_code="DURATION",
         default_seconds_per_rep=None,
         default_work_seconds=definition.work_seconds,

@@ -13,6 +13,7 @@ from uuid import UUID
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
+from backend.app.domain.rules.training_level import is_exercise_prescription_compatible
 from backend.app.modules.catalog.approvals import (
     get_catalog_approval,
     get_derived_data_approval,
@@ -168,6 +169,7 @@ class ExerciseVariantRecord:
 @dataclass(frozen=True)
 class ExerciseVariantsRecord:
     source_exercise_id: UUID
+    catalog_version: str
     source_required_equipment_codes: tuple[str, ...]
     alternative_set_version: str | None
     items: tuple[ExerciseVariantRecord, ...]
@@ -220,7 +222,6 @@ class ExerciseReadRepositoryPort(Protocol):
     def get_equipment_variants(
         self,
         session: Session,
-        catalog_version_id: UUID,
         exercise_id: UUID,
     ) -> ExerciseVariantsRecord | None: ...
 
@@ -313,14 +314,7 @@ class ExerciseReadService:
         session: Session,
         exercise_id: UUID,
     ) -> ExerciseVariantsResponse:
-        catalog = self._repository.get_approved_catalog(session)
-        if catalog is None:
-            raise ExerciseCatalogUnavailableError
-        record = self._repository.get_equipment_variants(
-            session,
-            catalog.catalog_version_id,
-            exercise_id,
-        )
+        record = self._repository.get_equipment_variants(session, exercise_id)
         if record is None:
             raise ExerciseNotFoundError
         return ExerciseVariantsResponse(
@@ -342,7 +336,7 @@ class ExerciseReadService:
                 )
                 for item in record.items
             ],
-            catalog_version=catalog.version_code,
+            catalog_version=record.catalog_version,
             alternative_set_version=record.alternative_set_version,
         )
 
@@ -500,13 +494,18 @@ def load_catalog_artifact(
     try:
         for line in data_raw.splitlines():
             if line.strip():
+                payload = json.loads(line)
+                if manifest.schema_version == "1.0":
+                    legacy_value = payload.pop("beginner_suitable", None)
+                    if legacy_value is not None and type(legacy_value) is not bool:
+                        raise ValueError("legacy beginner_suitable must be boolean")
                 records.append(
-                    ExerciseRecord.model_validate_json(
-                        line,
+                    ExerciseRecord.model_validate(
+                        payload,
                         context={"v2_import": v2_import},
                     )
                 )
-    except ValidationError as exc:
+    except (json.JSONDecodeError, TypeError, ValueError, ValidationError) as exc:
         raise CatalogImportError("EXERCISE_RECORD_INVALID", "exercise record is invalid") from exc
 
     if len(records) != file_entry.records:
@@ -947,6 +946,31 @@ def _validate_bundle_exercise_references(
             "EXERCISE_REFERENCE_NOT_FOUND",
             "derived data references an exercise absent from its catalog: "
             f"{missing_version}/{missing_stable_code}",
+        )
+    uses_directional_level_contract = any(
+        artifact.manifest.schema_version == "1.1" for artifact in catalog_artifacts
+    )
+    mismatched_prescriptions = tuple(
+        record
+        for record in prescription_artifact.prescription_records
+        if uses_directional_level_contract
+        and not is_exercise_prescription_compatible(
+            exercise_difficulty_code=exercise_records[
+                (record.catalog_version_code, record.exercise_stable_code)
+            ].difficulty_code.value,
+            prescription_experience_level_code=record.experience_level_code,
+        )
+    )
+    if mismatched_prescriptions:
+        mismatched_prescription = min(
+            mismatched_prescriptions,
+            key=lambda item: (item.catalog_version_code, item.exercise_stable_code),
+        )
+        raise CatalogImportError(
+            "PRESCRIPTION_EXPERIENCE_LEVEL_INCOMPATIBLE",
+            "prescription experience level is incompatible with exercise difficulty: "
+            f"{mismatched_prescription.catalog_version_code}/"
+            f"{mismatched_prescription.exercise_stable_code}",
         )
     if not v2_import:
         return

@@ -21,6 +21,7 @@ from backend.app.db.models.profile import (
     UserProfile,
 )
 from backend.app.db.models.routine import Routine, RoutineDay, RoutineItem
+from backend.app.domain.rules.training_level import allowed_exercise_difficulty_codes
 from backend.app.modules.routines.codes import (
     ROUTINE_RESPONSE_SCHEMA_VERSION,
     RoutineStatusCode,
@@ -97,6 +98,9 @@ class RoutineRepository:
         if profile is None or len(catalogs) != 1:
             return None
         catalog = catalogs[0]
+        allowed_difficulties = allowed_exercise_difficulty_codes(profile.experience_level_code)
+        if not allowed_difficulties:
+            return None
         locations = tuple(
             session.scalars(
                 select(UserAvailableLocation.location_code).where(
@@ -120,7 +124,7 @@ class RoutineRepository:
             .where(
                 Exercise.catalog_version_id == catalog.id,
                 Exercise.review_status_code == "DOMAIN_APPROVED",
-                Exercise.beginner_suitable.is_(True),
+                Exercise.difficulty_code.in_(allowed_difficulties),
                 ExercisePrescriptionProfile.goal_code == goal_code,
                 ExercisePrescriptionProfile.experience_level_code == profile.experience_level_code,
                 ExercisePrescriptionProfile.review_status_code == "DOMAIN_APPROVED",

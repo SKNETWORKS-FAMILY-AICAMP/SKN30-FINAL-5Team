@@ -24,10 +24,9 @@ from backend.app.integrations.qdrant.embedding import EmbeddingContract, Embeddi
 
 
 def canonical_embedding_document(record: IndexableExerciseRecord) -> str:
-    """Create the reviewed, non-user exercise text allowed by input schema v1."""
+    """Create the reviewed, non-user exercise text allowed by input schema v2."""
 
     payload = {
-        "beginner_suitable": record.beginner_suitable,
         "body_focus_code": record.body_focus_code,
         "difficulty_code": record.difficulty_code,
         "equipment_codes": list(record.equipment_codes),
@@ -176,7 +175,7 @@ class ExerciseVectorIndexBuilder:
                     exercise_id=record.exercise_id,
                     vector=vector,
                     payload={
-                        "payload_schema_version": 1,
+                        "payload_schema_version": 2,
                         "catalog_version_id": str(record.catalog_version_id),
                         "catalog_version_code": record.catalog_version_code,
                         "catalog_manifest_hash": record.catalog_manifest_hash,
@@ -197,7 +196,6 @@ class ExerciseVectorIndexBuilder:
                         "body_focus_code": record.body_focus_code,
                         "difficulty_code": record.difficulty_code,
                         "primary_movement_pattern_code": (record.primary_movement_pattern_code),
-                        "beginner_suitable": record.beginner_suitable,
                         "recovery_eligible": record.recovery_eligible,
                         "instruction_content_version": record.instruction_content_version,
                         "source_document_hash": source_hash,

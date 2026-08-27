@@ -4,6 +4,13 @@
 
 현재 구현은 DRAFT catalog와 파생 안전 규칙·대체 관계 bundle importer를 포함합니다.
 
+- catalog schema 1.1은 `difficulty_code`를 운동 자체 난이도로 사용하고
+  `beginner_suitable` 입력을 거부합니다. schema 1.0은 기존 승인 bundle 재현을 위해 해당 필드를
+  검증 후 폐기하는 읽기 호환만 유지합니다.
+- 처방의 `experience_level_code`는 `BEGINNER`와 `INTERMEDIATE`를 허용합니다. schema 1.1 bundle은
+  운동 난이도 이하의 처방을 fail-closed 처리하므로 `BEGINNER` 운동에는 두 처방 레벨을,
+  `INTERMEDIATE` 운동에는 `INTERMEDIATE` 처방만 허용합니다.
+
 - local/test에서만 `seed_manifest.json`과 exercise JSONL을 검증·적재합니다.
 - Pydantic `StrEnum`의 기존 `mvp-v1`과 additive `catalog-v2` code set을 사용합니다. V2 import는
   14개 body-focus만 허용하고 legacy `UPPER_BODY`·`LOWER_BODY`, `BENCH`·`CHAIR`, `OUTDOOR`
