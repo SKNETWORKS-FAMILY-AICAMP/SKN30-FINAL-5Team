@@ -314,7 +314,6 @@ def test_non_successful_ai_revision_does_not_consume_ai_count() -> None:
     [
         ("duration", "REQUESTED_DURATION_NOT_PRESERVED"),
         ("location", "LOCATION_CONSTRAINT_NOT_SATISFIED"),
-        ("equipment", "EQUIPMENT_CONSTRAINT_NOT_SATISFIED"),
         ("safety", "SAFETY_OPINION_NOT_APPLIED"),
     ],
 )
@@ -327,8 +326,6 @@ def test_user_revision_revalidates_routine_constraints(change: str, reason_code:
         repository.evidence[routine_id] = replace(evidence, requested_duration_minutes=30)
     elif change == "location":
         location = "GYM"
-    elif change == "equipment":
-        repository.context = replace(repository.context, available_equipment_codes=("BAND",))
     else:
         repository.context = replace(
             repository.context,
@@ -350,6 +347,28 @@ def test_user_revision_revalidates_routine_constraints(change: str, reason_code:
             uuid4(),
         )
     assert reason_code in error.value.reason_codes
+
+
+def test_user_revision_is_not_blocked_by_equipment_availability() -> None:
+    service, repository, _, user_id, routine_id = _fixture()
+    _initial(service, user_id)
+    repository.context = replace(repository.context, available_equipment_codes=())
+
+    response = service.create_revision(
+        FakeSession(),  # type: ignore[arg-type]
+        user_id,
+        WEEK_START,
+        WeeklyPlanRevisionRequest(
+            source_code="USER",
+            expected_revision_sequence=1,
+            user_edits={"routine_id": routine_id, "location_code": "HOME"},
+        ),
+        uuid4(),
+    )
+
+    assert response.routine is not None
+    assert repository.revisions[-1].input_snapshot["constraints"]["available_equipment_codes"] == []
+    assert repository.revisions[-1].input_snapshot["routine"]["required_equipment_codes"] == ["MAT"]
 
 
 def test_user_revision_does_not_consume_ai_revision_count() -> None:

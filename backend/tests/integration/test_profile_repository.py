@@ -176,6 +176,7 @@ def test_reonboarding_preserves_existing_user_equipment(
         UserEquipment(user_id=current_user.user_id, equipment_code="RESISTANCE_BAND")
     )
     postgres_session.flush()
+    postgres_session.commit()
 
     response = service.upsert_onboarding(
         postgres_session,
@@ -219,6 +220,7 @@ def test_profile_settings_update_is_partial_atomic_versioned_and_idempotent(
     original_created_at = onboarding.created_at
     postgres_session.add(UserEquipment(user_id=current_user.user_id, equipment_code="MAT"))
     postgres_session.flush()
+    postgres_session.commit()
 
     key = uuid4()
     request = ProfileSettingsUpdateRequest.model_validate(
@@ -329,6 +331,7 @@ def test_profile_settings_relationship_failure_rolls_back_every_change(
     normal_service.upsert_onboarding(postgres_session, current_user.user_id, _request(), uuid4())
     postgres_session.add(UserEquipment(user_id=current_user.user_id, equipment_code="MAT"))
     postgres_session.flush()
+    postgres_session.commit()
     failing_service = ProfileService(
         FailingProfileRepository(),
         cipher,

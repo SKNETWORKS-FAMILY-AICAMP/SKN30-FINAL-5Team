@@ -711,7 +711,6 @@ def test_profile_update_changes_only_future_decision_context_snapshots(
                 "primary_goal_code": "MUSCLE_GAIN",
                 "preferred_location_code": "GYM",
                 "available_location_codes": ["GYM"],
-                "equipment_codes": ["MAT"],
                 "attention_area_codes": ["KNEE"],
             }
         ),
@@ -723,7 +722,7 @@ def test_profile_update_changes_only_future_decision_context_snapshots(
     assert updated is not None
     assert updated.context.primary_goal_code == "MUSCLE_GAIN"
     assert updated.context.profile_preferred_location_code == "GYM"
-    assert updated.context.equipment_codes == ("MAT",)
+    assert updated.context.equipment_codes == ("BODYWEIGHT", "MAT", "RESISTANCE_BAND")
     assert updated.context.attention_area_codes == ("KNEE",)
     postgres_session.rollback()
 
