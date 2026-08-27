@@ -3,6 +3,7 @@ export type PreviewMode =
   | 'auth'
   | 'background_test'
   | 'calendar-report'
+  | 'exercise-catalog'
   | 'gallery'
   | 'home'
   | 'home-map'

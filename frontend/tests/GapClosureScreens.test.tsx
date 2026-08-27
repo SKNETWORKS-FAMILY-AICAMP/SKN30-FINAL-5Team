@@ -14,12 +14,13 @@ import {
 } from '@testing-library/react-native';
 
 import type { Api } from '../src/api/endpoints';
-import { equipmentLabel } from '../src/api/labels';
+import { bodyFocusLabel, equipmentLabel } from '../src/api/labels';
 import type {
   ConsentResponse,
   ExerciseListResponse,
   MeResponse,
 } from '../src/api/types';
+import { BackgroundBands } from '../src/components/brand/BrandChrome';
 import { ExerciseCatalogScreen } from '../src/features/catalog/ExerciseCatalogScreen';
 import { AccountScreen } from '../src/features/profile/AccountScreen';
 
@@ -56,9 +57,10 @@ describe('ExerciseCatalogScreen', () => {
       },
     } as unknown as Pick<Api, 'listExercises' | 'getExercise'>;
 
-    render(<ExerciseCatalogScreen api={api} onBack={() => {}} />);
+    const view = render(<ExerciseCatalogScreen api={api} onBack={() => {}} />);
 
     expect(await screen.findByText('스쿼트')).toBeTruthy();
+    expect(view.UNSAFE_queryByType(BackgroundBands)).toBeNull();
     expect(screen.getByText('런지')).toBeTruthy();
     expect(screen.getAllByText('매트, 짐볼, 의자')).toHaveLength(2);
     expect(screen.getByText('카탈로그 버전 catalog-test-v1')).toBeTruthy();
@@ -72,6 +74,15 @@ describe('ExerciseCatalogScreen', () => {
 
   it('does not expose an unknown equipment machine code', () => {
     expect(equipmentLabel('FUTURE_EQUIPMENT')).toBe('확인되지 않은 항목');
+  });
+
+  it('labels catalog-v2 body focus and equipment codes', () => {
+    expect(bodyFocusLabel('CHEST')).toBe('가슴');
+    expect(bodyFocusLabel('HAMSTRINGS')).toBe('햄스트링');
+    expect(bodyFocusLabel('CARDIO')).toBe('유산소');
+    expect(bodyFocusLabel('MOBILITY')).toBe('가동성');
+    expect(equipmentLabel('EZ_BAR')).toBe('이지바');
+    expect(equipmentLabel('FOAM_ROLLER')).toBe('폼롤러');
   });
 
   it('pages with the server cursor instead of refetching page one', async () => {

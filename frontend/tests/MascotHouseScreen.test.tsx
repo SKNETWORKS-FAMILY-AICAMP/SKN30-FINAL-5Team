@@ -5,17 +5,20 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react-native';
 
 import type { Api } from '../src/api/endpoints';
 import type { WeekResponse, WorkoutSessionLogSummary } from '../src/api/types';
 import { imageAssets } from '../src/assets';
+import { BackgroundBands } from '../src/components/brand/BrandChrome';
 import {
   HOUSE_BACKDROP_ZOOM,
   HOUSE_MASCOT_SIZE,
   houseBackdropContinuationTop,
   houseBackdropMinimumHeight,
   houseBackdropSize,
+  houseWeekPanelTop,
 } from '../src/features/house/MascotHouseContent';
 import {
   FEED_POSE_HOLD_MS,
@@ -28,6 +31,7 @@ import {
   houseRegularPoseArt,
   houseRoomArt,
   randomHouseBananaPoseArt,
+  randomHousePettedPoseArt,
   randomHouseRegularPoseArt,
 } from '../src/features/house/houseArtSlots';
 import {
@@ -93,7 +97,7 @@ function houseApi({
 
 function renderHouse(api: Api, store = createMemoryHouseStore()) {
   const onNavigate = jest.fn();
-  render(
+  const view = render(
     <MascotHouseScreen
       api={api}
       nickname="범중"
@@ -103,14 +107,32 @@ function renderHouse(api: Api, store = createMemoryHouseStore()) {
       timeZone={TIME_ZONE}
     />,
   );
-  return { onNavigate, store };
+  return { ...view, onNavigate, store };
 }
 
 describe('MascotHouseScreen', () => {
+  it('uses the shared solid canvas while the house is loading', () => {
+    const pendingApi = {
+      getWeek: jest.fn(() => new Promise<never>(() => undefined)),
+      listWorkoutSessions: jest.fn(() => new Promise<never>(() => undefined)),
+    } as unknown as Api;
+    const view = renderHouse(pendingApi);
+
+    expect(screen.getByText('불러오는 중이에요')).toBeTruthy();
+    expect(view.UNSAFE_queryByType(BackgroundBands)).toBeNull();
+  });
+
   it('shows the room, the week standing and the bananas the week earned', async () => {
     renderHouse(houseApi());
 
     expect(await screen.findByTestId('house-scene')).toBeTruthy();
+    expect(
+      screen
+        .getAllByTestId('house-banana-asset', {
+          includeHiddenElements: true,
+        })
+        .every((banana) => banana.props.source === imageAssets.banana),
+    ).toBe(true);
     expect(screen.queryByRole('header', { name: '끼끼의 집' })).toBeNull();
     expect(screen.getByText('주 3회 운동하기')).toBeTruthy();
     expect(screen.getByText('1 / 3 회')).toBeTruthy();
@@ -129,12 +151,26 @@ describe('MascotHouseScreen', () => {
     expect(screen.getByLabelText('오늘의 선물, 이미 받았어요')).toBeDisabled();
   });
 
+  it('opens the banana catch game and returns to the same house', async () => {
+    renderHouse(houseApi());
+
+    await screen.findByTestId('house-scene');
+    fireEvent.press(screen.getByTestId('house-play-game-action'));
+    expect(screen.getByTestId('banana-catch-screen')).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
+    expect(screen.getByTestId('house-scene')).toBeTruthy();
+  });
+
   it('spends bananas on feeding and keeps the balance in the store', async () => {
     const { store } = renderHouse(houseApi());
 
     await waitFor(() =>
       expect(screen.getByText(`${BANANA_REWARD.completed}개`)).toBeTruthy(),
     );
+    expect(
+      screen.getByText(`바나나 주기 · ${HOUSE_ACTION_COST.feed}개`),
+    ).toBeTruthy();
     fireEvent.press(screen.getByTestId('house-feed-action'));
 
     const remaining = BANANA_REWARD.completed - HOUSE_ACTION_COST.feed;
@@ -151,6 +187,11 @@ describe('MascotHouseScreen', () => {
       expect(screen.getByText(`${BANANA_REWARD.completed}개`)).toBeTruthy(),
     );
     fireEvent.press(screen.getByTestId('house-decorate-action'));
+    expect(
+      within(screen.getByTestId('house-decorate-panel')).queryByText(
+        `바나나 ${BANANA_REWARD.completed}개`,
+      ),
+    ).toBeNull();
     fireEvent.press(screen.getByRole('tab', { name: '소품' }));
     expect(screen.queryByText('가장 싼 소품은 바나나 20개예요.')).toBeNull();
     fireEvent.press(await screen.findByTestId('house-item-yoga_mat'));
@@ -394,23 +435,49 @@ describe('MascotHouseScreen', () => {
     expect(houseBackdropContinuationTop(art.height, 844, 526)).toBe(522);
   });
 
-  it('derives the blur boundary from shared relative layout coordinates', async () => {
+  it('keeps the blur boundary attached to the bottom controls when height changes', async () => {
     renderHouse(houseApi({ sessions: [] }));
 
     await screen.findByTestId('house-scene');
+    fireEvent(screen.getByTestId('mascot-house-content'), 'layout', {
+      nativeEvent: { layout: { height: 844, width: 390, x: 0, y: 0 } },
+    });
     fireEvent(screen.getByTestId('house-content-column'), 'layout', {
       nativeEvent: { layout: { height: 760, width: 390, x: 0, y: 40 } },
     });
     fireEvent(screen.getByTestId('house-action-area'), 'layout', {
-      nativeEvent: { layout: { height: 250, width: 358, x: 16, y: 80 } },
+      nativeEvent: { layout: { height: 250, width: 358, x: 16, y: 510 } },
     });
     fireEvent(screen.getByTestId('house-week-panel'), 'layout', {
       nativeEvent: { layout: { height: 130, width: 358, x: 0, y: 200 } },
     });
 
+    expect(houseWeekPanelTop(40, 760, 250, 130)).toBe(666);
     expect(screen.getByTestId('house-backdrop-continuation')).toHaveStyle({
-      top: 316,
+      top: 662,
     });
+    expect(screen.getByTestId('house-bottom-fade')).toHaveStyle({
+      top: 662,
+    });
+
+    fireEvent(screen.getByTestId('mascot-house-content'), 'layout', {
+      nativeEvent: { layout: { height: 994, width: 390, x: 0, y: 0 } },
+    });
+    fireEvent(screen.getByTestId('house-content-column'), 'layout', {
+      nativeEvent: { layout: { height: 910, width: 390, x: 0, y: 40 } },
+    });
+
+    expect(houseWeekPanelTop(40, 910, 250, 130)).toBe(816);
+    expect(screen.getByTestId('house-backdrop-continuation')).toHaveStyle({
+      top: 812,
+    });
+    expect(screen.getByTestId('house-bottom-fade')).toHaveStyle({
+      top: 812,
+    });
+  });
+
+  it('keeps the control boundary below the minimum scene on short screens', () => {
+    expect(houseWeekPanelTop(0, 456.8, 239.3, 123.4)).toBeCloseTo(337.9, 1);
   });
 
   it('uses the selected monkey artwork for every temporary house pose', () => {
@@ -448,6 +515,35 @@ describe('MascotHouseScreen', () => {
     expect(randomHouseRegularPoseArt(null, () => 0.999999)).toBe(
       houseRegularPoseArt[houseRegularPoseArt.length - 1],
     );
+  });
+
+  it('uses a random non-banana, non-unused pose when petted', async () => {
+    renderHouse(houseApi());
+
+    await waitFor(() =>
+      expect(screen.getByText(`${BANANA_REWARD.completed}개`)).toBeTruthy(),
+    );
+    const expected = randomHousePettedPoseArt(
+      housePoseArt.greeting.source,
+      () => 0,
+    );
+    const random = jest.spyOn(Math, 'random').mockReturnValue(0);
+
+    try {
+      fireEvent.press(screen.getByTestId('house-pet-action'));
+
+      const petted = screen.getByLabelText('쓰다듬어 주는 중');
+      expect(petted.props.source).toBe(expected.source);
+      expect(petted.props.source).not.toBe(housePoseArt.greeting.source);
+      expect(houseRegularPoseArt.map((slot) => slot.source)).toContain(
+        petted.props.source,
+      );
+      expect(houseBananaPoseArt.map((slot) => slot.source)).not.toContain(
+        petted.props.source,
+      );
+    } finally {
+      random.mockRestore();
+    }
   });
 
   it('keeps the banana pose for 5.6 seconds, then settles on a normal pose', async () => {

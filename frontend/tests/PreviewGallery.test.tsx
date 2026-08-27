@@ -51,6 +51,9 @@ describe('PreviewGallery', () => {
     expect(
       screen.getByRole('radio', { name: 'Workout session (mock)' }),
     ).toBeOnTheScreen();
+    expect(
+      screen.getByRole('radio', { name: 'Exercise catalog (API)' }),
+    ).toBeOnTheScreen();
 
     fireEvent.press(screen.getByRole('radio', { name: 'Login (API)' }));
     expect(
@@ -726,6 +729,62 @@ describe('PreviewGallery', () => {
 
     fireEvent.press(canvas.getByRole('tab', { name: '홈' }));
     expect(screen.getByRole('radio', { name: 'Home (API)' })).toBeChecked();
+  });
+
+  it('opens the exercise catalog from My page with the same route as the real app', async () => {
+    await render(<PreviewGallery initialScreenId="my-page" />);
+    const canvas = within(screen.getByTestId('preview-app-canvas'));
+
+    expect(await canvas.findByText('운동 도구')).toBeOnTheScreen();
+    fireEvent.press(canvas.getByText('운동 카탈로그'));
+
+    expect(
+      screen.getByRole('radio', { name: 'Exercise catalog (API)' }),
+    ).toBeChecked();
+    expect(
+      await canvas.findByRole('header', { name: '운동 카탈로그' }),
+    ).toBeOnTheScreen();
+    expect(canvas.getByText('의자 스쿼트')).toBeOnTheScreen();
+    expect(
+      screen.getByText('단독 진입: ?preview=exercise-catalog'),
+    ).toBeOnTheScreen();
+
+    fireEvent.press(
+      canvas.getByRole('button', { name: '의자 스쿼트 설명 열기' }),
+    );
+    expect(
+      await canvas.findByRole('header', { name: '운동 설명' }),
+    ).toBeOnTheScreen();
+    expect(
+      canvas.getByText(
+        '의자 앞에 서서 엉덩이를 뒤로 보내며 천천히 앉았다가 다시 일어나요.',
+      ),
+    ).toBeOnTheScreen();
+
+    fireEvent.press(canvas.getByRole('button', { name: '목록으로' }));
+    expect(
+      await canvas.findByRole('header', { name: '운동 카탈로그' }),
+    ).toBeOnTheScreen();
+    fireEvent.press(canvas.getByRole('button', { name: '돌아가기' }));
+    expect(screen.getByRole('radio', { name: 'My page (API)' })).toBeChecked();
+    expect(await canvas.findByText('운동 도구')).toBeOnTheScreen();
+  });
+
+  it('shows empty and error fixtures for the exercise catalog', async () => {
+    await render(<PreviewGallery initialScreenId="exercise-catalog" />);
+    const canvas = within(screen.getByTestId('preview-app-canvas'));
+
+    expect(await canvas.findByText('의자 스쿼트')).toBeOnTheScreen();
+    fireEvent.press(screen.getByRole('radio', { name: '목록 없음' }));
+    expect(
+      await canvas.findByText('조건에 맞는 운동이 아직 없어요.'),
+    ).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByRole('radio', { name: '오류' }));
+    expect(
+      await canvas.findByText('운동 카탈로그를 불러오지 못했어요.'),
+    ).toBeOnTheScreen();
+    expect(canvas.getByRole('button', { name: '다시 시도' })).toBeOnTheScreen();
   });
 
   it('runs the Workout API preview through missed, feedback, home, and partial outcomes', async () => {

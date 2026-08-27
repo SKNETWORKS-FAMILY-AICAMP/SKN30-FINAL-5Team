@@ -1,12 +1,30 @@
 export const ONBOARDING_LOCATION_OPTIONS = [
   { code: 'HOME', label: '집' },
   { code: 'GYM', label: '헬스장' },
+  { code: 'OUTDOOR', label: '야외' },
 ] as const;
 
 export const ONBOARDING_EQUIPMENT_OPTIONS = [
   { code: 'BODYWEIGHT', label: '맨몸' },
+  { code: 'DUMBBELL', label: '덤벨' },
+  { code: 'BARBELL', label: '바벨' },
+  { code: 'EZ_BAR', label: '이지바' },
+  { code: 'KETTLEBELL', label: '케틀벨' },
+  { code: 'CABLE_MACHINE', label: '케이블 머신' },
+  { code: 'MACHINE', label: '웨이트 머신' },
+  { code: 'HOUSEHOLD_WEIGHT', label: '생활 소도구' },
+  { code: 'BENCH', label: '벤치' },
+  { code: 'PULL_UP_BAR', label: '철봉' },
   { code: 'MAT', label: '매트' },
   { code: 'RESISTANCE_BAND', label: '밴드' },
+  { code: 'STRETCH_STRAP', label: '스트레칭 스트랩' },
+  { code: 'STABILITY_BALL', label: '짐볼' },
+  { code: 'ELLIPTICAL_MACHINE', label: '일립티컬' },
+  { code: 'JUMP_ROPE', label: '줄넘기' },
+  { code: 'FOAM_ROLLER', label: '폼롤러' },
+  { code: 'STATIONARY_BIKE', label: '실내 자전거' },
+  { code: 'STEP_BOX', label: '스텝 박스' },
+  { code: 'CHAIR', label: '의자' },
 ] as const;
 
 // The complete goal and experience code lists are not yet public API

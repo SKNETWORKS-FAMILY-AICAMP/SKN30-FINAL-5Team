@@ -27,9 +27,12 @@ import {
 import type { TabId } from '../../components/brand/BrandChrome';
 import { LoadingState, ScreenShell } from '../../components/states/ScreenState';
 import { HomeBottomNavigation } from '../home/HomeScreen';
+import { BananaCatchGameScreen } from '../bananaCatch/BananaCatchGameScreen';
 import { MascotHouseContent } from './MascotHouseContent';
 import {
+  housePoseArt,
   randomHouseBananaPoseArt,
+  randomHousePettedPoseArt,
   randomHouseRegularPoseArt,
   type HouseArtSlot,
 } from './houseArtSlots';
@@ -93,6 +96,7 @@ export function MascotHouseScreen({
   const [reactionPose, setReactionPose] = useState<HousePose | null>(null);
   const [reactionArt, setReactionArt] = useState<HouseArtSlot | null>(null);
   const [settledArt, setSettledArt] = useState<HouseArtSlot | null>(null);
+  const [playingBananaCatch, setPlayingBananaCatch] = useState(false);
   const lastBananaArt = useRef<HouseArtSlot['source']>(null);
   const lastRegularArt = useRef<HouseArtSlot['source']>(null);
   const poseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -191,9 +195,15 @@ export function MascotHouseScreen({
     <HomeBottomNavigation activeTab="house" onNavigate={onNavigate} />
   );
 
+  if (playingBananaCatch) {
+    return (
+      <BananaCatchGameScreen onBack={() => setPlayingBananaCatch(false)} />
+    );
+  }
+
   if (remote.status !== 'ready' || houseState === null) {
     return (
-      <ScreenShell bands tallBands footer={tabBar}>
+      <ScreenShell footer={tabBar}>
         <LoadingState />
       </ScreenShell>
     );
@@ -237,8 +247,14 @@ export function MascotHouseScreen({
         const next = petMascot(houseState, localDate);
         if (next === null) return;
         persist(next);
-        react('petted');
+        const visibleArt =
+          (reactionPose === null ? settledArt : reactionArt) ??
+          housePoseArt[reactionPose ?? restingPose(view)];
+        const pettedArt = randomHousePettedPoseArt(visibleArt.source);
+        lastRegularArt.current = pettedArt.source;
+        react('petted', pettedArt);
       }}
+      onPlayGame={() => setPlayingBananaCatch(true)}
       onPlaceItem={(itemId: HouseItemId, placement: HouseItemPlacement) => {
         const base = liveState.current ?? houseState;
         const next = placeHouseItem(base, itemId, placement);
