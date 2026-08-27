@@ -78,7 +78,11 @@ def test_api_startup_does_not_hide_migration_import_or_activation() -> None:
     runbook = RUNBOOK_PATH.read_text(encoding="utf-8")
     assert "alembic -c backend/alembic.ini upgrade head" in runbook
     assert "python -m backend.scripts.catalog_promote_v2" in runbook
-    assert "python -m backend.scripts.catalog_activate activate" in runbook
+    assert (
+        "python -m backend.scripts.catalog_activate activate "
+        "exercise-catalog-v2.0.1-final" in runbook
+    )
+    assert "exercise-catalog-v2.0.0-final" not in runbook
 
 
 def test_demo_and_test_database_names_and_host_ports_are_separate() -> None:

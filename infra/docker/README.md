@@ -44,7 +44,7 @@ Invoke-RestMethod http://127.0.0.1:8000/api/v1/health/ready
 ```powershell
 docker compose --env-file infra/docker/.env -f infra/docker/compose.yaml run --rm --no-deps api uv run --no-sync alembic -c backend/alembic.ini upgrade head
 docker compose --env-file infra/docker/.env -f infra/docker/compose.yaml run --rm --no-deps api uv run --no-sync python -m backend.scripts.catalog_promote_v2
-docker compose --env-file infra/docker/.env -f infra/docker/compose.yaml run --rm --no-deps api uv run --no-sync python -m backend.scripts.catalog_activate activate exercise-catalog-v2.0.0-final
+docker compose --env-file infra/docker/.env -f infra/docker/compose.yaml run --rm --no-deps api uv run --no-sync python -m backend.scripts.catalog_activate activate exercise-catalog-v2.0.1-final
 ```
 
 Test DB가 필요할 때만 별도로 생성하고 demo DB URL과 혼용하지 않습니다.

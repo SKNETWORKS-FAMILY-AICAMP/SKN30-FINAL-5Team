@@ -30,10 +30,11 @@ QDRANT_ENABLED=true
 QDRANT_URL=<staging-qdrant-https-url>
 QDRANT_TLS_ENABLED=true
 EMBEDDING_PROVIDER_CODE=OPENAI
-EMBEDDING_MODEL_VERSION=<approved-index-embedding-model>
-EMBEDDING_VECTOR_DIMENSION=<approved-vector-dimension>
+EMBEDDING_MODEL_VERSION=text-embedding-3-large
+EMBEDDING_VECTOR_DIMENSION=3072
+EMBEDDING_INPUT_SCHEMA_VERSION=exercise-embedding-input-v1
 EMBEDDING_DISTANCE_METRIC_CODE=COSINE
-EMBEDDING_TIMEOUT_SECONDS=<bounded-seconds>
+EMBEDDING_TIMEOUT_SECONDS=30
 QDRANT_API_KEY=<staging-secret-store-reference>
 ```
 
@@ -51,10 +52,30 @@ provider secrets have been injected by the deployment secret store. The command 
 loading, requires an explicit provider-call opt-in, rejects a non-staging environment, and rejects
 any configuration that enables the production promotion gate.
 
+Before the provider opt-in, record a read-only PostgreSQL preflight showing that the only catalog
+selected for the build is the active, production-approved `exercise-catalog-v2.0.1-final` row and
+that row's UUID. Also record the indexable exercise count and every existing
+`vector_index_registry` status without changing either table. The build must stop when the active
+catalog is absent, duplicated, or has a different version. A registry or Qdrant collection created
+for `exercise-catalog-v2.0.0-final` is historical and cannot satisfy this build.
+
+The approved embedding contract is OpenAI `text-embedding-3-large`, 3072 dimensions,
+`exercise-embedding-input-v1`, `COSINE`, with a 30-second provider timeout. The backend/data
+development lead approved it on 2026-08-27 because the provider documents this model as its most
+capable embedding model for English and non-English text and the 102-record catalog makes the
+storage difference bounded. The official 2026-08-27 price reference is USD 0.13 per one million
+input tokens. One build sends at most the provider's documented 300,000 aggregate input tokens, so
+the approved provider-cost ceiling is USD 0.04 before tax and currency conversion. Stop rather than
+retry automatically or exceed that ceiling.
+
+The provider page exposes `text-embedding-3-large` as the available model/snapshot code rather than
+a dated snapshot. Record that limitation and use the immutable vector index version below; a future
+provider/model contract change must use a different version and collection.
+
 ```powershell
 .venv\Scripts\python.exe -m backend.scripts.build_qdrant_index `
-  --catalog-version exercise-catalog-v2.0.0-final `
-  --vector-index-version <immutable-staging-index-version> `
+  --catalog-version exercise-catalog-v2.0.1-final `
+  --vector-index-version v201-openai-text-embedding-3-large-d3072-inputv1-cosine-r1 `
   --allow-provider-calls
 ```
 
@@ -62,6 +83,10 @@ The command prints only the collection name, index version, point count, build h
 alias changed. It never prints a credential, provider request/response, exercise document or vector.
 Re-running the same index version is an idempotency check; it must validate the existing collection
 and report `alias_changed=false`. A different contract must use a new immutable index version.
+After the first run, verify that PostgreSQL records one active registry row for the preflight catalog
+UUID, the Qdrant point count equals the preflight count, and the configured alias resolves to the
+reported immutable collection. Re-run the same command only after those checks and require the same
+build hash and `alias_changed=false`.
 
 ## Profile behavior
 
