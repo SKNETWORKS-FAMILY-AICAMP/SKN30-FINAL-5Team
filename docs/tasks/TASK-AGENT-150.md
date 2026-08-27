@@ -1,6 +1,6 @@
 # TASK-AGENT-150: Qdrant index 및 V3 staging evidence 수집
 
-- 현재 상태: `BLOCKED` (Aurora/Qdrant preflight 완료, AI/data lead 계약 리뷰와 EC2 secret 권한 승인 대기)
+- 현재 상태: `BLOCKED` (preflight·계약·EC2 secret 권한 완료, OpenAI 외부 전송 명시 승인 대기)
 - 우선순위: `P1`
 - GitHub issue: `#150`
 - Primary owner: 백엔드·데이터 개발팀장
@@ -126,7 +126,7 @@ provider payload는 기록하지 않는다.
 - provider timeout/retry: 30초 / 자동 retry 0회
 - pricing reference: 2026-08-27 OpenAI 공식 model page, USD 0.13 / 1M input tokens
 - index provider-cost ceiling: aggregate input 300,000-token 상한 기준 USD 0.04
-- 승인: 백엔드·데이터 개발팀장, 2026-08-27; AI/data lead review 필요
+- 승인: 개발팀장 겸 AI/data lead 권한 보유자, 2026-08-27; staging evidence 범위
 - production promotion: `V3_PRODUCTION_PROMOTION_APPROVED=false` 유지
 
 OpenAI 공식 문서는 `text-embedding-3-large`를 영어·비영어 텍스트 모두를 위한 가장 성능이 높은
@@ -175,10 +175,15 @@ embedding model로 설명하고 기본 dimension을 3072로 명시한다. 102개
 - AWS Secrets Manager의 staging Qdrant secret은 endpoint와 Database API key를 포함한다. 값을
   출력하지 않고 HTTPS scheme, key 존재와 인증된 `/readyz` HTTP `200`을 확인했다.
 - staging OpenAI secret도 값 또는 prefix를 출력하지 않고 비어 있지 않음만 확인했다.
-- PR #166은 `50616af`로 병합됐지만 GitHub review가 `0`건이므로 AI/data lead 계약 승인의 증거로
-  간주하지 않는다.
-- EC2 instance role은 현재 database URL secret만 읽을 수 있다. OpenAI/Qdrant secret 두 개에 대한
-  exact-ARN `GetSecretValue` 권한 추가는 보안 경계 변경 승인이 없어 수행하지 않았다.
+- PR #166은 `50616af`로 병합됐고 GitHub review는 `0`건이었다. 이후 개발팀장 겸 AI/data lead 권한
+  보유자가 2026-08-27에 위 embedding 계약과 staging evidence 범위를 명시적으로 승인했다.
+- 승인에 따라 EC2 instance role에 OpenAI/Qdrant secret 두 개만 대상으로 하는 exact-ARN
+  `GetSecretValue` inline policy를 추가했다. IAM 평가와 EC2 role session의 실제 secret 조회가 모두
+  성공했으며 secret 값은 출력하지 않았다.
+- build 전 Qdrant inventory는 collection `0`, alias `0`이었다.
+- 실제 catalog embedding input을 OpenAI provider에 전송하는 별도 외부 데이터 전송 승인은 아직
+  확인되지 않아 provider 호출 직전 안전 게이트에서 중단됐다. collection, registry와 alias는 변경되지
+  않았다.
 - 실제 OpenAI 호출, Qdrant collection 생성, registry write와 alias 전환은 수행하지 않았다.
 - `V3_PRODUCTION_PROMOTION_APPROVED=false`를 변경하지 않았다.
 
@@ -188,8 +193,9 @@ embedding model로 설명하고 기본 dimension을 3072로 명시한다. 102개
 - 동일 immutable version 재실행 idempotency 확인
 - staging live shadow의 token/cost/latency/fallback/safety evidence 수집
 
-위 항목은 AI/data lead의 명시적 embedding 계약 승인과 EC2 role의 최소 secret 조회 권한이 승인된 뒤에만
-수행한다. 현재 상태는 실제 staging build 완료 evidence 또는 production promotion 승인이 아니다.
+위 항목은 승인된 102개 catalog embedding input을 OpenAI API에 전송한다는 명시적 외부 전송 승인을
+받은 뒤에만 수행한다. 현재 상태는 실제 staging build 완료 evidence 또는 production promotion 승인이
+아니다.
 실제 OpenAI index build와 검증이 끝나기 전에는 완료 evidence로 해석하지 않는다.
 
 ### 2026-08-27 v2.0.1 local PostgreSQL/Qdrant integration
