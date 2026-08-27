@@ -24,7 +24,9 @@ from backend.scripts.run_v3_staging_shadow import build_staging_request
 FIXED_TIME = datetime(2026, 8, 25, 12, 0, tzinfo=UTC)
 CURRENT_CATALOG_VERSION = "exercise-catalog-v2.0.1-final"
 STALE_CATALOG_VERSION = "exercise-catalog-v2.0.0-final"
-APPROVED_VECTOR_INDEX_VERSION = "v201-openai-text-embedding-3-large-d3072-inputv1-cosine-r1"
+APPROVED_VECTOR_INDEX_VERSION = (
+    "v201-openai-text-embedding-3-large-d3072-inputv1-cosine-r2-helkki-staging"
+)
 
 
 def _settings() -> Settings:

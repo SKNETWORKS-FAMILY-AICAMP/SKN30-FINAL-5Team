@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 from uuid import UUID
 
 from qdrant_client import QdrantClient, models
@@ -94,6 +94,10 @@ class QdrantGateway(Protocol):
     def retrieve_points(
         self, *, collection_name: str, exercise_ids: tuple[UUID, ...]
     ) -> tuple[QdrantStoredPoint, ...]: ...
+
+    def retrieve_points_with_vectors(
+        self, *, collection_name: str, exercise_ids: tuple[UUID, ...]
+    ) -> tuple[QdrantPoint, ...]: ...
 
     def aliases(self) -> dict[str, str]: ...
 
@@ -308,6 +312,39 @@ class OfficialQdrantClientAdapter:
                     )
                 )
         except (TypeError, ValueError, AttributeError):
+            raise QdrantProviderError("VECTOR_RESULT_NOT_CANONICAL") from None
+        return tuple(points)
+
+    def retrieve_points_with_vectors(
+        self, *, collection_name: str, exercise_ids: tuple[UUID, ...]
+    ) -> tuple[QdrantPoint, ...]:
+        """Retrieve reviewed catalog points for an operator-controlled index migration."""
+
+        try:
+            records = self._client.retrieve(
+                collection_name=collection_name,
+                ids=list(exercise_ids),
+                with_payload=True,
+                with_vectors=True,
+                timeout=self._timeout,
+            )
+        except Exception as exc:
+            raise self._translate(exc) from None
+        points: list[QdrantPoint] = []
+        try:
+            for record in records:
+                vectors = record.vector
+                if not isinstance(vectors, dict):
+                    raise ValueError("named vector is missing")
+                vector = cast(list[float], vectors[VECTOR_NAME])
+                points.append(
+                    QdrantPoint(
+                        exercise_id=UUID(str(record.id)),
+                        vector=tuple(float(value) for value in vector),
+                        payload=dict(record.payload or {}),
+                    )
+                )
+        except (TypeError, ValueError, KeyError, AttributeError):
             raise QdrantProviderError("VECTOR_RESULT_NOT_CANONICAL") from None
         return tuple(points)
 

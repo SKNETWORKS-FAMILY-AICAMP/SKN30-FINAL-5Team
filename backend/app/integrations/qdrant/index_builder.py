@@ -20,7 +20,7 @@ from backend.app.integrations.qdrant.collection_manager import (
     QdrantCollectionManager,
     immutable_collection_name,
 )
-from backend.app.integrations.qdrant.embedding import EmbeddingPort
+from backend.app.integrations.qdrant.embedding import EmbeddingContract, EmbeddingPort
 
 
 def canonical_embedding_document(record: IndexableExerciseRecord) -> str:
@@ -48,23 +48,23 @@ def _sha256(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
 
 
-def _build_hash(
+def vector_index_build_hash(
     *,
     records: tuple[IndexableExerciseRecord, ...],
     source_document_hashes: tuple[str, ...],
     vector_index_version: str,
-    embedding: EmbeddingPort,
+    embedding_contract: EmbeddingContract,
 ) -> str:
     payload = {
         "catalog_version": records[0].catalog_version_code,
         "source_manifest_hash": records[0].catalog_manifest_hash,
         "vector_index_version": vector_index_version,
         "embedding_contract": {
-            "provider_code": embedding.contract.provider_code,
-            "model_version": embedding.contract.model_version,
-            "input_schema_version": embedding.contract.input_schema_version,
-            "vector_dimension": embedding.contract.vector_dimension,
-            "distance_metric_code": embedding.contract.distance_metric_code,
+            "provider_code": embedding_contract.provider_code,
+            "model_version": embedding_contract.model_version,
+            "input_schema_version": embedding_contract.input_schema_version,
+            "vector_dimension": embedding_contract.vector_dimension,
+            "distance_metric_code": embedding_contract.distance_metric_code,
         },
         "points": [
             {"exercise_id": str(record.exercise_id), "source_document_hash": source_hash}
@@ -122,11 +122,11 @@ class ExerciseVectorIndexBuilder:
             )
         documents = tuple(canonical_embedding_document(record) for record in records)
         source_document_hashes = tuple(_sha256(document) for document in documents)
-        build_hash = _build_hash(
+        build_hash = vector_index_build_hash(
             records=records,
             source_document_hashes=source_document_hashes,
             vector_index_version=vector_index_version,
-            embedding=self._embedding,
+            embedding_contract=self._embedding.contract,
         )
         collection_name = immutable_collection_name(
             prefix=self._collection_prefix,
@@ -234,4 +234,5 @@ __all__ = [
     "ExerciseVectorIndexBuilder",
     "VectorIndexBuildResult",
     "canonical_embedding_document",
+    "vector_index_build_hash",
 ]

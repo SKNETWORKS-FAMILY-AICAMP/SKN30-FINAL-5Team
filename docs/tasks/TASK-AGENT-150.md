@@ -119,7 +119,7 @@ provider payload는 기록하지 않는다.
 
 - target catalog: `exercise-catalog-v2.0.1-final`
 - catalog identity: `04d726d5-ad3d-45f0-b400-bf4205113863` (staging PostgreSQL ACTIVE catalog)
-- vector index version: `v201-openai-text-embedding-3-large-d3072-inputv1-cosine-r1`
+- vector index version: `v201-openai-text-embedding-3-large-d3072-inputv1-cosine-r2-helkki-staging`
 - provider/model/dimension: `OPENAI` / `text-embedding-3-large` / `3072`
 - distance metric: `COSINE`
 - input schema: `exercise-embedding-input-v1`
@@ -195,7 +195,12 @@ embedding model로 설명하고 기본 dimension을 3072로 명시한다. 102개
   재확인 기준 `0`행이었다. 실제 102개 embedding build, registry write와 alias 전환은 발생하지 않았다.
 - `V3_PRODUCTION_PROMOTION_APPROVED=false`를 변경하지 않았다.
 
-### 2026-08-27 v2.0.1 live index evidence
+### Historical evidence — 2026-08-27 v2.0.1 live index before database cutover
+
+This section records the first successful provider build against the former staging catalog UUID.
+The collection remains immutable for rollback/audit purposes, but its registry row was intentionally
+replaced during the canonical `helkki_staging` database cutover below. It is not the active staging
+index after that cutover.
 
 - 교체된 staging OpenAI key는 값 비노출 probe에서 `text-embedding-3-large`, dimension `3072`,
   prompt/total token `8/8`로 계약 일치를 확인했다.
@@ -234,6 +239,38 @@ live shadow는 합성 fixture를 별도의 OpenAI chat model로 전송하므로 
 않는다. exact LLM model allowlist, 최대 provider call budget과 합성 fixture 외부 전송 승인을 받은 뒤
 수행한다. 현재 상태는 `STAGING_EVIDENCE_COMPLETE` 또는 production promotion 승인이 아니다.
 live shadow 전에는 전체 완료 evidence로 해석하지 않는다.
+
+### 2026-08-27 canonical `helkki_staging` database cutover
+
+The development/data lead selected `helkki_staging` as the canonical staging database after a
+preflight found that the application data was in `exercise_app` while the original vector registry
+was in `helkki_staging`. Copying only the registry was rejected: both catalogs had the same version,
+manifest hash and 102 reviewed documents, but their catalog and exercise UUIDs differed.
+
+| Item | Actual result |
+|---|---|
+| Aurora recovery point | manual cluster snapshot `database-1-pre-helkki-staging-migration-20260827-01`, `available`, 100% |
+| schema gate | both databases at Alembic `0027_catalog_media_assets`; schema signatures equal |
+| source / target | `exercise_app` / `helkki_staging` |
+| migration isolation | source `REPEATABLE READ, READ ONLY`; target `SERIALIZABLE` plus transaction advisory lock |
+| copied data | 72 application tables, 4,800 rows, source UUIDs and stored reproducibility hashes preserved |
+| post-copy verification | 71 replicated non-registry tables have identical counts and canonical content hashes |
+| canonical catalog | UUID `419eaab4-0b93-4a9f-8705-132d46cc681f`, `exercise-catalog-v2.0.1-final`, 102 exercises |
+| vector migration | existing approved vectors reused by stable-code mapping; no OpenAI provider call |
+| vector index version | `v201-openai-text-embedding-3-large-d3072-inputv1-cosine-r2-helkki-staging` |
+| collection | `exercise_catalog__staging__exercise_catalog_v2_0_1_final__text_embedding_3_large__v201_openai_text_embedding_3_large_d3072_inputv1_cosine_r2_helkki_staging` |
+| point count / build hash | `102` / `7df34c1c844b1d8abce9d02a3ccbee03e238ab8644afc58dd6d977fb7c3dcb59` |
+| registry / alias | one `ACTIVE` registry row; `exercise_catalog_active` atomically switched to the new collection |
+| idempotency | second validation returned the same count/hash and `alias_changed=false` |
+| service state | `helkki_staging-api-1` restarted and Docker reported `healthy` |
+| production promotion | not performed; `V3_PRODUCTION_PROMOTION_APPROVED=false` remains required |
+
+The staging API was stopped only for the cutover window. The target replacement occurred in one
+transaction and was committed only after every table count and canonical content hash matched. A
+failure before commit would have rolled back the target; a failure after DB commit but before vector
+activation would have left the registry empty and forced deterministic fallback. The former database
+and Qdrant collection were not deleted or overwritten. Secrets, user rows, raw health data, embedding
+inputs, vectors and provider responses were not printed or written to this evidence.
 
 ### 2026-08-27 first v2.0.1 live Shadow attempt
 
