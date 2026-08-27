@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import Engine, create_engine, delete, func, select
+from sqlalchemy import Engine, create_engine, delete, func, select, update
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
@@ -262,7 +262,7 @@ def test_lists_only_the_approved_catalog_with_filters_and_stable_keyset_paginati
 
 
 @pytest.mark.integration
-def test_equipment_variants_use_only_production_equipment_relations_in_active_catalog(
+def test_equipment_variants_use_the_approved_source_catalog_for_active_and_deprecated(
     postgres_session: Session,
 ) -> None:
     repository = CatalogRepository()
@@ -326,17 +326,48 @@ def test_equipment_variants_use_only_production_equipment_relations_in_active_ca
     )
     postgres_session.flush()
 
-    result = repository.get_equipment_variants(postgres_session, catalog_id, source_id)
+    result = repository.get_equipment_variants(postgres_session, source_id)
 
     assert result is not None
     assert result.source_exercise_id == source_id
+    assert result.catalog_version == "demo-synthetic-v1"
     assert result.alternative_set_version == "alternative-set-test-v1"
     assert [item.exercise_id for item in result.items] == sorted(alternatives[:2])
+    assert inactive_exercise_id not in {item.exercise_id for item in result.items}
     assert all(item.required_equipment_codes for item in result.items)
-    assert (
-        repository.get_equipment_variants(postgres_session, catalog_id, inactive_exercise_id)
-        is None
+
+    empty = repository.get_equipment_variants(postgres_session, alternatives[4])
+    assert empty is not None
+    assert empty.items == ()
+    assert empty.alternative_set_version is None
+    assert repository.get_equipment_variants(postgres_session, uuid4()) is None
+
+    # The imported catalog is DRAFT and lacks production review. Both its DRAFT
+    # state and a later unapproved DEPRECATED state must remain unreadable.
+    assert repository.get_equipment_variants(postgres_session, inactive_exercise_id) is None
+    inactive_catalog_id = postgres_session.scalar(
+        select(Exercise.catalog_version_id).where(Exercise.id == inactive_exercise_id)
     )
+    assert inactive_catalog_id is not None
+    postgres_session.execute(
+        update(CatalogVersion)
+        .where(CatalogVersion.id == inactive_catalog_id)
+        .values(status_code="DEPRECATED")
+    )
+    postgres_session.flush()
+    assert repository.get_equipment_variants(postgres_session, inactive_exercise_id) is None
+
+    postgres_session.execute(
+        update(CatalogVersion)
+        .where(CatalogVersion.id == catalog_id)
+        .values(status_code="DEPRECATED", production_eligible=False, activated_at=None)
+    )
+    postgres_session.flush()
+
+    deprecated_result = repository.get_equipment_variants(postgres_session, source_id)
+    assert deprecated_result is not None
+    assert deprecated_result.catalog_version == "demo-synthetic-v1"
+    assert [item.exercise_id for item in deprecated_result.items] == sorted(alternatives[:2])
 
 
 @pytest.mark.integration

@@ -170,7 +170,6 @@ class VectorIndexRepository:
                 timing_mode_code=exercise.timing_mode_code,
             )
             for exercise in exercises
-            if phases[exercise.id]
         )
 
     def get_by_version(

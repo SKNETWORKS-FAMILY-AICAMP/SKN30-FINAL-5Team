@@ -169,6 +169,7 @@ class ExerciseVariantRecord:
 @dataclass(frozen=True)
 class ExerciseVariantsRecord:
     source_exercise_id: UUID
+    catalog_version: str
     source_required_equipment_codes: tuple[str, ...]
     alternative_set_version: str | None
     items: tuple[ExerciseVariantRecord, ...]
@@ -221,7 +222,6 @@ class ExerciseReadRepositoryPort(Protocol):
     def get_equipment_variants(
         self,
         session: Session,
-        catalog_version_id: UUID,
         exercise_id: UUID,
     ) -> ExerciseVariantsRecord | None: ...
 
@@ -314,14 +314,7 @@ class ExerciseReadService:
         session: Session,
         exercise_id: UUID,
     ) -> ExerciseVariantsResponse:
-        catalog = self._repository.get_approved_catalog(session)
-        if catalog is None:
-            raise ExerciseCatalogUnavailableError
-        record = self._repository.get_equipment_variants(
-            session,
-            catalog.catalog_version_id,
-            exercise_id,
-        )
+        record = self._repository.get_equipment_variants(session, exercise_id)
         if record is None:
             raise ExerciseNotFoundError
         return ExerciseVariantsResponse(
@@ -343,7 +336,7 @@ class ExerciseReadService:
                 )
                 for item in record.items
             ],
-            catalog_version=catalog.version_code,
+            catalog_version=record.catalog_version,
             alternative_set_version=record.alternative_set_version,
         )
 

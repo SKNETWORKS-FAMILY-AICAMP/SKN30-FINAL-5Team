@@ -50,6 +50,15 @@ class V2RuntimeArtifactTests(unittest.TestCase):
             )
             self.assertEqual(safety_manifest["rule_set_version"]["status_code"], "DRAFT")
 
+            representative_payloads = [
+                json.loads(line)
+                for line in (output / "representative_exercises.jsonl")
+                .read_text(encoding="utf-8")
+                .splitlines()
+                if line.strip()
+            ]
+            self.assertTrue(all("beginner_suitable" not in row for row in representative_payloads))
+
             CatalogManifest.model_validate_json((output / "catalog_manifest.json").read_bytes())
             AlternativeManifest.model_validate_json(
                 (output / "alternatives_manifest.json").read_bytes()

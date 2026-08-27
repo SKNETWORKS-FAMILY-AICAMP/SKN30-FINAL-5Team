@@ -76,13 +76,10 @@ class FakeExerciseRepository:
     def get_equipment_variants(
         self,
         session: object,
-        catalog_version_id: UUID,
         exercise_id: UUID,
     ) -> ExerciseVariantsRecord | None:
         if self.variant_error is not None:
             raise self.variant_error
-        assert self.catalog is not None
-        assert catalog_version_id == self.catalog.catalog_version_id
         return self.variants.get(exercise_id)
 
 
@@ -282,6 +279,7 @@ def test_equipment_variants_return_reviewed_display_contract_in_stable_order() -
     second_id = UUID(int=20)
     repository.variants[source_id] = ExerciseVariantsRecord(
         source_exercise_id=source_id,
+        catalog_version="catalog-production-v1",
         source_required_equipment_codes=("DUMBBELL", "MAT"),
         alternative_set_version="alternative-set-v2.0.1",
         items=(
@@ -342,6 +340,7 @@ def test_equipment_variants_return_empty_items_when_no_variant_exists() -> None:
     source_id = uuid4()
     repository.variants[source_id] = ExerciseVariantsRecord(
         source_exercise_id=source_id,
+        catalog_version="catalog-production-v1",
         source_required_equipment_codes=("BODYWEIGHT",),
         alternative_set_version=None,
         items=(),
@@ -355,7 +354,7 @@ def test_equipment_variants_return_empty_items_when_no_variant_exists() -> None:
     assert response.json()["alternative_set_version"] is None
 
 
-def test_equipment_variants_reject_unknown_or_non_active_source_exercise() -> None:
+def test_equipment_variants_reject_unknown_source_exercise() -> None:
     repository = FakeExerciseRepository(())
     with _client(repository) as client:
         response = client.get(f"/api/v1/exercises/{uuid4()}/variants")
@@ -364,14 +363,22 @@ def test_equipment_variants_reject_unknown_or_non_active_source_exercise() -> No
     assert response.json()["error"]["code"] == "RESOURCE_NOT_FOUND"
 
 
-def test_equipment_variants_fail_closed_without_an_approved_catalog() -> None:
+def test_equipment_variants_do_not_depend_on_the_current_active_catalog() -> None:
     repository = FakeExerciseRepository(())
     repository.catalog = None
+    source_id = uuid4()
+    repository.variants[source_id] = ExerciseVariantsRecord(
+        source_exercise_id=source_id,
+        catalog_version="catalog-deprecated-v1",
+        source_required_equipment_codes=("BODYWEIGHT",),
+        alternative_set_version=None,
+        items=(),
+    )
     with _client(repository) as client:
-        response = client.get(f"/api/v1/exercises/{uuid4()}/variants")
+        response = client.get(f"/api/v1/exercises/{source_id}/variants")
 
-    assert response.status_code == 503
-    assert response.json()["error"]["code"] == "APPROVED_CATALOG_UNAVAILABLE"
+    assert response.status_code == 200
+    assert response.json()["catalog_version"] == "catalog-deprecated-v1"
 
 
 def test_equipment_variants_map_database_failure_to_common_error() -> None:

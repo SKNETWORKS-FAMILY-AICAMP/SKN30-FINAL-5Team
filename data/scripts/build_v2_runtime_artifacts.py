@@ -191,9 +191,6 @@ def representative_records(rows: list[dict[str, str]]) -> list[V2ExerciseRecord]
                 "body_focus_code": row["body_focus_code"],
                 "primary_movement_pattern_code": row["primary_movement_pattern_code"],
                 "difficulty_code": row["difficulty_code"],
-                "beginner_suitable": boolean_value(
-                    row["beginner_suitable"], "beginner_suitable", key
-                ),
                 "timing_mode_code": timing_mode,
                 "default_seconds_per_rep": (
                     int_value(row["default_seconds_per_rep"], "default_seconds_per_rep", key)
