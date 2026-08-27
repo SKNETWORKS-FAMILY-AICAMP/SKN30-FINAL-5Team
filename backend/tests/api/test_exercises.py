@@ -2,6 +2,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import SQLAlchemyError
 
 from backend.app.api.dependencies import (
     get_catalog_repository,
@@ -14,6 +15,9 @@ from backend.app.modules.catalog.service import (
     ApprovedCatalogRecord,
     ExerciseDetailRecord,
     ExerciseListRecord,
+    ExerciseVariantRecord,
+    ExerciseVariantSetUnavailableError,
+    ExerciseVariantsRecord,
 )
 from backend.app.modules.identity.codes import UserStatusCode
 from backend.app.modules.identity.service import CurrentUser
@@ -31,6 +35,8 @@ class FakeExerciseRepository:
         )
         self.records = records
         self.details: dict[UUID, ExerciseDetailRecord] = {}
+        self.variants: dict[UUID, ExerciseVariantsRecord] = {}
+        self.variant_error: Exception | None = None
         self.requested_limits: list[int] = []
 
     def get_approved_catalog(self, session: object) -> ApprovedCatalogRecord | None:
@@ -66,6 +72,18 @@ class FakeExerciseRepository:
         self, session: object, exercise_id: UUID
     ) -> ExerciseDetailRecord | None:
         return self.details.get(exercise_id)
+
+    def get_equipment_variants(
+        self,
+        session: object,
+        catalog_version_id: UUID,
+        exercise_id: UUID,
+    ) -> ExerciseVariantsRecord | None:
+        if self.variant_error is not None:
+            raise self.variant_error
+        assert self.catalog is not None
+        assert catalog_version_id == self.catalog.catalog_version_id
+        return self.variants.get(exercise_id)
 
 
 def _record(index: int) -> ExerciseListRecord:
@@ -246,3 +264,131 @@ def test_exercise_detail_route_remains_available() -> None:
     assert response.status_code == 200
     assert response.json()["exercise_id"] == str(exercise_id)
     assert response.json()["exercise_name"] == "기존 상세 운동"
+
+
+def test_equipment_variants_require_authentication() -> None:
+    repository = FakeExerciseRepository(())
+    with _client(repository, authenticated=False) as client:
+        response = client.get(f"/api/v1/exercises/{uuid4()}/variants")
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "AUTHENTICATION_REQUIRED"
+
+
+def test_equipment_variants_return_reviewed_display_contract_in_stable_order() -> None:
+    repository = FakeExerciseRepository(())
+    source_id = uuid4()
+    first_id = UUID(int=10)
+    second_id = UUID(int=20)
+    repository.variants[source_id] = ExerciseVariantsRecord(
+        source_exercise_id=source_id,
+        source_required_equipment_codes=("DUMBBELL", "MAT"),
+        alternative_set_version="alternative-set-v2.0.1",
+        items=(
+            ExerciseVariantRecord(
+                exercise_id=first_id,
+                exercise_name="맨몸 변형 1",
+                required_equipment_codes=("BODYWEIGHT",),
+                instruction_summary="장비 없이 천천히 수행합니다.",
+                form_cues=("허리를 중립으로 유지합니다.",),
+                goal_preservation_code="GENERAL_FITNESS",
+            ),
+            ExerciseVariantRecord(
+                exercise_id=second_id,
+                exercise_name="맨몸 변형 2",
+                required_equipment_codes=("BODYWEIGHT",),
+                instruction_summary="바닥에서 수행합니다.",
+                form_cues=("반동을 사용하지 않습니다.",),
+                goal_preservation_code="GENERAL_FITNESS",
+                media_asset_key="catalog-media/exercises/variant.webp",
+            ),
+        ),
+    )
+
+    with _client(repository) as client:
+        response = client.get(f"/api/v1/exercises/{source_id}/variants")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "source_exercise_id": str(source_id),
+        "source_required_equipment_codes": ["DUMBBELL", "MAT"],
+        "items": [
+            {
+                "exercise_id": str(first_id),
+                "exercise_name": "맨몸 변형 1",
+                "required_equipment_codes": ["BODYWEIGHT"],
+                "instruction_summary": "장비 없이 천천히 수행합니다.",
+                "form_cues": ["허리를 중립으로 유지합니다."],
+                "media_asset_key": None,
+                "goal_preservation_code": "GENERAL_FITNESS",
+            },
+            {
+                "exercise_id": str(second_id),
+                "exercise_name": "맨몸 변형 2",
+                "required_equipment_codes": ["BODYWEIGHT"],
+                "instruction_summary": "바닥에서 수행합니다.",
+                "form_cues": ["반동을 사용하지 않습니다."],
+                "media_asset_key": "catalog-media/exercises/variant.webp",
+                "goal_preservation_code": "GENERAL_FITNESS",
+            },
+        ],
+        "catalog_version": "catalog-production-v1",
+        "alternative_set_version": "alternative-set-v2.0.1",
+    }
+
+
+def test_equipment_variants_return_empty_items_when_no_variant_exists() -> None:
+    repository = FakeExerciseRepository(())
+    source_id = uuid4()
+    repository.variants[source_id] = ExerciseVariantsRecord(
+        source_exercise_id=source_id,
+        source_required_equipment_codes=("BODYWEIGHT",),
+        alternative_set_version=None,
+        items=(),
+    )
+
+    with _client(repository) as client:
+        response = client.get(f"/api/v1/exercises/{source_id}/variants")
+
+    assert response.status_code == 200
+    assert response.json()["items"] == []
+    assert response.json()["alternative_set_version"] is None
+
+
+def test_equipment_variants_reject_unknown_or_non_active_source_exercise() -> None:
+    repository = FakeExerciseRepository(())
+    with _client(repository) as client:
+        response = client.get(f"/api/v1/exercises/{uuid4()}/variants")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "RESOURCE_NOT_FOUND"
+
+
+def test_equipment_variants_fail_closed_without_an_approved_catalog() -> None:
+    repository = FakeExerciseRepository(())
+    repository.catalog = None
+    with _client(repository) as client:
+        response = client.get(f"/api/v1/exercises/{uuid4()}/variants")
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "APPROVED_CATALOG_UNAVAILABLE"
+
+
+def test_equipment_variants_map_database_failure_to_common_error() -> None:
+    repository = FakeExerciseRepository(())
+    repository.variant_error = SQLAlchemyError("synthetic database failure")
+    with _client(repository) as client:
+        response = client.get(f"/api/v1/exercises/{uuid4()}/variants")
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "DATABASE_UNAVAILABLE"
+
+
+def test_equipment_variants_fail_closed_for_multiple_approved_sets() -> None:
+    repository = FakeExerciseRepository(())
+    repository.variant_error = ExerciseVariantSetUnavailableError()
+    with _client(repository) as client:
+        response = client.get(f"/api/v1/exercises/{uuid4()}/variants")
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "APPROVED_CATALOG_UNAVAILABLE"

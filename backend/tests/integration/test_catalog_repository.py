@@ -2,7 +2,7 @@ import os
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from alembic import command
@@ -259,6 +259,84 @@ def test_lists_only_the_approved_catalog_with_filters_and_stable_keyset_paginati
         after_exercise_id = page[-1].exercise_id
 
     assert paged_ids == [row.exercise_id for row in all_records]
+
+
+@pytest.mark.integration
+def test_equipment_variants_use_only_production_equipment_relations_in_active_catalog(
+    postgres_session: Session,
+) -> None:
+    repository = CatalogRepository()
+    CatalogImporter(repository, "test").import_artifact(postgres_session, GENERATED_ARTIFACT)
+    inactive_exercise_id = postgres_session.scalar(
+        select(Exercise.id).order_by(Exercise.id).limit(1)
+    )
+    assert inactive_exercise_id is not None
+
+    catalog_id = seed_catalog(postgres_session, datetime(2026, 8, 18, tzinfo=UTC))
+    active_exercise_ids = tuple(
+        postgres_session.scalars(
+            select(Exercise.id)
+            .where(Exercise.catalog_version_id == catalog_id)
+            .order_by(Exercise.id)
+            .limit(6)
+        )
+    )
+    assert len(active_exercise_ids) == 6
+    source_id, *alternatives = active_exercise_ids
+    now = datetime(2026, 8, 27, tzinfo=UTC)
+
+    def relation(
+        alternative_exercise_id: UUID,
+        reason_code: str,
+        *,
+        production_eligible: bool = True,
+        approval_metadata: bool = True,
+    ) -> ExerciseAlternative:
+        return ExerciseAlternative(
+            id=uuid4(),
+            source_exercise_id=source_id,
+            alternative_exercise_id=alternative_exercise_id,
+            reason_code=reason_code,
+            goal_preservation_code="GENERAL_FITNESS",
+            difficulty_delta=0,
+            review_status_code="DOMAIN_APPROVED",
+            rule_version="variant-test-v1",
+            alternative_set_version_code="alternative-set-test-v1",
+            production_eligible=production_eligible,
+            source_manifest_hash="a" * 64,
+            source_metadata=(
+                {"production_approval": {"scope": "ALL_RECORDS"}}
+                if approval_metadata
+                else {"source": "unapproved-test"}
+            ),
+            created_at=now,
+        )
+
+    postgres_session.add_all(
+        (
+            relation(alternatives[1], "EQUIPMENT"),
+            relation(alternatives[0], "EQUIPMENT"),
+            relation(alternatives[2], "LOCATION"),
+            relation(alternatives[3], "DIFFICULTY"),
+            relation(alternatives[4], "DISCOMFORT"),
+            relation(alternatives[2], "EQUIPMENT", production_eligible=False),
+            relation(alternatives[3], "EQUIPMENT", approval_metadata=False),
+            relation(inactive_exercise_id, "EQUIPMENT"),
+        )
+    )
+    postgres_session.flush()
+
+    result = repository.get_equipment_variants(postgres_session, catalog_id, source_id)
+
+    assert result is not None
+    assert result.source_exercise_id == source_id
+    assert result.alternative_set_version == "alternative-set-test-v1"
+    assert [item.exercise_id for item in result.items] == sorted(alternatives[:2])
+    assert all(item.required_equipment_codes for item in result.items)
+    assert (
+        repository.get_equipment_variants(postgres_session, catalog_id, inactive_exercise_id)
+        is None
+    )
 
 
 @pytest.mark.integration

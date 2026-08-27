@@ -39,6 +39,8 @@ from backend.app.modules.catalog.schemas import (
     ExercisePrescriptionRecord,
     ExerciseRecord,
     ExerciseSafetyRuleRecord,
+    ExerciseVariantItem,
+    ExerciseVariantsResponse,
     ManifestFile,
     MediaAssetRecord,
     MediaManifest,
@@ -153,6 +155,25 @@ class ExerciseListRecord:
 
 
 @dataclass(frozen=True)
+class ExerciseVariantRecord:
+    exercise_id: UUID
+    exercise_name: str
+    required_equipment_codes: tuple[str, ...]
+    instruction_summary: str
+    form_cues: tuple[str, ...]
+    goal_preservation_code: str
+    media_asset_key: str | None = None
+
+
+@dataclass(frozen=True)
+class ExerciseVariantsRecord:
+    source_exercise_id: UUID
+    source_required_equipment_codes: tuple[str, ...]
+    alternative_set_version: str | None
+    items: tuple[ExerciseVariantRecord, ...]
+
+
+@dataclass(frozen=True)
 class ExerciseListCursor:
     catalog_version_id: UUID
     exercise_id: UUID
@@ -164,6 +185,10 @@ class ExerciseNotFoundError(Exception):
 
 class ExerciseCatalogUnavailableError(Exception):
     """No active, domain-approved production catalog is available."""
+
+
+class ExerciseVariantSetUnavailableError(Exception):
+    """Equipment variants do not resolve to one approved derived-data set."""
 
 
 class InvalidExerciseListQueryError(Exception):
@@ -191,6 +216,13 @@ class ExerciseReadRepositoryPort(Protocol):
         session: Session,
         exercise_id: UUID,
     ) -> ExerciseDetailRecord | None: ...
+
+    def get_equipment_variants(
+        self,
+        session: Session,
+        catalog_version_id: UUID,
+        exercise_id: UUID,
+    ) -> ExerciseVariantsRecord | None: ...
 
 
 class ExerciseReadService:
@@ -274,6 +306,44 @@ class ExerciseReadService:
             media_asset_key=record.media_asset_key,
             mascot_animation_asset_key=None,
             instruction_content_version=record.instruction_content_version,
+        )
+
+    def get_equipment_variants(
+        self,
+        session: Session,
+        exercise_id: UUID,
+    ) -> ExerciseVariantsResponse:
+        catalog = self._repository.get_approved_catalog(session)
+        if catalog is None:
+            raise ExerciseCatalogUnavailableError
+        record = self._repository.get_equipment_variants(
+            session,
+            catalog.catalog_version_id,
+            exercise_id,
+        )
+        if record is None:
+            raise ExerciseNotFoundError
+        return ExerciseVariantsResponse(
+            source_exercise_id=record.source_exercise_id,
+            source_required_equipment_codes=[
+                EquipmentCode(code) for code in record.source_required_equipment_codes
+            ],
+            items=[
+                ExerciseVariantItem(
+                    exercise_id=item.exercise_id,
+                    exercise_name=item.exercise_name,
+                    required_equipment_codes=[
+                        EquipmentCode(code) for code in item.required_equipment_codes
+                    ],
+                    instruction_summary=item.instruction_summary,
+                    form_cues=list(item.form_cues),
+                    media_asset_key=item.media_asset_key,
+                    goal_preservation_code=item.goal_preservation_code,
+                )
+                for item in record.items
+            ],
+            catalog_version=catalog.version_code,
+            alternative_set_version=record.alternative_set_version,
         )
 
 

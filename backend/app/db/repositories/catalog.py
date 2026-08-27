@@ -3,7 +3,7 @@ from enum import StrEnum
 from uuid import UUID, uuid4
 
 from sqlalchemy import and_, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from backend.app.db.models.catalog import (
     BodyArea,
@@ -37,6 +37,9 @@ from backend.app.modules.catalog.service import (
     DerivedSetState,
     ExerciseDetailRecord,
     ExerciseListRecord,
+    ExerciseVariantRecord,
+    ExerciseVariantSetUnavailableError,
+    ExerciseVariantsRecord,
     MediaArtifact,
     PrescriptionArtifact,
     SafetyRuleArtifact,
@@ -200,6 +203,111 @@ class CatalogRepository:
             form_cues=tuple(exercise.form_cues_ko),
             instruction_content_version=exercise.instruction_content_version,
             media_asset_key=media_asset_key,
+        )
+
+    def get_equipment_variants(
+        self,
+        session: Session,
+        catalog_version_id: UUID,
+        exercise_id: UUID,
+    ) -> ExerciseVariantsRecord | None:
+        source_exercise = session.scalar(
+            select(Exercise).where(
+                Exercise.id == exercise_id,
+                Exercise.catalog_version_id == catalog_version_id,
+                Exercise.review_status_code == "DOMAIN_APPROVED",
+            )
+        )
+        if source_exercise is None:
+            return None
+
+        source_required_equipment_codes = tuple(
+            session.scalars(
+                select(ExerciseEquipment.equipment_code)
+                .where(
+                    ExerciseEquipment.exercise_id == exercise_id,
+                    ExerciseEquipment.requirement_code == EquipmentRequirementCode.REQUIRED,
+                )
+                .order_by(ExerciseEquipment.equipment_code)
+            )
+        )
+
+        variant_exercise = aliased(Exercise)
+        rows = session.execute(
+            select(
+                ExerciseAlternative.alternative_set_version_code,
+                ExerciseAlternative.goal_preservation_code,
+                variant_exercise.id,
+                variant_exercise.name_ko,
+                variant_exercise.instruction_summary_ko,
+                variant_exercise.form_cues_ko,
+                ExerciseMediaAsset.s3_key.label("media_asset_key"),
+            )
+            .join(
+                variant_exercise,
+                variant_exercise.id == ExerciseAlternative.alternative_exercise_id,
+            )
+            .outerjoin(
+                ExerciseMediaAsset,
+                and_(
+                    ExerciseMediaAsset.exercise_id == variant_exercise.id,
+                    ExerciseMediaAsset.catalog_version_id == catalog_version_id,
+                    ExerciseMediaAsset.media_status == "AVAILABLE",
+                    ExerciseMediaAsset.rights_review_status == "APPROVED",
+                    ExerciseMediaAsset.approval_metadata.is_not(None),
+                ),
+            )
+            .where(
+                ExerciseAlternative.source_exercise_id == exercise_id,
+                ExerciseAlternative.reason_code == "EQUIPMENT",
+                ExerciseAlternative.review_status_code == "DOMAIN_APPROVED",
+                ExerciseAlternative.production_eligible.is_(True),
+                ExerciseAlternative.source_metadata["production_approval"].is_not(None),
+                variant_exercise.catalog_version_id == catalog_version_id,
+                variant_exercise.review_status_code == "DOMAIN_APPROVED",
+            )
+            .order_by(
+                variant_exercise.id,
+                ExerciseAlternative.goal_preservation_code,
+                ExerciseAlternative.id,
+            )
+        ).all()
+
+        alternative_set_versions = {row.alternative_set_version_code for row in rows}
+        if len(alternative_set_versions) > 1:
+            raise ExerciseVariantSetUnavailableError
+
+        variant_ids = [row.id for row in rows]
+        required_equipment: dict[UUID, list[str]] = {variant_id: [] for variant_id in variant_ids}
+        if variant_ids:
+            for variant_id, code in session.execute(
+                select(ExerciseEquipment.exercise_id, ExerciseEquipment.equipment_code)
+                .where(
+                    ExerciseEquipment.exercise_id.in_(variant_ids),
+                    ExerciseEquipment.requirement_code == EquipmentRequirementCode.REQUIRED,
+                )
+                .order_by(ExerciseEquipment.exercise_id, ExerciseEquipment.equipment_code)
+            ):
+                required_equipment[variant_id].append(code)
+
+        return ExerciseVariantsRecord(
+            source_exercise_id=exercise_id,
+            source_required_equipment_codes=source_required_equipment_codes,
+            alternative_set_version=(
+                next(iter(alternative_set_versions)) if alternative_set_versions else None
+            ),
+            items=tuple(
+                ExerciseVariantRecord(
+                    exercise_id=row.id,
+                    exercise_name=row.name_ko,
+                    required_equipment_codes=tuple(required_equipment[row.id]),
+                    instruction_summary=row.instruction_summary_ko,
+                    form_cues=tuple(row.form_cues_ko),
+                    goal_preservation_code=row.goal_preservation_code,
+                    media_asset_key=row.media_asset_key,
+                )
+                for row in rows
+            ),
         )
 
     def get_by_version_code(
