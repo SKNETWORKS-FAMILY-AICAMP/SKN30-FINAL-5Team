@@ -21,12 +21,17 @@ class MemoryGateway:
     alias_map: dict[str, str] = field(default_factory=dict)
     upsert_calls: int = 0
     switches: int = 0
+    payload_index_calls: int = 0
 
     def collection_exists(self, collection_name: str) -> bool:
         return collection_name in self.collections
 
     def create_collection(self, *, collection_name: str, **_: Any) -> None:
         self.collections[collection_name] = {}
+
+    def ensure_filter_payload_indexes(self, collection_name: str) -> None:
+        assert collection_name in self.collections
+        self.payload_index_calls += 1
 
     def upsert_points(self, *, collection_name: str, points: tuple[QdrantPoint, ...]) -> None:
         self.upsert_calls += 1
@@ -91,6 +96,7 @@ def test_batch_upsert_rerun_is_idempotent_and_alias_switch_is_atomic() -> None:
     assert manager.activate(collection) is True
     assert manager.activate(collection) is False
     assert gateway.switches == 1
+    assert gateway.payload_index_calls == 2
 
 
 def test_validation_rejects_missing_point_and_wrong_build_hash() -> None:

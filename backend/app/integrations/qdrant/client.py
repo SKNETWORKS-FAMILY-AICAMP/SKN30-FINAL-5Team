@@ -17,6 +17,12 @@ from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedR
 from backend.app.core.config import Settings
 
 VECTOR_NAME = "semantic"
+REQUIRED_FILTER_PAYLOAD_INDEXES: dict[str, models.PayloadSchemaType] = {
+    "catalog_version_code": models.PayloadSchemaType.KEYWORD,
+    "vector_index_version": models.PayloadSchemaType.KEYWORD,
+    "embedding_model_version": models.PayloadSchemaType.KEYWORD,
+    "production_eligible": models.PayloadSchemaType.BOOL,
+}
 
 
 class QdrantProviderError(RuntimeError):
@@ -77,6 +83,8 @@ class QdrantGateway(Protocol):
         vector_dimension: int,
         distance_metric_code: str,
     ) -> None: ...
+
+    def ensure_filter_payload_indexes(self, collection_name: str) -> None: ...
 
     def upsert_points(self, *, collection_name: str, points: tuple[QdrantPoint, ...]) -> None: ...
 
@@ -216,6 +224,36 @@ class OfficialQdrantClientAdapter:
         except Exception as exc:
             raise self._translate(exc) from None
 
+    def ensure_filter_payload_indexes(self, collection_name: str) -> None:
+        """Create and verify the payload indexes required by strict-mode Qdrant filters."""
+
+        try:
+            info = self._client.get_collection(collection_name)
+            existing = info.payload_schema
+            for field_name, field_schema in REQUIRED_FILTER_PAYLOAD_INDEXES.items():
+                current = existing.get(field_name)
+                if current is not None:
+                    if current.data_type != field_schema:
+                        raise QdrantCollectionNotReadyError("VECTOR_INDEX_NOT_READY")
+                    continue
+                self._client.create_payload_index(
+                    collection_name=collection_name,
+                    field_name=field_name,
+                    field_schema=field_schema,
+                    wait=True,
+                    timeout=self._timeout,
+                )
+            verified = self._client.get_collection(collection_name).payload_schema
+            if any(
+                field_name not in verified or verified[field_name].data_type != field_schema
+                for field_name, field_schema in REQUIRED_FILTER_PAYLOAD_INDEXES.items()
+            ):
+                raise QdrantCollectionNotReadyError("VECTOR_INDEX_NOT_READY")
+        except QdrantCollectionNotReadyError:
+            raise
+        except Exception as exc:
+            raise self._translate(exc) from None
+
     def upsert_points(self, *, collection_name: str, points: tuple[QdrantPoint, ...]) -> None:
         provider_points = [
             models.PointStruct(
@@ -310,5 +348,6 @@ __all__ = [
     "QdrantProviderUnavailableError",
     "QdrantSearchHit",
     "QdrantStoredPoint",
+    "REQUIRED_FILTER_PAYLOAD_INDEXES",
     "VECTOR_NAME",
 ]

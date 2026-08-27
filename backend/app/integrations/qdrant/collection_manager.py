@@ -111,6 +111,7 @@ class QdrantCollectionManager:
         expected_ids: tuple[UUID, ...],
         expected_build_hash: str,
     ) -> None:
+        self._gateway.ensure_filter_payload_indexes(collection_name)
         if self._gateway.exact_count(collection_name) != len(expected_ids):
             raise ValueError("Qdrant point count does not match the build input")
         stored = self._gateway.retrieve_points(
