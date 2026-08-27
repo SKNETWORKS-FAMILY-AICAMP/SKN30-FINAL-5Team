@@ -5,7 +5,7 @@
   "production_eligible": false,
   "activation_status": "NOT_ACTIVATED",
   "bundle_manifest_path": "generated/exercise-catalog-v2.0.0-final/backend_bundle/bundle_manifest.json",
-  "bundle_manifest_sha256": "22d90a1f6efa1b5af260573fa7d18b5cd699b6827474bc30d7711f872421a44d",
+  "bundle_manifest_sha256": "aa8e723f1c1973a3b114f3684e879f22f8757ea9b6aa9b86742b96bf6af1e0e6",
   "artifacts": [
     {
       "artifact_kind": "CATALOG",
@@ -32,7 +32,7 @@
       "artifact_kind": "PRESCRIPTIONS",
       "version_code": "prescription-set-v2.0.0",
       "manifest_path": "prescriptions/prescription_manifest.json",
-      "manifest_sha256": "e2237c1ab59784339969405e8b85ee65751459cb95ed119efa1070cffba25abe",
+      "manifest_sha256": "6c1ccbae1f234d30fa9b3bac9c92c4493a9f143c475450fd7985ed717218fa71",
       "record_count": 239,
       "goal_tag_records": 102,
       "prescription_records": 137
