@@ -1,7 +1,11 @@
 from pathlib import Path
 from typing import Any
 
+import pytest
 import yaml
+from pydantic import ValidationError
+
+from backend.app.core.config import Settings
 
 COMPOSE_PATH = Path("infra/deployment/compose.staging.yaml")
 CADDYFILE_PATH = Path("infra/deployment/Caddyfile")
@@ -27,6 +31,18 @@ def test_staging_compose_uses_aurora_and_keeps_internal_ports_private() -> None:
     assert "ports" not in services["qdrant"]
     assert set(services["qdrant"]["expose"]) == {"6333", "6334"}
     assert services["qdrant"]["volumes"] == ["qdrant_data:/qdrant/storage"]
+
+
+def test_qdrant_release_is_digest_pinned_and_ready_before_api_start() -> None:
+    services = _compose()["services"]
+    qdrant = services["qdrant"]
+
+    assert qdrant["image"] == (
+        "qdrant/qdrant:v1.18.2@"
+        "sha256:75eab8c4ba42096724fdcfde8b4de0b5713d529dde32f285a1f86fdcb2c9e50c"
+    )
+    assert "GET /readyz HTTP/1.1" in " ".join(qdrant["healthcheck"]["test"])
+    assert services["api"]["depends_on"]["qdrant"]["condition"] == "service_healthy"
 
 
 def test_only_caddy_is_publicly_published() -> None:
@@ -93,6 +109,38 @@ def test_staging_baseline_is_fail_closed_and_contains_no_provider_secret() -> No
     assert "openai_api_key" not in serialized
     assert "qdrant_api_key" not in serialized
     assert "database_url:" not in serialized
+
+
+def test_plaintext_compose_qdrant_cannot_be_enabled_in_staging() -> None:
+    """Record the approval blocker instead of weakening the Settings gate."""
+    environment = _environment(_compose()["services"]["api"])
+
+    assert environment["QDRANT_URL"] == "http://qdrant:6333"
+    assert environment["QDRANT_TLS_ENABLED"].lower() == "false"
+    with pytest.raises(ValidationError, match="staging/production Qdrant requires TLS"):
+        Settings(
+            _env_file=None,
+            app_env="staging",
+            qdrant_enabled=True,
+            qdrant_url=environment["QDRANT_URL"],
+            qdrant_tls_enabled=False,
+            qdrant_api_key="redacted-test-only-value",
+            embedding_provider_code="APPROVED_PROVIDER",
+            embedding_model_version="approved-model-v1",
+            embedding_vector_dimension=4,
+        )
+
+    with pytest.raises(ValidationError, match="staging/production Qdrant requires QDRANT_API_KEY"):
+        Settings(
+            _env_file=None,
+            app_env="staging",
+            qdrant_enabled=True,
+            qdrant_url="https://qdrant.example.invalid",
+            qdrant_tls_enabled=True,
+            embedding_provider_code="APPROVED_PROVIDER",
+            embedding_model_version="approved-model-v1",
+            embedding_vector_dimension=4,
+        )
 
 
 def test_staging_env_example_and_bootstrap_contain_no_secret_values() -> None:

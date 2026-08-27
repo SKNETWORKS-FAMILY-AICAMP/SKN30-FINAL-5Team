@@ -24,6 +24,9 @@ services:
       V3_REGENERATION_ENABLED: "false"
       V3_EXECUTION_PROFILE: LEGACY
       V3_PRODUCTION_PROMOTION_APPROVED: "false"
+      # Fail-closed baseline only. Do not enable this plaintext in-Compose
+      # endpoint until the staging Qdrant topology has the required approval.
+      # Settings requires TLS and an API key whenever staging Qdrant is enabled.
       QDRANT_ENABLED: "false"
       QDRANT_URL: http://qdrant:6333
       QDRANT_TLS_ENABLED: "false"
