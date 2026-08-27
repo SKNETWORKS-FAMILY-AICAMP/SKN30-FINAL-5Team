@@ -358,13 +358,52 @@ describe('HomeScreen Home v1 transcription', () => {
     render(<HomeScreen {...homePreviewProps('routine')} />);
 
     expect(screen.getAllByText('자세')).toHaveLength(3);
-    expect(
-      await screen.findByRole('button', { name: '밴드 로우 장비 보기' }),
-    ).toBeOnTheScreen();
+    const postureButton = screen.getByRole('button', {
+      name: '밴드 로우 자세 보기',
+    });
+    const equipmentButton = await screen.findByRole('button', {
+      name: '밴드 로우 장비 보기',
+    });
+    expect(equipmentButton).toBeOnTheScreen();
     expect(
       screen.queryByRole('button', { name: '푸시업 장비 보기' }),
     ).toBeNull();
     expect(screen.getByText('장비')).toBeOnTheScreen();
+    const postureStyle = StyleSheet.flatten(postureButton.props.style);
+    const equipmentStyle = StyleSheet.flatten(equipmentButton.props.style);
+    expect(equipmentStyle).toMatchObject({
+      width: postureStyle.width,
+      height: postureStyle.height,
+      minHeight: postureStyle.minHeight,
+      paddingHorizontal: postureStyle.paddingHorizontal,
+      paddingVertical: postureStyle.paddingVertical,
+      borderColor: '#9CC5DF',
+      backgroundColor: '#E7F3FA',
+    });
+    const postureTextStyle = StyleSheet.flatten(
+      screen.getAllByText('자세')[0]?.props.style,
+    );
+    expect(
+      StyleSheet.flatten(screen.getByText('장비').props.style),
+    ).toMatchObject({
+      color: '#356A85',
+      fontSize: postureTextStyle.fontSize,
+      fontWeight: postureTextStyle.fontWeight,
+    });
+    expect(postureStyle).toMatchObject({
+      width: expect.any(Number),
+      height: expect.any(Number),
+    });
+    const emptyEquipmentSlot = screen.getByTestId(
+      'routine-equipment-slot-plan-item-2',
+    );
+    const filledEquipmentSlot = screen.getByTestId(
+      'routine-equipment-slot-plan-item-3',
+    );
+    expect(emptyEquipmentSlot).toBeVisible();
+    expect(StyleSheet.flatten(emptyEquipmentSlot.props.style)).toEqual(
+      StyleSheet.flatten(filledEquipmentSlot.props.style),
+    );
     expect(
       screen.getByTestId('routine-guide-actions-plan-item-1'),
     ).toBeVisible();
@@ -409,6 +448,45 @@ describe('HomeScreen Home v1 transcription', () => {
       ),
     ).toBeOnTheScreen();
     expect(screen.queryByTestId('exercise-posture-guide')).toBeNull();
+  });
+
+  it('shows equipment guidance without a variant section when required equipment exists', async () => {
+    const props = homePreviewProps('routine');
+    render(
+      <HomeScreen
+        {...props}
+        exerciseApi={{
+          getExercise: props.exerciseApi!.getExercise,
+          async getExerciseVariants(exerciseId) {
+            return {
+              source_exercise_id: exerciseId,
+              source_required_equipment_codes:
+                exerciseId === 'exercise-1'
+                  ? ['BODYWEIGHT', 'MAT']
+                  : ['BODYWEIGHT'],
+              items: [],
+              catalog_version: 'home-equipment-only-v1',
+              alternative_set_version: null,
+            };
+          },
+        }}
+      />,
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '푸시업 장비 보기' }),
+    );
+
+    expect(
+      screen.getByRole('header', { name: '푸시업 장비 안내' }),
+    ).toBeOnTheScreen();
+    expect(screen.getByText('매트')).toBeOnTheScreen();
+    expect(screen.queryByTestId('exercise-variants-list')).toBeNull();
+    expect(
+      screen.queryByText(
+        '장비가 없을 때 아래 방법으로 동작을 변형할 수 있어요.',
+      ),
+    ).toBeNull();
   });
 
   it('hides variant actions while the backend capability is unavailable', () => {
@@ -1049,7 +1127,11 @@ describe('HomeScreen Home v1 transcription', () => {
   });
 
   it('renders a centered filled-gradient check-in CTA without the banana glyph', () => {
-    render(<HomeScreen previewState="routine" />);
+    render(
+      <ScaleViewportProvider viewport={{ width: 390, height: 844 }}>
+        <HomeScreen onStartWorkout={() => undefined} previewState="routine" />
+      </ScaleViewportProvider>,
+    );
 
     const button = screen.getByRole('button', { name: '오늘 루틴 체크인' });
     const buttonStyle = StyleSheet.flatten(button.props.style);
@@ -1087,13 +1169,35 @@ describe('HomeScreen Home v1 transcription', () => {
       position: 'absolute',
       right: expect.any(Number),
     });
+    const startButton = screen.getByRole('button', { name: '운동 시작하기' });
+    const startButtonStyle = StyleSheet.flatten(startButton.props.style);
     const startLabels = screen.getAllByText('운동 시작하기');
+    const startLabelStyle = StyleSheet.flatten(startLabels[0]?.props.style);
+    const startGradient = screen.getByTestId('home-start-gradient');
     expect(startLabels).toHaveLength(1);
-    expect(StyleSheet.flatten(startLabels[0]?.props.style)).toMatchObject({
-      color: colors.text,
-      fontFamily: fontFamilies.slogan,
+    expect(startButtonStyle).toMatchObject({
+      minHeight: 58,
+      position: 'relative',
+      borderColor: 'rgba(218, 150, 30, 0.62)',
+      borderRadius: 18,
+      overflow: 'hidden',
+      shadowColor: '#5A4636',
+      shadowOpacity: 0.13,
+    });
+    expect(startButtonStyle.backgroundColor).toBeUndefined();
+    expect(startGradient.props.colors).toEqual(
+      ['#FFFDF8', '#FFF2D1', '#FFE2A3'].map(processColor),
+    );
+    expect(startGradient.props.locations).toEqual([0, 0.55, 1]);
+    expect(startLabelStyle).toMatchObject({
+      color: '#5A4636',
+      fontSize: 17,
+      fontWeight: '800',
+      letterSpacing: -0.1,
       textAlign: 'center',
     });
+    expect(startLabelStyle.fontFamily).toBeUndefined();
+    expect(screen.queryByTestId('home-start-chevron-chip')).toBeNull();
 
     fireEvent.press(button);
     const submitButton = screen.getByRole('button', { name: '체크인 !' });
@@ -1127,6 +1231,6 @@ describe('HomeScreen Home v1 transcription', () => {
       resolve(process.cwd(), 'src/features/home/HomeScreen.tsx'),
       'utf8',
     );
-    expect(source.match(/<Svg\b/g)).toHaveLength(15);
+    expect(source.match(/<Svg\b/g)).toHaveLength(14);
   });
 });
