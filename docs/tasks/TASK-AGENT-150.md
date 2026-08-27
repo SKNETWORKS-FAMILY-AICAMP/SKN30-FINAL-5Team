@@ -1,6 +1,6 @@
 # TASK-AGENT-150: Qdrant index 및 V3 staging evidence 수집
 
-- 현재 상태: `READY_FOR_SHADOW_RERUN` (v2.0.1 index 완료, 첫 live shadow의 schema 실패 수정·재실행 승인 대기)
+- 현재 상태: `READY_FOR_SHADOW_RERUN` (v2.0.1 schema-v2 index 완료·활성, 첫 live shadow의 provider schema 실패 수정·재실행 승인 대기)
 - 우선순위: `P1`
 - GitHub issue: `#150`
 - Primary owner: 백엔드·데이터 개발팀장
@@ -147,8 +147,8 @@ embedding model로 설명하고 기본 dimension을 3072로 명시한다. 102개
 - `infra/deployment/.env.staging`은 이 worktree에 없고 AWS identity 확인도 실패했다. secret 값을
   로컬 `.env`, 문서, 로그 또는 명령 인자에 복사하지 않는다.
 - #149 PR #165가 병합돼 Qdrant image/digest, healthcheck, safe defaults와 read-only handoff SQL은
-  확정됐다. 다만 #149 자체 상태는 staging Qdrant topology 승인과 Aurora read-only evidence 대기로
-  `BLOCKED`다.
+  확정됐다. #149 자체 상태는 `ACCEPTED`다: staging Qdrant topology는 외부 인증·TLS endpoint로
+  승인됐고 Aurora read-only evidence는 아래 schema-v2 build 절에 기록했다.
 - `infra/deployment/compose.staging.yaml`은 Qdrant를 내부 HTTP로 선언하고 API의 safe default를
   `QDRANT_ENABLED=false`, `QDRANT_TLS_ENABLED=false`로 유지한다. 반면 application settings는 staging에서
   Qdrant를 활성화할 때 HTTPS와 API key를 요구한다. 승인된 외부 Qdrant 또는 승인된 TLS/auth 구성이
@@ -308,6 +308,53 @@ The first evidence directory remains only on the staging host under the ignored 
 prompt, raw provider response, credential, user data, or health record was written to the reports.
 A second provider run requires a new explicit call-budget approval. Until that rerun succeeds this
 task is not `STAGING_EVIDENCE_COMPLETE`.
+
+### 2026-08-27 v2.0.1 schema-v2 staging index build
+
+#168이 embedding input에서 `beginner_suitable` 투영을 제거하면서 기본 input schema가
+`exercise-embedding-input-v2`가 됐다. 직전 ACTIVE index는 `exercise-embedding-input-v1`이어서 계약이
+불일치했고, 그 상태의 retrieval은 오류 없이 deterministic fallback만 반환한다. 이 build가 그 간극을
+해소한다.
+
+- topology는 #149에서 승인한 외부 인증·TLS staging Qdrant endpoint다. 값 비노출 확인에서 scheme
+  `https`, `TLSv1.3`, Let's Encrypt 인증서(만료 `2026-11-11`), hostname 검증 통과, API key 인증
+  `/collections` HTTP `200`이었다.
+- provider 호출 전 read-only preflight: ACTIVE catalog `1`행, UUID
+  `419eaab4-0b93-4a9f-8705-132d46cc681f`, `exercise-catalog-v2.0.1-final`,
+  `DOMAIN_APPROVED`/`DOMAIN_REVIEWER`/`PRODUCTION_APPROVED`, production eligible, activated,
+  indexable exercise count `102`.
+- vector index version은
+  `v201-openai-text-embedding-3-large-d3072-inputv2-cosine-r1-helkki-staging`이다.
+- immutable collection은
+  `exercise_catalog__staging__exercise_catalog_v2_0_1_final__text_embedding_3_large__v201_openai_text_embedding_3_large_d3072_inputv2_cosine_r1_helkki_staging`이다.
+- build hash는 `2805d2e10ea9d71540e0f8fa3c8d100cb3e717340d5e5924462aa2a2b6aa92de`이고
+  PostgreSQL indexable count/Qdrant point count는 `102/102`다.
+- registry는 catalog UUID `419eaab4-0b93-4a9f-8705-132d46cc681f`에 연결된 `ACTIVE` 1행이며 model
+  `text-embedding-3-large`, dimension `3072`, input schema `exercise-embedding-input-v2`, metric
+  `COSINE`과 일치한다. 직전 inputv1 r2 row는 `STALE`로 강등됐다.
+- alias `exercise_catalog_active`는 위 immutable collection만 가리키고 해석된 point count는 `102`다.
+- 기존 inputv1 collection 2개는 삭제하지 않았다. 롤백은 alias를
+  `..._inputv1_cosine_r2_helkki_staging`으로 되돌린다. inputv1 r1 collection은 런북대로 재활성화하지
+  않는다.
+- `V3_PRODUCTION_PROMOTION_APPROVED=false`를 유지했고 실행 중인 staging API stack의 flag는 바꾸지
+  않았다. secret은 실행 process 메모리에만 존재했고 파일, 명령 인자, 로그에 기록하지 않았다.
+- OpenAI adapter가 provider usage를 build result에 노출하지 않으므로 실제 token/cost는 기록하지
+  못했다. 사전 승인된 300,000-token/USD 0.04 상한을 초과했다는 증거는 없지만 이를 실제 비용 측정으로
+  해석하지 않는다.
+- 동일 version 재실행은 같은 build hash `2805d2e10ea9d71540e0f8fa3c8d100cb3e717340d5e5924462aa2a2b6aa92de`,
+  point count `102`, `alias_changed=false`를 반환해 멱등성을 확인했다.
+- 이 build만으로 live retrieval evidence를 대체하지 않는다. staging API stack에서의 실제 retrieval
+  확인은 아래 demo profile 적용 후 별도로 수집한다.
+
+### 2026-08-27 승인된 V3 demo agent model
+
+- agent model code는 `gpt-5.6-terra`로 통일했고 `LLM_AGENTS_APPROVED_MODEL_CODES`도 같은 값 1건이다.
+- `.env.example:51`이 요구하는 provider 모델 목록 대조를 수행했다. staging key로 조회한 provider
+  model list `124`건에 `gpt-5.6-terra`가 존재한다.
+- narration(ADR-0011)의 `LLM_MODEL_CODE` 기본값도 같은 코드로 정렬했으나 `LLM_ENABLED=false`를
+  유지해 narration provider 호출은 켜지 않았다.
+- `openai_demo_gates_ready`와 V3 demo runtime 구성이 이 설정에서 통과함을 provider 호출 없이
+  확인했다. `V3_PRODUCTION_PROMOTION_APPROVED=false`를 유지한다.
 
 ### 2026-08-27 v2.0.1 local PostgreSQL/Qdrant integration
 
