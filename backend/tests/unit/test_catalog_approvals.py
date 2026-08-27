@@ -1,4 +1,8 @@
-from backend.app.modules.catalog.approvals import get_catalog_approval, get_derived_data_approval
+from backend.app.modules.catalog.approvals import (
+    ArtifactKind,
+    get_catalog_approval,
+    get_derived_data_approval,
+)
 
 
 def test_exact_reviewed_safety_artifact_is_production_approved() -> None:
@@ -36,7 +40,7 @@ def test_exact_merged_bundle_approvals_are_hash_and_count_bound() -> None:
 
 
 def test_exact_v2_approvals_preserve_packet_metadata_and_waiver() -> None:
-    artifacts = (
+    artifacts: tuple[tuple[ArtifactKind, str, str, int], ...] = (
         (
             "CATALOG",
             "exercise-catalog-v2.0.1-final",
@@ -58,7 +62,7 @@ def test_exact_v2_approvals_preserve_packet_metadata_and_waiver() -> None:
         (
             "PRESCRIPTIONS",
             "prescription-set-v2.0.1",
-            "9d5a8fc0b4e981cfd566843ab3eefd245571e2d1a89503936696d00f1df59dc6",
+            "74b911d2fc10c904698564360a8ec4b54a723244bf28a1b4f2d44a1075471ef7",
             239,
         ),
     )

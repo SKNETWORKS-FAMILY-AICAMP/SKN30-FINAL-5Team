@@ -404,8 +404,13 @@ python3 data/scripts/generate_representative_content_safety.py \
 ```
 
 새 pattern bridge rule은 `INACTIVE_PENDING_DOMAIN_APPROVAL`로만 내보내며, 생성기가
-운영 활성화하지 않는다. 원본 미디어는 처리하지 않는다. 별도 권리 승인 입력이 없으면
-`media_assets_v2_final.csv`는 header-only로 남고 S3 업로드·사용자 노출은 발생하지 않는다.
+운영 활성화하지 않는다. 원본 미디어는 기본 생성기에서 처리하지 않는다. Gymvisual 미디어를
+연결할 때는 `data/scripts/sync_gymvisual_media.py --mapping-only`로
+`gymvisual_media_mapping_manifest.csv`를 생성하고, 필요 시 같은 스크립트의 S3 모드로 기존
+`images/`·`videos/` 객체를 보존한 채 `catalog-media/gymvisual/<stable_code>/` canonical alias만
+추가한다. 원본 S3 key는 매핑 manifest에만 남기며 `media_assets_v2_final.csv`의 `s3_key`에는
+canonical GIF key만 기록한다. 권리 승인이 없으면 최종 산출물의 `rights_review_status`는
+`PENDING`이고 `production_eligible=false`다.
 
 각 안전 규칙의 `pain_score_decisions`는 `pain-intensity-map-v1`에 따라 1–3점에서 규칙별
 부하 조절 또는 안전 대체를 요구하고, 4–6점에서 검수된 안전 대체나 저강도 회복 콘텐츠만

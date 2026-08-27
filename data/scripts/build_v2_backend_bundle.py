@@ -279,7 +279,13 @@ def _package_prescriptions(root: Path, prescription_dir: Path) -> list[Path]:
         "source_prescription_manifest_sha256": sha256_bytes(
             (prescription_dir / "prescription_manifest.json").read_bytes()
         ),
-        "source_prescription_manifest_path": str(prescription_dir / "prescription_manifest.json"),
+        # Keep the bundle reproducible when it is built in a temporary staging
+        # directory.  Absolute staging paths are not artifact provenance.
+        # Derived from the version constant so it cannot drift from the draft
+        # directory the bundle was actually packaged from.
+        "source_prescription_manifest_path": (
+            f"generated/{DEFAULT_PRESCRIPTIONS.name}/prescription_manifest.json"
+        ),
     }
     for entry in manifest["files"]:
         path = destination / entry["path"]

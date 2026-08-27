@@ -26,12 +26,12 @@
   },
   "schema_version": "1.0",
   "source": {
-    "catalog_review_input_path": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/generated/exercise-catalog-v2.0.0-final/representative_exercises_v2_final.csv",
+    "catalog_review_input_path": "data/generated/exercise-catalog-v2.0.0-final/representative_exercises_v2_final.csv",
     "catalog_review_input_sha256": "00a2da29a2754efbf888200fddeb65804edea6b1858e850916ddd63c9653d236",
     "catalog_version_code": "exercise-catalog-v2.0.0-final",
     "policy_path": "data/normalized/v2_prescription_review_policy.json",
     "policy_sha256": "09beba6ea28e5b3285f8973f44d4aeb6ad3886b1989f4870931f7c4109810214",
-    "review_results_path": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/validation/review_results/v2_prescription_review_input.csv",
+    "review_results_path": "data/validation/review_results/v2_prescription_review_input.csv",
     "review_results_sha256": "d45ad9eff3238211f02787127b3ff555b1753d53d713bf170376829d0afb5b8e"
   },
   "summary": {

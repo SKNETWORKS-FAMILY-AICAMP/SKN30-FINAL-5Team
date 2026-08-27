@@ -103,6 +103,11 @@ describe('App boot navigation', () => {
       readyText: '내 프로필',
     },
     {
+      mode: 'exercise-catalog' as const,
+      label: 'Exercise catalog (API)',
+      readyText: '의자 스쿼트',
+    },
+    {
       mode: 'mascot-house' as const,
       label: 'Mascot house (API)',
       readyText: '집 꾸미기',

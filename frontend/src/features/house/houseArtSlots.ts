@@ -249,6 +249,22 @@ export function randomHouseRegularPoseArt(
   return randomNonRepeatingArt(houseRegularPoseArt, previousSource, random);
 }
 
+/** Picks a normal pose for petting while preserving the pet reaction semantics. */
+export function randomHousePettedPoseArt(
+  previousSource: ImageSourcePropType | null = null,
+  random: () => number = Math.random,
+): HouseArtSlot {
+  const selected = randomNonRepeatingArt(
+    houseRegularPoseArt,
+    previousSource,
+    random,
+  );
+  return {
+    ...housePoseArt.petted,
+    source: selected.source,
+  };
+}
+
 /** Decorations. All pending, each with its own colour so the room reads. */
 export const houseItemArt: Record<HouseItemId, HouseArtSlot> = {
   yoga_mat: slot('item-yoga_mat', '요가 매트', null, '#DCD3F2', '#9E8FD0'),

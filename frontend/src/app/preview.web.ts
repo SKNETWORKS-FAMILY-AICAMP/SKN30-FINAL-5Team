@@ -3,6 +3,7 @@ export type PreviewMode =
   | 'auth'
   | 'background_test'
   | 'calendar-report'
+  | 'exercise-catalog'
   | 'gallery'
   | 'home'
   | 'home-map'
@@ -35,6 +36,7 @@ export function getPreviewMode(): PreviewMode {
     requestedPreview === 'auth' ||
     requestedPreview === 'background_test' ||
     requestedPreview === 'calendar-report' ||
+    requestedPreview === 'exercise-catalog' ||
     requestedPreview === 'gallery' ||
     requestedPreview === 'home' ||
     requestedPreview === 'home-map' ||

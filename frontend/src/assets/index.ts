@@ -13,6 +13,7 @@ export const imageAssets = {
   progressMascot:
     require('./mascot/progress-mascot.webp') as ImageSourcePropType,
   dayTodo: require('./mascot/day-todo.webp') as ImageSourcePropType,
+  banana: require('./mascot/monkey/banana/banana.png') as ImageSourcePropType,
   profileDefault:
     require('./mascot/monkey/sheet_01/monkey_10.png') as ImageSourcePropType,
   weeklyProgressComplete:
@@ -39,6 +40,12 @@ export const imageAssets = {
     require('./house/camping/background/thumbnails/snowing_onsen.jpg') as ImageSourcePropType,
   houseMascotMonkey01:
     require('./mascot/monkey/sheet_01/monkey_01.png') as ImageSourcePropType,
+  houseMascotCollectingBananasEmpty:
+    require('./mascot/monkey/collecting_bananas/01_bananas_empty.png') as ImageSourcePropType,
+  houseMascotCollectingBananasMedium:
+    require('./mascot/monkey/collecting_bananas/02_bananas_medium.png') as ImageSourcePropType,
+  houseMascotCollectingBananasFull:
+    require('./mascot/monkey/collecting_bananas/03_bananas_full.png') as ImageSourcePropType,
   houseMascotBananaSheet01Monkey07:
     require('./mascot/monkey/sheet_01/banana_monkey_07.png') as ImageSourcePropType,
   houseMascotBananaSheet01Monkey08:

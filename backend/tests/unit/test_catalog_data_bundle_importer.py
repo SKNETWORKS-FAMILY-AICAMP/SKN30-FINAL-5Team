@@ -1,6 +1,7 @@
 import hashlib
 import json
-from contextlib import AbstractContextManager, contextmanager
+from collections.abc import Iterator
+from contextlib import contextmanager
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -43,13 +44,13 @@ SAFETY_DIRECTORY = GENERATED / "exercise-safety-rules-merged-mvp-v0.5.0"
 ALTERNATIVE_DIRECTORY = GENERATED / "exercise-alternatives-merged-mvp-v0.4.0"
 PRESCRIPTION_DIRECTORY = GENERATED / "exercise-prescriptions-merged-mvp-v0.1.0"
 V2_BUNDLE_DIRECTORY = GENERATED / "exercise-catalog-v2.0.1-final" / "backend_bundle"
-V2_BUNDLE_HASH = "5974ed95fdc9598000d9ac4e84c600ddac3d1caec245f04a29ad46e592be4206"
+V2_BUNDLE_HASH = "8ac896f3de3f2e292d7e27554c7dd3a2e3aa8afed69031bd493daf1f98df6ff5"
 V2_TAXONOMY_HASH = "79e487cc1a41ea39db9b4afb0799b3297840de878a2ae4ed621ef3e4403a0985"
 
 
 class FakeSession:
     @contextmanager
-    def begin(self) -> AbstractContextManager[None]:
+    def begin(self) -> Iterator[None]:
         yield
 
 
@@ -112,7 +113,7 @@ class RollbackFakeSession:
         self.repository = repository
 
     @contextmanager
-    def begin(self) -> AbstractContextManager[None]:
+    def begin(self) -> Iterator[None]:
         snapshot = deepcopy(self.repository.__dict__)
         try:
             yield

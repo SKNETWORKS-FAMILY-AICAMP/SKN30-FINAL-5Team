@@ -290,6 +290,16 @@ function decision(adjusted: boolean): DecisionResponse {
         ? '안전 기준을 유지하면서 운동 부담을 조정했어요.'
         : '현재 체크인에 적용할 안전 제한을 확인했어요.',
     },
+    generation_mode_code: adjusted ? 'REGENERATED' : 'ORIGINAL',
+    decision_engine_code: 'LLM_MULTI_AGENT',
+    root_decision_id: '66666666-6666-4666-8666-666666666666',
+    parent_decision_id: adjusted
+      ? '66666666-6666-4666-8666-666666666666'
+      : null,
+    regeneration_sequence: adjusted ? 1 : 0,
+    meaningful_difference_codes: adjusted
+      ? ['SET_REP_STRUCTURE_CHANGED']
+      : null,
     created_at: `${LOCAL_DATE}T08:05:00+09:00`,
   };
 }

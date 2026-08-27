@@ -12,6 +12,7 @@ import type {
   ConsentValues,
   DailyContextRequest,
   DailyContextResponse,
+  DecisionRegenerationRequest,
   DecisionResponse,
   DecisionSelectionResponse,
   ExerciseDetailResponse,
@@ -209,6 +210,15 @@ export function createApi(client: ApiClient) {
         path: '/decisions',
         query: { local_date: localDate },
         signal,
+      });
+    },
+
+    regenerateDecision(decisionId: string, body: DecisionRegenerationRequest) {
+      return client.request<DecisionResponse>({
+        method: 'POST',
+        path: `/decisions/${decisionId}/regenerations`,
+        body,
+        idempotent: true,
       });
     },
 

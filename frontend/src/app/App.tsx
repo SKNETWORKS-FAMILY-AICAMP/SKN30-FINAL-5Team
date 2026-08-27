@@ -169,6 +169,7 @@ export function App({
     activePreview === 'account' ||
     activePreview === 'auth' ||
     activePreview === 'background_test' ||
+    activePreview === 'exercise-catalog' ||
     activePreview === 'loading' ||
     activePreview === 'mascot-house' ||
     activePreview === 'session' ||
@@ -198,6 +199,8 @@ export function App({
             <PreviewGallery initialScreenId="auth" />
           ) : activePreview === 'background_test' ? (
             <PreviewGallery initialScreenId="background_test" />
+          ) : activePreview === 'exercise-catalog' ? (
+            <PreviewGallery initialScreenId="exercise-catalog" />
           ) : activePreview === 'loading' ? (
             <PreviewGallery initialScreenId="loading" />
           ) : activePreview === 'mascot-house' ? (

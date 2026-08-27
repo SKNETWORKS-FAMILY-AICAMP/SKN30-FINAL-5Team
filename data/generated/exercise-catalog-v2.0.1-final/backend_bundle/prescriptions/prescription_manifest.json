@@ -41,8 +41,8 @@
         "sha256": "09beba6ea28e5b3285f8973f44d4aeb6ad3886b1989f4870931f7c4109810214"
       }
     ],
-    "source_prescription_manifest_path": "C:\\Users\\playdata2\\SKN30_FINAL_5\\data\\generated\\exercise-prescriptions-v2.0.1-draft\\prescription_manifest.json",
-    "source_prescription_manifest_sha256": "41547d595772108a106a3dc0197a8ef8765f1dbd79f850d188fd30b55d065b95"
+    "source_prescription_manifest_path": "generated/exercise-prescriptions-v2.0.1-draft/prescription_manifest.json",
+    "source_prescription_manifest_sha256": "18f7655cf2758511849c06821d6e09a6a9db3de5bb186513f928bd44c30ac72b"
   },
   "summary": {
     "exercise_records": 102,

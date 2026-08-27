@@ -76,9 +76,9 @@
       "sha256": "09beba6ea28e5b3285f8973f44d4aeb6ad3886b1989f4870931f7c4109810214"
     },
     {
-      "bytes": 1711,
+      "bytes": 1666,
       "path": "prescriptions/prescription_manifest.json",
-      "sha256": "9d5a8fc0b4e981cfd566843ab3eefd245571e2d1a89503936696d00f1df59dc6"
+      "sha256": "74b911d2fc10c904698564360a8ec4b54a723244bf28a1b4f2d44a1075471ef7"
     },
     {
       "bytes": 56211,

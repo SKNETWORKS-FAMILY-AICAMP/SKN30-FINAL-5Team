@@ -2,7 +2,7 @@
   "activation_status": "NOT_ACTIVATED",
   "approval_evidence": [],
   "bundle_manifest_path": "generated/exercise-catalog-v2.0.0-final/backend_bundle/bundle_manifest.json",
-  "bundle_manifest_sha256": "22d90a1f6efa1b5af260573fa7d18b5cd699b6827474bc30d7711f872421a44d",
+  "bundle_manifest_sha256": "aa8e723f1c1973a3b114f3684e879f22f8757ea9b6aa9b86742b96bf6af1e0e6",
   "bundle_summary": {
     "alternative_records": 285,
     "catalog_records": 102,

@@ -6,6 +6,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 SCRIPT = Path(__file__).resolve().parents[1] / "build_final_exercise_catalog_v2.py"
 spec = importlib.util.spec_from_file_location("build_final_exercise_catalog_v2", SCRIPT)
@@ -15,10 +16,64 @@ spec.loader.exec_module(final_catalog)
 
 
 class FinalExerciseCatalogV2Tests(unittest.TestCase):
+    @staticmethod
+    def _write_pending_media_review(path: Path) -> None:
+        representatives = [
+            row
+            for row in final_catalog.read_csv(
+                final_catalog.DEFAULT_OUTPUT_DIR / "representative_exercises_v2_final.csv"
+            )
+            if row["source_track"] == "gymvisual"
+        ]
+        with path.open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=final_catalog.MEDIA_REVIEW_COLUMNS)
+            writer.writeheader()
+            for row in representatives:
+                stable_code = row["stable_code"]
+                values = {field: "" for field in final_catalog.MEDIA_REVIEW_COLUMNS}
+                values.update(
+                    {
+                        "representative_exercise_id": row["representative_exercise_id"],
+                        "source_identity": row["source_identity"],
+                        "source_image_s3_key": f"images/{row['source_identity']}-test.jpg",
+                        "source_gif_s3_key": f"videos/{row['source_identity']}-test.gif",
+                        "gif_s3_key": f"catalog-media/gymvisual/{stable_code}/demo.gif",
+                        "thumbnail_s3_key": f"catalog-media/gymvisual/{stable_code}/thumbnail.jpg",
+                        "media_status": "AVAILABLE",
+                        "source_gif_content_type": "image/gif",
+                        "source_gif_content_length": "10",
+                        "source_gif_etag": '"source-gif"',
+                        "source_image_content_type": "image/jpeg",
+                        "source_image_content_length": "10",
+                        "source_image_etag": '"source-image"',
+                        "gif_content_type": "image/gif",
+                        "gif_content_length": "10",
+                        "gif_etag": '"gif"',
+                        "thumbnail_content_type": "image/jpeg",
+                        "thumbnail_content_length": "10",
+                        "thumbnail_etag": '"thumbnail"',
+                        "s3_technical_status": "VERIFIED",
+                        "verified_at": "2026-08-26T00:00:00+00:00",
+                        "rights_review_status": "PENDING",
+                        "rights_reviewer": "",
+                        "rights_reviewed_at": "",
+                        "rights_evidence_reference": (
+                            "data/raw/gym_visual/source.json;"
+                            f"data/raw/gym_visual/exercises.json#id={row['source_identity']}"
+                        ),
+                        "production_eligibility": "false",
+                        "backend_visibility": "HIDDEN",
+                    }
+                )
+                writer.writerow(values)
+
     def test_builds_final_named_artifacts_with_inactive_bridge_rules(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
-            report = final_catalog.build(output)
+            review_path = output / "gymvisual_media_reviewed.csv"
+            self._write_pending_media_review(review_path)
+            with patch.object(final_catalog, "MEDIA_REVIEW_PATH", review_path):
+                report = final_catalog.build(output)
 
             self.assertEqual(report["representative_count"], 102)
             self.assertEqual(report["taxonomy_approved_representative_count"], 102)
@@ -38,7 +93,7 @@ class FinalExerciseCatalogV2Tests(unittest.TestCase):
             self.assertEqual(report["stable_code_count"], 102)
             self.assertTrue(report["runtime_json_eligible"])
             self.assertEqual(report["runtime_json_blockers"], {})
-            self.assertEqual(len(report["source_artifact_sha256"]), 2)
+            self.assertEqual(len(report["source_artifact_sha256"]), 3)
 
             with (output / "representative_exercises_v2_final.csv").open(
                 encoding="utf-8", newline=""
@@ -230,7 +285,37 @@ class FinalExerciseCatalogV2Tests(unittest.TestCase):
             with (output / "media_assets_v2_final.csv").open(
                 encoding="utf-8", newline=""
             ) as handle:
-                self.assertEqual(list(csv.DictReader(handle)), [])
+                media = list(csv.DictReader(handle))
+            self.assertEqual(len(media), 87)
+            self.assertEqual(tuple(media[0]), final_catalog.MEDIA_COLUMNS)
+            self.assertTrue(all(row["s3_key"].startswith("catalog-media/") for row in media))
+            self.assertTrue(all(row["s3_key"].endswith(".gif") for row in media))
+            self.assertTrue(all("source_" not in row for row in media))
+            self.assertTrue(all(row["rights_review_status"] == "PENDING" for row in media))
+
+    def test_media_projection_requires_approval_fields_and_is_deterministic(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            review_path = root / "gymvisual_media_reviewed.csv"
+            self._write_pending_media_review(review_path)
+            with patch.object(final_catalog, "MEDIA_REVIEW_PATH", review_path):
+                first = final_catalog.build(root / "first")
+                second = final_catalog.build(root / "second")
+            first_media = (root / "first/media_assets_v2_final.csv").read_bytes()
+            second_media = (root / "second/media_assets_v2_final.csv").read_bytes()
+            self.assertEqual(first_media, second_media)
+            self.assertEqual(first["approved_media_asset_count"], 0)
+            self.assertEqual(second["approved_media_asset_count"], 0)
+
+            rows = final_catalog.read_csv(review_path)
+            rows[0]["rights_review_status"] = "APPROVED"
+            with self.assertRaisesRegex(final_catalog.FinalizationError, "requires reviewer"):
+                final_catalog.build_media_assets(
+                    final_catalog.read_csv(
+                        final_catalog.DEFAULT_OUTPUT_DIR / "representative_exercises_v2_final.csv"
+                    ),
+                    rows,
+                )
 
     def test_finalization_rejects_an_unexpected_placeholder_family(self) -> None:
         rows = final_catalog.read_csv(final_catalog.TAXONOMY_PATH)

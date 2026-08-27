@@ -631,7 +631,7 @@ describe('MyPageContainer', () => {
     fireEvent.press(screen.getByRole('button', { name: '장비 수정' }));
     expect(screen.getByRole('header', { name: '장비 수정' })).toBeOnTheScreen();
     expect(screen.queryByRole('header', { name: '주의 부위 수정' })).toBeNull();
-    expect(screen.queryByRole('checkbox', { name: '덤벨' })).toBeNull();
+    expect(screen.getByRole('checkbox', { name: '덤벨' })).not.toBeChecked();
     expect(screen.getByRole('checkbox', { name: '맨몸' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: '밴드' })).toBeChecked();
     fireEvent.press(screen.getByRole('checkbox', { name: '매트' }));

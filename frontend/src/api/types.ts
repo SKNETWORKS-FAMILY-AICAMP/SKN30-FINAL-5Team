@@ -18,6 +18,15 @@ export type DiscomfortSeverityCode = 'MILD' | 'MODERATE' | 'SEVERE';
 export type FatigueLevelCode = 'LOW' | 'MODERATE' | 'HIGH';
 export type BlockStatusCode = 'PENDING' | 'COMPLETED';
 export type ToneCode = 'SERIOUS' | 'NEUTRAL';
+export type DecisionGenerationModeCode = 'ORIGINAL' | 'REGENERATED';
+export type DecisionEngineCode =
+  'DETERMINISTIC' | 'LLM_MULTI_AGENT' | 'DETERMINISTIC_FALLBACK';
+export type RegenerationSequence = 0 | 1 | 2;
+export type MeaningfulDifferenceCode =
+  | 'CORE_EXERCISE_CHANGED'
+  | 'SET_REP_STRUCTURE_CHANGED'
+  | 'EXERCISE_ORDER_CHANGED'
+  | 'ROUTINE_STRUCTURE_CHANGED';
 
 export type SexCode = 'FEMALE' | 'MALE' | 'PREFER_NOT_TO_SAY';
 
@@ -313,7 +322,19 @@ export type DecisionResponse = {
   guidance: Guidance | null;
   public_agent_summaries: AgentSummary[] | null;
   safety_summary: SafetySummary | null;
+  /** Absent on historical and legacy-engine decisions. */
+  generation_mode_code?: DecisionGenerationModeCode | null;
+  decision_engine_code?: DecisionEngineCode | null;
+  root_decision_id?: string | null;
+  parent_decision_id?: string | null;
+  regeneration_sequence?: RegenerationSequence | null;
+  meaningful_difference_codes?: MeaningfulDifferenceCode[] | null;
   created_at: string;
+};
+
+export type DecisionRegenerationRequest = {
+  expected_plan_id: string;
+  expected_regeneration_sequence: 0 | 1;
 };
 
 export type WorkoutSessionSummary = {

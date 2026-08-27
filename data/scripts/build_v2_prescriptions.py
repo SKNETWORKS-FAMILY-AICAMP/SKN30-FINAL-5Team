@@ -14,6 +14,7 @@ from validate_v2_prescription_review_input import load_results, validate_results
 
 GENERATOR_VERSION = "v2-prescription-generator-1.0.0"
 CATALOG_VERSION = "exercise-catalog-v2.0.1-final"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CATALOG = (
     Path(__file__).resolve().parents[1]
     / "generated/exercise-catalog-v2.0.1-final/representative_exercises_v2_final.csv"
@@ -47,6 +48,14 @@ def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> int:
         newline="\n",
     )
     return len(rows)
+
+
+def _provenance_path(path: Path) -> str:
+    """Store repository-relative provenance, never a staging/worktree path."""
+    try:
+        return path.resolve().relative_to(PROJECT_ROOT).as_posix()
+    except ValueError:
+        return path.as_posix()
 
 
 def build(
@@ -109,11 +118,11 @@ def build(
         },
         "source": {
             "catalog_version_code": CATALOG_VERSION,
-            "catalog_review_input_path": str(catalog_path),
+            "catalog_review_input_path": _provenance_path(catalog_path),
             "catalog_review_input_sha256": sha256_bytes(catalog_path.read_bytes()),
-            "review_results_path": str(results_path),
+            "review_results_path": _provenance_path(results_path),
             "review_results_sha256": sha256_bytes(results_path.read_bytes()),
-            "policy_path": str(policy_path),
+            "policy_path": _provenance_path(policy_path),
             "policy_sha256": sha256_bytes(policy_path.read_bytes()),
         },
         "review": {
