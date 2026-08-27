@@ -42,7 +42,7 @@ def _database_url() -> str:
     return database_url
 
 
-def _add_user(session: Session) -> UUID:
+def _add_user(session: Session, *, experience_level_code: str = "BEGINNER") -> UUID:
     user_id = uuid4()
     session.add(
         User(
@@ -61,7 +61,7 @@ def _add_user(session: Session) -> UUID:
             protected_birthdate="synthetic-protected-value",
             nickname="합성 사용자",
             primary_goal_code="GENERAL_FITNESS",
-            experience_level_code="BEGINNER",
+            experience_level_code=experience_level_code,
             timezone="Asia/Seoul",
             preferred_location_code="HOME",
             default_requested_duration_minutes=10,
@@ -87,18 +87,21 @@ def _add_exercise(
     phase: str,
     seconds: int,
     tier: str,
+    difficulty_code: str = "BEGINNER",
 ) -> None:
     exercise = Exercise(
         id=uuid4(),
         catalog_version_id=catalog.id,
-        stable_code=f"synthetic-{phase.lower()}",
-        name_ko=name,
+        stable_code=f"synthetic-{difficulty_code.lower()}-{phase.lower()}",
+        name_ko=f"{difficulty_code} {name}",
         name_en=None,
         training_type_code="STRENGTH" if phase == "MAIN" else "MOBILITY",
         body_focus_code="FULL_BODY",
         primary_movement_pattern_code=("CORE_BRACE" if phase == "MAIN" else "MOBILITY_STRETCH"),
-        difficulty_code="BEGINNER",
-        beginner_suitable=True,
+        difficulty_code=difficulty_code,
+        # Deliberately opposite for BEGINNER records: recommendation must use
+        # difficulty_code only while this legacy DB column still exists.
+        beginner_suitable=difficulty_code == "INTERMEDIATE",
         timing_mode_code="DURATION",
         default_seconds_per_rep=None,
         default_work_seconds=seconds - 10,
@@ -110,7 +113,7 @@ def _add_exercise(
         instruction_content_version="synthetic-v1",
         review_status_code="DOMAIN_APPROVED",
         source_track_code="kspo",
-        source_identity=f"synthetic-{phase.lower()}",
+        source_identity=f"synthetic-{difficulty_code.lower()}-{phase.lower()}",
     )
     session.add(exercise)
     session.add(ExerciseLocation(exercise_id=exercise.id, location_code="HOME"))
@@ -122,25 +125,29 @@ def _add_exercise(
             review_status_code="DOMAIN_APPROVED",
         )
     )
-    session.add(
-        ExercisePrescriptionProfile(
-            id=uuid4(),
-            exercise_id=exercise.id,
-            goal_code="GENERAL_FITNESS",
-            experience_level_code="BEGINNER",
-            phase_code=phase,
-            sets=1,
-            reps=None,
-            work_seconds_per_set=seconds - 10,
-            rest_seconds_per_set=0,
-            intensity_code="LOW",
-            prescription_version="synthetic-v1",
-            review_status_code="DOMAIN_APPROVED",
-        )
+    prescription_levels = (
+        ("BEGINNER", "INTERMEDIATE") if difficulty_code == "BEGINNER" else ("INTERMEDIATE",)
     )
+    for experience_level_code in prescription_levels:
+        session.add(
+            ExercisePrescriptionProfile(
+                id=uuid4(),
+                exercise_id=exercise.id,
+                goal_code="GENERAL_FITNESS",
+                experience_level_code=experience_level_code,
+                phase_code=phase,
+                sets=1,
+                reps=None,
+                work_seconds_per_set=seconds - 10,
+                rest_seconds_per_set=0,
+                intensity_code=("LOW" if experience_level_code == "BEGINNER" else "MODERATE"),
+                prescription_version="synthetic-v1",
+                review_status_code="DOMAIN_APPROVED",
+            )
+        )
 
 
-def _seed(engine: Engine) -> tuple[UUID, UUID, UUID, UUID]:
+def _seed(engine: Engine) -> tuple[UUID, UUID, UUID, UUID, UUID]:
     with Session(engine) as session, session.begin():
         for model, code in (
             (TrainingType, "STRENGTH"),
@@ -175,7 +182,7 @@ def _seed(engine: Engine) -> tuple[UUID, UUID, UUID, UUID]:
             review_method_code="DOMAIN_REVIEWER",
             status_interpretation_code="PRODUCTION_APPROVED",
             production_eligible=True,
-            exercise_record_count=3,
+            exercise_record_count=6,
             manifest_metadata={"synthetic": True},
             activated_at=NOW,
         )
@@ -193,7 +200,40 @@ def _seed(engine: Engine) -> tuple[UUID, UUID, UUID, UUID]:
             seconds=45,
             tier="SUPPORT",
         )
-        return _add_user(session), _add_user(session), _add_user(session), catalog.id
+        _add_exercise(
+            session,
+            catalog,
+            name="준비 스트레칭",
+            phase="WARMUP",
+            seconds=60,
+            tier="SUPPORT",
+            difficulty_code="INTERMEDIATE",
+        )
+        _add_exercise(
+            session,
+            catalog,
+            name="본 운동",
+            phase="MAIN",
+            seconds=490,
+            tier="CORE",
+            difficulty_code="INTERMEDIATE",
+        )
+        _add_exercise(
+            session,
+            catalog,
+            name="마무리 스트레칭",
+            phase="COOLDOWN",
+            seconds=45,
+            tier="SUPPORT",
+            difficulty_code="INTERMEDIATE",
+        )
+        return (
+            _add_user(session),
+            _add_user(session),
+            _add_user(session),
+            _add_user(session, experience_level_code="INTERMEDIATE"),
+            catalog.id,
+        )
 
 
 @pytest.mark.integration
@@ -206,8 +246,31 @@ def test_postgresql_routine_repository_version_ownership_and_concurrency(
     get_settings.cache_clear()
     command.upgrade(Config(str(ALEMBIC_CONFIG)), "head")
     engine = create_engine(database_url)
-    owner_id, other_id, concurrent_id, catalog_id = _seed(engine)
+    owner_id, other_id, concurrent_id, intermediate_id, catalog_id = _seed(engine)
     request = RoutineCreateRequest(effective_from=date(2026, 8, 14), goal_code="GENERAL_FITNESS")
+
+    with Session(engine) as session:
+        beginner_context = RoutineRepository().get_creation_context(
+            session, owner_id, "GENERAL_FITNESS"
+        )
+        intermediate_context = RoutineRepository().get_creation_context(
+            session, intermediate_id, "GENERAL_FITNESS"
+        )
+        assert beginner_context is not None and intermediate_context is not None
+        assert all(
+            candidate.exercise_name.startswith("BEGINNER ")
+            for candidate in beginner_context.candidates
+        )
+        assert {
+            candidate.exercise_name.split()[0] for candidate in intermediate_context.candidates
+        } == {
+            "BEGINNER",
+            "INTERMEDIATE",
+        }
+        assert all(candidate.intensity_code == "LOW" for candidate in beginner_context.candidates)
+        assert all(
+            candidate.intensity_code == "MODERATE" for candidate in intermediate_context.candidates
+        )
 
     with Session(engine) as session:
         first = RoutineService(RoutineRepository(), clock=lambda: NOW).create(
@@ -261,7 +324,9 @@ def test_postgresql_routine_repository_version_ownership_and_concurrency(
             .values(production_eligible=True)
         )
     with Session(engine) as session, session.begin():
-        session.execute(delete(User).where(User.id.in_((owner_id, other_id, concurrent_id))))
+        session.execute(
+            delete(User).where(User.id.in_((owner_id, other_id, concurrent_id, intermediate_id)))
+        )
         session.execute(delete(CatalogVersion).where(CatalogVersion.id == catalog_id))
     engine.dispose()
     get_settings.cache_clear()

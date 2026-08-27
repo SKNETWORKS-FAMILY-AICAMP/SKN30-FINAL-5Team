@@ -85,7 +85,7 @@ class Settings(BaseSettings):
     qdrant_batch_size: int = 64
     embedding_provider_code: str = "UNCONFIGURED"
     embedding_model_version: str = "unconfigured"
-    embedding_input_schema_version: str = "exercise-embedding-input-v1"
+    embedding_input_schema_version: str = "exercise-embedding-input-v2"
     embedding_vector_dimension: int = 0
     embedding_distance_metric_code: Literal["COSINE", "DOT", "EUCLID", "MANHATTAN"] = "COSINE"
     embedding_timeout_seconds: float = 30.0

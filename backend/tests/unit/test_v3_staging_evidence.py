@@ -24,7 +24,7 @@ from backend.scripts.run_v3_staging_shadow import build_staging_request
 FIXED_TIME = datetime(2026, 8, 25, 12, 0, tzinfo=UTC)
 CURRENT_CATALOG_VERSION = "exercise-catalog-v2.0.1-final"
 STALE_CATALOG_VERSION = "exercise-catalog-v2.0.0-final"
-APPROVED_VECTOR_INDEX_VERSION = "v201-openai-text-embedding-3-large-d3072-inputv1-cosine-r1"
+APPROVED_VECTOR_INDEX_VERSION = "v201-openai-text-embedding-3-large-d3072-inputv2-cosine-r1"
 
 
 def _settings() -> Settings:
@@ -186,7 +186,7 @@ def test_staging_runbook_builds_only_the_current_catalog_contract() -> None:
     assert f"--vector-index-version {APPROVED_VECTOR_INDEX_VERSION}" in runbook
     assert "EMBEDDING_MODEL_VERSION=text-embedding-3-large" in runbook
     assert "EMBEDDING_VECTOR_DIMENSION=3072" in runbook
-    assert "EMBEDDING_INPUT_SCHEMA_VERSION=exercise-embedding-input-v1" in runbook
+    assert "EMBEDDING_INPUT_SCHEMA_VERSION=exercise-embedding-input-v2" in runbook
     assert "EMBEDDING_DISTANCE_METRIC_CODE=COSINE" in runbook
 
 

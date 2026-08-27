@@ -32,7 +32,7 @@ QDRANT_TLS_ENABLED=true
 EMBEDDING_PROVIDER_CODE=OPENAI
 EMBEDDING_MODEL_VERSION=text-embedding-3-large
 EMBEDDING_VECTOR_DIMENSION=3072
-EMBEDDING_INPUT_SCHEMA_VERSION=exercise-embedding-input-v1
+EMBEDDING_INPUT_SCHEMA_VERSION=exercise-embedding-input-v2
 EMBEDDING_DISTANCE_METRIC_CODE=COSINE
 EMBEDDING_TIMEOUT_SECONDS=30
 QDRANT_API_KEY=<staging-secret-store-reference>
@@ -60,7 +60,9 @@ catalog is absent, duplicated, or has a different version. A registry or Qdrant 
 for `exercise-catalog-v2.0.0-final` is historical and cannot satisfy this build.
 
 The approved embedding contract is OpenAI `text-embedding-3-large`, 3072 dimensions,
-`exercise-embedding-input-v1`, `COSINE`, with a 30-second provider timeout. The backend/data
+`exercise-embedding-input-v2`, `COSINE`, with a 30-second provider timeout. Schema v2 removes the
+deprecated `beginner_suitable` projection and retains `difficulty_code` as intrinsic exercise difficulty.
+The backend/data
 development lead approved it on 2026-08-27 because the provider documents this model as its most
 capable embedding model for English and non-English text and the 102-record catalog makes the
 storage difference bounded. The official 2026-08-27 price reference is USD 0.13 per one million
@@ -75,7 +77,7 @@ provider/model contract change must use a different version and collection.
 ```powershell
 .venv\Scripts\python.exe -m backend.scripts.build_qdrant_index `
   --catalog-version exercise-catalog-v2.0.1-final `
-  --vector-index-version v201-openai-text-embedding-3-large-d3072-inputv1-cosine-r1 `
+  --vector-index-version v201-openai-text-embedding-3-large-d3072-inputv2-cosine-r1 `
   --allow-provider-calls
 ```
 

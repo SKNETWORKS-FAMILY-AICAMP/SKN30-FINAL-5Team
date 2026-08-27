@@ -138,6 +138,7 @@ def test_pool_projection_carries_id_allowlist_but_not_qdrant_ranking() -> None:
         "00000000-0000-0000-0000-000000000003",
     ]
     assert "vector_ranked_exercise_ids" not in serialized
+    assert "beginner_suitable" not in serialized
     assert "similarity" not in serialized
     assert "retrieval_metadata" not in serialized
 

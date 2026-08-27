@@ -91,7 +91,7 @@ class BundleSummary(CatalogInputModel):
 
 
 class CatalogBundleManifest(CatalogInputModel):
-    schema_version: Literal["1.0"]
+    schema_version: Literal["1.0", "1.1"]
     bundle_version: Annotated[str, Field(min_length=1, max_length=120)]
     catalog_version_code: Annotated[str, Field(min_length=1, max_length=120)]
     derived_set_versions: BundleDerivedSetVersions
@@ -119,7 +119,7 @@ class CatalogBundleManifest(CatalogInputModel):
 
 
 class CatalogManifest(CatalogInputModel):
-    schema_version: Literal["1.0"]
+    schema_version: Literal["1.0", "1.1"]
     generator_version: Annotated[str, Field(min_length=1, max_length=80)]
     catalog_version: ManifestCatalogVersion
     source: ManifestSource
@@ -144,7 +144,6 @@ class ExerciseRecord(CatalogInputModel):
     body_focus_code: BodyFocusCode
     primary_movement_pattern_code: MovementPatternCode
     difficulty_code: DifficultyCode
-    beginner_suitable: bool
     timing_mode_code: TimingModeCode
     default_seconds_per_rep: Annotated[int | None, Field(gt=0)] = None
     default_work_seconds: Annotated[int | None, Field(gt=0)] = None
@@ -528,7 +527,7 @@ class ExercisePrescriptionRecord(CatalogInputModel):
     catalog_version_code: Annotated[str, Field(min_length=1, max_length=120)]
     exercise_stable_code: StableCode
     goal_code: Literal["GENERAL_FITNESS"]
-    experience_level_code: Literal["BEGINNER"]
+    experience_level_code: Literal["BEGINNER", "INTERMEDIATE"]
     phase_code: Literal["WARMUP", "MAIN", "COOLDOWN"]
     sets: Annotated[int, Field(gt=0)]
     reps: Annotated[int | None, Field(gt=0)] = None

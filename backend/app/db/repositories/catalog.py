@@ -432,7 +432,6 @@ class CatalogRepository:
                 body_focus_code=record.body_focus_code,
                 primary_movement_pattern_code=record.primary_movement_pattern_code,
                 difficulty_code=record.difficulty_code,
-                beginner_suitable=record.beginner_suitable,
                 timing_mode_code=record.timing_mode_code,
                 default_seconds_per_rep=record.default_seconds_per_rep,
                 default_work_seconds=record.default_work_seconds,

@@ -13,6 +13,7 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
+from backend.app.modules.catalog.codes import DifficultyCode
 from backend.app.modules.catalog.schemas import (
     AlternativeManifest,
     ExerciseAlternativeRecord,
@@ -378,6 +379,97 @@ def test_bundle_rejects_missing_exercise_reference_before_repository_access() ->
         )
 
     assert exc_info.value.code == "EXERCISE_REFERENCE_NOT_FOUND"
+
+
+def test_schema_11_bundle_accepts_beginner_exercise_with_intermediate_prescription() -> None:
+    catalog = load_catalog_artifact(CATALOG_DIRECTORIES[0])
+    safety = load_safety_rule_artifact(SAFETY_DIRECTORY)
+    alternatives = load_alternative_artifact(ALTERNATIVE_DIRECTORY)
+    prescriptions = load_prescription_artifact(PRESCRIPTION_DIRECTORY)
+    target = prescriptions.prescription_records[0]
+    prescription_keys = {
+        (row.catalog_version_code, row.exercise_stable_code)
+        for row in prescriptions.prescription_records
+    }
+    records = tuple(
+        record.model_copy(update={"difficulty_code": DifficultyCode.BEGINNER})
+        if (catalog.manifest.catalog_version.version_code, record.stable_code) in prescription_keys
+        else record
+        for record in catalog.records
+    )
+    profiles = tuple(
+        row.model_copy(update={"experience_level_code": "INTERMEDIATE"})
+        if row.exercise_stable_code == target.exercise_stable_code
+        else row
+        for row in prescriptions.prescription_records
+    )
+    schema_11_catalog = CatalogArtifact(
+        catalog.manifest.model_copy(update={"schema_version": "1.1"}),
+        catalog.manifest_hash,
+        records,
+    )
+
+    _validate_bundle_exercise_references(
+        (schema_11_catalog,),
+        safety,
+        alternatives,
+        PrescriptionArtifact(
+            prescriptions.manifest,
+            prescriptions.manifest_hash,
+            prescriptions.goal_tag_records,
+            profiles,
+        ),
+        v2_import=False,
+    )
+
+
+def test_schema_11_bundle_rejects_intermediate_exercise_with_beginner_prescription() -> None:
+    catalog = load_catalog_artifact(CATALOG_DIRECTORIES[0])
+    safety = load_safety_rule_artifact(SAFETY_DIRECTORY)
+    alternatives = load_alternative_artifact(ALTERNATIVE_DIRECTORY)
+    prescriptions = load_prescription_artifact(PRESCRIPTION_DIRECTORY)
+    target = prescriptions.prescription_records[0]
+    prescription_keys = {
+        (row.catalog_version_code, row.exercise_stable_code)
+        for row in prescriptions.prescription_records
+    }
+    records = tuple(
+        record.model_copy(
+            update={
+                "difficulty_code": (
+                    DifficultyCode.INTERMEDIATE
+                    if record.stable_code == target.exercise_stable_code
+                    else DifficultyCode.BEGINNER
+                )
+            }
+        )
+        if (catalog.manifest.catalog_version.version_code, record.stable_code) in prescription_keys
+        else record
+        for record in catalog.records
+    )
+    profiles = prescriptions.prescription_records
+
+    with pytest.raises(CatalogImportError) as exc_info:
+        _validate_bundle_exercise_references(
+            (
+                CatalogArtifact(
+                    catalog.manifest.model_copy(update={"schema_version": "1.1"}),
+                    catalog.manifest_hash,
+                    records,
+                ),
+            ),
+            safety,
+            alternatives,
+            PrescriptionArtifact(
+                prescriptions.manifest,
+                prescriptions.manifest_hash,
+                prescriptions.goal_tag_records,
+                profiles,
+            ),
+            v2_import=False,
+        )
+
+    assert exc_info.value.code == "PRESCRIPTION_EXPERIENCE_LEVEL_INCOMPATIBLE"
 
 
 def test_bundle_import_is_idempotent() -> None:

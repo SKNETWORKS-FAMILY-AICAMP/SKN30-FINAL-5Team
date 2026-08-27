@@ -202,7 +202,10 @@ class Exercise(Base):
         String(64), ForeignKey("movement_patterns.code"), nullable=False
     )
     difficulty_code: Mapped[str] = mapped_column(String(32), nullable=False)
-    beginner_suitable: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    # Transitional compatibility column. New catalog inputs no longer expose
+    # this field and recommendation logic must not read it. Keep a deterministic
+    # ORM value until the later Alembic removal after all consumers are gone.
+    beginner_suitable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     timing_mode_code: Mapped[str] = mapped_column(String(32), nullable=False)
     default_seconds_per_rep: Mapped[int | None] = mapped_column(Integer, nullable=True)
     default_work_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)

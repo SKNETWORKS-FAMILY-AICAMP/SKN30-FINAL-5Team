@@ -302,7 +302,6 @@ class ExercisePoolExerciseRecord(BaseModel):
     movement_pattern_codes: tuple[str, ...]
     difficulty_code: str
     timing_mode_code: str
-    beginner_suitable: bool
     recovery_eligible: bool
     goal_codes: tuple[str, ...]
     equipment_codes: tuple[str, ...]

@@ -38,6 +38,7 @@ from backend.app.domain.rules.safety import (
     SafetyRequiredActionCode,
     SafetyStatusCode,
 )
+from backend.app.domain.rules.training_level import is_exercise_allowed_for_user
 from backend.app.integrations.qdrant.snapshot_loader import (
     EligibleExerciseProjection,
     PostgreSQLExercisePoolSourcePort,
@@ -149,6 +150,15 @@ class SqlAlchemyV3CreationRepository:
         if assembly is None:
             return None
         records = self._vectors.list_indexable_exercises(self._session, assembly.catalog_version)
+        records = tuple(
+            item
+            for item in records
+            if is_exercise_allowed_for_user(
+                exercise_difficulty_code=item.difficulty_code,
+                user_experience_level_code=assembly.context.experience_level_code,
+            )
+            and assembly.context.experience_level_code in item.prescription_experience_level_codes
+        )
         exercises = tuple(
             sorted(
                 (
@@ -162,7 +172,6 @@ class SqlAlchemyV3CreationRepository:
                         movement_pattern_codes=(item.primary_movement_pattern_code,),
                         difficulty_code=item.difficulty_code,
                         timing_mode_code=item.timing_mode_code,
-                        beginner_suitable=item.beginner_suitable,
                         recovery_eligible=item.recovery_eligible,
                         goal_codes=tuple(sorted(item.goal_codes)),
                         equipment_codes=tuple(sorted(item.equipment_codes)),
@@ -357,10 +366,15 @@ class PostgreSQLV3ExercisePoolSource(PostgreSQLExercisePoolSourcePort):
         self, *, source: V3CreationSource, envelope: ConstraintEnvelope
     ) -> EligibleExerciseProjection:
         application = _context(source)
+        experience_level_code = str(source.normalized_values["experience_level_code"])
         eligible = tuple(
             item
             for item in application.exercises
             if item.exercise_id not in set(envelope.excluded_exercise_ids)
+            and is_exercise_allowed_for_user(
+                exercise_difficulty_code=item.difficulty_code,
+                user_experience_level_code=experience_level_code,
+            )
             and set(item.equipment_codes).issubset(envelope.allowed_equipment_codes)
             and bool(set(item.location_codes) & set(envelope.allowed_location_codes))
         )

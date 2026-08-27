@@ -196,6 +196,15 @@ OPTIONAL
 
 이 역할은 운동 자체의 절대 속성이 아니라 특정 루틴과 목표 안에서의 역할이다.
 
+`difficulty_code`는 운동 자체의 난이도이고, 사용자와 FITT 처방의 `experience_level_code`는
+숙련도다. `BEGINNER` 사용자는 `BEGINNER` 운동만, `INTERMEDIATE` 사용자는 `BEGINNER`와
+`INTERMEDIATE` 운동을 후보로 사용할 수 있다. 처방도 같은 방향성 규칙을 적용해 운동 난이도
+이상의 숙련도만 허용한다. 따라서 `BEGINNER` 운동에는 두 처방 레벨이 모두 가능하지만,
+`INTERMEDIATE` 운동에는 `INTERMEDIATE` 처방만 가능하다. 정상 상태의 `INTERMEDIATE` 사용자는
+운동 난이도와 관계없이 `INTERMEDIATE` FITT를 적용하며, 기존 downshift 조건이 발동한 경우에만
+`BEGINNER` 운동과 `BEGINNER` FITT로 재구성할 수 있다. 후보는 `DOMAIN_APPROVED` 운동으로
+제한하며 `beginner_suitable` 또는 별도 `intermediate_suitable` 플래그를 사용하지 않는다.
+
 ### 3.6 코치 문구 성향
 
 ~~~text

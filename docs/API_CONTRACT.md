@@ -1125,7 +1125,7 @@ GET /api/v1/exercises
 | `body_area_code` | string | 주 자극 부위로 필터 |
 | `equipment_code` | string | 필요 장비로 필터 |
 | `training_type_code` | string | 운동 유형으로 필터 |
-| `difficulty_code` | string | 난이도로 필터 |
+| `difficulty_code` | string | 운동 자체 난이도(`BEGINNER`, `INTERMEDIATE`)로 필터 |
 | `cursor` | string | 다음 페이지 커서 |
 | `limit` | integer | 1~100, 기본 20 |
 
