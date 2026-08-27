@@ -111,9 +111,6 @@ export function BirthDateField({ disabled = false, onChange, value }: Props) {
           suffix="일"
         />
       </View>
-      <Text style={styles.hint}>
-        만 {MINIMUM_AGE}세 이상만 선택할 수 있어요.
-      </Text>
     </View>
   );
 }
@@ -454,5 +451,4 @@ const styles = StyleSheet.create({
   },
   wheelItemText: { color: colors.textMuted, fontSize: 16 },
   wheelItemTextSelected: { color: colors.primary, fontWeight: '800' },
-  hint: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
 });

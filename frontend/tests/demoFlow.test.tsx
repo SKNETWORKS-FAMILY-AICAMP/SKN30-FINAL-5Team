@@ -1158,8 +1158,8 @@ describe('OnboardingScreen', () => {
     expect(screen.getByText('1 / 12')).toBeOnTheScreen();
     expect(screen.getByText('기본 정보를 알려주세요')).toBeOnTheScreen();
     expect(
-      screen.getByText('만 14세 이상만 선택할 수 있어요.'),
-    ).toBeOnTheScreen();
+      screen.queryByText('만 14세 이상만 선택할 수 있어요.'),
+    ).not.toBeOnTheScreen();
     expect(screen.queryByText(/선택 가능한 최근 날짜는/)).not.toBeOnTheScreen();
     expect(screen.queryByText('성별을 선택해주세요')).not.toBeOnTheScreen();
 
@@ -1258,6 +1258,35 @@ describe('OnboardingScreen', () => {
     fireEvent.press(screen.getByLabelText('일 28일'));
     fireEvent.press(screen.getByText('다음'));
     expect(screen.getByText('2 / 12')).toBeOnTheScreen();
+  });
+
+  it('uses the revised onboarding copy without the removed helper text', () => {
+    const screenProps = {
+      api: stubApi(),
+      onCompleted: jest.fn(),
+      onSignOut: jest.fn(),
+    };
+    const location = render(
+      <OnboardingScreen {...screenProps} initialStep={8} />,
+    );
+    expect(screen.getByText('어디에서 운동해요?')).toBeOnTheScreen();
+    expect(
+      screen.queryByText('주로 어디에서 운동하나요?'),
+    ).not.toBeOnTheScreen();
+    location.unmount();
+
+    const attention = render(
+      <OnboardingScreen {...screenProps} initialStep={11} />,
+    );
+    expect(
+      screen.queryByText('먼저 있음 또는 없음을 선택해주세요.'),
+    ).not.toBeOnTheScreen();
+    attention.unmount();
+
+    render(<OnboardingScreen {...screenProps} initialStep={12} />);
+    expect(
+      screen.queryByText('필수 2개만 동의하면 시작할 수 있어요.'),
+    ).not.toBeOnTheScreen();
   });
 
   it('snaps mouse-wheel and touch scrolling to the nearest date item', () => {
@@ -1379,7 +1408,7 @@ describe('OnboardingScreen', () => {
     }
   });
 
-  it('separates five consent checkboxes into required and optional items', () => {
+  it('separates four consent checkboxes into required and optional items', () => {
     render(
       <OnboardingScreen
         api={stubApi()}
@@ -1390,9 +1419,12 @@ describe('OnboardingScreen', () => {
     );
 
     const requiredLabels = ['개인정보 수집 및 이용', '건강 관련 민감정보 처리'];
-    const optionalLabels = ['웨어러블 연동', '캘린더 연동', '마케팅 정보 수신'];
+    const optionalLabels = ['웨어러블 연동', '마케팅 정보 수신'];
 
-    expect(screen.getAllByRole('checkbox')).toHaveLength(5);
+    expect(screen.getAllByRole('checkbox')).toHaveLength(4);
+    expect(
+      screen.queryByRole('checkbox', { name: '캘린더 연동' }),
+    ).not.toBeOnTheScreen();
     requiredLabels.forEach((label) => {
       expect(
         within(screen.getByRole('checkbox', { name: label })).getByText('필수'),
@@ -1419,7 +1451,6 @@ describe('OnboardingScreen', () => {
       '닉네임·생년월일·키·체중으로 나에게 맞는 운동 강도를 계산해요.',
       '통증 부위와 컨디션 체크인을 받아 위험한 동작을 빼요.',
       '워치 데이터로 컨디션 입력을 줄여줘요. 없어도 앱은 그대로 써요.',
-      '지금은 연동 준비 중이에요. 준비되면 이 동의로 바로 쓸 수 있어요.',
       '새 기능과 이벤트 소식을 보내요.',
     ].forEach((description) => {
       expect(screen.getByText(description)).toBeOnTheScreen();
@@ -1495,7 +1526,7 @@ describe('OnboardingScreen', () => {
     });
   });
 
-  it('submits enabled optional consent values instead of hardcoded false values', async () => {
+  it('submits enabled optional consent values while calendar consent stays disabled', async () => {
     const submitOnboarding = jest.fn(async (_request: OnboardingRequest) =>
       completedOnboarding(),
     );
@@ -1510,7 +1541,6 @@ describe('OnboardingScreen', () => {
     fillRequiredOnboardingSteps();
     acceptRequiredConsents();
     fireEvent.press(screen.getByRole('checkbox', { name: '웨어러블 연동' }));
-    fireEvent.press(screen.getByRole('checkbox', { name: '캘린더 연동' }));
     fireEvent.press(screen.getByRole('checkbox', { name: '마케팅 정보 수신' }));
     fireEvent.press(screen.getByText('시작하기'));
 
@@ -1521,7 +1551,7 @@ describe('OnboardingScreen', () => {
             general_personal_data: true,
             sensitive_data: true,
             wearable_integration: true,
-            calendar_integration: true,
+            calendar_integration: false,
             marketing: true,
           },
         }),
