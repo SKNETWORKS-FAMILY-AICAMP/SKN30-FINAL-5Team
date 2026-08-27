@@ -71,6 +71,10 @@ describe('SessionResultScreen feedback', () => {
 
   it.each([
     {
+      name: 'completed',
+      outcome: finished,
+    },
+    {
       name: 'partial',
       outcome: {
         kind: 'finished' as const,
@@ -123,9 +127,18 @@ describe('SessionResultScreen feedback', () => {
       screen.getByTestId('session-feedback-save-gradient'),
     ).toBeOnTheScreen();
     expect(screen.queryByTestId('session-feedback-save-chevron')).toBeNull();
+    expect(screen.getByText('오늘 운동 체감 난이도')).toBeOnTheScreen();
+    expect(screen.getByRole('radio', { name: '쉬웠어요' })).toBeOnTheScreen();
+    expect(screen.getByRole('radio', { name: '적당했어요' })).toBeOnTheScreen();
+    expect(screen.getByRole('radio', { name: '어려워요' })).toBeOnTheScreen();
+    expect(screen.queryByText('피로도')).toBeNull();
+    expect(screen.queryByText('만족도')).toBeNull();
+    expect(screen.queryByText('운동 후 통증')).toBeNull();
+    expect(screen.queryByText('불편한 부위')).toBeNull();
+    expect(screen.queryByText('이상 반응')).toBeNull();
   });
 
-  it('submits every backend feedback field from the result UI', async () => {
+  it('submits the selected difficulty with hidden legacy compatibility values', async () => {
     const submitFeedback = jest.fn<Api['submitFeedback']>(async () => ({
       session_id: 'session-result',
       session_status_code: 'COMPLETED',
@@ -145,22 +158,16 @@ describe('SessionResultScreen feedback', () => {
     );
 
     fireEvent.press(screen.getByRole('radio', { name: '적당했어요' }));
-    fireEvent.press(screen.getByRole('radio', { name: '높아요' }));
-    fireEvent.press(screen.getByRole('radio', { name: '만족해요' }));
-    fireEvent.press(screen.getByRole('radio', { name: '있어요' }));
-    fireEvent.press(screen.getByRole('checkbox', { name: '무릎' }));
-    fireEvent.press(screen.getByRole('radio', { name: '무릎 심함' }));
-    fireEvent.press(screen.getByRole('checkbox', { name: '심한 어지럼' }));
     fireEvent.press(screen.getByRole('button', { name: '피드백 저장' }));
 
     await waitFor(() =>
       expect(submitFeedback).toHaveBeenCalledWith('session-result', {
         difficulty_code: 'APPROPRIATE',
-        fatigue_code: 'HIGH',
-        satisfaction_code: 'SATISFIED',
-        pain_occurred: true,
-        discomforts: [{ body_area_code: 'KNEE', severity_code: 'SEVERE' }],
-        adverse_reaction_codes: ['SEVERE_DIZZINESS'],
+        fatigue_code: null,
+        satisfaction_code: null,
+        pain_occurred: false,
+        discomforts: [],
+        adverse_reaction_codes: [],
       }),
     );
     expect(await screen.findByText('피드백을 저장했어요.')).toBeOnTheScreen();
@@ -184,7 +191,7 @@ describe('SessionResultScreen feedback', () => {
       />,
     );
 
-    expect(screen.getByText('오늘 운동은 어땠나요?')).toBeOnTheScreen();
+    expect(screen.getByText('오늘 운동 체감 난이도')).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: '피드백 저장' })).toBeDisabled();
   });
 });

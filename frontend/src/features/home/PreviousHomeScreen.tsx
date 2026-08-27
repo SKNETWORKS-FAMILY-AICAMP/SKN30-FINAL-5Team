@@ -1138,7 +1138,7 @@ function EditRoutineSheet({
   return (
     <SheetFrame onClose={onClose} title="오늘의 운동 수정">
       <Text style={styles.sheetIntro}>
-        운동할 장소를 고르면 서버가 시간·장비·안전 기준을 다시 확인해 계획을
+        운동할 장소를 고르면 서버가 시간·장소·안전 기준을 다시 확인해 계획을
         수정해요.
       </Text>
       <ScrollView

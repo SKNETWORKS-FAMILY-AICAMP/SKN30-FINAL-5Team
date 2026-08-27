@@ -112,8 +112,7 @@ export function BirthDateField({ disabled = false, onChange, value }: Props) {
         />
       </View>
       <Text style={styles.hint}>
-        만 {MINIMUM_AGE}세 이상만 선택할 수 있어요. 선택 가능한 최근 날짜는{' '}
-        {formatDate(latestEligibleBirthdate)}예요.
+        만 {MINIMUM_AGE}세 이상만 선택할 수 있어요.
       </Text>
     </View>
   );

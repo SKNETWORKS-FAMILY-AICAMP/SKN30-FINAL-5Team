@@ -235,7 +235,10 @@ type WorkoutResultGalleryState =
   | 'result-safety-stop';
 
 type WorkoutGalleryState =
-  'api-flow' | WorkoutPreviewState | WorkoutResultGalleryState;
+  | 'api-flow'
+  | 'equipment-guide'
+  | WorkoutPreviewState
+  | WorkoutResultGalleryState;
 
 const WORKOUT_RESULT_GALLERY_OPTIONS = [
   {
@@ -265,6 +268,7 @@ const WORKOUT_DETAIL_PREVIEW_OPTIONS = WORKOUT_PREVIEW_OPTIONS.filter(
 
 const WORKOUT_GALLERY_OPTIONS = [
   { id: 'api-flow', label: 'API 실제 흐름' },
+  { id: 'equipment-guide', label: '장비가 없을 때 안내' },
   ...WORKOUT_DETAIL_PREVIEW_OPTIONS,
   ...WORKOUT_RESULT_GALLERY_OPTIONS,
 ] as const satisfies readonly {
@@ -999,17 +1003,19 @@ export function PreviewGallery({
               selected={workoutState}
               onSelect={(state) => {
                 setWorkoutState(state);
-                if (state === 'api-flow') {
+                if (state === 'api-flow' || state === 'equipment-guide') {
                   resetWorkoutFlow();
                 }
               }}
             />
             <Text style={styles.contractNotice}>
-              {workoutState === 'api-flow'
-                ? '개발 확인 전용 API를 사용합니다. 시작·타이머·블록·중단·안전 보고·피드백은 실제 프론트엔드 API 계약으로 연결되며, 데이터는 네트워크로 전송되지 않습니다.'
-                : selectedWorkoutResultState !== null
-                  ? '실제 앱 흐름의 Workout 결과 UI입니다. 서버가 확정한 완료·일부 완료·미수행·안전 중단 결과를 갤러리 fixture로 표시합니다.'
-                  : '세부 화면 시각 확인용 fixture입니다. 타이머와 블록 체크는 공식 완료를 결정하지 않습니다.'}
+              {workoutState === 'equipment-guide'
+                ? '의자 스쿼트의 장비 안내판을 바로 엽니다. 필요 장비와 장비가 없을 때 가능한 검토된 변형운동을 함께 확인할 수 있으며, 운동을 자동 교체하지 않습니다.'
+                : workoutState === 'api-flow'
+                  ? '개발 확인 전용 API를 사용합니다. 시작·타이머·블록·중단·안전 보고·피드백은 실제 프론트엔드 API 계약으로 연결되며, 데이터는 네트워크로 전송되지 않습니다.'
+                  : selectedWorkoutResultState !== null
+                    ? '실제 앱 흐름의 Workout 결과 UI입니다. 서버가 확정한 완료·일부 완료·미수행·안전 중단 결과를 갤러리 fixture로 표시합니다.'
+                    : '세부 화면 시각 확인용 fixture입니다. 타이머와 블록 체크는 공식 완료를 결정하지 않습니다.'}
             </Text>
           </>
         ) : null}
@@ -1272,8 +1278,13 @@ export function PreviewGallery({
                       <WorkoutScreen previewState={workoutState} />
                     ) : workoutOutcome === null ? (
                       <WorkoutScreen
-                        key={workoutRunKey}
+                        key={`${workoutRunKey}-${workoutState}`}
                         api={workoutApi}
+                        initialEquipmentGuideExerciseId={
+                          workoutState === 'equipment-guide'
+                            ? 'exercise-squat'
+                            : undefined
+                        }
                         sessionId="session-preview"
                         plan={PREVIEW_PLAN}
                         onOutcome={setWorkoutOutcome}

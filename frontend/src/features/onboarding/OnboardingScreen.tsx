@@ -31,7 +31,6 @@ import { colors, radii, spacing } from '../../components/theme';
 import { PROFILE_BODY_LIMITS } from '../profile/profileModel';
 import {
   ONBOARDING_DURATION,
-  ONBOARDING_EQUIPMENT_OPTIONS,
   ONBOARDING_EXERCISE_TYPE_OPTIONS,
   ONBOARDING_EXPERIENCE_OPTIONS,
   ONBOARDING_GOAL_OPTIONS,
@@ -101,7 +100,7 @@ export const ONBOARDING_STEPS = [
   {
     key: 'sex',
     title: '성별을 선택해주세요',
-    intro: '운동 강도와 권장 범위를 조정하는 데 사용해요.',
+    intro: '맞춤 운동 추천에 참고해요.',
     required: true,
   },
   {
@@ -139,12 +138,6 @@ export const ONBOARDING_STEPS = [
     key: 'location',
     title: '주로 어디에서 운동하나요?',
     intro: '여러 장소를 선택할 수 있어요.',
-    required: true,
-  },
-  {
-    key: 'equipment',
-    title: '사용할 수 있는 장비가 있나요?',
-    intro: '현재 사용할 수 있는 장비를 모두 골라주세요.',
     required: true,
   },
   {
@@ -221,7 +214,6 @@ function OnboardingScreenContent({
   const [preferredLocationCode, setPreferredLocationCode] = useState<
     string | null
   >(null);
-  const [equipment, setEquipment] = useState<string[]>([]);
   const [duration, setDuration] = useState(30);
   const [weeklyCount, setWeeklyCount] = useState(3);
   const [hasAttentionAreas, setHasAttentionAreas] = useState<boolean | null>(
@@ -254,7 +246,6 @@ function OnboardingScreenContent({
       experienceLevelCode === null ||
       preferredLocationCode === null ||
       !locations.includes(preferredLocationCode) ||
-      equipment.length === 0 ||
       hasAttentionAreas === null ||
       (hasAttentionAreas && attentionAreas.length === 0)
     ) {
@@ -274,7 +265,6 @@ function OnboardingScreenContent({
         available_location_codes: locations,
         default_requested_duration_minutes: duration,
         desired_weekly_workout_count: weeklyCount,
-        equipment_codes: equipment,
         attention_area_codes: hasAttentionAreas ? attentionAreas : [],
         preferred_exercise_type_codes: preferredExerciseTypes,
         ...(coachingStyleCode === null
@@ -302,7 +292,6 @@ function OnboardingScreenContent({
   const valid = isStepValid(current.key, {
     birthdate,
     coachingStyleCode,
-    equipment,
     experienceLevelCode,
     generalConsent,
     hasAttentionAreas,
@@ -547,22 +536,6 @@ function OnboardingScreenContent({
                 ))}
               </View>
             ) : null}
-          </ChoiceCard>
-        );
-      case 'equipment':
-        return (
-          <ChoiceCard>
-            <View style={styles.optionGrid} testID="onboarding-equipment-grid">
-              {ONBOARDING_EQUIPMENT_OPTIONS.map((item) => (
-                <Chip
-                  flow
-                  key={item.code}
-                  label={item.label}
-                  selected={equipment.includes(item.code)}
-                  onPress={() => setEquipment((v) => toggle(v, item.code))}
-                />
-              ))}
-            </View>
           </ChoiceCard>
         );
       case 'duration':
@@ -855,7 +828,6 @@ type FormState = {
   coachingStyleCode: (typeof COACHING_STYLE_OPTIONS)[number]['code'] | null;
   locations: string[];
   preferredLocationCode: string | null;
-  equipment: string[];
   hasAttentionAreas: boolean | null;
   attentionAreas: string[];
   painIntensityScores: Partial<Record<string, number>>;
@@ -894,8 +866,6 @@ function isStepValid(
         form.preferredLocationCode !== null &&
         form.locations.includes(form.preferredLocationCode)
       );
-    case 'equipment':
-      return form.equipment.length > 0;
     case 'attention':
       return (
         form.hasAttentionAreas !== null &&
@@ -1263,7 +1233,6 @@ function onboardingErrorStep(error: unknown): number | null {
       coaching_style_code: 'coachingStyle',
       preferred_location_code: 'location',
       available_location_codes: 'location',
-      equipment_codes: 'equipment',
       default_requested_duration_minutes: 'duration',
       desired_weekly_workout_count: 'frequency',
       attention_area_codes: 'attention',

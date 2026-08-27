@@ -35,21 +35,20 @@ type SignUpFixture = {
   passwordConfirmation: string;
   emailMessage?: string;
   emailMessageTone?: 'success' | 'error';
-  passwordMessage: string;
-  passwordMessageTone: 'muted' | 'success' | 'error';
+  passwordMessage?: string;
+  passwordMessageTone?: 'success' | 'error';
   confirmationMessage?: string;
   confirmationMessageTone?: 'success' | 'error';
 };
 
-const EMPTY_PASSWORD_MESSAGE = '6자 이상 입력해주세요.';
+const MIN_PASSWORD_LENGTH = 6;
+const MIN_PASSWORD_ERROR = `${MIN_PASSWORD_LENGTH}자 이상 입력해주세요.`;
 
 const SIGN_UP_FIXTURES: Record<SignUpPreviewState, SignUpFixture> = {
   idle: {
     email: '',
     password: '',
     passwordConfirmation: '',
-    passwordMessage: EMPTY_PASSWORD_MESSAGE,
-    passwordMessageTone: 'muted',
   },
   'id-invalid': {
     email: 'invalid-email',
@@ -57,8 +56,6 @@ const SIGN_UP_FIXTURES: Record<SignUpPreviewState, SignUpFixture> = {
     passwordConfirmation: '',
     emailMessage: '이메일 형식으로 입력해주세요.',
     emailMessageTone: 'error',
-    passwordMessage: EMPTY_PASSWORD_MESSAGE,
-    passwordMessageTone: 'muted',
   },
   'id-taken': {
     email: 'used@example.com',
@@ -66,8 +63,6 @@ const SIGN_UP_FIXTURES: Record<SignUpPreviewState, SignUpFixture> = {
     passwordConfirmation: '',
     emailMessage: '이미 가입된 이메일이에요.',
     emailMessageTone: 'error',
-    passwordMessage: EMPTY_PASSWORD_MESSAGE,
-    passwordMessageTone: 'muted',
   },
   'id-available': {
     email: 'prototype@example.com',
@@ -75,8 +70,6 @@ const SIGN_UP_FIXTURES: Record<SignUpPreviewState, SignUpFixture> = {
     passwordConfirmation: '',
     emailMessage: '사용할 수 있는 이메일이에요.',
     emailMessageTone: 'success',
-    passwordMessage: EMPTY_PASSWORD_MESSAGE,
-    passwordMessageTone: 'muted',
   },
   'password-invalid': {
     email: 'prototype@example.com',
@@ -84,7 +77,7 @@ const SIGN_UP_FIXTURES: Record<SignUpPreviewState, SignUpFixture> = {
     passwordConfirmation: '',
     emailMessage: '사용할 수 있는 이메일이에요.',
     emailMessageTone: 'success',
-    passwordMessage: '6자 이상 조건을 아직 만족하지 않아요.',
+    passwordMessage: MIN_PASSWORD_ERROR,
     passwordMessageTone: 'error',
   },
   'password-mismatch': {
@@ -219,7 +212,7 @@ function SignUpScreenContent({
   const isLoading = previewState === 'loading' || submit.pending;
   const isReady = Boolean(
     email.trim() &&
-    password &&
+    password.length >= MIN_PASSWORD_LENGTH &&
     passwordConfirmation &&
     password === passwordConfirmation,
   );
@@ -235,6 +228,20 @@ function SignUpScreenContent({
       ? 'success'
       : 'error'
     : (fixture.confirmationMessageTone ?? 'error');
+  const hasMinimumLengthError =
+    password.length > 0 && password.length < MIN_PASSWORD_LENGTH;
+  const passwordMessage = hasMinimumLengthError
+    ? MIN_PASSWORD_ERROR
+    : isApiFlow
+      ? policyHint
+        ? `비밀번호 조건: ${policyHint}`
+        : 'Firebase 비밀번호 정책을 확인해요.'
+      : fixture.passwordMessage;
+  const passwordMessageTone = hasMinimumLengthError
+    ? 'error'
+    : isApiFlow
+      ? 'muted'
+      : fixture.passwordMessageTone;
 
   return (
     <SafeAreaView
@@ -322,7 +329,7 @@ function SignUpScreenContent({
               secureTextEntry={!showPassword}
               style={[
                 styles.signupField,
-                fixture.passwordMessageTone === 'error' && styles.fieldError,
+                passwordMessageTone === 'error' && styles.fieldError,
               ]}
               trailing={
                 <Pressable
@@ -338,16 +345,12 @@ function SignUpScreenContent({
               }
               value={password}
             />
-            <FieldMessage
-              message={
-                isApiFlow
-                  ? policyHint
-                    ? `비밀번호 조건: ${policyHint}`
-                    : 'Firebase 비밀번호 정책을 확인해요.'
-                  : fixture.passwordMessage
-              }
-              tone={isApiFlow ? 'muted' : fixture.passwordMessageTone}
-            />
+            {passwordMessage && passwordMessageTone ? (
+              <FieldMessage
+                message={passwordMessage}
+                tone={passwordMessageTone}
+              />
+            ) : null}
           </View>
 
           <View style={styles.fieldGroup}>
@@ -413,7 +416,7 @@ function SignUpScreenContent({
         ) : null}
 
         <Text style={styles.profileNotice}>
-          가입 후 키·체중 등 필수 프로필을 등록해야 홈을 이용할 수 있어요.
+          가입 후 맞춤 루틴을 위한 기본 정보를 입력해주세요.
         </Text>
       </ScrollView>
 

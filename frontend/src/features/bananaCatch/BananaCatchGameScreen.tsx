@@ -8,7 +8,6 @@ import {
   View,
   type GestureResponderEvent,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { imageAssets } from '../../assets';
@@ -26,7 +25,7 @@ import {
 } from './bananaCatchModel';
 
 const PLAYER_SIZE = 92;
-const BANANA_SIZE = 30;
+const BANANA_SIZE = 33;
 const CATCHER_HEIGHT = PLAYER_SIZE + 16;
 const CATCHER_BOTTOM_RATIO = 0.05;
 const BASKET_LIP_RATIO_IN_ASSET = 0.4;
@@ -89,14 +88,25 @@ export function BananaCatchGameScreen({ onBack }: { onBack: () => void }) {
   };
 
   return (
-    <LinearGradient
-      colors={['#8DDCFF', '#DFF6FF', '#FFF0B5']}
-      end={{ x: 0.5, y: 1 }}
-      start={{ x: 0.5, y: 0 }}
-      style={styles.screen}
-      testID="banana-catch-screen"
-    >
-      <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
+    <View style={styles.screen} testID="banana-catch-screen">
+      <View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, styles.backgroundFrame]}
+        testID="banana-catch-background-frame"
+      >
+        <Image
+          blurRadius={3}
+          resizeMode="cover"
+          source={imageAssets.bananaCatchBackground}
+          style={styles.background}
+          testID="banana-catch-background"
+        />
+      </View>
+      <SafeAreaView
+        edges={['top']}
+        style={styles.safeArea}
+        testID="banana-catch-safe-area"
+      >
         <View style={styles.header}>
           <Pressable
             accessibilityLabel="끼끼의 집으로 돌아가기"
@@ -159,9 +169,6 @@ export function BananaCatchGameScreen({ onBack }: { onBack: () => void }) {
           style={styles.arena}
           testID="banana-catch-arena"
         >
-          <View style={[styles.cloud, styles.cloudLeft]} />
-          <View style={[styles.cloud, styles.cloudRight]} />
-
           {game.bananas.map((banana) => (
             <View
               accessible={false}
@@ -181,7 +188,19 @@ export function BananaCatchGameScreen({ onBack }: { onBack: () => void }) {
             </View>
           ))}
 
-          <View pointerEvents="none" style={styles.grass} />
+          <View
+            pointerEvents="none"
+            style={styles.grass}
+            testID="banana-catch-grass-frame"
+          >
+            <Image
+              accessible={false}
+              resizeMode="stretch"
+              source={imageAssets.bananaCatchGrass}
+              style={styles.grassImage}
+              testID="banana-catch-grass"
+            />
+          </View>
           <View
             pointerEvents="none"
             style={[styles.catcher, { left: `${game.playerX * 100}%` }]}
@@ -235,7 +254,7 @@ export function BananaCatchGameScreen({ onBack }: { onBack: () => void }) {
           ) : null}
         </View>
       </SafeAreaView>
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -269,20 +288,30 @@ function GameCard({
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
+  screen: { flex: 1, overflow: 'hidden', backgroundColor: '#8DDCFF' },
+  backgroundFrame: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  background: {
+    width: '100%',
+    height: '100%',
+  },
   safeArea: {
     flex: 1,
     width: '100%',
-    maxWidth: 430,
-    alignSelf: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
   },
   header: {
+    zIndex: 6,
+    width: '100%',
+    maxWidth: 430,
     minHeight: 76,
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
   },
   headerButton: {
     width: 44,
@@ -323,20 +352,9 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 420,
     overflow: 'hidden',
-    borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 28,
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    borderWidth: 0,
+    backgroundColor: 'transparent',
   },
-  cloud: {
-    position: 'absolute',
-    width: 110,
-    height: 36,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.66)',
-  },
-  cloudLeft: { top: 54, left: -24 },
-  cloudRight: { top: 132, right: -36, width: 138 },
   fallingBanana: {
     position: 'absolute',
     zIndex: 5,
@@ -352,7 +370,10 @@ const styles = StyleSheet.create({
     left: 0,
     zIndex: 1,
     height: '13%',
-    backgroundColor: '#92CC67',
+  },
+  grassImage: {
+    width: '100%',
+    height: '100%',
   },
   catcher: {
     position: 'absolute',
@@ -385,6 +406,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '100%',
+    maxWidth: 360,
     alignItems: 'center',
     gap: spacing.md,
     borderRadius: 24,

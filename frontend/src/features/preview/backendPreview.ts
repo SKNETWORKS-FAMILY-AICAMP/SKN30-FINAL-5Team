@@ -402,6 +402,34 @@ export function createSessionPreviewApi(state: SessionPreviewState): Api {
         instruction_content_version: 'preview-v1',
       };
     },
+    async getExerciseVariants(exerciseId: string) {
+      const hasVariant = exerciseId === 'exercise-squat';
+      return {
+        source_exercise_id: exerciseId,
+        source_required_equipment_codes: hasVariant
+          ? ['BODYWEIGHT', 'CHAIR']
+          : ['BODYWEIGHT'],
+        items: hasVariant
+          ? [
+              {
+                exercise_id: 'exercise-squat-bodyweight',
+                exercise_name: '맨몸 스쿼트',
+                required_equipment_codes: ['BODYWEIGHT'],
+                instruction_summary:
+                  '의자 없이 엉덩이를 뒤로 보내며 가능한 범위까지 앉아요.',
+                form_cues: [
+                  '무릎과 발끝 방향을 맞춰요.',
+                  '통증 없는 범위에서 천천히 움직여요.',
+                ],
+                media_asset_key: null,
+                goal_preservation_code: 'GENERAL_FITNESS',
+              },
+            ]
+          : [],
+        catalog_version: 'exercise-catalog-v2.0.1-final',
+        alternative_set_version: hasVariant ? 'alternative-set-v2.0.1' : null,
+      };
+    },
     async finishSession(
       _sessionId: string,
       finishedAt: string,

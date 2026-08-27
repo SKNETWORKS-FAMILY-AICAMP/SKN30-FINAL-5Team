@@ -33,7 +33,6 @@ function me(): MeResponse {
       default_requested_duration_minutes: 30,
       desired_weekly_workout_count: 4,
       coaching_style_code: 'SUPPORTIVE',
-      equipment_codes: ['BODYWEIGHT', 'RESISTANCE_BAND'],
       attention_area_codes: ['KNEE'],
       preferred_exercise_type_codes: ['STRENGTH'],
       profile_version: 7,
@@ -113,7 +112,13 @@ describe('MyPageContainer', () => {
     expect(await screen.findByText('민지님')).toBeOnTheScreen();
     expect(screen.getByText('함께한 지 7일째')).toBeOnTheScreen();
     expect(screen.getByText('근력')).toBeOnTheScreen();
-    expect(screen.getByText('맨몸 · 밴드')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: '장비 수정' })).toBeNull();
+    expect(screen.queryByText('맨몸 · 밴드')).toBeNull();
+    expect(screen.queryByText('캘린더 연동')).toBeNull();
+    expect(screen.getAllByText('든든하게')).toHaveLength(1);
+    expect(
+      screen.getByRole('button', { name: '든든하게' }).props.accessibilityState,
+    ).toEqual(expect.objectContaining({ selected: true }));
     expect(screen.queryByRole('button', { name: '나이 수정' })).toBeNull();
     expect(screen.queryByRole('button', { name: '시간대 수정' })).toBeNull();
     expect(screen.queryByText('BODYWEIGHT')).toBeNull();
@@ -150,7 +155,6 @@ describe('MyPageContainer', () => {
   it('never exposes an unmapped machine code', async () => {
     const current = me();
     current.profile!.primary_goal_code = 'NEW_APPROVED_GOAL';
-    current.profile!.equipment_codes = ['NEW_EQUIPMENT'];
 
     await render(
       <MyPageContainer
@@ -164,7 +168,6 @@ describe('MyPageContainer', () => {
     );
 
     expect(screen.queryByText('NEW_APPROVED_GOAL')).toBeNull();
-    expect(screen.queryByText('NEW_EQUIPMENT')).toBeNull();
     expect(screen.getAllByText('확인되지 않은 항목').length).toBeGreaterThan(0);
   });
 
@@ -607,41 +610,6 @@ describe('MyPageContainer', () => {
       ),
     );
     expect(screen.queryByText('동의 변경 저장')).toBeNull();
-  });
-
-  it('edits only the selected equipment field from its sheet', async () => {
-    const updateProfileSettings = jest.fn<Api['updateProfileSettings']>(
-      async () => ({
-        profile_version: 8,
-        updated_at: '2026-08-19T09:00:00+09:00',
-      }),
-    );
-
-    await render(
-      <MyPageContainer
-        api={accountApi({ updateProfileSettings })}
-        me={me()}
-        now={new Date('2026-08-19T03:00:00Z')}
-        onNavigateTab={jest.fn()}
-        onRefreshMe={jest.fn(async () => undefined)}
-        onSignOut={jest.fn()}
-      />,
-    );
-
-    fireEvent.press(screen.getByRole('button', { name: '장비 수정' }));
-    expect(screen.getByRole('header', { name: '장비 수정' })).toBeOnTheScreen();
-    expect(screen.queryByRole('header', { name: '주의 부위 수정' })).toBeNull();
-    expect(screen.getByRole('checkbox', { name: '덤벨' })).not.toBeChecked();
-    expect(screen.getByRole('checkbox', { name: '맨몸' })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: '밴드' })).toBeChecked();
-    fireEvent.press(screen.getByRole('checkbox', { name: '매트' }));
-
-    await waitFor(() =>
-      expect(updateProfileSettings).toHaveBeenCalledWith(
-        { equipment_codes: ['BODYWEIGHT', 'RESISTANCE_BAND', 'MAT'] },
-        7,
-      ),
-    );
   });
 
   it('updates both available and preferred workout locations', async () => {

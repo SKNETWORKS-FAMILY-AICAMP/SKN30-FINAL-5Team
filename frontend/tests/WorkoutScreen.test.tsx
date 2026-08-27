@@ -15,6 +15,7 @@ import type {
   WorkoutPlan,
   WorkoutSessionDetailResponse,
 } from '../src/api/types';
+import { fontFamilies } from '../src/app/fonts';
 import { imageAssets } from '../src/assets';
 import {
   clampWorkoutPageIndex,
@@ -131,6 +132,13 @@ function workoutApi(overrides: Partial<Api> = {}): Api {
       current_plan_item_id: 'plan-item-api',
     })),
     recordTimerEvent: jest.fn(async () => ({ event_id: 'timer-event-api' })),
+    getExerciseVariants: jest.fn(async (exerciseId: string) => ({
+      source_exercise_id: exerciseId,
+      source_required_equipment_codes: ['BODYWEIGHT'],
+      items: [],
+      catalog_version: 'test-catalog-v1',
+      alternative_set_version: null,
+    })),
     ...overrides,
   } as unknown as Api;
 }
@@ -156,10 +164,10 @@ describe('WorkoutScreen', () => {
         screen.getByTestId('workout-mascot-frame').props.style,
       ),
     ).toMatchObject({
-      width: 104,
-      height: 104,
+      width: 124.8,
+      height: 124.8,
       overflow: 'hidden',
-      borderRadius: 52,
+      borderRadius: 62.4,
       backgroundColor: '#FFFFFF',
     });
   });
@@ -180,13 +188,14 @@ describe('WorkoutScreen', () => {
     });
   });
 
-  it('uses bounded responsive metrics for short phones, tablets, and web', () => {
+  it('preserves the 390 x 844 proportions while bounding responsive growth', () => {
     expect(getWorkoutResponsiveLayout({ width: 320, height: 568 })).toEqual(
       expect.objectContaining({
         cardHeight: 210,
         cardWidth: 230,
         headerTopPadding: 28,
         mascotHeight: 90,
+        scale: 0.9,
         stride: 250,
       }),
     );
@@ -195,23 +204,35 @@ describe('WorkoutScreen', () => {
         cardHeight: 280,
         cardWidth: 230,
         mascotHeight: 180,
+        scale: 1,
         stride: 250,
+      }),
+    );
+    expect(getWorkoutResponsiveLayout({ width: 430, height: 932 })).toEqual(
+      expect.objectContaining({
+        cardHeight: 309,
+        cardWidth: 254,
+        gap: 22,
+        headerTopPadding: 60,
+        mascotHeight: 199,
+        stride: 276,
       }),
     );
     expect(getWorkoutResponsiveLayout({ width: 768, height: 1024 })).toEqual(
       expect.objectContaining({
-        cardHeight: 320,
-        cardWidth: 300,
+        cardHeight: 336,
+        cardWidth: 276,
         contentMaxWidth: 1100,
-        mascotHeight: 220,
-        stride: 324,
+        mascotHeight: 216,
+        scale: 1.2,
+        stride: 300,
       }),
     );
     expect(getWorkoutResponsiveLayout({ width: 1440, height: 900 })).toEqual(
       expect.objectContaining({
-        cardWidth: 340,
+        cardWidth: 265,
         contentMaxWidth: 1100,
-        stride: 364,
+        stride: 288,
       }),
     );
   });
@@ -220,7 +241,7 @@ describe('WorkoutScreen', () => {
     await render(<WorkoutScreen />);
 
     const carousel = screen.getByTestId('workout-carousel');
-    expect(carousel.props.snapToInterval).toBe(324);
+    expect(carousel.props.snapToInterval).toBe(300);
     expect(carousel.props.snapToAlignment).toBe('start');
     expect(carousel.props.decelerationRate).toBe('fast');
     expect(carousel.props.showsHorizontalScrollIndicator).toBe(false);
@@ -231,7 +252,7 @@ describe('WorkoutScreen', () => {
       StyleSheet.flatten(
         screen.getByTestId('workout-carousel').props.contentContainerStyle,
       ).paddingHorizontal,
-    ).toBe(45);
+    ).toBe(57);
   });
 
   it.each([
@@ -332,7 +353,7 @@ describe('WorkoutScreen', () => {
     ).toMatchObject({ backgroundColor: '#F6BA50', height: 8, width: 8 });
 
     fireEvent.press(screen.getByRole('button', { name: '4번째 블록 보기' }));
-    expect(scrollTo).toHaveBeenLastCalledWith({ animated: true, x: 972 });
+    expect(scrollTo).toHaveBeenLastCalledWith({ animated: true, x: 900 });
     expect(
       StyleSheet.flatten(screen.getByTestId('workout-dot-3').props.style),
     ).toMatchObject({ backgroundColor: '#958476', height: 8, width: 22 });
@@ -379,6 +400,16 @@ describe('WorkoutScreen', () => {
     expect(formatWorkoutTime(seconds)).toBe(expected);
   });
 
+  it('renders the elapsed timer with the readable brand font', async () => {
+    await render(<WorkoutScreen />);
+
+    const timerStyle = StyleSheet.flatten(
+      screen.getByText('00:00').props.style,
+    );
+    expect(timerStyle.fontFamily).toBe(fontFamilies.brand);
+    expect(timerStyle.fontWeight).toBe('600');
+  });
+
   it('counts elapsed time without changing block completion', async () => {
     jest.useFakeTimers();
     const onBlockStatusChange = jest.fn();
@@ -394,7 +425,7 @@ describe('WorkoutScreen', () => {
 
   it('uses the three exact timer captions for active, paused, and rest states', async () => {
     await render(<WorkoutScreen />);
-    expect(screen.getByText('전체 경과 · 기록용')).toBeOnTheScreen();
+    expect(screen.getByText('운동 시간')).toBeOnTheScreen();
 
     fireEvent.press(screen.getByRole('button', { name: '일시정지' }));
     expect(screen.getByText('일시정지됨 · 기록용')).toBeOnTheScreen();
@@ -405,6 +436,37 @@ describe('WorkoutScreen', () => {
         includeHiddenElements: true,
       }),
     ).toBeOnTheScreen();
+  });
+
+  it('keeps the bottom actions equal and the smash action flat', async () => {
+    await render(<WorkoutScreen />);
+
+    const smashStyle = StyleSheet.flatten(
+      screen.getByTestId('workout-smash-action').props.style,
+    );
+    const restStyle = StyleSheet.flatten(
+      screen.getByTestId('workout-rest-action').props.style,
+    );
+
+    expect(smashStyle).toMatchObject({ flex: 1, flexBasis: 0 });
+    expect(restStyle).toMatchObject({ flex: 1, flexBasis: 0 });
+    expect(smashStyle.height).toBeCloseTo(69.6);
+    expect(restStyle.height).toBeCloseTo(69.6);
+    expect(smashStyle.borderBottomWidth).toBeUndefined();
+    expect(smashStyle.shadowColor).toBeUndefined();
+    expect(smashStyle.elevation).toBeUndefined();
+  });
+
+  it('keeps the disabled smash action flat', async () => {
+    await render(<WorkoutScreen previewState="all-blocks" />);
+
+    const smashStyle = StyleSheet.flatten(
+      screen.getByTestId('workout-smash-action').props.style,
+    );
+    expect(smashStyle.backgroundColor).toBe('#CFCCC5');
+    expect(smashStyle.borderBottomWidth).toBeUndefined();
+    expect(smashStyle.shadowColor).toBeUndefined();
+    expect(smashStyle.elevation).toBeUndefined();
   });
 
   it('uses the original two-sided header layout and text-only stop action', async () => {
@@ -418,24 +480,30 @@ describe('WorkoutScreen', () => {
       flexDirection: 'row',
       justifyContent: 'space-between',
     });
-    expect(
-      StyleSheet.flatten(
-        screen.getByTestId('workout-pause-action').props.style,
-      ),
-    ).toMatchObject({
+    const pauseStyle = StyleSheet.flatten(
+      screen.getByTestId('workout-pause-action').props.style,
+    );
+    expect(pauseStyle).toMatchObject({
       backgroundColor: 'rgba(255,255,255,.18)',
-      borderRadius: 18,
-      height: 52,
-      width: 52,
     });
-    expect(
-      StyleSheet.flatten(screen.getByTestId('workout-stop-action').props.style),
-    ).toMatchObject({
-      backgroundColor: 'transparent',
-      borderRadius: 18,
+    expect(pauseStyle.borderRadius).toBeCloseTo(21.6);
+    expect(pauseStyle.height).toBeCloseTo(62.4);
+    expect(pauseStyle.width).toBeCloseTo(62.4);
+    const stopStyle = StyleSheet.flatten(
+      screen.getByTestId('workout-stop-action').props.style,
+    );
+    expect(stopStyle).toMatchObject({
+      backgroundColor: '#FDECE7',
+      borderColor: '#F1BFAE',
       borderWidth: 1.5,
-      height: 52,
     });
+    expect(stopStyle.borderRadius).toBeCloseTo(21.6);
+    expect(stopStyle.height).toBeCloseTo(62.4);
+    const stopLabelStyle = StyleSheet.flatten(
+      screen.getByText('중단').props.style,
+    );
+    expect(stopLabelStyle.color).toBe('#A23F2A');
+    expect(stopLabelStyle.fontWeight).toBe('400');
     expect(
       screen.getByRole('button', {
         name: '안전 중단 및 이상 반응 보고',
@@ -747,6 +815,70 @@ describe('WorkoutScreen', () => {
 });
 
 describe('WorkoutScreen API mode', () => {
+  it('shows reviewed variants during the workout without changing session state', async () => {
+    const getExerciseVariants = jest.fn(async (exerciseId: string) => ({
+      source_exercise_id: exerciseId,
+      source_required_equipment_codes: ['BODYWEIGHT', 'CHAIR'],
+      items: [
+        {
+          exercise_id: 'exercise-bodyweight-squat',
+          exercise_name: '맨몸 스쿼트',
+          required_equipment_codes: ['BODYWEIGHT'],
+          instruction_summary:
+            '의자 없이 엉덩이를 뒤로 보내며 가능한 범위까지 앉아요.',
+          form_cues: ['무릎과 발끝 방향을 맞춰요.'],
+          media_asset_key: null,
+          goal_preservation_code: 'GENERAL_FITNESS',
+        },
+      ],
+      catalog_version: 'test-catalog-v1',
+      alternative_set_version: 'test-alternatives-v1',
+    }));
+    const updateSessionItem = jest.fn<Api['updateSessionItem']>();
+    const api = workoutApi({ getExerciseVariants, updateSessionItem });
+
+    render(
+      <WorkoutScreen
+        api={api}
+        sessionId="session-api"
+        plan={API_PLAN}
+        onOutcome={jest.fn()}
+      />,
+    );
+
+    const equipmentAction = await screen.findByRole('button', {
+      name: '의자 스쿼트 장비가 없을 때 보기',
+    });
+    expect(StyleSheet.flatten(equipmentAction.props.style)).toMatchObject({
+      alignSelf: 'flex-start',
+      paddingHorizontal: 0,
+    });
+    expect(
+      StyleSheet.flatten(equipmentAction.props.style).borderWidth,
+    ).toBeUndefined();
+    expect(
+      StyleSheet.flatten(equipmentAction.props.style).backgroundColor,
+    ).toBeUndefined();
+
+    fireEvent.press(equipmentAction);
+
+    expect(
+      screen.getByRole('header', { name: '의자 스쿼트 장비 안내' }),
+    ).toBeOnTheScreen();
+    expect(screen.getByText('의자')).toBeOnTheScreen();
+    expect(screen.getByText('맨몸 스쿼트')).toBeOnTheScreen();
+    expect(
+      screen.getByText(
+        '의자 없이 엉덩이를 뒤로 보내며 가능한 범위까지 앉아요.',
+      ),
+    ).toBeOnTheScreen();
+    expect(updateSessionItem).not.toHaveBeenCalled();
+    expect(getExerciseVariants).toHaveBeenCalledWith(
+      'exercise-api',
+      expect.any(AbortSignal),
+    );
+  });
+
   it('loads reviewed exercise guidance inside the scrollable detail sheet', async () => {
     const plan = {
       ...API_PLAN,
@@ -1422,6 +1554,15 @@ describe('WorkoutScreen API mode', () => {
     await waitFor(() =>
       expect(screen.queryByText('운동 세션을 준비하고 있어요…')).toBeNull(),
     );
+    for (const testId of [
+      'workout-smash-action',
+      'workout-rest-action',
+      'workout-additional-action',
+    ]) {
+      expect(
+        StyleSheet.flatten(screen.getByTestId(testId).props.style),
+      ).toMatchObject({ flex: 1, flexBasis: 0, height: 69.6 });
+    }
     fireEvent.press(screen.getByRole('button', { name: '계획 외 활동 기록' }));
     fireEvent.press(screen.getByRole('radio', { name: '자전거' }));
     fireEvent.press(screen.getByRole('radio', { name: '20분' }));

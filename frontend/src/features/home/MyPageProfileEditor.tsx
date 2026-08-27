@@ -12,7 +12,6 @@ import {
 import {
   bodyAreaLabel,
   DEFAULT_BODY_AREA_OPTIONS,
-  equipmentLabel,
   experienceLevelLabel,
   EXTENDED_BODY_AREA_OPTIONS,
   locationLabel,
@@ -35,7 +34,6 @@ import { colors, radii, spacing } from '../../components/theme';
 import { ProfileAvatar } from '../../components/profile/ProfileAvatar';
 import {
   ONBOARDING_DURATION,
-  ONBOARDING_EQUIPMENT_OPTIONS,
   ONBOARDING_EXERCISE_TYPE_OPTIONS,
   ONBOARDING_EXPERIENCE_OPTIONS,
   ONBOARDING_GOAL_OPTIONS,
@@ -70,7 +68,6 @@ const TITLES: Record<MyPageEditableField, string> = {
   experience_level_code: '운동 경험 수정',
   preferred_exercise_type_codes: '선호 운동 수정',
   available_location_codes: '운동 장소 수정',
-  equipment_codes: '장비 수정',
   default_requested_duration_minutes: '희망 시간 수정',
   desired_weekly_workout_count: '주간 목표 수정',
   attention_area_codes: '주의 부위 수정',
@@ -233,21 +230,6 @@ function EditorBody({
         onChange={(available_location_codes, preferred_location_code) =>
           onChange({ available_location_codes, preferred_location_code })
         }
-      />
-    );
-  }
-
-  if (field === 'equipment_codes') {
-    return (
-      <MultipleChoiceEditor
-        disabled={pending}
-        initial={profile.equipment_codes}
-        options={mergeOptions(
-          ONBOARDING_EQUIPMENT_OPTIONS,
-          profile.equipment_codes,
-          equipmentLabel,
-        )}
-        onChange={(equipment_codes) => onChange({ equipment_codes })}
       />
     );
   }

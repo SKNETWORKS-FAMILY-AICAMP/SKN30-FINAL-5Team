@@ -11,9 +11,45 @@ describe('BananaCatchGameScreen', () => {
     try {
       render(<BananaCatchGameScreen onBack={() => {}} />);
 
+      expect(screen.getByTestId('banana-catch-background').props).toEqual(
+        expect.objectContaining({
+          blurRadius: 3,
+          resizeMode: 'cover',
+          source: imageAssets.bananaCatchBackground,
+        }),
+      );
+      expect(screen.getByTestId('banana-catch-background-frame')).toHaveStyle({
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+      });
+      expect(screen.getByTestId('banana-catch-safe-area').props.edges).toEqual({
+        top: 'additive',
+        right: 'off',
+        bottom: 'off',
+        left: 'off',
+      });
+      expect(screen.getByTestId('banana-catch-arena')).toHaveStyle({
+        borderWidth: 0,
+        backgroundColor: 'transparent',
+      });
+      expect(screen.getByTestId('banana-catch-grass').props).toEqual(
+        expect.objectContaining({
+          resizeMode: 'stretch',
+          source: imageAssets.bananaCatchGrass,
+        }),
+      );
+      expect(screen.getByTestId('banana-catch-grass-frame')).toHaveStyle({
+        height: '13%',
+      });
       expect(screen.getByText('30초 동안 바나나를 받아요!')).toBeTruthy();
       fireEvent.press(screen.getByRole('button', { name: '게임 시작' }));
-      expect(screen.getByTestId('falling-banana-1')).toHaveStyle({ zIndex: 5 });
+      expect(screen.getByTestId('falling-banana-1')).toHaveStyle({
+        zIndex: 5,
+        width: 33,
+        height: 33,
+      });
       expect(screen.getByLabelText('점수 0점, 30초 남음')).toBeTruthy();
       expect(
         screen.getByTestId('banana-catcher-mascot-empty').props.source,

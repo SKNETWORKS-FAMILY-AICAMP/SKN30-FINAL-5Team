@@ -11,7 +11,6 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Api } from '../../api/endpoints';
 import {
   bodyAreaLabel,
-  equipmentLabel,
   locationLabel,
   trainingTypeLabel,
 } from '../../api/labels';
@@ -187,10 +186,6 @@ export function AccountScreen({
             value={profile.available_location_codes
               .map(locationLabel)
               .join(', ')}
-          />
-          <Row
-            label="장비"
-            value={profile.equipment_codes.map(equipmentLabel).join(', ')}
           />
           <Row
             label="선호 운동"
