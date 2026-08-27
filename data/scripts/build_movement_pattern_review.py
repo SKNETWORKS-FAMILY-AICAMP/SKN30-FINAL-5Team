@@ -13,6 +13,7 @@ ALLOWED_PATTERNS = {
     "LUNGE",
     "PUSH",
     "PULL",
+    "ISOLATION",
     "CARRY",
     "CORE",
     "MOBILITY",
@@ -134,12 +135,12 @@ PATTERN_BY_EXERCISE_ID = {
     "NEX-000110": "MOBILITY",
     "NEX-000111": "MOBILITY",
     "NEX-000112": "MOBILITY",
-    "NEX-000113": "PULL",
+    "NEX-000113": "PUSH",
     "NEX-000114": "MOBILITY",
     "NEX-000115": "MOBILITY",
     "NEX-000116": "MOBILITY",
     "NEX-000117": "SQUAT",
-    "NEX-000118": "SQUAT",
+    "NEX-000118": "ISOLATION",
     "NEX-000119": "MOBILITY",
     "NEX-000120": "SQUAT",
     "NEX-000121": "SQUAT",
@@ -242,6 +243,7 @@ REASONS = {
     "CORE": "몸통의 안정화·굴곡·회전 제어가 주된 목적이므로 CORE로 제안.",
     "MOBILITY": "가동범위 확보와 스트레칭이 주된 수행 목적이므로 MOBILITY로 제안.",
     "CARDIO": "리드미컬한 전신·하지 반복으로 심폐 부담을 만드는 활동이므로 CARDIO로 제안.",
+    "ISOLATION": "단일 관절 또는 특정 근육의 직접 수축이 주된 목적이므로 ISOLATION으로 제안.",
 }
 
 # The controlled vocabulary has no isolation-pattern codes. These explicit
@@ -370,6 +372,14 @@ REASON_OVERRIDES = {
         "어깨 신전 중심의 풀오버 동작이므로 상지 당기기 계열 PULL로 제안.",
     ),
     "NEX-000092": GRIP_ISOLATION_REASON,
+    "NEX-000113": (
+        "벽에 손바닥을 대고 미는 힘으로 광배근을 등척성 활성화하는 동작이므로 PUSH로 제안. "
+        "명칭은 스트레칭이 아닌 광배근 등척성 운동으로 정리하며, 장비 방식은 BODYWEIGHT로 별도 기록."
+    ),
+}
+
+TRAINING_TYPE_OVERRIDES = {
+    "NEX-000208": "POWER",
 }
 
 
@@ -420,7 +430,9 @@ def main() -> None:
                     "exercise_id": row["exercise_id"],
                     "exercise_name": row["exercise_name_ko"],
                     "current_body_focus": row["body_focus_code"],
-                    "current_training_type": current_training_type(row["body_focus_code"]),
+                    "current_training_type": TRAINING_TYPE_OVERRIDES.get(
+                        row["exercise_id"], current_training_type(row["body_focus_code"])
+                    ),
                     "difficulty": row["difficulty_code"],
                     "suggested_movement_pattern": pattern,
                     "review_reason": (

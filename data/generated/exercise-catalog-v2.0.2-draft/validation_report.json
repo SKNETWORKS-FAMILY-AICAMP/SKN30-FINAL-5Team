@@ -1,0 +1,40 @@
+{
+  "alternative_reason_counts": {
+    "DIFFICULTY": 2,
+    "DISCOMFORT": 220,
+    "EQUIPMENT": 19,
+    "LOCATION": 33
+  },
+  "alternative_records": 274,
+  "catalog_records": 102,
+  "combined_exercise_records": 310,
+  "difficulty_counts": {
+    "BEGINNER": 85,
+    "INTERMEDIATE": 17
+  },
+  "goal_tag_records": 102,
+  "legacy_field_occurrences": 0,
+  "manifest_sha256": "eb987fd1fa3711953d95997e483ba58318adeda0a7cb80c79c62ae0bb6de5a47",
+  "prescription_coverage": {
+    "BEGINNER:BEGINNER": 120,
+    "BEGINNER:INTERMEDIATE": 120,
+    "INTERMEDIATE:INTERMEDIATE": 17
+  },
+  "prescription_exercise_coverage": {
+    "BEGINNER:BEGINNER": 85,
+    "BEGINNER:INTERMEDIATE": 85,
+    "INTERMEDIATE:INTERMEDIATE": 17
+  },
+  "prescription_records": 257,
+  "production_eligible": false,
+  "safety_rule_records": 394,
+  "source_difficulty_review_required_count": 0,
+  "status": "valid",
+  "template_review": {
+    "beginner_review_status_code": "DRAFT",
+    "intermediate_artifact_version": "fitt-template-intermediate-v1",
+    "intermediate_review_status_code": "REVIEW_REQUIRED"
+  },
+  "v1_alias_records": 208,
+  "version_consistent": true
+}

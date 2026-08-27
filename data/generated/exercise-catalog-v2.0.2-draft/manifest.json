@@ -1,0 +1,259 @@
+{
+  "alternative_set_version_code": "alternative-set-v2.0.2-draft",
+  "backend_follow_up": {
+    "import_compatibility": "BLOCKED_BY_CURRENT_BACKEND_SCHEMA",
+    "notes": [
+      "Remove difficulty/experience equality assumptions in backend validators and wording.",
+      "Allow INTERMEDIATE prescription profiles and select by experience policy.",
+      "Remove candidate lookup dependence on the historical suitability field.",
+      "Import this Data-side vNext bundle into the database and rebuild Qdrant payload/index when approved.",
+      "Import the v1_exercise_aliases projection so all existing V1 exercise IDs resolve to their V2 stable codes without duplicating exercise rows.",
+      "Treat exercises_v1_v2.jsonl as a Data-side combined handoff; its V1_ALIAS records are not directly compatible with the current Backend exercise-row schema.",
+      "Revalidate candidate selection, downshift, duration composition, and Safety runtime behavior."
+    ],
+    "status_code": "REQUIRED"
+  },
+  "catalog_version_code": "exercise-catalog-v2.0.2-draft",
+  "files": [
+    {
+      "bytes": 336839,
+      "path": "alternatives/alternatives.jsonl",
+      "records": 274,
+      "sha256": "8dd1abf2d7e1951c3a634b316ff9dade69acba73d97ed93ab7b3bb0d0a711924"
+    },
+    {
+      "bytes": 336839,
+      "path": "backend_bundle/alternatives/alternatives.jsonl",
+      "records": 274,
+      "sha256": "8dd1abf2d7e1951c3a634b316ff9dade69acba73d97ed93ab7b3bb0d0a711924"
+    },
+    {
+      "bytes": 67545,
+      "path": "backend_bundle/catalog/catalog_enrichment.jsonl",
+      "records": 102,
+      "sha256": "80b32a3754251842fabe470e5791af11eb0aaf8c277de1a98dddb8cd0b219abe"
+    },
+    {
+      "bytes": 137896,
+      "path": "backend_bundle/catalog/exercises.jsonl",
+      "records": 102,
+      "sha256": "7eeeee12ae0fab6bf8a3f3f705eed94ae1b81d0459660bebcc3682fdea43eee8"
+    },
+    {
+      "bytes": 212363,
+      "path": "backend_bundle/catalog/exercises_v1_v2.csv",
+      "records": 310,
+      "sha256": "69b87b5037869175a73d95345487d92e767f2d1c6a229fb8440d09d14316ace1"
+    },
+    {
+      "bytes": 448706,
+      "path": "backend_bundle/catalog/exercises_v1_v2.jsonl",
+      "records": 310,
+      "sha256": "f8ab22fcc1998c53a93890ece9bc07712613da6cde44d2f1c89707ae0f465f5c"
+    },
+    {
+      "bytes": 238691,
+      "path": "backend_bundle/catalog/v1_exercise_aliases.jsonl",
+      "records": 208,
+      "sha256": "28e8500d3dffe6fcf8437101ce7db3864d09e83abc7a7c1fd9731204b1815d85"
+    },
+    {
+      "bytes": 2171,
+      "path": "backend_bundle/manifest.json",
+      "records": 1,
+      "sha256": "cd5785b231cba1077337b63152e51b46aad8cb6fb00cb57b4235cf8779b67c8f"
+    },
+    {
+      "bytes": 29789,
+      "path": "backend_bundle/prescriptions/goal_tag_links.jsonl",
+      "records": 102,
+      "sha256": "663d9927aeb5538b5d702b3d7087cc82f1985daed84d3f0781cadc7815f91bc8"
+    },
+    {
+      "bytes": 140769,
+      "path": "backend_bundle/prescriptions/prescription_profiles.jsonl",
+      "records": 257,
+      "sha256": "a7d1db08aefaea0efa87fec017a1971da61ddca5b7b8c1e0eb0af3b8d1a0ef50"
+    },
+    {
+      "bytes": 361081,
+      "path": "backend_bundle/safety/safety_rules.jsonl",
+      "records": 394,
+      "sha256": "d11f30f895d74055e655d5bd6e6f3ff055deff470662e8810625cd8980754f19"
+    },
+    {
+      "bytes": 67545,
+      "path": "catalog/catalog_enrichment.jsonl",
+      "records": 102,
+      "sha256": "80b32a3754251842fabe470e5791af11eb0aaf8c277de1a98dddb8cd0b219abe"
+    },
+    {
+      "bytes": 137896,
+      "path": "catalog/exercises.jsonl",
+      "records": 102,
+      "sha256": "7eeeee12ae0fab6bf8a3f3f705eed94ae1b81d0459660bebcc3682fdea43eee8"
+    },
+    {
+      "bytes": 212363,
+      "path": "catalog/exercises_v1_v2.csv",
+      "records": 310,
+      "sha256": "69b87b5037869175a73d95345487d92e767f2d1c6a229fb8440d09d14316ace1"
+    },
+    {
+      "bytes": 448706,
+      "path": "catalog/exercises_v1_v2.jsonl",
+      "records": 310,
+      "sha256": "f8ab22fcc1998c53a93890ece9bc07712613da6cde44d2f1c89707ae0f465f5c"
+    },
+    {
+      "bytes": 238691,
+      "path": "catalog/v1_exercise_aliases.jsonl",
+      "records": 208,
+      "sha256": "28e8500d3dffe6fcf8437101ce7db3864d09e83abc7a7c1fd9731204b1815d85"
+    },
+    {
+      "bytes": 29789,
+      "path": "prescriptions/goal_tag_links.jsonl",
+      "records": 102,
+      "sha256": "663d9927aeb5538b5d702b3d7087cc82f1985daed84d3f0781cadc7815f91bc8"
+    },
+    {
+      "bytes": 140769,
+      "path": "prescriptions/prescription_profiles.jsonl",
+      "records": 257,
+      "sha256": "a7d1db08aefaea0efa87fec017a1971da61ddca5b7b8c1e0eb0af3b8d1a0ef50"
+    },
+    {
+      "bytes": 336839,
+      "path": "runtime/alternatives.jsonl",
+      "records": 274,
+      "sha256": "8dd1abf2d7e1951c3a634b316ff9dade69acba73d97ed93ab7b3bb0d0a711924"
+    },
+    {
+      "bytes": 137896,
+      "path": "runtime/catalog.jsonl",
+      "records": 102,
+      "sha256": "7eeeee12ae0fab6bf8a3f3f705eed94ae1b81d0459660bebcc3682fdea43eee8"
+    },
+    {
+      "bytes": 212363,
+      "path": "runtime/exercises_v1_v2.csv",
+      "records": 310,
+      "sha256": "69b87b5037869175a73d95345487d92e767f2d1c6a229fb8440d09d14316ace1"
+    },
+    {
+      "bytes": 448706,
+      "path": "runtime/exercises_v1_v2.jsonl",
+      "records": 310,
+      "sha256": "f8ab22fcc1998c53a93890ece9bc07712613da6cde44d2f1c89707ae0f465f5c"
+    },
+    {
+      "bytes": 1635,
+      "path": "runtime/manifest.json",
+      "records": 1,
+      "sha256": "b4ae95f53084189b528432eb7c4e9e90ee97c7538e7a0a364427193aa3074f33"
+    },
+    {
+      "bytes": 140769,
+      "path": "runtime/prescription_profiles.jsonl",
+      "records": 257,
+      "sha256": "a7d1db08aefaea0efa87fec017a1971da61ddca5b7b8c1e0eb0af3b8d1a0ef50"
+    },
+    {
+      "bytes": 361081,
+      "path": "runtime/safety_rules.jsonl",
+      "records": 394,
+      "sha256": "d11f30f895d74055e655d5bd6e6f3ff055deff470662e8810625cd8980754f19"
+    },
+    {
+      "bytes": 238691,
+      "path": "runtime/v1_exercise_aliases.jsonl",
+      "records": 208,
+      "sha256": "28e8500d3dffe6fcf8437101ce7db3864d09e83abc7a7c1fd9731204b1815d85"
+    }
+  ],
+  "generator_version": "experience-level-artifacts-v2-1.0.0",
+  "policy": {
+    "candidate_matrix": {
+      "BEGINNER": [
+        "BEGINNER"
+      ],
+      "INTERMEDIATE": [
+        "BEGINNER",
+        "INTERMEDIATE"
+      ],
+      "INTERMEDIATE_DOWNSHIFT": [
+        "BEGINNER"
+      ]
+    },
+    "difficulty_experience_equality_required": false,
+    "fitt_selection": {
+      "BEGINNER": "BEGINNER",
+      "INTERMEDIATE": "INTERMEDIATE",
+      "INTERMEDIATE_DOWNSHIFT": "BEGINNER"
+    }
+  },
+  "prescription_set_version_code": "prescription-set-v2.0.2-draft",
+  "production_eligible": false,
+  "review": {
+    "catalog_status_code": "DRAFT",
+    "difficulty_review_required_count": 0,
+    "difficulty_review_status_code": "APPROVED",
+    "fitt_beginner_status_code": "DRAFT",
+    "fitt_intermediate_status_code": "REVIEW_REQUIRED",
+    "production_eligible": false
+  },
+  "schema_version": "vnext-1.0",
+  "source": {
+    "alternatives": {
+      "path": "data/generated/exercise-catalog-v2.0.1-final/runtime/alternatives.jsonl",
+      "sha256": "3bce2cac7deeac2222d914b9cd8b7bd251d17832522c4dafa934c1b9425f8676"
+    },
+    "beginner_fitt_review": {
+      "path": "data/FITT_REFERENCE_ASSESSMENT.md",
+      "sha256": "de0bda0d0e79949b21e7f6259ac4cc6961a1fecb5e363ed9490191b456a35e70"
+    },
+    "beginner_fitt_template": {
+      "path": "data/normalized/fitt_template_v1.csv",
+      "sha256": "4c84ba092a906a68c812a22f449db0b2b82a3cd0b18284c0df86f78c118f45d0"
+    },
+    "catalog": {
+      "path": "data/generated/exercise-catalog-v2.0.1-final/representative_exercises_v2_final.csv",
+      "sha256": "9f1b6a3f1d1f6b23561869c949eabe855483bfb054424624df01943efec433fb"
+    },
+    "catalog_enrichment": {
+      "path": "data/normalized/catalog_enrichment_v3_fitt.csv",
+      "sha256": "eb86dbff512902f6386d8f70d098a955fe688ec1013d890632497052607e69bf"
+    },
+    "goal_links": {
+      "path": "data/generated/exercise-prescriptions-v2.0.1-draft/goal_tag_links.jsonl",
+      "sha256": "0d0471438f9d2017861fd3dce3e1de6cce083fdccdb9fb50bf11729c4e754d9c"
+    },
+    "intermediate_fitt_template": {
+      "path": "data/generated/exercise-prescriptions-v2.0.2-draft/fitt_template_intermediate_v1.json",
+      "sha256": "48fb96b63ae6201389c59f24007177046c266538491a76306e56c502f69d9657"
+    },
+    "safety": {
+      "path": "data/generated/exercise-catalog-v2.0.1-final/runtime/safety_rules.jsonl",
+      "sha256": "41257da9b334f2274482c20d098438bf426fd2b9ed7c94acb81706b478555d8a"
+    },
+    "v1_catalog": {
+      "path": "data/generated/exercise-catalog-v1.0.0/exercise_catalog_v1.csv",
+      "sha256": "2a509618a514268142dce45f50927db096d0482f2fe40203116857912986ea2c"
+    }
+  },
+  "status_code": "DRAFT",
+  "summary": {
+    "alternative_records": 274,
+    "catalog_records": 102,
+    "combined_exercise_records": 310,
+    "difficulty_counts": {
+      "BEGINNER": 85,
+      "INTERMEDIATE": 17
+    },
+    "goal_tag_records": 102,
+    "prescription_records": 257,
+    "safety_rule_records": 394,
+    "v1_alias_records": 208
+  }
+}

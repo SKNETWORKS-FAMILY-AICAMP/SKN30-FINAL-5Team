@@ -30,16 +30,16 @@
         "sha256": "9340e5f60bb229cbc97a1429a694ad7379ae532a0981d1580c9ec2e62c5a88cb"
       },
       {
-        "bytes": 4341,
+        "bytes": 11860,
         "path": "input/v2_representative_decisions.json",
         "role": "v2_decisions",
-        "sha256": "ad7adb2b6d730ae3d9f77902af222cc79bfe77d69f869d3e571db77d859af29f"
+        "sha256": "bfdda8adea9244a8c27406fc917e1b866b569265aed21d2bf4208336af22b974"
       }
     ],
     "projection_conflict_count": 0,
     "projection_status": "DIRECT",
     "runtime_manifest_path": "runtime/safety_manifest.json",
-    "runtime_manifest_sha256": "bd4a99d9da55ccce38b4a7ef8f316300c32666a35d9538f00836ddb7eacae20c",
+    "runtime_manifest_sha256": "881b89d2068874c0def5b96b8ba529f2660ba5a3b38d357635cdd9967d0b09d4",
     "runtime_record_count": 394
   },
   "summary": {

@@ -828,6 +828,22 @@ def build_representatives(
         reviewed_beginner = taxon.get("beginner_suitable", "")
         if reviewed_beginner not in beginner_by_review:
             raise FinalizationError(f"beginner suitability is unresolved for {representative_id}")
+        beginner_override = override.get("beginner_suitable")
+        if beginner_override is not None and not isinstance(beginner_override, bool):
+            raise FinalizationError(
+                f"beginner suitability override must be boolean for {representative_id}"
+            )
+        beginner_suitable = (
+            beginner_override
+            if beginner_override is not None
+            else beginner_by_review[reviewed_beginner]
+        )
+        difficulty_override = override.get("difficulty_code")
+        if difficulty_override is not None and difficulty_override not in {
+            "BEGINNER",
+            "INTERMEDIATE",
+        }:
+            raise FinalizationError(f"difficulty override is invalid for {representative_id}")
         if training_type not in recovery_by_training:
             raise FinalizationError(f"recovery eligibility is unresolved for {representative_id}")
         runtime_default_rest = default_rest_by_training.get(training_type)
@@ -864,8 +880,8 @@ def build_representatives(
                 "equipment_codes": "|".join(equipment_codes),
                 "location_codes": "|".join(location_codes),
                 "setup_condition_ko": setup_condition,
-                "difficulty_code": fitt.get("difficulty_code", ""),
-                "beginner_suitable": ("true" if beginner_by_review[reviewed_beginner] else "false"),
+                "difficulty_code": difficulty_override or fitt.get("difficulty_code", ""),
+                "beginner_suitable": "true" if beginner_suitable else "false",
                 "recovery_eligible": "true" if recovery_by_training[training_type] else "false",
                 "difficulty_status": fitt.get("difficulty_status", ""),
                 "fitt_template_id": fitt.get("fitt_template_id", ""),

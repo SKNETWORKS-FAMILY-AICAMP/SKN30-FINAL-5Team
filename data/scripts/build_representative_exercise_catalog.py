@@ -75,7 +75,7 @@ FAMILY_KO = {
     "LOWER_BACK_CURL": "로어 백 컬",
     "MACHINE_LEG_EXTENSION": "레그 익스텐션",
     "NECK_LATERAL_STRETCH": "목 옆면 스트레칭",
-    "ONE_ARM_WALL_LATS": "벽 짚고 한 팔 광배근 스트레칭",
+    "ONE_ARM_WALL_LATS": "벽 짚고 한 팔 광배근 등척성 운동",
     "OVERHEAD_TRICEPS_EXTENSION": "오버헤드 트라이셉스 익스텐션",
     "OVERHEAD_TRICEPS_STRETCH": "오버헤드 삼두근 스트레칭",
     "PECTORALS_HORIZONTAL_PUSH": "체스트 프레스",

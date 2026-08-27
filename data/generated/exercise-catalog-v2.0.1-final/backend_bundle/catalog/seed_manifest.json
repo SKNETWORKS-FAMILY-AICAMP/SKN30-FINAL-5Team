@@ -5,10 +5,10 @@
   },
   "files": [
     {
-      "bytes": 124033,
+      "bytes": 123963,
       "path": "exercises.jsonl",
       "records": 102,
-      "sha256": "fdccc5b957588c843506deb8e091c4c650acf04f6455879cf896df8cfd341b8d"
+      "sha256": "fe247acef996b9c7d375f62ca314c2ed49791c3a9187fe2a5d4d178c9ff60180"
     }
   ],
   "generator_version": "v2-backend-bundle-packager-1.0.0",
@@ -22,10 +22,10 @@
   "source": {
     "input_artifacts": [
       {
-        "bytes": 118883,
+        "bytes": 118813,
         "path": "input/representative_exercises_v2_final.csv",
         "role": "representative_catalog_csv",
-        "sha256": "6b832a51229b674d537905bc8d5ac0f994582cdf99d18494cb4e88e9560750ad"
+        "sha256": "9f1b6a3f1d1f6b23561869c949eabe855483bfb054424624df01943efec433fb"
       },
       {
         "bytes": 13074,
