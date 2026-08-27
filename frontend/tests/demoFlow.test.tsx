@@ -2029,7 +2029,7 @@ describe('MascotStage', () => {
 });
 
 describe('MascotHouseScreen', () => {
-  it('shows the room and the week the server reported', async () => {
+  it('shows the room and its mini-game collection', async () => {
     const onNavigate = jest.fn();
     render(
       <MascotHouseScreen
@@ -2055,9 +2055,10 @@ describe('MascotHouseScreen', () => {
       />,
     );
 
-    // The week standing is the server's, not a fixture.
-    expect(await screen.findByText('주 3회 운동하기')).toBeTruthy();
-    expect(screen.getByText('0 / 3 회')).toBeTruthy();
+    expect(await screen.findByText('끼끼와 놀기')).toBeTruthy();
+    expect(screen.getByText('바나나 받기')).toBeTruthy();
+    expect(screen.queryByText('주 3회 운동하기')).toBeNull();
+    expect(screen.queryByText('0 / 3 회')).toBeNull();
     expect(screen.getByTestId('house-scene')).toBeTruthy();
 
     // 홈 is reached from the tab bar; the screen has no duplicate corner button.

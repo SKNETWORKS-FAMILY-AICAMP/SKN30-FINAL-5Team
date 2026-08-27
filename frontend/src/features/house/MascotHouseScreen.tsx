@@ -28,7 +28,7 @@ import type { TabId } from '../../components/brand/BrandChrome';
 import { LoadingState, ScreenShell } from '../../components/states/ScreenState';
 import { HomeBottomNavigation } from '../home/HomeScreen';
 import { BananaCatchGameScreen } from '../bananaCatch/BananaCatchGameScreen';
-import { MascotHouseContent } from './MascotHouseContent';
+import { MascotHouseContent, type HouseMiniGameId } from './MascotHouseContent';
 import {
   housePoseArt,
   randomHouseBananaPoseArt,
@@ -72,7 +72,6 @@ type HouseRemote = {
 
 export function MascotHouseScreen({
   api,
-  nickname,
   now,
   onNavigate,
   store,
@@ -96,7 +95,9 @@ export function MascotHouseScreen({
   const [reactionPose, setReactionPose] = useState<HousePose | null>(null);
   const [reactionArt, setReactionArt] = useState<HouseArtSlot | null>(null);
   const [settledArt, setSettledArt] = useState<HouseArtSlot | null>(null);
-  const [playingBananaCatch, setPlayingBananaCatch] = useState(false);
+  const [activeMiniGame, setActiveMiniGame] = useState<HouseMiniGameId | null>(
+    null,
+  );
   const lastBananaArt = useRef<HouseArtSlot['source']>(null);
   const lastRegularArt = useRef<HouseArtSlot['source']>(null);
   const poseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -106,7 +107,7 @@ export function MascotHouseScreen({
   const { state: remote } = useAsyncData<HouseRemote>(
     async (signal) => {
       // Neither request rejects: the house stays reachable offline, and the
-      // weekly card degrades locally instead of failing the whole screen.
+      // week-aware mascot copy degrades locally instead of failing the screen.
       const week = await api
         .getWeek(weekStart, signal)
         .catch(() => 'failed' as const);
@@ -195,10 +196,8 @@ export function MascotHouseScreen({
     <HomeBottomNavigation activeTab="house" onNavigate={onNavigate} />
   );
 
-  if (playingBananaCatch) {
-    return (
-      <BananaCatchGameScreen onBack={() => setPlayingBananaCatch(false)} />
-    );
+  if (activeMiniGame === 'banana_catch') {
+    return <BananaCatchGameScreen onBack={() => setActiveMiniGame(null)} />;
   }
 
   if (remote.status !== 'ready' || houseState === null) {
@@ -220,7 +219,6 @@ export function MascotHouseScreen({
   return (
     <MascotHouseContent
       footer={tabBar}
-      nickname={nickname}
       onBuyItem={(itemId: HouseItemId) => {
         const next = buyItem(houseState, itemId);
         if (next === null) return;
@@ -254,7 +252,7 @@ export function MascotHouseScreen({
         lastRegularArt.current = pettedArt.source;
         react('petted', pettedArt);
       }}
-      onPlayGame={() => setPlayingBananaCatch(true)}
+      onPlayGame={setActiveMiniGame}
       onPlaceItem={(itemId: HouseItemId, placement: HouseItemPlacement) => {
         const base = liveState.current ?? houseState;
         const next = placeHouseItem(base, itemId, placement);

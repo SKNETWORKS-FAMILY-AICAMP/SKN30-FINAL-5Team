@@ -4,7 +4,7 @@
  * The backdrop is full-bleed: it fills the whole screen, runs under the status
  * bar and behind the tab bar, and is never boxed into a card. Everything else
  * floats on top of it — the top bar, the side chips, the mascot, the feed
- * button, the weekly card. A soft fade at the bottom carries the illustration
+ * button, the mini-game panel. A soft fade at the bottom carries the illustration
  * into the canvas colour so the artwork is not cut off by a hard edge.
  *
  * The artwork is a top-aligned, half-scale version of its former cover size.
@@ -45,7 +45,7 @@ import Svg, {
   Stop,
 } from 'react-native-svg';
 
-import { useScale } from '../../components/scale';
+import { BASE_H, useScale } from '../../components/scale';
 import { colors, radii, shadows, spacing } from '../../components/theme';
 import {
   BananaGlyph,
@@ -89,6 +89,34 @@ export const HOUSE_BACKDROP_ZOOM = 0.5;
 /** The selected mascot is displayed at 75% of the former 148px frame. */
 export const HOUSE_MASCOT_SIZE = 148 * 0.75;
 
+/** Grows the mascot gently on tall screens without letting it dominate. */
+const HOUSE_MASCOT_TALL_SCREEN_GROWTH_RATIO = 0.04;
+const HOUSE_MASCOT_MAX_SIZE = 126;
+
+export function houseMascotSize(viewportHeight: number): number {
+  const extraHeight = Math.max(0, viewportHeight - BASE_H);
+  return Math.min(
+    HOUSE_MASCOT_MAX_SIZE,
+    HOUSE_MASCOT_SIZE + extraHeight * HOUSE_MASCOT_TALL_SCREEN_GROWTH_RATIO,
+  );
+}
+
+/**
+ * Tall screens enlarge the room toward the bottom controls faster than the
+ * former 45% mascot anchor moves. Let the mascot follow a small part of that
+ * extra height so it does not appear to climb up through the illustration.
+ */
+const HOUSE_MASCOT_TALL_SCREEN_FOLLOW_RATIO = 0.1;
+const HOUSE_MASCOT_TALL_SCREEN_MAX_OFFSET = 50;
+
+export function houseMascotTallScreenOffset(viewportHeight: number): number {
+  const extraHeight = Math.max(0, viewportHeight - BASE_H);
+  return Math.min(
+    HOUSE_MASCOT_TALL_SCREEN_MAX_OFFSET,
+    extraHeight * HOUSE_MASCOT_TALL_SCREEN_FOLLOW_RATIO,
+  );
+}
+
 /** Fallback dimensions used only when a platform cannot resolve a local asset. */
 const HOUSE_BACKDROP_SOURCE_SIZE = { width: 1600, height: 976 } as const;
 
@@ -98,11 +126,11 @@ const HOUSE_BACKDROP_BLEND_BAND_PX = 160;
 /** Display pixels where the blurred extension overlaps the original artwork. */
 const HOUSE_BACKDROP_BLEND_OVERLAP = 48;
 
-/** Places the blend boundary halfway across the gap above the weekly panel. */
-const HOUSE_BACKDROP_WEEK_PANEL_GAP_OFFSET = spacing.sm / 2;
+/** Places the blend boundary halfway across the gap above the bottom panel. */
+const HOUSE_BACKDROP_BOTTOM_PANEL_GAP_OFFSET = spacing.sm / 2;
 
-/** The weekly card keeps this outer gap between its bottom and the column. */
-const HOUSE_WEEK_PANEL_BOTTOM_MARGIN = spacing.xs;
+/** The bottom panel keeps this outer gap between its bottom and the column. */
+const HOUSE_BOTTOM_PANEL_BOTTOM_MARGIN = spacing.xs;
 
 /** Vertical geometry shared by the flex column and its boundary calculation. */
 const HOUSE_COLUMN_TOP_PADDING = spacing.sm;
@@ -111,6 +139,17 @@ const HOUSE_STAGE_MIN_HEIGHT = 210;
 
 const PLACED_ITEM_SIZE = 44;
 const DECORATE_GRID_GAP = spacing.sm;
+
+export const HOUSE_MINI_GAMES = [
+  {
+    id: 'banana_catch',
+    title: '바나나 받기',
+    description: '떨어지는 바나나를 받아요',
+    durationLabel: '30초',
+  },
+] as const;
+
+export type HouseMiniGameId = (typeof HOUSE_MINI_GAMES)[number]['id'];
 
 /**
  * Returns half of the size the artwork would have occupied with `cover`, then
@@ -147,29 +186,29 @@ export function houseBackdropSize(
 
 function houseBackdropControlBoundary(
   viewportHeight: number,
-  weekPanelTop: number | null,
+  bottomPanelTop: number | null,
 ): number | null {
   if (
-    weekPanelTop === null ||
-    !Number.isFinite(weekPanelTop) ||
-    weekPanelTop <= 0
+    bottomPanelTop === null ||
+    !Number.isFinite(bottomPanelTop) ||
+    bottomPanelTop <= 0
   ) {
     return null;
   }
   return Math.min(
-    Math.max(0, weekPanelTop - HOUSE_BACKDROP_WEEK_PANEL_GAP_OFFSET),
+    Math.max(0, bottomPanelTop - HOUSE_BACKDROP_BOTTOM_PANEL_GAP_OFFSET),
     Math.max(0, viewportHeight),
   );
 }
 
 export function houseBackdropMinimumHeight(
   viewportHeight: number,
-  weekPanelTop: number | null,
+  bottomPanelTop: number | null,
 ): number {
   const safeViewportHeight = Math.max(0, viewportHeight);
   const controlBoundary = houseBackdropControlBoundary(
     safeViewportHeight,
-    weekPanelTop,
+    bottomPanelTop,
   );
   if (controlBoundary === null) return 0;
   return Math.min(
@@ -181,46 +220,46 @@ export function houseBackdropMinimumHeight(
 export function houseBackdropContinuationTop(
   artHeight: number,
   viewportHeight: number,
-  weekPanelTop: number | null,
+  bottomPanelTop: number | null,
 ): number {
   const safeViewportHeight = Math.max(0, viewportHeight);
   const imageEnd = Math.min(Math.max(0, artHeight), safeViewportHeight);
   const imageBlendStart = Math.max(0, imageEnd - HOUSE_BACKDROP_BLEND_OVERLAP);
   const controlBoundary = houseBackdropControlBoundary(
     safeViewportHeight,
-    weekPanelTop,
+    bottomPanelTop,
   );
   if (controlBoundary === null) return imageBlendStart;
   return Math.min(imageBlendStart, controlBoundary);
 }
 
 /**
- * Derives the weekly card's screen-relative top from bottom-anchored sizes.
+ * Derives the bottom panel's screen-relative top from bottom-anchored sizes.
  *
  * React Native Web does not guarantee a new `onLayout` event when an element
  * only changes position inside a flex parent. The column height does change
- * with the viewport, though, and the weekly card is the last item in the
+ * with the viewport, though, and the play panel is the last item in the
  * bottom action stack. Using their heights therefore keeps the boundary in
  * sync on both native and web without retaining a stale absolute y-coordinate.
  */
-export function houseWeekPanelTop(
+export function houseBottomPanelTop(
   columnTop: number | null,
   columnHeight: number | null,
   actionAreaHeight: number | null,
-  weekPanelHeight: number | null,
+  bottomPanelHeight: number | null,
 ): number | null {
   if (
     columnTop === null ||
     columnHeight === null ||
     actionAreaHeight === null ||
-    weekPanelHeight === null ||
+    bottomPanelHeight === null ||
     !Number.isFinite(columnTop) ||
     !Number.isFinite(columnHeight) ||
     !Number.isFinite(actionAreaHeight) ||
-    !Number.isFinite(weekPanelHeight) ||
+    !Number.isFinite(bottomPanelHeight) ||
     columnHeight <= 0 ||
     actionAreaHeight <= 0 ||
-    weekPanelHeight <= 0
+    bottomPanelHeight <= 0
   ) {
     return null;
   }
@@ -237,13 +276,15 @@ export function houseWeekPanelTop(
 
   return Math.max(
     0,
-    contentBottom - weekPanelHeight - HOUSE_WEEK_PANEL_BOTTOM_MARGIN,
+    contentBottom - bottomPanelHeight - HOUSE_BOTTOM_PANEL_BOTTOM_MARGIN,
   );
 }
 
+/** @deprecated Use `houseBottomPanelTop`; retained for existing callers. */
+export const houseWeekPanelTop = houseBottomPanelTop;
+
 export function MascotHouseContent({
   footer,
-  nickname,
   onBuyItem,
   onClaimGift,
   onFeed,
@@ -257,12 +298,11 @@ export function MascotHouseContent({
 }: {
   /** The tab bar, rendered inside the backdrop so the scene runs behind it. */
   footer?: ReactNode;
-  nickname: string;
   onBuyItem: (itemId: HouseItemId) => void;
   onClaimGift: () => void;
   onFeed: () => void;
   onPet: () => void;
-  onPlayGame: () => void;
+  onPlayGame: (gameId: HouseMiniGameId) => void;
   onPlaceItem: (itemId: HouseItemId, placement: HouseItemPlacement) => void;
   onSelectBackground: (backgroundId: HouseBackgroundId) => void;
   mascotArt?: HouseArtSlot;
@@ -280,17 +320,20 @@ export function MascotHouseContent({
     height: number;
   } | null>(null);
   const [actionAreaHeight, setActionAreaHeight] = useState<number | null>(null);
-  const [weekPanelHeight, setWeekPanelHeight] = useState<number | null>(null);
+  const [bottomPanelHeight, setBottomPanelHeight] = useState<number | null>(
+    null,
+  );
   const [decorationCanvas, setDecorationCanvas] = useState({
     width: 0,
     height: 0,
   });
   const viewport = measuredViewport ?? scaleViewport;
-  const weekPanelTop = houseWeekPanelTop(
+  const mascotSize = houseMascotSize(viewport.height);
+  const bottomPanelTop = houseBottomPanelTop(
     columnLayout?.y ?? null,
     columnLayout?.height ?? null,
     actionAreaHeight,
-    weekPanelHeight,
+    bottomPanelHeight,
   );
 
   return (
@@ -309,19 +352,31 @@ export function MascotHouseContent({
       <Backdrop
         backgroundId={view.selectedBackgroundId}
         viewport={viewport}
-        weekPanelTop={weekPanelTop}
+        bottomPanelTop={bottomPanelTop}
       />
 
       <View
         pointerEvents="none"
-        style={styles.mascotSlot}
+        style={[
+          styles.mascotSlot,
+          {
+            height: mascotSize,
+            transform: [
+              {
+                translateY:
+                  -mascotSize / 2 +
+                  houseMascotTallScreenOffset(viewport.height),
+              },
+            ],
+          },
+        ]}
         testID="house-mascot-slot"
       >
-        <SpeechBubble text={houseSpeech(view, pose)} />
+        <SpeechBubble mascotSize={mascotSize} text={houseSpeech(view, pose)} />
         <HouseArtView
           showPlaceholderLabel={false}
           slot={mascotArt ?? housePoseArt[pose]}
-          style={styles.mascot}
+          style={[styles.mascot, { height: mascotSize, width: mascotSize }]}
         />
       </View>
 
@@ -438,41 +493,27 @@ export function MascotHouseContent({
               style={styles.actionStack}
             >
               <FeedButton enabled={view.canFeed} onPress={onFeed} />
-              <View style={styles.secondaryActionRow}>
-                <Pressable
-                  accessibilityLabel={`쓰다듬기, 바나나 ${HOUSE_ACTION_COST.pet}개`}
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: !view.canPet }}
-                  disabled={!view.canPet}
-                  onPress={onPet}
-                  style={[
-                    styles.petButton,
-                    styles.secondaryAction,
-                    !view.canPet && styles.spent,
-                  ]}
-                  testID="house-pet-action"
-                >
-                  <Text style={styles.petLabel}>
-                    쓰다듬기 · {HOUSE_ACTION_COST.pet}개
-                  </Text>
-                </Pressable>
+              <Pressable
+                accessibilityLabel={`쓰다듬기, 바나나 ${HOUSE_ACTION_COST.pet}개`}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !view.canPet }}
+                disabled={!view.canPet}
+                onPress={onPet}
+                style={[
+                  styles.petButton,
+                  styles.secondaryAction,
+                  !view.canPet && styles.spent,
+                ]}
+                testID="house-pet-action"
+              >
+                <Text style={styles.petLabel}>
+                  쓰다듬기 · {HOUSE_ACTION_COST.pet}개
+                </Text>
+              </Pressable>
 
-                <Pressable
-                  accessibilityLabel="바나나 받기 게임하기"
-                  accessibilityRole="button"
-                  onPress={onPlayGame}
-                  style={[styles.gameButton, styles.secondaryAction]}
-                  testID="house-play-game-action"
-                >
-                  <BananaGlyph size={16} />
-                  <Text style={styles.gameButtonLabel}>게임하기</Text>
-                </Pressable>
-              </View>
-
-              <WeekPanel
-                nickname={nickname}
-                onHeightChange={setWeekPanelHeight}
-                view={view}
+              <MiniGamePanel
+                onHeightChange={setBottomPanelHeight}
+                onPlayGame={onPlayGame}
               />
             </View>
 
@@ -502,12 +543,12 @@ export function MascotHouseContent({
  */
 function Backdrop({
   backgroundId,
+  bottomPanelTop,
   viewport,
-  weekPanelTop,
 }: {
   backgroundId: HouseBackgroundId;
+  bottomPanelTop: number | null;
   viewport: { width: number; height: number };
-  weekPanelTop: number | null;
 }) {
   const roomArt = houseBackgroundArt[backgroundId];
   const roomSource = roomArt.source;
@@ -528,7 +569,7 @@ function Backdrop({
       : HOUSE_BACKDROP_SOURCE_SIZE.height;
   const minimumArtHeight = houseBackdropMinimumHeight(
     viewport.height,
-    weekPanelTop,
+    bottomPanelTop,
   );
   const artSize = houseBackdropSize(
     viewport.width,
@@ -541,7 +582,7 @@ function Backdrop({
   const continuationTop = houseBackdropContinuationTop(
     artSize.height,
     viewport.height,
-    weekPanelTop,
+    bottomPanelTop,
   );
   const continuationHeight = Math.max(1, viewport.height - continuationTop);
   const continuationWidth = Math.max(artSize.width, viewport.width);
@@ -664,9 +705,18 @@ function Backdrop({
   );
 }
 
-function SpeechBubble({ text }: { text: string }) {
+function SpeechBubble({
+  mascotSize,
+  text,
+}: {
+  mascotSize: number;
+  text: string;
+}) {
   return (
-    <View style={styles.bubble}>
+    <View
+      style={[styles.bubble, { bottom: mascotSize + spacing.sm }]}
+      testID="house-speech-bubble"
+    >
       <Text style={styles.bubbleText}>{text}</Text>
       <View style={styles.bubbleTail} />
     </View>
@@ -710,63 +760,60 @@ function FeedButton({
   );
 }
 
-function WeekPanel({
-  nickname,
+function MiniGamePanel({
   onHeightChange,
-  view,
+  onPlayGame,
 }: {
-  nickname: string;
   onHeightChange: (height: number) => void;
-  view: HouseView;
+  onPlayGame: (gameId: HouseMiniGameId) => void;
 }) {
-  const ratio = view.weekProgress ?? 0;
-  const known = view.weekTargetCount !== null;
-
   return (
     <View
       onLayout={(event) => onHeightChange(event.nativeEvent.layout.height)}
-      style={styles.weekPanel}
-      testID="house-week-panel"
+      style={styles.panel}
+      testID="house-play-panel"
     >
-      <Text style={styles.weekEyebrow}>{nickname}님의 이번 주 목표</Text>
-
-      <View style={styles.weekRow}>
-        <StarGlyph size={20} />
-        <Text style={styles.weekTitle}>
-          {known
-            ? `주 ${view.weekTargetCount}회 운동하기`
-            : '목표를 불러오지 못했어요'}
-        </Text>
-        {known ? (
-          <Text style={styles.weekCount}>
-            {view.weekCompletedCount} / {view.weekTargetCount} 회
-          </Text>
-        ) : null}
+      <View style={styles.playPanelHeader}>
+        <Text style={styles.playPanelTitle}>끼끼와 놀기</Text>
+        <Text style={styles.playPanelCaption}>함께 할 미니게임을 골라요</Text>
       </View>
 
-      <View
-        accessibilityLabel={
-          known
-            ? `이번 주 ${view.weekCompletedCount}회 완료, 목표 ${view.weekTargetCount}회`
-            : '이번 주 진행도를 알 수 없어요'
-        }
-        accessibilityRole="progressbar"
-        style={styles.progressTrack}
+      <ScrollView
+        contentContainerStyle={styles.miniGameListContent}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        testID="house-mini-game-list"
       >
-        <View
-          style={[
-            styles.progressFill,
-            { width: `${Math.round(ratio * 100)}%` },
-          ]}
-          testID="house-week-progress"
-        />
-      </View>
-
-      <Text style={styles.weekNote}>
-        {view.weekClosed
-          ? '마감된 주예요. 리포트 탭에서 돌아볼 수 있어요.'
-          : '진행 중인 주예요. 편한 날에 하나씩 채워요.'}
-      </Text>
+        {HOUSE_MINI_GAMES.map((game) => (
+          <Pressable
+            accessibilityLabel={`${game.title} 게임하기`}
+            accessibilityRole="button"
+            key={game.id}
+            onPress={() => onPlayGame(game.id)}
+            style={({ pressed }) => [
+              styles.miniGameCard,
+              pressed && styles.miniGameCardPressed,
+            ]}
+            testID={`house-mini-game-${game.id}`}
+          >
+            <View style={styles.miniGameIcon}>
+              <BananaGlyph size={26} />
+            </View>
+            <View style={styles.miniGameCopy}>
+              <Text style={styles.miniGameTitle}>{game.title}</Text>
+              <Text style={styles.miniGameDescription}>{game.description}</Text>
+            </View>
+            <View style={styles.miniGameDuration}>
+              <Text style={styles.miniGameDurationLabel}>
+                {game.durationLabel}
+              </Text>
+            </View>
+            <Text accessibilityElementsHidden style={styles.miniGameArrow}>
+              ›
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
     </View>
   );
 }
@@ -788,7 +835,7 @@ function DecoratePanel({
 
   return (
     <View
-      style={[styles.weekPanel, styles.decoratePanel]}
+      style={[styles.panel, styles.decoratePanel]}
       testID="house-decorate-panel"
     >
       <View style={styles.decorateHeader}>
@@ -1202,13 +1249,10 @@ const styles = StyleSheet.create({
     top: '45%',
     right: 0,
     left: 0,
-    height: HOUSE_MASCOT_SIZE,
     alignItems: 'center',
-    transform: [{ translateY: -HOUSE_MASCOT_SIZE / 2 }],
   },
   bubble: {
     position: 'absolute',
-    bottom: HOUSE_MASCOT_SIZE + spacing.sm,
     maxWidth: 250,
     borderRadius: 18,
     backgroundColor: colors.surface,
@@ -1238,8 +1282,6 @@ const styles = StyleSheet.create({
   mascot: {
     position: 'absolute',
     top: 0,
-    width: HOUSE_MASCOT_SIZE,
-    height: HOUSE_MASCOT_SIZE,
   },
   decorationCanvas: {
     position: 'absolute',
@@ -1291,28 +1333,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.86)',
     paddingVertical: 10,
   },
-  secondaryActionRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
   secondaryAction: {
-    flex: 1,
     minHeight: 42,
     justifyContent: 'center',
-  },
-  gameButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(225, 158, 36, 0.72)',
-    backgroundColor: 'rgba(255, 231, 154, 0.9)',
-  },
-  gameButtonLabel: {
-    color: colors.brandOutline,
-    fontSize: 13,
-    fontWeight: '800',
   },
   petLabel: {
     color: colors.textSub,
@@ -1339,7 +1362,7 @@ const styles = StyleSheet.create({
   decorateGrid: {
     flex: 1,
   },
-  weekPanel: {
+  panel: {
     gap: spacing.sm,
     borderRadius: 20,
     backgroundColor: colors.surface,
@@ -1347,15 +1370,76 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
     ...shadows.card,
   },
-  weekEyebrow: {
+  playPanelHeader: {
+    gap: 2,
+  },
+  playPanelTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  playPanelCaption: {
     color: colors.textSub,
     fontSize: 12,
-    fontWeight: '600',
+    lineHeight: 18,
   },
-  weekRow: {
+  miniGameListContent: {
+    gap: spacing.sm,
+  },
+  miniGameCard: {
+    width: 286,
+    minHeight: 72,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceAlt,
+    padding: spacing.md,
+  },
+  miniGameCardPressed: {
+    opacity: 0.72,
+  },
+  miniGameIcon: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 231, 154, 0.86)',
+  },
+  miniGameCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  miniGameTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  miniGameDescription: {
+    color: colors.textSub,
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  miniGameDuration: {
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  miniGameDurationLabel: {
+    color: colors.greenText,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  miniGameArrow: {
+    marginTop: -2,
+    color: colors.textSub,
+    fontSize: 22,
+    lineHeight: 24,
   },
   weekTitle: {
     flex: 1,
@@ -1363,27 +1447,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 15,
     fontWeight: '800',
-  },
-  weekCount: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  progressTrack: {
-    height: 11,
-    borderRadius: 999,
-    backgroundColor: colors.divider,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 999,
-    backgroundColor: colors.yellowDeep,
-  },
-  weekNote: {
-    color: colors.textSub,
-    fontSize: 12,
-    lineHeight: 18,
   },
   decorateHeader: {
     flexDirection: 'row',
