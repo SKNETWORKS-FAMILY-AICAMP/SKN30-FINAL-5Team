@@ -23,7 +23,6 @@ def _record(exercise_id: str, catalog_id: str) -> IndexableExerciseRecord:
         body_focus_code="LOWER",
         primary_movement_pattern_code="SQUAT",
         difficulty_code="BEGINNER",
-        beginner_suitable=True,
         recovery_eligible=False,
         review_status_code="DOMAIN_APPROVED",
         review_method_code="DOMAIN_REVIEWER",
@@ -33,6 +32,7 @@ def _record(exercise_id: str, catalog_id: str) -> IndexableExerciseRecord:
         equipment_codes=(),
         location_codes=("HOME",),
         phase_codes=("MAIN",),
+        prescription_experience_level_codes=("BEGINNER", "INTERMEDIATE"),
         stable_code="SQUAT",
     )
 
