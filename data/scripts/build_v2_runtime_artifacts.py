@@ -463,7 +463,7 @@ def build(output_dir: Path = DEFAULT_OUTPUT_DIR) -> dict[str, Any]:
                 )
             ],
             "alternative_set_version": {
-                "version_code": "alternative-set-v2.0.0",
+                "version_code": "alternative-set-v2.0.1",
                 "status_code": "DRAFT",
             },
         }
@@ -484,7 +484,7 @@ def build(output_dir: Path = DEFAULT_OUTPUT_DIR) -> dict[str, Any]:
                 )
             ],
             "rule_set_version": {
-                "version_code": "safety-rule-set-v2.0.0",
+                "version_code": "safety-rule-set-v2.0.1",
                 "status_code": "DRAFT",
             },
         }

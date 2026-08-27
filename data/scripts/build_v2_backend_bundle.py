@@ -345,9 +345,9 @@ def build(
             "production_eligible": False,
             "catalog_version_code": "exercise-catalog-v2.0.1-final",
             "derived_set_versions": {
-                "rule_set_version_code": "safety-rule-set-v2.0.0",
-                "alternative_set_version_code": "alternative-set-v2.0.0",
-                "prescription_set_version_code": "prescription-set-v2.0.0",
+                "rule_set_version_code": "safety-rule-set-v2.0.1",
+                "alternative_set_version_code": "alternative-set-v2.0.1",
+                "prescription_set_version_code": "prescription-set-v2.0.1",
             },
             "importer_paths": {
                 "catalog": "catalog/seed_manifest.json",

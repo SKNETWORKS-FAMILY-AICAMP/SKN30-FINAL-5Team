@@ -1,14 +1,14 @@
 {
   "alternative_set_version": {
     "status_code": "DRAFT",
-    "version_code": "alternative-set-v2.0.0"
+    "version_code": "alternative-set-v2.0.1"
   },
   "files": [
     {
       "bytes": 353483,
       "path": "alternatives.jsonl",
       "records": 285,
-      "sha256": "50342dcf20f5ddff87337bc252e36c336196fb3d552243db4e3cd6849b772219"
+      "sha256": "c720206a91c4e3b048ea63c79494e45106053dec3f10a9b11929e8c548c80b92"
     }
   ],
   "generator_version": "v2-runtime-materializer-1.0.0",

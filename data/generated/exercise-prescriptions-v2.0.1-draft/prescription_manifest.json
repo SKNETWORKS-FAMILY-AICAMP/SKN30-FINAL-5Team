@@ -16,7 +16,7 @@
   "generator_version": "v2-prescription-generator-1.0.0",
   "prescription_set_version": {
     "status_code": "DRAFT",
-    "version_code": "prescription-set-v2.0.0"
+    "version_code": "prescription-set-v2.0.1"
   },
   "review": {
     "production_eligible": false,

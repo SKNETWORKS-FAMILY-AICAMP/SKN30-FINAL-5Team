@@ -45,20 +45,20 @@ def test_exact_v2_approvals_preserve_packet_metadata_and_waiver() -> None:
         ),
         (
             "SAFETY_RULES",
-            "safety-rule-set-v2.0.0",
-            "5fbfff04c82aceb044d9f05dfb3c3367b6b66328ce749d6dc9993f203b54dbe3",
+            "safety-rule-set-v2.0.1",
+            "74f4eaedf80f6946533779fa4d7358757310697379659a7edef717d590d1b378",
             394,
         ),
         (
             "ALTERNATIVES",
-            "alternative-set-v2.0.0",
-            "23443a260056e2b5bb294089fc257e629ef4ab10a4d3265e1fa3ebc608af7b24",
+            "alternative-set-v2.0.1",
+            "ef954cff31fc6fd226af1dec98d24261bb0c42537097ff1a9306a8f3839e2e99",
             285,
         ),
         (
             "PRESCRIPTIONS",
-            "prescription-set-v2.0.0",
-            "156c9702aa8156826cc5709cc9f80b660158f1a4225830efb0599894031f7641",
+            "prescription-set-v2.0.1",
+            "9d5a8fc0b4e981cfd566843ab3eefd245571e2d1a89503936696d00f1df59dc6",
             239,
         ),
     )

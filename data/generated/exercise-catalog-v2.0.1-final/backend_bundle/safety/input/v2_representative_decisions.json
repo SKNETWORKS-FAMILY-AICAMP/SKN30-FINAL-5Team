@@ -37,7 +37,7 @@
     "default_transition_seconds": 15
   },
   "alternative_materialization": {
-    "alternative_set_version_code": "alternative-set-v2.0.0",
+    "alternative_set_version_code": "alternative-set-v2.0.1",
     "rule_version": "alternative-rule-v2.0.0",
     "reason_code_by_relationship_type": {
       "CONSTRAINT": "EQUIPMENT",
@@ -94,7 +94,7 @@
     }
   ],
   "safety_materialization": {
-    "rule_set_version_code": "safety-rule-set-v2.0.0",
+    "rule_set_version_code": "safety-rule-set-v2.0.1",
     "rule_version": "safety-rule-v2.0.0"
   },
   "representative_overrides": {

@@ -16,7 +16,7 @@
   },
   "rule_set_version": {
     "status_code": "DRAFT",
-    "version_code": "safety-rule-set-v2.0.0"
+    "version_code": "safety-rule-set-v2.0.1"
   },
   "schema_version": "1.0",
   "source": {
@@ -33,13 +33,13 @@
         "bytes": 4341,
         "path": "input/v2_representative_decisions.json",
         "role": "v2_decisions",
-        "sha256": "23285ceaee094966779def8d33765b4fbac5be151f73f3ce1fe547e459f65643"
+        "sha256": "ad7adb2b6d730ae3d9f77902af222cc79bfe77d69f869d3e571db77d859af29f"
       }
     ],
     "projection_conflict_count": 0,
     "projection_status": "DIRECT",
     "runtime_manifest_path": "runtime/safety_manifest.json",
-    "runtime_manifest_sha256": "a28af848a1a3cc232c4656baf3ace3434a304ea37c99efffd15488213d016287",
+    "runtime_manifest_sha256": "bd4a99d9da55ccce38b4a7ef8f316300c32666a35d9538f00836ddb7eacae20c",
     "runtime_record_count": 394
   },
   "summary": {

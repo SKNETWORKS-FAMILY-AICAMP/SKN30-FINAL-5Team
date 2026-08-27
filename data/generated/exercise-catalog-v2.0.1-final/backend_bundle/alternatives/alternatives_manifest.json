@@ -1,7 +1,7 @@
 {
   "alternative_set_version": {
     "status_code": "DRAFT",
-    "version_code": "alternative-set-v2.0.0"
+    "version_code": "alternative-set-v2.0.1"
   },
   "files": [
     {
@@ -27,19 +27,19 @@
         "bytes": 412748,
         "path": "input/exercise_alternatives_v2_final.csv",
         "role": "alternative_mapping_csv",
-        "sha256": "b024b15be11f9de871d9163cf9c6c43deda3390a3d98b6e15b18c9385dccd5ee"
+        "sha256": "9538cfefbb836e3efd068f905850f59942ea5273e4bd709133a09105f0c61086"
       },
       {
         "bytes": 4341,
         "path": "input/v2_representative_decisions.json",
         "role": "v2_decisions",
-        "sha256": "23285ceaee094966779def8d33765b4fbac5be151f73f3ce1fe547e459f65643"
+        "sha256": "ad7adb2b6d730ae3d9f77902af222cc79bfe77d69f869d3e571db77d859af29f"
       }
     ],
     "projection_conflict_count": 0,
     "projection_status": "DIRECT",
     "runtime_manifest_path": "runtime/alternatives_manifest.json",
-    "runtime_manifest_sha256": "dd395fe584db841d6c3c592e71a2421a56a2e1a1a804e4f97d476b3bc1c68796",
+    "runtime_manifest_sha256": "df1f0307ec46fbd3b75c6bb2cd9b9f8930ef09b851af734185847c3fb11703a1",
     "runtime_record_count": 285
   },
   "summary": {

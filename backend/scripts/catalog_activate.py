@@ -48,9 +48,9 @@ from backend.scripts.demo_seed import _require_demo_database, _require_demo_envi
 REVIEWED_METHOD_CODE = "DOMAIN_REVIEWER"
 REVIEWED_INTERPRETATION_CODE = "PRODUCTION_APPROVED"
 V2_CATALOG_VERSION_CODE = "exercise-catalog-v2.0.1-final"
-V2_RULE_SET_VERSION = "safety-rule-set-v2.0.0"
-V2_ALTERNATIVE_SET_VERSION = "alternative-set-v2.0.0"
-V2_PRESCRIPTION_SET_VERSION = "prescription-set-v2.0.0"
+V2_RULE_SET_VERSION = "safety-rule-set-v2.0.1"
+V2_ALTERNATIVE_SET_VERSION = "alternative-set-v2.0.1"
+V2_PRESCRIPTION_SET_VERSION = "prescription-set-v2.0.1"
 
 
 def missing_review_fields(catalog: CatalogVersion) -> tuple[str, ...]:

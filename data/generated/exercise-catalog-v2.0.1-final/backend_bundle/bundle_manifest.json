@@ -2,9 +2,9 @@
   "bundle_version": "v2-backend-bundle-2026-08-25",
   "catalog_version_code": "exercise-catalog-v2.0.1-final",
   "derived_set_versions": {
-    "alternative_set_version_code": "alternative-set-v2.0.0",
-    "prescription_set_version_code": "prescription-set-v2.0.0",
-    "rule_set_version_code": "safety-rule-set-v2.0.0"
+    "alternative_set_version_code": "alternative-set-v2.0.1",
+    "prescription_set_version_code": "prescription-set-v2.0.1",
+    "rule_set_version_code": "safety-rule-set-v2.0.1"
   },
   "files": [
     {
@@ -16,7 +16,7 @@
     {
       "bytes": 1649,
       "path": "alternatives/alternatives_manifest.json",
-      "sha256": "23443a260056e2b5bb294089fc257e629ef4ab10a4d3265e1fa3ebc608af7b24"
+      "sha256": "ef954cff31fc6fd226af1dec98d24261bb0c42537097ff1a9306a8f3839e2e99"
     },
     {
       "bytes": 194,
@@ -26,12 +26,12 @@
     {
       "bytes": 412748,
       "path": "alternatives/input/exercise_alternatives_v2_final.csv",
-      "sha256": "b024b15be11f9de871d9163cf9c6c43deda3390a3d98b6e15b18c9385dccd5ee"
+      "sha256": "9538cfefbb836e3efd068f905850f59942ea5273e4bd709133a09105f0c61086"
     },
     {
       "bytes": 4341,
       "path": "alternatives/input/v2_representative_decisions.json",
-      "sha256": "23285ceaee094966779def8d33765b4fbac5be151f73f3ce1fe547e459f65643"
+      "sha256": "ad7adb2b6d730ae3d9f77902af222cc79bfe77d69f869d3e571db77d859af29f"
     },
     {
       "bytes": 124033,
@@ -78,7 +78,7 @@
     {
       "bytes": 1711,
       "path": "prescriptions/prescription_manifest.json",
-      "sha256": "156c9702aa8156826cc5709cc9f80b660158f1a4225830efb0599894031f7641"
+      "sha256": "9d5a8fc0b4e981cfd566843ab3eefd245571e2d1a89503936696d00f1df59dc6"
     },
     {
       "bytes": 56211,
@@ -94,12 +94,12 @@
     {
       "bytes": 4341,
       "path": "safety/input/v2_representative_decisions.json",
-      "sha256": "23285ceaee094966779def8d33765b4fbac5be151f73f3ce1fe547e459f65643"
+      "sha256": "ad7adb2b6d730ae3d9f77902af222cc79bfe77d69f869d3e571db77d859af29f"
     },
     {
       "bytes": 1648,
       "path": "safety/rules_manifest.json",
-      "sha256": "5fbfff04c82aceb044d9f05dfb3c3367b6b66328ce749d6dc9993f203b54dbe3"
+      "sha256": "74f4eaedf80f6946533779fa4d7358757310697379659a7edef717d590d1b378"
     },
     {
       "bytes": 180235,

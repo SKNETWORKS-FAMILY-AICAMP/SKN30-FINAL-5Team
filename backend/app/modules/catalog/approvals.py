@@ -89,11 +89,11 @@ _APPROVALS = {
     ),
     (
         "SAFETY_RULES",
-        "safety-rule-set-v2.0.0",
+        "safety-rule-set-v2.0.1",
     ): DerivedDataApproval(
         artifact_kind="SAFETY_RULES",
-        version_code="safety-rule-set-v2.0.0",
-        manifest_sha256="5fbfff04c82aceb044d9f05dfb3c3367b6b66328ce749d6dc9993f203b54dbe3",
+        version_code="safety-rule-set-v2.0.1",
+        manifest_sha256="74f4eaedf80f6946533779fa4d7358757310697379659a7edef717d590d1b378",
         record_count=394,
         approval_record_code="V2-PROMOTION-APPROVAL-2026-08-25-R01",
         approved_on="2026-08-25",
@@ -101,11 +101,11 @@ _APPROVALS = {
     ),
     (
         "ALTERNATIVES",
-        "alternative-set-v2.0.0",
+        "alternative-set-v2.0.1",
     ): DerivedDataApproval(
         artifact_kind="ALTERNATIVES",
-        version_code="alternative-set-v2.0.0",
-        manifest_sha256="23443a260056e2b5bb294089fc257e629ef4ab10a4d3265e1fa3ebc608af7b24",
+        version_code="alternative-set-v2.0.1",
+        manifest_sha256="ef954cff31fc6fd226af1dec98d24261bb0c42537097ff1a9306a8f3839e2e99",
         record_count=285,
         approval_record_code="V2-PROMOTION-APPROVAL-2026-08-25-R01",
         approved_on="2026-08-25",
@@ -113,11 +113,11 @@ _APPROVALS = {
     ),
     (
         "PRESCRIPTIONS",
-        "prescription-set-v2.0.0",
+        "prescription-set-v2.0.1",
     ): DerivedDataApproval(
         artifact_kind="PRESCRIPTIONS",
-        version_code="prescription-set-v2.0.0",
-        manifest_sha256="156c9702aa8156826cc5709cc9f80b660158f1a4225830efb0599894031f7641",
+        version_code="prescription-set-v2.0.1",
+        manifest_sha256="9d5a8fc0b4e981cfd566843ab3eefd245571e2d1a89503936696d00f1df59dc6",
         record_count=239,
         approval_record_code="V2-PROMOTION-APPROVAL-2026-08-25-R01",
         approved_on="2026-08-25",

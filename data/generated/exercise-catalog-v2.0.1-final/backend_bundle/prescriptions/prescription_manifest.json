@@ -16,7 +16,7 @@
   "generator_version": "v2-backend-bundle-packager-1.0.0",
   "prescription_set_version": {
     "status_code": "DRAFT",
-    "version_code": "prescription-set-v2.0.0"
+    "version_code": "prescription-set-v2.0.1"
   },
   "review": {
     "production_eligible": false,
@@ -42,7 +42,7 @@
       }
     ],
     "source_prescription_manifest_path": "C:\\Users\\playdata2\\SKN30_FINAL_5\\data\\generated\\exercise-prescriptions-v2.0.1-draft\\prescription_manifest.json",
-    "source_prescription_manifest_sha256": "1eeb979dd6d94a1d57e70bf31e63add2d4dcf7b38f5c7681ac5cec08ca8613df"
+    "source_prescription_manifest_sha256": "41547d595772108a106a3dc0197a8ef8765f1dbd79f850d188fd30b55d065b95"
   },
   "summary": {
     "exercise_records": 102,

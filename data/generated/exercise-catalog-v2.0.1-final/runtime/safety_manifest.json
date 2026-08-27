@@ -4,7 +4,7 @@
       "bytes": 361869,
       "path": "safety_rules.jsonl",
       "records": 394,
-      "sha256": "02abf1e36ccb3d7dcf3eda08fe07e5cbadf9773cb610e603a449fb3e8c245d31"
+      "sha256": "2754c4270d71b903122c49c25daca55dde5b888eaead8da753462c0ffdf8c33a"
     }
   ],
   "generator_version": "v2-runtime-materializer-1.0.0",
@@ -16,7 +16,7 @@
   },
   "rule_set_version": {
     "status_code": "DRAFT",
-    "version_code": "safety-rule-set-v2.0.0"
+    "version_code": "safety-rule-set-v2.0.1"
   },
   "schema_version": "1.0",
   "source": {

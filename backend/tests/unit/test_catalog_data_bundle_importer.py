@@ -43,7 +43,7 @@ SAFETY_DIRECTORY = GENERATED / "exercise-safety-rules-merged-mvp-v0.5.0"
 ALTERNATIVE_DIRECTORY = GENERATED / "exercise-alternatives-merged-mvp-v0.4.0"
 PRESCRIPTION_DIRECTORY = GENERATED / "exercise-prescriptions-merged-mvp-v0.1.0"
 V2_BUNDLE_DIRECTORY = GENERATED / "exercise-catalog-v2.0.1-final" / "backend_bundle"
-V2_BUNDLE_HASH = "2364f152c227266e2cddf88acbbe3c5ade3a893a1935c1e04ad4c44b4b67196f"
+V2_BUNDLE_HASH = "5974ed95fdc9598000d9ac4e84c600ddac3d1caec245f04a29ad46e592be4206"
 V2_TAXONOMY_HASH = "79e487cc1a41ea39db9b4afb0799b3297840de878a2ae4ed621ef3e4403a0985"
 
 
@@ -161,10 +161,10 @@ def test_v2_runtime_metadata_is_accepted_by_pydantic() -> None:
 
     assert len(safety_records) == safety_manifest.summary.rule_records
     assert len(alternative_records) == alternative_manifest.summary.alternative_records
-    assert safety.rule_set_version_code == "safety-rule-set-v2.0.0"
+    assert safety.rule_set_version_code == "safety-rule-set-v2.0.1"
     assert safety.production_eligible is False
     assert safety.created_at is not None and safety.updated_at is not None
-    assert alternative.alternative_set_version_code == "alternative-set-v2.0.0"
+    assert alternative.alternative_set_version_code == "alternative-set-v2.0.1"
     assert alternative.review_method_code == "DOMAIN_REVIEWER"
     assert alternative.production_eligible is False
 

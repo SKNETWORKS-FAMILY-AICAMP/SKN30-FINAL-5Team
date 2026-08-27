@@ -104,7 +104,7 @@ def build(
         "schema_version": "1.0",
         "generator_version": GENERATOR_VERSION,
         "prescription_set_version": {
-            "version_code": "prescription-set-v2.0.0",
+            "version_code": "prescription-set-v2.0.1",
             "status_code": "DRAFT",
         },
         "source": {
