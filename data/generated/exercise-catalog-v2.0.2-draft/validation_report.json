@@ -1,31 +1,31 @@
 {
   "alternative_reason_counts": {
-    "DIFFICULTY": 2,
+    "DIFFICULTY": 6,
     "DISCOMFORT": 220,
     "EQUIPMENT": 19,
-    "LOCATION": 33
+    "LOCATION": 34
   },
-  "alternative_records": 274,
+  "alternative_records": 279,
   "catalog_records": 102,
   "combined_exercise_records": 310,
   "difficulty_counts": {
-    "BEGINNER": 85,
-    "INTERMEDIATE": 17
+    "BEGINNER": 73,
+    "INTERMEDIATE": 29
   },
   "goal_tag_records": 102,
   "legacy_field_occurrences": 0,
-  "manifest_sha256": "eb987fd1fa3711953d95997e483ba58318adeda0a7cb80c79c62ae0bb6de5a47",
+  "manifest_sha256": "941b6402a6ba078cd0b224505b44de217c69fa1432838f22d297d9c45e7d06ad",
   "prescription_coverage": {
-    "BEGINNER:BEGINNER": 120,
-    "BEGINNER:INTERMEDIATE": 120,
-    "INTERMEDIATE:INTERMEDIATE": 17
+    "BEGINNER:BEGINNER": 100,
+    "BEGINNER:INTERMEDIATE": 100,
+    "INTERMEDIATE:INTERMEDIATE": 37
   },
   "prescription_exercise_coverage": {
-    "BEGINNER:BEGINNER": 85,
-    "BEGINNER:INTERMEDIATE": 85,
-    "INTERMEDIATE:INTERMEDIATE": 17
+    "BEGINNER:BEGINNER": 73,
+    "BEGINNER:INTERMEDIATE": 73,
+    "INTERMEDIATE:INTERMEDIATE": 29
   },
-  "prescription_records": 257,
+  "prescription_records": 237,
   "production_eligible": false,
   "safety_rule_records": 394,
   "source_difficulty_review_required_count": 0,

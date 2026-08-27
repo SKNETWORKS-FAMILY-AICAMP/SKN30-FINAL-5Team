@@ -6,11 +6,13 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import ModuleType
+from typing import Any, ClassVar
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
-def load_script(name: str, filename: str):
+def load_script(name: str, filename: str) -> ModuleType:
     script = Path(__file__).resolve().parents[1] / filename
     spec = importlib.util.spec_from_file_location(name, script)
     assert spec and spec.loader
@@ -26,6 +28,10 @@ validator = load_script(
 
 
 class ExperienceLevelArtifactTests(unittest.TestCase):
+    temp: ClassVar[tempfile.TemporaryDirectory[str]]
+    root: ClassVar[Path]
+    report: ClassVar[dict[str, Any]]
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.temp = tempfile.TemporaryDirectory()
@@ -52,7 +58,7 @@ class ExperienceLevelArtifactTests(unittest.TestCase):
                 difficulty: sum(row["difficulty_code"] == difficulty for row in catalog)
                 for difficulty in ("BEGINNER", "INTERMEDIATE")
             },
-            {"BEGINNER": 85, "INTERMEDIATE": 17},
+            {"BEGINNER": 73, "INTERMEDIATE": 29},
         )
         self.assertTrue(all("beginner_suitable" not in row for row in catalog))
         for path in self.root.rglob("*"):
@@ -78,9 +84,9 @@ class ExperienceLevelArtifactTests(unittest.TestCase):
                 {row["stable_code"]: row for row in catalog},
             ),
             {
-                "BEGINNER:BEGINNER": 85,
-                "BEGINNER:INTERMEDIATE": 85,
-                "INTERMEDIATE:INTERMEDIATE": 17,
+                "BEGINNER:BEGINNER": 73,
+                "BEGINNER:INTERMEDIATE": 73,
+                "INTERMEDIATE:INTERMEDIATE": 29,
             },
         )
 

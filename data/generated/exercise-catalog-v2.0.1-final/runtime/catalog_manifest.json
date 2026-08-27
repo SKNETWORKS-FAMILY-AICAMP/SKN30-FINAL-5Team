@@ -5,10 +5,10 @@
   },
   "files": [
     {
-      "bytes": 123963,
+      "bytes": 124033,
       "path": "representative_exercises.jsonl",
       "records": 102,
-      "sha256": "fe247acef996b9c7d375f62ca314c2ed49791c3a9187fe2a5d4d178c9ff60180"
+      "sha256": "fdccc5b957588c843506deb8e091c4c650acf04f6455879cf896df8cfd341b8d"
     }
   ],
   "generator_version": "v2-runtime-materializer-1.0.0",
@@ -22,10 +22,10 @@
   "source": {
     "input_artifacts": [
       {
-        "bytes": 118813,
-        "path": "generated/exercise-catalog-v2.0.1-final/representative_exercises_v2_final.csv",
+        "bytes": 118883,
+        "path": "generated\\exercise-catalog-v2.0.1-final\\representative_exercises_v2_final.csv",
         "role": "representative_csv",
-        "sha256": "9f1b6a3f1d1f6b23561869c949eabe855483bfb054424624df01943efec433fb"
+        "sha256": "6b832a51229b674d537905bc8d5ac0f994582cdf99d18494cb4e88e9560750ad"
       }
     ],
     "review_batch_directory": "data/reports",

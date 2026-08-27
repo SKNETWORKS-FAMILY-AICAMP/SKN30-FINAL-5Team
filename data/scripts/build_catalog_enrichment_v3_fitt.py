@@ -146,6 +146,8 @@ ISOLATION_EXERCISE_IDS = {
     "NEX-000202",
     "NEX-000203",
 }
+
+
 def load_rows(path: Path) -> tuple[list[dict[str, str]], list[str]]:
     with path.open(encoding="utf-8", newline="") as input_file:
         reader = csv.DictReader(input_file)
@@ -158,14 +160,20 @@ def choose_template(exercise_id: str, pattern: str) -> tuple[str, str, str]:
         return (
             "FITT-HINGE-POWER-V1",
             "NONE",
-            "전문가 검수 완료: 케틀벨 스윙은 ballistic/power 동작이므로 일반 HINGE 반복 템플릿과 분리.",
+            (
+                "전문가 검수 완료: 케틀벨 스윙은 ballistic/power 동작이므로 "
+                "일반 HINGE 반복 템플릿과 분리."
+            ),
         )
 
     if exercise_id in ISOMETRIC_STRENGTH_EXERCISE_IDS:
         return (
             "FITT-ISOMETRIC-STRENGTH-V1",
             "NONE",
-            "전문가 검수 완료: 벽을 손바닥으로 밀어 광배근을 등척성으로 활성화하는 PUSH + BODYWEIGHT 동작이며 유지시간 기본값을 적용.",
+            (
+                "전문가 검수 완료: 벽을 손바닥으로 밀어 광배근을 등척성으로 활성화하는 "
+                "PUSH + BODYWEIGHT 동작이며 유지시간 기본값을 적용."
+            ),
         )
 
     if pattern == "CORE":

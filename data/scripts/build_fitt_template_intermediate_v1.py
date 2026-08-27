@@ -82,14 +82,39 @@ def build_document(beginner_rows: list[dict[str, str]]) -> dict[str, object]:
         "review_reason": "운동 전공 검수 전의 INTERMEDIATE FITT 카탈로그 초안이다.",
         "templates": [intermediate_values(row) for row in beginner_rows],
         "application_notes": {
-            "range_and_default_policy": "min/max는 허용 범위이고 default는 Agent가 최초 후보를 만들 때 쓰는 실제 기본값이다. 클라이언트에는 최종 선택된 단일 값만 표시한다.",
-            "equipment_policy": "맨몸은 운동군이 아니다. PUSH·HINGE·ISOLATION 등 운동 특성과 BODYWEIGHT·KETTLEBELL 등 equipment를 별도 축으로 기록한다.",
-            "power_policy": "케틀벨 스윙은 HINGE + POWER로 분리하며 일반 HINGE 8–12회 템플릿을 자동 상속하지 않는다. 빠른 concentric과 기술 품질을 우선하고 부하·속도는 자동 추천하지 않는다.",
-            "core_unit_policy": "Plank류는 SECONDS, Crunch류는 REPS, Dead bug·Bird dog 등 좌우 구분 동작은 REPS_PER_SIDE를 사용한다.",
-            "mobility_policy": "초급·중급 모두 2회·15–30초를 기본으로 하고 ROM과 당일 상태에 따라 조정한다.",
+            "range_and_default_policy": (
+                "min/max는 허용 범위이고 default는 Agent가 최초 후보를 만들 때 쓰는 "
+                "실제 기본값이다. "
+                "클라이언트에는 최종 선택된 단일 값만 표시한다."
+            ),
+            "equipment_policy": (
+                "맨몸은 운동군이 아니다. PUSH·HINGE·ISOLATION 등 운동 특성과 "
+                "BODYWEIGHT·KETTLEBELL 등 equipment를 별도 축으로 기록한다."
+            ),
+            "power_policy": (
+                "케틀벨 스윙은 HINGE + POWER로 분리하며 일반 HINGE 8–12회 템플릿을 "
+                "자동 상속하지 않는다. "
+                "빠른 concentric과 기술 품질을 우선하고 부하·속도는 자동 추천하지 않는다."
+            ),
+            "core_unit_policy": (
+                "Plank류는 SECONDS, Crunch류는 REPS, Dead bug·Bird dog 등 좌우 구분 동작은 "
+                "REPS_PER_SIDE를 사용한다."
+            ),
+            "mobility_policy": (
+                "초급·중급 모두 2회·15–30초를 기본으로 하고 ROM과 당일 상태에 따라 조정한다."
+            ),
             "goal_adjustment_policy": {
-                "FAT_LOSS": "다이어트가 고반복·저강도를 뜻하지 않는다. 저항운동 강도는 근육량 보존을 위해 유지하고, 필요시 총량·밀도·유산소·주당 빈도와 실행 가능성을 조정한다. 에너지 적자는 운동 FITT만으로 결정하지 않는다.",
-                "MUSCLE_GAIN": "근육 증량은 무조건 고중량으로 고정하지 않는다. 기본 반복 범위 안에서 양질의 세트와 피로 근접도, 주당 근육군별 총량을 우선 조정하며 회복·자세·안전 조건을 함께 통과해야 한다.",
+                "FAT_LOSS": (
+                    "다이어트가 고반복·저강도를 뜻하지 않는다. 저항운동 강도는 "
+                    "근육량 보존을 위해 유지하고, "
+                    "필요시 총량·밀도·유산소·주당 빈도와 실행 가능성을 조정한다. "
+                    "에너지 적자는 운동 FITT만으로 결정하지 않는다."
+                ),
+                "MUSCLE_GAIN": (
+                    "근육 증량은 무조건 고중량으로 고정하지 않는다. 기본 반복 범위 안에서 "
+                    "양질의 세트와 피로 근접도, 주당 근육군별 총량을 우선 조정하며 "
+                    "회복·자세·안전 조건을 함께 통과해야 한다."
+                ),
             },
         },
         "domain_review_items": [
@@ -101,10 +126,26 @@ def build_document(beginner_rows: list[dict[str, str]]) -> dict[str, object]:
             "벽 짚고 한 팔 광배근 등척성 운동의 유지시간 검수 완료",
         ],
         "sources": [
-            {"source_id": "REPOSITORY_BEGINNER_FITT", "path": str(BEGINNER_PATH), "role": "초급 기준"},
-            {"source_id": "ACSM_2009_POSITION_STAND", "url": SOURCE_URLS[0], "role": "반복·세트·휴식 참고"},
-            {"source_id": "ACSM_2026_POSITION_STAND_SUMMARY", "url": SOURCE_URLS[1], "role": "세트·파워·개인화 참고"},
-            {"source_id": "HHS_PHYSICAL_ACTIVITY_GUIDELINES", "url": SOURCE_URLS[2], "role": "유산소·근력 공중보건 참고"},
+            {
+                "source_id": "REPOSITORY_BEGINNER_FITT",
+                "path": str(BEGINNER_PATH),
+                "role": "초급 기준",
+            },
+            {
+                "source_id": "ACSM_2009_POSITION_STAND",
+                "url": SOURCE_URLS[0],
+                "role": "반복·세트·휴식 참고",
+            },
+            {
+                "source_id": "ACSM_2026_POSITION_STAND_SUMMARY",
+                "url": SOURCE_URLS[1],
+                "role": "세트·파워·개인화 참고",
+            },
+            {
+                "source_id": "HHS_PHYSICAL_ACTIVITY_GUIDELINES",
+                "url": SOURCE_URLS[2],
+                "role": "유산소·근력 공중보건 참고",
+            },
         ],
     }
 
@@ -117,6 +158,9 @@ def main() -> None:
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     document = build_document(rows)
+    templates = document["templates"]
+    if not isinstance(templates, list):
+        raise ValueError("INTERMEDIATE FITT document templates must be a list")
     serialized = json.dumps(document, ensure_ascii=False, indent=2) + "\n"
     OUTPUT_PATH.write_text(serialized, encoding="utf-8")
     manifest = {
@@ -127,11 +171,24 @@ def main() -> None:
         "review_status_code": "REVIEW_REQUIRED",
         "production_eligible": False,
         "generator_version": "build_fitt_template_intermediate_v1-1.0.0",
-        "files": [{"path": OUTPUT_PATH.name, "bytes": len(serialized.encode("utf-8")), "sha256": hashlib.sha256(serialized.encode("utf-8")).hexdigest(), "records": len(document["templates"]), "role": "intermediate_fitt_template_prescription_draft"}],
+        "files": [
+            {
+                "path": OUTPUT_PATH.name,
+                "bytes": len(serialized.encode("utf-8")),
+                "sha256": hashlib.sha256(serialized.encode("utf-8")).hexdigest(),
+                "records": len(templates),
+                "role": "intermediate_fitt_template_prescription_draft",
+            }
+        ],
         "source": {"baseline": str(BEGINNER_PATH), "external_references": SOURCE_URLS},
-        "notes": ["v2.0.1-final은 변경하지 않는다.", "본 산출물은 운동 처방이 아닌 카탈로그 초안이다."],
+        "notes": [
+            "v2.0.1-final은 변경하지 않는다.",
+            "본 산출물은 운동 처방이 아닌 카탈로그 초안이다.",
+        ],
     }
-    MANIFEST_PATH.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    MANIFEST_PATH.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 if __name__ == "__main__":

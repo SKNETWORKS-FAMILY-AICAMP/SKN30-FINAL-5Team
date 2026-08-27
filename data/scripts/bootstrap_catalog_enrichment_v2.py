@@ -293,7 +293,9 @@ VERSION_DECISIONS = {
         "catalog_exposure_code": "PRIMARY",
         "canonical_exercise_id": "NEX-000113",
         "variant_relation_code": "NONE",
-        "variant_basis": "Wall press isometric lat activation is a distinct reviewed exercise identity.",
+        "variant_basis": (
+            "Wall press isometric lat activation is a distinct reviewed exercise identity."
+        ),
     },
 }
 
