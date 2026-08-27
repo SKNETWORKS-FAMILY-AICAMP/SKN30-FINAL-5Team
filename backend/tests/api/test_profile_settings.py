@@ -19,7 +19,6 @@ from backend.app.integrations.birthdate_crypto import LocalAesGcmBirthdateCipher
 from backend.app.main import create_app
 from backend.app.modules.catalog.codes import (
     BodyAreaCode,
-    EquipmentCode,
     LocationCode,
     TrainingTypeCode,
 )
@@ -39,7 +38,6 @@ SUPPORTED_PROFILE_UPDATE_FIELDS = {
     "default_requested_duration_minutes",
     "preferred_location_code",
     "available_location_codes",
-    "equipment_codes",
     "attention_area_codes",
     "preferred_exercise_type_codes",
     "coaching_style_code",
@@ -121,7 +119,6 @@ class FakeProfileSettingsRepository:
             values["protected_birthdate"] = changes.protected_birthdate
         for field_name in (
             "available_location_codes",
-            "equipment_codes",
             "attention_area_codes",
             "preferred_exercise_type_codes",
         ):
@@ -153,7 +150,6 @@ def _record(protected_birthdate: str) -> ProfileSettingsRecord:
         height_cm=172.0,
         weight_kg=68.5,
         sex_code="FEMALE",
-        equipment_codes=("BODYWEIGHT",),
         attention_area_codes=("KNEE",),
         preferred_exercise_type_codes=("STRENGTH",),
         profile_version=1,
@@ -251,7 +247,7 @@ def _years_ago(local_date: date, years: int) -> date:
         return local_date.replace(year=local_date.year - years, day=28)
 
 
-def test_openapi_exposes_exactly_the_16_supported_non_null_fields() -> None:
+def test_openapi_exposes_exactly_the_15_supported_non_null_fields() -> None:
     client, _ = _client()
     schema = client.app.openapi()["components"]["schemas"]["ProfileSettingsUpdateRequest"]
 
@@ -268,7 +264,6 @@ def test_openapi_exposes_exactly_the_16_supported_non_null_fields() -> None:
         {"default_requested_duration_minutes": 60},
         {"preferred_location_code": "GYM"},
         {"available_location_codes": ["HOME", "OUTDOOR"]},
-        {"equipment_codes": ["MAT"]},
         {"attention_area_codes": []},
         {"preferred_exercise_type_codes": ["CARDIO"]},
         {"coaching_style_code": "CONCISE"},
@@ -385,7 +380,6 @@ def test_values_outside_numeric_boundaries_are_rejected(
             }
             for code in LocationCode
         ),
-        {"equipment_codes": [code.value for code in EquipmentCode]},
         {"attention_area_codes": [code.value for code in BodyAreaCode]},
         {"preferred_exercise_type_codes": [code.value for code in TrainingTypeCode]},
         *({"coaching_style_code": code.value} for code in CoachingStyleCode),
@@ -408,7 +402,6 @@ def test_all_declared_enum_values_are_accepted(payload: dict[str, object]) -> No
         {"experience_level_code": "not-valid"},
         {"preferred_location_code": "NOT_A_CODE"},
         {"available_location_codes": ["NOT_A_CODE"]},
-        {"equipment_codes": ["NOT_A_CODE"]},
         {"attention_area_codes": ["NOT_A_CODE"]},
         {"preferred_exercise_type_codes": ["NOT_A_CODE"]},
         {"coaching_style_code": "NOT_A_CODE"},
@@ -430,6 +423,7 @@ def test_invalid_enum_and_code_values_are_rejected(payload: dict[str, object]) -
     [
         {},
         {"unknown": "value"},
+        {"equipment_codes": ["MAT"]},
     ],
 )
 def test_invalid_patch_payload_is_rejected(payload: dict[str, object]) -> None:
@@ -460,7 +454,6 @@ def test_explicit_null_is_rejected_for_every_supported_field(field_name: str) ->
 @pytest.mark.parametrize(
     "payload",
     [
-        {"equipment_codes": ["MAT", "MAT"]},
         {"attention_area_codes": ["KNEE", "KNEE"]},
         {"available_location_codes": ["HOME", "HOME"]},
         {"preferred_exercise_type_codes": ["CARDIO", "CARDIO"]},
@@ -478,10 +471,7 @@ def test_duplicate_array_codes_are_rejected(payload: dict[str, object]) -> None:
 
 @pytest.mark.parametrize(
     "payload",
-    [
-        {"available_location_codes": []},
-        {"equipment_codes": []},
-    ],
+    [{"available_location_codes": []}],
 )
 def test_arrays_that_must_retain_values_reject_empty_lists(
     payload: dict[str, object],
@@ -664,7 +654,7 @@ def test_stale_profile_changes_nothing() -> None:
     with client:
         response = client.patch(
             "/api/v1/me/profile",
-            json={"equipment_codes": ["MAT"]},
+            json={"nickname": "stale 변경"},
             headers=_headers(version='"2"'),
         )
 

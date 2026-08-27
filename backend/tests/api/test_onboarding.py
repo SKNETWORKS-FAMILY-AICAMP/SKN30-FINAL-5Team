@@ -23,6 +23,8 @@ from backend.app.modules.profiles.codes import ConsentTypeCode, MutationEndpoint
 from backend.app.modules.profiles.ports import (
     ConsentRecord,
     IdempotencyRecord,
+    MeProfileRecord,
+    MeRecord,
     OnboardingProfileValues,
     OnboardingRecord,
 )
@@ -42,6 +44,11 @@ class FakeProfileRepository:
         self.disabled = False
         self.consent_events = 0
         self.consent_values: dict[ConsentTypeCode, bool] = {}
+        self.me_record: MeRecord | None = None
+
+    def get_me(self, session: FakeSession, user_id: UUID) -> MeRecord | None:
+        del session, user_id
+        return self.me_record
 
     def acquire_idempotency_lock(
         self,
@@ -87,8 +94,32 @@ class FakeProfileRepository:
         values: OnboardingProfileValues,
         now: datetime,
     ) -> OnboardingRecord:
-        del session, protected_birthdate
+        del session
         self.profile_version += 1
+        self.me_record = MeRecord(
+            user_id=user_id,
+            status_code="ACTIVE",
+            premium_status_code="NOT_AVAILABLE",
+            ai_trial_started_at=NOW,
+            ai_trial_ends_at=datetime(2026, 8, 27, 6, 0, tzinfo=UTC),
+            profile=MeProfileRecord(
+                nickname=values.nickname,
+                protected_birthdate=protected_birthdate,
+                primary_goal_code=values.primary_goal_code,
+                experience_level_code=values.experience_level_code,
+                timezone=values.timezone,
+                preferred_location_code=values.preferred_location_code,
+                available_location_codes=values.available_location_codes,
+                default_requested_duration_minutes=values.default_requested_duration_minutes,
+                desired_weekly_workout_count=values.desired_weekly_workout_count,
+                coaching_style_code=values.coaching_style_code,
+                attention_area_codes=values.attention_area_codes,
+                preferred_exercise_type_codes=values.preferred_exercise_type_codes,
+                profile_version=self.profile_version,
+                created_at=now,
+                updated_at=now,
+            ),
+        )
         return OnboardingRecord(
             user_id=user_id,
             profile_version=self.profile_version,
@@ -152,7 +183,6 @@ def _payload() -> dict[str, object]:
         "preferred_location_code": "HOME",
         "default_requested_duration_minutes": 40,
         "desired_weekly_workout_count": 3,
-        "equipment_codes": ["BODYWEIGHT"],
         "attention_area_codes": ["KNEE"],
         "preferred_exercise_type_codes": ["STRENGTH"],
         "coaching_style_code": "SUPPORTIVE",
@@ -246,6 +276,47 @@ def test_onboarding_is_atomic_idempotent_and_does_not_expose_birthdate() -> None
     }
     assert "date_of_birth" not in first.text
     assert "2000-08-11" not in first.text
+
+
+def test_openapi_removes_equipment_from_onboarding_and_me_profile() -> None:
+    with _client(FakeProfileRepository()) as client:
+        schemas = client.app.openapi()["components"]["schemas"]
+
+    assert "equipment_codes" not in schemas["OnboardingUpsertRequest"]["properties"]
+    assert "equipment_codes" not in schemas["MeProfile"]["properties"]
+
+
+def test_get_me_profile_response_omits_equipment_codes() -> None:
+    repository = FakeProfileRepository()
+    with _client(repository) as client:
+        onboarding = client.put(
+            "/api/v1/me/onboarding",
+            json=_payload(),
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+        response = client.get("/api/v1/me")
+
+    assert onboarding.status_code == 200
+    assert response.status_code == 200
+    assert response.json()["profile"]["nickname"] == "러너01"
+    assert "equipment_codes" not in response.json()["profile"]
+
+
+def test_onboarding_rejects_removed_equipment_field() -> None:
+    repository = FakeProfileRepository()
+    payload = _payload()
+    payload["equipment_codes"] = ["BODYWEIGHT"]
+
+    with _client(repository) as client:
+        response = client.put(
+            "/api/v1/me/onboarding",
+            json=payload,
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "INVALID_REQUEST"
+    assert repository.profile_version == 0
 
 
 @pytest.mark.parametrize("field_name", ["sex_code", "height_cm", "weight_kg"])

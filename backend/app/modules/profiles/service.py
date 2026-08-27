@@ -205,15 +205,8 @@ class ProfileService:
         )
         if preferred_location not in available_locations:
             raise InvalidProfileSettingsError
-        equipment_codes = tuple(
-            str(code) for code in payload.get("equipment_codes", current.equipment_codes)
-        )
-        if not equipment_codes:
-            raise InvalidProfileSettingsError
-
         relationship_fields = {
             "available_location_codes",
-            "equipment_codes",
             "attention_area_codes",
             "preferred_exercise_type_codes",
         }
@@ -229,9 +222,6 @@ class ProfileService:
                 available_locations
                 if "available_location_codes" in request.model_fields_set
                 else None
-            ),
-            equipment_codes=(
-                equipment_codes if "equipment_codes" in request.model_fields_set else None
             ),
             attention_area_codes=(
                 tuple(str(code) for code in payload["attention_area_codes"])
@@ -265,7 +255,6 @@ class ProfileService:
                 ),
                 desired_weekly_workout_count=record.profile.desired_weekly_workout_count,
                 coaching_style_code=CoachingStyleCode(record.profile.coaching_style_code),
-                equipment_codes=list(record.profile.equipment_codes),
                 attention_area_codes=list(record.profile.attention_area_codes),
                 preferred_exercise_type_codes=list(record.profile.preferred_exercise_type_codes),
                 profile_version=record.profile.profile_version,
@@ -345,7 +334,6 @@ class ProfileService:
             height_cm=request.height_cm,
             weight_kg=request.weight_kg,
             sex_code=request.sex_code,
-            equipment_codes=tuple(request.equipment_codes),
             attention_area_codes=tuple(request.attention_area_codes),
             preferred_exercise_type_codes=tuple(request.preferred_exercise_type_codes),
         )

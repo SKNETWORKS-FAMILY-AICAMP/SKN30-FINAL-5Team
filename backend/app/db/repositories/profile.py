@@ -12,7 +12,6 @@ from backend.app.db.models.profile import (
     UserAvailableLocation,
     UserConsent,
     UserConsentEvent,
-    UserEquipment,
     UserPreferredExerciseType,
     UserProfile,
 )
@@ -60,13 +59,6 @@ class ProfileRepository:
                 default_requested_duration_minutes=profile.default_requested_duration_minutes,
                 desired_weekly_workout_count=profile.desired_weekly_workout_count,
                 coaching_style_code=profile.coaching_style_code,
-                equipment_codes=tuple(
-                    session.scalars(
-                        select(UserEquipment.equipment_code)
-                        .where(UserEquipment.user_id == user_id)
-                        .order_by(UserEquipment.equipment_code)
-                    )
-                ),
                 attention_area_codes=tuple(
                     session.scalars(
                         select(UserAttentionArea.body_area_code)
@@ -199,7 +191,6 @@ class ProfileRepository:
             profile.profile_version += 1
             profile.updated_at = now
 
-        session.execute(delete(UserEquipment).where(UserEquipment.user_id == user_id))
         session.execute(
             delete(UserAvailableLocation).where(UserAvailableLocation.user_id == user_id)
         )
@@ -209,10 +200,6 @@ class ProfileRepository:
         )
         session.add_all(
             [
-                UserEquipment(user_id=user_id, equipment_code=code, created_at=now)
-                for code in values.equipment_codes
-            ]
-            + [
                 UserAvailableLocation(user_id=user_id, location_code=code, created_at=now)
                 for code in values.available_location_codes
             ]
@@ -280,13 +267,6 @@ class ProfileRepository:
             height_cm=profile.height_cm,
             weight_kg=profile.weight_kg,
             sex_code=profile.sex_code,
-            equipment_codes=tuple(
-                session.scalars(
-                    select(UserEquipment.equipment_code)
-                    .where(UserEquipment.user_id == user_id)
-                    .order_by(UserEquipment.equipment_code)
-                )
-            ),
             attention_area_codes=tuple(
                 session.scalars(
                     select(UserAttentionArea.body_area_code)
@@ -330,12 +310,6 @@ class ProfileRepository:
             session.add_all(
                 UserAvailableLocation(user_id=user_id, location_code=code, created_at=now)
                 for code in changes.available_location_codes
-            )
-        if changes.equipment_codes is not None:
-            session.execute(delete(UserEquipment).where(UserEquipment.user_id == user_id))
-            session.add_all(
-                UserEquipment(user_id=user_id, equipment_code=code, created_at=now)
-                for code in changes.equipment_codes
             )
         if changes.attention_area_codes is not None:
             session.execute(delete(UserAttentionArea).where(UserAttentionArea.user_id == user_id))

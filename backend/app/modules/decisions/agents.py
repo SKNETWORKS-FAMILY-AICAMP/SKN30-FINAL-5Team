@@ -139,24 +139,12 @@ class FeasibilityProposalAgent(_ProposalAgent):
         self,
         request: ProposalRequest[DecisionContext, CoordinatorCandidate],
     ) -> AgentProposal:
-        required_equipment = request.context.candidate_required_equipment_codes
         supported_locations = request.context.candidate_supported_location_codes
         evidence = (
-            "CANDIDATE/required_equipment_codes",
             "CANDIDATE/supported_location_codes",
-            "CONTEXT/equipment_codes",
             "CONTEXT/location_code",
             "CONTEXT/requested_duration_minutes",
         )
-        if required_equipment is not None and not set(required_equipment).issubset(
-            request.context.equipment_codes
-        ):
-            return self._needs_input(
-                request,
-                reason_codes=("AVAILABLE_EQUIPMENT_INSUFFICIENT",),
-                evidence_reference_codes=evidence,
-                hard_constraint_codes=("AVAILABLE_EQUIPMENT_REQUIRED",),
-            )
         if (
             supported_locations is not None
             and request.context.location_code not in supported_locations
@@ -170,10 +158,9 @@ class FeasibilityProposalAgent(_ProposalAgent):
         return self._ready(
             request,
             action=RecommendedActionCode.KEEP,
-            reason_codes=("TIME_LOCATION_EQUIPMENT_MATCHED",),
+            reason_codes=("TIME_LOCATION_MATCHED",),
             evidence_reference_codes=evidence,
             hard_constraint_codes=(
-                "AVAILABLE_EQUIPMENT_SUFFICIENT",
                 "CURRENT_LOCATION_SUPPORTED",
                 "REQUESTED_DURATION_PRESERVED",
             ),

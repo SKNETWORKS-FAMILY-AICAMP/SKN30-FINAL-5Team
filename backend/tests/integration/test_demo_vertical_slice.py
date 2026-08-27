@@ -164,7 +164,6 @@ def _onboard(client: TestClient, *, duration_minutes: int = 30) -> dict[str, obj
             "available_location_codes": ["HOME"],
             "default_requested_duration_minutes": duration_minutes,
             "desired_weekly_workout_count": 3,
-            "equipment_codes": ["BODYWEIGHT", "MAT", "RESISTANCE_BAND"],
             "attention_area_codes": [],
             "preferred_exercise_type_codes": ["STRENGTH"],
             "coaching_style_code": "SUPPORTIVE",
@@ -252,6 +251,7 @@ def test_full_vertical_slice_reaches_completed_session(client: TestClient) -> No
     assert body["onboarding_completed"] is True
     assert body["profile"]["nickname"] == "데모사용자"
     assert body["profile"]["age"] == 29
+    assert "equipment_codes" not in body["profile"]
     # The birthdate itself must never travel back to the client.
     assert "date_of_birth" not in body["profile"]
     assert "protected_birthdate" not in body["profile"]

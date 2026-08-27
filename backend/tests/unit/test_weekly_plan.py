@@ -253,13 +253,6 @@ def test_first_cold_start_week_is_the_only_acknowledgement_exception(
         (
             replace(
                 _routine(authority=RoutineDecisionAuthorityCode.USER),
-                required_equipment_codes=("DUMBBELL",),
-            ),
-            PlanRevisionReasonCode.EQUIPMENT_CONSTRAINT_NOT_SATISFIED,
-        ),
-        (
-            replace(
-                _routine(authority=RoutineDecisionAuthorityCode.USER),
                 applied_safety_opinion_codes=(),
             ),
             PlanRevisionReasonCode.SAFETY_OPINION_NOT_APPLIED,
@@ -302,6 +295,27 @@ def test_user_edit_is_allowed_after_two_ai_revisions_when_constraints_hold(
 
     assert decision.revision_allowed is True
     assert decision.resulting_ai_revision_count == 2
+
+
+def test_user_edit_is_not_blocked_by_equipment_availability(
+    constraints: PlanConstraints,
+) -> None:
+    decision = evaluate_plan_revision(
+        PlanRevisionPolicyInput(
+            endpoint_code=PlanRevisionEndpointCode.PLAN_REVISIONS,
+            source_code=PlanRevisionSourceCode.USER,
+            safety_status_code=SafetyStatusCode.REVISE,
+            successful_ai_revision_count=2,
+            constraints=constraints,
+            routine=replace(
+                _routine(authority=RoutineDecisionAuthorityCode.USER),
+                required_equipment_codes=("DUMBBELL",),
+            ),
+        )
+    )
+
+    assert decision.revision_allowed is True
+    assert PlanRevisionReasonCode.EQUIPMENT_CONSTRAINT_NOT_SATISFIED not in decision.reason_codes
 
 
 def test_llm_cannot_change_routine_or_safety(constraints: PlanConstraints) -> None:

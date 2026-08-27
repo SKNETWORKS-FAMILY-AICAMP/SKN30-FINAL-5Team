@@ -6,7 +6,6 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from backend.app.modules.catalog.codes import (
     BodyAreaCode,
-    EquipmentCode,
     LocationCode,
     TrainingTypeCode,
 )
@@ -61,7 +60,6 @@ class OnboardingUpsertRequest(BaseModel):
     available_location_codes: list[LocationCode] | None = None
     default_requested_duration_minutes: int = Field(gt=0, le=240)
     desired_weekly_workout_count: int = Field(gt=0, le=7)
-    equipment_codes: list[EquipmentCode] = Field(min_length=1)
     attention_area_codes: list[BodyAreaCode]
     preferred_exercise_type_codes: list[TrainingTypeCode] = Field(default_factory=list)
     coaching_style_code: CoachingStyleCode = CoachingStyleCode.SUPPORTIVE
@@ -79,7 +77,6 @@ class OnboardingUpsertRequest(BaseModel):
         return normalized
 
     @field_validator(
-        "equipment_codes",
         "attention_area_codes",
         "preferred_exercise_type_codes",
         "available_location_codes",
@@ -116,7 +113,6 @@ class ProfileSettingsUpdateRequest(BaseModel):
     default_requested_duration_minutes: int | None = Field(default=None, gt=0, le=240)
     preferred_location_code: LocationCode | None = None
     available_location_codes: list[LocationCode] | None = None
-    equipment_codes: list[EquipmentCode] | None = Field(default=None, min_length=1)
     attention_area_codes: list[BodyAreaCode] | None = None
     preferred_exercise_type_codes: list[TrainingTypeCode] | None = None
     coaching_style_code: CoachingStyleCode | None = None
@@ -134,7 +130,6 @@ class ProfileSettingsUpdateRequest(BaseModel):
         return value.strip() if isinstance(value, str) else value
 
     @field_validator(
-        "equipment_codes",
         "attention_area_codes",
         "preferred_exercise_type_codes",
         "available_location_codes",
@@ -176,7 +171,6 @@ class MeProfile(BaseModel):
     default_requested_duration_minutes: int
     desired_weekly_workout_count: int
     coaching_style_code: CoachingStyleCode
-    equipment_codes: list[str]
     attention_area_codes: list[str]
     preferred_exercise_type_codes: list[str]
     profile_version: int

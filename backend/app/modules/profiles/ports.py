@@ -36,7 +36,6 @@ class OnboardingProfileValues:
     height_cm: float | None
     weight_kg: float | None
     sex_code: str | None
-    equipment_codes: tuple[str, ...]
     attention_area_codes: tuple[str, ...]
     preferred_exercise_type_codes: tuple[str, ...]
 
@@ -71,7 +70,6 @@ class MeProfileRecord:
     default_requested_duration_minutes: int
     desired_weekly_workout_count: int
     coaching_style_code: str
-    equipment_codes: tuple[str, ...]
     attention_area_codes: tuple[str, ...]
     preferred_exercise_type_codes: tuple[str, ...]
     profile_version: int
@@ -118,7 +116,6 @@ class ProfileSettingsRecord:
     height_cm: float | None
     weight_kg: float | None
     sex_code: str | None
-    equipment_codes: tuple[str, ...]
     attention_area_codes: tuple[str, ...]
     preferred_exercise_type_codes: tuple[str, ...]
     profile_version: int
@@ -129,7 +126,6 @@ class ProfileSettingsChanges:
     protected_birthdate: str | None
     scalar_values: dict[str, object]
     available_location_codes: tuple[str, ...] | None
-    equipment_codes: tuple[str, ...] | None
     attention_area_codes: tuple[str, ...] | None
     preferred_exercise_type_codes: tuple[str, ...] | None
 
