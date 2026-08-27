@@ -97,7 +97,6 @@ def test_specialists_return_distinct_proposals_from_owned_evidence() -> None:
     )
     assert "HISTORY/recent_workout_status_codes" in recovery.evidence_reference_codes
     assert feasibility.hard_constraint_codes == (
-        "AVAILABLE_EQUIPMENT_SUFFICIENT",
         "CURRENT_LOCATION_SUPPORTED",
         "REQUESTED_DURATION_PRESERVED",
     )
@@ -129,7 +128,7 @@ def test_high_fatigue_fails_closed_until_recovery_content_is_approved() -> None:
     assert "APPROVED_RECOVERY_CANDIDATE_UNAVAILABLE" in recovery.reason_codes
 
 
-def test_feasibility_requires_current_location_and_available_equipment() -> None:
+def test_feasibility_ignores_equipment_and_requires_current_location() -> None:
     missing_equipment = run_required_agents(
         request=_request(_context(equipment_codes=())),
         agents=default_agents(),
@@ -139,7 +138,8 @@ def test_feasibility_requires_current_location_and_available_equipment() -> None
         agents=default_agents(),
     ).by_agent_type(AgentTypeCode.FEASIBILITY)
 
-    assert missing_equipment.proposal_status_code is ProposalStatusCode.NEEDS_INPUT
-    assert missing_equipment.reason_codes == ("AVAILABLE_EQUIPMENT_INSUFFICIENT",)
+    assert missing_equipment.proposal_status_code is ProposalStatusCode.READY
+    assert missing_equipment.reason_codes == ("TIME_LOCATION_MATCHED",)
+    assert "CONTEXT/equipment_codes" not in missing_equipment.evidence_reference_codes
     assert unsupported_location.proposal_status_code is ProposalStatusCode.NEEDS_INPUT
     assert unsupported_location.reason_codes == ("CURRENT_LOCATION_UNSUPPORTED",)
