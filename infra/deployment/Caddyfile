@@ -1,0 +1,34 @@
+# Staging TLS terminator.
+#
+# Caddy answers the ACME HTTP-01 challenge on :80, then serves the API over
+# HTTPS on :443. The certificate and account key live in the caddy_data volume,
+# so a container restart reuses them instead of asking Let's Encrypt again --
+# reprovisioning on every deploy would hit the rate limit within a day.
+#
+# The mobile client is the reason this exists: iOS App Transport Security and
+# the Android cleartext policy both refuse a plain http:// origin, so the app
+# cannot reach the API until it is served under a real certificate.
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$API_DOMAIN} {
+	encode zstd gzip
+
+	# The API container is reachable only on the compose network; it never
+	# publishes 443 itself, so this is the single public entry point.
+	reverse_proxy api:8000 {
+		health_uri /api/v1/health/ready
+		health_interval 30s
+		health_timeout 5s
+	}
+
+	# The upstream sets its own request id and returns it as X-Request-ID.
+	# Nothing here rewrites or logs bodies: request logging stays at the
+	# application layer, which already redacts health and identity fields.
+	log {
+		output stdout
+		format json
+	}
+}

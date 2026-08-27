@@ -43,26 +43,26 @@ def test_exact_v2_approvals_preserve_packet_metadata_and_waiver() -> None:
     artifacts: tuple[tuple[ArtifactKind, str, str, int], ...] = (
         (
             "CATALOG",
-            "exercise-catalog-v2.0.0-final",
-            "e3ad5c3eabf193d173aa3b01c4c503962a43074ad3ecbd44343efb1195677b24",
+            "exercise-catalog-v2.0.1-final",
+            "731182224ab367ffee526a90deeca9d967a894e16c2f9543aa0109b19e7f8994",
             102,
         ),
         (
             "SAFETY_RULES",
-            "safety-rule-set-v2.0.0",
-            "53e8f597f4e312999cd9c04402c17ec7faa741692aae90ab8a67889f144c0807",
+            "safety-rule-set-v2.0.1",
+            "74f4eaedf80f6946533779fa4d7358757310697379659a7edef717d590d1b378",
             394,
         ),
         (
             "ALTERNATIVES",
-            "alternative-set-v2.0.0",
-            "4f78c1c735a3b1129d8396233612bb27b69c25672967990116cca91b7dd74b5c",
+            "alternative-set-v2.0.1",
+            "ef954cff31fc6fd226af1dec98d24261bb0c42537097ff1a9306a8f3839e2e99",
             285,
         ),
         (
             "PRESCRIPTIONS",
-            "prescription-set-v2.0.0",
-            "6c1ccbae1f234d30fa9b3bac9c92c4493a9f143c475450fd7985ed717218fa71",
+            "prescription-set-v2.0.1",
+            "74b911d2fc10c904698564360a8ec4b54a723244bf28a1b4f2d44a1075471ef7",
             239,
         ),
     )

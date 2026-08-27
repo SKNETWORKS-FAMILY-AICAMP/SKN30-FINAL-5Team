@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "projection_version": "v2-backend-code-projection-2026-08-25",
+  "status": "DRAFT",
+  "production_eligible": false,
+  "purpose": "Direct V2 backend code-set projection; runtime V2 body-focus values remain unchanged.",
+  "body_focus_code_to_backend_code": {
+    "BACK": "BACK",
+    "BICEPS": "BICEPS",
+    "CALVES": "CALVES",
+    "CARDIO": "CARDIO",
+    "CHEST": "CHEST",
+    "CORE": "CORE",
+    "FOREARMS": "FOREARMS",
+    "FULL_BODY": "FULL_BODY",
+    "GLUTES": "GLUTES",
+    "HAMSTRINGS": "HAMSTRINGS",
+    "MOBILITY": "MOBILITY",
+    "QUADRICEPS": "QUADRICEPS",
+    "SHOULDERS": "SHOULDERS",
+    "TRICEPS": "TRICEPS"
+  },
+  "guards": [
+    "does_not_change_runtime_jsonl",
+    "does_not_change_stable_code_or_foreign_keys",
+    "requires_catalog_v2_code_set"
+  ]
+}

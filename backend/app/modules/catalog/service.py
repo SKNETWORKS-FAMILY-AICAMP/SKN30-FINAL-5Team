@@ -1006,10 +1006,22 @@ class CatalogDataBundleImporter:
         media_reference_map: dict[str, str] | None = None,
         approved_v2_bundle: bool = False,
     ) -> CatalogDataBundleImportResult:
-        if self._app_env not in {"local", "test"}:
+        # A DRAFT bundle stays confined to local/test. The reviewed V2 release is
+        # a different artifact: import_v2_bundle only reaches this call after every
+        # one of its four manifests matched an exact approval-registry entry, and
+        # those entries carry the DOMAIN_REVIEWER sign-off that the repository
+        # turns into PRODUCTION_APPROVED. Staging is allowed for that path alone;
+        # production still requires its own separately reviewed release decision.
+        release_import = self._v2_import and approved_v2_bundle
+        allowed_envs = {"local", "test", "staging"} if release_import else {"local", "test"}
+        if self._app_env not in allowed_envs:
             raise CatalogImportError(
                 "CATALOG_IMPORT_ENVIRONMENT_FORBIDDEN",
-                "DRAFT catalog data import is allowed only in local or test",
+                (
+                    "approved V2 release import is allowed only in local, test, or staging"
+                    if release_import
+                    else "DRAFT catalog data import is allowed only in local or test"
+                ),
             )
 
         catalog_artifacts = tuple(

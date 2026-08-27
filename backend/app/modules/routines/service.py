@@ -24,6 +24,12 @@ from backend.app.modules.routines.ports import (
 )
 from backend.app.modules.routines.schemas import RoutineCreateRequest, RoutineResponse
 
+# Meeting decision 2026-08-27: a routine may land within five minutes of the
+# requested duration. Exact-match selection could not fill 30 minutes from the
+# approved pool, so every request failed with ROUTINE_DURATION_UNAVAILABLE.
+# AGENTS.md section 7 and docs/DOMAIN_RULES.md are updated alongside this.
+DURATION_TOLERANCE_SECONDS = 300
+
 
 class RoutineError(Exception):
     """Base class for safe routine creation failures."""
@@ -115,9 +121,9 @@ def _select_exact_plan(
         raise RoutineContentUnavailableError
 
     warmups = _subsets(by_phase[RoutinePhaseCode.WARMUP], min(target, 180))
-    mains = _subsets(by_phase[RoutinePhaseCode.MAIN], target)
+    mains = _subsets(by_phase[RoutinePhaseCode.MAIN], target + DURATION_TOLERANCE_SECONDS)
     cooldowns = _subsets(by_phase[RoutinePhaseCode.COOLDOWN], min(target, 120))
-    matches: list[tuple[int, tuple[RoutineCandidate, ...]]] = []
+    matches: list[tuple[int, int, tuple[RoutineCandidate, ...]]] = []
     for (warmup_seconds, _), warmup_items in warmups.items():
         if not 60 <= warmup_seconds <= 180:
             continue
@@ -127,22 +133,29 @@ def _select_exact_plan(
             for (cooldown_seconds, _), cooldown_items in cooldowns.items():
                 if not 45 <= cooldown_seconds <= 120:
                     continue
-                setup_seconds = target - warmup_seconds - main_seconds - cooldown_seconds
-                if 0 <= setup_seconds <= 60:
+                content_seconds = warmup_seconds + main_seconds + cooldown_seconds
+                # Setup still occupies at most a minute; it absorbs a shortfall
+                # but never stretches to cover the whole tolerance.
+                setup_seconds = min(max(target - content_seconds, 0), 60)
+                deviation = abs(content_seconds + setup_seconds - target)
+                if deviation <= DURATION_TOLERANCE_SECONDS:
                     selected = (*warmup_items, *main_items, *cooldown_items)
-                    matches.append((setup_seconds, selected))
+                    matches.append((deviation, setup_seconds, selected))
     if not matches:
         raise RoutineDurationUnavailableError
     matches.sort(
         key=lambda match: (
-            sum(item.tier_code == RoutineTierCode.OPTIONAL for item in match[1]),
-            len(match[1]),
+            # Closest to the requested duration wins; the tolerance is a
+            # fallback, not a licence to drift.
+            match[0],
+            sum(item.tier_code == RoutineTierCode.OPTIONAL for item in match[2]),
+            len(match[2]),
             tuple(
-                (item.phase_code, item.exercise_name, str(item.exercise_id)) for item in match[1]
+                (item.phase_code, item.exercise_name, str(item.exercise_id)) for item in match[2]
             ),
         )
     )
-    return matches[0][0], matches[0][1], duration_request
+    return matches[0][1], matches[0][2], duration_request
 
 
 def _build_days(context: RoutineCreationContext) -> tuple[RoutineDayValues, ...]:
@@ -169,6 +182,7 @@ def _build_days(context: RoutineCreationContext) -> tuple[RoutineDayValues, ...]
                 items=main_durations,
                 cooldown_seconds=cooldown_seconds,
             ),
+            tolerance_seconds=DURATION_TOLERANCE_SECONDS,
         )
     except DurationTargetMismatchError:
         raise RoutineDurationUnavailableError from None

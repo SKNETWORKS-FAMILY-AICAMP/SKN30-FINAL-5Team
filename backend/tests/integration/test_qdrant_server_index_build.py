@@ -52,14 +52,14 @@ def test_real_postgresql_catalog_builds_and_activates_idempotent_qdrant_index() 
         with database.new_session() as session, session.begin():
             first = builder.build_and_activate(
                 session,
-                catalog_version="exercise-catalog-v2.0.0-final",
+                catalog_version="exercise-catalog-v2.0.1-final",
                 vector_index_version="qdrant-integration-test-v1",
                 now=now,
             )
         with database.new_session() as session, session.begin():
             second = builder.build_and_activate(
                 session,
-                catalog_version="exercise-catalog-v2.0.0-final",
+                catalog_version="exercise-catalog-v2.0.1-final",
                 vector_index_version="qdrant-integration-test-v1",
                 now=now,
             )

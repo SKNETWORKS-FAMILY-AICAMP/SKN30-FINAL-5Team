@@ -293,7 +293,7 @@ def test_v2_import_promote_then_activate_preserves_approval_packet(
 
     catalog = activate(
         postgres_session,
-        "exercise-catalog-v2.0.0-final",
+        "exercise-catalog-v2.0.1-final",
         now=datetime.now(UTC),
     )
 

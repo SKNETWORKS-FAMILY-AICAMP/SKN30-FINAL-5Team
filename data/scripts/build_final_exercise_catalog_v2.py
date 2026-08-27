@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any
 
 DATA_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_OUTPUT_DIR = DATA_ROOT / "generated" / "exercise-catalog-v2.0.0-final"
+DEFAULT_OUTPUT_DIR = DATA_ROOT / "generated" / "exercise-catalog-v2.0.1-final"
 TAXONOMY_PATH = DATA_ROOT / "reports" / "representative_exercise_taxonomy_reviewed.csv"
 INTEGRATED_PATH = DATA_ROOT / "reports" / "integrated_exercise_review_updated.csv"
 ENRICHMENT_PATH = DATA_ROOT / "normalized" / "catalog_enrichment_v3_fitt.csv"
@@ -409,8 +409,12 @@ def runtime_json_blockers(rows: list[dict[str, str]]) -> dict[str, int]:
 
 
 def write_csv(path: Path, columns: tuple[str, ...], rows: list[dict[str, str]]) -> None:
+    # csv writes CRLF by default, which made a Windows rebuild differ from the
+    # committed output on every line. See _write_text_lf for why that matters.
     with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=columns, extrasaction="raise")
+        writer = csv.DictWriter(
+            handle, fieldnames=columns, extrasaction="raise", lineterminator="\n"
+        )
         writer.writeheader()
         writer.writerows(rows)
 
@@ -1032,7 +1036,7 @@ def build_alternatives(
             delta=delta,
             relation_key=f"{source_id}:{alternative_id}:{source['alternative_type']}",
             metadata={
-                "source_path": str(ALTERNATIVES_PATH.relative_to(DATA_ROOT)),
+                "source_path": ALTERNATIVES_PATH.relative_to(DATA_ROOT).as_posix(),
                 "legacy_relationship_type": source["alternative_type"],
                 "selection_basis": "REX_ENDPOINT_AND_V2_CATALOG_RECHECK",
             },
@@ -1060,7 +1064,7 @@ def build_alternatives(
                 f"{equipment_alternative['representative_exercise_id']}:EQUIPMENT"
             ),
             metadata={
-                "source_path": str(DECISIONS_PATH.relative_to(DATA_ROOT)),
+                "source_path": DECISIONS_PATH.relative_to(DATA_ROOT).as_posix(),
                 "selection_basis": "APPROVED_STRETCH_STRAP_TO_BODYWEIGHT_RELATION",
             },
         )
@@ -1184,7 +1188,7 @@ def build_alternatives(
                 f"{discomfort_alternative['representative_exercise_id']}:DISCOMFORT"
             ),
             metadata={
-                "source_path": str(DISCOMFORT_MAPPING_PATH.relative_to(DATA_ROOT)),
+                "source_path": DISCOMFORT_MAPPING_PATH.relative_to(DATA_ROOT).as_posix(),
                 "selection_basis": "DOMAIN_APPROVED_SCORE_BAND_AND_TARGET_MUSCLE_POLICY",
                 "body_area_code": pain_area,
                 "score_band_code": score_band,
@@ -1266,8 +1270,20 @@ def build_safety(
     )
 
 
+def _write_text_lf(path: Path, text: str) -> None:
+    """Write text with LF endings regardless of host platform.
+
+    The approval registry pins every artifact by SHA256, so identical inputs
+    have to produce identical bytes on Windows and Linux alike. Python's text
+    mode rewrites the newline on Windows, which silently invalidated those
+    hashes on a rebuild.
+    """
+    with path.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
+
+
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
-    with path.open("w", encoding="utf-8") as handle:
+    with path.open("w", encoding="utf-8", newline="\n") as handle:
         for row in rows:
             handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
 
@@ -1324,7 +1340,8 @@ def build(output_dir: Path = DEFAULT_OUTPUT_DIR) -> dict[str, Any]:
         representative_rows,
     )
     stable_registry_path = output_dir / "stable_code_registry_v2.json"
-    stable_registry_path.write_text(
+    _write_text_lf(
+        stable_registry_path,
         json.dumps(
             {
                 "schema_version": "1.0",
@@ -1342,7 +1359,6 @@ def build(output_dir: Path = DEFAULT_OUTPUT_DIR) -> dict[str, Any]:
             indent=2,
         )
         + "\n",
-        encoding="utf-8",
     )
     write_csv(
         output_dir / "exercise_alternatives_v2_final.csv",
@@ -1413,8 +1429,9 @@ def build(output_dir: Path = DEFAULT_OUTPUT_DIR) -> dict[str, Any]:
         },
         "production_eligible": False,
     }
-    (output_dir / "finalization_validation_report.json").write_text(
-        json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    _write_text_lf(
+        output_dir / "finalization_validation_report.json",
+        json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
     )
     return report
 

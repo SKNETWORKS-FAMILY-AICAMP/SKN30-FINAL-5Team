@@ -43,8 +43,8 @@ CATALOG_DIRECTORIES = (GENERATED / "exercise-catalog-seed-merged-mvp-v0.4.0",)
 SAFETY_DIRECTORY = GENERATED / "exercise-safety-rules-merged-mvp-v0.5.0"
 ALTERNATIVE_DIRECTORY = GENERATED / "exercise-alternatives-merged-mvp-v0.4.0"
 PRESCRIPTION_DIRECTORY = GENERATED / "exercise-prescriptions-merged-mvp-v0.1.0"
-V2_BUNDLE_DIRECTORY = GENERATED / "exercise-catalog-v2.0.0-final" / "backend_bundle"
-V2_BUNDLE_HASH = "aa8e723f1c1973a3b114f3684e879f22f8757ea9b6aa9b86742b96bf6af1e0e6"
+V2_BUNDLE_DIRECTORY = GENERATED / "exercise-catalog-v2.0.1-final" / "backend_bundle"
+V2_BUNDLE_HASH = "8ac896f3de3f2e292d7e27554c7dd3a2e3aa8afed69031bd493daf1f98df6ff5"
 V2_TAXONOMY_HASH = "79e487cc1a41ea39db9b4afb0799b3297840de878a2ae4ed621ef3e4403a0985"
 
 
@@ -139,7 +139,7 @@ def test_loads_current_derived_artifacts() -> None:
 
 
 def test_v2_runtime_metadata_is_accepted_by_pydantic() -> None:
-    runtime = GENERATED / "exercise-catalog-v2.0.0-final" / "runtime"
+    runtime = GENERATED / "exercise-catalog-v2.0.1-final" / "runtime"
     safety_manifest = SafetyRuleManifest.model_validate_json(
         (runtime / "safety_manifest.json").read_text(encoding="utf-8")
     )
@@ -162,10 +162,10 @@ def test_v2_runtime_metadata_is_accepted_by_pydantic() -> None:
 
     assert len(safety_records) == safety_manifest.summary.rule_records
     assert len(alternative_records) == alternative_manifest.summary.alternative_records
-    assert safety.rule_set_version_code == "safety-rule-set-v2.0.0"
+    assert safety.rule_set_version_code == "safety-rule-set-v2.0.1"
     assert safety.production_eligible is False
     assert safety.created_at is not None and safety.updated_at is not None
-    assert alternative.alternative_set_version_code == "alternative-set-v2.0.0"
+    assert alternative.alternative_set_version_code == "alternative-set-v2.0.1"
     assert alternative.review_method_code == "DOMAIN_REVIEWER"
     assert alternative.production_eligible is False
 
@@ -440,6 +440,64 @@ def test_bundle_rejects_non_local_environment_before_database_access() -> None:
             SAFETY_DIRECTORY,
             ALTERNATIVE_DIRECTORY,
             PRESCRIPTION_DIRECTORY,
+        )
+
+    assert exc_info.value.code == "CATALOG_IMPORT_ENVIRONMENT_FORBIDDEN"
+    assert repository.catalogs == {}
+
+
+def test_draft_bundle_stays_blocked_in_staging() -> None:
+    """Staging opened for the reviewed release must not reopen the DRAFT path."""
+    repository = FakeRepository()
+    importer = CatalogDataBundleImporter(cast(CatalogRepositoryPort, repository), "staging")
+
+    with pytest.raises(CatalogImportError) as exc_info:
+        importer.import_bundle(
+            cast(Session, FakeSession()),
+            CATALOG_DIRECTORIES,
+            SAFETY_DIRECTORY,
+            ALTERNATIVE_DIRECTORY,
+            PRESCRIPTION_DIRECTORY,
+        )
+
+    assert exc_info.value.code == "CATALOG_IMPORT_ENVIRONMENT_FORBIDDEN"
+    assert repository.catalogs == {}
+
+
+def test_approved_release_flag_alone_does_not_open_staging() -> None:
+    """approved_v2_bundle only counts inside the V2 importer mode."""
+    repository = FakeRepository()
+    importer = CatalogDataBundleImporter(cast(CatalogRepositoryPort, repository), "staging")
+
+    with pytest.raises(CatalogImportError) as exc_info:
+        importer.import_bundle(
+            cast(Session, FakeSession()),
+            CATALOG_DIRECTORIES,
+            SAFETY_DIRECTORY,
+            ALTERNATIVE_DIRECTORY,
+            PRESCRIPTION_DIRECTORY,
+            approved_v2_bundle=True,
+        )
+
+    assert exc_info.value.code == "CATALOG_IMPORT_ENVIRONMENT_FORBIDDEN"
+    assert repository.catalogs == {}
+
+
+def test_reviewed_release_import_stays_blocked_in_production() -> None:
+    """Production needs its own release decision, not the staging allowance."""
+    repository = FakeRepository()
+    importer = CatalogDataBundleImporter(
+        cast(CatalogRepositoryPort, repository), "production", v2_import=True
+    )
+
+    with pytest.raises(CatalogImportError) as exc_info:
+        importer.import_bundle(
+            cast(Session, FakeSession()),
+            CATALOG_DIRECTORIES,
+            SAFETY_DIRECTORY,
+            ALTERNATIVE_DIRECTORY,
+            PRESCRIPTION_DIRECTORY,
+            approved_v2_bundle=True,
         )
 
     assert exc_info.value.code == "CATALOG_IMPORT_ENVIRONMENT_FORBIDDEN"

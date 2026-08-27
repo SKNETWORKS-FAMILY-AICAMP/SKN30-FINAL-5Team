@@ -19,8 +19,8 @@ COPY pyproject.toml uv.lock .python-version ./
 RUN uv sync --frozen --no-dev --no-install-project
 
 COPY backend ./backend
-COPY data/generated/exercise-catalog-v2.0.0-final/backend_bundle \
-    ./data/generated/exercise-catalog-v2.0.0-final/backend_bundle
+COPY data/generated/exercise-catalog-v2.0.1-final/backend_bundle \
+    ./data/generated/exercise-catalog-v2.0.1-final/backend_bundle
 
 RUN chown -R app:app /app
 

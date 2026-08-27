@@ -208,8 +208,19 @@ def test_idempotency_returns_same_response_and_rejects_changed_payload() -> None
         service.create(FakeSession(), user_id, _request(15), key)  # type: ignore[arg-type]
 
 
-def test_unconstructable_duration_fails_without_shortening_request() -> None:
+def test_duration_within_tolerance_is_accepted() -> None:
+    """A plan may land within five minutes of the request (2026-08-27 decision)."""
     repository = FakeRoutineRepository(duration_minutes=9)
+    service = RoutineService(repository, clock=lambda: NOW)
+
+    response = service.create(FakeSession(), uuid4(), _request(), uuid4())  # type: ignore[arg-type]
+
+    assert response is not None
+
+
+def test_duration_beyond_tolerance_still_fails() -> None:
+    """The allowance is bounded; it never silently shortens an impossible request."""
+    repository = FakeRoutineRepository(duration_minutes=180)
     service = RoutineService(repository, clock=lambda: NOW)
 
     with pytest.raises(RoutineDurationUnavailableError):

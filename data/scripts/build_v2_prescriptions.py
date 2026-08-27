@@ -13,11 +13,11 @@ from kspo_fitness100_pipeline import PipelineError, sha256_bytes
 from validate_v2_prescription_review_input import load_results, validate_results
 
 GENERATOR_VERSION = "v2-prescription-generator-1.0.0"
-CATALOG_VERSION = "exercise-catalog-v2.0.0-final"
+CATALOG_VERSION = "exercise-catalog-v2.0.1-final"
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CATALOG = (
     Path(__file__).resolve().parents[1]
-    / "generated/exercise-catalog-v2.0.0-final/representative_exercises_v2_final.csv"
+    / "generated/exercise-catalog-v2.0.1-final/representative_exercises_v2_final.csv"
 )
 DEFAULT_POLICY = (
     Path(__file__).resolve().parents[1] / "normalized/v2_prescription_review_policy.json"
@@ -27,7 +27,7 @@ DEFAULT_RESULTS = (
     / "validation/review_results/v2_prescription_review_input.csv"
 )
 DEFAULT_OUTPUT = (
-    Path(__file__).resolve().parents[1] / "generated/exercise-prescriptions-v2.0.0-draft"
+    Path(__file__).resolve().parents[1] / "generated/exercise-prescriptions-v2.0.1-draft"
 )
 
 
@@ -113,7 +113,7 @@ def build(
         "schema_version": "1.0",
         "generator_version": GENERATOR_VERSION,
         "prescription_set_version": {
-            "version_code": "prescription-set-v2.0.0",
+            "version_code": "prescription-set-v2.0.1",
             "status_code": "DRAFT",
         },
         "source": {

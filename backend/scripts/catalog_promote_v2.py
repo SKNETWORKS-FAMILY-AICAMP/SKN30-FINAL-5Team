@@ -23,12 +23,12 @@ from backend.app.modules.catalog.service import (
 )
 from backend.scripts.catalog_activate import activate
 
-APPROVED_BUNDLE_MANIFEST_SHA256 = "aa8e723f1c1973a3b114f3684e879f22f8757ea9b6aa9b86742b96bf6af1e0e6"
+APPROVED_BUNDLE_MANIFEST_SHA256 = "8ac896f3de3f2e292d7e27554c7dd3a2e3aa8afed69031bd493daf1f98df6ff5"
 APPROVED_TAXONOMY_REGISTRY_SHA256 = (
     "79e487cc1a41ea39db9b4afb0799b3297840de878a2ae4ed621ef3e4403a0985"
 )
-V2_CATALOG_VERSION_CODE = "exercise-catalog-v2.0.0-final"
-DEFAULT_BUNDLE_DIRECTORY = Path("data/generated/exercise-catalog-v2.0.0-final/backend_bundle")
+V2_CATALOG_VERSION_CODE = "exercise-catalog-v2.0.1-final"
+DEFAULT_BUNDLE_DIRECTORY = Path("data/generated/exercise-catalog-v2.0.1-final/backend_bundle")
 
 
 def promote_v2(
