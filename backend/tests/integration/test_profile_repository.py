@@ -98,7 +98,6 @@ def _request(nickname: str = "러너01") -> OnboardingUpsertRequest:
             "preferred_location_code": "HOME",
             "default_requested_duration_minutes": 40,
             "desired_weekly_workout_count": 3,
-            "equipment_codes": ["MAT"],
             "attention_area_codes": ["SHOULDER"],
             "preferred_exercise_type_codes": ["STRENGTH"],
             "height_cm": 175.0,
@@ -146,12 +145,53 @@ def test_onboarding_persists_atomically_and_retries_idempotently(
     assert profile is not None
     assert profile.profile_version == 1
     assert "2000-08-11" not in profile.protected_birthdate
-    assert postgres_session.scalar(select(func.count()).select_from(UserEquipment)) == 1
+    assert postgres_session.scalar(select(func.count()).select_from(UserEquipment)) == 0
     assert postgres_session.scalar(select(func.count()).select_from(UserAttentionArea)) == 1
     assert postgres_session.scalar(select(func.count()).select_from(UserPreferredExerciseType)) == 1
     assert postgres_session.scalar(select(func.count()).select_from(UserConsent)) == 5
     assert postgres_session.scalar(select(func.count()).select_from(UserConsentEvent)) == 5
     assert postgres_session.scalar(select(func.count()).select_from(MutationIdempotencyRecord)) == 1
+
+
+@pytest.mark.integration
+def test_reonboarding_preserves_existing_user_equipment(
+    postgres_session: Session,
+) -> None:
+    CatalogImporter(CatalogRepository(), "test").import_artifact(
+        postgres_session, GENERATED_ARTIFACT
+    )
+    current_user = CurrentUserService(
+        StaticVerifier(), IdentityRepository(), clock=lambda: NOW
+    ).authenticate(postgres_session, "id-token")
+    service = ProfileService(
+        ProfileRepository(),
+        LocalAesGcmBirthdateCipher(b"p" * 32, key_id="test-v1", app_env="test"),
+        primary_goal_codes=("GENERAL_FITNESS",),
+        experience_level_codes=("BEGINNER",),
+        consent_policy_version="privacy-v1",
+        clock=lambda: NOW,
+    )
+    service.upsert_onboarding(postgres_session, current_user.user_id, _request(), uuid4())
+    postgres_session.add(
+        UserEquipment(user_id=current_user.user_id, equipment_code="RESISTANCE_BAND")
+    )
+    postgres_session.flush()
+
+    response = service.upsert_onboarding(
+        postgres_session,
+        current_user.user_id,
+        _request(nickname="재온보딩 사용자"),
+        uuid4(),
+    )
+
+    assert response.profile_version == 2
+    assert list(
+        postgres_session.scalars(
+            select(UserEquipment.equipment_code).where(
+                UserEquipment.user_id == current_user.user_id
+            )
+        )
+    ) == ["RESISTANCE_BAND"]
 
 
 @pytest.mark.integration
@@ -177,6 +217,8 @@ def test_profile_settings_update_is_partial_atomic_versioned_and_idempotent(
         postgres_session, current_user.user_id, _request(), uuid4()
     )
     original_created_at = onboarding.created_at
+    postgres_session.add(UserEquipment(user_id=current_user.user_id, equipment_code="MAT"))
+    postgres_session.flush()
 
     key = uuid4()
     request = ProfileSettingsUpdateRequest.model_validate(
@@ -186,7 +228,6 @@ def test_profile_settings_update_is_partial_atomic_versioned_and_idempotent(
             "experience_level_code": "INTERMEDIATE",
             "preferred_location_code": "HOME",
             "available_location_codes": ["HOME"],
-            "equipment_codes": ["MAT", "RESISTANCE_BAND"],
             "attention_area_codes": [],
             "preferred_exercise_type_codes": ["MOBILITY"],
             "date_of_birth": "1999-01-02",
@@ -212,7 +253,7 @@ def test_profile_settings_update_is_partial_atomic_versioned_and_idempotent(
                 UserEquipment.user_id == current_user.user_id
             )
         )
-    ) == {"MAT", "RESISTANCE_BAND"}
+    ) == {"MAT"}
     assert (
         list(
             postgres_session.scalars(
@@ -286,6 +327,8 @@ def test_profile_settings_relationship_failure_rolls_back_every_change(
         clock=lambda: NOW,
     )
     normal_service.upsert_onboarding(postgres_session, current_user.user_id, _request(), uuid4())
+    postgres_session.add(UserEquipment(user_id=current_user.user_id, equipment_code="MAT"))
+    postgres_session.flush()
     failing_service = ProfileService(
         FailingProfileRepository(),
         cipher,
@@ -299,9 +342,7 @@ def test_profile_settings_relationship_failure_rolls_back_every_change(
         failing_service.update_profile_settings(
             postgres_session,
             current_user.user_id,
-            ProfileSettingsUpdateRequest(
-                nickname="rollback 대상", equipment_codes=["RESISTANCE_BAND"]
-            ),
+            ProfileSettingsUpdateRequest(nickname="rollback 대상"),
             uuid4(),
             1,
         )
