@@ -13,6 +13,7 @@ from uuid import UUID
 
 from qdrant_client import QdrantClient, models
 from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
+from qdrant_client.local.qdrant_local import QdrantLocal
 
 from backend.app.core.config import Settings
 
@@ -244,6 +245,10 @@ class OfficialQdrantClientAdapter:
                     timeout=self._timeout,
                 )
             verified = self._client.get_collection(collection_name).payload_schema
+            if isinstance(self._client._client, QdrantLocal):
+                # QdrantLocal intentionally treats payload indexes as a no-op and
+                # leaves payload_schema empty; server deployments must verify them.
+                return
             if any(
                 field_name not in verified or verified[field_name].data_type != field_schema
                 for field_name, field_schema in REQUIRED_FILTER_PAYLOAD_INDEXES.items()

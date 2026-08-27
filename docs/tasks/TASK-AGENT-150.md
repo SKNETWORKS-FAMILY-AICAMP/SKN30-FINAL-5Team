@@ -1,6 +1,6 @@
 # TASK-AGENT-150: Qdrant index 및 V3 staging evidence 수집
 
-- 현재 상태: `BLOCKED` (preflight·계약·권한·외부 전송 승인 완료, staging OpenAI key 교체 대기)
+- 현재 상태: `READY_FOR_SHADOW` (v2.0.1 staging index·retrieval evidence 완료, live shadow 승인 대기)
 - 우선순위: `P1`
 - GitHub issue: `#150`
 - Primary owner: 백엔드·데이터 개발팀장
@@ -193,19 +193,47 @@ embedding model로 설명하고 기본 dimension을 3072로 명시한다. 102개
   `invalid_api_key`를 반환했다. exception message, key와 provider 원문 응답은 기록하지 않았다.
 - 실패 후 Qdrant collection/alias는 각각 `0/0`, PostgreSQL `vector_index_registry`도 reader endpoint
   재확인 기준 `0`행이었다. 실제 102개 embedding build, registry write와 alias 전환은 발생하지 않았다.
-- 실제 OpenAI 호출, Qdrant collection 생성, registry write와 alias 전환은 수행하지 않았다.
 - `V3_PRODUCTION_PROMOTION_APPROVED=false`를 변경하지 않았다.
 
-### 차단된 검증
+### 2026-08-27 v2.0.1 live index evidence
 
-- `exercise-catalog-v2.0.1-final` OpenAI embedding index build와 alias 전환
-- 동일 immutable version 재실행 idempotency 확인
+- 교체된 staging OpenAI key는 값 비노출 probe에서 `text-embedding-3-large`, dimension `3072`,
+  prompt/total token `8/8`로 계약 일치를 확인했다.
+- build 기준 commit은 `50616aff070dce719ae07fe364248144dbf0a4c0`이고 catalog UUID는
+  `04d726d5-ad3d-45f0-b400-bf4205113863`이다.
+- vector index version은
+  `v201-openai-text-embedding-3-large-d3072-inputv1-cosine-r1`이다.
+- immutable collection은
+  `exercise_catalog__staging__exercise_catalog_v2_0_1_final__text_embedding_3_large__v201_openai_text_embedding_3_large_d3072_inputv1_cosine_r1`이다.
+- build hash는 `da87ebd2683cafb9346c3ee1abe8951216e4bc246c7ae0e81965a3d9e86d4bc6`이고
+  PostgreSQL indexable count/Qdrant point count는 `102/102`다.
+- registry는 위 catalog UUID에 연결된 `ACTIVE` 1행이며 model `text-embedding-3-large`, dimension
+  `3072`, input schema `exercise-embedding-input-v1`, metric `COSINE`과 정확히 일치한다.
+- alias `exercise_catalog_active`는 위 immutable collection만 가리킨다.
+- payload에는 승인된 catalog metadata와 hash/version 필드만 있고 사용자 식별자, 건강정보, raw
+  embedding input, vector 또는 provider response는 없다.
+- 동일 immutable version 재실행은 같은 build hash와 point count를 반환했고
+  `alias_changed=false`였다.
+- 첫 live query에서 Qdrant Cloud strict-mode payload filter에 필요한 payload index가 없고 140자
+  collection name이 retrieval contract의 일반 128자 제한을 초과하는 구현 누락을 발견했다.
+- `1f3bb10d8421bff769e958e3593976bb34b0049d`에서 keyword index 3개와 bool index 1개를 build 검증
+  경로에 추가하고 collection reference만 255자까지 허용했다. version reference의 128자 제한은
+  유지했다.
+- 수정 image의 live query는 `VECTOR_RETRIEVAL_SUCCEEDED`, fallback `false`, ranked `12`, eligible
+  subset `true`였고 PostgreSQL canonical re-read도 `12/12`였다.
+- OpenAI adapter가 provider usage를 build result에 노출하지 않으므로 실제 index token/cost는 기록하지
+  못했다. 사전 승인된 300,000-token/USD 0.04 상한을 초과했다는 증거는 없지만 이를 실제 비용 측정으로
+  해석하지 않는다.
+- 실행 중인 staging API stack과 production flag는 변경하지 않았다.
+
+### 남은 차단 검증
+
 - staging live shadow의 token/cost/latency/fallback/safety evidence 수집
 
-위 항목은 staging OpenAI secret을 유효한 프로젝트 API key로 교체하고 값 비노출 connectivity probe가
-성공한 뒤에만 다시 수행한다. 현재 상태는 실제 staging build 완료 evidence 또는 production promotion
-승인이 아니다.
-실제 OpenAI index build와 검증이 끝나기 전에는 완료 evidence로 해석하지 않는다.
+live shadow는 합성 fixture를 별도의 OpenAI chat model로 전송하므로 embedding 전송 승인만으로 실행하지
+않는다. exact LLM model allowlist, 최대 provider call budget과 합성 fixture 외부 전송 승인을 받은 뒤
+수행한다. 현재 상태는 `STAGING_EVIDENCE_COMPLETE` 또는 production promotion 승인이 아니다.
+live shadow 전에는 전체 완료 evidence로 해석하지 않는다.
 
 ### 2026-08-27 v2.0.1 local PostgreSQL/Qdrant integration
 
@@ -239,9 +267,9 @@ build hash는 격리된 test evidence이며 실제 staging 값으로 복사하�
 | `uv run ruff check backend data/scripts` | 통과 |
 | `uv run ruff format --check backend data/scripts` | 488 files, 변경 필요 없음 |
 | `uv run mypy` | 280 source files, 문제 없음 |
-| 지정 Qdrant/staging evidence tests | 70 passed |
+| 지정 Qdrant/staging evidence tests | 94 passed, opt-in server test 1 skipped |
 | 실제 v2.0.1 PostgreSQL/Qdrant server integration | 1 passed |
-| `uv run pytest -q` | 1358 passed, DB/Qdrant opt-in tests 81 skipped |
+| `uv run pytest -q` | 1361 passed, DB/Qdrant opt-in tests 81 skipped, QdrantLocal warning 1 |
 
 skip은 `TEST_DATABASE_URL` 또는 명시적 PostgreSQL/Qdrant integration 환경이 제공되지 않아 발생했다.
 따라서 로컬 회귀 결과는 staging DB/Qdrant/OpenAI evidence를 대체하지 않는다.
