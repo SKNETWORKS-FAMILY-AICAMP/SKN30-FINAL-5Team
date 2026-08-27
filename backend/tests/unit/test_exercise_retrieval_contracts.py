@@ -97,6 +97,33 @@ def test_request_and_result_are_versioned_and_compatible() -> None:
     assert result.schema_version == "exercise-retrieval-result-v1"
 
 
+def test_collection_reference_accepts_immutable_qdrant_name_up_to_255_chars() -> None:
+    collection_name = "exercise_catalog__staging__" + "v" * 200
+
+    result = _result(collection_name=collection_name)
+    metadata = RetrievalMetadata(
+        collection_name=collection_name,
+        vector_index_version="vector-index-v1",
+        embedding_model_version="embedding-v1",
+        query_hash=QUERY_HASH,
+        retrieval_status_code=RetrievalStatusCode.VECTOR_RETRIEVAL_SUCCEEDED,
+        deterministic_pool_fallback_used=False,
+    )
+
+    assert result.collection_name == collection_name
+    assert metadata.collection_name == collection_name
+
+
+def test_collection_reference_rejects_more_than_255_chars() -> None:
+    with pytest.raises(ValidationError, match="structured collection reference"):
+        _result(collection_name="c" * 256)
+
+
+def test_version_reference_keeps_128_character_limit() -> None:
+    with pytest.raises(ValidationError, match="structured machine reference"):
+        _result(vector_index_version="v" * 129)
+
+
 def test_request_rejects_mandatory_id_outside_eligible_pool() -> None:
     with pytest.raises(ValidationError, match="must be a subset"):
         _request(mandatory_exercise_ids=(EXERCISE_C,))

@@ -8,15 +8,22 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 from uuid import UUID
 
 from qdrant_client import QdrantClient, models
 from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
+from qdrant_client.local.qdrant_local import QdrantLocal
 
 from backend.app.core.config import Settings
 
 VECTOR_NAME = "semantic"
+REQUIRED_FILTER_PAYLOAD_INDEXES: dict[str, models.PayloadSchemaType] = {
+    "catalog_version_code": models.PayloadSchemaType.KEYWORD,
+    "vector_index_version": models.PayloadSchemaType.KEYWORD,
+    "embedding_model_version": models.PayloadSchemaType.KEYWORD,
+    "production_eligible": models.PayloadSchemaType.BOOL,
+}
 
 
 class QdrantProviderError(RuntimeError):
@@ -78,6 +85,8 @@ class QdrantGateway(Protocol):
         distance_metric_code: str,
     ) -> None: ...
 
+    def ensure_filter_payload_indexes(self, collection_name: str) -> None: ...
+
     def upsert_points(self, *, collection_name: str, points: tuple[QdrantPoint, ...]) -> None: ...
 
     def exact_count(self, collection_name: str) -> int: ...
@@ -85,6 +94,10 @@ class QdrantGateway(Protocol):
     def retrieve_points(
         self, *, collection_name: str, exercise_ids: tuple[UUID, ...]
     ) -> tuple[QdrantStoredPoint, ...]: ...
+
+    def retrieve_points_with_vectors(
+        self, *, collection_name: str, exercise_ids: tuple[UUID, ...]
+    ) -> tuple[QdrantPoint, ...]: ...
 
     def aliases(self) -> dict[str, str]: ...
 
@@ -216,6 +229,40 @@ class OfficialQdrantClientAdapter:
         except Exception as exc:
             raise self._translate(exc) from None
 
+    def ensure_filter_payload_indexes(self, collection_name: str) -> None:
+        """Create and verify the payload indexes required by strict-mode Qdrant filters."""
+
+        try:
+            info = self._client.get_collection(collection_name)
+            existing = info.payload_schema
+            for field_name, field_schema in REQUIRED_FILTER_PAYLOAD_INDEXES.items():
+                current = existing.get(field_name)
+                if current is not None:
+                    if current.data_type != field_schema:
+                        raise QdrantCollectionNotReadyError("VECTOR_INDEX_NOT_READY")
+                    continue
+                self._client.create_payload_index(
+                    collection_name=collection_name,
+                    field_name=field_name,
+                    field_schema=field_schema,
+                    wait=True,
+                    timeout=self._timeout,
+                )
+            verified = self._client.get_collection(collection_name).payload_schema
+            if isinstance(self._client._client, QdrantLocal):
+                # QdrantLocal intentionally treats payload indexes as a no-op and
+                # leaves payload_schema empty; server deployments must verify them.
+                return
+            if any(
+                field_name not in verified or verified[field_name].data_type != field_schema
+                for field_name, field_schema in REQUIRED_FILTER_PAYLOAD_INDEXES.items()
+            ):
+                raise QdrantCollectionNotReadyError("VECTOR_INDEX_NOT_READY")
+        except QdrantCollectionNotReadyError:
+            raise
+        except Exception as exc:
+            raise self._translate(exc) from None
+
     def upsert_points(self, *, collection_name: str, points: tuple[QdrantPoint, ...]) -> None:
         provider_points = [
             models.PointStruct(
@@ -268,6 +315,39 @@ class OfficialQdrantClientAdapter:
             raise QdrantProviderError("VECTOR_RESULT_NOT_CANONICAL") from None
         return tuple(points)
 
+    def retrieve_points_with_vectors(
+        self, *, collection_name: str, exercise_ids: tuple[UUID, ...]
+    ) -> tuple[QdrantPoint, ...]:
+        """Retrieve reviewed catalog points for an operator-controlled index migration."""
+
+        try:
+            records = self._client.retrieve(
+                collection_name=collection_name,
+                ids=list(exercise_ids),
+                with_payload=True,
+                with_vectors=True,
+                timeout=self._timeout,
+            )
+        except Exception as exc:
+            raise self._translate(exc) from None
+        points: list[QdrantPoint] = []
+        try:
+            for record in records:
+                vectors = record.vector
+                if not isinstance(vectors, dict):
+                    raise ValueError("named vector is missing")
+                vector = cast(list[float], vectors[VECTOR_NAME])
+                points.append(
+                    QdrantPoint(
+                        exercise_id=UUID(str(record.id)),
+                        vector=tuple(float(value) for value in vector),
+                        payload=dict(record.payload or {}),
+                    )
+                )
+        except (TypeError, ValueError, KeyError, AttributeError):
+            raise QdrantProviderError("VECTOR_RESULT_NOT_CANONICAL") from None
+        return tuple(points)
+
     def aliases(self) -> dict[str, str]:
         try:
             response = self._client.get_aliases()
@@ -310,5 +390,6 @@ __all__ = [
     "QdrantProviderUnavailableError",
     "QdrantSearchHit",
     "QdrantStoredPoint",
+    "REQUIRED_FILTER_PAYLOAD_INDEXES",
     "VECTOR_NAME",
 ]

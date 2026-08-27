@@ -75,7 +75,7 @@ provider/model contract change must use a different version and collection.
 ```powershell
 .venv\Scripts\python.exe -m backend.scripts.build_qdrant_index `
   --catalog-version exercise-catalog-v2.0.1-final `
-  --vector-index-version v201-openai-text-embedding-3-large-d3072-inputv1-cosine-r1 `
+  --vector-index-version v201-openai-text-embedding-3-large-d3072-inputv1-cosine-r2-helkki-staging `
   --allow-provider-calls
 ```
 
@@ -87,6 +87,12 @@ After the first run, verify that PostgreSQL records one active registry row for 
 UUID, the Qdrant point count equals the preflight count, and the configured alias resolves to the
 reported immutable collection. Re-run the same command only after those checks and require the same
 build hash and `alias_changed=false`.
+
+The canonical staging database is `helkki_staging`. Do not build or activate an index from an
+`exercise_app` connection even when its catalog version string is identical: catalog and exercise
+UUIDs are part of the immutable build identity. The active catalog UUID after the 2026-08-27 cutover
+is `419eaab4-0b93-4a9f-8705-132d46cc681f`. The earlier `r1` collection associated with catalog UUID
+`04d726d5-ad3d-45f0-b400-bf4205113863` is historical rollback evidence and must not be reactivated.
 
 ## Profile behavior
 

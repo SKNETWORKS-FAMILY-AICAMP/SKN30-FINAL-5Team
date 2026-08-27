@@ -15,6 +15,11 @@ class _Output(BaseModel):
     value: int
 
 
+class _ServerHashedOutput(BaseModel):
+    value: int
+    record_hash: str
+
+
 def _settings(**overrides: object) -> Settings:
     values: dict[str, object] = {
         "_env_file": None,
@@ -128,3 +133,32 @@ def test_openai_invoker_requests_native_strict_json_schema_and_discards_raw_mess
     kwargs = model.with_structured_output.call_args.kwargs
     assert kwargs == {"include_raw": True, "method": "json_schema", "strict": True}
     assert structured.invoke.call_args.kwargs["config"] == {"callbacks": []}
+
+
+def test_invoker_excludes_and_recomputes_server_owned_hash() -> None:
+    structured = Mock()
+    structured.invoke.return_value = {
+        "raw": AIMessage(content="provider-raw-body-sentinel"),
+        "parsed": {"value": 7, "record_hash": "provider-cannot-own-this"},
+        "parsing_error": None,
+    }
+    model = Mock()
+    model.with_structured_output.return_value = structured
+    invoker = StructuredChatInvoker(chat_model=model, model_code="approved-model-v1")
+
+    result = invoker.invoke(
+        role_code=LlmAgentRoleCode.TRAINING,
+        prompt_version="prompt-v1",
+        output_schema_version="output-v1",
+        output_schema=_ServerHashedOutput,
+        messages=(),
+        domain_validator=lambda value: value,
+        canonical_factory=lambda values: _ServerHashedOutput(
+            **values, record_hash=f"server-{values['value']}"
+        ),
+        server_owned_fields=("record_hash",),
+    )
+
+    assert result.output == _ServerHashedOutput(value=7, record_hash="server-7")
+    bound_schema = model.with_structured_output.call_args.args[0]
+    assert "record_hash" not in bound_schema["properties"]

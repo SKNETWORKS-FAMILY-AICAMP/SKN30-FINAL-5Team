@@ -144,6 +144,8 @@ class LangChainCoordinatorAdapter:
                 payload=payload,
             ),
             domain_validator=validate,
+            canonical_factory=lambda values: PlanSpec.create(**values),
+            server_owned_fields=("plan_hash",),
         )
 
     async def _build_and_ainvoke(
@@ -190,6 +192,8 @@ class LangChainCoordinatorAdapter:
                 payload=payload,
             ),
             domain_validator=validate,
+            canonical_factory=lambda values: PlanSpec.create(**values),
+            server_owned_fields=("plan_hash",),
         )
 
 
