@@ -1,6 +1,6 @@
 # TASK-AGENT-150: Qdrant index 및 V3 staging evidence 수집
 
-- 현재 상태: `BLOCKED` (v2.0.1 staging 자격증명·Qdrant 보안 토폴로지·Aurora read-only 증적 대기)
+- 현재 상태: `BLOCKED` (Aurora/Qdrant preflight 완료, AI/data lead 계약 리뷰와 EC2 secret 권한 승인 대기)
 - 우선순위: `P1`
 - GitHub issue: `#150`
 - Primary owner: 백엔드·데이터 개발팀장
@@ -118,7 +118,7 @@ provider payload는 기록하지 않는다.
 ### 현재 목표 계약
 
 - target catalog: `exercise-catalog-v2.0.1-final`
-- catalog identity: staging PostgreSQL에서 읽은 ACTIVE catalog UUID로 고정, 아직 미확인
+- catalog identity: `04d726d5-ad3d-45f0-b400-bf4205113863` (staging PostgreSQL ACTIVE catalog)
 - vector index version: `v201-openai-text-embedding-3-large-d3072-inputv1-cosine-r1`
 - provider/model/dimension: `OPENAI` / `text-embedding-3-large` / `3072`
 - distance metric: `COSINE`
@@ -157,16 +157,40 @@ embedding model로 설명하고 기본 dimension을 3072로 명시한다. 102개
   상태의 `docker compose -f infra/deployment/compose.staging.yaml config --quiet`는 필수
   `API_DOMAIN`이 없어 fail-closed로 종료됐으며 staging Qdrant health는 실행하지 않았다.
 
+### 2026-08-27 AWS staging live preflight
+
+- 실행 identity: AWS account `343953861875`의 승인된 CLI session. credential과 secret 값은 기록하지
+  않았다.
+- 실행 환경: EC2 `helkki-staging-compose`, SSM `Online`, Docker `25.0.14`, Compose `v2.40.3`.
+- 기준 commit: `50616aff070dce719ae07fe364248144dbf0a4c0` (`origin/develop`, #149와 #150 병합 포함).
+- 기존 EC2 release는 `0599c1adb17c7a7a9eb5581c8c96882d72749e3c`였으므로 실행 중인 stack을
+  교체하지 않고 `/opt/helkki/releases/50616af` detached worktree와
+  `helkki_issue150_api:50616af` one-shot image를 별도로 만들었다.
+- 기존 migration을 staging Aurora에 적용한 뒤 승인된 V2 bundle을 적재하고
+  `exercise-catalog-v2.0.1-final`을 활성화했다. 결과는 exercises `102`, safety rules `394`였다.
+- Aurora reader endpoint와 `SET TRANSACTION READ ONLY` transaction으로 재확인한 ACTIVE catalog는
+  UUID `04d726d5-ad3d-45f0-b400-bf4205113863`, `DOMAIN_APPROVED`, `DOMAIN_REVIEWER`,
+  `PRODUCTION_APPROVED`, `production_eligible=true`, exercise record/indexable count `102`였다.
+- `vector_index_registry`는 전체 `0`행이고 상태별 행과 v2.0.0/v2.0.1 registry도 없었다.
+- AWS Secrets Manager의 staging Qdrant secret은 endpoint와 Database API key를 포함한다. 값을
+  출력하지 않고 HTTPS scheme, key 존재와 인증된 `/readyz` HTTP `200`을 확인했다.
+- staging OpenAI secret도 값 또는 prefix를 출력하지 않고 비어 있지 않음만 확인했다.
+- PR #166은 `50616af`로 병합됐지만 GitHub review가 `0`건이므로 AI/data lead 계약 승인의 증거로
+  간주하지 않는다.
+- EC2 instance role은 현재 database URL secret만 읽을 수 있다. OpenAI/Qdrant secret 두 개에 대한
+  exact-ARN `GetSecretValue` 권한 추가는 보안 경계 변경 승인이 없어 수행하지 않았다.
+- 실제 OpenAI 호출, Qdrant collection 생성, registry write와 alias 전환은 수행하지 않았다.
+- `V3_PRODUCTION_PROMOTION_APPROVED=false`를 변경하지 않았다.
+
 ### 차단된 검증
 
-- staging PostgreSQL ACTIVE catalog UUID, 승인 상태, indexable exercise count 확인
-- 실제 `vector_index_registry` 전체/상태별 행 수와 v2.0.0 registry 존재 여부 확인
 - `exercise-catalog-v2.0.1-final` OpenAI embedding index build와 alias 전환
 - 동일 immutable version 재실행 idempotency 확인
 - staging live shadow의 token/cost/latency/fallback/safety evidence 수집
 
-위 항목은 credential 또는 실제 staging 실행 결과가 아니며, 완료 evidence로 해석하지 않는다.
-staging DB/Qdrant handoff와 embedding 계약 승인을 받은 뒤 read-only preflight부터 다시 수행한다.
+위 항목은 AI/data lead의 명시적 embedding 계약 승인과 EC2 role의 최소 secret 조회 권한이 승인된 뒤에만
+수행한다. 현재 상태는 실제 staging build 완료 evidence 또는 production promotion 승인이 아니다.
+실제 OpenAI index build와 검증이 끝나기 전에는 완료 evidence로 해석하지 않는다.
 
 ### 2026-08-27 v2.0.1 local PostgreSQL/Qdrant integration
 
