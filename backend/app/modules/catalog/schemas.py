@@ -278,6 +278,24 @@ class ExerciseListResponse(BaseModel):
     catalog_version: str
 
 
+class ExerciseVariantItem(BaseModel):
+    exercise_id: UUID
+    exercise_name: str
+    required_equipment_codes: list[EquipmentCode]
+    instruction_summary: str
+    form_cues: list[str]
+    media_asset_key: str | None = None
+    goal_preservation_code: str
+
+
+class ExerciseVariantsResponse(BaseModel):
+    source_exercise_id: UUID
+    source_required_equipment_codes: list[EquipmentCode]
+    items: list[ExerciseVariantItem]
+    catalog_version: str
+    alternative_set_version: str | None
+
+
 class DerivedArtifactVersion(CatalogInputModel):
     version_code: Annotated[str, Field(min_length=1, max_length=120)]
     status_code: CatalogVersionStatusCode
