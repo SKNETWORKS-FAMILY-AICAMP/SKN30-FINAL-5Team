@@ -56,12 +56,6 @@ export const PROFILE_STEPS = [
     required: true,
   },
   {
-    key: 'equipment',
-    title: '쓸 수 있는 기구가 있나요?',
-    intro: '가진 기구를 모두 골라주세요.',
-    required: true,
-  },
-  {
     key: 'duration',
     title: '한 번에 얼마나 운동할까요?',
     intro: '선택 사항이에요. 나중에 정해도 괜찮아요.',
@@ -126,7 +120,6 @@ export type ProfileForm = {
   types: string[];
   coach: string;
   place: string;
-  equipment: string[];
   duration: string;
   frequency: string;
   care: string[];
@@ -145,7 +138,6 @@ export const PROFILE_INITIAL_FORM: ProfileForm = {
   types: ['근력', '스트레칭'],
   coach: '든든하게',
   place: '집',
-  equipment: ['매트', '맨몸만'],
   duration: '30',
   frequency: '주 3회',
   care: ['없음'],
@@ -172,14 +164,6 @@ export const COACH_OPTIONS = [
   { label: '강하게', description: '목표를 밀어붙이는 스타일이에요.' },
 ] as const;
 export const PLACE_OPTIONS = ['헬스장', '집'] as const;
-export const EQUIPMENT_OPTIONS = [
-  '머신',
-  '덤벨',
-  '바벨',
-  '밴드',
-  '매트',
-  '맨몸만',
-] as const;
 export const FREQUENCY_OPTIONS = [
   '주 1회',
   '주 2회',

@@ -17,6 +17,7 @@ import type {
   DecisionSelectionResponse,
   ExerciseDetailResponse,
   ExerciseListResponse,
+  ExerciseVariantsResponse,
   MeResponse,
   NotCompletedReasonCode,
   OnboardingRequest,
@@ -150,6 +151,17 @@ export function createApi(client: ApiClient) {
     getExercise(exerciseId: string, signal?: AbortSignal) {
       return client.request<ExerciseDetailResponse>({
         path: `/exercises/${exerciseId}`,
+        signal,
+      });
+    },
+
+    /**
+     * Reviewed EQUIPMENT variants for display only. An empty `items` array
+     * means this exercise must not expose a variant action.
+     */
+    getExerciseVariants(exerciseId: string, signal?: AbortSignal) {
+      return client.request<ExerciseVariantsResponse>({
+        path: `/exercises/${exerciseId}/variants`,
         signal,
       });
     },

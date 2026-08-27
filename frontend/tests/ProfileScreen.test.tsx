@@ -5,19 +5,19 @@ import { StyleSheet } from 'react-native';
 import { ProfileScreen } from '../src/features/profile/ProfileScreen';
 
 describe('ProfileScreen visual prototype', () => {
-  it('moves between the 14 local visual steps without saving', async () => {
+  it('moves between the 13 local visual steps without saving', async () => {
     const onStepChange = jest.fn();
     await render(<ProfileScreen onStepChange={onStepChange} />);
 
-    expect(screen.getByText('1 / 14')).toBeOnTheScreen();
+    expect(screen.getByText('1 / 13')).toBeOnTheScreen();
     expect(screen.getByText('앱에서 어떻게 불러드릴까요?')).toBeOnTheScreen();
     expect(
       StyleSheet.flatten(screen.getByTestId('profile-progress').props.style)
         .width,
-    ).toBe('7%');
+    ).toBe('8%');
 
     fireEvent.press(screen.getByRole('button', { name: '다음' }));
-    expect(screen.getByText('2 / 14')).toBeOnTheScreen();
+    expect(screen.getByText('2 / 13')).toBeOnTheScreen();
     expect(screen.getByText('생년월일을 알려주세요')).toBeOnTheScreen();
     expect(onStepChange).toHaveBeenCalledWith(2);
   });
@@ -51,13 +51,13 @@ describe('ProfileScreen visual prototype', () => {
   it('opens summary rows for editing and exposes save retry as a callback', async () => {
     const onFinish = jest.fn();
     const view = await render(
-      <ProfileScreen initialStep={14} onFinish={onFinish} />,
+      <ProfileScreen initialStep={13} onFinish={onFinish} />,
     );
 
     fireEvent.press(
       screen.getByRole('button', { name: '키 · 체중 (필수) 수정' }),
     );
-    expect(screen.getByText('4 / 14')).toBeOnTheScreen();
+    expect(screen.getByText('4 / 13')).toBeOnTheScreen();
 
     view.rerender(
       <ProfileScreen onFinish={onFinish} previewState="save-error" />,

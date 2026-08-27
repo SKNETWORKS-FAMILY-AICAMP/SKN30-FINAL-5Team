@@ -319,7 +319,6 @@ export const MY_PAGE_PROFILE_ROWS = [
   ['experience_level_code', '운동 경험', '초보'],
   ['preferred_exercise_type_codes', '선호 운동', '근력 · 유산소'],
   ['available_location_codes', '운동 장소', '헬스장'],
-  ['equipment_codes', '장비', '맨몸'],
   ['default_requested_duration_minutes', '희망 시간', '40분'],
   ['desired_weekly_workout_count', '주간 목표', '4회'],
   ['attention_area_codes', '주의 부위', '무릎'],

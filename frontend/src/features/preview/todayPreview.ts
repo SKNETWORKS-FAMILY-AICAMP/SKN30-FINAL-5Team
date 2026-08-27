@@ -206,7 +206,6 @@ export const PREVIEW_ME: MeResponse = {
     default_requested_duration_minutes: 30,
     desired_weekly_workout_count: 4,
     coaching_style_code: 'FRIENDLY',
-    equipment_codes: [],
     attention_area_codes: [],
     preferred_exercise_type_codes: [],
     profile_version: 1,

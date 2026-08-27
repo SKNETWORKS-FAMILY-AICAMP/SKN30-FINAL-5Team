@@ -109,7 +109,10 @@ describe('auth visual prototypes', () => {
     const onSubmit = jest.fn();
     render(<SignUpScreen onSubmit={onSubmit} />);
 
-    expect(screen.getByText('6자 이상 입력해주세요.')).toBeOnTheScreen();
+    expect(screen.queryByText('6자 이상 입력해주세요.')).toBeNull();
+    expect(
+      screen.getByText('가입 후 맞춤 루틴을 위한 기본 정보를 입력해주세요.'),
+    ).toBeOnTheScreen();
     expect(
       screen.queryByText(/로그인에 사용할 계정 정보만 입력해요/),
     ).toBeNull();
@@ -121,7 +124,19 @@ describe('auth visual prototypes', () => {
       screen.getByLabelText('회원가입 이메일'),
       'new@example.com',
     );
+    fireEvent.changeText(screen.getByLabelText('회원가입 비밀번호'), 'short');
+    expect(
+      screen.getByText('6자 이상 입력해주세요.').props.accessibilityRole,
+    ).toBe('alert');
+    fireEvent.changeText(
+      screen.getByLabelText('회원가입 비밀번호 확인'),
+      'short',
+    );
+    expect(
+      screen.getByRole('button', { name: '필수 항목을 채워주세요' }),
+    ).toBeDisabled();
     fireEvent.changeText(screen.getByLabelText('회원가입 비밀번호'), 'secret');
+    expect(screen.queryByText('6자 이상 입력해주세요.')).toBeNull();
     fireEvent.changeText(
       screen.getByLabelText('회원가입 비밀번호 확인'),
       'secret',

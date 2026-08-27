@@ -129,7 +129,6 @@ function meWith(): MeResponse {
       desired_weekly_workout_count: 3,
       coaching_style_code: 'SUPPORTIVE',
       profile_version: 1,
-      equipment_codes: ['BODYWEIGHT'],
       attention_area_codes: [],
       preferred_exercise_type_codes: [],
       available_location_codes: ['HOME'],
@@ -179,7 +178,7 @@ function accountApi() {
 }
 
 describe('AccountScreen editing', () => {
-  it('shows location and equipment machine codes as Korean labels', async () => {
+  it('shows the location label without an equipment profile row', async () => {
     const { api } = accountApi();
     render(
       <AccountScreen
@@ -191,9 +190,8 @@ describe('AccountScreen editing', () => {
     );
 
     expect(screen.getByText('집')).toBeOnTheScreen();
-    expect(screen.getByText('맨몸')).toBeOnTheScreen();
+    expect(screen.queryByText('장비')).toBeNull();
     expect(screen.queryByText('HOME')).toBeNull();
-    expect(screen.queryByText('BODYWEIGHT')).toBeNull();
   });
 
   it('sends only the changed goal fields through PATCH /me/profile', async () => {

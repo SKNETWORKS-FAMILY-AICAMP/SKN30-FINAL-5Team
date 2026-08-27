@@ -28,7 +28,7 @@ export function ExerciseDetailSheet({
   );
 
   if (state.status === 'loading') {
-    return <LoadingState label="설명을 불러오는 중이에요" />;
+    return <LoadingState label="자세 정보를 불러오는 중이에요" />;
   }
   if (state.status === 'error') {
     return <ErrorState message={state.message} onRetry={reload} />;
@@ -37,7 +37,7 @@ export function ExerciseDetailSheet({
   const detail = state.data;
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="exercise-posture-guide">
       <Text style={styles.summary}>{detail.instruction_summary}</Text>
 
       {detail.primary_body_area_codes.length > 0 ? (

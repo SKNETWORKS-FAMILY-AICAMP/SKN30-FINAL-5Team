@@ -42,7 +42,6 @@ function me(): MeResponse {
       default_requested_duration_minutes: 30,
       desired_weekly_workout_count: 3,
       coaching_style_code: 'SUPPORTIVE',
-      equipment_codes: ['BODYWEIGHT'],
       attention_area_codes: [],
       preferred_exercise_type_codes: [],
       available_location_codes: ['HOME'],

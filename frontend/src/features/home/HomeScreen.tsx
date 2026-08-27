@@ -52,6 +52,7 @@ import type {
   DailyContextResponse,
   DecisionResponse,
   DiscomfortSeverityCode,
+  ExerciseVariantsResponse,
   RoutineResponse,
   SessionStatusCode,
   WeekResponse,
@@ -67,6 +68,10 @@ import { useScale } from '../../components/scale';
 import { GradientActionButton } from '../../components/primitives';
 import { colors } from '../../components/theme';
 import { ExerciseDetailSheet } from '../workout/ExerciseDetailSheet';
+import {
+  ExerciseVariantsAction,
+  ExerciseVariantsContent,
+} from '../workout/ExerciseVariants';
 import {
   HOME_CHECKIN_OPTIONS,
   HOME_DEFAULT_CHECKIN,
@@ -269,7 +274,8 @@ export type HomeScreenProps = {
   decision?: DecisionResponse | null;
   defaultDurationMinutes?: number;
   errorMessage?: string;
-  exerciseApi?: Pick<Api, 'getExercise'>;
+  exerciseApi?: Pick<Api, 'getExercise'> &
+    Partial<Pick<Api, 'getExerciseVariants'>>;
   hasTodayRoutine?: boolean;
   hasUnreadNotification?: boolean;
   localDate?: string;
@@ -399,7 +405,13 @@ function HomeScreenContent({
     useState<TimePickerTarget | null>(null);
   const [editOpen, setEditOpen] = useState(initialState === 'editing');
   const [reasonOpen, setReasonOpen] = useState(false);
-  const [detailItem, setDetailItem] = useState<HomeRoutineItem | null>(null);
+  const [exerciseGuide, setExerciseGuide] = useState<HomeRoutineItem | null>(
+    null,
+  );
+  const [variantGuide, setVariantGuide] = useState<{
+    exerciseName: string;
+    response: ExerciseVariantsResponse;
+  } | null>(null);
   const [showTip, setShowTip] = useState(false);
   const [rerolling, setRerolling] = useState(initialState === 'generating');
   const [previewRerolls, setPreviewRerolls] = useState(0);
@@ -539,7 +551,6 @@ function HomeScreenContent({
   const hasRecommendationDetails =
     decision !== null &&
     (recommendationReasons.length > 0 ||
-      Boolean(decision.safety_summary?.summary) ||
       Boolean(decision.public_agent_summaries?.length));
   const blockingRevisionNotice =
     planRevision?.routine === null ? currentRevisionNotice : null;
@@ -838,8 +849,14 @@ function HomeScreenContent({
                 notes={routineNotes}
                 onEdit={openEdit}
                 onMove={apiMode ? onReorderPlan : moveRoutineItem}
-                onOpenExercise={
-                  exerciseApi ? (item) => setDetailItem(item) : undefined
+                onOpenExerciseGuide={
+                  exerciseApi ? (item) => setExerciseGuide(item) : undefined
+                }
+                onOpenExerciseVariants={(item, response) =>
+                  setVariantGuide({
+                    exerciseName: item.name,
+                    response,
+                  })
                 }
                 onOpenReasons={
                   hasRecommendationDetails
@@ -873,6 +890,7 @@ function HomeScreenContent({
                 title={routineTitle}
                 focus={routineFocus}
                 useJua={useJua}
+                variantApi={exerciseApi}
               />
             ) : null}
           </ScrollView>
@@ -1034,16 +1052,31 @@ function HomeScreenContent({
           />
         ) : null}
 
-        {detailItem?.exerciseId && exerciseApi ? (
+        {exerciseGuide?.exerciseId && exerciseApi ? (
           <SheetFrame
-            onClose={() => setDetailItem(null)}
-            title={detailItem.name}
+            onClose={() => setExerciseGuide(null)}
+            title={`${exerciseGuide.name} 자세`}
             zIndex={25}
           >
             <ExerciseDetailSheet
               api={exerciseApi}
-              exerciseId={detailItem.exerciseId}
+              exerciseId={exerciseGuide.exerciseId}
             />
+          </SheetFrame>
+        ) : null}
+
+        {variantGuide ? (
+          <SheetFrame
+            onClose={() => setVariantGuide(null)}
+            title={`${variantGuide.exerciseName} 장비 안내`}
+            zIndex={25}
+          >
+            <ScrollView
+              contentContainerStyle={styles.sheetScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <ExerciseVariantsContent response={variantGuide.response} />
+            </ScrollView>
           </SheetFrame>
         ) : null}
 
@@ -1436,7 +1469,7 @@ function GeneratingRoutineCard() {
 
 const ROUTINE_NOTES = [
   '오늘 컨디션과 운동 목표를 반영했어요.',
-  '현재 장소와 장비로 진행할 수 있는 구성이에요.',
+  '사용자 적합성과 안전 기준을 확인한 구성이에요.',
 ] as const;
 
 function RoutineCard({
@@ -1448,7 +1481,8 @@ function RoutineCard({
   notes = ROUTINE_NOTES,
   onEdit,
   onMove,
-  onOpenExercise,
+  onOpenExerciseGuide,
+  onOpenExerciseVariants,
   onOpenReasons,
   onRest,
   onRequestAlternative,
@@ -1461,6 +1495,7 @@ function RoutineCard({
   startBlockedReason,
   title,
   useJua,
+  variantApi,
 }: {
   actionCode?: ActionCode;
   editLabel: string;
@@ -1470,7 +1505,11 @@ function RoutineCard({
   notes?: readonly string[];
   onEdit: () => void;
   onMove?: (from: number, to: number) => void;
-  onOpenExercise?: (item: HomeRoutineItem) => void;
+  onOpenExerciseGuide?: (item: HomeRoutineItem) => void;
+  onOpenExerciseVariants: (
+    item: HomeRoutineItem,
+    response: ExerciseVariantsResponse,
+  ) => void;
   onOpenReasons?: () => void;
   onRest?: () => void;
   onRequestAlternative?: () => void;
@@ -1483,6 +1522,7 @@ function RoutineCard({
   startBlockedReason?: string | null;
   title: string;
   useJua: boolean;
+  variantApi?: Partial<Pick<Api, 'getExerciseVariants'>>;
 }) {
   const styles = useHomeStyles();
   const drag = useDragController(onMove ?? (() => undefined));
@@ -1593,25 +1633,37 @@ function RoutineCard({
                     <RoutineDragIcon />
                   </DragHandle>
                 ) : null}
-                {onOpenExercise &&
-                item.exerciseId &&
-                item.instructionAvailable ? (
-                  <Pressable
-                    accessibilityLabel={`${item.name} 운동 설명 보기`}
-                    accessibilityRole="button"
-                    onPress={() => onOpenExercise(item)}
-                    style={styles.routineItemButton}
+                <Text style={styles.routineItemText}>
+                  {formatRoutineItem(item)}
+                </Text>
+                {item.exerciseId &&
+                (onOpenExerciseGuide || variantApi?.getExerciseVariants) ? (
+                  <View
+                    style={styles.routineGuideActions}
+                    testID={`routine-guide-actions-${item.id}`}
                   >
-                    <Text style={styles.routineItemText}>
-                      {formatRoutineItem(item)}
-                    </Text>
-                  </Pressable>
-                ) : (
-                  <Text style={styles.routineItemText}>
-                    {formatRoutineItem(item)}
-                  </Text>
-                )}
-                <View style={styles.routineDot} />
+                    {onOpenExerciseGuide ? (
+                      <Pressable
+                        accessibilityLabel={`${item.name} 자세 보기`}
+                        accessibilityRole="button"
+                        onPress={() => onOpenExerciseGuide(item)}
+                        style={styles.routineGuideButton}
+                      >
+                        <Text style={styles.routineGuideButtonText}>자세</Text>
+                      </Pressable>
+                    ) : null}
+                    {variantApi ? (
+                      <ExerciseVariantsAction
+                        api={variantApi}
+                        exerciseId={item.exerciseId}
+                        exerciseName={item.name}
+                        onOpen={(response) =>
+                          onOpenExerciseVariants(item, response)
+                        }
+                      />
+                    ) : null}
+                  </View>
+                ) : null}
               </Animated.View>
             </View>
           );
@@ -1846,6 +1898,7 @@ function RecommendationReasonSheet({
 }) {
   const styles = useHomeStyles();
   const agentSummaries = decision.public_agent_summaries ?? [];
+  const [criteriaExpanded, setCriteriaExpanded] = useState(false);
   return (
     <SheetFrame onClose={onClose} title="추천 이유" zIndex={24}>
       <Text style={styles.sheetIntro}>
@@ -1855,47 +1908,6 @@ function RecommendationReasonSheet({
         contentContainerStyle={styles.reasonSheetContent}
         showsVerticalScrollIndicator={false}
       >
-        {reasons.length > 0 ? (
-          <View style={styles.reasonSection}>
-            <Text style={styles.checkinSectionTitle}>반영한 기준</Text>
-            {reasons.map((reason) => (
-              <View key={reason} style={styles.reasonRow}>
-                <Text style={styles.reasonBullet}>•</Text>
-                <Text style={styles.reasonText}>{reason}</Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
-
-        {decision.safety_summary?.summary ? (
-          <View
-            accessibilityRole={
-              decision.safety_summary.vetoed ? 'alert' : undefined
-            }
-            style={[
-              styles.reasonSection,
-              decision.safety_summary.vetoed && styles.safetyReasonSection,
-            ]}
-          >
-            <Text
-              style={[
-                styles.checkinSectionTitle,
-                decision.safety_summary.vetoed && styles.safetyReasonTitle,
-              ]}
-            >
-              안전 확인
-            </Text>
-            <Text
-              style={[
-                styles.reasonText,
-                decision.safety_summary.vetoed && styles.safetyReasonText,
-              ]}
-            >
-              {decision.safety_summary.summary}
-            </Text>
-          </View>
-        ) : null}
-
         {agentSummaries.length > 0 ? (
           <View style={styles.reasonSection}>
             <Text style={styles.checkinSectionTitle}>상세 판단</Text>
@@ -1910,6 +1922,31 @@ function RecommendationReasonSheet({
                 <Text style={styles.reasonText}>{summary.summary}</Text>
               </View>
             ))}
+          </View>
+        ) : null}
+
+        {reasons.length > 0 ? (
+          <View style={styles.reasonSection}>
+            <Pressable
+              accessibilityLabel={`반영한 기준 ${criteriaExpanded ? '접기' : '펼치기'}`}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: criteriaExpanded }}
+              onPress={() => setCriteriaExpanded((current) => !current)}
+              style={styles.reasonDisclosureHeader}
+            >
+              <Text style={styles.checkinSectionTitle}>반영한 기준</Text>
+              <Text style={styles.reasonDisclosureAction}>
+                {criteriaExpanded ? '접기' : '펼치기'}
+              </Text>
+            </Pressable>
+            {criteriaExpanded
+              ? reasons.map((reason) => (
+                  <View key={reason} style={styles.reasonRow}>
+                    <Text style={styles.reasonBullet}>•</Text>
+                    <Text style={styles.reasonText}>{reason}</Text>
+                  </View>
+                ))
+              : null}
           </View>
         ) : null}
       </ScrollView>
@@ -2807,7 +2844,7 @@ function ApiEditRoutineSheet({
   return (
     <SheetFrame onClose={onClose} title="운동 장소 변경" zIndex={22}>
       <Text style={styles.sheetIntro}>
-        운동할 장소를 고르면 서버가 시간·장비·안전 기준을 다시 확인해 계획을
+        운동할 장소를 고르면 서버가 시간·장소·안전 기준을 다시 확인해 계획을
         수정해요.
       </Text>
       <ScrollView
@@ -3952,10 +3989,6 @@ function createHomeStyles(
       marginBottom: s(-11),
       marginLeft: s(-8),
     },
-    routineItemButton: {
-      minWidth: 0,
-      flex: 1,
-    },
     routineItemText: {
       minWidth: 0,
       flex: 1,
@@ -3964,11 +3997,24 @@ function createHomeStyles(
       fontWeight: '700',
       lineHeight: f(19.575),
     },
-    routineDot: {
-      width: s(6),
-      height: s(6),
-      borderRadius: s(3),
-      backgroundColor: '#F6BA50',
+    routineGuideActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: s(4),
+    },
+    routineGuideButton: {
+      minHeight: s(32),
+      justifyContent: 'center',
+      borderWidth: s(1),
+      borderColor: '#C8D7AC',
+      borderRadius: s(999),
+      backgroundColor: '#EDF3DD',
+      paddingHorizontal: s(7),
+    },
+    routineGuideButtonText: {
+      color: '#5F7048',
+      fontSize: f(11.5),
+      fontWeight: '700',
     },
     adjustmentNote: {
       marginTop: s(12),
@@ -4086,13 +4132,18 @@ function createHomeStyles(
       fontSize: f(13),
       lineHeight: f(19.5),
     },
-    safetyReasonSection: {
-      borderWidth: s(1.5),
-      borderColor: '#E8C3B8',
-      backgroundColor: '#FFF7F4',
+    reasonDisclosureHeader: {
+      minHeight: s(32),
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: s(12),
     },
-    safetyReasonTitle: { color: '#8B3A32' },
-    safetyReasonText: { color: '#6F2F29' },
+    reasonDisclosureAction: {
+      color: '#A45F00',
+      fontSize: f(12),
+      fontWeight: '800',
+    },
     agentSummary: { gap: s(4) },
     agentSummaryLabel: {
       color: '#A45F00',

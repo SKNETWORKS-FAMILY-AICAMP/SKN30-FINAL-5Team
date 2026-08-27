@@ -10,14 +10,7 @@ import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Api } from '../../api/endpoints';
-import {
-  ADVERSE_REACTION_OPTIONS,
-  bodyAreaLabel,
-  DEFAULT_BODY_AREA_OPTIONS,
-  EXTENDED_BODY_AREA_OPTIONS,
-  notCompletedReasonLabel,
-  sessionStatusLabel,
-} from '../../api/labels';
+import { notCompletedReasonLabel, sessionStatusLabel } from '../../api/labels';
 import { useAsyncAction } from '../../api/useAsync';
 import { MascotStage } from '../../components/brand/BrandChrome';
 import {
@@ -37,26 +30,8 @@ import type { SessionOutcome } from './SessionScreen';
 const DIFFICULTIES = [
   { code: 'EASY' as const, label: '쉬웠어요' },
   { code: 'APPROPRIATE' as const, label: '적당했어요' },
-  { code: 'HARD' as const, label: '힘들었어요' },
+  { code: 'HARD' as const, label: '어려워요' },
 ];
-
-const FATIGUES = [
-  { code: 'LOW', label: '낮아요' },
-  { code: 'MODERATE', label: '보통이에요' },
-  { code: 'HIGH', label: '높아요' },
-] as const;
-
-const SATISFACTIONS = [
-  { code: 'DISSATISFIED', label: '아쉬워요' },
-  { code: 'NEUTRAL', label: '보통이에요' },
-  { code: 'SATISFIED', label: '만족해요' },
-] as const;
-
-const DISCOMFORT_SEVERITIES = [
-  { code: 'MILD', label: '가벼움' },
-  { code: 'MODERATE', label: '중간' },
-  { code: 'SEVERE', label: '심함' },
-] as const;
 
 export function SessionResultScreen({
   api,
@@ -86,7 +61,12 @@ export function SessionResultScreen({
             전문가의 확인을 받아주세요.
           </Text>
         </Card>
-        <FeedbackCard api={api} defaultPain sessionId={sessionId} serious />
+        <FeedbackCard
+          api={api}
+          legacyPainOccurred
+          sessionId={sessionId}
+          serious
+        />
         <Button label="홈으로" onPress={onDone} />
       </ScreenShell>
     );
@@ -164,26 +144,18 @@ export function SessionResultScreen({
 
 function FeedbackCard({
   api,
-  defaultPain = false,
+  legacyPainOccurred = false,
   serious = false,
   sessionId,
 }: {
   api: Api;
-  defaultPain?: boolean;
+  legacyPainOccurred?: boolean;
   serious?: boolean;
   sessionId: string;
 }) {
   const [difficulty, setDifficulty] = useState<
     'EASY' | 'APPROPRIATE' | 'HARD' | null
   >(null);
-  const [fatigue, setFatigue] = useState<string | null>(null);
-  const [satisfaction, setSatisfaction] = useState<string | null>(null);
-  const [painOccurred, setPainOccurred] = useState(defaultPain);
-  const [bodyAreaSeverities, setBodyAreaSeverities] = useState<
-    Readonly<Record<string, string>>
-  >({});
-  const [showExtendedAreas, setShowExtendedAreas] = useState(false);
-  const [reactions, setReactions] = useState<readonly string[]>([]);
   const [saved, setSaved] = useState(false);
   const [savedGuidance, setSavedGuidance] = useState<string | null>(null);
 
@@ -191,38 +163,15 @@ function FeedbackCard({
     if (difficulty === null) return;
     const response = await api.submitFeedback(sessionId, {
       difficulty_code: difficulty,
-      fatigue_code: fatigue,
-      satisfaction_code: satisfaction,
-      pain_occurred: painOccurred,
-      discomforts: Object.entries(bodyAreaSeverities).map(
-        ([bodyAreaCode, severityCode]) => ({
-          body_area_code: bodyAreaCode,
-          severity_code: severityCode,
-        }),
-      ),
-      adverse_reaction_codes: [...reactions],
+      fatigue_code: null,
+      satisfaction_code: null,
+      pain_occurred: legacyPainOccurred,
+      discomforts: [],
+      adverse_reaction_codes: [],
     });
     setSaved(true);
     setSavedGuidance(response.guidance);
   });
-
-  const toggleBodyArea = (code: string) => {
-    setBodyAreaSeverities((current) => {
-      if (current[code] !== undefined) {
-        const remaining = { ...current };
-        delete remaining[code];
-        return remaining;
-      }
-      return { ...current, [code]: 'MODERATE' };
-    });
-  };
-  const toggleReaction = (code: string) => {
-    setReactions((current) =>
-      current.includes(code)
-        ? current.filter((item) => item !== code)
-        : [...current, code],
-    );
-  };
 
   if (saved) {
     return (
@@ -237,7 +186,7 @@ function FeedbackCard({
 
   return (
     <Card style={[styles.card, serious && styles.feedbackSerious]}>
-      <Text style={styles.cardTitle}>오늘 운동은 어땠나요?</Text>
+      <Text style={styles.cardTitle}>오늘 운동 체감 난이도</Text>
       <FeedbackSection title="체감 난이도 (필수)">
         {DIFFICULTIES.map((option) => (
           <FeedbackChoice
@@ -245,108 +194,6 @@ function FeedbackCard({
             label={option.label}
             onPress={() => setDifficulty(option.code)}
             selected={difficulty === option.code}
-          />
-        ))}
-      </FeedbackSection>
-      <FeedbackSection title="피로도">
-        {FATIGUES.map((option) => (
-          <FeedbackChoice
-            key={option.code}
-            label={option.label}
-            onPress={() => setFatigue(option.code)}
-            selected={fatigue === option.code}
-          />
-        ))}
-      </FeedbackSection>
-      <FeedbackSection title="만족도">
-        {SATISFACTIONS.map((option) => (
-          <FeedbackChoice
-            key={option.code}
-            label={option.label}
-            onPress={() => setSatisfaction(option.code)}
-            selected={satisfaction === option.code}
-          />
-        ))}
-      </FeedbackSection>
-      <FeedbackSection title="운동 후 통증">
-        <FeedbackChoice
-          label="없어요"
-          onPress={() => {
-            setPainOccurred(false);
-            setBodyAreaSeverities({});
-          }}
-          selected={!painOccurred}
-        />
-        <FeedbackChoice
-          label="있어요"
-          onPress={() => setPainOccurred(true)}
-          selected={painOccurred}
-        />
-      </FeedbackSection>
-      {painOccurred ? (
-        <>
-          <FeedbackSection multiple title="불편한 부위">
-            {DEFAULT_BODY_AREA_OPTIONS.map((option) => (
-              <FeedbackChoice
-                key={option.code}
-                label={option.label}
-                multiple
-                onPress={() => toggleBodyArea(option.code)}
-                selected={bodyAreaSeverities[option.code] !== undefined}
-              />
-            ))}
-            <FeedbackChoice
-              label={showExtendedAreas ? '다른 부위 접기' : '다른 부위 더 보기'}
-              multiple
-              onPress={() => setShowExtendedAreas((visible) => !visible)}
-              selected={showExtendedAreas}
-            />
-            {showExtendedAreas
-              ? EXTENDED_BODY_AREA_OPTIONS.map((option) => (
-                  <FeedbackChoice
-                    key={option.code}
-                    label={option.label}
-                    multiple
-                    onPress={() => toggleBodyArea(option.code)}
-                    selected={bodyAreaSeverities[option.code] !== undefined}
-                  />
-                ))
-              : null}
-          </FeedbackSection>
-          {Object.keys(bodyAreaSeverities).map((bodyAreaCode) => {
-            const bodyArea = bodyAreaLabel(bodyAreaCode);
-            return (
-              <FeedbackSection
-                key={bodyAreaCode}
-                title={`${bodyArea} 불편함 정도`}
-              >
-                {DISCOMFORT_SEVERITIES.map((option) => (
-                  <FeedbackChoice
-                    key={option.code}
-                    accessibilityLabel={`${bodyArea} ${option.label}`}
-                    label={option.label}
-                    onPress={() =>
-                      setBodyAreaSeverities((current) => ({
-                        ...current,
-                        [bodyAreaCode]: option.code,
-                      }))
-                    }
-                    selected={bodyAreaSeverities[bodyAreaCode] === option.code}
-                  />
-                ))}
-              </FeedbackSection>
-            );
-          })}
-        </>
-      ) : null}
-      <FeedbackSection multiple title="이상 반응">
-        {ADVERSE_REACTION_OPTIONS.map((option) => (
-          <FeedbackChoice
-            key={option.code}
-            label={option.label}
-            multiple
-            onPress={() => toggleReaction(option.code)}
-            selected={reactions.includes(option.code)}
           />
         ))}
       </FeedbackSection>
@@ -369,7 +216,6 @@ function FeedbackSection({
   title,
 }: {
   children: ReactNode;
-  multiple?: boolean;
   title: string;
 }) {
   return (
@@ -381,22 +227,17 @@ function FeedbackSection({
 }
 
 function FeedbackChoice({
-  accessibilityLabel,
   label,
-  multiple = false,
   onPress,
   selected,
 }: {
-  accessibilityLabel?: string;
   label: string;
-  multiple?: boolean;
   onPress: () => void;
   selected: boolean;
 }) {
   return (
     <Pressable
-      accessibilityLabel={accessibilityLabel}
-      accessibilityRole={multiple ? 'checkbox' : 'radio'}
+      accessibilityRole="radio"
       accessibilityState={{ checked: selected }}
       onPress={onPress}
       style={[styles.feedbackChoice, selected && styles.feedbackChoiceSelected]}

@@ -1,7 +1,6 @@
 import type { MeProfile, WorkoutSessionLogSummary } from '../../api/types';
 import {
   bodyAreaLabel,
-  equipmentLabel,
   experienceLevelLabel,
   locationLabel,
   primaryGoalLabel,
@@ -19,7 +18,6 @@ export type MyPageProfileField =
   | 'experience_level_code'
   | 'preferred_exercise_type_codes'
   | 'available_location_codes'
-  | 'equipment_codes'
   | 'default_requested_duration_minutes'
   | 'desired_weekly_workout_count'
   | 'attention_area_codes';
@@ -56,11 +54,6 @@ export function buildMyPageProfileRows(
       '운동 장소',
       profile.available_location_codes.map(locationLabel).join(' · ') ||
         locationLabel(profile.preferred_location_code),
-    ],
-    [
-      'equipment_codes',
-      '장비',
-      profile.equipment_codes.map(equipmentLabel).join(' · ') || '없음',
     ],
     [
       'default_requested_duration_minutes',

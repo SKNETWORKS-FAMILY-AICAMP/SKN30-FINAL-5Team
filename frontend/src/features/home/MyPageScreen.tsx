@@ -263,12 +263,7 @@ function MyPageContent({
         </Card>
 
         <View style={styles.coachCard}>
-          <View style={styles.coachHeader}>
-            <Text style={styles.coachTitle}>헬끼 코칭 스타일</Text>
-            <View style={styles.coachBadge}>
-              <Text style={styles.coachBadgeText}>{coachStyle}</Text>
-            </View>
-          </View>
+          <Text style={styles.coachTitle}>헬끼 코칭 스타일</Text>
           <Text style={styles.coachNote}>{getCoachNote(coachStyle)}</Text>
           <View style={styles.coachOptions}>
             {COACHING_STYLE_OPTIONS.map((option) => {
@@ -612,7 +607,6 @@ const COACHING_STYLE_OPTIONS = [
 
 const OPTIONAL_CONSENTS = [
   { key: 'wearable_integration', label: '웨어러블 연동' },
-  { key: 'calendar_integration', label: '캘린더 연동' },
   { key: 'marketing', label: '마케팅 정보 수신' },
 ] as const satisfies readonly {
   key: keyof ConsentValues;
@@ -754,28 +748,9 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 16,
   },
-  coachHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
   coachTitle: {
     color: colors.text,
     fontSize: 14,
-    fontWeight: '800',
-  },
-  coachBadge: {
-    borderWidth: 1.5,
-    borderColor: '#F1D39A',
-    borderRadius: 999,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  coachBadgeText: {
-    color: '#A45F00',
-    fontSize: 11,
     fontWeight: '800',
   },
   coachNote: {

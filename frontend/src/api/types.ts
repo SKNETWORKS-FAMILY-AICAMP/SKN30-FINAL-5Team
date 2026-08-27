@@ -65,7 +65,6 @@ export type MeProfile = {
   default_requested_duration_minutes: number;
   desired_weekly_workout_count: number;
   coaching_style_code: string;
-  equipment_codes: string[];
   attention_area_codes: string[];
   preferred_exercise_type_codes: string[];
   profile_version: number;
@@ -109,7 +108,6 @@ export type ProfileSettingsUpdateRequest = {
   default_requested_duration_minutes?: number;
   preferred_location_code?: string;
   available_location_codes?: string[];
-  equipment_codes?: string[];
   attention_area_codes?: string[];
   preferred_exercise_type_codes?: string[];
   coaching_style_code?: string;
@@ -156,7 +154,6 @@ export type OnboardingRequest = {
   available_location_codes: string[];
   default_requested_duration_minutes: number;
   desired_weekly_workout_count: number;
-  equipment_codes: string[];
   attention_area_codes: string[];
   preferred_exercise_type_codes?: string[];
   coaching_style_code?: string;
@@ -497,6 +494,24 @@ export type ExerciseDetailResponse = {
   media_asset_key: string | null;
   mascot_animation_asset_key: string | null;
   instruction_content_version: string;
+};
+
+export type ExerciseVariantItem = {
+  exercise_id: string;
+  exercise_name: string;
+  required_equipment_codes: string[];
+  instruction_summary: string;
+  form_cues: string[];
+  media_asset_key: string | null;
+  goal_preservation_code: string;
+};
+
+export type ExerciseVariantsResponse = {
+  source_exercise_id: string;
+  source_required_equipment_codes: string[];
+  items: ExerciseVariantItem[];
+  catalog_version: string;
+  alternative_set_version: string | null;
 };
 
 export type WeekResponse = {

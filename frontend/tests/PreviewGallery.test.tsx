@@ -12,6 +12,7 @@ import { localDateString, weekStartString } from '../src/api/useAsync';
 import { formatHomeDate } from '../src/features/home/homeModel';
 import { PreviewGallery } from '../src/features/preview/PreviewGallery';
 import { homePreviewProps } from '../src/features/preview/homePreview';
+import { getWorkoutResponsiveLayout } from '../src/features/workout/workoutModel';
 
 describe('PreviewGallery', () => {
   it('keeps development controls outside the 390 x 844 app canvas', async () => {
@@ -268,10 +269,17 @@ describe('PreviewGallery', () => {
         '실제 앱의 Firebase 이메일·비밀번호 회원가입 UI입니다. 갤러리 상태는 계정과 네트워크를 변경하지 않는 fixture입니다.',
       ),
     ).toBeOnTheScreen();
-    expect(canvas.getByText('6자 이상 입력해주세요.')).toBeOnTheScreen();
+    expect(canvas.queryByText('6자 이상 입력해주세요.')).toBeNull();
     expect(
       canvas.queryByText(/로그인에 사용할 계정 정보만 입력해요/),
     ).toBeNull();
+
+    fireEvent.press(screen.getByRole('radio', { name: '비밀번호 규칙 오류' }));
+    expect(
+      canvas.getByText('6자 이상 입력해주세요.').props.accessibilityRole,
+    ).toBe('alert');
+
+    fireEvent.press(screen.getByRole('radio', { name: '입력 전' }));
 
     fireEvent.changeText(
       canvas.getByLabelText('회원가입 이메일'),
@@ -305,9 +313,9 @@ describe('PreviewGallery', () => {
       ),
     ).toBeOnTheScreen();
 
-    fireEvent.press(screen.getByRole('radio', { name: '14. summary' }));
+    fireEvent.press(screen.getByRole('radio', { name: '13. summary' }));
     expect(
-      within(screen.getByTestId('preview-app-canvas')).getByText('14 / 14'),
+      within(screen.getByTestId('preview-app-canvas')).getByText('13 / 13'),
     ).toBeOnTheScreen();
 
     fireEvent.press(screen.getByRole('radio', { name: '저장 실패' }));
@@ -329,12 +337,12 @@ describe('PreviewGallery', () => {
       ),
     ).toBeOnTheScreen();
     expect(
-      within(screen.getByTestId('preview-app-canvas')).getByText('1 / 13'),
+      within(screen.getByTestId('preview-app-canvas')).getByText('1 / 12'),
     ).toBeOnTheScreen();
 
     fireEvent.press(screen.getByRole('radio', { name: '3. body' }));
     expect(
-      within(screen.getByTestId('preview-app-canvas')).getByText('3 / 13'),
+      within(screen.getByTestId('preview-app-canvas')).getByText('3 / 12'),
     ).toBeOnTheScreen();
     expect(
       within(screen.getByTestId('preview-app-canvas')).getByText(
@@ -398,9 +406,7 @@ describe('PreviewGallery', () => {
     fireEvent.press(canvas.getByRole('button', { name: '추천 이유 보기' }));
     expect(canvas.getByRole('header', { name: '추천 이유' })).toBeOnTheScreen();
     fireEvent.press(canvas.getByRole('button', { name: '닫기' }));
-    fireEvent.press(
-      canvas.getByRole('button', { name: '푸시업 운동 설명 보기' }),
-    );
+    fireEvent.press(canvas.getByRole('button', { name: '푸시업 자세 보기' }));
     expect(
       await canvas.findByText('통증이 없는 범위에서 천천히 움직여주세요.'),
     ).toBeOnTheScreen();
@@ -470,6 +476,7 @@ describe('PreviewGallery', () => {
 
   it('shows API-backed Workout controls without mock-only symptom states', async () => {
     await render(<PreviewGallery initialScreenId="workout" />);
+    const canvas = within(screen.getByTestId('preview-app-canvas'));
 
     expect(screen.getByRole('radio', { name: 'API 실제 흐름' })).toBeChecked();
     expect(
@@ -482,6 +489,65 @@ describe('PreviewGallery', () => {
     expect(
       screen.queryByRole('radio', { name: '중대한 이상 반응' }),
     ).toBeNull();
+    await waitFor(() =>
+      expect(canvas.queryByText('운동 세션을 준비하고 있어요…')).toBeNull(),
+    );
+    expect(
+      StyleSheet.flatten(canvas.getByTestId('workout-stop-action').props.style),
+    ).toMatchObject({
+      backgroundColor: '#FDECE7',
+      borderColor: '#F1BFAE',
+    });
+    for (const testId of [
+      'workout-smash-action',
+      'workout-rest-action',
+      'workout-additional-action',
+    ]) {
+      expect(
+        StyleSheet.flatten(canvas.getByTestId(testId).props.style),
+      ).toMatchObject({ flex: 1, flexBasis: 0, height: 58 });
+    }
+  });
+
+  it('opens the equipment and variant guide from the Workout preview', async () => {
+    await render(<PreviewGallery initialScreenId="workout" />);
+    const canvas = within(screen.getByTestId('preview-app-canvas'));
+
+    fireEvent.press(screen.getByRole('radio', { name: '장비가 없을 때 안내' }));
+
+    expect(
+      await canvas.findByRole('header', { name: '의자 스쿼트 장비 안내' }),
+    ).toBeOnTheScreen();
+    expect(canvas.getByText('원래 운동의 필요 장비')).toBeOnTheScreen();
+    expect(canvas.getByText('맨몸 스쿼트')).toBeOnTheScreen();
+    expect(
+      screen.getByText(
+        '의자 스쿼트의 장비 안내판을 바로 엽니다. 필요 장비와 장비가 없을 때 가능한 검토된 변형운동을 함께 확인할 수 있으며, 운동을 자동 교체하지 않습니다.',
+      ),
+    ).toBeOnTheScreen();
+  });
+
+  it('scales the Workout composition proportionally on the large-phone preset', async () => {
+    await render(<PreviewGallery initialScreenId="workout" />);
+    const layout = getWorkoutResponsiveLayout({ width: 430, height: 932 });
+
+    fireEvent.press(screen.getByRole('radio', { name: '일반 진행' }));
+    fireEvent.press(
+      screen.getByRole('radio', { name: 'Large phone · 430 × 932' }),
+    );
+    const largeCanvas = within(screen.getByTestId('preview-app-canvas'));
+
+    expect(
+      StyleSheet.flatten(largeCanvas.getByTestId('workout-card-0').props.style),
+    ).toMatchObject({
+      height: layout.cardHeight,
+      width: layout.cardWidth,
+    });
+    expect(
+      StyleSheet.flatten(
+        largeCanvas.getByTestId('workout-smash-action').props.style,
+      ).height,
+    ).toBeCloseTo(58 * layout.scale);
   });
 
   it('starts a fresh workout after leaving a completed result through the gallery', async () => {

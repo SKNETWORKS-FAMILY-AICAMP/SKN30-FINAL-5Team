@@ -54,6 +54,7 @@ export type WorkoutResponsiveLayout = {
   gap: number;
   headerTopPadding: number;
   mascotHeight: number;
+  scale: number;
   stride: number;
 };
 
@@ -70,26 +71,33 @@ export function getWorkoutResponsiveLayout({
   height: number;
   width: number;
 }): WorkoutResponsiveLayout {
-  const tablet = width >= 600;
-  const desktop = width >= 1024;
-  const cardWidth = desktop ? 340 : tablet ? 300 : WORKOUT_CAROUSEL.CARD_WIDTH;
-  const gap = tablet ? 24 : WORKOUT_CAROUSEL.GAP;
-
+  let scale = 1;
+  let cardWidth: number = WORKOUT_CAROUSEL.CARD_WIDTH;
+  let gap: number = WORKOUT_CAROUSEL.GAP;
   let cardHeight: number = WORKOUT_CAROUSEL.CARD_HEIGHT;
   let mascotHeight = 220;
   let headerTopPadding = 54;
 
   if (height < 650) {
+    scale = 0.9;
     cardHeight = 210;
     mascotHeight = 90;
     headerTopPadding = 28;
   } else if (height < 800) {
+    scale = 0.95;
     cardHeight = 240;
     mascotHeight = 130;
     headerTopPadding = 42;
-  } else if (height < 900) {
-    cardHeight = 280;
-    mascotHeight = 180;
+  } else {
+    const widthRatio = width / 390;
+    const heightRatio = height / 844;
+    const proportionalScale = Math.sqrt(widthRatio * heightRatio);
+    scale = Math.max(0.9, Math.min(1.2, proportionalScale, heightRatio * 1.08));
+    cardHeight = Math.round(280 * scale);
+    cardWidth = Math.round(WORKOUT_CAROUSEL.CARD_WIDTH * scale);
+    gap = Math.round(WORKOUT_CAROUSEL.GAP * scale);
+    mascotHeight = Math.round(180 * scale);
+    headerTopPadding = Math.round(54 * scale);
   }
 
   return {
@@ -99,6 +107,7 @@ export function getWorkoutResponsiveLayout({
     gap,
     headerTopPadding,
     mascotHeight,
+    scale,
     stride: cardWidth + gap,
   };
 }

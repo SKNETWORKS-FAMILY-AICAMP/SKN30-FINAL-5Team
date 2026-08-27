@@ -42,7 +42,10 @@ const SESSIONS: WorkoutSessionLogSummary[] = COMPLETED_DATES.map(
   }),
 );
 
-const HOME_EXERCISE_PREVIEW_API: Pick<Api, 'getExercise'> = {
+const HOME_EXERCISE_PREVIEW_API: Pick<
+  Api,
+  'getExercise' | 'getExerciseVariants'
+> = {
   async getExercise(exerciseId: string) {
     const names: Record<string, string> = {
       'exercise-0': '준비 운동',
@@ -59,6 +62,34 @@ const HOME_EXERCISE_PREVIEW_API: Pick<Api, 'getExercise'> = {
       media_asset_key: null,
       mascot_animation_asset_key: null,
       instruction_content_version: 'home-preview-v1',
+    };
+  },
+  async getExerciseVariants(exerciseId: string) {
+    const hasVariant = exerciseId === 'exercise-2';
+    return {
+      source_exercise_id: exerciseId,
+      source_required_equipment_codes: hasVariant
+        ? ['BODYWEIGHT', 'RESISTANCE_BAND']
+        : ['BODYWEIGHT'],
+      items: hasVariant
+        ? [
+            {
+              exercise_id: 'exercise-2-bodyweight-variant',
+              exercise_name: '엎드려 등 당기기',
+              required_equipment_codes: ['BODYWEIGHT'],
+              instruction_summary:
+                '밴드 없이 엎드린 자세에서 팔꿈치를 몸통 쪽으로 당겨요.',
+              form_cues: [
+                '어깨를 귀에서 멀리 유지하기',
+                '허리가 꺾이지 않게 복부에 힘주기',
+              ],
+              media_asset_key: null,
+              goal_preservation_code: 'GENERAL_FITNESS',
+            },
+          ]
+        : [],
+      catalog_version: 'exercise-catalog-v2.0.1-final',
+      alternative_set_version: hasVariant ? 'alternative-set-v2.0.1' : null,
     };
   },
 };

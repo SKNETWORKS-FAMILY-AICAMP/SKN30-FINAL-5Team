@@ -354,31 +354,116 @@ describe('HomeScreen Home v1 transcription', () => {
     );
   });
 
-  it('opens reviewed exercise instructions from an API routine item', async () => {
+  it('shows posture for every API item and variants only when the server returns them', async () => {
     render(<HomeScreen {...homePreviewProps('routine')} />);
 
-    fireEvent.press(
-      screen.getByRole('button', { name: '푸시업 운동 설명 보기' }),
-    );
+    expect(screen.getAllByText('자세')).toHaveLength(3);
+    expect(
+      await screen.findByRole('button', { name: '밴드 로우 장비 보기' }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.queryByRole('button', { name: '푸시업 장비 보기' }),
+    ).toBeNull();
+    expect(screen.getByText('장비')).toBeOnTheScreen();
+    expect(
+      screen.getByTestId('routine-guide-actions-plan-item-1'),
+    ).toBeVisible();
+    expect(
+      screen.getByTestId('routine-guide-actions-plan-item-2'),
+    ).toBeVisible();
+    expect(
+      screen.getByTestId('routine-guide-actions-plan-item-3'),
+    ).toBeVisible();
+  });
 
-    expect(screen.getByRole('header', { name: '푸시업' })).toBeOnTheScreen();
+  it('opens reviewed posture guidance from an API routine item', async () => {
+    render(<HomeScreen {...homePreviewProps('routine')} />);
+
+    fireEvent.press(screen.getByRole('button', { name: '푸시업 자세 보기' }));
+
+    expect(
+      screen.getByRole('header', { name: '푸시업 자세' }),
+    ).toBeOnTheScreen();
     expect(
       await screen.findByText('통증이 없는 범위에서 천천히 움직여주세요.'),
     ).toBeOnTheScreen();
     expect(screen.getByText('호흡을 멈추지 않기')).toBeOnTheScreen();
   });
 
+  it('opens reviewed equipment variant guidance without replacing the routine item', async () => {
+    render(<HomeScreen {...homePreviewProps('routine')} />);
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '밴드 로우 장비 보기' }),
+    );
+
+    expect(
+      screen.getByRole('header', { name: '밴드 로우 장비 안내' }),
+    ).toBeOnTheScreen();
+    expect(screen.getByText('원래 운동의 필요 장비')).toBeOnTheScreen();
+    expect(screen.getByText('밴드')).toBeOnTheScreen();
+    expect(screen.getByText('엎드려 등 당기기')).toBeOnTheScreen();
+    expect(
+      screen.getByText(
+        '이 안내는 운동을 교체하지 않으며 현재 루틴과 수행 기록도 바꾸지 않아요.',
+      ),
+    ).toBeOnTheScreen();
+    expect(screen.queryByTestId('exercise-posture-guide')).toBeNull();
+  });
+
+  it('hides variant actions while the backend capability is unavailable', () => {
+    const props = homePreviewProps('routine');
+    render(
+      <HomeScreen
+        {...props}
+        exerciseApi={{
+          async getExercise(exerciseId) {
+            return {
+              exercise_id: exerciseId,
+              exercise_name: '푸시업',
+              training_type_code: 'STRENGTH',
+              primary_body_area_codes: ['CHEST'],
+              instruction_summary: '검수된 자세 안내',
+              form_cues: [],
+              media_asset_key: null,
+              mascot_animation_asset_key: null,
+              instruction_content_version: 'current-backend-v1',
+            };
+          },
+        }}
+      />,
+    );
+
+    expect(screen.queryByText('장비')).toBeNull();
+  });
+
   it('opens recommendation details without adding another Home card', () => {
-    render(<HomeScreen {...homePreviewProps('adjusted')} />);
+    const view = render(<HomeScreen {...homePreviewProps('adjusted')} />);
 
     fireEvent.press(screen.getByRole('button', { name: '추천 이유 보기' }));
     expect(screen.getByRole('header', { name: '추천 이유' })).toBeOnTheScreen();
-    expect(
-      screen.getAllByText('오늘의 피로도를 고려해 부담을 낮췄어요.').length,
-    ).toBeGreaterThan(0);
-    expect(screen.getByText('안전 확인')).toBeOnTheScreen();
+    expect(screen.getByText('상세 판단')).toBeOnTheScreen();
+    expect(screen.queryByText('안전 확인')).toBeNull();
     expect(screen.getByText('트레이닝')).toBeOnTheScreen();
     expect(screen.getByText('안전')).toBeOnTheScreen();
+
+    const collapsedCriteria = screen.getByRole('button', {
+      name: '반영한 기준 펼치기',
+    });
+    expect(collapsedCriteria.props.accessibilityState).toEqual({
+      expanded: false,
+    });
+    expect(screen.queryByText('운동 목표를 유지했어요.')).toBeNull();
+
+    const tree = JSON.stringify(view.toJSON());
+    expect(tree.indexOf('상세 판단')).toBeLessThan(tree.indexOf('반영한 기준'));
+
+    fireEvent.press(collapsedCriteria);
+    expect(
+      screen.getByRole('button', { name: '반영한 기준 접기' }).props
+        .accessibilityState,
+    ).toEqual({ expanded: true });
+    expect(screen.getByText('운동 목표를 유지했어요.')).toBeOnTheScreen();
   });
 
   it('shows a safety caution supplied through adjustment reason codes', () => {
@@ -394,6 +479,7 @@ describe('HomeScreen Home v1 transcription', () => {
     render(<HomeScreen {...props} decision={decision} />);
 
     fireEvent.press(screen.getByRole('button', { name: '추천 이유 보기' }));
+    fireEvent.press(screen.getByRole('button', { name: '반영한 기준 펼치기' }));
     expect(
       screen.getByText('불편한 부위를 고려해 강도를 낮췄어요.'),
     ).toBeOnTheScreen();
