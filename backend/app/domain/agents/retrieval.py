@@ -26,6 +26,7 @@ EXERCISE_POOL_SNAPSHOT_SCHEMA_VERSION: Final[Literal["exercise-pool-snapshot-v3"
 )
 
 _MACHINE_REFERENCE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
+_COLLECTION_REFERENCE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,254}$")
 _SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 _SENSITIVE_QUERY_FRAGMENTS = frozenset(
     {
@@ -76,6 +77,12 @@ class RetrievalAuditCode(StrEnum):
 def _validate_machine_reference(value: str, *, field_name: str) -> str:
     if not _MACHINE_REFERENCE_PATTERN.fullmatch(value):
         raise ValueError(f"{field_name} must contain only a structured machine reference")
+    return value
+
+
+def _validate_collection_reference(value: str, *, field_name: str) -> str:
+    if not _COLLECTION_REFERENCE_PATTERN.fullmatch(value):
+        raise ValueError(f"{field_name} must contain only a structured collection reference")
     return value
 
 
@@ -224,7 +231,14 @@ class ExerciseRetrievalResult(BaseModel):
     def validate_ranked_exercise_ids(cls, values: tuple[UUID, ...]) -> tuple[UUID, ...]:
         return _validate_unique(values, field_name="ranked_exercise_ids")
 
-    @field_validator("collection_name", "vector_index_version", "embedding_model_version")
+    @field_validator("collection_name")
+    @classmethod
+    def validate_collection_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return _validate_collection_reference(value, field_name="collection_name")
+
+    @field_validator("vector_index_version", "embedding_model_version")
     @classmethod
     def validate_optional_references(
         cls,
@@ -364,7 +378,14 @@ class RetrievalMetadata(BaseModel):
     deterministic_fallback_version: str | None = None
     deterministic_pool_fallback_used: bool
 
-    @field_validator("collection_name", "vector_index_version", "embedding_model_version")
+    @field_validator("collection_name")
+    @classmethod
+    def validate_collection_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return _validate_collection_reference(value, field_name="collection_name")
+
+    @field_validator("vector_index_version", "embedding_model_version")
     @classmethod
     def validate_optional_references(
         cls,

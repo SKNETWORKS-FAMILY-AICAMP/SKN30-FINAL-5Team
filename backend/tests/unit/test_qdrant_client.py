@@ -2,6 +2,7 @@ from typing import Any
 from uuid import UUID
 
 import pytest
+from qdrant_client import models
 from qdrant_client.http.exceptions import ResponseHandlingException
 
 from backend.app.integrations.qdrant.client import (
@@ -17,6 +18,14 @@ class BrokenClient:
 
     def query_points(self, **_: Any) -> None:
         raise self.error
+
+
+class RetrieveClient:
+    def __init__(self, record: models.Record) -> None:
+        self.record = record
+
+    def retrieve(self, **_: Any) -> list[models.Record]:
+        return [self.record]
 
 
 def _query(adapter: OfficialQdrantClientAdapter) -> None:
@@ -63,3 +72,25 @@ def test_wrapped_http_timeout_maps_to_timeout() -> None:
 
     with pytest.raises(QdrantProviderTimeoutError, match="VECTOR_SEARCH_TIMEOUT"):
         _query(adapter)
+
+
+def test_operator_retrieval_returns_named_vector_and_payload() -> None:
+    exercise_id = UUID("00000000-0000-0000-0000-000000000001")
+    adapter = OfficialQdrantClientAdapter(
+        RetrieveClient(
+            models.Record(
+                id=exercise_id,
+                payload={"source_document_hash": "a" * 64},
+                vector={"semantic": [0.1, 0.2]},
+            )
+        ),  # type: ignore[arg-type]
+        timeout_seconds=1,
+    )
+
+    points = adapter.retrieve_points_with_vectors(
+        collection_name="immutable_collection", exercise_ids=(exercise_id,)
+    )
+
+    assert points[0].exercise_id == exercise_id
+    assert points[0].vector == (0.1, 0.2)
+    assert points[0].payload == {"source_document_hash": "a" * 64}

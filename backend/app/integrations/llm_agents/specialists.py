@@ -92,6 +92,8 @@ class LangChainSpecialistAdapter:
                 payload=payload,
             ),
             domain_validator=validate,
+            canonical_factory=lambda values: SpecialistAgentProposal.create(**values),
+            server_owned_fields=("proposal_hash",),
         )
 
     async def apropose(
@@ -136,6 +138,8 @@ class LangChainSpecialistAdapter:
                 payload=payload,
             ),
             domain_validator=validate,
+            canonical_factory=lambda values: SpecialistAgentProposal.create(**values),
+            server_owned_fields=("proposal_hash",),
         )
 
 

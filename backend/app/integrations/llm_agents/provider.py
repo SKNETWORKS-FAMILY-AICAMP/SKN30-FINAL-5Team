@@ -13,7 +13,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage
 from langchain_core.messages.ai import AIMessage
 from langsmith import tracing_context
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ConfigDict, ValidationError, create_model
 
 from backend.app.core.config import Settings
 from backend.app.integrations.llm_agents.models import (
@@ -53,6 +53,51 @@ def _structured_payload(value: object) -> tuple[object, object]:
     return value, None
 
 
+def _provider_output_model(
+    output_schema: type[BaseModel], server_owned_fields: tuple[str, ...]
+) -> type[BaseModel]:
+    """Build a JSON-mode DTO without hashes that only the server can compute."""
+
+    if not server_owned_fields:
+        return output_schema
+    fields: dict[str, Any] = {
+        field_name: (field.annotation, field)
+        for field_name, field in output_schema.model_fields.items()
+        if field_name not in server_owned_fields
+    }
+    return create_model(
+        output_schema.__name__,
+        __config__=ConfigDict(extra="forbid", strict=True),
+        **fields,
+    )
+
+
+def _canonical_output(
+    parsed_payload: object,
+    *,
+    provider_output_model: type[BaseModel],
+    canonical_factory: Callable[[dict[str, object]], BaseModel] | None,
+    server_owned_fields: tuple[str, ...],
+) -> BaseModel:
+    if canonical_factory is not None:
+        if not isinstance(parsed_payload, dict):
+            raise TypeError("structured provider output must be an object")
+        parsed_payload = {
+            key: value for key, value in parsed_payload.items() if key not in server_owned_fields
+        }
+    encoded_output = json.dumps(
+        parsed_payload,
+        ensure_ascii=True,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
+    provider_output = provider_output_model.model_validate_json(encoded_output)
+    if canonical_factory is None:
+        return provider_output
+    return canonical_factory(provider_output.model_dump())
+
+
 @dataclass(frozen=True, slots=True)
 class StructuredChatInvoker:
     """Invoke an injected provider model without selecting or importing a provider SDK."""
@@ -75,6 +120,8 @@ class StructuredChatInvoker:
         output_schema: type[OutputT],
         messages: Sequence[BaseMessage],
         domain_validator: Callable[[OutputT], OutputT],
+        canonical_factory: Callable[[dict[str, object]], OutputT] | None = None,
+        server_owned_fields: tuple[str, ...] = (),
     ) -> StructuredAgentResult[OutputT]:
         if self.chat_model is None:
             return self.failure(
@@ -93,8 +140,9 @@ class StructuredChatInvoker:
             binding_options: dict[str, object] = {"include_raw": True}
             if self.use_native_json_schema:
                 binding_options.update(method="json_schema", strict=True)
+            provider_output_model = _provider_output_model(output_schema, server_owned_fields)
             structured_model = cast(Any, self.chat_model).with_structured_output(
-                output_schema.model_json_schema(), **binding_options
+                provider_output_model.model_json_schema(), **binding_options
             )
         except Exception:  # provider capabilities are not standardized
             return self.failure(
@@ -116,14 +164,15 @@ class StructuredChatInvoker:
                         config={"callbacks": []},
                     )
                 parsed_payload, raw_message = _structured_payload(raw_output)
-                encoded_output = json.dumps(
-                    parsed_payload,
-                    ensure_ascii=True,
-                    sort_keys=True,
-                    separators=(",", ":"),
-                    allow_nan=False,
+                parsed_output = cast(
+                    OutputT,
+                    _canonical_output(
+                        parsed_payload,
+                        provider_output_model=provider_output_model,
+                        canonical_factory=canonical_factory,
+                        server_owned_fields=server_owned_fields,
+                    ),
                 )
-                parsed_output = output_schema.model_validate_json(encoded_output)
             except (OutputParserException, ValidationError, TypeError, ValueError):
                 failure_code = LlmAgentFailureCode.SCHEMA_INVALID
             except TimeoutError:
@@ -178,6 +227,8 @@ class StructuredChatInvoker:
         output_schema: type[OutputT],
         messages: Sequence[BaseMessage],
         domain_validator: Callable[[OutputT], OutputT],
+        canonical_factory: Callable[[dict[str, object]], OutputT] | None = None,
+        server_owned_fields: tuple[str, ...] = (),
     ) -> StructuredAgentResult[OutputT]:
         """Invoke the provider's native async boundary with bounded attempts.
 
@@ -198,8 +249,9 @@ class StructuredChatInvoker:
             binding_options: dict[str, object] = {"include_raw": True}
             if self.use_native_json_schema:
                 binding_options.update(method="json_schema", strict=True)
+            provider_output_model = _provider_output_model(output_schema, server_owned_fields)
             structured_model = cast(Any, self.chat_model).with_structured_output(
-                output_schema.model_json_schema(), **binding_options
+                provider_output_model.model_json_schema(), **binding_options
             )
         except Exception:
             return self.failure(
@@ -219,14 +271,15 @@ class StructuredChatInvoker:
                         config={"callbacks": []},
                     )
                 parsed_payload, raw_message = _structured_payload(raw_output)
-                encoded_output = json.dumps(
-                    parsed_payload,
-                    ensure_ascii=True,
-                    sort_keys=True,
-                    separators=(",", ":"),
-                    allow_nan=False,
+                parsed_output = cast(
+                    OutputT,
+                    _canonical_output(
+                        parsed_payload,
+                        provider_output_model=provider_output_model,
+                        canonical_factory=canonical_factory,
+                        server_owned_fields=server_owned_fields,
+                    ),
                 )
-                parsed_output = output_schema.model_validate_json(encoded_output)
             except (OutputParserException, ValidationError, TypeError, ValueError):
                 failure_code = LlmAgentFailureCode.SCHEMA_INVALID
             except TimeoutError:

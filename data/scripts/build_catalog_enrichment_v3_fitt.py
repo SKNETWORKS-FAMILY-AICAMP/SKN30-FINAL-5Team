@@ -17,15 +17,24 @@ OUTPUT_PATH = Path("data/normalized/catalog_enrichment_v3_fitt.csv")
 
 FITT_COLUMNS = [
     "fitt_template_id",
+    "experience_level_code",
+    "prescription_unit",
     "default_sets",
+    "min_sets",
+    "max_sets",
     "default_reps",
+    "min_reps",
+    "max_reps",
     "default_work_seconds",
+    "min_work_seconds",
+    "max_work_seconds",
     "default_rest_seconds",
     "default_transition_seconds",
     "default_intensity",
     "fitt_basis",
 ]
 EXCEPTION_COLUMNS = ["fitt_mapping_exception_code", "fitt_mapping_note"]
+EQUIPMENT_COLUMN = "equipment_code"
 COMPOUND_TEMPLATE_BY_PATTERN = {
     "SQUAT": "FITT-COMPOUND-SQUAT-V1",
     "HINGE": "FITT-COMPOUND-HINGE-V1",
@@ -34,18 +43,24 @@ COMPOUND_TEMPLATE_BY_PATTERN = {
     "PULL": "FITT-COMPOUND-PULL-V1",
 }
 DIRECT_TEMPLATE_BY_PATTERN = {
-    "CORE": "FITT-CORE-STABILITY-V1",
     "MOBILITY": "FITT-MOBILITY-V1",
     "CARDIO": "FITT-CARDIO-V1",
 }
 TIMING_MODE_BY_TRAINING_CATEGORY = {
     "COMPOUND_STRENGTH": "REPS",
     "ISOLATION_STRENGTH": "REPS",
-    "BODYWEIGHT_BEGINNER": "REPS",
-    "CORE_STABILITY": "DURATION",
+    "ISOMETRIC_STRENGTH": "DURATION",
+    "POWER": "REPS",
+    "CORE_DYNAMIC": "REPS",
+    "CORE_ISOMETRIC": "DURATION",
     "MOBILITY": "DURATION",
     "CARDIO": "DURATION",
 }
+
+POWER_EXERCISE_IDS = {"NEX-000208"}  # Kettlebell swing: ballistic hinge/power.
+CORE_PER_SIDE_EXERCISE_IDS = {"NEX-000030", "NEX-000063", "NEX-000179"}
+CORE_ISOMETRIC_EXERCISE_IDS: set[str] = set()
+ISOMETRIC_STRENGTH_EXERCISE_IDS = {"NEX-000113"}
 
 # The source does not expose an equipment or joint-count field. These IDs are
 # explicit exercise-characteristic decisions so the inferred categories remain
@@ -107,6 +122,7 @@ ISOLATION_EXERCISE_IDS = {
     "NEX-000106",
     "NEX-000109",
     "NEX-000117",
+    "NEX-000118",
     "NEX-000120",
     "NEX-000121",
     "NEX-000122",
@@ -119,6 +135,7 @@ ISOLATION_EXERCISE_IDS = {
     "NEX-000160",
     "NEX-000161",
     "NEX-000166",
+    "NEX-000174",
     "NEX-000175",
     "NEX-000176",
     "NEX-000178",
@@ -128,14 +145,6 @@ ISOLATION_EXERCISE_IDS = {
     "NEX-000191",
     "NEX-000202",
     "NEX-000203",
-}
-BEGINNER_BODYWEIGHT_EXERCISE_IDS = {
-    "NEX-000074",  # Push-up
-    "NEX-000118",  # Bodyweight standing calf raise
-    "NEX-000162",  # Floor glute bridge
-    "NEX-000174",  # Chair-supported forward knee raise
-    "NEX-000180",  # Chair-supported rear knee curl
-    "NEX-000181",  # Seated hip flexion
 }
 
 
@@ -147,15 +156,39 @@ def load_rows(path: Path) -> tuple[list[dict[str, str]], list[str]]:
 
 def choose_template(exercise_id: str, pattern: str) -> tuple[str, str, str]:
     """Return template ID, exception code, and an auditable mapping note."""
+    if exercise_id in POWER_EXERCISE_IDS:
+        return (
+            "FITT-HINGE-POWER-V1",
+            "NONE",
+            (
+                "전문가 검수 완료: 케틀벨 스윙은 ballistic/power 동작이므로 "
+                "일반 HINGE 반복 템플릿과 분리."
+            ),
+        )
+
+    if exercise_id in ISOMETRIC_STRENGTH_EXERCISE_IDS:
+        return (
+            "FITT-ISOMETRIC-STRENGTH-V1",
+            "NONE",
+            (
+                "전문가 검수 완료: 벽을 손바닥으로 밀어 광배근을 등척성으로 활성화하는 "
+                "PUSH + BODYWEIGHT 동작이며 유지시간 기본값을 적용."
+            ),
+        )
+
+    if pattern == "CORE":
+        if exercise_id in CORE_ISOMETRIC_EXERCISE_IDS:
+            return "FITT-CORE-ISOMETRIC-V1", "NONE", "정적 코어 운동에 시간형 코어 템플릿 적용."
+        if exercise_id in CORE_PER_SIDE_EXERCISE_IDS:
+            return (
+                "FITT-CORE-DYNAMIC-PER-SIDE-V1",
+                "NONE",
+                "좌우를 구분하는 동적 코어 운동에 REPS_PER_SIDE 단위 적용.",
+            )
+        return "FITT-CORE-DYNAMIC-V1", "NONE", "동적 코어 운동에 REPS 단위 템플릿 적용."
+
     if pattern in DIRECT_TEMPLATE_BY_PATTERN:
         return DIRECT_TEMPLATE_BY_PATTERN[pattern], "NONE", "패턴 전용 FITT 템플릿 적용."
-
-    if exercise_id in BEGINNER_BODYWEIGHT_EXERCISE_IDS:
-        return (
-            "FITT-BODYWEIGHT-BEGINNER-V1",
-            "NONE",
-            "초급 맨몸 운동 특성으로 BODYWEIGHT_BEGINNER 템플릿 적용.",
-        )
 
     if exercise_id in ISOLATION_EXERCISE_IDS:
         return (
@@ -188,13 +221,11 @@ def validate_mapping(
             (category == "COMPOUND_STRENGTH" and pattern in COMPOUND_TEMPLATE_BY_PATTERN)
             or (
                 category == "ISOLATION_STRENGTH"
-                and pattern in {"SQUAT", "HINGE", "PUSH", "PULL", "CARRY"}
+                and pattern in {"SQUAT", "HINGE", "PUSH", "PULL", "CARRY", "ISOLATION"}
             )
-            or (
-                category == "BODYWEIGHT_BEGINNER"
-                and pattern in {"SQUAT", "HINGE", "PUSH", "PULL", "LUNGE"}
-            )
-            or (category == "CORE_STABILITY" and pattern == "CORE")
+            or (category == "ISOMETRIC_STRENGTH" and pattern == "PUSH")
+            or (category == "POWER" and pattern == "HINGE")
+            or (category in {"CORE_DYNAMIC", "CORE_ISOMETRIC"} and pattern == "CORE")
             or (category == "MOBILITY" and pattern == "MOBILITY")
             or (category == "CARDIO" and pattern == "CARDIO")
         )
@@ -210,6 +241,7 @@ def enrich_row(
     review_row: dict[str, str],
     template_by_id: dict[str, dict[str, str]],
     name_en: str,
+    equipment_code: str,
 ) -> dict[str, str]:
     """Apply an auditable FITT template to one catalog row."""
     exercise_id = catalog_row["exercise_id"]
@@ -227,6 +259,7 @@ def enrich_row(
     return {
         **catalog_row,
         "name_en": name_en,
+        EQUIPMENT_COLUMN: equipment_code,
         "timing_mode_code": timing_mode,
         **{column: template[column] for column in FITT_COLUMNS[1:]},
         "intensity_level": template["default_intensity"],
@@ -252,6 +285,11 @@ def main() -> None:
         or row.get("source_name", "").strip()
         for row in integrated_rows
     }
+    equipment_by_id = {
+        row["normalized_exercise_id"]: row.get("reviewed_equipment_codes", "").strip()
+        or row.get("equipment_code_candidate", "").strip()
+        for row in integrated_rows
+    }
     catalog_ids = {row["exercise_id"] for row in catalog_rows}
     if catalog_ids != set(review_by_id):
         raise ValueError("Catalog and movement-pattern review exercise IDs must exactly match")
@@ -265,13 +303,20 @@ def main() -> None:
         exercise_id = catalog_row["exercise_id"]
         review_row = review_by_id[exercise_id]
         output_rows.append(
-            enrich_row(catalog_row, review_row, template_by_id, name_en_by_id[exercise_id])
+            enrich_row(
+                catalog_row,
+                review_row,
+                template_by_id,
+                name_en_by_id[exercise_id],
+                equipment_by_id[exercise_id],
+            )
         )
 
     validate_mapping(output_rows, template_by_id)
     output_fields = (
         catalog_fields
         + [field for field in ("name_en",) if field not in catalog_fields]
+        + [EQUIPMENT_COLUMN]
         + [column for column in FITT_COLUMNS if column not in catalog_fields]
         + EXCEPTION_COLUMNS
         + [
