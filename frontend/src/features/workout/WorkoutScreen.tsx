@@ -1101,34 +1101,34 @@ function WorkoutScreenContent({
           { maxWidth: responsiveLayout.contentMaxWidth },
         ]}
       >
-        <View
-          style={[
-            styles.carouselGuide,
-            {
-              gap: 10 * layoutScale,
-              paddingTop: 2 * layoutScale,
-              paddingRight: 20 * layoutScale,
-              paddingBottom: 8 * layoutScale,
-              paddingLeft: 20 * layoutScale,
-            },
-          ]}
-        >
-          <Text style={styles.carouselHint}>
-            {visiblePageIndex === currentIndex
-              ? '좌우로 밀어 다른 블록 보기'
-              : '다른 블록 보는 중'}
-          </Text>
-          <Text style={styles.carouselCount}>
-            완료 {completedCount} / {blocks.length}
-          </Text>
-        </View>
-
         <WorkoutCarouselDragSurface
           onCancel={cancelCarouselDrag}
           onEnd={finishCarouselDrag}
           onMove={moveCarouselDrag}
           onStart={beginCarouselDrag}
         >
+          <View
+            style={[
+              styles.carouselGuide,
+              {
+                gap: 10 * layoutScale,
+                paddingTop: 2 * layoutScale,
+                paddingRight: 20 * layoutScale,
+                paddingBottom: 8 * layoutScale,
+                paddingLeft: 20 * layoutScale,
+              },
+            ]}
+          >
+            <Text style={styles.carouselHint}>
+              {visiblePageIndex === currentIndex
+                ? '좌우로 밀어 다른 블록 보기'
+                : '다른 블록 보는 중'}
+            </Text>
+            <Text style={styles.carouselCount}>
+              완료 {completedCount} / {blocks.length}
+            </Text>
+          </View>
+
           <Animated.ScrollView
             ref={carouselRef}
             contentContainerStyle={[
@@ -1151,6 +1151,12 @@ function WorkoutScreenContent({
             showsHorizontalScrollIndicator={false}
             snapToAlignment="start"
             snapToInterval={responsiveLayout.stride}
+            style={[
+              styles.carouselViewport,
+              {
+                height: responsiveLayout.cardHeight + 14 * layoutScale,
+              },
+            ]}
             testID="workout-carousel"
           >
             {blocks.map((block, index) => (
@@ -1277,7 +1283,20 @@ function WorkoutScreenContent({
           ]}
           testID="workout-smash-action"
         >
-          <Text style={[styles.smashActionText, useJua && styles.jua]}>
+          <LinearGradient
+            colors={
+              canSmash || canFinish
+                ? ['#FFFDF8', '#FFF2D1', '#FFE2A3']
+                : ['#F3ECE4', '#F3ECE4']
+            }
+            end={{ x: 0.5, y: 1 }}
+            locations={canSmash || canFinish ? [0, 0.55, 1] : [0, 1]}
+            pointerEvents="none"
+            start={{ x: 0.5, y: 0 }}
+            style={styles.smashActionGradient}
+            testID="workout-smash-gradient"
+          />
+          <Text style={styles.smashActionText}>
             {actionPending
               ? '저장 중…'
               : allBlocksCompleted && apiConfig !== undefined
@@ -1387,7 +1406,6 @@ function WorkoutScreenContent({
             setOverlay(apiConfig === undefined ? 'symptom' : 'api-safety')
           }
           onStop={() => void finishWorkout()}
-          useJua={useJua}
         />
       ) : null}
       {overlay === 'symptom' ? (
@@ -1399,7 +1417,6 @@ function WorkoutScreenContent({
           onSubmit={submitSafetyEvent}
           selectedSeverity={selectedSeverity}
           selectedSymptom={selectedSymptom}
-          useJua={useJua}
         />
       ) : null}
       {overlay === 'api-safety' ? (
@@ -1413,7 +1430,6 @@ function WorkoutScreenContent({
           pending={actionPending}
           selectedBodySeverities={selectedBodySeverities}
           selectedReactions={selectedReactions}
-          useJua={useJua}
         />
       ) : null}
       {overlay === 'api-guidance' && apiGuidance ? (
@@ -1563,7 +1579,11 @@ function MascotStage({
           style={[
             styles.burstText,
             useJua && styles.jua,
-            { opacity: burstOpacity, transform: [{ scale: burstScale }] },
+            {
+              top: height * 0.99,
+              opacity: burstOpacity,
+              transform: [{ scale: burstScale }],
+            },
           ]}
           testID="workout-smash-burst"
         >
@@ -1933,12 +1953,10 @@ function SafetyConfirmSheet({
   onClose,
   onOpenReport,
   onStop,
-  useJua,
 }: {
   onClose: () => void;
   onOpenReport: () => void;
   onStop?: () => void;
-  useJua: boolean;
 }) {
   return (
     <SheetFrame title="지금 운동을 중단할까요?">
@@ -1960,9 +1978,7 @@ function SafetyConfirmSheet({
           style={styles.stopConfirmGradient}
           testID="workout-stop-confirm-gradient"
         />
-        <Text style={[styles.stopConfirmButtonText, useJua && styles.jua]}>
-          중단하기
-        </Text>
+        <Text style={styles.stopConfirmButtonText}>중단하기</Text>
       </Pressable>
       <Pressable
         accessibilityRole="button"
@@ -1992,7 +2008,6 @@ function SymptomSheet({
   onSubmit,
   selectedSeverity,
   selectedSymptom,
-  useJua,
 }: {
   instruction: WorkoutSafetyInstruction;
   onClose: () => void;
@@ -2001,7 +2016,6 @@ function SymptomSheet({
   onSubmit: () => void;
   selectedSeverity: WorkoutSafetyReport['severityCode'];
   selectedSymptom: WorkoutSafetyReport['symptomCode'];
-  useJua: boolean;
 }) {
   const severe = instruction !== 'SHOW_CAUTION';
   const guidance =
@@ -2062,9 +2076,7 @@ function SymptomSheet({
           ) : null}
           <Text
             style={
-              severe
-                ? styles.dangerButtonText
-                : [styles.stopConfirmButtonText, useJua && styles.jua]
+              severe ? styles.dangerButtonText : styles.stopConfirmButtonText
             }
           >
             {severe ? '보고하고 안전 중단' : '보고만 하고 계속하기'}
@@ -2094,7 +2106,6 @@ function ApiSafetySheet({
   pending,
   selectedBodySeverities,
   selectedReactions,
-  useJua,
 }: {
   error: string | null;
   onClose: () => void;
@@ -2110,7 +2121,6 @@ function ApiSafetySheet({
     Record<string, WorkoutSafetyReport['severityCode']>
   >;
   selectedReactions: readonly string[];
-  useJua: boolean;
 }) {
   const selectedBodyAreas = Object.keys(selectedBodySeverities);
   const [showExtendedAreas, setShowExtendedAreas] = useState(() =>
@@ -2211,7 +2221,7 @@ function ApiSafetySheet({
             style={styles.stopConfirmGradient}
             testID="workout-api-safety-submit-gradient"
           />
-          <Text style={[styles.stopConfirmButtonText, useJua && styles.jua]}>
+          <Text style={styles.stopConfirmButtonText}>
             {pending ? '확인 중…' : '보고하고 안전 안내 확인'}
           </Text>
         </Pressable>
@@ -2726,8 +2736,14 @@ const styles = StyleSheet.create({
   },
   stopActionLabel: {
     color: colors.dangerText,
+    fontFamily: Platform.select({
+      ios: 'System',
+      android: 'sans-serif-medium',
+      default: 'system-ui',
+    }),
     fontSize: 13.5,
-    fontWeight: '400',
+    fontWeight: '700',
+    letterSpacing: -0.15,
   },
   progressRow: { flexDirection: 'row', gap: 5, marginTop: 14 },
   progressSegment: {
@@ -2856,7 +2872,6 @@ const styles = StyleSheet.create({
   },
   burstText: {
     position: 'absolute',
-    top: 26,
     left: 0,
     right: 0,
     color: colors.green,
@@ -2884,10 +2899,16 @@ const styles = StyleSheet.create({
   },
   carouselDragSurface: {
     width: '100%',
+    minHeight: 0,
+    flex: 1,
+    justifyContent: 'center',
   },
+  carouselViewport: { flexGrow: 0, flexShrink: 0 },
   carouselHint: { color: colors.textMuted, fontSize: 13, fontWeight: '800' },
   carouselCount: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
   blockCarousel: {
+    minHeight: '100%',
+    alignItems: 'center',
     paddingTop: 14,
   },
   blockCard: {
@@ -3018,20 +3039,35 @@ const styles = StyleSheet.create({
     minWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
     borderWidth: 1.5,
-    borderColor: 'transparent',
+    borderColor: '#E2AC48',
     borderRadius: 18,
-    backgroundColor: colors.green,
+    overflow: 'hidden',
     paddingHorizontal: 8,
+    shadowColor: '#C28B28',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.13,
+    shadowRadius: 8,
+    elevation: 3,
   },
   smashActionDisabled: {
-    backgroundColor: '#CFCCC5',
+    borderColor: '#DDD4CA',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  smashActionGradient: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
   },
   smashActionText: {
-    color: colors.text,
+    color: '#5A4636',
     fontSize: 18,
-    fontWeight: '900',
-    letterSpacing: 0.5,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
   restAction: {
     height: 58,
@@ -3274,8 +3310,14 @@ const styles = StyleSheet.create({
   },
   stopConfirmButtonText: {
     color: colors.surface,
+    fontFamily: Platform.select({
+      ios: 'System',
+      android: 'sans-serif-medium',
+      default: 'system-ui',
+    }),
     fontSize: 18,
-    fontWeight: '400',
+    fontWeight: '700',
+    letterSpacing: -0.15,
     textAlign: 'center',
   },
   textButton: {
