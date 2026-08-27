@@ -111,12 +111,12 @@ NEX-000109,케이블 원암 디클라인 체스트 플라이,CHEST,STRENGTH,BEGI
 NEX-000110,체스트 및 앞쪽 어깨 스트레칭,MOBILITY,MOBILITY,BEGINNER,MOBILITY,가동범위 확보와 스트레칭이 주된 수행 목적이므로 MOBILITY로 제안. 사람 검수 완료: movement_pattern 수정 필요 없음.,NO
 NEX-000111,광배근 스트레칭,MOBILITY,MOBILITY,BEGINNER,MOBILITY,가동범위 확보와 스트레칭이 주된 수행 목적이므로 MOBILITY로 제안. 사람 검수 완료: movement_pattern 수정 필요 없음.,NO
 NEX-000112,허리 스트레칭,BACK,STRENGTH,INTERMEDIATE,MOBILITY,가동범위 확보와 스트레칭이 주된 수행 목적이므로 MOBILITY로 제안. 사람 검수 완료: movement_pattern 수정 필요 없음.,NO
-NEX-000113,벽 짚고 한 팔 운동,BACK,STRENGTH,BEGINNER,PULL,상지의 당기기 또는 견갑·팔꿈치 굴곡 중심 움직임이 주된 목적이므로 PULL로 제안. 사람 검수 완료: movement_pattern 수정 필요 없음.,NO
+NEX-000113,벽 짚고 한 팔 광배근 등척성 운동,BACK,STRENGTH,BEGINNER,PUSH,"벽에 손바닥을 대고 미는 힘으로 광배근을 등척성 활성화하는 동작이므로 PUSH로 제안. 명칭은 스트레칭이 아닌 광배근 등척성 운동으로 정리하며, 장비 방식은 BODYWEIGHT로 별도 기록. 사람 검수 완료: movement_pattern 수정 필요 없음.",NO
 NEX-000114,척추 스트레칭,MOBILITY,MOBILITY,BEGINNER,MOBILITY,가동범위 확보와 스트레칭이 주된 수행 목적이므로 MOBILITY로 제안. 사람 검수 완료: movement_pattern 수정 필요 없음.,NO
 NEX-000115,등 위쪽 스트레칭,MOBILITY,MOBILITY,BEGINNER,MOBILITY,가동범위 확보와 스트레칭이 주된 수행 목적이므로 MOBILITY로 제안. 사람 검수 완료: movement_pattern 수정 필요 없음.,NO
 NEX-000116,발목 돌리기,MOBILITY,MOBILITY,BEGINNER,MOBILITY,가동범위 확보와 스트레칭이 주된 수행 목적이므로 MOBILITY로 제안. 사람 검수 완료: movement_pattern 수정 필요 없음.,NO
 NEX-000117,밴드 양발 카프 레이즈,CALVES,STRENGTH,BEGINNER,SQUAT,발목 저측굴곡 중심의 종아리 고립 동작이며 별도 코드가 없어 하체 지지·밀기 계열 SQUAT으로 임시 제안. 사람 검수 완료: movement_pattern 수정 필요 없음.,NO
-NEX-000118,맨몸 스탠딩 카프 레이즈,CALVES,STRENGTH,BEGINNER,SQUAT,발목 저측굴곡 중심의 종아리 고립 동작이며 별도 코드가 없어 하체 지지·밀기 계열 SQUAT으로 임시 제안. 사람 검수 완료: movement_pattern 수정 필요 없음.,NO
+NEX-000118,맨몸 스탠딩 카프 레이즈,CALVES,STRENGTH,BEGINNER,ISOLATION,발목 저측굴곡 중심의 종아리 고립 동작이며 별도 코드가 없어 하체 지지·밀기 계열 SQUAT으로 임시 제안. 사람 검수 완료: movement_pattern 수정 필요 없음.,NO
 NEX-000119,벽 짚고 종아리 스트레칭,MOBILITY,MOBILITY,BEGINNER,MOBILITY,가동범위 확보와 스트레칭이 주된 수행 목적이므로 MOBILITY로 제안. 사람 검수 완료: movement_pattern 수정 필요 없음.,NO
 NEX-000120,덤벨 시티드 카프 레이즈,CALVES,STRENGTH,BEGINNER,SQUAT,발목 저측굴곡 중심의 종아리 고립 동작이며 별도 코드가 없어 하체 지지·밀기 계열 SQUAT으로 임시 제안. 사람 검수 완료: movement_pattern 수정 필요 없음.,NO
 NEX-000121,한발 동키 카프 레이즈,CALVES,STRENGTH,INTERMEDIATE,SQUAT,발목 저측굴곡 중심의 종아리 고립 동작이며 별도 코드가 없어 하체 지지·밀기 계열 SQUAT으로 임시 제안. 사람 검수 완료: movement_pattern 수정 필요 없음.,NO
@@ -206,4 +206,4 @@ NEX-000204,레그프레스,QUADRICEPS,STRENGTH,BEGINNER,SQUAT,무릎 굴곡·신
 NEX-000205,루마니안 데드리프트,HAMSTRINGS,STRENGTH,INTERMEDIATE,HINGE,고관절 굴곡·신전이 주된 하체 후면 연쇄 동작이므로 HINGE로 제안. 사람 검수 완료: movement_pattern 수정 필요 없음.,NO
 NEX-000206,인클라인 덤벨 벤치프레스,CHEST,STRENGTH,INTERMEDIATE,PUSH,상지의 밀기 또는 프레스성 관절 움직임이 주된 목적이므로 PUSH로 제안. 사람 검수 완료: movement_pattern 수정 필요 없음.,NO
 NEX-000207,머신 숄더프레스,SHOULDERS,STRENGTH,BEGINNER,PUSH,상지의 밀기 또는 프레스성 관절 움직임이 주된 목적이므로 PUSH로 제안. 사람 검수 완료: movement_pattern 수정 필요 없음.,NO
-NEX-000208,케틀벨 스윙,GLUTES,STRENGTH,INTERMEDIATE,HINGE,고관절 굴곡·신전이 주된 하체 후면 연쇄 동작이므로 HINGE로 제안. 사람 검수 완료: movement_pattern 수정 필요 없음.,NO
+NEX-000208,케틀벨 스윙,GLUTES,POWER,INTERMEDIATE,HINGE,고관절 굴곡·신전이 주된 하체 후면 연쇄 동작이므로 HINGE로 제안. 사람 검수 완료: movement_pattern 수정 필요 없음.,NO

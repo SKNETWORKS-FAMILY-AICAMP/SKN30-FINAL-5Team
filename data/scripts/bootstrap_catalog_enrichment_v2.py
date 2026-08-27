@@ -288,6 +288,15 @@ VERSION_DECISIONS = {
             "No unversioned peer exists in the preserved source; omit the source version suffix."
         ),
     },
+    "NEX-000113": {
+        "exercise_name_ko": "벽 짚고 한 팔 광배근 등척성 운동",
+        "catalog_exposure_code": "PRIMARY",
+        "canonical_exercise_id": "NEX-000113",
+        "variant_relation_code": "NONE",
+        "variant_basis": (
+            "Wall press isometric lat activation is a distinct reviewed exercise identity."
+        ),
+    },
 }
 
 

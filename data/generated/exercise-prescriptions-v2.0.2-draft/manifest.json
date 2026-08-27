@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "prescription_set_version_code": "exercise-prescriptions-v2.0.2-draft",
+  "catalog_version_code": "exercise-catalog-v2.0.2-draft",
+  "status_code": "DRAFT",
+  "review_status_code": "REVIEW_REQUIRED",
+  "production_eligible": false,
+  "generator_version": "build_fitt_template_intermediate_v1-1.0.0",
+  "files": [
+    {
+      "path": "fitt_template_intermediate_v1.json",
+      "bytes": 14850,
+      "sha256": "3c32b724dbb3746b71976104e6833fcde646afc86595de0703fe718721da016a",
+      "records": 13,
+      "role": "intermediate_fitt_template_prescription_draft"
+    }
+  ],
+  "source": {
+    "baseline": "data/generated/exercise-prescriptions-v2.0.2-draft/fitt_template_beginner_v1.csv",
+    "external_references": [
+      "https://pubmed.ncbi.nlm.nih.gov/19204579/",
+      "https://acsm.org/resistance-training-guidelines-update-2026/",
+      "https://odphp.health.gov/sites/default/files/2019-09/Physical_Activity_Guidelines_2nd_edition.pdf"
+    ]
+  },
+  "notes": [
+    "v2.0.1-final은 변경하지 않는다.",
+    "본 산출물은 운동 처방이 아닌 카탈로그 초안이다."
+  ]
+}

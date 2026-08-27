@@ -17,17 +17,24 @@ FIELDNAMES = [
     "review_comment",
 ]
 TEMPLATE_VALUE_COLUMNS = [
+    "experience_level_code",
+    "prescription_unit",
     "default_sets",
+    "min_sets",
+    "max_sets",
     "default_reps",
+    "min_reps",
+    "max_reps",
     "default_work_seconds",
+    "min_work_seconds",
+    "max_work_seconds",
     "default_rest_seconds",
     "default_transition_seconds",
     "default_intensity",
     "fitt_basis",
 ]
 COMPOUND_PATTERNS = {"SQUAT", "HINGE", "LUNGE", "PUSH", "PULL"}
-ISOLATION_PATTERNS = {"SQUAT", "HINGE", "PUSH", "PULL", "CARRY"}
-BODYWEIGHT_PATTERNS = {"SQUAT", "HINGE", "PUSH", "PULL", "LUNGE"}
+ISOLATION_PATTERNS = {"SQUAT", "HINGE", "PUSH", "PULL", "CARRY", "ISOLATION"}
 
 
 def load_rows(path: Path) -> list[dict[str, str]]:
@@ -41,8 +48,9 @@ def template_pattern_is_compatible(row: dict[str, str], template: dict[str, str]
     return (
         (category == "COMPOUND_STRENGTH" and pattern in COMPOUND_PATTERNS)
         or (category == "ISOLATION_STRENGTH" and pattern in ISOLATION_PATTERNS)
-        or (category == "BODYWEIGHT_BEGINNER" and pattern in BODYWEIGHT_PATTERNS)
-        or (category == "CORE_STABILITY" and pattern == "CORE")
+        or (category == "ISOMETRIC_STRENGTH" and pattern == "PUSH")
+        or (category == "POWER" and pattern == "HINGE")
+        or (category in {"CORE_DYNAMIC", "CORE_ISOMETRIC"} and pattern == "CORE")
         or (category == "MOBILITY" and pattern == "MOBILITY")
         or (category == "CARDIO" and pattern == "CARDIO")
     )
