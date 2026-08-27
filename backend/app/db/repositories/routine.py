@@ -144,7 +144,6 @@ class RoutineRepository:
             ):
                 equipment_map[exercise_id].add(equipment_code)
         location_set = set(locations)
-        equipment_set = set(equipment)
         candidates = tuple(
             RoutineCandidate(
                 exercise_id=exercise.id,
@@ -163,8 +162,10 @@ class RoutineRepository:
                 intensity_code=prescription.intensity_code,
             )
             for prescription, exercise, goal_link in rows
+            # Equipment is no longer a gate: the 2026-08-27 decision drops it
+            # from onboarding, so suitability alone selects candidates and the
+            # variant lookup tells the user how to work around missing kit.
             if location_map[exercise.id] & location_set
-            and equipment_map[exercise.id].issubset(equipment_set)
         )
         return RoutineCreationContext(
             profile_duration_minutes=profile.default_requested_duration_minutes,

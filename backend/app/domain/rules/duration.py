@@ -227,10 +227,20 @@ def assess_duration(request: DurationRequest, plan: DurationPlan) -> DurationAss
 def require_exact_duration(
     request: DurationRequest,
     plan: DurationPlan,
+    *,
+    tolerance_seconds: int = 0,
 ) -> DurationAssessment:
-    """Return an assessment only when the plan exactly preserves requested time."""
+    """Return an assessment only when the plan preserves the requested time.
 
+    ``tolerance_seconds`` defaults to zero, so every existing caller keeps the
+    exact-match rule. Routine creation passes a non-zero allowance under the
+    2026-08-27 decision recorded in docs/tasks; the plan may then differ from
+    the target by at most that many seconds in either direction.
+    """
+
+    if tolerance_seconds < 0:
+        raise InvalidDurationInputError("duration tolerance must not be negative")
     assessment = assess_duration(request, plan)
-    if not assessment.is_exact_match:
+    if not assessment.is_exact_match and abs(assessment.delta_seconds) > tolerance_seconds:
         raise DurationTargetMismatchError(assessment)
     return assessment
