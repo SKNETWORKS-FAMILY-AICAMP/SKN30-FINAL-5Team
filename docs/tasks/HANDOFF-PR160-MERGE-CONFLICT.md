@@ -151,3 +151,105 @@ with Session(e) as s:
 
 - `docs/tasks/TASK-ROUTINE-EQUIPMENT-AND-DURATION.md` — 결정사항·승인·데이터 현황·후속 단계
 - PR #160 본문 — 변경 요약과 위험 요소
+
+---
+
+## 실행 결과 (2026-08-27)
+
+병합 커밋 `2d5f47e`. 1~6단계 모두 완료했고, 5단계만 문서와 다른 경로로 처리했다.
+
+### 1~4단계
+
+절차대로 진행했다. 확인된 값:
+
+| 항목 | 이전 | 이후 |
+|---|---|---|
+| 번들 매니페스트 | `5974ed95…` | `8ac896f3…` |
+| 처방 매니페스트 | `9d5a8fc0…` | `74b911d2…` |
+| 카탈로그 / 안전 / 대체 | — | 변동 없음 |
+
+- 테스트: backend unit+scenarios **1112 passed**(기준값 일치), data/scripts **159 passed**,
+  ruff clean, mypy clean(280 files)
+- 재현성: 입력 변경 없이 재빌드해 37개 산출물 전부 바이트 동일. #158이 추가한 227줄에
+  플랫폼 의존 출력은 없었다(`datetime`은 검수 CSV 파싱용이고 `now()` 호출은 없음)
+
+자동 병합이 조용히 받아들인 버전 코드 누락을 하나 고쳤다. `build_v2_backend_bundle.py`의
+`source_prescription_manifest_path`가 #158에서 `v2.0.0-draft`로 하드코딩돼 있었다.
+`DEFAULT_PRESCRIPTIONS.name`에서 파생시키도록 바꿔 버전 상수와 어긋날 수 없게 했다.
+
+### 5단계: 문서의 v2.0.2 방식은 이번엔 쓸 수 없다
+
+`DERIVED_SET_CONFLICT`는 예고대로 났지만, **처방 세트에서만** 났다.
+안전·대체 세트의 해시는 이번 재빌드로 바뀌지 않아 그대로 통과했다.
+
+처방 해시가 바뀐 이유는 레코드가 아니라 provenance다. #158의 `_provenance_path`가
+매니페스트에 박혀 있던 절대경로 3개를 저장소 상대경로로 바꿨다:
+
+```
+- "catalog_review_input_path": "C:\Users\playdata2\SKN30_FINAL_5\data\generated\..."
++ "catalog_review_input_path": "data/generated/exercise-catalog-v2.0.1-final/..."
+```
+
+즉 Aurora에 적재돼 있던 승인 해시 `9d5a8fc0…`은 **이 머신에서만 재현 가능한 값**이었다.
+#158의 수정은 유지해야 하고, 따라서 해시 변경은 되돌릴 수 없다.
+레코드 239건(goal_tag_links 102 + prescription_profiles 137)은 바이트 단위로 동일하다.
+
+**문서가 안내한 "파생 세트 버전을 v2.0.2로 올리기"는 이 상황에 적용되지 않는다.**
+3fe1716 때 그 방법이 통한 것은 카탈로그도 v2.0.0→v2.0.1로 같이 올라가 exercise 행이
+새로 생성됐기 때문이다. 지금은 카탈로그 해시가 그대로라 v2.0.1 카탈로그가 재생성되지 않고,
+기존 exercise 행에 처방을 다시 넣게 된다. 그러면 걸린다:
+
+- `exercise_goal_tag_links`: 복합 PK `(exercise_id, goal_code)`
+- `exercise_prescription_profiles`: `uq_exercise_prescription_profile`
+
+임포터에는 이미 적재된 카탈로그의 파생 세트를 교체하는 경로가 없다(`_import_derived_set`은
+`get_state`가 `None`이면 무조건 `create()`). 전체 재적재도 불가능하다 —
+`routine_items.exercise_id`가 `ondelete=RESTRICT`이고 기존 루틴 1건(items 12건)이 걸려 있다.
+
+#### 실제로 한 것 (프로젝트 오너 결정, 2026-08-27)
+
+적재된 데이터가 새 번들과 동일하므로 **기록만 진실에 맞췄다.** 행 변경 0건:
+
+```
+catalog_versions.manifest_metadata  (version_code = 'exercise-catalog-v2.0.1-final')
+  prescription_artifact.manifest_sha256                     9d5a8fc0… -> 74b911d2…
+  prescription_artifact.production_approval.manifest_sha256 9d5a8fc0… -> 74b911d2…
+```
+
+그 뒤 정규 경로가 통과한다. `--demo-unreviewed`는 쓰지 않았다.
+
+```
+catalog_promote_v2  -> catalogs=102, safety=394, alternatives=285, prescriptions=239, media=0
+catalog_activate    -> exercise-catalog-v2.0.1-final ACTIVE (exercises=102, safety_rules=394)
+```
+
+적재 후 행 수는 작업 전과 같다: goal_tag_links 204, prescription_profiles 274,
+safety_rules 1142, alternatives 808.
+
+> 이건 도구 밖에서 감사 필드를 직접 고친 것이다. "버전 코드 하나 = 해시 하나" 불변식을
+> 문자 그대로는 어겼다(데이터는 그대로이고 provenance만 바뀐 경우라 실질 위반은 아니다).
+> 같은 일이 또 생기면 임포터에 교체 경로를 넣는 쪽이 옳다 — 아래 후속 참고.
+
+### 6단계
+
+기준값과 정확히 일치했다.
+
+```
+candidates=56  warmup=17 main=22 cooldown=17
+10min -> target=600s total=600s error=0s
+```
+
+15·20·30·45분도 오차 0초. 60분은 `RoutineDurationUnavailableError` — 승인 풀로 도달할 수
+없을 때 조용히 줄이지 않고 실패하는 불변식이 의도대로 동작한다.
+
+### 후속 (이번 PR 범위 밖)
+
+1. **임포터에 파생 세트 교체 경로가 없다.** 이미 적재된 카탈로그의 처방 세트를 새 버전으로
+   갈아끼울 방법이 없어서 이번에 메타데이터를 직접 고쳐야 했다. backend owner 영역
+   (`repositories/catalog.py`, `modules/catalog/service.py`)이라 별도 이슈가 필요하다.
+2. **`sync_gymvisual_media.py`의 기본 경로가 `v2.0.0-final`을 가리킨다.** 미디어 매핑은
+   대표 운동 ID로만 이뤄지고 v2.0.1은 v2.0.0과 `beginner_suitable` 한 컬럼만 다르므로
+   산출물은 같다. 그래서 이번엔 건드리지 않았다.
+3. `build_v2_prescription_review_input.py`, `validate_v2_backend_bundle.py`,
+   `tests/test_v2_prescription_pipeline.py`의 기본 경로도 v2.0.0인데, 이 브랜치 이전부터
+   그랬고 인자로 덮어쓰는 용도라 그대로 뒀다.
