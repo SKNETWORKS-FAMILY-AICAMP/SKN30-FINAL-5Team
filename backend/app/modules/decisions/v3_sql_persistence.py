@@ -29,7 +29,10 @@ from backend.app.db.repositories.v3_decision import (
     V3DecisionRepository,
 )
 from backend.app.domain.agents.v3_persistence import (
+    PERSISTENCE_BUNDLE_SCHEMA_VERSION,
     V3DecisionPersistenceBundle,
+    V3PersistenceError,
+    V3PersistenceFailureCode,
     V3RootSnapshotPersistence,
 )
 
@@ -336,6 +339,15 @@ class V3SqlAlchemyPersistenceAdapter:
         payload = run.coordinator_result.get("v3_persistence_bundle")
         if not isinstance(payload, dict):
             return None
+        # The bundle model forbids extra fields, so a payload written under an
+        # earlier schema fails validation rather than reporting its version.
+        # Reading the stored version first turns that into the documented
+        # failure code instead of a ValidationError escaping the repository.
+        # Returning None is not an option: the caller cannot distinguish it
+        # from a missing row, and persist() would treat the row as absent and
+        # write a duplicate.
+        if payload.get("schema_version") != PERSISTENCE_BUNDLE_SCHEMA_VERSION:
+            raise V3PersistenceError(V3PersistenceFailureCode.UNSUPPORTED_SCHEMA_VERSION)
         # Strict frozen domain models intentionally reject Python lists for
         # tuple fields. JSON-mode validation is the canonical DB replay path.
         return V3DecisionPersistenceBundle.model_validate_json(

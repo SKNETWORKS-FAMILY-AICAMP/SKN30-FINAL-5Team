@@ -8,7 +8,11 @@ from uuid import UUID, uuid4
 import pytest
 
 from backend.app.domain.agents.v3_orchestration import GraphTerminalStatusCode
-from backend.app.domain.agents.v3_persistence import V3DecisionPersistenceBundle
+from backend.app.domain.agents.v3_persistence import (
+    V3DecisionPersistenceBundle,
+    V3PersistenceError,
+    V3PersistenceFailureCode,
+)
 from backend.app.modules.decisions.v3_regeneration import (
     V3DecisionEngineCode,
     V3DecisionNotFoundError,
@@ -16,6 +20,7 @@ from backend.app.modules.decisions.v3_regeneration import (
     V3IdempotencyKeyReusedError,
     V3NoAlternativeAvailableError,
     V3RegenerationCommand,
+    V3RegenerationContextStaleError,
     V3RegenerationIdempotencyRecord,
     V3RegenerationLimitReachedError,
     V3RegenerationService,
@@ -217,3 +222,21 @@ def test_exact_duplicate_is_rejected_without_partial_persistence():
         asyncio.run(service(current, runtime, persistence).regenerate(command(current)))
     assert persistence.persisted == []
     assert persistence.idempotency == {}
+
+
+class _LegacyBundlePersistence(FakePersistence):
+    """A store whose bundle predates the current persistence schema."""
+
+    def lock_regeneration_source(self, *, user_id, decision_id):
+        raise V3PersistenceError(V3PersistenceFailureCode.UNSUPPORTED_SCHEMA_VERSION)
+
+
+def test_a_decision_stored_under_an_older_schema_reports_a_stale_context() -> None:
+    # Removing fields from the bundle without moving its schema version made
+    # every earlier decision unreadable, and the resulting error escaped the
+    # service as an unhandled RuntimeError instead of an API failure code.
+    current = source()
+    regeneration = service(current, FakeRuntime(current), _LegacyBundlePersistence(current))
+
+    with pytest.raises(V3RegenerationContextStaleError):
+        asyncio.run(regeneration.regenerate(command(current)))
