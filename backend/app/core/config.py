@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     llm_agents_enabled: bool = False
     llm_agents_provider_code: str = "UNCONFIGURED"
     llm_agents_model_code: str = "unconfigured"
+    # These defaults suit a fast completion model. A reasoning model needs both
+    # raised or every specialist call fails: measured output was 2,375-2,893
+    # tokens for training and 2,047-2,913 for the coordinator. Deployments that
+    # enable the LLM agents must set them explicitly.
     llm_agents_timeout_seconds: float = 5.0
     llm_agents_max_attempts: int = 2
     llm_agents_max_output_tokens: int = 1200
@@ -247,8 +251,13 @@ class Settings(BaseSettings):
     @field_validator("llm_agents_timeout_seconds")
     @classmethod
     def validate_llm_agents_timeout_seconds(cls, value: float) -> float:
-        if not 0 < value <= 30:
-            raise ValueError("LLM_AGENTS_TIMEOUT_SECONDS must be within (0, 30]")
+        # The bound also becomes the provider client timeout, so it has to cover
+        # one whole call rather than only bound the graph node. Measured against
+        # a 38-exercise pool on gpt-5.6-terra, the slowest role (training) took
+        # 17.2-23.5s and the coordinator 11.4-21.5s; a 30s ceiling left so little
+        # headroom that ordinary variance was reported as a provider outage.
+        if not 0 < value <= 60:
+            raise ValueError("LLM_AGENTS_TIMEOUT_SECONDS must be within (0, 60]")
         return value
 
     @field_validator("llm_agents_max_attempts")

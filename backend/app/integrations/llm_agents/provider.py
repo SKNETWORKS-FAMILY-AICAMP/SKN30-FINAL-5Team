@@ -72,6 +72,33 @@ def _provider_output_model(
     )
 
 
+def _is_provider_timeout(error: BaseException) -> bool:
+    """Tell a call that ran out of time apart from a provider that was down.
+
+    The configured bound is handed to the provider client as its own request
+    timeout, so exceeding it raises inside the SDK rather than as a Python
+    ``TimeoutError``. Provider SDKs give their timeout types no shared base
+    class, and this boundary deliberately imports no provider package, so the
+    type name is what is left to match on. Misreading a slow call as an outage
+    hid a bound that was simply set too low.
+    """
+
+    if isinstance(error, TimeoutError):
+        return True
+    return any("timeout" in type(item).__name__.casefold() for item in _error_chain(error))
+
+
+def _error_chain(error: BaseException) -> tuple[BaseException, ...]:
+    chain: list[BaseException] = []
+    seen: set[int] = set()
+    current: BaseException | None = error
+    while current is not None and id(current) not in seen:
+        chain.append(current)
+        seen.add(id(current))
+        current = current.__cause__ or current.__context__
+    return tuple(chain)
+
+
 def _canonical_output(
     parsed_payload: object,
     *,
@@ -175,10 +202,12 @@ class StructuredChatInvoker:
                 )
             except (OutputParserException, ValidationError, TypeError, ValueError):
                 failure_code = LlmAgentFailureCode.SCHEMA_INVALID
-            except TimeoutError:
-                failure_code = LlmAgentFailureCode.PROVIDER_TIMEOUT
-            except Exception:  # external provider exceptions have no neutral hierarchy
-                failure_code = LlmAgentFailureCode.PROVIDER_UNAVAILABLE
+            except Exception as error:  # provider exceptions have no neutral hierarchy
+                failure_code = (
+                    LlmAgentFailureCode.PROVIDER_TIMEOUT
+                    if _is_provider_timeout(error)
+                    else LlmAgentFailureCode.PROVIDER_UNAVAILABLE
+                )
             else:
                 latency_ms = max(0, (time.monotonic_ns() - started_ns) // 1_000_000)
                 input_tokens, output_tokens, usage_present = _validated_usage(raw_message)
@@ -282,10 +311,12 @@ class StructuredChatInvoker:
                 )
             except (OutputParserException, ValidationError, TypeError, ValueError):
                 failure_code = LlmAgentFailureCode.SCHEMA_INVALID
-            except TimeoutError:
-                failure_code = LlmAgentFailureCode.PROVIDER_TIMEOUT
-            except Exception:
-                failure_code = LlmAgentFailureCode.PROVIDER_UNAVAILABLE
+            except Exception as error:  # provider exceptions have no neutral hierarchy
+                failure_code = (
+                    LlmAgentFailureCode.PROVIDER_TIMEOUT
+                    if _is_provider_timeout(error)
+                    else LlmAgentFailureCode.PROVIDER_UNAVAILABLE
+                )
             else:
                 latency_ms = max(0, (time.monotonic_ns() - started_ns) // 1_000_000)
                 input_tokens, output_tokens, usage_present = _validated_usage(raw_message)

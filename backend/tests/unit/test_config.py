@@ -174,3 +174,18 @@ def test_embedding_timeout_is_bounded() -> None:
         Settings(_env_file=None, embedding_timeout_seconds=0)
     with pytest.raises(ValidationError, match="EMBEDDING_TIMEOUT_SECONDS"):
         Settings(_env_file=None, embedding_timeout_seconds=121)
+
+
+def test_agent_timeout_covers_a_measured_reasoning_model_call() -> None:
+    # The bound is also handed to the provider client, so it has to cover a
+    # whole call. Staging measured 17.2-23.5s for the slowest specialist against
+    # a 38-exercise pool, and a 30s ceiling left no room for ordinary variance.
+    assert Settings(llm_agents_timeout_seconds=45.0).llm_agents_timeout_seconds == 45.0
+    assert Settings(llm_agents_timeout_seconds=60.0).llm_agents_timeout_seconds == 60.0
+
+
+def test_agent_timeout_still_has_an_upper_bound() -> None:
+    with pytest.raises(ValidationError, match=r"must be within \(0, 60\]"):
+        Settings(llm_agents_timeout_seconds=61.0)
+    with pytest.raises(ValidationError, match=r"must be within \(0, 60\]"):
+        Settings(llm_agents_timeout_seconds=0)

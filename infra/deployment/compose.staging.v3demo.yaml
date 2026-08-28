@@ -31,6 +31,14 @@ services:
       LLM_AGENTS_MODEL_CODE: gpt-5.6-terra
       # Must be unique and canonically sorted, and must contain the code above.
       LLM_AGENTS_APPROVED_MODEL_CODES: '["gpt-5.6-terra"]'
+      # The shipped defaults (5s, 1200 tokens) suit a fast completion model and
+      # make every call fail with this one. Measured on staging against a
+      # 38-exercise pool: training 17.2-23.5s at 2,375-2,893 output tokens and
+      # the coordinator 11.4-21.5s at 2,047-2,913. The timeout is also handed to
+      # the provider client, so it has to cover a whole call, not just bound the
+      # graph node.
+      LLM_AGENTS_TIMEOUT_SECONDS: "60"
+      LLM_AGENTS_MAX_OUTPUT_TOKENS: "4000"
       # Narration (ADR-0011) stays off; the code is aligned so that enabling it
       # later does not introduce a second model. Narration never changes a
       # decision, a safety status or a veto.
