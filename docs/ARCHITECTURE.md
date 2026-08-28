@@ -7,8 +7,8 @@
 멀티 에이전트 핵심 흐름은 Training·Recovery·Safety·Feasibility 네 proposal의 병렬 실행과 Coordinator 최종 결정으로 확정한다. 에이전트 내부 상세 흐름과 공개 요약 필드는 증상 사용자 시나리오 검증 결과에 따라 추후 보완할 수 있다. 독립적인 최종 Safety 재검사는 현재 범위에 포함하지 않는다.
 
 ADR-0012는 이 활성 흐름 사이에 결정적 conflict detection과 최대 한 번의 구조화 review를 넣는
-V2 목표를 채택한다. A2 기준 구현과 필수 검증이 병합되기 전까지 production 기준은 ADR-0007의
-현재 단일 proposal 흐름이며, ADR 승인을 V2 구현 완료로 간주하지 않는다.
+V2 목표를 채택했으나, 2026-08-28 ADR-0015로 `SUPERSEDED`가 됐다. 해당 흐름은 production 경로로
+구현된 적이 없고 V3에서도 제거된다. 아래 4.1절은 당시 목표 기록으로 보존한다.
 
 ADR-0013은 Safety를 결정적 정책 엔진으로 선행하고 Training·Recovery·Feasibility와 Coordinator를
 LLM Agent로 전환하며 LangChain·LangGraph를 도입하는 V3 목표 계약으로 `ACCEPTED`되었다. 구현·비교
@@ -87,7 +87,10 @@ flowchart TD
 
 MVP에서는 Training·Recovery·Safety·Feasibility 네 proposal Agent를 병렬 실행하고 Coordinator가 의견과 우선순위를 종합해 최종 운동 계획을 결정한다. 네 proposal 중 하나라도 누락되거나 `FAILED`이면 결정 실행은 `FAILED`이며 운동 계획을 성공 응답하지 않는다. 독립적인 Safety 최종 재검사는 현재 범위에 포함하지 않는다.
 
-### 4.1 승인된 V2 목표 — bounded structured deliberation
+### 4.1 (SUPERSEDED) V2 목표 — bounded structured deliberation
+
+> ADR-0015(2026-08-28)로 대체됐다. 이 절의 conflict detector와 Round 2 review는 현행 계약이 아니다.
+> 결정 기록으로만 보존한다.
 
 ADR-0012에 따라 다음 목표 흐름을 A2의 framework-independent domain core로 먼저 검증한다.
 
@@ -124,15 +127,12 @@ flowchart TD
   PV --> EP["ExercisePoolSnapshot"]
   Q -. "장애/version mismatch" .-> DF["Deterministic pool fallback"]
   DF --> PV
-  EP --> T["LangChain Training LLM Agent"]
-  EP --> R["LangChain Recovery LLM Agent"]
-  EP --> F["LangChain Feasibility LLM Agent"]
-  T --> C["Deterministic conflict detector"]
-  R --> C
-  F --> C
-  C -->|"conflict"| RV["영향 Agent 최대 1회 병렬 review"]
-  C -->|"no conflict"| CO["LLM Coordinator"]
-  RV --> CO
+  EP --> T["LangChain Training LLM Agent<br/>운동 계획 초안"]
+  EP --> R["LangChain Recovery LLM Agent<br/>조정 코드"]
+  EP --> F["LangChain Feasibility LLM Agent<br/>조정 코드"]
+  T --> CO["LLM Coordinator"]
+  R --> CO
+  F --> CO
   CO --> PC["Deterministic Plan Compiler"]
   PC --> V["Constraint integrity validator"]
   V -->|"pass"| P["원자적 저장 후 단일 추천 반환"]
@@ -143,8 +143,14 @@ flowchart TD
 - LangGraph는 위 node·conditional edge·fan-out/fan-in과 bounded repair를 orchestration한다.
 - LangChain은 세 전문 Agent와 Coordinator의 provider adapter, prompt, Pydantic structured output을
   담당한다.
-- SafetyPolicyEngine, constraint builder, conflict detector, compiler와 validator는 framework와
-  provider에 독립적인 Python/Pydantic domain core다.
+- SafetyPolicyEngine, constraint builder, compiler와 validator는 framework와 provider에 독립적인
+  Python/Pydantic domain core다.
+- ADR-0015에 따라 Training만 운동 계획을 만든다. Recovery와 Feasibility는 조정 코드로 관점을
+  제공하며 이는 Coordinator에 대한 권고이지 결정론적 강제가 아니다. 안전은 `ConstraintEnvelope`와
+  integrity validator가 강제하므로 두 Agent의 응답 여부가 안전 판정을 바꾸지 않는다.
+- Coordinator 출력에 대한 결정론적 검사는 integrity validator 하나다. 상류에 중복 관문을 두지
+  않는다. 검사 대상이 proposal이 아니라 컴파일된 계획이므로 Coordinator가 무엇을 하든 사용자에게
+  나가는 산출물이 envelope를 벗어날 수 없다.
 - application loader가 PostgreSQL에서 승인된 eligible/mandatory 운동 ID를 결정적으로 먼저 계산한다.
   ADR-0014에 따라 별도 Qdrant derived index는 eligible 범위 안의 순위·다양성만 정하고, 결과를 같은
   catalog version의 PostgreSQL에서 다시 조회·검증한 뒤 canonical `ExercisePoolSnapshot`을 고정한다.
@@ -253,11 +259,12 @@ flowchart LR
 
 - PostgreSQL이 단일 진실 공급원이다.
 - decision run, 네 proposal, 후보, Safety 평가, Coordinator 결정 결과를 분리 저장한다.
-- V2 목표는 conflict detector 결과, `NOT_REQUIRED`를 포함한 review event와 revised proposal을
-  Coordinator 결과와 분리해 additive하게 저장한다. 물리 schema는 별도 migration 승인이 필요하다.
+- V2 목표의 conflict/review 저장은 ADR-0015로 폐기됐다. `decision_deliberations`,
+  `agent_review_events`, `agent_proposal_revisions`는 쓰기를 중단하되 같은 릴리스에서 삭제하지
+  않는다(AGENTS.md 10절).
 - V3 목표는 ConstraintEnvelope, ExercisePoolSnapshot, 세 LLM proposal, model/prompt/output schema
-  version, conflict/review, Coordinator initial/repair attempt, compiler/validator 결과와 regeneration
-  lineage를 분리 저장한다.
+  version, Coordinator initial/repair attempt, compiler/validator 결과와 regeneration lineage를
+  분리 저장한다.
 - ADR-0014에 따라 V3 목표는 catalog, collection, vector index, embedding model, query, retrieval
   request/result와 deterministic fallback version을 PostgreSQL에 함께 저장한다. Qdrant는 canonical
   decision 기록이 아니다.
@@ -298,8 +305,8 @@ adapter → stateless V3LangGraphRuntime` 순서로만 조립하며 immutable sy
 provider 호출은 public regeneration gate와 독립적인 `V3_SHADOW_EVALUATION_ENABLED` 및 모든 V3/LLM
 server gate, 승인 model allowlist, 실행 도구의 명시적 provider-call opt-in을 모두 요구한다. 결과는
 schema-versioned identifier-free JSONL로 `outputs/v3-shadow/**` 아래에만 기록한다. graph의 additive
-audit result는 Round 1 proposal, conflict/review, Coordinator initial/repair, compilation, validation,
-fallback과 invocation metric을 보존하지만 raw prompt/response와 provider exception은 보존하지 않는다.
+audit result는 세 proposal, Coordinator initial/repair, compilation, validation, fallback과
+invocation metric을 보존하지만 raw prompt/response와 provider exception은 보존하지 않는다.
 이 경로는 synthetic/offline·staging 평가 전용이며 public V1/V2 응답을 변경하지 않는다.
 
 ## 12. 로컬 및 MVP 배포
@@ -312,8 +319,8 @@ MVP 배포는 관리형 PostgreSQL 하나와 컨테이너 또는 단일 애플�
 
 - 에이전트 마이크로서비스: 작은 팀에서 배포·인증·추적 비용이 크다.
 - V1/V2의 LangGraph 기본 도입: 현재 production 흐름에는 필요하지 않다. ADR-0013 V3는 병렬
-  fan-out/fan-in, 조건부 review, bounded repair와 regeneration 재진입 때문에 LangGraph runtime을
-  제안하되 persistent checkpointer는 별도 승인 전까지 사용하지 않는다.
+  fan-out/fan-in, bounded repair와 regeneration 재진입 때문에 LangGraph runtime을 제안하되
+  persistent checkpointer는 별도 승인 전까지 사용하지 않는다.
 - Redis/Celery/scheduler: 요청 시 리포트와 동기 결정에 필요하지 않다.
 - 벡터 DB/RAG: 검수된 정규화 카탈로그 조회 문제에 맞지 않는다.
 - 이벤트 소싱: 감사 요구를 충족하는 명시적 기록 테이블보다 복잡하다.

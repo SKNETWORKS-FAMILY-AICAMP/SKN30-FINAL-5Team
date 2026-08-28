@@ -6,8 +6,19 @@
 - 승인자: 개발팀장 + 백엔드 owner + PM + 외부 도메인 검수자 + 프론트엔드 owner(API)
 - 관계: ADR-0007의 네 proposal·결정적 Coordinator 구조와 ADR-0012의 narration-only·LangGraph
   보류 결정을 V3 목표 계약에서 대체하고, ADR-0011의 안전 문구·provider adapter 경계는 유지.
-  ACCEPTED ADR-0014는 `ExercisePoolSnapshot` 생성의 Vector retrieval 세부 계약을 추가
+  ACCEPTED ADR-0014는 `ExercisePoolSnapshot` 생성의 Vector retrieval 세부 계약을 추가.
+  ACCEPTED ADR-0015가 아래 1절의 6·7단계(충돌 감지와 round 2 review)와 conflict detector 권한을 대체
 - 관련 요구사항/이슈: `F002`, `F029`, `POL-008`, `NFR-003`, `NFR-006`, `TASK-AGENT-003`
+
+> **부분 대체 (2026-08-28, ADR-0015)**
+>
+> 1절 실행 순서의 6단계(결정적 conflict detector)와 7단계(영향 Agent 1회 재검토)는 제거됐다.
+> 2절 권한표의 `Conflict detector` 행도 더 이상 유효하지 않다. 세 Agent의 응답은 Coordinator로
+> 직접 들어가며, Coordinator 출력에 대한 결정론적 검사는 integrity validator 하나다.
+> Training만 계획을 만들고 Recovery·Feasibility는 조정 코드로 권고한다.
+>
+> Safety-first 순서, Agent/Coordinator의 DB 접근 금지, LLM이 안전 기준을 만들 수 없다는 경계는
+> 그대로 유효하다.
 
 ## 배경
 

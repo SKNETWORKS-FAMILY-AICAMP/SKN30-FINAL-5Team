@@ -6,9 +6,9 @@
 
 멀티 에이전트 핵심 흐름은 Training·Recovery·Safety·Feasibility 네 proposal의 병렬 실행과 Coordinator 최종 결정으로 확정한다. 에이전트 구현의 상세 필드·공개 요약은 증상 사용자 시나리오 검증 결과에 따라 추후 보완할 수 있다.
 
-ADR-0012는 결정적 conflict detection과 조건부 Round 2 review를 추가하는 V2 목표를 승인했다.
-A2 기준 구현과 필수 검증이 병합되기 전까지 아래 확정 기술과 production 동작은 현재 V1을
-기준으로 한다.
+ADR-0012는 결정적 conflict detection과 조건부 Round 2 review를 추가하는 V2 목표를 승인했으나
+2026-08-28 ADR-0015로 `SUPERSEDED`가 됐다. 해당 흐름은 production 경로로 구현되지 않았고 V3에서도
+제거된다. 아래 확정 기술과 production 동작은 현재 V1을 기준으로 한다.
 
 ADR-0013은 LangChain structured LLM Agent와 LangGraph orchestration을 사용하는 V3 목표 계약으로
 `ACCEPTED`되었다. dependency 검토·구현·shadow 평가와 production 전환 승인 전에는 현재 production
@@ -37,9 +37,9 @@ Python package manager는 기반 구현에서 `uv`로 결정하고 `uv.lock`을 
 - 백엔드는 모듈형 모놀리스다.
 - API request 안에서 결정 파이프라인을 동기 실행한다.
 - Training·Recovery·Safety·Feasibility proposal 에이전트는 Python/Pydantic 기반 논리 모듈이며 MVP에서는 병렬 실행한다. Coordinator는 네 proposal을 취합하는 의장 모듈이다.
-- V2 목표도 Python/Pydantic domain core가 Round 1, conflict detector, 최대 한 번의 구조화 review,
-  constraint integrity validator와 Coordinator를 소유한다. application service는 정규화 tool/port
-  결과를 조립하고 domain은 DB·외부 provider를 직접 호출하지 않는다.
+- Python/Pydantic domain core가 proposal 계약, integrity validator와 Coordinator 계약을 소유한다.
+  application service는 정규화 tool/port 결과를 조립하고 domain은 DB·외부 provider를 직접 호출하지
+  않는다. ADR-0015로 conflict detector와 review 단계는 제거됐다.
 - PostgreSQL이 사용자·결정·주간 리포트의 단일 진실 공급원이다.
 - 안전·통증 제외·시간·복귀·후보 선택은 결정적 Python 규칙이다.
 - 요청 시간은 사용자가 명시적으로 변경하지 않는 한 유지하고, 다운시프트는 강도·부하·세트·반복·운동 유형·휴식 구성을 조정한다.
@@ -212,14 +212,13 @@ V3 typed graph state의 최소 필드는 다음이다.
 - deterministic eligible/mandatory exercise ID, `ExerciseRetrievalRequest/Result`, collection/index/
   embedding/query/fallback version과 retrieval failure code
 - generation mode, regeneration root/sequence와 이전 plan signature
-- 세 Round 1 proposal과 invocation metadata
-- conflict code, review target와 optional revised proposal
+- 세 proposal과 invocation metadata
 - Coordinator initial/repair output와 attempt
 - compiled plan, integrity validation result와 fallback metadata
 
 LangGraph node 구성은 `load_context -> safety_constraints -> deterministic_pool_filter ->
-vector_rank -> postgres_revalidate -> build_exercise_pool -> parallel_agents -> detect_conflicts ->
-optional_reviews -> coordinator -> compile -> validate -> persist`다. Qdrant 장애·stale/version mismatch는
+vector_rank -> postgres_revalidate -> build_exercise_pool -> parallel_agents -> coordinator ->
+compile -> validate -> persist`다(ADR-0015). Qdrant 장애·stale/version mismatch는
 `vector_rank`에서 deterministic pool fallback으로 `postgres_revalidate`에 합류한다. validate의
 repairable edge는 Coordinator로 한 번만 돌아가며 non-repairable edge는 fallback 또는 계획 없는 종료로
 간다. regeneration은 저장된 snapshot·envelope·pool의 freshness를 확인한 뒤 `parallel_agents` 앞에서
