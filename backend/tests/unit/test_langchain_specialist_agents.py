@@ -250,6 +250,11 @@ def test_second_schema_failure_returns_canonical_failure() -> None:
     ("failure_kind", "expected_code"),
     [
         ("timeout", LlmAgentFailureCode.PROVIDER_TIMEOUT),
+        # A provider SDK raises its own timeout type. Reading that as an outage
+        # hid a bound that was set too low: staging reported
+        # LLM_AGENT_PROVIDER_UNAVAILABLE at exactly the configured 30 seconds.
+        ("sdk_timeout", LlmAgentFailureCode.PROVIDER_TIMEOUT),
+        ("wrapped_sdk_timeout", LlmAgentFailureCode.PROVIDER_TIMEOUT),
         ("unavailable", LlmAgentFailureCode.PROVIDER_UNAVAILABLE),
     ],
 )
