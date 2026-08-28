@@ -97,32 +97,29 @@ def test_pool_safety_and_recovery_conflicts_are_canonical() -> None:
     assert result.review_target_agent_types == (SpecialistAgentTypeCode.TRAINING,)
 
 
-def test_location_equipment_and_structured_plan_disagreement_are_detected() -> None:
+def test_training_location_and_equipment_conflicts_are_detected_without_plan_disagreement() -> None:
     current_envelope = envelope()
     current_pool = pool(current_envelope)
     canonical = proposals(current_envelope, current_pool)
     disallowed = prescription(A, 1).model_copy(
         update={"location_code": "GYM", "equipment_codes": ("DUMBBELL",)}
     )
-    feasibility = proposal(
-        SpecialistAgentTypeCode.FEASIBILITY,
+    training = proposal(
+        SpecialistAgentTypeCode.TRAINING,
         current_envelope,
         current_pool,
         prescriptions=(disallowed,),
     )
 
     result = detect_proposal_conflicts(
-        (canonical[0], canonical[1], feasibility), current_envelope, current_pool
+        (training, canonical[1], canonical[2]), current_envelope, current_pool
     )
     codes = {item.code for item in result.violations}
 
     assert ConflictCode.LOCATION_NOT_ALLOWED in codes
     assert ConflictCode.EQUIPMENT_NOT_AVAILABLE in codes
-    assert ConflictCode.STRUCTURED_PROPOSALS_INCOMPATIBLE in codes
-    assert result.review_target_agent_types == (
-        SpecialistAgentTypeCode.TRAINING,
-        SpecialistAgentTypeCode.FEASIBILITY,
-    )
+    assert ConflictCode.STRUCTURED_PROPOSALS_INCOMPATIBLE not in codes
+    assert result.review_target_agent_types == (SpecialistAgentTypeCode.TRAINING,)
 
 
 def test_only_affected_agent_is_reviewed_once_and_hard_constraints_are_preserved() -> None:

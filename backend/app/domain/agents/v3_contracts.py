@@ -452,6 +452,15 @@ class SpecialistAgentProposal(BaseModel):
 
     @model_validator(mode="after")
     def validate_proposal(self) -> Self:
+        if (
+            self.agent_type_code
+            in {
+                SpecialistAgentTypeCode.RECOVERY,
+                SpecialistAgentTypeCode.FEASIBILITY,
+            }
+            and self.exercise_prescriptions
+        ):
+            raise ValueError("only TRAINING proposals may include exercise_prescriptions")
         if self.proposal_status_code is V3ProposalStatusCode.READY:
             expected_seconds = self.requested_duration_minutes * 60
             if self.estimated_duration_seconds != expected_seconds:
