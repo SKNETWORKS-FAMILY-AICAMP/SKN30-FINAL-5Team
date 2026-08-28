@@ -13,17 +13,11 @@ from backend.app.domain.agents.v3_compiler import (
     DeterministicFallbackPlanSpec,
     compile_plan,
 )
-from backend.app.domain.agents.v3_conflicts import (
-    AgentReviewResult,
-    ConflictCode,
-    ConflictDetectionResult,
-)
 from backend.app.domain.agents.v3_contracts import (
     SPECIALIST_AGENT_ORDER,
     ConstraintEnvelope,
     PlanSpec,
     SpecialistAgentProposal,
-    SpecialistAgentTypeCode,
     _canonical_codes,
     _canonical_hash,
     _hash_value,
@@ -413,9 +407,6 @@ class V3GraphResult(BaseModel):
     envelope_hash: str
     pool_hash: str
     round_one_proposals: tuple[SpecialistAgentProposal, ...]
-    conflict_codes: tuple[ConflictCode, ...]
-    review_target_agent_types: tuple[SpecialistAgentTypeCode, ...]
-    review_results: tuple[AgentReviewResult, ...]
     coordinator_initial_plan: PlanSpec | None
     coordinator_repair_plan: PlanSpec | None
     compiled_plan: CompiledPlan | None
@@ -431,15 +422,6 @@ class V3GraphResult(BaseModel):
     @classmethod
     def validate_hash(cls, value: str) -> str:
         return _hash_value(value, field_name="graph result hash")
-
-    @field_validator("review_target_agent_types")
-    @classmethod
-    def validate_review_targets(
-        cls, values: tuple[SpecialistAgentTypeCode, ...]
-    ) -> tuple[SpecialistAgentTypeCode, ...]:
-        if values != tuple(role for role in SPECIALIST_AGENT_ORDER if role in set(values)):
-            raise ValueError("review targets must be unique and canonical")
-        return values
 
     @field_validator("integrity_violation_codes")
     @classmethod
@@ -465,22 +447,6 @@ class V3GraphResult(BaseModel):
             for proposal in self.round_one_proposals
         ):
             raise ValueError("Round 1 proposals must reference the graph envelope and pool")
-        if self.conflict_codes != tuple(
-            code for code in ConflictCode if code in set(self.conflict_codes)
-        ):
-            raise ValueError("conflict codes must be unique and canonical")
-        expected_review_roles = tuple(item.agent_type_code for item in self.review_results)
-        if expected_review_roles != self.review_target_agent_types:
-            raise ValueError("review results must match canonical review targets")
-        if any(
-            review.revised_proposal is not None
-            and (
-                review.revised_proposal.envelope_hash != self.envelope_hash
-                or review.revised_proposal.pool_hash != self.pool_hash
-            )
-            for review in self.review_results
-        ):
-            raise ValueError("review proposals must preserve graph envelope and pool hashes")
         if (
             self.coordinator_initial_plan is not None
             and self.coordinator_initial_plan.repair_attempt != 0
@@ -542,14 +508,6 @@ class V3GraphResult(BaseModel):
         return cls.model_validate(payload)
 
 
-def graph_result_conflicts(
-    conflicts: ConflictDetectionResult,
-) -> tuple[ConflictCode, ...]:
-    return tuple(
-        code for code in ConflictCode if code in {item.code for item in conflicts.violations}
-    )
-
-
 __all__ = [
     "FALLBACK_OUTCOME_SCHEMA_VERSION",
     "FALLBACK_REQUEST_SCHEMA_VERSION",
@@ -567,6 +525,5 @@ __all__ = [
     "V3GraphResult",
     "evaluate_regeneration_difference",
     "execute_deterministic_fallback",
-    "graph_result_conflicts",
     "route_after_integrity_validation",
 ]

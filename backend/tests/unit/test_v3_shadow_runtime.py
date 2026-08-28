@@ -58,7 +58,7 @@ def _request(current_envelope) -> V3ShadowExecutionRequest:
     )
     return V3ShadowExecutionRequest(
         case=case,
-        graph_version="v3-langgraph-shadow-v1",
+        graph_version="v3-langgraph-shadow-v2",
         policy_version=current_envelope.policy_version,
         catalog_version=current_envelope.catalog_version,
         prompt_version="v3-prompts-v1",

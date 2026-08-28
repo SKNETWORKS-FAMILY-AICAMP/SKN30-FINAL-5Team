@@ -53,7 +53,7 @@ class CountingRunner:
         payload = result.model_dump(exclude={"result_hash"})
         payload.update(
             {
-                "graph_version": "v3-langgraph-shadow-v1",
+                "graph_version": "v3-langgraph-shadow-v2",
                 "provider_code": "OPENAI",
                 "model_version": "approved-model-v1",
                 "invocation_metrics": metrics,

@@ -6,7 +6,6 @@ from pydantic import ValidationError
 
 from backend.app.domain.agents.retrieval import ExercisePoolSnapshot
 from backend.app.domain.agents.v3_compiler import DeterministicFallbackPlanSpec, compile_plan
-from backend.app.domain.agents.v3_conflicts import detect_proposal_conflicts
 from backend.app.domain.agents.v3_contracts import (
     ConstraintEnvelope,
     PlanActionCode,
@@ -18,7 +17,6 @@ from backend.app.domain.agents.v3_orchestration import (
     OrchestrationRouteCode,
     V3GraphResult,
     execute_deterministic_fallback,
-    graph_result_conflicts,
     route_after_integrity_validation,
 )
 from backend.app.domain.agents.v3_validation import (
@@ -175,7 +173,6 @@ def test_completed_graph_result_is_canonical_and_hash_stable() -> None:
     current_envelope = envelope()
     current_pool = pool(current_envelope)
     current_proposals = proposals(current_envelope, current_pool)
-    conflicts = detect_proposal_conflicts(current_proposals, current_envelope, current_pool)
     current_input = coordinator_input(current_envelope, current_pool)
     current_plan = plan(current_input)
     compiled = compile_plan(
@@ -194,14 +191,11 @@ def test_completed_graph_result_is_canonical_and_hash_stable() -> None:
         context=IntegrityValidationContext(approved_safe_alternative_ids=(B,)),
     )
     values = dict(
-        graph_version="v3-orchestration-domain-v1",
+        graph_version="v3-orchestration-domain-v2",
         terminal_status_code=GraphTerminalStatusCode.COMPLETED,
         envelope_hash=current_envelope.envelope_hash,
         pool_hash=current_pool.pool_hash,
         round_one_proposals=current_proposals,
-        conflict_codes=graph_result_conflicts(conflicts),
-        review_target_agent_types=(),
-        review_results=(),
         coordinator_initial_plan=current_plan,
         compiled_plan=compiled,
         integrity_violation_codes=tuple(item.code for item in validation.violations),
@@ -220,14 +214,11 @@ def test_graph_result_rejects_sensitive_extra_fields() -> None:
         V3GraphResult.model_validate(
             {
                 "schema_version": "v3-graph-result-v1",
-                "graph_version": "v3-orchestration-domain-v1",
+                "graph_version": "v3-orchestration-domain-v2",
                 "terminal_status_code": GraphTerminalStatusCode.FAILED,
                 "envelope_hash": "a" * 64,
                 "pool_hash": "b" * 64,
                 "round_one_proposals": (),
-                "conflict_codes": (),
-                "review_target_agent_types": (),
-                "review_results": (),
                 "coordinator_initial_plan": None,
                 "coordinator_repair_plan": None,
                 "compiled_plan": None,
@@ -246,11 +237,18 @@ def test_graph_result_rejects_sensitive_extra_fields() -> None:
         )
 
 
+def test_graph_result_contract_has_no_conflict_or_review_artifacts() -> None:
+    assert {
+        "conflict_codes",
+        "review_target_agent_types",
+        "review_results",
+    }.isdisjoint(V3GraphResult.model_fields)
+
+
 def test_v3_domain_modules_have_no_framework_or_infrastructure_imports() -> None:
     module_dir = Path(__file__).parents[2] / "app" / "domain" / "agents"
     forbidden = {"fastapi", "langchain", "langgraph", "qdrant_client", "sqlalchemy"}
     for name in (
-        "v3_conflicts.py",
         "v3_compiler.py",
         "v3_validation.py",
         "v3_orchestration.py",

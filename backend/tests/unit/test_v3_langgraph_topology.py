@@ -15,8 +15,6 @@ def test_graph_has_required_bounded_topology_without_persistence() -> None:
     assert {
         "validate_entry",
         "parallel_agents",
-        "detect_conflicts",
-        "optional_reviews",
         "coordinator_initial",
         "compile",
         "validate",
@@ -26,6 +24,18 @@ def test_graph_has_required_bounded_topology_without_persistence() -> None:
         "fallback",
         "finalize",
     }.issubset(drawable.nodes)
+    removed_nodes = {
+        "detect_conflicts",
+        "optional_reviews",
+        "review_training",
+        "review_recovery",
+        "review_feasibility",
+        "finalize_reviews",
+    }
+    assert removed_nodes.isdisjoint(drawable.nodes)
+    assert ("canonicalize_agents", "coordinator_initial") in {
+        (edge.source, edge.target) for edge in drawable.edges
+    }
     assert graph.checkpointer is False
     assert graph.store is None
 

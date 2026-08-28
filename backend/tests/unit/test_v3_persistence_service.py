@@ -15,7 +15,6 @@ from backend.app.domain.agents.retrieval import (
     RetrievalStatusCode,
 )
 from backend.app.domain.agents.v3_compiler import compile_plan
-from backend.app.domain.agents.v3_conflicts import detect_proposal_conflicts
 from backend.app.domain.agents.v3_orchestration import GraphTerminalStatusCode, V3GraphResult
 from backend.app.domain.agents.v3_persistence import (
     V3CoordinatorAttemptPersistence,
@@ -83,7 +82,6 @@ def make_bundle(*, vector_retrieval_succeeded: bool = False) -> V3DecisionPersis
         created_at=base_pool.created_at,
     )
     current_proposals = proposals(current_envelope, current_pool)
-    conflicts = detect_proposal_conflicts(current_proposals, current_envelope, current_pool)
     current_input = coordinator_input(current_envelope, current_pool)
     current_plan = plan(current_input)
     compiled = compile_plan(
@@ -102,14 +100,11 @@ def make_bundle(*, vector_retrieval_succeeded: bool = False) -> V3DecisionPersis
         context=IntegrityValidationContext(approved_safe_alternative_ids=(B,)),
     )
     graph_result = V3GraphResult.create(
-        graph_version="v3-orchestration-domain-v1",
+        graph_version="v3-orchestration-domain-v2",
         terminal_status_code=GraphTerminalStatusCode.COMPLETED,
         envelope_hash=current_envelope.envelope_hash,
         pool_hash=current_pool.pool_hash,
         round_one_proposals=current_proposals,
-        conflict_codes=(),
-        review_target_agent_types=(),
-        review_results=(),
         coordinator_initial_plan=current_plan,
         compiled_plan=compiled,
         integrity_violation_codes=(),
@@ -162,7 +157,6 @@ def make_bundle(*, vector_retrieval_succeeded: bool = False) -> V3DecisionPersis
         decision_execution_id=decision_id,
         root_decision_execution_id=decision_id,
         root_snapshot=root,
-        conflict_result=conflicts,
         coordinator_attempts=(
             V3CoordinatorAttemptPersistence(
                 attempt_number=0,
@@ -230,7 +224,9 @@ def test_full_bundle_preserves_artifacts_and_replays_without_external_ports() ->
     replay = service.replay(bundle.decision_execution_id)
 
     assert len(bundle.agent_proposals) == 3
-    assert bundle.conflict_result.violations == ()
+    assert {"conflict_result", "review_results"}.isdisjoint(
+        V3DecisionPersistenceBundle.model_fields
+    )
     assert bundle.coordinator_attempts[0].attempt_number == 0
     assert bundle.validations[0].integrity_validation.status_code.value == "PASS"
     assert replay.final_plan == bundle.final_plan
@@ -292,9 +288,6 @@ def test_mapper_rejects_incomplete_attempt_artifacts() -> None:
         envelope_hash=bundle.root_snapshot.constraint_envelope.envelope_hash,
         pool_hash=bundle.root_snapshot.exercise_pool.pool_hash,
         round_one_proposals=tuple(item.proposal for item in bundle.agent_proposals),
-        conflict_codes=(),
-        review_target_agent_types=(),
-        review_results=(),
         coordinator_initial_plan=bundle.coordinator_attempts[0].plan_spec,
         compiled_plan=bundle.final_plan,
         integrity_violation_codes=(),
@@ -306,7 +299,6 @@ def test_mapper_rejects_incomplete_attempt_artifacts() -> None:
             decision_execution_id=uuid4(),
             root_decision_execution_id=uuid4(),
             root_snapshot=bundle.root_snapshot,
-            conflict_result=bundle.conflict_result,
             coordinator_attempts=(),
             validations=(),
             policy_version=bundle.policy_version,

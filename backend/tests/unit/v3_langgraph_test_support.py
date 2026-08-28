@@ -23,25 +23,6 @@ from backend.tests.unit.test_v3_agent_contracts import (
 from backend.tests.unit.test_v3_coordinator_contracts import plan, proposals
 
 
-@dataclass(frozen=True)
-class Conflict:
-    conflict_codes: tuple[str, ...] = ()
-    affected_agent_types: tuple[SpecialistAgentTypeCode, ...] = ()
-    hard_constraint_weakened: bool = False
-
-
-class ConflictDetector:
-    def __init__(self, reports: list[Conflict] | None = None) -> None:
-        self.reports = reports or [Conflict()]
-        self.calls = 0
-
-    def detect(self, values: tuple[SpecialistAgentProposal, ...]) -> Conflict:
-        assert len(values) == 3
-        index = min(self.calls, len(self.reports) - 1)
-        self.calls += 1
-        return self.reports[index]
-
-
 class Specialist:
     def __init__(
         self,
@@ -52,7 +33,6 @@ class Specialist:
         release: asyncio.Event | None = None,
         active: list[SpecialistAgentTypeCode] | None = None,
         timeout: bool = False,
-        review_timeout: bool = False,
     ) -> None:
         self.agent_type = agent_type
         self.output = output
@@ -60,9 +40,7 @@ class Specialist:
         self.release = release
         self.active = active
         self.timeout = timeout
-        self.review_timeout = review_timeout
         self.propose_calls = 0
-        self.review_calls = 0
         self.cancelled = False
 
     async def apropose(self, **_: object) -> StructuredAgentResult[SpecialistAgentProposal]:
@@ -81,12 +59,6 @@ class Specialist:
             await self.barrier.wait()
         if self.release is not None:
             await self.release.wait()
-        return StructuredAgentResult.success(self.output)
-
-    async def areview(self, **_: object) -> StructuredAgentResult[SpecialistAgentProposal]:
-        self.review_calls += 1
-        if self.review_timeout:
-            await asyncio.Event().wait()
         return StructuredAgentResult.success(self.output)
 
 
@@ -127,7 +99,13 @@ class Compiler:
     def __init__(self) -> None:
         self.calls = 0
 
-    def compile(self, plan_spec: PlanSpec) -> object:
+    def compile(
+        self,
+        plan_spec: PlanSpec,
+        *,
+        proposals: tuple[SpecialistAgentProposal, ...],
+    ) -> object:
+        assert len(proposals) in {0, 3}
         self.calls += 1
         return plan_spec
 
@@ -178,7 +156,6 @@ def graph_input(
     current_pool: ExercisePoolSnapshot | None = None,
     specialists: dict[SpecialistAgentTypeCode, Specialist] | None = None,
     coordinator: Coordinator | None = None,
-    detector: ConflictDetector | None = None,
     validator: Validator | None = None,
     fallback: Fallback | None = None,
     regeneration_context: RegenerationContext | None = None,
@@ -207,7 +184,7 @@ def graph_input(
     return V3GraphInput(
         constraint_envelope=current_envelope,
         exercise_pool=current_pool,
-        graph_version="v3-langgraph-v1",
+        graph_version="v3-langgraph-v2",
         prompt_version="v3-prompts-v1",
         model_version="fake-model-v1",
         policy_version=current_envelope.policy_version,
@@ -215,7 +192,6 @@ def graph_input(
         snapshot_is_fresh=snapshot_is_fresh,
         specialists=specialist_map,
         coordinator=coordinator or Coordinator(),
-        conflict_detector=detector or ConflictDetector(),
         compiler=Compiler(),
         validator=validator or Validator(),
         fallback=fallback or Fallback(fallback_plan),
@@ -226,8 +202,6 @@ def graph_input(
 
 
 __all__ = [
-    "Conflict",
-    "ConflictDetector",
     "Coordinator",
     "Difference",
     "Fallback",

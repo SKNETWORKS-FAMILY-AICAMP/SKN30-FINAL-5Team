@@ -19,10 +19,6 @@ from backend.app.domain.agents.v3_compiler import (
     DeterministicFallbackPlanSpec,
     compile_plan,
 )
-from backend.app.domain.agents.v3_conflicts import (
-    ConflictDetectionResult,
-    detect_proposal_conflicts,
-)
 from backend.app.domain.agents.v3_contracts import (
     SPECIALIST_AGENT_ORDER,
     ConstraintEnvelope,
@@ -45,7 +41,6 @@ from backend.app.domain.agents.v3_validation import (
 )
 from backend.app.integrations.langgraph.graph import V3LangGraphRuntime, create_v3_graph
 from backend.app.integrations.langgraph.state import (
-    ConflictDetectorPort,
     IntegrityValidatorPort,
     SpecialistPort,
     V3GraphInput,
@@ -81,7 +76,7 @@ _RUN_ID_PATTERN: Final = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
 @dataclass(frozen=True, slots=True)
 class V3ShadowRuntimeVersions:
-    graph_version: str = "v3-langgraph-shadow-v1"
+    graph_version: str = "v3-langgraph-shadow-v2"
     compiler_version: str = "v3-plan-compiler-v1"
     validator_version: str = "v3-integrity-validator-v1"
     fallback_version: str = "v3-deterministic-fallback-v1"
@@ -108,32 +103,6 @@ class _ExecutionContext:
     fallback_compilation: bool = False
 
 
-@dataclass(frozen=True, slots=True)
-class _ConflictReport:
-    canonical: ConflictDetectionResult
-    conflict_codes: tuple[str, ...]
-    affected_agent_types: tuple[SpecialistAgentTypeCode, ...]
-    hard_constraint_weakened: bool
-
-
-@dataclass(slots=True)
-class _ConflictDetector:
-    envelope: ConstraintEnvelope
-    pool: ExercisePoolSnapshot
-    context: _ExecutionContext
-
-    def detect(self, proposals: tuple[SpecialistAgentProposal, ...]) -> _ConflictReport:
-        canonical = detect_proposal_conflicts(proposals, self.envelope, self.pool)
-        self.context.proposals = proposals
-        codes = tuple(item.code.value for item in canonical.violations)
-        return _ConflictReport(
-            canonical=canonical,
-            conflict_codes=codes,
-            affected_agent_types=canonical.review_target_agent_types,
-            hard_constraint_weakened=bool(codes and not canonical.review_target_agent_types),
-        )
-
-
 @dataclass(slots=True)
 class _Compiler:
     envelope: ConstraintEnvelope
@@ -141,7 +110,12 @@ class _Compiler:
     context: _ExecutionContext
     version: str
 
-    def compile(self, source: PlanSpec | DeterministicFallbackPlanSpec) -> CompiledPlan:
+    def compile(
+        self,
+        source: PlanSpec | DeterministicFallbackPlanSpec,
+        *,
+        proposals: tuple[SpecialistAgentProposal, ...],
+    ) -> CompiledPlan:
         if isinstance(source, DeterministicFallbackPlanSpec):
             self.context.fallback_compilation = True
             self.context.repair_attempt = 0
@@ -153,6 +127,7 @@ class _Compiler:
             )
         self.context.fallback_compilation = False
         self.context.repair_attempt = source.repair_attempt
+        self.context.proposals = proposals
         coordinator_input = CoordinatorInput(
             constraint_envelope=self.envelope,
             exercise_pool=self.pool,
@@ -291,10 +266,6 @@ class V3ShadowRuntime:
                 ),
             },
             coordinator=LangChainCoordinatorAdapter(invoker=self.invoker),
-            conflict_detector=cast(
-                ConflictDetectorPort,
-                _ConflictDetector(constraint_envelope, exercise_pool, context),
-            ),
             compiler=_Compiler(
                 constraint_envelope,
                 exercise_pool,
