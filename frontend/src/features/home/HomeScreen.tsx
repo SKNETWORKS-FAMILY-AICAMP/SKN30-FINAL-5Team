@@ -305,6 +305,8 @@ export type HomeScreenProps = {
   profileImageUrl?: string | null;
   restToday?: boolean;
   routine?: RoutineResponse | null;
+  /** Replace this slot with agent progress or a loading asset when its design is chosen. */
+  routineLoadingContent?: React.ReactNode;
   sessions?: readonly WorkoutSessionLogSummary[];
   staleContext?: boolean;
   status?: 'loading' | 'error' | 'ready';
@@ -377,6 +379,7 @@ function HomeScreenContent({
   profileImageUrl = null,
   restToday = false,
   routine = null,
+  routineLoadingContent,
   sessions = [],
   staleContext = false,
   status,
@@ -506,13 +509,17 @@ function HomeScreenContent({
   const rerollLoading = apiMode
     ? busy === 'regeneration'
     : rerolling && effectiveCheckedIn;
+  const routineGenerationPending = apiMode
+    ? busy === 'checkin' || busy === 'regeneration' || busy === 'revision'
+    : rerollLoading;
+  const generationPreviewItems = displayedRoutineItems;
   const seriousDecision =
     decision?.action_code === 'STOP_AND_SEEK_HELP' ||
     decision?.safety_status_code === 'BLOCKED';
   const hasRoutine = apiMode
-    ? serverPlan !== null && !rerollLoading && !restToday
-    : hasTodayRoutine && effectiveCheckedIn && !rerollLoading;
-  const noRoutine = !hasRoutine && !rerollLoading;
+    ? serverPlan !== null && !routineGenerationPending && !restToday
+    : hasTodayRoutine && effectiveCheckedIn && !routineGenerationPending;
+  const noRoutine = !hasRoutine && !routineGenerationPending;
   const variant = getHomeRoutineVariant(variantIndex);
   const routineTitle =
     serverPlan === null
@@ -771,7 +778,10 @@ function HomeScreenContent({
                 }
               />
             ) : null}
-            {apiMode && contentReady && routine === null ? (
+            {apiMode &&
+            contentReady &&
+            routine === null &&
+            !routineGenerationPending ? (
               <HomeStateCard
                 actionLabel="기본 루틴 만들기"
                 onAction={onCreateRoutine}
@@ -827,8 +837,11 @@ function HomeScreenContent({
             (!apiMode || routine !== null) ? (
               <EmptyRoutineCard />
             ) : null}
-            {contentReady && !restToday && rerollLoading ? (
-              <GeneratingRoutineCard />
+            {contentReady && !restToday && routineGenerationPending ? (
+              <GeneratingRoutineCard
+                content={routineLoadingContent}
+                items={generationPreviewItems}
+              />
             ) : null}
             {contentReady &&
             !restToday &&
@@ -1432,36 +1445,55 @@ function HomeStateCard({
   );
 }
 
-function GeneratingRoutineCard() {
+function GeneratingRoutineCard({
+  content,
+  items,
+}: {
+  content?: React.ReactNode;
+  items: readonly HomeRoutineItem[];
+}) {
   const styles = useHomeStyles();
-  const [spin] = useState(() => new Animated.Value(0));
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.timing(spin, {
-        duration: 800,
-        toValue: 1,
-        useNativeDriver: true,
-      }),
-    );
-    animation.start();
-    return () => animation.stop();
-  }, [spin]);
-  const rotate = spin.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
+  const previewRows = items.length > 0 ? items : [null, null, null];
   return (
-    <View style={styles.messageCard} testID="home-loading-state">
-      <Animated.View
-        style={[styles.loadingRing, { transform: [{ rotate }] }]}
-        testID="home-loading-ring"
-      />
-      <Text style={[styles.messageTitle, styles.loadingTitle]}>
-        새로운 루틴을 받고 있어요
-      </Text>
-      <Text style={styles.messageText}>
-        요청한 운동 시간에 맞춰 다시 구성하는 중이에요.
-      </Text>
+    <View style={styles.routineCard} testID="home-loading-state">
+      <View style={styles.routineBadge}>
+        <Text style={styles.routineBadgeText}>오늘의 운동</Text>
+      </View>
+      <Text style={styles.routineTitle}>오늘의 루틴</Text>
+      <View
+        accessibilityLiveRegion="polite"
+        style={[styles.routineList, styles.routineLoadingSlot]}
+        testID="routine-loading-slot"
+      >
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          pointerEvents="none"
+          style={styles.routineLoadingPreview}
+          testID="routine-loading-preview"
+        >
+          {previewRows.map((item, index) => (
+            <View
+              key={item?.id ?? `loading-placeholder-${index}`}
+              style={styles.routineLoadingRow}
+            >
+              {item ? (
+                <Text style={styles.routineItemText}>
+                  {formatRoutineItem(item)}
+                </Text>
+              ) : (
+                <View style={styles.routineLoadingPlaceholderLine} />
+              )}
+            </View>
+          ))}
+        </View>
+        <View
+          style={styles.routineLoadingContent}
+          testID="routine-loading-content"
+        >
+          {content ?? <Text style={styles.routineLoadingText}>로딩 중..</Text>}
+        </View>
+      </View>
     </View>
   );
 }
@@ -3838,21 +3870,12 @@ function createHomeStyles(
       fontWeight: '800',
       textAlign: 'center',
     },
-    loadingTitle: { marginTop: s(14) },
     messageText: {
       marginTop: s(8),
       color: '#958476',
       fontSize: f(13),
       lineHeight: f(19.5),
       textAlign: 'center',
-    },
-    loadingRing: {
-      width: s(26),
-      height: s(26),
-      borderWidth: s(3),
-      borderColor: '#F1D39A',
-      borderTopColor: '#F6BA50',
-      borderRadius: s(13),
     },
     routineCard: {
       position: 'relative',
@@ -3937,6 +3960,46 @@ function createHomeStyles(
       borderTopColor: '#E8D8C2',
       borderStyle: 'dashed',
       paddingTop: s(12),
+    },
+    routineLoadingSlot: {
+      position: 'relative',
+      minHeight: s(190),
+      overflow: 'hidden',
+      marginBottom: s(10),
+      borderRadius: s(16),
+      backgroundColor: 'rgba(255, 248, 229, 0.62)',
+      padding: s(10),
+    },
+    routineLoadingPreview: {
+      width: '100%',
+      gap: s(8),
+      opacity: 0.34,
+    },
+    routineLoadingRow: {
+      minHeight: s(46),
+      justifyContent: 'center',
+      borderRadius: s(12),
+      backgroundColor: '#F3ECE4',
+      paddingHorizontal: s(12),
+    },
+    routineLoadingPlaceholderLine: {
+      width: '68%',
+      height: s(10),
+      borderRadius: 999,
+      backgroundColor: '#CDBEAF',
+    },
+    routineLoadingContent: {
+      ...StyleSheet.absoluteFill,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(255, 255, 255, 0.32)',
+      padding: s(16),
+    },
+    routineLoadingText: {
+      color: '#5A4636',
+      fontSize: f(16),
+      fontWeight: '800',
+      textAlign: 'center',
     },
     orderHint: {
       color: '#A29B8E',

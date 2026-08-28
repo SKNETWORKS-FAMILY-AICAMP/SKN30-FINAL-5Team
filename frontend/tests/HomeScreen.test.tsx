@@ -36,11 +36,39 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.queryByTestId('home-empty-state')).toBeNull();
     expect(screen.getByTestId('home-loading-state')).toBeOnTheScreen();
     expect(screen.queryByTestId('home-routine-state')).toBeNull();
+    expect(screen.getByText('로딩 중..')).toBeOnTheScreen();
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('routine-loading-slot').props.style,
+      ),
+    ).toMatchObject({ backgroundColor: 'rgba(255, 248, 229, 0.62)' });
 
     view.rerender(<HomeScreen previewState="routine" />);
     expect(screen.queryByTestId('home-empty-state')).toBeNull();
     expect(screen.queryByTestId('home-loading-state')).toBeNull();
     expect(screen.getByTestId('home-routine-state')).toBeOnTheScreen();
+  });
+
+  it('shows routine generation in the exercise-list slot for API requests', () => {
+    const props = homePreviewProps('routine');
+    const view = render(<HomeScreen {...props} busy="checkin" />);
+
+    expect(screen.getByTestId('routine-loading-slot')).toBeOnTheScreen();
+    expect(screen.getByText('로딩 중..')).toBeOnTheScreen();
+    expect(screen.queryByTestId('home-empty-state')).toBeNull();
+    expect(screen.queryByTestId('home-routine-state')).toBeNull();
+
+    view.rerender(
+      <HomeScreen
+        {...props}
+        busy="checkin"
+        context={null}
+        decision={null}
+        routine={null}
+      />,
+    );
+    expect(screen.getByTestId('routine-loading-slot')).toBeOnTheScreen();
+    expect(screen.queryByText('기본 루틴이 아직 없어요')).toBeNull();
   });
 
   it('uses one solid background color without a gradient', () => {
