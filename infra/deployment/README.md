@@ -58,7 +58,10 @@ docker compose -f infra/deployment/compose.staging.yaml logs caddy | grep -i "ce
 curl --fail https://api.<your-domain>/api/v1/health/ready
 ```
 
-Point the app at the new origin with `EXPO_PUBLIC_API_BASE_URL=https://api.<your-domain>/api/v1`.
+Point the app at the new origin with `EXPO_PUBLIC_API_BASE_URL=https://api.<your-domain>`.
+Pass the origin only, without the `/api/v1` suffix: the client appends that prefix itself
+(`frontend/src/api/client.ts`), so including it here produces `/api/v1/api/v1/...` and every
+request 404s.
 
 The `caddy_data` volume holds the certificate and the ACME account key. Do not prune it between
 deploys: re-requesting on every restart reaches the Let's Encrypt rate limit within a day. If a
@@ -85,24 +88,66 @@ happen. The four unreviewed KSPO/wger catalogs stay `DRAFT`/`AGENT_ONLY` and are
 
 ## Qdrant staging readiness and #150 handoff
 
-The checked-in baseline is safe but is **not currently executable for a real staging index build**.
-It declares `QDRANT_URL=http://qdrant:6333` and `QDRANT_TLS_ENABLED=false`, while application
-`Settings` requires both HTTPS and `QDRANT_API_KEY` whenever `APP_ENV=staging` and
-`QDRANT_ENABLED=true`. Keep `QDRANT_ENABLED=false` and
-`V3_PRODUCTION_PROMOTION_APPROVED=false`; do not weaken that application validation in an
-infrastructure-only change.
+`compose.staging.yaml` stays fail-closed on its own and is **not executable for a real staging index
+build**. It declares `QDRANT_URL=http://qdrant:6333` and `QDRANT_TLS_ENABLED=false`, while
+application `Settings` requires both HTTPS and `QDRANT_API_KEY` whenever `APP_ENV=staging` and
+`QDRANT_ENABLED=true`. That is deliberate: keep the base file's `QDRANT_ENABLED=false` and
+`V3_PRODUCTION_PROMOTION_APPROVED=false`, and do not weaken the application validation in an
+infrastructure-only change. Enabling Qdrant is the overlay's job, not the baseline's.
 
-Issue #150 remains `BLOCKED` until the backend development lead and security/infrastructure owner
-approve exactly one topology:
+The topology choice was between:
 
 1. an external staging Qdrant endpoint with authentication and TLS;
 2. an explicit, reviewed security exception or design change for the internal Compose endpoint; or
 3. authentication and TLS configured on the Compose Qdrant service itself.
 
+**Topology 1 is the approved and deployed choice** (`docs/tasks/TASK-AGENT-150.md`). The staging
+endpoint terminates TLS with a publicly trusted certificate and requires an API key; both the
+endpoint and the key are injected from AWS Secrets Manager. The schema-v2 index is built and active
+against catalog UUID `419eaab4-0b93-4a9f-8705-132d46cc681f`; that record, including the rollback
+target, lives in the task document rather than here.
+
 After approval, pass the endpoint and secret through the deployment secret path appropriate to the
 selected topology. Do not put a credential in Compose, this README, `.env.staging.example`, command
 history, logs or evidence. The present endpoint is Compose-network-only; ports 6333 and 6334 are not
 published to the host.
+
+### Applying topology 1
+
+`compose.staging.qdrant.yaml` is the overlay for topology 1. It is checked in but must not be used
+until that approval is recorded, because it is what actually turns Qdrant retrieval on.
+
+```bash
+docker compose --env-file infra/deployment/.env.staging   -f infra/deployment/compose.staging.yaml   -f infra/deployment/compose.staging.qdrant.yaml up -d
+```
+
+Both `-f` flags are required, in that order. The overlay re-declares `QDRANT_ENABLED`, `QDRANT_URL`
+and `QDRANT_TLS_ENABLED` because `compose.staging.yaml` pins them in its `environment:` block, which
+outranks `env_file:`: setting them in `.env.staging` alone is read but silently ignored, leaving the
+API pointed at the in-Compose plaintext endpoint. The overlay also resets the API's `depends_on` and
+parks the in-Compose `qdrant` service under an unused profile, so only `api` and `caddy` start.
+
+Enabling Qdrant is necessary but not sufficient for vector retrieval: the retriever is only
+constructed on the V3 path, so the demo profile below is what actually puts it in use.
+
+### Applying the V3 demo profile
+
+`compose.staging.v3demo.yaml` makes V3 authoritative and is the overlay that puts Qdrant retrieval
+on the routine-creation path. Apply it on top of the Qdrant overlay, which supplies `OPENAI_API_KEY`
+and the index this profile ranks against:
+
+```bash
+docker compose --env-file infra/deployment/.env.staging   -f infra/deployment/compose.staging.yaml   -f infra/deployment/compose.staging.qdrant.yaml   -f infra/deployment/compose.staging.v3demo.yaml up -d
+```
+
+The approved agent model code is `gpt-5.6-terra`, and `LLM_AGENTS_APPROVED_MODEL_CODES` must contain
+it. `backend/app/integrations/llm_agents/openai.py` ANDs every provider gate: if any one fails, the
+chat model is `None`, the V3 runtime is never built, and the retriever is never constructed. The
+symptom is not an error but a silent deterministic fallback, so confirm retrieval positively rather
+than reading a healthy `/health/ready` as proof.
+
+`APP_ENV=production` with `V3_EXECUTION_PROFILE=DEMO` is rejected during settings validation, so this
+overlay cannot promote V3 outside staging. `V3_PRODUCTION_PROMOTION_APPROVED` stays `false`.
 
 Before #150 runs any index builder, an operator with read-only Aurora access must execute the
 following queries and transfer only the returned non-secret catalog/registry fields. Do not print

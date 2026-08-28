@@ -1,0 +1,39 @@
+# Makes V3 authoritative for the staging demo, which is what actually puts
+# Qdrant retrieval on the routine-creation path.
+#
+# Requires compose.staging.qdrant.yaml as well; that overlay supplies
+# OPENAI_API_KEY and the active vector index this profile ranks against.
+#
+#   docker compose --env-file infra/deployment/.env.staging \
+#     -f infra/deployment/compose.staging.yaml \
+#     -f infra/deployment/compose.staging.qdrant.yaml \
+#     -f infra/deployment/compose.staging.v3demo.yaml up -d
+#
+# Kept separate from the Qdrant overlay on purpose: enabling an authenticated
+# index endpoint and making V3 authoritative are different approval surfaces,
+# and only this file changes what a user actually receives.
+
+services:
+  api:
+    environment:
+      # DEMO is rejected at startup unless APP_ENV=staging, so this overlay can
+      # never silently promote V3 in production.
+      V3_EXECUTION_PROFILE: DEMO
+      V3_LANGGRAPH_ENABLED: "true"
+      V3_REGENERATION_ENABLED: "true"
+      # Every one of these is ANDed in the provider gate
+      # (backend/app/integrations/llm_agents/openai.py). If any fails the chat
+      # model is None, the V3 runtime is never built, and the retriever is
+      # never constructed -- retrieval then silently uses the deterministic
+      # fallback rather than failing loudly.
+      LLM_AGENTS_ENABLED: "true"
+      LLM_AGENTS_PROVIDER_CODE: OPENAI
+      LLM_AGENTS_MODEL_CODE: gpt-5.6-terra
+      # Must be unique and canonically sorted, and must contain the code above.
+      LLM_AGENTS_APPROVED_MODEL_CODES: '["gpt-5.6-terra"]'
+      # Narration (ADR-0011) stays off; the code is aligned so that enabling it
+      # later does not introduce a second model. Narration never changes a
+      # decision, a safety status or a veto.
+      LLM_MODEL_CODE: gpt-5.6-terra
+      # The staging demo is explicitly not production promotion.
+      V3_PRODUCTION_PROMOTION_APPROVED: "false"

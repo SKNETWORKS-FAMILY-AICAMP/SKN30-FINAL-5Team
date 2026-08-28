@@ -121,17 +121,30 @@ _POOL_EXERCISE_FIELDS: Final = (
 )
 
 
-def _validate_private_machine_payload(value: object, *, path: str = "input") -> None:
+def _validate_private_machine_payload(
+    value: object,
+    *,
+    path: str = "input",
+    body_area_exempt_fields: frozenset[str] = frozenset(),
+) -> None:
     if isinstance(value, Mapping):
         for raw_key, nested in value.items():
             key = str(raw_key)
             if key.lower() in _FORBIDDEN_FIELD_NAMES:
                 raise ValueError("payload contains a forbidden field")
-            _validate_private_machine_payload(nested, path=f"{path}.{key}")
+            _validate_private_machine_payload(
+                nested,
+                path=f"{path}.{key}",
+                body_area_exempt_fields=body_area_exempt_fields,
+            )
         return
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
         for index, nested in enumerate(value):
-            _validate_private_machine_payload(nested, path=f"{path}[{index}]")
+            _validate_private_machine_payload(
+                nested,
+                path=f"{path}[{index}]",
+                body_area_exempt_fields=body_area_exempt_fields,
+            )
         return
     if isinstance(value, str):
         if not _MACHINE_VALUE_PATTERN.fullmatch(value):
@@ -139,25 +152,42 @@ def _validate_private_machine_payload(value: object, *, path: str = "input") -> 
         normalized = value.upper()
         if any(fragment in normalized for fragment in _SENSITIVE_MACHINE_VALUE_FRAGMENTS):
             raise ValueError(f"{path} contains a sensitive machine value")
-        is_catalog_body_focus = ".exercise_pool.exercises[" in path and path.endswith(
-            ".body_focus_code"
-        )
+        # A catalog exercise's body focus is an attribute of the movement, not a
+        # user's reported body area, and the pool projection sends it on purpose.
+        # The caller declares that exemption explicitly: the projection helpers
+        # validate each exercise on its own, so the path is rooted at that
+        # exercise and cannot be recognised by its position in the whole payload.
+        is_catalog_body_focus = (
+            ".exercise_pool.exercises[" in path and path.endswith(".body_focus_code")
+        ) or path.rsplit(".", 1)[-1] in body_area_exempt_fields
         if normalized in _BODY_AREA_CODES and not is_catalog_body_focus:
             raise ValueError(f"{path} contains a health body-area value")
     if value is not None and not isinstance(value, (str, int, float, bool)):
         raise ValueError(f"{path} contains an unsupported payload value")
 
 
-def assert_private_machine_payload(payload: Mapping[str, object]) -> None:
-    """Reject direct identifiers, raw health context, and unstructured strings."""
+def assert_private_machine_payload(
+    payload: Mapping[str, object],
+    *,
+    body_area_exempt_fields: Sequence[str] = (),
+) -> None:
+    """Reject direct identifiers, raw health context, and unstructured strings.
 
-    _validate_private_machine_payload(payload)
+    ``body_area_exempt_fields`` names fields whose body-area values are approved
+    catalog attributes rather than user health data. Pass it only for reviewed
+    catalog projections; never for a payload carrying check-in or safety input.
+    """
+
+    _validate_private_machine_payload(
+        payload, body_area_exempt_fields=frozenset(body_area_exempt_fields)
+    )
 
 
 def project_contract(
     contract: BaseModel,
     *,
     field_allowlist: Sequence[str],
+    body_area_exempt_fields: Sequence[str] = (),
 ) -> dict[str, object]:
     """Project an approved domain contract with an explicit field allowlist."""
 
@@ -166,20 +196,33 @@ def project_contract(
     fields = type(contract).model_fields
     if any(field not in fields for field in field_allowlist):
         raise ValueError("contract projection references an unknown field")
+    if any(field not in field_allowlist for field in body_area_exempt_fields):
+        raise ValueError("body-area exemptions must name projected fields")
     projected = contract.model_dump(
         mode="json",
         include=set(field_allowlist),
         exclude_none=True,
     )
-    assert_private_machine_payload(projected)
+    assert_private_machine_payload(projected, body_area_exempt_fields=body_area_exempt_fields)
     return projected
+
+
+# The catalog's body focus describes the movement, not a user's reported body
+# area, and _POOL_EXERCISE_FIELDS sends it deliberately. Codes such as CHEST
+# overlap with BodyAreaCode, so without this exemption a pool containing one of
+# them fails projection and every request falls back to the deterministic plan.
+_POOL_BODY_AREA_EXEMPT_FIELDS: Final = ("body_focus_code",)
 
 
 def project_exercise_pool(pool: ExercisePoolSnapshot) -> dict[str, object]:
     """Exclude timestamps, vector ranking, similarity lineage, and source metadata."""
 
     exercise_rows = [
-        project_contract(exercise, field_allowlist=_POOL_EXERCISE_FIELDS)
+        project_contract(
+            exercise,
+            field_allowlist=_POOL_EXERCISE_FIELDS,
+            body_area_exempt_fields=_POOL_BODY_AREA_EXEMPT_FIELDS,
+        )
         for exercise in pool.exercises
     ]
     exercise_ids = [str(exercise.exercise_id) for exercise in pool.exercises]
@@ -192,7 +235,7 @@ def project_exercise_pool(pool: ExercisePoolSnapshot) -> dict[str, object]:
         "mandatory_exercise_ids": [str(value) for value in pool.mandatory_exercise_ids],
         "exercises": exercise_rows,
     }
-    assert_private_machine_payload(projected)
+    assert_private_machine_payload(projected, body_area_exempt_fields=_POOL_BODY_AREA_EXEMPT_FIELDS)
     return projected
 
 

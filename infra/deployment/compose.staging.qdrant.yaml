@@ -1,0 +1,44 @@
+# Points the API at the approved external staging Qdrant endpoint.
+#
+# Usage (note that BOTH -f flags are required, in this order):
+#   docker compose --env-file infra/deployment/.env.staging \
+#     -f infra/deployment/compose.staging.yaml \
+#     -f infra/deployment/compose.staging.qdrant.yaml up -d
+#
+# This overlay only changes the Qdrant topology. Vector retrieval additionally
+# requires V3_EXECUTION_PROFILE=DEMO and the LLM agent settings in
+# docs/runbooks/v3-staging-demo.md, which carry their own approval.
+
+services:
+  api:
+    # compose.staging.yaml pins these in its `environment:` block, and
+    # `environment:` outranks `env_file:`. Without re-declaring them here the
+    # values in .env.staging are read but silently ignored, and the API keeps
+    # talking to the in-Compose plaintext endpoint.
+    environment:
+      QDRANT_ENABLED: "true"
+      QDRANT_URL: ${QDRANT_URL:?set QDRANT_URL in .env.staging}
+      QDRANT_API_KEY: ${QDRANT_API_KEY:?set QDRANT_API_KEY in .env.staging}
+      # Settings rejects startup unless this agrees with the URL scheme, so the
+      # endpoint above must be https://.
+      QDRANT_TLS_ENABLED: "true"
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?set OPENAI_API_KEY in .env.staging}
+      # Approved embedding contract (v3-staging-demo.md, 2026-08-27). Schema v2
+      # drops the retired beginner_suitable projection; an index built under
+      # exercise-embedding-input-v1 does not satisfy it.
+      EMBEDDING_PROVIDER_CODE: OPENAI
+      EMBEDDING_MODEL_VERSION: text-embedding-3-large
+      EMBEDDING_VECTOR_DIMENSION: "3072"
+      EMBEDDING_INPUT_SCHEMA_VERSION: exercise-embedding-input-v2
+      EMBEDDING_DISTANCE_METRIC_CODE: COSINE
+      EMBEDDING_TIMEOUT_SECONDS: "30"
+    # The external endpoint replaces the in-Compose service. Without this the
+    # base file's `service_healthy` condition holds the API down waiting for a
+    # container that this topology never starts.
+    depends_on: !reset null
+
+  # Kept declared so compose.staging.yaml remains valid on its own, but not
+  # started: the approved topology is the external authenticated TLS endpoint.
+  qdrant:
+    profiles:
+      - unused
