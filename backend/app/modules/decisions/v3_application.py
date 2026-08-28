@@ -42,9 +42,12 @@ from backend.app.domain.agents.v3_orchestration import GraphTerminalStatusCode
 from backend.app.domain.agents.v3_persistence import V3DecisionPersistenceBundle
 from backend.app.domain.rules.duration import DURATION_RULE_VERSION
 from backend.app.domain.rules.safety import (
+    SafetyCandidate,
+    SafetyCandidateItem,
     SafetyEvaluation,
     SafetyRequiredActionCode,
     SafetyStatusCode,
+    evaluate_safety,
 )
 from backend.app.domain.rules.training_level import is_exercise_allowed_for_user
 from backend.app.integrations.qdrant.snapshot_loader import (
@@ -68,6 +71,7 @@ from backend.app.modules.decisions.service import (
     DecisionFailedError,
     IdempotencyKeyReusedError,
     _prepare_safety,
+    _safety_context,
     _safety_rule_version,
 )
 from backend.app.modules.decisions.v3_creation import (
@@ -104,6 +108,7 @@ class V3ApplicationContext:
     exercises: tuple[ExercisePoolExerciseRecord, ...]
     exercise_names: dict[UUID, str] = field(default_factory=dict)
     safety_evaluation: SafetyEvaluation | None = None
+    pool_safety_evaluation: SafetyEvaluation | None = None
 
 
 def _context(source: V3CreationSource) -> V3ApplicationContext:
@@ -303,6 +308,42 @@ class SqlAlchemyV3CreationRepository:
         )
 
 
+def _pool_safety_evaluation(
+    assembly: DecisionAssembly,
+    exercises: tuple[ExercisePoolExerciseRecord, ...],
+) -> SafetyEvaluation | None:
+    """Evaluate the reviewed safety rules against the pool the agents choose from.
+
+    The base routine candidate only covers exercises already scheduled in the
+    user's routine day. V3 selects from a catalog-wide pool, so every pool
+    exercise outside that day reached the agents without ever being matched
+    against the reported discomfort. Returns None only when there is no pool to
+    evaluate; a missing rule set still yields the engine's fail-closed result.
+    """
+
+    if not exercises:
+        return None
+    candidate = SafetyCandidate(
+        items=tuple(
+            SafetyCandidateItem(
+                str(record.exercise_id),
+                record.catalog_version,
+                # Movement-pattern rules match on the primary pattern the catalog
+                # records. Without it only exercise-scoped rules can ever fire.
+                record.movement_pattern_codes[0]
+                if record.movement_pattern_codes
+                else "UNSPECIFIED",
+            )
+            for record in exercises
+        )
+    )
+    return evaluate_safety(
+        _safety_context(assembly.context),
+        candidate,
+        assembly.safety_rule_set,
+    )
+
+
 class DeterministicV3SafetyPolicyAdapter:
     """Project the reviewed deterministic Safety engine into a V3 envelope."""
 
@@ -312,6 +353,8 @@ class DeterministicV3SafetyPolicyAdapter:
         application.assembly = prepared
         base = next(value for code, value in evaluations if code == prepared.candidate.candidate_id)
         application.safety_evaluation = base
+        pool_evaluation = _pool_safety_evaluation(prepared, application.exercises)
+        application.pool_safety_evaluation = pool_evaluation
         safe_change_available = any(
             candidate.candidate.action_code.value == "CHANGE"
             for candidate in prepared.adjusted_candidates
@@ -321,12 +364,22 @@ class DeterministicV3SafetyPolicyAdapter:
         )
         if base.excluded_exercise_codes and not safe_change_available:
             allowed = False
+        excluded_codes = set(base.excluded_exercise_codes)
+        if pool_evaluation is not None:
+            # A pool exclusion is enforced by removing the exercise from the pool,
+            # so unlike a base-routine exclusion it filters rather than blocks.
+            excluded_codes |= set(pool_evaluation.excluded_exercise_codes)
         excluded = tuple(
             sorted(
-                (UUID(value) for value in base.excluded_exercise_codes),
+                (UUID(value) for value in excluded_codes),
                 key=str,
             )
         )
+        if application.exercises and not {
+            record.exercise_id for record in application.exercises
+        } - set(excluded):
+            # Nothing survived the rules; fail closed rather than plan from nothing.
+            allowed = False
         items = tuple(item for item in prepared.items if item.exercise_id not in set(excluded))
         intensities = tuple(sorted({item.intensity_code for item in items}))
         ceiling = RecoveryCeiling(
