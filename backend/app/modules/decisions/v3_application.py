@@ -28,7 +28,11 @@ from backend.app.db.models.profile import MutationIdempotencyRecord
 from backend.app.db.models.v3_decision import DecisionConstraintEnvelopeRecord
 from backend.app.db.repositories.decision import DecisionRepository
 from backend.app.db.repositories.vector_index import VectorIndexRepository
-from backend.app.domain.agents.retrieval import ExercisePoolExerciseRecord
+from backend.app.domain.agents.retrieval import (
+    ExercisePoolExerciseRecord,
+    ExerciseRetrievalResult,
+    RetrievalStatusCode,
+)
 from backend.app.domain.agents.v3_contracts import ConstraintEnvelope, RecoveryCeiling
 from backend.app.domain.agents.v3_orchestration import GraphTerminalStatusCode
 from backend.app.domain.agents.v3_persistence import V3DecisionPersistenceBundle
@@ -788,6 +792,32 @@ def _persist_public_decision(
     return run, candidate
 
 
+def resolve_vector_index_registry_id(
+    session: Session, retrieval_result: ExerciseRetrievalResult
+) -> UUID | None:
+    """Resolve the registry row a succeeded retrieval used, or None for a fallback.
+
+    The repository refuses to persist a root artifact whose retrieval says the
+    vector index was used but carries no registry ID, because such a decision
+    cannot be reproduced from its stored inputs. Resolution goes through the
+    immutable index version named in the result rather than through whichever
+    row is ACTIVE now, which may have moved since the request started.
+    """
+
+    if (
+        retrieval_result.retrieval_status_code != RetrievalStatusCode.VECTOR_RETRIEVAL_SUCCEEDED
+        or retrieval_result.fallback_used
+        or retrieval_result.vector_index_version is None
+    ):
+        return None
+    registry = VectorIndexRepository().get_by_version(
+        session, retrieval_result.vector_index_version
+    )
+    if registry is None:
+        raise RuntimeError("V3_VECTOR_INDEX_REGISTRY_MISSING")
+    return registry.id
+
+
 def _persist_v3_bundle(
     session: Session,
     run: DecisionRun,
@@ -821,6 +851,9 @@ def _persist_v3_bundle(
         proposal_invocations=invocations,
         coordinator_provider_code="OPENAI" if not bundle.fallback_used else "DETERMINISTIC",
         plan_candidate_ids=candidate_ids,
+        vector_index_registry_id=resolve_vector_index_registry_id(
+            session, bundle.root_snapshot.retrieval_result
+        ),
     )
     V3SqlAlchemyPersistenceAdapter(session, lambda _session, _bundle: metadata).add(bundle)
 

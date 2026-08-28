@@ -38,21 +38,47 @@ COMPILER_VERSION = "plan-compiler-v1"
 VALIDATOR_VERSION = "integrity-validator-v1"
 
 
-def make_bundle() -> V3DecisionPersistenceBundle:
+VECTOR_COLLECTION_NAME = "exercise_catalog__test__vector_lineage"
+VECTOR_INDEX_VERSION = "vector-index-lineage-v1"
+VECTOR_EMBEDDING_MODEL_VERSION = "embedding-model-v1"
+
+
+def make_bundle(*, vector_retrieval_succeeded: bool = False) -> V3DecisionPersistenceBundle:
+    """Build a persistence bundle.
+
+    The default reproduces a deterministic fallback. ``vector_retrieval_succeeded``
+    builds the opposite case, where the vector index really was used and the full
+    index lineage has to survive persistence.
+    """
+
     current_envelope = envelope()
     base_pool = pool(current_envelope)
+    succeeded_metadata = RetrievalMetadata(
+        query_hash=base_pool.retrieval_metadata.query_hash,
+        retrieval_status_code=RetrievalStatusCode.VECTOR_RETRIEVAL_SUCCEEDED,
+        collection_name=VECTOR_COLLECTION_NAME,
+        vector_index_version=VECTOR_INDEX_VERSION,
+        embedding_model_version=VECTOR_EMBEDDING_MODEL_VERSION,
+        deterministic_pool_fallback_used=False,
+    )
+    fallback_metadata = RetrievalMetadata(
+        query_hash=base_pool.retrieval_metadata.query_hash,
+        retrieval_status_code=RetrievalStatusCode.VECTOR_INDEX_UNAVAILABLE,
+        retrieval_failure_codes=(RetrievalFailureCode.VECTOR_INDEX_UNAVAILABLE,),
+        deterministic_fallback_version="deterministic-pool-v1",
+        deterministic_pool_fallback_used=True,
+    )
+    # A succeeded retrieval must rank at least one exercise, and the ranking has
+    # to be a subset of the pool it came from.
+    ranked_exercise_ids = tuple(item.exercise_id for item in base_pool.exercises)
     current_pool = ExercisePoolSnapshot.create(
         catalog_version=base_pool.catalog_version,
         constraint_envelope_hash=base_pool.constraint_envelope_hash,
         exercises=base_pool.exercises,
         mandatory_exercise_ids=base_pool.mandatory_exercise_ids,
-        vector_ranked_exercise_ids=(),
-        retrieval_metadata=RetrievalMetadata(
-            query_hash=base_pool.retrieval_metadata.query_hash,
-            retrieval_status_code=RetrievalStatusCode.VECTOR_INDEX_UNAVAILABLE,
-            retrieval_failure_codes=(RetrievalFailureCode.VECTOR_INDEX_UNAVAILABLE,),
-            deterministic_fallback_version="deterministic-pool-v1",
-            deterministic_pool_fallback_used=True,
+        vector_ranked_exercise_ids=ranked_exercise_ids if vector_retrieval_succeeded else (),
+        retrieval_metadata=(
+            succeeded_metadata if vector_retrieval_succeeded else fallback_metadata
         ),
         created_at=base_pool.created_at,
     )
@@ -96,14 +122,34 @@ def make_bundle() -> V3DecisionPersistenceBundle:
         eligible_exercise_ids=exercise_ids,
         mandatory_exercise_ids=current_pool.mandatory_exercise_ids,
         normalized_query_codes=("GOAL.STRENGTH",),
-        retrieval_mode=RetrievalModeCode.DETERMINISTIC_ONLY,
+        # A DETERMINISTIC_ONLY request may not report vector success, so the
+        # succeeded case has to ask for vector ranking.
+        retrieval_mode=(
+            RetrievalModeCode.VECTOR_RANKED
+            if vector_retrieval_succeeded
+            else RetrievalModeCode.DETERMINISTIC_ONLY
+        ),
         requested_limit=len(exercise_ids),
     )
-    result = ExerciseRetrievalResult(
-        query_hash=current_pool.retrieval_metadata.query_hash,
-        retrieval_status_code=RetrievalStatusCode.VECTOR_INDEX_UNAVAILABLE,
-        fallback_used=True,
-    )
+    if vector_retrieval_succeeded:
+        result = ExerciseRetrievalResult(
+            query_hash=current_pool.retrieval_metadata.query_hash,
+            retrieval_status_code=RetrievalStatusCode.VECTOR_RETRIEVAL_SUCCEEDED,
+            fallback_used=False,
+            ranked_exercise_ids=ranked_exercise_ids,
+            similarity_scores=tuple(
+                1.0 - (index / 100) for index in range(len(ranked_exercise_ids))
+            ),
+            collection_name=VECTOR_COLLECTION_NAME,
+            vector_index_version=VECTOR_INDEX_VERSION,
+            embedding_model_version=VECTOR_EMBEDDING_MODEL_VERSION,
+        )
+    else:
+        result = ExerciseRetrievalResult(
+            query_hash=current_pool.retrieval_metadata.query_hash,
+            retrieval_status_code=RetrievalStatusCode.VECTOR_INDEX_UNAVAILABLE,
+            fallback_used=True,
+        )
     root = V3RootSnapshotPersistence(
         constraint_envelope=current_envelope,
         exercise_pool=current_pool,
