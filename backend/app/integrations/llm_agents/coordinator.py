@@ -12,6 +12,7 @@ from backend.app.domain.agents.v3_contracts import (
     PlanSpec,
     SpecialistAgentProposal,
 )
+from backend.app.integrations.llm_agents.canonicalization import canonical_plan_values
 from backend.app.integrations.llm_agents.models import (
     LlmAgentFailureCode,
     LlmAgentRoleCode,
@@ -144,7 +145,7 @@ class LangChainCoordinatorAdapter:
                 payload=payload,
             ),
             domain_validator=validate,
-            canonical_factory=lambda values: PlanSpec.create(**values),
+            canonical_factory=lambda values: PlanSpec.create(**canonical_plan_values(values)),
             server_owned_fields=("plan_hash",),
         )
 
@@ -192,7 +193,7 @@ class LangChainCoordinatorAdapter:
                 payload=payload,
             ),
             domain_validator=validate,
-            canonical_factory=lambda values: PlanSpec.create(**values),
+            canonical_factory=lambda values: PlanSpec.create(**canonical_plan_values(values)),
             server_owned_fields=("plan_hash",),
         )
 

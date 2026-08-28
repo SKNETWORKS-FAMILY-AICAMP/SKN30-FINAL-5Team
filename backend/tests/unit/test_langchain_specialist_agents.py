@@ -303,3 +303,36 @@ def test_unconfigured_feature_builds_unavailable_invoker_without_startup_failure
     assert result.failure.code is LlmAgentFailureCode.PROVIDER_UNAVAILABLE
     assert result.failure.attempt_count == 0
     assert model.invocation_count == 0
+
+
+def test_specialist_adapter_accepts_codes_the_model_did_not_sort() -> None:
+    # The staging failure: RECOVERY answered with adjustment codes in the order
+    # it reasoned about them, the contract requires canonical sorted order, and
+    # every proposal was rejected as LLM_AGENT_SCHEMA_INVALID.
+    current_envelope = envelope()
+    current_pool = pool(current_envelope)
+    expected = proposal(SpecialistAgentTypeCode.RECOVERY, current_envelope, current_pool)
+    payload = expected.model_dump(mode="json")
+    payload["adjustment_codes"] = [
+        "RECOVERY_ELIGIBLE_ONLY",
+        "INTENSITY_REDUCED",
+        "ALLOW_ADDITIONAL_REST",
+    ]
+    payload["evidence_reference_codes"] = ["POOL", "ENVELOPE"]
+    model = ToolCallingFakeChatModel(responses=[tool_response(SpecialistAgentProposal, payload, 1)])
+
+    result = asyncio.run(
+        _adapter(RecoveryAgentAdapter, model).apropose(
+            constraint_envelope=current_envelope,
+            exercise_pool=current_pool,
+        )
+    )
+
+    assert result.failure is None
+    assert result.output is not None
+    assert result.output.adjustment_codes == (
+        "ALLOW_ADDITIONAL_REST",
+        "INTENSITY_REDUCED",
+        "RECOVERY_ELIGIBLE_ONLY",
+    )
+    assert result.output.evidence_reference_codes == ("ENVELOPE", "POOL")

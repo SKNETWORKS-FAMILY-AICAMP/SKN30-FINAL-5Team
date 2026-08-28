@@ -13,6 +13,7 @@ from backend.app.domain.agents.v3_contracts import (
     SpecialistAgentProposal,
     SpecialistAgentTypeCode,
 )
+from backend.app.integrations.llm_agents.canonicalization import canonical_proposal_values
 from backend.app.integrations.llm_agents.models import (
     LlmAgentFailureCode,
     LlmAgentRoleCode,
@@ -92,7 +93,9 @@ class LangChainSpecialistAdapter:
                 payload=payload,
             ),
             domain_validator=validate,
-            canonical_factory=lambda values: SpecialistAgentProposal.create(**values),
+            canonical_factory=lambda values: SpecialistAgentProposal.create(
+                **canonical_proposal_values(values)
+            ),
             # estimated_duration_seconds is derived from the status and the
             # requested minutes, so it is withheld from the provider schema for
             # the same reason proposal_hash is: a model cannot choose it, and
@@ -142,7 +145,9 @@ class LangChainSpecialistAdapter:
                 payload=payload,
             ),
             domain_validator=validate,
-            canonical_factory=lambda values: SpecialistAgentProposal.create(**values),
+            canonical_factory=lambda values: SpecialistAgentProposal.create(
+                **canonical_proposal_values(values)
+            ),
             # estimated_duration_seconds is derived from the status and the
             # requested minutes, so it is withheld from the provider schema for
             # the same reason proposal_hash is: a model cannot choose it, and
