@@ -37,7 +37,7 @@ from backend.tests.unit.llm_agent_test_support import (
     ToolCallingFakeChatModel,
     tool_response,
 )
-from backend.tests.unit.test_v3_agent_contracts import envelope, pool, proposal
+from backend.tests.unit.test_v3_agent_contracts import B, envelope, pool, proposal
 
 FORBIDDEN_PROMPT_FIELDS = {
     "user_id",
@@ -292,3 +292,22 @@ def test_body_area_exemption_does_not_leak_to_other_fields() -> None:
 def test_body_area_values_stay_rejected_without_an_explicit_exemption() -> None:
     with pytest.raises(ValueError, match="health body-area value"):
         assert_private_machine_payload({"body_focus_code": "CHEST"})
+
+
+def test_specialist_payload_carries_the_caution_flag_without_the_body_area() -> None:
+    """Agents learn which pool IDs are flagged, never which body part hurts."""
+
+    current_envelope = envelope(caution_ids=(B,))
+    current_pool = pool(current_envelope)
+    agent_input = SpecialistAgentInput(
+        agent_type_code=SpecialistAgentTypeCode.TRAINING,
+        constraint_envelope=current_envelope,
+        envelope_hash=current_envelope.envelope_hash,
+        exercise_pool=current_pool,
+        pool_hash=current_pool.pool_hash,
+    )
+
+    payload = specialist_payload(agent_input)
+
+    assert payload["constraint_envelope"]["caution_exercise_ids"] == [str(B)]
+    assert_private_machine_payload(payload)

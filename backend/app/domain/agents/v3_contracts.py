@@ -15,8 +15,8 @@ from pydantic_core import to_jsonable_python
 from backend.app.domain.agents.retrieval import ExercisePoolExerciseRecord, ExercisePoolSnapshot
 from backend.app.domain.rules.safety import SafetyRequiredActionCode
 
-CONSTRAINT_ENVELOPE_SCHEMA_VERSION: Final[Literal["constraint-envelope-v3"]] = (
-    "constraint-envelope-v3"
+CONSTRAINT_ENVELOPE_SCHEMA_VERSION: Final[Literal["constraint-envelope-v4"]] = (
+    "constraint-envelope-v4"
 )
 RECOVERY_CEILING_SCHEMA_VERSION: Final[Literal["recovery-ceiling-v1"]] = "recovery-ceiling-v1"
 REGENERATION_CONTEXT_SCHEMA_VERSION: Final[Literal["regeneration-context-v1"]] = (
@@ -144,12 +144,17 @@ class ConstraintEnvelope(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
-    schema_version: Literal["constraint-envelope-v3"] = CONSTRAINT_ENVELOPE_SCHEMA_VERSION
+    schema_version: Literal["constraint-envelope-v4"] = CONSTRAINT_ENVELOPE_SCHEMA_VERSION
     requested_duration_minutes: int = Field(gt=0)
     primary_goal_code: str
     allowed_location_codes: tuple[str, ...] = Field(min_length=1)
     allowed_equipment_codes: tuple[str, ...] = ()
     excluded_exercise_ids: tuple[UUID, ...] = ()
+    # Reviewed CAUTION verdicts. Unlike an exclusion these stay selectable: the
+    # approved rules answer CAUTION, not EXCLUDE, so removing them would change
+    # safety policy. They are carried so the decision record and the user-facing
+    # response can show which exercises the rules flagged.
+    caution_exercise_ids: tuple[UUID, ...] = ()
     mandatory_exercise_ids: tuple[UUID, ...] = ()
     recovery_ceiling: RecoveryCeiling
     plan_generation_allowed: bool
@@ -178,7 +183,11 @@ class ConstraintEnvelope(BaseModel):
     ) -> tuple[str, ...]:
         return _canonical_codes(values, field_name=info.field_name or "allowed codes")
 
-    @field_validator("excluded_exercise_ids", "mandatory_exercise_ids")
+    @field_validator(
+        "excluded_exercise_ids",
+        "caution_exercise_ids",
+        "mandatory_exercise_ids",
+    )
     @classmethod
     def validate_exercise_ids(
         cls, values: tuple[UUID, ...], info: ValidationInfo
@@ -194,6 +203,8 @@ class ConstraintEnvelope(BaseModel):
     def validate_envelope(self) -> Self:
         if set(self.excluded_exercise_ids) & set(self.mandatory_exercise_ids):
             raise ValueError("an exercise cannot be both excluded and mandatory")
+        if set(self.excluded_exercise_ids) & set(self.caution_exercise_ids):
+            raise ValueError("an exercise cannot be both excluded and cautioned")
         if self.plan_generation_allowed and self.safety_required_action_code is not None:
             raise ValueError("plan generation cannot override REST or STOP_AND_SEEK_HELP")
         if self.envelope_hash != _canonical_hash(self._hash_payload()):
@@ -208,6 +219,9 @@ class ConstraintEnvelope(BaseModel):
         payload = {
             "schema_version": CONSTRAINT_ENVELOPE_SCHEMA_VERSION,
             "safety_required_action_code": None,
+            # Seeded so the hashed payload matches the validated model even when
+            # the caller omits it; the model default alone would not be hashed.
+            "caution_exercise_ids": (),
             **values,
         }
         payload["envelope_hash"] = _canonical_hash(payload)

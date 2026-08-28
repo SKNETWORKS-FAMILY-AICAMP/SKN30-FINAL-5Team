@@ -72,6 +72,7 @@ _CONSTRAINT_ENVELOPE_FIELDS: Final = (
     "allowed_location_codes",
     "allowed_equipment_codes",
     "excluded_exercise_ids",
+    "caution_exercise_ids",
     "mandatory_exercise_ids",
     "recovery_ceiling",
     "plan_generation_allowed",

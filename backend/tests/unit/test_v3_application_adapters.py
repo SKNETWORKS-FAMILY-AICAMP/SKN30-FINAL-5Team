@@ -53,6 +53,7 @@ def _shoulder_rule_set(
     scope_code: SafetyRuleScopeCode,
     exercise_code: str | None = None,
     movement_pattern_code: str | None = None,
+    effect_code: SafetyRuleEffectCode = SafetyRuleEffectCode.EXCLUDE,
 ) -> SafetyRuleSet:
     return SafetyRuleSet(
         version_code="safety-v2",
@@ -60,12 +61,12 @@ def _shoulder_rule_set(
         production_eligible=True,
         rules=(
             SafetyRule(
-                rule_code="SHOULDER_EXCLUDE",
+                rule_code=f"SHOULDER_{effect_code.value}",
                 catalog_version_code="catalog-v1",
                 body_area_code=BodyAreaCode.SHOULDER,
                 minimum_severity_code=DiscomfortSeverityCode.MODERATE,
                 maximum_severity_code=DiscomfortSeverityCode.SEVERE,
-                effect_code=SafetyRuleEffectCode.EXCLUDE,
+                effect_code=effect_code,
                 reason_code="DIRECT_JOINT_LOAD",
                 scope_code=scope_code,
                 rule_version="2.0.0",
@@ -229,3 +230,33 @@ def test_v3_plan_generation_blocked_when_every_pool_exercise_is_excluded() -> No
 
     assert not envelope.plan_generation_allowed
     assert envelope.safety_required_action_code == "REST"
+
+
+def test_v3_envelope_carries_caution_without_removing_the_exercise() -> None:
+    """CAUTION is not EXCLUDE: the exercise stays selectable but is flagged.
+
+    The rules answer CAUTION for a mild secondary-area load. V3 computed that
+    verdict and discarded it, so the user saw an unannotated recommendation.
+    """
+
+    cautioned_id = UUID(int=101)
+    other_id = UUID(int=102)
+    source = _source(
+        exercises=(_exercise(cautioned_id, "BEGINNER"), _exercise(other_id, "BEGINNER")),
+        discomforts=(("SHOULDER", "MODERATE"),),
+        safety_rule_set=_shoulder_rule_set(
+            scope_code=SafetyRuleScopeCode.EXERCISE,
+            exercise_code=str(cautioned_id),
+            effect_code=SafetyRuleEffectCode.CAUTION,
+        ),
+    )
+
+    envelope = DeterministicV3SafetyPolicyAdapter().evaluate(source)
+
+    assert envelope.caution_exercise_ids == (cautioned_id,)
+    assert envelope.excluded_exercise_ids == ()
+    assert envelope.plan_generation_allowed
+
+    eligible = PostgreSQLV3ExercisePoolSource().load_eligible(source=source, envelope=envelope)
+
+    assert tuple(item.exercise_id for item in eligible.exercises) == (cautioned_id, other_id)

@@ -1413,6 +1413,7 @@ WorkoutPlanItem
 - transition_seconds: integer
 - estimated_item_seconds: integer
 - instruction_available: boolean
+- safety_caution: boolean  # 기본 false. 하위 호환을 위해 선택 필드다.
 - mascot_animation_asset_key: string | null
 - replacement_of_exercise_id: UUID | null
 
@@ -2111,6 +2112,12 @@ V3 response에서도 기존 필드 타입은 유지한다. V1/V2 historical resp
 결정적 `SafetyPolicyEngine`이다. V3도 기존 순서와 길이를 유지하기 위해 세 번째
 `agent_type_code=SAFETY`를 policy engine의 호환 projection으로 반환하며 이를 LLM proposal로
 해석하지 않는다. `safety_summary`도 policy engine의 공개 가능한 상태·veto·reason code를 나타낸다.
+
+`WorkoutPlanItem.safety_caution`은 승인된 안전 규칙이 해당 운동에 대해 사용자가 보고한
+불편에 `CAUTION` 판정을 내렸음을 뜻한다. `EXCLUDE`와 달리 운동은 그대로 추천되며, 규칙이
+표시했다는 사실만 전달한다. `EXCLUDE` 판정 운동은 애초에 계획에 포함되지 않으므로 이
+필드로 나타나지 않는다. 어느 신체 부위가 불편한지, 통증 강도가 얼마인지는 응답에 담지
+않는다. 클라이언트는 이 값을 진단이나 의학적 경고로 표현해서는 안 된다.
 
 ---
 

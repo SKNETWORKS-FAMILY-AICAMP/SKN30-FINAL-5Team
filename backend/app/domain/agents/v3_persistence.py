@@ -34,8 +34,8 @@ from backend.app.domain.agents.v3_validation import (
     IntegrityValidationStatusCode,
 )
 
-PERSISTENCE_BUNDLE_SCHEMA_VERSION: Final[Literal["v3-decision-persistence-bundle-v2"]] = (
-    "v3-decision-persistence-bundle-v2"
+PERSISTENCE_BUNDLE_SCHEMA_VERSION: Final[Literal["v3-decision-persistence-bundle-v3"]] = (
+    "v3-decision-persistence-bundle-v3"
 )
 REPLAY_RESULT_SCHEMA_VERSION: Final[Literal["v3-replay-result-v1"]] = "v3-replay-result-v1"
 
@@ -144,7 +144,7 @@ class V3ValidationPersistence(_FrozenModel):
 
 
 class V3DecisionPersistenceBundle(_FrozenModel):
-    schema_version: Literal["v3-decision-persistence-bundle-v2"] = PERSISTENCE_BUNDLE_SCHEMA_VERSION
+    schema_version: Literal["v3-decision-persistence-bundle-v3"] = PERSISTENCE_BUNDLE_SCHEMA_VERSION
     decision_execution_id: UUID
     root_decision_execution_id: UUID
     parent_decision_execution_id: UUID | None = None

@@ -365,13 +365,23 @@ class DeterministicV3SafetyPolicyAdapter:
         if base.excluded_exercise_codes and not safe_change_available:
             allowed = False
         excluded_codes = set(base.excluded_exercise_codes)
+        caution_codes = set(base.caution_exercise_codes)
         if pool_evaluation is not None:
             # A pool exclusion is enforced by removing the exercise from the pool,
             # so unlike a base-routine exclusion it filters rather than blocks.
             excluded_codes |= set(pool_evaluation.excluded_exercise_codes)
+            caution_codes |= set(pool_evaluation.caution_exercise_codes)
+        # An exclusion always wins; the envelope rejects an overlap outright.
+        caution_codes -= excluded_codes
         excluded = tuple(
             sorted(
                 (UUID(value) for value in excluded_codes),
+                key=str,
+            )
+        )
+        cautioned = tuple(
+            sorted(
+                (UUID(value) for value in caution_codes),
                 key=str,
             )
         )
@@ -411,6 +421,7 @@ class DeterministicV3SafetyPolicyAdapter:
             allowed_location_codes=(context.location_code,),
             allowed_equipment_codes=tuple(sorted(context.equipment_codes)),
             excluded_exercise_ids=excluded,
+            caution_exercise_ids=cautioned,
             mandatory_exercise_ids=(),
             recovery_ceiling=ceiling,
             plan_generation_allowed=allowed,
@@ -556,6 +567,13 @@ class V3DecisionResponseProjector:
             **context.exercise_names,
             **{item.exercise_id: item.display_name for item in context.assembly.items},
         }
+        # Reviewed CAUTION verdicts are shown per exercise. Without this the rules
+        # flag an exercise and the user sees an unannotated recommendation.
+        cautioned = set(
+            context.pool_safety_evaluation.caution_exercise_codes
+            if context.pool_safety_evaluation is not None
+            else ()
+        )
         items = []
         for compiled in plan.exercises:
             prescription = compiled.prescription
@@ -585,6 +603,7 @@ class V3DecisionResponseProjector:
                     transition_seconds=timing.transition_seconds,
                     estimated_item_seconds=timing.estimated_item_seconds,
                     instruction_available=bool(compiled.catalog_record.content_version),
+                    safety_caution=str(prescription.exercise_id) in cautioned,
                 )
             )
         first = plan.exercises[0].catalog_record

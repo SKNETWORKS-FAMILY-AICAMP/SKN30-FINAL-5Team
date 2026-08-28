@@ -58,6 +58,7 @@ def exercise(exercise_id: UUID) -> ExercisePoolExerciseRecord:
 def envelope(
     *,
     excluded_ids: tuple[UUID, ...] = (),
+    caution_ids: tuple[UUID, ...] = (),
     mandatory_ids: tuple[UUID, ...] = (A,),
 ) -> ConstraintEnvelope:
     return ConstraintEnvelope.create(
@@ -66,6 +67,7 @@ def envelope(
         allowed_location_codes=("HOME",),
         allowed_equipment_codes=("BODYWEIGHT",),
         excluded_exercise_ids=excluded_ids,
+        caution_exercise_ids=caution_ids,
         mandatory_exercise_ids=mandatory_ids,
         recovery_ceiling=RecoveryCeiling(
             policy_version="recovery-policy-v1",
@@ -363,3 +365,14 @@ def test_v3_contract_module_has_no_framework_or_infrastructure_imports() -> None
             imported_roots.add(node.module.split(".", maxsplit=1)[0])
 
     assert imported_roots.isdisjoint(forbidden_roots)
+
+
+def test_envelope_rejects_an_exercise_that_is_both_excluded_and_cautioned() -> None:
+    with pytest.raises(ValidationError):
+        envelope(excluded_ids=(B,), caution_ids=(B,))
+
+
+def test_envelope_hash_covers_the_caution_verdict() -> None:
+    """A caution must not be attachable to an envelope without changing its hash."""
+
+    assert envelope(caution_ids=(B,)).envelope_hash != envelope().envelope_hash

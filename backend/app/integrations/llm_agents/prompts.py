@@ -30,13 +30,16 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
     {
         LlmAgentRoleCode.TRAINING: RolePrompt(
             role_code=LlmAgentRoleCode.TRAINING,
-            version="v3-training-prompt-v3",
+            version="v3-training-prompt-v4",
             instruction=(
                 "Act as the Training specialist and the sole owner of the draft exercise plan. "
                 "Return an ordered exercise_prescriptions list that preserves the primary goal, "
                 "requested duration, mandatory exercises, and every constraint in the supplied "
                 "envelope and recovery ceiling. Select exercise IDs only from the supplied pool; "
-                "never include excluded IDs or invent catalog content. "
+                "never include excluded IDs or invent catalog content. IDs in "
+                "caution_exercise_ids remain selectable, but the approved rules flagged "
+                "them for the reported discomfort: prefer an equivalent unflagged pool "
+                "exercise when the primary goal and duration still hold. "
                 f"{_COMMON_BOUNDARY}"
             ),
         ),
@@ -68,13 +71,15 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
         ),
         LlmAgentRoleCode.COORDINATOR: RolePrompt(
             role_code=LlmAgentRoleCode.COORDINATOR,
-            version="v3-coordinator-prompt-v3",
+            version="v3-coordinator-prompt-v4",
             instruction=(
                 "Coordinate exactly the three supplied specialist proposals into one PlanSpec. "
                 "Use Training's exercise_prescriptions as the sole draft plan and consider the "
                 "Recovery and Feasibility adjustment_codes as advisory perspectives without a "
                 "fixed precedence between specialist responses. Do not weaken safety, duration, "
-                "goal, equipment, location, or recovery constraints. A repair request is evidence "
+                "goal, equipment, location, or recovery constraints. Keep Training's "
+                "handling of caution_exercise_ids unless an adjustment code gives a "
+                "reason to revisit it. A repair request is evidence "
                 "for this single call, never permission to start a loop. The compiled plan is "
                 "accepted only after deterministic integrity validation. "
                 f"{_COMMON_BOUNDARY}"

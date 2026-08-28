@@ -32,6 +32,10 @@ class DecisionPlanItem(BaseModel):
     transition_seconds: int
     estimated_item_seconds: int
     instruction_available: bool
+    # True when the approved safety rules answered CAUTION for this exercise
+    # against the reported discomfort. The exercise stays recommended; the client
+    # shows that the rules flagged it.
+    safety_caution: bool = False
     mascot_animation_asset_key: str | None = None
     replacement_of_exercise_id: UUID | None = None
 

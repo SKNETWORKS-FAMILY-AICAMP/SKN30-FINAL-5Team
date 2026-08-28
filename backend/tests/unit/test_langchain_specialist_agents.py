@@ -63,16 +63,21 @@ def test_async_specialist_boundary_preserves_structured_contract() -> None:
 
 
 @pytest.mark.parametrize(
-    ("adapter_type", "agent_type"),
+    ("adapter_type", "agent_type", "expected_prompt_version"),
     [
-        (TrainingAgentAdapter, SpecialistAgentTypeCode.TRAINING),
-        (RecoveryAgentAdapter, SpecialistAgentTypeCode.RECOVERY),
-        (FeasibilityAgentAdapter, SpecialistAgentTypeCode.FEASIBILITY),
+        (TrainingAgentAdapter, SpecialistAgentTypeCode.TRAINING, "v3-training-prompt-v4"),
+        (RecoveryAgentAdapter, SpecialistAgentTypeCode.RECOVERY, "v3-recovery-prompt-v3"),
+        (
+            FeasibilityAgentAdapter,
+            SpecialistAgentTypeCode.FEASIBILITY,
+            "v3-feasibility-prompt-v3",
+        ),
     ],
 )
 def test_each_specialist_uses_actual_structured_contract_and_versioned_role_prompt(
     adapter_type: type,
     agent_type: SpecialistAgentTypeCode,
+    expected_prompt_version: str,
 ) -> None:
     current_envelope = envelope()
     current_pool = pool(current_envelope)
@@ -90,7 +95,7 @@ def test_each_specialist_uses_actual_structured_contract_and_versioned_role_prom
     assert result.succeeded
     assert result.output == expected
     assert result.output.schema_version == SPECIALIST_AGENT_PROPOSAL_SCHEMA_VERSION
-    assert adapter.prompt_version == f"v3-{agent_type.value.lower()}-prompt-v3"
+    assert adapter.prompt_version == expected_prompt_version
     assert adapter.output_schema_version == SPECIALIST_AGENT_PROPOSAL_SCHEMA_VERSION
     assert model.bound_tool_names == [("SpecialistAgentProposal",)]
     assert model.invocation_count == 1
