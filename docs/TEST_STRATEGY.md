@@ -169,7 +169,7 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 - Training·Recovery·Safety·Feasibility 네 proposal이 final decision과 분리되고 Coordinator가 최종 루틴 한 개를 선택한다.
 - 증상 사용자 시나리오에서 SafetyAgent의 `PASS`/`REVISE`/`BLOCKED` 의견은 Coordinator 결정에 반영하고, `NEEDS_INPUT`과 `FAILED`는 계획을 반환하지 않는 fail-closed 결과로 처리하며, 독립적인 최종 Safety 재검사는 실행하지 않는다.
 
-ADR-0012 V2의 필수 속성·불변식:
+ADR-0012 V2의 필수 속성·불변식 (SUPERSEDED, ADR-0015로 대체됨. 결정 기록으로만 보존한다):
 
 - no-conflict 입력은 Round 2 Agent를 호출하지 않고 `SKIPPED_NO_CONFLICT`이며, 네 Agent 모두
   `NOT_REQUIRED` event를 가지고 V1과 같은 최종 결과다.
@@ -188,26 +188,32 @@ ADR-0012 V2의 필수 속성·불변식:
 
 ADR-0013 V3의 필수 속성·불변식:
 
-- SafetyPolicyEngine 출력과 ConstraintEnvelope는 세 Agent, review, Coordinator, repair와 regeneration에서
+- SafetyPolicyEngine 출력과 ConstraintEnvelope는 세 Agent, Coordinator, repair와 regeneration에서
   완화되거나 version/hash가 바뀌지 않는다.
 - ExercisePoolSnapshot은 production-approved catalog row만 포함하고 canonical order/hash를 가지며
   모든 LLM exercise reference는 pool의 부분집합이다.
 - Agent와 Coordinator invocation에는 직접 식별자, 날짜, 자유 체크인, raw 건강·웨어러블·캘린더,
   application log, prompt 원문과 provider 예외 원문이 없다.
 - Agent와 Coordinator는 DB·repository·ORM·raw SQL Tool을 등록하거나 호출하지 않는다.
-- 세 Round 1 Agent의 fan-out은 병렬이며 fan-in 전 누락·invalid·timeout 결과로 Coordinator를 실행하지
+- 세 Agent의 fan-out은 병렬이며 fan-in 전 누락·invalid·timeout 결과로 Coordinator를 실행하지
   않는다.
-- conflict code와 review target은 LLM 없이 canonical하며 review는 영향 Agent당 최대 한 번이다.
+- ADR-0015: Training만 `exercise_prescriptions`를 반환한다. Recovery와 Feasibility가 계획을 제출하면
+  계약이 거부한다.
+- ADR-0015: Coordinator 앞에 결정론적 관문이 없다. Coordinator 출력에 대한 검사는 compiled plan을
+  대상으로 하는 integrity validator 하나이며, 이 검사만으로 Safety veto가 유지되는지 확인한다.
+- ADR-0015: Recovery·Feasibility의 `adjustment_codes`는 권고이므로, 반영되지 않았다는 이유로
+  결정이 실패하지 않는다.
 - Coordinator initial/repair output은 Pydantic schema, pool membership와 envelope constraint를 통과해야
   하고 repair attempt는 0 또는 1뿐이다.
-- Plan Compiler 산술은 deterministic하고 plan 구성요소 합계가 requested duration과 정확히 일치한다.
+- Plan Compiler 산술은 deterministic하고 plan 구성요소 합계가 requested duration의 허용 범위
+  (`DURATION_TOLERANCE_SECONDS`) 안에 든다.
 - 최종 validator는 원시 Safety 분류를 재실행하지 않고 envelope 준수 assertion만 수행한다.
 - `STOP_AND_SEEK_HELP`는 REST, fallback plan 또는 Coordinator repair로 바뀌지 않는다.
 - deterministic fallback도 compiler와 같은 integrity validator를 통과해야 final option이 된다.
 - regeneration은 root/parent/sequence lineage를 보존하고 exact duplicate를 거부하며 네 meaningful
   difference code 중 하나 이상을 갖는다.
 - 같은 Idempotency-Key는 같은 regeneration response를 반환하고 다른 payload 재사용은 409다.
-- stored envelope·pool·proposal·review·Coordinator output·compiler/validation과 version으로 provider
+- stored envelope·pool·proposal·Coordinator output·compiler/validation과 version으로 provider
   재호출 없이 같은 final result를 replay한다.
 - LangGraph persistent checkpoint와 외부 trace 전송은 초기 V3에서 발생하지 않는다.
 - PostgreSQL이 eligible/mandatory ID를 먼저 계산하고 Qdrant는 eligible 범위의 순위·다양성만 결정한다.
@@ -326,8 +332,8 @@ fixture를 사용해 추가 검증해야 한다.
 
 ### 5.3.1 [V3 목표] LLM graph, Vector retrieval replay와 regeneration 계약
 
-V3 replay fixture는 input, ConstraintEnvelope, ExercisePoolSnapshot, 세 structured proposal, conflict,
-review, Coordinator initial/repair output, compiled plan, validation result와 모든 version/hash를 분리한다.
+V3 replay fixture는 input, ConstraintEnvelope, ExercisePoolSnapshot, 세 structured proposal,
+Coordinator initial/repair output, compiled plan, validation result와 모든 version/hash를 분리한다.
 replay는 provider를 mock으로도 호출하지 않고 저장된 structured output에서 final result를 복원한다.
 
 ADR-0014 fixture는 eligible/mandatory ID, retrieval request/result, collection/index/embedding/query version,

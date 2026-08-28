@@ -216,7 +216,12 @@ Required golden scenarios:
 3. Knee discomfort excludes knee-load movements while preserving an appropriate goal.
 4. Wearable data missing uses manual check-in fallback.
 5. LLM failure returns a deterministic result.
-6. Safety veto cannot be overridden by coordinator output.
+6. Safety veto cannot be overridden by coordinator output. The enforcement point is the
+   integrity validation that runs on the compiled plan, downstream of the coordinator.
+   A check placed before the coordinator cannot satisfy this scenario (ADR-0015).
+7. Only the training agent produces an exercise plan. Recovery and feasibility answer with
+   adjustment codes, which advise the coordinator and are not deterministically enforced
+   (ADR-0015).
 
 ## 12. Code review rules
 

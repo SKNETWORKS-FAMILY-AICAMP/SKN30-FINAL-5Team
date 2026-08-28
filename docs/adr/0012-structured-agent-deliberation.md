@@ -1,13 +1,25 @@
 # ADR-0012: 2라운드 구조화 Agent 상호검토
 
-- 상태: ACCEPTED
+- 상태: SUPERSEDED
 - 날짜: 2026-08-20
+- 대체: ADR-0015 (2026-08-28)
 - 소유자: 백엔드 개발팀장
 - 승인자: 개발팀장 외 reviewer 1명 + 백엔드 owner + PM + 외부 도메인 검수자
 - 관계: ADR-0007의 단일 proposal orchestration을 확장하며, 네 Agent·Coordinator·Safety 경계는 유지
-- 후속 결정: ADR-0013(`ACCEPTED`, V3 목표). V3 구현·검증과 production 전환 승인 전에는 본 ADR의
-  V2 목표 계약을 유지
+- 후속 결정: ADR-0013(`ACCEPTED`, V3 목표) → ADR-0015가 충돌 감지와 2라운드 review를 제거
 - 관련 요구사항/이슈: `F002`, `F029`, `POL-008`, `NFR-003`, `NFR-006`, `TASK-AGENT-002`
+
+> **SUPERSEDED 사유 (2026-08-28, ADR-0015)**
+>
+> 본 ADR이 정한 결정적 충돌 감지와 최대 1회 구조화 review는 어느 경로의 목표 계약도 아니게 됐다.
+>
+> - V2 목표 계약은 production 경로로 구현되지 않았다. `DeliberationRepository`는 테스트에서만
+>   호출되며 `decision_deliberations`와 `agent_review_events`에 쓰는 경로가 없다.
+> - V3에서는 이 단계가 Coordinator의 종합·선택 역할과 중복된다고 판단해 제거한다.
+> - 제약 검사는 Coordinator 하류의 integrity validator가 동일 코드로 재실행하므로 결정론적
+>   안전 강제력은 유지된다.
+>
+> 아래 본문은 당시 결정 기록으로 보존한다. 현행 계약은 ADR-0015를 따른다.
 
 ## 배경
 

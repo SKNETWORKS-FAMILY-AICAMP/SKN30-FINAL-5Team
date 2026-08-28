@@ -2176,7 +2176,7 @@ setup_seconds
 - coordinator
 - prompt와 model, LLM 사용 시에만
 - V3에서는 ConstraintEnvelope, ExercisePoolSnapshot, LangChain/LangGraph contract, structured output,
-  conflict/review, Coordinator attempt, compiler/validator와 fallback version
+  Coordinator attempt, compiler/validator와 fallback version
 
 DB 저장에 실패한 decision 결과는 성공 응답하지 않는다.
 

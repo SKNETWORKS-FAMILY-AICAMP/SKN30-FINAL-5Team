@@ -493,7 +493,10 @@ Coordinator(의장 에이전트)는 공통 입력·기본 후보와 Training·Re
 
 독립적인 Safety 최종 재검사는 수행하지 않는다.
 
-### 8.1 승인된 V2 구조화 상호검토 목표 계약
+### 8.1 (SUPERSEDED) V2 구조화 상호검토 목표 계약
+
+> ADR-0015(2026-08-28)로 대체됐다. 이 절의 conflict detector와 Round 2 review는 현행 계약이 아니며
+> production 경로로 구현된 적도 없다. 결정 기록으로만 보존한다. 현행 V3 계약은 8.2절을 따른다.
 
 ADR-0012에 따라 A2는 현재 네 독립 proposal을 Round 1로 유지하고, 그 뒤 결정적 conflict detector와
 최대 한 번의 Round 2 review를 추가한다.
@@ -574,12 +577,18 @@ LangGraph에서 병렬 실행하고 LangChain/Pydantic structured output만 반�
 PlanSpec 초안을 만들고, Recovery는 승인 ceiling 안의 조정, Feasibility는 장소·장비·시간 안의 실행
 가능성 proposal을 만든다.
 
-결정적 conflict detector는 Agent 상호 간뿐 아니라 envelope 위반도 검사한다. conflict가 있을 때만
-영향 Agent를 최대 한 번 review하고 비대상 Agent는 `NOT_REQUIRED`를 저장한다. Safety veto, 생성 금지,
-요청 시간, pool, version, Recovery/return ceiling과 Feasibility 불가능 조건은 review나 Coordinator가
-완화할 수 없다.
+ADR-0015에 따라 계획을 만드는 Agent는 Training 하나다. Recovery와 Feasibility는 회복 상한과
+실행 가능성 관점의 `adjustment_codes`로 응답한다. 이 조정 코드는 Coordinator에 대한 **권고이며
+결정론적 강제 대상이 아니다.** 안전은 `ConstraintEnvelope`의 제외 운동·recovery ceiling과 최종
+integrity validator가 강제하므로, 두 Agent의 응답 내용이 안전 판정을 바꾸지 않는다.
 
-LLM Coordinator는 proposal·review를 종합·선택해 하나의 `PlanSpec`을 반환한다. Plan Compiler는
+세 응답은 별도의 충돌 감지나 재검토 없이 Coordinator로 직접 들어간다. Coordinator 출력에 대한
+결정론적 검사는 integrity validator 하나이며, 검사 대상이 proposal이 아니라 compiled plan이므로
+Coordinator가 무엇을 하든 사용자에게 나가는 계획이 envelope를 벗어날 수 없다. Safety veto,
+생성 금지, 요청 시간, pool, version, Recovery/return ceiling과 Feasibility 불가능 조건은
+Coordinator가 완화할 수 없다.
+
+LLM Coordinator는 세 응답을 종합·선택해 하나의 `PlanSpec`을 반환한다. Plan Compiler는
 exercise reference, sequence, set/rep/work/rest/transition과 정확한 시간을 결정적으로 계산한다. 최종
 integrity validator는 원시 통증·이상 반응을 재분류하지 않고 compiled plan이 envelope의 safety,
 duration, goal, equipment/location, catalog와 schema constraint를 지켰는지만 검사한다.
@@ -967,8 +976,7 @@ TASK-BACKEND-007의 단계별 게이트를 따른다.
 - 시간 계산 규칙 버전
 - 조정기 버전
 - 전문 에이전트 proposal
-- V2 구현 사용 시 conflict detector·precedence version, canonical conflict code, review 대상과
-  `NOT_REQUIRED` event, revised proposal과 각 hash
+- V3는 conflict/review 산출물을 저장하지 않는다(ADR-0015). 기존에 저장된 레코드는 보존한다.
 - 후보와 안전 검증 결과
 - 최종 옵션
 - LLM 사용 시 모델과 프롬프트 버전
@@ -976,8 +984,9 @@ TASK-BACKEND-007의 단계별 게이트를 따른다.
 동일한 입력 스냅샷과 동일한 결정 규칙 버전은 동일한 운동 후보와 최종 액션을 만들어야 한다. LLM 문구는 결정 재현성의 일부로 사용하지 않는다.
 
 V3에서는 fresh LLM 재호출의 byte-identical 결과를 요구하지 않는다. 대신 envelope·pool·proposal·
-review·Coordinator output·compiler/validator 결과와 모든 model/prompt/graph version을 저장하고,
+Coordinator output·compiler/validator 결과와 모든 model/prompt/graph version을 저장하고,
 저장된 structured output을 입력으로 provider 재호출 없이 동일 final result를 replay해야 한다.
+그래프 구조가 바뀌면 `graph_version`을 올려 저장된 결정이 어느 구조에서 나왔는지 식별한다.
 
 ---
 
