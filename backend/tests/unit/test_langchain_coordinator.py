@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from backend.app.domain.agents.v3_contracts import PLAN_SPEC_SCHEMA_VERSION, PlanSpec
 from backend.app.integrations.llm_agents.coordinator import LangChainCoordinatorAdapter
@@ -63,7 +63,7 @@ def test_coordinator_returns_actual_structured_validated_plan_spec() -> None:
 
     assert result.output == expected
     assert result.output.schema_version == PLAN_SPEC_SCHEMA_VERSION
-    assert adapter.prompt_version == "v3-coordinator-prompt-v1"
+    assert adapter.prompt_version == "v3-coordinator-prompt-v3"
     assert adapter.output_schema_version == PLAN_SPEC_SCHEMA_VERSION
     assert model.bound_tool_names == [("PlanSpec",)]
     assert model.invocation_count == 1
@@ -77,6 +77,13 @@ def test_coordinator_returns_actual_structured_validated_plan_spec() -> None:
     assert [
         item["agent_type_code"] for item in prompt_payload["input"]["specialist_proposals"]
     ] == ["TRAINING", "RECOVERY", "FEASIBILITY"]
+    system_message = next(
+        message for message in model.seen_messages[0] if isinstance(message, SystemMessage)
+    )
+    assert isinstance(system_message.content, str)
+    assert "sole draft plan" in system_message.content
+    assert "advisory perspectives" in system_message.content
+    assert "without a fixed precedence" in system_message.content
 
 
 def test_coordinator_cannot_relax_envelope_constraints() -> None:

@@ -4,7 +4,7 @@ import asyncio
 import json
 
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from backend.app.core.config import Settings
 from backend.app.domain.agents.v3_contracts import (
@@ -90,7 +90,7 @@ def test_each_specialist_uses_actual_structured_contract_and_versioned_role_prom
     assert result.succeeded
     assert result.output == expected
     assert result.output.schema_version == SPECIALIST_AGENT_PROPOSAL_SCHEMA_VERSION
-    assert adapter.prompt_version == f"v3-{agent_type.value.lower()}-prompt-v1"
+    assert adapter.prompt_version == f"v3-{agent_type.value.lower()}-prompt-v3"
     assert adapter.output_schema_version == SPECIALIST_AGENT_PROPOSAL_SCHEMA_VERSION
     assert model.bound_tool_names == [("SpecialistAgentProposal",)]
     assert model.invocation_count == 1
@@ -103,6 +103,43 @@ def test_each_specialist_uses_actual_structured_contract_and_versioned_role_prom
     assert prompt_payload["output_schema_version"] == SPECIALIST_AGENT_PROPOSAL_SCHEMA_VERSION
     assert prompt_payload["input"]["agent_type_code"] == agent_type.value
     assert prompt_payload["input"]["schema_version"] == "specialist-agent-input-v1"
+
+
+@pytest.mark.parametrize(
+    "adapter_type",
+    (RecoveryAgentAdapter, FeasibilityAgentAdapter),
+)
+def test_advisory_specialist_prompt_forbids_exercise_plans(adapter_type: type) -> None:
+    current_envelope = envelope()
+    current_pool = pool(current_envelope)
+    expected_role = (
+        SpecialistAgentTypeCode.RECOVERY
+        if adapter_type is RecoveryAgentAdapter
+        else SpecialistAgentTypeCode.FEASIBILITY
+    )
+    model = ToolCallingFakeChatModel(
+        responses=[
+            tool_response(
+                SpecialistAgentProposal,
+                proposal(expected_role, current_envelope, current_pool),
+                1,
+            )
+        ]
+    )
+
+    result = _adapter(adapter_type, model).propose(  # type: ignore[attr-defined]
+        constraint_envelope=current_envelope,
+        exercise_pool=current_pool,
+    )
+
+    assert result.succeeded
+    system_message = next(
+        message for message in model.seen_messages[0] if isinstance(message, SystemMessage)
+    )
+    assert isinstance(system_message.content, str)
+    assert "adjustment_codes" in system_message.content
+    assert "always leave exercise_prescriptions empty" in system_message.content
+    assert "advisory" in system_message.content
 
 
 def test_three_roles_can_share_one_provider_neutral_model_and_invoker() -> None:

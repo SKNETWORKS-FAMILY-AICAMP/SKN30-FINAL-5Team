@@ -189,6 +189,31 @@ def test_three_specialist_inputs_and_proposals_are_valid(
     assert current_proposal.schema_version == "specialist-agent-proposal-v1"
 
 
+@pytest.mark.parametrize(
+    "agent_type",
+    (
+        SpecialistAgentTypeCode.RECOVERY,
+        SpecialistAgentTypeCode.FEASIBILITY,
+    ),
+)
+def test_advisory_specialists_cannot_submit_exercise_prescriptions(
+    agent_type: SpecialistAgentTypeCode,
+) -> None:
+    current_envelope = envelope()
+    current_pool = pool(current_envelope)
+
+    with pytest.raises(
+        ValidationError,
+        match="only TRAINING proposals may include exercise_prescriptions",
+    ):
+        proposal(
+            agent_type,
+            current_envelope,
+            current_pool,
+            prescriptions=(prescription(A, 1),),
+        )
+
+
 def test_safety_agent_type_is_rejected() -> None:
     current_envelope = envelope()
     current_pool = pool(current_envelope)
