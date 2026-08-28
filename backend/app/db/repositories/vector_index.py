@@ -60,6 +60,12 @@ class IndexableExerciseRecord:
     prescription_experience_level_codes: tuple[str, ...]
     stable_code: str = ""
     timing_mode_code: str = "REPS"
+    # Reviewed timing basis from the catalog. Not part of the embedding document,
+    # so adding it leaves canonical_embedding_document and the build hash intact.
+    default_seconds_per_rep: int | None = None
+    default_work_seconds: int | None = None
+    default_rest_seconds: int = 0
+    default_transition_seconds: int = 10
 
 
 class VectorIndexRepository:
@@ -168,6 +174,10 @@ class VectorIndexRepository:
                 prescription_experience_level_codes=tuple(sorted(prescription_levels[exercise.id])),
                 stable_code=exercise.stable_code,
                 timing_mode_code=exercise.timing_mode_code,
+                default_seconds_per_rep=exercise.default_seconds_per_rep,
+                default_work_seconds=exercise.default_work_seconds,
+                default_rest_seconds=exercise.default_rest_seconds,
+                default_transition_seconds=exercise.default_transition_seconds,
             )
             for exercise in exercises
         )

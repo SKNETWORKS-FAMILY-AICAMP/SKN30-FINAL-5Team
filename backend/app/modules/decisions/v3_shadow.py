@@ -26,6 +26,7 @@ from backend.app.domain.agents.v3_contracts import (
     RegenerationContext,
 )
 from backend.app.domain.agents.v3_orchestration import GraphTerminalStatusCode
+from backend.app.domain.rules.duration import DURATION_TOLERANCE_SECONDS, SECONDS_PER_MINUTE
 
 SHADOW_CASE_SCHEMA_VERSION: Final[Literal["v3-shadow-case-v1"]] = "v3-shadow-case-v1"
 SHADOW_REQUEST_SCHEMA_VERSION: Final[Literal["v3-shadow-request-v1"]] = "v3-shadow-request-v1"
@@ -168,8 +169,12 @@ class V3ShadowPlanProjection(_FrozenContract):
 
     @model_validator(mode="after")
     def validate_plan(self) -> Self:
-        if self.estimated_duration_seconds != self.requested_duration_minutes * 60:
-            raise ValueError("shadow plan must preserve the requested duration")
+        # Mirrors the compiled-plan rule: the duration is measured from the
+        # catalog timing basis, so it lands within the approved five-minute
+        # window rather than exactly on the request (AGENTS.md section 7).
+        target_seconds = self.requested_duration_minutes * SECONDS_PER_MINUTE
+        if abs(self.estimated_duration_seconds - target_seconds) > DURATION_TOLERANCE_SECONDS:
+            raise ValueError("shadow plan does not preserve the requested duration")
         sequences = tuple(item.sequence for item in self.prescriptions)
         if sequences != tuple(range(1, len(self.prescriptions) + 1)):
             raise ValueError("shadow plan prescriptions must use canonical sequence")

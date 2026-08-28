@@ -113,6 +113,12 @@ _POOL_EXERCISE_FIELDS: Final = (
     "movement_pattern_codes",
     "difficulty_code",
     "timing_mode_code",
+    # Agents cannot fit a plan to the requested duration without the approved
+    # seconds basis for each movement. These are catalog integers, not user data.
+    "default_seconds_per_rep",
+    "default_work_seconds",
+    "default_rest_seconds",
+    "default_transition_seconds",
     "recovery_eligible",
     "goal_codes",
     "equipment_codes",

@@ -46,8 +46,8 @@ def fallback_spec(
         envelope_hash=current_envelope.envelope_hash,
         pool_hash=current_pool.pool_hash,
         action_code=PlanActionCode.KEEP,
-        requested_duration_minutes=30,
-        estimated_duration_seconds=1800,
+        requested_duration_minutes=6,
+        estimated_duration_seconds=330,
         exercise_prescriptions=(prescription(A, 1), prescription(second_id, 2)),
         reason_codes=("DETERMINISTIC_FALLBACK",),
         fallback_version="fallback-v1",
@@ -140,7 +140,7 @@ def test_invalid_fallback_returns_planless_failed_terminal() -> None:
 
 def test_stop_and_seek_help_never_calls_or_changes_to_fallback_or_rest() -> None:
     blocked = ConstraintEnvelope.create(
-        requested_duration_minutes=30,
+        requested_duration_minutes=6,
         primary_goal_code="GENERAL_FITNESS",
         allowed_location_codes=("HOME",),
         allowed_equipment_codes=("BODYWEIGHT",),

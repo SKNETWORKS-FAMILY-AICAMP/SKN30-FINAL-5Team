@@ -622,7 +622,7 @@ class V3DecisionRepository:
         succeeded = retrieval.retrieval_status_code == "VECTOR_RETRIEVAL_SUCCEEDED"
         if envelope.envelope_schema_version != "constraint-envelope-v3":
             raise ValueError("unsupported envelope schema version")
-        if pool.pool_schema_version != "exercise-pool-snapshot-v3":
+        if pool.pool_schema_version != "exercise-pool-snapshot-v4":
             raise ValueError("unsupported pool schema version")
         if (
             retrieval.request_schema_version != "exercise-retrieval-request-v1"

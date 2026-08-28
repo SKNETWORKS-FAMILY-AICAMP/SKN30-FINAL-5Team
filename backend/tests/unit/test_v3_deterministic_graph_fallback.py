@@ -1,14 +1,21 @@
 from __future__ import annotations
 
+from uuid import UUID
+
 from backend.app.domain.agents.retrieval import ExercisePoolSnapshot
+from backend.app.domain.agents.v3_duration import plan_duration_seconds
 from backend.app.domain.agents.v3_orchestration import (
     FallbackRequest,
     GraphTerminalStatusCode,
     execute_deterministic_fallback,
 )
 from backend.app.domain.agents.v3_validation import IntegrityValidationContext
+from backend.app.domain.rules.duration import DURATION_TOLERANCE_SECONDS
 from backend.app.integrations.langgraph.fallback import DeterministicGraphFallbackProvider
 from backend.tests.unit.test_v3_demo_runtime import _blocked_root_snapshot
+from backend.tests.unit.test_v3_duration import _envelope as duration_envelope
+from backend.tests.unit.test_v3_duration import _pool as duration_pool
+from backend.tests.unit.test_v3_duration import reps_record
 from backend.tests.unit.test_v3_persistence_service import make_bundle
 
 
@@ -76,6 +83,47 @@ def test_fallback_returns_no_plan_when_mandatory_exercise_has_no_allowed_locatio
     request = FallbackRequest.create(
         constraint_envelope=incompatible_envelope,
         exercise_pool=incompatible_pool,
+        fallback_version="v3-deterministic-fallback-v1",
+    )
+
+    assert provider.generate(request) is None
+
+
+def test_fallback_fills_the_requested_duration_instead_of_declaring_it() -> None:
+    # The fallback previously prescribed one set of one repetition per exercise
+    # and still reported the full requested duration.
+    envelope = duration_envelope(requested_duration_minutes=30)
+    records = tuple(reps_record(UUID(int=index)) for index in range(1, 11))
+    pool = duration_pool(envelope, records)
+    provider = DeterministicGraphFallbackProvider()
+
+    spec = provider.generate(
+        FallbackRequest.create(
+            constraint_envelope=envelope,
+            exercise_pool=pool,
+            fallback_version="v3-deterministic-fallback-v1",
+        )
+    )
+
+    assert spec is not None
+    measured = plan_duration_seconds(
+        spec.exercise_prescriptions, {item.exercise_id: item for item in records}
+    )
+    assert spec.estimated_duration_seconds == measured
+    assert abs(measured - 30 * 60) <= DURATION_TOLERANCE_SECONDS
+
+
+def test_fallback_declines_when_the_pool_cannot_reach_the_requested_duration() -> None:
+    # Section 7: the request fails rather than silently handing back a shorter
+    # session than the user asked for.
+    envelope = duration_envelope(requested_duration_minutes=60)
+    records = (reps_record(UUID(int=1)),)
+    pool = duration_pool(envelope, records)
+    provider = DeterministicGraphFallbackProvider()
+
+    request = FallbackRequest.create(
+        constraint_envelope=envelope,
+        exercise_pool=pool,
         fallback_version="v3-deterministic-fallback-v1",
     )
 

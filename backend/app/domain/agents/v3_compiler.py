@@ -19,13 +19,15 @@ from backend.app.domain.agents.v3_contracts import (
     _validate_prescription_constraints,
     _validate_prescription_order,
 )
+from backend.app.domain.agents.v3_duration import plan_duration_seconds
+from backend.app.domain.rules.duration import DURATION_TOLERANCE_SECONDS, SECONDS_PER_MINUTE
 
 COMPILED_PLAN_SCHEMA_VERSION: Final[Literal["compiled-plan-v1"]] = "compiled-plan-v1"
 DETERMINISTIC_FALLBACK_PLAN_SCHEMA_VERSION: Final[Literal["deterministic-fallback-plan-v1"]] = (
     "deterministic-fallback-plan-v1"
 )
-DURATION_VERIFICATION_CODE: Final[Literal["PLAN_SPEC_EXACT_DURATION_ASSERTED"]] = (
-    "PLAN_SPEC_EXACT_DURATION_ASSERTED"
+DURATION_VERIFICATION_CODE: Final[Literal["CATALOG_TIMING_BASIS_COMPUTED"]] = (
+    "CATALOG_TIMING_BASIS_COMPUTED"
 )
 
 
@@ -80,8 +82,9 @@ class DeterministicFallbackPlanSpec(BaseModel):
     @model_validator(mode="after")
     def validate_fallback(self) -> Self:
         _canonical_codes((self.fallback_version,), field_name="fallback_version")
-        if self.estimated_duration_seconds != self.requested_duration_minutes * 60:
-            raise ValueError("fallback plan must preserve exact requested duration")
+        target_seconds = self.requested_duration_minutes * SECONDS_PER_MINUTE
+        if abs(self.estimated_duration_seconds - target_seconds) > DURATION_TOLERANCE_SECONDS:
+            raise ValueError("fallback plan does not preserve the requested duration")
         if self.fallback_plan_hash != _canonical_hash(
             self.model_dump(mode="json", exclude={"fallback_plan_hash"})
         ):
@@ -123,7 +126,7 @@ class CompiledPlan(BaseModel):
     action_code: PlanActionCode
     requested_duration_minutes: int = Field(gt=0)
     estimated_duration_seconds: int = Field(gt=0)
-    duration_verification_code: Literal["PLAN_SPEC_EXACT_DURATION_ASSERTED"] = (
+    duration_verification_code: Literal["CATALOG_TIMING_BASIS_COMPUTED"] = (
         DURATION_VERIFICATION_CODE
     )
     exercises: tuple[CompiledExercise, ...] = Field(min_length=1)
@@ -139,8 +142,14 @@ class CompiledPlan(BaseModel):
         _canonical_codes((self.compiler_version,), field_name="compiler_version")
         prescriptions = tuple(item.prescription for item in self.exercises)
         _validate_prescription_order(prescriptions)
-        if self.estimated_duration_seconds != self.requested_duration_minutes * 60:
-            raise ValueError("compiled plan must preserve exact requested duration")
+        # estimated_duration_seconds is measured from the catalog timing basis, so
+        # it lands near the request rather than on it. AGENTS.md section 7 allows
+        # the plan to sit within five minutes of the requested duration when the
+        # approved pool cannot hit it exactly; outside that window the plan is
+        # rejected rather than silently handed to the user.
+        target_seconds = self.requested_duration_minutes * SECONDS_PER_MINUTE
+        if abs(self.estimated_duration_seconds - target_seconds) > DURATION_TOLERANCE_SECONDS:
+            raise ValueError("compiled plan does not preserve the requested duration")
         if self.compiled_plan_hash != _canonical_hash(
             self.model_dump(mode="json", exclude={"compiled_plan_hash"})
         ):
@@ -172,9 +181,10 @@ def compile_plan(
 ) -> CompiledPlan:
     """Resolve existing exercise references without selecting or replacing exercises.
 
-    The current prescription contract has no reviewed seconds-per-repetition value.
-    Compilation therefore preserves the already exact PlanSpec duration assertion and
-    deliberately does not invent component-duration arithmetic.
+    Compilation is where catalog records are resolved, so it is also where the
+    plan's duration stops being an assertion and becomes a measurement: every
+    prescription is timed against the reviewed catalog basis for its exercise.
+    The arithmetic is the same one the deterministic V1/V2 path already applies.
     """
 
     _canonical_codes((compiler_version,), field_name="compiler_version")
@@ -206,7 +216,7 @@ def compile_plan(
         source_plan_hash=_source_hash(plan),
         action_code=plan.action_code,
         requested_duration_minutes=plan.requested_duration_minutes,
-        estimated_duration_seconds=plan.estimated_duration_seconds,
+        estimated_duration_seconds=plan_duration_seconds(plan.exercise_prescriptions, records),
         exercises=exercises,
     )
 

@@ -72,7 +72,7 @@ def coordinator_input(
 def plan(
     current_input: CoordinatorInput,
     *,
-    requested_duration_minutes: int = 30,
+    requested_duration_minutes: int = 6,
     plan_prescriptions: tuple[ExercisePrescription, ...] | None = None,
     repair_attempt: int | None = None,
 ) -> PlanSpec:
@@ -190,7 +190,7 @@ def test_plan_cannot_change_requested_duration() -> None:
     current_envelope = envelope()
     current_pool = pool(current_envelope)
     current_input = coordinator_input(current_envelope, current_pool)
-    changed = plan(current_input, requested_duration_minutes=29)
+    changed = plan(current_input, requested_duration_minutes=5)
 
     with pytest.raises(ValueError, match="requested duration"):
         changed.validate_against(current_input)
@@ -233,7 +233,7 @@ def test_rest_or_stop_envelope_cannot_enter_coordinator(
     required_action: SafetyRequiredActionCode,
 ) -> None:
     blocked = ConstraintEnvelope.create(
-        requested_duration_minutes=30,
+        requested_duration_minutes=6,
         primary_goal_code="GENERAL_FITNESS",
         allowed_location_codes=("HOME",),
         allowed_equipment_codes=("BODYWEIGHT",),

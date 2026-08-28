@@ -17,6 +17,7 @@ from backend.app.domain.agents.v3_contracts import (
     _canonical_ids,
     _hash_value,
 )
+from backend.app.domain.rules.duration import DURATION_TOLERANCE_SECONDS, SECONDS_PER_MINUTE
 from backend.app.domain.rules.safety import SafetyRequiredActionCode
 
 INTEGRITY_VALIDATION_SCHEMA_VERSION: Final[Literal["plan-integrity-validation-v1"]] = (
@@ -214,9 +215,15 @@ def validate_plan_integrity(
             codes.add(IntegrityViolationCode.ENVELOPE_HASH_MISMATCH)
         if compiled_plan.pool_hash != pool.pool_hash:
             codes.add(IntegrityViolationCode.POOL_HASH_MISMATCH)
+        # The compiled duration is measured from the catalog timing basis, so this
+        # compares what the plan actually costs against what the user asked for.
+        # Comparing it to requested_duration_minutes * 60 would be an identity now
+        # that the compiler computes the value, and would verify nothing.
+        target_seconds = envelope.requested_duration_minutes * SECONDS_PER_MINUTE
+        duration_delta = abs(compiled_plan.estimated_duration_seconds - target_seconds)
         if (
             compiled_plan.requested_duration_minutes != envelope.requested_duration_minutes
-            or compiled_plan.estimated_duration_seconds != envelope.requested_duration_minutes * 60
+            or duration_delta > DURATION_TOLERANCE_SECONDS
         ):
             codes.add(IntegrityViolationCode.REQUESTED_DURATION_MISMATCH)
         sequences = tuple(item.prescription.sequence for item in compiled_plan.exercises)

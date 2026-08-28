@@ -353,7 +353,9 @@ RECOVERY 콘텐츠는 DOMAIN_APPROVED 상태의 가벼운 걷기, 호흡, 가동
 
 `requested_duration_minutes`는 최종 루틴의 계획 시간 목표(분)다. 프로필 기본값을 사용하되 사용자가 당일 명시적으로 변경하면 그 값을 새 목표로 사용한다. 운동 계획을 반환하는 경우 계획의 `estimated_duration_seconds`는 `requested_duration_minutes * 60`을 목표로 하며, 승인된 운동 풀로 정확히 맞출 수 없을 때에 한해 ±300초 이내의 편차를 허용한다. 편차가 가장 작은 계획을 우선 선택하고, 허용 범위를 넘으면 계획을 반환하지 않고 실패한다. 시스템은 사용자 변경 없이 이 범위를 넘겨 시간을 줄이거나 초과할 수 없다.
 
-이 허용 범위는 2026-08-27 프로젝트 오너 승인으로 도입됐다. 근거와 경위는 `docs/tasks/TASK-ROUTINE-EQUIPMENT-AND-DURATION.md`에 있다. 구현 상수는 `backend/app/modules/routines/service.py`의 `DURATION_TOLERANCE_SECONDS`다.
+이 허용 범위는 2026-08-27 프로젝트 오너 승인으로 도입됐다. 근거와 경위는 `docs/tasks/TASK-ROUTINE-EQUIPMENT-AND-DURATION.md`에 있다. 구현 상수는 `backend/app/domain/rules/duration.py`의 `DURATION_TOLERANCE_SECONDS`이며 V1/V2 루틴 경로와 V3 계획 경로가 같은 값을 공유한다.
+
+V3 경로의 시간 산출은 `backend/app/domain/agents/v3_duration.py`가 담당한다. 반복 기반 운동은 카탈로그의 `default_seconds_per_rep`으로 환산하고, 동작 전환은 카탈로그 `default_transition_seconds`를 사용한다. 모델이 제시한 값이 아니라 검수된 카탈로그 값을 기준으로 삼는다. V3 계획은 현재 모든 항목을 `MAIN`으로 구성하므로 `setup_seconds`, `warmup_seconds`, `cooldown_seconds`가 아직 0이다. 이 구간의 도입은 별도 과제로 관리한다.
 
 ~~~text
 estimated_duration_seconds

@@ -42,6 +42,9 @@ def exercise(exercise_id: UUID) -> ExercisePoolExerciseRecord:
         movement_pattern_codes=("PUSH",),
         difficulty_code="BEGINNER",
         timing_mode_code="REPS",
+        default_seconds_per_rep=3,
+        default_rest_seconds=30,
+        default_transition_seconds=15,
         recovery_eligible=True,
         goal_codes=("GENERAL_FITNESS",),
         equipment_codes=("BODYWEIGHT",),
@@ -58,7 +61,7 @@ def envelope(
     mandatory_ids: tuple[UUID, ...] = (A,),
 ) -> ConstraintEnvelope:
     return ConstraintEnvelope.create(
-        requested_duration_minutes=30,
+        requested_duration_minutes=6,
         primary_goal_code="GENERAL_FITNESS",
         allowed_location_codes=("HOME",),
         allowed_equipment_codes=("BODYWEIGHT",),
@@ -128,7 +131,7 @@ def proposal(
     *,
     status: V3ProposalStatusCode = V3ProposalStatusCode.READY,
     prescriptions: tuple[ExercisePrescription, ...] | None = None,
-    requested_duration_minutes: int = 30,
+    requested_duration_minutes: int = 6,
 ) -> SpecialistAgentProposal:
     if prescriptions is None:
         prescriptions = (
