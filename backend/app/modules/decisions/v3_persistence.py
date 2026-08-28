@@ -8,7 +8,6 @@ from uuid import UUID
 from pydantic import ValidationError
 
 from backend.app.domain.agents.v3_persistence import (
-    PERSISTENCE_BUNDLE_SCHEMA_VERSION,
     V3DecisionPersistenceBundle,
     V3PersistenceError,
     V3PersistenceFailureCode,
@@ -18,6 +17,15 @@ from backend.app.domain.agents.v3_persistence import (
 
 
 class V3DecisionPersistenceRepository(Protocol):
+    """Stored-bundle access.
+
+    ``get`` and ``get_root_snapshot`` return ``None`` only when no bundle is
+    stored. A bundle written under an earlier schema is not "missing": an
+    implementation must raise ``V3PersistenceError`` with
+    ``UNSUPPORTED_SCHEMA_VERSION`` so callers do not mistake a record they
+    cannot read for one that does not exist.
+    """
+
     def add(self, bundle: V3DecisionPersistenceBundle) -> None: ...
     def get(self, decision_execution_id: UUID) -> V3DecisionPersistenceBundle | None: ...
     def get_root_snapshot(
@@ -52,8 +60,10 @@ class V3DecisionPersistenceService:
             stored = work.repository.get(decision_execution_id)
         if stored is None:
             raise V3PersistenceError(V3PersistenceFailureCode.ROOT_SNAPSHOT_MISSING)
-        if stored.schema_version != PERSISTENCE_BUNDLE_SCHEMA_VERSION:
-            raise V3PersistenceError(V3PersistenceFailureCode.UNSUPPORTED_SCHEMA_VERSION)
+        # The schema check belongs to the repository, which sees the stored
+        # payload. Once a bundle has been parsed its schema_version is a Literal
+        # of the supported version, so re-checking it here could never fail and
+        # read as though this path handled older records when it did not.
         try:
             verified = V3DecisionPersistenceBundle.model_validate_json(stored.model_dump_json())
         except ValidationError as exc:

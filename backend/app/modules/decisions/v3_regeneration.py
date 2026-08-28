@@ -26,6 +26,7 @@ from backend.app.domain.agents.v3_orchestration import (
 )
 from backend.app.domain.agents.v3_persistence import (
     V3DecisionPersistenceBundle,
+    V3PersistenceError,
     V3RootSnapshotPersistence,
 )
 
@@ -302,9 +303,16 @@ class V3RegenerationService:
             raise V3EngineDisabledError()
         request_hash = _command_hash(command)
         with self._unit_of_work as work:
-            source = work.decisions.lock_regeneration_source(
-                user_id=command.user_id, decision_id=command.decision_id
-            )
+            try:
+                source = work.decisions.lock_regeneration_source(
+                    user_id=command.user_id, decision_id=command.decision_id
+                )
+            except V3PersistenceError:
+                # The decision exists but was written under an earlier bundle
+                # schema, so its stored basis cannot be reused. That is a stale
+                # regeneration context, not a missing decision: the user is told
+                # to start from a new decision rather than that theirs is gone.
+                raise V3RegenerationContextStaleError from None
             if source is None:
                 # Ownership failures intentionally use the same not-found code.
                 raise V3DecisionNotFoundError()

@@ -94,6 +94,12 @@ pool 이탈, 안전 제외 운동, 장소, 장비, recovery ceiling, catalog 레
 한다. `V3DecisionPersistenceBundle`에서 `conflict_result`와 `review_results`를 제거하되, 기존 저장
 레코드는 파괴적으로 변경하지 않는다.
 
+번들의 필드 구성이 바뀌므로 `PERSISTENCE_BUNDLE_SCHEMA_VERSION`도 함께 올린다
+(`v3-decision-persistence-bundle-v2`, 이슈 #179). 번들 모델이 `extra="forbid"`이므로 버전을 두면
+구버전 레코드가 조용히 실패하지 않고 `UNSUPPORTED_SCHEMA_VERSION`으로 식별된다. 이전 스키마로
+저장된 결정은 재생성 기준으로 재사용할 수 없으며 `REGENERATION_CONTEXT_STALE`로 응답한다.
+V3는 DEMO 프로파일이고 production 승인 전이라 운영 영향은 없다.
+
 ADR-0012의 `decision_deliberations`, `agent_review_events`, `agent_proposal_revisions` 테이블은
 쓰기를 중단하되 이번 릴리스에서 삭제하지 않는다(AGENTS.md 10절).
 

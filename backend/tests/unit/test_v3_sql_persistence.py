@@ -9,6 +9,10 @@ import pytest
 from sqlalchemy.orm import Session
 
 from backend.app.db.repositories.v3_decision import V3DecisionRepository
+from backend.app.domain.agents.v3_persistence import (
+    V3PersistenceError,
+    V3PersistenceFailureCode,
+)
 from backend.app.modules.decisions.v3_application import resolve_vector_index_registry_id
 from backend.app.modules.decisions.v3_sql_persistence import (
     V3InvocationSqlMetadata,
@@ -196,3 +200,49 @@ def test_persist_bundle_passes_the_resolved_registry_id_into_metadata(
 
     assert len(captured) == 1
     assert captured[0].vector_index_registry_id == registry_id
+
+
+def _stored_adapter(payload: object) -> V3SqlAlchemyPersistenceAdapter:
+    run = SimpleNamespace(coordinator_result={"v3_persistence_bundle": payload})
+    return V3SqlAlchemyPersistenceAdapter(
+        cast(Session, SimpleNamespace(get=lambda _model, _identity: run)),
+        lambda _session, _bundle: _metadata(),
+    )
+
+
+def _legacy_payload() -> dict[str, Any]:
+    """A bundle as written before conflict detection and review were removed."""
+
+    payload = make_bundle().model_dump(mode="json")
+    payload["schema_version"] = "v3-decision-persistence-bundle-v1"
+    payload["conflict_result"] = {"schema_version": "v3-conflict-detection-v1"}
+    payload["review_results"] = []
+    return payload
+
+
+def test_a_bundle_from_an_earlier_schema_fails_with_its_documented_code() -> None:
+    # Removing conflict_result and review_results without moving the schema
+    # version left every stored bundle unreadable, and the extra-field
+    # ValidationError escaped the repository instead of naming the cause.
+    adapter = _stored_adapter(_legacy_payload())
+
+    with pytest.raises(V3PersistenceError) as error:
+        adapter.get(uuid4())
+
+    assert error.value.code is V3PersistenceFailureCode.UNSUPPORTED_SCHEMA_VERSION
+
+
+def test_an_unreadable_bundle_is_never_reported_as_a_missing_one() -> None:
+    # persist() treats None as "no row yet" and writes. Reporting an older
+    # bundle that way would let a duplicate execution through.
+    adapter = _stored_adapter(_legacy_payload())
+
+    with pytest.raises(V3PersistenceError):
+        adapter.get(uuid4())
+
+
+def test_a_bundle_written_under_the_current_schema_still_replays() -> None:
+    bundle = make_bundle()
+    adapter = _stored_adapter(bundle.model_dump(mode="json"))
+
+    assert adapter.get(bundle.decision_execution_id) == bundle
