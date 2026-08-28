@@ -186,6 +186,70 @@ version으로 동일한 Agent 입력을 복원할 수 있어야 한다. score와
 - 로그·metric label에는 query 원문, eligible ID 전체 목록, 사용자/decision ID와 provider 예외 원문을
   넣지 않는다.
 
+## 결정 이유
+
+> 사후 정리(2026-08-27). 이 절은 원래 결정 시점에 기록되지 않았고, `docs/adr/README.md`가 요구하는
+> 필수 항목을 뒤늦게 채운 것이다. 아래는 구현된 계약과 staging 증적에서 역으로 정리한 근거이며,
+> 당시 실제 판단 근거와 다를 수 있다. **ADR 승인자 확인이 필요하다.**
+
+### Qdrant
+
+- **derived index 경계를 물리적으로 강제한다.** 이 ADR의 핵심은 PostgreSQL이 진실 공급원이고 Qdrant는
+  언제든 재구축 가능한 파생 index라는 것이다. 별도 서비스로 두면 "Qdrant 단독 데이터는 운동의 존재·
+  승인 근거가 아니다"라는 규칙이 코드 리뷰가 아니라 배포 구조로 지켜진다.
+- **불변 collection과 alias 교체를 기본 제공한다.** 이 ADR은 불변 `vector_index_version`과 mutable
+  alias를 분리하도록 요구한다. Qdrant의 alias는 이 교체를 원자적으로 수행하고 롤백도 alias를 되돌리는
+  것으로 끝난다.
+- **payload filter로 eligible ID 범위를 강제할 수 있다.** Qdrant는 PostgreSQL이 계산한
+  `eligible_exercise_ids` 안에서만 순위를 매겨야 하는데, payload index 기반 필터가 이를 검색 단계에서
+  직접 표현한다.
+- **개인정보 경계를 감사하기 쉽다.** payload를 exercise ID와 비사용자 catalog/version metadata로
+  제한하므로, 별도 저장소에 무엇이 들어 있는지 점검하는 범위가 좁다.
+
+### `text-embedding-3-large` / dimension 3072
+
+`docs/tasks/TASK-AGENT-150.md`의 2026-08-27 승인 기록이 근거다. 요약하면 provider 문서가 이 모델을
+영어·비영어 텍스트 모두에서 가장 성능이 높은 embedding model로 설명하고, 검수 운동 102건의 한국어
+이름·설명 검색 품질을 우선했다. 카탈로그 규모가 작아 3072 dimension의 저장·비용 부담이 제한적이므로
+`dimensions` 축소 없이 기본값을 쓴다.
+
+### COSINE
+
+- 이 provider의 embedding은 정규화되어 반환되므로 cosine과 내적의 순위 결과가 사실상 같고, cosine이
+  provider 문서와 생태계의 관례다.
+- cosine은 벡터 크기에 영향을 받지 않으므로, 이후 정규화를 보장하지 않는 모델로 바뀌어도 순위 의미가
+  유지된다. metric 변경은 collection 재구축을 요구하므로 보수적인 쪽을 택한다.
+- metric은 index build identity의 일부이며 query 시 재선택할 수 없다. 즉 이 선택은 `COSINE`으로
+  고정된 index를 만들고, 바꾸려면 새 `vector_index_version`으로 재구축해야 한다.
+
+## 검토한 대안
+
+기록이 남아 있지 않다. 아래는 이 결정 구조에서 실제로 비교 대상이 되는 선택지이며, 당시 검토
+여부는 확인되지 않았다.
+
+| 대안 | 성격 |
+|---|---|
+| PostgreSQL `pgvector` | 별도 서비스 없이 기존 DB에 vector column 추가 |
+| managed vector SaaS | 운영 부담을 외부에 위임 |
+| in-process ANN 라이브러리 | 프로세스 메모리에 index 상주 |
+| vector 검색 없이 결정적 정렬만 사용 | 현재 fallback 경로를 유일 경로로 사용 |
+
+## 선택하지 않은 대안과 이유
+
+> 아래도 사후 정리다. 당시 배제 사유가 기록되지 않았다.
+
+- **`pgvector`**: 가장 유력한 대안이었을 것이다. 운영 구성 요소가 늘지 않는다는 장점이 크다. 다만 이
+  ADR이 요구하는 "canonical source와 derived index의 분리"가 같은 데이터베이스 안에서는 규칙으로만
+  유지된다. 카탈로그 102건 규모에서는 성능 차이가 결정적이지 않으므로, 이 선택은 성능이 아니라 경계
+  강제 방식의 문제로 보는 것이 맞다.
+- **managed vector SaaS**: 이 서비스는 건강 관련 도메인이고 ADR-0014가 신규 외부 서비스에 보안·
+  개인정보 검토를 요구한다. 자체 운영 가능한 엔진 쪽이 검토 범위를 좁힌다.
+- **in-process ANN 라이브러리**: alias 기반 무중단 교체, 불변 index version, 재시작 간 영속성을
+  직접 구현해야 한다. 이 ADR의 replay·lineage 요구사항 대비 구현 부담이 크다.
+- **vector 검색 미도입**: 결정적 정렬만으로도 안전한 pool은 만들 수 있다. 실제로 fallback 경로가
+  그렇게 동작한다. 다만 이 ADR의 목적인 목표·이전 계획 유사도 기반 우선순위와 다양성 확보를
+  달성하지 못한다.
+
 ## 장애 fallback
 
 Vector 검색은 품질 향상 계층이므로 장애가 안전 실패를 만들지 않는다. timeout은 bounded하고 provider
