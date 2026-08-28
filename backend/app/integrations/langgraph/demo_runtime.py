@@ -10,14 +10,7 @@ from langchain_core.language_models import BaseChatModel
 
 from backend.app.core.config import Settings
 from backend.app.domain.agents.v3_compiler import CompiledPlan
-from backend.app.domain.agents.v3_conflicts import (
-    AgentReviewResult,
-    ConflictDetectionResult,
-    ReviewStatusCode,
-    detect_proposal_conflicts,
-)
 from backend.app.domain.agents.v3_contracts import (
-    ConstraintEnvelope,
     PlanSpec,
     RegenerationContext,
     SpecialistAgentTypeCode,
@@ -26,7 +19,6 @@ from backend.app.domain.agents.v3_orchestration import (
     DeterministicFallbackProvider,
     GraphTerminalStatusCode,
     TerminalResult,
-    graph_result_conflicts,
 )
 from backend.app.domain.agents.v3_orchestration import (
     V3GraphResult as DomainGraphResult,
@@ -46,7 +38,6 @@ from backend.app.integrations.langgraph.fallback import DeterministicGraphFallba
 from backend.app.integrations.langgraph.graph import V3LangGraphRuntime, create_v3_graph
 from backend.app.integrations.langgraph.shadow_runtime import (
     _Compiler,
-    _ConflictDetector,
     _ExecutionContext,
     _Fallback,
     _IntegrityReport,
@@ -54,8 +45,6 @@ from backend.app.integrations.langgraph.shadow_runtime import (
     _MeaningfulDifference,
 )
 from backend.app.integrations.langgraph.state import (
-    AgentOutcome,
-    ConflictDetectorPort,
     IntegrityValidatorPort,
     SpecialistPort,
     V3GraphInput,
@@ -137,7 +126,7 @@ class BoundV3DemoIdentityProvider:
 
 @dataclass(frozen=True, slots=True)
 class V3DemoRuntimeVersions:
-    graph_version: str = "v3-langgraph-demo-v1"
+    graph_version: str = "v3-langgraph-demo-v2"
     prompt_version: str = "v3-prompts-v1"
     compiler_version: str = "v3-plan-compiler-v1"
     validator_version: str = "v3-integrity-validator-v1"
@@ -161,57 +150,6 @@ def _terminal_status(code: str) -> GraphTerminalStatusCode:
         return GraphTerminalStatusCode(code)
     except ValueError:
         return GraphTerminalStatusCode.FAILED
-
-
-def _conflicts(
-    graph: V3GraphResult,
-    envelope: ConstraintEnvelope,
-    root_snapshot: V3RootSnapshotPersistence,
-) -> ConflictDetectionResult:
-    report = graph.conflict_report
-    canonical = getattr(report, "canonical", None)
-    if isinstance(canonical, ConflictDetectionResult):
-        return canonical
-    return detect_proposal_conflicts(
-        graph.round_one_proposals, envelope, root_snapshot.exercise_pool
-    )
-
-
-def _reviews(
-    graph: V3GraphResult,
-    conflicts: ConflictDetectionResult,
-) -> tuple[AgentReviewResult, ...]:
-    baselines = {item.agent_type_code: item for item in graph.round_one_proposals}
-    outcomes = {item.agent_type: item for item in graph.review_outcomes}
-    reviews: list[AgentReviewResult] = []
-    for role in conflicts.review_target_agent_types:
-        baseline = baselines.get(role)
-        if baseline is None:
-            continue
-        outcome: AgentOutcome | None = outcomes.get(role)
-        reviewed_codes = tuple(
-            sorted(
-                {
-                    item.code.value
-                    for item in conflicts.violations
-                    if role in item.affected_agent_types
-                }
-            )
-        )
-        reviews.append(
-            AgentReviewResult.create(
-                agent_type_code=role,
-                status_code=(
-                    ReviewStatusCode.READY
-                    if outcome is not None and outcome.proposal is not None
-                    else ReviewStatusCode.FAILED
-                ),
-                baseline_proposal_hash=baseline.proposal_hash,
-                reviewed_conflict_codes=reviewed_codes,
-                revised_proposal=outcome.proposal if outcome is not None else None,
-            )
-        )
-    return tuple(reviews)
 
 
 def _canonical_validations(
@@ -342,9 +280,6 @@ class V3DemoRuntime:
                 ),
             },
             coordinator=LangChainCoordinatorAdapter(invoker=self.invoker),
-            conflict_detector=cast(
-                ConflictDetectorPort, _ConflictDetector(envelope, pool, context)
-            ),
             compiler=_Compiler(envelope, pool, context, self.versions.compiler_version),
             validator=cast(
                 IntegrityValidatorPort,
@@ -366,8 +301,6 @@ class V3DemoRuntime:
         identity: V3DemoDecisionIdentity,
     ) -> V3DecisionPersistenceBundle:
         envelope = root_snapshot.constraint_envelope
-        conflicts = _conflicts(graph, envelope, root_snapshot)
-        reviews = _reviews(graph, conflicts)
         terminal_status = _terminal_status(graph.status_code)
         compiled = graph.compiled_plan if isinstance(graph.compiled_plan, CompiledPlan) else None
         final_plan = compiled if terminal_status is GraphTerminalStatusCode.COMPLETED else None
@@ -390,9 +323,6 @@ class V3DemoRuntime:
             envelope_hash=envelope.envelope_hash,
             pool_hash=root_snapshot.exercise_pool.pool_hash,
             round_one_proposals=graph.round_one_proposals,
-            conflict_codes=graph_result_conflicts(conflicts),
-            review_target_agent_types=conflicts.review_target_agent_types,
-            review_results=reviews,
             coordinator_initial_plan=graph.coordinator_initial_plan,
             coordinator_repair_plan=graph.coordinator_repair_plan,
             compiled_plan=compiled,
@@ -422,7 +352,6 @@ class V3DemoRuntime:
             root_decision_execution_id=identity.root_decision_execution_id,
             parent_decision_execution_id=identity.parent_decision_execution_id,
             root_snapshot=root_snapshot,
-            conflict_result=conflicts,
             coordinator_attempts=attempts,
             validations=validations,
             policy_version=envelope.policy_version,

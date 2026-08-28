@@ -29,16 +29,6 @@ class SpecialistPort(Protocol):
         regeneration_context: RegenerationContext | None = None,
     ) -> StructuredAgentResult[SpecialistAgentProposal]: ...
 
-    async def areview(
-        self,
-        *,
-        proposal: SpecialistAgentProposal,
-        proposals: tuple[SpecialistAgentProposal, ...],
-        conflict_codes: tuple[str, ...],
-        constraint_envelope: ConstraintEnvelope,
-        exercise_pool: ExercisePoolSnapshot,
-    ) -> StructuredAgentResult[SpecialistAgentProposal]: ...
-
 
 class CoordinatorPort(Protocol):
     async def acoordinate(
@@ -59,18 +49,13 @@ class CoordinatorPort(Protocol):
     ) -> StructuredAgentResult[PlanSpec]: ...
 
 
-class ConflictReport(Protocol):
-    conflict_codes: tuple[str, ...]
-    affected_agent_types: tuple[SpecialistAgentTypeCode, ...]
-    hard_constraint_weakened: bool
-
-
-class ConflictDetectorPort(Protocol):
-    def detect(self, proposals: tuple[SpecialistAgentProposal, ...]) -> ConflictReport: ...
-
-
 class CompilationPort(Protocol):
-    def compile(self, plan_spec: PlanSpec | DeterministicFallbackPlanSpec) -> object: ...
+    def compile(
+        self,
+        plan_spec: PlanSpec | DeterministicFallbackPlanSpec,
+        *,
+        proposals: tuple[SpecialistAgentProposal, ...],
+    ) -> object: ...
 
 
 class IntegrityValidation(Protocol):
@@ -117,7 +102,6 @@ class V3GraphInput:
     snapshot_is_fresh: bool
     specialists: Mapping[SpecialistAgentTypeCode, SpecialistPort]
     coordinator: CoordinatorPort
-    conflict_detector: ConflictDetectorPort
     compiler: CompilationPort
     validator: IntegrityValidatorPort
     fallback: FallbackPort
@@ -157,8 +141,6 @@ class V3GraphResult:
     used_fallback: bool
     repair_attempts: int
     round_one_proposals: tuple[SpecialistAgentProposal, ...] = ()
-    conflict_report: object | None = None
-    review_outcomes: tuple[AgentOutcome, ...] = ()
     coordinator_initial_plan: PlanSpec | None = None
     coordinator_repair_plan: PlanSpec | None = None
     fallback_plan_spec: DeterministicFallbackPlanSpec | None = None
@@ -173,9 +155,6 @@ class V3GraphState(TypedDict, total=False):
     agent_outcomes: Annotated[tuple[AgentOutcome, ...], operator.add]
     proposals: tuple[SpecialistAgentProposal, ...]
     round_one_proposals: tuple[SpecialistAgentProposal, ...]
-    conflict_report: ConflictReport
-    initial_conflict_report: ConflictReport
-    review_outcomes: Annotated[tuple[AgentOutcome, ...], operator.add]
     invocation_audits: Annotated[tuple[InvocationAudit, ...], operator.add]
     plan_spec: PlanSpec | None
     fallback_plan_spec: DeterministicFallbackPlanSpec | None
@@ -194,8 +173,6 @@ class V3GraphState(TypedDict, total=False):
 __all__ = [
     "AgentOutcome",
     "CompilationPort",
-    "ConflictDetectorPort",
-    "ConflictReport",
     "CoordinatorPort",
     "FallbackPort",
     "IntegrityValidation",

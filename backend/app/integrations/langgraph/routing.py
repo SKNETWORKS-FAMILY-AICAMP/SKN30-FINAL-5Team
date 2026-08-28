@@ -11,27 +11,8 @@ def after_entry(state: V3GraphState) -> Literal["parallel_agents", "terminal"]:
     return "terminal" if state.get("entry_failure_code") else "parallel_agents"
 
 
-def after_agents(state: V3GraphState) -> Literal["detect_conflicts", "fallback"]:
-    return "fallback" if state.get("failure_codes") else "detect_conflicts"
-
-
-def after_conflicts(
-    state: V3GraphState,
-) -> Literal["optional_reviews", "coordinator_initial", "fallback"]:
-    if state.get("failure_codes"):
-        return "fallback"
-    report = state["conflict_report"]
-    if report.hard_constraint_weakened:
-        return "fallback"
-    if report.conflict_codes:
-        return "optional_reviews"
-    return "coordinator_initial"
-
-
-def after_reviews(state: V3GraphState) -> Literal["coordinator_initial", "fallback"]:
-    if state.get("failure_codes") or state["conflict_report"].conflict_codes:
-        return "fallback"
-    return "coordinator_initial"
+def after_agents(state: V3GraphState) -> Literal["coordinator_initial", "fallback"]:
+    return "fallback" if state.get("failure_codes") else "coordinator_initial"
 
 
 def after_validation(
@@ -66,12 +47,10 @@ def after_fallback_compile(state: V3GraphState) -> Literal["validate_fallback", 
 
 __all__ = [
     "after_agents",
-    "after_conflicts",
     "after_entry",
     "after_compile",
     "after_fallback",
     "after_fallback_compile",
     "after_fallback_validation",
-    "after_reviews",
     "after_validation",
 ]

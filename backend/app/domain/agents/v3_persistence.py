@@ -14,10 +14,6 @@ from backend.app.domain.agents.retrieval import (
     ExerciseRetrievalResult,
 )
 from backend.app.domain.agents.v3_compiler import CompiledPlan
-from backend.app.domain.agents.v3_conflicts import (
-    AgentReviewResult,
-    ConflictDetectionResult,
-)
 from backend.app.domain.agents.v3_contracts import (
     ConstraintEnvelope,
     PlanSpec,
@@ -159,8 +155,6 @@ class V3DecisionPersistenceBundle(_FrozenModel):
     catalog_version: str
     root_snapshot: V3RootSnapshotPersistence
     agent_proposals: tuple[V3AgentProposalPersistence, ...]
-    conflict_result: ConflictDetectionResult
-    review_results: tuple[AgentReviewResult, ...]
     coordinator_attempts: tuple[V3CoordinatorAttemptPersistence, ...]
     validations: tuple[V3ValidationPersistence, ...]
     fallback_used: bool
@@ -189,12 +183,6 @@ class V3DecisionPersistenceBundle(_FrozenModel):
             raise ValueError("partial proposal artifacts must use canonical role order")
         if self.catalog_version != self.root_snapshot.exercise_pool.catalog_version:
             raise ValueError("bundle catalog version mismatch")
-        if (
-            self.conflict_result.envelope_hash
-            != self.root_snapshot.constraint_envelope.envelope_hash
-            or self.conflict_result.pool_hash != self.root_snapshot.exercise_pool.pool_hash
-        ):
-            raise ValueError("conflict result lineage mismatch")
         if self.fallback_used != (self.fallback_version is not None):
             raise ValueError("fallback use requires a fallback version")
         attempts = tuple(item.attempt_number for item in self.coordinator_attempts)
@@ -250,7 +238,6 @@ def map_v3_graph_result_to_persistence_bundle(
     decision_execution_id: UUID,
     root_decision_execution_id: UUID,
     root_snapshot: V3RootSnapshotPersistence,
-    conflict_result: ConflictDetectionResult,
     coordinator_attempts: tuple[V3CoordinatorAttemptPersistence, ...],
     validations: tuple[V3ValidationPersistence, ...],
     policy_version: str,
@@ -300,8 +287,6 @@ def map_v3_graph_result_to_persistence_bundle(
             catalog_version=root_snapshot.exercise_pool.catalog_version,
             root_snapshot=root_snapshot,
             agent_proposals=proposals,
-            conflict_result=conflict_result,
-            review_results=graph_result.review_results,
             coordinator_attempts=coordinator_attempts,
             validations=validations,
             fallback_used=graph_result.fallback_used,

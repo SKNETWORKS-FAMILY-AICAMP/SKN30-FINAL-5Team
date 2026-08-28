@@ -16,26 +16,29 @@ PostgreSQL or Qdrant and does not hold user identifiers, raw check-ins, wearable
 calendar samples, credentials, prompts, provider payloads, exception messages, or
 chain-of-thought.
 
-The conflict detector, compiler, integrity validator, meaningful-difference
-validator, and deterministic fallback remain domain-owned injected ports. This
-package deliberately does not define competing domain enums or Pydantic schemas.
+The compiler, integrity validator, meaningful-difference validator, and deterministic
+fallback remain domain-owned injected ports. This package deliberately does not
+define competing domain enums or Pydantic schemas.
 
 ## Execution and failures
 
 The three specialist nodes fan out in one LangGraph superstep and merge through an
 append reducer. Results are canonicalized with `SPECIALIST_AGENT_ORDER`, never
 completion order. A missing, timed-out, invalid, `FAILED`, or `NEEDS_INPUT` branch
-prevents Coordinator execution and routes to deterministic fallback.
+prevents Coordinator execution and routes to deterministic fallback. Three valid
+proposals go directly to the Coordinator without conflict detection or a specialist
+review round. Training owns the draft exercise plan; Recovery and Feasibility provide
+advisory adjustment codes.
 
 LLM nodes call native async adapter methods inside `asyncio.timeout`. Cancellation
 therefore propagates to the provider coroutine; no worker thread is left running.
 Provider retries remain bounded by `LLM_AGENTS_MAX_ATTEMPTS`, and graph nodes do not
 add another retry policy.
 
-Conflict review is conditional and calls only affected specialist ports, at most
-once. Coordinator repair is allowed only for a repairable integrity result and is
-performed at most once. Fallback output passes through the same injected compiler
-and validator.
+Coordinator repair is allowed only for a repairable integrity result and is performed
+at most once. The integrity validator runs on the compiled plan and is the only
+deterministic gate on Coordinator output. Fallback output passes through the same
+injected compiler and validator.
 
 The graph compiles with `checkpointer=False`, no store, and empty callbacks. Its
 return value is the framework-neutral `V3GraphResult`; PostgreSQL persistence is a

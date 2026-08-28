@@ -228,129 +228,6 @@ def canonicalize_agents(state: V3GraphState) -> dict[str, object]:
     }
 
 
-def detect_conflicts(state: V3GraphState) -> dict[str, object]:
-    graph_input = state["graph_input"]
-    try:
-        report = graph_input.conflict_detector.detect(state["proposals"])
-    except Exception:
-        return {"failure_codes": _append_failure(state, "V3_CONFLICT_DETECTION_FAILED")}
-    return {"conflict_report": report, "initial_conflict_report": report}
-
-
-def optional_reviews(state: V3GraphState) -> dict[str, object]:
-    del state
-    return {"review_outcomes": ()}
-
-
-async def _run_review(
-    state: V3GraphState,
-    agent_type: SpecialistAgentTypeCode,
-) -> dict[str, object]:
-    graph_input = state["graph_input"]
-    report = state["conflict_report"]
-    if agent_type not in report.affected_agent_types:
-        return {"review_outcomes": ()}
-    original = next(item for item in state["proposals"] if item.agent_type_code is agent_type)
-    try:
-        async with asyncio.timeout(graph_input.node_timeout_seconds):
-            result = await graph_input.specialists[agent_type].areview(
-                proposal=original,
-                proposals=state["proposals"],
-                conflict_codes=report.conflict_codes,
-                constraint_envelope=graph_input.constraint_envelope,
-                exercise_pool=graph_input.exercise_pool,
-            )
-    except TimeoutError:
-        outcome = AgentOutcome(
-            agent_type,
-            failure_code=f"V3_{agent_type.value}_REVIEW_TIMEOUT",
-            telemetry=LlmInvocationTelemetry(
-                attempt_count=1,
-                latency_ms=max(0, int(graph_input.node_timeout_seconds * 1000)),
-            ),
-        )
-    except Exception:
-        outcome = AgentOutcome(agent_type, failure_code=f"V3_{agent_type.value}_REVIEW_FAILED")
-    else:
-        if result.failure is not None:
-            outcome = AgentOutcome(
-                agent_type, failure_code=result.failure.code.value, telemetry=result.telemetry
-            )
-        elif (
-            result.output is None
-            or result.output.proposal_status_code is not V3ProposalStatusCode.READY
-            or not _proposal_is_valid(state, agent_type, result.output)
-        ):
-            outcome = AgentOutcome(
-                agent_type,
-                failure_code=f"V3_{agent_type.value}_REVIEW_NOT_READY",
-            )
-        else:
-            outcome = AgentOutcome(agent_type, proposal=result.output, telemetry=result.telemetry)
-    return {"review_outcomes": (outcome,)}
-
-
-async def review_training(state: V3GraphState) -> dict[str, object]:
-    return await _run_review(state, SpecialistAgentTypeCode.TRAINING)
-
-
-async def review_recovery(state: V3GraphState) -> dict[str, object]:
-    return await _run_review(state, SpecialistAgentTypeCode.RECOVERY)
-
-
-async def review_feasibility(state: V3GraphState) -> dict[str, object]:
-    return await _run_review(state, SpecialistAgentTypeCode.FEASIBILITY)
-
-
-def finalize_reviews(state: V3GraphState) -> dict[str, object]:
-    replacements: dict[SpecialistAgentTypeCode, SpecialistAgentProposal] = {}
-    failures: list[str] = []
-    for outcome in state.get("review_outcomes", ()):
-        if outcome.failure_code is not None:
-            failures.append(outcome.failure_code)
-        elif outcome.proposal is not None:
-            replacements[outcome.agent_type] = outcome.proposal
-    audits = tuple(
-        InvocationAudit(
-            role_code=outcome.agent_type.value,
-            phase_code="REVIEW",
-            status_code=(
-                "SUCCEEDED"
-                if outcome.proposal is not None
-                else ("TIMEOUT" if (outcome.failure_code or "").endswith("TIMEOUT") else "FAILED")
-            ),
-            attempt_count=(outcome.telemetry.attempt_count if outcome.telemetry else 0),
-            latency_ms=(outcome.telemetry.latency_ms if outcome.telemetry else 0),
-            input_token_count=(outcome.telemetry.input_token_count if outcome.telemetry else None),
-            output_token_count=(
-                outcome.telemetry.output_token_count if outcome.telemetry else None
-            ),
-            provider_usage_present=(
-                outcome.telemetry.provider_usage_present if outcome.telemetry else False
-            ),
-            failure_code=outcome.failure_code,
-        )
-        for outcome in sorted(
-            state.get("review_outcomes", ()),
-            key=lambda item: SPECIALIST_AGENT_ORDER.index(item.agent_type),
-        )
-    )
-    if failures:
-        return {"failure_codes": tuple(sorted(set(failures))), "invocation_audits": audits}
-    proposals = tuple(replacements.get(item.agent_type_code, item) for item in state["proposals"])
-    try:
-        report = state["graph_input"].conflict_detector.detect(proposals)
-    except Exception:
-        return {"failure_codes": ("V3_CONFLICT_RECHECK_FAILED",), "proposals": proposals}
-    failures = ["V3_REVIEW_HARD_CONSTRAINT_WEAKENED"] if report.hard_constraint_weakened else []
-    return {
-        "proposals": proposals,
-        "conflict_report": report,
-        "failure_codes": tuple(failures),
-        "invocation_audits": audits,
-    }
-
-
 async def coordinator_initial(state: V3GraphState) -> dict[str, object]:
     graph_input = state["graph_input"]
     try:
@@ -396,7 +273,10 @@ def compile_plan(state: V3GraphState) -> dict[str, object]:
     if plan_spec is None:
         return {"failure_codes": _append_failure(state, "V3_PLAN_SPEC_MISSING")}
     try:
-        compiled = state["graph_input"].compiler.compile(plan_spec)
+        compiled = state["graph_input"].compiler.compile(
+            plan_spec,
+            proposals=state.get("proposals", ()),
+        )
     except Exception:
         return {"failure_codes": _append_failure(state, "V3_COMPILATION_FAILED")}
     return {"compiled_plan": compiled}
@@ -529,8 +409,6 @@ def finalize(state: V3GraphState) -> dict[str, object]:
                 used_fallback=state.get("used_fallback", False),
                 repair_attempts=state.get("repair_attempts", 0),
                 round_one_proposals=state.get("round_one_proposals", ()),
-                conflict_report=state.get("initial_conflict_report"),
-                review_outcomes=state.get("review_outcomes", ()),
                 coordinator_initial_plan=state.get("coordinator_initial_plan"),
                 coordinator_repair_plan=state.get("coordinator_repair_plan"),
                 integrity_validations=state.get("integrity_validations", ()),
@@ -548,8 +426,6 @@ def finalize(state: V3GraphState) -> dict[str, object]:
         used_fallback=state.get("used_fallback", False),
         repair_attempts=state.get("repair_attempts", 0),
         round_one_proposals=state.get("round_one_proposals", ()),
-        conflict_report=state.get("initial_conflict_report"),
-        review_outcomes=state.get("review_outcomes", ()),
         coordinator_initial_plan=state.get("coordinator_initial_plan"),
         coordinator_repair_plan=state.get("coordinator_repair_plan"),
         integrity_validations=state.get("integrity_validations", ()),
@@ -573,8 +449,6 @@ def terminal(state: V3GraphState) -> dict[str, object]:
         used_fallback=state.get("used_fallback", False),
         repair_attempts=state.get("repair_attempts", 0),
         round_one_proposals=state.get("round_one_proposals", ()),
-        conflict_report=state.get("initial_conflict_report"),
-        review_outcomes=state.get("review_outcomes", ()),
         coordinator_initial_plan=state.get("coordinator_initial_plan"),
         coordinator_repair_plan=state.get("coordinator_repair_plan"),
         integrity_validations=state.get("integrity_validations", ()),
@@ -590,17 +464,11 @@ __all__ = [
     "compile_plan",
     "coordinator_initial",
     "coordinator_repair",
-    "detect_conflicts",
     "fallback",
     "feasibility_agent",
     "finalize",
-    "finalize_reviews",
-    "optional_reviews",
     "parallel_agents",
     "recovery_agent",
-    "review_feasibility",
-    "review_recovery",
-    "review_training",
     "terminal",
     "training_agent",
     "validate_entry",

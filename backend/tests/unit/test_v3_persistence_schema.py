@@ -70,6 +70,20 @@ def test_v3_persistence_tables_and_additive_columns_are_registered() -> None:
     assert proposal_columns["proposal_hash"].nullable
 
 
+def test_legacy_deliberation_tables_remain_but_v3_repository_does_not_write_them() -> None:
+    legacy_tables = {
+        "decision_deliberations",
+        "agent_review_events",
+        "agent_proposal_revisions",
+    }
+    assert legacy_tables.issubset(Base.metadata.tables)
+
+    repository_source = Path("backend/app/db/repositories/v3_decision.py").read_text(
+        encoding="utf-8"
+    )
+    assert all(table_name not in repository_source for table_name in legacy_tables)
+
+
 def test_v3_validation_has_composite_coordination_identity_fk() -> None:
     table = Base.metadata.tables["plan_integrity_validations"]
     constraint = next(

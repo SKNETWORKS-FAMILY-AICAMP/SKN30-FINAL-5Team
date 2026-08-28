@@ -12,12 +12,10 @@ from backend.app.integrations.langgraph import nodes
 from backend.app.integrations.langgraph.routing import (
     after_agents,
     after_compile,
-    after_conflicts,
     after_entry,
     after_fallback,
     after_fallback_compile,
     after_fallback_validation,
-    after_reviews,
     after_validation,
 )
 from backend.app.integrations.langgraph.state import V3GraphInput, V3GraphResult, V3GraphState
@@ -33,12 +31,6 @@ def create_v3_graph() -> CompiledStateGraph:
     builder.add_node("agent_recovery", nodes.recovery_agent)
     builder.add_node("agent_feasibility", nodes.feasibility_agent)
     builder.add_node("canonicalize_agents", nodes.canonicalize_agents)
-    builder.add_node("detect_conflicts", nodes.detect_conflicts)
-    builder.add_node("optional_reviews", nodes.optional_reviews)
-    builder.add_node("review_training", nodes.review_training)
-    builder.add_node("review_recovery", nodes.review_recovery)
-    builder.add_node("review_feasibility", nodes.review_feasibility)
-    builder.add_node("finalize_reviews", nodes.finalize_reviews)
     builder.add_node("coordinator_initial", nodes.coordinator_initial)
     builder.add_node("compile", nodes.compile_plan)
     builder.add_node("validate", nodes.validate_plan)
@@ -61,15 +53,6 @@ def create_v3_graph() -> CompiledStateGraph:
         "canonicalize_agents",
     )
     builder.add_conditional_edges("canonicalize_agents", after_agents)
-    builder.add_conditional_edges("detect_conflicts", after_conflicts)
-    builder.add_edge("optional_reviews", "review_training")
-    builder.add_edge("optional_reviews", "review_recovery")
-    builder.add_edge("optional_reviews", "review_feasibility")
-    builder.add_edge(
-        ["review_training", "review_recovery", "review_feasibility"],
-        "finalize_reviews",
-    )
-    builder.add_conditional_edges("finalize_reviews", after_reviews)
     builder.add_edge("coordinator_initial", "compile")
     builder.add_conditional_edges(
         "compile",
@@ -103,7 +86,6 @@ class V3LangGraphRuntime:
             {
                 "graph_input": graph_input,
                 "agent_outcomes": (),
-                "review_outcomes": (),
                 "invocation_audits": (),
                 "integrity_validations": (),
                 "compiled_plans": (),

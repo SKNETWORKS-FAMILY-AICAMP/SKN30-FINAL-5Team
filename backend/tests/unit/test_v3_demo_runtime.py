@@ -194,6 +194,7 @@ def test_initial_create_returns_complete_persistence_bundle() -> None:
         item.exercise_id for item in bundle.root_snapshot.exercise_pool.exercises
     )
     assert runtime.metadata.execution_profile == "DEMO"
+    assert runtime.metadata.graph_version == "v3-langgraph-demo-v2"
     assert runtime.metadata.provider_code == "OPENAI"
 
 

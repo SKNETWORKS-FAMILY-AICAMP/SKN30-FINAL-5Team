@@ -276,7 +276,7 @@ def _fixture(
     result = V3ShadowExecutionResult.create(
         scenario_code=scenario_code,
         case_hash=case.case_hash,
-        graph_version="v3-langgraph-v1",
+        graph_version="v3-langgraph-v2",
         policy_version=envelope.policy_version,
         catalog_version=envelope.catalog_version,
         prompt_version="v3-prompts-v1",
@@ -313,7 +313,7 @@ def _fixture(
     )
     request = V3ShadowExecutionRequest(
         case=case,
-        graph_version="v3-langgraph-v1",
+        graph_version="v3-langgraph-v2",
         policy_version=envelope.policy_version,
         catalog_version=envelope.catalog_version,
         prompt_version="v3-prompts-v1",
