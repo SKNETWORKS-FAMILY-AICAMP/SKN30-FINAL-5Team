@@ -164,7 +164,7 @@ def test_repair_attempt_one_makes_every_repeated_violation_non_repairable() -> N
 
 def test_stop_and_seek_help_is_non_repairable_without_plan() -> None:
     blocked = ConstraintEnvelope.create(
-        requested_duration_minutes=30,
+        requested_duration_minutes=6,
         primary_goal_code="GENERAL_FITNESS",
         allowed_location_codes=("HOME",),
         allowed_equipment_codes=("BODYWEIGHT",),

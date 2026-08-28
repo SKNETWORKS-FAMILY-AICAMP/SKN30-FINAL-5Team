@@ -6,6 +6,13 @@ from enum import StrEnum
 DURATION_RULE_VERSION = "1.0.0"
 SECONDS_PER_MINUTE = 60
 
+# The approved window a plan may land within when the eligible pool cannot hit
+# the requested duration exactly (project owner approval, 2026-08-27; see
+# docs/tasks/TASK-ROUTINE-EQUIPMENT-AND-DURATION.md and AGENTS.md section 7).
+# The closest achievable plan wins inside this window; outside it the request
+# fails rather than silently shortening the session.
+DURATION_TOLERANCE_SECONDS = 300
+
 
 class DurationAdjustmentSourceCode(StrEnum):
     """The only approved sources for the daily requested duration."""

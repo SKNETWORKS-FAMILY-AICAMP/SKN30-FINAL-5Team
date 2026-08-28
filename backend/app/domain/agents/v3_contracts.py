@@ -474,7 +474,6 @@ class SpecialistAgentProposal(BaseModel):
     def create(cls, **values: object) -> Self:
         payload = {
             "schema_version": SPECIALIST_AGENT_PROPOSAL_SCHEMA_VERSION,
-            "estimated_duration_seconds": None,
             "exercise_prescriptions": (),
             "adjustment_codes": (),
             "hard_constraint_codes": (),
@@ -483,8 +482,30 @@ class SpecialistAgentProposal(BaseModel):
             "public_summary_code": None,
             **values,
         }
+        # A READY proposal must preserve the requested duration exactly, and a
+        # non-READY one must claim no duration at all. Both are fully determined
+        # by the status and the requested minutes, so the server derives them
+        # rather than asking a model to compute a value it cannot choose.
+        payload["estimated_duration_seconds"] = cls.derive_estimated_duration_seconds(
+            proposal_status_code=payload.get("proposal_status_code"),
+            requested_duration_minutes=payload.get("requested_duration_minutes"),
+        )
         payload["proposal_hash"] = _canonical_hash(payload)
         return cls.model_validate(payload)
+
+    @staticmethod
+    def derive_estimated_duration_seconds(
+        *, proposal_status_code: object, requested_duration_minutes: object
+    ) -> int | None:
+        """Compute the duration a proposal is allowed to claim for its status."""
+
+        is_ready = proposal_status_code in {
+            V3ProposalStatusCode.READY,
+            V3ProposalStatusCode.READY.value,
+        }
+        if not is_ready or not isinstance(requested_duration_minutes, int):
+            return None
+        return requested_duration_minutes * 60
 
 
 class LLMInvocationMetadata(BaseModel):

@@ -7,6 +7,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from backend.app.domain.rules.duration import (
+    DURATION_TOLERANCE_SECONDS,
     DurationPlan,
     DurationRequest,
     DurationTargetMismatchError,
@@ -23,12 +24,6 @@ from backend.app.modules.routines.ports import (
     RoutineRepositoryPort,
 )
 from backend.app.modules.routines.schemas import RoutineCreateRequest, RoutineResponse
-
-# Meeting decision 2026-08-27: a routine may land within five minutes of the
-# requested duration. Exact-match selection could not fill 30 minutes from the
-# approved pool, so every request failed with ROUTINE_DURATION_UNAVAILABLE.
-# AGENTS.md section 7 and docs/DOMAIN_RULES.md are updated alongside this.
-DURATION_TOLERANCE_SECONDS = 300
 
 
 class RoutineError(Exception):

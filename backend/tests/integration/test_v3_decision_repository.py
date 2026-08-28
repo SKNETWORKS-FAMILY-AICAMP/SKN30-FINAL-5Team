@@ -181,7 +181,7 @@ def _artifacts(run: DecisionRun, exercise: Exercise) -> RootArtifactsWrite:
         ),
         pool=ExercisePoolWrite(
             catalog_version_id=run.catalog_version_id,
-            pool_schema_version="exercise-pool-snapshot-v3",
+            pool_schema_version="exercise-pool-snapshot-v4",
             filter_codes=("PRODUCTION_APPROVED",),
             constraint_envelope_hash=HASH_B,
             exercise_payload=(

@@ -45,8 +45,8 @@ def _prescription() -> ExercisePrescription:
 def _plan() -> V3ShadowPlanProjection:
     return V3ShadowPlanProjection(
         action_code="KEEP",
-        requested_duration_minutes=30,
-        estimated_duration_seconds=1800,
+        requested_duration_minutes=6,
+        estimated_duration_seconds=330,
         prescriptions=(_prescription(),),
         plan_hash=PLAN_HASH,
     )

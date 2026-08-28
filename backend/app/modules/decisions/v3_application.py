@@ -34,6 +34,10 @@ from backend.app.domain.agents.retrieval import (
     RetrievalStatusCode,
 )
 from backend.app.domain.agents.v3_contracts import ConstraintEnvelope, RecoveryCeiling
+from backend.app.domain.agents.v3_duration import (
+    pool_size_for_duration,
+    prescription_item_duration,
+)
 from backend.app.domain.agents.v3_orchestration import GraphTerminalStatusCode
 from backend.app.domain.agents.v3_persistence import V3DecisionPersistenceBundle
 from backend.app.domain.rules.duration import DURATION_RULE_VERSION
@@ -176,6 +180,10 @@ class SqlAlchemyV3CreationRepository:
                         movement_pattern_codes=(item.primary_movement_pattern_code,),
                         difficulty_code=item.difficulty_code,
                         timing_mode_code=item.timing_mode_code,
+                        default_seconds_per_rep=item.default_seconds_per_rep,
+                        default_work_seconds=item.default_work_seconds,
+                        default_rest_seconds=item.default_rest_seconds,
+                        default_transition_seconds=item.default_transition_seconds,
                         recovery_eligible=item.recovery_eligible,
                         goal_codes=tuple(sorted(item.goal_codes)),
                         equipment_codes=tuple(sorted(item.equipment_codes)),
@@ -402,7 +410,10 @@ class PostgreSQLV3ExercisePoolSource(PostgreSQLExercisePoolSourcePort):
                     }
                 )
             ),
-            requested_limit=min(12, len(selected)),
+            requested_limit=pool_size_for_duration(
+                requested_duration_minutes=envelope.requested_duration_minutes,
+                exercises=selected,
+            ),
         )
 
     def revalidate(
@@ -495,12 +506,12 @@ class V3DecisionResponseProjector:
         items = []
         for compiled in plan.exercises:
             prescription = compiled.prescription
-            work = (
-                prescription.sets * prescription.work_seconds_per_set
-                if prescription.work_seconds_per_set is not None
-                else 0
-            )
-            rest = prescription.rest_seconds_between_sets * max(prescription.sets - 1, 0)
+            # Repetition-based exercises previously reported zero work seconds
+            # because only work_seconds_per_set was read. The shared timing rules
+            # convert repetitions through the catalog seconds-per-rep basis.
+            timing = prescription_item_duration(prescription, compiled.catalog_record)
+            work = timing.work_seconds
+            rest = timing.rest_seconds
             item_id = uuid5(
                 NAMESPACE_URL,
                 f"v3-plan-item:{bundle.decision_execution_id}:{prescription.sequence}",
@@ -518,8 +529,8 @@ class V3DecisionResponseProjector:
                     reps=prescription.repetitions_per_set,
                     work_seconds=work,
                     rest_seconds=rest,
-                    transition_seconds=prescription.transition_seconds,
-                    estimated_item_seconds=work + rest + prescription.transition_seconds,
+                    transition_seconds=timing.transition_seconds,
+                    estimated_item_seconds=timing.estimated_item_seconds,
                     instruction_available=bool(compiled.catalog_record.content_version),
                 )
             )

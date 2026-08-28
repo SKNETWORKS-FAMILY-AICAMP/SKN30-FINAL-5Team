@@ -93,7 +93,11 @@ class LangChainSpecialistAdapter:
             ),
             domain_validator=validate,
             canonical_factory=lambda values: SpecialistAgentProposal.create(**values),
-            server_owned_fields=("proposal_hash",),
+            # estimated_duration_seconds is derived from the status and the
+            # requested minutes, so it is withheld from the provider schema for
+            # the same reason proposal_hash is: a model cannot choose it, and
+            # asking it to compute one discards otherwise valid proposals.
+            server_owned_fields=("estimated_duration_seconds", "proposal_hash"),
         )
 
     async def apropose(
@@ -139,7 +143,11 @@ class LangChainSpecialistAdapter:
             ),
             domain_validator=validate,
             canonical_factory=lambda values: SpecialistAgentProposal.create(**values),
-            server_owned_fields=("proposal_hash",),
+            # estimated_duration_seconds is derived from the status and the
+            # requested minutes, so it is withheld from the provider schema for
+            # the same reason proposal_hash is: a model cannot choose it, and
+            # asking it to compute one discards otherwise valid proposals.
+            server_owned_fields=("estimated_duration_seconds", "proposal_hash"),
         )
 
 

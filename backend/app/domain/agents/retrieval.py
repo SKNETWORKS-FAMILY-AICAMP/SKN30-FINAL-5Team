@@ -21,8 +21,8 @@ EXERCISE_RETRIEVAL_REQUEST_SCHEMA_VERSION: Final[Literal["exercise-retrieval-req
 EXERCISE_RETRIEVAL_RESULT_SCHEMA_VERSION: Final[Literal["exercise-retrieval-result-v1"]] = (
     "exercise-retrieval-result-v1"
 )
-EXERCISE_POOL_SNAPSHOT_SCHEMA_VERSION: Final[Literal["exercise-pool-snapshot-v3"]] = (
-    "exercise-pool-snapshot-v3"
+EXERCISE_POOL_SNAPSHOT_SCHEMA_VERSION: Final[Literal["exercise-pool-snapshot-v4"]] = (
+    "exercise-pool-snapshot-v4"
 )
 
 _MACHINE_REFERENCE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
@@ -316,6 +316,13 @@ class ExercisePoolExerciseRecord(BaseModel):
     movement_pattern_codes: tuple[str, ...]
     difficulty_code: str
     timing_mode_code: str
+    # The approved per-exercise timing basis, carried so downstream duration
+    # arithmetic reads reviewed catalog values instead of inventing constants.
+    # Bounds mirror the catalog CHECK constraints on the exercises table.
+    default_seconds_per_rep: int | None = Field(default=None, gt=0)
+    default_work_seconds: int | None = Field(default=None, gt=0)
+    default_rest_seconds: int = Field(ge=0)
+    default_transition_seconds: int = Field(ge=10, le=20)
     recovery_eligible: bool
     goal_codes: tuple[str, ...]
     equipment_codes: tuple[str, ...]
@@ -356,6 +363,20 @@ class ExercisePoolExerciseRecord(BaseModel):
             values,
             field_name=info.field_name or "exercise references",
         )
+
+    @model_validator(mode="after")
+    def validate_timing_basis(self) -> Self:
+        """Mirror the catalog constraint pairing timing mode with its seconds basis."""
+
+        if self.timing_mode_code == "REPS":
+            if self.default_seconds_per_rep is None or self.default_work_seconds is not None:
+                raise ValueError("REPS timing requires seconds per rep without work seconds")
+        elif self.timing_mode_code == "DURATION":
+            if self.default_work_seconds is None or self.default_seconds_per_rep is not None:
+                raise ValueError("DURATION timing requires work seconds without seconds per rep")
+        else:
+            raise ValueError("timing_mode_code must be REPS or DURATION")
+        return self
 
 
 class RetrievalMetadata(BaseModel):
@@ -500,7 +521,7 @@ class ExercisePoolSnapshot(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
-    schema_version: Literal["exercise-pool-snapshot-v3"] = EXERCISE_POOL_SNAPSHOT_SCHEMA_VERSION
+    schema_version: Literal["exercise-pool-snapshot-v4"] = EXERCISE_POOL_SNAPSHOT_SCHEMA_VERSION
     catalog_version: str
     constraint_envelope_hash: str
     exercises: tuple[ExercisePoolExerciseRecord, ...] = Field(min_length=1)

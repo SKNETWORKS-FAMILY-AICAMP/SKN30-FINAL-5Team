@@ -21,8 +21,8 @@ def fallback_plan(
         envelope_hash=current_envelope.envelope_hash,
         pool_hash=current_pool.pool_hash,
         action_code=PlanActionCode.KEEP,
-        requested_duration_minutes=30,
-        estimated_duration_seconds=1800,
+        requested_duration_minutes=6,
+        estimated_duration_seconds=330,
         exercise_prescriptions=(prescription(A, 1), prescription(B, 2)),
         reason_codes=("DETERMINISTIC_FALLBACK",),
         fallback_version="fallback-v1",
@@ -46,7 +46,7 @@ def test_plan_compiler_resolves_pool_records_without_reselecting_exercises() -> 
     assert tuple(item.prescription.exercise_id for item in compiled.exercises) == (A, B)
     assert tuple(item.catalog_record.exercise_id for item in compiled.exercises) == (A, B)
     assert compiled.duration_verification_code == DURATION_VERIFICATION_CODE
-    assert compiled.estimated_duration_seconds == 1800
+    assert compiled.estimated_duration_seconds == 330
 
 
 def test_compiled_plan_order_and_hash_are_stable() -> None:
