@@ -13,6 +13,7 @@ from langchain_core.messages import HumanMessage
 from pydantic import ValidationError
 
 from backend.app.core.config import Settings
+from backend.app.domain.agents.retrieval import ExercisePoolSnapshot
 from backend.app.domain.agents.v3_contracts import (
     ConstraintEnvelope,
     RecoveryCeiling,
@@ -24,6 +25,7 @@ from backend.app.integrations.llm_agents.coordinator import LangChainCoordinator
 from backend.app.integrations.llm_agents.payload import (
     assert_private_machine_payload,
     project_exercise_pool,
+    specialist_payload,
 )
 from backend.app.integrations.llm_agents.provider import StructuredChatInvoker
 from backend.app.integrations.llm_agents.specialists import TrainingAgentAdapter
@@ -220,3 +222,73 @@ def test_agent_settings_do_not_change_disabled_narration_provider() -> None:
     )
 
     assert isinstance(build_narration_provider(settings), UnavailableNarrationProvider)
+
+
+def _pool_with_body_focus(
+    current_envelope: ConstraintEnvelope, body_focus_code: str
+) -> ExercisePoolSnapshot:
+    """Rebuild the fixture pool with one body-focus code, recomputing pool_hash."""
+
+    base = pool(current_envelope)
+    return ExercisePoolSnapshot.create(
+        catalog_version=base.catalog_version,
+        constraint_envelope_hash=base.constraint_envelope_hash,
+        exercises=tuple(
+            item.model_copy(update={"body_focus_code": body_focus_code}) for item in base.exercises
+        ),
+        mandatory_exercise_ids=base.mandatory_exercise_ids,
+        vector_ranked_exercise_ids=base.vector_ranked_exercise_ids,
+        retrieval_metadata=base.retrieval_metadata,
+        created_at=base.created_at,
+    )
+
+
+@pytest.mark.parametrize("catalog_body_focus_code", ("CHEST", "SHOULDER", "ABDOMEN"))
+def test_catalog_body_focus_survives_projection_even_when_it_names_a_body_area(
+    catalog_body_focus_code: str,
+) -> None:
+    # Several approved catalog body-focus codes collide with BodyAreaCode. They
+    # describe the movement, not a user's reported body area, so projection must
+    # keep them: rejecting one fails the whole payload and silently drops every
+    # request to the deterministic fallback.
+    current_envelope = envelope()
+    snapshot = _pool_with_body_focus(current_envelope, catalog_body_focus_code)
+
+    projected = project_exercise_pool(snapshot)
+
+    rows = projected["exercises"]
+    assert isinstance(rows, list)
+    assert [row["body_focus_code"] for row in rows] == [catalog_body_focus_code] * len(rows)
+
+
+def test_specialist_payload_accepts_a_pool_whose_body_focus_names_a_body_area() -> None:
+    current_envelope = envelope()
+    snapshot = _pool_with_body_focus(current_envelope, "CHEST")
+    agent_input = SpecialistAgentInput(
+        agent_type_code=SpecialistAgentTypeCode.TRAINING,
+        constraint_envelope=current_envelope,
+        envelope_hash=current_envelope.envelope_hash,
+        exercise_pool=snapshot,
+        pool_hash=snapshot.pool_hash,
+    )
+
+    payload = specialist_payload(agent_input)
+
+    pool_payload = payload["exercise_pool"]
+    assert isinstance(pool_payload, dict)
+    assert pool_payload["exercises"][0]["body_focus_code"] == "CHEST"
+
+
+def test_body_area_exemption_does_not_leak_to_other_fields() -> None:
+    # The exemption is per named field. A body-area value anywhere else must
+    # still be rejected, including inside the same exempted projection call.
+    with pytest.raises(ValueError, match="health body-area value"):
+        assert_private_machine_payload(
+            {"body_focus_code": "CHEST", "reason_codes": ["KNEE"]},
+            body_area_exempt_fields=("body_focus_code",),
+        )
+
+
+def test_body_area_values_stay_rejected_without_an_explicit_exemption() -> None:
+    with pytest.raises(ValueError, match="health body-area value"):
+        assert_private_machine_payload({"body_focus_code": "CHEST"})
