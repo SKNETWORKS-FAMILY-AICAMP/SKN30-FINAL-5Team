@@ -18,6 +18,7 @@ from backend.app.domain.agents.v3_contracts import (
     SPECIALIST_AGENT_ORDER,
     ExercisePrescription,
     PlanActionCode,
+    PlanPhaseCode,
     PlanSpec,
     RegenerationContext,
     SpecialistAgentProposal,
@@ -86,6 +87,7 @@ def _successful_model(root_snapshot, *, coordinator_plan=None) -> ToolCallingFak
         ExercisePrescription(
             exercise_id=record.exercise_id,
             sequence=index,
+            phase_code=PlanPhaseCode.MAIN,
             sets=min(envelope.recovery_ceiling.maximum_sets_per_exercise or 1, 3),
             repetitions_per_set=(
                 min(envelope.recovery_ceiling.maximum_repetitions_per_set or 1, 10)

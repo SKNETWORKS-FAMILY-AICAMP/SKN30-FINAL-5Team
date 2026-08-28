@@ -21,8 +21,8 @@ EXERCISE_RETRIEVAL_REQUEST_SCHEMA_VERSION: Final[Literal["exercise-retrieval-req
 EXERCISE_RETRIEVAL_RESULT_SCHEMA_VERSION: Final[Literal["exercise-retrieval-result-v1"]] = (
     "exercise-retrieval-result-v1"
 )
-EXERCISE_POOL_SNAPSHOT_SCHEMA_VERSION: Final[Literal["exercise-pool-snapshot-v4"]] = (
-    "exercise-pool-snapshot-v4"
+EXERCISE_POOL_SNAPSHOT_SCHEMA_VERSION: Final[Literal["exercise-pool-snapshot-v5"]] = (
+    "exercise-pool-snapshot-v5"
 )
 
 _MACHINE_REFERENCE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
@@ -315,6 +315,10 @@ class ExercisePoolExerciseRecord(BaseModel):
     body_focus_code: str
     movement_pattern_codes: tuple[str, ...]
     difficulty_code: str
+    # Which session phases the reviewed prescription profiles approve this
+    # exercise for. Without it every V3 plan item was MAIN, so mobility work
+    # landed anywhere in the session instead of at the ends.
+    phase_codes: tuple[str, ...] = Field(min_length=1)
     timing_mode_code: str
     # The approved per-exercise timing basis, carried so downstream duration
     # arithmetic reads reviewed catalog values instead of inventing constants.
@@ -346,6 +350,7 @@ class ExercisePoolExerciseRecord(BaseModel):
 
     @field_validator(
         "movement_pattern_codes",
+        "phase_codes",
         "goal_codes",
         "equipment_codes",
         "location_codes",
@@ -521,7 +526,7 @@ class ExercisePoolSnapshot(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
-    schema_version: Literal["exercise-pool-snapshot-v4"] = EXERCISE_POOL_SNAPSHOT_SCHEMA_VERSION
+    schema_version: Literal["exercise-pool-snapshot-v5"] = EXERCISE_POOL_SNAPSHOT_SCHEMA_VERSION
     catalog_version: str
     constraint_envelope_hash: str
     exercises: tuple[ExercisePoolExerciseRecord, ...] = Field(min_length=1)

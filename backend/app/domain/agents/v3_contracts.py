@@ -59,6 +59,23 @@ class V3ProposalStatusCode(StrEnum):
     FAILED = "FAILED"
 
 
+class PlanPhaseCode(StrEnum):
+    """Session phases a plan item may belong to.
+
+    Declared in the order a session runs them; ``_PHASE_ORDER`` below relies on
+    that order, so do not reorder these members.
+    """
+
+    WARMUP = "WARMUP"
+    MAIN = "MAIN"
+    COOLDOWN = "COOLDOWN"
+
+
+_PHASE_ORDER: Final[dict[PlanPhaseCode, int]] = {
+    code: index for index, code in enumerate(PlanPhaseCode)
+}
+
+
 class PlanActionCode(StrEnum):
     KEEP = "KEEP"
     DOWNSHIFT = "DOWNSHIFT"
@@ -265,6 +282,10 @@ class ExercisePrescription(BaseModel):
 
     exercise_id: UUID
     sequence: int = Field(gt=0)
+    # The session phase this item belongs to. Required rather than defaulted:
+    # a default would silently reproduce the all-MAIN plans this field exists
+    # to replace.
+    phase_code: PlanPhaseCode
     sets: int = Field(gt=0)
     repetitions_per_set: int | None = Field(default=None, gt=0)
     work_seconds_per_set: int | None = Field(default=None, gt=0)
@@ -305,6 +326,9 @@ def _validate_prescription_order(values: tuple[ExercisePrescription, ...]) -> No
         raise ValueError("exercise prescriptions must not contain duplicate exercise IDs")
     if tuple(value.sequence for value in values) != tuple(range(1, len(values) + 1)):
         raise ValueError("exercise prescriptions must use contiguous canonical sequence")
+    ranks = tuple(_PHASE_ORDER[value.phase_code] for value in values)
+    if ranks != tuple(sorted(ranks)):
+        raise ValueError("exercise prescriptions must run WARMUP, then MAIN, then COOLDOWN")
 
 
 def _pool_records(pool: ExercisePoolSnapshot) -> dict[UUID, ExercisePoolExerciseRecord]:
@@ -330,6 +354,8 @@ def _validate_prescription_constraints(
             raise ValueError("exercise prescription uses a disallowed location")
         if item.location_code not in record.location_codes:
             raise ValueError("exercise prescription location is not supported by the catalog")
+        if item.phase_code.value not in record.phase_codes:
+            raise ValueError("exercise prescription phase is not approved for this exercise")
         if not set(item.equipment_codes).issubset(envelope.allowed_equipment_codes):
             raise ValueError("exercise prescription uses disallowed equipment")
         if not set(item.equipment_codes).issubset(record.equipment_codes):
@@ -724,6 +750,7 @@ __all__ = [
     "LLMInvocationMetadata",
     "LLMInvocationStatusCode",
     "PlanActionCode",
+    "PlanPhaseCode",
     "PlanSpec",
     "ProposalReference",
     "RecoveryCeiling",

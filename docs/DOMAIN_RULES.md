@@ -355,7 +355,9 @@ RECOVERY 콘텐츠는 DOMAIN_APPROVED 상태의 가벼운 걷기, 호흡, 가동
 
 이 허용 범위는 2026-08-27 프로젝트 오너 승인으로 도입됐다. 근거와 경위는 `docs/tasks/TASK-ROUTINE-EQUIPMENT-AND-DURATION.md`에 있다. 구현 상수는 `backend/app/domain/rules/duration.py`의 `DURATION_TOLERANCE_SECONDS`이며 V1/V2 루틴 경로와 V3 계획 경로가 같은 값을 공유한다.
 
-V3 경로의 시간 산출은 `backend/app/domain/agents/v3_duration.py`가 담당한다. 반복 기반 운동은 카탈로그의 `default_seconds_per_rep`으로 환산하고, 동작 전환은 카탈로그 `default_transition_seconds`를 사용한다. 모델이 제시한 값이 아니라 검수된 카탈로그 값을 기준으로 삼는다. V3 계획은 현재 모든 항목을 `MAIN`으로 구성하므로 `setup_seconds`, `warmup_seconds`, `cooldown_seconds`가 아직 0이다. 이 구간의 도입은 별도 과제로 관리한다.
+V3 경로의 시간 산출은 `backend/app/domain/agents/v3_duration.py`가 담당한다. 반복 기반 운동은 카탈로그의 `default_seconds_per_rep`으로 환산하고, 동작 전환은 카탈로그 `default_transition_seconds`를 사용한다. 모델이 제시한 값이 아니라 검수된 카탈로그 값을 기준으로 삼는다.
+
+V3 계획 항목은 각각 `phase_code`를 가진다. 허용값은 `WARMUP`, `MAIN`, `COOLDOWN`이며, 해당 운동의 검수된 처방 프로파일이 승인한 구간만 지정할 수 있다. 계획은 `WARMUP` → `MAIN` → `COOLDOWN` 순서여야 하고, 이 순서는 계약 검증에서 강제된다. `warmup_seconds`와 `cooldown_seconds`는 V1/V2 경로와 같은 방식으로 해당 구간 항목의 소요 시간을 합산해 산출한다(`backend/app/db/repositories/decision.py`). `setup_seconds`는 V3가 루틴 일자를 사용하지 않아 검수된 장비 준비 시간이 없으므로 0이며, 위 표의 허용 범위(0~60초) 안에 있다.
 
 ~~~text
 estimated_duration_seconds

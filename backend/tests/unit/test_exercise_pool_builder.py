@@ -52,6 +52,7 @@ def _exercise(exercise_id: UUID) -> ExercisePoolExerciseRecord:
         body_focus_code="FULL_BODY",
         movement_pattern_codes=("PUSH",),
         difficulty_code="BEGINNER",
+        phase_codes=("MAIN",),
         timing_mode_code="REPS",
         default_seconds_per_rep=3,
         default_rest_seconds=30,

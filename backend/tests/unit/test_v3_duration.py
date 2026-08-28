@@ -21,6 +21,7 @@ from backend.app.domain.agents.v3_contracts import (
     ConstraintEnvelope,
     ExercisePrescription,
     PlanActionCode,
+    PlanPhaseCode,
     RecoveryCeiling,
 )
 from backend.app.domain.agents.v3_duration import (
@@ -43,7 +44,10 @@ QUERY_HASH = "c" * 64
 VALIDATOR_VERSION = "v3-integrity-validator-v1"
 
 
-def reps_record(exercise_id: UUID = REPS_EXERCISE) -> ExercisePoolExerciseRecord:
+def reps_record(
+    exercise_id: UUID = REPS_EXERCISE,
+    phase_codes: tuple[str, ...] = ("MAIN",),
+) -> ExercisePoolExerciseRecord:
     return ExercisePoolExerciseRecord(
         exercise_id=exercise_id,
         catalog_version="catalog-v3",
@@ -53,6 +57,7 @@ def reps_record(exercise_id: UUID = REPS_EXERCISE) -> ExercisePoolExerciseRecord
         body_focus_code="FULL_BODY",
         movement_pattern_codes=("PUSH",),
         difficulty_code="BEGINNER",
+        phase_codes=phase_codes,
         timing_mode_code="REPS",
         default_seconds_per_rep=4,
         default_rest_seconds=30,
@@ -77,6 +82,7 @@ def timed_record(exercise_id: UUID = TIMED_EXERCISE) -> ExercisePoolExerciseReco
         body_focus_code="CORE",
         movement_pattern_codes=("CORE_BRACE",),
         difficulty_code="BEGINNER",
+        phase_codes=("MAIN",),
         timing_mode_code="DURATION",
         default_work_seconds=45,
         default_rest_seconds=20,
@@ -97,6 +103,7 @@ def reps_prescription(
     return ExercisePrescription(
         exercise_id=REPS_EXERCISE,
         sequence=sequence,
+        phase_code=PlanPhaseCode.MAIN,
         sets=sets,
         repetitions_per_set=repetitions,
         rest_seconds_between_sets=rest,
@@ -123,6 +130,7 @@ def test_duration_based_work_uses_the_prescribed_work_seconds() -> None:
     prescription = ExercisePrescription(
         exercise_id=TIMED_EXERCISE,
         sequence=1,
+        phase_code=PlanPhaseCode.MAIN,
         sets=2,
         work_seconds_per_set=45,
         rest_seconds_between_sets=20,

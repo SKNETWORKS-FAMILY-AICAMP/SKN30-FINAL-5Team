@@ -19,6 +19,7 @@ from backend.app.domain.agents.retrieval import (
 from backend.app.domain.agents.v3_contracts import (
     ConstraintEnvelope,
     ExercisePrescription,
+    PlanPhaseCode,
     RecoveryCeiling,
     RegenerationContext,
 )
@@ -84,6 +85,7 @@ def _exercise(exercise_id: UUID) -> ExercisePoolExerciseRecord:
         body_focus_code="FULL_BODY",
         movement_pattern_codes=("PUSH",),
         difficulty_code="BEGINNER",
+        phase_codes=("MAIN",),
         timing_mode_code="REPS",
         default_seconds_per_rep=3,
         default_rest_seconds=30,
@@ -159,6 +161,7 @@ def _prescription(exercise_id: UUID, sequence: int) -> ExercisePrescription:
     return ExercisePrescription(
         exercise_id=exercise_id,
         sequence=sequence,
+        phase_code=PlanPhaseCode.MAIN,
         sets=3,
         repetitions_per_set=10,
         rest_seconds_between_sets=30,

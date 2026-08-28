@@ -3,6 +3,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from backend.app.domain.agents.retrieval import ExercisePoolSnapshot
+from backend.app.domain.agents.v3_contracts import _PHASE_ORDER, PlanPhaseCode
 from backend.app.domain.agents.v3_duration import plan_duration_seconds
 from backend.app.domain.agents.v3_orchestration import (
     FallbackRequest,
@@ -128,3 +129,39 @@ def test_fallback_declines_when_the_pool_cannot_reach_the_requested_duration() -
     )
 
     assert provider.generate(request) is None
+
+
+def test_fallback_orders_its_plan_by_session_phase() -> None:
+    """Selection is driven by rank and duration, so the result must be ordered.
+
+    The plan contract rejects a session that runs MAIN before WARMUP, so a
+    fallback that appended in retrieval order would fail to build at all.
+    """
+
+    envelope = duration_envelope(requested_duration_minutes=30)
+    records = tuple(
+        reps_record(
+            UUID(int=index),
+            phase_codes=("COOLDOWN",) if index == 1 else ("MAIN",) if index > 2 else ("WARMUP",),
+        )
+        for index in range(1, 11)
+    )
+    pool = duration_pool(envelope, records)
+    provider = DeterministicGraphFallbackProvider()
+
+    spec = provider.generate(
+        FallbackRequest.create(
+            constraint_envelope=envelope,
+            exercise_pool=pool,
+            fallback_version="v3-deterministic-fallback-v1",
+        )
+    )
+
+    assert spec is not None
+    phases = [item.phase_code for item in spec.exercise_prescriptions]
+    assert phases == sorted(phases, key=lambda code: _PHASE_ORDER[code])
+    assert PlanPhaseCode.WARMUP in phases
+    assert PlanPhaseCode.COOLDOWN in phases
+    assert [item.sequence for item in spec.exercise_prescriptions] == list(
+        range(1, len(phases) + 1)
+    )

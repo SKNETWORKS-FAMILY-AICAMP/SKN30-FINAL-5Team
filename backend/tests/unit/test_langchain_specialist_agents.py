@@ -65,7 +65,7 @@ def test_async_specialist_boundary_preserves_structured_contract() -> None:
 @pytest.mark.parametrize(
     ("adapter_type", "agent_type", "expected_prompt_version"),
     [
-        (TrainingAgentAdapter, SpecialistAgentTypeCode.TRAINING, "v3-training-prompt-v4"),
+        (TrainingAgentAdapter, SpecialistAgentTypeCode.TRAINING, "v3-training-prompt-v5"),
         (RecoveryAgentAdapter, SpecialistAgentTypeCode.RECOVERY, "v3-recovery-prompt-v3"),
         (
             FeasibilityAgentAdapter,

@@ -8,13 +8,30 @@ from uuid import UUID
 from backend.app.domain.agents.retrieval import ExercisePoolExerciseRecord, ExercisePoolSnapshot
 from backend.app.domain.agents.v3_compiler import DeterministicFallbackPlanSpec
 from backend.app.domain.agents.v3_contracts import (
+    _PHASE_ORDER,
     ConstraintEnvelope,
     ExercisePrescription,
     PlanActionCode,
+    PlanPhaseCode,
 )
 from backend.app.domain.agents.v3_duration import prescription_item_duration
 from backend.app.domain.agents.v3_orchestration import FallbackRequest
 from backend.app.domain.rules.duration import DURATION_TOLERANCE_SECONDS, SECONDS_PER_MINUTE
+
+
+def _fallback_phase(record: ExercisePoolExerciseRecord) -> PlanPhaseCode:
+    """Pick one approved phase without inventing a placement.
+
+    The catalog may approve an exercise for several phases. MAIN carries the
+    session, so it wins when approved; otherwise the single remaining approved
+    phase is used in session order.
+    """
+
+    approved = set(record.phase_codes)
+    for code in (PlanPhaseCode.MAIN, PlanPhaseCode.WARMUP, PlanPhaseCode.COOLDOWN):
+        if code.value in approved:
+            return code
+    raise ValueError("pool record carries no approved session phase")
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +91,16 @@ class DeterministicGraphFallbackProvider:
 
         if not prescriptions:
             return None
+        # The plan contract requires WARMUP before MAIN before COOLDOWN. Selection
+        # above is driven by retrieval rank and duration, so order the result and
+        # renumber rather than constraining what may be selected.
+        prescriptions = [
+            item.model_copy(update={"sequence": index})
+            for index, item in enumerate(
+                sorted(prescriptions, key=lambda item: _PHASE_ORDER[item.phase_code]),
+                start=1,
+            )
+        ]
         if abs(estimated_seconds - target_seconds) > DURATION_TOLERANCE_SECONDS:
             # Section 7 requires the request to fail rather than quietly hand the
             # user a session that is shorter than the one they asked for.
@@ -153,6 +180,7 @@ class DeterministicGraphFallbackProvider:
         return ExercisePrescription(
             exercise_id=record.exercise_id,
             sequence=sequence,
+            phase_code=_fallback_phase(record),
             sets=sets,
             repetitions_per_set=repetitions,
             work_seconds_per_set=work_seconds,

@@ -64,6 +64,7 @@ def _exercise(exercise_id: UUID) -> ExercisePoolExerciseRecord:
         body_focus_code="FULL_BODY",
         movement_pattern_codes=("PUSH",),
         difficulty_code="BEGINNER",
+        phase_codes=("MAIN",),
         timing_mode_code="REPS",
         default_seconds_per_rep=3,
         default_rest_seconds=30,
@@ -260,7 +261,7 @@ def test_pool_hash_is_stable_and_excludes_created_at() -> None:
     )
 
     assert first.pool_hash == second.pool_hash
-    assert first.pool_hash == "ad161234696a369662b8b84d0a99b316fef2a85ce76692f3fff9bc189d91a68b"
+    assert first.pool_hash == "12fd762072bcb0216927a27c8aaf1fa6cdccd72a775d1b49f7951d4faa77c069"
 
 
 @pytest.mark.parametrize(

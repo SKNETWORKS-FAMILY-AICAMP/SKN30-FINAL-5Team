@@ -34,6 +34,7 @@ def _exercise(
         body_focus_code="FULL_BODY",
         movement_pattern_codes=(movement_pattern_code,),
         difficulty_code=difficulty_code,
+        phase_codes=("MAIN",),
         timing_mode_code="REPS",
         default_seconds_per_rep=3,
         default_rest_seconds=30,

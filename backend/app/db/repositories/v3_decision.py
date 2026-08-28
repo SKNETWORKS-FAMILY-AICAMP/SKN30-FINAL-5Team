@@ -22,6 +22,7 @@ from backend.app.db.models.v3_decision import (
     DecisionExerciseRetrievalRecord,
     PlanIntegrityValidationRecord,
 )
+from backend.app.domain.agents.retrieval import EXERCISE_POOL_SNAPSHOT_SCHEMA_VERSION
 from backend.app.domain.agents.v3_contracts import CONSTRAINT_ENVELOPE_SCHEMA_VERSION
 
 _SPECIALIST_ROLES = ("TRAINING", "RECOVERY", "FEASIBILITY")
@@ -623,7 +624,7 @@ class V3DecisionRepository:
         succeeded = retrieval.retrieval_status_code == "VECTOR_RETRIEVAL_SUCCEEDED"
         if envelope.envelope_schema_version != CONSTRAINT_ENVELOPE_SCHEMA_VERSION:
             raise ValueError("unsupported envelope schema version")
-        if pool.pool_schema_version != "exercise-pool-snapshot-v4":
+        if pool.pool_schema_version != EXERCISE_POOL_SNAPSHOT_SCHEMA_VERSION:
             raise ValueError("unsupported pool schema version")
         if (
             retrieval.request_schema_version != "exercise-retrieval-request-v1"

@@ -17,6 +17,7 @@ from backend.app.domain.agents.v3_contracts import (
     ExercisePrescription,
     LLMInvocationMetadata,
     LLMInvocationStatusCode,
+    PlanPhaseCode,
     RecoveryCeiling,
     SpecialistAgentInput,
     SpecialistAgentProposal,
@@ -31,7 +32,10 @@ OUTSIDE = UUID("00000000-0000-0000-0000-000000000099")
 QUERY_HASH = "b" * 64
 
 
-def exercise(exercise_id: UUID) -> ExercisePoolExerciseRecord:
+def exercise(
+    exercise_id: UUID,
+    phase_codes: tuple[str, ...] = ("MAIN",),
+) -> ExercisePoolExerciseRecord:
     return ExercisePoolExerciseRecord(
         exercise_id=exercise_id,
         catalog_version="catalog-v3",
@@ -41,6 +45,7 @@ def exercise(exercise_id: UUID) -> ExercisePoolExerciseRecord:
         body_focus_code="FULL_BODY",
         movement_pattern_codes=("PUSH",),
         difficulty_code="BEGINNER",
+        phase_codes=phase_codes,
         timing_mode_code="REPS",
         default_seconds_per_rep=3,
         default_rest_seconds=30,
@@ -111,10 +116,12 @@ def prescription(
     *,
     sets: int = 3,
     intensity_code: str = "MODERATE",
+    phase_code: PlanPhaseCode = PlanPhaseCode.MAIN,
 ) -> ExercisePrescription:
     return ExercisePrescription(
         exercise_id=exercise_id,
         sequence=sequence,
+        phase_code=phase_code,
         sets=sets,
         repetitions_per_set=10,
         rest_seconds_between_sets=30,
@@ -376,3 +383,78 @@ def test_envelope_hash_covers_the_caution_verdict() -> None:
     """A caution must not be attachable to an envelope without changing its hash."""
 
     assert envelope(caution_ids=(B,)).envelope_hash != envelope().envelope_hash
+
+
+def test_plan_items_must_run_warmup_then_main_then_cooldown() -> None:
+    """A session that opens with its main work is rejected, not reordered."""
+
+    current_envelope = envelope(mandatory_ids=())
+    current_pool = pool(current_envelope)
+
+    with pytest.raises(
+        ValidationError,
+        match="must run WARMUP, then MAIN, then COOLDOWN",
+    ):
+        proposal(
+            SpecialistAgentTypeCode.TRAINING,
+            current_envelope,
+            current_pool,
+            prescriptions=(
+                prescription(A, 1, phase_code=PlanPhaseCode.MAIN),
+                prescription(B, 2, phase_code=PlanPhaseCode.WARMUP),
+            ),
+        )
+
+
+def test_a_phase_the_catalog_does_not_approve_is_rejected() -> None:
+    """Placement stays inside the reviewed prescription profiles.
+
+    Every pool record here is approved for MAIN only, so asking for a warmup
+    slot invents a placement the catalog never reviewed.
+    """
+
+    current_envelope = envelope(mandatory_ids=())
+    current_pool = pool(current_envelope)
+    current_input = agent_input(SpecialistAgentTypeCode.TRAINING, current_envelope, current_pool)
+    warmup_plan = proposal(
+        SpecialistAgentTypeCode.TRAINING,
+        current_envelope,
+        current_pool,
+        prescriptions=(prescription(A, 1, phase_code=PlanPhaseCode.WARMUP),),
+    )
+
+    with pytest.raises(ValueError, match="phase is not approved for this exercise"):
+        current_input.validate_proposal(warmup_plan)
+
+
+def test_a_warmup_approved_exercise_may_open_the_session() -> None:
+    current_envelope = envelope(mandatory_ids=())
+    records = (exercise(A, phase_codes=("MAIN", "WARMUP")), exercise(B), exercise(C))
+    current_pool = ExercisePoolSnapshot.create(
+        catalog_version="catalog-v3",
+        constraint_envelope_hash=current_envelope.envelope_hash,
+        exercises=records,
+        mandatory_exercise_ids=(),
+        vector_ranked_exercise_ids=(B, C),
+        retrieval_metadata=RetrievalMetadata(
+            collection_name="exercise-catalog-v3",
+            vector_index_version="vector-index-v3",
+            embedding_model_version="embedding-v3",
+            query_hash=QUERY_HASH,
+            retrieval_status_code=RetrievalStatusCode.VECTOR_RETRIEVAL_SUCCEEDED,
+            deterministic_pool_fallback_used=False,
+        ),
+        created_at=datetime(2026, 8, 24, tzinfo=UTC),
+    )
+    current_input = agent_input(SpecialistAgentTypeCode.TRAINING, current_envelope, current_pool)
+    plan = proposal(
+        SpecialistAgentTypeCode.TRAINING,
+        current_envelope,
+        current_pool,
+        prescriptions=(
+            prescription(A, 1, phase_code=PlanPhaseCode.WARMUP),
+            prescription(B, 2, phase_code=PlanPhaseCode.MAIN),
+        ),
+    )
+
+    current_input.validate_proposal(plan)

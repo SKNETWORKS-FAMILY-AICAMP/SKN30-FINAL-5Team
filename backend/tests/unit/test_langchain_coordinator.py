@@ -63,7 +63,7 @@ def test_coordinator_returns_actual_structured_validated_plan_spec() -> None:
 
     assert result.output == expected
     assert result.output.schema_version == PLAN_SPEC_SCHEMA_VERSION
-    assert adapter.prompt_version == "v3-coordinator-prompt-v4"
+    assert adapter.prompt_version == "v3-coordinator-prompt-v5"
     assert adapter.output_schema_version == PLAN_SPEC_SCHEMA_VERSION
     assert model.bound_tool_names == [("PlanSpec",)]
     assert model.invocation_count == 1

@@ -113,6 +113,7 @@ _POOL_EXERCISE_FIELDS: Final = (
     "body_focus_code",
     "movement_pattern_codes",
     "difficulty_code",
+    "phase_codes",
     "timing_mode_code",
     # Agents cannot fit a plan to the requested duration without the approved
     # seconds basis for each movement. These are catalog integers, not user data.

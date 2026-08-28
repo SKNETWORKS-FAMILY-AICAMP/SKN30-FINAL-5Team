@@ -33,7 +33,11 @@ from backend.app.domain.agents.retrieval import (
     ExerciseRetrievalResult,
     RetrievalStatusCode,
 )
-from backend.app.domain.agents.v3_contracts import ConstraintEnvelope, RecoveryCeiling
+from backend.app.domain.agents.v3_contracts import (
+    ConstraintEnvelope,
+    PlanPhaseCode,
+    RecoveryCeiling,
+)
 from backend.app.domain.agents.v3_duration import (
     pool_size_for_duration,
     prescription_item_duration,
@@ -166,7 +170,10 @@ class SqlAlchemyV3CreationRepository:
         records = tuple(
             item
             for item in records
-            if is_exercise_allowed_for_user(
+            # An exercise with no approved prescription phase cannot be placed in
+            # a session, so it never belongs in the pool.
+            if item.phase_codes
+            and is_exercise_allowed_for_user(
                 exercise_difficulty_code=item.difficulty_code,
                 user_experience_level_code=assembly.context.experience_level_code,
             )
@@ -184,6 +191,7 @@ class SqlAlchemyV3CreationRepository:
                         body_focus_code=item.body_focus_code,
                         movement_pattern_codes=(item.primary_movement_pattern_code,),
                         difficulty_code=item.difficulty_code,
+                        phase_codes=tuple(sorted(item.phase_codes)),
                         timing_mode_code=item.timing_mode_code,
                         default_seconds_per_rep=item.default_seconds_per_rep,
                         default_work_seconds=item.default_work_seconds,
@@ -575,6 +583,7 @@ class V3DecisionResponseProjector:
             else ()
         )
         items = []
+        phase_seconds: dict[PlanPhaseCode, int] = {code: 0 for code in PlanPhaseCode}
         for compiled in plan.exercises:
             prescription = compiled.prescription
             # Repetition-based exercises previously reported zero work seconds
@@ -606,6 +615,7 @@ class V3DecisionResponseProjector:
                     safety_caution=str(prescription.exercise_id) in cautioned,
                 )
             )
+            phase_seconds[prescription.phase_code] += timing.estimated_item_seconds
         first = plan.exercises[0].catalog_record
         evaluation = context.safety_evaluation
         safety_code: Literal["PASS", "REVISE", "BLOCKED"] = (
@@ -630,9 +640,11 @@ class V3DecisionResponseProjector:
                 requested_duration_minutes=plan.requested_duration_minutes,
                 estimated_duration_seconds=plan.estimated_duration_seconds,
                 estimated_calories_burned=None,
+                # V3 plans no routine day, so there is no reviewed equipment setup
+                # allowance to report. DOMAIN_RULES section 5 permits 0.
                 setup_seconds=0,
-                warmup_seconds=0,
-                cooldown_seconds=0,
+                warmup_seconds=phase_seconds[PlanPhaseCode.WARMUP],
+                cooldown_seconds=phase_seconds[PlanPhaseCode.COOLDOWN],
                 items=items,
             ),
             options=[
@@ -807,7 +819,7 @@ def _persist_public_decision(
                     plan_candidate_id=candidate.id,
                     exercise_id=item.exercise_id,
                     sequence=item.sequence,
-                    phase_code="MAIN",
+                    phase_code=prescription.phase_code.value,
                     tier_code=item.tier_code,
                     sets=item.sets,
                     reps=item.reps,

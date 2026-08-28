@@ -6,7 +6,10 @@ from uuid import UUID
 import pytest
 from pydantic import ValidationError
 
-from backend.app.domain.agents.v3_contracts import ExercisePrescription
+from backend.app.domain.agents.v3_contracts import (
+    ExercisePrescription,
+    PlanPhaseCode,
+)
 from backend.app.domain.agents.v3_orchestration import GraphTerminalStatusCode
 from backend.app.modules.decisions.v3_shadow import (
     V3ShadowCase,
@@ -33,6 +36,7 @@ def _prescription() -> ExercisePrescription:
     return ExercisePrescription(
         exercise_id=EXERCISE_ID,
         sequence=1,
+        phase_code=PlanPhaseCode.MAIN,
         sets=2,
         repetitions_per_set=8,
         rest_seconds_between_sets=30,

@@ -30,7 +30,7 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
     {
         LlmAgentRoleCode.TRAINING: RolePrompt(
             role_code=LlmAgentRoleCode.TRAINING,
-            version="v3-training-prompt-v4",
+            version="v3-training-prompt-v5",
             instruction=(
                 "Act as the Training specialist and the sole owner of the draft exercise plan. "
                 "Return an ordered exercise_prescriptions list that preserves the primary goal, "
@@ -40,6 +40,11 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
                 "caution_exercise_ids remain selectable, but the approved rules flagged "
                 "them for the reported discomfort: prefer an equivalent unflagged pool "
                 "exercise when the primary goal and duration still hold. "
+                "Give every prescription a phase_code the pool record approves in phase_codes, "
+                "and order the list WARMUP first, then MAIN, then COOLDOWN. Open and close "
+                "the session with mobility work and keep the goal-bearing movements in MAIN; "
+                "when a longer session needs more time, add sets to MAIN movements before "
+                "adding more distinct exercises. "
                 f"{_COMMON_BOUNDARY}"
             ),
         ),
@@ -71,7 +76,7 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
         ),
         LlmAgentRoleCode.COORDINATOR: RolePrompt(
             role_code=LlmAgentRoleCode.COORDINATOR,
-            version="v3-coordinator-prompt-v4",
+            version="v3-coordinator-prompt-v5",
             instruction=(
                 "Coordinate exactly the three supplied specialist proposals into one PlanSpec. "
                 "Use Training's exercise_prescriptions as the sole draft plan and consider the "
@@ -79,7 +84,8 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
                 "fixed precedence between specialist responses. Do not weaken safety, duration, "
                 "goal, equipment, location, or recovery constraints. Keep Training's "
                 "handling of caution_exercise_ids unless an adjustment code gives a "
-                "reason to revisit it. A repair request is evidence "
+                "reason to revisit it. Preserve the WARMUP, MAIN, COOLDOWN ordering and use "
+                "only phase codes the pool approves. A repair request is evidence "
                 "for this single call, never permission to start a loop. The compiled plan is "
                 "accepted only after deterministic integrity validation. "
                 f"{_COMMON_BOUNDARY}"
