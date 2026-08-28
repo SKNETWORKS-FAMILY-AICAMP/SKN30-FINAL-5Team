@@ -889,7 +889,6 @@ function HomeScreenContent({
                 startBlockedReason={routineBlockedReason}
                 title={routineTitle}
                 focus={routineFocus}
-                useJua={useJua}
                 variantApi={exerciseApi}
               />
             ) : null}
@@ -1494,7 +1493,6 @@ function RoutineCard({
   revisionNotice,
   startBlockedReason,
   title,
-  useJua,
   variantApi,
 }: {
   actionCode?: ActionCode;
@@ -1521,7 +1519,6 @@ function RoutineCard({
   revisionNotice?: string;
   startBlockedReason?: string | null;
   title: string;
-  useJua: boolean;
   variantApi?: Partial<Pick<Api, 'getExerciseVariants'>>;
 }) {
   const styles = useHomeStyles();
@@ -1642,26 +1639,43 @@ function RoutineCard({
                     style={styles.routineGuideActions}
                     testID={`routine-guide-actions-${item.id}`}
                   >
-                    {onOpenExerciseGuide ? (
-                      <Pressable
-                        accessibilityLabel={`${item.name} 자세 보기`}
-                        accessibilityRole="button"
-                        onPress={() => onOpenExerciseGuide(item)}
-                        style={styles.routineGuideButton}
-                      >
-                        <Text style={styles.routineGuideButtonText}>자세</Text>
-                      </Pressable>
-                    ) : null}
-                    {variantApi ? (
-                      <ExerciseVariantsAction
-                        api={variantApi}
-                        exerciseId={item.exerciseId}
-                        exerciseName={item.name}
-                        onOpen={(response) =>
-                          onOpenExerciseVariants(item, response)
-                        }
-                      />
-                    ) : null}
+                    <View
+                      style={styles.routineGuideSlot}
+                      testID={`routine-posture-slot-${item.id}`}
+                    >
+                      {onOpenExerciseGuide ? (
+                        <Pressable
+                          accessibilityLabel={`${item.name} 자세 보기`}
+                          accessibilityRole="button"
+                          onPress={() => onOpenExerciseGuide(item)}
+                          style={styles.routineGuideButton}
+                        >
+                          <Text style={styles.routineGuideButtonText}>
+                            자세
+                          </Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                    <View
+                      style={styles.routineGuideSlot}
+                      testID={`routine-equipment-slot-${item.id}`}
+                    >
+                      {variantApi ? (
+                        <ExerciseVariantsAction
+                          actionStyle={[
+                            styles.routineGuideButton,
+                            styles.routineEquipmentButton,
+                          ]}
+                          actionTextStyle={styles.routineEquipmentButtonText}
+                          api={variantApi}
+                          exerciseId={item.exerciseId}
+                          exerciseName={item.name}
+                          onOpen={(response) =>
+                            onOpenExerciseVariants(item, response)
+                          }
+                        />
+                      ) : null}
+                    </View>
                   </View>
                 ) : null}
               </Animated.View>
@@ -1698,13 +1712,23 @@ function RoutineCard({
         onPress={onStart}
         style={[
           styles.startButton,
-          (pending || !onStart) && styles.routineActionDisabled,
+          (pending || !onStart) && styles.startButtonDisabled,
         ]}
       >
-        <Text style={[styles.startLabel, useJua && styles.juaLabel]}>
-          운동 시작하기
-        </Text>
-        <StartChevronIcon />
+        <LinearGradient
+          colors={
+            pending || !onStart
+              ? ['#F3ECE4', '#F3ECE4']
+              : ['#FFFDF8', '#FFF2D1', '#FFE2A3']
+          }
+          end={{ x: 0.5, y: 1 }}
+          locations={pending || !onStart ? [0, 1] : [0, 0.55, 1]}
+          pointerEvents="none"
+          start={{ x: 0.5, y: 0 }}
+          style={styles.startButtonGradient}
+          testID="home-start-gradient"
+        />
+        <Text style={styles.startLabel}>운동 시작하기</Text>
       </Pressable>
       <View style={styles.routineActions}>
         <Pressable
@@ -3494,20 +3518,6 @@ function RoutineDragIcon() {
   );
 }
 
-function StartChevronIcon() {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M9 5.5L16 12l-7 6.5"
-        stroke="#5A4636"
-        strokeWidth={2.2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
-
 function EditIcon() {
   return (
     <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
@@ -4002,17 +4012,36 @@ function createHomeStyles(
       alignItems: 'center',
       gap: s(4),
     },
+    routineGuideSlot: {
+      width: s(44),
+      height: s(32),
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     routineGuideButton: {
+      width: s(44),
+      height: s(32),
       minHeight: s(32),
+      alignItems: 'center',
       justifyContent: 'center',
       borderWidth: s(1),
       borderColor: '#C8D7AC',
       borderRadius: s(999),
       backgroundColor: '#EDF3DD',
-      paddingHorizontal: s(7),
+      paddingHorizontal: 0,
+      paddingVertical: 0,
     },
     routineGuideButtonText: {
       color: '#5F7048',
+      fontSize: f(11.5),
+      fontWeight: '700',
+    },
+    routineEquipmentButton: {
+      borderColor: '#9CC5DF',
+      backgroundColor: '#E7F3FA',
+    },
+    routineEquipmentButtonText: {
+      color: '#356A85',
       fontSize: f(11.5),
       fontWeight: '700',
     },
@@ -4030,20 +4059,38 @@ function createHomeStyles(
     },
     startButton: {
       width: '100%',
+      minHeight: s(58),
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: s(8),
+      position: 'relative',
       marginTop: s(16),
       marginBottom: s(10),
-      borderRadius: s(16),
-      backgroundColor: '#F6BA50',
-      padding: s(16),
+      borderWidth: s(1),
+      borderColor: 'rgba(218, 150, 30, 0.62)',
+      borderRadius: s(18),
+      overflow: 'hidden',
+      paddingVertical: s(16),
+      paddingHorizontal: s(20),
+      ...shadow(6, 12, 0.13),
+    },
+    startButtonDisabled: {
+      borderColor: '#DDD4CA',
+      shadowOpacity: 0,
+      elevation: 0,
+    },
+    startButtonGradient: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
     },
     startLabel: {
-      color: colors.text,
+      color: '#5A4636',
       fontSize: f(17),
-      fontWeight: '400',
+      fontWeight: '800',
+      letterSpacing: s(-0.1),
       textAlign: 'center',
     },
     routineActions: {

@@ -79,11 +79,6 @@ const CONSENT_OPTIONS = {
     description:
       '워치 데이터로 컨디션 입력을 줄여줘요. 없어도 앱은 그대로 써요.',
   },
-  calendar_integration: {
-    label: '캘린더 연동',
-    description:
-      '지금은 연동 준비 중이에요. 준비되면 이 동의로 바로 쓸 수 있어요.',
-  },
   marketing: {
     label: '마케팅 정보 수신',
     description: '새 기능과 이벤트 소식을 보내요.',
@@ -136,7 +131,7 @@ export const ONBOARDING_STEPS = [
   },
   {
     key: 'location',
-    title: '주로 어디에서 운동하나요?',
+    title: '어디에서 운동해요?',
     intro: '여러 장소를 선택할 수 있어요.',
     required: true,
   },
@@ -155,13 +150,13 @@ export const ONBOARDING_STEPS = [
   {
     key: 'attention',
     title: '주의가 필요한 부위가 있나요?',
-    intro: '먼저 있음 또는 없음을 선택해주세요.',
+    intro: '',
     required: true,
   },
   {
     key: 'consent',
     title: '동의 항목을 확인해주세요',
-    intro: '필수 2개만 동의하면 시작할 수 있어요.',
+    intro: '',
     required: true,
   },
 ] as const;
@@ -228,7 +223,6 @@ function OnboardingScreenContent({
   const [generalConsent, setGeneralConsent] = useState(false);
   const [sensitiveConsent, setSensitiveConsent] = useState(false);
   const [wearableConsent, setWearableConsent] = useState(false);
-  const [calendarConsent, setCalendarConsent] = useState(false);
   const [marketingConsent, setMarketingConsent] = useState(false);
   const current = ONBOARDING_STEPS[step - 1] ?? ONBOARDING_STEPS[0];
   const timezone = useMemo(() => {
@@ -274,7 +268,7 @@ function OnboardingScreenContent({
           general_personal_data: generalConsent,
           sensitive_data: sensitiveConsent,
           wearable_integration: wearableConsent,
-          calendar_integration: calendarConsent,
+          calendar_integration: false,
           marketing: marketingConsent,
         },
       });
@@ -693,13 +687,6 @@ function OnboardingScreenContent({
                 onPress={() => setWearableConsent((value) => !value)}
               />
               <ConsentRow
-                checked={calendarConsent}
-                description={CONSENT_OPTIONS.calendar_integration.description}
-                label={CONSENT_OPTIONS.calendar_integration.label}
-                required={false}
-                onPress={() => setCalendarConsent((value) => !value)}
-              />
-              <ConsentRow
                 checked={marketingConsent}
                 description={CONSENT_OPTIONS.marketing.description}
                 label={CONSENT_OPTIONS.marketing.label}
@@ -726,7 +713,11 @@ function OnboardingScreenContent({
             onPress={goBack}
             style={styles.backButton}
           >
-            <Text style={styles.backIcon}>‹</Text>
+            <View
+              pointerEvents="none"
+              style={styles.backIcon}
+              testID="onboarding-back-icon"
+            />
           </Pressable>
           <Text accessibilityRole="header" style={styles.headerTitle}>
             온보딩
@@ -764,7 +755,9 @@ function OnboardingScreenContent({
               {current.required ? '필수' : '선택'}
             </Text>
           </View>
-          <Text style={styles.stepIntro}>{current.intro}</Text>
+          {current.intro ? (
+            <Text style={styles.stepIntro}>{current.intro}</Text>
+          ) : null}
         </View>
         {renderStep()}
         {blockedByAge ? (
@@ -924,7 +917,9 @@ function StepCounter({
           !canDecrease && styles.counterButtonDisabled,
         ]}
       >
-        <Text style={styles.counterButtonText}>−</Text>
+        <View pointerEvents="none" style={styles.counterIcon}>
+          <View style={styles.counterIconBar} />
+        </View>
       </Pressable>
       <Text accessibilityLiveRegion="polite" style={styles.counterValue}>
         {prefix}
@@ -942,7 +937,12 @@ function StepCounter({
           !canIncrease && styles.counterButtonDisabled,
         ]}
       >
-        <Text style={styles.counterButtonText}>+</Text>
+        <View pointerEvents="none" style={styles.counterIcon}>
+          <View style={styles.counterIconBar} />
+          <View
+            style={[styles.counterIconBar, styles.counterIconBarVertical]}
+          />
+        </View>
       </Pressable>
     </Card>
   );
@@ -1271,7 +1271,14 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     backgroundColor: colors.surface,
   },
-  backIcon: { color: colors.text, fontSize: 30, lineHeight: 32 },
+  backIcon: {
+    width: 12,
+    height: 12,
+    borderBottomWidth: 2.5,
+    borderLeftWidth: 2.5,
+    borderColor: colors.text,
+    transform: [{ rotate: '45deg' }],
+  },
   headerTitle: { flex: 1, color: colors.text, fontSize: 17, fontWeight: '700' },
   stepCounter: { color: colors.textMuted, fontSize: 13, fontWeight: '700' },
   progressTrack: {
@@ -1348,11 +1355,22 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   counterButtonDisabled: { borderColor: colors.border, opacity: 0.4 },
-  counterButtonText: {
-    color: colors.primary,
-    fontSize: 30,
-    fontWeight: '500',
-    lineHeight: 34,
+  counterIcon: {
+    position: 'relative',
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  counterIconBar: {
+    position: 'absolute',
+    width: 20,
+    height: 2.5,
+    borderRadius: 2,
+    backgroundColor: colors.primary,
+  },
+  counterIconBarVertical: {
+    transform: [{ rotate: '90deg' }],
   },
   counterValue: {
     minWidth: 100,
@@ -1486,12 +1504,12 @@ const styles = StyleSheet.create({
   painSliderTrack: {
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.dangerBorder,
+    backgroundColor: 'rgba(162, 63, 42, 0.12)',
   },
   painSliderFill: {
     height: '100%',
     borderRadius: 4,
-    backgroundColor: colors.dangerText,
+    backgroundColor: 'rgba(162, 63, 42, 0.42)',
   },
   painSliderThumb: {
     position: 'absolute',
@@ -1502,7 +1520,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: colors.surface,
     borderRadius: 12,
-    backgroundColor: '#8E3226',
+    backgroundColor: 'rgba(142, 50, 38, 0.72)',
   },
   painSliderRangeLabels: {
     flexDirection: 'row',

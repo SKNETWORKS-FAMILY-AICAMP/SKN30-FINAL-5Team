@@ -172,6 +172,38 @@ describe('WorkoutScreen', () => {
     });
   });
 
+  it('renders the block smash action with high-contrast readable styling', () => {
+    render(<WorkoutScreen />);
+
+    const action = screen.getByRole('button', {
+      name: '준비 운동 블록 격파',
+    });
+    const actionStyle = StyleSheet.flatten(action.props.style);
+    const labelStyle = StyleSheet.flatten(
+      screen.getByText('블록 격파').props.style,
+    );
+    const gradient = screen.getByTestId('workout-smash-gradient');
+
+    expect(actionStyle).toMatchObject({
+      borderColor: '#E2AC48',
+      overflow: 'hidden',
+      shadowColor: '#C28B28',
+      shadowOpacity: 0.13,
+    });
+    expect(actionStyle.backgroundColor).toBeUndefined();
+    expect(gradient.props.colors).toEqual(
+      ['#FFFDF8', '#FFF2D1', '#FFE2A3'].map(processColor),
+    );
+    expect(gradient.props.locations).toEqual([0, 0.55, 1]);
+    expect(labelStyle).toMatchObject({
+      color: '#5A4636',
+      fontSize: 18,
+      fontWeight: '800',
+      letterSpacing: 0.2,
+    });
+    expect(labelStyle.fontFamily).toBeUndefined();
+  });
+
   it('keeps the carousel and arc constants faithful to the handoff', () => {
     expect(WORKOUT_CAROUSEL).toEqual({
       CARD_HEIGHT: 320,
@@ -246,6 +278,23 @@ describe('WorkoutScreen', () => {
     expect(carousel.props.decelerationRate).toBe('fast');
     expect(carousel.props.showsHorizontalScrollIndicator).toBe(false);
     expect(carousel.props.scrollEventThrottle).toBe(16);
+    expect(StyleSheet.flatten(carousel.props.style)).toMatchObject({
+      flexGrow: 0,
+      flexShrink: 0,
+      height: 352.8,
+    });
+    expect(
+      StyleSheet.flatten(carousel.props.contentContainerStyle),
+    ).toMatchObject({ alignItems: 'center', minHeight: '100%' });
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('workout-carousel-drag-surface').props.style,
+      ),
+    ).toMatchObject({
+      flex: 1,
+      minHeight: 0,
+      justifyContent: 'center',
+    });
 
     layoutCarousel(390);
     expect(
@@ -438,7 +487,7 @@ describe('WorkoutScreen', () => {
     ).toBeOnTheScreen();
   });
 
-  it('keeps the bottom actions equal and the smash action flat', async () => {
+  it('keeps the bottom actions equal and gives the smash action clear elevation', async () => {
     await render(<WorkoutScreen />);
 
     const smashStyle = StyleSheet.flatten(
@@ -453,8 +502,11 @@ describe('WorkoutScreen', () => {
     expect(smashStyle.height).toBeCloseTo(69.6);
     expect(restStyle.height).toBeCloseTo(69.6);
     expect(smashStyle.borderBottomWidth).toBeUndefined();
-    expect(smashStyle.shadowColor).toBeUndefined();
-    expect(smashStyle.elevation).toBeUndefined();
+    expect(smashStyle).toMatchObject({
+      shadowColor: '#C28B28',
+      shadowOpacity: 0.13,
+      elevation: 3,
+    });
   });
 
   it('keeps the disabled smash action flat', async () => {
@@ -463,10 +515,13 @@ describe('WorkoutScreen', () => {
     const smashStyle = StyleSheet.flatten(
       screen.getByTestId('workout-smash-action').props.style,
     );
-    expect(smashStyle.backgroundColor).toBe('#CFCCC5');
+    expect(smashStyle).toMatchObject({
+      borderColor: '#DDD4CA',
+      shadowOpacity: 0,
+      elevation: 0,
+    });
+    expect(smashStyle.backgroundColor).toBeUndefined();
     expect(smashStyle.borderBottomWidth).toBeUndefined();
-    expect(smashStyle.shadowColor).toBeUndefined();
-    expect(smashStyle.elevation).toBeUndefined();
   });
 
   it('uses the original two-sided header layout and text-only stop action', async () => {
@@ -503,7 +558,15 @@ describe('WorkoutScreen', () => {
       screen.getByText('중단').props.style,
     );
     expect(stopLabelStyle.color).toBe('#A23F2A');
-    expect(stopLabelStyle.fontWeight).toBe('400');
+    expect(stopLabelStyle).toMatchObject({
+      fontFamily: Platform.select({
+        ios: 'System',
+        android: 'sans-serif-medium',
+        default: 'system-ui',
+      }),
+      fontWeight: '700',
+      letterSpacing: -0.15,
+    });
     expect(
       screen.getByRole('button', {
         name: '안전 중단 및 이상 반응 보고',
@@ -544,8 +607,14 @@ describe('WorkoutScreen', () => {
     expect(stopButtonStyle.borderBottomWidth).toBeUndefined();
     expect(stopLabelStyle).toMatchObject({
       color: '#FFFFFF',
+      fontFamily: Platform.select({
+        ios: 'System',
+        android: 'sans-serif-medium',
+        default: 'system-ui',
+      }),
       fontSize: 18,
-      fontWeight: '400',
+      fontWeight: '700',
+      letterSpacing: -0.15,
     });
     expect(stopGradient.props.colors).toEqual(
       ['#D97260', '#CC5A47', '#C2503C'].map(processColor),
@@ -607,6 +676,11 @@ describe('WorkoutScreen', () => {
     expect(screen.getByTestId('workout-smash-burst')).toHaveTextContent(
       '격파!',
     );
+    const burstStyle = StyleSheet.flatten(
+      screen.getByTestId('workout-smash-burst').props.style,
+    );
+    expect(burstStyle.position).toBe('absolute');
+    expect(burstStyle.top).toBeCloseTo(213.84);
     expect(screen.getByText('완료 1 / 5')).toBeOnTheScreen();
     expect(screen.getByText('2 / 5 블록')).toBeOnTheScreen();
 
@@ -716,8 +790,14 @@ describe('WorkoutScreen', () => {
     expect(reportButtonStyle.borderBottomWidth).toBeUndefined();
     expect(reportLabelStyle).toMatchObject({
       color: '#FFFFFF',
+      fontFamily: Platform.select({
+        ios: 'System',
+        android: 'sans-serif-medium',
+        default: 'system-ui',
+      }),
       fontSize: 18,
-      fontWeight: '400',
+      fontWeight: '700',
+      letterSpacing: -0.15,
     });
     expect(reportGradient.props.colors).toEqual(
       ['#D97260', '#CC5A47', '#C2503C'].map(processColor),
@@ -1501,8 +1581,14 @@ describe('WorkoutScreen API mode', () => {
     expect(submitButtonStyle.borderBottomWidth).toBeUndefined();
     expect(submitLabelStyle).toMatchObject({
       color: '#FFFFFF',
+      fontFamily: Platform.select({
+        ios: 'System',
+        android: 'sans-serif-medium',
+        default: 'system-ui',
+      }),
       fontSize: 18,
-      fontWeight: '400',
+      fontWeight: '700',
+      letterSpacing: -0.15,
     });
     expect(submitGradient.props.colors).toEqual(
       ['#D97260', '#CC5A47', '#C2503C'].map(processColor),

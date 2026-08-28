@@ -2,12 +2,21 @@
  * Read-only equipment variants from the reviewed catalog.
  *
  * This UI never changes the active routine or workout session. The backend
- * owns which EQUIPMENT relationships are approved and an empty result hides
- * the action completely.
+ * owns which equipment requirements and EQUIPMENT relationships are approved.
+ * The action is available for any exercise with required equipment, while the
+ * variant section is rendered only when reviewed variants exist.
  */
 
 import { useEffect, useRef } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle,
+} from 'react-native';
 
 import type { Api } from '../../api/endpoints';
 import { equipmentLabel } from '../../api/labels';
@@ -18,6 +27,8 @@ import { colors, spacing } from '../../components/theme';
 type VariantApi = Partial<Pick<Api, 'getExerciseVariants'>>;
 
 export function ExerciseVariantsAction({
+  actionStyle,
+  actionTextStyle,
   api,
   exerciseId,
   exerciseName,
@@ -26,6 +37,8 @@ export function ExerciseVariantsAction({
   onOpen,
   presentation = 'pill',
 }: {
+  actionStyle?: StyleProp<ViewStyle>;
+  actionTextStyle?: StyleProp<TextStyle>;
   api: VariantApi;
   exerciseId: string;
   exerciseName: string;
@@ -49,7 +62,7 @@ export function ExerciseVariantsAction({
       !autoOpen ||
       openedAutomatically.current ||
       state.status !== 'ready' ||
-      state.data.items.length === 0
+      !hasRequiredEquipment(state.data.source_required_equipment_codes)
     ) {
       return;
     }
@@ -86,15 +99,18 @@ export function ExerciseVariantsAction({
         style={({ pressed }) => [
           presentation === 'pill' ? styles.action : styles.textAction,
           presentation === 'pill' && styles.retryAction,
+          actionStyle,
           pressed && styles.pressed,
         ]}
       >
-        <Text style={[styles.actionText, styles.retryText]}>다시 확인</Text>
+        <Text style={[styles.actionText, styles.retryText, actionTextStyle]}>
+          다시 확인
+        </Text>
       </Pressable>
     );
   }
 
-  if (state.data.items.length === 0) {
+  if (!hasRequiredEquipment(state.data.source_required_equipment_codes)) {
     return null;
   }
 
@@ -105,11 +121,12 @@ export function ExerciseVariantsAction({
       onPress={() => onOpen(state.data)}
       style={({ pressed }) => [
         presentation === 'pill' ? styles.action : styles.textAction,
+        actionStyle,
         pressed && styles.pressed,
       ]}
       testID={`exercise-variants-action-${exerciseId}`}
     >
-      <Text style={styles.actionText}>{label}</Text>
+      <Text style={[styles.actionText, actionTextStyle]}>{label}</Text>
     </Pressable>
   );
 }
@@ -119,6 +136,8 @@ export function ExerciseVariantsContent({
 }: {
   response: ExerciseVariantsResponse;
 }) {
+  const hasVariants = response.items.length > 0;
+
   return (
     <View style={styles.content} testID="exercise-variants-content">
       <View style={styles.sourceCard}>
@@ -128,29 +147,37 @@ export function ExerciseVariantsContent({
         </Text>
       </View>
 
-      <Text style={styles.intro}>
-        장비가 없을 때 아래 방법으로 동작을 변형할 수 있어요.
-      </Text>
-
-      {response.items.map((item) => (
-        <View key={item.exercise_id} style={styles.variantCard}>
-          <Text style={styles.variantName}>{item.exercise_name}</Text>
-          <Text style={styles.variantEquipment}>
-            필요 장비: {equipmentSummary(item.required_equipment_codes)}
+      {hasVariants ? (
+        <View style={styles.variantSection} testID="exercise-variants-list">
+          <Text style={styles.intro}>
+            장비가 없을 때 아래 방법으로 동작을 변형할 수 있어요.
           </Text>
-          <Text style={styles.summary}>{item.instruction_summary}</Text>
-          {item.form_cues.map((cue, index) => (
-            <View key={`${item.exercise_id}-${index}`} style={styles.cueRow}>
-              <Text style={styles.bullet}>·</Text>
-              <Text style={styles.cue}>{cue}</Text>
+
+          {response.items.map((item) => (
+            <View key={item.exercise_id} style={styles.variantCard}>
+              <Text style={styles.variantName}>{item.exercise_name}</Text>
+              <Text style={styles.variantEquipment}>
+                필요 장비: {equipmentSummary(item.required_equipment_codes)}
+              </Text>
+              <Text style={styles.summary}>{item.instruction_summary}</Text>
+              {item.form_cues.map((cue, index) => (
+                <View
+                  key={`${item.exercise_id}-${index}`}
+                  style={styles.cueRow}
+                >
+                  <Text style={styles.bullet}>·</Text>
+                  <Text style={styles.cue}>{cue}</Text>
+                </View>
+              ))}
             </View>
           ))}
-        </View>
-      ))}
 
-      <Text style={styles.notice}>
-        이 안내는 운동을 교체하지 않으며 현재 루틴과 수행 기록도 바꾸지 않아요.
-      </Text>
+          <Text style={styles.notice}>
+            이 안내는 운동을 교체하지 않으며 현재 루틴과 수행 기록도 바꾸지
+            않아요.
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -171,6 +198,10 @@ function equipmentSummary(codes: readonly string[]): string {
     return '별도 장비 없음';
   }
   return equipmentCodes.map(equipmentLabel).join(', ');
+}
+
+function hasRequiredEquipment(codes: readonly string[]): boolean {
+  return codes.some((code) => code !== 'BODYWEIGHT');
 }
 
 const styles = StyleSheet.create({
@@ -208,6 +239,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   content: {
+    gap: spacing.md,
+  },
+  variantSection: {
     gap: spacing.md,
   },
   sourceCard: {
