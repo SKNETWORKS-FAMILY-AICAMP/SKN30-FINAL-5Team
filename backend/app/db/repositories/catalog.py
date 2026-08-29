@@ -2,7 +2,7 @@ from collections.abc import Iterable
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, insert, inspect, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from backend.app.db.models.catalog import (
@@ -593,6 +593,16 @@ class CatalogRepository:
         exercise_ids = self._exercise_ids(session)
         manifest = artifact.manifest
         version_code = manifest.alternative_set_version.version_code
+        available_columns = {
+            column["name"]
+            for column in inspect(session.get_bind()).get_columns("exercise_alternatives")
+        }
+        typed_selector_columns = {
+            "pain_discomfort_area_code",
+            "condition_code",
+            "service_action_code",
+            "target_strategy_code",
+        }
         metadata = manifest.model_dump(mode="json")
         approval = get_derived_data_approval(
             "ALTERNATIVES", version_code, artifact.manifest_hash, len(artifact.records)
@@ -614,27 +624,38 @@ class CatalogRepository:
                     "EXERCISE_REFERENCE_NOT_FOUND",
                     "alternative references an unknown exercise",
                 )
-            session.add(
-                ExerciseAlternative(
-                    id=uuid4(),
-                    source_exercise_id=source_id,
-                    alternative_exercise_id=alternative_id,
-                    reason_code=record.reason_code,
-                    goal_preservation_code=record.goal_preservation_code,
-                    difficulty_delta=record.difficulty_delta,
-                    review_status_code=record.review_status_code,
-                    rule_version=record.rule_version,
-                    alternative_set_version_code=version_code,
-                    production_eligible=approval is not None,
-                    source_manifest_hash=artifact.manifest_hash,
-                    source_metadata=metadata,
-                    pain_discomfort_area_code=record.pain_discomfort_area_code,
-                    condition_code=record.condition_code,
-                    service_action_code=record.service_action_code,
-                    target_strategy_code=record.target_strategy_code,
-                    created_at=record.created_at,
+            typed_values = {
+                "pain_discomfort_area_code": record.pain_discomfort_area_code,
+                "condition_code": record.condition_code,
+                "service_action_code": record.service_action_code,
+                "target_strategy_code": record.target_strategy_code,
+            }
+            if typed_selector_columns - available_columns and any(
+                value is not None for value in typed_values.values()
+            ):
+                raise CatalogImportError(
+                    "ALTERNATIVE_SCHEMA_MIGRATION_REQUIRED",
+                    "typed discomfort selectors require migration 0028 before import",
                 )
+            values: dict[str, object] = {
+                "id": uuid4(),
+                "source_exercise_id": source_id,
+                "alternative_exercise_id": alternative_id,
+                "reason_code": record.reason_code,
+                "goal_preservation_code": record.goal_preservation_code,
+                "difficulty_delta": record.difficulty_delta,
+                "review_status_code": record.review_status_code,
+                "rule_version": record.rule_version,
+                "alternative_set_version_code": version_code,
+                "production_eligible": approval is not None,
+                "source_manifest_hash": artifact.manifest_hash,
+                "source_metadata": metadata,
+                "created_at": record.created_at,
+            }
+            values.update(
+                {key: value for key, value in typed_values.items() if key in available_columns}
             )
+            session.execute(insert(ExerciseAlternative).values(values))
         session.flush()
 
     def get_prescription_set_state(

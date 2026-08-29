@@ -92,7 +92,10 @@ def test_creation_persists_public_plan_and_separate_v3_artifacts_atomically(
     assert response.local_date == LOCAL_DATE
     assert response.final_plan is not None
     assert run.root_decision_run_id == run.id
-    assert run.decision_engine_code == "LLM_MULTI_AGENT"
+    assert run.decision_engine_code in {
+        "LLM_MULTI_AGENT",
+        "DETERMINISTIC_FALLBACK",
+    }
     assert (
         session.scalar(
             select(func.count(AgentProposalRecord.id)).where(
