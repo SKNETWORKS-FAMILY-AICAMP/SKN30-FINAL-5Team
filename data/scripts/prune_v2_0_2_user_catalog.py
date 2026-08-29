@@ -58,28 +58,90 @@ SPECIAL_NAME_OVERRIDES = {
 # Existing pain-Alternative identities that were removed by the interrupted
 # first prune run before its source artifact was regenerated.
 RESTORE_ALLOWED_SAFE_IDENTITIES = (
-    ("DVAR-03A7A7C6A78247A9", "dumbbell_standing_curl_isolation_dumbbell__knee_no_load_safe_v1", "덤벨 바이셉스 컬"),
-    ("DVAR-06892D3AE613BF99", "hip_flexion_isolation_bodyweight__upper_back_no_load_safe_v1", "무릎 들기"),
-    ("DVAR-249EF7CC8CED25D3", "dumbbell_shrug_isolation_dumbbell__lower_back_no_load_safe_v1", "슈러그"),
-    ("DVAR-35756A39565C0E92", "dumbbell_standing_curl_isolation_dumbbell__abdomen_no_load_safe_v1", "덤벨 바이셉스 컬"),
-    ("DVAR-3B2E8D5E61B19928", "barbell_front_raise_isolation_barbell__hip_no_load_safe_v1", "프론트 레이즈"),
-    ("DVAR-439BA655BC3B7BC0", "seated_calf_raise_isolation_barbell__shoulder_no_load_safe_v1", "카프 레이즈"),
-    ("DVAR-487544E110C93537", "dumbbell_standing_curl_isolation_dumbbell__hip_no_load_safe_v1", "덤벨 바이셉스 컬"),
-    ("DVAR-51B939268597C1C2", "barbell_front_raise_isolation_barbell__abdomen_no_load_safe_v1", "프론트 레이즈"),
-    ("DVAR-57ADC482D0C91C98", "barbell_front_raise_isolation_barbell__lower_back_no_load_safe_v1", "프론트 레이즈"),
-    ("DVAR-5C8E3929479AD7D8", "bodyweight_standing_calf_raise_isolation_bodyweight__lower_back_no_load_safe_v1", "카프 레이즈"),
-    ("DVAR-889F35FB54AD157C", "dumbbell_standing_curl_isolation_dumbbell__lower_back_no_load_safe_v1", "덤벨 바이셉스 컬"),
-    ("DVAR-9D87E310514D2812", "wrist_circles_mobility_stretch_bodyweight__hip_no_load_safe_v1", "손목 돌리기"),
-    ("DVAR-AC2A0EE066A11173", "wrist_circles_mobility_stretch_bodyweight__knee_no_load_safe_v1", "손목 돌리기"),
-    ("DVAR-D58F02F81420FBED", "barbell_front_raise_isolation_barbell__knee_no_load_safe_v1", "프론트 레이즈"),
+    (
+        "DVAR-03A7A7C6A78247A9",
+        "dumbbell_standing_curl_isolation_dumbbell__knee_no_load_safe_v1",
+        "덤벨 바이셉스 컬",
+    ),
+    (
+        "DVAR-06892D3AE613BF99",
+        "hip_flexion_isolation_bodyweight__upper_back_no_load_safe_v1",
+        "무릎 들기",
+    ),
+    (
+        "DVAR-249EF7CC8CED25D3",
+        "dumbbell_shrug_isolation_dumbbell__lower_back_no_load_safe_v1",
+        "슈러그",
+    ),
+    (
+        "DVAR-35756A39565C0E92",
+        "dumbbell_standing_curl_isolation_dumbbell__abdomen_no_load_safe_v1",
+        "덤벨 바이셉스 컬",
+    ),
+    (
+        "DVAR-3B2E8D5E61B19928",
+        "barbell_front_raise_isolation_barbell__hip_no_load_safe_v1",
+        "프론트 레이즈",
+    ),
+    (
+        "DVAR-439BA655BC3B7BC0",
+        "seated_calf_raise_isolation_barbell__shoulder_no_load_safe_v1",
+        "카프 레이즈",
+    ),
+    (
+        "DVAR-487544E110C93537",
+        "dumbbell_standing_curl_isolation_dumbbell__hip_no_load_safe_v1",
+        "덤벨 바이셉스 컬",
+    ),
+    (
+        "DVAR-51B939268597C1C2",
+        "barbell_front_raise_isolation_barbell__abdomen_no_load_safe_v1",
+        "프론트 레이즈",
+    ),
+    (
+        "DVAR-57ADC482D0C91C98",
+        "barbell_front_raise_isolation_barbell__lower_back_no_load_safe_v1",
+        "프론트 레이즈",
+    ),
+    (
+        "DVAR-5C8E3929479AD7D8",
+        "bodyweight_standing_calf_raise_isolation_bodyweight__lower_back_no_load_safe_v1",
+        "카프 레이즈",
+    ),
+    (
+        "DVAR-889F35FB54AD157C",
+        "dumbbell_standing_curl_isolation_dumbbell__lower_back_no_load_safe_v1",
+        "덤벨 바이셉스 컬",
+    ),
+    (
+        "DVAR-9D87E310514D2812",
+        "wrist_circles_mobility_stretch_bodyweight__hip_no_load_safe_v1",
+        "손목 돌리기",
+    ),
+    (
+        "DVAR-AC2A0EE066A11173",
+        "wrist_circles_mobility_stretch_bodyweight__knee_no_load_safe_v1",
+        "손목 돌리기",
+    ),
+    (
+        "DVAR-D58F02F81420FBED",
+        "barbell_front_raise_isolation_barbell__knee_no_load_safe_v1",
+        "프론트 레이즈",
+    ),
     ("DVAR-EB514FBF13F9433D", "dumbbell_shrug_isolation_dumbbell__hip_no_load_safe_v1", "슈러그"),
-    ("DVAR-EC243CDB7A0537D3", "bodyweight_standing_calf_raise_isolation_bodyweight__abdomen_no_load_safe_v1", "카프 레이즈"),
+    (
+        "DVAR-EC243CDB7A0537D3",
+        "bodyweight_standing_calf_raise_isolation_bodyweight__abdomen_no_load_safe_v1",
+        "카프 레이즈",
+    ),
     ("DVAR-FAB7479B08EBDD54", "dumbbell_shrug_isolation_dumbbell__knee_no_load_safe_v1", "슈러그"),
 )
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -88,12 +150,17 @@ def read_json(path: Path) -> dict[str, Any]:
 
 def write_json(path: Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
 
 
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("".join(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n" for row in rows), encoding="utf-8")
+    path.write_text(
+        "".join(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n" for row in rows),
+        encoding="utf-8",
+    )
 
 
 def read_csv(path: Path) -> list[dict[str, str]]:
@@ -195,7 +262,9 @@ def keep_base(row: dict[str, Any]) -> bool:
     )
 
 
-def restore_allowed_base_records(original: list[dict[str, Any]], final: Path) -> list[dict[str, Any]]:
+def restore_allowed_base_records(
+    original: list[dict[str, Any]], final: Path
+) -> list[dict[str, Any]]:
     """Restore explicitly re-requested canonical base records when pruned earlier."""
     existing_ids = {str(row.get("exercise_id") or "") for row in original}
     canonical_path = final / "audit/canonical_exercises_v2_0_2_refined.jsonl"
@@ -285,7 +354,9 @@ def restore_legacy_alternative_targets(
         source = canonical_by_code.get(stable_code)
         legacy = legacy_reps.get(stable_code, {})
         if source is None:
-            raise ValueError(f"legacy Alternative target missing from canonical source: {stable_code}")
+            raise ValueError(
+                f"legacy Alternative target missing from canonical source: {stable_code}"
+            )
         exercise_id = str(source.get("representative_exercise_id") or "")
         if not exercise_id or exercise_id in existing_ids:
             continue
@@ -339,10 +410,15 @@ def restore_legacy_alternative_targets(
 
 def normalize_catalog_row(row: dict[str, Any]) -> dict[str, Any]:
     result = dict(row)
-    if not result.get("family_code") and str(result.get("stable_code") or "") in SPECIAL_NAME_OVERRIDES:
+    if (
+        not result.get("family_code")
+        and str(result.get("stable_code") or "") in SPECIAL_NAME_OVERRIDES
+    ):
         result["family_code"] = "CARDIO_GAIT_MACHINE"
     result["name_ko"] = normalize_equipment_name(
-        row.get("name_ko"), list(row.get("equipment_codes") or []), str(row.get("stable_code") or "")
+        row.get("name_ko"),
+        list(row.get("equipment_codes") or []),
+        str(row.get("stable_code") or ""),
     )
     result["difficulty_code"], result["difficulty_policy_rule_code"] = apply_difficulty_policy(
         result, str(row.get("difficulty_code") or "BEGINNER")
@@ -362,7 +438,10 @@ def normalize_catalog_row(row: dict[str, Any]) -> dict[str, Any]:
     result["instruction_identity_status"] = "USER_REVIEWED_NAME_ONLY"
     result["instruction_content_version"] = "user-name-only-v1"
     result["catalog_version_code"] = CATALOG_VERSION
-    if row.get("alternative_only") or row.get("alternative_relation_code") == "PAIN_AREA_NO_LOAD_SAFE_VARIANT":
+    if (
+        row.get("alternative_only")
+        or row.get("alternative_relation_code") == "PAIN_AREA_NO_LOAD_SAFE_VARIANT"
+    ):
         result["general_pool_included"] = True
         result["general_pool_inclusion_reason_code"] = "PAIN_ALTERNATIVE_TARGET_ALSO_GENERAL_POOL"
         review_codes = [
@@ -386,7 +465,13 @@ def exercise_refs(row: dict[str, Any]) -> tuple[set[str], set[str]]:
         if not value:
             continue
         text = str(value)
-        if key.endswith("exercise_id") or key in {"exercise_id", "representative_exercise_id", "variant_exercise_id", "default_exercise_id", "candidate_exercise_id"}:
+        if key.endswith("exercise_id") or key in {
+            "exercise_id",
+            "representative_exercise_id",
+            "variant_exercise_id",
+            "default_exercise_id",
+            "candidate_exercise_id",
+        }:
             ids.add(text)
         if "stable_code" in key or key in {"stable_code", "code"}:
             codes.add(text)
@@ -403,7 +488,9 @@ def normalize_reference_row(row: dict[str, Any]) -> dict[str, Any]:
     for key in ("source_exercise_name_ko", "target_exercise_name_ko", "name_ko", "display_name_ko"):
         if key in result:
             result[key] = normalize_equipment_name(
-                result[key], equipment_codes_for_name(result, key), stable_code_for_name(result, key)
+                result[key],
+                equipment_codes_for_name(result, key),
+                stable_code_for_name(result, key),
             )
     if "name_ko" in result:
         result["display_name_ko"] = result["name_ko"]
@@ -463,7 +550,9 @@ def restore_allowed_safe_variants(
                 "is_representative": False,
                 "training_type_code": str(base.get("training_type_code") or "STRENGTH"),
                 "body_focus_code": str(base.get("body_focus_code") or ""),
-                "primary_movement_pattern_code": str(base.get("primary_movement_pattern_code") or ""),
+                "primary_movement_pattern_code": str(
+                    base.get("primary_movement_pattern_code") or ""
+                ),
                 "primary_body_area_codes": list(base.get("primary_body_area_codes", [])),
                 "secondary_body_area_codes": list(base.get("secondary_body_area_codes", [])),
                 "equipment_codes": list(base.get("equipment_codes", [])),
@@ -528,7 +617,9 @@ def restore_allowed_safe_variants(
                 "fixed_support_code": "REVIEWED_NO_LOAD_SUPPORT",
                 "stop_guard_code": "STOP_IF_DISCOMFORT_INCREASES",
                 "original_posture_instructions_replaced": True,
-                "alternative_policy_version": "discomfort-alternative-concern-resolution-v2.0.2-v1.0.0",
+                "alternative_policy_version": (
+                    "discomfort-alternative-concern-resolution-v2.0.2-v1.0.0"
+                ),
                 "user_review_decision_code": DECISION_CODE,
                 "user_review_status": "COMPLETED",
                 "restored_from_prune_report": True,
@@ -550,7 +641,11 @@ def filter_jsonl(path: Path, keep_ids: set[str], keep_codes: set[str]) -> int:
 
 
 def filter_csv(path: Path, keep_ids: set[str], keep_codes: set[str]) -> int:
-    rows = [normalize_reference_row(row) for row in read_csv(path) if row_survives(row, keep_ids, keep_codes)]
+    rows = [
+        normalize_reference_row(row)
+        for row in read_csv(path)
+        if row_survives(row, keep_ids, keep_codes)
+    ]
     write_csv(path, rows)
     return len(rows)
 
@@ -573,11 +668,7 @@ def main() -> None:
     kept_safe = [
         row
         for row in safe_rows
-        if str(
-            row.get("base_exercise_id")
-            or row.get("alternative_source_base_exercise_id")
-            or ""
-        )
+        if str(row.get("base_exercise_id") or row.get("alternative_source_base_exercise_id") or "")
         in kept_base_ids
         or is_stretch(row)
     ]
@@ -639,7 +730,11 @@ def main() -> None:
 
     registry_path = final / "audit/stable_code_registry_v2.json"
     registry = read_json(registry_path)
-    registry["records"] = [row for row in registry.get("records", []) if str(row.get("exercise_id")) in keep_ids or str(row.get("stable_code")) in keep_codes]
+    registry["records"] = [
+        row
+        for row in registry.get("records", [])
+        if str(row.get("exercise_id")) in keep_ids or str(row.get("stable_code")) in keep_codes
+    ]
     registry_codes = {str(row.get("stable_code") or "") for row in registry["records"]}
     for row in catalog:
         stable_code = str(row.get("stable_code") or "")
@@ -663,7 +758,9 @@ def main() -> None:
             }
         )
         registry_codes.add(stable_code)
-    registry["records"] = sorted(registry["records"], key=lambda row: str(row.get("stable_code") or ""))
+    registry["records"] = sorted(
+        registry["records"], key=lambda row: str(row.get("stable_code") or "")
+    )
     registry["active_stable_code_count"] = len(registry["records"])
     registry["stable_code_count"] = len(registry["records"])
     registry["catalog_version_code"] = CATALOG_VERSION
@@ -691,10 +788,18 @@ def main() -> None:
         variant_report["catalog_version_code"] = CATALOG_VERSION
         variant_report["production_eligible"] = False
         variant_report["counts"] = {
-            "representative_exercise_count": sum(row["record_type"] == "REPRESENTATIVE" for row in catalog),
-            "primary_variant_count": sum(row.get("variant_type_code") == "PRIMARY_VARIANT" for row in catalog),
-            "secondary_variant_count": sum(row.get("variant_type_code") == "SECONDARY_VARIANT" for row in catalog),
-            "separate_exercise_count": sum(row["record_type"] == "SEPARATE_EXERCISE" for row in catalog),
+            "representative_exercise_count": sum(
+                row["record_type"] == "REPRESENTATIVE" for row in catalog
+            ),
+            "primary_variant_count": sum(
+                row.get("variant_type_code") == "PRIMARY_VARIANT" for row in catalog
+            ),
+            "secondary_variant_count": sum(
+                row.get("variant_type_code") == "SECONDARY_VARIANT" for row in catalog
+            ),
+            "separate_exercise_count": sum(
+                row["record_type"] == "SEPARATE_EXERCISE" for row in catalog
+            ),
             "variant_record_count": sum(row["record_type"] == "VARIANT" for row in catalog),
             "integrated_catalog_exercise_count": len(catalog),
         }
@@ -704,8 +809,7 @@ def main() -> None:
     restored_legacy_targets = [
         row
         for row in catalog
-        if row.get("general_pool_inclusion_reason_code")
-        == "LEGACY_ALTERNATIVE_TARGET_RESTORED"
+        if row.get("general_pool_inclusion_reason_code") == "LEGACY_ALTERNATIVE_TARGET_RESTORED"
     ]
     report = {
         "schema_version": "exercise-catalog-v2.0.2-user-prune-v1",
@@ -716,7 +820,9 @@ def main() -> None:
         "kept_record_count": len(catalog),
         "deleted_record_count": len(deleted),
         "kept_base_record_count": len(kept_base),
-        "kept_pain_alternative_record_count": sum(bool(row.get("alternative_only")) for row in catalog),
+        "kept_pain_alternative_record_count": sum(
+            bool(row.get("alternative_only")) for row in catalog
+        ),
         "general_pool_included_record_count": sum(
             bool(row.get("general_pool_included")) for row in catalog
         ),
@@ -730,7 +836,11 @@ def main() -> None:
             for row in restored_legacy_targets
         ],
         "deleted_records": [
-            {"exercise_id": row.get("exercise_id"), "stable_code": row.get("stable_code"), "name_ko": clean_name(row.get("name_ko"))}
+            {
+                "exercise_id": row.get("exercise_id"),
+                "stable_code": row.get("stable_code"),
+                "name_ko": clean_name(row.get("name_ko")),
+            }
             for row in deleted
         ],
         "classification_rule": {

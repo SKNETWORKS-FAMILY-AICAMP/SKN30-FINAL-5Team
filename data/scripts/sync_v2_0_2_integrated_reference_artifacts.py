@@ -204,9 +204,7 @@ def safe_variant_record(safe: dict[str, Any], base: dict[str, Any]) -> dict[str,
         "canonical_status": "PAIN_ALTERNATIVE_TARGET_REVIEW_REQUIRED",
         "canonical_decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
         "canonical_decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
-        "canonical_decision_note_ko": (
-            "통증 Alternative target이면서 일반 운동 풀에도 포함한다."
-        ),
+        "canonical_decision_note_ko": ("통증 Alternative target이면서 일반 운동 풀에도 포함한다."),
         "variant_relation_status_code": "NOT_APPLICABLE",
         "variant_materialization_status_code": "NOT_APPLICABLE",
         "safety_mapping_status_code": "REVIEW_REQUIRED",
@@ -257,9 +255,7 @@ def integrate_safe_variants(
         normalized = deepcopy(row)
         normalized["alternative_only"] = False
         normalized["general_pool_included"] = True
-        normalized["general_pool_inclusion_reason_code"] = (
-            "INDEPENDENT_SAFE_VARIANT_GENERAL_POOL"
-        )
+        normalized["general_pool_inclusion_reason_code"] = "INDEPENDENT_SAFE_VARIANT_GENERAL_POOL"
         # NRS applicability is a property of the Alternative edge.  Keeping it
         # on the exercise turns one executable movement into several implicit
         # condition-scoped catalog identities.
@@ -560,7 +556,9 @@ def update_manifest(final: Path, artifact_paths: list[Path], catalog_count: int)
             "integrated_catalog_exercise_count": catalog_count,
             "reference_repair": {
                 "version": REPAIR_VERSION,
-                "safe_variant_record_mode": "SEPARATE_EXERCISE_GENERAL_POOL_WITH_CONDITIONED_ALTERNATIVES",
+                "safe_variant_record_mode": (
+                    "SEPARATE_EXERCISE_GENERAL_POOL_WITH_CONDITIONED_ALTERNATIVES"
+                ),
                 "safety_fitt_goal_values_generated": False,
                 "media_rights_values_generated": False,
             },

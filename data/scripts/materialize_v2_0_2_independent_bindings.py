@@ -6,12 +6,12 @@ from __future__ import annotations
 import argparse
 import ast
 import csv
-from datetime import datetime, timezone
 import hashlib
 import json
 import re
 from collections import Counter, defaultdict
 from copy import deepcopy
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -21,14 +21,20 @@ ENRICHMENT = ROOT / "normalized/catalog_enrichment_v3_fitt.csv"
 SAFETY_SOURCE = ROOT / "generated/exercise-safety-rules-v2.0.0/exercise_safety_mapping_v2.csv"
 OLD_CATALOG = ROOT / "generated/exercise-catalog-v2.0.1-final/representative_exercises_v2_final.csv"
 GOAL_SOURCE = ROOT / "generated/exercise-catalog-v2.0.2-draft/prescriptions/goal_tag_links.jsonl"
-BEGINNER_TEMPLATES = ROOT / "generated/exercise-prescriptions-v2.0.2-draft/fitt_template_beginner_v1.csv"
-INTERMEDIATE_TEMPLATES = ROOT / "generated/exercise-prescriptions-v2.0.2-draft/fitt_template_intermediate_v1.json"
+BEGINNER_TEMPLATES = (
+    ROOT / "generated/exercise-prescriptions-v2.0.2-draft/fitt_template_beginner_v1.csv"
+)
+INTERMEDIATE_TEMPLATES = (
+    ROOT / "generated/exercise-prescriptions-v2.0.2-draft/fitt_template_intermediate_v1.json"
+)
 CATALOG_VERSION = "exercise-catalog-v2.0.2-final"
 MATERIALIZATION_VERSION = "v2.0.2-independent-bindings-source-match-v1.0.0"
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
 
 
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
@@ -39,7 +45,9 @@ def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
 
 
 def write_json(path: Path, value: Any) -> None:
-    path.write_text(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
 
 
 def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
@@ -66,7 +74,7 @@ def source_metadata(path: Path) -> dict[str, str]:
     return {
         "path": str(path.relative_to(ROOT.parent)),
         "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-        "modified_at": datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc).isoformat(),
+        "modified_at": datetime.fromtimestamp(path.stat().st_mtime, tz=UTC).isoformat(),
     }
 
 
@@ -125,7 +133,13 @@ def resolve_template(
     return requested_id, None, "TEMPLATE_NOT_FOUND"
 
 
-def load_sources() -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]], dict[str, dict[str, Any]], dict[str, list[dict[str, Any]]], dict[str, dict[str, Any]]]:
+def load_sources() -> tuple[
+    list[dict[str, Any]],
+    dict[str, list[dict[str, Any]]],
+    dict[str, dict[str, Any]],
+    dict[str, list[dict[str, Any]]],
+    dict[str, dict[str, Any]],
+]:
     enrichment_rows = list(csv.DictReader(ENRICHMENT.open(encoding="utf-8")))
     enrichment_by_name: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in enrichment_rows:
@@ -143,15 +157,22 @@ def load_sources() -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]
         for nex in parse_json_list(row.get("nex_exercise_ids", "")):
             n2stable[nex] = goals_by_stable.get(row.get("stable_code", ""), {})
     beginner = {
-        row["fitt_template_id"]: row for row in csv.DictReader(BEGINNER_TEMPLATES.open(encoding="utf-8"))
+        row["fitt_template_id"]: row
+        for row in csv.DictReader(BEGINNER_TEMPLATES.open(encoding="utf-8"))
     }
     intermediate_data = json.loads(INTERMEDIATE_TEMPLATES.read_text(encoding="utf-8"))
     intermediate = {row["fitt_template_id"]: row for row in intermediate_data["templates"]}
-    return enrichment_rows, enrichment_by_name, old_by_rex, safety_by_nex, {
-        "n2stable": n2stable,
-        "beginner": beginner,
-        "intermediate": intermediate,
-    }
+    return (
+        enrichment_rows,
+        enrichment_by_name,
+        old_by_rex,
+        safety_by_nex,
+        {
+            "n2stable": n2stable,
+            "beginner": beginner,
+            "intermediate": intermediate,
+        },
+    )
 
 
 def choose_enrichment(
@@ -162,7 +183,11 @@ def choose_enrichment(
     candidates = enrichment_by_name.get(normalize_name(str(row.get("name_ko") or "")), [])
     if candidates:
         return sorted(candidates, key=lambda item: item.get("exercise_id", ""))[0], "NAME_MATCH", ""
-    base_id = str(row.get("alternative_source_base_exercise_id") or row.get("representative_exercise_id") or "")
+    base_id = str(
+        row.get("alternative_source_base_exercise_id")
+        or row.get("representative_exercise_id")
+        or ""
+    )
     old = old_by_rex.get(base_id, {})
     nex_ids = parse_json_list(old.get("nex_exercise_ids", ""))
     all_rows = [item for values in enrichment_by_name.values() for item in values]
@@ -170,13 +195,21 @@ def choose_enrichment(
     for nex in sorted(nex_ids):
         if nex in by_nex:
             return by_nex[nex], "BASE_EXERCISE_NEX_MATCH", nex
-    raise ValueError(f"no latest enrichment match for {row.get('exercise_id')}:{row.get('name_ko')}")
+    raise ValueError(
+        f"no latest enrichment match for {row.get('exercise_id')}:{row.get('name_ko')}"
+    )
 
 
 def build(final_dir: Path = FINAL) -> dict[str, Any]:
     catalog_path = final_dir / "catalog/exercises.jsonl"
     catalog = read_jsonl(catalog_path)
-    targets = [row for row in catalog if row.get("record_type") == "VARIANT" or row.get("alternative_only") or row.get("record_type") == "SEPARATE_EXERCISE"]
+    targets = [
+        row
+        for row in catalog
+        if row.get("record_type") == "VARIANT"
+        or row.get("alternative_only")
+        or row.get("record_type") == "SEPARATE_EXERCISE"
+    ]
     enrichment_rows, enrichment_by_name, old_by_rex, safety_by_nex, lookup = load_sources()
     target_codes = {str(row["stable_code"]) for row in targets}
     mappings: dict[str, dict[str, Any]] = {}
@@ -187,16 +220,25 @@ def build(final_dir: Path = FINAL) -> dict[str, Any]:
 
     for row in targets:
         try:
-            enrichment, match_method, matched_nex = choose_enrichment(row, enrichment_by_name, old_by_rex)
+            enrichment, match_method, matched_nex = choose_enrichment(
+                row, enrichment_by_name, old_by_rex
+            )
         except ValueError as error:
             unmatched.append({"exercise_id": row.get("exercise_id", ""), "reason": str(error)})
             continue
         nex_id = matched_nex or str(enrichment.get("exercise_id") or "")
         if not nex_id or nex_id not in safety_by_nex:
-            unmatched.append({"exercise_id": row.get("exercise_id", ""), "reason": "latest Safety source missing"})
+            unmatched.append(
+                {
+                    "exercise_id": row.get("exercise_id", ""),
+                    "reason": "latest Safety source missing",
+                }
+            )
             continue
         code = str(row["stable_code"])
-        difficulty = str(row.get("difficulty_code") or enrichment.get("difficulty_code") or "BEGINNER")
+        difficulty = str(
+            row.get("difficulty_code") or enrichment.get("difficulty_code") or "BEGINNER"
+        )
         # FITT timing normally comes from the latest enrichment row; an explicitly
         # restored legacy Alternative target keeps the reviewed catalog timing so
         # its existing prescription shape remains consistent.
@@ -206,7 +248,12 @@ def build(final_dir: Path = FINAL) -> dict[str, Any]:
             else enrichment.get("timing_mode_code") or row.get("timing_mode_code") or "REPS"
         )
         row["timing_mode_code"] = timing
-        for field in ("default_sets", "default_work_seconds", "default_rest_seconds", "default_transition_seconds"):
+        for field in (
+            "default_sets",
+            "default_work_seconds",
+            "default_rest_seconds",
+            "default_transition_seconds",
+        ):
             source_value = number(enrichment.get(field))
             if source_value is not None:
                 row[field] = source_value
@@ -221,7 +268,12 @@ def build(final_dir: Path = FINAL) -> dict[str, Any]:
                 lookup["intermediate"],
             )
             if not template:
-                unmatched.append({"exercise_id": row.get("exercise_id", ""), "reason": f"FITT template missing: {template_id}"})
+                unmatched.append(
+                    {
+                        "exercise_id": row.get("exercise_id", ""),
+                        "reason": f"FITT template missing: {template_id}",
+                    }
+                )
                 continue
             if template_resolution != "DIRECT_TEMPLATE_MATCH":
                 template_fallbacks[level] = template_resolution
@@ -234,12 +286,16 @@ def build(final_dir: Path = FINAL) -> dict[str, Any]:
                     "experience_level_code": level,
                     "fitt_template_id": template_id,
                     "goal_code": "GENERAL_FITNESS",
-                    "intensity_code": template.get("default_intensity", enrichment.get("intensity_level", "MODERATE")),
+                    "intensity_code": template.get(
+                        "default_intensity", enrichment.get("intensity_level", "MODERATE")
+                    ),
                     "phase_code": "MAIN" if timing == "REPS" else "WARMUP",
                     "prescription_version": "prescription-set-v2.0.2-draft",
                     "sets": number(template.get("default_sets")),
                     "reps": number(template.get("default_reps")) if timing == "REPS" else None,
-                    "work_seconds_per_set": number(template.get("default_work_seconds")) if timing == "DURATION" else None,
+                    "work_seconds_per_set": number(template.get("default_work_seconds"))
+                    if timing == "DURATION"
+                    else None,
                     "rest_seconds_per_set": number(template.get("default_rest_seconds")),
                     "user_review_decision_code": "USER_DIRECT_REVIEW_2026_08_29",
                     "user_review_status": "COMPLETED",
@@ -285,10 +341,14 @@ def build(final_dir: Path = FINAL) -> dict[str, Any]:
             "representative_exercise_id": row.get("representative_exercise_id", ""),
             "variant_type_code": row.get("variant_type_code", ""),
             "safety_mapping_status_code": "DOMAIN_APPROVED",
-            "safety_mapping_source_representative_exercise_id": row.get("representative_exercise_id", ""),
+            "safety_mapping_source_representative_exercise_id": row.get(
+                "representative_exercise_id", ""
+            ),
             "safety_rule_binding_status_code": "BOUND_INDEPENDENT_SOURCE",
             "fitt_mapping_status_code": fitt_status_code,
-            "fitt_mapping_source_representative_exercise_id": row.get("representative_exercise_id", ""),
+            "fitt_mapping_source_representative_exercise_id": row.get(
+                "representative_exercise_id", ""
+            ),
             "fitt_template_ids_by_experience": fitt_ids,
             "review_status_code": "DOMAIN_APPROVED",
             "production_eligible": False,
@@ -299,12 +359,40 @@ def build(final_dir: Path = FINAL) -> dict[str, Any]:
         }
 
     # Replace only target bindings; representative rows remain untouched.
-    old_fitt = [row for row in read_jsonl(final_dir / "prescriptions/prescription_profiles.jsonl") if row.get("exercise_stable_code") not in target_codes]
-    old_safety = [row for row in read_jsonl(final_dir / "runtime/safety_rules.jsonl") if row.get("exercise_stable_code") not in target_codes]
-    old_goals = [row for row in read_jsonl(final_dir / "prescriptions/goal_tag_links.jsonl") if row.get("exercise_stable_code") not in target_codes]
-    fitt = sorted(old_fitt + generated_fitt, key=lambda row: (str(row.get("exercise_stable_code")), str(row.get("experience_level_code")), str(row.get("phase_code"))))
-    safety = sorted(old_safety + generated_safety, key=lambda row: (str(row.get("exercise_stable_code")), str(row.get("body_area_code")), str(row.get("effect_code"))))
-    goals = sorted(old_goals + generated_goals, key=lambda row: str(row.get("exercise_stable_code")))
+    old_fitt = [
+        row
+        for row in read_jsonl(final_dir / "prescriptions/prescription_profiles.jsonl")
+        if row.get("exercise_stable_code") not in target_codes
+    ]
+    old_safety = [
+        row
+        for row in read_jsonl(final_dir / "runtime/safety_rules.jsonl")
+        if row.get("exercise_stable_code") not in target_codes
+    ]
+    old_goals = [
+        row
+        for row in read_jsonl(final_dir / "prescriptions/goal_tag_links.jsonl")
+        if row.get("exercise_stable_code") not in target_codes
+    ]
+    fitt = sorted(
+        old_fitt + generated_fitt,
+        key=lambda row: (
+            str(row.get("exercise_stable_code")),
+            str(row.get("experience_level_code")),
+            str(row.get("phase_code")),
+        ),
+    )
+    safety = sorted(
+        old_safety + generated_safety,
+        key=lambda row: (
+            str(row.get("exercise_stable_code")),
+            str(row.get("body_area_code")),
+            str(row.get("effect_code")),
+        ),
+    )
+    goals = sorted(
+        old_goals + generated_goals, key=lambda row: str(row.get("exercise_stable_code"))
+    )
     for row in catalog:
         mapping = mappings.get(str(row.get("stable_code")))
         if mapping:
@@ -313,13 +401,25 @@ def build(final_dir: Path = FINAL) -> dict[str, Any]:
                     "safety_mapping_status_code": "DOMAIN_APPROVED",
                     "safety_rule_binding_status_code": "BOUND_INDEPENDENT_SOURCE",
                     "fitt_mapping_status_code": mapping["fitt_mapping_status_code"],
-                    "fitt_mapping_source_representative_exercise_id": mapping["representative_exercise_id"],
+                    "fitt_mapping_source_representative_exercise_id": mapping[
+                        "representative_exercise_id"
+                    ],
                     "fitt_template_ids_by_experience": mapping["fitt_template_ids_by_experience"],
-                    "fitt_allowed_experience_level_codes": sorted(mapping["fitt_template_ids_by_experience"]),
+                    "fitt_allowed_experience_level_codes": sorted(
+                        mapping["fitt_template_ids_by_experience"]
+                    ),
                     "review_required_codes": [
-                        code for code in row.get("review_required_codes", [])
-                        if code not in {"INDEPENDENT_SAFETY_RULE_REVIEW_REQUIRED", "GOAL_ROLE_REVIEW_REQUIRED"}
-                        and (mapping["fitt_mapping_status_code"] == "DOMAIN_APPROVED" or code != "INDEPENDENT_FITT_REVIEW_REQUIRED")
+                        code
+                        for code in row.get("review_required_codes", [])
+                        if code
+                        not in {
+                            "INDEPENDENT_SAFETY_RULE_REVIEW_REQUIRED",
+                            "GOAL_ROLE_REVIEW_REQUIRED",
+                        }
+                        and (
+                            mapping["fitt_mapping_status_code"] == "DOMAIN_APPROVED"
+                            or code != "INDEPENDENT_FITT_REVIEW_REQUIRED"
+                        )
                     ],
                 }
             )
@@ -342,7 +442,9 @@ def build(final_dir: Path = FINAL) -> dict[str, Any]:
     write_jsonl(final_dir / "runtime/safety_rules.jsonl", safety)
     write_jsonl(final_dir / "prescriptions/prescription_profiles.jsonl", fitt)
     write_jsonl(final_dir / "prescriptions/goal_tag_links.jsonl", goals)
-    write_jsonl(final_dir / "audit/variant_safety_fitt_mapping_v2_0_2.jsonl", list(mappings.values()))
+    write_jsonl(
+        final_dir / "audit/variant_safety_fitt_mapping_v2_0_2.jsonl", list(mappings.values())
+    )
     write_csv(final_dir / "audit/variant_safety_fitt_mapping_v2_0_2.csv", list(mappings.values()))
     write_jsonl(final_dir / "audit/reference_binding_status_v2_0_2.jsonl", bindings)
     write_csv(final_dir / "audit/reference_binding_status_v2_0_2.csv", bindings)
@@ -373,8 +475,12 @@ def build(final_dir: Path = FINAL) -> dict[str, Any]:
     ]
     for relative in hashed_paths:
         path = final_dir / relative
-        manifest.setdefault("artifact_sha256", {})[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
-    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        manifest.setdefault("artifact_sha256", {})[relative] = hashlib.sha256(
+            path.read_bytes()
+        ).hexdigest()
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     report = {
         "schema_version": "exercise-catalog-v2.0.2-independent-bindings-materialization-v1",
         "catalog_version_code": CATALOG_VERSION,
@@ -392,10 +498,15 @@ def build(final_dir: Path = FINAL) -> dict[str, Any]:
         "fitt_row_count_added": len(generated_fitt),
         "safety_row_count_added": len(generated_safety),
         "goal_row_count_added": len(generated_goals),
-        "match_method_counts": dict(Counter(item["binding_match_method"] for item in mappings.values())),
+        "match_method_counts": dict(
+            Counter(item["binding_match_method"] for item in mappings.values())
+        ),
         "unmatched": unmatched,
     }
-    write_json(final_dir / "audit/integrity/independent_bindings_materialization_report_v2_0_2.json", report)
+    write_json(
+        final_dir / "audit/integrity/independent_bindings_materialization_report_v2_0_2.json",
+        report,
+    )
     return report
 
 

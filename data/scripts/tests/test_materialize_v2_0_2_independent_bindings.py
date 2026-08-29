@@ -8,7 +8,9 @@ FINAL = ROOT / "data/generated/exercise-catalog-v2.0.2-final"
 
 
 def read_jsonl(path: Path) -> list[dict]:
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
 
 
 class IndependentBindingMaterializationTests(unittest.TestCase):
@@ -20,19 +22,21 @@ class IndependentBindingMaterializationTests(unittest.TestCase):
         cls.goals = read_jsonl(FINAL / "prescriptions/goal_tag_links.jsonl")
         cls.bindings = read_jsonl(FINAL / "audit/reference_binding_status_v2_0_2.jsonl")
         cls.report = json.loads(
-            (FINAL / "audit/integrity/independent_bindings_materialization_report_v2_0_2.json").read_text(
-                encoding="utf-8"
-            )
+            (
+                FINAL / "audit/integrity/independent_bindings_materialization_report_v2_0_2.json"
+            ).read_text(encoding="utf-8")
         )
 
     def test_all_variants_and_separate_exercises_are_materialized(self) -> None:
         targets = [
             row
             for row in self.catalog
-            if row.get("record_type") == "VARIANT"
-            or row.get("record_type") == "SEPARATE_EXERCISE"
+            if row.get("record_type") == "VARIANT" or row.get("record_type") == "SEPARATE_EXERCISE"
         ]
-        self.assertEqual(Counter(row.get("record_type") for row in targets), {"SEPARATE_EXERCISE": 79, "VARIANT": 15})
+        self.assertEqual(
+            Counter(row.get("record_type") for row in targets),
+            {"SEPARATE_EXERCISE": 79, "VARIANT": 15},
+        )
         self.assertEqual(self.report["target_record_count"], 94)
         self.assertEqual(self.report["materialized_record_count"], 94)
         self.assertEqual(self.report["unmatched_record_count"], 0)
@@ -60,11 +64,7 @@ class IndependentBindingMaterializationTests(unittest.TestCase):
         )
 
     def test_cable_records_use_intermediate_policy(self) -> None:
-        cable = [
-            row
-            for row in self.catalog
-            if "CABLE_MACHINE" in row.get("equipment_codes", [])
-        ]
+        cable = [row for row in self.catalog if "CABLE_MACHINE" in row.get("equipment_codes", [])]
         self.assertTrue(cable)
         self.assertTrue(all(row["difficulty_code"] == "INTERMEDIATE" for row in cable))
         for row in cable:
