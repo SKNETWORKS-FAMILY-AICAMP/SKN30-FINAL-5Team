@@ -24,9 +24,7 @@ RECORD_BUCKETS = ("REPRESENTATIVE", "PRIMARY_VARIANT", "SECONDARY_VARIANT", "SEP
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     return [
-        json.loads(line)
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
+        json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
     ]
 
 
@@ -61,8 +59,7 @@ def check(final_dir: Path = FINAL) -> dict[str, Any]:
     by_id = {str(row.get("exercise_id")): row for row in catalog}
     by_code = {str(row.get("stable_code")): row for row in catalog}
     media_by_id = {
-        str(row.get("exercise_id") or row.get("representative_exercise_id")): row
-        for row in media
+        str(row.get("exercise_id") or row.get("representative_exercise_id")): row for row in media
     }
     auto_fixable: list[dict[str, Any]] = []
     human_review: list[dict[str, Any]] = []
@@ -179,9 +176,7 @@ def check(final_dir: Path = FINAL) -> dict[str, Any]:
                 }
             )
     if fitt_mismatches:
-        human_review.append(
-            {"code": "FITT_TIMING_SHAPE_MISMATCH", "rows": fitt_mismatches}
-        )
+        human_review.append({"code": "FITT_TIMING_SHAPE_MISMATCH", "rows": fitt_mismatches})
 
     if batch_approval_active:
         human_review = []
@@ -304,9 +299,9 @@ def write_report(final_dir: Path, report: dict[str, Any]) -> Path:
     manifest_path = final_dir / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     media_path = final_dir / "media/media_assets_v2_0_2.csv"
-    manifest.setdefault("reference_repair", {})[
-        "media_source_feature_version"
-    ] = "v2.0.2-media-source-linkage-v1.0.0"
+    manifest.setdefault("reference_repair", {})["media_source_feature_version"] = (
+        "v2.0.2-media-source-linkage-v1.0.0"
+    )
     manifest["media_source_linkage"] = {
         "columns": [
             "source_origin_code",
@@ -320,9 +315,9 @@ def write_report(final_dir: Path, report: dict[str, Any]) -> Path:
         "gymvisual_identity_rule": "ASCII numeric string; leading zeroes preserved",
         "source_sha256": hashlib.sha256(media_path.read_bytes()).hexdigest(),
     }
-    manifest.setdefault("artifact_sha256", {})[
-        "audit/integrity/db_load_readiness_v2_0_2.json"
-    ] = hashlib.sha256(path.read_bytes()).hexdigest()
+    manifest.setdefault("artifact_sha256", {})["audit/integrity/db_load_readiness_v2_0_2.json"] = (
+        hashlib.sha256(path.read_bytes()).hexdigest()
+    )
     manifest["artifact_sha256"]["media/media_assets_v2_0_2.csv"] = hashlib.sha256(
         media_path.read_bytes()
     ).hexdigest()

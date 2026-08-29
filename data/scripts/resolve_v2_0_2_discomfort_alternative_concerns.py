@@ -153,9 +153,7 @@ def validate_policy(
     if len(pending_ids) != EXPECTED_PENDING_COUNT:
         raise ValueError(f"unexpected pending review count: {len(pending_ids)}")
     counts = Counter(
-        classify(row, policy)
-        for row in rows
-        if str(row["map_relation_id"]) not in pending_ids
+        classify(row, policy) for row in rows if str(row["map_relation_id"]) not in pending_ids
     )
     if len(rows) != EXPECTED_INPUT_COUNT:
         raise ValueError(f"unexpected input count: {len(rows)}")
@@ -374,8 +372,7 @@ def pending_row(row: dict[str, Any], policy: dict[str, Any]) -> dict[str, Any]:
             "review_stage_code": "DIFFICULTY_POLICY_REVIEW_REQUIRED",
             "review_reason_code": "ALTERNATIVE_SET_CHANGED_BY_DIFFICULTY_POLICY",
             "review_reason_ko": (
-                "난이도 정책 변경으로 추가된 관계이므로 별도 재검수 전에는 "
-                "적재·사용하지 않는다."
+                "난이도 정책 변경으로 추가된 관계이므로 별도 재검수 전에는 적재·사용하지 않는다."
             ),
             "review_status_code": "REVIEW_REQUIRED",
             "production_eligible": False,

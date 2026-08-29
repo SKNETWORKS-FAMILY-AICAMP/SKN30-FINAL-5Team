@@ -17,8 +17,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CANDIDATE_MAP = (
-    ROOT
-    / "generated/exercise-catalog-v2.0.2-final/audit/alternatives/"
+    ROOT / "generated/exercise-catalog-v2.0.2-final/audit/alternatives/"
     "discomfort_alternative_map_v2_0_2.jsonl"
 )
 DEFAULT_CATALOG = ROOT / "generated/exercise-catalog-v2.0.2-final/catalog/exercises.jsonl"

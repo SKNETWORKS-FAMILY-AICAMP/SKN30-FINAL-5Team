@@ -264,8 +264,7 @@ class SafetyProposalAgent(_ProposalAgent):
                 )
                 selected_evidence = tuple(
                     sorted(
-                        set(evidence_codes)
-                        | set(candidate_evidence.get(selected.candidate_id, ()))
+                        set(evidence_codes) | set(candidate_evidence.get(selected.candidate_id, ()))
                     )
                 )
                 return self._ready_safety(

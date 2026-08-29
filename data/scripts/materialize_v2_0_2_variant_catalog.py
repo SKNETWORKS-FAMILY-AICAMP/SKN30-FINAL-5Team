@@ -1169,9 +1169,7 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
     write_jsonl(output / "variant_safety_fitt_mapping_v2_0_2.jsonl", safety_fitt)
     write_csv(output / "variant_safety_fitt_mapping_v2_0_2.csv", safety_fitt)
     write_json(output / "variant_integrity_report_v2_0_2.json", report)
-    write_handoff_report(
-        output / "V2_0_2_VARIANT_CATALOG_INTERMEDIATE.md", report
-    )
+    write_handoff_report(output / "V2_0_2_VARIANT_CATALOG_INTERMEDIATE.md", report)
     write_intermediate_manifest(output, catalog_sorted, relationship_sorted, report)
     return report
 

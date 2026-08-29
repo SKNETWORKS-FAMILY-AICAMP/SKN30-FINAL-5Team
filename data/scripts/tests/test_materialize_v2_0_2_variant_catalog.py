@@ -58,7 +58,11 @@ class MaterializedVariantCatalogTests(unittest.TestCase):
             "exercise-difficulty-policy-v2.0.2-user-review-2026-08-28",
         )
         self.assertTrue(
-            all(row["difficulty_code"] == "INTERMEDIATE" for row in self.catalog if "CABLE_MACHINE" in row["equipment_codes"])
+            all(
+                row["difficulty_code"] == "INTERMEDIATE"
+                for row in self.catalog
+                if "CABLE_MACHINE" in row["equipment_codes"]
+            )
         )
 
     def test_user_facing_equipment_names_are_normalized(self) -> None:
@@ -70,7 +74,9 @@ class MaterializedVariantCatalogTests(unittest.TestCase):
             if "DUMBBELL" in equipment:
                 self.assertTrue(name.startswith("덤벨 "), row["exercise_id"])
             if "MACHINE" in equipment or "CABLE_MACHINE" in equipment:
-                self.assertTrue(name.endswith(" 머신") or "스텝밀 머신(" in name, row["exercise_id"])
+                self.assertTrue(
+                    name.endswith(" 머신") or "스텝밀 머신(" in name, row["exercise_id"]
+                )
         stepmill = next(row for row in self.catalog if row["exercise_id"] == "REX-000071")
         self.assertEqual(stepmill["name_ko"], "스텝밀 머신(천국의 계단)")
         self.assertEqual(stepmill["display_name_ko"], stepmill["name_ko"])

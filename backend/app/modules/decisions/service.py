@@ -149,8 +149,7 @@ def _choose_alternative(
         pain_options = tuple(
             option
             for option in options
-            if option.pain_discomfort_area_code is not None
-            and option.condition_code is not None
+            if option.pain_discomfort_area_code is not None and option.condition_code is not None
         )
         if pain_options:
             options_by_target: dict[str, list[AlternativeItemData]] = {}
@@ -170,9 +169,11 @@ def _choose_alternative(
             # Keep the legacy equipment/location fallback for an excluded source;
             # it is not a pain Alternative and is never used to satisfy a pain
             # area requirement.
-            candidates = tuple(
-                option for option in options if option.pain_discomfort_area_code is None
-            ) if source_id in excluded else ()
+            candidates = (
+                tuple(option for option in options if option.pain_discomfort_area_code is None)
+                if source_id in excluded
+                else ()
+            )
     else:
         candidates = tuple(options) if source_id in excluded else ()
 
@@ -309,8 +310,7 @@ def _build_adjusted_candidates(
                             "PAIN_ALTERNATIVE/"
                             f"{alternative.pain_discomfort_area_code}/"
                             f"{alternative.condition_code}"
-                            if alternative.pain_discomfort_area_code
-                            and alternative.condition_code
+                            if alternative.pain_discomfort_area_code and alternative.condition_code
                             else ""
                         ),
                     )
@@ -320,6 +320,7 @@ def _build_adjusted_candidates(
         )
     )
     return tuple(adjusted)
+
 
 def _prepare_safety(
     assembly: DecisionAssembly,
