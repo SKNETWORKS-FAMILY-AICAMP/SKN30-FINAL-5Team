@@ -410,9 +410,10 @@ class ExerciseAlternativeRecord(CatalogInputModel):
 
     @model_validator(mode="after")
     def validate_pain_selectors(self) -> "ExerciseAlternativeRecord":
+        condition_code = self.condition_code
         typed_selectors = (
             self.pain_discomfort_area_code,
-            self.condition_code,
+            condition_code,
             self.target_strategy_code,
         )
         if any(value is not None for value in typed_selectors):
@@ -421,10 +422,11 @@ class ExerciseAlternativeRecord(CatalogInputModel):
                 raise ValueError(
                     "pain selectors require a complete DISCOMFORT alternative relation"
                 )
+            assert condition_code is not None
             expected_action = {
                 "NRS_1_3": "LOAD_REDUCED",
                 "NRS_4_6": "SKIP_AFFECTED_AREA",
-            }[self.condition_code]
+            }[condition_code]
             if self.service_action_code != expected_action:
                 raise ValueError("service_action_code does not match condition_code")
         return self
