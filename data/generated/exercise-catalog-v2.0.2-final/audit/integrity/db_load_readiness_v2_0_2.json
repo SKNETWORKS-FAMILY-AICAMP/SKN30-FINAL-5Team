@@ -1,0 +1,87 @@
+{
+  "schema_version": "exercise-catalog-v2.0.2-db-load-readiness-v1",
+  "catalog_version_code": "exercise-catalog-v2.0.2-final",
+  "status": "READY_FOR_PRODUCTION_IMPORT",
+  "production_eligible": true,
+  "mechanical_checks": {
+    "catalog_record_count": 170,
+    "final_manifest_catalog_record_count": 170,
+    "final_manifest_excludes_intermediate_variant_materialization": true,
+    "safe_variant_record_count": 75,
+    "safe_variant_contract_ok": true,
+    "unique_exercise_id": true,
+    "unique_stable_code": true,
+    "media_row_count": 170,
+    "media_id_set_matches_catalog": true,
+    "media_source_origin_filled_count": 170,
+    "media_source_track_filled_count": 170,
+    "media_source_identity_filled_count": 170,
+    "media_source_identity_validation_filled_count": 170,
+    "source_origin_counts": {
+      "GYMVISUAL": 87,
+      "KSPO": 6,
+      "PAIN_ALTERNATIVE_POLICY": 75,
+      "WGER": 2
+    },
+    "media_asset_origin_counts": {
+      "GYMVISUAL": 161,
+      "KSPO": 7,
+      "WGER": 2
+    },
+    "gymvisual_source_identity_numeric_count": 161,
+    "gymvisual_source_identity_invalid_count": 0,
+    "reference_binding_row_count": 170,
+    "catalog_record_counts_by_type": {
+      "PRIMARY_VARIANT": 15,
+      "REPRESENTATIVE": 76,
+      "SEPARATE_EXERCISE": 79
+    }
+  },
+  "fitt_recheck": {
+    "fitt_row_count": 372,
+    "fitt_linked_stable_code_count": 170,
+    "catalog_records_without_fitt": 0,
+    "catalog_records_without_fitt_by_type": {},
+    "timing_shape_mismatch_count": 0,
+    "cable_machine_intermediate_count": 5
+  },
+  "media_recheck": {
+    "available_mapping_count": 68,
+    "rights_approved_count": 170,
+    "rights_review_required_count": 0
+  },
+  "approval_disposition": {
+    "mechanical_catalog_media_fk_and_source_mapping": "APPROVED",
+    "existing_rebased_representative_safety_fitt_goal_bindings": "APPROVED",
+    "pain_alternative_relation_review_status": "APPROVED",
+    "variant_safety_fitt": "APPROVED",
+    "separate_exercise_safety_fitt_goal": "APPROVED",
+    "media_rights": "APPROVED_170"
+  },
+  "auto_fixable": [],
+  "human_review_required": [],
+  "db_import_disposition": {
+    "staging_import": "ALLOW",
+    "production_import": "ALLOW",
+    "reason": "OWNER_BATCH_CONFIRMATION with external expert source approval and owner visual review"
+  },
+  "batch_approval": {
+    "approval_basis": [
+      "EXTERNAL_EXPERT_SOURCE_APPROVAL",
+      "OWNER_VISUAL_REVIEW"
+    ],
+    "approval_method_code": "OWNER_BATCH_CONFIRMATION",
+    "approval_reference": "USER_DIRECT_REVIEW_2026_08_29",
+    "approved_at": "2026-08-29T00:00:00+09:00",
+    "row_level_reason_required": false,
+    "scope": {
+      "alternative_difficulty_delta_records": 29,
+      "final_catalog_records": 170,
+      "media_rights_review_records": 102,
+      "reference_binding_records": 170,
+      "resolved_alternative_records": 1104,
+      "variant_safety_fitt_records": 15
+    },
+    "status": "APPROVED"
+  }
+}

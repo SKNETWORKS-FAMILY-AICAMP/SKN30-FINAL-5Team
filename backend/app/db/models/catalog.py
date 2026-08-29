@@ -549,6 +549,7 @@ class ExerciseAlternative(Base):
             "reason_code",
             "goal_preservation_code",
             "rule_version",
+            "condition_code",
             name="uq_exercise_alternatives_relation",
         ),
         CheckConstraint(
@@ -575,6 +576,13 @@ class ExerciseAlternative(Base):
             "source_manifest_hash ~ '^[0-9a-f]{64}$'",
             name="ck_exercise_alternatives_manifest_hash",
         ),
+        Index(
+            "ix_exercise_alternatives_discomfort_lookup",
+            "source_exercise_id",
+            "pain_discomfort_area_code",
+            "condition_code",
+            "review_status_code",
+        ),
         Index("ix_exercise_alternatives_source", "source_exercise_id", "review_status_code"),
     )
 
@@ -594,4 +602,8 @@ class ExerciseAlternative(Base):
     production_eligible: Mapped[bool] = mapped_column(Boolean, nullable=False)
     source_manifest_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     source_metadata: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    pain_discomfort_area_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    condition_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    service_action_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    target_strategy_code: Mapped[str | None] = mapped_column(String(120), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

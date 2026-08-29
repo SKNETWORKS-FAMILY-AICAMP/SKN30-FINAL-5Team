@@ -1,0 +1,41 @@
+{
+  "schema_version": "v2.0.2-context-defaults-coverage-v1.0.0",
+  "catalog_version_code": "exercise-catalog-v2.0.2-final",
+  "generated_at": "2026-08-28T00:00:00+09:00",
+  "status": "DRAFT_CONTEXT_DEFAULTS_REVIEW_REQUIRED",
+  "production_eligible": false,
+  "source": {
+    "catalog": "data/generated/exercise-catalog-v2.0.2-final/catalog/exercises.jsonl",
+    "goal_links": "data/generated/exercise-catalog-v2.0.2-draft/prescriptions/goal_tag_links.jsonl",
+    "prescriptions": "data/generated/exercise-catalog-v2.0.2-draft/prescriptions/prescription_profiles.jsonl",
+    "manifest": "data/generated/exercise-catalog-v2.0.2-final/manifest.json"
+  },
+  "counts": {
+    "integrated_catalog_rows": 201,
+    "representative_rows": 101,
+    "invalid_family_representative_rows": 12,
+    "valid_family_code_count": 86,
+    "unambiguous_family_count": 85,
+    "variant_rows": 70,
+    "separate_exercise_rows_excluded": 30,
+    "home_location_equipment_conflict_rows": 0,
+    "home_without_gym_rows": 0,
+    "context_default_rows": 172,
+    "context_candidate_rows": 254,
+    "review_queue_rows": 114
+  },
+  "artifact_sha256": {
+    "context_defaults_jsonl": "faffbb01cd41d5c81f76bc1ad56f8d7f725dcc47ade4bb2956121cbcc459f3cf",
+    "context_defaults_csv": "f491a79ff47978754a53f185b270368e7a4c1e8e9d55a3604a2b74d79bb59347",
+    "context_candidates_jsonl": "4163b60a141e4088735eb9f94802993ca5368e117bd9853d41516229b64ec5ce",
+    "context_candidates_csv": "08e61d8fcd2444c8008956f21451c8c5e1e1ae887921d3ad737caa654136dab3",
+    "family_coverage_jsonl": "899def177764987643bfd70d1f5bdc89c7dde0a011646642d16dac5214d29250",
+    "family_coverage_csv": "2b3bd1c6aaf3d14f5f77e66a5e5ce1e767ea091ffb04654dffc0ab93b98e4248",
+    "routine_coverage_jsonl": "be199f00f0af7668ef944f9fc182b090fac00461bf2f638495a1f56b8c68a8ec",
+    "routine_coverage_csv": "bddd9fa524f9d23a66a52033088363dde2aa5a654db29a9387a824b461178e6d",
+    "review_queue_jsonl": "080fbdfe06a9b769a236e717e1f5e11fcfabeaa19c968b47a7fd560f2640572a",
+    "review_queue_csv": "d2446d9f21a82c744d7e0c4dab16bd1dda546ee4274115a408effbe3a6c28c0d",
+    "report_json": "7f655c4cc4b9dc016b4ae65e19f05757bc1e32fb9227f45f94d6108c8ddf0178"
+  },
+  "report_path": "data/reports/V2_0_2_CONTEXT_DEFAULTS_AND_COVERAGE.md"
+}

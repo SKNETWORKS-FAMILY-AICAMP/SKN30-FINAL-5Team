@@ -628,6 +628,10 @@ class CatalogRepository:
                     production_eligible=approval is not None,
                     source_manifest_hash=artifact.manifest_hash,
                     source_metadata=metadata,
+                    pain_discomfort_area_code=record.pain_discomfort_area_code,
+                    condition_code=record.condition_code,
+                    service_action_code=record.service_action_code,
+                    target_strategy_code=record.target_strategy_code,
                     created_at=record.created_at,
                 )
             )

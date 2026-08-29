@@ -1,0 +1,74 @@
+{
+  "schema_version": "discomfort-alternative-target-map-policy-v2.0.2-v1",
+  "policy_version": "discomfort-alternative-target-map-v2.0.2-v1.0.0",
+  "status": "DRAFT_REVIEW_REQUIRED",
+  "production_eligible": false,
+  "pain_area_codes": [
+    "NECK",
+    "SHOULDER",
+    "ELBOW",
+    "WRIST_HAND",
+    "UPPER_BACK",
+    "LOWER_BACK",
+    "HIP",
+    "KNEE",
+    "ANKLE_FOOT",
+    "CHEST",
+    "ABDOMEN"
+  ],
+  "alternative_definition": "source가 입력된 통증 부위를 primary 또는 secondary target으로 사용해 수행이 어려울 때, 해당 부위를 두 target 목록 모두에서 제외한 다른 exercise row로 우회한다.",
+  "source_guard": [
+    "PAIN_AREA_IN_SOURCE_PRIMARY_OR_SECONDARY_TARGET",
+    "SOURCE_AND_TARGET_REFER_TO_V2_0_2_FINAL_CATALOG"
+  ],
+  "target_guard": [
+    "TARGET_PRIMARY_AND_SECONDARY_EXCLUDE_SELECTED_PAIN_AREA",
+    "TARGET_DIFFICULTY_NOT_HIGHER",
+    "NO_SELF_REFERENCE",
+    "NO_EXCLUDED_OR_RETIRED_EXERCISE",
+    "NO_VARIANT_OR_CONTEXT_DEFAULT_RELATION_AS_ALTERNATIVE_REASON"
+  ],
+  "condition_bands": {
+    "NRS_1_3": {
+      "minimum_score": 1,
+      "maximum_score": 3,
+      "severity_code": "MILD",
+      "service_action_code": "LOAD_REDUCED",
+      "target_strategy_code": "AREA_AVOIDING_CROSS_TRAINING_WITH_REDUCED_LOAD",
+      "selection_rule": "통증 부위를 target에서 제외하고 target volume·load·difficulty를 낮추거나 유지한다."
+    },
+    "NRS_4_6": {
+      "minimum_score": 4,
+      "maximum_score": 6,
+      "severity_code": "MODERATE",
+      "service_action_code": "SKIP_AFFECTED_AREA",
+      "target_strategy_code": "AREA_AVOIDING_LOW_LOAD_ACTIVE_RECOVERY",
+      "selection_rule": "통증 부위를 target에서 제외하고 recovery_eligible 저부하 target만 사용한다."
+    },
+    "NRS_7_10": {
+      "minimum_score": 7,
+      "maximum_score": 10,
+      "severity_code": "SEVERE",
+      "service_action_code": "STOP_EXERCISE",
+      "target_strategy_code": "NO_ALTERNATIVE",
+      "selection_rule": "Alternative map을 사용하지 않고 운동 중단 정책으로 보낸다."
+    }
+  },
+  "multi_area_rule": "복수 통증 부위 입력 시 각 부위 target set의 교집합을 사용하며, 교집합이 없으면 REST 또는 STOP 정책으로 전환한다.",
+  "area_specific_target_guards": {
+    "NECK": [
+      "TARGET_PRIMARY_AND_SECONDARY_EXCLUDE_NECK",
+      "TARGET_PRIMARY_AND_SECONDARY_EXCLUDE_SHOULDER",
+      "TARGET_PRIMARY_MOVEMENT_PATTERN_NOT_CORE_BRACE"
+    ]
+  },
+  "anchor_target_stable_codes": [
+    "bodyweight_standing_calf_raise_isolation_bodyweight",
+    "lat_pulldown_vertical_pull_cable_machine"
+  ],
+  "target_selection_limit_per_source_condition": 12,
+  "map_review_policy": "data/normalized/discomfort_alternative_map_review_policy_v2_0_2.json",
+  "review_method_code": "DETERMINISTIC_CATALOG_MAP",
+  "reviewer": "DATA_REVIEW_PIPELINE",
+  "reviewed_at": "2026-08-28T00:00:00+09:00"
+}

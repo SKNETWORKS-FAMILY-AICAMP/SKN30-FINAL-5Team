@@ -28,6 +28,7 @@ from backend.app.domain.rules.safety import (
     SafetyCandidateItem,
     SafetyContext,
     SafetyEvaluation,
+    SafetyRuleSet,
     SafetyStatusCode,
     evaluate_safety,
 )
@@ -116,6 +117,79 @@ def _candidate_data(
     return {**assembly.candidate_data, "candidate_code": candidate_id}
 
 
+_PAIN_CONDITION_BY_SEVERITY = {
+    "MILD": "NRS_1_3",
+    "MODERATE": "NRS_4_6",
+}
+
+
+def _pain_alternative_requirements(
+    context: SafetyContext,
+) -> frozenset[tuple[str, str]]:
+    return frozenset(
+        (
+            discomfort.body_area_code.value,
+            _PAIN_CONDITION_BY_SEVERITY[discomfort.severity_code.name],
+        )
+        for discomfort in context.discomforts
+        if discomfort.severity_code.name in _PAIN_CONDITION_BY_SEVERITY
+    )
+
+
+def _choose_alternative(
+    *,
+    source_id: str,
+    options: tuple[AlternativeItemData, ...],
+    context: SafetyContext,
+    excluded: set[str],
+    safety_rule_set: SafetyRuleSet | None,
+) -> AlternativeItemData | None:
+    requirements = _pain_alternative_requirements(context)
+    if requirements:
+        pain_options = tuple(
+            option
+            for option in options
+            if option.pain_discomfort_area_code is not None
+            and option.condition_code is not None
+        )
+        if pain_options:
+            options_by_target: dict[str, list[AlternativeItemData]] = {}
+            for option in pain_options:
+                options_by_target.setdefault(str(option.item.exercise_id), []).append(option)
+            candidates = tuple(
+                min(target_options, key=lambda value: value.evidence_reference_code)
+                for target_options in options_by_target.values()
+                if requirements.issubset(
+                    {
+                        (value.pain_discomfort_area_code or "", value.condition_code or "")
+                        for value in target_options
+                    }
+                )
+            )
+        else:
+            # Keep the legacy equipment/location fallback for an excluded source;
+            # it is not a pain Alternative and is never used to satisfy a pain
+            # area requirement.
+            candidates = tuple(
+                option for option in options if option.pain_discomfort_area_code is None
+            ) if source_id in excluded else ()
+    else:
+        candidates = tuple(options) if source_id in excluded else ()
+
+    for option in sorted(candidates, key=lambda value: value.evidence_reference_code):
+        evaluation = evaluate_safety(
+            context,
+            SafetyCandidate(items=(option.safety_item,)),
+            safety_rule_set,
+        )
+        if (
+            evaluation.status_code in {SafetyStatusCode.PASS, SafetyStatusCode.REVISE}
+            and not evaluation.excluded_exercise_codes
+        ):
+            return option
+    return None
+
+
 def _build_adjusted_candidates(
     assembly: DecisionAssembly,
     context: SafetyContext,
@@ -142,35 +216,31 @@ def _build_adjusted_candidates(
         )
 
     excluded = set(base_evaluation.excluded_exercise_codes)
-    if not excluded:
-        return tuple(adjusted)
     alternatives_by_source: dict[str, AlternativeItemData] = {}
-    for source_id in sorted(excluded):
-        options = sorted(
-            (
-                alternative
-                for alternative in assembly.alternative_items
-                if str(alternative.source_exercise_id) == source_id
-            ),
-            key=lambda value: str(value.item.exercise_id),
+    options_by_source: dict[str, tuple[AlternativeItemData, ...]] = {}
+    for alternative in assembly.alternative_items:
+        options_by_source.setdefault(str(alternative.source_exercise_id), ())
+        options_by_source[str(alternative.source_exercise_id)] += (alternative,)
+
+    # A mild discomfort is still a pain-area signal. Consult the typed
+    # NRS/area Alternative map even when the generic safety rule only returns
+    # CAUTION. Severe discomfort exits in evaluate_safety before this point.
+    source_ids = {str(item.exercise_id) for item in assembly.items}
+    for source_id in sorted(source_ids):
+        options = options_by_source.get(source_id, ())
+        selected = _choose_alternative(
+            source_id=source_id,
+            options=options,
+            context=context,
+            excluded=excluded,
+            safety_rule_set=assembly.safety_rule_set,
         )
-        for alternative in options:
-            alternative_evaluation = evaluate_safety(
-                context,
-                SafetyCandidate(items=(alternative.safety_item,)),
-                assembly.safety_rule_set,
-            )
-            if (
-                alternative_evaluation.status_code
-                in {
-                    SafetyStatusCode.PASS,
-                    SafetyStatusCode.REVISE,
-                }
-                and not alternative_evaluation.excluded_exercise_codes
-            ):
-                alternatives_by_source[source_id] = alternative
-                break
-    if set(alternatives_by_source) != excluded:
+        if selected is not None:
+            alternatives_by_source[source_id] = selected
+
+    if not alternatives_by_source:
+        return tuple(adjusted)
+    if excluded and not excluded.issubset(alternatives_by_source):
         return tuple(adjusted)
 
     replacement_safety = {
@@ -231,15 +301,25 @@ def _build_adjusted_candidates(
             safety_candidate=changed_safety_candidate,
             evidence_reference_codes=tuple(
                 sorted(
-                    alternative.evidence_reference_code
+                    evidence_reference
                     for alternative in alternatives_by_source.values()
-                    if alternative.evidence_reference_code
+                    for evidence_reference in (
+                        alternative.evidence_reference_code,
+                        (
+                            "PAIN_ALTERNATIVE/"
+                            f"{alternative.pain_discomfort_area_code}/"
+                            f"{alternative.condition_code}"
+                            if alternative.pain_discomfort_area_code
+                            and alternative.condition_code
+                            else ""
+                        ),
+                    )
+                    if evidence_reference
                 )
             ),
         )
     )
     return tuple(adjusted)
-
 
 def _prepare_safety(
     assembly: DecisionAssembly,

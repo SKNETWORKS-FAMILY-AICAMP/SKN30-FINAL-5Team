@@ -414,6 +414,10 @@ class DecisionRepository:
                         alternative.primary_movement_pattern_code,
                     ),
                     evidence_reference_code=f"ALTERNATIVE/{relation.id}",
+                    pain_discomfort_area_code=relation.pain_discomfort_area_code,
+                    condition_code=relation.condition_code,
+                    service_action_code=relation.service_action_code,
+                    target_strategy_code=relation.target_strategy_code,
                 )
             )
         return DecisionAssembly(

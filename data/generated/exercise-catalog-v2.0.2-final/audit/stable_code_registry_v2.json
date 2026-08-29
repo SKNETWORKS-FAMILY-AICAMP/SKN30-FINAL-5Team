@@ -1,0 +1,2883 @@
+{
+  "active_stable_code_count": 170,
+  "catalog_version_code": "exercise-catalog-v2.0.2-final",
+  "records": [
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000003",
+      "family_code": "ANKLE_CIRCLES",
+      "name_en": "ankle circles",
+      "name_ko": "발목 돌리기",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000003",
+      "source_identity": "1368",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "ankle_circles_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "PRIMARY_VARIANT",
+      "decision_source": "AUTO_RULE",
+      "exercise_id": "VEX-000007",
+      "family_code": "BARBELL_FRONT_RAISE",
+      "name_en": "band front raise",
+      "name_ko": "밴드 프론트 레이즈",
+      "record_type": "VARIANT",
+      "representative_exercise_id": "",
+      "source_identity": "0978",
+      "source_keys": [
+        "gymvisual:0978"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "band_front_raise_isolation_resistance_band",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "PRIMARY_VARIANT",
+      "decision_source": "AUTO_RULE",
+      "exercise_id": "VEX-000041",
+      "family_code": "DUMBBELL_SHRUG",
+      "name_en": "band shrug",
+      "name_ko": "밴드 슈러그",
+      "record_type": "VARIANT",
+      "representative_exercise_id": "",
+      "source_identity": "1018",
+      "source_keys": [
+        "gymvisual:1018"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "band_shrug_isolation_resistance_band",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "PRIMARY_VARIANT",
+      "decision_source": "AUTO_RULE",
+      "exercise_id": "VEX-000027",
+      "family_code": "BODYWEIGHT_STANDING_CALF_RAISE",
+      "name_en": "band single leg calf raise",
+      "name_ko": "밴드 싱글 레그 카프 레이즈",
+      "record_type": "VARIANT",
+      "representative_exercise_id": "",
+      "source_identity": "0999",
+      "source_keys": [
+        "gymvisual:0999"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "band_single_leg_calf_raise_isolation_resistance_band",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000124",
+      "family_code": "BODYWEIGHT_STANDING_CALF_RAISE",
+      "name_en": "band two legs calf raise - (band under both legs) v. 2",
+      "name_ko": "밴드 양발 카프 레이즈",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "1369",
+      "source_keys": [
+        "v1:NEX-000117"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "band_two_legs_calf_raise_band_under_both_legs_v_2_isolation_resistance_band",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000004",
+      "family_code": "BARBELL_DEADLIFT",
+      "name_en": "barbell deadlift",
+      "name_ko": "바벨 데드리프트",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000004",
+      "source_identity": "0032",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "barbell_deadlift_hip_dominant_barbell",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000005",
+      "family_code": "BARBELL_FRONT_RAISE",
+      "name_en": "barbell front raise",
+      "name_ko": "바벨 프론트 레이즈",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000005",
+      "source_identity": "0041",
+      "source_keys": [
+        "gymvisual:0041",
+        "v1:NEX-000004",
+        "v1:NEX-000035",
+        "v1:NEX-000036",
+        "v1:NEX-000053",
+        "v1:NEX-000098"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "barbell_front_raise_isolation_barbell",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-51B939268597C1C2",
+      "family_code": "BARBELL_FRONT_RAISE",
+      "name_en": "",
+      "name_ko": "바벨 프론트 레이즈",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-51B939268597C1C2",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-51B939268597C1C2"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "barbell_front_raise_isolation_barbell__abdomen_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-3B2E8D5E61B19928",
+      "family_code": "BARBELL_FRONT_RAISE",
+      "name_en": "",
+      "name_ko": "바벨 프론트 레이즈",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-3B2E8D5E61B19928",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-3B2E8D5E61B19928"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "barbell_front_raise_isolation_barbell__hip_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-D58F02F81420FBED",
+      "family_code": "BARBELL_FRONT_RAISE",
+      "name_en": "",
+      "name_ko": "바벨 프론트 레이즈",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-D58F02F81420FBED",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-D58F02F81420FBED"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "barbell_front_raise_isolation_barbell__knee_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-57ADC482D0C91C98",
+      "family_code": "BARBELL_FRONT_RAISE",
+      "name_en": "",
+      "name_ko": "바벨 프론트 레이즈",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-57ADC482D0C91C98",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-57ADC482D0C91C98"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "barbell_front_raise_isolation_barbell__lower_back_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000007",
+      "family_code": "BARBELL_STRAIGHT_LEG_DEADLIFT",
+      "name_en": "barbell straight leg deadlift",
+      "name_ko": "바벨 루마니안 데드리프트",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000007",
+      "source_identity": "0116",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "barbell_straight_leg_deadlift_hip_dominant_barbell",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000008",
+      "family_code": "BODYWEIGHT_BACK_EXTENSION",
+      "name_en": "hyperextension",
+      "name_ko": "백 익스텐션",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000008",
+      "source_identity": "0489",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "bodyweight_back_extension_hip_dominant_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000009",
+      "family_code": "BODYWEIGHT_CRUNCH",
+      "name_en": "crunch floor",
+      "name_ko": "크런치",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000009",
+      "source_identity": "0274",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "bodyweight_crunch_core_brace_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000010",
+      "family_code": "BODYWEIGHT_FORWARD_LUNGE",
+      "name_en": "forward lunge (male)",
+      "name_ko": "포워드 런지",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000010",
+      "source_identity": "3470",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "bodyweight_forward_lunge_knee_dominant_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000011",
+      "family_code": "BODYWEIGHT_GLUTE_BRIDGE",
+      "name_en": "low glute bridge on floor",
+      "name_ko": "글루트 브리지",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000011",
+      "source_identity": "3013",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "bodyweight_glute_bridge_hip_dominant_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000013",
+      "family_code": "BODYWEIGHT_REVERSE_CRUNCH",
+      "name_en": "reverse crunch",
+      "name_ko": "리버스 크런치",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000013",
+      "source_identity": "0872",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "bodyweight_reverse_crunch_core_brace_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000016",
+      "family_code": "BODYWEIGHT_STANDING_CALF_RAISE",
+      "name_en": "bodyweight standing calf raise",
+      "name_ko": "스탠딩 카프 레이즈",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000016",
+      "source_identity": "1373",
+      "source_keys": [
+        "gymvisual:1373",
+        "v1:NEX-000058",
+        "v1:NEX-000102",
+        "v1:NEX-000118",
+        "v1:NEX-000122"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "bodyweight_standing_calf_raise_isolation_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-EC243CDB7A0537D3",
+      "family_code": "BODYWEIGHT_STANDING_CALF_RAISE",
+      "name_en": "",
+      "name_ko": "카프 레이즈",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-EC243CDB7A0537D3",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-EC243CDB7A0537D3"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "bodyweight_standing_calf_raise_isolation_bodyweight__abdomen_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-5C8E3929479AD7D8",
+      "family_code": "BODYWEIGHT_STANDING_CALF_RAISE",
+      "name_en": "",
+      "name_ko": "카프 레이즈",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-5C8E3929479AD7D8",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-5C8E3929479AD7D8"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "bodyweight_standing_calf_raise_isolation_bodyweight__lower_back_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000017",
+      "family_code": "BUTTERFLY_ADDUCTOR_STRETCH",
+      "name_en": "butterfly yoga pose",
+      "name_ko": "버터플라이 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000017",
+      "source_identity": "1494",
+      "source_keys": [
+        "gymvisual:1494",
+        "v1:NEX-000129"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "butterfly_adductor_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-9432BB9760D2677F",
+      "family_code": "BUTTERFLY_ADDUCTOR_STRETCH",
+      "name_en": "",
+      "name_ko": "버터플라이 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-9432BB9760D2677F",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-9432BB9760D2677F"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "butterfly_adductor_stretch_mobility_stretch_bodyweight__abdomen_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-754CFA40B1C65427",
+      "family_code": "BUTTERFLY_ADDUCTOR_STRETCH",
+      "name_en": "",
+      "name_ko": "버터플라이 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-754CFA40B1C65427",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-754CFA40B1C65427"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "butterfly_adductor_stretch_mobility_stretch_bodyweight__elbow_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-A5660508D8559197",
+      "family_code": "BUTTERFLY_ADDUCTOR_STRETCH",
+      "name_en": "",
+      "name_ko": "버터플라이 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-A5660508D8559197",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-A5660508D8559197"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "butterfly_adductor_stretch_mobility_stretch_bodyweight__lower_back_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-4AFB61578A427189",
+      "family_code": "BUTTERFLY_ADDUCTOR_STRETCH",
+      "name_en": "",
+      "name_ko": "버터플라이 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-4AFB61578A427189",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-4AFB61578A427189"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "butterfly_adductor_stretch_mobility_stretch_bodyweight__shoulder_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-691B90C811748C97",
+      "family_code": "BUTTERFLY_ADDUCTOR_STRETCH",
+      "name_en": "",
+      "name_ko": "버터플라이 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-691B90C811748C97",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-691B90C811748C97"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "butterfly_adductor_stretch_mobility_stretch_bodyweight__upper_back_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "PRIMARY_VARIANT",
+      "decision_source": "AUTO_RULE",
+      "exercise_id": "VEX-000037",
+      "family_code": "DUMBBELL_SHRUG",
+      "name_en": "cable shrug",
+      "name_ko": "케이블 슈러그 머신",
+      "record_type": "VARIANT",
+      "representative_exercise_id": "",
+      "source_identity": "0220",
+      "source_keys": [
+        "gymvisual:0220"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "cable_shrug_isolation_cable_machine",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000019",
+      "family_code": "CABLE_TRICEPS_PUSHDOWN",
+      "name_en": "cable pushdown",
+      "name_ko": "케이블 트라이셉스 푸시다운 머신",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000019",
+      "source_identity": "0201",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "cable_triceps_pushdown_isolation_cable_machine",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000056",
+      "family_code": "CARDIO",
+      "name_en": "back and forth step",
+      "name_ko": "앞뒤 스텝",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000056",
+      "source_identity": "3672",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "cardio_gait_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000058",
+      "family_code": "CARDIO",
+      "name_en": "high knee against wall",
+      "name_ko": "하이니",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000058",
+      "source_identity": "3636",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "cardio_gait_bodyweight_rex_000058",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000070",
+      "family_code": "CARDIO",
+      "name_en": "walking on incline treadmill",
+      "name_ko": "경사 트레드밀 걷기 머신",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000070",
+      "source_identity": "3666",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "cardio_gait_machine",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000071",
+      "family_code": "CARDIO_GAIT_MACHINE",
+      "name_en": "walking on stepmill",
+      "name_ko": "스텝밀 머신(천국의 계단)",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000071",
+      "source_identity": "2311",
+      "source_keys": [
+        "gymvisual:2311"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "cardio_gait_machine_rex_000071",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000068",
+      "family_code": "CARDIO",
+      "name_en": "스텝박스 오르내리기",
+      "name_ko": "스텝박스 오르내리기",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000068",
+      "source_identity": "00c41c823f6141adb2f3b7da95c1213fea98dac6cb3bfaf453f1a4989133d2d2",
+      "source_keys": [],
+      "source_track": "kspo",
+      "stable_code": "cardio_gait_step_box",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000059",
+      "family_code": "CARDIO",
+      "name_en": "jack jump (male)",
+      "name_ko": "점핑잭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000059",
+      "source_identity": "3224",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "cardio_jump_plyometric_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000020",
+      "family_code": "CHAIR_LEG_EXTENDED_STRETCH",
+      "name_en": "chair leg extended stretch",
+      "name_ko": "시티드 레그 익스텐션 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000020",
+      "source_identity": "1548",
+      "source_keys": [
+        "gymvisual:1548",
+        "v1:NEX-000132"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "chair_leg_extended_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-3A73DB20F3349767",
+      "family_code": "CHAIR_LEG_EXTENDED_STRETCH",
+      "name_en": "",
+      "name_ko": "레그 익스텐션 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-3A73DB20F3349767",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-3A73DB20F3349767"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "chair_leg_extended_stretch_mobility_stretch_bodyweight__neck_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-78019BC41BCE770A",
+      "family_code": "CHAIR_LEG_EXTENDED_STRETCH",
+      "name_en": "",
+      "name_ko": "레그 익스텐션 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-78019BC41BCE770A",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-78019BC41BCE770A"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "chair_leg_extended_stretch_mobility_stretch_bodyweight__wrist_hand_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000021",
+      "family_code": "CHEST_FRONT_SHOULDER_STRETCH",
+      "name_en": "chest and front of shoulder stretch",
+      "name_ko": "가슴·어깨 앞면 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000021",
+      "source_identity": "1271",
+      "source_keys": [
+        "gymvisual:1271",
+        "v1:NEX-000110"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "chest_front_shoulder_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-3F9C1C0539D4277E",
+      "family_code": "CHEST_FRONT_SHOULDER_STRETCH",
+      "name_en": "",
+      "name_ko": "가슴·어깨 앞면 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-3F9C1C0539D4277E",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-3F9C1C0539D4277E"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "chest_front_shoulder_stretch_mobility_stretch_bodyweight__hip_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-22F9847D7E796DD5",
+      "family_code": "CHEST_FRONT_SHOULDER_STRETCH",
+      "name_en": "",
+      "name_ko": "가슴·어깨 앞면 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-22F9847D7E796DD5",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-22F9847D7E796DD5"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "chest_front_shoulder_stretch_mobility_stretch_bodyweight__knee_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-FA12EFDF98D0EBA8",
+      "family_code": "CHEST_FRONT_SHOULDER_STRETCH",
+      "name_en": "",
+      "name_ko": "가슴·어깨 앞면 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-FA12EFDF98D0EBA8",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-FA12EFDF98D0EBA8"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "chest_front_shoulder_stretch_mobility_stretch_bodyweight__lower_back_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000022",
+      "family_code": "CLOSE_GRIP_PUSH_UP",
+      "name_en": "close-grip push-up",
+      "name_ko": "클로즈 그립 푸시업",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000022",
+      "source_identity": "0259",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "close_grip_push_up_horizontal_push_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "PRIMARY_VARIANT",
+      "decision_source": "AUTO_RULE",
+      "exercise_id": "VEX-000039",
+      "family_code": "DUMBBELL_SHRUG",
+      "name_en": "dumbbell decline shrug",
+      "name_ko": "덤벨 디클라인 슈러그",
+      "record_type": "VARIANT",
+      "representative_exercise_id": "",
+      "source_identity": "0305",
+      "source_keys": [
+        "gymvisual:0305"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "dumbbell_decline_shrug_isolation_dumbbell",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "PRIMARY_VARIANT",
+      "decision_source": "AUTO_RULE",
+      "exercise_id": "VEX-000038",
+      "family_code": "DUMBBELL_SHRUG",
+      "name_en": "dumbbell decline shrug v. 2",
+      "name_ko": "덤벨 디클라인 슈러그",
+      "record_type": "VARIANT",
+      "representative_exercise_id": "",
+      "source_identity": "0304",
+      "source_keys": [
+        "gymvisual:0304"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "dumbbell_decline_shrug_v_2_isolation_dumbbell",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "PRIMARY_VARIANT",
+      "decision_source": "AUTO_RULE",
+      "exercise_id": "VEX-000005",
+      "family_code": "BARBELL_FRONT_RAISE",
+      "name_en": "dumbbell front raise",
+      "name_ko": "덤벨 프론트 레이즈",
+      "record_type": "VARIANT",
+      "representative_exercise_id": "",
+      "source_identity": "0310",
+      "source_keys": [
+        "gymvisual:0310"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "dumbbell_front_raise_isolation_dumbbell",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "PRIMARY_VARIANT",
+      "decision_source": "AUTO_RULE",
+      "exercise_id": "VEX-000004",
+      "family_code": "BARBELL_FRONT_RAISE",
+      "name_en": "dumbbell front raise v. 2",
+      "name_ko": "덤벨 프론트 레이즈",
+      "record_type": "VARIANT",
+      "representative_exercise_id": "",
+      "source_identity": "0309",
+      "source_keys": [
+        "gymvisual:0309"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "dumbbell_front_raise_v_2_isolation_dumbbell",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000025",
+      "family_code": "DUMBBELL_GOBLET_SQUAT",
+      "name_en": "dumbbell goblet squat",
+      "name_ko": "덤벨 고블릿 스쿼트",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000025",
+      "source_identity": "1760",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "dumbbell_goblet_squat_knee_dominant_dumbbell",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "PRIMARY_VARIANT",
+      "decision_source": "AUTO_RULE",
+      "exercise_id": "VEX-000040",
+      "family_code": "DUMBBELL_SHRUG",
+      "name_en": "dumbbell incline shrug",
+      "name_ko": "덤벨 인클라인 슈러그",
+      "record_type": "VARIANT",
+      "representative_exercise_id": "",
+      "source_identity": "0329",
+      "source_keys": [
+        "gymvisual:0329"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "dumbbell_incline_shrug_isolation_dumbbell",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000026",
+      "family_code": "DUMBBELL_LATERAL_RAISE",
+      "name_en": "dumbbell lateral raise",
+      "name_ko": "덤벨 레터럴 레이즈",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000026",
+      "source_identity": "0334",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "dumbbell_lateral_raise_isolation_dumbbell",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000109",
+      "family_code": "BARBELL_FRONT_RAISE",
+      "name_en": "dumbbell lateral to front raise",
+      "name_ko": "덤벨 레터럴 투 프론트 레이즈",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "0335",
+      "source_keys": [
+        "v1:NEX-000040"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "dumbbell_lateral_to_front_raise_isolation_dumbbell",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000027",
+      "family_code": "DUMBBELL_PREACHER_CURL",
+      "name_en": "dumbbell preacher curl",
+      "name_ko": "덤벨 프리처 컬",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000027",
+      "source_identity": "0372",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "dumbbell_preacher_curl_isolation_dumbbell",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000028",
+      "family_code": "DUMBBELL_REAR_FLY",
+      "name_en": "dumbbell rear fly",
+      "name_ko": "덤벨 리어 델트 플라이",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000028",
+      "source_identity": "0378",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "dumbbell_rear_fly_isolation_dumbbell",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "PRIMARY_VARIANT",
+      "decision_source": "AUTO_RULE",
+      "exercise_id": "VEX-000006",
+      "family_code": "BARBELL_FRONT_RAISE",
+      "name_en": "dumbbell seated alternate front raise",
+      "name_ko": "덤벨 시티드 교대 프론트 레이즈",
+      "record_type": "VARIANT",
+      "representative_exercise_id": "",
+      "source_identity": "0387",
+      "source_keys": [
+        "gymvisual:0387"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "dumbbell_seated_alternate_front_raise_isolation_dumbbell",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "PRIMARY_VARIANT",
+      "decision_source": "AUTO_RULE",
+      "exercise_id": "VEX-000055",
+      "family_code": "SEATED_CALF_RAISE",
+      "name_en": "dumbbell seated calf raise",
+      "name_ko": "덤벨 시티드 카프 레이즈",
+      "record_type": "VARIANT",
+      "representative_exercise_id": "",
+      "source_identity": "1379",
+      "source_keys": [
+        "gymvisual:1379"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "dumbbell_seated_calf_raise_isolation_dumbbell",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000029",
+      "family_code": "DUMBBELL_SHRUG",
+      "name_en": "dumbbell shrug",
+      "name_ko": "덤벨 슈러그",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000029",
+      "source_identity": "0406",
+      "source_keys": [
+        "gymvisual:0406",
+        "v1:NEX-000025",
+        "v1:NEX-000033",
+        "v1:NEX-000034",
+        "v1:NEX-000038",
+        "v1:NEX-000057",
+        "v1:NEX-000106"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "dumbbell_shrug_isolation_dumbbell",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-EB514FBF13F9433D",
+      "family_code": "DUMBBELL_SHRUG",
+      "name_en": "",
+      "name_ko": "덤벨 슈러그",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-EB514FBF13F9433D",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-EB514FBF13F9433D"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "dumbbell_shrug_isolation_dumbbell__hip_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-FAB7479B08EBDD54",
+      "family_code": "DUMBBELL_SHRUG",
+      "name_en": "",
+      "name_ko": "덤벨 슈러그",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-FAB7479B08EBDD54",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-FAB7479B08EBDD54"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "dumbbell_shrug_isolation_dumbbell__knee_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-249EF7CC8CED25D3",
+      "family_code": "DUMBBELL_SHRUG",
+      "name_en": "",
+      "name_ko": "덤벨 슈러그",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-249EF7CC8CED25D3",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-249EF7CC8CED25D3"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "dumbbell_shrug_isolation_dumbbell__lower_back_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "PRIMARY_VARIANT",
+      "decision_source": "AUTO_RULE",
+      "exercise_id": "VEX-000026",
+      "family_code": "BODYWEIGHT_STANDING_CALF_RAISE",
+      "name_en": "dumbbell single leg calf raise",
+      "name_ko": "덤벨 싱글 레그 카프 레이즈",
+      "record_type": "VARIANT",
+      "representative_exercise_id": "",
+      "source_identity": "0409",
+      "source_keys": [
+        "gymvisual:0409"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "dumbbell_single_leg_calf_raise_isolation_dumbbell",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000030",
+      "family_code": "DUMBBELL_STANDING_CURL",
+      "name_en": "dumbbell standing biceps curl",
+      "name_ko": "덤벨 바이셉스 컬",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000030",
+      "source_identity": "0416",
+      "source_keys": [
+        "gymvisual:0416",
+        "v1:NEX-000059"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "dumbbell_standing_curl_isolation_dumbbell",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-35756A39565C0E92",
+      "family_code": "DUMBBELL_STANDING_CURL",
+      "name_en": "",
+      "name_ko": "덤벨 바이셉스 컬",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-35756A39565C0E92",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-35756A39565C0E92"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "dumbbell_standing_curl_isolation_dumbbell__abdomen_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-487544E110C93537",
+      "family_code": "DUMBBELL_STANDING_CURL",
+      "name_en": "",
+      "name_ko": "덤벨 바이셉스 컬",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-487544E110C93537",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-487544E110C93537"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "dumbbell_standing_curl_isolation_dumbbell__hip_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-03A7A7C6A78247A9",
+      "family_code": "DUMBBELL_STANDING_CURL",
+      "name_en": "",
+      "name_ko": "덤벨 바이셉스 컬",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-03A7A7C6A78247A9",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-03A7A7C6A78247A9"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "dumbbell_standing_curl_isolation_dumbbell__knee_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-889F35FB54AD157C",
+      "family_code": "DUMBBELL_STANDING_CURL",
+      "name_en": "",
+      "name_ko": "덤벨 바이셉스 컬",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-889F35FB54AD157C",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-889F35FB54AD157C"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "dumbbell_standing_curl_isolation_dumbbell__lower_back_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000031",
+      "family_code": "DUMBBELL_STEP_UP_LUNGE",
+      "name_en": "dumbbell step-up lunge",
+      "name_ko": "덤벨 스텝업 런지",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000031",
+      "source_identity": "2796",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "dumbbell_step_up_lunge_knee_dominant_dumbbell_step_box",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000032",
+      "family_code": "DYNAMIC_CHEST_STRETCH",
+      "name_en": "dynamic chest stretch (male)",
+      "name_ko": "다이내믹 가슴 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000032",
+      "source_identity": "1167",
+      "source_keys": [
+        "gymvisual:1167",
+        "v1:NEX-000108"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "dynamic_chest_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-18D8381ECAA601CC",
+      "family_code": "DYNAMIC_CHEST_STRETCH",
+      "name_en": "",
+      "name_ko": "다이내믹 가슴 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-18D8381ECAA601CC",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-18D8381ECAA601CC"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "dynamic_chest_stretch_mobility_stretch_bodyweight__hip_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-B2924F279D12A89F",
+      "family_code": "DYNAMIC_CHEST_STRETCH",
+      "name_en": "",
+      "name_ko": "다이내믹 가슴 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-B2924F279D12A89F",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-B2924F279D12A89F"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "dynamic_chest_stretch_mobility_stretch_bodyweight__knee_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-0423655BB84F05ED",
+      "family_code": "DYNAMIC_CHEST_STRETCH",
+      "name_en": "",
+      "name_ko": "다이내믹 가슴 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-0423655BB84F05ED",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-0423655BB84F05ED"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "dynamic_chest_stretch_mobility_stretch_bodyweight__lower_back_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000033",
+      "family_code": "EXERCISE_BALL_HIP_FLEXOR_STRETCH",
+      "name_en": "exercise ball hip flexor stretch",
+      "name_ko": "짐볼 고관절 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000033",
+      "source_identity": "1559",
+      "source_keys": [
+        "gymvisual:1559",
+        "v1:NEX-000133"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "exercise_ball_hip_flexor_stretch_mobility_stretch_stability_ball",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000034",
+      "family_code": "HAMSTRING_STRETCH",
+      "name_en": "hamstring stretch",
+      "name_ko": "햄스트링 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000034",
+      "source_identity": "1511",
+      "source_keys": [
+        "gymvisual:1511",
+        "gymvisual:1576",
+        "v1:NEX-000130",
+        "v1:NEX-000135"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "hamstring_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-4E47895F88158AE5",
+      "family_code": "HAMSTRING_STRETCH",
+      "name_en": "",
+      "name_ko": "햄스트링 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-4E47895F88158AE5",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-4E47895F88158AE5"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "hamstring_stretch_mobility_stretch_bodyweight__abdomen_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-B8ECEA0A65C9CA22",
+      "family_code": "HAMSTRING_STRETCH",
+      "name_en": "",
+      "name_ko": "햄스트링 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-B8ECEA0A65C9CA22",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-B8ECEA0A65C9CA22"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "hamstring_stretch_mobility_stretch_bodyweight__neck_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-EBD1C36964A0A133",
+      "family_code": "HAMSTRING_STRETCH",
+      "name_en": "",
+      "name_ko": "햄스트링 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-EBD1C36964A0A133",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-EBD1C36964A0A133"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "hamstring_stretch_mobility_stretch_bodyweight__shoulder_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-1A1F63F097657004",
+      "family_code": "HAMSTRING_STRETCH",
+      "name_en": "",
+      "name_ko": "햄스트링 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-1A1F63F097657004",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-1A1F63F097657004"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "hamstring_stretch_mobility_stretch_bodyweight__wrist_hand_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000035",
+      "family_code": "HAND_GRIP_SQUEEZE",
+      "name_en": "weighted standing hand squeeze",
+      "name_ko": "손 악력 쥐기",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000035",
+      "source_identity": "0854",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "hand_grip_squeeze_isolation_household_weight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000057",
+      "family_code": "REVIEW_REQUIRED",
+      "name_en": "",
+      "name_ko": "의자 잡고 무릎 들기",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000057",
+      "source_identity": "46ea8fdbe34474fac354a051f63b114e0a6d20a21f71226ae0db5da216d14861",
+      "source_keys": [
+        "kspo:46ea8fdbe34474fac354a051f63b114e0a6d20a21f71226ae0db5da216d14861",
+        "v1:NEX-000174"
+      ],
+      "source_track": "kspo",
+      "stable_code": "hip_flexion_isolation_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-06892D3AE613BF99",
+      "family_code": "REVIEW_REQUIRED",
+      "name_en": "",
+      "name_ko": "무릎 들기",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-06892D3AE613BF99",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-06892D3AE613BF99"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "hip_flexion_isolation_bodyweight__upper_back_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000064",
+      "family_code": "HIP_FLEXION",
+      "name_en": "앉아서 엉덩관절 굽히기",
+      "name_ko": "앉아서 고관절 굴곡",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000064",
+      "source_identity": "dfd7eaa07d42e118610eb6756d8dcdc351f5b1f3c9a1262fa94aa18d92a87e09",
+      "source_keys": [],
+      "source_track": "kspo",
+      "stable_code": "hip_flexion_isolation_bodyweight_rex_000064",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000036",
+      "family_code": "HIP_FLEXOR_QUADRICEPS_STRETCH",
+      "name_en": "intermediate hip flexor and quad stretch",
+      "name_ko": "고관절 굴근·대퇴사두근 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000036",
+      "source_identity": "1564",
+      "source_keys": [
+        "gymvisual:1564",
+        "v1:NEX-000134"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "hip_flexor_quadriceps_stretch_mobility_stretch_stretch_strap",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000038",
+      "family_code": "INVERTED_ROW",
+      "name_en": "inverted row",
+      "name_ko": "인버티드 로우",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000038",
+      "source_identity": "0499",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "inverted_row_horizontal_pull_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000039",
+      "family_code": "KNEELING_LAT_STRETCH",
+      "name_en": "kneeling lat stretch",
+      "name_ko": "무릎 꿇고 광배근 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000039",
+      "source_identity": "1346",
+      "source_keys": [
+        "gymvisual:1346",
+        "v1:NEX-000111"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "kneeling_lat_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-252AEEC08E26C69E",
+      "family_code": "KNEELING_LAT_STRETCH",
+      "name_en": "",
+      "name_ko": "광배근 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-252AEEC08E26C69E",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-252AEEC08E26C69E"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "kneeling_lat_stretch_mobility_stretch_bodyweight__hip_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000040",
+      "family_code": "LAT_PULLDOWN",
+      "name_en": "cable pulldown",
+      "name_ko": "랫풀다운 머신",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000040",
+      "source_identity": "0198",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "lat_pulldown_vertical_pull_cable_machine",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000069",
+      "family_code": "LEG_PRESS",
+      "name_en": "밴드 잡고 누워서 다리 밀기",
+      "name_ko": "누워서 밴드 레그 프레스",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000069",
+      "source_identity": "72cc612abf8747105b33f64e0661b713012fb3f2ae378cd5c5142215eedc899b",
+      "source_keys": [],
+      "source_track": "kspo",
+      "stable_code": "leg_press_knee_dominant_resistance_band",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "PRIMARY_VARIANT",
+      "decision_source": "AUTO_RULE",
+      "exercise_id": "VEX-000054",
+      "family_code": "SEATED_CALF_RAISE",
+      "name_en": "lever seated calf raise",
+      "name_ko": "시티드 카프 레이즈 머신",
+      "record_type": "VARIANT",
+      "representative_exercise_id": "",
+      "source_identity": "0594",
+      "source_keys": [
+        "gymvisual:0594"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "lever_seated_calf_raise_isolation_machine",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000043",
+      "family_code": "LOWER_BACK_CURL",
+      "name_en": "lower back curl",
+      "name_ko": "로어 백 컬",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000043",
+      "source_identity": "1352",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "lower_back_curl_core_brace_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000066",
+      "family_code": "MOBILITY",
+      "name_en": "FITT-CORE-STABILITY-V1",
+      "name_ko": "한발 서기 균형",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000066",
+      "source_identity": "19af0f76cad5e01830e662585e3cea621cf8563f1955f83114bef440606379c4",
+      "source_keys": [],
+      "source_track": "kspo",
+      "stable_code": "mobility_balance_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000045",
+      "family_code": "NECK_LATERAL_STRETCH",
+      "name_en": "neck side stretch",
+      "name_ko": "목 옆면 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000045",
+      "source_identity": "1403",
+      "source_keys": [
+        "gymvisual:1403",
+        "v1:NEX-000083",
+        "v1:NEX-000125"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "neck_lateral_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-82501686CF95380A",
+      "family_code": "NECK_LATERAL_STRETCH",
+      "name_en": "",
+      "name_ko": "목 옆면 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-82501686CF95380A",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-82501686CF95380A"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "neck_lateral_stretch_mobility_stretch_bodyweight__ankle_foot_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-CA1B072FBE998AD5",
+      "family_code": "NECK_LATERAL_STRETCH",
+      "name_en": "",
+      "name_ko": "목 옆면 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-CA1B072FBE998AD5",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-CA1B072FBE998AD5"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "neck_lateral_stretch_mobility_stretch_bodyweight__hip_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-FB90D94DF9793384",
+      "family_code": "NECK_LATERAL_STRETCH",
+      "name_en": "",
+      "name_ko": "목 옆면 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-FB90D94DF9793384",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-FB90D94DF9793384"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "neck_lateral_stretch_mobility_stretch_bodyweight__knee_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000046",
+      "family_code": "ONE_ARM_WALL_LATS",
+      "name_en": "one arm against wall",
+      "name_ko": "벽 짚고 한 팔 광배근 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000046",
+      "source_identity": "1355",
+      "source_keys": [
+        "gymvisual:1355",
+        "v1:NEX-000113"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "one_arm_wall_lats_isolation_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-6B6A6F150F4812B5",
+      "family_code": "ONE_ARM_WALL_LATS",
+      "name_en": "",
+      "name_ko": "한 팔 광배근 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-6B6A6F150F4812B5",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-6B6A6F150F4812B5"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "one_arm_wall_lats_isolation_bodyweight__hip_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-010E538801DE3645",
+      "family_code": "ONE_ARM_WALL_LATS",
+      "name_en": "",
+      "name_ko": "한 팔 광배근 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-010E538801DE3645",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-010E538801DE3645"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "one_arm_wall_lats_isolation_bodyweight__knee_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000125",
+      "family_code": "BODYWEIGHT_STANDING_CALF_RAISE",
+      "name_en": "one leg donkey calf raise",
+      "name_ko": "한발 동키 카프 레이즈",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "1386",
+      "source_keys": [
+        "v1:NEX-000121"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "one_leg_donkey_calf_raise_isolation_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "PRIMARY_VARIANT",
+      "decision_source": "AUTO_RULE",
+      "exercise_id": "VEX-000028",
+      "family_code": "BODYWEIGHT_STANDING_CALF_RAISE",
+      "name_en": "one leg floor calf raise",
+      "name_ko": "한발 카프 레이즈",
+      "record_type": "VARIANT",
+      "representative_exercise_id": "",
+      "source_identity": "1387",
+      "source_keys": [
+        "gymvisual:1387"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "one_leg_floor_calf_raise_isolation_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000047",
+      "family_code": "OVERHEAD_TRICEPS_EXTENSION",
+      "name_en": "barbell standing overhead triceps extension",
+      "name_ko": "바벨 오버헤드 트라이셉스 익스텐션",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000047",
+      "source_identity": "0109",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "overhead_triceps_extension_isolation_barbell",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000048",
+      "family_code": "OVERHEAD_TRICEPS_STRETCH",
+      "name_en": "overhead triceps stretch",
+      "name_ko": "오버헤드 삼두근 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000048",
+      "source_identity": "0643",
+      "source_keys": [
+        "gymvisual:0643",
+        "v1:NEX-000073"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "overhead_triceps_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-797356CB391528BF",
+      "family_code": "OVERHEAD_TRICEPS_STRETCH",
+      "name_en": "",
+      "name_ko": "오버헤드 삼두근 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-797356CB391528BF",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-797356CB391528BF"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "overhead_triceps_stretch_mobility_stretch_bodyweight__ankle_foot_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-AB7187925CA96B5D",
+      "family_code": "OVERHEAD_TRICEPS_STRETCH",
+      "name_en": "",
+      "name_ko": "오버헤드 삼두근 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-AB7187925CA96B5D",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-AB7187925CA96B5D"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "overhead_triceps_stretch_mobility_stretch_bodyweight__hip_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000049",
+      "family_code": "PECTORALS_HORIZONTAL_PUSH",
+      "name_en": "Seated Bench Press",
+      "name_ko": "체스트 프레스 머신",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000049",
+      "source_identity": "1094",
+      "source_keys": [],
+      "source_track": "wger",
+      "stable_code": "pectorals_horizontal_push_horizontal_push_machine",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000050",
+      "family_code": "PERONEAL_STRETCH",
+      "name_en": "peroneals stretch",
+      "name_ko": "종아리 바깥쪽 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000050",
+      "source_identity": "1388",
+      "source_keys": [
+        "gymvisual:1388",
+        "v1:NEX-000123"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "peroneal_stretch_mobility_stretch_stretch_strap",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-C5F648AFAEA2196E",
+      "family_code": "PERONEAL_STRETCH",
+      "name_en": "",
+      "name_ko": "종아리 바깥쪽 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-C5F648AFAEA2196E",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-C5F648AFAEA2196E"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "peroneal_stretch_mobility_stretch_stretch_strap__lower_back_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-015C32CEB067E809",
+      "family_code": "PERONEAL_STRETCH",
+      "name_en": "",
+      "name_ko": "종아리 바깥쪽 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-015C32CEB067E809",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-015C32CEB067E809"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "peroneal_stretch_mobility_stretch_stretch_strap__upper_back_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000052",
+      "family_code": "PUSH_UP",
+      "name_en": "push-up",
+      "name_ko": "푸시업",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000052",
+      "source_identity": "0662",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "push_up_horizontal_push_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000002",
+      "family_code": "ALL_FOURS_SQUAT_STRETCH",
+      "name_en": "quadruped quadriceps stretch",
+      "name_ko": "네발기기 대퇴사두근 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000002",
+      "source_identity": "1512",
+      "source_keys": [
+        "gymvisual:1512"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "quadruped_quadriceps_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000053",
+      "family_code": "REAR_DELTOID_STRETCH",
+      "name_en": "rear deltoid stretch",
+      "name_ko": "후면 어깨 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000053",
+      "source_identity": "0669",
+      "source_keys": [
+        "gymvisual:0669",
+        "v1:NEX-000075"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "rear_deltoid_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-99EA1AE55B52D628",
+      "family_code": "REAR_DELTOID_STRETCH",
+      "name_en": "",
+      "name_ko": "후면 어깨 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-99EA1AE55B52D628",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-99EA1AE55B52D628"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "rear_deltoid_stretch_mobility_stretch_bodyweight__ankle_foot_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-26CD8FC4C2FF3AD5",
+      "family_code": "REAR_DELTOID_STRETCH",
+      "name_en": "",
+      "name_ko": "후면 어깨 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-26CD8FC4C2FF3AD5",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-26CD8FC4C2FF3AD5"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "rear_deltoid_stretch_mobility_stretch_bodyweight__hip_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-0FA62ADA4EEA3182",
+      "family_code": "REAR_DELTOID_STRETCH",
+      "name_en": "",
+      "name_ko": "후면 어깨 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-0FA62ADA4EEA3182",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-0FA62ADA4EEA3182"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "rear_deltoid_stretch_mobility_stretch_bodyweight__knee_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000054",
+      "family_code": "REVERSE_CALF_RAISE",
+      "name_en": "band single leg reverse calf raise",
+      "name_ko": "리버스 카프 레이즈",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000054",
+      "source_identity": "1000",
+      "source_keys": [
+        "gymvisual:1000",
+        "v1:NEX-000103"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "reverse_calf_raise_isolation_resistance_band",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000055",
+      "family_code": "REVERSE_WRIST_CURL",
+      "name_en": "barbell reverse wrist curl",
+      "name_ko": "바벨 리버스 리스트 컬",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000055",
+      "source_identity": "0082",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "reverse_wrist_curl_isolation_barbell",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000073",
+      "family_code": "ROLLER_BACK_STRETCH",
+      "name_en": "roller back stretch",
+      "name_ko": "롤러 등 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000073",
+      "source_identity": "2208",
+      "source_keys": [
+        "gymvisual:2208",
+        "v1:NEX-000147"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "roller_back_stretch_mobility_stretch_foam_roller",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000074",
+      "family_code": "ROLLER_HIP_STRETCH",
+      "name_en": "roller hip stretch",
+      "name_ko": "롤러 둔근 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000074",
+      "source_identity": "2202",
+      "source_keys": [
+        "gymvisual:2202",
+        "v1:NEX-000145"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "roller_hip_stretch_mobility_stretch_foam_roller",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000076",
+      "family_code": "ROW_VARIANT",
+      "name_en": "Seated Cable Row",
+      "name_ko": "로우 머신",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000076",
+      "source_identity": "1117",
+      "source_keys": [],
+      "source_track": "wger",
+      "stable_code": "row_variant_horizontal_pull_cable_machine",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000077",
+      "family_code": "RUNNERS_STRETCH",
+      "name_en": "runners stretch",
+      "name_ko": "러너스 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000077",
+      "source_identity": "1585",
+      "source_keys": [
+        "gymvisual:1585",
+        "v1:NEX-000136"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "runners_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-1760C8AA64CEB384",
+      "family_code": "RUNNERS_STRETCH",
+      "name_en": "",
+      "name_ko": "러너스 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-1760C8AA64CEB384",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-1760C8AA64CEB384"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "runners_stretch_mobility_stretch_bodyweight__abdomen_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-B7D200EC585E724E",
+      "family_code": "RUNNERS_STRETCH",
+      "name_en": "",
+      "name_ko": "러너스 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-B7D200EC585E724E",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-B7D200EC585E724E"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "runners_stretch_mobility_stretch_bodyweight__lower_back_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-63AD4E2D01416860",
+      "family_code": "RUNNERS_STRETCH",
+      "name_en": "",
+      "name_ko": "러너스 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-63AD4E2D01416860",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-63AD4E2D01416860"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "runners_stretch_mobility_stretch_bodyweight__neck_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-4CEDEDE6230588EC",
+      "family_code": "RUNNERS_STRETCH",
+      "name_en": "",
+      "name_ko": "러너스 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-4CEDEDE6230588EC",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-4CEDEDE6230588EC"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "runners_stretch_mobility_stretch_bodyweight__upper_back_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000079",
+      "family_code": "SEATED_CABLE_ROW",
+      "name_en": "cable seated row",
+      "name_ko": "시티드 케이블 로우 머신",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000079",
+      "source_identity": "0861",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "seated_cable_row_horizontal_pull_cable_machine",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000080",
+      "family_code": "SEATED_CALF_RAISE",
+      "name_en": "barbell seated calf raise",
+      "name_ko": "바벨 시티드 카프 레이즈",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000080",
+      "source_identity": "0088",
+      "source_keys": [
+        "gymvisual:0088",
+        "v1:NEX-000007",
+        "v1:NEX-000070",
+        "v1:NEX-000120"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "seated_calf_raise_isolation_barbell",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-439BA655BC3B7BC0",
+      "family_code": "SEATED_CALF_RAISE",
+      "name_en": "",
+      "name_ko": "바벨 카프 레이즈",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-439BA655BC3B7BC0",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-439BA655BC3B7BC0"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "seated_calf_raise_isolation_barbell__shoulder_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000081",
+      "family_code": "SEATED_CALF_STRETCH",
+      "name_en": "seated calf stretch (male)",
+      "name_ko": "앉아서 종아리 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000081",
+      "source_identity": "1390",
+      "source_keys": [
+        "gymvisual:1390",
+        "v1:NEX-000124"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "seated_calf_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-6764158E5944E97A",
+      "family_code": "SEATED_CALF_STRETCH",
+      "name_en": "",
+      "name_ko": "종아리 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-6764158E5944E97A",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-6764158E5944E97A"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "seated_calf_stretch_mobility_stretch_bodyweight__lower_back_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-C71E6316733CB362",
+      "family_code": "SEATED_CALF_STRETCH",
+      "name_en": "",
+      "name_ko": "종아리 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-C71E6316733CB362",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-C71E6316733CB362"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "seated_calf_stretch_mobility_stretch_bodyweight__upper_back_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-9A46CA5E3E420CBB",
+      "family_code": "SEATED_CALF_STRETCH",
+      "name_en": "",
+      "name_ko": "종아리 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-9A46CA5E3E420CBB",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-9A46CA5E3E420CBB"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "seated_calf_stretch_mobility_stretch_bodyweight__wrist_hand_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000082",
+      "family_code": "SEATED_GLUTE_STRETCH",
+      "name_en": "seated glute stretch",
+      "name_ko": "앉아서 둔근 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000082",
+      "source_identity": "1424",
+      "source_keys": [
+        "gymvisual:1424",
+        "v1:NEX-000126"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "seated_glute_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-9E51F99EBE51B94E",
+      "family_code": "SEATED_GLUTE_STRETCH",
+      "name_en": "",
+      "name_ko": "둔근 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-9E51F99EBE51B94E",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-9E51F99EBE51B94E"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "seated_glute_stretch_mobility_stretch_bodyweight__abdomen_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-7D30F2A8308533FE",
+      "family_code": "SEATED_GLUTE_STRETCH",
+      "name_en": "",
+      "name_ko": "둔근 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-7D30F2A8308533FE",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-7D30F2A8308533FE"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "seated_glute_stretch_mobility_stretch_bodyweight__lower_back_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-8986420CC1824B81",
+      "family_code": "SEATED_GLUTE_STRETCH",
+      "name_en": "",
+      "name_ko": "둔근 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-8986420CC1824B81",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-8986420CC1824B81"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "seated_glute_stretch_mobility_stretch_bodyweight__neck_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-6F87AC6ADC514415",
+      "family_code": "SEATED_GLUTE_STRETCH",
+      "name_en": "",
+      "name_ko": "둔근 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-6F87AC6ADC514415",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-6F87AC6ADC514415"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "seated_glute_stretch_mobility_stretch_bodyweight__upper_back_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000083",
+      "family_code": "SEATED_LEG_CURL",
+      "name_en": "lever seated leg curl",
+      "name_ko": "레그 컬 머신",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000083",
+      "source_identity": "0599",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "seated_leg_curl_knee_flexion_machine",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000084",
+      "family_code": "SEATED_LOWER_BACK_STRETCH",
+      "name_en": "seated lower back stretch",
+      "name_ko": "앉아서 허리 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000084",
+      "source_identity": "0690",
+      "source_keys": [
+        "gymvisual:0690",
+        "v1:NEX-000079"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "seated_lower_back_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000085",
+      "family_code": "SEATED_PIRIFORMIS_STRETCH",
+      "name_en": "seated piriformis stretch",
+      "name_ko": "앉아서 이상근 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000085",
+      "source_identity": "2567",
+      "source_keys": [
+        "gymvisual:2567",
+        "v1:NEX-000157"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "seated_piriformis_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-67F0C6ACF2D0B6BA",
+      "family_code": "SEATED_PIRIFORMIS_STRETCH",
+      "name_en": "",
+      "name_ko": "이상근 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-67F0C6ACF2D0B6BA",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-67F0C6ACF2D0B6BA"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "seated_piriformis_stretch_mobility_stretch_bodyweight__neck_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-29EA6DC0FE39837B",
+      "family_code": "SEATED_PIRIFORMIS_STRETCH",
+      "name_en": "",
+      "name_ko": "이상근 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-29EA6DC0FE39837B",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-29EA6DC0FE39837B"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "seated_piriformis_stretch_mobility_stretch_bodyweight__wrist_hand_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000087",
+      "family_code": "SEATED_WIDE_ANGLE_STRETCH",
+      "name_en": "seated wide angle pose sequence",
+      "name_ko": "시티드 와이드 앵글 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000087",
+      "source_identity": "1587",
+      "source_keys": [
+        "gymvisual:1587",
+        "v1:NEX-000137"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "seated_wide_angle_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000088",
+      "family_code": "SIDE_LYING_QUADRICEPS_STRETCH",
+      "name_en": "lying (side) quads stretch",
+      "name_ko": "옆으로 누워 대퇴사두근 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000088",
+      "source_identity": "0613",
+      "source_keys": [
+        "gymvisual:0613",
+        "v1:NEX-000072"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "side_lying_quadriceps_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-8C83EA75C5EB2A81",
+      "family_code": "SIDE_LYING_QUADRICEPS_STRETCH",
+      "name_en": "",
+      "name_ko": "대퇴사두근 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-8C83EA75C5EB2A81",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-8C83EA75C5EB2A81"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "side_lying_quadriceps_stretch_mobility_stretch_bodyweight__abdomen_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-F301899E2C8978E9",
+      "family_code": "SIDE_LYING_QUADRICEPS_STRETCH",
+      "name_en": "",
+      "name_ko": "대퇴사두근 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-F301899E2C8978E9",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-F301899E2C8978E9"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "side_lying_quadriceps_stretch_mobility_stretch_bodyweight__lower_back_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-EA075728B904B48B",
+      "family_code": "SIDE_LYING_QUADRICEPS_STRETCH",
+      "name_en": "",
+      "name_ko": "대퇴사두근 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-EA075728B904B48B",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-EA075728B904B48B"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "side_lying_quadriceps_stretch_mobility_stretch_bodyweight__neck_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-45620004263946C3",
+      "family_code": "SIDE_LYING_QUADRICEPS_STRETCH",
+      "name_en": "",
+      "name_ko": "대퇴사두근 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-45620004263946C3",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-45620004263946C3"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "side_lying_quadriceps_stretch_mobility_stretch_bodyweight__upper_back_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "PRIMARY_VARIANT",
+      "decision_source": "AUTO_RULE",
+      "exercise_id": "VEX-000045",
+      "family_code": "NECK_LATERAL_STRETCH",
+      "name_en": "side push neck stretch",
+      "name_ko": "사이드 푸시 목 스트레칭",
+      "record_type": "VARIANT",
+      "representative_exercise_id": "",
+      "source_identity": "0716",
+      "source_keys": [
+        "gymvisual:0716"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "side_push_neck_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000089",
+      "family_code": "SIDE_WRIST_PULL_STRETCH",
+      "name_en": "side wrist pull stretch",
+      "name_ko": "손목 당기기 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000089",
+      "source_identity": "0721",
+      "source_keys": [
+        "gymvisual:0721",
+        "v1:NEX-000084"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "side_wrist_pull_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-49E0D30E19CCD2DA",
+      "family_code": "SIDE_WRIST_PULL_STRETCH",
+      "name_en": "",
+      "name_ko": "손목 당기기 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-49E0D30E19CCD2DA",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-49E0D30E19CCD2DA"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "side_wrist_pull_stretch_mobility_stretch_bodyweight__hip_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-E6D026C8937BBCE6",
+      "family_code": "SIDE_WRIST_PULL_STRETCH",
+      "name_en": "",
+      "name_ko": "손목 당기기 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-E6D026C8937BBCE6",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-E6D026C8937BBCE6"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "side_wrist_pull_stretch_mobility_stretch_bodyweight__knee_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000119",
+      "family_code": "REVERSE_CALF_RAISE",
+      "name_en": "smith reverse calf raises",
+      "name_ko": "스미스 리버스 카프 레이즈 머신",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "0763",
+      "source_keys": [
+        "v1:NEX-000085"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "smith_reverse_calf_raises_isolation_machine",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000091",
+      "family_code": "SPINE_STRETCH",
+      "name_en": "spine stretch",
+      "name_ko": "척추 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000091",
+      "source_identity": "1363",
+      "source_keys": [
+        "gymvisual:1363",
+        "v1:NEX-000114"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "spine_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000094",
+      "family_code": "STANDING_HAMSTRING_CALF_STRAP_STRETCH",
+      "name_en": "standing hamstring and calf stretch with strap",
+      "name_ko": "스트랩 햄스트링·종아리 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000094",
+      "source_identity": "1599",
+      "source_keys": [
+        "gymvisual:1599",
+        "v1:NEX-000138"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "standing_hamstring_calf_strap_stretch_mobility_stretch_stretch_strap",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000095",
+      "family_code": "STANDING_LATERAL_STRETCH",
+      "name_en": "standing lateral stretch",
+      "name_ko": "서서 옆구리 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000095",
+      "source_identity": "0794",
+      "source_keys": [
+        "gymvisual:0794",
+        "v1:NEX-000086"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "standing_lateral_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000096",
+      "family_code": "TRICEPS_STRETCH",
+      "name_en": "triceps stretch",
+      "name_ko": "삼두근 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000096",
+      "source_identity": "0817",
+      "source_keys": [
+        "gymvisual:0817",
+        "v1:NEX-000089"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "triceps_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-57A865079E6288C0",
+      "family_code": "TRICEPS_STRETCH",
+      "name_en": "",
+      "name_ko": "삼두근 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-57A865079E6288C0",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-57A865079E6288C0"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "triceps_stretch_mobility_stretch_bodyweight__ankle_foot_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-F21D725050DC276C",
+      "family_code": "TRICEPS_STRETCH",
+      "name_en": "",
+      "name_ko": "삼두근 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-F21D725050DC276C",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-F21D725050DC276C"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "triceps_stretch_mobility_stretch_bodyweight__hip_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-34B834AC8D12D2B5",
+      "family_code": "TRICEPS_STRETCH",
+      "name_en": "",
+      "name_ko": "삼두근 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-34B834AC8D12D2B5",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-34B834AC8D12D2B5"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "triceps_stretch_mobility_stretch_bodyweight__knee_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000097",
+      "family_code": "UPPER_BACK_ISOLATION",
+      "name_en": "의자에 앉아 밴드 양옆으로 늘이기",
+      "name_ko": "시티드 밴드 풀어파트",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000097",
+      "source_identity": "ab41f78cd9e548e1217b4460122ca0a1e9824cd570da589f1b37ffe86d6db937",
+      "source_keys": [],
+      "source_track": "kspo",
+      "stable_code": "upper_back_isolation_isolation_resistance_band",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000098",
+      "family_code": "UPPER_BACK_STRETCH",
+      "name_en": "upper back stretch",
+      "name_ko": "상부 등 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000098",
+      "source_identity": "1365",
+      "source_keys": [
+        "gymvisual:1365",
+        "v1:NEX-000115"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "upper_back_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-35717F1E89B0E385",
+      "family_code": "UPPER_BACK_STRETCH",
+      "name_en": "",
+      "name_ko": "상부 등 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-35717F1E89B0E385",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-35717F1E89B0E385"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "upper_back_stretch_mobility_stretch_bodyweight__hip_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-410ADD7957C17443",
+      "family_code": "UPPER_BACK_STRETCH",
+      "name_en": "",
+      "name_ko": "상부 등 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-410ADD7957C17443",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-410ADD7957C17443"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "upper_back_stretch_mobility_stretch_bodyweight__knee_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-326B588001E29897",
+      "family_code": "UPPER_BACK_STRETCH",
+      "name_en": "",
+      "name_ko": "상부 등 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-326B588001E29897",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-326B588001E29897"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "upper_back_stretch_mobility_stretch_bodyweight__lower_back_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000099",
+      "family_code": "WALL_CALF_STRETCH",
+      "name_en": "calf stretch with hands against wall",
+      "name_ko": "벽 짚고 종아리 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000099",
+      "source_identity": "1377",
+      "source_keys": [
+        "gymvisual:1377",
+        "v1:NEX-000119"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "wall_calf_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-6E70CC6524F991D2",
+      "family_code": "WALL_CALF_STRETCH",
+      "name_en": "",
+      "name_ko": "종아리 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-6E70CC6524F991D2",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-6E70CC6524F991D2"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "wall_calf_stretch_mobility_stretch_bodyweight__abdomen_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-ED6FA4BC14919A64",
+      "family_code": "WALL_CALF_STRETCH",
+      "name_en": "",
+      "name_ko": "종아리 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-ED6FA4BC14919A64",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-ED6FA4BC14919A64"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "wall_calf_stretch_mobility_stretch_bodyweight__lower_back_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-DB658A7F33902A25",
+      "family_code": "WALL_CALF_STRETCH",
+      "name_en": "",
+      "name_ko": "종아리 스트레칭",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-DB658A7F33902A25",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-DB658A7F33902A25"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "wall_calf_stretch_mobility_stretch_bodyweight__upper_back_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000100",
+      "family_code": "WORLD_GREATEST_STRETCH",
+      "name_en": "world greatest stretch",
+      "name_ko": "월드 그레이티스트 스트레칭",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000100",
+      "source_identity": "1604",
+      "source_keys": [
+        "gymvisual:1604",
+        "v1:NEX-000139"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "world_greatest_stretch_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RETAINED_CANONICAL",
+      "decision_source": "EXISTING_CANONICAL",
+      "exercise_id": "REX-000101",
+      "family_code": "WRIST_CIRCLES",
+      "name_en": "wrist circles",
+      "name_ko": "손목 돌리기",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000101",
+      "source_identity": "1428",
+      "source_keys": [
+        "gymvisual:1428",
+        "v1:NEX-000127"
+      ],
+      "source_track": "gymvisual",
+      "stable_code": "wrist_circles_mobility_stretch_bodyweight",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-9D87E310514D2812",
+      "family_code": "WRIST_CIRCLES",
+      "name_en": "",
+      "name_ko": "손목 돌리기",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-9D87E310514D2812",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-9D87E310514D2812"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "wrist_circles_mobility_stretch_bodyweight__hip_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "SEPARATE_EXERCISE_PAIN_SAFE_VARIANT",
+      "decision_source": "CONCERN_RESOLUTION_POLICY_REVIEW",
+      "exercise_id": "DVAR-AC2A0EE066A11173",
+      "family_code": "WRIST_CIRCLES",
+      "name_en": "",
+      "name_ko": "손목 돌리기",
+      "record_type": "SEPARATE_EXERCISE",
+      "representative_exercise_id": "",
+      "source_identity": "DVAR-AC2A0EE066A11173",
+      "source_keys": [
+        "pain_alternative_policy:DVAR-AC2A0EE066A11173"
+      ],
+      "source_track": "pain_alternative_policy",
+      "stable_code": "wrist_circles_mobility_stretch_bodyweight__knee_no_load_safe_v1",
+      "status": "ACTIVE_CATALOG_RECORD"
+    },
+    {
+      "decision_code": "RESTORED_LEGACY_ALTERNATIVE_TARGET",
+      "decision_source": "USER_DIRECT_REVIEW",
+      "exercise_id": "REX-000102",
+      "family_code": "WRIST_CURL",
+      "name_en": "barbell wrist curl",
+      "name_ko": "바벨 리스트 컬",
+      "record_type": "REPRESENTATIVE",
+      "representative_exercise_id": "REX-000102",
+      "source_identity": "0126",
+      "source_keys": [],
+      "source_track": "gymvisual",
+      "stable_code": "wrist_curl_isolation_barbell",
+      "status": "ACTIVE_CATALOG_RECORD"
+    }
+  ],
+  "registry_version": "v2.0.2-final-mechanical-reference-repair-v1.0.0",
+  "retired_stable_code_count": 57,
+  "schema_version": "1.1",
+  "stable_code_count": 170
+}

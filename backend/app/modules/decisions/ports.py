@@ -40,6 +40,10 @@ class AlternativeItemData:
     item: CandidateItemData
     safety_item: SafetyCandidateItem
     evidence_reference_code: str = ""
+    pain_discomfort_area_code: str | None = None
+    condition_code: str | None = None
+    service_action_code: str | None = None
+    target_strategy_code: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -412,10 +412,35 @@ python3 data/scripts/generate_representative_content_safety.py \
 canonical GIF key만 기록한다. 권리 승인이 없으면 최종 산출물의 `rights_review_status`는
 `PENDING`이고 `production_eligible=false`다.
 
+v2.0.2 통합 미디어 매핑은 `media_assets_v2_0_2.csv`의
+`source_origin_code`(KSPO/WGER/GYMVISUAL 등), 원천 추적용 `source_track`,
+원천 식별자 `source_identity`, 검증 결과 `source_identity_validation`을 사용한다.
+통증 Alternative record는 `source_origin_code=PAIN_ALTERNATIVE_POLICY`를 보존하되,
+`source_identity`는 이름 일치 또는 `alternative_source_base_exercise_id`로 확인한
+실제 미디어 원천 운동의 ID를 사용한다. 원래 정책 record ID는
+`record_source_identity`에 남기고, 미디어 원천은 `media_source_origin_code`와
+`media_source_match_method`로 구분한다. Gymvisual의 `source_identity`는 앞자리 0을
+보존한 숫자 문자열이어야 한다.
+
 각 안전 규칙의 `pain_score_decisions`는 `pain-intensity-map-v1`에 따라 1–3점에서 규칙별
 부하 조절 또는 안전 대체를 요구하고, 4–6점에서 검수된 안전 대체나 저강도 회복 콘텐츠만
 허용한다. 저강도 회복에는 해당 부위에 대해 별도 승인된 스트레칭만 포함할 수 있다. 7–10점은
 운동 선택보다 먼저 적용되는 세션 `REST`이며, 어떤 구간이든 안전한 계획이 없으면 `REST`한다.
+
+v2.0.2 통증 Alternative는 다음 순서로 생성한다. `NRS_1_3`·`NRS_4_6`만 관계로 만들고,
+`NRS_7_10`은 Alternative map에 넣지 않는다. 난이도 정책 변경으로 추가된 29건은 별도
+재검수 batch에 남기며 승인 집합에서 제외한다.
+
+```bash
+python3 data/scripts/build_v2_0_2_discomfort_alternative_map.py
+python3 data/scripts/review_v2_0_2_discomfort_alternative_map.py
+python3 data/scripts/resolve_v2_0_2_discomfort_alternative_concerns.py \
+  --difficulty-review data/generated/exercise-catalog-v2.0.2-final/integrity/alternative_difficulty_policy_review_batch_v2_0_2.jsonl
+```
+
+현재 resolver 결과는 승인 대상 관계 1,104건, 제거 384건, 난이도 재검수 pending 29건이다.
+`resolved_discomfort_alternative_map_v2_0_2.jsonl`만 importer 변환 대상이며, pending map과
+`REVIEW_REQUIRED` safe variant는 적재·런타임 사용 대상에서 제외한다.
 
 ## 공식 신체활동 근거와 참조 데이터
 
@@ -477,6 +502,44 @@ alternative generated 데이터를 만들지 않는다.
 
 ## V2 처방·goal tag와 backend bundle
 
+### v2.0.2 독립 Variant/별도운동 바인딩
+
+Alternative target 운동의 카탈로그 편입 정책은 Alternative 관계와 운동 풀을 분리한다.
+현재 통증 비부하 변형은 `alternative_only=true`를 보존해 Alternative provenance를 남기지만
+`general_pool_included=true`로 일반 운동 풀에도 포함한다. v2.0.1 Alternative target 목록 중
+v2.0.2에서 누락된 대표운동은 아래 두 원천 파일의 stable code를 대조해 canonical 원천에서
+`REPRESENTATIVE`로 복원한다. 복원 대상은 운동 레코드뿐이며, 이전에 탈락한 Alternative 관계를
+자동 복구하지 않는다.
+
+- 대상 목록: `generated/exercise-catalog-v2.0.1-final/exercise_alternatives_v2_final.csv`
+- 대표운동 원천: `generated/exercise-catalog-v2.0.1-final/representative_exercises_v2_final.csv`
+- 복원 canonical 원천: `generated/exercise-catalog-v2.0.2-final/canonical_exercises_v2_final.jsonl`
+- 반영 생성기: `scripts/prune_v2_0_2_user_catalog.py`
+
+Variant와 통증 Alternative 전용 `SEPARATE_EXERCISE`는 대표운동 값을 상속하지 않고,
+최신 원천 파일(`normalized/catalog_enrichment_v3_fitt.csv`,
+`exercise_safety_mapping_v2.csv`, draft `goal_tag_links.jsonl`)의 운동명·NEX 매핑으로
+독립 FITT·Safety·Goal 행을 생성한다. 생성 후에는 반드시 통합 검증과 DB 적재 준비 검사를
+순서대로 실행한다.
+
+```bash
+python3 data/scripts/materialize_v2_0_2_independent_bindings.py
+python3 data/scripts/validate_v2_0_2_integrated_catalog.py
+python3 data/scripts/verify_v2_0_2_db_load_readiness.py
+```
+
+결과는 `variant_safety_fitt_mapping_v2_0_2.jsonl`,
+`prescriptions/prescription_profiles.jsonl`, `runtime/safety_rules.jsonl`,
+`prescriptions/goal_tag_links.jsonl` 및 `integrity/independent_bindings_materialization_report_v2_0_2.json`에
+기록된다. 소스 템플릿 ID가 최신 템플릿 레지스트리에 없는 경우에는 운동군 템플릿 fallback과
+그 사유를 행의 `template_resolution_code`에 남긴다.
+
+생성 단계는 계속 `production_eligible=false`를 유지한다. 최종 검수가 일괄 완료된 경우에는
+행별 사유를 반복 기록하지 않고 final `manifest.json`의 `batch_approval`에 승인 참조·시각·범위와
+승인 근거를 기록한 뒤, 통합 validator와 DB-load readiness를 다시 실행한다. validator는 해당
+일괄 승인 범위가 final 170건, Variant 15건, 난이도 변경 29건, Alternative 1,104건,
+Media/Rights 102건과 일치할 때만 승인 상태를 유지한다.
+
 V2 102개 대표운동은 legacy 처방 결과와 분리된 review input을 사용한다.
 
 ```bash
@@ -505,7 +568,16 @@ V2_UV_CACHE=/private/tmp/skn30-uv-cache UV_CACHE_DIR=$V2_UV_CACHE \
 bundle은 `catalog/seed_manifest.json`, `safety/rules_manifest.json`,
 `alternatives/alternatives_manifest.json`, `prescriptions/prescription_manifest.json`을
 제공한다. `bundle_manifest.json`은 내부 input과 산출물의 path/hash/byte/count를 관리한다.
+v2.0.2 final 적재에서는 별도 bundle glob을 사용하지 않고 final `manifest.json`의
+`import_contract.canonical_payloads`에 지정된 6개 payload만 읽는다. 그 밖의 생성·검수
+산출물은 `generated/exercise-catalog-v2.0.2-final/audit/` 아래에 보관한다.
 backend V2 code set은 `v2_backend_code_projection.json`으로 직접 전달하며 runtime 원본을
-변환하지 않는다. alternatives는 `(source, alternative, reason, goal, rule_version)` 키로
-285건을 손실 없이 보존한다. `catalog_data_load`, `catalog_activate`, ACTIVE 전환은 이
+변환하지 않는다. 기존 v2.0.1 bundle의 alternatives 키는
+`(source, alternative, reason, goal, rule_version)`이며, v2.0.2 통증 관계를 적재할 때는
+여기에 `(pain_discomfort_area_code, condition_code)`를 보존하고
+`service_action_code`, `target_strategy_code`도 함께 전달해야 한다. 이 필드들은 DB
+마이그레이션 `0028_discomfort_alternative_conditions`의 nullable 컬럼에 적재된다.
+통증 map CSV/JSONL을 그대로 importer에 넣을 수는 없으며, source/target stable code,
+goal 보존, difficulty delta, 승인 상태를 importer schema로 변환하는 별도 materialization과
+hash/count 검증이 필요하다. `catalog_data_load`, `catalog_activate`, ACTIVE 전환은 이
 작업에서 실행하지 않는다.

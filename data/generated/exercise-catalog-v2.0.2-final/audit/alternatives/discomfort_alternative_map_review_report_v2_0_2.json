@@ -1,0 +1,88 @@
+{
+  "counts": {
+    "ambiguous_sent_to_human_review_count": 0,
+    "candidate_map_count": 2455,
+    "decision_counts": {
+      "KEEP": 1517,
+      "REMOVE": 938
+    },
+    "removal_reason_counts": {
+      "CATALOG_REFERENCE_NOT_ELIGIBLE": 554,
+      "MOVEMENT_LOAD_IMPACT_RISK": 384
+    },
+    "removed_count": 938,
+    "removed_stage_counts": {
+      "CATALOG_REFERENCE_ELIGIBILITY": 554,
+      "MOVEMENT_LOAD_IMPACT_RISK": 384
+    },
+    "review_stage_counts": {
+      "CATALOG_REFERENCE_ELIGIBILITY": 554,
+      "MOVEMENT_LOAD_IMPACT_RISK": 384,
+      "REMAINING_CANDIDATE_KEEP": 1517
+    },
+    "reviewed_condition_counts": {
+      "NRS_1_3": 728,
+      "NRS_4_6": 789
+    },
+    "reviewed_keep_count": 1517
+  },
+  "integrity_metrics": {
+    "context_or_equipment_error_count": 0,
+    "directionality_error_count": 0,
+    "duplicate_natural_key_count": 0,
+    "excluded_exercise_reference_count": 0,
+    "filter_check_error_count": 0,
+    "missing_exercise_reference_count": 0,
+    "self_reference_count": 0,
+    "source_exercise_id_mismatch_count": 0,
+    "source_pain_area_missing_count": 0,
+    "target_exercise_id_mismatch_count": 0,
+    "target_pain_area_overlap_count": 0,
+    "unapproved_exercise_reference_count": 0,
+    "unsupported_condition_count": 0
+  },
+  "invariants": {
+    "all_candidate_rows_accounted_for": true,
+    "all_kept_conditions_supported": true,
+    "all_kept_contexts_are_valid": true,
+    "all_kept_filter_checks_pass": true,
+    "all_kept_rows_have_review_status": true,
+    "all_removed_rows_have_reason": true,
+    "no_directionality_error": true,
+    "no_duplicate_natural_key": true,
+    "no_excluded_exercise_reference": true,
+    "no_missing_exercise_reference": true,
+    "no_review_required_ambiguity_queue": true,
+    "no_self_reference": true,
+    "no_target_pain_area_overlap": true,
+    "no_unapproved_exercise_reference": true,
+    "source_contains_pain_area": true,
+    "stable_code_id_traceability": true
+  },
+  "natural_key": [
+    "source_exercise_stable_code",
+    "target_exercise_stable_code",
+    "pain_discomfort_area_code",
+    "condition_code"
+  ],
+  "policy_version": "discomfort-alternative-map-review-v2.0.2-v1.0.0",
+  "production_eligible": false,
+  "review_mode": "DETERMINISTIC_REMOVE_AMBIGUOUS",
+  "reviewed_at": "2026-08-28T00:00:00+09:00",
+  "schema_version": "discomfort-alternative-map-review-report-v2.0.2-v1",
+  "source": {
+    "candidate_map": {
+      "path": "data/generated/exercise-catalog-v2.0.2-final/alternatives/discomfort_alternative_map_v2_0_2.jsonl",
+      "sha256": "6f76f5355ce21ba45e3ae00b653e064142db4cb2bdbde7d30931e23f361b6a7c"
+    },
+    "catalog": {
+      "path": "data/generated/exercise-catalog-v2.0.2-final/catalog/exercises.jsonl",
+      "sha256": "825d10273b811355deb69e2a519803f1b305b8b598793769133cbdc7e5f52032"
+    },
+    "policy": {
+      "path": "data/normalized/discomfort_alternative_map_review_policy_v2_0_2.json",
+      "sha256": "4d22281502006575c6cccffdfab651e9fb4b86997177198713d8d1631132b00a"
+    }
+  },
+  "status": "DRAFT_REVIEW_REQUIRED"
+}

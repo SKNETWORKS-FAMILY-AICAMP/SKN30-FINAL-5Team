@@ -1,0 +1,28 @@
+{
+  "schema_version": "neck-discomfort-alternative-policy-v2.0.2-v1",
+  "policy_version": "neck-discomfort-alternative-policy-v2.0.2-v1.0.0",
+  "status": "DRAFT_REVIEW_REQUIRED",
+  "production_eligible": false,
+  "scope": "NECK",
+  "principle": "목 불편 시 목·어깨 부담을 다시 포함하는 운동을 대체 target으로 사용하지 않는다.",
+  "target_guards": [
+    "TARGET_PRIMARY_AND_SECONDARY_AREAS_EXCLUDE_NECK",
+    "TARGET_PRIMARY_AND_SECONDARY_AREAS_EXCLUDE_SHOULDER",
+    "TARGET_IS_DISTAL_LOW_LOAD_BODYWEIGHT_RECOVERY",
+    "TARGET_DIFFICULTY_NOT_HIGHER",
+    "NEUTRAL_HEAD_AND_NECK_REQUIRED",
+    "STOP_IF_NECK_DISCOMFORT_INCREASES"
+  ],
+  "rejected_target_patterns": [
+    "CORE_BRACE",
+    "TARGET_WITH_NECK_OR_SHOULDER_AREA_OVERLAP"
+  ],
+  "condition_policy": {
+    "NRS_1_3": "KEEP_ONLY_IF_ALL_TARGET_GUARDS_PASS",
+    "NRS_4_6": "SKIP_NECK_AREA_AND_USE_REVIEWED_DISTAL_ACTIVE_RECOVERY_ONLY",
+    "NRS_7_10": "STOP_EXERCISE_NO_ALTERNATIVE"
+  },
+  "supplemental_candidates_file": "data/normalized/neck_discomfort_alternative_candidates_v2_0_2.json",
+  "reviewed_at": "2026-08-28T00:00:00+09:00",
+  "reviewer": "DATA_REVIEW_PIPELINE"
+}

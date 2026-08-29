@@ -394,11 +394,40 @@ class ExerciseAlternativeRecord(CatalogInputModel):
     source_catalog_version_code: Annotated[str, Field(min_length=1, max_length=120)]
     source_exercise_stable_code: StableCode
     status_interpretation: ReviewStatusInterpretationCode
+    # Pain alternatives are selected by the reported area and NRS band.  The
+    # fields remain optional for backwards-compatible equipment/location rows.
+    pain_discomfort_area_code: BodyAreaCode | None = None
+    condition_code: Literal["NRS_1_3", "NRS_4_6"] | None = None
+    service_action_code: Literal["LOAD_REDUCED", "SKIP_AFFECTED_AREA"] | None = None
+    target_strategy_code: (
+        Annotated[str, Field(pattern=r"^[A-Z][A-Z0-9_]*$", max_length=120)] | None
+    ) = None
     alternative_set_version_code: Annotated[str, Field(min_length=1, max_length=120)] | None = None
     production_eligible: bool | None = None
     source_manifest_hash: Sha256 | None = None
     source_metadata: dict[str, Any] | None = None
     updated_at: datetime | None = None
+
+    @model_validator(mode="after")
+    def validate_pain_selectors(self) -> "ExerciseAlternativeRecord":
+        typed_selectors = (
+            self.pain_discomfort_area_code,
+            self.condition_code,
+            self.target_strategy_code,
+        )
+        if any(value is not None for value in typed_selectors):
+            selectors = (*typed_selectors, self.service_action_code)
+            if self.reason_code != "DISCOMFORT" or any(value is None for value in selectors):
+                raise ValueError(
+                    "pain selectors require a complete DISCOMFORT alternative relation"
+                )
+            expected_action = {
+                "NRS_1_3": "LOAD_REDUCED",
+                "NRS_4_6": "SKIP_AFFECTED_AREA",
+            }[self.condition_code]
+            if self.service_action_code != expected_action:
+                raise ValueError("service_action_code does not match condition_code")
+        return self
 
     @field_validator("created_at")
     @classmethod

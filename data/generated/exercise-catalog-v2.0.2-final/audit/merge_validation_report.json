@@ -1,0 +1,80 @@
+{
+  "schema_version": "v2.0.2-merge-validation-v1",
+  "catalog_version_code": "exercise-catalog-v2.0.2-final",
+  "generated_at": "2026-08-27T00:00:00+09:00",
+  "decision_basis": {
+    "human_review_source": "human_review_queue.jsonl with appended human_final_* fields",
+    "unreviewed_review_required_forced": false,
+    "direct_review_policy_ko": "사람이 직접 검수한 332건은 명시된 SAME 외 모두 별도 운동으로 유지한다."
+  },
+  "counts_before": {
+    "draft_active_canonical_exercises": 102,
+    "draft_legacy_alias_records": 208,
+    "combined_catalog_after_prior_normalized_dedup": 216,
+    "review_batch_records": 593,
+    "human_review_records": 332
+  },
+  "counts_after": {
+    "active_canonical_exercises": 136,
+    "active_canonical_stable_codes": 136,
+    "retired_stable_codes": 1,
+    "legacy_source_mappings": 310,
+    "variant_candidate_relations": 80
+  },
+  "relationship_decision_counts": {
+    "EXCLUDED": 8,
+    "SAME_EXERCISE": 1,
+    "SEPARATE_EXERCISE": 505,
+    "VARIANT_CANDIDATE": 79
+  },
+  "human_final_decision_counts": {
+    "SAME_EXERCISE": 1,
+    "SEPARATE_EXERCISE": 331
+  },
+  "canonical_changes": {
+    "retained_existing_canonical_count": 101,
+    "same_exercise_merge_count": 1,
+    "separate_alias_promoted_count": 35,
+    "prior_normalized_alias_removed_from_active_combined_count": 94,
+    "human_duplicate_152_153_removed_count": 0
+  },
+  "legacy_mapping_status_counts": {
+    "MERGED_SAME_EXERCISE": 2,
+    "PROMOTED_SEPARATE_CANONICAL": 35,
+    "REMOVED_FROM_ACTIVE_COMBINED_AFTER_PRIOR_DEDUP": 93,
+    "RETAINED_CANONICAL": 101,
+    "RETAINED_LEGACY_ALIAS": 79
+  },
+  "auto_rule_sample_validation": {
+    "sample_pair_ids": {
+      "VARIANT_CANDIDATE": [
+        "ERP-20260827-00001",
+        "ERP-20260827-00002",
+        "ERP-20260827-00003"
+      ],
+      "SEPARATE_EXERCISE": [
+        "ERP-20260827-00080",
+        "ERP-20260827-00081",
+        "ERP-20260827-00082"
+      ],
+      "EXCLUDED": [
+        "ERP-20260827-00235",
+        "ERP-20260827-00249",
+        "ERP-20260827-00313"
+      ]
+    },
+    "verified": true,
+    "method": "queue code, decision source, and final relation code spot-check"
+  },
+  "validation": {
+    "active_canonical_stable_code_duplicates": 0,
+    "legacy_mapping_source_key_duplicates": 0,
+    "same_exercise_active_endpoint_conflicts": 0,
+    "same_exercise_final_rows_have_no_active_duplicate": true,
+    "legacy_mapping_missing_count": 0,
+    "pending_review_required_count": 0,
+    "all_human_rows_finalized": true,
+    "human_152_153_kept": true,
+    "valid": true
+  }
+}

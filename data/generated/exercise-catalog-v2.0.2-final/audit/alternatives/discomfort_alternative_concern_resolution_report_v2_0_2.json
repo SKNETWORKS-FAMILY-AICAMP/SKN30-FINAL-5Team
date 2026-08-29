@@ -1,0 +1,106 @@
+{
+  "area_action_counts": {
+    "ABDOMEN": {
+      "KEEP_AS_SAFE_VARIANT": 30,
+      "KEEP_UNCHANGED": 21,
+      "REMOVE_DIRECT_LOAD": 3,
+      "REMOVE_SAFE_VARIANT_NOT_FEASIBLE": 9
+    },
+    "ANKLE_FOOT": {
+      "KEEP_AS_SAFE_VARIANT": 72,
+      "REMOVE_DIRECT_LOAD": 88
+    },
+    "CHEST": {
+      "KEEP_UNCHANGED": 88
+    },
+    "ELBOW": {
+      "KEEP_AS_SAFE_VARIANT": 4,
+      "KEEP_UNCHANGED": 47,
+      "REMOVE_DIRECT_LOAD": 39
+    },
+    "HIP": {
+      "KEEP_AS_SAFE_VARIANT": 181,
+      "KEEP_UNCHANGED": 56
+    },
+    "KNEE": {
+      "KEEP_AS_SAFE_VARIANT": 208,
+      "KEEP_UNCHANGED": 34,
+      "REMOVE_DIRECT_LOAD": 34
+    },
+    "LOWER_BACK": {
+      "KEEP_AS_SAFE_VARIANT": 56,
+      "KEEP_UNCHANGED": 42,
+      "REMOVE_DIRECT_LOAD": 20,
+      "REMOVE_SAFE_VARIANT_NOT_FEASIBLE": 8
+    },
+    "NECK": {
+      "KEEP_AS_SAFE_VARIANT": 12,
+      "KEEP_UNCHANGED": 5
+    },
+    "SHOULDER": {
+      "KEEP_AS_SAFE_VARIANT": 38,
+      "KEEP_UNCHANGED": 49,
+      "REMOVE_DIRECT_LOAD": 92
+    },
+    "UPPER_BACK": {
+      "KEEP_AS_SAFE_VARIANT": 112,
+      "KEEP_UNCHANGED": 13,
+      "REMOVE_DIRECT_LOAD": 41,
+      "REMOVE_SAFE_VARIANT_NOT_FEASIBLE": 20
+    },
+    "WRIST_HAND": {
+      "KEEP_AS_SAFE_VARIANT": 31,
+      "KEEP_UNCHANGED": 5,
+      "REMOVE_DIRECT_LOAD": 30
+    }
+  },
+  "artifacts": {
+    "difficulty_review_batch": "data/generated/exercise-catalog-v2.0.2-final/integrity/alternative_difficulty_policy_review_batch_v2_0_2.jsonl",
+    "input": "data/generated/exercise-catalog-v2.0.2-final/alternatives/reviewed_discomfort_alternative_map_v2_0_2.jsonl",
+    "pending_map": "data/generated/exercise-catalog-v2.0.2-final/alternatives/difficulty_policy_pending_map_v2_0_2.jsonl",
+    "policy": "data/normalized/discomfort_alternative_concern_resolution_policy_v2_0_2.json",
+    "removed_map": "data/generated/exercise-catalog-v2.0.2-final/alternatives/concern_resolution_removed_map_v2_0_2.jsonl",
+    "resolved_map": "data/generated/exercise-catalog-v2.0.2-final/alternatives/resolved_discomfort_alternative_map_v2_0_2.jsonl",
+    "safe_variants": "data/generated/exercise-catalog-v2.0.2-final/alternatives/discomfort_safe_variants_v2_0_2.jsonl",
+    "summary_csv": "data/generated/exercise-catalog-v2.0.2-final/alternatives/discomfort_alternative_concern_resolution_summary_v2_0_2.csv"
+  },
+  "counts": {
+    "KEEP_AS_SAFE_VARIANT": 744,
+    "KEEP_UNCHANGED": 360,
+    "REMOVE_DIRECT_LOAD": 347,
+    "REMOVE_SAFE_VARIANT_NOT_FEASIBLE": 37,
+    "input_count": 1517,
+    "pending_review_count": 29,
+    "removed_count": 384,
+    "resolved_keep_count": 1104,
+    "safe_variant_count": 54
+  },
+  "invariants": {
+    "all_concerns_resolved": true,
+    "all_direct_load_rows_removed": true,
+    "difficulty_review_pending_rows_are_excluded": true,
+    "no_output_is_production_eligible": true,
+    "original_input_preserved": true,
+    "safe_variants_are_separate_exercises": true,
+    "safe_variants_have_all_no_load_guards": true,
+    "safe_variants_have_fixed_posture": true,
+    "safe_variants_have_fixed_support": true,
+    "safe_variants_have_stop_guard": true
+  },
+  "policy_version": "discomfort-alternative-concern-resolution-v2.0.2-v1.0.0",
+  "production_eligible": false,
+  "reviewed_at": "2026-08-28T00:00:00+09:00",
+  "reviewer": "CONCERN_RESOLUTION_POLICY_REVIEW",
+  "schema_version": "discomfort-alternative-concern-resolution-report-v2.0.2-v1",
+  "sha256": {
+    "difficulty_review_batch": "e591ff9121fe45048760697be34d496f61e8caa8b7b2c529a3466b5affd1d0ce",
+    "input": "f5ce062853cfcb4cb7a7721eac5f7835d9770fc59047a67fbbcd0f10d24d93e8",
+    "pending_map": "983fce9ae7584f217f7a0bd939fb031af90c871073e98c0489b053eb114e34e9",
+    "policy": "efb1b3f839ec4f4ec1ea552514afcbd58c51e63f73d9d0f329fde2294299c0c6",
+    "removed_map": "3e8cf0dc2e367dcdfa77b73aab49409137b31e07149479d2428c94a45cee242f",
+    "resolved_map": "f91fea75298de814dbc7690324d29c1e7024b3c81593c1e049f481d123d1fc55",
+    "safe_variants": "ba0831e4c7e86751b5aff164ac9f2576ab45b658ad5984ff4fb32267a32dee49",
+    "summary_csv": "1beed9057c82448c3746e544abc6c44aa57134828936aac54a0b59179f7ee4aa"
+  },
+  "status": "REVIEW_REQUIRED"
+}

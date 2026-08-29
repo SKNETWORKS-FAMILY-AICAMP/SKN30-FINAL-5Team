@@ -1,0 +1,167 @@
+{
+  "artifacts": {
+    "disposition_csv": {
+      "bytes": 246382,
+      "path": "legacy_alternative_dispositions_v2_0_2.csv",
+      "sha256": "6e94bdfc71ad752b879df21efd19c8551e466a7493b7d912771e424dae912a5e"
+    },
+    "disposition_jsonl": {
+      "bytes": 478492,
+      "path": "legacy_alternative_dispositions_v2_0_2.jsonl",
+      "sha256": "256bcbb28363b365edd9712ca2f2d841748bbdc1a5f443486cf3d31c2b10740e"
+    },
+    "integrity_report": {
+      "bytes": 4175,
+      "path": "alternative_integrity_report_v2_0_2.json",
+      "sha256": "341f48ecf2b3be64c5db7df3cad084d684ed9be800fb98c1a6fe5cf513dd209b"
+    },
+    "lower_back_safety_review_csv": {
+      "bytes": 27634,
+      "path": "lower_back_alternative_safety_review_v2_0_2.csv",
+      "sha256": "9f5d936b8789c23fcef3b52a261469d3fe44b10a73233f3953f4d4ed45561cc6"
+    },
+    "lower_back_safety_review_jsonl": {
+      "bytes": 48844,
+      "path": "lower_back_alternative_safety_review_v2_0_2.jsonl",
+      "sha256": "d8374abcb96e7fa1a3e63cc80e0539da64f543bf89738fc6086ad8e88630d39e"
+    },
+    "neck_normalized_csv": {
+      "bytes": 5719,
+      "path": "normalized_neck_discomfort_alternatives_v2_0_2.csv",
+      "sha256": "02d9f405044dd2f0768fc967dd3fc669e76885bd6c2b8bea1afad49d83ea240b"
+    },
+    "neck_normalized_jsonl": {
+      "bytes": 8949,
+      "path": "normalized_neck_discomfort_alternatives_v2_0_2.jsonl",
+      "sha256": "5bf040a2006896f120dcd028bd916dbfb7493384c8acddead935b2af60f29c5c"
+    },
+    "neck_review_csv": {
+      "bytes": 9955,
+      "path": "neck_alternative_review_v2_0_2.csv",
+      "sha256": "ebee818a16b41d8816cd9ee6faded04462e8914aae506e4e8b0556ccaffc0adc"
+    },
+    "neck_review_jsonl": {
+      "bytes": 15965,
+      "path": "neck_alternative_review_v2_0_2.jsonl",
+      "sha256": "8ceb502b898b3d35a3b7d6cecbf0b65c13b968260f5b531d425accd51ca694ca"
+    },
+    "normalized_csv": {
+      "bytes": 225234,
+      "path": "normalized_discomfort_alternatives_v2_0_2.csv",
+      "sha256": "68ee1efa5c5639bdb03c58febae8737059556fbe9fb4273cd15a14ec24911bcf"
+    },
+    "normalized_jsonl": {
+      "bytes": 460879,
+      "path": "normalized_discomfort_alternatives_v2_0_2.jsonl",
+      "sha256": "df1c36d0ce7d310a5141c527e28133472675a31f8311c81e514254104e8b5099"
+    },
+    "review_result_csv": {
+      "bytes": 553302,
+      "path": "pain_alternative_review_result_v2_0_2.csv",
+      "sha256": "6170918a7b3fe921f37bbc2765c96a3fc3e75576b251e964b631c7bdb2de13bd"
+    },
+    "review_result_jsonl": {
+      "bytes": 1085043,
+      "path": "pain_alternative_review_result_v2_0_2.jsonl",
+      "sha256": "31cca05ce8c4ff62446b9379e8fbfdad84bcd791e030c683cd7865037d68b904"
+    },
+    "unresolved_csv": {
+      "bytes": 1616,
+      "path": "unresolved_alternatives_review_v2_0_2.csv",
+      "sha256": "45a98b02ab78836cf1c737b4dc11307f182f5cf2139122597424a35677318fb1"
+    },
+    "unresolved_jsonl": {
+      "bytes": 0,
+      "path": "unresolved_alternatives_review_v2_0_2.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "counts": {
+    "collapsed_legacy_identity_count": 2,
+    "existing_alternative_count": 279,
+    "legacy_reason_counts": {
+      "DIFFICULTY": 6,
+      "DISCOMFORT": 220,
+      "EQUIPMENT": 19,
+      "LOCATION": 34
+    },
+    "lower_back_conditionally_retained_count": 12,
+    "lower_back_existing_relation_count": 12,
+    "maintained_count": 157,
+    "neck_review_candidate_count": 4,
+    "neck_review_maintained_count": 3,
+    "neck_review_removed_or_reclassified_count": 1,
+    "normalized_discomfort_alternative_count": 157,
+    "normalized_legacy_discomfort_alternative_count": 155,
+    "reclassification_or_review_reason_counts": {
+      "RECLASSIFY_CONTEXT_DEFAULT": 34,
+      "RECLASSIFY_DIFFICULTY_VARIANT": 6,
+      "RECLASSIFY_VARIANT": 19,
+      "RECLASSIFY_VARIANT_OR_EXERCISE_IDENTITY": 10,
+      "REMOVE_NECK_TARGET_SAFETY_UNCONFIRMED": 1,
+      "REMOVE_TARGET_RETAINS_DISCOMFORT_AREA": 52
+    },
+    "removed_or_reclassified_count": 122,
+    "review_required_count": 0,
+    "supplemental_neck_candidate_count": 2,
+    "supplemental_neck_maintained_count": 2
+  },
+  "decision_policy": {
+    "alternative_reason_code": "DISCOMFORT",
+    "keep_guard": [
+      "SOURCE_LOADS_REPORTED_DISCOMFORT_AREA",
+      "TARGET_EXCLUDES_REPORTED_DISCOMFORT_AREA",
+      "TARGET_DIFFICULTY_NOT_HIGHER",
+      "NOT_SIMPLE_VARIANT_DUPLICATE",
+      "DIRECTION_IS_SOURCE_TO_TARGET"
+    ],
+    "lower_back_safety_policy": "CONDITIONALLY_RETAIN_WITH_NEUTRAL_SPINE_AND_NO_CORE_OR_HIP_TARGET_GUARDS",
+    "neck_safety_policy": "NO_NECK_OR_SHOULDER_OVERLAP_AND_NO_UNPROVEN_CORE_BRACING_TARGET",
+    "reclassification": {
+      "DIFFICULTY": "VARIANT_DIFFICULTY",
+      "EQUIPMENT": "VARIANT",
+      "LOCATION": "CONTEXT_DEFAULT"
+    },
+    "same_area_target": "REMOVE_RECLASSIFY_EVEN_FOR_NRS_1_3",
+    "severe_condition_policy": "NRS_7_10_HAS_NO_ALTERNATIVE",
+    "supported_condition_bands": [
+      "NRS_1_3",
+      "NRS_4_6"
+    ]
+  },
+  "input_artifacts": {
+    "discomfort_evidence": {
+      "path": "data/normalized/v2_discomfort_alternative_mapping.csv",
+      "sha256": "8f250f275c22f1dd2df311a27c9f25972166d5a393535da680c83fc8f58f830b"
+    },
+    "final_catalog": {
+      "path": "data/generated/exercise-catalog-v2.0.2-final/catalog/exercises.jsonl",
+      "sha256": "c2936896ee3adc4c92f8971448d63b2e5860e362cb93e99b0bc3f4412ee5a343"
+    },
+    "legacy_alternatives": {
+      "path": "data/generated/exercise-catalog-v2.0.2-draft/alternatives/alternatives.jsonl",
+      "sha256": "4b8953d4757ee27679403f0ea5e956d7eaf19dac2fd59170a1a6bd1531c7378c"
+    },
+    "legacy_consolidation": {
+      "path": "data/generated/exercise-catalog-v2.0.2-final/legacy_consolidation_mapping_v2_final.csv",
+      "sha256": "08cdad68f483ebd48820ea1a377ad29928ae485d3a2a4490567ed87a8250f87d"
+    },
+    "neck_discomfort_candidates": {
+      "path": "data/normalized/neck_discomfort_alternative_candidates_v2_0_2.json",
+      "sha256": "ab1180f4ae30c7d58004157283e63fe794ea0cf5969dd3c0c8ff80f9c9d33362"
+    },
+    "stable_code_migration": {
+      "path": "data/generated/exercise-catalog-v2.0.2-final/alias_migration_v2_0_2.csv",
+      "sha256": "7aebeaa0ad9af742a13c1c04e3ecc2cdec40eab6d8be2f91e0a0e1ee1b4bbf45"
+    },
+    "variant_relationship_review": {
+      "path": "data/generated/exercise-catalog-v2.0.2-final/variant_relationship_review_v2_0_2.csv",
+      "sha256": "f90d245623b8162059d699cd72869d5a6631780428cae7649d4f39206d1bc33c"
+    }
+  },
+  "policy_version": "exercise-alternative-policy-v2.0.2-v1.0.0",
+  "production_eligible": false,
+  "reviewed_at": "2026-08-28T00:00:00+09:00",
+  "schema_version": "exercise-alternative-review-manifest-v2.0.2-v1",
+  "status": "DRAFT_REVIEW_REQUIRED"
+}

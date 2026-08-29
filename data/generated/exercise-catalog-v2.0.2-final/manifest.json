@@ -1,0 +1,153 @@
+{
+  "approval_evidence": {
+    "evidence_reference": "EXTERNAL_EXPERT_SOURCE_APPROVAL; OWNER_VISUAL_REVIEW",
+    "review_method_code": "OWNER_BATCH_CONFIRMATION",
+    "reviewed_at": "2026-08-29T00:00:00+09:00",
+    "reviewer_reference": "USER_DIRECT_REVIEW_2026_08_29",
+    "row_level_reason_required": false
+  },
+  "artifact_sha256": {
+    "alternatives/resolved_discomfort_alternative_map_v2_0_2.jsonl": "9f55a4e454e23dd4dbf9a6ee67b0ac0b262dc013a13150fa87f9549b45bfc487",
+    "audit/canonical_exercises_v2_final.csv": "ac72e66f65bb43415a5455def69deba4b18d5d3564b2f3189c9281ba8e75bac8",
+    "audit/canonical_exercises_v2_final.jsonl": "bfe379468c329ac914856f07772add66a6ef9a9be1bd2ce407ade540fb928c19",
+    "audit/catalog/exercises.csv": "ca33b8ac1ff5cf72a3c5dc644c09e31b64fe5d12fe145c0c0b01f9e4110745f9",
+    "audit/family_representative_mapping_v2_0_2.csv": "c2bbd89b6a1652b1293dd3435f16a94a08d069f39dbd14079fde52cb38c4a088",
+    "audit/family_representative_mapping_v2_0_2.jsonl": "f87754074a4a8d432b825f2a5df1f6f5252a7706ea3831c3e44db1d5267d51c6",
+    "audit/integrity/auto_reference_repair_report_v2_0_2.json": "932a6cc7baf8f84d5ef44bbd66a7ea43186101b5a5b90e15cdc34fb43cca54b3",
+    "audit/integrity/db_load_readiness_v2_0_2.json": "0bc2eb7612735aeebb3fbe72c08353fa09ac66a9d731b387b7baff2f3fcec61f",
+    "audit/integrity/review_result_input_v2_0_2.csv": "e0e2bbfac5e5c53918a3a03db8fb77bcc6c6a427bace788afeeea3ab238aecc6",
+    "audit/legacy_consolidation_mapping_v2_final.csv": "08cdad68f483ebd48820ea1a377ad29928ae485d3a2a4490567ed87a8250f87d",
+    "audit/legacy_consolidation_mapping_v2_final.jsonl": "9e5543aaf4d364a2e87cd7ee97586e9930a56c5bffab32018acae1984ab83aa3",
+    "audit/merge_validation_report.json": "441b78adcca07789ed8a84110f862bb9db27a8568879fd3b802ec1553b9cc261",
+    "audit/reference_binding_status_v2_0_2.csv": "3c58a03e72f3fc2fe74daf12a2be9d8133a70fd23e20570b8632b726d5fe0d42",
+    "audit/reference_binding_status_v2_0_2.jsonl": "2b425e70ef18533d0345483715897a641272ccfa0c93f5193e687fa7ee5fced1",
+    "audit/relationship_decisions_v2_final.csv": "874c90225ca3c15d128fbe3ce6cfee1f135ca05d57d88d3758e3ec3b6aaa0eb1",
+    "audit/relationship_decisions_v2_final.jsonl": "42cb7f52e1c7c1160968bbdaffb88b6af4b32a42acc9658eae51b67e7eb49ddc",
+    "audit/runtime/catalog.jsonl": "121770bfe10451330be2a4ec5921fff6eb861b6dddbfe8f3c9790752705ef053",
+    "audit/stable_code_registry_v2.json": "6964509bc956950bcda8078b860b9b16fe73cf5bff66108ad14a133586fd7e5f",
+    "audit/variant_integrity_report_v2_0_2.json": "337f557563eea8f63e9a5d2dc6139ee67680f8418d594c80353a3ffeee5b6dde",
+    "audit/variant_relationship_candidates_v2_final.csv": "624a6a25867d56e68650f5f8b35de49ded70308d272b362b6c1cfe898fca2998",
+    "audit/variant_relationship_candidates_v2_final.jsonl": "c4a4b9bcf15fcbd1ef128605d2bca406dc4ce5e964990b3a3ae9dff437227011",
+    "audit/variant_relationship_review_v2_0_2.csv": "f90d245623b8162059d699cd72869d5a6631780428cae7649d4f39206d1bc33c",
+    "audit/variant_relationship_review_v2_0_2.jsonl": "189672d76fc95879120064746322e03d1929c527fbce509004580974dc904bb0",
+    "audit/variant_safety_fitt_mapping_v2_0_2.csv": "eb8398653fdcc4c00d45dfba13c9a9307e62a752875e0bd6e3b83fbda29c31f7",
+    "audit/variant_safety_fitt_mapping_v2_0_2.jsonl": "6b131e7c87fbc19cb6c505ad0692327eb66b4c52e34ffe71818456fd7854c7c7",
+    "catalog/exercises.jsonl": "121770bfe10451330be2a4ec5921fff6eb861b6dddbfe8f3c9790752705ef053",
+    "media/media_assets_v2_0_2.csv": "9a69bef138c2a619f421738e703012f00a0825cc559e1410e882097cdee44a57",
+    "prescriptions/goal_tag_links.jsonl": "9dab814f77cd7e53e8dc3e317d76d37c0aa4e5dc0b2f784da92bd8657cc70fdf",
+    "prescriptions/prescription_profiles.jsonl": "99260424bf350d5c1dc6c5abaf44ab315173c80907f3adf9abc9e7e5b8516503",
+    "runtime/safety_rules.jsonl": "036c871f4563135d10d718c29ab7ff276ce0cc10373524f15613585545bb9cda"
+  },
+  "audit_artifact_count": 24,
+  "batch_approval": {
+    "approval_basis": [
+      "EXTERNAL_EXPERT_SOURCE_APPROVAL",
+      "OWNER_VISUAL_REVIEW"
+    ],
+    "approval_method_code": "OWNER_BATCH_CONFIRMATION",
+    "approval_reference": "USER_DIRECT_REVIEW_2026_08_29",
+    "approved_at": "2026-08-29T00:00:00+09:00",
+    "row_level_reason_required": false,
+    "scope": {
+      "alternative_difficulty_delta_records": 29,
+      "final_catalog_records": 170,
+      "media_rights_review_records": 102,
+      "reference_binding_records": 170,
+      "resolved_alternative_records": 1104,
+      "variant_safety_fitt_records": 15
+    },
+    "status": "APPROVED"
+  },
+  "canonical_import_payload_count": 6,
+  "catalog_version_code": "exercise-catalog-v2.0.2-final",
+  "counts": {
+    "active_canonical_exercises": 136,
+    "active_canonical_stable_codes": 136,
+    "legacy_source_mappings": 310,
+    "retired_stable_codes": 1,
+    "variant_candidate_relations": 80
+  },
+  "difficulty_policy": {
+    "path": "data/normalized/exercise_difficulty_policy_v2_0_2.json",
+    "policy_version": "exercise-difficulty-policy-v2.0.2-user-review-2026-08-28",
+    "sha256": "95454462364f84d47edc94236004a1f8977646d310759533b54da89a65b02bec"
+  },
+  "import_contract": {
+    "audit_only_prefix": "audit/",
+    "canonical_payloads": {
+      "alternatives": "alternatives/resolved_discomfort_alternative_map_v2_0_2.jsonl",
+      "catalog": "catalog/exercises.jsonl",
+      "fitt": "prescriptions/prescription_profiles.jsonl",
+      "goals": "prescriptions/goal_tag_links.jsonl",
+      "media": "media/media_assets_v2_0_2.csv",
+      "safety": "runtime/safety_rules.jsonl"
+    },
+    "compatibility_metadata": [
+      "audit/stable_code_registry_v2.json",
+      "audit/alias_migration_v2_0_2.jsonl",
+      "audit/canonical_deletions_v2_0_2.jsonl"
+    ],
+    "importer_must_not_glob": "audit/"
+  },
+  "independent_bindings_materialization": {
+    "materialized_record_count": 94,
+    "source_files": {
+      "fitt_enrichment": {
+        "modified_at": "2026-08-27T07:03:17.061453+00:00",
+        "path": "data/normalized/catalog_enrichment_v3_fitt.csv",
+        "sha256": "8f22de2c437c4486f2df0a14a771b1f620c4bd57e4876643d85fd57991877a54"
+      },
+      "goal_links": {
+        "modified_at": "2026-08-27T07:24:57.541047+00:00",
+        "path": "data/generated/exercise-catalog-v2.0.2-draft/prescriptions/goal_tag_links.jsonl",
+        "sha256": "663d9927aeb5538b5d702b3d7087cc82f1985daed84d3f0781cadc7815f91bc8"
+      },
+      "safety_mapping": {
+        "modified_at": "2026-08-25T03:16:12.720950+00:00",
+        "path": "data/generated/exercise-safety-rules-v2.0.0/exercise_safety_mapping_v2.csv",
+        "sha256": "0f131f41adb01e4866c2e86fbe8bb60661bcae6656582e93754d7929ca86db13"
+      }
+    },
+    "target_record_count": 94,
+    "version": "v2.0.2-independent-bindings-source-match-v1.0.0"
+  },
+  "integrated_catalog_exercise_count": 170,
+  "media_source_linkage": {
+    "columns": [
+      "source_origin_code",
+      "source_track",
+      "source_identity",
+      "source_identity_validation",
+      "record_source_identity",
+      "media_source_origin_code",
+      "media_source_match_method"
+    ],
+    "gymvisual_identity_rule": "ASCII numeric string; leading zeroes preserved",
+    "source_sha256": "9a69bef138c2a619f421738e703012f00a0825cc559e1410e882097cdee44a57"
+  },
+  "production_eligible": true,
+  "reference_repair": {
+    "media_rights_values_generated": false,
+    "media_source_feature_version": "v2.0.2-media-source-linkage-v1.0.0",
+    "safe_variant_record_mode": "SEPARATE_EXERCISE_GENERAL_POOL_WITH_CONDITIONED_ALTERNATIVES",
+    "safety_fitt_goal_values_generated": true,
+    "version": "v2.0.2-final-mechanical-reference-repair-v1.0.0"
+  },
+  "schema_version": "v2.0.2-canonical-manifest-v1",
+  "source": {
+    "draft_catalog_path": "generated/exercise-catalog-v2.0.2-draft/catalog/exercises_v1_v2.csv",
+    "human_review_queue_path": "validation/review_batches/exercise-catalog-v2.0.2-relationship-review-v0.1.0/human_review_queue.jsonl",
+    "review_batch_path": "validation/review_batches/exercise-catalog-v2.0.2-relationship-review-v0.1.0/review_batch.jsonl",
+    "reviewed_at": "2026-08-27T00:00:00+09:00",
+    "reviewer": "USER_DIRECT_REVIEW"
+  },
+  "status": "PRODUCTION_APPROVED",
+  "user_review": {
+    "decision_code": "USER_DIRECT_REVIEW_2026_08_29",
+    "equipment_or_execution_representation": "VARIANT",
+    "pain_safety_representation": "ALTERNATIVE_AND_GENERAL_POOL",
+    "unmentioned_items": "COMPLETED"
+  },
+  "validation_report": "merge_validation_report.json",
+  "variant_relationship_record_count": 80
+}

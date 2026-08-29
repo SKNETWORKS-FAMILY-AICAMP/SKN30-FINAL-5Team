@@ -1,0 +1,36 @@
+{
+  "schema_version": "exercise-catalog-v2.0.2-variant-integrity-v1",
+  "catalog_version_code": "exercise-catalog-v2.0.2-final",
+  "materialization_version": "v2.0.2-variant-materialization-v1.0.0",
+  "generated_at": "2026-08-28T00:00:00+09:00",
+  "status": "DRAFT_VARIANTS_MATERIALIZED_REVIEW_REQUIRED",
+  "production_eligible": false,
+  "counts": {
+    "representative_exercise_count": 101,
+    "primary_variant_count": 66,
+    "secondary_variant_count": 4,
+    "separate_exercise_count": 30,
+    "variant_record_count": 70,
+    "integrated_catalog_exercise_count": 201,
+    "relationship_review_required_count": 80,
+    "review_required_variant_record_count": 70,
+    "relationship_candidate_primary_variant_count": 75,
+    "relationship_candidate_secondary_variant_count": 5,
+    "unmaterialized_review_required_canonical_pair_count": 10
+  },
+  "invariants": {
+    "all_variant_rows_are_exercise_records": true,
+    "all_variants_are_non_representative": true,
+    "all_variant_types_allowed": true,
+    "all_variant_representatives_exist": true,
+    "all_variant_families_match_representatives": true,
+    "no_variant_self_reference": true,
+    "stable_codes_unique": true,
+    "variant_exercise_ids_unique": true,
+    "no_same_exercise_variant": true,
+    "no_variant_conflicting_representatives": true,
+    "all_relationships_review_required_are_not_finalized": true,
+    "all_variant_safety_and_fitt_mappings_review_gated": true,
+    "no_unexpected_record_types": true
+  }
+}

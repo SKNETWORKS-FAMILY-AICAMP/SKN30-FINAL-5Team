@@ -142,8 +142,8 @@ PainAreaInput
 | intensity_score | severity_code | service_action | alternative policy |
 |---:|---|---|---|
 | 1..3 | `MILD` | `LOAD_REDUCED` | 같은 목표 → 부하 감소 → ROM 감소 → 쉬운 변형 |
-| 4..7 | `MODERATE` | `SKIP_AFFECTED_AREA` | 통증 부위 제외 → `ACTIVE_RECOVERY` |
-| 8..10 | `SEVERE` | `STOP_EXERCISE` | 대체운동 없음 |
+| 4..6 | `MODERATE` | `SKIP_AFFECTED_AREA` | 통증 부위 제외 → `ACTIVE_RECOVERY` |
+| 7..10 | `SEVERE` | `STOP_EXERCISE` | 대체운동 없음 |
 
 원점수와 변환된 code, `pain-intensity-action-v2`를 함께 보존해 재현한다. 이 구간은 안전·통증 정책
 변경이므로 개발팀장, PM과 외부 도메인 검수 승인 전 production에서 활성화하지 않는다. 현재 데이터는
@@ -262,16 +262,20 @@ FAILED
 NRS 구간별로 다음과 같이 처리한다.
 
 - 불편 부위가 명확함
-- NRS 1–3: 원래 목표를 유지하고 부하 감소, ROM 감소, 쉬운 변형 순으로 적용한다.
+- NRS 1–3: 원래 운동이 불편 부위를 사용하면 해당 부위를 피하는 검수된 Alternative를 우선
+  적용하고 `LOAD_REDUCED`를 사용한다. 통증 부위와 겹치지 않으면 원래 목표를 유지하며 부하
+  감소, ROM 감소, 쉬운 변형 순으로 적용한다.
 - NRS 4–6: 통증 부위를 primary·secondary 모두에서 제외하고 저강도 `ACTIVE_RECOVERY` 후보를 사용한다.
 - NRS 7–10: 대체 후보를 만들지 않고 `STOP_EXERCISE`를 반환한다.
 - 긴급 중단 그룹과 급성 근골격 신호 그룹이 모두 비어 있음
 - 후보가 있는 경우 `DOMAIN_APPROVED` 상태의 대체 운동이어야 함
 - 대체 운동이 현재 장소와 장비를 충족함
 
-NRS 1–3의 서비스 액션은 `LOAD_REDUCED` 또는 `ROM_REDUCED`이며, 후보가 없으면 원 운동에
-해당 다운시프트를 적용한다. NRS 4–6의 서비스 액션은 `SKIP_AFFECTED_AREA`이며
-`ACTIVE_RECOVERY` 후보를 제공한다. NRS 7–10은 대체 운동을 제공하지 않는다.
+NRS 1–3의 서비스 액션은 `LOAD_REDUCED` 또는 `ROM_REDUCED`이며, 원 운동이 보고된 불편
+부위를 사용하면 먼저 `NRS_1_3`·해당 부위 Alternative를 조회한다. 일치하는 Alternative가
+없을 때만 안전성이 확인된 원 운동에 다운시프트를 적용한다. NRS 4–6의 서비스 액션은
+`SKIP_AFFECTED_AREA`이며 `NRS_4_6`·해당 부위의 저강도 `ACTIVE_RECOVERY` 후보를 제공한다.
+NRS 7–10은 대체 운동을 제공하지 않는다.
 
 ### 4.3.1 안전 규칙 레코드 해석
 

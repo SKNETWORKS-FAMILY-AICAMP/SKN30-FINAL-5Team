@@ -1,0 +1,63 @@
+{
+  "catalog": {
+    "integrated_record_count": 170,
+    "record_type_counts": {
+      "REPRESENTATIVE": 76,
+      "SEPARATE_EXERCISE": 79,
+      "VARIANT": 15
+    },
+    "safe_variant_integrated_count": 75
+  },
+  "catalog_version_code": "exercise-catalog-v2.0.2-final",
+  "explicit_review_state": {
+    "binding_rows": 170,
+    "media_state_counts": {
+      "AVAILABLE": 68,
+      "REVIEW_REQUIRED": 102
+    },
+    "review_input_rows": 170
+  },
+  "generated_at": "2026-08-28T00:00:00+09:00",
+  "media": {
+    "AVAILABLE": 68,
+    "REVIEW_REQUIRED": 102,
+    "gymvisual_source_identity_invalid": 0,
+    "gymvisual_source_identity_valid_numeric": 161,
+    "media_source_origin_counts": {
+      "GYMVISUAL": 161,
+      "KSPO": 7,
+      "WGER": 2
+    },
+    "removed_orphan_media_id": 19,
+    "source_origin_unavailable": 0
+  },
+  "media_source_feature_version": "v2.0.2-media-source-linkage-v1.0.0",
+  "not_auto_modified": [
+    "Safety rule or contraindication values",
+    "FITT sets/reps/time/rest values",
+    "Goal meaning or CORE/SUPPORT role",
+    "pain Alternative domain approval",
+    "Media rights approval"
+  ],
+  "production_eligible": false,
+  "reference_rebase": {
+    "fitt": {
+      "remapped_stable_code_reference": 2,
+      "removed_orphan_reference": 44
+    },
+    "goal": {
+      "remapped_stable_code_reference": 1,
+      "removed_orphan_reference": 26
+    },
+    "safety": {
+      "remapped_stable_code_reference": 4,
+      "removed_orphan_reference": 105
+    }
+  },
+  "repair_version": "v2.0.2-final-mechanical-reference-repair-v1.0.0",
+  "schema_version": "exercise-catalog-v2.0.2-mechanical-reference-repair-v1",
+  "stable_code_registry": {
+    "active_catalog_record_count": 170,
+    "removed_prior_active_code_count": 57
+  }
+}

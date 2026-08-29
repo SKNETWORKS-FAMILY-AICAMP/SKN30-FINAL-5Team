@@ -1,0 +1,116 @@
+{
+  "schema_version": "discomfort-alternative-map-review-policy-v2.0.2-v1",
+  "policy_version": "discomfort-alternative-map-review-v2.0.2-v1.0.0",
+  "status": "DRAFT_REVIEW_REQUIRED",
+  "production_eligible": false,
+  "review_mode": "DETERMINISTIC_REMOVE_AMBIGUOUS",
+  "input_map": "data/generated/exercise-catalog-v2.0.2-final/alternatives/discomfort_alternative_map_v2_0_2.jsonl",
+  "catalog_version": "exercise-catalog-v2.0.2-final",
+  "supported_pain_area_codes": [
+    "NECK",
+    "SHOULDER",
+    "ELBOW",
+    "WRIST_HAND",
+    "UPPER_BACK",
+    "LOWER_BACK",
+    "HIP",
+    "KNEE",
+    "ANKLE_FOOT",
+    "CHEST",
+    "ABDOMEN"
+  ],
+  "review_sequence": [
+    "CATALOG_REFERENCE_ELIGIBILITY",
+    "PRIMARY_SECONDARY_PAIN_AREA_OVERLAP",
+    "MOVEMENT_LOAD_IMPACT_RISK",
+    "NRS_INTENSITY_AND_RECOVERY",
+    "HOME_GYM_AND_EQUIPMENT",
+    "REMAINING_CANDIDATE_KEEP"
+  ],
+  "global_guards": {
+    "allowed_record_types": ["REPRESENTATIVE", "SEPARATE_EXERCISE"],
+    "required_catalog_review_status": "DOMAIN_APPROVED",
+    "valid_location_codes": ["HOME", "GYM"],
+    "forbidden_equipment_codes": ["BENCH", "CHAIR", "REVIEW_REQUIRED"],
+    "blocked_movement_patterns": ["JUMP_PLYOMETRIC", "BALANCE"],
+    "no_target_pain_area_overlap": true,
+    "target_difficulty_not_higher": true
+  },
+  "condition_guards": {
+    "NRS_1_3": {
+      "service_action_code": "LOAD_REDUCED",
+      "target_must_be_recovery_eligible": false,
+      "runtime_rule": "target 통증 부위를 피하고 volume·load·난이도를 낮추거나 유지한다."
+    },
+    "NRS_4_6": {
+      "service_action_code": "SKIP_AFFECTED_AREA",
+      "target_must_be_recovery_eligible": true,
+      "runtime_rule": "target 통증 부위를 피하고 recovery_eligible 저부하 운동만 사용한다."
+    },
+    "NRS_7_10": {
+      "service_action_code": "STOP_EXERCISE",
+      "target_must_be_recovery_eligible": false,
+      "runtime_rule": "Alternative를 생성하지 않는다."
+    }
+  },
+  "area_profiles": {
+    "NECK": {
+      "allowed_target_body_areas": ["HIP", "KNEE", "ANKLE_FOOT"],
+      "allowed_target_body_focus_codes": ["GLUTES", "QUADRICEPS", "HAMSTRINGS", "CALVES", "CARDIO", "MOBILITY"],
+      "allowed_movement_patterns": ["ISOLATION", "MOBILITY_STRETCH", "KNEE_DOMINANT", "KNEE_FLEXION", "GAIT"]
+    },
+    "SHOULDER": {
+      "allowed_target_body_areas": ["HIP", "KNEE", "ANKLE_FOOT"],
+      "allowed_target_body_focus_codes": ["GLUTES", "QUADRICEPS", "HAMSTRINGS", "CALVES", "CARDIO", "MOBILITY"],
+      "allowed_movement_patterns": ["ISOLATION", "MOBILITY_STRETCH", "KNEE_DOMINANT", "KNEE_FLEXION", "GAIT"]
+    },
+    "ELBOW": {
+      "allowed_target_body_areas": ["HIP", "KNEE", "ANKLE_FOOT"],
+      "allowed_target_body_focus_codes": ["GLUTES", "QUADRICEPS", "HAMSTRINGS", "CALVES", "CARDIO", "MOBILITY"],
+      "allowed_movement_patterns": ["ISOLATION", "MOBILITY_STRETCH", "KNEE_DOMINANT", "KNEE_FLEXION", "GAIT"]
+    },
+    "WRIST_HAND": {
+      "allowed_target_body_areas": ["HIP", "KNEE", "ANKLE_FOOT"],
+      "allowed_target_body_focus_codes": ["GLUTES", "QUADRICEPS", "HAMSTRINGS", "CALVES", "CARDIO", "MOBILITY"],
+      "allowed_movement_patterns": ["ISOLATION", "MOBILITY_STRETCH", "KNEE_DOMINANT", "KNEE_FLEXION", "GAIT"]
+    },
+    "UPPER_BACK": {
+      "allowed_target_body_areas": ["HIP", "KNEE", "ANKLE_FOOT"],
+      "allowed_target_body_focus_codes": ["GLUTES", "QUADRICEPS", "HAMSTRINGS", "CALVES", "CARDIO", "MOBILITY"],
+      "allowed_movement_patterns": ["ISOLATION", "MOBILITY_STRETCH", "KNEE_DOMINANT", "KNEE_FLEXION", "GAIT"]
+    },
+    "LOWER_BACK": {
+      "allowed_target_body_areas": [],
+      "allowed_target_body_focus_codes": ["BACK", "SHOULDERS", "CHEST", "BICEPS", "TRICEPS", "FOREARMS", "GLUTES", "QUADRICEPS", "HAMSTRINGS", "CALVES", "CARDIO", "MOBILITY"],
+      "allowed_movement_patterns": ["ISOLATION", "MOBILITY_STRETCH", "VERTICAL_PULL", "HORIZONTAL_PULL", "VERTICAL_PUSH", "HORIZONTAL_PUSH"]
+    },
+    "HIP": {
+      "allowed_target_body_areas": ["NECK", "SHOULDER", "ELBOW", "WRIST_HAND", "UPPER_BACK", "CHEST"],
+      "allowed_target_body_focus_codes": ["BACK", "SHOULDERS", "CHEST", "BICEPS", "TRICEPS", "FOREARMS", "MOBILITY"],
+      "allowed_movement_patterns": ["ISOLATION", "MOBILITY_STRETCH", "VERTICAL_PULL", "HORIZONTAL_PULL", "VERTICAL_PUSH", "HORIZONTAL_PUSH"]
+    },
+    "KNEE": {
+      "allowed_target_body_areas": ["NECK", "SHOULDER", "ELBOW", "WRIST_HAND", "UPPER_BACK", "CHEST"],
+      "allowed_target_body_focus_codes": ["BACK", "SHOULDERS", "CHEST", "BICEPS", "TRICEPS", "FOREARMS", "MOBILITY"],
+      "allowed_movement_patterns": ["ISOLATION", "MOBILITY_STRETCH", "VERTICAL_PULL", "HORIZONTAL_PULL", "VERTICAL_PUSH", "HORIZONTAL_PUSH"]
+    },
+    "ANKLE_FOOT": {
+      "allowed_target_body_areas": ["NECK", "SHOULDER", "ELBOW", "WRIST_HAND", "UPPER_BACK", "CHEST"],
+      "allowed_target_body_focus_codes": ["BACK", "SHOULDERS", "CHEST", "BICEPS", "TRICEPS", "FOREARMS", "MOBILITY"],
+      "allowed_movement_patterns": ["ISOLATION", "MOBILITY_STRETCH", "VERTICAL_PULL", "HORIZONTAL_PULL", "VERTICAL_PUSH", "HORIZONTAL_PUSH"]
+    },
+    "CHEST": {
+      "allowed_target_body_areas": [],
+      "allowed_target_body_focus_codes": ["BACK", "SHOULDERS", "BICEPS", "TRICEPS", "FOREARMS", "GLUTES", "QUADRICEPS", "HAMSTRINGS", "CALVES", "CARDIO", "MOBILITY"],
+      "allowed_movement_patterns": ["ISOLATION", "MOBILITY_STRETCH", "KNEE_DOMINANT", "KNEE_FLEXION", "HIP_DOMINANT", "VERTICAL_PULL", "HORIZONTAL_PULL", "GAIT"]
+    },
+    "ABDOMEN": {
+      "allowed_target_body_areas": [],
+      "allowed_target_body_focus_codes": ["BACK", "SHOULDERS", "CHEST", "BICEPS", "TRICEPS", "FOREARMS", "GLUTES", "QUADRICEPS", "HAMSTRINGS", "CALVES", "CARDIO", "MOBILITY"],
+      "allowed_movement_patterns": ["ISOLATION", "MOBILITY_STRETCH"]
+    }
+  },
+  "ambiguous_action": "REMOVE_FROM_REVIEWED_MAP_AND_RECORD_REASON",
+  "reviewer": "DETERMINISTIC_POLICY_REVIEW",
+  "reviewed_at": "2026-08-28T00:00:00+09:00"
+}

@@ -241,6 +241,43 @@ class SafetyProposalAgent(_ProposalAgent):
             sorted(f"SAFETY_RULE/{rule_code}" for rule_code in base.applied_rule_codes)
         )
         excluded_ids = base.excluded_exercise_codes
+        if request.context.discomforts:
+            pain_change_candidates = [
+                candidate
+                for candidate in request.candidates[1:]
+                if candidate.action_code is RecommendedActionCode.CHANGE
+                and evaluations[str(candidate.candidate_id)].status_code
+                in {SafetyStatusCode.PASS, SafetyStatusCode.REVISE}
+                and not evaluations[str(candidate.candidate_id)].excluded_exercise_codes
+                and any(
+                    reference.startswith("PAIN_ALTERNATIVE/")
+                    for reference in candidate_evidence.get(candidate.candidate_id, ())
+                )
+            ]
+            if pain_change_candidates:
+                selected = min(
+                    pain_change_candidates,
+                    key=lambda candidate: str(candidate.candidate_id),
+                )
+                preferred = tuple(
+                    sorted(set(selected.exercise_ids) - set(base_candidate.exercise_ids))
+                )
+                selected_evidence = tuple(
+                    sorted(
+                        set(evidence_codes)
+                        | set(candidate_evidence.get(selected.candidate_id, ()))
+                    )
+                )
+                return self._ready_safety(
+                    request,
+                    action=RecommendedActionCode.CHANGE,
+                    status=SafetyStatusCode.REVISE,
+                    vetoed=bool(excluded_ids),
+                    reason_codes=("PAIN_ALTERNATIVE_APPLIED",),
+                    preferred_exercise_ids=preferred,
+                    excluded_exercise_ids=excluded_ids,
+                    evidence_reference_codes=selected_evidence,
+                )
         if excluded_ids:
             change_candidates = [
                 candidate

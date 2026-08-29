@@ -1,0 +1,73 @@
+{
+  "schema_version": "exercise-catalog-v2.0.2-reference-integrity-v1",
+  "catalog_version_code": "exercise-catalog-v2.0.2-final",
+  "generated_at": "2026-08-28T00:00:00+09:00",
+  "status": "APPROVED",
+  "production_eligible": true,
+  "catalog_counts_by_record_type": {
+    "SEPARATE_EXERCISE": 79,
+    "REPRESENTATIVE": 76,
+    "PRIMARY_VARIANT": 15
+  },
+  "summary": {
+    "finding_count": 0,
+    "classification_counts": {},
+    "by_record_type": {
+      "REPRESENTATIVE": {
+        "finding_count": 0,
+        "affected_exercise_count": 0
+      },
+      "PRIMARY_VARIANT": {
+        "finding_count": 0,
+        "affected_exercise_count": 0
+      },
+      "SECONDARY_VARIANT": {
+        "finding_count": 0,
+        "affected_exercise_count": 0
+      },
+      "SEPARATE_EXERCISE": {
+        "finding_count": 0,
+        "affected_exercise_count": 0
+      },
+      "GLOBAL": {
+        "finding_count": 0,
+        "affected_exercise_count": 0
+      }
+    }
+  },
+  "auto_fixable": [],
+  "human_review_required": [],
+  "invariants": {
+    "no_orphan_reference": true,
+    "stable_codes_unique": true,
+    "exercise_ids_unique": true,
+    "all_records_have_safety_fitt_media_goal_state": true,
+    "no_legacy_code_residue": true
+  },
+  "batch_approval": {
+    "approval_reference": "USER_DIRECT_REVIEW_2026_08_29",
+    "approval_method_code": "OWNER_BATCH_CONFIRMATION",
+    "approved_at": "2026-08-29T00:00:00+09:00",
+    "approval_basis": [
+      "EXTERNAL_EXPERT_SOURCE_APPROVAL",
+      "OWNER_VISUAL_REVIEW"
+    ],
+    "row_level_reason_required": false
+  },
+  "source_sha256": {
+    "generated/exercise-catalog-v2.0.2-final/catalog/exercises.jsonl": "121770bfe10451330be2a4ec5921fff6eb861b6dddbfe8f3c9790752705ef053",
+    "generated/exercise-catalog-v2.0.2-final/runtime/safety_rules.jsonl": "036c871f4563135d10d718c29ab7ff276ce0cc10373524f15613585545bb9cda",
+    "generated/exercise-catalog-v2.0.2-final/prescriptions/prescription_profiles.jsonl": "99260424bf350d5c1dc6c5abaf44ab315173c80907f3adf9abc9e7e5b8516503",
+    "generated/exercise-catalog-v2.0.2-final/prescriptions/goal_tag_links.jsonl": "9dab814f77cd7e53e8dc3e317d76d37c0aa4e5dc0b2f784da92bd8657cc70fdf",
+    "generated/exercise-catalog-v2.0.2-final/alternatives/resolved_discomfort_alternative_map_v2_0_2.jsonl": "9f55a4e454e23dd4dbf9a6ee67b0ac0b262dc013a13150fa87f9549b45bfc487",
+    "generated/exercise-catalog-v2.0.2-final/audit/alternatives/reviewed_discomfort_alternative_map_v2_0_2.jsonl": "f5ce062853cfcb4cb7a7721eac5f7835d9770fc59047a67fbbcd0f10d24d93e8",
+    "generated/exercise-catalog-v2.0.2-final/audit/alternatives/concern_resolution_removed_map_v2_0_2.jsonl": "3e8cf0dc2e367dcdfa77b73aab49409137b31e07149479d2428c94a45cee242f",
+    "generated/exercise-catalog-v2.0.2-final/audit/alternatives/discomfort_safe_variants_v2_0_2.jsonl": "ba0831e4c7e86751b5aff164ac9f2576ab45b658ad5984ff4fb32267a32dee49",
+    "generated/exercise-catalog-v2.0.2-final/audit/stable_code_registry_v2.json": "6964509bc956950bcda8078b860b9b16fe73cf5bff66108ad14a133586fd7e5f",
+    "generated/exercise-catalog-v2.0.2-final/audit/canonical_deletions_v2_0_2.jsonl": "264a28166743a204f5da46404416fea0210633bb7224890e3c508aa021944fea",
+    "generated/exercise-catalog-v2.0.2-final/audit/alias_migration_v2_0_2.jsonl": "e19924bdf8e34d30def8e634e0aca8ca7b7a729bd29d8ba106223cfa39d4e495",
+    "generated/exercise-catalog-v2.0.2-final/audit/variant_safety_fitt_mapping_v2_0_2.jsonl": "6b131e7c87fbc19cb6c505ad0692327eb66b4c52e34ffe71818456fd7854c7c7",
+    "generated/exercise-catalog-v2.0.2-final/audit/reference_binding_status_v2_0_2.jsonl": "2b425e70ef18533d0345483715897a641272ccfa0c93f5193e687fa7ee5fced1",
+    "generated/exercise-catalog-v2.0.2-final/media/media_assets_v2_0_2.csv": "9a69bef138c2a619f421738e703012f00a0825cc559e1410e882097cdee44a57"
+  }
+}

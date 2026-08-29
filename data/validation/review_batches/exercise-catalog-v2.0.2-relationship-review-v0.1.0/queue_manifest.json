@@ -1,0 +1,178 @@
+{
+  "schema_version": "exercise-relationship-queue-routing-v0.1.0",
+  "status": "HUMAN_REVIEW_DECISIONS_RECORDED",
+  "production_eligible": false,
+  "source_batch": {
+    "path": "data/validation/review_batches/exercise-catalog-v2.0.2-relationship-review-v0.1.0/review_batch.jsonl",
+    "record_count": 593,
+    "jsonl_sha256": "8280f8129de988423122847ac24812e48b40558d67d6a9b796952b66c3f3861a",
+    "csv_sha256": "d7f313f651c148f1e7b929f3d2fb9dd6ba5bff3f1eef2c1c04411bf6ad4b1e4f"
+  },
+  "policy": {
+    "home_supported_equipment_codes": [
+      "BODYWEIGHT",
+      "DUMBBELL",
+      "FOAM_ROLLER",
+      "JUMP_ROPE",
+      "MAT",
+      "RESISTANCE_BAND"
+    ],
+    "variant_candidate_codes": [
+      "PRIMARY_VARIANT",
+      "SECONDARY_VARIANT"
+    ],
+    "obvious_separate_rule": {
+      "candidate_relation_code": "REVIEW_REQUIRED",
+      "movement_pattern_match": "false",
+      "primary_body_area_overlap": "0.000",
+      "decision_code": "SEPARATE_EXERCISE"
+    },
+    "home_exclusion_rule": {
+      "both_locations_include": "HOME",
+      "equipment_code": "STEP_BOX",
+      "decision_code": "HOME_POLICY_EXCLUDED"
+    }
+  },
+  "summary": {
+    "source_record_count": 593,
+    "variant_candidate_queue_count": 79,
+    "separate_exercise_queue_count": 174,
+    "home_policy_excluded_queue_count": 8,
+    "human_review_queue_count": 332,
+    "auto_rule_routed_count": 261,
+    "human_review_required_count": 411
+  },
+  "queue_files": [
+    {
+      "queue_code": "VARIANT_CANDIDATE_QUEUE",
+      "csv_path": "variant_candidate_queue.csv",
+      "jsonl_path": "variant_candidate_queue.jsonl",
+      "record_count": 79,
+      "csv_sha256": "cb02caaf7e3eb6012e9bd50698be9023920c13d8a5b039bf41931a0f9b44646a",
+      "jsonl_sha256": "ddc5dd3c4ed20a7db7dec8ac3ad5dbc6f58dcb38652d9ce8757aa6154ddb5f58"
+    },
+    {
+      "queue_code": "SEPARATE_EXERCISE_QUEUE",
+      "csv_path": "separate_exercise_queue.csv",
+      "jsonl_path": "separate_exercise_queue.jsonl",
+      "record_count": 174,
+      "csv_sha256": "84f20b37e68ba465acc6c6ab5b491bf728028bff8cc6d03ee416f740699220c6",
+      "jsonl_sha256": "2125ce38ce98497e7c151668986e65de07d02080aa1bf70ec0bf53077f4f3cd4"
+    },
+    {
+      "queue_code": "HOME_POLICY_EXCLUDED_QUEUE",
+      "csv_path": "home_policy_excluded_queue.csv",
+      "jsonl_path": "home_policy_excluded_queue.jsonl",
+      "record_count": 8,
+      "csv_sha256": "c10fe4fa8260a23f1494fa3038ff07440b503958049558ced0c8e9dea9891199",
+      "jsonl_sha256": "7aa249dcd95170e3686c059649c34a15340dd11badabaea3545eb4184353f28b"
+    },
+    {
+      "queue_code": "HUMAN_REVIEW_QUEUE",
+      "csv_path": "human_review_queue.csv",
+      "jsonl_path": "human_review_queue.jsonl",
+      "record_count": 332,
+      "csv_sha256": "7575618b4c70181a38d81854f0cedf5d38b74e41562e9aafa8e7764233b9d267",
+      "jsonl_sha256": "2d67a27f9c6f502f8f84b15fa4ca213b91ce6960813f24631f9fb88b736a1a64"
+    }
+  ],
+  "sample_candidate_pair_ids": {
+    "VARIANT_CANDIDATE_QUEUE": [
+      "ERP-20260827-00001",
+      "ERP-20260827-00002",
+      "ERP-20260827-00003"
+    ],
+    "SEPARATE_EXERCISE_QUEUE": [
+      "ERP-20260827-00080",
+      "ERP-20260827-00081",
+      "ERP-20260827-00082"
+    ],
+    "HOME_POLICY_EXCLUDED_QUEUE": [
+      "ERP-20260827-00235",
+      "ERP-20260827-00249",
+      "ERP-20260827-00313"
+    ],
+    "HUMAN_REVIEW_QUEUE": [
+      "ERP-20260827-00139",
+      "ERP-20260827-00140",
+      "ERP-20260827-00141"
+    ]
+  },
+  "duplicate_deduplication": {
+    "removed_pair_count": 10,
+    "rule": "same stable code, movement pattern, primary body area, and secondary body area; name-only or explanatory translation difference",
+    "decisions": [
+      {
+        "candidate_pair_id": "ERP-20260827-00138",
+        "removed_side": "left",
+        "kept_side": "right",
+        "reason_code": "SAME_METHOD_AND_PRIMARY_SECONDARY_TARGET"
+      },
+      {
+        "candidate_pair_id": "ERP-20260827-00400",
+        "removed_side": "left",
+        "kept_side": "right",
+        "reason_code": "SAME_METHOD_AND_PRIMARY_SECONDARY_TARGET"
+      },
+      {
+        "candidate_pair_id": "ERP-20260827-00464",
+        "removed_side": "left",
+        "kept_side": "right",
+        "reason_code": "SAME_METHOD_AND_PRIMARY_SECONDARY_TARGET"
+      },
+      {
+        "candidate_pair_id": "ERP-20260827-00465",
+        "removed_side": "left",
+        "kept_side": "right",
+        "reason_code": "SAME_METHOD_AND_PRIMARY_SECONDARY_TARGET"
+      },
+      {
+        "candidate_pair_id": "ERP-20260827-00467",
+        "removed_side": "left",
+        "kept_side": "right",
+        "reason_code": "SAME_METHOD_AND_PRIMARY_SECONDARY_TARGET"
+      },
+      {
+        "candidate_pair_id": "ERP-20260827-00474",
+        "removed_side": "left",
+        "kept_side": "right",
+        "reason_code": "SAME_METHOD_AND_PRIMARY_SECONDARY_TARGET"
+      },
+      {
+        "candidate_pair_id": "ERP-20260827-00493",
+        "removed_side": "left",
+        "kept_side": "right",
+        "reason_code": "SAME_METHOD_AND_PRIMARY_SECONDARY_TARGET"
+      },
+      {
+        "candidate_pair_id": "ERP-20260827-00502",
+        "removed_side": "left",
+        "kept_side": "right",
+        "reason_code": "SAME_METHOD_AND_PRIMARY_SECONDARY_TARGET"
+      },
+      {
+        "candidate_pair_id": "ERP-20260827-00592",
+        "removed_side": "left",
+        "kept_side": "right",
+        "reason_code": "SAME_METHOD_AND_PRIMARY_SECONDARY_TARGET"
+      },
+      {
+        "candidate_pair_id": "ERP-20260827-00603",
+        "removed_side": "left",
+        "kept_side": "right",
+        "reason_code": "SAME_METHOD_AND_PRIMARY_SECONDARY_TARGET"
+      }
+    ]
+  },
+  "human_final_review": {
+    "status": "COMPLETE",
+    "reviewer": "USER_DIRECT_REVIEW",
+    "reviewed_at": "2026-08-27T00:00:00+09:00",
+    "reviewed_count": 332,
+    "decision_counts": {
+      "SAME_EXERCISE": 1,
+      "SEPARATE_EXERCISE": 331
+    },
+    "pending_human_review_count": 0
+  }
+}
