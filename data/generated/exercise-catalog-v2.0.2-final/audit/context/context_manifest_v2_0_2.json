@@ -5,10 +5,10 @@
   "status": "DRAFT_CONTEXT_DEFAULTS_REVIEW_REQUIRED",
   "production_eligible": false,
   "source": {
-    "catalog": "data/generated/exercise-catalog-v2.0.2-final/catalog/exercises.jsonl",
+    "catalog": "data/generated/exercise-catalog-v2.0.2-intermediate/variant-materialization-v1/catalog/exercises.jsonl",
     "goal_links": "data/generated/exercise-catalog-v2.0.2-draft/prescriptions/goal_tag_links.jsonl",
     "prescriptions": "data/generated/exercise-catalog-v2.0.2-draft/prescriptions/prescription_profiles.jsonl",
-    "manifest": "data/generated/exercise-catalog-v2.0.2-final/manifest.json"
+    "manifest": "data/generated/exercise-catalog-v2.0.2-intermediate/variant-materialization-v1/intermediate_manifest.json"
   },
   "counts": {
     "integrated_catalog_rows": 201,
@@ -25,17 +25,17 @@
     "review_queue_rows": 114
   },
   "artifact_sha256": {
-    "context_defaults_jsonl": "faffbb01cd41d5c81f76bc1ad56f8d7f725dcc47ade4bb2956121cbcc459f3cf",
-    "context_defaults_csv": "f491a79ff47978754a53f185b270368e7a4c1e8e9d55a3604a2b74d79bb59347",
-    "context_candidates_jsonl": "4163b60a141e4088735eb9f94802993ca5368e117bd9853d41516229b64ec5ce",
-    "context_candidates_csv": "08e61d8fcd2444c8008956f21451c8c5e1e1ae887921d3ad737caa654136dab3",
-    "family_coverage_jsonl": "899def177764987643bfd70d1f5bdc89c7dde0a011646642d16dac5214d29250",
-    "family_coverage_csv": "2b3bd1c6aaf3d14f5f77e66a5e5ce1e767ea091ffb04654dffc0ab93b98e4248",
-    "routine_coverage_jsonl": "be199f00f0af7668ef944f9fc182b090fac00461bf2f638495a1f56b8c68a8ec",
-    "routine_coverage_csv": "bddd9fa524f9d23a66a52033088363dde2aa5a654db29a9387a824b461178e6d",
+    "context_defaults_jsonl": "c9cc941129adc823b1e0502522d36e1413fc5829a0f47e1160fc8a3f339b7127",
+    "context_defaults_csv": "bb2d5c650673379072398a968b600baf0795e0c71a28a5d58811bb2d30afcee7",
+    "context_candidates_jsonl": "de5c2602131db5eda42eac8d9218088480dc54f2165c13075bea85d479b4603b",
+    "context_candidates_csv": "472c81f91dc124e07867d572e752a4d33ae872dc3d7ec7ea3492e643ad43f851",
+    "family_coverage_jsonl": "2c9b912a456bf293cf1c52fec1890b4cc369122a41001a2df165586c5fdd0082",
+    "family_coverage_csv": "bd5f894d1882ed2bdb27ce5cea3208b93e9310d4a014823901a9d355b4653148",
+    "routine_coverage_jsonl": "475cdcbcf79b5eb71d313e5bccd40bfd392bfd09e61d0d38bff48a8943fe0d42",
+    "routine_coverage_csv": "895986662fad38c34bf171aa40b1b15614abf9bae6cda5eaac810363aabe92bc",
     "review_queue_jsonl": "080fbdfe06a9b769a236e717e1f5e11fcfabeaa19c968b47a7fd560f2640572a",
     "review_queue_csv": "d2446d9f21a82c744d7e0c4dab16bd1dda546ee4274115a408effbe3a6c28c0d",
-    "report_json": "7f655c4cc4b9dc016b4ae65e19f05757bc1e32fb9227f45f94d6108c8ddf0178"
+    "report_json": "6ebe0031ab31b116c3e2542802a1ca163ba4aca22de5531b76cccb9ab11996b6"
   },
   "report_path": "data/reports/V2_0_2_CONTEXT_DEFAULTS_AND_COVERAGE.md"
 }

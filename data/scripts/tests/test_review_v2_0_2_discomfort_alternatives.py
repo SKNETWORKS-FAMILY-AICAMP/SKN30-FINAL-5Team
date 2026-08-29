@@ -23,7 +23,7 @@ def read_jsonl(path: Path) -> list[dict]:
 class DiscomfortAlternativeReviewTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.output = ROOT / "data/generated/exercise-catalog-v2.0.2-final/alternatives"
+        cls.output = ROOT / "data/generated/exercise-catalog-v2.0.2-final/audit/alternatives"
         cls.review_rows = read_jsonl(cls.output / "pain_alternative_review_result_v2_0_2.jsonl")
         cls.normalized_rows = read_jsonl(
             cls.output / "normalized_discomfort_alternatives_v2_0_2.jsonl"

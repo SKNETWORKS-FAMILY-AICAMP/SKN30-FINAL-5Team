@@ -576,7 +576,7 @@ backend V2 code set은 `v2_backend_code_projection.json`으로 직접 전달하�
 `(source, alternative, reason, goal, rule_version)`이며, v2.0.2 통증 관계를 적재할 때는
 여기에 `(pain_discomfort_area_code, condition_code)`를 보존하고
 `service_action_code`, `target_strategy_code`도 함께 전달해야 한다. 이 필드들은 DB
-마이그레이션 `0028_discomfort_alternative_conditions`의 nullable 컬럼에 적재된다.
+마이그레이션 `0028_discomfort_alt_conditions`의 nullable 컬럼에 적재된다.
 통증 map CSV/JSONL을 그대로 importer에 넣을 수는 없으며, source/target stable code,
 goal 보존, difficulty delta, 승인 상태를 importer schema로 변환하는 별도 materialization과
 hash/count 검증이 필요하다. `catalog_data_load`, `catalog_activate`, ACTIVE 전환은 이

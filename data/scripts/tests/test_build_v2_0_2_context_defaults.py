@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 FINAL_DIR = ROOT / "data/generated/exercise-catalog-v2.0.2-final"
-CONTEXT_DIR = FINAL_DIR / "context"
+CONTEXT_DIR = FINAL_DIR / "audit/context"
 SCRIPT = Path(__file__).resolve().parents[1] / "build_v2_0_2_context_defaults.py"
 spec = importlib.util.spec_from_file_location("build_v2_0_2_context_defaults", SCRIPT)
 assert spec and spec.loader

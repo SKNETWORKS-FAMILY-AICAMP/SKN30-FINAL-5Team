@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 FINAL_DIR = ROOT / "data/generated/exercise-catalog-v2.0.2-final"
-OUTPUT = FINAL_DIR / "alternatives"
+OUTPUT = FINAL_DIR / "audit/alternatives"
 SCRIPT = Path(__file__).resolve().parents[1] / "review_v2_0_2_discomfort_alternative_map.py"
 spec = importlib.util.spec_from_file_location("review_v2_0_2_discomfort_alternative_map", SCRIPT)
 assert spec and spec.loader

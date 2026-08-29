@@ -75,7 +75,7 @@
       "sha256": "8f250f275c22f1dd2df311a27c9f25972166d5a393535da680c83fc8f58f830b"
     },
     "final_catalog": {
-      "path": "data/generated/exercise-catalog-v2.0.2-final/catalog/exercises.jsonl",
+      "path": "data/generated/exercise-catalog-v2.0.2-intermediate/variant-materialization-v1/catalog/exercises.jsonl",
       "sha256": "c2936896ee3adc4c92f8971448d63b2e5860e362cb93e99b0bc3f4412ee5a343"
     },
     "legacy_alternatives": {
@@ -83,20 +83,20 @@
       "sha256": "4b8953d4757ee27679403f0ea5e956d7eaf19dac2fd59170a1a6bd1531c7378c"
     },
     "legacy_consolidation": {
-      "path": "data/generated/exercise-catalog-v2.0.2-final/legacy_consolidation_mapping_v2_final.csv",
-      "sha256": "08cdad68f483ebd48820ea1a377ad29928ae485d3a2a4490567ed87a8250f87d"
+      "path": "data/generated/exercise-catalog-v2.0.2-final/audit/legacy_consolidation_mapping_v2_final.csv",
+      "sha256": "871ad87eaf3ef008d3e94055244753fd67442505f5073926c278d593b2b89408"
     },
     "neck_discomfort_candidates": {
       "path": "data/normalized/neck_discomfort_alternative_candidates_v2_0_2.json",
       "sha256": "ab1180f4ae30c7d58004157283e63fe794ea0cf5969dd3c0c8ff80f9c9d33362"
     },
     "stable_code_migration": {
-      "path": "data/generated/exercise-catalog-v2.0.2-final/alias_migration_v2_0_2.csv",
-      "sha256": "7aebeaa0ad9af742a13c1c04e3ecc2cdec40eab6d8be2f91e0a0e1ee1b4bbf45"
+      "path": "data/generated/exercise-catalog-v2.0.2-final/audit/alias_migration_v2_0_2.csv",
+      "sha256": "8f97ccf25a015d5b7ab225f411bb35833db75adee455d1e66ae6638227761e06"
     },
     "variant_relationship_review": {
-      "path": "data/generated/exercise-catalog-v2.0.2-final/variant_relationship_review_v2_0_2.csv",
-      "sha256": "f90d245623b8162059d699cd72869d5a6631780428cae7649d4f39206d1bc33c"
+      "path": "data/generated/exercise-catalog-v2.0.2-final/audit/variant_relationship_review_v2_0_2.csv",
+      "sha256": "9e229b5b08f36be60c13ee31cffd8869d36eb0cec35dcc5531d479c16c125be1"
     }
   },
   "status": "DRAFT_REVIEW_REQUIRED"

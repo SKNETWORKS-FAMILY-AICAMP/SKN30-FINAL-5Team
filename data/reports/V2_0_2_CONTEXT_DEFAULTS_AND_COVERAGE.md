@@ -75,7 +75,7 @@ Alternative는 통증/불편에 의한 교체 관계로만 남기며, 장비·�
 - `GOAL_LINK_NOT_FOUND`: 2건 — 대표운동 stable_code와 승인 goal link가 정확히 일치하지 않아 목표 필터에 연결할 수 없다.
 - `PRESCRIPTION_LINK_NOT_FOUND`: 2건 — 대표운동 stable_code와 service prescription이 정확히 일치하지 않아 처방을 계산할 수 없다.
 - `LOCATION_NOT_DECLARED`: 19건 — 해당 Context가 location_codes에 선언되지 않아 Context 후보에서 제외한다.
-- `MANIFEST_CANONICAL_COUNT_MISMATCH`: 1건 — manifest active_canonical_exercises=136와 catalog canonical rows=131가 다르다.
+- `MANIFEST_CANONICAL_COUNT_MISMATCH`: 1건 — manifest active_canonical_exercises=None와 catalog canonical rows=131가 다르다.
 
 Context review queue는 총 `114`건이며, 상세 row는 `context_default_review_queue_v2_0_2.jsonl/csv`에 보존했다.
 

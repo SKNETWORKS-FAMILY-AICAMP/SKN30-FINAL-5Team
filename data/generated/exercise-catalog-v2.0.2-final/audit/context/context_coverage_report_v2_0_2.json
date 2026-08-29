@@ -314,9 +314,9 @@
         "COOLDOWN": 25
       },
       "core_main_candidate_count": 5,
-      "invalid_timing_profile_count": 6,
+      "invalid_timing_profile_count": 4,
       "profile_review_status_counts": {
-        "DRAFT": 70
+        "DRAFT": 68
       },
       "duration_support_by_requested_minutes": {
         "10": true,
@@ -362,17 +362,17 @@
       "catalog_version_code": "exercise-catalog-v2.0.2-final",
       "context_code": "GYM",
       "experience_level_code": "BEGINNER",
-      "candidate_exercise_count": 56,
-      "candidate_profile_count": 82,
+      "candidate_exercise_count": 51,
+      "candidate_profile_count": 77,
       "phase_candidate_counts": {
         "WARMUP": 26,
-        "MAIN": 30,
+        "MAIN": 25,
         "COOLDOWN": 26
       },
-      "core_main_candidate_count": 12,
-      "invalid_timing_profile_count": 6,
+      "core_main_candidate_count": 9,
+      "invalid_timing_profile_count": 4,
       "profile_review_status_counts": {
-        "DRAFT": 88
+        "DRAFT": 81
       },
       "duration_support_by_requested_minutes": {
         "10": true,
@@ -464,14 +464,14 @@
     {
       "reason_code": "MANIFEST_CANONICAL_COUNT_MISMATCH",
       "count": 1,
-      "note_ko": "manifest active_canonical_exercises=136와 catalog canonical rows=131가 다르다."
+      "note_ko": "manifest active_canonical_exercises=None와 catalog canonical rows=131가 다르다."
     }
   ],
   "source_artifacts": {
-    "catalog": "data/generated/exercise-catalog-v2.0.2-final/catalog/exercises.jsonl",
+    "catalog": "data/generated/exercise-catalog-v2.0.2-intermediate/variant-materialization-v1/catalog/exercises.jsonl",
     "goal_links": "data/generated/exercise-catalog-v2.0.2-draft/prescriptions/goal_tag_links.jsonl",
     "prescriptions": "data/generated/exercise-catalog-v2.0.2-draft/prescriptions/prescription_profiles.jsonl",
-    "manifest": "data/generated/exercise-catalog-v2.0.2-final/manifest.json"
+    "manifest": "data/generated/exercise-catalog-v2.0.2-intermediate/variant-materialization-v1/intermediate_manifest.json"
   },
   "notes": [
     "이 산출물은 신규 운동·Alternative를 생성하지 않는다.",

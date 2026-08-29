@@ -18,11 +18,12 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CANDIDATE_MAP = (
     ROOT
-    / "generated/exercise-catalog-v2.0.2-final/alternatives/discomfort_alternative_map_v2_0_2.jsonl"
+    / "generated/exercise-catalog-v2.0.2-final/audit/alternatives/"
+    "discomfort_alternative_map_v2_0_2.jsonl"
 )
 DEFAULT_CATALOG = ROOT / "generated/exercise-catalog-v2.0.2-final/catalog/exercises.jsonl"
 DEFAULT_POLICY = ROOT / "normalized/discomfort_alternative_map_review_policy_v2_0_2.json"
-DEFAULT_OUTPUT = ROOT / "generated/exercise-catalog-v2.0.2-final/alternatives"
+DEFAULT_OUTPUT = ROOT / "generated/exercise-catalog-v2.0.2-final/audit/alternatives"
 
 POLICY_VERSION = "discomfort-alternative-map-review-v2.0.2-v1.0.0"
 REVIEWED_AT = "2026-08-28T00:00:00+09:00"

@@ -31,7 +31,10 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_CATALOG = ROOT / "generated/exercise-catalog-v2.0.2-final/catalog/exercises.jsonl"
+DEFAULT_CATALOG = ROOT / (
+    "generated/exercise-catalog-v2.0.2-intermediate/variant-materialization-v1/"
+    "catalog/exercises.jsonl"
+)
 DEFAULT_LEGACY = ROOT / "generated/exercise-catalog-v2.0.2-draft/alternatives/alternatives.jsonl"
 DEFAULT_MAPPING = ROOT / "normalized/v2_discomfort_alternative_mapping.csv"
 DEFAULT_STABLE_MIGRATION = (

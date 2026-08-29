@@ -7,6 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 FINAL_DIR = ROOT / "data/generated/exercise-catalog-v2.0.2-final"
+AUDIT_DIR = FINAL_DIR / "audit"
 SCRIPT = Path(__file__).resolve().parents[1] / "materialize_v2_0_2_variant_catalog.py"
 spec = importlib.util.spec_from_file_location("materialize_v2_0_2_variant_catalog", SCRIPT)
 assert spec and spec.loader
@@ -26,9 +27,9 @@ class MaterializedVariantCatalogTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.catalog = read_jsonl(FINAL_DIR / "catalog/exercises.jsonl")
-        cls.relationships = read_jsonl(FINAL_DIR / "variant_relationship_review_v2_0_2.jsonl")
+        cls.relationships = read_jsonl(AUDIT_DIR / "variant_relationship_review_v2_0_2.jsonl")
         cls.report = json.loads(
-            (FINAL_DIR / "variant_integrity_report_v2_0_2.json").read_text(encoding="utf-8")
+            (AUDIT_DIR / "variant_integrity_report_v2_0_2.json").read_text(encoding="utf-8")
         )
         cls.manifest = json.loads((FINAL_DIR / "manifest.json").read_text(encoding="utf-8"))
 

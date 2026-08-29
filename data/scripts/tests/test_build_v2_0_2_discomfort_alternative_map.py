@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 FINAL_DIR = ROOT / "data/generated/exercise-catalog-v2.0.2-final"
-OUTPUT = FINAL_DIR / "alternatives"
+OUTPUT = FINAL_DIR / "audit/alternatives"
 SCRIPT = Path(__file__).resolve().parents[1] / "build_v2_0_2_discomfort_alternative_map.py"
 spec = importlib.util.spec_from_file_location("build_v2_0_2_discomfort_alternative_map", SCRIPT)
 assert spec and spec.loader
@@ -56,7 +56,7 @@ class DiscomfortAlternativeMapTests(unittest.TestCase):
             self.assertNotIn(pain_area, target_areas)
             self.assertEqual(row["target_pain_area_overlap"], False)
             self.assertEqual(row["direction_code"], "A_TO_B")
-            self.assertEqual(row["review_status_code"], "REVIEW_REQUIRED")
+            self.assertEqual(row["review_status_code"], "DOMAIN_APPROVED")
             self.assertFalse(row["production_eligible"])
 
     def test_severe_pain_is_stop_policy_not_an_alternative_row(self) -> None:
@@ -76,7 +76,7 @@ class DiscomfortAlternativeMapTests(unittest.TestCase):
             if row["pain_discomfort_area_code"] == "KNEE"
         }
         self.assertIn("bodyweight_standing_calf_raise_isolation_bodyweight", shoulder_targets)
-        self.assertIn("lat_pulldown_vertical_pull_cable_machine", knee_targets)
+        self.assertIn("one_arm_wall_lats_isolation_bodyweight", knee_targets)
 
 
 if __name__ == "__main__":

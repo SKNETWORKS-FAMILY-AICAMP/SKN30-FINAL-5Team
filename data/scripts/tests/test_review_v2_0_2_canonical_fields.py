@@ -8,6 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 FINAL_DIR = ROOT / "data/generated/exercise-catalog-v2.0.2-final"
+AUDIT_DIR = FINAL_DIR / "audit"
 SCRIPT = Path(__file__).resolve().parents[1] / "review_v2_0_2_canonical_fields.py"
 spec = importlib.util.spec_from_file_location("review_v2_0_2_canonical_fields", SCRIPT)
 assert spec and spec.loader
@@ -22,25 +23,25 @@ def read_jsonl(path: Path) -> list[dict]:
 class CanonicalFieldReviewTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.rows = read_jsonl(FINAL_DIR / "canonical_exercises_v2_0_2_refined.jsonl")
+        cls.rows = read_jsonl(AUDIT_DIR / "canonical_exercises_v2_0_2_refined.jsonl")
         cls.by_id = {row["representative_exercise_id"]: row for row in cls.rows}
         cls.variant_candidates = read_jsonl(
-            FINAL_DIR / "representative_variant_candidates_v2_0_2.jsonl"
+            AUDIT_DIR / "representative_variant_candidates_v2_0_2.jsonl"
         )
         cls.variant_by_id = {
             row["representative_exercise_id"]: row for row in cls.variant_candidates
         }
         cls.report = json.loads(
-            (FINAL_DIR / "canonical_field_validation_report_v2_0_2.json").read_text(
+            (AUDIT_DIR / "canonical_field_validation_report_v2_0_2.json").read_text(
                 encoding="utf-8"
             )
         )
-        cls.changes = read_jsonl(FINAL_DIR / "field_corrections_v2_0_2.jsonl")
-        cls.migrations = read_jsonl(FINAL_DIR / "alias_migration_v2_0_2.jsonl")
-        cls.data_reviews = read_jsonl(FINAL_DIR / "canonical_data_first_pass_review_v2_0_2.jsonl")
-        cls.deletions = read_jsonl(FINAL_DIR / "canonical_deletions_v2_0_2.jsonl")
+        cls.changes = read_jsonl(AUDIT_DIR / "field_corrections_v2_0_2.jsonl")
+        cls.migrations = read_jsonl(AUDIT_DIR / "alias_migration_v2_0_2.jsonl")
+        cls.data_reviews = read_jsonl(AUDIT_DIR / "canonical_data_first_pass_review_v2_0_2.jsonl")
+        cls.deletions = read_jsonl(AUDIT_DIR / "canonical_deletions_v2_0_2.jsonl")
         cls.equipment_reviews = read_jsonl(
-            FINAL_DIR / "equipment_only_same_method_review_v2_0_2.jsonl"
+            AUDIT_DIR / "equipment_only_same_method_review_v2_0_2.jsonl"
         )
 
     def test_summary_counts_and_hard_validation(self) -> None:
@@ -256,7 +257,7 @@ class CanonicalFieldReviewTests(unittest.TestCase):
         self.assertTrue(all(row["production_eligible"] is False for row in self.variant_candidates))
 
     def test_csv_and_jsonl_counts_match(self) -> None:
-        with (FINAL_DIR / "canonical_exercises_v2_0_2_refined.csv").open(
+        with (AUDIT_DIR / "canonical_exercises_v2_0_2_refined.csv").open(
             encoding="utf-8-sig", newline=""
         ) as handle:
             csv_rows = list(csv.DictReader(handle))

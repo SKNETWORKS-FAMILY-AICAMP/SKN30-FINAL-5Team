@@ -24,15 +24,21 @@ from typing import Any
 
 DATA_ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY_ROOT = DATA_ROOT.parent
-DEFAULT_CATALOG = DATA_ROOT / "generated/exercise-catalog-v2.0.2-final/catalog/exercises.jsonl"
+DEFAULT_CATALOG = DATA_ROOT / (
+    "generated/exercise-catalog-v2.0.2-intermediate/variant-materialization-v1/"
+    "catalog/exercises.jsonl"
+)
 DEFAULT_GOALS = (
     DATA_ROOT / "generated/exercise-catalog-v2.0.2-draft/prescriptions/goal_tag_links.jsonl"
 )
 DEFAULT_PRESCRIPTIONS = (
     DATA_ROOT / "generated/exercise-catalog-v2.0.2-draft/prescriptions/prescription_profiles.jsonl"
 )
-DEFAULT_MANIFEST = DATA_ROOT / "generated/exercise-catalog-v2.0.2-final/manifest.json"
-DEFAULT_OUTPUT = DATA_ROOT / "generated/exercise-catalog-v2.0.2-final/context"
+DEFAULT_MANIFEST = DATA_ROOT / (
+    "generated/exercise-catalog-v2.0.2-intermediate/variant-materialization-v1/"
+    "intermediate_manifest.json"
+)
+DEFAULT_OUTPUT = DATA_ROOT / "generated/exercise-catalog-v2.0.2-final/audit/context"
 DEFAULT_REPORT = DATA_ROOT / "reports/V2_0_2_CONTEXT_DEFAULTS_AND_COVERAGE.md"
 
 CATALOG_VERSION = "exercise-catalog-v2.0.2-final"

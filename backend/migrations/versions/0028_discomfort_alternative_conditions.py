@@ -1,6 +1,6 @@
 """Add typed pain-area and NRS selectors to exercise alternatives.
 
-Revision ID: 0028_discomfort_alternative_conditions
+Revision ID: 0028_discomfort_alt_conditions
 Revises: 0027_catalog_media_assets
 Create Date: 2026-08-29
 
@@ -14,7 +14,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0028_discomfort_alternative_conditions"
+revision: str = "0028_discomfort_alt_conditions"
 down_revision: str | None = "0027_catalog_media_assets"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None

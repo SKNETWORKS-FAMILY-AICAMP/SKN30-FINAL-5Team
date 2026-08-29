@@ -8,7 +8,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 FINAL_DIR = ROOT / "data/generated/exercise-catalog-v2.0.2-final"
-OUTPUT = FINAL_DIR / "alternatives"
+OUTPUT = FINAL_DIR / "audit/alternatives"
+CANONICAL_OUTPUT = FINAL_DIR / "alternatives"
 SCRIPT = Path(__file__).resolve().parents[1] / "resolve_v2_0_2_discomfort_alternative_concerns.py"
 spec = importlib.util.spec_from_file_location(
     "resolve_v2_0_2_discomfort_alternative_concerns", SCRIPT
@@ -50,7 +51,7 @@ class DiscomfortAlternativeConcernResolutionTests(unittest.TestCase):
             raise unittest.SkipTest(
                 "difficulty policy changed the reviewed Alternative set; domain re-review required"
             )
-        cls.resolved = read_jsonl(OUTPUT / resolver.RESOLVED_MAP_NAME)
+        cls.resolved = read_jsonl(CANONICAL_OUTPUT / resolver.RESOLVED_MAP_NAME)
         cls.removed = read_jsonl(OUTPUT / resolver.REMOVED_MAP_NAME)
         cls.pending = read_jsonl(OUTPUT / resolver.PENDING_MAP_NAME)
         cls.variants = read_jsonl(OUTPUT / resolver.SAFE_VARIANTS_NAME)
@@ -159,7 +160,7 @@ class DiscomfortAlternativeConcernResolutionTests(unittest.TestCase):
         )
         self.assertEqual(
             self.report["sha256"]["resolved_map"],
-            resolver.sha256_file(OUTPUT / resolver.RESOLVED_MAP_NAME),
+            resolver.sha256_file(CANONICAL_OUTPUT / resolver.RESOLVED_MAP_NAME),
         )
         self.assertEqual(
             self.report["sha256"]["removed_map"],
