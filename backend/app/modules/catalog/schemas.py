@@ -160,6 +160,23 @@ class ExerciseRecord(CatalogInputModel):
     review_status_code: CatalogReviewStatusCode
     source_track: SourceTrackCode
     source_identity: Annotated[str, Field(min_length=1, max_length=255)]
+    # v2.0.2 family identity. Absent on v2.0.1 and merged inputs, which have no
+    # representative/variant model.
+    record_type: Literal["REPRESENTATIVE", "VARIANT", "SEPARATE_EXERCISE"] | None = None
+    family_code: Annotated[str, Field(min_length=1, max_length=120)] | None = None
+    representative_stable_code: StableCode | None = None
+    # None is not false: it means the payload did not state whether the record is
+    # a base routine candidate, and the importer refuses to guess.
+    general_pool_included: bool | None = None
+
+    @model_validator(mode="after")
+    def validate_family_identity(self) -> "ExerciseRecord":
+        is_variant = self.record_type == "VARIANT"
+        if is_variant != (self.representative_stable_code is not None):
+            raise ValueError("only a VARIANT record names a representative_stable_code")
+        if self.representative_stable_code == self.stable_code:
+            raise ValueError("a VARIANT must not name itself as its representative")
+        return self
 
     @field_validator("body_focus_code", mode="before")
     @classmethod

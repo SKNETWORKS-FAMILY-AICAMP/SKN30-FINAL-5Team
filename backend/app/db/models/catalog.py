@@ -165,8 +165,17 @@ class Exercise(Base):
             name="ck_exercises_review_status_code",
         ),
         CheckConstraint(
-            "source_track_code IN ('wger', 'kspo', 'gymvisual')",
+            "source_track_code IN ('wger', 'kspo', 'gymvisual', 'pain_alternative_policy')",
             name="ck_exercises_source_track_code",
+        ),
+        CheckConstraint(
+            "record_type IS NULL OR "
+            "record_type IN ('REPRESENTATIVE', 'VARIANT', 'SEPARATE_EXERCISE')",
+            name="ck_exercises_record_type",
+        ),
+        CheckConstraint(
+            "(record_type = 'VARIANT') = (representative_stable_code IS NOT NULL)",
+            name="ck_exercises_variant_parent",
         ),
         CheckConstraint("default_rest_seconds >= 0", name="ck_exercises_rest_seconds"),
         CheckConstraint(
@@ -181,6 +190,7 @@ class Exercise(Base):
             name="ck_exercises_timing_values",
         ),
         Index("ix_exercises_catalog_review", "catalog_version_id", "review_status_code"),
+        Index("ix_exercises_general_pool", "catalog_version_id", "general_pool_included"),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
@@ -206,6 +216,13 @@ class Exercise(Base):
     # this field and recommendation logic must not read it. Keep a deterministic
     # ORM value until the later Alembic removal after all consumers are gone.
     beginner_suitable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # v2.0.2 identity. NULL on v2.0.1 rows, which predate the family model.
+    record_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    family_code: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    representative_stable_code: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # NULL means the payload did not state it, which the importer reads as "not
+    # a base routine candidate". Never defaulted, so the two stay distinguishable.
+    general_pool_included: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     timing_mode_code: Mapped[str] = mapped_column(String(32), nullable=False)
     default_seconds_per_rep: Mapped[int | None] = mapped_column(Integer, nullable=True)
     default_work_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
