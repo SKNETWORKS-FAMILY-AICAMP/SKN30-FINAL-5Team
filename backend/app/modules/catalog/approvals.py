@@ -242,4 +242,20 @@ def get_catalog_approval(
     return get_derived_data_approval("CATALOG", version_code, manifest_sha256, record_count)
 
 
-__all__ = ["DerivedDataApproval", "get_catalog_approval", "get_derived_data_approval"]
+def get_approved_record_count(artifact_kind: ArtifactKind, version_code: str) -> int | None:
+    """Return how many rows the approval covers, without needing the manifest hash.
+
+    Activation gates compare loaded rows against the approved count. They read it
+    from here so the number lives only in the approval record.
+    """
+    approval = _APPROVALS.get((artifact_kind, version_code))
+    return None if approval is None else approval.record_count
+
+
+__all__ = [
+    "ArtifactKind",
+    "DerivedDataApproval",
+    "get_approved_record_count",
+    "get_catalog_approval",
+    "get_derived_data_approval",
+]

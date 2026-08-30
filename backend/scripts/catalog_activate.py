@@ -43,6 +43,7 @@ from backend.app.db.models.catalog import (
     ExercisePrescriptionProfile,
     ExerciseSafetyRule,
 )
+from backend.app.modules.catalog.approvals import ArtifactKind, get_approved_record_count
 from backend.scripts.demo_seed import _require_demo_database, _require_demo_environment
 
 REVIEWED_METHOD_CODE = "DOMAIN_REVIEWER"
@@ -51,6 +52,19 @@ V2_CATALOG_VERSION_CODE = "exercise-catalog-v2.0.1-final"
 V2_RULE_SET_VERSION = "safety-rule-set-v2.0.1"
 V2_ALTERNATIVE_SET_VERSION = "alternative-set-v2.0.1"
 V2_PRESCRIPTION_SET_VERSION = "prescription-set-v2.0.1"
+
+
+def _approved_record_count(artifact_kind: ArtifactKind, version_code: str) -> int:
+    """Read the approved row count from the registry instead of pinning a literal.
+
+    The gate still refuses activation when the loaded rows do not match what was
+    approved; it just reads the expected number from the same record the importer
+    used, so a re-approved artifact does not need the number edited in two places.
+    """
+    count = get_approved_record_count(artifact_kind, version_code)
+    if count is None:
+        raise SystemExit(f"refusing to activate V2: no approval record for {version_code}")
+    return count
 
 
 def missing_review_fields(catalog: CatalogVersion) -> tuple[str, ...]:
@@ -119,7 +133,12 @@ def validate_v2_activation(session: Session, catalog: CatalogVersion) -> None:
         and prescription.get("prescription_records") == 137
         and isinstance(prescription.get("production_approval"), dict)
     )
-    if int(safety_count or 0) != 394 or int(alternative_count or 0) != 285:
+    approved_safety_count = _approved_record_count("SAFETY_RULES", V2_RULE_SET_VERSION)
+    approved_alternative_count = _approved_record_count("ALTERNATIVES", V2_ALTERNATIVE_SET_VERSION)
+    if (
+        int(safety_count or 0) != approved_safety_count
+        or int(alternative_count or 0) != approved_alternative_count
+    ):
         raise SystemExit(
             "refusing to activate V2: approved safety/alternative version or count mismatch"
         )

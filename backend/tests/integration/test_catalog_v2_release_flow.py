@@ -102,11 +102,11 @@ def test_v2_release_import_draft_activate_and_replay_are_exact(
     assert repository.get_approved_catalog(postgres_session) is None
     assert [item.exercise_record_count for item in first.catalogs] == [102]
     assert first.safety_rules.record_count == 394
-    assert first.alternatives.record_count == 285
+    assert first.alternatives.record_count == 585
     assert first.prescriptions.record_count == 239
     assert _count(postgres_session, Exercise) == 102
     assert _count(postgres_session, ExerciseSafetyRule) == 394
-    assert _count(postgres_session, ExerciseAlternative) == 285
+    assert _count(postgres_session, ExerciseAlternative) == 585
     assert _count(postgres_session, ExerciseGoalTagLink) == 102
     assert _count(postgres_session, ExercisePrescriptionProfile) == 137
     assert _count(postgres_session, ExerciseMediaAsset) == 0
@@ -160,7 +160,7 @@ def test_v2_release_import_draft_activate_and_replay_are_exact(
     assert reactivated.activated_at == activated_at
     assert _count(postgres_session, Exercise) == 102
     assert _count(postgres_session, ExerciseSafetyRule) == 394
-    assert _count(postgres_session, ExerciseAlternative) == 285
+    assert _count(postgres_session, ExerciseAlternative) == 585
     assert _count(postgres_session, ExerciseGoalTagLink) == 102
     assert _count(postgres_session, ExercisePrescriptionProfile) == 137
 

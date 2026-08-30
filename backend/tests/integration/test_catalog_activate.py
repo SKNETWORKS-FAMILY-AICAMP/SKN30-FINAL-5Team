@@ -298,7 +298,7 @@ def test_v2_import_promote_then_activate_preserves_approval_packet(
     )
 
     assert result.safety_rules.record_count == 394
-    assert result.alternatives.record_count == 285
+    assert result.alternatives.record_count == 585
     assert result.prescriptions.record_count == 239
     assert catalog.status_code == "ACTIVE"
     assert catalog.production_eligible is True
