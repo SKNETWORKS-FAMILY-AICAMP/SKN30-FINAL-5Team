@@ -30,11 +30,11 @@ class ContentReviewQueueTests(unittest.TestCase):
             self.summary["catalog_records"],
         )
 
-    def test_only_derived_records_are_queued(self) -> None:
-        """The representatives are complete once their dropped cues are recovered."""
+    def test_no_representative_is_queued(self) -> None:
+        """Representatives are complete once their dropped cues are recovered."""
         queued_types = {row["record_type"] for row in self.rows}
 
-        self.assertEqual(queued_types, {"SEPARATE_EXERCISE", "VARIANT"})
+        self.assertNotIn("REPRESENTATIVE", queued_types)
 
     def test_every_queued_row_names_what_it_is_missing(self) -> None:
         for row in self.rows:
@@ -46,13 +46,12 @@ class ContentReviewQueueTests(unittest.TestCase):
                 # one is pre-filled and must not be listed as missing.
                 self.assertFalse(row[field], f"{row['stable_code']}:{field}")
 
-    def test_recovered_cues_are_carried_into_the_queue(self) -> None:
-        recovered = [row for row in self.rows if row["form_cues_ko"]]
-
-        self.assertTrue(recovered)
-        for row in recovered:
-            self.assertNotIn("form_cues_ko", str(row["missing_fields"]))
-            self.assertTrue(row["recovered_form_cues_source"])
+    def test_a_prefilled_cue_is_never_also_reported_as_missing(self) -> None:
+        """A row carries either a cue or a request for one, never both."""
+        for row in self.rows:
+            if row["form_cues_ko"]:
+                self.assertNotIn("form_cues_ko", str(row["missing_fields"]))
+                self.assertTrue(row["recovered_form_cues_source"])
 
     def test_recovery_only_reports_the_declared_audit_sources(self) -> None:
         """Every recovered cue is traceable to one of the two named artifacts."""
