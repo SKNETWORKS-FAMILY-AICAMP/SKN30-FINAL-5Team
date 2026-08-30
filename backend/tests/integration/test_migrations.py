@@ -24,7 +24,10 @@ def test_migration_history_has_catalog_media_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0028_discomfort_alt_conditions"]
+    assert scripts.get_heads() == ["0029_routine_duration_tolerance"]
+    assert scripts.get_revision("0029_routine_duration_tolerance").down_revision == (
+        "0028_discomfort_alt_conditions"
+    )
     assert scripts.get_revision("0028_discomfort_alt_conditions").down_revision == (
         "0027_catalog_media_assets"
     )
@@ -248,8 +251,14 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
             constraint["name"]: constraint["sqltext"]
             for constraint in inspector.get_check_constraints("exercises")
         }
+        routine_day_checks = {
+            constraint["name"]: constraint["sqltext"]
+            for constraint in inspector.get_check_constraints("routine_days")
+        }
         assert "catalog-v2" in catalog_checks["ck_catalog_versions_code_set_version"]
         assert "gymvisual" in exercise_checks["ck_exercises_source_track_code"]
+        assert "ck_routine_days_exact_duration" not in routine_day_checks
+        assert "300" in routine_day_checks["ck_routine_days_duration_tolerance"]
         assert {column["name"] for column in inspector.get_columns("calendar_connections")} == {
             "id",
             "user_id",

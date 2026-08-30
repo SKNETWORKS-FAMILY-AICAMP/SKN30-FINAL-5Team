@@ -754,8 +754,11 @@ advisory lock을 사용하고 `(user_id, version)` UNIQUE로 동시 생성에서
 tier_code는 routine item의 문맥 속성이다.
 각 routine day는 WARMUP, MAIN, COOLDOWN을 이 순서로 하나 이상 포함하고 MAIN에는 CORE가
 하나 이상 있어야 한다. 단계 순서와 CORE 존재는 service 및 통합 테스트로 검증한다.
-`estimated_duration_seconds = requested_duration_minutes * 60`은 DB CHECK와 duration service
-양쪽에서 검증한다. `schedule_rule=ROTATION`이며 특정 요일을 저장하지 않는다.
+`abs(estimated_duration_seconds - requested_duration_minutes * 60) <= 300`은 DB CHECK와
+duration service 양쪽에서 검증한다. 승인된 pool이 요청 시간을 정확히 맞출 수 없을 때 계획은 이
+±5분 창 안에 들어올 수 있고 가장 가까운 계획이 이긴다. 창을 벗어나면 요청을 실패시키며 시간을
+임의로 줄이지 않는다(AGENTS.md 7절, 2026-08-27 승인). `requested_duration_minutes`는 사용자
+요청값 그대로 보존한다. `schedule_rule=ROTATION`이며 특정 요일을 저장하지 않는다.
 
 ### 6.3.1 user_available_locations
 
