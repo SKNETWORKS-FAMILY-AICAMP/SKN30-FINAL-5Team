@@ -23,9 +23,13 @@ class MechanicalReferenceRepairTests(unittest.TestCase):
         cls.catalog = read_jsonl(FINAL / "catalog/exercises.jsonl")
         cls.bindings = read_jsonl(FINAL / "audit/reference_binding_status_v2_0_2.jsonl")
         cls.media = MODULE.read_csv(FINAL / "media/media_assets_v2_0_2.csv")
-        cls.registry = json.loads((FINAL / "audit/stable_code_registry_v2.json").read_text())
+        cls.registry = json.loads(
+            (FINAL / "audit/stable_code_registry_v2.json").read_text(encoding="utf-8")
+        )
         cls.report = json.loads(
-            (FINAL / "audit/integrity/auto_reference_repair_report_v2_0_2.json").read_text()
+            (FINAL / "audit/integrity/auto_reference_repair_report_v2_0_2.json").read_text(
+                encoding="utf-8"
+            )
         )
 
     def test_safe_variants_are_general_pool_records_with_conditioned_relations(self) -> None:
