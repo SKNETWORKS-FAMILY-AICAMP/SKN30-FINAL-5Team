@@ -99,7 +99,7 @@ def validate(bundle: Path = DEFAULT_BUNDLE) -> dict[str, Any]:
             and safety_record.exercise_stable_code not in stable_codes
         ):
             raise PipelineError(f"safety rule FK is missing: {safety_record.exercise_stable_code}")
-    relation_keys: set[tuple[str, str, str, str, str, str | None]] = set()
+    relation_keys: set[tuple[str, str, str, str, str, str | None, str | None]] = set()
     for alternative_record in alternatives.records:
         if (
             alternative_record.source_exercise_stable_code not in stable_codes
@@ -118,6 +118,7 @@ def validate(bundle: Path = DEFAULT_BUNDLE) -> dict[str, Any]:
             alternative_record.goal_preservation_code,
             alternative_record.rule_version,
             alternative_record.condition_code,
+            alternative_record.pain_discomfort_area_code,
         )
         if key in relation_keys:
             raise PipelineError(f"duplicate alternative relation: {key}")
@@ -147,9 +148,12 @@ def validate(bundle: Path = DEFAULT_BUNDLE) -> dict[str, Any]:
         raise PipelineError("V2 bundle summary counts do not match loaded records")
     projection = bundle_manifest.get("projection", {})
     conflict_report = bundle / projection.get("conflict_report_path", "")
+    # DIRECT means the importer set is the runtime set: nothing is dropped or
+    # merged on the way into the bundle. Pinning a literal count here only
+    # records what the pipeline happened to emit on one day.
     if (
         projection.get("status") != "DIRECT"
-        or projection.get("runtime_alternative_records") != 285
+        or projection.get("runtime_alternative_records") != len(alternatives.records)
         or projection.get("importer_alternative_records") != len(alternatives.records)
         or projection.get("alternative_conflict_count") != 0
         or not conflict_report.is_file()

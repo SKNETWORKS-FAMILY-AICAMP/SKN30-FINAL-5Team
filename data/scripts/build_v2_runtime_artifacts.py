@@ -240,13 +240,66 @@ def stable_code_index(records: list[ExerciseRecord]) -> dict[str, str]:
     return output
 
 
+# The reviewed pain area and NRS band travel inside source_metadata, and the
+# strategy travels as alternative_strategy_code. Project them onto the typed
+# selector columns the backend reads instead of re-deriving them, so the
+# relation keeps the band it was approved under.
+_SCORE_BAND_RANGE = {"NRS_1_3": ("1", "3"), "NRS_4_6": ("4", "6")}
+_SCORE_BAND_ACTION = {"NRS_1_3": "LOAD_REDUCED", "NRS_4_6": "SKIP_AFFECTED_AREA"}
+
+
+def _pain_selectors(source: dict[str, str], metadata: dict[str, Any]) -> dict[str, str | None]:
+    """Return the typed discomfort selectors, or all-None for other reasons."""
+    empty: dict[str, str | None] = {
+        "pain_discomfort_area_code": None,
+        "condition_code": None,
+        "service_action_code": None,
+        "target_strategy_code": None,
+    }
+    carried = (
+        source["pain_score_min"],
+        source["pain_score_max"],
+        source["service_action_code"],
+        source["alternative_strategy_code"],
+    )
+    if source["reason_code"] != "DISCOMFORT":
+        if any(carried):
+            raise RuntimeArtifactError(
+                f"non-discomfort relation carries pain selectors: {source['source_relation_key']}"
+            )
+        return empty
+
+    area = metadata.get("body_area_code") or ""
+    band = metadata.get("score_band_code") or ""
+    action = source["service_action_code"]
+    strategy = source["alternative_strategy_code"]
+    if not area or band not in _SCORE_BAND_RANGE or not strategy:
+        raise RuntimeArtifactError(
+            f"discomfort relation is missing pain selectors: {source['source_relation_key']}"
+        )
+    if (source["pain_score_min"], source["pain_score_max"]) != _SCORE_BAND_RANGE[band]:
+        raise RuntimeArtifactError(
+            f"discomfort score range does not match {band}: {source['source_relation_key']}"
+        )
+    if action != _SCORE_BAND_ACTION[band]:
+        raise RuntimeArtifactError(
+            f"service_action_code does not match {band}: {source['source_relation_key']}"
+        )
+    return {
+        "pain_discomfort_area_code": area,
+        "condition_code": band,
+        "service_action_code": action,
+        "target_strategy_code": strategy,
+    }
+
+
 def materialize_alternatives(
     records: list[V2ExerciseRecord], decisions: dict[str, Any]
 ) -> list[V2ExerciseAlternativeRecord]:
     source_rows = read_csv(ALTERNATIVES_PATH)
     policy = decisions["alternative_materialization"]
     stable_codes = {record.stable_code for record in records}
-    seen: dict[tuple[str, str, str, str, str], dict[str, str]] = {}
+    seen: dict[tuple[str, str, str, str, str, str], dict[str, str]] = {}
     result: list[V2ExerciseAlternativeRecord] = []
     source_hash = sha256(ALTERNATIVES_PATH)
     for source in source_rows:
@@ -271,12 +324,15 @@ def materialize_alternatives(
             raise RuntimeArtifactError("alternative difficulty_delta is not an integer") from error
         if difficulty_delta not in {-1, 0}:
             raise RuntimeArtifactError("alternative difficulty_delta must be -1 or 0")
+        metadata = json.loads(source["source_metadata"])
+        selectors = _pain_selectors(source, metadata)
         key = (
             source_stable,
             alternative_stable,
             source["reason_code"],
             source["goal_preservation_code"],
-            source.get("condition_code", ""),
+            selectors["condition_code"] or "",
+            selectors["pain_discomfort_area_code"] or "",
         )
         if key in seen:
             previous = seen[key]
@@ -309,17 +365,14 @@ def materialize_alternatives(
                 "production_eligible": False,
                 "source_manifest_hash": source_hash,
                 "source_metadata": {
-                    **json.loads(source["source_metadata"]),
+                    **metadata,
                     "source_relation_key": source["source_relation_key"],
                     "materialization_version": decisions["decision_version"],
                 },
                 "source_catalog_version_code": "exercise-catalog-v2.0.1-final",
                 "source_exercise_stable_code": source_stable,
                 "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
-                "pain_discomfort_area_code": source.get("pain_discomfort_area_code") or None,
-                "condition_code": source.get("condition_code") or None,
-                "service_action_code": source.get("service_action_code") or None,
-                "target_strategy_code": source.get("target_strategy_code") or None,
+                **selectors,
             }
         )
         result.append(record)

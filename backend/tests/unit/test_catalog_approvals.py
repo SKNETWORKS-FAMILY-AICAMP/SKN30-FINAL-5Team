@@ -56,8 +56,8 @@ def test_exact_v2_approvals_preserve_packet_metadata_and_waiver() -> None:
         (
             "ALTERNATIVES",
             "alternative-set-v2.0.1",
-            "ef954cff31fc6fd226af1dec98d24261bb0c42537097ff1a9306a8f3839e2e99",
-            285,
+            "858785cb2c80dccbe48edec9b472421b726d5a6d69d99d0d056f25453bac3821",
+            585,
         ),
         (
             "PRESCRIPTIONS",

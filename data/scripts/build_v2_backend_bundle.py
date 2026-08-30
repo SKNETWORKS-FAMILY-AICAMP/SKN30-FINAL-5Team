@@ -348,6 +348,17 @@ def build(
                 if path.suffix == ".jsonl":
                     entry["records"] = len([line for line in raw.splitlines() if line.strip()])
                 files.append(entry)
+        # Derive the published counts from the packaged files. A literal drifts
+        # the moment the materializer emits a different number of relations.
+        records_by_path = {entry["path"]: entry["records"] for entry in files if "records" in entry}
+        alternative_records = records_by_path["alternatives/alternatives.jsonl"]
+        runtime_alternative_records = len(
+            [
+                line
+                for line in (runtime / "alternatives.jsonl").read_bytes().splitlines()
+                if line.strip()
+            ]
+        )
         bundle = {
             "schema_version": "1.0",
             "bundle_version": "v2-backend-bundle-2026-08-25",
@@ -366,16 +377,18 @@ def build(
                 "prescriptions": "prescriptions/prescription_manifest.json",
             },
             "summary": {
-                "catalog_records": 102,
-                "safety_rule_records": 394,
-                "alternative_records": 285,
-                "goal_tag_records": 102,
-                "prescription_records": 137,
+                "catalog_records": records_by_path["catalog/exercises.jsonl"],
+                "safety_rule_records": records_by_path["safety/safety_rules.jsonl"],
+                "alternative_records": alternative_records,
+                "goal_tag_records": records_by_path["prescriptions/goal_tag_links.jsonl"],
+                "prescription_records": records_by_path[
+                    "prescriptions/prescription_profiles.jsonl"
+                ],
             },
             "projection": {
                 "status": "DIRECT",
-                "runtime_alternative_records": 285,
-                "importer_alternative_records": 285,
+                "runtime_alternative_records": runtime_alternative_records,
+                "importer_alternative_records": alternative_records,
                 "alternative_conflict_count": 0,
                 "conflict_report_path": "alternatives/input/alternative_projection_conflicts.json",
             },
