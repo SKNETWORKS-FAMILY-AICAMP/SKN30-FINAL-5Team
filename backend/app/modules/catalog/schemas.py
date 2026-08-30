@@ -24,7 +24,12 @@ from backend.app.modules.catalog.codes import (
 )
 
 Sha256 = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
-StableCode = Annotated[str, Field(pattern=r"^[a-z0-9]+(?:_[a-z0-9]+)*$", max_length=120)]
+# A double underscore separates a derived record from the exercise it was
+# derived from: `<base code>__<derivation>`, as v2.0.2 names its 75 pain-area
+# safe variants. Only one extra underscore is allowed, so the separator stays
+# unambiguous and the rest of the shape (lowercase, no leading, trailing or
+# longer runs) is unchanged.
+StableCode = Annotated[str, Field(pattern=r"^[a-z0-9]+(?:_{1,2}[a-z0-9]+)*$", max_length=120)]
 
 
 class CatalogInputModel(BaseModel):
