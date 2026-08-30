@@ -4,10 +4,11 @@
 - Reviewers: 개발팀장(설계 승인), AI·데이터 리드(산출물 계약), PM(안전 정책)
 - 관련 요구사항: 운동 카탈로그 v2.0.2 통합 (PR #192)
 - 관련 ADR: 미작성. 6절의 결정 항목은 ADR 또는 본 문서 승인으로 확정한다.
-- 목표 브랜치: `feat/<issue>-catalog-v2-0-2-import`
+- 목표 브랜치: `feat/catalog-v2-0-2-import`
 
-이 문서는 구현 계획이며 구현 승인이 아니다. 6절의 결정 항목이 승인되기 전까지
-v2.0.2를 production contract로 활성화하지 않는다.
+6절의 결정 A1·B1·C1은 2026-08-30 프로젝트 오너(개발팀장 겸임) 승인으로 확정했고
+착수 결과는 7절에 있다. **7.1의 카탈로그 콘텐츠 공백이 해소되기 전에는 v2.0.2를
+적재할 수 없다.**
 
 ## 배경과 사용자 가치
 
@@ -154,6 +155,56 @@ B1을 권고한다. rights 검수 이력이 DB에 필요하다는 요구가 확�
 | C2 | `source_metadata` JSONB에 보존 | 마이그레이션 없음. 자주 조회되는 필드를 JSON에만 두는 것은 `AGENTS.md` 10절에 어긋남 |
 
 C1을 권고한다. `AGENTS.md` 10절이 자주 조회되는 필드에 typed column을 요구한다.
+
+## 7. 구현 착수 결과 (2026-08-30)
+
+결정 A1·B1·C1은 프로젝트 오너 승인으로 확정했고, 착수 결과는 다음과 같다.
+
+| 차단 | 상태 |
+|---|---|
+| 1. 승인 레코드 부재 | 미착수. 6번 payload가 확정되어야 해시를 고정할 수 있다 |
+| 2. 번들 계약 | **해소.** `data/scripts/build_v2_0_2_backend_bundle.py` (A1) |
+| 3. 대체 payload 필드 부족 | **해소.** 1,104건 투영 성공 |
+| 4. media 102행 | **해소.** AVAILABLE 68건만 적재, backend loader 검증 통과 (B1) |
+| 5. `source_track_code` CHECK | **해소.** migration 0031 |
+| 6. record_type·family_code·variant parent | **해소.** migration 0031 (C1) |
+| 7. v2.0.1 DEPRECATED 전환 | 미착수 |
+
+### 7.1 새로 발견한 차단 요소: 카탈로그 콘텐츠 공백
+
+패키저는 카탈로그 단계에서 의도적으로 실패한다. v2.0.2 `catalog/exercises.jsonl` 170건에
+백엔드 계약이 요구하는 값이 없다.
+
+| 필드 | 없는 건수 | 성격 |
+|---|---:|---|
+| `form_cues_ko` | 170 / 170 | 사용자에게 보이는 운동 지도 문구 |
+| `default_rest_seconds` | 58 | FITT 휴식값 |
+| `default_transition_seconds` | 17 | 운동 간 전환값 |
+
+`audit/canonical_exercises_v2_final.jsonl`과 `..._refined.jsonl`에서 80건은 복구 가능하지만,
+나머지 **90건**(`pain_alternative_policy` 75 + `VARIANT` 15)은 어떤 산출물에도 form cue가
+없다. 지도 문구와 휴식값은 `data/AGENTS.md`가 명시 검수를 요구하는 내용이므로 패키저가
+생성하지 않고 실패한다. 데이터 파이프라인에서 채워야 한다.
+
+추가로 `pain_alternative_policy` 75건의 `stable_code`가 이중 밑줄을 쓴다
+(`..._isolation_bodyweight__knee_no_load_safe_v1`). 백엔드 `StableCode` 패턴
+`^[a-z0-9]+(?:_[a-z0-9]+)*$`가 이를 거부하므로, 패턴을 넓힐지 코드를 재명명할지 결정이 필요하다.
+
+### 7.2 매니페스트 무결성
+
+착수 중 `manifest.json`의 30개 seal 중 12개가 검증되지 않는 것을 발견해 재봉인했다
+(`V2_0_2_MANIFEST_RESEAL_2026_08_30`). 원인은 대체 payload 내용 변경 1건과 CSV 줄바꿈
+정규화 11건이며 상세는 `data/scripts/reseal_v2_0_2_manifest.py` 문서와 커밋 메시지에 있다.
+`--check`로 CI에서 드리프트를 검사할 수 있다.
+
+### 7.3 검토 상태 불일치
+
+`manifest.json`은 `status=PRODUCTION_APPROVED`, `production_eligible=true`인데
+`audit/canonical_field_validation_report_v2_0_2.json`은
+`status=VALIDATION_COMPLETE_WITH_REVIEW_REQUIRED`, `production_eligible=false`,
+`review_required_count=131`, `instruction_review_required_count=31`,
+`source_license_review_required_count=131`이다. 7.1의 콘텐츠 공백과 같은 방향을 가리킨다.
+활성화 전에 어느 쪽이 사실인지 데이터 파트가 확정해야 한다.
 
 ## 알려진 제한과 후속 작업
 
