@@ -585,6 +585,19 @@ PK는 exercise_id, body_area_code, role_code 조합이다.
 | source_metadata | 매니페스트 전체의 버전 있는 source·review·file 메타데이터 JSONB |
 | created_at | 생성 시각 |
 
+통증(`reason_code=DISCOMFORT`) 관계는 다음 typed selector를 추가로 저장한다.
+
+| 컬럼 | 설명 |
+|---|---|
+| pain_discomfort_area_code | 사용자가 보고한 통증·불편 부위 |
+| condition_code | `NRS_1_3` 또는 `NRS_4_6` |
+| service_action_code | `LOAD_REDUCED` 또는 `SKIP_AFFECTED_AREA` |
+| target_strategy_code | 통증 부위 회피와 부하·회복 전략 |
+
+장비·장소 관계에서는 위 selector를 `NULL`로 둔다. 통증 관계의 unique key는 기존 관계
+식별자에 `condition_code`를 포함하며, 같은 source→target이라도 NRS 구간별 관계를 보존한다.
+Decision service는 사용자의 불편 부위·심각도와 일치하는 관계만 조회한다.
+
 대체 관계는 방향성이 있다. A가 B를 대체한다고 해서 B가 A를 자동으로 대체하지 않는다.
 
 DOMAIN_APPROVED이면서 `production_eligible=true`인 관계만 계획 생성에 사용한다. Issue 53에서

@@ -99,7 +99,7 @@ def validate(bundle: Path = DEFAULT_BUNDLE) -> dict[str, Any]:
             and safety_record.exercise_stable_code not in stable_codes
         ):
             raise PipelineError(f"safety rule FK is missing: {safety_record.exercise_stable_code}")
-    relation_keys: set[tuple[str, str, str, str, str]] = set()
+    relation_keys: set[tuple[str, str, str, str, str, str | None]] = set()
     for alternative_record in alternatives.records:
         if (
             alternative_record.source_exercise_stable_code not in stable_codes
@@ -117,6 +117,7 @@ def validate(bundle: Path = DEFAULT_BUNDLE) -> dict[str, Any]:
             alternative_record.reason_code,
             alternative_record.goal_preservation_code,
             alternative_record.rule_version,
+            alternative_record.condition_code,
         )
         if key in relation_keys:
             raise PipelineError(f"duplicate alternative relation: {key}")

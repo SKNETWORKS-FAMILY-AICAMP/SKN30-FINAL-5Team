@@ -246,7 +246,7 @@ def materialize_alternatives(
     source_rows = read_csv(ALTERNATIVES_PATH)
     policy = decisions["alternative_materialization"]
     stable_codes = {record.stable_code for record in records}
-    seen: dict[tuple[str, str, str, str], dict[str, str]] = {}
+    seen: dict[tuple[str, str, str, str, str], dict[str, str]] = {}
     result: list[V2ExerciseAlternativeRecord] = []
     source_hash = sha256(ALTERNATIVES_PATH)
     for source in source_rows:
@@ -276,6 +276,7 @@ def materialize_alternatives(
             alternative_stable,
             source["reason_code"],
             source["goal_preservation_code"],
+            source.get("condition_code", ""),
         )
         if key in seen:
             previous = seen[key]
@@ -315,6 +316,10 @@ def materialize_alternatives(
                 "source_catalog_version_code": "exercise-catalog-v2.0.1-final",
                 "source_exercise_stable_code": source_stable,
                 "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
+                "pain_discomfort_area_code": source.get("pain_discomfort_area_code") or None,
+                "condition_code": source.get("condition_code") or None,
+                "service_action_code": source.get("service_action_code") or None,
+                "target_strategy_code": source.get("target_strategy_code") or None,
             }
         )
         result.append(record)

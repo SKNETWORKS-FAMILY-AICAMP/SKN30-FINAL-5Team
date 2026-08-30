@@ -1,0 +1,81 @@
+{
+  "schema_version": "exercise-alternative-policy-v2.0.2-v1",
+  "policy_version": "exercise-alternative-policy-v2.0.2-v1.0.0",
+  "status": "DRAFT_REVIEW_REQUIRED",
+  "production_eligible": false,
+  "alternative_definition": "통증 또는 불편 조건으로 source 운동을 수행하기 어렵거나 위험할 때 해당 부위 부담을 줄이는 교체 관계",
+  "allowed_reason_codes": ["DISCOMFORT"],
+  "rejected_reason_codes": ["EQUIPMENT", "LOCATION", "DIFFICULTY"],
+  "reclassification": {
+    "EQUIPMENT": "VARIANT",
+    "LOCATION": "CONTEXT_DEFAULT",
+    "DIFFICULTY": "VARIANT_DIFFICULTY"
+  },
+  "condition_bands": [
+    {
+      "condition_code": "NRS_1_3",
+      "minimum_score": 1,
+      "maximum_score": 3,
+      "severity_code": "MILD",
+      "service_action_code": "LOAD_REDUCED",
+      "target_guard": "TARGET_EXCLUDES_DISCOMFORT_AREA"
+    },
+    {
+      "condition_code": "NRS_4_6",
+      "minimum_score": 4,
+      "maximum_score": 6,
+      "severity_code": "MODERATE",
+      "service_action_code": "SKIP_AFFECTED_AREA",
+      "target_guard": "TARGET_EXCLUDES_DISCOMFORT_AREA"
+    },
+    {
+      "condition_code": "NRS_7_10",
+      "minimum_score": 7,
+      "maximum_score": 10,
+      "severity_code": "SEVERE",
+      "service_action_code": "STOP_EXERCISE",
+      "target_guard": "NO_ALTERNATIVE"
+    }
+  ],
+  "same_area_target_policy": {
+    "decision": "REMOVE_RECLASSIFY",
+    "applies_to": ["NRS_1_3", "NRS_4_6"],
+    "reason_code": "TARGET_RETAINS_DISCOMFORT_AREA",
+    "rationale": "경미한 통증이어도 target이 보고된 불편 부위를 계속 부하하면 부담 회피 목적을 충족하지 못하므로 Alternative로 저장하지 않는다."
+  },
+  "keep_guards": [
+    "SOURCE_LOADS_REPORTED_DISCOMFORT_AREA",
+    "TARGET_EXCLUDES_REPORTED_DISCOMFORT_AREA",
+    "TARGET_DIFFICULTY_NOT_HIGHER",
+    "NOT_SIMPLE_VARIANT_DUPLICATE",
+    "SOURCE_TO_TARGET_DIRECTION_PRESERVED",
+    "SOURCE_AND_TARGET_ARE_FINAL_CATALOG_EXERCISES",
+    "SOURCE_AND_TARGET_ARE_NOT_EXCLUDED"
+  ],
+  "variant_boundary": {
+    "equipment_only": "VARIANT",
+    "posture_grip_stance": "VARIANT",
+    "home_gym_execution": "CONTEXT_DEFAULT",
+    "primary_variant": "VARIANT",
+    "secondary_variant": "VARIANT",
+    "difficulty_only": "VARIANT_DIFFICULTY",
+    "pain_safe_variant_target": "ALTERNATIVE_TARGET_ALLOWED_ONLY_WITH_DISCOMFORT_CONDITION"
+  },
+  "area_specific_policies": {
+    "NECK": "data/normalized/neck_discomfort_alternative_policy_v2_0_2.json",
+    "LOWER_BACK": "data/normalized/lower_back_alternative_safety_policy_v2_0_2.json",
+    "GENERALIZED": "data/normalized/generalized_recovery_stop_policy_v2_0_2.json"
+  },
+  "catalog_target_map_policy": "data/normalized/discomfort_alternative_target_map_policy_v2_0_2.json",
+  "review_method_code": "DETERMINISTIC_POLICY_REVIEW",
+  "reviewed_at": "2026-08-28T00:00:00+09:00",
+  "evidence_requirement": [
+    "source_exercise_stable_code_and_id",
+    "target_exercise_stable_code_and_id",
+    "pain_discomfort_area_code",
+    "condition_code",
+    "legacy_relation_identity",
+    "evidence_source_and_reviewer",
+    "decision_and_review_status"
+  ]
+}

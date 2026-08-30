@@ -52,6 +52,7 @@ class FakeRepository:
         *,
         safety_rule_set: SafetyRuleSet | None = None,
         with_alternative: bool = False,
+        with_pain_alternative: bool = False,
     ) -> None:
         candidate = CoordinatorCandidate(
             candidate_id="candidate-1",
@@ -115,6 +116,14 @@ class FakeRepository:
                             str(ALTERNATIVE_EXERCISE_ID), "catalog-v1", "HIP_DOMINANT"
                         ),
                         evidence_reference_code="ALTERNATIVE/relation-1",
+                        pain_discomfort_area_code=("KNEE" if with_pain_alternative else None),
+                        condition_code=("NRS_1_3" if with_pain_alternative else None),
+                        service_action_code=("LOAD_REDUCED" if with_pain_alternative else None),
+                        target_strategy_code=(
+                            "AREA_AVOIDING_CROSS_TRAINING_WITH_REDUCED_LOAD"
+                            if with_pain_alternative
+                            else None
+                        ),
                     ),
                 )
                 if with_alternative
@@ -412,6 +421,29 @@ def test_mild_caution_returns_duration_preserving_downshift() -> None:
     assert response.final_plan.estimated_duration_seconds == 600
     assert "SAFETY_CAUTION_APPLIED" in (response.adjustment_reason_codes or [])
     assert repository.persisted["result"].safety_rule_version == "safety-v2"  # type: ignore[index]
+
+
+def test_mild_pain_prefers_area_avoiding_alternative_over_downshift() -> None:
+    context = _context(discomforts=(("KNEE", "MILD"),))
+    repository = FakeRepository(
+        context,
+        safety_rule_set=_approved_rule_set(SafetyRuleEffectCode.CAUTION),
+        with_alternative=True,
+        with_pain_alternative=True,
+    )
+
+    response = DecisionService(repository, clock=lambda: NOW).create(
+        FakeSession(), uuid4(), _request(context), uuid4()
+    )  # type: ignore[arg-type]
+
+    assert response.safety_status_code == "REVISE"
+    assert response.action_code == "CHANGE"
+    assert response.final_plan is not None
+    prepared = repository.persisted["assembly"]  # type: ignore[index]
+    assert prepared.adjusted_candidates[-1].candidate.exercise_ids == (
+        str(ALTERNATIVE_EXERCISE_ID),
+    )
+    assert "PAIN_ALTERNATIVE_APPLIED" in (response.adjustment_reason_codes or [])
 
 
 def test_moderate_fatigue_returns_duration_preserving_downshift() -> None:

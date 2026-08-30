@@ -24,7 +24,10 @@ def test_migration_history_has_catalog_media_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0027_catalog_media_assets"]
+    assert scripts.get_heads() == ["0028_discomfort_alt_conditions"]
+    assert scripts.get_revision("0028_discomfort_alt_conditions").down_revision == (
+        "0027_catalog_media_assets"
+    )
     assert scripts.get_revision("0027_catalog_media_assets").down_revision == (
         "0026_catalog_v2_code_set"
     )

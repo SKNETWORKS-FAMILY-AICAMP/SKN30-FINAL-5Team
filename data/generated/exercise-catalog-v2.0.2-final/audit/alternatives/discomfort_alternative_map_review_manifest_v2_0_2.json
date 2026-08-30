@@ -1,0 +1,72 @@
+{
+  "artifacts": {
+    "integrity_report": {
+      "bytes": 3051,
+      "path": "discomfort_alternative_map_review_report_v2_0_2.json",
+      "sha256": "a3b5f362012cd1f5ec0486f833b55315bac3ce17921314bfdf5418088ba1ab29"
+    },
+    "removed_csv": {
+      "bytes": 1038933,
+      "path": "removed_discomfort_alternative_map_v2_0_2.csv",
+      "sha256": "9907f53bf1186e318a8be48910676ca9b66773535b07ee96b8fb8e527988bd52"
+    },
+    "removed_jsonl": {
+      "bytes": 2509702,
+      "path": "removed_discomfort_alternative_map_v2_0_2.jsonl",
+      "sha256": "92f3f4103986e1bc3b7d710991943bf85c492030592e26cfc50673c93088a731"
+    },
+    "reviewed_csv": {
+      "bytes": 1662619,
+      "path": "reviewed_discomfort_alternative_map_v2_0_2.csv",
+      "sha256": "62af6cb5a6492c2a5bf349942672cfcd74de2b9f418fa6b4f281ca12ec4f7b20"
+    },
+    "reviewed_jsonl": {
+      "bytes": 4041093,
+      "path": "reviewed_discomfort_alternative_map_v2_0_2.jsonl",
+      "sha256": "f5ce062853cfcb4cb7a7721eac5f7835d9770fc59047a67fbbcd0f10d24d93e8"
+    },
+    "target_sets": {
+      "bytes": 58234,
+      "path": "reviewed_discomfort_alternative_target_sets_v2_0_2.json",
+      "sha256": "a6f9a9951c6f34796da189f01d1fe7fcbf903cde2cde31582c4e26093701ec30"
+    }
+  },
+  "counts": {
+    "ambiguous_sent_to_human_review_count": 0,
+    "candidate_map_count": 2455,
+    "decision_counts": {
+      "KEEP": 1517,
+      "REMOVE": 938
+    },
+    "removal_reason_counts": {
+      "CATALOG_REFERENCE_NOT_ELIGIBLE": 554,
+      "MOVEMENT_LOAD_IMPACT_RISK": 384
+    },
+    "removed_count": 938,
+    "removed_stage_counts": {
+      "CATALOG_REFERENCE_ELIGIBILITY": 554,
+      "MOVEMENT_LOAD_IMPACT_RISK": 384
+    },
+    "review_stage_counts": {
+      "CATALOG_REFERENCE_ELIGIBILITY": 554,
+      "MOVEMENT_LOAD_IMPACT_RISK": 384,
+      "REMAINING_CANDIDATE_KEEP": 1517
+    },
+    "reviewed_condition_counts": {
+      "NRS_1_3": 728,
+      "NRS_4_6": 789
+    },
+    "reviewed_keep_count": 1517
+  },
+  "policy_version": "discomfort-alternative-map-review-v2.0.2-v1.0.0",
+  "production_eligible": false,
+  "review_mode": "DETERMINISTIC_REMOVE_AMBIGUOUS",
+  "reviewed_at": "2026-08-28T00:00:00+09:00",
+  "schema_version": "discomfort-alternative-map-review-manifest-v2.0.2-v1",
+  "source": {
+    "candidate_map": "data/generated/exercise-catalog-v2.0.2-final/alternatives/discomfort_alternative_map_v2_0_2.jsonl",
+    "catalog": "data/generated/exercise-catalog-v2.0.2-final/catalog/exercises.jsonl",
+    "policy": "data/normalized/discomfort_alternative_map_review_policy_v2_0_2.json"
+  },
+  "status": "DRAFT_REVIEW_REQUIRED"
+}

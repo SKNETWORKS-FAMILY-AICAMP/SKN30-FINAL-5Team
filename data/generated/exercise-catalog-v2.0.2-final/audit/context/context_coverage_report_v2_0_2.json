@@ -1,0 +1,481 @@
+{
+  "schema_version": "v2.0.2-context-defaults-coverage-v1.0.0",
+  "catalog_version_code": "exercise-catalog-v2.0.2-final",
+  "generated_at": "2026-08-28T00:00:00+09:00",
+  "status": "DRAFT_CONTEXT_DEFAULTS_REVIEW_REQUIRED",
+  "production_eligible": false,
+  "policy": {
+    "home_supported_equipment_codes": [
+      "BODYWEIGHT",
+      "DUMBBELL",
+      "FOAM_ROLLER",
+      "HOUSEHOLD_WEIGHT",
+      "JUMP_ROPE",
+      "MAT",
+      "RESISTANCE_BAND"
+    ],
+    "equipment_metadata_role": "equipment_codes는 운동 분류와 수행 안내에만 사용하며 사용자 입력·개인화 필터로 사용하지 않는다.",
+    "gym_equipment_policy": "GYM은 location_codes로만 Context를 판정하고, equipment_codes는 수행 안내에 노출한다.",
+    "home_gym_location_invariant": "HOME 수행 가능 row는 GYM에서도 수행 가능하도록 HOME→GYM location 일관성을 검수하며, 미확정 row는 자동 수정하지 않는다.",
+    "context_codes": [
+      "HOME",
+      "GYM"
+    ],
+    "context_priority": [
+      "LOCATION_AND_HOME_EQUIPMENT_HARD_FILTER",
+      "REPRESENTATIVE_IF_CONTEXT_ELIGIBLE",
+      "PRIMARY_VARIANT_IF_REPRESENTATIVE_UNAVAILABLE",
+      "SECONDARY_VARIANT_IF_PRIMARY_UNAVAILABLE",
+      "BEGINNER_DIFFICULTY_THEN_EXERCISE_ID_TIEBREAK"
+    ],
+    "alternative_boundary": "통증/불편으로 운동을 교체하는 별도 관계이며 Context fallback에 사용하지 않는다.",
+    "separate_exercise_policy": "SEPARATE_EXERCISE는 family fallback과 Context Default에서 제외한다."
+  },
+  "counts": {
+    "integrated_catalog_rows": 201,
+    "representative_rows": 101,
+    "invalid_family_representative_rows": 12,
+    "valid_family_code_count": 86,
+    "unambiguous_family_count": 85,
+    "variant_rows": 70,
+    "separate_exercise_rows_excluded": 30,
+    "home_location_equipment_conflict_rows": 0,
+    "home_without_gym_rows": 0,
+    "context_default_rows": 172,
+    "context_candidate_rows": 254,
+    "review_queue_rows": 114
+  },
+  "context_summary": {
+    "HOME": {
+      "family_count": 86,
+      "covered_draft_count": 58,
+      "review_required_count": 9,
+      "unavailable_count": 19,
+      "representative_default_count": 59,
+      "variant_default_count": 7,
+      "default_exercise_count": 66,
+      "goal_covered_family_count": 65,
+      "phase_family_counts": {
+        "WARMUP": 30,
+        "MAIN": 37,
+        "COOLDOWN": 30
+      }
+    },
+    "GYM": {
+      "family_count": 86,
+      "covered_draft_count": 84,
+      "review_required_count": 2,
+      "unavailable_count": 0,
+      "representative_default_count": 85,
+      "variant_default_count": 0,
+      "default_exercise_count": 85,
+      "goal_covered_family_count": 84,
+      "phase_family_counts": {
+        "WARMUP": 34,
+        "MAIN": 52,
+        "COOLDOWN": 34
+      }
+    }
+  },
+  "coverage_axes": {
+    "HOME": {
+      "goal": {
+        "reference_values": [
+          "GENERAL_FITNESS"
+        ],
+        "selectable_values": [
+          "GENERAL_FITNESS"
+        ],
+        "missing_from_selectable": []
+      },
+      "training_type": {
+        "reference_values": [
+          "CARDIO",
+          "MOBILITY",
+          "STRENGTH"
+        ],
+        "selectable_values": [
+          "MOBILITY",
+          "STRENGTH"
+        ],
+        "missing_from_selectable": [
+          "CARDIO"
+        ]
+      },
+      "movement_pattern": {
+        "reference_values": [
+          "BALANCE",
+          "CORE_BRACE",
+          "HIP_DOMINANT",
+          "HORIZONTAL_PULL",
+          "HORIZONTAL_PUSH",
+          "ISOLATION",
+          "JUMP_PLYOMETRIC",
+          "KNEE_DOMINANT",
+          "KNEE_FLEXION",
+          "MOBILITY_STRETCH",
+          "VERTICAL_PUSH"
+        ],
+        "selectable_values": [
+          "BALANCE",
+          "CORE_BRACE",
+          "HIP_DOMINANT",
+          "HORIZONTAL_PULL",
+          "HORIZONTAL_PUSH",
+          "ISOLATION",
+          "KNEE_DOMINANT",
+          "MOBILITY_STRETCH",
+          "VERTICAL_PUSH"
+        ],
+        "missing_from_selectable": [
+          "JUMP_PLYOMETRIC",
+          "KNEE_FLEXION"
+        ]
+      },
+      "primary_body_area": {
+        "reference_values": [
+          "ABDOMEN",
+          "ANKLE_FOOT",
+          "CHEST",
+          "ELBOW",
+          "HIP",
+          "KNEE",
+          "LOWER_BACK",
+          "NECK",
+          "SHOULDER",
+          "UPPER_BACK",
+          "WRIST_HAND"
+        ],
+        "selectable_values": [
+          "ABDOMEN",
+          "ANKLE_FOOT",
+          "CHEST",
+          "ELBOW",
+          "HIP",
+          "KNEE",
+          "LOWER_BACK",
+          "NECK",
+          "SHOULDER",
+          "UPPER_BACK",
+          "WRIST_HAND"
+        ],
+        "missing_from_selectable": []
+      },
+      "difficulty": {
+        "reference_values": [
+          "BEGINNER",
+          "INTERMEDIATE"
+        ],
+        "selectable_values": [
+          "BEGINNER",
+          "INTERMEDIATE"
+        ],
+        "missing_from_selectable": []
+      },
+      "phase": {
+        "reference_values": [
+          "COOLDOWN",
+          "MAIN",
+          "WARMUP"
+        ],
+        "selectable_values": [
+          "COOLDOWN",
+          "MAIN",
+          "WARMUP"
+        ],
+        "missing_from_selectable": []
+      }
+    },
+    "GYM": {
+      "goal": {
+        "reference_values": [
+          "GENERAL_FITNESS"
+        ],
+        "selectable_values": [
+          "GENERAL_FITNESS"
+        ],
+        "missing_from_selectable": []
+      },
+      "training_type": {
+        "reference_values": [
+          "CARDIO",
+          "MOBILITY",
+          "STRENGTH"
+        ],
+        "selectable_values": [
+          "MOBILITY",
+          "STRENGTH"
+        ],
+        "missing_from_selectable": [
+          "CARDIO"
+        ]
+      },
+      "movement_pattern": {
+        "reference_values": [
+          "BALANCE",
+          "CORE_BRACE",
+          "CYCLING",
+          "ELLIPTICAL",
+          "HIP_DOMINANT",
+          "HORIZONTAL_PULL",
+          "HORIZONTAL_PUSH",
+          "ISOLATION",
+          "JUMP_PLYOMETRIC",
+          "KNEE_DOMINANT",
+          "KNEE_FLEXION",
+          "MOBILITY_STRETCH",
+          "VERTICAL_PULL",
+          "VERTICAL_PUSH"
+        ],
+        "selectable_values": [
+          "BALANCE",
+          "CORE_BRACE",
+          "HIP_DOMINANT",
+          "HORIZONTAL_PULL",
+          "HORIZONTAL_PUSH",
+          "ISOLATION",
+          "KNEE_DOMINANT",
+          "KNEE_FLEXION",
+          "MOBILITY_STRETCH",
+          "VERTICAL_PULL",
+          "VERTICAL_PUSH"
+        ],
+        "missing_from_selectable": [
+          "CYCLING",
+          "ELLIPTICAL",
+          "JUMP_PLYOMETRIC"
+        ]
+      },
+      "primary_body_area": {
+        "reference_values": [
+          "ABDOMEN",
+          "ANKLE_FOOT",
+          "CHEST",
+          "ELBOW",
+          "HIP",
+          "KNEE",
+          "LOWER_BACK",
+          "NECK",
+          "SHOULDER",
+          "UPPER_BACK",
+          "WRIST_HAND"
+        ],
+        "selectable_values": [
+          "ABDOMEN",
+          "ANKLE_FOOT",
+          "CHEST",
+          "ELBOW",
+          "HIP",
+          "KNEE",
+          "LOWER_BACK",
+          "NECK",
+          "SHOULDER",
+          "UPPER_BACK",
+          "WRIST_HAND"
+        ],
+        "missing_from_selectable": []
+      },
+      "difficulty": {
+        "reference_values": [
+          "BEGINNER",
+          "INTERMEDIATE"
+        ],
+        "selectable_values": [
+          "BEGINNER",
+          "INTERMEDIATE"
+        ],
+        "missing_from_selectable": []
+      },
+      "phase": {
+        "reference_values": [
+          "COOLDOWN",
+          "MAIN",
+          "WARMUP"
+        ],
+        "selectable_values": [
+          "COOLDOWN",
+          "MAIN",
+          "WARMUP"
+        ],
+        "missing_from_selectable": []
+      }
+    }
+  },
+  "routine_coverage": [
+    {
+      "catalog_version_code": "exercise-catalog-v2.0.2-final",
+      "context_code": "HOME",
+      "experience_level_code": "BEGINNER",
+      "candidate_exercise_count": 39,
+      "candidate_profile_count": 64,
+      "phase_candidate_counts": {
+        "WARMUP": 25,
+        "MAIN": 14,
+        "COOLDOWN": 25
+      },
+      "core_main_candidate_count": 5,
+      "invalid_timing_profile_count": 4,
+      "profile_review_status_counts": {
+        "DRAFT": 68
+      },
+      "duration_support_by_requested_minutes": {
+        "10": true,
+        "20": true,
+        "30": true,
+        "40": true,
+        "50": true,
+        "60": true
+      },
+      "draft_pool_status_code": "DRAFT_COMPOSABLE",
+      "operational_status_code": "BLOCKED_PRODUCTION_GATE",
+      "production_eligible": false
+    },
+    {
+      "catalog_version_code": "exercise-catalog-v2.0.2-final",
+      "context_code": "HOME",
+      "experience_level_code": "INTERMEDIATE",
+      "candidate_exercise_count": 52,
+      "candidate_profile_count": 81,
+      "phase_candidate_counts": {
+        "WARMUP": 29,
+        "MAIN": 23,
+        "COOLDOWN": 29
+      },
+      "core_main_candidate_count": 12,
+      "invalid_timing_profile_count": 8,
+      "profile_review_status_counts": {
+        "REVIEW_REQUIRED": 89
+      },
+      "duration_support_by_requested_minutes": {
+        "10": true,
+        "20": true,
+        "30": true,
+        "40": true,
+        "50": true,
+        "60": true
+      },
+      "draft_pool_status_code": "DRAFT_COMPOSABLE",
+      "operational_status_code": "BLOCKED_PRODUCTION_GATE",
+      "production_eligible": false
+    },
+    {
+      "catalog_version_code": "exercise-catalog-v2.0.2-final",
+      "context_code": "GYM",
+      "experience_level_code": "BEGINNER",
+      "candidate_exercise_count": 51,
+      "candidate_profile_count": 77,
+      "phase_candidate_counts": {
+        "WARMUP": 26,
+        "MAIN": 25,
+        "COOLDOWN": 26
+      },
+      "core_main_candidate_count": 9,
+      "invalid_timing_profile_count": 4,
+      "profile_review_status_counts": {
+        "DRAFT": 81
+      },
+      "duration_support_by_requested_minutes": {
+        "10": true,
+        "20": true,
+        "30": true,
+        "40": true,
+        "50": true,
+        "60": true
+      },
+      "draft_pool_status_code": "DRAFT_COMPOSABLE",
+      "operational_status_code": "BLOCKED_PRODUCTION_GATE",
+      "production_eligible": false
+    },
+    {
+      "catalog_version_code": "exercise-catalog-v2.0.2-final",
+      "context_code": "GYM",
+      "experience_level_code": "INTERMEDIATE",
+      "candidate_exercise_count": 79,
+      "candidate_profile_count": 112,
+      "phase_candidate_counts": {
+        "WARMUP": 33,
+        "MAIN": 46,
+        "COOLDOWN": 33
+      },
+      "core_main_candidate_count": 25,
+      "invalid_timing_profile_count": 9,
+      "profile_review_status_counts": {
+        "REVIEW_REQUIRED": 121
+      },
+      "duration_support_by_requested_minutes": {
+        "10": true,
+        "20": true,
+        "30": true,
+        "40": true,
+        "50": true,
+        "60": true
+      },
+      "draft_pool_status_code": "DRAFT_COMPOSABLE",
+      "operational_status_code": "BLOCKED_PRODUCTION_GATE",
+      "production_eligible": false
+    }
+  ],
+  "routine_configuration_blockers": [
+    {
+      "reason_code": "CATALOG_NOT_PRODUCTION_ELIGIBLE",
+      "count": 1,
+      "note_ko": "v2.0.2 통합 카탈로그 production_eligible=false라 Context Default는 운영 추천으로 사용할 수 없다."
+    },
+    {
+      "reason_code": "VARIANT_SAFETY_FITT_REVIEW_REQUIRED",
+      "count": 70,
+      "note_ko": "Variant의 관계·안전·FITT가 REVIEW_REQUIRED다."
+    },
+    {
+      "reason_code": "INVALID_TIMING_PROFILE",
+      "count": 15,
+      "note_ko": "REPS 처방인데 catalog timing_mode가 DURATION이거나 seconds_per_rep가 없어 시간 계산이 불가능한 처방이 있다."
+    },
+    {
+      "reason_code": "INVALID_FAMILY_CODE",
+      "count": 12,
+      "note_ko": "대표운동 12건의 family_code가 REVIEW_REQUIRED placeholder다."
+    },
+    {
+      "reason_code": "AMBIGUOUS_FAMILY_REPRESENTATIVE",
+      "count": 1,
+      "note_ko": "CARDIO family처럼 하나의 family_code에 대표운동이 여러 개라 단일 default를 확정할 수 없다."
+    },
+    {
+      "reason_code": "CONTEXT_DEFAULT_UNAVAILABLE",
+      "count": 19,
+      "note_ko": "동일 family 내부에 해당 Context에서 사용할 대표/Variant 후보가 없어 실제 루틴 선택에서 제외된다."
+    },
+    {
+      "reason_code": "GOAL_LINK_NOT_FOUND",
+      "count": 2,
+      "note_ko": "대표운동 stable_code와 승인 goal link가 정확히 일치하지 않아 목표 필터에 연결할 수 없다."
+    },
+    {
+      "reason_code": "PRESCRIPTION_LINK_NOT_FOUND",
+      "count": 2,
+      "note_ko": "대표운동 stable_code와 service prescription이 정확히 일치하지 않아 처방을 계산할 수 없다."
+    },
+    {
+      "reason_code": "LOCATION_NOT_DECLARED",
+      "count": 19,
+      "note_ko": "해당 Context가 location_codes에 선언되지 않아 Context 후보에서 제외한다."
+    },
+    {
+      "reason_code": "MANIFEST_CANONICAL_COUNT_MISMATCH",
+      "count": 1,
+      "note_ko": "manifest active_canonical_exercises=None와 catalog canonical rows=131가 다르다."
+    }
+  ],
+  "source_artifacts": {
+    "catalog": "data/generated/exercise-catalog-v2.0.2-intermediate/variant-materialization-v1/catalog/exercises.jsonl",
+    "goal_links": "data/generated/exercise-catalog-v2.0.2-draft/prescriptions/goal_tag_links.jsonl",
+    "prescriptions": "data/generated/exercise-catalog-v2.0.2-draft/prescriptions/prescription_profiles.jsonl",
+    "manifest": "data/generated/exercise-catalog-v2.0.2-intermediate/variant-materialization-v1/intermediate_manifest.json"
+  },
+  "notes": [
+    "이 산출물은 신규 운동·Alternative를 생성하지 않는다.",
+    "HOME location_codes가 있어도 장비가 HOME 허용 집합 밖이면 HOME 후보에서 제외한다.",
+    "루틴 시간 coverage는 현재 service의 phase·CORE·±300초 조합 규칙을 draft timing/profile로 재현한 결과이며 production 승인 판정이 아니다."
+  ]
+}

@@ -193,6 +193,10 @@ def _package_derived(
             "source_catalog_version_code",
             "source_exercise_stable_code",
             "status_interpretation",
+            "pain_discomfort_area_code",
+            "condition_code",
+            "service_action_code",
+            "target_strategy_code",
         }
     projected_rows = []
     projection_conflicts: list[dict[str, Any]] = []

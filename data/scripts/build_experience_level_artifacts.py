@@ -710,13 +710,14 @@ def materialize_profiles(
 
 
 def _deduplicate_alternatives(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    result: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+    result: dict[tuple[str, str, str, str, str], dict[str, Any]] = {}
     for row in sorted(rows, key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True)):
         key = (
             str(row["source_exercise_stable_code"]),
             str(row["alternative_exercise_stable_code"]),
             str(row["reason_code"]),
             str(row["goal_preservation_code"]),
+            str(row.get("condition_code") or ""),
         )
         previous = result.get(key)
         if previous is not None:
@@ -771,6 +772,10 @@ def materialize_alternatives(
                 "source_manifest_hash": _sha256(SOURCE_ALTERNATIVES),
                 "source_metadata": row.get("source_metadata", {}),
                 "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
+                "pain_discomfort_area_code": row.get("pain_discomfort_area_code"),
+                "condition_code": row.get("condition_code"),
+                "service_action_code": row.get("service_action_code"),
+                "target_strategy_code": row.get("target_strategy_code"),
             }
         )
     return sorted(

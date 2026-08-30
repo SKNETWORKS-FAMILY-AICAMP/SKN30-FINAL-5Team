@@ -1,0 +1,207 @@
+{
+  "catalog_version_code": "exercise-catalog-v2.0.2-final",
+  "classification_rule": {
+    "equipment_or_execution_change": "PRIMARY_OR_SECONDARY_VARIANT",
+    "legacy_alternative_target_restore": "GENERAL_POOL_REPRESENTATIVE",
+    "pain_safety": "ALTERNATIVE_TARGET_AND_GENERAL_POOL",
+    "unmentioned_review": "COMPLETED",
+    "user_visible_name": "PARENTHESES_REMOVED_EXCEPT_EXPLICIT_ALIAS"
+  },
+  "decision_code": "USER_DIRECT_REVIEW_2026_08_29",
+  "deleted_record_count": 0,
+  "deleted_records": [],
+  "general_pool_included_record_count": 111,
+  "generated_at": "2026-08-29T00:00:00+09:00",
+  "kept_base_record_count": 95,
+  "kept_pain_alternative_record_count": 75,
+  "kept_record_count": 170,
+  "record_type_counts": {
+    "REPRESENTATIVE": 76,
+    "SEPARATE_EXERCISE": 79,
+    "VARIANT": 15
+  },
+  "restored_legacy_alternative_target_count": 36,
+  "restored_legacy_alternative_target_records": [
+    {
+      "exercise_id": "REX-000003",
+      "name_ko": "발목 돌리기",
+      "stable_code": "ankle_circles_mobility_stretch_bodyweight"
+    },
+    {
+      "exercise_id": "REX-000004",
+      "name_ko": "바벨 데드리프트",
+      "stable_code": "barbell_deadlift_hip_dominant_barbell"
+    },
+    {
+      "exercise_id": "REX-000007",
+      "name_ko": "바벨 루마니안 데드리프트",
+      "stable_code": "barbell_straight_leg_deadlift_hip_dominant_barbell"
+    },
+    {
+      "exercise_id": "REX-000008",
+      "name_ko": "백 익스텐션",
+      "stable_code": "bodyweight_back_extension_hip_dominant_bodyweight"
+    },
+    {
+      "exercise_id": "REX-000009",
+      "name_ko": "크런치",
+      "stable_code": "bodyweight_crunch_core_brace_bodyweight"
+    },
+    {
+      "exercise_id": "REX-000010",
+      "name_ko": "포워드 런지",
+      "stable_code": "bodyweight_forward_lunge_knee_dominant_bodyweight"
+    },
+    {
+      "exercise_id": "REX-000011",
+      "name_ko": "글루트 브리지",
+      "stable_code": "bodyweight_glute_bridge_hip_dominant_bodyweight"
+    },
+    {
+      "exercise_id": "REX-000013",
+      "name_ko": "리버스 크런치",
+      "stable_code": "bodyweight_reverse_crunch_core_brace_bodyweight"
+    },
+    {
+      "exercise_id": "REX-000019",
+      "name_ko": "케이블 트라이셉스 푸시다운 머신",
+      "stable_code": "cable_triceps_pushdown_isolation_cable_machine"
+    },
+    {
+      "exercise_id": "REX-000022",
+      "name_ko": "클로즈 그립 푸시업",
+      "stable_code": "close_grip_push_up_horizontal_push_bodyweight"
+    },
+    {
+      "exercise_id": "REX-000025",
+      "name_ko": "덤벨 고블릿 스쿼트",
+      "stable_code": "dumbbell_goblet_squat_knee_dominant_dumbbell"
+    },
+    {
+      "exercise_id": "REX-000026",
+      "name_ko": "덤벨 레터럴 레이즈",
+      "stable_code": "dumbbell_lateral_raise_isolation_dumbbell"
+    },
+    {
+      "exercise_id": "REX-000027",
+      "name_ko": "덤벨 프리처 컬",
+      "stable_code": "dumbbell_preacher_curl_isolation_dumbbell"
+    },
+    {
+      "exercise_id": "REX-000028",
+      "name_ko": "덤벨 리어 델트 플라이",
+      "stable_code": "dumbbell_rear_fly_isolation_dumbbell"
+    },
+    {
+      "exercise_id": "REX-000031",
+      "name_ko": "덤벨 스텝업 런지",
+      "stable_code": "dumbbell_step_up_lunge_knee_dominant_dumbbell_step_box"
+    },
+    {
+      "exercise_id": "REX-000035",
+      "name_ko": "손 악력 쥐기",
+      "stable_code": "hand_grip_squeeze_isolation_household_weight"
+    },
+    {
+      "exercise_id": "REX-000038",
+      "name_ko": "인버티드 로우",
+      "stable_code": "inverted_row_horizontal_pull_bodyweight"
+    },
+    {
+      "exercise_id": "REX-000040",
+      "name_ko": "랫풀다운 머신",
+      "stable_code": "lat_pulldown_vertical_pull_cable_machine"
+    },
+    {
+      "exercise_id": "REX-000043",
+      "name_ko": "로어 백 컬",
+      "stable_code": "lower_back_curl_core_brace_bodyweight"
+    },
+    {
+      "exercise_id": "REX-000047",
+      "name_ko": "바벨 오버헤드 트라이셉스 익스텐션",
+      "stable_code": "overhead_triceps_extension_isolation_barbell"
+    },
+    {
+      "exercise_id": "REX-000049",
+      "name_ko": "체스트 프레스 머신",
+      "stable_code": "pectorals_horizontal_push_horizontal_push_machine"
+    },
+    {
+      "exercise_id": "REX-000052",
+      "name_ko": "푸시업",
+      "stable_code": "push_up_horizontal_push_bodyweight"
+    },
+    {
+      "exercise_id": "REX-000055",
+      "name_ko": "바벨 리버스 리스트 컬",
+      "stable_code": "reverse_wrist_curl_isolation_barbell"
+    },
+    {
+      "exercise_id": "REX-000056",
+      "name_ko": "앞뒤 스텝",
+      "stable_code": "cardio_gait_bodyweight"
+    },
+    {
+      "exercise_id": "REX-000058",
+      "name_ko": "하이니",
+      "stable_code": "cardio_gait_bodyweight_rex_000058"
+    },
+    {
+      "exercise_id": "REX-000059",
+      "name_ko": "점핑잭",
+      "stable_code": "cardio_jump_plyometric_bodyweight"
+    },
+    {
+      "exercise_id": "REX-000064",
+      "name_ko": "앉아서 고관절 굴곡",
+      "stable_code": "hip_flexion_isolation_bodyweight_rex_000064"
+    },
+    {
+      "exercise_id": "REX-000066",
+      "name_ko": "한발 서기 균형",
+      "stable_code": "mobility_balance_bodyweight"
+    },
+    {
+      "exercise_id": "REX-000068",
+      "name_ko": "스텝박스 오르내리기",
+      "stable_code": "cardio_gait_step_box"
+    },
+    {
+      "exercise_id": "REX-000069",
+      "name_ko": "누워서 밴드 레그 프레스",
+      "stable_code": "leg_press_knee_dominant_resistance_band"
+    },
+    {
+      "exercise_id": "REX-000070",
+      "name_ko": "경사 트레드밀 걷기 머신",
+      "stable_code": "cardio_gait_machine"
+    },
+    {
+      "exercise_id": "REX-000076",
+      "name_ko": "로우 머신",
+      "stable_code": "row_variant_horizontal_pull_cable_machine"
+    },
+    {
+      "exercise_id": "REX-000079",
+      "name_ko": "시티드 케이블 로우 머신",
+      "stable_code": "seated_cable_row_horizontal_pull_cable_machine"
+    },
+    {
+      "exercise_id": "REX-000083",
+      "name_ko": "레그 컬 머신",
+      "stable_code": "seated_leg_curl_knee_flexion_machine"
+    },
+    {
+      "exercise_id": "REX-000097",
+      "name_ko": "시티드 밴드 풀어파트",
+      "stable_code": "upper_back_isolation_isolation_resistance_band"
+    },
+    {
+      "exercise_id": "REX-000102",
+      "name_ko": "바벨 리스트 컬",
+      "stable_code": "wrist_curl_isolation_barbell"
+    }
+  ],
+  "schema_version": "exercise-catalog-v2.0.2-user-prune-v1"
+}

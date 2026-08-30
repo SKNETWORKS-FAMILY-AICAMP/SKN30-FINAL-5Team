@@ -1,0 +1,31 @@
+{
+  "catalog_version_code": "exercise-catalog-v2.0.2-final",
+  "counts": {
+    "integrated_catalog_exercise_count": 170,
+    "primary_variant_count": 15,
+    "representative_exercise_count": 76,
+    "secondary_variant_count": 0,
+    "separate_exercise_count": 79,
+    "variant_record_count": 15
+  },
+  "generated_at": "2026-08-28T00:00:00+09:00",
+  "invariants": {
+    "all_relationships_review_required_are_not_finalized": true,
+    "all_variant_families_match_representatives": true,
+    "all_variant_representatives_exist": true,
+    "all_variant_rows_are_exercise_records": true,
+    "all_variant_safety_and_fitt_mappings_review_gated": true,
+    "all_variant_types_allowed": true,
+    "all_variants_are_non_representative": true,
+    "no_same_exercise_variant": true,
+    "no_unexpected_record_types": true,
+    "no_variant_conflicting_representatives": true,
+    "no_variant_self_reference": true,
+    "stable_codes_unique": true,
+    "variant_exercise_ids_unique": true
+  },
+  "materialization_version": "v2.0.2-variant-materialization-v1.0.0",
+  "production_eligible": false,
+  "schema_version": "exercise-catalog-v2.0.2-variant-integrity-v1",
+  "status": "USER_REVIEWED_CATALOG_PRUNED"
+}

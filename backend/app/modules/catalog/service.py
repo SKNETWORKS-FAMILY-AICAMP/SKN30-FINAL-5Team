@@ -661,6 +661,20 @@ def _validate_v2_alternative_metadata(
                 "V2_REVIEW_METHOD_INVALID",
                 "V2 alternative records require DOMAIN_REVIEWER evidence",
             )
+        if expected_version == "alternative-set-v2.0.2" and record.reason_code == "DISCOMFORT":
+            if any(
+                value is None
+                for value in (
+                    record.pain_discomfort_area_code,
+                    record.condition_code,
+                    record.service_action_code,
+                    record.target_strategy_code,
+                )
+            ):
+                raise CatalogImportError(
+                    "V2_PAIN_SELECTOR_REQUIRED",
+                    "v2.0.2 DISCOMFORT alternatives require typed area and NRS selectors",
+                )
         if record.updated_at is not None and record.updated_at < record.created_at:
             raise CatalogImportError(
                 "V2_AUDIT_TIMESTAMP_INVALID",
@@ -713,6 +727,7 @@ def load_alternative_artifact(
             record.reason_code,
             record.goal_preservation_code,
             record.rule_version,
+            record.condition_code,
         )
         for record in records
     }
