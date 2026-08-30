@@ -23,7 +23,7 @@ from backend.app.modules.catalog.service import (
 )
 from backend.scripts.catalog_activate import activate
 
-APPROVED_BUNDLE_MANIFEST_SHA256 = "8ac896f3de3f2e292d7e27554c7dd3a2e3aa8afed69031bd493daf1f98df6ff5"
+APPROVED_BUNDLE_MANIFEST_SHA256 = "42d1d222108fba879faafc0a3bae40a5983aed7d822ee91da7d37e4798aff672"
 APPROVED_TAXONOMY_REGISTRY_SHA256 = (
     "79e487cc1a41ea39db9b4afb0799b3297840de878a2ae4ed621ef3e4403a0985"
 )

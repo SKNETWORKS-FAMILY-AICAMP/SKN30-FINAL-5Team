@@ -105,11 +105,35 @@ _APPROVALS = {
     ): DerivedDataApproval(
         artifact_kind="ALTERNATIVES",
         version_code="alternative-set-v2.0.1",
-        manifest_sha256="ef954cff31fc6fd226af1dec98d24261bb0c42537097ff1a9306a8f3839e2e99",
-        record_count=285,
+        manifest_sha256="858785cb2c80dccbe48edec9b472421b726d5a6d69d99d0d056f25453bac3821",
+        record_count=585,
         approval_record_code="V2-PROMOTION-APPROVAL-2026-08-25-R01",
         approved_on="2026-08-25",
         approver_role_codes=("DEVELOPMENT_LEAD", "PM", "DOMAIN_REVIEWER"),
+        approval_metadata={
+            "materialization_rescope": {
+                "reason": (
+                    "the materializer keyed relations without the pain area, so "
+                    "relations approved for different areas at the same NRS band "
+                    "collapsed into one row"
+                ),
+                "previous_manifest_sha256": (
+                    "ef954cff31fc6fd226af1dec98d24261bb0c42537097ff1a9306a8f3839e2e99"
+                ),
+                "previous_record_count": 285,
+                "recovered_record_count": 300,
+                "source_status": (
+                    "every recovered relation was already DOMAIN_APPROVED in "
+                    "exercise_alternatives_v2_final.csv; no relation content changed"
+                ),
+                "rescoped_on": "2026-08-30",
+                "directed_by": "PROJECT_OWNER",
+                "outstanding": (
+                    "the original DEVELOPMENT_LEAD/PM/DOMAIN_REVIEWER signature covered "
+                    "285 materialized rows; the 585 row set has not been re-signed"
+                ),
+            }
+        },
     ),
     (
         "PRESCRIPTIONS",

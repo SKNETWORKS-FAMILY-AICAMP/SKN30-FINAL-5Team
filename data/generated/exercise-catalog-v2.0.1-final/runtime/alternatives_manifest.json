@@ -5,10 +5,10 @@
   },
   "files": [
     {
-      "bytes": 353483,
+      "bytes": 830389,
       "path": "alternatives.jsonl",
-      "records": 285,
-      "sha256": "c720206a91c4e3b048ea63c79494e45106053dec3f10a9b11929e8c548c80b92"
+      "records": 585,
+      "sha256": "62ec7e01f62004e46c410aee1789cb7a1c137a5db2f429d3a0bb3039c6e44c59"
     }
   ],
   "generator_version": "v2-runtime-materializer-1.0.0",
@@ -33,7 +33,7 @@
     "track": "merged"
   },
   "summary": {
-    "alternative_records": 285,
+    "alternative_records": 585,
     "exercise_records": null,
     "exercise_scope_rules": null,
     "pattern_scope_rules": null,

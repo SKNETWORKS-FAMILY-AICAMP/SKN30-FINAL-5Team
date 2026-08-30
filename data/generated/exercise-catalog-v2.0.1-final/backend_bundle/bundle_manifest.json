@@ -8,20 +8,20 @@
   },
   "files": [
     {
-      "bytes": 173024,
+      "bytes": 451817,
       "path": "alternatives/alternatives.jsonl",
-      "records": 285,
-      "sha256": "a022650d7d035f8eed769590b7c315ea5951a3b07f3659f2826d9f6e938e32a2"
+      "records": 585,
+      "sha256": "c62e7636ec2aaa4607aa9e5f58fc11f0729db567d44e4991a44a78ecf1690538"
     },
     {
       "bytes": 1649,
       "path": "alternatives/alternatives_manifest.json",
-      "sha256": "ef954cff31fc6fd226af1dec98d24261bb0c42537097ff1a9306a8f3839e2e99"
+      "sha256": "858785cb2c80dccbe48edec9b472421b726d5a6d69d99d0d056f25453bac3821"
     },
     {
       "bytes": 194,
       "path": "alternatives/input/alternative_projection_conflicts.json",
-      "sha256": "16f5e8a0fd8c196b60a02bda6ca0044213771d1f3700a4efe34253fbe2826477"
+      "sha256": "adcff8aaaa0690de910fea7d7c0c54ddaff302614f583824f31958ca21b71b57"
     },
     {
       "bytes": 412748,
@@ -118,14 +118,14 @@
   "projection": {
     "alternative_conflict_count": 0,
     "conflict_report_path": "alternatives/input/alternative_projection_conflicts.json",
-    "importer_alternative_records": 285,
-    "runtime_alternative_records": 285,
+    "importer_alternative_records": 585,
+    "runtime_alternative_records": 585,
     "status": "DIRECT"
   },
   "schema_version": "1.0",
   "status_code": "DRAFT",
   "summary": {
-    "alternative_records": 285,
+    "alternative_records": 585,
     "catalog_records": 102,
     "goal_tag_records": 102,
     "prescription_records": 137,

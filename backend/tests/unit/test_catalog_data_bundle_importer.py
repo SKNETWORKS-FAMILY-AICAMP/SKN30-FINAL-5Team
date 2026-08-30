@@ -45,7 +45,7 @@ SAFETY_DIRECTORY = GENERATED / "exercise-safety-rules-merged-mvp-v0.5.0"
 ALTERNATIVE_DIRECTORY = GENERATED / "exercise-alternatives-merged-mvp-v0.4.0"
 PRESCRIPTION_DIRECTORY = GENERATED / "exercise-prescriptions-merged-mvp-v0.1.0"
 V2_BUNDLE_DIRECTORY = GENERATED / "exercise-catalog-v2.0.1-final" / "backend_bundle"
-V2_BUNDLE_HASH = "8ac896f3de3f2e292d7e27554c7dd3a2e3aa8afed69031bd493daf1f98df6ff5"
+V2_BUNDLE_HASH = "42d1d222108fba879faafc0a3bae40a5983aed7d822ee91da7d37e4798aff672"
 V2_TAXONOMY_HASH = "79e487cc1a41ea39db9b4afb0799b3297840de878a2ae4ed621ef3e4403a0985"
 
 
@@ -672,7 +672,7 @@ def test_v2_bundle_exact_hash_count_and_versions_are_accepted() -> None:
 
     assert [item.exercise_record_count for item in result.catalogs] == [102]
     assert result.safety_rules.record_count == 394
-    assert result.alternatives.record_count == 285
+    assert result.alternatives.record_count == 585
     assert result.prescriptions.record_count == 239
     assert result.media_assets is None
 
