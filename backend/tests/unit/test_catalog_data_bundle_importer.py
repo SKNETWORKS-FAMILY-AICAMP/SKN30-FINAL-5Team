@@ -13,7 +13,7 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
-from backend.app.modules.catalog.codes import DifficultyCode
+from backend.app.modules.catalog.codes import BodyAreaCode, DifficultyCode
 from backend.app.modules.catalog.schemas import (
     AlternativeManifest,
     ExerciseAlternativeRecord,
@@ -270,6 +270,47 @@ def test_alternative_loader_rejects_duplicate_relationship_key(tmp_path: Path) -
         load_alternative_artifact(root)
 
     assert exc_info.value.code == "DUPLICATE_ALTERNATIVE"
+
+
+def test_alternative_loader_keeps_relations_split_by_pain_area(tmp_path: Path) -> None:
+    """The same pair is approved for several areas at one NRS band."""
+    artifact = load_alternative_artifact(ALTERNATIVE_DIRECTORY)
+    first = artifact.records[0]
+    pain_selectors = {
+        "reason_code": "DISCOMFORT",
+        "condition_code": "NRS_1_3",
+        "service_action_code": "LOAD_REDUCED",
+        "target_strategy_code": "SAME_GOAL_LOWER_LOAD_ROM_EASIER_VARIANT",
+    }
+    knee = first.model_copy(
+        update={**pain_selectors, "pain_discomfort_area_code": BodyAreaCode.KNEE}
+    )
+    hip = first.model_copy(update={**pain_selectors, "pain_discomfort_area_code": BodyAreaCode.HIP})
+    raw = b"".join((record.model_dump_json() + "\n").encode() for record in (knee, hip))
+    root = tmp_path / "alternatives"
+    root.mkdir()
+    (root / "alternatives.jsonl").write_bytes(raw)
+    manifest = artifact.manifest.model_dump(mode="json")
+    manifest["summary"]["alternative_records"] = 2
+    file_entry = next(entry for entry in manifest["files"] if entry["path"] == "alternatives.jsonl")
+    file_entry.update(
+        {
+            "sha256": hashlib.sha256(raw).hexdigest(),
+            "bytes": len(raw),
+            "records": 2,
+        }
+    )
+    (root / "alternatives_manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    loaded = load_alternative_artifact(root)
+
+    assert [record.pain_discomfort_area_code for record in loaded.records] == [
+        BodyAreaCode.KNEE,
+        BodyAreaCode.HIP,
+    ]
 
 
 def test_v2_bundle_rejects_outdoor_alternative_endpoint() -> None:

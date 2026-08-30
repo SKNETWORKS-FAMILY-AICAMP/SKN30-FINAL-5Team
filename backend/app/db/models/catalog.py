@@ -550,6 +550,7 @@ class ExerciseAlternative(Base):
             "goal_preservation_code",
             "rule_version",
             "condition_code",
+            "pain_discomfort_area_code",
             name="uq_exercise_alternatives_relation",
         ),
         CheckConstraint(
