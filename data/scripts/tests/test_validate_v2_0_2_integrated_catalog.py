@@ -101,7 +101,9 @@ class IntegratedCatalogValidationTests(unittest.TestCase):
                 "production_blockers_v2_0_2.json",
             }
             self.assertEqual({path.name for path in output.iterdir()}, expected)
-            blockers = json.loads((output / "production_blockers_v2_0_2.json").read_text())
+            blockers = json.loads(
+                (output / "production_blockers_v2_0_2.json").read_text(encoding="utf-8")
+            )
             self.assertEqual(blockers["status"], "APPROVED")
             self.assertEqual(blockers["blocker_count"], 0)
 
