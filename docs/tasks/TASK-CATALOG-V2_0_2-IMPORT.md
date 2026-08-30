@@ -186,9 +186,29 @@ C1을 권고한다. `AGENTS.md` 10절이 자주 조회되는 필드에 typed col
 없다. 지도 문구와 휴식값은 `data/AGENTS.md`가 명시 검수를 요구하는 내용이므로 패키저가
 생성하지 않고 실패한다. 데이터 파이프라인에서 채워야 한다.
 
-추가로 `pain_alternative_policy` 75건의 `stable_code`가 이중 밑줄을 쓴다
-(`..._isolation_bodyweight__knee_no_load_safe_v1`). 백엔드 `StableCode` 패턴
-`^[a-z0-9]+(?:_[a-z0-9]+)*$`가 이를 거부하므로, 패턴을 넓힐지 코드를 재명명할지 결정이 필요하다.
+#### 상속으로 메울 수 없는 이유 (2026-08-30 조사)
+
+90건이 파생 원본을 가리키고 있어 상속을 검토했으나, **두 집합 모두 상속이 틀린 답이다.**
+
+- `pain_alternative_policy` 75건은 `alternative_source_base_stable_code`로 원본을 가리키지만
+  전부 `original_posture_instructions_replaced=true`이고 `fixed_posture_code`
+  (예: `SUPPORTED_SEATED_KNEES_NEUTRAL_UNWEIGHTED`)와 `fixed_support_code`를 새로 갖는다.
+  통증 부위에 부하를 주지 않으려고 **자세를 의도적으로 바꾼 레코드**이므로, 원본의 form cue를
+  붙이면 실제와 다른 자세를 안내하게 된다. 안전 방향으로 틀린다.
+- `VARIANT` 15건은 대표 운동을 가리키지만 그 대표들의 form cue도 shipped 산출물에 없다(0/15).
+
+두 집합 모두 `instruction_identity_status=USER_REVIEWED_NAME_ONLY`다. 이름만 검수됐고
+지도 문구는 검수 대상이 아니었다. `instruction_summary_ko`는 170건 전부 있으나 짧은 요약이라
+form cue를 대신하지 못하고, `setup_condition_ko`는 safe variant에서 비어 있다.
+
+결론: 90건의 form cue는 **작성 + 검수**가 필요하다. 기계적 복구 경로가 없다.
+
+#### stable_code 이중 밑줄 — 해소
+
+`pain_alternative_policy` 75건은 파생 원본과 파생 사유를 이중 밑줄로 구분한다
+(`<base>__knee_no_load_safe_v1`). `StableCode` 패턴을 `_{1,2}`로 좁게 넓혀 해소했다.
+선행·후행 밑줄, 대문자, 3연속 이상은 그대로 거부한다. DB에 형식 CHECK가 없어 마이그레이션은
+필요 없었다. 이 변경으로 패턴 위반 75건이 사라졌다.
 
 ### 7.2 매니페스트 무결성
 
