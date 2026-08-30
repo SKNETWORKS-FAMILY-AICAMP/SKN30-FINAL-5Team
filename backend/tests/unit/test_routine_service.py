@@ -5,6 +5,10 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from backend.app.domain.rules.duration import (
+    DURATION_TOLERANCE_SECONDS,
+    SECONDS_PER_MINUTE,
+)
 from backend.app.modules.routines.ports import (
     RoutineCandidate,
     RoutineCreationContext,
@@ -216,6 +220,15 @@ def test_duration_within_tolerance_is_accepted() -> None:
     response = service.create(FakeSession(), uuid4(), _request(), uuid4())  # type: ignore[arg-type]
 
     assert response is not None
+    # The pool cannot hit 9 minutes exactly, so the persisted rows carry a
+    # non-zero delta. routine_days must accept it; see the duration CHECK in
+    # test_routine_duration_constraint.py.
+    deltas = {
+        day.estimated_duration_seconds - day.requested_duration_minutes * SECONDS_PER_MINUTE
+        for day in response.days
+    }
+    assert deltas != {0}
+    assert all(abs(delta) <= DURATION_TOLERANCE_SECONDS for delta in deltas)
 
 
 def test_duration_beyond_tolerance_still_fails() -> None:
