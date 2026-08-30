@@ -728,6 +728,7 @@ def load_alternative_artifact(
             record.goal_preservation_code,
             record.rule_version,
             record.condition_code,
+            record.pain_discomfort_area_code,
         )
         for record in records
     }

@@ -595,8 +595,10 @@ PK는 exercise_id, body_area_code, role_code 조합이다.
 | target_strategy_code | 통증 부위 회피와 부하·회복 전략 |
 
 장비·장소 관계에서는 위 selector를 `NULL`로 둔다. 통증 관계의 unique key는 기존 관계
-식별자에 `condition_code`를 포함하며, 같은 source→target이라도 NRS 구간별 관계를 보존한다.
-Decision service는 사용자의 불편 부위·심각도와 일치하는 관계만 조회한다.
+식별자에 `condition_code`와 `pain_discomfort_area_code`를 함께 포함한다. 같은 source→target
+쌍이라도 NRS 구간별 관계와 통증 부위별 관계를 각각 보존한다. 부위를 키에서 빼면 같은 밴드의
+서로 다른 부위 관계가 충돌해 검수된 관계가 유실된다. Decision service는 사용자의 불편 부위·
+심각도와 일치하는 관계만 조회한다.
 
 대체 관계는 방향성이 있다. A가 B를 대체한다고 해서 B가 A를 자동으로 대체하지 않는다.
 

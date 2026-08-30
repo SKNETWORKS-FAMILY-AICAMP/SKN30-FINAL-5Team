@@ -24,7 +24,10 @@ def test_migration_history_has_catalog_media_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0029_routine_duration_tolerance"]
+    assert scripts.get_heads() == ["0030_alternative_pain_area_key"]
+    assert scripts.get_revision("0030_alternative_pain_area_key").down_revision == (
+        "0029_routine_duration_tolerance"
+    )
     assert scripts.get_revision("0029_routine_duration_tolerance").down_revision == (
         "0028_discomfort_alt_conditions"
     )
@@ -259,6 +262,14 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
         assert "gymvisual" in exercise_checks["ck_exercises_source_track_code"]
         assert "ck_routine_days_exact_duration" not in routine_day_checks
         assert "300" in routine_day_checks["ck_routine_days_duration_tolerance"]
+        alternative_relation_key = next(
+            constraint
+            for constraint in inspector.get_unique_constraints("exercise_alternatives")
+            if constraint["name"] == "uq_exercise_alternatives_relation"
+        )
+        assert {"condition_code", "pain_discomfort_area_code"}.issubset(
+            alternative_relation_key["column_names"]
+        )
         assert {column["name"] for column in inspector.get_columns("calendar_connections")} == {
             "id",
             "user_id",
