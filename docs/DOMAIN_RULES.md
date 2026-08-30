@@ -145,11 +145,18 @@ PainAreaInput
 | 4..6 | `MODERATE` | `SKIP_AFFECTED_AREA` | 통증 부위 제외 → `ACTIVE_RECOVERY` |
 | 7..10 | `SEVERE` | `STOP_EXERCISE` | 대체운동 없음 |
 
-원점수와 변환된 code, `pain-intensity-action-v2`를 함께 보존해 재현한다. 이 구간은 안전·통증 정책
-변경이므로 개발팀장, PM과 외부 도메인 검수 승인 전 production에서 활성화하지 않는다. 현재 데이터는
-도메인 승인 입력으로 생성하지만 `production_eligible=false`다. 승인 전에는
-기존 `attention_area_codes` 계약과 기존 severity 입력 경로를 유지하며 점수를 추정하거나 backfill하지
-않는다.
+원점수와 변환된 code, `pain-intensity-action-v2`를 함께 보존해 재현한다.
+
+이 구간은 안전·통증 정책 변경이다. `MODERATE` 4..7 → 4..6, `SEVERE` 8..10 → 7..10 조정은
+2026-08-30 프로젝트 오너의 직접 검수로 승인했다(`USER_DIRECT_REVIEW_2026_08_30`). 승인 주체는
+개발팀장·데이터 리드를 겸하는 프로젝트 오너이며, 이는 `AGENTS.md` 7절의 2026-08-27 승인과
+v2.0.2 일괄 승인(`USER_DIRECT_REVIEW_2026_08_29`)이 사용한 것과 같은 승인 경로다. 승인 범위는
+위 표의 구간 경계와 그에 대응하는 `NRS_1_3`/`NRS_4_6` 관계 selector다. `intensity_score=7`은
+`SKIP_AFFECTED_AREA`에서 `STOP_EXERCISE`로 이동하며, 보수적인 방향의 변경이다.
+
+원점수 입력 경로는 아직 활성화하지 않는다. 기존 `attention_area_codes` 계약과 기존 severity 입력
+경로를 유지하며 점수를 추정하거나 backfill하지 않는다. 숫자 NRS 입력 UI를 도입할 때 이 표를 서버
+계약으로 노출하고 클라이언트가 경계를 재구현하지 않는다.
 
 ### 3.4 이상 반응 코드
 
