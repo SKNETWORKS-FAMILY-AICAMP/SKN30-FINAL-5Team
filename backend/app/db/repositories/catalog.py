@@ -436,56 +436,91 @@ class CatalogRepository:
         )
         session.add(catalog_version)
 
-        for record in records:
-            exercise = Exercise(
-                id=uuid4(),
-                catalog_version=catalog_version,
-                stable_code=record.stable_code,
-                name_ko=record.name_ko,
-                name_en=record.name_en or None,
-                training_type_code=record.training_type_code,
-                body_focus_code=record.body_focus_code,
-                primary_movement_pattern_code=record.primary_movement_pattern_code,
-                difficulty_code=record.difficulty_code,
-                timing_mode_code=record.timing_mode_code,
-                default_seconds_per_rep=record.default_seconds_per_rep,
-                default_work_seconds=record.default_work_seconds,
-                default_rest_seconds=record.default_rest_seconds,
-                default_transition_seconds=record.default_transition_seconds,
-                recovery_eligible=record.recovery_eligible,
-                instruction_summary_ko=record.instruction_summary_ko,
-                form_cues_ko=record.form_cues_ko,
-                instruction_content_version=record.instruction_content_version,
-                review_status_code=record.review_status_code,
-                source_track_code=record.source_track,
-                source_identity=record.source_identity,
-                body_parts=[
-                    ExerciseBodyPart(
-                        body_area_code=code,
-                        role_code=BodyAreaRoleCode.PRIMARY,
-                    )
-                    for code in record.primary_body_area_codes
-                ]
-                + [
-                    ExerciseBodyPart(
-                        body_area_code=code,
-                        role_code=BodyAreaRoleCode.SECONDARY,
-                    )
-                    for code in record.secondary_body_area_codes
-                ],
-                equipment_links=[
-                    ExerciseEquipment(
-                        equipment_code=code,
-                        requirement_code=EquipmentRequirementCode.REQUIRED,
-                    )
-                    for code in record.equipment_codes
-                ],
-                location_links=[
-                    ExerciseLocation(location_code=code) for code in record.location_codes
-                ],
-            )
-            session.add(exercise)
+        # The v2.0.2 identity columns arrive in migration 0031, but this importer
+        # also runs against older revisions (see the 0022 promotion test), so the
+        # INSERT is built from the columns the connected database actually has.
+        # A plain ORM insert would name every mapped column and fail there.
+        available_exercise_columns = {
+            column["name"] for column in inspect(session.get_bind()).get_columns("exercises")
+        }
+        identity_columns = (
+            "record_type",
+            "family_code",
+            "representative_stable_code",
+            "general_pool_included",
+        )
+        exercise_values: list[dict[str, object]] = []
+        children: list[ExerciseBodyPart | ExerciseEquipment | ExerciseLocation] = []
 
+        for record in records:
+            exercise_id = uuid4()
+            values: dict[str, object] = {
+                "id": exercise_id,
+                "catalog_version_id": catalog_version.id,
+                "stable_code": record.stable_code,
+                "name_ko": record.name_ko,
+                "name_en": record.name_en or None,
+                "training_type_code": record.training_type_code,
+                "body_focus_code": record.body_focus_code,
+                "primary_movement_pattern_code": record.primary_movement_pattern_code,
+                "difficulty_code": record.difficulty_code,
+                "timing_mode_code": record.timing_mode_code,
+                "default_seconds_per_rep": record.default_seconds_per_rep,
+                "default_work_seconds": record.default_work_seconds,
+                "default_rest_seconds": record.default_rest_seconds,
+                "default_transition_seconds": record.default_transition_seconds,
+                "recovery_eligible": record.recovery_eligible,
+                "instruction_summary_ko": record.instruction_summary_ko,
+                "form_cues_ko": record.form_cues_ko,
+                "instruction_content_version": record.instruction_content_version,
+                "review_status_code": record.review_status_code,
+                "source_track_code": record.source_track,
+                "source_identity": record.source_identity,
+            }
+            values.update(
+                {
+                    name: getattr(record, name, None)
+                    for name in identity_columns
+                    if name in available_exercise_columns
+                }
+            )
+            exercise_values.append(values)
+            children.extend(
+                ExerciseBodyPart(
+                    exercise_id=exercise_id,
+                    body_area_code=code,
+                    role_code=BodyAreaRoleCode.PRIMARY,
+                )
+                for code in record.primary_body_area_codes
+            )
+            children.extend(
+                ExerciseBodyPart(
+                    exercise_id=exercise_id,
+                    body_area_code=code,
+                    role_code=BodyAreaRoleCode.SECONDARY,
+                )
+                for code in record.secondary_body_area_codes
+            )
+            children.extend(
+                ExerciseEquipment(
+                    exercise_id=exercise_id,
+                    equipment_code=code,
+                    requirement_code=EquipmentRequirementCode.REQUIRED,
+                )
+                for code in record.equipment_codes
+            )
+            children.extend(
+                ExerciseLocation(exercise_id=exercise_id, location_code=code)
+                for code in record.location_codes
+            )
+
+        # The catalog version row has to land before the exercises that point at
+        # it; flushing here keeps the ordering explicit instead of relying on
+        # autoflush firing at the right moment.
+        session.flush()
+        if exercise_values:
+            session.execute(insert(Exercise), exercise_values)
+        session.add_all(children)
         session.flush()
         return catalog_version
 

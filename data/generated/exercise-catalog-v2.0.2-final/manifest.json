@@ -7,33 +7,33 @@
     "row_level_reason_required": false
   },
   "artifact_sha256": {
-    "alternatives/resolved_discomfort_alternative_map_v2_0_2.jsonl": "9f55a4e454e23dd4dbf9a6ee67b0ac0b262dc013a13150fa87f9549b45bfc487",
-    "audit/canonical_exercises_v2_final.csv": "ac72e66f65bb43415a5455def69deba4b18d5d3564b2f3189c9281ba8e75bac8",
+    "alternatives/resolved_discomfort_alternative_map_v2_0_2.jsonl": "f91fea75298de814dbc7690324d29c1e7024b3c81593c1e049f481d123d1fc55",
+    "audit/canonical_exercises_v2_final.csv": "c67cd145fbcac20cb60ec5ba9e89ae0176a98bac8b371187653dc63dbd2f4ca7",
     "audit/canonical_exercises_v2_final.jsonl": "bfe379468c329ac914856f07772add66a6ef9a9be1bd2ce407ade540fb928c19",
-    "audit/catalog/exercises.csv": "ca33b8ac1ff5cf72a3c5dc644c09e31b64fe5d12fe145c0c0b01f9e4110745f9",
-    "audit/family_representative_mapping_v2_0_2.csv": "c2bbd89b6a1652b1293dd3435f16a94a08d069f39dbd14079fde52cb38c4a088",
+    "audit/catalog/exercises.csv": "ac020c50c0c854fdbd438777b51e8861a571a7278c393c336a9f8a9958c2cf14",
+    "audit/family_representative_mapping_v2_0_2.csv": "56ea98d665b0f17b7751f443b6649389dce1f9ba5c70fe6fde2469845e352cba",
     "audit/family_representative_mapping_v2_0_2.jsonl": "f87754074a4a8d432b825f2a5df1f6f5252a7706ea3831c3e44db1d5267d51c6",
     "audit/integrity/auto_reference_repair_report_v2_0_2.json": "932a6cc7baf8f84d5ef44bbd66a7ea43186101b5a5b90e15cdc34fb43cca54b3",
     "audit/integrity/db_load_readiness_v2_0_2.json": "0bc2eb7612735aeebb3fbe72c08353fa09ac66a9d731b387b7baff2f3fcec61f",
-    "audit/integrity/review_result_input_v2_0_2.csv": "e0e2bbfac5e5c53918a3a03db8fb77bcc6c6a427bace788afeeea3ab238aecc6",
-    "audit/legacy_consolidation_mapping_v2_final.csv": "08cdad68f483ebd48820ea1a377ad29928ae485d3a2a4490567ed87a8250f87d",
+    "audit/integrity/review_result_input_v2_0_2.csv": "b7a543d9f3089e5e13fa8777805eb53a2f97f3d3a2384ac9c4e44f0872fa8956",
+    "audit/legacy_consolidation_mapping_v2_final.csv": "871ad87eaf3ef008d3e94055244753fd67442505f5073926c278d593b2b89408",
     "audit/legacy_consolidation_mapping_v2_final.jsonl": "9e5543aaf4d364a2e87cd7ee97586e9930a56c5bffab32018acae1984ab83aa3",
     "audit/merge_validation_report.json": "441b78adcca07789ed8a84110f862bb9db27a8568879fd3b802ec1553b9cc261",
-    "audit/reference_binding_status_v2_0_2.csv": "3c58a03e72f3fc2fe74daf12a2be9d8133a70fd23e20570b8632b726d5fe0d42",
+    "audit/reference_binding_status_v2_0_2.csv": "f4952fc0fa4799adf9504e877184d90c47c1e67ce2511c2b6226702136d01109",
     "audit/reference_binding_status_v2_0_2.jsonl": "2b425e70ef18533d0345483715897a641272ccfa0c93f5193e687fa7ee5fced1",
-    "audit/relationship_decisions_v2_final.csv": "874c90225ca3c15d128fbe3ce6cfee1f135ca05d57d88d3758e3ec3b6aaa0eb1",
+    "audit/relationship_decisions_v2_final.csv": "e905453146703e202f58b60cf508c3d37b5a810176310766ac57290b600bd9f8",
     "audit/relationship_decisions_v2_final.jsonl": "42cb7f52e1c7c1160968bbdaffb88b6af4b32a42acc9658eae51b67e7eb49ddc",
     "audit/runtime/catalog.jsonl": "121770bfe10451330be2a4ec5921fff6eb861b6dddbfe8f3c9790752705ef053",
     "audit/stable_code_registry_v2.json": "6964509bc956950bcda8078b860b9b16fe73cf5bff66108ad14a133586fd7e5f",
     "audit/variant_integrity_report_v2_0_2.json": "337f557563eea8f63e9a5d2dc6139ee67680f8418d594c80353a3ffeee5b6dde",
-    "audit/variant_relationship_candidates_v2_final.csv": "624a6a25867d56e68650f5f8b35de49ded70308d272b362b6c1cfe898fca2998",
+    "audit/variant_relationship_candidates_v2_final.csv": "c89d34ac574e7a17b132337450f8c5bf806bf48209ab259ecd4c5617ba87a6a1",
     "audit/variant_relationship_candidates_v2_final.jsonl": "c4a4b9bcf15fcbd1ef128605d2bca406dc4ce5e964990b3a3ae9dff437227011",
-    "audit/variant_relationship_review_v2_0_2.csv": "f90d245623b8162059d699cd72869d5a6631780428cae7649d4f39206d1bc33c",
+    "audit/variant_relationship_review_v2_0_2.csv": "9e229b5b08f36be60c13ee31cffd8869d36eb0cec35dcc5531d479c16c125be1",
     "audit/variant_relationship_review_v2_0_2.jsonl": "189672d76fc95879120064746322e03d1929c527fbce509004580974dc904bb0",
-    "audit/variant_safety_fitt_mapping_v2_0_2.csv": "eb8398653fdcc4c00d45dfba13c9a9307e62a752875e0bd6e3b83fbda29c31f7",
+    "audit/variant_safety_fitt_mapping_v2_0_2.csv": "f892e3579dcc4addc12caccec47657d212ff0a3400c885bf106eaeb2410078d5",
     "audit/variant_safety_fitt_mapping_v2_0_2.jsonl": "6b131e7c87fbc19cb6c505ad0692327eb66b4c52e34ffe71818456fd7854c7c7",
     "catalog/exercises.jsonl": "121770bfe10451330be2a4ec5921fff6eb861b6dddbfe8f3c9790752705ef053",
-    "media/media_assets_v2_0_2.csv": "9a69bef138c2a619f421738e703012f00a0825cc559e1410e882097cdee44a57",
+    "media/media_assets_v2_0_2.csv": "82883896f9fc2e0d00de439f14d50b2e9691daf9ca03d576d8fc6957acb7ebe0",
     "prescriptions/goal_tag_links.jsonl": "9dab814f77cd7e53e8dc3e317d76d37c0aa4e5dc0b2f784da92bd8657cc70fdf",
     "prescriptions/prescription_profiles.jsonl": "99260424bf350d5c1dc6c5abaf44ab315173c80907f3adf9abc9e7e5b8516503",
     "runtime/safety_rules.jsonl": "036c871f4563135d10d718c29ab7ff276ce0cc10373524f15613585545bb9cda"
@@ -132,6 +132,91 @@
     "safe_variant_record_mode": "SEPARATE_EXERCISE_GENERAL_POOL_WITH_CONDITIONED_ALTERNATIVES",
     "safety_fitt_goal_values_generated": true,
     "version": "v2.0.2-final-mechanical-reference-repair-v1.0.0"
+  },
+  "reseal": {
+    "artifact_count": 12,
+    "causes": [
+      "CONTENT_CHANGED",
+      "LINE_ENDING_NORMALIZED"
+    ],
+    "directed_by": "PROJECT_OWNER",
+    "entries": [
+      {
+        "cause": "CONTENT_CHANGED",
+        "path": "alternatives/resolved_discomfort_alternative_map_v2_0_2.jsonl",
+        "previous_sha256": "9f55a4e454e23dd4dbf9a6ee67b0ac0b262dc013a13150fa87f9549b45bfc487",
+        "sha256": "f91fea75298de814dbc7690324d29c1e7024b3c81593c1e049f481d123d1fc55"
+      },
+      {
+        "cause": "LINE_ENDING_NORMALIZED",
+        "path": "audit/canonical_exercises_v2_final.csv",
+        "previous_sha256": "ac72e66f65bb43415a5455def69deba4b18d5d3564b2f3189c9281ba8e75bac8",
+        "sha256": "c67cd145fbcac20cb60ec5ba9e89ae0176a98bac8b371187653dc63dbd2f4ca7"
+      },
+      {
+        "cause": "LINE_ENDING_NORMALIZED",
+        "path": "audit/catalog/exercises.csv",
+        "previous_sha256": "ca33b8ac1ff5cf72a3c5dc644c09e31b64fe5d12fe145c0c0b01f9e4110745f9",
+        "sha256": "ac020c50c0c854fdbd438777b51e8861a571a7278c393c336a9f8a9958c2cf14"
+      },
+      {
+        "cause": "LINE_ENDING_NORMALIZED",
+        "path": "audit/family_representative_mapping_v2_0_2.csv",
+        "previous_sha256": "c2bbd89b6a1652b1293dd3435f16a94a08d069f39dbd14079fde52cb38c4a088",
+        "sha256": "56ea98d665b0f17b7751f443b6649389dce1f9ba5c70fe6fde2469845e352cba"
+      },
+      {
+        "cause": "LINE_ENDING_NORMALIZED",
+        "path": "audit/integrity/review_result_input_v2_0_2.csv",
+        "previous_sha256": "e0e2bbfac5e5c53918a3a03db8fb77bcc6c6a427bace788afeeea3ab238aecc6",
+        "sha256": "b7a543d9f3089e5e13fa8777805eb53a2f97f3d3a2384ac9c4e44f0872fa8956"
+      },
+      {
+        "cause": "LINE_ENDING_NORMALIZED",
+        "path": "audit/legacy_consolidation_mapping_v2_final.csv",
+        "previous_sha256": "08cdad68f483ebd48820ea1a377ad29928ae485d3a2a4490567ed87a8250f87d",
+        "sha256": "871ad87eaf3ef008d3e94055244753fd67442505f5073926c278d593b2b89408"
+      },
+      {
+        "cause": "LINE_ENDING_NORMALIZED",
+        "path": "audit/reference_binding_status_v2_0_2.csv",
+        "previous_sha256": "3c58a03e72f3fc2fe74daf12a2be9d8133a70fd23e20570b8632b726d5fe0d42",
+        "sha256": "f4952fc0fa4799adf9504e877184d90c47c1e67ce2511c2b6226702136d01109"
+      },
+      {
+        "cause": "LINE_ENDING_NORMALIZED",
+        "path": "audit/relationship_decisions_v2_final.csv",
+        "previous_sha256": "874c90225ca3c15d128fbe3ce6cfee1f135ca05d57d88d3758e3ec3b6aaa0eb1",
+        "sha256": "e905453146703e202f58b60cf508c3d37b5a810176310766ac57290b600bd9f8"
+      },
+      {
+        "cause": "LINE_ENDING_NORMALIZED",
+        "path": "audit/variant_relationship_candidates_v2_final.csv",
+        "previous_sha256": "624a6a25867d56e68650f5f8b35de49ded70308d272b362b6c1cfe898fca2998",
+        "sha256": "c89d34ac574e7a17b132337450f8c5bf806bf48209ab259ecd4c5617ba87a6a1"
+      },
+      {
+        "cause": "LINE_ENDING_NORMALIZED",
+        "path": "audit/variant_relationship_review_v2_0_2.csv",
+        "previous_sha256": "f90d245623b8162059d699cd72869d5a6631780428cae7649d4f39206d1bc33c",
+        "sha256": "9e229b5b08f36be60c13ee31cffd8869d36eb0cec35dcc5531d479c16c125be1"
+      },
+      {
+        "cause": "LINE_ENDING_NORMALIZED",
+        "path": "audit/variant_safety_fitt_mapping_v2_0_2.csv",
+        "previous_sha256": "eb8398653fdcc4c00d45dfba13c9a9307e62a752875e0bd6e3b83fbda29c31f7",
+        "sha256": "f892e3579dcc4addc12caccec47657d212ff0a3400c885bf106eaeb2410078d5"
+      },
+      {
+        "cause": "LINE_ENDING_NORMALIZED",
+        "path": "media/media_assets_v2_0_2.csv",
+        "previous_sha256": "9a69bef138c2a619f421738e703012f00a0825cc559e1410e882097cdee44a57",
+        "sha256": "82883896f9fc2e0d00de439f14d50b2e9691daf9ca03d576d8fc6957acb7ebe0"
+      }
+    ],
+    "note": "Seals were recomputed from the shipped bytes. No artifact content was edited by the re-seal.",
+    "reference": "V2_0_2_MANIFEST_RESEAL_2026_08_30",
+    "resealed_on": "2026-08-30"
   },
   "schema_version": "v2.0.2-canonical-manifest-v1",
   "source": {

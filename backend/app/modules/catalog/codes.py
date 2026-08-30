@@ -30,6 +30,9 @@ class SourceTrackCode(StrEnum):
     KSPO = "kspo"
     GYMVISUAL = "gymvisual"
     MERGED = "merged"
+    # v2.0.2 derives 75 independent exercises from the reviewed pain-alternative
+    # policy. They keep their own track so the provenance stays readable.
+    PAIN_ALTERNATIVE_POLICY = "pain_alternative_policy"
 
 
 class TrainingTypeCode(StrEnum):
