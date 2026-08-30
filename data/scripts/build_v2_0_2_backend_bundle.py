@@ -91,6 +91,7 @@ _CATALOG_FIELDS = (
     "general_pool_included",
 )
 _SAFETY_FIELDS = (
+    "review_status_code",
     "body_area_code",
     "body_part_role_code",
     "catalog_version_code",
@@ -109,9 +110,10 @@ _GOAL_FIELDS = (
     "exercise_stable_code",
     "goal_code",
     "role_eligibility_code",
-    "status_interpretation",
+    "review_status_code",
 )
 _PRESCRIPTION_FIELDS = (
+    "review_status_code",
     "catalog_version_code",
     "exercise_stable_code",
     "goal_code",
@@ -226,7 +228,9 @@ def _verify_canonical_payloads(final: Path, manifest: dict[str, Any]) -> dict[st
     return resolved
 
 
-def _project_catalog(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _project_catalog(
+    rows: list[dict[str, Any]], *, exclude_incomplete: bool = False
+) -> tuple[list[dict[str, Any]], list[str]]:
     by_exercise_id = {str(row.get("exercise_id")): row for row in rows}
     projected: list[dict[str, Any]] = []
     for row in rows:
@@ -250,19 +254,21 @@ def _project_catalog(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         # A record the payload never marked as a base candidate is not one.
         record["general_pool_included"] = bool(row.get("general_pool_included"))
         projected.append(record)
-    _require_catalog_content(projected)
-    return projected
+    if not exclude_incomplete:
+        _require_catalog_content(projected)
+        return projected, []
+    # Withholding is explicit and recorded: a record the backend cannot accept is
+    # left out of the bundle entirely rather than padded to fit, and every
+    # dependent row is dropped with it so no orphan reaches the importer.
+    incomplete = _incomplete_catalog_records(projected)
+    excluded = sorted({code for codes in incomplete.values() for code in codes})
+    kept = [record for record in projected if record["stable_code"] not in set(excluded)]
+    _require_catalog_content(kept)
+    return kept, excluded
 
 
-def _require_catalog_content(records: list[dict[str, Any]]) -> None:
-    """Refuse to package a catalog the backend contract cannot accept.
-
-    The packager only moves reviewed values. It will not invent a form cue, a
-    rest interval or a transition interval to satisfy a NOT NULL column: those
-    are user-facing coaching content and FITT dosage, and data/AGENTS.md puts
-    both behind explicit review. Failing here names what is missing so the gap
-    is closed in the pipeline that owns the content.
-    """
+def _incomplete_catalog_records(records: list[dict[str, Any]]) -> dict[str, list[str]]:
+    """Name every record the backend contract cannot accept, by missing field."""
     gaps: dict[str, list[str]] = {
         "form_cues_ko": [],
         "default_rest_seconds": [],
@@ -279,13 +285,27 @@ def _require_catalog_content(records: list[dict[str, Any]]) -> None:
             gaps["default_transition_seconds"].append(code)
         if not record.get("instruction_summary_ko"):
             gaps["instruction_summary_ko"].append(code)
-    incomplete = {field: codes for field, codes in gaps.items() if codes}
+    return {field: codes for field, codes in gaps.items() if codes}
+
+
+def _require_catalog_content(records: list[dict[str, Any]]) -> None:
+    """Refuse to package a catalog the backend contract cannot accept.
+
+    The packager only moves reviewed values. It will not invent a form cue, a
+    rest interval or a transition interval to satisfy a NOT NULL column: those
+    are user-facing coaching content and FITT dosage, and data/AGENTS.md puts
+    both behind explicit review. Failing here names what is missing so the gap
+    is closed in the pipeline that owns the content.
+    """
+    incomplete = _incomplete_catalog_records(records)
     if incomplete:
         summary = ", ".join(
             f"{field}={len(codes)} (e.g. {codes[0]})" for field, codes in sorted(incomplete.items())
         )
         raise PipelineError(
-            "v2.0.2 catalog is not importable: required exercise content is missing - " + summary
+            "v2.0.2 catalog is not importable: required exercise content is missing - "
+            + summary
+            + " (pass --exclude-incomplete to package the complete records only)"
         )
 
 
@@ -348,6 +368,31 @@ def _project_media(rows: list[dict[str, str]]) -> tuple[list[dict[str, Any]], in
     return projected, withheld
 
 
+def _require_safety_coverage(catalog: list[dict[str, Any]], safety: list[dict[str, Any]]) -> None:
+    """Refuse a catalog whose records carry no substantive safety rule.
+
+    A row that names an exercise but leaves ``rule_scope`` empty is a
+    placeholder, not a rule. Importing an exercise behind one would put it in
+    front of users with nothing for the safety evaluation to match on, so it
+    could never be excluded for any reported pain area. That is the one failure
+    mode the deterministic safety veto exists to prevent, so it fails closed
+    here rather than at recommendation time.
+    """
+    covered = {
+        str(rule.get("exercise_stable_code"))
+        for rule in safety
+        if rule.get("rule_scope") is not None
+    }
+    uncovered = sorted(
+        str(record["stable_code"]) for record in catalog if record["stable_code"] not in covered
+    )
+    if uncovered:
+        raise PipelineError(
+            f"v2.0.2 catalog is not importable: {len(uncovered)} exercises have no safety rule, "
+            f"only a placeholder row (e.g. {uncovered[0]})"
+        )
+
+
 def _validate_foreign_keys(
     catalog: list[dict[str, Any]],
     safety: list[dict[str, Any]],
@@ -398,27 +443,44 @@ def _validate_foreign_keys(
 
 
 def build(
-    final: Path = DEFAULT_FINAL, output: Path = DEFAULT_BUNDLE, *, force: bool = False
+    final: Path = DEFAULT_FINAL,
+    output: Path = DEFAULT_BUNDLE,
+    *,
+    force: bool = False,
+    exclude_incomplete: bool = False,
 ) -> Path:
     manifest = _read_json(final / "manifest.json")
     if manifest.get("catalog_version_code") != CATALOG_VERSION_CODE:
         raise PipelineError("v2.0.2 manifest names a different catalog version")
     payloads = _verify_canonical_payloads(final, manifest)
 
-    catalog_rows = _project_catalog(_read_jsonl(payloads["catalog"]))
+    catalog_rows, excluded_codes = _project_catalog(
+        _read_jsonl(payloads["catalog"]), exclude_incomplete=exclude_incomplete
+    )
+    excluded = set(excluded_codes)
     safety_rows = [
         {field: row.get(field) for field in _SAFETY_FIELDS}
         for row in _read_jsonl(payloads["safety"])
+        if row.get("exercise_stable_code") not in excluded
     ]
     goal_rows = [
-        {field: row.get(field) for field in _GOAL_FIELDS} for row in _read_jsonl(payloads["goals"])
+        {field: row.get(field) for field in _GOAL_FIELDS}
+        for row in _read_jsonl(payloads["goals"])
+        if row.get("exercise_stable_code") not in excluded
     ]
     prescription_rows = [
         {field: row.get(field) for field in _PRESCRIPTION_FIELDS}
         for row in _read_jsonl(payloads["fitt"])
+        if row.get("exercise_stable_code") not in excluded
     ]
-    alternative_rows = _project_alternatives(_read_jsonl(payloads["alternatives"]))
+    alternative_rows = [
+        row
+        for row in _project_alternatives(_read_jsonl(payloads["alternatives"]))
+        if row["source_exercise_stable_code"] not in excluded
+        and row["alternative_exercise_stable_code"] not in excluded
+    ]
     media_rows, withheld_media = _project_media(_read_csv(payloads["media"]))
+    _require_safety_coverage(catalog_rows, safety_rows)
     _validate_foreign_keys(
         catalog_rows, safety_rows, goal_rows, prescription_rows, alternative_rows
     )
@@ -446,7 +508,6 @@ def build(
                     "track": "merged",
                     "review_batch_directory": "data/reports",
                     "taxonomy_registry_sha256": taxonomy_sha256,
-                    "final_manifest_sha256": _sha256((final / "manifest.json").read_bytes()),
                     "input_artifacts": [],
                 },
                 "review": _draft_review(),
@@ -520,6 +581,7 @@ def build(
                 "source": {"catalog_version_code": CATALOG_VERSION_CODE, "input_artifacts": []},
                 "review": _draft_review(),
                 "summary": {
+                    "exercise_records": len(catalog_rows),
                     "goal_tag_records": len(goal_rows),
                     "prescription_records": len(prescription_rows),
                 },
@@ -607,9 +669,17 @@ def build(
                     "media_asset_records": len(media_rows),
                 },
                 "projection": {
-                    "status": "DIRECT",
+                    "status": "DIRECT" if not excluded else "PARTIAL",
                     "source_manifest_sha256": _sha256((final / "manifest.json").read_bytes()),
                     "withheld_media_records": withheld_media,
+                    "excluded_exercise_count": len(excluded),
+                    "excluded_exercise_stable_codes": sorted(excluded),
+                    "excluded_reason": (
+                        "required exercise content is missing; the record and every "
+                        "row referencing it are withheld"
+                    )
+                    if excluded
+                    else "",
                 },
                 "files": files,
             },
@@ -625,8 +695,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--final", type=Path, default=DEFAULT_FINAL)
     parser.add_argument("--output", type=Path, default=DEFAULT_BUNDLE)
     parser.add_argument("--force", action="store_true")
+    parser.add_argument(
+        "--exclude-incomplete",
+        action="store_true",
+        help="package only the records the backend contract accepts, and record the rest",
+    )
     args = parser.parse_args(argv)
-    bundle = build(args.final, args.output, force=args.force)
+    bundle = build(
+        args.final,
+        args.output,
+        force=args.force,
+        exclude_incomplete=args.exclude_incomplete,
+    )
     manifest = _read_json(bundle / "bundle_manifest.json")
     print(
         json.dumps(
