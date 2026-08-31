@@ -70,7 +70,12 @@ _CONSTRAINT_ENVELOPE_FIELDS: Final = (
     "requested_duration_minutes",
     "primary_goal_code",
     "allowed_location_codes",
-    "allowed_equipment_codes",
+    # allowed_equipment_codes is deliberately absent. The 2026-08-27 approval
+    # removed equipment from onboarding, so the allowlist is empty by design;
+    # sending it made the agent read "no equipment permitted", conclude that no
+    # pool exercise qualified, and return NEEDS_INPUT with
+    # NO_POOL_EXERCISE_WITH_EMPTY_EQUIPMENT_CODES. Equipment is not a selection
+    # condition and the variant lookup covers missing kit.
     "excluded_exercise_ids",
     "mandatory_exercise_ids",
     "recovery_ceiling",
