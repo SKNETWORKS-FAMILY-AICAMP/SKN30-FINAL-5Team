@@ -743,7 +743,7 @@ advisory lock을 사용하고 `(user_id, version)` UNIQUE로 동시 생성에서
 | training_type_code | STRENGTH, CARDIO, MOBILITY, MIXED 등 |
 | body_focus_code | UPPER_BODY, LOWER_BODY 등, nullable |
 | requested_duration_minutes | 사용자가 요청한 권장 운동 길이 |
-| estimated_duration_seconds | requested_duration_minutes와 정확히 일치하는 계획 시간 합계 |
+| estimated_duration_seconds | requested_duration_minutes*60과 ±300초 이내인 계획 시간 합계 |
 | setup_seconds | 0~60초 장비 준비 시간 |
 | estimated_calories_burned | 체중 기반 예상 소모 칼로리 추정치, nullable |
 
@@ -1484,13 +1484,13 @@ requested_duration_minutes * 60`을 만족한다. Coordinator가 거절한 재�
 | cooldown_seconds | 마무리 |
 | requested_duration_minutes | 사용자 요청 시간 |
 | duration_adjustment_source_code | PROFILE 또는 USER_OVERRIDE |
-| estimated_duration_seconds | requested_duration_minutes와 정확히 일치하는 계획 시간 합계 |
+| estimated_duration_seconds | requested_duration_minutes*60과 ±300초 이내인 계획 시간 합계 |
 | estimated_calories_burned | 체중 기반 예상 소모 칼로리 추정치, nullable |
 | goal_preservation_score | 비안전 목적 점수 |
 | duration_rule_version | 시간 규칙 버전 |
 | created_at | 생성 시각 |
 
-requested_duration_minutes는 사용자 입력에서만 가져오며 시스템이 임의 변경하지 않는다. 계획이 있는 후보의 estimated_duration_seconds는 `requested_duration_minutes * 60`과 정확히 일치해야 한다. 이는 계획 단계의 hard target이지만 실제 수행의 hard execution limit이나 완료 조건은 아니다. estimated_calories_burned는 제공된 체중이 있을 때만 계산하며 진단·안전 판정의 단독 근거로 사용하지 않는다.
+requested_duration_minutes는 사용자 입력에서만 가져오며 시스템이 임의 변경하지 않는다. 계획이 있는 후보의 estimated_duration_seconds는 `requested_duration_minutes * 60`과 ±300초 이내여야 하며, 허용 범위 안에서 차이가 가장 작은 계획을 선택한다(동률이면 더 긴 계획). 이는 계획 단계의 hard target이지만 실제 수행의 hard execution limit이나 완료 조건은 아니다. estimated_calories_burned는 제공된 체중이 있을 때만 계산하며 진단·안전 판정의 단독 근거로 사용하지 않는다.
 
 ### 9.4 plan_items
 

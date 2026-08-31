@@ -179,7 +179,7 @@ Training은 승인 운동 pool 안에서 PlanSpec 초안을 만들고, Recovery�
 가능성 proposal을 만들며, LLM Coordinator는 이를 종합·선택한다. Coordinator는 DB를 조회하거나
 새 안전 기준을 만들지 않는다.
 
-Coordinator는 운동 계획을 반환하는 경우 계획 구성요소의 합계인 `estimated_duration_seconds`를 `requested_duration_minutes * 60`과 정확히 일치시킨다. 검수된 후보와 안전 규칙만으로 정확히 구성할 수 없으면 시간을 임의로 축소·초과하지 않고 계획을 반환하지 않는다. 이 값은 계획 단계의 hard target이며 실제 경과 시간이나 완료 판정의 기준은 아니다.
+Coordinator는 운동 계획을 반환하는 경우 계획 구성요소의 합계인 `estimated_duration_seconds`를 `requested_duration_minutes * 60`과 ±300초(5분) 이내로 맞춘다. 허용 범위 안의 후보 중 차이가 가장 작은 계획을 선택하며, 차이가 같으면 더 긴 계획을 우선한다. 이 허용 범위는 2026-08-27 프로젝트 오너 승인이며 V1/V2 루틴 경로와 V3 계획 경로가 같은 상수(`DURATION_TOLERANCE_SECONDS`)를 공유한다. 허용 범위를 만족하는 계획을 만들 수 없으면 시간을 임의로 축소·초과하지 않고 계획을 반환하지 않는다. `requested_duration_minutes` 자체는 서버가 변경하지 않는다. 이 값은 계획 단계의 hard target이며 실제 경과 시간이나 완료 판정의 기준은 아니다.
 
 조정기는 운동을 자유 생성하거나 안전 veto를 해제하지 않는다. LLM은 reason code를 설명 문장으로 바꾸는 선택 기능일 뿐이다.
 
