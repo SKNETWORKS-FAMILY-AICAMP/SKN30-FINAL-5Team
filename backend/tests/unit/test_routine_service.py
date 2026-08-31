@@ -50,8 +50,20 @@ def _candidate(phase: str, seconds: int, *, tier: str = "SUPPORT") -> RoutineCan
     )
 
 
+def _wide_candidates() -> tuple[RoutineCandidate, ...]:
+    """A pool broad enough that a long session has real choices to make."""
+
+    warmups = tuple(_candidate("WARMUP", 30 + 10 * index) for index in range(6))
+    mains = tuple(
+        _candidate("MAIN", 130 + 20 * index, tier="CORE" if index < 4 else "SUPPORT")
+        for index in range(12)
+    )
+    cooldowns = tuple(_candidate("COOLDOWN", 25 + 10 * index) for index in range(6))
+    return (*warmups, *mains, *cooldowns)
+
+
 class FakeRoutineRepository:
-    def __init__(self, *, duration_minutes: int = 10) -> None:
+    def __init__(self, *, duration_minutes: int = 10, wide_pool: bool = False) -> None:
         self.context = RoutineCreationContext(
             profile_duration_minutes=duration_minutes,
             desired_weekly_workout_count=2,
@@ -61,9 +73,13 @@ class FakeRoutineRepository:
             catalog_version_id=uuid4(),
             catalog_version_code="synthetic-approved-v1",
             candidates=(
-                _candidate("WARMUP", 60),
-                _candidate("MAIN", 490, tier="CORE"),
-                _candidate("COOLDOWN", 45),
+                _wide_candidates()
+                if wide_pool
+                else (
+                    _candidate("WARMUP", 60),
+                    _candidate("MAIN", 490, tier="CORE"),
+                    _candidate("COOLDOWN", 45),
+                )
             ),
         )
         self.idempotency: dict[tuple[UUID, UUID], RoutineIdempotencyRecord] = {}
@@ -252,6 +268,71 @@ def test_changed_duration_is_a_distinct_idempotent_request() -> None:
             ),
             key,
         )
+
+
+def test_plan_shape_is_bounded_regardless_of_requested_duration() -> None:
+    # Filling a long session by stacking exercises produced 22-item plans that
+    # were mostly warmup and cooldown work. The shape is capped and the set
+    # count absorbs the remaining time instead.
+    repository = FakeRoutineRepository(duration_minutes=30, wide_pool=True)
+    service = RoutineService(repository, clock=lambda: NOW)
+
+    response = service.create(FakeSession(), uuid4(), _request(), uuid4())  # type: ignore[arg-type]
+
+    for day in response.days:
+        phases = [item.phase_code for item in day.items]
+        types = {item.exercise_id for item in day.items}
+        assert len(types) <= 10
+        assert len({item.exercise_id for item in day.items if item.phase_code == "WARMUP"}) <= 2
+        assert len({item.exercise_id for item in day.items if item.phase_code == "COOLDOWN"}) <= 2
+        assert phases.count("WARMUP") <= 2
+        assert phases.count("COOLDOWN") <= 2
+
+
+def test_a_split_exercise_counts_once_against_the_type_budget() -> None:
+    # Four sets of push-ups, three of squats, then four more push-ups is two
+    # types and three blocks. Splitting shapes the session; it must not spend
+    # the budget that keeps the session varied.
+    repository = FakeRoutineRepository(duration_minutes=40, wide_pool=True)
+    service = RoutineService(repository, clock=lambda: NOW)
+
+    response = service.create(FakeSession(), uuid4(), _request(), uuid4())  # type: ignore[arg-type]
+
+    items = response.days[0].items
+    types = {item.exercise_id for item in items}
+    assert len(types) <= 10
+    # Duplication is penalised, so a plan never leans on one movement repeated
+    # more than the split allowance.
+    for exercise_id in types:
+        assert sum(item.exercise_id == exercise_id for item in items) <= 2
+
+
+def test_stretching_stays_at_the_start_and_the_end() -> None:
+    repository = FakeRoutineRepository(duration_minutes=30, wide_pool=True)
+    service = RoutineService(repository, clock=lambda: NOW)
+
+    response = service.create(FakeSession(), uuid4(), _request(), uuid4())  # type: ignore[arg-type]
+
+    phases = [item.phase_code for item in response.days[0].items]
+    assert phases == sorted(phases, key=lambda phase: ("WARMUP", "MAIN", "COOLDOWN").index(phase))
+    assert phases[0] == "WARMUP"
+    assert phases[-1] == "COOLDOWN"
+
+
+def test_main_set_count_flexes_to_fill_the_requested_time() -> None:
+    # The reviewed prescription supplies one set; the planner may scale main
+    # work rather than adding another exercise to reach the target.
+    short = FakeRoutineRepository(duration_minutes=15, wide_pool=True)
+    long = FakeRoutineRepository(duration_minutes=40, wide_pool=True)
+    service = RoutineService(short, clock=lambda: NOW)
+    long_service = RoutineService(long, clock=lambda: NOW)
+
+    short_plan = service.create(FakeSession(), uuid4(), _request(), uuid4())  # type: ignore[arg-type]
+    long_plan = long_service.create(FakeSession(), uuid4(), _request(), uuid4())  # type: ignore[arg-type]
+
+    short_sets = sum(item.sets for item in short_plan.days[0].items if item.phase_code == "MAIN")
+    long_sets = sum(item.sets for item in long_plan.days[0].items if item.phase_code == "MAIN")
+    assert long_sets > short_sets
 
 
 def test_idempotency_returns_same_response_and_rejects_changed_payload() -> None:

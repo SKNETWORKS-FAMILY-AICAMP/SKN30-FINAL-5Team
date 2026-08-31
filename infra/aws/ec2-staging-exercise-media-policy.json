@@ -1,0 +1,29 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadExerciseMediaSourceObjects",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject"
+      ],
+      "Resource": "arn:aws:s3:::exercise-app-media-343953861875-ap-northeast-2-an/videos/*"
+    },
+    {
+      "Sid": "ListExerciseMediaSourcePrefix",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket"
+      ],
+      "Resource": "arn:aws:s3:::exercise-app-media-343953861875-ap-northeast-2-an",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": [
+            "videos/*",
+            "videos/"
+          ]
+        }
+      }
+    }
+  ]
+}

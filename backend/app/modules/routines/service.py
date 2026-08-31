@@ -1,7 +1,9 @@
 import hashlib
 import json
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import UTC, date, datetime
+from typing import Final
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -77,35 +79,93 @@ def _candidate_duration(candidate: RoutineCandidate) -> PlanItemDuration:
     )
 
 
-def _subset_rank(items: tuple[RoutineCandidate, ...]) -> tuple[int, int]:
-    """Rank a candidate subset: more CORE first, then fewer exercises."""
+# A session is a workout, not an inventory. Filling the requested time by
+# stacking ever more exercises produced 22-item plans that were mostly warmup
+# and cooldown work, so the shape is bounded and the set count absorbs the
+# remaining time instead.
+# A session is a workout, not an inventory. Filling the requested time by
+# stacking ever more exercises produced 22-item plans that were mostly warmup
+# and cooldown work, so the number of distinct exercises is bounded and the set
+# count absorbs the rest.
+MAX_PHASE_TYPES: Final[dict[str, int]] = {
+    RoutinePhaseCode.WARMUP: 2,
+    RoutinePhaseCode.COOLDOWN: 2,
+}
+MAX_PLAN_TYPES: Final = 10
+# One exercise may be split across blocks rather than run as a single long set
+# run: four sets of push-ups, three of squats, then four more of push-ups is a
+# session; eight straight sets of push-ups is not. Blocks of the same exercise
+# are one type, so splitting does not consume the type budget.
+MAX_SETS_PER_BLOCK: Final = 4
+MAX_BLOCKS_PER_EXERCISE: Final = 2
+
+
+def _subset_rank(items: tuple[RoutineCandidate, ...]) -> tuple[int, int, int]:
+    """Rank a candidate subset for the same total time.
+
+    Goal fit first: CORE is what the goal's catalog review marked as driving it.
+    Then variety, because splitting one exercise across blocks is a way to shape
+    a session, not a licence to hand the user the same movement over and over.
+    Compactness only breaks the remaining ties.
+    """
 
     core = sum(item.tier_code == RoutineTierCode.CORE for item in items)
-    return (-core, len(items))
+    repeated_blocks = len(items) - _distinct_types(items)
+    return (-core, repeated_blocks, len(items))
+
+
+def _distinct_types(items: tuple[RoutineCandidate, ...]) -> int:
+    return len({item.exercise_id for item in items})
+
+
+def _block_variants(candidate: RoutineCandidate) -> tuple[tuple[RoutineCandidate, ...], ...]:
+    """Return every block layout the planner may use for one exercise.
+
+    Warmup and cooldown keep their reviewed dosage as a single block: they
+    prepare and settle the body rather than absorb leftover minutes.
+    """
+
+    if candidate.phase_code != RoutinePhaseCode.MAIN:
+        return ((candidate,),)
+    layouts: list[tuple[RoutineCandidate, ...]] = [
+        (replace(candidate, sets=sets),) for sets in range(1, MAX_SETS_PER_BLOCK + 1)
+    ]
+    if MAX_BLOCKS_PER_EXERCISE > 1:
+        layouts.extend(
+            (replace(candidate, sets=first), replace(candidate, sets=second))
+            for first in range(1, MAX_SETS_PER_BLOCK + 1)
+            for second in range(1, MAX_SETS_PER_BLOCK + 1)
+        )
+    return tuple(layouts)
 
 
 def _subsets(
-    candidates: tuple[RoutineCandidate, ...], target_seconds: int
+    candidates: tuple[RoutineCandidate, ...],
+    target_seconds: int,
+    *,
+    max_types: int,
 ) -> dict[tuple[int, bool], tuple[RoutineCandidate, ...]]:
     states: dict[tuple[int, bool], tuple[RoutineCandidate, ...]] = {(0, False): ()}
     for candidate in sorted(
         candidates, key=lambda item: (item.exercise_name, str(item.exercise_id))
     ):
-        seconds = _candidate_duration(candidate).estimated_item_seconds
         additions: dict[tuple[int, bool], tuple[RoutineCandidate, ...]] = {}
-        for (current, has_core), selected in states.items():
-            total = current + seconds
-            if total > target_seconds:
-                continue
-            key = (total, has_core or candidate.tier_code == RoutineTierCode.CORE)
-            proposed = (*selected, candidate)
-            existing = states.get(key) or additions.get(key)
-            # Collapsing on length alone discarded the CORE-richer subset for a
-            # given total, so preferring CORE later had nothing left to choose
-            # from and a muscle-gain plan stayed mostly support work. Keep the
-            # subset that carries more CORE, and only then the shorter one.
-            if existing is None or _subset_rank(proposed) < _subset_rank(existing):
-                additions[key] = proposed
+        for blocks in _block_variants(candidate):
+            seconds = sum(_candidate_duration(block).estimated_item_seconds for block in blocks)
+            for (current, has_core), selected in states.items():
+                total = current + seconds
+                if total > target_seconds:
+                    continue
+                proposed = (*selected, *blocks)
+                if _distinct_types(proposed) > max_types:
+                    continue
+                key = (total, has_core or candidate.tier_code == RoutineTierCode.CORE)
+                existing = states.get(key) or additions.get(key)
+                # Collapsing on length alone discarded the CORE-richer subset for
+                # a given total, so preferring CORE later had nothing left to
+                # choose from and a muscle-gain plan stayed mostly support work.
+                if existing is None or _subset_rank(proposed) < _subset_rank(existing):
+                    additions[key] = proposed
         states.update(additions)
     return states
 
@@ -134,9 +194,17 @@ def _select_exact_plan(
     if any(not by_phase[phase] for phase in RoutinePhaseCode):
         raise RoutineContentUnavailableError
 
-    warmups = _subsets(by_phase[RoutinePhaseCode.WARMUP], min(target, 180))
-    mains = _subsets(by_phase[RoutinePhaseCode.MAIN], target + DURATION_TOLERANCE_SECONDS)
-    cooldowns = _subsets(by_phase[RoutinePhaseCode.COOLDOWN], min(target, 120))
+    warmup_cap = MAX_PHASE_TYPES[RoutinePhaseCode.WARMUP]
+    cooldown_cap = MAX_PHASE_TYPES[RoutinePhaseCode.COOLDOWN]
+    warmups = _subsets(by_phase[RoutinePhaseCode.WARMUP], min(target, 180), max_types=warmup_cap)
+    mains = _subsets(
+        by_phase[RoutinePhaseCode.MAIN],
+        target + DURATION_TOLERANCE_SECONDS,
+        max_types=MAX_PLAN_TYPES - warmup_cap - cooldown_cap,
+    )
+    cooldowns = _subsets(
+        by_phase[RoutinePhaseCode.COOLDOWN], min(target, 120), max_types=cooldown_cap
+    )
     matches: list[tuple[int, int, tuple[RoutineCandidate, ...]]] = []
     for (warmup_seconds, _), warmup_items in warmups.items():
         if not 60 <= warmup_seconds <= 180:
