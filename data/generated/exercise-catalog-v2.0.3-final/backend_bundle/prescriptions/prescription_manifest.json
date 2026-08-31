@@ -14,16 +14,6 @@
     }
   ],
   "generator_version": "v2-0-3-backend-bundle-packager-1.0.0",
-  "goal_expansion": {
-    "approval_method_code": "OWNER_BATCH_CONFIRMATION",
-    "approval_reference": "GOAL-EXPANSION-DOMAIN-REVIEW-2026-08-31-R01",
-    "approved_at": "2026-08-31T15:00:00+09:00",
-    "goal_codes": [
-      "FAT_LOSS",
-      "MUSCLE_GAIN"
-    ],
-    "policy_version": "goal-prescription-review-policy-2026-08-31"
-  },
   "prescription_set_version": {
     "status_code": "DRAFT",
     "version_code": "prescription-set-v2.0.3"

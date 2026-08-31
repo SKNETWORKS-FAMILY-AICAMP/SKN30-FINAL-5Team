@@ -30,7 +30,7 @@ from backend.app.modules.catalog.service import (
 from backend.scripts.catalog_activate import activate
 from backend.scripts.catalog_promote_v2 import APPROVED_TAXONOMY_REGISTRY_SHA256
 
-APPROVED_BUNDLE_MANIFEST_SHA256 = "50632ddfcbd1065d4b4c881e4ba2538e0c6e6b023fe216302cd8bcbc0dbd3797"
+APPROVED_BUNDLE_MANIFEST_SHA256 = "b1ba490783ca1e597351efe26a3cecb69afde7174e82ff5c76045f0e2b8e5e66"
 V2_0_3_CATALOG_VERSION_CODE = "exercise-catalog-v2.0.3-final"
 DEFAULT_BUNDLE_DIRECTORY = Path("data/generated/exercise-catalog-v2.0.3-final/backend_bundle")
 

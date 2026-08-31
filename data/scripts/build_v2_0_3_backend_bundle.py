@@ -204,13 +204,9 @@ def build(
         if relative.startswith("prescriptions/"):
             manifest["summary"]["goal_tag_records"] = link_count
             manifest["summary"]["prescription_records"] = profile_count
-            manifest["goal_expansion"] = {
-                "goal_codes": sorted(expansion_goals),
-                "approval_method_code": policy["approval_method_code"],
-                "approval_reference": policy["reviewer_reference"],
-                "approved_at": policy["reviewed_at"],
-                "policy_version": policy["policy_version"],
-            }
+        # The expansion is recorded once, in the bundle manifest's derived_from.
+        # Repeating it per sub-manifest would duplicate provenance and widen
+        # another forbidden-extras schema for no additional information.
         _write_json(path, manifest)
 
     bundle_manifest_path = target / "bundle_manifest.json"
@@ -226,7 +222,13 @@ def build(
             "tag links. Catalog, media, safety rules and alternatives are carried "
             "over unchanged."
         ),
-        "goal_expansion_policy_version": policy["policy_version"],
+        "goal_expansion": {
+            "goal_codes": sorted(expansion_goals),
+            "policy_version": policy["policy_version"],
+            "approval_method_code": policy["approval_method_code"],
+            "approval_reference": policy["reviewer_reference"],
+            "approved_at": policy["reviewed_at"],
+        },
     }
     bundle_manifest["summary"]["goal_tag_records"] = link_count
     bundle_manifest["summary"]["prescription_records"] = profile_count
