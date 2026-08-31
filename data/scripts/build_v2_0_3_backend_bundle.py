@@ -92,45 +92,36 @@ def _int_or_none(value: str) -> int | None:
 def _expansion_records(
     rows: list[dict[str, str]], policy: dict[str, Any]
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    approval_method = policy["approval_method_code"]
-    approval_reference = policy["reviewer_reference"]
-    approved_at = policy["reviewed_at"]
     prescription_version = f"prescription-set-{TARGET_SUFFIX}-goal-expansion"
 
     links: list[dict[str, Any]] = []
     profiles: list[dict[str, Any]] = []
     seen: set[tuple[str, str]] = set()
+    # The bundle record shape is exactly what the importer schema accepts:
+    # lean rows, no approval columns. Approval lives in the approval registry
+    # and the bundle manifest, not on every row.
     for row in rows:
         key = (row["stable_code"], row["goal_code"])
         if key not in seen:
             seen.add(key)
             links.append(
                 {
-                    "approval_method_code": approval_method,
-                    "approval_reference": approval_reference,
-                    "approved_at": approved_at,
                     "catalog_version_code": TARGET_VERSION,
                     "exercise_stable_code": row["stable_code"],
                     "goal_code": row["goal_code"],
                     "review_status_code": "DOMAIN_APPROVED",
                     "role_eligibility_code": row["role_eligibility_code"],
-                    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
                 }
             )
         profiles.append(
             {
-                "approval_method_code": approval_method,
-                "approval_reference": approval_reference,
-                "approved_at": approved_at,
                 "catalog_version_code": TARGET_VERSION,
-                "exercise_difficulty_code": row["exercise_difficulty_code"],
                 "exercise_stable_code": row["stable_code"],
                 "experience_level_code": row["experience_level_code"],
                 "goal_code": row["goal_code"],
                 "intensity_code": row["intensity_code"],
                 "phase_code": row["phase_code"],
                 "prescription_version": prescription_version,
-                "production_eligible": True,
                 "reps": _int_or_none(row["reps"]),
                 "rest_seconds_per_set": int(row["rest_seconds_per_set"]),
                 "review_status_code": "DOMAIN_APPROVED",

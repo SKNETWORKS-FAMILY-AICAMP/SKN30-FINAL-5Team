@@ -195,6 +195,19 @@ class DifficultyCode(StrEnum):
     INTERMEDIATE = "INTERMEDIATE"
 
 
+class GoalCode(StrEnum):
+    """Onboarding goals a catalog may carry approved prescriptions for.
+
+    Onboarding has offered all three since the frontend exposed them; the
+    catalog only carried GENERAL_FITNESS until v2.0.3, so picking either other
+    goal left the approved pool empty and routine creation failed.
+    """
+
+    GENERAL_FITNESS = "GENERAL_FITNESS"
+    FAT_LOSS = "FAT_LOSS"
+    MUSCLE_GAIN = "MUSCLE_GAIN"
+
+
 class TimingModeCode(StrEnum):
     REPS = "REPS"
     DURATION = "DURATION"
