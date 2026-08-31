@@ -61,6 +61,24 @@ def test_blank_kms_configuration_is_treated_as_unconfigured() -> None:
     assert settings.aws_region is None
 
 
+def test_exercise_media_s3_configuration_is_bounded() -> None:
+    settings = Settings(
+        _env_file=None,
+        exercise_media_s3_bucket="exercise-app-media-test",
+        exercise_media_s3_region="ap-northeast-2",
+        exercise_media_url_expiry_seconds=60,
+    )
+    assert settings.exercise_media_s3_prefix == "videos/"
+    assert settings.exercise_media_url_expiry_seconds == 60
+
+    with pytest.raises(ValidationError, match="must remain videos"):
+        Settings(_env_file=None, exercise_media_s3_prefix="images/")
+    with pytest.raises(ValidationError, match=r"within \[60, 900\]"):
+        Settings(_env_file=None, exercise_media_url_expiry_seconds=901)
+    with pytest.raises(ValidationError, match="must be configured together"):
+        Settings(_env_file=None, exercise_media_s3_bucket="exercise-app-media-test")
+
+
 def test_cors_allowed_origins_defaults_to_disabled() -> None:
     # Asserted on the declared default rather than an instance, because
     # Settings() also reads the ambient environment and a shell that exports

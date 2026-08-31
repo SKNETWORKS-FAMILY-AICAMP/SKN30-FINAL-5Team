@@ -508,6 +508,16 @@ UNIQUE 제약은 catalog_version_id와 stable_code 조합에 둔다.
 `approval_metadata`를 모두 만족하는 행만 노출한다. 승인되지 않은 행은 보존할 수 있지만 API에는
 노출하지 않으며, media 행이 없는 운동은 `media_asset_key=null`이다.
 
+실제 source 객체가 canonical `s3_key`와 다른 경우 별도 컬럼을 추가하지 않고 검증 job이 다음
+키를 `source_metadata`에 additive하게 기록한다.
+
+- `source_object_key`: 정확한 `videos/<4자리 source_identity>-<식별문자열>.gif`
+- `source_object_content_type`: 검증된 `image/gif`
+- `source_object_verified_at`: timezone offset을 포함한 검증 시각
+
+이 값은 `source_identity` exact match, 단일 객체·단일 운동, 실제 S3 HEAD 성공 후에만 기록한다.
+canonical `s3_key`와 승인·권리 필드는 변경하지 않으며 presigned URL은 저장하지 않는다.
+
 ### 5.3 lookup tables
 
 다음 lookup table은 code를 PK로 사용하고 사용자 표시명은 별도 컬럼으로 둔다.

@@ -10,6 +10,7 @@ from backend.app.api.dependencies import (
     get_catalog_repository,
     get_current_user,
     get_db_session,
+    get_exercise_media_url_provider,
 )
 from backend.app.core.errors import AppError
 from backend.app.modules.catalog.codes import (
@@ -25,6 +26,7 @@ from backend.app.modules.catalog.schemas import (
 )
 from backend.app.modules.catalog.service import (
     ExerciseCatalogUnavailableError,
+    ExerciseMediaUrlPort,
     ExerciseNotFoundError,
     ExerciseReadRepositoryPort,
     ExerciseReadService,
@@ -85,10 +87,11 @@ def get_exercise_detail(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_db_session)],
     repository: Annotated[ExerciseReadRepositoryPort, Depends(get_catalog_repository)],
+    media_url_provider: Annotated[ExerciseMediaUrlPort, Depends(get_exercise_media_url_provider)],
 ) -> ExerciseDetailResponse:
     del current_user
     try:
-        return ExerciseReadService(repository).get_detail(session, exercise_id)
+        return ExerciseReadService(repository, media_url_provider).get_detail(session, exercise_id)
     except ExerciseNotFoundError:
         raise AppError(
             status_code=HTTPStatus.NOT_FOUND,

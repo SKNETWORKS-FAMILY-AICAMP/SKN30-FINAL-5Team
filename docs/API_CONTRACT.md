@@ -1100,6 +1100,7 @@ ExerciseDetailResponse
 - instruction_summary: string
 - form_cues: string[]
 - media_asset_key: string | null
+- media_url: string | null
 - mascot_animation_asset_key: string | null
 - instruction_content_version: string
 ~~~
@@ -1110,6 +1111,10 @@ ExerciseDetailResponse
 `DOMAIN_APPROVED`인 운동만 반환하며, 그 외에는 `404 RESOURCE_NOT_FOUND`다. `media_asset_key`는
 미디어 상태가 `AVAILABLE`, 권리 검토가 `APPROVED`이고 승인 registry의 version/hash/count가 모두
 일치하는 자산에만 채워진다. 운동에 미디어가 없거나 어느 승인 조건이든 충족하지 않으면 `null`이다.
+`media_url`은 같은 승인 조건을 만족하는 운영 승인 catalog 운동에 대해 검증·보존된
+`videos/<4자리 source_identity>-<식별문자열>.gif` 객체가 실제로 존재하고 S3 `ContentType`이
+`image/gif`일 때만 짧은 만료시간의 presigned GET URL로 채워진다. 객체 확인이나 URL 생성이
+실패하면 endpoint 자체를 실패시키지 않고 `null`을 반환한다. URL은 저장하거나 로그에 남기지 않는다.
 `mascot_animation_asset_key`는 아직 항상 `null`이다.
 
 ---

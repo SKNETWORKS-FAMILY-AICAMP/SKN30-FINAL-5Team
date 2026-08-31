@@ -282,6 +282,7 @@ class ExerciseDetailResponse(BaseModel):
     instruction_summary: str
     form_cues: list[str]
     media_asset_key: str | None = None
+    media_url: str | None = None
     mascot_animation_asset_key: str | None = None
     instruction_content_version: str
 
