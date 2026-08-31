@@ -190,7 +190,9 @@ uv run python -m backend.scripts.catalog_activate activate kspo-mvp-v0.2.0 --dem
 ### 활성화 이후 주의사항
 
 - ACTIVE 카탈로그는 하나뿐이므로 `demo-synthetic-v1`은 DEPRECATED가 된다. 그 카탈로그로 만든
-  기존 루틴은 결정 생성이 멈춘다. `reset` 후 다시 온보딩하면 새 카탈로그로 루틴이 생성된다.
+  기존 루틴은 기록으로 남지만 현재 루틴 조회에서는 제외되고 결정 생성에도 사용되지 않는다.
+  홈 화면의 새 루틴 생성 동작을 실행하면 현재 ACTIVE 카탈로그 기반의 다음 routine version이
+  생성된다. 전체 데모 데이터를 초기화해야 할 때만 `reset` 후 다시 온보딩한다.
 - `seed`와 `reset`은 합성 카탈로그를 다시 ACTIVE로 만든다. **둘 중 하나를 실행했다면 `rules`를
   다시 실행해야 한다.**
 

@@ -318,12 +318,19 @@ class RoutineRepository:
     ) -> dict[str, Any] | None:
         routines = session.scalars(
             select(Routine)
+            .join(CatalogVersion, CatalogVersion.id == Routine.catalog_version_id)
             .options(selectinload(Routine.days).selectinload(RoutineDay.items))
             .where(
                 Routine.user_id == user_id,
                 Routine.status_code == RoutineStatusCode.ACTIVE,
                 Routine.effective_from <= local_date,
                 (Routine.effective_to.is_(None)) | (Routine.effective_to >= local_date),
+                CatalogVersion.status_code == "ACTIVE",
+                CatalogVersion.review_status_code == "DOMAIN_APPROVED",
+                CatalogVersion.review_method_code == "DOMAIN_REVIEWER",
+                CatalogVersion.status_interpretation_code == "PRODUCTION_APPROVED",
+                CatalogVersion.production_eligible.is_(True),
+                CatalogVersion.activated_at.is_not(None),
             )
             .order_by(Routine.version.desc())
         ).all()
