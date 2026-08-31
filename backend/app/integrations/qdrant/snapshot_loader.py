@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Protocol
+from typing import Final, Protocol
 from uuid import UUID
 
 from backend.app.domain.agents.retrieval import (
@@ -75,6 +75,12 @@ class PostgreSQLExercisePoolSourcePort(Protocol):
         exercise_ids: tuple[UUID, ...],
         envelope: ConstraintEnvelope,
     ) -> tuple[ExercisePoolExerciseRecord, ...]: ...
+
+
+# Enough of each phase and of goal-driving work that an agent has real choices
+# while composing to a requested duration. One of each left it with none.
+_MIN_PER_PHASE: Final = 4
+_MIN_CORE: Final = 3
 
 
 @dataclass(slots=True)
@@ -182,16 +188,15 @@ class QdrantExercisePoolSnapshotLoader:
 
         # Ranking alone once handed the agents 22 exercises with no cooldown and
         # no goal-driving work in them at all, so no valid session existed to
-        # propose. Reserve the highest-ranked candidate that fills each missing
-        # phase and the goal-driving role before spending the rest on rank.
+        # propose and the training agent answered NEEDS_INPUT. One candidate per
+        # phase was still too thin to build a session that hits the requested
+        # duration, so reserve a few of each before spending the rest on rank.
         by_id = {record.exercise_id: record for record in eligible}
         reserved: list[UUID] = list(request.mandatory_exercise_ids)
 
         def take(matches: Callable[[ExercisePoolExerciseRecord], bool]) -> None:
-            if any(
-                (record := by_id.get(item)) is not None and matches(record) for item in reserved
-            ):
-                return
+            """Reserve the next highest-ranked candidate that still fits."""
+
             for item in unique:
                 record = by_id.get(item)
                 if record is not None and matches(record) and item not in reserved:
@@ -199,8 +204,10 @@ class QdrantExercisePoolSnapshotLoader:
                     return
 
         for phase in ("WARMUP", "MAIN", "COOLDOWN"):
-            take(lambda record, phase=phase: phase in record.phase_codes)  # type: ignore[misc]
-        take(lambda record: record.role_eligibility_code == "CORE")
+            for _ in range(_MIN_PER_PHASE):
+                take(lambda record, phase=phase: phase in record.phase_codes)  # type: ignore[misc]
+        for _ in range(_MIN_CORE):
+            take(lambda record: record.role_eligibility_code == "CORE")
 
         remaining = [item for item in unique if item not in reserved]
         return tuple(dict.fromkeys((*reserved, *remaining)))[: max(limit, len(reserved))]
