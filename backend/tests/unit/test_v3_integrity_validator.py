@@ -207,3 +207,62 @@ def test_invalid_fallback_is_explicitly_non_repairable() -> None:
 
     assert result.status_code is IntegrityValidationStatusCode.NON_REPAIRABLE
     assert result.violations[0].code is IntegrityViolationCode.FALLBACK_PLAN_INVALID
+
+
+def test_empty_equipment_allowlist_does_not_reject_a_catalog_consistent_plan() -> None:
+    # The production shape. Onboarding stopped collecting equipment on
+    # 2026-08-27, so a real user has no UserEquipment rows and the envelope
+    # allowlist is empty. Intersecting against it flagged every prescription
+    # that named any equipment at all -- BODYWEIGHT included -- so the graph
+    # failed after all three agents had already answered READY.
+    current_envelope = envelope(allowed_equipment_codes=())
+    compiled, current_pool = compiled_plan(current_envelope)
+
+    result = validate_plan_integrity(
+        compiled,
+        envelope=current_envelope,
+        pool=current_pool,
+        repair_attempt=0,
+        validator_version=VALIDATOR_VERSION,
+        context=context(),
+    )
+
+    assert result.status_code is IntegrityValidationStatusCode.PASS
+    assert IntegrityViolationCode.EQUIPMENT_NOT_AVAILABLE not in {
+        item.code for item in result.violations
+    }
+
+
+def test_equipment_outside_the_catalog_record_is_still_rejected() -> None:
+    # Dropping the allowlist must not drop the catalog link: a plan may not
+    # claim equipment the reviewed record does not list.
+    current_envelope = envelope(allowed_equipment_codes=())
+    compiled, current_pool = compiled_plan(current_envelope)
+    first = compiled.exercises[0]
+    tampered = compiled.model_copy(
+        update={
+            "exercises": (
+                first.model_copy(
+                    update={
+                        "prescription": first.prescription.model_copy(
+                            update={"equipment_codes": ("BARBELL",)}
+                        )
+                    }
+                ),
+                *compiled.exercises[1:],
+            )
+        }
+    )
+
+    result = validate_plan_integrity(
+        tampered,
+        envelope=current_envelope,
+        pool=current_pool,
+        repair_attempt=0,
+        validator_version=VALIDATOR_VERSION,
+        context=context(),
+    )
+
+    assert IntegrityViolationCode.EQUIPMENT_NOT_AVAILABLE in {
+        item.code for item in result.violations
+    }

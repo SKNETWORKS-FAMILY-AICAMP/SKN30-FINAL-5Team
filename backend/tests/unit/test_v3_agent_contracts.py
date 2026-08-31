@@ -62,12 +62,17 @@ def envelope(
     *,
     excluded_ids: tuple[UUID, ...] = (),
     mandatory_ids: tuple[UUID, ...] = (A,),
+    # Production sends an empty tuple: the 2026-08-27 approval dropped
+    # equipment from onboarding, so a real user has no UserEquipment rows.
+    # The default here stays non-empty for the older cases, but every gate
+    # that reads it has to be exercised with () as well.
+    allowed_equipment_codes: tuple[str, ...] = ("BODYWEIGHT",),
 ) -> ConstraintEnvelope:
     return ConstraintEnvelope.create(
         requested_duration_minutes=6,
         primary_goal_code="GENERAL_FITNESS",
         allowed_location_codes=("HOME",),
-        allowed_equipment_codes=("BODYWEIGHT",),
+        allowed_equipment_codes=allowed_equipment_codes,
         excluded_exercise_ids=excluded_ids,
         mandatory_exercise_ids=mandatory_ids,
         recovery_ceiling=RecoveryCeiling(

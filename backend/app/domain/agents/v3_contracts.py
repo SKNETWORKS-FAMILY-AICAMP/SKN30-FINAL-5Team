@@ -336,8 +336,6 @@ def _validate_prescription_constraints(
         # equipment the reviewed record does not list.
         if not set(item.equipment_codes).issubset(record.equipment_codes):
             raise ValueError("exercise prescription equipment is not supported by the catalog")
-        if not set(item.equipment_codes).issubset(record.equipment_codes):
-            raise ValueError("exercise prescription equipment is not supported by the catalog")
         if ceiling.allowed_intensity_codes and (
             item.intensity_code not in ceiling.allowed_intensity_codes
         ):
