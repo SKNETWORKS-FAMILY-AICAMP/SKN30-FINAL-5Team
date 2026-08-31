@@ -121,6 +121,12 @@ _POOL_EXERCISE_FIELDS: Final = (
     "default_transition_seconds",
     "recovery_eligible",
     "goal_codes",
+    # The reviewed session shape. Without these an agent cannot tell which part
+    # of the session a movement belongs to, or which work drives the goal, and
+    # every plan came back as one flat block of whatever ranked highest.
+    # Catalog codes, not user data.
+    "phase_codes",
+    "role_eligibility_code",
     "equipment_codes",
     "location_codes",
     "prescription_reference_codes",
