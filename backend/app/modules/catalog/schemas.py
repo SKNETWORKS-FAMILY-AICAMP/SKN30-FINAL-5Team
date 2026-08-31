@@ -100,6 +100,11 @@ class CatalogBundleManifest(CatalogInputModel):
     bundle_version: Annotated[str, Field(min_length=1, max_length=120)]
     catalog_version_code: Annotated[str, Field(min_length=1, max_length=120)]
     derived_set_versions: BundleDerivedSetVersions
+    # Optional so bundles published before v2.0.3 keep validating. A bundle
+    # built from an earlier catalog records the source version and that
+    # manifest's hash here, which makes the derivation checkable rather than a
+    # label. The importer does not interpret it; provenance is data, not policy.
+    derived_from: dict[str, Any] | None = None
     files: list[BundleManifestFile]
     importer_paths: dict[str, Annotated[str, Field(min_length=1, max_length=500)]]
     production_eligible: Literal[False]

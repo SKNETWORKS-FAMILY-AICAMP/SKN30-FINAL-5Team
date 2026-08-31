@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from backend.app.modules.catalog.codes import BodyAreaCode, DifficultyCode
 from backend.app.modules.catalog.schemas import (
     AlternativeManifest,
+    CatalogBundleManifest,
     ExerciseAlternativeRecord,
     ExerciseSafetyRuleRecord,
     SafetyRuleManifest,
@@ -45,6 +46,11 @@ SAFETY_DIRECTORY = GENERATED / "exercise-safety-rules-merged-mvp-v0.5.0"
 ALTERNATIVE_DIRECTORY = GENERATED / "exercise-alternatives-merged-mvp-v0.4.0"
 PRESCRIPTION_DIRECTORY = GENERATED / "exercise-prescriptions-merged-mvp-v0.1.0"
 V2_BUNDLE_DIRECTORY = GENERATED / "exercise-catalog-v2.0.1-final" / "backend_bundle"
+# The published v2.0.1 manifest is the fixture: a hand-built dict would drift
+# from the real schema without anyone noticing.
+_MINIMAL_BUNDLE_MANIFEST = json.loads(
+    (V2_BUNDLE_DIRECTORY / "bundle_manifest.json").read_text(encoding="utf-8")
+)
 V2_BUNDLE_HASH = "42d1d222108fba879faafc0a3bae40a5983aed7d822ee91da7d37e4798aff672"
 V2_TAXONOMY_HASH = "79e487cc1a41ea39db9b4afb0799b3297840de878a2ae4ed621ef3e4403a0985"
 
@@ -675,6 +681,36 @@ def test_v2_bundle_exact_hash_count_and_versions_are_accepted() -> None:
     assert result.alternatives.record_count == 585
     assert result.prescriptions.record_count == 239
     assert result.media_assets is None
+
+
+def test_bundle_manifest_accepts_optional_derived_from_provenance() -> None:
+    # v2.0.3 is built from v2.0.2 and records that lineage in the manifest.
+    # Without an explicit field the forbidden-extras policy rejects the bundle.
+    manifest = CatalogBundleManifest.model_validate(
+        dict(
+            _MINIMAL_BUNDLE_MANIFEST,
+            derived_from={
+                "catalog_version_code": "exercise-catalog-v2.0.2-final",
+                "bundle_manifest_sha256": "a" * 64,
+            },
+        )
+    )
+
+    assert manifest.derived_from is not None
+    assert manifest.derived_from["catalog_version_code"] == "exercise-catalog-v2.0.2-final"
+
+
+def test_bundle_manifest_without_provenance_still_validates() -> None:
+    manifest = CatalogBundleManifest.model_validate(dict(_MINIMAL_BUNDLE_MANIFEST))
+
+    assert manifest.derived_from is None
+
+
+def test_bundle_manifest_still_rejects_unknown_fields() -> None:
+    with pytest.raises(ValidationError):
+        CatalogBundleManifest.model_validate(
+            dict(_MINIMAL_BUNDLE_MANIFEST, unexpected_field="value")
+        )
 
 
 def test_v2_bundle_rejects_unapproved_manifest_hash() -> None:
