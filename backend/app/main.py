@@ -44,6 +44,7 @@ from backend.app.modules.decisions.service import DecisionService
 from backend.app.modules.decisions.v3_regeneration import V3RegenerationServicePort
 from backend.app.modules.identity.ports import FirebaseTokenVerifier
 from backend.app.modules.profiles.ports import BirthdateCipher
+from backend.app.modules.weekly_reports.narration import WeeklyReportNarrationAgent
 
 
 def _build_birthdate_cipher(
@@ -137,6 +138,9 @@ def create_app(
         narration_provider
         if narration_provider is not None
         else build_narration_provider(resolved_settings)
+    )
+    application.state.weekly_report_narration_agent = WeeklyReportNarrationAgent(
+        application.state.narration_provider
     )
     application.state.exercise_media_url_provider = (
         exercise_media_url_provider

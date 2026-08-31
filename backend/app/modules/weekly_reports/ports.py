@@ -79,6 +79,34 @@ class ReportValues:
     generated_at: datetime
 
 
+@dataclass(frozen=True, slots=True)
+class WeeklyReportNarrationInput:
+    """Identifier-free, deterministic data that a narration Agent may interpret."""
+
+    input_snapshot: dict[str, Any]
+    objective_metrics: dict[str, Any]
+    template_summary: str
+    template_decision_summary: str
+    template_next_action: str
+
+
+@dataclass(frozen=True, slots=True)
+class WeeklyReportNarration:
+    """Validated user-facing wording; it has no authority over report metrics."""
+
+    summary: str
+    decision_summary: str
+    next_action: str
+    source_code: str
+    model_code: str | None = None
+    prompt_version: str | None = None
+    fallback_reason_code: str | None = None
+
+
+class WeeklyReportNarrationAgentPort(Protocol):
+    def interpret(self, report: WeeklyReportNarrationInput) -> WeeklyReportNarration: ...
+
+
 class WeeklyReportRepositoryPort(Protocol):
     def acquire_week_lock(self, session: Session, user_id: UUID, week_start: date) -> None: ...
 
@@ -157,6 +185,9 @@ __all__ = [
     "StoredReport",
     "WeekProfile",
     "WeekRecord",
+    "WeeklyReportNarration",
+    "WeeklyReportNarrationAgentPort",
+    "WeeklyReportNarrationInput",
     "WeeklyReportRepositoryPort",
     "WeeklySessionEvidence",
 ]

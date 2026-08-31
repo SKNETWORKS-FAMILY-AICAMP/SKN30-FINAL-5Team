@@ -46,7 +46,10 @@ from backend.app.modules.identity.service import (
 from backend.app.modules.profiles.ports import BirthdateCipher, ProfileRepositoryPort
 from backend.app.modules.routines.ports import RoutineRepositoryPort
 from backend.app.modules.weekly_plans.ports import WeeklyPlanRepositoryPort
-from backend.app.modules.weekly_reports.ports import WeeklyReportRepositoryPort
+from backend.app.modules.weekly_reports.ports import (
+    WeeklyReportNarrationAgentPort,
+    WeeklyReportRepositoryPort,
+)
 from backend.app.modules.workouts.ports import WorkoutRepositoryPort
 
 _bearer_scheme = HTTPBearer(auto_error=False)
@@ -124,6 +127,10 @@ def get_workout_repository() -> WorkoutRepositoryPort:
 
 def get_weekly_report_repository() -> WeeklyReportRepositoryPort:
     return _weekly_report_repository
+
+
+def get_weekly_report_narration_agent(request: Request) -> WeeklyReportNarrationAgentPort:
+    return request.app.state.weekly_report_narration_agent
 
 
 def get_weekly_plan_repository() -> WeeklyPlanRepositoryPort:
@@ -265,5 +272,6 @@ __all__ = [
     "get_routine_repository",
     "get_workout_repository",
     "get_weekly_report_repository",
+    "get_weekly_report_narration_agent",
     "get_weekly_plan_repository",
 ]

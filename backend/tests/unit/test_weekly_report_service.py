@@ -9,6 +9,9 @@ from backend.app.modules.weekly_reports.ports import (
     IdempotencyRecord,
     ReportValues,
     StoredReport,
+    WeeklyReportNarration,
+    WeeklyReportNarrationAgentPort,
+    WeeklyReportNarrationInput,
     WeeklySessionEvidence,
     WeekProfile,
     WeekRecord,
@@ -184,9 +187,15 @@ class FakeWeeklyReportRepository:
 
 
 def _service(
-    repository: FakeWeeklyReportRepository, now: datetime = CLOSED_NOW
+    repository: FakeWeeklyReportRepository,
+    now: datetime = CLOSED_NOW,
+    narration_agent: WeeklyReportNarrationAgentPort | None = None,
 ) -> WeeklyReportService:
-    return WeeklyReportService(repository, clock=lambda: now)
+    return WeeklyReportService(
+        repository,
+        clock=lambda: now,
+        narration_agent=narration_agent,
+    )
 
 
 def _request() -> WeeklyReportCreateRequest:
@@ -330,6 +339,101 @@ def test_report_uses_block_evidence_and_builds_non_penalty_aggregate() -> None:
     }
     assert "user_id" not in snapshot
     assert "session_id" not in snapshot
+
+
+class RecordingNarrationAgent:
+    def __init__(self) -> None:
+        self.inputs: list[WeeklyReportNarrationInput] = []
+
+    def interpret(self, report: WeeklyReportNarrationInput) -> WeeklyReportNarration:
+        self.inputs.append(report)
+        return WeeklyReportNarration(
+            summary="주간 기록의 흐름을 살펴보고 다음 주에도 부담 없이 이어가 보세요.",
+            decision_summary="조정된 루틴의 수행 결과와 미완료 사유를 함께 반영했습니다.",
+            next_action="다음 주에는 가능한 시간에 맞춰 한 번의 운동부터 시작해 보세요.",
+            source_code="LLM",
+            model_code="test-model",
+            prompt_version="weekly-report-narration-prompt-v1",
+        )
+
+
+class FailingNarrationAgent:
+    def interpret(self, report: WeeklyReportNarrationInput) -> WeeklyReportNarration:
+        del report
+        raise TimeoutError
+
+
+def test_agent_receives_deterministic_aggregate_and_only_replaces_narration() -> None:
+    repository = FakeWeeklyReportRepository()
+    repository.evidence = _evidence()
+    agent = RecordingNarrationAgent()
+
+    response = _service(repository, narration_agent=agent).create_report(
+        FakeSession(), uuid4(), WEEK_START, _request(), uuid4()  # type: ignore[arg-type]
+    )
+
+    assert len(agent.inputs) == 1
+    received = agent.inputs[0]
+    assert repository.last_report_values is not None
+    assert received.input_snapshot == repository.last_report_values.input_snapshot
+    assert received.objective_metrics == {
+        "counts": {
+            "completed": 1,
+            "partial": 1,
+            "not_completed": 1,
+            "stopped_for_safety": 1,
+        },
+        "completion_rate": 0.25,
+        "persistence_rate": 0.5,
+        "negotiation_success_rate": 0.5,
+        "primary_miss_reason_code": "TIME_SHORTAGE",
+        "adjustment_direction_code": "MIXED",
+    }
+    assert response.summary == "주간 기록의 흐름을 살펴보고 다음 주에도 부담 없이 이어가 보세요."
+    assert response.counts.model_dump() == {
+        "completed": 1,
+        "partial": 1,
+        "not_completed": 1,
+        "stopped_for_safety": 1,
+    }
+    assert response.completion_rate == 0.25
+    assert response.persistence_rate == 0.5
+    assert response.agent_summaries == {
+        "WEEKLY_REPORT_INTERPRETER": {
+            "agent_type_code": "WEEKLY_REPORT_INTERPRETER",
+            "source_code": "LLM",
+            "model_code": "test-model",
+            "prompt_version": "weekly-report-narration-prompt-v1",
+            "fallback_reason_code": None,
+            "input_schema_version": "weekly-report-input-v1",
+            "input_hash": repository.last_report_values.input_hash,
+        }
+    }
+
+
+def test_agent_failure_falls_back_without_changing_deterministic_statistics() -> None:
+    repository = FakeWeeklyReportRepository()
+    repository.evidence = _evidence()
+
+    response = _service(repository, narration_agent=FailingNarrationAgent()).create_report(
+        FakeSession(), uuid4(), WEEK_START, _request(), uuid4()  # type: ignore[arg-type]
+    )
+
+    assert response.counts.model_dump() == {
+        "completed": 1,
+        "partial": 1,
+        "not_completed": 1,
+        "stopped_for_safety": 1,
+    }
+    assert response.completion_rate == 0.25
+    assert response.persistence_rate == 0.5
+    assert response.negotiation_success_rate == 0.5
+    assert response.agent_summaries is not None
+    assert response.agent_summaries["WEEKLY_REPORT_INTERPRETER"]["source_code"] == "TEMPLATE"
+    assert (
+        response.agent_summaries["WEEKLY_REPORT_INTERPRETER"]["fallback_reason_code"]
+        == "AGENT_FAILED"
+    )
 
 
 def test_same_closed_week_and_input_hash_returns_same_report_across_keys() -> None:
