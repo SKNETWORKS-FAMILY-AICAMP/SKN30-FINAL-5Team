@@ -3,7 +3,7 @@ from hashlib import sha256
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select, text, update
 from sqlalchemy.orm import Session, selectinload
 
 from backend.app.db.models.catalog import (
@@ -312,6 +312,37 @@ class RoutineRepository:
             .where(Routine.id == routine_id, Routine.user_id == user_id)
         )
         return None if routine is None else self._response_payload(session, routine)
+
+    def archive_routines_with_other_duration(
+        self,
+        session: Session,
+        user_id: UUID,
+        *,
+        requested_duration_minutes: int,
+    ) -> int:
+        """Archive this user's active routines built to a different duration.
+
+        Scoped to the caller's own user id and to routines whose stored target
+        no longer matches, so a profile edit that does not move the duration
+        archives nothing.
+        """
+
+        stale_ids = session.scalars(
+            select(Routine.id)
+            .join(RoutineDay, RoutineDay.routine_id == Routine.id)
+            .where(
+                Routine.user_id == user_id,
+                Routine.status_code == "ACTIVE",
+                RoutineDay.requested_duration_minutes != requested_duration_minutes,
+            )
+            .distinct()
+        ).all()
+        if not stale_ids:
+            return 0
+        session.execute(
+            update(Routine).where(Routine.id.in_(stale_ids)).values(status_code="ARCHIVED")
+        )
+        return len(stale_ids)
 
     def get_current_routine_payload(
         self, session: Session, user_id: UUID, local_date: date

@@ -77,6 +77,13 @@ def _candidate_duration(candidate: RoutineCandidate) -> PlanItemDuration:
     )
 
 
+def _subset_rank(items: tuple[RoutineCandidate, ...]) -> tuple[int, int]:
+    """Rank a candidate subset: more CORE first, then fewer exercises."""
+
+    core = sum(item.tier_code == RoutineTierCode.CORE for item in items)
+    return (-core, len(items))
+
+
 def _subsets(
     candidates: tuple[RoutineCandidate, ...], target_seconds: int
 ) -> dict[tuple[int, bool], tuple[RoutineCandidate, ...]]:
@@ -93,7 +100,11 @@ def _subsets(
             key = (total, has_core or candidate.tier_code == RoutineTierCode.CORE)
             proposed = (*selected, candidate)
             existing = states.get(key) or additions.get(key)
-            if existing is None or len(proposed) < len(existing):
+            # Collapsing on length alone discarded the CORE-richer subset for a
+            # given total, so preferring CORE later had nothing left to choose
+            # from and a muscle-gain plan stayed mostly support work. Keep the
+            # subset that carries more CORE, and only then the shorter one.
+            if existing is None or _subset_rank(proposed) < _subset_rank(existing):
                 additions[key] = proposed
         states.update(additions)
     return states
@@ -152,6 +163,13 @@ def _select_exact_plan(
             # fallback, not a licence to drift.
             match[0],
             sum(item.tier_code == RoutineTierCode.OPTIONAL for item in match[2]),
+            # Goal fit: CORE work is what the goal's catalog review marked as
+            # driving it, so prefer the plan that carries more of it. Requiring
+            # only one CORE let a muscle-gain session fill up with support work.
+            -sum(
+                item.tier_code == RoutineTierCode.CORE and item.phase_code == RoutinePhaseCode.MAIN
+                for item in match[2]
+            ),
             len(match[2]),
             tuple(
                 (item.phase_code, item.exercise_name, str(item.exercise_id)) for item in match[2]

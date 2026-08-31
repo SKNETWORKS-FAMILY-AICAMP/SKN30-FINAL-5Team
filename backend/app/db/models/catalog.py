@@ -272,7 +272,15 @@ class Exercise(Base):
 class ExerciseMediaAsset(Base):
     __tablename__ = "exercise_media_assets"
     __table_args__ = (
-        UniqueConstraint("s3_key", name="uq_exercise_media_assets_s3_key"),
+        # Scoped to the catalog version: two versions legitimately reference the
+        # same approved file, and a global constraint made whichever imported
+        # first the sole owner. One file still cannot be claimed twice inside a
+        # single version.
+        UniqueConstraint(
+            "catalog_version_id",
+            "s3_key",
+            name="uq_exercise_media_assets_catalog_s3_key",
+        ),
         UniqueConstraint(
             "catalog_version_id",
             "exercise_id",

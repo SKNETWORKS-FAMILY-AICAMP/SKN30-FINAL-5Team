@@ -29,6 +29,7 @@ from backend.app.modules.profiles.ports import (
     ProfileRepositoryPort,
     ProfileSettingsChanges,
     ProfileSettingsRecord,
+    StaleRoutinePort,
 )
 from backend.app.modules.profiles.schemas import (
     ConsentResponse,
@@ -93,9 +94,11 @@ class ProfileService:
         primary_goal_codes: tuple[str, ...],
         experience_level_codes: tuple[str, ...],
         consent_policy_version: str | None,
+        stale_routines: StaleRoutinePort | None = None,
         clock: Callable[[], datetime] = _utc_now,
     ) -> None:
         self._repository = repository
+        self._stale_routines = stale_routines
         self._birthdate_cipher = birthdate_cipher
         self._primary_goal_codes = frozenset(primary_goal_codes)
         self._experience_level_codes = frozenset(experience_level_codes)
@@ -521,6 +524,16 @@ class ProfileService:
                 profile_version, updated_at = self._repository.update_profile_settings(
                     session, user_id, changes, now
                 )
+                # A routine is built to the profile default. Leaving one behind
+                # that targets the old duration makes every daily decision reject
+                # it and the user sees REST forever with no way out.
+                new_duration = changes.scalar_values.get("default_requested_duration_minutes")
+                if self._stale_routines is not None and isinstance(new_duration, int):
+                    self._stale_routines.archive_routines_with_other_duration(
+                        session,
+                        user_id,
+                        requested_duration_minutes=new_duration,
+                    )
                 response = ProfileSettingsUpdateResponse(
                     profile_version=profile_version,
                     updated_at=updated_at,
