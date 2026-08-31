@@ -197,6 +197,63 @@ def test_first_and_next_routine_versions_preserve_phase_order_and_duration() -> 
     assert second.days[0].items[1].tier_code == "CORE"
 
 
+def test_routine_creation_uses_the_duration_the_user_entered() -> None:
+    # The profile value is a default. A duration chosen for this routine must be
+    # the planning target, and it must not rewrite the stored profile default.
+    repository = FakeRoutineRepository(duration_minutes=20)
+    service = RoutineService(repository, clock=lambda: NOW)
+
+    response = service.create(
+        FakeSession(),  # type: ignore[arg-type]
+        uuid4(),
+        RoutineCreateRequest(
+            effective_from=date(2026, 8, 14),
+            goal_code="GENERAL_FITNESS",
+            requested_duration_minutes=10,
+        ),
+        uuid4(),
+    )
+
+    assert all(day.requested_duration_minutes == 10 for day in response.days)
+    assert all(day.estimated_duration_seconds == 600 for day in response.days)
+    assert repository.context.profile_duration_minutes == 20
+
+
+def test_routine_creation_without_a_duration_keeps_the_profile_default() -> None:
+    repository = FakeRoutineRepository(duration_minutes=10)
+    service = RoutineService(repository, clock=lambda: NOW)
+
+    response = service.create(
+        FakeSession(),  # type: ignore[arg-type]
+        uuid4(),
+        _request(),
+        uuid4(),
+    )
+
+    assert all(day.requested_duration_minutes == 10 for day in response.days)
+
+
+def test_changed_duration_is_a_distinct_idempotent_request() -> None:
+    # Same key with a different duration must not replay the earlier routine.
+    repository = FakeRoutineRepository(duration_minutes=10)
+    service = RoutineService(repository, clock=lambda: NOW)
+    user_id = uuid4()
+    key = uuid4()
+    service.create(FakeSession(), user_id, _request(), key)  # type: ignore[arg-type]
+
+    with pytest.raises(IdempotencyKeyReusedError):
+        service.create(  # type: ignore[arg-type]
+            FakeSession(),
+            user_id,
+            RoutineCreateRequest(
+                effective_from=date(2026, 8, 14),
+                goal_code="GENERAL_FITNESS",
+                requested_duration_minutes=10,
+            ),
+            key,
+        )
+
+
 def test_idempotency_returns_same_response_and_rejects_changed_payload() -> None:
     repository = FakeRoutineRepository()
     service = RoutineService(repository, clock=lambda: NOW)

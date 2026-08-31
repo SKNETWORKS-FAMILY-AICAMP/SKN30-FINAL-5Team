@@ -13,6 +13,7 @@ from backend.app.modules.catalog.codes import (
     CatalogVersionStatusCode,
     DifficultyCode,
     EquipmentCode,
+    GoalCode,
     LocationCode,
     MovementPatternCode,
     ReviewMethodCode,
@@ -100,6 +101,11 @@ class CatalogBundleManifest(CatalogInputModel):
     bundle_version: Annotated[str, Field(min_length=1, max_length=120)]
     catalog_version_code: Annotated[str, Field(min_length=1, max_length=120)]
     derived_set_versions: BundleDerivedSetVersions
+    # Optional so bundles published before v2.0.3 keep validating. A bundle
+    # built from an earlier catalog records the source version and that
+    # manifest's hash here, which makes the derivation checkable rather than a
+    # label. The importer does not interpret it; provenance is data, not policy.
+    derived_from: dict[str, Any] | None = None
     files: list[BundleManifestFile]
     importer_paths: dict[str, Annotated[str, Field(min_length=1, max_length=500)]]
     production_eligible: Literal[False]
@@ -575,7 +581,7 @@ class MediaAssetRecord(CatalogInputModel):
 class ExerciseGoalTagRecord(CatalogInputModel):
     catalog_version_code: Annotated[str, Field(min_length=1, max_length=120)]
     exercise_stable_code: StableCode
-    goal_code: Literal["GENERAL_FITNESS"]
+    goal_code: GoalCode
     role_eligibility_code: Literal["CORE", "SUPPORT", "OPTIONAL"]
     review_status_code: CatalogReviewStatusCode
 
@@ -583,7 +589,7 @@ class ExerciseGoalTagRecord(CatalogInputModel):
 class ExercisePrescriptionRecord(CatalogInputModel):
     catalog_version_code: Annotated[str, Field(min_length=1, max_length=120)]
     exercise_stable_code: StableCode
-    goal_code: Literal["GENERAL_FITNESS"]
+    goal_code: GoalCode
     experience_level_code: Literal["BEGINNER", "INTERMEDIATE"]
     phase_code: Literal["WARMUP", "MAIN", "COOLDOWN"]
     sets: Annotated[int, Field(gt=0)]

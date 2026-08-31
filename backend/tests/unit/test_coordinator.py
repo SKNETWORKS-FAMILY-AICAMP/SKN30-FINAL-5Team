@@ -303,15 +303,42 @@ def test_candidate_without_explicit_required_goal_link_is_not_selected() -> None
     assert "CANDIDATE_MISSING_REQUIRED_GOAL" in result.blocked_reason_codes
 
 
-def test_non_exact_duration_candidate_is_never_selected() -> None:
+def test_candidate_within_the_approved_tolerance_is_selected() -> None:
+    # 2026-08-27 project-owner approval: a plan may miss the requested duration
+    # by up to five minutes. Requiring an exact total left only 30 reachable
+    # sums across the approved pool, so a one-second gap must not force REST.
     one_second_short = _candidate("candidate-short", final_work_seconds=399)
 
     result = coordinate(_input(candidates=(one_second_short,)))
+
+    assert result.status_code is CoordinatorStatusCode.PASS
+    assert result.selected_candidate_id == "candidate-short"
+    assert "CANDIDATE_DURATION_MISMATCH" not in result.blocked_reason_codes
+
+
+def test_candidate_beyond_the_approved_tolerance_is_never_selected() -> None:
+    # Beyond the window the request fails rather than silently reshaping time.
+    six_minutes_short = _candidate("candidate-far", final_work_seconds=40)
+
+    result = coordinate(_input(candidates=(six_minutes_short,)))
 
     assert result.status_code is CoordinatorStatusCode.BLOCKED
     assert result.final_action_code is RecommendedActionCode.REST
     assert result.selected_candidate_id is None
     assert "CANDIDATE_DURATION_MISMATCH" in result.blocked_reason_codes
+
+
+def test_closest_duration_candidate_wins_and_ties_prefer_the_longer_plan() -> None:
+    # docs/API_CONTRACT.md: the smallest gap wins; an equal gap prefers longer.
+    far = _candidate("candidate-far", final_work_seconds=340)
+    near_short = _candidate("candidate-near-short", final_work_seconds=390)
+    near_long = _candidate("candidate-near-long", final_work_seconds=410)
+
+    closest = coordinate(_input(candidates=(far, near_short)))
+    assert closest.selected_candidate_id == "candidate-near-short"
+
+    tie = coordinate(_input(candidates=(near_short, near_long)))
+    assert tie.selected_candidate_id == "candidate-near-long"
 
 
 def test_empty_common_candidate_set_blocks_without_inventing_a_plan() -> None:

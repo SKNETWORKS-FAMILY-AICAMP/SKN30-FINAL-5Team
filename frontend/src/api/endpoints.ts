@@ -102,7 +102,16 @@ export function createApi(client: ApiClient) {
       });
     },
 
-    createRoutine(body: { effective_from: string; goal_code: string }) {
+    /**
+     * `requested_duration_minutes` is optional. Omitting it keeps the profile
+     * default; sending it makes this routine a USER_OVERRIDE without changing
+     * the stored profile default.
+     */
+    createRoutine(body: {
+      effective_from: string;
+      goal_code: string;
+      requested_duration_minutes?: number;
+    }) {
       return client.request<RoutineResponse>({
         method: 'POST',
         path: '/routines',

@@ -77,6 +77,13 @@ def _candidate_duration(candidate: RoutineCandidate) -> PlanItemDuration:
     )
 
 
+def _subset_rank(items: tuple[RoutineCandidate, ...]) -> tuple[int, int]:
+    """Rank a candidate subset: more CORE first, then fewer exercises."""
+
+    core = sum(item.tier_code == RoutineTierCode.CORE for item in items)
+    return (-core, len(items))
+
+
 def _subsets(
     candidates: tuple[RoutineCandidate, ...], target_seconds: int
 ) -> dict[tuple[int, bool], tuple[RoutineCandidate, ...]]:
@@ -93,7 +100,11 @@ def _subsets(
             key = (total, has_core or candidate.tier_code == RoutineTierCode.CORE)
             proposed = (*selected, candidate)
             existing = states.get(key) or additions.get(key)
-            if existing is None or len(proposed) < len(existing):
+            # Collapsing on length alone discarded the CORE-richer subset for a
+            # given total, so preferring CORE later had nothing left to choose
+            # from and a muscle-gain plan stayed mostly support work. Keep the
+            # subset that carries more CORE, and only then the shorter one.
+            if existing is None or _subset_rank(proposed) < _subset_rank(existing):
                 additions[key] = proposed
         states.update(additions)
     return states
@@ -101,11 +112,19 @@ def _subsets(
 
 def _select_exact_plan(
     context: RoutineCreationContext,
+    requested_duration_minutes: int | None = None,
 ) -> tuple[int, tuple[RoutineCandidate, ...], DurationRequest]:
+    # The profile value is a default, not a ceiling: when the user picks a
+    # duration for this routine it becomes the target and the request is a
+    # USER_OVERRIDE. The stored profile default is left untouched, and the
+    # server never fabricates USER_OVERRIDE on the user's behalf.
+    effective_minutes = requested_duration_minutes or context.profile_duration_minutes
     duration_request = validate_requested_duration(
         profile_duration_minutes=context.profile_duration_minutes,
-        requested_duration_minutes=context.profile_duration_minutes,
-        adjustment_source_code="PROFILE",
+        requested_duration_minutes=effective_minutes,
+        adjustment_source_code=(
+            "PROFILE" if effective_minutes == context.profile_duration_minutes else "USER_OVERRIDE"
+        ),
     )
     target = duration_request.target_duration_seconds
     by_phase = {
@@ -144,6 +163,13 @@ def _select_exact_plan(
             # fallback, not a licence to drift.
             match[0],
             sum(item.tier_code == RoutineTierCode.OPTIONAL for item in match[2]),
+            # Goal fit: CORE work is what the goal's catalog review marked as
+            # driving it, so prefer the plan that carries more of it. Requiring
+            # only one CORE let a muscle-gain session fill up with support work.
+            -sum(
+                item.tier_code == RoutineTierCode.CORE and item.phase_code == RoutinePhaseCode.MAIN
+                for item in match[2]
+            ),
             len(match[2]),
             tuple(
                 (item.phase_code, item.exercise_name, str(item.exercise_id)) for item in match[2]
@@ -153,8 +179,13 @@ def _select_exact_plan(
     return matches[0][1], matches[0][2], duration_request
 
 
-def _build_days(context: RoutineCreationContext) -> tuple[RoutineDayValues, ...]:
-    setup_seconds, selected, duration_request = _select_exact_plan(context)
+def _build_days(
+    context: RoutineCreationContext,
+    requested_duration_minutes: int | None = None,
+) -> tuple[RoutineDayValues, ...]:
+    setup_seconds, selected, duration_request = _select_exact_plan(
+        context, requested_duration_minutes
+    )
     warmup_seconds = sum(
         _candidate_duration(item).estimated_item_seconds
         for item in selected
@@ -206,7 +237,7 @@ def _build_days(context: RoutineCreationContext) -> tuple[RoutineDayValues, ...]
             title=f"루틴 {sequence}",
             training_type_code=main.training_type_code,
             body_focus_code=main.body_focus_code,
-            requested_duration_minutes=context.profile_duration_minutes,
+            requested_duration_minutes=duration_request.requested_duration_minutes,
             estimated_duration_seconds=assessment.estimated_duration_seconds,
             setup_seconds=setup_seconds,
             items=items,
@@ -244,7 +275,7 @@ class RoutineService:
             context = self._repository.get_creation_context(session, user_id, request.goal_code)
             if context is None:
                 raise ApprovedCatalogUnavailableError
-            days = _build_days(context)
+            days = _build_days(context, request.requested_duration_minutes)
             routine_id = self._repository.create_routine(
                 session,
                 user_id,

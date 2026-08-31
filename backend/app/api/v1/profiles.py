@@ -13,6 +13,7 @@ from backend.app.api.dependencies import (
     get_current_user,
     get_db_session,
     get_profile_repository,
+    get_routine_repository,
 )
 from backend.app.core.config import Settings
 from backend.app.core.errors import AppError
@@ -22,7 +23,11 @@ from backend.app.modules.profiles.age import (
     InvalidBirthdateError,
     InvalidTimezoneError,
 )
-from backend.app.modules.profiles.ports import BirthdateCipher, ProfileRepositoryPort
+from backend.app.modules.profiles.ports import (
+    BirthdateCipher,
+    ProfileRepositoryPort,
+    StaleRoutinePort,
+)
 from backend.app.modules.profiles.schemas import (
     ConsentResponse,
     ConsentValues,
@@ -59,6 +64,7 @@ def _service(
     request: Request,
     repository: ProfileRepositoryPort,
     birthdate_cipher: BirthdateCipher | None,
+    stale_routines: StaleRoutinePort | None = None,
 ) -> ProfileService:
     settings = request.app.state.settings
     return ProfileService(
@@ -67,6 +73,7 @@ def _service(
         primary_goal_codes=settings.onboarding_primary_goal_codes,
         experience_level_codes=settings.onboarding_experience_level_codes,
         consent_policy_version=settings.consent_policy_version,
+        stale_routines=stale_routines,
     )
 
 
@@ -294,10 +301,13 @@ def update_profile_settings(
     session: Annotated[Session, Depends(get_db_session)],
     repository: Annotated[ProfileRepositoryPort, Depends(get_profile_repository)],
     birthdate_cipher: Annotated[BirthdateCipher | None, Depends(get_birthdate_cipher)],
+    routine_repository: Annotated[StaleRoutinePort, Depends(get_routine_repository)],
     if_match: Annotated[str | None, Header(alias="If-Match")] = None,
 ) -> ProfileSettingsUpdateResponse:
     try:
-        return _service(request, repository, birthdate_cipher).update_profile_settings(
+        return _service(
+            request, repository, birthdate_cipher, routine_repository
+        ).update_profile_settings(
             session,
             current_user.user_id,
             payload,
