@@ -326,6 +326,7 @@ describe('HomeContainer', () => {
       onRestChosen: jest.fn(),
       onTab: jest.fn(),
       onOpenCalendar: jest.fn(),
+      finalValidationHoldMs: 0,
     };
     return render(<HomeContainer {...base} {...overrides} />);
   }
@@ -509,6 +510,78 @@ describe('HomeContainer', () => {
     expect(onDecisionChange).toHaveBeenCalledWith(
       expect.objectContaining({ decision_id: 'decision-1' }),
     );
+  });
+
+  it('holds the final validation step after the decision API completes', async () => {
+    let finishDecision!: (value: DecisionResponse) => void;
+    const createDecision = jest.fn(
+      () =>
+        new Promise<DecisionResponse>((resolve) => {
+          finishDecision = resolve;
+        }),
+    );
+    const onDecisionChange = jest.fn();
+
+    renderHome(
+      homeApi({
+        replaceDailyContext: jest.fn(async () => dailyContext()),
+        createDecision,
+      } as unknown as Partial<Api>),
+      { onDecisionChange, finalValidationHoldMs: 50 },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+
+    await waitFor(() => expect(createDecision).toHaveBeenCalled());
+    expect(screen.getByTestId('routine-generation-loading')).toBeOnTheScreen();
+    expect(
+      screen.getByTestId('routine-generation-message').props.children[0],
+    ).toBe('끼끼가 오늘의 운동 재료를 하나씩 모으는 중');
+
+    await act(async () => finishDecision(decision()));
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('routine-generation-message').props.children[0],
+      ).toBe('조금만 기다려 주세요. 안전한 루틴인지 마지막으로 확인하는 중'),
+    );
+    expect(
+      screen.getByTestId('routine-generation-progress').props
+        .accessibilityValue,
+    ).toEqual({ min: 0, max: 100, now: 95 });
+    expect(onDecisionChange).not.toHaveBeenCalled();
+
+    await waitFor(() => expect(onDecisionChange).toHaveBeenCalled());
+    expect(screen.queryByTestId('routine-generation-loading')).toBeNull();
+  });
+
+  it('shows a safety stop immediately without the routine completion hold', async () => {
+    const stopped = decision({
+      action_code: 'STOP_AND_SEEK_HELP',
+      safety_status_code: 'BLOCKED',
+      final_plan: null,
+      options: [],
+    });
+    const createDecision = jest.fn(async () => stopped);
+    const onDecisionChange = jest.fn();
+
+    renderHome(
+      homeApi({
+        replaceDailyContext: jest.fn(async () => dailyContext()),
+        createDecision,
+      } as unknown as Partial<Api>),
+      { onDecisionChange, finalValidationHoldMs: 5_000 },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+
+    await waitFor(() => expect(onDecisionChange).toHaveBeenCalledWith(stopped));
+    expect(screen.queryByTestId('routine-generation-loading')).toBeNull();
   });
 
   it('leaves an unset optional value unset rather than inferring it', async () => {

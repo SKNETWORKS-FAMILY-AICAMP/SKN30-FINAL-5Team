@@ -217,13 +217,18 @@ describe('MascotHouseScreen', () => {
       within(screen.getByTestId('house-feed-action')).getByText(
         `바나나 주기 · ${HOUSE_ACTION_COST.feed}개`,
       ),
-    ).toHaveStyle({ fontSize: 14 });
+    ).toHaveStyle({ color: colors.textSub, fontSize: 14 });
     expect(screen.getByTestId('house-pet-action')).toHaveStyle({
       flex: 1,
       flexBasis: 0,
       minWidth: 0,
       paddingVertical: 15,
     });
+    expect(
+      within(screen.getByTestId('house-pet-action')).getByText(
+        `쓰다듬기 · ${HOUSE_ACTION_COST.pet}개`,
+      ),
+    ).toHaveStyle({ color: colors.textSub, fontSize: 14 });
     expect(
       within(screen.getByTestId('house-pet-action')).getByTestId(
         'house-banana-asset',

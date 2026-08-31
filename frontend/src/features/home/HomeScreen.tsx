@@ -99,6 +99,10 @@ import {
   type HomePreviewState,
   type HomeRoutineItem,
 } from './homeModel';
+import {
+  RoutineGenerationLoading,
+  type RoutineGenerationPhaseCode,
+} from './RoutineGenerationLoading';
 
 export const HOME_BACKGROUND_COLOR = '#FFF8E5';
 
@@ -259,7 +263,12 @@ function revisionNotice(
   }
 }
 
-export type HomeBusyKind = 'checkin' | 'regeneration' | 'revision' | 'starting';
+export type HomeBusyKind =
+  | 'routine-creation'
+  | 'decision-generation'
+  | 'regeneration'
+  | 'revision'
+  | 'starting';
 
 export type HomeUserEdits = {
   routineId: string;
@@ -305,8 +314,10 @@ export type HomeScreenProps = {
   profileImageUrl?: string | null;
   restToday?: boolean;
   routine?: RoutineResponse | null;
-  /** Replace this slot with agent progress or a loading asset when its design is chosen. */
+  /** Animated artwork slot. The generation component supplies a placeholder until provided. */
   routineLoadingContent?: React.ReactNode;
+  /** Optional future server-owned progress code; omitted while the API is synchronous. */
+  routineLoadingPhaseCode?: RoutineGenerationPhaseCode;
   sessions?: readonly WorkoutSessionLogSummary[];
   staleContext?: boolean;
   status?: 'loading' | 'error' | 'ready';
@@ -380,6 +391,7 @@ function HomeScreenContent({
   restToday = false,
   routine = null,
   routineLoadingContent,
+  routineLoadingPhaseCode,
   sessions = [],
   staleContext = false,
   status,
@@ -510,7 +522,9 @@ function HomeScreenContent({
     ? busy === 'regeneration'
     : rerolling && effectiveCheckedIn;
   const routineGenerationPending = apiMode
-    ? busy === 'checkin' || busy === 'regeneration' || busy === 'revision'
+    ? busy === 'decision-generation' ||
+      busy === 'regeneration' ||
+      busy === 'revision'
     : rerollLoading;
   const generationPreviewItems = displayedRoutineItems;
   const seriousDecision =
@@ -782,10 +796,22 @@ function HomeScreenContent({
             routine === null &&
             !routineGenerationPending ? (
               <HomeStateCard
-                actionLabel="기본 루틴 만들기"
-                onAction={onCreateRoutine}
-                text="프로필 목표를 바탕으로 첫 루틴을 만들 수 있어요."
-                title="기본 루틴이 아직 없어요"
+                actionLabel={
+                  busy === 'routine-creation' ? undefined : '기본 루틴 만들기'
+                }
+                onAction={
+                  busy === 'routine-creation' ? undefined : onCreateRoutine
+                }
+                text={
+                  busy === 'routine-creation'
+                    ? '프로필 목표와 운동 환경을 확인하고 있어요.'
+                    : '프로필 목표를 바탕으로 첫 루틴을 만들 수 있어요.'
+                }
+                title={
+                  busy === 'routine-creation'
+                    ? '기본 루틴을 만드는 중이에요'
+                    : '기본 루틴이 아직 없어요'
+                }
               />
             ) : null}
             {apiMode && contentReady && restToday ? (
@@ -836,10 +862,14 @@ function HomeScreenContent({
             (!apiMode || routine !== null) ? (
               <EmptyRoutineCard />
             ) : null}
-            {contentReady && !restToday && routineGenerationPending ? (
+            {contentReady &&
+            !restToday &&
+            !seriousDecision &&
+            routineGenerationPending ? (
               <GeneratingRoutineCard
                 content={routineLoadingContent}
                 items={generationPreviewItems}
+                phaseCode={routineLoadingPhaseCode}
               />
             ) : null}
             {contentReady &&
@@ -1003,7 +1033,7 @@ function HomeScreenContent({
                 return { ...current, discomforts };
               })
             }
-            pending={busy === 'checkin'}
+            pending={busy === 'decision-generation'}
           />
         ) : null}
 
@@ -1443,9 +1473,11 @@ function HomeStateCard({
 function GeneratingRoutineCard({
   content,
   items,
+  phaseCode,
 }: {
   content?: React.ReactNode;
   items: readonly HomeRoutineItem[];
+  phaseCode?: RoutineGenerationPhaseCode;
 }) {
   const styles = useHomeStyles();
   const previewRows = items.length > 0 ? items : [null, null, null];
@@ -1455,39 +1487,33 @@ function GeneratingRoutineCard({
         <Text style={styles.routineBadgeText}>오늘의 운동</Text>
       </View>
       <Text style={styles.routineTitle}>오늘의 루틴</Text>
+      <View style={styles.routineLoadingSlot} testID="routine-loading-slot">
+        <RoutineGenerationLoading asset={content} phaseCode={phaseCode} />
+      </View>
       <View
-        accessibilityLiveRegion="polite"
-        style={[styles.routineList, styles.routineLoadingSlot]}
-        testID="routine-loading-slot"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        pointerEvents="none"
+        style={[styles.routineList, styles.routineLoadingPreview]}
+        testID="routine-loading-preview"
       >
-        <View
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          pointerEvents="none"
-          style={styles.routineLoadingPreview}
-          testID="routine-loading-preview"
-        >
-          {previewRows.map((item, index) => (
-            <View
-              key={item?.id ?? `loading-placeholder-${index}`}
-              style={styles.routineLoadingRow}
-            >
-              {item ? (
-                <Text style={styles.routineItemText}>
-                  {formatRoutineItem(item)}
-                </Text>
-              ) : (
-                <View style={styles.routineLoadingPlaceholderLine} />
-              )}
-            </View>
-          ))}
-        </View>
-        <View
-          style={styles.routineLoadingContent}
-          testID="routine-loading-content"
-        >
-          {content ?? <Text style={styles.routineLoadingText}>로딩 중..</Text>}
-        </View>
+        {previewRows.map((item, index) => (
+          <View
+            key={item?.id ?? `loading-placeholder-${index}`}
+            style={styles.routineLoadingRow}
+          >
+            {item ? (
+              <Text style={styles.routineItemText}>
+                {formatRoutineItem(item)}
+              </Text>
+            ) : (
+              <View
+                style={styles.routineLoadingPlaceholderLine}
+                testID={`routine-loading-placeholder-line-${index}`}
+              />
+            )}
+          </View>
+        ))}
       </View>
     </View>
   );
@@ -3949,17 +3975,19 @@ function createHomeStyles(
       paddingTop: s(12),
     },
     routineLoadingSlot: {
-      position: 'relative',
-      minHeight: s(190),
+      minHeight: s(220),
       overflow: 'hidden',
-      marginBottom: s(10),
+      marginTop: s(14),
+      marginBottom: s(4),
+      borderTopWidth: s(1),
+      borderTopColor: '#E8D8C2',
+      borderStyle: 'dashed',
       borderRadius: s(16),
       backgroundColor: 'rgba(255, 248, 229, 0.62)',
       padding: s(10),
     },
     routineLoadingPreview: {
       width: '100%',
-      gap: s(8),
       opacity: 0.34,
     },
     routineLoadingRow: {
@@ -3974,19 +4002,6 @@ function createHomeStyles(
       height: s(10),
       borderRadius: 999,
       backgroundColor: '#CDBEAF',
-    },
-    routineLoadingContent: {
-      ...StyleSheet.absoluteFill,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: 'rgba(255, 255, 255, 0.32)',
-      padding: s(16),
-    },
-    routineLoadingText: {
-      color: '#5A4636',
-      fontSize: f(16),
-      fontWeight: '800',
-      textAlign: 'center',
     },
     orderHint: {
       color: '#A29B8E',

@@ -453,6 +453,32 @@ describe('PreviewGallery', () => {
     );
   });
 
+  it('shows the API-owned 95% completion scene as a Home preview state', async () => {
+    await render(<PreviewGallery />);
+
+    fireEvent.press(screen.getByRole('radio', { name: 'Home (API)' }));
+    fireEvent.press(screen.getByRole('radio', { name: '완료 직전 (95%)' }));
+    const canvas = within(screen.getByTestId('preview-app-canvas'));
+
+    expect(
+      canvas.getByTestId('routine-generation-message').props.children[0],
+    ).toBe('조금만 기다려 주세요. 안전한 루틴인지 마지막으로 확인하는 중');
+    expect(
+      StyleSheet.flatten(
+        canvas.getByTestId('routine-generation-mascot-6', {
+          includeHiddenElements: true,
+        }).props.style,
+      ).opacity,
+    ).toBe(1);
+    expect(
+      StyleSheet.flatten(
+        canvas.getByTestId('routine-generation-bubble-1', {
+          includeHiddenElements: true,
+        }).props.style,
+      ).opacity,
+    ).toBe(0);
+  });
+
   it('shows working reorder handles in the Home API preview', async () => {
     await render(<PreviewGallery />);
 
