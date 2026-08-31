@@ -1,29 +1,19 @@
 {
   "files": [
     {
-      "bytes": 183952,
+      "bytes": 39038,
       "path": "goal_tag_links.jsonl",
-      "records": 465,
-      "sha256": "ca298328a0ecd69549fcd176366c0ba3620793edf602b83db5b6145e9dcb3082"
+      "records": 155,
+      "sha256": "e160acdd8ca90b514208e90d315e7775899f3f980f3df293b226093411822f73"
     },
     {
-      "bytes": 607351,
+      "bytes": 150862,
       "path": "prescription_profiles.jsonl",
-      "records": 1023,
-      "sha256": "03ac1db9ae6e5c0e624497f3f2eb8bd982892fa1cac2bfcf7ea89a965105de14"
+      "records": 341,
+      "sha256": "d907ecef09952f2a77776e2cfa88f8b845bc9d2ae2cdce7cc4d200f0461f21f1"
     }
   ],
   "generator_version": "v2-0-2-backend-bundle-packager-1.0.0",
-  "goal_expansion": {
-    "approval_method_code": "OWNER_BATCH_CONFIRMATION",
-    "approval_reference": "GOAL-EXPANSION-DOMAIN-REVIEW-2026-08-31-R01",
-    "approved_at": "2026-08-31T15:00:00+09:00",
-    "goal_codes": [
-      "FAT_LOSS",
-      "MUSCLE_GAIN"
-    ],
-    "policy_version": "goal-prescription-review-policy-2026-08-31"
-  },
   "prescription_set_version": {
     "status_code": "DRAFT",
     "version_code": "prescription-set-v2.0.2"
@@ -41,7 +31,7 @@
   },
   "summary": {
     "exercise_records": 155,
-    "goal_tag_records": 465,
-    "prescription_records": 1023
+    "goal_tag_records": 155,
+    "prescription_records": 341
   }
 }

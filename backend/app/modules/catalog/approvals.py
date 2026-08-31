@@ -245,6 +245,114 @@ _APPROVALS = {
             ),
         },
     ),
+    # v2.0.3 is v2.0.2 plus the reviewed FAT_LOSS and MUSCLE_GAIN prescriptions.
+    # Onboarding already offered those goals, so before this release picking
+    # either one left the approved pool empty and routine creation failed. The
+    # catalog, safety rules, alternatives and media are carried over byte for
+    # byte, so their approvals restate the v2.0.2 evidence rather than claiming
+    # a fresh review. Only the prescription set carries new judgements.
+    (
+        "CATALOG",
+        "exercise-catalog-v2.0.3-final",
+    ): DerivedDataApproval(
+        artifact_kind="CATALOG",
+        version_code="exercise-catalog-v2.0.3-final",
+        manifest_sha256="81ac34786bcb7f7d1c4c1a6d6f3380b84f7ee05a7658b9806b817cad6bd9478e",
+        record_count=155,
+        approval_record_code="V2-0-3-PROMOTION-APPROVAL-2026-08-31-R01",
+        approved_on="2026-08-31",
+        approver_role_codes=("DEVELOPMENT_LEAD", "DATA_LEAD"),
+        approval_metadata={
+            "approval_reference": "GOAL-EXPANSION-DOMAIN-REVIEW-2026-08-31-R01",
+            "derived_from": "exercise-catalog-v2.0.2-final",
+            "carried_over_unchanged": True,
+            "note": "exercise records are identical to v2.0.2; only prescriptions were added",
+        },
+    ),
+    (
+        "SAFETY_RULES",
+        "safety-rule-set-v2.0.3",
+    ): DerivedDataApproval(
+        artifact_kind="SAFETY_RULES",
+        version_code="safety-rule-set-v2.0.3",
+        manifest_sha256="e16b228a8b4dae9d623b70430f0f14784c030f5ca566da52e084b7cdc92821a9",
+        record_count=563,
+        approval_record_code="V2-0-3-PROMOTION-APPROVAL-2026-08-31-R01",
+        approved_on="2026-08-31",
+        approver_role_codes=("DEVELOPMENT_LEAD", "DATA_LEAD"),
+        approval_metadata={
+            "approval_reference": "GOAL-EXPANSION-DOMAIN-REVIEW-2026-08-31-R01",
+            "derived_from": "safety-rule-set-v2.0.2",
+            "carried_over_unchanged": True,
+            "derived_by": "v2-body-area-safety-policy-v1",
+        },
+    ),
+    (
+        "ALTERNATIVES",
+        "alternative-set-v2.0.3",
+    ): DerivedDataApproval(
+        artifact_kind="ALTERNATIVES",
+        version_code="alternative-set-v2.0.3",
+        manifest_sha256="c661e50dc2578c335dff33f1091720a6410a25b085d57e38a09ac5bfa85b37d3",
+        record_count=1150,
+        approval_record_code="V2-0-3-PROMOTION-APPROVAL-2026-08-31-R01",
+        approved_on="2026-08-31",
+        approver_role_codes=("DEVELOPMENT_LEAD", "DATA_LEAD", "DOMAIN_REVIEWER"),
+        approval_metadata={
+            "approval_reference": "GOAL-EXPANSION-DOMAIN-REVIEW-2026-08-31-R01",
+            "derived_from": "alternative-set-v2.0.2",
+            "carried_over_unchanged": True,
+        },
+    ),
+    (
+        "PRESCRIPTIONS",
+        "prescription-set-v2.0.3",
+    ): DerivedDataApproval(
+        artifact_kind="PRESCRIPTIONS",
+        version_code="prescription-set-v2.0.3",
+        manifest_sha256="5f476af480d9494cb66f7db78795d7fa56afc4c37b1f63c0329be523e6821e97",
+        record_count=1488,
+        approval_record_code="V2-0-3-PROMOTION-APPROVAL-2026-08-31-R01",
+        approved_on="2026-08-31",
+        approver_role_codes=("DEVELOPMENT_LEAD", "DATA_LEAD", "DOMAIN_REVIEWER"),
+        approval_metadata={
+            "approval_reference": "GOAL-EXPANSION-DOMAIN-REVIEW-2026-08-31-R01",
+            "goal_expansion_policy": "goal-prescription-review-policy-2026-08-31",
+            "added_goal_codes": ("FAT_LOSS", "MUSCLE_GAIN"),
+            "approval_method_code": "OWNER_BATCH_CONFIRMATION",
+            "dosage_basis": (
+                "ACSM/NSCA ranges: hypertrophy 6-12 reps with 60-90s rest; "
+                "fat loss relatively higher reps with shorter rest"
+            ),
+            "phase_assignment": (
+                "inherited from the approved GENERAL_FITNESS set rather than "
+                "re-derived, so the curated warmup/cooldown split is preserved"
+            ),
+            "outstanding": (
+                "682 rows were confirmed in one batch by the project owner, not "
+                "reviewed row by row by an external expert; MUSCLE_GAIN offers "
+                "only 7 BEGINNER MAIN CORE exercises, so variety is thin until "
+                "the catalog gains more compound movements"
+            ),
+        },
+    ),
+    (
+        "MEDIA_ASSETS",
+        "media-set-v2.0.3",
+    ): DerivedDataApproval(
+        artifact_kind="MEDIA_ASSETS",
+        version_code="media-set-v2.0.3",
+        manifest_sha256="21ee8b576642d3a14cfdb9be7535a194455a7d292091a02f662004c9edc2c53e",
+        record_count=68,
+        approval_record_code="V2-0-3-PROMOTION-APPROVAL-2026-08-31-R01",
+        approved_on="2026-08-31",
+        approver_role_codes=("DEVELOPMENT_LEAD", "DATA_LEAD"),
+        approval_metadata={
+            "approval_reference": "GOAL-EXPANSION-DOMAIN-REVIEW-2026-08-31-R01",
+            "derived_from": "media-set-v2.0.2",
+            "carried_over_unchanged": True,
+        },
+    ),
     (
         "MEDIA_ASSETS",
         "media-set-v2.0.2",
