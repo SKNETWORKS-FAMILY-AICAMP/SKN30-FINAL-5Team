@@ -71,80 +71,55 @@ flowchart LR
 
 프론트엔드는 인증·온보딩·홈·운동·주간 리포트 화면을 typed API client로 연결합니다. 위 흐름은 mock 응답이 아니라 FastAPI route와 PostgreSQL 저장을 기준으로 하며, 로컬 시연에서 synthetic Catalog를 쓰더라도 호출과 저장은 실제 DB/API를 사용합니다. 운동의 공식 완료 상태는 경과 시간이나 웨어러블 데이터가 아니라 앱에서 사용자가 완료한 운동 블록으로 계산합니다. 세션 상태는 `COMPLETED`, `PARTIAL`, `NOT_COMPLETED`, `STOPPED_FOR_SAFETY`를 사용합니다.
 
-## 현재 결정 아키텍처
+## 현재 아키텍처 구조
 
-현재 기본 실행 프로필은 `LEGACY`입니다. 따라서 일반적인 로컬·기본 애플리케이션 실행에서는 아래의 결정적 오케스트레이션 경로가 공개 응답을 생성합니다.
-
-아래 흐름이 현재 서비스와 기본 알파 시연에서 설명하는 기준 경로입니다. `DecisionService`는 Agent 실행 전에 결정적 안전 규칙을 평가하고, 그 결과와 조정된 후보를 proposal 입력에 포함합니다. staging에서 실행 프로필과 promotion 조건을 별도로 충족한 경우에만 V3 경로가 선택되며, 두 경로를 하나의 실행으로 혼합하지 않습니다.
+결정 생성은 정규화된 사용자 입력에서 시작해 Safety-first 제약을 먼저 고정하고, 그 제약 안에서만 운동 후보와 Agent 입력을 만듭니다. 이 실행 경로는 staging `DEMO` 또는 승인된 `PRODUCTION` 실행 프로필에서 구성되며, 기본 설정에서는 명시적으로 비활성입니다.
 
 ```mermaid
 flowchart TB
-  INPUT["프로필 + 기본 루틴 + 일일 체크인 + 최근 수행"] --> CTX["DecisionContextAssembler"]
-  CTX --> CATALOG["Catalog Repository<br/>실제 Catalog 후보 조립"]
-  CATALOG --> CANDIDATES["기본 후보 + 후보 메타데이터"]
-  CTX --> SAFETY_PRE["결정적 Safety 사전 평가<br/>불편·이상 반응·안전 규칙"]
-  CANDIDATES --> SAFETY_PRE
-  SAFETY_PRE --> RUNNER["Safety 평가·조정 후보를 포함한<br/>ProposalRequest · 병렬 실행"]
-  RUNNER --> TRAINING["Training Agent"]
-  RUNNER --> RECOVERY["Recovery Agent"]
-  RUNNER --> SAFETY["Safety Proposal Agent<br/>(현재 LEGACY 배치)"]
-  RUNNER --> FEASIBILITY["Feasibility Agent"]
-  TRAINING --> PROPOSALS["구조화된 AgentProposal"]
-  RECOVERY --> PROPOSALS
-  SAFETY --> PROPOSALS
-  FEASIBILITY --> PROPOSALS
-  PROPOSALS --> COORD["결정적 Coordinator"]
-  SAFETY_PRE --> COORD
-  COORD --> FINAL["최종 루틴 1개<br/>KEEP · DOWNSHIFT · CHANGE · RECOVERY · REST"]
-  FINAL --> STORE["decision_runs · agent_proposals · final result 저장"]
-  STORE --> RESPONSE["POST /decisions 응답"]
+  INPUT["사용자 입력<br/>프로필 · 기본 루틴 · 일일 체크인 · 최근 수행"] --> CTX["DecisionContext / V3CreationSource"]
+  CTX --> SAFETY["결정적 SafetyPolicyEngine<br/>안전 규칙 · 정책"]
+    SAFETY -->|"생성 금지"| TERMINAL["REST · STOP_AND_SEEK_HELP<br/>terminal 저장 · API 응답"]
+  SAFETY --> ENVELOPE["ConstraintEnvelope<br/>제외 운동 · 필수 운동 · 회복 상한 등 안전 제약"]
+  ENVELOPE --> ELIGIBLE["PostgreSQL eligible / mandatory 후보 필터"]
+  ELIGIBLE --> RANK["Qdrant ranking<br/>eligible ID 범위 안에서만 선택적 순위화"]
+  RANK --> REVALIDATE["PostgreSQL canonical revalidation"]
+  RANK -. "장애 · stale · version mismatch" .-> FALLBACK["결정적 pool fallback"]
+  FALLBACK --> REVALIDATE
+  REVALIDATE --> SNAPSHOT["ExercisePoolSnapshot"]
+  SNAPSHOT --> GRAPH["LangGraph<br/>단일 라운드 병렬 orchestration"]
+  GRAPH --> TRAINING["Training Agent<br/>운동 계획 초안"]
+  GRAPH --> RECOVERY["Recovery Agent<br/>조정 코드"]
+  GRAPH --> FEASIBILITY["Feasibility Agent<br/>조정 코드"]
+  TRAINING --> COORD["Coordinator<br/>구조화 PlanSpec"]
+  RECOVERY --> COORD
+  FEASIBILITY --> COORD
+  COORD --> COMPILE["결정적 Plan Compiler"]
+  COMPILE --> VALIDATE["compiled-plan integrity validator"]
+  VALIDATE -->|"통과"| PERSIST["PostgreSQL 저장"]
+  PERSIST --> RESPONSE["POST /decisions 응답<br/>최종 추천 1개"]
+    VALIDATE -->|"repairable · 1회"| REPAIR["Coordinator repair<br/>Agent 재호출 없음"]
+    REPAIR --> COMPILE
+  VALIDATE -->|"재실패 · 비복구"| FINAL_FALLBACK["결정적 fallback 또는 계획 없음"]
+  FINAL_FALLBACK --> PERSIST
 ```
 
-`DecisionContext`는 프로필·요청 시간·로컬 날짜·컨디션·목표·경험 수준·최근 수행 상태와 후보 제약을 정규화한 내부 입력입니다. API route는 요청과 인증을 검증하고 application service에 위임하며, 비즈니스 규칙은 `modules`와 `domain`에서 수행합니다. 안전 사전 평가는 Agent보다 먼저 실행되며, 안전상 제외·대체·중단 판단은 Coordinator가 임의로 되돌릴 수 없습니다.
+`SafetyPolicyEngine`은 Agent보다 먼저 `ConstraintEnvelope`를 고정합니다. 계획 생성을 허용하지 않으면 운동 후보·Qdrant·Agent를 호출하지 않고 terminal 결과를 저장합니다. 허용된 경우에도 Safety 제약은 compiler와 compiled-plan integrity validator까지 이어지므로, Agent나 Coordinator가 임의로 무효화할 수 없습니다.
 
 ### Agent와 Coordinator의 역할
 
 | 구성요소 | 입력·출력 | 책임 |
 |---|---|---|
-| Training Agent | 승인된 후보와 결정 컨텍스트 → 운동 계획 proposal | 목표와 요청 시간을 만족하는 운동 계획을 제안합니다. |
-| Recovery Agent | 컨텍스트와 후보 → 조정 코드 proposal | 회복 필요 여부와 보수적 조정 방향을 제안합니다. |
-| Safety Proposal Agent (`LEGACY`) | 사전 Safety 평가와 후보 → 제한·대체·veto proposal | 사전 평가 결과를 구조화된 proposal로 전달하고, 불편·이상 반응에 대한 중단·제한·대체 이유 코드를 제공합니다. |
-| Feasibility Agent | 시간·장소·컨텍스트 → 실행 가능성 proposal | 현재 조건에서의 시간·실행 가능성 조정 코드를 제공합니다. |
-| Coordinator | 네 proposal + 후보 스냅샷 + 정책 버전 → 최종 결정 | Safety, Feasibility, Recovery, Training 우선순위와 요청 시간을 검증해 하나의 결과를 확정합니다. |
+| Training Agent | 같은 `ConstraintEnvelope`·`ExercisePoolSnapshot` → `exercise_prescriptions` | 승인 pool 안에서 운동 계획 초안을 만드는 유일한 Agent입니다. |
+| Recovery Agent | 같은 envelope·pool → `adjustment_codes` | 회복 관점의 조정 코드를 Coordinator에 권고합니다. |
+| Feasibility Agent | 같은 envelope·pool → `adjustment_codes` | 시간·장소 등 실행 조건 관점의 조정 코드를 Coordinator에 권고합니다. |
+| Coordinator | 세 구조화 proposal + envelope·pool → `PlanSpec` | 세 응답을 종합해 하나의 구조화 계획을 선택합니다. DB·Qdrant를 직접 조회하거나 새 안전 기준을 만들지 않습니다. |
 
-현재 데모의 네 Agent는 자유 형식 답변이 아니라 저장 가능한 구조화 proposal을 반환합니다. Safety Proposal Agent는 첫 안전 판단을 대신하지 않으며, 결정적 사전 평가 결과를 포함한 배치의 안전 상태를 표현합니다. 필수 Agent 실패나 필수 후보 검증 실패 시 계획을 반환하지 않고 결정적 fallback 또는 안전 안내로 종료합니다. Coordinator는 후보를 새로 만들어내지 않으며 Safety 제한을 해제하지 않습니다. 최종 결정과 Agent proposal은 분리 저장되고, 결정 입력·정책·카탈로그·Coordinator 버전을 함께 보존합니다.
+세 Agent와 Coordinator는 LangChain adapter를 통해 Pydantic 구조화 출력을 교환하며, LangGraph가 병렬 실행·fan-in·한 번의 repair·fallback을 orchestration합니다. Training만 운동 계획을 만들고, Recovery·Feasibility의 조정 코드는 권고이므로 결정론적으로 강제하지 않습니다. 최종 안전 강제 지점은 Coordinator 이후 compiled plan을 검사하는 integrity validator입니다. Agent proposal, envelope, pool snapshot, 최종 결과와 버전 정보는 PostgreSQL에 분리 저장됩니다.
 
 ## Multi-Agent 필요성 검증
 
 현재는 Multi-Agent의 효과나 우위를 결론으로 확정하지 않습니다. 동일한 입력 컨텍스트·후보 데이터·정책 조건에서 Single-Agent baseline과 비교 테스트를 진행한 뒤, 평가 기준·결과·Multi-Agent 채택 근거를 이 섹션에 추가합니다.
-
-## V3 실행 경로: 현재는 게이트된 통합·검증 대상
-
-V3는 현재 기본 공개 경로가 아닙니다. `DEMO`는 staging에서만 허용되고, `PRODUCTION`은 별도 promotion gate가 승인되어야 하며, 설정 기본값은 V3 비활성입니다.
-
-```mermaid
-flowchart TB
-  CTX3["DecisionContext → ConstraintEnvelope"] --> POOL["PostgreSQL 후보 projection"]
-  POOL --> Q["선택적 Qdrant retriever"]
-  Q --> SNAP["ExercisePoolSnapshot"]
-  SNAP --> GRAPH["LangGraph stateless graph"]
-  GRAPH --> T3["Training LLM Agent"]
-  GRAPH --> R3["Recovery LLM Agent"]
-  GRAPH --> F3["Feasibility LLM Agent"]
-  T3 --> COMPILE["Coordinator compiler"]
-  R3 --> COMPILE
-  F3 --> COMPILE
-  POLICY["결정적 SafetyPolicyEngine"] --> COMPILE
-  COMPILE --> INTEGRITY["compiled plan integrity validator"]
-  INTEGRITY --> RESULT3["최종 결과 또는 deterministic fallback"]
-```
-
-- `LangGraph`는 입력 검증, 세 전문 Agent 병렬 실행, canonicalize, Coordinator compile, 무결성 검증, 한 번의 repair와 fallback을 연결합니다. 체크포인터는 사용하지 않습니다.
-- `LangChain` adapter는 V3에서 구조화된 LLM provider 호출을 감쌉니다. LLM은 Training의 계획과 Recovery·Feasibility의 조정 코드를 제안할 뿐이며 Safety의 최종 판단을 대체하지 않습니다.
-- V3에는 독립 LLM 기반 안전 담당 노드가 없습니다. Safety는 `SafetyPolicyEngine`, envelope, compiler와 compiled-plan integrity validator가 결정적으로 담당합니다.
-- Qdrant는 PostgreSQL을 대체하는 원장이 아닙니다. PostgreSQL이 먼저 승인·활성·production eligibility 후보와 필수 ID를 결정하고, Qdrant는 후보 안에서 순위화합니다. Qdrant 장애·오래된 snapshot·버전 불일치 시 결정적 fallback을 사용합니다. 기본 설정에서는 Qdrant가 꺼져 있습니다.
-- 현재 V3 데모 런타임과 재생성 경로는 코드에 있으나, staging 실행 증적과 production promotion 검증이 필요한 통합 대상입니다.
-- 따라서 기본 알파 흐름의 실제 Agent/Coordinator는 위의 Legacy 구조이며, V3의 LangGraph·LangChain·Qdrant는 기본 실행에 포함되지 않습니다.
 
 ## 주요 기능 구현 범위
 
@@ -155,7 +130,7 @@ flowchart TB
 | 운동 실행 | 세션 시작, 블록별 완료·되돌리기, 타이머 이벤트, 추가 운동, 안전 이벤트와 종료 API가 있습니다. 타이머 자체는 공식 완료를 만들지 않습니다. |
 | 주간 루프 | 주간 리포트 조회·acknowledgement와 다음 계획 확정 전 게이트가 있습니다. |
 | 소셜 인증 | Kakao/Naver 교환 route는 아직 구현되지 않았으며, 현재 인증은 Firebase ID Token 경계를 사용합니다. |
-| 재생성 | API와 서비스 경계가 있으나 V3 실행 프로필과 regeneration gate가 필요합니다. 기본 설정에서는 비활성입니다. |
+| 재생성 | API와 서비스 경계가 있으나 Safety-first 실행 프로필과 regeneration gate가 필요합니다. 기본 설정에서는 비활성입니다. |
 
 ## Catalog·difficulty·Qdrant
 
@@ -163,7 +138,7 @@ flowchart TB
 
 현재 v2.0.2 산출물은 생성되었지만 backend import·승인·activation 검증이 끝나지 않아 현재 활성 Catalog로 간주하지 않습니다. 실행 환경의 Catalog 버전과 승인 상태는 [Catalog 모듈 문서](backend/app/modules/catalog/README.md)와 [v2.0.2 적재 작업](docs/tasks/TASK-CATALOG-V2_0_2-IMPORT.md)에서 관리합니다.
 
-Qdrant는 V3에서만 선택적으로 후보를 순위화하는 검색 계층입니다. PostgreSQL이 승인·활성 후보의 원장이고, 검색 결과는 다시 검증하며, Qdrant 장애나 불일치에는 결정적 fallback을 사용합니다. 기본 설정에서는 Qdrant가 꺼져 있습니다. 자세한 경계는 [Qdrant 통합 문서](backend/app/integrations/qdrant/README.md)를 따릅니다.
+Qdrant는 Safety-first 실행 경로에서만 선택적으로 후보를 순위화하는 검색 계층입니다. PostgreSQL이 승인·활성 후보의 원장이고, 검색 결과는 다시 검증하며, Qdrant 장애나 불일치에는 결정적 fallback을 사용합니다. 기본 설정에서는 Qdrant가 꺼져 있습니다. 자세한 경계는 [Qdrant 통합 문서](backend/app/integrations/qdrant/README.md)를 따릅니다.
 
 ## 데이터 출처와 활용
 
@@ -262,9 +237,8 @@ npm run build:production
 | 구분 | 영역 | 현재 상태 |
 |---|---|---|
 | 구현 완료 | Firebase 인증 경계, 프로필·동의, 기본 루틴, 일일 체크인·결정, 운동 세션, 주간 리포트·계획 | 관련 API route, application service, model/repository와 테스트가 저장소에 있습니다. |
-| 구현 완료 | Legacy 구조화 Agent 4종, 결정적 Coordinator, 안전·시간 규칙, proposal/result 분리 저장 | 기본 `LEGACY` 프로필에서 사용하는 현재 공개 결정 경로입니다. |
+| 통합·검증 중 | Safety-first 멀티에이전트 runtime, `SafetyPolicyEngine`, compiler·integrity validator | staging `DEMO`와 승인된 `PRODUCTION` 프로필에 한해 구성됩니다. 기본 설정에서는 비활성입니다. |
 | 구현 완료 | React Native 주요 화면과 typed API 연결 | 온보딩, 홈 체크인·결정, 운동, 결과, 주간·프로필 흐름이 연결되어 있습니다. 실제 기기와 외부 서비스가 결합된 운영 E2E는 별도 검증이 필요합니다. |
-| 통합·검증 중 | V3 LangGraph/LangChain runtime, deterministic SafetyPolicy, compiled-plan integrity validator | staging `DEMO`와 승인된 `PRODUCTION` 프로필에 한해 게이트됩니다. 기본 실행 프로필은 V3가 아닙니다. |
 | 통합·검증 중 | Catalog v2.0.2 backend import·승인·activation·Qdrant snapshot | 산출물은 있으나 importer/content/approval/activation 검증이 끝나지 않아 현재 서비스 활성 상태로 간주하지 않습니다. |
 | 후속 작업 | Kakao/Naver 소셜 인증, secret manager·backup 만료, wearable 연동, 배포 선언 | port·경계 또는 문서 일부만 있으며 운영 연결과 증적이 필요합니다. |
 | 별도 작업 | `ml/` 오프라인 검증과 산출물 | 서비스 runtime과 연결하지 않습니다. |
