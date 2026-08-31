@@ -448,6 +448,8 @@ class CatalogRepository:
             "family_code",
             "representative_stable_code",
             "general_pool_included",
+            "form_cues_source",
+            "form_cues_review_status",
         )
         exercise_values: list[dict[str, object]] = []
         children: list[ExerciseBodyPart | ExerciseEquipment | ExerciseLocation] = []

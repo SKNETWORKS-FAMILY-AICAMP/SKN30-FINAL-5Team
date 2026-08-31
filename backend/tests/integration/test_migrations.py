@@ -24,7 +24,10 @@ def test_migration_history_has_catalog_media_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0031_catalog_v2_0_2_identity"]
+    assert scripts.get_heads() == ["0032_form_cue_provenance"]
+    assert scripts.get_revision("0032_form_cue_provenance").down_revision == (
+        "0031_catalog_v2_0_2_identity"
+    )
     assert scripts.get_revision("0031_catalog_v2_0_2_identity").down_revision == (
         "0030_alternative_pain_area_key"
     )

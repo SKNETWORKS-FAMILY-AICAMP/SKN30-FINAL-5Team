@@ -107,6 +107,8 @@ _CATALOG_FIELDS = (
     "record_type",
     "family_code",
     "general_pool_included",
+    "form_cues_source",
+    "form_cues_review_status",
 )
 _SAFETY_FIELDS = (
     "body_area_code",

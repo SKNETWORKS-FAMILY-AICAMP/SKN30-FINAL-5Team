@@ -177,6 +177,11 @@ class Exercise(Base):
             "(record_type = 'VARIANT') = (representative_stable_code IS NOT NULL)",
             name="ck_exercises_variant_parent",
         ),
+        CheckConstraint(
+            "form_cues_review_status IS NULL OR "
+            "form_cues_review_status IN ('REVIEW_REQUIRED', 'DOMAIN_APPROVED')",
+            name="ck_exercises_form_cues_review_status",
+        ),
         CheckConstraint("default_rest_seconds >= 0", name="ck_exercises_rest_seconds"),
         CheckConstraint(
             "default_transition_seconds BETWEEN 10 AND 20",
@@ -191,6 +196,12 @@ class Exercise(Base):
         ),
         Index("ix_exercises_catalog_review", "catalog_version_id", "review_status_code"),
         Index("ix_exercises_general_pool", "catalog_version_id", "general_pool_included"),
+        Index(
+            "ix_exercises_form_cues_review",
+            "catalog_version_id",
+            "form_cues_review_status",
+            postgresql_where=text("form_cues_review_status IS NOT NULL"),
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
@@ -223,6 +234,10 @@ class Exercise(Base):
     # NULL means the payload did not state it, which the importer reads as "not
     # a base routine candidate". Never defaulted, so the two stay distinguishable.
     general_pool_included: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    # Which artifact or template produced form_cues_ko, and whether a reviewer has
+    # signed them. NULL means the payload did not state it.
+    form_cues_source: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    form_cues_review_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
     timing_mode_code: Mapped[str] = mapped_column(String(32), nullable=False)
     default_seconds_per_rep: Mapped[int | None] = mapped_column(Integer, nullable=True)
     default_work_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
