@@ -221,9 +221,10 @@ export function MascotHouseScreen({
       footer={tabBar}
       onBuyItem={(itemId: HouseItemId) => {
         const next = buyItem(houseState, itemId);
-        if (next === null) return;
+        if (next === null) return false;
         persist(next);
         react('happy');
+        return true;
       }}
       onClaimGift={() => {
         const claimed = claimDailyGift(houseState, localDate);
@@ -233,17 +234,18 @@ export function MascotHouseScreen({
       }}
       onFeed={() => {
         const next = feedMascot(houseState, localDate);
-        if (next === null) return;
+        if (next === null) return false;
         persist(next);
         const bananaArt = randomHouseBananaPoseArt(lastBananaArt.current);
         const regularArt = randomHouseRegularPoseArt(lastRegularArt.current);
         lastBananaArt.current = bananaArt.source;
         lastRegularArt.current = regularArt.source;
         react('eating', bananaArt, FEED_POSE_HOLD_MS, regularArt);
+        return true;
       }}
       onPet={() => {
         const next = petMascot(houseState, localDate);
-        if (next === null) return;
+        if (next === null) return false;
         persist(next);
         const visibleArt =
           (reactionPose === null ? settledArt : reactionArt) ??
@@ -251,6 +253,7 @@ export function MascotHouseScreen({
         const pettedArt = randomHousePettedPoseArt(visibleArt.source);
         lastRegularArt.current = pettedArt.source;
         react('petted', pettedArt);
+        return true;
       }}
       onPlayGame={setActiveMiniGame}
       onPlaceItem={(itemId: HouseItemId, placement: HouseItemPlacement) => {

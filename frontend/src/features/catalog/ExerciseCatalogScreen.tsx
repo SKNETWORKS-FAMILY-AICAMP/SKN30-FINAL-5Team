@@ -58,7 +58,9 @@ export function ExerciseCatalogScreen({
   const [trainingType, setTrainingType] = useState<string | undefined>();
   const [difficulty, setDifficulty] = useState<string | undefined>();
   const [extraItems, setExtraItems] = useState<ExerciseListItem[]>([]);
-  const [openExerciseId, setOpenExerciseId] = useState<string | null>(null);
+  const [openExercise, setOpenExercise] = useState<ExerciseListItem | null>(
+    null,
+  );
 
   const { state, reload } = useAsyncData<ExerciseListResponse>(
     (signal) =>
@@ -92,15 +94,15 @@ export function ExerciseCatalogScreen({
     setNextCursor(undefined);
   }, []);
 
-  if (openExerciseId !== null) {
+  if (openExercise !== null) {
     return (
       <ScreenShell>
-        <ScreenHeading title="운동 설명" />
-        <ExerciseDetailSheet api={api} exerciseId={openExerciseId} />
+        <ScreenHeading title={openExercise.name} />
+        <ExerciseDetailSheet api={api} exerciseId={openExercise.id} />
         <Button
           label="목록으로"
           tone="secondary"
-          onPress={() => setOpenExerciseId(null)}
+          onPress={() => setOpenExercise(null)}
         />
       </ScreenShell>
     );
@@ -139,7 +141,7 @@ export function ExerciseCatalogScreen({
           }
           loadingMore={loadMore.pending}
           loadMoreError={loadMore.error}
-          onOpen={setOpenExerciseId}
+          onOpen={setOpenExercise}
           onLoadMore={(cursor) =>
             void loadMore.run(cursor).then((page) => {
               if (page) {
@@ -205,7 +207,7 @@ function CatalogList({
   nextCursor: string | null;
   loadingMore: boolean;
   loadMoreError: string | null;
-  onOpen: (exerciseId: string) => void;
+  onOpen: (exercise: ExerciseListItem) => void;
   onLoadMore: (cursor: string) => void;
 }) {
   const items = [...firstPage.items, ...extraItems];
@@ -221,7 +223,7 @@ function CatalogList({
           key={item.id}
           accessibilityRole="button"
           accessibilityLabel={`${item.name} 설명 열기`}
-          onPress={() => onOpen(item.id)}
+          onPress={() => onOpen(item)}
         >
           <Card style={styles.itemCard}>
             <View style={styles.itemHeader}>

@@ -24,8 +24,10 @@
 import { Asset } from 'expo-asset';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Children, type ReactNode } from 'react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
+  Animated,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -45,6 +47,7 @@ import Svg, {
   Stop,
 } from 'react-native-svg';
 
+import { imageAssets } from '../../assets';
 import { BASE_H, useScale } from '../../components/scale';
 import { colors, radii, shadows, spacing } from '../../components/theme';
 import {
@@ -146,10 +149,19 @@ export const HOUSE_MINI_GAMES = [
     title: '바나나 받기',
     description: '떨어지는 바나나를 받아요',
     durationLabel: '30초',
+    imageSource: imageAssets.houseMascotCollectingBananasEmpty,
   },
 ] as const;
 
 export type HouseMiniGameId = (typeof HOUSE_MINI_GAMES)[number]['id'];
+
+export const HOUSE_ACTION_EFFECT_MS = 900;
+
+type HouseActionEffect = {
+  id: number;
+  amount: number;
+  mascotEffect?: 'banana' | 'sparkle';
+};
 
 /**
  * Returns half of the size the artwork would have occupied with `cover`, then
@@ -298,10 +310,10 @@ export function MascotHouseContent({
 }: {
   /** The tab bar, rendered inside the backdrop so the scene runs behind it. */
   footer?: ReactNode;
-  onBuyItem: (itemId: HouseItemId) => void;
+  onBuyItem: (itemId: HouseItemId) => boolean;
   onClaimGift: () => void;
-  onFeed: () => void;
-  onPet: () => void;
+  onFeed: () => boolean;
+  onPet: () => boolean;
   onPlayGame: (gameId: HouseMiniGameId) => void;
   onPlaceItem: (itemId: HouseItemId, placement: HouseItemPlacement) => void;
   onSelectBackground: (backgroundId: HouseBackgroundId) => void;
@@ -327,6 +339,35 @@ export function MascotHouseContent({
     width: 0,
     height: 0,
   });
+  const [actionEffect, setActionEffect] = useState<HouseActionEffect | null>(
+    null,
+  );
+  const actionEffectId = useRef(0);
+  const actionEffectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (actionEffectTimer.current !== null) {
+        clearTimeout(actionEffectTimer.current);
+      }
+    },
+    [],
+  );
+
+  const showActionEffect = (effect: {
+    amount: number;
+    mascotEffect?: 'banana' | 'sparkle';
+  }) => {
+    actionEffectId.current += 1;
+    setActionEffect({ ...effect, id: actionEffectId.current });
+    if (actionEffectTimer.current !== null) {
+      clearTimeout(actionEffectTimer.current);
+    }
+    actionEffectTimer.current = setTimeout(() => {
+      setActionEffect(null);
+      actionEffectTimer.current = null;
+    }, HOUSE_ACTION_EFFECT_MS);
+  };
   const viewport = measuredViewport ?? scaleViewport;
   const mascotSize = houseMascotSize(viewport.height);
   const bottomPanelTop = houseBottomPanelTop(
@@ -373,11 +414,11 @@ export function MascotHouseContent({
         testID="house-mascot-slot"
       >
         <SpeechBubble mascotSize={mascotSize} text={houseSpeech(view, pose)} />
-        <HouseArtView
-          showPlaceholderLabel={false}
+        <PersistentMascotArt
+          size={mascotSize}
           slot={mascotArt ?? housePoseArt[pose]}
-          style={[styles.mascot, { height: mascotSize, width: mascotSize }]}
         />
+        <MascotActionEffectOverlay effect={actionEffect} />
       </View>
 
       <View
@@ -433,6 +474,7 @@ export function MascotHouseContent({
               >
                 <BananaGlyph size={40} />
                 <Text style={styles.chipValue}>{view.bananas}개</Text>
+                <SpendActionEffectOverlay effect={actionEffect} />
               </View>
 
               <Pressable
@@ -500,13 +542,30 @@ export function MascotHouseContent({
                 style={styles.primaryActionRow}
                 testID="house-primary-actions"
               >
-                <FeedButton enabled={view.canFeed} onPress={onFeed} />
+                <FeedButton
+                  enabled={view.canFeed}
+                  onPress={() => {
+                    if (onFeed()) {
+                      showActionEffect({
+                        amount: HOUSE_ACTION_COST.feed,
+                        mascotEffect: 'banana',
+                      });
+                    }
+                  }}
+                />
                 <Pressable
                   accessibilityLabel={`쓰다듬기, 바나나 ${HOUSE_ACTION_COST.pet}개`}
                   accessibilityRole="button"
                   accessibilityState={{ disabled: !view.canPet }}
                   disabled={!view.canPet}
-                  onPress={onPet}
+                  onPress={() => {
+                    if (onPet()) {
+                      showActionEffect({
+                        amount: HOUSE_ACTION_COST.pet,
+                        mascotEffect: 'sparkle',
+                      });
+                    }
+                  }}
                   style={[
                     styles.primaryActionButton,
                     styles.petButton,
@@ -532,6 +591,7 @@ export function MascotHouseContent({
                 onBuyItem={onBuyItem}
                 onClose={() => setDecorating(false)}
                 onSelectBackground={onSelectBackground}
+                onSpend={(amount) => showActionEffect({ amount })}
                 view={view}
               />
             ) : null}
@@ -540,6 +600,52 @@ export function MascotHouseContent({
 
         {footer}
       </SafeAreaView>
+    </View>
+  );
+}
+
+function PersistentMascotArt({
+  size,
+  slot,
+}: {
+  size: number;
+  slot: HouseArtSlot;
+}) {
+  const [displayedSlot, setDisplayedSlot] = useState(slot);
+  const pendingSlot =
+    displayedSlot.id === slot.id && displayedSlot.source === slot.source
+      ? null
+      : slot;
+
+  return (
+    <View
+      pointerEvents="none"
+      style={{ height: size, width: size }}
+      testID="house-mascot-art-stack"
+    >
+      <HouseArtView
+        showPlaceholderLabel={false}
+        slot={displayedSlot}
+        style={[styles.mascot, { height: size, width: size }]}
+      />
+      {pendingSlot !== null && pendingSlot.source !== null ? (
+        <Image
+          accessible={false}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          onLoad={() => {
+            setDisplayedSlot(pendingSlot);
+          }}
+          resizeMode={pendingSlot.fit ?? 'contain'}
+          source={pendingSlot.source}
+          style={[
+            styles.mascot,
+            styles.mascotPreload,
+            { height: size, width: size },
+          ]}
+          testID="house-mascot-art-preload"
+        />
+      ) : null}
     </View>
   );
 }
@@ -786,7 +892,6 @@ function MiniGamePanel({
     >
       <View style={styles.playPanelHeader}>
         <Text style={styles.playPanelTitle}>끼끼와 놀기</Text>
-        <Text style={styles.playPanelCaption}>함께 할 미니게임을 골라요</Text>
       </View>
 
       <ScrollView
@@ -808,7 +913,15 @@ function MiniGamePanel({
             testID={`house-mini-game-${game.id}`}
           >
             <View style={styles.miniGameIcon}>
-              <BananaGlyph size={26} />
+              <Image
+                accessible={false}
+                accessibilityElementsHidden
+                importantForAccessibility="no"
+                resizeMode="contain"
+                source={game.imageSource}
+                style={styles.miniGameMascot}
+                testID={`house-mini-game-mascot-${game.id}`}
+              />
             </View>
             <View style={styles.miniGameCopy}>
               <Text style={styles.miniGameTitle}>{game.title}</Text>
@@ -833,11 +946,13 @@ function DecoratePanel({
   onBuyItem,
   onClose,
   onSelectBackground,
+  onSpend,
   view,
 }: {
-  onBuyItem: (itemId: HouseItemId) => void;
+  onBuyItem: (itemId: HouseItemId) => boolean;
   onClose: () => void;
   onSelectBackground: (backgroundId: HouseBackgroundId) => void;
+  onSpend: (amount: number) => void;
   view: HouseView;
 }) {
   const [category, setCategory] = useState<'background' | 'items'>(
@@ -975,7 +1090,9 @@ function DecoratePanel({
                   accessibilityState={{ disabled: !affordable }}
                   disabled={!affordable}
                   key={item.id}
-                  onPress={() => onBuyItem(item.id)}
+                  onPress={() => {
+                    if (onBuyItem(item.id)) onSpend(item.cost);
+                  }}
                   style={[styles.itemTile, !affordable && styles.spent]}
                   testID={`house-item-${item.id}`}
                 >
@@ -997,6 +1114,120 @@ function DecoratePanel({
         </ScrollView>
       )}
     </View>
+  );
+}
+
+function FloatingActionEffect({
+  children,
+  effectId,
+  style,
+  testID,
+}: {
+  children: ReactNode;
+  effectId: number;
+  style: object;
+  testID: string;
+}) {
+  const [progress] = useState(() => new Animated.Value(0));
+
+  useEffect(() => {
+    progress.setValue(0);
+    const animation = Animated.timing(progress, {
+      duration: HOUSE_ACTION_EFFECT_MS,
+      toValue: 1,
+      useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [effectId, progress]);
+
+  return (
+    <Animated.View
+      accessible={false}
+      pointerEvents="none"
+      style={[
+        style,
+        {
+          opacity: progress.interpolate({
+            inputRange: [0, 0.12, 0.72, 1],
+            outputRange: [0, 1, 1, 0],
+          }),
+          transform: [
+            {
+              translateY: progress.interpolate({
+                inputRange: [0, 1],
+                outputRange: [8, -24],
+              }),
+            },
+            {
+              scale: progress.interpolate({
+                inputRange: [0, 0.18, 1],
+                outputRange: [0.82, 1.08, 1],
+              }),
+            },
+          ],
+        },
+      ]}
+      testID={testID}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
+function SpendActionEffectOverlay({
+  effect,
+}: {
+  effect: HouseActionEffect | null;
+}) {
+  if (effect === null) return null;
+
+  return (
+    <FloatingActionEffect
+      effectId={effect.id}
+      style={styles.spendActionEffect}
+      testID="house-action-effect-spend"
+    >
+      <View style={styles.spendEffect}>
+        <BananaGlyph size={18} />
+        <Text
+          style={styles.spendEffectLabel}
+          testID="house-action-effect-amount"
+        >
+          -{effect.amount}
+        </Text>
+      </View>
+    </FloatingActionEffect>
+  );
+}
+
+function MascotActionEffectOverlay({
+  effect,
+}: {
+  effect: HouseActionEffect | null;
+}) {
+  if (effect?.mascotEffect === undefined) return null;
+
+  return (
+    <FloatingActionEffect
+      effectId={effect.id}
+      style={styles.mascotActionEffect}
+      testID={`house-mascot-effect-${effect.mascotEffect}`}
+    >
+      {effect.mascotEffect === 'banana' ? (
+        <View style={styles.sparkleEffect} testID="house-mascot-effect-bananas">
+          <BananaGlyph size={10} />
+          <BananaGlyph size={18} />
+          <BananaGlyph size={12} />
+        </View>
+      ) : (
+        <View style={styles.sparkleEffect} testID="house-mascot-effect-stars">
+          <StarGlyph size={10} />
+          <StarGlyph size={18} />
+          <StarGlyph size={12} />
+        </View>
+      )}
+    </FloatingActionEffect>
   );
 }
 
@@ -1118,6 +1349,7 @@ function DraggablePlacedItem({
       onStartShouldSetResponderCapture={() => editable}
       style={[
         styles.placedItem,
+        editable && styles.placedItemEditable,
         {
           left: renderedPlacement.x * usableWidth,
           top: renderedPlacement.y * usableHeight,
@@ -1289,6 +1521,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
   },
+  mascotPreload: {
+    opacity: 0,
+  },
   decorationCanvas: {
     position: 'absolute',
     top: 0,
@@ -1300,6 +1535,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: PLACED_ITEM_SIZE,
     height: PLACED_ITEM_SIZE,
+    borderWidth: 0,
+    borderRadius: radii.control,
+  },
+  placedItemEditable: {
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.brandOutline,
   },
   placedItemArt: {
     width: '100%',
@@ -1339,7 +1581,7 @@ const styles = StyleSheet.create({
   },
   feedLabel: {
     color: colors.brandOutline,
-    fontSize: 17,
+    fontSize: 14,
     fontWeight: '800',
   },
   petButton: {
@@ -1394,10 +1636,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '900',
   },
-  playPanelCaption: {
-    color: colors.textSub,
-    fontSize: 12,
-    lineHeight: 18,
+  spendActionEffect: {
+    position: 'absolute',
+    top: 18,
+    right: -46,
+    zIndex: 4,
+  },
+  mascotActionEffect: {
+    position: 'absolute',
+    top: '18%',
+    zIndex: 4,
+    alignSelf: 'center',
+  },
+  spendEffect: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    ...shadows.card,
+  },
+  spendEffectLabel: {
+    color: colors.warningText,
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  sparkleEffect: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
   },
   miniGameListContent: {
     gap: spacing.sm,
@@ -1424,6 +1693,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 14,
     backgroundColor: 'rgba(255, 231, 154, 0.86)',
+  },
+  miniGameMascot: {
+    width: 42,
+    height: 42,
   },
   miniGameCopy: {
     flex: 1,

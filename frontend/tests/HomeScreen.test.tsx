@@ -447,16 +447,36 @@ describe('HomeScreen Home v1 transcription', () => {
   });
 
   it('opens reviewed posture guidance from an API routine item', async () => {
-    render(<HomeScreen {...homePreviewProps('routine')} />);
+    const props = homePreviewProps('routine');
+    render(
+      <HomeScreen
+        {...props}
+        exerciseApi={{
+          ...props.exerciseApi!,
+          async getExercise(exerciseId, signal) {
+            const detail = await props.exerciseApi!.getExercise(
+              exerciseId,
+              signal,
+            );
+            return {
+              ...detail,
+              media_asset_key: 'catalog-media/push-up.gif',
+              media_url: 'https://cdn.example.com/push-up.gif',
+            };
+          },
+        }}
+      />,
+    );
 
     fireEvent.press(screen.getByRole('button', { name: '푸시업 자세 보기' }));
 
-    expect(
-      screen.getByRole('header', { name: '푸시업 자세' }),
-    ).toBeOnTheScreen();
+    expect(screen.getByRole('header', { name: '푸시업' })).toBeOnTheScreen();
     expect(
       await screen.findByText('통증이 없는 범위에서 천천히 움직여주세요.'),
     ).toBeOnTheScreen();
+    expect(screen.getByTestId('exercise-media-image')).toHaveProp('source', {
+      uri: 'https://cdn.example.com/push-up.gif',
+    });
     expect(screen.getByText('호흡을 멈추지 않기')).toBeOnTheScreen();
   });
 
@@ -535,6 +555,7 @@ describe('HomeScreen Home v1 transcription', () => {
               instruction_summary: '검수된 자세 안내',
               form_cues: [],
               media_asset_key: null,
+              media_url: null,
               mascot_animation_asset_key: null,
               instruction_content_version: 'current-backend-v1',
             };
