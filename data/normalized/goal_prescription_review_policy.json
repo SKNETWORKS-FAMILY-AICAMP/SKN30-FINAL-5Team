@@ -1,18 +1,24 @@
 {
   "schema_version": "1.0",
   "policy_version": "goal-prescription-review-policy-2026-08-31",
-  "status": "DRAFT",
-  "production_eligible": false,
-  "review_status_code": "PENDING_DOMAIN_REVIEW",
-  "reviewer_role_code": null,
-  "reviewer_reference": null,
-  "evidence_reference": null,
-  "reviewed_at": null,
+  "status": "REVIEWED",
+  "production_eligible": true,
+  "review_status_code": "DOMAIN_APPROVED",
+  "reviewer_role_code": "DOMAIN_REVIEWER",
+  "reviewer_reference": "GOAL-EXPANSION-DOMAIN-REVIEW-2026-08-31-R01",
+  "evidence_reference": "GOAL-PRESCRIPTION-POLICY-V1;OWNER-BATCH-CONFIRMATION-20260831",
+  "reviewed_at": "2026-08-31T15:00:00+09:00",
   "prescription_version": "v2.0.3-goal-expansion-draft",
   "scope": {
     "catalog_version_code": "exercise-catalog-v2.0.2-final",
-    "goal_codes": ["FAT_LOSS", "MUSCLE_GAIN"],
-    "experience_level_codes": ["BEGINNER", "INTERMEDIATE"],
+    "goal_codes": [
+      "FAT_LOSS",
+      "MUSCLE_GAIN"
+    ],
+    "experience_level_codes": [
+      "BEGINNER",
+      "INTERMEDIATE"
+    ],
     "note": "GENERAL_FITNESS는 v2_prescription_review_policy.json이 계속 관할한다. 이 파일은 온보딩에 이미 노출된 두 목표를 채우기 위한 확장이며, 승인 전에는 어떤 행도 DOMAIN_APPROVED가 아니다."
   },
   "external_basis": [
@@ -59,7 +65,13 @@
         "VERTICAL_PUSH",
         "VERTICAL_PULL"
       ],
-      "SUPPORT": ["ISOLATION", "KNEE_FLEXION", "MOBILITY_STRETCH", "BALANCE", "CORE_BRACE"],
+      "SUPPORT": [
+        "ISOLATION",
+        "KNEE_FLEXION",
+        "MOBILITY_STRETCH",
+        "BALANCE",
+        "CORE_BRACE"
+      ],
       "rationale": "총 에너지 소비를 좌우하는 전신·유산소 동작을 주 운동으로 둔다. 단일 관절 고립운동은 보조다."
     }
   },
@@ -82,8 +94,12 @@
         }
       ]
     },
-    "STRENGTH": { "timing_mode_policy": "BY_CATALOG_TIMING_MODE" },
-    "CARDIO": { "timing_mode_policy": "BY_CATALOG_TIMING_MODE" }
+    "STRENGTH": {
+      "timing_mode_policy": "BY_CATALOG_TIMING_MODE"
+    },
+    "CARDIO": {
+      "timing_mode_policy": "BY_CATALOG_TIMING_MODE"
+    }
   },
   "prescription_by_goal_timing_mode": {
     "MUSCLE_GAIN": {
@@ -159,5 +175,6 @@
     "no_self_approval": "이 파일을 생성한 도구는 review_status_code를 DOMAIN_APPROVED로 쓰지 않는다. 검수자가 직접 채운다.",
     "phase_order": "WARMUP -> MAIN -> COOLDOWN 순서는 루틴 구성기가 강제하며 처방이 이를 바꾸지 않는다.",
     "difficulty": "난이도 상한은 사용자 숙련도 규칙이 강제한다."
-  }
+  },
+  "approval_method_code": "OWNER_BATCH_CONFIRMATION"
 }

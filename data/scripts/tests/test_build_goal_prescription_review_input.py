@@ -127,8 +127,13 @@ class BuildGoalPrescriptionReviewInputTests(unittest.TestCase):
                 encoding="utf-8",
             )
             output = root / "review.csv"
+            # Use a pending copy: once the live policy carries the reviewer's
+            # verdict, regenerating a review sheet from it is refused by design.
+            pending_policy = root / "policy.json"
+            pending = dict(_POLICY, review_status_code="PENDING_DOMAIN_REVIEW")
+            pending_policy.write_text(json.dumps(pending, ensure_ascii=False), encoding="utf-8")
 
-            build(DEFAULT_POLICY, catalog_path, output, baseline_path)
+            build(pending_policy, catalog_path, output, baseline_path)
 
             with output.open(encoding="utf-8") as handle:
                 rows = list(csv.DictReader(handle))
