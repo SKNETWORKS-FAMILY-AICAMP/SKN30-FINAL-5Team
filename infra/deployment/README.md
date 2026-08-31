@@ -33,6 +33,39 @@ and they terminate at Caddy; the API keeps its own port on loopback so `curl 127
 works over SSH for operators. OpenAI credentials are not part of this baseline and require a
 separately rotated staging credential and provider approval.
 
+## Birthdate encryption with AWS KMS
+
+Staging and production never use `BIRTHDATE_ENCRYPTION_KEY_BASE64`; that setting remains restricted
+to local and test environments. Configure a symmetric customer-managed KMS key with the alias
+`alias/helkki-staging-birthdate`, then set these non-secret values in `.env.staging`:
+
+```dotenv
+AWS_REGION=ap-northeast-2
+BIRTHDATE_KMS_KEY_ID=alias/helkki-staging-birthdate
+```
+
+The API obtains AWS credentials from the EC2 instance role. Do not create or inject static
+`AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY` values. Attach
+`infra/aws/ec2-staging-secrets-policy.json` to that role; its KMS statement permits only `Encrypt`
+and `Decrypt` on a key carrying the expected alias. The KMS key policy must also allow IAM policies
+in this account to delegate access.
+
+The database stores a versioned KMS ciphertext blob. KMS encryption context binds it to a one-way
+hash of the internal user ID; neither the birthdate nor the raw user ID is placed in CloudTrail's
+logged encryption context. Verify the role and key before restarting the API:
+
+```bash
+aws kms describe-key \
+  --region ap-northeast-2 \
+  --key-id alias/helkki-staging-birthdate \
+  --query 'KeyMetadata.[KeyState,KeyUsage,KeySpec]' \
+  --output text
+```
+
+The expected result is `Enabled`, `ENCRYPT_DECRYPT`, and `SYMMETRIC_DEFAULT`. A missing key setting
+keeps onboarding fail-closed with `503 PROFILE_CONFIGURATION_UNAVAILABLE`; a denied KMS call is
+translated to the same safe response without logging the birthdate or provider exception.
+
 ## TLS and domain
 
 The mobile client is the reason this step is mandatory rather than cosmetic: iOS App Transport

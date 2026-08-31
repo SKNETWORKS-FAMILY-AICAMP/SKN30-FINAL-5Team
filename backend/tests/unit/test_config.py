@@ -50,6 +50,17 @@ def test_blank_onboarding_deployment_configuration_stays_unconfigured() -> None:
     assert settings.onboarding_experience_level_codes == ()
 
 
+def test_blank_kms_configuration_is_treated_as_unconfigured() -> None:
+    settings = Settings(
+        _env_file=None,
+        birthdate_kms_key_id="   ",
+        aws_region="   ",
+    )
+
+    assert settings.birthdate_kms_key_id is None
+    assert settings.aws_region is None
+
+
 def test_cors_allowed_origins_defaults_to_disabled() -> None:
     # Asserted on the declared default rather than an instance, because
     # Settings() also reads the ambient environment and a shell that exports

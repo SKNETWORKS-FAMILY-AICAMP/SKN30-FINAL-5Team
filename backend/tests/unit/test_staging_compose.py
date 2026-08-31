@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import Any
 
@@ -148,9 +149,26 @@ def test_staging_env_example_and_bootstrap_contain_no_secret_values() -> None:
     user_data = USER_DATA_PATH.read_text(encoding="utf-8")
 
     assert "DATABASE_URL=<aws-secrets-manager-injected-postgresql-url>" in env_example
+    assert "AWS_REGION=ap-northeast-2" in env_example
+    assert "BIRTHDATE_KMS_KEY_ID=alias/helkki-staging-birthdate" in env_example
+    assert "AWS_ACCESS_KEY_ID" not in env_example
+    assert "AWS_SECRET_ACCESS_KEY" not in env_example
     assert "OPENAI_API_KEY" not in env_example
     assert "sk-" not in env_example
     assert "sk-" not in user_data
     assert "v2.40.3" in user_data
     assert "v0.36.1" in user_data
     assert "sha256sum --check" in user_data
+
+
+def test_ec2_role_policy_grants_only_required_birthdate_kms_operations() -> None:
+    policy = json.loads(Path("infra/aws/ec2-staging-secrets-policy.json").read_text())
+    statement = next(
+        item for item in policy["Statement"] if item["Sid"] == "UseStagingBirthdateEncryptionKey"
+    )
+
+    assert set(statement["Action"]) == {"kms:Encrypt", "kms:Decrypt"}
+    assert statement["Resource"].endswith(":key/*")
+    assert statement["Condition"]["ForAnyValue:StringEquals"]["kms:ResourceAliases"] == (
+        "alias/helkki-staging-birthdate"
+    )

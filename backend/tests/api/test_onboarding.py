@@ -545,6 +545,99 @@ def test_unapproved_deployment_configuration_fails_closed_and_logs_only_missing_
         assert sensitive_value not in serialized_log
 
 
+def test_deployed_environment_without_a_kms_key_names_that_key_in_the_log(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    # 배포 환경에서 BIRTHDATE_KMS_KEY_ID가 비면 cipher가 없어 온보딩이 503으로 닫힌다.
+    # 진단 로그가 그 키를 지목하지 않으면 운영자는 원인을 찾지 못한다.
+    repository = FakeProfileRepository()
+    settings = Settings(
+        _env_file=None,
+        app_env="staging",
+        database_url="postgresql+psycopg://test:test@localhost/test",
+        consent_policy_version="privacy-v1",
+        onboarding_primary_goal_codes=("GENERAL_FITNESS",),
+        onboarding_experience_level_codes=("BEGINNER",),
+    )
+    app = create_app(settings=settings, readiness_probe=lambda: None)
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+        user_id=uuid4(),
+        status_code=UserStatusCode.ACTIVE,
+    )
+
+    def session_override():
+        yield FakeSession()
+
+    app.dependency_overrides[get_db_session] = session_override
+    app.dependency_overrides[get_profile_repository] = lambda: repository
+
+    with caplog.at_level(logging.ERROR, logger="backend.profile"):
+        with TestClient(app) as client:
+            response = client.put(
+                "/api/v1/me/onboarding",
+                json=_payload(),
+                headers={"Idempotency-Key": str(uuid4())},
+            )
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "PROFILE_CONFIGURATION_UNAVAILABLE"
+    assert repository.profile_version == 0
+    records = [
+        record
+        for record in caplog.records
+        if getattr(record, "event_code", None) == "PROFILE_CONFIGURATION_UNAVAILABLE"
+    ]
+    assert len(records) == 1
+    serialized_log = JsonFormatter().format(records[0])
+    log_payload = json.loads(serialized_log)
+    assert log_payload["missing_keys"] == ["BIRTHDATE_KMS_KEY_ID"]
+    # 배포 환경은 로컬 전용 키를 쓰지 않으므로 그 이름을 노출하면 안 된다.
+    assert "BIRTHDATE_ENCRYPTION_KEY_BASE64" not in serialized_log
+    assert "2000-08-11" not in serialized_log
+
+
+def test_local_environment_missing_birthdate_key_names_the_local_key(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    repository = FakeProfileRepository()
+    settings = Settings(
+        _env_file=None,
+        app_env="test",
+        database_url="postgresql+psycopg://test:test@localhost/test",
+        consent_policy_version="privacy-v1",
+        onboarding_primary_goal_codes=("GENERAL_FITNESS",),
+        onboarding_experience_level_codes=("BEGINNER",),
+    )
+    app = create_app(settings=settings, readiness_probe=lambda: None)
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+        user_id=uuid4(),
+        status_code=UserStatusCode.ACTIVE,
+    )
+
+    def session_override():
+        yield FakeSession()
+
+    app.dependency_overrides[get_db_session] = session_override
+    app.dependency_overrides[get_profile_repository] = lambda: repository
+
+    with caplog.at_level(logging.ERROR, logger="backend.profile"):
+        with TestClient(app) as client:
+            response = client.put(
+                "/api/v1/me/onboarding",
+                json=_payload(),
+                headers={"Idempotency-Key": str(uuid4())},
+            )
+
+    assert response.status_code == 503
+    records = [
+        record
+        for record in caplog.records
+        if getattr(record, "event_code", None) == "PROFILE_CONFIGURATION_UNAVAILABLE"
+    ]
+    log_payload = json.loads(JsonFormatter().format(records[0]))
+    assert log_payload["missing_keys"] == ["BIRTHDATE_ENCRYPTION_KEY_BASE64"]
+
+
 def test_configured_onboarding_does_not_log_configuration_unavailable(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

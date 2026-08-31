@@ -231,7 +231,7 @@ expected `profile_version`을 함께 포함한다. endpoint CHECK 확장은 migr
 - LLM·에이전트에는 생년월일과 만 나이를 전달하지 않음
 - 프로필 응답에는 계산된 만 나이만 표시
 - 가입 자격 확인과 프로필 표시 외에는 만 나이를 사용하지 않음
-- 구체적인 암호화 키 관리와 접근 제어 구현은 클라우드 확정 후 결정
+- 배포 환경(staging·production)은 AWS KMS 대칭 키로 암호화하며 애플리케이션은 평문 키를 보관하지 않는다. 자격 증명은 EC2 instance role에서 얻고 정적 AWS 키를 쓰지 않는다. `BIRTHDATE_ENCRYPTION_KEY_BASE64` 로컬 키는 local·test 전용이다. 키 설정이 없으면 온보딩은 fail-closed로 503을 반환한다. 설정 절차는 `infra/deployment/README.md`를 따른다.
 - 계정 삭제 시 운영 DB 7일 이내 삭제
 - 백업 30일 이내 만료
 
