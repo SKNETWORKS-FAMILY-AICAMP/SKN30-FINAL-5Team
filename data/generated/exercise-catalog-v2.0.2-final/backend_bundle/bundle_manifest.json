@@ -19,10 +19,10 @@
       "sha256": "fdd439e3aee9c1170092f6f83a2165f5a0eec13369959638fa4e3e69acde7a34"
     },
     {
-      "bytes": 207621,
+      "bytes": 222355,
       "path": "catalog/exercises.jsonl",
       "records": 155,
-      "sha256": "f2ffcfd23a2b9e3318ca592ef2c5498db4b9c832d0e22f0702013523f20347d4"
+      "sha256": "900b77644c32750411af6536254cc384fa7b063b74a1e921f67c34c63667c393"
     },
     {
       "bytes": 11612,
@@ -32,7 +32,7 @@
     {
       "bytes": 1069,
       "path": "catalog/seed_manifest.json",
-      "sha256": "e97ab73f9450bd418c9832f608c5985cd13121a5cdb6b259b136d33112e8ad10"
+      "sha256": "d5bfba35b12f79d58aae4a8e1061d9400604d2b03d7d67f6bc4e4b57f240b634"
     },
     {
       "bytes": 38048,

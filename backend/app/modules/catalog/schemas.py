@@ -173,6 +173,9 @@ class ExerciseRecord(CatalogInputModel):
     # None is not false: it means the payload did not state whether the record is
     # a base routine candidate, and the importer refuses to guess.
     general_pool_included: bool | None = None
+    # Provenance for form_cues_ko, so an unreviewed cue is answerable in SQL.
+    form_cues_source: Annotated[str, Field(min_length=1, max_length=120)] | None = None
+    form_cues_review_status: Literal["REVIEW_REQUIRED", "DOMAIN_APPROVED"] | None = None
 
     @model_validator(mode="after")
     def validate_family_identity(self) -> "ExerciseRecord":

@@ -162,7 +162,7 @@ _APPROVALS = {
     ): DerivedDataApproval(
         artifact_kind="CATALOG",
         version_code="exercise-catalog-v2.0.2-final",
-        manifest_sha256="e97ab73f9450bd418c9832f608c5985cd13121a5cdb6b259b136d33112e8ad10",
+        manifest_sha256="d5bfba35b12f79d58aae4a8e1061d9400604d2b03d7d67f6bc4e4b57f240b634",
         record_count=155,
         approval_record_code="V2-0-2-PROMOTION-APPROVAL-2026-08-31-R01",
         approved_on="2026-08-31",
