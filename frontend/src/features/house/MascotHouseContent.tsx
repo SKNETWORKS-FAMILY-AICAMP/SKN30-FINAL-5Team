@@ -425,9 +425,13 @@ export function MascotHouseContent({
             testID="house-scene"
           >
             <View style={styles.railLeft}>
-              <View style={styles.chip} testID="house-banana-count">
-                <BananaGlyph size={20} />
-                <Text style={styles.chipCaption}>보유 바나나</Text>
+              <View
+                accessible
+                accessibilityLabel={`바나나 ${view.bananas}개 보유`}
+                style={styles.chip}
+                testID="house-banana-count"
+              >
+                <BananaGlyph size={40} />
                 <Text style={styles.chipValue}>{view.bananas}개</Text>
               </View>
 
@@ -492,24 +496,30 @@ export function MascotHouseContent({
               pointerEvents={decorating ? 'none' : 'auto'}
               style={styles.actionStack}
             >
-              <FeedButton enabled={view.canFeed} onPress={onFeed} />
-              <Pressable
-                accessibilityLabel={`쓰다듬기, 바나나 ${HOUSE_ACTION_COST.pet}개`}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: !view.canPet }}
-                disabled={!view.canPet}
-                onPress={onPet}
-                style={[
-                  styles.petButton,
-                  styles.secondaryAction,
-                  !view.canPet && styles.spent,
-                ]}
-                testID="house-pet-action"
+              <View
+                style={styles.primaryActionRow}
+                testID="house-primary-actions"
               >
-                <Text style={styles.petLabel}>
-                  쓰다듬기 · {HOUSE_ACTION_COST.pet}개
-                </Text>
-              </Pressable>
+                <FeedButton enabled={view.canFeed} onPress={onFeed} />
+                <Pressable
+                  accessibilityLabel={`쓰다듬기, 바나나 ${HOUSE_ACTION_COST.pet}개`}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !view.canPet }}
+                  disabled={!view.canPet}
+                  onPress={onPet}
+                  style={[
+                    styles.primaryActionButton,
+                    styles.petButton,
+                    !view.canPet && styles.spent,
+                  ]}
+                  testID="house-pet-action"
+                >
+                  <Text style={styles.petLabel}>
+                    쓰다듬기 · {HOUSE_ACTION_COST.pet}개
+                  </Text>
+                  <BananaGlyph size={18} />
+                </Pressable>
+              </View>
 
               <MiniGamePanel
                 onHeightChange={setBottomPanelHeight}
@@ -738,6 +748,7 @@ function FeedButton({
       disabled={!enabled}
       onPress={onPress}
       style={({ pressed }) => [
+        styles.primaryActionButton,
         styles.feedButton,
         !enabled && styles.spent,
         pressed && enabled && styles.feedButtonPressed,
@@ -1218,11 +1229,6 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     ...shadows.card,
   },
-  chipCaption: {
-    color: colors.textSub,
-    fontSize: 10,
-    fontWeight: '600',
-  },
   chipValue: {
     color: colors.text,
     fontSize: 13,
@@ -1300,6 +1306,15 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: radii.control,
   },
+  primaryActionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  primaryActionButton: {
+    flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
+  },
   feedButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1307,6 +1322,8 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     overflow: 'hidden',
     borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'transparent',
     paddingVertical: 15,
     ...shadows.card,
   },
@@ -1326,21 +1343,20 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   petButton: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.borderSoft,
     backgroundColor: 'rgba(255, 255, 255, 0.86)',
-    paddingVertical: 10,
-  },
-  secondaryAction: {
-    minHeight: 42,
-    justifyContent: 'center',
+    paddingVertical: 15,
   },
   petLabel: {
     color: colors.textSub,
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '800',
   },
   spent: {
     opacity: 0.45,
@@ -1388,7 +1404,7 @@ const styles = StyleSheet.create({
   },
   miniGameCard: {
     width: 286,
-    minHeight: 72,
+    minHeight: 122,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,

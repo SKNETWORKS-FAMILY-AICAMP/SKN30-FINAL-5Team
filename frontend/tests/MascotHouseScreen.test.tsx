@@ -146,9 +146,19 @@ describe('MascotHouseScreen', () => {
     expect(screen.queryByText('주 3회 운동하기')).toBeNull();
     expect(screen.queryByText('1 / 3 회')).toBeNull();
     expect(screen.queryByTestId('house-play-game-action')).toBeNull();
+    expect(screen.queryByText('보유 바나나')).toBeNull();
+    expect(
+      within(screen.getByTestId('house-banana-count')).getByTestId(
+        'house-banana-asset',
+        { includeHiddenElements: true },
+      ),
+    ).toHaveStyle({ width: 40, height: 40 });
     await waitFor(() =>
       expect(screen.getByText(`${BANANA_REWARD.completed}개`)).toBeTruthy(),
     );
+    expect(
+      screen.getByLabelText(`바나나 ${BANANA_REWARD.completed}개 보유`),
+    ).toBeTruthy();
   });
 
   it('grants the daily gift once and then reports it as already taken', async () => {
@@ -170,6 +180,37 @@ describe('MascotHouseScreen', () => {
 
     fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
     expect(screen.getByTestId('house-scene')).toBeTruthy();
+  });
+
+  it('places the feed and pet actions at equal size in one row', async () => {
+    renderHouse(houseApi());
+
+    await screen.findByTestId('house-scene');
+    expect(screen.getByTestId('house-primary-actions')).toHaveStyle({
+      flexDirection: 'row',
+    });
+    expect(screen.getByTestId('house-feed-action')).toHaveStyle({
+      flex: 1,
+      flexBasis: 0,
+      minWidth: 0,
+      borderWidth: 1,
+      paddingVertical: 15,
+    });
+    expect(screen.getByTestId('house-pet-action')).toHaveStyle({
+      flex: 1,
+      flexBasis: 0,
+      minWidth: 0,
+      paddingVertical: 15,
+    });
+    expect(
+      within(screen.getByTestId('house-pet-action')).getByTestId(
+        'house-banana-asset',
+        { includeHiddenElements: true },
+      ),
+    ).toHaveStyle({ width: 18, height: 18 });
+    expect(screen.getByTestId('house-mini-game-banana_catch')).toHaveStyle({
+      minHeight: 122,
+    });
   });
 
   it('spends bananas on feeding and keeps the balance in the store', async () => {
