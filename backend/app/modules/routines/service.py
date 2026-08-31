@@ -167,8 +167,7 @@ def _select_exact_plan(
             # driving it, so prefer the plan that carries more of it. Requiring
             # only one CORE let a muscle-gain session fill up with support work.
             -sum(
-                item.tier_code == RoutineTierCode.CORE
-                and item.phase_code == RoutinePhaseCode.MAIN
+                item.tier_code == RoutineTierCode.CORE and item.phase_code == RoutinePhaseCode.MAIN
                 for item in match[2]
             ),
             len(match[2]),
