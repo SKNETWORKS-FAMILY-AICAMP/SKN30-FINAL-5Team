@@ -369,7 +369,11 @@ def test_agent_receives_deterministic_aggregate_and_only_replaces_narration() ->
     agent = RecordingNarrationAgent()
 
     response = _service(repository, narration_agent=agent).create_report(
-        FakeSession(), uuid4(), WEEK_START, _request(), uuid4()  # type: ignore[arg-type]
+        FakeSession(),
+        uuid4(),
+        WEEK_START,
+        _request(),
+        uuid4(),  # type: ignore[arg-type]
     )
 
     assert len(agent.inputs) == 1
@@ -416,7 +420,11 @@ def test_agent_failure_falls_back_without_changing_deterministic_statistics() ->
     repository.evidence = _evidence()
 
     response = _service(repository, narration_agent=FailingNarrationAgent()).create_report(
-        FakeSession(), uuid4(), WEEK_START, _request(), uuid4()  # type: ignore[arg-type]
+        FakeSession(),
+        uuid4(),
+        WEEK_START,
+        _request(),
+        uuid4(),  # type: ignore[arg-type]
     )
 
     assert response.counts.model_dump() == {
