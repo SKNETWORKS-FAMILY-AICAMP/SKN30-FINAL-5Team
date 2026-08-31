@@ -414,8 +414,25 @@ describe('WorkoutScreen', () => {
     await render(<WorkoutScreen />);
 
     const expand = screen.getAllByRole('button', {
-      name: '자세 · 설명 보기',
+      name: '자세 설명 보기',
     })[1]!;
+    expect(
+      StyleSheet.flatten(screen.getByTestId('workout-actions-1').props.style),
+    ).toMatchObject({
+      width: '100%',
+      flexDirection: 'column',
+      alignItems: 'stretch',
+    });
+    expect(StyleSheet.flatten(expand.props.style)).toMatchObject({
+      minHeight: 44,
+      width: '100%',
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderColor: '#E2AC48',
+      borderRadius: 12,
+      backgroundColor: '#FFF2D1',
+      elevation: 2,
+    });
     expect(expand.props.accessibilityState).toEqual({ expanded: false });
     fireEvent.press(expand);
 
@@ -487,26 +504,44 @@ describe('WorkoutScreen', () => {
     ).toBeOnTheScreen();
   });
 
-  it('keeps the bottom actions equal and gives the smash action clear elevation', async () => {
+  it('splits the secondary action space equally between rest and pain', async () => {
     await render(<WorkoutScreen />);
 
     const smashStyle = StyleSheet.flatten(
       screen.getByTestId('workout-smash-action').props.style,
     );
+    const secondaryStyle = StyleSheet.flatten(
+      screen.getByTestId('workout-secondary-actions').props.style,
+    );
     const restStyle = StyleSheet.flatten(
       screen.getByTestId('workout-rest-action').props.style,
     );
+    const painStyle = StyleSheet.flatten(
+      screen.getByTestId('workout-pain-action').props.style,
+    );
 
     expect(smashStyle).toMatchObject({ flex: 1, flexBasis: 0 });
+    expect(secondaryStyle).toMatchObject({
+      flex: 1,
+      flexBasis: 0,
+      flexDirection: 'row',
+    });
     expect(restStyle).toMatchObject({ flex: 1, flexBasis: 0 });
+    expect(painStyle).toMatchObject({ flex: 1, flexBasis: 0 });
     expect(smashStyle.height).toBeCloseTo(69.6);
     expect(restStyle.height).toBeCloseTo(69.6);
+    expect(painStyle.height).toBeCloseTo(69.6);
     expect(smashStyle.borderBottomWidth).toBeUndefined();
     expect(smashStyle).toMatchObject({
       shadowColor: '#C28B28',
       shadowOpacity: 0.13,
       elevation: 3,
     });
+    expect(screen.getByText(/통증이\s*있어요/).props.children).toEqual([
+      '통증이',
+      '\n',
+      '있어요',
+    ]);
   });
 
   it('keeps the disabled smash action flat', async () => {
@@ -548,8 +583,8 @@ describe('WorkoutScreen', () => {
       screen.getByTestId('workout-stop-action').props.style,
     );
     expect(stopStyle).toMatchObject({
-      backgroundColor: '#FDECE7',
-      borderColor: '#F1BFAE',
+      backgroundColor: '#FFFFFF',
+      borderColor: '#EEDFCB',
       borderWidth: 1.5,
     });
     expect(stopStyle.borderRadius).toBeCloseTo(21.6);
@@ -557,7 +592,7 @@ describe('WorkoutScreen', () => {
     const stopLabelStyle = StyleSheet.flatten(
       screen.getByText('중단').props.style,
     );
-    expect(stopLabelStyle.color).toBe('#A23F2A');
+    expect(stopLabelStyle.color).toBe('#7B695B');
     expect(stopLabelStyle).toMatchObject({
       fontFamily: Platform.select({
         ios: 'System',
@@ -569,7 +604,7 @@ describe('WorkoutScreen', () => {
     });
     expect(
       screen.getByRole('button', {
-        name: '안전 중단 및 이상 반응 보고',
+        name: '운동 중단',
       }),
     ).toHaveTextContent('중단');
     expect(screen.queryByText('■')).toBeNull();
@@ -581,7 +616,7 @@ describe('WorkoutScreen', () => {
 
     fireEvent.press(
       screen.getByRole('button', {
-        name: '안전 중단 및 이상 반응 보고',
+        name: '운동 중단',
       }),
     );
 
@@ -622,45 +657,89 @@ describe('WorkoutScreen', () => {
     expect(stopGradient.props.locations).toEqual([0, 0.55, 1]);
   });
 
-  it('explains that 끼끼 will provide the reporting outcome', async () => {
-    await render(<WorkoutScreen />);
-
-    fireEvent.press(
-      screen.getByRole('button', {
-        name: '안전 중단 및 이상 반응 보고',
-      }),
-    );
-
-    expect(
-      screen.getByText(
-        '불편·이상 반응을 보고하면 운동을 중단할지, 계속할지 끼끼가 알려줘요',
-      ),
-    ).toBeOnTheScreen();
-    expect(screen.queryByText(/여기까지 완료한 블록/)).toBeNull();
-  });
-
-  it('returns from symptom reporting to the previous stop confirmation sheet', async () => {
+  it('shows stop and return actions in the stop confirmation', async () => {
     const onPauseChange = jest.fn();
     await render(<WorkoutScreen onPauseChange={onPauseChange} />);
 
     fireEvent.press(
       screen.getByRole('button', {
-        name: '안전 중단 및 이상 반응 보고',
+        name: '운동 중단',
       }),
     );
+
+    expect(
+      screen.getByRole('header', {
+        name: '운동을 여기서 중단하시겠어요?',
+      }),
+    ).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: '중단하기' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: '돌아가기' })).toBeOnTheScreen();
+    expect(
+      screen.queryByRole('button', {
+        name: '불편·이상 반응 먼저 보고하기',
+      }),
+    ).toBeNull();
+    expect(screen.queryByRole('button', { name: '계속 운동하기' })).toBeNull();
+
+    fireEvent.press(screen.getByRole('button', { name: '돌아가기' }));
+
+    expect(
+      screen.queryByRole('header', {
+        name: '운동을 여기서 중단하시겠어요?',
+      }),
+    ).toBeNull();
+    expect(onPauseChange).toHaveBeenNthCalledWith(1, true);
+    expect(onPauseChange).toHaveBeenNthCalledWith(2, false);
+  });
+
+  it('opens pain reporting from the bottom action and closes it on cancel', async () => {
+    const onPauseChange = jest.fn();
+    await render(<WorkoutScreen onPauseChange={onPauseChange} />);
+
     fireEvent.press(
-      screen.getByRole('button', { name: '불편·이상 반응 먼저 보고하기' }),
+      screen.getByRole('button', {
+        name: '통증 및 이상 반응 보고',
+      }),
     );
+    expect(
+      screen.getByText(
+        '어떤 통증이 있는지 알려주면, 운동을 계속할지 중단할지 결정할게요.',
+      ),
+    ).toBeOnTheScreen();
+    expect(screen.getByRole('radio', { name: '통증' })).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', { name: '보고만 하고 계속하기' }),
+    ).toBeOnTheScreen();
+
     fireEvent.press(screen.getByRole('button', { name: '취소' }));
 
     expect(
-      screen.getByRole('header', { name: '지금 운동을 중단할까요?' }),
+      screen.queryByRole('header', { name: '불편·이상 반응 보고' }),
+    ).toBeNull();
+    expect(
+      screen.getByRole('button', { name: '통증 및 이상 반응 보고' }),
+    ).toBeOnTheScreen();
+    expect(onPauseChange).toHaveBeenNthCalledWith(1, true);
+    expect(onPauseChange).toHaveBeenNthCalledWith(2, false);
+  });
+
+  it('does not open pain reporting from the stop confirmation', async () => {
+    await render(<WorkoutScreen />);
+
+    fireEvent.press(
+      screen.getByRole('button', {
+        name: '운동 중단',
+      }),
+    );
+
+    expect(
+      screen.getByRole('header', {
+        name: '운동을 여기서 중단하시겠어요?',
+      }),
     ).toBeOnTheScreen();
     expect(
       screen.queryByRole('header', { name: '불편·이상 반응 보고' }),
     ).toBeNull();
-    expect(onPauseChange).toHaveBeenCalledTimes(1);
-    expect(onPauseChange).toHaveBeenCalledWith(true);
   });
 
   it('reports only the current block through the explicit smash action and restarts the burst', async () => {
@@ -930,15 +1009,15 @@ describe('WorkoutScreen API mode', () => {
       name: '의자 스쿼트 장비가 없을 때 보기',
     });
     expect(StyleSheet.flatten(equipmentAction.props.style)).toMatchObject({
-      alignSelf: 'flex-start',
-      paddingHorizontal: 0,
+      minHeight: 44,
+      width: '100%',
+      alignSelf: 'stretch',
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderColor: '#F1D39A',
+      borderRadius: 12,
+      backgroundColor: '#FFF4DC',
     });
-    expect(
-      StyleSheet.flatten(equipmentAction.props.style).borderWidth,
-    ).toBeUndefined();
-    expect(
-      StyleSheet.flatten(equipmentAction.props.style).backgroundColor,
-    ).toBeUndefined();
 
     fireEvent.press(equipmentAction);
 
@@ -993,7 +1072,7 @@ describe('WorkoutScreen API mode', () => {
     );
     expect(screen.getByText('2세트 × 8회')).toBeOnTheScreen();
 
-    fireEvent.press(screen.getByRole('button', { name: '자세 · 설명 보기' }));
+    fireEvent.press(screen.getByRole('button', { name: '자세 설명 보기' }));
 
     expect(screen.getByTestId('workout-detail-scroll')).toBeOnTheScreen();
     expect(
@@ -1465,7 +1544,7 @@ describe('WorkoutScreen API mode', () => {
     expect(finishSession).not.toHaveBeenCalled();
   });
 
-  it('returns from API safety reporting to stop confirmation without submitting', async () => {
+  it('closes API pain reporting without submitting', async () => {
     const reportSafetyEvent = jest.fn(async () => ({
       event_id: 'unused-safety-event',
       instruction_code: 'SHOW_CAUTION' as const,
@@ -1493,21 +1572,56 @@ describe('WorkoutScreen API mode', () => {
     );
     fireEvent.press(
       screen.getByRole('button', {
-        name: '안전 중단 및 이상 반응 보고',
+        name: '통증 및 이상 반응 보고',
       }),
     );
-    fireEvent.press(
-      screen.getByRole('button', { name: '불편·이상 반응 먼저 보고하기' }),
-    );
+    expect(
+      screen.getByText(
+        '어떤 통증이 있는지 알려주면, 운동을 계속할지 중단할지 결정할게요.',
+      ),
+    ).toBeOnTheScreen();
     fireEvent.press(screen.getByRole('button', { name: '취소' }));
 
     expect(
-      screen.getByRole('header', { name: '지금 운동을 중단할까요?' }),
+      screen.queryByRole('header', { name: '불편·이상 반응 보고' }),
+    ).toBeNull();
+    expect(
+      screen.getByRole('button', { name: '통증 및 이상 반응 보고' }),
+    ).toBeOnTheScreen();
+    expect(reportSafetyEvent).not.toHaveBeenCalled();
+  });
+
+  it('keeps stop confirmation separate from API pain reporting', async () => {
+    const api = workoutApi({
+      getWorkoutSession: jest.fn(async () => sessionDetail('IN_PROGRESS')),
+    });
+
+    render(
+      <WorkoutScreen
+        api={api}
+        sessionId="session-api"
+        plan={API_PLAN}
+        onOutcome={jest.fn()}
+      />,
+    );
+    await waitFor(() =>
+      expect(screen.queryByText('운동 세션을 준비하고 있어요…')).toBeNull(),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '운동 중단' }));
+
+    expect(
+      screen.getByRole('header', {
+        name: '운동을 여기서 중단하시겠어요?',
+      }),
     ).toBeOnTheScreen();
     expect(
       screen.queryByRole('header', { name: '불편·이상 반응 보고' }),
     ).toBeNull();
-    expect(reportSafetyEvent).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole('button', {
+        name: '불편·이상 반응 먼저 보고하기',
+      }),
+    ).toBeNull();
   });
 
   it('sends reviewed safety fields and renders the server guidance', async () => {
@@ -1538,11 +1652,8 @@ describe('WorkoutScreen API mode', () => {
     );
     fireEvent.press(
       screen.getByRole('button', {
-        name: '안전 중단 및 이상 반응 보고',
+        name: '통증 및 이상 반응 보고',
       }),
-    );
-    fireEvent.press(
-      screen.getByRole('button', { name: '불편·이상 반응 먼저 보고하기' }),
     );
     expect(screen.queryByRole('checkbox', { name: '전신' })).toBeNull();
     expect(screen.queryByRole('checkbox', { name: '기타 부위' })).toBeNull();
@@ -1613,20 +1724,9 @@ describe('WorkoutScreen API mode', () => {
     ).toBeOnTheScreen();
   });
 
-  it('records a complete additional activity without changing block completion', async () => {
-    const recordAdditionalActivity = jest.fn(async () => ({
-      activity_id: 'activity-api',
-      session_id: 'session-api',
-      activity_type_code: 'WALKING',
-      duration_seconds: 1200,
-      intensity_code: null,
-      note: null,
-      created_at: '2026-08-19T09:20:00+09:00',
-      session_status_code: 'IN_PROGRESS' as const,
-    }));
+  it('does not show the additional activity action', async () => {
     const api = workoutApi({
       getWorkoutSession: jest.fn(async () => sessionDetail('IN_PROGRESS')),
-      recordAdditionalActivity,
     });
 
     render(
@@ -1643,31 +1743,16 @@ describe('WorkoutScreen API mode', () => {
     for (const testId of [
       'workout-smash-action',
       'workout-rest-action',
-      'workout-additional-action',
+      'workout-pain-action',
     ]) {
       expect(
         StyleSheet.flatten(screen.getByTestId(testId).props.style),
       ).toMatchObject({ flex: 1, flexBasis: 0, height: 69.6 });
     }
-    fireEvent.press(screen.getByRole('button', { name: '계획 외 활동 기록' }));
-    fireEvent.press(screen.getByRole('radio', { name: '자전거' }));
-    fireEvent.press(screen.getByRole('radio', { name: '20분' }));
-    fireEvent.press(screen.getByRole('radio', { name: '강하게' }));
-    fireEvent.changeText(
-      screen.getByLabelText('추가 활동 메모'),
-      '공원 한 바퀴',
-    );
-    fireEvent.press(screen.getByRole('button', { name: '추가 활동 저장' }));
-
-    await waitFor(() =>
-      expect(recordAdditionalActivity).toHaveBeenCalledWith('session-api', {
-        activity_type_code: 'CYCLING',
-        duration_seconds: 1200,
-        intensity_code: 'VIGOROUS',
-        note: '공원 한 바퀴',
-      }),
-    );
-    expect(screen.getByText('완료 0 / 1')).toBeOnTheScreen();
+    expect(screen.queryByTestId('workout-additional-action')).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: '계획 외 활동 기록' }),
+    ).toBeNull();
   });
 
   it('requires and stores a server reason when no block was completed', async () => {
@@ -1698,7 +1783,7 @@ describe('WorkoutScreen API mode', () => {
     );
     fireEvent.press(
       screen.getByRole('button', {
-        name: '안전 중단 및 이상 반응 보고',
+        name: '운동 중단',
       }),
     );
     fireEvent.press(screen.getByRole('button', { name: '중단하기' }));
