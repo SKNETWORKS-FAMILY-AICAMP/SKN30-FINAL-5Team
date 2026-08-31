@@ -329,8 +329,13 @@ def _validate_prescription_constraints(
             raise ValueError("exercise prescription uses a disallowed location")
         if item.location_code not in record.location_codes:
             raise ValueError("exercise prescription location is not supported by the catalog")
-        if not set(item.equipment_codes).issubset(envelope.allowed_equipment_codes):
-            raise ValueError("exercise prescription uses disallowed equipment")
+        # Equipment is not a gate. The 2026-08-27 approval removed the issubset
+        # filter, and with equipment gone from onboarding the allowlist is empty
+        # by design, so this check rejected every plan the agent could build.
+        # The catalog link below still holds: a prescription may not claim
+        # equipment the reviewed record does not list.
+        if not set(item.equipment_codes).issubset(record.equipment_codes):
+            raise ValueError("exercise prescription equipment is not supported by the catalog")
         if not set(item.equipment_codes).issubset(record.equipment_codes):
             raise ValueError("exercise prescription equipment is not supported by the catalog")
         if ceiling.allowed_intensity_codes and (
