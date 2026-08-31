@@ -145,8 +145,11 @@ class QdrantExercisePoolSnapshotLoader:
             constraint_envelope_hash=envelope.envelope_hash,
             exercises=records,
             mandatory_exercise_ids=projection.mandatory_exercise_ids,
+            # Reserving phase and role coverage can push a lower-ranked hit out
+            # of the pool, and the snapshot may only name ranked exercises it
+            # actually carries. The ranking order it keeps is unchanged.
             vector_ranked_exercise_ids=(
-                result.ranked_exercise_ids
+                tuple(item for item in result.ranked_exercise_ids if item in set(canonical_ids))
                 if result.retrieval_status_code is RetrievalStatusCode.VECTOR_RETRIEVAL_SUCCEEDED
                 else ()
             ),
