@@ -260,7 +260,7 @@ def test_pool_hash_is_stable_and_excludes_created_at() -> None:
     )
 
     assert first.pool_hash == second.pool_hash
-    assert first.pool_hash == "ad161234696a369662b8b84d0a99b316fef2a85ce76692f3fff9bc189d91a68b"
+    assert first.pool_hash == "59e1ee4c0fee025f6cce469cf864acb0785d88d4191199b98b725bb016f0589b"
 
 
 @pytest.mark.parametrize(

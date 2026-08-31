@@ -26,6 +26,7 @@ from backend.tests.unit.test_v3_agent_contracts import (
     A,
     B,
     C,
+    D,
     envelope,
     exercise,
     pool,
@@ -77,7 +78,11 @@ def plan(
     repair_attempt: int | None = None,
 ) -> PlanSpec:
     if plan_prescriptions is None:
-        plan_prescriptions = (prescription(A, 1), prescription(B, 2))
+        plan_prescriptions = (
+            prescription(A, 1, phase_code="WARMUP"),
+            prescription(B, 2),
+            prescription(D, 3, phase_code="COOLDOWN"),
+        )
     return PlanSpec.create(
         envelope_hash=current_input.constraint_envelope.envelope_hash,
         pool_hash=current_input.exercise_pool.pool_hash,
@@ -179,7 +184,11 @@ def test_plan_cannot_reference_exercise_outside_pool() -> None:
     reduced_input = coordinator_input(current_envelope, reduced_pool)
     outside_plan = plan(
         reduced_input,
-        plan_prescriptions=(prescription(A, 1), prescription(C, 2)),
+        plan_prescriptions=(
+            prescription(A, 1, phase_code="WARMUP"),
+            prescription(C, 2),
+            prescription(B, 3, phase_code="COOLDOWN"),
+        ),
     )
 
     with pytest.raises(ValueError, match="outside ExercisePoolSnapshot"):
@@ -202,7 +211,11 @@ def test_recovery_ceiling_cannot_be_relaxed() -> None:
     current_input = coordinator_input(current_envelope, current_pool)
     over_ceiling = plan(
         current_input,
-        plan_prescriptions=(prescription(A, 1, sets=4), prescription(B, 2)),
+        plan_prescriptions=(
+            prescription(A, 1, sets=4, phase_code="WARMUP"),
+            prescription(B, 2),
+            prescription(D, 3, phase_code="COOLDOWN"),
+        ),
     )
 
     with pytest.raises(ValueError, match="Recovery sets ceiling"):
@@ -215,7 +228,11 @@ def test_safety_exclusion_cannot_be_relaxed() -> None:
     current_input = coordinator_input(current_envelope, current_pool)
     unsafe = plan(
         current_input,
-        plan_prescriptions=(prescription(A, 1), prescription(C, 2)),
+        plan_prescriptions=(
+            prescription(A, 1, phase_code="WARMUP"),
+            prescription(C, 2),
+            prescription(B, 3, phase_code="COOLDOWN"),
+        ),
     )
 
     with pytest.raises(ValueError, match="Safety exclusions"):

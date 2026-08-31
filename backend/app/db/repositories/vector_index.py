@@ -66,6 +66,7 @@ class IndexableExerciseRecord:
     default_work_seconds: int | None = None
     default_rest_seconds: int = 0
     default_transition_seconds: int = 10
+    role_eligibility_code: str | None = None
 
 
 class VectorIndexRepository:
@@ -100,10 +101,15 @@ class VectorIndexRepository:
         equipment: dict[UUID, list[str]] = {exercise_id: [] for exercise_id in ids}
         locations: dict[UUID, list[str]] = {exercise_id: [] for exercise_id in ids}
         phases: dict[UUID, list[str]] = {exercise_id: [] for exercise_id in ids}
+        roles: dict[UUID, str] = {}
         prescription_levels: dict[UUID, list[str]] = {exercise_id: [] for exercise_id in ids}
         if ids:
-            for exercise_id, code in session.execute(
-                select(ExerciseGoalTagLink.exercise_id, ExerciseGoalTagLink.goal_code)
+            for exercise_id, code, role_code in session.execute(
+                select(
+                    ExerciseGoalTagLink.exercise_id,
+                    ExerciseGoalTagLink.goal_code,
+                    ExerciseGoalTagLink.role_eligibility_code,
+                )
                 .where(
                     ExerciseGoalTagLink.exercise_id.in_(ids),
                     ExerciseGoalTagLink.review_status_code == "DOMAIN_APPROVED",
@@ -111,6 +117,10 @@ class VectorIndexRepository:
                 .order_by(ExerciseGoalTagLink.exercise_id, ExerciseGoalTagLink.goal_code)
             ):
                 goals[exercise_id].append(code)
+                # CORE outranks SUPPORT: an exercise approved as goal-driving for
+                # any of its goals is goal-driving work.
+                if role_code == "CORE" or exercise_id not in roles:
+                    roles[exercise_id] = role_code
             for exercise_id, code in session.execute(
                 select(ExerciseEquipment.exercise_id, ExerciseEquipment.equipment_code)
                 .where(ExerciseEquipment.exercise_id.in_(ids))
@@ -171,6 +181,7 @@ class VectorIndexRepository:
                 equipment_codes=tuple(equipment[exercise.id]),
                 location_codes=tuple(locations[exercise.id]),
                 phase_codes=tuple(phases[exercise.id]),
+                role_eligibility_code=roles.get(exercise.id),
                 prescription_experience_level_codes=tuple(sorted(prescription_levels[exercise.id])),
                 stable_code=exercise.stable_code,
                 timing_mode_code=exercise.timing_mode_code,

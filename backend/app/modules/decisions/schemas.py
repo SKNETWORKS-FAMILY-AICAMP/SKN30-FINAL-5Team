@@ -24,6 +24,9 @@ class DecisionPlanItem(BaseModel):
     exercise_id: UUID
     exercise_name: str
     sequence: int
+    # Optional with a default so payloads stored before the plan carried a
+    # session shape still validate; new plans always set it explicitly.
+    phase_code: str = "MAIN"
     tier_code: str
     sets: int
     reps: int | None

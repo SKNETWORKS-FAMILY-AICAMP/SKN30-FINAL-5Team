@@ -36,7 +36,7 @@ from backend.tests.unit.llm_agent_test_support import (
     ToolCallingFakeChatModel,
     tool_response,
 )
-from backend.tests.unit.test_v3_agent_contracts import A, B, prescription, proposal
+from backend.tests.unit.test_v3_agent_contracts import A, B, D, prescription, proposal
 from backend.tests.unit.test_v3_coordinator_contracts import coordinator_input, plan, proposals
 from backend.tests.unit.test_v3_persistence_service import make_bundle
 
@@ -335,7 +335,11 @@ def test_regeneration_uses_stored_root_and_requires_meaningful_sequence_change()
     )
     alternative = plan(
         current_input,
-        plan_prescriptions=(prescription(B, 1), prescription(A, 2)),
+        plan_prescriptions=(
+            prescription(B, 1, phase_code="WARMUP"),
+            prescription(A, 2),
+            prescription(D, 3, phase_code="COOLDOWN"),
+        ),
     )
     parent_id = uuid4()
     runtime = build_v3_demo_runtime(
@@ -368,4 +372,4 @@ def test_regeneration_uses_stored_root_and_requires_meaningful_sequence_change()
     assert bundle.root_decision_execution_id == source.root_decision_execution_id
     assert bundle.parent_decision_execution_id == parent_id
     assert bundle.final_plan is not None
-    assert tuple(item.prescription.exercise_id for item in bundle.final_plan.exercises) == (B, A)
+    assert tuple(item.prescription.exercise_id for item in bundle.final_plan.exercises) == (B, A, D)

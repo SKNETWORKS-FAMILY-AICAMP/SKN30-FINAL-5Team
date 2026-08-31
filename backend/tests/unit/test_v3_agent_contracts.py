@@ -27,6 +27,9 @@ from backend.app.domain.agents.v3_contracts import (
 A = UUID("00000000-0000-0000-0000-000000000001")
 B = UUID("00000000-0000-0000-0000-000000000002")
 C = UUID("00000000-0000-0000-0000-000000000003")
+# A fourth pool member so a plan can close with a cooldown without occupying an
+# id that exclusion tests need free.
+D = UUID("00000000-0000-0000-0000-000000000004")
 OUTSIDE = UUID("00000000-0000-0000-0000-000000000099")
 QUERY_HASH = "b" * 64
 
@@ -84,13 +87,13 @@ def envelope(
 
 
 def pool(current_envelope: ConstraintEnvelope) -> ExercisePoolSnapshot:
-    records = tuple(exercise(value) for value in (A, B, C))
+    records = tuple(exercise(value) for value in (A, B, C, D))
     return ExercisePoolSnapshot.create(
         catalog_version="catalog-v3",
         constraint_envelope_hash=current_envelope.envelope_hash,
         exercises=records,
         mandatory_exercise_ids=(A,),
-        vector_ranked_exercise_ids=(B, C),
+        vector_ranked_exercise_ids=(B, C, D),
         retrieval_metadata=RetrievalMetadata(
             collection_name="exercise-catalog-v3",
             vector_index_version="vector-index-v3",
@@ -109,10 +112,12 @@ def prescription(
     *,
     sets: int = 3,
     intensity_code: str = "MODERATE",
+    phase_code: str = "MAIN",
 ) -> ExercisePrescription:
     return ExercisePrescription(
         exercise_id=exercise_id,
         sequence=sequence,
+        phase_code=phase_code,
         sets=sets,
         repetitions_per_set=10,
         rest_seconds_between_sets=30,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from datetime import UTC, datetime
-from typing import Final
+from typing import Final, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -155,10 +155,21 @@ def _pool(
     )
 
 
-def _prescription(exercise_id: UUID, sequence: int) -> ExercisePrescription:
+def _phase_for(sequence: int, total: int) -> Literal["WARMUP", "MAIN", "COOLDOWN"]:
+    """Open with preparation and close with settling, main work in between."""
+
+    if sequence == 1:
+        return "WARMUP"
+    if sequence == total:
+        return "COOLDOWN"
+    return "MAIN"
+
+
+def _prescription(exercise_id: UUID, sequence: int, total: int) -> ExercisePrescription:
     return ExercisePrescription(
         exercise_id=exercise_id,
         sequence=sequence,
+        phase_code=_phase_for(sequence, total),
         sets=3,
         repetitions_per_set=10,
         rest_seconds_between_sets=30,
@@ -176,7 +187,7 @@ def _plan(case_code: str, exercise_ids: tuple[UUID, ...]) -> V3ShadowPlanProject
         requested_duration_minutes=30,
         estimated_duration_seconds=1800,
         prescriptions=tuple(
-            _prescription(exercise_id, index)
+            _prescription(exercise_id, index, len(exercise_ids))
             for index, exercise_id in enumerate(exercise_ids, start=1)
         ),
         plan_hash=_hash(f"plan:{case_code}:{','.join(map(str, exercise_ids))}"),
