@@ -1,0 +1,133 @@
+{
+  "bundle_version": "v2-0-2-backend-bundle-2026-08-30",
+  "catalog_version_code": "exercise-catalog-v2.0.2-final",
+  "derived_set_versions": {
+    "alternative_set_version_code": "alternative-set-v2.0.2",
+    "prescription_set_version_code": "prescription-set-v2.0.2",
+    "rule_set_version_code": "safety-rule-set-v2.0.2"
+  },
+  "files": [
+    {
+      "bytes": 936620,
+      "path": "alternatives/alternatives.jsonl",
+      "records": 1150,
+      "sha256": "fdfcf9d836c7089706285c0bb9c982c6672e7927d8449d357c32094e70466267"
+    },
+    {
+      "bytes": 745,
+      "path": "alternatives/alternatives_manifest.json",
+      "sha256": "fdd439e3aee9c1170092f6f83a2165f5a0eec13369959638fa4e3e69acde7a34"
+    },
+    {
+      "bytes": 207621,
+      "path": "catalog/exercises.jsonl",
+      "records": 155,
+      "sha256": "f2ffcfd23a2b9e3318ca592ef2c5498db4b9c832d0e22f0702013523f20347d4"
+    },
+    {
+      "bytes": 11612,
+      "path": "catalog/input/representative_exercises.csv",
+      "sha256": "bdfb2443246271aebb61374c5c6fd57ecd6073ed8125cd9805ab42eb1223b8ad"
+    },
+    {
+      "bytes": 1069,
+      "path": "catalog/seed_manifest.json",
+      "sha256": "e97ab73f9450bd418c9832f608c5985cd13121a5cdb6b259b136d33112e8ad10"
+    },
+    {
+      "bytes": 38048,
+      "path": "media/media_assets.jsonl",
+      "records": 68,
+      "sha256": "eccbbb77d42aabae4a8b5caef86077a7a5f53a70ef2b84181ccb350faed08050"
+    },
+    {
+      "bytes": 894,
+      "path": "media/media_manifest.json",
+      "sha256": "0ede3cef89a5dd722e9acae42cb2d6244e0f055f98ff75e5edc4fbe6d81e04d7"
+    },
+    {
+      "bytes": 39038,
+      "path": "prescriptions/goal_tag_links.jsonl",
+      "records": 155,
+      "sha256": "e160acdd8ca90b514208e90d315e7775899f3f980f3df293b226093411822f73"
+    },
+    {
+      "bytes": 986,
+      "path": "prescriptions/prescription_manifest.json",
+      "sha256": "6bba8438a8728b75715e171872ac4d0d80750659af558230f070a64806c8d6e7"
+    },
+    {
+      "bytes": 150862,
+      "path": "prescriptions/prescription_profiles.jsonl",
+      "records": 341,
+      "sha256": "d907ecef09952f2a77776e2cfa88f8b845bc9d2ae2cdce7cc4d200f0461f21f1"
+    },
+    {
+      "bytes": 724,
+      "path": "safety/rules_manifest.json",
+      "sha256": "1d83325adf4667f8c11bf7e3217a14ecea3bc1e52b08aa6c583c83ef26761c08"
+    },
+    {
+      "bytes": 265544,
+      "path": "safety/safety_rules.jsonl",
+      "records": 563,
+      "sha256": "e579a65f891bd110738d96fdef388b93a33668fbb2b217d0eea2fb48c957fde4"
+    }
+  ],
+  "importer_paths": {
+    "alternatives": "alternatives/alternatives_manifest.json",
+    "catalog": "catalog/seed_manifest.json",
+    "media": "media/media_manifest.json",
+    "prescriptions": "prescriptions/prescription_manifest.json",
+    "safety": "safety/rules_manifest.json"
+  },
+  "production_eligible": false,
+  "projection": {
+    "carried_over_alternatives": {
+      "DIFFICULTY": 7,
+      "EQUIPMENT": 16,
+      "LOCATION": 23
+    },
+    "carried_over_source": "exercise-catalog-v2.0.1-final/runtime",
+    "excluded_exercise_count": 15,
+    "excluded_exercise_stable_codes": [
+      "band_front_raise_isolation_resistance_band",
+      "band_shrug_isolation_resistance_band",
+      "band_single_leg_calf_raise_isolation_resistance_band",
+      "cable_shrug_isolation_cable_machine",
+      "dumbbell_decline_shrug_isolation_dumbbell",
+      "dumbbell_decline_shrug_v_2_isolation_dumbbell",
+      "dumbbell_front_raise_isolation_dumbbell",
+      "dumbbell_front_raise_v_2_isolation_dumbbell",
+      "dumbbell_incline_shrug_isolation_dumbbell",
+      "dumbbell_seated_alternate_front_raise_isolation_dumbbell",
+      "dumbbell_seated_calf_raise_isolation_dumbbell",
+      "dumbbell_single_leg_calf_raise_isolation_dumbbell",
+      "lever_seated_calf_raise_isolation_machine",
+      "one_leg_floor_calf_raise_isolation_bodyweight",
+      "side_push_neck_stretch_mobility_stretch_bodyweight"
+    ],
+    "excluded_reason": "required exercise content is missing; the record and every row referencing it are withheld",
+    "source_manifest_sha256": "6f0b87c6e40e8f7f7d65c33a1c89dbeec86953e7a2dc8525bcdb41f1f4a9ba60",
+    "status": "PARTIAL",
+    "withheld_beginner_prescription_reason": "an INTERMEDIATE exercise is not offered to a BEGINNER",
+    "withheld_beginner_prescriptions": [
+      "bodyweight_reverse_crunch_core_brace_bodyweight",
+      "cable_triceps_pushdown_isolation_cable_machine",
+      "lat_pulldown_vertical_pull_cable_machine",
+      "row_variant_horizontal_pull_cable_machine",
+      "seated_cable_row_horizontal_pull_cable_machine"
+    ],
+    "withheld_media_records": 102
+  },
+  "schema_version": "1.0",
+  "status_code": "DRAFT",
+  "summary": {
+    "alternative_records": 1150,
+    "catalog_records": 155,
+    "goal_tag_records": 155,
+    "media_asset_records": 68,
+    "prescription_records": 341,
+    "safety_rule_records": 563
+  }
+}

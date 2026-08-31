@@ -32,11 +32,11 @@
     "audit/variant_relationship_review_v2_0_2.jsonl": "189672d76fc95879120064746322e03d1929c527fbce509004580974dc904bb0",
     "audit/variant_safety_fitt_mapping_v2_0_2.csv": "f892e3579dcc4addc12caccec47657d212ff0a3400c885bf106eaeb2410078d5",
     "audit/variant_safety_fitt_mapping_v2_0_2.jsonl": "6b131e7c87fbc19cb6c505ad0692327eb66b4c52e34ffe71818456fd7854c7c7",
-    "catalog/exercises.jsonl": "d3ee4a8900f2095a4cb3421c3c4c6a98add9f11a5e290ff4a6a0be32e956a057",
+    "catalog/exercises.jsonl": "2ac58d0eea24c5a92ea58c41385a0f2a1c0476c28d2cbf1dd96b7a2969c6547a",
     "media/media_assets_v2_0_2.csv": "82883896f9fc2e0d00de439f14d50b2e9691daf9ca03d576d8fc6957acb7ebe0",
     "prescriptions/goal_tag_links.jsonl": "9dab814f77cd7e53e8dc3e317d76d37c0aa4e5dc0b2f784da92bd8657cc70fdf",
-    "prescriptions/prescription_profiles.jsonl": "99260424bf350d5c1dc6c5abaf44ab315173c80907f3adf9abc9e7e5b8516503",
-    "runtime/safety_rules.jsonl": "036c871f4563135d10d718c29ab7ff276ce0cc10373524f15613585545bb9cda"
+    "prescriptions/prescription_profiles.jsonl": "e72a265b1891d704885fb8ce4486b338f1de5e562f4ca057ca003a5a68c177a1",
+    "runtime/safety_rules.jsonl": "e6a8340b6fe9febcd2570b21fab51cd5ad23fcb5bb51f3433f69cd5e03b73fb0"
   },
   "audit_artifact_count": 24,
   "batch_approval": {
@@ -143,8 +143,8 @@
       {
         "cause": "CONTENT_CHANGED",
         "path": "catalog/exercises.jsonl",
-        "previous_sha256": "121770bfe10451330be2a4ec5921fff6eb861b6dddbfe8f3c9790752705ef053",
-        "sha256": "d3ee4a8900f2095a4cb3421c3c4c6a98add9f11a5e290ff4a6a0be32e956a057"
+        "previous_sha256": "2d7cf0116062ab1e859e7f762af411d363121ad05738089aea078fce32143917",
+        "sha256": "2ac58d0eea24c5a92ea58c41385a0f2a1c0476c28d2cbf1dd96b7a2969c6547a"
       }
     ],
     "note": "Seals were recomputed from the shipped bytes. No artifact content was edited by the re-seal.",
