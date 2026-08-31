@@ -245,6 +245,151 @@ _APPROVALS = {
             ),
         },
     ),
+    # v2.0.4 is v2.0.3 plus seven compound movements. They passed domain review
+    # for v2.0.2 and were then dropped before packaging: the prune step keeps a
+    # base record only when the upstream payload marked it general_pool_included,
+    # and these were never marked. Nothing rejected them, and the prune report
+    # records deleted_record_count: 0. This closes the outstanding item the
+    # v2.0.3 prescription approval left open.
+    #
+    # Exercise records and their form cues come from the v2.0.2 canonical
+    # payload, safety rules from v2.0.1 where they were approved, and the
+    # prescriptions from a 24-row review sheet. Alternatives and media are
+    # carried over byte for byte, so their approvals restate the v2.0.3
+    # evidence rather than claiming a fresh review.
+    (
+        "CATALOG",
+        "exercise-catalog-v2.0.4-final",
+    ): DerivedDataApproval(
+        artifact_kind="CATALOG",
+        version_code="exercise-catalog-v2.0.4-final",
+        manifest_sha256="383acd10c7baa03b2cf3373e34ce24c5310cb8aed113c883b123655bec69af31",
+        record_count=162,
+        approval_record_code="V2-0-4-PROMOTION-APPROVAL-2026-09-01-R01",
+        approved_on="2026-09-01",
+        approver_role_codes=("DEVELOPMENT_LEAD", "DATA_LEAD"),
+        approval_metadata={
+            "approval_reference": "COMPOUND-PROMOTION-DOMAIN-REVIEW-2026-09-01-R01",
+            "derived_from": "exercise-catalog-v2.0.3-final",
+            "carried_over_unchanged": False,
+            "promoted_exercise_count": 7,
+            "promotion_policy": "compound-promotion-policy-2026-09-01",
+            "content_source": (
+                "data/generated/exercise-catalog-v2.0.2-final/audit/"
+                "canonical_exercises_v2_final.jsonl"
+            ),
+            "exclusion_cause": (
+                "prune_v2_0_2_user_catalog.keep_base kept only records the payload "
+                "marked general_pool_included; these seven were never marked"
+            ),
+            "note": (
+                "no exercise content was authored here: every field, including the "
+                "Korean form cues, is the value that passed v2.0.2 domain review"
+            ),
+        },
+    ),
+    (
+        "SAFETY_RULES",
+        "safety-rule-set-v2.0.4",
+    ): DerivedDataApproval(
+        artifact_kind="SAFETY_RULES",
+        version_code="safety-rule-set-v2.0.4",
+        manifest_sha256="3fc4a31cdf10238afad4da706480d996c5bb6a4f0b2bac00045f289fef2c120e",
+        record_count=595,
+        approval_record_code="V2-0-4-PROMOTION-APPROVAL-2026-09-01-R01",
+        approved_on="2026-09-01",
+        approver_role_codes=("DEVELOPMENT_LEAD", "DATA_LEAD", "DOMAIN_REVIEWER"),
+        approval_metadata={
+            "approval_reference": "COMPOUND-PROMOTION-DOMAIN-REVIEW-2026-09-01-R01",
+            "derived_from": "safety-rule-set-v2.0.3",
+            "added_rule_count": 32,
+            "added_rules_carried_from": "safety-rule-set-v2.0.1",
+            "note": (
+                "the 32 added rules are the DOMAIN_APPROVED v2.0.1 rules for the "
+                "promoted exercises, all EXERCISE scope; every promoted record "
+                "carries a substantive rule, so none can reach a user unfiltered"
+            ),
+        },
+    ),
+    (
+        "ALTERNATIVES",
+        "alternative-set-v2.0.4",
+    ): DerivedDataApproval(
+        artifact_kind="ALTERNATIVES",
+        version_code="alternative-set-v2.0.4",
+        manifest_sha256="32524fb4757459eb8a66e0767eb9aa29d03ecce42ecb355fcf04b7ccef0ed876",
+        record_count=1150,
+        approval_record_code="V2-0-4-PROMOTION-APPROVAL-2026-09-01-R01",
+        approved_on="2026-09-01",
+        approver_role_codes=("DEVELOPMENT_LEAD", "DATA_LEAD", "DOMAIN_REVIEWER"),
+        approval_metadata={
+            "approval_reference": "COMPOUND-PROMOTION-DOMAIN-REVIEW-2026-09-01-R01",
+            "derived_from": "alternative-set-v2.0.3",
+            "carried_over_unchanged": True,
+            "outstanding": (
+                "the promoted exercises have no pain alternative. v2.0.1 held 49 "
+                "relations for them, but the v2.0.2 pain review re-decided that "
+                "set and those relations did not go through it, so restoring them "
+                "is a separate safety judgement. Until then a user reporting the "
+                "relevant discomfort simply does not receive the exercise, which "
+                "is the conservative outcome"
+            ),
+        },
+    ),
+    (
+        "PRESCRIPTIONS",
+        "prescription-set-v2.0.4",
+    ): DerivedDataApproval(
+        artifact_kind="PRESCRIPTIONS",
+        version_code="prescription-set-v2.0.4",
+        manifest_sha256="262077cc43ac2185cf13ea19524ec7046cbad57c0d8c20419cde8c392f700bb6",
+        record_count=1533,
+        approval_record_code="V2-0-4-PROMOTION-APPROVAL-2026-09-01-R01",
+        approved_on="2026-09-01",
+        approver_role_codes=("DEVELOPMENT_LEAD", "DATA_LEAD", "DOMAIN_REVIEWER"),
+        approval_metadata={
+            "approval_reference": "COMPOUND-PROMOTION-DOMAIN-REVIEW-2026-09-01-R01",
+            "promotion_policy": "compound-promotion-policy-2026-09-01",
+            "added_goal_tag_count": 21,
+            "added_prescription_count": 24,
+            "approval_method_code": "OWNER_BATCH_CONFIRMATION",
+            "dosage_basis": (
+                "GENERAL_FITNESS reuses the COMPOUND_STRENGTH FITT template "
+                "(3 sets, 8-12 reps, 90s rest) that the 17 compound exercises "
+                "already in v2.0.3 use; FAT_LOSS and MUSCLE_GAIN read the "
+                "approved goal-prescription policy table unchanged"
+            ),
+            "difficulty_gate": (
+                "six of the seven are INTERMEDIATE and carry INTERMEDIATE rows "
+                "only, so a BEGINNER user cannot receive them"
+            ),
+            "outstanding": (
+                "24 rows were confirmed in one batch by the project owner, not "
+                "reviewed row by row by an external expert"
+            ),
+        },
+    ),
+    (
+        "MEDIA_ASSETS",
+        "media-set-v2.0.4",
+    ): DerivedDataApproval(
+        artifact_kind="MEDIA_ASSETS",
+        version_code="media-set-v2.0.4",
+        manifest_sha256="517fbe7c3102f5916966fc8d0375a40a5fc45a775f0bdc6b509e76395801e6b1",
+        record_count=68,
+        approval_record_code="V2-0-4-PROMOTION-APPROVAL-2026-09-01-R01",
+        approved_on="2026-09-01",
+        approver_role_codes=("DEVELOPMENT_LEAD", "DATA_LEAD"),
+        approval_metadata={
+            "approval_reference": "COMPOUND-PROMOTION-DOMAIN-REVIEW-2026-09-01-R01",
+            "derived_from": "media-set-v2.0.3",
+            "carried_over_unchanged": True,
+            "note": (
+                "the v2.0.2 media ledger holds no asset for the promoted "
+                "exercises, so they ship without a demonstration clip"
+            ),
+        },
+    ),
     # v2.0.3 is v2.0.2 plus the reviewed FAT_LOSS and MUSCLE_GAIN prescriptions.
     # Onboarding already offered those goals, so before this release picking
     # either one left the approved pool empty and routine creation failed. The

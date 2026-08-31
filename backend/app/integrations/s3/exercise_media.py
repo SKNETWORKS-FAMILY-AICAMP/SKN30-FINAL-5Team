@@ -93,10 +93,20 @@ def build_s3_exercise_media_adapter(settings: Settings) -> S3ExerciseMediaAdapte
         return None
     import boto3
 
+    # region_name alone still signs against the legacy global endpoint, and S3
+    # answers a bucket outside us-east-1 with a TemporaryRedirect. Following it
+    # then fails as SignatureDoesNotMatch because the signature was computed for
+    # the global host, so every presigned URL was unusable. Sign against the
+    # regional endpoint directly.
+    region = settings.exercise_media_s3_region
     try:
         client = cast(
             S3Client,
-            boto3.client("s3", region_name=settings.exercise_media_s3_region),
+            boto3.client(
+                "s3",
+                region_name=region,
+                endpoint_url=f"https://s3.{region}.amazonaws.com",
+            ),
         )
     except (BotoCoreError, OSError):
         logger.warning("exercise_media_s3_client_unavailable")

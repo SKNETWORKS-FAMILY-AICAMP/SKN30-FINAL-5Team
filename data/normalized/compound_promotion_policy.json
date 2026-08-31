@@ -1,0 +1,114 @@
+{
+  "schema_version": "1.0",
+  "policy_version": "compound-promotion-policy-2026-09-01",
+  "status": "REVIEWED",
+  "production_eligible": true,
+  "prescription_version": "v2.0.4-compound-promotion-draft",
+  "purpose_ko": "v2.0.2 프루닝에서 일반 풀 밖으로 밀려난 복합 관절 운동 7종을 되돌린다. v2.0.3 승인 기록이 남긴 미해결 항목(\"MUSCLE_GAIN CORE가 7종뿐이라 카탈로그에 복합 운동이 늘기 전까지 다양성이 얇다\")을 닫는 것이 목적이다.",
+  "exclusion_cause": {
+    "script": "data/scripts/prune_v2_0_2_user_catalog.py",
+    "function": "keep_base",
+    "explanation_ko": "keep_base()는 general_pool_included가 참이거나 스트레칭이거나 지정 이름 조각에 맞는 기록만 남긴다. 이 7종은 상위 산출물에서 general_pool_included가 참으로 표시되지 않아 세 조건 어디에도 걸리지 않고 조용히 빠졌다. 내용 결함이나 검수 반려가 아니다.",
+    "evidence": "data/generated/exercise-catalog-v2.0.2-final/audit/integrity/user_catalog_prune_report_v2_0_2.json 은 deleted_record_count=0 을 기록한다. 삭제가 아니라 유지 조건 미충족이었다."
+  },
+  "scope": {
+    "source_catalog_version_code": "exercise-catalog-v2.0.3-final",
+    "target_catalog_version_code": "exercise-catalog-v2.0.4-final",
+    "goal_codes": [
+      "GENERAL_FITNESS",
+      "FAT_LOSS",
+      "MUSCLE_GAIN"
+    ],
+    "experience_level_codes": [
+      "BEGINNER",
+      "INTERMEDIATE"
+    ],
+    "exercise_stable_codes": [
+      "bodyweight_pull_up_biceps_vertical_pull_bodyweight_pull_up_bar",
+      "bodyweight_split_squat_knee_dominant_bodyweight",
+      "kettlebell_swing_hip_dominant_kettlebell",
+      "leg_press_knee_dominant_machine",
+      "scapular_pull_up_vertical_pull_bodyweight_pull_up_bar",
+      "seated_shoulder_press_vertical_push_dumbbell",
+      "squat_variant_knee_dominant_barbell"
+    ]
+  },
+  "carried_evidence": {
+    "exercise_records": {
+      "source": "data/generated/exercise-catalog-v2.0.2-final/audit/canonical_exercises_v2_final.jsonl",
+      "review_status_code": "DOMAIN_APPROVED",
+      "canonical_status": "ACTIVE_CANONICAL_RETAINED",
+      "note_ko": "7종 모두 form_cues_ko 4개, default_rest_seconds, default_transition_seconds, instruction_summary_ko 를 갖춰 backend ExerciseRecord 계약을 그대로 만족한다."
+    },
+    "safety_rules": {
+      "source": "data/generated/exercise-catalog-v2.0.1-final/backend_bundle/safety/safety_rules.jsonl",
+      "review_status_code": "DOMAIN_APPROVED",
+      "rule_scope": "EXERCISE",
+      "note_ko": "32개 규칙 전부 실질 규칙이며 자리표시자가 아니다. 안전 커버리지 계약을 충족한다."
+    },
+    "alternatives": {
+      "decision": "NOT_CARRIED",
+      "reason_ko": "v2.0.1 대체관계는 v2.0.2 통증 대체 검수에서 재검토됐다. 그 검수를 거치지 않은 관계를 되살리는 것은 별도 안전 판단이므로 이번 승격 범위 밖이다. 대체가 없으면 해당 통증 사용자에게는 이 운동이 제외될 뿐이며 이는 안전한 기본값이다."
+    },
+    "media": {
+      "decision": "NOT_AVAILABLE",
+      "reason_ko": "v2.0.2 미디어 원장에 이 7종의 자산이 없다. 미디어는 선택 항목이다."
+    }
+  },
+  "dosage_basis": {
+    "GENERAL_FITNESS": {
+      "source": "data/normalized/fitt_template_v1.csv",
+      "template_ids": [
+        "FITT-COMPOUND-SQUAT-V1",
+        "FITT-COMPOUND-HINGE-V1",
+        "FITT-COMPOUND-PUSH-V1",
+        "FITT-COMPOUND-PULL-V1"
+      ],
+      "note_ko": "COMPOUND_STRENGTH 템플릿은 3세트·8~12회·90초 휴식·MODERATE 이다. v2.0.3에 이미 실려 있는 복합 운동 17종이 INTERMEDIATE에서 (3, 10, 90, MODERATE), BEGINNER에서 (2, 10, 90, MODERATE) 를 쓰고 있어 같은 값을 적용한다.",
+      "REPS": {
+        "BEGINNER": {
+          "phase_code": "MAIN",
+          "sets": 2,
+          "reps": 10,
+          "rest_seconds_per_set": 90,
+          "intensity_code": "MODERATE"
+        },
+        "INTERMEDIATE": {
+          "phase_code": "MAIN",
+          "sets": 3,
+          "reps": 10,
+          "rest_seconds_per_set": 90,
+          "intensity_code": "MODERATE"
+        }
+      }
+    },
+    "FAT_LOSS": {
+      "source": "data/normalized/goal_prescription_review_policy.json",
+      "policy_version": "goal-prescription-review-policy-2026-08-31",
+      "note_ko": "이미 DOMAIN_APPROVED 된 목표 확장 정책의 prescription_by_goal_timing_mode 표를 그대로 읽는다. 새 판단이 아니다."
+    },
+    "MUSCLE_GAIN": {
+      "source": "data/normalized/goal_prescription_review_policy.json",
+      "policy_version": "goal-prescription-review-policy-2026-08-31",
+      "note_ko": "이미 DOMAIN_APPROVED 된 목표 확장 정책의 prescription_by_goal_timing_mode 표를 그대로 읽는다. 새 판단이 아니다."
+    }
+  },
+  "role_eligibility_basis": {
+    "GENERAL_FITNESS": "data/normalized/v2_prescription_review_policy.json#role_eligibility_by_movement_pattern",
+    "FAT_LOSS": "data/normalized/goal_prescription_review_policy.json#role_eligibility_by_movement_pattern.FAT_LOSS",
+    "MUSCLE_GAIN": "data/normalized/goal_prescription_review_policy.json#role_eligibility_by_movement_pattern.MUSCLE_GAIN",
+    "note_ko": "세 정책 모두 KNEE_DOMINANT·HIP_DOMINANT·VERTICAL_PULL·VERTICAL_PUSH 를 CORE 로 둔다. 7종은 세 목표 모두에서 CORE 다."
+  },
+  "guards": {
+    "no_self_approval": "이 정책을 읽는 생성기는 review_status_code 를 비워 둔다. 검수자가 결과 CSV에 직접 채운다.",
+    "difficulty_gate": "backend.app.domain.rules.training_level 의 난이도 상한을 그대로 따른다. BEGINNER 사용자에게는 BEGINNER 운동만 나가므로 INTERMEDIATE 운동 6종은 INTERMEDIATE 행만 만든다.",
+    "no_new_content": "이 승격은 form cue, 안전 규칙, 대체관계를 새로 만들지 않는다. 이미 검수된 값만 옮긴다.",
+    "immutable_versions": "v2.0.3 은 그대로 둔다. 승격 결과는 새 카탈로그 버전 v2.0.4 로만 발행한다."
+  },
+  "review_status_code": "DOMAIN_APPROVED",
+  "reviewer_role_code": "DOMAIN_REVIEWER",
+  "reviewer_reference": "COMPOUND-PROMOTION-DOMAIN-REVIEW-2026-09-01-R01",
+  "evidence_reference": "COMPOUND-PROMOTION-POLICY-V1;OWNER-BATCH-CONFIRMATION-20260901",
+  "reviewed_at": "2026-09-01T15:00:00+09:00",
+  "approval_method_code": "OWNER_BATCH_CONFIRMATION"
+}

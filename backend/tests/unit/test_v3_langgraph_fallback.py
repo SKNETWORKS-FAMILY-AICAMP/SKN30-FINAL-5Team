@@ -5,7 +5,13 @@ from backend.app.domain.rules.safety import SafetyRequiredActionCode
 from backend.app.integrations.langgraph.graph import V3LangGraphRuntime, create_v3_graph
 from backend.tests.unit.test_v3_agent_contracts import envelope, pool
 from backend.tests.unit.test_v3_coordinator_contracts import coordinator_input, plan
-from backend.tests.unit.v3_langgraph_test_support import Coordinator, Fallback, graph_input
+from backend.tests.unit.v3_langgraph_test_support import (
+    Coordinator,
+    Fallback,
+    Validation,
+    Validator,
+    graph_input,
+)
 
 
 def test_coordinator_timeout_uses_validated_deterministic_fallback() -> None:
@@ -85,3 +91,26 @@ def test_third_regeneration_is_rejected_before_llm_calls() -> None:
 
     assert result.status_code == "REGENERATION_LIMIT_REACHED"
     assert all(port.propose_calls == 0 for port in current_input.specialists.values())
+
+
+def test_failed_integrity_validation_is_named_in_the_terminal_result() -> None:
+    # A terminal FAILED used to carry no failure code at all when validation
+    # was what refused the plan, so the decision record said only that the run
+    # failed. That is not reproducible from stored inputs, and it is what made
+    # an equipment gate in the validator look like a coordinator problem.
+    validator = Validator([Validation(False, violation_codes=("EQUIPMENT_NOT_AVAILABLE",))])
+    current_input = graph_input(validator=validator, fallback=Fallback(None))
+
+    result = asyncio.run(V3LangGraphRuntime(create_v3_graph()).ainvoke(current_input))
+
+    assert result.status_code == "FAILED"
+    assert result.failure_codes == ("V3_INTEGRITY_EQUIPMENT_NOT_AVAILABLE",)
+
+
+def test_a_fallback_that_produces_no_plan_says_so() -> None:
+    current_input = graph_input(coordinator=Coordinator(timeout=True), fallback=Fallback(None))
+
+    result = asyncio.run(V3LangGraphRuntime(create_v3_graph()).ainvoke(current_input))
+
+    assert result.status_code == "FAILED"
+    assert "V3_COORDINATOR_TIMEOUT" in result.failure_codes

@@ -325,6 +325,12 @@ class ExercisePoolExerciseRecord(BaseModel):
     default_transition_seconds: int = Field(ge=10, le=20)
     recovery_eligible: bool
     goal_codes: tuple[str, ...]
+    # The reviewed phases this exercise is approved for and the role it plays in
+    # the goal. Both already reach this layer from the catalog; dropping them
+    # left the plan with no way to build a warmup/main/cooldown shape or to tell
+    # goal-driving work from support work, so every plan came out flat.
+    phase_codes: tuple[str, ...] = ()
+    role_eligibility_code: str | None = None
     equipment_codes: tuple[str, ...]
     location_codes: tuple[str, ...]
     prescription_reference_codes: tuple[str, ...]

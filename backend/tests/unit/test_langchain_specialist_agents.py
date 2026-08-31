@@ -12,7 +12,11 @@ from backend.app.domain.agents.v3_contracts import (
     SpecialistAgentProposal,
     SpecialistAgentTypeCode,
 )
-from backend.app.integrations.llm_agents.models import LlmAgentFailureCode
+from backend.app.integrations.llm_agents.models import (
+    LlmAgentFailureCode,
+    LlmAgentRoleCode,
+)
+from backend.app.integrations.llm_agents.prompts import ROLE_PROMPTS
 from backend.app.integrations.llm_agents.provider import (
     StructuredChatInvoker,
     build_structured_chat_invoker,
@@ -90,7 +94,10 @@ def test_each_specialist_uses_actual_structured_contract_and_versioned_role_prom
     assert result.succeeded
     assert result.output == expected
     assert result.output.schema_version == SPECIALIST_AGENT_PROPOSAL_SCHEMA_VERSION
-    assert adapter.prompt_version == f"v3-{agent_type.value.lower()}-prompt-v3"
+    # Read the registered version rather than a literal pattern: prompts are
+    # versioned independently, and pinning the shape here only asserts that they
+    # were all bumped together.
+    assert adapter.prompt_version == ROLE_PROMPTS[LlmAgentRoleCode(agent_type.value)].version
     assert adapter.output_schema_version == SPECIALIST_AGENT_PROPOSAL_SCHEMA_VERSION
     assert model.bound_tool_names == [("SpecialistAgentProposal",)]
     assert model.invocation_count == 1

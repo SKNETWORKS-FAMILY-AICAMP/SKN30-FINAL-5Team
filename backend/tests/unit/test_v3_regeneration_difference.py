@@ -4,7 +4,15 @@ from backend.app.domain.agents.v3_orchestration import (
     RegenerationDifferenceCode,
     evaluate_regeneration_difference,
 )
-from backend.tests.unit.test_v3_agent_contracts import A, B, envelope, pool, prescription
+from backend.tests.unit.test_v3_agent_contracts import (
+    A,
+    B,
+    C,
+    D,
+    envelope,
+    pool,
+    prescription,
+)
 from backend.tests.unit.test_v3_coordinator_contracts import coordinator_input, plan
 
 COMPILER_VERSION = "v3-plan-compiler-v1"
@@ -53,14 +61,22 @@ def test_exercise_sequence_and_set_rep_changes_are_meaningful() -> None:
     reordered = compile_source(
         plan(
             current_input,
-            plan_prescriptions=(prescription(B, 1), prescription(A, 2)),
+            plan_prescriptions=(
+                prescription(B, 1, phase_code="WARMUP"),
+                prescription(A, 2),
+                prescription(D, 3, phase_code="COOLDOWN"),
+            ),
         ),
         current_input,
     )
     adjusted = compile_source(
         plan(
             current_input,
-            plan_prescriptions=(prescription(A, 1, sets=2), prescription(B, 2)),
+            plan_prescriptions=(
+                prescription(A, 1, sets=2, phase_code="WARMUP"),
+                prescription(B, 2),
+                prescription(D, 3, phase_code="COOLDOWN"),
+            ),
         ),
         current_input,
     )
@@ -85,7 +101,17 @@ def test_core_exercise_or_composition_change_is_meaningful() -> None:
     source = plan(current_input)
     previous = compile_source(source, current_input)
     exercise_changed = compile_source(
-        plan(current_input, plan_prescriptions=(prescription(A, 1),)), current_input
+        plan(
+            current_input,
+            plan_prescriptions=(
+                prescription(A, 1, phase_code="WARMUP"),
+                # C replaces B as the main work; the shape is unchanged so the
+                # difference the test asserts is the exercise itself.
+                prescription(C, 2),
+                prescription(D, 3, phase_code="COOLDOWN"),
+            ),
+        ),
+        current_input,
     )
     composition_changed = compile_source(
         replace_plan(source, action_code=PlanActionCode.CHANGE), current_input
@@ -113,8 +139,11 @@ def test_time_only_change_is_not_meaningful_without_an_approved_threshold() -> N
         plan(
             current_input,
             plan_prescriptions=(
-                prescription(A, 1).model_copy(update={"transition_seconds": 16}),
+                prescription(A, 1, phase_code="WARMUP").model_copy(
+                    update={"transition_seconds": 16}
+                ),
                 prescription(B, 2),
+                prescription(D, 3, phase_code="COOLDOWN"),
             ),
         ),
         current_input,

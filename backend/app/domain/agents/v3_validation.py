@@ -252,9 +252,15 @@ def validate_plan_integrity(
                 or prescription.location_code not in canonical.location_codes
             ):
                 codes.add(IntegrityViolationCode.LOCATION_NOT_ALLOWED)
-            if not set(prescription.equipment_codes).issubset(
-                envelope.allowed_equipment_codes
-            ) or not set(prescription.equipment_codes).issubset(canonical.equipment_codes):
+            # Equipment is not a gate. The 2026-08-27 approval dropped it from
+            # onboarding, so a user has no UserEquipment rows and the envelope
+            # allowlist is empty by design. Comparing against it rejected every
+            # plan that named any equipment at all, BODYWEIGHT included, which
+            # failed the whole graph after all three agents had answered.
+            #
+            # The catalog link below is the part that has to hold: a plan may
+            # not claim equipment the reviewed record does not list.
+            if not set(prescription.equipment_codes).issubset(canonical.equipment_codes):
                 codes.add(IntegrityViolationCode.EQUIPMENT_NOT_AVAILABLE)
         if _recovery_exceeded(compiled_plan, envelope):
             codes.add(IntegrityViolationCode.RECOVERY_CEILING_EXCEEDED)

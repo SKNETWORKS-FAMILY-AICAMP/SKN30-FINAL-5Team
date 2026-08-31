@@ -128,3 +128,34 @@ def test_fallback_declines_when_the_pool_cannot_reach_the_requested_duration() -
     )
 
     assert provider.generate(request) is None
+
+
+def test_fallback_builds_a_plan_when_the_equipment_allowlist_is_empty() -> None:
+    # The production shape. Onboarding stopped collecting equipment on
+    # 2026-08-27, so the envelope allowlist is empty and intersecting a
+    # record's equipment with it produced nothing -- which made _prescribe
+    # decline every record that names any equipment, BODYWEIGHT included.
+    # The deterministic fallback then had nothing to build from, and because
+    # a fallback that returns no plan routes straight to terminal, the graph
+    # ended FAILED with no reason code at all.
+    envelope = duration_envelope(requested_duration_minutes=30, allowed_equipment_codes=())
+    records = tuple(reps_record(UUID(int=index)) for index in range(1, 11))
+    pool = duration_pool(envelope, records)
+    provider = DeterministicGraphFallbackProvider()
+
+    spec = provider.generate(
+        FallbackRequest.create(
+            constraint_envelope=envelope,
+            exercise_pool=pool,
+            fallback_version="v3-deterministic-fallback-v1",
+        )
+    )
+
+    assert spec is not None
+    assert spec.exercise_prescriptions
+    # The catalog's own equipment is carried through, so the integrity
+    # validator can still check the prescription against the reviewed record.
+    by_id = {item.exercise_id: item for item in records}
+    for prescription in spec.exercise_prescriptions:
+        record = by_id[prescription.exercise_id]
+        assert set(prescription.equipment_codes) == set(record.equipment_codes)

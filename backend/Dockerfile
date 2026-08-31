@@ -19,8 +19,14 @@ COPY pyproject.toml uv.lock .python-version ./
 RUN uv sync --frozen --no-dev --no-install-project
 
 COPY backend ./backend
+# A promotion command can only import a bundle that is inside the image.
+# Leaving the current release out turns the import into a hand-mounted step
+# that no build reproduces. v2.0.1 stays because the deployment README still
+# documents its promotion path.
 COPY data/generated/exercise-catalog-v2.0.1-final/backend_bundle \
     ./data/generated/exercise-catalog-v2.0.1-final/backend_bundle
+COPY data/generated/exercise-catalog-v2.0.4-final/backend_bundle \
+    ./data/generated/exercise-catalog-v2.0.4-final/backend_bundle
 
 RUN chown -R app:app /app
 

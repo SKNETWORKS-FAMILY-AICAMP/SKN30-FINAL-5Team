@@ -121,11 +121,13 @@ class DeterministicGraphFallbackProvider:
         )
         if location is None:
             return None
-        equipment = tuple(
-            code for code in record.equipment_codes if code in set(envelope.allowed_equipment_codes)
-        )
-        if set(record.equipment_codes) and not equipment:
-            return None
+        # Equipment is not a gate. The 2026-08-27 approval dropped it from
+        # onboarding, so the envelope allowlist is empty by design; intersecting
+        # with it discarded every record that names any equipment, BODYWEIGHT
+        # included, and the deterministic fallback then had nothing to build
+        # from. The prescription carries the reviewed record's own equipment so
+        # the integrity validator can still check it against the catalog.
+        equipment = tuple(record.equipment_codes)
 
         ceiling = envelope.recovery_ceiling
         intensity = ceiling.allowed_intensity_codes[0] if ceiling.allowed_intensity_codes else "LOW"

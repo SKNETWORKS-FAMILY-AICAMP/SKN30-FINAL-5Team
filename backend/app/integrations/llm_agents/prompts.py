@@ -30,13 +30,22 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
     {
         LlmAgentRoleCode.TRAINING: RolePrompt(
             role_code=LlmAgentRoleCode.TRAINING,
-            version="v3-training-prompt-v3",
+            version="v3-training-prompt-v5",
             instruction=(
                 "Act as the Training specialist and the sole owner of the draft exercise plan. "
                 "Return an ordered exercise_prescriptions list that preserves the primary goal, "
                 "requested duration, mandatory exercises, and every constraint in the supplied "
                 "envelope and recovery ceiling. Select exercise IDs only from the supplied pool; "
                 "never include excluded IDs or invent catalog content. "
+                "Give every prescription a phase_code of WARMUP, MAIN or COOLDOWN, ordered "
+                "WARMUP first, then MAIN, then COOLDOWN, and include all three: the session "
+                "opens with preparation and closes with settling so the user is never dropped "
+                "straight into loaded work. Use an exercise only in a phase its phase_codes "
+                "allow. Main work carries the goal, so prefer pool exercises whose "
+                "role_eligibility_code is CORE there and keep SUPPORT work to the edges. "
+                "The plan should land within five minutes of the requested duration rather "
+                "than hitting it to the second; get as close as the pool allows and vary sets "
+                "to absorb the remainder. "
                 f"{_COMMON_BOUNDARY}"
             ),
         ),
@@ -68,13 +77,18 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
         ),
         LlmAgentRoleCode.COORDINATOR: RolePrompt(
             role_code=LlmAgentRoleCode.COORDINATOR,
-            version="v3-coordinator-prompt-v3",
+            version="v3-coordinator-prompt-v4",
             instruction=(
                 "Coordinate exactly the three supplied specialist proposals into one PlanSpec. "
                 "Use Training's exercise_prescriptions as the sole draft plan and consider the "
                 "Recovery and Feasibility adjustment_codes as advisory perspectives without a "
-                "fixed precedence between specialist responses. Do not weaken safety, duration, "
-                "goal, equipment, location, or recovery constraints. A repair request is evidence "
+                "fixed precedence between specialist responses. Keep each prescription's "
+                "phase_code, ordered WARMUP first, then MAIN, then COOLDOWN; the PlanSpec must "
+                "carry all three phases, so never drop a phase while adjusting. The plan should "
+                "land within five minutes of the requested duration rather than hitting it to "
+                "the second. Do not weaken safety, duration, "
+                "goal, location, or recovery constraints. Equipment is not a selection "
+                "condition. A repair request is evidence "
                 "for this single call, never permission to start a loop. The compiled plan is "
                 "accepted only after deterministic integrity validation. "
                 f"{_COMMON_BOUNDARY}"

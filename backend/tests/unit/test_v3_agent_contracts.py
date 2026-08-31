@@ -27,6 +27,9 @@ from backend.app.domain.agents.v3_contracts import (
 A = UUID("00000000-0000-0000-0000-000000000001")
 B = UUID("00000000-0000-0000-0000-000000000002")
 C = UUID("00000000-0000-0000-0000-000000000003")
+# A fourth pool member so a plan can close with a cooldown without occupying an
+# id that exclusion tests need free.
+D = UUID("00000000-0000-0000-0000-000000000004")
 OUTSIDE = UUID("00000000-0000-0000-0000-000000000099")
 QUERY_HASH = "b" * 64
 
@@ -59,12 +62,17 @@ def envelope(
     *,
     excluded_ids: tuple[UUID, ...] = (),
     mandatory_ids: tuple[UUID, ...] = (A,),
+    # Production sends an empty tuple: the 2026-08-27 approval dropped
+    # equipment from onboarding, so a real user has no UserEquipment rows.
+    # The default here stays non-empty for the older cases, but every gate
+    # that reads it has to be exercised with () as well.
+    allowed_equipment_codes: tuple[str, ...] = ("BODYWEIGHT",),
 ) -> ConstraintEnvelope:
     return ConstraintEnvelope.create(
         requested_duration_minutes=6,
         primary_goal_code="GENERAL_FITNESS",
         allowed_location_codes=("HOME",),
-        allowed_equipment_codes=("BODYWEIGHT",),
+        allowed_equipment_codes=allowed_equipment_codes,
         excluded_exercise_ids=excluded_ids,
         mandatory_exercise_ids=mandatory_ids,
         recovery_ceiling=RecoveryCeiling(
@@ -84,13 +92,13 @@ def envelope(
 
 
 def pool(current_envelope: ConstraintEnvelope) -> ExercisePoolSnapshot:
-    records = tuple(exercise(value) for value in (A, B, C))
+    records = tuple(exercise(value) for value in (A, B, C, D))
     return ExercisePoolSnapshot.create(
         catalog_version="catalog-v3",
         constraint_envelope_hash=current_envelope.envelope_hash,
         exercises=records,
         mandatory_exercise_ids=(A,),
-        vector_ranked_exercise_ids=(B, C),
+        vector_ranked_exercise_ids=(B, C, D),
         retrieval_metadata=RetrievalMetadata(
             collection_name="exercise-catalog-v3",
             vector_index_version="vector-index-v3",
@@ -109,10 +117,12 @@ def prescription(
     *,
     sets: int = 3,
     intensity_code: str = "MODERATE",
+    phase_code: str = "MAIN",
 ) -> ExercisePrescription:
     return ExercisePrescription(
         exercise_id=exercise_id,
         sequence=sequence,
+        phase_code=phase_code,
         sets=sets,
         repetitions_per_set=10,
         rest_seconds_between_sets=30,

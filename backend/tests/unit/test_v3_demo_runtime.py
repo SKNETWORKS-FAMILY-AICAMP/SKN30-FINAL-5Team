@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+from typing import Literal
 from uuid import uuid4
 
 import pytest
@@ -10,6 +11,7 @@ from pydantic import SecretStr
 
 from backend.app.core.config import Settings
 from backend.app.domain.agents.retrieval import (
+    ExercisePoolExerciseRecord,
     ExercisePoolSnapshot,
     ExerciseRetrievalRequest,
 )
@@ -36,7 +38,7 @@ from backend.tests.unit.llm_agent_test_support import (
     ToolCallingFakeChatModel,
     tool_response,
 )
-from backend.tests.unit.test_v3_agent_contracts import A, B, prescription, proposal
+from backend.tests.unit.test_v3_agent_contracts import A, B, D, prescription, proposal
 from backend.tests.unit.test_v3_coordinator_contracts import coordinator_input, plan, proposals
 from backend.tests.unit.test_v3_persistence_service import make_bundle
 
@@ -82,10 +84,29 @@ def _successful_model(root_snapshot, *, coordinator_plan=None) -> ToolCallingFak
                 tool_response(PlanSpec, expected_plan, 4),
             ]
         )
+    phase_codes: tuple[Literal["WARMUP", "MAIN", "COOLDOWN"], ...] = (
+        "WARMUP",
+        "MAIN",
+        "COOLDOWN",
+    )
+    selected_records: list[
+        tuple[ExercisePoolExerciseRecord, Literal["WARMUP", "MAIN", "COOLDOWN"]]
+    ] = []
+    selected_ids = set()
+    for phase_code in phase_codes:
+        record = next(
+            item
+            for item in pool.exercises
+            if phase_code in item.phase_codes and item.exercise_id not in selected_ids
+        )
+        selected_records.append((record, phase_code))
+        selected_ids.add(record.exercise_id)
+
     prescriptions = tuple(
         ExercisePrescription(
             exercise_id=record.exercise_id,
             sequence=index,
+            phase_code=phase_code,
             sets=min(envelope.recovery_ceiling.maximum_sets_per_exercise or 1, 3),
             repetitions_per_set=(
                 min(envelope.recovery_ceiling.maximum_repetitions_per_set or 1, 10)
@@ -108,7 +129,7 @@ def _successful_model(root_snapshot, *, coordinator_plan=None) -> ToolCallingFak
             ),
             equipment_codes=record.equipment_codes,
         )
-        for index, record in enumerate(pool.exercises[:2], start=1)
+        for index, (record, phase_code) in enumerate(selected_records, start=1)
     )
     specialist_proposals = tuple(
         proposal(
@@ -335,7 +356,11 @@ def test_regeneration_uses_stored_root_and_requires_meaningful_sequence_change()
     )
     alternative = plan(
         current_input,
-        plan_prescriptions=(prescription(B, 1), prescription(A, 2)),
+        plan_prescriptions=(
+            prescription(B, 1, phase_code="WARMUP"),
+            prescription(A, 2),
+            prescription(D, 3, phase_code="COOLDOWN"),
+        ),
     )
     parent_id = uuid4()
     runtime = build_v3_demo_runtime(
@@ -368,4 +393,4 @@ def test_regeneration_uses_stored_root_and_requires_meaningful_sequence_change()
     assert bundle.root_decision_execution_id == source.root_decision_execution_id
     assert bundle.parent_decision_execution_id == parent_id
     assert bundle.final_plan is not None
-    assert tuple(item.prescription.exercise_id for item in bundle.final_plan.exercises) == (B, A)
+    assert tuple(item.prescription.exercise_id for item in bundle.final_plan.exercises) == (B, A, D)

@@ -191,6 +191,8 @@ class SqlAlchemyV3CreationRepository:
                         default_transition_seconds=item.default_transition_seconds,
                         recovery_eligible=item.recovery_eligible,
                         goal_codes=tuple(sorted(item.goal_codes)),
+                        phase_codes=tuple(sorted(item.phase_codes)),
+                        role_eligibility_code=item.role_eligibility_code,
                         equipment_codes=tuple(sorted(item.equipment_codes)),
                         location_codes=tuple(sorted(item.location_codes)),
                         prescription_reference_codes=(
@@ -440,7 +442,12 @@ class PostgreSQLV3ExercisePoolSource(PostgreSQLExercisePoolSourcePort):
                 exercise_difficulty_code=item.difficulty_code,
                 user_experience_level_code=experience_level_code,
             )
-            and set(item.equipment_codes).issubset(envelope.allowed_equipment_codes)
+            # Equipment is not a gate. The 2026-08-27 approval removed the
+            # issubset filter because it required the user to own every piece a
+            # movement lists, and the variant lookup is what tells them how to
+            # work around missing kit. Routine creation dropped it then; this
+            # path kept it, so a bodyweight-only profile saw a pool that was
+            # 85 stretches to 35 strength movements.
             and bool(set(item.location_codes) & set(envelope.allowed_location_codes))
         )
         goal_matched = tuple(
@@ -577,7 +584,11 @@ class V3DecisionResponseProjector:
                         prescription.exercise_id, compiled.catalog_record.stable_code
                     ),
                     sequence=prescription.sequence,
-                    tier_code=compiled.catalog_record.difficulty_code,
+                    phase_code=prescription.phase_code,
+                    # The reviewed role in the goal, not the difficulty. Storing
+                    # difficulty here made every item read as BEGINNER and lost
+                    # the goal-driving/support distinction the plan is built on.
+                    tier_code=(compiled.catalog_record.role_eligibility_code or "SUPPORT"),
                     sets=prescription.sets,
                     reps=prescription.repetitions_per_set,
                     work_seconds=work,
@@ -788,7 +799,7 @@ def _persist_public_decision(
                     plan_candidate_id=candidate.id,
                     exercise_id=item.exercise_id,
                     sequence=item.sequence,
-                    phase_code="MAIN",
+                    phase_code=item.phase_code,
                     tier_code=item.tier_code,
                     sets=item.sets,
                     reps=item.reps,

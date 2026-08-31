@@ -29,6 +29,35 @@ def _append_failure(state: V3GraphState, code: str) -> tuple[str, ...]:
     return tuple(sorted({*state.get("failure_codes", ()), code}))
 
 
+def _terminal_failure_codes(state: V3GraphState) -> tuple[str, ...]:
+    """Never end FAILED without saying why.
+
+    Three routes reach ``terminal`` with no failure code: a failed integrity
+    validation, a fallback that produced no plan, and finalize's own guard.
+    All three used to surface as a bare ``V3_FAILED``, which named the outcome
+    and nothing else, so a run could not be explained from what was stored --
+    the reproducibility the decision record exists to provide.
+
+    Integrity violations are the answer whenever validation ran, so they are
+    reported under their own codes rather than collapsed into one.
+    """
+    codes = state.get("failure_codes", ())
+    if codes:
+        return tuple(codes)
+    violations = tuple(
+        f"V3_INTEGRITY_{code}"
+        for validation in state.get("integrity_validations", ())
+        for code in validation.violation_codes
+    )
+    if violations:
+        return tuple(sorted(set(violations)))
+    if state.get("used_fallback") and state.get("fallback_plan_spec") is None:
+        return ("V3_FALLBACK_PLAN_UNAVAILABLE",)
+    if state.get("compiled_plan") is None:
+        return ("V3_COMPILED_PLAN_MISSING",)
+    return ()
+
+
 def _invocation_audit(
     *,
     role_code: str,
@@ -445,7 +474,7 @@ def terminal(state: V3GraphState) -> dict[str, object]:
         graph_version=graph_input.graph_version,
         plan_spec=None,
         compiled_plan=None,
-        failure_codes=state.get("failure_codes", ()),
+        failure_codes=_terminal_failure_codes(state),
         used_fallback=state.get("used_fallback", False),
         repair_attempts=state.get("repair_attempts", 0),
         round_one_proposals=state.get("round_one_proposals", ()),

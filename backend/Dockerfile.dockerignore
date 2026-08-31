@@ -6,9 +6,12 @@
 !backend/**
 !data/
 !data/generated/
-!data/generated/exercise-catalog-v2.0.0-final/
-!data/generated/exercise-catalog-v2.0.0-final/backend_bundle/
-!data/generated/exercise-catalog-v2.0.0-final/backend_bundle/**
+!data/generated/exercise-catalog-v2.0.1-final/
+!data/generated/exercise-catalog-v2.0.1-final/backend_bundle/
+!data/generated/exercise-catalog-v2.0.1-final/backend_bundle/**
+!data/generated/exercise-catalog-v2.0.4-final/
+!data/generated/exercise-catalog-v2.0.4-final/backend_bundle/
+!data/generated/exercise-catalog-v2.0.4-final/backend_bundle/**
 
 **/.env
 **/.env.*

@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validat
 from pydantic_core import to_jsonable_python
 
 from backend.app.domain.agents.retrieval import ExercisePoolExerciseRecord, ExercisePoolSnapshot
+from backend.app.domain.rules.duration import DURATION_TOLERANCE_SECONDS
 from backend.app.domain.rules.safety import SafetyRequiredActionCode
 
 CONSTRAINT_ENVELOPE_SCHEMA_VERSION: Final[Literal["constraint-envelope-v3"]] = (
@@ -251,6 +252,9 @@ class ExercisePrescription(BaseModel):
 
     exercise_id: UUID
     sequence: int = Field(gt=0)
+    # Which part of the session this belongs to. Without it every prescription
+    # was persisted as MAIN and a plan had no warmup or cooldown at all.
+    phase_code: Literal["WARMUP", "MAIN", "COOLDOWN"] = "MAIN"
     sets: int = Field(gt=0)
     repetitions_per_set: int | None = Field(default=None, gt=0)
     work_seconds_per_set: int | None = Field(default=None, gt=0)
@@ -285,12 +289,21 @@ class ExercisePrescription(BaseModel):
         return self
 
 
+_PHASE_ORDER: Final[tuple[str, ...]] = ("WARMUP", "MAIN", "COOLDOWN")
+
+
 def _validate_prescription_order(values: tuple[ExercisePrescription, ...]) -> None:
     ids = tuple(value.exercise_id for value in values)
     if len(ids) != len(set(ids)):
         raise ValueError("exercise prescriptions must not contain duplicate exercise IDs")
     if tuple(value.sequence for value in values) != tuple(range(1, len(values) + 1)):
         raise ValueError("exercise prescriptions must use contiguous canonical sequence")
+    # Preparation comes first and settling comes last. Ordering holds for any
+    # prescription list, including a single agent's partial proposal; covering
+    # all three phases is required of the compiled plan, not of each proposal.
+    ranks = [_PHASE_ORDER.index(value.phase_code) for value in values]
+    if ranks != sorted(ranks):
+        raise ValueError("exercise prescriptions must run WARMUP then MAIN then COOLDOWN")
 
 
 def _pool_records(pool: ExercisePoolSnapshot) -> dict[UUID, ExercisePoolExerciseRecord]:
@@ -316,8 +329,11 @@ def _validate_prescription_constraints(
             raise ValueError("exercise prescription uses a disallowed location")
         if item.location_code not in record.location_codes:
             raise ValueError("exercise prescription location is not supported by the catalog")
-        if not set(item.equipment_codes).issubset(envelope.allowed_equipment_codes):
-            raise ValueError("exercise prescription uses disallowed equipment")
+        # Equipment is not a gate. The 2026-08-27 approval removed the issubset
+        # filter, and with equipment gone from onboarding the allowlist is empty
+        # by design, so this check rejected every plan the agent could build.
+        # The catalog link below still holds: a prescription may not claim
+        # equipment the reviewed record does not list.
         if not set(item.equipment_codes).issubset(record.equipment_codes):
             raise ValueError("exercise prescription equipment is not supported by the catalog")
         if ceiling.allowed_intensity_codes and (
@@ -646,8 +662,20 @@ class PlanSpec(BaseModel):
             SPECIALIST_AGENT_ORDER
         ):
             raise ValueError("PlanSpec proposal references must use canonical role order")
-        if self.estimated_duration_seconds != self.requested_duration_minutes * 60:
+        # The 2026-08-27 approval allows a plan to miss the requested duration by
+        # up to five minutes, and docs/DOMAIN_RULES.md records that the V3 plan
+        # path shares the constant. The compiler and integrity validator already
+        # do; this contract still demanded an exact total, which left the agent
+        # no reachable plan and it answered NEEDS_INPUT with no prescriptions.
+        duration_delta = abs(self.estimated_duration_seconds - self.requested_duration_minutes * 60)
+        if duration_delta > DURATION_TOLERANCE_SECONDS:
             raise ValueError("PlanSpec must preserve requested duration")
+        # A session the user actually performs opens with preparation and closes
+        # with settling. Without this the plan was persisted as one flat MAIN
+        # block and the user was dropped straight into loaded work.
+        phases = {item.phase_code for item in self.exercise_prescriptions}
+        if phases != set(_PHASE_ORDER):
+            raise ValueError("PlanSpec must cover warmup, main and cooldown")
         if self.plan_hash != _canonical_hash(self._hash_payload()):
             raise ValueError("plan_hash does not match the canonical PlanSpec")
         return self

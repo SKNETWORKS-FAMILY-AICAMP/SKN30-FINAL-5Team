@@ -183,12 +183,18 @@ def test_pool_size_requires_at_least_one_eligible_exercise() -> None:
         pool_size_for_duration(requested_duration_minutes=30, exercises=())
 
 
-def _envelope(*, requested_duration_minutes: int) -> ConstraintEnvelope:
+def _envelope(
+    *,
+    requested_duration_minutes: int,
+    # Production sends (): the 2026-08-27 approval dropped equipment from
+    # onboarding, so a real user has no UserEquipment rows.
+    allowed_equipment_codes: tuple[str, ...] = ("BODYWEIGHT",),
+) -> ConstraintEnvelope:
     return ConstraintEnvelope.create(
         requested_duration_minutes=requested_duration_minutes,
         primary_goal_code="GENERAL_FITNESS",
         allowed_location_codes=("HOME",),
-        allowed_equipment_codes=("BODYWEIGHT",),
+        allowed_equipment_codes=allowed_equipment_codes,
         excluded_exercise_ids=(),
         mandatory_exercise_ids=(),
         recovery_ceiling=RecoveryCeiling(
