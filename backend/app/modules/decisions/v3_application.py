@@ -440,7 +440,12 @@ class PostgreSQLV3ExercisePoolSource(PostgreSQLExercisePoolSourcePort):
                 exercise_difficulty_code=item.difficulty_code,
                 user_experience_level_code=experience_level_code,
             )
-            and set(item.equipment_codes).issubset(envelope.allowed_equipment_codes)
+            # Equipment is not a gate. The 2026-08-27 approval removed the
+            # issubset filter because it required the user to own every piece a
+            # movement lists, and the variant lookup is what tells them how to
+            # work around missing kit. Routine creation dropped it then; this
+            # path kept it, so a bodyweight-only profile saw a pool that was
+            # 85 stretches to 35 strength movements.
             and bool(set(item.location_codes) & set(envelope.allowed_location_codes))
         )
         goal_matched = tuple(

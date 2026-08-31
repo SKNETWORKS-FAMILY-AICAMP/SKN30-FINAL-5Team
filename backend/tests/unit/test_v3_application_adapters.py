@@ -136,6 +136,31 @@ def test_v3_pool_beginner_user_excludes_intermediate_exercise() -> None:
     assert tuple(item.exercise_id for item in eligible.exercises) == (beginner_id,)
 
 
+def test_v3_pool_keeps_exercises_the_user_lacks_equipment_for() -> None:
+    # The 2026-08-27 approval removed the issubset equipment filter: owning
+    # every listed piece is not a condition of suitability, and the variant
+    # lookup is what covers missing kit. Routine creation dropped the gate then
+    # and this path kept it, leaving a bodyweight profile with a pool that was
+    # mostly stretching.
+    bodyweight_id = UUID(int=201)
+    barbell_id = UUID(int=202)
+    source = _source(
+        experience_level_code="BEGINNER",
+        exercises=(
+            _exercise(bodyweight_id, "BEGINNER"),
+            _exercise(barbell_id, "BEGINNER").model_copy(update={"equipment_codes": ("BARBELL",)}),
+        ),
+    )
+    envelope = DeterministicV3SafetyPolicyAdapter().evaluate(source)
+
+    eligible = PostgreSQLV3ExercisePoolSource().load_eligible(
+        source=source,
+        envelope=envelope,
+    )
+
+    assert {item.exercise_id for item in eligible.exercises} == {bodyweight_id, barbell_id}
+
+
 def test_v3_pool_intermediate_user_includes_both_difficulties() -> None:
     beginner_id = UUID(int=101)
     intermediate_id = UUID(int=102)
