@@ -21,8 +21,10 @@ from backend.app.modules.weekly_reports.codes import (
     WEEKLY_REPORT_INPUT_SCHEMA_VERSION,
     WEEKLY_REPORT_POLICY_VERSION,
 )
+from backend.app.modules.weekly_reports.narration import apply_narration
 from backend.app.modules.weekly_reports.ports import (
     ReportValues,
+    WeeklyReportNarrationAgentPort,
     WeeklyReportRepositoryPort,
     WeeklySessionEvidence,
     WeekRecord,
@@ -119,10 +121,12 @@ class WeeklyReportService:
         *,
         clock: Callable[[], datetime] = _utc_now,
         uuid_factory: Callable[[], UUID] = uuid4,
+        narration_agent: WeeklyReportNarrationAgentPort | None = None,
     ) -> None:
         self._repository = repository
         self._clock = clock
         self._uuid_factory = uuid_factory
+        self._narration_agent = narration_agent
 
     def get_week(self, session: Session, user_id: UUID, week_start: date) -> WeekResponse:
         self._validate_week_start(week_start)
@@ -160,6 +164,7 @@ class WeeklyReportService:
                 session, user_id, week.week_start, week.week_end
             )
             values = self._build_report_values(week, evidence, now)
+            values = apply_narration(values, self._narration_agent)
             existing = self._repository.get_report_for_week(session, week.week_id)
             if existing is not None:
                 if existing.input_hash != values.input_hash:

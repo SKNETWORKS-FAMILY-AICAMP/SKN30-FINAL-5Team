@@ -1,6 +1,14 @@
+import { Asset } from 'expo-asset';
+
 import type { Api } from '../../api/endpoints';
 import { ApiError } from '../../api/errors';
 import type { ExerciseDetailResponse, ExerciseListItem } from '../../api/types';
+
+const BARBELL_DEADLIFT_PREVIEW_GIF = Asset.fromModule(
+  require('../../assets/preview/exercise-media/barbell-deadlift.gif') as Parameters<
+    typeof Asset.fromModule
+  >[0],
+).uri;
 
 export const EXERCISE_CATALOG_PREVIEW_OPTIONS = [
   { id: 'loaded', label: '목록 있음' },
@@ -12,6 +20,15 @@ export type ExerciseCatalogPreviewState =
   (typeof EXERCISE_CATALOG_PREVIEW_OPTIONS)[number]['id'];
 
 const EXERCISES: ExerciseListItem[] = [
+  {
+    id: 'preview-barbell-deadlift',
+    name: '바벨 데드리프트',
+    training_type_code: 'STRENGTH',
+    difficulty_code: 'INTERMEDIATE',
+    primary_body_area_codes: ['HIP'],
+    required_equipment_codes: ['BARBELL'],
+    media_asset_key: 'videos/0032-ila4NZS.gif',
+  },
   {
     id: 'preview-chair-squat',
     name: '의자 스쿼트',
@@ -60,6 +77,24 @@ const EXERCISES: ExerciseListItem[] = [
 ];
 
 const EXERCISE_DETAILS: Record<string, ExerciseDetailResponse> = {
+  'preview-barbell-deadlift': {
+    exercise_id: 'preview-barbell-deadlift',
+    exercise_name: '바벨 데드리프트',
+    training_type_code: 'STRENGTH',
+    primary_body_area_codes: ['HIP'],
+    instruction_summary:
+      '데드리프트 운동은 엉덩이를 뒤로 보내며 엉덩이를 사용하는 운동입니다.',
+    form_cues: [
+      '발을 편하게 두고 기구나 주변을 안정적으로 준비해요.',
+      '엉덩이를 뒤로 보내며 상체를 천천히 기울여요.',
+      '등과 목을 편안히 두고 엉덩이로 힘을 내요.',
+      '천천히 시작 자세로 돌아와요.',
+    ],
+    media_asset_key: 'videos/0032-ila4NZS.gif',
+    media_url: BARBELL_DEADLIFT_PREVIEW_GIF,
+    mascot_animation_asset_key: null,
+    instruction_content_version: 'representative-content-v0.1.0',
+  },
   'preview-chair-squat': {
     exercise_id: 'preview-chair-squat',
     exercise_name: '의자 스쿼트',
@@ -72,6 +107,7 @@ const EXERCISE_DETAILS: Record<string, ExerciseDetailResponse> = {
       '의자에 닿는 순간에도 몸의 긴장을 유지해요.',
     ],
     media_asset_key: null,
+    media_url: null,
     mascot_animation_asset_key: null,
     instruction_content_version: 'preview-v1',
   },
@@ -87,6 +123,7 @@ const EXERCISE_DETAILS: Record<string, ExerciseDetailResponse> = {
       '허리를 곧게 유지해요.',
     ],
     media_asset_key: null,
+    media_url: null,
     mascot_animation_asset_key: null,
     instruction_content_version: 'preview-v1',
   },
@@ -98,6 +135,7 @@ const EXERCISE_DETAILS: Record<string, ExerciseDetailResponse> = {
     instruction_summary: '편안한 강도로 페달을 일정하게 밟아요.',
     form_cues: ['무릎이 과하게 펴지지 않도록 안장 높이를 맞춰요.'],
     media_asset_key: null,
+    media_url: null,
     mascot_animation_asset_key: null,
     instruction_content_version: 'preview-v1',
   },
@@ -110,6 +148,7 @@ const EXERCISE_DETAILS: Record<string, ExerciseDetailResponse> = {
       '스트랩을 넓게 잡고 통증 없는 범위에서 천천히 움직여요.',
     form_cues: ['반동을 쓰지 않아요.', '불편함이 생기면 범위를 줄여요.'],
     media_asset_key: null,
+    media_url: null,
     mascot_animation_asset_key: null,
     instruction_content_version: 'preview-v1',
   },
@@ -122,6 +161,7 @@ const EXERCISE_DETAILS: Record<string, ExerciseDetailResponse> = {
       '등을 바닥에 편안히 붙이고 팔다리를 번갈아 천천히 뻗어요.',
     form_cues: ['허리가 바닥에서 뜨지 않는 범위만 움직여요.'],
     media_asset_key: null,
+    media_url: null,
     mascot_animation_asset_key: null,
     instruction_content_version: 'preview-v1',
   },

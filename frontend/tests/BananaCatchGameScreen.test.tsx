@@ -2,7 +2,10 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 import { imageAssets } from '../src/assets';
-import { BananaCatchGameScreen } from '../src/features/bananaCatch/BananaCatchGameScreen';
+import {
+  BananaCatchGameScreen,
+  bananaCatchLayoutMetrics,
+} from '../src/features/bananaCatch/BananaCatchGameScreen';
 
 describe('BananaCatchGameScreen', () => {
   it('starts, moves the catcher and finishes after thirty seconds', () => {
@@ -70,7 +73,10 @@ describe('BananaCatchGameScreen', () => {
       fireEvent(arena, 'responderGrant', {
         nativeEvent: { locationX: 270 },
       });
-      expect(screen.getByTestId('banana-catcher')).toHaveStyle({ left: '89%' });
+      const metrics = bananaCatchLayoutMetrics(300, 500);
+      expect(screen.getByTestId('banana-catcher')).toHaveStyle({
+        left: `${(1 - metrics.playerHalfWidthX) * 100}%`,
+      });
 
       act(() => jest.advanceTimersByTime(30_000));
       expect(screen.getByText(/바나나 \d+개를 받았어요!/)).toBeTruthy();
@@ -79,6 +85,17 @@ describe('BananaCatchGameScreen', () => {
       random.mockRestore();
       jest.useRealTimers();
     }
+  });
+
+  it('aligns the hit area with the basket lip and both arena edges', () => {
+    const metrics = bananaCatchLayoutMetrics(300, 500);
+
+    expect(metrics.catchLineY).toBeCloseTo(0.804, 3);
+    expect(metrics.bananaHalfWidthX).toBeCloseTo(0.055, 3);
+    expect(metrics.playerHalfWidthX).toBeCloseTo(0.153, 3);
+    expect(
+      metrics.playerHalfWidthX - metrics.bananaHalfWidthX,
+    ).toBeLessThanOrEqual(metrics.catchHalfWidthX);
   });
 
   it('updates the collecting mascot for each ten caught bananas', () => {

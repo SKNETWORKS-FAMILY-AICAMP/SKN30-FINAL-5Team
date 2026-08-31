@@ -10,8 +10,8 @@ export const BANANA_CATCH_TICK_MS = 50;
 export const BANANA_SPAWN_INTERVAL_MS = 650;
 export const BANANA_FALL_PER_MS = 1 / 4_200;
 export const PLAYER_HALF_WIDTH = 0.11;
+export const BANANA_HALF_WIDTH = 0.035;
 
-const BANANA_HALF_WIDTH = 0.035;
 const DEFAULT_CATCH_LINE_Y = 0.75;
 
 export type FallingBanana = {
@@ -48,20 +48,23 @@ export function createBananaCatchState(): BananaCatchState {
 
 export function startBananaCatch(
   random: () => number = Math.random,
+  bananaHalfWidthX: number = BANANA_HALF_WIDTH,
 ): BananaCatchState {
   return {
     ...createBananaCatchState(),
     status: 'playing',
     nextBananaId: 2,
-    bananas: [spawnBanana(1, random)],
+    bananas: [spawnBanana(1, random, bananaHalfWidthX)],
   };
 }
 
 export function moveBananaCatcher(
   state: BananaCatchState,
   normalizedX: number,
+  playerHalfWidthX: number = PLAYER_HALF_WIDTH,
 ): BananaCatchState {
-  const playerX = clamp(normalizedX, PLAYER_HALF_WIDTH, 1 - PLAYER_HALF_WIDTH);
+  const safeHalfWidthX = clamp(playerHalfWidthX, 0, 0.5);
+  const playerX = clamp(normalizedX, safeHalfWidthX, 1 - safeHalfWidthX);
   return playerX === state.playerX ? state : { ...state, playerX };
 }
 
@@ -71,6 +74,7 @@ export function advanceBananaCatch(
   random: () => number = Math.random,
   catchLineY: number = DEFAULT_CATCH_LINE_Y,
   catchHalfWidthX: number = PLAYER_HALF_WIDTH + BANANA_HALF_WIDTH,
+  bananaHalfWidthX: number = BANANA_HALF_WIDTH,
 ): BananaCatchState {
   if (state.status !== 'playing' || deltaMs <= 0) return state;
 
@@ -107,7 +111,7 @@ export function advanceBananaCatch(
     elapsedMs < BANANA_CATCH_DURATION_MS
   ) {
     spawnElapsedMs -= BANANA_SPAWN_INTERVAL_MS;
-    bananas.push(spawnBanana(nextBananaId, random));
+    bananas.push(spawnBanana(nextBananaId, random, bananaHalfWidthX));
     nextBananaId += 1;
   }
 
@@ -136,10 +140,15 @@ export function bananaBasketStage(score: number): BananaBasketStage {
   return 'empty';
 }
 
-function spawnBanana(id: number, random: () => number): FallingBanana {
+function spawnBanana(
+  id: number,
+  random: () => number,
+  bananaHalfWidthX: number,
+): FallingBanana {
+  const safeHalfWidthX = clamp(bananaHalfWidthX, 0, 0.5);
   return {
     id,
-    x: clamp(random(), BANANA_HALF_WIDTH, 1 - BANANA_HALF_WIDTH),
+    x: clamp(random(), safeHalfWidthX, 1 - safeHalfWidthX),
     y: -0.08,
     rotationDeg: (random() - 0.5) * 70,
     // At most one turn per roughly ten seconds, with near-zero values making

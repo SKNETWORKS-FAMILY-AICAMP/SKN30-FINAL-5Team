@@ -1053,7 +1053,8 @@ describe('WorkoutScreen API mode', () => {
         '무릎과 발끝의 방향을 맞춰요.',
         '통증 없는 범위에서 진행해요.',
       ],
-      media_asset_key: null,
+      media_asset_key: 'catalog-media/chair-squat.gif',
+      media_url: 'https://cdn.example.com/chair-squat.gif',
       mascot_animation_asset_key: null,
       instruction_content_version: 'test-v1',
     }));
@@ -1078,6 +1079,16 @@ describe('WorkoutScreen API mode', () => {
     expect(
       await screen.findByText('발바닥을 바닥에 고르게 두고 천천히 움직여요.'),
     ).toBeOnTheScreen();
+    expect(screen.getByTestId('exercise-media-image')).toHaveProp('source', {
+      uri: 'https://cdn.example.com/chair-squat.gif',
+    });
+    expect(screen.getByTestId('exercise-media-loading')).toBeOnTheScreen();
+    fireEvent(screen.getByTestId('exercise-media-image'), 'load');
+    expect(screen.queryByTestId('exercise-media-loading')).toBeNull();
+    fireEvent(screen.getByTestId('exercise-media-image'), 'loadStart');
+    expect(screen.queryByTestId('exercise-media-loading')).toBeNull();
+    fireEvent(screen.getByTestId('exercise-media-image'), 'error');
+    expect(screen.getByText('운동 GIF를 불러오지 못했어요.')).toBeOnTheScreen();
     expect(getExercise).toHaveBeenCalledWith(
       'exercise-api',
       expect.any(AbortSignal),
