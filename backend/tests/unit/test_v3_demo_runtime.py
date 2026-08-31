@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+from typing import Literal
 from uuid import uuid4
 
 import pytest
@@ -10,6 +11,7 @@ from pydantic import SecretStr
 
 from backend.app.core.config import Settings
 from backend.app.domain.agents.retrieval import (
+    ExercisePoolExerciseRecord,
     ExercisePoolSnapshot,
     ExerciseRetrievalRequest,
 )
@@ -82,10 +84,29 @@ def _successful_model(root_snapshot, *, coordinator_plan=None) -> ToolCallingFak
                 tool_response(PlanSpec, expected_plan, 4),
             ]
         )
+    phase_codes: tuple[Literal["WARMUP", "MAIN", "COOLDOWN"], ...] = (
+        "WARMUP",
+        "MAIN",
+        "COOLDOWN",
+    )
+    selected_records: list[
+        tuple[ExercisePoolExerciseRecord, Literal["WARMUP", "MAIN", "COOLDOWN"]]
+    ] = []
+    selected_ids = set()
+    for phase_code in phase_codes:
+        record = next(
+            item
+            for item in pool.exercises
+            if phase_code in item.phase_codes and item.exercise_id not in selected_ids
+        )
+        selected_records.append((record, phase_code))
+        selected_ids.add(record.exercise_id)
+
     prescriptions = tuple(
         ExercisePrescription(
             exercise_id=record.exercise_id,
             sequence=index,
+            phase_code=phase_code,
             sets=min(envelope.recovery_ceiling.maximum_sets_per_exercise or 1, 3),
             repetitions_per_set=(
                 min(envelope.recovery_ceiling.maximum_repetitions_per_set or 1, 10)
@@ -108,7 +129,7 @@ def _successful_model(root_snapshot, *, coordinator_plan=None) -> ToolCallingFak
             ),
             equipment_codes=record.equipment_codes,
         )
-        for index, record in enumerate(pool.exercises[:2], start=1)
+        for index, (record, phase_code) in enumerate(selected_records, start=1)
     )
     specialist_proposals = tuple(
         proposal(
