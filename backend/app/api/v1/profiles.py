@@ -70,25 +70,25 @@ def _service(
     )
 
 
-def _birthdate_configuration_setting(settings: Settings) -> tuple[str, str]:
-    # 생년월일 암호화 설정은 환경마다 다르다. 배포 환경은 KMS 키만 사용하고,
-    # 로컬/테스트는 base64 키만 사용한다. 진단 로그가 그 환경에서 실제로
-    # 채워야 하는 키를 가리켜야 운영자가 503 원인을 바로 찾을 수 있다.
+def _missing_birthdate_configuration_key(settings: Settings) -> str:
+    # 판단 기준은 설정값이 아니라 cipher 조립 결과다. cipher가 있으면 어떤
+    # 경로로 주입됐든 생년월일 설정은 부족하지 않다. cipher가 없을 때에만,
+    # 그 환경에서 실제로 채워야 하는 키를 지목한다. 배포 환경은 KMS 키를,
+    # 로컬·테스트는 base64 키를 쓴다.
     if settings.app_env in _KMS_BIRTHDATE_ENVIRONMENTS:
-        return ("BIRTHDATE_KMS_KEY_ID", "birthdate_kms_key_id")
-    return ("BIRTHDATE_ENCRYPTION_KEY_BASE64", "birthdate_encryption_key_base64")
+        return "BIRTHDATE_KMS_KEY_ID"
+    return "BIRTHDATE_ENCRYPTION_KEY_BASE64"
 
 
 def _missing_profile_configuration_keys(request: Request) -> list[str]:
     settings = request.app.state.settings
     missing_keys: list[str] = []
-    for environment_key, setting_name in (
-        *_PROFILE_CONFIGURATION_SETTINGS,
-        _birthdate_configuration_setting(settings),
-    ):
+    for environment_key, setting_name in _PROFILE_CONFIGURATION_SETTINGS:
         value = getattr(settings, setting_name)
         if value is None or (isinstance(value, str) and not value.strip()) or value == ():
             missing_keys.append(environment_key)
+    if getattr(request.app.state, "birthdate_cipher", None) is None:
+        missing_keys.append(_missing_birthdate_configuration_key(settings))
     return missing_keys
 
 
