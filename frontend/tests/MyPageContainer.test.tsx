@@ -111,7 +111,9 @@ describe('MyPageContainer', () => {
 
     expect(await screen.findByText('민지님')).toBeOnTheScreen();
     expect(screen.getByText('함께한 지 7일째')).toBeOnTheScreen();
-    expect(screen.getByText('근력')).toBeOnTheScreen();
+    expect(screen.getAllByText('체력 증진').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('초급').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: '선호 운동 수정' })).toBeNull();
     expect(screen.queryByRole('button', { name: '장비 수정' })).toBeNull();
     expect(screen.queryByText('맨몸 · 밴드')).toBeNull();
     expect(screen.queryByText('캘린더 연동')).toBeNull();
@@ -127,14 +129,11 @@ describe('MyPageContainer', () => {
     expect(screen.queryByText('이번 주')).toBeNull();
   });
 
-  it('uses the stretching label consistently for the mobility preference', async () => {
-    const current = me();
-    current.profile!.preferred_exercise_type_codes = ['CARDIO', 'MOBILITY'];
-
+  it('offers the onboarding goal, experience, and location choices', async () => {
     await render(
       <MyPageContainer
         api={accountApi()}
-        me={current}
+        me={me()}
         now={new Date('2026-08-19T03:00:00Z')}
         onNavigateTab={jest.fn()}
         onRefreshMe={jest.fn(async () => undefined)}
@@ -142,14 +141,24 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    expect(await screen.findByText('유산소 · 스트레칭')).toBeOnTheScreen();
-    expect(screen.queryByText('유산소 · 가동성')).toBeNull();
+    fireEvent.press(screen.getByRole('button', { name: '운동 목표 수정' }));
+    expect(screen.getByText('다이어트')).toBeOnTheScreen();
+    expect(screen.getByText('근력 증가')).toBeOnTheScreen();
+    expect(screen.getByText('체력 증진')).toBeOnTheScreen();
+    fireEvent.press(screen.getByTestId('profile-editor-backdrop'));
 
-    fireEvent.press(screen.getByRole('button', { name: '선호 운동 수정' }));
+    fireEvent.press(screen.getByRole('button', { name: '운동 경험 수정' }));
+    expect(screen.getByRole('radio', { name: '초급' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: '중급' })).toBeOnTheScreen();
+    fireEvent.press(screen.getByTestId('profile-editor-backdrop'));
+
+    fireEvent.press(screen.getByRole('button', { name: '운동 장소 수정' }));
     expect(
-      screen.getByRole('header', { name: '선호 운동 수정' }),
+      screen.getByRole('header', { name: '운동 장소 수정' }),
     ).toBeOnTheScreen();
-    expect(screen.getByRole('checkbox', { name: '스트레칭' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: '집' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: '헬스장' })).toBeOnTheScreen();
+    expect(screen.queryByRole('checkbox', { name: '야외' })).toBeNull();
   });
 
   it('never exposes an unmapped machine code', async () => {
@@ -674,7 +683,10 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '주의 부위 수정' }));
+    fireEvent.press(screen.getByRole('button', { name: '통증 부위 수정' }));
+    expect(
+      screen.getByRole('header', { name: '통증 부위 수정' }),
+    ).toBeOnTheScreen();
     expect(screen.getByRole('checkbox', { name: '있어요' })).toBeChecked();
     expect(screen.getByText('통증 부위')).toBeOnTheScreen();
     fireEvent.press(screen.getByRole('checkbox', { name: '없어요' }));
@@ -703,7 +715,7 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '주의 부위 수정' }));
+    fireEvent.press(screen.getByRole('button', { name: '통증 부위 수정' }));
     expect(
       screen.getByRole('checkbox', { name: '다른 부위 접기' }),
     ).toBeChecked();
@@ -731,7 +743,7 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '주의 부위 수정' }));
+    fireEvent.press(screen.getByRole('button', { name: '통증 부위 수정' }));
     expect(screen.getByText('이전에 저장된 부위 (해제만 가능)')).toBeTruthy();
     expect(screen.getByRole('checkbox', { name: '전신' })).toBeChecked();
     fireEvent.press(screen.getByRole('checkbox', { name: '전신' }));

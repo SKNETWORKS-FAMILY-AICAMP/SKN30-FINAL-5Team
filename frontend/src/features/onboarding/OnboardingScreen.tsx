@@ -31,7 +31,6 @@ import { colors, radii, spacing } from '../../components/theme';
 import { PROFILE_BODY_LIMITS } from '../profile/profileModel';
 import {
   ONBOARDING_DURATION,
-  ONBOARDING_EXERCISE_TYPE_OPTIONS,
   ONBOARDING_EXPERIENCE_OPTIONS,
   ONBOARDING_GOAL_OPTIONS,
   ONBOARDING_LOCATION_OPTIONS,
@@ -117,13 +116,6 @@ export const ONBOARDING_STEPS = [
     required: true,
   },
   {
-    key: 'exerciseType',
-    title: '어떤 운동을 선호하나요?',
-    intro:
-      '좋아하는 운동 종류를 모두 선택할 수 있어요. 아직 없다면 넘어가도 돼요.',
-    required: false,
-  },
-  {
     key: 'coachingStyle',
     title: '어떤 방식으로 안내해드릴까요?',
     intro: '선택하지 않으면 기본 안내 방식으로 시작해요.',
@@ -149,7 +141,7 @@ export const ONBOARDING_STEPS = [
   },
   {
     key: 'attention',
-    title: '주의가 필요한 부위가 있나요?',
+    title: '평소에 통증 부위가 있나요?',
     intro: '',
     required: true,
   },
@@ -197,11 +189,8 @@ function OnboardingScreenContent({
     (typeof ONBOARDING_GOAL_OPTIONS)[number]['code'] | null
   >(null);
   const [experienceLevelCode, setExperienceLevelCode] = useState<
-    (typeof ONBOARDING_EXPERIENCE_OPTIONS)[number]['code'] | null
-  >(null);
-  const [preferredExerciseTypes, setPreferredExerciseTypes] = useState<
-    (typeof ONBOARDING_EXERCISE_TYPE_OPTIONS)[number]['code'][]
-  >([]);
+    (typeof ONBOARDING_EXPERIENCE_OPTIONS)[number]['code']
+  >(ONBOARDING_EXPERIENCE_OPTIONS[0].code);
   const [coachingStyleCode, setCoachingStyleCode] = useState<
     (typeof COACHING_STYLE_OPTIONS)[number]['code'] | null
   >(null);
@@ -260,7 +249,7 @@ function OnboardingScreenContent({
         default_requested_duration_minutes: duration,
         desired_weekly_workout_count: weeklyCount,
         attention_area_codes: hasAttentionAreas ? attentionAreas : [],
-        preferred_exercise_type_codes: preferredExerciseTypes,
+        preferred_exercise_type_codes: [],
         ...(coachingStyleCode === null
           ? {}
           : { coaching_style_code: coachingStyleCode }),
@@ -295,7 +284,6 @@ function OnboardingScreenContent({
     attentionAreas,
     painIntensityScores,
     preferredLocationCode,
-    preferredExerciseTypes,
     primaryGoalCode,
     sensitiveConsent,
     sexCode,
@@ -453,25 +441,6 @@ function OnboardingScreenContent({
                 selected={experienceLevelCode === item.code}
                 onPress={() => {
                   setExperienceLevelCode(item.code);
-                  submit.clearError();
-                }}
-              />
-            ))}
-          </ChoiceCard>
-        );
-      case 'exerciseType':
-        return (
-          <ChoiceCard>
-            {ONBOARDING_EXERCISE_TYPE_OPTIONS.map((item) => (
-              <Chip
-                key={item.code}
-                grow
-                label={item.label}
-                selected={preferredExerciseTypes.includes(item.code)}
-                onPress={() => {
-                  setPreferredExerciseTypes((values) =>
-                    toggle(values, item.code),
-                  );
                   submit.clearError();
                 }}
               />
@@ -746,7 +715,14 @@ function OnboardingScreenContent({
       >
         <View style={styles.stepHeading}>
           <View style={styles.titleRow}>
-            <Text style={styles.stepTitle}>{current.title}</Text>
+            <Text
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+              numberOfLines={1}
+              style={styles.stepTitle}
+            >
+              {current.title}
+            </Text>
             <Text
               style={
                 current.required ? styles.requiredBadge : styles.optionalBadge
@@ -817,7 +793,6 @@ type FormState = {
   primaryGoalCode: (typeof ONBOARDING_GOAL_OPTIONS)[number]['code'] | null;
   experienceLevelCode:
     (typeof ONBOARDING_EXPERIENCE_OPTIONS)[number]['code'] | null;
-  preferredExerciseTypes: (typeof ONBOARDING_EXERCISE_TYPE_OPTIONS)[number]['code'][];
   coachingStyleCode: (typeof COACHING_STYLE_OPTIONS)[number]['code'] | null;
   locations: string[];
   preferredLocationCode: string | null;
@@ -850,7 +825,6 @@ function isStepValid(
       return form.primaryGoalCode !== null;
     case 'experience':
       return form.experienceLevelCode !== null;
-    case 'exerciseType':
     case 'coachingStyle':
       return true;
     case 'location':
@@ -1229,7 +1203,6 @@ function onboardingErrorStep(error: unknown): number | null {
       weight_kg: 'body',
       primary_goal_code: 'goal',
       experience_level_code: 'experience',
-      preferred_exercise_type_codes: 'exerciseType',
       coaching_style_code: 'coachingStyle',
       preferred_location_code: 'location',
       available_location_codes: 'location',

@@ -327,6 +327,9 @@ describe('HomeScreen Home v1 transcription', () => {
     );
 
     fireEvent.press(screen.getByRole('button', { name: '오늘 루틴 체크인' }));
+    expect(
+      screen.getByText('오늘 통증이 있는 부위가 있나요?'),
+    ).toBeOnTheScreen();
     fireEvent.press(screen.getByRole('button', { name: '헬스장' }));
     fireEvent.press(screen.getByRole('button', { name: '있음' }));
     const bodyAreaButtonStyle = StyleSheet.flatten(
@@ -1162,6 +1165,12 @@ describe('HomeScreen Home v1 transcription', () => {
     );
 
     const button = screen.getByRole('button', { name: '오늘 루틴 체크인' });
+    const greetingStyle = StyleSheet.flatten(
+      screen.getByRole('header').props.style,
+    );
+    const progressTitleStyle = StyleSheet.flatten(
+      screen.getByText('이번 주 진행률').props.style,
+    );
     const buttonStyle = StyleSheet.flatten(button.props.style);
     const labelStyle = StyleSheet.flatten(
       screen.getByText('오늘 루틴 체크인').props.style,
@@ -1189,9 +1198,13 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(gradient.props.locations).toEqual([0, 0.55, 1]);
     expect(labelStyle).toMatchObject({
       color: colors.text,
+      textAlign: 'center',
+    });
+    expect(labelStyle.fontFamily).toBeUndefined();
+    expect(labelStyle.fontWeight).toBe(progressTitleStyle.fontWeight);
+    expect(greetingStyle).toMatchObject({
       fontFamily: fontFamilies.slogan,
       fontWeight: '400',
-      textAlign: 'center',
     });
     expect(chevronStyle).toMatchObject({
       position: 'absolute',
@@ -1206,7 +1219,7 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(startButtonStyle).toMatchObject({
       minHeight: 58,
       position: 'relative',
-      borderColor: 'rgba(218, 150, 30, 0.62)',
+      borderColor: 'rgba(218, 150, 30, 0.2)',
       borderRadius: 18,
       overflow: 'hidden',
       shadowColor: '#5A4636',
@@ -1235,10 +1248,8 @@ describe('HomeScreen Home v1 transcription', () => {
     );
     const submitGradient = screen.getByTestId('home-checkin-submit-gradient');
 
-    expect(labelStyle).toMatchObject({
-      fontFamily: submitLabelStyle.fontFamily,
-      fontWeight: submitLabelStyle.fontWeight,
-    });
+    expect(submitLabelStyle.fontFamily).toBeUndefined();
+    expect(labelStyle.fontWeight).toBe(submitLabelStyle.fontWeight);
 
     expect(submitButtonStyle).toMatchObject({
       borderColor: 'rgba(244, 166, 42, 0.8)',

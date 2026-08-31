@@ -717,6 +717,7 @@ function HomeScreenContent({
               onNotifications={onNotifications}
               onProfile={onProfile}
               profileImageUrl={profileImageUrl}
+              useJua={useJua}
               userName={displayName}
             />
             {contentReady ? (
@@ -735,9 +736,7 @@ function HomeScreenContent({
                 />
               </>
             ) : null}
-            {showCheckin ? (
-              <CheckinButton onPress={openCheckin} useJua={useJua} />
-            ) : null}
+            {showCheckin ? <CheckinButton onPress={openCheckin} /> : null}
 
             {apiMode && status === 'loading' ? (
               <HomeStateCard
@@ -1005,7 +1004,6 @@ function HomeScreenContent({
               })
             }
             pending={busy === 'checkin'}
-            useJua={useJua}
           />
         ) : null}
 
@@ -1052,7 +1050,6 @@ function HomeScreenContent({
               context?.location_code ??
               null
             }
-            useJua={useJua}
           />
         ) : null}
 
@@ -1125,7 +1122,6 @@ function HomeScreenContent({
               setNewItem({ id: 'new', name: '', sets: '', reps: '' });
             }}
             onSave={saveEdit}
-            useJua={useJua}
           />
         ) : null}
       </View>
@@ -1139,6 +1135,7 @@ function HomeHeader({
   onNotifications,
   onProfile,
   profileImageUrl,
+  useJua,
   userName,
 }: {
   currentDate: string;
@@ -1146,6 +1143,7 @@ function HomeHeader({
   onNotifications?: () => void;
   onProfile?: () => void;
   profileImageUrl?: string | null;
+  useJua: boolean;
   userName: string;
 }) {
   const styles = useHomeStyles();
@@ -1153,7 +1151,10 @@ function HomeHeader({
   return (
     <View style={styles.header}>
       <View style={styles.headerCopy}>
-        <Text accessibilityRole="header" style={styles.greeting}>
+        <Text
+          accessibilityRole="header"
+          style={[styles.greeting, useJua && styles.greetingJua]}
+        >
           안녕하세요, <Text style={styles.greetingName}>{userName}님!</Text>
         </Text>
         <Text style={styles.date}>{currentDate}</Text>
@@ -1370,19 +1371,13 @@ function WeeklyProgressCard({
   );
 }
 
-function CheckinButton({
-  onPress,
-  useJua,
-}: {
-  onPress: () => void;
-  useJua: boolean;
-}) {
+function CheckinButton({ onPress }: { onPress: () => void }) {
   const styles = useHomeStyles();
   return (
     <View style={styles.checkinWrapper}>
       <GradientActionButton
         label="오늘 루틴 체크인"
-        labelStyle={[styles.sheetSaveLabel, useJua && styles.juaLabel]}
+        labelStyle={styles.sheetSaveLabel}
         onPress={onPress}
         testID="home-checkin"
         trailing={<CheckinChevronIcon />}
@@ -2028,7 +2023,6 @@ function CheckinSheet({
   onToggleBodyArea,
   locationCodes,
   pending,
-  useJua,
 }: {
   draft: HomeCheckin;
   onAddAvailabilitySlot: () => void;
@@ -2050,7 +2044,6 @@ function CheckinSheet({
   onToggleBodyArea: (code: string) => void;
   locationCodes: readonly string[];
   pending: boolean;
-  useJua: boolean;
 }) {
   const styles = useHomeStyles();
   const [showAdverseDetails, setShowAdverseDetails] = useState(
@@ -2298,7 +2291,7 @@ function CheckinSheet({
             ))}
           </ChoiceBlock>
         ) : null}
-        <ChoiceBlock label="오늘 불편한 부위가 있나요?">
+        <ChoiceBlock label="오늘 통증이 있는 부위가 있나요?">
           <ChoiceButton
             label="없음"
             onPress={() => {
@@ -2442,7 +2435,7 @@ function CheckinSheet({
             style={styles.sheetSaveGradient}
             testID="home-checkin-submit-gradient"
           />
-          <Text style={[styles.sheetSaveLabel, useJua && styles.juaLabel]}>
+          <Text style={styles.sheetSaveLabel}>
             {pending ? '보내는 중…' : '체크인 !'}
           </Text>
         </Pressable>
@@ -2881,7 +2874,6 @@ function ApiEditRoutineSheet({
   pending,
   routine,
   selectedLocationCode,
-  useJua,
 }: {
   items: readonly HomeRoutineItem[];
   locationCodes: readonly string[];
@@ -2890,7 +2882,6 @@ function ApiEditRoutineSheet({
   pending: boolean;
   routine: RoutineResponse | null;
   selectedLocationCode: string | null;
-  useJua: boolean;
 }) {
   const styles = useHomeStyles();
   const [locationCode, setLocationCode] = useState<string | null>(
@@ -2960,7 +2951,7 @@ function ApiEditRoutineSheet({
               !canSave && styles.routineActionDisabled,
             ]}
           >
-            <Text style={[styles.sheetSaveLabel, useJua && styles.juaLabel]}>
+            <Text style={styles.sheetSaveLabel}>
               {pending ? '저장 중…' : '저장하기'}
             </Text>
           </Pressable>
@@ -2980,7 +2971,6 @@ function EditRoutineSheet({
   onMove,
   onReset,
   onSave,
-  useJua,
 }: {
   items: HomeRoutineItem[];
   newItem: HomeRoutineItem;
@@ -2991,7 +2981,6 @@ function EditRoutineSheet({
   onMove: (from: number, to: number) => void;
   onReset: () => void;
   onSave: () => void;
-  useJua: boolean;
 }) {
   const styles = useHomeStyles();
   const drag = useDragController(onMove);
@@ -3193,9 +3182,7 @@ function EditRoutineSheet({
             onPress={onSave}
             style={styles.editSaveButton}
           >
-            <Text style={[styles.sheetSaveLabel, useJua && styles.juaLabel]}>
-              저장하기
-            </Text>
+            <Text style={styles.sheetSaveLabel}>저장하기</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -3729,6 +3716,7 @@ function createHomeStyles(
       textShadowRadius: s(2),
     },
     greetingName: { color: colors.greenText },
+    greetingJua: { fontFamily: fontFamilies.slogan, fontWeight: '400' },
     date: {
       marginTop: s(6),
       color: colors.text,
@@ -3854,7 +3842,6 @@ function createHomeStyles(
     progressImage: { width: '78%', height: '78%' },
     todoImage: { opacity: 1 },
     checkinWrapper: { marginBottom: s(16) },
-    juaLabel: { fontFamily: fontFamilies.slogan, fontWeight: '400' },
     messageCard: {
       alignItems: 'center',
       marginBottom: s(16),
@@ -4130,7 +4117,7 @@ function createHomeStyles(
       marginTop: s(16),
       marginBottom: s(10),
       borderWidth: s(1),
-      borderColor: 'rgba(218, 150, 30, 0.62)',
+      borderColor: 'rgba(218, 150, 30, 0.2)',
       borderRadius: s(18),
       overflow: 'hidden',
       paddingVertical: s(16),
@@ -4569,7 +4556,7 @@ function createHomeStyles(
       left: 0,
       borderRadius: s(18),
     },
-    sheetSaveLabel: { color: '#5A4636', fontSize: f(18), fontWeight: '400' },
+    sheetSaveLabel: { color: '#5A4636', fontSize: f(18), fontWeight: '800' },
     editScrollContent: { paddingBottom: s(5) },
     editList: { gap: s(8), marginTop: s(14) },
     editRow: {

@@ -94,6 +94,9 @@ const ACTIVITY_INTENSITIES = [
   { code: 'VIGOROUS', label: '강하게' },
 ] as const;
 
+const PAIN_REPORT_INTRO =
+  '어떤 통증이 있는지 알려주면, 운동을 계속할지 중단할지 결정할게요.';
+
 type WorkoutFixture = {
   completedBlockIds: readonly string[];
   elapsedSeconds: number;
@@ -713,16 +716,19 @@ function WorkoutScreenContent({
     onPauseChange?.(true);
   };
 
+  const openPainReport = () => {
+    setApiError(null);
+    setPaused(true);
+    setOverlay(apiConfig === undefined ? 'symptom' : 'api-safety');
+    recordTimerChange('PAUSE');
+    onPauseChange?.(true);
+  };
+
   const closeSheets = () => {
     setOverlay('none');
     setPaused(false);
     recordTimerChange('RESUME');
     onPauseChange?.(false);
-  };
-
-  const returnToSafetyConfirm = () => {
-    setApiError(null);
-    setOverlay('safety');
   };
 
   const finishWorkout = async () => {
@@ -1014,7 +1020,7 @@ function WorkoutScreenContent({
                 <PlaybackMark paused={paused} />
               </Pressable>
               <Pressable
-                accessibilityLabel="안전 중단 및 이상 반응 보고"
+                accessibilityLabel="운동 중단"
                 accessibilityRole="button"
                 onPress={openSafety}
                 style={({ pressed }) => [
@@ -1188,6 +1194,8 @@ function WorkoutScreenContent({
                 variantAction={
                   apiConfig !== undefined && block.exerciseId !== undefined ? (
                     <ExerciseVariantsAction
+                      actionStyle={styles.cardVariantAction}
+                      actionTextStyle={styles.cardVariantActionText}
                       api={apiConfig.api}
                       autoOpen={
                         apiConfig.initialEquipmentGuideExerciseId ===
@@ -1304,37 +1312,16 @@ function WorkoutScreenContent({
                 : '블록 격파'}
           </Text>
         </Pressable>
-        <Pressable
-          accessibilityLabel="선택 휴식 타이머"
-          accessibilityRole="button"
-          onPress={openRest}
-          style={({ pressed }) => [
-            styles.restAction,
-            {
-              height: 58 * layoutScale,
-              borderRadius: 18 * layoutScale,
-              paddingHorizontal: 8 * layoutScale,
-            },
-            pressed && styles.pressed,
-          ]}
-          testID="workout-rest-action"
+        <View
+          style={styles.secondaryActions}
+          testID="workout-secondary-actions"
         >
-          <Text style={styles.restActionText}>휴식</Text>
-        </Pressable>
-        {apiConfig !== undefined ? (
           <Pressable
-            accessibilityLabel="계획 외 활동 기록"
+            accessibilityLabel="선택 휴식 타이머"
             accessibilityRole="button"
-            disabled={!sessionReady || actionPending}
-            onPress={() => {
-              setApiError(null);
-              setAdditionalSaved(false);
-              setOverlay('additional');
-              setPaused(true);
-              recordTimerChange('PAUSE');
-            }}
+            onPress={openRest}
             style={({ pressed }) => [
-              styles.additionalAction,
+              styles.restAction,
               {
                 height: 58 * layoutScale,
                 borderRadius: 18 * layoutScale,
@@ -1342,11 +1329,28 @@ function WorkoutScreenContent({
               },
               pressed && styles.pressed,
             ]}
-            testID="workout-additional-action"
+            testID="workout-rest-action"
           >
-            <Text style={styles.restActionText}>추가 기록</Text>
+            <Text style={styles.restActionText}>휴식</Text>
           </Pressable>
-        ) : null}
+          <Pressable
+            accessibilityLabel="통증 및 이상 반응 보고"
+            accessibilityRole="button"
+            onPress={openPainReport}
+            style={({ pressed }) => [
+              styles.painAction,
+              {
+                height: 58 * layoutScale,
+                borderRadius: 18 * layoutScale,
+                paddingHorizontal: 6 * layoutScale,
+              },
+              pressed && styles.pressed,
+            ]}
+            testID="workout-pain-action"
+          >
+            <Text style={styles.painActionText}>통증이{`\n`}있어요</Text>
+          </Pressable>
+        </View>
       </View>
 
       {detailBlock && variantGuide === null && overlay === 'none' ? (
@@ -1402,16 +1406,13 @@ function WorkoutScreenContent({
       {overlay === 'safety' ? (
         <SafetyConfirmSheet
           onClose={closeSheets}
-          onOpenReport={() =>
-            setOverlay(apiConfig === undefined ? 'symptom' : 'api-safety')
-          }
           onStop={() => void finishWorkout()}
         />
       ) : null}
       {overlay === 'symptom' ? (
         <SymptomSheet
           instruction={fixture.instruction ?? 'SHOW_CAUTION'}
-          onClose={returnToSafetyConfirm}
+          onClose={closeSheets}
           onSelectSeverity={setSelectedSeverity}
           onSelectSymptom={setSelectedSymptom}
           onSubmit={submitSafetyEvent}
@@ -1422,7 +1423,7 @@ function WorkoutScreenContent({
       {overlay === 'api-safety' ? (
         <ApiSafetySheet
           error={apiError}
-          onClose={returnToSafetyConfirm}
+          onClose={closeSheets}
           onToggleBodyArea={toggleBodyArea}
           onToggleReaction={toggleReaction}
           onSelectBodySeverity={selectBodySeverity}
@@ -1761,20 +1762,28 @@ function ArcBlockCard({
           <Text style={styles.undoButtonText}>완료 취소</Text>
         </Pressable>
       ) : null}
-      {hasDetails ? (
-        <Pressable
-          accessibilityLabel={expanded ? '설명 접기' : '자세 · 설명 보기'}
-          accessibilityRole="button"
-          accessibilityState={{ expanded }}
-          onPress={onToggleExpanded}
-          style={styles.infoButton}
-        >
-          <Text style={styles.infoButtonText}>
-            {expanded ? '설명 보는 중' : '자세 · 설명 보기'}
-          </Text>
-        </Pressable>
+      {hasDetails || variantAction ? (
+        <View style={styles.cardActionRow} testID={`workout-actions-${index}`}>
+          {hasDetails ? (
+            <Pressable
+              accessibilityLabel={expanded ? '설명 접기' : '자세 설명 보기'}
+              accessibilityRole="button"
+              accessibilityState={{ expanded }}
+              onPress={onToggleExpanded}
+              style={({ pressed }) => [
+                styles.infoButton,
+                pressed && styles.cardActionPressed,
+              ]}
+              testID={`workout-info-action-${index}`}
+            >
+              <Text style={styles.infoButtonText}>
+                {expanded ? '설명 보는 중' : '자세 설명 보기'}
+              </Text>
+            </Pressable>
+          ) : null}
+          {variantAction}
+        </View>
       ) : null}
-      {variantAction}
     </Animated.View>
   );
 }
@@ -1951,18 +1960,13 @@ function SheetFrame({
 
 function SafetyConfirmSheet({
   onClose,
-  onOpenReport,
   onStop,
 }: {
   onClose: () => void;
-  onOpenReport: () => void;
   onStop?: () => void;
 }) {
   return (
-    <SheetFrame title="지금 운동을 중단할까요?">
-      <Text style={styles.sheetDescription}>
-        불편·이상 반응을 보고하면 운동을 중단할지, 계속할지 끼끼가 알려줘요
-      </Text>
+    <SheetFrame title="운동을 여기서 중단하시겠어요?">
       <Pressable
         accessibilityRole="button"
         onPress={onStop}
@@ -1982,19 +1986,10 @@ function SafetyConfirmSheet({
       </Pressable>
       <Pressable
         accessibilityRole="button"
-        onPress={onOpenReport}
-        style={styles.outlineButtonWide}
-      >
-        <Text style={styles.outlineButtonText}>
-          불편·이상 반응 먼저 보고하기
-        </Text>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
         onPress={onClose}
         style={styles.textButton}
       >
-        <Text style={styles.textButtonLabel}>계속 운동하기</Text>
+        <Text style={styles.textButtonLabel}>돌아가기</Text>
       </Pressable>
     </SheetFrame>
   );
@@ -2028,6 +2023,7 @@ function SymptomSheet({
   return (
     <SheetFrame title="불편·이상 반응 보고">
       <ScrollView showsVerticalScrollIndicator={false}>
+        <Text style={styles.sheetDescription}>{PAIN_REPORT_INTRO}</Text>
         <Text style={styles.choiceTitle}>어떤 일이 있었나요?</Text>
         <View style={styles.choiceWrap}>
           {WORKOUT_SYMPTOMS.map((symptom) => (
@@ -2133,9 +2129,7 @@ function ApiSafetySheet({
   return (
     <SheetFrame title="불편·이상 반응 보고">
       <ScrollView showsVerticalScrollIndicator={false}>
-        <Text style={styles.sheetDescription}>
-          선택한 내용을 서버의 안전 기준으로 확인한 뒤 계속 여부를 안내해요.
-        </Text>
+        <Text style={styles.sheetDescription}>{PAIN_REPORT_INTRO}</Text>
         <Text style={styles.choiceTitle}>불편한 부위</Text>
         <View style={styles.choiceWrap}>
           {DEFAULT_BODY_AREA_OPTIONS.map((option) => (
@@ -2729,13 +2723,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: colors.dangerBorder,
+    borderColor: colors.border,
     borderRadius: 18,
-    backgroundColor: colors.dangerSurface,
+    backgroundColor: colors.surface,
     paddingHorizontal: 14,
   },
   stopActionLabel: {
-    color: colors.dangerText,
+    color: colors.textSub,
     fontFamily: Platform.select({
       ios: 'System',
       android: 'sans-serif-medium',
@@ -2965,14 +2959,57 @@ const styles = StyleSheet.create({
     lineHeight: 20.25,
   },
   blockMetaCurrent: { color: colors.greenText },
-  infoButton: {
-    minHeight: 36,
-    alignSelf: 'flex-start',
-    justifyContent: 'center',
-    marginTop: 10,
-    paddingVertical: 8,
+  cardActionRow: {
+    width: '100%',
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: 8,
+    marginTop: 12,
   },
-  infoButtonText: { color: colors.green, fontSize: 12.5, fontWeight: '700' },
+  infoButton: {
+    minHeight: 44,
+    minWidth: 0,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#E2AC48',
+    borderRadius: 12,
+    backgroundColor: '#FFF2D1',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    shadowColor: '#C28B28',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  infoButtonText: {
+    color: colors.text,
+    fontSize: 12.5,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  cardVariantAction: {
+    minHeight: 44,
+    minWidth: 0,
+    width: '100%',
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.greenBorder,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceAlt,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+  },
+  cardVariantActionText: {
+    color: colors.greenText,
+    fontSize: 12.5,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  cardActionPressed: { opacity: 0.72, transform: [{ scale: 0.98 }] },
   undoButton: {
     minHeight: 34,
     alignSelf: 'flex-start',
@@ -3032,6 +3069,13 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     paddingLeft: 18,
   },
+  secondaryActions: {
+    flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
+    flexDirection: 'row',
+    gap: 8,
+  },
   smashAction: {
     height: 58,
     flex: 1,
@@ -3082,7 +3126,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     paddingHorizontal: 8,
   },
-  additionalAction: {
+  painAction: {
     height: 58,
     flex: 1,
     flexBasis: 0,
@@ -3090,12 +3134,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: colors.greenBorder,
+    borderColor: colors.dangerBorder,
     borderRadius: 18,
-    backgroundColor: colors.greenTint,
+    backgroundColor: colors.dangerBg,
     paddingHorizontal: 8,
   },
   restActionText: { color: colors.textSub, fontSize: 13.5, fontWeight: '700' },
+  painActionText: {
+    color: colors.dangerText,
+    fontSize: 12.5,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
   pressed: { opacity: 0.82 },
   restSheet: {
     position: 'absolute',

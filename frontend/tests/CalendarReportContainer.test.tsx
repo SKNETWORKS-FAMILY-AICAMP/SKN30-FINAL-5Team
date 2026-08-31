@@ -83,6 +83,17 @@ describe('CalendarReportContainer', () => {
     expect(
       screen.getByTestId('calendar-day-2026-08-03-0-mark-glyph').props.children,
     ).toBe('');
+    expect(
+      screen.getByTestId('calendar-day-2026-08-10-2-mark-glyph').props.children,
+    ).toBe('');
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('calendar-day-2026-08-10-2-mark').props.style,
+      ),
+    ).toMatchObject({
+      backgroundColor: 'transparent',
+      borderColor: 'transparent',
+    });
   });
 
   it('renders the existing calendar UI from paginated backend records', async () => {
@@ -122,15 +133,15 @@ describe('CalendarReportContainer', () => {
         items: [
           {
             session_id: 'partial',
-            local_date: '2026-08-11',
+            local_date: '2026-08-12',
             status_code: 'PARTIAL',
             completed_item_count: 1,
             total_item_count: 3,
             requested_duration_minutes: 30,
             training_type_code: 'STRENGTH',
             not_completed_reason_code: null,
-            started_at: '2026-08-11T09:00:00+09:00',
-            finished_at: '2026-08-11T09:15:00+09:00',
+            started_at: '2026-08-12T09:00:00+09:00',
+            finished_at: '2026-08-12T09:15:00+09:00',
           },
         ],
         next_cursor: null,
@@ -206,8 +217,8 @@ describe('CalendarReportContainer', () => {
       screen.getByTestId('calendar-day-2026-08-03-5-mark-glyph').props.children,
     ).toBe('×');
     expect(
-      screen.getByTestId('calendar-day-2026-08-10-1-mark-glyph').props.children,
-    ).toBe('◐');
+      screen.getByTestId('calendar-day-2026-08-10-2-mark-glyph').props.children,
+    ).toBe('△');
     expect(
       screen.getByTestId('calendar-chip-2026-08-03-label').props.children,
     ).toBe('리포트 확인하기');

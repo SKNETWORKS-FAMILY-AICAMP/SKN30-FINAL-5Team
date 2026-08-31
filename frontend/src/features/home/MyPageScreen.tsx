@@ -144,7 +144,7 @@ function MyPageContent({
         experienceLevelLabel(profile.experience_level_code),
         `주 ${profile.desired_weekly_workout_count}회`,
       ]
-    : ['체력 향상', '초보', '주 4회'];
+    : ['체력 증진', '초급', '주 4회'];
   const visibleDialog =
     dialog === 'withdraw' && deletionDeadline !== null ? null : dialog;
   const pageState =
