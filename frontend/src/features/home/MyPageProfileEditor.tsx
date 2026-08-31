@@ -16,7 +16,6 @@ import {
   EXTENDED_BODY_AREA_OPTIONS,
   locationLabel,
   primaryGoalLabel,
-  trainingTypeLabel,
 } from '../../api/labels';
 import type {
   MeProfile,
@@ -34,7 +33,6 @@ import { colors, radii, spacing } from '../../components/theme';
 import { ProfileAvatar } from '../../components/profile/ProfileAvatar';
 import {
   ONBOARDING_DURATION,
-  ONBOARDING_EXERCISE_TYPE_OPTIONS,
   ONBOARDING_EXPERIENCE_OPTIONS,
   ONBOARDING_GOAL_OPTIONS,
   ONBOARDING_LOCATION_OPTIONS,
@@ -66,11 +64,10 @@ const TITLES: Record<MyPageEditableField, string> = {
   basic_profile: '기본 정보 수정',
   primary_goal_code: '운동 목표 수정',
   experience_level_code: '운동 경험 수정',
-  preferred_exercise_type_codes: '선호 운동 수정',
   available_location_codes: '운동 장소 수정',
   default_requested_duration_minutes: '희망 시간 수정',
   desired_weekly_workout_count: '주간 목표 수정',
-  attention_area_codes: '주의 부위 수정',
+  attention_area_codes: '통증 부위 수정',
 };
 
 export function MyPageProfileEditor({
@@ -195,24 +192,6 @@ function EditorBody({
           />
         ))}
       </ChoiceCard>
-    );
-  }
-
-  if (field === 'preferred_exercise_type_codes') {
-    return (
-      <MultipleChoiceEditor
-        allowEmpty
-        disabled={pending}
-        initial={profile.preferred_exercise_type_codes}
-        options={mergeOptions(
-          ONBOARDING_EXERCISE_TYPE_OPTIONS,
-          profile.preferred_exercise_type_codes,
-          trainingTypeLabel,
-        )}
-        onChange={(preferred_exercise_type_codes) =>
-          onChange({ preferred_exercise_type_codes })
-        }
-      />
     );
   }
 
@@ -518,41 +497,6 @@ function validateOptionalNumber(
   return Number.isFinite(parsed) && parsed >= min && parsed <= max
     ? null
     : `${label}는 ${min}~${max} 범위로 입력해주세요.`;
-}
-
-function MultipleChoiceEditor({
-  allowEmpty = false,
-  disabled,
-  initial,
-  onChange,
-  options,
-}: {
-  allowEmpty?: boolean;
-  disabled: boolean;
-  initial: readonly string[];
-  onChange: (codes: string[]) => void;
-  options: readonly ChoiceOption[];
-}) {
-  const [selected, setSelected] = useState([...initial]);
-
-  return (
-    <ChoiceCard>
-      {options.map((option) => (
-        <ChipOption
-          key={option.code}
-          disabled={disabled}
-          label={option.label}
-          selected={selected.includes(option.code)}
-          onPress={() => {
-            const next = toggle(selected, option.code);
-            if (!allowEmpty && next.length === 0) return;
-            setSelected(next);
-            onChange(next);
-          }}
-        />
-      ))}
-    </ChoiceCard>
-  );
 }
 
 function LocationEditor({

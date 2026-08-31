@@ -174,11 +174,14 @@ const EQUIPMENT: Record<string, string> = {
 };
 
 const PRIMARY_GOAL: Record<string, string> = {
-  GENERAL_FITNESS: '건강 유지',
+  FAT_LOSS: '다이어트',
+  MUSCLE_GAIN: '근력 증가',
+  GENERAL_FITNESS: '체력 증진',
 };
 
 const EXPERIENCE_LEVEL: Record<string, string> = {
-  BEGINNER: '입문·초급',
+  BEGINNER: '초급',
+  INTERMEDIATE: '중급',
 };
 
 const COACHING_STYLE: Record<string, string> = {

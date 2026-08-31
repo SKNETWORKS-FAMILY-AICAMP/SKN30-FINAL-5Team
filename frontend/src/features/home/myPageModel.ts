@@ -4,7 +4,6 @@ import {
   experienceLevelLabel,
   locationLabel,
   primaryGoalLabel,
-  trainingTypeLabel,
 } from '../../api/labels';
 
 export type MyPageStats = {
@@ -16,7 +15,6 @@ export type MyPageStats = {
 export type MyPageProfileField =
   | 'primary_goal_code'
   | 'experience_level_code'
-  | 'preferred_exercise_type_codes'
   | 'available_location_codes'
   | 'default_requested_duration_minutes'
   | 'desired_weekly_workout_count'
@@ -43,13 +41,6 @@ export function buildMyPageProfileRows(
       experienceLevelLabel(profile.experience_level_code),
     ],
     [
-      'preferred_exercise_type_codes',
-      '선호 운동',
-      profile.preferred_exercise_type_codes
-        .map(trainingTypeLabel)
-        .join(' · ') || '지정 안 함',
-    ],
-    [
       'available_location_codes',
       '운동 장소',
       profile.available_location_codes.map(locationLabel).join(' · ') ||
@@ -67,7 +58,7 @@ export function buildMyPageProfileRows(
     ],
     [
       'attention_area_codes',
-      '주의 부위',
+      '통증 부위',
       profile.attention_area_codes.map(bodyAreaLabel).join(' · ') || '없음',
     ],
   ] as const;
