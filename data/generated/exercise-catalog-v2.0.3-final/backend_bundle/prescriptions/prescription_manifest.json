@@ -1,0 +1,47 @@
+{
+  "files": [
+    {
+      "bytes": 183952,
+      "path": "goal_tag_links.jsonl",
+      "records": 465,
+      "sha256": "9395f406ebac225f7f9affb8f3a459b53e4181ad93967745ee00e04240126e95"
+    },
+    {
+      "bytes": 614853,
+      "path": "prescription_profiles.jsonl",
+      "records": 1023,
+      "sha256": "ee33922b634fafb8206ec5d6792c6af5876b4dc1182a902cd243e3b08d8e3073"
+    }
+  ],
+  "generator_version": "v2-0-3-backend-bundle-packager-1.0.0",
+  "goal_expansion": {
+    "approval_method_code": "OWNER_BATCH_CONFIRMATION",
+    "approval_reference": "GOAL-EXPANSION-DOMAIN-REVIEW-2026-08-31-R01",
+    "approved_at": "2026-08-31T15:00:00+09:00",
+    "goal_codes": [
+      "FAT_LOSS",
+      "MUSCLE_GAIN"
+    ],
+    "policy_version": "goal-prescription-review-policy-2026-08-31"
+  },
+  "prescription_set_version": {
+    "status_code": "DRAFT",
+    "version_code": "prescription-set-v2.0.3"
+  },
+  "review": {
+    "production_eligible": false,
+    "review_method_code": "AGENT_ONLY",
+    "status": "DOMAIN_APPROVED",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
+  },
+  "schema_version": "1.0",
+  "source": {
+    "catalog_version_code": "exercise-catalog-v2.0.3-final",
+    "input_artifacts": []
+  },
+  "summary": {
+    "exercise_records": 155,
+    "goal_tag_records": 465,
+    "prescription_records": 1023
+  }
+}

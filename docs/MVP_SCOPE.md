@@ -279,14 +279,14 @@ SafetyAgent의 `PASS / NEEDS_INPUT / REVISE / BLOCKED` 의견을 Coordinator 결
 - lighter 옵션을 별도 공개하지 않고, 다운시프트가 필요한 경우 최종 추천 루틴 자체의 부하·강도·세트·반복·운동 유형·휴식 구성을 조정한다.
 - 시스템은 40분을 임의로 15분이나 5분으로 바꾸지 않는다.
 - 시간 부족 미수행이 반복돼도 사용자 확인 없이 희망 시간을 자동 변경하지 않는다.
-- 계획을 반환하는 경우 `estimated_duration_seconds`는 `requested_duration_minutes * 60`과 정확히 일치시킨다. 실제 수행 시간은 사용자 속도에 따라 달라질 수 있으므로 별도 경과 시간으로 표시한다.
+- 계획을 반환하는 경우 `estimated_duration_seconds`는 `requested_duration_minutes * 60`과 ±300초 이내로 맞춘다. 실제 수행 시간은 사용자 속도에 따라 달라질 수 있으므로 별도 경과 시간으로 표시한다.
 - 안전하게 시간을 채울 수 없다는 이유로 불필요한 운동을 추가하지 않는다.
 
 SEVERE 불편이나 중대한 이상 반응처럼 운동 제공 자체가 안전하지 않으면 시간 선호보다 REST 또는 STOP_AND_SEEK_HELP가 우선한다.
 
 ### 5.9 계획 시간과 실제 경과 시간
 
-사용자가 입력한 시간은 원하는 운동 길이인 `requested_duration_minutes`다. 서버는 계획 구성을 위한 `estimated_duration_seconds`를 계산하며, 운동 계획을 반환하는 경우 반드시 `requested_duration_minutes * 60`과 정확히 일치시킨다.
+사용자가 입력한 시간은 원하는 운동 길이인 `requested_duration_minutes`다. 서버는 계획 구성을 위한 `estimated_duration_seconds`를 계산하며, 운동 계획을 반환하는 경우 `requested_duration_minutes * 60`과 ±300초 이내로 맞추며, 허용 범위 안에서 차이가 가장 작은 계획을 고른다.
 
 ~~~text
 estimated_duration_seconds
@@ -306,7 +306,7 @@ MVP 기본 범위:
 - 세트 간 휴식: 검수된 운동 데이터에 정의
 - 마무리: 45~120초
 
-계획기는 준비·운동·휴식·전환·마무리 시간을 배분해 estimated duration을 requested duration과 정확히 일치시킨다. 이는 계획 단계의 hard target이지만 실제 수행을 강제하는 hard execution limit이나 완료 조건은 아니다. 검수된 후보와 안전 규칙만으로 요청 시간을 정확히 구성할 수 없으면 시간을 임의로 축소·초과하거나 불필요한 운동으로 채우지 않고 `NEEDS_INPUT` 또는 `BLOCKED`로 계획을 반환하지 않는다.
+계획기는 준비·운동·휴식·전환·마무리 시간을 배분해 estimated duration을 requested duration과 ±300초 이내로 맞춘다. 이는 계획 단계의 hard target이지만 실제 수행을 강제하는 hard execution limit이나 완료 조건은 아니다. 검수된 후보와 안전 규칙만으로 그 허용 범위를 만족할 수 없으면 시간을 임의로 축소·초과하거나 불필요한 운동으로 채우지 않고 `NEEDS_INPUT` 또는 `BLOCKED`로 계획을 반환하지 않는다.
 
 운동 시작 시 클라이언트는 0초부터 증가하는 경과 타이머를 표시한다. 실제 경과 시간은 사용자가 운동량을 확인하고 세션 기록을 남기기 위한 값이며 다음을 결정하지 않는다.
 

@@ -18,9 +18,12 @@ from backend.app.domain.agents.contracts import (
 )
 from backend.app.domain.rules.duration import (
     DURATION_RULE_VERSION,
+    DURATION_TOLERANCE_SECONDS,
     DurationAdjustmentSourceCode,
     DurationPlan,
+    DurationRequest,
     DurationRuleError,
+    assess_duration,
     calculate_estimated_duration_seconds,
     require_exact_duration,
     validate_requested_duration,
@@ -234,7 +237,17 @@ class CoordinatorResult(BaseModel):
                 raise ValueError("PASS and REVISE results require a plan-producing action")
             if self.selected_candidate_id is None or self.estimated_duration_seconds is None:
                 raise ValueError("PASS and REVISE results require one selected candidate")
-            if self.estimated_duration_seconds != self.requested_duration_minutes * 60:
+            # The 2026-08-27 project-owner approval replaced the exact-duration
+            # rule with a +/-5 minute allowance because requiring an exact total
+            # left only 30 reachable sums across the approved pool
+            # (docs/tasks/TASK-ROUTINE-EQUIPMENT-AND-DURATION.md). That rollout
+            # reached routine creation but not this coordinator, so the two paths
+            # disagreed and any stored routine off by even a second was rejected.
+            # requested_duration_minutes itself is still never rewritten.
+            duration_delta = abs(
+                self.estimated_duration_seconds - self.requested_duration_minutes * 60
+            )
+            if duration_delta > DURATION_TOLERANCE_SECONDS:
                 raise ValueError("selected candidate must preserve requested duration")
             if self.applied_agent_types != REQUIRED_AGENT_TYPES:
                 raise ValueError("successful results must apply all required proposals")
@@ -331,13 +344,21 @@ def _target_action(
 def _candidate_preference_key(
     candidate: CoordinatorCandidate,
     proposals: dict[AgentTypeCode, AgentProposal],
-) -> tuple[int, int, int, int, str]:
+    duration_request: DurationRequest,
+) -> tuple[int, int, int, int, int, int, str]:
     candidate_exercises = set(candidate.exercise_ids)
 
     def preferred_count(agent_type: AgentTypeCode) -> int:
         return len(candidate_exercises & set(proposals[agent_type].preferred_exercise_ids))
 
+    # docs/API_CONTRACT.md: among approved candidates the plan closest to the
+    # requested duration wins, and an equal gap prefers the longer plan over the
+    # shorter one. Duration leads the key because the contract states it as a
+    # requirement on the returned plan, not as a tie-breaker.
+    assessment = assess_duration(duration_request, candidate.duration_plan)
     return (
+        abs(assessment.delta_seconds),
+        0 if assessment.delta_seconds >= 0 else 1,
         -preferred_count(AgentTypeCode.FEASIBILITY),
         -preferred_count(AgentTypeCode.RECOVERY),
         -preferred_count(AgentTypeCode.TRAINING),
@@ -549,7 +570,11 @@ def coordinate(coordinator_input: CoordinatorInput) -> CoordinatorResult:
             rejection_reasons.add("CANDIDATE_MISSING_REQUIRED_GOAL")
             continue
         try:
-            require_exact_duration(duration_request, candidate.duration_plan)
+            require_exact_duration(
+                duration_request,
+                candidate.duration_plan,
+                tolerance_seconds=DURATION_TOLERANCE_SECONDS,
+            )
         except DurationRuleError:
             rejection_reasons.add("CANDIDATE_DURATION_MISMATCH")
             continue
@@ -584,7 +609,7 @@ def coordinate(coordinator_input: CoordinatorInput) -> CoordinatorResult:
 
     selected_candidate = min(
         action_candidates,
-        key=lambda candidate: _candidate_preference_key(candidate, by_agent_type),
+        key=lambda candidate: _candidate_preference_key(candidate, by_agent_type, duration_request),
     )
     result_status = (
         CoordinatorStatusCode.REVISE

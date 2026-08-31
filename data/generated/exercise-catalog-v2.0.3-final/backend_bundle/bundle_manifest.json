@@ -1,0 +1,139 @@
+{
+  "bundle_version": "v2-0-3-backend-bundle-2026-08-31",
+  "catalog_version_code": "exercise-catalog-v2.0.3-final",
+  "derived_from": {
+    "bundle_manifest_sha256": "92cb6812da02f4375b5259fb7c55b0c6e1317c6e24986c594467363017050c4e",
+    "catalog_version_code": "exercise-catalog-v2.0.2-final",
+    "change_summary": "Adds DOMAIN_APPROVED FAT_LOSS and MUSCLE_GAIN prescriptions and goal tag links. Catalog, media, safety rules and alternatives are carried over unchanged.",
+    "goal_expansion_policy_version": "goal-prescription-review-policy-2026-08-31"
+  },
+  "derived_set_versions": {
+    "alternative_set_version_code": "alternative-set-v2.0.3",
+    "prescription_set_version_code": "prescription-set-v2.0.3",
+    "rule_set_version_code": "safety-rule-set-v2.0.3"
+  },
+  "files": [
+    {
+      "bytes": 936620,
+      "path": "alternatives/alternatives.jsonl",
+      "records": 1150,
+      "sha256": "f41e021d2eebd1b00f8dd313b873f29bdc145d08943a0e67451a2e71a939d2bc"
+    },
+    {
+      "bytes": 774,
+      "path": "alternatives/alternatives_manifest.json",
+      "sha256": "c661e50dc2578c335dff33f1091720a6410a25b085d57e38a09ac5bfa85b37d3"
+    },
+    {
+      "bytes": 222355,
+      "path": "catalog/exercises.jsonl",
+      "records": 155,
+      "sha256": "900b77644c32750411af6536254cc384fa7b063b74a1e921f67c34c63667c393"
+    },
+    {
+      "bytes": 11612,
+      "path": "catalog/input/representative_exercises.csv",
+      "sha256": "bdfb2443246271aebb61374c5c6fd57ecd6073ed8125cd9805ab42eb1223b8ad"
+    },
+    {
+      "bytes": 1107,
+      "path": "catalog/seed_manifest.json",
+      "sha256": "81ac34786bcb7f7d1c4c1a6d6f3380b84f7ee05a7658b9806b817cad6bd9478e"
+    },
+    {
+      "bytes": 38048,
+      "path": "media/media_assets.jsonl",
+      "records": 68,
+      "sha256": "eccbbb77d42aabae4a8b5caef86077a7a5f53a70ef2b84181ccb350faed08050"
+    },
+    {
+      "bytes": 926,
+      "path": "media/media_manifest.json",
+      "sha256": "21ee8b576642d3a14cfdb9be7535a194455a7d292091a02f662004c9edc2c53e"
+    },
+    {
+      "bytes": 183952,
+      "path": "prescriptions/goal_tag_links.jsonl",
+      "records": 465,
+      "sha256": "9395f406ebac225f7f9affb8f3a459b53e4181ad93967745ee00e04240126e95"
+    },
+    {
+      "bytes": 1372,
+      "path": "prescriptions/prescription_manifest.json",
+      "sha256": "5f476af480d9494cb66f7db78795d7fa56afc4c37b1f63c0329be523e6821e97"
+    },
+    {
+      "bytes": 614853,
+      "path": "prescriptions/prescription_profiles.jsonl",
+      "records": 1023,
+      "sha256": "ee33922b634fafb8206ec5d6792c6af5876b4dc1182a902cd243e3b08d8e3073"
+    },
+    {
+      "bytes": 753,
+      "path": "safety/rules_manifest.json",
+      "sha256": "e16b228a8b4dae9d623b70430f0f14784c030f5ca566da52e084b7cdc92821a9"
+    },
+    {
+      "bytes": 265544,
+      "path": "safety/safety_rules.jsonl",
+      "records": 563,
+      "sha256": "45cbf3e9332420de0507eebe1c097d1c1b63f0d7a5e152ab96cecb36dc645f9a"
+    }
+  ],
+  "importer_paths": {
+    "alternatives": "alternatives/alternatives_manifest.json",
+    "catalog": "catalog/seed_manifest.json",
+    "media": "media/media_manifest.json",
+    "prescriptions": "prescriptions/prescription_manifest.json",
+    "safety": "safety/rules_manifest.json"
+  },
+  "production_eligible": false,
+  "projection": {
+    "carried_over_alternatives": {
+      "DIFFICULTY": 7,
+      "EQUIPMENT": 16,
+      "LOCATION": 23
+    },
+    "carried_over_source": "exercise-catalog-v2.0.1-final/runtime",
+    "excluded_exercise_count": 15,
+    "excluded_exercise_stable_codes": [
+      "band_front_raise_isolation_resistance_band",
+      "band_shrug_isolation_resistance_band",
+      "band_single_leg_calf_raise_isolation_resistance_band",
+      "cable_shrug_isolation_cable_machine",
+      "dumbbell_decline_shrug_isolation_dumbbell",
+      "dumbbell_decline_shrug_v_2_isolation_dumbbell",
+      "dumbbell_front_raise_isolation_dumbbell",
+      "dumbbell_front_raise_v_2_isolation_dumbbell",
+      "dumbbell_incline_shrug_isolation_dumbbell",
+      "dumbbell_seated_alternate_front_raise_isolation_dumbbell",
+      "dumbbell_seated_calf_raise_isolation_dumbbell",
+      "dumbbell_single_leg_calf_raise_isolation_dumbbell",
+      "lever_seated_calf_raise_isolation_machine",
+      "one_leg_floor_calf_raise_isolation_bodyweight",
+      "side_push_neck_stretch_mobility_stretch_bodyweight"
+    ],
+    "excluded_reason": "required exercise content is missing; the record and every row referencing it are withheld",
+    "source_manifest_sha256": "6f0b87c6e40e8f7f7d65c33a1c89dbeec86953e7a2dc8525bcdb41f1f4a9ba60",
+    "status": "PARTIAL",
+    "withheld_beginner_prescription_reason": "an INTERMEDIATE exercise is not offered to a BEGINNER",
+    "withheld_beginner_prescriptions": [
+      "bodyweight_reverse_crunch_core_brace_bodyweight",
+      "cable_triceps_pushdown_isolation_cable_machine",
+      "lat_pulldown_vertical_pull_cable_machine",
+      "row_variant_horizontal_pull_cable_machine",
+      "seated_cable_row_horizontal_pull_cable_machine"
+    ],
+    "withheld_media_records": 102
+  },
+  "schema_version": "1.0",
+  "status_code": "DRAFT",
+  "summary": {
+    "alternative_records": 1150,
+    "catalog_records": 155,
+    "goal_tag_records": 465,
+    "media_asset_records": 68,
+    "prescription_records": 1023,
+    "safety_rule_records": 563
+  }
+}

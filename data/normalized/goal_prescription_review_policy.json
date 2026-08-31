@@ -1,0 +1,180 @@
+{
+  "schema_version": "1.0",
+  "policy_version": "goal-prescription-review-policy-2026-08-31",
+  "status": "REVIEWED",
+  "production_eligible": true,
+  "review_status_code": "DOMAIN_APPROVED",
+  "reviewer_role_code": "DOMAIN_REVIEWER",
+  "reviewer_reference": "GOAL-EXPANSION-DOMAIN-REVIEW-2026-08-31-R01",
+  "evidence_reference": "GOAL-PRESCRIPTION-POLICY-V1;OWNER-BATCH-CONFIRMATION-20260831",
+  "reviewed_at": "2026-08-31T15:00:00+09:00",
+  "prescription_version": "v2.0.3-goal-expansion-draft",
+  "scope": {
+    "catalog_version_code": "exercise-catalog-v2.0.2-final",
+    "goal_codes": [
+      "FAT_LOSS",
+      "MUSCLE_GAIN"
+    ],
+    "experience_level_codes": [
+      "BEGINNER",
+      "INTERMEDIATE"
+    ],
+    "note": "GENERAL_FITNESS는 v2_prescription_review_policy.json이 계속 관할한다. 이 파일은 온보딩에 이미 노출된 두 목표를 채우기 위한 확장이며, 승인 전에는 어떤 행도 DOMAIN_APPROVED가 아니다."
+  },
+  "external_basis": [
+    "ACSM/NSCA 권고 범위: 근비대는 6~12회·세트간 60~90초, 체중감량은 대사 요구를 높이기 위해 상대적 고반복·짧은 휴식"
+  ],
+  "internal_decision": {
+    "warmup_cooldown": "목표와 무관하게 GENERAL_FITNESS와 동일한 저강도 값을 쓴다. 준비·마무리는 목표 달성 수단이 아니라 안전 장치이므로 목표별로 강도를 올리지 않는다.",
+    "beginner_conservatism": "초급은 중급보다 세트를 1 적게, 휴식을 길게 둔다. 특히 FAT_LOSS의 짧은 휴식은 초급에서 40초로 완화한다.",
+    "difficulty_gate": "난이도 게이트(BEGINNER는 BEGINNER 운동만)는 기존 training_level 규칙이 그대로 적용되며 이 정책은 이를 완화하지 않는다."
+  },
+  "role_eligibility_by_movement_pattern": {
+    "MUSCLE_GAIN": {
+      "CORE": [
+        "HIP_DOMINANT",
+        "KNEE_DOMINANT",
+        "HORIZONTAL_PUSH",
+        "HORIZONTAL_PULL",
+        "VERTICAL_PUSH",
+        "VERTICAL_PULL",
+        "CORE_BRACE"
+      ],
+      "SUPPORT": [
+        "ISOLATION",
+        "KNEE_FLEXION",
+        "MOBILITY_STRETCH",
+        "BALANCE",
+        "GAIT",
+        "CYCLING",
+        "ELLIPTICAL",
+        "JUMP_PLYOMETRIC"
+      ],
+      "rationale": "근비대의 주 자극은 부하를 실은 복합 관절 운동이다. 유산소·점프는 보조로만 둔다."
+    },
+    "FAT_LOSS": {
+      "CORE": [
+        "GAIT",
+        "CYCLING",
+        "ELLIPTICAL",
+        "JUMP_PLYOMETRIC",
+        "HIP_DOMINANT",
+        "KNEE_DOMINANT",
+        "HORIZONTAL_PUSH",
+        "HORIZONTAL_PULL",
+        "VERTICAL_PUSH",
+        "VERTICAL_PULL"
+      ],
+      "SUPPORT": [
+        "ISOLATION",
+        "KNEE_FLEXION",
+        "MOBILITY_STRETCH",
+        "BALANCE",
+        "CORE_BRACE"
+      ],
+      "rationale": "총 에너지 소비를 좌우하는 전신·유산소 동작을 주 운동으로 둔다. 단일 관절 고립운동은 보조다."
+    }
+  },
+  "prescription_by_training_type": {
+    "MOBILITY": {
+      "phases": [
+        {
+          "phase_code": "WARMUP",
+          "sets": 1,
+          "work_seconds_per_set": 60,
+          "rest_seconds_per_set": 0,
+          "intensity_code": "LOW"
+        },
+        {
+          "phase_code": "COOLDOWN",
+          "sets": 1,
+          "work_seconds_per_set": 45,
+          "rest_seconds_per_set": 0,
+          "intensity_code": "LOW"
+        }
+      ]
+    },
+    "STRENGTH": {
+      "timing_mode_policy": "BY_CATALOG_TIMING_MODE"
+    },
+    "CARDIO": {
+      "timing_mode_policy": "BY_CATALOG_TIMING_MODE"
+    }
+  },
+  "prescription_by_goal_timing_mode": {
+    "MUSCLE_GAIN": {
+      "REPS": {
+        "BEGINNER": {
+          "phase_code": "MAIN",
+          "sets": 2,
+          "reps": 10,
+          "rest_seconds_per_set": 60,
+          "intensity_code": "MODERATE"
+        },
+        "INTERMEDIATE": {
+          "phase_code": "MAIN",
+          "sets": 3,
+          "reps": 10,
+          "rest_seconds_per_set": 75,
+          "intensity_code": "MODERATE"
+        }
+      },
+      "DURATION": {
+        "BEGINNER": {
+          "phase_code": "MAIN",
+          "sets": 2,
+          "work_seconds_per_set": 45,
+          "rest_seconds_per_set": 45,
+          "intensity_code": "MODERATE"
+        },
+        "INTERMEDIATE": {
+          "phase_code": "MAIN",
+          "sets": 3,
+          "work_seconds_per_set": 45,
+          "rest_seconds_per_set": 60,
+          "intensity_code": "MODERATE"
+        }
+      }
+    },
+    "FAT_LOSS": {
+      "REPS": {
+        "BEGINNER": {
+          "phase_code": "MAIN",
+          "sets": 2,
+          "reps": 12,
+          "rest_seconds_per_set": 40,
+          "intensity_code": "MODERATE"
+        },
+        "INTERMEDIATE": {
+          "phase_code": "MAIN",
+          "sets": 3,
+          "reps": 12,
+          "rest_seconds_per_set": 30,
+          "intensity_code": "MODERATE"
+        }
+      },
+      "DURATION": {
+        "BEGINNER": {
+          "phase_code": "MAIN",
+          "sets": 2,
+          "work_seconds_per_set": 60,
+          "rest_seconds_per_set": 40,
+          "intensity_code": "MODERATE"
+        },
+        "INTERMEDIATE": {
+          "phase_code": "MAIN",
+          "sets": 3,
+          "work_seconds_per_set": 60,
+          "rest_seconds_per_set": 30,
+          "intensity_code": "MODERATE"
+        }
+      }
+    }
+  },
+  "guards": {
+    "no_self_approval": "이 파일을 생성한 도구는 review_status_code를 DOMAIN_APPROVED로 쓰지 않는다. 검수자가 직접 채운다.",
+    "phase_order": "WARMUP -> MAIN -> COOLDOWN 순서는 루틴 구성기가 강제하며 처방이 이를 바꾸지 않는다.",
+    "difficulty": "난이도 상한은 사용자 숙련도 규칙이 강제한다."
+  },
+  "approval_method_code": "OWNER_BATCH_CONFIRMATION"
+}
