@@ -14,6 +14,7 @@ from backend.app.api.dependencies import (
     get_db_session,
     get_profile_repository,
 )
+from backend.app.core.config import Settings
 from backend.app.core.errors import AppError
 from backend.app.modules.identity.service import CurrentUser
 from backend.app.modules.profiles.age import (
@@ -51,6 +52,7 @@ _PROFILE_CONFIGURATION_SETTINGS = (
     ("ONBOARDING_PRIMARY_GOAL_CODES", "onboarding_primary_goal_codes"),
     ("ONBOARDING_EXPERIENCE_LEVEL_CODES", "onboarding_experience_level_codes"),
 )
+_KMS_BIRTHDATE_ENVIRONMENTS = frozenset({"staging", "production"})
 
 
 def _service(
@@ -68,10 +70,22 @@ def _service(
     )
 
 
+def _birthdate_configuration_setting(settings: Settings) -> tuple[str, str]:
+    # 생년월일 암호화 설정은 환경마다 다르다. 배포 환경은 KMS 키만 사용하고,
+    # 로컬/테스트는 base64 키만 사용한다. 진단 로그가 그 환경에서 실제로
+    # 채워야 하는 키를 가리켜야 운영자가 503 원인을 바로 찾을 수 있다.
+    if settings.app_env in _KMS_BIRTHDATE_ENVIRONMENTS:
+        return ("BIRTHDATE_KMS_KEY_ID", "birthdate_kms_key_id")
+    return ("BIRTHDATE_ENCRYPTION_KEY_BASE64", "birthdate_encryption_key_base64")
+
+
 def _missing_profile_configuration_keys(request: Request) -> list[str]:
     settings = request.app.state.settings
     missing_keys: list[str] = []
-    for environment_key, setting_name in _PROFILE_CONFIGURATION_SETTINGS:
+    for environment_key, setting_name in (
+        *_PROFILE_CONFIGURATION_SETTINGS,
+        _birthdate_configuration_setting(settings),
+    ):
         value = getattr(settings, setting_name)
         if value is None or (isinstance(value, str) and not value.strip()) or value == ():
             missing_keys.append(environment_key)

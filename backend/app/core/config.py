@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     google_application_credentials: Path | None = None
     birthdate_encryption_key_base64: SecretStr | None = None
     birthdate_encryption_key_id: str = "local-v1"
+    birthdate_kms_key_id: str | None = None
+    aws_region: str | None = None
     consent_policy_version: str | None = None
     # Narration은 선택 기능이다. 기본값은 비활성이며 결정적 템플릿만 사용한다.
     llm_enabled: bool = False
@@ -129,6 +131,14 @@ class Settings(BaseSettings):
     @field_validator("google_application_credentials", mode="before")
     @classmethod
     def normalize_credentials_path(cls, value: object) -> object:
+        if isinstance(value, str):
+            normalized = value.strip()
+            return normalized or None
+        return value
+
+    @field_validator("birthdate_kms_key_id", "aws_region", mode="before")
+    @classmethod
+    def normalize_optional_aws_setting(cls, value: object) -> object:
         if isinstance(value, str):
             normalized = value.strip()
             return normalized or None

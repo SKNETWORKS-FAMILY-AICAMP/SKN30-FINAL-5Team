@@ -2,6 +2,7 @@ import base64
 import binascii
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from typing import cast
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,7 +15,11 @@ from backend.app.core.errors import register_exception_handlers
 from backend.app.core.logging import configure_logging
 from backend.app.core.middleware import RequestContextMiddleware
 from backend.app.db.session import DatabaseManager
-from backend.app.integrations.birthdate_crypto import LocalAesGcmBirthdateCipher
+from backend.app.integrations.birthdate_crypto import (
+    AwsKmsBirthdateCipher,
+    KmsClient,
+    LocalAesGcmBirthdateCipher,
+)
 from backend.app.integrations.firebase_auth import build_firebase_token_verifier
 from backend.app.integrations.llm_provider import build_narration_provider
 from backend.app.integrations.v3_application_composition import (
@@ -39,9 +44,27 @@ from backend.app.modules.identity.ports import FirebaseTokenVerifier
 from backend.app.modules.profiles.ports import BirthdateCipher
 
 
-def _build_birthdate_cipher(settings: Settings) -> BirthdateCipher | None:
+def _build_birthdate_cipher(
+    settings: Settings,
+    *,
+    kms_client: KmsClient | None = None,
+) -> BirthdateCipher | None:
     configured_key = settings.birthdate_encryption_key_base64
-    if configured_key is None or settings.app_env not in {"local", "test"}:
+    if settings.app_env in {"staging", "production"}:
+        if settings.birthdate_kms_key_id is None:
+            return None
+        if kms_client is None:
+            import boto3
+
+            kms_client = cast(
+                KmsClient,
+                boto3.client("kms", region_name=settings.aws_region),
+            )
+        return AwsKmsBirthdateCipher(
+            kms_client,
+            key_id=settings.birthdate_kms_key_id,
+        )
+    if configured_key is None:
         return None
     try:
         key = base64.b64decode(configured_key.get_secret_value(), validate=True)
