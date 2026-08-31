@@ -13,6 +13,7 @@ from backend.app.api.dependencies import (
     get_current_user,
     get_db_session,
     get_profile_repository,
+    get_routine_repository,
 )
 from backend.app.core.config import Settings
 from backend.app.integrations.birthdate_crypto import LocalAesGcmBirthdateCipher
@@ -167,6 +168,7 @@ def _client(
     repository = FakeProfileSettingsRepository(
         _record(cipher.encrypt(user_id, date(2000, 8, 11))) if has_profile else None
     )
+    stale_routines = FakeStaleRoutines()
     settings = Settings(
         app_env="test",
         database_url="postgresql+psycopg://test:test@localhost/test",
@@ -190,7 +192,52 @@ def _client(
 
     app.dependency_overrides[get_db_session] = session_override
     app.dependency_overrides[get_profile_repository] = lambda: repository
+    app.dependency_overrides[get_routine_repository] = lambda: stale_routines
     return TestClient(app), repository
+
+
+def test_changing_the_default_duration_retires_the_stale_routine() -> None:
+    # The stored routine was built to the old default. Leaving it active makes
+    # every daily decision reject it and the user sees REST with no way out.
+    client, _ = _client()
+    stale = client.app.dependency_overrides[get_routine_repository]()
+
+    response = client.patch(
+        "/api/v1/me/profile",
+        json={"default_requested_duration_minutes": 45},
+        headers=_headers(),
+    )
+
+    assert response.status_code == 200
+    assert stale.archived_for == [45]
+
+
+def test_editing_other_fields_leaves_the_routine_alone() -> None:
+    client, _ = _client()
+    stale = client.app.dependency_overrides[get_routine_repository]()
+
+    response = client.patch(
+        "/api/v1/me/profile",
+        json={"desired_weekly_workout_count": 3},
+        headers=_headers(),
+    )
+
+    assert response.status_code == 200
+    assert stale.archived_for == []
+
+
+class FakeStaleRoutines:
+    """Records what the profile edit asked to retire, without a database."""
+
+    def __init__(self) -> None:
+        self.archived_for: list[int] = []
+
+    def archive_routines_with_other_duration(
+        self, session: Any, user_id: UUID, *, requested_duration_minutes: int
+    ) -> int:
+        del session, user_id
+        self.archived_for.append(requested_duration_minutes)
+        return 1
 
 
 def _headers(*, key: str | None = None, version: str = '"1"') -> dict[str, str]:
