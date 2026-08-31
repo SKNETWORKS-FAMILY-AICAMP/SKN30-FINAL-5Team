@@ -77,6 +77,13 @@ def _candidate_duration(candidate: RoutineCandidate) -> PlanItemDuration:
     )
 
 
+def _subset_rank(items: tuple[RoutineCandidate, ...]) -> tuple[int, int]:
+    """Rank a candidate subset: more CORE first, then fewer exercises."""
+
+    core = sum(item.tier_code == RoutineTierCode.CORE for item in items)
+    return (-core, len(items))
+
+
 def _subsets(
     candidates: tuple[RoutineCandidate, ...], target_seconds: int
 ) -> dict[tuple[int, bool], tuple[RoutineCandidate, ...]]:
@@ -93,7 +100,11 @@ def _subsets(
             key = (total, has_core or candidate.tier_code == RoutineTierCode.CORE)
             proposed = (*selected, candidate)
             existing = states.get(key) or additions.get(key)
-            if existing is None or len(proposed) < len(existing):
+            # Collapsing on length alone discarded the CORE-richer subset for a
+            # given total, so preferring CORE later had nothing left to choose
+            # from and a muscle-gain plan stayed mostly support work. Keep the
+            # subset that carries more CORE, and only then the shorter one.
+            if existing is None or _subset_rank(proposed) < _subset_rank(existing):
                 additions[key] = proposed
         states.update(additions)
     return states
