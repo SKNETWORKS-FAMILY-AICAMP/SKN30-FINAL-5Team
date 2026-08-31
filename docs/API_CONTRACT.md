@@ -1024,8 +1024,11 @@ version으로 변경을 재적용하는 요청에는 새 `Idempotency-Key`를 �
 version은 1부터 단조 증가하며, 같은 사용자의 동시 생성은 직렬화한다.
 
 `GET /api/v1/routines/current?local_date=YYYY-MM-DD`는 인증된 현재 사용자에게 해당 날짜에
-활성인 루틴만 반환한다. 활성 루틴이 없으면 `404 ROUTINE_NOT_FOUND`이며 다른 사용자의
-루틴은 조회 후보에 포함하지 않는다.
+활성이고 현재 운영 승인된 `ACTIVE` catalog version을 참조하는 루틴만 반환한다. catalog
+전환으로 참조 version이 `DEPRECATED`가 된 루틴은 기록으로 보존하되 현재 루틴으로 노출하지
+않는다. 사용할 수 있는 현재 루틴이 없으면 `404 ROUTINE_NOT_FOUND`이며, 클라이언트는 기존
+`POST /api/v1/routines` 흐름으로 새 `ACTIVE` catalog version 기반 루틴을 생성할 수 있다. 다른
+사용자의 루틴은 조회 후보에 포함하지 않는다.
 
 ### 8.2 RoutineResponse
 

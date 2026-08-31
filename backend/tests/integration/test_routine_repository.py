@@ -311,17 +311,32 @@ def test_postgresql_routine_repository_version_ownership_and_concurrency(
         session.execute(
             update(CatalogVersion)
             .where(CatalogVersion.id == catalog_id)
-            .values(production_eligible=False)
+            .values(
+                status_code="DEPRECATED",
+                production_eligible=False,
+                activated_at=None,
+            )
         )
     with Session(engine) as session:
         assert (
             RoutineRepository().get_creation_context(session, other_id, "GENERAL_FITNESS") is None
         )
+        assert (
+            RoutineRepository().get_current_routine_payload(session, owner_id, date(2026, 8, 15))
+            is None
+        )
+        historical = RoutineRepository().get_routine_response_payload(session, owner_id, second.id)
+        assert historical is not None
+        assert historical["catalog_version"] == second.catalog_version
     with Session(engine) as session, session.begin():
         session.execute(
             update(CatalogVersion)
             .where(CatalogVersion.id == catalog_id)
-            .values(production_eligible=True)
+            .values(
+                status_code="ACTIVE",
+                production_eligible=True,
+                activated_at=NOW,
+            )
         )
     with Session(engine) as session, session.begin():
         session.execute(
