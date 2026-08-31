@@ -152,6 +152,14 @@ def _select_exact_plan(
             # fallback, not a licence to drift.
             match[0],
             sum(item.tier_code == RoutineTierCode.OPTIONAL for item in match[2]),
+            # Goal fit: CORE work is what the goal's catalog review marked as
+            # driving it, so prefer the plan that carries more of it. Requiring
+            # only one CORE let a muscle-gain session fill up with support work.
+            -sum(
+                item.tier_code == RoutineTierCode.CORE
+                and item.phase_code == RoutinePhaseCode.MAIN
+                for item in match[2]
+            ),
             len(match[2]),
             tuple(
                 (item.phase_code, item.exercise_name, str(item.exercise_id)) for item in match[2]
