@@ -124,18 +124,18 @@ const EXPECTED_CALENDAR_WEEKS = [
 
 const EXPECTED_DAY_VISUALS = [
   ['done', '✓', 0x2713, '#F6BA50', '#FFFFFF', '#F6BA50'],
-  ['partial', '◐', 0x25d0, '#F6BA50', '#6B520C', '#F6BA50'],
+  ['partial', '△', 0x25b3, '#F6BA50', '#6B520C', '#F6BA50'],
   ['miss', '×', 0x00d7, '#FFFFFF', '#C0BBB1', '#E2DED4'],
   ['rest', '–', 0x2013, '#EDEAE2', '#8B8780', '#EDEAE2'],
-  ['today', '●', 0x25cf, '#FFFFFF', '#A45F00', '#F6BA50'],
+  ['today', '', undefined, 'transparent', 'transparent', 'transparent'],
   ['upcoming', '', undefined, 'transparent', 'transparent', 'transparent'],
 ] as const;
 
 const EXPECTED_WEEK_CHIPS = [
   ['progress', '진행 중', '#FFFFFF', '#A45F00', '#F1D39A', 'solid'],
-  ['make', '리포트 생성 가능!', '#F6BA50', '#3A320F', '#D98B16', 'solid'],
-  ['unread', '리포트 확인하기', '#FDECE9', '#C2402F', '#F5C9C1', 'solid'],
-  ['read', '확인 완료', 'transparent', '#9A968E', '#E2DED4', 'solid'],
+  ['make', '리포트 생성 가능!', '#E7F3FA', '#356A85', '#9CC5DF', 'solid'],
+  ['unread', '리포트 확인하기', '#EDF3DD', '#5F7048', '#C8D7AC', 'solid'],
+  ['read', '확인 완료', '#EDF3DD', '#5F7048', '#C8D7AC', 'solid'],
   ['unavailable', '리포트 오류', '#FDECE9', '#C2402F', '#F5C9C1', 'solid'],
   ['upcoming', '예정', 'transparent', '#B7B2A8', '#DFDBD2', 'dashed'],
 ] as const;
@@ -234,7 +234,7 @@ describe('Home secondary visual prototypes', () => {
     ).toBe('–');
     expect(
       screen.getByTestId('calendar-day-week-3-2-mark-glyph').props.children,
-    ).toBe('●');
+    ).toBe('');
     expect(
       StyleSheet.flatten(
         screen.getByTestId('calendar-day-week-2-0-mark').props.style,
@@ -259,13 +259,59 @@ describe('Home secondary visual prototypes', () => {
         screen.getByTestId('calendar-chip-week-2').props.style,
       ),
     ).toMatchObject({
-      backgroundColor: '#F6BA50',
-      borderColor: '#D98B16',
+      backgroundColor: '#E7F3FA',
+      borderColor: '#9CC5DF',
       borderStyle: 'solid',
     });
     expect(
       screen.getByTestId('calendar-chip-week-2-label').props.children,
     ).toBe('리포트 생성 가능!');
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('calendar-chip-week-1').props.style,
+      ),
+    ).toMatchObject({
+      backgroundColor: '#EDF3DD',
+      borderColor: '#C8D7AC',
+      borderStyle: 'solid',
+    });
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('calendar-week-week-2').props.style,
+      ),
+    ).toMatchObject({
+      backgroundColor: '#F3F9FC',
+      borderColor: '#79B1D2',
+      borderWidth: 2,
+      elevation: 3,
+    });
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('calendar-week-week-1').props.style,
+      ),
+    ).toMatchObject({
+      backgroundColor: '#F6F9EF',
+      borderColor: '#C8D7AC',
+      borderWidth: 1.5,
+    });
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('calendar-week-week-3').props.style,
+      ),
+    ).toMatchObject({
+      backgroundColor: '#FFF9EA',
+      borderColor: '#E7D3A8',
+      borderWidth: 1.5,
+    });
+  });
+
+  it('renders the status legend above the weekday row', () => {
+    const view = render(<CalendarReportScreen />);
+    const tree = JSON.stringify(view.toJSON());
+
+    expect(tree.indexOf('calendar-legend-done')).toBeLessThan(
+      tree.indexOf('calendar-weekday-월'),
+    );
   });
 
   it('periodically shakes the report creation CTA when motion is allowed', async () => {

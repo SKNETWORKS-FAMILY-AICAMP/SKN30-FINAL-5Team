@@ -82,7 +82,7 @@ export const CALENDAR_DAY_VISUALS = {
   },
   partial: {
     label: '부분 수행',
-    glyph: '◐',
+    glyph: '△',
     backgroundColor: '#F6BA50',
     color: '#6B520C',
     borderColor: '#F6BA50',
@@ -103,10 +103,10 @@ export const CALENDAR_DAY_VISUALS = {
   },
   today: {
     label: '오늘',
-    glyph: '●',
-    backgroundColor: '#FFFFFF',
-    color: '#A45F00',
-    borderColor: '#F6BA50',
+    glyph: '',
+    backgroundColor: 'transparent',
+    color: 'transparent',
+    borderColor: 'transparent',
   },
   upcoming: {
     label: '예정',
@@ -136,23 +136,23 @@ export const CALENDAR_WEEK_CHIPS = {
   },
   make: {
     label: '리포트 생성 가능!',
-    backgroundColor: '#F6BA50',
-    color: '#3A320F',
-    borderColor: '#D98B16',
+    backgroundColor: '#E7F3FA',
+    color: '#356A85',
+    borderColor: '#9CC5DF',
     borderStyle: 'solid',
   },
   unread: {
     label: '리포트 확인하기',
-    backgroundColor: '#FDECE9',
-    color: '#C2402F',
-    borderColor: '#F5C9C1',
+    backgroundColor: '#EDF3DD',
+    color: '#5F7048',
+    borderColor: '#C8D7AC',
     borderStyle: 'solid',
   },
   read: {
     label: '확인 완료',
-    backgroundColor: 'transparent',
-    color: '#9A968E',
-    borderColor: '#E2DED4',
+    backgroundColor: '#EDF3DD',
+    color: '#5F7048',
+    borderColor: '#C8D7AC',
     borderStyle: 'solid',
   },
   unavailable: {
@@ -315,13 +315,12 @@ export const CALENDAR_WEEKS = [
 ] as const satisfies readonly CalendarWeek[];
 
 export const MY_PAGE_PROFILE_ROWS = [
-  ['primary_goal_code', '운동 목표', '체력 향상'],
-  ['experience_level_code', '운동 경험', '초보'],
-  ['preferred_exercise_type_codes', '선호 운동', '근력 · 유산소'],
+  ['primary_goal_code', '운동 목표', '체력 증진'],
+  ['experience_level_code', '운동 경험', '초급'],
   ['available_location_codes', '운동 장소', '헬스장'],
   ['default_requested_duration_minutes', '희망 시간', '40분'],
   ['desired_weekly_workout_count', '주간 목표', '4회'],
-  ['attention_area_codes', '주의 부위', '무릎'],
+  ['attention_area_codes', '통증 부위', '무릎'],
 ] as const;
 
 export const MY_PAGE_ACCOUNT_ROWS = [

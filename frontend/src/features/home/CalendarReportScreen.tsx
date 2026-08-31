@@ -207,6 +207,23 @@ function CalendarReportContent({
           </View>
         </Card>
 
+        <View style={styles.legendCard}>
+          <Text style={styles.legendTitle}>아이콘 안내</Text>
+          <View style={styles.legendRow}>
+            {(['done', 'partial', 'miss', 'rest'] as const).map((status) => (
+              <View key={status} style={styles.legendItem}>
+                <CalendarStatusMark
+                  status={status}
+                  testID={`calendar-legend-${status}`}
+                />
+                <Text style={styles.legendLabel}>
+                  {CALENDAR_DAY_VISUALS[status].label}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
         <View style={styles.weekdayRow}>
           {CALENDAR_WEEKDAYS.map((weekday) => (
             <Text
@@ -234,10 +251,13 @@ function CalendarReportContent({
                 key={week.id}
                 style={[
                   styles.weekBand,
-                  week.state === 'progress' && styles.weekBandCurrent,
-                  week.state === 'upcoming' && styles.weekBandUpcoming,
                   expanded && styles.weekBandExpanded,
                   { backgroundColor: week.bandColor },
+                  week.state === 'progress' && styles.weekBandCurrent,
+                  week.state === 'make' && styles.weekBandReportReady,
+                  (week.state === 'unread' || week.state === 'read') &&
+                    styles.weekBandReportGenerated,
+                  week.state === 'upcoming' && styles.weekBandUpcoming,
                   beforeRoutineStart && styles.weekBandBeforeRoutine,
                 ]}
                 testID={`calendar-week-${week.id}`}
@@ -346,23 +366,6 @@ function CalendarReportContent({
               </View>
             );
           })}
-        </View>
-
-        <View style={styles.legendCard}>
-          <Text style={styles.legendTitle}>아이콘 안내</Text>
-          <View style={styles.legendRow}>
-            {(['done', 'partial', 'miss', 'rest'] as const).map((status) => (
-              <View key={status} style={styles.legendItem}>
-                <CalendarStatusMark
-                  status={status}
-                  testID={`calendar-legend-${status}`}
-                />
-                <Text style={styles.legendLabel}>
-                  {CALENDAR_DAY_VISUALS[status].label}
-                </Text>
-              </View>
-            ))}
-          </View>
         </View>
       </ScrollView>
       <HomeBottomNavigation activeTab="report" onNavigate={onNavigateTab} />
@@ -1052,8 +1055,22 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   weekBandCurrent: {
-    borderColor: '#E0A742',
-    backgroundColor: '#FFEBC2',
+    borderColor: '#E7D3A8',
+    backgroundColor: '#FFF9EA',
+  },
+  weekBandReportReady: {
+    borderWidth: 2,
+    borderColor: '#79B1D2',
+    backgroundColor: '#F3F9FC',
+    shadowColor: '#356A85',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.14,
+    shadowRadius: 7,
+    elevation: 3,
+  },
+  weekBandReportGenerated: {
+    borderColor: '#C8D7AC',
+    backgroundColor: '#F6F9EF',
   },
   weekBandUpcoming: {
     borderColor: '#DFDBD2',

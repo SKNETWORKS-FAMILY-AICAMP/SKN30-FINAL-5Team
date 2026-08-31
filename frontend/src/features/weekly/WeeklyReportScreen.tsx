@@ -28,7 +28,10 @@ import {
   weekStartString,
 } from '../../api/useAsync';
 import type { TabId } from '../../components/brand/BrandChrome';
-import { InlineFeedback } from '../../components/primitives';
+import {
+  GradientActionButton,
+  InlineFeedback,
+} from '../../components/primitives';
 import { ErrorState, LoadingState } from '../../components/states/ScreenState';
 import { colors } from '../../components/theme';
 import { HomeBottomNavigation } from '../home/HomeScreen';
@@ -261,11 +264,7 @@ function WeekSummaryCard({
   hasReport: boolean;
 }) {
   const closed = week.status_code === 'CLOSED';
-  const statusLabel = !closed
-    ? '진행 중'
-    : hasReport
-      ? '리포트 준비됨'
-      : '리포트 만들기';
+  const statusLabel = !closed ? '진행 중' : hasReport ? '리포트 준비됨' : null;
 
   return (
     <View style={styles.weekCard}>
@@ -276,23 +275,20 @@ function WeekSummaryCard({
             {formatWeekRange(week.week_start, week.week_end)}
           </Text>
         </View>
-        <View
-          style={[
-            styles.statusChip,
-            !closed && styles.statusChipProgress,
-            closed && !hasReport && styles.statusChipMake,
-          ]}
-        >
-          <Text
-            style={[
-              styles.statusChipText,
-              !closed && styles.statusChipTextProgress,
-              closed && !hasReport && styles.statusChipTextMake,
-            ]}
+        {statusLabel !== null ? (
+          <View
+            style={[styles.statusChip, !closed && styles.statusChipProgress]}
           >
-            {statusLabel}
-          </Text>
-        </View>
+            <Text
+              style={[
+                styles.statusChipText,
+                !closed && styles.statusChipTextProgress,
+              ]}
+            >
+              {statusLabel}
+            </Text>
+          </View>
+        ) : null}
       </View>
       <View style={styles.weekGoalRow}>
         <View style={styles.weekGoalCount}>
@@ -332,21 +328,15 @@ function ReportGenerationCard({
         <ChecklistRow label="꾸준함과 조정 패턴 정리" />
         <ChecklistRow label="다음 주를 위한 한 가지 제안" />
       </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ busy: pending, disabled: pending }}
+      <GradientActionButton
+        accessibilityState={{ busy: pending }}
         disabled={pending}
+        label={pending ? '리포트를 만들고 있어요…' : '리포트 생성하기'}
+        labelStyle={styles.generateButtonText}
         onPress={onGenerate}
-        style={({ pressed }) => [
-          styles.generateButton,
-          pressed && !pending && styles.buttonPressed,
-          pending && styles.buttonDisabled,
-        ]}
-      >
-        <Text style={styles.generateButtonText}>
-          {pending ? '리포트를 만들고 있어요…' : '리포트 생성하기'}
-        </Text>
-      </Pressable>
+        style={styles.generateButton}
+        testID="weekly-report-generate"
+      />
       <Text style={styles.generationFootnote}>
         리포트를 열어보는 것만으로는 확인 처리되지 않아요.
       </Text>
@@ -882,10 +872,6 @@ const styles = StyleSheet.create({
     borderColor: colors.greenBorder,
     backgroundColor: colors.surface,
   },
-  statusChipMake: {
-    borderColor: '#D98B16',
-    backgroundColor: colors.yellow,
-  },
   statusChipText: {
     color: colors.greenText,
     fontSize: 10.5,
@@ -893,9 +879,6 @@ const styles = StyleSheet.create({
   },
   statusChipTextProgress: {
     color: colors.greenText,
-  },
-  statusChipTextMake: {
-    color: '#3A320F',
   },
   weekGoalRow: {
     flexDirection: 'row',
@@ -1001,20 +984,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   generateButton: {
-    minHeight: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginTop: 18,
-    borderBottomWidth: 4,
-    borderBottomColor: colors.yellowDeep,
-    borderRadius: 15,
-    backgroundColor: colors.yellow,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
   },
   generateButtonText: {
-    color: colors.text,
-    fontSize: 15,
+    color: '#5A4636',
+    fontSize: 18,
     fontWeight: '800',
   },
   generationFootnote: {

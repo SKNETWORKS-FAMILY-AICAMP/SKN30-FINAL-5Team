@@ -237,7 +237,10 @@ describe('WeeklyReportScreen selected week', () => {
     ).toBeOnTheScreen();
     expect(screen.getByText('리포트 · 주간 상세')).toBeOnTheScreen();
     expect(screen.getByText('8.3 – 8.9')).toBeOnTheScreen();
-    expect(screen.getByText('리포트 만들기')).toBeOnTheScreen();
+    expect(screen.queryByText('리포트 만들기')).toBeNull();
+    expect(
+      screen.getByTestId('weekly-report-generate-gradient'),
+    ).toBeOnTheScreen();
 
     fireEvent.press(
       screen.getByRole('button', { name: '운동 캘린더로 돌아가기' }),
