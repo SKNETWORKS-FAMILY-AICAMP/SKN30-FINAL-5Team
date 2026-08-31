@@ -77,13 +77,18 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
         ),
         LlmAgentRoleCode.COORDINATOR: RolePrompt(
             role_code=LlmAgentRoleCode.COORDINATOR,
-            version="v3-coordinator-prompt-v3",
+            version="v3-coordinator-prompt-v4",
             instruction=(
                 "Coordinate exactly the three supplied specialist proposals into one PlanSpec. "
                 "Use Training's exercise_prescriptions as the sole draft plan and consider the "
                 "Recovery and Feasibility adjustment_codes as advisory perspectives without a "
-                "fixed precedence between specialist responses. Do not weaken safety, duration, "
-                "goal, equipment, location, or recovery constraints. A repair request is evidence "
+                "fixed precedence between specialist responses. Keep each prescription's "
+                "phase_code, ordered WARMUP first, then MAIN, then COOLDOWN; the PlanSpec must "
+                "carry all three phases, so never drop a phase while adjusting. The plan should "
+                "land within five minutes of the requested duration rather than hitting it to "
+                "the second. Do not weaken safety, duration, "
+                "goal, location, or recovery constraints. Equipment is not a selection "
+                "condition. A repair request is evidence "
                 "for this single call, never permission to start a loop. The compiled plan is "
                 "accepted only after deterministic integrity validation. "
                 f"{_COMMON_BOUNDARY}"

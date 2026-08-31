@@ -7,7 +7,8 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from backend.app.domain.agents.v3_contracts import PLAN_SPEC_SCHEMA_VERSION, PlanSpec
 from backend.app.integrations.llm_agents.coordinator import LangChainCoordinatorAdapter
-from backend.app.integrations.llm_agents.models import LlmAgentFailureCode
+from backend.app.integrations.llm_agents.models import LlmAgentFailureCode, LlmAgentRoleCode
+from backend.app.integrations.llm_agents.prompts import ROLE_PROMPTS
 from backend.app.integrations.llm_agents.provider import StructuredChatInvoker
 from backend.tests.unit.llm_agent_test_support import (
     ToolCallingFakeChatModel,
@@ -63,7 +64,9 @@ def test_coordinator_returns_actual_structured_validated_plan_spec() -> None:
 
     assert result.output == expected
     assert result.output.schema_version == PLAN_SPEC_SCHEMA_VERSION
-    assert adapter.prompt_version == "v3-coordinator-prompt-v3"
+    # Read the registered version rather than a literal: prompts are versioned
+    # independently and a bump should not fail an unrelated behaviour test.
+    assert adapter.prompt_version == ROLE_PROMPTS[LlmAgentRoleCode.COORDINATOR].version
     assert adapter.output_schema_version == PLAN_SPEC_SCHEMA_VERSION
     assert model.bound_tool_names == [("PlanSpec",)]
     assert model.invocation_count == 1
