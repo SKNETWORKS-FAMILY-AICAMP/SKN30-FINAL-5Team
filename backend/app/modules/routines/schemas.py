@@ -15,6 +15,10 @@ class RoutineCreateRequest(BaseModel):
 
     effective_from: date
     goal_code: str = Field(pattern=r"^[A-Z][A-Z0-9_]{0,63}$")
+    # Optional so existing clients keep the profile default. When present the
+    # user chose a duration for this routine, which makes the request a
+    # USER_OVERRIDE rather than a rewrite of the stored profile default.
+    requested_duration_minutes: int | None = Field(default=None, ge=1, le=240)
 
 
 class RoutineItemResponse(BaseModel):

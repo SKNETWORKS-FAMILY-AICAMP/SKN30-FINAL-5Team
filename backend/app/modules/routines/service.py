@@ -101,11 +101,19 @@ def _subsets(
 
 def _select_exact_plan(
     context: RoutineCreationContext,
+    requested_duration_minutes: int | None = None,
 ) -> tuple[int, tuple[RoutineCandidate, ...], DurationRequest]:
+    # The profile value is a default, not a ceiling: when the user picks a
+    # duration for this routine it becomes the target and the request is a
+    # USER_OVERRIDE. The stored profile default is left untouched, and the
+    # server never fabricates USER_OVERRIDE on the user's behalf.
+    effective_minutes = requested_duration_minutes or context.profile_duration_minutes
     duration_request = validate_requested_duration(
         profile_duration_minutes=context.profile_duration_minutes,
-        requested_duration_minutes=context.profile_duration_minutes,
-        adjustment_source_code="PROFILE",
+        requested_duration_minutes=effective_minutes,
+        adjustment_source_code=(
+            "PROFILE" if effective_minutes == context.profile_duration_minutes else "USER_OVERRIDE"
+        ),
     )
     target = duration_request.target_duration_seconds
     by_phase = {
@@ -153,8 +161,13 @@ def _select_exact_plan(
     return matches[0][1], matches[0][2], duration_request
 
 
-def _build_days(context: RoutineCreationContext) -> tuple[RoutineDayValues, ...]:
-    setup_seconds, selected, duration_request = _select_exact_plan(context)
+def _build_days(
+    context: RoutineCreationContext,
+    requested_duration_minutes: int | None = None,
+) -> tuple[RoutineDayValues, ...]:
+    setup_seconds, selected, duration_request = _select_exact_plan(
+        context, requested_duration_minutes
+    )
     warmup_seconds = sum(
         _candidate_duration(item).estimated_item_seconds
         for item in selected
@@ -206,7 +219,7 @@ def _build_days(context: RoutineCreationContext) -> tuple[RoutineDayValues, ...]
             title=f"루틴 {sequence}",
             training_type_code=main.training_type_code,
             body_focus_code=main.body_focus_code,
-            requested_duration_minutes=context.profile_duration_minutes,
+            requested_duration_minutes=duration_request.requested_duration_minutes,
             estimated_duration_seconds=assessment.estimated_duration_seconds,
             setup_seconds=setup_seconds,
             items=items,
@@ -244,7 +257,7 @@ class RoutineService:
             context = self._repository.get_creation_context(session, user_id, request.goal_code)
             if context is None:
                 raise ApprovedCatalogUnavailableError
-            days = _build_days(context)
+            days = _build_days(context, request.requested_duration_minutes)
             routine_id = self._repository.create_routine(
                 session,
                 user_id,

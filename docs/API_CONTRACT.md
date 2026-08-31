@@ -1012,9 +1012,17 @@ version으로 변경을 재적용하는 요청에는 새 `Idempotency-Key`를 �
 ~~~json
 {
   "effective_from": "2026-08-06",
-  "goal_code": "string"
+  "goal_code": "string",
+  "requested_duration_minutes": 30
 }
 ~~~
+
+`requested_duration_minutes`는 선택 필드이며 1~240 범위다. 생략하면 프로필의
+`default_requested_duration_minutes`를 그대로 목표 시간으로 쓰고
+`duration_adjustment_source_code`는 `PROFILE`이 된다. 값을 보내면 그 값이 이 루틴의 목표
+시간이 되고 출처는 `USER_OVERRIDE`가 된다. 프로필의 기본값은 말 그대로 기본값이며 이
+요청으로 변경되지 않는다. 서버는 사용자를 대신해 `USER_OVERRIDE`를 만들지 않는다.
+같은 `Idempotency-Key`로 다른 시간을 보내면 `409 IDEMPOTENCY_KEY_REUSED`다.
 
 서버는 현재 사용자 프로필과 장소, DOMAIN_APPROVED 운동만 사용해 보수적인 기본 루틴을 만든다. 사용자 장비 보유 여부는 운동 선정 조건이 아니다. 클라이언트는 운동 ID, 세트 또는 tier를 임의 지정하지 않는다.
 
