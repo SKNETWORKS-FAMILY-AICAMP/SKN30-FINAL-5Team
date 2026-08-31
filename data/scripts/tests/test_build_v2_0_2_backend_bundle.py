@@ -127,6 +127,33 @@ class CatalogContentGateTests(unittest.TestCase):
         self.assertIn("default_rest_seconds=1", str(caught.exception))
 
 
+class SafetyCoverageTests(unittest.TestCase):
+    """An exercise with no rule can never be excluded for a reported pain area."""
+
+    def _catalog(self, *codes: str) -> list[dict[str, Any]]:
+        return [{"stable_code": code} for code in codes]
+
+    def test_accepts_a_catalog_whose_records_all_carry_a_rule(self) -> None:
+        packager._require_safety_coverage(
+            self._catalog("barbell_full_squat"),
+            [{"exercise_stable_code": "barbell_full_squat", "rule_scope": "EXERCISE"}],
+        )
+
+    def test_refuses_a_record_backed_only_by_a_placeholder_row(self) -> None:
+        with self.assertRaises(PipelineError) as caught:
+            packager._require_safety_coverage(
+                self._catalog("band_shrug_isolation_resistance_band"),
+                # Names the exercise but states no rule.
+                [{"exercise_stable_code": "band_shrug_isolation_resistance_band"}],
+            )
+
+        self.assertIn("no safety rule", str(caught.exception))
+
+    def test_refuses_a_record_with_no_row_at_all(self) -> None:
+        with self.assertRaises(PipelineError):
+            packager._require_safety_coverage(self._catalog("orphan_exercise"), [])
+
+
 class CanonicalPayloadVerificationTests(unittest.TestCase):
     def _final(self, directory: Path, *, payload: bytes, sealed: bytes | None = None) -> Path:
         final = directory / "final"
