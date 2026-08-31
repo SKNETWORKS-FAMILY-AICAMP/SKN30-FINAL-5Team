@@ -61,21 +61,21 @@
       "sha256": "21ee8b576642d3a14cfdb9be7535a194455a7d292091a02f662004c9edc2c53e"
     },
     {
-      "bytes": 183952,
+      "bytes": 115442,
       "path": "prescriptions/goal_tag_links.jsonl",
       "records": 465,
-      "sha256": "9395f406ebac225f7f9affb8f3a459b53e4181ad93967745ee00e04240126e95"
+      "sha256": "fabf567af3b7842d82f0ee4fa12b03244f6aff0d1cdd58c89cb02656db2f12e4"
     },
     {
       "bytes": 1026,
       "path": "prescriptions/prescription_manifest.json",
-      "sha256": "b8a225b86f8c2ad095ac8a552649c83b485ba7c26228a9079964cd020bfa5a30"
+      "sha256": "edd2c0ee1efceb98087412d47295ca6c873737d9abe29bab4de5c27ff8ac4b35"
     },
     {
-      "bytes": 614853,
+      "bytes": 454993,
       "path": "prescriptions/prescription_profiles.jsonl",
       "records": 1023,
-      "sha256": "ee33922b634fafb8206ec5d6792c6af5876b4dc1182a902cd243e3b08d8e3073"
+      "sha256": "1a2b49848fd84d1c28f24fdb8b45167bf14db2e499b30c20ad713b729ddf08cf"
     },
     {
       "bytes": 753,

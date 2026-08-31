@@ -13,6 +13,7 @@ from backend.app.modules.catalog.codes import (
     CatalogVersionStatusCode,
     DifficultyCode,
     EquipmentCode,
+    GoalCode,
     LocationCode,
     MovementPatternCode,
     ReviewMethodCode,
@@ -580,7 +581,7 @@ class MediaAssetRecord(CatalogInputModel):
 class ExerciseGoalTagRecord(CatalogInputModel):
     catalog_version_code: Annotated[str, Field(min_length=1, max_length=120)]
     exercise_stable_code: StableCode
-    goal_code: Literal["GENERAL_FITNESS"]
+    goal_code: GoalCode
     role_eligibility_code: Literal["CORE", "SUPPORT", "OPTIONAL"]
     review_status_code: CatalogReviewStatusCode
 
@@ -588,7 +589,7 @@ class ExerciseGoalTagRecord(CatalogInputModel):
 class ExercisePrescriptionRecord(CatalogInputModel):
     catalog_version_code: Annotated[str, Field(min_length=1, max_length=120)]
     exercise_stable_code: StableCode
-    goal_code: Literal["GENERAL_FITNESS"]
+    goal_code: GoalCode
     experience_level_code: Literal["BEGINNER", "INTERMEDIATE"]
     phase_code: Literal["WARMUP", "MAIN", "COOLDOWN"]
     sets: Annotated[int, Field(gt=0)]
