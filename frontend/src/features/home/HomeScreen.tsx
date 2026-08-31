@@ -1064,7 +1064,7 @@ function HomeScreenContent({
         {exerciseGuide?.exerciseId && exerciseApi ? (
           <SheetFrame
             onClose={() => setExerciseGuide(null)}
-            title={`${exerciseGuide.name} 자세`}
+            title={exerciseGuide.name}
             zIndex={25}
           >
             <ExerciseDetailSheet

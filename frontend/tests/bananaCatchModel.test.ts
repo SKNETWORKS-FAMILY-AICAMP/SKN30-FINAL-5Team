@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import {
   BANANA_CATCH_DURATION_MS,
+  BANANA_HALF_WIDTH,
   BANANA_SPAWN_INTERVAL_MS,
   PLAYER_HALF_WIDTH,
   advanceBananaCatch,
@@ -33,6 +34,14 @@ describe('banana catch rules', () => {
 
     expect(moveBananaCatcher(state, -1).playerX).toBe(PLAYER_HALF_WIDTH);
     expect(moveBananaCatcher(state, 2).playerX).toBe(1 - PLAYER_HALF_WIDTH);
+    expect(moveBananaCatcher(state, -1, 0.15).playerX).toBe(0.15);
+    expect(moveBananaCatcher(state, 2, 0.15).playerX).toBe(0.85);
+  });
+
+  it('keeps spawned bananas inside the supplied visual edge', () => {
+    expect(startBananaCatch(() => 0).bananas[0]?.x).toBe(BANANA_HALF_WIDTH);
+    expect(startBananaCatch(() => 0, 0.055).bananas[0]?.x).toBe(0.055);
+    expect(startBananaCatch(() => 1, 0.055).bananas[0]?.x).toBe(0.945);
   });
 
   it('spawns bananas on a fixed cadence', () => {
@@ -126,6 +135,26 @@ describe('banana catch rules', () => {
     const missedBasket = advanceBananaCatch(state, 100, () => 0.5, 0.75, 0.1);
 
     expect(missedBasket.score).toBe(0);
+  });
+
+  it('catches a banana at the wall when the catcher is at the same edge', () => {
+    const state = {
+      ...startBananaCatch(() => 0, 0.055),
+      playerX: 0.153,
+      bananas: [
+        {
+          id: 1,
+          x: 0.055,
+          y: 0.74,
+          rotationDeg: 0,
+          rotationSpeedDegPerSecond: 0,
+        },
+      ],
+    };
+    const caught = advanceBananaCatch(state, 100, () => 0, 0.75, 0.12, 0.055);
+
+    expect(caught.score).toBe(1);
+    expect(caught.bananas).toEqual([]);
   });
 
   it('does not penalize a missed banana', () => {

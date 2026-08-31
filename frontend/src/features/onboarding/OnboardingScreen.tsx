@@ -75,8 +75,7 @@ const CONSENT_OPTIONS = {
   },
   wearable_integration: {
     label: '웨어러블 연동',
-    description:
-      '워치 데이터로 컨디션 입력을 줄여줘요. 없어도 앱은 그대로 써요.',
+    description: '워치 데이터를 참고하여 운동을 생성해요',
   },
   marketing: {
     label: '마케팅 정보 수신',
@@ -88,31 +87,31 @@ export const ONBOARDING_STEPS = [
   {
     key: 'basic',
     title: '기본 정보를 알려주세요',
-    intro: '앱에서 사용할 닉네임과 생년월일을 입력해주세요.',
+    intro: '',
     required: true,
   },
   {
     key: 'sex',
     title: '성별을 선택해주세요',
-    intro: '맞춤 운동 추천에 참고해요.',
+    intro: '',
     required: true,
   },
   {
     key: 'body',
     title: '키와 체중을 입력해주세요',
-    intro: '맞춤 운동 강도와 예상 소모량을 계산하는 데 사용해요.',
+    intro: '',
     required: true,
   },
   {
     key: 'goal',
     title: '운동 목표는 무엇인가요?',
-    intro: '현재 가장 가까운 목표를 선택해주세요.',
+    intro: '',
     required: true,
   },
   {
     key: 'experience',
     title: '운동 경험은 어느 정도인가요?',
-    intro: '지금 수준에 맞는 루틴을 구성하는 데 사용해요.',
+    intro: '',
     required: true,
   },
   {

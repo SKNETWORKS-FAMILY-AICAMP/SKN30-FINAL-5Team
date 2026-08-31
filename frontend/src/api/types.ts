@@ -492,6 +492,8 @@ export type ExerciseDetailResponse = {
   instruction_summary: string;
   form_cues: string[];
   media_asset_key: string | null;
+  /** Short-lived URL resolved by the backend; absent until the backend PR lands. */
+  media_url?: string | null;
   mascot_animation_asset_key: string | null;
   instruction_content_version: string;
 };

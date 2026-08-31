@@ -1,4 +1,4 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 import { processColor, StyleSheet } from 'react-native';
 import {
   fireEvent,
@@ -13,6 +13,14 @@ import { formatHomeDate } from '../src/features/home/homeModel';
 import { PreviewGallery } from '../src/features/preview/PreviewGallery';
 import { homePreviewProps } from '../src/features/preview/homePreview';
 import { getWorkoutResponsiveLayout } from '../src/features/workout/workoutModel';
+
+jest.mock('expo-asset', () => ({
+  Asset: {
+    fromModule: () => ({
+      uri: 'http://localhost/assets/preview/barbell-deadlift.gif',
+    }),
+  },
+}));
 
 describe('PreviewGallery', () => {
   it('keeps development controls outside the 390 x 844 app canvas', async () => {
@@ -812,20 +820,21 @@ describe('PreviewGallery', () => {
     expect(
       await canvas.findByRole('header', { name: '운동 카탈로그' }),
     ).toBeOnTheScreen();
-    expect(canvas.getByText('의자 스쿼트')).toBeOnTheScreen();
+    expect(canvas.getByText('바벨 데드리프트')).toBeOnTheScreen();
     expect(
       screen.getByText('단독 진입: ?preview=exercise-catalog'),
     ).toBeOnTheScreen();
 
     fireEvent.press(
-      canvas.getByRole('button', { name: '의자 스쿼트 설명 열기' }),
+      canvas.getByRole('button', { name: '바벨 데드리프트 설명 열기' }),
     );
     expect(
-      await canvas.findByRole('header', { name: '운동 설명' }),
+      await canvas.findByRole('header', { name: '바벨 데드리프트' }),
     ).toBeOnTheScreen();
+    expect(await canvas.findByTestId('exercise-media-image')).toBeOnTheScreen();
     expect(
       canvas.getByText(
-        '의자 앞에 서서 엉덩이를 뒤로 보내며 천천히 앉았다가 다시 일어나요.',
+        '데드리프트 운동은 엉덩이를 뒤로 보내며 엉덩이를 사용하는 운동입니다.',
       ),
     ).toBeOnTheScreen();
 

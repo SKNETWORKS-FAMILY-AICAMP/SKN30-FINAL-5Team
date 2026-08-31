@@ -36,7 +36,10 @@ import { MascotStage } from '../src/components/brand/BrandChrome';
 import { CalendarStatusScreen } from '../src/features/calendar/CalendarStatusScreen';
 import { HomeContainer } from '../src/features/home/HomeContainer';
 import { MascotHouseScreen } from '../src/features/house/MascotHouseScreen';
-import { OnboardingScreen } from '../src/features/onboarding/OnboardingScreen';
+import {
+  ONBOARDING_STEPS,
+  OnboardingScreen,
+} from '../src/features/onboarding/OnboardingScreen';
 import { SessionCarousel } from '../src/features/workout/SessionCarousel';
 import { SessionScreen } from '../src/features/workout/SessionScreen';
 
@@ -1066,6 +1069,16 @@ describe('default fetch binding', () => {
 });
 
 describe('OnboardingScreen', () => {
+  it('omits redundant descriptions from the first five steps', () => {
+    expect(ONBOARDING_STEPS.slice(0, 5).map(({ intro }) => intro)).toEqual([
+      '',
+      '',
+      '',
+      '',
+      '',
+    ]);
+  });
+
   function fillRequiredOnboardingSteps({
     attentionArea,
     birthdate = '1997-08-11',
@@ -1172,7 +1185,9 @@ describe('OnboardingScreen', () => {
 
     expect(screen.getByText('2 / 11')).toBeOnTheScreen();
     expect(screen.getByText('성별을 선택해주세요')).toBeOnTheScreen();
-    expect(screen.getByText('맞춤 운동 추천에 참고해요.')).toBeOnTheScreen();
+    expect(
+      screen.queryByText('맞춤 운동 추천에 참고해요.'),
+    ).not.toBeOnTheScreen();
     expect(
       screen.queryByText('운동 강도와 권장 범위를 조정하는 데 사용해요.'),
     ).not.toBeOnTheScreen();
@@ -1475,7 +1490,7 @@ describe('OnboardingScreen', () => {
     [
       '닉네임·생년월일·키·체중으로 나에게 맞는 운동 강도를 계산해요.',
       '통증 부위와 컨디션 체크인을 받아 위험한 동작을 빼요.',
-      '워치 데이터로 컨디션 입력을 줄여줘요. 없어도 앱은 그대로 써요.',
+      '워치 데이터를 참고하여 운동을 생성해요',
       '새 기능과 이벤트 소식을 보내요.',
     ].forEach((description) => {
       expect(screen.getByText(description)).toBeOnTheScreen();

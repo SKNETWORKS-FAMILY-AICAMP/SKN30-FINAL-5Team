@@ -14,6 +14,7 @@ import { imageAssets } from '../../assets';
 import { colors, shadows, spacing } from '../../components/theme';
 import { BananaGlyph } from '../house/HouseArt';
 import {
+  BANANA_HALF_WIDTH,
   BANANA_CATCH_TICK_MS,
   PLAYER_HALF_WIDTH,
   advanceBananaCatch,
@@ -28,9 +29,32 @@ const PLAYER_SIZE = 92;
 const BANANA_SIZE = 33;
 const CATCHER_HEIGHT = PLAYER_SIZE + 16;
 const CATCHER_BOTTOM_RATIO = 0.05;
-const BASKET_LIP_RATIO_IN_ASSET = 0.4;
+const BASKET_LIP_RATIO_IN_ASSET = 0.56;
 const BASKET_WIDTH_RATIO_IN_ASSET = 0.42;
 const DEFAULT_CATCH_LINE_Y = 0.75;
+
+export function bananaCatchLayoutMetrics(width: number, height: number) {
+  const safeWidth = Math.max(1, width);
+  const safeHeight = Math.max(1, height);
+  const bananaHalfWidthX = BANANA_SIZE / 2 / safeWidth;
+  const playerHalfWidthX = PLAYER_SIZE / 2 / safeWidth;
+  const basketLipY =
+    1 -
+    CATCHER_BOTTOM_RATIO -
+    (CATCHER_HEIGHT - PLAYER_SIZE * BASKET_LIP_RATIO_IN_ASSET) / safeHeight;
+
+  return {
+    bananaHalfWidthX,
+    playerHalfWidthX,
+    catchHalfWidthX:
+      (PLAYER_SIZE * BASKET_WIDTH_RATIO_IN_ASSET) / 2 / safeWidth +
+      bananaHalfWidthX,
+    catchLineY: Math.min(
+      1,
+      Math.max(0, basketLipY - BANANA_SIZE / 2 / safeHeight),
+    ),
+  };
+}
 
 const COLLECTING_MASCOT_ASSETS = [
   {
@@ -53,6 +77,8 @@ export function BananaCatchGameScreen({ onBack }: { onBack: () => void }) {
   const arenaWidth = useRef(1);
   const catchLineY = useRef(DEFAULT_CATCH_LINE_Y);
   const catchHalfWidthX = useRef(PLAYER_HALF_WIDTH);
+  const bananaHalfWidthX = useRef(BANANA_HALF_WIDTH);
+  const playerHalfWidthX = useRef(PLAYER_HALF_WIDTH);
   const catcherStage = bananaBasketStage(game.score);
 
   useEffect(() => {
@@ -65,6 +91,7 @@ export function BananaCatchGameScreen({ onBack }: { onBack: () => void }) {
           Math.random,
           catchLineY.current,
           catchHalfWidthX.current,
+          bananaHalfWidthX.current,
         ),
       );
     }, BANANA_CATCH_TICK_MS);
@@ -80,11 +107,13 @@ export function BananaCatchGameScreen({ onBack }: { onBack: () => void }) {
 
   const moveFromEvent = (event: GestureResponderEvent) => {
     const x = event.nativeEvent.locationX / arenaWidth.current;
-    setGame((current) => moveBananaCatcher(current, x));
+    setGame((current) =>
+      moveBananaCatcher(current, x, playerHalfWidthX.current),
+    );
   };
   const start = () => {
     setPaused(false);
-    setGame(startBananaCatch());
+    setGame(startBananaCatch(Math.random, bananaHalfWidthX.current));
   };
 
   return (
@@ -142,25 +171,12 @@ export function BananaCatchGameScreen({ onBack }: { onBack: () => void }) {
           accessibilityLabel="바나나가 떨어지는 게임 공간"
           onLayout={(event) => {
             const { height, width } = event.nativeEvent.layout;
-            const safeWidth = Math.max(1, width);
-            arenaWidth.current = safeWidth;
-
-            // `y` is the banana centre. Subtracting half its size makes the
-            // score happen when its bottom edge first touches the basket lip.
-            const safeHeight = Math.max(1, height);
-            const basketLipY =
-              1 -
-              CATCHER_BOTTOM_RATIO -
-              (CATCHER_HEIGHT - PLAYER_SIZE * BASKET_LIP_RATIO_IN_ASSET) /
-                safeHeight;
-            catchLineY.current = Math.min(
-              1,
-              Math.max(0, basketLipY - BANANA_SIZE / 2 / safeHeight),
-            );
-            catchHalfWidthX.current =
-              (PLAYER_SIZE * BASKET_WIDTH_RATIO_IN_ASSET + BANANA_SIZE) /
-              2 /
-              safeWidth;
+            const metrics = bananaCatchLayoutMetrics(width, height);
+            arenaWidth.current = Math.max(1, width);
+            catchLineY.current = metrics.catchLineY;
+            catchHalfWidthX.current = metrics.catchHalfWidthX;
+            bananaHalfWidthX.current = metrics.bananaHalfWidthX;
+            playerHalfWidthX.current = metrics.playerHalfWidthX;
           }}
           onMoveShouldSetResponder={() => game.status === 'playing'}
           onResponderGrant={moveFromEvent}
