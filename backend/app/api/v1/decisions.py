@@ -143,9 +143,7 @@ def _regeneration_error(exc: V3RegenerationError) -> AppError:
     )
 
 
-@router.post(
-    "", response_model=DecisionResponse, response_model_exclude_unset=True, status_code=201
-)
+@router.post("", response_model=DecisionResponse, status_code=201)
 async def create_decision(
     payload: DecisionCreateRequest,
     idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],

@@ -18,7 +18,11 @@ from backend.app.modules.decisions.execution_profile import (
     StaticV3ProductionPromotionGate,
     V3ExecutionProfile,
 )
-from backend.app.modules.decisions.schemas import DecisionCreateRequest, DecisionResponse
+from backend.app.modules.decisions.schemas import (
+    DecisionCreateRequest,
+    DecisionOptionResponse,
+    DecisionResponse,
+)
 from backend.app.modules.identity.codes import UserStatusCode
 from backend.app.modules.identity.service import CurrentUser
 
@@ -247,6 +251,7 @@ def test_injected_production_gate_enables_automatic_composition(monkeypatch) -> 
 
 def test_staging_demo_v3_success_keeps_public_api_contract() -> None:
     decision_id = uuid4()
+    option_id = uuid4()
 
     class ApiV3Creation:
         async def create(self, session, user_id, request, idempotency_key):
@@ -260,7 +265,13 @@ def test_staging_demo_v3_success_keeps_public_api_contract() -> None:
                 requested_duration_minutes=10,
                 duration_adjustment_source_code="USER_CHECKIN",
                 final_plan=None,
-                options=[],
+                options=[
+                    DecisionOptionResponse(
+                        option_id=option_id,
+                        option_code="FINAL_ROUTINE",
+                        action_code="KEEP",
+                    )
+                ],
                 reason_codes=["V3_COMPLETED"],
                 summary="결정된 루틴입니다.",
                 generation_mode_code="ORIGINAL",
@@ -298,4 +309,15 @@ def test_staging_demo_v3_success_keeps_public_api_contract() -> None:
             },
         )
     assert api_response.status_code == 201
-    assert DecisionResponse.model_validate(api_response.json()).decision_id == decision_id
+    body = api_response.json()
+    assert DecisionResponse.model_validate(body).decision_id == decision_id
+    assert body["options"] == [
+        {
+            "option_id": str(option_id),
+            "option_code": "FINAL_ROUTINE",
+            "action_code": "KEEP",
+            "plan_id": None,
+            "selectable": True,
+            "blocked_reason_code": None,
+        }
+    ]
