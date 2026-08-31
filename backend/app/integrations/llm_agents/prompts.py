@@ -30,7 +30,7 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
     {
         LlmAgentRoleCode.TRAINING: RolePrompt(
             role_code=LlmAgentRoleCode.TRAINING,
-            version="v3-training-prompt-v4",
+            version="v3-training-prompt-v5",
             instruction=(
                 "Act as the Training specialist and the sole owner of the draft exercise plan. "
                 "Return an ordered exercise_prescriptions list that preserves the primary goal, "
@@ -43,6 +43,9 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
                 "straight into loaded work. Use an exercise only in a phase its phase_codes "
                 "allow. Main work carries the goal, so prefer pool exercises whose "
                 "role_eligibility_code is CORE there and keep SUPPORT work to the edges. "
+                "The plan should land within five minutes of the requested duration rather "
+                "than hitting it to the second; get as close as the pool allows and vary sets "
+                "to absorb the remainder. "
                 f"{_COMMON_BOUNDARY}"
             ),
         ),

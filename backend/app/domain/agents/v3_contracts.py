@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validat
 from pydantic_core import to_jsonable_python
 
 from backend.app.domain.agents.retrieval import ExercisePoolExerciseRecord, ExercisePoolSnapshot
+from backend.app.domain.rules.duration import DURATION_TOLERANCE_SECONDS
 from backend.app.domain.rules.safety import SafetyRequiredActionCode
 
 CONSTRAINT_ENVELOPE_SCHEMA_VERSION: Final[Literal["constraint-envelope-v3"]] = (
@@ -658,7 +659,13 @@ class PlanSpec(BaseModel):
             SPECIALIST_AGENT_ORDER
         ):
             raise ValueError("PlanSpec proposal references must use canonical role order")
-        if self.estimated_duration_seconds != self.requested_duration_minutes * 60:
+        # The 2026-08-27 approval allows a plan to miss the requested duration by
+        # up to five minutes, and docs/DOMAIN_RULES.md records that the V3 plan
+        # path shares the constant. The compiler and integrity validator already
+        # do; this contract still demanded an exact total, which left the agent
+        # no reachable plan and it answered NEEDS_INPUT with no prescriptions.
+        duration_delta = abs(self.estimated_duration_seconds - self.requested_duration_minutes * 60)
+        if duration_delta > DURATION_TOLERANCE_SECONDS:
             raise ValueError("PlanSpec must preserve requested duration")
         # A session the user actually performs opens with preparation and closes
         # with settling. Without this the plan was persisted as one flat MAIN
