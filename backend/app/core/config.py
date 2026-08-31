@@ -10,6 +10,10 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 _MACHINE_REFERENCE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
 _QDRANT_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{0,127}$")
+_S3_BUCKET_PATTERN = re.compile(
+    r"^(?=.{3,63}$)(?!\d+\.\d+\.\d+\.\d+$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])$"
+)
+_AWS_REGION_PATTERN = re.compile(r"^[a-z]{2}(?:-gov)?-[a-z]+-\d$")
 
 
 class Settings(BaseSettings):
@@ -42,6 +46,10 @@ class Settings(BaseSettings):
     birthdate_encryption_key_id: str = "local-v1"
     birthdate_kms_key_id: str | None = None
     aws_region: str | None = None
+    exercise_media_s3_bucket: str | None = None
+    exercise_media_s3_region: str | None = None
+    exercise_media_s3_prefix: str = "videos/"
+    exercise_media_url_expiry_seconds: int = 300
     consent_policy_version: str | None = None
     # Narration은 선택 기능이다. 기본값은 비활성이며 결정적 템플릿만 사용한다.
     llm_enabled: bool = False
@@ -136,12 +144,46 @@ class Settings(BaseSettings):
             return normalized or None
         return value
 
-    @field_validator("birthdate_kms_key_id", "aws_region", mode="before")
+    @field_validator(
+        "birthdate_kms_key_id",
+        "aws_region",
+        "exercise_media_s3_bucket",
+        "exercise_media_s3_region",
+        mode="before",
+    )
     @classmethod
     def normalize_optional_aws_setting(cls, value: object) -> object:
         if isinstance(value, str):
             normalized = value.strip()
             return normalized or None
+        return value
+
+    @field_validator("exercise_media_s3_bucket")
+    @classmethod
+    def validate_exercise_media_bucket(cls, value: str | None) -> str | None:
+        if value is not None and not _S3_BUCKET_PATTERN.fullmatch(value):
+            raise ValueError("EXERCISE_MEDIA_S3_BUCKET must be a valid S3 bucket name")
+        return value
+
+    @field_validator("exercise_media_s3_region")
+    @classmethod
+    def validate_exercise_media_region(cls, value: str | None) -> str | None:
+        if value is not None and not _AWS_REGION_PATTERN.fullmatch(value):
+            raise ValueError("EXERCISE_MEDIA_S3_REGION must be a valid AWS region")
+        return value
+
+    @field_validator("exercise_media_s3_prefix")
+    @classmethod
+    def validate_exercise_media_prefix(cls, value: str) -> str:
+        if value != "videos/":
+            raise ValueError("EXERCISE_MEDIA_S3_PREFIX must remain videos/")
+        return value
+
+    @field_validator("exercise_media_url_expiry_seconds")
+    @classmethod
+    def validate_exercise_media_url_expiry(cls, value: int) -> int:
+        if not 60 <= value <= 900:
+            raise ValueError("EXERCISE_MEDIA_URL_EXPIRY_SECONDS must be within [60, 900]")
         return value
 
     @field_validator("firebase_clock_skew_seconds")
@@ -352,6 +394,10 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_llm_provider_credentials(self) -> Self:
+        if (self.exercise_media_s3_bucket is None) != (self.exercise_media_s3_region is None):
+            raise ValueError(
+                "EXERCISE_MEDIA_S3_BUCKET and EXERCISE_MEDIA_S3_REGION must be configured together"
+            )
         # 자격 증명이 없는 상태에서 활성화하면 조용히 실패하는 대신 기동을 막는다.
         if self.llm_enabled and self.llm_provider_code == "NONE":
             raise ValueError("LLM_ENABLED requires LLM_PROVIDER_CODE")

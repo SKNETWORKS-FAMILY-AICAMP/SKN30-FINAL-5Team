@@ -7,7 +7,7 @@ import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 from uuid import UUID
 
 from pydantic import ValidationError
@@ -28,6 +28,7 @@ from backend.app.modules.catalog.codes import (
     LocationCode,
     TrainingTypeCode,
 )
+from backend.app.modules.catalog.media_mapping import parse_source_identity
 from backend.app.modules.catalog.schemas import (
     AlternativeManifest,
     CatalogBundleManifest,
@@ -136,6 +137,13 @@ class ExerciseDetailRecord:
     form_cues: tuple[str, ...]
     instruction_content_version: str
     media_asset_key: str | None = None
+    source_identity: str | None = None
+    media_source_object_key: str | None = None
+    media_status: str | None = None
+    media_rights_review_status: str | None = None
+    media_set_version_code: str | None = None
+    media_source_manifest_hash: str | None = None
+    media_approval_metadata: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -226,11 +234,26 @@ class ExerciseReadRepositoryPort(Protocol):
     ) -> ExerciseVariantsRecord | None: ...
 
 
+class ExerciseMediaUrlPort(Protocol):
+    def create_url(self, source_object_key: str) -> str | None: ...
+
+
+class NullExerciseMediaUrlProvider:
+    def create_url(self, source_object_key: str) -> str | None:
+        del source_object_key
+        return None
+
+
 class ExerciseReadService:
     """Serve reviewed instruction content for a planned exercise block."""
 
-    def __init__(self, repository: ExerciseReadRepositoryPort) -> None:
+    def __init__(
+        self,
+        repository: ExerciseReadRepositoryPort,
+        media_url_provider: ExerciseMediaUrlPort | None = None,
+    ) -> None:
         self._repository = repository
+        self._media_url_provider = media_url_provider or NullExerciseMediaUrlProvider()
 
     def list_exercises(
         self,
@@ -297,6 +320,10 @@ class ExerciseReadService:
         record = self._repository.get_exercise_detail(session, exercise_id)
         if record is None:
             raise ExerciseNotFoundError
+        media_url = None
+        if _is_approved_media_candidate(record):
+            assert record.media_source_object_key is not None
+            media_url = self._media_url_provider.create_url(record.media_source_object_key)
         return ExerciseDetailResponse(
             exercise_id=record.exercise_id,
             exercise_name=record.exercise_name,
@@ -305,6 +332,7 @@ class ExerciseReadService:
             instruction_summary=record.instruction_summary,
             form_cues=list(record.form_cues),
             media_asset_key=record.media_asset_key,
+            media_url=media_url,
             mascot_animation_asset_key=None,
             instruction_content_version=record.instruction_content_version,
         )
@@ -339,6 +367,32 @@ class ExerciseReadService:
             catalog_version=record.catalog_version,
             alternative_set_version=record.alternative_set_version,
         )
+
+
+def _is_approved_media_candidate(record: ExerciseDetailRecord) -> bool:
+    if (
+        record.media_asset_key is None
+        or record.source_identity is None
+        or record.media_source_object_key is None
+        or record.media_status != "AVAILABLE"
+        or record.media_rights_review_status != "APPROVED"
+        or record.media_set_version_code is None
+        or record.media_source_manifest_hash is None
+        or record.media_approval_metadata is None
+    ):
+        return False
+    if parse_source_identity(record.media_source_object_key) != record.source_identity:
+        return False
+    record_count = record.media_approval_metadata.get("record_count")
+    if not isinstance(record_count, int) or isinstance(record_count, bool):
+        return False
+    approval = get_derived_data_approval(
+        "MEDIA_ASSETS",
+        record.media_set_version_code,
+        record.media_source_manifest_hash,
+        record_count,
+    )
+    return approval is not None and approval.metadata() == record.media_approval_metadata
 
 
 def _encode_exercise_list_cursor(cursor: ExerciseListCursor) -> str:

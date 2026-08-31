@@ -19,7 +19,7 @@ from backend.app.db.repositories.weekly_plan import WeeklyPlanRepository
 from backend.app.db.repositories.weekly_report import WeeklyReportRepository
 from backend.app.db.repositories.workout import WorkoutRepository
 from backend.app.modules.account_deletion.ports import AccountDeletionRepositoryPort
-from backend.app.modules.catalog.service import ExerciseReadRepositoryPort
+from backend.app.modules.catalog.service import ExerciseMediaUrlPort, ExerciseReadRepositoryPort
 from backend.app.modules.checkins.ports import DailyContextRepositoryPort
 from backend.app.modules.decisions.execution_profile import DecisionCreationServicePort
 from backend.app.modules.decisions.ports import DecisionRepositoryPort, NarrationProviderPort
@@ -92,6 +92,10 @@ def get_identity_repository() -> IdentityRepositoryPort:
 
 def get_catalog_repository() -> ExerciseReadRepositoryPort:
     return _catalog_repository
+
+
+def get_exercise_media_url_provider(request: Request) -> ExerciseMediaUrlPort:
+    return request.app.state.exercise_media_url_provider
 
 
 def get_account_deletion_repository() -> AccountDeletionRepositoryPort:
@@ -254,6 +258,7 @@ __all__ = [
     "get_birthdate_cipher",
     "get_db_session",
     "get_firebase_token_verifier",
+    "get_exercise_media_url_provider",
     "get_identity_repository",
     "get_narration_provider",
     "get_profile_repository",

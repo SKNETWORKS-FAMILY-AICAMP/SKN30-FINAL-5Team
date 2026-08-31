@@ -29,6 +29,7 @@ from backend.app.db.repositories.vector_index import (
     VectorIndexRepository,
 )
 from backend.app.modules.catalog.codes import BodyAreaCode, BodyAreaRoleCode
+from backend.app.modules.catalog.media_mapping import MediaObjectMapping
 from backend.app.modules.catalog.service import (
     CatalogArtifact,
     CatalogDataBundleImporter,
@@ -434,6 +435,33 @@ def test_repository_exposes_only_registry_and_rights_approved_media(
         repository.get_exercise_detail(postgres_session, exercise_ids[1]).media_asset_key  # type: ignore[union-attr]
         == "catalog-media/exercises/approved.webp"
     )
+
+    postgres_session.execute(
+        update(Exercise).where(Exercise.id == exercise_ids[1]).values(source_identity="0073")
+    )
+    postgres_session.flush()
+    mapping_candidates = repository.list_media_mapping_exercises(postgres_session)
+    source_identity_by_id = {
+        candidate.exercise_id: candidate.source_identity for candidate in mapping_candidates
+    }
+    assert exercise_ids[1] in source_identity_by_id
+    stored = repository.store_media_source_mappings(
+        postgres_session,
+        (
+            MediaObjectMapping(
+                exercise_id=exercise_ids[1],
+                source_identity=source_identity_by_id[exercise_ids[1]],
+                source_object_key="videos/0073-i6LWJok.gif",
+            ),
+        ),
+        verified_at="2026-08-31T00:00:00+00:00",
+    )
+    detail = repository.get_exercise_detail(postgres_session, exercise_ids[1])
+    assert stored == 1
+    assert detail is not None
+    assert detail.media_source_object_key == "videos/0073-i6LWJok.gif"
+    assert detail.media_status == "AVAILABLE"
+    assert detail.media_rights_review_status == "APPROVED"
 
 
 @pytest.mark.integration

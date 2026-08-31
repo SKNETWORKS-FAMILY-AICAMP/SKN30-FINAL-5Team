@@ -29,6 +29,11 @@ from backend.app.modules.catalog.codes import (
     EquipmentRequirementCode,
     approved_display_name,
 )
+from backend.app.modules.catalog.media_mapping import (
+    MediaMappingExercise,
+    MediaObjectMapping,
+    parse_source_identity,
+)
 from backend.app.modules.catalog.service import (
     AlternativeArtifact,
     ApprovedCatalogRecord,
@@ -194,6 +199,28 @@ class CatalogRepository:
                 ExerciseMediaAsset.approval_metadata.is_not(None),
             )
         )
+        media_candidate = session.scalar(
+            select(ExerciseMediaAsset)
+            .join(CatalogVersion, CatalogVersion.id == ExerciseMediaAsset.catalog_version_id)
+            .where(
+                ExerciseMediaAsset.exercise_id == exercise_id,
+                ExerciseMediaAsset.catalog_version_id == exercise.catalog_version_id,
+                ExerciseMediaAsset.media_status == "AVAILABLE",
+                ExerciseMediaAsset.rights_review_status == "APPROVED",
+                ExerciseMediaAsset.approval_metadata.is_not(None),
+                CatalogVersion.status_code == "ACTIVE",
+                CatalogVersion.review_status_code == "DOMAIN_APPROVED",
+                CatalogVersion.review_method_code == "DOMAIN_REVIEWER",
+                CatalogVersion.status_interpretation_code == "PRODUCTION_APPROVED",
+                CatalogVersion.production_eligible.is_(True),
+                CatalogVersion.activated_at.is_not(None),
+            )
+        )
+        source_object_key = None
+        if media_candidate is not None:
+            candidate_key = media_candidate.source_metadata.get("source_object_key")
+            if isinstance(candidate_key, str):
+                source_object_key = candidate_key
         return ExerciseDetailRecord(
             exercise_id=exercise.id,
             exercise_name=exercise.name_ko,
@@ -203,7 +230,81 @@ class CatalogRepository:
             form_cues=tuple(exercise.form_cues_ko),
             instruction_content_version=exercise.instruction_content_version,
             media_asset_key=media_asset_key,
+            source_identity=exercise.source_identity,
+            media_source_object_key=source_object_key,
+            media_status=(media_candidate.media_status if media_candidate is not None else None),
+            media_rights_review_status=(
+                media_candidate.rights_review_status if media_candidate is not None else None
+            ),
+            media_set_version_code=(
+                media_candidate.media_set_version_code if media_candidate is not None else None
+            ),
+            media_source_manifest_hash=(
+                media_candidate.source_manifest_hash if media_candidate is not None else None
+            ),
+            media_approval_metadata=(
+                media_candidate.approval_metadata if media_candidate is not None else None
+            ),
         )
+
+    def list_media_mapping_exercises(
+        self,
+        session: Session,
+    ) -> tuple[MediaMappingExercise, ...]:
+        catalog = self.get_approved_catalog(session)
+        if catalog is None:
+            return ()
+        rows = session.execute(
+            select(Exercise.id, Exercise.source_identity)
+            .where(
+                Exercise.catalog_version_id == catalog.catalog_version_id,
+                Exercise.review_status_code == "DOMAIN_APPROVED",
+            )
+            .order_by(Exercise.source_identity, Exercise.id)
+        ).all()
+        return tuple(
+            MediaMappingExercise(exercise_id=row.id, source_identity=row.source_identity)
+            for row in rows
+        )
+
+    def store_media_source_mappings(
+        self,
+        session: Session,
+        mappings: tuple[MediaObjectMapping, ...],
+        *,
+        verified_at: str,
+    ) -> int:
+        catalog = self.get_approved_catalog(session)
+        if catalog is None:
+            return 0
+        stored = 0
+        for mapping in mappings:
+            if parse_source_identity(mapping.source_object_key) != mapping.source_identity:
+                continue
+            media = session.scalar(
+                select(ExerciseMediaAsset)
+                .join(Exercise, Exercise.id == ExerciseMediaAsset.exercise_id)
+                .where(
+                    ExerciseMediaAsset.catalog_version_id == catalog.catalog_version_id,
+                    ExerciseMediaAsset.exercise_id == mapping.exercise_id,
+                    ExerciseMediaAsset.media_status == "AVAILABLE",
+                    ExerciseMediaAsset.rights_review_status == "APPROVED",
+                    ExerciseMediaAsset.approval_metadata.is_not(None),
+                    Exercise.review_status_code == "DOMAIN_APPROVED",
+                    Exercise.source_identity == mapping.source_identity,
+                )
+            )
+            if media is None:
+                continue
+            media.source_metadata = {
+                **media.source_metadata,
+                "source_object_content_type": "image/gif",
+                "source_object_key": mapping.source_object_key,
+                "source_object_verified_at": verified_at,
+            }
+            stored += 1
+        session.flush()
+        return stored
 
     def get_equipment_variants(
         self,
