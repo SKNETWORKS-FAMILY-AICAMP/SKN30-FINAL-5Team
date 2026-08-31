@@ -1,0 +1,37 @@
+{
+  "catalog_records": 170,
+  "catalog_version_code": "exercise-catalog-v2.0.2-final",
+  "files": [
+    {
+      "bytes": 56968,
+      "path": "content_review_queue.csv",
+      "records": 90,
+      "sha256": "9fe37f064b5c736fbdeb68c05d5cbeed03530142ee1bcc0b066cde4f10cad272"
+    },
+    {
+      "bytes": 100343,
+      "path": "content_review_queue.jsonl",
+      "records": 90,
+      "sha256": "c7ea9fd92cc8dcaa7d9c04d2c503c63968205298931b94bd525203309755eb9f"
+    }
+  ],
+  "form_cues_recovered_records": 80,
+  "importable_records": 80,
+  "note": "Recovered cues keep the review status of their source artifact; the safe-variant rows are REVIEW_REQUIRED. Recovery is not approval.",
+  "production_eligible": false,
+  "queue_version": "exercise-catalog-v2.0.2-content-review-v0.1.0",
+  "queued_by_missing_fields": {
+    "default_rest_seconds": 52,
+    "default_transition_seconds": 2,
+    "form_cues_ko": 15,
+    "form_cues_ko|default_rest_seconds": 6,
+    "form_cues_ko|default_transition_seconds": 15
+  },
+  "queued_records": 90,
+  "recovery_sources": [
+    "audit/canonical_exercises_v2_0_2_refined.csv",
+    "audit/alternatives/discomfort_safe_variants_v2_0_2.jsonl"
+  ],
+  "schema_version": "v2.0.2-content-review-v0.1.0",
+  "status": "CONTENT_REVIEW_REQUIRED"
+}
