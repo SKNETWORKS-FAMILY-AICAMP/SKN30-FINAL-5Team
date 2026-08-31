@@ -338,6 +338,8 @@ function decision(adjusted: boolean): DecisionResponse {
 export function homePreviewProps(state: HomePreviewState): HomeScreenProps {
   const showsRoutine =
     state === 'routine' || state === 'adjusted' || state === 'editing';
+  const showsGeneration =
+    state === 'generating' || state === 'generating-final';
 
   return {
     nickname: '헬끼',
@@ -353,7 +355,9 @@ export function homePreviewProps(state: HomePreviewState): HomeScreenProps {
     defaultDurationMinutes: 40,
     exerciseApi: HOME_EXERCISE_PREVIEW_API,
     locationCodes: ['HOME', 'GYM'],
-    busy: state === 'generating' ? 'checkin' : null,
+    busy: showsGeneration ? 'decision-generation' : null,
+    routineLoadingPhaseCode:
+      state === 'generating-final' ? 'FINAL_VALIDATION' : undefined,
     previewState: state,
   };
 }

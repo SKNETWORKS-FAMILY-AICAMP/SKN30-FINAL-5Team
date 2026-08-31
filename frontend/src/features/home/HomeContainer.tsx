@@ -59,6 +59,7 @@ import {
   sleepMinutesFromHours,
   type HomeCheckinDraft,
 } from './homeModel';
+import type { RoutineGenerationPhaseCode } from './RoutineGenerationLoading';
 
 type HomeData = {
   routine: RoutineResponse | null;
@@ -70,6 +71,22 @@ type HomeData = {
 const FALLBACK_GOAL_CODE = 'GENERAL_FITNESS';
 const FALLBACK_LOCATION_CODE = 'HOME';
 const EMPTY_SESSIONS: WorkoutSessionLogSummary[] = [];
+const DEFAULT_FINAL_VALIDATION_HOLD_MS = 1_500;
+
+function wait(milliseconds: number): Promise<void> {
+  if (milliseconds <= 0) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function canShowFinalValidation(decision: DecisionResponse): boolean {
+  return (
+    decision.final_plan !== null &&
+    decision.action_code !== 'STOP_AND_SEEK_HELP' &&
+    decision.safety_status_code !== 'BLOCKED'
+  );
+}
 
 /** Absent resources are a normal state here, not a failure to report. */
 function optional<T>(
@@ -136,6 +153,7 @@ export function HomeContainer({
   onRestChosen,
   onTab,
   onOpenCalendar,
+  finalValidationHoldMs = DEFAULT_FINAL_VALIDATION_HOLD_MS,
 }: {
   api: Api;
   me: MeResponse;
@@ -150,6 +168,8 @@ export function HomeContainer({
   onRestChosen: (pressureNotificationsAllowed: boolean) => void;
   onTab: (tab: TabId) => void;
   onOpenCalendar: () => void;
+  /** Testable presentation delay after a decision response is ready. */
+  finalValidationHoldMs?: number;
 }) {
   const profile = me.profile;
   const now = new Date();
@@ -194,6 +214,8 @@ export function HomeContainer({
   );
 
   const [busy, setBusy] = useState<HomeBusyKind | null>(null);
+  const [routineLoadingPhaseCode, setRoutineLoadingPhaseCode] =
+    useState<RoutineGenerationPhaseCode | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [staleContext, setStaleContext] = useState(false);
   const [lastDraft, setLastDraft] = useState<HomeCheckinDraft | null>(null);
@@ -225,6 +247,7 @@ export function HomeContainer({
     }
     inFlight.current = true;
     setBusy(kind);
+    setRoutineLoadingPhaseCode(null);
     setActionError(null);
     setStaleContext(false);
 
@@ -236,8 +259,14 @@ export function HomeContainer({
       .finally(() => {
         inFlight.current = false;
         setBusy(null);
+        setRoutineLoadingPhaseCode(null);
       });
   }, []);
+
+  const holdFinalValidation = useCallback(async () => {
+    setRoutineLoadingPhaseCode('FINAL_VALIDATION');
+    await wait(finalValidationHoldMs);
+  }, [finalValidationHoldMs]);
 
   const submitCheckin = useCallback(
     (draft: HomeCheckinDraft, refreshVersion = false) => {
@@ -246,7 +275,7 @@ export function HomeContainer({
       }
       setLastDraft(draft);
 
-      run('checkin', async () => {
+      run('decision-generation', async () => {
         const sleepMinutes = sleepMinutesFromHours(draft.sleepHours);
         if (sleepMinutes === undefined) {
           throw new Error('sleep hours out of range');
@@ -312,6 +341,9 @@ export function HomeContainer({
           expected_context_version: saved.context_version,
         });
 
+        if (canShowFinalValidation(next)) {
+          await holdFinalValidation();
+        }
         setData({ routine, context: saved, week, sessions });
         onDecisionChange(next);
       });
@@ -319,6 +351,7 @@ export function HomeContainer({
     [
       api,
       context,
+      holdFinalValidation,
       localDate,
       locationCodes,
       onDecisionChange,
@@ -332,7 +365,7 @@ export function HomeContainer({
   );
 
   const createRoutine = useCallback(() => {
-    run('checkin', async () => {
+    run('routine-creation', async () => {
       await api.createRoutine({
         effective_from: localDate,
         goal_code: profile?.primary_goal_code ?? FALLBACK_GOAL_CODE,
@@ -447,9 +480,20 @@ export function HomeContainer({
         daily_context_id: context.id,
         expected_context_version: context.context_version,
       });
+      if (canShowFinalValidation(next)) {
+        await holdFinalValidation();
+      }
       onDecisionChange(next);
     },
-    [api, context, localDate, onDecisionChange, onPlanRevisionChange, reload],
+    [
+      api,
+      context,
+      holdFinalValidation,
+      localDate,
+      onDecisionChange,
+      onPlanRevisionChange,
+      reload,
+    ],
   );
 
   const regenerateDecision = useCallback(() => {
@@ -465,9 +509,12 @@ export function HomeContainer({
         expected_plan_id: plan.plan_id,
         expected_regeneration_sequence: sequence,
       });
+      if (canShowFinalValidation(next)) {
+        await holdFinalValidation();
+      }
       onDecisionChange(next);
     });
-  }, [api, decision, onDecisionChange, run]);
+  }, [api, decision, holdFinalValidation, onDecisionChange, run]);
 
   const submitUserEdits = useCallback(
     (edits: HomeUserEdits) => {
@@ -519,6 +566,7 @@ export function HomeContainer({
       defaultDurationMinutes={profile?.default_requested_duration_minutes}
       locationCodes={locationCodes}
       busy={busy}
+      routineLoadingPhaseCode={routineLoadingPhaseCode ?? undefined}
       actionError={actionError}
       staleContext={staleContext}
       onRetryCheckin={

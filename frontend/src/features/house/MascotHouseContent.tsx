@@ -1580,7 +1580,7 @@ const styles = StyleSheet.create({
     left: 0,
   },
   feedLabel: {
-    color: colors.brandOutline,
+    color: colors.textSub,
     fontSize: 14,
     fontWeight: '800',
   },
@@ -1597,7 +1597,7 @@ const styles = StyleSheet.create({
   },
   petLabel: {
     color: colors.textSub,
-    fontSize: 17,
+    fontSize: 14,
     fontWeight: '800',
   },
   spent: {

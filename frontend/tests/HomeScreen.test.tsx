@@ -36,7 +36,9 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.queryByTestId('home-empty-state')).toBeNull();
     expect(screen.getByTestId('home-loading-state')).toBeOnTheScreen();
     expect(screen.queryByTestId('home-routine-state')).toBeNull();
-    expect(screen.getByText('로딩 중..')).toBeOnTheScreen();
+    expect(
+      screen.getByTestId('routine-generation-message').props.children[0],
+    ).toBe('끼끼가 오늘의 운동 재료를 하나씩 모으는 중');
     expect(
       StyleSheet.flatten(
         screen.getByTestId('routine-loading-slot').props.style,
@@ -51,17 +53,30 @@ describe('HomeScreen Home v1 transcription', () => {
 
   it('shows routine generation in the exercise-list slot for API requests', () => {
     const props = homePreviewProps('routine');
-    const view = render(<HomeScreen {...props} busy="checkin" />);
+    const view = render(<HomeScreen {...props} busy="decision-generation" />);
 
     expect(screen.getByTestId('routine-loading-slot')).toBeOnTheScreen();
-    expect(screen.getByText('로딩 중..')).toBeOnTheScreen();
+    expect(
+      screen.getByTestId('routine-generation-message').props.children[0],
+    ).toBe('끼끼가 오늘의 운동 재료를 하나씩 모으는 중');
     expect(screen.queryByTestId('home-empty-state')).toBeNull();
     expect(screen.queryByTestId('home-routine-state')).toBeNull();
 
     view.rerender(
       <HomeScreen
         {...props}
-        busy="checkin"
+        busy="decision-generation"
+        routineLoadingPhaseCode="FINAL_VALIDATION"
+      />,
+    );
+    expect(
+      screen.getByTestId('routine-generation-message').props.children[0],
+    ).toBe('조금만 기다려 주세요. 안전한 루틴인지 마지막으로 확인하는 중');
+
+    view.rerender(
+      <HomeScreen
+        {...props}
+        busy="decision-generation"
         context={null}
         decision={null}
         routine={null}
@@ -69,6 +84,31 @@ describe('HomeScreen Home v1 transcription', () => {
     );
     expect(screen.getByTestId('routine-loading-slot')).toBeOnTheScreen();
     expect(screen.queryByText('기본 루틴이 아직 없어요')).toBeNull();
+    const progressStyle = StyleSheet.flatten(
+      screen.getByTestId('routine-generation-progress').props.style,
+    );
+    const placeholderStyle = StyleSheet.flatten(
+      screen.getByTestId('routine-loading-placeholder-line-0', {
+        includeHiddenElements: true,
+      }).props.style,
+    );
+    expect(progressStyle.height).toBeGreaterThan(placeholderStyle.height);
+    expect(progressStyle.borderWidth).toBeGreaterThan(0);
+  });
+
+  it('does not show decision-generation copy while a base routine is being created', () => {
+    render(
+      <HomeScreen
+        busy="routine-creation"
+        context={null}
+        decision={null}
+        routine={null}
+        status="ready"
+      />,
+    );
+
+    expect(screen.getByText('기본 루틴을 만드는 중이에요')).toBeOnTheScreen();
+    expect(screen.queryByTestId('routine-generation-loading')).toBeNull();
   });
 
   it('uses one solid background color without a gradient', () => {
