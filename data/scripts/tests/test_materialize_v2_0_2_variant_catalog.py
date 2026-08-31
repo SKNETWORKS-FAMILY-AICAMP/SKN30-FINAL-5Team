@@ -43,9 +43,12 @@ class MaterializedVariantCatalogTests(unittest.TestCase):
             Counter(row.get("variant_type_code", "") for row in self.catalog),
             Counter({"": 155, "PRIMARY_VARIANT": 15}),
         )
+        # 7 pain-area safe variants moved from GYM-only to HOME/GYM when their
+        # inherited equipment was normalised to BODYWEIGHT: a supported, unloaded
+        # posture needs no gym implement. See fill_v2_0_2_derived_policy.
         self.assertEqual(
             Counter(tuple(row["location_codes"]) for row in self.catalog),
-            Counter({("HOME", "GYM"): 135, ("GYM",): 29, ("HOME",): 6}),
+            Counter({("HOME", "GYM"): 142, ("GYM",): 22, ("HOME",): 6}),
         )
 
     def test_variant_integrity_report_passes(self) -> None:

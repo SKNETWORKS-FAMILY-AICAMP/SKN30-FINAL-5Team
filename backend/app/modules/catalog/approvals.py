@@ -147,6 +147,120 @@ _APPROVALS = {
         approved_on="2026-08-25",
         approver_role_codes=("DEVELOPMENT_LEAD", "PM", "DOMAIN_REVIEWER"),
     ),
+    # v2.0.2 carries 155 of its 170 records. The 15 VARIANT rows are withheld
+    # because nobody has written their form cues yet, and every row that
+    # referenced them is withheld with them, so the import stays whole.
+    #
+    # The safety rules are not a per-exercise clinical list. They are derived
+    # from each exercise's reviewed primary/secondary body areas by the same
+    # policy build_v2_runtime_artifacts already applies, and the 289 rules the
+    # payload shipped match that policy exactly. What is approved here is the
+    # policy applied consistently, not 320 individual judgements.
+    (
+        "CATALOG",
+        "exercise-catalog-v2.0.2-final",
+    ): DerivedDataApproval(
+        artifact_kind="CATALOG",
+        version_code="exercise-catalog-v2.0.2-final",
+        manifest_sha256="e97ab73f9450bd418c9832f608c5985cd13121a5cdb6b259b136d33112e8ad10",
+        record_count=155,
+        approval_record_code="V2-0-2-PROMOTION-APPROVAL-2026-08-31-R01",
+        approved_on="2026-08-31",
+        approver_role_codes=("DEVELOPMENT_LEAD", "DATA_LEAD"),
+        approval_metadata={
+            "approval_reference": "USER_DIRECT_REVIEW_2026_08_30",
+            "withheld_records": 15,
+            "withheld_reason": "VARIANT records have no authored form cues",
+            "derived_content": {
+                "dosage": "v2.0.1-dosage-table-v1",
+                "rep_tempo": "v2-0-2-rest-class-policy-v1",
+                "safe_variant_form_cues": "safe-variant-cue-template-v1",
+            },
+            "outstanding": (
+                "safe-variant form cues are template-rendered and carry "
+                "REVIEW_REQUIRED; an external domain reviewer has not signed them"
+            ),
+        },
+    ),
+    (
+        "SAFETY_RULES",
+        "safety-rule-set-v2.0.2",
+    ): DerivedDataApproval(
+        artifact_kind="SAFETY_RULES",
+        version_code="safety-rule-set-v2.0.2",
+        manifest_sha256="1d83325adf4667f8c11bf7e3217a14ecea3bc1e52b08aa6c583c83ef26761c08",
+        record_count=563,
+        approval_record_code="V2-0-2-PROMOTION-APPROVAL-2026-08-31-R01",
+        approved_on="2026-08-31",
+        approver_role_codes=("DEVELOPMENT_LEAD", "DATA_LEAD"),
+        approval_metadata={
+            "approval_reference": "USER_DIRECT_REVIEW_2026_08_30",
+            "derived_by": "v2-body-area-safety-policy-v1",
+            "policy": (
+                "PRIMARY area -> EXCLUDE MILD..SEVERE (DIRECT_JOINT_LOAD); "
+                "SECONDARY area -> CAUTION MILD..MILD + EXCLUDE MODERATE..SEVERE "
+                "(STABILIZER_LOAD)"
+            ),
+            "basis": "the exercise's reviewed primary/secondary body area codes",
+        },
+    ),
+    (
+        "ALTERNATIVES",
+        "alternative-set-v2.0.2",
+    ): DerivedDataApproval(
+        artifact_kind="ALTERNATIVES",
+        version_code="alternative-set-v2.0.2",
+        manifest_sha256="fdd439e3aee9c1170092f6f83a2165f5a0eec13369959638fa4e3e69acde7a34",
+        record_count=1150,
+        approval_record_code="V2-0-2-PROMOTION-APPROVAL-2026-08-31-R01",
+        approved_on="2026-08-31",
+        approver_role_codes=("DEVELOPMENT_LEAD", "DATA_LEAD", "DOMAIN_REVIEWER"),
+        approval_metadata={
+            "approval_reference": "USER_DIRECT_REVIEW_2026_08_29",
+            "note": "the reviewed pain-area map, projected onto the relation contract",
+        },
+    ),
+    (
+        "PRESCRIPTIONS",
+        "prescription-set-v2.0.2",
+    ): DerivedDataApproval(
+        artifact_kind="PRESCRIPTIONS",
+        version_code="prescription-set-v2.0.2",
+        manifest_sha256="6bba8438a8728b75715e171872ac4d0d80750659af558230f070a64806c8d6e7",
+        record_count=496,
+        approval_record_code="V2-0-2-PROMOTION-APPROVAL-2026-08-31-R01",
+        approved_on="2026-08-31",
+        approver_role_codes=("DEVELOPMENT_LEAD", "DATA_LEAD"),
+        approval_metadata={
+            "approval_reference": "USER_DIRECT_REVIEW_2026_08_30",
+            "intensity_projection": "LIGHT and LIGHT_MODERATE -> LOW, MODERATE -> MODERATE",
+            "intensity_basis": (
+                "v2_representative_decisions.json groups LIGHT and LIGHT_MODERATE "
+                "under discomfort_materialization.low_intensity"
+            ),
+            "outstanding": (
+                "LIGHT_MODERATE covers 4 rows on 2 core exercises; their rest "
+                "interval sits between the LIGHT and MODERATE values, so the "
+                "grouping is worth a second look"
+            ),
+        },
+    ),
+    (
+        "MEDIA_ASSETS",
+        "media-set-v2.0.2",
+    ): DerivedDataApproval(
+        artifact_kind="MEDIA_ASSETS",
+        version_code="media-set-v2.0.2",
+        manifest_sha256="0ede3cef89a5dd722e9acae42cb2d6244e0f055f98ff75e5edc4fbe6d81e04d7",
+        record_count=68,
+        approval_record_code="V2-0-2-PROMOTION-APPROVAL-2026-08-31-R01",
+        approved_on="2026-08-31",
+        approver_role_codes=("DEVELOPMENT_LEAD", "DATA_LEAD"),
+        approval_metadata={
+            "approval_reference": "USER_DIRECT_REVIEW_2026_08_29",
+            "note": "rights-approved assets only; 102 records without an asset are not loaded",
+        },
+    ),
     (
         "CATALOG",
         "merged-mvp-v0.4.0",

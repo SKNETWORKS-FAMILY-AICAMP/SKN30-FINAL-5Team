@@ -29,6 +29,7 @@ import hashlib
 import json
 import shutil
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -38,6 +39,11 @@ DATA_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_FINAL = DATA_ROOT / "generated/exercise-catalog-v2.0.2-final"
 DEFAULT_BUNDLE = DATA_ROOT / "generated/exercise-catalog-v2.0.2-final/backend_bundle"
 TAXONOMY_SOURCE = DATA_ROOT / "normalized/exercise_taxonomy_codes.json"
+# v2.0.2 ships only the discomfort map. The equipment, location and
+# difficulty relations still live in the v2.0.1 runtime set, already reviewed.
+V2_0_1_ALTERNATIVES = DATA_ROOT / (
+    "generated/exercise-catalog-v2.0.1-final/runtime/alternatives.jsonl"
+)
 
 CATALOG_VERSION_CODE = "exercise-catalog-v2.0.2-final"
 RULE_SET_VERSION_CODE = "safety-rule-set-v2.0.2"
@@ -62,6 +68,18 @@ _SERVICE_ACTION_BY_CONDITION = {
     "NRS_4_6": "SKIP_AFFECTED_AREA",
 }
 _DIFFICULTY_RANK = {"BEGINNER": 0, "INTERMEDIATE": 1}
+
+# The FITT source names three intensity bands; the backend contract has two.
+# data/normalized/v2_representative_decisions.json groups LIGHT and
+# LIGHT_MODERATE together under discomfort_materialization.low_intensity, so both
+# project onto LOW. That grouping is the repository's own approved statement
+# about these codes, not a reading of the numbers.
+_INTENSITY_PROJECTION = {
+    "LIGHT": "LOW",
+    "LIGHT_MODERATE": "LOW",
+    "MODERATE": "MODERATE",
+    "LOW": "LOW",
+}
 
 _CATALOG_FIELDS = (
     "stable_code",
@@ -91,7 +109,6 @@ _CATALOG_FIELDS = (
     "general_pool_included",
 )
 _SAFETY_FIELDS = (
-    "review_status_code",
     "body_area_code",
     "body_part_role_code",
     "catalog_version_code",
@@ -228,6 +245,27 @@ def _verify_canonical_payloads(final: Path, manifest: dict[str, Any]) -> dict[st
     return resolved
 
 
+def _write_representative_registry(root: Path, rows: list[dict[str, Any]]) -> Path:
+    """Emit the exercise-id to stable-code map the media linkage reads.
+
+    ``_v2_representative_registry`` resolves a media row's
+    ``representative_exercise_id`` through this file, and requires it to cover
+    the catalog exactly, so every packaged record contributes a line.
+    """
+    path = root / "input/representative_exercises.csv"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    seen: set[str] = set()
+    lines = ["representative_exercise_id,stable_code"]
+    for row in rows:
+        identity = str(row["exercise_id"])
+        if identity in seen:
+            raise PipelineError(f"catalog reuses an exercise id: {identity}")
+        seen.add(identity)
+        lines.append(f"{identity},{row['stable_code']}")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    return path
+
+
 def _project_catalog(
     rows: list[dict[str, Any]], *, exclude_incomplete: bool = False
 ) -> tuple[list[dict[str, Any]], list[str]]:
@@ -236,6 +274,8 @@ def _project_catalog(
     for row in rows:
         record = {field: row.get(field) for field in _CATALOG_FIELDS}
         record["source_track"] = row.get("source_track")
+        # Carried for the registry below, stripped before the payload is written.
+        record["exercise_id"] = row.get("exercise_id")
         # The payload points a VARIANT at its representative by external id; the
         # backend keys every relation by stable code.
         record_type = row.get("record_type")
@@ -357,6 +397,88 @@ def _project_alternatives(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return projected
 
 
+def _project_prescription(row: dict[str, Any]) -> dict[str, Any]:
+    """Project one FITT row onto the backend contract's intensity vocabulary."""
+    projected = {field: row.get(field) for field in _PRESCRIPTION_FIELDS}
+    source_intensity = str(row.get("intensity_code"))
+    intensity = _INTENSITY_PROJECTION.get(source_intensity)
+    if intensity is None:
+        raise PipelineError(
+            f"prescription uses an unmapped intensity code: {source_intensity} "
+            f"({row.get('exercise_stable_code')})"
+        )
+    projected["intensity_code"] = intensity
+    return projected
+
+
+def _project_prescriptions(
+    rows: list[dict[str, Any]], difficulty_by_code: dict[str, str]
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Project the FITT rows, withholding any that outrank their exercise.
+
+    A prescription that offers an INTERMEDIATE exercise to a BEGINNER is the one
+    pairing the backend refuses outright, and it refuses the whole bundle for it.
+    Withholding the row leaves the exercise reachable at its own level and simply
+    keeps it away from beginners, which is the direction that rule protects.
+    """
+    projected: list[dict[str, Any]] = []
+    withheld: list[str] = []
+    for row in rows:
+        code = str(row.get("exercise_stable_code"))
+        if (
+            difficulty_by_code.get(code) == "INTERMEDIATE"
+            and row.get("experience_level_code") == "BEGINNER"
+        ):
+            withheld.append(code)
+            continue
+        projected.append(_project_prescription(row))
+    return projected, sorted(set(withheld))
+
+
+def _carry_over_non_discomfort_alternatives(
+    catalog_codes: set[str],
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    """Bring forward the reviewed equipment/location/difficulty relations.
+
+    The v2.0.2 canonical payload is the discomfort map and nothing else, but the
+    backend still requires, for instance, that a strap exercise offer a bodyweight
+    substitute. Those relations were reviewed for v2.0.1 and their endpoints are
+    the same stable codes, so they are carried forward rather than re-derived. A
+    relation whose either endpoint is not in this catalog is dropped.
+    """
+    carried: list[dict[str, Any]] = []
+    counts: Counter[str] = Counter()
+    for row in _read_jsonl(V2_0_1_ALTERNATIVES):
+        if row.get("reason_code") == "DISCOMFORT":
+            continue
+        source = str(row.get("source_exercise_stable_code"))
+        target = str(row.get("alternative_exercise_stable_code"))
+        if source not in catalog_codes or target not in catalog_codes:
+            continue
+        counts[str(row.get("reason_code"))] += 1
+        carried.append(
+            {
+                "source_catalog_version_code": CATALOG_VERSION_CODE,
+                "source_exercise_stable_code": source,
+                "alternative_catalog_version_code": CATALOG_VERSION_CODE,
+                "alternative_exercise_stable_code": target,
+                "reason_code": row["reason_code"],
+                "goal_preservation_code": row["goal_preservation_code"],
+                "difficulty_delta": row["difficulty_delta"],
+                "review_status_code": row["review_status_code"],
+                "review_method_code": "AGENT_ONLY",
+                "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
+                "rule_version": row["rule_version"],
+                "created_at": GENERATED_AT,
+                "pain_discomfort_area_code": None,
+                "condition_code": None,
+                "service_action_code": None,
+                "target_strategy_code": None,
+            }
+        )
+    return carried, dict(counts)
+
+
 def _project_media(rows: list[dict[str, str]]) -> tuple[list[dict[str, Any]], int]:
     projected: list[dict[str, Any]] = []
     withheld = 0
@@ -468,17 +590,26 @@ def build(
         for row in _read_jsonl(payloads["goals"])
         if row.get("exercise_stable_code") not in excluded
     ]
-    prescription_rows = [
-        {field: row.get(field) for field in _PRESCRIPTION_FIELDS}
-        for row in _read_jsonl(payloads["fitt"])
-        if row.get("exercise_stable_code") not in excluded
-    ]
+    difficulty_by_code = {
+        str(row["stable_code"]): str(row.get("difficulty_code")) for row in catalog_rows
+    }
+    prescription_rows, withheld_prescriptions = _project_prescriptions(
+        [
+            row
+            for row in _read_jsonl(payloads["fitt"])
+            if row.get("exercise_stable_code") not in excluded
+        ],
+        difficulty_by_code,
+    )
+    catalog_codes = {str(row["stable_code"]) for row in catalog_rows}
     alternative_rows = [
         row
         for row in _project_alternatives(_read_jsonl(payloads["alternatives"]))
         if row["source_exercise_stable_code"] not in excluded
         and row["alternative_exercise_stable_code"] not in excluded
     ]
+    carried_rows, carried_counts = _carry_over_non_discomfort_alternatives(catalog_codes)
+    alternative_rows += carried_rows
     media_rows, withheld_media = _project_media(_read_csv(payloads["media"]))
     _require_safety_coverage(catalog_rows, safety_rows)
     _validate_foreign_keys(
@@ -494,11 +625,19 @@ def build(
         taxonomy_sha256 = _sha256(TAXONOMY_SOURCE.read_bytes())
 
         catalog_root = output / "catalog"
-        _write_jsonl(catalog_root / "exercises.jsonl", catalog_rows)
+        registry_path = _write_representative_registry(catalog_root, catalog_rows)
+        registry_raw = registry_path.read_bytes()
+        # exercise_id is bundle-internal identity, not part of the record contract.
+        payload_rows = [
+            {key: value for key, value in row.items() if key != "exercise_id"}
+            for row in catalog_rows
+        ]
+        _write_jsonl(catalog_root / "exercises.jsonl", payload_rows)
         _write_json(
             catalog_root / "seed_manifest.json",
             {
-                "schema_version": "1.1",
+                # catalog_versions.manifest_schema_version only admits '1.0'.
+                "schema_version": "1.0",
                 "generator_version": GENERATOR_VERSION,
                 "catalog_version": {
                     "version_code": CATALOG_VERSION_CODE,
@@ -508,7 +647,14 @@ def build(
                     "track": "merged",
                     "review_batch_directory": "data/reports",
                     "taxonomy_registry_sha256": taxonomy_sha256,
-                    "input_artifacts": [],
+                    "input_artifacts": [
+                        {
+                            "role": "representative_catalog_csv",
+                            "path": registry_path.relative_to(catalog_root).as_posix(),
+                            "sha256": _sha256(registry_raw),
+                            "bytes": len(registry_raw),
+                        }
+                    ],
                 },
                 "review": _draft_review(),
                 "summary": {"exercise_records": len(catalog_rows)},
@@ -647,11 +793,12 @@ def build(
                 "status_code": "DRAFT",
                 "production_eligible": False,
                 "catalog_version_code": CATALOG_VERSION_CODE,
+                # The bundle contract names three derived sets; the media set
+                # version travels in its own manifest.
                 "derived_set_versions": {
                     "rule_set_version_code": RULE_SET_VERSION_CODE,
                     "alternative_set_version_code": ALTERNATIVE_SET_VERSION_CODE,
                     "prescription_set_version_code": PRESCRIPTION_SET_VERSION_CODE,
-                    "media_set_version_code": MEDIA_SET_VERSION_CODE,
                 },
                 "importer_paths": {
                     "catalog": "catalog/seed_manifest.json",
@@ -674,6 +821,14 @@ def build(
                     "withheld_media_records": withheld_media,
                     "excluded_exercise_count": len(excluded),
                     "excluded_exercise_stable_codes": sorted(excluded),
+                    "carried_over_alternatives": carried_counts,
+                    "carried_over_source": "exercise-catalog-v2.0.1-final/runtime",
+                    "withheld_beginner_prescriptions": withheld_prescriptions,
+                    "withheld_beginner_prescription_reason": (
+                        "an INTERMEDIATE exercise is not offered to a BEGINNER"
+                    )
+                    if withheld_prescriptions
+                    else "",
                     "excluded_reason": (
                         "required exercise content is missing; the record and every "
                         "row referencing it are withheld"

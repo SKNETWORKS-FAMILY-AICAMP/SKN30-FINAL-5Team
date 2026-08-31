@@ -1,0 +1,32 @@
+{
+  "catalog_version_code": "exercise-catalog-v2.0.2-final",
+  "files": [
+    {
+      "bytes": 38048,
+      "path": "media_assets.jsonl",
+      "records": 68,
+      "sha256": "eccbbb77d42aabae4a8b5caef86077a7a5f53a70ef2b84181ccb350faed08050"
+    }
+  ],
+  "generator_version": "v2-0-2-backend-bundle-packager-1.0.0",
+  "media_set_version": {
+    "status_code": "DRAFT",
+    "version_code": "media-set-v2.0.2"
+  },
+  "review": {
+    "production_eligible": false,
+    "review_method_code": "DOMAIN_REVIEWER",
+    "status": "DOMAIN_APPROVED",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
+  },
+  "schema_version": "1.0",
+  "source": {
+    "catalog_version_code": "exercise-catalog-v2.0.2-final",
+    "input_artifacts": [],
+    "withheld_reason": "no media asset; the row would carry an empty s3_key",
+    "withheld_records": 102
+  },
+  "summary": {
+    "media_asset_records": 68
+  }
+}
