@@ -6,7 +6,12 @@ from typing import Any
 
 import pytest
 
-from backend.app.domain.agents.retrieval import RetrievalStatusCode
+from backend.app.domain.agents.retrieval import (
+    ExerciseRetrievalRequest,
+    ExerciseRetrievalResult,
+    RetrievalModeCode,
+    RetrievalStatusCode,
+)
 from backend.app.integrations.qdrant.client import (
     QdrantProviderTimeoutError,
     QdrantProviderUnavailableError,
@@ -25,7 +30,15 @@ from backend.app.integrations.qdrant.snapshot_loader import (
     QdrantExercisePoolSnapshotLoader,
 )
 from backend.app.modules.decisions.v3_creation import V3CreationSource
-from backend.tests.unit.test_v3_agent_contracts import OUTSIDE, A, B, C, envelope, exercise
+from backend.tests.unit.test_v3_agent_contracts import (
+    OUTSIDE,
+    A,
+    B,
+    C,
+    D,
+    envelope,
+    exercise,
+)
 
 NOW = datetime(2026, 8, 26, tzinfo=UTC)
 
@@ -181,3 +194,53 @@ def test_vector_payload_contains_only_catalog_codes_and_eligible_ids() -> None:
         "wearable",
     ):
         assert forbidden not in serialized_call
+
+
+def test_pool_reserves_a_slot_for_each_phase_and_for_goal_driving_work() -> None:
+    """Ranking alone can hand the agents a pool no valid session fits into.
+
+    Staging produced 22 ranked exercises with no cooldown and nothing marked as
+    goal-driving, so no valid plan existed to propose and creation failed closed.
+    """
+    records = {
+        A: exercise(A).model_copy(
+            update={"phase_codes": ("WARMUP",), "role_eligibility_code": "SUPPORT"}
+        ),
+        B: exercise(B).model_copy(
+            update={"phase_codes": ("MAIN",), "role_eligibility_code": "SUPPORT"}
+        ),
+        C: exercise(C).model_copy(
+            update={"phase_codes": ("MAIN",), "role_eligibility_code": "CORE"}
+        ),
+        D: exercise(D).model_copy(
+            update={"phase_codes": ("COOLDOWN",), "role_eligibility_code": "SUPPORT"}
+        ),
+    }
+    request = ExerciseRetrievalRequest(
+        catalog_version="catalog-v3",
+        constraint_envelope_hash="a" * 64,
+        eligible_exercise_ids=tuple(sorted(records, key=str)),
+        normalized_query_codes=("GENERAL_FITNESS",),
+        retrieval_mode=RetrievalModeCode.VECTOR_RANKED,
+        requested_limit=2,
+    )
+    # Rank puts the two support movements first; on rank alone the pool would
+    # carry no cooldown and no goal-driving work.
+    result = ExerciseRetrievalResult(
+        ranked_exercise_ids=(B, A),
+        similarity_scores=(0.9, 0.8),
+        collection_name="exercise-catalog-v3",
+        vector_index_version="vector-index-v3",
+        embedding_model_version="embedding-v3",
+        query_hash="b" * 64,
+        retrieval_status_code=RetrievalStatusCode.VECTOR_RETRIEVAL_SUCCEEDED,
+        fallback_used=False,
+    )
+
+    selected = QdrantExercisePoolSnapshotLoader._selected_ids(
+        request, result, tuple(records.values())
+    )
+
+    phases = {phase for value in selected for phase in records[value].phase_codes}
+    assert phases == {"WARMUP", "MAIN", "COOLDOWN"}
+    assert any(records[value].role_eligibility_code == "CORE" for value in selected)

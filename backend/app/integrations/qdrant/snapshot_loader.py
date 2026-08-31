@@ -115,7 +115,7 @@ class QdrantExercisePoolSnapshotLoader:
                 request, RetrievalStatusCode.VECTOR_INDEX_UNAVAILABLE
             )
 
-        selected_ids = self._selected_ids(request, result)
+        selected_ids = self._selected_ids(request, result, projection.exercises)
         records = self.catalog.revalidate(
             catalog_version=projection.catalog_version,
             exercise_ids=selected_ids,
@@ -125,7 +125,7 @@ class QdrantExercisePoolSnapshotLoader:
             result = deterministic_retrieval_fallback(
                 request, RetrievalStatusCode.VECTOR_RESULT_STALE
             )
-            selected_ids = self._selected_ids(request, result)
+            selected_ids = self._selected_ids(request, result, projection.exercises)
             records = self.catalog.revalidate(
                 catalog_version=projection.catalog_version,
                 exercise_ids=selected_ids,
@@ -162,7 +162,9 @@ class QdrantExercisePoolSnapshotLoader:
 
     @staticmethod
     def _selected_ids(
-        request: ExerciseRetrievalRequest, result: ExerciseRetrievalResult
+        request: ExerciseRetrievalRequest,
+        result: ExerciseRetrievalResult,
+        eligible: tuple[ExercisePoolExerciseRecord, ...] = (),
     ) -> tuple[UUID, ...]:
         ordered = (
             *request.mandatory_exercise_ids,
@@ -172,7 +174,33 @@ class QdrantExercisePoolSnapshotLoader:
         unique = tuple(dict.fromkeys(ordered))
         mandatory_count = len(request.mandatory_exercise_ids)
         limit = max(request.requested_limit, mandatory_count)
-        return unique[:limit]
+        if not eligible:
+            return unique[:limit]
+
+        # Ranking alone once handed the agents 22 exercises with no cooldown and
+        # no goal-driving work in them at all, so no valid session existed to
+        # propose. Reserve the highest-ranked candidate that fills each missing
+        # phase and the goal-driving role before spending the rest on rank.
+        by_id = {record.exercise_id: record for record in eligible}
+        reserved: list[UUID] = list(request.mandatory_exercise_ids)
+
+        def take(matches: Callable[[ExercisePoolExerciseRecord], bool]) -> None:
+            if any(
+                (record := by_id.get(item)) is not None and matches(record) for item in reserved
+            ):
+                return
+            for item in unique:
+                record = by_id.get(item)
+                if record is not None and matches(record) and item not in reserved:
+                    reserved.append(item)
+                    return
+
+        for phase in ("WARMUP", "MAIN", "COOLDOWN"):
+            take(lambda record, phase=phase: phase in record.phase_codes)  # type: ignore[misc]
+        take(lambda record: record.role_eligibility_code == "CORE")
+
+        remaining = [item for item in unique if item not in reserved]
+        return tuple(dict.fromkeys((*reserved, *remaining)))[: max(limit, len(reserved))]
 
     @staticmethod
     def _record_ids(records: tuple[ExercisePoolExerciseRecord, ...]) -> tuple[UUID, ...]:
