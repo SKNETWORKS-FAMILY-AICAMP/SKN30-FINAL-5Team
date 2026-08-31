@@ -1,9 +1,13 @@
-"""Stamp the domain reviewer's verdict onto the goal-expansion review sheet.
+"""Stamp the domain reviewer's verdict onto a prescription review sheet.
 
 The reviewer performs the review; this script only records their verdict so the
 result is reproducible and auditable instead of a hand edit. It refuses to run
 unless the caller names the reviewer, the approval reference and the review
 date, so an approval can never appear without an accountable owner.
+
+The defaults address the goal-expansion sheet. The compound promotion sheet
+shares its columns and its policy shape, so it is recorded through the same
+command with --input, --output and --policy pointed at its artifacts.
 """
 
 from __future__ import annotations

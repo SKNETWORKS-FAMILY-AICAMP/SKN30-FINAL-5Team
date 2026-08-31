@@ -16,9 +16,12 @@ from backend.app.modules.catalog.schemas import (
     AlternativeManifest,
     CatalogBundleManifest,
     CatalogManifest,
+    ExerciseAlternativeRecord,
     ExerciseGoalTagRecord,
     ExercisePrescriptionRecord,
     ExerciseRecord,
+    ExerciseSafetyRuleRecord,
+    MediaAssetRecord,
     MediaManifest,
     PrescriptionManifest,
     SafetyRuleManifest,
@@ -43,6 +46,12 @@ RECORD_SCHEMAS = (
     ("catalog/exercises.jsonl", ExerciseRecord),
     ("prescriptions/goal_tag_links.jsonl", ExerciseGoalTagRecord),
     ("prescriptions/prescription_profiles.jsonl", ExercisePrescriptionRecord),
+    # v2.0.4 is the first release to add safety rules and exercise records at
+    # publication time rather than carry them over, so the payloads a release
+    # can now change are all covered here instead of only the prescription set.
+    ("safety/safety_rules.jsonl", ExerciseSafetyRuleRecord),
+    ("alternatives/alternatives.jsonl", ExerciseAlternativeRecord),
+    ("media/media_assets.jsonl", MediaAssetRecord),
 )
 
 SUB_MANIFEST_SCHEMAS = (
