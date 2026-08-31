@@ -10,11 +10,15 @@ from sqlalchemy.orm import Session
 from backend.app.api.dependencies import (
     get_current_user,
     get_db_session,
+    get_weekly_report_narration_agent,
     get_weekly_report_repository,
 )
 from backend.app.core.errors import AppError
 from backend.app.modules.identity.service import CurrentUser
-from backend.app.modules.weekly_reports.ports import WeeklyReportRepositoryPort
+from backend.app.modules.weekly_reports.ports import (
+    WeeklyReportNarrationAgentPort,
+    WeeklyReportRepositoryPort,
+)
 from backend.app.modules.weekly_reports.schemas import (
     WeeklyReportAcknowledgementRequest,
     WeeklyReportCreateRequest,
@@ -160,9 +164,12 @@ def create_report(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_db_session)],
     repository: Annotated[WeeklyReportRepositoryPort, Depends(get_weekly_report_repository)],
+    narration_agent: Annotated[
+        WeeklyReportNarrationAgentPort, Depends(get_weekly_report_narration_agent)
+    ],
 ) -> WeeklyReportResponse:
     try:
-        return WeeklyReportService(repository).create_report(
+        return WeeklyReportService(repository, narration_agent=narration_agent).create_report(
             session, current_user.user_id, week_start, payload, idempotency_key
         )
     except _ERRORS as exc:
