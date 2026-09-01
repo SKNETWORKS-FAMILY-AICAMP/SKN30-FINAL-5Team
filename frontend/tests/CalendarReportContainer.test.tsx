@@ -15,6 +15,7 @@ function week(
   weekStart: string,
   status: 'OPEN' | 'CLOSED',
   reportStatus: WeekResponse['report_status_code'] = null,
+  targetWorkoutCount = 4,
 ): WeekResponse {
   const start = new Date(`${weekStart}T00:00:00Z`);
   start.setUTCDate(start.getUTCDate() + 6);
@@ -24,7 +25,7 @@ function week(
     week_start: weekStart,
     week_end: weekEnd,
     timezone: 'Asia/Seoul',
-    target_workout_count: 4,
+    target_workout_count: targetWorkoutCount,
     plan_origin_code: 'WEEKLY_REPORT',
     cold_start_applied: false,
     status_code: status,
@@ -35,6 +36,46 @@ function week(
 }
 
 describe('CalendarReportContainer', () => {
+  it('celebrates an open week after the completed-session target is reached', async () => {
+    const listWorkoutSessions = jest.fn<Api['listWorkoutSessions']>(
+      async () => ({
+        items: ['10', '11', '12', '13'].map((day, index) => ({
+          session_id: `completed-${index + 1}`,
+          local_date: `2026-08-${day}`,
+          status_code: 'COMPLETED' as const,
+          completed_item_count: 3,
+          total_item_count: 3,
+          requested_duration_minutes: 30,
+          training_type_code: 'STRENGTH',
+          not_completed_reason_code: null,
+          started_at: `2026-08-${day}T09:00:00+09:00`,
+          finished_at: `2026-08-${day}T09:30:00+09:00`,
+        })),
+        next_cursor: null,
+      }),
+    );
+    const getWeek = jest.fn<Api['getWeek']>(async (weekStart) =>
+      week(weekStart, weekStart === '2026-08-10' ? 'OPEN' : 'CLOSED'),
+    );
+
+    await render(
+      <CalendarReportContainer
+        api={{ listWorkoutSessions, getWeek } as unknown as Api}
+        now={new Date('2026-08-14T03:00:00Z')}
+        onOpenWeeklyReport={jest.fn()}
+        timeZone="Asia/Seoul"
+      />,
+    );
+
+    expect(await screen.findByText('2026년 8월')).toBeOnTheScreen();
+    fireEvent.press(
+      screen.getByRole('button', {
+        name: '3주차 진행 중, 요약 펼치기',
+      }),
+    );
+    expect(screen.getByText('이번 주 목표를 달성했어요!')).toBeOnTheScreen();
+  });
+
   it('disables and darkens dates before the user started their routine', async () => {
     const listWorkoutSessions = jest.fn<Api['listWorkoutSessions']>(
       async () => ({ items: [], next_cursor: null }),
@@ -252,7 +293,7 @@ describe('CalendarReportContainer', () => {
     );
     expect(
       screen.getByText(
-        '이번 주는 아직 진행 중이에요. 남은 요일에 루틴을 채워보세요.',
+        '이번 주 운동을 진행하고 있어요. 남은 일정도 함께 채워봐요.',
       ),
     ).toBeOnTheScreen();
     expect(screen.queryByText('진행 중 요약 보기 ›')).toBeNull();

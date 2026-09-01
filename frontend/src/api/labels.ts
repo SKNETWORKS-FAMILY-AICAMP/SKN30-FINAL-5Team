@@ -184,12 +184,14 @@ const EXPERIENCE_LEVEL: Record<string, string> = {
   INTERMEDIATE: '중급',
 };
 
+// Names match the onboarding coaching-style step so the same setting never
+// appears under two labels.
 const COACHING_STYLE: Record<string, string> = {
-  SUPPORTIVE: '든든하게',
-  CONCISE: '간결하게',
-  ENERGETIC: '활기차게',
+  SUPPORTIVE: '차근차근',
+  CONCISE: '딱 필요한 만큼',
+  ENERGETIC: '힘차게',
   // Older preview fixtures used this value before the stable contract landed.
-  FRIENDLY: '든든하게',
+  FRIENDLY: '차근차근',
 };
 
 const AGENT_TYPE: Record<string, string> = {

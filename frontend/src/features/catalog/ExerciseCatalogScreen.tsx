@@ -20,6 +20,7 @@ import type { Api } from '../../api/endpoints';
 import {
   bodyAreaLabel,
   equipmentLabel,
+  experienceLevelLabel,
   trainingTypeLabel,
 } from '../../api/labels';
 import type { ExerciseListItem, ExerciseListResponse } from '../../api/types';
@@ -42,18 +43,15 @@ const TRAINING_TYPE_FILTERS = [
   { code: 'MOBILITY', label: '스트레칭' },
 ] as const;
 
+// Difficulty uses the same words as the onboarding experience step so one
+// concept never appears as both 입문 and 초급.
 const DIFFICULTY_FILTERS = [
   { code: undefined, label: '전체' },
-  { code: 'BEGINNER', label: '입문' },
+  { code: 'BEGINNER', label: '초급' },
   { code: 'INTERMEDIATE', label: '중급' },
 ] as const;
 
-const DIFFICULTY_LABELS: Record<string, string> = {
-  BEGINNER: '입문',
-  INTERMEDIATE: '중급',
-};
-
-const difficultyLabel = (code: string) => DIFFICULTY_LABELS[code] ?? code;
+const difficultyLabel = (code: string) => experienceLevelLabel(code);
 
 export function ExerciseCatalogScreen({
   api,
@@ -108,11 +106,13 @@ export function ExerciseCatalogScreen({
 
         <View style={styles.filterGroup}>
           <FilterRow
+            groupLabel="운동 유형"
             options={TRAINING_TYPE_FILTERS}
             selected={trainingType}
             onSelect={selectTrainingType}
           />
           <FilterRow
+            groupLabel="난이도"
             options={DIFFICULTY_FILTERS}
             selected={difficulty}
             onSelect={selectDifficulty}
@@ -184,7 +184,7 @@ function CatalogHeader({ onBack }: { onBack: () => void }) {
           운동 카탈로그
         </Text>
         <Text style={styles.headerSubtitle}>
-          검수를 통과한 운동만 보여드려요
+          운동 계획에 활용되는 운동을 모아봤어요.
         </Text>
       </View>
       <View
@@ -197,16 +197,19 @@ function CatalogHeader({ onBack }: { onBack: () => void }) {
 }
 
 function FilterRow<Code extends string | undefined>({
+  groupLabel,
   options,
   selected,
   onSelect,
 }: {
+  groupLabel: string;
   options: readonly { code: Code; label: string }[];
   selected: string | undefined;
   onSelect: (code: Code) => void;
 }) {
   return (
     <View style={styles.filterRow}>
+      <Text style={styles.filterGroupLabel}>{groupLabel}</Text>
       {options.map(({ code, label }) => {
         const active = selected === code;
         return (
@@ -269,21 +272,26 @@ function CatalogList({
           onPress={() => onOpen(item)}
         >
           <Card style={styles.itemCard}>
-            <View style={styles.itemHeader}>
-              <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemBadge}>
-                {difficultyLabel(item.difficulty_code)}
-              </Text>
-            </View>
+            <Text style={styles.itemName}>{item.name}</Text>
             <Text style={styles.itemMeta}>
               {trainingTypeLabel(item.training_type_code)}
               {' · '}
               {item.primary_body_area_codes.map(bodyAreaLabel).join(', ')}
             </Text>
-            <Text style={styles.itemEquipment}>
-              {item.required_equipment_codes.map(equipmentLabel).join(', ') ||
-                '장비 없음'}
-            </Text>
+            <View style={styles.itemFooter}>
+              {item.required_equipment_codes.length > 0 ? (
+                <Text style={styles.itemEquipment}>
+                  {`장비 ${item.required_equipment_codes
+                    .map(equipmentLabel)
+                    .join(', ')}`}
+                </Text>
+              ) : null}
+              <View style={styles.itemBadge}>
+                <Text style={styles.itemBadgeText}>
+                  {difficultyLabel(item.difficulty_code)}
+                </Text>
+              </View>
+            </View>
           </Card>
         </Pressable>
       ))}
@@ -299,9 +307,6 @@ function CatalogList({
           onPress={() => onLoadMore(nextCursor)}
         />
       ) : null}
-      <Text style={styles.catalogVersion}>
-        카탈로그 버전 {firstPage.catalog_version}
-      </Text>
     </ScrollView>
   );
 }
@@ -361,7 +366,14 @@ const styles = StyleSheet.create({
   },
   filterRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+  filterGroupLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '700',
   },
   filterChip: {
     paddingHorizontal: spacing.md,
@@ -393,35 +405,39 @@ const styles = StyleSheet.create({
   itemCard: {
     gap: spacing.xs,
   },
-  itemHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
   itemName: {
-    flex: 1,
     color: colors.text,
     fontSize: 15,
     fontWeight: '700',
-  },
-  itemBadge: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: '600',
   },
   itemMeta: {
     color: colors.textSub,
     fontSize: 13,
   },
+  itemFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
   itemEquipment: {
+    minWidth: 0,
+    flex: 1,
     color: colors.textMuted,
     fontSize: 12,
   },
-  catalogVersion: {
-    color: colors.textMuted,
-    fontSize: 11,
-    textAlign: 'center',
-    marginTop: spacing.sm,
+  itemBadge: {
+    marginLeft: 'auto',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+  },
+  itemBadgeText: {
+    color: colors.textSub,
+    fontSize: 11.5,
+    fontWeight: '700',
   },
 });

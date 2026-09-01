@@ -117,9 +117,9 @@ describe('MyPageContainer', () => {
     expect(screen.queryByRole('button', { name: '장비 수정' })).toBeNull();
     expect(screen.queryByText('맨몸 · 밴드')).toBeNull();
     expect(screen.queryByText('캘린더 연동')).toBeNull();
-    expect(screen.getAllByText('든든하게')).toHaveLength(1);
+    expect(screen.getAllByText('차근차근')).toHaveLength(1);
     expect(
-      screen.getByRole('button', { name: '든든하게' }).props.accessibilityState,
+      screen.getByRole('button', { name: '차근차근' }).props.accessibilityState,
     ).toEqual(expect.objectContaining({ selected: true }));
     expect(screen.queryByRole('button', { name: '나이 수정' })).toBeNull();
     expect(screen.queryByRole('button', { name: '시간대 수정' })).toBeNull();
@@ -258,7 +258,7 @@ describe('MyPageContainer', () => {
 
     fireEvent.press(screen.getByRole('button', { name: '프로필 수정' }));
     expect(
-      screen.getByRole('header', { name: '기본 정보 수정' }),
+      screen.getByRole('header', { name: '프로필 수정' }),
     ).toBeOnTheScreen();
     expect(
       screen.getByText(/개인정보 보호를 위해 기존 값을 다시 보여주지 않아요/),
@@ -448,13 +448,13 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '희망 시간 수정' }));
+    fireEvent.press(screen.getByRole('button', { name: '운동 시간 수정' }));
     fireEvent.press(
       screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
     );
     expect(
       await screen.findByText(
-        '희망 시간 값을 확인해주세요. 요청 값이 올바르지 않습니다.',
+        '운동 시간 값을 확인해주세요. 요청 값이 올바르지 않습니다.',
       ),
     ).toBeOnTheScreen();
   });
@@ -483,7 +483,7 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '희망 시간 수정' }));
+    fireEvent.press(screen.getByRole('button', { name: '운동 시간 수정' }));
     fireEvent.press(
       screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
     );
@@ -515,7 +515,7 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '간결하게' }));
+    fireEvent.press(screen.getByRole('button', { name: '딱 필요한 만큼' }));
     await waitFor(() =>
       expect(updateProfileSettings).toHaveBeenCalledWith(
         { coaching_style_code: 'CONCISE' },
@@ -544,10 +544,11 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '희망 시간 수정' }));
+    fireEvent.press(screen.getByRole('button', { name: '운동 시간 수정' }));
     expect(
-      screen.getByRole('header', { name: '희망 시간 수정' }),
+      screen.getByRole('header', { name: '운동 시간 수정' }),
     ).toBeOnTheScreen();
+    expect(screen.getByText('변경한 내용은 바로 반영돼요.')).toBeOnTheScreen();
     fireEvent.press(
       screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
     );
@@ -559,6 +560,41 @@ describe('MyPageContainer', () => {
       ),
     );
     expect(screen.queryByText('목표 저장')).toBeNull();
+    // 저장 버튼이 없으므로 저장이 끝난 사실을 화면에서 알려준다.
+    expect(
+      await screen.findByText('변경 사항을 저장했어요.'),
+    ).toBeOnTheScreen();
+  });
+
+  it('keeps notification switches off and marked as coming soon', async () => {
+    await render(
+      <MyPageContainer
+        api={accountApi()}
+        me={me()}
+        now={new Date('2026-08-19T03:00:00Z')}
+        onNavigateTab={jest.fn()}
+        onRefreshMe={jest.fn(async () => undefined)}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    expect(
+      await screen.findByText('알림과 기기 연동 기능은 준비 중이에요.'),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByText('예정된 운동 시간을 알려드려요.'),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByText('이번 주 운동 리포트가 준비되면 알려드려요.'),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByText('휴식일에는 알림을 보내지 않아요.'),
+    ).toBeOnTheScreen();
+    expect(screen.getAllByText('준비 중').length).toBeGreaterThanOrEqual(3);
+    expect(
+      screen.getByRole('switch', { name: '루틴 알림' }).props
+        .accessibilityState,
+    ).toEqual(expect.objectContaining({ checked: false, disabled: true }));
   });
 
   it('keeps the profile editor inside the screen and closes from its backdrop', async () => {
@@ -573,16 +609,16 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '희망 시간 수정' }));
+    fireEvent.press(screen.getByRole('button', { name: '운동 시간 수정' }));
     fireEvent.press(screen.getByTestId('profile-editor-sheet'), {
       stopPropagation: jest.fn(),
     });
     expect(
-      screen.getByRole('header', { name: '희망 시간 수정' }),
+      screen.getByRole('header', { name: '운동 시간 수정' }),
     ).toBeOnTheScreen();
 
     fireEvent.press(screen.getByTestId('profile-editor-backdrop'));
-    expect(screen.queryByRole('header', { name: '희망 시간 수정' })).toBeNull();
+    expect(screen.queryByRole('header', { name: '운동 시간 수정' })).toBeNull();
   });
 
   it('saves an optional consent immediately without a save button', async () => {
@@ -683,12 +719,14 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '통증 부위 수정' }));
+    fireEvent.press(
+      screen.getByRole('button', { name: '평소 불편한 부위 수정' }),
+    );
     expect(
-      screen.getByRole('header', { name: '통증 부위 수정' }),
+      screen.getByRole('header', { name: '평소 불편한 부위 수정' }),
     ).toBeOnTheScreen();
     expect(screen.getByRole('checkbox', { name: '있어요' })).toBeChecked();
-    expect(screen.getByText('통증 부위')).toBeOnTheScreen();
+    expect(screen.getByText('불편한 부위')).toBeOnTheScreen();
     expect(screen.queryByRole('adjustable')).toBeNull();
     fireEvent.press(screen.getByRole('checkbox', { name: '없어요' }));
 
@@ -698,7 +736,7 @@ describe('MyPageContainer', () => {
         7,
       ),
     );
-    expect(screen.queryByText('통증 부위')).toBeNull();
+    expect(screen.queryByText('불편한 부위')).toBeNull();
   });
 
   it('edits persisted pain scores when the additive profile contract is available', async () => {
@@ -725,7 +763,9 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '통증 부위 수정' }));
+    fireEvent.press(
+      screen.getByRole('button', { name: '평소 불편한 부위 수정' }),
+    );
     expect(
       screen
         .getAllByRole('adjustable')
@@ -781,7 +821,9 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '통증 부위 수정' }));
+    fireEvent.press(
+      screen.getByRole('button', { name: '평소 불편한 부위 수정' }),
+    );
     expect(
       screen.getByRole('button', { name: '다른 부위 접기' }).props
         .accessibilityState,
@@ -801,7 +843,9 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '통증 부위 수정' }));
+    fireEvent.press(
+      screen.getByRole('button', { name: '평소 불편한 부위 수정' }),
+    );
     fireEvent.press(screen.getByRole('checkbox', { name: '있어요' }));
 
     const toggle = screen.getByRole('button', { name: '다른 부위 보기' });
@@ -841,7 +885,9 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '통증 부위 수정' }));
+    fireEvent.press(
+      screen.getByRole('button', { name: '평소 불편한 부위 수정' }),
+    );
     expect(screen.getByText('이전에 저장된 부위 (해제만 가능)')).toBeTruthy();
     expect(screen.getByRole('checkbox', { name: '전신' })).toBeChecked();
     fireEvent.press(screen.getByRole('checkbox', { name: '전신' }));

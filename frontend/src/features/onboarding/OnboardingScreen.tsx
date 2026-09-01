@@ -26,6 +26,7 @@ import {
   Button,
   Card,
   InlineFeedback,
+  StepCounter,
   TextField,
 } from '../../components/primitives';
 import {
@@ -37,6 +38,7 @@ import { useScale } from '../../components/scale';
 import { colors, radii, spacing } from '../../components/theme';
 import { PROFILE_BODY_LIMITS } from '../profile/profileModel';
 import {
+  ONBOARDING_COACHING_STYLE_OPTIONS,
   ONBOARDING_DURATION,
   ONBOARDING_EXPERIENCE_OPTIONS,
   ONBOARDING_GOAL_OPTIONS,
@@ -49,24 +51,6 @@ const SEX_OPTIONS = [
   { code: 'FEMALE', label: '여성' },
   { code: 'MALE', label: '남성' },
 ] as const satisfies readonly { code: SexCode; label: string }[];
-
-const COACHING_STYLE_OPTIONS = [
-  {
-    code: 'SUPPORTIVE',
-    label: '차근차근',
-    description: '응원과 함께 편안하게 운동을 안내해요.',
-  },
-  {
-    code: 'CONCISE',
-    label: '딱 필요한 만큼',
-    description: '꼭 필요한 내용만 간단하게 알려드려요.',
-  },
-  {
-    code: 'ENERGETIC',
-    label: '힘차게',
-    description: '밝고 에너지 넘치게 운동을 함께해요.',
-  },
-] as const;
 
 const CONSENT_OPTIONS = {
   general_personal_data: {
@@ -195,7 +179,7 @@ function OnboardingScreenContent({
     (typeof ONBOARDING_EXPERIENCE_OPTIONS)[number]['code']
   >(ONBOARDING_EXPERIENCE_OPTIONS[0].code);
   const [coachingStyleCode, setCoachingStyleCode] = useState<
-    (typeof COACHING_STYLE_OPTIONS)[number]['code'] | null
+    (typeof ONBOARDING_COACHING_STYLE_OPTIONS)[number]['code'] | null
   >(null);
   const [locations, setLocations] = useState<string[]>([]);
   const [preferredLocationCode, setPreferredLocationCode] = useState<
@@ -451,7 +435,7 @@ function OnboardingScreenContent({
       case 'coachingStyle':
         return (
           <ChoiceCard>
-            {COACHING_STYLE_OPTIONS.map((item) => (
+            {ONBOARDING_COACHING_STYLE_OPTIONS.map((item) => (
               <DescriptionOption
                 key={item.code}
                 description={item.description}
@@ -833,7 +817,8 @@ type FormState = {
   primaryGoalCode: (typeof ONBOARDING_GOAL_OPTIONS)[number]['code'] | null;
   experienceLevelCode:
     (typeof ONBOARDING_EXPERIENCE_OPTIONS)[number]['code'] | null;
-  coachingStyleCode: (typeof COACHING_STYLE_OPTIONS)[number]['code'] | null;
+  coachingStyleCode:
+    (typeof ONBOARDING_COACHING_STYLE_OPTIONS)[number]['code'] | null;
   locations: string[];
   preferredLocationCode: string | null;
   hasAttentionAreas: boolean | null;
@@ -893,73 +878,6 @@ function isStepValid(
     default:
       return true;
   }
-}
-
-function StepCounter({
-  decreaseLabel,
-  increaseLabel,
-  max,
-  min,
-  onChange,
-  prefix = '',
-  step = 1,
-  suffix,
-  value,
-}: {
-  decreaseLabel: string;
-  increaseLabel: string;
-  max: number;
-  min: number;
-  onChange: (value: number) => void;
-  prefix?: string;
-  step?: number;
-  suffix: string;
-  value: number;
-}) {
-  const canDecrease = value > min;
-  const canIncrease = value < max;
-  return (
-    <Card style={styles.counterCard}>
-      <Pressable
-        accessibilityLabel={decreaseLabel}
-        accessibilityRole="button"
-        accessibilityState={{ disabled: !canDecrease }}
-        disabled={!canDecrease}
-        onPress={() => onChange(Math.max(min, value - step))}
-        style={[
-          styles.counterButton,
-          !canDecrease && styles.counterButtonDisabled,
-        ]}
-      >
-        <View pointerEvents="none" style={styles.counterIcon}>
-          <View style={styles.counterIconBar} />
-        </View>
-      </Pressable>
-      <Text accessibilityLiveRegion="polite" style={styles.counterValue}>
-        {prefix}
-        {value}
-        {suffix}
-      </Text>
-      <Pressable
-        accessibilityLabel={increaseLabel}
-        accessibilityRole="button"
-        accessibilityState={{ disabled: !canIncrease }}
-        disabled={!canIncrease}
-        onPress={() => onChange(Math.min(max, value + step))}
-        style={[
-          styles.counterButton,
-          !canIncrease && styles.counterButtonDisabled,
-        ]}
-      >
-        <View pointerEvents="none" style={styles.counterIcon}>
-          <View style={styles.counterIconBar} />
-          <View
-            style={[styles.counterIconBar, styles.counterIconBarVertical]}
-          />
-        </View>
-      </Pressable>
-    </Card>
-  );
 }
 
 function ChoiceCard({ children }: { children: React.ReactNode }) {
@@ -1281,47 +1199,6 @@ const styles = StyleSheet.create({
   hint: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
   choiceCard: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   preferredLocationSection: { width: '100%', gap: spacing.sm },
-  counterCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.lg,
-  },
-  counterButton: {
-    width: 56,
-    height: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    borderRadius: 28,
-    backgroundColor: colors.surface,
-  },
-  counterButtonDisabled: { borderColor: colors.border, opacity: 0.4 },
-  counterIcon: {
-    position: 'relative',
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  counterIconBar: {
-    position: 'absolute',
-    width: 20,
-    height: 2.5,
-    borderRadius: 2,
-    backgroundColor: colors.primary,
-  },
-  counterIconBarVertical: {
-    transform: [{ rotate: '90deg' }],
-  },
-  counterValue: {
-    minWidth: 100,
-    color: colors.text,
-    fontSize: 24,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
   chip: {
     borderWidth: 1.5,
     borderColor: colors.border,

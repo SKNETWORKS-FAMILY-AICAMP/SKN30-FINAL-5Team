@@ -108,8 +108,9 @@ describe('ExerciseCatalogScreen', () => {
     expect(await screen.findByText('스쿼트')).toBeTruthy();
     expect(view.UNSAFE_queryByType(BackgroundBands)).toBeNull();
     expect(screen.getByText('런지')).toBeTruthy();
-    expect(screen.getAllByText('매트, 짐볼, 의자')).toHaveLength(2);
-    expect(screen.getByText('카탈로그 버전 catalog-test-v1')).toBeTruthy();
+    expect(screen.getAllByText('장비 매트, 짐볼, 의자')).toHaveLength(2);
+    // 카탈로그 버전 같은 내부 정보는 사용자 화면에 노출하지 않는다.
+    expect(screen.queryByText(/카탈로그 버전/)).toBeNull();
 
     fireEvent.press(screen.getByText('스트레칭'));
     await waitFor(() => {
@@ -117,6 +118,33 @@ describe('ExerciseCatalogScreen', () => {
     });
     expect(queries.at(-1)).toMatchObject({ trainingTypeCode: 'MOBILITY' });
   }, 15000);
+
+  it('labels the filter rows and hides equipment when an exercise needs none', async () => {
+    const page = exercisePage(['맨몸 스쿼트']);
+    const api = {
+      listExercises: async () => ({
+        ...page,
+        items: page.items.map((item) => ({
+          ...item,
+          required_equipment_codes: [],
+        })),
+      }),
+      getExercise: async () => {
+        throw new Error('not used');
+      },
+    } as unknown as Pick<Api, 'listExercises' | 'getExercise'>;
+
+    render(<ExerciseCatalogScreen api={api} onBack={() => {}} />);
+
+    expect(await screen.findByText('맨몸 스쿼트')).toBeTruthy();
+    expect(screen.getByText('운동 유형')).toBeTruthy();
+    expect(screen.getByText('난이도')).toBeTruthy();
+    // 난이도는 온보딩 운동 경험과 같은 용어를 쓴다.
+    expect(screen.getAllByText('초급').length).toBeGreaterThan(0);
+    expect(screen.queryByText('입문')).toBeNull();
+    expect(screen.queryByText(/^장비/)).toBeNull();
+    expect(screen.queryByText('장비 없음')).toBeNull();
+  });
 
   it('shows the exercise GIF above reviewed catalog instructions', async () => {
     const api = {
@@ -406,9 +434,7 @@ describe('AccountScreen editing', () => {
     await screen.findByText('마케팅 정보 수신');
     expect(screen.queryByText('민감정보 수집')).toBeNull();
     expect(
-      screen.getByText(
-        '필수 동의는 서비스 이용에 필요해 여기서 바꿀 수 없어요.',
-      ),
+      screen.getByText('필수 동의 항목은 여기에서 변경할 수 없어요.'),
     ).toBeTruthy();
   });
 });

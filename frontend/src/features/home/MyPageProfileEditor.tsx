@@ -31,6 +31,7 @@ import {
   Button,
   Card,
   InlineFeedback,
+  StepCounter,
   TextField,
 } from '../../components/primitives';
 import { colors, radii, spacing } from '../../components/theme';
@@ -69,14 +70,20 @@ type Props = {
 };
 
 const TITLES: Record<MyPageEditableField, string> = {
-  basic_profile: '기본 정보 수정',
+  basic_profile: '프로필 수정',
   primary_goal_code: '운동 목표 수정',
   experience_level_code: '운동 경험 수정',
   available_location_codes: '운동 장소 수정',
-  default_requested_duration_minutes: '희망 시간 수정',
-  desired_weekly_workout_count: '주간 목표 수정',
-  attention_area_codes: '통증 부위 수정',
+  default_requested_duration_minutes: '운동 시간 수정',
+  desired_weekly_workout_count: '주간 운동 횟수 수정',
+  attention_area_codes: '평소 불편한 부위 수정',
 };
+
+// The profile card edits identity only; exercise settings stay in 내 운동 정보.
+const BASIC_PROFILE_DESCRIPTION =
+  '닉네임과 프로필 사진, 기본 정보만 바꿔요. 운동 설정은 내 운동 정보에서 바꿀 수 있어요.';
+// Fields that save on selection say so once; the rest keep their own guidance.
+const IMMEDIATE_SAVE_DESCRIPTION = '변경한 내용은 바로 반영돼요.';
 
 export function MyPageProfileEditor({
   error = null,
@@ -89,6 +96,17 @@ export function MyPageProfileEditor({
 }: Props) {
   const stopPropagation = (event: GestureResponderEvent) =>
     event.stopPropagation();
+  // Selections save without a save button, so the sheet has to say when the
+  // change actually landed on the server. React's "adjust state when inputs
+  // change" pattern: a request that stops pending without an error succeeded.
+  const [saveTracker, setSaveTracker] = useState({ pending, succeeded: false });
+  if (saveTracker.pending !== pending) {
+    setSaveTracker({
+      pending,
+      succeeded: saveTracker.pending && error === null,
+    });
+  }
+  const saved = saveTracker.succeeded && !pending && error === null;
 
   return (
     <Pressable
@@ -108,10 +126,7 @@ export function MyPageProfileEditor({
               {TITLES[field]}
             </Text>
             <Text style={styles.description}>
-              {field === 'attention_area_codes' &&
-              profile.pain_areas !== undefined
-                ? '부위와 통증 정도를 확인한 뒤 저장해주세요.'
-                : '온보딩과 같은 방식으로 선택하면 바로 반영돼요.'}
+              {editorDescription(field, profile)}
             </Text>
           </View>
           <Pressable
@@ -137,6 +152,13 @@ export function MyPageProfileEditor({
           />
           {pending ? <Text style={styles.pending}>저장 중…</Text> : null}
           {error ? <InlineFeedback message={error} tone="error" /> : null}
+          {saved && !pending && error === null ? (
+            <InlineFeedback
+              message="변경 사항을 저장했어요."
+              testID="profile-editor-saved"
+              tone="success"
+            />
+          ) : null}
         </ScrollView>
       </Pressable>
     </Pressable>
@@ -563,13 +585,16 @@ function LocationEditor({
         ))}
       </ChoiceCard>
       <View style={styles.basicGroup}>
-        <Text style={styles.basicLabel}>주로 운동할 장소</Text>
+        <Text style={styles.painSectionTitle}>주로 운동할 장소</Text>
+        <Text style={styles.basicLabel}>
+          선택한 장소 중 가장 자주 이용할 곳을 골라주세요.
+        </Text>
         {options
           .filter((option) => selected.includes(option.code))
           .map((option) => (
             <DescriptionOption
               key={option.code}
-              description="운동 계획에서 우선 적용해요."
+              description="운동 계획을 만들 때 이 장소를 우선 반영해요."
               disabled={disabled}
               label={option.label}
               selected={preferred === option.code}
@@ -674,7 +699,10 @@ function AttentionAreaEditor({
       />
       {hasAreas ? (
         <View style={styles.painSection}>
-          <Text style={styles.painSectionTitle}>통증 부위</Text>
+          <Text style={styles.painSectionTitle}>불편한 부위</Text>
+          <Text style={styles.basicLabel}>
+            해당하는 부위를 모두 선택해주세요.
+          </Text>
           <View style={styles.painChoices}>
             {DEFAULT_BODY_AREA_OPTIONS.map((option) => (
               <ChipOption
@@ -799,6 +827,7 @@ function AttentionAreaEditor({
   );
 }
 
+/** Saves each step immediately, using the same control as onboarding. */
 function ImmediateStepper({
   decreaseLabel,
   increaseLabel,
@@ -823,47 +852,23 @@ function ImmediateStepper({
   value: number;
 }) {
   const [current, setCurrent] = useState(value);
-  const canDecrease = !pending && current > min;
-  const canIncrease = !pending && current < max;
-  const update = (next: number) => {
-    setCurrent(next);
-    onChange(next);
-  };
 
   return (
-    <Card style={styles.counterCard}>
-      <Pressable
-        accessibilityLabel={decreaseLabel}
-        accessibilityRole="button"
-        accessibilityState={{ disabled: !canDecrease }}
-        disabled={!canDecrease}
-        onPress={() => update(Math.max(min, current - step))}
-        style={[
-          styles.counterButton,
-          !canDecrease && styles.counterButtonDisabled,
-        ]}
-      >
-        <Text style={styles.counterButtonText}>−</Text>
-      </Pressable>
-      <Text accessibilityLiveRegion="polite" style={styles.counterValue}>
-        {prefix}
-        {current}
-        {suffix}
-      </Text>
-      <Pressable
-        accessibilityLabel={increaseLabel}
-        accessibilityRole="button"
-        accessibilityState={{ disabled: !canIncrease }}
-        disabled={!canIncrease}
-        onPress={() => update(Math.min(max, current + step))}
-        style={[
-          styles.counterButton,
-          !canIncrease && styles.counterButtonDisabled,
-        ]}
-      >
-        <Text style={styles.counterButtonText}>+</Text>
-      </Pressable>
-    </Card>
+    <StepCounter
+      decreaseLabel={decreaseLabel}
+      disabled={pending}
+      increaseLabel={increaseLabel}
+      max={max}
+      min={min}
+      onChange={(next) => {
+        setCurrent(next);
+        onChange(next);
+      }}
+      prefix={prefix}
+      step={step}
+      suffix={suffix}
+      value={current}
+    />
   );
 }
 
@@ -942,6 +947,17 @@ function DescriptionOption({
       </Text>
     </Pressable>
   );
+}
+
+function editorDescription(
+  field: MyPageEditableField,
+  profile: MeProfile,
+): string {
+  if (field === 'basic_profile') return BASIC_PROFILE_DESCRIPTION;
+  if (field === 'attention_area_codes' && profile.pain_areas !== undefined) {
+    return '부위와 통증 정도를 확인한 뒤 저장해주세요.';
+  }
+  return IMMEDIATE_SAVE_DESCRIPTION;
 }
 
 function toggle(values: readonly string[], code: string): string[] {
@@ -1110,35 +1126,5 @@ const styles = StyleSheet.create({
     backgroundColor: '#FBEAE7',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-  },
-  counterCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.lg,
-  },
-  counterButton: {
-    width: 56,
-    height: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    borderRadius: 28,
-    backgroundColor: colors.surface,
-  },
-  counterButtonDisabled: { borderColor: colors.border, opacity: 0.4 },
-  counterButtonText: {
-    color: colors.primary,
-    fontSize: 30,
-    fontWeight: '500',
-    lineHeight: 34,
-  },
-  counterValue: {
-    minWidth: 100,
-    color: colors.text,
-    fontSize: 24,
-    fontWeight: '800',
-    textAlign: 'center',
   },
 });

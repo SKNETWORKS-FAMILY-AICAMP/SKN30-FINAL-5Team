@@ -48,17 +48,17 @@ export function buildMyPageProfileRows(
     ],
     [
       'default_requested_duration_minutes',
-      '희망 시간',
+      '운동 시간',
       `${profile.default_requested_duration_minutes}분`,
     ],
     [
       'desired_weekly_workout_count',
-      '주간 목표',
-      `${profile.desired_weekly_workout_count}회`,
+      '주간 운동 횟수',
+      `주 ${profile.desired_weekly_workout_count}회`,
     ],
     [
       'attention_area_codes',
-      '통증 부위',
+      '평소 불편한 부위',
       profile.attention_area_codes.map(bodyAreaLabel).join(' · ') || '없음',
     ],
   ] as const;
