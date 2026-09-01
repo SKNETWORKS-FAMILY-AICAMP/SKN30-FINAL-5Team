@@ -16,6 +16,7 @@ from backend.app.db.models.catalog import (
     ExerciseEquipment,
     ExerciseGoalTagLink,
     ExerciseLocation,
+    ExerciseMediaAsset,
     ExercisePrescriptionProfile,
     ExerciseSafetyRule,
     Location,
@@ -25,10 +26,14 @@ from backend.app.db.models.catalog import (
 from backend.app.db.models.checkin import (
     DailyContext,
     DailyContextAdverseReaction,
+    DailyContextAvailabilitySlot,
     DailyContextDiscomfort,
 )
 from backend.app.db.models.decision import (
     AgentProposalRecord,
+    AgentProposalRevisionRecord,
+    AgentReviewEventRecord,
+    DecisionDeliberationRecord,
     DecisionExplanationRecord,
     DecisionOption,
     DecisionPolicyVersion,
@@ -49,6 +54,14 @@ from backend.app.db.models.profile import (
     UserProfile,
 )
 from backend.app.db.models.routine import Routine, RoutineDay, RoutineItem
+from backend.app.db.models.v3_decision import (
+    DecisionConstraintEnvelopeRecord,
+    DecisionCoordinationAttemptRecord,
+    DecisionExercisePoolRecord,
+    DecisionExerciseRetrievalRecord,
+    PlanIntegrityValidationRecord,
+)
+from backend.app.db.models.vector_index import VectorIndexRegistry
 from backend.app.db.models.weekly_report import UserWeek, WeeklyPlanRevision, WeeklyReport
 from backend.app.db.models.workout import (
     DecisionSelection,
@@ -75,7 +88,14 @@ __all__ = [
     "CalendarRateLimitCounter",
     "BodyArea",
     "BodyFocus",
+    "AgentProposalRevisionRecord",
     "AgentProposalRecord",
+    "AgentReviewEventRecord",
+    "DecisionDeliberationRecord",
+    "DecisionConstraintEnvelopeRecord",
+    "DecisionCoordinationAttemptRecord",
+    "DecisionExercisePoolRecord",
+    "DecisionExerciseRetrievalRecord",
     "DecisionExplanationRecord",
     "DecisionOption",
     "DecisionPolicyVersion",
@@ -84,6 +104,7 @@ __all__ = [
     "CatalogVersion",
     "DailyContext",
     "DailyContextAdverseReaction",
+    "DailyContextAvailabilitySlot",
     "DailyContextDiscomfort",
     "Equipment",
     "Exercise",
@@ -92,11 +113,13 @@ __all__ = [
     "ExerciseEquipment",
     "ExerciseGoalTagLink",
     "ExerciseLocation",
+    "ExerciseMediaAsset",
     "ExercisePrescriptionProfile",
     "ExerciseSafetyRule",
     "Location",
     "MovementPattern",
     "PlanCandidate",
+    "PlanIntegrityValidationRecord",
     "PlanItem",
     "Routine",
     "RoutineDay",
@@ -115,6 +138,7 @@ __all__ = [
     "UserPreferredExerciseType",
     "UserProfile",
     "UserWeek",
+    "VectorIndexRegistry",
     "WeeklyPlanRevision",
     "WorkoutAdditionalActivity",
     "WorkoutFeedback",

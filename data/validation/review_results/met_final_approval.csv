@@ -1,0 +1,2 @@
+exercise_id,representative_id,reviewer,reviewed_at,decision,met_value,intensity_level,compendium_activity_code,compendium_activity_name,decision_basis,evidence_reference,production_eligible
+NEX-000173,REX-000066,DATA_OWNER_APPROVAL,2026-08-24T00:00:00+09:00,DOMAIN_APPROVED,2.3,LIGHT,02150,"Yoga, Hatha","USER_APPROVED_PROXY; direct single-leg balance activity unavailable; static balance is conservatively proxied by low-intensity Hatha yoga; not an exact activity match",https://pacompendium.com/conditioning-exercise/,true

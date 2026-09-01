@@ -3,16 +3,37 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, Card } from '../../components/primitives';
+import {
+  coachingStyleLabel,
+  experienceLevelLabel,
+  primaryGoalLabel,
+} from '../../api/labels';
+import type {
+  ConsentValues,
+  MeResponse,
+  ProfileSettingsUpdateRequest,
+} from '../../api/types';
+import { Button, Card, InlineFeedback } from '../../components/primitives';
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+} from '../../components/states/ScreenState';
 import { colors } from '../../components/theme';
-import { fontFamilies, useBrandFonts } from '../../app/fonts';
 import type { TabId } from '../../components/brand/BrandChrome';
+import { ProfileAvatar } from '../../components/profile/ProfileAvatar';
 import { HomeBottomNavigation } from './HomeScreen';
 import {
   MY_PAGE_ACCOUNT_ROWS,
   MY_PAGE_PROFILE_ROWS,
   type MyPagePreviewState,
 } from './homeSecondaryModel';
+import { buildMyPageProfileRows } from './myPageModel';
+import {
+  MyPageProfileEditor,
+  type MyPageEditableField,
+  type ProfileImageChange,
+} from './MyPageProfileEditor';
 
 export const MY_PAGE_LAYOUT = {
   contentTopPadding: 58,
@@ -22,14 +43,36 @@ export const MY_PAGE_LAYOUT = {
 } as const;
 
 type MyPageScreenProps = {
+  coachingStyleError?: string | null;
+  coachingStylePending?: boolean;
+  consentError?: string | null;
+  consentPending?: boolean;
+  consentValues?: ConsentValues | null;
+  deletionDeadline?: string | null;
+  joinedDays?: number | null;
+  me?: MeResponse;
   onAccountAction?: (label: string) => void;
+  onCoachingStyleChange?: (code: string) => void;
   onConfirmLogout?: () => void;
   onConfirmWithdraw?: () => void;
-  onEditProfile?: (row?: string) => void;
+  onConsentChange?: (key: keyof ConsentValues, enabled: boolean) => void;
   onNavigateTab?: (tab: TabId) => void;
   onNotificationChange?: (key: string, enabled: boolean) => void;
+  onOpenExerciseCatalog?: () => void;
   onOpenSettings?: () => void;
+  onBasicProfileChange?: (
+    body: ProfileSettingsUpdateRequest,
+    imageChange: ProfileImageChange | undefined,
+  ) => void;
+  onProfileFieldChange?: (body: ProfileSettingsUpdateRequest) => void;
+  onRetryProfile?: () => void;
+  onRetryConsents?: () => void;
+  persistedSettingsAvailable?: boolean;
   previewState?: MyPagePreviewState;
+  profileUpdateError?: string | null;
+  profileUpdatePending?: boolean;
+  withdrawalError?: string | null;
+  withdrawalPending?: boolean;
 };
 
 export function MyPageScreen({
@@ -42,17 +85,39 @@ export function MyPageScreen({
 }
 
 function MyPageContent({
+  coachingStyleError = null,
+  coachingStylePending = false,
+  consentError = null,
+  consentPending = false,
+  consentValues = null,
+  deletionDeadline = null,
+  joinedDays = null,
+  me,
   onAccountAction,
+  onCoachingStyleChange,
   onConfirmLogout,
   onConfirmWithdraw,
-  onEditProfile,
+  onConsentChange,
   onNavigateTab,
   onNotificationChange,
+  onOpenExerciseCatalog,
   onOpenSettings,
+  onBasicProfileChange,
+  onProfileFieldChange,
+  onRetryProfile,
+  onRetryConsents,
+  persistedSettingsAvailable = true,
   previewState = 'profile',
+  profileUpdateError = null,
+  profileUpdatePending = false,
+  withdrawalError = null,
+  withdrawalPending = false,
 }: MyPageScreenProps) {
-  const fonts = useBrandFonts();
-  const [coachStyle, setCoachStyle] = useState('든든하게');
+  const [previewCoachStyleCode, setPreviewCoachStyleCode] =
+    useState('SUPPORTIVE');
+  const [editingField, setEditingField] = useState<MyPageEditableField | null>(
+    null,
+  );
   const [dialog, setDialog] = useState<'logout' | 'withdraw' | null>(
     previewState === 'logout'
       ? 'logout'
@@ -65,13 +130,68 @@ function MyPageContent({
     report: true,
     encouragement: false,
   });
-  const useJua = fonts.loaded && !fonts.failed;
+  const profile = me?.profile ?? null;
+  const apiBacked = me !== undefined;
+  const coachStyleCode = profile?.coaching_style_code ?? previewCoachStyleCode;
+  const coachStyle = coachingStyleLabel(coachStyleCode);
+  const profileRows = profile
+    ? buildMyPageProfileRows(profile)
+    : MY_PAGE_PROFILE_ROWS;
+  const nickname = profile?.nickname ?? '헬끼';
+  const profileTags = profile
+    ? [
+        primaryGoalLabel(profile.primary_goal_code),
+        experienceLevelLabel(profile.experience_level_code),
+        `주 ${profile.desired_weekly_workout_count}회`,
+      ]
+    : ['체력 증진', '초급', '주 4회'];
+  const visibleDialog =
+    dialog === 'withdraw' && deletionDeadline !== null ? null : dialog;
+  const pageState =
+    previewState === 'loading' ||
+    previewState === 'empty' ||
+    previewState === 'error' ||
+    previewState === 'permission'
+      ? previewState
+      : profile === null && apiBacked
+        ? 'empty'
+        : 'profile';
 
   const toggleNotification = (key: keyof typeof notifications) => {
     const enabled = !notifications[key];
     setNotifications((current) => ({ ...current, [key]: enabled }));
     onNotificationChange?.(key, enabled);
   };
+
+  if (pageState !== 'profile') {
+    return (
+      <SafeAreaView edges={['left', 'right']} style={styles.screen}>
+        <StatusBar style="dark" />
+        <View style={[styles.content, styles.stateContent]}>
+          <Text accessibilityRole="header" style={styles.title}>
+            마이페이지
+          </Text>
+          {pageState === 'loading' ? (
+            <LoadingState label="프로필 정보를 불러오고 있어요" />
+          ) : pageState === 'empty' ? (
+            <EmptyState
+              actionLabel={onRetryProfile ? '다시 불러오기' : undefined}
+              message="아직 등록된 프로필 정보가 없어요."
+              onAction={onRetryProfile}
+            />
+          ) : pageState === 'permission' ? (
+            <ErrorState message="이 계정으로는 프로필 정보에 접근할 수 없어요." />
+          ) : (
+            <ErrorState
+              message="프로필 정보를 불러오지 못했어요. 잠시 후 다시 시도해주세요."
+              onRetry={onRetryProfile}
+            />
+          )}
+        </View>
+        <HomeBottomNavigation activeTab="my" onNavigate={onNavigateTab} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView edges={['left', 'right']} style={styles.screen}>
@@ -88,6 +208,8 @@ function MyPageContent({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="설정 열기"
+            accessibilityState={{ disabled: onOpenSettings === undefined }}
+            disabled={onOpenSettings === undefined}
             onPress={onOpenSettings}
             style={styles.settingsButton}
           >
@@ -97,23 +219,42 @@ function MyPageContent({
 
         <Card style={styles.profileCard}>
           <View style={styles.profileRow}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>헬</Text>
-            </View>
+            <ProfileAvatar
+              accessibilityLabel={`${nickname}님의 프로필 이미지`}
+              profileImageUrl={profile?.profile_image_url}
+              size={64}
+              style={styles.avatar}
+              testID="my-page-profile-avatar"
+            />
             <View style={styles.profileCopy}>
-              <Text style={styles.nickname}>헬끼님</Text>
-              <Text style={styles.joinLine}>함께한 지 7일째</Text>
+              <Text style={styles.nickname}>{nickname}님</Text>
+              <Text style={styles.joinLine}>
+                {joinedDays === null
+                  ? apiBacked
+                    ? '가입 정보를 확인하고 있어요'
+                    : '함께한 지 7일째'
+                  : `함께한 지 ${joinedDays}일째`}
+              </Text>
             </View>
             <Pressable
               accessibilityRole="button"
-              onPress={() => onEditProfile?.()}
+              accessibilityState={{
+                disabled:
+                  onProfileFieldChange === undefined &&
+                  onBasicProfileChange === undefined,
+              }}
+              disabled={
+                onProfileFieldChange === undefined &&
+                onBasicProfileChange === undefined
+              }
+              onPress={() => setEditingField('basic_profile')}
               style={styles.editProfileButton}
             >
               <Text style={styles.editProfileLabel}>프로필 수정</Text>
             </Pressable>
           </View>
           <View style={styles.tags}>
-            {['체력 향상', '초보', '주 4회'].map((tag) => (
+            {profileTags.map((tag) => (
               <View key={tag} style={styles.tag}>
                 <Text style={styles.tagText}>{tag}</Text>
               </View>
@@ -121,29 +262,28 @@ function MyPageContent({
           </View>
         </Card>
 
-        <View style={styles.statsRow}>
-          <Stat label="완료 운동" value="6" useJua={useJua} />
-          <Stat label="연속 기록" value="3일" useJua={useJua} />
-          <Stat label="이번 주" value="2/4" useJua={useJua} />
-        </View>
-
         <View style={styles.coachCard}>
-          <View style={styles.coachHeader}>
-            <Text style={styles.coachTitle}>헬끼 코칭 스타일</Text>
-            <View style={styles.coachBadge}>
-              <Text style={styles.coachBadgeText}>{coachStyle}</Text>
-            </View>
-          </View>
+          <Text style={styles.coachTitle}>헬끼 코칭 스타일</Text>
           <Text style={styles.coachNote}>{getCoachNote(coachStyle)}</Text>
           <View style={styles.coachOptions}>
-            {['차분하게', '든든하게', '강하게'].map((option) => {
-              const selected = option === coachStyle;
+            {COACHING_STYLE_OPTIONS.map((option) => {
+              const selected = option.code === coachStyleCode;
               return (
                 <Pressable
-                  key={option}
+                  key={option.code}
                   accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  onPress={() => setCoachStyle(option)}
+                  accessibilityState={{
+                    selected,
+                    disabled: coachingStylePending,
+                  }}
+                  disabled={coachingStylePending}
+                  onPress={() => {
+                    if (onCoachingStyleChange) {
+                      onCoachingStyleChange(option.code);
+                    } else {
+                      setPreviewCoachStyleCode(option.code);
+                    }
+                  }}
                   style={[
                     styles.coachOption,
                     selected && styles.coachOptionSelected,
@@ -155,7 +295,7 @@ function MyPageContent({
                       selected && styles.coachOptionTextSelected,
                     ]}
                   >
-                    {option}
+                    {option.label}
                   </Text>
                 </Pressable>
               );
@@ -163,14 +303,26 @@ function MyPageContent({
           </View>
         </View>
 
+        {coachingStyleError ? (
+          <InlineFeedback
+            message={coachingStyleError}
+            style={styles.feedback}
+            tone="error"
+          />
+        ) : null}
+
         <SectionTitle label="내 운동 정보" />
         <View style={styles.rowsCard}>
-          {MY_PAGE_PROFILE_ROWS.map(([label, value]) => (
+          {profileRows.map(([field, label, value]) => (
             <Pressable
-              key={label}
+              key={field}
               accessibilityRole="button"
               accessibilityLabel={`${label} 수정`}
-              onPress={() => onEditProfile?.(label)}
+              accessibilityState={{
+                disabled: onProfileFieldChange === undefined,
+              }}
+              disabled={onProfileFieldChange === undefined}
+              onPress={() => setEditingField(field)}
               style={styles.infoRow}
             >
               <Text style={styles.infoLabel}>{label}</Text>
@@ -180,26 +332,95 @@ function MyPageContent({
           ))}
         </View>
 
+        {onOpenExerciseCatalog ? (
+          <>
+            <SectionTitle label="운동 도구" />
+            <View style={styles.rowsCard}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={onOpenExerciseCatalog}
+                style={styles.infoRow}
+              >
+                <Text style={styles.infoLabel}>운동 카탈로그</Text>
+                <Text style={styles.infoValue}>둘러보기</Text>
+                <Text style={styles.rowArrow}>›</Text>
+              </Pressable>
+            </View>
+          </>
+        ) : null}
+
         <SectionTitle label="알림" />
         <View style={styles.rowsCard}>
           <NotificationRow
             description="예정한 운동 시간을 알려드려요."
             enabled={notifications.routine}
             label="루틴 알림"
+            disabled={!persistedSettingsAvailable}
             onToggle={() => toggleNotification('routine')}
           />
           <NotificationRow
             description="닫힌 주 리포트가 준비되면 알려드려요."
             enabled={notifications.report}
             label="주간 리포트"
+            disabled={!persistedSettingsAvailable}
             onToggle={() => toggleNotification('report')}
           />
           <NotificationRow
             description="휴식을 선택한 날에는 압박 알림을 보내지 않아요."
             enabled={notifications.encouragement}
             label="응원 알림"
+            disabled={!persistedSettingsAvailable}
             onToggle={() => toggleNotification('encouragement')}
           />
+        </View>
+
+        {!persistedSettingsAvailable ? (
+          <InlineFeedback
+            message="알림과 연동 기기 설정은 서버 지원이 준비된 뒤 사용할 수 있어요."
+            style={styles.feedback}
+            tone="warning"
+          />
+        ) : null}
+
+        <SectionTitle label="선택 동의 관리" />
+        <View style={styles.rowsCard}>
+          <Text style={styles.consentNote}>
+            필수 동의는 서비스 이용에 필요해 여기서 바꿀 수 없어요.
+          </Text>
+          {consentValues ? (
+            OPTIONAL_CONSENTS.map(({ key, label }) => (
+              <NotificationRow
+                key={key}
+                description=""
+                disabled={consentPending}
+                enabled={consentValues[key]}
+                label={label}
+                onToggle={() => onConsentChange?.(key, !consentValues[key])}
+              />
+            ))
+          ) : consentError ? (
+            <InlineFeedback
+              action={
+                onRetryConsents ? (
+                  <Button
+                    label="다시 시도"
+                    onPress={onRetryConsents}
+                    tone="secondary"
+                  />
+                ) : undefined
+              }
+              message={consentError}
+              tone="error"
+            />
+          ) : (
+            <Text style={styles.consentNote}>동의 정보를 불러오고 있어요…</Text>
+          )}
+          {consentValues && consentError ? (
+            <InlineFeedback message={consentError} tone="error" />
+          ) : null}
+          {consentPending && consentValues ? (
+            <Text style={styles.consentNote}>저장 중…</Text>
+          ) : null}
         </View>
 
         <SectionTitle label="계정 · 앱" />
@@ -208,11 +429,17 @@ function MyPageContent({
             <Pressable
               key={label}
               accessibilityRole="button"
+              accessibilityState={{ disabled: onAccountAction === undefined }}
+              disabled={onAccountAction === undefined}
               onPress={() => onAccountAction?.(label)}
               style={styles.accountRow}
             >
               <Text style={styles.accountLabel}>{label}</Text>
-              <Text style={styles.accountValue}>{value}</Text>
+              <Text style={styles.accountValue}>
+                {!persistedSettingsAvailable && label === '연동 기기'
+                  ? '준비 중'
+                  : value}
+              </Text>
               <Text style={styles.rowArrow}>›</Text>
             </Pressable>
           ))}
@@ -227,46 +454,56 @@ function MyPageContent({
             <Text style={styles.logoutText}>로그아웃</Text>
           </Pressable>
           <View style={styles.divider} />
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setDialog('withdraw')}
-            style={styles.textAction}
-          >
-            <Text style={styles.withdrawText}>회원 탈퇴</Text>
-          </Pressable>
+          {deletionDeadline === null ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setDialog('withdraw')}
+              style={styles.textAction}
+            >
+              <Text style={styles.withdrawText}>회원 탈퇴</Text>
+            </Pressable>
+          ) : null}
         </View>
+
+        {deletionDeadline ? (
+          <InlineFeedback
+            message={`계정 삭제를 접수했어요. 운영 데이터는 ${deletionDeadline.slice(0, 10)}까지 삭제돼요.`}
+            style={styles.deletionFeedback}
+            tone="warning"
+          />
+        ) : null}
       </ScrollView>
 
       <HomeBottomNavigation activeTab="my" onNavigate={onNavigateTab} />
 
-      {dialog ? (
+      {visibleDialog ? (
         <ConfirmationDialog
-          kind={dialog}
+          kind={visibleDialog}
           onCancel={() => setDialog(null)}
+          error={visibleDialog === 'withdraw' ? withdrawalError : null}
+          pending={visibleDialog === 'withdraw' && withdrawalPending}
           onConfirm={() => {
-            if (dialog === 'logout') onConfirmLogout?.();
+            if (visibleDialog === 'logout') onConfirmLogout?.();
             else onConfirmWithdraw?.();
           }}
         />
       ) : null}
-    </SafeAreaView>
-  );
-}
 
-function Stat({
-  label,
-  useJua,
-  value,
-}: {
-  label: string;
-  useJua: boolean;
-  value: string;
-}) {
-  return (
-    <View style={styles.statCard}>
-      <Text style={[styles.statValue, useJua && styles.jua]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
+      {editingField &&
+      profile &&
+      (onProfileFieldChange ||
+        (editingField === 'basic_profile' && onBasicProfileChange)) ? (
+        <MyPageProfileEditor
+          error={profileUpdateError}
+          field={editingField}
+          onBasicProfileChange={onBasicProfileChange}
+          onChange={onProfileFieldChange ?? (() => undefined)}
+          onClose={() => setEditingField(null)}
+          pending={profileUpdatePending}
+          profile={profile}
+        />
+      ) : null}
+    </SafeAreaView>
   );
 }
 
@@ -276,11 +513,13 @@ function SectionTitle({ label }: { label: string }) {
 
 function NotificationRow({
   description,
+  disabled = false,
   enabled,
   label,
   onToggle,
 }: {
   description: string;
+  disabled?: boolean;
   enabled: boolean;
   label: string;
   onToggle: () => void;
@@ -288,7 +527,8 @@ function NotificationRow({
   return (
     <Pressable
       accessibilityRole="switch"
-      accessibilityState={{ checked: enabled }}
+      accessibilityState={{ checked: enabled, disabled }}
+      disabled={disabled}
       onPress={onToggle}
       style={styles.notificationRow}
     >
@@ -304,13 +544,17 @@ function NotificationRow({
 }
 
 function ConfirmationDialog({
+  error,
   kind,
   onCancel,
   onConfirm,
+  pending,
 }: {
+  error?: string | null;
   kind: 'logout' | 'withdraw';
   onCancel: () => void;
   onConfirm: () => void;
+  pending?: boolean;
 }) {
   const withdrawing = kind === 'withdraw';
 
@@ -325,15 +569,22 @@ function ConfirmationDialog({
             ? '탈퇴하면 운동 기록과 헬끼와의 대화가 모두 삭제되고 되돌릴 수 없어요.'
             : '이 기기에서 계정 연결을 종료하고 로그인 화면으로 이동해요.'}
         </Text>
+        {error ? <InlineFeedback message={error} tone="error" /> : null}
         <View style={styles.dialogActions}>
           <Button
-            label={withdrawing ? '탈퇴하기' : '로그아웃'}
+            disabled={pending}
+            label={pending ? '요청 중…' : withdrawing ? '탈퇴하기' : '로그아웃'}
             labelStyle={withdrawing ? styles.dangerLabel : undefined}
             onPress={onConfirm}
             style={withdrawing ? styles.dangerButton : undefined}
             tone={withdrawing ? 'secondary' : 'primary'}
           />
-          <Button label="취소" onPress={onCancel} tone="secondary" />
+          <Button
+            disabled={pending}
+            label="취소"
+            onPress={onCancel}
+            tone="secondary"
+          />
         </View>
       </Card>
     </View>
@@ -342,14 +593,28 @@ function ConfirmationDialog({
 
 function getCoachNote(style: string) {
   return {
-    차분하게: '짧고 차분한 문장으로 오늘 할 일을 안내해요.',
+    간결하게: '짧고 명확한 문장으로 오늘 할 일을 안내해요.',
     든든하게: '부담을 주지 않으면서 꾸준히 이어갈 수 있도록 응원해요.',
-    강하게: '에너지 있는 표현으로 운동 시작을 북돋아요.',
+    활기차게: '에너지 있는 표현으로 운동 시작을 북돋아요.',
   }[style];
 }
 
+const COACHING_STYLE_OPTIONS = [
+  { code: 'CONCISE', label: '간결하게' },
+  { code: 'SUPPORTIVE', label: '든든하게' },
+  { code: 'ENERGETIC', label: '활기차게' },
+] as const;
+
+const OPTIONAL_CONSENTS = [
+  { key: 'wearable_integration', label: '웨어러블 연동' },
+  { key: 'marketing', label: '마케팅 정보 수신' },
+] as const satisfies readonly {
+  key: keyof ConsentValues;
+  label: string;
+}[];
+
 const shadow = {
-  shadowColor: '#2F5233',
+  shadowColor: '#5A4636',
   shadowOffset: { width: 0, height: 4 },
   shadowOpacity: 0.08,
   shadowRadius: 6,
@@ -370,6 +635,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: MY_PAGE_LAYOUT.contentHorizontalPadding,
     paddingBottom: MY_PAGE_LAYOUT.contentBottomPadding,
   },
+  stateContent: {
+    flex: 1,
+    gap: 18,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -389,7 +658,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 14,
-    backgroundColor: '#FBF6DF',
+    backgroundColor: '#FFF8E5',
   },
   settingsIcon: {
     color: colors.text,
@@ -410,15 +679,8 @@ const styles = StyleSheet.create({
   avatar: {
     width: 64,
     height: 64,
-    alignItems: 'center',
-    justifyContent: 'center',
     borderRadius: 32,
-    backgroundColor: '#F1F6E7',
-  },
-  avatarText: {
-    color: '#3E7A32',
-    fontSize: 22,
-    fontWeight: '900',
+    backgroundColor: '#FFF8E5',
   },
   profileCopy: {
     minWidth: 0,
@@ -445,7 +707,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   editProfileLabel: {
-    color: '#3E7A32',
+    color: '#A45F00',
     fontSize: 12.5,
     fontWeight: '800',
   },
@@ -457,78 +719,38 @@ const styles = StyleSheet.create({
   },
   tag: {
     borderWidth: 1.5,
-    borderColor: '#CBDDB4',
+    borderColor: '#F1D39A',
     borderRadius: 999,
-    backgroundColor: '#F1F6E7',
+    backgroundColor: '#FFF8E5',
     paddingHorizontal: 11,
     paddingVertical: 6,
   },
   tagText: {
-    color: '#3E7A32',
+    color: '#A45F00',
     fontSize: 11.5,
     fontWeight: '800',
   },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: MY_PAGE_LAYOUT.sectionGap,
+  feedback: {
+    marginTop: 10,
   },
-  statCard: {
-    ...shadow,
-    minWidth: 0,
-    flex: 1,
-    alignItems: 'center',
-    borderRadius: 18,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 6,
-    paddingVertical: 14,
-  },
-  statValue: {
-    color: '#3E7A32',
-    fontSize: 22,
-    fontWeight: '800',
-    lineHeight: 24,
-  },
-  jua: {
-    fontFamily: fontFamilies.slogan,
-    fontWeight: '400',
-  },
-  statLabel: {
-    marginTop: 4,
+  consentNote: {
     color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 12,
+    lineHeight: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   coachCard: {
     marginTop: MY_PAGE_LAYOUT.sectionGap,
     borderRadius: 20,
-    backgroundColor: '#DCEBC4',
+    backgroundColor: '#FFEBC2',
     paddingHorizontal: 14,
     paddingTop: 14,
     paddingBottom: 16,
   },
-  coachHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
   coachTitle: {
     color: colors.text,
     fontSize: 14,
-    fontWeight: '800',
-  },
-  coachBadge: {
-    borderWidth: 1.5,
-    borderColor: '#CBDDB4',
-    borderRadius: 999,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  coachBadgeText: {
-    color: '#3E7A32',
-    fontSize: 11,
     fontWeight: '800',
   },
   coachNote: {
@@ -548,7 +770,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#CBDDB4',
+    borderColor: '#F1D39A',
     borderRadius: 12,
     backgroundColor: colors.surface,
     paddingHorizontal: 4,
@@ -558,12 +780,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   coachOptionText: {
-    color: '#3E7A32',
+    color: '#A45F00',
     fontSize: 12,
     fontWeight: '700',
   },
   coachOptionTextSelected: {
-    color: colors.surface,
+    color: colors.text,
   },
   sectionTitle: {
     marginTop: 16,
@@ -638,7 +860,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 3,
   },
   switchTrackOn: {
-    backgroundColor: '#4E8B3A',
+    backgroundColor: '#F6BA50',
   },
   switchKnob: {
     width: 20,
@@ -676,6 +898,9 @@ const styles = StyleSheet.create({
     gap: 18,
     paddingTop: 4,
     paddingBottom: 8,
+  },
+  deletionFeedback: {
+    marginBottom: 12,
   },
   textAction: {
     minHeight: 44,

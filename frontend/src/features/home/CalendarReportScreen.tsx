@@ -1,6 +1,9 @@
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
+  Animated,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,8 +11,11 @@ import {
   View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
 
 import { Card } from '../../components/primitives';
 import { colors } from '../../components/theme';
@@ -47,10 +53,13 @@ type CalendarReportScreenProps = {
   weeks?: readonly CalendarWeek[];
   selectedMonth?: string;
   latestMonth?: string;
+  routineStartLocalDate?: string;
   onSelectMonth?: (month: string) => void;
 };
 
 const MONTH_PICKER_ITEM_HEIGHT = 44;
+const WEB_WHEEL_DELTA_PER_ITEM = 100;
+const WEB_WHEEL_IDLE_MS = 60;
 
 export function CalendarReportScreen({
   previewState = 'calendar',
@@ -76,12 +85,47 @@ function CalendarReportContent({
   weeks = CALENDAR_WEEKS,
   selectedMonth = '2026-08',
   latestMonth = '2026-08',
+  routineStartLocalDate,
   onSelectMonth,
 }: CalendarReportScreenProps) {
   const [expandedWeek, setExpandedWeek] = useState<string | null>(
     previewState === 'week-detail' ? 'week-2' : null,
   );
   const [pickerOpen, setPickerOpen] = useState(previewState === 'month-picker');
+  const hasOpenedPicker = useRef(previewState === 'month-picker');
+  const [pickerInitialMonth, setPickerInitialMonth] = useState(latestMonth);
+  const [caretRotation] = useState(
+    () => new Animated.Value(pickerOpen ? 1 : 0),
+  );
+
+  useEffect(() => {
+    const animation = Animated.timing(caretRotation, {
+      toValue: pickerOpen ? 1 : 0,
+      duration: 150,
+      useNativeDriver: true,
+    });
+    animation.start();
+
+    return () => animation.stop();
+  }, [caretRotation, pickerOpen]);
+
+  const toggleMonthPicker = () => {
+    if (pickerOpen) {
+      setPickerOpen(false);
+      return;
+    }
+
+    setPickerInitialMonth(
+      hasOpenedPicker.current ? selectedMonth : latestMonth,
+    );
+    hasOpenedPicker.current = true;
+    setPickerOpen(true);
+  };
+
+  const caretRotate = caretRotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '180deg'],
+  });
 
   return (
     <SafeAreaView edges={['left', 'right']} style={styles.screen}>
@@ -100,16 +144,36 @@ function CalendarReportContent({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="연도와 월 선택"
-                onPress={() => setPickerOpen((current) => !current)}
+                accessibilityState={{ expanded: pickerOpen }}
+                onPress={toggleMonthPicker}
                 style={styles.monthPickerButton}
               >
                 <Text style={styles.monthTitle}>{monthLabel}</Text>
-                <Text style={styles.monthCaret}>⌄</Text>
+                <Animated.View
+                  style={{ transform: [{ rotate: caretRotate }] }}
+                  testID="month-picker-caret"
+                >
+                  <Svg
+                    aria-hidden
+                    fill="none"
+                    height={16}
+                    viewBox="0 0 24 24"
+                    width={16}
+                  >
+                    <Path
+                      d="M6 9.5l6 6 6-6"
+                      stroke="#8B8780"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2.4}
+                    />
+                  </Svg>
+                </Animated.View>
               </Pressable>
               {pickerOpen ? (
                 <MonthPicker
                   latestMonth={latestMonth}
-                  selectedMonth={selectedMonth}
+                  selectedMonth={pickerInitialMonth}
                   onConfirm={(month) => {
                     onSelectMonth?.(month);
                     setPickerOpen(false);
@@ -143,6 +207,23 @@ function CalendarReportContent({
           </View>
         </Card>
 
+        <View style={styles.legendCard}>
+          <Text style={styles.legendTitle}>아이콘 안내</Text>
+          <View style={styles.legendRow}>
+            {(['done', 'partial', 'miss', 'rest'] as const).map((status) => (
+              <View key={status} style={styles.legendItem}>
+                <CalendarStatusMark
+                  status={status}
+                  testID={`calendar-legend-${status}`}
+                />
+                <Text style={styles.legendLabel}>
+                  {CALENDAR_DAY_VISUALS[status].label}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
         <View style={styles.weekdayRow}>
           {CALENDAR_WEEKDAYS.map((weekday) => (
             <Text
@@ -158,46 +239,87 @@ function CalendarReportContent({
         <View style={styles.weekList}>
           {weeks.map((week) => {
             const expanded = expandedWeek === week.id;
+            const beforeRoutineStart =
+              routineStartLocalDate !== undefined &&
+              week.days.every(
+                (day) =>
+                  day.localDate !== undefined &&
+                  day.localDate < routineStartLocalDate,
+              );
             return (
               <View
                 key={week.id}
                 style={[
                   styles.weekBand,
-                  week.state === 'progress' && styles.weekBandCurrent,
-                  week.state === 'upcoming' && styles.weekBandUpcoming,
                   expanded && styles.weekBandExpanded,
                   { backgroundColor: week.bandColor },
+                  week.state === 'progress' && styles.weekBandCurrent,
+                  week.state === 'make' && styles.weekBandReportReady,
+                  (week.state === 'unread' || week.state === 'read') &&
+                    styles.weekBandReportGenerated,
+                  week.state === 'upcoming' && styles.weekBandUpcoming,
+                  beforeRoutineStart && styles.weekBandBeforeRoutine,
                 ]}
+                testID={`calendar-week-${week.id}`}
               >
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`${week.label} ${CALENDAR_WEEK_CHIPS[week.state].label}, 요약 ${expanded ? '접기' : '펼치기'}`}
-                  onPress={() => setExpandedWeek(expanded ? null : week.id)}
-                  style={styles.weekHeader}
-                >
+                <View style={styles.weekHeader}>
                   <View style={styles.weekHeadingRow}>
-                    <View style={styles.weekTitleGroup}>
-                      <Text style={styles.weekTitle}>{week.label}</Text>
-                      <Text style={styles.weekRange}>{week.range}</Text>
-                    </View>
-                    <StateChip state={week.state} weekId={week.id} />
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        beforeRoutineStart
+                          ? `${week.label} 루틴 시작 전, 선택할 수 없음`
+                          : `${week.label} ${CALENDAR_WEEK_CHIPS[week.state].label}, 요약 ${expanded ? '접기' : '펼치기'}`
+                      }
+                      accessibilityState={{ disabled: beforeRoutineStart }}
+                      disabled={beforeRoutineStart}
+                      onPress={() => setExpandedWeek(expanded ? null : week.id)}
+                      style={styles.weekTitleButton}
+                    >
+                      <View style={styles.weekTitleGroup}>
+                        <Text style={styles.weekTitle}>{week.label}</Text>
+                        <Text style={styles.weekRange}>{week.range}</Text>
+                      </View>
+                    </Pressable>
+                    <StateChip
+                      beforeRoutineStart={beforeRoutineStart}
+                      onPress={
+                        !beforeRoutineStart &&
+                        (week.state === 'make' || week.state === 'unread')
+                          ? () =>
+                              onOpenWeeklyReport?.(week.weekStart ?? week.id)
+                          : undefined
+                      }
+                      state={week.state}
+                      weekId={week.id}
+                      weekLabel={week.label}
+                    />
                   </View>
-                </Pressable>
+                </View>
                 <View style={styles.dayRow}>
                   {week.days.map((day, index) => {
+                    const beforeRoutineStart =
+                      routineStartLocalDate !== undefined &&
+                      day.localDate !== undefined &&
+                      day.localDate < routineStartLocalDate;
                     const canOpen =
                       expanded &&
+                      !beforeRoutineStart &&
                       day.localDate !== undefined &&
                       (day.sessionIds?.length ?? 0) > 0;
                     return (
                       <Pressable
                         key={`${week.id}-${day.day}`}
                         accessibilityLabel={
-                          canOpen
-                            ? `${day.localDate} 운동 기록 보기`
-                            : undefined
+                          beforeRoutineStart
+                            ? `${day.localDate} 루틴 시작 전 날짜`
+                            : canOpen
+                              ? `${day.localDate} 운동 기록 보기`
+                              : undefined
                         }
-                        accessibilityRole={canOpen ? 'button' : undefined}
+                        accessibilityRole={
+                          canOpen || beforeRoutineStart ? 'button' : undefined
+                        }
                         accessibilityState={
                           canOpen ? undefined : { disabled: true }
                         }
@@ -207,17 +329,21 @@ function CalendarReportContent({
                           styles.dayCell,
                           !day.inCurrentMonth && styles.dayCellOutsideMonth,
                           canOpen && styles.dayCellSelectable,
+                          beforeRoutineStart && styles.dayCellBeforeRoutine,
                         ]}
+                        testID={`calendar-day-${week.id}-${index}`}
                       >
                         <Text
                           style={[
                             styles.dayNumber,
                             day.status === 'today' && styles.dayNumberToday,
+                            beforeRoutineStart && styles.dayNumberBeforeRoutine,
                           ]}
                         >
                           {day.day}
                         </Text>
                         <CalendarStatusMark
+                          beforeRoutineStart={beforeRoutineStart}
                           status={day.status}
                           testID={`calendar-day-${week.id}-${index}-mark`}
                         />
@@ -240,23 +366,6 @@ function CalendarReportContent({
               </View>
             );
           })}
-        </View>
-
-        <View style={styles.legendCard}>
-          <Text style={styles.legendTitle}>아이콘 안내</Text>
-          <View style={styles.legendRow}>
-            {(['done', 'partial', 'miss', 'rest'] as const).map((status) => (
-              <View key={status} style={styles.legendItem}>
-                <CalendarStatusMark
-                  status={status}
-                  testID={`calendar-legend-${status}`}
-                />
-                <Text style={styles.legendLabel}>
-                  {CALENDAR_DAY_VISUALS[status].label}
-                </Text>
-              </View>
-            ))}
-          </View>
         </View>
       </ScrollView>
       <HomeBottomNavigation activeTab="report" onNavigate={onNavigateTab} />
@@ -325,6 +434,11 @@ function MonthPicker({
   return (
     <View accessibilityViewIsModal style={styles.picker} testID="month-picker">
       <View style={styles.pickerColumns}>
+        <View
+          pointerEvents="none"
+          style={styles.pickerSelectionBand}
+          testID="month-picker-selection-band"
+        />
         <MonthPickerWheel
           accessibilityLabel="연도 선택 휠"
           selectedValue={year}
@@ -334,7 +448,6 @@ function MonthPicker({
           onSelect={selectYear}
         />
         <MonthPickerWheel
-          key={`${year}-${maximumMonth}`}
           accessibilityLabel="월 선택 휠"
           selectedValue={Math.min(month, maximumMonth)}
           suffix="월"
@@ -373,7 +486,93 @@ function MonthPickerWheel({
   values: readonly number[];
   onSelect: (value: number) => void;
 }) {
-  const selectedIndex = Math.max(0, values.indexOf(selectedValue));
+  const wheelRef = useRef<ScrollView | null>(null);
+  const initialScrollApplied = useRef(false);
+  const webWheelDelta = useRef(0);
+  const webWheelIndex = useRef(Math.max(0, values.indexOf(selectedValue)));
+  const webWheelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [initialContentOffset] = useState(() => ({
+    x: 0,
+    y: Math.max(0, values.indexOf(selectedValue)) * MONTH_PICKER_ITEM_HEIGHT,
+  }));
+
+  useEffect(() => {
+    webWheelIndex.current = Math.max(0, values.indexOf(selectedValue));
+  }, [selectedValue, values]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || wheelRef.current === null) return;
+
+    const scrollNode = wheelRef.current.getScrollableNode() as HTMLElement;
+    const handleWheel = (event: WheelEvent) => {
+      if (event.deltaY === 0) return;
+
+      event.preventDefault();
+      const modeMultiplier =
+        event.deltaMode === 1
+          ? 16
+          : event.deltaMode === 2
+            ? MONTH_PICKER_ITEM_HEIGHT * 5
+            : 1;
+      const normalizedDelta = event.deltaY * modeMultiplier;
+      if (
+        webWheelDelta.current !== 0 &&
+        Math.sign(webWheelDelta.current) !== Math.sign(normalizedDelta)
+      ) {
+        webWheelDelta.current = 0;
+      }
+      webWheelDelta.current += normalizedDelta;
+
+      if (webWheelTimer.current !== null) {
+        clearTimeout(webWheelTimer.current);
+      }
+      webWheelTimer.current = setTimeout(() => {
+        const accumulatedDelta = webWheelDelta.current;
+        webWheelDelta.current = 0;
+        webWheelTimer.current = null;
+
+        const itemDelta =
+          Math.sign(accumulatedDelta) *
+          Math.max(
+            1,
+            Math.round(Math.abs(accumulatedDelta) / WEB_WHEEL_DELTA_PER_ITEM),
+          );
+        const nextIndex = Math.max(
+          0,
+          Math.min(values.length - 1, webWheelIndex.current + itemDelta),
+        );
+        if (nextIndex === webWheelIndex.current) return;
+
+        webWheelIndex.current = nextIndex;
+        wheelRef.current?.scrollTo({
+          animated: true,
+          x: 0,
+          y: nextIndex * MONTH_PICKER_ITEM_HEIGHT,
+        });
+        const nextValue = values[nextIndex];
+        if (nextValue !== undefined) onSelect(nextValue);
+      }, WEB_WHEEL_IDLE_MS);
+    };
+
+    scrollNode.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      scrollNode.removeEventListener('wheel', handleWheel);
+      if (webWheelTimer.current !== null) {
+        clearTimeout(webWheelTimer.current);
+        webWheelTimer.current = null;
+      }
+    };
+  }, [onSelect, values]);
+
+  const applyInitialScroll = () => {
+    if (initialScrollApplied.current || wheelRef.current === null) return;
+
+    wheelRef.current.scrollTo({
+      ...initialContentOffset,
+      animated: false,
+    });
+    initialScrollApplied.current = true;
+  };
   const selectFromScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const index = Math.max(
       0,
@@ -391,14 +590,13 @@ function MonthPickerWheel({
   return (
     <View style={styles.pickerColumn}>
       <ScrollView
+        ref={wheelRef}
         accessibilityLabel={accessibilityLabel}
         contentContainerStyle={styles.pickerWheelContent}
-        contentOffset={{
-          x: 0,
-          y: selectedIndex * MONTH_PICKER_ITEM_HEIGHT,
-        }}
+        contentOffset={initialContentOffset}
         decelerationRate="fast"
         nestedScrollEnabled
+        onContentSizeChange={applyInitialScroll}
         onMomentumScrollEnd={selectFromScroll}
         onScroll={selectFromScroll}
         onScrollEndDrag={selectFromScroll}
@@ -412,11 +610,13 @@ function MonthPickerWheel({
         {values.map((value) => (
           <View key={value} style={styles.pickerWheelRow}>
             <Text
+              accessibilityState={{ selected: value === selectedValue }}
               style={
                 value === selectedValue
                   ? styles.pickerSelected
                   : styles.pickerMuted
               }
+              testID={`${testID}-value-${value}`}
             >
               {value}
               {suffix}
@@ -446,9 +646,11 @@ function MonthStat({
 }
 
 function CalendarStatusMark({
+  beforeRoutineStart = false,
   status,
   testID,
 }: {
+  beforeRoutineStart?: boolean;
   status: CalendarDayStatus;
   testID: string;
 }) {
@@ -459,8 +661,10 @@ function CalendarStatusMark({
       style={[
         styles.statusMark,
         {
-          backgroundColor: visual.backgroundColor,
-          borderColor: visual.borderColor,
+          backgroundColor: beforeRoutineStart
+            ? '#A9A49B'
+            : visual.backgroundColor,
+          borderColor: beforeRoutineStart ? '#8B8780' : visual.borderColor,
         },
       ]}
       testID={testID}
@@ -469,40 +673,133 @@ function CalendarStatusMark({
         style={[styles.statusMarkText, { color: visual.color }]}
         testID={`${testID}-glyph`}
       >
-        {visual.glyph}
+        {beforeRoutineStart ? '' : visual.glyph}
       </Text>
     </View>
   );
 }
 
 function StateChip({
+  beforeRoutineStart = false,
+  onPress,
   state,
   weekId,
+  weekLabel,
 }: {
+  beforeRoutineStart?: boolean;
+  onPress?: () => void;
   state: CalendarWeekState;
   weekId: string;
+  weekLabel: string;
 }) {
   const chip = CALENDAR_WEEK_CHIPS[state];
+  const [shakeX] = useState(() => new Animated.Value(0));
+  const [reduceMotionEnabled, setReduceMotionEnabled] = useState(true);
+
+  useEffect(() => {
+    if (state !== 'make') return undefined;
+
+    let mounted = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+      if (mounted && !enabled) setReduceMotionEnabled(false);
+    });
+    const subscription = AccessibilityInfo.addEventListener(
+      'reduceMotionChanged',
+      setReduceMotionEnabled,
+    );
+
+    return () => {
+      mounted = false;
+      subscription.remove();
+    };
+  }, [state]);
+
+  useEffect(() => {
+    shakeX.stopAnimation();
+    shakeX.setValue(0);
+    if (state !== 'make' || reduceMotionEnabled) return undefined;
+
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.delay(700),
+        Animated.timing(shakeX, {
+          toValue: -4,
+          duration: 55,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shakeX, {
+          toValue: 4,
+          duration: 80,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shakeX, {
+          toValue: -3,
+          duration: 70,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shakeX, {
+          toValue: 3,
+          duration: 70,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shakeX, {
+          toValue: 0,
+          duration: 55,
+          useNativeDriver: true,
+        }),
+        Animated.delay(2400),
+      ]),
+    );
+    animation.start();
+
+    return () => {
+      animation.stop();
+      shakeX.setValue(0);
+    };
+  }, [reduceMotionEnabled, shakeX, state]);
+
+  const chipStyle: StyleProp<ViewStyle> = [
+    styles.stateChip,
+    {
+      backgroundColor: beforeRoutineStart ? '#C9C5BC' : chip.backgroundColor,
+      borderColor: beforeRoutineStart ? '#9A968E' : chip.borderColor,
+      borderStyle: beforeRoutineStart ? 'solid' : chip.borderStyle,
+    },
+  ];
+  const label = beforeRoutineStart ? '가입 전' : chip.label;
+  const chipText = (
+    <Text
+      style={[
+        styles.stateChipText,
+        { color: beforeRoutineStart ? '#5F5B55' : chip.color },
+      ]}
+      testID={`calendar-chip-${weekId}-label`}
+    >
+      {label}
+    </Text>
+  );
 
   return (
-    <View
-      style={[
-        styles.stateChip,
-        {
-          backgroundColor: chip.backgroundColor,
-          borderColor: chip.borderColor,
-          borderStyle: chip.borderStyle,
-        },
-      ]}
-      testID={`calendar-chip-${weekId}`}
+    <Animated.View
+      style={{ transform: [{ translateX: shakeX }] }}
+      testID={`calendar-chip-${weekId}-motion`}
     >
-      <Text
-        style={[styles.stateChipText, { color: chip.color }]}
-        testID={`calendar-chip-${weekId}-label`}
-      >
-        {chip.label}
-      </Text>
-    </View>
+      {onPress === undefined ? (
+        <View style={chipStyle} testID={`calendar-chip-${weekId}`}>
+          {chipText}
+        </View>
+      ) : (
+        <Pressable
+          accessibilityLabel={`${weekLabel} ${label}`}
+          accessibilityRole="button"
+          onPress={onPress}
+          style={chipStyle}
+          testID={`calendar-chip-${weekId}`}
+        >
+          {chipText}
+        </Pressable>
+      )}
+    </Animated.View>
   );
 }
 
@@ -520,15 +817,10 @@ function WeekDetail({
   title: string;
 }) {
   const labels = ['완료', '부분', '휴식', '미수행'];
-  const disabled = state === 'upcoming';
+  const canOpenReport =
+    state === 'make' || state === 'unread' || state === 'read';
   const actionLabel =
-    state === 'progress'
-      ? '진행 중 요약 보기'
-      : state === 'upcoming'
-        ? '예정된 주예요'
-        : state === 'make'
-          ? '주간 리포트 만들기'
-          : '주간 리포트 보기';
+    state === 'make' ? '주간 리포트 만들기' : '주간 리포트 보기';
 
   return (
     <View style={styles.weekDetail}>
@@ -542,29 +834,22 @@ function WeekDetail({
         ))}
       </View>
       <Text style={styles.weekNote}>{note}</Text>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ disabled }}
-        disabled={disabled}
-        onPress={onOpenReport}
-        style={[
-          styles.weekAction,
-          state === 'progress' && styles.weekActionSecondary,
-          state === 'make' && styles.weekActionMake,
-          disabled && styles.weekActionDisabled,
-        ]}
-      >
-        <Text
-          style={[
-            styles.weekActionText,
-            state === 'progress' && styles.weekActionTextSecondary,
-            state === 'make' && styles.weekActionTextMake,
-            disabled && styles.weekActionTextDisabled,
-          ]}
+      {canOpenReport ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={onOpenReport}
+          style={[styles.weekAction, state === 'make' && styles.weekActionMake]}
         >
-          {actionLabel} ›
-        </Text>
-      </Pressable>
+          <Text
+            style={[
+              styles.weekActionText,
+              state === 'make' && styles.weekActionTextMake,
+            ]}
+          >
+            {actionLabel} ›
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -588,7 +873,7 @@ const styles = StyleSheet.create({
     overflow: 'visible',
     borderRadius: 22,
     padding: 14,
-    shadowColor: '#2F5233',
+    shadowColor: '#5A4636',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 6,
@@ -624,11 +909,6 @@ const styles = StyleSheet.create({
   monthTitle: {
     color: colors.text,
     fontSize: 22,
-    fontWeight: '800',
-  },
-  monthCaret: {
-    color: '#4E8B3A',
-    fontSize: 18,
     fontWeight: '800',
   },
   monthActions: {
@@ -686,28 +966,41 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: colors.surface,
     padding: 12,
-    shadowColor: '#2F5233',
+    shadowColor: '#5A4636',
     shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 0.2,
     shadowRadius: 15,
     elevation: 24,
   },
   pickerColumns: {
-    height: MONTH_PICKER_ITEM_HEIGHT * 3,
+    position: 'relative',
+    height: MONTH_PICKER_ITEM_HEIGHT * 5,
     flexDirection: 'row',
     overflow: 'hidden',
     borderRadius: 14,
     backgroundColor: '#FBFBF8',
   },
+  pickerSelectionBand: {
+    position: 'absolute',
+    top: MONTH_PICKER_ITEM_HEIGHT * 2,
+    right: 0,
+    left: 0,
+    height: MONTH_PICKER_ITEM_HEIGHT,
+    borderWidth: 1.5,
+    borderColor: '#F1D39A',
+    borderRadius: 10,
+    backgroundColor: '#FFF8E5',
+  },
   pickerColumn: {
+    zIndex: 1,
     flex: 1,
-    height: MONTH_PICKER_ITEM_HEIGHT * 3,
+    height: MONTH_PICKER_ITEM_HEIGHT * 5,
   },
   pickerWheel: {
     flex: 1,
   },
   pickerWheelContent: {
-    paddingVertical: MONTH_PICKER_ITEM_HEIGHT,
+    paddingVertical: MONTH_PICKER_ITEM_HEIGHT * 2,
   },
   pickerWheelRow: {
     height: MONTH_PICKER_ITEM_HEIGHT,
@@ -716,26 +1009,21 @@ const styles = StyleSheet.create({
   },
   pickerMuted: {
     color: '#B7B2A8',
-    fontSize: 14,
+    fontSize: 16,
+    fontWeight: '600',
     textAlign: 'center',
   },
   pickerSelected: {
-    width: '90%',
-    borderWidth: 1.5,
-    borderColor: '#CBDDB4',
-    borderRadius: 10,
-    backgroundColor: '#EFF4E6',
     color: colors.text,
-    fontSize: 15,
+    fontSize: 18,
     fontWeight: '800',
-    paddingVertical: 10,
     textAlign: 'center',
   },
   pickerDone: {
     alignItems: 'center',
     marginTop: 10,
     borderRadius: 14,
-    backgroundColor: '#FBD24E',
+    backgroundColor: '#F6BA50',
     padding: 13,
   },
   pickerDoneText: {
@@ -763,20 +1051,40 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: 'transparent',
     borderRadius: 20,
-    backgroundColor: '#EFF4E6',
+    backgroundColor: '#FFF8E5',
     padding: 10,
   },
   weekBandCurrent: {
-    borderColor: '#7FAE5C',
-    backgroundColor: '#DCEBC4',
+    borderColor: '#E7D3A8',
+    backgroundColor: '#FFF9EA',
+  },
+  weekBandReportReady: {
+    borderWidth: 2,
+    borderColor: '#79B1D2',
+    backgroundColor: '#F3F9FC',
+    shadowColor: '#356A85',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.14,
+    shadowRadius: 7,
+    elevation: 3,
+  },
+  weekBandReportGenerated: {
+    borderColor: '#C8D7AC',
+    backgroundColor: '#F6F9EF',
   },
   weekBandUpcoming: {
     borderColor: '#DFDBD2',
     borderStyle: 'dashed',
     opacity: 0.5,
   },
+  weekBandBeforeRoutine: {
+    borderColor: '#A9A49B',
+    borderStyle: 'solid',
+    backgroundColor: '#D9D6CF',
+    opacity: 1,
+  },
   weekBandExpanded: {
-    borderColor: '#7FAE5C',
+    borderColor: '#E0A742',
   },
   weekHeader: {
     padding: 2,
@@ -792,6 +1100,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: 6,
+  },
+  weekTitleButton: {
+    minWidth: 0,
+    flex: 1,
+    paddingVertical: 4,
   },
   weekTitle: {
     color: colors.text,
@@ -830,6 +1143,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,.62)',
   },
+  dayCellBeforeRoutine: {
+    borderRadius: 12,
+    backgroundColor: '#C9C5BC',
+    opacity: 1,
+  },
   dayNumber: {
     color: '#6F6B63',
     fontSize: 12,
@@ -838,6 +1156,10 @@ const styles = StyleSheet.create({
   dayNumberToday: {
     color: colors.text,
     fontWeight: '800',
+  },
+  dayNumberBeforeRoutine: {
+    color: '#5F5B55',
+    fontWeight: '700',
   },
   statusMark: {
     width: 20,
@@ -880,7 +1202,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   weekStatValue: {
-    color: '#3E7A32',
+    color: '#A45F00',
     fontSize: 15,
     fontWeight: '800',
   },
@@ -900,18 +1222,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 12,
     borderRadius: 14,
-    backgroundColor: '#4E8B3A',
+    backgroundColor: '#F6BA50',
     padding: 14,
   },
   weekActionSecondary: {
     borderWidth: 1.5,
-    borderColor: '#CBDDB4',
+    borderColor: '#F1D39A',
     backgroundColor: colors.surface,
   },
   weekActionMake: {
     borderBottomWidth: 4,
-    borderBottomColor: '#E0AF25',
-    backgroundColor: '#FBD24E',
+    borderBottomColor: '#D98B16',
+    backgroundColor: '#F6BA50',
   },
   weekActionDisabled: {
     borderWidth: 1.5,
@@ -920,12 +1242,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   weekActionText: {
-    color: colors.surface,
+    color: colors.text,
     fontSize: 14,
     fontWeight: '800',
   },
   weekActionTextSecondary: {
-    color: '#3E7A32',
+    color: '#A45F00',
   },
   weekActionTextMake: {
     color: colors.text,

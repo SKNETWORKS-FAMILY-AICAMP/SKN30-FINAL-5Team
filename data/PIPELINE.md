@@ -62,6 +62,7 @@ wger 보강 원천은 공개 API JSON만 수집한다. 운동·번역·미디어
 official API
   -> immutable raw JSON pages + SHA-256 manifest (DRAFT)
   -> source field profiling and mapping proposal
+  -> representative exercise-family/variant review batch (CSV/XLSX)
   -> normalized catalog candidate (DRAFT)
   -> schema, duplicate, reference and duration validation
   -> TECH_REVIEWED
@@ -70,6 +71,80 @@ official API
   -> DOMAIN_APPROVED
   -> generated seed + DB import
 ```
+
+### Gym Visual 변형 경계
+
+`data/validation/profiles/gymvisual_strength_profile.json`의 INCLUDE 대표 운동을
+기준으로 `data/scripts/build_gymvisual_variant_review.py`가 동일 target·family
+어휘와 장비·장소·그립·자세·지지·스탠스·실행 차이를 함께 확인할 수 있는 후보만 만든다.
+`v.2` 같은 이름만의 차이는 후보로 만들지 않는다. 이 단계의 산출물은 다음 두
+CSV이며, 아직 최종 family 확정이나 대체 관계가 아니다.
+
+대표 운동 하나당 변형 후보는 최대 5개로 제한한다. 자동 우선순위는 `HOME` 장소,
+맨몸·밴드·덤벨 등 입문자 친화 도구, 대중적인 기본 운동명 순서이며, Gym Visual에
+인기도 필드가 없으므로 마지막 기준은 명시된 이름 토큰 기반의 보수적 proxy다.
+스트레칭·가동성 후보와 동일 이름·장비의 원천 중복은 변형 검토 대상에서 제외한다.
+
+- `data/validation/review_batches/gymvisual_variant_review.csv`: 사람 검토용 배치
+- `data/validation/review_results/gymvisual_variant_reviewed.csv`: 검토 결과 입력용 `PENDING` 템플릿
+
+변형 후보는 `NOT_CREATED_BY_DESIGN`으로 표시한다. 통합 카탈로그 확정, 부하 검토,
+전문가 안전 정책 검토와 안전 규칙 생성을 통과한 뒤에만 대체 관계 후보를 별도
+생성한다. 기존 56개 카탈로그, 안전 규칙 354건, 대체 관계 238건 산출물은 이
+단계의 입력·참조 대상이 아니며 덮어쓰지 않는다.
+
+### 스트레칭·가동성 선정 경계
+
+근력·유산소 카탈로그와 별도로 `data/scripts/profile_gymvisual_mobility.py`가
+`normalized/mobility_selection_policy.json`의 선언형 후보 목록을 원천 스냅샷에서
+읽어 자동 프로파일을 만든다. 현재 프로파일은 초보·복귀 사용자 활용성, 신체 부위와
+가동성 목표 커버리지, family 중복, 난이도 다양성을 기준으로 35개 후보를 기록한다.
+이는 `MOBILITY`/`MOBILITY_STRETCH` 후보 표기일 뿐, 안전성·금기·실행 용량의 확정이 아니다.
+
+`data/scripts/build_gymvisual_mobility_review.py`는 다음 CSV를 만든다.
+
+- `data/validation/review_batches/gymvisual_mobility_review.csv`: family·variant·초보자 적합성·부하·안전 검토 배치
+- `data/validation/review_results/gymvisual_mobility_reviewed.csv`: 사람 검토 결과 입력용 `PENDING` 템플릿
+
+스트레칭은 근력 운동의 목표 보존 대체 관계로 자동 연결하지 않는다. 예를 들어
+스쿼트와 대퇴사두근 스트레칭은 서로 다른 목표이므로 대체 관계가 아니다. 사람 검토,
+통합 카탈로그 확정, 부하 검토와 도메인 안전 정책 검토가 모두 끝나기 전에는 mobility
+generated seed·안전 규칙·대체 관계를 생성하지 않는다.
+
+### KSPO·wger 공통 후보 정렬과 공백 보충
+
+`align_source_candidates.py`는 KSPO·wger의 검토 결과를 Gym Visual 후보 공통 컬럼과
+값 코드로 투영한다. 원천 CSV는 입력으로만 읽고, `candidate_id`, `source_name`,
+`source_equipment`, `target`, `movement_pattern_code_candidate`,
+`exercise_family_candidate`, `variant_group_candidate`, `equipment_code_candidate`,
+`location_code_candidates`, `difficulty_code_candidate`,
+`beginner_suitability_candidate`를 같은 이름으로 제공한다. 원천 근거가 없는 값은
+추정하지 않고 `REVIEW_REQUIRED`로 남긴다. 원천별 식별자·라이선스·검토 결정은 별도
+provenance 컬럼으로 보존한다.
+
+```bash
+python data/scripts/align_source_candidates.py
+```
+
+결과는 `validation/review_batches/gymvisual-source-alignment-v0.4.0/`의 CSV·JSONL과
+`validation/profiles/gymvisual_source_alignment-v0.4.0.json`이며, generated seed는
+만들지 않는다.
+
+`build_source_gap_review.py`는 Gym Visual 선정 결과를 먼저 집계한 뒤 실제 공백만
+KSPO 우선·wger 보완 순서로 검토 큐에 넣는다. 현재 확인된 공백은 `HOME_LOW_IMPACT_CARDIO`
+1건(선정 2건, 최소 3건)이고, 머신·케이블·밴드와 mobility stretch는 이미 커버되어
+추가 후보를 만들지 않는다. 전체 profile 인벤토리 KSPO 391건·wger 400건을 다시
+정렬한 결과, KSPO MVP 범위에서 원천명 기반의 저충격 홈 유산소 검토 후보 3건을 추출했다.
+이 3건은 저충격·유산소·초보자 적합성을 확정한 데이터가 아니라 사람 검토용 후보이며,
+`source_gap_review.csv`에서 `REVIEW_REQUIRED`로 남긴다.
+
+```bash
+python data/scripts/build_source_gap_review.py
+```
+
+공백 보충 이후에도 family/variant 정리, 통합 카탈로그 확정, 부하 검토, 도메인 안전
+검토, 안전 규칙 생성, 안전 규칙 통과 후보 간 대체 관계 생성을 순서대로 수행한다.
+기존 카탈로그 56종·안전 규칙 354건·대체 관계 238건은 읽기 전용 기준으로만 보존한다.
 
 승격 조건은 다음과 같다.
 
@@ -154,6 +229,32 @@ API가 아니라 라이선스 제한이 있는 저작물이다.
 확인할 수 있다. 검토 배치에 없는 DATA_MODEL 필드는 `template` 명령이 만드는 catalog
 attribute 시트에 도메인 검토자가 작성한다.
 
+## 병합 카탈로그와 처방 산출물 (2026-08-20)
+
+런타임은 단일 ACTIVE 카탈로그만 조회하므로 KSPO와 wger의 승인 seed를
+`build_merged_catalog_seed.py`로 병합한다. 병합은 레코드 내용을 바꾸지 않으며 입력
+manifest hash를 다시 검사하고 stable code 충돌과 한국어 표시명 중복을 fail-closed로
+거부한다. 카탈로그 단위 source track은 `merged`, 운동 단위 source track/identity는 원본
+값을 보존한다.
+
+처방 파이프라인은 다음 순서를 따른다.
+
+1. `prescription_review_authoring.py`로 운동별 직접 검수 결과를 작성한다.
+2. `validate_exercise_prescription_review_results.py`가 CSV 계약, catalog 참조, timing mode,
+   검수 증적과 HOME·GYM × 20/30/40/50분의 정확한 시간 해 존재를 검증한다.
+3. `build_exercise_prescriptions.py`가 goal tag와 prescription profile을 분리된 JSONL 및
+   manifest로 생성한다.
+4. backend bundle importer가 catalog, safety rules, alternatives, goal tags,
+   prescriptions를 한 transaction에서 적재한다.
+5. 승인 registry와 migration은 정확한 version/hash/count에만 승인 metadata를 부여한다.
+6. `catalog_activate`가 처방과 goal tag의 존재를 다시 확인한 뒤 단일 ACTIVE catalog로
+   전환한다.
+
+현재 고정 산출물은 catalog `merged-mvp-v0.4.0` 56종, safety rules
+`merged-mvp-v0.5.0` 282건, alternatives `merged-mvp-v0.4.0` 238건, prescriptions
+`merged-mvp-v0.1.0`의 goal tag 32건 및 profile 36건이다. generated manifest는 항상
+production-ineligible로 남고, 운영 승인은 backend의 정확 일치 gate로만 표현한다.
+
 ### 원천 단위 주의
 
 `training-video` endpoint의 한 행은 운동 하나가 아니라 영상에서 추출한 이미지
@@ -161,3 +262,39 @@ attribute 시트에 도메인 검토자가 작성한다.
 현재 profiling 단계의 검토 후보 키는 `(file_nm, trng_nm)`이며, 서로 다른 영상의
 동일 운동명이 같은 운동인지 여부는 정규화 리뷰에서 결정한다. `vdo_len`은 영상
 길이이므로 운동 수행시간으로 사용하지 않는다.
+
+## V2 102개 처방·backend bundle (2026-08-25)
+
+V2 대표운동 102개를 기존 legacy 처방 입력과 분리해 작성한다. review input은 V2 대표 CSV와
+`normalized/v2_prescription_review_policy.json`에서 생성하며, stable code를 유일한 FK로
+사용한다. 운동명·legacy 처방 결과를 재사용하지 않는다.
+
+```bash
+python3 data/scripts/build_v2_prescription_review_input.py --force
+python3 data/scripts/validate_v2_prescription_review_input.py \
+  data/generated/exercise-catalog-v2.0.0-final/representative_exercises_v2_final.csv \
+  data/validation/review_results/v2_prescription_review_input.csv \
+  --policy data/normalized/v2_prescription_review_policy.json
+python3 data/scripts/build_v2_prescriptions.py --force
+```
+
+처방 산출물은 `generated/exercise-prescriptions-v2.0.0-draft/`의
+`goal_tag_links.jsonl` 102건, `prescription_profiles.jsonl` 137건과 manifest다. 모든
+version status는 `DRAFT`, `production_eligible`은 `false`다.
+
+runtime 산출물을 backend importer 디렉터리 구조로 패키징하고 검증한다.
+
+```bash
+python3 data/scripts/build_v2_backend_bundle.py --force
+V2_UV_CACHE=/private/tmp/skn30-uv-cache UV_CACHE_DIR=$V2_UV_CACHE \
+  uv run python data/scripts/validate_v2_backend_bundle.py
+V2_UV_CACHE=/private/tmp/skn30-uv-cache UV_CACHE_DIR=$V2_UV_CACHE \
+  uv run python data/scripts/build_v2_approval_registry_candidate.py
+```
+
+bundle 내부 진입점은 `catalog/seed_manifest.json`, `safety/rules_manifest.json`,
+`alternatives/alternatives_manifest.json`, `prescriptions/prescription_manifest.json`이며,
+`bundle_manifest.json`이 각 내부 파일의 path·SHA-256·byte·record count를 기록한다.
+runtime alternatives 285건은 backend의 `(source, alternative, reason, goal, rule_version)`
+관계 키로 손실 없이 importer에 전달된다. conflict report는 직접 전달 검증 결과를 보존하며,
+bundle과 모든 파생 산출물은 여전히 `DRAFT`·`production_eligible=false` 상태다.

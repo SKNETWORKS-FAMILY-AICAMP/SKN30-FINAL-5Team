@@ -18,6 +18,15 @@ export type DiscomfortSeverityCode = 'MILD' | 'MODERATE' | 'SEVERE';
 export type FatigueLevelCode = 'LOW' | 'MODERATE' | 'HIGH';
 export type BlockStatusCode = 'PENDING' | 'COMPLETED';
 export type ToneCode = 'SERIOUS' | 'NEUTRAL';
+export type DecisionGenerationModeCode = 'ORIGINAL' | 'REGENERATED';
+export type DecisionEngineCode =
+  'DETERMINISTIC' | 'LLM_MULTI_AGENT' | 'DETERMINISTIC_FALLBACK';
+export type RegenerationSequence = 0 | 1 | 2;
+export type MeaningfulDifferenceCode =
+  | 'CORE_EXERCISE_CHANGED'
+  | 'SET_REP_STRUCTURE_CHANGED'
+  | 'EXERCISE_ORDER_CHANGED'
+  | 'ROUTINE_STRUCTURE_CHANGED';
 
 export type SexCode = 'FEMALE' | 'MALE' | 'PREFER_NOT_TO_SAY';
 
@@ -46,6 +55,7 @@ export type NotCompletedReasonCode =
 
 export type MeProfile = {
   nickname: string;
+  profile_image_url?: string | null;
   age: number | null;
   primary_goal_code: string;
   experience_level_code: string;
@@ -55,7 +65,6 @@ export type MeProfile = {
   default_requested_duration_minutes: number;
   desired_weekly_workout_count: number;
   coaching_style_code: string;
-  equipment_codes: string[];
   attention_area_codes: string[];
   preferred_exercise_type_codes: string[];
   profile_version: number;
@@ -93,6 +102,45 @@ export type ConsentResponse = {
   consents: ConsentState[];
 };
 
+export type ProfileSettingsUpdateRequest = {
+  primary_goal_code?: string;
+  desired_weekly_workout_count?: number;
+  default_requested_duration_minutes?: number;
+  preferred_location_code?: string;
+  available_location_codes?: string[];
+  attention_area_codes?: string[];
+  preferred_exercise_type_codes?: string[];
+  coaching_style_code?: string;
+  experience_level_code?: string;
+  nickname?: string;
+  height_cm?: number;
+  weight_kg?: number;
+  sex_code?: SexCode;
+  timezone?: string;
+  date_of_birth?: string;
+};
+
+export type ProfileSettingsUpdateResponse = {
+  profile_version: number;
+  updated_at: string;
+};
+
+/** A device-picked image ready for the profile image multipart endpoint. */
+export type ProfileImageUpload = {
+  uri: string;
+  fileName: string;
+  mimeType: string;
+  fileSize?: number;
+  /** Expo provides a File on web; native uploads use uri/name/type instead. */
+  webFile?: Blob;
+};
+
+export type ProfileImageMutationResponse = {
+  profile_image_url: string | null;
+  profile_version: number;
+  updated_at: string;
+};
+
 export type OnboardingRequest = {
   nickname: string;
   date_of_birth: string;
@@ -106,7 +154,6 @@ export type OnboardingRequest = {
   available_location_codes: string[];
   default_requested_duration_minutes: number;
   desired_weekly_workout_count: number;
-  equipment_codes: string[];
   attention_area_codes: string[];
   preferred_exercise_type_codes?: string[];
   coaching_style_code?: string;
@@ -167,6 +214,11 @@ export type DiscomfortInput = {
   severity_code: DiscomfortSeverityCode;
 };
 
+export type AvailabilitySlotInput = {
+  start_at: string;
+  end_at: string;
+};
+
 export type DailyContextRequest = {
   fatigue_level_code: FatigueLevelCode;
   requested_duration_minutes: number;
@@ -177,11 +229,14 @@ export type DailyContextRequest = {
   hydration_state_code?: string | null;
   discomforts: DiscomfortInput[];
   adverse_reaction_codes: string[];
+  /** `null`/omitted means unanswered; `[]` means explicitly unavailable. */
+  available_slots?: AvailabilitySlotInput[] | null;
 };
 
 export type DailyContextResponse = DailyContextRequest & {
   id: string;
   local_date: string;
+  availability_source_code?: 'MANUAL' | 'ROUTINE_DEFAULT';
   context_version: number;
   created_at: string;
   updated_at: string;
@@ -264,7 +319,19 @@ export type DecisionResponse = {
   guidance: Guidance | null;
   public_agent_summaries: AgentSummary[] | null;
   safety_summary: SafetySummary | null;
+  /** Absent on historical and legacy-engine decisions. */
+  generation_mode_code?: DecisionGenerationModeCode | null;
+  decision_engine_code?: DecisionEngineCode | null;
+  root_decision_id?: string | null;
+  parent_decision_id?: string | null;
+  regeneration_sequence?: RegenerationSequence | null;
+  meaningful_difference_codes?: MeaningfulDifferenceCode[] | null;
   created_at: string;
+};
+
+export type DecisionRegenerationRequest = {
+  expected_plan_id: string;
+  expected_regeneration_sequence: 0 | 1;
 };
 
 export type WorkoutSessionSummary = {
@@ -332,20 +399,6 @@ export type WorkoutAdditionalActivityResponse = {
   note: string | null;
   created_at: string;
   session_status_code: 'IN_PROGRESS';
-};
-
-export type ProfileSettingsUpdateRequest = {
-  primary_goal_code?: string;
-  desired_weekly_workout_count?: number;
-  default_requested_duration_minutes?: number;
-  preferred_location_code?: string;
-  available_location_codes?: string[];
-  equipment_codes?: string[];
-  attention_area_codes?: string[];
-  preferred_exercise_type_codes?: string[];
-  coaching_style_code?: string;
-  experience_level_code?: string;
-  nickname?: string;
 };
 
 export type SafetyEventResponse = {
@@ -439,8 +492,28 @@ export type ExerciseDetailResponse = {
   instruction_summary: string;
   form_cues: string[];
   media_asset_key: string | null;
+  /** Short-lived URL resolved by the backend; absent until the backend PR lands. */
+  media_url?: string | null;
   mascot_animation_asset_key: string | null;
   instruction_content_version: string;
+};
+
+export type ExerciseVariantItem = {
+  exercise_id: string;
+  exercise_name: string;
+  required_equipment_codes: string[];
+  instruction_summary: string;
+  form_cues: string[];
+  media_asset_key: string | null;
+  goal_preservation_code: string;
+};
+
+export type ExerciseVariantsResponse = {
+  source_exercise_id: string;
+  source_required_equipment_codes: string[];
+  items: ExerciseVariantItem[];
+  catalog_version: string;
+  alternative_set_version: string | null;
 };
 
 export type WeekResponse = {
@@ -454,7 +527,7 @@ export type WeekResponse = {
   status_code: 'OPEN' | 'CLOSED';
   closed_at: string | null;
   report_id: string | null;
-  report_status_code: string | null;
+  report_status_code: 'GENERATED' | 'ACKNOWLEDGED' | 'FAILED' | null;
 };
 
 export type PlanRevisionSourceCode = 'INITIAL' | 'AI' | 'USER';
@@ -508,6 +581,21 @@ export type WeeklyReportResponse = {
     not_completed: number;
     stopped_for_safety: number;
   };
+  weekday_failure_summary: Record<
+    string,
+    {
+      partial: number;
+      not_completed: number;
+      stopped_for_safety: number;
+    }
+  >;
+  pattern_summary: {
+    high_completion_windows: string[];
+    high_completion_exercise_types: string[];
+    high_completion_intensity_codes: string[];
+    blocker_reason_codes: string[];
+  };
+  agent_summaries: Record<string, unknown> | null;
   primary_miss_reason_code: string | null;
   completion_rate: number;
   persistence_rate: number;

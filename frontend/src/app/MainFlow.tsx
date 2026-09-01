@@ -21,14 +21,14 @@ import type {
   WeeklyPlanRevisionResponse,
   WorkoutPlan,
 } from '../api/types';
-import { localDateString } from '../api/useAsync';
+import { localDateString, weekStartString } from '../api/useAsync';
 import type { TabId } from '../components/brand/BrandChrome';
 import { CalendarStatusScreen } from '../features/calendar/CalendarStatusScreen';
 import { ExerciseCatalogScreen } from '../features/catalog/ExerciseCatalogScreen';
 import { CalendarReportContainer } from '../features/home/CalendarReportContainer';
 import { HomeContainer } from '../features/home/HomeContainer';
+import { MyPageContainer } from '../features/home/MyPageContainer';
 import { MascotHouseScreen } from '../features/house/MascotHouseScreen';
-import { AccountScreen } from '../features/profile/AccountScreen';
 import type { SessionOutcome } from '../features/workout/SessionScreen';
 import { SessionResultScreen } from '../features/workout/SessionResultScreen';
 import { WorkoutScreen } from '../features/workout/WorkoutScreen';
@@ -48,13 +48,13 @@ type Step =
 export function MainFlow({
   api,
   me,
+  onRefreshMe,
   onSignOut,
-  onProfileUpdated,
 }: {
   api: Api;
   me: MeResponse;
+  onRefreshMe: () => Promise<void>;
   onSignOut: () => void;
-  onProfileUpdated?: () => void;
 }) {
   const [step, setStep] = useState<Step>({ name: 'home' });
   const [restChoice, setRestChoice] = useState<{
@@ -77,9 +77,15 @@ export function MainFlow({
     restoreAttempted.current = true;
     const controller = new AbortController();
     const localDate = localDateString(new Date(), me.profile?.timezone);
+    const weekStart = weekStartString(new Date(), me.profile?.timezone);
+    const latestPlanRevisionRequest = api.getLatestWeeklyPlanRevision
+      ? api
+          .getLatestWeeklyPlanRevision(weekStart, controller.signal)
+          .catch(() => null)
+      : Promise.resolve(null);
 
     void (async () => {
-      const [stored, sessions] = await Promise.all([
+      const [stored, sessions, latestPlanRevision] = await Promise.all([
         api.getDecisionForDate(localDate, controller.signal).catch(() => null),
         api
           .listWorkoutSessions(
@@ -87,9 +93,13 @@ export function MainFlow({
             controller.signal,
           )
           .catch(() => null),
+        latestPlanRevisionRequest,
       ]);
       if (controller.signal.aborted) {
         return;
+      }
+      if (latestPlanRevision !== null) {
+        setPlanRevision(latestPlanRevision);
       }
       const todaySessions = sessions?.items ?? [];
       const active = todaySessions.find(
@@ -139,6 +149,9 @@ export function MainFlow({
     setStep({ name: 'home' });
   }, []);
   const localDate = localDateString(new Date(), me.profile?.timezone);
+  const routineStartLocalDate = me.profile
+    ? localDateString(new Date(me.profile.created_at), me.profile.timezone)
+    : undefined;
   const restToday = restChoice?.localDate === localDate;
 
   switch (step.name) {
@@ -184,6 +197,9 @@ export function MainFlow({
         <WeeklyReportScreen
           api={api}
           onBack={() => setStep({ name: 'calendar-report' })}
+          onNavigateTab={onTab}
+          onPlanRevisionChange={setPlanRevision}
+          planRevision={planRevision}
           timeZone={me.profile?.timezone}
           weekStart={step.weekStart}
         />
@@ -194,6 +210,7 @@ export function MainFlow({
         <CalendarReportContainer
           api={api}
           timeZone={me.profile?.timezone}
+          routineStartLocalDate={routineStartLocalDate}
           restLocalDate={restChoice?.localDate}
           onNavigateTab={onTab}
           onOpenWeeklyReport={(weekStart) =>
@@ -204,12 +221,12 @@ export function MainFlow({
 
     case 'account':
       return (
-        <AccountScreen
+        <MyPageContainer
           api={api}
           me={me}
-          onBack={goHome}
+          onNavigateTab={onTab}
+          onRefreshMe={onRefreshMe}
           onSignOut={onSignOut}
-          onProfileUpdated={onProfileUpdated}
           onOpenExerciseCatalog={() => setStep({ name: 'exercises' })}
         />
       );

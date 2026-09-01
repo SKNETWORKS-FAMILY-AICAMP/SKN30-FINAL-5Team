@@ -1,0 +1,103 @@
+name: ${COMPOSE_PROJECT_NAME:-exercise_wellness}
+
+services:
+  api:
+    build:
+      context: ../..
+      dockerfile: backend/Dockerfile
+    init: true
+    environment:
+      APP_ENV: local
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-exercise_app}:${POSTGRES_PASSWORD:-local_only_change_me}@postgres:5432/${POSTGRES_DB:-exercise_app_demo}
+      CATALOG_MANIFEST_PATHS: "[]"
+      LLM_ENABLED: "false"
+      LLM_PROVIDER_CODE: NONE
+      LLM_AGENTS_ENABLED: "false"
+      LLM_AGENTS_PROVIDER_CODE: UNCONFIGURED
+      LLM_AGENTS_MODEL_CODE: unconfigured
+      LLM_AGENTS_APPROVED_MODEL_CODES: "[]"
+      V3_LANGGRAPH_ENABLED: "false"
+      V3_SHADOW_EVALUATION_ENABLED: "false"
+      V3_REGENERATION_ENABLED: "false"
+      V3_EXECUTION_PROFILE: LEGACY
+      V3_PRODUCTION_PROMOTION_APPROVED: "false"
+      QDRANT_ENABLED: "false"
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_TLS_ENABLED: "false"
+      EMBEDDING_PROVIDER_CODE: UNCONFIGURED
+      EMBEDDING_MODEL_VERSION: unconfigured
+      EMBEDDING_VECTOR_DIMENSION: "0"
+    command:
+      - uv
+      - run
+      - --no-sync
+      - uvicorn
+      - backend.app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/ready', timeout=3)
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-exercise_app_demo}
+      POSTGRES_TEST_DB: ${POSTGRES_TEST_DB:-exercise_app_test}
+      POSTGRES_USER: ${POSTGRES_USER:-exercise_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local_only_change_me}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${POSTGRES_USER:-exercise_app} -d ${POSTGRES_DB:-exercise_app_demo}
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:v1.18.2@sha256:75eab8c4ba42096724fdcfde8b4de0b5713d529dde32f285a1f86fdcb2c9e50c
+    ports:
+      - "127.0.0.1:${QDRANT_HTTP_PORT:-6333}:6333"
+      - "127.0.0.1:${QDRANT_GRPC_PORT:-6334}:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          bash -ec 'exec 3<>/dev/tcp/127.0.0.1/6333;
+          printf "GET /readyz HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n" >&3;
+          IFS= read -r status <&3; [[ "$$status" == *"200 OK"* ]]'
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  qdrant_data:

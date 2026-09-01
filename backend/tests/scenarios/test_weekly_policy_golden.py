@@ -38,7 +38,7 @@ def _weekly_plan_input() -> PlanRevisionPolicyInput:
             routine_reference="weekly-routine-v1",
             requested_duration_minutes=40,
             location_code="HOME",
-            required_equipment_codes=("MAT",),
+            required_equipment_codes=("DUMBBELL",),
             applied_safety_opinion_codes=("AVOID_KNEE_LOAD",),
             routine_decision_authority_code=RoutineDecisionAuthorityCode.COORDINATOR,
             safety_decision_authority_code=SafetyDecisionAuthorityCode.SAFETY_AGENT,

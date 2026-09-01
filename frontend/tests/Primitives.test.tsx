@@ -9,6 +9,7 @@ import {
   type InlineFeedbackTone,
   TextField,
 } from '../src/components/primitives';
+import { ScreenShell } from '../src/components/states/ScreenState';
 import { colors, radii } from '../src/components/theme';
 
 const feedbackCases: {
@@ -21,6 +22,27 @@ const feedbackCases: {
 ];
 
 describe('prototype primitives', () => {
+  it('lets a footer own the bottom safe area without changing other shells', () => {
+    const view = render(
+      <ScreenShell footer={<Text>Footer</Text>}>
+        <Text>Body</Text>
+      </ScreenShell>,
+    );
+
+    expect(
+      screen.getByTestId('screen-shell-safe-area').props.edges,
+    ).toMatchObject({ top: 'additive', bottom: 'off' });
+
+    view.rerender(
+      <ScreenShell>
+        <Text>Body</Text>
+      </ScreenShell>,
+    );
+    expect(
+      screen.getByTestId('screen-shell-safe-area').props.edges,
+    ).toMatchObject({ top: 'additive', bottom: 'additive' });
+  });
+
   it('renders an interactive primary button and a non-interactive disabled button', async () => {
     const onPress = jest.fn();
     await render(

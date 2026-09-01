@@ -149,9 +149,32 @@ export function isApiError(value: unknown): value is ApiError {
   return value instanceof ApiError;
 }
 
+/**
+ * An error that already carries user-safe, localized copy.
+ *
+ * Adapters outside the API layer (Firebase auth, for one) translate provider
+ * codes into Korean sentences at their own boundary. Marking the result lets
+ * `messageForError` show that sentence instead of the generic fallback,
+ * without `api/` having to import the adapter that produced it.
+ */
+export interface UserFacingError {
+  readonly userMessage: string;
+}
+
+export function isUserFacingError(value: unknown): value is UserFacingError {
+  if (!(value instanceof Error)) {
+    return false;
+  }
+  const message = (value as Error & Partial<UserFacingError>).userMessage;
+  return typeof message === 'string' && message.length > 0;
+}
+
 export function messageForError(value: unknown): string {
   if (isApiError(value)) {
     return value.message;
+  }
+  if (isUserFacingError(value)) {
+    return value.userMessage;
   }
   return FALLBACK_MESSAGE.server;
 }

@@ -1,0 +1,28 @@
+{
+  "schema_version": "lower-back-alternative-safety-policy-v2.0.2-v1",
+  "policy_version": "lower-back-alternative-safety-policy-v2.0.2-v1.0.0",
+  "status": "DRAFT_REVIEW_REQUIRED",
+  "production_eligible": false,
+  "scope": "LOWER_BACK",
+  "review_decision": "CONDITIONALLY_RETAIN",
+  "principle": "target가 lower-back 영역을 제외해도 수행 중 중립 척추와 부하 조절 guard를 적용해야 한다.",
+  "target_guards": [
+    "TARGET_PRIMARY_AND_SECONDARY_AREAS_EXCLUDE_LOWER_BACK",
+    "NO_CORE_OR_HIP_DOMINANT_TARGET_AT_RUNTIME",
+    "NEUTRAL_SPINE_REQUIRED",
+    "REDUCED_VOLUME_AND_LOAD",
+    "STOP_IF_LOWER_BACK_DISCOMFORT_INCREASES"
+  ],
+  "reviewed_existing_relation_scope": {
+    "pain_discomfort_area_code": "LOWER_BACK",
+    "condition_codes": ["NRS_1_3", "NRS_4_6"],
+    "safety_review_artifact": "data/generated/exercise-catalog-v2.0.2-final/alternatives/lower_back_alternative_safety_review_v2_0_2.jsonl"
+  },
+  "condition_policy": {
+    "NRS_1_3": "CONDITIONALLY_RETAIN_WITH_NEUTRAL_SPINE_AND_STOP_GUARDS",
+    "NRS_4_6": "SKIP_LOWER_BACK_AREA_AND_USE_LOW_LOAD_ACTIVE_RECOVERY_WITH_GUARDS",
+    "NRS_7_10": "STOP_EXERCISE_NO_ALTERNATIVE"
+  },
+  "reviewed_at": "2026-08-28T00:00:00+09:00",
+  "reviewer": "DATA_REVIEW_PIPELINE"
+}

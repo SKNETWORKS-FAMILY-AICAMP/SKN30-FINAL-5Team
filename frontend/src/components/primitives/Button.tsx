@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   primaryLabel: {
-    color: colors.canvas,
+    color: colors.text,
   },
   secondaryLabel: {
     color: colors.text,

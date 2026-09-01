@@ -10,7 +10,8 @@ ID token을 사용한다.
   받지 않았다. 실제 사용자에게 제공하는 운동 처방이 아니다.
 - **전용 DB만 사용한다.** seed 스크립트는 이름이 `*_test` 또는 `*_demo`가 아닌 데이터베이스와
   `local`/`test`가 아닌 `APP_ENV`를 거부한다.
-- **캘린더 연동은 아직 없다.** Wave 9C-2A는 저장 구조 단계라 앱은 "연동 준비 중" 상태만 보여준다.
+- **외부 캘린더(Google) 연동은 없고 보류됐다.** ADR-0010 "구현 보류" 참고. 앱의 캘린더 화면은
+  외부 연동이 아니라 지난 운동 기록을 보여주는 앱 내 월간 캘린더다.
 - **웨어러블 연동은 없다.** 수동 체크인이 정상 경로다.
 - 비밀값은 저장소에 넣지 않는다. `frontend/.env.local`과 셸 환경변수만 사용한다.
 
@@ -32,9 +33,10 @@ ID token을 사용한다.
 
 ```powershell
 .\scripts\demo-local.ps1 up      # PostgreSQL + migration + 합성 seed
-.\scripts\demo-local.ps1 api     # FastAPI 실행 (0.0.0.0:8000)
+.\scripts\demo-local.ps1 api     # 미적용 migration 반영 후 FastAPI 실행 (0.0.0.0:8000)
 .\scripts\demo-local.ps1 share   # 현재 LAN IP를 앱 설정에 반영하고 공유 주소 출력 (9.1절)
 .\scripts\demo-local.ps1 seed    # 합성 카탈로그만 다시 설치
+.\scripts\demo-local.ps1 rules   # 안전규칙 번들 적재 + 규칙 보유 카탈로그 활성화 (4.1절)
 .\scripts\demo-local.ps1 reset   # 데모 사용자 삭제 후 재seed
 .\scripts\demo-local.ps1 test    # 백엔드·프론트엔드 검증 전체
 .\scripts\demo-local.ps1 psql    # 데모 DB psql 접속
@@ -43,6 +45,12 @@ ID token을 사용한다.
 
 Firebase 값은 스크립트가 만들지 않는다. `FIREBASE_PROJECT_ID`와
 `GOOGLE_APPLICATION_CREDENTIALS`는 6절대로 직접 설정하고, 앱 설정은 7절대로 채운다.
+
+`api` 명령은 승인된 온보딩 데모값을 주입한 직후
+`CONSENT_POLICY_VERSION`, `ONBOARDING_PRIMARY_GOAL_CODES`,
+`ONBOARDING_EXPERIENCE_LEVEL_CODES`를 검사한다. null·빈 문자열·공백 또는 빈 코드 목록이면
+누락된 키 이름만 출력하고 non-zero로 종료하며 FastAPI를 시작하지 않는다. 이 사전검사는 서버의
+`503 PROFILE_CONFIGURATION_UNAVAILABLE` fail-closed 동작을 대체하거나 완화하지 않는다.
 
 아래는 스크립트가 실행하는 개별 단계다.
 
@@ -83,11 +91,14 @@ $env:FIREBASE_PROJECT_ID = "<firebase-test-project-id>"
 `503 AUTH_PROVIDER_UNAVAILABLE`을 반환한다. 이는 의도된 동작이며 로컬 우회 경로는 제공하지 않는다.
 
 Firebase Admin이 ID token 서명을 검증하려면 서비스 계정 자격 증명이 필요하다. 저장소 밖 경로를
-가리키게 한다.
+가리키게 한다. 앱이 `backend/.env`에서 직접 읽으므로 셸에서 내보낼 필요는 없다.
 
-```powershell
-$env:GOOGLE_APPLICATION_CREDENTIALS = "C:\path\outside\repo\firebase-service-account.json"
 ```
+GOOGLE_APPLICATION_CREDENTIALS=C:/path/outside/repo/firebase-service-account.json
+```
+
+Windows 경로는 슬래시로 적는다. `.env`의 백슬래시는 이스케이프로 해석되어 경로가 조용히
+깨진다. 값을 비워 두면 Application Default Credentials로 대체된다.
 
 ## 3. 마이그레이션 적용
 
@@ -119,6 +130,71 @@ seed가 설치하는 내용:
 - 합성 카탈로그 1개(`demo-synthetic-v1`, `manifest_metadata.synthetic = true`)
 - 준비 3 / 본운동 17 / 마무리 3, 총 23개 운동과 목표 연결·처방
 - 10~60분 요청 시간에 대해 `estimated_duration_seconds`를 정확히 맞출 수 있는 구성
+
+## 4.1 안전규칙 적재와 카탈로그 활성화
+
+합성 카탈로그에는 **안전규칙이 하나도 없다.** 규칙이 없으면 `evaluate_safety`가
+`rule_set = None`을 받고 설계대로 fail-closed하여 `FAILED`를 반환한다. 결과적으로 체크인에서
+불편을 입력하거나 온보딩에서 주의 부위를 등록한 사용자는 루틴을 받지 못한다. 심각도와 무관하며
+`MILD`도 동일하다.
+
+승인된 규칙 354건과 대체운동 238건은 별도 번들에 있고, 규칙은 그 번들의 카탈로그에
+`catalog_version_id`로 붙어 있다. 따라서 적재만으로는 반영되지 않고 해당 카탈로그를 활성화해야
+한다.
+
+```powershell
+.\scripts\demo-local.ps1 rules
+```
+
+### 현재 이 명령은 활성화 단계에서 실패한다
+
+적재된 카탈로그에는 `exercise_prescription_profiles`와 `exercise_goal_tag_links`가 **0건**이다.
+`RoutineRepository.get_creation_context`가 이 두 테이블을 inner join하므로, 활성화해도 루틴 후보가
+하나도 나오지 않아 **루틴 생성 자체가 불가능해진다.** `CatalogImporter`는 이 두 테이블을 만들지
+않는다 — 합성 카탈로그가 존재하는 이유가 이것이다.
+
+`catalog_activate`는 이 상태를 감지하면 검수 여부와 무관하게 거부한다. 서명이 없는 게 아니라
+내용이 없는 문제이므로 `--demo-unreviewed`로도 통과하지 않는다.
+
+```
+refusing to activate 'kspo-mvp-v0.2.0': no routine could be built from it -
+exercise_prescription_profiles=0, exercise_goal_tag_links=0.
+```
+
+즉 안전규칙을 데모에 반영하려면 **적재된 카탈로그에 처방·목표 연결 데이터를 먼저 만들어야 한다.**
+승인 절차로 해결되는 문제가 아니다.
+
+이 명령은 두 단계를 수행한다.
+
+```powershell
+uv run python -m backend.scripts.catalog_data_load load
+uv run python -m backend.scripts.catalog_activate activate kspo-mvp-v0.2.0 --demo-unreviewed
+```
+
+`kspo-mvp-v0.2.0`을 쓰는 이유는 번들에서 CARDIO·MOBILITY·STRENGTH를 모두 가진 유일한 카탈로그이기
+때문이다. 나머지는 STRENGTH만 있어 준비·마무리 구간을 채울 수 없다.
+
+### `--demo-unreviewed`가 필요한 이유
+
+`ck_catalog_versions_production_approval`은 활성화된 카탈로그에
+`review_method_code = 'DOMAIN_REVIEWER'`와 `status_interpretation_code = 'PRODUCTION_APPROVED'`를
+요구한다. 번들 카탈로그는 `AGENT_ONLY` / `PIPELINE_COMPATIBILITY_ONLY`로 들어온다 —
+**운동 카탈로그 자체는 도메인 검수를 받은 적이 없다.** ISSUE-53은 규칙과 대체운동만 승인했다.
+
+`catalog_activate`는 이 조건을 만족하지 않는 카탈로그를 기본적으로 거부한다.
+`--demo-unreviewed`는 검수 완료 전 데모에서만 쓰는 우회로이며,
+`APP_ENV=local|test`와 `*_demo`/`*_test` 데이터베이스에서만 동작하고,
+누락된 검수를 `manifest_metadata.demo_activation`에 기록한다.
+**이 플래그로 만든 데이터베이스는 staging이나 production으로 승격하지 않는다.**
+
+### 활성화 이후 주의사항
+
+- ACTIVE 카탈로그는 하나뿐이므로 `demo-synthetic-v1`은 DEPRECATED가 된다. 그 카탈로그로 만든
+  기존 루틴은 기록으로 남지만 현재 루틴 조회에서는 제외되고 결정 생성에도 사용되지 않는다.
+  홈 화면의 새 루틴 생성 동작을 실행하면 현재 ACTIVE 카탈로그 기반의 다음 routine version이
+  생성된다. 전체 데모 데이터를 초기화해야 할 때만 `reset` 후 다시 온보딩한다.
+- `seed`와 `reset`은 합성 카탈로그를 다시 ACTIVE로 만든다. **둘 중 하나를 실행했다면 `rules`를
+  다시 실행해야 한다.**
 
 ## 5. FastAPI 실행
 
@@ -236,7 +312,7 @@ npm run android   # 또는 npm run ios
 | stale 체크인 | 체크인을 두 번 저장한 뒤 이전 화면에서 재시도 → 최신 상태로 재시도 안내 |
 | 주간 리포트 게이트 | 홈 → 주간 리포트. 열린 주에는 생성 거부 안내 |
 | 프로필과 계정 삭제 | 홈 → 내 프로필 |
-| 캘린더 경계 | 홈 → 캘린더 연동 상태 ("연동 준비 중") |
+| 운동 기록 캘린더 | 홈 → 캘린더. 월간 완료/부분/휴식/미수행과 주간 리포트 진입 |
 
 ## 9.1 같은 네트워크의 팀원과 함께 보기
 
@@ -293,7 +369,7 @@ npm run android   # 또는 npm run ios
 - 운동 카탈로그는 **합성 데이터이며 도메인 검수를 받지 않았다.** 실제 운동 지도에 쓰면 안 된다.
 - 계정은 Firebase 테스트 프로젝트에 실제로 만들어진다. **닉네임과 생년월일에 실제 개인정보를 넣지
   않는다.** 데모 DB는 합성 데이터 전용이다.
-- 캘린더와 웨어러블은 미구현이며 화면에 그렇게 표시된다.
+- 외부 캘린더 연동과 웨어러블은 미구현이다. 외부 캘린더는 보류 결정됐다(ADR-0010).
 - MILD/MODERATE 불편을 선택하면 검수된 규칙이 없어 추천을 만들지 않는다. 의도된 동작이다.
 
 ### 인터넷으로 공개하지 않는다

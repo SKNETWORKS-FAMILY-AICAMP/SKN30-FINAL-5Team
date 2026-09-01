@@ -1,0 +1,15 @@
+{
+  "commands": [
+    "set -euo pipefail",
+    "version=v0.36.1",
+    "asset=buildx-${version}.linux-amd64",
+    "base=https://github.com/docker/buildx/releases/download/${version}",
+    "sha256=48af8a397ebd60178778bf63611dbcebe5f5e7a9be90eb9147b24b9587455778",
+    "install -d -m 0755 /usr/local/lib/docker/cli-plugins",
+    "curl --fail --location --silent --show-error ${base}/${asset} --output /tmp/${asset}",
+    "echo \"${sha256}  /tmp/${asset}\" | sha256sum --check -",
+    "install -m 0755 /tmp/${asset} /usr/local/lib/docker/cli-plugins/docker-buildx",
+    "rm -f /tmp/${asset}",
+    "docker buildx version"
+  ]
+}

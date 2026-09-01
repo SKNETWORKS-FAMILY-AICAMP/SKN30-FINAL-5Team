@@ -1,0 +1,103 @@
+{
+  "counts": {
+    "collapsed_legacy_identity_count": 2,
+    "existing_alternative_count": 279,
+    "legacy_reason_counts": {
+      "DIFFICULTY": 6,
+      "DISCOMFORT": 220,
+      "EQUIPMENT": 19,
+      "LOCATION": 34
+    },
+    "lower_back_conditionally_retained_count": 12,
+    "lower_back_existing_relation_count": 12,
+    "maintained_count": 157,
+    "neck_review_candidate_count": 4,
+    "neck_review_maintained_count": 3,
+    "neck_review_removed_or_reclassified_count": 1,
+    "normalized_discomfort_alternative_count": 157,
+    "normalized_legacy_discomfort_alternative_count": 155,
+    "reclassification_or_review_reason_counts": {
+      "RECLASSIFY_CONTEXT_DEFAULT": 34,
+      "RECLASSIFY_DIFFICULTY_VARIANT": 6,
+      "RECLASSIFY_VARIANT": 19,
+      "RECLASSIFY_VARIANT_OR_EXERCISE_IDENTITY": 10,
+      "REMOVE_NECK_TARGET_SAFETY_UNCONFIRMED": 1,
+      "REMOVE_TARGET_RETAINS_DISCOMFORT_AREA": 52
+    },
+    "removed_or_reclassified_count": 122,
+    "review_required_count": 0,
+    "supplemental_neck_candidate_count": 2,
+    "supplemental_neck_maintained_count": 2
+  },
+  "integrity_metrics": {
+    "cross_condition_same_source_target_pair_count": 0,
+    "directionality_error_count": 0,
+    "discomfort_without_condition_count": 0,
+    "duplicate_natural_key_count": 0,
+    "excluded_exercise_reference_count": 0,
+    "lower_back_target_overlap_count": 0,
+    "missing_exercise_reference_count": 0,
+    "reverse_direction_pair_count": 0,
+    "secondary_variant_alternative_count": 0,
+    "self_reference_count": 0,
+    "unsafe_neck_normalized_target_count": 0,
+    "variant_relation_overlap_count": 0
+  },
+  "invariants": {
+    "all_normalized_rows_are_kept": true,
+    "lower_back_safety_review_is_conditionally_retained": true,
+    "lower_back_targets_exclude_lower_back": true,
+    "no_directionality_error": true,
+    "no_discomfort_without_condition": true,
+    "no_duplicate_natural_key": true,
+    "no_excluded_exercise_reference": true,
+    "no_missing_exercise_reference": true,
+    "no_reverse_direction_pair": true,
+    "no_secondary_variant_as_alternative": true,
+    "no_self_reference": true,
+    "no_simple_variant_relation_in_alternatives": true,
+    "no_unsafe_neck_target_in_normalized": true,
+    "normalized_reason_code_is_discomfort_only": true
+  },
+  "natural_key": [
+    "source_exercise_stable_code",
+    "alternative_exercise_stable_code",
+    "pain_discomfort_area_code",
+    "condition_code"
+  ],
+  "policy_version": "exercise-alternative-policy-v2.0.2-v1.0.0",
+  "production_eligible": false,
+  "reviewed_at": "2026-08-28T00:00:00+09:00",
+  "schema_version": "exercise-alternative-integrity-v2.0.2-v1",
+  "source": {
+    "discomfort_evidence": {
+      "path": "data/normalized/v2_discomfort_alternative_mapping.csv",
+      "sha256": "8f250f275c22f1dd2df311a27c9f25972166d5a393535da680c83fc8f58f830b"
+    },
+    "final_catalog": {
+      "path": "data/generated/exercise-catalog-v2.0.2-intermediate/variant-materialization-v1/catalog/exercises.jsonl",
+      "sha256": "c2936896ee3adc4c92f8971448d63b2e5860e362cb93e99b0bc3f4412ee5a343"
+    },
+    "legacy_alternatives": {
+      "path": "data/generated/exercise-catalog-v2.0.2-draft/alternatives/alternatives.jsonl",
+      "sha256": "4b8953d4757ee27679403f0ea5e956d7eaf19dac2fd59170a1a6bd1531c7378c"
+    },
+    "legacy_consolidation": {
+      "path": "data/generated/exercise-catalog-v2.0.2-final/audit/legacy_consolidation_mapping_v2_final.csv",
+      "sha256": "871ad87eaf3ef008d3e94055244753fd67442505f5073926c278d593b2b89408"
+    },
+    "neck_discomfort_candidates": {
+      "path": "data/normalized/neck_discomfort_alternative_candidates_v2_0_2.json",
+      "sha256": "ab1180f4ae30c7d58004157283e63fe794ea0cf5969dd3c0c8ff80f9c9d33362"
+    },
+    "stable_code_migration": {
+      "path": "data/generated/exercise-catalog-v2.0.2-final/audit/alias_migration_v2_0_2.csv",
+      "sha256": "8f97ccf25a015d5b7ab225f411bb35833db75adee455d1e66ae6638227761e06"
+    },
+    "variant_relationship_review": {
+      "path": "data/generated/exercise-catalog-v2.0.2-final/audit/variant_relationship_review_v2_0_2.csv",
+      "sha256": "9e229b5b08f36be60c13ee31cffd8869d36eb0cec35dcc5531d479c16c125be1"
+    }
+  },
+  "status": "DRAFT_REVIEW_REQUIRED"
+}

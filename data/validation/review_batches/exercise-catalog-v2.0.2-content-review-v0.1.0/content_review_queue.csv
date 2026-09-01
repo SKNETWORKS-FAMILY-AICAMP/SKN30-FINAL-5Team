@@ -1,0 +1,16 @@
+stable_code,name_ko,record_type,source_track,missing_fields,training_type_code,primary_movement_pattern_code,timing_mode_code,difficulty_code,general_pool_included,instruction_summary_ko,fixed_posture_code,fixed_support_code,alternative_source_base_stable_code,representative_exercise_id,recovered_form_cues_source,form_cues_ko,default_rest_seconds,default_transition_seconds
+band_front_raise_isolation_resistance_band,밴드 프론트 레이즈,VARIANT,gymvisual,form_cues_ko,STRENGTH,ISOLATION,REPS,BEGINNER,,밴드 프론트 레이즈,,,,REX-000005,,,60,15
+band_shrug_isolation_resistance_band,밴드 슈러그,VARIANT,gymvisual,form_cues_ko,STRENGTH,ISOLATION,REPS,BEGINNER,,밴드 슈러그,,,,REX-000029,,,60,15
+band_single_leg_calf_raise_isolation_resistance_band,밴드 싱글 레그 카프 레이즈,VARIANT,gymvisual,form_cues_ko,STRENGTH,ISOLATION,REPS,INTERMEDIATE,,밴드 싱글 레그 카프 레이즈,,,,REX-000016,,,60,15
+cable_shrug_isolation_cable_machine,케이블 슈러그 머신,VARIANT,gymvisual,form_cues_ko,STRENGTH,ISOLATION,REPS,INTERMEDIATE,,케이블 슈러그 머신,,,,REX-000029,,,60,15
+dumbbell_decline_shrug_isolation_dumbbell,덤벨 디클라인 슈러그,VARIANT,gymvisual,form_cues_ko,STRENGTH,ISOLATION,REPS,BEGINNER,,덤벨 디클라인 슈러그,,,,REX-000029,,,60,15
+dumbbell_decline_shrug_v_2_isolation_dumbbell,덤벨 디클라인 슈러그,VARIANT,gymvisual,form_cues_ko,STRENGTH,ISOLATION,REPS,BEGINNER,,덤벨 디클라인 슈러그,,,,REX-000029,,,60,15
+dumbbell_front_raise_isolation_dumbbell,덤벨 프론트 레이즈,VARIANT,gymvisual,form_cues_ko,STRENGTH,ISOLATION,REPS,BEGINNER,,덤벨 프론트 레이즈,,,,REX-000005,,,60,15
+dumbbell_front_raise_v_2_isolation_dumbbell,덤벨 프론트 레이즈,VARIANT,gymvisual,form_cues_ko,STRENGTH,ISOLATION,REPS,BEGINNER,,덤벨 프론트 레이즈,,,,REX-000005,,,60,15
+dumbbell_incline_shrug_isolation_dumbbell,덤벨 인클라인 슈러그,VARIANT,gymvisual,form_cues_ko,STRENGTH,ISOLATION,REPS,BEGINNER,,덤벨 인클라인 슈러그,,,,REX-000029,,,60,15
+dumbbell_seated_alternate_front_raise_isolation_dumbbell,덤벨 시티드 교대 프론트 레이즈,VARIANT,gymvisual,form_cues_ko,STRENGTH,ISOLATION,REPS,BEGINNER,,덤벨 시티드 교대 프론트 레이즈,,,,REX-000005,,,60,15
+dumbbell_seated_calf_raise_isolation_dumbbell,덤벨 시티드 카프 레이즈,VARIANT,gymvisual,form_cues_ko,STRENGTH,ISOLATION,REPS,BEGINNER,,덤벨 시티드 카프 레이즈,,,,REX-000080,,,60,15
+dumbbell_single_leg_calf_raise_isolation_dumbbell,덤벨 싱글 레그 카프 레이즈,VARIANT,gymvisual,form_cues_ko,STRENGTH,ISOLATION,REPS,INTERMEDIATE,,덤벨 싱글 레그 카프 레이즈,,,,REX-000016,,,60,15
+lever_seated_calf_raise_isolation_machine,시티드 카프 레이즈 머신,VARIANT,gymvisual,form_cues_ko,STRENGTH,ISOLATION,REPS,BEGINNER,,시티드 카프 레이즈 머신,,,,REX-000080,,,60,15
+one_leg_floor_calf_raise_isolation_bodyweight,한발 카프 레이즈,VARIANT,gymvisual,form_cues_ko,STRENGTH,ISOLATION,REPS,INTERMEDIATE,,한발 카프 레이즈,,,,REX-000016,,,60,15
+side_push_neck_stretch_mobility_stretch_bodyweight,사이드 푸시 목 스트레칭,VARIANT,gymvisual,form_cues_ko,MOBILITY,MOBILITY_STRETCH,DURATION,BEGINNER,,사이드 푸시 목 스트레칭,,,,REX-000045,,,30,15

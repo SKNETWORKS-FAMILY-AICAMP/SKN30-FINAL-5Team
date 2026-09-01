@@ -34,11 +34,11 @@ class CatalogVersion(Base):
             name="ck_catalog_versions_manifest_schema_version",
         ),
         CheckConstraint(
-            "code_set_version IN ('mvp-v1')",
+            "code_set_version IN ('mvp-v1', 'catalog-v2')",
             name="ck_catalog_versions_code_set_version",
         ),
         CheckConstraint(
-            "source_track_code IN ('wger', 'kspo')",
+            "source_track_code IN ('wger', 'kspo', 'merged')",
             name="ck_catalog_versions_source_track_code",
         ),
         CheckConstraint(
@@ -165,8 +165,22 @@ class Exercise(Base):
             name="ck_exercises_review_status_code",
         ),
         CheckConstraint(
-            "source_track_code IN ('wger', 'kspo')",
+            "source_track_code IN ('wger', 'kspo', 'gymvisual', 'pain_alternative_policy')",
             name="ck_exercises_source_track_code",
+        ),
+        CheckConstraint(
+            "record_type IS NULL OR "
+            "record_type IN ('REPRESENTATIVE', 'VARIANT', 'SEPARATE_EXERCISE')",
+            name="ck_exercises_record_type",
+        ),
+        CheckConstraint(
+            "(record_type = 'VARIANT') = (representative_stable_code IS NOT NULL)",
+            name="ck_exercises_variant_parent",
+        ),
+        CheckConstraint(
+            "form_cues_review_status IS NULL OR "
+            "form_cues_review_status IN ('REVIEW_REQUIRED', 'DOMAIN_APPROVED')",
+            name="ck_exercises_form_cues_review_status",
         ),
         CheckConstraint("default_rest_seconds >= 0", name="ck_exercises_rest_seconds"),
         CheckConstraint(
@@ -181,6 +195,13 @@ class Exercise(Base):
             name="ck_exercises_timing_values",
         ),
         Index("ix_exercises_catalog_review", "catalog_version_id", "review_status_code"),
+        Index("ix_exercises_general_pool", "catalog_version_id", "general_pool_included"),
+        Index(
+            "ix_exercises_form_cues_review",
+            "catalog_version_id",
+            "form_cues_review_status",
+            postgresql_where=text("form_cues_review_status IS NOT NULL"),
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
@@ -202,7 +223,21 @@ class Exercise(Base):
         String(64), ForeignKey("movement_patterns.code"), nullable=False
     )
     difficulty_code: Mapped[str] = mapped_column(String(32), nullable=False)
-    beginner_suitable: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    # Transitional compatibility column. New catalog inputs no longer expose
+    # this field and recommendation logic must not read it. Keep a deterministic
+    # ORM value until the later Alembic removal after all consumers are gone.
+    beginner_suitable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # v2.0.2 identity. NULL on v2.0.1 rows, which predate the family model.
+    record_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    family_code: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    representative_stable_code: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # NULL means the payload did not state it, which the importer reads as "not
+    # a base routine candidate". Never defaulted, so the two stay distinguishable.
+    general_pool_included: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    # Which artifact or template produced form_cues_ko, and whether a reviewer has
+    # signed them. NULL means the payload did not state it.
+    form_cues_source: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    form_cues_review_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
     timing_mode_code: Mapped[str] = mapped_column(String(32), nullable=False)
     default_seconds_per_rep: Mapped[int | None] = mapped_column(Integer, nullable=True)
     default_work_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -231,6 +266,82 @@ class Exercise(Base):
     )
     location_links: Mapped[list["ExerciseLocation"]] = relationship(
         cascade="all, delete-orphan", passive_deletes=True
+    )
+
+
+class ExerciseMediaAsset(Base):
+    __tablename__ = "exercise_media_assets"
+    __table_args__ = (
+        # Scoped to the catalog version: two versions legitimately reference the
+        # same approved file, and a global constraint made whichever imported
+        # first the sole owner. One file still cannot be claimed twice inside a
+        # single version.
+        UniqueConstraint(
+            "catalog_version_id",
+            "s3_key",
+            name="uq_exercise_media_assets_catalog_s3_key",
+        ),
+        UniqueConstraint(
+            "catalog_version_id",
+            "exercise_id",
+            name="uq_exercise_media_assets_catalog_exercise",
+        ),
+        CheckConstraint(
+            "media_status IN ('AVAILABLE', 'UNAVAILABLE')",
+            name="ck_exercise_media_assets_media_status",
+        ),
+        CheckConstraint(
+            "rights_review_status IN ('APPROVED', 'PENDING', 'REJECTED')",
+            name="ck_exercise_media_assets_rights_status",
+        ),
+        CheckConstraint(
+            "rights_review_status <> 'APPROVED' OR "
+            "(rights_reviewer IS NOT NULL AND rights_reviewed_at IS NOT NULL "
+            "AND rights_evidence_reference IS NOT NULL)",
+            name="ck_exercise_media_assets_approved_evidence",
+        ),
+        CheckConstraint(
+            "s3_key ~ '^catalog-media/[a-z0-9][a-z0-9_./-]*\\.(gif|jpe?g|mp4|png|webp)$' "
+            "AND position('..' in s3_key) = 0",
+            name="ck_exercise_media_assets_s3_key",
+        ),
+        Index(
+            "ix_exercise_media_assets_approved",
+            "catalog_version_id",
+            "exercise_id",
+            postgresql_where=text(
+                "media_status = 'AVAILABLE' AND rights_review_status = 'APPROVED'"
+            ),
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    catalog_version_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("catalog_versions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    exercise_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("exercises.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    s3_key: Mapped[str] = mapped_column(String(500), nullable=False)
+    media_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    rights_review_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    rights_reviewer: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    rights_reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    rights_evidence_reference: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    media_set_version_code: Mapped[str] = mapped_column(String(120), nullable=False)
+    source_manifest_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_metadata: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    approval_metadata: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB(none_as_null=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
 
@@ -478,6 +589,8 @@ class ExerciseAlternative(Base):
             "reason_code",
             "goal_preservation_code",
             "rule_version",
+            "condition_code",
+            "pain_discomfort_area_code",
             name="uq_exercise_alternatives_relation",
         ),
         CheckConstraint(
@@ -504,6 +617,13 @@ class ExerciseAlternative(Base):
             "source_manifest_hash ~ '^[0-9a-f]{64}$'",
             name="ck_exercise_alternatives_manifest_hash",
         ),
+        Index(
+            "ix_exercise_alternatives_discomfort_lookup",
+            "source_exercise_id",
+            "pain_discomfort_area_code",
+            "condition_code",
+            "review_status_code",
+        ),
         Index("ix_exercise_alternatives_source", "source_exercise_id", "review_status_code"),
     )
 
@@ -523,4 +643,8 @@ class ExerciseAlternative(Base):
     production_eligible: Mapped[bool] = mapped_column(Boolean, nullable=False)
     source_manifest_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     source_metadata: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    pain_discomfort_area_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    condition_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    service_action_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    target_strategy_code: Mapped[str | None] = mapped_column(String(120), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

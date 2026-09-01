@@ -17,6 +17,7 @@ import {
 import { CalendarReportScreen } from './CalendarReportScreen';
 import type { CalendarDay } from './homeSecondaryModel';
 import { WorkoutHistorySheet } from './WorkoutHistorySheet';
+import { assertWeekMatchesSelection } from '../weekly/weeklyReportModel';
 import {
   buildCalendarReportData,
   calendarGridRange,
@@ -26,6 +27,7 @@ import {
 type CalendarReportContainerProps = {
   api: Api;
   timeZone?: string;
+  routineStartLocalDate?: string;
   restLocalDate?: string | null;
   onNavigateTab?: (tab: TabId) => void;
   onOpenWeeklyReport: (weekStart: string) => void;
@@ -57,9 +59,16 @@ async function loadSessions(
   return sessions;
 }
 
+function weekEndString(weekStart: string): string {
+  const end = new Date(`${weekStart}T00:00:00Z`);
+  end.setUTCDate(end.getUTCDate() + 6);
+  return end.toISOString().slice(0, 10);
+}
+
 export function CalendarReportContainer({
   api,
   timeZone,
+  routineStartLocalDate,
   restLocalDate,
   onNavigateTab,
   onOpenWeeklyReport,
@@ -78,18 +87,28 @@ export function CalendarReportContainer({
 
   const { state, reload } = useAsyncData(
     async (signal) => {
-      const sessionsPromise = loadSessions(
-        api,
-        range.fromLocalDate,
-        range.toLocalDate,
-        signal,
-      );
+      const sessionsPromise =
+        routineStartLocalDate !== undefined &&
+        range.toLocalDate < routineStartLocalDate
+          ? Promise.resolve([] as WorkoutSessionLogSummary[])
+          : loadSessions(
+              api,
+              routineStartLocalDate === undefined
+                ? range.fromLocalDate
+                : [range.fromLocalDate, routineStartLocalDate].sort()[1]!,
+              range.toLocalDate,
+              signal,
+            );
       const readableWeekStarts = range.weekStarts.filter(
-        (start) => start <= currentWeekStart,
+        (start) =>
+          start <= currentWeekStart &&
+          (routineStartLocalDate === undefined ||
+            weekEndString(start) >= routineStartLocalDate),
       );
       const weeksPromise = Promise.all(
         readableWeekStarts.map(async (start) => {
           const week = await api.getWeek(start, signal);
+          assertWeekMatchesSelection(start, week);
           return [start, week] as const;
         }),
       );
@@ -105,7 +124,7 @@ export function CalendarReportContainer({
         restLocalDate,
       });
     },
-    [api, month, today, currentWeekStart, restLocalDate],
+    [api, month, today, currentWeekStart, routineStartLocalDate, restLocalDate],
   );
 
   if (state.status === 'loading') {
@@ -144,6 +163,7 @@ export function CalendarReportContainer({
         weeks={state.data.weeks}
         selectedMonth={month}
         latestMonth={latestMonth}
+        routineStartLocalDate={routineStartLocalDate}
         onChangeMonth={(direction) => {
           setSelectedDay(null);
           setMonth((current) =>

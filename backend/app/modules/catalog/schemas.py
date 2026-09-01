@@ -2,15 +2,18 @@ from datetime import datetime
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 from backend.app.modules.catalog.codes import (
+    V2_BODY_FOCUS_CODES,
     BodyAreaCode,
+    BodyAreaRoleCode,
     BodyFocusCode,
     CatalogReviewStatusCode,
     CatalogVersionStatusCode,
     DifficultyCode,
     EquipmentCode,
+    GoalCode,
     LocationCode,
     MovementPatternCode,
     ReviewMethodCode,
@@ -18,10 +21,16 @@ from backend.app.modules.catalog.codes import (
     SourceTrackCode,
     TimingModeCode,
     TrainingTypeCode,
+    normalize_v2_equipment_code,
 )
 
 Sha256 = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
-StableCode = Annotated[str, Field(pattern=r"^[a-z0-9]+(?:_[a-z0-9]+)*$", max_length=120)]
+# A double underscore separates a derived record from the exercise it was
+# derived from: `<base code>__<derivation>`, as v2.0.2 names its 75 pain-area
+# safe variants. Only one extra underscore is allowed, so the separator stays
+# unambiguous and the rest of the shape (lowercase, no leading, trailing or
+# longer runs) is unchanged.
+StableCode = Annotated[str, Field(pattern=r"^[a-z0-9]+(?:_{1,2}[a-z0-9]+)*$", max_length=120)]
 
 
 class CatalogInputModel(BaseModel):
@@ -65,8 +74,63 @@ class ManifestFile(CatalogInputModel):
     records: Annotated[int, Field(ge=0)]
 
 
+class BundleManifestFile(CatalogInputModel):
+    path: Annotated[str, Field(min_length=1, max_length=500)]
+    sha256: Sha256
+    bytes: Annotated[int, Field(ge=0)]
+    records: Annotated[int | None, Field(ge=0)] = None
+
+
+class BundleDerivedSetVersions(CatalogInputModel):
+    alternative_set_version_code: Annotated[str, Field(min_length=1, max_length=120)]
+    prescription_set_version_code: Annotated[str, Field(min_length=1, max_length=120)]
+    rule_set_version_code: Annotated[str, Field(min_length=1, max_length=120)]
+
+
+class BundleSummary(CatalogInputModel):
+    alternative_records: Annotated[int, Field(ge=0)]
+    catalog_records: Annotated[int, Field(ge=0)]
+    goal_tag_records: Annotated[int, Field(ge=0)]
+    prescription_records: Annotated[int, Field(ge=0)]
+    safety_rule_records: Annotated[int, Field(ge=0)]
+    media_asset_records: Annotated[int | None, Field(ge=0)] = None
+
+
+class CatalogBundleManifest(CatalogInputModel):
+    schema_version: Literal["1.0", "1.1"]
+    bundle_version: Annotated[str, Field(min_length=1, max_length=120)]
+    catalog_version_code: Annotated[str, Field(min_length=1, max_length=120)]
+    derived_set_versions: BundleDerivedSetVersions
+    # Optional so bundles published before v2.0.3 keep validating. A bundle
+    # built from an earlier catalog records the source version and that
+    # manifest's hash here, which makes the derivation checkable rather than a
+    # label. The importer does not interpret it; provenance is data, not policy.
+    derived_from: dict[str, Any] | None = None
+    files: list[BundleManifestFile]
+    importer_paths: dict[str, Annotated[str, Field(min_length=1, max_length=500)]]
+    production_eligible: Literal[False]
+    projection: dict[str, Any] | None = None
+    status_code: Literal["DRAFT"]
+    summary: BundleSummary
+
+    @model_validator(mode="after")
+    def validate_paths(self) -> "CatalogBundleManifest":
+        required = {"catalog", "safety", "alternatives", "prescriptions"}
+        optional = {"media"}
+        if not required.issubset(self.importer_paths) or not set(self.importer_paths) <= (
+            required | optional
+        ):
+            raise ValueError("bundle importer paths are incomplete or unsupported")
+        paths = [entry.path for entry in self.files]
+        if len(paths) != len(set(paths)):
+            raise ValueError("bundle file paths must be unique")
+        if not set(self.importer_paths.values()).issubset(paths):
+            raise ValueError("bundle importer paths must reference listed files")
+        return self
+
+
 class CatalogManifest(CatalogInputModel):
-    schema_version: Literal["1.0"]
+    schema_version: Literal["1.0", "1.1"]
     generator_version: Annotated[str, Field(min_length=1, max_length=80)]
     catalog_version: ManifestCatalogVersion
     source: ManifestSource
@@ -91,7 +155,6 @@ class ExerciseRecord(CatalogInputModel):
     body_focus_code: BodyFocusCode
     primary_movement_pattern_code: MovementPatternCode
     difficulty_code: DifficultyCode
-    beginner_suitable: bool
     timing_mode_code: TimingModeCode
     default_seconds_per_rep: Annotated[int | None, Field(gt=0)] = None
     default_work_seconds: Annotated[int | None, Field(gt=0)] = None
@@ -108,6 +171,65 @@ class ExerciseRecord(CatalogInputModel):
     review_status_code: CatalogReviewStatusCode
     source_track: SourceTrackCode
     source_identity: Annotated[str, Field(min_length=1, max_length=255)]
+    # v2.0.2 family identity. Absent on v2.0.1 and merged inputs, which have no
+    # representative/variant model.
+    record_type: Literal["REPRESENTATIVE", "VARIANT", "SEPARATE_EXERCISE"] | None = None
+    family_code: Annotated[str, Field(min_length=1, max_length=120)] | None = None
+    representative_stable_code: StableCode | None = None
+    # None is not false: it means the payload did not state whether the record is
+    # a base routine candidate, and the importer refuses to guess.
+    general_pool_included: bool | None = None
+    # Provenance for form_cues_ko, so an unreviewed cue is answerable in SQL.
+    form_cues_source: Annotated[str, Field(min_length=1, max_length=120)] | None = None
+    form_cues_review_status: Literal["REVIEW_REQUIRED", "DOMAIN_APPROVED"] | None = None
+
+    @model_validator(mode="after")
+    def validate_family_identity(self) -> "ExerciseRecord":
+        is_variant = self.record_type == "VARIANT"
+        if is_variant != (self.representative_stable_code is not None):
+            raise ValueError("only a VARIANT record names a representative_stable_code")
+        if self.representative_stable_code == self.stable_code:
+            raise ValueError("a VARIANT must not name itself as its representative")
+        return self
+
+    @field_validator("body_focus_code", mode="before")
+    @classmethod
+    def validate_v2_body_focus_code(
+        cls,
+        value: object,
+        info: ValidationInfo,
+    ) -> object:
+        context = info.context if isinstance(info.context, dict) else {}
+        if not context.get("v2_import"):
+            return value
+        try:
+            code = value if isinstance(value, BodyFocusCode) else BodyFocusCode(str(value))
+        except (TypeError, ValueError) as exc:
+            raise ValueError("unsupported V2 body focus code") from exc
+        if code not in V2_BODY_FOCUS_CODES:
+            raise ValueError("body focus code is not allowed in V2 artifacts")
+        return code
+
+    @field_validator("equipment_codes", mode="before")
+    @classmethod
+    def normalize_v2_equipment_codes(
+        cls,
+        value: object,
+        info: ValidationInfo,
+    ) -> object:
+        context = info.context if isinstance(info.context, dict) else {}
+        if not context.get("v2_import"):
+            return value
+        if not isinstance(value, list):
+            return value
+        return [normalize_v2_equipment_code(code) for code in value]
+
+    @field_validator("source_track")
+    @classmethod
+    def validate_exercise_source_track(cls, value: SourceTrackCode) -> SourceTrackCode:
+        if value is SourceTrackCode.MERGED:
+            raise ValueError("exercise records must retain their original source track")
+        return value
 
     @field_validator(
         "primary_body_area_codes",
@@ -122,7 +244,7 @@ class ExerciseRecord(CatalogInputModel):
         return value
 
     @model_validator(mode="after")
-    def validate_timing_fields(self) -> "ExerciseRecord":
+    def validate_timing_fields(self, info: ValidationInfo) -> "ExerciseRecord":
         if self.timing_mode_code is TimingModeCode.REPS:
             if self.default_seconds_per_rep is None or self.default_work_seconds is not None:
                 raise ValueError("REPS requires seconds_per_rep and forbids work_seconds")
@@ -136,6 +258,19 @@ class ExerciseRecord(CatalogInputModel):
             raise ValueError("at least one primary body area is required")
         if not self.equipment_codes or not self.location_codes:
             raise ValueError("at least one equipment and location code is required")
+        context = info.context if isinstance(info.context, dict) else {}
+        if context.get("v2_import"):
+            expected_focus = {
+                TrainingTypeCode.CARDIO: BodyFocusCode.CARDIO,
+                TrainingTypeCode.MOBILITY: BodyFocusCode.MOBILITY,
+            }.get(self.training_type_code)
+            if expected_focus is not None and self.body_focus_code is not expected_focus:
+                raise ValueError("V2 cardio and mobility records require their matching focus code")
+            if self.training_type_code is TrainingTypeCode.STRENGTH and self.body_focus_code in {
+                BodyFocusCode.CARDIO,
+                BodyFocusCode.MOBILITY,
+            }:
+                raise ValueError("V2 strength records cannot use cardio or mobility focus codes")
         return self
 
 
@@ -153,6 +288,7 @@ class ExerciseDetailResponse(BaseModel):
     instruction_summary: str
     form_cues: list[str]
     media_asset_key: str | None = None
+    media_url: str | None = None
     mascot_animation_asset_key: str | None = None
     instruction_content_version: str
 
@@ -171,6 +307,24 @@ class ExerciseListResponse(BaseModel):
     items: list[ExerciseListItem]
     next_cursor: str | None
     catalog_version: str
+
+
+class ExerciseVariantItem(BaseModel):
+    exercise_id: UUID
+    exercise_name: str
+    required_equipment_codes: list[EquipmentCode]
+    instruction_summary: str
+    form_cues: list[str]
+    media_asset_key: str | None = None
+    goal_preservation_code: str
+
+
+class ExerciseVariantsResponse(BaseModel):
+    source_exercise_id: UUID
+    source_required_equipment_codes: list[EquipmentCode]
+    items: list[ExerciseVariantItem]
+    catalog_version: str
+    alternative_set_version: str | None
 
 
 class DerivedArtifactVersion(CatalogInputModel):
@@ -209,7 +363,7 @@ class SafetyRuleManifest(DerivedArtifactManifest):
 
 class ExerciseSafetyRuleRecord(CatalogInputModel):
     body_area_code: BodyAreaCode
-    body_part_role_code: Literal["PRIMARY", "SECONDARY"]
+    body_part_role_code: BodyAreaRoleCode
     catalog_version_code: Annotated[str, Field(min_length=1, max_length=120)]
     effect_code: Literal["EXCLUDE", "CAUTION"]
     exercise_stable_code: StableCode | None
@@ -220,6 +374,19 @@ class ExerciseSafetyRuleRecord(CatalogInputModel):
     review_status_code: CatalogReviewStatusCode
     rule_scope: Literal["EXERCISE", "MOVEMENT_PATTERN"]
     rule_version: Annotated[str, Field(min_length=1, max_length=80)]
+    rule_set_version_code: Annotated[str, Field(min_length=1, max_length=120)] | None = None
+    production_eligible: bool | None = None
+    source_manifest_hash: Sha256 | None = None
+    source_metadata: dict[str, Any] | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    @field_validator("created_at", "updated_at")
+    @classmethod
+    def validate_timezone_aware_audit_timestamp(cls, value: datetime | None) -> datetime | None:
+        if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+            raise ValueError("audit timestamps must include timezone information")
+        return value
 
     @model_validator(mode="after")
     def validate_scope_target(self) -> "ExerciseSafetyRuleRecord":
@@ -229,6 +396,9 @@ class ExerciseSafetyRuleRecord(CatalogInputModel):
             valid = self.exercise_stable_code is None and self.movement_pattern_code is not None
         if not valid:
             raise ValueError("safety rule must target exactly the declared scope")
+        severity_rank = {"MILD": 1, "MODERATE": 2, "SEVERE": 3}
+        if severity_rank[self.minimum_severity_code] > severity_rank[self.maximum_severity_code]:
+            raise ValueError("minimum severity must not exceed maximum severity")
         return self
 
 
@@ -256,6 +426,42 @@ class ExerciseAlternativeRecord(CatalogInputModel):
     source_catalog_version_code: Annotated[str, Field(min_length=1, max_length=120)]
     source_exercise_stable_code: StableCode
     status_interpretation: ReviewStatusInterpretationCode
+    # Pain alternatives are selected by the reported area and NRS band.  The
+    # fields remain optional for backwards-compatible equipment/location rows.
+    pain_discomfort_area_code: BodyAreaCode | None = None
+    condition_code: Literal["NRS_1_3", "NRS_4_6"] | None = None
+    service_action_code: Literal["LOAD_REDUCED", "SKIP_AFFECTED_AREA"] | None = None
+    target_strategy_code: (
+        Annotated[str, Field(pattern=r"^[A-Z][A-Z0-9_]*$", max_length=120)] | None
+    ) = None
+    alternative_set_version_code: Annotated[str, Field(min_length=1, max_length=120)] | None = None
+    production_eligible: bool | None = None
+    source_manifest_hash: Sha256 | None = None
+    source_metadata: dict[str, Any] | None = None
+    updated_at: datetime | None = None
+
+    @model_validator(mode="after")
+    def validate_pain_selectors(self) -> "ExerciseAlternativeRecord":
+        condition_code = self.condition_code
+        typed_selectors = (
+            self.pain_discomfort_area_code,
+            condition_code,
+            self.target_strategy_code,
+        )
+        if any(value is not None for value in typed_selectors):
+            selectors = (*typed_selectors, self.service_action_code)
+            if self.reason_code != "DISCOMFORT" or any(value is None for value in selectors):
+                raise ValueError(
+                    "pain selectors require a complete DISCOMFORT alternative relation"
+                )
+            assert condition_code is not None
+            expected_action = {
+                "NRS_1_3": "LOAD_REDUCED",
+                "NRS_4_6": "SKIP_AFFECTED_AREA",
+            }[condition_code]
+            if self.service_action_code != expected_action:
+                raise ValueError("service_action_code does not match condition_code")
+        return self
 
     @field_validator("created_at")
     @classmethod
@@ -263,3 +469,139 @@ class ExerciseAlternativeRecord(CatalogInputModel):
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("created_at must include timezone information")
         return value
+
+    @field_validator("updated_at")
+    @classmethod
+    def validate_timezone_aware_updated_at(cls, value: datetime | None) -> datetime | None:
+        if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+            raise ValueError("updated_at must include timezone information")
+        return value
+
+    @field_validator("goal_preservation_code")
+    @classmethod
+    def reject_runtime_downshift_as_goal(cls, value: str) -> str:
+        if value == "INTENSITY_REDUCED":
+            raise ValueError("INTENSITY_REDUCED is a runtime downshift, not a preserved goal")
+        return value
+
+
+class PrescriptionArtifactSummary(CatalogInputModel):
+    exercise_records: Annotated[int, Field(gt=0)]
+    goal_tag_records: Annotated[int, Field(gt=0)]
+    prescription_records: Annotated[int, Field(gt=0)]
+
+
+class PrescriptionManifest(CatalogInputModel):
+    schema_version: Literal["1.0"]
+    generator_version: Annotated[str, Field(min_length=1, max_length=80)]
+    prescription_set_version: DerivedArtifactVersion
+    source: dict[str, Any]
+    review: ManifestReview
+    summary: PrescriptionArtifactSummary
+    files: list[ManifestFile]
+
+    @model_validator(mode="after")
+    def validate_files(self) -> "PrescriptionManifest":
+        entries = {entry.path: entry for entry in self.files}
+        if set(entries) != {"goal_tag_links.jsonl", "prescription_profiles.jsonl"}:
+            raise ValueError("prescription manifest must describe both JSONL files")
+        if entries["goal_tag_links.jsonl"].records != self.summary.goal_tag_records:
+            raise ValueError("goal tag count does not match manifest summary")
+        if entries["prescription_profiles.jsonl"].records != self.summary.prescription_records:
+            raise ValueError("prescription count does not match manifest summary")
+        return self
+
+
+class MediaArtifactSummary(CatalogInputModel):
+    media_asset_records: Annotated[int, Field(ge=0)]
+
+
+class MediaManifest(CatalogInputModel):
+    schema_version: Literal["1.0"]
+    generator_version: Annotated[str, Field(min_length=1, max_length=80)]
+    media_set_version: DerivedArtifactVersion
+    catalog_version_code: Annotated[str, Field(min_length=1, max_length=120)]
+    source: dict[str, Any]
+    review: ManifestReview
+    summary: MediaArtifactSummary
+    files: list[ManifestFile]
+
+    @model_validator(mode="after")
+    def validate_file(self) -> "MediaManifest":
+        entries = [entry for entry in self.files if entry.path == "media_assets.jsonl"]
+        if len(entries) != 1 or entries[0].records != self.summary.media_asset_records:
+            raise ValueError("media manifest must describe one matching media JSONL file")
+        return self
+
+
+class MediaAssetRecord(CatalogInputModel):
+    representative_exercise_id: Annotated[
+        str,
+        Field(pattern=r"^(?:REX-[0-9]{6}|[a-z0-9]+(?:_[a-z0-9]+)*)$", max_length=120),
+    ]
+    s3_key: Annotated[
+        str,
+        Field(
+            pattern=r"^catalog-media/[a-z0-9](?:[a-z0-9_./-]*[a-z0-9_-])?\.(?:gif|jpe?g|mp4|png|webp)$",
+            max_length=500,
+        ),
+    ]
+    media_status: Literal["AVAILABLE", "UNAVAILABLE"]
+    rights_review_status: Literal["APPROVED", "PENDING", "REJECTED"]
+    rights_reviewer: Annotated[str | None, Field(max_length=255)] = None
+    rights_reviewed_at: datetime | None = None
+    rights_evidence_reference: Annotated[str | None, Field(max_length=500)] = None
+    source_metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("s3_key")
+    @classmethod
+    def validate_canonical_s3_key(cls, value: str) -> str:
+        if ".." in value or "//" in value:
+            raise ValueError("s3_key must be a canonical object key")
+        return value
+
+    @field_validator("rights_reviewed_at")
+    @classmethod
+    def validate_rights_reviewed_at(cls, value: datetime | None) -> datetime | None:
+        if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+            raise ValueError("rights_reviewed_at must include timezone information")
+        return value
+
+    @model_validator(mode="after")
+    def validate_rights_evidence(self) -> "MediaAssetRecord":
+        if self.rights_review_status == "APPROVED" and (
+            not self.rights_reviewer
+            or self.rights_reviewed_at is None
+            or not self.rights_evidence_reference
+        ):
+            raise ValueError("approved media requires reviewer, timestamp, and evidence")
+        return self
+
+
+class ExerciseGoalTagRecord(CatalogInputModel):
+    catalog_version_code: Annotated[str, Field(min_length=1, max_length=120)]
+    exercise_stable_code: StableCode
+    goal_code: GoalCode
+    role_eligibility_code: Literal["CORE", "SUPPORT", "OPTIONAL"]
+    review_status_code: CatalogReviewStatusCode
+
+
+class ExercisePrescriptionRecord(CatalogInputModel):
+    catalog_version_code: Annotated[str, Field(min_length=1, max_length=120)]
+    exercise_stable_code: StableCode
+    goal_code: GoalCode
+    experience_level_code: Literal["BEGINNER", "INTERMEDIATE"]
+    phase_code: Literal["WARMUP", "MAIN", "COOLDOWN"]
+    sets: Annotated[int, Field(gt=0)]
+    reps: Annotated[int | None, Field(gt=0)] = None
+    work_seconds_per_set: Annotated[int | None, Field(gt=0)] = None
+    rest_seconds_per_set: Annotated[int, Field(ge=0)]
+    intensity_code: Literal["LOW", "MODERATE"]
+    prescription_version: Annotated[str, Field(min_length=1, max_length=64)]
+    review_status_code: CatalogReviewStatusCode
+
+    @model_validator(mode="after")
+    def validate_timing(self) -> "ExercisePrescriptionRecord":
+        if (self.reps is None) == (self.work_seconds_per_set is None):
+            raise ValueError("exactly one prescription timing value is required")
+        return self

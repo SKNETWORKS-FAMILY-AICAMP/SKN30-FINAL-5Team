@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "generator_version": "0.1.0",
+  "rule_set_version": {
+    "version_code": "merged-mvp-v0.5.0",
+    "status_code": "DRAFT"
+  },
+  "source": {
+    "catalog_seeds": [
+      "exercise-catalog-seed-merged-mvp-v0.4.0"
+    ],
+    "catalog_seed_artifacts": [
+      {
+        "directory": "exercise-catalog-seed-merged-mvp-v0.4.0",
+        "seed_manifest_sha256": "5686be3d379c8e3742e7e891b9fb5265215aaebd4c3b3c0ec76a000b3175a9a1",
+        "exercises_sha256": "70889066bccba80110936553cdbd28a5c48556c5ca2b651f518a1447413bf1e7"
+      }
+    ],
+    "policy_sha256": "376e01a98449bdc9fd26c11492fb05753928cb0caf71c3a3ab4dbf8a510de165",
+    "policy_version": "1.0.0"
+  },
+  "review": {
+    "status": "DOMAIN_APPROVED",
+    "review_method_code": "AGENT_ONLY",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
+    "production_eligible": false
+  },
+  "summary": {
+    "rule_records": 282,
+    "exercise_records": 56,
+    "pattern_scope_rules": 24,
+    "exercise_scope_rules": 258
+  },
+  "files": [
+    {
+      "path": "safety_rules.jsonl",
+      "sha256": "a2667e53f6f335a8438679a60204cd01d62baeffa3a03f1c942416a32e292c3d",
+      "bytes": 116545,
+      "records": 282
+    },
+    {
+      "path": "coverage_report.json",
+      "sha256": "e94fde133d68a5f769b2df2844a5db741f60e046d9677dfc51aad3d0820b4f33",
+      "bytes": 14305,
+      "records": 1
+    }
+  ]
+}

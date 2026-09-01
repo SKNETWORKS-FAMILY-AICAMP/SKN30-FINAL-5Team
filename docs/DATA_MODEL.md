@@ -8,6 +8,19 @@
 
 멀티 에이전트 핵심 흐름은 [ADR-0007](adr/0007-multi-agent-structure-correction.md)에 따라 Training·Recovery·Safety·Feasibility 네 proposal의 병렬 실행과 Coordinator 최종 결정으로 확정한다. `agent_proposals`, 조정 결과, 공개 요약의 세부 JSON 구조와 버전 필드는 증상 사용자 시나리오 검증 결과에 따라 추후 보완할 수 있으며, 독립적인 최종 Safety 재검사 결과는 저장하지 않는다. 외부 연동·무료 체험·개인정보 보유기간의 상위 경계는 `ACCEPTED` ADR-0003·0004와 POL-013을 따르며, 관련 컬럼은 실제 migration과 호환성 검토가 승인되기 전까지 논리 모델이다. 결정 재현에 필요한 입력·정책·카탈로그·그래프 버전과 안전 veto 기록은 현재 확정한다.
 
+ADR-0013의 V3 persistence는 승인된 additive 계약이다. Migration
+`0025_v3_decision_persistence`가 V3-B1 물리 계약을 구현하며, 배포·production write 활성화 전까지
+현재 V1/V2 실행 기준을 변경하지 않는다.
+ADR-0014의 Qdrant retrieval persistence는 `ACCEPTED` 목표 계약이다. `vector_index_registry`는
+additive migration `0024_vector_index_registry`와 repository로 구현한다. 사용자 연결 retrieval audit과
+`decision_exercise_retrievals`와 나머지 V3 decision audit table은 migration 0025에서 함께 생성한다.
+이 migration의 downgrade는 production V3 write 전까지만 안전하다. V3 audit row가 생성된 뒤에는
+historical row를 제거하지 않고 additive forward-fix migration을 사용한다.
+
+ADR-0012는 conflict와 조건부 Round 2 review를 별도 기록하는 additive V2 논리 모델을 승인된
+목표로 정의한다. 후속 persistence task의 Alembic migration이 병합되기 전에는 아래 9.2.1을 물리
+schema 또는 구현 완료로 간주하지 않으며 현재 `agent_proposals` 관계를 유지한다.
+
 ---
 
 ## 2. 설계 원칙
@@ -218,7 +231,7 @@ expected `profile_version`을 함께 포함한다. endpoint CHECK 확장은 migr
 - LLM·에이전트에는 생년월일과 만 나이를 전달하지 않음
 - 프로필 응답에는 계산된 만 나이만 표시
 - 가입 자격 확인과 프로필 표시 외에는 만 나이를 사용하지 않음
-- 구체적인 암호화 키 관리와 접근 제어 구현은 클라우드 확정 후 결정
+- 배포 환경(staging·production)은 AWS KMS 대칭 키로 암호화하며 애플리케이션은 평문 키를 보관하지 않는다. 자격 증명은 EC2 instance role에서 얻고 정적 AWS 키를 쓰지 않는다. `BIRTHDATE_ENCRYPTION_KEY_BASE64` 로컬 키는 local·test 전용이다. 키 설정이 없으면 온보딩은 fail-closed로 503을 반환한다. 설정 절차는 `infra/deployment/README.md`를 따른다.
 - 계정 삭제 시 운영 DB 7일 이내 삭제
 - 백업 30일 이내 만료
 
@@ -244,6 +257,28 @@ PK는 user_id와 equipment_code의 조합이다.
 | updated_at | 수정 시각 |
 
 이 테이블은 사용자가 직접 입력한 지속적인 주의 부위다. 질환이나 진단명을 저장하지 않는다.
+
+#### 4.5.1 [후속 additive] user_onboarding_pain_areas
+
+신규 `PainAreaInput`을 저장할 논리 모델이다. 이번 단계에서는 물리 table/migration을 만들지 않는다.
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| user_id | users FK |
+| body_area_code | body_areas FK. `OTHER` 금지 |
+| intensity_score | 사용자가 선택한 1..10 정수 |
+| derived_severity_code | MILD, MODERATE, SEVERE |
+| intensity_policy_version | 최초 제안 `pain-intensity-map-v1` |
+| is_active | 현재 온보딩 통증 부위인지 |
+| created_at | 생성 시각 |
+| updated_at | 수정 시각 |
+
+활성 `(user_id, body_area_code)`는 유일하고 `intensity_score BETWEEN 1 AND 10` CHECK를 둔다.
+`pain_present`는 별도 중복 컬럼으로 저장하지 않고 활성 row 존재 여부로 재현할 수 있다. API transaction은
+`pain_present=false`이면 활성 row 0개, true이면 1개 이상을 보장한다. 기존 `user_attention_areas`를
+즉시 삭제·변환하지 않고 legacy row에서 점수나 severity를 추정하지 않는다. 원점수와 policy version은
+계정 삭제 전까지 함께 보존하며 Qdrant/embedding 입력에는 사용하지 않는다.
 
 ### 4.6 user_preferred_exercise_types
 
@@ -358,9 +393,9 @@ backup restore 직후 사용자 접근 차단과 동일 삭제 policy 재적용�
 | status_code | DRAFT, ACTIVE, DEPRECATED. 첫 importer slice는 DRAFT만 생성 |
 | manifest_schema_version | 검증한 seed manifest schema version |
 | generator_version | seed를 만든 generator version |
-| code_set_version | importer가 검증한 machine code 집합 버전. 최초 값은 `mvp-v1` |
+| code_set_version | importer가 검증한 machine code 집합 버전. `mvp-v1` 또는 migration 0026의 `catalog-v2` |
 | source_manifest_hash | `seed_manifest.json` 원문 byte의 SHA-256 |
-| source_track_code | 기존 산출물의 source track machine code (`wger`, `kspo`) |
+| source_track_code | 기존 산출물의 source track machine code (`wger`, `kspo`, `gymvisual`) |
 | review_status_code | 산출물 검수 상태. 최초 importer는 DOMAIN_APPROVED만 입력 가능 |
 | review_method_code | 검수 방법. 최초 importer는 AGENT_ONLY |
 | status_interpretation_code | 검수 상태 해석. 최초 importer는 PIPELINE_COMPATIBILITY_ONLY |
@@ -373,13 +408,40 @@ backup restore 직후 사용자 접근 차단과 동일 삭제 policy 재적용�
 한 시점에 하나의 ACTIVE 버전만 허용한다. 운영 사용 가능한 ACTIVE version은
 `review_status_code=DOMAIN_APPROVED`, `review_method_code=DOMAIN_REVIEWER`,
 `status_interpretation_code=PRODUCTION_APPROVED`, `production_eligible=true`,
-`activated_at IS NOT NULL`을 모두 만족해야 한다. DRAFT importer는 계속 `AGENT_ONLY`,
-`PIPELINE_COMPATIBILITY_ONLY`, `production_eligible=false`만 생성한다.
+`activated_at IS NOT NULL`을 모두 만족해야 한다. DRAFT importer는 `AGENT_ONLY` 또는 검증된
+`DOMAIN_REVIEWER` 증적을 수용하지만 `PIPELINE_COMPATIBILITY_ONLY`, `production_eligible=false`만
+생성한다.
 
 `DOMAIN_APPROVED`는 파이프라인 호환 상태이며 그 문자열만으로 ACTIVE 또는 production-safe로
 승격하지 않는다. `production_eligible=false`인 version은 사용자 추천에 사용할 수 없다.
 동일한 `version_code`와 동일한 `source_manifest_hash` 재적재는 멱등 처리하고, 동일
 `version_code`에 다른 hash가 들어오면 fail-closed한다.
+
+### 5.1.1 [ADR-0014, migration 0024] vector_index_registry
+
+Qdrant collection을 PostgreSQL catalog와 연결하는 재구축 가능한 derived-index registry다.
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| catalog_version_id | catalog_versions FK |
+| collection_name | allowlisted logical collection name |
+| vector_index_version | 불변 build version, UNIQUE |
+| source_manifest_hash | index source PostgreSQL catalog manifest hash |
+| embedding_model_version | provider/model/version의 불변 code |
+| embedding_input_schema_version | exercise embedding field allowlist version |
+| distance_metric_code | 승인된 metric code |
+| vector_dimension | 양의 정수 |
+| build_hash | canonical build manifest SHA-256 |
+| status_code | BUILDING, READY, ACTIVE, STALE, FAILED, RETIRED |
+| built_at | build 완료 시각, nullable |
+| activated_at | 활성화 시각, nullable |
+| created_at | 생성 시각 |
+
+ACTIVE index는 같은 catalog/source hash와 embedding contract를 가져야 한다. Qdrant는 이 registry와
+PostgreSQL catalog에서 전부 재구축할 수 있으며 canonical 운동·승인 데이터를 소유하지 않는다.
+payload는 exercise ID와 catalog/index version metadata만 허용하고 사용자·통증·건강·웨어러블 값을
+금지한다.
 
 ### 5.2 exercises
 
@@ -393,8 +455,8 @@ backup restore 직후 사용자 접근 차단과 동일 삭제 policy 재적용�
 | training_type_code | STRENGTH, CARDIO, MOBILITY 등 |
 | body_focus_code | body_focuses FK |
 | primary_movement_pattern_code | movement_patterns FK |
-| difficulty_code | 난이도 |
-| beginner_suitable | 초보자 적합 여부 |
+| difficulty_code | 운동 자체 난이도 (`BEGINNER`, `INTERMEDIATE`) |
+| beginner_suitable | 단계적 폐기 중인 legacy 컬럼. 신규 입력·추천·projection에서 사용 금지 |
 | timing_mode_code | REPS 또는 DURATION |
 | default_seconds_per_rep | 반복 기반 시간 추정값, nullable |
 | default_work_seconds | 시간 기반 동작 기본값, nullable |
@@ -403,18 +465,58 @@ backup restore 직후 사용자 접근 차단과 동일 삭제 policy 재적용�
 | recovery_eligible | 회복안 후보 여부 |
 | instruction_summary_ko | 블록에서 펼쳐볼 자세·수행 설명 |
 | form_cues_ko | 검수된 핵심 자세 포인트 JSONB |
-| instruction_media_asset_key | 검수된 이미지·애니메이션 참조, nullable |
 | mascot_animation_asset_key | 운동 실행 중앙 마스코트 애니메이션 참조, nullable |
 | instruction_content_version | 설명 콘텐츠 버전 |
 | review_status_code | DRAFT, TECH_REVIEWED, DOMAIN_APPROVED, REJECTED, DEPRECATED |
-| source_track_code | 기존 산출물 source track machine code |
+| source_track_code | 기존 산출물 source track machine code (`wger`, `kspo`, `gymvisual`) |
 | source_identity | source 안의 운동 불변 식별자 |
 | created_at | 생성 시각 |
 | updated_at | 수정 시각 |
 
+미디어 바이너리는 S3 경계에 남고 PostgreSQL에는 승인·권리 증적과 object key만 저장한다. V2
+backend importer는 S3 업로드를 수행하지 않으며 media artifact가 없는 카탈로그도 허용한다.
+
 UNIQUE 제약은 catalog_version_id와 stable_code 조합에 둔다.
 
 프로덕션 후보는 review_status_code가 DOMAIN_APPROVED인 운동만 사용한다.
+추천 후보는 사용자의 `experience_level_code`가 허용하는 누적 난이도를 따른다. `BEGINNER`는
+`BEGINNER` 운동만, `INTERMEDIATE`는 `BEGINNER`와 `INTERMEDIATE` 운동을 허용한다. 승인 처방도
+같은 방향성 호환성을 적용하므로 `BEGINNER` 운동에는 두 처방 레벨이 가능하고,
+`INTERMEDIATE` 운동에는 `INTERMEDIATE` 처방만 가능하다. `beginner_suitable`는 기존 DB 호환을
+위해 컬럼만 유지하며, 신규 catalog schema 1.1과 Qdrant/LLM payload에는 포함하지 않는다. 모든
+소비자와 기존 데이터 호환 기간이 끝난 뒤 별도 Alembic migration으로 삭제한다.
+
+### 5.2.1 exercise_media_assets
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| catalog_version_id | catalog_versions FK, cascade delete |
+| exercise_id | 실제 exercises.id FK, cascade delete |
+| s3_key | canonical `catalog-media/...` object key, UNIQUE |
+| media_status | AVAILABLE, UNAVAILABLE |
+| rights_review_status | APPROVED, PENDING, REJECTED |
+| rights_reviewer | 권리 검토자 비식별 참조, 승인 시 필수 |
+| rights_reviewed_at | timezone 포함 검토 시각, 승인 시 필수 |
+| rights_evidence_reference | 권리 증적 참조, 승인 시 필수 |
+| media_set_version_code | media artifact version |
+| source_manifest_hash | media manifest SHA-256 |
+| source_metadata | 원본 source metadata JSONB |
+| approval_metadata | 승인 registry metadata와 waiver JSONB, nullable |
+
+`(catalog_version_id, exercise_id)`는 UNIQUE다. 조회는 `AVAILABLE` + `APPROVED` + non-null
+`approval_metadata`를 모두 만족하는 행만 노출한다. 승인되지 않은 행은 보존할 수 있지만 API에는
+노출하지 않으며, media 행이 없는 운동은 `media_asset_key=null`이다.
+
+실제 source 객체가 canonical `s3_key`와 다른 경우 별도 컬럼을 추가하지 않고 검증 job이 다음
+키를 `source_metadata`에 additive하게 기록한다.
+
+- `source_object_key`: 정확한 `videos/<4자리 source_identity>-<식별문자열>.gif`
+- `source_object_content_type`: 검증된 `image/gif`
+- `source_object_verified_at`: timezone offset을 포함한 검증 시각
+
+이 값은 `source_identity` exact match, 단일 객체·단일 운동, 실제 S3 HEAD 성공 후에만 기록한다.
+canonical `s3_key`와 승인·권리 필드는 변경하지 않으며 presigned URL은 저장하지 않는다.
 
 ### 5.3 lookup tables
 
@@ -431,8 +533,15 @@ UNIQUE 제약은 catalog_version_id와 stable_code 조합에 둔다.
 body_areas의 MVP 허용 코드는 DOMAIN_RULES.md의 불편 부위 코드와 일치해야 한다.
 
 각 lookup 행은 `code_set_version`을 저장한다. 최초 catalog importer의 `mvp-v1`은 실제
-DRAFT 카탈로그 산출물이 사용하는 코드만 Pydantic `StrEnum`으로 검증한다. 기존 machine
-code를 한국어 label로 바꾸거나 삭제하지 않으며 새 코드는 후속 version에 추가한다.
+DRAFT 카탈로그 산출물이 사용하는 코드만 Pydantic `StrEnum`으로 검증한다. migration 0026은
+`catalog-v2`와 14개 body-focus code를 additive하게 허용한다. `CORE`, `FULL_BODY`처럼 두 code-set이
+공유하는 stable code는 전역 code PK의 기존 lookup 행을 재사용한다. 기존 machine code를 한국어
+label로 바꾸거나 삭제하지 않으며 새 코드는 후속 version에 추가한다.
+
+`catalog-v2` body-focus code는 `CHEST`, `BACK`, `SHOULDERS`, `BICEPS`, `TRICEPS`, `FOREARMS`,
+`GLUTES`, `QUADRICEPS`, `HAMSTRINGS`, `CALVES`, `CORE`, `FULL_BODY`, `CARDIO`, `MOBILITY`다.
+V2 import에서는 legacy `UPPER_BODY`, `LOWER_BODY`를 거부하지만 V1 row와 응답의 decoding은 유지한다.
+`CARDIO`와 `MOBILITY` training type은 같은 이름의 body-focus를 사용한다.
 `display_name_ko`는 machine code와 분리하고 PM 승인값만 저장한다. PM 승인 표시명이 아직
 없는 body area는 machine code를 임시 표시명으로 복제하지 않고 null로 유지한다.
 
@@ -485,6 +594,21 @@ PK는 exercise_id, body_area_code, role_code 조합이다.
 | source_manifest_hash | 대체 관계 매니페스트 SHA-256 |
 | source_metadata | 매니페스트 전체의 버전 있는 source·review·file 메타데이터 JSONB |
 | created_at | 생성 시각 |
+
+통증(`reason_code=DISCOMFORT`) 관계는 다음 typed selector를 추가로 저장한다.
+
+| 컬럼 | 설명 |
+|---|---|
+| pain_discomfort_area_code | 사용자가 보고한 통증·불편 부위 |
+| condition_code | `NRS_1_3` 또는 `NRS_4_6` |
+| service_action_code | `LOAD_REDUCED` 또는 `SKIP_AFFECTED_AREA` |
+| target_strategy_code | 통증 부위 회피와 부하·회복 전략 |
+
+장비·장소 관계에서는 위 selector를 `NULL`로 둔다. 통증 관계의 unique key는 기존 관계
+식별자에 `condition_code`와 `pain_discomfort_area_code`를 함께 포함한다. 같은 source→target
+쌍이라도 NRS 구간별 관계와 통증 부위별 관계를 각각 보존한다. 부위를 키에서 빼면 같은 밴드의
+서로 다른 부위 관계가 충돌해 검수된 관계가 유실된다. Decision service는 사용자의 불편 부위·
+심각도와 일치하는 관계만 조회한다.
 
 대체 관계는 방향성이 있다. A가 B를 대체한다고 해서 B가 A를 자동으로 대체하지 않는다.
 
@@ -561,6 +685,12 @@ source track/identity를 보존한다. URL·license 근거가 포함된 후속 �
 - source metadata는 매니페스트 전체를 JSONB로 보존한다. 현재 생성 매니페스트에 없는 URL이나
   license code는 raw 자료에서 추정하지 않으며, 후속 매니페스트에 추가되면 같은 필드에 보존한다.
 
+V2 전용 importer는 승인된 bundle manifest 자체의 hash와 모든 파일의 canonical hash/byte count,
+catalog·safety·alternatives·prescriptions의 version/hash/count, taxonomy registry hash를 exact-match로
+검증한다. 선택적 media manifest가 있으면 같은 검증 범위에 포함하고 REX ID를 stable code를 거쳐
+실제 exercise FK로 매핑한다. 모든 신규 행은 하나의 transaction에서 적재되어 중간 실패 시 전체
+rollback된다. 적재 완료 전 catalog는 DRAFT이며 activation은 별도 fail-closed gate를 통과해야 한다.
+
 ### 5.11 catalog_review_records
 
 | 컬럼 | 설명 |
@@ -613,7 +743,7 @@ advisory lock을 사용하고 `(user_id, version)` UNIQUE로 동시 생성에서
 | training_type_code | STRENGTH, CARDIO, MOBILITY, MIXED 등 |
 | body_focus_code | UPPER_BODY, LOWER_BODY 등, nullable |
 | requested_duration_minutes | 사용자가 요청한 권장 운동 길이 |
-| estimated_duration_seconds | requested_duration_minutes와 정확히 일치하는 계획 시간 합계 |
+| estimated_duration_seconds | requested_duration_minutes*60과 ±300초 이내인 계획 시간 합계 |
 | setup_seconds | 0~60초 장비 준비 시간 |
 | estimated_calories_burned | 체중 기반 예상 소모 칼로리 추정치, nullable |
 
@@ -636,8 +766,11 @@ advisory lock을 사용하고 `(user_id, version)` UNIQUE로 동시 생성에서
 tier_code는 routine item의 문맥 속성이다.
 각 routine day는 WARMUP, MAIN, COOLDOWN을 이 순서로 하나 이상 포함하고 MAIN에는 CORE가
 하나 이상 있어야 한다. 단계 순서와 CORE 존재는 service 및 통합 테스트로 검증한다.
-`estimated_duration_seconds = requested_duration_minutes * 60`은 DB CHECK와 duration service
-양쪽에서 검증한다. `schedule_rule=ROTATION`이며 특정 요일을 저장하지 않는다.
+`abs(estimated_duration_seconds - requested_duration_minutes * 60) <= 300`은 DB CHECK와
+duration service 양쪽에서 검증한다. 승인된 pool이 요청 시간을 정확히 맞출 수 없을 때 계획은 이
+±5분 창 안에 들어올 수 있고 가장 가까운 계획이 이긴다. 창을 벗어나면 요청을 실패시키며 시간을
+임의로 줄이지 않는다(AGENTS.md 7절, 2026-08-27 승인). `requested_duration_minutes`는 사용자
+요청값 그대로 보존한다. `schedule_rule=ROTATION`이며 특정 요일을 저장하지 않는다.
 
 ### 6.3.1 user_available_locations
 
@@ -658,6 +791,22 @@ PK는 `(user_id, location_code)`다. 기존 `user_profiles.preferred_location_co
 `WARMUP/MAIN/COOLDOWN` 단계별 세트, 반복 또는 시간, 휴식, 강도와 prescription version을
 저장한다. 두 테이블 모두 `DOMAIN_APPROVED` 행만 루틴 생성에 사용한다. 운동 이름이나
 training type에서 목표·처방을 추론하지 않는다.
+
+병합 카탈로그 처방 산출물 `merged-mvp-v0.1.0`은 goal tag 32건과 prescription profile
+36건을 포함한다. importer는 산출물 manifest의 version/hash/count를 검증하고 운동을
+`(catalog_version_code, stable_code)`로 해석해 두 테이블에 원자적으로 적재한다. 적재된
+catalog의 `manifest_metadata.prescription_artifact`에는 처방 산출물 version, manifest hash,
+두 건수와 승인 metadata를 보존한다. 같은 version의 hash 또는 건수가 달라지면 재적재하지
+않고 실패한다.
+
+`catalog_versions.source_track_code=merged`는 카탈로그 컨테이너가 여러 source track을
+합쳤다는 뜻이다. 각 `exercises.source_track_code`는 `wger`, `kspo`, `gymvisual` 중 하나를
+허용해 운동별
+provenance를 보존한다. `MERGED-MVP-20260820-PM-DOMAIN-APPROVAL`은 다음 정확한 집합에만
+적용된다: catalog 56종, safety rules 282건, alternatives 238건, goal tags 32건,
+prescription profiles 36건. migration은 이미 적재된 행을 동일 기준으로 재검사하고 승인
+metadata를 기록하지만 ACTIVE 전환은 하지 않는다. `catalog_activate`가 처방/goal tag 존재와
+review 상태를 다시 확인한 뒤 단일 ACTIVE 제약 안에서 전환한다.
 
 ### 6.4 scheduled_workouts
 
@@ -779,6 +928,7 @@ provider 실패로 counter를 rollback하지 않는다. account deletion 때 CAS
 | sleep_minutes | 선택적 수동 또는 요약값 |
 | fasting_state_code | 선택 |
 | hydration_state_code | 선택 |
+| availability_source_code | MANUAL 또는 ROUTINE_DEFAULT. 기본값 ROUTINE_DEFAULT |
 | context_version | 낙관적 잠금 |
 | created_at | 생성 시각 |
 | updated_at | 수정 시각 |
@@ -809,6 +959,32 @@ daily_context_id와 body_area_code 조합은 유일하다. NONE 항목은 저장
 | reaction_code | DOMAIN_RULES.md의 이상 반응 코드 |
 
 PK는 daily_context_id와 reaction_code 조합이다.
+
+### 7.3.1 daily_context_availability_slots
+
+사용자가 체크인에서 직접 입력한 운동 가능 시간 구간이다. 외부 캘린더 연동은 보류 상태이므로
+(ADR-0010 "구현 보류") 이 테이블이 유일한 availability 입력원이다.
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| daily_context_id | daily_contexts FK, ON DELETE CASCADE |
+| start_at | timestamptz, 구간 시작 |
+| end_at | timestamptz, 구간 종료 |
+| slot_order | 0부터 시작하는 정규화된 순서 |
+
+- `(daily_context_id, slot_order)` 조합은 유일하다.
+- `end_at > start_at` CHECK를 둔다.
+- `slot_order >= 0` CHECK와 최대 8개 제한을 둔다. 상한은 도메인의 `MAX_AVAILABILITY_SLOTS`와
+  같은 값이며 애플리케이션 계층에서 강제한다.
+- 행은 체크인 교체마다 전량 삭제 후 재삽입한다. `daily_contexts.context_version`이 함께 증가한다.
+
+미입력과 명시적 빈 선택은 행 수로 구분하지 않고 `daily_contexts.availability_source_code`로
+구분한다. `ROUTINE_DEFAULT`는 미입력, `MANUAL`이면서 행이 0개면 사용자가 "가능한 시간 없음"을
+명시적으로 선택한 상태다.
+
+이 테이블은 참고 입력이며 공식 운동 수행 상태, 안전 판단, 운동 계획을 변경하지 않는다. 일정 제목,
+설명, 참석자, 장소, 링크 같은 캘린더 본문 성격의 값은 저장하지 않는다.
 
 ### 7.4 wearable_connections
 
@@ -964,11 +1140,27 @@ snapshot에 저장하지 않는다.
 | completed_at | 종료 시각 |
 | failure_code | 실패 코드, nullable |
 
-prompt version과 model code는 문구 전용 정보이므로 `decision_runs`가 아니라 9.8절
+V1/V2의 prompt version과 model code는 문구 전용 정보이므로 `decision_runs`가 아니라 9.8절
 `decision_explanations`에 저장한다. 결정 재현에 필요한 graph·policy·catalog·safety rule·duration rule
 version은 `decision_runs`가 계속 보유한다.
 
-같은 사용자, local_date, input_hash, policy_version_id에 대한 중복 실행을 제한하는 unique 또는 idempotency 제약을 둔다.
+Migration `0025_v3_decision_persistence`는 `decision_runs`에 다음 nullable/additive lineage metadata를
+추가한다.
+
+| 컬럼 | 설명 |
+|---|---|
+| root_decision_run_id | 최초 run self FK |
+| parent_decision_run_id | 직전 regeneration run self FK, nullable |
+| generation_mode_code | ORIGINAL 또는 REGENERATED |
+| regeneration_sequence | 원본 0, 성공 재생성 1..2 |
+| decision_engine_code | DETERMINISTIC, LLM_MULTI_AGENT, DETERMINISTIC_FALLBACK |
+| langchain_contract_version | Agent adapter contract version |
+| langgraph_contract_version | graph state·routing contract version |
+
+같은 root에서 `(root_decision_run_id, regeneration_sequence)`는 unique다. V1/V2 row는 nullable
+metadata를 갖고 기존 의미를 유지한다.
+
+같은 사용자, daily_context_id, daily_context_version, input_hash에 대한 `COMPLETED` decision은 partial unique index로 하나만 허용한다. 다른 Idempotency-Key의 재시도는 이 completed 결과를 재사용하며, 새 context version 또는 다른 input_hash는 새 decision을 생성할 수 있다.
 
 `input_snapshot.profile`이 포함될 경우 허용 필드는 다음으로 제한한다.
 
@@ -1011,6 +1203,270 @@ Coordinator 결과는 서로 다른 레코드에 저장한다.
 
 decision_run_id와 agent_type_code 조합은 유일하다.
 
+V3 run은 `TRAINING`, `RECOVERY`, `FEASIBILITY` 세 Round 1 proposal만 저장한다. Historical V1/V2의
+`SAFETY` row는 유지한다. 다음 표는 계약 동결 당시 검토한 논리 후보이며, migration 0025는 중복
+lineage를 `decision_runs`와 아래 확정 invocation metadata로 분리한다.
+
+| 컬럼 | 설명 |
+|---|---|
+| execution_engine_code | DETERMINISTIC 또는 LLM |
+| model_provider_code | LLM 실행 시 provider machine code |
+| model_code | provider 반환 model code |
+| prompt_version | prompt template version, 원문 아님 |
+| structured_output_schema_version | LangChain/Pydantic response contract |
+| input_hash | 최소 Agent input canonical hash |
+| output_hash | 검증된 structured proposal hash |
+| fallback_reason_code | deterministic proposal 사용 시 nullable code |
+
+prompt 원문, chain-of-thought, provider 예외 문자열과 직접 식별자는 저장하지 않는다.
+
+Migration `0025_v3_decision_persistence`는 기존 V1/V2 row를 backfill하지 않고 다음 nullable V3 LLM
+invocation metadata를 `agent_proposals`에 추가한다.
+
+| 컬럼 | 설명 |
+|---|---|
+| invocation_metadata_schema_version | `llm-invocation-metadata-v1` |
+| proposal_hash | 검증된 structured proposal canonical SHA-256 |
+| prompt_version | prompt template version. 원문 아님 |
+| provider_code | provider machine code |
+| model_code | model/version machine code |
+| output_schema_version | structured output contract version |
+| attempt_number | bounded attempt 0 또는 1 |
+| invocation_status_code | SUCCEEDED, FAILED, TIMEOUT, INVALID_OUTPUT |
+| latency_ms | 비민감 운영 지표, 0 이상 |
+
+V3 metadata는 all-or-none이며 V1/V2 row에서는 모두 null이다. 따라서 historical `SAFETY` proposal과
+기존 네 Agent read/write는 유지되고, V3 여부와 3-Agent cardinality는 `decision_runs.graph_version`과
+lineage metadata 및 repository 계약으로 구분한다.
+
+### 9.2.1 V2 물리 모델 — decision_deliberations, agent_proposal_revisions, agent_review_events
+
+Migration `0023_v2_deliberation_store`는 기존 `agent_proposals`를 Round 1 원본으로 유지하고,
+conflict detection, canonical proposal hash, Round 2 결과를 additive 관계로 저장한다. 기존 decision을
+backfill해 V2 실행으로 가장하지 않으며 기존 공개 API와 Coordinator 결과 컬럼을 변경하지 않는다.
+
+`decision_deliberations`는 decision run당 0..1개다.
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| decision_run_id | decision_runs FK, UNIQUE |
+| policy_version_id | decision_policy_versions FK. decision run의 정책 버전과 같아야 함 |
+| deliberation_schema_version | conflict/review envelope schema version |
+| graph_version | decision run의 V2 graph version 스냅샷 |
+| round_count | 1 또는 2 |
+| round_two_status_code | SKIPPED_NO_CONFLICT, COMPLETED, NEEDS_INPUT, FAILED |
+| conflict_detector_version | conflict code 생성 규칙 버전 |
+| precedence_version | constraint authority 규칙 버전 |
+| conflict_codes | canonical machine code JSONB |
+| conflict_hash | canonical conflict payload SHA-256 |
+| created_at | 생성 시각 |
+
+`agent_proposal_revisions`는 기존 `agent_proposals`와 Coordinator 결과 사이를 덮어쓰지 않는 hash
+lineage다. Round 1 행은 기존 proposal을 가리키고 동일 payload의 canonical SHA-256을 저장한다.
+Round 2 행은 실제 `REVISED` proposal이 있을 때만 생성하고 해당 Agent의 Round 1 revision을 가리킨다.
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| decision_run_id | decision_runs FK |
+| deliberation_id | decision_deliberations FK |
+| source_proposal_id | Round 1이면 기존 agent_proposals FK, Round 2이면 null |
+| baseline_revision_id | Round 2이면 같은 Agent의 Round 1 revision FK, Round 1이면 null |
+| policy_version_id | decision_policy_versions FK. decision run의 정책 버전과 같아야 함 |
+| round_number | 1 또는 2 |
+| agent_type_code | TRAINING, RECOVERY, SAFETY, FEASIBILITY |
+| proposal_status_code | READY, NEEDS_INPUT, FAILED |
+| proposal_schema_version | proposal JSON 구조 버전 |
+| proposal_payload | 검증된 구조화 proposal JSONB |
+| proposal_hash | canonical proposal payload SHA-256 |
+| created_at | 생성 시각 |
+
+`(decision_run_id, round_number, agent_type_code)`는 unique다. Round 1의 네 행은 반드시 기존 네
+`agent_proposals`와 연결하며, Round 2 revision은 baseline hash lineage를 끊지 않는다.
+
+`agent_review_events`는 V2 deliberation당 정확히 네 Agent의 event를 저장한다. 실제 review 비대상도
+`NOT_REQUIRED`를 저장해 누락과 생략을 구분한다.
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| decision_run_id | decision_runs FK |
+| deliberation_id | decision_deliberations FK |
+| baseline_revision_id | 해당 Agent Round 1 proposal revision FK |
+| revised_revision_id | REVISED일 때 Round 2 proposal revision FK, 그 외 null |
+| round_number | V2에서는 2 |
+| agent_type_code | TRAINING, RECOVERY, SAFETY, FEASIBILITY |
+| review_status_code | READY, NOT_REQUIRED, NEEDS_INPUT, FAILED |
+| revision_status_code | UNCHANGED, REVISED, NOT_REQUIRED, 또는 NEEDS_INPUT/FAILED이면 null |
+| review_schema_version | AgentReview JSON 구조 버전 |
+| baseline_proposal_hash | 해당 Agent Round 1 proposal hash |
+| reviewed_proposal_references | `(agent_type_code, proposal_hash)` canonical 구조 JSONB |
+| review_payload | constraint·conflict·reason·evidence machine code JSONB |
+| review_hash | canonical review payload SHA-256 |
+| created_at | 생성 시각 |
+
+`(decision_run_id, round_number, agent_type_code)`는 unique다. revised proposal은 기존 proposal과
+같은 승인 후보·시간·정책 검증을 통과해야 하며 Coordinator final result와 같은 JSON에 덮어쓰지
+않는다. Safety veto·제외 단조성 위반 review는 저장 가능한 성공 event가 아니다.
+
+V2 conflict/review는 사용자 연결 decision 데이터이므로 기존 decision과 같은 삭제·보존 정책을
+따른다. `decision_runs` 삭제 시 세 테이블과 revision lineage는 `ON DELETE CASCADE`로 삭제된다.
+graph checkpoint, application log, 자유 reasoning, 직접 식별자, 자유 체크인, 원시 건강·웨어러블
+값은 이 테이블에 저장하지 않는다.
+
+건강 데이터 보존기간 검토 결과, 이 세 테이블은 원시 건강 데이터 저장소가 아니라 최소화된 decision
+파생 기록이다. 따라서 별도 장기 기억이나 독립 보존기간을 두지 않고 계정 삭제 시 user-linked decision과
+함께 7일 이내 hard delete한다. 일반 이용 중 decision·proposal 파생 기록의 구체적 보유기간 상한은
+아직 승인되지 않았으므로 migration에 임의 TTL을 추가하지 않는다. production purge 정책을 도입하기
+전 PM·개발팀장 및 법률/개인정보 검토로 상한과 법적 예외를 확정해야 한다.
+
+V3 deliberation은 graph version으로 V2와 구분하며 정확히 세 전문 Agent의 event를 저장한다. V3의
+`SAFETY` review event는 만들지 않는다. Safety constraint 위반은 canonical conflict code와 최종
+validation record로 저장한다.
+
+### 9.2.2 [migration 0025] decision_constraint_envelopes
+
+SafetyPolicyEngine과 constraint builder가 확정한 생성 경계를 decision lineage당 하나의 immutable
+record로 저장한다. regeneration run은 새 envelope를 복제하지 않고 같은 row를 참조한다.
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| root_decision_run_id | 최초 decision_runs FK, UNIQUE |
+| input_hash | envelope를 만든 최소 input hash |
+| envelope_schema_version | Pydantic contract version |
+| safety_policy_version | SafetyPolicyEngine version |
+| policy_version_id | policy_versions FK |
+| safety_rule_version | 적용 ruleset version |
+| duration_rule_version | 시간 hard target rule version |
+| plan_generation_allowed | boolean |
+| required_action_code | REST/STOP_AND_SEEK_HELP 또는 null |
+| veto | boolean |
+| envelope_payload | code·ID·정수·불리언 중심 immutable JSONB |
+| envelope_hash | canonical SHA-256 |
+| expires_at | regeneration freshness 경계 |
+| created_at | 생성 시각 |
+
+### 9.2.3 [migration 0025] decision_exercise_pools
+
+application loader가 방식 A로 사전 조회한 승인 운동 snapshot이다.
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| constraint_envelope_id | decision_constraint_envelopes FK, UNIQUE |
+| catalog_version_id | catalog_versions FK |
+| pool_schema_version | snapshot contract version |
+| filter_codes | deterministic filter code JSONB |
+| constraint_envelope_hash | snapshot을 만든 envelope canonical SHA-256 |
+| exercise_payload | PostgreSQL 재검증된 exercise ID·tag·처방 범위·content version JSONB |
+| mandatory_exercise_ids | 목표/승인 안전 대체 ID canonical JSONB |
+| vector_ranked_exercise_ids | 재검증된 Vector 순위 ID JSONB. fallback-only면 빈 목록 |
+| retrieval_metadata | request/result schema, collection/index/embedding/query version·hash, status/fallback JSONB |
+| exercise_count | canonical item 수 |
+| pool_hash | canonical SHA-256 |
+| created_at | 생성 시각 |
+
+mandatory ID는 `exercise_payload`의 부분집합이어야 한다. user ID, 자유 체크인, 통증 부위·점수,
+원시 건강·웨어러블 값은 pool에 포함하지 않는다. `created_at`은 `pool_hash` 입력에서 제외한다.
+
+pool snapshot schema는 `exercise-pool-snapshot-v4`다. v3 대비 각 운동 레코드가 카탈로그의 승인된
+타이밍 기준(`default_seconds_per_rep`, `default_work_seconds`, `default_rest_seconds`,
+`default_transition_seconds`)을 함께 싣는다. 계획 시간을 검수된 값으로 계산하기 위한 정수 필드이며
+식별 정보가 아니다. 레코드 형태가 바뀌었으므로 v3로 저장된 snapshot은 v4 계약으로 replay할 수 없다.
+pool 크기는 고정값이 아니라 `requested_duration_minutes`에서 도출한다.
+
+### 9.2.3.1 [migration 0025, ADR-0014] decision_exercise_retrievals
+
+Vector 호출과 PostgreSQL 재검증/fallback을 Qdrant 재호출 없이 replay하기 위한 immutable record다.
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| constraint_envelope_id | decision_constraint_envelopes FK, UNIQUE |
+| exercise_pool_id | decision_exercise_pools FK, UNIQUE |
+| vector_index_registry_id | vector_index_registry FK, Vector 미도달이면 nullable |
+| request_schema_version | `exercise-retrieval-request-v1` |
+| request_hash | canonical request SHA-256 |
+| eligible_exercise_ids_hash | PostgreSQL deterministic eligible ID 목록 hash |
+| mandatory_exercise_ids_hash | mandatory ID 목록 hash |
+| normalized_query_codes_hash | 비민감 allowlist code hash |
+| retrieval_mode_code | VECTOR_RANKED 또는 DETERMINISTIC_ONLY |
+| requested_limit | 양의 정수 |
+| result_schema_version | `exercise-retrieval-result-v1` |
+| collection_name | 사용 collection, nullable |
+| vector_index_version | 불변 index version, nullable |
+| embedding_model_version | embedding model/version, nullable |
+| query_hash | 식별자·통증 없는 canonical query hash |
+| retrieval_status_code | 성공 또는 단일 canonical 원인 code |
+| retrieval_failure_codes | 발생 원인의 canonical 배열 JSONB |
+| returned_ranked_ids_and_scores | provider 반환의 검증 가능한 구조 JSONB |
+| revalidated_ranked_exercise_ids | PostgreSQL 재검증 통과 ID JSONB |
+| fallback_used | boolean |
+| fallback_policy_version | 결정적 후보 정책 version, 미사용 시 null |
+| retrieval_latency_ms | 비안전 운영 지표, nullable |
+| result_hash | canonical result SHA-256 |
+| created_at | 생성 시각 |
+
+허용 status/failure code는 `VECTOR_RETRIEVAL_SUCCEEDED`, `VECTOR_INDEX_UNAVAILABLE`,
+`VECTOR_INDEX_NOT_READY`, `VECTOR_INDEX_VERSION_MISMATCH`, `VECTOR_SEARCH_TIMEOUT`,
+`VECTOR_RESULT_STALE`, `VECTOR_RESULT_NOT_CANONICAL`, `VECTOR_RESULT_INSUFFICIENT`다. fallback이 실제
+사용되면 원인과 별도로 `DETERMINISTIC_POOL_FALLBACK_USED` audit event를 metadata에 저장한다.
+query 원문, 직접 식별자, 통증 부위·점수, 원시 건강·웨어러블 값과 provider 예외 원문은 저장하지 않는다.
+
+### 9.2.4 [migration 0025] decision_coordination_attempts
+
+Coordinator initial과 optional repair를 덮어쓰지 않고 별도 저장한다.
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| decision_run_id | decision_runs FK |
+| attempt_number | 0 initial, 1 repair |
+| status_code | READY, FAILED |
+| input_hash | proposal·review·violation canonical hash |
+| coordinator_schema_version | structured output contract |
+| model_provider_code | provider code |
+| model_code | model code |
+| prompt_version | prompt version |
+| plan_spec | 검증된 structured JSONB 또는 null |
+| output_hash | plan_spec hash 또는 null |
+| repair_violation_codes | attempt 1 입력 code JSONB, initial은 null |
+| failure_code | nullable fixed code |
+| created_at | 생성 시각 |
+
+`(decision_run_id, attempt_number)`는 unique이고 attempt는 0 또는 1만 허용한다.
+
+### 9.2.5 [migration 0025] plan_integrity_validations
+
+Plan Compiler와 최종 validator 결과를 attempt별로 저장한다. 이는 원시 Safety 판단 재실행 결과가
+아니라 compiled plan의 ConstraintEnvelope 준수 기록이다.
+
+| 컬럼 | 설명 |
+|---|---|
+| id | UUID, PK |
+| decision_run_id | decision_runs FK |
+| coordination_attempt_id | 같은 run·attempt의 decision_coordination_attempts FK, UNIQUE |
+| coordination_attempt_number | 0 또는 1 |
+| plan_candidate_id | plan_candidates FK, compile 실패 시 null |
+| compiler_version | 결정적 compiler version |
+| validator_version | integrity validator version |
+| status_code | PASS, REPAIRABLE, FAILED |
+| violation_codes | canonical machine code JSONB |
+| meaningful_difference_codes | regeneration에서만 JSONB, 그 외 null |
+| validation_hash | canonical result SHA-256 |
+| created_at | 생성 시각 |
+
+`(decision_run_id, coordination_attempt_number)`와 `coordination_attempt_id`는 각각 unique다. 저장
+repository는 attempt의 run·number와 validation을 대조한다. PASS record가 없는 LLM plan은 final
+option과 연결할 수 없다.
+
+V3 migration은 새 테이블과 nullable column을 먼저 추가하고 V1/V2 read/write를 유지한 뒤 새
+`graph_version`에서만 V3 record를 쓰는 순서로 배포한다. production V3 write 전에는 새 객체를 제거하는
+rollback이 가능하다. V3 record가 생성된 뒤에는 historical audit row를 삭제하지 않고 nullable field나
+새 version을 추가하는 forward-fix를 사용한다. 기존 decision을 V3로 backfill하지 않는다.
+
 ### 9.3 plan_candidates
 
 `selected=true`인 성공 후보는 반드시 `estimated_duration_seconds =
@@ -1028,13 +1484,13 @@ requested_duration_minutes * 60`을 만족한다. Coordinator가 거절한 재�
 | cooldown_seconds | 마무리 |
 | requested_duration_minutes | 사용자 요청 시간 |
 | duration_adjustment_source_code | PROFILE 또는 USER_OVERRIDE |
-| estimated_duration_seconds | requested_duration_minutes와 정확히 일치하는 계획 시간 합계 |
+| estimated_duration_seconds | requested_duration_minutes*60과 ±300초 이내인 계획 시간 합계 |
 | estimated_calories_burned | 체중 기반 예상 소모 칼로리 추정치, nullable |
 | goal_preservation_score | 비안전 목적 점수 |
 | duration_rule_version | 시간 규칙 버전 |
 | created_at | 생성 시각 |
 
-requested_duration_minutes는 사용자 입력에서만 가져오며 시스템이 임의 변경하지 않는다. 계획이 있는 후보의 estimated_duration_seconds는 `requested_duration_minutes * 60`과 정확히 일치해야 한다. 이는 계획 단계의 hard target이지만 실제 수행의 hard execution limit이나 완료 조건은 아니다. estimated_calories_burned는 제공된 체중이 있을 때만 계산하며 진단·안전 판정의 단독 근거로 사용하지 않는다.
+requested_duration_minutes는 사용자 입력에서만 가져오며 시스템이 임의 변경하지 않는다. 계획이 있는 후보의 estimated_duration_seconds는 `requested_duration_minutes * 60`과 ±300초 이내여야 하며, 허용 범위 안에서 차이가 가장 작은 계획을 선택한다(동률이면 더 긴 계획). 이는 계획 단계의 hard target이지만 실제 수행의 hard execution limit이나 완료 조건은 아니다. estimated_calories_burned는 제공된 체중이 있을 때만 계산하며 진단·안전 판정의 단독 근거로 사용하지 않는다.
 
 ### 9.4 plan_items
 
@@ -1144,6 +1600,9 @@ Wave 6는 option의 생성과 조회까지만 구현한다. option 선택과 wor
 `PAYLOAD_NOT_SHAREABLE`, `LLM_PROVIDER_FAILED`, `LLM_OUTPUT_REJECTED`를 사용한다.
 
 안전 문구와 일반 설명을 분리하고 내부 추론과 prompt 원문을 저장하지 않는다. agent_summaries와 safety_summary는 공개 가능한 입력·판단 결과의 제한된 요약만 저장하며 증상 사용자 시나리오 검증 결과에 따라 상세 구조를 추후 보완할 수 있다. 독립적인 최종 Safety 재검사 결과는 저장하지 않는다. safety_summary 문장은 LLM 경로에서도 템플릿 문구를 유지한다.
+
+V3의 `safety_summary`는 SafetyAgent proposal이 아니라 `SafetyPolicyEngine` 결과의 공개 projection이다.
+Historical V1/V2 JSON은 변경하지 않고 explanation schema version으로 의미를 구분한다.
 
 ---
 
@@ -1257,12 +1716,17 @@ REST 또는 STOP_AND_SEEK_HELP 결과가 나오면 세션 상태를 STOPPED_FOR_
 |---|---|
 | workout_session_id | PK, FK |
 | difficulty_code | EASY, APPROPRIATE, HARD |
-| fatigue_code | 선택형 피로도, 후보 코드 개발 전 확정 |
-| satisfaction_code | 선택형 만족도, 후보 코드 개발 전 확정 |
-| pain_occurred | 불편 발생 여부 |
+| fatigue_code | legacy deprecated, nullable 유지 |
+| satisfaction_code | legacy deprecated, nullable 유지 |
+| pain_occurred | legacy deprecated, nullable 유지 검토. 기존 row 의미 보존 |
 | created_at | 생성 시각 |
 
-workout_feedback_discomforts와 workout_feedback_adverse_reactions에 부위, 심각도, 이상 반응 코드를 정규화해 저장한다.
+신규 write 계약은 `difficulty_code`만 사용한다. 기존
+`workout_feedback_discomforts`와 `workout_feedback_adverse_reactions`, fatigue/satisfaction/pain 컬럼과
+row는 즉시 삭제하지 않는다. 후속 migration은 먼저 신규 write에서 legacy column을 nullable로 허용하고
+구 클라이언트 write/read를 지원한 뒤, 사용량과 compatibility 검증을 거쳐 legacy write를 중단한다.
+누락된 `pain_occurred`를 false로 backfill하지 않는다. 운동 중 통증·이상 반응의 canonical 신규 원천은
+삭제되지 않는 `workout_safety_events`와 child table이다.
 
 ### 10.5 workout_skip_feedback
 
@@ -1337,6 +1801,13 @@ input_snapshot은 주 경계·목표 횟수, 블록 체크로 재검증한 공�
 persistence_rate는 `(COMPLETED + PARTIAL) / target_workout_count`이며 둘 다 1을 상한으로 한다.
 negotiation_success_rate는 조정 액션 세션 중 `COMPLETED | PARTIAL` 비율이고 분모가 0이면 null이다.
 
+신규 aggregate schema의 `pain_report_count`는 해당 주의
+`workout_safety_event_discomforts`가 존재하는 distinct workout session 수다. 동일 session의 여러
+event/부위는 한 번만 센다. legacy `workout_feedback.pain_occurred=true`는 safety event가 없는
+historical session에 한해 포함하고 중복하지 않는다. onboarding pain과 daily context는 원천이 아니다.
+기존 report snapshot은 rewrite하지 않고 aggregate schema/report policy version으로 집계 의미를
+구분한다.
+
 ### 11.3 weekly_plan_revisions
 
 | 컬럼 | 설명 |
@@ -1384,17 +1855,38 @@ users
 
 decision_runs
   ├─ 1:4 agent_proposals (Training, Recovery, Safety, Feasibility)
+  ├─ 1:0..1 decision_deliberations [migration 0023]
+  │           ├─ 1:N agent_proposal_revisions (Round 1 네 행 + 실제 Round 2 revision)
+  │           └─ 1:4 agent_review_events (NOT_REQUIRED 포함)
   ├─ 1:N plan_candidates ─ 1:N plan_items
   ├─ 1:N safety_reviews
   ├─ 1:N decision_options
-  └─ 1:0..1 decision_selections
+  ├─ 1:0..1 decision_selections
+  ├─ 1:0..2 decision_coordination_attempts [migration 0025]
+  └─ 1:0..2 plan_integrity_validations [migration 0025]
+
+decision root [ADR-0013 V3 목표]
+  ├─ 1:1 decision_constraint_envelopes
+  │           └─ 1:1 decision_exercise_pools
+  │                       └─ 1:1 decision_exercise_retrievals [ADR-0014 ACCEPTED 목표]
+  └─ 1:1..3 decision_runs (original + 최대 2 regeneration)
+
+catalog_versions
+  └─ 1:N vector_index_registry [ADR-0014 ACCEPTED 목표]
 ~~~
+
+위 `1:4 agent_proposals`와 `1:4 agent_review_events`는 V1/V2 관계다. V3 run은 각각 세 전문 Agent
+기준 `1:3`이며 `graph_version`으로 물리 무결성 조건을 구분한다.
 
 ---
 
 ## 13. 인덱스와 무결성
 
 필수 인덱스:
+
+- decision_deliberations(decision_run_id) UNIQUE
+- agent_proposal_revisions(decision_run_id, round_number, agent_type_code) UNIQUE
+- agent_review_events(decision_run_id, round_number, agent_type_code) UNIQUE
 
 - user_identities(provider_code, provider_subject) UNIQUE for active identity
 - user_identities(firebase_subject) UNIQUE for active identity
@@ -1417,6 +1909,10 @@ decision_runs
 - wearable_summaries(user_id, local_date, provider_code)
 - workout_sessions(user_id, ended_at, status_code)
 - decision_runs(user_id, local_date, completed_at)
+- vector_index_registry(vector_index_version) UNIQUE
+- vector_index_registry(catalog_version_id, status_code)
+- decision_exercise_retrievals(constraint_envelope_id) UNIQUE
+- decision_exercise_retrievals(exercise_pool_id) UNIQUE
 - exercises(catalog_version_id, review_status_code)
 - exercise_safety_rules(body_area_code, minimum_severity_code, review_status_code)
 - user_weeks(user_id, week_start_local_date)

@@ -561,7 +561,9 @@ def build_seed(
             ],
         }
         (partial_dir / "seed_manifest.json").write_text(
-            json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+            json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+            newline="\n",
         )
         verify_seed(partial_dir)
         partial_dir.replace(final_dir)

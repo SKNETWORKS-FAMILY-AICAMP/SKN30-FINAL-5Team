@@ -1,0 +1,34 @@
+{
+  "policy_version": "source-gap-policy-v0.1.0",
+  "status": "DRAFT",
+  "production_eligible": false,
+  "coverage_reference": "data/validation/profiles/gymvisual_cardio_profile.json",
+  "gaps": {
+    "HOME_LOW_IMPACT_CARDIO": {
+      "minimum_selected": 3,
+      "priority_source": "kspo",
+      "fallback_source": "wger",
+      "required_training_type": "CARDIO",
+      "required_location": "HOME",
+      "required_impact": "LOW"
+    }
+  },
+  "covered_checks": {
+    "STRENGTH_MACHINE_CABLE_BAND": {
+      "required_values": ["MACHINE", "CABLE_MACHINE", "RESISTANCE_BAND"],
+      "priority_source": "wger"
+    },
+    "MOBILITY_STRETCH": {
+      "required_movement_pattern": "MOBILITY_STRETCH",
+      "priority_source": "kspo"
+    }
+  },
+  "guards": [
+    "PROFILE_BEFORE_SOURCE_SELECTION",
+    "ONLY_REAL_GAPS_ENTER_REVIEW_QUEUE",
+    "FAMILY_VARIANT_IS_NOT_ALTERNATIVE",
+    "NO_SAFETY_RULES_BEFORE_DOMAIN_REVIEW",
+    "NO_GENERATED_CATALOG_AT_GAP_STAGE",
+    "PRESERVE_BASELINE_CATALOG_56_RULES_354_ALTERNATIVES_238"
+  ]
+}

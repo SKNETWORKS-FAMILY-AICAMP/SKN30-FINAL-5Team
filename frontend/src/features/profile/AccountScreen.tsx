@@ -9,7 +9,11 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Api } from '../../api/endpoints';
-import { bodyAreaLabel, trainingTypeLabel } from '../../api/labels';
+import {
+  bodyAreaLabel,
+  locationLabel,
+  trainingTypeLabel,
+} from '../../api/labels';
 import type { ConsentValues, MeResponse } from '../../api/types';
 import { useAsyncAction, useAsyncData } from '../../api/useAsync';
 import { Button, Card, InlineFeedback } from '../../components/primitives';
@@ -60,17 +64,24 @@ export function AccountScreen({
   const [pendingWeeklyCount, setPendingWeeklyCount] = useState<number | null>(
     null,
   );
+  const profile = me.profile;
 
   const saveCoachingStyle = useAsyncAction(async () => {
-    if (pendingStyle === null) {
+    if (pendingStyle === null || profile === null) {
       return;
     }
-    await api.updateProfileSettings({ coaching_style_code: pendingStyle });
+    await api.updateProfileSettings(
+      { coaching_style_code: pendingStyle },
+      profile.profile_version,
+    );
     setPendingStyle(null);
     onProfileUpdated?.();
   });
 
   const saveGoals = useAsyncAction(async () => {
+    if (profile === null) {
+      return;
+    }
     // Only the changed fields are sent; the server owns range validation and
     // these values never shorten an already-requested day retroactively.
     const body: {
@@ -86,7 +97,7 @@ export function AccountScreen({
     if (Object.keys(body).length === 0) {
       return;
     }
-    await api.updateProfileSettings(body);
+    await api.updateProfileSettings(body, profile.profile_version);
     setPendingDuration(null);
     setPendingWeeklyCount(null);
     onProfileUpdated?.();
@@ -121,8 +132,6 @@ export function AccountScreen({
     setDeletedAt(response.operational_data_delete_by);
     setConfirming(false);
   });
-
-  const profile = me.profile;
 
   return (
     <ScreenShell bands>
@@ -174,9 +183,10 @@ export function AccountScreen({
           ) : null}
           <Row
             label="운동 장소"
-            value={profile.available_location_codes.join(', ')}
+            value={profile.available_location_codes
+              .map(locationLabel)
+              .join(', ')}
           />
-          <Row label="장비" value={profile.equipment_codes.join(', ')} />
           <Row
             label="선호 운동"
             value={

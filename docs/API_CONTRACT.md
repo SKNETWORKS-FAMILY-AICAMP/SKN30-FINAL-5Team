@@ -10,6 +10,11 @@
 
 멀티 에이전트 핵심 흐름은 [ADR-0007](adr/0007-multi-agent-structure-correction.md)에 따라 네 proposal 병렬 실행과 Coordinator 최종 결정으로 확정한다. ADR-0002의 이전 독립 안전 게이트 구조는 대체되었다. proposal·Coordinator·공개 회의 요약의 상세 스키마와 설명 필드는 증상 사용자 시나리오 검증 결과에 따라 추후 보완할 수 있다. 결정적 안전 veto, 요청 시간 보존, 실패 안전과 운동 블록 체크 기반 상태 판정은 확정 계약이다.
 
+[ADR-0013](adr/0013-safety-first-llm-multi-agent.md)은 Safety-first LLM 멀티에이전트 V3 목표 계약으로
+`ACCEPTED`되었다. 구현·비교 검증과 production 전환 승인 전에는 아래 기존 endpoint와 응답을 바꾸지
+않으며 V3 필드는 optional이다. [ADR-0014](adr/0014-qdrant-exercise-pool-vector-retrieval.md)는 내부
+ExercisePool retrieval 계약의 `PROPOSED` 초안이며 Qdrant metadata를 public API에 노출하지 않는다.
+
 ---
 
 ## 2. 공통 원칙
@@ -269,39 +274,17 @@ DOWNWARD
 
 ---
 
-### 5.10 불편 부위 노출 범위
+### 5.10 온보딩 통증 부위 노출 범위
 
-코드 집합의 원본은 DOMAIN_RULES 3.2다. 코드는 13개로 유지하고 클라이언트 노출만 좁힌다.
-코드를 줄이면 이미 승인된 안전 규칙을 재매핑해야 하기 때문이다.
+코드 집합의 원본은 DOMAIN_RULES 3.2다. 신규 온보딩 UI는 통증 있음/없음을 먼저 묻고, 있음이면
+`NECK`, `LOWER_BACK`, `SHOULDER`를 기본 노출한다. `OTHER`는 저장 가능한 body area가 아니라 나머지
+실제 `body_area_code` 목록을 여는 UI control이다. 기타 목록에서는 `OTHER`를 제외한 실제 code를
+복수 선택하고 각 code의 점수 1..10을 입력한다.
 
-노출 범위는 승인된 규칙 분포를 근거로 정한다. 괄호 안은
-`exercise-safety-rules-mvp-v0.3.0` 기준 규칙 수다.
-
-**기본 노출**
-
-~~~text
-WRIST_HAND (53)   LOWER_BACK (48)   SHOULDER (41)   ELBOW (41)
-KNEE (38)         UPPER_BACK (36)   HIP (33)        ANKLE_FOOT (24)
-~~~
-
-**확장 시 노출**
-
-~~~text
-NECK (18)   ABDOMEN (15)   CHEST (7)
-~~~
-
-**노출하지 않음**
-
-~~~text
-GENERALIZED (0)   OTHER (0)
-~~~
-
-`GENERALIZED`와 `OTHER`는 현재 DOMAIN_APPROVED 규칙이 없다. 사용자가 선택하면
-DOMAIN_RULES 4.3.1의 fail-closed 경로로 빠져 계획이 반환되지 않는다. 규칙이 추가되기 전까지
-노출하지 않는다.
-
-노출 목록 변경은 안전 커버리지 변경이다. 서버는 13개 코드를 모두 계속 수용하므로 목록을
-넓히는 변경에 서버 수정이 필요하지 않다.
+서버의 기존 body area code 집합과 기존 데이터는 삭제·재매핑하지 않는다. `GENERALIZED`처럼 승인된
+안전 규칙이 없는 code가 입력되면 DOMAIN_RULES 4.3.1의 fail-closed 경계를 유지한다. 기본/기타 노출
+변경과 1..10 severity 매핑은 안전 커버리지 변경이므로 개발팀장·PM·외부 도메인 승인 전 UI와
+production validation을 활성화하지 않는다.
 
 ---
 
@@ -329,7 +312,7 @@ health endpoint는 인증 없이 호출할 수 있지만 민감한 설정, DB �
 | POST | /api/v1/auth/social/{provider_code}/exchange | [예약] KAKAO authorization code를 검증하고 Firebase custom token으로 교환 |
 | GET | /api/v1/me | 현재 사용자와 온보딩 상태 |
 | GET | /api/v1/me/identities | 현재 사용자에 연결된 인증 provider 목록 |
-| PUT | /api/v1/me/onboarding | 프로필, 장비, 주의 부위 저장 |
+| PUT | /api/v1/me/onboarding | 프로필과 주의 부위 저장 |
 | PATCH | /api/v1/me/profile | 온보딩 이후 프로필 운동 설정 부분 수정 |
 | GET | /api/v1/me/consents | 저장된 동의 상태 조회. 온보딩 전에는 빈 목록 |
 | PUT | /api/v1/me/consents | 일반·민감·웨어러블·캘린더·마케팅 현재 상태 저장·교체 및 이력 기록 |
@@ -341,6 +324,7 @@ health endpoint는 인증 없이 호출할 수 있지만 민감한 설정, DB �
 |---|---|---|
 | GET | /api/v1/exercises | 검수된 운동 목록 조회 |
 | GET | /api/v1/exercises/{exercise_id} | 계획에 포함된 검수 운동 상세 |
+| GET | /api/v1/exercises/{exercise_id}/variants | 장비가 없을 때 확인할 검수된 변형운동 조회 |
 | POST | /api/v1/routines | 기본 루틴 생성 |
 | GET | /api/v1/routines/current?local_date=YYYY-MM-DD | 해당 날짜의 활성 루틴 |
 | POST | /api/v1/weeks/{week_start}/plan | 콜드스타트·최초 계획·다음 주 초기 계획 생성 (`INITIAL` revision) |
@@ -567,6 +551,7 @@ ManualActivityResponse
 | GET | /api/v1/daily-contexts/{local_date} | 당일 체크인 조회 |
 | POST | /api/v1/decisions | 현재 컨텍스트로 결정 실행 |
 | GET | /api/v1/decisions/{decision_id} | 저장된 결정 조회 |
+| POST | /api/v1/decisions/{decision_id}/regenerations | [V3 backend API 구현, 기본 비활성] 추가 입력 없이 다른 루틴 재생성 |
 | POST | /api/v1/decisions/{decision_id}/selection | 서버가 허용한 옵션 선택 |
 
 ### 6.5 운동 세션
@@ -623,7 +608,6 @@ ManualActivityResponse
   "available_location_codes": ["HOME", "GYM"],
   "default_requested_duration_minutes": 40,
   "desired_weekly_workout_count": 3,
-  "equipment_codes": ["BODYWEIGHT", "RESISTANCE_BAND"],
   "attention_area_codes": ["KNEE"],
   "preferred_exercise_type_codes": ["STRENGTH"],
   "coaching_style_code": "SUPPORTIVE",
@@ -652,7 +636,7 @@ ManualActivityResponse
 - nickname은 고유 식별자가 아니며 사용자 간 중복을 허용한다.
 - timezone은 유효한 IANA timezone이어야 한다.
 - default_requested_duration_minutes는 0보다 커야 하며 사용자가 희망하는 권장 운동 길이다.
-- equipment, location, attention area는 서버의 허용 코드여야 한다.
+- location과 attention area는 서버의 허용 코드여야 한다.
 - `sex_code`, `height_cm`, `weight_kg`는 필수다. 누락하면 `422`로 거부한다.
   - `sex_code`는 `FEMALE`, `MALE`, `PREFER_NOT_TO_SAY` 중 하나다.
     `PREFER_NOT_TO_SAY`는 유효한 응답이며 재질문하지 않는다.
@@ -686,7 +670,66 @@ DB 컬럼은 nullable로 유지한다. 필수화는 요청 스키마 계층에�
 행이 남아 있을 수 있고, 신체 값에 임의 기본값을 채우는 것은 건강 데이터로서 허용되지 않기
 때문이다. 저장된 값이 모두 채워진 것이 확인된 뒤에야 컬럼 제약 변경을 별도로 검토한다.
 
+#### 7.1.1 장비 필드 제거와 호환 전략
+
+2026-08-27 개발팀장 승인으로 이번 릴리스는 명시적인 breaking change 전략을 사용한다.
+
+- `OnboardingUpsertRequest`, `ProfileSettingsUpdateRequest`, `MeProfile`에서 `equipment_codes`를
+  즉시 제거한다. 구 클라이언트가 요청에 이 필드를 보내면 알 수 없는 필드로 `400 INVALID_REQUEST`다.
+- 온보딩과 프로필 수정은 `user_equipment`를 생성·교체·삭제하지 않는다. 기존 행은 보존한다.
+- `user_equipment` 테이블과 ORM 모델은 이번 릴리스에서 삭제하지 않는다. 계정 삭제 정리 경로도
+  유지한다.
+- 루틴 생성과 계획 검증은 사용자 장비 보유 여부를 조건으로 사용하지 않는다. 운동 자체의
+  `required_equipment_codes`는 §8.5의 변형운동 안내를 위해 유지한다.
+- 프론트엔드는 같은 릴리스에서 온보딩·마이페이지 장비 입력, API 요청 필드와 프로필 응답 decoding을
+  함께 제거해야 한다.
+
+#### 7.1.2 온보딩 통증 V2 목표 계약과 호환 전략
+
+후속 additive rollout의 신규 request shape는 다음 필드를 사용한다. 이번 0단계에서는 현재 OpenAPI,
+Pydantic schema와 물리 DB를 변경하지 않는다.
+
+~~~text
+PainAreaInput
+- body_area_code: string
+- intensity_score: integer  # 1..10
+
+OnboardingPainInput
+- pain_present: boolean
+- pain_areas: PainAreaInput[]
+~~~
+
+검증:
+
+- `pain_present=false`이면 `pain_areas`는 빈 목록이어야 한다.
+- `pain_present=true`이면 `pain_areas`는 한 개 이상이어야 한다.
+- 같은 `body_area_code`를 두 번 보낼 수 없다.
+- `OTHER`는 UI control이므로 직접 저장·전송할 수 없다.
+- 선택된 모든 부위에 1..10의 정수 `intensity_score`가 필수다.
+- `pain-intensity-map-v1`은 1..3=`MILD`, 4..6=`MODERATE`, 7..10=`SEVERE`로 변환한다. 원점수와
+  policy version을 함께 보존하며 승인 전 production에 적용하지 않는다.
+
+호환 rollout은 다음 순서를 지킨다.
+
+1. 현재 `attention_area_codes`를 즉시 삭제하거나 의미를 바꾸지 않는다.
+2. 후속 API/schema 단계에서 신규 pain pair를 additive하게 받고 legacy `attention_area_codes`와
+   동시 전송은 `400 INVALID_REQUEST`로 거부해 모호한 병합을 막는다.
+3. legacy 요청은 기존 `user_attention_areas` 의미로 계속 저장하고 intensity를 추정·backfill하지 않는다.
+4. 신규 client가 전환된 뒤 legacy field를 deprecated로 문서화하고 사용량·호환 테스트·프론트/백엔드
+   owner 승인을 거쳐 별도 release에서 제거를 검토한다.
+
+통증 부위와 점수는 LLM 또는 Qdrant vector, payload, embedding input/query에 포함하지 않는다.
+
 ### 7.2 OnboardingResponse
+
+`PUT /api/v1/me/onboarding`이 성공하면 서버는 같은 DB 트랜잭션에서 저장된 프로필을 기준으로
+초기 기본 루틴을 생성·저장한다. 이 동작은 `POST /api/v1/routines`의 기존 기본 루틴 생성 규칙과
+저장 구조를 재사용하며, 응답 스키마는 변경하지 않는다. 이미 루틴 이력이 있는 사용자의 재요청은
+새 version을 생성하지 않는다. 이 요청은 오늘 체크인 또는 오늘의 최종 루틴(결정)을 생성하지 않으며,
+그 단계는 기존 `PUT /api/v1/daily-contexts/{local_date}` 후 결정 생성 흐름에서만 수행한다.
+기본 루틴을 구성할 승인 카탈로그 또는 콘텐츠가 없으면 온보딩 저장도 rollback되고 기존 루틴 생성 오류
+코드(`APPROVED_CATALOG_UNAVAILABLE`, `ROUTINE_CONTENT_UNAVAILABLE`,
+`ROUTINE_DURATION_UNAVAILABLE`)를 반환한다.
 
 ~~~json
 {
@@ -754,7 +797,6 @@ MeProfile
 - default_requested_duration_minutes: integer
 - desired_weekly_workout_count: integer
 - coaching_style_code: string
-- equipment_codes: string[]
 - attention_area_codes: string[]
 - preferred_exercise_type_codes: string[]
 - profile_version: integer
@@ -840,59 +882,121 @@ job은 `requested_at`부터 즉시 실행할 수 있다. `operational_data_delet
 온보딩에서 받은 값 중 사용자가 이후에 바꿀 수 있는 항목이다. 마이페이지는 이 목록을 운동 설정
 중심으로 구성하며, 저장된 코드 값을 그대로 노출하지 않고 사용자 언어로 표시한다.
 
-| 필드 | 수정 | 비고 |
-|---|---|---|
-| `primary_goal_code` | 가능 | 다음 결정부터 반영 |
-| `desired_weekly_workout_count` | 가능 | 진행 중인 주에는 소급 적용하지 않는다 |
-| `default_requested_duration_minutes` | 가능 | |
-| `preferred_location_code` | 가능 | |
-| `available_location_codes` | 가능 | |
-| `equipment_codes` | 가능 | 최소 1개 유지 |
-| `attention_area_codes` | 가능 | 빈 배열 허용 |
-| `preferred_exercise_type_codes` | 가능 | |
-| `coaching_style_code` | 가능 | |
-| `experience_level_code` | 가능 | |
-| `nickname` | 가능 | |
-| `height_cm`, `weight_kg` | 가능 | 건강 정보. 로그에 남기지 않는다 |
-| `sex_code` | 가능 | |
-| `timezone` | 가능 | 변경 시 당일 날짜 경계가 달라질 수 있다 |
-| `date_of_birth` | 가능 | 7.1의 연령 검증을 다시 적용한다 |
-| `consents` | 별도 endpoint | `PUT /api/v1/me/consents` |
+PATCH가 지원하는 필드는 아래 15개다. 표의 `null 거부`는 필드 생략과 다르다. 필드를 보내지 않으면
+기존 값을 유지하지만 JSON `null`을 명시하면 `400 INVALID_REQUEST`다.
 
-부분 수정을 지원하며 보내지 않은 필드는 변경하지 않는다. 낙관적 잠금에 프로필 version을
-사용하고, 서로 다른 클라이언트의 동시 수정은 stale version으로 거부한다.
+| 필드 | 타입·허용 값 | 빈 값·중복 | 범위·정규화·교차 검증 | 실패 |
+|---|---|---|---|---|
+| `primary_goal_code` | string, `^[A-Z][A-Z0-9_]{0,63}$`, 배포 승인 코드 | 빈 문자열·null 거부 | trim·대소문자 변환 없음. 다음 결정부터 반영 | 형식 오류 `400 INVALID_REQUEST`; 미승인 코드 `422 INVALID_ONBOARDING_CODE`; 승인 목록 없음 `503 PROFILE_CONFIGURATION_UNAVAILABLE` |
+| `desired_weekly_workout_count` | integer | null 거부 | 1~7회. 진행 중인 주에는 소급 적용하지 않음 | 범위·타입 오류 `400 INVALID_REQUEST` |
+| `default_requested_duration_minutes` | integer | null 거부 | 1~240분 | 범위·타입 오류 `400 INVALID_REQUEST` |
+| `preferred_location_code` | `HOME`, `GYM`, `OUTDOOR` | 빈 문자열·null 거부 | 최종 `available_location_codes`에 반드시 포함 | enum·교차 검증 오류 `400 INVALID_REQUEST` |
+| `available_location_codes` | 위 location code 배열 | 빈 배열·null·중복 거부 | 현재 또는 함께 보낸 `preferred_location_code`를 포함. 순서 외 별도 정규화 없음 | enum·중복·교차 검증 오류 `400 INVALID_REQUEST` |
+| `attention_area_codes` | `NECK`, `SHOULDER`, `ELBOW`, `WRIST_HAND`, `UPPER_BACK`, `LOWER_BACK`, `HIP`, `KNEE`, `ANKLE_FOOT`, `CHEST`, `ABDOMEN` 배열 | **빈 배열 허용**, null·중복 거부 | 건강 관련 정보. 빈 배열은 주의 부위 없음 | enum·중복 오류 `400 INVALID_REQUEST` |
+| `preferred_exercise_type_codes` | `STRENGTH`, `CARDIO`, `MOBILITY` 배열 | **빈 배열 허용**, null·중복 거부 | 순서 외 별도 정규화 없음 | enum·중복 오류 `400 INVALID_REQUEST` |
+| `coaching_style_code` | `SUPPORTIVE`, `CONCISE`, `ENERGETIC` | 빈 문자열·null 거부 | trim·대소문자 변환 없음 | enum 오류 `400 INVALID_REQUEST` |
+| `experience_level_code` | string, `^[A-Z][A-Z0-9_]{0,63}$`, 배포 승인 코드 | 빈 문자열·null 거부 | trim·대소문자 변환 없음 | 형식 오류 `400 INVALID_REQUEST`; 미승인 코드 `422 INVALID_ONBOARDING_CODE`; 승인 목록 없음 `503 PROFILE_CONFIGURATION_UNAVAILABLE` |
+| `nickname` | string | trim 후 빈 문자열·null 거부 | 앞뒤 공백 제거 후 1~64자. 내부 공백은 유지 | 길이·타입 오류 `400 INVALID_REQUEST` |
+| `height_cm` | number | null 거부 | 80~250cm, 보정·반올림 없음. 건강 관련 정보 | 범위·타입 오류 `400 INVALID_REQUEST` |
+| `weight_kg` | number | null 거부 | 25~300kg, 보정·반올림 없음. 건강 관련 정보 | 범위·타입 오류 `400 INVALID_REQUEST` |
+| `sex_code` | `FEMALE`, `MALE`, `PREFER_NOT_TO_SAY` | 빈 문자열·null 거부 | 대소문자 변환 없음. 건강 관련 정보 | enum 오류 `400 INVALID_REQUEST` |
+| `timezone` | 1~64자 IANA timezone string | 빈 문자열·null 거부 | trim 없음. 저장된 생년월일을 새 timezone으로 다시 검증 | 형식 오류 `400 INVALID_REQUEST`; 알 수 없는 timezone `422 INVALID_TIMEZONE`; 암호화 설정·복호화 불가 `503 PROFILE_CONFIGURATION_UNAVAILABLE` |
+| `date_of_birth` | ISO 8601 `date` (`YYYY-MM-DD`) | 빈 문자열·null 거부 | 미래 날짜 거부, 최종 timezone 기준 만 14세 규칙 재적용, 암호화 저장 | 형식·미래 날짜 `422 INVALID_DATE_OF_BIRTH`; 만 14세 미만 `403 AGE_REQUIREMENT_NOT_MET`; 암호화 설정 없음 `503 PROFILE_CONFIGURATION_UNAVAILABLE` |
 
-`primary_goal_code`와 `experience_level_code`는 배포 설정으로 승인된 코드만 허용한다. 7.1과
-동일하게 승인 목록이 없으면 `503 PROFILE_CONFIGURATION_UNAVAILABLE`로 차단한다.
+공통 규칙:
+
+- 부분 수정이다. 보내지 않은 scalar와 관계 필드는 기존 값을 유지하고, 보낸 관계 배열만 교체한다.
+- 15개 필드는 OpenAPI에서 모두 선택 사항이지만 nullable이 아니다. 빈 객체, 알 수 없는 필드와
+  명시적 `null`은 `400 INVALID_REQUEST`다.
+- 모든 코드 배열은 중복을 거부한다. `attention_area_codes`와
+  `preferred_exercise_type_codes`는 빈 배열을 허용한다.
+- `preferred_location_code`는 요청값과 기존값을 병합한 최종 `available_location_codes`에 포함돼야
+  한다.
+- `primary_goal_code`와 `experience_level_code`는 배포 승인 목록의 값만 허용한다.
+- 이 PATCH의 성공·오류 응답은 생년월일, 키·체중·성별과 주의 부위의 원값을 반복하지 않으며,
+  해당 값은 로그에도 남기지 않는다. 성공 응답은 새 version과 갱신 시각만 반환한다.
+- 낙관적 잠금과 멱등성은 §7.4.1의 기존 `If-Match`·`Idempotency-Key` 계약을 그대로 적용한다.
+- `consents`는 이 PATCH의 지원 필드가 아니며 `PUT /api/v1/me/consents`에서 변경한다.
 
 #### 7.4.1 프로필 설정 부분 수정
-
-~~~text
-PATCH /api/v1/me/profile
-Idempotency-Key: client-generated-uuid
-If-Match: "current-profile-version"
-~~~
 
 요청 본문은 §7.4에서 `가능`으로 표시한 필드만 받을 수 있으며 모든 필드는 선택 사항이다. 단,
 빈 객체, 알 수 없는 필드, 명시적 `null`, 중복 배열 코드는 `400 INVALID_REQUEST`로 거부한다.
 
-~~~json
+완전한 요청 예시는 다음과 같다. `If-Match` 값의 큰따옴표는 HTTP 헤더 문법의 일부이므로 생략하면
+안 된다.
+
+~~~http
+PATCH /api/v1/me/profile HTTP/1.1
+Authorization: Bearer <Firebase-ID-Token>
+Content-Type: application/json
+Idempotency-Key: 7e225f2e-7f86-4b5e-96f7-23c18f948210
+If-Match: "1"
+
 {
   "desired_weekly_workout_count": 4,
   "preferred_location_code": "GYM",
-  "available_location_codes": ["HOME", "GYM"],
-  "equipment_codes": ["BODYWEIGHT", "DUMBBELL"]
+  "available_location_codes": ["HOME", "GYM"]
 }
 ~~~
 
-`attention_area_codes`의 빈 배열은 허용하고, `equipment_codes`는 요청 후 최종 상태에 최소 한 개가
-남아야 한다. `preferred_location_code`는 기존 값과 요청 값을 병합한 최종
+`attention_area_codes`의 빈 배열은 허용한다. `preferred_location_code`는 기존 값과 요청 값을 병합한 최종
 `available_location_codes`에 포함되어야 한다. 요청하지 않은 scalar와 관계는 유지하며 요청에
 포함된 관계만 교체한다.
 
-`If-Match`는 따옴표를 포함한 양의 정수 형식(예: `"1"`)으로 필수 전송한다. 누락 또는 다른 형식은
-`400 INVALID_REQUEST`, 현재 `profile_version`과 다르면 `409 STALE_PROFILE`이다. 성공한 수정은 scalar,
-관계 교체, `profile_version` 1 증가와 멱등성 결과 저장을 한 transaction에서 처리한다.
+`If-Match`는 따옴표를 포함한 양의 정수 형식(예: `"1"`)으로 필수 전송한다. 헤더가 없거나 `1`,
+`W/"1"`, `"0"`, 음수 또는 숫자가 아닌 값이면 다음 공통 오류 형식의
+`400 INVALID_REQUEST`를 반환한다.
+
+~~~http
+HTTP/1.1 400 Bad Request
+X-Request-ID: 20f092af-7335-414d-bbc9-1bd6ec175d4d
+
+{
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "If-Match는 현재 profile_version을 \"1\" 형식으로 포함해야 합니다.",
+    "details": [],
+    "request_id": "20f092af-7335-414d-bbc9-1bd6ec175d4d"
+  }
+}
+~~~
+
+형식은 올바르지만 값이 현재 `profile_version`과 다르면 저장소를 변경하지 않고 다음
+`409 STALE_PROFILE`을 반환한다.
+
+~~~http
+HTTP/1.1 409 Conflict
+X-Request-ID: 07b44c79-320f-4f15-b2e5-4966dc6a8c91
+
+{
+  "error": {
+    "code": "STALE_PROFILE",
+    "message": "프로필이 변경되었습니다. 최신 상태로 다시 시도해주세요.",
+    "details": [],
+    "request_id": "07b44c79-320f-4f15-b2e5-4966dc6a8c91"
+  }
+}
+~~~
+
+`STALE_PROFILE`을 받은 클라이언트는 자동으로 이전 요청을 덮어쓰지 않는다. 다음 순서로 충돌을
+해결한다.
+
+1. `GET /api/v1/me`를 호출해 최신 프로필과 `profile.profile_version`을 읽는다.
+2. 사용자가 의도한 변경을 최신 프로필에 다시 적용한다.
+3. 새 `Idempotency-Key`와 최신 version의 `If-Match`를 사용해 PATCH를 재시도한다.
+
+성공한 수정은 scalar, 관계 교체, `profile_version` 1 증가와 멱등성 결과 저장을 한 transaction에서
+처리한다. 예를 들어 `If-Match: "1"` 요청이 성공하면 다음과 같이 새 version을 반환한다.
+
+~~~http
+HTTP/1.1 200 OK
+
+{
+  "profile_version": 2,
+  "updated_at": "2026-08-19T02:30:00+00:00"
+}
+~~~
 
 ~~~text
 ProfileSettingsUpdateResponse
@@ -900,10 +1004,13 @@ ProfileSettingsUpdateResponse
 - updated_at: datetime
 ~~~
 
-같은 사용자·endpoint·`Idempotency-Key`에서 동일한 PATCH 본문과 동일한 `If-Match` version을
-재시도하면 최초 성공 응답을 재생하고 version을 다시 증가시키지 않는다. 본문 또는 expected
-version이 다르면 `409 IDEMPOTENCY_KEY_REUSED`다. 응답에는 생년월일, 암호화 값, 키·체중·성별,
-주의 부위를 반복하지 않는다. 온보딩 프로필이 없으면 `404 RESOURCE_NOT_FOUND`다.
+성공 응답의 `profile_version`은 클라이언트가 다음 수정 요청의 `If-Match`에 사용한다. 같은
+사용자·endpoint·`Idempotency-Key`에서 동일한 PATCH 본문과 동일한 `If-Match` version을 재시도하면
+최초 성공 응답을 재생하고 version을 다시 증가시키지 않는다. 이미 성공한 키를 다른 본문 또는
+다른 expected version에 재사용하면 `409 IDEMPOTENCY_KEY_REUSED`다. 따라서 `STALE_PROFILE` 뒤 최신
+version으로 변경을 재적용하는 요청에는 새 `Idempotency-Key`를 사용한다. 응답에는 생년월일,
+암호화 값, 키·체중·성별, 주의 부위를 반복하지 않는다. 온보딩 프로필이 없으면
+`404 RESOURCE_NOT_FOUND`다.
 
 ---
 
@@ -914,11 +1021,19 @@ version이 다르면 `409 IDEMPOTENCY_KEY_REUSED`다. 응답에는 생년월일,
 ~~~json
 {
   "effective_from": "2026-08-06",
-  "goal_code": "string"
+  "goal_code": "string",
+  "requested_duration_minutes": 30
 }
 ~~~
 
-서버는 현재 사용자 프로필, 장비, 장소와 DOMAIN_APPROVED 운동만 사용해 보수적인 기본 루틴을 만든다. 클라이언트는 운동 ID, 세트 또는 tier를 임의 지정하지 않는다.
+`requested_duration_minutes`는 선택 필드이며 1~240 범위다. 생략하면 프로필의
+`default_requested_duration_minutes`를 그대로 목표 시간으로 쓰고
+`duration_adjustment_source_code`는 `PROFILE`이 된다. 값을 보내면 그 값이 이 루틴의 목표
+시간이 되고 출처는 `USER_OVERRIDE`가 된다. 프로필의 기본값은 말 그대로 기본값이며 이
+요청으로 변경되지 않는다. 서버는 사용자를 대신해 `USER_OVERRIDE`를 만들지 않는다.
+같은 `Idempotency-Key`로 다른 시간을 보내면 `409 IDEMPOTENCY_KEY_REUSED`다.
+
+서버는 현재 사용자 프로필과 장소, DOMAIN_APPROVED 운동만 사용해 보수적인 기본 루틴을 만든다. 사용자 장비 보유 여부는 운동 선정 조건이 아니다. 클라이언트는 운동 ID, 세트 또는 tier를 임의 지정하지 않는다.
 
 `POST /api/v1/routines`는 `Idempotency-Key`가 필수이며 성공 시 `201`을 반환한다.
 서버는 `ACTIVE`, `DOMAIN_APPROVED`, `production_eligible=true`이고 도메인 검수 증적이
@@ -926,8 +1041,11 @@ version이 다르면 `409 IDEMPOTENCY_KEY_REUSED`다. 응답에는 생년월일,
 version은 1부터 단조 증가하며, 같은 사용자의 동시 생성은 직렬화한다.
 
 `GET /api/v1/routines/current?local_date=YYYY-MM-DD`는 인증된 현재 사용자에게 해당 날짜에
-활성인 루틴만 반환한다. 활성 루틴이 없으면 `404 ROUTINE_NOT_FOUND`이며 다른 사용자의
-루틴은 조회 후보에 포함하지 않는다.
+활성이고 현재 운영 승인된 `ACTIVE` catalog version을 참조하는 루틴만 반환한다. catalog
+전환으로 참조 version이 `DEPRECATED`가 된 루틴은 기록으로 보존하되 현재 루틴으로 노출하지
+않는다. 사용할 수 있는 현재 루틴이 없으면 `404 ROUTINE_NOT_FOUND`이며, 클라이언트는 기존
+`POST /api/v1/routines` 흐름으로 새 `ACTIVE` catalog version 기반 루틴을 생성할 수 있다. 다른
+사용자의 루틴은 조회 후보에 포함하지 않는다.
 
 ### 8.2 RoutineResponse
 
@@ -947,7 +1065,7 @@ RoutineDay
 - sequence: integer
 - title: string
 - training_type_code: string  # STRENGTH, CARDIO 등
-- body_focus_code: string | null  # UPPER_BODY, LOWER_BODY 등
+- body_focus_code: string | null  # versioned catalog machine code
 - requested_duration_minutes: integer
 - estimated_duration_seconds: integer
 - estimated_calories_burned: number | null  # 체중 기반 추정치
@@ -967,12 +1085,18 @@ RoutineItem
 - instruction_available: boolean
 ~~~
 
-requested duration은 사용자 선택값이다. 운동 계획을 반환하는 경우 estimated duration은 `requested_duration_minutes * 60`과 정확히 일치해야 한다. 실제 운동 경과 시간은 사용자 속도에 따라 달라질 수 있으며 완료 판정에는 사용하지 않는다.
+`catalog-v2`의 `body_focus_code` 허용값은 `CHEST`, `BACK`, `SHOULDERS`, `BICEPS`, `TRICEPS`,
+`FOREARMS`, `GLUTES`, `QUADRICEPS`, `HAMSTRINGS`, `CALVES`, `CORE`, `FULL_BODY`, `CARDIO`,
+`MOBILITY`다. 기존 V1 응답의 `UPPER_BODY`, `LOWER_BODY` decoding은 하위 호환을 위해 유지하지만
+V2 importer는 두 legacy code를 새 catalog row에 허용하지 않는다. 필드의 nullable 여부와 이름은
+변경하지 않는다.
+
+requested duration은 사용자 선택값이며 서버가 변경하지 않는다. 운동 계획을 반환하는 경우 estimated duration은 `requested_duration_minutes * 60`에서 앞뒤 300초 이내여야 한다. 승인된 후보 중 요청값과 차이가 가장 작은 계획을 선택하며, 같은 차이면 더 짧게 만드는 것보다 더 길게 만드는 계획을 우선한다. 실제 운동 경과 시간은 사용자 속도에 따라 달라질 수 있으며 완료 판정에는 사용하지 않는다.
 
 모든 routine day는 `WARMUP -> MAIN -> COOLDOWN` 순서로 구성한다. WARMUP과 COOLDOWN은
 승인된 스트레칭·가동성 처방이고 MAIN에는 목표와 직접 연결된 CORE 운동이 하나 이상
-포함되어야 한다. 각 단계가 없거나 승인된 처방으로 요청 시간을 정확히 맞출 수 없으면
-짧거나 긴 루틴을 반환하지 않는다. 기본 routine day는 특정 요일을 강제하지 않고 ROTATION
+포함되어야 한다. 각 단계가 없거나 승인된 처방으로 요청 시간의 ±5분 범위를 만족할 수 없으면
+루틴을 반환하지 않는다. 기본 routine day는 특정 요일을 강제하지 않고 ROTATION
 순서로 수행한다.
 
 사용자 가능 장소는 `HOME`, `GYM`, `OUTDOOR` 개별 코드 배열로 관리한다. `HOME`과 `GYM`을
@@ -993,6 +1117,7 @@ ExerciseDetailResponse
 - instruction_summary: string
 - form_cues: string[]
 - media_asset_key: string | null
+- media_url: string | null
 - mascot_animation_asset_key: string | null
 - instruction_content_version: string
 ~~~
@@ -1000,9 +1125,14 @@ ExerciseDetailResponse
 자세·설명 콘텐츠는 검수된 정보만 반환하며 카메라 자세 인식이나 자동 자세 판정을 의미하지 않는다.
 
 구현 상태: 이 endpoint는 구현됐다. 인증된 사용자만 호출할 수 있고 `review_status_code`가
-`DOMAIN_APPROVED`인 운동만 반환하며, 그 외에는 `404 RESOURCE_NOT_FOUND`다. `exercises` 테이블에는
-아직 미디어·마스코트 자산 컬럼이 없으므로 `media_asset_key`와 `mascot_animation_asset_key`는 항상
-`null`이다. 두 필드는 nullable 계약이므로 자산 컬럼이 추가되면 하위 호환을 유지한 채 채울 수 있다.
+`DOMAIN_APPROVED`인 운동만 반환하며, 그 외에는 `404 RESOURCE_NOT_FOUND`다. `media_asset_key`는
+미디어 상태가 `AVAILABLE`, 권리 검토가 `APPROVED`이고 승인 registry의 version/hash/count가 모두
+일치하는 자산에만 채워진다. 운동에 미디어가 없거나 어느 승인 조건이든 충족하지 않으면 `null`이다.
+`media_url`은 같은 승인 조건을 만족하는 운영 승인 catalog 운동에 대해 검증·보존된
+`videos/<4자리 source_identity>-<식별문자열>.gif` 객체가 실제로 존재하고 S3 `ContentType`이
+`image/gif`일 때만 짧은 만료시간의 presigned GET URL로 채워진다. 객체 확인이나 URL 생성이
+실패하면 endpoint 자체를 실패시키지 않고 `null`을 반환한다. URL은 저장하거나 로그에 남기지 않는다.
+`mascot_animation_asset_key`는 아직 항상 `null`이다.
 
 ---
 
@@ -1020,7 +1150,7 @@ GET /api/v1/exercises
 | `body_area_code` | string | 주 자극 부위로 필터 |
 | `equipment_code` | string | 필요 장비로 필터 |
 | `training_type_code` | string | 운동 유형으로 필터 |
-| `difficulty_code` | string | 난이도로 필터 |
+| `difficulty_code` | string | 운동 자체 난이도(`BEGINNER`, `INTERMEDIATE`)로 필터 |
 | `cursor` | string | 다음 페이지 커서 |
 | `limit` | integer | 1~100, 기본 20 |
 
@@ -1042,11 +1172,52 @@ ExerciseListItem
 
 - `review_status_code`가 `DOMAIN_APPROVED`인 운동만 반환한다. 미검수 콘텐츠는 어떤
   파라미터 조합으로도 노출되지 않는다.
+- `media_asset_key`는 상세 조회와 같은 승인 조건을 만족할 때만 채워지며, 그 외에는 `null`이다.
 - 인증된 사용자만 호출할 수 있다.
 - 상세 정보는 8.3의 `GET /api/v1/exercises/{exercise_id}`를 사용한다.
 - 목록은 안전 판단과 무관하다. 사용자의 불편 부위에 따른 제외는 계획 생성 시점에만 적용하며,
   이 목록을 부위별로 걸러 안전하다고 표시하지 않는다.
 - 정렬은 안정적이어야 하며 커서 페이지네이션 중 항목이 중복되거나 누락되지 않아야 한다.
+
+### 8.5 장비 변형운동 확인
+
+GET /api/v1/exercises/{exercise_id}/variants
+
+루틴 화면과 운동 수행 화면에서 필요한 장비와 장비가 없을 때 확인할 검수된 변형운동을 반환하는
+읽기 전용 endpoint다. 운동 교체, routine item 수정 또는 workout session 기록 변경을 수행하지 않는다.
+
+~~~text
+ExerciseVariantsResponse
+- source_exercise_id: UUID
+- source_required_equipment_codes: string[]
+- items: ExerciseVariantItem[]
+- catalog_version: string
+- alternative_set_version: string | null
+
+ExerciseVariantItem
+- exercise_id: UUID
+- exercise_name: string
+- required_equipment_codes: string[]
+- instruction_summary: string
+- form_cues: string[]
+- media_asset_key: string | null
+- goal_preservation_code: string
+~~~
+
+- 인증된 사용자만 호출할 수 있다.
+- source exercise의 원본 catalog는 운영 승인된 `ACTIVE` 또는 `DEPRECATED` 상태여야 하고 source
+  exercise도 `DOMAIN_APPROVED`여야 한다. `DRAFT`, 미승인 catalog 또는 존재하지 않는 운동은
+  `404 RESOURCE_NOT_FOUND`다. 응답의 `catalog_version`은 현재 ACTIVE가 아니라 source exercise의
+  원본 catalog version이다.
+- 관계는 `exercise_alternatives.reason_code='EQUIPMENT'`, `review_status_code='DOMAIN_APPROVED'`,
+  `production_eligible=true`인 행만 사용한다. `LOCATION`, `DIFFICULTY`, `DISCOMFORT`는 반환하지 않는다.
+- variant exercise도 source와 같은 원본 catalog에 속한 `DOMAIN_APPROVED` 운동이어야 한다.
+- 변형운동이 없으면 `200`, `items=[]`, `alternative_set_version=null`을 반환한다. 클라이언트는 이때
+  변형운동 버튼을 노출하지 않는다.
+- items는 `exercise_id`, `goal_preservation_code`, 관계 ID 순으로 결정적으로 정렬한다.
+- 여러 운영 승인 alternative set이 한 source에 동시에 연결되면 재현 가능한 단일 set을 정할 수
+  없으므로 `503 APPROVED_CATALOG_UNAVAILABLE`로 fail closed한다.
+- `media_asset_key`는 §8.3과 동일한 권리·승인 조건을 만족할 때만 반환한다.
 
 ---
 
@@ -1069,7 +1240,13 @@ ExerciseListItem
       "severity_code": "MILD"
     }
   ],
-  "adverse_reaction_codes": []
+  "adverse_reaction_codes": [],
+  "available_slots": [
+    {
+      "start_at": "2026-08-20T19:00:00+09:00",
+      "end_at": "2026-08-20T21:00:00+09:00"
+    }
+  ]
 }
 ~~~
 
@@ -1085,6 +1262,38 @@ ExerciseListItem
 - 웨어러블이 없어도 요청은 완전하게 유효하다.
 
 PUT은 전체 체크인 표현을 교체한다. 빈 discomforts와 adverse_reaction_codes는 기존 항목을 삭제한다.
+
+#### 9.1.1 available_slots — 사용자 수동 가능 시간
+
+`available_slots`는 사용자가 그날 운동할 수 있다고 직접 밝힌 시간 구간이다. 외부 캘린더 연동은
+보류 상태이므로(ADR-0010 "구현 보류") 이 입력이 유일한 availability 입력원이다.
+
+세 가지 상태를 구분한다. 이 구분은 계약이며 클라이언트가 임의로 바꿀 수 없다.
+
+| 전송 값 | 의미 | `availability_source_code` |
+|---|---|---|
+| 필드 생략 또는 `null` | 사용자가 가능 시간을 밝히지 않음 | `ROUTINE_DEFAULT` |
+| `[]` | 사용자가 "오늘은 가능한 시간이 없다"를 명시적으로 선택 | `MANUAL` |
+| `[{...}]` | 사용자가 가능 구간을 명시 | `MANUAL` |
+
+명시적 빈 목록은 미입력과 다르며 서버가 이를 미입력으로 취급하거나 다른 값으로 보완하지 않는다.
+
+검증:
+
+- `start_at`과 `end_at`은 timezone offset을 포함한 ISO 8601이다. naive datetime은 거부한다.
+- `end_at`은 `start_at`보다 뒤여야 한다.
+- 모든 구간은 사용자 프로필 timezone 기준으로 경로의 `local_date`에 속해야 한다. 종료 시각이
+  다음 날 00:00인 경계는 허용한다.
+- 구간끼리 겹치거나 맞닿을 수 없다.
+- 최대 8개다. 서버는 시작 시각 오름차순으로 정규화해 저장하고 반환한다.
+- 요청 순서가 달라도 정규화 결과가 같으면 동일한 멱등 요청으로 취급한다.
+
+이 값은 참고 입력이며 다음을 절대 하지 않는다.
+
+- `requested_duration_minutes`를 바꾸지 않는다.
+- 운동 계획, 안전 판단, 안전 veto에 영향을 주지 않는다.
+- 공식 운동 수행 상태를 바꾸지 않는다.
+- 특정 요일을 필수 운동일로 강제하지 않는다.
 
 필수 mutation 헤더:
 
@@ -1111,7 +1320,13 @@ Idempotency-Key: uuid
 - context_version: integer
 - created_at: datetime
 - updated_at: datetime
+- availability_source_code: MANUAL | ROUTINE_DEFAULT
 ~~~
+
+`available_slots`는 요청과 같은 규칙으로 반환한다. 미입력이면 `null`, 명시적 빈 선택이면 `[]`이며
+`availability_source_code`가 두 상태를 구분한다. 두 필드 모두 하위 호환을 위해 선택 필드이고,
+`availability_source_code`의 기본값은 `ROUTINE_DEFAULT`다. `CALENDAR`는 외부 캘린더 연동이
+재개될 때만 나타나는 예약 값이며 현재 응답에 사용하지 않는다.
 
 ---
 
@@ -1142,6 +1357,11 @@ Idempotency-Key: uuid
 Wave 6 구현 계약:
 
 - `POST /api/v1/decisions`는 UUID 형식의 `Idempotency-Key`를 필수로 받고 생성 성공 시 201을 반환한다.
+- 같은 daily context ID·version과 동일 input hash로 완료된 decision이 있으면, 다른 `Idempotency-Key` 요청도 그 기존 `DecisionResponse`를 반환한다. 이는 요청 단위 `Idempotency-Key` 재사용 규칙과 별개의 논리적 중복 방지다.
+- `POST /api/v1/decisions`의 공개 응답은 실행 프로필과 무관하게 기존 `DecisionResponse` 계약을
+  유지한다. `V3_EXECUTION_PROFILE` 기본값은 `LEGACY`이며, `SHADOW`도 legacy 응답을 유지한다.
+  `DEMO`는 `APP_ENV=staging`에서만 V3 저장 결과를 응답으로 사용한다. `PRODUCTION`은 별도
+  production promotion gate가 승인한 경우에만 V3를 사용하고 그렇지 않으면 legacy로 fail closed한다.
 - `GET /api/v1/decisions/{decision_id}`는 인증 사용자 소유의 `COMPLETED` 결정만 반환한다.
 - `GET /api/v1/decisions?local_date=YYYY-MM-DD`는 해당 날짜의 가장 최근 `COMPLETED` 결정을
   반환한다. 재시작한 클라이언트가 당일 결정을 복원하는 read 전용 경로이며 에이전트·narration을
@@ -1177,6 +1397,12 @@ DecisionResponse
 - guidance: Guidance | null
 - public_agent_summaries: AgentSummary[] | null
 - safety_summary: SafetySummary | null
+- generation_mode_code: ORIGINAL | REGENERATED | null  # V3 additive optional
+- decision_engine_code: DETERMINISTIC | LLM_MULTI_AGENT | DETERMINISTIC_FALLBACK | null
+- root_decision_id: UUID | null  # V3 lineage, 원본에서는 self 또는 null
+- parent_decision_id: UUID | null
+- regeneration_sequence: integer | null  # 원본 0, 성공 재생성 1..2
+- meaningful_difference_codes: string[] | null
 - created_at: datetime
 
 DecisionOption
@@ -1225,7 +1451,7 @@ Guidance
 
 `DecisionResponse.status_code=COMPLETED`는 결정 파이프라인이 종료되고 결정 기록이 저장되었다는 뜻이며, 운동 세션이나 개별 운동 블록의 완료를 뜻하지 않는다. 운동 수행 완료는 세션의 블록 체크 상태로 별도 판정한다.
 
-최종 루틴은 사용자의 requested_duration_minutes를 반환하고 `estimated_duration_seconds`를 `requested_duration_minutes * 60`과 정확히 일치시킨다. estimated duration은 계획 단계의 hard target이지만 실제 수행의 hard execution limit이나 완료 조건은 아니다. 검수된 후보와 안전 규칙만으로 요청 시간을 정확히 구성할 수 없으면 서버는 시간을 임의로 축소·초과하거나 불필요한 운동으로 채우지 않고 `NEEDS_INPUT` 또는 `BLOCKED`로 계획을 반환하지 않는다. `estimated_calories_burned`는 운동 종류·시간·강도와 사용자가 제공한 체중으로 계산한 추정치이며 체중이 없으면 null이다. 정밀 칼로리 계산이 아니고 진단 또는 안전 판정의 단독 근거로 사용하지 않는다. 사용자가 USER_OVERRIDE를 보내지 않은 상태에서 서버가 requested duration을 변경하면 계약 위반이다.
+최종 루틴은 사용자의 requested_duration_minutes를 변경하지 않고 반환한다. `estimated_duration_seconds`는 요청 초와의 차이가 300초 이내인 계획 중 차이가 가장 작은 값이어야 하며, 같은 차이면 더 긴 계획을 우선한다. 이 허용 범위는 계획 구성용 제약이며 실제 수행의 hard execution limit이나 완료 조건은 아니다. 검수된 후보와 안전 규칙만으로 ±5분 범위를 만족할 수 없으면 불필요한 운동으로 채우거나 범위를 넘긴 계획을 반환하지 않고 `NEEDS_INPUT` 또는 `BLOCKED`로 계획을 반환하지 않는다. `estimated_calories_burned`는 운동 종류·시간·강도와 사용자가 제공한 체중으로 계산한 추정치이며 체중이 없으면 null이다. 정밀 칼로리 계산이 아니고 진단 또는 안전 판정의 단독 근거로 사용하지 않는다. 사용자가 USER_OVERRIDE를 보내지 않은 상태에서 서버가 requested_duration_minutes를 변경하면 계약 위반이다.
 
 `DecisionResponse.safety_status_code`에서 `PASS`는 승인된 계획, `REVISE`는 안전 조정이 반영된 계획, `BLOCKED`는 안전상 운동 계획이 없는 결정을 뜻한다. `NEEDS_INPUT`과 `FAILED`는 성공한 `DecisionResponse`의 safety status로 반환하지 않는다. 전자는 공통 오류 응답의 `error.code=NEEDS_INPUT`(422)과 누락된 machine-readable field 목록으로, 후자는 `error.code=DECISION_FAILED`(500 또는 503)로 반환하며 계획을 포함하지 않는다. 성공 응답의 safety_status가 `BLOCKED`이면 action은 REST 또는 STOP_AND_SEEK_HELP이고 plan은 null이다.
 
@@ -1277,6 +1503,72 @@ KEEP, DOWNSHIFT, CHANGE, RECOVERY에서는 `FINAL_ROUTINE` option을 정확히 �
 - tone_code는 SERIOUS
 - 마스코트 애니메이션 키를 반환하지 않음
 - 증상 원인이나 질환명을 반환하지 않음
+
+### 10.6 [V3 backend API 구현, 기본 비활성] 사용자 수동 루틴 재생성
+
+~~~http
+POST /api/v1/decisions/{decision_id}/regenerations
+Idempotency-Key: uuid
+Content-Type: application/json
+~~~
+
+~~~json
+{
+  "expected_plan_id": "uuid",
+  "expected_regeneration_sequence": 0
+}
+~~~
+
+사용자는 상태, 사유 또는 `different` 자유 문구를 다시 입력하지 않는다. 서버는 소유권이 확인된 기존
+decision에서 최소 input snapshot, `ConstraintEnvelope`, `ExercisePoolSnapshot`, 이전 plan signature와
+lineage를 읽어 내부 `RegenerationContext`를 만든다. body의 plan과 sequence는 stale client가 다른
+루틴을 기준으로 재생성하지 않게 하는 optimistic concurrency 값이다.
+
+일반 성공은 새 `decision_id`를 가진 `DecisionResponse`와 HTTP 201이다. 새 run은
+`generation_mode_code=REGENERATED`, 같은 `root_decision_id`, 직전 결과의 `parent_decision_id`, 증가한
+`regeneration_sequence`를 가진다. 기존 decision을 덮어쓰지 않는다.
+
+V3 graph는 Coordinator만 다시 호출하지 않고 Training·Recovery·Feasibility 세 Agent부터 실행한다.
+이전 plan과 정확히 같은 결과는 금지하며 다음 중 하나 이상을 만족해야 한다.
+
+- `CORE_EXERCISE_CHANGED`: 핵심 운동 하나 이상 변경
+- `EXERCISE_ORDER_CHANGED`: 운동 순서의 실질적 변경
+- `SET_REP_STRUCTURE_CHANGED`: 승인 범위 안의 세트·반복 구조 변경
+- `ROUTINE_STRUCTURE_CHANGED`: 루틴 구성 방식 변경
+
+application domain code와 공개 API code는 다음처럼 명시적으로 projection한다. domain enum과 저장 hash는
+변경하지 않는다.
+
+| domain code | API code |
+|---|---|
+| `CORE_EXERCISE_CHANGED` | `CORE_EXERCISE_CHANGED` |
+| `SET_REPETITION_STRUCTURE_CHANGED` | `SET_REP_STRUCTURE_CHANGED` |
+| `EXERCISE_SEQUENCE_CHANGED` | `EXERCISE_ORDER_CHANGED` |
+| `ROUTINE_COMPOSITION_CHANGED` | `ROUTINE_STRUCTURE_CHANGED` |
+
+설명·UUID·표시 순서 key 또는 미미한 시간 변경만으로는 의미 있는 차이로 인정하지 않는다. 새 plan은
+동일한 Safety veto·제외, 요청 시간의 ±5분 범위, 목표, recovery ceiling, 장소, 승인 catalog를 만족하고
+Plan Compiler와 integrity validator를 다시 통과해야 한다.
+
+root decision당 성공 재생성은 최대 두 번이다. 같은 Idempotency-Key와 같은 요청은 저장된 응답을
+반환하고, 같은 키의 다른 요청은 `409 IDEMPOTENCY_KEY_REUSED`다.
+
+| 조건 | HTTP / error.code |
+|---|---|
+| plan 또는 sequence 불일치 | `409 STALE_REGENERATION` |
+| snapshot/envelope/pool 만료 또는 version 불일치 | `409 REGENERATION_CONTEXT_STALE` |
+| 성공 재생성 2회 초과 | `409 REGENERATION_LIMIT_REACHED` |
+| terminal/safety 상태 또는 `final_plan=null`로 재생성 불가 | `409 REGENERATION_NOT_ALLOWED` |
+| 안전하고 목표를 보존하는 의미 있는 대안 없음 | `422 NO_ALTERNATIVE_AVAILABLE` |
+| 필수 LLM 실패 후 검증된 deterministic fallback도 없음 | `503 DECISION_FAILED` |
+| V3 graph feature 비활성 | `503 V3_ENGINE_DISABLED` |
+| DEMO/승인된 PRODUCTION에서 runtime 또는 필수 application adapter 미구성 | `503 V3_COMPOSITION_UNAVAILABLE` |
+
+`STOP_AND_SEEK_HELP`, plan generation을 금지한 Safety veto와 `final_plan=null`인 decision은 재생성
+대상이 아니다. REST opt-out을 사용자가 선택한 사실도 압박성 재생성 제안을 만들지 않는다.
+
+현재 backend route, Pydantic/error projection 및 DEMO application composition이 구현됐지만 `v3_regeneration_enabled=false`가
+기본값이다. production composition wiring과 frontend 버튼은 별도 승인·구현 전까지 비활성이다.
 
 ---
 
@@ -1483,14 +1775,11 @@ LOW_MOTIVATION
 
 ### 12.6 운동 후 피드백
 
+신규 공개 입력의 목표 계약은 한 필드만 사용한다.
+
 ~~~json
 {
-  "difficulty_code": "APPROPRIATE",
-  "fatigue_code": "MODERATE",
-  "satisfaction_code": "SATISFIED",
-  "pain_occurred": false,
-  "discomforts": [],
-  "adverse_reaction_codes": []
+  "difficulty_code": "APPROPRIATE"
 }
 ~~~
 
@@ -1502,12 +1791,20 @@ APPROPRIATE
 HARD
 ~~~
 
-`fatigue_code`와 `satisfaction_code`는 선택형 사후 설문 값이며 후보 코드와 세부 척도는 개발 전 확정한다. 설문은 운동 수행 상태를 대체하거나 변경하지 않는다. 미수행 세션은 리포트 생성 전에 `/not-completed`의 `reason_code`를 먼저 저장해야 한다.
+표시 문구는 `EASY=쉬웠어요`, `APPROPRIATE=적당했어요`, `HARD=어려워요`를 유지한다. 피드백은 종료
+상태의 세션에 한 번만 저장하고 공식 수행 상태를 변경하지 않는다. 미수행 세션은 리포트 생성 전에
+`/not-completed`의 `reason_code`를 먼저 저장해야 한다.
 
-후보 코드가 확정되기 전에는 두 필드를 선택적 대문자 machine code로만 저장하며,
-공식 상태 계산이나 다음 결정 규칙에는 사용하지 않는다. 피드백은 종료 상태의 세션에 한 번만 저장한다.
+현재 구현의 `fatigue_code`, `satisfaction_code`, `pain_occurred`, `discomforts`,
+`adverse_reaction_codes`는 즉시 삭제하지 않는다. 후속 호환 단계에서 다음 순서로 전환한다.
 
-피드백에 긴급 중단 그룹이 있으면 다음 추천까지 기다리지 않고 동일한 안전 guidance를 반환한다.
+1. 기존 request를 계속 수용하고 기존 row/column과 read response를 보존한다.
+2. 위 legacy field를 optional+deprecated로 바꿔 신규 client의 difficulty-only request를 허용한다.
+3. legacy 값을 보낸 요청은 기존 의미로 저장하되 누락값을 추정하거나 `pain_occurred=false`로 채우지 않는다.
+4. 신규 통증·이상 반응 입력은 유지되는 `/safety-events` API를 사용한다. feedback endpoint가 Safety
+   Event를 대신 만들거나 안전 결과를 재분류하지 않는다.
+5. 사용량·compatibility test와 프론트/백엔드 owner 승인 후 별도 migration/release에서 legacy write
+   종료와 nullable/삭제를 검토한다. historical read와 주간 집계는 version으로 보존한다.
 
 웨어러블 또는 외부 운동 API는 공식 세션 상태를 생성하거나 변경할 수 없다. 캘린더의 수행 여부 확인 결과도 공식 세션 상태를 생성하거나 변경할 수 없다.
 
@@ -1672,6 +1969,12 @@ UUID `Idempotency-Key` header가 필수다. 서로 다른 키를 사용하더라
 계획 블록을 완료한 `COMPLETED | PARTIAL` 비율이고 대상 세션이 없으면 null이다. 이 공식 상태와
 비율에는 타이머·경과 시간·웨어러블·캘린더·추가 활동을 사용하지 않는다.
 
+내부 집계의 `pain_report_count`는 신규 aggregate version부터 해당 주에 discomfort가 기록된 distinct
+workout safety-event session 수를 사용한다. 한 session의 여러 event/부위는 한 번만 센다. legacy
+`workout_feedback.pain_occurred=true`는 safety event가 없는 historical session에 한해 호환 집계하고
+중복하지 않는다. onboarding pain과 daily context는 이 지표의 원천이 아니다. 이 내부 집계값을 public
+response에 새로 노출하는 변경은 별도 API 승인 없이는 수행하지 않는다.
+
 ### 13.2 리포트 조회
 
 GET /api/v1/weekly-reports/{report_id}
@@ -1783,7 +2086,7 @@ PlanRevisionResponse
 
 AI 수정은 Coordinator 권한의 서버 선택으로 최대 2회다. 서버가 현재 유효한 routine version을 선택하며 클라이언트는 AI 요청에 `user_edits`를 보낼 수 없다. 성공한 Coordinator 기반 수정 루틴만 `ai_revision_count`에 집계하며, 세 번째 AI 요청은 `409 AI_REVISION_LIMIT_REACHED`다. LLM은 reason code·조정 결과의 설명 문구를 생성하는 선택 기능일 뿐 수정 루틴·요청 시간·안전 상태·veto·후보 선택을 결정하거나 변경하지 않는다. LLM 장애 시 검수된 템플릿 설명을 사용하고 Coordinator 결정과 루틴은 유지한다.
 
-USER 편집은 임의 운동 JSON 대신 사용자 소유의 저장된 routine version과 실행 장소를 참조한다. 서버는 routine의 모든 day가 요청 시간을 보존하는지, 모든 운동이 선택 장소를 지원하는지, 필요 장비가 사용자 장비의 부분집합인지, 저장된 최신 SafetyAgent 제외 운동과 의견을 반영했는지 다시 조회한다. 클라이언트가 안전 상태·의견 반영 코드를 제출할 수 없으며 독립적인 최종 Safety 재검사는 수행하지 않는다. 위반 시 422 `PLAN_REVISION_REJECTED`와 machine-readable reason code를 반환한다.
+USER 편집은 임의 운동 JSON 대신 사용자 소유의 저장된 routine version과 실행 장소를 참조한다. 서버는 routine의 모든 day가 요청 시간의 ±5분 범위를 만족하는지, 모든 운동이 선택 장소를 지원하는지, 저장된 최신 SafetyAgent 제외 운동과 의견을 반영했는지 다시 조회한다. 사용자 장비 보유 여부는 승인 조건이 아니다. 클라이언트가 안전 상태·의견 반영 코드를 제출할 수 없으며 독립적인 최종 Safety 재검사는 수행하지 않는다. 위반 시 422 `PLAN_REVISION_REJECTED`와 machine-readable reason code를 반환한다.
 
 `NEEDS_INPUT`, `BLOCKED`, `FAILED` revision은 `routine=null`, `finalized=false`로 저장한다. `PASS` 또는 `REVISE` revision은 생성·편집된 routine이 있을 때만 `routine`을 반환하며, `finalized=true`는 콜드스타트 예외 또는 직전 주 리포트 `ACKNOWLEDGED` 상태이고 `safety_status_code=PASS` 또는 `REVISE`, `routine!=null`인 경우에만 허용한다.
 
@@ -1828,6 +2131,12 @@ SafetySummary
 - 내부 점수와 보안 규칙 상세
 
 `public_agent_summaries`는 위 고정 순서의 Training·Recovery·Safety·Feasibility·Coordinator 요약을 제공한다. Safety 요약은 SafetyAgent의 `safety_status_code`와 `vetoed` 의견을 나타내며, 독립적인 최종 Safety 재검사 결과는 제공하지 않는다.
+
+V3 response에서도 기존 필드 타입은 유지한다. V1/V2 historical response는 위 다섯 요약을 그대로
+반환한다. V3의 실제 LLM Agent는 Training·Recovery·Feasibility·Coordinator 네 개이며 Safety는
+결정적 `SafetyPolicyEngine`이다. V3도 기존 순서와 길이를 유지하기 위해 세 번째
+`agent_type_code=SAFETY`를 policy engine의 호환 projection으로 반환하며 이를 LLM proposal로
+해석하지 않는다. `safety_summary`도 policy engine의 공개 가능한 상태·veto·reason code를 나타낸다.
 
 ---
 
@@ -1876,7 +2185,7 @@ setup_seconds
 ~~~
 
 - `requested_duration_minutes`: 사용자가 선택한 희망 시간. 서버가 임의 변경하지 않는다.
-- `estimated_duration_seconds`: 계획 구성요소의 합계이며 `requested_duration_minutes * 60`과 정확히 일치하는 계획 단계 hard target. 실제 수행의 hard execution limit이나 완료 조건은 아니다.
+- `estimated_duration_seconds`: 계획 구성요소의 합계다. 요청 초와의 차이가 300초 이내인 승인 후보 중 차이가 가장 작은 값이며, 같은 차이면 더 긴 계획을 우선한다. 실제 수행의 hard execution limit이나 완료 조건은 아니다.
 - `actual_elapsed_seconds`: 클라이언트가 0초부터 기록한 실제 경과 시간. 완료 판정에 사용하지 않는다.
 - `estimated_calories_burned`: 사용자가 제공한 체중과 운동 종류·시간·강도로 계산한 추정치. 체중이 없으면 null이며 진단·안전 판정의 단독 근거가 아니다.
 
@@ -1892,6 +2201,8 @@ setup_seconds
 - duration rules
 - coordinator
 - prompt와 model, LLM 사용 시에만
+- V3에서는 ConstraintEnvelope, ExercisePoolSnapshot, LangChain/LangGraph contract, structured output,
+  Coordinator attempt, compiler/validator와 fallback version
 
 DB 저장에 실패한 decision 결과는 성공 응답하지 않는다.
 
@@ -1902,6 +2213,8 @@ DB 저장에 실패한 decision 결과는 성공 응답하지 않는다.
 아래 보유·삭제 기간은 `ACCEPTED` ADR-0004의 승인된 기본 계약이다. 법률상 예외가 확인되거나 기간을 바꿀 때는 새 ADR과 관련 API·DB·운영 작업을 함께 갱신한다.
 
 - direct identifier와 원시 건강 기록을 LLM에 전달하지 않는다.
+- Agent와 Coordinator에 DB·repository·ORM·raw SQL Tool을 제공하지 않는다. application loader가
+  사용자 범위를 확인하고 최소화 snapshot과 승인 exercise pool을 만든다.
 - 웨어러블 연동 시 일 단위 최소 요약만 API로 받는다.
 - GPS 전체 경로와 초 단위 심박 샘플은 받지 않는다.
 - DELETE /me 후 사용자 연결 데이터의 운영 DB 삭제 목표는 7일이다.
@@ -1945,7 +2258,7 @@ DB 저장에 실패한 decision 결과는 성공 응답하지 않는다.
 - 운동 중 MILD 또는 MODERATE 불편에 대한 세션 재구성 정책
 - 멀티 에이전트 로직 설계 후 공개 회의 UI의 agent summary 상세 필드
 - 체중 기반 칼로리 추정 산식·계수 버전
-- training_type_code와 body_focus_code의 전체 목록
+- 후속 catalog code-set에서 추가할 training_type_code와 body_focus_code
 - 운동 자세·설명 콘텐츠의 승인 및 버전 갱신 정책
 
 ## 20. 팀 확인 질문

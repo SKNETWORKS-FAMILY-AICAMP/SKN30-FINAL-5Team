@@ -1,0 +1,43 @@
+{
+  "files": [
+    {
+      "bytes": 361081,
+      "path": "safety_rules.jsonl",
+      "records": 394,
+      "sha256": "bcf55f0d28a9c7c98f66e8351b6ea6bb41ab977485fc38130dbc12bf83c99141"
+    }
+  ],
+  "generator_version": "v2-runtime-materializer-1.0.0",
+  "review": {
+    "production_eligible": false,
+    "review_method_code": "AGENT_ONLY",
+    "status": "DOMAIN_APPROVED",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
+  },
+  "rule_set_version": {
+    "status_code": "DRAFT",
+    "version_code": "safety-rule-set-v2.0.0"
+  },
+  "schema_version": "1.0",
+  "source": {
+    "input_artifacts": [
+      {
+        "bytes": 119003,
+        "path": "generated/exercise-catalog-v2.0.0-final/representative_exercises_v2_final.csv",
+        "role": "representative_csv",
+        "sha256": "00a2da29a2754efbf888200fddeb65804edea6b1858e850916ddd63c9653d236"
+      }
+    ],
+    "review_batch_directory": "data/reports",
+    "taxonomy_registry_sha256": "79e487cc1a41ea39db9b4afb0799b3297840de878a2ae4ed621ef3e4403a0985",
+    "track": "merged"
+  },
+  "summary": {
+    "alternative_records": null,
+    "exercise_records": null,
+    "exercise_scope_rules": null,
+    "pattern_scope_rules": null,
+    "rule_records": 394,
+    "sources_with_alternatives": null
+  }
+}

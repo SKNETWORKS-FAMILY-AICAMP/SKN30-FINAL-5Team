@@ -1,10 +1,14 @@
 export type PreviewMode =
   | 'account'
+  | 'auth'
+  | 'background_test'
   | 'calendar-report'
+  | 'exercise-catalog'
   | 'gallery'
   | 'home'
   | 'home-map'
   | 'login'
+  | 'loading'
   | 'mascot-house'
   | 'my-page'
   | 'onboarding'
@@ -29,11 +33,15 @@ export function getPreviewMode(): PreviewMode {
 
   if (
     requestedPreview === 'account' ||
+    requestedPreview === 'auth' ||
+    requestedPreview === 'background_test' ||
     requestedPreview === 'calendar-report' ||
+    requestedPreview === 'exercise-catalog' ||
     requestedPreview === 'gallery' ||
     requestedPreview === 'home' ||
     requestedPreview === 'home-map' ||
     requestedPreview === 'login' ||
+    requestedPreview === 'loading' ||
     requestedPreview === 'mascot-house' ||
     requestedPreview === 'my-page' ||
     requestedPreview === 'onboarding' ||

@@ -1,0 +1,150 @@
+{
+  "schema_version": "v2.0.2-canonical-field-review-v1.1.0",
+  "catalog_version_code": "exercise-catalog-v2.0.2-final",
+  "generated_at": "2026-08-28T00:00:00+09:00",
+  "status": "VALIDATION_COMPLETE_WITH_REVIEW_REQUIRED",
+  "production_eligible": false,
+  "representative_count": 131,
+  "variant_candidate_count": 1,
+  "variant_candidate_review_required_count": 1,
+  "variant_candidate_data_review_required_count": 1,
+  "field_correction_count": 220,
+  "review_required_count": 131,
+  "data_review_required_count": 31,
+  "deleted_representative_count": 4,
+  "first_pass_data_review_count": 36,
+  "equipment_only_confirmed_count": 1,
+  "equipment_only_review_required_count": 1,
+  "migration_history_error_count": 0,
+  "ambiguous_review_required_count": 1,
+  "source_license_review_required_count": 131,
+  "instruction_review_required_count": 31,
+  "identity_review_required_count": 1,
+  "field_correction_by_field": {
+    "name_en": 12,
+    "display_name_ko": 9,
+    "stable_code": 5,
+    "setup_condition_ko": 31,
+    "instruction_summary_ko": 32,
+    "form_cues_ko": 32,
+    "difficulty_code": 15,
+    "source_track": 31,
+    "source_identity": 31,
+    "equipment_codes": 5,
+    "location_codes": 4,
+    "timing_mode_code": 3,
+    "default_seconds_per_rep": 3,
+    "default_work_seconds": 3,
+    "primary_body_area_codes": 2,
+    "secondary_body_area_codes": 2
+  },
+  "field_correction_by_reason": {
+    "SOURCE_NAME_EN_NORMALIZED": 12,
+    "REPRESENTATIVE_IDENTITY_LABEL_REFINED": 9,
+    "STABLE_CODE_IDENTITY_MIGRATION": 1,
+    "SUPPORT_CONDITION_PRESERVED": 31,
+    "SOURCE_INSTRUCTION_ALIGNMENT_REFINED": 64,
+    "BASE_FORWARD_LUNGE_IS_BEGINNER": 1,
+    "CRUNCH_VARIANTS_ARE_INTERMEDIATE": 2,
+    "CABLE_MACHINE_IS_INTERMEDIATE": 8,
+    "SOURCE_PROVENANCE_RESOLVED": 62,
+    "SOURCE_REVIEWED_DIFFICULTY_REFINED": 4,
+    "EQUIPMENT_TAXONOMY_NORMALIZED": 5,
+    "LOCATION_DERIVED_FROM_LOAD_EQUIPMENT": 4,
+    "STABLE_CODE_EQUIPMENT_MIGRATION": 4,
+    "SOURCE_INSTRUCTION_TIMING_REFINED": 9,
+    "SOURCE_REVIEWED_BODY_AREA_REFINED": 4
+  },
+  "validation": {
+    "required_field_missing_count": 0,
+    "required_field_missing": [],
+    "invalid_taxonomy_code_count": 0,
+    "invalid_taxonomy_codes": [],
+    "logical_conflict_count": 9,
+    "logical_conflicts": [
+      {
+        "representative_exercise_id": "REX-000012",
+        "code": "HOME_EQUIPMENT_LOCATION_CONFLICT",
+        "values": [
+          "PULL_UP_BAR"
+        ]
+      },
+      {
+        "representative_exercise_id": "REX-000031",
+        "code": "HOME_EQUIPMENT_LOCATION_CONFLICT",
+        "values": [
+          "STEP_BOX"
+        ]
+      },
+      {
+        "representative_exercise_id": "REX-000033",
+        "code": "HOME_EQUIPMENT_LOCATION_CONFLICT",
+        "values": [
+          "STABILITY_BALL"
+        ]
+      },
+      {
+        "representative_exercise_id": "REX-000036",
+        "code": "HOME_EQUIPMENT_LOCATION_CONFLICT",
+        "values": [
+          "STRETCH_STRAP"
+        ]
+      },
+      {
+        "representative_exercise_id": "REX-000050",
+        "code": "HOME_EQUIPMENT_LOCATION_CONFLICT",
+        "values": [
+          "STRETCH_STRAP"
+        ]
+      },
+      {
+        "representative_exercise_id": "REX-000063",
+        "code": "HOME_EQUIPMENT_LOCATION_CONFLICT",
+        "values": [
+          "STABILITY_BALL"
+        ]
+      },
+      {
+        "representative_exercise_id": "REX-000068",
+        "code": "HOME_EQUIPMENT_LOCATION_CONFLICT",
+        "values": [
+          "STEP_BOX"
+        ]
+      },
+      {
+        "representative_exercise_id": "REX-000078",
+        "code": "HOME_EQUIPMENT_LOCATION_CONFLICT",
+        "values": [
+          "PULL_UP_BAR"
+        ]
+      },
+      {
+        "representative_exercise_id": "REX-000094",
+        "code": "HOME_EQUIPMENT_LOCATION_CONFLICT",
+        "values": [
+          "STRETCH_STRAP"
+        ]
+      }
+    ],
+    "stable_code_duplicate_count": 0,
+    "representative_id_duplicate_count": 0,
+    "hard_validation_passed": false,
+    "variant_candidate_validation": {
+      "required_field_missing_count": 0,
+      "required_field_missing": [],
+      "invalid_taxonomy_code_count": 0,
+      "invalid_taxonomy_codes": [],
+      "logical_conflict_count": 0,
+      "logical_conflicts": [],
+      "stable_code_duplicate_count": 0,
+      "representative_id_duplicate_count": 0,
+      "hard_validation_passed": true
+    }
+  },
+  "inputs": {
+    "canonical": "data/generated/exercise-catalog-v2.0.2-final/canonical_exercises_v2_final.jsonl",
+    "v2_0_1": "data/generated/exercise-catalog-v2.0.1-final/representative_exercises_v2_final.csv",
+    "integrated": "data/reports/integrated_exercise_review_updated.csv",
+    "taxonomy": "data/normalized/exercise_taxonomy_codes.json"
+  }
+}

@@ -6,6 +6,15 @@
 
 멀티 에이전트 핵심 흐름은 Training·Recovery·Safety·Feasibility 네 proposal의 병렬 실행과 Coordinator 최종 결정으로 확정한다. 에이전트 구현의 상세 필드·공개 요약은 증상 사용자 시나리오 검증 결과에 따라 추후 보완할 수 있다.
 
+ADR-0012는 결정적 conflict detection과 조건부 Round 2 review를 추가하는 V2 목표를 승인했으나
+2026-08-28 ADR-0015로 `SUPERSEDED`가 됐다. 해당 흐름은 production 경로로 구현되지 않았고 V3에서도
+제거된다. 아래 확정 기술과 production 동작은 현재 V1을 기준으로 한다.
+
+ADR-0013은 LangChain structured LLM Agent와 LangGraph orchestration을 사용하는 V3 목표 계약으로
+`ACCEPTED`되었다. dependency 검토·구현·shadow 평가와 production 전환 승인 전에는 현재 production
+기술로 간주하지 않는다. ADR-0014의 Qdrant ExercisePool retrieval은 `ACCEPTED`이며 dependency와
+adapter는 별도 구현 PR에서 검증해 추가한다.
+
 ## 2. 확정 기술
 
 | 영역 | 선택 |
@@ -17,6 +26,10 @@
 | 테스트 | pytest 계열, 프론트 도구는 초기화 PR에서 확정 |
 | 배포 | FastAPI 단일 배포 단위 + 관리형 PostgreSQL + 모바일 빌드 |
 
+V3 제안 기술은 Python/Pydantic domain core를 유지하면서 LangChain 1.x 계열과 LangGraph 1.x 계열을
+추가하는 것이다. 정확한 package patch와 provider integration은 구현 PR에서 `uv lock`과 호환성
+테스트로 고정한다.
+
 Python package manager는 기반 구현에서 `uv`로 결정하고 `uv.lock`을 커밋한다. CI 기준 Python은 3.12, PostgreSQL은 16이다. 실제 배포 환경의 지원 minor와 upgrade 정책은 배포 provider를 정할 때 확정한다. Node package manager는 프론트엔드 초기화 PR에서 결정한다.
 
 ## 3. 기본 아키텍처
@@ -24,6 +37,9 @@ Python package manager는 기반 구현에서 `uv`로 결정하고 `uv.lock`을 
 - 백엔드는 모듈형 모놀리스다.
 - API request 안에서 결정 파이프라인을 동기 실행한다.
 - Training·Recovery·Safety·Feasibility proposal 에이전트는 Python/Pydantic 기반 논리 모듈이며 MVP에서는 병렬 실행한다. Coordinator는 네 proposal을 취합하는 의장 모듈이다.
+- Python/Pydantic domain core가 proposal 계약, integrity validator와 Coordinator 계약을 소유한다.
+  application service는 정규화 tool/port 결과를 조립하고 domain은 DB·외부 provider를 직접 호출하지
+  않는다. ADR-0015로 conflict detector와 review 단계는 제거됐다.
 - PostgreSQL이 사용자·결정·주간 리포트의 단일 진실 공급원이다.
 - 안전·통증 제외·시간·복귀·후보 선택은 결정적 Python 규칙이다.
 - 요청 시간은 사용자가 명시적으로 변경하지 않는 한 유지하고, 다운시프트는 강도·부하·세트·반복·운동 유형·휴식 구성을 조정한다.
@@ -38,11 +54,15 @@ Python package manager는 기반 구현에서 `uv`로 결정하고 `uv.lock`을 
 - Redis, Celery, Kafka
 - Kubernetes
 - agent별 microservice
-- LangGraph
-- vector database와 RAG
+- LangGraph production runtime/checkpointer. V2 기준 구현과 측정 후 별도 ADR 없이는 추가하지 않는다.
+- vector database와 RAG. 단, ADR-0014의 Qdrant derived index는 승인된 V3 ExercisePool ranking
+  경계에서만 도입할 수 있음
 - 별도 object storage
 
 필요성이 실제 요구사항과 측정으로 확인되면 ADR을 거쳐 추가한다.
+
+ADR-0013에 따라 위 LangGraph 제외는 V1/V2에만 적용된다. V3는 구현 단계에서 runtime을 도입하되 persistent
+checkpointer, 장기 memory, LangSmith SaaS 전송은 별도 승인 없이는 포함하지 않는다.
 
 ## 4. 목표 저장소 구조
 
@@ -182,6 +202,43 @@ repository/integration -------|
 - evidence references
 - policy version
 
+### 6.1 승인된 V3 목표 기술 계약
+
+V3 typed graph state의 최소 필드는 다음이다.
+
+- minimized input snapshot/hash와 freshness metadata
+- `ConstraintEnvelope`와 schema/version/hash
+- `ExercisePoolSnapshot`과 catalog version/hash
+- deterministic eligible/mandatory exercise ID, `ExerciseRetrievalRequest/Result`, collection/index/
+  embedding/query/fallback version과 retrieval failure code
+- generation mode, regeneration root/sequence와 이전 plan signature
+- 세 proposal과 invocation metadata
+- Coordinator initial/repair output와 attempt
+- compiled plan, integrity validation result와 fallback metadata
+
+LangGraph node 구성은 `load_context -> safety_constraints -> deterministic_pool_filter ->
+vector_rank -> postgres_revalidate -> build_exercise_pool -> parallel_agents -> coordinator ->
+compile -> validate -> persist`다(ADR-0015). Qdrant 장애·stale/version mismatch는
+`vector_rank`에서 deterministic pool fallback으로 `postgres_revalidate`에 합류한다. validate의
+repairable edge는 Coordinator로 한 번만 돌아가며 non-repairable edge는 fallback 또는 계획 없는 종료로
+간다. regeneration은 저장된 snapshot·envelope·pool의 freshness를 확인한 뒤 `parallel_agents` 앞에서
+새 invocation을 시작한다.
+
+LangChain Agent는 Pydantic `response_format`을 사용하며 domain schema validation을 별도로 통과해야
+한다. provider-native schema가 있더라도 exercise pool membership, constraint monotonicity, exact
+duration과 meaningful regeneration difference는 domain validator가 검사한다.
+
+application loader/retrieval adapter와 persistence node만 PostgreSQL/Qdrant port를 호출한다. 초기 V3의
+Agent와 Coordinator는 DB/catalog/Qdrant Tool을 갖지 않고 동일한 사전 조회
+`ExercisePoolSnapshot`을 사용한다. Coordinator에는
+필요할 경우 duration estimate나 constraint precheck 같은 순수 결정적 Tool만 허용한다.
+
+LangGraph state는 canonical persistence가 아니다. 성공 응답 전에 PostgreSQL에 envelope, pool,
+proposal, review, coordination, compile/validation과 final option을 원자적으로 저장한다. persistent
+checkpointer와 외부 trace 전송은 보존·삭제·암호화 계약이 승인될 때까지 사용하지 않는다.
+
+### 6.2 현재 V1/V2 Agent 책임
+
 Agent별 책임:
 
 - `TrainingAgent`: 목표·진척·FITT 관점의 후보와 조정 의견
@@ -279,6 +336,19 @@ opaque confidence 점수는 MVP에서 사용하지 않는다. 입력 완전성�
 - deletion and sensitive log checks
 
 필수 케이스와 CI 구분은 `TEST_STRATEGY.md`를 따른다.
+
+### V3-C1 shadow runtime
+
+- provider integration은 `langchain-openai==1.5.1`로 고정하고 기존 `langchain-core==1.6.0` lock과
+  resolver 호환성을 검증한다.
+- OpenAI model은 integrations 아래 factory에서만 만들며 temperature 0, bounded timeout,
+  provider retry 0을 고정한다. 전체 retry 상한은 기존 `StructuredChatInvoker`가 소유한다.
+- LangSmith tracing과 callbacks는 명시적으로 비활성화하고 provider raw body/error는 결과·로그에
+  전달하지 않는다.
+- token은 provider `AIMessage.usage_metadata`의 유효한 input/output count가 모두 있을 때만 기록한다.
+  비용은 exact model이 일치하는 외부 versioned pricing reference가 주입될 때만 계산한다.
+- `V3_REGENERATION_ENABLED=false`를 유지하며 production API composition과 shadow composition을
+  연결하지 않는다.
 
 ## 14. 대안과 제외 이유
 

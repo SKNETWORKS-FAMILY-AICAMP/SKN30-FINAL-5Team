@@ -5,6 +5,7 @@ import type {
   CalendarWeek,
   CalendarWeekState,
 } from './homeSecondaryModel';
+import { weeklyReportAvailability } from '../weekly/weeklyReportModel';
 
 export type CalendarReportData = {
   monthLabel: string;
@@ -131,11 +132,15 @@ function weekState(
   currentWeekStart: string,
   week: WeekResponse | undefined,
 ): CalendarWeekState {
-  if (start > currentWeekStart) return 'upcoming';
-  if (start === currentWeekStart) return 'progress';
-  if (week?.report_status_code === 'ACKNOWLEDGED') return 'read';
-  if (week?.report_status_code === 'GENERATED') return 'unread';
-  return 'make';
+  if (week === undefined) {
+    return start > currentWeekStart ? 'upcoming' : 'progress';
+  }
+  const availability = weeklyReportAvailability(week);
+  if (availability === 'IN_PROGRESS') return 'progress';
+  if (availability === 'AVAILABLE_TO_CREATE') return 'make';
+  if (availability === 'GENERATED') return 'unread';
+  if (availability === 'ACKNOWLEDGED') return 'read';
+  return 'unavailable';
 }
 
 function noteForState(state: CalendarWeekState): string {
@@ -151,13 +156,18 @@ function noteForState(state: CalendarWeekState): string {
   if (state === 'read') {
     return '리포트를 확인한 주예요. 다시 열어볼 수 있어요.';
   }
+  if (state === 'unavailable') {
+    return '리포트를 불러오지 못했어요. 잠시 후 다시 확인해주세요.';
+  }
   return '아직 시작하지 않은 주예요.';
 }
 
 function bandColorForState(state: CalendarWeekState): string {
-  if (state === 'progress') return '#DCEBC4';
-  if (state === 'read') return '#EFF4E6';
-  if (state === 'make' || state === 'unread') return '#F3F1EB';
+  if (state === 'progress') return '#FFEBC2';
+  if (state === 'read') return '#FFF8E5';
+  if (state === 'make' || state === 'unread' || state === 'unavailable') {
+    return '#F3F1EB';
+  }
   return '#FCFBF8';
 }
 
@@ -259,8 +269,8 @@ export function buildCalendarReportData({
   return {
     monthLabel: `${year}년 ${monthNumber}월`,
     stats: [
-      { key: 'done', label: '완료', value: done, color: '#3E7A32' },
-      { key: 'partial', label: '부분 수행', value: partial, color: '#B58A1E' },
+      { key: 'done', label: '완료', value: done, color: '#A45F00' },
+      { key: 'partial', label: '부분 수행', value: partial, color: '#EE875B' },
       { key: 'rest', label: '휴식', value: rest, color: '#6F6B63' },
       { key: 'miss', label: '미수행', value: miss, color: '#C0BBB1' },
     ],

@@ -7,16 +7,19 @@
  * and where it routes — never a decision of its own making.
  */
 
-import { render, waitFor } from '@testing-library/react-native';
+import { render, screen, waitFor } from '@testing-library/react-native';
 
 import { ApiClient } from '../src/api/client';
-import { createApi } from '../src/api/endpoints';
+import { createApi, type Api } from '../src/api/endpoints';
 import type {
   DecisionResponse,
   MeResponse,
+  RoutineResponse,
+  WeeklyPlanRevisionResponse,
   WorkoutPlan,
   WorkoutSessionListResponse,
 } from '../src/api/types';
+import { weekStartString } from '../src/api/useAsync';
 import { MainFlow } from '../src/app/MainFlow';
 
 const LOCAL_DATE = new Date().toISOString().slice(0, 10);
@@ -39,7 +42,6 @@ function me(): MeResponse {
       default_requested_duration_minutes: 30,
       desired_weekly_workout_count: 3,
       coaching_style_code: 'SUPPORTIVE',
-      equipment_codes: ['BODYWEIGHT'],
       attention_area_codes: [],
       preferred_exercise_type_codes: [],
       available_location_codes: ['HOME'],
@@ -93,6 +95,12 @@ function decision(): DecisionResponse {
     options: [],
     reason_codes: [],
     summary: '오늘 조건에서는 준비된 루틴을 그대로 진행합니다.',
+    generation_mode_code: 'REGENERATED',
+    decision_engine_code: 'LLM_MULTI_AGENT',
+    root_decision_id: 'decision-root',
+    parent_decision_id: 'decision-root',
+    regeneration_sequence: 1,
+    meaningful_difference_codes: ['CORE_EXERCISE_CHANGED'],
     created_at: '2026-08-19T00:00:00+09:00',
   } as unknown as DecisionResponse;
 }
@@ -101,6 +109,39 @@ function sessions(
   items: WorkoutSessionListResponse['items'],
 ): WorkoutSessionListResponse {
   return { items, next_cursor: null };
+}
+
+function routine(): RoutineResponse {
+  return {
+    id: 'routine-1',
+    version: 1,
+    goal_code: 'GENERAL_FITNESS',
+    status_code: 'ACTIVE',
+    effective_from: LOCAL_DATE,
+    catalog_version: 'catalog-v1',
+    days: [],
+    created_at: '2026-08-19T00:00:00+09:00',
+  };
+}
+
+function latestPlanRevision(): WeeklyPlanRevisionResponse {
+  return {
+    revision_id: 'revision-2',
+    week_start: '2026-08-17',
+    week_end: '2026-08-23',
+    revision_sequence: 2,
+    ai_revision_count: 1,
+    source_code: 'AI',
+    source_weekly_report_id: null,
+    safety_status_code: 'PASS',
+    routine: routine(),
+    selected_location_code: 'HOME',
+    finalized: true,
+    finalized_at: '2026-08-19T00:00:00+09:00',
+    revision_reason_codes: ['REVISION_ALLOWED'],
+    finalization_reason_codes: ['FINALIZE_ALLOWED'],
+    created_at: '2026-08-19T00:00:00+09:00',
+  };
 }
 
 /** Routes requests by path; unrouted paths get 404 so optional reads stay absent. */
@@ -134,13 +175,49 @@ function apiWithRoutes(routes: Record<string, unknown>) {
 }
 
 describe('MainFlow restart recovery', () => {
+  it('restores the latest weekly revision when the read capability is available', async () => {
+    const { api } = apiWithRoutes({
+      '/decisions?': decision(),
+      '/routines/current?': routine(),
+      '/workout-sessions?': sessions([]),
+    });
+    const getLatestWeeklyPlanRevision = jest.fn(async () =>
+      latestPlanRevision(),
+    );
+    const capableApi: Api = { ...api, getLatestWeeklyPlanRevision };
+
+    render(
+      <MainFlow
+        api={capableApi}
+        me={me()}
+        onRefreshMe={async () => undefined}
+        onSignOut={() => {}}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(getLatestWeeklyPlanRevision).toHaveBeenCalledWith(
+        weekStartString(new Date(), 'Asia/Seoul'),
+        expect.any(AbortSignal),
+      );
+    });
+    expect(await screen.findByText('다른 루틴 · 1회 남음')).toBeOnTheScreen();
+  });
+
   it('re-reads the stored decision and shows it without re-running a check-in', async () => {
     const { api, calls } = apiWithRoutes({
       '/decisions?': decision(),
       '/workout-sessions?': sessions([]),
     });
 
-    render(<MainFlow api={api} me={me()} onSignOut={() => {}} />);
+    render(
+      <MainFlow
+        api={api}
+        me={me()}
+        onRefreshMe={async () => undefined}
+        onSignOut={() => {}}
+      />,
+    );
 
     await waitFor(() => {
       expect(calls.some((path) => path.startsWith('/decisions?'))).toBe(true);
@@ -195,7 +272,14 @@ describe('MainFlow restart recovery', () => {
       },
     });
 
-    render(<MainFlow api={api} me={me()} onSignOut={() => {}} />);
+    render(
+      <MainFlow
+        api={api}
+        me={me()}
+        onRefreshMe={async () => undefined}
+        onSignOut={() => {}}
+      />,
+    );
 
     // The workout screen resuming the session is observable as its detail read.
     await waitFor(
@@ -227,7 +311,14 @@ describe('MainFlow restart recovery', () => {
       ]),
     });
 
-    render(<MainFlow api={api} me={me()} onSignOut={() => {}} />);
+    render(
+      <MainFlow
+        api={api}
+        me={me()}
+        onRefreshMe={async () => undefined}
+        onSignOut={() => {}}
+      />,
+    );
 
     await waitFor(() => {
       expect(calls.some((path) => path.startsWith('/workout-sessions?'))).toBe(

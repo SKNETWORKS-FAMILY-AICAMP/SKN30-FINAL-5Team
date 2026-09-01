@@ -1,0 +1,46 @@
+{
+  "active_safety_bridge_rule_count": 0,
+  "alternative_relationship_count": 585,
+  "approved_media_asset_count": 87,
+  "artifact_bytes": {
+    "exercise_alternatives_v2_final.csv": 412748,
+    "media_assets_v2_final.csv": 63138,
+    "representative_exercise_safety_mapping_v2_final.csv": 102367,
+    "representative_exercise_taxonomy_v2_final.csv": 152037,
+    "representative_exercises_v2_final.csv": 118883,
+    "safety_rules_v2_final.jsonl": 195477,
+    "stable_code_registry_v2.json": 13375
+  },
+  "artifact_sha256": {
+    "exercise_alternatives_v2_final.csv": "9538cfefbb836e3efd068f905850f59942ea5273e4bd709133a09105f0c61086",
+    "media_assets_v2_final.csv": "41a81d4650f67df33feed61a8c1f7ac9c2ba69a5b9728ca83134f9283046d955",
+    "representative_exercise_safety_mapping_v2_final.csv": "9340e5f60bb229cbc97a1429a694ad7379ae532a0981d1580c9ec2e62c5a88cb",
+    "representative_exercise_taxonomy_v2_final.csv": "5929009f48dda3e1b60c2dda016828ab9afc1fa6763c4b76097d5c321a31c284",
+    "representative_exercises_v2_final.csv": "6b832a51229b674d537905bc8d5ac0f994582cdf99d18494cb4e88e9560750ad",
+    "safety_rules_v2_final.jsonl": "368a0d238b91fc6b317d2cc91d68ea8ce0cf7c899532ac1667b7229915100ce0",
+    "stable_code_registry_v2.json": "8f287c7ae05ae5f38c418603e055f407987ab3dbb608e56f03ec30d29024337d"
+  },
+  "media_binary_local_storage": false,
+  "media_local_db_storage": false,
+  "media_storage_backend": "AWS_MANAGED",
+  "production_eligible": false,
+  "representative_count": 102,
+  "representatives_with_approved_body_areas": 102,
+  "representatives_with_approved_difficulty": 102,
+  "representatives_with_approved_met": 102,
+  "representatives_with_approved_target_muscle": 102,
+  "representatives_with_difficulty_review_required": 0,
+  "representatives_with_met_review_required": 0,
+  "representatives_with_target_muscle_review_required": 0,
+  "runtime_json_blockers": {},
+  "runtime_json_eligible": true,
+  "safety_mapping_count": 406,
+  "safety_rule_count": 126,
+  "source_artifact_sha256": {
+    "exercise_met_mapping_reviewed.csv": "54032fef91a8eb54b541b487039b148099de72d11b2dc2b4926de851528d3b74",
+    "gymvisual_media_reviewed.csv": "2caaf884cbe7282debad75ab4a3b34ded618bf81bdd8e255c8b910aab58149c1",
+    "met_domain_approval_manifest.csv": "3dd526c5553bc6265ac774ba58689834da1bce6a9bc5e29b87b757adb6a6c953"
+  },
+  "stable_code_count": 102,
+  "taxonomy_approved_representative_count": 102
+}

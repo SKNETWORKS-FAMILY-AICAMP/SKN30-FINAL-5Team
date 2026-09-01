@@ -1,9 +1,9 @@
 /**
  * One function per implemented `/api/v1` endpoint.
  *
- * Only endpoints that exist in the backend router appear here. Calendar and
- * wearable routes are intentionally absent: Wave 9C-2A is persistence only, so
- * there is nothing to call and the client must not pretend otherwise.
+ * Profile-image methods are the frontend side of a proposed multipart contract;
+ * the backend must review and implement that contract before production use.
+ * Calendar and wearable routes remain absent while there is nothing to call.
  */
 
 import type { ApiClient } from './client';
@@ -12,15 +12,20 @@ import type {
   ConsentValues,
   DailyContextRequest,
   DailyContextResponse,
+  DecisionRegenerationRequest,
   DecisionResponse,
   DecisionSelectionResponse,
   ExerciseDetailResponse,
   ExerciseListResponse,
+  ExerciseVariantsResponse,
   MeResponse,
   NotCompletedReasonCode,
   OnboardingRequest,
   OnboardingResponse,
+  ProfileImageMutationResponse,
+  ProfileImageUpload,
   ProfileSettingsUpdateRequest,
+  ProfileSettingsUpdateResponse,
   RoutineResponse,
   SafetyEventResponse,
   SessionFinishResponse,
@@ -52,7 +57,61 @@ export function createApi(client: ApiClient) {
       });
     },
 
-    createRoutine(body: { effective_from: string; goal_code: string }) {
+    updateProfileSettings(
+      body: ProfileSettingsUpdateRequest,
+      expectedProfileVersion: number,
+    ) {
+      return client.request<ProfileSettingsUpdateResponse>({
+        method: 'PATCH',
+        path: '/me/profile',
+        body,
+        idempotent: true,
+        ifMatch: expectedProfileVersion,
+      });
+    },
+
+    uploadProfileImage(
+      image: ProfileImageUpload,
+      expectedProfileVersion: number,
+    ) {
+      const formData = new FormData();
+      const filePart =
+        image.webFile ??
+        ({
+          uri: image.uri,
+          name: image.fileName,
+          type: image.mimeType,
+        } as unknown as Blob);
+      formData.append('file', filePart, image.fileName);
+
+      return client.request<ProfileImageMutationResponse>({
+        method: 'POST',
+        path: '/me/profile-image',
+        formData,
+        idempotent: true,
+        ifMatch: expectedProfileVersion,
+      });
+    },
+
+    deleteProfileImage(expectedProfileVersion: number) {
+      return client.request<ProfileImageMutationResponse>({
+        method: 'DELETE',
+        path: '/me/profile-image',
+        idempotent: true,
+        ifMatch: expectedProfileVersion,
+      });
+    },
+
+    /**
+     * `requested_duration_minutes` is optional. Omitting it keeps the profile
+     * default; sending it makes this routine a USER_OVERRIDE without changing
+     * the stored profile default.
+     */
+    createRoutine(body: {
+      effective_from: string;
+      goal_code: string;
+      requested_duration_minutes?: number;
+    }) {
       return client.request<RoutineResponse>({
         method: 'POST',
         path: '/routines',
@@ -105,6 +164,17 @@ export function createApi(client: ApiClient) {
       });
     },
 
+    /**
+     * Reviewed EQUIPMENT variants for display only. An empty `items` array
+     * means this exercise must not expose a variant action.
+     */
+    getExerciseVariants(exerciseId: string, signal?: AbortSignal) {
+      return client.request<ExerciseVariantsResponse>({
+        path: `/exercises/${exerciseId}/variants`,
+        signal,
+      });
+    },
+
     getDailyContext(localDate: string, signal?: AbortSignal) {
       return client.request<DailyContextResponse>({
         path: `/daily-contexts/${localDate}`,
@@ -115,6 +185,7 @@ export function createApi(client: ApiClient) {
     /**
      * `expectedVersion` must come from a previous read. Omitting it on an
      * existing check-in is what the server answers with `409 STALE_CONTEXT`.
+     * Keep `available_slots` intact: `null` and `[]` have different meanings.
      */
     replaceDailyContext(
       localDate: string,
@@ -160,6 +231,15 @@ export function createApi(client: ApiClient) {
         path: '/decisions',
         query: { local_date: localDate },
         signal,
+      });
+    },
+
+    regenerateDecision(decisionId: string, body: DecisionRegenerationRequest) {
+      return client.request<DecisionResponse>({
+        method: 'POST',
+        path: `/decisions/${decisionId}/regenerations`,
+        body,
+        idempotent: true,
       });
     },
 
@@ -404,20 +484,6 @@ export function createApi(client: ApiClient) {
       });
     },
 
-    /**
-     * Partial profile settings update; only the provided fields change.
-     * The caller re-reads `/me` afterwards — the response carries only the
-     * new profile version.
-     */
-    updateProfileSettings(body: ProfileSettingsUpdateRequest) {
-      return client.request<{ profile_version: number; updated_at: string }>({
-        method: 'PATCH',
-        path: '/me/profile',
-        body,
-        idempotent: true,
-      });
-    },
-
     requestAccountDeletion() {
       return client.request<{
         deletion_request_id: string;
@@ -433,4 +499,19 @@ export function createApi(client: ApiClient) {
   };
 }
 
-export type Api = ReturnType<typeof createApi>;
+/**
+ * Forward-compatible read boundary for restoring the server-owned weekly plan
+ * revision after an app restart. The backend route is not available yet, so
+ * this capability stays optional and `createApi` does not issue a speculative
+ * request. Once the route is implemented, adding this method to `createApi`
+ * automatically enables MainFlow restoration.
+ */
+export type WeeklyPlanRevisionReadCapability = {
+  getLatestWeeklyPlanRevision(
+    weekStart: string,
+    signal?: AbortSignal,
+  ): Promise<WeeklyPlanRevisionResponse>;
+};
+
+export type Api = ReturnType<typeof createApi> &
+  Partial<WeeklyPlanRevisionReadCapability>;

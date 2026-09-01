@@ -139,24 +139,12 @@ class FeasibilityProposalAgent(_ProposalAgent):
         self,
         request: ProposalRequest[DecisionContext, CoordinatorCandidate],
     ) -> AgentProposal:
-        required_equipment = request.context.candidate_required_equipment_codes
         supported_locations = request.context.candidate_supported_location_codes
         evidence = (
-            "CANDIDATE/required_equipment_codes",
             "CANDIDATE/supported_location_codes",
-            "CONTEXT/equipment_codes",
             "CONTEXT/location_code",
             "CONTEXT/requested_duration_minutes",
         )
-        if required_equipment is not None and not set(required_equipment).issubset(
-            request.context.equipment_codes
-        ):
-            return self._needs_input(
-                request,
-                reason_codes=("AVAILABLE_EQUIPMENT_INSUFFICIENT",),
-                evidence_reference_codes=evidence,
-                hard_constraint_codes=("AVAILABLE_EQUIPMENT_REQUIRED",),
-            )
         if (
             supported_locations is not None
             and request.context.location_code not in supported_locations
@@ -170,10 +158,9 @@ class FeasibilityProposalAgent(_ProposalAgent):
         return self._ready(
             request,
             action=RecommendedActionCode.KEEP,
-            reason_codes=("TIME_LOCATION_EQUIPMENT_MATCHED",),
+            reason_codes=("TIME_LOCATION_MATCHED",),
             evidence_reference_codes=evidence,
             hard_constraint_codes=(
-                "AVAILABLE_EQUIPMENT_SUFFICIENT",
                 "CURRENT_LOCATION_SUPPORTED",
                 "REQUESTED_DURATION_PRESERVED",
             ),
@@ -254,6 +241,42 @@ class SafetyProposalAgent(_ProposalAgent):
             sorted(f"SAFETY_RULE/{rule_code}" for rule_code in base.applied_rule_codes)
         )
         excluded_ids = base.excluded_exercise_codes
+        if request.context.discomforts:
+            pain_change_candidates = [
+                candidate
+                for candidate in request.candidates[1:]
+                if candidate.action_code is RecommendedActionCode.CHANGE
+                and evaluations[str(candidate.candidate_id)].status_code
+                in {SafetyStatusCode.PASS, SafetyStatusCode.REVISE}
+                and not evaluations[str(candidate.candidate_id)].excluded_exercise_codes
+                and any(
+                    reference.startswith("PAIN_ALTERNATIVE/")
+                    for reference in candidate_evidence.get(candidate.candidate_id, ())
+                )
+            ]
+            if pain_change_candidates:
+                selected = min(
+                    pain_change_candidates,
+                    key=lambda candidate: str(candidate.candidate_id),
+                )
+                preferred = tuple(
+                    sorted(set(selected.exercise_ids) - set(base_candidate.exercise_ids))
+                )
+                selected_evidence = tuple(
+                    sorted(
+                        set(evidence_codes) | set(candidate_evidence.get(selected.candidate_id, ()))
+                    )
+                )
+                return self._ready_safety(
+                    request,
+                    action=RecommendedActionCode.CHANGE,
+                    status=SafetyStatusCode.REVISE,
+                    vetoed=bool(excluded_ids),
+                    reason_codes=("PAIN_ALTERNATIVE_APPLIED",),
+                    preferred_exercise_ids=preferred,
+                    excluded_exercise_ids=excluded_ids,
+                    evidence_reference_codes=selected_evidence,
+                )
         if excluded_ids:
             change_candidates = [
                 candidate

@@ -1,0 +1,42 @@
+{
+  "files": [
+    {
+      "bytes": 24077,
+      "path": "goal_tag_links.jsonl",
+      "records": 102,
+      "sha256": "a601bd9b4d07ebece04a49a03d54f49210ed4c24bf3daa186594bbe1967b22da"
+    },
+    {
+      "bytes": 56211,
+      "path": "prescription_profiles.jsonl",
+      "records": 137,
+      "sha256": "da5574703f3ecf1ef9512a5ea71eb58b0a802527bf3a0824d81e9b97406f99b4"
+    }
+  ],
+  "generator_version": "v2-prescription-generator-1.0.0",
+  "prescription_set_version": {
+    "status_code": "DRAFT",
+    "version_code": "prescription-set-v2.0.0"
+  },
+  "review": {
+    "production_eligible": false,
+    "review_method_code": "AGENT_ONLY",
+    "status": "DOMAIN_APPROVED",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
+  },
+  "schema_version": "1.0",
+  "source": {
+    "catalog_review_input_path": "data/generated/exercise-catalog-v2.0.0-final/representative_exercises_v2_final.csv",
+    "catalog_review_input_sha256": "00a2da29a2754efbf888200fddeb65804edea6b1858e850916ddd63c9653d236",
+    "catalog_version_code": "exercise-catalog-v2.0.0-final",
+    "policy_path": "data/normalized/v2_prescription_review_policy.json",
+    "policy_sha256": "09beba6ea28e5b3285f8973f44d4aeb6ad3886b1989f4870931f7c4109810214",
+    "review_results_path": "data/validation/review_results/v2_prescription_review_input.csv",
+    "review_results_sha256": "d45ad9eff3238211f02787127b3ff555b1753d53d713bf170376829d0afb5b8e"
+  },
+  "summary": {
+    "exercise_records": 102,
+    "goal_tag_records": 102,
+    "prescription_records": 137
+  }
+}

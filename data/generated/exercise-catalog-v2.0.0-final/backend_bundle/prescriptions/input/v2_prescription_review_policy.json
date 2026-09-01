@@ -1,0 +1,115 @@
+{
+  "schema_version": "1.0",
+  "policy_version": "v2-prescription-review-policy-2026-08-25",
+  "status": "DRAFT",
+  "production_eligible": false,
+  "goal_code": "GENERAL_FITNESS",
+  "experience_level_code": "BEGINNER",
+  "review_status_code": "DOMAIN_APPROVED",
+  "reviewer_role_code": "DOMAIN_REVIEWER",
+  "reviewer_reference": "V2-PRESCRIPTION-DOMAIN-REVIEW-2026-08-25-R01",
+  "evidence_reference": "PRESCRIPTION-POLICY-V2;PRESCRIPTION-DOMAIN-REVIEW-20260825-R01",
+  "reviewed_at": "2026-08-25T15:00:00+09:00",
+  "prescription_version": "v2.0.0-draft",
+  "external_basis": [
+    "ACSM/NSCA 권고 범위"
+  ],
+  "internal_decision": {
+    "scope": "초보·중급 GENERAL_FITNESS용 서비스 기본 처방값",
+    "default_strength_prescription": "2 sets / 8 reps / 45s rest",
+    "domain_review": "운동별 적용 적합성 확인"
+  },
+  "external_evidence": [
+    {
+      "reference": "EXTERNAL-EXPERT-OPINION-XLSX-2026-08-23",
+      "format": "XLSX",
+      "artifact_available": false,
+      "artifact_sha256": null,
+      "reviewed_on": "2026-08-23",
+      "scope": "대표운동·안전규칙·대체관계·처방",
+      "note": "외부 전문가 의견 원본은 작업 폴더에 보관되지 않은 외부 검수 근거임."
+    }
+  ],
+  "promotion_approval": {
+    "status": "APPROVED_FOR_BACKEND_PROMOTION",
+    "approval_reference": "V2-PROMOTION-APPROVAL-2026-08-25-R01",
+    "approved_at": "2026-08-25T15:00:00+09:00",
+    "approver_role_codes": ["PM", "DEVELOPMENT_LEAD"],
+    "waiver": {
+      "external_artifact_unavailable": true,
+      "waiver_reference": "V2-PROMOTION-WAIVER-2026-08-25-R01",
+      "accepted_by": ["PM", "DEVELOPMENT_LEAD"]
+    }
+  },
+  "role_eligibility_by_movement_pattern": {
+    "CORE": [
+      "BALANCE",
+      "CYCLING",
+      "ELLIPTICAL",
+      "GAIT",
+      "HIP_DOMINANT",
+      "HORIZONTAL_PULL",
+      "HORIZONTAL_PUSH",
+      "JUMP_PLYOMETRIC",
+      "KNEE_DOMINANT",
+      "CORE_BRACE",
+      "VERTICAL_PULL",
+      "VERTICAL_PUSH"
+    ],
+    "SUPPORT": ["ISOLATION", "KNEE_FLEXION", "MOBILITY_STRETCH"],
+    "OPTIONAL": []
+  },
+  "prescription_by_training_type": {
+    "MOBILITY": {
+      "phases": [
+        {
+          "phase_code": "WARMUP",
+          "sets": 1,
+          "work_seconds_per_set": 60,
+          "rest_seconds_per_set": 0,
+          "intensity_code": "LOW"
+        },
+        {
+          "phase_code": "COOLDOWN",
+          "sets": 1,
+          "work_seconds_per_set": 45,
+          "rest_seconds_per_set": 0,
+          "intensity_code": "LOW"
+        }
+      ]
+    },
+    "STRENGTH": {"timing_mode_policy": "BY_CATALOG_TIMING_MODE"},
+    "CARDIO": {"timing_mode_policy": "BY_CATALOG_TIMING_MODE"}
+  },
+  "prescription_by_timing_mode": {
+    "REPS": {
+      "phases": [
+        {
+          "phase_code": "MAIN",
+          "sets": 2,
+          "reps": 8,
+          "rest_seconds_per_set": 45,
+          "intensity_code": "MODERATE"
+        }
+      ]
+    },
+    "DURATION": {
+      "phases": [
+        {
+          "phase_code": "MAIN",
+          "sets": 1,
+          "work_seconds_per_set": 60,
+          "rest_seconds_per_set": 0,
+          "intensity_code": "LOW"
+        }
+      ]
+    }
+  },
+  "guards": [
+    "goal_and_prescription_values_are_review_input_candidates",
+    "do_not_reuse_legacy_prescription_artifacts",
+    "do_not_assign_production_eligibility",
+    "catalog_stable_code_is_the_only_foreign_key",
+    "timing_mode_must_match_the_authored_value"
+  ]
+}

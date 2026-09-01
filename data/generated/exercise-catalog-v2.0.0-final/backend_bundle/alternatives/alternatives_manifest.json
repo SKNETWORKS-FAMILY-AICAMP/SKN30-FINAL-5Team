@@ -1,0 +1,53 @@
+{
+  "alternative_set_version": {
+    "status_code": "DRAFT",
+    "version_code": "alternative-set-v2.0.0"
+  },
+  "files": [
+    {
+      "bytes": 173024,
+      "path": "alternatives.jsonl",
+      "records": 285,
+      "sha256": "90395a88f3fb8e7272d14c515da5cf0317d83dc67b5b60c155e35b68565c6b90"
+    }
+  ],
+  "generator_version": "v2-backend-bundle-packager-1.0.0",
+  "review": {
+    "production_eligible": false,
+    "review_method_code": "AGENT_ONLY",
+    "status": "DOMAIN_APPROVED",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
+  },
+  "schema_version": "1.0",
+  "source": {
+    "catalog_version_code": "exercise-catalog-v2.0.0-final",
+    "importer_record_count": 285,
+    "input_artifacts": [
+      {
+        "bytes": 413334,
+        "path": "input/exercise_alternatives_v2_final.csv",
+        "role": "alternative_mapping_csv",
+        "sha256": "8326c872b5a430917bff3e8b6c3df364b4189978fa4776128f2d3c56fe4e9fdb"
+      },
+      {
+        "bytes": 4341,
+        "path": "input/v2_representative_decisions.json",
+        "role": "v2_decisions",
+        "sha256": "23285ceaee094966779def8d33765b4fbac5be151f73f3ce1fe547e459f65643"
+      }
+    ],
+    "projection_conflict_count": 0,
+    "projection_status": "DIRECT",
+    "runtime_manifest_path": "runtime/alternatives_manifest.json",
+    "runtime_manifest_sha256": "0833760ba2ea10d8611deb2e90a371f8d60bc096f903825045f9b3b93c88e79c",
+    "runtime_record_count": 285
+  },
+  "summary": {
+    "alternative_records": 285,
+    "exercise_records": null,
+    "exercise_scope_rules": null,
+    "pattern_scope_rules": null,
+    "rule_records": null,
+    "sources_with_alternatives": null
+  }
+}

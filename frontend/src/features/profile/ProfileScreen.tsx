@@ -20,7 +20,6 @@ import { colors, radii, spacing } from '../../components/theme';
 import {
   CARE_OPTIONS,
   COACH_OPTIONS,
-  EQUIPMENT_OPTIONS,
   FREQUENCY_OPTIONS,
   GOAL_OPTIONS,
   LEVEL_OPTIONS,
@@ -281,7 +280,7 @@ function StepContent({
   };
 
   const toggleMulti = (
-    key: 'types' | 'equipment' | 'care',
+    key: 'types' | 'care',
     label: string,
     exclusive?: string,
   ) => {
@@ -468,16 +467,6 @@ function StepContent({
       );
     case 10:
       return (
-        <ChoiceCard>
-          <ChoiceRow
-            options={EQUIPMENT_OPTIONS}
-            selected={form.equipment}
-            onSelect={(value) => toggleMulti('equipment', value, '맨몸만')}
-          />
-        </ChoiceCard>
-      );
-    case 11:
-      return (
         <Card>
           <TextField
             accessibilityLabel="운동 시간"
@@ -491,7 +480,7 @@ function StepContent({
           />
         </Card>
       );
-    case 12:
+    case 11:
       return (
         <ChoiceCard>
           <ChoiceRow
@@ -502,7 +491,7 @@ function StepContent({
           />
         </ChoiceCard>
       );
-    case 13:
+    case 12:
       return (
         <ChoiceCard>
           <ChoiceRow
@@ -523,7 +512,7 @@ function StepContent({
           ) : null}
         </ChoiceCard>
       );
-    case 14:
+    case 13:
       return <SummaryCard form={form} onEditStep={onEditStep} />;
     default:
       return null;
@@ -641,7 +630,6 @@ function SummaryCard({
     ['선호 운동', joinValues(form.types, '미선택')],
     ['코칭 스타일', form.coach || '미선택'],
     ['운동 장소', form.place || '미선택'],
-    ['기구', joinValues(form.equipment, '미선택')],
     ['운동 시간', form.duration ? `${form.duration}분` : '미입력'],
     ['주간 횟수', form.frequency || '미선택'],
     [
@@ -748,8 +736,6 @@ function isStepValid(
       return form.coach.length > 0;
     case 'place':
       return form.place.length > 0;
-    case 'equipment':
-      return form.equipment.length > 0;
     default:
       return true;
   }

@@ -40,7 +40,11 @@ export function ScreenShell({
   footer?: React.ReactNode;
 }) {
   return (
-    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+    <SafeAreaView
+      style={styles.screen}
+      edges={footer ? ['top'] : ['top', 'bottom']}
+      testID="screen-shell-safe-area"
+    >
       {bands ? <BackgroundBands tall={tallBands} /> : null}
       {scroll ? (
         <ScrollView
@@ -211,10 +215,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   titleOnBand: {
-    color: colors.surface,
+    color: colors.text,
   },
   subtitleOnBand: {
-    color: colors.greenTint,
+    color: colors.textSub,
   },
   subtitle: {
     color: colors.textSub,

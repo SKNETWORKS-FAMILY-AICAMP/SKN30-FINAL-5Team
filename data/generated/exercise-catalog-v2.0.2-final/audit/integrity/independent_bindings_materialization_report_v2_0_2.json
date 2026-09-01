@@ -1,0 +1,39 @@
+{
+  "catalog_version_code": "exercise-catalog-v2.0.2-final",
+  "fitt_row_count_added": 179,
+  "goal_row_count_added": 94,
+  "match_method_counts": {
+    "BASE_EXERCISE_NEX_MATCH": 55,
+    "NAME_MATCH": 39
+  },
+  "materialization_version": "v2.0.2-independent-bindings-source-match-v1.0.0",
+  "materialized_record_count": 94,
+  "production_eligible": false,
+  "safety_row_count_added": 319,
+  "schema_version": "exercise-catalog-v2.0.2-independent-bindings-materialization-v1",
+  "source_files": {
+    "fitt_enrichment": {
+      "modified_at": "2026-08-27T07:03:17.061453+00:00",
+      "path": "data/normalized/catalog_enrichment_v3_fitt.csv",
+      "sha256": "8f22de2c437c4486f2df0a14a771b1f620c4bd57e4876643d85fd57991877a54"
+    },
+    "goal_links": {
+      "modified_at": "2026-08-27T07:24:57.541047+00:00",
+      "path": "data/generated/exercise-catalog-v2.0.2-draft/prescriptions/goal_tag_links.jsonl",
+      "sha256": "663d9927aeb5538b5d702b3d7087cc82f1985daed84d3f0781cadc7815f91bc8"
+    },
+    "old_nex_mapping": {
+      "modified_at": "2026-08-27T06:57:49.987328+00:00",
+      "path": "data/generated/exercise-catalog-v2.0.1-final/representative_exercises_v2_final.csv",
+      "sha256": "6b832a51229b674d537905bc8d5ac0f994582cdf99d18494cb4e88e9560750ad"
+    },
+    "safety_mapping": {
+      "modified_at": "2026-08-25T03:16:12.720950+00:00",
+      "path": "data/generated/exercise-safety-rules-v2.0.0/exercise_safety_mapping_v2.csv",
+      "sha256": "0f131f41adb01e4866c2e86fbe8bb60661bcae6656582e93754d7929ca86db13"
+    }
+  },
+  "target_record_count": 94,
+  "unmatched": [],
+  "unmatched_record_count": 0
+}

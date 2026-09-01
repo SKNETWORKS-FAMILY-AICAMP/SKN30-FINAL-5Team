@@ -137,3 +137,89 @@ def test_missing_context_and_invalid_duplicate_input_use_common_errors() -> None
     assert missing.json()["error"]["code"] == "DAILY_CONTEXT_NOT_FOUND"
     assert invalid.status_code == 422
     assert invalid.json()["error"]["code"] == "DUPLICATE_BODY_AREA"
+
+
+def test_available_slots_round_trip_through_the_public_contract() -> None:
+    client = _client(FakeDailyContextRepository())
+    payload = _payload()
+    payload["available_slots"] = [
+        {"start_at": "2026-08-14T19:00:00+09:00", "end_at": "2026-08-14T21:00:00+09:00"},
+        {"start_at": "2026-08-14T07:00:00+09:00", "end_at": "2026-08-14T09:00:00+09:00"},
+    ]
+    with client:
+        created = client.put(
+            f"/api/v1/daily-contexts/{LOCAL_DATE}",
+            json=payload,
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+
+    body = created.json()
+    assert created.status_code == 200
+    assert body["availability_source_code"] == "MANUAL"
+    assert [slot["start_at"] for slot in body["available_slots"]] == [
+        "2026-08-14T07:00:00+09:00",
+        "2026-08-14T19:00:00+09:00",
+    ]
+
+
+def test_omitted_and_empty_available_slots_are_distinct_states() -> None:
+    omitted_client = _client(FakeDailyContextRepository())
+    with omitted_client:
+        omitted = omitted_client.put(
+            f"/api/v1/daily-contexts/{LOCAL_DATE}",
+            json=_payload(),
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+
+    empty_payload = _payload()
+    empty_payload["available_slots"] = []
+    empty_client = _client(FakeDailyContextRepository())
+    with empty_client:
+        empty = empty_client.put(
+            f"/api/v1/daily-contexts/{LOCAL_DATE}",
+            json=empty_payload,
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+
+    assert omitted.json()["availability_source_code"] == "ROUTINE_DEFAULT"
+    assert omitted.json()["available_slots"] is None
+    assert empty.json()["availability_source_code"] == "MANUAL"
+    assert empty.json()["available_slots"] == []
+
+
+def test_slot_outside_the_local_date_returns_the_common_error_envelope() -> None:
+    client = _client(FakeDailyContextRepository())
+    payload = _payload()
+    payload["available_slots"] = [
+        {"start_at": "2026-08-15T09:00:00+09:00", "end_at": "2026-08-15T11:00:00+09:00"}
+    ]
+    with client:
+        response = client.put(
+            f"/api/v1/daily-contexts/{LOCAL_DATE}",
+            json=payload,
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "INVALID_REQUEST"
+
+
+def test_calendar_body_fields_are_rejected_on_a_slot() -> None:
+    client = _client(FakeDailyContextRepository())
+    payload = _payload()
+    payload["available_slots"] = [
+        {
+            "start_at": "2026-08-14T07:00:00+09:00",
+            "end_at": "2026-08-14T09:00:00+09:00",
+            "summary": "팀 회의",
+        }
+    ]
+    with client:
+        response = client.put(
+            f"/api/v1/daily-contexts/{LOCAL_DATE}",
+            json=payload,
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+
+    assert response.status_code == 400
+    assert "팀 회의" not in response.text

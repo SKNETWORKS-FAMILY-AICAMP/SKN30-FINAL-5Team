@@ -5,6 +5,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 
 import type { Api } from '../src/api/endpoints';
 import type { WeekResponse } from '../src/api/types';
@@ -15,10 +16,13 @@ function week(
   status: 'OPEN' | 'CLOSED',
   reportStatus: WeekResponse['report_status_code'] = null,
 ): WeekResponse {
+  const start = new Date(`${weekStart}T00:00:00Z`);
+  start.setUTCDate(start.getUTCDate() + 6);
+  const weekEnd = start.toISOString().slice(0, 10);
   return {
     week_id: `week-${weekStart}`,
     week_start: weekStart,
-    week_end: '',
+    week_end: weekEnd,
     timezone: 'Asia/Seoul',
     target_workout_count: 4,
     plan_origin_code: 'WEEKLY_REPORT',
@@ -31,6 +35,67 @@ function week(
 }
 
 describe('CalendarReportContainer', () => {
+  it('disables and darkens dates before the user started their routine', async () => {
+    const listWorkoutSessions = jest.fn<Api['listWorkoutSessions']>(
+      async () => ({ items: [], next_cursor: null }),
+    );
+    const getWeek = jest.fn<Api['getWeek']>(async (weekStart) =>
+      week(weekStart, weekStart === '2026-08-10' ? 'OPEN' : 'CLOSED'),
+    );
+
+    await render(
+      <CalendarReportContainer
+        api={{ listWorkoutSessions, getWeek } as unknown as Api}
+        now={new Date('2026-08-12T03:00:00Z')}
+        onOpenWeeklyReport={jest.fn()}
+        routineStartLocalDate="2026-08-06"
+        timeZone="Asia/Seoul"
+      />,
+    );
+
+    expect(await screen.findByText('2026년 8월')).toBeOnTheScreen();
+    expect(listWorkoutSessions).toHaveBeenCalledWith(
+      expect.objectContaining({ fromLocalDate: '2026-08-06' }),
+      expect.anything(),
+    );
+    expect(getWeek.mock.calls.map(([weekStart]) => weekStart)).toEqual([
+      '2026-08-03',
+      '2026-08-10',
+    ]);
+
+    const unavailableWeek = screen.getByRole('button', {
+      name: '1주차 루틴 시작 전, 선택할 수 없음',
+    });
+    expect(unavailableWeek.props.accessibilityState).toEqual({
+      disabled: true,
+    });
+    fireEvent.press(unavailableWeek);
+    expect(screen.queryByText('리포트를 확인한 주예요.')).toBeNull();
+
+    const unavailableDay = screen.getByRole('button', {
+      name: '2026-08-03 루틴 시작 전 날짜',
+    });
+    expect(unavailableDay.props.accessibilityState).toEqual({ disabled: true });
+    expect(StyleSheet.flatten(unavailableDay.props.style)).toMatchObject({
+      backgroundColor: '#C9C5BC',
+      opacity: 1,
+    });
+    expect(
+      screen.getByTestId('calendar-day-2026-08-03-0-mark-glyph').props.children,
+    ).toBe('');
+    expect(
+      screen.getByTestId('calendar-day-2026-08-10-2-mark-glyph').props.children,
+    ).toBe('');
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('calendar-day-2026-08-10-2-mark').props.style,
+      ),
+    ).toMatchObject({
+      backgroundColor: 'transparent',
+      borderColor: 'transparent',
+    });
+  });
+
   it('renders the existing calendar UI from paginated backend records', async () => {
     const listWorkoutSessions = jest
       .fn<Api['listWorkoutSessions']>()
@@ -68,15 +133,15 @@ describe('CalendarReportContainer', () => {
         items: [
           {
             session_id: 'partial',
-            local_date: '2026-08-11',
+            local_date: '2026-08-12',
             status_code: 'PARTIAL',
             completed_item_count: 1,
             total_item_count: 3,
             requested_duration_minutes: 30,
             training_type_code: 'STRENGTH',
             not_completed_reason_code: null,
-            started_at: '2026-08-11T09:00:00+09:00',
-            finished_at: '2026-08-11T09:15:00+09:00',
+            started_at: '2026-08-12T09:00:00+09:00',
+            finished_at: '2026-08-12T09:15:00+09:00',
           },
         ],
         next_cursor: null,
@@ -152,15 +217,15 @@ describe('CalendarReportContainer', () => {
       screen.getByTestId('calendar-day-2026-08-03-5-mark-glyph').props.children,
     ).toBe('×');
     expect(
-      screen.getByTestId('calendar-day-2026-08-10-1-mark-glyph').props.children,
-    ).toBe('◐');
+      screen.getByTestId('calendar-day-2026-08-10-2-mark-glyph').props.children,
+    ).toBe('△');
     expect(
       screen.getByTestId('calendar-chip-2026-08-03-label').props.children,
-    ).toBe('확인 필요');
+    ).toBe('리포트 확인하기');
 
     fireEvent.press(
       screen.getByRole('button', {
-        name: '2주차 확인 필요, 요약 펼치기',
+        name: '2주차 리포트 확인하기, 요약 펼치기',
       }),
     );
     fireEvent.press(
@@ -180,6 +245,19 @@ describe('CalendarReportContainer', () => {
       screen.getByRole('button', { name: '주간 리포트 보기  ›' }),
     );
     expect(onOpenWeeklyReport).toHaveBeenCalledWith('2026-08-03');
+    fireEvent.press(
+      screen.getByRole('button', {
+        name: '3주차 진행 중, 요약 펼치기',
+      }),
+    );
+    expect(
+      screen.getByText(
+        '이번 주는 아직 진행 중이에요. 남은 요일에 루틴을 채워보세요.',
+      ),
+    ).toBeOnTheScreen();
+    expect(screen.queryByText('진행 중 요약 보기 ›')).toBeNull();
+    expect(screen.queryByRole('button', { name: /주간 리포트/ })).toBeNull();
+    expect(onOpenWeeklyReport).toHaveBeenCalledTimes(1);
     expect(listWorkoutSessions).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({ cursor: 'second-page', limit: 100 }),

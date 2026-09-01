@@ -46,7 +46,7 @@ def test_rejects_candidate_from_existing_review_batch(tmp_path: Path) -> None:
 
 def test_rejects_unregistered_taxonomy_code(tmp_path: Path) -> None:
     policy = json.loads(POLICY.read_text(encoding="utf-8"))
-    policy["candidates"][0]["target_movement_pattern_code"] = "BALANCE"
+    policy["candidates"][0]["target_movement_pattern_code"] = "NOT_REGISTERED"
     path = tmp_path / "policy.json"
     path.write_text(json.dumps(policy, ensure_ascii=False), encoding="utf-8")
 

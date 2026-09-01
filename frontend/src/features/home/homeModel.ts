@@ -1,5 +1,10 @@
-import { bodyFocusLabel, trainingTypeLabel } from '../../api/labels';
+import {
+  bodyFocusLabel,
+  formatExercisePrescription,
+  trainingTypeLabel,
+} from '../../api/labels';
 import type {
+  AvailabilitySlotInput,
   DailyContextResponse,
   DiscomfortSeverityCode,
   FatigueLevelCode,
@@ -7,11 +12,13 @@ import type {
   WorkoutPlan,
   WorkoutSessionLogSummary,
 } from '../../api/types';
+import { orderedWorkoutPlanItems } from '../../api/workoutPlan';
 
 export type HomePreviewState =
   | 'pre-checkin'
   | 'checkin'
   | 'generating'
+  | 'generating-final'
   | 'routine'
   | 'adjusted'
   | 'editing'
@@ -21,6 +28,7 @@ export const HOME_PREVIEW_OPTIONS = [
   { id: 'pre-checkin', label: '체크인 전' },
   { id: 'checkin', label: '체크인 sheet' },
   { id: 'generating', label: '재추천 중' },
+  { id: 'generating-final', label: '완료 직전 (95%)' },
   { id: 'routine', label: '최종 추천' },
   { id: 'adjusted', label: '부담 조정' },
   { id: 'editing', label: '운동 편집' },
@@ -47,9 +55,16 @@ export type HomeRoutineItem = {
   name: string;
   reps?: string;
   sets?: string;
+  workSeconds?: number;
+};
+
+export type HomeAvailabilitySlot = {
+  startTime: string;
+  endTime: string;
 };
 
 export type HomeCheckin = {
+  availableSlots: HomeAvailabilitySlot[] | null;
   discomforts: Record<string, DiscomfortSeverityCode>;
   fatigue: string;
   locationCode: string | null;
@@ -59,6 +74,7 @@ export type HomeCheckin = {
 };
 
 export type HomeCheckinDraft = {
+  availableSlots: HomeAvailabilitySlot[] | null;
   fatigueLevelCode: FatigueLevelCode;
   requestedDurationMinutes: number;
   sleepHours: string;
@@ -82,6 +98,7 @@ export function sleepMinutesFromHours(
 }
 
 export const HOME_DEFAULT_CHECKIN: HomeCheckin = {
+  availableSlots: null,
   discomforts: {},
   fatigue: '보통이에요',
   locationCode: null,
@@ -92,7 +109,7 @@ export const HOME_DEFAULT_CHECKIN: HomeCheckin = {
 
 export const HOME_CHECKIN_OPTIONS = {
   fatigue: ['피곤해요', '보통이에요', '가벼워요'],
-  discomfort: ['없음', '어깨', '허리', '무릎'],
+  discomfort: ['없음', '있음'],
 } as const;
 
 export type HomeRoutineVariant = {
@@ -133,11 +150,11 @@ export const HOME_ROUTINE_VARIANTS: readonly HomeRoutineVariant[] = [
     title: '유산소 · 코어 루틴',
     focus: '유산소 · 코어',
     items: [
-      { id: 'walk-warm-up', name: '준비 걷기 · 5분' },
-      { id: 'interval-run', name: '인터벌 러닝 · 15분' },
-      { id: 'plank', name: '플랭크 · 3세트 × 40초' },
+      { id: 'walk-warm-up', name: '준비 걷기', sets: '1', reps: '10' },
+      { id: 'interval-run', name: '인터벌 러닝', sets: '3', reps: '10' },
+      { id: 'plank', name: '플랭크', sets: '3', reps: '10' },
       { id: 'core-bridge', name: '코어 브리지', sets: '2', reps: '15' },
-      { id: 'walk-cool-down', name: '마무리 걷기 · 5분' },
+      { id: 'walk-cool-down', name: '마무리 걷기', sets: '1', reps: '10' },
     ],
   },
 ] as const;
@@ -164,8 +181,208 @@ const FATIGUE_LABEL_BY_CODE: Record<FatigueLevelCode, string> = {
   LOW: '가벼워요',
 };
 
+const CLOCK_TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+
+function isBlankSlot(slot: HomeAvailabilitySlot): boolean {
+  return slot.startTime === '' && slot.endTime === '';
+}
+
+function clockMinutes(value: string, midnightAsDayEnd = false): number {
+  const [hours = 0, minutes = 0] = value.split(':').map(Number);
+  return midnightAsDayEnd && hours === 0 && minutes === 0
+    ? 24 * 60
+    : hours * 60 + minutes;
+}
+
+export function validateAvailabilitySlots(
+  slots: readonly HomeAvailabilitySlot[] | null,
+): string | null {
+  if (slots === null) {
+    return null;
+  }
+  const entered = slots.filter((slot) => !isBlankSlot(slot));
+  if (
+    entered.some(
+      (slot) =>
+        !CLOCK_TIME_PATTERN.test(slot.startTime) ||
+        !CLOCK_TIME_PATTERN.test(slot.endTime),
+    )
+  ) {
+    return '시작 시간과 종료 시간을 시간:분 형식으로 모두 입력해주세요.';
+  }
+  if (
+    entered.some(
+      (slot) =>
+        clockMinutes(slot.startTime) >= clockMinutes(slot.endTime, true),
+    )
+  ) {
+    return '종료 시간은 시작 시간보다 뒤여야 해요.';
+  }
+  const ordered = [...entered].sort((left, right) =>
+    left.startTime.localeCompare(right.startTime),
+  );
+  for (let index = 1; index < ordered.length; index += 1) {
+    const previous = ordered[index - 1];
+    const current = ordered[index];
+    if (
+      previous &&
+      current &&
+      clockMinutes(previous.endTime, true) >= clockMinutes(current.startTime)
+    ) {
+      return '가능한 시간대끼리는 겹치거나 맞닿을 수 없어요.';
+    }
+  }
+  return null;
+}
+
+function enteredAvailabilitySlots(
+  slots: readonly HomeAvailabilitySlot[] | null,
+): HomeAvailabilitySlot[] | null {
+  return slots === null
+    ? null
+    : slots.filter((slot) => !isBlankSlot(slot)).map((slot) => ({ ...slot }));
+}
+
+function localTimeFromDateTime(value: string): string {
+  const match = /T(\d{2}):(\d{2})/.exec(value);
+  return match ? `${match[1]}:${match[2]}` : '';
+}
+
+type DateTimeParts = {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+};
+
+function dateTimeParts(date: Date, timeZone: string): DateTimeParts {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value);
+  const result = {
+    year: value('year'),
+    month: value('month'),
+    day: value('day'),
+    hour: value('hour'),
+    minute: value('minute'),
+    second: value('second'),
+  };
+  if (Object.values(result).some((part) => !Number.isFinite(part))) {
+    throw new Error('profile timezone could not be formatted');
+  }
+  return result;
+}
+
+function offsetMilliseconds(date: Date, timeZone: string): number {
+  const parts = dateTimeParts(date, timeZone);
+  return (
+    Date.UTC(
+      parts.year,
+      parts.month - 1,
+      parts.day,
+      parts.hour,
+      parts.minute,
+      parts.second,
+    ) - date.getTime()
+  );
+}
+
+function awareLocalDateTime(
+  localDate: string,
+  localTime: string,
+  timeZone: string,
+): string {
+  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(localDate);
+  const timeMatch = /^(\d{2}):(\d{2})$/.exec(localTime);
+  if (!dateMatch || !timeMatch) {
+    throw new Error('invalid local availability date or time');
+  }
+  const desired: DateTimeParts = {
+    year: Number(dateMatch[1]),
+    month: Number(dateMatch[2]),
+    day: Number(dateMatch[3]),
+    hour: Number(timeMatch[1]),
+    minute: Number(timeMatch[2]),
+    second: 0,
+  };
+  const wallTimeMilliseconds = Date.UTC(
+    desired.year,
+    desired.month - 1,
+    desired.day,
+    desired.hour,
+    desired.minute,
+  );
+  let offset = offsetMilliseconds(new Date(wallTimeMilliseconds), timeZone);
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const next = offsetMilliseconds(
+      new Date(wallTimeMilliseconds - offset),
+      timeZone,
+    );
+    if (next === offset) {
+      break;
+    }
+    offset = next;
+  }
+  const resolved = new Date(wallTimeMilliseconds - offset);
+  const resolvedParts = dateTimeParts(resolved, timeZone);
+  if (
+    resolvedParts.year !== desired.year ||
+    resolvedParts.month !== desired.month ||
+    resolvedParts.day !== desired.day ||
+    resolvedParts.hour !== desired.hour ||
+    resolvedParts.minute !== desired.minute
+  ) {
+    throw new Error('availability time does not exist in profile timezone');
+  }
+  const offsetMinutes = Math.round(offset / 60_000);
+  const sign = offsetMinutes >= 0 ? '+' : '-';
+  const absolute = Math.abs(offsetMinutes);
+  const offsetHours = String(Math.floor(absolute / 60)).padStart(2, '0');
+  const offsetRemainder = String(absolute % 60).padStart(2, '0');
+  return `${localDate}T${localTime}:00${sign}${offsetHours}:${offsetRemainder}`;
+}
+
+function nextLocalDate(localDate: string): string {
+  const [year, month, day] = localDate.split('-').map(Number);
+  if (year === undefined || month === undefined || day === undefined) {
+    throw new Error('invalid local availability date');
+  }
+  const value = new Date(Date.UTC(year, month - 1, day + 1));
+  return value.toISOString().slice(0, 10);
+}
+
+export function availabilitySlotsForRequest(
+  slots: readonly HomeAvailabilitySlot[] | null,
+  localDate: string,
+  timeZone: string,
+): AvailabilitySlotInput[] | null {
+  const entered = enteredAvailabilitySlots(slots);
+  return entered === null
+    ? null
+    : entered.map((slot) => ({
+        start_at: awareLocalDateTime(localDate, slot.startTime, timeZone),
+        end_at: awareLocalDateTime(
+          slot.endTime === '00:00' ? nextLocalDate(localDate) : localDate,
+          slot.endTime,
+          timeZone,
+        ),
+      }));
+}
+
 export function apiCheckinDraft(checkin: HomeCheckin): HomeCheckinDraft {
   return {
+    availableSlots: enteredAvailabilitySlots(checkin.availableSlots),
     fatigueLevelCode: FATIGUE_CODE_BY_LABEL[checkin.fatigue] ?? 'MODERATE',
     requestedDurationMinutes: Number(checkin.workoutMinutes),
     sleepHours: checkin.sleepHours,
@@ -195,6 +412,11 @@ export function checkinFromContext(
       : String(Math.round((context.sleep_minutes / 60) * 10) / 10);
   return {
     ...HOME_DEFAULT_CHECKIN,
+    availableSlots:
+      context.available_slots?.map((slot) => ({
+        startTime: localTimeFromDateTime(slot.start_at),
+        endTime: localTimeFromDateTime(slot.end_at),
+      })) ?? null,
     discomforts: Object.fromEntries(
       context.discomforts.map(({ body_area_code, severity_code }) => [
         body_area_code,
@@ -210,30 +432,15 @@ export function checkinFromContext(
 }
 
 export function routineItemsFromPlan(plan: WorkoutPlan): HomeRoutineItem[] {
-  return [...plan.items]
-    .sort((left, right) => left.sequence - right.sequence)
-    .map((item) => {
-      if (item.reps !== null) {
-        return {
-          exerciseId: item.exercise_id,
-          id: item.plan_item_id,
-          instructionAvailable: item.instruction_available,
-          name: item.exercise_name,
-          sets: String(item.sets),
-          reps: String(item.reps),
-        };
-      }
-      const timed =
-        item.work_seconds > 0
-          ? ` · ${item.sets}세트 × ${item.work_seconds}초`
-          : '';
-      return {
-        exerciseId: item.exercise_id,
-        id: item.plan_item_id,
-        instructionAvailable: item.instruction_available,
-        name: `${item.exercise_name}${timed}`,
-      };
-    });
+  return orderedWorkoutPlanItems(plan.items).map((item) => ({
+    exerciseId: item.exercise_id,
+    id: item.plan_item_id,
+    instructionAvailable: item.instruction_available,
+    name: item.exercise_name,
+    reps: item.reps === null ? undefined : String(item.reps),
+    sets: String(item.sets),
+    workSeconds: item.reps === null ? item.work_seconds : undefined,
+  }));
 }
 
 export function routineTitleFromPlan(plan: WorkoutPlan): string {
@@ -301,6 +508,19 @@ export function weekStartForLocalDate(localDate: string): string | null {
       current.getDate() - mondayOffset,
     ),
   );
+}
+
+export function weeklyCompletionPercentage(
+  completedCount: number,
+  targetCount: number,
+): number {
+  const target = Math.max(0, Math.floor(targetCount));
+  if (target === 0) {
+    return 0;
+  }
+
+  const completed = Math.max(0, Math.floor(completedCount));
+  return Math.min(100, Math.round((completed / target) * 100));
 }
 
 export function weekDaysFromSessions(
@@ -385,7 +605,15 @@ export function formatRoutineItem(item: HomeRoutineItem): string | null {
   }
   const sets = String(item.sets ?? '').replace(/[^0-9]/g, '');
   const reps = String(item.reps ?? '').replace(/[^0-9]/g, '');
-  return sets && reps ? `${name} · ${sets}세트 × ${reps}회` : name;
+  const hasTimedPrescription =
+    item.workSeconds !== undefined && item.workSeconds > 0;
+  return sets && (reps || hasTimedPrescription)
+    ? `${name} · ${formatExercisePrescription({
+        reps: reps ? Number(reps) : null,
+        sets: Number(sets),
+        workSeconds: item.workSeconds,
+      })}`
+    : name;
 }
 
 export function getHomeRerollLabel(rerolls: number, loading: boolean) {

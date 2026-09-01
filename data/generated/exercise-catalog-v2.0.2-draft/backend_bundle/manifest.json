@@ -1,0 +1,65 @@
+{
+  "alternative_set_version_code": "alternative-set-v2.0.2-draft",
+  "catalog_version_code": "exercise-catalog-v2.0.2-draft",
+  "files": [
+    {
+      "bytes": 342637,
+      "path": "backend_bundle/alternatives/alternatives.jsonl",
+      "records": 279,
+      "sha256": "4b8953d4757ee27679403f0ea5e956d7eaf19dac2fd59170a1a6bd1531c7378c"
+    },
+    {
+      "bytes": 66633,
+      "path": "backend_bundle/catalog/catalog_enrichment.jsonl",
+      "records": 102,
+      "sha256": "42a49359f071073974f8b33ec23f4b3ca6948efcbc456d0cde07b79326564a4e"
+    },
+    {
+      "bytes": 137944,
+      "path": "backend_bundle/catalog/exercises.jsonl",
+      "records": 102,
+      "sha256": "de176814c516132d9eda4c04167fb32d1c8d864c69dea9726ae104b9e711795d"
+    },
+    {
+      "bytes": 210800,
+      "path": "backend_bundle/catalog/exercises_v1_v2.csv",
+      "records": 310,
+      "sha256": "7fa4eeca29cf924d2b0e8c418cf3c348e77c0989a12535708361e1da7b9902f8"
+    },
+    {
+      "bytes": 447218,
+      "path": "backend_bundle/catalog/exercises_v1_v2.jsonl",
+      "records": 310,
+      "sha256": "f5b1d79e6206eb43cdd58c91d8ca4f161a3d302ca945359129b79a7f0e2f5d23"
+    },
+    {
+      "bytes": 238126,
+      "path": "backend_bundle/catalog/v1_exercise_aliases.jsonl",
+      "records": 208,
+      "sha256": "068a9313051384f481a24e0c6c6f95559ac92159f7fe7c994c3d459c4af1478c"
+    },
+    {
+      "bytes": 29789,
+      "path": "backend_bundle/prescriptions/goal_tag_links.jsonl",
+      "records": 102,
+      "sha256": "663d9927aeb5538b5d702b3d7087cc82f1985daed84d3f0781cadc7815f91bc8"
+    },
+    {
+      "bytes": 130047,
+      "path": "backend_bundle/prescriptions/prescription_profiles.jsonl",
+      "records": 237,
+      "sha256": "2ce94a1944b7ed7179685a883a8c36d58439e15f752f7c14d843605541dd71ba"
+    },
+    {
+      "bytes": 361869,
+      "path": "backend_bundle/safety/safety_rules.jsonl",
+      "records": 394,
+      "sha256": "894e343f1b64f6e98efd0101eb6c149cd4fc784670bb714b44fdd9d4a74ab05e"
+    }
+  ],
+  "kind": "backend_bundle",
+  "prescription_set_version_code": "prescription-set-v2.0.2-draft",
+  "production_eligible": false,
+  "schema_version": "vnext-1.0",
+  "status_code": "DRAFT"
+}

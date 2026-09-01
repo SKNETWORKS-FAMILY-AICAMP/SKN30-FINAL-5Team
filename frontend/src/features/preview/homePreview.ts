@@ -42,7 +42,10 @@ const SESSIONS: WorkoutSessionLogSummary[] = COMPLETED_DATES.map(
   }),
 );
 
-const HOME_EXERCISE_PREVIEW_API: Pick<Api, 'getExercise'> = {
+const HOME_EXERCISE_PREVIEW_API: Pick<
+  Api,
+  'getExercise' | 'getExerciseVariants'
+> = {
   async getExercise(exerciseId: string) {
     const names: Record<string, string> = {
       'exercise-0': '준비 운동',
@@ -59,6 +62,34 @@ const HOME_EXERCISE_PREVIEW_API: Pick<Api, 'getExercise'> = {
       media_asset_key: null,
       mascot_animation_asset_key: null,
       instruction_content_version: 'home-preview-v1',
+    };
+  },
+  async getExerciseVariants(exerciseId: string) {
+    const hasVariant = exerciseId === 'exercise-2';
+    return {
+      source_exercise_id: exerciseId,
+      source_required_equipment_codes: hasVariant
+        ? ['BODYWEIGHT', 'RESISTANCE_BAND']
+        : ['BODYWEIGHT'],
+      items: hasVariant
+        ? [
+            {
+              exercise_id: 'exercise-2-bodyweight-variant',
+              exercise_name: '엎드려 등 당기기',
+              required_equipment_codes: ['BODYWEIGHT'],
+              instruction_summary:
+                '밴드 없이 엎드린 자세에서 팔꿈치를 몸통 쪽으로 당겨요.',
+              form_cues: [
+                '어깨를 귀에서 멀리 유지하기',
+                '허리가 꺾이지 않게 복부에 힘주기',
+              ],
+              media_asset_key: null,
+              goal_preservation_code: 'GENERAL_FITNESS',
+            },
+          ]
+        : [],
+      catalog_version: 'exercise-catalog-v2.0.1-final',
+      alternative_set_version: hasVariant ? 'alternative-set-v2.0.1' : null,
     };
   },
 };
@@ -173,7 +204,7 @@ function plan(): WorkoutPlan {
         sequence: 1,
         tier_code: 'SUPPORT',
         sets: 1,
-        reps: null,
+        reps: 10,
         work_seconds: 180,
         rest_seconds: 0,
         transition_seconds: 10,
@@ -290,6 +321,16 @@ function decision(adjusted: boolean): DecisionResponse {
         ? '안전 기준을 유지하면서 운동 부담을 조정했어요.'
         : '현재 체크인에 적용할 안전 제한을 확인했어요.',
     },
+    generation_mode_code: adjusted ? 'REGENERATED' : 'ORIGINAL',
+    decision_engine_code: 'LLM_MULTI_AGENT',
+    root_decision_id: '66666666-6666-4666-8666-666666666666',
+    parent_decision_id: adjusted
+      ? '66666666-6666-4666-8666-666666666666'
+      : null,
+    regeneration_sequence: adjusted ? 1 : 0,
+    meaningful_difference_codes: adjusted
+      ? ['SET_REP_STRUCTURE_CHANGED']
+      : null,
     created_at: `${LOCAL_DATE}T08:05:00+09:00`,
   };
 }
@@ -297,9 +338,10 @@ function decision(adjusted: boolean): DecisionResponse {
 export function homePreviewProps(state: HomePreviewState): HomeScreenProps {
   const showsRoutine =
     state === 'routine' || state === 'adjusted' || state === 'editing';
+  const showsGeneration =
+    state === 'generating' || state === 'generating-final';
 
   return {
-    attentionAreaCodes: ['SHOULDER', 'KNEE'],
     nickname: '헬끼',
     localDate: LOCAL_DATE,
     status: 'ready',
@@ -313,7 +355,9 @@ export function homePreviewProps(state: HomePreviewState): HomeScreenProps {
     defaultDurationMinutes: 40,
     exerciseApi: HOME_EXERCISE_PREVIEW_API,
     locationCodes: ['HOME', 'GYM'],
-    busy: state === 'generating' ? 'checkin' : null,
+    busy: showsGeneration ? 'decision-generation' : null,
+    routineLoadingPhaseCode:
+      state === 'generating-final' ? 'FINAL_VALIDATION' : undefined,
     previewState: state,
   };
 }

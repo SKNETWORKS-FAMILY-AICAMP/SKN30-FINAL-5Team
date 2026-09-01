@@ -1,0 +1,13 @@
+{
+  "completed_at": "2026-08-20T04:32:21.563806+00:00",
+  "experiment_id": "final_time_A3_histgb_test",
+  "final_metrics_path": "ml/outputs/final/final_metrics.json",
+  "freeze_path": "ml/config/final_model.yaml",
+  "freeze_sha256": "51128a1bb87fe1ff0c5057a855afad6a02419522e5cb4fe2261377bf05b34a7c",
+  "max_test_evaluations": 1,
+  "model_path": "ml/models/final_model_A3_histgb.joblib",
+  "model_sha256": "3970a2b63519ab70045953046965fbc15970fa2380160be379f874e06ff074cf",
+  "reselection_performed": false,
+  "started_at": "2026-08-20T04:32:19.345317+00:00",
+  "status": "completed"
+}

@@ -258,10 +258,6 @@ def evaluate_plan_revision(policy_input: PlanRevisionPolicyInput) -> PlanRevisio
             reasons.append(PlanRevisionReasonCode.REQUESTED_DURATION_NOT_PRESERVED)
         if routine.location_code not in policy_input.constraints.allowed_location_codes:
             reasons.append(PlanRevisionReasonCode.LOCATION_CONSTRAINT_NOT_SATISFIED)
-        if not set(routine.required_equipment_codes).issubset(
-            policy_input.constraints.available_equipment_codes
-        ):
-            reasons.append(PlanRevisionReasonCode.EQUIPMENT_CONSTRAINT_NOT_SATISFIED)
         if not set(policy_input.constraints.required_safety_opinion_codes).issubset(
             routine.applied_safety_opinion_codes
         ):

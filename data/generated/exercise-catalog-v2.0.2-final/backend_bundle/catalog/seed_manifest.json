@@ -1,0 +1,38 @@
+{
+  "catalog_version": {
+    "status_code": "DRAFT",
+    "version_code": "exercise-catalog-v2.0.2-final"
+  },
+  "files": [
+    {
+      "bytes": 222355,
+      "path": "exercises.jsonl",
+      "records": 155,
+      "sha256": "900b77644c32750411af6536254cc384fa7b063b74a1e921f67c34c63667c393"
+    }
+  ],
+  "generator_version": "v2-0-2-backend-bundle-packager-1.0.0",
+  "review": {
+    "production_eligible": false,
+    "review_method_code": "AGENT_ONLY",
+    "status": "DOMAIN_APPROVED",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
+  },
+  "schema_version": "1.0",
+  "source": {
+    "input_artifacts": [
+      {
+        "bytes": 11612,
+        "path": "input/representative_exercises.csv",
+        "role": "representative_catalog_csv",
+        "sha256": "bdfb2443246271aebb61374c5c6fd57ecd6073ed8125cd9805ab42eb1223b8ad"
+      }
+    ],
+    "review_batch_directory": "data/reports",
+    "taxonomy_registry_sha256": "79e487cc1a41ea39db9b4afb0799b3297840de878a2ae4ed621ef3e4403a0985",
+    "track": "merged"
+  },
+  "summary": {
+    "exercise_records": 155
+  }
+}

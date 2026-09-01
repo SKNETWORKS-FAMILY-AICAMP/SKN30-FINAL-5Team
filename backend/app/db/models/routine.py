@@ -69,9 +69,12 @@ class RoutineDay(Base):
             "requested_duration_minutes > 0",
             name="ck_routine_days_requested_duration_positive",
         ),
+        # 300 mirrors backend.app.domain.rules.duration.DURATION_TOLERANCE_SECONDS.
+        # Models stay free of domain imports, so the two are kept in sync by the
+        # duration contract test rather than by a shared symbol.
         CheckConstraint(
-            "estimated_duration_seconds = requested_duration_minutes * 60",
-            name="ck_routine_days_exact_duration",
+            "abs(estimated_duration_seconds - requested_duration_minutes * 60) <= 300",
+            name="ck_routine_days_duration_tolerance",
         ),
         CheckConstraint("setup_seconds BETWEEN 0 AND 60", name="ck_routine_days_setup"),
     )

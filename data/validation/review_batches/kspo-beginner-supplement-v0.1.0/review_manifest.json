@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "version_code": "kspo-beginner-supplement-v0.1.0",
+  "status_code": "DRAFT_REVIEW_QUEUE",
+  "production_eligible": false,
+  "selection_policy": {
+    "record_count": 10,
+    "difficulty_code_candidate": "BEGINNER",
+    "beginner_suitability_candidate": "CONDITIONAL",
+    "note": "초보자 카테고리 후보 지정이며 최종 안전·실행·도메인 승인이 아님."
+  },
+  "inputs": [
+    {
+      "path": "data/validation/profiles/20260810T053458Z-training-video-profile-v0.2.0/candidate_inventory.jsonl",
+      "sha256": "0b47674fb099cb90f5000159569df8dfd513bc31d184e62c7d7d5b933838196c"
+    },
+    {
+      "path": "data/validation/review_results/kspo_mapping_results.csv",
+      "sha256": "3fab8fd83dfee617c0a67597a6d5d47feafc2addf409b134aa13dfd06f57dda9"
+    }
+  ],
+  "summary": {
+    "records": 10,
+    "new_candidates": 10,
+    "existing_catalog_overlap": 0
+  },
+  "files": [
+    {
+      "path": "kspo_beginner_supplement.csv",
+      "sha256": "8399d8ac4ca37d71519270d4472490c36331f0dda58ffdb692f0db1626cc5cc8",
+      "bytes": 17879,
+      "records": 10
+    },
+    {
+      "path": "kspo_beginner_supplement.jsonl",
+      "sha256": "9b1dc23cc5bb87309859f21c3ea8fe0b829c4f4649fa3b80e8538dd01f821b5d",
+      "bytes": 32993,
+      "records": 10
+    }
+  ]
+}

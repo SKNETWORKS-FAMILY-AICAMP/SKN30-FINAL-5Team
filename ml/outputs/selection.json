@@ -1,0 +1,48 @@
+{
+  "config_sha256": "a0425fcc0ba351c8f6137f2997261229b374cf54a99904bc2ec4416c648a9549",
+  "excluded_ablations": [
+    "A5"
+  ],
+  "experiment_count": 38,
+  "git_commit": "84e53a05f01e9188b5d2ed16fdfc6d99da3afcf0",
+  "global": {
+    "ablation_id": "A3",
+    "artifact_path": "ml/models/model_A3_histgb.joblib",
+    "experiment_id": "time_A3_histgb",
+    "model_id": "histgb",
+    "split_type": "time",
+    "validation_pr_auc": 0.7643486950569605
+  },
+  "library_versions": {
+    "PyYAML": "6.0.3",
+    "joblib": "1.5.3",
+    "numpy": "2.5.2",
+    "pandas": "2.3.3",
+    "pyarrow": "21.0.0",
+    "scikit-learn": "1.9.0"
+  },
+  "per_split": {
+    "time": {
+      "ablation_id": "A3",
+      "experiment_id": "time_A3_histgb",
+      "model_id": "histgb",
+      "validation_pr_auc": 0.7643486950569605
+    },
+    "user": {
+      "ablation_id": "A2",
+      "experiment_id": "user_A2_logreg",
+      "model_id": "logreg",
+      "validation_pr_auc": 0.7451787460109365
+    }
+  },
+  "prediction_reload_check": {
+    "matches": true,
+    "max_absolute_difference": 0.0
+  },
+  "run_at": "2026-08-20T03:49:49.774289+00:00",
+  "seed": 42,
+  "selection_metric": "pr_auc",
+  "selection_split_part": "val",
+  "source_fingerprint": "07d935d701aec7001ed59534be4c84d7176f5feaca0318ae978e512769d46373",
+  "test_evaluated": false
+}

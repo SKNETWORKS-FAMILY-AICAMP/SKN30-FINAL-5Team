@@ -1,0 +1,415 @@
+{
+  "schema_version": "1.0",
+  "registry_version": "v2-representative-decisions-2026-08-24",
+  "status": "DOMAIN_REVIEW_COMPLETE_RUNTIME_ARTIFACTS_MATERIALIZED",
+  "records": [
+    {
+      "representative_exercise_id": "REX-000001",
+      "stable_code": "abs_core_brace_core_brace_mat"
+    },
+    {
+      "representative_exercise_id": "REX-000002",
+      "stable_code": "all_fours_squat_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000003",
+      "stable_code": "ankle_circles_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000004",
+      "stable_code": "barbell_deadlift_hip_dominant_barbell"
+    },
+    {
+      "representative_exercise_id": "REX-000005",
+      "stable_code": "barbell_front_raise_isolation_barbell"
+    },
+    {
+      "representative_exercise_id": "REX-000006",
+      "stable_code": "barbell_pullover_isolation_barbell"
+    },
+    {
+      "representative_exercise_id": "REX-000007",
+      "stable_code": "barbell_straight_leg_deadlift_hip_dominant_barbell"
+    },
+    {
+      "representative_exercise_id": "REX-000008",
+      "stable_code": "bodyweight_back_extension_hip_dominant_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000009",
+      "stable_code": "bodyweight_crunch_core_brace_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000010",
+      "stable_code": "bodyweight_forward_lunge_knee_dominant_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000011",
+      "stable_code": "bodyweight_glute_bridge_hip_dominant_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000012",
+      "stable_code": "bodyweight_pull_up_biceps_vertical_pull_bodyweight_pull_up_bar"
+    },
+    {
+      "representative_exercise_id": "REX-000013",
+      "stable_code": "bodyweight_reverse_crunch_core_brace_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000014",
+      "stable_code": "bodyweight_russian_twist_core_brace_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000015",
+      "stable_code": "bodyweight_split_squat_knee_dominant_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000016",
+      "stable_code": "bodyweight_standing_calf_raise_isolation_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000017",
+      "stable_code": "butterfly_adductor_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000018",
+      "stable_code": "cable_fly_isolation_cable_machine"
+    },
+    {
+      "representative_exercise_id": "REX-000019",
+      "stable_code": "cable_triceps_pushdown_isolation_cable_machine"
+    },
+    {
+      "representative_exercise_id": "REX-000020",
+      "stable_code": "chair_leg_extended_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000021",
+      "stable_code": "chest_front_shoulder_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000022",
+      "stable_code": "close_grip_push_up_horizontal_push_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000023",
+      "stable_code": "crunch_variant_core_brace_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000024",
+      "stable_code": "dead_bug_core_brace_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000025",
+      "stable_code": "dumbbell_goblet_squat_knee_dominant_dumbbell"
+    },
+    {
+      "representative_exercise_id": "REX-000026",
+      "stable_code": "dumbbell_lateral_raise_isolation_dumbbell"
+    },
+    {
+      "representative_exercise_id": "REX-000027",
+      "stable_code": "dumbbell_preacher_curl_isolation_dumbbell"
+    },
+    {
+      "representative_exercise_id": "REX-000028",
+      "stable_code": "dumbbell_rear_fly_isolation_dumbbell"
+    },
+    {
+      "representative_exercise_id": "REX-000029",
+      "stable_code": "dumbbell_shrug_isolation_dumbbell"
+    },
+    {
+      "representative_exercise_id": "REX-000030",
+      "stable_code": "dumbbell_standing_curl_isolation_dumbbell"
+    },
+    {
+      "representative_exercise_id": "REX-000031",
+      "stable_code": "dumbbell_step_up_lunge_knee_dominant_dumbbell_step_box"
+    },
+    {
+      "representative_exercise_id": "REX-000032",
+      "stable_code": "dynamic_chest_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000033",
+      "stable_code": "exercise_ball_hip_flexor_stretch_mobility_stretch_stability_ball"
+    },
+    {
+      "representative_exercise_id": "REX-000034",
+      "stable_code": "hamstring_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000035",
+      "stable_code": "hand_grip_squeeze_isolation_household_weight"
+    },
+    {
+      "representative_exercise_id": "REX-000036",
+      "stable_code": "hip_flexor_quadriceps_stretch_mobility_stretch_stretch_strap"
+    },
+    {
+      "representative_exercise_id": "REX-000037",
+      "stable_code": "incline_y_raise_isolation_dumbbell"
+    },
+    {
+      "representative_exercise_id": "REX-000038",
+      "stable_code": "inverted_row_horizontal_pull_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000039",
+      "stable_code": "kneeling_lat_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000040",
+      "stable_code": "lat_pulldown_vertical_pull_cable_machine"
+    },
+    {
+      "representative_exercise_id": "REX-000041",
+      "stable_code": "leg_press_knee_dominant_machine"
+    },
+    {
+      "representative_exercise_id": "REX-000042",
+      "stable_code": "leg_up_hamstring_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000043",
+      "stable_code": "lower_back_curl_core_brace_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000044",
+      "stable_code": "machine_leg_extension_isolation_machine"
+    },
+    {
+      "representative_exercise_id": "REX-000045",
+      "stable_code": "neck_lateral_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000046",
+      "stable_code": "one_arm_wall_lats_isolation_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000047",
+      "stable_code": "overhead_triceps_extension_isolation_barbell"
+    },
+    {
+      "representative_exercise_id": "REX-000048",
+      "stable_code": "overhead_triceps_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000049",
+      "stable_code": "pectorals_horizontal_push_horizontal_push_machine"
+    },
+    {
+      "representative_exercise_id": "REX-000050",
+      "stable_code": "peroneal_stretch_mobility_stretch_stretch_strap"
+    },
+    {
+      "representative_exercise_id": "REX-000051",
+      "stable_code": "plank_rotation_core_brace_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000052",
+      "stable_code": "push_up_horizontal_push_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000053",
+      "stable_code": "rear_deltoid_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000054",
+      "stable_code": "reverse_calf_raise_isolation_resistance_band"
+    },
+    {
+      "representative_exercise_id": "REX-000055",
+      "stable_code": "reverse_wrist_curl_isolation_barbell"
+    },
+    {
+      "representative_exercise_id": "REX-000056",
+      "stable_code": "cardio_gait_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000057",
+      "stable_code": "hip_flexion_isolation_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000058",
+      "stable_code": "cardio_gait_bodyweight_rex_000058"
+    },
+    {
+      "representative_exercise_id": "REX-000059",
+      "stable_code": "cardio_jump_plyometric_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000060",
+      "stable_code": "cardio_jump_plyometric_jump_rope"
+    },
+    {
+      "representative_exercise_id": "REX-000061",
+      "stable_code": "kettlebell_swing_hip_dominant_kettlebell"
+    },
+    {
+      "representative_exercise_id": "REX-000062",
+      "stable_code": "cardio_gait_bodyweight_rex_000062"
+    },
+    {
+      "representative_exercise_id": "REX-000063",
+      "stable_code": "hip_adduction_isolation_stability_ball"
+    },
+    {
+      "representative_exercise_id": "REX-000064",
+      "stable_code": "hip_flexion_isolation_bodyweight_rex_000064"
+    },
+    {
+      "representative_exercise_id": "REX-000065",
+      "stable_code": "cardio_gait_bodyweight_rex_000065"
+    },
+    {
+      "representative_exercise_id": "REX-000066",
+      "stable_code": "mobility_balance_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000067",
+      "stable_code": "cardio_cycling_stationary_bike"
+    },
+    {
+      "representative_exercise_id": "REX-000068",
+      "stable_code": "cardio_gait_step_box"
+    },
+    {
+      "representative_exercise_id": "REX-000069",
+      "stable_code": "leg_press_knee_dominant_resistance_band"
+    },
+    {
+      "representative_exercise_id": "REX-000070",
+      "stable_code": "cardio_gait_machine"
+    },
+    {
+      "representative_exercise_id": "REX-000071",
+      "stable_code": "cardio_gait_machine_rex_000071"
+    },
+    {
+      "representative_exercise_id": "REX-000072",
+      "stable_code": "cardio_elliptical_elliptical_machine"
+    },
+    {
+      "representative_exercise_id": "REX-000073",
+      "stable_code": "roller_back_stretch_mobility_stretch_foam_roller"
+    },
+    {
+      "representative_exercise_id": "REX-000074",
+      "stable_code": "roller_hip_stretch_mobility_stretch_foam_roller"
+    },
+    {
+      "representative_exercise_id": "REX-000075",
+      "stable_code": "rotation_variant_core_brace_cable_machine"
+    },
+    {
+      "representative_exercise_id": "REX-000076",
+      "stable_code": "row_variant_horizontal_pull_cable_machine"
+    },
+    {
+      "representative_exercise_id": "REX-000077",
+      "stable_code": "runners_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000078",
+      "stable_code": "scapular_pull_up_vertical_pull_bodyweight_pull_up_bar"
+    },
+    {
+      "representative_exercise_id": "REX-000079",
+      "stable_code": "seated_cable_row_horizontal_pull_cable_machine"
+    },
+    {
+      "representative_exercise_id": "REX-000080",
+      "stable_code": "seated_calf_raise_isolation_barbell"
+    },
+    {
+      "representative_exercise_id": "REX-000081",
+      "stable_code": "seated_calf_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000082",
+      "stable_code": "seated_glute_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000083",
+      "stable_code": "seated_leg_curl_knee_flexion_machine"
+    },
+    {
+      "representative_exercise_id": "REX-000084",
+      "stable_code": "seated_lower_back_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000085",
+      "stable_code": "seated_piriformis_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000086",
+      "stable_code": "seated_shoulder_press_vertical_push_dumbbell"
+    },
+    {
+      "representative_exercise_id": "REX-000087",
+      "stable_code": "seated_wide_angle_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000088",
+      "stable_code": "side_lying_quadriceps_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000089",
+      "stable_code": "side_wrist_pull_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000090",
+      "stable_code": "spine_core_brace_core_brace_mat"
+    },
+    {
+      "representative_exercise_id": "REX-000091",
+      "stable_code": "spine_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000092",
+      "stable_code": "spine_twist_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000093",
+      "stable_code": "squat_variant_knee_dominant_barbell"
+    },
+    {
+      "representative_exercise_id": "REX-000094",
+      "stable_code": "standing_hamstring_calf_strap_stretch_mobility_stretch_stretch_strap"
+    },
+    {
+      "representative_exercise_id": "REX-000095",
+      "stable_code": "standing_lateral_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000096",
+      "stable_code": "triceps_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000097",
+      "stable_code": "upper_back_isolation_isolation_resistance_band"
+    },
+    {
+      "representative_exercise_id": "REX-000098",
+      "stable_code": "upper_back_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000099",
+      "stable_code": "wall_calf_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000100",
+      "stable_code": "world_greatest_stretch_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000101",
+      "stable_code": "wrist_circles_mobility_stretch_bodyweight"
+    },
+    {
+      "representative_exercise_id": "REX-000102",
+      "stable_code": "wrist_curl_isolation_barbell"
+    }
+  ]
+}

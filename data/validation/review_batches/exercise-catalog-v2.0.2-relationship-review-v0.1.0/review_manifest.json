@@ -1,0 +1,151 @@
+{
+  "schema_version": "exercise-relationship-review-v0.1.0",
+  "review_batch_version": "exercise-catalog-v2.0.2-relationship-review-v0.1.0",
+  "status": "HUMAN_REVIEW_DECISIONS_RECORDED",
+  "production_eligible": false,
+  "source": {
+    "path": "data/generated/exercise-catalog-v2.0.2-draft/catalog/exercises_v1_v2.csv",
+    "sha256": "b0485a75f41d1c7f65b26d1e174743c78ccfe6dcc3c108eff61c297fa1c0ab65",
+    "catalog_version_code": "exercise-catalog-v2.0.2-draft",
+    "record_count": 216,
+    "canonical_exercise_count": 102,
+    "v1_alias_record_count": 114,
+    "v1_v2_reintegration_performed": false
+  },
+  "summary": {
+    "total_combined_records": 216,
+    "total_exercise_count": 102,
+    "v1_alias_count": 114,
+    "candidate_pair_count": 593,
+    "same_exercise_candidate_count": 0,
+    "variant_candidate_count": 79,
+    "primary_variant_candidate_count": 74,
+    "secondary_variant_candidate_count": 5,
+    "separate_exercise_candidate_count": 58,
+    "excluded_candidate_count": 0,
+    "review_required_candidate_count": 456,
+    "canonical_pair_count": 489,
+    "canonical_pair_relation_counts": {
+      "PRIMARY_VARIANT": 9,
+      "REVIEW_REQUIRED": 421,
+      "SECONDARY_VARIANT": 1,
+      "SEPARATE_EXERCISE": 58
+    },
+    "auto_finalized_count": 0,
+    "pending_human_review_count": 593
+  },
+  "files": [
+    {
+      "path": "review_batch.csv",
+      "records": 593,
+      "sha256": "d7f313f651c148f1e7b929f3d2fb9dd6ba5bff3f1eef2c1c04411bf6ad4b1e4f"
+    },
+    {
+      "path": "review_batch.jsonl",
+      "records": 593,
+      "sha256": "8280f8129de988423122847ac24812e48b40558d67d6a9b796952b66c3f3861a"
+    },
+    {
+      "path": "human_review_queue.csv",
+      "records": 332,
+      "sha256": "7575618b4c70181a38d81854f0cedf5d38b74e41562e9aafa8e7764233b9d267"
+    },
+    {
+      "path": "human_review_queue.jsonl",
+      "records": 332,
+      "sha256": "2d67a27f9c6f502f8f84b15fa4ca213b91ce6960813f24631f9fb88b736a1a64"
+    }
+  ],
+  "profile": {
+    "path": "data/validation/profiles/exercise-relationship-v2.0.2/profile.json",
+    "sha256": "d0eb92beecbebec0a1915b3d20f04f34dda27c1332644aaca0c55c949f006207"
+  },
+  "selection": {
+    "alias_pairs": "one V1_ALIAS to its existing canonical stable_code with name/method-proxy comparison; alias-alias cartesian pairs omitted",
+    "canonical_pairs": "pairwise candidate generation on 102 EXERCISE rows",
+    "decision_policy": "no automatic merge or final relationship decision"
+  },
+  "queue_routing": {
+    "manifest_path": "queue_manifest.json",
+    "schema_version": "exercise-relationship-queue-routing-v0.1.0",
+    "auto_rule_routed_count": 261,
+    "human_review_queue_count": 332
+  },
+  "duplicate_deduplication": {
+    "removed_pair_count": 10,
+    "decisions": [
+      {
+        "candidate_pair_id": "ERP-20260827-00138",
+        "removed_side": "left",
+        "kept_side": "right",
+        "reason_code": "SAME_METHOD_AND_PRIMARY_SECONDARY_TARGET"
+      },
+      {
+        "candidate_pair_id": "ERP-20260827-00400",
+        "removed_side": "left",
+        "kept_side": "right",
+        "reason_code": "SAME_METHOD_AND_PRIMARY_SECONDARY_TARGET"
+      },
+      {
+        "candidate_pair_id": "ERP-20260827-00464",
+        "removed_side": "left",
+        "kept_side": "right",
+        "reason_code": "SAME_METHOD_AND_PRIMARY_SECONDARY_TARGET"
+      },
+      {
+        "candidate_pair_id": "ERP-20260827-00465",
+        "removed_side": "left",
+        "kept_side": "right",
+        "reason_code": "SAME_METHOD_AND_PRIMARY_SECONDARY_TARGET"
+      },
+      {
+        "candidate_pair_id": "ERP-20260827-00467",
+        "removed_side": "left",
+        "kept_side": "right",
+        "reason_code": "SAME_METHOD_AND_PRIMARY_SECONDARY_TARGET"
+      },
+      {
+        "candidate_pair_id": "ERP-20260827-00474",
+        "removed_side": "left",
+        "kept_side": "right",
+        "reason_code": "SAME_METHOD_AND_PRIMARY_SECONDARY_TARGET"
+      },
+      {
+        "candidate_pair_id": "ERP-20260827-00493",
+        "removed_side": "left",
+        "kept_side": "right",
+        "reason_code": "SAME_METHOD_AND_PRIMARY_SECONDARY_TARGET"
+      },
+      {
+        "candidate_pair_id": "ERP-20260827-00502",
+        "removed_side": "left",
+        "kept_side": "right",
+        "reason_code": "SAME_METHOD_AND_PRIMARY_SECONDARY_TARGET"
+      },
+      {
+        "candidate_pair_id": "ERP-20260827-00592",
+        "removed_side": "left",
+        "kept_side": "right",
+        "reason_code": "SAME_METHOD_AND_PRIMARY_SECONDARY_TARGET"
+      },
+      {
+        "candidate_pair_id": "ERP-20260827-00603",
+        "removed_side": "left",
+        "kept_side": "right",
+        "reason_code": "SAME_METHOD_AND_PRIMARY_SECONDARY_TARGET"
+      }
+    ]
+  },
+  "human_final_review": {
+    "status": "COMPLETE",
+    "reviewer": "USER_DIRECT_REVIEW",
+    "reviewed_at": "2026-08-27T00:00:00+09:00",
+    "reviewed_count": 332,
+    "decision_counts": {
+      "SAME_EXERCISE": 1,
+      "SEPARATE_EXERCISE": 331
+    },
+    "pending_human_review_count": 0,
+    "note": "사용자 직접 검수 결과를 append-only final decision fields로 기록함."
+  }
+}
