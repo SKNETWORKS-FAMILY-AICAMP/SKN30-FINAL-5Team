@@ -14,21 +14,62 @@ from backend.app.db.repositories.catalog import CatalogRepository
 from backend.app.modules.catalog.service import CatalogDataBundleImporter
 
 ALEMBIC_CONFIG = Path("backend/alembic.ini")
-BUNDLE_CATALOGS = (
-    Path("data/generated/exercise-catalog-seed-kspo-mvp-v0.2.0"),
-    Path("data/generated/exercise-catalog-seed-wger-mvp-v0.2.0"),
-    Path("data/generated/exercise-catalog-seed-kspo-tranche3-v0.1.0"),
-    Path("data/generated/exercise-catalog-seed-wger-tranche3-v0.1.0"),
-)
-BUNDLE_SAFETY = Path("data/generated/exercise-safety-rules-mvp-v0.3.0")
-BUNDLE_ALTERNATIVES = Path("data/generated/exercise-alternatives-mvp-v0.2.0")
+BUNDLE_CATALOGS = (Path("data/generated/exercise-catalog-seed-merged-mvp-v0.4.0"),)
+BUNDLE_SAFETY = Path("data/generated/exercise-safety-rules-merged-mvp-v0.5.0")
+BUNDLE_ALTERNATIVES = Path("data/generated/exercise-alternatives-merged-mvp-v0.4.0")
+BUNDLE_PRESCRIPTIONS = Path("data/generated/exercise-prescriptions-merged-mvp-v0.1.0")
 
 
-def test_migration_history_has_decision_explanation_head() -> None:
+def test_migration_history_has_decision_input_idempotency_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0019_decision_explanations"]
+    assert scripts.get_heads() == ["0034_decision_input_idempotency"]
+    assert scripts.get_revision("0034_decision_input_idempotency").down_revision == (
+        "0033_media_s3_key_per_catalog"
+    )
+    assert scripts.get_revision("0033_media_s3_key_per_catalog").down_revision == (
+        "0032_form_cue_provenance"
+    )
+    assert scripts.get_revision("0032_form_cue_provenance").down_revision == (
+        "0031_catalog_v2_0_2_identity"
+    )
+    assert scripts.get_revision("0031_catalog_v2_0_2_identity").down_revision == (
+        "0030_alternative_pain_area_key"
+    )
+    assert scripts.get_revision("0030_alternative_pain_area_key").down_revision == (
+        "0029_routine_duration_tolerance"
+    )
+    assert scripts.get_revision("0029_routine_duration_tolerance").down_revision == (
+        "0028_discomfort_alt_conditions"
+    )
+    assert scripts.get_revision("0028_discomfort_alt_conditions").down_revision == (
+        "0027_catalog_media_assets"
+    )
+    assert scripts.get_revision("0027_catalog_media_assets").down_revision == (
+        "0026_catalog_v2_code_set"
+    )
+    assert scripts.get_revision("0026_catalog_v2_code_set").down_revision == (
+        "0025_v3_decision_persistence"
+    )
+    assert scripts.get_revision("0025_v3_decision_persistence").down_revision == (
+        "0024_vector_index_registry"
+    )
+    assert scripts.get_revision("0024_vector_index_registry").down_revision == (
+        "0023_v2_deliberation_store"
+    )
+    assert scripts.get_revision("0023_v2_deliberation_store").down_revision == (
+        "0022_promote_merged_data"
+    )
+    assert scripts.get_revision("0022_promote_merged_data").down_revision == (
+        "0021_merged_catalog_source"
+    )
+    assert scripts.get_revision("0021_merged_catalog_source").down_revision == (
+        "0020_manual_availability"
+    )
+    assert scripts.get_revision("0020_manual_availability").down_revision == (
+        "0019_decision_explanations"
+    )
     assert scripts.get_revision("0019_decision_explanations").down_revision == (
         "0018_agent_proposal_policy"
     )
@@ -85,6 +126,7 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setenv("DATABASE_URL", test_database_url)
     get_settings.cache_clear()
     config = Config(str(ALEMBIC_CONFIG))
+    command.downgrade(config, "base")
     command.upgrade(config, "head")
     engine = create_engine(test_database_url)
     try:
@@ -95,9 +137,111 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
             "calendar_oauth_requests",
             "calendar_rate_limit_counters",
             "decision_explanations",
+            "decision_deliberations",
+            "agent_proposal_revisions",
+            "agent_review_events",
+            "vector_index_registry",
+            "decision_constraint_envelopes",
+            "decision_exercise_pools",
+            "decision_exercise_retrievals",
+            "decision_coordination_attempts",
+            "plan_integrity_validations",
             "exercise_safety_rules",
             "exercise_alternatives",
+            "exercise_media_assets",
         }.issubset(inspector.get_table_names())
+        assert {
+            "id",
+            "catalog_version_id",
+            "exercise_id",
+            "s3_key",
+            "media_status",
+            "rights_review_status",
+            "rights_reviewer",
+            "rights_reviewed_at",
+            "rights_evidence_reference",
+            "media_set_version_code",
+            "source_manifest_hash",
+            "source_metadata",
+            "approval_metadata",
+            "created_at",
+        } == {column["name"] for column in inspector.get_columns("exercise_media_assets")}
+        assert {
+            "root_decision_run_id",
+            "parent_decision_run_id",
+            "generation_mode_code",
+            "regeneration_sequence",
+            "decision_engine_code",
+            "langchain_contract_version",
+            "langgraph_contract_version",
+        }.issubset({column["name"] for column in inspector.get_columns("decision_runs")})
+        assert {
+            "proposal_hash",
+            "prompt_version",
+            "provider_code",
+            "model_code",
+            "output_schema_version",
+            "attempt_number",
+            "invocation_status_code",
+            "latency_ms",
+        }.issubset({column["name"] for column in inspector.get_columns("agent_proposals")})
+        assert {
+            "id",
+            "catalog_version_id",
+            "collection_name",
+            "vector_index_version",
+            "source_manifest_hash",
+            "embedding_model_version",
+            "embedding_input_schema_version",
+            "distance_metric_code",
+            "vector_dimension",
+            "build_hash",
+            "status_code",
+            "built_at",
+            "activated_at",
+            "created_at",
+        } == {column["name"] for column in inspector.get_columns("vector_index_registry")}
+        assert {
+            constraint["name"]
+            for constraint in inspector.get_unique_constraints("vector_index_registry")
+        } == {"uq_vector_index_registry_version"}
+        assert {
+            "id",
+            "decision_run_id",
+            "policy_version_id",
+            "deliberation_schema_version",
+            "graph_version",
+            "round_count",
+            "round_two_status_code",
+            "conflict_detector_version",
+            "precedence_version",
+            "conflict_codes",
+            "conflict_hash",
+            "created_at",
+        } == {column["name"] for column in inspector.get_columns("decision_deliberations")}
+        assert {
+            "id",
+            "decision_run_id",
+            "deliberation_id",
+            "source_proposal_id",
+            "baseline_revision_id",
+            "policy_version_id",
+            "round_number",
+            "agent_type_code",
+            "proposal_status_code",
+            "proposal_schema_version",
+            "proposal_payload",
+            "proposal_hash",
+            "created_at",
+        } == {column["name"] for column in inspector.get_columns("agent_proposal_revisions")}
+        assert {
+            constraint["name"]
+            for constraint in inspector.get_unique_constraints("agent_proposal_revisions")
+        } == {"uq_agent_proposal_revisions_run_round_type"}
+        assert {
+            constraint["name"]
+            for constraint in inspector.get_unique_constraints("agent_review_events")
+        } == {"uq_agent_review_events_run_round_type"}
         assert {column["name"] for column in inspector.get_columns("decision_explanations")} == {
             "id",
             "decision_run_id",
@@ -114,6 +258,30 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
             "fallback_reason_code",
             "created_at",
         }
+        catalog_checks = {
+            constraint["name"]: constraint["sqltext"]
+            for constraint in inspector.get_check_constraints("catalog_versions")
+        }
+        exercise_checks = {
+            constraint["name"]: constraint["sqltext"]
+            for constraint in inspector.get_check_constraints("exercises")
+        }
+        routine_day_checks = {
+            constraint["name"]: constraint["sqltext"]
+            for constraint in inspector.get_check_constraints("routine_days")
+        }
+        assert "catalog-v2" in catalog_checks["ck_catalog_versions_code_set_version"]
+        assert "gymvisual" in exercise_checks["ck_exercises_source_track_code"]
+        assert "ck_routine_days_exact_duration" not in routine_day_checks
+        assert "300" in routine_day_checks["ck_routine_days_duration_tolerance"]
+        alternative_relation_key = next(
+            constraint
+            for constraint in inspector.get_unique_constraints("exercise_alternatives")
+            if constraint["name"] == "uq_exercise_alternatives_relation"
+        )
+        assert {"condition_code", "pain_discomfort_area_code"}.issubset(
+            alternative_relation_key["column_names"]
+        )
         assert {column["name"] for column in inspector.get_columns("calendar_connections")} == {
             "id",
             "user_id",
@@ -127,6 +295,16 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
             "updated_at",
         }
         with engine.connect() as connection:
+            body_focus_codes = set(
+                connection.scalars(
+                    text(
+                        "SELECT code FROM body_focuses "
+                        "WHERE code IN ('CHEST', 'BACK', 'SHOULDERS', 'BICEPS', 'TRICEPS', "
+                        "'FOREARMS', 'GLUTES', 'QUADRICEPS', 'HAMSTRINGS', 'CALVES', "
+                        "'CORE', 'FULL_BODY', 'CARDIO', 'MOBILITY')"
+                    )
+                )
+            )
             policy_statuses = dict(
                 connection.execute(
                     text(
@@ -136,6 +314,22 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
                     )
                 ).all()
             )
+        assert body_focus_codes == {
+            "CHEST",
+            "BACK",
+            "SHOULDERS",
+            "BICEPS",
+            "TRICEPS",
+            "FOREARMS",
+            "GLUTES",
+            "QUADRICEPS",
+            "HAMSTRINGS",
+            "CALVES",
+            "CORE",
+            "FULL_BODY",
+            "CARDIO",
+            "MOBILITY",
+        }
         assert policy_statuses == {
             "decision-policy-v1": "DEPRECATED",
             "decision-policy-v2": "DEPRECATED",
@@ -163,10 +357,14 @@ def test_approval_migration_promotes_an_existing_complete_bundle(
         "backend.app.db.repositories.catalog.get_derived_data_approval",
         lambda *_args: None,
     )
+    monkeypatch.setattr(
+        "backend.app.db.repositories.catalog.get_catalog_approval",
+        lambda *_args: None,
+    )
     get_settings.cache_clear()
     config = Config(str(ALEMBIC_CONFIG))
     command.downgrade(config, "base")
-    command.upgrade(config, "0015_graded_safety_policy")
+    command.upgrade(config, "0021_merged_catalog_source")
     engine = create_engine(test_database_url)
     try:
         with Session(engine) as session:
@@ -175,6 +373,7 @@ def test_approval_migration_promotes_an_existing_complete_bundle(
                 BUNDLE_CATALOGS,
                 BUNDLE_SAFETY,
                 BUNDLE_ALTERNATIVES,
+                BUNDLE_PRESCRIPTIONS,
             )
             session.commit()
         command.upgrade(config, "head")
@@ -186,7 +385,7 @@ def test_approval_migration_promotes_an_existing_complete_bundle(
                         "WHERE production_eligible = true"
                     )
                 )
-                == 354
+                == 282
             )
             assert (
                 connection.scalar(
@@ -196,6 +395,17 @@ def test_approval_migration_promotes_an_existing_complete_bundle(
                     )
                 )
                 == 238
+            )
+            assert (
+                connection.scalar(
+                    text(
+                        "SELECT count(*) FROM catalog_versions "
+                        "WHERE version_code = 'merged-mvp-v0.4.0' "
+                        "AND review_method_code = 'DOMAIN_REVIEWER' "
+                        "AND status_interpretation_code = 'PRODUCTION_APPROVED'"
+                    )
+                )
+                == 1
             )
     finally:
         engine.dispose()

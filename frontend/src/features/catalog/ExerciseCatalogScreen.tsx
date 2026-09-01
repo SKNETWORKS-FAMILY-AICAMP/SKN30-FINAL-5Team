@@ -10,7 +10,11 @@ import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { Api } from '../../api/endpoints';
-import { bodyAreaLabel, trainingTypeLabel } from '../../api/labels';
+import {
+  bodyAreaLabel,
+  equipmentLabel,
+  trainingTypeLabel,
+} from '../../api/labels';
 import type { ExerciseListItem, ExerciseListResponse } from '../../api/types';
 import { useAsyncAction, useAsyncData } from '../../api/useAsync';
 import { Button, Card, InlineFeedback } from '../../components/primitives';
@@ -28,7 +32,7 @@ const TRAINING_TYPE_FILTERS = [
   { code: undefined, label: '전체' },
   { code: 'STRENGTH', label: '근력' },
   { code: 'CARDIO', label: '유산소' },
-  { code: 'MOBILITY', label: '가동성' },
+  { code: 'MOBILITY', label: '스트레칭' },
 ] as const;
 
 const DIFFICULTY_FILTERS = [
@@ -37,25 +41,11 @@ const DIFFICULTY_FILTERS = [
   { code: 'INTERMEDIATE', label: '중급' },
 ] as const;
 
-const EQUIPMENT_LABELS: Record<string, string> = {
-  BODYWEIGHT: '맨몸',
-  DUMBBELL: '덤벨',
-  BARBELL: '바벨',
-  KETTLEBELL: '케틀벨',
-  CABLE_MACHINE: '케이블',
-  MACHINE: '머신',
-  HOUSEHOLD_WEIGHT: '생활용품',
-  BENCH: '벤치',
-  PULL_UP_BAR: '철봉',
-  RESISTANCE_BAND: '밴드',
-};
-
 const DIFFICULTY_LABELS: Record<string, string> = {
   BEGINNER: '입문',
   INTERMEDIATE: '중급',
 };
 
-const equipmentLabel = (code: string) => EQUIPMENT_LABELS[code] ?? code;
 const difficultyLabel = (code: string) => DIFFICULTY_LABELS[code] ?? code;
 
 export function ExerciseCatalogScreen({
@@ -68,7 +58,9 @@ export function ExerciseCatalogScreen({
   const [trainingType, setTrainingType] = useState<string | undefined>();
   const [difficulty, setDifficulty] = useState<string | undefined>();
   const [extraItems, setExtraItems] = useState<ExerciseListItem[]>([]);
-  const [openExerciseId, setOpenExerciseId] = useState<string | null>(null);
+  const [openExercise, setOpenExercise] = useState<ExerciseListItem | null>(
+    null,
+  );
 
   const { state, reload } = useAsyncData<ExerciseListResponse>(
     (signal) =>
@@ -102,26 +94,25 @@ export function ExerciseCatalogScreen({
     setNextCursor(undefined);
   }, []);
 
-  if (openExerciseId !== null) {
+  if (openExercise !== null) {
     return (
-      <ScreenShell bands>
-        <ScreenHeading title="운동 설명" onBand />
-        <ExerciseDetailSheet api={api} exerciseId={openExerciseId} />
+      <ScreenShell>
+        <ScreenHeading title={openExercise.name} />
+        <ExerciseDetailSheet api={api} exerciseId={openExercise.id} />
         <Button
           label="목록으로"
           tone="secondary"
-          onPress={() => setOpenExerciseId(null)}
+          onPress={() => setOpenExercise(null)}
         />
       </ScreenShell>
     );
   }
 
   return (
-    <ScreenShell bands>
+    <ScreenShell>
       <ScreenHeading
         title="운동 카탈로그"
         subtitle="검수를 통과한 운동만 보여드려요"
-        onBand
       />
 
       <View style={styles.filterGroup}>
@@ -150,7 +141,7 @@ export function ExerciseCatalogScreen({
           }
           loadingMore={loadMore.pending}
           loadMoreError={loadMore.error}
-          onOpen={setOpenExerciseId}
+          onOpen={setOpenExercise}
           onLoadMore={(cursor) =>
             void loadMore.run(cursor).then((page) => {
               if (page) {
@@ -216,7 +207,7 @@ function CatalogList({
   nextCursor: string | null;
   loadingMore: boolean;
   loadMoreError: string | null;
-  onOpen: (exerciseId: string) => void;
+  onOpen: (exercise: ExerciseListItem) => void;
   onLoadMore: (cursor: string) => void;
 }) {
   const items = [...firstPage.items, ...extraItems];
@@ -232,7 +223,7 @@ function CatalogList({
           key={item.id}
           accessibilityRole="button"
           accessibilityLabel={`${item.name} 설명 열기`}
-          onPress={() => onOpen(item.id)}
+          onPress={() => onOpen(item)}
         >
           <Card style={styles.itemCard}>
             <View style={styles.itemHeader}>

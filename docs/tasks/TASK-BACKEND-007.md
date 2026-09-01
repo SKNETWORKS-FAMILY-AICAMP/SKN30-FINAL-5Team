@@ -9,18 +9,37 @@
 - schema: `calendar-availability-v1`, `calendar-performance-v2`, `calendar-credential-v1`
 - provider code: `GOOGLE_CALENDAR`
 
+## 현재 상태: 9C-2B 이후 보류 (2026-08-20)
+
+**이 작업은 9C-2A까지 완료된 상태로 중단됐다. 9C-2B~9C-2E는 착수하지 않는다.**
+보류 근거와 해제 조건은 ADR-0010의 "구현 보류" 절에 있다. 요약하면 Google이 수행 여부를 제공하지
+않아 `F011-1-6`이 항상 `performed=null`이고, 기록 조회는 앱 내 캘린더가 이미 담당하며, 남은
+빈 시간 후보 기능은 체크인의 수동 가능 시간 입력이 대체한다.
+
+보류 중 유지하는 것:
+
+- 병합된 9C-2A persistence(`0013_calendar_persistence`)와 4개 테이블은 롤백하지 않는다. additive이며
+  account deletion 그래프가 이미 참조한다.
+- `app/domain/rules/external_context.py`의 정책 코어는 수동 가능 시간 경로가 계속 사용한다.
+- `app/integrations/calendar_provider.py`의 `UnavailableCalendarProvider` 기본값을 유지한다.
+
+보류 중 하지 않는 것:
+
+- OAuth·credential service, Google HTTP adapter, `/api/v1/calendar/*` route 구현
+- 운영 credential·secret-manager 증적 확보
+
 ## 단계와 게이트
 
 - 9C-1: 결정적 policy, provider port, unavailable/synthetic adapter, golden/privacy test 완료.
 - 9C-1B contract freeze: workout-session 연결, API/DB/OAuth/secret/삭제 계약과 필수 reviewer 승인 완료.
-- 9C-2A persistence foundation
-- 9C-2B OAuth·credential service boundary
-- 9C-2C Google provider adapter
-- 9C-2D Calendar API integration
-- 9C-2E integration/privacy/operation hardening
+- 9C-2A persistence foundation — 완료 (#37)
+- 9C-2B OAuth·credential service boundary — **보류**
+- 9C-2C Google provider adapter — **보류**
+- 9C-2D Calendar API integration — **보류**
+- 9C-2E integration/privacy/operation hardening — **보류**
 
-ADR-0010은 `ACCEPTED`다. 각 단계는 앞 단계가 최신 develop에 병합된 뒤 새 브랜치·worktree에서
-시작한다. production provider는 OAuth client, redirect URI,
+ADR-0010은 `ACCEPTED`다. 보류가 해제되면 각 단계는 앞 단계가 최신 develop에 병합된 뒤 새
+브랜치·worktree에서 시작한다. production provider는 OAuth client, redirect URI,
 secret-manager adapter/path/owner 증적이 없으면 disabled 상태를 유지한다.
 
 ## 확정된 9C-1B 계약

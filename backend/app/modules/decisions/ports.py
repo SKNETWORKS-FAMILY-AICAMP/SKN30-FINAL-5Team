@@ -40,6 +40,10 @@ class AlternativeItemData:
     item: CandidateItemData
     safety_item: SafetyCandidateItem
     evidence_reference_code: str = ""
+    pain_discomfort_area_code: str | None = None
+    condition_code: str | None = None
+    service_action_code: str | None = None
+    target_strategy_code: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,6 +90,14 @@ class StoredIdempotency:
 
 class DecisionRepositoryPort(Protocol):
     def acquire_lock(self, session: Session, user_id: UUID, key: UUID) -> None: ...
+    def acquire_input_lock(
+        self,
+        session: Session,
+        user_id: UUID,
+        daily_context_id: UUID,
+        daily_context_version: int,
+        input_hash: str,
+    ) -> None: ...
     def get_idempotency(
         self, session: Session, user_id: UUID, key: UUID
     ) -> StoredIdempotency | None: ...
@@ -117,6 +129,14 @@ class DecisionRepositoryPort(Protocol):
     ) -> None: ...
     def get_response(
         self, session: Session, user_id: UUID, decision_id: UUID
+    ) -> dict[str, Any] | None: ...
+    def get_completed_response_for_input(
+        self,
+        session: Session,
+        user_id: UUID,
+        daily_context_id: UUID,
+        daily_context_version: int,
+        input_hash: str,
     ) -> dict[str, Any] | None: ...
     def get_response_for_date(
         self, session: Session, user_id: UUID, local_date: date

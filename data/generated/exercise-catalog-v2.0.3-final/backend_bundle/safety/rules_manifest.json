@@ -1,0 +1,29 @@
+{
+  "files": [
+    {
+      "bytes": 265544,
+      "path": "safety_rules.jsonl",
+      "records": 563,
+      "sha256": "45cbf3e9332420de0507eebe1c097d1c1b63f0d7a5e152ab96cecb36dc645f9a"
+    }
+  ],
+  "generator_version": "v2-0-3-backend-bundle-packager-1.0.0",
+  "review": {
+    "production_eligible": false,
+    "review_method_code": "AGENT_ONLY",
+    "status": "DOMAIN_APPROVED",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
+  },
+  "rule_set_version": {
+    "status_code": "DRAFT",
+    "version_code": "safety-rule-set-v2.0.3"
+  },
+  "schema_version": "1.0",
+  "source": {
+    "catalog_version_code": "exercise-catalog-v2.0.3-final",
+    "input_artifacts": []
+  },
+  "summary": {
+    "rule_records": 563
+  }
+}

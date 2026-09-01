@@ -130,7 +130,7 @@ The following rules must not be changed without development lead and PM approval
 - The default user experience shows one final recommended routine. A REST opt-out may be offered, but lighter and original routines are not public plan alternatives.
 - The system must support users without wearable devices.
 - Wearable data reduces input burden but is not mandatory.
-- A downshift preserves the user's requested duration and lowers load, intensity, sets, repetitions, exercise difficulty/type, or rest structure; the system must not shorten duration without explicit user input.
+- A downshift preserves the user's requested duration and lowers load, intensity, sets, repetitions, exercise difficulty/type, or rest structure. A plan may land within five minutes of the requested duration when the approved pool cannot hit it exactly, and the closest achievable plan always wins; beyond that window the request fails rather than silently shortening. The system must not shorten duration further without explicit user input. (Project owner approval, 2026-08-27; see `docs/tasks/TASK-ROUTINE-EQUIPMENT-AND-DURATION.md`.)
 - Official workout completion status comes from explicit in-app exercise-block completion, not elapsed time, wearable data, or external workouts.
 - A closed weekly report must be acknowledged before the next weekly plan is finalized.
 - Missed workouts are learning signals, not penalties.
@@ -216,7 +216,12 @@ Required golden scenarios:
 3. Knee discomfort excludes knee-load movements while preserving an appropriate goal.
 4. Wearable data missing uses manual check-in fallback.
 5. LLM failure returns a deterministic result.
-6. Safety veto cannot be overridden by coordinator output.
+6. Safety veto cannot be overridden by coordinator output. The enforcement point is the
+   integrity validation that runs on the compiled plan, downstream of the coordinator.
+   A check placed before the coordinator cannot satisfy this scenario (ADR-0015).
+7. Only the training agent produces an exercise plan. Recovery and feasibility answer with
+   adjustment codes, which advise the coordinator and are not deterministically enforced
+   (ADR-0015).
 
 ## 12. Code review rules
 

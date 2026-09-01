@@ -13,7 +13,9 @@ container: PostgreSQL
 optional adapter stub: Firebase, social OAuth, LLM
 ```
 
-Python package manager는 `uv`를 사용하고 root `pyproject.toml`과 `uv.lock`을 기준으로 환경을 재현한다. 실행 가능한 Docker Compose와 Dockerfile은 실제 배포·port 정책을 검증한 후 별도 작업으로 추가한다.
+Python package manager는 `uv`를 사용하고 root `pyproject.toml`과 `uv.lock`을 기준으로 환경을 재현한다.
+Issue #149에서 승인된 local-only Docker Compose와 Dockerfile은 `infra/docker/README.md`를 따른다.
+production 배포·secret·provider 설정은 포함하지 않는다.
 
 ## 2. 환경 구분
 

@@ -1,0 +1,1663 @@
+{
+  "profile_version": "gymvisual-mobility-profile-v0.1.0",
+  "status": "DRAFT_REVIEW_QUEUE",
+  "production_eligible": false,
+  "scope": {
+    "stage": "4_MOBILITY_STRETCHING_SELECTION",
+    "selection_target": "대표 family를 충분히 선정하되 동일 family 중복은 검토 큐에서 명시적으로 확인",
+    "source_filter": "declarative mobility_selection_policy candidate groups",
+    "candidate_count": 35
+  },
+  "source": {
+    "directory": "data/raw/gym_visual",
+    "source_manifest": {
+      "source_name": "exercises-dataset",
+      "retrieved_at": "2026-08-20T00:00:00+09:00",
+      "record_count": 1324,
+      "license": "MIT",
+      "media_license_attribution": "© Aliaksandr Makatserchyk - Gym visual - https://gymvisual.com/",
+      "status": "DRAFT"
+    },
+    "raw_sha256": {
+      "exercises.json": "656634224b8977b99a6d765470ee123260d4979715eaa4e7c0b7c8bb0d79f93d",
+      "source.json": "d4e61e30805eddad7a0626a611f66566dc4d5718e30e84c80c1932b677b986ef"
+    },
+    "selection_policy": "data/normalized/mobility_selection_policy.json",
+    "selection_policy_sha256": "4e7b873af789c800401a85828af5722c187d8e871afc0e37c5b5ed17beae4565"
+  },
+  "selection_policy": {
+    "policy_version": "mobility-selection-v0.1.0",
+    "guards": [
+      "STRETCHING_IS_NOT_A_STRENGTH_ALTERNATIVE",
+      "FAMILY_AND_VARIANT_ARE_NOT_ALTERNATIVE_RELATIONS",
+      "NAME_ONLY_VERSION_SUFFIX_IS_NOT_A_VARIANT",
+      "RAW_SOURCE_IS_READ_ONLY",
+      "NO_SAFETY_RULE_OR_ALTERNATIVE_IS_CREATED_BEFORE_DOMAIN_REVIEW",
+      "NO_MEDICAL_CONTRAINDICATION_IS_INFERRED_FROM_SOURCE_TEXT"
+    ],
+    "family_variant_boundary": "family/variant is review metadata only; no alternative relation is created"
+  },
+  "coverage": {
+    "mobility_goal_counts": {
+      "ADDUCTOR_GLUTE_MOBILITY": 4,
+      "CALF_ANKLE_MOBILITY": 4,
+      "CERVICAL_MOBILITY": 2,
+      "EQUIPMENT_ASSISTED_MOBILITY": 3,
+      "HAMSTRING_MOBILITY": 5,
+      "HIP_QUADRICEPS_MOBILITY": 4,
+      "SHOULDER_CHEST_MOBILITY": 5,
+      "SPINAL_MOBILITY": 4,
+      "UPPER_LIMB_MOBILITY": 4
+    },
+    "body_area_candidate_counts": {
+      "ABDOMEN": 4,
+      "ANKLE_FOOT": 9,
+      "CHEST": 5,
+      "ELBOW": 4,
+      "HIP": 16,
+      "KNEE": 17,
+      "LOWER_BACK": 7,
+      "NECK": 2,
+      "SHOULDER": 11,
+      "UPPER_BACK": 9,
+      "WRIST_HAND": 4
+    },
+    "equipment_candidate_counts": {
+      "BODYWEIGHT": 29,
+      "ROLLER_REVIEW_REQUIRED": 2,
+      "ROPE_REVIEW_REQUIRED": 3,
+      "STABILITY_BALL": 1
+    },
+    "difficulty_candidate_counts": {
+      "BEGINNER": 27,
+      "INTERMEDIATE": 8
+    },
+    "beginner_suitability_candidate_counts": {
+      "CONDITIONAL": 9,
+      "REVIEW_REQUIRED": 26
+    },
+    "duplicate_family_groups": {
+      "NECK_LATERAL_STRETCH": [
+        "1403",
+        "0716"
+      ]
+    },
+    "coverage_gaps": []
+  },
+  "baseline_preservation": {
+    "catalog": {
+      "paths": [
+        "data/generated/exercise-catalog-seed-wger-mvp-v0.2.0/exercises.jsonl",
+        "data/generated/exercise-catalog-seed-kspo-mvp-v0.2.0/exercises.jsonl",
+        "data/generated/exercise-catalog-seed-wger-tranche3-v0.1.0/exercises.jsonl",
+        "data/generated/exercise-catalog-seed-kspo-tranche3-v0.1.0/exercises.jsonl"
+      ],
+      "record_count": 56,
+      "expected_record_count": 56,
+      "sha256": [
+        "e33c10cc252203f2fcaadba031b1ec2608a0515dac9a335da5a817e1fe5a52cf",
+        "fc06aeb4e3200b546f8e7f1bdcf5d30e29f718d6da9d7fdd4f18992767ed34e8",
+        "7de22794076231717d8769d00c4413cbf5a04aa10e08375d09202710ef47512c",
+        "a7359a0af8b109cd62775a09b503eb5044f99029ac2bf58c7284fa9ccb43b98c"
+      ],
+      "preservation": "READ_ONLY_INPUT_REFERENCE"
+    },
+    "safety_rules": {
+      "paths": [
+        "data/generated/exercise-safety-rules-mvp-v0.3.0/safety_rules.jsonl"
+      ],
+      "record_count": 354,
+      "expected_record_count": 354,
+      "sha256": [
+        "f48259b536ec1d02ad827b284892a60daecf87c288f522a715edaf64d93f23f1"
+      ],
+      "preservation": "READ_ONLY_INPUT_REFERENCE"
+    },
+    "alternatives": {
+      "paths": [
+        "data/generated/exercise-alternatives-mvp-v0.2.0/alternatives.jsonl"
+      ],
+      "record_count": 238,
+      "expected_record_count": 238,
+      "sha256": [
+        "0f7cd5e5194f7e08b9611d7b2f03e5872ed74032ab44945952c738a1d6c34b2d"
+      ],
+      "preservation": "READ_ONLY_INPUT_REFERENCE"
+    }
+  },
+  "candidates": [
+    {
+      "candidate_id": "1403",
+      "source_identity": "1403",
+      "source_name": "neck side stretch",
+      "source_body_part": "neck",
+      "source_target": "levator scapulae",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "CERVICAL_MOBILITY",
+      "body_area_codes_candidate": [
+        "NECK",
+        "SHOULDER"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "NECK_LATERAL_STRETCH",
+      "variant_group_candidate": "NECK_LATERAL_STRETCH",
+      "selection_rank": 1,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "x2chWLO",
+      "source_image": "images/1403-x2chWLO.jpg",
+      "source_gif_url": "videos/1403-x2chWLO.gif"
+    },
+    {
+      "candidate_id": "0716",
+      "source_identity": "0716",
+      "source_name": "side push neck stretch",
+      "source_body_part": "neck",
+      "source_target": "levator scapulae",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "CERVICAL_MOBILITY",
+      "body_area_codes_candidate": [
+        "NECK",
+        "SHOULDER"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "NECK_LATERAL_STRETCH",
+      "variant_group_candidate": "NECK_LATERAL_STRETCH",
+      "selection_rank": 2,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "oQRJYkC",
+      "source_image": "images/0716-oQRJYkC.jpg",
+      "source_gif_url": "videos/0716-oQRJYkC.gif"
+    },
+    {
+      "candidate_id": "1271",
+      "source_identity": "1271",
+      "source_name": "chest and front of shoulder stretch",
+      "source_body_part": "chest",
+      "source_target": "pectorals",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "SHOULDER_CHEST_MOBILITY",
+      "body_area_codes_candidate": [
+        "CHEST",
+        "SHOULDER",
+        "UPPER_BACK"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "CHEST_FRONT_SHOULDER_STRETCH",
+      "variant_group_candidate": "CHEST_OPENING_STRETCH",
+      "selection_rank": 1,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "Uto7l43",
+      "source_image": "images/1271-Uto7l43.jpg",
+      "source_gif_url": "videos/1271-Uto7l43.gif"
+    },
+    {
+      "candidate_id": "1167",
+      "source_identity": "1167",
+      "source_name": "dynamic chest stretch (male)",
+      "source_body_part": "chest",
+      "source_target": "pectorals",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "SHOULDER_CHEST_MOBILITY",
+      "body_area_codes_candidate": [
+        "CHEST",
+        "SHOULDER",
+        "UPPER_BACK"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "DYNAMIC_CHEST_STRETCH",
+      "variant_group_candidate": "CHEST_OPENING_STRETCH",
+      "selection_rank": 2,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "3uj0Ozg",
+      "source_image": "images/1167-3uj0Ozg.jpg",
+      "source_gif_url": "videos/1167-3uj0Ozg.gif"
+    },
+    {
+      "candidate_id": "0669",
+      "source_identity": "0669",
+      "source_name": "rear deltoid stretch",
+      "source_body_part": "shoulders",
+      "source_target": "delts",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "SHOULDER_CHEST_MOBILITY",
+      "body_area_codes_candidate": [
+        "CHEST",
+        "SHOULDER",
+        "UPPER_BACK"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "REAR_DELTOID_STRETCH",
+      "variant_group_candidate": "SHOULDER_CROSS_BODY_STRETCH",
+      "selection_rank": 3,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "xifhB5W",
+      "source_image": "images/0669-xifhB5W.jpg",
+      "source_gif_url": "videos/0669-xifhB5W.gif"
+    },
+    {
+      "candidate_id": "1365",
+      "source_identity": "1365",
+      "source_name": "upper back stretch",
+      "source_body_part": "back",
+      "source_target": "upper back",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "SHOULDER_CHEST_MOBILITY",
+      "body_area_codes_candidate": [
+        "CHEST",
+        "SHOULDER",
+        "UPPER_BACK"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "UPPER_BACK_STRETCH",
+      "variant_group_candidate": "UPPER_BACK_STRETCH",
+      "selection_rank": 4,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "GSDioYu",
+      "source_image": "images/1365-GSDioYu.jpg",
+      "source_gif_url": "videos/1365-GSDioYu.gif"
+    },
+    {
+      "candidate_id": "1346",
+      "source_identity": "1346",
+      "source_name": "kneeling lat stretch",
+      "source_body_part": "back",
+      "source_target": "lats",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "SHOULDER_CHEST_MOBILITY",
+      "body_area_codes_candidate": [
+        "CHEST",
+        "SHOULDER",
+        "UPPER_BACK"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "KNEELING_LAT_STRETCH",
+      "variant_group_candidate": "LAT_STRETCH",
+      "selection_rank": 5,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "f38OEuO",
+      "source_image": "images/1346-f38OEuO.jpg",
+      "source_gif_url": "videos/1346-f38OEuO.gif"
+    },
+    {
+      "candidate_id": "0643",
+      "source_identity": "0643",
+      "source_name": "overhead triceps stretch",
+      "source_body_part": "upper arms",
+      "source_target": "triceps",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "UPPER_LIMB_MOBILITY",
+      "body_area_codes_candidate": [
+        "ELBOW",
+        "WRIST_HAND",
+        "SHOULDER"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "OVERHEAD_TRICEPS_STRETCH",
+      "variant_group_candidate": "TRICEPS_STRETCH",
+      "selection_rank": 1,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "Z5YStHW",
+      "source_image": "images/0643-Z5YStHW.jpg",
+      "source_gif_url": "videos/0643-Z5YStHW.gif"
+    },
+    {
+      "candidate_id": "0817",
+      "source_identity": "0817",
+      "source_name": "triceps stretch",
+      "source_body_part": "upper arms",
+      "source_target": "triceps",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "UPPER_LIMB_MOBILITY",
+      "body_area_codes_candidate": [
+        "ELBOW",
+        "WRIST_HAND",
+        "SHOULDER"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "TRICEPS_STRETCH",
+      "variant_group_candidate": "TRICEPS_STRETCH",
+      "selection_rank": 2,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "uOV3Itw",
+      "source_image": "images/0817-uOV3Itw.jpg",
+      "source_gif_url": "videos/0817-uOV3Itw.gif"
+    },
+    {
+      "candidate_id": "0721",
+      "source_identity": "0721",
+      "source_name": "side wrist pull stretch",
+      "source_body_part": "lower arms",
+      "source_target": "forearms",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "UPPER_LIMB_MOBILITY",
+      "body_area_codes_candidate": [
+        "ELBOW",
+        "WRIST_HAND",
+        "SHOULDER"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "SIDE_WRIST_PULL_STRETCH",
+      "variant_group_candidate": "WRIST_FOREARM_STRETCH",
+      "selection_rank": 3,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "UtmIqcI",
+      "source_image": "images/0721-UtmIqcI.jpg",
+      "source_gif_url": "videos/0721-UtmIqcI.gif"
+    },
+    {
+      "candidate_id": "1428",
+      "source_identity": "1428",
+      "source_name": "wrist circles",
+      "source_body_part": "lower arms",
+      "source_target": "forearms",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "UPPER_LIMB_MOBILITY",
+      "body_area_codes_candidate": [
+        "ELBOW",
+        "WRIST_HAND",
+        "SHOULDER"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "WRIST_CIRCLES",
+      "variant_group_candidate": "WRIST_MOBILITY",
+      "selection_rank": 4,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "2zNKRUB",
+      "source_image": "images/1428-2zNKRUB.jpg",
+      "source_gif_url": "videos/1428-2zNKRUB.gif"
+    },
+    {
+      "candidate_id": "1363",
+      "source_identity": "1363",
+      "source_name": "spine stretch",
+      "source_body_part": "back",
+      "source_target": "spine",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "SPINAL_MOBILITY",
+      "body_area_codes_candidate": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "ABDOMEN"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "SPINE_STRETCH",
+      "variant_group_candidate": "SPINAL_FLEXION_STRETCH",
+      "selection_rank": 1,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "JbC2iaV",
+      "source_image": "images/1363-JbC2iaV.jpg",
+      "source_gif_url": "videos/1363-JbC2iaV.gif"
+    },
+    {
+      "candidate_id": "2329",
+      "source_identity": "2329",
+      "source_name": "spine twist",
+      "source_body_part": "waist",
+      "source_target": "abs",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "SPINAL_MOBILITY",
+      "body_area_codes_candidate": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "ABDOMEN"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "SPINE_TWIST",
+      "variant_group_candidate": "SPINAL_ROTATION",
+      "selection_rank": 2,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "2jl9K55",
+      "source_image": "images/2329-2jl9K55.jpg",
+      "source_gif_url": "videos/2329-2jl9K55.gif"
+    },
+    {
+      "candidate_id": "0690",
+      "source_identity": "0690",
+      "source_name": "seated lower back stretch",
+      "source_body_part": "back",
+      "source_target": "lats",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "SPINAL_MOBILITY",
+      "body_area_codes_candidate": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "ABDOMEN"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "SEATED_LOWER_BACK_STRETCH",
+      "variant_group_candidate": "LOWER_BACK_STRETCH",
+      "selection_rank": 3,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "QFmz6ch",
+      "source_image": "images/0690-QFmz6ch.jpg",
+      "source_gif_url": "videos/0690-QFmz6ch.gif"
+    },
+    {
+      "candidate_id": "0794",
+      "source_identity": "0794",
+      "source_name": "standing lateral stretch",
+      "source_body_part": "back",
+      "source_target": "lats",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "SPINAL_MOBILITY",
+      "body_area_codes_candidate": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "ABDOMEN"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "STANDING_LATERAL_STRETCH",
+      "variant_group_candidate": "LATERAL_TRUNK_STRETCH",
+      "selection_rank": 4,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "1jXLYEw",
+      "source_image": "images/0794-1jXLYEw.jpg",
+      "source_gif_url": "videos/0794-1jXLYEw.gif"
+    },
+    {
+      "candidate_id": "1564",
+      "source_identity": "1564",
+      "source_name": "intermediate hip flexor and quad stretch",
+      "source_body_part": "upper legs",
+      "source_target": "quads",
+      "source_equipment": "rope",
+      "mobility_goal_code": "HIP_QUADRICEPS_MOBILITY",
+      "body_area_codes_candidate": [
+        "HIP",
+        "KNEE"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "HIP_FLEXOR_QUADRICEPS_STRETCH",
+      "variant_group_candidate": "HIP_FLEXOR_QUAD_STRETCH",
+      "selection_rank": 1,
+      "difficulty_code_candidate": "INTERMEDIATE",
+      "beginner_suitability_candidate": "CONDITIONAL",
+      "equipment_code_candidate": "ROPE_REVIEW_REQUIRED",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "tFGKm99",
+      "source_image": "images/1564-tFGKm99.jpg",
+      "source_gif_url": "videos/1564-tFGKm99.gif"
+    },
+    {
+      "candidate_id": "1548",
+      "source_identity": "1548",
+      "source_name": "chair leg extended stretch",
+      "source_body_part": "upper legs",
+      "source_target": "quads",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "HIP_QUADRICEPS_MOBILITY",
+      "body_area_codes_candidate": [
+        "HIP",
+        "KNEE"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "CHAIR_LEG_EXTENDED_STRETCH",
+      "variant_group_candidate": "QUADRICEPS_STRETCH",
+      "selection_rank": 2,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "xGgAGPm",
+      "source_image": "images/1548-xGgAGPm.jpg",
+      "source_gif_url": "videos/1548-xGgAGPm.gif"
+    },
+    {
+      "candidate_id": "0613",
+      "source_identity": "0613",
+      "source_name": "lying (side) quads stretch",
+      "source_body_part": "upper legs",
+      "source_target": "quads",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "HIP_QUADRICEPS_MOBILITY",
+      "body_area_codes_candidate": [
+        "HIP",
+        "KNEE"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "SIDE_LYING_QUADRICEPS_STRETCH",
+      "variant_group_candidate": "QUADRICEPS_STRETCH",
+      "selection_rank": 3,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "BWnJR72",
+      "source_image": "images/0613-BWnJR72.jpg",
+      "source_gif_url": "videos/0613-BWnJR72.gif"
+    },
+    {
+      "candidate_id": "1512",
+      "source_identity": "1512",
+      "source_name": "all fours squad stretch",
+      "source_body_part": "upper legs",
+      "source_target": "quads",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "HIP_QUADRICEPS_MOBILITY",
+      "body_area_codes_candidate": [
+        "HIP",
+        "KNEE"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "ALL_FOURS_SQUAT_STRETCH",
+      "variant_group_candidate": "QUADRICEPS_HIP_MOBILITY",
+      "selection_rank": 4,
+      "difficulty_code_candidate": "INTERMEDIATE",
+      "beginner_suitability_candidate": "CONDITIONAL",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "qBcKorM",
+      "source_image": "images/1512-qBcKorM.jpg",
+      "source_gif_url": "videos/1512-qBcKorM.gif"
+    },
+    {
+      "candidate_id": "1494",
+      "source_identity": "1494",
+      "source_name": "butterfly yoga pose",
+      "source_body_part": "upper legs",
+      "source_target": "adductors",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "ADDUCTOR_GLUTE_MOBILITY",
+      "body_area_codes_candidate": [
+        "HIP",
+        "KNEE"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "BUTTERFLY_ADDUCTOR_STRETCH",
+      "variant_group_candidate": "ADDUCTOR_STRETCH",
+      "selection_rank": 1,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "bWlZvXh",
+      "source_image": "images/1494-bWlZvXh.jpg",
+      "source_gif_url": "videos/1494-bWlZvXh.gif"
+    },
+    {
+      "candidate_id": "1587",
+      "source_identity": "1587",
+      "source_name": "seated wide angle pose sequence",
+      "source_body_part": "upper legs",
+      "source_target": "hamstrings",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "ADDUCTOR_GLUTE_MOBILITY",
+      "body_area_codes_candidate": [
+        "HIP",
+        "KNEE"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "SEATED_WIDE_ANGLE_STRETCH",
+      "variant_group_candidate": "ADDUCTOR_HAMSTRING_STRETCH",
+      "selection_rank": 2,
+      "difficulty_code_candidate": "INTERMEDIATE",
+      "beginner_suitability_candidate": "CONDITIONAL",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "HIgYKAB",
+      "source_image": "images/1587-HIgYKAB.jpg",
+      "source_gif_url": "videos/1587-HIgYKAB.gif"
+    },
+    {
+      "candidate_id": "1424",
+      "source_identity": "1424",
+      "source_name": "seated glute stretch",
+      "source_body_part": "upper legs",
+      "source_target": "glutes",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "ADDUCTOR_GLUTE_MOBILITY",
+      "body_area_codes_candidate": [
+        "HIP",
+        "KNEE"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "SEATED_GLUTE_STRETCH",
+      "variant_group_candidate": "GLUTE_STRETCH",
+      "selection_rank": 3,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "DeDThfG",
+      "source_image": "images/1424-DeDThfG.jpg",
+      "source_gif_url": "videos/1424-DeDThfG.gif"
+    },
+    {
+      "candidate_id": "2567",
+      "source_identity": "2567",
+      "source_name": "seated piriformis stretch",
+      "source_body_part": "upper legs",
+      "source_target": "glutes",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "ADDUCTOR_GLUTE_MOBILITY",
+      "body_area_codes_candidate": [
+        "HIP",
+        "KNEE"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "SEATED_PIRIFORMIS_STRETCH",
+      "variant_group_candidate": "GLUTE_STRETCH",
+      "selection_rank": 4,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "QY39eBr",
+      "source_image": "images/2567-QY39eBr.jpg",
+      "source_gif_url": "videos/2567-QY39eBr.gif"
+    },
+    {
+      "candidate_id": "1511",
+      "source_identity": "1511",
+      "source_name": "hamstring stretch",
+      "source_body_part": "upper legs",
+      "source_target": "hamstrings",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "HAMSTRING_MOBILITY",
+      "body_area_codes_candidate": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "HAMSTRING_STRETCH",
+      "variant_group_candidate": "HAMSTRING_STRETCH",
+      "selection_rank": 1,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "99rWm7w",
+      "source_image": "images/1511-99rWm7w.jpg",
+      "source_gif_url": "videos/1511-99rWm7w.gif"
+    },
+    {
+      "candidate_id": "1576",
+      "source_identity": "1576",
+      "source_name": "leg up hamstring stretch",
+      "source_body_part": "upper legs",
+      "source_target": "hamstrings",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "HAMSTRING_MOBILITY",
+      "body_area_codes_candidate": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "LEG_UP_HAMSTRING_STRETCH",
+      "variant_group_candidate": "HAMSTRING_STRETCH",
+      "selection_rank": 2,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "sU5BrfP",
+      "source_image": "images/1576-sU5BrfP.jpg",
+      "source_gif_url": "videos/1576-sU5BrfP.gif"
+    },
+    {
+      "candidate_id": "1585",
+      "source_identity": "1585",
+      "source_name": "runners stretch",
+      "source_body_part": "upper legs",
+      "source_target": "hamstrings",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "HAMSTRING_MOBILITY",
+      "body_area_codes_candidate": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "RUNNERS_STRETCH",
+      "variant_group_candidate": "HAMSTRING_CALF_STRETCH",
+      "selection_rank": 3,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "CONDITIONAL",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "0mB6wHO",
+      "source_image": "images/1585-0mB6wHO.jpg",
+      "source_gif_url": "videos/1585-0mB6wHO.gif"
+    },
+    {
+      "candidate_id": "1604",
+      "source_identity": "1604",
+      "source_name": "world greatest stretch",
+      "source_body_part": "upper legs",
+      "source_target": "hamstrings",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "HAMSTRING_MOBILITY",
+      "body_area_codes_candidate": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "WORLD_GREATEST_STRETCH",
+      "variant_group_candidate": "MULTI_AREA_MOBILITY",
+      "selection_rank": 4,
+      "difficulty_code_candidate": "INTERMEDIATE",
+      "beginner_suitability_candidate": "CONDITIONAL",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "DFGXwZr",
+      "source_image": "images/1604-DFGXwZr.jpg",
+      "source_gif_url": "videos/1604-DFGXwZr.gif"
+    },
+    {
+      "candidate_id": "1599",
+      "source_identity": "1599",
+      "source_name": "standing hamstring and calf stretch with strap",
+      "source_body_part": "upper legs",
+      "source_target": "hamstrings",
+      "source_equipment": "rope",
+      "mobility_goal_code": "HAMSTRING_MOBILITY",
+      "body_area_codes_candidate": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "STANDING_HAMSTRING_CALF_STRAP_STRETCH",
+      "variant_group_candidate": "HAMSTRING_CALF_STRETCH",
+      "selection_rank": 5,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "ROPE_REVIEW_REQUIRED",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "xTjr103",
+      "source_image": "images/1599-xTjr103.jpg",
+      "source_gif_url": "videos/1599-xTjr103.gif"
+    },
+    {
+      "candidate_id": "1368",
+      "source_identity": "1368",
+      "source_name": "ankle circles",
+      "source_body_part": "lower legs",
+      "source_target": "calves",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "CALF_ANKLE_MOBILITY",
+      "body_area_codes_candidate": [
+        "ANKLE_FOOT",
+        "KNEE"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "ANKLE_CIRCLES",
+      "variant_group_candidate": "ANKLE_MOBILITY",
+      "selection_rank": 1,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "uL9CsKm",
+      "source_image": "images/1368-uL9CsKm.jpg",
+      "source_gif_url": "videos/1368-uL9CsKm.gif"
+    },
+    {
+      "candidate_id": "1377",
+      "source_identity": "1377",
+      "source_name": "calf stretch with hands against wall",
+      "source_body_part": "lower legs",
+      "source_target": "calves",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "CALF_ANKLE_MOBILITY",
+      "body_area_codes_candidate": [
+        "ANKLE_FOOT",
+        "KNEE"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "WALL_CALF_STRETCH",
+      "variant_group_candidate": "CALF_STRETCH",
+      "selection_rank": 2,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "m0tCHqc",
+      "source_image": "images/1377-m0tCHqc.jpg",
+      "source_gif_url": "videos/1377-m0tCHqc.gif"
+    },
+    {
+      "candidate_id": "1390",
+      "source_identity": "1390",
+      "source_name": "seated calf stretch (male)",
+      "source_body_part": "lower legs",
+      "source_target": "calves",
+      "source_equipment": "body weight",
+      "mobility_goal_code": "CALF_ANKLE_MOBILITY",
+      "body_area_codes_candidate": [
+        "ANKLE_FOOT",
+        "KNEE"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "SEATED_CALF_STRETCH",
+      "variant_group_candidate": "CALF_STRETCH",
+      "selection_rank": 3,
+      "difficulty_code_candidate": "BEGINNER",
+      "beginner_suitability_candidate": "REVIEW_REQUIRED",
+      "equipment_code_candidate": "BODYWEIGHT",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "17bqEXD",
+      "source_image": "images/1390-17bqEXD.jpg",
+      "source_gif_url": "videos/1390-17bqEXD.gif"
+    },
+    {
+      "candidate_id": "1388",
+      "source_identity": "1388",
+      "source_name": "peroneals stretch",
+      "source_body_part": "lower legs",
+      "source_target": "calves",
+      "source_equipment": "rope",
+      "mobility_goal_code": "CALF_ANKLE_MOBILITY",
+      "body_area_codes_candidate": [
+        "ANKLE_FOOT",
+        "KNEE"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "PERONEAL_STRETCH",
+      "variant_group_candidate": "LOWER_LEG_STRETCH",
+      "selection_rank": 4,
+      "difficulty_code_candidate": "INTERMEDIATE",
+      "beginner_suitability_candidate": "CONDITIONAL",
+      "equipment_code_candidate": "ROPE_REVIEW_REQUIRED",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "XhfS1DZ",
+      "source_image": "images/1388-XhfS1DZ.jpg",
+      "source_gif_url": "videos/1388-XhfS1DZ.gif"
+    },
+    {
+      "candidate_id": "2208",
+      "source_identity": "2208",
+      "source_name": "roller back stretch",
+      "source_body_part": "back",
+      "source_target": "spine",
+      "source_equipment": "roller",
+      "mobility_goal_code": "EQUIPMENT_ASSISTED_MOBILITY",
+      "body_area_codes_candidate": [
+        "LOWER_BACK",
+        "HIP"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "ROLLER_BACK_STRETCH",
+      "variant_group_candidate": "ROLLER_ASSISTED_MOBILITY",
+      "selection_rank": 1,
+      "difficulty_code_candidate": "INTERMEDIATE",
+      "beginner_suitability_candidate": "CONDITIONAL",
+      "equipment_code_candidate": "ROLLER_REVIEW_REQUIRED",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "isofgzg",
+      "source_image": "images/2208-isofgzg.jpg",
+      "source_gif_url": "videos/2208-isofgzg.gif"
+    },
+    {
+      "candidate_id": "2202",
+      "source_identity": "2202",
+      "source_name": "roller hip stretch",
+      "source_body_part": "upper legs",
+      "source_target": "glutes",
+      "source_equipment": "roller",
+      "mobility_goal_code": "EQUIPMENT_ASSISTED_MOBILITY",
+      "body_area_codes_candidate": [
+        "LOWER_BACK",
+        "HIP"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "ROLLER_HIP_STRETCH",
+      "variant_group_candidate": "ROLLER_ASSISTED_MOBILITY",
+      "selection_rank": 2,
+      "difficulty_code_candidate": "INTERMEDIATE",
+      "beginner_suitability_candidate": "CONDITIONAL",
+      "equipment_code_candidate": "ROLLER_REVIEW_REQUIRED",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "oMypNrz",
+      "source_image": "images/2202-oMypNrz.jpg",
+      "source_gif_url": "videos/2202-oMypNrz.gif"
+    },
+    {
+      "candidate_id": "1559",
+      "source_identity": "1559",
+      "source_name": "exercise ball hip flexor stretch",
+      "source_body_part": "upper legs",
+      "source_target": "glutes",
+      "source_equipment": "stability ball",
+      "mobility_goal_code": "EQUIPMENT_ASSISTED_MOBILITY",
+      "body_area_codes_candidate": [
+        "LOWER_BACK",
+        "HIP"
+      ],
+      "training_type_code_candidate": "MOBILITY",
+      "movement_pattern_code_candidate": "MOBILITY_STRETCH",
+      "exercise_family_candidate": "EXERCISE_BALL_HIP_FLEXOR_STRETCH",
+      "variant_group_candidate": "BALL_ASSISTED_MOBILITY",
+      "selection_rank": 3,
+      "difficulty_code_candidate": "INTERMEDIATE",
+      "beginner_suitability_candidate": "CONDITIONAL",
+      "equipment_code_candidate": "STABILITY_BALL",
+      "location_code_candidates": [
+        "HOME",
+        "GYM"
+      ],
+      "load_profile_candidate": "UNREVIEWED",
+      "screening_decision": "INCLUDE_CANDIDATE",
+      "review_status_code": "DRAFT",
+      "production_eligible": false,
+      "review_required_codes": [
+        "EXERCISE_FAMILY_REVIEW_REQUIRED",
+        "VARIANT_RELATION_REVIEW_REQUIRED",
+        "BEGINNER_SUITABILITY_REVIEW_REQUIRED",
+        "EXECUTION_DOSAGE_REVIEW_REQUIRED",
+        "DOMAIN_SAFETY_REVIEW_REQUIRED",
+        "LOAD_PROFILE_REVIEW_REQUIRED",
+        "ALTERNATIVE_RELATION_REVIEW_REQUIRED",
+        "MEDIA_RIGHTS_REVIEW_REQUIRED"
+      ],
+      "alternative_relation_status": "NOT_CREATED_BY_DESIGN",
+      "source_media_id": "2LQkNPW",
+      "source_image": "images/1559-2LQkNPW.jpg",
+      "source_gif_url": "videos/1559-2LQkNPW.gif"
+    }
+  ],
+  "next_stage_gate": {
+    "requires": [
+      "human_family_variant_review_results",
+      "integrated_catalog_selection",
+      "load_review",
+      "domain_safety_policy_review"
+    ],
+    "generated_output_allowed": false,
+    "alternative_generation_allowed": false
+  }
+}

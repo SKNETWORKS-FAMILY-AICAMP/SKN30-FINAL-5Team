@@ -1,0 +1,116 @@
+{
+  "ablation_id": "A3",
+  "brier": 0.20905067284594625,
+  "calibration_curve": {
+    "n_bins": 10,
+    "probability_predicted": [
+      0.19465307518839836,
+      0.2653020173631689,
+      0.3481003267295433,
+      0.4491940667778536,
+      0.5383690439632961,
+      0.6563099211235659,
+      0.759972673034508,
+      0.8364426476010204,
+      0.9345966257832267
+    ],
+    "probability_true": [
+      0.0,
+      0.28817204301075267,
+      0.3380681818181818,
+      0.4468690702087287,
+      0.5234285714285715,
+      0.6399082568807339,
+      0.7701342281879194,
+      0.8136094674556213,
+      0.9545454545454546
+    ]
+  },
+  "confusion_matrix": {
+    "labels": [
+      0,
+      1
+    ],
+    "values": [
+      [
+        1617,
+        847
+      ],
+      [
+        962,
+        1956
+      ]
+    ]
+  },
+  "evaluated_at": "2026-08-20T04:32:21.563806+00:00",
+  "evaluation_id": "final_time_A3_histgb_test",
+  "f1": 0.6837965390665968,
+  "feature_columns": [
+    "experience_level_code",
+    "day_of_week",
+    "is_weekend",
+    "workout_completed_prev_day",
+    "workout_count_7d",
+    "workout_count_28d",
+    "completion_rate_7d",
+    "completion_rate_28d",
+    "days_since_last_workout",
+    "consecutive_workout_days",
+    "consecutive_non_workout_days",
+    "is_return_mode_candidate",
+    "sleep_minutes_prev_day",
+    "resting_hr_prev_day",
+    "resting_hr_trend_code_prev_day",
+    "last_workout_duration_min_prev_day",
+    "last_workout_type_code_prev_day",
+    "last_workout_calories_prev_day",
+    "last_workout_avg_hr_prev_day"
+  ],
+  "fn": 962,
+  "fp": 847,
+  "freeze_sha256": "51128a1bb87fe1ff0c5057a855afad6a02419522e5cb4fe2261377bf05b34a7c",
+  "git_commit": "84e53a05f01e9188b5d2ed16fdfc6d99da3afcf0",
+  "hyperparameters": {
+    "learning_rate": 0.1,
+    "max_iter": 300,
+    "random_state": 42
+  },
+  "library_versions": {
+    "PyYAML": "6.0.3",
+    "joblib": "1.5.3",
+    "matplotlib": "3.10.5",
+    "numpy": "2.5.2",
+    "pandas": "2.3.3",
+    "pyarrow": "21.0.0",
+    "scikit-learn": "1.9.0"
+  },
+  "model_id": "histgb",
+  "model_path": "ml/models/final_model_A3_histgb.joblib",
+  "model_sha256": "3970a2b63519ab70045953046965fbc15970fa2380160be379f874e06ff074cf",
+  "n_development": 94618,
+  "n_test": 5382,
+  "n_users_development": 286,
+  "n_users_test": 168,
+  "pr_auc": 0.7661221980724948,
+  "precision": 0.6978237602568677,
+  "prediction_path": "ml/outputs/final/predictions_time_A3_histgb_test.parquet",
+  "prediction_reload_match": true,
+  "prediction_reload_max_abs_diff": 0.0,
+  "preprocessing": {
+    "categorical": "native_ordinal_with_missing_token",
+    "numeric": "median_imputation"
+  },
+  "recall": 0.6703221384509939,
+  "reselection_performed": false,
+  "roc_auc": 0.7262033877277623,
+  "selection_source": "ml/outputs/selection.json",
+  "split_part": "test",
+  "split_type": "time",
+  "test_driven_reselection_allowed": false,
+  "test_evaluation_count": 1,
+  "threshold": 0.5,
+  "tn": 1617,
+  "tp": 1956,
+  "validation_pr_auc": 0.7643486950569605,
+  "validation_results_source": "ml/outputs/experiments.csv"
+}

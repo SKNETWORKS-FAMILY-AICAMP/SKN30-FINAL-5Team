@@ -1,0 +1,155 @@
+{
+  "bundle_version": "v2-0-4-backend-bundle-2026-09-01",
+  "catalog_version_code": "exercise-catalog-v2.0.4-final",
+  "derived_from": {
+    "bundle_manifest_sha256": "499e728927d0e87a91e41f48d0f088301baa603ce192964c8752071927f433f4",
+    "catalog_version_code": "exercise-catalog-v2.0.3-final",
+    "change_summary": "Restores seven DOMAIN_APPROVED compound exercises that a v2.0.2 prune filter dropped, with their approved safety rules and reviewed prescriptions for all three goals. Alternatives and media are carried over unchanged.",
+    "compound_promotion": {
+      "alternatives_carried": false,
+      "approval_method_code": "OWNER_BATCH_CONFIRMATION",
+      "approval_reference": "COMPOUND-PROMOTION-DOMAIN-REVIEW-2026-09-01-R01",
+      "approved_at": "2026-09-01T15:00:00+09:00",
+      "exercise_stable_codes": [
+        "bodyweight_pull_up_biceps_vertical_pull_bodyweight_pull_up_bar",
+        "bodyweight_split_squat_knee_dominant_bodyweight",
+        "kettlebell_swing_hip_dominant_kettlebell",
+        "leg_press_knee_dominant_machine",
+        "scapular_pull_up_vertical_pull_bodyweight_pull_up_bar",
+        "seated_shoulder_press_vertical_push_dumbbell",
+        "squat_variant_knee_dominant_barbell"
+      ],
+      "policy_version": "compound-promotion-policy-2026-09-01",
+      "safety_rules_carried_from": "exercise-catalog-v2.0.1-final"
+    }
+  },
+  "derived_set_versions": {
+    "alternative_set_version_code": "alternative-set-v2.0.4",
+    "prescription_set_version_code": "prescription-set-v2.0.4",
+    "rule_set_version_code": "safety-rule-set-v2.0.4"
+  },
+  "files": [
+    {
+      "bytes": 936620,
+      "path": "alternatives/alternatives.jsonl",
+      "records": 1150,
+      "sha256": "ce2836d2da584d81061314777308ed797f8cc0c51f14470ff004d82c05aa51b5"
+    },
+    {
+      "bytes": 774,
+      "path": "alternatives/alternatives_manifest.json",
+      "sha256": "32524fb4757459eb8a66e0767eb9aa29d03ecce42ecb355fcf04b7ccef0ed876"
+    },
+    {
+      "bytes": 232132,
+      "path": "catalog/exercises.jsonl",
+      "records": 162,
+      "sha256": "f409f9e5d5932907a53a1a504f3dcf2c1a255f4f4461a5ab3a35fd2977a8f631"
+    },
+    {
+      "bytes": 12008,
+      "path": "catalog/input/representative_exercises.csv",
+      "sha256": "5cfdafc73dc5f7101269889955b69348116b27ba5b3902043a3eb897e8e66db1"
+    },
+    {
+      "bytes": 1107,
+      "path": "catalog/seed_manifest.json",
+      "sha256": "383acd10c7baa03b2cf3373e34ce24c5310cb8aed113c883b123655bec69af31"
+    },
+    {
+      "bytes": 38048,
+      "path": "media/media_assets.jsonl",
+      "records": 68,
+      "sha256": "eccbbb77d42aabae4a8b5caef86077a7a5f53a70ef2b84181ccb350faed08050"
+    },
+    {
+      "bytes": 926,
+      "path": "media/media_manifest.json",
+      "sha256": "517fbe7c3102f5916966fc8d0375a40a5fc45a775f0bdc6b509e76395801e6b1"
+    },
+    {
+      "bytes": 120333,
+      "path": "prescriptions/goal_tag_links.jsonl",
+      "records": 486,
+      "sha256": "e7c27a44bc331d273b589c26cce3a5fdb78d4c3ebabf112acbcbf3e39117068f"
+    },
+    {
+      "bytes": 1026,
+      "path": "prescriptions/prescription_manifest.json",
+      "sha256": "262077cc43ac2185cf13ea19524ec7046cbad57c0d8c20419cde8c392f700bb6"
+    },
+    {
+      "bytes": 465594,
+      "path": "prescriptions/prescription_profiles.jsonl",
+      "records": 1047,
+      "sha256": "588ab73b3028fa152a9dd25baca1243818739b5a4734264f5295f1ecf2ae89f4"
+    },
+    {
+      "bytes": 753,
+      "path": "safety/rules_manifest.json",
+      "sha256": "3fc4a31cdf10238afad4da706480d996c5bb6a4f0b2bac00045f289fef2c120e"
+    },
+    {
+      "bytes": 280282,
+      "path": "safety/safety_rules.jsonl",
+      "records": 595,
+      "sha256": "02000214bfd74e47ced25dbfb26e19139519b46598cd0ec54f9a329b0617673a"
+    }
+  ],
+  "importer_paths": {
+    "alternatives": "alternatives/alternatives_manifest.json",
+    "catalog": "catalog/seed_manifest.json",
+    "media": "media/media_manifest.json",
+    "prescriptions": "prescriptions/prescription_manifest.json",
+    "safety": "safety/rules_manifest.json"
+  },
+  "production_eligible": false,
+  "projection": {
+    "carried_over_alternatives": {
+      "DIFFICULTY": 7,
+      "EQUIPMENT": 16,
+      "LOCATION": 23
+    },
+    "carried_over_source": "exercise-catalog-v2.0.1-final/runtime",
+    "excluded_exercise_count": 15,
+    "excluded_exercise_stable_codes": [
+      "band_front_raise_isolation_resistance_band",
+      "band_shrug_isolation_resistance_band",
+      "band_single_leg_calf_raise_isolation_resistance_band",
+      "cable_shrug_isolation_cable_machine",
+      "dumbbell_decline_shrug_isolation_dumbbell",
+      "dumbbell_decline_shrug_v_2_isolation_dumbbell",
+      "dumbbell_front_raise_isolation_dumbbell",
+      "dumbbell_front_raise_v_2_isolation_dumbbell",
+      "dumbbell_incline_shrug_isolation_dumbbell",
+      "dumbbell_seated_alternate_front_raise_isolation_dumbbell",
+      "dumbbell_seated_calf_raise_isolation_dumbbell",
+      "dumbbell_single_leg_calf_raise_isolation_dumbbell",
+      "lever_seated_calf_raise_isolation_machine",
+      "one_leg_floor_calf_raise_isolation_bodyweight",
+      "side_push_neck_stretch_mobility_stretch_bodyweight"
+    ],
+    "excluded_reason": "required exercise content is missing; the record and every row referencing it are withheld",
+    "source_manifest_sha256": "6f0b87c6e40e8f7f7d65c33a1c89dbeec86953e7a2dc8525bcdb41f1f4a9ba60",
+    "status": "PARTIAL",
+    "withheld_beginner_prescription_reason": "an INTERMEDIATE exercise is not offered to a BEGINNER",
+    "withheld_beginner_prescriptions": [
+      "bodyweight_reverse_crunch_core_brace_bodyweight",
+      "cable_triceps_pushdown_isolation_cable_machine",
+      "lat_pulldown_vertical_pull_cable_machine",
+      "row_variant_horizontal_pull_cable_machine",
+      "seated_cable_row_horizontal_pull_cable_machine"
+    ],
+    "withheld_media_records": 102
+  },
+  "schema_version": "1.0",
+  "status_code": "DRAFT",
+  "summary": {
+    "alternative_records": 1150,
+    "catalog_records": 162,
+    "goal_tag_records": 486,
+    "media_asset_records": 68,
+    "prescription_records": 1047,
+    "safety_rule_records": 595
+  }
+}

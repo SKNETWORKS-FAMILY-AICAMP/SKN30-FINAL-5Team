@@ -16,7 +16,14 @@
  *   sequence is likewise only known from a response this session created
  */
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 
 import type { Api } from '../../api/endpoints';
 import {
@@ -35,6 +42,7 @@ import type {
   WorkoutPlan,
   WorkoutSessionLogSummary,
 } from '../../api/types';
+import { moveWorkoutPlanItem } from '../../api/workoutPlan';
 import {
   localDateString,
   useAsyncData,
@@ -46,7 +54,12 @@ import {
   type HomeBusyKind,
   type HomeUserEdits,
 } from './HomeScreen';
-import { sleepMinutesFromHours, type HomeCheckinDraft } from './homeModel';
+import {
+  availabilitySlotsForRequest,
+  sleepMinutesFromHours,
+  type HomeCheckinDraft,
+} from './homeModel';
+import type { RoutineGenerationPhaseCode } from './RoutineGenerationLoading';
 
 type HomeData = {
   routine: RoutineResponse | null;
@@ -58,6 +71,22 @@ type HomeData = {
 const FALLBACK_GOAL_CODE = 'GENERAL_FITNESS';
 const FALLBACK_LOCATION_CODE = 'HOME';
 const EMPTY_SESSIONS: WorkoutSessionLogSummary[] = [];
+const DEFAULT_FINAL_VALIDATION_HOLD_MS = 1_500;
+
+function wait(milliseconds: number): Promise<void> {
+  if (milliseconds <= 0) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function canShowFinalValidation(decision: DecisionResponse): boolean {
+  return (
+    decision.final_plan !== null &&
+    decision.action_code !== 'STOP_AND_SEEK_HELP' &&
+    decision.safety_status_code !== 'BLOCKED'
+  );
+}
 
 /** Absent resources are a normal state here, not a failure to report. */
 function optional<T>(
@@ -124,6 +153,7 @@ export function HomeContainer({
   onRestChosen,
   onTab,
   onOpenCalendar,
+  finalValidationHoldMs = DEFAULT_FINAL_VALIDATION_HOLD_MS,
 }: {
   api: Api;
   me: MeResponse;
@@ -131,13 +161,15 @@ export function HomeContainer({
   restToday: boolean;
   /** Today's decision, held above so a tab switch does not discard it. */
   decision: DecisionResponse | null;
-  onDecisionChange: (decision: DecisionResponse | null) => void;
+  onDecisionChange: Dispatch<SetStateAction<DecisionResponse | null>>;
   planRevision: WeeklyPlanRevisionResponse | null;
   onPlanRevisionChange: (revision: WeeklyPlanRevisionResponse | null) => void;
   onSessionStarted: (sessionId: string, plan: WorkoutPlan) => void;
   onRestChosen: (pressureNotificationsAllowed: boolean) => void;
   onTab: (tab: TabId) => void;
   onOpenCalendar: () => void;
+  /** Testable presentation delay after a decision response is ready. */
+  finalValidationHoldMs?: number;
 }) {
   const profile = me.profile;
   const now = new Date();
@@ -182,6 +214,8 @@ export function HomeContainer({
   );
 
   const [busy, setBusy] = useState<HomeBusyKind | null>(null);
+  const [routineLoadingPhaseCode, setRoutineLoadingPhaseCode] =
+    useState<RoutineGenerationPhaseCode | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [staleContext, setStaleContext] = useState(false);
   const [lastDraft, setLastDraft] = useState<HomeCheckinDraft | null>(null);
@@ -213,6 +247,7 @@ export function HomeContainer({
     }
     inFlight.current = true;
     setBusy(kind);
+    setRoutineLoadingPhaseCode(null);
     setActionError(null);
     setStaleContext(false);
 
@@ -224,8 +259,14 @@ export function HomeContainer({
       .finally(() => {
         inFlight.current = false;
         setBusy(null);
+        setRoutineLoadingPhaseCode(null);
       });
   }, []);
+
+  const holdFinalValidation = useCallback(async () => {
+    setRoutineLoadingPhaseCode('FINAL_VALIDATION');
+    await wait(finalValidationHoldMs);
+  }, [finalValidationHoldMs]);
 
   const submitCheckin = useCallback(
     (draft: HomeCheckinDraft, refreshVersion = false) => {
@@ -234,7 +275,7 @@ export function HomeContainer({
       }
       setLastDraft(draft);
 
-      run('checkin', async () => {
+      run('decision-generation', async () => {
         const sleepMinutes = sleepMinutesFromHours(draft.sleepHours);
         if (sleepMinutes === undefined) {
           throw new Error('sleep hours out of range');
@@ -255,6 +296,10 @@ export function HomeContainer({
         const profileDuration =
           profile?.default_requested_duration_minutes ??
           routine.days[0]?.requested_duration_minutes;
+        const profileTimeZone =
+          profile?.timezone ??
+          Intl.DateTimeFormat().resolvedOptions().timeZone ??
+          'UTC';
 
         const saved = await api.replaceDailyContext(
           localDate,
@@ -281,6 +326,11 @@ export function HomeContainer({
               }),
             ),
             adverse_reaction_codes: draft.adverseReactionCodes,
+            available_slots: availabilitySlotsForRequest(
+              draft.availableSlots,
+              localDate,
+              profileTimeZone,
+            ),
           },
           expectedVersion,
         );
@@ -291,6 +341,9 @@ export function HomeContainer({
           expected_context_version: saved.context_version,
         });
 
+        if (canShowFinalValidation(next)) {
+          await holdFinalValidation();
+        }
         setData({ routine, context: saved, week, sessions });
         onDecisionChange(next);
       });
@@ -298,6 +351,7 @@ export function HomeContainer({
     [
       api,
       context,
+      holdFinalValidation,
       localDate,
       locationCodes,
       onDecisionChange,
@@ -311,7 +365,7 @@ export function HomeContainer({
   );
 
   const createRoutine = useCallback(() => {
-    run('checkin', async () => {
+    run('routine-creation', async () => {
       await api.createRoutine({
         effective_from: localDate,
         goal_code: profile?.primary_goal_code ?? FALLBACK_GOAL_CODE,
@@ -364,6 +418,21 @@ export function HomeContainer({
     });
   }, [api, decision, onRestChosen, run]);
 
+  const reorderPlan = useCallback(
+    (from: number, to: number) => {
+      onDecisionChange((current) => {
+        if (current?.final_plan === null || current?.final_plan === undefined) {
+          return current;
+        }
+        const finalPlan = moveWorkoutPlanItem(current.final_plan, from, to);
+        return finalPlan === current.final_plan
+          ? current
+          : { ...current, final_plan: finalPlan };
+      });
+    },
+    [onDecisionChange],
+  );
+
   /**
    * The revision sequence is only knowable from a response this client
    * received, so the first revision of a session creates the week's initial
@@ -411,22 +480,41 @@ export function HomeContainer({
         daily_context_id: context.id,
         expected_context_version: context.context_version,
       });
+      if (canShowFinalValidation(next)) {
+        await holdFinalValidation();
+      }
       onDecisionChange(next);
     },
-    [api, context, localDate, onDecisionChange, onPlanRevisionChange, reload],
+    [
+      api,
+      context,
+      holdFinalValidation,
+      localDate,
+      onDecisionChange,
+      onPlanRevisionChange,
+      reload,
+    ],
   );
 
-  const requestAiRevision = useCallback(() => {
-    run('revision', async () => {
-      const sequence = await revisionSequence();
-      const revision = await api.createPlanRevision(weekStart, {
-        source_code: 'AI',
-        expected_revision_sequence: sequence,
-        user_edits: null,
+  const regenerateDecision = useCallback(() => {
+    const plan = decision?.final_plan;
+    const sequence = decision?.regeneration_sequence;
+    if (!decision || !plan || (sequence !== 0 && sequence !== 1)) {
+      return;
+    }
+    const decisionId = decision.decision_id;
+
+    run('regeneration', async () => {
+      const next = await api.regenerateDecision(decisionId, {
+        expected_plan_id: plan.plan_id,
+        expected_regeneration_sequence: sequence,
       });
-      await applyRevision(revision);
+      if (canShowFinalValidation(next)) {
+        await holdFinalValidation();
+      }
+      onDecisionChange(next);
     });
-  }, [api, applyRevision, revisionSequence, run, weekStart]);
+  }, [api, decision, holdFinalValidation, onDecisionChange, run]);
 
   const submitUserEdits = useCallback(
     (edits: HomeUserEdits) => {
@@ -453,8 +541,8 @@ export function HomeContainer({
 
   return (
     <HomeScreen
-      attentionAreaCodes={profile?.attention_area_codes ?? []}
       nickname={profile?.nickname ?? '회원'}
+      profileImageUrl={profile?.profile_image_url ?? null}
       localDate={localDate}
       status={
         state.status === 'ready'
@@ -478,6 +566,7 @@ export function HomeContainer({
       defaultDurationMinutes={profile?.default_requested_duration_minutes}
       locationCodes={locationCodes}
       busy={busy}
+      routineLoadingPhaseCode={routineLoadingPhaseCode ?? undefined}
       actionError={actionError}
       staleContext={staleContext}
       onRetryCheckin={
@@ -487,7 +576,8 @@ export function HomeContainer({
       onSubmitCheckin={(draft) => submitCheckin(draft)}
       onStartWorkout={startWorkout}
       onChooseRest={chooseRest}
-      onRequestAiRevision={requestAiRevision}
+      onRegenerateDecision={regenerateDecision}
+      onReorderPlan={reorderPlan}
       onSubmitUserEdits={submitUserEdits}
       onNavigateTab={onTab}
       onProfile={() => onTab('my')}

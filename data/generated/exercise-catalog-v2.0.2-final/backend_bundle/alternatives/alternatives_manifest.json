@@ -1,0 +1,29 @@
+{
+  "alternative_set_version": {
+    "status_code": "DRAFT",
+    "version_code": "alternative-set-v2.0.2"
+  },
+  "files": [
+    {
+      "bytes": 936620,
+      "path": "alternatives.jsonl",
+      "records": 1150,
+      "sha256": "fdfcf9d836c7089706285c0bb9c982c6672e7927d8449d357c32094e70466267"
+    }
+  ],
+  "generator_version": "v2-0-2-backend-bundle-packager-1.0.0",
+  "review": {
+    "production_eligible": false,
+    "review_method_code": "DOMAIN_REVIEWER",
+    "status": "DOMAIN_APPROVED",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
+  },
+  "schema_version": "1.0",
+  "source": {
+    "catalog_version_code": "exercise-catalog-v2.0.2-final",
+    "input_artifacts": []
+  },
+  "summary": {
+    "alternative_records": 1150
+  }
+}

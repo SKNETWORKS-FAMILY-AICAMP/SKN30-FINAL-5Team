@@ -222,6 +222,10 @@ def build_payload(policy_path: Path) -> dict[str, object]:
     counts = {
         track: sum(record["track"] == track for record in records) for track in IDENTITY_FIELDS
     }
+    try:
+        policy_path_ref = policy_path.resolve().relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        policy_path_ref = policy_path.name
     return {
         "schema_version": "1.0",
         "selection_version": policy.get("selection_version"),
@@ -230,7 +234,7 @@ def build_payload(policy_path: Path) -> dict[str, object]:
         "production_eligible": False,
         "selected_on": policy.get("selected_on"),
         "policy": {
-            "path": policy_path.resolve().relative_to(REPO_ROOT).as_posix(),
+            "path": policy_path_ref,
             "sha256": sha256_bytes(policy_path.read_bytes()),
         },
         "interpretation_guards": policy.get("interpretation_guards"),
@@ -242,7 +246,11 @@ def build_payload(policy_path: Path) -> dict[str, object]:
 
 def write_payload(path: Path, payload: dict[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
 
 
 def verify_output(policy_path: Path, output_path: Path) -> dict[str, object]:

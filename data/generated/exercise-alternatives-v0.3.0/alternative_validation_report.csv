@@ -1,0 +1,20 @@
+check_code,check_name,expected,actual,status,details
+EXERCISE_ID_EXISTENCE,source/alternative exercise_id 존재,all endpoints exist,true,PASS,통합 카탈로그 ID 집합과 비교
+DUPLICATE_RELATION,동일 방향·유형 중복,0,0,PASS,"natural key=(source, alternative, type)"
+REVERSE_DIRECTION,역방향 자동 생성 없음,0,0,PASS,direction은 A_TO_B만 허용
+VARIANT_EXCLUSION,Variant 관계 제외,0,0,PASS,동일 representative_id 또는 exercise_family 관계를 차단
+ALTERNATIVE_TYPE,alternative_type 허용값,0 invalid,0,PASS,CONSTRAINT/INTENSITY/RECOVERY/SAFETY
+TRIGGER_CONDITION,trigger_condition 기록,0 missing,0,PASS,대체 발생 조건 필수
+GOAL_MATCH,goal_match 근거 필드,0 missing,0,PASS,동일 목표 코드와 보존 여부 기록
+MET_DATA,양 끝점 approved MET,0 missing,0,PASS,exercise_met_mapping_reviewed.csv의 APPROVED만 사용
+MET_INCREASE,대체 운동 MET 증가 차단,0,0,PASS,강도 증가 방향은 생성하지 않음
+REVIEW_REASON,review_required 사유 기록,0 missing,0,PASS,관계별 review log 존재
+PRODUCTION_GATE,검수 전 production eligibility,0 eligible,0,PASS,승인 전 관계는 모두 REVIEW_REQUIRED/false
+SOURCE_COVERAGE,관계가 생성된 source 수,informational,102,PASS,근거 부족/variant-only source는 자동 관계를 생성하지 않음
+CATALOG_EXERCISE_COUNT,통합 카탈로그 exercise 수,208,208,PASS,입력 통합 카탈로그 기준
+MET_APPROVED_COUNT,Alternative endpoint로 사용 가능한 approved MET 수,207,207,PASS,REVIEW_REQUIRED MET는 endpoint에서 제외
+MET_REVIEW_REQUIRED_COUNT,MET REVIEW_REQUIRED 수,1,1,PASS,NEX-000173은 MET 미확정으로 관계 생성에서 제외
+SOURCES_WITHOUT_RELATIONS,자동 관계 미생성 source 수,informational,106,PASS,근거 부족/variant-only/패턴 불명확 source
+REVIEW_LOG_COUNT,관계별 review log 수,189,189,PASS,모든 생성 관계는 사람이 승인해야 함
+RELATION_COUNT,생성 관계 수,informational,189,PASS,새 관계는 domain review 대기 상태
+TYPE_COUNTS,유형별 관계 수,informational,"{'CONSTRAINT': 145, 'INTENSITY': 11, 'RECOVERY': 31, 'SAFETY': 2}",PASS,검수 우선순위 산정용

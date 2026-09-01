@@ -1,0 +1,2022 @@
+{
+  "profile_version": "gymvisual-cardio-profile-v0.1.0",
+  "status": "DRAFT_REVIEW_QUEUE",
+  "production_eligible": false,
+  "scope": {
+    "stage": "1_CARDIO_SELECTION",
+    "source_filter": {
+      "field": "body_part",
+      "equals": "cardio"
+    },
+    "selection_target": "8-12 without forced count",
+    "raw_candidate_count": 29
+  },
+  "source": {
+    "directory": "data/raw/gym_visual",
+    "source_manifest": {
+      "source_name": "exercises-dataset",
+      "retrieved_at": "2026-08-20T00:00:00+09:00",
+      "record_count": 1324,
+      "files": [
+        {
+          "path": "exercises.json",
+          "sha256": "656634224b8977b99a6d765470ee123260d4979715eaa4e7c0b7c8bb0d79f93d"
+        },
+        {
+          "path": "exercises.schema.json",
+          "sha256": "33fb14b439c68e12365e14a0759006c40564646ac27084efe1f2e956804b2d49"
+        }
+      ],
+      "license": "MIT",
+      "media_license_approved": true,
+      "media_license_scope": "GIFs may be used temporarily and free of charge during the limited student project with attribution.",
+      "media_license_attribution": "© Aliaksandr Makatserchyk - Gym visual - https://gymvisual.com/",
+      "status": "DRAFT"
+    },
+    "raw_sha256": {
+      "exercises.json": "656634224b8977b99a6d765470ee123260d4979715eaa4e7c0b7c8bb0d79f93d",
+      "source.json": "d4e61e30805eddad7a0626a611f66566dc4d5718e30e84c80c1932b677b986ef"
+    }
+  },
+  "decision_counts": {
+    "INCLUDE": 10
+  },
+  "screening_disposition_counts": {
+    "EXCLUDE": 16,
+    "HOLD": 3,
+    "INCLUDE": 10
+  },
+  "screened_candidate_count": 29,
+  "intensity_policy": {
+    "intensity_level_code": "REVIEW_REQUIRED",
+    "met": null,
+    "rule": "이름·원천 category만으로 강도/MET를 확정하거나 자동 매핑하지 않음."
+  },
+  "visual_policy": {
+    "status": "REFERENCE_ONLY_DEFERRED_TO_FINAL_CATALOG",
+    "rule": "이번 단계에는 GIF/이미지 바이너리를 추가하지 않고 원천 참조·저작자만 보존."
+  },
+  "coverage": {
+    "included_count": 10,
+    "location_counts": {
+      "GYM": 5,
+      "HOME": 5,
+      "OUTDOOR": 2
+    },
+    "impact_counts": {
+      "HIGH": 2,
+      "LOW": 6,
+      "MODERATE": 2
+    },
+    "exercise_mode_counts": {
+      "CONTINUOUS": 9,
+      "INTERVAL": 10
+    },
+    "equipment_counts": {
+      "개방 공간 또는 트레드밀(검토 필요)": 1,
+      "고정식 자전거(기존 taxonomy 코드 검토 필요)": 1,
+      "맨몸": 3,
+      "맨몸(벽 지지)": 1,
+      "스텝밀(기존 taxonomy 코드 검토 필요)": 1,
+      "일립티컬/크로스 트레이너(기존 taxonomy 코드 검토 필요)": 1,
+      "줄넘기(기존 taxonomy 코드 검토 필요)": 1,
+      "트레드밀(기존 taxonomy 코드 검토 필요)": 1
+    },
+    "difficulty_counts": {
+      "BEGINNER": 8,
+      "INTERMEDIATE": 2
+    },
+    "target_bands": {
+      "home_low_impact": {
+        "selected": 2,
+        "target": "3-4"
+      },
+      "home_moderate_high_intensity": {
+        "selected": 3,
+        "target": "2-3"
+      },
+      "gym_equipment": {
+        "selected": 4,
+        "target": "3-4"
+      },
+      "outdoor": {
+        "selected": 2,
+        "target": "about 2"
+      },
+      "continuous_and_interval": {
+        "continuous": 9,
+        "interval": 10
+      }
+    },
+    "coverage_gaps": [
+      {
+        "coverage_gap": "HOME_LOW_IMPACT",
+        "selected": 2,
+        "target": "3-4",
+        "reason": "명확한 저충격 홈 후보가 2종이며, half knee bends는 유산소 범위가 불명확해 HOLD 처리함.",
+        "next_source": "wger_or_KSPO_HOME"
+      },
+      {
+        "coverage_gap": "INTENSITY_MET_EVIDENCE",
+        "reason": "Gym Visual 원천에는 MET/강도 근거가 없어 INCLUDE 전부 REVIEW_REQUIRED 및 met=null.",
+        "next_source": "wger_or_KSPO_OR_DOMAIN_REFERENCE"
+      },
+      {
+        "coverage_gap": "VISUAL_CONFIRMATION",
+        "reason": "GIF/이미지 바이너리는 최종 카탈로그 제작 단계에서 추가 예정이며 이번 단계는 참조 경로만 보존.",
+        "next_step": "final_catalog_media_review"
+      }
+    ]
+  },
+  "candidates": [
+    {
+      "candidate_id": "3672",
+      "source_record": {
+        "id": "3672",
+        "name": "back and forth step",
+        "category": "cardio",
+        "body_part": "cardio",
+        "equipment": "body weight",
+        "instructions": {
+          "en": "Stand with your feet shoulder-width apart. Step forward with your right foot, bending your knee and lowering your body into a lunge position. Push off with your right foot and step back to the starting position. Repeat the movement with your left foot, alternating legs with each step. Continue stepping back and forth, maintaining a steady pace. Repeat for the desired duration or number of repetitions.",
+          "it": "Stai con i piedi alla larghezza delle spalle. Fai un passo avanti con il piede destro, piegando il ginocchio e abbassando il corpo in una posizione di affondo. Spingi con il piede destro e torna alla posizione di partenza. Ripeti il ​​movimento con il piede sinistro, alternando le gambe ad ogni passo. Continua a fare passi avanti e indietro, mantenendo un ritmo costante. Ripetere per la durata o il numero di ripetizioni desiderato.",
+          "tr": "Ayaklarınız omuz genişliğinde açık olacak şekilde ayakta durun. Sağ ayağınızla öne doğru bir adım atın, dizinizi bükün ve vücudunuzu hamle pozisyonuna indirin. Sağ ayağınızla itin ve başlangıç ​​pozisyonuna geri dönün. Hareketi her adımda bacak değiştirerek sol ayağınızla tekrarlayın. Sabit bir tempoyu koruyarak ileri geri adım atmaya devam edin. İstenilen süre veya tekrar sayısı kadar tekrarlayın.",
+          "es": "Ponte de pie con los pies separados a la altura de los hombros. Da un paso adelante con el pie derecho, flexionando la rodilla y bajando el cuerpo hacia una posición de zancada. Empuja con el pie derecho y da un paso atrás para regresar a la posición inicial. Repite el movimiento con el pie izquierdo, alternando las piernas en cada paso. Continúa dando pasos hacia adelante y hacia atrás, manteniendo un ritmo constante. Repite durante la duración o el número de repeticiones deseado.",
+          "ru": "Встаньте, ноги на ширине плеч. Сделайте шаг вперед правой ногой, согнув колено и опустив тело в положение выпада. Оттолкнитесь правой ногой и вернитесь в исходное положение. Повторите движение левой ногой, чередуя ноги при каждом шаге. Продолжайте шагать вперед и назад, сохраняя устойчивый темп. Повторяйте желаемую продолжительность или количество повторений.",
+          "zh": "双脚分开与肩同宽站立。 右脚向前迈出一步，弯曲膝盖，将身体降低到弓步位置。 用右脚蹬地，然后回到起始位置。 用左脚重复该动作，每一步交替双腿。 继续来回走动，保持稳定的步伐。 重复所需的持续时间或重复次数。",
+          "hi": "अपने पैरों को कंधे की चौड़ाई की दूरी पर रखकर खड़े हो जाएं। अपने दाहिने पैर के साथ आगे बढ़ें, अपने घुटने को मोड़ें और अपने शरीर को एक लंज स्थिति में नीचे लाएँ। अपने दाहिने पैर से धक्का दें और प्रारंभिक स्थिति में वापस आ जाएँ। प्रत्येक चरण के साथ पैरों को बारी-बारी से अपने बाएं पैर से दोहराएं। स्थिर गति बनाए रखते हुए आगे-पीछे कदम बढ़ाते रहें। वांछित अवधि या दोहराव की संख्या के लिए दोहराएँ।",
+          "pl": "Stań w rozkroku na szerokość barków. Zrób krok do przodu prawą stopą, uginając kolano i opuszczając ciało do pozycji wykroku. Odepchnij się prawą stopą i wróć krokiem do pozycji wyjściowej. Powtórz ruch lewą stopą, zmieniając nogi przy każdym kroku. Kontynuuj wykonywanie kroków do przodu i do tyłu, utrzymując stałe tempo. Powtórz przez zalecany czas lub liczbę powtórzeń.",
+          "ko": "발을 어깨너비로 벌리고 섭니다. 오른쪽 발을 앞으로 내딛고 무릎을 구부려 런지 자세로 내려갑니다. 오른쪽 발로 밀어내 시작 위치로 돌아옵니다. 왼쪽 발로 같은 동작을 반복하면서 다리를 번갈아가며 스텝합니다. 꾸준한 속도를 유지하며 앞뒤로 스텝을 계속합니다. 원하는 시간 또는 횟수만큼 반복합니다.",
+          "fr": "Tiens-toi debout, les pieds écartés à la largeur des épaules. Avance le pied droit, en fléchissant le genou et en abaissant ton corps en position de fente. Pousse sur ton pied droit et recule vers la position de départ. Répète le mouvement avec ton pied gauche, en alternant les jambes à chaque pas. Continue à faire des pas d'avant en arrière, en maintenant un rythme régulier. Répète pendant la durée souhaitée ou le nombre de répétitions souhaité."
+        },
+        "instruction_steps": {
+          "en": [
+            "Stand with your feet shoulder-width apart.",
+            "Step forward with your right foot, bending your knee and lowering your body into a lunge position.",
+            "Push off with your right foot and step back to the starting position.",
+            "Repeat the movement with your left foot, alternating legs with each step.",
+            "Continue stepping back and forth, maintaining a steady pace.",
+            "Repeat for the desired duration or number of repetitions."
+          ],
+          "it": [
+            "Stai con i piedi alla larghezza delle spalle.",
+            "Fai un passo avanti con il piede destro, piegando il ginocchio e abbassando il corpo in una posizione di affondo.",
+            "Spingi con il piede destro e torna alla posizione di partenza.",
+            "Ripeti il ​​movimento con il piede sinistro, alternando le gambe ad ogni passo.",
+            "Continua a fare passi avanti e indietro, mantenendo un ritmo costante.",
+            "Ripetere per la durata o il numero di ripetizioni desiderato."
+          ],
+          "tr": [
+            "Ayaklarınız omuz genişliğinde açık olacak şekilde ayakta durun.",
+            "Sağ ayağınızla öne doğru bir adım atın, dizinizi bükün ve vücudunuzu hamle pozisyonuna indirin.",
+            "Sağ ayağınızla itin ve başlangıç ​​pozisyonuna geri dönün.",
+            "Hareketi her adımda bacak değiştirerek sol ayağınızla tekrarlayın.",
+            "Sabit bir tempoyu koruyarak ileri geri adım atmaya devam edin.",
+            "İstenilen süre veya tekrar sayısı kadar tekrarlayın."
+          ],
+          "es": [
+            "Ponte de pie con los pies separados a la altura de los hombros.",
+            "Da un paso adelante con el pie derecho, flexionando la rodilla y bajando el cuerpo hacia una posición de zancada.",
+            "Empuja con el pie derecho y da un paso atrás para regresar a la posición inicial.",
+            "Repite el movimiento con el pie izquierdo, alternando las piernas en cada paso.",
+            "Continúa dando pasos hacia adelante y hacia atrás, manteniendo un ritmo constante.",
+            "Repite durante la duración o el número de repeticiones deseado."
+          ],
+          "ru": [
+            "Встаньте, ноги на ширине плеч.",
+            "Сделайте шаг вперед правой ногой, согнув колено и опустив тело в положение выпада.",
+            "Оттолкнитесь правой ногой и вернитесь в исходное положение.",
+            "Повторите движение левой ногой, чередуя ноги при каждом шаге.",
+            "Продолжайте шагать вперед и назад, сохраняя устойчивый темп.",
+            "Повторяйте желаемую продолжительность или количество повторений."
+          ],
+          "zh": [
+            "双脚分开与肩同宽站立。",
+            "右脚向前迈出一步，弯曲膝盖，将身体降低到弓步位置。",
+            "用右脚蹬地，然后回到起始位置。",
+            "用左脚重复该动作，每一步交替双腿。",
+            "继续来回走动，保持稳定的步伐。",
+            "重复所需的持续时间或重复次数。"
+          ],
+          "hi": [
+            "अपने पैरों को कंधे की चौड़ाई की दूरी पर रखकर खड़े हो जाएं।",
+            "अपने दाहिने पैर के साथ आगे बढ़ें, अपने घुटने को मोड़ें और अपने शरीर को एक लंज स्थिति में नीचे लाएँ।",
+            "अपने दाहिने पैर से धक्का दें और प्रारंभिक स्थिति में वापस आ जाएँ।",
+            "प्रत्येक चरण के साथ पैरों को बारी-बारी से अपने बाएं पैर से दोहराएं।",
+            "स्थिर गति बनाए रखते हुए आगे-पीछे कदम बढ़ाते रहें।",
+            "वांछित अवधि या दोहराव की संख्या के लिए दोहराएँ।"
+          ],
+          "pl": [
+            "Stań w rozkroku na szerokość barków.",
+            "Zrób krok do przodu prawą stopą, uginając kolano i opuszczając ciało do pozycji wykroku.",
+            "Odepchnij się prawą stopą i wróć krokiem do pozycji wyjściowej.",
+            "Powtórz ruch lewą stopą, zmieniając nogi przy każdym kroku.",
+            "Kontynuuj wykonywanie kroków do przodu i do tyłu, utrzymując stałe tempo.",
+            "Powtórz przez zalecany czas lub liczbę powtórzeń."
+          ],
+          "ko": [
+            "발을 어깨너비로 벌리고 섭니다.",
+            "오른쪽 발을 앞으로 내딛고 무릎을 구부려 런지 자세로 내려갑니다.",
+            "오른쪽 발로 밀어내 시작 위치로 돌아옵니다.",
+            "왼쪽 발로 같은 동작을 반복하면서 다리를 번갈아가며 스텝합니다.",
+            "꾸준한 속도를 유지하며 앞뒤로 스텝을 계속합니다.",
+            "원하는 시간 또는 횟수만큼 반복합니다."
+          ],
+          "fr": [
+            "Tiens-toi debout, les pieds écartés à la largeur des épaules.",
+            "Avance le pied droit, en fléchissant le genou et en abaissant ton corps en position de fente.",
+            "Pousse sur ton pied droit et recule vers la position de départ.",
+            "Répète le mouvement avec ton pied gauche, en alternant les jambes à chaque pas.",
+            "Continue à faire des pas d'avant en arrière, en maintenant un rythme régulier.",
+            "Répète pendant la durée souhaitée ou le nombre de répétitions souhaité."
+          ]
+        },
+        "muscle_group": "quadriceps",
+        "secondary_muscles": [
+          "quadriceps",
+          "hamstrings",
+          "glutes",
+          "calves"
+        ],
+        "target": "cardiovascular system",
+        "image": "images/3672-fNGumX0.jpg",
+        "gif_url": "videos/3672-fNGumX0.gif",
+        "media_id": "fNGumX0",
+        "created_at": "2026-03-18T12:31:32.855618+00:00",
+        "attribution": "© Gym visual — https://gymvisual.com/"
+      },
+      "source_provenance": {
+        "source_name": "exercises-dataset",
+        "source_license": "MIT",
+        "retrieved_at": "2026-08-20T00:00:00+09:00",
+        "raw_status": "DRAFT",
+        "raw_files": [
+          {
+            "path": "exercises.json",
+            "sha256": "656634224b8977b99a6d765470ee123260d4979715eaa4e7c0b7c8bb0d79f93d"
+          },
+          {
+            "path": "exercises.schema.json",
+            "sha256": "33fb14b439c68e12365e14a0759006c40564646ac27084efe1f2e956804b2d49"
+          }
+        ]
+      },
+      "normalized_candidates": {
+        "training_type_code": "CARDIO",
+        "body_focus_code": "LOWER_BODY",
+        "location_codes": [
+          "HOME"
+        ],
+        "impact_level_code": "LOW",
+        "exercise_mode_codes": [
+          "CONTINUOUS",
+          "INTERVAL"
+        ],
+        "equipment_code": "BODYWEIGHT",
+        "equipment_label": "맨몸",
+        "equipment_normalization_status": "TAXONOMY_CANDIDATE",
+        "difficulty_code": "BEGINNER",
+        "beginner_suitability_code": "CONDITIONAL",
+        "space_noise_level_code": "MEDIUM_QUIET",
+        "movement_pattern_code": "GAIT",
+        "intensity_level_code": "REVIEW_REQUIRED",
+        "met": null
+      },
+      "screening": {
+        "decision": "INCLUDE",
+        "reason_code": "HOME_LOW_IMPACT_STEPPING",
+        "reason": "홈에서 가능한 전후 스텝 대표 후보로, 지속형·인터벌 모두 확장 가능하고 저충격 커버리지를 보강함."
+      },
+      "visual_evidence": {
+        "image_reference": "images/3672-fNGumX0.jpg",
+        "gif_reference": "videos/3672-fNGumX0.gif",
+        "binary_in_raw_snapshot": false,
+        "status": "REFERENCE_ONLY_DEFERRED_TO_FINAL_CATALOG",
+        "attribution": "© Gym visual — https://gymvisual.com/"
+      },
+      "evidence": [
+        {
+          "source": "raw.equipment",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        },
+        {
+          "source": "raw.instruction_steps.en",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        },
+        {
+          "source": "screening.home_low_impact",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        }
+      ],
+      "review_required": true,
+      "review_required_codes": [
+        "INTENSITY_AND_MET_NOT_ESTABLISHED",
+        "HUMAN_SELECTION_REVIEW",
+        "FINAL_CATALOG_VISUAL_CHECK_DEFERRED"
+      ],
+      "production_eligible": false
+    },
+    {
+      "candidate_id": "3636",
+      "source_record": {
+        "id": "3636",
+        "name": "high knee against wall",
+        "category": "cardio",
+        "body_part": "cardio",
+        "equipment": "body weight",
+        "instructions": {
+          "en": "Stand facing a wall with your feet hip-width apart. Place your hands on the wall for support. Engage your core and lift your right knee up towards your chest, while keeping your left foot on the ground. Quickly switch legs, bringing your left knee up towards your chest and lowering your right foot back down. Continue alternating legs in a running motion, bringing your knees up as high as possible. Maintain a fast pace and keep your upper body stable throughout the exercise. Repeat for the desired duration or number of repetitions.",
+          "it": "Mettiti di fronte a un muro con i piedi alla larghezza dei fianchi. Metti le mani sul muro per supporto. Coinvolgi il core e solleva il ginocchio destro verso il petto, mantenendo il piede sinistro a terra. Cambia rapidamente gamba, portando il ginocchio sinistro verso il petto e abbassando il piede destro. Continua ad alternare le gambe con un movimento di corsa, portando le ginocchia il più in alto possibile. Mantieni un ritmo veloce e mantieni stabile la parte superiore del corpo durante l'esercizio. Ripetere per la durata o il numero di ripetizioni desiderato.",
+          "tr": "Ayaklarınız kalça genişliğinde açık olacak şekilde duvara dönük durun. Destek için ellerinizi duvara koyun. Merkez bölgenizi devreye sokun ve sol ayağınızı yerde tutarken sağ dizinizi göğsünüze doğru kaldırın. Hızla bacak değiştirin, sol dizinizi göğsünüze doğru kaldırın ve sağ ayağınızı tekrar aşağıya indirin. Koşu hareketinde bacaklarınızı değiştirerek dizlerinizi mümkün olduğu kadar yükseğe kaldırmaya devam edin. Hızlı tempoyu koruyun ve egzersiz boyunca üst vücudunuzu sabit tutun. İstenilen süre veya tekrar sayısı kadar tekrarlayın.",
+          "es": "Ponte de pie frente a una pared con los pies separados a la altura de las caderas. Coloca las manos en la pared para mayor apoyo. Activa el core y levanta la rodilla derecha hacia el pecho, mientras mantienes el pie izquierdo en el suelo. Cambia rápidamente de pierna, llevando la rodilla izquierda hacia el pecho y bajando el pie derecho de nuevo. Continúa alternando las piernas con un movimiento de carrera, llevando las rodillas lo más alto posible. Mantén un ritmo rápido y la parte superior del cuerpo estable durante todo el ejercicio. Repite durante la duración o el número de repeticiones deseado.",
+          "ru": "Встаньте лицом к стене, поставив ноги на ширине плеч. Положите руки на стену для поддержки. Напрягите корпус и поднимите правое колено к груди, удерживая левую ногу на земле. Быстро поменяйте ноги, поднеся левое колено к груди и опустив правую ногу обратно вниз. Продолжайте чередовать ноги бегущим движением, поднимая колени как можно выше. Поддерживайте быстрый темп и сохраняйте устойчивость верхней части тела на протяжении всего упражнения. Повторяйте желаемую продолжительность или количество повторений.",
+          "zh": "面向墙壁站立，双脚分开与臀部同宽。 将双手放在墙上以获得支撑。 启动你的核心并将右膝抬向胸部，同时将左脚保持在地面上。 快速换腿，将左膝抬向胸部，然后将右脚放低。 继续交替双腿进行跑步动作，将膝盖尽可能抬高。 在整个练习过程中保持快节奏并保持上半身稳定。 重复所需的持续时间或重复次数。",
+          "hi": "अपने पैरों को कूल्हे की चौड़ाई की दूरी पर रखते हुए दीवार की ओर मुंह करके खड़े हो जाएं। सहारे के लिए अपने हाथों को दीवार पर रखें। अपने कोर को संलग्न करें और अपने दाहिने घुटने को अपनी छाती की ओर ऊपर उठाएं, जबकि अपने बाएं पैर को जमीन पर रखें। तेजी से पैर बदलें, अपने बाएं घुटने को अपनी छाती की ओर लाएं और अपने दाहिने पैर को वापस नीचे लाएं। अपने घुटनों को जितना संभव हो उतना ऊपर लाते हुए, पैरों को दौड़ने की गति में बदलना जारी रखें। तेज़ गति बनाए रखें और पूरे अभ्यास के दौरान अपने ऊपरी शरीर को स्थिर रखें। वांछित अवधि या दोहराव की संख्या के लिए दोहराएँ।",
+          "pl": "Stań przodem do ściany, stopy ustaw na szerokość bioder. Umieść dłonie na ścianie dla wsparcia. Napnij mięśnie brzucha i unieś prawe kolano w stronę klatki piersiowej, trzymając lewą stopę na podłodze. Szybko zmień nogi, unosząc lewe kolano w stronę klatki piersiowej i opuszczając prawą stopę z powrotem na podłogę. Kontynuuj naprzemienne ćwiczenie nóg w ruchu biegowym, unosząc kolana jak najwyżej. Utrzymuj szybkie tempo i stabilną górną część ciała przez cały czas trwania ćwiczenia. Powtórz przez zalecany czas lub liczbę powtórzeń.",
+          "ko": "벽을 마주보고 어깨 너비만큼 발을 벌려 섭니다. 지탱하기 위해 손을 벽에 얹습니다. 복부에 힘을 주고 오른쪽 무릎을 가슴 쪽으로 들어 올리면서 왼쪽 발은 지면에 유지합니다. 빠르게 다리를 바꾸어 왼쪽 무릎을 가슴 쪽으로 들어 올리고 오른쪽 발을 내립니다. 달리는 동작으로 양쪽 다리를 번갈아 가능한 높이까지 들어 올립니다. 빠른 속도를 유지하고 상체는 안정적으로 유지합니다. 원하는 시간 또는 횟수만큼 반복합니다.",
+          "fr": "Tiens-toi face à un mur, les pieds écartés à la largeur des hanches. Place tes mains sur le mur pour te soutenir. Gaine ta sangle abdominale et lève ton genou droit vers ta poitrine, tout en gardant ton pied gauche au sol. Change rapidement de jambe, en amenant ton genou gauche vers le haut en direction de ta poitrine et en abaissant ton pied droit. Continue à alterner les jambes dans un mouvement de course en montant les genoux aussi haut que possible. Maintiens un rythme rapide et garde le haut du corps stable pendant tout l'exercice. Répète pendant la durée souhaitée ou le nombre de répétitions souhaité."
+        },
+        "instruction_steps": {
+          "en": [
+            "Stand facing a wall with your feet hip-width apart.",
+            "Place your hands on the wall for support.",
+            "Engage your core and lift your right knee up towards your chest, while keeping your left foot on the ground.",
+            "Quickly switch legs, bringing your left knee up towards your chest and lowering your right foot back down.",
+            "Continue alternating legs in a running motion, bringing your knees up as high as possible.",
+            "Maintain a fast pace and keep your upper body stable throughout the exercise.",
+            "Repeat for the desired duration or number of repetitions."
+          ],
+          "it": [
+            "Mettiti di fronte a un muro con i piedi alla larghezza dei fianchi.",
+            "Metti le mani sul muro per supporto.",
+            "Coinvolgi il core e solleva il ginocchio destro verso il petto, mantenendo il piede sinistro a terra.",
+            "Cambia rapidamente gamba, portando il ginocchio sinistro verso il petto e abbassando il piede destro.",
+            "Continua ad alternare le gambe con un movimento di corsa, portando le ginocchia il più in alto possibile.",
+            "Mantieni un ritmo veloce e mantieni stabile la parte superiore del corpo durante l'esercizio.",
+            "Ripetere per la durata o il numero di ripetizioni desiderato."
+          ],
+          "tr": [
+            "Ayaklarınız kalça genişliğinde açık olacak şekilde duvara dönük durun.",
+            "Destek için ellerinizi duvara koyun.",
+            "Merkez bölgenizi devreye sokun ve sol ayağınızı yerde tutarken sağ dizinizi göğsünüze doğru kaldırın.",
+            "Hızla bacak değiştirin, sol dizinizi göğsünüze doğru kaldırın ve sağ ayağınızı tekrar aşağıya indirin.",
+            "Koşu hareketinde bacaklarınızı değiştirerek dizlerinizi mümkün olduğu kadar yükseğe kaldırmaya devam edin.",
+            "Hızlı tempoyu koruyun ve egzersiz boyunca üst vücudunuzu sabit tutun.",
+            "İstenilen süre veya tekrar sayısı kadar tekrarlayın."
+          ],
+          "es": [
+            "Ponte de pie frente a una pared con los pies separados a la altura de las caderas.",
+            "Coloca las manos en la pared para mayor apoyo.",
+            "Activa el core y levanta la rodilla derecha hacia el pecho, mientras mantienes el pie izquierdo en el suelo.",
+            "Cambia rápidamente de pierna, llevando la rodilla izquierda hacia el pecho y bajando el pie derecho de nuevo.",
+            "Continúa alternando las piernas con un movimiento de carrera, llevando las rodillas lo más alto posible.",
+            "Mantén un ritmo rápido y la parte superior del cuerpo estable durante todo el ejercicio.",
+            "Repite durante la duración o el número de repeticiones deseado."
+          ],
+          "ru": [
+            "Встаньте лицом к стене, поставив ноги на ширине плеч.",
+            "Положите руки на стену для поддержки.",
+            "Напрягите корпус и поднимите правое колено к груди, удерживая левую ногу на земле.",
+            "Быстро поменяйте ноги, поднеся левое колено к груди и опустив правую ногу обратно вниз.",
+            "Продолжайте чередовать ноги бегущим движением, поднимая колени как можно выше.",
+            "Поддерживайте быстрый темп и сохраняйте устойчивость верхней части тела на протяжении всего упражнения.",
+            "Повторяйте желаемую продолжительность или количество повторений."
+          ],
+          "zh": [
+            "面向墙壁站立，双脚分开与臀部同宽。",
+            "将双手放在墙上以获得支撑。",
+            "启动你的核心并将右膝抬向胸部，同时将左脚保持在地面上。",
+            "快速换腿，将左膝抬向胸部，然后将右脚放低。",
+            "继续交替双腿进行跑步动作，将膝盖尽可能抬高。",
+            "在整个练习过程中保持快节奏并保持上半身稳定。",
+            "重复所需的持续时间或重复次数。"
+          ],
+          "hi": [
+            "अपने पैरों को कूल्हे की चौड़ाई की दूरी पर रखते हुए दीवार की ओर मुंह करके खड़े हो जाएं।",
+            "सहारे के लिए अपने हाथों को दीवार पर रखें।",
+            "अपने कोर को संलग्न करें और अपने दाहिने घुटने को अपनी छाती की ओर ऊपर उठाएं, जबकि अपने बाएं पैर को जमीन पर रखें।",
+            "तेजी से पैर बदलें, अपने बाएं घुटने को अपनी छाती की ओर लाएं और अपने दाहिने पैर को वापस नीचे लाएं।",
+            "अपने घुटनों को जितना संभव हो उतना ऊपर लाते हुए, पैरों को दौड़ने की गति में बदलना जारी रखें।",
+            "तेज़ गति बनाए रखें और पूरे अभ्यास के दौरान अपने ऊपरी शरीर को स्थिर रखें।",
+            "वांछित अवधि या दोहराव की संख्या के लिए दोहराएँ।"
+          ],
+          "pl": [
+            "Stań przodem do ściany, stopy ustaw na szerokość bioder.",
+            "Umieść dłonie na ścianie dla wsparcia.",
+            "Napnij mięśnie brzucha i unieś prawe kolano w stronę klatki piersiowej, trzymając lewą stopę na podłodze.",
+            "Szybko zmień nogi, unosząc lewe kolano w stronę klatki piersiowej i opuszczając prawą stopę z powrotem na podłogę.",
+            "Kontynuuj naprzemienne ćwiczenie nóg w ruchu biegowym, unosząc kolana jak najwyżej.",
+            "Utrzymuj szybkie tempo i stabilną górną część ciała przez cały czas trwania ćwiczenia.",
+            "Powtórz przez zalecany czas lub liczbę powtórzeń."
+          ],
+          "ko": [
+            "벽을 마주보고 어깨 너비만큼 발을 벌려 섭니다.",
+            "지탱하기 위해 손을 벽에 얹습니다.",
+            "복부에 힘을 주고 오른쪽 무릎을 가슴 쪽으로 들어 올리면서 왼쪽 발은 지면에 유지합니다.",
+            "빠르게 다리를 바꾸어 왼쪽 무릎을 가슴 쪽으로 들어 올리고 오른쪽 발을 내립니다.",
+            "달리는 동작으로 양쪽 다리를 번갈아 가능한 높이까지 들어 올립니다.",
+            "빠른 속도를 유지하고 상체는 안정적으로 유지합니다.",
+            "원하는 시간 또는 횟수만큼 반복합니다."
+          ],
+          "fr": [
+            "Tiens-toi face à un mur, les pieds écartés à la largeur des hanches.",
+            "Place tes mains sur le mur pour te soutenir.",
+            "Gaine ta sangle abdominale et lève ton genou droit vers ta poitrine, tout en gardant ton pied gauche au sol.",
+            "Change rapidement de jambe, en amenant ton genou gauche vers le haut en direction de ta poitrine et en abaissant ton pied droit.",
+            "Continue à alterner les jambes dans un mouvement de course en montant les genoux aussi haut que possible.",
+            "Maintiens un rythme rapide et garde le haut du corps stable pendant tout l'exercice.",
+            "Répète pendant la durée souhaitée ou le nombre de répétitions souhaité."
+          ]
+        },
+        "muscle_group": "quadriceps",
+        "secondary_muscles": [
+          "quadriceps",
+          "hamstrings",
+          "glutes",
+          "calves"
+        ],
+        "target": "cardiovascular system",
+        "image": "images/3636-ealLwvX.jpg",
+        "gif_url": "videos/3636-ealLwvX.gif",
+        "media_id": "ealLwvX",
+        "created_at": "2026-03-18T12:31:32.88427+00:00",
+        "attribution": "© Gym visual — https://gymvisual.com/"
+      },
+      "source_provenance": {
+        "source_name": "exercises-dataset",
+        "source_license": "MIT",
+        "retrieved_at": "2026-08-20T00:00:00+09:00",
+        "raw_status": "DRAFT",
+        "raw_files": [
+          {
+            "path": "exercises.json",
+            "sha256": "656634224b8977b99a6d765470ee123260d4979715eaa4e7c0b7c8bb0d79f93d"
+          },
+          {
+            "path": "exercises.schema.json",
+            "sha256": "33fb14b439c68e12365e14a0759006c40564646ac27084efe1f2e956804b2d49"
+          }
+        ]
+      },
+      "normalized_candidates": {
+        "training_type_code": "CARDIO",
+        "body_focus_code": "LOWER_BODY",
+        "location_codes": [
+          "HOME"
+        ],
+        "impact_level_code": "LOW",
+        "exercise_mode_codes": [
+          "CONTINUOUS",
+          "INTERVAL"
+        ],
+        "equipment_code": "BODYWEIGHT",
+        "equipment_label": "맨몸(벽 지지)",
+        "equipment_normalization_status": "TAXONOMY_CANDIDATE",
+        "difficulty_code": "BEGINNER",
+        "beginner_suitability_code": "CONDITIONAL",
+        "space_noise_level_code": "SMALL_QUIET",
+        "movement_pattern_code": "GAIT",
+        "intensity_level_code": "REVIEW_REQUIRED",
+        "met": null
+      },
+      "screening": {
+        "decision": "INCLUDE",
+        "reason_code": "HOME_SUPPORTED_LOW_IMPACT",
+        "reason": "벽 지지로 균형 부담을 낮춘 홈 유산소 대표 후보이며 초보·복귀 사용자용 변형으로 활용 가능함."
+      },
+      "visual_evidence": {
+        "image_reference": "images/3636-ealLwvX.jpg",
+        "gif_reference": "videos/3636-ealLwvX.gif",
+        "binary_in_raw_snapshot": false,
+        "status": "REFERENCE_ONLY_DEFERRED_TO_FINAL_CATALOG",
+        "attribution": "© Gym visual — https://gymvisual.com/"
+      },
+      "evidence": [
+        {
+          "source": "raw.instruction_steps.en",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        },
+        {
+          "source": "screening.supported_low_impact",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        }
+      ],
+      "review_required": true,
+      "review_required_codes": [
+        "INTENSITY_AND_MET_NOT_ESTABLISHED",
+        "HUMAN_SELECTION_REVIEW",
+        "FINAL_CATALOG_VISUAL_CHECK_DEFERRED"
+      ],
+      "production_eligible": false
+    },
+    {
+      "candidate_id": "3224",
+      "source_record": {
+        "id": "3224",
+        "name": "jack jump (male)",
+        "category": "cardio",
+        "body_part": "cardio",
+        "equipment": "body weight",
+        "instructions": {
+          "en": "Stand with your feet together and your arms by your sides. Jump up, spreading your feet apart and raising your arms above your head. As you land, quickly jump back to the starting position. Repeat for the desired number of repetitions.",
+          "it": "Stai con i piedi uniti e le braccia lungo i fianchi. Salta in alto, allargando i piedi e alzando le braccia sopra la testa. Mentre atterri, torna rapidamente alla posizione di partenza. Ripetere per il numero di ripetizioni desiderato.",
+          "tr": "Ayaklarınız bitişik ve kollarınız yanlarınızda olacak şekilde ayakta durun. Zıplayın, ayaklarınızı birbirinden ayırın ve kollarınızı başınızın üzerine kaldırın. Yere indiğinizde hızla başlangıç ​​pozisyonuna geri dönün. İstenilen sayıda tekrar için tekrarlayın.",
+          "es": "Ponte de pie con los pies juntos y los brazos a los costados. Salta, separando los pies y levantando los brazos por encima de la cabeza. Al aterrizar, salta rápidamente de vuelta a la posición inicial. Repite el número de repeticiones deseado.",
+          "ru": "Встаньте, ноги вместе, руки по бокам. Подпрыгните вверх, разведя ноги в стороны и подняв руки над головой. Приземлившись, быстро вернитесь в исходное положение. Повторите необходимое количество повторений.",
+          "zh": "双脚并拢站立，双臂放在身体两侧。 跳起来，分开双脚，将手臂举过头顶。 当你落地时，迅速跳回起始位置。 重复所需的重复次数。",
+          "hi": "अपने पैरों को एक साथ और अपनी भुजाओं को बगल में रखकर खड़े हो जाएं। अपने पैरों को फैलाकर और अपनी बाहों को अपने सिर के ऊपर उठाकर ऊपर कूदें। जैसे ही आप उतरें, तुरंत प्रारंभिक स्थिति में वापस आ जाएँ। दोहराव की वांछित संख्या के लिए दोहराएँ।",
+          "pl": "Stań ze złączonymi stopami i rękami wzdłuż tułowia. Wyskocz w górę, rozstawiając stopy i unosząc ręce nad głowę. Podczas lądowania szybko wróć do pozycji wyjściowej. Powtórz zgodnie z zaplanowaną liczbą powtórzeń.",
+          "ko": "발을 모으고 팔을 옆에 붙인 상태에서 섭니다. 점프하면서 발을 벌리고 팔을 머리 위로 올립니다. 착지하면서 빠르게 시작 자세로 돌아옵니다. 원하는 반복 횟수만큼 반복합니다.",
+          "fr": "Tiens-toi debout, les pieds joints et les bras le long du corps. Saute en écartant les pieds et en levant les bras au-dessus de ta tête. À l'atterrissage, saute rapidement pour revenir à la position de départ. Répète le nombre de répétitions souhaité."
+        },
+        "instruction_steps": {
+          "en": [
+            "Stand with your feet together and your arms by your sides.",
+            "Jump up, spreading your feet apart and raising your arms above your head.",
+            "As you land, quickly jump back to the starting position.",
+            "Repeat for the desired number of repetitions."
+          ],
+          "it": [
+            "Stai con i piedi uniti e le braccia lungo i fianchi.",
+            "Salta in alto, allargando i piedi e alzando le braccia sopra la testa.",
+            "Mentre atterri, torna rapidamente alla posizione di partenza.",
+            "Ripetere per il numero di ripetizioni desiderato."
+          ],
+          "tr": [
+            "Ayaklarınız bitişik ve kollarınız yanlarınızda olacak şekilde ayakta durun.",
+            "Zıplayın, ayaklarınızı birbirinden ayırın ve kollarınızı başınızın üzerine kaldırın.",
+            "Yere indiğinizde hızla başlangıç ​​pozisyonuna geri dönün.",
+            "İstenilen sayıda tekrar için tekrarlayın."
+          ],
+          "es": [
+            "Ponte de pie con los pies juntos y los brazos a los costados.",
+            "Salta, separando los pies y levantando los brazos por encima de la cabeza.",
+            "Al aterrizar, salta rápidamente de vuelta a la posición inicial.",
+            "Repite el número de repeticiones deseado."
+          ],
+          "ru": [
+            "Встаньте, ноги вместе, руки по бокам.",
+            "Подпрыгните вверх, разведя ноги в стороны и подняв руки над головой.",
+            "Приземлившись, быстро вернитесь в исходное положение.",
+            "Повторите необходимое количество повторений."
+          ],
+          "zh": [
+            "双脚并拢站立，双臂放在身体两侧。",
+            "跳起来，分开双脚，将手臂举过头顶。",
+            "当你落地时，迅速跳回起始位置。",
+            "重复所需的重复次数。"
+          ],
+          "hi": [
+            "अपने पैरों को एक साथ और अपनी भुजाओं को बगल में रखकर खड़े हो जाएं।",
+            "अपने पैरों को फैलाकर और अपनी बाहों को अपने सिर के ऊपर उठाकर ऊपर कूदें।",
+            "जैसे ही आप उतरें, तुरंत प्रारंभिक स्थिति में वापस आ जाएँ।",
+            "दोहराव की वांछित संख्या के लिए दोहराएँ।"
+          ],
+          "pl": [
+            "Stań ze złączonymi stopami i rękami wzdłuż tułowia.",
+            "Wyskocz w górę, rozstawiając stopy i unosząc ręce nad głowę.",
+            "Podczas lądowania szybko wróć do pozycji wyjściowej.",
+            "Powtórz zgodnie z zaplanowaną liczbą powtórzeń."
+          ],
+          "ko": [
+            "발을 모으고 팔을 옆에 붙인 상태에서 섭니다.",
+            "점프하면서 발을 벌리고 팔을 머리 위로 올립니다.",
+            "착지하면서 빠르게 시작 자세로 돌아옵니다.",
+            "원하는 반복 횟수만큼 반복합니다."
+          ],
+          "fr": [
+            "Tiens-toi debout, les pieds joints et les bras le long du corps.",
+            "Saute en écartant les pieds et en levant les bras au-dessus de ta tête.",
+            "À l'atterrissage, saute rapidement pour revenir à la position de départ.",
+            "Répète le nombre de répétitions souhaité."
+          ]
+        },
+        "muscle_group": "quadriceps",
+        "secondary_muscles": [
+          "quadriceps",
+          "calves"
+        ],
+        "target": "cardiovascular system",
+        "image": "images/3224-1g5bPpA.jpg",
+        "gif_url": "videos/3224-1g5bPpA.gif",
+        "media_id": "1g5bPpA",
+        "created_at": "2026-03-18T12:31:32.884791+00:00",
+        "attribution": "© Gym visual — https://gymvisual.com/"
+      },
+      "source_provenance": {
+        "source_name": "exercises-dataset",
+        "source_license": "MIT",
+        "retrieved_at": "2026-08-20T00:00:00+09:00",
+        "raw_status": "DRAFT",
+        "raw_files": [
+          {
+            "path": "exercises.json",
+            "sha256": "656634224b8977b99a6d765470ee123260d4979715eaa4e7c0b7c8bb0d79f93d"
+          },
+          {
+            "path": "exercises.schema.json",
+            "sha256": "33fb14b439c68e12365e14a0759006c40564646ac27084efe1f2e956804b2d49"
+          }
+        ]
+      },
+      "normalized_candidates": {
+        "training_type_code": "CARDIO",
+        "body_focus_code": "FULL_BODY",
+        "location_codes": [
+          "HOME"
+        ],
+        "impact_level_code": "HIGH",
+        "exercise_mode_codes": [
+          "INTERVAL"
+        ],
+        "equipment_code": "BODYWEIGHT",
+        "equipment_label": "맨몸",
+        "equipment_normalization_status": "TAXONOMY_CANDIDATE",
+        "difficulty_code": "BEGINNER",
+        "beginner_suitability_code": "CONDITIONAL",
+        "space_noise_level_code": "LARGE_LOUD",
+        "movement_pattern_code": null,
+        "intensity_level_code": "REVIEW_REQUIRED",
+        "met": null
+      },
+      "screening": {
+        "decision": "INCLUDE",
+        "reason_code": "HOME_HIGH_IMPACT_REPRESENTATIVE",
+        "reason": "홈 중·고강도 점프 계열의 대표 후보로 줄넘기와 다른 장비·동작 조합을 제공함."
+      },
+      "visual_evidence": {
+        "image_reference": "images/3224-1g5bPpA.jpg",
+        "gif_reference": "videos/3224-1g5bPpA.gif",
+        "binary_in_raw_snapshot": false,
+        "status": "REFERENCE_ONLY_DEFERRED_TO_FINAL_CATALOG",
+        "attribution": "© Gym visual — https://gymvisual.com/"
+      },
+      "evidence": [
+        {
+          "source": "raw.instruction_steps.en",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        },
+        {
+          "source": "screening.home_high_impact",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        },
+        {
+          "source": "screening.equipment_diversity",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        }
+      ],
+      "review_required": true,
+      "review_required_codes": [
+        "INTENSITY_AND_MET_NOT_ESTABLISHED",
+        "HUMAN_SELECTION_REVIEW",
+        "FINAL_CATALOG_VISUAL_CHECK_DEFERRED"
+      ],
+      "production_eligible": false
+    },
+    {
+      "candidate_id": "2612",
+      "source_record": {
+        "id": "2612",
+        "name": "jump rope",
+        "category": "cardio",
+        "body_part": "cardio",
+        "equipment": "rope",
+        "instructions": {
+          "en": "Hold the handles of the jump rope with your hands, palms facing inward. Stand with your feet shoulder-width apart and knees slightly bent. Swing the rope over your head and jump over it as it comes towards your feet. Land softly on the balls of your feet and repeat the jump as the rope comes around again. Continue jumping for the desired duration or number of repetitions.",
+          "it": "Tieni le maniglie della corda per saltare con le mani, i palmi rivolti verso l'interno. Stai in piedi con i piedi alla larghezza delle spalle e le ginocchia leggermente piegate. Fai oscillare la corda sopra la testa e saltaci sopra mentre si avvicina ai tuoi piedi. Atterra dolcemente sulle punte dei piedi e ripeti il ​​salto mentre la corda gira di nuovo. Continua a saltare per la durata o il numero di ripetizioni desiderato.",
+          "tr": "Atlama ipinin saplarını ellerinizle, avuçlarınız içe bakacak şekilde tutun. Ayaklarınız omuz genişliğinde açık ve dizleriniz hafifçe bükülü şekilde ayakta durun. İpi başınızın üzerinden geçirin ve ayaklarınıza doğru gelince üzerinden atlayın. Ayak parmaklarınızın üzerine yumuşak bir şekilde inin ve ip tekrar kendine gelinceye kadar atlamayı tekrarlayın. İstenilen süre veya tekrar sayısı kadar atlamaya devam edin.",
+          "es": "Sujeta las asas de la cuerda de saltar con las manos, palmas hacia adentro. Ponte de pie con los pies separados a la altura de los hombros y las rodillas ligeramente flexionadas. Balancea la cuerda por encima de la cabeza y salta sobre ella cuando se acerque a los pies. Aterriza suavemente sobre la punta de los pies y repite el salto cuando la cuerda vuelva a pasar. Continúa saltando durante el tiempo o el número de repeticiones deseado.",
+          "ru": "Возьмитесь руками за ручки скакалки ладонями внутрь. Встаньте, ноги на ширине плеч и слегка согнуты в коленях. Перекиньте веревку над головой и перепрыгните через нее, когда она приблизится к вашим ногам. Мягко приземлитесь на подушечки ног и повторите прыжок, когда веревка снова закрутится. Продолжайте прыгать желаемую продолжительность или количество повторений.",
+          "zh": "双手握住跳绳的手柄，掌心向内。 站立，双脚分开与肩同宽，膝盖稍微弯曲。 将绳子甩过头顶，当绳子靠近你的脚时跳过它。 轻轻地用脚掌着地，当绳子再次绕回时重复跳跃。 继续跳跃所需的持续时间或重复次数。",
+          "hi": "कूदने वाली रस्सी के हैंडल को अपने हाथों से पकड़ें, हथेलियाँ अंदर की ओर हों। अपने पैरों को कंधे की चौड़ाई पर फैलाकर और घुटनों को थोड़ा मोड़कर खड़े हो जाएं। रस्सी को अपने सिर के ऊपर घुमाएं और जैसे ही वह आपके पैरों की ओर आए तो उस पर कूदें। अपने पैरों की उंगलियों पर धीरे से उतरें और जैसे ही रस्सी फिर से चारों ओर आ जाए, छलांग दोहराएँ। वांछित अवधि या दोहराव की संख्या तक कूदना जारी रखें।",
+          "pl": "Chwyć uchwyty skakanki dłońmi zwróconymi do wewnątrz. Stań ze stopami rozstawionymi na szerokość barków i lekko ugiętymi kolanami. Przełóż linkę nad głową i przeskocz nad nią, gdy zbliża się do stóp. Wyląduj miękko na palcach stóp i powtórz skok, gdy linka ponownie nadejdzie. Kontynuuj skakanie przez zaplanowany czas lub liczbę powtórzeń.",
+          "ko": "손으로 줄넘기의 손잡이를 잡되 손바닥이 안쪽을 향하도록 합니다. 발을 어깨너비로 벌리고 무릎을 약간 구부린 상태에서 섭니다. 줄을 머리 위로 휘저으면서 발 쪽으로 오는 줄을 뛰어넘습니다. 발가락 끝으로 부드럽게 착지하고 줄이 다시 오면 점프를 반복합니다. 원하는 시간이나 반복 횟수 동안 계속 뛰어넘습니다.",
+          "fr": "Tiens les poignées de la corde à sauter avec tes mains, les paumes tournées vers l'intérieur. Tiens-toi debout, les pieds écartés à la largeur des épaules et les genoux légèrement fléchis. Fais passer la corde au-dessus de ta tête et saute par-dessus lorsqu'elle arrive vers tes pieds. Atterris en douceur sur la pointe des pieds et répète le saut lorsque la corde revient. Continue à sauter pendant la durée ou le nombre de répétitions souhaité."
+        },
+        "instruction_steps": {
+          "en": [
+            "Hold the handles of the jump rope with your hands, palms facing inward.",
+            "Stand with your feet shoulder-width apart and knees slightly bent.",
+            "Swing the rope over your head and jump over it as it comes towards your feet.",
+            "Land softly on the balls of your feet and repeat the jump as the rope comes around again.",
+            "Continue jumping for the desired duration or number of repetitions."
+          ],
+          "it": [
+            "Tieni le maniglie della corda per saltare con le mani, i palmi rivolti verso l'interno.",
+            "Stai in piedi con i piedi alla larghezza delle spalle e le ginocchia leggermente piegate.",
+            "Fai oscillare la corda sopra la testa e saltaci sopra mentre si avvicina ai tuoi piedi.",
+            "Atterra dolcemente sulle punte dei piedi e ripeti il ​​salto mentre la corda gira di nuovo.",
+            "Continua a saltare per la durata o il numero di ripetizioni desiderato."
+          ],
+          "tr": [
+            "Atlama ipinin saplarını ellerinizle, avuçlarınız içe bakacak şekilde tutun.",
+            "Ayaklarınız omuz genişliğinde açık ve dizleriniz hafifçe bükülü şekilde ayakta durun.",
+            "İpi başınızın üzerinden geçirin ve ayaklarınıza doğru gelince üzerinden atlayın.",
+            "Ayak parmaklarınızın üzerine yumuşak bir şekilde inin ve ip tekrar kendine gelinceye kadar atlamayı tekrarlayın.",
+            "İstenilen süre veya tekrar sayısı kadar atlamaya devam edin."
+          ],
+          "es": [
+            "Sujeta las asas de la cuerda de saltar con las manos, palmas hacia adentro.",
+            "Ponte de pie con los pies separados a la altura de los hombros y las rodillas ligeramente flexionadas.",
+            "Balancea la cuerda por encima de la cabeza y salta sobre ella cuando se acerque a los pies.",
+            "Aterriza suavemente sobre la punta de los pies y repite el salto cuando la cuerda vuelva a pasar.",
+            "Continúa saltando durante el tiempo o el número de repeticiones deseado."
+          ],
+          "ru": [
+            "Возьмитесь руками за ручки скакалки ладонями внутрь.",
+            "Встаньте, ноги на ширине плеч и слегка согнуты в коленях.",
+            "Перекиньте веревку над головой и перепрыгните через нее, когда она приблизится к вашим ногам.",
+            "Мягко приземлитесь на подушечки ног и повторите прыжок, когда веревка снова закрутится.",
+            "Продолжайте прыгать желаемую продолжительность или количество повторений."
+          ],
+          "zh": [
+            "双手握住跳绳的手柄，掌心向内。",
+            "站立，双脚分开与肩同宽，膝盖稍微弯曲。",
+            "将绳子甩过头顶，当绳子靠近你的脚时跳过它。",
+            "轻轻地用脚掌着地，当绳子再次绕回时重复跳跃。",
+            "继续跳跃所需的持续时间或重复次数。"
+          ],
+          "hi": [
+            "कूदने वाली रस्सी के हैंडल को अपने हाथों से पकड़ें, हथेलियाँ अंदर की ओर हों।",
+            "अपने पैरों को कंधे की चौड़ाई पर फैलाकर और घुटनों को थोड़ा मोड़कर खड़े हो जाएं।",
+            "रस्सी को अपने सिर के ऊपर घुमाएं और जैसे ही वह आपके पैरों की ओर आए तो उस पर कूदें।",
+            "अपने पैरों की उंगलियों पर धीरे से उतरें और जैसे ही रस्सी फिर से चारों ओर आ जाए, छलांग दोहराएँ।",
+            "वांछित अवधि या दोहराव की संख्या तक कूदना जारी रखें।"
+          ],
+          "pl": [
+            "Chwyć uchwyty skakanki dłońmi zwróconymi do wewnątrz.",
+            "Stań ze stopami rozstawionymi na szerokość barków i lekko ugiętymi kolanami.",
+            "Przełóż linkę nad głową i przeskocz nad nią, gdy zbliża się do stóp.",
+            "Wyląduj miękko na palcach stóp i powtórz skok, gdy linka ponownie nadejdzie.",
+            "Kontynuuj skakanie przez zaplanowany czas lub liczbę powtórzeń."
+          ],
+          "ko": [
+            "손으로 줄넘기의 손잡이를 잡되 손바닥이 안쪽을 향하도록 합니다.",
+            "발을 어깨너비로 벌리고 무릎을 약간 구부린 상태에서 섭니다.",
+            "줄을 머리 위로 휘저으면서 발 쪽으로 오는 줄을 뛰어넘습니다.",
+            "발가락 끝으로 부드럽게 착지하고 줄이 다시 오면 점프를 반복합니다.",
+            "원하는 시간이나 반복 횟수 동안 계속 뛰어넘습니다."
+          ],
+          "fr": [
+            "Tiens les poignées de la corde à sauter avec tes mains, les paumes tournées vers l'intérieur.",
+            "Tiens-toi debout, les pieds écartés à la largeur des épaules et les genoux légèrement fléchis.",
+            "Fais passer la corde au-dessus de ta tête et saute par-dessus lorsqu'elle arrive vers tes pieds.",
+            "Atterris en douceur sur la pointe des pieds et répète le saut lorsque la corde revient.",
+            "Continue à sauter pendant la durée ou le nombre de répétitions souhaité."
+          ]
+        },
+        "muscle_group": "calves",
+        "secondary_muscles": [
+          "calves",
+          "quadriceps",
+          "hamstrings",
+          "glutes"
+        ],
+        "target": "cardiovascular system",
+        "image": "images/2612-e1e76I2.jpg",
+        "gif_url": "videos/2612-e1e76I2.gif",
+        "media_id": "e1e76I2",
+        "created_at": "2026-03-18T12:31:32.884844+00:00",
+        "attribution": "© Gym visual — https://gymvisual.com/"
+      },
+      "source_provenance": {
+        "source_name": "exercises-dataset",
+        "source_license": "MIT",
+        "retrieved_at": "2026-08-20T00:00:00+09:00",
+        "raw_status": "DRAFT",
+        "raw_files": [
+          {
+            "path": "exercises.json",
+            "sha256": "656634224b8977b99a6d765470ee123260d4979715eaa4e7c0b7c8bb0d79f93d"
+          },
+          {
+            "path": "exercises.schema.json",
+            "sha256": "33fb14b439c68e12365e14a0759006c40564646ac27084efe1f2e956804b2d49"
+          }
+        ]
+      },
+      "normalized_candidates": {
+        "training_type_code": "CARDIO",
+        "body_focus_code": "LOWER_BODY",
+        "location_codes": [
+          "HOME",
+          "OUTDOOR"
+        ],
+        "impact_level_code": "HIGH",
+        "exercise_mode_codes": [
+          "CONTINUOUS",
+          "INTERVAL"
+        ],
+        "equipment_code": null,
+        "equipment_label": "줄넘기(기존 taxonomy 코드 검토 필요)",
+        "equipment_normalization_status": "REVIEW_REQUIRED",
+        "difficulty_code": "INTERMEDIATE",
+        "beginner_suitability_code": "CONDITIONAL",
+        "space_noise_level_code": "MEDIUM_LOUD",
+        "movement_pattern_code": null,
+        "intensity_level_code": "REVIEW_REQUIRED",
+        "met": null
+      },
+      "screening": {
+        "decision": "INCLUDE",
+        "reason_code": "HOME_OUTDOOR_EQUIPMENT_DIVERSITY",
+        "reason": "줄넘기 장비를 사용하는 지속형·인터벌 후보로 맨몸 점프와 장비 다양성을 보완함."
+      },
+      "visual_evidence": {
+        "image_reference": "images/2612-e1e76I2.jpg",
+        "gif_reference": "videos/2612-e1e76I2.gif",
+        "binary_in_raw_snapshot": false,
+        "status": "REFERENCE_ONLY_DEFERRED_TO_FINAL_CATALOG",
+        "attribution": "© Gym visual — https://gymvisual.com/"
+      },
+      "evidence": [
+        {
+          "source": "raw.equipment",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        },
+        {
+          "source": "raw.instruction_steps.en",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        },
+        {
+          "source": "screening.home_outdoor",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        },
+        {
+          "source": "screening.unmapped_equipment",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        }
+      ],
+      "review_required": true,
+      "review_required_codes": [
+        "INTENSITY_AND_MET_NOT_ESTABLISHED",
+        "HUMAN_SELECTION_REVIEW",
+        "FINAL_CATALOG_VISUAL_CHECK_DEFERRED",
+        "CARDIO_EQUIPMENT_TAXONOMY_MAPPING"
+      ],
+      "production_eligible": false
+    },
+    {
+      "candidate_id": "0685",
+      "source_record": {
+        "id": "0685",
+        "name": "run",
+        "category": "cardio",
+        "body_part": "cardio",
+        "equipment": "body weight",
+        "instructions": {
+          "en": "Start by standing upright with your feet hip-width apart. Engage your core and keep your upper body relaxed. Begin jogging in place, lifting your knees up towards your chest and landing softly on the balls of your feet. Maintain a steady pace and continue jogging for the desired duration or distance. Remember to breathe deeply and maintain good posture throughout the exercise.",
+          "it": "Inizia stando in piedi con i piedi alla larghezza dei fianchi. Coinvolgi il tuo core e mantieni la parte superiore del corpo rilassata. Inizia a fare jogging sul posto, sollevando le ginocchia verso il petto e atterrando dolcemente sulle punte dei piedi. Mantenere un ritmo costante e continuare a fare jogging per la durata o la distanza desiderata. Ricordatevi di respirare profondamente e di mantenere una buona postura durante l'esercizio.",
+          "tr": "Ayaklarınız kalça genişliğinde açık olacak şekilde dik durmaya başlayın. Merkez bölgenizi harekete geçirin ve üst vücudunuzu rahat tutun. Yerinizde koşmaya başlayın, dizlerinizi göğsünüze doğru kaldırın ve yumuşak bir şekilde ayak parmaklarınızın üzerine inin. Sabit bir tempoyu koruyun ve istediğiniz süre veya mesafe boyunca koşmaya devam edin. Egzersiz boyunca derin nefes almayı ve iyi bir duruş sergilemeyi unutmayın.",
+          "es": "Comienza de pie con los pies separados a la altura de la cadera. Activa el core y mantén la parte superior del cuerpo relajada. Comienza a trotar en el lugar, levantando las rodillas hacia el pecho y aterrizando suavemente sobre la punta de los pies. Mantén un ritmo constante y continúa trotando durante la duración o distancia deseada. Recuerda respirar profundamente y mantener una buena postura durante todo el ejercicio.",
+          "ru": "Начните с того, что встаньте прямо, ноги на ширине плеч. Задействуйте корпус и держите верхнюю часть тела расслабленной. Начните бег на месте, подтягивая колени к груди и мягко приземляясь на подушечки стоп. Поддерживайте устойчивый темп и продолжайте бег трусцой желаемую продолжительность или расстояние. Не забывайте глубоко дышать и сохранять правильную осанку на протяжении всего упражнения.",
+          "zh": "首先站直，双脚分开与臀部同宽。 启动你的核心并保持上半身放松。 开始原地慢跑，将膝盖抬向胸部，然后轻轻落在脚掌上。 保持稳定的步伐并继续慢跑所需的时间或距离。 记住在整个练习过程中深呼吸并保持良好的姿势。",
+          "hi": "अपने पैरों को कूल्हे की चौड़ाई के बराबर दूरी पर रखकर सीधे खड़े होकर शुरुआत करें। अपने कोर को व्यस्त रखें और अपने ऊपरी शरीर को शिथिल रखें। अपनी जगह पर जॉगिंग करना शुरू करें, अपने घुटनों को अपनी छाती की ओर उठाएं और धीरे से अपने पैरों की उंगलियों पर उतरें। स्थिर गति बनाए रखें और वांछित अवधि या दूरी तक जॉगिंग जारी रखें। याद रखें कि पूरे अभ्यास के दौरान गहरी सांस लें और अच्छी मुद्रा बनाए रखें।",
+          "pl": "Rozpocznij, stojąc wyprostowany, stopy w rozkroku na szerokość bioder. Napnij mięśnie brzucha i trzymaj rozluźnioną górną część ciała. Zacznij biec w miejscu, unosząc kolana w kierunku klatki piersiowej i lądując miękko na palcach stóp. Utrzymuj stałe tempo i kontynuuj bieg przez wybrany czas lub dystans. Pamiętaj o głębokim oddychaniu i utrzymywaniu prawidłowej postawy przez cały czas trwania ćwiczenia.",
+          "ko": "두 발을 엉덩이 너비로 벌려 곧게 서 있습니다. 코어를 수축시키고 상반신은 이완된 상태로 유지합니다. 제자리에서 조깅을 시작하여 무릎을 가슴을 향해 올리고 발 앞부분에 부드럽게 착지합니다. 일정한 속도를 유지하고 원하는 시간이나 거리동안 계속 조깅합니다. 깊게 숨을 쉬고 운동 전체에서 좋은 자세를 유지하는 것을 기억합니다.",
+          "fr": "Commence debout, bien droit, les pieds écartés à la largeur des hanches. Gaine ta sangle abdominale et garde ton haut du corps détendu. Commence à courir sur place en levant tes genoux vers ta poitrine et en atterrissant en douceur sur la plante de tes pieds. Maintiens un rythme régulier et continue à courir pendant la durée ou la distance souhaitée. Pense à respirer profondément et à maintenir une bonne posture tout au long de l'exercice."
+        },
+        "instruction_steps": {
+          "en": [
+            "Start by standing upright with your feet hip-width apart.",
+            "Engage your core and keep your upper body relaxed.",
+            "Begin jogging in place, lifting your knees up towards your chest and landing softly on the balls of your feet.",
+            "Maintain a steady pace and continue jogging for the desired duration or distance.",
+            "Remember to breathe deeply and maintain good posture throughout the exercise."
+          ],
+          "it": [
+            "Inizia stando in piedi con i piedi alla larghezza dei fianchi.",
+            "Coinvolgi il tuo core e mantieni la parte superiore del corpo rilassata.",
+            "Inizia a fare jogging sul posto, sollevando le ginocchia verso il petto e atterrando dolcemente sulle punte dei piedi.",
+            "Mantenere un ritmo costante e continuare a fare jogging per la durata o la distanza desiderata.",
+            "Ricordatevi di respirare profondamente e di mantenere una buona postura durante l'esercizio."
+          ],
+          "tr": [
+            "Ayaklarınız kalça genişliğinde açık olacak şekilde dik durmaya başlayın.",
+            "Merkez bölgenizi harekete geçirin ve üst vücudunuzu rahat tutun.",
+            "Yerinizde koşmaya başlayın, dizlerinizi göğsünüze doğru kaldırın ve yumuşak bir şekilde ayak parmaklarınızın üzerine inin.",
+            "Sabit bir tempoyu koruyun ve istediğiniz süre veya mesafe boyunca koşmaya devam edin.",
+            "Egzersiz boyunca derin nefes almayı ve iyi bir duruş sergilemeyi unutmayın."
+          ],
+          "es": [
+            "Comienza de pie con los pies separados a la altura de la cadera.",
+            "Activa el core y mantén la parte superior del cuerpo relajada.",
+            "Comienza a trotar en el lugar, levantando las rodillas hacia el pecho y aterrizando suavemente sobre la punta de los pies.",
+            "Mantén un ritmo constante y continúa trotando durante la duración o distancia deseada.",
+            "Recuerda respirar profundamente y mantener una buena postura durante todo el ejercicio."
+          ],
+          "ru": [
+            "Начните с того, что встаньте прямо, ноги на ширине плеч.",
+            "Задействуйте корпус и держите верхнюю часть тела расслабленной.",
+            "Начните бег на месте, подтягивая колени к груди и мягко приземляясь на подушечки стоп.",
+            "Поддерживайте устойчивый темп и продолжайте бег трусцой желаемую продолжительность или расстояние.",
+            "Не забывайте глубоко дышать и сохранять правильную осанку на протяжении всего упражнения."
+          ],
+          "zh": [
+            "首先站直，双脚分开与臀部同宽。",
+            "启动你的核心并保持上半身放松。",
+            "开始原地慢跑，将膝盖抬向胸部，然后轻轻落在脚掌上。",
+            "保持稳定的步伐并继续慢跑所需的时间或距离。",
+            "记住在整个练习过程中深呼吸并保持良好的姿势。"
+          ],
+          "hi": [
+            "अपने पैरों को कूल्हे की चौड़ाई के बराबर दूरी पर रखकर सीधे खड़े होकर शुरुआत करें।",
+            "अपने कोर को व्यस्त रखें और अपने ऊपरी शरीर को शिथिल रखें।",
+            "अपनी जगह पर जॉगिंग करना शुरू करें, अपने घुटनों को अपनी छाती की ओर उठाएं और धीरे से अपने पैरों की उंगलियों पर उतरें।",
+            "स्थिर गति बनाए रखें और वांछित अवधि या दूरी तक जॉगिंग जारी रखें।",
+            "याद रखें कि पूरे अभ्यास के दौरान गहरी सांस लें और अच्छी मुद्रा बनाए रखें।"
+          ],
+          "pl": [
+            "Rozpocznij, stojąc wyprostowany, stopy w rozkroku na szerokość bioder.",
+            "Napnij mięśnie brzucha i trzymaj rozluźnioną górną część ciała.",
+            "Zacznij biec w miejscu, unosząc kolana w kierunku klatki piersiowej i lądując miękko na palcach stóp.",
+            "Utrzymuj stałe tempo i kontynuuj bieg przez wybrany czas lub dystans.",
+            "Pamiętaj o głębokim oddychaniu i utrzymywaniu prawidłowej postawy przez cały czas trwania ćwiczenia."
+          ],
+          "ko": [
+            "두 발을 엉덩이 너비로 벌려 곧게 서 있습니다.",
+            "코어를 수축시키고 상반신은 이완된 상태로 유지합니다.",
+            "제자리에서 조깅을 시작하여 무릎을 가슴을 향해 올리고 발 앞부분에 부드럽게 착지합니다.",
+            "일정한 속도를 유지하고 원하는 시간이나 거리동안 계속 조깅합니다.",
+            "깊게 숨을 쉬고 운동 전체에서 좋은 자세를 유지하는 것을 기억합니다."
+          ],
+          "fr": [
+            "Commence debout, bien droit, les pieds écartés à la largeur des hanches.",
+            "Gaine ta sangle abdominale et garde ton haut du corps détendu.",
+            "Commence à courir sur place en levant tes genoux vers ta poitrine et en atterrissant en douceur sur la plante de tes pieds.",
+            "Maintiens un rythme régulier et continue à courir pendant la durée ou la distance souhaitée.",
+            "Pense à respirer profondément et à maintenir une bonne posture tout au long de l'exercice."
+          ]
+        },
+        "muscle_group": "quadriceps",
+        "secondary_muscles": [
+          "quadriceps",
+          "hamstrings",
+          "calves"
+        ],
+        "target": "cardiovascular system",
+        "image": "images/0685-oLrKqDH.jpg",
+        "gif_url": "videos/0685-oLrKqDH.gif",
+        "media_id": "oLrKqDH",
+        "created_at": "2026-03-18T12:31:32.889299+00:00",
+        "attribution": "© Gym visual — https://gymvisual.com/"
+      },
+      "source_provenance": {
+        "source_name": "exercises-dataset",
+        "source_license": "MIT",
+        "retrieved_at": "2026-08-20T00:00:00+09:00",
+        "raw_status": "DRAFT",
+        "raw_files": [
+          {
+            "path": "exercises.json",
+            "sha256": "656634224b8977b99a6d765470ee123260d4979715eaa4e7c0b7c8bb0d79f93d"
+          },
+          {
+            "path": "exercises.schema.json",
+            "sha256": "33fb14b439c68e12365e14a0759006c40564646ac27084efe1f2e956804b2d49"
+          }
+        ]
+      },
+      "normalized_candidates": {
+        "training_type_code": "CARDIO",
+        "body_focus_code": "LOWER_BODY",
+        "location_codes": [
+          "HOME"
+        ],
+        "impact_level_code": "MODERATE",
+        "exercise_mode_codes": [
+          "CONTINUOUS",
+          "INTERVAL"
+        ],
+        "equipment_code": "BODYWEIGHT",
+        "equipment_label": "맨몸",
+        "equipment_normalization_status": "TAXONOMY_CANDIDATE",
+        "difficulty_code": "BEGINNER",
+        "beginner_suitability_code": "CONDITIONAL",
+        "space_noise_level_code": "MEDIUM_LOUD",
+        "movement_pattern_code": "GAIT",
+        "intensity_level_code": "REVIEW_REQUIRED",
+        "met": null
+      },
+      "screening": {
+        "decision": "INCLUDE",
+        "reason_code": "HOME_CONTINUOUS_JOG_IN_PLACE",
+        "reason": "좁은 공간에서 수행하는 지속형 조깅 대표 후보로 저·중강도 홈 유산소 선택지를 보완함."
+      },
+      "visual_evidence": {
+        "image_reference": "images/0685-oLrKqDH.jpg",
+        "gif_reference": "videos/0685-oLrKqDH.gif",
+        "binary_in_raw_snapshot": false,
+        "status": "REFERENCE_ONLY_DEFERRED_TO_FINAL_CATALOG",
+        "attribution": "© Gym visual — https://gymvisual.com/"
+      },
+      "evidence": [
+        {
+          "source": "raw.instruction_steps.en",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        },
+        {
+          "source": "screening.home_continuous",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        }
+      ],
+      "review_required": true,
+      "review_required_codes": [
+        "INTENSITY_AND_MET_NOT_ESTABLISHED",
+        "HUMAN_SELECTION_REVIEW",
+        "FINAL_CATALOG_VISUAL_CHECK_DEFERRED"
+      ],
+      "production_eligible": false
+    },
+    {
+      "candidate_id": "3656",
+      "source_record": {
+        "id": "3656",
+        "name": "short stride run",
+        "category": "cardio",
+        "body_part": "cardio",
+        "equipment": "body weight",
+        "instructions": {
+          "en": "Find an open space or a treadmill to perform the exercise. Stand tall with your feet hip-width apart. Start jogging in place, lifting your knees high and pumping your arms. After a few seconds, start taking short strides forward, maintaining a quick pace. Continue running with short strides for the desired duration or distance.",
+          "it": "Trova uno spazio aperto o un tapis roulant per eseguire l'esercizio. Stai in piedi con i piedi alla larghezza dei fianchi. Inizia a fare jogging sul posto, sollevando le ginocchia in alto e pompando le braccia. Dopo alcuni secondi, inizia a fare brevi passi in avanti, mantenendo un ritmo veloce. Continua a correre a passi brevi per la durata o la distanza desiderata.",
+          "tr": "Egzersizi gerçekleştirmek için açık bir alan veya koşu bandı bulun. Ayaklarınız kalça genişliğinde açık olacak şekilde dik durun. Yerinizde koşmaya başlayın, dizlerinizi yukarı kaldırın ve kollarınızı pompalayın. Birkaç saniye sonra, hızlı tempoyu koruyarak ileriye doğru kısa adımlar atmaya başlayın. İstenilen süre veya mesafe boyunca kısa adımlarla koşmaya devam edin.",
+          "es": "Busca un espacio abierto o una cinta de correr para realizar el ejercicio. Ponte de pie con los pies separados a la altura de la cadera. Comienza a trotar en el lugar, levantando las rodillas alto y moviendo los brazos. Después de unos segundos, comienza a dar pasos cortos hacia delante, manteniendo un ritmo rápido. Continúa corriendo con pasos cortos durante la duración o distancia deseada.",
+          "ru": "Найдите открытое пространство или беговую дорожку для выполнения упражнения. Встаньте прямо, ноги на ширине плеч. Начните бег на месте, высоко поднимая колени и качая руками. Через несколько секунд начните делать короткие шаги вперед, сохраняя быстрый темп. Продолжайте бежать короткими шагами желаемую продолжительность или расстояние.",
+          "zh": "找一个空地或跑步机来进行锻炼。 站直，双脚分开与臀部同宽。 开始原地慢跑，抬起膝盖并挥动手臂。 几秒钟后，开始小步前进，保持快速的步伐。 继续小步跑所需的时间或距离。",
+          "hi": "व्यायाम करने के लिए एक खुली जगह या ट्रेडमिल ढूंढें। अपने पैरों को कूल्हे-चौड़ाई से अलग करके सीधे खड़े रहें। अपने घुटनों को ऊंचा उठाते हुए और अपनी बाहों को पंप करते हुए, अपनी जगह पर जॉगिंग करना शुरू करें। कुछ सेकंड के बाद, तेज गति बनाए रखते हुए छोटे-छोटे कदम आगे बढ़ाना शुरू करें। वांछित अवधि या दूरी तक छोटे-छोटे कदमों के साथ दौड़ना जारी रखें।",
+          "pl": "Znajdź otwartą przestrzeń lub bieżnię, aby wykonać ćwiczenie. Stań prosto, stopy w rozkroku na szerokość bioder. Zacznij biec w miejscu, wysoko unosząc kolana i pracując rękami. Po kilku sekundach zacznij wykonywać krótkie kroki do przodu, zachowując szybkie tempo. Kontynuuj bieg krótkimi krokami przez wybrany czas lub dystans.",
+          "ko": "운동을 수행할 열린 공간 또는 트레드밀을 찾으세요. 발을 엉덩이 너비로 벌리고 똑바로 서세요. 무릎을 높이 들고 팔을 펌프하며 제자리에서 가볍게 뛰기를 시작합니다. 몇 초 후, 빠른 속도를 유지하면서 짧은 보폭으로 앞으로 나아가기를 시작합니다. 원하는 기간 또는 거리 동안 짧은 보폭으로 계속 달립니다.",
+          "fr": "Trouve un espace dégagé ou un tapis de course pour effectuer l'exercice. Tiens-toi bien droit, les pieds écartés à la largeur des hanches. Commence à courir sur place, en levant bien les genoux et en pompant avec les bras. Après quelques secondes, commence à faire de petites foulées vers l'avant en maintenant un rythme rapide. Continue à courir à petites foulées pendant la durée ou la distance souhaitée."
+        },
+        "instruction_steps": {
+          "en": [
+            "Find an open space or a treadmill to perform the exercise.",
+            "Stand tall with your feet hip-width apart.",
+            "Start jogging in place, lifting your knees high and pumping your arms.",
+            "After a few seconds, start taking short strides forward, maintaining a quick pace.",
+            "Continue running with short strides for the desired duration or distance."
+          ],
+          "it": [
+            "Trova uno spazio aperto o un tapis roulant per eseguire l'esercizio.",
+            "Stai in piedi con i piedi alla larghezza dei fianchi.",
+            "Inizia a fare jogging sul posto, sollevando le ginocchia in alto e pompando le braccia.",
+            "Dopo alcuni secondi, inizia a fare brevi passi in avanti, mantenendo un ritmo veloce.",
+            "Continua a correre a passi brevi per la durata o la distanza desiderata."
+          ],
+          "tr": [
+            "Egzersizi gerçekleştirmek için açık bir alan veya koşu bandı bulun.",
+            "Ayaklarınız kalça genişliğinde açık olacak şekilde dik durun.",
+            "Yerinizde koşmaya başlayın, dizlerinizi yukarı kaldırın ve kollarınızı pompalayın.",
+            "Birkaç saniye sonra, hızlı tempoyu koruyarak ileriye doğru kısa adımlar atmaya başlayın.",
+            "İstenilen süre veya mesafe boyunca kısa adımlarla koşmaya devam edin."
+          ],
+          "es": [
+            "Busca un espacio abierto o una cinta de correr para realizar el ejercicio.",
+            "Ponte de pie con los pies separados a la altura de la cadera.",
+            "Comienza a trotar en el lugar, levantando las rodillas alto y moviendo los brazos.",
+            "Después de unos segundos, comienza a dar pasos cortos hacia delante, manteniendo un ritmo rápido.",
+            "Continúa corriendo con pasos cortos durante la duración o distancia deseada."
+          ],
+          "ru": [
+            "Найдите открытое пространство или беговую дорожку для выполнения упражнения.",
+            "Встаньте прямо, ноги на ширине плеч.",
+            "Начните бег на месте, высоко поднимая колени и качая руками.",
+            "Через несколько секунд начните делать короткие шаги вперед, сохраняя быстрый темп.",
+            "Продолжайте бежать короткими шагами желаемую продолжительность или расстояние."
+          ],
+          "zh": [
+            "找一个空地或跑步机来进行锻炼。",
+            "站直，双脚分开与臀部同宽。",
+            "开始原地慢跑，抬起膝盖并挥动手臂。",
+            "几秒钟后，开始小步前进，保持快速的步伐。",
+            "继续小步跑所需的时间或距离。"
+          ],
+          "hi": [
+            "व्यायाम करने के लिए एक खुली जगह या ट्रेडमिल ढूंढें।",
+            "अपने पैरों को कूल्हे-चौड़ाई से अलग करके सीधे खड़े रहें।",
+            "अपने घुटनों को ऊंचा उठाते हुए और अपनी बाहों को पंप करते हुए, अपनी जगह पर जॉगिंग करना शुरू करें।",
+            "कुछ सेकंड के बाद, तेज गति बनाए रखते हुए छोटे-छोटे कदम आगे बढ़ाना शुरू करें।",
+            "वांछित अवधि या दूरी तक छोटे-छोटे कदमों के साथ दौड़ना जारी रखें।"
+          ],
+          "pl": [
+            "Znajdź otwartą przestrzeń lub bieżnię, aby wykonać ćwiczenie.",
+            "Stań prosto, stopy w rozkroku na szerokość bioder.",
+            "Zacznij biec w miejscu, wysoko unosząc kolana i pracując rękami.",
+            "Po kilku sekundach zacznij wykonywać krótkie kroki do przodu, zachowując szybkie tempo.",
+            "Kontynuuj bieg krótkimi krokami przez wybrany czas lub dystans."
+          ],
+          "ko": [
+            "운동을 수행할 열린 공간 또는 트레드밀을 찾으세요.",
+            "발을 엉덩이 너비로 벌리고 똑바로 서세요.",
+            "무릎을 높이 들고 팔을 펌프하며 제자리에서 가볍게 뛰기를 시작합니다.",
+            "몇 초 후, 빠른 속도를 유지하면서 짧은 보폭으로 앞으로 나아가기를 시작합니다.",
+            "원하는 기간 또는 거리 동안 짧은 보폭으로 계속 달립니다."
+          ],
+          "fr": [
+            "Trouve un espace dégagé ou un tapis de course pour effectuer l'exercice.",
+            "Tiens-toi bien droit, les pieds écartés à la largeur des hanches.",
+            "Commence à courir sur place, en levant bien les genoux et en pompant avec les bras.",
+            "Après quelques secondes, commence à faire de petites foulées vers l'avant en maintenant un rythme rapide.",
+            "Continue à courir à petites foulées pendant la durée ou la distance souhaitée."
+          ]
+        },
+        "muscle_group": "quadriceps",
+        "secondary_muscles": [
+          "quadriceps",
+          "hamstrings",
+          "calves"
+        ],
+        "target": "cardiovascular system",
+        "image": "images/3656-CcWEoWV.jpg",
+        "gif_url": "videos/3656-CcWEoWV.gif",
+        "media_id": "CcWEoWV",
+        "created_at": "2026-03-18T12:31:32.88964+00:00",
+        "attribution": "© Gym visual — https://gymvisual.com/"
+      },
+      "source_provenance": {
+        "source_name": "exercises-dataset",
+        "source_license": "MIT",
+        "retrieved_at": "2026-08-20T00:00:00+09:00",
+        "raw_status": "DRAFT",
+        "raw_files": [
+          {
+            "path": "exercises.json",
+            "sha256": "656634224b8977b99a6d765470ee123260d4979715eaa4e7c0b7c8bb0d79f93d"
+          },
+          {
+            "path": "exercises.schema.json",
+            "sha256": "33fb14b439c68e12365e14a0759006c40564646ac27084efe1f2e956804b2d49"
+          }
+        ]
+      },
+      "normalized_candidates": {
+        "training_type_code": "CARDIO",
+        "body_focus_code": "LOWER_BODY",
+        "location_codes": [
+          "OUTDOOR",
+          "GYM"
+        ],
+        "impact_level_code": "MODERATE",
+        "exercise_mode_codes": [
+          "CONTINUOUS",
+          "INTERVAL"
+        ],
+        "equipment_code": null,
+        "equipment_label": "개방 공간 또는 트레드밀(검토 필요)",
+        "equipment_normalization_status": "REVIEW_REQUIRED",
+        "difficulty_code": "BEGINNER",
+        "beginner_suitability_code": "CONDITIONAL",
+        "space_noise_level_code": "LARGE_NOISE",
+        "movement_pattern_code": "GAIT",
+        "intensity_level_code": "REVIEW_REQUIRED",
+        "met": null
+      },
+      "screening": {
+        "decision": "INCLUDE",
+        "reason_code": "OUTDOOR_SPACE_BASED_RUNNING",
+        "reason": "실외 또는 트레드밀의 공간 기반 달리기 후보로, 제자리 조깅과 장소·공간 요구가 다른 야외 선택지를 제공함."
+      },
+      "visual_evidence": {
+        "image_reference": "images/3656-CcWEoWV.jpg",
+        "gif_reference": "videos/3656-CcWEoWV.gif",
+        "binary_in_raw_snapshot": false,
+        "status": "REFERENCE_ONLY_DEFERRED_TO_FINAL_CATALOG",
+        "attribution": "© Gym visual — https://gymvisual.com/"
+      },
+      "evidence": [
+        {
+          "source": "raw.instruction_steps.en",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        },
+        {
+          "source": "screening.outdoor_space",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        },
+        {
+          "source": "screening.unmapped_equipment",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        }
+      ],
+      "review_required": true,
+      "review_required_codes": [
+        "INTENSITY_AND_MET_NOT_ESTABLISHED",
+        "HUMAN_SELECTION_REVIEW",
+        "FINAL_CATALOG_VISUAL_CHECK_DEFERRED",
+        "CARDIO_EQUIPMENT_TAXONOMY_MAPPING"
+      ],
+      "production_eligible": false
+    },
+    {
+      "candidate_id": "2138",
+      "source_record": {
+        "id": "2138",
+        "name": "stationary bike run v. 3",
+        "category": "cardio",
+        "body_part": "cardio",
+        "equipment": "stationary bike",
+        "instructions": {
+          "en": "Adjust the seat height and position to ensure proper alignment. Place your feet on the pedals and secure them with the straps if available. Start pedaling at a comfortable pace. Maintain a steady rhythm and increase the resistance as desired. Engage your core muscles to maintain stability and proper posture. Continue pedaling for the desired duration of your workout. Gradually decrease the resistance and slow down before coming to a complete stop. Stretch your legs and cool down after the workout.",
+          "it": "Regolare l'altezza e la posizione del sedile per garantire il corretto allineamento. Metti i piedi sui pedali e fissali con le cinghie, se disponibili. Inizia a pedalare a un ritmo confortevole. Mantenere un ritmo costante e aumentare la resistenza come desiderato. Coinvolgi i muscoli centrali per mantenere la stabilità e una postura corretta. Continua a pedalare per la durata desiderata del tuo allenamento. Diminuire gradualmente la resistenza e rallentare prima di fermarsi completamente. Allunga le gambe e rinfrescati dopo l'allenamento.",
+          "tr": "Doğru hizalamayı sağlamak için koltuk yüksekliğini ve konumunu ayarlayın. Ayaklarınızı pedalların üzerine yerleştirin ve varsa kayışlarla sabitleyin. Rahat bir tempoda pedal çevirmeye başlayın. Sabit bir ritmi koruyun ve direnci istediğiniz gibi artırın. Dengeyi ve doğru duruşu korumak için çekirdek kaslarınızı çalıştırın. Antrenmanınızın istediğiniz süresi boyunca pedal çevirmeye devam edin. Direnci kademeli olarak azaltın ve tamamen durmadan önce yavaşlayın. Antrenmandan sonra bacaklarınızı esnetin ve soğuyun.",
+          "es": "Ajusta la altura y la posición del asiento para asegurar una alineación correcta. Coloca los pies sobre los pedales y sujétalos con las correas si están disponibles. Comienza a pedalear a un ritmo cómodo. Mantén un ritmo constante y aumenta la resistencia según lo desees. Activa los músculos del core para mantener la estabilidad y una postura correcta. Continúa pedaleando durante la duración deseada de tu entrenamiento. Disminuye gradualmente la resistencia y reduce la velocidad antes de detenerte por completo. Estira las piernas y enfría después del entrenamiento.",
+          "ru": "Отрегулируйте высоту и положение сиденья, чтобы обеспечить правильное выравнивание. Поставьте ноги на педали и закрепите их ремнями, если таковые имеются. Start pedaling at a comfortable pace. Поддерживайте устойчивый ритм и увеличивайте сопротивление по желанию. Задействуйте основные мышцы, чтобы поддерживать устойчивость и правильную осанку. Продолжайте крутить педали в течение желаемой продолжительности тренировки. Постепенно уменьшайте сопротивление и замедляйтесь, прежде чем полностью остановиться. Разомните ноги и остыньте после тренировки.",
+          "zh": "调整座椅高度和位置以确保正确对齐。 将脚放在踏板上，并用带子（如果有）将其固定。 以舒适的速度开始踩踏板。 保持稳定的节奏并根据需要增加阻力。 调动核心肌肉以保持稳定性和正确的姿势。 继续踩踏板达到所需的锻炼时间。 逐渐减小阻力并减速，然后完全停止。 锻炼后伸展双腿并放松。",
+          "hi": "उचित संरेखण सुनिश्चित करने के लिए सीट की ऊंचाई और स्थिति को समायोजित करें। अपने पैरों को पैडल पर रखें और यदि उपलब्ध हो तो उन्हें पट्टियों से सुरक्षित करें। आरामदायक गति से पैडल चलाना शुरू करें। एक स्थिर लय बनाए रखें और इच्छानुसार प्रतिरोध बढ़ाएँ। स्थिरता और उचित मुद्रा बनाए रखने के लिए अपनी मुख्य मांसपेशियों को संलग्न करें। अपने वर्कआउट की वांछित अवधि तक पैडल चलाना जारी रखें। प्रतिरोध को धीरे-धीरे कम करें और पूरी तरह रुकने से पहले धीमा करें। वर्कआउट के बाद अपने पैरों को फैलाएं और ठंडा हो जाएं।",
+          "pl": "Wyreguluj wysokość i pozycję siodełka, aby zapewnić prawidłowe ułożenie ciała. Umieść stopy na pedałach i zabezpiecz je paskami, jeśli są dostępne. Zacznij pedałować w komfortowym tempie. Utrzymuj stałe tempo i w razie potrzeby zwiększaj opór. Napnij mięśnie brzucha, aby zachować stabilność i prawidłową postawę. Kontynuuj pedałowanie przez żądany czas trwania treningu. Stopniowo zmniejszaj opór i zwalniaj tempo przed całkowitym zatrzymaniem. Rozciągnij nogi i wykonaj schłodzenie po treningu.",
+          "ko": "안장의 높이와 위치를 조정하여 올바른 정렬을 보장합니다. 발을 페달에 올리고 가능하면 스트랩으로 고정합니다. 편한 속도로 페달을 밟기 시작합니다. 일정한 리듬을 유지하고 원하는 대로 저항을 높입니다. 코어 근육을 활성화하여 안정성과 올바른 자세를 유지합니다. 원하는 시간 동안 계속 페달을 밟습니다. 완전히 멈추기 전에 저항을 천천히 줄이고 속도를 낮춥니다. 운동 후 다리를 스트레치하고 쿨다운합니다.",
+          "fr": "Règle la hauteur et la position du siège pour garantir un bon alignement. Place tes pieds sur les pédales et fixe-les avec les sangles si elles sont disponibles. Commence à pédaler à un rythme confortable. Maintiens un rythme régulier et augmente la résistance comme tu le souhaites. Gaine tes muscles abdominaux pour maintenir la stabilité et une posture correcte. Continue à pédaler pendant la durée souhaitée de ta séance. Diminue progressivement la résistance et ralentis avant de t'arrêter complètement. Étire tes jambes et récupère après l'entraînement."
+        },
+        "instruction_steps": {
+          "en": [
+            "Adjust the seat height and position to ensure proper alignment.",
+            "Place your feet on the pedals and secure them with the straps if available.",
+            "Start pedaling at a comfortable pace.",
+            "Maintain a steady rhythm and increase the resistance as desired.",
+            "Engage your core muscles to maintain stability and proper posture.",
+            "Continue pedaling for the desired duration of your workout.",
+            "Gradually decrease the resistance and slow down before coming to a complete stop.",
+            "Stretch your legs and cool down after the workout."
+          ],
+          "it": [
+            "Regolare l'altezza e la posizione del sedile per garantire il corretto allineamento.",
+            "Metti i piedi sui pedali e fissali con le cinghie, se disponibili.",
+            "Inizia a pedalare a un ritmo confortevole.",
+            "Mantenere un ritmo costante e aumentare la resistenza come desiderato.",
+            "Coinvolgi i muscoli centrali per mantenere la stabilità e una postura corretta.",
+            "Continua a pedalare per la durata desiderata del tuo allenamento.",
+            "Diminuire gradualmente la resistenza e rallentare prima di fermarsi completamente.",
+            "Allunga le gambe e rinfrescati dopo l'allenamento."
+          ],
+          "tr": [
+            "Doğru hizalamayı sağlamak için koltuk yüksekliğini ve konumunu ayarlayın.",
+            "Ayaklarınızı pedalların üzerine yerleştirin ve varsa kayışlarla sabitleyin.",
+            "Rahat bir tempoda pedal çevirmeye başlayın.",
+            "Sabit bir ritmi koruyun ve direnci istediğiniz gibi artırın.",
+            "Dengeyi ve doğru duruşu korumak için çekirdek kaslarınızı çalıştırın.",
+            "Antrenmanınızın istediğiniz süresi boyunca pedal çevirmeye devam edin.",
+            "Direnci kademeli olarak azaltın ve tamamen durmadan önce yavaşlayın.",
+            "Antrenmandan sonra bacaklarınızı esnetin ve soğuyun."
+          ],
+          "es": [
+            "Ajusta la altura y la posición del asiento para asegurar una alineación correcta.",
+            "Coloca los pies sobre los pedales y sujétalos con las correas si están disponibles.",
+            "Comienza a pedalear a un ritmo cómodo.",
+            "Mantén un ritmo constante y aumenta la resistencia según lo desees.",
+            "Activa los músculos del core para mantener la estabilidad y una postura correcta.",
+            "Continúa pedaleando durante la duración deseada de tu entrenamiento.",
+            "Disminuye gradualmente la resistencia y reduce la velocidad antes de detenerte por completo.",
+            "Estira las piernas y enfría después del entrenamiento."
+          ],
+          "ru": [
+            "Отрегулируйте высоту и положение сиденья, чтобы обеспечить правильное выравнивание.",
+            "Поставьте ноги на педали и закрепите их ремнями, если таковые имеются.",
+            "Начните крутить педали в удобном темпе.",
+            "Поддерживайте устойчивый ритм и увеличивайте сопротивление по желанию.",
+            "Задействуйте основные мышцы, чтобы поддерживать устойчивость и правильную осанку.",
+            "Продолжайте крутить педали в течение желаемой продолжительности тренировки.",
+            "Постепенно уменьшайте сопротивление и замедляйтесь, прежде чем полностью остановиться.",
+            "Разомните ноги и остыньте после тренировки."
+          ],
+          "zh": [
+            "调整座椅高度和位置以确保正确对齐。",
+            "将脚放在踏板上，并用带子（如果有）将其固定。",
+            "以舒适的速度开始踩踏板。",
+            "保持稳定的节奏并根据需要增加阻力。",
+            "调动核心肌肉以保持稳定性和正确的姿势。",
+            "继续踩踏板达到所需的锻炼时间。",
+            "逐渐减小阻力并减速，然后完全停止。",
+            "锻炼后伸展双腿并放松。"
+          ],
+          "hi": [
+            "उचित संरेखण सुनिश्चित करने के लिए सीट की ऊंचाई और स्थिति को समायोजित करें।",
+            "अपने पैरों को पैडल पर रखें और यदि उपलब्ध हो तो उन्हें पट्टियों से सुरक्षित करें।",
+            "आरामदायक गति से पैडल चलाना शुरू करें।",
+            "एक स्थिर लय बनाए रखें और इच्छानुसार प्रतिरोध बढ़ाएँ।",
+            "स्थिरता और उचित मुद्रा बनाए रखने के लिए अपनी मुख्य मांसपेशियों को संलग्न करें।",
+            "अपने वर्कआउट की वांछित अवधि तक पैडल चलाना जारी रखें।",
+            "प्रतिरोध को धीरे-धीरे कम करें और पूरी तरह रुकने से पहले धीमा करें।",
+            "वर्कआउट के बाद अपने पैरों को फैलाएं और ठंडा हो जाएं।"
+          ],
+          "pl": [
+            "Wyreguluj wysokość i pozycję siodełka, aby zapewnić prawidłowe ułożenie ciała.",
+            "Umieść stopy na pedałach i zabezpiecz je paskami, jeśli są dostępne.",
+            "Zacznij pedałować w komfortowym tempie.",
+            "Utrzymuj stałe tempo i w razie potrzeby zwiększaj opór.",
+            "Napnij mięśnie brzucha, aby zachować stabilność i prawidłową postawę.",
+            "Kontynuuj pedałowanie przez żądany czas trwania treningu.",
+            "Stopniowo zmniejszaj opór i zwalniaj tempo przed całkowitym zatrzymaniem.",
+            "Rozciągnij nogi i wykonaj schłodzenie po treningu."
+          ],
+          "ko": [
+            "안장의 높이와 위치를 조정하여 올바른 정렬을 보장합니다.",
+            "발을 페달에 올리고 가능하면 스트랩으로 고정합니다.",
+            "편한 속도로 페달을 밟기 시작합니다.",
+            "일정한 리듬을 유지하고 원하는 대로 저항을 높입니다.",
+            "코어 근육을 활성화하여 안정성과 올바른 자세를 유지합니다.",
+            "원하는 시간 동안 계속 페달을 밟습니다.",
+            "완전히 멈추기 전에 저항을 천천히 줄이고 속도를 낮춥니다.",
+            "운동 후 다리를 스트레치하고 쿨다운합니다."
+          ],
+          "fr": [
+            "Règle la hauteur et la position du siège pour garantir un bon alignement.",
+            "Place tes pieds sur les pédales et fixe-les avec les sangles si elles sont disponibles.",
+            "Commence à pédaler à un rythme confortable.",
+            "Maintiens un rythme régulier et augmente la résistance comme tu le souhaites.",
+            "Gaine tes muscles abdominaux pour maintenir la stabilité et une posture correcte.",
+            "Continue à pédaler pendant la durée souhaitée de ta séance.",
+            "Diminue progressivement la résistance et ralentis avant de t'arrêter complètement.",
+            "Étire tes jambes et récupère après l'entraînement."
+          ]
+        },
+        "muscle_group": "quadriceps",
+        "secondary_muscles": [
+          "quadriceps",
+          "hamstrings",
+          "calves"
+        ],
+        "target": "cardiovascular system",
+        "image": "images/2138-H1PESYI.jpg",
+        "gif_url": "videos/2138-H1PESYI.gif",
+        "media_id": "H1PESYI",
+        "created_at": "2026-03-18T12:31:32.904767+00:00",
+        "attribution": "© Gym visual — https://gymvisual.com/"
+      },
+      "source_provenance": {
+        "source_name": "exercises-dataset",
+        "source_license": "MIT",
+        "retrieved_at": "2026-08-20T00:00:00+09:00",
+        "raw_status": "DRAFT",
+        "raw_files": [
+          {
+            "path": "exercises.json",
+            "sha256": "656634224b8977b99a6d765470ee123260d4979715eaa4e7c0b7c8bb0d79f93d"
+          },
+          {
+            "path": "exercises.schema.json",
+            "sha256": "33fb14b439c68e12365e14a0759006c40564646ac27084efe1f2e956804b2d49"
+          }
+        ]
+      },
+      "normalized_candidates": {
+        "training_type_code": "CARDIO",
+        "body_focus_code": "LOWER_BODY",
+        "location_codes": [
+          "GYM"
+        ],
+        "impact_level_code": "LOW",
+        "exercise_mode_codes": [
+          "CONTINUOUS",
+          "INTERVAL"
+        ],
+        "equipment_code": null,
+        "equipment_label": "고정식 자전거(기존 taxonomy 코드 검토 필요)",
+        "equipment_normalization_status": "REVIEW_REQUIRED",
+        "difficulty_code": "BEGINNER",
+        "beginner_suitability_code": "SUITABLE",
+        "space_noise_level_code": "MEDIUM_NOISE",
+        "movement_pattern_code": null,
+        "intensity_level_code": "REVIEW_REQUIRED",
+        "met": null
+      },
+      "screening": {
+        "decision": "INCLUDE",
+        "reason_code": "GYM_STATIONARY_BIKE",
+        "reason": "헬스장 기구 기반 저충격 지속형 대표 후보로, 앉은 자세와 저소음 장비 선택지를 제공함."
+      },
+      "visual_evidence": {
+        "image_reference": "images/2138-H1PESYI.jpg",
+        "gif_reference": "videos/2138-H1PESYI.gif",
+        "binary_in_raw_snapshot": false,
+        "status": "REFERENCE_ONLY_DEFERRED_TO_FINAL_CATALOG",
+        "attribution": "© Gym visual — https://gymvisual.com/"
+      },
+      "evidence": [
+        {
+          "source": "raw.equipment",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        },
+        {
+          "source": "raw.instruction_steps.en",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        },
+        {
+          "source": "screening.gym_equipment",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        },
+        {
+          "source": "screening.unmapped_equipment",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        }
+      ],
+      "review_required": true,
+      "review_required_codes": [
+        "INTENSITY_AND_MET_NOT_ESTABLISHED",
+        "HUMAN_SELECTION_REVIEW",
+        "FINAL_CATALOG_VISUAL_CHECK_DEFERRED",
+        "CARDIO_EQUIPMENT_TAXONOMY_MAPPING"
+      ],
+      "production_eligible": false
+    },
+    {
+      "candidate_id": "2141",
+      "source_record": {
+        "id": "2141",
+        "name": "walk elliptical cross trainer",
+        "category": "cardio",
+        "body_part": "cardio",
+        "equipment": "elliptical machine",
+        "instructions": {
+          "en": "Adjust the resistance level and incline of the elliptical machine to your desired settings. Step onto the pedals of the machine and grip the handles lightly. Begin by pushing down with your feet and pulling the handles towards your body. Continue this motion, alternating between pushing and pulling, to simulate a walking or running motion. Maintain a steady pace and keep your core engaged throughout the exercise. Continue for the desired duration of your cardio workout. Gradually decrease the intensity and speed of the machine before stepping off.",
+          "it": "Regola il livello di resistenza e l'inclinazione della macchina ellittica secondo le impostazioni desiderate. Salire sui pedali della macchina e afferrare leggermente le maniglie. Inizia spingendo verso il basso con i piedi e tirando le maniglie verso il corpo. Continua questo movimento, alternando spinta e trazione, per simulare un movimento di camminata o corsa. Mantieni un ritmo costante e mantieni il core impegnato durante l'esercizio. Continua per la durata desiderata del tuo allenamento cardio. Diminuire gradualmente l'intensità e la velocità della macchina prima di scendere.",
+          "tr": "Eliptik makinenin direnç seviyesini ve eğimini istediğiniz ayarlara ayarlayın. Makinenin pedallarına çıkın ve tutamaklardan hafifçe tutun. Ayaklarınızla aşağı doğru bastırarak ve kolları vücudunuza doğru çekerek başlayın. Yürüme veya koşma hareketini simüle etmek için itme ve çekme arasında geçiş yaparak bu harekete devam edin. Sabit bir tempoyu koruyun ve egzersiz boyunca merkez bölgenizi meşgul tutun. Kardiyo egzersizinizin istediğiniz süresi boyunca devam edin. Makineden inmeden önce makinenin yoğunluğunu ve hızını kademeli olarak azaltın.",
+          "es": "Ajusta el nivel de resistencia y la inclinación de la máquina elíptica a los valores deseados. Sube a los pedales de la máquina y agarra las asas con suavidad. Comienza empujando hacia abajo con los pies y tirando de las asas hacia tu cuerpo. Continúa con este movimiento, alternando entre empujar y tirar, para simular un movimiento de caminar o correr. Mantén un ritmo constante y conserva el core activado durante todo el ejercicio. Continúa durante la duración deseada de tu entrenamiento cardiovascular. Disminuye gradualmente la intensidad y la velocidad de la máquina antes de bajarte.",
+          "ru": "Отрегулируйте уровень сопротивления и наклон эллиптического тренажера до желаемых настроек. Встаньте на педали машины и слегка возьмитесь за ручки. Начните с отталкивания ногами и подтягивания ручек к телу. Продолжайте это движение, чередуя толкание и вытягивание, чтобы имитировать ходьбу или бег. Поддерживайте устойчивый темп и задействуйте корпус на протяжении всего упражнения. Продолжайте кардио-тренировку в течение желаемой продолжительности. Постепенно уменьшайте интенсивность и скорость тренажера, прежде чем сойти с него.",
+          "zh": "将椭圆机的阻力水平和倾斜度调整到您想要的设置。 踩上机器的踏板并轻轻握住手柄。 首先用脚向下压，然后将手柄拉向身体。 继续这个动作，交替推和拉，以模拟行走或跑步动作。 在整个练习过程中保持稳定的步伐并保持核心参与。 继续进行有氧运动所需的持续时间。 下车前逐渐降低机器的强度和速度。",
+          "hi": "अण्डाकार मशीन के प्रतिरोध स्तर और झुकाव को अपनी इच्छित सेटिंग्स पर समायोजित करें। मशीन के पैडल पर चढ़ें और हैंडल को हल्के से पकड़ें। अपने पैरों से नीचे की ओर दबाव डालकर और हैंडल को अपने शरीर की ओर खींचकर शुरुआत करें। चलने या दौड़ने की गति का अनुकरण करने के लिए, धक्का देने और खींचने के बीच बारी-बारी से इस गति को जारी रखें। एक स्थिर गति बनाए रखें और पूरे अभ्यास के दौरान अपने कोर को व्यस्त रखें। अपने कार्डियो वर्कआउट की वांछित अवधि तक जारी रखें। उतरने से पहले मशीन की तीव्रता और गति को धीरे-धीरे कम करें।",
+          "pl": "Wyreguluj poziom oporu i nachylenie orbitreka na żądane ustawienia. Wejdź na pedały maszyny i chwyć lekko uchwyty. Zacznij, naciskając stopami w dół i przyciągając uchwyty w stronę ciała. Kontynuuj ten ruch, naprzemiennie pchając i ciągnąc, aby naśladować ruch chodzenia lub biegania. Utrzymuj stałe tempo i napinaj mięśnie brzucha przez cały czas trwania ćwiczenia. Kontynuuj przez żądany czas trwania treningu kardio. Stopniowo zmniejszaj intensywność i prędkość maszyny przed zejściem z niej.",
+          "ko": "엘립티컬 머신의 저항력과 경사도를 원하는 수준으로 조정합니다. 머신의 페달에 올라서 핸들을 가볍게 잡습니다. 발로 페달을 밀어 내리면서 동시에 핸들을 몸 쪽으로 당깁니다. 이 동작을 계속 반복하여 밀기와 당기기를 번갈아 수행합니다. 이는 걷거나 뛰는 동작을 흉내 냅니다. 안정된 속도를 유지하고 운동 내내 코어를 활성화 상태로 유지합니다. 원하는 시간 동안 유산소 운동을 계속합니다. 내리기 전에 머신의 강도와 속도를 점차적으로 낮춥니다.",
+          "fr": "Règle le niveau de résistance et l'inclinaison du vélo elliptique selon tes réglages souhaités. Monte sur les pédales de la machine et saisis légèrement les poignées. Commence par pousser avec tes pieds et tirer les poignées vers ton corps. Continue ce mouvement en alternant entre pousser et tirer, pour simuler une marche ou une course. Maintiens un rythme régulier et garde ta sangle abdominale gainée pendant tout l'exercice. Continue pendant la durée souhaitée de ta séance de cardio. Diminue progressivement l'intensité et la vitesse de la machine avant de descendre."
+        },
+        "instruction_steps": {
+          "en": [
+            "Adjust the resistance level and incline of the elliptical machine to your desired settings.",
+            "Step onto the pedals of the machine and grip the handles lightly.",
+            "Begin by pushing down with your feet and pulling the handles towards your body.",
+            "Continue this motion, alternating between pushing and pulling, to simulate a walking or running motion.",
+            "Maintain a steady pace and keep your core engaged throughout the exercise.",
+            "Continue for the desired duration of your cardio workout.",
+            "Gradually decrease the intensity and speed of the machine before stepping off."
+          ],
+          "it": [
+            "Regola il livello di resistenza e l'inclinazione della macchina ellittica secondo le impostazioni desiderate.",
+            "Salire sui pedali della macchina e afferrare leggermente le maniglie.",
+            "Inizia spingendo verso il basso con i piedi e tirando le maniglie verso il corpo.",
+            "Continua questo movimento, alternando spinta e trazione, per simulare un movimento di camminata o corsa.",
+            "Mantieni un ritmo costante e mantieni il core impegnato durante l'esercizio.",
+            "Continua per la durata desiderata del tuo allenamento cardio.",
+            "Diminuire gradualmente l'intensità e la velocità della macchina prima di scendere."
+          ],
+          "tr": [
+            "Eliptik makinenin direnç seviyesini ve eğimini istediğiniz ayarlara ayarlayın.",
+            "Makinenin pedallarına çıkın ve tutamaklardan hafifçe tutun.",
+            "Ayaklarınızla aşağı doğru bastırarak ve kolları vücudunuza doğru çekerek başlayın.",
+            "Yürüme veya koşma hareketini simüle etmek için itme ve çekme arasında geçiş yaparak bu harekete devam edin.",
+            "Sabit bir tempoyu koruyun ve egzersiz boyunca merkez bölgenizi meşgul tutun.",
+            "Kardiyo egzersizinizin istediğiniz süresi boyunca devam edin.",
+            "Makineden inmeden önce makinenin yoğunluğunu ve hızını kademeli olarak azaltın."
+          ],
+          "es": [
+            "Ajusta el nivel de resistencia y la inclinación de la máquina elíptica a los valores deseados.",
+            "Sube a los pedales de la máquina y agarra las asas con suavidad.",
+            "Comienza empujando hacia abajo con los pies y tirando de las asas hacia tu cuerpo.",
+            "Continúa con este movimiento, alternando entre empujar y tirar, para simular un movimiento de caminar o correr.",
+            "Mantén un ritmo constante y conserva el core activado durante todo el ejercicio.",
+            "Continúa durante la duración deseada de tu entrenamiento cardiovascular.",
+            "Disminuye gradualmente la intensidad y la velocidad de la máquina antes de bajarte."
+          ],
+          "ru": [
+            "Отрегулируйте уровень сопротивления и наклон эллиптического тренажера до желаемых настроек.",
+            "Встаньте на педали машины и слегка возьмитесь за ручки.",
+            "Начните с отталкивания ногами и подтягивания ручек к телу.",
+            "Продолжайте это движение, чередуя толкание и вытягивание, чтобы имитировать ходьбу или бег.",
+            "Поддерживайте устойчивый темп и задействуйте корпус на протяжении всего упражнения.",
+            "Продолжайте кардио-тренировку в течение желаемой продолжительности.",
+            "Постепенно уменьшайте интенсивность и скорость тренажера, прежде чем сойти с него."
+          ],
+          "zh": [
+            "将椭圆机的阻力水平和倾斜度调整到您想要的设置。",
+            "踩上机器的踏板并轻轻握住手柄。",
+            "首先用脚向下压，然后将手柄拉向身体。",
+            "继续这个动作，交替推和拉，以模拟行走或跑步动作。",
+            "在整个练习过程中保持稳定的步伐并保持核心参与。",
+            "继续进行有氧运动所需的持续时间。",
+            "下车前逐渐降低机器的强度和速度。"
+          ],
+          "hi": [
+            "अण्डाकार मशीन के प्रतिरोध स्तर और झुकाव को अपनी इच्छित सेटिंग्स पर समायोजित करें।",
+            "मशीन के पैडल पर चढ़ें और हैंडल को हल्के से पकड़ें।",
+            "अपने पैरों से नीचे की ओर दबाव डालकर और हैंडल को अपने शरीर की ओर खींचकर शुरुआत करें।",
+            "चलने या दौड़ने की गति का अनुकरण करने के लिए, धक्का देने और खींचने के बीच बारी-बारी से इस गति को जारी रखें।",
+            "एक स्थिर गति बनाए रखें और पूरे अभ्यास के दौरान अपने कोर को व्यस्त रखें।",
+            "अपने कार्डियो वर्कआउट की वांछित अवधि तक जारी रखें।",
+            "उतरने से पहले मशीन की तीव्रता और गति को धीरे-धीरे कम करें।"
+          ],
+          "pl": [
+            "Wyreguluj poziom oporu i nachylenie orbitreka na żądane ustawienia.",
+            "Wejdź na pedały maszyny i chwyć lekko uchwyty.",
+            "Zacznij, naciskając stopami w dół i przyciągając uchwyty w stronę ciała.",
+            "Kontynuuj ten ruch, naprzemiennie pchając i ciągnąc, aby naśladować ruch chodzenia lub biegania.",
+            "Utrzymuj stałe tempo i napinaj mięśnie brzucha przez cały czas trwania ćwiczenia.",
+            "Kontynuuj przez żądany czas trwania treningu kardio.",
+            "Stopniowo zmniejszaj intensywność i prędkość maszyny przed zejściem z niej."
+          ],
+          "ko": [
+            "엘립티컬 머신의 저항력과 경사도를 원하는 수준으로 조정합니다.",
+            "머신의 페달에 올라서 핸들을 가볍게 잡습니다.",
+            "발로 페달을 밀어 내리면서 동시에 핸들을 몸 쪽으로 당깁니다.",
+            "이 동작을 계속 반복하여 밀기와 당기기를 번갈아 수행합니다. 이는 걷거나 뛰는 동작을 흉내 냅니다.",
+            "안정된 속도를 유지하고 운동 내내 코어를 활성화 상태로 유지합니다.",
+            "원하는 시간 동안 유산소 운동을 계속합니다.",
+            "내리기 전에 머신의 강도와 속도를 점차적으로 낮춥니다."
+          ],
+          "fr": [
+            "Règle le niveau de résistance et l'inclinaison du vélo elliptique selon tes réglages souhaités.",
+            "Monte sur les pédales de la machine et saisis légèrement les poignées.",
+            "Commence par pousser avec tes pieds et tirer les poignées vers ton corps.",
+            "Continue ce mouvement en alternant entre pousser et tirer, pour simuler une marche ou une course.",
+            "Maintiens un rythme régulier et garde ta sangle abdominale gainée pendant tout l'exercice.",
+            "Continue pendant la durée souhaitée de ta séance de cardio.",
+            "Diminue progressivement l'intensité et la vitesse de la machine avant de descendre."
+          ]
+        },
+        "muscle_group": "quadriceps",
+        "secondary_muscles": [
+          "quadriceps",
+          "hamstrings",
+          "glutes",
+          "calves"
+        ],
+        "target": "cardiovascular system",
+        "image": "images/2141-rjtuP6X.jpg",
+        "gif_url": "videos/2141-rjtuP6X.gif",
+        "media_id": "rjtuP6X",
+        "created_at": "2026-03-18T12:31:32.905618+00:00",
+        "attribution": "© Gym visual — https://gymvisual.com/"
+      },
+      "source_provenance": {
+        "source_name": "exercises-dataset",
+        "source_license": "MIT",
+        "retrieved_at": "2026-08-20T00:00:00+09:00",
+        "raw_status": "DRAFT",
+        "raw_files": [
+          {
+            "path": "exercises.json",
+            "sha256": "656634224b8977b99a6d765470ee123260d4979715eaa4e7c0b7c8bb0d79f93d"
+          },
+          {
+            "path": "exercises.schema.json",
+            "sha256": "33fb14b439c68e12365e14a0759006c40564646ac27084efe1f2e956804b2d49"
+          }
+        ]
+      },
+      "normalized_candidates": {
+        "training_type_code": "CARDIO",
+        "body_focus_code": "FULL_BODY",
+        "location_codes": [
+          "GYM"
+        ],
+        "impact_level_code": "LOW",
+        "exercise_mode_codes": [
+          "CONTINUOUS",
+          "INTERVAL"
+        ],
+        "equipment_code": null,
+        "equipment_label": "일립티컬/크로스 트레이너(기존 taxonomy 코드 검토 필요)",
+        "equipment_normalization_status": "REVIEW_REQUIRED",
+        "difficulty_code": "BEGINNER",
+        "beginner_suitability_code": "SUITABLE",
+        "space_noise_level_code": "MEDIUM_NOISE",
+        "movement_pattern_code": null,
+        "intensity_level_code": "REVIEW_REQUIRED",
+        "met": null
+      },
+      "screening": {
+        "decision": "INCLUDE",
+        "reason_code": "GYM_LOW_IMPACT_ELLIPTICAL",
+        "reason": "헬스장 저충격 크로스 트레이너 대표 후보로 자전거·트레드밀과 다른 전신성 기구 선택지를 보완함."
+      },
+      "visual_evidence": {
+        "image_reference": "images/2141-rjtuP6X.jpg",
+        "gif_reference": "videos/2141-rjtuP6X.gif",
+        "binary_in_raw_snapshot": false,
+        "status": "REFERENCE_ONLY_DEFERRED_TO_FINAL_CATALOG",
+        "attribution": "© Gym visual — https://gymvisual.com/"
+      },
+      "evidence": [
+        {
+          "source": "raw.equipment",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        },
+        {
+          "source": "raw.instruction_steps.en",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        },
+        {
+          "source": "screening.gym_equipment",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        },
+        {
+          "source": "screening.unmapped_equipment",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        }
+      ],
+      "review_required": true,
+      "review_required_codes": [
+        "INTENSITY_AND_MET_NOT_ESTABLISHED",
+        "HUMAN_SELECTION_REVIEW",
+        "FINAL_CATALOG_VISUAL_CHECK_DEFERRED",
+        "CARDIO_EQUIPMENT_TAXONOMY_MAPPING"
+      ],
+      "production_eligible": false
+    },
+    {
+      "candidate_id": "3666",
+      "source_record": {
+        "id": "3666",
+        "name": "walking on incline treadmill",
+        "category": "cardio",
+        "body_part": "cardio",
+        "equipment": "leverage machine",
+        "instructions": {
+          "en": "Adjust the incline level on the treadmill to your desired intensity. Stand on the treadmill with your feet shoulder-width apart. Start walking at a comfortable pace, ensuring that you maintain proper form. Engage your core muscles and keep your back straight throughout the exercise. Continue walking on the incline treadmill for the desired duration of your cardio workout. Gradually decrease the incline and speed of the treadmill to cool down before stopping.",
+          "it": "Regola il livello di inclinazione del tapis roulant all'intensità desiderata. Stare sul tapis roulant con i piedi alla larghezza delle spalle. Inizia a camminare a un ritmo confortevole, assicurandoti di mantenere la forma corretta. Coinvolgi i muscoli centrali e mantieni la schiena dritta durante l'esercizio. Continua a camminare sul tapis roulant inclinato per la durata desiderata del tuo allenamento cardio. Diminuire gradualmente l'inclinazione e la velocità del tapis roulant per raffreddarlo prima di fermarsi.",
+          "tr": "Koşu bandındaki eğim seviyesini istediğiniz yoğunluğa ayarlayın. Ayaklarınız omuz genişliğinde açık olacak şekilde koşu bandının üzerinde durun. Uygun formu koruduğunuzdan emin olarak rahat bir tempoda yürümeye başlayın. Çekirdek kaslarınızı çalıştırın ve egzersiz boyunca sırtınızı düz tutun. Kardiyo egzersizinizin istediğiniz süresi boyunca eğimli koşu bandında yürümeye devam edin. Durmadan önce soğuması için koşu bandının eğimini ve hızını kademeli olarak azaltın.",
+          "es": "Ajusta el nivel de inclinación de la cinta de correr a la intensidad deseada. Ponte de pie sobre la cinta de correr con los pies separados a la altura de los hombros. Comienza a caminar a un ritmo cómodo, asegurándote de mantener una forma correcta. Activa los músculos del core y mantén la espalda recta durante todo el ejercicio. Continúa caminando en la cinta inclinada durante la duración deseada de tu entrenamiento cardiovascular. Disminuye gradualmente la inclinación y la velocidad de la cinta para enfriar antes de detenerte.",
+          "ru": "Отрегулируйте уровень наклона беговой дорожки до желаемой интенсивности. Встаньте на беговую дорожку, поставив ноги на ширине плеч. Начните ходить в удобном темпе, следя за тем, чтобы поддерживать правильную форму. Задействуйте мышцы корпуса и держите спину прямо на протяжении всего упражнения. Продолжайте ходить по наклонной беговой дорожке в течение желаемой продолжительности кардиотренировки. Постепенно уменьшайте наклон и скорость беговой дорожки, чтобы она остыла перед остановкой.",
+          "zh": "将跑步机的倾斜度调整到您想要的强度。 站在跑步机上，双脚分开与肩同宽。 开始以舒适的步伐行走，确保保持正确的姿势。 在整个练习过程中，调动核心肌肉并保持背部挺直。 继续在倾斜跑步机上行走，完成有氧运动所需的时间。 逐渐降低跑步机的坡度和速度，使其冷却后再停止。",
+          "hi": "ट्रेडमिल पर झुकाव स्तर को अपनी वांछित तीव्रता के अनुसार समायोजित करें। अपने पैरों को कंधे की चौड़ाई से अलग रखते हुए ट्रेडमिल पर खड़े हो जाएं। आरामदायक गति से चलना शुरू करें, यह सुनिश्चित करते हुए कि आप उचित फॉर्म बनाए रखें। अपनी मुख्य मांसपेशियों को शामिल करें और पूरे अभ्यास के दौरान अपनी पीठ सीधी रखें। अपने कार्डियो वर्कआउट की वांछित अवधि के लिए इनक्लाइन ट्रेडमिल पर चलना जारी रखें। रुकने से पहले ठंडा होने के लिए ट्रेडमिल का झुकाव और गति धीरे-धीरे कम करें।",
+          "pl": "Wyreguluj poziom nachylenia bieżni na żądaną intensywność. Stań na bieżni ze stopami rozstawionymi na szerokość barków. Zacznij iść w komfortowym tempie, dbając o zachowanie prawidłowej techniki. Napnij mięśnie brzucha i trzymaj plecy proste przez cały czas trwania ćwiczenia. Kontynuuj chodzenie po bieżni z nachyleniem przez żądany czas trwania treningu kardio. Stopniowo zmniejszaj nachylenie i prędkość bieżni, aby się schłodzić przed zatrzymaniem.",
+          "ko": "트레드밀의 경사도를 원하는 강도로 조정합니다. 발을 어깨 너비로 벌리고 트레드밀 위에 서십시오. 편안한 속도로 걷기를 시작하여 올바른 자세를 유지합니다. 운동 내내 코어 근육에 힘을 주고 등을 곧게 유지합니다. 원하는 유산소 운동 시간 동안 인클라인 트레드밀 위에서 계속 걷습니다. 운동을 멈추기 전에 경사도와 속도를 점차 낮추어 정리 운동을 합니다.",
+          "fr": "Règle le niveau d'inclinaison du tapis de course selon l'intensité souhaitée. Tiens-toi sur le tapis de course, les pieds écartés à la largeur des épaules. Commence à marcher à un rythme confortable, en veillant à conserver une bonne posture. Gaine tes muscles abdominaux et garde le dos droit tout au long de l'exercice. Continue à marcher sur le tapis incliné pendant la durée souhaitée de ton entraînement cardio. Diminue progressivement l'inclinaison et la vitesse du tapis de course pour récupérer avant de t'arrêter."
+        },
+        "instruction_steps": {
+          "en": [
+            "Adjust the incline level on the treadmill to your desired intensity.",
+            "Stand on the treadmill with your feet shoulder-width apart.",
+            "Start walking at a comfortable pace, ensuring that you maintain proper form.",
+            "Engage your core muscles and keep your back straight throughout the exercise.",
+            "Continue walking on the incline treadmill for the desired duration of your cardio workout.",
+            "Gradually decrease the incline and speed of the treadmill to cool down before stopping."
+          ],
+          "it": [
+            "Regola il livello di inclinazione del tapis roulant all'intensità desiderata.",
+            "Stare sul tapis roulant con i piedi alla larghezza delle spalle.",
+            "Inizia a camminare a un ritmo confortevole, assicurandoti di mantenere la forma corretta.",
+            "Coinvolgi i muscoli centrali e mantieni la schiena dritta durante l'esercizio.",
+            "Continua a camminare sul tapis roulant inclinato per la durata desiderata del tuo allenamento cardio.",
+            "Diminuire gradualmente l'inclinazione e la velocità del tapis roulant per raffreddarlo prima di fermarsi."
+          ],
+          "tr": [
+            "Koşu bandındaki eğim seviyesini istediğiniz yoğunluğa ayarlayın.",
+            "Ayaklarınız omuz genişliğinde açık olacak şekilde koşu bandının üzerinde durun.",
+            "Uygun formu koruduğunuzdan emin olarak rahat bir tempoda yürümeye başlayın.",
+            "Çekirdek kaslarınızı çalıştırın ve egzersiz boyunca sırtınızı düz tutun.",
+            "Kardiyo egzersizinizin istediğiniz süresi boyunca eğimli koşu bandında yürümeye devam edin.",
+            "Durmadan önce soğuması için koşu bandının eğimini ve hızını kademeli olarak azaltın."
+          ],
+          "es": [
+            "Ajusta el nivel de inclinación de la cinta de correr a la intensidad deseada.",
+            "Ponte de pie sobre la cinta de correr con los pies separados a la altura de los hombros.",
+            "Comienza a caminar a un ritmo cómodo, asegurándote de mantener una forma correcta.",
+            "Activa los músculos del core y mantén la espalda recta durante todo el ejercicio.",
+            "Continúa caminando en la cinta inclinada durante la duración deseada de tu entrenamiento cardiovascular.",
+            "Disminuye gradualmente la inclinación y la velocidad de la cinta para enfriar antes de detenerte."
+          ],
+          "ru": [
+            "Отрегулируйте уровень наклона беговой дорожки до желаемой интенсивности.",
+            "Встаньте на беговую дорожку, поставив ноги на ширине плеч.",
+            "Начните ходить в удобном темпе, следя за тем, чтобы поддерживать правильную форму.",
+            "Задействуйте мышцы корпуса и держите спину прямо на протяжении всего упражнения.",
+            "Продолжайте ходить по наклонной беговой дорожке в течение желаемой продолжительности кардиотренировки.",
+            "Постепенно уменьшайте наклон и скорость беговой дорожки, чтобы она остыла перед остановкой."
+          ],
+          "zh": [
+            "将跑步机的倾斜度调整到您想要的强度。",
+            "站在跑步机上，双脚分开与肩同宽。",
+            "开始以舒适的步伐行走，确保保持正确的姿势。",
+            "在整个练习过程中，调动核心肌肉并保持背部挺直。",
+            "继续在倾斜跑步机上行走，完成有氧运动所需的时间。",
+            "逐渐降低跑步机的坡度和速度，使其冷却后再停止。"
+          ],
+          "hi": [
+            "ट्रेडमिल पर झुकाव स्तर को अपनी वांछित तीव्रता के अनुसार समायोजित करें।",
+            "अपने पैरों को कंधे की चौड़ाई से अलग रखते हुए ट्रेडमिल पर खड़े हो जाएं।",
+            "आरामदायक गति से चलना शुरू करें, यह सुनिश्चित करते हुए कि आप उचित फॉर्म बनाए रखें।",
+            "अपनी मुख्य मांसपेशियों को शामिल करें और पूरे अभ्यास के दौरान अपनी पीठ सीधी रखें।",
+            "अपने कार्डियो वर्कआउट की वांछित अवधि के लिए इनक्लाइन ट्रेडमिल पर चलना जारी रखें।",
+            "रुकने से पहले ठंडा होने के लिए ट्रेडमिल का झुकाव और गति धीरे-धीरे कम करें।"
+          ],
+          "pl": [
+            "Wyreguluj poziom nachylenia bieżni na żądaną intensywność.",
+            "Stań na bieżni ze stopami rozstawionymi na szerokość barków.",
+            "Zacznij iść w komfortowym tempie, dbając o zachowanie prawidłowej techniki.",
+            "Napnij mięśnie brzucha i trzymaj plecy proste przez cały czas trwania ćwiczenia.",
+            "Kontynuuj chodzenie po bieżni z nachyleniem przez żądany czas trwania treningu kardio.",
+            "Stopniowo zmniejszaj nachylenie i prędkość bieżni, aby się schłodzić przed zatrzymaniem."
+          ],
+          "ko": [
+            "트레드밀의 경사도를 원하는 강도로 조정합니다.",
+            "발을 어깨 너비로 벌리고 트레드밀 위에 서십시오.",
+            "편안한 속도로 걷기를 시작하여 올바른 자세를 유지합니다.",
+            "운동 내내 코어 근육에 힘을 주고 등을 곧게 유지합니다.",
+            "원하는 유산소 운동 시간 동안 인클라인 트레드밀 위에서 계속 걷습니다.",
+            "운동을 멈추기 전에 경사도와 속도를 점차 낮추어 정리 운동을 합니다."
+          ],
+          "fr": [
+            "Règle le niveau d'inclinaison du tapis de course selon l'intensité souhaitée.",
+            "Tiens-toi sur le tapis de course, les pieds écartés à la largeur des épaules.",
+            "Commence à marcher à un rythme confortable, en veillant à conserver une bonne posture.",
+            "Gaine tes muscles abdominaux et garde le dos droit tout au long de l'exercice.",
+            "Continue à marcher sur le tapis incliné pendant la durée souhaitée de ton entraînement cardio.",
+            "Diminue progressivement l'inclinaison et la vitesse du tapis de course pour récupérer avant de t'arrêter."
+          ]
+        },
+        "muscle_group": "quadriceps",
+        "secondary_muscles": [
+          "quadriceps",
+          "hamstrings",
+          "calves"
+        ],
+        "target": "cardiovascular system",
+        "image": "images/3666-rjiM4L3.jpg",
+        "gif_url": "videos/3666-rjiM4L3.gif",
+        "media_id": "rjiM4L3",
+        "created_at": "2026-03-18T12:31:32.905681+00:00",
+        "attribution": "© Gym visual — https://gymvisual.com/"
+      },
+      "source_provenance": {
+        "source_name": "exercises-dataset",
+        "source_license": "MIT",
+        "retrieved_at": "2026-08-20T00:00:00+09:00",
+        "raw_status": "DRAFT",
+        "raw_files": [
+          {
+            "path": "exercises.json",
+            "sha256": "656634224b8977b99a6d765470ee123260d4979715eaa4e7c0b7c8bb0d79f93d"
+          },
+          {
+            "path": "exercises.schema.json",
+            "sha256": "33fb14b439c68e12365e14a0759006c40564646ac27084efe1f2e956804b2d49"
+          }
+        ]
+      },
+      "normalized_candidates": {
+        "training_type_code": "CARDIO",
+        "body_focus_code": "LOWER_BODY",
+        "location_codes": [
+          "GYM"
+        ],
+        "impact_level_code": "LOW",
+        "exercise_mode_codes": [
+          "CONTINUOUS",
+          "INTERVAL"
+        ],
+        "equipment_code": null,
+        "equipment_label": "트레드밀(기존 taxonomy 코드 검토 필요)",
+        "equipment_normalization_status": "REVIEW_REQUIRED",
+        "difficulty_code": "BEGINNER",
+        "beginner_suitability_code": "SUITABLE",
+        "space_noise_level_code": "MEDIUM_NOISE",
+        "movement_pattern_code": "GAIT",
+        "intensity_level_code": "REVIEW_REQUIRED",
+        "met": null
+      },
+      "screening": {
+        "decision": "INCLUDE",
+        "reason_code": "GYM_TREADMILL_CONTINUOUS",
+        "reason": "헬스장 저충격 지속형 걷기 대표 후보로 기구·강도 조절 선택지를 제공함. 강도 자체는 별도 검토함."
+      },
+      "visual_evidence": {
+        "image_reference": "images/3666-rjiM4L3.jpg",
+        "gif_reference": "videos/3666-rjiM4L3.gif",
+        "binary_in_raw_snapshot": false,
+        "status": "REFERENCE_ONLY_DEFERRED_TO_FINAL_CATALOG",
+        "attribution": "© Gym visual — https://gymvisual.com/"
+      },
+      "evidence": [
+        {
+          "source": "raw.equipment",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        },
+        {
+          "source": "raw.instruction_steps.en",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        },
+        {
+          "source": "screening.gym_equipment",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        },
+        {
+          "source": "screening.unmapped_equipment",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        }
+      ],
+      "review_required": true,
+      "review_required_codes": [
+        "INTENSITY_AND_MET_NOT_ESTABLISHED",
+        "HUMAN_SELECTION_REVIEW",
+        "FINAL_CATALOG_VISUAL_CHECK_DEFERRED",
+        "CARDIO_EQUIPMENT_TAXONOMY_MAPPING"
+      ],
+      "production_eligible": false
+    },
+    {
+      "candidate_id": "2311",
+      "source_record": {
+        "id": "2311",
+        "name": "walking on stepmill",
+        "category": "cardio",
+        "body_part": "cardio",
+        "equipment": "stepmill machine",
+        "instructions": {
+          "en": "Adjust the stepmill machine to a comfortable level. Step onto the machine and place your hands on the handrails for support. Start walking by placing one foot on a step and then the other, alternating between legs. Maintain an upright posture and engage your core muscles. Continue walking for the desired duration or distance. Gradually increase the intensity or speed as you become more comfortable with the exercise. Remember to cool down and stretch after completing the exercise.",
+          "it": "Regolare la macchina stepmill ad un livello confortevole. Salire sulla macchina e appoggiare le mani sui corrimano per sostenersi. Inizia a camminare posizionando un piede su un gradino e poi l'altro, alternando le gambe. Mantieni una postura eretta e coinvolgi i muscoli centrali. Continua a camminare per la durata o la distanza desiderata. Aumenta gradualmente l'intensità o la velocità man mano che ti senti più a tuo agio con l'esercizio. Ricordarsi di rinfrescarsi e fare stretching dopo aver completato l'esercizio.",
+          "tr": "Stepmill makinesini rahat bir seviyeye ayarlayın. Makinenin üzerine çıkın ve destek için ellerinizi korkulukların üzerine koyun. Bir ayağınızı bir basamağa, sonra diğer ayağınızı koyarak, bacaklar arasında geçiş yaparak yürümeye başlayın. Dik bir duruş sergileyin ve çekirdek kaslarınızı çalıştırın. İstediğiniz süre veya mesafe boyunca yürümeye devam edin. Egzersizde daha rahat hale geldikçe yoğunluğu veya hızı yavaş yavaş artırın. Egzersizi tamamladıktan sonra soğumayı ve esnemeyi unutmayın.",
+          "es": "Ajusta la máquina de escalones a un nivel cómodo. Sube a la máquina y coloca las manos sobre los pasamanos para apoyarte. Comienza a caminar colocando un pie en un escalón y luego el otro, alternando entre las piernas. Mantén una postura erguida y activa los músculos del core. Continúa caminando durante la duración o distancia deseada. Aumenta gradualmente la intensidad o la velocidad a medida que te sientas más cómodo con el ejercicio. Recuerda enfriar y estirar después de completar el ejercicio.",
+          "ru": "Отрегулируйте шаговую дорожку до комфортного уровня. Встаньте на тренажер и положите руки на поручни для поддержки. Начните ходьбу, поставив одну ногу на ступеньку, а затем другую, чередуя ноги. Сохраняйте вертикальное положение и задействуйте мышцы корпуса. Продолжайте идти желаемое время или расстояние. Постепенно увеличивайте интенсивность или скорость по мере того, как вы будете чувствовать себя более комфортно в выполнении упражнения. Не забудьте остыть и растянуться после завершения упражнения.",
+          "zh": "将步进机调整到舒适的水平。 走上机器，将双手放在扶手上以获得支撑。 开始行走时，将一只脚放在台阶上，然后将另一只脚放在台阶上，双腿交替。 保持直立姿势并锻炼核心肌肉。 继续步行所需的时间或距离。 当您对锻炼感到更加舒适时，逐渐增加强度或速度。 完成练习后记得冷静下来并伸展身体。",
+          "hi": "स्टेपमिल मशीन को आरामदायक स्तर पर समायोजित करें। मशीन पर कदम रखें और सहारे के लिए अपने हाथों को रेलिंग पर रखें। एक पैर को एक सीढ़ी पर और फिर दूसरे को, पैरों के बीच बारी-बारी से रखकर चलना शुरू करें। सीधी मुद्रा बनाए रखें और अपनी मुख्य मांसपेशियों को शामिल करें। वांछित अवधि या दूरी तक चलते रहें। जैसे-जैसे आप व्यायाम के साथ अधिक सहज होते जाएं, धीरे-धीरे तीव्रता या गति बढ़ाएं। व्यायाम पूरा करने के बाद ठंडा होना और स्ट्रेच करना याद रखें।",
+          "pl": "Wyreguluj maszynę stepmill na komfortowy poziom. Wejdź na maszynę i oprzyj dłonie na poręczach dla wsparcia. Zacznij chodzić, stawiając jedną stopę na stopniu, a następnie drugą, naprzemiennie zmieniając nogi. Utrzymuj wyprostowaną postawę i napinaj mięśnie brzucha. Kontynuuj chodzenie przez żądany czas lub dystans. Stopniowo zwiększaj intensywność lub prędkość, gdy poczujesz się bardziej komfortowo z ćwiczeniem. Pamiętaj o schłodzeniu i rozciągnięciu po zakończeniu ćwiczenia.",
+          "ko": "스텝밀 머신을 편안한 수준으로 조정합니다. 머신 위에 올라가 손잡이를 잡아 몸을 지지합니다. 한 발을 계단에 올려놓고 다른 발을 번갈아 올려놓아 걷기를 시작합니다. 곧은 자세를 유지하고 코어 근육에 힘을 주어 안정성을 확보합니다. 원하는 시간이나 거리 동안 계속 걷습니다. 운동이 편해지면 강도나 속도를 점차 높입니다. 운동을 마친 후 정리 운동과 스트레칭을 잊지 않습니다.",
+          "fr": "Règle le stepmill à un niveau confortable. Monte sur la machine et pose les mains sur les rampes pour te soutenir. Commence à marcher en posant un pied sur une marche puis l'autre, en alternant les jambes. Maintiens une posture bien droite et gaine tes muscles abdominaux. Continue à marcher pendant la durée ou la distance souhaitée. Augmente progressivement l'intensité ou la vitesse à mesure que tu te sens plus à l'aise avec l'exercice. Pense à récupérer et à t'étirer après avoir terminé l'exercice."
+        },
+        "instruction_steps": {
+          "en": [
+            "Adjust the stepmill machine to a comfortable level.",
+            "Step onto the machine and place your hands on the handrails for support.",
+            "Start walking by placing one foot on a step and then the other, alternating between legs.",
+            "Maintain an upright posture and engage your core muscles.",
+            "Continue walking for the desired duration or distance.",
+            "Gradually increase the intensity or speed as you become more comfortable with the exercise.",
+            "Remember to cool down and stretch after completing the exercise."
+          ],
+          "it": [
+            "Regolare la macchina stepmill ad un livello confortevole.",
+            "Salire sulla macchina e appoggiare le mani sui corrimano per sostenersi.",
+            "Inizia a camminare posizionando un piede su un gradino e poi l'altro, alternando le gambe.",
+            "Mantieni una postura eretta e coinvolgi i muscoli centrali.",
+            "Continua a camminare per la durata o la distanza desiderata.",
+            "Aumenta gradualmente l'intensità o la velocità man mano che ti senti più a tuo agio con l'esercizio.",
+            "Ricordarsi di rinfrescarsi e fare stretching dopo aver completato l'esercizio."
+          ],
+          "tr": [
+            "Stepmill makinesini rahat bir seviyeye ayarlayın.",
+            "Makinenin üzerine çıkın ve destek için ellerinizi korkulukların üzerine koyun.",
+            "Bir ayağınızı bir basamağa, sonra diğer ayağınızı koyarak, bacaklar arasında geçiş yaparak yürümeye başlayın.",
+            "Dik bir duruş sergileyin ve çekirdek kaslarınızı çalıştırın.",
+            "İstediğiniz süre veya mesafe boyunca yürümeye devam edin.",
+            "Egzersizde daha rahat hale geldikçe yoğunluğu veya hızı yavaş yavaş artırın.",
+            "Egzersizi tamamladıktan sonra soğumayı ve esnemeyi unutmayın."
+          ],
+          "es": [
+            "Ajusta la máquina de escalones a un nivel cómodo.",
+            "Sube a la máquina y coloca las manos sobre los pasamanos para apoyarte.",
+            "Comienza a caminar colocando un pie en un escalón y luego el otro, alternando entre las piernas.",
+            "Mantén una postura erguida y activa los músculos del core.",
+            "Continúa caminando durante la duración o distancia deseada.",
+            "Aumenta gradualmente la intensidad o la velocidad a medida que te sientas más cómodo con el ejercicio.",
+            "Recuerda enfriar y estirar después de completar el ejercicio."
+          ],
+          "ru": [
+            "Отрегулируйте шаговую дорожку до комфортного уровня.",
+            "Встаньте на тренажер и положите руки на поручни для поддержки.",
+            "Начните ходьбу, поставив одну ногу на ступеньку, а затем другую, чередуя ноги.",
+            "Сохраняйте вертикальное положение и задействуйте мышцы корпуса.",
+            "Продолжайте идти желаемое время или расстояние.",
+            "Постепенно увеличивайте интенсивность или скорость по мере того, как вы будете чувствовать себя более комфортно в выполнении упражнения.",
+            "Не забудьте остыть и растянуться после завершения упражнения."
+          ],
+          "zh": [
+            "将步进机调整到舒适的水平。",
+            "走上机器，将双手放在扶手上以获得支撑。",
+            "开始行走时，将一只脚放在台阶上，然后将另一只脚放在台阶上，双腿交替。",
+            "保持直立姿势并锻炼核心肌肉。",
+            "继续步行所需的时间或距离。",
+            "当您对锻炼感到更加舒适时，逐渐增加强度或速度。",
+            "完成练习后记得冷静下来并伸展身体。"
+          ],
+          "hi": [
+            "स्टेपमिल मशीन को आरामदायक स्तर पर समायोजित करें।",
+            "मशीन पर कदम रखें और सहारे के लिए अपने हाथों को रेलिंग पर रखें।",
+            "एक पैर को एक सीढ़ी पर और फिर दूसरे को, पैरों के बीच बारी-बारी से रखकर चलना शुरू करें।",
+            "सीधी मुद्रा बनाए रखें और अपनी मुख्य मांसपेशियों को शामिल करें।",
+            "वांछित अवधि या दूरी तक चलते रहें।",
+            "जैसे-जैसे आप व्यायाम के साथ अधिक सहज होते जाएं, धीरे-धीरे तीव्रता या गति बढ़ाएं।",
+            "व्यायाम पूरा करने के बाद ठंडा होना और स्ट्रेच करना याद रखें।"
+          ],
+          "pl": [
+            "Wyreguluj maszynę stepmill na komfortowy poziom.",
+            "Wejdź na maszynę i oprzyj dłonie na poręczach dla wsparcia.",
+            "Zacznij chodzić, stawiając jedną stopę na stopniu, a następnie drugą, naprzemiennie zmieniając nogi.",
+            "Utrzymuj wyprostowaną postawę i napinaj mięśnie brzucha.",
+            "Kontynuuj chodzenie przez żądany czas lub dystans.",
+            "Stopniowo zwiększaj intensywność lub prędkość, gdy poczujesz się bardziej komfortowo z ćwiczeniem.",
+            "Pamiętaj o schłodzeniu i rozciągnięciu po zakończeniu ćwiczenia."
+          ],
+          "ko": [
+            "스텝밀 머신을 편안한 수준으로 조정합니다.",
+            "머신 위에 올라가 손잡이를 잡아 몸을 지지합니다.",
+            "한 발을 계단에 올려놓고 다른 발을 번갈아 올려놓아 걷기를 시작합니다.",
+            "곧은 자세를 유지하고 코어 근육에 힘을 주어 안정성을 확보합니다.",
+            "원하는 시간이나 거리 동안 계속 걷습니다.",
+            "운동이 편해지면 강도나 속도를 점차 높입니다.",
+            "운동을 마친 후 정리 운동과 스트레칭을 잊지 않습니다."
+          ],
+          "fr": [
+            "Règle le stepmill à un niveau confortable.",
+            "Monte sur la machine et pose les mains sur les rampes pour te soutenir.",
+            "Commence à marcher en posant un pied sur une marche puis l'autre, en alternant les jambes.",
+            "Maintiens une posture bien droite et gaine tes muscles abdominaux.",
+            "Continue à marcher pendant la durée ou la distance souhaitée.",
+            "Augmente progressivement l'intensité ou la vitesse à mesure que tu te sens plus à l'aise avec l'exercice.",
+            "Pense à récupérer et à t'étirer après avoir terminé l'exercice."
+          ]
+        },
+        "muscle_group": "quadriceps",
+        "secondary_muscles": [
+          "quadriceps",
+          "hamstrings",
+          "glutes",
+          "calves"
+        ],
+        "target": "cardiovascular system",
+        "image": "images/2311-j9Q5crt.jpg",
+        "gif_url": "videos/2311-j9Q5crt.gif",
+        "media_id": "j9Q5crt",
+        "created_at": "2026-03-18T12:31:32.905703+00:00",
+        "attribution": "© Gym visual — https://gymvisual.com/"
+      },
+      "source_provenance": {
+        "source_name": "exercises-dataset",
+        "source_license": "MIT",
+        "retrieved_at": "2026-08-20T00:00:00+09:00",
+        "raw_status": "DRAFT",
+        "raw_files": [
+          {
+            "path": "exercises.json",
+            "sha256": "656634224b8977b99a6d765470ee123260d4979715eaa4e7c0b7c8bb0d79f93d"
+          },
+          {
+            "path": "exercises.schema.json",
+            "sha256": "33fb14b439c68e12365e14a0759006c40564646ac27084efe1f2e956804b2d49"
+          }
+        ]
+      },
+      "normalized_candidates": {
+        "training_type_code": "CARDIO",
+        "body_focus_code": "LOWER_BODY",
+        "location_codes": [
+          "GYM"
+        ],
+        "impact_level_code": "LOW",
+        "exercise_mode_codes": [
+          "CONTINUOUS",
+          "INTERVAL"
+        ],
+        "equipment_code": null,
+        "equipment_label": "스텝밀(기존 taxonomy 코드 검토 필요)",
+        "equipment_normalization_status": "REVIEW_REQUIRED",
+        "difficulty_code": "INTERMEDIATE",
+        "beginner_suitability_code": "CONDITIONAL",
+        "space_noise_level_code": "MEDIUM_NOISE",
+        "movement_pattern_code": "GAIT",
+        "intensity_level_code": "REVIEW_REQUIRED",
+        "met": null
+      },
+      "screening": {
+        "decision": "INCLUDE",
+        "reason_code": "GYM_STEPMILL_INTENSITY_VARIETY",
+        "reason": "헬스장 계단형 기구로 3종의 저충격 기구와 다른 중·고강도 지속형 선택지를 보완함."
+      },
+      "visual_evidence": {
+        "image_reference": "images/2311-j9Q5crt.jpg",
+        "gif_reference": "videos/2311-j9Q5crt.gif",
+        "binary_in_raw_snapshot": false,
+        "status": "REFERENCE_ONLY_DEFERRED_TO_FINAL_CATALOG",
+        "attribution": "© Gym visual — https://gymvisual.com/"
+      },
+      "evidence": [
+        {
+          "source": "raw.equipment",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        },
+        {
+          "source": "raw.instruction_steps.en",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        },
+        {
+          "source": "screening.gym_equipment",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        },
+        {
+          "source": "screening.unmapped_equipment",
+          "type": "RAW_FIELD_OR_PIPELINE_RULE"
+        }
+      ],
+      "review_required": true,
+      "review_required_codes": [
+        "INTENSITY_AND_MET_NOT_ESTABLISHED",
+        "HUMAN_SELECTION_REVIEW",
+        "FINAL_CATALOG_VISUAL_CHECK_DEFERRED",
+        "CARDIO_EQUIPMENT_TAXONOMY_MAPPING"
+      ],
+      "production_eligible": false
+    }
+  ],
+  "excluded_outputs": [
+    "integrated_catalog",
+    "exercise_groups",
+    "exercise_alternatives",
+    "safety_rules"
+  ]
+}

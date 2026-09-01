@@ -1,0 +1,26 @@
+[
+  {
+    "candidate_relation_id": "NECK-SUPPLEMENT-0001",
+    "source_exercise_stable_code": "neck_lateral_stretch_mobility_stretch_bodyweight",
+    "target_exercise_stable_code": "bodyweight_standing_calf_raise_isolation_bodyweight",
+    "pain_discomfort_area_code": "NECK",
+    "condition_code": "NRS_4_6",
+    "goal_preservation_code": "ACTIVE_RECOVERY",
+    "selection_basis_code": "DISTAL_LOW_LOAD_ISOLATION_WITHOUT_NECK_OR_SHOULDER_OVERLAP",
+    "evidence_source": "exercise-catalog-v2.0.2-final/catalog/exercises.jsonl; neck area safety policy v2.0.2",
+    "reviewer": "DATA_REVIEW_PIPELINE",
+    "reviewed_at": "2026-08-28T00:00:00+09:00"
+  },
+  {
+    "candidate_relation_id": "NECK-SUPPLEMENT-0002",
+    "source_exercise_stable_code": "neck_lateral_stretch_mobility_stretch_bodyweight",
+    "target_exercise_stable_code": "butterfly_adductor_stretch_mobility_stretch_bodyweight",
+    "pain_discomfort_area_code": "NECK",
+    "condition_code": "NRS_4_6",
+    "goal_preservation_code": "ACTIVE_RECOVERY",
+    "selection_basis_code": "LOWER_BODY_MOBILITY_WITHOUT_NECK_OR_SHOULDER_OVERLAP",
+    "evidence_source": "exercise-catalog-v2.0.2-final/catalog/exercises.jsonl; neck area safety policy v2.0.2",
+    "reviewer": "DATA_REVIEW_PIPELINE",
+    "reviewed_at": "2026-08-28T00:00:00+09:00"
+  }
+]

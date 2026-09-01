@@ -1,5 +1,59 @@
 # Data scripts
 
+## 통합 운동 카탈로그 v1 (단일 작업표)
+
+`data/normalized/catalog_enrichment_v2.csv`는 원천 메타데이터 작업표이고,
+`data/normalized/catalog_enrichment_v3_fitt.csv`는 FITT·영문명까지 반영한 최신 정규화본이다.
+최종 생성기는 v3만 읽고, 생성 CSV는 직접 수정하지 않는다.
+
+최초 작업표만 보존 원천과 기존 body-focus 매핑에서 초기화한다. 이미 검토 중인 작업표를 덮어쓸
+때는 명시적으로 `--force`를 사용한다.
+
+```bash
+python3 data/scripts/bootstrap_catalog_enrichment_v2.py
+python3 data/scripts/build_catalog_enrichment_v3_fitt.py
+python3 data/scripts/build_fitt_review_log.py
+python3 data/scripts/build_exercise_catalog_v1.py
+```
+
+생성 결과는 `data/generated/exercise-catalog-v1.0.0/exercise_catalog_v1.csv`다. 모든 필수 상태가
+`APPROVED`가 아니면 생성 상태는 `REVIEW_REQUIRED`이며 `READY_FOR_MEDIA` 또는
+`DOMAIN_APPROVED`로 승격되지 않는다.
+
+`build_catalog_enrichment_v3_fitt.py`는 패턴별 FITT 템플릿·타이밍·강도를 적용하고, 통합 원천의
+`name_en`(없으면 `source_name`)을 v3와 최종 카탈로그까지 보존한다. 검토 로그는 v3의 템플릿과
+기본값을 검증한다. FITT 검토 완료본은 v3에서만 `APPROVED`로 반영하며, 다른 미승인 검토 상태는
+승격하지 않는다.
+
+버전 표기 원천의 중복 노출 결정도 같은 작업표에서 관리한다. `PRIMARY`는 사용자 노출 기본
+운동, `MEDIA_VARIANT`는 동일 동작의 원천 미디어 보존 행, `DISTINCT_VARIANT`는 별도 노출하는
+가동범위 변형이다. `canonical_exercise_id`, `variant_relation_code`, `variant_basis`를 함께
+기록하며 원천 ID는 삭제하지 않는다.
+
+## 통합 운동 카탈로그 v0.5
+
+Gymvisual·Wger·KSPO 원천을 하나의 영구 ID와 검증 가능한 review catalog로 재생성합니다.
+원천 파일은 수정하지 않으며, registry에 없는 source key는 fail-closed로 중단합니다.
+
+```bash
+python3 data/scripts/build_integrated_exercise_review.py
+python3 data/scripts/validate_integrated_exercise_review.py
+python3 data/scripts/build_integrated_catalog_data_dictionary.py
+```
+
+최초 registry를 만들거나 새로운 source key를 명시적으로 추가할 때만 bootstrap 명령을
+사용합니다. 기존 registry의 ID는 보존됩니다.
+
+```bash
+python3 data/scripts/bootstrap_integrated_catalog_registry.py \
+  data/validation/review_batches/gymvisual-integrated-review-v0.1.0/integrated_exercise_review.csv
+```
+
+생성 결과는 `data/validation/review_batches/gymvisual-integrated-review-v0.1.0/`의 CSV·alias·manifest,
+`data/normalized/`의 schema·registry·data dictionary, `data/reports/`의 검증 결과와 사람 검토
+목록이다. 검증 결과가 `PASS_WITH_PRODUCTION_BLOCKERS`여도 운영 적격을 뜻하지 않으며,
+`production_eligible`은 모든 게이트를 통과하기 전까지 `false`다.
+
 ## KSPO Fitness100 1차 검토 배치
 
 검증된 profile의 `MVP_SCOPE_REVIEW` 후보에서 수동 검토 순서 50개를 생성합니다.
@@ -92,6 +146,24 @@ mypy
 
 이 스크립트는 Python 표준 라이브러리만 사용합니다. ruff와 mypy는 개발 도구이며 실행
 의존성이 아닙니다. 수집 결과는 `DRAFT`이며 정규화 또는 프로덕션 seed가 아닙니다.
+
+## 스트레칭·가동성 후보 선정
+
+Gym Visual 원천은 수정하지 않고 선언형 정책을 적용해 mobility 후보 프로파일과 사람 검토
+배치를 생성합니다. 이 단계에서는 family/variant 후보만 기록하며 대체 관계나 generated
+seed를 만들지 않습니다.
+
+```bash
+python3 data/scripts/profile_gymvisual_mobility.py profile
+python3 data/scripts/profile_gymvisual_mobility.py verify \
+  data/validation/profiles/gymvisual_mobility_profile.json
+python3 data/scripts/build_gymvisual_mobility_review.py
+```
+
+정책 파일은 `data/normalized/mobility_selection_policy.json`, 프로파일은
+`data/validation/profiles/gymvisual_mobility_profile.json`, 검토 배치는
+`data/validation/review_batches/gymvisual_mobility_review.csv`에 둡니다. 검토 전 산출물은
+모두 `DRAFT_REVIEW_QUEUE` 또는 `PENDING`이며 `production_eligible=false`입니다.
 
 ## 원천 profiling과 검토 인벤토리
 
@@ -278,6 +350,98 @@ macOS에서 입력한 NFD 한글은 NFC로 정규화해 비교한다.
 
 상세 근거는 [REVIEW_RESULTS_GATE.md](../validation/REVIEW_RESULTS_GATE.md)를 따른다.
 
+## 최종 대표운동 카탈로그 v2
+
+`build_final_exercise_catalog_v2.py`는 기존 검수 원본을 변경하지 않고 최종본임을
+명시한 별도 산출물을 생성한다. 2026-08-21 전문가 taxonomy 승인 이력은
+`REVIEW_REQUIRED_*` family 값을 final family 코드로 실제 치환한 뒤 reviewer·시각과
+함께 기록한다. 상태만 변경하는 승격은 허용하지 않는다. `target_muscle`,
+주동·보조 부위, 난이도와 FITT는 최신 정규화본인
+`catalog_enrichment_v3_fitt.csv`의 선정 NEX 행에서 가져오며, taxonomy의 이전
+자유 텍스트 target을 다시 복사하지 않는다.
+
+```bash
+python3 data/scripts/build_final_exercise_catalog_v2.py
+```
+
+출력 디렉터리는 `data/generated/exercise-catalog-v2.0.0-final/`이며 핵심 파일은 다음과 같다.
+
+- `representative_exercises_v2_final.csv`: 102 REX, 한·영명, 영문 body-focus,
+  `primary_body_area_codes`·`secondary_body_area_codes`, 난이도, FITT/MET와 NEX 연결
+- `stable_code_registry_v2.json`: REX와 불변 `stable_code`의 생성 결과. family·movement pattern·장비
+  구분자를 사용하며, 명시적 대표운동 결정은 `data/normalized/v2_representative_decisions.json`에서 읽는다.
+- `exercise_alternatives_v2_final.csv`: 대표운동 기준의 방향성 대체 관계
+- `safety_rules_v2_final.jsonl`과 `representative_exercise_safety_mapping_v2_final.csv`: 정책과 REX↔rule bridge의 분리
+- `finalization_validation_report.json`: 항목별 승인/검수 대기 수와 산출물 SHA-256
+
+검수되지 않은 필수값이 남아 있으면 `finalization_validation_report.json`의
+`runtime_json_eligible`가 `false`가 된다. 이 경우 runtime JSONL을 생성하거나 운영 승인 상태로
+승격하지 않고, 입력 원본·결정 파일·생성기를 수정한 뒤 전체 산출물을 재생성한다.
+
+도메인 검수 완료 후 JSONL을 실제로 구조화하고 Pydantic·manifest를 검증하려면 다음 materializer를
+실행한다. 이 단계의 `DOMAIN_APPROVED`는 도메인 검수 완료 증적이며, 권리·운영 승격 조건 전에는
+manifest의 `production_eligible=false`를 유지한다.
+
+```bash
+python3 data/scripts/build_v2_runtime_artifacts.py
+```
+
+출력은 `data/generated/exercise-catalog-v2.0.0-final/runtime/` 아래의 대표운동·대체운동·안전규칙
+JSONL과 각 manifest다. 생성기 입력이 누락되거나 Pydantic, 해시, 건수, 버전 검증이 실패하면
+fail-closed로 종료한다.
+
+V2 최종 파일의 서비스 스키마 컬럼명 정렬 결과와 데이터 담당자 보완 요청은
+[`data/reports/V2_SCHEMA_ALIGNMENT_REVIEW.md`](../reports/V2_SCHEMA_ALIGNMENT_REVIEW.md)에 기록한다.
+최종 파일은 서비스 스키마와 의미가 같은 중복 컬럼을 스키마 이름으로 통일하며, 원천·검토용 컬럼은 유지한다.
+
+대표운동 콘텐츠와 안전 문구는 최종 taxonomy를 입력으로 다시 생성한다.
+생성된 콘텐츠는 자동 승인하지 않는다.
+
+```bash
+python3 data/scripts/generate_representative_content_safety.py \
+  --input data/generated/exercise-catalog-v2.0.0-final/representative_exercise_taxonomy_v2_final.csv \
+  --output-dir data/generated/representative-exercise-content-safety-v0.1.0
+```
+
+새 pattern bridge rule은 `INACTIVE_PENDING_DOMAIN_APPROVAL`로만 내보내며, 생성기가
+운영 활성화하지 않는다. 원본 미디어는 기본 생성기에서 처리하지 않는다. Gymvisual 미디어를
+연결할 때는 `data/scripts/sync_gymvisual_media.py --mapping-only`로
+`gymvisual_media_mapping_manifest.csv`를 생성하고, 필요 시 같은 스크립트의 S3 모드로 기존
+`images/`·`videos/` 객체를 보존한 채 `catalog-media/gymvisual/<stable_code>/` canonical alias만
+추가한다. 원본 S3 key는 매핑 manifest에만 남기며 `media_assets_v2_final.csv`의 `s3_key`에는
+canonical GIF key만 기록한다. 권리 승인이 없으면 최종 산출물의 `rights_review_status`는
+`PENDING`이고 `production_eligible=false`다.
+
+v2.0.2 통합 미디어 매핑은 `media_assets_v2_0_2.csv`의
+`source_origin_code`(KSPO/WGER/GYMVISUAL 등), 원천 추적용 `source_track`,
+원천 식별자 `source_identity`, 검증 결과 `source_identity_validation`을 사용한다.
+통증 Alternative record는 `source_origin_code=PAIN_ALTERNATIVE_POLICY`를 보존하되,
+`source_identity`는 이름 일치 또는 `alternative_source_base_exercise_id`로 확인한
+실제 미디어 원천 운동의 ID를 사용한다. 원래 정책 record ID는
+`record_source_identity`에 남기고, 미디어 원천은 `media_source_origin_code`와
+`media_source_match_method`로 구분한다. Gymvisual의 `source_identity`는 앞자리 0을
+보존한 숫자 문자열이어야 한다.
+
+각 안전 규칙의 `pain_score_decisions`는 `pain-intensity-map-v1`에 따라 1–3점에서 규칙별
+부하 조절 또는 안전 대체를 요구하고, 4–6점에서 검수된 안전 대체나 저강도 회복 콘텐츠만
+허용한다. 저강도 회복에는 해당 부위에 대해 별도 승인된 스트레칭만 포함할 수 있다. 7–10점은
+운동 선택보다 먼저 적용되는 세션 `REST`이며, 어떤 구간이든 안전한 계획이 없으면 `REST`한다.
+
+v2.0.2 통증 Alternative는 다음 순서로 생성한다. `NRS_1_3`·`NRS_4_6`만 관계로 만들고,
+`NRS_7_10`은 Alternative map에 넣지 않는다. 난이도 정책 변경으로 추가된 29건은 별도
+재검수 batch에 남기며 승인 집합에서 제외한다.
+
+```bash
+python3 data/scripts/build_v2_0_2_discomfort_alternative_map.py
+python3 data/scripts/review_v2_0_2_discomfort_alternative_map.py
+python3 data/scripts/resolve_v2_0_2_discomfort_alternative_concerns.py \
+  --difficulty-review data/generated/exercise-catalog-v2.0.2-final/integrity/alternative_difficulty_policy_review_batch_v2_0_2.jsonl
+```
+
+현재 resolver 결과는 승인 대상 관계 1,104건, 제거 384건, 난이도 재검수 pending 29건이다.
+`resolved_discomfort_alternative_map_v2_0_2.jsonl`만 importer 변환 대상이며, pending map과
+`REVIEW_REQUIRED` safe variant는 적재·런타임 사용 대상에서 제외한다.
+
 ## 공식 신체활동 근거와 참조 데이터
 
 공식 URL의 응답 해시와 최소 원천 사실을 수집한다. 원문 HTML·PDF는 저장소에 보존하지
@@ -299,3 +463,121 @@ python data/scripts/build_physical_activity_reference.py verify
 
 결과는 `DRAFT`, `AGENT_ONLY`, `production_eligible=false`다. MET 값은 변경하지 않고,
 운동 카탈로그와 자동 연결하지 않으며, 개인 처방이나 안전 veto 대체에 사용할 수 없다.
+
+최종 MET 매핑은 데이터 소유자가 명시적으로 검수한 경우에만 별도 승인 manifest를 적용한다.
+`met_final_approval.csv`는 직접 대응하지 않는 한발 균형운동의 02150 Hatha yoga 프록시를
+기록하고, `met_domain_approval_manifest.csv`는 전체 208개 NEX 매핑에 대한 소유자 승인 범위를
+기록한다. 다음 명령은 승인 증적과 공식 Compendium URL을 검증한 뒤에만 `DOMAIN_APPROVED`와
+`production_eligible=true`를 적용한다.
+
+```bash
+python3 data/scripts/apply_final_met_approval.py \
+  --mapping data/generated/exercise-met-mapping-v0.1.0/exercise_met_mapping_reviewed.csv \
+  --approvals data/validation/review_results/met_final_approval.csv \
+  --output-mapping /tmp/met_approved.csv \
+  --output-change-log data/generated/exercise-met-mapping-v0.1.0/met_final_approval_change_log.csv
+python3 data/scripts/promote_all_met_approvals.py \
+  --mapping /tmp/met_approved.csv \
+  --manifest data/validation/review_results/met_domain_approval_manifest.csv \
+  --output-mapping data/generated/exercise-met-mapping-v0.1.0/exercise_met_mapping_reviewed.csv \
+  --output-change-log data/generated/exercise-met-mapping-v0.1.0/met_domain_approval_change_log.csv
+```
+
+이 승격은 MET 필드에만 적용되며, 대표운동 target muscle·콘텐츠·안전규칙·대체관계·미디어
+권리 검수 상태를 자동 승인하지 않는다. 최종 대표 카탈로그는 해당 독립 게이트가 남아 있으면
+`FINAL_CATALOG_PENDING_TARGET_MUSCLE_REVIEW_AND_MEDIA_RIGHTS`로 유지된다.
+
+## Gym Visual 공통 정렬과 공백 검토
+
+`align_source_candidates.py`는 KSPO 391건·wger 400건 전체 profile 인벤토리를 Gym Visual과
+같은 후보 컬럼·값 코드로 정렬하고, 기존 검토 결과는 overlay한다. 원천 값이 없거나 서로
+다른 해석이 필요한 경우 `REVIEW_REQUIRED`로 남기며 자동으로 채우지 않는다. 산출물은
+`validation/review_batches/`와 `validation/profiles/`에만 기록한다.
+
+`build_source_gap_review.py`는 Gym Visual strength/cardio/mobility 선정 결과의 커버리지를
+먼저 계산하고, `normalized/source_gap_policy.json`에 선언된 실제 공백만 KSPO·wger 전체
+후보에서 검토 큐로 보낸다. 현재 KSPO MVP 범위에서 3건이 `HOME_LOW_IMPACT_CARDIO` 검토 후보로
+추출되며, family/variant는 대체 관계가 아니다. 이 단계에서는 catalog·safety rule·
+alternative generated 데이터를 만들지 않는다.
+
+## V2 처방·goal tag와 backend bundle
+
+### v2.0.2 독립 Variant/별도운동 바인딩
+
+Alternative target 운동의 카탈로그 편입 정책은 Alternative 관계와 운동 풀을 분리한다.
+현재 통증 비부하 변형은 `alternative_only=true`를 보존해 Alternative provenance를 남기지만
+`general_pool_included=true`로 일반 운동 풀에도 포함한다. v2.0.1 Alternative target 목록 중
+v2.0.2에서 누락된 대표운동은 아래 두 원천 파일의 stable code를 대조해 canonical 원천에서
+`REPRESENTATIVE`로 복원한다. 복원 대상은 운동 레코드뿐이며, 이전에 탈락한 Alternative 관계를
+자동 복구하지 않는다.
+
+- 대상 목록: `generated/exercise-catalog-v2.0.1-final/exercise_alternatives_v2_final.csv`
+- 대표운동 원천: `generated/exercise-catalog-v2.0.1-final/representative_exercises_v2_final.csv`
+- 복원 canonical 원천: `generated/exercise-catalog-v2.0.2-final/canonical_exercises_v2_final.jsonl`
+- 반영 생성기: `scripts/prune_v2_0_2_user_catalog.py`
+
+Variant와 통증 Alternative 전용 `SEPARATE_EXERCISE`는 대표운동 값을 상속하지 않고,
+최신 원천 파일(`normalized/catalog_enrichment_v3_fitt.csv`,
+`exercise_safety_mapping_v2.csv`, draft `goal_tag_links.jsonl`)의 운동명·NEX 매핑으로
+독립 FITT·Safety·Goal 행을 생성한다. 생성 후에는 반드시 통합 검증과 DB 적재 준비 검사를
+순서대로 실행한다.
+
+```bash
+python3 data/scripts/materialize_v2_0_2_independent_bindings.py
+python3 data/scripts/validate_v2_0_2_integrated_catalog.py
+python3 data/scripts/verify_v2_0_2_db_load_readiness.py
+```
+
+결과는 `variant_safety_fitt_mapping_v2_0_2.jsonl`,
+`prescriptions/prescription_profiles.jsonl`, `runtime/safety_rules.jsonl`,
+`prescriptions/goal_tag_links.jsonl` 및 `integrity/independent_bindings_materialization_report_v2_0_2.json`에
+기록된다. 소스 템플릿 ID가 최신 템플릿 레지스트리에 없는 경우에는 운동군 템플릿 fallback과
+그 사유를 행의 `template_resolution_code`에 남긴다.
+
+생성 단계는 계속 `production_eligible=false`를 유지한다. 최종 검수가 일괄 완료된 경우에는
+행별 사유를 반복 기록하지 않고 final `manifest.json`의 `batch_approval`에 승인 참조·시각·범위와
+승인 근거를 기록한 뒤, 통합 validator와 DB-load readiness를 다시 실행한다. validator는 해당
+일괄 승인 범위가 final 170건, Variant 15건, 난이도 변경 29건, Alternative 1,104건,
+Media/Rights 102건과 일치할 때만 승인 상태를 유지한다.
+
+V2 102개 대표운동은 legacy 처방 결과와 분리된 review input을 사용한다.
+
+```bash
+python3 data/scripts/build_v2_prescription_review_input.py --force
+python3 data/scripts/validate_v2_prescription_review_input.py \
+  data/generated/exercise-catalog-v2.0.0-final/representative_exercises_v2_final.csv \
+  data/validation/review_results/v2_prescription_review_input.csv \
+  --policy data/normalized/v2_prescription_review_policy.json
+python3 data/scripts/build_v2_prescriptions.py --force
+```
+
+입력은 102개 goal tag와 137개 phase profile을 만든다. JSONL은 직접 수정하지 않고
+generator를 다시 실행한다. review policy, review input, prescription manifest는 모두
+DRAFT/`production_eligible=false`이며 backend 기록으로 자동 승인되지 않는다.
+
+runtime을 backend importer 형식으로 패키징한다.
+
+```bash
+python3 data/scripts/build_v2_backend_bundle.py --force
+V2_UV_CACHE=/private/tmp/skn30-uv-cache UV_CACHE_DIR=$V2_UV_CACHE \
+  uv run python data/scripts/validate_v2_backend_bundle.py
+V2_UV_CACHE=/private/tmp/skn30-uv-cache UV_CACHE_DIR=$V2_UV_CACHE \
+  uv run python data/scripts/build_v2_approval_registry_candidate.py
+```
+
+bundle은 `catalog/seed_manifest.json`, `safety/rules_manifest.json`,
+`alternatives/alternatives_manifest.json`, `prescriptions/prescription_manifest.json`을
+제공한다. `bundle_manifest.json`은 내부 input과 산출물의 path/hash/byte/count를 관리한다.
+v2.0.2 final 적재에서는 별도 bundle glob을 사용하지 않고 final `manifest.json`의
+`import_contract.canonical_payloads`에 지정된 6개 payload만 읽는다. 그 밖의 생성·검수
+산출물은 `generated/exercise-catalog-v2.0.2-final/audit/` 아래에 보관한다.
+backend V2 code set은 `v2_backend_code_projection.json`으로 직접 전달하며 runtime 원본을
+변환하지 않는다. 기존 v2.0.1 bundle의 alternatives 키는
+`(source, alternative, reason, goal, rule_version)`이며, v2.0.2 통증 관계를 적재할 때는
+여기에 `(pain_discomfort_area_code, condition_code)`를 보존하고
+`service_action_code`, `target_strategy_code`도 함께 전달해야 한다. 이 필드들은 DB
+마이그레이션 `0028_discomfort_alt_conditions`의 nullable 컬럼에 적재된다.
+통증 map CSV/JSONL을 그대로 importer에 넣을 수는 없으며, source/target stable code,
+goal 보존, difficulty delta, 승인 상태를 importer schema로 변환하는 별도 materialization과
+hash/count 검증이 필요하다. `catalog_data_load`, `catalog_activate`, ACTIVE 전환은 이
+작업에서 실행하지 않는다.

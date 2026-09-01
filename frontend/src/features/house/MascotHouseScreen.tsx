@@ -1,243 +1,276 @@
 /**
- * 끼끼의 집 — the mascot's home, showing the user's real standing.
+ * 끼끼의 집 — the mascot's home, and the user's real standing beside it.
  *
- * The existing MapHomeScreen carries the same idea but renders fixture
- * exercises, which would sit alongside the user's real routine and read as
- * genuine. This screen keeps the mascot-house framing and fills it from the
- * server: the active routine and the current week's target and status.
+ * The container joins two sources: the server's week and workout sessions,
+ * and the house's own local state. It deliberately does not load the routine.
+ * Home is the signed-in entry point that shows the server's final routine, and
+ * repeating it here would be a second place to keep in step.
+ *
+ * A week that fails to load does not take the house down with it. The room is
+ * a place the user can visit, and every value that depends on the week
+ * degrades to "unknown" rather than to a guess.
  *
  * The mascot reacts to progress but never to a shortfall. A missed or
  * unfinished week is a learning signal, so the copy stays level and no
  * disappointed state exists here.
  */
 
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Api } from '../../api/endpoints';
-import { isApiError } from '../../api/errors';
-import { trainingTypeLabel } from '../../api/labels';
-import type { RoutineResponse, WeekResponse } from '../../api/types';
+import type { WeekResponse, WorkoutSessionLogSummary } from '../../api/types';
 import {
   localDateString,
   useAsyncData,
   weekStartString,
 } from '../../api/useAsync';
+import type { TabId } from '../../components/brand/BrandChrome';
+import { LoadingState, ScreenShell } from '../../components/states/ScreenState';
+import { HomeBottomNavigation } from '../home/HomeScreen';
+import { BananaCatchGameScreen } from '../bananaCatch/BananaCatchGameScreen';
+import { MascotHouseContent, type HouseMiniGameId } from './MascotHouseContent';
 import {
-  BottomTabBar,
-  MascotStage,
-  useBrandFontFamily,
-  type TabId,
-} from '../../components/brand/BrandChrome';
-import { Card } from '../../components/primitives';
+  housePoseArt,
+  randomHouseBananaPoseArt,
+  randomHousePettedPoseArt,
+  randomHouseRegularPoseArt,
+  type HouseArtSlot,
+} from './houseArtSlots';
 import {
-  ErrorState,
-  LoadingState,
-  ScreenHeading,
-  ScreenShell,
-} from '../../components/states/ScreenState';
-import { colors, radii, spacing } from '../../components/theme';
-import { imageAssets } from '../../assets';
+  buyItem,
+  claimDailyGift,
+  feedMascot,
+  grantWorkoutRewards,
+  petMascot,
+  placeHouseItem,
+  registerVisit,
+  restingPose,
+  selectBackground,
+  buildHouseView,
+  type HouseBackgroundId,
+  type HouseItemId,
+  type HouseItemPlacement,
+  type HousePose,
+  type HouseState,
+} from './houseModel';
+import {
+  createHouseStore,
+  initialHouseState,
+  type HouseStore,
+} from './houseStorage';
 
-type HouseData = {
-  routine: RoutineResponse | null;
+/** How long ordinary reactions are held before the mascot settles back. */
+const POSE_HOLD_MS = 2600;
+
+/** Feeding stays visible about three seconds longer than it did originally. */
+export const FEED_POSE_HOLD_MS = POSE_HOLD_MS + 3000;
+
+type HouseRemote = {
   week: WeekResponse | null;
+  sessions: WorkoutSessionLogSummary[];
 };
 
 export function MascotHouseScreen({
   api,
-  nickname,
+  now,
   onNavigate,
+  store,
   timeZone,
 }: {
   api: Api;
   nickname: string;
+  /** Injected by tests so the local date is not the wall clock. */
+  now?: Date;
   onNavigate: (tab: TabId) => void;
+  /** Injected by tests and previews in place of device storage. */
+  store?: HouseStore;
   timeZone?: string;
 }) {
-  const family = useBrandFontFamily();
-  const now = new Date();
-  const localDate = localDateString(now, timeZone);
-  const weekStart = weekStartString(now, timeZone);
+  const referenceNow = now ?? new Date();
+  const localDate = localDateString(referenceNow, timeZone);
+  const weekStart = weekStartString(referenceNow, timeZone);
 
-  const { state, reload } = useAsyncData<HouseData>(
+  const houseStore = useMemo(() => store ?? createHouseStore(), [store]);
+  const [houseState, setHouseState] = useState<HouseState | null>(null);
+  const [reactionPose, setReactionPose] = useState<HousePose | null>(null);
+  const [reactionArt, setReactionArt] = useState<HouseArtSlot | null>(null);
+  const [settledArt, setSettledArt] = useState<HouseArtSlot | null>(null);
+  const [activeMiniGame, setActiveMiniGame] = useState<HouseMiniGameId | null>(
+    null,
+  );
+  const lastBananaArt = useRef<HouseArtSlot['source']>(null);
+  const lastRegularArt = useRef<HouseArtSlot['source']>(null);
+  const poseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The latest house state, readable from an async callback without a stale closure. */
+  const liveState = useRef<HouseState | null>(null);
+
+  const { state: remote } = useAsyncData<HouseRemote>(
     async (signal) => {
-      const routine = await api
-        .getCurrentRoutine(localDate, signal)
-        .catch((error: unknown) => {
-          if (isApiError(error) && error.kind === 'notFound') {
-            return null;
-          }
-          throw error;
-        });
-      const week = await api.getWeek(weekStart, signal).catch(() => null);
-      return { routine, week };
+      // Neither request rejects: the house stays reachable offline, and the
+      // week-aware mascot copy degrades locally instead of failing the screen.
+      const week = await api
+        .getWeek(weekStart, signal)
+        .catch(() => 'failed' as const);
+      const sessions = await api
+        .listWorkoutSessions(
+          { fromLocalDate: weekStart, toLocalDate: localDate, limit: 100 },
+          signal,
+        )
+        .then((page) => page.items)
+        .catch(() => []);
+      return {
+        week: week === 'failed' ? null : week,
+        sessions,
+      };
     },
     [api, localDate, weekStart],
   );
 
-  const tabBar = <BottomTabBar activeTab="house" onNavigate={onNavigate} />;
+  useEffect(
+    () => () => {
+      if (poseTimer.current !== null) clearTimeout(poseTimer.current);
+    },
+    [],
+  );
 
-  if (state.status === 'loading') {
+  const persist = useCallback(
+    (next: HouseState) => {
+      liveState.current = next;
+      setHouseState(next);
+      void houseStore.write(next);
+    },
+    [houseStore],
+  );
+
+  const react = useCallback(
+    (
+      pose: HousePose,
+      art: HouseArtSlot | null = null,
+      holdMs: number = POSE_HOLD_MS,
+      nextSettledArt: HouseArtSlot | null = null,
+    ) => {
+      setReactionPose(pose);
+      setReactionArt(art);
+      if (poseTimer.current !== null) clearTimeout(poseTimer.current);
+      poseTimer.current = setTimeout(() => {
+        setReactionPose(null);
+        setReactionArt(null);
+        if (nextSettledArt !== null) setSettledArt(nextSettledArt);
+      }, holdMs);
+    },
+    [],
+  );
+
+  const sessions = remote.status === 'ready' ? remote.data.sessions : null;
+
+  // Arrival: read the stored house once, then record the visit and pay out any
+  // workout it has not paid for yet.
+  //
+  // The stored value is read only on the first pass. A later reload works from
+  // the state already in hand, so a reward arriving mid-visit cannot overwrite
+  // an action the user just took. Both rules return the state unchanged once
+  // applied, which is what stops this from re-running itself.
+  useEffect(() => {
+    if (sessions === null) return;
+    let active = true;
+    const held = liveState.current;
+    const load = held === null ? houseStore.read() : Promise.resolve(held);
+
+    void load.then((stored) => {
+      if (!active) return;
+      const base = stored ?? initialHouseState();
+      const rewarded = grantWorkoutRewards(
+        registerVisit(base, localDate),
+        sessions,
+      );
+      if (held !== null && rewarded.state === base) return;
+      persist(rewarded.state);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [houseStore, localDate, persist, sessions]);
+
+  const tabBar = (
+    <HomeBottomNavigation activeTab="house" onNavigate={onNavigate} />
+  );
+
+  if (activeMiniGame === 'banana_catch') {
+    return <BananaCatchGameScreen onBack={() => setActiveMiniGame(null)} />;
+  }
+
+  if (remote.status !== 'ready' || houseState === null) {
     return (
-      <ScreenShell bands tallBands footer={tabBar}>
-        <ScreenHeading title="끼끼의 집" onBand />
+      <ScreenShell footer={tabBar}>
         <LoadingState />
       </ScreenShell>
     );
   }
 
-  if (state.status === 'error') {
-    return (
-      <ScreenShell bands tallBands footer={tabBar}>
-        <ScreenHeading title="끼끼의 집" onBand />
-        <ErrorState message={state.message} onRetry={reload} />
-      </ScreenShell>
-    );
-  }
-
-  const { routine, week } = state.data;
-  const day = routine?.days[0];
+  const view = buildHouseView({
+    state: houseState,
+    week: remote.data.week,
+    sessions: remote.data.sessions,
+    weekStart,
+    today: localDate,
+  });
 
   return (
-    <ScreenShell bands tallBands footer={tabBar}>
-      <ScreenHeading
-        title="끼끼의 집"
-        subtitle={`${nickname}님과 함께한 이번 주`}
-        onBand
-      />
-
-      {/*
-        The only mascot artwork in the repository is the splash island, which
-        shows 끼끼 in its training spot. This screen is where it fits at full
-        size; the compact stages elsewhere still use the drawn mark because a
-        460x307 scene does not reduce to a 64px badge.
-      */}
-      <View style={styles.house}>
-        <Image
-          source={imageAssets.splashIsland}
-          style={styles.island}
-          resizeMode="contain"
-          accessibilityLabel="끼끼와 운동 섬"
-        />
-        <Text
-          style={[styles.houseCaption, family ? { fontFamily: family } : null]}
-        >
-          {routine === null
-            ? '아직 루틴이 없어요. 홈에서 만들어 주세요.'
-            : '오늘도 같이 움직여요.'}
-        </Text>
-      </View>
-
-      <MascotStage
-        eyebrow="이번 주"
-        title={
-          week === null
-            ? '주간 정보를 불러오지 못했어요'
-            : `목표 ${week.target_workout_count}회`
-        }
-        caption={
-          week === null
-            ? '잠시 후 다시 확인해 주세요.'
-            : week.status_code === 'CLOSED'
-              ? '마감된 주예요. 리포트를 확인할 수 있어요.'
-              : '진행 중인 주예요. 편한 날에 하나씩 채워요.'
-        }
-      />
-
-      {routine !== null && day ? (
-        <Card style={styles.card}>
-          <Text style={styles.cardTitle}>지금 내 루틴</Text>
-          <Text style={styles.cardBody}>
-            {trainingTypeLabel(day.training_type_code)} ·{' '}
-            {day.requested_duration_minutes}분 · 블록 {day.items.length}개
-          </Text>
-          <View style={styles.blockList}>
-            {day.items.map((item) => (
-              <View key={item.id} style={styles.blockRow}>
-                <Text style={styles.blockName}>{item.exercise_name}</Text>
-                <Text style={styles.blockMeta}>
-                  {item.sets}세트
-                  {item.reps === null
-                    ? ` · ${item.work_seconds_per_set ?? 0}초`
-                    : ` × ${item.reps}회`}
-                </Text>
-              </View>
-            ))}
-          </View>
-          <Text style={styles.meta}>
-            루틴 v{routine.version} · 카탈로그 {routine.catalog_version}
-          </Text>
-        </Card>
-      ) : (
-        <Card style={styles.card}>
-          <Text style={styles.cardTitle}>아직 보여줄 루틴이 없어요</Text>
-          <Text style={styles.cardBody}>
-            홈에서 기본 루틴을 만들면 여기에 나타나요.
-          </Text>
-        </Card>
-      )}
-    </ScreenShell>
+    <MascotHouseContent
+      footer={tabBar}
+      onBuyItem={(itemId: HouseItemId) => {
+        const next = buyItem(houseState, itemId);
+        if (next === null) return false;
+        persist(next);
+        react('happy');
+        return true;
+      }}
+      onClaimGift={() => {
+        const claimed = claimDailyGift(houseState, localDate);
+        if (claimed === null) return;
+        persist(claimed.state);
+        react('happy');
+      }}
+      onFeed={() => {
+        const next = feedMascot(houseState, localDate);
+        if (next === null) return false;
+        persist(next);
+        const bananaArt = randomHouseBananaPoseArt(lastBananaArt.current);
+        const regularArt = randomHouseRegularPoseArt(lastRegularArt.current);
+        lastBananaArt.current = bananaArt.source;
+        lastRegularArt.current = regularArt.source;
+        react('eating', bananaArt, FEED_POSE_HOLD_MS, regularArt);
+        return true;
+      }}
+      onPet={() => {
+        const next = petMascot(houseState, localDate);
+        if (next === null) return false;
+        persist(next);
+        const visibleArt =
+          (reactionPose === null ? settledArt : reactionArt) ??
+          housePoseArt[reactionPose ?? restingPose(view)];
+        const pettedArt = randomHousePettedPoseArt(visibleArt.source);
+        lastRegularArt.current = pettedArt.source;
+        react('petted', pettedArt);
+        return true;
+      }}
+      onPlayGame={setActiveMiniGame}
+      onPlaceItem={(itemId: HouseItemId, placement: HouseItemPlacement) => {
+        const base = liveState.current ?? houseState;
+        const next = placeHouseItem(base, itemId, placement);
+        if (next === null) return;
+        persist(next);
+      }}
+      onSelectBackground={(backgroundId: HouseBackgroundId) => {
+        const next = selectBackground(houseState, backgroundId);
+        persist(next);
+      }}
+      mascotArt={
+        (reactionPose === null ? settledArt : reactionArt) ?? undefined
+      }
+      pose={reactionPose ?? restingPose(view)}
+      view={view}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  house: {
-    alignItems: 'center',
-    gap: spacing.md,
-    borderRadius: radii.card,
-    backgroundColor: colors.surface,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.md,
-  },
-  island: {
-    // Keeps the source 460x307 aspect ratio; the container caps the width.
-    width: '100%',
-    maxWidth: 300,
-    aspectRatio: 460 / 307,
-  },
-  houseCaption: {
-    color: colors.textSub,
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: 'center',
-  },
-  card: {
-    gap: spacing.md,
-  },
-  cardTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  cardBody: {
-    color: colors.textSub,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  blockList: {
-    gap: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.divider,
-    paddingTop: spacing.md,
-  },
-  blockRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  blockName: {
-    flex: 1,
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  blockMeta: {
-    color: colors.textMuted,
-    fontSize: 12,
-  },
-  meta: {
-    color: colors.textMuted,
-    fontSize: 12,
-  },
-});

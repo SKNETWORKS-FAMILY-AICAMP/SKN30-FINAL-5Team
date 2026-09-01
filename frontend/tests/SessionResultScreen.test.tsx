@@ -5,8 +5,10 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react-native';
+import { processColor, StyleSheet, View } from 'react-native';
 
 import type { Api } from '../src/api/endpoints';
+import { colors } from '../src/components/theme';
 import { SessionResultScreen } from '../src/features/workout/SessionResultScreen';
 
 const finished = {
@@ -22,8 +24,121 @@ const finished = {
   },
 };
 
+function hasBrandBand(view: ReturnType<typeof render>) {
+  return view.UNSAFE_getAllByType(View).some((node) => {
+    const style = StyleSheet.flatten(node.props.style);
+    return (
+      style?.backgroundColor === colors.splashBackground && style.height === 245
+    );
+  });
+}
+
 describe('SessionResultScreen feedback', () => {
-  it('submits every backend feedback field from the result UI', async () => {
+  it('uses the Workout canvas treatment for a completed result', () => {
+    const view = render(
+      <SessionResultScreen
+        api={{ submitFeedback: jest.fn() } as unknown as Api}
+        sessionId="session-result"
+        outcome={finished}
+        onDone={jest.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole('header', { name: '오늘 운동을 마쳤어요' }),
+    ).toHaveStyle({ color: colors.text });
+    expect(hasBrandBand(view)).toBe(false);
+
+    const feedbackButton = screen.getByTestId('session-feedback-save');
+    const buttonStyle = StyleSheet.flatten(feedbackButton.props.style);
+    const gradient = screen.getByTestId('session-feedback-save-gradient');
+
+    expect(buttonStyle).toMatchObject({
+      alignItems: 'center',
+      borderColor: 'rgba(244, 166, 42, 0.8)',
+      borderWidth: expect.any(Number),
+      justifyContent: 'center',
+      position: 'relative',
+      shadowColor: '#AD741D',
+      shadowOpacity: 0.11,
+    });
+    expect(gradient.props.colors).toEqual(
+      ['#FEE8B1', '#FEDA99', '#FFD790'].map(processColor),
+    );
+    expect(gradient.props.locations).toEqual([0, 0.55, 1]);
+    expect(screen.queryByTestId('session-feedback-save-chevron')).toBeNull();
+  });
+
+  it.each([
+    {
+      name: 'completed',
+      outcome: finished,
+    },
+    {
+      name: 'partial',
+      outcome: {
+        kind: 'finished' as const,
+        result: {
+          ...finished.result,
+          status_code: 'PARTIAL' as const,
+          completed_item_count: 2,
+        },
+      },
+    },
+    {
+      name: 'not-completed',
+      outcome: {
+        kind: 'notCompleted' as const,
+        result: {
+          session_id: 'session-result',
+          status_code: 'NOT_COMPLETED' as const,
+          reason_code: 'TIME_SHORTAGE' as const,
+          ended_at: '2026-08-19T10:00:00+09:00',
+        },
+      },
+    },
+    {
+      name: 'safety-stop',
+      outcome: {
+        kind: 'safetyStop' as const,
+        event: {
+          event_id: 'safety-event-result',
+          instruction_code: 'STOP_AND_SEEK_HELP' as const,
+          resulting_action_code: 'STOP_AND_SEEK_HELP' as const,
+          session_status_code: 'STOPPED_FOR_SAFETY' as const,
+          guidance_code: 'SEEK_HELP',
+          guidance: '운동을 중단하고 상태를 확인해 주세요.',
+          pressure_notifications_allowed: false,
+        },
+      },
+    },
+  ])('uses the same canvas background for a $name result', ({ outcome }) => {
+    const view = render(
+      <SessionResultScreen
+        api={{ submitFeedback: jest.fn() } as unknown as Api}
+        sessionId="session-result"
+        outcome={outcome}
+        onDone={jest.fn()}
+      />,
+    );
+
+    expect(hasBrandBand(view)).toBe(false);
+    expect(
+      screen.getByTestId('session-feedback-save-gradient'),
+    ).toBeOnTheScreen();
+    expect(screen.queryByTestId('session-feedback-save-chevron')).toBeNull();
+    expect(screen.getByText('오늘 운동 체감 난이도')).toBeOnTheScreen();
+    expect(screen.getByRole('radio', { name: '쉬웠어요' })).toBeOnTheScreen();
+    expect(screen.getByRole('radio', { name: '적당했어요' })).toBeOnTheScreen();
+    expect(screen.getByRole('radio', { name: '어려워요' })).toBeOnTheScreen();
+    expect(screen.queryByText('피로도')).toBeNull();
+    expect(screen.queryByText('만족도')).toBeNull();
+    expect(screen.queryByText('운동 후 통증')).toBeNull();
+    expect(screen.queryByText('불편한 부위')).toBeNull();
+    expect(screen.queryByText('이상 반응')).toBeNull();
+  });
+
+  it('submits the selected difficulty with hidden legacy compatibility values', async () => {
     const submitFeedback = jest.fn<Api['submitFeedback']>(async () => ({
       session_id: 'session-result',
       session_status_code: 'COMPLETED',
@@ -43,22 +158,16 @@ describe('SessionResultScreen feedback', () => {
     );
 
     fireEvent.press(screen.getByRole('radio', { name: '적당했어요' }));
-    fireEvent.press(screen.getByRole('radio', { name: '높아요' }));
-    fireEvent.press(screen.getByRole('radio', { name: '만족해요' }));
-    fireEvent.press(screen.getByRole('radio', { name: '있어요' }));
-    fireEvent.press(screen.getByRole('checkbox', { name: '무릎' }));
-    fireEvent.press(screen.getByRole('radio', { name: '무릎 심함' }));
-    fireEvent.press(screen.getByRole('checkbox', { name: '심한 어지럼' }));
     fireEvent.press(screen.getByRole('button', { name: '피드백 저장' }));
 
     await waitFor(() =>
       expect(submitFeedback).toHaveBeenCalledWith('session-result', {
         difficulty_code: 'APPROPRIATE',
-        fatigue_code: 'HIGH',
-        satisfaction_code: 'SATISFIED',
-        pain_occurred: true,
-        discomforts: [{ body_area_code: 'KNEE', severity_code: 'SEVERE' }],
-        adverse_reaction_codes: ['SEVERE_DIZZINESS'],
+        fatigue_code: null,
+        satisfaction_code: null,
+        pain_occurred: false,
+        discomforts: [],
+        adverse_reaction_codes: [],
       }),
     );
     expect(await screen.findByText('피드백을 저장했어요.')).toBeOnTheScreen();
@@ -82,7 +191,7 @@ describe('SessionResultScreen feedback', () => {
       />,
     );
 
-    expect(screen.getByText('오늘 운동은 어땠나요?')).toBeOnTheScreen();
+    expect(screen.getByText('오늘 운동 체감 난이도')).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: '피드백 저장' })).toBeDisabled();
   });
 });

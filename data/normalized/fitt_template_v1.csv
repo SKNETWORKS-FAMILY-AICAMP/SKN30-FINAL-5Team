@@ -1,0 +1,11 @@
+fitt_template_id,template_name,movement_pattern,training_category,default_sets,default_reps,default_work_seconds,default_rest_seconds,default_transition_seconds,default_intensity,fitt_basis
+FITT-COMPOUND-SQUAT-V1,Compound Strength — Squat,SQUAT,COMPOUND_STRENGTH,3,8-12,,90,,MODERATE,"작업 요청의 보수적 카탈로그 기본값. ACSM 2009 Position Stand의 초보자 8–12 RM 및 초보·중급 저항운동 1–2분 휴식 원칙, NSCA의 다관절 운동 우선 원칙을 반영; 개인별 부하·진행은 Agent가 결정."
+FITT-COMPOUND-HINGE-V1,Compound Strength — Hinge,HINGE,COMPOUND_STRENGTH,3,8-12,,90,,MODERATE,"작업 요청의 보수적 카탈로그 기본값. ACSM 2009 Position Stand의 초보자 8–12 RM 및 초보·중급 저항운동 1–2분 휴식 원칙, NSCA의 다관절 운동 우선 원칙을 반영; 개인별 부하·진행은 Agent가 결정."
+FITT-COMPOUND-PUSH-V1,Compound Strength — Push,PUSH,COMPOUND_STRENGTH,3,8-12,,90,,MODERATE,"작업 요청의 보수적 카탈로그 기본값. ACSM 2009 Position Stand의 초보자 8–12 RM 및 초보·중급 저항운동 1–2분 휴식 원칙, NSCA의 다관절 운동 우선 원칙을 반영; 개인별 부하·진행은 Agent가 결정."
+FITT-COMPOUND-PULL-V1,Compound Strength — Pull,PULL,COMPOUND_STRENGTH,3,8-12,,90,,MODERATE,"작업 요청의 보수적 카탈로그 기본값. ACSM 2009 Position Stand의 초보자 8–12 RM 및 초보·중급 저항운동 1–2분 휴식 원칙, NSCA의 다관절 운동 우선 원칙을 반영; 개인별 부하·진행은 Agent가 결정."
+FITT-COMPOUND-LUNGE-V1,Compound Strength — Lunge,LUNGE,COMPOUND_STRENGTH,3,8-12,,90,,MODERATE,"작업 요청의 보수적 카탈로그 기본값. ACSM 2009 Position Stand의 초보자 8–12 RM 및 초보·중급 저항운동 1–2분 휴식 원칙, NSCA의 다관절 운동 우선 원칙을 반영; 개인별 부하·진행은 Agent가 결정."
+FITT-ISOLATION-STRENGTH-V1,Isolation Strength,ANY,ISOLATION_STRENGTH,3,10-15,,60-90,,MODERATE,"작업 요청의 보수적 카탈로그 기본값. ACSM 2009 Position Stand의 초보자 8–12 RM과 보조운동 1–2분 휴식 원칙을 참고해 반복 수를 10–15회, 휴식을 60–90초로 설정; 단일관절 여부와 개인별 부하는 Agent가 확인."
+FITT-BODYWEIGHT-BEGINNER-V1,Bodyweight Beginner,ANY,BODYWEIGHT_BEGINNER,2,8-15,,60,,LIGHT_MODERATE,"작업 요청의 초보자용 맨몸 기본값. 외부 부하를 전제하지 않으며, 반복 상한·난이도·휴식은 Agent가 수행 품질과 개인 상태에 따라 조정."
+FITT-CORE-STABILITY-V1,Core Stability,CORE,CORE_STABILITY,2-3,,30-45,45-60,,LIGHT_MODERATE,작업 요청의 보수적 코어 안정화 기본값. 시간·휴식 범위는 일반 수행 템플릿이며 통증·재활 처방이 아님; 개인별 자세·진행은 Agent가 조정.
+FITT-MOBILITY-V1,Mobility,MOBILITY,MOBILITY,,,30-60,,15-30,LIGHT,작업 요청의 보수적 가동성 기본값. 유지 시간과 전환 시간은 일반 준비·회복 목적의 카탈로그 값이며 치료 또는 재활 처방이 아님.
+FITT-CARDIO-V1,Cardio,CARDIO,CARDIO,,,1200-2400,,,MODERATE,"작업 요청의 중강도 유산소 카탈로그 기본값(20–40분). ACSM 일반 성인 유산소 활동 지침의 중강도 활동 원칙을 참고하며, 세부 강도·시간은 Agent가 조정."

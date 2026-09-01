@@ -38,6 +38,10 @@ class DailyContext(Base):
             name="ck_daily_contexts_sleep_minutes",
         ),
         CheckConstraint("context_version > 0", name="ck_daily_contexts_version"),
+        CheckConstraint(
+            "availability_source_code IN ('MANUAL', 'ROUTINE_DEFAULT')",
+            name="ck_daily_contexts_availability_source",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
@@ -54,6 +58,9 @@ class DailyContext(Base):
     sleep_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     fasting_state_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
     hydration_state_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    availability_source_code: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="ROUTINE_DEFAULT", server_default="ROUTINE_DEFAULT"
+    )
     context_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -66,6 +73,9 @@ class DailyContext(Base):
         cascade="all, delete-orphan", passive_deletes=True
     )
     adverse_reactions: Mapped[list["DailyContextAdverseReaction"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True
+    )
+    availability_slots: Mapped[list["DailyContextAvailabilitySlot"]] = relationship(
         cascade="all, delete-orphan", passive_deletes=True
     )
 
@@ -103,4 +113,28 @@ class DailyContextAdverseReaction(Base):
     reaction_code: Mapped[str] = mapped_column(String(80), primary_key=True)
 
 
-__all__ = ["DailyContext", "DailyContextAdverseReaction", "DailyContextDiscomfort"]
+class DailyContextAvailabilitySlot(Base):
+    """A workout window the user entered by hand; no calendar body text is stored."""
+
+    __tablename__ = "daily_context_availability_slots"
+    __table_args__ = (
+        UniqueConstraint("daily_context_id", "slot_order", name="uq_daily_context_slot_order"),
+        CheckConstraint("end_at > start_at", name="ck_daily_context_slot_range"),
+        CheckConstraint("slot_order >= 0 AND slot_order < 8", name="ck_daily_context_slot_order"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    daily_context_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("daily_contexts.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    end_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    slot_order: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+__all__ = [
+    "DailyContext",
+    "DailyContextAdverseReaction",
+    "DailyContextAvailabilitySlot",
+    "DailyContextDiscomfort",
+]

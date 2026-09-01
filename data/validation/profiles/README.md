@@ -9,3 +9,8 @@
 
 모든 profile은 `DRAFT`이며 프로덕션 seed가 아니다. 생성된 파일을 직접 수정하지
 않고, mapping 또는 screening 규칙이 바뀌면 profiler version을 올려 다시 생성한다.
+
+Gym Visual 스트레칭·가동성 profile은 `gymvisual_mobility_profile.json`이다. 원천 후보
+35건의 신체 부위·목표·family/variant 후보·장비·난이도 커버리지를 기록하지만, 안전
+승인이나 대체 관계를 의미하지 않는다. profile에는 기존 카탈로그 56건, 안전 규칙
+354건, 대체 관계 238건의 읽기 전용 기준 해시와 건수를 함께 기록한다.

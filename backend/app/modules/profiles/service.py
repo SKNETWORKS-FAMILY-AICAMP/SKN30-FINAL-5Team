@@ -29,6 +29,7 @@ from backend.app.modules.profiles.ports import (
     ProfileRepositoryPort,
     ProfileSettingsChanges,
     ProfileSettingsRecord,
+    StaleRoutinePort,
 )
 from backend.app.modules.profiles.schemas import (
     ConsentResponse,
@@ -93,9 +94,11 @@ class ProfileService:
         primary_goal_codes: tuple[str, ...],
         experience_level_codes: tuple[str, ...],
         consent_policy_version: str | None,
+        stale_routines: StaleRoutinePort | None = None,
         clock: Callable[[], datetime] = _utc_now,
     ) -> None:
         self._repository = repository
+        self._stale_routines = stale_routines
         self._birthdate_cipher = birthdate_cipher
         self._primary_goal_codes = frozenset(primary_goal_codes)
         self._experience_level_codes = frozenset(experience_level_codes)
@@ -205,15 +208,8 @@ class ProfileService:
         )
         if preferred_location not in available_locations:
             raise InvalidProfileSettingsError
-        equipment_codes = tuple(
-            str(code) for code in payload.get("equipment_codes", current.equipment_codes)
-        )
-        if not equipment_codes:
-            raise InvalidProfileSettingsError
-
         relationship_fields = {
             "available_location_codes",
-            "equipment_codes",
             "attention_area_codes",
             "preferred_exercise_type_codes",
         }
@@ -229,9 +225,6 @@ class ProfileService:
                 available_locations
                 if "available_location_codes" in request.model_fields_set
                 else None
-            ),
-            equipment_codes=(
-                equipment_codes if "equipment_codes" in request.model_fields_set else None
             ),
             attention_area_codes=(
                 tuple(str(code) for code in payload["attention_area_codes"])
@@ -265,7 +258,6 @@ class ProfileService:
                 ),
                 desired_weekly_workout_count=record.profile.desired_weekly_workout_count,
                 coaching_style_code=CoachingStyleCode(record.profile.coaching_style_code),
-                equipment_codes=list(record.profile.equipment_codes),
                 attention_area_codes=list(record.profile.attention_area_codes),
                 preferred_exercise_type_codes=list(record.profile.preferred_exercise_type_codes),
                 profile_version=record.profile.profile_version,
@@ -307,8 +299,17 @@ class ProfileService:
         request: OnboardingUpsertRequest,
         idempotency_key: UUID,
     ) -> OnboardingResponse:
-        cipher, consent_policy_version = self._require_onboarding_configuration()
-        request_hash = _request_hash(request.model_dump(mode="json"))
+        self.ensure_age_eligible(session, user_id, request)
+        with session.begin():
+            return self.upsert_onboarding_in_transaction(session, user_id, request, idempotency_key)
+
+    def ensure_age_eligible(
+        self,
+        session: Session,
+        user_id: UUID,
+        request: OnboardingUpsertRequest,
+    ) -> None:
+        """Apply the established underage-account handling before a wider flow."""
 
         now = self._clock()
         try:
@@ -317,6 +318,20 @@ class ProfileService:
             with session.begin():
                 self._repository.disable_user_for_age(session, user_id, now)
             raise
+
+    def upsert_onboarding_in_transaction(
+        self,
+        session: Session,
+        user_id: UUID,
+        request: OnboardingUpsertRequest,
+        idempotency_key: UUID,
+    ) -> OnboardingResponse:
+        """Store onboarding with a transaction owned by an application flow."""
+
+        cipher, consent_policy_version = self._require_onboarding_configuration()
+        request_hash = _request_hash(request.model_dump(mode="json"))
+
+        now = self._clock()
 
         if request.primary_goal_code not in self._primary_goal_codes:
             raise InvalidOnboardingCodeError
@@ -345,64 +360,62 @@ class ProfileService:
             height_cm=request.height_cm,
             weight_kg=request.weight_kg,
             sex_code=request.sex_code,
-            equipment_codes=tuple(request.equipment_codes),
             attention_area_codes=tuple(request.attention_area_codes),
             preferred_exercise_type_codes=tuple(request.preferred_exercise_type_codes),
         )
 
-        with session.begin():
-            self._repository.acquire_idempotency_lock(
-                session,
-                user_id,
-                MutationEndpointCode.ONBOARDING,
-                idempotency_key,
-            )
-            existing = self._existing_response(
-                session,
-                user_id,
-                MutationEndpointCode.ONBOARDING,
-                idempotency_key,
-                request_hash,
-                OnboardingResponse,
-            )
-            if existing is not None:
-                assert isinstance(existing, OnboardingResponse)
-                return existing
-            record = self._repository.upsert_profile(
-                session,
-                user_id,
-                protected_birthdate,
-                profile_values,
-                now,
-            )
-            self._repository.replace_consents(
-                session,
-                user_id,
-                request.consents.by_type(),
-                consent_policy_version,
-                now,
-            )
-            response = OnboardingResponse(
-                user_id=record.user_id,
-                onboarding_completed=True,
-                profile_version=record.profile_version,
-                coaching_style_code=CoachingStyleCode(record.coaching_style_code),
-                ai_trial_started_at=record.ai_trial_started_at,
-                ai_trial_ends_at=record.ai_trial_ends_at,
-                premium_status_code=record.premium_status_code,
-                created_at=record.created_at,
-                updated_at=record.updated_at,
-            )
-            self._repository.save_idempotency_record(
-                session,
-                user_id,
-                MutationEndpointCode.ONBOARDING,
-                idempotency_key,
-                request_hash,
-                response.model_dump(mode="json"),
-                ONBOARDING_RESPONSE_SCHEMA_VERSION,
-                now,
-            )
+        self._repository.acquire_idempotency_lock(
+            session,
+            user_id,
+            MutationEndpointCode.ONBOARDING,
+            idempotency_key,
+        )
+        existing = self._existing_response(
+            session,
+            user_id,
+            MutationEndpointCode.ONBOARDING,
+            idempotency_key,
+            request_hash,
+            OnboardingResponse,
+        )
+        if existing is not None:
+            assert isinstance(existing, OnboardingResponse)
+            return existing
+        record = self._repository.upsert_profile(
+            session,
+            user_id,
+            protected_birthdate,
+            profile_values,
+            now,
+        )
+        self._repository.replace_consents(
+            session,
+            user_id,
+            request.consents.by_type(),
+            consent_policy_version,
+            now,
+        )
+        response = OnboardingResponse(
+            user_id=record.user_id,
+            onboarding_completed=True,
+            profile_version=record.profile_version,
+            coaching_style_code=CoachingStyleCode(record.coaching_style_code),
+            ai_trial_started_at=record.ai_trial_started_at,
+            ai_trial_ends_at=record.ai_trial_ends_at,
+            premium_status_code=record.premium_status_code,
+            created_at=record.created_at,
+            updated_at=record.updated_at,
+        )
+        self._repository.save_idempotency_record(
+            session,
+            user_id,
+            MutationEndpointCode.ONBOARDING,
+            idempotency_key,
+            request_hash,
+            response.model_dump(mode="json"),
+            ONBOARDING_RESPONSE_SCHEMA_VERSION,
+            now,
+        )
         return response
 
     def get_consents(self, session: Session, user_id: UUID) -> ConsentResponse:
@@ -533,6 +546,16 @@ class ProfileService:
                 profile_version, updated_at = self._repository.update_profile_settings(
                     session, user_id, changes, now
                 )
+                # A routine is built to the profile default. Leaving one behind
+                # that targets the old duration makes every daily decision reject
+                # it and the user sees REST forever with no way out.
+                new_duration = changes.scalar_values.get("default_requested_duration_minutes")
+                if self._stale_routines is not None and isinstance(new_duration, int):
+                    self._stale_routines.archive_routines_with_other_duration(
+                        session,
+                        user_id,
+                        requested_duration_minutes=new_duration,
+                    )
                 response = ProfileSettingsUpdateResponse(
                     profile_version=profile_version,
                     updated_at=updated_at,

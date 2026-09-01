@@ -1,0 +1,50 @@
+{
+  "schema_version": "generalized-recovery-stop-policy-v2.0.2-v1",
+  "policy_version": "generalized-recovery-stop-policy-v2.0.2-v1.0.0",
+  "status": "DRAFT_REVIEW_REQUIRED",
+  "production_eligible": false,
+  "scope": "GENERALIZED_OR_MULTI_AREA_DISCOMFORT",
+  "relationship_rule": "GENERALIZED 상태에는 exercise-specific Alternative를 임의 생성하지 않고 별도 recovery/stop 정책을 적용한다.",
+  "precedence": [
+    "EMERGENCY_OR_ACUTE_SIGNAL",
+    "NRS_7_10",
+    "GENERALIZED_OR_THREE_OR_MORE_AFFECTED_AREAS",
+    "SINGLE_AREA_DISCOMFORT"
+  ],
+  "decision_policy": [
+    {
+      "condition": "EMERGENCY_OR_ACUTE_SIGNAL_OR_NRS_7_10",
+      "decision_code": "STOP_EXERCISE_NO_ALTERNATIVE",
+      "service_action_code": "STOP_EXERCISE",
+      "plan_rule": "운동·Alternative·회복운동을 생성하지 않고 중단 안내 흐름으로 보낸다."
+    },
+    {
+      "condition": "GENERALIZED_OR_THREE_OR_MORE_AFFECTED_AREAS_AND_NRS_4_6",
+      "decision_code": "GENERALIZED_ACTIVE_RECOVERY_OR_REST",
+      "service_action_code": "ACTIVE_RECOVERY",
+      "plan_rule": "모든 보고 영역을 target이 포함하지 않고 low-load recovery pool guard를 통과할 때만 active recovery를 허용하며, 아니면 REST_NO_PLAN으로 전환한다."
+    },
+    {
+      "condition": "GENERALIZED_OR_THREE_OR_MORE_AFFECTED_AREAS_AND_NRS_1_3",
+      "decision_code": "GENERALIZED_LOAD_REDUCED_RECOVERY_OR_REST",
+      "service_action_code": "LOAD_REDUCED",
+      "plan_rule": "원래 운동을 유지하지 않고 전신 부담을 낮춘 recovery pool만 검토하며, 안전한 후보가 없으면 REST_NO_PLAN으로 전환한다."
+    },
+    {
+      "condition": "SINGLE_AREA_DISCOMFORT",
+      "decision_code": "USE_NORMALIZED_AREA_ALTERNATIVE_POLICY",
+      "service_action_code": "AREA_SPECIFIC_POLICY",
+      "plan_rule": "통증 부위별 normalized Alternative 정책을 적용한다."
+    }
+  ],
+  "recovery_pool_guards": [
+    "BODYWEIGHT_OR_APPROVED_LOW_LOAD_ONLY",
+    "BEGINNER_DIFFICULTY_OR_LOWER",
+    "NO_OVERLAP_WITH_ANY_REPORTED_AREA",
+    "NO_SIMPLE_VARIANT_OR_CONTEXT_SUBSTITUTION",
+    "NEUTRAL_POSTURE_AND_STOP_IF_DISCOMFORT_INCREASES"
+  ],
+  "safety_boundary": "이 정책은 진단·치료·의학적 처방이 아니며, 급성 또는 심한 증상에는 운동 대체를 제공하지 않는다.",
+  "reviewed_at": "2026-08-28T00:00:00+09:00",
+  "reviewer": "DATA_REVIEW_PIPELINE"
+}

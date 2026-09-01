@@ -10,7 +10,16 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
-from backend.app.modules.catalog.codes import APPROVED_TAXONOMY_REGISTRY_SHA256
+from backend.app.modules.catalog.codes import (
+    APPROVED_TAXONOMY_REGISTRY_SHA256,
+    CATALOG_V2_CODE_SET_VERSION,
+    V2_BODY_FOCUS_CODES,
+    BodyFocusCode,
+    EquipmentCode,
+    MovementPatternCode,
+    ReviewMethodCode,
+    SourceTrackCode,
+)
 from backend.app.modules.catalog.schemas import ExerciseRecord
 from backend.app.modules.catalog.service import (
     CatalogArtifact,
@@ -25,6 +34,7 @@ GENERATED_CATALOG_ARTIFACTS = (
     ("exercise-catalog-seed-wger-mvp-v0.2.0", 27),
     ("exercise-catalog-seed-kspo-tranche3-v0.1.0", 3),
     ("exercise-catalog-seed-wger-tranche3-v0.1.0", 3),
+    ("exercise-catalog-seed-merged-mvp-v0.4.0", 56),
 )
 
 
@@ -37,7 +47,6 @@ def _exercise_record(stable_code: str = "supported_sit_to_stand") -> dict[str, A
         "body_focus_code": "LOWER_BODY",
         "primary_movement_pattern_code": "KNEE_DOMINANT",
         "difficulty_code": "BEGINNER",
-        "beginner_suitable": True,
         "timing_mode_code": "REPS",
         "default_seconds_per_rep": 4,
         "default_work_seconds": None,
@@ -77,7 +86,7 @@ def _write_artifact(
     target.write_bytes(raw)
     count = len(rows) if declared_records is None else declared_records
     manifest = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "generator_version": generator_version,
         "catalog_version": {"version_code": version_code, "status_code": "DRAFT"},
         "source": {
@@ -127,6 +136,16 @@ def test_loads_valid_draft_manifest_and_records(tmp_path: Path) -> None:
     assert [record.stable_code for record in artifact.records] == ["supported_sit_to_stand"]
 
 
+def test_new_catalog_schema_rejects_legacy_beginner_suitable(tmp_path: Path) -> None:
+    record = _exercise_record()
+    record["beginner_suitable"] = True
+
+    with pytest.raises(CatalogImportError) as exc_info:
+        load_catalog_artifact(_write_artifact(tmp_path / "artifact", records=[record]))
+
+    assert exc_info.value.code == "EXERCISE_RECORD_INVALID"
+
+
 @pytest.mark.parametrize(("directory_name", "record_count"), GENERATED_CATALOG_ARTIFACTS)
 def test_loads_current_generated_catalog_artifacts(
     directory_name: str,
@@ -145,6 +164,199 @@ def test_pydantic_strenum_rejects_unknown_machine_code() -> None:
 
     with pytest.raises(ValidationError):
         ExerciseRecord.model_validate(record)
+
+
+def test_exercise_record_rejects_merged_as_item_provenance() -> None:
+    record = _exercise_record()
+    record["source_track"] = "merged"
+
+    with pytest.raises(ValidationError, match="original source track"):
+        ExerciseRecord.model_validate(record)
+
+
+def test_v2_code_sets_include_new_source_patterns_and_equipment() -> None:
+    assert ReviewMethodCode("DOMAIN_REVIEWER") is ReviewMethodCode.DOMAIN_REVIEWER
+    assert {code.value for code in V2_BODY_FOCUS_CODES} == {
+        "CHEST",
+        "BACK",
+        "SHOULDERS",
+        "BICEPS",
+        "TRICEPS",
+        "FOREARMS",
+        "GLUTES",
+        "QUADRICEPS",
+        "HAMSTRINGS",
+        "CALVES",
+        "CORE",
+        "FULL_BODY",
+        "CARDIO",
+        "MOBILITY",
+    }
+    assert SourceTrackCode("gymvisual") is SourceTrackCode.GYMVISUAL
+    assert {
+        "BALANCE",
+        "CYCLING",
+        "ELLIPTICAL",
+        "JUMP_PLYOMETRIC",
+    } <= {code.value for code in MovementPatternCode}
+    assert {
+        "EZ_BAR",
+        "STRETCH_STRAP",
+        "ELLIPTICAL_MACHINE",
+        "JUMP_ROPE",
+        "FOAM_ROLLER",
+        "STATIONARY_BIKE",
+        "STEP_BOX",
+    } <= {code.value for code in EquipmentCode}
+
+
+@pytest.mark.parametrize("body_focus", sorted(code.value for code in V2_BODY_FOCUS_CODES))
+def test_v2_import_accepts_exact_body_focus_code_set(tmp_path: Path, body_focus: str) -> None:
+    record = _exercise_record(body_focus.lower())
+    record["body_focus_code"] = body_focus
+    record["equipment_codes"] = ["BODYWEIGHT"]
+    if body_focus in {"CARDIO", "MOBILITY"}:
+        record["training_type_code"] = body_focus
+
+    artifact = load_catalog_artifact(
+        _write_artifact(tmp_path / body_focus.lower(), records=[record]),
+        v2_import=True,
+        v2_taxonomy_registry_sha256=APPROVED_TAXONOMY_REGISTRY_SHA256,
+    )
+
+    assert artifact.records[0].body_focus_code is BodyFocusCode(body_focus)
+    assert artifact.code_set_version == CATALOG_V2_CODE_SET_VERSION
+
+
+@pytest.mark.parametrize(
+    "body_focus",
+    [
+        "UPPER_BODY",
+        "LOWER_BODY",
+        "UNSPECIFIED",
+        "CHEST,BACK",
+        "CHEST|BACK",
+        "CHEST BACK",
+        "가슴",
+        "",
+    ],
+)
+def test_v2_import_rejects_legacy_or_non_machine_body_focus(
+    tmp_path: Path,
+    body_focus: str,
+) -> None:
+    record = _exercise_record()
+    record["body_focus_code"] = body_focus
+    record["equipment_codes"] = ["BODYWEIGHT"]
+
+    with pytest.raises(CatalogImportError) as exc_info:
+        load_catalog_artifact(
+            _write_artifact(tmp_path / "artifact", records=[record]),
+            v2_import=True,
+            v2_taxonomy_registry_sha256=APPROVED_TAXONOMY_REGISTRY_SHA256,
+        )
+
+    assert exc_info.value.code == "EXERCISE_RECORD_INVALID"
+
+
+@pytest.mark.parametrize(
+    ("training_type", "body_focus"),
+    [("CARDIO", "CHEST"), ("MOBILITY", "CORE"), ("STRENGTH", "CARDIO")],
+)
+def test_v2_import_rejects_training_type_focus_mismatch(
+    tmp_path: Path,
+    training_type: str,
+    body_focus: str,
+) -> None:
+    record = _exercise_record()
+    record.update(
+        training_type_code=training_type,
+        body_focus_code=body_focus,
+        equipment_codes=["BODYWEIGHT"],
+    )
+
+    with pytest.raises(CatalogImportError) as exc_info:
+        load_catalog_artifact(
+            _write_artifact(tmp_path / "artifact", records=[record]),
+            v2_import=True,
+            v2_taxonomy_registry_sha256=APPROVED_TAXONOMY_REGISTRY_SHA256,
+        )
+
+    assert exc_info.value.code == "EXERCISE_RECORD_INVALID"
+
+
+@pytest.mark.parametrize(
+    ("raw_code", "expected"),
+    [
+        ("CABLE", EquipmentCode.CABLE_MACHINE),
+        ("CABLE|MACHINE", EquipmentCode.CABLE_MACHINE),
+        ("BAND", EquipmentCode.RESISTANCE_BAND),
+        ("ROPE", EquipmentCode.STRETCH_STRAP),
+        ("ROLLER", EquipmentCode.FOAM_ROLLER),
+        ("WEIGHTED", EquipmentCode.HOUSEHOLD_WEIGHT),
+    ],
+)
+def test_v2_import_normalizes_equipment_aliases(
+    tmp_path: Path,
+    raw_code: str,
+    expected: EquipmentCode,
+) -> None:
+    record = _exercise_record()
+    record["body_focus_code"] = "CHEST"
+    record["equipment_codes"] = [raw_code]
+
+    artifact = load_catalog_artifact(
+        _write_artifact(tmp_path / "artifact", records=[record]),
+        v2_import=True,
+        v2_taxonomy_registry_sha256=APPROVED_TAXONOMY_REGISTRY_SHA256,
+    )
+
+    assert artifact.records[0].equipment_codes == [expected]
+
+
+@pytest.mark.parametrize("legacy_code", ["BENCH", "CHAIR"])
+def test_v2_import_rejects_legacy_equipment_but_v1_remains_readable(
+    tmp_path: Path,
+    legacy_code: str,
+) -> None:
+    record = _exercise_record()
+    record["body_focus_code"] = "CHEST"
+    record["equipment_codes"] = [legacy_code]
+    root = _write_artifact(tmp_path / "artifact", records=[record])
+
+    assert load_catalog_artifact(root).records[0].equipment_codes == [EquipmentCode(legacy_code)]
+    with pytest.raises(CatalogImportError) as exc_info:
+        load_catalog_artifact(
+            root,
+            v2_import=True,
+            v2_taxonomy_registry_sha256=APPROVED_TAXONOMY_REGISTRY_SHA256,
+        )
+
+    assert exc_info.value.code == "EXERCISE_RECORD_INVALID"
+
+
+def test_v2_import_rejects_duplicates_created_by_normalization(tmp_path: Path) -> None:
+    record = _exercise_record()
+    record["body_focus_code"] = "CHEST"
+    record["equipment_codes"] = ["CABLE", "CABLE_MACHINE"]
+
+    with pytest.raises(CatalogImportError) as exc_info:
+        load_catalog_artifact(
+            _write_artifact(tmp_path / "artifact", records=[record]),
+            v2_import=True,
+            v2_taxonomy_registry_sha256=APPROVED_TAXONOMY_REGISTRY_SHA256,
+        )
+
+    assert exc_info.value.code == "EXERCISE_RECORD_INVALID"
+
+
+def test_v2_import_requires_explicitly_approved_taxonomy_hash(tmp_path: Path) -> None:
+    root = _write_artifact(tmp_path / "artifact")
+
+    with pytest.raises(CatalogImportError) as exc_info:
+        load_catalog_artifact(root, v2_import=True)
+
+    assert exc_info.value.code == "V2_TAXONOMY_REGISTRY_NOT_CONFIGURED"
 
 
 def test_rejects_tampered_file_hash(tmp_path: Path) -> None:

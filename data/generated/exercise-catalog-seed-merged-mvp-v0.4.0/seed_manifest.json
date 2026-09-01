@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0",
+  "generator_version": "0.1.0",
+  "catalog_version": {
+    "version_code": "merged-mvp-v0.4.0",
+    "status_code": "DRAFT"
+  },
+  "source": {
+    "track": "merged",
+    "review_batch_directory": "merged",
+    "taxonomy_registry_sha256": "89e61bba1baf1ccedca94adcb88127f32f529a1b46162ee8392f2cd2ef1372c7",
+    "input_artifacts": [
+      {
+        "role": "catalog_seed_manifest",
+        "path": "exercise-catalog-seed-kspo-mvp-v0.3.0/seed_manifest.json",
+        "sha256": "e05c6fbed1437e58efc8d5f4002a21fcfa697112829da9fa20658a68d93d0511",
+        "bytes": 1878
+      },
+      {
+        "role": "catalog_seed_manifest",
+        "path": "exercise-catalog-seed-wger-mvp-v0.2.0/seed_manifest.json",
+        "sha256": "d42aed06781c59b58261f0d2d8983ddc3f98b5b01d11cb0045d5e72088350afd",
+        "bytes": 1950
+      },
+      {
+        "role": "catalog_seed_manifest",
+        "path": "exercise-catalog-seed-kspo-tranche3-v0.1.0/seed_manifest.json",
+        "sha256": "1ed49cd57db4783984edd2e676235254ffa353ebfec49cc44f901e88ab0325c3",
+        "bytes": 1698
+      },
+      {
+        "role": "catalog_seed_manifest",
+        "path": "exercise-catalog-seed-wger-tranche3-v0.1.0/seed_manifest.json",
+        "sha256": "bba4d1a799e7c516df56360160386e2e6327a01af56241142a4eed692486e66b",
+        "bytes": 1698
+      }
+    ]
+  },
+  "review": {
+    "status": "DOMAIN_APPROVED",
+    "review_method_code": "AGENT_ONLY",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY",
+    "production_eligible": false
+  },
+  "summary": {
+    "exercise_records": 56
+  },
+  "files": [
+    {
+      "path": "exercises.jsonl",
+      "sha256": "70889066bccba80110936553cdbd28a5c48556c5ca2b651f518a1447413bf1e7",
+      "bytes": 67751,
+      "records": 56
+    }
+  ]
+}

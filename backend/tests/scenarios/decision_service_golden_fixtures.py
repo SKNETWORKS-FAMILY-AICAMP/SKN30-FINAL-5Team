@@ -327,6 +327,16 @@ class RecordingDecisionRepository:
     def acquire_lock(self, _session: Any, _user_id: UUID, _key: UUID) -> None:
         return None
 
+    def acquire_input_lock(
+        self,
+        _session: Any,
+        _user_id: UUID,
+        _daily_context_id: UUID,
+        _daily_context_version: int,
+        _input_hash: str,
+    ) -> None:
+        return None
+
     def get_idempotency(
         self, _session: Any, _user_id: UUID, _key: UUID
     ) -> StoredIdempotency | None:
@@ -417,6 +427,16 @@ class RecordingDecisionRepository:
             "safety_summary": None,
             "created_at": NOW,
         }
+
+    def get_completed_response_for_input(
+        self,
+        _session: Any,
+        _user_id: UUID,
+        _daily_context_id: UUID,
+        _daily_context_version: int,
+        _input_hash: str,
+    ) -> dict[str, Any] | None:
+        return None
 
 
 def safety_proposal(repository: RecordingDecisionRepository) -> AgentProposal:

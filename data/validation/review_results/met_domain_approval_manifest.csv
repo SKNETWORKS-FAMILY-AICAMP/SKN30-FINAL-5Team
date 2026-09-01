@@ -1,0 +1,2 @@
+approval_scope,reviewer,reviewed_at,decision,evidence_reference,decision_basis,production_eligible
+ALL_MET_MAPPINGS,DATA_OWNER_APPROVAL,2026-08-24T00:00:00+09:00,DOMAIN_APPROVED,https://pacompendium.com/adult-compendium/,"USER_ATTESTED_DOMAIN_REVIEW; all 102 MET mappings reviewed by the data owner; existing values retain their row-level Compendium evidence and NEX-000173 uses the explicitly approved 02150 static-balance proxy",true

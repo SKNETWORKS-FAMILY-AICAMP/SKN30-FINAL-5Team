@@ -13,7 +13,7 @@ import Svg, { TSpan, Text as SvgText } from 'react-native-svg';
 
 import { fontFamilies, useBrandFonts } from '../../app/fonts';
 import { imageAssets } from '../../assets';
-import { BASE_H, BASE_W, useScale } from '../../components/scale';
+import { BASE_H, useScale } from '../../components/scale';
 import { colors } from '../../components/theme';
 
 export const SPLASH_ORIGINAL = {
@@ -22,14 +22,12 @@ export const SPLASH_ORIGINAL = {
   islandWidth: 460,
   islandMaxWidthRatio: 0.9,
   islandAspectRatio: 460 / 307,
-  sloganLeft: 111,
   sloganTop: 203,
   sloganFontSize: 18,
   sloganLineHeight: 18,
   sloganLetterSpacing: 18 * 0.01,
   sloganStrokeWidth: 6,
   sloganShadowOffsetY: 2,
-  brandLeft: 159,
   brandTop: 227,
   brandFontSize: 26,
   brandLineHeight: 26,
@@ -60,11 +58,12 @@ type SplashScreenProps = {
 type OutlinedTextProps = {
   accessibilityLabel: string;
   accessibilityRole?: 'header' | 'text';
+  containerLeft: number;
+  containerWidth: number;
   fill: string;
   fontFamily?: string;
   fontSize: number;
   fontWeight: '400' | '800';
-  left: number;
   letterSpacing: number;
   lineHeight: number;
   shadowColor: string;
@@ -74,7 +73,6 @@ type OutlinedTextProps = {
   testID: string;
   text: string;
   top: number;
-  viewportWidth: number;
 };
 
 type SplashWebTextStyle = {
@@ -152,24 +150,23 @@ const WebTextElement = 'div' as unknown as ComponentType<WebTextElementProps>;
 
 export function getSplashLayout(viewport: SplashViewport) {
   const { width, height } = viewport;
-  const x = (value: number) => (value * width) / BASE_W;
   const y = (value: number) => (value * height) / BASE_H;
+  const islandWidth = Math.min(
+    SPLASH_ORIGINAL.islandWidth,
+    width * SPLASH_ORIGINAL.islandMaxWidthRatio,
+  );
 
   return {
     width,
     height,
-    islandWidth: Math.min(
-      SPLASH_ORIGINAL.islandWidth,
-      width * SPLASH_ORIGINAL.islandMaxWidthRatio,
-    ),
-    sloganLeft: x(SPLASH_ORIGINAL.sloganLeft),
+    islandLeft: (width - islandWidth) / 2,
+    islandWidth,
     sloganTop: y(SPLASH_ORIGINAL.sloganTop),
     sloganFontSize: SPLASH_ORIGINAL.sloganFontSize,
     sloganLineHeight: SPLASH_ORIGINAL.sloganLineHeight,
     sloganLetterSpacing: SPLASH_ORIGINAL.sloganLetterSpacing,
     sloganStrokeWidth: SPLASH_ORIGINAL.sloganStrokeWidth,
     sloganShadowOffsetY: SPLASH_ORIGINAL.sloganShadowOffsetY,
-    brandLeft: x(SPLASH_ORIGINAL.brandLeft),
     brandTop: y(SPLASH_ORIGINAL.brandTop),
     brandFontSize: SPLASH_ORIGINAL.brandFontSize,
     brandLineHeight: SPLASH_ORIGINAL.brandLineHeight,
@@ -182,11 +179,12 @@ export function getSplashLayout(viewport: SplashViewport) {
 function OutlinedText({
   accessibilityLabel,
   accessibilityRole = 'text',
+  containerLeft,
+  containerWidth,
   fill,
   fontFamily,
   fontSize,
   fontWeight,
-  left,
   letterSpacing,
   lineHeight,
   shadowColor,
@@ -196,7 +194,6 @@ function OutlinedText({
   testID,
   text,
   top,
-  viewportWidth,
 }: OutlinedTextProps) {
   if (Platform.OS === 'web') {
     const webTextStyle = getSplashWebTextStyle({
@@ -220,10 +217,9 @@ function OutlinedText({
         pointerEvents="none"
         style={[
           styles.outlinedText,
+          styles.webOutlinedText,
           {
-            left,
             top,
-            width: Math.max(0, viewportWidth - left),
             height: lineHeight,
           },
         ]}
@@ -243,7 +239,8 @@ function OutlinedText({
     fontSize,
     fontWeight,
     letterSpacing,
-    x: 0,
+    textAnchor: 'middle' as const,
+    x: '50%' as const,
     y: 0,
   };
   const shadowStyle = {
@@ -260,9 +257,9 @@ function OutlinedText({
       accessibilityRole={accessibilityRole}
       height={lineHeight}
       pointerEvents="none"
-      style={[styles.outlinedText, { left, top }, shadowStyle]}
+      style={[styles.outlinedText, { left: containerLeft, top }, shadowStyle]}
       testID={testID}
-      width={Math.max(0, viewportWidth - left)}
+      width={containerWidth}
     >
       <>
         <SvgText
@@ -278,7 +275,7 @@ function OutlinedText({
             stroke={stroke}
             strokeLinejoin="round"
             strokeWidth={strokeWidth}
-            x={0}
+            x="50%"
             y={0}
           >
             {text}
@@ -290,7 +287,7 @@ function OutlinedText({
           stroke="none"
           testID={`${testID}-fill`}
         >
-          <TSpan fill={fill} stroke="none" x={0} y={0}>
+          <TSpan fill={fill} stroke="none" x="50%" y={0}>
             {text}
           </TSpan>
         </SvgText>
@@ -333,11 +330,12 @@ export function SplashScreen({
       <OutlinedText
         accessibilityLabel="헬끼"
         accessibilityRole="header"
+        containerLeft={layout.islandLeft}
+        containerWidth={layout.islandWidth}
         fill={colors.brandFill}
         fontFamily={useLocalFonts ? fontFamilies.brand : undefined}
         fontSize={layout.brandFontSize}
         fontWeight="800"
-        left={layout.brandLeft}
         letterSpacing={layout.brandLetterSpacing}
         lineHeight={layout.brandLineHeight}
         shadowColor="rgba(107,74,43,0.35)"
@@ -347,25 +345,24 @@ export function SplashScreen({
         testID="splash-brand"
         text="Helkki"
         top={layout.brandTop}
-        viewportWidth={layout.width}
       />
       <OutlinedText
         accessibilityLabel="혼자 하는 운동이 어려울 때"
+        containerLeft={layout.islandLeft}
+        containerWidth={layout.islandWidth}
         fill={colors.slogan}
         fontFamily={useLocalFonts ? fontFamilies.slogan : undefined}
         fontSize={layout.sloganFontSize}
         fontWeight="400"
-        left={layout.sloganLeft}
         letterSpacing={layout.sloganLetterSpacing}
         lineHeight={layout.sloganLineHeight}
-        shadowColor="rgba(47,82,51,0.35)"
+        shadowColor="rgba(90,70,54,0.35)"
         shadowOffsetY={layout.sloganShadowOffsetY}
         stroke={colors.sloganOutline}
         strokeWidth={layout.sloganStrokeWidth}
         testID="splash-slogan"
         text="혼자 하는 운동이 어려울 때"
         top={layout.sloganTop}
-        viewportWidth={layout.width}
       />
 
       {bootStatus === 'error' ? (
@@ -398,8 +395,13 @@ const styles = StyleSheet.create({
   },
   outlinedText: {
     position: 'absolute',
+    alignItems: 'center',
     overflow: 'visible',
     zIndex: 3,
+  },
+  webOutlinedText: {
+    right: 0,
+    left: 0,
   },
   island: {
     alignSelf: 'center',

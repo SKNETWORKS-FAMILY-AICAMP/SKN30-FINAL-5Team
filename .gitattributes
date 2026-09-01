@@ -12,8 +12,19 @@ data/validation/profiles/**/*.jsonl      -text
 data/validation/review_batches/**/*.csv  -text
 data/validation/review_batches/**/*.json -text
 data/validation/review_batches/**/*.jsonl -text
+data/normalized/**/*.json            -text
+data/normalized/**/*.jsonl           -text
 data/generated/**/*.json                 -text
 data/generated/**/*.jsonl                -text
+# CSV was missing here, so the v2.0.2 CSV payloads were checked out with their
+# line endings rewritten and stopped matching the SHA-256 their manifest sealed.
+data/generated/**/*.csv                  -text
+
+# 해시 봉인 ML 아티팩트. MODEL_CARD/FINAL_VERIFICATION이 SHA-256을 기록하므로
+# 줄바꿈 정규화가 개입하면 재검증이 깨진다.
+*.parquet binary
+*.joblib binary
+*.docx binary
 
 *.png binary
 *.jpg binary

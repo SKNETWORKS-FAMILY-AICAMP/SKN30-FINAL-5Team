@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -10,6 +10,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
+import { useAsyncAction } from '../../api/useAsync';
+import { AuthFailure, type AuthAdapter } from '../../auth/firebase';
 import {
   Button,
   Card,
@@ -28,123 +30,107 @@ export const SIGN_UP_LAYOUT = {
 } as const;
 
 type SignUpFixture = {
-  userId: string;
+  email: string;
   password: string;
   passwordConfirmation: string;
-  idMessage?: string;
-  idMessageTone?: 'success' | 'error';
-  passwordMessage: string;
-  passwordMessageTone: 'muted' | 'success' | 'error';
+  emailMessage?: string;
+  emailMessageTone?: 'success' | 'error';
+  passwordMessage?: string;
+  passwordMessageTone?: 'success' | 'error';
   confirmationMessage?: string;
   confirmationMessageTone?: 'success' | 'error';
-  ready: boolean;
 };
 
-const EMPTY_PASSWORD_MESSAGE = '8자 이상, 숫자를 1개 이상 포함해주세요.';
+const MIN_PASSWORD_LENGTH = 6;
+const MIN_PASSWORD_ERROR = `${MIN_PASSWORD_LENGTH}자 이상 입력해주세요.`;
 
 const SIGN_UP_FIXTURES: Record<SignUpPreviewState, SignUpFixture> = {
   idle: {
-    userId: '',
+    email: '',
     password: '',
     passwordConfirmation: '',
-    passwordMessage: EMPTY_PASSWORD_MESSAGE,
-    passwordMessageTone: 'muted',
-    ready: false,
   },
   'id-invalid': {
-    userId: 'abc',
+    email: 'invalid-email',
     password: '',
     passwordConfirmation: '',
-    idMessage: '영문·숫자 4자 이상으로 입력해주세요.',
-    idMessageTone: 'error',
-    passwordMessage: EMPTY_PASSWORD_MESSAGE,
-    passwordMessageTone: 'muted',
-    ready: false,
+    emailMessage: '이메일 형식으로 입력해주세요.',
+    emailMessageTone: 'error',
   },
   'id-taken': {
-    userId: 'test1234',
+    email: 'used@example.com',
     password: '',
     passwordConfirmation: '',
-    idMessage: '이미 사용 중인 아이디예요.',
-    idMessageTone: 'error',
-    passwordMessage: EMPTY_PASSWORD_MESSAGE,
-    passwordMessageTone: 'muted',
-    ready: false,
+    emailMessage: '이미 가입된 이메일이에요.',
+    emailMessageTone: 'error',
   },
   'id-available': {
-    userId: 'prototype-user',
+    email: 'prototype@example.com',
     password: '',
     passwordConfirmation: '',
-    idMessage: '사용할 수 있는 아이디예요.',
-    idMessageTone: 'success',
-    passwordMessage: EMPTY_PASSWORD_MESSAGE,
-    passwordMessageTone: 'muted',
-    ready: false,
+    emailMessage: '사용할 수 있는 이메일이에요.',
+    emailMessageTone: 'success',
   },
   'password-invalid': {
-    userId: 'prototype-user',
+    email: 'prototype@example.com',
     password: 'short',
     passwordConfirmation: '',
-    idMessage: '사용할 수 있는 아이디예요.',
-    idMessageTone: 'success',
-    passwordMessage: '8자 이상, 숫자 포함 조건을 아직 만족하지 않아요.',
+    emailMessage: '사용할 수 있는 이메일이에요.',
+    emailMessageTone: 'success',
+    passwordMessage: MIN_PASSWORD_ERROR,
     passwordMessageTone: 'error',
-    ready: false,
   },
   'password-mismatch': {
-    userId: 'prototype-user',
+    email: 'prototype@example.com',
     password: 'password1',
     passwordConfirmation: 'password2',
-    idMessage: '사용할 수 있는 아이디예요.',
-    idMessageTone: 'success',
+    emailMessage: '사용할 수 있는 이메일이에요.',
+    emailMessageTone: 'success',
     passwordMessage: '사용할 수 있는 비밀번호예요.',
     passwordMessageTone: 'success',
     confirmationMessage: '비밀번호가 서로 달라요.',
     confirmationMessageTone: 'error',
-    ready: false,
   },
   ready: {
-    userId: 'prototype-user',
+    email: 'prototype@example.com',
     password: 'password1',
     passwordConfirmation: 'password1',
-    idMessage: '사용할 수 있는 아이디예요.',
-    idMessageTone: 'success',
+    emailMessage: '사용할 수 있는 이메일이에요.',
+    emailMessageTone: 'success',
     passwordMessage: '사용할 수 있는 비밀번호예요.',
     passwordMessageTone: 'success',
     confirmationMessage: '비밀번호가 일치해요.',
     confirmationMessageTone: 'success',
-    ready: true,
   },
   loading: {
-    userId: 'prototype-user',
+    email: 'prototype@example.com',
     password: 'password1',
     passwordConfirmation: 'password1',
-    idMessage: '사용할 수 있는 아이디예요.',
-    idMessageTone: 'success',
+    emailMessage: '사용할 수 있는 이메일이에요.',
+    emailMessageTone: 'success',
     passwordMessage: '사용할 수 있는 비밀번호예요.',
     passwordMessageTone: 'success',
     confirmationMessage: '비밀번호가 일치해요.',
     confirmationMessageTone: 'success',
-    ready: true,
   },
   failed: {
-    userId: 'prototype-user',
+    email: 'prototype@example.com',
     password: 'password1',
     passwordConfirmation: 'password1',
-    idMessage: '사용할 수 있는 아이디예요.',
-    idMessageTone: 'success',
+    emailMessage: '사용할 수 있는 이메일이에요.',
+    emailMessageTone: 'success',
     passwordMessage: '사용할 수 있는 비밀번호예요.',
     passwordMessageTone: 'success',
     confirmationMessage: '비밀번호가 일치해요.',
     confirmationMessageTone: 'success',
-    ready: true,
   },
 };
 
 type SignUpScreenProps = {
+  auth?: AuthAdapter;
   onBack?: () => void;
   onCheckId?: () => void;
-  onSubmit?: () => void;
+  onSubmit?: (email: string, password: string) => unknown;
   previewState?: SignUpPreviewState;
 };
 
@@ -153,19 +139,109 @@ export function SignUpScreen({ ...props }: SignUpScreenProps) {
 }
 
 function SignUpScreenContent({
+  auth,
   onBack,
   onCheckId,
   onSubmit,
   previewState = 'idle',
 }: SignUpScreenProps) {
   const fixture = SIGN_UP_FIXTURES[previewState];
-  const [userId, setUserId] = useState(fixture.userId);
+  const [email, setEmail] = useState(fixture.email);
   const [password, setPassword] = useState(fixture.password);
   const [passwordConfirmation, setPasswordConfirmation] = useState(
     fixture.passwordConfirmation,
   );
   const [showPassword, setShowPassword] = useState(false);
-  const isLoading = previewState === 'loading';
+  const [validation, setValidation] = useState<string | null>(null);
+  const [policyHint, setPolicyHint] = useState<string | null>(null);
+  const isApiFlow = auth !== undefined;
+
+  useEffect(() => {
+    if (!auth) {
+      return;
+    }
+    let active = true;
+    void auth.describePasswordPolicy().then((hint) => {
+      if (active) {
+        setPolicyHint(hint);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [auth]);
+
+  const submit = useAsyncAction(async () => {
+    if (password !== passwordConfirmation) {
+      throw new AuthFailure(
+        'auth/password-mismatch',
+        '비밀번호가 서로 일치하지 않습니다.',
+      );
+    }
+    if (!auth) {
+      return;
+    }
+    const check = await auth.checkPassword(password);
+    if (!check.ok) {
+      throw new AuthFailure(check.code, check.message);
+    }
+    await auth.signUp(email, password);
+  });
+  const handleSubmit = useCallback(() => {
+    setValidation(null);
+    submit.clearError();
+    if (!email.trim()) {
+      setValidation('이메일을 입력해주세요.');
+      return;
+    }
+    if (!password || !passwordConfirmation) {
+      setValidation('비밀번호와 비밀번호 확인을 모두 입력해주세요.');
+      return;
+    }
+    if (password !== passwordConfirmation) {
+      setValidation('비밀번호가 서로 일치하지 않습니다.');
+      return;
+    }
+    if (auth) {
+      void submit.run();
+      return;
+    }
+    onSubmit?.(email, password);
+  }, [auth, email, onSubmit, password, passwordConfirmation, submit]);
+
+  const isLoading = previewState === 'loading' || submit.pending;
+  const isReady = Boolean(
+    email.trim() &&
+    password.length >= MIN_PASSWORD_LENGTH &&
+    passwordConfirmation &&
+    password === passwordConfirmation,
+  );
+  const confirmationMessage = isApiFlow
+    ? passwordConfirmation
+      ? password === passwordConfirmation
+        ? '비밀번호가 일치해요.'
+        : '비밀번호가 서로 달라요.'
+      : undefined
+    : fixture.confirmationMessage;
+  const confirmationMessageTone = isApiFlow
+    ? passwordConfirmation && password === passwordConfirmation
+      ? 'success'
+      : 'error'
+    : (fixture.confirmationMessageTone ?? 'error');
+  const hasMinimumLengthError =
+    password.length > 0 && password.length < MIN_PASSWORD_LENGTH;
+  const passwordMessage = hasMinimumLengthError
+    ? MIN_PASSWORD_ERROR
+    : isApiFlow
+      ? policyHint
+        ? `비밀번호 조건: ${policyHint}`
+        : 'Firebase 비밀번호 정책을 확인해요.'
+      : fixture.passwordMessage;
+  const passwordMessageTone = hasMinimumLengthError
+    ? 'error'
+    : isApiFlow
+      ? 'muted'
+      : fixture.passwordMessageTone;
 
   return (
     <SafeAreaView
@@ -193,41 +269,53 @@ function SignUpScreenContent({
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
       >
-        <Text style={styles.intro}>
-          로그인에 사용할 계정 정보만 입력해요.{`\n`}다음 단계에서 프로필을
-          등록하면 가입이 마무리돼요.
-        </Text>
-
         <Card style={styles.accountCard}>
           <Text style={styles.cardTitle}>계정 정보</Text>
 
           <View style={styles.fieldGroup}>
-            <RequiredLabel label="아이디" />
-            <View style={styles.idRow}>
+            <RequiredLabel label="이메일" />
+            {isApiFlow ? (
               <TextField
-                accessibilityLabel="회원가입 아이디"
+                accessibilityLabel="회원가입 이메일"
                 autoCapitalize="none"
-                containerStyle={styles.idField}
-                onChangeText={setUserId}
-                placeholder="영문·숫자 4자 이상"
-                style={[
-                  styles.signupField,
-                  fixture.idMessageTone === 'error' && styles.fieldError,
-                ]}
-                value={userId}
+                autoComplete="email"
+                keyboardType="email-address"
+                onChangeText={setEmail}
+                placeholder="name@example.com"
+                style={styles.signupField}
+                textContentType="emailAddress"
+                value={email}
               />
-              <Button
-                label="중복확인"
-                labelStyle={styles.compactButtonLabel}
-                onPress={onCheckId}
-                style={styles.checkButton}
-                tone="secondary"
-              />
-            </View>
-            {fixture.idMessage ? (
+            ) : (
+              <View style={styles.idRow}>
+                <TextField
+                  accessibilityLabel="회원가입 이메일"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  containerStyle={styles.idField}
+                  keyboardType="email-address"
+                  onChangeText={setEmail}
+                  placeholder="name@example.com"
+                  style={[
+                    styles.signupField,
+                    fixture.emailMessageTone === 'error' && styles.fieldError,
+                  ]}
+                  textContentType="emailAddress"
+                  value={email}
+                />
+                <Button
+                  label="중복확인"
+                  labelStyle={styles.compactButtonLabel}
+                  onPress={onCheckId}
+                  style={styles.checkButton}
+                  tone="secondary"
+                />
+              </View>
+            )}
+            {!isApiFlow && fixture.emailMessage ? (
               <FieldMessage
-                message={fixture.idMessage}
-                tone={fixture.idMessageTone ?? 'error'}
+                message={fixture.emailMessage}
+                tone={fixture.emailMessageTone ?? 'error'}
               />
             ) : null}
           </View>
@@ -237,11 +325,11 @@ function SignUpScreenContent({
             <TextField
               accessibilityLabel="회원가입 비밀번호"
               onChangeText={setPassword}
-              placeholder="8자 이상, 숫자 포함"
+              placeholder="6자 이상"
               secureTextEntry={!showPassword}
               style={[
                 styles.signupField,
-                fixture.passwordMessageTone === 'error' && styles.fieldError,
+                passwordMessageTone === 'error' && styles.fieldError,
               ]}
               trailing={
                 <Pressable
@@ -257,10 +345,12 @@ function SignUpScreenContent({
               }
               value={password}
             />
-            <FieldMessage
-              message={fixture.passwordMessage}
-              tone={fixture.passwordMessageTone}
-            />
+            {passwordMessage && passwordMessageTone ? (
+              <FieldMessage
+                message={passwordMessage}
+                tone={passwordMessageTone}
+              />
+            ) : null}
           </View>
 
           <View style={styles.fieldGroup}>
@@ -277,10 +367,10 @@ function SignUpScreenContent({
               ]}
               value={passwordConfirmation}
             />
-            {fixture.confirmationMessage ? (
+            {confirmationMessage ? (
               <FieldMessage
-                message={fixture.confirmationMessage}
-                tone={fixture.confirmationMessageTone ?? 'error'}
+                message={confirmationMessage}
+                tone={confirmationMessageTone}
               />
             ) : null}
           </View>
@@ -297,7 +387,7 @@ function SignUpScreenContent({
               <Button
                 label="다시 시도"
                 labelStyle={styles.feedbackActionLabel}
-                onPress={onSubmit}
+                onPress={handleSubmit}
                 style={styles.feedbackAction}
                 tone="secondary"
               />
@@ -306,19 +396,37 @@ function SignUpScreenContent({
             tone="error"
           />
         ) : null}
+        {validation ? (
+          <InlineFeedback message={validation} tone="error" />
+        ) : null}
+        {submit.error ? (
+          <InlineFeedback
+            action={
+              <Button
+                label="다시 시도"
+                labelStyle={styles.feedbackActionLabel}
+                onPress={handleSubmit}
+                style={styles.feedbackAction}
+                tone="secondary"
+              />
+            }
+            message={submit.error}
+            tone="error"
+          />
+        ) : null}
 
         <Text style={styles.profileNotice}>
-          가입 후 키·체중 등 필수 프로필을 등록해야 홈을 이용할 수 있어요.
+          가입 후 맞춤 루틴을 위한 기본 정보를 입력해주세요.
         </Text>
       </ScrollView>
 
       <View style={styles.footer}>
         <Button
-          disabled={!fixture.ready || isLoading}
+          disabled={!isReady || isLoading}
           label={
             isLoading
               ? '가입 처리 중...'
-              : fixture.ready
+              : isReady
                 ? '가입하고 프로필 등록하기'
                 : '필수 항목을 채워주세요'
           }
@@ -328,7 +436,7 @@ function SignUpScreenContent({
               <ActivityIndicator color={colors.surface} size="small" />
             ) : undefined
           }
-          onPress={onSubmit}
+          onPress={handleSubmit}
           style={[styles.submitButton, isLoading && styles.loadingButton]}
         />
         <Pressable
@@ -423,11 +531,6 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xs,
     paddingHorizontal: SIGN_UP_LAYOUT.contentHorizontalPadding,
     paddingBottom: 20,
-  },
-  intro: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 22,
   },
   accountCard: {
     gap: spacing.lg,

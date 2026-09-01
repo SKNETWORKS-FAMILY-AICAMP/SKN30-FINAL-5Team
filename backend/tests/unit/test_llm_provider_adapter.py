@@ -67,9 +67,10 @@ def _settings(**overrides: Any) -> Settings:
     values: dict[str, Any] = {
         "app_env": "test",
         "database_url": "postgresql+psycopg://test:test@localhost/test",
+        "openai_api_key": None,
     }
     values.update(overrides)
-    return Settings(**values)
+    return Settings(_env_file=None, **values)
 
 
 def test_narration_is_unavailable_by_default() -> None:

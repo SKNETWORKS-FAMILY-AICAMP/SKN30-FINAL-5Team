@@ -12,13 +12,16 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 
 import type { Api } from '../src/api/endpoints';
+import { bodyFocusLabel, equipmentLabel } from '../src/api/labels';
 import type {
   ConsentResponse,
   ExerciseListResponse,
   MeResponse,
 } from '../src/api/types';
+import { BackgroundBands } from '../src/components/brand/BrandChrome';
 import { ExerciseCatalogScreen } from '../src/features/catalog/ExerciseCatalogScreen';
 import { AccountScreen } from '../src/features/profile/AccountScreen';
 
@@ -33,7 +36,7 @@ function exercisePage(
       training_type_code: 'STRENGTH',
       difficulty_code: 'BEGINNER',
       primary_body_area_codes: ['KNEE'],
-      required_equipment_codes: ['BODYWEIGHT'],
+      required_equipment_codes: ['MAT', 'STABILITY_BALL', 'CHAIR'],
       media_asset_key: null,
     })),
     next_cursor: nextCursor,
@@ -55,18 +58,98 @@ describe('ExerciseCatalogScreen', () => {
       },
     } as unknown as Pick<Api, 'listExercises' | 'getExercise'>;
 
-    render(<ExerciseCatalogScreen api={api} onBack={() => {}} />);
+    const view = render(<ExerciseCatalogScreen api={api} onBack={() => {}} />);
 
     expect(await screen.findByText('스쿼트')).toBeTruthy();
+    expect(view.UNSAFE_queryByType(BackgroundBands)).toBeNull();
     expect(screen.getByText('런지')).toBeTruthy();
+    expect(screen.getAllByText('매트, 짐볼, 의자')).toHaveLength(2);
     expect(screen.getByText('카탈로그 버전 catalog-test-v1')).toBeTruthy();
 
-    fireEvent.press(screen.getByText('가동성'));
+    fireEvent.press(screen.getByText('스트레칭'));
     await waitFor(() => {
       expect(queries.length).toBeGreaterThanOrEqual(2);
     });
     expect(queries.at(-1)).toMatchObject({ trainingTypeCode: 'MOBILITY' });
   }, 15000);
+
+  it('shows the exercise GIF above reviewed catalog instructions', async () => {
+    const api = {
+      listExercises: async () => exercisePage(['스쿼트']),
+      getExercise: async () => ({
+        exercise_id: 'ex-0-스쿼트',
+        exercise_name: '스쿼트',
+        training_type_code: 'STRENGTH',
+        primary_body_area_codes: ['KNEE'],
+        instruction_summary: '발바닥을 고르게 디디고 천천히 앉아요.',
+        form_cues: ['무릎과 발끝의 방향을 맞춰요.'],
+        media_asset_key: 'catalog-media/squat.gif',
+        media_url: 'https://cdn.example.com/squat.gif',
+        mascot_animation_asset_key: null,
+        instruction_content_version: 'catalog-guide-v1',
+      }),
+    } as unknown as Pick<Api, 'listExercises' | 'getExercise'>;
+
+    render(<ExerciseCatalogScreen api={api} onBack={() => {}} />);
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '스쿼트 설명 열기' }),
+    );
+
+    expect(screen.getByRole('header', { name: '스쿼트' })).toBeOnTheScreen();
+    expect(await screen.findByTestId('exercise-media-image')).toHaveProp(
+      'source',
+      { uri: 'https://cdn.example.com/squat.gif' },
+    );
+    const summary = screen.getByText('발바닥을 고르게 디디고 천천히 앉아요.');
+    expect(summary).toBeOnTheScreen();
+    expect(StyleSheet.flatten(summary.props.style)).toMatchObject({
+      fontSize: 16,
+      lineHeight: 24,
+    });
+  });
+
+  it('does not treat media_asset_key as a URL when media_url is null', async () => {
+    const api = {
+      listExercises: async () => exercisePage(['런지']),
+      getExercise: async () => ({
+        exercise_id: 'ex-0-런지',
+        exercise_name: '런지',
+        training_type_code: 'STRENGTH',
+        primary_body_area_codes: ['KNEE'],
+        instruction_summary: '검수된 런지 설명입니다.',
+        form_cues: [],
+        media_asset_key: 'https://legacy.example.com/must-not-render.gif',
+        media_url: null,
+        mascot_animation_asset_key: null,
+        instruction_content_version: 'catalog-guide-v1',
+      }),
+    } as unknown as Pick<Api, 'listExercises' | 'getExercise'>;
+
+    render(<ExerciseCatalogScreen api={api} onBack={() => {}} />);
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '런지 설명 열기' }),
+    );
+
+    expect(
+      await screen.findByTestId('exercise-media-placeholder'),
+    ).toBeOnTheScreen();
+    expect(screen.queryByTestId('exercise-media-image')).toBeNull();
+  });
+
+  it('does not expose an unknown equipment machine code', () => {
+    expect(equipmentLabel('FUTURE_EQUIPMENT')).toBe('확인되지 않은 항목');
+  });
+
+  it('labels catalog-v2 body focus and equipment codes', () => {
+    expect(bodyFocusLabel('CHEST')).toBe('가슴');
+    expect(bodyFocusLabel('HAMSTRINGS')).toBe('햄스트링');
+    expect(bodyFocusLabel('CARDIO')).toBe('유산소');
+    expect(bodyFocusLabel('MOBILITY')).toBe('가동성');
+    expect(equipmentLabel('EZ_BAR')).toBe('이지바');
+    expect(equipmentLabel('FOAM_ROLLER')).toBe('폼롤러');
+  });
 
   it('pages with the server cursor instead of refetching page one', async () => {
     const cursors: (string | undefined)[] = [];
@@ -111,7 +194,7 @@ function meWith(): MeResponse {
       default_requested_duration_minutes: 30,
       desired_weekly_workout_count: 3,
       coaching_style_code: 'SUPPORTIVE',
-      equipment_codes: ['BODYWEIGHT'],
+      profile_version: 1,
       attention_area_codes: [],
       preferred_exercise_type_codes: [],
       available_location_codes: ['HOME'],
@@ -161,6 +244,22 @@ function accountApi() {
 }
 
 describe('AccountScreen editing', () => {
+  it('shows the location label without an equipment profile row', async () => {
+    const { api } = accountApi();
+    render(
+      <AccountScreen
+        api={api}
+        me={meWith()}
+        onBack={() => {}}
+        onSignOut={() => {}}
+      />,
+    );
+
+    expect(screen.getByText('집')).toBeOnTheScreen();
+    expect(screen.queryByText('장비')).toBeNull();
+    expect(screen.queryByText('HOME')).toBeNull();
+  });
+
   it('sends only the changed goal fields through PATCH /me/profile', async () => {
     const { api, patched } = accountApi();
     render(

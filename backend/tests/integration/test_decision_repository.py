@@ -1,6 +1,7 @@
 import json
 import os
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -9,7 +10,7 @@ from uuid import UUID, uuid4
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import Engine, create_engine, func, select
+from sqlalchemy import Engine, create_engine, delete, func, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, selectinload
 
@@ -23,6 +24,9 @@ from backend.app.db.models.catalog import (
 )
 from backend.app.db.models.decision import (
     AgentProposalRecord,
+    AgentProposalRevisionRecord,
+    AgentReviewEventRecord,
+    DecisionDeliberationRecord,
     DecisionExplanationRecord,
     DecisionOption,
     DecisionRun,
@@ -39,6 +43,13 @@ from backend.app.db.models.profile import (
 from backend.app.db.models.routine import Routine, RoutineDay
 from backend.app.db.repositories.checkin import DailyContextRepository
 from backend.app.db.repositories.decision import DecisionRepository
+from backend.app.db.repositories.deliberation import (
+    DeliberationRepository,
+    ProposalReferenceWrite,
+    ReviewEventWrite,
+    RevisedProposalWrite,
+    canonical_payload_hash,
+)
 from backend.app.db.repositories.profile import ProfileRepository
 from backend.app.db.repositories.routine import RoutineRepository
 from backend.app.domain.agents.contracts import (
@@ -381,6 +392,126 @@ def _decision_record_counts(session: Session) -> tuple[int, int, int, int, int, 
 
 
 @pytest.mark.integration
+def test_completed_decision_is_reused_for_an_identical_context_input(
+    postgres_session: Session,
+) -> None:
+    user_id = _add_user(postgres_session, attention_areas=())
+    context_id = _prepare_decision_inputs(postgres_session, user_id)
+    service = DecisionService(DecisionRepository(), clock=lambda: NOW)
+
+    first = service.create(postgres_session, user_id, _request(context_id), uuid4())
+    repeated = service.create(postgres_session, user_id, _request(context_id), uuid4())
+
+    assert repeated.decision_id == first.decision_id
+    assert (
+        postgres_session.scalar(
+            select(func.count()).select_from(DecisionRun).where(DecisionRun.user_id == user_id)
+        )
+        == 1
+    )
+
+
+@pytest.mark.integration
+def test_new_daily_context_version_creates_a_new_decision(
+    postgres_session: Session,
+) -> None:
+    user_id = _add_user(postgres_session, attention_areas=())
+    context_id = _prepare_decision_inputs(postgres_session, user_id)
+    service = DecisionService(DecisionRepository(), clock=lambda: NOW)
+    first = service.create(postgres_session, user_id, _request(context_id), uuid4())
+    updated = DailyContextService(DailyContextRepository(), clock=lambda: NOW).replace(
+        postgres_session,
+        user_id,
+        LOCAL_DATE,
+        DailyContextUpsertRequest.model_validate(
+            {
+                "fatigue_level_code": "MODERATE",
+                "requested_duration_minutes": 30,
+                "duration_adjustment_source_code": "PROFILE",
+                "location_code": "HOME",
+                "discomforts": [],
+                "adverse_reaction_codes": [],
+            }
+        ),
+        uuid4(),
+        1,
+    )
+    second = service.create(
+        postgres_session,
+        user_id,
+        DecisionCreateRequest(
+            local_date=LOCAL_DATE,
+            daily_context_id=updated.id,
+            expected_context_version=updated.context_version,
+        ),
+        uuid4(),
+    )
+
+    assert second.decision_id != first.decision_id
+    assert (
+        postgres_session.scalar(
+            select(func.count()).select_from(DecisionRun).where(DecisionRun.user_id == user_id)
+        )
+        == 2
+    )
+
+
+@pytest.mark.integration
+def test_concurrent_identical_requests_create_one_completed_decision(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    test_database_url = os.getenv("TEST_DATABASE_URL", "")
+    if not test_database_url:
+        pytest.skip("TEST_DATABASE_URL is not configured")
+    if not (make_url(test_database_url).database or "").endswith("_test"):
+        pytest.fail("Decision repository tests require a dedicated *_test database")
+
+    monkeypatch.setenv("DATABASE_URL", test_database_url)
+    monkeypatch.setenv("APP_ENV", "test")
+    get_settings.cache_clear()
+    command.upgrade(Config(str(ALEMBIC_CONFIG)), "head")
+    engine = create_engine(test_database_url)
+    user_id: UUID | None = None
+    try:
+        with Session(engine) as setup_session:
+            with setup_session.begin():
+                seed_catalog(setup_session, NOW)
+            user_id = _add_user(setup_session, attention_areas=())
+            context_id = _prepare_decision_inputs(setup_session, user_id)
+
+        request = _request(context_id)
+
+        def create_in_worker(_: int) -> UUID:
+            with Session(engine) as worker_session:
+                return (
+                    DecisionService(DecisionRepository(), clock=lambda: NOW)
+                    .create(worker_session, user_id, request, uuid4())
+                    .decision_id
+                )
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            decision_ids = list(executor.map(create_in_worker, range(2)))
+
+        assert decision_ids[0] == decision_ids[1]
+        with Session(engine) as verification_session:
+            assert (
+                verification_session.scalar(
+                    select(func.count())
+                    .select_from(DecisionRun)
+                    .where(DecisionRun.user_id == user_id)
+                )
+                == 1
+            )
+    finally:
+        if user_id is not None:
+            with Session(engine) as cleanup_session:
+                cleanup_session.execute(delete(User).where(User.id == user_id))
+                cleanup_session.commit()
+        engine.dispose()
+        get_settings.cache_clear()
+
+
+@pytest.mark.integration
 def test_mild_caution_result_round_trips_with_four_proposals_and_replay(
     postgres_session: Session,
 ) -> None:
@@ -701,7 +832,6 @@ def test_profile_update_changes_only_future_decision_context_snapshots(
                 "primary_goal_code": "MUSCLE_GAIN",
                 "preferred_location_code": "GYM",
                 "available_location_codes": ["GYM"],
-                "equipment_codes": ["MAT"],
                 "attention_area_codes": ["KNEE"],
             }
         ),
@@ -713,10 +843,133 @@ def test_profile_update_changes_only_future_decision_context_snapshots(
     assert updated is not None
     assert updated.context.primary_goal_code == "MUSCLE_GAIN"
     assert updated.context.profile_preferred_location_code == "GYM"
-    assert updated.context.equipment_codes == ("MAT",)
+    assert updated.context.equipment_codes == ("BODYWEIGHT", "MAT", "RESISTANCE_BAND")
     assert updated.context.attention_area_codes == ("KNEE",)
     postgres_session.rollback()
 
     unchanged = postgres_session.scalar(select(DecisionRun).where(DecisionRun.user_id == owner_id))
     assert unchanged is not None
     assert unchanged.input_snapshot == old_snapshot
+
+
+@pytest.mark.integration
+def test_deliberation_repository_separates_rounds_hashes_and_coordinator_result(
+    postgres_session: Session,
+) -> None:
+    owner_id = _add_user(postgres_session, attention_areas=())
+    context_id = _prepare_decision_inputs(postgres_session, owner_id)
+    DecisionService(DecisionRepository(), clock=lambda: NOW).create(
+        postgres_session,
+        owner_id,
+        _request(context_id),
+        uuid4(),
+    )
+    run = _stored_run(postgres_session, owner_id)
+    original_coordinator_result = json.loads(json.dumps(run.coordinator_result))
+    proposals = {proposal.agent_type_code: proposal for proposal in run.proposals}
+    proposal_hashes = {
+        agent_type_code: canonical_payload_hash(proposal.proposal_payload)
+        for agent_type_code, proposal in proposals.items()
+    }
+    references = tuple(
+        ProposalReferenceWrite(agent_type_code, proposal_hashes[agent_type_code])
+        for agent_type_code in sorted(proposal_hashes)
+    )
+    revised_training_payload = {
+        **proposals["TRAINING"].proposal_payload,
+        "preference_codes": ["PREFER_LOWER_IMPACT"],
+    }
+    reviews = tuple(
+        ReviewEventWrite(
+            agent_type_code=agent_type_code,
+            review_status_code="READY" if agent_type_code == "TRAINING" else "NOT_REQUIRED",
+            revision_status_code="REVISED" if agent_type_code == "TRAINING" else "NOT_REQUIRED",
+            review_schema_version="agent-review-v0.1",
+            reviewed_proposal_references=references,
+            review_payload={
+                "accepted_constraint_codes": ["RECOVERY_LOAD_CEILING"]
+                if agent_type_code == "TRAINING"
+                else [],
+                "unresolved_conflict_codes": [],
+            },
+            revised_proposal=(
+                RevisedProposalWrite(
+                    proposal_status_code="READY",
+                    proposal_schema_version="agent-proposal-v0.2",
+                    proposal_payload=revised_training_payload,
+                )
+                if agent_type_code == "TRAINING"
+                else None
+            ),
+        )
+        for agent_type_code in ("TRAINING", "RECOVERY", "SAFETY", "FEASIBILITY")
+    )
+
+    deliberation_id = DeliberationRepository().persist(
+        postgres_session,
+        decision_run_id=run.id,
+        deliberation_schema_version="decision-deliberation-v0.1",
+        round_count=2,
+        round_two_status_code="COMPLETED",
+        conflict_detector_version="conflict-detector-v1",
+        precedence_version="constraint-precedence-v1",
+        conflict_codes=("TRAINING_RECOVERY_LOAD_CONFLICT",),
+        reviews=reviews,
+        now=NOW,
+    )
+    postgres_session.commit()
+
+    deliberation = postgres_session.get(DecisionDeliberationRecord, deliberation_id)
+    revisions = tuple(
+        postgres_session.scalars(
+            select(AgentProposalRevisionRecord)
+            .where(AgentProposalRevisionRecord.decision_run_id == run.id)
+            .order_by(
+                AgentProposalRevisionRecord.round_number,
+                AgentProposalRevisionRecord.agent_type_code,
+            )
+        )
+    )
+    events = tuple(
+        postgres_session.scalars(
+            select(AgentReviewEventRecord)
+            .where(AgentReviewEventRecord.decision_run_id == run.id)
+            .order_by(AgentReviewEventRecord.agent_type_code)
+        )
+    )
+    stored_run = postgres_session.get(DecisionRun, run.id)
+
+    assert deliberation is not None
+    assert deliberation.graph_version == run.graph_version
+    assert deliberation.policy_version_id == run.policy_version_id
+    assert deliberation.deliberation_schema_version == "decision-deliberation-v0.1"
+    assert len([revision for revision in revisions if revision.round_number == 1]) == 4
+    assert len([revision for revision in revisions if revision.round_number == 2]) == 1
+    assert len(events) == 4
+    assert {event.review_status_code for event in events} == {"READY", "NOT_REQUIRED"}
+    assert all(
+        event.baseline_proposal_hash
+        == next(
+            revision.proposal_hash
+            for revision in revisions
+            if revision.round_number == 1 and revision.agent_type_code == event.agent_type_code
+        )
+        for event in events
+    )
+    assert stored_run is not None
+    assert stored_run.coordinator_result == original_coordinator_result
+    assert "review_payload" not in stored_run.coordinator_result
+
+    with pytest.raises(ValueError, match="already exists"):
+        DeliberationRepository().persist(
+            postgres_session,
+            decision_run_id=run.id,
+            deliberation_schema_version="decision-deliberation-v0.1",
+            round_count=2,
+            round_two_status_code="COMPLETED",
+            conflict_detector_version="conflict-detector-v1",
+            precedence_version="constraint-precedence-v1",
+            conflict_codes=("TRAINING_RECOVERY_LOAD_CONFLICT",),
+            reviews=reviews,
+            now=NOW,
+        )

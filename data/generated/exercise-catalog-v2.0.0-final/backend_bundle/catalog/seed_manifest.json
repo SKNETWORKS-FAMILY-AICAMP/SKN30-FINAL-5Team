@@ -1,0 +1,50 @@
+{
+  "catalog_version": {
+    "status_code": "DRAFT",
+    "version_code": "exercise-catalog-v2.0.0-final"
+  },
+  "files": [
+    {
+      "bytes": 124050,
+      "path": "exercises.jsonl",
+      "records": 102,
+      "sha256": "a4c4e9417380b810240a7c7c5b527ad0bf50ae9d642bd33b59eb505d6e5929b3"
+    }
+  ],
+  "generator_version": "v2-backend-bundle-packager-1.0.0",
+  "review": {
+    "production_eligible": false,
+    "review_method_code": "AGENT_ONLY",
+    "status": "DOMAIN_APPROVED",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
+  },
+  "schema_version": "1.0",
+  "source": {
+    "input_artifacts": [
+      {
+        "bytes": 119003,
+        "path": "input/representative_exercises_v2_final.csv",
+        "role": "representative_catalog_csv",
+        "sha256": "00a2da29a2754efbf888200fddeb65804edea6b1858e850916ddd63c9653d236"
+      },
+      {
+        "bytes": 13074,
+        "path": "input/exercise_taxonomy_codes.json",
+        "role": "taxonomy_registry",
+        "sha256": "79e487cc1a41ea39db9b4afb0799b3297840de878a2ae4ed621ef3e4403a0985"
+      },
+      {
+        "bytes": 799,
+        "path": "input/v2_backend_code_projection.json",
+        "role": "backend_code_projection",
+        "sha256": "859bffdbc4d81f5ca7f632e07d142f073fe65a5507e3499861361223e43a31a9"
+      }
+    ],
+    "review_batch_directory": "data/reports",
+    "taxonomy_registry_sha256": "79e487cc1a41ea39db9b4afb0799b3297840de878a2ae4ed621ef3e4403a0985",
+    "track": "merged"
+  },
+  "summary": {
+    "exercise_records": 102
+  }
+}

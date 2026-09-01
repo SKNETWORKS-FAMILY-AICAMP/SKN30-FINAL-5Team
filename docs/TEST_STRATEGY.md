@@ -6,6 +6,13 @@
 
 현재 멀티 에이전트 기준은 [ADR-0007](adr/0007-multi-agent-structure-correction.md)에 따른 Training·Recovery·Safety·Feasibility 네 proposal의 병렬 실행과 Coordinator의 최종 결정이다. 증상 사용자 시나리오에서 SafetyAgent 의견 반영 수준을 확인하며, 결과에 따른 후속 수정 가능성은 열어 둔다. 독립적인 최종 Safety 재검사는 현재 테스트 범위에 포함하지 않는다.
 
+ADR-0012의 2라운드 구조화 상호검토는 승인된 V2 목표지만 아직 production 테스트 기준이 아니다.
+A2/A3는 현재 V1 golden을 보존하면서 아래 V2 계약 suite를 별도로 통과해야 한다.
+
+ADR-0013의 Safety-first LLM 멀티에이전트 V3 목표 계약은 `ACCEPTED`이며 별도 V3 suite와 shadow
+비교가 production 전환 게이트다. ADR-0014 Qdrant retrieval은 `ACCEPTED`다. V3 계약 테스트가 현재
+V1/V2 통과 증거를 대체하지 않는다.
+
 ## 2. 계층
 
 | 계층 | 대상 | 주요 소유자 |
@@ -98,6 +105,36 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 72. calendar provider timeout·5xx·quota는 `PROVIDER_UNAVAILABLE`이고 계획을 삭제·변경하지 않음
 73. 하루 전체 busy는 빈 후보 배열이며 사용자 희망 운동시간을 단축하지 않음
 74. freebusy 종일 구간은 event 본문 조회 없이 busy로 처리
+75. [V3] SafetyPolicyEngine이 `STOP_AND_SEEK_HELP` 또는 생성 금지 veto를 확정하면 LLM Agent와
+    Coordinator를 호출하지 않고 plan을 반환하지 않음
+76. [V3] Training·Recovery·Feasibility 세 LLM Agent가 같은 envelope·pool hash로 병렬 실행되고
+    완료 순서와 무관하게 canonical proposal ordering을 가짐
+77. [V3] Agent가 pool 밖 exercise ID를 반환하면 structured output을 거부하고 부분 proposal로
+    Coordinator를 실행하지 않음
+78. [V3] repairable duration/ceiling/schema 위반은 Coordinator를 정확히 한 번 repair하고 재검증함
+79. [V3] non-repairable veto·필수 입력·정책 데이터 오류와 repair 재실패는 Coordinator로 돌아가지 않음
+80. [V3] provider 전체 장애는 같은 envelope를 만족하는 deterministic fallback을 검증해 반환하거나
+    안전한 fallback이 없으면 계획 없는 `FAILED`임
+81. [V3] 수동 재생성은 추가 사용자 입력 없이 같은 유효 snapshot·envelope·pool에서 세 Agent부터
+    시작하고 이전 plan과 의미 있게 다름
+82. [V3] 재생성 exact duplicate와 설명·UUID·미미한 시간만 다른 plan은 거부함
+83. [V3] 재생성 성공 1·2회는 허용하고 세 번째는 `REGENERATION_LIMIT_REACHED`이며 idempotent함
+84. [V3] stale envelope·pool 또는 version mismatch는 `REGENERATION_CONTEXT_STALE`이고 LLM을 호출하지 않음
+85. [V3/Vector] Safety veto·REST·STOP_AND_SEEK_HELP에서는 Qdrant 호출이 0회임
+86. [V3/Vector] PostgreSQL eligible allowlist 밖 Qdrant ID와 stale/non-canonical row는 제거되고
+    `VECTOR_RESULT_NOT_CANONICAL` 또는 `VECTOR_RESULT_STALE`을 기록함
+87. [V3/Vector] mandatory 목표 운동과 승인 안전 대체는 Vector top-k 누락에도 snapshot에 보존됨
+88. [V3/Vector] unavailable/not-ready/timeout/index-version mismatch는 같은 envelope의 deterministic
+    pool fallback과 stable hash를 만들거나 안전한 pool이 없으면 계획 없이 종료함
+89. [V3/Vector] stored retrieval request/result와 catalog/collection/index/embedding/graph/prompt/model
+    version으로 Qdrant/provider 재호출 없이 replay함
+90. [Onboarding pain] false/empty, true/non-empty, 부위 중복 금지, `OTHER` 저장 금지와 모든 1..10 점수
+    필수를 검증함
+91. [Onboarding pain] `pain-intensity-map-v1` 경계 1/3/4/6/7/10과 policy version 저장을 검증함
+92. [Feedback] 신규 difficulty-only와 legacy request 양쪽을 호환 기간에 수용하고 historical field를
+    삭제·false backfill하지 않음
+93. [Weekly pain] safety-event distinct session을 집계하고 legacy feedback과 중복하지 않으며 onboarding/
+    daily pain은 `pain_report_count`에 포함하지 않음
 
 ## 4. 속성·불변식 테스트
 
@@ -131,6 +168,59 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 - 승인되지 않은 exercise/rule/alternative가 plan에 없음
 - Training·Recovery·Safety·Feasibility 네 proposal이 final decision과 분리되고 Coordinator가 최종 루틴 한 개를 선택한다.
 - 증상 사용자 시나리오에서 SafetyAgent의 `PASS`/`REVISE`/`BLOCKED` 의견은 Coordinator 결정에 반영하고, `NEEDS_INPUT`과 `FAILED`는 계획을 반환하지 않는 fail-closed 결과로 처리하며, 독립적인 최종 Safety 재검사는 실행하지 않는다.
+
+ADR-0012 V2의 필수 속성·불변식 (SUPERSEDED, ADR-0015로 대체됨. 결정 기록으로만 보존한다):
+
+- no-conflict 입력은 Round 2 Agent를 호출하지 않고 `SKIPPED_NO_CONFLICT`이며, 네 Agent 모두
+  `NOT_REQUIRED` event를 가지고 V1과 같은 최종 결과다.
+- conflict code, review 대상, proposal/review hash는 실행 완료 순서와 무관하게 canonical하다.
+- 비대상 Agent는 누락이 아니라 `NOT_REQUIRED` review event를 가진다.
+- 대상 review 누락·FAILED는 decision FAILED, NEEDS_INPUT은 계획 없는 NEEDS_INPUT이다.
+- Safety veto는 `false -> true`만 가능하고 `true -> false`는 모든 입력 조합에서 거부된다.
+- Safety 제외 운동은 Round 2에서 제거되지 않고 추가 방향만 허용된다.
+- 요청 시간·시간 출처·승인 후보 집합·입력/정책/카탈로그/규칙 버전은 Round 2 전후 동일하다.
+- Feasibility hard constraint와 승인된 Recovery ceiling은 Training preference로 완화되지 않는다.
+- 모든 hard constraint와 Training 목표를 만족하는 후보가 없으면 목표·시간을 바꾼 성공 plan이 없다.
+- 동일 입력·모든 버전은 동일 conflict, review, candidate와 final action을 만든다.
+- LLM 비활성·실패·출력 거부는 conflict/review/final 결과를 바꾸지 않고 전체 템플릿을 사용한다.
+- review/LLM payload에 직접 식별자, 날짜, 자유 체크인, 원시 건강·웨어러블, application log가 없다.
+- constraint integrity validator는 Safety 규칙을 재실행하거나 독립 FinalSafetyGate 결과를 만들지 않는다.
+
+ADR-0013 V3의 필수 속성·불변식:
+
+- SafetyPolicyEngine 출력과 ConstraintEnvelope는 세 Agent, Coordinator, repair와 regeneration에서
+  완화되거나 version/hash가 바뀌지 않는다.
+- ExercisePoolSnapshot은 production-approved catalog row만 포함하고 canonical order/hash를 가지며
+  모든 LLM exercise reference는 pool의 부분집합이다.
+- Agent와 Coordinator invocation에는 직접 식별자, 날짜, 자유 체크인, raw 건강·웨어러블·캘린더,
+  application log, prompt 원문과 provider 예외 원문이 없다.
+- Agent와 Coordinator는 DB·repository·ORM·raw SQL Tool을 등록하거나 호출하지 않는다.
+- 세 Agent의 fan-out은 병렬이며 fan-in 전 누락·invalid·timeout 결과로 Coordinator를 실행하지
+  않는다.
+- ADR-0015: Training만 `exercise_prescriptions`를 반환한다. Recovery와 Feasibility가 계획을 제출하면
+  계약이 거부한다.
+- ADR-0015: Coordinator 앞에 결정론적 관문이 없다. Coordinator 출력에 대한 검사는 compiled plan을
+  대상으로 하는 integrity validator 하나이며, 이 검사만으로 Safety veto가 유지되는지 확인한다.
+- ADR-0015: Recovery·Feasibility의 `adjustment_codes`는 권고이므로, 반영되지 않았다는 이유로
+  결정이 실패하지 않는다.
+- Coordinator initial/repair output은 Pydantic schema, pool membership와 envelope constraint를 통과해야
+  하고 repair attempt는 0 또는 1뿐이다.
+- Plan Compiler 산술은 deterministic하고 plan 구성요소 합계가 requested duration의 허용 범위
+  (`DURATION_TOLERANCE_SECONDS`) 안에 든다.
+- 최종 validator는 원시 Safety 분류를 재실행하지 않고 envelope 준수 assertion만 수행한다.
+- `STOP_AND_SEEK_HELP`는 REST, fallback plan 또는 Coordinator repair로 바뀌지 않는다.
+- deterministic fallback도 compiler와 같은 integrity validator를 통과해야 final option이 된다.
+- regeneration은 root/parent/sequence lineage를 보존하고 exact duplicate를 거부하며 네 meaningful
+  difference code 중 하나 이상을 갖는다.
+- 같은 Idempotency-Key는 같은 regeneration response를 반환하고 다른 payload 재사용은 409다.
+- stored envelope·pool·proposal·Coordinator output·compiler/validation과 version으로 provider
+  재호출 없이 같은 final result를 replay한다.
+- LangGraph persistent checkpoint와 외부 trace 전송은 초기 V3에서 발생하지 않는다.
+- PostgreSQL이 eligible/mandatory ID를 먼저 계산하고 Qdrant는 eligible 범위의 순위·다양성만 결정한다.
+- Qdrant 결과는 같은 catalog version의 PostgreSQL 재검증 뒤에만 snapshot에 들어간다.
+- mandatory 목표 운동과 승인 안전 대체는 Vector 결과와 무관하게 보존된다.
+- Agent와 Coordinator dependency graph에는 repository/Qdrant port나 client가 없다.
+- 통증 부위·점수, 직접 식별자와 raw health/wearable 값은 vector/payload/embedding query/log에 없다.
 
 안전 상태와 API 결과의 매핑은 다음과 같다.
 
@@ -240,6 +330,46 @@ separator)의 SHA-256이다. 집합 의미의 context reference 순서는 hash�
 `NEEDS_INPUT`/`DECISION_FAILED` HTTP 매핑은 backend 소유 integration suite에서 같은 골든
 fixture를 사용해 추가 검증해야 한다.
 
+### 5.3.1 [V3 목표] LLM graph, Vector retrieval replay와 regeneration 계약
+
+V3 replay fixture는 input, ConstraintEnvelope, ExercisePoolSnapshot, 세 structured proposal,
+Coordinator initial/repair output, compiled plan, validation result와 모든 version/hash를 분리한다.
+replay는 provider를 mock으로도 호출하지 않고 저장된 structured output에서 final result를 복원한다.
+
+ADR-0014 fixture는 eligible/mandatory ID, retrieval request/result, collection/index/embedding/query version,
+Qdrant ranked ID·score, PostgreSQL revalidation, fallback code/version과 pool hash를 분리한다. privacy
+fixture는 통증 부위·점수, user identifier와 raw health/wearable 값이 vector/payload/query/log에 없는지
+allowlist로 검증한다.
+
+fresh LLM inference의 byte-identical 결과는 재현성 기준이 아니다. 대신 schema/pool/constraint 위반율,
+deterministic fallback율, expert agreement, safety invariant 100%, p50/p95 latency와 decision당 비용을
+V1 shadow 결과와 비교한다.
+
+V3-C1의 offline harness는 `backend/app/modules/decisions/v3_evaluation.py`와 versioned synthetic fixture
+20개를 사용한다. 기본 CLI는 저장된 `V3ShadowExecutionResult`만 읽어 provider를 0회 호출하며 결과·요약·
+전문가 검토 template·manifest를 생성한다. 명시적 safety/constraint violation만 hard gate이고 latency,
+cost, fallback, structured-output, review/repair와 expert agreement threshold는 V3-C2 승인 전 report-only다.
+전문가 검토가 없거나 token/pricing 근거가 불완전하면 0으로 대체하지 않고 `NOT_REVIEWED` 또는 `null`로
+남긴다. 상세 실행·report schema와 해석 기준은 `docs/runbooks/v3-shadow-evaluation.md`를 따른다.
+
+V3-C2의 `v3_promotion.py`는 승인된 versioned threshold JSON이 있을 때만 C1 evidence를 평가한다.
+manifest file hash·record count, summary/result 내부 hash, fixture/harness/graph/policy/catalog/prompt/provider/
+model version, completed expert review와 pricing 정합성을 다시 검증한다. safety invariant 100%, veto override
+0건과 constraint violation 0건은 threshold가 완화할 수 없는 hard gate다. nullable latency/token/cost/review
+metric은 0으로 추정하지 않으며 필요한 값이 unavailable이면 canonical reason code와 `BLOCKED`를 반환한다.
+동일 입력은 stable decision hash와 byte-stable JSON을 만든다. `READY_FOR_HUMAN_APPROVAL`은 자동 production
+승인이 아니며 feature flag를 변경하지 않는다. 상세 절차는 `docs/runbooks/v3-production-promotion.md`를
+따른다.
+
+regeneration fixture는 원본과 최대 두 개의 child run, idempotency key, 이전/new plan hash와 meaningful
+difference code를 포함한다. stale TTL·version mismatch, exact duplicate, 대안 없음과 concurrent sequence
+충돌을 각각 검증한다.
+
+backend API 경계는 `backend/tests/api/test_decision_regenerations.py`에서 request/header validation,
+application port 단일 호출, lineage/engine/difference projection, stable error mapping, 기본 feature 비활성,
+V1/V2 response field 호환성을 검증한다. locking·동시성·실패 attempt와 성공 sequence 계산은 route가
+아니라 후속 regeneration application/repository integration suite의 책임이다.
+
 ### 5.4 Account deletion 골든·개인정보 계약
 
 계정 삭제 골든 fixture는 합성 UUIDv4, timezone-aware 시각, provider 성공·실패 machine code,
@@ -316,8 +446,17 @@ secret-manager adapter를 검증한다.
 - backend format/lint/type/unit
 - backend API/integration with PostgreSQL
 - safety golden/fallback/reproducibility
+- [V3] LangChain structured output, LangGraph routing, privacy payload, replay와 regeneration contract
+- [V3-C1] shadow/public gate 독립, OpenAI factory fail-closed, full audit artifact, provider usage와
+  versioned pricing, synthetic JSONL privacy contract
+- [V3/Vector] Qdrant adapter contract, PostgreSQL revalidation, deterministic fallback와 privacy/replay
 - frontend format/lint/type/component/build
 - migration up/down 또는 forward-fix validation
+
+V3-C1 CI는 fake `BaseChatModel`만 사용한다. live OpenAI 호출과 실제 key는 CI 필수 조건이 아니다.
+Safety veto/생성 금지는 provider·Qdrant zero-call, Specialist 일부 실패는 Coordinator zero-call,
+repair는 최대 한 번이어야 한다. 실제 shadow 결과 수집, latency/cost threshold 판정과 expert review는
+harness 구현 완료와 구분해 후속 staging evidence로 남긴다.
 
 백엔드 기반 명령은 TASK-BACKEND-001에서 아래와 같이 확정한다. 프론트엔드 명령은 해당 초기화 PR에서 확정한다. 실행하지 않은 테스트를 통과로 보고하지 않는다.
 

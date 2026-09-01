@@ -4,22 +4,27 @@ import {
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { WEB_APP_MAX_WIDTH } from '../components/scale';
 import { LoginScreen } from '../features/auth/LoginScreen';
 import { SignUpScreen } from '../features/auth/SignUpScreen';
 import { CalendarReportScreen } from '../features/home/CalendarReportScreen';
 import { HomeScreen } from '../features/home/HomeScreen';
 import { MapHomeScreen } from '../features/home/MapHomeScreen';
-import { MyPageScreen } from '../features/home/MyPageScreen';
 import { OnboardingScreen } from '../features/onboarding/OnboardingScreen';
+import {
+  PREVIEW_OPEN_WEEK,
+  PREVIEW_ROUTINE,
+} from '../features/preview/backendPreview';
 import { homePreviewProps } from '../features/preview/homePreview';
 import { onboardingPreviewApi } from '../features/preview/onboardingPreview';
 import { PreviewGallery } from '../features/preview/PreviewGallery';
 import { ProfileScreen } from '../features/profile/ProfileScreen';
+import { SceneEditor } from '../features/sceneEditor/SceneEditor';
+import { isSceneEditorRoute } from '../features/sceneEditor/sceneEditorRoute';
 import { SplashScreen } from '../features/splash/SplashScreen';
-import { WorkoutScreen } from '../features/workout/WorkoutScreen';
 import {
   type BootDestination,
   type BootDestinationResolver,
@@ -146,6 +151,10 @@ export function App({
   splashPreview,
   ...navigatorProps
 }: AppProps) {
+  if (isSceneEditorRoute()) {
+    return <SceneEditor />;
+  }
+
   const activePreview =
     previewMode !== undefined
       ? previewMode
@@ -155,61 +164,110 @@ export function App({
           : null
         : getPreviewMode();
 
+  const usesPreviewGallery =
+    activePreview === 'gallery' ||
+    activePreview === 'account' ||
+    activePreview === 'auth' ||
+    activePreview === 'background_test' ||
+    activePreview === 'exercise-catalog' ||
+    activePreview === 'loading' ||
+    activePreview === 'mascot-house' ||
+    activePreview === 'session' ||
+    activePreview === 'session-result' ||
+    activePreview === 'today' ||
+    activePreview === 'weekly-report' ||
+    activePreview === 'workout' ||
+    activePreview === 'my-page';
+
   return (
     <SafeAreaProvider>
-      {activePreview === 'gallery' ? (
-        <PreviewGallery />
-      ) : activePreview === 'account' ? (
-        <PreviewGallery initialScreenId="account" />
-      ) : activePreview === 'mascot-house' ? (
-        <PreviewGallery initialScreenId="mascot-house" />
-      ) : activePreview === 'session' ? (
-        <PreviewGallery initialScreenId="session" />
-      ) : activePreview === 'session-result' ? (
-        <PreviewGallery initialScreenId="session-result" />
-      ) : activePreview === 'today' ? (
-        <PreviewGallery initialScreenId="today" />
-      ) : activePreview === 'weekly-report' ? (
-        <PreviewGallery initialScreenId="weekly-report" />
-      ) : activePreview === 'workout' ? (
-        <WorkoutScreen />
-      ) : activePreview === 'calendar-report' ? (
-        <CalendarReportScreen />
-      ) : activePreview === 'home' ? (
-        <HomeScreen {...homePreviewProps('pre-checkin')} />
-      ) : activePreview === 'home-map' ? (
-        <MapHomeScreen />
-      ) : activePreview === 'login' ? (
-        <LoginScreen />
-      ) : activePreview === 'my-page' ? (
-        <MyPageScreen />
-      ) : activePreview === 'onboarding' ? (
-        <OnboardingScreen
-          api={onboardingPreviewApi}
-          onCompleted={() => undefined}
-          onSignOut={() => undefined}
-        />
-      ) : activePreview === 'profile' ? (
-        <ProfileScreen />
-      ) : activePreview === 'signup' ? (
-        <SignUpScreen />
-      ) : activePreview === 'splash' ? (
-        <SplashScreen />
-      ) : navigatorProps.bootResolver !== undefined ||
-        navigatorProps.onNavigationTransition !== undefined ? (
-        // The boot-resolver navigator is retained for the existing boot tests.
-        <AppNavigator {...navigatorProps} />
-      ) : (
-        // Default entry is the real user flow, not the preview gallery.
-        <SessionProvider>
-          <DemoApp />
-        </SessionProvider>
-      )}
+      <View style={styles.appShell} testID="app-shell">
+        <View
+          style={[
+            styles.appViewport,
+            Platform.OS === 'web' && !usesPreviewGallery
+              ? styles.webAppViewport
+              : undefined,
+          ]}
+          testID="app-viewport"
+        >
+          {activePreview === 'gallery' ? (
+            <PreviewGallery />
+          ) : activePreview === 'account' ? (
+            <PreviewGallery initialScreenId="account" />
+          ) : activePreview === 'auth' ? (
+            <PreviewGallery initialScreenId="auth" />
+          ) : activePreview === 'background_test' ? (
+            <PreviewGallery initialScreenId="background_test" />
+          ) : activePreview === 'exercise-catalog' ? (
+            <PreviewGallery initialScreenId="exercise-catalog" />
+          ) : activePreview === 'loading' ? (
+            <PreviewGallery initialScreenId="loading" />
+          ) : activePreview === 'mascot-house' ? (
+            <PreviewGallery initialScreenId="mascot-house" />
+          ) : activePreview === 'session' ? (
+            <PreviewGallery initialScreenId="session" />
+          ) : activePreview === 'session-result' ? (
+            <PreviewGallery initialScreenId="session-result" />
+          ) : activePreview === 'today' ? (
+            <PreviewGallery initialScreenId="today" />
+          ) : activePreview === 'weekly-report' ? (
+            <PreviewGallery initialScreenId="weekly-report" />
+          ) : activePreview === 'workout' ? (
+            <PreviewGallery initialScreenId="workout" />
+          ) : activePreview === 'calendar-report' ? (
+            <CalendarReportScreen />
+          ) : activePreview === 'home' ? (
+            <HomeScreen {...homePreviewProps('pre-checkin')} />
+          ) : activePreview === 'home-map' ? (
+            <MapHomeScreen routine={PREVIEW_ROUTINE} week={PREVIEW_OPEN_WEEK} />
+          ) : activePreview === 'login' ? (
+            <LoginScreen />
+          ) : activePreview === 'my-page' ? (
+            <PreviewGallery initialScreenId="my-page" />
+          ) : activePreview === 'onboarding' ? (
+            <OnboardingScreen
+              api={onboardingPreviewApi}
+              onCompleted={() => undefined}
+              onSignOut={() => undefined}
+            />
+          ) : activePreview === 'profile' ? (
+            <ProfileScreen />
+          ) : activePreview === 'signup' ? (
+            <SignUpScreen />
+          ) : activePreview === 'splash' ? (
+            <SplashScreen />
+          ) : navigatorProps.bootResolver !== undefined ||
+            navigatorProps.onNavigationTransition !== undefined ? (
+            // The boot-resolver navigator is retained for the existing boot tests.
+            <AppNavigator {...navigatorProps} />
+          ) : (
+            // Default entry is the real user flow, not the preview gallery.
+            <SessionProvider>
+              <DemoApp />
+            </SessionProvider>
+          )}
+        </View>
+      </View>
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
+  appShell: {
+    width: '100%',
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: '#FFF4DC',
+  },
+  appViewport: {
+    width: '100%',
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  webAppViewport: {
+    maxWidth: WEB_APP_MAX_WIDTH,
+  },
   placeholder: {
     flex: 1,
     alignItems: 'center',
@@ -217,7 +275,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   placeholderText: {
-    color: '#2F5233',
+    color: '#5A4636',
     fontSize: 20,
     fontWeight: '700',
   },

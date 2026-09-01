@@ -8,6 +8,15 @@
 
 현재 멀티 에이전트 핵심 흐름은 Training·Recovery·Safety·Feasibility 네 proposal의 병렬 실행과 Coordinator 최종 결정으로 확정한다. 에이전트별 상세 입력·출력·proposal JSON 구조와 공개 요약 필드는 증상 사용자 시나리오 검증 결과에 따라 추후 보완할 수 있으며, 독립적인 최종 Safety 재검사는 현재 범위에 포함하지 않는다.
 
+ADR-0012의 2라운드 구조화 상호검토는 승인된 V2 목표다. A2 기준 구현과 필수 검증이 병합되기
+전에는 아래 현재 계약을 production 기준으로 유지하며, 8.1을 구현 완료나 새 안전 정책 승인으로
+해석하지 않는다.
+
+ADR-0013의 Safety-first LLM 멀티에이전트 V3 목표 계약은 `ACCEPTED`다. 8.2와 9.1은 구현·비교
+검증과 production 전환 승인 전까지 현재 V1/V2의 네 proposal, 결정적 Coordinator와
+narration-only LLM production 경계를 바꾸지 않는다. Qdrant 세부 목표 계약인 ADR-0014는
+`ACCEPTED` 상태이지만 adapter·migration·shadow 검증 전에는 production 구현 완료로 간주하지 않는다.
+
 규칙의 적용 우선순위는 다음과 같다.
 
 1. 중대한 이상 반응 처리
@@ -36,7 +45,7 @@
 - 안전 거부는 조정 에이전트와 LLM이 무시할 수 없다.
 - 내부 원래 후보의 안전 검증 결과는 최종 추천 루틴 반환 여부를 결정하며, 원래 후보를 사용자 선택지로 공개하지 않는다.
 - 사용자가 요청한 운동 시간은 시스템이 임의로 축소하지 않는다.
-- 다운시프트는 요청 시간을 유지하면서 부하·강도·세트·반복·운동 유형·휴식 구성을 조정한다.
+- 다운시프트는 요청 시간을 유지하면서 부하·강도·세트·반복·운동 유형·휴식 구성을 조정한다. 승인된 운동 풀로 요청 시간을 정확히 채울 수 없을 때는 ±5분 이내에서 가장 가까운 계획을 선택한다.
 - 예상 시간과 실제 경과 시간은 운동 완료 상태를 결정하지 않는다.
 - 미수행은 벌점이 아니라 다음 결정의 입력이다.
 - 사용자가 휴식을 선택하면 해당 사용자 로컬 날짜에는 추가 압박 알림을 보내지 않는다.
@@ -59,6 +68,16 @@ CHANGE
 RECOVERY
 REST
 STOP_AND_SEEK_HELP
+
+Safety service actions:
+
+```text
+LOAD_REDUCED
+ROM_REDUCED
+ACTIVE_RECOVERY
+SKIP_AFFECTED_AREA
+STOP_EXERCISE
+```
 ~~~
 
 ### 3.2 불편 부위
@@ -79,7 +98,10 @@ GENERALIZED
 OTHER
 ~~~
 
-한 체크인 또는 피드백에서 여러 부위를 선택할 수 있다.
+한 체크인 또는 안전 이벤트에서 여러 부위를 선택할 수 있다. `OTHER`는 온보딩 저장값이 아니다.
+온보딩 UI에서 기본 노출되지 않은 실제 `body_area_code` 목록을 여는 control code로만 사용하고,
+사용자가 고른 각 실제 code를 저장한다. Qdrant payload/vector/embedding query에는 어떤 통증 부위도
+포함하지 않는다.
 
 이 코드 집합은 안정적이며 화면 노출 범위와 분리한다. 클라이언트가 선택지를 줄이더라도 코드
 자체를 줄이지 않는다. 다만 **사용자가 고를 수 없는 부위는 해당 규칙이 발동하지 않는다.** 노출
@@ -95,6 +117,46 @@ OTHER
 | 3 | SEVERE | 운동하기 어려움 | 운동 계획 제공 중단, 휴식·확인 안내 |
 
 이 값은 의료적 통증 척도로 해석하지 않는다.
+
+### 3.3.1 온보딩 통증 입력과 점수 변환
+
+신규 온보딩 계약은 `pain_present`와 `PainAreaInput[] pain_areas`를 사용한다.
+
+```text
+PainAreaInput
+- body_area_code
+- intensity_score: integer 1..10
+```
+
+검증은 결정적이다.
+
+- `pain_present=false`이면 `pain_areas=[]`여야 한다.
+- `pain_present=true`이면 `pain_areas`가 한 개 이상이어야 한다.
+- `body_area_code`는 중복할 수 없고 `OTHER`를 직접 저장할 수 없다.
+- 선택한 모든 부위에는 1..10의 정수 `intensity_score`가 필수다.
+- UI는 `NECK`, `LOWER_BACK`, `SHOULDER`를 기본 노출한다. `OTHER` control을 누르면 `OTHER`를
+  제외한 나머지 실제 body area code를 복수 선택할 수 있다.
+
+결정 정책 `pain-intensity-action-v2`는 원점수 구간별 서비스 액션을 다음과 같이 결정한다.
+
+| intensity_score | severity_code | service_action | alternative policy |
+|---:|---|---|---|
+| 1..3 | `MILD` | `LOAD_REDUCED` | 같은 목표 → 부하 감소 → ROM 감소 → 쉬운 변형 |
+| 4..6 | `MODERATE` | `SKIP_AFFECTED_AREA` | 통증 부위 제외 → `ACTIVE_RECOVERY` |
+| 7..10 | `SEVERE` | `STOP_EXERCISE` | 대체운동 없음 |
+
+원점수와 변환된 code, `pain-intensity-action-v2`를 함께 보존해 재현한다.
+
+이 구간은 안전·통증 정책 변경이다. `MODERATE` 4..7 → 4..6, `SEVERE` 8..10 → 7..10 조정은
+2026-08-30 프로젝트 오너의 직접 검수로 승인했다(`USER_DIRECT_REVIEW_2026_08_30`). 승인 주체는
+개발팀장·데이터 리드를 겸하는 프로젝트 오너이며, 이는 `AGENTS.md` 7절의 2026-08-27 승인과
+v2.0.2 일괄 승인(`USER_DIRECT_REVIEW_2026_08_29`)이 사용한 것과 같은 승인 경로다. 승인 범위는
+위 표의 구간 경계와 그에 대응하는 `NRS_1_3`/`NRS_4_6` 관계 selector다. `intensity_score=7`은
+`SKIP_AFFECTED_AREA`에서 `STOP_EXERCISE`로 이동하며, 보수적인 방향의 변경이다.
+
+원점수 입력 경로는 아직 활성화하지 않는다. 기존 `attention_area_codes` 계약과 기존 severity 입력
+경로를 유지하며 점수를 추정하거나 backfill하지 않는다. 숫자 NRS 입력 UI를 도입할 때 이 표를 서버
+계약으로 노출하고 클라이언트가 경계를 재구현하지 않는다.
 
 ### 3.4 이상 반응 코드
 
@@ -141,6 +203,15 @@ OPTIONAL
 
 이 역할은 운동 자체의 절대 속성이 아니라 특정 루틴과 목표 안에서의 역할이다.
 
+`difficulty_code`는 운동 자체의 난이도이고, 사용자와 FITT 처방의 `experience_level_code`는
+숙련도다. `BEGINNER` 사용자는 `BEGINNER` 운동만, `INTERMEDIATE` 사용자는 `BEGINNER`와
+`INTERMEDIATE` 운동을 후보로 사용할 수 있다. 처방도 같은 방향성 규칙을 적용해 운동 난이도
+이상의 숙련도만 허용한다. 따라서 `BEGINNER` 운동에는 두 처방 레벨이 모두 가능하지만,
+`INTERMEDIATE` 운동에는 `INTERMEDIATE` 처방만 가능하다. 정상 상태의 `INTERMEDIATE` 사용자는
+운동 난이도와 관계없이 `INTERMEDIATE` FITT를 적용하며, 기존 downshift 조건이 발동한 경우에만
+`BEGINNER` 운동과 `BEGINNER` FITT로 재구성할 수 있다. 후보는 `DOMAIN_APPROVED` 운동으로
+제한하며 `beginner_suitable` 또는 별도 `intermediate_suitable` 플래그를 사용하지 않는다.
+
 ### 3.6 코치 문구 성향
 
 ~~~text
@@ -184,29 +255,34 @@ FAILED
 
 ### 4.2 심한 통증과 급성 근골격 신호
 
-다음 중 하나면 REST를 반환한다.
+다음 중 하나면 `STOP_EXERCISE`를 반환한다.
 
-- 한 부위라도 심각도가 SEVERE
+- 한 부위라도 NRS 7–10
 - 급성 근골격 신호 그룹의 코드가 있음
-- 안전 검증을 통과한 계획을 만들 수 없음
-- 사용자가 명시적으로 휴식을 선택함
+- 운동 중 통증 증가·갑작스러운 통증·부종·감각 이상·체중부하 불가가 발생함
 
-REST에는 final_plan을 제공하지 않는다.
+`STOP_EXERCISE`에는 대체 운동과 final_plan을 제공하지 않는다. 긴급 중단 그룹은
+`STOP_AND_SEEK_HELP`로 별도 처리한다.
 
 ### 4.3 특정 부위 불편
 
-다음 조건을 모두 만족하면 충돌 운동을 제외하고 검수된 대체 후보를 만든다.
+NRS 구간별로 다음과 같이 처리한다.
 
 - 불편 부위가 명확함
-- 심각도가 MILD 또는 MODERATE
+- NRS 1–3: 원래 운동이 불편 부위를 사용하면 해당 부위를 피하는 검수된 Alternative를 우선
+  적용하고 `LOAD_REDUCED`를 사용한다. 통증 부위와 겹치지 않으면 원래 목표를 유지하며 부하
+  감소, ROM 감소, 쉬운 변형 순으로 적용한다.
+- NRS 4–6: 통증 부위를 primary·secondary 모두에서 제외하고 저강도 `ACTIVE_RECOVERY` 후보를 사용한다.
+- NRS 7–10: 대체 후보를 만들지 않고 `STOP_EXERCISE`를 반환한다.
 - 긴급 중단 그룹과 급성 근골격 신호 그룹이 모두 비어 있음
-- DOMAIN_APPROVED 상태의 통증 제외 규칙이 있음
-- DOMAIN_APPROVED 상태의 대체 운동이 있음
+- 후보가 있는 경우 `DOMAIN_APPROVED` 상태의 대체 운동이어야 함
 - 대체 운동이 현재 장소와 장비를 충족함
 
-원래 목표를 안전하게 보존하는 대체 계획이 만들어지면 CHANGE를 반환한다.
-
-MODERATE 불편이 있고 목표 보존형 대체 계획을 만들 수 없지만 검수된 저강도 회복 계획이 가능하면 RECOVERY를 반환한다. 안전한 회복 계획도 없으면 REST를 반환한다.
+NRS 1–3의 서비스 액션은 `LOAD_REDUCED` 또는 `ROM_REDUCED`이며, 원 운동이 보고된 불편
+부위를 사용하면 먼저 `NRS_1_3`·해당 부위 Alternative를 조회한다. 일치하는 Alternative가
+없을 때만 안전성이 확인된 원 운동에 다운시프트를 적용한다. NRS 4–6의 서비스 액션은
+`SKIP_AFFECTED_AREA`이며 `NRS_4_6`·해당 부위의 저강도 `ACTIVE_RECOVERY` 후보를 제공한다.
+NRS 7–10은 대체 운동을 제공하지 않는다.
 
 ### 4.3.1 안전 규칙 레코드 해석
 
@@ -248,7 +324,7 @@ MODERATE 불편이 있고 목표 보존형 대체 계획을 만들 수 없지만
 
 #### 요청 시간
 
-어떤 경우에도 요청 시간을 임의로 줄이지 않는다. 5절과 6절의 시간 보존 규칙이 그대로 적용된다.
+요청 시간을 ±5분을 넘겨 임의로 줄이지 않는다. 5절과 6절의 시간 보존 규칙이 그대로 적용된다.
 
 #### 만성 주의 부위
 
@@ -286,7 +362,11 @@ RECOVERY 콘텐츠는 DOMAIN_APPROVED 상태의 가벼운 걷기, 호흡, 가동
 
 ## 5. 요청 시간과 예상 시간
 
-`requested_duration_minutes`는 최종 루틴의 계획 시간 목표(분)다. 프로필 기본값을 사용하되 사용자가 당일 명시적으로 변경하면 그 값을 새 목표로 사용한다. 운동 계획을 반환하는 경우 계획의 `estimated_duration_seconds`는 반드시 `requested_duration_minutes * 60`과 일치해야 하며, 시스템은 사용자 변경 없이 이 값을 더 짧게 만들거나 임의로 초과할 수 없다.
+`requested_duration_minutes`는 최종 루틴의 계획 시간 목표(분)다. 프로필 기본값을 사용하되 사용자가 당일 명시적으로 변경하면 그 값을 새 목표로 사용한다. 운동 계획을 반환하는 경우 계획의 `estimated_duration_seconds`는 `requested_duration_minutes * 60`을 목표로 하며, 승인된 운동 풀로 정확히 맞출 수 없을 때에 한해 ±300초 이내의 편차를 허용한다. 편차가 가장 작은 계획을 우선 선택하고, 허용 범위를 넘으면 계획을 반환하지 않고 실패한다. 시스템은 사용자 변경 없이 이 범위를 넘겨 시간을 줄이거나 초과할 수 없다.
+
+이 허용 범위는 2026-08-27 프로젝트 오너 승인으로 도입됐다. 근거와 경위는 `docs/tasks/TASK-ROUTINE-EQUIPMENT-AND-DURATION.md`에 있다. 구현 상수는 `backend/app/domain/rules/duration.py`의 `DURATION_TOLERANCE_SECONDS`이며 V1/V2 루틴 경로와 V3 계획 경로가 같은 값을 공유한다.
+
+V3 경로의 시간 산출은 `backend/app/domain/agents/v3_duration.py`가 담당한다. 반복 기반 운동은 카탈로그의 `default_seconds_per_rep`으로 환산하고, 동작 전환은 카탈로그 `default_transition_seconds`를 사용한다. 모델이 제시한 값이 아니라 검수된 카탈로그 값을 기준으로 삼는다. V3 계획은 현재 모든 항목을 `MAIN`으로 구성하므로 `setup_seconds`, `warmup_seconds`, `cooldown_seconds`가 아직 0이다. 이 구간의 도입은 별도 과제로 관리한다.
 
 ~~~text
 estimated_duration_seconds
@@ -426,6 +506,124 @@ Coordinator(의장 에이전트)는 공통 입력·기본 후보와 Training·Re
 
 독립적인 Safety 최종 재검사는 수행하지 않는다.
 
+### 8.1 (SUPERSEDED) V2 구조화 상호검토 목표 계약
+
+> ADR-0015(2026-08-28)로 대체됐다. 이 절의 conflict detector와 Round 2 review는 현행 계약이 아니며
+> production 경로로 구현된 적도 없다. 결정 기록으로만 보존한다. 현행 V3 계약은 8.2절을 따른다.
+
+ADR-0012에 따라 A2는 현재 네 독립 proposal을 Round 1로 유지하고, 그 뒤 결정적 conflict detector와
+최대 한 번의 Round 2 review를 추가한다.
+
+#### 상태 전이
+
+1. Round 1 네 proposal 누락·`FAILED`는 decision `FAILED`다.
+2. `FAILED`가 없고 `NEEDS_INPUT`이 있으면 계획 없는 `NEEDS_INPUT`이다.
+3. 네 proposal이 `READY`일 때만 conflict detector를 실행한다.
+4. conflict가 없으면 Round 2를 `SKIPPED_NO_CONFLICT`로 기록하고, 네 Agent 모두 Agent 호출 없는
+   `NOT_REQUIRED` event를 남긴 뒤 Coordinator로 진행한다.
+5. conflict가 있으면 영향받는 Agent만 review 대상이며 나머지는 `NOT_REQUIRED` event를 남긴다.
+6. 대상 review 누락·`FAILED`는 decision `FAILED`, `NEEDS_INPUT`은 계획 없는 `NEEDS_INPUT`이다.
+7. Round 2 후 추가 토론은 하지 않고 constraint integrity 검증과 Coordinator로 종료한다.
+
+#### `AgentReview` 최소 논리 필드
+
+- `review_schema_version`, `round_number=2`, `agent_type_code`
+- `review_status_code`: `READY | NOT_REQUIRED | NEEDS_INPUT | FAILED`
+- `revision_status_code`: `UNCHANGED | REVISED | NOT_REQUIRED | null`. `NEEDS_INPUT`·`FAILED`에는 null
+- `baseline_proposal_hash`, canonical `(agent_type_code, proposal_hash)` 구조의
+  `reviewed_proposal_references`
+- canonical `reviewed_agent_types`
+- `accepted_constraint_codes`, `unresolved_conflict_codes`
+- `revision_reason_codes`, `evidence_reference_codes`
+- `revised_proposal`: `REVISED`일 때만 존재
+
+review는 machine code와 승인 후보 ID만 포함하고 자유 텍스트 reasoning, prompt, 예외 문자열을
+포함하지 않는다. revised proposal은 Round 1과 같은 Pydantic 불변식을 다시 통과해야 한다.
+
+#### 권한과 단조성
+
+- 요청 시간·시간 출처·승인 후보 집합·입력/정책/카탈로그/규칙 버전은 변경할 수 없다.
+- Safety `BLOCKED`, `REST`, `STOP_AND_SEEK_HELP`, veto와 제외 운동은 완화할 수 없다.
+- Safety Agent만 veto를 `false -> true`로 강화하거나 제외 운동을 추가할 수 있다.
+- Feasibility의 장소·장비·가용 시간 불가능 조건은 다른 Agent 선호로 해제할 수 없다.
+- 승인 정책이 만든 Recovery 최대 강도·부하·볼륨·복귀 상한을 Training이 초과할 수 없다.
+- Training primary goal은 위 hard constraint 안에서 보존한다. 동시에 만족할 후보가 없으면 목표나
+  시간을 임의로 바꾸지 않고 기존 계약의 `REST`, `NEEDS_INPUT` 또는 `FAILED`로 종료한다.
+- conflict detector와 integrity validator는 결정적 Python 규칙이며 LLM을 호출하지 않는다.
+- integrity validator는 Safety proposal 보존을 검사하며 안전 규칙을 재실행하는 FinalSafetyGate가 아니다.
+
+#### Agent Tool 경계
+
+Agent는 DB, repository, FastAPI, ORM, LLM SDK와 외부 API를 직접 호출하지 않는다. application
+service는 검수 catalog, 목표·루틴 policy, Recovery ceiling, Safety rule·대체, 정확한 시간 계산,
+장소·장비 호환성의 정규화·버전화된 결과를 immutable request로 조립한다. Tool 장애가 필수 판단을
+막으면 고정 failure code로 fail-closed하며 예외 원문이나 사용자 원문을 복사하지 않는다.
+
+### 8.2 승인된 V3 Safety-first LLM Agent 목표 계약
+
+V3는 Safety를 LLM Agent로 실행하지 않는다. 결정적 `SafetyPolicyEngine`이 Agent 호출 전에 다음을
+포함한 immutable `ConstraintEnvelope`를 만든다.
+
+- `plan_generation_allowed`, `required_action_code`, safety status와 veto
+- excluded exercise ID와 승인 대체 범위
+- 요청 시간과 시간 출처
+- primary goal과 required goal tag
+- intensity·load·volume·return ceiling
+- 장소·장비와 실행 가능 hard constraint
+- input, policy, safety, duration, catalog schema/version/hash
+
+application loader는 같은 catalog version의 PostgreSQL에서 production-approved 운동을 결정적으로
+필터링해 eligible/mandatory ID를 먼저 만든다. ADR-0014에 따라 `ExerciseRetriever`가 별도 Qdrant
+derived index에서 eligible 범위 안의 순위·다양성만 계산하고, application loader가 결과를
+PostgreSQL에서 다시 조회·검증해 canonical `ExercisePoolSnapshot`을 만든다. 필수 목표 운동과 승인된
+안전 대체는 Vector 결과와 무관하게 보존한다. 각 항목은 exercise ID, goal/location/equipment tag,
+검수 처방 범위와 content version만 포함한다. Agent와 Coordinator는 DB·repository·ORM·raw SQL·
+Qdrant를 직접 호출하지 않는다.
+
+Qdrant unavailable/not-ready/timeout, stale result와 catalog/index/embedding version mismatch에서는
+결과를 폐기하고 같은 envelope를 만족하는 결정적 후보 생성으로 fallback한다. fallback도 PostgreSQL
+재검증과 mandatory 보존을 통과해야 한다. Vector 장애는 Safety veto를 완화하거나 새 안전 실패를
+만들지 않는다.
+
+Round 1 LLM Agent는 `TRAINING`, `RECOVERY`, `FEASIBILITY` 세 개다. 동일 envelope와 pool을 받아
+LangGraph에서 병렬 실행하고 LangChain/Pydantic structured output만 반환한다. Training은 pool 안에서
+PlanSpec 초안을 만들고, Recovery는 승인 ceiling 안의 조정, Feasibility는 장소·장비·시간 안의 실행
+가능성 proposal을 만든다.
+
+ADR-0015에 따라 계획을 만드는 Agent는 Training 하나다. Recovery와 Feasibility는 회복 상한과
+실행 가능성 관점의 `adjustment_codes`로 응답한다. 이 조정 코드는 Coordinator에 대한 **권고이며
+결정론적 강제 대상이 아니다.** 안전은 `ConstraintEnvelope`의 제외 운동·recovery ceiling과 최종
+integrity validator가 강제하므로, 두 Agent의 응답 내용이 안전 판정을 바꾸지 않는다.
+
+세 응답은 별도의 충돌 감지나 재검토 없이 Coordinator로 직접 들어간다. Coordinator 출력에 대한
+결정론적 검사는 integrity validator 하나이며, 검사 대상이 proposal이 아니라 compiled plan이므로
+Coordinator가 무엇을 하든 사용자에게 나가는 계획이 envelope를 벗어날 수 없다. Safety veto,
+생성 금지, 요청 시간, pool, version, Recovery/return ceiling과 Feasibility 불가능 조건은
+Coordinator가 완화할 수 없다.
+
+LLM Coordinator는 세 응답을 종합·선택해 하나의 `PlanSpec`을 반환한다. Plan Compiler는
+exercise reference, sequence, set/rep/work/rest/transition과 정확한 시간을 결정적으로 계산한다. 최종
+integrity validator는 원시 통증·이상 반응을 재분류하지 않고 compiled plan이 envelope의 safety,
+duration, goal, equipment/location, catalog와 schema constraint를 지켰는지만 검사한다.
+
+repairable violation은 machine code로 Coordinator에 한 번만 반환한다. 요청 시간, 세트·반복,
+Recovery ceiling, 순서·schema, 필수 목표, 장비, 승인 대체가 있는 제외 운동 위반만 repair 대상이다.
+`STOP_AND_SEEK_HELP`, 생성 금지 veto, 안전 운동 없음, 필수 입력 누락, 정책 데이터 불완전, provider
+전체 장애와 repair 재실패는 Coordinator로 돌아가지 않는다. deterministic fallback도 같은 compiler와
+validator를 통과해야 하며 `STOP_AND_SEEK_HELP`를 REST나 plan으로 바꿀 수 없다.
+
+#### V3 수동 재생성
+
+추가 입력 없는 재생성은 유효한 기존 snapshot·envelope·pool을 재사용하고 `RegenerationContext`를
+추가해 세 전문 Agent부터 다시 실행한다. Coordinator만 재실행하지 않는다. context에는 attempt,
+이전 plan hash·exercise 순서·구조, exact duplicate 금지와 variation code를 포함한다.
+
+새 plan은 핵심 운동, 운동 순서, 승인된 세트·반복 구조 또는 루틴 구성 방식 중 하나 이상이 의미 있게
+달라야 한다. 설명·UUID·미미한 시간 변경만으로는 통과하지 않는다. 안전하고 목표를 보존하는 대안이
+없으면 constraint를 약화하지 않고 `NO_ALTERNATIVE_AVAILABLE`로 종료한다. 성공 재생성은 root
+decision당 최대 두 번이고 idempotent하다. snapshot/envelope/pool이 stale하거나 safety·catalog·policy
+version이 바뀌면 새 decision/check-in 경로가 필요하다.
+
 ---
 
 ## 9. LLM 경계
@@ -445,8 +643,30 @@ Coordinator(의장 에이전트)는 공통 입력·기본 후보와 Training·Re
 
 - 검수된 reason code를 사용자 친화적인 문장으로 변환
 - 안전 결과를 바꾸지 않는 마스코트 문구
+- 최종 결정 이후 공개 가능한 deliberation event code의 사용자용 문장 변환
 
 LLM에는 직접 식별자, 원시 건강 기록, 원시 웨어러블 샘플을 보내지 않는다. LLM 실패 시 검수된 템플릿 문구를 사용하며 계획 결과는 바뀌지 않는다.
+
+V2 narration은 Agent별 provider 호출이나 자유 토론이 아니라 한 번의 bounded batch다.
+application log, 날짜, 자유 체크인, hidden reasoning, graph checkpoint를 입력으로 사용하지 않는다.
+safety status가 `PASS/REVISE`가 아니거나 최종 action이 `REST/STOP_AND_SEEK_HELP`이거나 Safety
+veto가 있는 결과는 LLM을 호출하지 않고 검수 템플릿을 사용한다.
+
+### 9.1 승인된 V3 목표 LLM 경계
+
+V3가 구현·검증되어 production 전환되면 LLM은 세 전문 proposal, conflict에 영향받은 Agent의 한 번 review, Coordinator
+initial/repair와 일반 narration에 참여할 수 있다. SafetyPolicyEngine, constraint builder, conflict
+detector, Plan Compiler, integrity validator와 fallback policy는 LLM을 호출하지 않는다.
+
+Agent input은 직접 식별자를 제거한 input snapshot, ConstraintEnvelope, ExercisePoolSnapshot,
+machine code와 최소 normalized summary로 제한한다. 날짜, 자유 체크인, raw 건강·웨어러블·캘린더 값,
+application log, prompt 원문, hidden reasoning, provider 예외 원문을 전달·저장하지 않는다.
+통증 부위와 `intensity_score`/severity는 Qdrant vector, payload, embedding input/query에도 포함하지
+않는다.
+
+structured output validation 또는 required Agent가 최종 실패하면 부분 proposal로 계속하지 않는다.
+결정적 fallback을 사용하고 같은 envelope를 검증하거나 계획 없는 상태로 종료한다. LLM fresh inference의
+동일성은 보장하지 않으며 저장된 structured output과 version으로 provider 재호출 없이 replay한다.
 
 ---
 
@@ -479,15 +699,21 @@ PLANNED -> IN_PROGRESS -> COMPLETED
 
 | 조건 | instruction | resulting action | session status | reason code | guidance code |
 |---|---|---|---|---|---|
-| MILD 불편 | `SHOW_CAUTION` | null | `IN_PROGRESS` | `MILD_DISCOMFORT` | `MILD_DISCOMFORT_CAUTION` |
-| MODERATE 불편 | `SHOW_CAUTION` | null | `IN_PROGRESS` | `MODERATE_DISCOMFORT` | `MODERATE_DISCOMFORT_CAUTION` |
-| SEVERE 불편 | `STOP_SESSION` | `REST` | `STOPPED_FOR_SAFETY` | `SEVERE_DISCOMFORT` | `SEVERE_OR_ACUTE_STOP` |
-| 급성 근골격 신호 | `STOP_SESSION` | `REST` | `STOPPED_FOR_SAFETY` | `ACUTE_MUSCULOSKELETAL_REACTION` | `SEVERE_OR_ACUTE_STOP` |
+| NRS 1–3 | `SHOW_CAUTION` | `LOAD_REDUCED` 또는 `ROM_REDUCED` | `IN_PROGRESS` | `MILD_DISCOMFORT` | `MILD_DISCOMFORT_CAUTION` |
+| NRS 4–6 | `SHOW_CAUTION` | `SKIP_AFFECTED_AREA` 또는 `ACTIVE_RECOVERY` | `IN_PROGRESS` | `MODERATE_DISCOMFORT` | `MODERATE_DISCOMFORT_CAUTION` |
+| NRS 7–10 | `STOP_SESSION` | `STOP_EXERCISE` | `STOPPED_FOR_SAFETY` | `SEVERE_DISCOMFORT` | `SEVERE_OR_ACUTE_STOP` |
+| 급성 근골격 신호 | `STOP_SESSION` | `STOP_EXERCISE` | `STOPPED_FOR_SAFETY` | `ACUTE_MUSCULOSKELETAL_REACTION` | `SEVERE_OR_ACUTE_STOP` |
 | 긴급 중단 그룹 | `STOP_AND_SEEK_HELP` | `STOP_AND_SEEK_HELP` | `STOPPED_FOR_SAFETY` | `EMERGENCY_ADVERSE_REACTION` | `SERIOUS_ADVERSE_REACTION_STOP` |
 
-긴급 중단 그룹은 다른 안전 이벤트보다 우선하며 veto를 유지한다. MILD 또는 MODERATE 이벤트는
-검수된 동적 재구성 정책이 없으므로 진행 중 계획을 자동 변경하지 않는다. COMPLETED, PARTIAL,
+긴급 중단 그룹은 다른 안전 이벤트보다 우선하며 veto를 유지한다. NRS 1–7 이벤트는 위의
+검수된 동적 재구성 정책에 따라 처리한다. COMPLETED, PARTIAL,
 NOT_COMPLETED, STOPPED_FOR_SAFETY로 종료된 세션의 블록과 상태는 변경할 수 없다.
+
+운동 후 신규 공개 feedback은 `difficulty_code=EASY|APPROPRIATE|HARD` 하나만 받는다. 표시 문구는
+각각 `쉬웠어요`, `적당했어요`, `어려워요`다. 운동 후 통증·이상 반응 수집을 feedback에 중복하지
+않고 운동 중 Safety Event API를 유지한다. 기존 fatigue/satisfaction/pain/discomfort/adverse 필드는
+호환 기간 동안만 읽기·legacy write를 지원하고 새 client는 보내지 않는다. 기존 값을 삭제하거나
+통증 없음으로 재해석하지 않는다.
 
 ## 11. 주간 주기와 리포트 게이트
 
@@ -512,6 +738,11 @@ NOT_COMPLETED, STOPPED_FOR_SAFETY로 종료된 세션의 블록과 상태는 변
 - `NOT_COMPLETED`는 `NOT_COMPLETED` 학습 신호로만 전달하고 penalty 또는 감점 필드를 허용하지 않는다.
 - 원시 체크인, 원시 건강 기록, 원시 웨어러블 샘플, 캘린더 본문과 직접 식별자는 집계 스냅샷에 복제하지 않는다.
 - 집계 schema version과 report policy version을 함께 고정한다. 같은 불변 집계와 같은 policy version은 같은 domain 판정을 만든다.
+- 신규 `pain_report_count`의 canonical 원천은 해당 주의 `workout_safety_event_discomforts`가 존재하는
+  distinct workout session 수다. 동일 세션의 여러 event/부위는 한 번만 센다. 호환 기간의 legacy
+  `workout_feedback.pain_occurred=true`는 safety event가 없는 historical session에 한해 한 번 포함하고
+  중복 집계하지 않는다. onboarding pain과 daily check-in은 주간 운동 중 통증 보고 수에 포함하지
+  않는다. 집계 전환은 새 aggregate schema/report policy version으로 구분한다.
 
 ### 11.2 다음 계획 revision과 finalize 정책
 
@@ -562,6 +793,17 @@ NOT_COMPLETED, STOPPED_FOR_SAFETY로 종료된 세션의 블록과 상태는 변
 | DB 저장 실패 | 재현할 수 없는 계획을 클라이언트에 반환하지 않음 |
 | 중복 mutation | Idempotency-Key의 기존 결과 반환 |
 | 오래된 체크인 버전 | STALE_CONTEXT 오류 |
+| Qdrant unavailable/not-ready/version mismatch/timeout/stale 결과 | 결과 폐기, PostgreSQL 결정적 pool fallback |
+
+V3에서는 `LLM 장애`를 narration과 decision Agent로 구분한다. narration 장애는 템플릿을 사용한다.
+필수 decision Agent·Coordinator provider 장애는 부분 LLM 결과를 버리고 검증된 결정적 fallback을
+사용하며, fallback이 없으면 `FAILED`다. SafetyPolicyEngine이 이미 `REST` 또는
+`STOP_AND_SEEK_HELP`를 확정한 경우 provider를 호출하지 않고 그 결과를 유지한다.
+
+Vector retrieval 원인 code는 `VECTOR_INDEX_UNAVAILABLE`, `VECTOR_INDEX_NOT_READY`,
+`VECTOR_INDEX_VERSION_MISMATCH`, `VECTOR_SEARCH_TIMEOUT`, `VECTOR_RESULT_STALE`,
+`VECTOR_RESULT_NOT_CANONICAL`, `VECTOR_RESULT_INSUFFICIENT`다. 결정적 pool을 실제 사용하면 원인과
+별도로 `DETERMINISTIC_POOL_FALLBACK_USED`를 저장한다.
 
 ---
 
@@ -670,7 +912,28 @@ CACHE_AND_WORK_DELETE -> AUDIT_DEIDENTIFICATION -> BACKUP_EXPIRY_VERIFICATION`�
 - 계정 삭제의 provider 해제는 위 독립 해제 예산이 아니라 ADR-0008의 7일·로컬 hard-delete 우선
   계약을 사용한다.
 
-### 13.3 캘린더 외부 컨텍스트 정책
+### 13.3 운동 가능 시간과 캘린더 외부 컨텍스트 정책
+
+#### 13.3.1 현행 정책 — 사용자 수동 가능 시간
+
+외부 캘린더(Google) 연동은 보류 상태다(ADR-0010 "구현 보류"). 따라서 운동 가능 시간의 유일한
+입력원은 사용자가 일일 체크인에서 직접 입력한 값이다.
+
+- 가능 시간 입력은 선택이다. 입력하지 않아도 체크인, 결정, 운동 실행, 주간 리포트의 핵심 흐름이
+  모두 정상 동작한다.
+- 미입력(`ROUTINE_DEFAULT`)과 명시적 빈 선택(`MANUAL`, 구간 0개)은 서로 다른 상태이며 서버가
+  둘을 같게 취급하거나 누락값을 보완하지 않는다.
+- 구간은 사용자 프로필 IANA timezone 기준으로 해당 `local_date`에 속해야 하고, 서로 겹치거나
+  맞닿을 수 없으며 최대 8개다. 서버는 시작 시각 오름차순으로 정규화한다.
+- 가능 시간은 참고 입력이다. 사용자의 희망 운동시간을 단축·연장하지 않고, 운동 계획·안전 판단·
+  안전 veto·공식 운동 수행 상태를 바꾸지 않으며, 특정 요일을 필수 운동일로 강제하지 않는다.
+- 일정 제목, 설명, 참석자, 장소, 링크 같은 캘린더 본문 성격의 값은 받지도 저장하지도 않는다.
+- 후보 계산은 `select_availability`와 `AvailabilitySlot`을 그대로 사용한다. 캘린더 연동이 재개되면
+  `CALENDAR` 입력원이 수동 입력보다 낮은 우선순위로 추가될 뿐 이 규칙은 바뀌지 않는다.
+
+#### 13.3.2 보류된 캘린더 provider 정책
+
+아래는 캘린더 연동이 재개될 때 적용할 승인된 계약이다. 현재는 구현하지 않는다.
 
 Google Calendar의 provider별 상세 계약은 `ACCEPTED` ADR-0010과
 `external-context-policy-v2`를 따른다. 실제 route·HTTP adapter·repository·migration은
@@ -726,11 +989,17 @@ TASK-BACKEND-007의 단계별 게이트를 따른다.
 - 시간 계산 규칙 버전
 - 조정기 버전
 - 전문 에이전트 proposal
+- V3는 conflict/review 산출물을 저장하지 않는다(ADR-0015). 기존에 저장된 레코드는 보존한다.
 - 후보와 안전 검증 결과
 - 최종 옵션
 - LLM 사용 시 모델과 프롬프트 버전
 
 동일한 입력 스냅샷과 동일한 결정 규칙 버전은 동일한 운동 후보와 최종 액션을 만들어야 한다. LLM 문구는 결정 재현성의 일부로 사용하지 않는다.
+
+V3에서는 fresh LLM 재호출의 byte-identical 결과를 요구하지 않는다. 대신 envelope·pool·proposal·
+Coordinator output·compiler/validator 결과와 모든 model/prompt/graph version을 저장하고,
+저장된 structured output을 입력으로 provider 재호출 없이 동일 final result를 replay해야 한다.
+그래프 구조가 바뀌면 `graph_version`을 올려 저장된 결정이 어느 구조에서 나왔는지 식별한다.
 
 ---
 

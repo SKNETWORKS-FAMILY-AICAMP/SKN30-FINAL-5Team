@@ -21,7 +21,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Api } from '../../api/endpoints';
 import {
   ADVERSE_REACTION_OPTIONS,
-  BODY_AREA_OPTIONS,
+  DEFAULT_BODY_AREA_OPTIONS,
+  EXTENDED_BODY_AREA_OPTIONS,
   formatDuration,
 } from '../../api/labels';
 import type {
@@ -32,6 +33,7 @@ import type {
   WorkoutPlan,
 } from '../../api/types';
 import { useAsyncAction } from '../../api/useAsync';
+import { orderedWorkoutPlanItems } from '../../api/workoutPlan';
 import {
   MascotStage,
   useBrandFontFamily,
@@ -72,6 +74,10 @@ export function SessionScreen({
   const [notCompletedOpen, setNotCompletedOpen] = useState(false);
   const started = useRef(false);
   const family = useBrandFontFamily();
+  const orderedPlanItems = useMemo(
+    () => orderedWorkoutPlanItems(plan.items),
+    [plan.items],
+  );
 
   const start = useAsyncAction(async () => {
     const response = await api.startSession(
@@ -183,15 +189,15 @@ export function SessionScreen({
     if (items === null) {
       return 0;
     }
-    const pendingIndex = plan.items.findIndex(
+    const pendingIndex = orderedPlanItems.findIndex(
       (item) =>
         items.find((state) => state.plan_item_id === item.plan_item_id)
           ?.status_code !== 'COMPLETED',
     );
     return pendingIndex === -1
-      ? Math.max(plan.items.length - 1, 0)
+      ? Math.max(orderedPlanItems.length - 1, 0)
       : pendingIndex;
-  }, [items, plan.items]);
+  }, [items, orderedPlanItems]);
 
   if (start.pending || items === null) {
     return (
@@ -213,7 +219,7 @@ export function SessionScreen({
   ).length;
   const canFinish = completedCount > 0;
   const allDone = completedCount === items.length;
-  const currentItem = plan.items[currentIndex];
+  const currentItem = orderedPlanItems[currentIndex];
   const serious = safetyOpen || caution !== null;
 
   return (
@@ -270,7 +276,7 @@ export function SessionScreen({
       ) : null}
 
       <SessionCarousel
-        items={plan.items}
+        items={orderedPlanItems}
         states={items}
         currentIndex={currentIndex}
         pending={toggleItem.pending}
@@ -348,6 +354,7 @@ function SafetyReportSheet({
 }) {
   const [area, setArea] = useState<string | null>(null);
   const [reaction, setReaction] = useState<string | null>(null);
+  const [showExtendedAreas, setShowExtendedAreas] = useState(false);
 
   return (
     <Card style={styles.sheet}>
@@ -358,7 +365,7 @@ function SafetyReportSheet({
 
       <Text style={styles.sheetLabel}>심한 통증이 있는 부위</Text>
       <View style={styles.chipRow}>
-        {BODY_AREA_OPTIONS.map((option) => (
+        {DEFAULT_BODY_AREA_OPTIONS.map((option) => (
           <Pressable
             key={option.code}
             accessibilityRole="button"
@@ -373,6 +380,36 @@ function SafetyReportSheet({
             <Text style={styles.chipLabel}>{option.label}</Text>
           </Pressable>
         ))}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ selected: showExtendedAreas }}
+          onPress={() => setShowExtendedAreas((visible) => !visible)}
+          style={[styles.chip, showExtendedAreas && styles.chipSelected]}
+        >
+          <Text style={styles.chipLabel}>
+            {showExtendedAreas ? '다른 부위 접기' : '다른 부위 더 보기'}
+          </Text>
+        </Pressable>
+        {showExtendedAreas
+          ? EXTENDED_BODY_AREA_OPTIONS.map((option) => (
+              <Pressable
+                key={option.code}
+                accessibilityRole="button"
+                accessibilityState={{ selected: area === option.code }}
+                onPress={() =>
+                  setArea((current) =>
+                    current === option.code ? null : option.code,
+                  )
+                }
+                style={[
+                  styles.chip,
+                  area === option.code && styles.chipSelected,
+                ]}
+              >
+                <Text style={styles.chipLabel}>{option.label}</Text>
+              </Pressable>
+            ))
+          : null}
       </View>
 
       <Text style={styles.sheetLabel}>이상 반응</Text>

@@ -1,0 +1,41 @@
+{
+  "schema_version": "exercise-difficulty-policy-v2.0.2-v1",
+  "policy_version": "exercise-difficulty-policy-v2.0.2-user-review-2026-08-28",
+  "reviewed_at": "2026-08-28T00:00:00+09:00",
+  "reviewer": "USER_DIRECT_REVIEW",
+  "review_status_code": "DOMAIN_APPROVED",
+  "rules_in_priority_order": [
+    {
+      "rule_code": "CABLE_MACHINE_IS_INTERMEDIATE",
+      "when_equipment_contains": "CABLE_MACHINE",
+      "difficulty_code": "INTERMEDIATE"
+    },
+    {
+      "rule_code": "BASE_FORWARD_LUNGE_IS_BEGINNER",
+      "stable_codes": [
+        "bodyweight_forward_lunge_knee_dominant_bodyweight"
+      ],
+      "difficulty_code": "BEGINNER"
+    },
+    {
+      "rule_code": "BASE_CRUNCH_IS_BEGINNER",
+      "stable_codes": [
+        "bodyweight_crunch_core_brace_bodyweight"
+      ],
+      "difficulty_code": "BEGINNER"
+    },
+    {
+      "rule_code": "CRUNCH_VARIANTS_ARE_INTERMEDIATE",
+      "stable_code_contains": "crunch",
+      "exclude_stable_codes": [
+        "bodyweight_crunch_core_brace_bodyweight"
+      ],
+      "difficulty_code": "INTERMEDIATE"
+    }
+  ],
+  "notes_ko": [
+    "기본 포워드 런지와 일반 맨몸 크런치는 BEGINNER다.",
+    "일반 크런치 외 크런치 변형은 INTERMEDIATE다.",
+    "CABLE_MACHINE을 사용하는 운동은 다른 규칙보다 우선하여 INTERMEDIATE다."
+  ]
+}

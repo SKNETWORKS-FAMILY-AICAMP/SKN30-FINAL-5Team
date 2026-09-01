@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import { Platform, StyleSheet } from 'react-native';
 
 import { App } from '../src/app/App';
 
@@ -15,6 +16,39 @@ function createDeferred<T>() {
 }
 
 describe('App boot navigation', () => {
+  it('centers the app without constraining the preview gallery page', async () => {
+    const originalPlatform = Platform.OS;
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'web',
+    });
+
+    try {
+      const view = await render(<App previewMode="home" />);
+
+      expect(
+        StyleSheet.flatten(screen.getByTestId('app-shell').props.style),
+      ).toMatchObject({
+        alignItems: 'center',
+        backgroundColor: '#FFF4DC',
+      });
+      expect(
+        StyleSheet.flatten(screen.getByTestId('app-viewport').props.style),
+      ).toMatchObject({ maxWidth: 640, width: '100%' });
+
+      view.rerender(<App previewMode="gallery" />);
+      expect(
+        StyleSheet.flatten(screen.getByTestId('app-viewport').props.style)
+          .maxWidth,
+      ).toBeUndefined();
+    } finally {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        value: originalPlatform,
+      });
+    }
+  });
+
   it('opens the development gallery without starting app boot', async () => {
     const bootResolver = jest.fn(async () => 'Auth' as const);
 
@@ -38,7 +72,7 @@ describe('App boot navigation', () => {
     expect(bootResolver).not.toHaveBeenCalled();
   });
 
-  it('opens the API-backed home preview without starting app boot', async () => {
+  it('opens the previous Home mock preview without starting app boot', async () => {
     const bootResolver = jest.fn(async () => 'Auth' as const);
 
     await render(<App bootResolver={bootResolver} previewMode="today" />);
@@ -54,23 +88,43 @@ describe('App boot navigation', () => {
 
   it.each([
     {
+      mode: 'auth' as const,
+      label: 'Auth (mock)',
+      readyText: '헬끼에 로그인',
+    },
+    {
+      mode: 'background_test' as const,
+      label: 'background_test (mock)',
+      readyText: '집 꾸미기',
+    },
+    {
       mode: 'account' as const,
-      label: 'Account (API)',
+      label: 'Account (mock)',
       readyText: '내 프로필',
+    },
+    {
+      mode: 'exercise-catalog' as const,
+      label: 'Exercise catalog (API)',
+      readyText: '의자 스쿼트',
     },
     {
       mode: 'mascot-house' as const,
       label: 'Mascot house (API)',
-      readyText: '지금 내 루틴',
+      readyText: '집 꾸미기',
+    },
+    {
+      mode: 'loading' as const,
+      label: 'Page loading (API)',
+      readyText: '오늘 상태를 불러오는 중이에요',
     },
     {
       mode: 'session' as const,
-      label: 'Workout session (API)',
+      label: 'Workout session (mock)',
       readyText: '0 / 3 블록 완료',
     },
     {
       mode: 'session-result' as const,
-      label: 'Workout result (API)',
+      label: 'Workout (API)',
       readyText: '오늘 운동을 마쳤어요',
     },
     {
@@ -78,19 +132,25 @@ describe('App boot navigation', () => {
       label: 'Weekly report (API)',
       readyText: '마감된 주',
     },
-  ])(
-    'opens the $mode API preview through the gallery',
-    async ({ label, mode, readyText }) => {
-      const bootResolver = jest.fn(async () => 'Auth' as const);
-
-      await render(<App bootResolver={bootResolver} previewMode={mode} />);
-
-      expect(screen.getByRole('radio', { name: label })).toBeChecked();
-      expect(await screen.findByText(readyText)).toBeOnTheScreen();
-      expect(screen.getByText(`단독 진입: ?preview=${mode}`)).toBeOnTheScreen();
-      expect(bootResolver).not.toHaveBeenCalled();
+    {
+      mode: 'workout' as const,
+      label: 'Workout (API)',
+      readyText: '완료 0 / 3',
     },
-  );
+  ])('opens the $mode gallery preview', async ({ label, mode, readyText }) => {
+    const bootResolver = jest.fn(async () => 'Auth' as const);
+
+    await render(<App bootResolver={bootResolver} previewMode={mode} />);
+
+    expect(screen.getByRole('radio', { name: label })).toBeChecked();
+    expect(await screen.findByText(readyText)).toBeOnTheScreen();
+    expect(
+      screen.getByText(
+        `단독 진입: ?preview=${mode === 'session-result' ? 'workout' : mode}`,
+      ),
+    ).toBeOnTheScreen();
+    expect(bootResolver).not.toHaveBeenCalled();
+  });
 
   it.each([
     {
@@ -102,7 +162,7 @@ describe('App boot navigation', () => {
     { mode: 'home' as const, heading: '안녕하세요, 헬끼님!' },
     {
       mode: 'home-map' as const,
-      heading: '오늘의 운동 섬이에요. 표시를 눌러 루틴을 확인해보세요.',
+      heading: '목표 4회',
     },
     { mode: 'calendar-report' as const, heading: '운동 캘린더' },
     { mode: 'my-page' as const, heading: '마이페이지' },
@@ -110,7 +170,6 @@ describe('App boot navigation', () => {
       mode: 'onboarding' as const,
       heading: '온보딩',
     },
-    { mode: 'workout' as const, heading: '전신 기본 루틴' },
   ])(
     'opens the $mode direct preview without starting app boot',
     async ({ heading, mode }) => {

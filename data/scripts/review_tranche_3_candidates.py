@@ -299,7 +299,11 @@ def build_results(plan_path: Path) -> dict[str, object]:
 
 def write_results(path: Path, payload: dict[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
 
 
 def verify_results(plan_path: Path, output_path: Path) -> dict[str, object]:

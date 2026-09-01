@@ -52,6 +52,7 @@ class FakeRepository:
         *,
         safety_rule_set: SafetyRuleSet | None = None,
         with_alternative: bool = False,
+        with_pain_alternative: bool = False,
     ) -> None:
         candidate = CoordinatorCandidate(
             candidate_id="candidate-1",
@@ -115,20 +116,40 @@ class FakeRepository:
                             str(ALTERNATIVE_EXERCISE_ID), "catalog-v1", "HIP_DOMINANT"
                         ),
                         evidence_reference_code="ALTERNATIVE/relation-1",
+                        pain_discomfort_area_code=("KNEE" if with_pain_alternative else None),
+                        condition_code=("NRS_1_3" if with_pain_alternative else None),
+                        service_action_code=("LOAD_REDUCED" if with_pain_alternative else None),
+                        target_strategy_code=(
+                            "AREA_AVOIDING_CROSS_TRAINING_WITH_REDUCED_LOAD"
+                            if with_pain_alternative
+                            else None
+                        ),
                     ),
                 )
                 if with_alternative
                 else ()
             ),
         )
-        self.prior: StoredIdempotency | None = None
+        self.prior: dict[UUID, StoredIdempotency] = {}
         self.persisted: dict[str, Any] | None = None
+        self.persist_count = 0
+        self.input_locks: list[tuple[UUID, UUID, int, str]] = []
 
     def acquire_lock(self, session: Any, user_id: UUID, key: UUID) -> None:
         pass
 
+    def acquire_input_lock(
+        self,
+        session: Any,
+        user_id: UUID,
+        daily_context_id: UUID,
+        daily_context_version: int,
+        input_hash: str,
+    ) -> None:
+        self.input_locks.append((user_id, daily_context_id, daily_context_version, input_hash))
+
     def get_idempotency(self, session: Any, user_id: UUID, key: UUID) -> StoredIdempotency | None:
-        return self.prior
+        return self.prior.get(key)
 
     def assemble(
         self, session: Any, user_id: UUID, daily_context_id: UUID
@@ -136,12 +157,13 @@ class FakeRepository:
         return self.assembly
 
     def persist(self, session: Any, **values: Any) -> UUID:
+        self.persist_count += 1
         self.persisted = values
         self.decision_id = uuid4()
         return self.decision_id
 
     def save_idempotency(self, session: Any, **values: Any) -> None:
-        self.prior = StoredIdempotency(values["request_hash"], values["payload"])
+        self.prior[values["key"]] = StoredIdempotency(values["request_hash"], values["payload"])
 
     def get_response_for_date(
         self, session: Any, user_id: UUID, local_date: Any
@@ -150,6 +172,25 @@ class FakeRepository:
             return None
         result = self.persisted["result"]
         if result.status_code.value in {"NEEDS_INPUT", "FAILED"}:
+            return None
+        return self.get_response(session, user_id, self.decision_id)
+
+    def get_completed_response_for_input(
+        self,
+        session: Any,
+        user_id: UUID,
+        daily_context_id: UUID,
+        daily_context_version: int,
+        input_hash: str,
+    ) -> dict[str, Any] | None:
+        if self.persisted is None:
+            return None
+        context = self.assembly.context
+        if (
+            context.daily_context_id != daily_context_id
+            or context.context_version != daily_context_version
+            or self.persisted["input_hash"] != input_hash
+        ):
             return None
         return self.get_response(session, user_id, self.decision_id)
 
@@ -315,6 +356,39 @@ def test_decision_persists_four_proposals_before_success_and_is_idempotent() -> 
     assert snapshot["profile"]["attention_area_codes"] == []
 
 
+def test_decision_reuses_completed_result_for_a_new_idempotency_key() -> None:
+    context = _context()
+    repository = FakeRepository(context)
+    service = DecisionService(repository, clock=lambda: NOW)
+    user_id = uuid4()
+
+    first = service.create(FakeSession(), user_id, _request(context), uuid4())  # type: ignore[arg-type]
+    retried = service.create(FakeSession(), user_id, _request(context), uuid4())  # type: ignore[arg-type]
+
+    assert retried.decision_id == first.decision_id
+    assert repository.persist_count == 1
+    assert len(repository.input_locks) == 2
+
+
+def test_decision_creates_again_when_the_daily_context_version_changes() -> None:
+    context = _context()
+    repository = FakeRepository(context)
+    service = DecisionService(repository, clock=lambda: NOW)
+    user_id = uuid4()
+
+    service.create(FakeSession(), user_id, _request(context), uuid4())  # type: ignore[arg-type]
+    updated_context = replace(context, context_version=context.context_version + 1)
+    repository.assembly = replace(repository.assembly, context=updated_context)
+    service.create(
+        FakeSession(),
+        user_id,
+        _request(updated_context, updated_context.context_version),
+        uuid4(),
+    )  # type: ignore[arg-type]
+
+    assert repository.persist_count == 2
+
+
 def test_attention_areas_are_canonical_snapshot_inputs_and_apply_caution() -> None:
     base_context = _context()
     rule_set = _approved_rule_set(SafetyRuleEffectCode.CAUTION)
@@ -412,6 +486,29 @@ def test_mild_caution_returns_duration_preserving_downshift() -> None:
     assert response.final_plan.estimated_duration_seconds == 600
     assert "SAFETY_CAUTION_APPLIED" in (response.adjustment_reason_codes or [])
     assert repository.persisted["result"].safety_rule_version == "safety-v2"  # type: ignore[index]
+
+
+def test_mild_pain_prefers_area_avoiding_alternative_over_downshift() -> None:
+    context = _context(discomforts=(("KNEE", "MILD"),))
+    repository = FakeRepository(
+        context,
+        safety_rule_set=_approved_rule_set(SafetyRuleEffectCode.CAUTION),
+        with_alternative=True,
+        with_pain_alternative=True,
+    )
+
+    response = DecisionService(repository, clock=lambda: NOW).create(
+        FakeSession(), uuid4(), _request(context), uuid4()
+    )  # type: ignore[arg-type]
+
+    assert response.safety_status_code == "REVISE"
+    assert response.action_code == "CHANGE"
+    assert response.final_plan is not None
+    prepared = repository.persisted["assembly"]  # type: ignore[index]
+    assert prepared.adjusted_candidates[-1].candidate.exercise_ids == (
+        str(ALTERNATIVE_EXERCISE_ID),
+    )
+    assert "PAIN_ALTERNATIVE_APPLIED" in (response.adjustment_reason_codes or [])
 
 
 def test_moderate_fatigue_returns_duration_preserving_downshift() -> None:

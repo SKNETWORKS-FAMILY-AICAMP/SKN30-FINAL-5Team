@@ -22,9 +22,16 @@
 
 .PARAMETER Command
     up      Start PostgreSQL 16, apply migrations, install the synthetic seed.
-    api     Run FastAPI on 0.0.0.0:8000 (foreground; Ctrl+C to stop).
+    api     Apply pending migrations, then run FastAPI on 0.0.0.0:8000
+            (foreground; Ctrl+C to stop).
     share   Point the app at this machine's current LAN IP for a team demo.
     seed    Re-install the synthetic catalog (idempotent).
+    rules   Load the reviewed rule bundle and activate the catalog carrying it,
+            so a check-in that reports discomfort no longer fails closed.
+            Demo database only: that catalog has no recorded domain review.
+            Currently stops at activation - the imported catalog has no
+            prescription or goal-tag rows, so no routine could be built from
+            it. See docs/DEMO_VERTICAL_SLICE.md section 4.1.
     reset   Delete demo users, then re-install the catalog.
     test    Run the backend and frontend verification suites.
     psql    Open a psql shell on the demo database.
@@ -38,7 +45,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [ValidateSet('up', 'api', 'share', 'seed', 'reset', 'test', 'psql', 'down')]
+    [ValidateSet('up', 'api', 'share', 'seed', 'rules', 'reset', 'test', 'psql', 'down')]
     [string]$Command
 )
 
@@ -52,6 +59,10 @@ $ContainerName = 'helkki-demo-pg'
 $HostPort = 55432
 $DemoDatabase = 'exercise_app_demo'
 $TestDatabase = 'exercise_app_test'
+# Only one catalog version can be ACTIVE, and this is the only one in the
+# bundle that carries all three training types (CARDIO, MOBILITY, STRENGTH),
+# so it is the only one a warmup/main/cooldown routine can be built from.
+$RuleCatalogVersion = 'kspo-mvp-v0.2.0'
 
 Set-Location $RepoRoot
 
@@ -96,6 +107,46 @@ function Set-DemoEnvironment {
         $origins += "http://${lan}:8081"
     }
     $env:CORS_ALLOWED_ORIGINS = $origins -join ','
+}
+
+function Test-DemoCodeList {
+    param([AllowNull()][object]$Value)
+
+    $text = [string]$Value
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        return $false
+    }
+
+    if ($text.TrimStart().StartsWith('[')) {
+        try {
+            $codes = @($text | ConvertFrom-Json -ErrorAction Stop)
+        }
+        catch {
+            return $false
+        }
+    }
+    else {
+        $codes = @($text -split ',')
+    }
+
+    return @($codes | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }).Count -gt 0
+}
+
+function Assert-DemoProfileConfiguration {
+    $missingKeys = @()
+    if ([string]::IsNullOrWhiteSpace($env:CONSENT_POLICY_VERSION)) {
+        $missingKeys += 'CONSENT_POLICY_VERSION'
+    }
+    if (-not (Test-DemoCodeList $env:ONBOARDING_PRIMARY_GOAL_CODES)) {
+        $missingKeys += 'ONBOARDING_PRIMARY_GOAL_CODES'
+    }
+    if (-not (Test-DemoCodeList $env:ONBOARDING_EXPERIENCE_LEVEL_CODES)) {
+        $missingKeys += 'ONBOARDING_EXPERIENCE_LEVEL_CODES'
+    }
+
+    if ($missingKeys.Count -gt 0) {
+        throw "Missing required demo configuration keys: $($missingKeys -join ', ')"
+    }
 }
 
 function Invoke-Psql {
@@ -199,6 +250,14 @@ switch ($Command) {
 
     'api' {
         Set-DemoEnvironment
+        Assert-DemoProfileConfiguration
+        # Developers commonly restart only the API after pulling a branch. Keep
+        # the disposable demo database in lockstep with the checked-out models;
+        # otherwise a newly mapped column is surfaced to Home as the generic
+        # DATABASE_UNAVAILABLE response even though PostgreSQL itself is healthy.
+        Invoke-Native 'Apply pending demo migrations' {
+            uv run alembic -c backend/alembic.ini upgrade head
+        }
         if (-not $env:FIREBASE_PROJECT_ID) {
             Write-Warning ('FIREBASE_PROJECT_ID is not set. Authentication will fail closed ' +
                 'with 503 AUTH_PROVIDER_UNAVAILABLE. Set it, and point ' +
@@ -254,6 +313,27 @@ switch ($Command) {
         Set-DemoEnvironment
         Invoke-Native 'Reset demo data' { uv run python -m backend.scripts.demo_seed reset }
         Write-Host 'Demo users deleted. Sign in again in the app to restart from onboarding.'
+    }
+
+    'rules' {
+        # The synthetic seed carries no safety rules, so a check-in that reports
+        # discomfort evaluates with no rule set and fails closed (FAILED). This
+        # loads the reviewed rule bundle and activates the catalog that carries
+        # it. The catalog itself has no recorded domain review, so activation
+        # needs the demo-only override and must stay on the demo database.
+        Set-DemoEnvironment
+        Invoke-Native 'Load catalog bundle' {
+            uv run python -m backend.scripts.catalog_data_load load
+        }
+        Invoke-Native 'Activate rule-carrying catalog' {
+            uv run python -m backend.scripts.catalog_activate activate $RuleCatalogVersion `
+                --demo-unreviewed
+        }
+        Write-Host ''
+        Write-Host 'The synthetic catalog is now DEPRECATED, so routines built on it no'
+        Write-Host 'longer produce decisions. Run reset and sign in again:'
+        Write-Host '  .\scripts\demo-local.ps1 reset   # re-seeds the synthetic catalog'
+        Write-Host '  .\scripts\demo-local.ps1 rules   # then re-run this command'
     }
 
     'test' {

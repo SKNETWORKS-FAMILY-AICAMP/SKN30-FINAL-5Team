@@ -7,6 +7,19 @@ jest.mock('expo-font', () => ({
   FontDisplay: { SWAP: 'swap' },
   useFonts: jest.fn(() => [true, null]),
 }));
+jest.mock('expo-image-picker', () => ({
+  PermissionStatus: { GRANTED: 'granted', DENIED: 'denied' },
+  requestMediaLibraryPermissionsAsync: jest.fn(async () => ({
+    granted: true,
+    status: 'granted',
+    canAskAgain: true,
+    expires: 'never',
+  })),
+  launchImageLibraryAsync: jest.fn(async () => ({
+    canceled: true,
+    assets: null,
+  })),
+}));
 
 // Component tests must never reach a real Firebase project, and the SDK ships
 // ESM that the Expo transform does not process. Stubbing both entry points
@@ -21,6 +34,7 @@ jest.mock('firebase/auth', () => ({
   signInWithEmailAndPassword: jest.fn(),
   createUserWithEmailAndPassword: jest.fn(),
   signOut: jest.fn(),
+  validatePassword: jest.fn(),
 }));
 jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
 

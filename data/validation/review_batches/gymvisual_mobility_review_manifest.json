@@ -1,0 +1,60 @@
+{
+  "review_batch_version": "gymvisual-mobility-review-v0.1.0",
+  "status": "DRAFT_REVIEW_QUEUE",
+  "production_eligible": false,
+  "purpose": "mobility/stretch candidate, family and variant review; not a catalog seed or alternative set",
+  "source": {
+    "profile": "data/validation/profiles/gymvisual_mobility_profile.json",
+    "profile_sha256": "37f40c3c54f10548ef0541657a73c1c40ed9bf24abd9ca8a831e9731e3d18cff"
+  },
+  "artifacts": {
+    "review_batch": {
+      "path": "data/validation/review_batches/gymvisual_mobility_review.csv",
+      "sha256": "30a577b5608db5d8a8b245df8556696836711665129d3cff06725018a1055f94",
+      "records": 35
+    },
+    "review_results_template": {
+      "path": "data/validation/review_results/gymvisual_mobility_reviewed.csv",
+      "sha256": "9ea33c966e8e41571afcc4a47988e2620967ddad4b17890d27af833c4b45bcd6",
+      "records": 35
+    }
+  },
+  "review_guards": [
+    "FAMILY_VARIANT_IS_NOT_ALTERNATIVE",
+    "DO_NOT_CREATE_SQUAT_TO_QUADRICEPS_STRETCH_ALTERNATIVE",
+    "REQUIRE_DOMAIN_SAFETY_REVIEW_BEFORE_GENERATED_OUTPUT",
+    "REQUIRE_LOAD_PROFILE_REVIEW"
+  ],
+  "review_columns": [
+    "candidate_id",
+    "source_name",
+    "source_body_part",
+    "source_target",
+    "source_equipment",
+    "mobility_goal_code",
+    "body_area_codes_candidate",
+    "training_type_code_candidate",
+    "movement_pattern_code_candidate",
+    "exercise_family_candidate",
+    "variant_group_candidate",
+    "selection_rank",
+    "difficulty_code_candidate",
+    "beginner_suitability_candidate",
+    "equipment_code_candidate",
+    "location_code_candidates",
+    "load_profile_candidate",
+    "selection_screening_decision",
+    "review_required_codes",
+    "alternative_relation_status",
+    "source_media_id",
+    "source_image",
+    "source_gif_url",
+    "review_decision",
+    "review_family_code",
+    "review_variant_group",
+    "review_reason_code",
+    "review_note",
+    "reviewer",
+    "reviewed_at"
+  ]
+}

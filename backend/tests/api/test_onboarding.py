@@ -1,3 +1,5 @@
+import json
+import logging
 from contextlib import nullcontext
 from datetime import UTC, datetime
 from typing import Any
@@ -10,8 +12,10 @@ from backend.app.api.dependencies import (
     get_current_user,
     get_db_session,
     get_profile_repository,
+    get_routine_repository,
 )
 from backend.app.core.config import Settings
+from backend.app.core.logging import JsonFormatter
 from backend.app.integrations.birthdate_crypto import LocalAesGcmBirthdateCipher
 from backend.app.main import create_app
 from backend.app.modules.identity.codes import UserStatusCode
@@ -20,9 +24,12 @@ from backend.app.modules.profiles.codes import ConsentTypeCode, MutationEndpoint
 from backend.app.modules.profiles.ports import (
     ConsentRecord,
     IdempotencyRecord,
+    MeProfileRecord,
+    MeRecord,
     OnboardingProfileValues,
     OnboardingRecord,
 )
+from backend.tests.unit.test_routine_service import FakeRoutineRepository
 
 NOW = datetime(2026, 8, 13, 6, 0, tzinfo=UTC)
 
@@ -39,6 +46,11 @@ class FakeProfileRepository:
         self.disabled = False
         self.consent_events = 0
         self.consent_values: dict[ConsentTypeCode, bool] = {}
+        self.me_record: MeRecord | None = None
+
+    def get_me(self, session: FakeSession, user_id: UUID) -> MeRecord | None:
+        del session, user_id
+        return self.me_record
 
     def acquire_idempotency_lock(
         self,
@@ -84,8 +96,32 @@ class FakeProfileRepository:
         values: OnboardingProfileValues,
         now: datetime,
     ) -> OnboardingRecord:
-        del session, protected_birthdate
+        del session
         self.profile_version += 1
+        self.me_record = MeRecord(
+            user_id=user_id,
+            status_code="ACTIVE",
+            premium_status_code="NOT_AVAILABLE",
+            ai_trial_started_at=NOW,
+            ai_trial_ends_at=datetime(2026, 8, 27, 6, 0, tzinfo=UTC),
+            profile=MeProfileRecord(
+                nickname=values.nickname,
+                protected_birthdate=protected_birthdate,
+                primary_goal_code=values.primary_goal_code,
+                experience_level_code=values.experience_level_code,
+                timezone=values.timezone,
+                preferred_location_code=values.preferred_location_code,
+                available_location_codes=values.available_location_codes,
+                default_requested_duration_minutes=values.default_requested_duration_minutes,
+                desired_weekly_workout_count=values.desired_weekly_workout_count,
+                coaching_style_code=values.coaching_style_code,
+                attention_area_codes=values.attention_area_codes,
+                preferred_exercise_type_codes=values.preferred_exercise_type_codes,
+                profile_version=self.profile_version,
+                created_at=now,
+                updated_at=now,
+            ),
+        )
         return OnboardingRecord(
             user_id=user_id,
             profile_version=self.profile_version,
@@ -149,7 +185,6 @@ def _payload() -> dict[str, object]:
         "preferred_location_code": "HOME",
         "default_requested_duration_minutes": 40,
         "desired_weekly_workout_count": 3,
-        "equipment_codes": ["BODYWEIGHT"],
         "attention_area_codes": ["KNEE"],
         "preferred_exercise_type_codes": ["STRENGTH"],
         "coaching_style_code": "SUPPORTIVE",
@@ -166,13 +201,28 @@ def _payload() -> dict[str, object]:
     }
 
 
-def _client(repository: FakeProfileRepository, *, configured: bool = True) -> TestClient:
+def _client(
+    repository: FakeProfileRepository,
+    *,
+    missing_configuration_keys: tuple[str, ...] = (),
+    routine_repository: FakeRoutineRepository | None = None,
+) -> TestClient:
     settings = Settings(
         app_env="test",
         database_url="postgresql+psycopg://test:test@localhost/test",
-        consent_policy_version="privacy-v1" if configured else None,
-        onboarding_primary_goal_codes=("GENERAL_FITNESS",) if configured else (),
-        onboarding_experience_level_codes=("BEGINNER",) if configured else (),
+        consent_policy_version=(
+            None if "CONSENT_POLICY_VERSION" in missing_configuration_keys else "privacy-v1"
+        ),
+        onboarding_primary_goal_codes=(
+            ()
+            if "ONBOARDING_PRIMARY_GOAL_CODES" in missing_configuration_keys
+            else ("GENERAL_FITNESS",)
+        ),
+        onboarding_experience_level_codes=(
+            ()
+            if "ONBOARDING_EXPERIENCE_LEVEL_CODES" in missing_configuration_keys
+            else ("BEGINNER",)
+        ),
     )
     user_id = uuid4()
     app = create_app(
@@ -194,6 +244,9 @@ def _client(repository: FakeProfileRepository, *, configured: bool = True) -> Te
 
     app.dependency_overrides[get_db_session] = session_override
     app.dependency_overrides[get_profile_repository] = lambda: repository
+    app.dependency_overrides[get_routine_repository] = lambda: (
+        routine_repository or FakeRoutineRepository()
+    )
     return TestClient(app)
 
 
@@ -229,6 +282,83 @@ def test_onboarding_is_atomic_idempotent_and_does_not_expose_birthdate() -> None
     }
     assert "date_of_birth" not in first.text
     assert "2000-08-11" not in first.text
+
+
+def test_onboarding_automatically_creates_exactly_one_base_routine() -> None:
+    profile_repository = FakeProfileRepository()
+    routine_repository = FakeRoutineRepository()
+    key = str(uuid4())
+
+    with _client(profile_repository, routine_repository=routine_repository) as client:
+        first = client.put(
+            "/api/v1/me/onboarding", json=_payload(), headers={"Idempotency-Key": key}
+        )
+        repeated = client.put(
+            "/api/v1/me/onboarding", json=_payload(), headers={"Idempotency-Key": key}
+        )
+        reonboarding = client.put(
+            "/api/v1/me/onboarding", json=_payload(), headers={"Idempotency-Key": str(uuid4())}
+        )
+
+    assert first.status_code == 200
+    assert repeated.json() == first.json()
+    assert reonboarding.status_code == 200
+    assert len(routine_repository.versions) == 1
+    assert next(iter(routine_repository.versions.values())) == 1
+
+
+def test_onboarding_returns_routine_creation_failure_as_a_service_error() -> None:
+    routine_repository = FakeRoutineRepository()
+    routine_repository.context = None  # type: ignore[assignment]
+
+    with _client(FakeProfileRepository(), routine_repository=routine_repository) as client:
+        response = client.put(
+            "/api/v1/me/onboarding", json=_payload(), headers={"Idempotency-Key": str(uuid4())}
+        )
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "APPROVED_CATALOG_UNAVAILABLE"
+
+
+def test_openapi_removes_equipment_from_onboarding_and_me_profile() -> None:
+    with _client(FakeProfileRepository()) as client:
+        schemas = client.app.openapi()["components"]["schemas"]
+
+    assert "equipment_codes" not in schemas["OnboardingUpsertRequest"]["properties"]
+    assert "equipment_codes" not in schemas["MeProfile"]["properties"]
+
+
+def test_get_me_profile_response_omits_equipment_codes() -> None:
+    repository = FakeProfileRepository()
+    with _client(repository) as client:
+        onboarding = client.put(
+            "/api/v1/me/onboarding",
+            json=_payload(),
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+        response = client.get("/api/v1/me")
+
+    assert onboarding.status_code == 200
+    assert response.status_code == 200
+    assert response.json()["profile"]["nickname"] == "러너01"
+    assert "equipment_codes" not in response.json()["profile"]
+
+
+def test_onboarding_rejects_removed_equipment_field() -> None:
+    repository = FakeProfileRepository()
+    payload = _payload()
+    payload["equipment_codes"] = ["BODYWEIGHT"]
+
+    with _client(repository) as client:
+        response = client.put(
+            "/api/v1/me/onboarding",
+            json=payload,
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "INVALID_REQUEST"
+    assert repository.profile_version == 0
 
 
 @pytest.mark.parametrize("field_name", ["sex_code", "height_cm", "weight_kg"])
@@ -413,18 +543,160 @@ def test_underage_onboarding_is_blocked_without_leaking_birthdate() -> None:
     assert secret_birthdate not in response.text
 
 
-def test_unapproved_deployment_configuration_fails_closed() -> None:
+@pytest.mark.parametrize(
+    "missing_keys",
+    [
+        ("CONSENT_POLICY_VERSION",),
+        ("ONBOARDING_PRIMARY_GOAL_CODES",),
+        ("ONBOARDING_EXPERIENCE_LEVEL_CODES",),
+        (
+            "CONSENT_POLICY_VERSION",
+            "ONBOARDING_PRIMARY_GOAL_CODES",
+            "ONBOARDING_EXPERIENCE_LEVEL_CODES",
+        ),
+    ],
+)
+def test_unapproved_deployment_configuration_fails_closed_and_logs_only_missing_keys(
+    caplog: pytest.LogCaptureFixture,
+    missing_keys: tuple[str, ...],
+) -> None:
     repository = FakeProfileRepository()
-    with _client(repository, configured=False) as client:
-        response = client.put(
-            "/api/v1/me/onboarding",
-            json=_payload(),
-            headers={"Idempotency-Key": str(uuid4())},
-        )
+    with caplog.at_level(logging.ERROR, logger="backend.profile"):
+        with _client(repository, missing_configuration_keys=missing_keys) as client:
+            response = client.put(
+                "/api/v1/me/onboarding",
+                json=_payload(),
+                headers={"Idempotency-Key": str(uuid4())},
+            )
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "PROFILE_CONFIGURATION_UNAVAILABLE"
+    assert response.json()["error"]["message"] == "온보딩 기능을 일시적으로 사용할 수 없습니다."
+    assert repository.profile_version == 0
+    records = [
+        record
+        for record in caplog.records
+        if getattr(record, "event_code", None) == "PROFILE_CONFIGURATION_UNAVAILABLE"
+    ]
+    assert len(records) == 1
+    serialized_log = JsonFormatter().format(records[0])
+    log_payload = json.loads(serialized_log)
+    assert log_payload["missing_keys"] == list(missing_keys)
+    assert log_payload["request_id"] == response.headers["X-Request-ID"]
+    for sensitive_value in ("privacy-v1", "GENERAL_FITNESS", "BEGINNER", "2000-08-11"):
+        assert sensitive_value not in serialized_log
+
+
+def test_deployed_environment_without_a_kms_key_names_that_key_in_the_log(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    # 배포 환경에서 BIRTHDATE_KMS_KEY_ID가 비면 cipher가 없어 온보딩이 503으로 닫힌다.
+    # 진단 로그가 그 키를 지목하지 않으면 운영자는 원인을 찾지 못한다.
+    repository = FakeProfileRepository()
+    settings = Settings(
+        _env_file=None,
+        app_env="staging",
+        database_url="postgresql+psycopg://test:test@localhost/test",
+        consent_policy_version="privacy-v1",
+        onboarding_primary_goal_codes=("GENERAL_FITNESS",),
+        onboarding_experience_level_codes=("BEGINNER",),
+    )
+    app = create_app(settings=settings, readiness_probe=lambda: None)
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+        user_id=uuid4(),
+        status_code=UserStatusCode.ACTIVE,
+    )
+
+    def session_override():
+        yield FakeSession()
+
+    app.dependency_overrides[get_db_session] = session_override
+    app.dependency_overrides[get_profile_repository] = lambda: repository
+
+    with caplog.at_level(logging.ERROR, logger="backend.profile"):
+        with TestClient(app) as client:
+            response = client.put(
+                "/api/v1/me/onboarding",
+                json=_payload(),
+                headers={"Idempotency-Key": str(uuid4())},
+            )
 
     assert response.status_code == 503
     assert response.json()["error"]["code"] == "PROFILE_CONFIGURATION_UNAVAILABLE"
     assert repository.profile_version == 0
+    records = [
+        record
+        for record in caplog.records
+        if getattr(record, "event_code", None) == "PROFILE_CONFIGURATION_UNAVAILABLE"
+    ]
+    assert len(records) == 1
+    serialized_log = JsonFormatter().format(records[0])
+    log_payload = json.loads(serialized_log)
+    assert log_payload["missing_keys"] == ["BIRTHDATE_KMS_KEY_ID"]
+    # 배포 환경은 로컬 전용 키를 쓰지 않으므로 그 이름을 노출하면 안 된다.
+    assert "BIRTHDATE_ENCRYPTION_KEY_BASE64" not in serialized_log
+    assert "2000-08-11" not in serialized_log
+
+
+def test_local_environment_missing_birthdate_key_names_the_local_key(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    repository = FakeProfileRepository()
+    settings = Settings(
+        _env_file=None,
+        app_env="test",
+        database_url="postgresql+psycopg://test:test@localhost/test",
+        consent_policy_version="privacy-v1",
+        onboarding_primary_goal_codes=("GENERAL_FITNESS",),
+        onboarding_experience_level_codes=("BEGINNER",),
+    )
+    app = create_app(settings=settings, readiness_probe=lambda: None)
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+        user_id=uuid4(),
+        status_code=UserStatusCode.ACTIVE,
+    )
+
+    def session_override():
+        yield FakeSession()
+
+    app.dependency_overrides[get_db_session] = session_override
+    app.dependency_overrides[get_profile_repository] = lambda: repository
+
+    with caplog.at_level(logging.ERROR, logger="backend.profile"):
+        with TestClient(app) as client:
+            response = client.put(
+                "/api/v1/me/onboarding",
+                json=_payload(),
+                headers={"Idempotency-Key": str(uuid4())},
+            )
+
+    assert response.status_code == 503
+    records = [
+        record
+        for record in caplog.records
+        if getattr(record, "event_code", None) == "PROFILE_CONFIGURATION_UNAVAILABLE"
+    ]
+    log_payload = json.loads(JsonFormatter().format(records[0]))
+    assert log_payload["missing_keys"] == ["BIRTHDATE_ENCRYPTION_KEY_BASE64"]
+
+
+def test_configured_onboarding_does_not_log_configuration_unavailable(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    repository = FakeProfileRepository()
+    with caplog.at_level(logging.ERROR, logger="backend.profile"):
+        with _client(repository) as client:
+            response = client.put(
+                "/api/v1/me/onboarding",
+                json=_payload(),
+                headers={"Idempotency-Key": str(uuid4())},
+            )
+
+    assert response.status_code == 200
+    assert not any(
+        getattr(record, "event_code", None) == "PROFILE_CONFIGURATION_UNAVAILABLE"
+        for record in caplog.records
+    )
 
 
 def test_invalid_calendar_birthdate_uses_specific_safe_error() -> None:

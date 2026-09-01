@@ -1,0 +1,76 @@
+{
+  "profile_version": "exercise-relationship-profile-v2.0.2-v0.1.0",
+  "status": "DRAFT_REVIEW_QUEUE",
+  "production_eligible": false,
+  "source_of_truth": {
+    "path": "data/generated/exercise-catalog-v2.0.2-draft/catalog/exercises_v1_v2.csv",
+    "sha256": "b0485a75f41d1c7f65b26d1e174743c78ccfe6dcc3c108eff61c297fa1c0ab65",
+    "catalog_version_code": "exercise-catalog-v2.0.2-draft",
+    "record_count": 216,
+    "canonical_exercise_count": 102,
+    "v1_alias_record_count": 114,
+    "v1_v2_reintegration_performed": false
+  },
+  "reference_only_inputs": {
+    "existing_alternatives_path": "data/generated/exercise-catalog-v2.0.2-draft/alternatives/alternatives.jsonl",
+    "existing_alternatives_sha256": "4b8953d4757ee27679403f0ea5e956d7eaf19dac2fd59170a1a6bd1531c7378c",
+    "existing_alternative_record_count": 279,
+    "unmapped_alternative_reference_count": 0,
+    "existing_alternatives_modified": false
+  },
+  "comparison_policy": {
+    "dimensions": [
+      "source_identity",
+      "existing_stable_code",
+      "movement_pattern",
+      "primary_body_area",
+      "secondary_body_area",
+      "actual_method",
+      "equipment",
+      "posture",
+      "grip",
+      "stance",
+      "range_of_motion",
+      "normalized_name"
+    ],
+    "canonical_pair_selection": [
+      "existing alternative reference",
+      "same movement pattern + primary/secondary body-area overlap",
+      "normalized-name/core-token proximity"
+    ],
+    "actual_method_evidence_limit": "combined catalog exposes names and generic cues; source execution steps/video review remains human work",
+    "ambiguous_pair_handling": "candidate_relation_code may be REVIEW_REQUIRED; every row remains PENDING human review",
+    "stable_code_policy": "preserve existing codes; do not issue, rename, merge, or delete"
+  },
+  "summary": {
+    "total_combined_records": 216,
+    "total_exercise_count": 102,
+    "v1_alias_count": 114,
+    "candidate_pair_count": 603,
+    "same_exercise_candidate_count": 0,
+    "variant_candidate_count": 79,
+    "primary_variant_candidate_count": 74,
+    "secondary_variant_candidate_count": 5,
+    "separate_exercise_candidate_count": 58,
+    "excluded_candidate_count": 0,
+    "review_required_candidate_count": 466,
+    "canonical_pair_count": 489,
+    "canonical_pair_relation_counts": {
+      "PRIMARY_VARIANT": 9,
+      "REVIEW_REQUIRED": 421,
+      "SECONDARY_VARIANT": 1,
+      "SEPARATE_EXERCISE": 58
+    },
+    "auto_finalized_count": 0,
+    "pending_human_review_count": 603
+  },
+  "quality_checks": {
+    "stable_code_unique_in_canonical_input": true,
+    "canonical_source_identity_unique": true,
+    "all_relation_codes_allowed": true,
+    "all_rows_pending": true,
+    "all_rows_non_production": true,
+    "alias_pairs_preserve_stable_code": true
+  },
+  "generated_at": "2026-08-27T08:44:14.475183+00:00"
+}

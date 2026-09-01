@@ -3,11 +3,17 @@ import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Literal, Self
+from urllib.parse import urlsplit
 
 from pydantic import SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 _MACHINE_REFERENCE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
+_QDRANT_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{0,127}$")
+_S3_BUCKET_PATTERN = re.compile(
+    r"^(?=.{3,63}$)(?!\d+\.\d+\.\d+\.\d+$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])$"
+)
+_AWS_REGION_PATTERN = re.compile(r"^[a-z]{2}(?:-gov)?-[a-z]+-\d$")
 
 
 class Settings(BaseSettings):
@@ -26,17 +32,77 @@ class Settings(BaseSettings):
     )
     catalog_manifest_paths: tuple[Path, ...] = ()
     firebase_project_id: str | None = None
+    # Firebase mints ID tokens against Google's clock. A server whose clock runs
+    # even a second behind reads a fresh token's `iat` as being in the future and
+    # rejects it as "used too early", which surfaces as an intermittent 401. The
+    # SDK default is zero tolerance, so a small allowance is configured here.
+    firebase_clock_skew_seconds: int = 60
+    # Path to a service account key. When set, it is handed to the Firebase SDK
+    # directly, so the credential no longer has to reach the process as an
+    # exported environment variable. Left empty, the SDK falls back to
+    # Application Default Credentials, which is what cloud deployments use.
+    google_application_credentials: Path | None = None
     birthdate_encryption_key_base64: SecretStr | None = None
     birthdate_encryption_key_id: str = "local-v1"
+    birthdate_kms_key_id: str | None = None
+    aws_region: str | None = None
+    exercise_media_s3_bucket: str | None = None
+    exercise_media_s3_region: str | None = None
+    exercise_media_s3_prefix: str = "videos/"
+    exercise_media_url_expiry_seconds: int = 300
     consent_policy_version: str | None = None
     # Narration은 선택 기능이다. 기본값은 비활성이며 결정적 템플릿만 사용한다.
     llm_enabled: bool = False
     llm_provider_code: Literal["NONE", "OPENAI"] = "NONE"
-    llm_model_code: str = "gpt-5.1-mini"
+    llm_model_code: str = "gpt-5.6-terra"
     llm_api_base_url: str = "https://api.openai.com/v1"
     llm_timeout_seconds: float = 3.0
     llm_max_output_tokens: int = 400
     openai_api_key: SecretStr | None = None
+    # V3 structured agents are independent from the optional narration provider.
+    # A provider-specific BaseChatModel is injected only after deployment approval.
+    llm_agents_enabled: bool = False
+    llm_agents_provider_code: str = "UNCONFIGURED"
+    llm_agents_model_code: str = "unconfigured"
+    # These defaults suit a fast completion model. A reasoning model needs both
+    # raised or every specialist call fails: measured output was 2,375-2,893
+    # tokens for training and 2,047-2,913 for the coordinator. Deployments that
+    # enable the LLM agents must set them explicitly.
+    llm_agents_timeout_seconds: float = 5.0
+    llm_agents_max_attempts: int = 2
+    llm_agents_max_output_tokens: int = 1200
+    llm_agents_approved_model_codes: Annotated[tuple[str, ...], NoDecode] = ()
+    # V3 graph construction is separately gated so incomplete provider/domain
+    # wiring cannot alter the existing V1/V2 production decision path.
+    v3_langgraph_enabled: bool = False
+    # Offline/staging synthetic evaluation is deliberately independent from the
+    # public regeneration mutation. A CLI opt-in is still required at runtime.
+    v3_shadow_evaluation_enabled: bool = False
+    # Manual V3 regeneration has its own server-side activation gate. Provider
+    # credentials and V3_LANGGRAPH_ENABLED never opt users into this mutation.
+    v3_regeneration_enabled: bool = False
+    # Server-owned application composition profile. Existing V3 flags remain
+    # available during migration, but never change the default LEGACY path.
+    v3_execution_profile: Literal["LEGACY", "SHADOW", "DEMO", "PRODUCTION"] = "LEGACY"
+    # This is only the final deployment composition input. It must be set from
+    # the separately reviewed promotion record; the evaluator never edits it.
+    v3_production_promotion_approved: bool = False
+    # Qdrant is a rebuildable catalog index and remains disabled until an
+    # embedding contract and deployment credentials are explicitly approved.
+    qdrant_enabled: bool = False
+    qdrant_url: str = "http://localhost:6333"
+    qdrant_api_key: SecretStr | None = None
+    qdrant_timeout_seconds: float = 2.0
+    qdrant_collection_prefix: str = "exercise_catalog"
+    qdrant_collection_alias: str = "exercise_catalog_active"
+    qdrant_tls_enabled: bool = False
+    qdrant_batch_size: int = 64
+    embedding_provider_code: str = "UNCONFIGURED"
+    embedding_model_version: str = "unconfigured"
+    embedding_input_schema_version: str = "exercise-embedding-input-v2"
+    embedding_vector_dimension: int = 0
+    embedding_distance_metric_code: Literal["COSINE", "DOT", "EUCLID", "MANHATTAN"] = "COSINE"
+    embedding_timeout_seconds: float = 30.0
     # NoDecode hands the raw environment string to the validator below. Without
     # it pydantic-settings JSON-decodes these fields first, so a plain
     # comma-separated value fails at startup with an opaque SettingsError.
@@ -70,6 +136,65 @@ class Settings(BaseSettings):
             return normalized or None
         return value
 
+    @field_validator("google_application_credentials", mode="before")
+    @classmethod
+    def normalize_credentials_path(cls, value: object) -> object:
+        if isinstance(value, str):
+            normalized = value.strip()
+            return normalized or None
+        return value
+
+    @field_validator(
+        "birthdate_kms_key_id",
+        "aws_region",
+        "exercise_media_s3_bucket",
+        "exercise_media_s3_region",
+        mode="before",
+    )
+    @classmethod
+    def normalize_optional_aws_setting(cls, value: object) -> object:
+        if isinstance(value, str):
+            normalized = value.strip()
+            return normalized or None
+        return value
+
+    @field_validator("exercise_media_s3_bucket")
+    @classmethod
+    def validate_exercise_media_bucket(cls, value: str | None) -> str | None:
+        if value is not None and not _S3_BUCKET_PATTERN.fullmatch(value):
+            raise ValueError("EXERCISE_MEDIA_S3_BUCKET must be a valid S3 bucket name")
+        return value
+
+    @field_validator("exercise_media_s3_region")
+    @classmethod
+    def validate_exercise_media_region(cls, value: str | None) -> str | None:
+        if value is not None and not _AWS_REGION_PATTERN.fullmatch(value):
+            raise ValueError("EXERCISE_MEDIA_S3_REGION must be a valid AWS region")
+        return value
+
+    @field_validator("exercise_media_s3_prefix")
+    @classmethod
+    def validate_exercise_media_prefix(cls, value: str) -> str:
+        if value != "videos/":
+            raise ValueError("EXERCISE_MEDIA_S3_PREFIX must remain videos/")
+        return value
+
+    @field_validator("exercise_media_url_expiry_seconds")
+    @classmethod
+    def validate_exercise_media_url_expiry(cls, value: int) -> int:
+        if not 60 <= value <= 900:
+            raise ValueError("EXERCISE_MEDIA_URL_EXPIRY_SECONDS must be within [60, 900]")
+        return value
+
+    @field_validator("firebase_clock_skew_seconds")
+    @classmethod
+    def validate_firebase_clock_skew_seconds(cls, value: int) -> int:
+        # The Firebase SDK accepts at most 60 seconds. A wider window would be
+        # rejected at verification time rather than at startup.
+        if not 0 <= value <= 60:
+            raise ValueError("FIREBASE_CLOCK_SKEW_SECONDS must be within [0, 60]")
+        return value
+
     @field_validator("openai_api_key", mode="before")
     @classmethod
     def normalize_openai_api_key(cls, value: object) -> object:
@@ -77,12 +202,86 @@ class Settings(BaseSettings):
             return None
         return value
 
+    @field_validator("qdrant_api_key", mode="before")
+    @classmethod
+    def normalize_qdrant_api_key(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
+    @field_validator("qdrant_url")
+    @classmethod
+    def validate_qdrant_url(cls, value: str) -> str:
+        normalized = value.strip().rstrip("/")
+        parsed = urlsplit(normalized)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            raise ValueError("QDRANT_URL must be an absolute http(s) URL")
+        if parsed.username is not None or parsed.password is not None:
+            raise ValueError("QDRANT_URL must not contain credentials")
+        return normalized
+
+    @field_validator("qdrant_timeout_seconds")
+    @classmethod
+    def validate_qdrant_timeout_seconds(cls, value: float) -> float:
+        if not 0 < value <= 10:
+            raise ValueError("QDRANT_TIMEOUT_SECONDS must be within (0, 10]")
+        return value
+
+    @field_validator("qdrant_batch_size")
+    @classmethod
+    def validate_qdrant_batch_size(cls, value: int) -> int:
+        if not 0 < value <= 1000:
+            raise ValueError("QDRANT_BATCH_SIZE must be within [1, 1000]")
+        return value
+
+    @field_validator("embedding_vector_dimension")
+    @classmethod
+    def validate_embedding_vector_dimension(cls, value: int) -> int:
+        if not 0 <= value <= 65536:
+            raise ValueError("EMBEDDING_VECTOR_DIMENSION must be within [0, 65536]")
+        return value
+
+    @field_validator("embedding_timeout_seconds")
+    @classmethod
+    def validate_embedding_timeout_seconds(cls, value: float) -> float:
+        if not 0 < value <= 120:
+            raise ValueError("EMBEDDING_TIMEOUT_SECONDS must be within (0, 120]")
+        return value
+
+    @field_validator("qdrant_collection_prefix", "qdrant_collection_alias")
+    @classmethod
+    def validate_qdrant_name(cls, value: str) -> str:
+        normalized = value.strip()
+        if not _QDRANT_NAME_PATTERN.fullmatch(normalized):
+            raise ValueError("Qdrant collection prefix and alias must be allowlisted names")
+        return normalized
+
+    @field_validator(
+        "embedding_provider_code",
+        "embedding_model_version",
+        "embedding_input_schema_version",
+    )
+    @classmethod
+    def validate_qdrant_machine_reference(cls, value: str) -> str:
+        normalized = value.strip()
+        if not _MACHINE_REFERENCE_PATTERN.fullmatch(normalized):
+            raise ValueError("Qdrant and embedding references must be machine codes")
+        return normalized
+
     @field_validator("llm_model_code")
     @classmethod
     def validate_llm_model_code(cls, value: str) -> str:
         normalized = value.strip()
         if not _MACHINE_REFERENCE_PATTERN.fullmatch(normalized):
             raise ValueError("LLM_MODEL_CODE must be a machine reference without free text")
+        return normalized
+
+    @field_validator("llm_agents_provider_code", "llm_agents_model_code")
+    @classmethod
+    def validate_llm_agent_machine_references(cls, value: str) -> str:
+        normalized = value.strip()
+        if not _MACHINE_REFERENCE_PATTERN.fullmatch(normalized):
+            raise ValueError("LLM agent provider and model must be machine references")
         return normalized
 
     @field_validator("llm_api_base_url")
@@ -99,6 +298,32 @@ class Settings(BaseSettings):
         # 결정 생성은 동기 흐름이므로 narration이 응답 시간을 지배하지 못하게 상한을 둔다.
         if not 0 < value <= 10:
             raise ValueError("LLM_TIMEOUT_SECONDS must be within (0, 10]")
+        return value
+
+    @field_validator("llm_agents_timeout_seconds")
+    @classmethod
+    def validate_llm_agents_timeout_seconds(cls, value: float) -> float:
+        # The bound also becomes the provider client timeout, so it has to cover
+        # one whole call rather than only bound the graph node. Measured against
+        # a 38-exercise pool on gpt-5.6-terra, the slowest role (training) took
+        # 17.2-23.5s and the coordinator 11.4-21.5s; a 30s ceiling left so little
+        # headroom that ordinary variance was reported as a provider outage.
+        if not 0 < value <= 60:
+            raise ValueError("LLM_AGENTS_TIMEOUT_SECONDS must be within (0, 60]")
+        return value
+
+    @field_validator("llm_agents_max_attempts")
+    @classmethod
+    def validate_llm_agents_max_attempts(cls, value: int) -> int:
+        if value not in {1, 2}:
+            raise ValueError("LLM_AGENTS_MAX_ATTEMPTS must be one or two")
+        return value
+
+    @field_validator("llm_agents_max_output_tokens")
+    @classmethod
+    def validate_llm_agents_max_output_tokens(cls, value: int) -> int:
+        if not 0 < value <= 4000:
+            raise ValueError("LLM_AGENTS_MAX_OUTPUT_TOKENS must be within (0, 4000]")
         return value
 
     @field_validator("llm_max_output_tokens")
@@ -127,6 +352,7 @@ class Settings(BaseSettings):
         "onboarding_primary_goal_codes",
         "onboarding_experience_level_codes",
         "cors_allowed_origins",
+        "llm_agents_approved_model_codes",
         mode="before",
     )
     @classmethod
@@ -156,13 +382,41 @@ class Settings(BaseSettings):
             raise ValueError("CORS_ALLOWED_ORIGINS must list exact origins, not '*'")
         return value
 
+    @field_validator("llm_agents_approved_model_codes")
+    @classmethod
+    def validate_approved_agent_models(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        normalized = tuple(item.strip() for item in value)
+        if normalized != tuple(sorted(set(normalized))):
+            raise ValueError("LLM_AGENTS_APPROVED_MODEL_CODES must be unique and sorted")
+        if any(not _MACHINE_REFERENCE_PATTERN.fullmatch(item) for item in normalized):
+            raise ValueError("approved LLM agent models must be machine references")
+        return normalized
+
     @model_validator(mode="after")
     def validate_llm_provider_credentials(self) -> Self:
+        if (self.exercise_media_s3_bucket is None) != (self.exercise_media_s3_region is None):
+            raise ValueError(
+                "EXERCISE_MEDIA_S3_BUCKET and EXERCISE_MEDIA_S3_REGION must be configured together"
+            )
         # 자격 증명이 없는 상태에서 활성화하면 조용히 실패하는 대신 기동을 막는다.
         if self.llm_enabled and self.llm_provider_code == "NONE":
             raise ValueError("LLM_ENABLED requires LLM_PROVIDER_CODE")
         if self.llm_enabled and self.llm_provider_code == "OPENAI" and self.openai_api_key is None:
             raise ValueError("LLM_PROVIDER_CODE=OPENAI requires OPENAI_API_KEY")
+        if self.qdrant_enabled:
+            if (
+                self.embedding_provider_code == "UNCONFIGURED"
+                or self.embedding_vector_dimension <= 0
+            ):
+                raise ValueError("QDRANT_ENABLED requires an approved embedding contract")
+            if self.qdrant_tls_enabled != self.qdrant_url.startswith("https://"):
+                raise ValueError("QDRANT_TLS_ENABLED must agree with QDRANT_URL")
+            if self.app_env in {"staging", "production"} and self.qdrant_api_key is None:
+                raise ValueError("staging/production Qdrant requires QDRANT_API_KEY")
+            if self.app_env in {"staging", "production"} and not self.qdrant_tls_enabled:
+                raise ValueError("staging/production Qdrant requires TLS")
+        if self.v3_execution_profile == "DEMO" and self.app_env != "staging":
+            raise ValueError("V3_EXECUTION_PROFILE=DEMO is allowed only when APP_ENV=staging")
         return self
 
 

@@ -2,8 +2,8 @@ from collections.abc import Iterable
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, func, insert, inspect, or_, select
+from sqlalchemy.orm import Session, aliased
 
 from backend.app.db.models.catalog import (
     BodyArea,
@@ -14,18 +14,25 @@ from backend.app.db.models.catalog import (
     ExerciseAlternative,
     ExerciseBodyPart,
     ExerciseEquipment,
+    ExerciseGoalTagLink,
     ExerciseLocation,
+    ExerciseMediaAsset,
+    ExercisePrescriptionProfile,
     ExerciseSafetyRule,
     Location,
     MovementPattern,
     TrainingType,
 )
-from backend.app.modules.catalog.approvals import get_derived_data_approval
+from backend.app.modules.catalog.approvals import get_catalog_approval, get_derived_data_approval
 from backend.app.modules.catalog.codes import (
-    CATALOG_CODE_SET_VERSION,
     BodyAreaRoleCode,
     EquipmentRequirementCode,
     approved_display_name,
+)
+from backend.app.modules.catalog.media_mapping import (
+    MediaMappingExercise,
+    MediaObjectMapping,
+    parse_source_identity,
 )
 from backend.app.modules.catalog.service import (
     AlternativeArtifact,
@@ -35,6 +42,11 @@ from backend.app.modules.catalog.service import (
     DerivedSetState,
     ExerciseDetailRecord,
     ExerciseListRecord,
+    ExerciseVariantRecord,
+    ExerciseVariantSetUnavailableError,
+    ExerciseVariantsRecord,
+    MediaArtifact,
+    PrescriptionArtifact,
     SafetyRuleArtifact,
 )
 
@@ -70,14 +82,27 @@ class CatalogRepository:
         after_exercise_id: UUID | None,
         limit: int,
     ) -> tuple[ExerciseListRecord, ...]:
-        statement = select(
-            Exercise.id,
-            Exercise.name_ko,
-            Exercise.training_type_code,
-            Exercise.difficulty_code,
-        ).where(
-            Exercise.catalog_version_id == catalog_version_id,
-            Exercise.review_status_code == "DOMAIN_APPROVED",
+        statement = (
+            select(
+                Exercise.id,
+                Exercise.name_ko,
+                Exercise.training_type_code,
+                Exercise.difficulty_code,
+                ExerciseMediaAsset.s3_key.label("media_asset_key"),
+            )
+            .outerjoin(
+                ExerciseMediaAsset,
+                and_(
+                    ExerciseMediaAsset.exercise_id == Exercise.id,
+                    ExerciseMediaAsset.media_status == "AVAILABLE",
+                    ExerciseMediaAsset.rights_review_status == "APPROVED",
+                    ExerciseMediaAsset.approval_metadata.is_not(None),
+                ),
+            )
+            .where(
+                Exercise.catalog_version_id == catalog_version_id,
+                Exercise.review_status_code == "DOMAIN_APPROVED",
+            )
         )
         if body_area_code is not None:
             statement = statement.where(
@@ -142,6 +167,7 @@ class CatalogRepository:
                 difficulty_code=row.difficulty_code,
                 primary_body_area_codes=tuple(primary_body_areas[row.id]),
                 required_equipment_codes=tuple(required_equipment[row.id]),
+                media_asset_key=row.media_asset_key,
             )
             for row in rows
         )
@@ -164,6 +190,37 @@ class CatalogRepository:
                 .order_by(ExerciseBodyPart.body_area_code)
             )
         )
+        media_asset_key = session.scalar(
+            select(ExerciseMediaAsset.s3_key).where(
+                ExerciseMediaAsset.exercise_id == exercise_id,
+                ExerciseMediaAsset.catalog_version_id == exercise.catalog_version_id,
+                ExerciseMediaAsset.media_status == "AVAILABLE",
+                ExerciseMediaAsset.rights_review_status == "APPROVED",
+                ExerciseMediaAsset.approval_metadata.is_not(None),
+            )
+        )
+        media_candidate = session.scalar(
+            select(ExerciseMediaAsset)
+            .join(CatalogVersion, CatalogVersion.id == ExerciseMediaAsset.catalog_version_id)
+            .where(
+                ExerciseMediaAsset.exercise_id == exercise_id,
+                ExerciseMediaAsset.catalog_version_id == exercise.catalog_version_id,
+                ExerciseMediaAsset.media_status == "AVAILABLE",
+                ExerciseMediaAsset.rights_review_status == "APPROVED",
+                ExerciseMediaAsset.approval_metadata.is_not(None),
+                CatalogVersion.status_code == "ACTIVE",
+                CatalogVersion.review_status_code == "DOMAIN_APPROVED",
+                CatalogVersion.review_method_code == "DOMAIN_REVIEWER",
+                CatalogVersion.status_interpretation_code == "PRODUCTION_APPROVED",
+                CatalogVersion.production_eligible.is_(True),
+                CatalogVersion.activated_at.is_not(None),
+            )
+        )
+        source_object_key = None
+        if media_candidate is not None:
+            candidate_key = media_candidate.source_metadata.get("source_object_key")
+            if isinstance(candidate_key, str):
+                source_object_key = candidate_key
         return ExerciseDetailRecord(
             exercise_id=exercise.id,
             exercise_name=exercise.name_ko,
@@ -172,6 +229,201 @@ class CatalogRepository:
             instruction_summary=exercise.instruction_summary_ko,
             form_cues=tuple(exercise.form_cues_ko),
             instruction_content_version=exercise.instruction_content_version,
+            media_asset_key=media_asset_key,
+            source_identity=exercise.source_identity,
+            media_source_object_key=source_object_key,
+            media_status=(media_candidate.media_status if media_candidate is not None else None),
+            media_rights_review_status=(
+                media_candidate.rights_review_status if media_candidate is not None else None
+            ),
+            media_set_version_code=(
+                media_candidate.media_set_version_code if media_candidate is not None else None
+            ),
+            media_source_manifest_hash=(
+                media_candidate.source_manifest_hash if media_candidate is not None else None
+            ),
+            media_approval_metadata=(
+                media_candidate.approval_metadata if media_candidate is not None else None
+            ),
+        )
+
+    def list_media_mapping_exercises(
+        self,
+        session: Session,
+    ) -> tuple[MediaMappingExercise, ...]:
+        catalog = self.get_approved_catalog(session)
+        if catalog is None:
+            return ()
+        rows = session.execute(
+            select(Exercise.id, Exercise.source_identity)
+            .where(
+                Exercise.catalog_version_id == catalog.catalog_version_id,
+                Exercise.review_status_code == "DOMAIN_APPROVED",
+            )
+            .order_by(Exercise.source_identity, Exercise.id)
+        ).all()
+        return tuple(
+            MediaMappingExercise(exercise_id=row.id, source_identity=row.source_identity)
+            for row in rows
+        )
+
+    def store_media_source_mappings(
+        self,
+        session: Session,
+        mappings: tuple[MediaObjectMapping, ...],
+        *,
+        verified_at: str,
+    ) -> int:
+        catalog = self.get_approved_catalog(session)
+        if catalog is None:
+            return 0
+        stored = 0
+        for mapping in mappings:
+            if parse_source_identity(mapping.source_object_key) != mapping.source_identity:
+                continue
+            media = session.scalar(
+                select(ExerciseMediaAsset)
+                .join(Exercise, Exercise.id == ExerciseMediaAsset.exercise_id)
+                .where(
+                    ExerciseMediaAsset.catalog_version_id == catalog.catalog_version_id,
+                    ExerciseMediaAsset.exercise_id == mapping.exercise_id,
+                    ExerciseMediaAsset.media_status == "AVAILABLE",
+                    ExerciseMediaAsset.rights_review_status == "APPROVED",
+                    ExerciseMediaAsset.approval_metadata.is_not(None),
+                    Exercise.review_status_code == "DOMAIN_APPROVED",
+                    Exercise.source_identity == mapping.source_identity,
+                )
+            )
+            if media is None:
+                continue
+            media.source_metadata = {
+                **media.source_metadata,
+                "source_object_content_type": "image/gif",
+                "source_object_key": mapping.source_object_key,
+                "source_object_verified_at": verified_at,
+            }
+            stored += 1
+        session.flush()
+        return stored
+
+    def get_equipment_variants(
+        self,
+        session: Session,
+        exercise_id: UUID,
+    ) -> ExerciseVariantsRecord | None:
+        source_row = session.execute(
+            select(Exercise, CatalogVersion.version_code)
+            .join(CatalogVersion, CatalogVersion.id == Exercise.catalog_version_id)
+            .where(
+                Exercise.id == exercise_id,
+                Exercise.review_status_code == "DOMAIN_APPROVED",
+                CatalogVersion.status_code.in_(("ACTIVE", "DEPRECATED")),
+                CatalogVersion.review_status_code == "DOMAIN_APPROVED",
+                CatalogVersion.review_method_code == "DOMAIN_REVIEWER",
+                CatalogVersion.status_interpretation_code == "PRODUCTION_APPROVED",
+                or_(
+                    CatalogVersion.status_code == "DEPRECATED",
+                    and_(
+                        CatalogVersion.status_code == "ACTIVE",
+                        CatalogVersion.production_eligible.is_(True),
+                        CatalogVersion.activated_at.is_not(None),
+                    ),
+                ),
+            )
+        ).one_or_none()
+        if source_row is None:
+            return None
+        source_exercise, catalog_version_code = source_row
+        catalog_version_id = source_exercise.catalog_version_id
+
+        source_required_equipment_codes = tuple(
+            session.scalars(
+                select(ExerciseEquipment.equipment_code)
+                .where(
+                    ExerciseEquipment.exercise_id == exercise_id,
+                    ExerciseEquipment.requirement_code == EquipmentRequirementCode.REQUIRED,
+                )
+                .order_by(ExerciseEquipment.equipment_code)
+            )
+        )
+
+        variant_exercise = aliased(Exercise)
+        rows = session.execute(
+            select(
+                ExerciseAlternative.alternative_set_version_code,
+                ExerciseAlternative.goal_preservation_code,
+                variant_exercise.id,
+                variant_exercise.name_ko,
+                variant_exercise.instruction_summary_ko,
+                variant_exercise.form_cues_ko,
+                ExerciseMediaAsset.s3_key.label("media_asset_key"),
+            )
+            .join(
+                variant_exercise,
+                variant_exercise.id == ExerciseAlternative.alternative_exercise_id,
+            )
+            .outerjoin(
+                ExerciseMediaAsset,
+                and_(
+                    ExerciseMediaAsset.exercise_id == variant_exercise.id,
+                    ExerciseMediaAsset.catalog_version_id == catalog_version_id,
+                    ExerciseMediaAsset.media_status == "AVAILABLE",
+                    ExerciseMediaAsset.rights_review_status == "APPROVED",
+                    ExerciseMediaAsset.approval_metadata.is_not(None),
+                ),
+            )
+            .where(
+                ExerciseAlternative.source_exercise_id == exercise_id,
+                ExerciseAlternative.reason_code == "EQUIPMENT",
+                ExerciseAlternative.review_status_code == "DOMAIN_APPROVED",
+                ExerciseAlternative.production_eligible.is_(True),
+                ExerciseAlternative.source_metadata["production_approval"].is_not(None),
+                variant_exercise.catalog_version_id == catalog_version_id,
+                variant_exercise.review_status_code == "DOMAIN_APPROVED",
+            )
+            .order_by(
+                variant_exercise.id,
+                ExerciseAlternative.goal_preservation_code,
+                ExerciseAlternative.id,
+            )
+        ).all()
+
+        alternative_set_versions = {row.alternative_set_version_code for row in rows}
+        if len(alternative_set_versions) > 1:
+            raise ExerciseVariantSetUnavailableError
+
+        variant_ids = [row.id for row in rows]
+        required_equipment: dict[UUID, list[str]] = {variant_id: [] for variant_id in variant_ids}
+        if variant_ids:
+            for variant_id, code in session.execute(
+                select(ExerciseEquipment.exercise_id, ExerciseEquipment.equipment_code)
+                .where(
+                    ExerciseEquipment.exercise_id.in_(variant_ids),
+                    ExerciseEquipment.requirement_code == EquipmentRequirementCode.REQUIRED,
+                )
+                .order_by(ExerciseEquipment.exercise_id, ExerciseEquipment.equipment_code)
+            ):
+                required_equipment[variant_id].append(code)
+
+        return ExerciseVariantsRecord(
+            source_exercise_id=exercise_id,
+            catalog_version=catalog_version_code,
+            source_required_equipment_codes=source_required_equipment_codes,
+            alternative_set_version=(
+                next(iter(alternative_set_versions)) if alternative_set_versions else None
+            ),
+            items=tuple(
+                ExerciseVariantRecord(
+                    exercise_id=row.id,
+                    exercise_name=row.name_ko,
+                    required_equipment_codes=tuple(required_equipment[row.id]),
+                    instruction_summary=row.instruction_summary_ko,
+                    form_cues=tuple(row.form_cues_ko),
+                    goal_preservation_code=row.goal_preservation_code,
+                    media_asset_key=row.media_asset_key,
+                )
+                for row in rows
+            ),
         )
 
     def get_by_version_code(
@@ -193,13 +445,15 @@ class CatalogRepository:
         | type[Location]
         | type[BodyArea],
         codes: Iterable[StrEnum],
+        *,
+        code_set_version: str,
     ) -> None:
         for code in sorted(set(codes), key=str):
             if session.get(model, str(code)) is None:
                 session.add(
                     model(
                         code=str(code),
-                        code_set_version=CATALOG_CODE_SET_VERSION,
+                        code_set_version=code_set_version,
                         display_name_ko=approved_display_name(code),
                     )
                 )
@@ -210,22 +464,36 @@ class CatalogRepository:
         artifact: CatalogArtifact,
     ) -> CatalogVersion:
         records = artifact.records
-        self._ensure_lookup_rows(session, TrainingType, (row.training_type_code for row in records))
-        self._ensure_lookup_rows(session, BodyFocus, (row.body_focus_code for row in records))
+        code_set_version = artifact.code_set_version
+        self._ensure_lookup_rows(
+            session,
+            TrainingType,
+            (row.training_type_code for row in records),
+            code_set_version=code_set_version,
+        )
+        self._ensure_lookup_rows(
+            session,
+            BodyFocus,
+            (row.body_focus_code for row in records),
+            code_set_version=code_set_version,
+        )
         self._ensure_lookup_rows(
             session,
             MovementPattern,
             (row.primary_movement_pattern_code for row in records),
+            code_set_version=code_set_version,
         )
         self._ensure_lookup_rows(
             session,
             Equipment,
             (code for row in records for code in row.equipment_codes),
+            code_set_version=code_set_version,
         )
         self._ensure_lookup_rows(
             session,
             Location,
             (code for row in records for code in row.location_codes),
+            code_set_version=code_set_version,
         )
         self._ensure_lookup_rows(
             session,
@@ -235,78 +503,127 @@ class CatalogRepository:
                 for row in records
                 for code in (*row.primary_body_area_codes, *row.secondary_body_area_codes)
             ),
+            code_set_version=code_set_version,
         )
 
         manifest = artifact.manifest
+        approval = get_catalog_approval(
+            manifest.catalog_version.version_code, artifact.manifest_hash, len(records)
+        )
+        metadata = manifest.model_dump(mode="json")
+        if approval is not None:
+            metadata["production_approval"] = approval.metadata()
         catalog_version = CatalogVersion(
             id=uuid4(),
             version_code=manifest.catalog_version.version_code,
             status_code=manifest.catalog_version.status_code,
             manifest_schema_version=manifest.schema_version,
             generator_version=manifest.generator_version,
-            code_set_version=CATALOG_CODE_SET_VERSION,
+            code_set_version=artifact.code_set_version,
             source_manifest_hash=artifact.manifest_hash,
             source_track_code=manifest.source.track,
             review_status_code=manifest.review.status,
-            review_method_code=manifest.review.review_method_code,
-            status_interpretation_code=manifest.review.status_interpretation,
+            review_method_code=(
+                "DOMAIN_REVIEWER" if approval is not None else manifest.review.review_method_code
+            ),
+            status_interpretation_code=(
+                "PRODUCTION_APPROVED"
+                if approval is not None
+                else manifest.review.status_interpretation
+            ),
             production_eligible=manifest.review.production_eligible,
             exercise_record_count=len(records),
-            manifest_metadata=manifest.model_dump(mode="json"),
+            manifest_metadata=metadata,
         )
         session.add(catalog_version)
 
-        for record in records:
-            exercise = Exercise(
-                id=uuid4(),
-                catalog_version=catalog_version,
-                stable_code=record.stable_code,
-                name_ko=record.name_ko,
-                name_en=record.name_en or None,
-                training_type_code=record.training_type_code,
-                body_focus_code=record.body_focus_code,
-                primary_movement_pattern_code=record.primary_movement_pattern_code,
-                difficulty_code=record.difficulty_code,
-                beginner_suitable=record.beginner_suitable,
-                timing_mode_code=record.timing_mode_code,
-                default_seconds_per_rep=record.default_seconds_per_rep,
-                default_work_seconds=record.default_work_seconds,
-                default_rest_seconds=record.default_rest_seconds,
-                default_transition_seconds=record.default_transition_seconds,
-                recovery_eligible=record.recovery_eligible,
-                instruction_summary_ko=record.instruction_summary_ko,
-                form_cues_ko=record.form_cues_ko,
-                instruction_content_version=record.instruction_content_version,
-                review_status_code=record.review_status_code,
-                source_track_code=record.source_track,
-                source_identity=record.source_identity,
-                body_parts=[
-                    ExerciseBodyPart(
-                        body_area_code=code,
-                        role_code=BodyAreaRoleCode.PRIMARY,
-                    )
-                    for code in record.primary_body_area_codes
-                ]
-                + [
-                    ExerciseBodyPart(
-                        body_area_code=code,
-                        role_code=BodyAreaRoleCode.SECONDARY,
-                    )
-                    for code in record.secondary_body_area_codes
-                ],
-                equipment_links=[
-                    ExerciseEquipment(
-                        equipment_code=code,
-                        requirement_code=EquipmentRequirementCode.REQUIRED,
-                    )
-                    for code in record.equipment_codes
-                ],
-                location_links=[
-                    ExerciseLocation(location_code=code) for code in record.location_codes
-                ],
-            )
-            session.add(exercise)
+        # The v2.0.2 identity columns arrive in migration 0031, but this importer
+        # also runs against older revisions (see the 0022 promotion test), so the
+        # INSERT is built from the columns the connected database actually has.
+        # A plain ORM insert would name every mapped column and fail there.
+        available_exercise_columns = {
+            column["name"] for column in inspect(session.get_bind()).get_columns("exercises")
+        }
+        identity_columns = (
+            "record_type",
+            "family_code",
+            "representative_stable_code",
+            "general_pool_included",
+            "form_cues_source",
+            "form_cues_review_status",
+        )
+        exercise_values: list[dict[str, object]] = []
+        children: list[ExerciseBodyPart | ExerciseEquipment | ExerciseLocation] = []
 
+        for record in records:
+            exercise_id = uuid4()
+            values: dict[str, object] = {
+                "id": exercise_id,
+                "catalog_version_id": catalog_version.id,
+                "stable_code": record.stable_code,
+                "name_ko": record.name_ko,
+                "name_en": record.name_en or None,
+                "training_type_code": record.training_type_code,
+                "body_focus_code": record.body_focus_code,
+                "primary_movement_pattern_code": record.primary_movement_pattern_code,
+                "difficulty_code": record.difficulty_code,
+                "timing_mode_code": record.timing_mode_code,
+                "default_seconds_per_rep": record.default_seconds_per_rep,
+                "default_work_seconds": record.default_work_seconds,
+                "default_rest_seconds": record.default_rest_seconds,
+                "default_transition_seconds": record.default_transition_seconds,
+                "recovery_eligible": record.recovery_eligible,
+                "instruction_summary_ko": record.instruction_summary_ko,
+                "form_cues_ko": record.form_cues_ko,
+                "instruction_content_version": record.instruction_content_version,
+                "review_status_code": record.review_status_code,
+                "source_track_code": record.source_track,
+                "source_identity": record.source_identity,
+            }
+            values.update(
+                {
+                    name: getattr(record, name, None)
+                    for name in identity_columns
+                    if name in available_exercise_columns
+                }
+            )
+            exercise_values.append(values)
+            children.extend(
+                ExerciseBodyPart(
+                    exercise_id=exercise_id,
+                    body_area_code=code,
+                    role_code=BodyAreaRoleCode.PRIMARY,
+                )
+                for code in record.primary_body_area_codes
+            )
+            children.extend(
+                ExerciseBodyPart(
+                    exercise_id=exercise_id,
+                    body_area_code=code,
+                    role_code=BodyAreaRoleCode.SECONDARY,
+                )
+                for code in record.secondary_body_area_codes
+            )
+            children.extend(
+                ExerciseEquipment(
+                    exercise_id=exercise_id,
+                    equipment_code=code,
+                    requirement_code=EquipmentRequirementCode.REQUIRED,
+                )
+                for code in record.equipment_codes
+            )
+            children.extend(
+                ExerciseLocation(exercise_id=exercise_id, location_code=code)
+                for code in record.location_codes
+            )
+
+        # The catalog version row has to land before the exercises that point at
+        # it; flushing here keeps the ordering explicit instead of relying on
+        # autoflush firing at the right moment.
+        session.flush()
+        if exercise_values:
+            session.execute(insert(Exercise), exercise_values)
+        session.add_all(children)
         session.flush()
         return catalog_version
 
@@ -414,6 +731,16 @@ class CatalogRepository:
         exercise_ids = self._exercise_ids(session)
         manifest = artifact.manifest
         version_code = manifest.alternative_set_version.version_code
+        available_columns = {
+            column["name"]
+            for column in inspect(session.get_bind()).get_columns("exercise_alternatives")
+        }
+        typed_selector_columns = {
+            "pain_discomfort_area_code",
+            "condition_code",
+            "service_action_code",
+            "target_strategy_code",
+        }
         metadata = manifest.model_dump(mode="json")
         approval = get_derived_data_approval(
             "ALTERNATIVES", version_code, artifact.manifest_hash, len(artifact.records)
@@ -435,21 +762,201 @@ class CatalogRepository:
                     "EXERCISE_REFERENCE_NOT_FOUND",
                     "alternative references an unknown exercise",
                 )
+            typed_values = {
+                "pain_discomfort_area_code": record.pain_discomfort_area_code,
+                "condition_code": record.condition_code,
+                "service_action_code": record.service_action_code,
+                "target_strategy_code": record.target_strategy_code,
+            }
+            if typed_selector_columns - available_columns and any(
+                value is not None for value in typed_values.values()
+            ):
+                raise CatalogImportError(
+                    "ALTERNATIVE_SCHEMA_MIGRATION_REQUIRED",
+                    "typed discomfort selectors require migration 0028 before import",
+                )
+            values: dict[str, object] = {
+                "id": uuid4(),
+                "source_exercise_id": source_id,
+                "alternative_exercise_id": alternative_id,
+                "reason_code": record.reason_code,
+                "goal_preservation_code": record.goal_preservation_code,
+                "difficulty_delta": record.difficulty_delta,
+                "review_status_code": record.review_status_code,
+                "rule_version": record.rule_version,
+                "alternative_set_version_code": version_code,
+                "production_eligible": approval is not None,
+                "source_manifest_hash": artifact.manifest_hash,
+                "source_metadata": metadata,
+                "created_at": record.created_at,
+            }
+            values.update(
+                {key: value for key, value in typed_values.items() if key in available_columns}
+            )
+            session.execute(insert(ExerciseAlternative).values(values))
+        session.flush()
+
+    def get_prescription_set_state(
+        self, session: Session, version_code: str
+    ) -> DerivedSetState | None:
+        catalogs = session.scalars(select(CatalogVersion)).all()
+        for catalog in catalogs:
+            metadata = catalog.manifest_metadata.get("prescription_artifact")
+            if not isinstance(metadata, dict) or metadata.get("version_code") != version_code:
+                continue
+            exercise_ids = select(Exercise.id).where(Exercise.catalog_version_id == catalog.id)
+            goals = session.scalar(
+                select(func.count())
+                .select_from(ExerciseGoalTagLink)
+                .where(ExerciseGoalTagLink.exercise_id.in_(exercise_ids))
+            )
+            profiles = session.scalar(
+                select(func.count())
+                .select_from(ExercisePrescriptionProfile)
+                .where(ExercisePrescriptionProfile.exercise_id.in_(exercise_ids))
+            )
+            count = int(goals or 0) + int(profiles or 0)
+            manifest_hash = metadata.get("manifest_sha256")
+            if not isinstance(manifest_hash, str):
+                raise CatalogImportError(
+                    "DERIVED_SET_CONFLICT", "prescription metadata has no manifest hash"
+                )
+            return DerivedSetState(count, manifest_hash)
+        return None
+
+    def create_prescriptions(self, session: Session, artifact: PrescriptionArtifact) -> None:
+        exercise_ids = self._exercise_ids(session)
+        catalogs = {row.version_code: row for row in session.scalars(select(CatalogVersion)).all()}
+        for goal_record in artifact.goal_tag_records:
+            exercise_id = exercise_ids.get(
+                (goal_record.catalog_version_code, goal_record.exercise_stable_code)
+            )
+            if exercise_id is None:
+                raise CatalogImportError(
+                    "EXERCISE_REFERENCE_NOT_FOUND", "goal tag references an unknown exercise"
+                )
             session.add(
-                ExerciseAlternative(
+                ExerciseGoalTagLink(
+                    exercise_id=exercise_id,
+                    goal_code=goal_record.goal_code,
+                    role_eligibility_code=goal_record.role_eligibility_code,
+                    review_status_code=goal_record.review_status_code,
+                )
+            )
+        for profile_record in artifact.prescription_records:
+            exercise_id = exercise_ids.get(
+                (profile_record.catalog_version_code, profile_record.exercise_stable_code)
+            )
+            if exercise_id is None:
+                raise CatalogImportError(
+                    "EXERCISE_REFERENCE_NOT_FOUND",
+                    "prescription references an unknown exercise",
+                )
+            session.add(
+                ExercisePrescriptionProfile(
+                    exercise_id=exercise_id,
+                    goal_code=profile_record.goal_code,
+                    experience_level_code=profile_record.experience_level_code,
+                    phase_code=profile_record.phase_code,
+                    sets=profile_record.sets,
+                    reps=profile_record.reps,
+                    work_seconds_per_set=profile_record.work_seconds_per_set,
+                    rest_seconds_per_set=profile_record.rest_seconds_per_set,
+                    intensity_code=profile_record.intensity_code,
+                    prescription_version=profile_record.prescription_version,
+                    review_status_code=profile_record.review_status_code,
+                )
+            )
+        version_code = artifact.manifest.prescription_set_version.version_code
+        total = len(artifact.goal_tag_records) + len(artifact.prescription_records)
+        approval = get_derived_data_approval(
+            "PRESCRIPTIONS", version_code, artifact.manifest_hash, total
+        )
+        catalog_versions = {row.catalog_version_code for row in artifact.goal_tag_records} | {
+            row.catalog_version_code for row in artifact.prescription_records
+        }
+        for version in catalog_versions:
+            catalog = catalogs.get(version)
+            if catalog is None:
+                raise CatalogImportError(
+                    "CATALOG_REFERENCE_NOT_FOUND",
+                    "prescription references an unknown catalog",
+                )
+            prescription_metadata: dict[str, object] = {
+                "version_code": version_code,
+                "manifest_sha256": artifact.manifest_hash,
+                "goal_tag_records": len(artifact.goal_tag_records),
+                "prescription_records": len(artifact.prescription_records),
+            }
+            if approval is not None:
+                prescription_metadata["production_approval"] = approval.metadata()
+            catalog.manifest_metadata = {
+                **catalog.manifest_metadata,
+                "prescription_artifact": prescription_metadata,
+            }
+        session.flush()
+
+    def get_media_set_state(self, session: Session, version_code: str) -> DerivedSetState | None:
+        count, minimum_hash, maximum_hash = session.execute(
+            select(
+                func.count(ExerciseMediaAsset.id),
+                func.min(ExerciseMediaAsset.source_manifest_hash),
+                func.max(ExerciseMediaAsset.source_manifest_hash),
+            ).where(ExerciseMediaAsset.media_set_version_code == version_code)
+        ).one()
+        if count == 0:
+            return None
+        if minimum_hash != maximum_hash or minimum_hash is None:
+            raise CatalogImportError(
+                "DERIVED_SET_CONFLICT", "media set contains mixed manifest hashes"
+            )
+        return DerivedSetState(record_count=count, manifest_hash=minimum_hash)
+
+    def create_media_assets(self, session: Session, artifact: MediaArtifact) -> None:
+        exercise_ids = self._exercise_ids(session)
+        manifest = artifact.manifest
+        version_code = manifest.media_set_version.version_code
+        approval = get_derived_data_approval(
+            "MEDIA_ASSETS", version_code, artifact.manifest_hash, len(artifact.records)
+        )
+        manifest_metadata = manifest.model_dump(mode="json")
+        for record, stable_code in zip(
+            artifact.records, artifact.exercise_stable_codes, strict=True
+        ):
+            exercise_id = exercise_ids.get((manifest.catalog_version_code, stable_code))
+            if exercise_id is None:
+                raise CatalogImportError(
+                    "MEDIA_EXERCISE_REFERENCE_NOT_FOUND",
+                    "media asset references an unknown exercise",
+                )
+            catalog = session.scalar(
+                select(CatalogVersion).where(
+                    CatalogVersion.version_code == manifest.catalog_version_code
+                )
+            )
+            if catalog is None:
+                raise CatalogImportError(
+                    "CATALOG_REFERENCE_NOT_FOUND", "media asset references an unknown catalog"
+                )
+            session.add(
+                ExerciseMediaAsset(
                     id=uuid4(),
-                    source_exercise_id=source_id,
-                    alternative_exercise_id=alternative_id,
-                    reason_code=record.reason_code,
-                    goal_preservation_code=record.goal_preservation_code,
-                    difficulty_delta=record.difficulty_delta,
-                    review_status_code=record.review_status_code,
-                    rule_version=record.rule_version,
-                    alternative_set_version_code=version_code,
-                    production_eligible=approval is not None,
+                    catalog_version_id=catalog.id,
+                    exercise_id=exercise_id,
+                    s3_key=record.s3_key,
+                    media_status=record.media_status,
+                    rights_review_status=record.rights_review_status,
+                    rights_reviewer=record.rights_reviewer,
+                    rights_reviewed_at=record.rights_reviewed_at,
+                    rights_evidence_reference=record.rights_evidence_reference,
+                    media_set_version_code=version_code,
                     source_manifest_hash=artifact.manifest_hash,
-                    source_metadata=metadata,
-                    created_at=record.created_at,
+                    source_metadata={
+                        "manifest": manifest_metadata,
+                        "record": record.source_metadata,
+                        "representative_exercise_id": record.representative_exercise_id,
+                    },
+                    approval_metadata=approval.metadata() if approval is not None else None,
                 )
             )
         session.flush()

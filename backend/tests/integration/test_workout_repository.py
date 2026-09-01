@@ -400,14 +400,19 @@ def _prepare_context(session: Session, user_id: UUID) -> UUID:
     return context.id
 
 
-def _create_workout_session(session: Session, user_id: UUID, context_id: UUID) -> UUID:
+def _create_workout_session(
+    session: Session,
+    user_id: UUID,
+    context_id: UUID,
+    context_version: int = 1,
+) -> UUID:
     decision = DecisionService(DecisionRepository(), clock=lambda: NOW).create(
         session,
         user_id,
         DecisionCreateRequest(
             local_date=date(2026, 8, 14),
             daily_context_id=context_id,
-            expected_context_version=1,
+            expected_context_version=context_version,
         ),
         uuid4(),
     )
@@ -431,9 +436,40 @@ def test_postgresql_workout_log_reads_are_owner_scoped_and_stably_paginated(
     other_id = _add_postgres_user(postgres_session)
     owner_context_id = _prepare_context(postgres_session, owner_id)
     other_context_id = _prepare_context(postgres_session, other_id)
-    owner_session_ids = tuple(
-        _create_workout_session(postgres_session, owner_id, owner_context_id) for _ in range(3)
-    )
+    owner_session_ids: list[UUID] = []
+    owner_context_version = 1
+    for _ in range(3):
+        if owner_session_ids:
+            updated_context = DailyContextService(
+                DailyContextRepository(), clock=lambda: NOW
+            ).replace(
+                postgres_session,
+                owner_id,
+                date(2026, 8, 14),
+                DailyContextUpsertRequest.model_validate(
+                    {
+                        "fatigue_level_code": "LOW",
+                        "requested_duration_minutes": 30,
+                        "duration_adjustment_source_code": "PROFILE",
+                        "location_code": "HOME",
+                        "discomforts": [],
+                        "adverse_reaction_codes": [],
+                    }
+                ),
+                uuid4(),
+                owner_context_version,
+            )
+            owner_context_id = updated_context.id
+            owner_context_version = updated_context.context_version
+        owner_session_ids.append(
+            _create_workout_session(
+                postgres_session,
+                owner_id,
+                owner_context_id,
+                owner_context_version,
+            )
+        )
+    owner_session_ids = tuple(owner_session_ids)
     other_session_id = _create_workout_session(postgres_session, other_id, other_context_id)
 
     with postgres_session.begin():

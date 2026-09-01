@@ -1,3 +1,5 @@
+export type WorkoutMockPreviewState = 'symptom-mild' | 'symptom-severe';
+
 export type WorkoutPreviewState =
   | 'active'
   | 'offline'
@@ -6,8 +8,7 @@ export type WorkoutPreviewState =
   | 'rest'
   | 'not-completed'
   | 'safety'
-  | 'symptom-mild'
-  | 'symptom-severe'
+  | WorkoutMockPreviewState
   | 'completed'
   | 'stopped';
 
@@ -19,12 +20,23 @@ export const WORKOUT_PREVIEW_OPTIONS = [
   { id: 'rest', label: '선택 휴식' },
   { id: 'not-completed', label: '미수행 이유' },
   { id: 'safety', label: '안전 중단 확인' },
-  { id: 'symptom-mild', label: '경미한 불편' },
-  { id: 'symptom-severe', label: '중대한 이상 반응' },
   { id: 'completed', label: '완료 결과' },
   { id: 'stopped', label: '안전 중단 결과' },
 ] as const satisfies readonly {
   id: WorkoutPreviewState;
+  label: string;
+}[];
+
+/**
+ * Mock-only legacy symptom sheets. They do not use the workout safety-event
+ * API and are intentionally excluded from the Preview Gallery. Keep them
+ * named here while isolated component tests still cover their old UI states.
+ */
+export const WORKOUT_MOCK_PREVIEW_OPTIONS = [
+  { id: 'symptom-mild', label: '경미한 불편 (mock)' },
+  { id: 'symptom-severe', label: '중대한 이상 반응 (mock)' },
+] as const satisfies readonly {
+  id: WorkoutMockPreviewState;
   label: string;
 }[];
 
@@ -34,6 +46,71 @@ export const WORKOUT_CAROUSEL = {
   STRIDE: 250,
   CARD_HEIGHT: 320,
 } as const;
+
+export type WorkoutResponsiveLayout = {
+  cardHeight: number;
+  cardWidth: number;
+  contentMaxWidth: number;
+  gap: number;
+  headerTopPadding: number;
+  mascotHeight: number;
+  scale: number;
+  stride: number;
+};
+
+/**
+ * Keeps controls readable on large browser viewports without scaling the
+ * phone composition indefinitely, while reclaiming vertical space on short
+ * phones. The workout order stays timer -> mascot -> ordered blocks at every
+ * breakpoint.
+ */
+export function getWorkoutResponsiveLayout({
+  height,
+  width,
+}: {
+  height: number;
+  width: number;
+}): WorkoutResponsiveLayout {
+  let scale = 1;
+  let cardWidth: number = WORKOUT_CAROUSEL.CARD_WIDTH;
+  let gap: number = WORKOUT_CAROUSEL.GAP;
+  let cardHeight: number = WORKOUT_CAROUSEL.CARD_HEIGHT;
+  let mascotHeight = 220;
+  let headerTopPadding = 54;
+
+  if (height < 650) {
+    scale = 0.9;
+    cardHeight = 210;
+    mascotHeight = 90;
+    headerTopPadding = 28;
+  } else if (height < 800) {
+    scale = 0.95;
+    cardHeight = 240;
+    mascotHeight = 130;
+    headerTopPadding = 42;
+  } else {
+    const widthRatio = width / 390;
+    const heightRatio = height / 844;
+    const proportionalScale = Math.sqrt(widthRatio * heightRatio);
+    scale = Math.max(0.9, Math.min(1.2, proportionalScale, heightRatio * 1.08));
+    cardHeight = Math.round(280 * scale);
+    cardWidth = Math.round(WORKOUT_CAROUSEL.CARD_WIDTH * scale);
+    gap = Math.round(WORKOUT_CAROUSEL.GAP * scale);
+    mascotHeight = Math.round(180 * scale);
+    headerTopPadding = Math.round(54 * scale);
+  }
+
+  return {
+    cardHeight,
+    cardWidth,
+    contentMaxWidth: 1100,
+    gap,
+    headerTopPadding,
+    mascotHeight,
+    scale,
+    stride: cardWidth + gap,
+  };
+}
 
 export const WORKOUT_ARC = {
   INPUT_OFFSETS: [-2, -1, 0, 1, 2],
@@ -56,7 +133,7 @@ export const WORKOUT_BLOCKS: readonly WorkoutBlock[] = [
   {
     id: 'warm-up',
     name: '준비 운동',
-    meta: '5분 · 전신 가동성',
+    meta: '1세트 × 10회 · 스트레칭',
     tips: ['호흡을 편안하게 유지해요.', '천천히 움직임 범위를 넓혀요.'],
   },
   {
@@ -90,7 +167,7 @@ export const WORKOUT_BLOCKS: readonly WorkoutBlock[] = [
   {
     id: 'cool-down',
     name: '마무리 스트레칭',
-    meta: '5분 · 호흡 정리',
+    meta: '1세트 × 10회 · 호흡 정리',
     tips: ['반동 없이 편안한 범위에서 유지해요.'],
   },
 ] as const;

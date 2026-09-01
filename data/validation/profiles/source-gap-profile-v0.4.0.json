@@ -1,0 +1,89 @@
+{
+  "policy_version": "source-gap-policy-v0.1.0",
+  "status": "DRAFT_REVIEW_QUEUE",
+  "production_eligible": false,
+  "selected_counts": {
+    "strength": 42,
+    "cardio": 10,
+    "mobility": 35
+  },
+  "coverage": {
+    "strength_targets": {
+      "abs": 5,
+      "biceps": 3,
+      "calves": 3,
+      "delts": 4,
+      "forearms": 3,
+      "glutes": 3,
+      "hamstrings": 2,
+      "lats": 3,
+      "pectorals": 2,
+      "quads": 4,
+      "spine": 2,
+      "traps": 2,
+      "triceps": 3,
+      "upper back": 3
+    },
+    "strength_movement_patterns": {
+      "CORE_BRACE": 6,
+      "HIP_DOMINANT": 4,
+      "HORIZONTAL_PULL": 2,
+      "HORIZONTAL_PUSH": 2,
+      "ISOLATION": 19,
+      "KNEE_DOMINANT": 4,
+      "KNEE_FLEXION": 1,
+      "VERTICAL_PULL": 3,
+      "VERTICAL_PUSH": 1
+    },
+    "strength_equipment": {
+      "BARBELL": 8,
+      "BODYWEIGHT": 17,
+      "CABLE_MACHINE": 4,
+      "DUMBBELL": 9,
+      "MACHINE": 2,
+      "RESISTANCE_BAND": 1,
+      "WEIGHTED_LOAD_REVIEW_REQUIRED": 1
+    },
+    "strength_locations": {
+      "GYM": 42,
+      "HOME": 28
+    },
+    "cardio_movement_patterns": {
+      "GAIT": 6
+    },
+    "cardio_locations": {
+      "GYM": 5,
+      "HOME": 5,
+      "OUTDOOR": 2
+    },
+    "mobility_movement_patterns": {
+      "MOBILITY_STRETCH": 35
+    },
+    "low_impact_home_cardio": 2
+  },
+  "gaps": [
+    {
+      "gap_code": "HOME_LOW_IMPACT_CARDIO",
+      "observed": 2,
+      "minimum": 3,
+      "priority_source": "kspo",
+      "fallback_source": "wger",
+      "reason": "Gym Visual 선정 결과에서 저충격 홈 유산소 대표 후보가 최소 기준보다 적음."
+    }
+  ],
+  "covered_checks": {
+    "STRENGTH_MACHINE_CABLE_BAND": true,
+    "MOBILITY_STRETCH": true
+  },
+  "not_gaps": [
+    "family_variant_is_not_alternative_relation",
+    "safety_rules_are_not_generated_at_coverage_stage",
+    "existing_catalog_safety_and_alternative_artifacts_are_read_only"
+  ],
+  "aligned_candidate_count": 791,
+  "queue": {
+    "record_count": 3,
+    "csv": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/validation/review_batches/source-gap-review-v0.4.0/source_gap_review.csv",
+    "jsonl": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/validation/review_batches/source-gap-review-v0.4.0/source_gap_review.jsonl"
+  }
+}

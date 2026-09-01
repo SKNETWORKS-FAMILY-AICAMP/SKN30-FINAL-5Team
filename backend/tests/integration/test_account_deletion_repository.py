@@ -27,6 +27,9 @@ from backend.app.db.models.catalog import (
 from backend.app.db.models.checkin import DailyContext
 from backend.app.db.models.decision import (
     AgentProposalRecord,
+    AgentProposalRevisionRecord,
+    AgentReviewEventRecord,
+    DecisionDeliberationRecord,
     DecisionOption,
     DecisionPolicyVersion,
     DecisionRun,
@@ -171,7 +174,6 @@ def _seed_linked_graph(session: Session, user_id: UUID, suffix: str) -> dict[str
             body_focus_code=focus_code,
             primary_movement_pattern_code=movement_code,
             difficulty_code="BEGINNER",
-            beginner_suitable=True,
             timing_mode_code="REPS",
             default_seconds_per_rep=3,
             default_work_seconds=None,
@@ -270,6 +272,9 @@ def _seed_linked_graph(session: Session, user_id: UUID, suffix: str) -> dict[str
     plan_item_id = uuid4()
     option_id = uuid4()
     proposal_id = uuid4()
+    deliberation_id = uuid4()
+    proposal_revision_id = uuid4()
+    review_event_id = uuid4()
     session.add(
         DecisionRun(
             id=decision_id,
@@ -376,6 +381,61 @@ def _seed_linked_graph(session: Session, user_id: UUID, suffix: str) -> dict[str
         )
     )
     session.flush()
+    session.add(
+        DecisionDeliberationRecord(
+            id=deliberation_id,
+            decision_run_id=decision_id,
+            policy_version_id=policy_id,
+            deliberation_schema_version="test-v1",
+            graph_version="test-v1",
+            round_count=1,
+            round_two_status_code="SKIPPED_NO_CONFLICT",
+            conflict_detector_version="test-v1",
+            precedence_version="test-v1",
+            conflict_codes=[],
+            conflict_hash="d" * 64,
+            created_at=NOW,
+        )
+    )
+    session.flush()
+    session.add(
+        AgentProposalRevisionRecord(
+            id=proposal_revision_id,
+            decision_run_id=decision_id,
+            deliberation_id=deliberation_id,
+            source_proposal_id=proposal_id,
+            baseline_revision_id=None,
+            policy_version_id=policy_id,
+            round_number=1,
+            agent_type_code="TRAINING",
+            proposal_status_code="READY",
+            proposal_schema_version="test-v1",
+            proposal_payload={"reason_codes": ["TEST_MACHINE_CODE"]},
+            proposal_hash="e" * 64,
+            created_at=NOW,
+        )
+    )
+    session.flush()
+    session.add(
+        AgentReviewEventRecord(
+            id=review_event_id,
+            decision_run_id=decision_id,
+            deliberation_id=deliberation_id,
+            baseline_revision_id=proposal_revision_id,
+            revised_revision_id=None,
+            round_number=2,
+            agent_type_code="TRAINING",
+            review_status_code="NOT_REQUIRED",
+            revision_status_code="NOT_REQUIRED",
+            review_schema_version="test-v1",
+            baseline_proposal_hash="e" * 64,
+            reviewed_proposal_references=[],
+            review_payload={"reason_codes": []},
+            review_hash="f" * 64,
+            created_at=NOW,
+        )
+    )
+    session.flush()
     selection_id = uuid4()
     workout_id = uuid4()
     session.add(
@@ -478,6 +538,9 @@ def _seed_linked_graph(session: Session, user_id: UUID, suffix: str) -> dict[str
         "policy_id": policy_id,
         "decision_id": decision_id,
         "proposal_id": proposal_id,
+        "deliberation_id": deliberation_id,
+        "proposal_revision_id": proposal_revision_id,
+        "review_event_id": review_event_id,
         "workout_id": workout_id,
         "report_id": report_id,
     }
@@ -525,6 +588,9 @@ def test_hard_delete_removes_linked_graph_and_leaves_only_opaque_audit(
         assert session.get(UserProfile, user_id) is None
         assert session.get(DecisionRun, ids["decision_id"]) is None
         assert session.get(AgentProposalRecord, ids["proposal_id"]) is None
+        assert session.get(DecisionDeliberationRecord, ids["deliberation_id"]) is None
+        assert session.get(AgentProposalRevisionRecord, ids["proposal_revision_id"]) is None
+        assert session.get(AgentReviewEventRecord, ids["review_event_id"]) is None
         assert session.get(WorkoutSession, ids["workout_id"]) is None
         assert session.get(WorkoutFeedback, ids["workout_id"]) is None
         assert session.get(WeeklyReport, ids["report_id"]) is None

@@ -18,7 +18,7 @@ import {
   ScreenHeading,
   ScreenShell,
 } from '../components/states/ScreenState';
-import { SignInScreen } from '../features/auth/SignInScreen';
+import { AuthFlow } from '../features/auth/AuthFlow';
 import { ConfigurationRequiredScreen } from '../features/config/ConfigurationRequiredScreen';
 import { OnboardingScreen } from '../features/onboarding/OnboardingScreen';
 import { SplashScreen } from '../features/splash/SplashScreen';
@@ -46,7 +46,7 @@ export function DemoApp() {
 
     case 'signedOut':
       return session.auth ? (
-        <SignInScreen auth={session.auth} />
+        <AuthFlow auth={session.auth} notice={session.status.notice} />
       ) : (
         <ConfigurationRequiredScreen
           issues={[
@@ -109,8 +109,8 @@ export function DemoApp() {
         <MainFlow
           api={session.api}
           me={me}
+          onRefreshMe={session.refreshMe}
           onSignOut={() => void session.signOut()}
-          onProfileUpdated={() => void session.refreshMe()}
         />
       );
     }

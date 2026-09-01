@@ -2,38 +2,49 @@ import os
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import Engine, create_engine, func, select
+from sqlalchemy import Engine, create_engine, delete, func, select, update
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
 from backend.app.core.config import get_settings
 from backend.app.db.models.catalog import (
+    BodyFocus,
     CatalogVersion,
     Exercise,
     ExerciseAlternative,
     ExerciseBodyPart,
+    ExerciseGoalTagLink,
+    ExerciseMediaAsset,
+    ExercisePrescriptionProfile,
     ExerciseSafetyRule,
 )
 from backend.app.db.repositories.catalog import CatalogRepository
+from backend.app.db.repositories.vector_index import (
+    VectorIndexBuildWrite,
+    VectorIndexRepository,
+)
 from backend.app.modules.catalog.codes import BodyAreaCode, BodyAreaRoleCode
-from backend.app.modules.catalog.service import CatalogDataBundleImporter, CatalogImporter
+from backend.app.modules.catalog.media_mapping import MediaObjectMapping
+from backend.app.modules.catalog.service import (
+    CatalogArtifact,
+    CatalogDataBundleImporter,
+    CatalogImporter,
+    load_catalog_artifact,
+)
+from backend.scripts.catalog_activate import activate
 from backend.scripts.demo_seed import seed_catalog
 
 ALEMBIC_CONFIG = Path("backend/alembic.ini")
 GENERATED_ARTIFACT = Path("data/generated/exercise-catalog-seed-kspo-tranche3-v0.1.0")
-BUNDLE_CATALOGS = (
-    Path("data/generated/exercise-catalog-seed-kspo-mvp-v0.2.0"),
-    Path("data/generated/exercise-catalog-seed-wger-mvp-v0.2.0"),
-    Path("data/generated/exercise-catalog-seed-kspo-tranche3-v0.1.0"),
-    Path("data/generated/exercise-catalog-seed-wger-tranche3-v0.1.0"),
-)
-BUNDLE_SAFETY = Path("data/generated/exercise-safety-rules-mvp-v0.3.0")
-BUNDLE_ALTERNATIVES = Path("data/generated/exercise-alternatives-mvp-v0.2.0")
+BUNDLE_CATALOGS = (Path("data/generated/exercise-catalog-seed-merged-mvp-v0.4.0"),)
+BUNDLE_SAFETY = Path("data/generated/exercise-safety-rules-merged-mvp-v0.5.0")
+BUNDLE_ALTERNATIVES = Path("data/generated/exercise-alternatives-merged-mvp-v0.4.0")
+BUNDLE_PRESCRIPTIONS = Path("data/generated/exercise-prescriptions-merged-mvp-v0.1.0")
 
 
 @pytest.fixture
@@ -50,6 +61,8 @@ def postgres_session(monkeypatch: pytest.MonkeyPatch) -> Iterator[Session]:
     command.upgrade(Config(str(ALEMBIC_CONFIG)), "head")
 
     engine: Engine = create_engine(test_database_url)
+    with Session(engine) as cleanup, cleanup.begin():
+        cleanup.execute(delete(CatalogVersion))
     connection = engine.connect()
     transaction = connection.begin()
     session = Session(bind=connection)
@@ -60,6 +73,8 @@ def postgres_session(monkeypatch: pytest.MonkeyPatch) -> Iterator[Session]:
         if transaction.is_active:
             transaction.rollback()
         connection.close()
+        with Session(engine) as cleanup, cleanup.begin():
+            cleanup.execute(delete(CatalogVersion))
         engine.dispose()
         get_settings.cache_clear()
 
@@ -83,6 +98,40 @@ def test_imports_catalog_atomically_and_is_idempotent(postgres_session: Session)
     assert version.code_set_version == "mvp-v1"
     assert version.production_eligible is False
     assert version.manifest_metadata["files"][0]["records"] == 3
+
+
+@pytest.mark.integration
+def test_repository_persists_catalog_v2_code_set_and_gymvisual_source(
+    postgres_session: Session,
+) -> None:
+    source = load_catalog_artifact(GENERATED_ARTIFACT)
+    record = source.records[0].model_copy(
+        update={
+            "stable_code": "catalog_v2_repository_contract",
+            "body_focus_code": "CHEST",
+            "equipment_codes": ["BODYWEIGHT"],
+            "source_track": "gymvisual",
+        }
+    )
+    artifact = CatalogArtifact(
+        source.manifest,
+        "f" * 64,
+        (record,),
+        code_set_version="catalog-v2",
+    )
+
+    version = CatalogRepository().create_from_artifact(postgres_session, artifact)
+    postgres_session.flush()
+
+    exercise = postgres_session.scalar(
+        select(Exercise).where(Exercise.catalog_version_id == version.id)
+    )
+    focus = postgres_session.get(BodyFocus, "CHEST")
+    assert version.code_set_version == "catalog-v2"
+    assert exercise is not None
+    assert exercise.body_focus_code == "CHEST"
+    assert exercise.source_track_code == "gymvisual"
+    assert focus is not None and focus.code_set_version == "catalog-v2"
 
 
 @pytest.mark.integration
@@ -214,25 +263,237 @@ def test_lists_only_the_approved_catalog_with_filters_and_stable_keyset_paginati
 
 
 @pytest.mark.integration
+def test_equipment_variants_use_the_approved_source_catalog_for_active_and_deprecated(
+    postgres_session: Session,
+) -> None:
+    repository = CatalogRepository()
+    CatalogImporter(repository, "test").import_artifact(postgres_session, GENERATED_ARTIFACT)
+    inactive_exercise_id = postgres_session.scalar(
+        select(Exercise.id).order_by(Exercise.id).limit(1)
+    )
+    assert inactive_exercise_id is not None
+
+    catalog_id = seed_catalog(postgres_session, datetime(2026, 8, 18, tzinfo=UTC))
+    active_exercise_ids = tuple(
+        postgres_session.scalars(
+            select(Exercise.id)
+            .where(Exercise.catalog_version_id == catalog_id)
+            .order_by(Exercise.id)
+            .limit(6)
+        )
+    )
+    assert len(active_exercise_ids) == 6
+    source_id, *alternatives = active_exercise_ids
+    now = datetime(2026, 8, 27, tzinfo=UTC)
+
+    def relation(
+        alternative_exercise_id: UUID,
+        reason_code: str,
+        *,
+        production_eligible: bool = True,
+        approval_metadata: bool = True,
+    ) -> ExerciseAlternative:
+        return ExerciseAlternative(
+            id=uuid4(),
+            source_exercise_id=source_id,
+            alternative_exercise_id=alternative_exercise_id,
+            reason_code=reason_code,
+            goal_preservation_code="GENERAL_FITNESS",
+            difficulty_delta=0,
+            review_status_code="DOMAIN_APPROVED",
+            rule_version="variant-test-v1",
+            alternative_set_version_code="alternative-set-test-v1",
+            production_eligible=production_eligible,
+            source_manifest_hash="a" * 64,
+            source_metadata=(
+                {"production_approval": {"scope": "ALL_RECORDS"}}
+                if approval_metadata
+                else {"source": "unapproved-test"}
+            ),
+            created_at=now,
+        )
+
+    postgres_session.add_all(
+        (
+            relation(alternatives[1], "EQUIPMENT"),
+            relation(alternatives[0], "EQUIPMENT"),
+            relation(alternatives[2], "LOCATION"),
+            relation(alternatives[3], "DIFFICULTY"),
+            relation(alternatives[4], "DISCOMFORT"),
+            relation(alternatives[2], "EQUIPMENT", production_eligible=False),
+            relation(alternatives[3], "EQUIPMENT", approval_metadata=False),
+            relation(inactive_exercise_id, "EQUIPMENT"),
+        )
+    )
+    postgres_session.flush()
+
+    result = repository.get_equipment_variants(postgres_session, source_id)
+
+    assert result is not None
+    assert result.source_exercise_id == source_id
+    assert result.catalog_version == "demo-synthetic-v1"
+    assert result.alternative_set_version == "alternative-set-test-v1"
+    assert [item.exercise_id for item in result.items] == sorted(alternatives[:2])
+    assert inactive_exercise_id not in {item.exercise_id for item in result.items}
+    assert all(item.required_equipment_codes for item in result.items)
+
+    empty = repository.get_equipment_variants(postgres_session, alternatives[4])
+    assert empty is not None
+    assert empty.items == ()
+    assert empty.alternative_set_version is None
+    assert repository.get_equipment_variants(postgres_session, uuid4()) is None
+
+    # The imported catalog is DRAFT and lacks production review. Both its DRAFT
+    # state and a later unapproved DEPRECATED state must remain unreadable.
+    assert repository.get_equipment_variants(postgres_session, inactive_exercise_id) is None
+    inactive_catalog_id = postgres_session.scalar(
+        select(Exercise.catalog_version_id).where(Exercise.id == inactive_exercise_id)
+    )
+    assert inactive_catalog_id is not None
+    postgres_session.execute(
+        update(CatalogVersion)
+        .where(CatalogVersion.id == inactive_catalog_id)
+        .values(status_code="DEPRECATED")
+    )
+    postgres_session.flush()
+    assert repository.get_equipment_variants(postgres_session, inactive_exercise_id) is None
+
+    postgres_session.execute(
+        update(CatalogVersion)
+        .where(CatalogVersion.id == catalog_id)
+        .values(status_code="DEPRECATED", production_eligible=False, activated_at=None)
+    )
+    postgres_session.flush()
+
+    deprecated_result = repository.get_equipment_variants(postgres_session, source_id)
+    assert deprecated_result is not None
+    assert deprecated_result.catalog_version == "demo-synthetic-v1"
+    assert [item.exercise_id for item in deprecated_result.items] == sorted(alternatives[:2])
+
+
+@pytest.mark.integration
+def test_repository_exposes_only_registry_and_rights_approved_media(
+    postgres_session: Session,
+) -> None:
+    catalog_id = seed_catalog(postgres_session, datetime(2026, 8, 18, tzinfo=UTC))
+    exercise_ids = tuple(
+        postgres_session.scalars(
+            select(Exercise.id)
+            .where(Exercise.catalog_version_id == catalog_id)
+            .order_by(Exercise.id)
+            .limit(2)
+        )
+    )
+    assert len(exercise_ids) == 2
+    reviewed_at = datetime(2026, 8, 26, tzinfo=UTC)
+    common = {
+        "catalog_version_id": catalog_id,
+        "media_status": "AVAILABLE",
+        "rights_review_status": "APPROVED",
+        "rights_reviewer": "DOMAIN_REVIEWER",
+        "rights_reviewed_at": reviewed_at,
+        "rights_evidence_reference": "MEDIA-RIGHTS-R01",
+        "media_set_version_code": "media-set-v2",
+        "source_manifest_hash": "a" * 64,
+        "source_metadata": {"source": "synthetic-test"},
+    }
+    postgres_session.add_all(
+        (
+            ExerciseMediaAsset(
+                exercise_id=exercise_ids[0],
+                s3_key="catalog-media/exercises/unapproved.webp",
+                approval_metadata=None,
+                **common,
+            ),
+            ExerciseMediaAsset(
+                exercise_id=exercise_ids[1],
+                s3_key="catalog-media/exercises/approved.webp",
+                approval_metadata={"approval_record_code": "MEDIA-APPROVAL-R01"},
+                **common,
+            ),
+        )
+    )
+    postgres_session.flush()
+    repository = CatalogRepository()
+
+    rows = repository.list_approved_exercises(
+        postgres_session,
+        catalog_id,
+        body_area_code=None,
+        equipment_code=None,
+        training_type_code=None,
+        difficulty_code=None,
+        after_exercise_id=None,
+        limit=200,
+    )
+    media_by_exercise = {row.exercise_id: row.media_asset_key for row in rows}
+
+    assert media_by_exercise[exercise_ids[0]] is None
+    assert media_by_exercise[exercise_ids[1]] == "catalog-media/exercises/approved.webp"
+    assert repository.get_exercise_detail(postgres_session, exercise_ids[0]).media_asset_key is None  # type: ignore[union-attr]
+    assert (
+        repository.get_exercise_detail(postgres_session, exercise_ids[1]).media_asset_key  # type: ignore[union-attr]
+        == "catalog-media/exercises/approved.webp"
+    )
+
+    postgres_session.execute(
+        update(Exercise).where(Exercise.id == exercise_ids[1]).values(source_identity="0073")
+    )
+    postgres_session.flush()
+    mapping_candidates = repository.list_media_mapping_exercises(postgres_session)
+    source_identity_by_id = {
+        candidate.exercise_id: candidate.source_identity for candidate in mapping_candidates
+    }
+    assert exercise_ids[1] in source_identity_by_id
+    stored = repository.store_media_source_mappings(
+        postgres_session,
+        (
+            MediaObjectMapping(
+                exercise_id=exercise_ids[1],
+                source_identity=source_identity_by_id[exercise_ids[1]],
+                source_object_key="videos/0073-i6LWJok.gif",
+            ),
+        ),
+        verified_at="2026-08-31T00:00:00+00:00",
+    )
+    detail = repository.get_exercise_detail(postgres_session, exercise_ids[1])
+    assert stored == 1
+    assert detail is not None
+    assert detail.media_source_object_key == "videos/0073-i6LWJok.gif"
+    assert detail.media_status == "AVAILABLE"
+    assert detail.media_rights_review_status == "APPROVED"
+
+
+@pytest.mark.integration
 def test_imports_complete_bundle_with_metadata_and_is_idempotent(
     postgres_session: Session,
 ) -> None:
     importer = CatalogDataBundleImporter(CatalogRepository(), "test")
 
     first = importer.import_bundle(
-        postgres_session, BUNDLE_CATALOGS, BUNDLE_SAFETY, BUNDLE_ALTERNATIVES
+        postgres_session,
+        BUNDLE_CATALOGS,
+        BUNDLE_SAFETY,
+        BUNDLE_ALTERNATIVES,
+        BUNDLE_PRESCRIPTIONS,
     )
     second = importer.import_bundle(
-        postgres_session, BUNDLE_CATALOGS, BUNDLE_SAFETY, BUNDLE_ALTERNATIVES
+        postgres_session,
+        BUNDLE_CATALOGS,
+        BUNDLE_SAFETY,
+        BUNDLE_ALTERNATIVES,
+        BUNDLE_PRESCRIPTIONS,
     )
 
-    assert first.safety_rules.record_count == 354
+    assert first.safety_rules.record_count == 282
     assert first.alternatives.record_count == 238
     assert second.safety_rules.imported is False
     assert second.alternatives.imported is False
-    assert postgres_session.scalar(select(func.count()).select_from(CatalogVersion)) == 4
+    assert first.prescriptions.record_count == 68
+    assert second.prescriptions.imported is False
+    assert postgres_session.scalar(select(func.count()).select_from(CatalogVersion)) == 1
     assert postgres_session.scalar(select(func.count()).select_from(Exercise)) == 56
-    assert postgres_session.scalar(select(func.count()).select_from(ExerciseSafetyRule)) == 354
+    assert postgres_session.scalar(select(func.count()).select_from(ExerciseSafetyRule)) == 282
     assert postgres_session.scalar(select(func.count()).select_from(ExerciseAlternative)) == 238
     assert (
         postgres_session.scalar(
@@ -240,7 +501,11 @@ def test_imports_complete_bundle_with_metadata_and_is_idempotent(
             .select_from(ExerciseSafetyRule)
             .where(ExerciseSafetyRule.production_eligible.is_(True))
         )
-        == 354
+        == 282
+    )
+    assert postgres_session.scalar(select(func.count()).select_from(ExerciseGoalTagLink)) == 32
+    assert (
+        postgres_session.scalar(select(func.count()).select_from(ExercisePrescriptionProfile)) == 36
     )
     assert (
         postgres_session.scalar(
@@ -256,3 +521,46 @@ def test_imports_complete_bundle_with_metadata_and_is_idempotent(
     assert alternative is not None and "input_artifacts" in alternative.source_metadata["source"]
     assert safety.source_metadata["production_approval"]["scope"] == "ALL_RECORDS"
     assert alternative.source_metadata["production_approval"]["scope"] == "ALL_RECORDS"
+
+
+@pytest.mark.integration
+def test_vector_index_registry_round_trip_uses_only_production_catalog(
+    postgres_session: Session,
+) -> None:
+    CatalogDataBundleImporter(CatalogRepository(), "test").import_bundle(
+        postgres_session,
+        BUNDLE_CATALOGS,
+        BUNDLE_SAFETY,
+        BUNDLE_ALTERNATIVES,
+        BUNDLE_PRESCRIPTIONS,
+    )
+    repository = VectorIndexRepository()
+    assert repository.list_indexable_exercises(postgres_session, "merged-mvp-v0.4.0") == ()
+
+    now = datetime(2026, 8, 24, tzinfo=UTC)
+    activate(postgres_session, "merged-mvp-v0.4.0", now=now)
+    records = repository.list_indexable_exercises(postgres_session, "merged-mvp-v0.4.0")
+
+    assert len(records) == 56
+    assert all(record.production_eligible for record in records)
+    registry = repository.create_build(
+        postgres_session,
+        VectorIndexBuildWrite(
+            catalog_version_id=records[0].catalog_version_id,
+            collection_name="exercise_catalog__test__merged_v0_4_0__fake_v1__index_v1",
+            vector_index_version="index-v1",
+            source_manifest_hash=records[0].catalog_manifest_hash,
+            embedding_model_version="fake-v1",
+            embedding_input_schema_version="exercise-embedding-input-v1",
+            distance_metric_code="COSINE",
+            vector_dimension=4,
+            build_hash="b" * 64,
+        ),
+    )
+    repository.mark_ready(postgres_session, registry, built_at=now)
+    repository.activate(postgres_session, registry, activated_at=now)
+
+    loaded = repository.get_by_version(postgres_session, "index-v1")
+    active = repository.get_active_for_catalog(postgres_session, records[0].catalog_version_id)
+    assert loaded is not None and loaded.status_code == "ACTIVE"
+    assert active is not None and active.id == loaded.id

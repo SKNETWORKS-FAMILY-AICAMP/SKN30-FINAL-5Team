@@ -36,7 +36,8 @@ import { resolveEnvConfig, type EnvConfig, type EnvIssue } from '../config/env';
 export type SessionStatus =
   | { kind: 'configuring' }
   | { kind: 'misconfigured'; issues: EnvIssue[] }
-  | { kind: 'signedOut' }
+  /** `notice` explains why a previous session ended, when it did not end by choice. */
+  | { kind: 'signedOut'; notice: string | null }
   | { kind: 'loadingProfile' }
   | { kind: 'profileError'; message: string }
   | { kind: 'signedIn'; me: MeResponse };
@@ -88,6 +89,7 @@ export function SessionProvider({
 
   const [user, setUser] = useState<KnownUser>(undefined);
   const [profile, setProfile] = useState<ProfileState>({ kind: 'loading' });
+  const [notice, setNotice] = useState<string | null>(null);
   const requestId = useRef(0);
 
   const auth = useMemo<AuthAdapter | null>(() => {
@@ -124,6 +126,10 @@ export function SessionProvider({
       requestId.current += 1;
       setUser(next);
       setProfile({ kind: 'loading' });
+      // A fresh sign-in supersedes whatever ended the previous session.
+      if (next) {
+        setNotice(null);
+      }
     });
   }, [auth]);
 
@@ -136,9 +142,24 @@ export function SessionProvider({
         setProfile({ kind: 'ready', me: result as MeResponse });
         return;
       }
-      // A rejected token means the session is over, not that the profile failed.
-      if (isApiError(result) && result.kind === 'auth') {
+      // Only a verdict ends the session. `INVALID_TOKEN` means the server
+      // checked this token and rejected it; Firebase is signed out too, because
+      // leaving it authenticated while this provider reports `signedOut` sends
+      // the user back to the sign-in screen on every attempt with nothing
+      // explaining the bounce.
+      //
+      // `AUTHENTICATION_REQUIRED` only means no usable token reached the
+      // server. That is a refresh or transport blip, and tearing the session
+      // down for it is what makes a login succeed on one try and fail on the
+      // next. It falls through to the retryable error state instead.
+      if (
+        isApiError(result) &&
+        result.kind === 'auth' &&
+        result.code === 'INVALID_TOKEN'
+      ) {
+        setNotice(result.message);
         setUser(null);
+        void auth?.signOutUser().catch(() => undefined);
         return;
       }
       setProfile({
@@ -148,7 +169,7 @@ export function SessionProvider({
           : '프로필을 불러오지 못했습니다.',
       });
     },
-    [],
+    [auth],
   );
 
   const loadMe = useCallback(async () => {
@@ -194,7 +215,7 @@ export function SessionProvider({
       return { kind: 'configuring' };
     }
     if (user === null) {
-      return { kind: 'signedOut' };
+      return { kind: 'signedOut', notice };
     }
     if (profile.kind === 'loading') {
       return { kind: 'loadingProfile' };
@@ -203,7 +224,7 @@ export function SessionProvider({
       return { kind: 'profileError', message: profile.message };
     }
     return { kind: 'signedIn', me: profile.me };
-  }, [auth, env, profile, user]);
+  }, [auth, env, notice, profile, user]);
 
   const value = useMemo<SessionValue>(
     () => ({ status, api, auth, refreshMe: loadMe, signOut }),

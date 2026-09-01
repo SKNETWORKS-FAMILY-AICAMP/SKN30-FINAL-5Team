@@ -1,0 +1,44 @@
+{
+  "catalog_version_code": "exercise-catalog-v2.0.2-final",
+  "status": "INTERMEDIATE_VARIANTS_MATERIALIZED_REVIEW_REQUIRED",
+  "production_eligible": false,
+  "variant_materialization": {
+    "version": "v2.0.2-variant-materialization-v1.0.0",
+    "catalog_path": "catalog/exercises.jsonl",
+    "relationship_review_path": "variant_relationship_review_v2_0_2.jsonl",
+    "family_mapping_path": "family_representative_mapping_v2_0_2.jsonl",
+    "integrity_report_path": "variant_integrity_report_v2_0_2.json",
+    "counts": {
+      "representative_exercise_count": 101,
+      "primary_variant_count": 66,
+      "secondary_variant_count": 4,
+      "separate_exercise_count": 30,
+      "variant_record_count": 70,
+      "integrated_catalog_exercise_count": 201,
+      "relationship_review_required_count": 80,
+      "review_required_variant_record_count": 70,
+      "relationship_candidate_primary_variant_count": 75,
+      "relationship_candidate_secondary_variant_count": 5,
+      "unmaterialized_review_required_canonical_pair_count": 10
+    }
+  },
+  "difficulty_policy": {
+    "path": "data/normalized/exercise_difficulty_policy_v2_0_2.json",
+    "policy_version": "exercise-difficulty-policy-v2.0.2-user-review-2026-08-28",
+    "sha256": "95454462364f84d47edc94236004a1f8977646d310759533b54da89a65b02bec"
+  },
+  "artifact_sha256": {
+    "catalog/exercises.jsonl": "c2936896ee3adc4c92f8971448d63b2e5860e362cb93e99b0bc3f4412ee5a343",
+    "catalog/exercises.csv": "63024828239bed88144aca3cfda3e98d497596f6d803652c553e82e8cecd9da1",
+    "runtime/catalog.jsonl": "c2936896ee3adc4c92f8971448d63b2e5860e362cb93e99b0bc3f4412ee5a343",
+    "variant_relationship_review_v2_0_2.jsonl": "406aee3200a9c4fd939036e1649a015bf35897450d10deb6fdb3bd64584c3716",
+    "variant_relationship_review_v2_0_2.csv": "f90d245623b8162059d699cd72869d5a6631780428cae7649d4f39206d1bc33c",
+    "family_representative_mapping_v2_0_2.jsonl": "c51ce15b1b7eb0ece3fc98004e7ac08868589f1bd97e91165bafefdf8cb592a4",
+    "family_representative_mapping_v2_0_2.csv": "c2bbd89b6a1652b1293dd3435f16a94a08d069f39dbd14079fde52cb38c4a088",
+    "variant_safety_fitt_mapping_v2_0_2.jsonl": "b04fdf1779eba75019fa2bc4735267807ff01bf27cc25b73e2d0c02631e883a0",
+    "variant_safety_fitt_mapping_v2_0_2.csv": "97a26a7d8c4e54f4eae251fff50358ca821a0b6b69c65b8be0a28ac167090d2a",
+    "variant_integrity_report_v2_0_2.json": "33f124927f928b9ebf64aff976201b203222fbbd588815b3000f9ee25a5ecb90"
+  },
+  "integrated_catalog_exercise_count": 201,
+  "variant_relationship_record_count": 80
+}

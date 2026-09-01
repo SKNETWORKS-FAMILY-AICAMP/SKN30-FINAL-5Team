@@ -94,6 +94,25 @@ class DecisionRepository:
         )
         session.execute(text("SELECT pg_advisory_xact_lock(:lock_key)"), {"lock_key": lock_key})
 
+    def acquire_input_lock(
+        self,
+        session: Session,
+        user_id: UUID,
+        daily_context_id: UUID,
+        daily_context_version: int,
+        input_hash: str,
+    ) -> None:
+        """Serialize creation for one immutable daily-context input snapshot."""
+
+        lock_key = int.from_bytes(
+            sha256(
+                f"{user_id}:{daily_context_id}:{daily_context_version}:{input_hash}".encode()
+            ).digest()[:8],
+            "big",
+            signed=True,
+        )
+        session.execute(text("SELECT pg_advisory_xact_lock(:lock_key)"), {"lock_key": lock_key})
+
     def get_idempotency(
         self, session: Session, user_id: UUID, key: UUID
     ) -> StoredIdempotency | None:
@@ -414,6 +433,10 @@ class DecisionRepository:
                         alternative.primary_movement_pattern_code,
                     ),
                     evidence_reference_code=f"ALTERNATIVE/{relation.id}",
+                    pain_discomfort_area_code=relation.pain_discomfort_area_code,
+                    condition_code=relation.condition_code,
+                    service_action_code=relation.service_action_code,
+                    target_strategy_code=relation.target_strategy_code,
                 )
             )
         return DecisionAssembly(
@@ -672,6 +695,32 @@ class DecisionRepository:
             .where(
                 DecisionRun.user_id == user_id,
                 DecisionRun.local_date == local_date,
+                DecisionRun.status_code == "COMPLETED",
+            )
+            .order_by(DecisionRun.created_at.desc(), DecisionRun.id.desc())
+            .limit(1)
+        )
+        if decision_id is None:
+            return None
+        return self.get_response(session, user_id, decision_id)
+
+    def get_completed_response_for_input(
+        self,
+        session: Session,
+        user_id: UUID,
+        daily_context_id: UUID,
+        daily_context_version: int,
+        input_hash: str,
+    ) -> dict[str, Any] | None:
+        """Replay the completed decision for an identical immutable input."""
+
+        decision_id = session.scalar(
+            select(DecisionRun.id)
+            .where(
+                DecisionRun.user_id == user_id,
+                DecisionRun.daily_context_id == daily_context_id,
+                DecisionRun.daily_context_version == daily_context_version,
+                DecisionRun.input_hash == input_hash,
                 DecisionRun.status_code == "COMPLETED",
             )
             .order_by(DecisionRun.created_at.desc(), DecisionRun.id.desc())

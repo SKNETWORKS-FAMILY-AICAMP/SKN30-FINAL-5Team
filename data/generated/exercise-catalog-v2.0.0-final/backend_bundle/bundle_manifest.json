@@ -1,0 +1,134 @@
+{
+  "bundle_version": "v2-backend-bundle-2026-08-25",
+  "catalog_version_code": "exercise-catalog-v2.0.0-final",
+  "derived_set_versions": {
+    "alternative_set_version_code": "alternative-set-v2.0.0",
+    "prescription_set_version_code": "prescription-set-v2.0.0",
+    "rule_set_version_code": "safety-rule-set-v2.0.0"
+  },
+  "files": [
+    {
+      "bytes": 173024,
+      "path": "alternatives/alternatives.jsonl",
+      "records": 285,
+      "sha256": "90395a88f3fb8e7272d14c515da5cf0317d83dc67b5b60c155e35b68565c6b90"
+    },
+    {
+      "bytes": 1649,
+      "path": "alternatives/alternatives_manifest.json",
+      "sha256": "4f78c1c735a3b1129d8396233612bb27b69c25672967990116cca91b7dd74b5c"
+    },
+    {
+      "bytes": 194,
+      "path": "alternatives/input/alternative_projection_conflicts.json",
+      "sha256": "16f5e8a0fd8c196b60a02bda6ca0044213771d1f3700a4efe34253fbe2826477"
+    },
+    {
+      "bytes": 413334,
+      "path": "alternatives/input/exercise_alternatives_v2_final.csv",
+      "sha256": "8326c872b5a430917bff3e8b6c3df364b4189978fa4776128f2d3c56fe4e9fdb"
+    },
+    {
+      "bytes": 4341,
+      "path": "alternatives/input/v2_representative_decisions.json",
+      "sha256": "23285ceaee094966779def8d33765b4fbac5be151f73f3ce1fe547e459f65643"
+    },
+    {
+      "bytes": 124050,
+      "path": "catalog/exercises.jsonl",
+      "records": 102,
+      "sha256": "a4c4e9417380b810240a7c7c5b527ad0bf50ae9d642bd33b59eb505d6e5929b3"
+    },
+    {
+      "bytes": 13074,
+      "path": "catalog/input/exercise_taxonomy_codes.json",
+      "sha256": "79e487cc1a41ea39db9b4afb0799b3297840de878a2ae4ed621ef3e4403a0985"
+    },
+    {
+      "bytes": 119003,
+      "path": "catalog/input/representative_exercises_v2_final.csv",
+      "sha256": "00a2da29a2754efbf888200fddeb65804edea6b1858e850916ddd63c9653d236"
+    },
+    {
+      "bytes": 799,
+      "path": "catalog/input/v2_backend_code_projection.json",
+      "sha256": "859bffdbc4d81f5ca7f632e07d142f073fe65a5507e3499861361223e43a31a9"
+    },
+    {
+      "bytes": 1516,
+      "path": "catalog/seed_manifest.json",
+      "sha256": "e3ad5c3eabf193d173aa3b01c4c503962a43074ad3ecbd44343efb1195677b24"
+    },
+    {
+      "bytes": 24077,
+      "path": "prescriptions/goal_tag_links.jsonl",
+      "records": 102,
+      "sha256": "a601bd9b4d07ebece04a49a03d54f49210ed4c24bf3daa186594bbe1967b22da"
+    },
+    {
+      "bytes": 39793,
+      "path": "prescriptions/input/v2_prescription_review_input.csv",
+      "sha256": "d45ad9eff3238211f02787127b3ff555b1753d53d713bf170376829d0afb5b8e"
+    },
+    {
+      "bytes": 3446,
+      "path": "prescriptions/input/v2_prescription_review_policy.json",
+      "sha256": "09beba6ea28e5b3285f8973f44d4aeb6ad3886b1989f4870931f7c4109810214"
+    },
+    {
+      "bytes": 1666,
+      "path": "prescriptions/prescription_manifest.json",
+      "sha256": "6c1ccbae1f234d30fa9b3bac9c92c4493a9f143c475450fd7985ed717218fa71"
+    },
+    {
+      "bytes": 56211,
+      "path": "prescriptions/prescription_profiles.jsonl",
+      "records": 137,
+      "sha256": "da5574703f3ecf1ef9512a5ea71eb58b0a802527bf3a0824d81e9b97406f99b4"
+    },
+    {
+      "bytes": 102774,
+      "path": "safety/input/representative_exercise_safety_mapping_v2_final.csv",
+      "sha256": "b150659f216b1df7cc425ddb44d088e552278e00af7683b3a48868c72ae1eca0"
+    },
+    {
+      "bytes": 4341,
+      "path": "safety/input/v2_representative_decisions.json",
+      "sha256": "23285ceaee094966779def8d33765b4fbac5be151f73f3ce1fe547e459f65643"
+    },
+    {
+      "bytes": 1648,
+      "path": "safety/rules_manifest.json",
+      "sha256": "53e8f597f4e312999cd9c04402c17ec7faa741692aae90ab8a67889f144c0807"
+    },
+    {
+      "bytes": 180235,
+      "path": "safety/safety_rules.jsonl",
+      "records": 394,
+      "sha256": "89f008a6ce77436dae1279faab1a51c4db08999f5cfc9f884709a77b5695f40b"
+    }
+  ],
+  "importer_paths": {
+    "alternatives": "alternatives/alternatives_manifest.json",
+    "catalog": "catalog/seed_manifest.json",
+    "prescriptions": "prescriptions/prescription_manifest.json",
+    "safety": "safety/rules_manifest.json"
+  },
+  "production_eligible": false,
+  "projection": {
+    "alternative_conflict_count": 0,
+    "conflict_report_path": "alternatives/input/alternative_projection_conflicts.json",
+    "importer_alternative_records": 285,
+    "runtime_alternative_records": 285,
+    "status": "DIRECT"
+  },
+  "schema_version": "1.0",
+  "status_code": "DRAFT",
+  "summary": {
+    "alternative_records": 285,
+    "catalog_records": 102,
+    "goal_tag_records": 102,
+    "prescription_records": 137,
+    "safety_rule_records": 394
+  }
+}

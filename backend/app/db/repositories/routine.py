@@ -3,7 +3,7 @@ from hashlib import sha256
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select, text, update
 from sqlalchemy.orm import Session, selectinload
 
 from backend.app.db.models.catalog import (
@@ -21,6 +21,7 @@ from backend.app.db.models.profile import (
     UserProfile,
 )
 from backend.app.db.models.routine import Routine, RoutineDay, RoutineItem
+from backend.app.domain.rules.training_level import allowed_exercise_difficulty_codes
 from backend.app.modules.routines.codes import (
     ROUTINE_RESPONSE_SCHEMA_VERSION,
     RoutineStatusCode,
@@ -97,6 +98,9 @@ class RoutineRepository:
         if profile is None or len(catalogs) != 1:
             return None
         catalog = catalogs[0]
+        allowed_difficulties = allowed_exercise_difficulty_codes(profile.experience_level_code)
+        if not allowed_difficulties:
+            return None
         locations = tuple(
             session.scalars(
                 select(UserAvailableLocation.location_code).where(
@@ -120,7 +124,7 @@ class RoutineRepository:
             .where(
                 Exercise.catalog_version_id == catalog.id,
                 Exercise.review_status_code == "DOMAIN_APPROVED",
-                Exercise.beginner_suitable.is_(True),
+                Exercise.difficulty_code.in_(allowed_difficulties),
                 ExercisePrescriptionProfile.goal_code == goal_code,
                 ExercisePrescriptionProfile.experience_level_code == profile.experience_level_code,
                 ExercisePrescriptionProfile.review_status_code == "DOMAIN_APPROVED",
@@ -144,7 +148,6 @@ class RoutineRepository:
             ):
                 equipment_map[exercise_id].add(equipment_code)
         location_set = set(locations)
-        equipment_set = set(equipment)
         candidates = tuple(
             RoutineCandidate(
                 exercise_id=exercise.id,
@@ -163,8 +166,10 @@ class RoutineRepository:
                 intensity_code=prescription.intensity_code,
             )
             for prescription, exercise, goal_link in rows
+            # Equipment is no longer a gate: the 2026-08-27 decision drops it
+            # from onboarding, so suitability alone selects candidates and the
+            # variant lookup tells the user how to work around missing kit.
             if location_map[exercise.id] & location_set
-            and equipment_map[exercise.id].issubset(equipment_set)
         )
         return RoutineCreationContext(
             profile_duration_minutes=profile.default_requested_duration_minutes,
@@ -175,6 +180,19 @@ class RoutineRepository:
             catalog_version_id=catalog.id,
             catalog_version_code=catalog.version_code,
             candidates=candidates,
+        )
+
+    def has_any_routine(self, session: Session, user_id: UUID) -> bool:
+        """Return whether the user already has a base-routine version.
+
+        Automatic onboarding creation is initial provisioning, not a profile
+        revision mechanism. Archived versions count too, so this path cannot
+        bypass the explicit routine version policy.
+        """
+
+        return (
+            session.scalar(select(Routine.id).where(Routine.user_id == user_id).limit(1))
+            is not None
         )
 
     def create_routine(
@@ -308,17 +326,55 @@ class RoutineRepository:
         )
         return None if routine is None else self._response_payload(session, routine)
 
+    def archive_routines_with_other_duration(
+        self,
+        session: Session,
+        user_id: UUID,
+        *,
+        requested_duration_minutes: int,
+    ) -> int:
+        """Archive this user's active routines built to a different duration.
+
+        Scoped to the caller's own user id and to routines whose stored target
+        no longer matches, so a profile edit that does not move the duration
+        archives nothing.
+        """
+
+        stale_ids = session.scalars(
+            select(Routine.id)
+            .join(RoutineDay, RoutineDay.routine_id == Routine.id)
+            .where(
+                Routine.user_id == user_id,
+                Routine.status_code == "ACTIVE",
+                RoutineDay.requested_duration_minutes != requested_duration_minutes,
+            )
+            .distinct()
+        ).all()
+        if not stale_ids:
+            return 0
+        session.execute(
+            update(Routine).where(Routine.id.in_(stale_ids)).values(status_code="ARCHIVED")
+        )
+        return len(stale_ids)
+
     def get_current_routine_payload(
         self, session: Session, user_id: UUID, local_date: date
     ) -> dict[str, Any] | None:
         routines = session.scalars(
             select(Routine)
+            .join(CatalogVersion, CatalogVersion.id == Routine.catalog_version_id)
             .options(selectinload(Routine.days).selectinload(RoutineDay.items))
             .where(
                 Routine.user_id == user_id,
                 Routine.status_code == RoutineStatusCode.ACTIVE,
                 Routine.effective_from <= local_date,
                 (Routine.effective_to.is_(None)) | (Routine.effective_to >= local_date),
+                CatalogVersion.status_code == "ACTIVE",
+                CatalogVersion.review_status_code == "DOMAIN_APPROVED",
+                CatalogVersion.review_method_code == "DOMAIN_REVIEWER",
+                CatalogVersion.status_interpretation_code == "PRODUCTION_APPROVED",
+                CatalogVersion.production_eligible.is_(True),
+                CatalogVersion.activated_at.is_not(None),
             )
             .order_by(Routine.version.desc())
         ).all()

@@ -1,0 +1,44 @@
+{
+  "artifacts": {
+    "integrity_report": {
+      "bytes": 64887,
+      "path": "discomfort_alternative_map_integrity_report_v2_0_2.json",
+      "sha256": "1a89737fb6d9836b57468ade17a0ce540c8c00abfbbf9930af7805231bba2747"
+    },
+    "map_csv": {
+      "bytes": 10528562,
+      "path": "discomfort_alternative_map_v2_0_2.csv",
+      "sha256": "62835d2aa9fc7e95521ccd82666bb07ea9b5781e01834a357973ab7c43f7c640"
+    },
+    "map_jsonl": {
+      "bytes": 24705096,
+      "path": "discomfort_alternative_map_v2_0_2.jsonl",
+      "sha256": "3b6e280bf5fc478b25a252f3ce095d99669bf2d9d083bda1ff69f717019d0bea"
+    },
+    "target_sets": {
+      "bytes": 63966,
+      "path": "discomfort_alternative_target_sets_v2_0_2.json",
+      "sha256": "764fc91178b83f067f269433f1ce447c87c1976739a0f0b6b8cc3d625662d5cb"
+    }
+  },
+  "counts": {
+    "condition_counts": {
+      "NRS_1_3": 6228,
+      "NRS_4_6": 6228
+    },
+    "map_relation_count": 12456,
+    "pain_area_count": 11,
+    "source_area_membership_count": 519
+  },
+  "policy_version": "discomfort-alternative-target-map-v2.0.2-v1.0.0",
+  "production_eligible": false,
+  "reviewed_at": "2026-08-28T00:00:00+09:00",
+  "schema_version": "discomfort-alternative-target-map-manifest-v2.0.2-v1",
+  "source": {
+    "catalog_path": "data/generated/exercise-catalog-v2.0.2-final/catalog/exercises.jsonl",
+    "catalog_sha256": "c2936896ee3adc4c92f8971448d63b2e5860e362cb93e99b0bc3f4412ee5a343",
+    "policy_path": "data/normalized/discomfort_alternative_target_map_policy_v2_0_2.json",
+    "policy_sha256": "1e9023ae289409a1a7abd8105c5133e00e9b215430f310b1ec0ec29c98d73256"
+  },
+  "status": "DRAFT_REVIEW_REQUIRED"
+}

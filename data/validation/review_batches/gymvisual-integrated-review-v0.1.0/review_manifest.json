@@ -1,0 +1,250 @@
+{
+  "schema_version": "1.0",
+  "version_code": "gymvisual-integrated-review-v0.5.0",
+  "status": "DRAFT_REVIEW_QUEUE",
+  "production_eligible": false,
+  "purpose": "Selected Gym Visual cardio/strength/mobility rows with variant relations, KSPO supplement, and reviewed wger attributes",
+  "row_counts": {
+    "gymvisual_cardio": 10,
+    "gymvisual_strength_representative": 42,
+    "gymvisual_variant_rows": 85,
+    "gymvisual_variant_unique_ids": 84,
+    "gymvisual_mobility": 35,
+    "gymvisual_total_exercise_rows": 171,
+    "kspo": 10,
+    "wger": 27,
+    "total": 208
+  },
+  "inputs": [
+    {
+      "path": "data/validation/review_batches/gymvisual_cardio_review.csv",
+      "sha256": "1a5cf09871af4b6d80bcec9ccea0dc1495be2479191296ef3767d79229bcd267"
+    },
+    {
+      "path": "data/validation/review_batches/gymvisual_strength_representative_review.csv",
+      "sha256": "c904f3a294751b7f90ac13c09e4dcb0ba9aa4bbdd2ccbbe27f5c66eea269ac66"
+    },
+    {
+      "path": "data/validation/review_batches/gymvisual_variant_review.csv",
+      "sha256": "594c4f5787b68fb2025f0927ad47024877f5e2fb86924822d8c8d5ad55212199"
+    },
+    {
+      "path": "data/validation/review_results/gymvisual_mobility_reviewed.csv",
+      "sha256": "9ea33c966e8e41571afcc4a47988e2620967ddad4b17890d27af833c4b45bcd6"
+    },
+    {
+      "path": "data/validation/review_batches/kspo-beginner-supplement-v0.1.0/kspo_beginner_supplement.csv",
+      "sha256": "8399d8ac4ca37d71519270d4472490c36331f0dda58ffdb692f0db1626cc5cc8"
+    },
+    {
+      "path": "data/validation/review_results/wger_attributes.csv",
+      "sha256": "5908ca201f98e8403c3f38246c928c42c273b950a5e817ea633fab7de803b8e2"
+    },
+    {
+      "path": "data/validation/review_batches/gymvisual-source-alignment-v0.4.0/aligned_review_batch.csv",
+      "sha256": "b228785886986b5b3cac50e89aa8b01fa13986ad803599edb31ade489ee5f5e6"
+    }
+  ],
+  "output": {
+    "path": "data/validation/review_batches/gymvisual-integrated-review-v0.1.0/integrated_exercise_review.csv",
+    "sha256": "8191a58b24b24364958d42c52a513a4f049c70e4ebfef5e1a1b5064e12c84e43",
+    "records": 208
+  },
+  "value_policy": {
+    "unknown_value": "REVIEW_REQUIRED",
+    "raw_source_values_preserved": true,
+    "variant_file_is_exercise_and_relation_input": true,
+    "kspo_status": "TRAINING_TYPE_CONFIRMED; OTHER_REVIEW_FIELDS_PENDING",
+    "mobility_status": "MOBILITY_TRAINING_TYPE_PRESERVED; OTHER_REVIEW_FIELDS_PENDING",
+    "wger_attribute_status": "INCLUSION_APPROVED_INPUT; production_eligible remains false",
+    "review_status_definitions": {
+      "DOMAIN_APPROVED": "legacy input only; mapped to INCLUSION_APPROVED",
+      "INCLUSION_APPROVED": "candidate inclusion only, not final approval",
+      "PARTIALLY_APPROVED": "partial review only",
+      "FINAL_APPROVED": "requires reviewer, reviewed_at, no unresolved review codes, and all gates"
+    },
+    "production_gate": {
+      "requires": [
+        "required classification",
+        "review_required=false",
+        "FINAL_APPROVED with reviewer and reviewed_at",
+        "guide_review_status=APPROVED",
+        "safety_review_status=APPROVED",
+        "license_review_status=APPROVED",
+        "media_validation_status=VALIDATED"
+      ],
+      "default": false
+    },
+    "permanent_id_registry": {
+      "path": "data/normalized/integrated_catalog_id_registry.json",
+      "key": [
+        "source_system",
+        "source_id"
+      ],
+      "catalog_id_immutable": true,
+      "normalized_exercise_id_immutable": true
+    },
+    "training_type_policy": {
+      "allowed_values": [
+        "CARDIO",
+        "MOBILITY",
+        "STRENGTH"
+      ],
+      "kspo_overrides": {
+        "스텝박스 오르내리기": "CARDIO",
+        "앉아서 엉덩관절 굽히기": "STRENGTH",
+        "의자잡고 전방으로 무릎 굽혀 들기": "STRENGTH",
+        "의자잡고 후방으로 무릎 굽혀 들기": "STRENGTH",
+        "한발 서서 균형잡기": "STRENGTH",
+        "의자에 앉아 밴드 양옆으로 늘이기": "STRENGTH",
+        "의자에 앉아 다리로 짐볼 쥐기": "STRENGTH",
+        "네발기기 자세에서 팔 다리 들기": "STRENGTH",
+        "누워서 배가로근 수축1": "STRENGTH",
+        "밴드 잡고 누워서 다리 밀기": "STRENGTH"
+      },
+      "mobility_source": "gymvisual_mobility_reviewed.csv"
+    },
+    "difficulty_policy": {
+      "standard_codes": [
+        "ADVANCED",
+        "BEGINNER",
+        "INTERMEDIATE"
+      ],
+      "candidate_invalid_values": {
+        "CONDITIONAL": "REVIEW_REQUIRED"
+      },
+      "dimensions": [
+        "technical_complexity",
+        "balance_and_control",
+        "equipment_handling",
+        "joint_and_load_demand"
+      ],
+      "beginner_suitability_is_independent": true,
+      "cross_source_overrides": {
+        "wger:1370": "INTERMEDIATE",
+        "wger:1652": "INTERMEDIATE",
+        "wger:1927": "INTERMEDIATE",
+        "wger:203": "BEGINNER",
+        "wger:1706": "INTERMEDIATE"
+      }
+    },
+    "target_policy": {
+      "allowed_values": [
+        "abs",
+        "biceps",
+        "calves",
+        "delts",
+        "forearms",
+        "glutes",
+        "hamstrings",
+        "lats",
+        "pectorals",
+        "quads",
+        "spine",
+        "traps",
+        "triceps",
+        "upper back"
+      ],
+      "applies_to_source_tracks": [
+        "kspo",
+        "wger"
+      ],
+      "biceps_femoris": "hamstrings"
+    },
+    "exercise_taxonomy_policy": {
+      "approved_movement_pattern_codes": [
+        "CORE_BRACE",
+        "GAIT",
+        "HIP_DOMINANT",
+        "HORIZONTAL_PULL",
+        "HORIZONTAL_PUSH",
+        "ISOLATION",
+        "KNEE_DOMINANT",
+        "KNEE_FLEXION",
+        "MOBILITY_STRETCH",
+        "VERTICAL_PULL",
+        "VERTICAL_PUSH"
+      ],
+      "unresolved_value": "REVIEW_REQUIRED",
+      "family_rule": "equipment_grip_posture_variants_share_a_family; different_joint_action_is_separate",
+      "unresolved_rows": [
+        "gymvisual:0685",
+        "gymvisual:2138",
+        "gymvisual:2141",
+        "gymvisual:2311",
+        "gymvisual:2612",
+        "gymvisual:3224",
+        "gymvisual:3636",
+        "gymvisual:3656",
+        "gymvisual:3666",
+        "gymvisual:3672",
+        "kspo:00c41c823f6141adb2f3b7da95c1213fea98dac6cb3bfaf453f1a4989133d2d2",
+        "kspo:19af0f76cad5e01830e662585e3cea621cf8563f1955f83114bef440606379c4",
+        "kspo:46ea8fdbe34474fac354a051f63b114e0a6d20a21f71226ae0db5da216d14861",
+        "kspo:66e29f752b845bd1bcfa4cb737be1ede40daa81d869ea4b531c882b02ffb3c28",
+        "kspo:72cc612abf8747105b33f64e0661b713012fb3f2ae378cd5c5142215eedc899b",
+        "kspo:dfd7eaa07d42e118610eb6756d8dcdc351f5b1f3c9a1262fa94aa18d92a87e09",
+        "wger:9"
+      ]
+    },
+    "equipment_policy": {
+      "source_candidate_reviewed_fields": [
+        "source_equipment",
+        "equipment_code_candidate",
+        "reviewed_equipment_codes"
+      ],
+      "final_fields": [
+        "equipment_code_candidate",
+        "reviewed_equipment_codes",
+        "location_code_candidates",
+        "reviewed_location_codes"
+      ],
+      "required_equipment_only": true,
+      "fixed_cardio_machine_code": "MACHINE",
+      "draft_only_codes_pending_public_taxonomy_approval": [
+        "FOAM_ROLLER",
+        "MEDICINE_BALL",
+        "ROPE",
+        "STEP_BOX",
+        "SUSPENSION_STRAPS"
+      ],
+      "support_equipment_inference": "Only named execution supports such as bench, pull-up bar, chair, step box, stability ball, and suspension straps are added; walls and floors are not equipment.",
+      "location_policy": {
+        "outdoor_code": "removed",
+        "outdoor_capable_candidates": "GYM added; existing HOME preserved"
+      }
+    },
+    "media_policy": {
+      "media_link_status": "PENDING_POST_INTEGRATION_VALIDATION",
+      "media_link_note": "통합 카탈로그 검증 완료 후 이미지/GIF/영상 실물 연결 필요",
+      "media_binary_created_by_this_pipeline": false
+    },
+    "raw_preservation": {
+      "raw_source_record_json": true,
+      "raw_fields": [
+        "raw_source_record_json",
+        "raw_review_required",
+        "raw_review_required_codes",
+        "raw_review_status",
+        "raw_review_decision",
+        "raw_reviewed_decision",
+        "raw_review_normalized_exercise_id",
+        "raw_source_attribution",
+        "raw_source_license",
+        "raw_source_license_author",
+        "raw_source_media_reference",
+        "raw_source_instruction_en",
+        "raw_source_instruction_steps_en"
+      ]
+    }
+  },
+  "registry": {
+    "path": "data/normalized/integrated_catalog_id_registry.json",
+    "sha256": "d7af95cb1ed33818502b7a211b4aee1ce2f8c684d20590ec11409121d5860559"
+  },
+  "alias_output": {
+    "path": "data/validation/review_batches/gymvisual-integrated-review-v0.1.0/integrated_exercise_aliases.csv",
+    "sha256": "07e67de2e182c33b270161eed15790bc509ff0ace166ed3377263ca9b30407ec",
+    "records": 262
+  }
+}

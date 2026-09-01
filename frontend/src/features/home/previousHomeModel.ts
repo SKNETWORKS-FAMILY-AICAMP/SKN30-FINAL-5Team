@@ -19,6 +19,7 @@ import type {
   RoutineDay,
   WorkoutPlan,
 } from '../../api/types';
+import { orderedWorkoutPlanItems } from '../../api/workoutPlan';
 
 export type HomePreviewState =
   'pre-checkin' | 'checkin' | 'generating' | 'routine' | 'adjusted' | 'editing';
@@ -173,13 +174,11 @@ function prescriptionFor(
 }
 
 export function routineItemsFromPlan(plan: WorkoutPlan): HomeRoutineItem[] {
-  return [...plan.items]
-    .sort((left, right) => left.sequence - right.sequence)
-    .map((item) => ({
-      id: item.plan_item_id,
-      name: item.exercise_name,
-      prescription: prescriptionFor(item.sets, item.reps, item.work_seconds),
-    }));
+  return orderedWorkoutPlanItems(plan.items).map((item) => ({
+    id: item.plan_item_id,
+    name: item.exercise_name,
+    prescription: prescriptionFor(item.sets, item.reps, item.work_seconds),
+  }));
 }
 
 export function routineItemsFromDay(day: RoutineDay): HomeRoutineItem[] {

@@ -1,5 +1,5 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   createContext,
   useCallback,
@@ -11,6 +11,7 @@ import {
 } from 'react';
 import {
   Animated,
+  Easing,
   Image,
   PanResponder,
   Platform,
@@ -21,10 +22,12 @@ import {
   TextInput,
   View,
   type GestureResponderEvent,
+  type ImageSourcePropType,
   type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   type PanResponderGestureState,
   type StyleProp,
-  type TextStyle,
   type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,9 +35,12 @@ import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
 
 import {
   ADVERSE_REACTION_OPTIONS,
+  actionLabel,
   agentTypeLabel,
   bodyAreaLabel,
   decisionReasonLabel,
+  DEFAULT_BODY_AREA_OPTIONS,
+  EXTENDED_BODY_AREA_OPTIONS,
   locationLabel,
   planRevisionReasonLabel,
   sessionStatusLabel,
@@ -42,20 +48,30 @@ import {
 } from '../../api/labels';
 import type { Api } from '../../api/endpoints';
 import type {
+  ActionCode,
   DailyContextResponse,
   DecisionResponse,
   DiscomfortSeverityCode,
+  ExerciseVariantsResponse,
   RoutineResponse,
   SessionStatusCode,
   WeekResponse,
   WeeklyPlanRevisionResponse,
   WorkoutSessionLogSummary,
 } from '../../api/types';
-import { imageAssets } from '../../assets';
+import { moveArrayItem } from '../../api/workoutPlan';
+import { imageAssets, weeklyProgressMascotSources } from '../../assets';
 import { fontFamilies, useBrandFonts } from '../../app/fonts';
 import type { TabId } from '../../components/brand/BrandChrome';
+import { ProfileAvatar } from '../../components/profile/ProfileAvatar';
 import { useScale } from '../../components/scale';
+import { GradientActionButton } from '../../components/primitives';
+import { colors } from '../../components/theme';
 import { ExerciseDetailSheet } from '../workout/ExerciseDetailSheet';
+import {
+  ExerciseVariantsAction,
+  ExerciseVariantsContent,
+} from '../workout/ExerciseVariants';
 import {
   HOME_CHECKIN_OPTIONS,
   HOME_DEFAULT_CHECKIN,
@@ -73,19 +89,31 @@ import {
   routineFocusFromPlan,
   routineItemsFromPlan,
   routineTitleFromPlan,
+  validateAvailabilitySlots,
   weekDaysFromSessions,
+  weeklyCompletionPercentage,
   weekStartForLocalDate,
   type HomeCheckin,
   type HomeCheckinDraft,
+  type HomeAvailabilitySlot,
   type HomePreviewState,
   type HomeRoutineItem,
 } from './homeModel';
+import {
+  RoutineGenerationLoading,
+  type RoutineGenerationPhaseCode,
+} from './RoutineGenerationLoading';
 
-export const HOME_GRADIENT = {
-  colors: ['#8ECB4E', '#A8D66A', '#D8E6B4', '#F2EFE2', '#FAF7F1'] as const,
-  locations: [0, 0.22, 0.46, 0.66, 0.82] as const,
-  start: { x: 0.5, y: 0 },
-  end: { x: 0.5, y: 1 },
+export const HOME_BACKGROUND_COLOR = '#FFF8E5';
+
+// Temporarily hide the optional availability-time editor while preserving its
+// draft and API values so it can be restored without a contract change.
+const CHECKIN_AVAILABILITY_INPUT_ENABLED: boolean = false;
+
+const CHECKIN_DURATION_MINUTES = {
+  min: 5,
+  max: 180,
+  step: 10,
 } as const;
 
 export const HOME_LAYOUT = {
@@ -100,13 +128,79 @@ export const HOME_LAYOUT = {
   sheetBottomPadding: 30,
 } as const;
 
+const bottomNavigationShadow =
+  Platform.select({
+    ios: {
+      shadowColor: '#5A4636',
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.07,
+      shadowRadius: 7,
+    },
+    android: { elevation: 2 },
+    default: {
+      shadowColor: '#5A4636',
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.07,
+      shadowRadius: 7,
+    },
+  }) ?? {};
+
+const bottomNavigationStyles = StyleSheet.create({
+  bottomBarOuter: {
+    flexShrink: 0,
+    backgroundColor: HOME_BACKGROUND_COLOR,
+    paddingTop: 8,
+    paddingHorizontal: HOME_LAYOUT.bottomBarHorizontalPadding,
+    paddingBottom: HOME_LAYOUT.bottomBarBottomPadding,
+  },
+  bottomBar: {
+    flexDirection: 'row',
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    ...bottomNavigationShadow,
+  },
+  tab: {
+    minHeight: 48,
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+  },
+  tabLabel: {
+    color: '#B0ACA4',
+    fontSize: 11.5,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  tabActive: { color: '#A45F00' },
+});
+
 type HomeTab = TabId;
 type WeekDay = {
   completed: boolean;
   label: string;
   statusCodes?: readonly SessionStatusCode[];
 };
-const PREVIEW_DISCOMFORT_CODES = ['SHOULDER', 'LOWER_BACK', 'KNEE'] as const;
+const EMPTY_AVAILABILITY_SLOT: HomeAvailabilitySlot = {
+  startTime: '',
+  endTime: '',
+};
+const TIME_WHEEL_ITEM_HEIGHT = 44;
+const TIME_WHEEL_GESTURE_IDLE_MS = 45;
+const TIME_WHEEL_SINGLE_ITEM_DELTA = 240;
+const TIME_WHEEL_ACCELERATION_DELTA = 70;
+const TIME_WHEEL_MAX_ITEMS_PER_GESTURE = 18;
+const TIME_HOURS = Array.from({ length: 24 }, (_, index) => index);
+const TIME_MINUTES = Array.from({ length: 12 }, (_, index) => index * 5);
+
+type TimePickerTarget = {
+  field: keyof HomeAvailabilitySlot;
+  index: number;
+};
 
 type RevisionNotice = {
   serious: boolean;
@@ -169,7 +263,12 @@ function revisionNotice(
   }
 }
 
-export type HomeBusyKind = 'checkin' | 'revision' | 'starting';
+export type HomeBusyKind =
+  | 'routine-creation'
+  | 'decision-generation'
+  | 'regeneration'
+  | 'revision'
+  | 'starting';
 
 export type HomeUserEdits = {
   routineId: string;
@@ -178,14 +277,14 @@ export type HomeUserEdits = {
 
 export type HomeScreenProps = {
   actionError?: string | null;
-  attentionAreaCodes?: readonly string[];
   busy?: HomeBusyKind | null;
   currentDate?: string;
   context?: DailyContextResponse | null;
   decision?: DecisionResponse | null;
   defaultDurationMinutes?: number;
   errorMessage?: string;
-  exerciseApi?: Pick<Api, 'getExercise'>;
+  exerciseApi?: Pick<Api, 'getExercise'> &
+    Partial<Pick<Api, 'getExerciseVariants'>>;
   hasTodayRoutine?: boolean;
   hasUnreadNotification?: boolean;
   localDate?: string;
@@ -199,8 +298,9 @@ export type HomeScreenProps = {
   onOpenCalendar?: () => void;
   onOpenCheckin?: () => void;
   onProfile?: () => void;
-  onRequestAiRevision?: () => void;
+  onRegenerateDecision?: () => void;
   onRequestAlternative?: () => void;
+  onReorderPlan?: (from: number, to: number) => void;
   onRetry?: () => void;
   onRetryCheckin?: () => void;
   onSaveCheckin?: () => void;
@@ -211,8 +311,13 @@ export type HomeScreenProps = {
   permissionDenied?: boolean;
   planRevision?: WeeklyPlanRevisionResponse | null;
   previewState?: HomePreviewState;
+  profileImageUrl?: string | null;
   restToday?: boolean;
   routine?: RoutineResponse | null;
+  /** Animated artwork slot. The generation component supplies a placeholder until provided. */
+  routineLoadingContent?: React.ReactNode;
+  /** Optional future server-owned progress code; omitted while the API is synchronous. */
+  routineLoadingPhaseCode?: RoutineGenerationPhaseCode;
   sessions?: readonly WorkoutSessionLogSummary[];
   staleContext?: boolean;
   status?: 'loading' | 'error' | 'ready';
@@ -249,7 +354,6 @@ export function HomeScreen({ previewState, ...props }: HomeScreenProps) {
 
 function HomeScreenContent({
   actionError = null,
-  attentionAreaCodes = [],
   busy = null,
   context = null,
   currentDate = '2026.08.11 (화)',
@@ -271,8 +375,9 @@ function HomeScreenContent({
   onOpenCalendar,
   onOpenCheckin,
   onProfile,
-  onRequestAiRevision,
+  onRegenerateDecision,
   onRequestAlternative,
+  onReorderPlan,
   onRetry,
   onRetryCheckin,
   onSaveCheckin,
@@ -282,8 +387,11 @@ function HomeScreenContent({
   onSubmitUserEdits,
   permissionDenied = false,
   planRevision = null,
+  profileImageUrl = null,
   restToday = false,
   routine = null,
+  routineLoadingContent,
+  routineLoadingPhaseCode,
   sessions = [],
   staleContext = false,
   status,
@@ -308,9 +416,17 @@ function HomeScreenContent({
     : initialState !== 'pre-checkin' && initialState !== 'checkin';
   const [checkedIn, setCheckedIn] = useState(startsCheckedIn);
   const [checkinOpen, setCheckinOpen] = useState(initialState === 'checkin');
+  const [timePickerTarget, setTimePickerTarget] =
+    useState<TimePickerTarget | null>(null);
   const [editOpen, setEditOpen] = useState(initialState === 'editing');
   const [reasonOpen, setReasonOpen] = useState(false);
-  const [detailItem, setDetailItem] = useState<HomeRoutineItem | null>(null);
+  const [exerciseGuide, setExerciseGuide] = useState<HomeRoutineItem | null>(
+    null,
+  );
+  const [variantGuide, setVariantGuide] = useState<{
+    exerciseName: string;
+    response: ExerciseVariantsResponse;
+  } | null>(null);
   const [showTip, setShowTip] = useState(false);
   const [rerolling, setRerolling] = useState(initialState === 'generating');
   const [previewRerolls, setPreviewRerolls] = useState(0);
@@ -397,24 +513,27 @@ function HomeScreenContent({
     () => Array.from({ length: goal }, (_, index) => index < completed),
     [completed, goal],
   );
-  const completedWeekDays = Array.from(weekDays).filter(
-    (day) => day.completed,
-  ).length;
-  const remainingCount = Math.max(0, goal - completedWeekDays);
+  const progressPercent = weeklyCompletionPercentage(completed, goal);
   const effectiveCheckedIn = apiMode ? context !== null : checkedIn;
   const rerolls = apiMode
-    ? (planRevision?.ai_revision_count ?? 0)
+    ? (decision?.regeneration_sequence ?? 0)
     : previewRerolls;
   const rerollLoading = apiMode
-    ? busy === 'checkin' || busy === 'revision'
+    ? busy === 'regeneration'
     : rerolling && effectiveCheckedIn;
+  const routineGenerationPending = apiMode
+    ? busy === 'decision-generation' ||
+      busy === 'regeneration' ||
+      busy === 'revision'
+    : rerollLoading;
+  const generationPreviewItems = displayedRoutineItems;
   const seriousDecision =
     decision?.action_code === 'STOP_AND_SEEK_HELP' ||
     decision?.safety_status_code === 'BLOCKED';
   const hasRoutine = apiMode
-    ? serverPlan !== null && !rerollLoading && !restToday
-    : hasTodayRoutine && effectiveCheckedIn && !rerollLoading;
-  const noRoutine = !hasRoutine && !rerollLoading;
+    ? serverPlan !== null && !routineGenerationPending && !restToday
+    : hasTodayRoutine && effectiveCheckedIn && !routineGenerationPending;
+  const noRoutine = !hasRoutine && !routineGenerationPending;
   const variant = getHomeRoutineVariant(variantIndex);
   const routineTitle =
     serverPlan === null
@@ -453,7 +572,6 @@ function HomeScreenContent({
   const hasRecommendationDetails =
     decision !== null &&
     (recommendationReasons.length > 0 ||
-      Boolean(decision.safety_summary?.summary) ||
       Boolean(decision.public_agent_summaries?.length));
   const blockingRevisionNotice =
     planRevision?.routine === null ? currentRevisionNotice : null;
@@ -492,17 +610,23 @@ function HomeScreenContent({
 
   const closeCheckin = () => {
     setCheckinDraft({ ...displayedCheckin });
+    setTimePickerTarget(null);
     setCheckinOpen(false);
   };
 
   const saveCheckin = () => {
     const saved = {
       ...checkinDraft,
-      workoutMinutes: clampNumericString(checkinDraft.workoutMinutes, 5, 180),
+      workoutMinutes: clampNumericString(
+        checkinDraft.workoutMinutes,
+        CHECKIN_DURATION_MINUTES.min,
+        CHECKIN_DURATION_MINUTES.max,
+      ),
     };
     setCommittedCheckin(saved);
     setCheckinDraft(saved);
     setCheckedIn(true);
+    setTimePickerTarget(null);
     setCheckinOpen(false);
     if (apiMode) {
       onSubmitCheckin?.(apiCheckinDraft(saved));
@@ -539,7 +663,7 @@ function HomeScreenContent({
       return;
     }
     if (apiMode) {
-      onRequestAiRevision?.();
+      onRegenerateDecision?.();
       return;
     }
     setRerolling(true);
@@ -563,10 +687,10 @@ function HomeScreenContent({
   };
 
   const moveRoutineItem = useCallback((from: number, to: number) => {
-    setRoutineItems((current) => moveItem(current, from, to));
+    setRoutineItems((current) => moveArrayItem(current, from, to));
   }, []);
   const moveEditItem = useCallback((from: number, to: number) => {
-    setEditDraft((current) => moveItem(current, from, to));
+    setEditDraft((current) => moveArrayItem(current, from, to));
   }, []);
   const contentReady = !apiMode || status === 'ready';
   const restRecommended = decision?.action_code === 'REST';
@@ -591,14 +715,10 @@ function HomeScreenContent({
   return (
     <HomeStyleContext.Provider value={styles}>
       <View style={styles.screen}>
-        <StatusBar style="light" />
-        <LinearGradient
-          testID="home-gradient"
-          colors={HOME_GRADIENT.colors}
-          locations={HOME_GRADIENT.locations}
-          start={HOME_GRADIENT.start}
-          end={HOME_GRADIENT.end}
-          style={styles.gradient}
+        <StatusBar style="dark" />
+        <View
+          style={[styles.gradient, { backgroundColor: HOME_BACKGROUND_COLOR }]}
+          testID="home-background"
         >
           <ScrollView
             contentContainerStyle={styles.scrollContent}
@@ -610,28 +730,27 @@ function HomeScreenContent({
               hasUnreadNotification={hasUnreadNotification}
               onNotifications={onNotifications}
               onProfile={onProfile}
+              profileImageUrl={profileImageUrl}
+              useJua={useJua}
               userName={displayName}
             />
             {contentReady ? (
               <>
-                <WeeklyRoutineCard
-                  remainingCount={remainingCount}
-                  weekDays={weekDays}
-                />
+                <WeeklyRoutineCard weekDays={weekDays} />
                 <WeeklyProgressCard
+                  key={displayWeekLabel}
                   completed={completed}
                   goal={goal}
                   onOpenCalendar={onOpenCalendar}
                   onToggleTip={() => setShowTip((current) => !current)}
                   progressDays={progressDays}
+                  progressPercent={progressPercent}
                   showTip={showTip}
                   weekLabel={displayWeekLabel}
                 />
               </>
             ) : null}
-            {showCheckin ? (
-              <CheckinButton onPress={openCheckin} useJua={useJua} />
-            ) : null}
+            {showCheckin ? <CheckinButton onPress={openCheckin} /> : null}
 
             {apiMode && status === 'loading' ? (
               <HomeStateCard
@@ -672,12 +791,27 @@ function HomeScreenContent({
                 }
               />
             ) : null}
-            {apiMode && contentReady && routine === null ? (
+            {apiMode &&
+            contentReady &&
+            routine === null &&
+            !routineGenerationPending ? (
               <HomeStateCard
-                actionLabel="기본 루틴 만들기"
-                onAction={onCreateRoutine}
-                text="프로필 목표를 바탕으로 첫 루틴을 만들 수 있어요."
-                title="기본 루틴이 아직 없어요"
+                actionLabel={
+                  busy === 'routine-creation' ? undefined : '기본 루틴 만들기'
+                }
+                onAction={
+                  busy === 'routine-creation' ? undefined : onCreateRoutine
+                }
+                text={
+                  busy === 'routine-creation'
+                    ? '프로필 목표와 운동 환경을 확인하고 있어요.'
+                    : '프로필 목표를 바탕으로 첫 루틴을 만들 수 있어요.'
+                }
+                title={
+                  busy === 'routine-creation'
+                    ? '기본 루틴을 만드는 중이에요'
+                    : '기본 루틴이 아직 없어요'
+                }
               />
             ) : null}
             {apiMode && contentReady && restToday ? (
@@ -728,8 +862,15 @@ function HomeScreenContent({
             (!apiMode || routine !== null) ? (
               <EmptyRoutineCard />
             ) : null}
-            {contentReady && !restToday && rerollLoading ? (
-              <GeneratingRoutineCard />
+            {contentReady &&
+            !restToday &&
+            !seriousDecision &&
+            routineGenerationPending ? (
+              <GeneratingRoutineCard
+                content={routineLoadingContent}
+                items={generationPreviewItems}
+                phaseCode={routineLoadingPhaseCode}
+              />
             ) : null}
             {contentReady &&
             !restToday &&
@@ -737,14 +878,27 @@ function HomeScreenContent({
             blockingRevisionNotice === null &&
             hasRoutine ? (
               <RoutineCard
+                actionCode={
+                  apiMode
+                    ? decision?.action_code
+                    : adjustedRoutine
+                      ? 'DOWNSHIFT'
+                      : 'KEEP'
+                }
                 editLabel={apiMode ? '운동 장소 변경' : '운동 수정하기'}
                 items={displayedRoutineItems}
                 minutes={routineMinutes}
                 notes={routineNotes}
                 onEdit={openEdit}
-                onMove={apiMode ? undefined : moveRoutineItem}
-                onOpenExercise={
-                  exerciseApi ? (item) => setDetailItem(item) : undefined
+                onMove={apiMode ? onReorderPlan : moveRoutineItem}
+                onOpenExerciseGuide={
+                  exerciseApi ? (item) => setExerciseGuide(item) : undefined
+                }
+                onOpenExerciseVariants={(item, response) =>
+                  setVariantGuide({
+                    exerciseName: item.name,
+                    response,
+                  })
                 }
                 onOpenReasons={
                   hasRecommendationDetails
@@ -759,7 +913,11 @@ function HomeScreenContent({
                     ? onChooseRest
                     : undefined
                 }
-                onRequestAlternative={requestAlternative}
+                onRequestAlternative={
+                  !apiMode || decision?.regeneration_sequence != null
+                    ? requestAlternative
+                    : undefined
+                }
                 onStart={
                   !apiMode || routineOption?.selectable
                     ? onStartWorkout
@@ -767,27 +925,39 @@ function HomeScreenContent({
                 }
                 painPart={painPart}
                 pending={busy !== null}
-                rerolling={apiMode ? busy === 'revision' : rerolling}
+                rerolling={apiMode ? busy === 'regeneration' : rerolling}
                 rerolls={rerolls}
                 revisionNotice={routineRevisionNotice?.text}
                 startBlockedReason={routineBlockedReason}
                 title={routineTitle}
                 focus={routineFocus}
-                useJua={useJua}
+                variantApi={exerciseApi}
               />
             ) : null}
           </ScrollView>
-        </LinearGradient>
+        </View>
 
         <HomeBottomNavigation activeTab="home" onNavigate={onNavigateTab} />
 
         {checkinOpen ? (
           <CheckinSheet
-            attentionAreaCodes={
-              apiMode ? attentionAreaCodes : PREVIEW_DISCOMFORT_CODES
-            }
             draft={checkinDraft}
             locationCodes={apiMode ? locationCodes : []}
+            onAddAvailabilitySlot={() =>
+              setCheckinDraft((current) => ({
+                ...current,
+                availableSlots:
+                  current.availableSlots && current.availableSlots.length > 0
+                    ? [
+                        ...current.availableSlots,
+                        { ...EMPTY_AVAILABILITY_SLOT },
+                      ]
+                    : [
+                        { ...EMPTY_AVAILABILITY_SLOT },
+                        { ...EMPTY_AVAILABILITY_SLOT },
+                      ],
+              }))
+            }
             onChangeLocation={(locationCode) =>
               setCheckinDraft((current) => ({
                 ...current,
@@ -829,6 +999,17 @@ function HomeScreenContent({
               }))
             }
             onSave={saveCheckin}
+            onOpenTimePicker={(index, field) =>
+              setTimePickerTarget({ index, field })
+            }
+            onRemoveAvailabilitySlot={(index) =>
+              setCheckinDraft((current) => ({
+                ...current,
+                availableSlots: (current.availableSlots ?? []).filter(
+                  (_, slotIndex) => slotIndex !== index,
+                ),
+              }))
+            }
             onToggleAdverseReaction={(code) =>
               setCheckinDraft((current) => ({
                 ...current,
@@ -852,8 +1033,34 @@ function HomeScreenContent({
                 return { ...current, discomforts };
               })
             }
-            pending={busy === 'checkin'}
-            useJua={useJua}
+            pending={busy === 'decision-generation'}
+          />
+        ) : null}
+
+        {CHECKIN_AVAILABILITY_INPUT_ENABLED && timePickerTarget ? (
+          <TimePickerSheet
+            initialValue={
+              checkinDraft.availableSlots?.[timePickerTarget.index]?.[
+                timePickerTarget.field
+              ] ?? ''
+            }
+            key={`${timePickerTarget.index}-${timePickerTarget.field}`}
+            onClose={() => setTimePickerTarget(null)}
+            onConfirm={(value) => {
+              setCheckinDraft((current) => {
+                const availableSlots =
+                  current.availableSlots && current.availableSlots.length > 0
+                    ? current.availableSlots.map((slot) => ({ ...slot }))
+                    : [{ ...EMPTY_AVAILABILITY_SLOT }];
+                const slot = availableSlots[timePickerTarget.index];
+                if (slot) {
+                  slot[timePickerTarget.field] = value;
+                }
+                return { ...current, availableSlots };
+              });
+              setTimePickerTarget(null);
+            }}
+            targetField={timePickerTarget.field}
           />
         ) : null}
 
@@ -873,7 +1080,6 @@ function HomeScreenContent({
               context?.location_code ??
               null
             }
-            useJua={useJua}
           />
         ) : null}
 
@@ -885,16 +1091,31 @@ function HomeScreenContent({
           />
         ) : null}
 
-        {detailItem?.exerciseId && exerciseApi ? (
+        {exerciseGuide?.exerciseId && exerciseApi ? (
           <SheetFrame
-            onClose={() => setDetailItem(null)}
-            title={detailItem.name}
+            onClose={() => setExerciseGuide(null)}
+            title={exerciseGuide.name}
             zIndex={25}
           >
             <ExerciseDetailSheet
               api={exerciseApi}
-              exerciseId={detailItem.exerciseId}
+              exerciseId={exerciseGuide.exerciseId}
             />
+          </SheetFrame>
+        ) : null}
+
+        {variantGuide ? (
+          <SheetFrame
+            onClose={() => setVariantGuide(null)}
+            title={`${variantGuide.exerciseName} 장비 안내`}
+            zIndex={25}
+          >
+            <ScrollView
+              contentContainerStyle={styles.sheetScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <ExerciseVariantsContent response={variantGuide.response} />
+            </ScrollView>
           </SheetFrame>
         ) : null}
 
@@ -931,7 +1152,6 @@ function HomeScreenContent({
               setNewItem({ id: 'new', name: '', sets: '', reps: '' });
             }}
             onSave={saveEdit}
-            useJua={useJua}
           />
         ) : null}
       </View>
@@ -944,19 +1164,27 @@ function HomeHeader({
   hasUnreadNotification,
   onNotifications,
   onProfile,
+  profileImageUrl,
+  useJua,
   userName,
 }: {
   currentDate: string;
   hasUnreadNotification: boolean;
   onNotifications?: () => void;
   onProfile?: () => void;
+  profileImageUrl?: string | null;
+  useJua: boolean;
   userName: string;
 }) {
   const styles = useHomeStyles();
+  const { s } = useScale();
   return (
     <View style={styles.header}>
       <View style={styles.headerCopy}>
-        <Text accessibilityRole="header" style={styles.greeting}>
+        <Text
+          accessibilityRole="header"
+          style={[styles.greeting, useJua && styles.greetingJua]}
+        >
           안녕하세요, <Text style={styles.greetingName}>{userName}님!</Text>
         </Text>
         <Text style={styles.date}>{currentDate}</Text>
@@ -985,9 +1213,12 @@ function HomeHeader({
           onPress={onProfile}
           style={styles.profileButton}
         >
-          <View
-            testID="header-mascot-placeholder"
-            style={styles.profilePlaceholder}
+          <ProfileAvatar
+            accessibilityLabel={`${userName}님의 프로필 이미지`}
+            profileImageUrl={profileImageUrl}
+            size={s(48)}
+            style={styles.profileAvatar}
+            testID="home-profile-avatar"
           />
         </Pressable>
       </View>
@@ -995,20 +1226,11 @@ function HomeHeader({
   );
 }
 
-function WeeklyRoutineCard({
-  remainingCount,
-  weekDays,
-}: {
-  remainingCount: number;
-  weekDays: readonly WeekDay[];
-}) {
+function WeeklyRoutineCard({ weekDays }: { weekDays: readonly WeekDay[] }) {
   const styles = useHomeStyles();
   return (
     <View style={styles.summaryCard}>
-      <Text style={styles.cardTitle}>
-        이번 주 남은 루틴은{' '}
-        <Text style={styles.greenText}>{remainingCount}회</Text>예요
-      </Text>
+      <Text style={styles.cardTitle}>요일별 진행 상태</Text>
       <View style={styles.weekRow} testID="weekly-day-row">
         {weekDays.map((day) => (
           <View
@@ -1055,12 +1277,25 @@ function weekdayAccessibilityLabel(day: WeekDay): string {
   return `${day.label}요일 ${statuses.map(sessionStatusLabel).join(', ')}`;
 }
 
+function randomizedWeeklyProgressMascots(): ImageSourcePropType[] {
+  const sources = Array.from(weeklyProgressMascotSources);
+  for (let index = sources.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [sources[index], sources[randomIndex]] = [
+      sources[randomIndex]!,
+      sources[index]!,
+    ];
+  }
+  return sources;
+}
+
 function WeeklyProgressCard({
   completed,
   goal,
   onOpenCalendar,
   onToggleTip,
   progressDays,
+  progressPercent,
   showTip,
   weekLabel,
 }: {
@@ -1069,19 +1304,21 @@ function WeeklyProgressCard({
   onOpenCalendar?: () => void;
   onToggleTip: () => void;
   progressDays: readonly boolean[];
+  progressPercent: number;
   showTip: boolean;
   weekLabel: string;
 }) {
   const styles = useHomeStyles();
+  const [completedMascots] = useState(randomizedWeeklyProgressMascots);
   return (
     <View style={styles.progressCard}>
       <View style={styles.progressHeader}>
         <View style={styles.progressTitleRow}>
           <Text numberOfLines={1} style={styles.cardTitle}>
-            주간 진행 현황
+            이번 주 진행률
           </Text>
           <Pressable
-            accessibilityLabel="주간 진행 현황 설명 보기"
+            accessibilityLabel="이번 주 진행률 설명 보기"
             accessibilityRole="button"
             hitSlop={14}
             onPress={onToggleTip}
@@ -1109,17 +1346,30 @@ function WeeklyProgressCard({
       {showTip ? (
         <View accessibilityLiveRegion="polite" style={styles.tip}>
           <Text style={styles.tipText}>
-            이번 주에 완료한 운동 횟수예요. 목표만큼 채우면 한 주가 마무리돼요.
+            완료한 루틴 수를 이번 주 목표 횟수로 나눈 진행률이에요.
           </Text>
         </View>
       ) : null}
 
-      <View style={styles.countRow}>
+      <View
+        accessibilityLabel={`목표 ${goal}회 중 ${completed}회 완료, 진행률 ${progressPercent}%`}
+        accessibilityRole="progressbar"
+        accessibilityValue={{ min: 0, max: 100, now: progressPercent }}
+        style={styles.countRow}
+        testID="weekly-progress-summary"
+      >
         <Text style={styles.countLabel}>
-          목표 <Text style={styles.countValue}>{goal}</Text> 회
+          목표 <Text style={styles.countValue}>{goal}회</Text> 중{' '}
+          <Text
+            style={styles.completedCountValue}
+            testID="weekly-completed-count"
+          >
+            {completed}회
+          </Text>{' '}
+          완료
         </Text>
-        <Text style={styles.countLabel}>
-          완료 <Text style={styles.countValue}>{completed}</Text> 회
+        <Text style={styles.progressPercent} testID="weekly-progress-percent">
+          {progressPercent}%
         </Text>
       </View>
       <View style={styles.progressCells} testID="weekly-progress-cells">
@@ -1136,18 +1386,14 @@ function WeeklyProgressCard({
           >
             <Image
               resizeMode="contain"
-              source={isDone ? imageAssets.mascotComplete : imageAssets.dayTodo}
+              source={
+                isDone
+                  ? completedMascots[index]
+                  : imageAssets.weeklyProgressIncomplete
+              }
               style={[styles.progressImage, !isDone && styles.todoImage]}
               testID={isDone ? 'day-done-image' : 'day-todo-image'}
             />
-            {isDone ? (
-              <View
-                style={styles.progressBadge}
-                testID="progress-complete-badge"
-              >
-                <ProgressCheckIcon />
-              </View>
-            ) : null}
           </View>
         ))}
       </View>
@@ -1155,34 +1401,17 @@ function WeeklyProgressCard({
   );
 }
 
-function CheckinButton({
-  onPress,
-  useJua,
-}: {
-  onPress: () => void;
-  useJua: boolean;
-}) {
+function CheckinButton({ onPress }: { onPress: () => void }) {
   const styles = useHomeStyles();
   return (
     <View style={styles.checkinWrapper}>
-      <Pressable
-        accessibilityLabel="오늘 루틴 체크인"
-        accessibilityRole="button"
+      <GradientActionButton
+        label="오늘 루틴 체크인"
+        labelStyle={styles.sheetSaveLabel}
         onPress={onPress}
-        style={({ pressed }) => [
-          styles.checkinButton,
-          pressed ? styles.checkinButtonPressed : styles.checkinButtonIdle,
-        ]}
-      >
-        <OutlinedLabel
-          label="오늘 루틴 체크인"
-          outlineColor="#FFF0B8"
-          style={[styles.checkinLabel, useJua && styles.juaLabel]}
-          suffix="🍌"
-          suffixStyle={styles.checkinSuffix}
-        />
-        <CheckinChevronIcon />
-      </Pressable>
+        testID="home-checkin"
+        trailing={<CheckinChevronIcon />}
+      />
     </View>
   );
 }
@@ -1241,46 +1470,62 @@ function HomeStateCard({
   );
 }
 
-function GeneratingRoutineCard() {
+function GeneratingRoutineCard({
+  content,
+  items,
+  phaseCode,
+}: {
+  content?: React.ReactNode;
+  items: readonly HomeRoutineItem[];
+  phaseCode?: RoutineGenerationPhaseCode;
+}) {
   const styles = useHomeStyles();
-  const [spin] = useState(() => new Animated.Value(0));
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.timing(spin, {
-        duration: 800,
-        toValue: 1,
-        useNativeDriver: true,
-      }),
-    );
-    animation.start();
-    return () => animation.stop();
-  }, [spin]);
-  const rotate = spin.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
+  const previewRows = items.length > 0 ? items : [null, null, null];
   return (
-    <View style={styles.messageCard} testID="home-loading-state">
-      <Animated.View
-        style={[styles.loadingRing, { transform: [{ rotate }] }]}
-        testID="home-loading-ring"
-      />
-      <Text style={[styles.messageTitle, styles.loadingTitle]}>
-        새로운 루틴을 받고 있어요
-      </Text>
-      <Text style={styles.messageText}>
-        요청한 운동 시간에 맞춰 다시 구성하는 중이에요.
-      </Text>
+    <View style={styles.routineCard} testID="home-loading-state">
+      <View style={styles.routineBadge}>
+        <Text style={styles.routineBadgeText}>오늘의 운동</Text>
+      </View>
+      <Text style={styles.routineTitle}>오늘의 루틴</Text>
+      <View style={styles.routineLoadingSlot} testID="routine-loading-slot">
+        <RoutineGenerationLoading asset={content} phaseCode={phaseCode} />
+      </View>
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        pointerEvents="none"
+        style={[styles.routineList, styles.routineLoadingPreview]}
+        testID="routine-loading-preview"
+      >
+        {previewRows.map((item, index) => (
+          <View
+            key={item?.id ?? `loading-placeholder-${index}`}
+            style={styles.routineLoadingRow}
+          >
+            {item ? (
+              <Text style={styles.routineItemText}>
+                {formatRoutineItem(item)}
+              </Text>
+            ) : (
+              <View
+                style={styles.routineLoadingPlaceholderLine}
+                testID={`routine-loading-placeholder-line-${index}`}
+              />
+            )}
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
 
 const ROUTINE_NOTES = [
   '오늘 컨디션과 운동 목표를 반영했어요.',
-  '현재 장소와 장비로 진행할 수 있는 구성이에요.',
+  '사용자 적합성과 안전 기준을 확인한 구성이에요.',
 ] as const;
 
 function RoutineCard({
+  actionCode,
   editLabel,
   focus,
   items,
@@ -1288,7 +1533,8 @@ function RoutineCard({
   notes = ROUTINE_NOTES,
   onEdit,
   onMove,
-  onOpenExercise,
+  onOpenExerciseGuide,
+  onOpenExerciseVariants,
   onOpenReasons,
   onRest,
   onRequestAlternative,
@@ -1300,8 +1546,9 @@ function RoutineCard({
   revisionNotice,
   startBlockedReason,
   title,
-  useJua,
+  variantApi,
 }: {
+  actionCode?: ActionCode;
   editLabel: string;
   focus: string;
   items: readonly HomeRoutineItem[];
@@ -1309,10 +1556,14 @@ function RoutineCard({
   notes?: readonly string[];
   onEdit: () => void;
   onMove?: (from: number, to: number) => void;
-  onOpenExercise?: (item: HomeRoutineItem) => void;
+  onOpenExerciseGuide?: (item: HomeRoutineItem) => void;
+  onOpenExerciseVariants: (
+    item: HomeRoutineItem,
+    response: ExerciseVariantsResponse,
+  ) => void;
   onOpenReasons?: () => void;
   onRest?: () => void;
-  onRequestAlternative: () => void;
+  onRequestAlternative?: () => void;
   onStart?: () => void;
   painPart: string | null;
   pending: boolean;
@@ -1321,15 +1572,37 @@ function RoutineCard({
   revisionNotice?: string;
   startBlockedReason?: string | null;
   title: string;
-  useJua: boolean;
+  variantApi?: Partial<Pick<Api, 'getExerciseVariants'>>;
 }) {
   const styles = useHomeStyles();
   const drag = useDragController(onMove ?? (() => undefined));
   const rerollLabel = getHomeRerollLabel(rerolls, rerolling);
+  const routineActionLabel =
+    actionCode === undefined ? null : actionLabel(actionCode);
+  const adjustedAction =
+    actionCode === 'DOWNSHIFT' ||
+    actionCode === 'CHANGE' ||
+    actionCode === 'RECOVERY';
   return (
     <View style={styles.routineCard} testID="home-routine-state">
-      <View style={styles.routineBadge}>
-        <Text style={styles.routineBadgeText}>오늘의 운동</Text>
+      <View style={styles.routineBadgeRow}>
+        <View style={styles.routineBadge}>
+          <Text style={styles.routineBadgeText}>오늘의 운동</Text>
+        </View>
+        {routineActionLabel === null ? null : (
+          <View
+            accessible
+            accessibilityLabel={`루틴 진행 방식: ${routineActionLabel}`}
+            style={[
+              styles.routineActionBadge,
+              adjustedAction && styles.routineActionBadgeAdjusted,
+            ]}
+          >
+            <Text style={styles.routineActionBadgeText}>
+              {routineActionLabel}
+            </Text>
+          </View>
+        )}
       </View>
       <Text style={styles.routineTitle}>{title}</Text>
       <Text style={styles.routineSummary}>
@@ -1356,7 +1629,13 @@ function RoutineCard({
           <Text style={styles.orderHint}>핸들을 끌어 순서를 바꿔보세요</Text>
         ) : null}
         {items.map((item, index) => {
-          const active = drag.activeIndex === index;
+          const { activeIndex, targetIndex } = drag;
+          const active = activeIndex === index;
+          const dropTarget =
+            activeIndex !== null &&
+            targetIndex !== null &&
+            targetIndex !== activeIndex &&
+            targetIndex === index;
           return (
             <View
               key={item.id}
@@ -1367,11 +1646,26 @@ function RoutineCard({
               ]}
               testID={`routine-row-${item.id}`}
             >
+              {dropTarget ? (
+                <View
+                  pointerEvents="none"
+                  style={styles.dropPlaceholder}
+                  testID={`routine-drop-placeholder-${item.id}`}
+                />
+              ) : null}
               <Animated.View
                 style={[
                   styles.routineRow,
                   active && styles.dragInnerRoutineActive,
-                  active && { transform: [{ translateY: drag.dragY }] },
+                  {
+                    transform: [
+                      {
+                        translateY: active
+                          ? drag.dragY
+                          : drag.getItemShift(index),
+                      },
+                    ],
+                  },
                 ]}
               >
                 {onMove ? (
@@ -1389,25 +1683,54 @@ function RoutineCard({
                     <RoutineDragIcon />
                   </DragHandle>
                 ) : null}
-                {onOpenExercise &&
-                item.exerciseId &&
-                item.instructionAvailable ? (
-                  <Pressable
-                    accessibilityLabel={`${item.name} 운동 설명 보기`}
-                    accessibilityRole="button"
-                    onPress={() => onOpenExercise(item)}
-                    style={styles.routineItemButton}
+                <Text style={styles.routineItemText}>
+                  {formatRoutineItem(item)}
+                </Text>
+                {item.exerciseId &&
+                (onOpenExerciseGuide || variantApi?.getExerciseVariants) ? (
+                  <View
+                    style={styles.routineGuideActions}
+                    testID={`routine-guide-actions-${item.id}`}
                   >
-                    <Text style={styles.routineItemText}>
-                      {formatRoutineItem(item)}
-                    </Text>
-                  </Pressable>
-                ) : (
-                  <Text style={styles.routineItemText}>
-                    {formatRoutineItem(item)}
-                  </Text>
-                )}
-                <View style={styles.routineDot} />
+                    <View
+                      style={styles.routineGuideSlot}
+                      testID={`routine-posture-slot-${item.id}`}
+                    >
+                      {onOpenExerciseGuide ? (
+                        <Pressable
+                          accessibilityLabel={`${item.name} 자세 보기`}
+                          accessibilityRole="button"
+                          onPress={() => onOpenExerciseGuide(item)}
+                          style={styles.routineGuideButton}
+                        >
+                          <Text style={styles.routineGuideButtonText}>
+                            자세
+                          </Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                    <View
+                      style={styles.routineGuideSlot}
+                      testID={`routine-equipment-slot-${item.id}`}
+                    >
+                      {variantApi ? (
+                        <ExerciseVariantsAction
+                          actionStyle={[
+                            styles.routineGuideButton,
+                            styles.routineEquipmentButton,
+                          ]}
+                          actionTextStyle={styles.routineEquipmentButtonText}
+                          api={variantApi}
+                          exerciseId={item.exerciseId}
+                          exerciseName={item.name}
+                          onOpen={(response) =>
+                            onOpenExerciseVariants(item, response)
+                          }
+                        />
+                      ) : null}
+                    </View>
+                  </View>
+                ) : null}
               </Animated.View>
             </View>
           );
@@ -1442,15 +1765,23 @@ function RoutineCard({
         onPress={onStart}
         style={[
           styles.startButton,
-          (pending || !onStart) && styles.routineActionDisabled,
+          (pending || !onStart) && styles.startButtonDisabled,
         ]}
       >
-        <OutlinedLabel
-          label="운동 시작하기"
-          outlineColor="#2F5233"
-          style={[styles.startLabel, useJua && styles.juaLabel]}
+        <LinearGradient
+          colors={
+            pending || !onStart
+              ? ['#F3ECE4', '#F3ECE4']
+              : ['#FFFDF8', '#FFF2D1', '#FFE2A3']
+          }
+          end={{ x: 0.5, y: 1 }}
+          locations={pending || !onStart ? [0, 1] : [0, 0.55, 1]}
+          pointerEvents="none"
+          start={{ x: 0.5, y: 0 }}
+          style={styles.startButtonGradient}
+          testID="home-start-gradient"
         />
-        <StartChevronIcon />
+        <Text style={styles.startLabel}>운동 시작하기</Text>
       </Pressable>
       <View style={styles.routineActions}>
         <Pressable
@@ -1462,30 +1793,32 @@ function RoutineCard({
           <EditIcon />
           <Text style={styles.editActionLabel}>{editLabel}</Text>
         </Pressable>
-        <Pressable
-          accessibilityLabel="다른 루틴 추천 받기"
-          accessibilityRole="button"
-          accessibilityState={{
-            disabled: pending || rerolling || rerolls >= 2,
-          }}
-          disabled={pending || rerolling || rerolls >= 2}
-          onPress={onRequestAlternative}
-          style={[
-            styles.routineAction,
-            rerolls >= 2 && styles.routineActionDisabled,
-          ]}
-        >
-          <RerollIcon color={rerolls >= 2 ? '#B0ACA4' : '#3E7A32'} />
-          <Text
-            numberOfLines={1}
+        {onRequestAlternative ? (
+          <Pressable
+            accessibilityLabel="다른 루틴 추천 받기"
+            accessibilityRole="button"
+            accessibilityState={{
+              disabled: pending || rerolling || rerolls >= 2,
+            }}
+            disabled={pending || rerolling || rerolls >= 2}
+            onPress={onRequestAlternative}
             style={[
-              styles.rerollActionLabel,
-              rerolls >= 2 && styles.rerollActionLabelDisabled,
+              styles.routineAction,
+              rerolls >= 2 && styles.routineActionDisabled,
             ]}
           >
-            {rerollLabel}
-          </Text>
-        </Pressable>
+            <RerollIcon color={rerolls >= 2 ? '#B0ACA4' : '#A45F00'} />
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.rerollActionLabel,
+                rerolls >= 2 && styles.rerollActionLabelDisabled,
+              ]}
+            >
+              {rerollLabel}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
       {onRest ? (
         <Pressable
@@ -1509,14 +1842,23 @@ export function HomeBottomNavigation({
   activeTab: HomeTab;
   onNavigate?: (tab: HomeTab) => void;
 }) {
-  const styles = useHomeStyles();
-  const homeColor = activeTab === 'home' ? '#3E7A32' : '#B0ACA4';
-  const logColor = activeTab === 'house' ? '#3E7A32' : '#B0ACA4';
-  const reportColor = activeTab === 'report' ? '#3E7A32' : '#B0ACA4';
-  const myColor = activeTab === 'my' ? '#3E7A32' : '#B0ACA4';
+  const insets = useSafeAreaInsets();
+  const homeColor = activeTab === 'home' ? '#A45F00' : '#B0ACA4';
+  const logColor = activeTab === 'house' ? '#A45F00' : '#B0ACA4';
+  const reportColor = activeTab === 'report' ? '#A45F00' : '#B0ACA4';
+  const myColor = activeTab === 'my' ? '#A45F00' : '#B0ACA4';
   return (
-    <View style={styles.bottomBarOuter}>
-      <View accessibilityRole="tablist" style={styles.bottomBar}>
+    <View
+      style={[
+        bottomNavigationStyles.bottomBarOuter,
+        { paddingBottom: bottomNavigationBottomPadding(insets.bottom) },
+      ]}
+      testID="bottom-navigation"
+    >
+      <View
+        accessibilityRole="tablist"
+        style={bottomNavigationStyles.bottomBar}
+      >
         <TabButton
           active={activeTab === 'home'}
           icon={<HomeTabIcon color={homeColor} />}
@@ -1526,7 +1868,7 @@ export function HomeBottomNavigation({
         <TabButton
           active={activeTab === 'house'}
           icon={<LogTabIcon color={logColor} />}
-          label="헬끼의 집"
+          label="끼끼의 집"
           onPress={() => onNavigate?.('house')}
         />
         <TabButton
@@ -1546,6 +1888,10 @@ export function HomeBottomNavigation({
   );
 }
 
+export function bottomNavigationBottomPadding(safeAreaBottom: number) {
+  return Math.max(HOME_LAYOUT.bottomBarBottomPadding, safeAreaBottom);
+}
+
 function TabButton({
   active,
   icon,
@@ -1557,17 +1903,23 @@ function TabButton({
   label: string;
   onPress: () => void;
 }) {
-  const styles = useHomeStyles();
   return (
     <Pressable
       accessibilityLabel={label}
       accessibilityRole="tab"
       accessibilityState={{ selected: active }}
       onPress={onPress}
-      style={styles.tab}
+      style={bottomNavigationStyles.tab}
     >
       {icon}
-      <Text style={[styles.tabLabel, active && styles.tabActive]}>{label}</Text>
+      <Text
+        style={[
+          bottomNavigationStyles.tabLabel,
+          active && bottomNavigationStyles.tabActive,
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -1623,6 +1975,7 @@ function RecommendationReasonSheet({
 }) {
   const styles = useHomeStyles();
   const agentSummaries = decision.public_agent_summaries ?? [];
+  const [criteriaExpanded, setCriteriaExpanded] = useState(false);
   return (
     <SheetFrame onClose={onClose} title="추천 이유" zIndex={24}>
       <Text style={styles.sheetIntro}>
@@ -1632,47 +1985,6 @@ function RecommendationReasonSheet({
         contentContainerStyle={styles.reasonSheetContent}
         showsVerticalScrollIndicator={false}
       >
-        {reasons.length > 0 ? (
-          <View style={styles.reasonSection}>
-            <Text style={styles.checkinSectionTitle}>반영한 기준</Text>
-            {reasons.map((reason) => (
-              <View key={reason} style={styles.reasonRow}>
-                <Text style={styles.reasonBullet}>•</Text>
-                <Text style={styles.reasonText}>{reason}</Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
-
-        {decision.safety_summary?.summary ? (
-          <View
-            accessibilityRole={
-              decision.safety_summary.vetoed ? 'alert' : undefined
-            }
-            style={[
-              styles.reasonSection,
-              decision.safety_summary.vetoed && styles.safetyReasonSection,
-            ]}
-          >
-            <Text
-              style={[
-                styles.checkinSectionTitle,
-                decision.safety_summary.vetoed && styles.safetyReasonTitle,
-              ]}
-            >
-              안전 확인
-            </Text>
-            <Text
-              style={[
-                styles.reasonText,
-                decision.safety_summary.vetoed && styles.safetyReasonText,
-              ]}
-            >
-              {decision.safety_summary.summary}
-            </Text>
-          </View>
-        ) : null}
-
         {agentSummaries.length > 0 ? (
           <View style={styles.reasonSection}>
             <Text style={styles.checkinSectionTitle}>상세 판단</Text>
@@ -1689,14 +2001,39 @@ function RecommendationReasonSheet({
             ))}
           </View>
         ) : null}
+
+        {reasons.length > 0 ? (
+          <View style={styles.reasonSection}>
+            <Pressable
+              accessibilityLabel={`반영한 기준 ${criteriaExpanded ? '접기' : '펼치기'}`}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: criteriaExpanded }}
+              onPress={() => setCriteriaExpanded((current) => !current)}
+              style={styles.reasonDisclosureHeader}
+            >
+              <Text style={styles.checkinSectionTitle}>반영한 기준</Text>
+              <Text style={styles.reasonDisclosureAction}>
+                {criteriaExpanded ? '접기' : '펼치기'}
+              </Text>
+            </Pressable>
+            {criteriaExpanded
+              ? reasons.map((reason) => (
+                  <View key={reason} style={styles.reasonRow}>
+                    <Text style={styles.reasonBullet}>•</Text>
+                    <Text style={styles.reasonText}>{reason}</Text>
+                  </View>
+                ))
+              : null}
+          </View>
+        ) : null}
       </ScrollView>
     </SheetFrame>
   );
 }
 
 function CheckinSheet({
-  attentionAreaCodes,
   draft,
+  onAddAvailabilitySlot,
   onChangeFatigue,
   onChangeLocation,
   onChangeSeverity,
@@ -1705,15 +2042,16 @@ function CheckinSheet({
   onClearAdverseReactions,
   onClearDiscomforts,
   onClose,
+  onOpenTimePicker,
   onSave,
+  onRemoveAvailabilitySlot,
   onToggleAdverseReaction,
   onToggleBodyArea,
   locationCodes,
   pending,
-  useJua,
 }: {
-  attentionAreaCodes: readonly string[];
   draft: HomeCheckin;
+  onAddAvailabilitySlot: () => void;
   onChangeFatigue: (value: string) => void;
   onChangeLocation: (code: string) => void;
   onChangeSeverity: (
@@ -1725,16 +2063,34 @@ function CheckinSheet({
   onClearAdverseReactions: () => void;
   onClearDiscomforts: () => void;
   onClose: () => void;
+  onOpenTimePicker: (index: number, field: keyof HomeAvailabilitySlot) => void;
   onSave: () => void;
+  onRemoveAvailabilitySlot: (index: number) => void;
   onToggleAdverseReaction: (code: string) => void;
   onToggleBodyArea: (code: string) => void;
   locationCodes: readonly string[];
   pending: boolean;
-  useJua: boolean;
 }) {
   const styles = useHomeStyles();
   const [showAdverseDetails, setShowAdverseDetails] = useState(
     draft.adverseReactionCodes.length > 0,
+  );
+  const [showDiscomfortDetails, setShowDiscomfortDetails] = useState(
+    Object.keys(draft.discomforts).length > 0,
+  );
+  const selectedDiscomfortCodes = Object.keys(draft.discomforts);
+  const [showExtendedAreas, setShowExtendedAreas] = useState(() =>
+    selectedDiscomfortCodes.some((code) =>
+      EXTENDED_BODY_AREA_OPTIONS.some((option) => option.code === code),
+    ),
+  );
+  const selectableCodes = new Set<string>(
+    [...DEFAULT_BODY_AREA_OPTIONS, ...EXTENDED_BODY_AREA_OPTIONS].map(
+      (option) => option.code,
+    ),
+  );
+  const legacySelectedCodes = selectedDiscomfortCodes.filter(
+    (code) => !selectableCodes.has(code),
   );
   const sleepHours = draft.sleepHours.trim();
   const sleepInvalid =
@@ -1744,12 +2100,35 @@ function CheckinSheet({
       Number(sleepHours) > 24);
   const durationInvalid =
     !/^\d+$/.test(draft.workoutMinutes) ||
-    Number(draft.workoutMinutes) < 5 ||
-    Number(draft.workoutMinutes) > 180;
+    Number(draft.workoutMinutes) < CHECKIN_DURATION_MINUTES.min ||
+    Number(draft.workoutMinutes) > CHECKIN_DURATION_MINUTES.max;
+  const durationMinutes = Number(draft.workoutMinutes);
+  const canDecreaseDuration =
+    !pending &&
+    !durationInvalid &&
+    durationMinutes > CHECKIN_DURATION_MINUTES.min;
+  const canIncreaseDuration =
+    !pending &&
+    !durationInvalid &&
+    durationMinutes < CHECKIN_DURATION_MINUTES.max;
+  const availabilityError = CHECKIN_AVAILABILITY_INPUT_ENABLED
+    ? validateAvailabilitySlots(draft.availableSlots)
+    : null;
+  const availabilitySlots =
+    draft.availableSlots && draft.availableSlots.length > 0
+      ? draft.availableSlots
+      : [EMPTY_AVAILABILITY_SLOT];
   const adverseSelectionMissing =
     showAdverseDetails && draft.adverseReactionCodes.length === 0;
+  const discomfortSelectionMissing =
+    showDiscomfortDetails && Object.keys(draft.discomforts).length === 0;
   const saveDisabled =
-    pending || sleepInvalid || durationInvalid || adverseSelectionMissing;
+    pending ||
+    sleepInvalid ||
+    durationInvalid ||
+    availabilityError !== null ||
+    adverseSelectionMissing ||
+    discomfortSelectionMissing;
   return (
     <SheetFrame onClose={onClose} title="오늘 컨디션 체크" zIndex={20}>
       <Text style={styles.sheetIntro}>
@@ -1771,19 +2150,141 @@ function CheckinSheet({
         </ChoiceBlock>
         <View style={styles.numberRow}>
           <Text style={styles.numberLabel}>원하는 운동 시간</Text>
-          <View style={styles.numberInputGroup}>
-            <TextInput
-              accessibilityLabel="원하는 운동 시간 (분)"
-              inputMode="numeric"
-              onChangeText={(value) =>
-                onChangeWorkoutMinutes(digitsOnly(value))
+          <View style={styles.durationStepper}>
+            <Pressable
+              accessibilityLabel="운동 시간 10분 줄이기"
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !canDecreaseDuration }}
+              disabled={!canDecreaseDuration}
+              onPress={() =>
+                onChangeWorkoutMinutes(
+                  String(
+                    Math.max(
+                      CHECKIN_DURATION_MINUTES.min,
+                      durationMinutes - CHECKIN_DURATION_MINUTES.step,
+                    ),
+                  ),
+                )
               }
-              style={styles.numberInput}
-              value={draft.workoutMinutes}
-            />
-            <Text style={styles.numberSuffix}>분</Text>
+              style={[
+                styles.durationStepButton,
+                !canDecreaseDuration && styles.durationStepButtonDisabled,
+              ]}
+            >
+              <Text style={styles.durationStepButtonText}>−</Text>
+            </Pressable>
+            <Text
+              accessibilityLabel={`원하는 운동 시간 ${draft.workoutMinutes}분`}
+              accessibilityLiveRegion="polite"
+              style={styles.durationStepValue}
+            >
+              {draft.workoutMinutes}분
+            </Text>
+            <Pressable
+              accessibilityLabel="운동 시간 10분 늘리기"
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !canIncreaseDuration }}
+              disabled={!canIncreaseDuration}
+              onPress={() =>
+                onChangeWorkoutMinutes(
+                  String(
+                    Math.min(
+                      CHECKIN_DURATION_MINUTES.max,
+                      durationMinutes + CHECKIN_DURATION_MINUTES.step,
+                    ),
+                  ),
+                )
+              }
+              style={[
+                styles.durationStepButton,
+                !canIncreaseDuration && styles.durationStepButtonDisabled,
+              ]}
+            >
+              <Text style={styles.durationStepButtonText}>+</Text>
+            </Pressable>
           </View>
         </View>
+        {CHECKIN_AVAILABILITY_INPUT_ENABLED ? (
+          <>
+            <View style={styles.availabilitySection}>
+              <View style={styles.availabilityHeader}>
+                <Text style={styles.numberLabel}>오늘 운동 가능한 시간대</Text>
+                <Text style={styles.optionalText}>(선택)</Text>
+              </View>
+              {availabilitySlots.map((slot, index) => (
+                <View key={index} style={styles.availabilitySlotRow}>
+                  <Pressable
+                    accessibilityLabel={`${index + 1}번째 가능 시간 시작 ${slot.startTime || '미선택'} 선택`}
+                    accessibilityRole="button"
+                    disabled={pending}
+                    onPress={() => onOpenTimePicker(index, 'startTime')}
+                    style={styles.availabilityTimeButton}
+                  >
+                    <Text
+                      style={[
+                        styles.availabilityTimeText,
+                        !slot.startTime && styles.availabilityTimePlaceholder,
+                      ]}
+                    >
+                      {slot.startTime || '시간:분'}
+                    </Text>
+                  </Pressable>
+                  <Text style={styles.availabilitySeparator}>~</Text>
+                  <Pressable
+                    accessibilityLabel={`${index + 1}번째 가능 시간 종료 ${slot.endTime || '미선택'} 선택`}
+                    accessibilityRole="button"
+                    disabled={pending}
+                    onPress={() => onOpenTimePicker(index, 'endTime')}
+                    style={styles.availabilityTimeButton}
+                  >
+                    <Text
+                      style={[
+                        styles.availabilityTimeText,
+                        !slot.endTime && styles.availabilityTimePlaceholder,
+                      ]}
+                    >
+                      {slot.endTime || '시간:분'}
+                    </Text>
+                  </Pressable>
+                  {availabilitySlots.length > 1 ? (
+                    <Pressable
+                      accessibilityLabel={`${index + 1}번째 가능 시간대 삭제`}
+                      accessibilityRole="button"
+                      hitSlop={8}
+                      onPress={() => onRemoveAvailabilitySlot(index)}
+                      style={styles.availabilityRemoveButton}
+                    >
+                      <DeleteIcon />
+                    </Pressable>
+                  ) : null}
+                </View>
+              ))}
+              <Pressable
+                accessibilityLabel="가능 시간대 추가"
+                accessibilityRole="button"
+                accessibilityState={{
+                  disabled: availabilitySlots.length >= 8,
+                }}
+                disabled={availabilitySlots.length >= 8}
+                onPress={onAddAvailabilitySlot}
+                style={[
+                  styles.availabilityAddButton,
+                  availabilitySlots.length >= 8 && styles.routineActionDisabled,
+                ]}
+              >
+                <Text style={styles.availabilityAddLabel}>＋ 시간대 추가</Text>
+              </Pressable>
+              <Text style={styles.availabilityHelpText}>
+                운동을 시작할 수 있는 시간 범위를 입력해주세요.
+              </Text>
+            </View>
+            {availabilityError ? (
+              <Text accessibilityRole="alert" style={styles.messageText}>
+                {availabilityError}
+              </Text>
+            ) : null}
+          </>
+        ) : null}
         <View style={styles.numberRow}>
           <Text style={styles.numberLabel}>
             어젯밤 수면 시간 <Text style={styles.optionalText}>(선택)</Text>
@@ -1816,40 +2317,89 @@ function CheckinSheet({
             ))}
           </ChoiceBlock>
         ) : null}
-        <ChoiceBlock label="통증 부위">
+        <ChoiceBlock label="오늘 통증이 있는 부위가 있나요?">
           <ChoiceButton
             label="없음"
-            onPress={onClearDiscomforts}
-            selected={Object.keys(draft.discomforts).length === 0}
+            onPress={() => {
+              setShowDiscomfortDetails(false);
+              onClearDiscomforts();
+            }}
+            selected={!showDiscomfortDetails}
           />
-          {attentionAreaCodes.map((code) => (
-            <ChoiceButton
-              key={code}
-              label={bodyAreaLabel(code)}
-              onPress={() => onToggleBodyArea(code)}
-              selected={draft.discomforts[code] !== undefined}
-            />
-          ))}
+          <ChoiceButton
+            label="있음"
+            onPress={() => setShowDiscomfortDetails(true)}
+            selected={showDiscomfortDetails}
+          />
         </ChoiceBlock>
-        {attentionAreaCodes.length === 0 ? (
-          <Text style={styles.messageText}>
-            온보딩에서 등록한 주의 부위가 없어요.
-          </Text>
-        ) : null}
-        {attentionAreaCodes
-          .filter((code) => draft.discomforts[code] !== undefined)
-          .map((code) => (
-            <ChoiceBlock key={code} label={`${bodyAreaLabel(code)} 통증 정도`}>
-              {SEVERITY_OPTIONS.map((option) => (
+        {showDiscomfortDetails ? (
+          <>
+            <ChoiceBlock label="오늘 불편한 부위를 모두 선택해주세요" twoColumn>
+              {DEFAULT_BODY_AREA_OPTIONS.map((option) => (
                 <ChoiceButton
                   key={option.code}
                   label={option.label}
-                  onPress={() => onChangeSeverity(code, option.code)}
-                  selected={draft.discomforts[code] === option.code}
+                  numberOfLines={2}
+                  onPress={() => onToggleBodyArea(option.code)}
+                  selected={draft.discomforts[option.code] !== undefined}
+                  twoColumn
                 />
               ))}
+              <ChoiceButton
+                label={
+                  showExtendedAreas ? '다른 부위 접기' : '다른 부위 더 보기'
+                }
+                numberOfLines={2}
+                onPress={() => setShowExtendedAreas((visible) => !visible)}
+                selected={showExtendedAreas}
+                twoColumn
+              />
+              {showExtendedAreas
+                ? EXTENDED_BODY_AREA_OPTIONS.map((option) => (
+                    <ChoiceButton
+                      key={option.code}
+                      label={option.label}
+                      numberOfLines={2}
+                      onPress={() => onToggleBodyArea(option.code)}
+                      selected={draft.discomforts[option.code] !== undefined}
+                      twoColumn
+                    />
+                  ))
+                : null}
             </ChoiceBlock>
-          ))}
+            {legacySelectedCodes.length > 0 ? (
+              <ChoiceBlock label="이전에 저장된 부위 (해제만 가능)" twoColumn>
+                {legacySelectedCodes.map((code) => (
+                  <ChoiceButton
+                    key={code}
+                    label={bodyAreaLabel(code)}
+                    numberOfLines={2}
+                    onPress={() => onToggleBodyArea(code)}
+                    selected
+                    twoColumn
+                  />
+                ))}
+              </ChoiceBlock>
+            ) : null}
+          </>
+        ) : null}
+        {discomfortSelectionMissing ? (
+          <Text accessibilityRole="alert" style={styles.messageText}>
+            불편한 부위를 한 곳 이상 선택해주세요.
+          </Text>
+        ) : null}
+        {selectedDiscomfortCodes.map((code) => (
+          <ChoiceBlock key={code} label={`${bodyAreaLabel(code)} 통증 정도`}>
+            {SEVERITY_OPTIONS.map((option) => (
+              <ChoiceButton
+                key={option.code}
+                label={option.label}
+                onPress={() => onChangeSeverity(code, option.code)}
+                selected={draft.discomforts[code] === option.code}
+              />
+            ))}
+          </ChoiceBlock>
+        ))}
         <ChoiceBlock label="운동을 멈춰야 할 이상 반응">
           <ChoiceButton
             label="없어요"
@@ -1902,7 +2452,16 @@ function CheckinSheet({
             saveDisabled && styles.routineActionDisabled,
           ]}
         >
-          <Text style={[styles.sheetSaveLabel, useJua && styles.juaLabel]}>
+          <LinearGradient
+            colors={['#FEE8B1', '#FEDA99', '#FFD790']}
+            end={{ x: 0.5, y: 1 }}
+            locations={[0, 0.55, 1]}
+            pointerEvents="none"
+            start={{ x: 0.5, y: 0 }}
+            style={styles.sheetSaveGradient}
+            testID="home-checkin-submit-gradient"
+          />
+          <Text style={styles.sheetSaveLabel}>
             {pending ? '보내는 중…' : '체크인 !'}
           </Text>
         </Pressable>
@@ -1911,18 +2470,352 @@ function CheckinSheet({
   );
 }
 
+function TimePickerSheet({
+  initialValue,
+  onClose,
+  onConfirm,
+  targetField,
+}: {
+  initialValue: string;
+  onClose: () => void;
+  onConfirm: (value: string) => void;
+  targetField: keyof HomeAvailabilitySlot;
+}) {
+  const styles = useHomeStyles();
+  const match = /^(\d{2}):(\d{2})$/.exec(initialValue);
+  const parsedMinute = match ? Number(match[2]) : 0;
+  const normalizedMinute = Math.min(55, Math.round(parsedMinute / 5) * 5);
+  const [hour, setHour] = useState(
+    match ? Number(match[1]) : targetField === 'startTime' ? 0 : 12,
+  );
+  const [minute, setMinute] = useState(normalizedMinute);
+  const title =
+    targetField === 'startTime' ? '시작 시간 선택' : '종료 시간 선택';
+
+  return (
+    <SheetFrame onClose={onClose} title={title} zIndex={30}>
+      <Text style={styles.timePickerIntro}>
+        시간과 분을 스크롤해 선택해주세요.
+      </Text>
+      <View style={styles.timePickerRow}>
+        <TimeWheelColumn
+          accessibilityLabel="시간 선택 스크롤"
+          onChange={setHour}
+          options={TIME_HOURS}
+          selected={hour}
+          suffix="시"
+        />
+        <Text style={styles.timePickerColon}>:</Text>
+        <TimeWheelColumn
+          accessibilityLabel="분 선택 스크롤"
+          onChange={setMinute}
+          options={TIME_MINUTES}
+          selected={minute}
+          suffix="분"
+        />
+      </View>
+      <View style={styles.timePickerActions}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onClose}
+          style={styles.timePickerCancelButton}
+        >
+          <Text style={styles.timePickerCancelLabel}>취소</Text>
+        </Pressable>
+        <Pressable
+          accessibilityLabel="시간 선택 완료"
+          accessibilityRole="button"
+          onPress={() =>
+            onConfirm(
+              `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`,
+            )
+          }
+          style={styles.timePickerConfirmButton}
+        >
+          <Text style={styles.timePickerConfirmLabel}>선택</Text>
+        </Pressable>
+      </View>
+    </SheetFrame>
+  );
+}
+
+function TimeWheelColumn({
+  accessibilityLabel,
+  onChange,
+  options,
+  selected,
+  suffix,
+}: {
+  accessibilityLabel: string;
+  onChange: (value: number) => void;
+  options: readonly number[];
+  selected: number;
+  suffix: string;
+}) {
+  const styles = useHomeStyles();
+  const scrollRef = useRef<ScrollView>(null);
+  const selectedIndex = Math.max(0, options.indexOf(selected));
+  const currentIndexRef = useRef(selectedIndex);
+  const pendingInternalSelectionRef = useRef<number | null>(null);
+  const webSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const webWheelGestureTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const webWheelDeltaRef = useRef(0);
+  const draggingRef = useRef(false);
+
+  const clearWebSettleTimer = useCallback(() => {
+    if (webSettleTimerRef.current !== null) {
+      clearTimeout(webSettleTimerRef.current);
+      webSettleTimerRef.current = null;
+    }
+  }, []);
+
+  const clearWebWheelGestureTimer = useCallback(() => {
+    if (webWheelGestureTimerRef.current !== null) {
+      clearTimeout(webWheelGestureTimerRef.current);
+      webWheelGestureTimerRef.current = null;
+    }
+  }, []);
+
+  const scrollToIndex = useCallback((index: number, animated: boolean) => {
+    scrollRef.current?.scrollTo({
+      animated,
+      y: index * TIME_WHEEL_ITEM_HEIGHT,
+    });
+  }, []);
+
+  const commitIndex = useCallback(
+    (index: number) => {
+      const boundedIndex = Math.max(0, Math.min(options.length - 1, index));
+      const value = options[boundedIndex];
+      if (value === undefined) return;
+      currentIndexRef.current = boundedIndex;
+      if (value !== selected) {
+        pendingInternalSelectionRef.current = value;
+        onChange(value);
+      }
+    },
+    [onChange, options, selected],
+  );
+
+  const selectIndex = useCallback(
+    (index: number, animated = true) => {
+      const boundedIndex = Math.max(0, Math.min(options.length - 1, index));
+      scrollToIndex(boundedIndex, animated);
+      commitIndex(boundedIndex);
+    },
+    [commitIndex, options.length, scrollToIndex],
+  );
+
+  const settleAtOffset = useCallback(
+    (offsetY: number, align = true) => {
+      const index = Math.max(
+        0,
+        Math.min(
+          options.length - 1,
+          Math.round(offsetY / TIME_WHEEL_ITEM_HEIGHT),
+        ),
+      );
+      const targetOffset = index * TIME_WHEEL_ITEM_HEIGHT;
+      if (align && Math.abs(offsetY - targetOffset) > 1) {
+        scrollToIndex(index, true);
+      }
+      commitIndex(index);
+    },
+    [commitIndex, options.length, scrollToIndex],
+  );
+
+  useEffect(() => {
+    currentIndexRef.current = selectedIndex;
+    if (pendingInternalSelectionRef.current === selected) {
+      pendingInternalSelectionRef.current = null;
+      return;
+    }
+    pendingInternalSelectionRef.current = null;
+    scrollToIndex(selectedIndex, false);
+  }, [scrollToIndex, selected, selectedIndex]);
+
+  useEffect(
+    () => () => {
+      clearWebSettleTimer();
+      clearWebWheelGestureTimer();
+    },
+    [clearWebSettleTimer, clearWebWheelGestureTimer],
+  );
+
+  const settleFromScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    clearWebSettleTimer();
+    draggingRef.current = false;
+    settleAtOffset(event.nativeEvent.contentOffset.y, false);
+  };
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (Platform.OS !== 'web' || draggingRef.current) return;
+    const offsetY = event.nativeEvent.contentOffset.y;
+    clearWebSettleTimer();
+    webSettleTimerRef.current = setTimeout(() => {
+      settleAtOffset(offsetY);
+      webSettleTimerRef.current = null;
+    }, 90);
+  };
+
+  const queueWheelDelta = useCallback(
+    (deltaY: number, deltaMode = 0) => {
+      clearWebSettleTimer();
+      if (deltaY === 0) return;
+      const modeMultiplier =
+        deltaMode === 1 ? 16 : deltaMode === 2 ? TIME_WHEEL_ITEM_HEIGHT * 3 : 1;
+      const normalizedDelta = deltaY * modeMultiplier;
+      if (
+        webWheelDeltaRef.current !== 0 &&
+        Math.sign(webWheelDeltaRef.current) !== Math.sign(normalizedDelta)
+      ) {
+        webWheelDeltaRef.current = 0;
+      }
+      webWheelDeltaRef.current += normalizedDelta;
+      clearWebWheelGestureTimer();
+      webWheelGestureTimerRef.current = setTimeout(() => {
+        const accumulatedDelta = webWheelDeltaRef.current;
+        webWheelDeltaRef.current = 0;
+        webWheelGestureTimerRef.current = null;
+        const magnitude = Math.abs(accumulatedDelta);
+        const steps =
+          magnitude <= TIME_WHEEL_SINGLE_ITEM_DELTA
+            ? 1
+            : Math.min(
+                TIME_WHEEL_MAX_ITEMS_PER_GESTURE,
+                1 +
+                  Math.round(
+                    (magnitude - TIME_WHEEL_SINGLE_ITEM_DELTA) /
+                      TIME_WHEEL_ACCELERATION_DELTA,
+                  ),
+              );
+        selectIndex(
+          currentIndexRef.current + Math.sign(accumulatedDelta) * steps,
+        );
+      }, TIME_WHEEL_GESTURE_IDLE_MS);
+    },
+    [clearWebSettleTimer, clearWebWheelGestureTimer, selectIndex],
+  );
+
+  const handleWheel = (
+    event: NativeSyntheticEvent<{
+      deltaMode?: number;
+      deltaY: number;
+    }>,
+  ) => {
+    event.preventDefault();
+    queueWheelDelta(event.nativeEvent.deltaY, event.nativeEvent.deltaMode);
+  };
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || scrollRef.current === null) return;
+    const scrollNode = scrollRef.current.getScrollableNode?.() as
+      HTMLElement | undefined;
+    if (scrollNode?.addEventListener === undefined) return;
+    const preventNativeWheelScroll = (event: WheelEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      queueWheelDelta(event.deltaY, event.deltaMode);
+    };
+    scrollNode.addEventListener('wheel', preventNativeWheelScroll, {
+      passive: false,
+    });
+    return () => {
+      scrollNode.removeEventListener('wheel', preventNativeWheelScroll);
+    };
+  }, [queueWheelDelta]);
+
+  const webWheelProps =
+    Platform.OS === 'web' ? { onWheel: handleWheel } : undefined;
+
+  return (
+    <View style={styles.timeWheelColumn}>
+      <ScrollView
+        ref={scrollRef}
+        accessibilityLabel={accessibilityLabel}
+        contentContainerStyle={styles.timeWheelContent}
+        decelerationRate="fast"
+        disableIntervalMomentum
+        nestedScrollEnabled
+        onMomentumScrollBegin={() => {
+          draggingRef.current = true;
+          clearWebSettleTimer();
+        }}
+        onMomentumScrollEnd={settleFromScroll}
+        onScroll={handleScroll}
+        onScrollBeginDrag={() => {
+          draggingRef.current = true;
+          clearWebSettleTimer();
+        }}
+        onScrollEndDrag={(event) => {
+          draggingRef.current = false;
+          const velocity = event.nativeEvent.velocity?.y;
+          if (velocity !== undefined && Math.abs(velocity) < 0.1) {
+            settleFromScroll(event);
+            return;
+          }
+          const offsetY = event.nativeEvent.contentOffset.y;
+          clearWebSettleTimer();
+          webSettleTimerRef.current = setTimeout(() => {
+            settleAtOffset(offsetY);
+            webSettleTimerRef.current = null;
+          }, 120);
+        }}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        snapToAlignment="start"
+        snapToInterval={TIME_WHEEL_ITEM_HEIGHT}
+        style={styles.timeWheelScroll}
+        {...webWheelProps}
+      >
+        {options.map((value, index) => {
+          const selectedOption = selected === value;
+          const padded = String(value).padStart(2, '0');
+          return (
+            <Pressable
+              accessibilityLabel={`${accessibilityLabel.startsWith('시간') ? '시간' : '분'} ${padded}${suffix}`}
+              accessibilityRole="button"
+              accessibilityState={{ selected: selectedOption }}
+              key={value}
+              onPress={() => selectIndex(index)}
+              style={styles.timeWheelItem}
+            >
+              <Text
+                style={[
+                  styles.timeWheelItemText,
+                  selectedOption && styles.timeWheelItemTextSelected,
+                ]}
+              >
+                {padded}
+                <Text style={styles.timeWheelItemSuffix}> {suffix}</Text>
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      <View pointerEvents="none" style={styles.timeWheelSelection} />
+    </View>
+  );
+}
+
 function ChoiceBlock({
   children,
   label,
+  twoColumn = false,
 }: {
   children: React.ReactNode;
   label: string;
+  twoColumn?: boolean;
 }) {
   const styles = useHomeStyles();
   return (
     <View style={styles.checkinSection}>
       <Text style={styles.checkinSectionTitle}>{label}</Text>
-      <View style={styles.choiceRow}>{children}</View>
+      <View style={[styles.choiceRow, twoColumn && styles.choiceRowTwoColumn]}>
+        {children}
+      </View>
     </View>
   );
 }
@@ -1932,11 +2825,13 @@ function ChoiceButton({
   numberOfLines = 1,
   onPress,
   selected,
+  twoColumn = false,
 }: {
   label: string;
   numberOfLines?: number;
   onPress: () => void;
   selected: boolean;
+  twoColumn?: boolean;
 }) {
   const styles = useHomeStyles();
   return (
@@ -1945,7 +2840,11 @@ function ChoiceButton({
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={[styles.choiceButton, selected && styles.choiceButtonSelected]}
+      style={[
+        styles.choiceButton,
+        twoColumn && styles.choiceButtonTwoColumn,
+        selected && styles.choiceButtonSelected,
+      ]}
     >
       <Text
         numberOfLines={numberOfLines}
@@ -2001,7 +2900,6 @@ function ApiEditRoutineSheet({
   pending,
   routine,
   selectedLocationCode,
-  useJua,
 }: {
   items: readonly HomeRoutineItem[];
   locationCodes: readonly string[];
@@ -2010,7 +2908,6 @@ function ApiEditRoutineSheet({
   pending: boolean;
   routine: RoutineResponse | null;
   selectedLocationCode: string | null;
-  useJua: boolean;
 }) {
   const styles = useHomeStyles();
   const [locationCode, setLocationCode] = useState<string | null>(
@@ -2020,7 +2917,7 @@ function ApiEditRoutineSheet({
   return (
     <SheetFrame onClose={onClose} title="운동 장소 변경" zIndex={22}>
       <Text style={styles.sheetIntro}>
-        운동할 장소를 고르면 서버가 시간·장비·안전 기준을 다시 확인해 계획을
+        운동할 장소를 고르면 서버가 시간·장소·안전 기준을 다시 확인해 계획을
         수정해요.
       </Text>
       <ScrollView
@@ -2080,7 +2977,7 @@ function ApiEditRoutineSheet({
               !canSave && styles.routineActionDisabled,
             ]}
           >
-            <Text style={[styles.sheetSaveLabel, useJua && styles.juaLabel]}>
+            <Text style={styles.sheetSaveLabel}>
               {pending ? '저장 중…' : '저장하기'}
             </Text>
           </Pressable>
@@ -2100,7 +2997,6 @@ function EditRoutineSheet({
   onMove,
   onReset,
   onSave,
-  useJua,
 }: {
   items: HomeRoutineItem[];
   newItem: HomeRoutineItem;
@@ -2111,7 +3007,6 @@ function EditRoutineSheet({
   onMove: (from: number, to: number) => void;
   onReset: () => void;
   onSave: () => void;
-  useJua: boolean;
 }) {
   const styles = useHomeStyles();
   const drag = useDragController(onMove);
@@ -2142,18 +3037,39 @@ function EditRoutineSheet({
       >
         <View style={styles.editList}>
           {items.map((item, index) => {
-            const active = drag.activeIndex === index;
+            const { activeIndex, targetIndex } = drag;
+            const active = activeIndex === index;
+            const dropTarget =
+              activeIndex !== null &&
+              targetIndex !== null &&
+              targetIndex !== activeIndex &&
+              targetIndex === index;
             return (
               <View
                 key={item.id}
                 onLayout={(event) => drag.register(index, event)}
                 style={[styles.dragOuterEdit, active && styles.dragOuterActive]}
               >
+                {dropTarget ? (
+                  <View
+                    pointerEvents="none"
+                    style={styles.dropPlaceholder}
+                    testID={`edit-drop-placeholder-${item.id}`}
+                  />
+                ) : null}
                 <Animated.View
                   style={[
                     styles.editRow,
                     active && styles.dragInnerEditActive,
-                    active && { transform: [{ translateY: drag.dragY }] },
+                    {
+                      transform: [
+                        {
+                          translateY: active
+                            ? drag.dragY
+                            : drag.getItemShift(index),
+                        },
+                      ],
+                    },
                   ]}
                 >
                   <DragHandle
@@ -2173,7 +3089,7 @@ function EditRoutineSheet({
                     accessibilityLabel={`${item.name || '빈 항목'} 운동명`}
                     onChangeText={(name) => patchItem(item.id, { name })}
                     placeholder="운동명"
-                    placeholderTextColor="#B5B0A6"
+                    placeholderTextColor="#B8AA9E"
                     style={styles.editNameInput}
                     value={item.name}
                   />
@@ -2184,7 +3100,7 @@ function EditRoutineSheet({
                       patchItem(item.id, { sets: digitsOnly(sets) })
                     }
                     placeholder="0"
-                    placeholderTextColor="#B5B0A6"
+                    placeholderTextColor="#B8AA9E"
                     style={styles.editSetsInput}
                     value={item.sets ?? ''}
                   />
@@ -2196,7 +3112,7 @@ function EditRoutineSheet({
                       patchItem(item.id, { reps: digitsOnly(reps) })
                     }
                     placeholder="0"
-                    placeholderTextColor="#B5B0A6"
+                    placeholderTextColor="#B8AA9E"
                     style={styles.editRepsInput}
                     value={item.reps ?? ''}
                   />
@@ -2221,7 +3137,7 @@ function EditRoutineSheet({
               accessibilityLabel="추가할 운동명"
               onChangeText={(name) => onChangeNew({ ...newItem, name })}
               placeholder="운동명"
-              placeholderTextColor="#B5B0A6"
+              placeholderTextColor="#B8AA9E"
               style={styles.addNameInput}
               value={newItem.name}
             />
@@ -2232,7 +3148,7 @@ function EditRoutineSheet({
                 onChangeNew({ ...newItem, sets: digitsOnly(sets) })
               }
               placeholder="0"
-              placeholderTextColor="#B5B0A6"
+              placeholderTextColor="#B8AA9E"
               style={styles.addSetsInput}
               value={newItem.sets ?? ''}
             />
@@ -2244,7 +3160,7 @@ function EditRoutineSheet({
                 onChangeNew({ ...newItem, reps: digitsOnly(reps) })
               }
               placeholder="0"
-              placeholderTextColor="#B5B0A6"
+              placeholderTextColor="#B8AA9E"
               style={styles.addRepsInput}
               value={newItem.reps ?? ''}
             />
@@ -2292,9 +3208,7 @@ function EditRoutineSheet({
             onPress={onSave}
             style={styles.editSaveButton}
           >
-            <Text style={[styles.sheetSaveLabel, useJua && styles.juaLabel]}>
-              저장하기
-            </Text>
+            <Text style={styles.sheetSaveLabel}>저장하기</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -2325,7 +3239,12 @@ function DragHandle({
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
+        onStartShouldSetPanResponderCapture: () => true,
         onMoveShouldSetPanResponder: (
+          _event: GestureResponderEvent,
+          gesture: PanResponderGestureState,
+        ) => Math.abs(gesture.dy) > 2,
+        onMoveShouldSetPanResponderCapture: (
           _event: GestureResponderEvent,
           gesture: PanResponderGestureState,
         ) => Math.abs(gesture.dy) > 2,
@@ -2336,12 +3255,15 @@ function DragHandle({
         ) => onMove(gesture.dy),
         onPanResponderRelease: onEnd,
         onPanResponderTerminate: onEnd,
+        onPanResponderTerminationRequest: () => false,
+        onShouldBlockNativeResponder: () => true,
       }),
     [index, onEnd, onMove, onStart],
   );
   return (
-    <Pressable
+    <View
       {...responder.panHandlers}
+      accessible
       accessibilityActions={[
         { name: 'increment', label: '아래로 이동' },
         { name: 'decrement', label: '위로 이동' },
@@ -2356,32 +3278,96 @@ function DragHandle({
           onKeyboardMove(-1);
         }
       }}
-      style={style}
+      style={[
+        style,
+        Platform.OS === 'web'
+          ? ({ touchAction: 'none' } as unknown as ViewStyle)
+          : undefined,
+      ]}
       testID={testID}
     >
       {children}
-    </Pressable>
+    </View>
   );
 }
 
 function useDragController(onMoveItem: (from: number, to: number) => void) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [targetIndex, setTargetIndex] = useState<number | null>(null);
   const activeRef = useRef<number | null>(null);
+  const targetRef = useRef<number | null>(null);
   const originCenter = useRef(0);
+  const dragOffset = useRef(0);
   const centers = useRef<number[]>([]);
   const [dragY] = useState(() => new Animated.Value(0));
+  const itemShifts = useRef<Animated.Value[]>([]);
+  const shiftAnimations = useRef<Animated.CompositeAnimation[]>([]);
+  const settleAnimation = useRef<Animated.CompositeAnimation | null>(null);
+  const getItemShift = useCallback((index: number) => {
+    while (itemShifts.current.length <= index) {
+      itemShifts.current.push(new Animated.Value(0));
+    }
+    return itemShifts.current[index]!;
+  }, []);
+  const stopShiftAnimations = useCallback(() => {
+    for (const animation of shiftAnimations.current) {
+      animation.stop();
+    }
+    shiftAnimations.current = [];
+  }, []);
+  const resetItemShifts = useCallback(() => {
+    stopShiftAnimations();
+    for (const shift of itemShifts.current) {
+      shift.setValue(0);
+    }
+  }, [stopShiftAnimations]);
+  const animateItemShifts = useCallback(
+    (from: number, target: number) => {
+      stopShiftAnimations();
+      shiftAnimations.current = itemShifts.current.map((shift, index) => {
+        let toValue = 0;
+        if (from < target && index > from && index <= target) {
+          const currentCenter = centers.current[index] ?? index * 60 + 30;
+          const previousCenter =
+            centers.current[index - 1] ?? (index - 1) * 60 + 30;
+          toValue = previousCenter - currentCenter;
+        } else if (from > target && index >= target && index < from) {
+          const currentCenter = centers.current[index] ?? index * 60 + 30;
+          const nextCenter =
+            centers.current[index + 1] ?? (index + 1) * 60 + 30;
+          toValue = nextCenter - currentCenter;
+        }
+        return Animated.timing(shift, {
+          toValue,
+          duration: 85,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        });
+      });
+      for (const animation of shiftAnimations.current) {
+        animation.start();
+      }
+    },
+    [stopShiftAnimations],
+  );
   const register = useCallback((index: number, event: LayoutChangeEvent) => {
     const { height, y } = event.nativeEvent.layout;
     centers.current[index] = y + height / 2;
   }, []);
   const start = useCallback(
     (index: number) => {
+      settleAnimation.current?.stop();
+      settleAnimation.current = null;
+      resetItemShifts();
       activeRef.current = index;
+      targetRef.current = index;
       originCenter.current = centers.current[index] ?? index * 60 + 30;
+      dragOffset.current = 0;
       dragY.setValue(0);
       setActiveIndex(index);
+      setTargetIndex(index);
     },
-    [dragY],
+    [dragY, resetItemShifts],
   );
   const move = useCallback(
     (dy: number) => {
@@ -2390,29 +3376,73 @@ function useDragController(onMoveItem: (from: number, to: number) => void) {
         return;
       }
       const pointerY = originCenter.current + dy;
-      let target = Math.max(0, centers.current.length - 1);
+      let target = from;
+      let closestDistance = Number.POSITIVE_INFINITY;
       for (let index = 0; index < centers.current.length; index += 1) {
         const center = centers.current[index];
-        if (center !== undefined && pointerY < center) {
+        if (center === undefined) {
+          continue;
+        }
+        const distance = Math.abs(pointerY - center);
+        if (distance < closestDistance) {
+          closestDistance = distance;
           target = index;
-          break;
         }
       }
-      if (target !== from) {
-        onMoveItem(from, target);
-        activeRef.current = target;
-        setActiveIndex(target);
+      if (targetRef.current !== target) {
+        targetRef.current = target;
+        setTargetIndex(target);
+        animateItemShifts(from, target);
       }
-      const slotCenter = centers.current[target] ?? pointerY;
-      dragY.setValue(pointerY - slotCenter);
+      dragOffset.current = dy;
+      dragY.setValue(dy);
     },
-    [dragY, onMoveItem],
+    [animateItemShifts, dragY],
   );
   const end = useCallback(() => {
+    const from = activeRef.current;
+    const target = targetRef.current;
+    if (from === null || target === null) {
+      return;
+    }
     activeRef.current = null;
-    setActiveIndex(null);
-    dragY.setValue(0);
-  }, [dragY]);
+    targetRef.current = null;
+    const targetCenter =
+      centers.current[target] ?? originCenter.current + (target - from) * 60;
+    const remainingOffset =
+      dragOffset.current - (targetCenter - originCenter.current);
+    resetItemShifts();
+    dragY.setValue(remainingOffset);
+    setActiveIndex(target);
+    setTargetIndex(target);
+    if (target !== from) {
+      onMoveItem(from, target);
+    }
+    const animation = Animated.timing(dragY, {
+      toValue: 0,
+      duration: 80,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    });
+    settleAnimation.current = animation;
+    animation.start(({ finished }) => {
+      if (settleAnimation.current === animation) {
+        settleAnimation.current = null;
+      }
+      if (finished) {
+        dragY.setValue(0);
+        setActiveIndex(null);
+        setTargetIndex(null);
+      }
+    });
+  }, [dragY, onMoveItem, resetItemShifts]);
+  useEffect(
+    () => () => {
+      settleAnimation.current?.stop();
+      stopShiftAnimations();
+    },
+    [stopShiftAnimations],
+  );
   const keyboardMove = useCallback(
     (index: number, direction: -1 | 1, length: number) => {
       const target = Math.max(0, Math.min(length - 1, index + direction));
@@ -2422,40 +3452,17 @@ function useDragController(onMoveItem: (from: number, to: number) => void) {
     },
     [onMoveItem],
   );
-  return { activeIndex, dragY, end, keyboardMove, move, register, start };
-}
-
-function OutlinedLabel({
-  label,
-  outlineColor,
-  style,
-  suffix,
-  suffixStyle,
-}: {
-  label: string;
-  outlineColor: string;
-  style: StyleProp<TextStyle>;
-  suffix?: string;
-  suffixStyle?: StyleProp<TextStyle>;
-}) {
-  const styles = useHomeStyles();
-  const outlineStyle = [styles.outlineText, style, { color: outlineColor }];
-  return (
-    <View accessible={false} style={styles.outlineContainer}>
-      <View style={styles.outlineTextContainer}>
-        <Text style={[outlineStyle, styles.outlineLeft]}>{label}</Text>
-        <Text style={[outlineStyle, styles.outlineRight]}>{label}</Text>
-        <Text style={[outlineStyle, styles.outlineTop]}>{label}</Text>
-        <Text style={[outlineStyle, styles.outlineBottom]}>{label}</Text>
-        <Text style={[outlineStyle, styles.outlineTopLeft]}>{label}</Text>
-        <Text style={[outlineStyle, styles.outlineTopRight]}>{label}</Text>
-        <Text style={[outlineStyle, styles.outlineBottomLeft]}>{label}</Text>
-        <Text style={[outlineStyle, styles.outlineBottomRight]}>{label}</Text>
-        <Text style={style}>{label}</Text>
-      </View>
-      {suffix ? <Text style={suffixStyle}>{suffix}</Text> : null}
-    </View>
-  );
+  return {
+    activeIndex,
+    dragY,
+    end,
+    getItemShift,
+    keyboardMove,
+    move,
+    register,
+    start,
+    targetIndex,
+  };
 }
 
 function NotificationIcon() {
@@ -2463,13 +3470,13 @@ function NotificationIcon() {
     <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
       <Path
         d="M12 3.5a5.5 5.5 0 0 0-5.5 5.5v3.2L5 15.5h14l-1.5-3.3V9A5.5 5.5 0 0 0 12 3.5Z"
-        stroke="#2A2A26"
+        stroke={colors.surface}
         strokeWidth={1.7}
         strokeLinejoin="round"
       />
       <Path
         d="M10 18.2a2 2 0 0 0 4 0"
-        stroke="#2A2A26"
+        stroke={colors.surface}
         strokeWidth={1.7}
         strokeLinecap="round"
       />
@@ -2482,7 +3489,7 @@ function DayCheckIcon() {
     <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
       <Path
         d="M6 12.5l4 4 8-9"
-        stroke="#FFFFFF"
+        stroke="#5A4636"
         strokeWidth={3.2}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -2494,14 +3501,14 @@ function DayCheckIcon() {
 function InfoIcon() {
   return (
     <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-      <Circle cx={12} cy={12} r={9} stroke="#9A968E" strokeWidth={1.6} />
+      <Circle cx={12} cy={12} r={9} stroke="#AA9A8D" strokeWidth={1.6} />
       <Path
         d="M12 10.6v6"
-        stroke="#9A968E"
+        stroke="#AA9A8D"
         strokeWidth={1.8}
         strokeLinecap="round"
       />
-      <Circle cx={12} cy={7.6} r={1.1} fill="#9A968E" />
+      <Circle cx={12} cy={7.6} r={1.1} fill="#AA9A8D" />
     </Svg>
   );
 }
@@ -2515,31 +3522,17 @@ function CalendarIcon() {
         width={17}
         height={15}
         rx={3.5}
-        stroke="#4E8B3A"
+        stroke="#F6BA50"
         strokeWidth={1.7}
       />
       <Path
         d="M3.5 10h17M8.5 3.5v4M15.5 3.5v4"
-        stroke="#4E8B3A"
+        stroke="#F6BA50"
         strokeWidth={1.7}
         strokeLinecap="round"
       />
-      <Circle cx={8.5} cy={14} r={1.2} fill="#4E8B3A" />
-      <Circle cx={12.5} cy={14} r={1.2} fill="#4E8B3A" />
-    </Svg>
-  );
-}
-
-function ProgressCheckIcon() {
-  return (
-    <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M6 12.5l4 4 8-9"
-        stroke="#FFFFFF"
-        strokeWidth={3.2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <Circle cx={8.5} cy={14} r={1.2} fill="#F6BA50" />
+      <Circle cx={12.5} cy={14} r={1.2} fill="#F6BA50" />
     </Svg>
   );
 }
@@ -2549,7 +3542,7 @@ function CheckinChevronIcon() {
     <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
       <Path
         d="M9 5.5L16 12l-7 6.5"
-        stroke="#2A2A26"
+        stroke="#5A4636"
         strokeWidth={2.2}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -2570,26 +3563,12 @@ function RoutineDragIcon() {
   );
 }
 
-function StartChevronIcon() {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M9 5.5L16 12l-7 6.5"
-        stroke="#FFFFFF"
-        strokeWidth={2.2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
-
 function EditIcon() {
   return (
     <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
       <Path
         d="M4 16.5 15.5 5l3.5 3.5L7.5 20H4v-3.5Z"
-        stroke="#3E7A32"
+        stroke="#A45F00"
         strokeWidth={1.8}
         strokeLinejoin="round"
       />
@@ -2712,16 +3691,6 @@ function cleanRoutineItems(items: readonly HomeRoutineItem[]) {
   return cleaned;
 }
 
-function moveItem<T>(items: readonly T[], from: number, to: number): T[] {
-  const next = Array.from(items);
-  const removed = next.splice(from, 1)[0];
-  if (removed === undefined) {
-    return next;
-  }
-  next.splice(to, 0, removed);
-  return next;
-}
-
 function createHomeStyles(
   s: (value: number) => number,
   f: (value: number) => number,
@@ -2730,14 +3699,14 @@ function createHomeStyles(
   const shadow = (y: number, blur: number, opacity: number) => ({
     ...Platform.select({
       ios: {
-        shadowColor: '#2F5233',
+        shadowColor: '#5A4636',
         shadowOffset: { width: 0, height: s(y) },
         shadowOpacity: opacity,
         shadowRadius: s(blur / 2),
       },
       android: { elevation: y <= 4 ? 2 : 3 },
       default: {
-        shadowColor: '#2F5233',
+        shadowColor: '#5A4636',
         shadowOffset: { width: 0, height: s(y) },
         shadowOpacity: opacity,
         shadowRadius: s(blur / 2),
@@ -2745,7 +3714,7 @@ function createHomeStyles(
     }),
   });
   return StyleSheet.create({
-    screen: { flex: 1, overflow: 'hidden', backgroundColor: '#FAF7F1' },
+    screen: { flex: 1, overflow: 'hidden', backgroundColor: '#FFF8E5' },
     gradient: { flex: 1 },
     scroll: { flex: 1 },
     scrollContent: {
@@ -2764,7 +3733,7 @@ function createHomeStyles(
     },
     headerCopy: { minWidth: 0, flex: 1 },
     greeting: {
-      color: '#FFFFFF',
+      color: '#5A4636',
       fontSize: f(22),
       fontWeight: '800',
       lineHeight: f(27.5),
@@ -2772,10 +3741,11 @@ function createHomeStyles(
       textShadowOffset: { width: 0, height: s(1) },
       textShadowRadius: s(2),
     },
-    greetingName: { color: '#FFD84D' },
+    greetingName: { color: colors.greenText },
+    greetingJua: { fontFamily: fontFamilies.slogan, fontWeight: '400' },
     date: {
       marginTop: s(6),
-      color: '#F3FBE4',
+      color: colors.text,
       fontSize: f(13),
       fontWeight: '600',
       opacity: 0.95,
@@ -2788,7 +3758,7 @@ function createHomeStyles(
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: s(14),
-      backgroundColor: '#FBF6DF',
+      backgroundColor: colors.text,
       ...shadow(4, 10, 0.14),
     },
     notificationDot: {
@@ -2798,6 +3768,8 @@ function createHomeStyles(
       width: s(9),
       height: s(9),
       borderRadius: s(4.5),
+      borderWidth: s(1.5),
+      borderColor: colors.surface,
       backgroundColor: '#E9503F',
     },
     hidden: { display: 'none' },
@@ -2809,12 +3781,7 @@ function createHomeStyles(
       backgroundColor: '#FFFFFF',
       ...shadow(4, 12, 0.18),
     },
-    profilePlaceholder: {
-      width: '100%',
-      height: '100%',
-      borderRadius: s(24),
-      backgroundColor: '#F1F6E7',
-    },
+    profileAvatar: { width: '100%', height: '100%' },
     summaryCard: {
       marginBottom: s(14),
       borderRadius: s(22),
@@ -2822,8 +3789,8 @@ function createHomeStyles(
       padding: s(16),
       ...shadow(6, 18, 0.1),
     },
-    cardTitle: { color: '#2A2A26', fontSize: f(15), fontWeight: '800' },
-    greenText: { color: '#3E7A32' },
+    cardTitle: { color: '#5A4636', fontSize: f(15), fontWeight: '800' },
+    greenText: { color: '#A45F00' },
     weekRow: { flexDirection: 'row', gap: s(6), marginTop: s(14) },
     weekDay: { minWidth: 0, flex: 1, alignItems: 'center', gap: s(6) },
     weekCircle: {
@@ -2834,14 +3801,14 @@ function createHomeStyles(
       borderWidth: s(2),
       borderRadius: s(16),
     },
-    weekCircleCompleted: { borderColor: '#4E8B3A', backgroundColor: '#4E8B3A' },
+    weekCircleCompleted: { borderColor: '#F6BA50', backgroundColor: '#F6BA50' },
     weekCircleIncomplete: {
       borderColor: '#D8D4CB',
       borderStyle: 'dashed',
       backgroundColor: '#FFFFFF',
     },
     weekLabel: { fontSize: f(11.5), fontWeight: '700' },
-    weekLabelCompleted: { color: '#3E7A32' },
+    weekLabelCompleted: { color: '#A45F00' },
     weekLabelIncomplete: { color: '#B0ACA4' },
     progressCard: {
       marginBottom: s(14),
@@ -2865,11 +3832,11 @@ function createHomeStyles(
       gap: s(2),
     },
     iconButton: { alignItems: 'center', justifyContent: 'center' },
-    weekRange: { color: '#8B8780', fontSize: f(12), fontWeight: '600' },
+    weekRange: { color: '#958476', fontSize: f(12), fontWeight: '600' },
     tip: {
       marginTop: s(10),
       borderRadius: s(12),
-      backgroundColor: '#F1F6E7',
+      backgroundColor: '#FFF8E5',
       paddingVertical: s(10),
       paddingHorizontal: s(12),
     },
@@ -2881,66 +3848,26 @@ function createHomeStyles(
       gap: s(10),
       marginTop: s(14),
     },
-    countLabel: { color: '#2A2A26', fontSize: f(15), fontWeight: '800' },
-    countValue: { color: '#3E7A32', fontSize: f(22) },
+    countLabel: { color: '#5A4636', fontSize: f(15), fontWeight: '800' },
+    countValue: { color: '#A45F00', fontSize: f(15) },
+    completedCountValue: { color: '#A45F00', fontSize: f(22) },
+    progressPercent: { color: '#A45F00', fontSize: f(22), fontWeight: '800' },
     progressCells: { flexDirection: 'row', gap: s(8), marginTop: s(12) },
     progressCell: {
       position: 'relative',
       minWidth: 0,
       flex: 1,
       aspectRatio: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
       borderRadius: s(14),
       padding: s(5),
     },
-    progressCellCompleted: { backgroundColor: '#EDF5E2', opacity: 1 },
+    progressCellCompleted: { backgroundColor: '#FFF3D4', opacity: 1 },
     progressCellIncomplete: { backgroundColor: '#F3F1EB', opacity: 0.55 },
-    progressImage: { width: '100%', height: '100%' },
+    progressImage: { width: '78%', height: '78%' },
     todoImage: { opacity: 1 },
-    progressBadge: {
-      position: 'absolute',
-      top: s(-4),
-      right: s(-4),
-      width: s(20),
-      height: s(20),
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: s(2),
-      borderColor: '#FFFFFF',
-      borderRadius: s(10),
-      backgroundColor: '#4E8B3A',
-    },
     checkinWrapper: { marginBottom: s(16) },
-    checkinButton: {
-      width: '100%',
-      minHeight: s(64),
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: s(6),
-      borderRadius: s(20),
-      paddingVertical: s(19),
-      paddingHorizontal: s(20),
-    },
-    checkinButtonIdle: {
-      borderBottomWidth: s(6),
-      borderBottomColor: '#E0AF25',
-      backgroundColor: '#FBD24E',
-    },
-    checkinButtonPressed: {
-      transform: [{ translateY: s(3) }],
-      borderBottomWidth: s(2),
-      borderBottomColor: 'rgba(47,82,51,.18)',
-      backgroundColor: '#EFC02F',
-    },
-    checkinLabel: {
-      paddingLeft: s(22),
-      color: '#342E17',
-      fontSize: f(21),
-      fontWeight: '400',
-      letterSpacing: s(0.5),
-      textAlign: 'center',
-    },
-    checkinSuffix: { fontSize: f(21) },
-    juaLabel: { fontFamily: fontFamilies.slogan, fontWeight: '400' },
     messageCard: {
       alignItems: 'center',
       marginBottom: s(16),
@@ -2951,26 +3878,17 @@ function createHomeStyles(
       ...shadow(6, 18, 0.1),
     },
     messageTitle: {
-      color: '#2A2A26',
+      color: '#5A4636',
       fontSize: f(15),
       fontWeight: '800',
       textAlign: 'center',
     },
-    loadingTitle: { marginTop: s(14) },
     messageText: {
       marginTop: s(8),
-      color: '#8B8780',
+      color: '#958476',
       fontSize: f(13),
       lineHeight: f(19.5),
       textAlign: 'center',
-    },
-    loadingRing: {
-      width: s(26),
-      height: s(26),
-      borderWidth: s(3),
-      borderColor: '#E3EDD3',
-      borderTopColor: '#4E8B3A',
-      borderRadius: s(13),
     },
     routineCard: {
       position: 'relative',
@@ -2983,30 +3901,54 @@ function createHomeStyles(
       paddingBottom: s(8),
       ...shadow(6, 18, 0.1),
     },
+    routineBadgeRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: s(8),
+    },
     routineBadge: {
       alignSelf: 'flex-start',
       borderRadius: 999,
-      backgroundColor: '#4E8B3A',
+      backgroundColor: '#F6BA50',
       paddingVertical: s(6),
       paddingHorizontal: s(12),
     },
-    routineBadgeText: { color: '#FFFFFF', fontSize: f(12), fontWeight: '700' },
+    routineBadgeText: { color: '#5A4636', fontSize: f(12), fontWeight: '700' },
+    routineActionBadge: {
+      alignSelf: 'flex-start',
+      borderWidth: s(1.5),
+      borderColor: '#F1D39A',
+      borderRadius: 999,
+      backgroundColor: '#FFFFFF',
+      paddingVertical: s(4.5),
+      paddingHorizontal: s(11),
+    },
+    routineActionBadgeAdjusted: {
+      borderColor: '#F6BA50',
+      backgroundColor: '#FFF8E5',
+    },
+    routineActionBadgeText: {
+      color: '#A45F00',
+      fontSize: f(12),
+      fontWeight: '700',
+    },
     routineTitle: {
       marginTop: s(12),
-      color: '#2A2A26',
+      color: '#5A4636',
       fontSize: f(26),
       fontWeight: '800',
       letterSpacing: s(-0.5),
     },
     routineSummary: {
       marginTop: s(10),
-      color: '#3E7A32',
+      color: '#A45F00',
       fontSize: f(14),
       fontWeight: '700',
     },
     routineNotes: { gap: s(4), marginTop: s(10) },
     routineNote: {
-      color: '#6F6B63',
+      color: '#7B695B',
       fontSize: f(13.5),
       fontWeight: '500',
       lineHeight: f(20.925),
@@ -3019,7 +3961,7 @@ function createHomeStyles(
       paddingRight: s(12),
     },
     reasonLinkText: {
-      color: '#3E7A32',
+      color: '#A45F00',
       fontSize: f(12.5),
       fontWeight: '700',
       textDecorationLine: 'underline',
@@ -3028,9 +3970,38 @@ function createHomeStyles(
       gap: s(8),
       marginTop: s(14),
       borderTopWidth: s(1),
-      borderTopColor: '#E2DED4',
+      borderTopColor: '#E8D8C2',
       borderStyle: 'dashed',
       paddingTop: s(12),
+    },
+    routineLoadingSlot: {
+      minHeight: s(220),
+      overflow: 'hidden',
+      marginTop: s(14),
+      marginBottom: s(4),
+      borderTopWidth: s(1),
+      borderTopColor: '#E8D8C2',
+      borderStyle: 'dashed',
+      borderRadius: s(16),
+      backgroundColor: 'rgba(255, 248, 229, 0.62)',
+      padding: s(10),
+    },
+    routineLoadingPreview: {
+      width: '100%',
+      opacity: 0.34,
+    },
+    routineLoadingRow: {
+      minHeight: s(46),
+      justifyContent: 'center',
+      borderRadius: s(12),
+      backgroundColor: '#F3ECE4',
+      paddingHorizontal: s(12),
+    },
+    routineLoadingPlaceholderLine: {
+      width: '68%',
+      height: s(10),
+      borderRadius: 999,
+      backgroundColor: '#CDBEAF',
     },
     orderHint: {
       color: '#A29B8E',
@@ -3039,21 +4010,34 @@ function createHomeStyles(
       letterSpacing: s(0.23),
     },
     dragOuterRoutine: {
+      position: 'relative',
       borderWidth: s(1.5),
       borderColor: 'transparent',
       borderRadius: s(12),
       backgroundColor: 'transparent',
     },
+    dropPlaceholder: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      borderWidth: s(1.5),
+      borderColor: '#E0A742',
+      borderRadius: s(12),
+      borderStyle: 'dashed',
+      backgroundColor: '#FFF3D4',
+    },
     dragOuterEdit: {
+      position: 'relative',
       borderWidth: s(1.5),
       borderColor: 'transparent',
       borderRadius: s(16),
       backgroundColor: 'transparent',
     },
     dragOuterActive: {
-      borderColor: '#7FAE5C',
-      borderStyle: 'dashed',
-      backgroundColor: '#EDF5E2',
+      zIndex: 10,
+      elevation: 4,
     },
     routineRow: {
       flexDirection: 'row',
@@ -3080,28 +4064,56 @@ function createHomeStyles(
       marginBottom: s(-11),
       marginLeft: s(-8),
     },
-    routineItemButton: {
-      minWidth: 0,
-      flex: 1,
-    },
     routineItemText: {
       minWidth: 0,
       flex: 1,
-      color: '#2A2A26',
+      color: '#5A4636',
       fontSize: f(13.5),
       fontWeight: '700',
       lineHeight: f(19.575),
     },
-    routineDot: {
-      width: s(6),
-      height: s(6),
-      borderRadius: s(3),
-      backgroundColor: '#4E8B3A',
+    routineGuideActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: s(4),
+    },
+    routineGuideSlot: {
+      width: s(44),
+      height: s(32),
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    routineGuideButton: {
+      width: s(44),
+      height: s(32),
+      minHeight: s(32),
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: s(1),
+      borderColor: '#C8D7AC',
+      borderRadius: s(999),
+      backgroundColor: '#EDF3DD',
+      paddingHorizontal: 0,
+      paddingVertical: 0,
+    },
+    routineGuideButtonText: {
+      color: '#5F7048',
+      fontSize: f(11.5),
+      fontWeight: '700',
+    },
+    routineEquipmentButton: {
+      borderColor: '#9CC5DF',
+      backgroundColor: '#E7F3FA',
+    },
+    routineEquipmentButtonText: {
+      color: '#356A85',
+      fontSize: f(11.5),
+      fontWeight: '700',
     },
     adjustmentNote: {
       marginTop: s(12),
       borderRadius: s(12),
-      backgroundColor: '#F1F6E7',
+      backgroundColor: '#FFF8E5',
       paddingVertical: s(10),
       paddingHorizontal: s(12),
     },
@@ -3112,17 +4124,40 @@ function createHomeStyles(
     },
     startButton: {
       width: '100%',
+      minHeight: s(58),
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: s(8),
+      position: 'relative',
       marginTop: s(16),
       marginBottom: s(10),
-      borderRadius: s(16),
-      backgroundColor: '#4E8B3A',
-      padding: s(16),
+      borderWidth: s(1),
+      borderColor: 'rgba(218, 150, 30, 0.2)',
+      borderRadius: s(18),
+      overflow: 'hidden',
+      paddingVertical: s(16),
+      paddingHorizontal: s(20),
+      ...shadow(6, 12, 0.13),
     },
-    startLabel: { color: '#FFFFFF', fontSize: f(17), fontWeight: '400' },
+    startButtonDisabled: {
+      borderColor: '#DDD4CA',
+      shadowOpacity: 0,
+      elevation: 0,
+    },
+    startButtonGradient: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+    },
+    startLabel: {
+      color: '#5A4636',
+      fontSize: f(17),
+      fontWeight: '800',
+      letterSpacing: s(-0.1),
+      textAlign: 'center',
+    },
     routineActions: {
       flexDirection: 'row',
       gap: s(8),
@@ -3137,51 +4172,20 @@ function createHomeStyles(
       justifyContent: 'center',
       gap: s(6),
       borderWidth: s(1.5),
-      borderColor: '#CBDDB4',
+      borderColor: '#F1D39A',
       borderRadius: s(16),
       backgroundColor: '#FFFFFF',
       paddingVertical: s(14),
       paddingHorizontal: s(6),
     },
-    routineActionDisabled: { borderColor: '#E7E3DB' },
-    editActionLabel: { color: '#3E7A32', fontSize: f(13.5), fontWeight: '700' },
+    routineActionDisabled: { borderColor: '#EEDFCB' },
+    editActionLabel: { color: '#A45F00', fontSize: f(13.5), fontWeight: '700' },
     rerollActionLabel: {
-      color: '#3E7A32',
+      color: '#A45F00',
       fontSize: f(12.5),
       fontWeight: '700',
     },
     rerollActionLabelDisabled: { color: '#B0ACA4' },
-    bottomBarOuter: {
-      flexShrink: 0,
-      backgroundColor: '#FAF7F1',
-      paddingTop: s(8),
-      paddingHorizontal: s(14),
-      paddingBottom: s(26),
-    },
-    bottomBar: {
-      flexDirection: 'row',
-      borderRadius: s(22),
-      backgroundColor: '#FFFFFF',
-      paddingVertical: s(10),
-      paddingHorizontal: s(6),
-      ...shadow(-2, 14, 0.07),
-    },
-    tab: {
-      minHeight: s(48),
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: s(4),
-      paddingVertical: s(6),
-      paddingHorizontal: s(2),
-    },
-    tabLabel: {
-      color: '#B0ACA4',
-      fontSize: f(11.5),
-      fontWeight: '700',
-      textAlign: 'center',
-    },
-    tabActive: { color: '#3E7A32' },
     sheetOverlay: {
       position: 'absolute',
       top: 0,
@@ -3196,7 +4200,7 @@ function createHomeStyles(
       maxHeight: '88%',
       borderTopLeftRadius: s(28),
       borderTopRightRadius: s(28),
-      backgroundColor: '#FAF7F1',
+      backgroundColor: '#FFF8E5',
       paddingTop: s(20),
       paddingHorizontal: s(18),
       paddingBottom: s(30),
@@ -3207,7 +4211,7 @@ function createHomeStyles(
       justifyContent: 'space-between',
       gap: s(10),
     },
-    sheetTitle: { color: '#2A2A26', fontSize: f(18), fontWeight: '800' },
+    sheetTitle: { color: '#5A4636', fontSize: f(18), fontWeight: '800' },
     closeButton: {
       width: s(44),
       height: s(44),
@@ -3217,10 +4221,10 @@ function createHomeStyles(
       marginRight: s(-12),
       marginBottom: s(-10),
     },
-    closeText: { color: '#8B8780', fontSize: f(22) },
+    closeText: { color: '#958476', fontSize: f(22) },
     sheetIntro: {
       marginTop: s(4),
-      color: '#8B8780',
+      color: '#958476',
       fontSize: f(13),
       lineHeight: f(19.5),
     },
@@ -3232,24 +4236,29 @@ function createHomeStyles(
       padding: s(16),
     },
     reasonRow: { flexDirection: 'row', alignItems: 'flex-start', gap: s(7) },
-    reasonBullet: { color: '#4E8B3A', fontSize: f(14), lineHeight: f(20) },
+    reasonBullet: { color: '#F6BA50', fontSize: f(14), lineHeight: f(20) },
     reasonText: {
       minWidth: 0,
       flex: 1,
-      color: '#6F6B63',
+      color: '#7B695B',
       fontSize: f(13),
       lineHeight: f(19.5),
     },
-    safetyReasonSection: {
-      borderWidth: s(1.5),
-      borderColor: '#E8C3B8',
-      backgroundColor: '#FFF7F4',
+    reasonDisclosureHeader: {
+      minHeight: s(32),
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: s(12),
     },
-    safetyReasonTitle: { color: '#8B3A32' },
-    safetyReasonText: { color: '#6F2F29' },
+    reasonDisclosureAction: {
+      color: '#A45F00',
+      fontSize: f(12),
+      fontWeight: '800',
+    },
     agentSummary: { gap: s(4) },
     agentSummaryLabel: {
-      color: '#3E7A32',
+      color: '#A45F00',
       fontSize: f(12),
       fontWeight: '800',
     },
@@ -3260,11 +4269,12 @@ function createHomeStyles(
       padding: s(16),
     },
     checkinSectionTitle: {
-      color: '#2A2A26',
+      color: '#5A4636',
       fontSize: f(14),
       fontWeight: '700',
     },
     choiceRow: { flexDirection: 'row', gap: s(6), marginTop: s(10) },
+    choiceRowTwoColumn: { flexWrap: 'wrap' },
     choiceButton: {
       minWidth: 0,
       minHeight: s(44),
@@ -3272,18 +4282,23 @@ function createHomeStyles(
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: s(1.5),
-      borderColor: '#E7E3DB',
+      borderColor: '#EEDFCB',
       borderRadius: s(12),
-      backgroundColor: '#FAF7F1',
+      backgroundColor: '#FFF8E5',
       paddingVertical: s(9),
       paddingHorizontal: s(6),
     },
-    choiceButtonSelected: {
-      borderColor: '#4E8B3A',
-      backgroundColor: '#4E8B3A',
+    choiceButtonTwoColumn: {
+      minHeight: s(48),
+      flexBasis: '48%',
+      flexGrow: 1,
     },
-    choiceButtonText: { color: '#2A2A26', fontSize: f(13), fontWeight: '700' },
-    choiceButtonTextSelected: { color: '#FFFFFF' },
+    choiceButtonSelected: {
+      borderColor: '#F6BA50',
+      backgroundColor: '#F6BA50',
+    },
+    choiceButtonText: { color: '#5A4636', fontSize: f(13), fontWeight: '700' },
+    choiceButtonTextSelected: { color: '#5A4636' },
     adverseSection: {
       gap: s(8),
       borderWidth: s(1),
@@ -3334,36 +4349,229 @@ function createHomeStyles(
       backgroundColor: '#FFFFFF',
       padding: s(16),
     },
-    numberLabel: { color: '#2A2A26', fontSize: f(14), fontWeight: '700' },
-    optionalText: { color: '#8B8780', fontWeight: '500' },
+    numberLabel: { color: '#5A4636', fontSize: f(14), fontWeight: '700' },
+    optionalText: { color: '#958476', fontWeight: '500' },
+    durationStepper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: s(10),
+    },
+    durationStepButton: {
+      width: s(44),
+      height: s(44),
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: s(1),
+      borderColor: '#EEDFCB',
+      borderRadius: s(12),
+      backgroundColor: '#FFF8E5',
+    },
+    durationStepButtonDisabled: { opacity: 0.4 },
+    durationStepButtonText: {
+      color: '#5A4636',
+      fontSize: f(22),
+      fontWeight: '800',
+      lineHeight: f(24),
+    },
+    durationStepValue: {
+      minWidth: s(46),
+      color: '#5A4636',
+      fontSize: f(15),
+      fontWeight: '800',
+      textAlign: 'center',
+    },
     numberInputGroup: { flexDirection: 'row', alignItems: 'center', gap: s(6) },
     numberInput: {
       width: s(84),
       borderWidth: s(1),
-      borderColor: '#E7E3DB',
+      borderColor: '#EEDFCB',
       borderRadius: s(12),
-      backgroundColor: '#FAF7F1',
-      color: '#2A2A26',
+      backgroundColor: '#FFF8E5',
+      color: '#5A4636',
       fontSize: f(14),
       fontWeight: '700',
       paddingVertical: s(11),
       paddingHorizontal: s(12),
       textAlign: 'right',
     },
+    availabilitySection: {
+      gap: s(10),
+      borderRadius: s(18),
+      backgroundColor: '#FFFFFF',
+      padding: s(16),
+    },
+    availabilityHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: s(5),
+    },
+    availabilitySlotRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: s(8),
+    },
+    availabilityTimeButton: {
+      flex: 1,
+      minWidth: 0,
+      minHeight: s(44),
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: s(1),
+      borderColor: '#EEDFCB',
+      borderRadius: s(12),
+      backgroundColor: '#FFF8E5',
+      paddingVertical: s(11),
+      paddingHorizontal: s(10),
+    },
+    availabilityTimeText: {
+      color: '#5A4636',
+      fontSize: f(14),
+      fontWeight: '700',
+      textAlign: 'center',
+    },
+    availabilityTimePlaceholder: { color: '#AAA69F', fontWeight: '600' },
+    availabilitySeparator: {
+      color: '#958476',
+      fontSize: f(15),
+      fontWeight: '700',
+    },
+    availabilityRemoveButton: {
+      width: s(28),
+      height: s(42),
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    availabilityAddButton: {
+      minHeight: s(44),
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: s(1),
+      borderColor: '#E0A742',
+      borderStyle: 'dashed',
+      borderRadius: s(12),
+      backgroundColor: '#FFF8E5',
+    },
+    availabilityAddLabel: {
+      color: '#A45F00',
+      fontSize: f(13),
+      fontWeight: '700',
+    },
+    availabilityHelpText: {
+      color: '#958476',
+      fontSize: f(12),
+      lineHeight: f(18),
+    },
+    timePickerIntro: {
+      marginTop: s(2),
+      color: '#958476',
+      fontSize: f(13),
+      lineHeight: f(19),
+    },
+    timePickerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: s(10),
+      marginTop: s(16),
+    },
+    timePickerColon: {
+      color: '#5A4636',
+      fontSize: f(24),
+      fontWeight: '800',
+    },
+    timeWheelColumn: {
+      position: 'relative',
+      minWidth: 0,
+      height: TIME_WHEEL_ITEM_HEIGHT * 3,
+      flex: 1,
+      overflow: 'hidden',
+      borderWidth: s(1),
+      borderColor: '#EEDFCB',
+      borderRadius: s(14),
+      backgroundColor: '#FFFFFF',
+    },
+    timeWheelScroll: { zIndex: 2 },
+    timeWheelContent: { paddingVertical: TIME_WHEEL_ITEM_HEIGHT },
+    timeWheelSelection: {
+      position: 'absolute',
+      top: TIME_WHEEL_ITEM_HEIGHT,
+      right: s(5),
+      left: s(5),
+      height: TIME_WHEEL_ITEM_HEIGHT,
+      borderRadius: s(9),
+      backgroundColor: '#FFF3D4',
+    },
+    timeWheelItem: {
+      height: TIME_WHEEL_ITEM_HEIGHT,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    timeWheelItemText: {
+      color: '#958476',
+      fontSize: f(17),
+      fontWeight: '600',
+    },
+    timeWheelItemTextSelected: { color: '#A45F00', fontWeight: '800' },
+    timeWheelItemSuffix: { fontSize: f(12), fontWeight: '600' },
+    timePickerActions: {
+      flexDirection: 'row',
+      gap: s(10),
+      marginTop: s(18),
+    },
+    timePickerCancelButton: {
+      minHeight: s(48),
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: s(1),
+      borderColor: '#D8D4CB',
+      borderRadius: s(14),
+      backgroundColor: '#FFFFFF',
+    },
+    timePickerCancelLabel: {
+      color: '#6F6B64',
+      fontSize: f(15),
+      fontWeight: '700',
+    },
+    timePickerConfirmButton: {
+      minHeight: s(48),
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: s(14),
+      backgroundColor: '#F6BA50',
+    },
+    timePickerConfirmLabel: {
+      color: '#5A4636',
+      fontSize: f(15),
+      fontWeight: '800',
+    },
     stepsInput: { width: s(110) },
-    numberSuffix: { color: '#8B8780', fontSize: f(13) },
+    numberSuffix: { color: '#958476', fontSize: f(13) },
     sheetSaveButton: {
+      position: 'relative',
       width: '100%',
       alignItems: 'center',
       justifyContent: 'center',
       marginTop: s(8),
-      borderBottomWidth: s(5),
-      borderBottomColor: '#E0AF25',
+      borderWidth: s(1),
+      borderColor: 'rgba(244, 166, 42, 0.8)',
       borderRadius: s(18),
-      backgroundColor: '#FBD24E',
       padding: s(17),
+      shadowColor: '#AD741D',
+      shadowOffset: { width: 0, height: s(5) },
+      shadowOpacity: 0.11,
+      shadowRadius: s(6),
+      elevation: 3,
     },
-    sheetSaveLabel: { color: '#2A2A26', fontSize: f(18), fontWeight: '400' },
+    sheetSaveGradient: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      borderRadius: s(18),
+    },
+    sheetSaveLabel: { color: '#5A4636', fontSize: f(18), fontWeight: '800' },
     editScrollContent: { paddingBottom: s(5) },
     editList: { gap: s(8), marginTop: s(14) },
     editRow: {
@@ -3387,7 +4595,7 @@ function createHomeStyles(
     editNameInput: {
       minWidth: 0,
       flex: 1,
-      color: '#2A2A26',
+      color: '#5A4636',
       fontSize: f(13.5),
       fontWeight: '700',
       paddingVertical: s(6),
@@ -3395,10 +4603,10 @@ function createHomeStyles(
     editSetsInput: {
       width: s(38),
       borderWidth: s(1),
-      borderColor: '#E7E3DB',
+      borderColor: '#EEDFCB',
       borderRadius: s(10),
-      backgroundColor: '#FAF7F1',
-      color: '#2A2A26',
+      backgroundColor: '#FFF8E5',
+      color: '#5A4636',
       fontSize: f(13),
       fontWeight: '700',
       paddingVertical: s(8),
@@ -3408,10 +4616,10 @@ function createHomeStyles(
     editRepsInput: {
       width: s(44),
       borderWidth: s(1),
-      borderColor: '#E7E3DB',
+      borderColor: '#EEDFCB',
       borderRadius: s(10),
-      backgroundColor: '#FAF7F1',
-      color: '#2A2A26',
+      backgroundColor: '#FFF8E5',
+      color: '#5A4636',
       fontSize: f(13),
       fontWeight: '700',
       paddingVertical: s(8),
@@ -3428,13 +4636,13 @@ function createHomeStyles(
     addBox: {
       marginTop: s(12),
       borderWidth: s(1.5),
-      borderColor: '#CBDDB4',
+      borderColor: '#F1D39A',
       borderStyle: 'dashed',
       borderRadius: s(16),
       backgroundColor: '#FFFFFF',
       padding: s(12),
     },
-    addTitle: { color: '#3E7A32', fontSize: f(12), fontWeight: '700' },
+    addTitle: { color: '#A45F00', fontSize: f(12), fontWeight: '700' },
     addInputRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -3445,10 +4653,10 @@ function createHomeStyles(
       minWidth: 0,
       flex: 1,
       borderWidth: s(1),
-      borderColor: '#E7E3DB',
+      borderColor: '#EEDFCB',
       borderRadius: s(10),
-      backgroundColor: '#FAF7F1',
-      color: '#2A2A26',
+      backgroundColor: '#FFF8E5',
+      color: '#5A4636',
       fontSize: f(13.5),
       fontWeight: '700',
       padding: s(10),
@@ -3456,10 +4664,10 @@ function createHomeStyles(
     addSetsInput: {
       width: s(38),
       borderWidth: s(1),
-      borderColor: '#E7E3DB',
+      borderColor: '#EEDFCB',
       borderRadius: s(10),
-      backgroundColor: '#FAF7F1',
-      color: '#2A2A26',
+      backgroundColor: '#FFF8E5',
+      color: '#5A4636',
       fontSize: f(13),
       fontWeight: '700',
       paddingVertical: s(10),
@@ -3469,10 +4677,10 @@ function createHomeStyles(
     addRepsInput: {
       width: s(44),
       borderWidth: s(1),
-      borderColor: '#E7E3DB',
+      borderColor: '#EEDFCB',
       borderRadius: s(10),
-      backgroundColor: '#FAF7F1',
-      color: '#2A2A26',
+      backgroundColor: '#FFF8E5',
+      color: '#5A4636',
       fontSize: f(13),
       fontWeight: '700',
       paddingVertical: s(10),
@@ -3485,14 +4693,14 @@ function createHomeStyles(
       borderRadius: s(12),
       padding: s(12),
     },
-    addButtonEnabled: { backgroundColor: '#4E8B3A' },
-    addButtonDisabled: { backgroundColor: '#E7E3DB' },
+    addButtonEnabled: { backgroundColor: '#F6BA50' },
+    addButtonDisabled: { backgroundColor: '#EEDFCB' },
     addButtonText: {
       fontSize: f(13.5),
       fontWeight: '700',
       textAlign: 'center',
     },
-    addButtonTextEnabled: { color: '#FFFFFF' },
+    addButtonTextEnabled: { color: '#5A4636' },
     addButtonTextDisabled: { color: '#B0ACA4' },
     editActions: { flexDirection: 'row', gap: s(8), marginTop: s(16) },
     resetButton: {
@@ -3500,52 +4708,22 @@ function createHomeStyles(
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: s(1.5),
-      borderColor: '#E7E3DB',
+      borderColor: '#EEDFCB',
       borderRadius: s(18),
       backgroundColor: '#FFFFFF',
       paddingVertical: s(16),
       paddingHorizontal: s(8),
     },
-    resetLabel: { color: '#8B8780', fontSize: f(12.5), fontWeight: '700' },
+    resetLabel: { color: '#958476', fontSize: f(12.5), fontWeight: '700' },
     editSaveButton: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
       borderBottomWidth: s(5),
-      borderBottomColor: '#E0AF25',
+      borderBottomColor: '#D98B16',
       borderRadius: s(18),
-      backgroundColor: '#FBD24E',
+      backgroundColor: '#F6BA50',
       padding: s(16),
-    },
-    outlineContainer: {
-      minWidth: 0,
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    outlineTextContainer: {
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    outlineText: {
-      position: 'absolute',
-    },
-    outlineLeft: { transform: [{ translateX: s(-1) }] },
-    outlineRight: { transform: [{ translateX: s(1) }] },
-    outlineTop: { transform: [{ translateY: s(-1) }] },
-    outlineBottom: { transform: [{ translateY: s(1) }] },
-    outlineTopLeft: {
-      transform: [{ translateX: s(-1) }, { translateY: s(-1) }],
-    },
-    outlineTopRight: {
-      transform: [{ translateX: s(1) }, { translateY: s(-1) }],
-    },
-    outlineBottomLeft: {
-      transform: [{ translateX: s(-1) }, { translateY: s(1) }],
-    },
-    outlineBottomRight: {
-      transform: [{ translateX: s(1) }, { translateY: s(1) }],
     },
   });
 }

@@ -1,11 +1,18 @@
 export type MapHomePreviewState = 'map' | 'routine' | 'condition';
 export type CalendarReportPreviewState =
   'calendar' | 'week-detail' | 'month-picker';
-export type MyPagePreviewState = 'profile' | 'logout' | 'withdraw';
+export type MyPagePreviewState =
+  | 'profile'
+  | 'loading'
+  | 'empty'
+  | 'error'
+  | 'permission'
+  | 'logout'
+  | 'withdraw';
 export type CalendarDayStatus =
   'done' | 'partial' | 'miss' | 'rest' | 'today' | 'upcoming';
 export type CalendarWeekState =
-  'progress' | 'make' | 'unread' | 'read' | 'upcoming';
+  'progress' | 'make' | 'unread' | 'read' | 'unavailable' | 'upcoming';
 
 export type CalendarDay = {
   day: string;
@@ -54,6 +61,10 @@ export const CALENDAR_REPORT_PREVIEW_OPTIONS = [
 
 export const MY_PAGE_PREVIEW_OPTIONS = [
   { id: 'profile', label: '마이페이지' },
+  { id: 'loading', label: '불러오는 중' },
+  { id: 'empty', label: '프로필 없음' },
+  { id: 'error', label: '불러오기 실패' },
+  { id: 'permission', label: '권한 없음' },
   { id: 'logout', label: '로그아웃 확인' },
   { id: 'withdraw', label: '회원 탈퇴 확인' },
 ] as const satisfies readonly {
@@ -65,16 +76,16 @@ export const CALENDAR_DAY_VISUALS = {
   done: {
     label: '완료',
     glyph: '✓',
-    backgroundColor: '#4E8B3A',
+    backgroundColor: '#F6BA50',
     color: '#FFFFFF',
-    borderColor: '#4E8B3A',
+    borderColor: '#F6BA50',
   },
   partial: {
     label: '부분 수행',
-    glyph: '◐',
-    backgroundColor: '#FBD24E',
+    glyph: '△',
+    backgroundColor: '#F6BA50',
     color: '#6B520C',
-    borderColor: '#FBD24E',
+    borderColor: '#F6BA50',
   },
   miss: {
     label: '미수행',
@@ -92,10 +103,10 @@ export const CALENDAR_DAY_VISUALS = {
   },
   today: {
     label: '오늘',
-    glyph: '●',
-    backgroundColor: '#FFFFFF',
-    color: '#3E7A32',
-    borderColor: '#4E8B3A',
+    glyph: '',
+    backgroundColor: 'transparent',
+    color: 'transparent',
+    borderColor: 'transparent',
   },
   upcoming: {
     label: '예정',
@@ -119,29 +130,36 @@ export const CALENDAR_WEEK_CHIPS = {
   progress: {
     label: '진행 중',
     backgroundColor: '#FFFFFF',
-    color: '#3E7A32',
-    borderColor: '#CBDDB4',
+    color: '#A45F00',
+    borderColor: '#F1D39A',
     borderStyle: 'solid',
   },
   make: {
-    label: '리포트 만들기',
-    backgroundColor: '#FBD24E',
-    color: '#3A320F',
-    borderColor: '#EFC02F',
+    label: '리포트 생성 가능!',
+    backgroundColor: '#E7F3FA',
+    color: '#356A85',
+    borderColor: '#9CC5DF',
     borderStyle: 'solid',
   },
   unread: {
-    label: '확인 필요',
-    backgroundColor: '#FDECE9',
-    color: '#C2402F',
-    borderColor: '#F5C9C1',
+    label: '리포트 확인하기',
+    backgroundColor: '#EDF3DD',
+    color: '#5F7048',
+    borderColor: '#C8D7AC',
     borderStyle: 'solid',
   },
   read: {
     label: '확인 완료',
-    backgroundColor: 'transparent',
-    color: '#9A968E',
-    borderColor: '#E2DED4',
+    backgroundColor: '#EDF3DD',
+    color: '#5F7048',
+    borderColor: '#C8D7AC',
+    borderStyle: 'solid',
+  },
+  unavailable: {
+    label: '리포트 오류',
+    backgroundColor: '#FDECE9',
+    color: '#C2402F',
+    borderColor: '#F5C9C1',
     borderStyle: 'solid',
   },
   upcoming: {
@@ -173,8 +191,8 @@ export const CALENDAR_WEEKDAYS = [
 ] as const;
 
 export const CALENDAR_MONTH_STATS = [
-  { key: 'done', label: '완료', value: 4, color: '#3E7A32' },
-  { key: 'partial', label: '부분 수행', value: 3, color: '#B58A1E' },
+  { key: 'done', label: '완료', value: 4, color: '#A45F00' },
+  { key: 'partial', label: '부분 수행', value: 3, color: '#EE875B' },
   { key: 'rest', label: '휴식', value: 3, color: '#6F6B63' },
   { key: 'miss', label: '미수행', value: 1, color: '#C0BBB1' },
 ] as const satisfies readonly CalendarMonthStat[];
@@ -186,7 +204,7 @@ export const CALENDAR_WEEKS = [
     label: '1주차',
     range: '7.27 – 8.2',
     state: 'read',
-    bandColor: '#EFF4E6',
+    bandColor: '#FFF8E5',
     days: [
       { day: '27', status: 'done', inCurrentMonth: false },
       { day: '28', status: 'done', inCurrentMonth: false },
@@ -224,7 +242,7 @@ export const CALENDAR_WEEKS = [
     label: '3주차',
     range: '8.10 – 8.16',
     state: 'progress',
-    bandColor: '#DCEBC4',
+    bandColor: '#FFEBC2',
     days: [
       { day: '10', status: 'done', inCurrentMonth: true },
       { day: '11', status: 'partial', inCurrentMonth: true },
@@ -297,12 +315,12 @@ export const CALENDAR_WEEKS = [
 ] as const satisfies readonly CalendarWeek[];
 
 export const MY_PAGE_PROFILE_ROWS = [
-  ['운동 목표', '체력 향상'],
-  ['운동 경험', '초보'],
-  ['선호 운동', '근력 · 유산소'],
-  ['운동 장소', '헬스장'],
-  ['희망 시간', '40분'],
-  ['주의 부위', '무릎'],
+  ['primary_goal_code', '운동 목표', '체력 증진'],
+  ['experience_level_code', '운동 경험', '초급'],
+  ['available_location_codes', '운동 장소', '헬스장'],
+  ['default_requested_duration_minutes', '희망 시간', '40분'],
+  ['desired_weekly_workout_count', '주간 목표', '4회'],
+  ['attention_area_codes', '통증 부위', '무릎'],
 ] as const;
 
 export const MY_PAGE_ACCOUNT_ROWS = [
