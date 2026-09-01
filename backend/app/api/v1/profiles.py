@@ -23,6 +23,7 @@ from backend.app.modules.profiles.age import (
     InvalidBirthdateError,
     InvalidTimezoneError,
 )
+from backend.app.modules.profiles.onboarding_completion import OnboardingCompletionService
 from backend.app.modules.profiles.ports import (
     BirthdateCipher,
     ProfileRepositoryPort,
@@ -47,6 +48,13 @@ from backend.app.modules.profiles.service import (
     RequiredConsentMissingError,
     StaleProfileError,
     UserNotFoundError,
+)
+from backend.app.modules.routines.ports import RoutineRepositoryPort
+from backend.app.modules.routines.service import (
+    ApprovedCatalogUnavailableError,
+    RoutineContentUnavailableError,
+    RoutineDurationUnavailableError,
+    RoutineService,
 )
 
 router = APIRouter(prefix="/me", tags=["profile"])
@@ -111,6 +119,24 @@ def _log_profile_configuration_error(request: Request) -> None:
 
 
 def _translate_profile_error(exc: Exception, *, request: Request | None = None) -> AppError:
+    if isinstance(exc, ApprovedCatalogUnavailableError):
+        return AppError(
+            status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+            code="APPROVED_CATALOG_UNAVAILABLE",
+            message="운영 승인된 운동 카탈로그를 현재 사용할 수 없습니다.",
+        )
+    if isinstance(exc, RoutineContentUnavailableError):
+        return AppError(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+            code="ROUTINE_CONTENT_UNAVAILABLE",
+            message="승인된 운동 콘텐츠로 기본 루틴을 구성할 수 없습니다.",
+        )
+    if isinstance(exc, RoutineDurationUnavailableError):
+        return AppError(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+            code="ROUTINE_DURATION_UNAVAILABLE",
+            message="요청한 시간에 맞는 기본 루틴을 구성할 수 없습니다.",
+        )
     if isinstance(exc, AgeRequirementNotMetError):
         return AppError(
             status_code=HTTPStatus.FORBIDDEN,
@@ -233,12 +259,13 @@ def upsert_onboarding(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_db_session)],
     repository: Annotated[ProfileRepositoryPort, Depends(get_profile_repository)],
+    routine_repository: Annotated[RoutineRepositoryPort, Depends(get_routine_repository)],
     birthdate_cipher: Annotated[BirthdateCipher | None, Depends(get_birthdate_cipher)],
 ) -> OnboardingResponse:
     try:
-        return _service(request, repository, birthdate_cipher).upsert_onboarding(
-            session, current_user.user_id, payload, idempotency_key
-        )
+        return OnboardingCompletionService(
+            _service(request, repository, birthdate_cipher), RoutineService(routine_repository)
+        ).complete(session, current_user.user_id, payload, idempotency_key)
     except (
         AgeRequirementNotMetError,
         InvalidBirthdateError,
@@ -247,6 +274,9 @@ def upsert_onboarding(
         RequiredConsentMissingError,
         IdempotencyKeyReusedError,
         ProfileConfigurationError,
+        ApprovedCatalogUnavailableError,
+        RoutineContentUnavailableError,
+        RoutineDurationUnavailableError,
         IntegrityError,
         SQLAlchemyError,
     ) as exc:

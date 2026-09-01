@@ -38,7 +38,11 @@ from backend.app.db.models.catalog import (
     MovementPattern,
     TrainingType,
 )
+from backend.app.db.models.decision import DecisionRun
 from backend.app.db.models.identity import User
+from backend.app.db.models.profile import UserProfile
+from backend.app.db.models.routine import Routine
+from backend.app.db.repositories.routine import RoutineRepository
 from backend.app.integrations.birthdate_crypto import LocalAesGcmBirthdateCipher
 from backend.app.main import create_app
 from backend.app.modules.identity.ports import VerifiedFirebaseIdentity
@@ -238,6 +242,69 @@ def _decide(
     )
     assert response.status_code == 201, response.text
     return dict(response.json())
+
+
+def test_onboarding_provisions_base_routine_without_creating_a_daily_decision(
+    client: TestClient, engine: Engine
+) -> None:
+    onboarding = _onboard(client)
+    assert onboarding["onboarding_completed"] is True
+
+    with Session(engine) as session:
+        assert session.scalar(select(func.count()).select_from(Routine)) == 1
+        assert session.scalar(select(func.count()).select_from(DecisionRun)) == 0
+        today = session.scalar(select(Routine.effective_from))
+        assert today is not None
+
+    current = client.get("/api/v1/routines/current", params={"local_date": today.isoformat()})
+    assert current.status_code == 200, current.text
+
+    context = _check_in(client, local_date=today)
+    decision = _decide(client, context, local_date=today)
+    assert decision["status_code"] == "COMPLETED"
+
+    with Session(engine) as session:
+        assert session.scalar(select(func.count()).select_from(DecisionRun)) == 1
+
+
+def test_onboarding_rolls_back_when_initial_base_routine_cannot_be_created(
+    client: TestClient, engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(RoutineRepository, "get_creation_context", lambda *args: None)
+
+    response = client.put(
+        "/api/v1/me/onboarding",
+        headers=_key(),
+        json={
+            "nickname": "rollback-user",
+            "date_of_birth": "1997-08-11",
+            "primary_goal_code": "GENERAL_FITNESS",
+            "experience_level_code": "BEGINNER",
+            "timezone": DEMO_TIMEZONE,
+            "preferred_location_code": "HOME",
+            "available_location_codes": ["HOME"],
+            "default_requested_duration_minutes": 30,
+            "desired_weekly_workout_count": 3,
+            "attention_area_codes": [],
+            "preferred_exercise_type_codes": ["STRENGTH"],
+            "coaching_style_code": "SUPPORTIVE",
+            "height_cm": 175.0,
+            "weight_kg": 70.0,
+            "sex_code": "MALE",
+            "consents": {
+                "general_personal_data": True,
+                "sensitive_data": True,
+                "wearable_integration": False,
+                "calendar_integration": False,
+                "marketing": False,
+            },
+        },
+    )
+
+    assert response.status_code == 503
+    with Session(engine) as session:
+        assert session.scalar(select(func.count()).select_from(UserProfile)) == 0
+        assert session.scalar(select(func.count()).select_from(Routine)) == 0
 
 
 def test_full_vertical_slice_reaches_completed_session(client: TestClient) -> None:

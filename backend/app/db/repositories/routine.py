@@ -182,6 +182,19 @@ class RoutineRepository:
             candidates=candidates,
         )
 
+    def has_any_routine(self, session: Session, user_id: UUID) -> bool:
+        """Return whether the user already has a base-routine version.
+
+        Automatic onboarding creation is initial provisioning, not a profile
+        revision mechanism. Archived versions count too, so this path cannot
+        bypass the explicit routine version policy.
+        """
+
+        return (
+            session.scalar(select(Routine.id).where(Routine.user_id == user_id).limit(1))
+            is not None
+        )
+
     def create_routine(
         self,
         session: Session,

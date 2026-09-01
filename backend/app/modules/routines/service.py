@@ -4,7 +4,7 @@ from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, date, datetime
 from typing import Final
-from uuid import UUID
+from uuid import UUID, uuid5
 
 from sqlalchemy.orm import Session
 
@@ -98,6 +98,7 @@ MAX_PLAN_TYPES: Final = 10
 # are one type, so splitting does not consume the type budget.
 MAX_SETS_PER_BLOCK: Final = 4
 MAX_BLOCKS_PER_EXERCISE: Final = 2
+_ONBOARDING_ROUTINE_IDEMPOTENCY_NAMESPACE: Final = UUID("8cfaa373-cf21-4e91-a583-893992d7da7b")
 
 
 def _subset_rank(items: tuple[RoutineCandidate, ...]) -> tuple[int, int, int]:
@@ -331,41 +332,64 @@ class RoutineService:
         request: RoutineCreateRequest,
         idempotency_key: UUID,
     ) -> RoutineResponse:
-        request_hash = _request_hash(request)
-        now = self._clock()
         with session.begin():
             self._repository.acquire_creation_lock(session, user_id)
-            existing = self._repository.get_idempotency_record(session, user_id, idempotency_key)
-            if existing is not None:
-                if existing.request_hash != request_hash:
-                    raise IdempotencyKeyReusedError
-                return RoutineResponse.model_validate(existing.response_payload)
-            context = self._repository.get_creation_context(session, user_id, request.goal_code)
-            if context is None:
-                raise ApprovedCatalogUnavailableError
-            days = _build_days(context, request.requested_duration_minutes)
-            routine_id = self._repository.create_routine(
-                session,
-                user_id,
-                request.goal_code,
-                request.effective_from,
-                context.catalog_version_id,
-                days,
-                now,
-            )
-            payload = self._repository.get_routine_response_payload(session, user_id, routine_id)
-            if payload is None:
-                raise RuntimeError("created routine could not be reloaded")
-            response = RoutineResponse.model_validate(payload)
-            self._repository.save_idempotency_record(
-                session,
-                user_id,
-                idempotency_key,
-                request_hash,
-                response.model_dump(mode="json"),
-                now,
-            )
-            return response
+            return self._create_locked(session, user_id, request, idempotency_key)
+
+    def ensure_initial_routine(
+        self,
+        session: Session,
+        user_id: UUID,
+        request: RoutineCreateRequest,
+    ) -> RoutineResponse | None:
+        """Provision the initial base routine inside an existing transaction."""
+
+        self._repository.acquire_creation_lock(session, user_id)
+        if self._repository.has_any_routine(session, user_id):
+            return None
+        idempotency_key = uuid5(_ONBOARDING_ROUTINE_IDEMPOTENCY_NAMESPACE, str(user_id))
+        return self._create_locked(session, user_id, request, idempotency_key)
+
+    def _create_locked(
+        self,
+        session: Session,
+        user_id: UUID,
+        request: RoutineCreateRequest,
+        idempotency_key: UUID,
+    ) -> RoutineResponse:
+        request_hash = _request_hash(request)
+        now = self._clock()
+        existing = self._repository.get_idempotency_record(session, user_id, idempotency_key)
+        if existing is not None:
+            if existing.request_hash != request_hash:
+                raise IdempotencyKeyReusedError
+            return RoutineResponse.model_validate(existing.response_payload)
+        context = self._repository.get_creation_context(session, user_id, request.goal_code)
+        if context is None:
+            raise ApprovedCatalogUnavailableError
+        days = _build_days(context, request.requested_duration_minutes)
+        routine_id = self._repository.create_routine(
+            session,
+            user_id,
+            request.goal_code,
+            request.effective_from,
+            context.catalog_version_id,
+            days,
+            now,
+        )
+        payload = self._repository.get_routine_response_payload(session, user_id, routine_id)
+        if payload is None:
+            raise RuntimeError("created routine could not be reloaded")
+        response = RoutineResponse.model_validate(payload)
+        self._repository.save_idempotency_record(
+            session,
+            user_id,
+            idempotency_key,
+            request_hash,
+            response.model_dump(mode="json"),
+            now,
+        )
+        return response
 
     def get_current(self, session: Session, user_id: UUID, local_date: date) -> RoutineResponse:
         payload = self._repository.get_current_routine_payload(session, user_id, local_date)

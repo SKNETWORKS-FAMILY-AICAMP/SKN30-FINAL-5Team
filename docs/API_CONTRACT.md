@@ -722,6 +722,15 @@ OnboardingPainInput
 
 ### 7.2 OnboardingResponse
 
+`PUT /api/v1/me/onboarding`이 성공하면 서버는 같은 DB 트랜잭션에서 저장된 프로필을 기준으로
+초기 기본 루틴을 생성·저장한다. 이 동작은 `POST /api/v1/routines`의 기존 기본 루틴 생성 규칙과
+저장 구조를 재사용하며, 응답 스키마는 변경하지 않는다. 이미 루틴 이력이 있는 사용자의 재요청은
+새 version을 생성하지 않는다. 이 요청은 오늘 체크인 또는 오늘의 최종 루틴(결정)을 생성하지 않으며,
+그 단계는 기존 `PUT /api/v1/daily-contexts/{local_date}` 후 결정 생성 흐름에서만 수행한다.
+기본 루틴을 구성할 승인 카탈로그 또는 콘텐츠가 없으면 온보딩 저장도 rollback되고 기존 루틴 생성 오류
+코드(`APPROVED_CATALOG_UNAVAILABLE`, `ROUTINE_CONTENT_UNAVAILABLE`,
+`ROUTINE_DURATION_UNAVAILABLE`)를 반환한다.
+
 ~~~json
 {
   "user_id": "uuid",

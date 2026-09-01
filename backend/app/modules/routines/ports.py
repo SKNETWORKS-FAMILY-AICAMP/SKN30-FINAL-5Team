@@ -88,6 +88,8 @@ class RoutineRepositoryPort(Protocol):
         self, session: Session, user_id: UUID, goal_code: str
     ) -> RoutineCreationContext | None: ...
 
+    def has_any_routine(self, session: Session, user_id: UUID) -> bool: ...
+
     def create_routine(
         self,
         session: Session,
