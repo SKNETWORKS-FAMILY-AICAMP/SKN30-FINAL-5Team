@@ -105,7 +105,7 @@ class ArchitectureResult:
     goal_core_main_count: int
     recovery_eligible_percent: int | None
     action_code: str | None
-    expected_action_matched: bool
+    action_appropriate: bool
     exercise_codes: tuple[str, ...]
     prescription_summaries: tuple[dict[str, object], ...]
 
@@ -377,6 +377,16 @@ def _quality_metrics(
     )
 
 
+def _action_is_appropriate(action: PlanActionCode | str, scenario: ComparisonScenario) -> bool:
+    action_code = action.value if isinstance(action, PlanActionCode) else action
+    allowed = (
+        {PlanActionCode.DOWNSHIFT.value, PlanActionCode.RECOVERY.value}
+        if "FATIGUE" in scenario.code
+        else {PlanActionCode.KEEP.value, PlanActionCode.CHANGE.value}
+    )
+    return action_code in allowed
+
+
 def _failure_result(
     scenario: ComparisonScenario,
     architecture: Literal["SINGLE_INTEGRATED", "MULTI_V3"],
@@ -477,9 +487,6 @@ async def run_single(
     phase_complete, goal_count, recovery_percent, codes, prescription_summaries = _quality_metrics(
         prescriptions, scenario
     )
-    expected_action = (
-        PlanActionCode.DOWNSHIFT if "FATIGUE" in scenario.code else PlanActionCode.KEEP
-    )
     return ArchitectureResult(
         scenario.code,
         scenario.group_code,
@@ -505,7 +512,7 @@ async def run_single(
         goal_count,
         recovery_percent,
         compiled.action_code.value,
-        compiled.action_code is expected_action,
+        _action_is_appropriate(compiled.action_code, scenario),
         codes,
         prescription_summaries,
     )
@@ -554,9 +561,6 @@ async def run_multi(
     phases = tuple(sorted({item.phase_code for item in plan.prescriptions})) if plan else ()
     target = scenario.envelope.requested_duration_minutes * 60
     quality = _quality_metrics(plan.prescriptions, scenario) if plan else (False, 0, 0, (), ())
-    expected_action = (
-        PlanActionCode.DOWNSHIFT if "FATIGUE" in scenario.code else PlanActionCode.KEEP
-    )
     return ArchitectureResult(
         scenario.code,
         scenario.group_code,
@@ -580,7 +584,7 @@ async def run_multi(
         quality[1],
         quality[2] if plan else None,
         plan.action_code if plan else None,
-        plan is not None and plan.action_code == expected_action.value,
+        plan is not None and _action_is_appropriate(plan.action_code, scenario),
         quality[3],
         quality[4],
     )
@@ -596,7 +600,7 @@ def summarize(results: tuple[ArchitectureResult, ...]) -> dict[str, dict[str, in
             "integrity_pass_count": sum(item.integrity_passed for item in rows),
             "phase_complete_count": sum(item.phase_complete for item in rows),
             "goal_preserved_count": sum(item.goal_core_main_count > 0 for item in rows),
-            "action_match_count": sum(item.expected_action_matched for item in rows),
+            "action_appropriate_count": sum(item.action_appropriate for item in rows),
             "joint_constraint_completed_count": sum(
                 item.completed and item.scenario_group_code == "JOINT_CONSTRAINT" for item in rows
             ),
@@ -634,7 +638,7 @@ def suitability_assessment(results: tuple[ArchitectureResult, ...]) -> dict[str,
             and result.integrity_passed
             and result.phase_complete
             and result.goal_core_main_count > 0
-            and result.expected_action_matched
+            and result.action_appropriate
         )
 
     counts: dict[str, dict[str, dict[str, int]]] = {}
@@ -657,7 +661,8 @@ def suitability_assessment(results: tuple[ArchitectureResult, ...]) -> dict[str,
     multi_joint = counts["MULTI_V3"]["JOINT_CONSTRAINT"]
     expected_repeats = min(single_baseline["case_count"], multi_baseline["case_count"])
     baseline_non_degradation = (
-        expected_repeats > 0
+        expected_repeats >= 6
+        and multi_baseline["suitable_plan_count"] >= 5
         and multi_baseline["suitable_plan_count"] >= single_baseline["suitable_plan_count"] - 1
     )
     # With two joint scenarios repeated three times, two additional successes are
@@ -665,6 +670,7 @@ def suitability_assessment(results: tuple[ArchitectureResult, ...]) -> dict[str,
     joint_constraint_advantage = (
         single_joint["case_count"] == multi_joint["case_count"]
         and single_joint["case_count"] >= 6
+        and multi_joint["suitable_plan_count"] >= 4
         and multi_joint["suitable_plan_count"] >= single_joint["suitable_plan_count"] + 2
     )
     return {
@@ -792,7 +798,7 @@ def _write_report(
             f"{values['integrity_pass_count']}/{values['case_count']} | "
             f"{values['phase_complete_count']}/{values['case_count']} | "
             f"{values['goal_preserved_count']}/{values['case_count']} | "
-            f"{values['action_match_count']}/{values['case_count']} | "
+            f"{values['action_appropriate_count']}/{values['case_count']} | "
             f"{values['joint_constraint_completed_count']}/"
             f"{values['joint_constraint_case_count']} | "
             f"{values['provider_call_count']} | {values['mean_latency_ms']} |"

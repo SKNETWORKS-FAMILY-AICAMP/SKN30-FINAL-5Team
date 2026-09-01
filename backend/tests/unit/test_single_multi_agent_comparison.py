@@ -119,7 +119,7 @@ def _result(
         goal_core_main_count=1 if completed else 0,
         recovery_eligible_percent=100 if completed else None,
         action_code="DOWNSHIFT" if completed else None,
-        expected_action_matched=completed,
+        action_appropriate=completed,
         exercise_codes=("warmup", "main", "cooldown") if completed else (),
         prescription_summaries=(
             ({"stable_code": "warmup", "phase_code": "WARMUP"},) if completed else ()
@@ -223,3 +223,27 @@ def test_suitability_requires_baseline_parity_and_joint_constraint_advantage() -
         "blind_expert_review": "PENDING",
     }
     assert assessment["final_conclusion_status"] == "PENDING_BLIND_EXPERT_REVIEW"
+
+
+def test_suitability_rejects_zero_success_parity_and_requires_absolute_floors() -> None:
+    results: list[ArchitectureResult] = []
+    for repeat_index in range(1, 4):
+        for group in ("BASELINE", "JOINT_CONSTRAINT"):
+            for scenario_suffix in ("A", "B"):
+                for architecture in ("SINGLE_INTEGRATED", "MULTI_V3"):
+                    results.append(
+                        replace(
+                            _result(architecture, completed=False, scenario_group=group),
+                            scenario_code=f"{group}_{scenario_suffix}",
+                            repeat_index=repeat_index,
+                        )
+                    )
+
+    assessment = suitability_assessment(tuple(results))
+
+    assert assessment["decision_rules"] == {
+        "baseline_non_degradation": False,
+        "joint_constraint_advantage": False,
+        "blind_expert_review": "PENDING",
+    }
+    assert assessment["automatic_evidence_status"] == ("DOES_NOT_YET_SUPPORT_ROLE_SEPARATION")
