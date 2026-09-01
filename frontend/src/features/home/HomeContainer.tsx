@@ -151,6 +151,7 @@ export function HomeContainer({
   onPlanRevisionChange,
   onSessionStarted,
   onRestChosen,
+  onRecheckAfterRest,
   onTab,
   onOpenCalendar,
   finalValidationHoldMs = DEFAULT_FINAL_VALIDATION_HOLD_MS,
@@ -166,6 +167,7 @@ export function HomeContainer({
   onPlanRevisionChange: (revision: WeeklyPlanRevisionResponse | null) => void;
   onSessionStarted: (sessionId: string, plan: WorkoutPlan) => void;
   onRestChosen: (pressureNotificationsAllowed: boolean) => void;
+  onRecheckAfterRest: () => void;
   onTab: (tab: TabId) => void;
   onOpenCalendar: () => void;
   /** Testable presentation delay after a decision response is ready. */
@@ -274,6 +276,10 @@ export function HomeContainer({
         return;
       }
       setLastDraft(draft);
+      // A fresh check-in supersedes the recommendation currently on screen.
+      // Remove it before loading so an error cannot leave the old routine
+      // looking like the result of the new request.
+      onDecisionChange(null);
 
       run('decision-generation', async () => {
         const sleepMinutes = sleepMinutesFromHours(draft.sleepHours);
@@ -335,6 +341,11 @@ export function HomeContainer({
           expectedVersion,
         );
 
+        // The check-in write and decision generation are separate mutations.
+        // Keep the successful context version even if decision generation
+        // fails, otherwise the next attempt immediately becomes stale.
+        setData({ routine, context: saved, week, sessions });
+
         const next = await api.createDecision({
           local_date: localDate,
           daily_context_id: saved.id,
@@ -344,7 +355,6 @@ export function HomeContainer({
         if (canShowFinalValidation(next)) {
           await holdFinalValidation();
         }
-        setData({ routine, context: saved, week, sessions });
         onDecisionChange(next);
       });
     },
@@ -576,6 +586,7 @@ export function HomeContainer({
       onSubmitCheckin={(draft) => submitCheckin(draft)}
       onStartWorkout={startWorkout}
       onChooseRest={chooseRest}
+      onRecheckAfterRest={onRecheckAfterRest}
       onRegenerateDecision={regenerateDecision}
       onReorderPlan={reorderPlan}
       onSubmitUserEdits={submitUserEdits}

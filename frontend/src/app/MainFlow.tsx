@@ -259,6 +259,10 @@ export function MainFlow({
           onRestChosen={(pressureNotificationsAllowed) =>
             setRestChoice({ localDate, pressureNotificationsAllowed })
           }
+          onRecheckAfterRest={() => {
+            setRestChoice(null);
+            setDecision(null);
+          }}
           onTab={onTab}
           onOpenCalendar={() => setStep({ name: 'calendar-report' })}
         />

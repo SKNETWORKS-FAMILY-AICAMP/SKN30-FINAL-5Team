@@ -149,9 +149,9 @@ function policyRequirements(
   if (options.minPasswordLength !== undefined) {
     labels.push(`${options.minPasswordLength}자 이상`);
   }
-  if (options.maxPasswordLength !== undefined) {
-    labels.push(`${options.maxPasswordLength}자 이하`);
-  }
+  // Firebase's default 4096-character ceiling is an implementation limit,
+  // not useful sign-up guidance. Keep enforcing it through validatePassword,
+  // but do not show it below the input before a user reaches that limit.
   if (options.containsLowercaseLetter) {
     labels.push('영문 소문자 포함');
   }

@@ -194,12 +194,19 @@ describe('auth visual prototypes', () => {
   it('connects SignUp to the Firebase password policy and account creation', async () => {
     const signUp = jest.fn(async () => undefined);
     const checkPassword = jest.fn(async () => ({ ok: true }) as const);
-    const auth = authAdapter({ checkPassword, signUp });
+    const auth = authAdapter({
+      checkPassword,
+      describePasswordPolicy: jest.fn(
+        async () => '6자 이상 · 4096자 이하 · 숫자 포함',
+      ),
+      signUp,
+    });
     render(<SignUpScreen auth={auth} />);
 
     expect(
-      await screen.findByText('비밀번호 조건: 6자 이상'),
+      await screen.findByText('비밀번호 조건: 6자 이상 · 숫자 포함'),
     ).toBeOnTheScreen();
+    expect(screen.queryByText(/4096자 이하/)).not.toBeOnTheScreen();
     fireEvent.changeText(
       screen.getByLabelText('회원가입 이메일'),
       'new@example.com',

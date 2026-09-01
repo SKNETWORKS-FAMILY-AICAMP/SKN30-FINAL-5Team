@@ -298,6 +298,7 @@ export type HomeScreenProps = {
   onOpenCalendar?: () => void;
   onOpenCheckin?: () => void;
   onProfile?: () => void;
+  onRecheckAfterRest?: () => void;
   onRegenerateDecision?: () => void;
   onRequestAlternative?: () => void;
   onReorderPlan?: (from: number, to: number) => void;
@@ -375,6 +376,7 @@ function HomeScreenContent({
   onOpenCalendar,
   onOpenCheckin,
   onProfile,
+  onRecheckAfterRest,
   onRegenerateDecision,
   onRequestAlternative,
   onReorderPlan,
@@ -710,7 +712,8 @@ function HomeScreenContent({
     contentReady &&
     (!apiMode || routine !== null) &&
     !restToday &&
-    !seriousDecision;
+    !seriousDecision &&
+    !staleContext;
 
   return (
     <HomeStyleContext.Provider value={styles}>
@@ -816,6 +819,19 @@ function HomeScreenContent({
             ) : null}
             {apiMode && contentReady && restToday ? (
               <HomeStateCard
+                actionLabel={
+                  onRecheckAfterRest === undefined
+                    ? undefined
+                    : '다시 체크인하기'
+                }
+                onAction={
+                  onRecheckAfterRest === undefined
+                    ? undefined
+                    : () => {
+                        onRecheckAfterRest();
+                        openCheckin();
+                      }
+                }
                 text="오늘은 운동을 권하거나 재촉하지 않을게요."
                 title="오늘은 휴식하기로 했어요"
               />
