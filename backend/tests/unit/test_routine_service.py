@@ -117,6 +117,10 @@ class FakeRoutineRepository:
         del session, user_id
         return self.context if goal_code == "GENERAL_FITNESS" else None
 
+    def has_any_routine(self, session: FakeSession, user_id: UUID) -> bool:
+        del session
+        return user_id in self.current
+
     def create_routine(
         self,
         session: FakeSession,
@@ -386,3 +390,16 @@ def test_current_routine_is_scoped_to_authenticated_user() -> None:
 
     with pytest.raises(RoutineNotFoundError):
         service.get_current(FakeSession(), uuid4(), date(2026, 8, 14))  # type: ignore[arg-type]
+
+
+def test_initial_routine_is_created_once_without_replacing_an_existing_version() -> None:
+    repository = FakeRoutineRepository()
+    service = RoutineService(repository, clock=lambda: NOW)
+    user_id = uuid4()
+
+    first = service.ensure_initial_routine(FakeSession(), user_id, _request())  # type: ignore[arg-type]
+    repeated = service.ensure_initial_routine(FakeSession(), user_id, _request())  # type: ignore[arg-type]
+
+    assert first is not None
+    assert repeated is None
+    assert repository.versions[user_id] == 1

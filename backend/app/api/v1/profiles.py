@@ -23,6 +23,7 @@ from backend.app.modules.profiles.age import (
     InvalidBirthdateError,
     InvalidTimezoneError,
 )
+from backend.app.modules.profiles.onboarding_completion import OnboardingCompletionService
 from backend.app.modules.profiles.ports import (
     BirthdateCipher,
     ProfileRepositoryPort,
@@ -47,6 +48,13 @@ from backend.app.modules.profiles.service import (
     RequiredConsentMissingError,
     StaleProfileError,
     UserNotFoundError,
+)
+from backend.app.modules.routines.ports import RoutineRepositoryPort
+from backend.app.modules.routines.service import (
+    ApprovedCatalogUnavailableError,
+    RoutineContentUnavailableError,
+    RoutineDurationUnavailableError,
+    RoutineService,
 )
 
 router = APIRouter(prefix="/me", tags=["profile"])
@@ -233,12 +241,13 @@ def upsert_onboarding(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_db_session)],
     repository: Annotated[ProfileRepositoryPort, Depends(get_profile_repository)],
+    routine_repository: Annotated[RoutineRepositoryPort, Depends(get_routine_repository)],
     birthdate_cipher: Annotated[BirthdateCipher | None, Depends(get_birthdate_cipher)],
 ) -> OnboardingResponse:
     try:
-        return _service(request, repository, birthdate_cipher).upsert_onboarding(
-            session, current_user.user_id, payload, idempotency_key
-        )
+        return OnboardingCompletionService(
+            _service(request, repository, birthdate_cipher), RoutineService(routine_repository)
+        ).complete(session, current_user.user_id, payload, idempotency_key)
     except (
         AgeRequirementNotMetError,
         InvalidBirthdateError,
@@ -247,6 +256,9 @@ def upsert_onboarding(
         RequiredConsentMissingError,
         IdempotencyKeyReusedError,
         ProfileConfigurationError,
+        ApprovedCatalogUnavailableError,
+        RoutineContentUnavailableError,
+        RoutineDurationUnavailableError,
         IntegrityError,
         SQLAlchemyError,
     ) as exc:

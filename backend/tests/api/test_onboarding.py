@@ -12,6 +12,7 @@ from backend.app.api.dependencies import (
     get_current_user,
     get_db_session,
     get_profile_repository,
+    get_routine_repository,
 )
 from backend.app.core.config import Settings
 from backend.app.core.logging import JsonFormatter
@@ -28,6 +29,7 @@ from backend.app.modules.profiles.ports import (
     OnboardingProfileValues,
     OnboardingRecord,
 )
+from backend.tests.unit.test_routine_service import FakeRoutineRepository
 
 NOW = datetime(2026, 8, 13, 6, 0, tzinfo=UTC)
 
@@ -203,6 +205,7 @@ def _client(
     repository: FakeProfileRepository,
     *,
     missing_configuration_keys: tuple[str, ...] = (),
+    routine_repository: FakeRoutineRepository | None = None,
 ) -> TestClient:
     settings = Settings(
         app_env="test",
@@ -241,6 +244,9 @@ def _client(
 
     app.dependency_overrides[get_db_session] = session_override
     app.dependency_overrides[get_profile_repository] = lambda: repository
+    app.dependency_overrides[get_routine_repository] = lambda: (
+        routine_repository or FakeRoutineRepository()
+    )
     return TestClient(app)
 
 
@@ -276,6 +282,29 @@ def test_onboarding_is_atomic_idempotent_and_does_not_expose_birthdate() -> None
     }
     assert "date_of_birth" not in first.text
     assert "2000-08-11" not in first.text
+
+
+def test_onboarding_automatically_creates_exactly_one_base_routine() -> None:
+    profile_repository = FakeProfileRepository()
+    routine_repository = FakeRoutineRepository()
+    key = str(uuid4())
+
+    with _client(profile_repository, routine_repository=routine_repository) as client:
+        first = client.put(
+            "/api/v1/me/onboarding", json=_payload(), headers={"Idempotency-Key": key}
+        )
+        repeated = client.put(
+            "/api/v1/me/onboarding", json=_payload(), headers={"Idempotency-Key": key}
+        )
+        reonboarding = client.put(
+            "/api/v1/me/onboarding", json=_payload(), headers={"Idempotency-Key": str(uuid4())}
+        )
+
+    assert first.status_code == 200
+    assert repeated.json() == first.json()
+    assert reonboarding.status_code == 200
+    assert len(routine_repository.versions) == 1
+    assert next(iter(routine_repository.versions.values())) == 1
 
 
 def test_openapi_removes_equipment_from_onboarding_and_me_profile() -> None:
