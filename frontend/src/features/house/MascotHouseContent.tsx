@@ -48,7 +48,11 @@ import Svg, {
 } from 'react-native-svg';
 
 import { imageAssets } from '../../assets';
-import { BASE_H, useScale } from '../../components/scale';
+import {
+  BASE_H,
+  getContainedInterfaceScale,
+  useScale,
+} from '../../components/scale';
 import { colors, radii, shadows, spacing } from '../../components/theme';
 import {
   BananaGlyph,
@@ -76,11 +80,8 @@ import {
   type HousePose,
   type HouseView,
 } from './houseModel';
-/**
- * The controls stay phone-width however wide the window gets. Past this the
- * extra room goes to the scene, not to stretched buttons.
- */
-const CONTENT_MAX_WIDTH = 430;
+/** Matches the Large phone preview's inset without fixing the layout to its pixels. */
+const HOUSE_HORIZONTAL_INSET = '4%' as const;
 
 /**
  * The requested scene zoom relative to the former full-screen `cover` size.
@@ -162,6 +163,90 @@ type HouseActionEffect = {
   amount: number;
   mascotEffect?: 'banana' | 'sparkle';
 };
+
+function houseControlStyles(controlScale: number) {
+  const scaled = (value: number) => value * controlScale;
+  return {
+    column: {
+      gap: scaled(HOUSE_COLUMN_GAP),
+      paddingTop: scaled(HOUSE_COLUMN_TOP_PADDING),
+    },
+    stage: { minHeight: scaled(HOUSE_STAGE_MIN_HEIGHT) },
+    rail: { gap: scaled(spacing.sm) },
+    chip: {
+      minWidth: scaled(84),
+      gap: scaled(3),
+      borderRadius: scaled(14),
+      paddingHorizontal: scaled(10),
+      paddingVertical: scaled(9),
+    },
+    chipValue: { fontSize: scaled(13) },
+    streakChip: {
+      gap: scaled(5),
+      paddingHorizontal: scaled(10),
+      paddingVertical: scaled(5),
+    },
+    streakLabel: { fontSize: scaled(11) },
+    bubble: {
+      maxWidth: scaled(250),
+      borderRadius: scaled(18),
+      paddingHorizontal: scaled(16),
+      paddingVertical: scaled(11),
+    },
+    bubbleText: {
+      fontSize: scaled(13.5),
+      lineHeight: scaled(20),
+    },
+    primaryActionRow: { gap: scaled(spacing.sm) },
+    primaryActionButton: {
+      minHeight: 44,
+      gap: scaled(spacing.sm),
+      paddingVertical: scaled(15),
+    },
+    primaryActionLabel: { fontSize: scaled(14) },
+    actionArea: { gap: scaled(spacing.sm) },
+    actionStack: { gap: scaled(spacing.sm) },
+    panel: {
+      gap: scaled(spacing.sm),
+      borderRadius: scaled(20),
+      padding: scaled(spacing.lg),
+      marginBottom: scaled(spacing.xs),
+    },
+    playPanelTitle: { fontSize: scaled(16) },
+    miniGameListContent: { gap: scaled(spacing.sm) },
+    miniGameCard: {
+      width: scaled(286),
+      minHeight: scaled(122),
+      gap: scaled(spacing.sm),
+      borderRadius: scaled(radii.card),
+      padding: scaled(spacing.md),
+    },
+    miniGameIcon: {
+      width: scaled(44),
+      height: scaled(44),
+      borderRadius: scaled(14),
+    },
+    miniGameMascot: {
+      width: scaled(42),
+      height: scaled(42),
+    },
+    miniGameTitle: { fontSize: scaled(14) },
+    miniGameDescription: {
+      fontSize: scaled(11),
+      lineHeight: scaled(16),
+    },
+    miniGameDuration: {
+      paddingHorizontal: scaled(8),
+      paddingVertical: scaled(5),
+    },
+    miniGameDurationLabel: { fontSize: scaled(11) },
+    miniGameArrow: {
+      marginTop: scaled(-2),
+      fontSize: scaled(22),
+      lineHeight: scaled(24),
+    },
+  };
+}
 
 /**
  * Returns half of the size the artwork would have occupied with `cover`, then
@@ -369,6 +454,11 @@ export function MascotHouseContent({
     }, HOUSE_ACTION_EFFECT_MS);
   };
   const viewport = measuredViewport ?? scaleViewport;
+  const controlScale = getContainedInterfaceScale(
+    viewport.width,
+    viewport.height,
+  );
+  const compactStyles = houseControlStyles(controlScale);
   const mascotSize = houseMascotSize(viewport.height);
   const bottomPanelTop = houseBottomPanelTop(
     columnLayout?.y ?? null,
@@ -413,7 +503,11 @@ export function MascotHouseContent({
         ]}
         testID="house-mascot-slot"
       >
-        <SpeechBubble mascotSize={mascotSize} text={houseSpeech(view, pose)} />
+        <SpeechBubble
+          controlScale={controlScale}
+          mascotSize={mascotSize}
+          text={houseSpeech(view, pose)}
+        />
         <PersistentMascotArt
           size={mascotSize}
           slot={mascotArt ?? housePoseArt[pose]}
@@ -457,23 +551,25 @@ export function MascotHouseContent({
             );
           }}
           pointerEvents="box-none"
-          style={styles.column}
+          style={[styles.column, compactStyles.column]}
           testID="house-content-column"
         >
           <View
             pointerEvents="box-none"
-            style={styles.stage}
+            style={[styles.stage, compactStyles.stage]}
             testID="house-scene"
           >
-            <View style={styles.railLeft}>
+            <View style={[styles.railLeft, compactStyles.rail]}>
               <View
                 accessible
                 accessibilityLabel={`바나나 ${view.bananas}개 보유`}
-                style={styles.chip}
+                style={[styles.chip, compactStyles.chip]}
                 testID="house-banana-count"
               >
-                <BananaGlyph size={40} />
-                <Text style={styles.chipValue}>{view.bananas}개</Text>
+                <BananaGlyph size={40 * controlScale} />
+                <Text style={[styles.chipValue, compactStyles.chipValue]}>
+                  {view.bananas}개
+                </Text>
                 <SpendActionEffectOverlay effect={actionEffect} />
               </View>
 
@@ -481,15 +577,20 @@ export function MascotHouseContent({
                 accessibilityLabel="집 꾸미기"
                 accessibilityRole="button"
                 onPress={() => setDecorating(true)}
-                style={styles.chip}
+                style={[styles.chip, compactStyles.chip]}
                 testID="house-decorate-action"
               >
-                <HouseMarkGlyph size={22} color={colors.brandOutline} />
-                <Text style={styles.chipValue}>집 꾸미기</Text>
+                <HouseMarkGlyph
+                  size={22 * controlScale}
+                  color={colors.brandOutline}
+                />
+                <Text style={[styles.chipValue, compactStyles.chipValue]}>
+                  집 꾸미기
+                </Text>
               </Pressable>
             </View>
 
-            <View style={styles.railRight}>
+            <View style={[styles.railRight, compactStyles.rail]}>
               <Pressable
                 accessibilityLabel={
                   view.giftAvailable
@@ -500,19 +601,26 @@ export function MascotHouseContent({
                 accessibilityState={{ disabled: !view.giftAvailable }}
                 disabled={!view.giftAvailable}
                 onPress={onClaimGift}
-                style={[styles.chip, !view.giftAvailable && styles.spent]}
+                style={[
+                  styles.chip,
+                  compactStyles.chip,
+                  !view.giftAvailable && styles.spent,
+                ]}
                 testID="house-gift-button"
               >
-                <GiftGlyph size={22} />
-                <Text style={styles.chipValue}>
+                <GiftGlyph size={22 * controlScale} />
+                <Text style={[styles.chipValue, compactStyles.chipValue]}>
                   {view.giftAvailable ? '오늘의 선물' : '받았어요'}
                 </Text>
               </Pressable>
 
               {view.visitStreakDays > 1 ? (
-                <View style={styles.streakChip} testID="house-visit-streak">
-                  <StarGlyph size={14} />
-                  <Text style={styles.streakLabel}>
+                <View
+                  style={[styles.streakChip, compactStyles.streakChip]}
+                  testID="house-visit-streak"
+                >
+                  <StarGlyph size={14 * controlScale} />
+                  <Text style={[styles.streakLabel, compactStyles.streakLabel]}>
                     {view.visitStreakDays}일 연속
                   </Text>
                 </View>
@@ -527,7 +635,7 @@ export function MascotHouseContent({
             onLayout={(event) =>
               setActionAreaHeight(event.nativeEvent.layout.height)
             }
-            style={styles.actionArea}
+            style={[styles.actionArea, compactStyles.actionArea]}
             testID="house-action-area"
           >
             <View
@@ -536,13 +644,17 @@ export function MascotHouseContent({
                 decorating ? 'no-hide-descendants' : 'auto'
               }
               pointerEvents={decorating ? 'none' : 'auto'}
-              style={styles.actionStack}
+              style={[styles.actionStack, compactStyles.actionStack]}
             >
               <View
-                style={styles.primaryActionRow}
+                style={[
+                  styles.primaryActionRow,
+                  compactStyles.primaryActionRow,
+                ]}
                 testID="house-primary-actions"
               >
                 <FeedButton
+                  controlScale={controlScale}
                   enabled={view.canFeed}
                   onPress={() => {
                     if (onFeed()) {
@@ -569,18 +681,22 @@ export function MascotHouseContent({
                   style={[
                     styles.primaryActionButton,
                     styles.petButton,
+                    compactStyles.primaryActionButton,
                     !view.canPet && styles.spent,
                   ]}
                   testID="house-pet-action"
                 >
-                  <Text style={styles.petLabel}>
+                  <Text
+                    style={[styles.petLabel, compactStyles.primaryActionLabel]}
+                  >
                     쓰다듬기 · {HOUSE_ACTION_COST.pet}개
                   </Text>
-                  <BananaGlyph size={18} />
+                  <BananaGlyph size={18 * controlScale} />
                 </Pressable>
               </View>
 
               <MiniGamePanel
+                controlScale={controlScale}
                 onHeightChange={setBottomPanelHeight}
                 onPlayGame={onPlayGame}
               />
@@ -588,6 +704,7 @@ export function MascotHouseContent({
 
             {decorating ? (
               <DecoratePanel
+                controlScale={controlScale}
                 onBuyItem={onBuyItem}
                 onClose={() => setDecorating(false)}
                 onSelectBackground={onSelectBackground}
@@ -822,30 +939,40 @@ function Backdrop({
 }
 
 function SpeechBubble({
+  controlScale,
   mascotSize,
   text,
 }: {
+  controlScale: number;
   mascotSize: number;
   text: string;
 }) {
+  const compactStyles = houseControlStyles(controlScale);
   return (
     <View
-      style={[styles.bubble, { bottom: mascotSize + spacing.sm }]}
+      style={[
+        styles.bubble,
+        compactStyles.bubble,
+        { bottom: mascotSize + spacing.sm * controlScale },
+      ]}
       testID="house-speech-bubble"
     >
-      <Text style={styles.bubbleText}>{text}</Text>
+      <Text style={[styles.bubbleText, compactStyles.bubbleText]}>{text}</Text>
       <View style={styles.bubbleTail} />
     </View>
   );
 }
 
 function FeedButton({
+  controlScale,
   enabled,
   onPress,
 }: {
+  controlScale: number;
   enabled: boolean;
   onPress: () => void;
 }) {
+  const compactStyles = houseControlStyles(controlScale);
   return (
     <Pressable
       accessibilityLabel={`바나나 주기, 바나나 ${HOUSE_ACTION_COST.feed}개`}
@@ -856,6 +983,7 @@ function FeedButton({
       style={({ pressed }) => [
         styles.primaryActionButton,
         styles.feedButton,
+        compactStyles.primaryActionButton,
         !enabled && styles.spent,
         pressed && enabled && styles.feedButtonPressed,
       ]}
@@ -869,33 +997,41 @@ function FeedButton({
         start={{ x: 0.5, y: 0 }}
         style={styles.feedGradient}
       />
-      <Text style={styles.feedLabel}>
+      <Text style={[styles.feedLabel, compactStyles.primaryActionLabel]}>
         바나나 주기 · {HOUSE_ACTION_COST.feed}개
       </Text>
-      <BananaGlyph size={18} />
+      <BananaGlyph size={18 * controlScale} />
     </Pressable>
   );
 }
 
 function MiniGamePanel({
+  controlScale,
   onHeightChange,
   onPlayGame,
 }: {
+  controlScale: number;
   onHeightChange: (height: number) => void;
   onPlayGame: (gameId: HouseMiniGameId) => void;
 }) {
+  const compactStyles = houseControlStyles(controlScale);
   return (
     <View
       onLayout={(event) => onHeightChange(event.nativeEvent.layout.height)}
-      style={styles.panel}
+      style={[styles.panel, compactStyles.panel]}
       testID="house-play-panel"
     >
       <View style={styles.playPanelHeader}>
-        <Text style={styles.playPanelTitle}>끼끼와 놀기</Text>
+        <Text style={[styles.playPanelTitle, compactStyles.playPanelTitle]}>
+          끼끼와 놀기
+        </Text>
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.miniGameListContent}
+        contentContainerStyle={[
+          styles.miniGameListContent,
+          compactStyles.miniGameListContent,
+        ]}
         horizontal
         showsHorizontalScrollIndicator={false}
         testID="house-mini-game-list"
@@ -908,31 +1044,51 @@ function MiniGamePanel({
             onPress={() => onPlayGame(game.id)}
             style={({ pressed }) => [
               styles.miniGameCard,
+              compactStyles.miniGameCard,
               pressed && styles.miniGameCardPressed,
             ]}
             testID={`house-mini-game-${game.id}`}
           >
-            <View style={styles.miniGameIcon}>
+            <View style={[styles.miniGameIcon, compactStyles.miniGameIcon]}>
               <Image
                 accessible={false}
                 accessibilityElementsHidden
                 importantForAccessibility="no"
                 resizeMode="contain"
                 source={game.imageSource}
-                style={styles.miniGameMascot}
+                style={[styles.miniGameMascot, compactStyles.miniGameMascot]}
                 testID={`house-mini-game-mascot-${game.id}`}
               />
             </View>
             <View style={styles.miniGameCopy}>
-              <Text style={styles.miniGameTitle}>{game.title}</Text>
-              <Text style={styles.miniGameDescription}>{game.description}</Text>
+              <Text style={[styles.miniGameTitle, compactStyles.miniGameTitle]}>
+                {game.title}
+              </Text>
+              <Text
+                style={[
+                  styles.miniGameDescription,
+                  compactStyles.miniGameDescription,
+                ]}
+              >
+                {game.description}
+              </Text>
             </View>
-            <View style={styles.miniGameDuration}>
-              <Text style={styles.miniGameDurationLabel}>
+            <View
+              style={[styles.miniGameDuration, compactStyles.miniGameDuration]}
+            >
+              <Text
+                style={[
+                  styles.miniGameDurationLabel,
+                  compactStyles.miniGameDurationLabel,
+                ]}
+              >
                 {game.durationLabel}
               </Text>
             </View>
-            <Text accessibilityElementsHidden style={styles.miniGameArrow}>
+            <Text
+              accessibilityElementsHidden
+              style={[styles.miniGameArrow, compactStyles.miniGameArrow]}
+            >
               ›
             </Text>
           </Pressable>
@@ -943,25 +1099,28 @@ function MiniGamePanel({
 }
 
 function DecoratePanel({
+  controlScale,
   onBuyItem,
   onClose,
   onSelectBackground,
   onSpend,
   view,
 }: {
+  controlScale: number;
   onBuyItem: (itemId: HouseItemId) => boolean;
   onClose: () => void;
   onSelectBackground: (backgroundId: HouseBackgroundId) => void;
   onSpend: (amount: number) => void;
   view: HouseView;
 }) {
+  const compactStyles = houseControlStyles(controlScale);
   const [category, setCategory] = useState<'background' | 'items'>(
     'background',
   );
 
   return (
     <View
-      style={[styles.panel, styles.decoratePanel]}
+      style={[styles.panel, compactStyles.panel, styles.decoratePanel]}
       testID="house-decorate-panel"
     >
       <View style={styles.decorateHeader}>
@@ -1425,10 +1584,9 @@ const styles = StyleSheet.create({
   column: {
     flex: 1,
     width: '100%',
-    maxWidth: CONTENT_MAX_WIDTH,
     alignSelf: 'center',
     gap: HOUSE_COLUMN_GAP,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: HOUSE_HORIZONTAL_INSET,
     paddingTop: HOUSE_COLUMN_TOP_PADDING,
   },
   stage: {

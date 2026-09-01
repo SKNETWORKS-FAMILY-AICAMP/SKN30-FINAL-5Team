@@ -689,6 +689,7 @@ describe('MyPageContainer', () => {
     ).toBeOnTheScreen();
     expect(screen.getByRole('checkbox', { name: '있어요' })).toBeChecked();
     expect(screen.getByText('통증 부위')).toBeOnTheScreen();
+    expect(screen.queryByRole('adjustable')).toBeNull();
     fireEvent.press(screen.getByRole('checkbox', { name: '없어요' }));
 
     await waitFor(() =>
@@ -698,6 +699,71 @@ describe('MyPageContainer', () => {
       ),
     );
     expect(screen.queryByText('통증 부위')).toBeNull();
+  });
+
+  it('edits persisted pain scores when the additive profile contract is available', async () => {
+    const current = me();
+    current.profile!.pain_areas = [
+      { body_area_code: 'KNEE', intensity_score: 4 },
+      { body_area_code: 'SHOULDER', intensity_score: 2 },
+    ];
+    const updateProfileSettings = jest.fn<Api['updateProfileSettings']>(
+      async () => ({
+        profile_version: 8,
+        updated_at: '2026-08-19T09:00:00+09:00',
+      }),
+    );
+
+    await render(
+      <MyPageContainer
+        api={accountApi({ updateProfileSettings })}
+        me={current}
+        now={new Date('2026-08-19T03:00:00Z')}
+        onNavigateTab={jest.fn()}
+        onRefreshMe={jest.fn(async () => undefined)}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: '통증 부위 수정' }));
+    expect(
+      screen
+        .getAllByRole('adjustable')
+        .map((control) => control.props.accessibilityLabel),
+    ).toEqual(['어깨 통증 정도', '무릎 통증 정도']);
+    const slider = screen.getByRole('adjustable', {
+      name: '무릎 통증 정도',
+    });
+    expect(slider).toHaveAccessibilityValue({
+      min: 1,
+      max: 10,
+      now: 4,
+      text: '10점 중 4점',
+    });
+
+    fireEvent(slider, 'accessibilityAction', {
+      nativeEvent: { actionName: 'increment' },
+    });
+    expect(slider).toHaveAccessibilityValue({
+      min: 1,
+      max: 10,
+      now: 5,
+      text: '10점 중 5점',
+    });
+    fireEvent.press(screen.getByRole('button', { name: '통증 정보 저장' }));
+
+    await waitFor(() =>
+      expect(updateProfileSettings).toHaveBeenCalledWith(
+        {
+          pain_present: true,
+          pain_areas: [
+            { body_area_code: 'SHOULDER', intensity_score: 2 },
+            { body_area_code: 'KNEE', intensity_score: 5 },
+          ],
+        },
+        7,
+      ),
+    );
   });
 
   it('opens extended attention areas when an extended value is already selected', async () => {

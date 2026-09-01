@@ -7,7 +7,14 @@
  */
 
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import type { Api } from '../../api/endpoints';
 import {
@@ -94,66 +101,98 @@ export function ExerciseCatalogScreen({
     setNextCursor(undefined);
   }, []);
 
-  if (openExercise !== null) {
-    return (
-      <ScreenShell>
-        <ScreenHeading title={openExercise.name} />
-        <ExerciseDetailSheet api={api} exerciseId={openExercise.id} />
-        <Button
-          label="목록으로"
-          tone="secondary"
-          onPress={() => setOpenExercise(null)}
-        />
-      </ScreenShell>
-    );
-  }
-
   return (
-    <ScreenShell>
-      <ScreenHeading
-        title="운동 카탈로그"
-        subtitle="검수를 통과한 운동만 보여드려요"
-      />
+    <>
+      <ScreenShell scroll={false} contentStyle={styles.screenContent}>
+        <CatalogHeader onBack={onBack} />
 
-      <View style={styles.filterGroup}>
-        <FilterRow
-          options={TRAINING_TYPE_FILTERS}
-          selected={trainingType}
-          onSelect={selectTrainingType}
-        />
-        <FilterRow
-          options={DIFFICULTY_FILTERS}
-          selected={difficulty}
-          onSelect={selectDifficulty}
-        />
+        <View style={styles.filterGroup}>
+          <FilterRow
+            options={TRAINING_TYPE_FILTERS}
+            selected={trainingType}
+            onSelect={selectTrainingType}
+          />
+          <FilterRow
+            options={DIFFICULTY_FILTERS}
+            selected={difficulty}
+            onSelect={selectDifficulty}
+          />
+        </View>
+
+        {state.status === 'loading' ? (
+          <LoadingState label="운동 목록을 불러오는 중이에요" />
+        ) : state.status === 'error' ? (
+          <ErrorState message={state.message} onRetry={reload} />
+        ) : (
+          <CatalogList
+            firstPage={state.data}
+            extraItems={extraItems}
+            nextCursor={
+              nextCursor === undefined ? state.data.next_cursor : nextCursor
+            }
+            loadingMore={loadMore.pending}
+            loadMoreError={loadMore.error}
+            onOpen={setOpenExercise}
+            onLoadMore={(cursor) =>
+              void loadMore.run(cursor).then((page) => {
+                if (page) {
+                  setNextCursor(page.next_cursor);
+                }
+              })
+            }
+          />
+        )}
+      </ScreenShell>
+
+      {openExercise !== null ? (
+        <Modal
+          animationType="none"
+          onRequestClose={() => setOpenExercise(null)}
+          presentationStyle="fullScreen"
+          testID="exercise-catalog-detail-modal"
+          visible
+        >
+          <ScreenShell>
+            <ScreenHeading title={openExercise.name} />
+            <ExerciseDetailSheet api={api} exerciseId={openExercise.id} />
+            <Button
+              label="목록으로"
+              tone="secondary"
+              onPress={() => setOpenExercise(null)}
+            />
+          </ScreenShell>
+        </Modal>
+      ) : null}
+    </>
+  );
+}
+
+function CatalogHeader({ onBack }: { onBack: () => void }) {
+  return (
+    <View style={styles.catalogHeader} testID="exercise-catalog-list-header">
+      <Pressable
+        accessibilityLabel="돌아가기"
+        accessibilityRole="button"
+        hitSlop={8}
+        onPress={onBack}
+        style={styles.backButton}
+      >
+        <View style={styles.backChevron} testID="exercise-catalog-back-icon" />
+      </Pressable>
+      <View style={styles.headerCopy} testID="exercise-catalog-header-copy">
+        <Text accessibilityRole="header" style={styles.headerTitle}>
+          운동 카탈로그
+        </Text>
+        <Text style={styles.headerSubtitle}>
+          검수를 통과한 운동만 보여드려요
+        </Text>
       </View>
-
-      {state.status === 'loading' ? (
-        <LoadingState label="운동 목록을 불러오는 중이에요" />
-      ) : state.status === 'error' ? (
-        <ErrorState message={state.message} onRetry={reload} />
-      ) : (
-        <CatalogList
-          firstPage={state.data}
-          extraItems={extraItems}
-          nextCursor={
-            nextCursor === undefined ? state.data.next_cursor : nextCursor
-          }
-          loadingMore={loadMore.pending}
-          loadMoreError={loadMore.error}
-          onOpen={setOpenExercise}
-          onLoadMore={(cursor) =>
-            void loadMore.run(cursor).then((page) => {
-              if (page) {
-                setNextCursor(page.next_cursor);
-              }
-            })
-          }
-        />
-      )}
-
-      <Button label="돌아가기" tone="secondary" onPress={onBack} />
-    </ScreenShell>
+      <View
+        pointerEvents="none"
+        style={styles.headerSideSpacer}
+        testID="exercise-catalog-header-spacer"
+      />
+    </View>
   );
 }
 
@@ -217,7 +256,11 @@ function CatalogList({
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.list}>
+    <ScrollView
+      style={styles.catalogScroll}
+      contentContainerStyle={styles.list}
+      testID="exercise-catalog-list-scroll"
+    >
       {items.map((item) => (
         <Pressable
           key={item.id}
@@ -264,6 +307,55 @@ function CatalogList({
 }
 
 const styles = StyleSheet.create({
+  screenContent: {
+    paddingBottom: spacing.lg,
+  },
+  catalogHeader: {
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
+  },
+  backChevron: {
+    width: 12,
+    height: 12,
+    borderBottomWidth: 2.5,
+    borderLeftWidth: 2.5,
+    borderColor: colors.textSub,
+    transform: [{ rotate: '45deg' }],
+  },
+  headerCopy: {
+    minWidth: 0,
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+  },
+  headerTitle: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  headerSubtitle: {
+    color: colors.textSub,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  headerSideSpacer: {
+    width: 44,
+    height: 44,
+  },
   filterGroup: {
     gap: spacing.sm,
   },
@@ -290,6 +382,9 @@ const styles = StyleSheet.create({
   },
   filterChipTextActive: {
     color: colors.surface,
+  },
+  catalogScroll: {
+    flex: 1,
   },
   list: {
     gap: spacing.sm,

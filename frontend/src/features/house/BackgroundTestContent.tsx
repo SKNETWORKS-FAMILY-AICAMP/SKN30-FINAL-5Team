@@ -74,11 +74,8 @@ export type BackgroundTestFeedback = {
   onRetry?: () => void;
 };
 
-/**
- * The controls stay phone-width however wide the window gets. Past this the
- * extra room goes to the scene, not to stretched buttons.
- */
-const CONTENT_MAX_WIDTH = 430;
+/** Matches the Large phone preview's inset without fixing the layout to its pixels. */
+const HOUSE_HORIZONTAL_INSET = '4%' as const;
 
 /**
  * The requested scene zoom relative to the former full-screen `cover` size.
@@ -729,10 +726,9 @@ const styles = StyleSheet.create({
   column: {
     flex: 1,
     width: '100%',
-    maxWidth: CONTENT_MAX_WIDTH,
     alignSelf: 'center',
     gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: HOUSE_HORIZONTAL_INSET,
     paddingTop: spacing.sm,
   },
   topBar: {

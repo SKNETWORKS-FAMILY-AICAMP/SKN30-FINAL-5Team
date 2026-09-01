@@ -30,6 +30,11 @@ type RequestOptions = {
   formData?: FormData;
   /** Mutations must set this; the server rejects them without a UUID key. */
   idempotent?: boolean;
+  /**
+   * Reuse this key when retrying the same mutation intent after an ambiguous
+   * transport failure. Omitting it creates a fresh key for a new intent.
+   */
+  idempotencyKey?: string;
   ifMatch?: string | number;
   signal?: AbortSignal;
 };
@@ -97,6 +102,7 @@ export class ApiClient {
     body,
     formData,
     idempotent = false,
+    idempotencyKey,
     ifMatch,
     signal,
   }: RequestOptions): Promise<T> {
@@ -121,7 +127,7 @@ export class ApiClient {
       headers['Content-Type'] = 'application/json';
     }
     if (idempotent) {
-      headers['Idempotency-Key'] = createIdempotencyKey();
+      headers['Idempotency-Key'] = idempotencyKey ?? createIdempotencyKey();
     }
     if (ifMatch !== undefined) {
       headers['If-Match'] = `"${ifMatch}"`;

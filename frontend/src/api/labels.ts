@@ -331,6 +331,23 @@ export const EXTENDED_BODY_AREA_OPTIONS = EXTENDED_BODY_AREA_CODES.map(
   (code) => ({ code, label: bodyAreaLabel(code) }),
 );
 
+export const SELECTABLE_BODY_AREA_OPTIONS = [
+  ...DEFAULT_BODY_AREA_OPTIONS,
+  ...EXTENDED_BODY_AREA_OPTIONS,
+] as const;
+
+const BODY_AREA_SELECTION_ORDER = new Map<string, number>(
+  SELECTABLE_BODY_AREA_OPTIONS.map((option, index) => [option.code, index]),
+);
+
+export function orderBodyAreaCodes(codes: readonly string[]): string[] {
+  return [...codes].sort(
+    (left, right) =>
+      (BODY_AREA_SELECTION_ORDER.get(left) ?? Number.MAX_SAFE_INTEGER) -
+      (BODY_AREA_SELECTION_ORDER.get(right) ?? Number.MAX_SAFE_INTEGER),
+  );
+}
+
 export const ADVERSE_REACTION_OPTIONS = Object.entries(ADVERSE_REACTION).map(
   ([code, label]) => ({ code, label }),
 );

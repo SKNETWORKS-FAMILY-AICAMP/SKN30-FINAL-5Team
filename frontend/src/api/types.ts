@@ -53,6 +53,11 @@ export type NotCompletedReasonCode =
   | 'LOW_INTEREST'
   | 'LOW_MOTIVATION';
 
+export type PainAreaInput = {
+  body_area_code: string;
+  intensity_score: number;
+};
+
 export type MeProfile = {
   nickname: string;
   profile_image_url?: string | null;
@@ -66,6 +71,8 @@ export type MeProfile = {
   desired_weekly_workout_count: number;
   coaching_style_code: string;
   attention_area_codes: string[];
+  /** Present only after the additive pain-intensity profile contract is available. */
+  pain_areas?: PainAreaInput[];
   preferred_exercise_type_codes: string[];
   profile_version: number;
   created_at: string;
@@ -109,6 +116,9 @@ export type ProfileSettingsUpdateRequest = {
   preferred_location_code?: string;
   available_location_codes?: string[];
   attention_area_codes?: string[];
+  /** Additive pain-intensity fields; never send with attention_area_codes. */
+  pain_present?: boolean;
+  pain_areas?: PainAreaInput[];
   preferred_exercise_type_codes?: string[];
   coaching_style_code?: string;
   experience_level_code?: string;

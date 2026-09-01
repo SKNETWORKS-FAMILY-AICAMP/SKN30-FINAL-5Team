@@ -31,7 +31,12 @@ import {
   resolveBootDestination,
 } from './bootstrap';
 import { DemoApp } from './DemoApp';
-import { getPreviewMode, type PreviewMode } from './preview';
+import {
+  getPreviewMode,
+  getPreviewViewportMode,
+  type PreviewMode,
+  type PreviewViewportMode,
+} from './preview';
 import { SessionProvider } from './SessionProvider';
 
 export type RootStackParamList = {
@@ -49,6 +54,7 @@ type AppProps = {
   bootResolver?: BootDestinationResolver;
   onNavigationTransition?: (destination: BootDestination) => void;
   previewMode?: PreviewMode;
+  previewViewport?: PreviewViewportMode;
   splashPreview?: boolean;
 };
 
@@ -148,6 +154,7 @@ function AppNavigator({
 
 export function App({
   previewMode,
+  previewViewport,
   splashPreview,
   ...navigatorProps
 }: AppProps) {
@@ -163,6 +170,8 @@ export function App({
           ? 'splash'
           : null
         : getPreviewMode();
+  const activePreviewViewport =
+    previewViewport !== undefined ? previewViewport : getPreviewViewportMode();
 
   const usesPreviewGallery =
     activePreview === 'gallery' ||
@@ -204,7 +213,10 @@ export function App({
           ) : activePreview === 'loading' ? (
             <PreviewGallery initialScreenId="loading" />
           ) : activePreview === 'mascot-house' ? (
-            <PreviewGallery initialScreenId="mascot-house" />
+            <PreviewGallery
+              deviceViewport={activePreviewViewport === 'device'}
+              initialScreenId="mascot-house"
+            />
           ) : activePreview === 'session' ? (
             <PreviewGallery initialScreenId="session" />
           ) : activePreview === 'session-result' ? (

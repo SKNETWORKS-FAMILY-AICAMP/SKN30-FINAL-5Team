@@ -15,21 +15,29 @@ import type {
 import { orderedWorkoutPlanItems } from '../../api/workoutPlan';
 
 export type HomePreviewState =
+  | 'routine-lookup-loading'
+  | 'routine-lookup-failed'
   | 'pre-checkin'
   | 'checkin'
   | 'generating'
   | 'generating-final'
   | 'routine'
+  | 'decision-recovered'
+  | 'decision-retry'
   | 'adjusted'
   | 'editing'
   | 'rest';
 
 export const HOME_PREVIEW_OPTIONS = [
-  { id: 'pre-checkin', label: '체크인 전' },
+  { id: 'routine-lookup-loading', label: '기본 루틴 준비 중' },
+  { id: 'routine-lookup-failed', label: '기본 루틴 준비 실패' },
+  { id: 'pre-checkin', label: '저장된 기본 루틴 조회 완료' },
   { id: 'checkin', label: '체크인 sheet' },
   { id: 'generating', label: '재추천 중' },
   { id: 'generating-final', label: '완료 직전 (95%)' },
   { id: 'routine', label: '최종 추천' },
+  { id: 'decision-recovered', label: '홈 재진입 · 오늘 결정 복구' },
+  { id: 'decision-retry', label: '결정 응답 유실 · 재시도' },
   { id: 'adjusted', label: '부담 조정' },
   { id: 'editing', label: '운동 편집' },
   { id: 'rest', label: '휴식 선택' },

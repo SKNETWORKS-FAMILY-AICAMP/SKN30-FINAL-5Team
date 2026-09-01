@@ -59,7 +59,6 @@ type MyPageScreenProps = {
   onNavigateTab?: (tab: TabId) => void;
   onNotificationChange?: (key: string, enabled: boolean) => void;
   onOpenExerciseCatalog?: () => void;
-  onOpenSettings?: () => void;
   onBasicProfileChange?: (
     body: ProfileSettingsUpdateRequest,
     imageChange: ProfileImageChange | undefined,
@@ -101,7 +100,6 @@ function MyPageContent({
   onNavigateTab,
   onNotificationChange,
   onOpenExerciseCatalog,
-  onOpenSettings,
   onBasicProfileChange,
   onProfileFieldChange,
   onRetryProfile,
@@ -205,16 +203,6 @@ function MyPageContent({
           <Text accessibilityRole="header" style={styles.title}>
             마이페이지
           </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="설정 열기"
-            accessibilityState={{ disabled: onOpenSettings === undefined }}
-            disabled={onOpenSettings === undefined}
-            onPress={onOpenSettings}
-            style={styles.settingsButton}
-          >
-            <Text style={styles.settingsIcon}>⚙</Text>
-          </Pressable>
         </View>
 
         <Card style={styles.profileCard}>
@@ -650,19 +638,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 22,
     fontWeight: '800',
-  },
-  settingsButton: {
-    ...shadow,
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 14,
-    backgroundColor: '#FFF8E5',
-  },
-  settingsIcon: {
-    color: colors.text,
-    fontSize: 20,
   },
   profileCard: {
     ...shadow,
