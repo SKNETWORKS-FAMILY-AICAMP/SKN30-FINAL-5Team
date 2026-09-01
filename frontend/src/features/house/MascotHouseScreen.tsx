@@ -193,7 +193,7 @@ export function MascotHouseScreen({
   }, [houseStore, localDate, persist, sessions]);
 
   const tabBar = (
-    <HomeBottomNavigation activeTab="house" onNavigate={onNavigate} />
+    <HomeBottomNavigation compact activeTab="house" onNavigate={onNavigate} />
   );
 
   if (activeMiniGame === 'banana_catch') {

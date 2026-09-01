@@ -6,14 +6,11 @@
  * is requested, and the selected option hands off to the workout session. The
  * screen itself stays presentational — every server rule stays on the server.
  *
- * Two reads the design would use do not exist in the contract yet:
- *
- * - there is no way to re-read today's decision by date, so a decision is held
- *   for this session only; the flow above owns it, so switching tabs does not
- *   discard today's routine, and after a restart the user re-runs the check-in,
- *   which is what produces a decision
- * - there is no way to read the current weekly plan revision, so the revision
- *   sequence is likewise only known from a response this session created
+ * The flow above owns today's decision so switching tabs does not discard it.
+ * It also re-reads the server's latest completed decision on Home entry. This
+ * container performs the same read after an ambiguous creation failure so a
+ * committed routine is not reported as failed merely because its response was
+ * lost.
  */
 
 import {
@@ -26,6 +23,7 @@ import {
 } from 'react';
 
 import type { Api } from '../../api/endpoints';
+import { createIdempotencyKey } from '../../api/client';
 import {
   isApiError,
   messageForError,
@@ -62,13 +60,28 @@ import {
 import type { RoutineGenerationPhaseCode } from './RoutineGenerationLoading';
 
 type HomeData = {
-  routine: RoutineResponse | null;
+  routine: RoutineResponse;
   context: DailyContextResponse | null;
   week: WeekResponse | null;
   sessions: WorkoutSessionLogSummary[];
 };
 
-const FALLBACK_GOAL_CODE = 'GENERAL_FITNESS';
+type PendingRoutineAttempt = {
+  scope: string;
+  idempotencyKey: string;
+};
+
+type DecisionBaseline =
+  | { status: 'known-none' }
+  | { status: 'known'; decisionId: string }
+  | { status: 'unknown' };
+
+type PendingDecisionAttempt = {
+  context: DailyContextResponse;
+  idempotencyKey: string;
+  baseline: DecisionBaseline;
+};
+
 const FALLBACK_LOCATION_CODE = 'HOME';
 const EMPTY_SESSIONS: WorkoutSessionLogSummary[] = [];
 const DEFAULT_FINAL_VALIDATION_HOLD_MS = 1_500;
@@ -141,6 +154,54 @@ function actionMessage(error: unknown): string {
   return messageForError(error);
 }
 
+function isAmbiguousMutationError(error: unknown): boolean {
+  return (
+    !isApiError(error) ||
+    error.kind === 'network' ||
+    error.kind === 'conflict' ||
+    error.kind === 'server' ||
+    error.kind === 'unavailable'
+  );
+}
+
+function isExactApiError(error: unknown, code: string): boolean {
+  return isApiError(error) && error.code === code;
+}
+
+function isNewDecision(
+  stored: DecisionResponse,
+  baseline: DecisionBaseline,
+): boolean {
+  if (baseline.status === 'known-none') {
+    return true;
+  }
+  return (
+    baseline.status === 'known' && stored.decision_id !== baseline.decisionId
+  );
+}
+
+function decisionStageError(error: unknown): unknown {
+  if (!isApiError(error) || error.kind === 'network') {
+    return Object.assign(new Error('decision result could not be confirmed'), {
+      userMessage:
+        '체크인은 저장됐지만 오늘 루틴 생성 결과를 확인하지 못했어요. 저장된 체크인으로 루틴 생성만 다시 시도할 수 있어요.',
+    });
+  }
+  if (
+    error.kind === 'conflict' ||
+    error.kind === 'server' ||
+    error.kind === 'unavailable'
+  ) {
+    return Object.assign(
+      new Error('decision generation failed after check-in'),
+      {
+        userMessage: `체크인은 저장됐지만 ${error.message}`,
+      },
+    );
+  }
+  return error;
+}
+
 export function HomeContainer({
   api,
   me,
@@ -151,7 +212,8 @@ export function HomeContainer({
   onPlanRevisionChange,
   onSessionStarted,
   onRestChosen,
-  onRecheckAfterRest,
+  onCheckinDecisionSuccess,
+  onRecoverDecision,
   onTab,
   onOpenCalendar,
   finalValidationHoldMs = DEFAULT_FINAL_VALIDATION_HOLD_MS,
@@ -167,7 +229,10 @@ export function HomeContainer({
   onPlanRevisionChange: (revision: WeeklyPlanRevisionResponse | null) => void;
   onSessionStarted: (sessionId: string, plan: WorkoutPlan) => void;
   onRestChosen: (pressureNotificationsAllowed: boolean) => void;
-  onRecheckAfterRest: () => void;
+  /** Clear flow-owned REST state only after a replacement decision succeeds. */
+  onCheckinDecisionSuccess?: () => void;
+  /** Re-read the flow-owned decision when Home data is manually refreshed. */
+  onRecoverDecision?: () => void;
   onTab: (tab: TabId) => void;
   onOpenCalendar: () => void;
   /** Testable presentation delay after a decision response is ready. */
@@ -177,11 +242,70 @@ export function HomeContainer({
   const now = new Date();
   const localDate = localDateString(now, profile?.timezone);
   const weekStart = weekStartString(now, profile?.timezone);
+  const pendingRoutineAttempt = useRef<PendingRoutineAttempt | null>(null);
+  const routineRecoveryScope =
+    profile === null
+      ? null
+      : `${me.user_id}:${profile.profile_version}:${localDate}`;
 
   const { state, reload, setData } = useAsyncData<HomeData>(
     async (signal) => {
+      const routinePromise = api
+        .getCurrentRoutine(localDate, signal)
+        .then((routine) => {
+          if (pendingRoutineAttempt.current?.scope === routineRecoveryScope) {
+            pendingRoutineAttempt.current = null;
+          }
+          return routine;
+        })
+        .catch(async (error: unknown) => {
+          if (
+            !isExactApiError(error, 'ROUTINE_NOT_FOUND') ||
+            profile === null ||
+            routineRecoveryScope === null
+          ) {
+            throw error;
+          }
+
+          const attempt =
+            pendingRoutineAttempt.current?.scope === routineRecoveryScope
+              ? pendingRoutineAttempt.current
+              : {
+                  scope: routineRecoveryScope,
+                  idempotencyKey: createIdempotencyKey(),
+                };
+          pendingRoutineAttempt.current = attempt;
+
+          try {
+            const created = await api.createRoutine(
+              {
+                effective_from: localDate,
+                goal_code: profile.primary_goal_code,
+              },
+              attempt.idempotencyKey,
+            );
+            if (pendingRoutineAttempt.current === attempt) {
+              pendingRoutineAttempt.current = null;
+            }
+            return created;
+          } catch (creationError: unknown) {
+            if (isAmbiguousMutationError(creationError)) {
+              try {
+                const recovered = await api.getCurrentRoutine(localDate);
+                if (pendingRoutineAttempt.current === attempt) {
+                  pendingRoutineAttempt.current = null;
+                }
+                return recovered;
+              } catch {
+                // Preserve the creation error. The same idempotency key remains
+                // available for a manual retry of this exact recovery intent.
+              }
+            }
+            throw creationError;
+          }
+        });
       const [routine, context, week, sessionList] = await Promise.all([
-        optional(api.getCurrentRoutine(localDate, signal), ['notFound']),
+        routinePromise,
         optional(api.getDailyContext(localDate, signal), ['notFound']),
         // Weekly summaries are secondary. They may be absent while the daily
         // flow remains usable, but authentication and permission errors still
@@ -212,7 +336,14 @@ export function HomeContainer({
         sessions: sessionList?.items ?? [],
       };
     },
-    [api, localDate, weekStart],
+    [
+      api,
+      localDate,
+      me.user_id,
+      profile?.primary_goal_code,
+      profile?.profile_version,
+      weekStart,
+    ],
   );
 
   const [busy, setBusy] = useState<HomeBusyKind | null>(null);
@@ -221,6 +352,8 @@ export function HomeContainer({
   const [actionError, setActionError] = useState<string | null>(null);
   const [staleContext, setStaleContext] = useState(false);
   const [lastDraft, setLastDraft] = useState<HomeCheckinDraft | null>(null);
+  const [pendingDecision, setPendingDecision] =
+    useState<PendingDecisionAttempt | null>(null);
   const inFlight = useRef(false);
 
   const data = state.status === 'ready' ? state.data : null;
@@ -242,8 +375,8 @@ export function HomeContainer({
   );
 
   const run = useCallback((kind: HomeBusyKind, action: () => Promise<void>) => {
-    // Mutations carry a fresh idempotency key per call, so overlapping runs
-    // would create separate intents rather than retrying one.
+    // Overlapping actions can represent different user intents. Serialize
+    // them even though a retry of one saved decision reuses its original key.
     if (inFlight.current) {
       return;
     }
@@ -269,6 +402,63 @@ export function HomeContainer({
     setRoutineLoadingPhaseCode('FINAL_VALIDATION');
     await wait(finalValidationHoldMs);
   }, [finalValidationHoldMs]);
+
+  const requestDecision = useCallback(
+    async (attempt: PendingDecisionAttempt) => {
+      try {
+        const next = await api.createDecision(
+          {
+            local_date: localDate,
+            daily_context_id: attempt.context.id,
+            expected_context_version: attempt.context.context_version,
+          },
+          attempt.idempotencyKey,
+        );
+        if (canShowFinalValidation(next)) {
+          await holdFinalValidation();
+        }
+        setPendingDecision(null);
+        onDecisionChange(next);
+        onCheckinDecisionSuccess?.();
+      } catch (error: unknown) {
+        if (
+          isAmbiguousMutationError(error) &&
+          attempt.baseline.status !== 'unknown'
+        ) {
+          try {
+            const stored = await api.getDecisionForDate(localDate);
+            if (isNewDecision(stored, attempt.baseline)) {
+              if (canShowFinalValidation(stored)) {
+                await holdFinalValidation();
+              }
+              setPendingDecision(null);
+              onDecisionChange(stored);
+              onCheckinDecisionSuccess?.();
+              return;
+            }
+          } catch {
+            // The original creation error remains the most useful result. A
+            // missing or unavailable recovery read must not replace it.
+          }
+        }
+        if (isApiError(error)) {
+          if (error.kind !== 'stale' && !isAmbiguousMutationError(error)) {
+            // Validation/input errors require a changed check-in rather than
+            // replaying a request whose outcome the server already knows.
+            setPendingDecision(null);
+          }
+        }
+        throw decisionStageError(error);
+      }
+    },
+    [
+      api,
+      holdFinalValidation,
+      localDate,
+      onCheckinDecisionSuccess,
+      onDecisionChange,
+    ],
+  );
 
   const submitCheckin = useCallback(
     (draft: HomeCheckinDraft, refreshVersion = false) => {
@@ -340,32 +530,49 @@ export function HomeContainer({
           },
           expectedVersion,
         );
-
-        // The check-in write and decision generation are separate mutations.
-        // Keep the successful context version even if decision generation
-        // fails, otherwise the next attempt immediately becomes stale.
+        // Check-in persistence is already complete even if decision creation
+        // later loses its response. Reflect it now so a retry never rewrites
+        // the same check-in merely to regenerate today's routine.
         setData({ routine, context: saved, week, sessions });
-
-        const next = await api.createDecision({
-          local_date: localDate,
-          daily_context_id: saved.id,
-          expected_context_version: saved.context_version,
-        });
-
-        if (canShowFinalValidation(next)) {
-          await holdFinalValidation();
+        let baseline: DecisionBaseline =
+          decision === null
+            ? { status: 'unknown' }
+            : { status: 'known', decisionId: decision.decision_id };
+        if (decision === null) {
+          try {
+            const stored = await api.getDecisionForDate(localDate);
+            baseline = {
+              status: 'known',
+              decisionId: stored.decision_id,
+            };
+          } catch (error: unknown) {
+            baseline = isExactApiError(error, 'DECISION_NOT_FOUND')
+              ? { status: 'known-none' }
+              : { status: 'unknown' };
+          }
         }
-        onDecisionChange(next);
+        const attempt: PendingDecisionAttempt = {
+          context: saved,
+          idempotencyKey: createIdempotencyKey(),
+          baseline,
+        };
+        setPendingDecision(attempt);
+        // A previous routine belongs to the previous check-in. Hide it while
+        // the server decides from the newly saved context so an error and a
+        // stale routine are never presented as one result.
+        onDecisionChange(null);
+        await requestDecision(attempt);
       });
     },
     [
       api,
       context,
-      holdFinalValidation,
+      decision,
       localDate,
       locationCodes,
       onDecisionChange,
       profile,
+      requestDecision,
       routine,
       run,
       setData,
@@ -374,15 +581,12 @@ export function HomeContainer({
     ],
   );
 
-  const createRoutine = useCallback(() => {
-    run('routine-creation', async () => {
-      await api.createRoutine({
-        effective_from: localDate,
-        goal_code: profile?.primary_goal_code ?? FALLBACK_GOAL_CODE,
-      });
-      reload();
-    });
-  }, [api, localDate, profile, reload, run]);
+  const retryDecision = useCallback(() => {
+    if (pendingDecision === null) {
+      return;
+    }
+    run('decision-generation', () => requestDecision(pendingDecision));
+  }, [pendingDecision, requestDecision, run]);
 
   const startWorkout = useCallback(() => {
     if (decision === null || decision.final_plan === null) {
@@ -564,7 +768,14 @@ export function HomeContainer({
       errorMessage={state.status === 'error' ? state.message : undefined}
       exerciseApi={api}
       permissionDenied={permissionDenied}
-      onRetry={permissionDenied ? undefined : reload}
+      onRetry={
+        permissionDenied
+          ? undefined
+          : () => {
+              reload();
+              onRecoverDecision?.();
+            }
+      }
       routine={routine}
       context={context}
       decision={decision}
@@ -582,11 +793,10 @@ export function HomeContainer({
       onRetryCheckin={
         lastDraft === null ? undefined : () => submitCheckin(lastDraft, true)
       }
-      onCreateRoutine={createRoutine}
+      onRetryDecision={pendingDecision === null ? undefined : retryDecision}
       onSubmitCheckin={(draft) => submitCheckin(draft)}
       onStartWorkout={startWorkout}
       onChooseRest={chooseRest}
-      onRecheckAfterRest={onRecheckAfterRest}
       onRegenerateDecision={regenerateDecision}
       onReorderPlan={reorderPlan}
       onSubmitUserEdits={submitUserEdits}

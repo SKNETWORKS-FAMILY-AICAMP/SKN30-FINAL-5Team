@@ -64,18 +64,24 @@ export function MainFlow({
   const [decision, setDecision] = useState<DecisionResponse | null>(null);
   const [planRevision, setPlanRevision] =
     useState<WeeklyPlanRevisionResponse | null>(null);
-  const restoreAttempted = useRef(false);
+  const [recoveryNonce, setRecoveryNonce] = useState(0);
+  const decisionRef = useRef(decision);
+
+  useEffect(() => {
+    decisionRef.current = decision;
+  }, [decision]);
 
   // A restart loses this flow's in-memory state, so recover today's stored
-  // decision — and an unfinished session — from the server exactly once.
+  // decision — and an unfinished session — from the server on entry and
+  // explicit refresh.
   // Nothing here re-runs agents; both calls only read what a decision run
   // already persisted.
   useEffect(() => {
-    if (restoreAttempted.current) {
+    if (step.name !== 'home') {
       return;
     }
-    restoreAttempted.current = true;
     const controller = new AbortController();
+    const decisionIdAtStart = decisionRef.current?.decision_id ?? null;
     const localDate = localDateString(new Date(), me.profile?.timezone);
     const weekStart = weekStartString(new Date(), me.profile?.timezone);
     const latestPlanRevisionRequest = api.getLatestWeeklyPlanRevision
@@ -122,32 +128,44 @@ export function MainFlow({
         return;
       }
       if (stored) {
-        setDecision(stored);
+        setDecision((current) =>
+          (current?.decision_id ?? null) === decisionIdAtStart
+            ? stored
+            : current,
+        );
       }
     })();
 
     return () => controller.abort();
-  }, [api, me.profile?.timezone]);
+  }, [api, me.profile?.timezone, recoveryNonce, step.name]);
 
   const goHome = useCallback(() => setStep({ name: 'home' }), []);
+  const recoverHomeDecision = useCallback(
+    () => setRecoveryNonce((value) => value + 1),
+    [],
+  );
 
   // One tab handler for every screen that shows the bar, so the destinations
   // stay identical wherever it appears.
-  const onTab = useCallback((tab: TabId) => {
-    if (tab === 'house') {
-      setStep({ name: 'house' });
-      return;
-    }
-    if (tab === 'report') {
-      setStep({ name: 'calendar-report' });
-      return;
-    }
-    if (tab === 'my') {
-      setStep({ name: 'account' });
-      return;
-    }
-    setStep({ name: 'home' });
-  }, []);
+  const onTab = useCallback(
+    (tab: TabId) => {
+      if (tab === 'house') {
+        setStep({ name: 'house' });
+        return;
+      }
+      if (tab === 'report') {
+        setStep({ name: 'calendar-report' });
+        return;
+      }
+      if (tab === 'my') {
+        setStep({ name: 'account' });
+        return;
+      }
+      recoverHomeDecision();
+      setStep({ name: 'home' });
+    },
+    [recoverHomeDecision],
+  );
   const localDate = localDateString(new Date(), me.profile?.timezone);
   const routineStartLocalDate = me.profile
     ? localDateString(new Date(me.profile.created_at), me.profile.timezone)
@@ -259,10 +277,8 @@ export function MainFlow({
           onRestChosen={(pressureNotificationsAllowed) =>
             setRestChoice({ localDate, pressureNotificationsAllowed })
           }
-          onRecheckAfterRest={() => {
-            setRestChoice(null);
-            setDecision(null);
-          }}
+          onCheckinDecisionSuccess={() => setRestChoice(null)}
+          onRecoverDecision={recoverHomeDecision}
           onTab={onTab}
           onOpenCalendar={() => setStep({ name: 'calendar-report' })}
         />

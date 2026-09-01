@@ -216,6 +216,7 @@ function stubApi(overrides: Partial<Api> = {}): Api {
     replaceDailyContext: jest.fn(),
     createDecision: jest.fn(),
     getDecision: jest.fn(),
+    getDecisionForDate: jest.fn(notFound),
     regenerateDecision: jest.fn(),
     selectOption: jest.fn(),
     listWorkoutSessions: jest.fn(async () => ({
@@ -302,6 +303,79 @@ describe('idempotency keys', () => {
     );
     expect(first).not.toBe(second);
   });
+
+  it('reuses an explicit key for the same decision intent', async () => {
+    const fetchImpl = jest.fn<typeof fetch>(async () =>
+      Promise.resolve({
+        ok: true,
+        status: 201,
+        text: async () => JSON.stringify({ decision_id: 'decision-1' }),
+      } as Response),
+    );
+    const api = createApi(
+      new ApiClient({
+        baseUrl: 'https://api.example.test',
+        getToken: async () => null,
+        fetchImpl,
+      }),
+    );
+    const idempotencyKey = '11111111-1111-4111-8111-111111111111';
+
+    await api.createDecision(
+      {
+        local_date: '2026-09-01',
+        daily_context_id: 'context-1',
+        expected_context_version: 2,
+      },
+      idempotencyKey,
+    );
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://api.example.test/api/v1/decisions',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          'Idempotency-Key': idempotencyKey,
+        }),
+      }),
+    );
+  });
+
+  it('reuses an explicit key for the same routine recovery intent', async () => {
+    const fetchImpl = jest.fn<typeof fetch>(async () =>
+      Promise.resolve({
+        ok: true,
+        status: 201,
+        text: async () => JSON.stringify({ id: 'routine-1' }),
+      } as Response),
+    );
+    const api = createApi(
+      new ApiClient({
+        baseUrl: 'https://api.example.test',
+        getToken: async () => null,
+        fetchImpl,
+      }),
+    );
+    const idempotencyKey = '22222222-2222-4222-8222-222222222222';
+
+    await api.createRoutine(
+      {
+        effective_from: '2026-09-01',
+        goal_code: 'GENERAL_FITNESS',
+      },
+      idempotencyKey,
+    );
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://api.example.test/api/v1/routines',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          'Idempotency-Key': idempotencyKey,
+        }),
+      }),
+    );
+  });
 });
 
 describe('HomeContainer', () => {
@@ -325,7 +399,6 @@ describe('HomeContainer', () => {
       onPlanRevisionChange: jest.fn(),
       onSessionStarted: jest.fn(),
       onRestChosen: jest.fn(),
-      onRecheckAfterRest: jest.fn(),
       onTab: jest.fn(),
       onOpenCalendar: jest.fn(),
       finalValidationHoldMs: 0,
@@ -343,7 +416,7 @@ describe('HomeContainer', () => {
       } as unknown as Partial<Api>),
     );
 
-    expect(screen.getByText('오늘 상태를 불러오는 중이에요')).toBeTruthy();
+    expect(screen.getByText('기본 루틴을 준비하고 있어요')).toBeTruthy();
   });
 
   it('offers one check-in entry point before the check-in', async () => {
@@ -352,7 +425,7 @@ describe('HomeContainer', () => {
     expect(
       await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
     ).toBeTruthy();
-    expect(screen.getByText('아직 오늘의 운동이 없어요')).toBeTruthy();
+    expect(screen.getByText('오늘 운동을 준비해볼까요?')).toBeTruthy();
   });
 
   it('opens the existing account screen route from the Home profile button', async () => {
@@ -370,7 +443,7 @@ describe('HomeContainer', () => {
       await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
     );
     expect(screen.queryByRole('button', { name: '무릎' })).toBeNull();
-    fireEvent.press(screen.getByRole('button', { name: '있음' }));
+    fireEvent.press(screen.getByRole('button', { name: '통증 있어요' }));
     expect(screen.getByRole('button', { name: '무릎' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '어깨' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '허리' })).toBeTruthy();
@@ -380,20 +453,89 @@ describe('HomeContainer', () => {
     expect(screen.queryByRole('button', { name: '가슴' })).toBeNull();
     expect(screen.queryByRole('button', { name: '복부' })).toBeNull();
 
-    fireEvent.press(screen.getByRole('button', { name: '다른 부위 더 보기' }));
+    fireEvent.press(screen.getByRole('button', { name: '다른 부위 보기' }));
     expect(screen.getByRole('button', { name: '목' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '가슴' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '복부' })).toBeTruthy();
   });
 
-  it('offers routine creation when none exists yet', async () => {
+  it('shows the reused loading screen while the saved routine lookup is pending', async () => {
+    const pending = new Promise<RoutineResponse>(() => undefined);
     renderHome(
       homeApi({
-        getCurrentRoutine: jest.fn(notFound),
+        getCurrentRoutine: jest.fn(() => pending),
       } as unknown as Partial<Api>),
     );
 
-    expect(await screen.findByText('기본 루틴이 아직 없어요')).toBeTruthy();
+    expect(await screen.findByText('기본 루틴을 준비하고 있어요')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '다시 준비하기' })).toBeNull();
+  });
+
+  it('automatically creates a routine after the exact missing-routine response', async () => {
+    const createRoutine = jest.fn(async () => routine());
+    const getCurrentRoutine = jest.fn(notFound);
+
+    renderHome(homeApi({ createRoutine, getCurrentRoutine }));
+
+    expect(await screen.findByText('오늘 운동을 준비해볼까요?')).toBeTruthy();
+    expect(getCurrentRoutine).toHaveBeenCalledTimes(1);
+    expect(createRoutine).toHaveBeenCalledWith(
+      {
+        effective_from: expect.any(String),
+        goal_code: 'GENERAL_FITNESS',
+      },
+      expect.any(String),
+    );
+    expect(
+      screen.getByRole('button', { name: '오늘 루틴 체크인' }),
+    ).toBeTruthy();
+  });
+
+  it('retries an ambiguous routine creation with the same key', async () => {
+    const getCurrentRoutine = jest.fn(notFound);
+    const createRoutine = jest
+      .fn<Api['createRoutine']>()
+      .mockRejectedValueOnce(
+        new ApiError({
+          kind: 'network',
+          code: 'NETWORK_UNAVAILABLE',
+          status: 0,
+          message: '서버 응답을 받지 못했어요.',
+        }),
+      )
+      .mockResolvedValueOnce(routine());
+
+    renderHome(homeApi({ createRoutine, getCurrentRoutine }));
+
+    expect(
+      await screen.findByText('기본 루틴을 준비하지 못했어요'),
+    ).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: '다시 준비하기' }));
+
+    expect(await screen.findByText('오늘 운동을 준비해볼까요?')).toBeTruthy();
+    expect(createRoutine).toHaveBeenCalledTimes(2);
+    expect(createRoutine.mock.calls[0]?.[1]).toBe(
+      createRoutine.mock.calls[1]?.[1],
+    );
+  });
+
+  it('does not create a routine for a different not-found code', async () => {
+    const createRoutine = jest.fn(async () => routine());
+    const getCurrentRoutine = jest.fn(async () => {
+      throw new ApiError({
+        kind: 'notFound',
+        code: 'CATALOG_NOT_FOUND',
+        status: 404,
+        message: '카탈로그를 찾을 수 없습니다.',
+      });
+    });
+
+    renderHome(homeApi({ createRoutine, getCurrentRoutine }));
+
+    expect(
+      await screen.findByText('기본 루틴을 준비하지 못했어요'),
+    ).toBeTruthy();
+    expect(createRoutine).not.toHaveBeenCalled();
   });
 
   it('renders weekly progress from official workout-session records', async () => {
@@ -514,6 +656,234 @@ describe('HomeContainer', () => {
     );
   });
 
+  it('recovers a committed decision when the create response is lost', async () => {
+    const recovered = decision({ decision_id: 'decision-recovered' });
+    const onDecisionChange = jest.fn();
+    let decisionRead = 0;
+    const getDecisionForDate = jest.fn(async () => {
+      decisionRead += 1;
+      if (decisionRead === 1) {
+        throw new ApiError({
+          kind: 'notFound',
+          code: 'DECISION_NOT_FOUND',
+          status: 404,
+          message: '아직 저장된 루틴이 없어요.',
+        });
+      }
+      return recovered;
+    });
+
+    renderHome(
+      homeApi({
+        replaceDailyContext: jest.fn(async () => dailyContext()),
+        createDecision: jest.fn(async () => {
+          throw new ApiError({
+            kind: 'network',
+            code: 'NETWORK_UNAVAILABLE',
+            status: 0,
+            message: '서버 응답을 받지 못했어요.',
+          });
+        }),
+        getDecisionForDate,
+      } as unknown as Partial<Api>),
+      { onDecisionChange },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+
+    await waitFor(() =>
+      expect(onDecisionChange).toHaveBeenCalledWith(recovered),
+    );
+    expect(getDecisionForDate).toHaveBeenCalledTimes(2);
+    expect(screen.queryByTestId('home-action-error')).toBeNull();
+  });
+
+  it('does not accept an old decision when the baseline read is unavailable', async () => {
+    const stale = decision({ decision_id: 'decision-stale' });
+    const recovered = decision({ decision_id: 'decision-new' });
+    const onDecisionChange = jest.fn();
+    const getDecisionForDate = jest
+      .fn<Api['getDecisionForDate']>()
+      .mockRejectedValueOnce(
+        new ApiError({
+          kind: 'network',
+          code: 'NETWORK_UNAVAILABLE',
+          status: 0,
+          message: '기준 결정을 확인하지 못했어요.',
+        }),
+      )
+      .mockResolvedValue(stale);
+    const createDecision = jest
+      .fn<Api['createDecision']>()
+      .mockRejectedValueOnce(
+        new ApiError({
+          kind: 'network',
+          code: 'NETWORK_UNAVAILABLE',
+          status: 0,
+          message: '서버 응답을 받지 못했어요.',
+        }),
+      )
+      .mockResolvedValueOnce(recovered);
+
+    renderHome(
+      homeApi({
+        replaceDailyContext: jest.fn(async () => dailyContext()),
+        createDecision,
+        getDecisionForDate,
+      }),
+      { onDecisionChange },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+
+    const retry = await screen.findByRole('button', {
+      name: '루틴 생성 다시 시도',
+    });
+    expect(getDecisionForDate).toHaveBeenCalledTimes(1);
+    expect(onDecisionChange).not.toHaveBeenCalledWith(stale);
+
+    fireEvent.press(retry);
+
+    await waitFor(() =>
+      expect(onDecisionChange).toHaveBeenCalledWith(recovered),
+    );
+    expect(getDecisionForDate).toHaveBeenCalledTimes(1);
+    expect(createDecision.mock.calls[0]?.[1]).toBe(
+      createDecision.mock.calls[1]?.[1],
+    );
+  });
+
+  it('recovers the concurrently committed decision after a 409 conflict', async () => {
+    const previous = decision({ decision_id: 'decision-old' });
+    const recovered = decision({ decision_id: 'decision-concurrent' });
+    const getDecisionForDate = jest.fn(async () => recovered);
+    const onDecisionChange = jest.fn();
+
+    renderHome(
+      homeApi({
+        replaceDailyContext: jest.fn(async () => dailyContext()),
+        createDecision: jest.fn(async () => {
+          throw new ApiError({
+            kind: 'conflict',
+            code: 'DECISION_CONFLICT',
+            status: 409,
+            message: 'A concurrent decision request completed first.',
+          });
+        }),
+        getDecisionForDate,
+      } as unknown as Partial<Api>),
+      { decision: previous, onDecisionChange },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: /체크인\s*!/ }));
+
+    await waitFor(() =>
+      expect(onDecisionChange).toHaveBeenCalledWith(recovered),
+    );
+    expect(getDecisionForDate).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('home-action-error')).toBeNull();
+  });
+
+  it('retries only decision creation with the same key when recovery finds the old decision', async () => {
+    const previous = decision({ decision_id: 'decision-old' });
+    const recovered = decision({ decision_id: 'decision-new' });
+    const replaceDailyContext = jest.fn(async () => dailyContext());
+    let creationAttempt = 0;
+    const createDecision = jest.fn(
+      async (
+        _body: Parameters<Api['createDecision']>[0],
+        _idempotencyKey?: string,
+      ) => {
+        creationAttempt += 1;
+        if (creationAttempt === 1) {
+          throw new ApiError({
+            kind: 'network',
+            code: 'NETWORK_UNAVAILABLE',
+            status: 0,
+            message: '서버 응답을 받지 못했어요.',
+          });
+        }
+        return recovered;
+      },
+    );
+    const getDecisionForDate = jest.fn(async () => previous);
+    const onDecisionChange = jest.fn();
+
+    renderHome(
+      homeApi({
+        replaceDailyContext,
+        createDecision,
+        getDecisionForDate,
+      } as unknown as Partial<Api>),
+      { decision: previous, onDecisionChange },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+
+    const retry = await screen.findByRole('button', {
+      name: '루틴 생성 다시 시도',
+    });
+    expect(replaceDailyContext).toHaveBeenCalledTimes(1);
+    expect(onDecisionChange).toHaveBeenCalledWith(null);
+
+    fireEvent.press(retry);
+
+    await waitFor(() =>
+      expect(onDecisionChange).toHaveBeenCalledWith(recovered),
+    );
+    expect(replaceDailyContext).toHaveBeenCalledTimes(1);
+    expect(createDecision).toHaveBeenCalledTimes(2);
+    expect(createDecision.mock.calls[0]?.[1]).toBe(
+      createDecision.mock.calls[1]?.[1],
+    );
+  });
+
+  it('does not recover or replay a decision when the server requires changed input', async () => {
+    const previous = decision({ decision_id: 'decision-old' });
+    const getDecisionForDate = jest.fn(async () => decision());
+
+    renderHome(
+      homeApi({
+        replaceDailyContext: jest.fn(async () => dailyContext()),
+        createDecision: jest.fn(async () => {
+          throw new ApiError({
+            kind: 'validation',
+            code: 'NEEDS_INPUT',
+            status: 422,
+            message: '추가 입력이 필요합니다.',
+          });
+        }),
+        getDecisionForDate,
+      } as unknown as Partial<Api>),
+      { decision: previous },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+
+    expect(
+      await screen.findByText('추가 입력이 필요합니다.'),
+    ).toBeOnTheScreen();
+    expect(getDecisionForDate).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole('button', { name: '루틴 생성 다시 시도' }),
+    ).toBeNull();
+  });
+
   it('holds the final validation step after the decision API completes', async () => {
     let finishDecision!: (value: DecisionResponse) => void;
     const createDecision = jest.fn(
@@ -529,7 +899,7 @@ describe('HomeContainer', () => {
         replaceDailyContext: jest.fn(async () => dailyContext()),
         createDecision,
       } as unknown as Partial<Api>),
-      { onDecisionChange, finalValidationHoldMs: 500 },
+      { onDecisionChange, finalValidationHoldMs: 250 },
     );
 
     fireEvent.press(
@@ -539,6 +909,9 @@ describe('HomeContainer', () => {
 
     await waitFor(() => expect(createDecision).toHaveBeenCalled());
     expect(screen.getByTestId('routine-generation-loading')).toBeOnTheScreen();
+    expect(
+      screen.queryByRole('button', { name: '오늘 루틴 체크인' }),
+    ).toBeNull();
     expect(
       screen.getByTestId('routine-generation-message').props.children[0],
     ).toBe('끼끼가 오늘의 운동 재료를 하나씩 모으는 중');
@@ -554,6 +927,9 @@ describe('HomeContainer', () => {
         .accessibilityValue,
     ).toEqual({ min: 0, max: 100, now: 95 });
     expect(onDecisionChange).toHaveBeenLastCalledWith(null);
+    expect(onDecisionChange).not.toHaveBeenCalledWith(
+      expect.objectContaining({ decision_id: 'decision-1' }),
+    );
 
     await waitFor(() =>
       expect(onDecisionChange).toHaveBeenCalledWith(
@@ -655,10 +1031,10 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '있음' }));
+    fireEvent.press(screen.getByRole('button', { name: '통증 있어요' }));
     fireEvent.press(screen.getByRole('button', { name: '무릎' }));
-    fireEvent.press(screen.getByRole('button', { name: '심함' }));
-    fireEvent.press(screen.getByRole('button', { name: '있어요' }));
+    fireEvent.press(screen.getByRole('button', { name: '무릎 심해요' }));
+    fireEvent.press(screen.getByRole('button', { name: '주의 증상 있어요' }));
     fireEvent.press(screen.getByRole('button', { name: '심한 어지럼' }));
     fireEvent.changeText(
       screen.getByLabelText('어젯밤 수면 시간 (시간)'),
@@ -698,11 +1074,11 @@ describe('HomeContainer', () => {
       await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
     );
     fireEvent.press(screen.getByRole('button', { name: '헬스장' }));
-    fireEvent.press(screen.getByRole('button', { name: '있음' }));
+    fireEvent.press(screen.getByRole('button', { name: '통증 있어요' }));
     fireEvent.press(screen.getByRole('button', { name: '어깨' }));
-    fireEvent.press(screen.getByRole('button', { name: '보통' }));
+    fireEvent.press(screen.getByRole('button', { name: '어깨 보통이에요' }));
     fireEvent.press(screen.getByRole('button', { name: '무릎' }));
-    fireEvent.press(screen.getAllByRole('button', { name: '심함' })[1]!);
+    fireEvent.press(screen.getByRole('button', { name: '무릎 심해요' }));
     fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
 
     await waitFor(() => expect(replaceDailyContext).toHaveBeenCalled());
@@ -777,10 +1153,7 @@ describe('HomeContainer', () => {
           onPlanRevisionChange={jest.fn()}
           onSessionStarted={jest.fn()}
           onRestChosen={jest.fn()}
-          onRecheckAfterRest={() => {
-            setRestToday(false);
-            setCurrentDecision(null);
-          }}
+          onCheckinDecisionSuccess={() => setRestToday(false)}
           onTab={jest.fn()}
           onOpenCalendar={jest.fn()}
           finalValidationHoldMs={0}
@@ -851,10 +1224,7 @@ describe('HomeContainer', () => {
           onPlanRevisionChange={jest.fn()}
           onSessionStarted={jest.fn()}
           onRestChosen={jest.fn()}
-          onRecheckAfterRest={() => {
-            setRestToday(false);
-            setCurrentDecision(null);
-          }}
+          onCheckinDecisionSuccess={() => setRestToday(false)}
           onTab={jest.fn()}
           onOpenCalendar={jest.fn()}
           finalValidationHoldMs={0}
@@ -872,7 +1242,7 @@ describe('HomeContainer', () => {
     expect(await screen.findByTestId('home-action-error')).toBeOnTheScreen();
     expect(screen.getByText('요청을 완료하지 못했어요')).toBeOnTheScreen();
     expect(screen.queryByTestId('home-routine-state')).toBeNull();
-    expect(screen.queryByText('오늘은 휴식하기로 했어요')).toBeNull();
+    expect(screen.getByText('오늘은 휴식하기로 했어요')).toBeOnTheScreen();
     expect(
       screen.queryByRole('button', { name: '오늘 루틴 체크인' }),
     ).toBeNull();
@@ -941,6 +1311,73 @@ describe('HomeContainer', () => {
     );
     await waitFor(() => expect(createDecision).toHaveBeenCalledTimes(2));
     expect(screen.queryByTestId('home-action-error')).toBeNull();
+  });
+
+  it('reports a successful re-check-in decision so flow-owned rest state can clear', async () => {
+    const onCheckinDecisionSuccess = jest.fn();
+    const savedContext = { ...dailyContext(), context_version: 2 };
+
+    renderHome(
+      homeApi({
+        getDailyContext: jest.fn(async () => dailyContext()),
+        replaceDailyContext: jest.fn(async () => savedContext),
+        createDecision: jest.fn(async () =>
+          decision({ decision_id: 'decision-after-recheck' }),
+        ),
+      }),
+      {
+        restToday: true,
+        decision: decision(),
+        onCheckinDecisionSuccess,
+      },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '다시 체크인하기' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+
+    await waitFor(() =>
+      expect(onCheckinDecisionSuccess).toHaveBeenCalledTimes(1),
+    );
+  });
+
+  it('keeps flow-owned rest state when replacement decision creation fails', async () => {
+    const onCheckinDecisionSuccess = jest.fn();
+
+    renderHome(
+      homeApi({
+        getDailyContext: jest.fn(async () => dailyContext()),
+        replaceDailyContext: jest.fn(async () => ({
+          ...dailyContext(),
+          context_version: 2,
+        })),
+        createDecision: jest.fn(async () => {
+          throw new ApiError({
+            kind: 'network',
+            code: 'NETWORK_UNAVAILABLE',
+            status: 0,
+            message: '서버 응답을 받지 못했어요.',
+          });
+        }),
+      } as unknown as Partial<Api>),
+      {
+        restToday: true,
+        decision: decision(),
+        onCheckinDecisionSuccess,
+      },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '다시 체크인하기' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+
+    await screen.findByTestId('home-action-error');
+    expect(onCheckinDecisionSuccess).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole('button', { name: '다시 체크인하기' }),
+    ).toBeOnTheScreen();
   });
 
   it('regenerates the current V3 decision with optimistic concurrency values', async () => {
@@ -1063,7 +1500,9 @@ describe('HomeContainer', () => {
     renderHome(homeApi(), { restToday: true, decision: decision() });
 
     expect(await screen.findByText('오늘은 휴식하기로 했어요')).toBeTruthy();
-    expect(screen.queryByText('오늘 루틴 체크인')).toBeNull();
+    expect(
+      screen.getByRole('button', { name: '다시 체크인하기' }),
+    ).toBeOnTheScreen();
     expect(screen.queryByText('운동 시작하기  ›')).toBeNull();
   });
 
@@ -1081,8 +1520,10 @@ describe('HomeContainer', () => {
       } as unknown as Partial<Api>),
     );
 
-    expect(await screen.findByText('서버에 연결하지 못했습니다.')).toBeTruthy();
-    expect(screen.getByText('다시 시도')).toBeTruthy();
+    expect(
+      await screen.findByText('기본 루틴을 준비하지 못했어요'),
+    ).toBeTruthy();
+    expect(screen.getByText('다시 준비하기')).toBeTruthy();
   });
 
   it('shows a non-retryable permission-denied state', async () => {
@@ -1909,7 +2350,9 @@ describe('OnboardingScreen', () => {
     acceptRequiredConsents();
     fireEvent.press(screen.getByRole('button', { name: '시작하기' }));
 
-    expect(screen.getByRole('button', { name: '온보딩 중...' })).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: '기본 루틴 준비 중...' }),
+    ).toBeDisabled();
     expect(submitOnboarding).toHaveBeenCalledTimes(1);
   });
 

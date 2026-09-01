@@ -7,11 +7,16 @@ import {
   waitFor,
   within,
 } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 
 import type { Api } from '../src/api/endpoints';
 import type { WeekResponse, WorkoutSessionLogSummary } from '../src/api/types';
 import { imageAssets } from '../src/assets';
 import { BackgroundBands } from '../src/components/brand/BrandChrome';
+import {
+  MIN_COMPACT_INTERFACE_SCALE,
+  ScaleViewportProvider,
+} from '../src/components/scale';
 import { colors } from '../src/components/theme';
 import {
   HOUSE_ACTION_EFFECT_MS,
@@ -99,9 +104,13 @@ function houseApi({
   } as unknown as Api;
 }
 
-function renderHouse(api: Api, store = createMemoryHouseStore()) {
+function renderHouse(
+  api: Api,
+  store = createMemoryHouseStore(),
+  viewport?: { width: number; height: number },
+) {
   const onNavigate = jest.fn();
-  const view = render(
+  const house = (
     <MascotHouseScreen
       api={api}
       nickname="범중"
@@ -109,7 +118,14 @@ function renderHouse(api: Api, store = createMemoryHouseStore()) {
       onNavigate={onNavigate}
       store={store}
       timeZone={TIME_ZONE}
-    />,
+    />
+  );
+  const view = render(
+    viewport ? (
+      <ScaleViewportProvider viewport={viewport}>{house}</ScaleViewportProvider>
+    ) : (
+      house
+    ),
   );
   return { ...view, onNavigate, store };
 }
@@ -237,6 +253,42 @@ describe('MascotHouseScreen', () => {
     ).toHaveStyle({ width: 18, height: 18 });
     expect(screen.getByTestId('house-mini-game-banana_catch')).toHaveStyle({
       minHeight: 122,
+    });
+  });
+
+  it('shrinks buttons, cards, and navigation together on a short viewport', async () => {
+    renderHouse(houseApi(), createMemoryHouseStore(), {
+      width: 390,
+      height: 620,
+    });
+
+    await screen.findByTestId('house-scene');
+    const compactScale = MIN_COMPACT_INTERFACE_SCALE;
+
+    expect(screen.getByTestId('house-feed-action')).toHaveStyle({
+      minHeight: 44,
+      paddingVertical: 15 * compactScale,
+    });
+    expect(screen.getByTestId('house-pet-action')).toHaveStyle({
+      minHeight: 44,
+      paddingVertical: 15 * compactScale,
+    });
+    expect(screen.getByTestId('house-play-panel')).toHaveStyle({
+      padding: 16 * compactScale,
+    });
+    expect(screen.getByTestId('house-mini-game-banana_catch')).toHaveStyle({
+      width: 286 * compactScale,
+      minHeight: 122 * compactScale,
+      padding: 12 * compactScale,
+    });
+    expect(screen.getByTestId('bottom-navigation')).toHaveStyle({
+      paddingTop: 8 * compactScale,
+      paddingHorizontal: 14 * compactScale,
+      paddingBottom: 26 * compactScale,
+    });
+    expect(screen.getByTestId('bottom-navigation-tabs')).toHaveStyle({
+      paddingVertical: 10 * compactScale,
+      paddingHorizontal: 6 * compactScale,
     });
   });
 
@@ -855,11 +907,16 @@ describe('MascotHouseScreen', () => {
     expect(screen.getByTestId('house-gift-button')).toHaveStyle(translucent);
   });
 
-  it('keeps the controls phone-width on a wide viewport', async () => {
+  it('uses the full responsive width with Large phone proportional insets', async () => {
     renderHouse(houseApi());
 
     const column = await screen.findByTestId('house-content-column');
-    expect(column).toHaveStyle({ maxWidth: 430, alignSelf: 'center' });
+    expect(column).toHaveStyle({
+      width: '100%',
+      alignSelf: 'center',
+      paddingHorizontal: '4%',
+    });
+    expect(StyleSheet.flatten(column.props.style).maxWidth).toBeUndefined();
   });
 
   it('opens 집 꾸미기 over the buttons without moving the scene', async () => {

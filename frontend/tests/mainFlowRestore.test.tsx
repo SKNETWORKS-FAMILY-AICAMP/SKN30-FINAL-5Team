@@ -2,12 +2,18 @@
  * Restart recovery in MainFlow.
  *
  * A reload loses the flow's in-memory decision and session step, so MainFlow
- * reads back today's stored decision and unfinished session once on mount.
+ * reads back today's stored decision and unfinished session on mount and when
+ * the user returns to Home.
  * These tests stub the transport and assert what the client asks the server
  * and where it routes — never a decision of its own making.
  */
 
-import { render, screen, waitFor } from '@testing-library/react-native';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react-native';
 
 import { ApiClient } from '../src/api/client';
 import { createApi, type Api } from '../src/api/endpoints';
@@ -227,6 +233,33 @@ describe('MainFlow restart recovery', () => {
     });
     // Restoring must never create anything: reads only.
     expect(calls.every((path) => !path.includes('POST'))).toBe(true);
+  });
+
+  it('re-reads the stored decision whenever the user returns to Home', async () => {
+    const { api, calls } = apiWithRoutes({
+      '/decisions?': decision(),
+      '/routines/current?': routine(),
+      '/workout-sessions?': sessions([]),
+    });
+
+    render(
+      <MainFlow
+        api={api}
+        me={me()}
+        onRefreshMe={async () => undefined}
+        onSignOut={() => {}}
+      />,
+    );
+
+    const decisionReadCount = () =>
+      calls.filter((path) => path.startsWith('/decisions?')).length;
+    await waitFor(() => expect(decisionReadCount()).toBe(1));
+
+    fireEvent.press(screen.getAllByRole('tab')[1]!);
+    await waitFor(() => expect(screen.getAllByRole('tab')).toHaveLength(4));
+    fireEvent.press(screen.getAllByRole('tab')[0]!);
+
+    await waitFor(() => expect(decisionReadCount()).toBe(2));
   });
 
   it('routes straight back into an unfinished session', async () => {

@@ -96,19 +96,60 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(progressStyle.borderWidth).toBeGreaterThan(0);
   });
 
-  it('does not show decision-generation copy while a base routine is being created', () => {
+  it('reuses the setup screen while the saved base routine is being loaded', () => {
     render(
       <HomeScreen
-        busy="routine-creation"
         context={null}
         decision={null}
         routine={null}
-        status="ready"
+        status="loading"
       />,
     );
 
-    expect(screen.getByText('기본 루틴을 만드는 중이에요')).toBeOnTheScreen();
+    expect(screen.getByText('기본 루틴을 준비하고 있어요')).toBeOnTheScreen();
+    expect(screen.getByTestId('home-routine-lookup-loading')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: '다시 준비하기' })).toBeNull();
     expect(screen.queryByTestId('routine-generation-loading')).toBeNull();
+  });
+
+  it('retries only the saved routine lookup from the reused failure screen', () => {
+    const onRetry = jest.fn();
+    render(
+      <HomeScreen
+        context={null}
+        decision={null}
+        onRetry={onRetry}
+        routine={null}
+        status="error"
+      />,
+    );
+
+    expect(screen.getByText('기본 루틴을 준비하지 못했어요')).toBeOnTheScreen();
+    expect(
+      screen.getByText(
+        '기본 루틴을 확인하거나 만드는 중 문제가 생겼어요.\n잠시 후 다시 시도해 주세요.',
+      ),
+    ).toBeOnTheScreen();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      '기본 루틴을 확인하거나 만드는 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요.',
+    );
+    expect(screen.queryByTestId('home-routine-lookup-loading')).toBeNull();
+
+    const retry = screen.getByRole('button', {
+      name: '다시 준비하기',
+    });
+    expect(StyleSheet.flatten(retry.props.style)).toMatchObject({
+      borderColor: 'rgba(92, 148, 69, 0.82)',
+      shadowColor: '#527D3F',
+    });
+    expect(
+      screen.getByTestId('home-reload-routine-gradient').props.colors,
+    ).toEqual(
+      ['#E2F5C9', '#CDEDA9', '#B7E28C'].map((color) => processColor(color)),
+    );
+
+    fireEvent.press(retry);
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
   it('uses one solid background color without a gradient', () => {
@@ -389,6 +430,49 @@ describe('HomeScreen Home v1 transcription', () => {
         discomforts: { SHOULDER: 'MODERATE', KNEE: 'SEVERE' },
       }),
     );
+  });
+
+  it.each([
+    ['REST', 'BLOCKED'],
+    ['STOP_AND_SEEK_HELP', 'BLOCKED'],
+  ] as const)(
+    'offers the existing check-in sheet again for a %s safety result',
+    (actionCode, safetyStatusCode) => {
+      const props = homePreviewProps('routine');
+      render(
+        <HomeScreen
+          {...props}
+          decision={{
+            ...props.decision!,
+            action_code: actionCode,
+            safety_status_code: safetyStatusCode,
+            final_plan: null,
+            options: [],
+          }}
+        />,
+      );
+
+      fireEvent.press(screen.getByRole('button', { name: '다시 체크인하기' }));
+
+      expect(
+        screen.getByRole('header', { name: '오늘 컨디션 체크' }),
+      ).toBeOnTheScreen();
+      expect(
+        screen.getByRole('button', { name: '집' }).props.accessibilityState
+          .selected,
+      ).toBe(true);
+    },
+  );
+
+  it('offers re-check-in after the user already chose rest', () => {
+    render(<HomeScreen {...homePreviewProps('rest')} />);
+
+    expect(
+      screen.getByRole('button', { name: '다시 체크인하기' }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.queryByRole('button', { name: '오늘 루틴 체크인' }),
+    ).toBeNull();
   });
 
   it('temporarily hides available-time controls from check-in', () => {

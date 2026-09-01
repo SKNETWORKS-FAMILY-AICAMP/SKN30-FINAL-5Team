@@ -26,6 +26,7 @@ type GradientActionButtonProps = Omit<
   showChevron?: boolean;
   style?: StyleProp<ViewStyle>;
   testID?: string;
+  tone?: 'brand' | 'green';
   trailing?: ReactNode;
 };
 
@@ -38,11 +39,26 @@ export function GradientActionButton({
   showChevron = true,
   style,
   testID,
+  tone = 'brand',
   trailing,
   ...pressableProps
 }: GradientActionButtonProps) {
   const { f, s } = useScale();
   const styles = createStyles(s, f);
+  const palette =
+    tone === 'green'
+      ? {
+          border: 'rgba(92, 148, 69, 0.82)',
+          gradient: ['#E2F5C9', '#CDEDA9', '#B7E28C'] as const,
+          label: '#35512E',
+          shadow: '#527D3F',
+        }
+      : {
+          border: 'rgba(244, 166, 42, 0.8)',
+          gradient: ['#FEE8B1', '#FEDA99', '#FFD790'] as const,
+          label: colors.text,
+          shadow: '#AD741D',
+        };
 
   return (
     <Pressable
@@ -53,6 +69,7 @@ export function GradientActionButton({
       disabled={disabled}
       style={({ pressed }) => [
         styles.button,
+        { borderColor: palette.border, shadowColor: palette.shadow },
         disabled && styles.disabled,
         pressed && !disabled && styles.pressed,
         style,
@@ -60,7 +77,7 @@ export function GradientActionButton({
       testID={testID}
     >
       <LinearGradient
-        colors={['#FEE8B1', '#FEDA99', '#FFD790']}
+        colors={palette.gradient}
         end={{ x: 0.5, y: 1 }}
         locations={[0, 0.55, 1]}
         pointerEvents="none"
@@ -68,7 +85,10 @@ export function GradientActionButton({
         style={styles.gradient}
         testID={testID ? `${testID}-gradient` : undefined}
       />
-      <Text numberOfLines={1} style={[styles.label, labelStyle]}>
+      <Text
+        numberOfLines={1}
+        style={[styles.label, { color: palette.label }, labelStyle]}
+      >
         {label}
       </Text>
       {showChevron ? (
@@ -77,19 +97,19 @@ export function GradientActionButton({
           style={styles.chevron}
           testID={testID ? `${testID}-chevron` : undefined}
         >
-          {trailing ?? <GradientActionChevron />}
+          {trailing ?? <GradientActionChevron color={palette.label} />}
         </View>
       ) : null}
     </Pressable>
   );
 }
 
-function GradientActionChevron() {
+function GradientActionChevron({ color = colors.text }: { color?: string }) {
   return (
     <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
       <Path
         d="M9 5.5L16 12l-7 6.5"
-        stroke={colors.text}
+        stroke={color}
         strokeWidth={2.2}
         strokeLinecap="round"
         strokeLinejoin="round"

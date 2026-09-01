@@ -99,7 +99,7 @@ describe('PreviewGallery', () => {
     fireEvent.press(screen.getByRole('radio', { name: 'Page loading (API)' }));
     const canvas = within(screen.getByTestId('preview-app-canvas'));
 
-    expect(canvas.getByText('오늘 상태를 불러오는 중이에요')).toBeOnTheScreen();
+    expect(canvas.getByText('기본 루틴을 준비하고 있어요')).toBeOnTheScreen();
     expect(screen.getByText('단독 진입: ?preview=loading')).toBeOnTheScreen();
 
     fireEvent.press(screen.getByRole('radio', { name: '끼끼의 집' }));
@@ -378,7 +378,7 @@ describe('PreviewGallery', () => {
         '시각 참고 전용: 체크인·루틴 생성·조정 결과는 fixture이며 최종 추천 1개만 표시합니다.',
       ),
     ).toBeOnTheScreen();
-    expect(canvas.getByText('아직 오늘의 운동이 없어요')).toBeOnTheScreen();
+    expect(canvas.getByText('기본 루틴이 준비됐어요')).toBeOnTheScreen();
     expect(canvas.getByTestId('home-checkin-gradient').props.colors).toEqual(
       ['#FEE8B1', '#FEDA99', '#FFD790'].map(processColor),
     );
@@ -434,6 +434,77 @@ describe('PreviewGallery', () => {
 
     fireEvent.press(canvas.getByRole('button', { name: '프로필 열기' }));
     expect(screen.getByRole('radio', { name: 'My page (API)' })).toBeChecked();
+  });
+
+  it('previews saved base-routine lookup loading and failure states', async () => {
+    await render(<PreviewGallery />);
+
+    fireEvent.press(screen.getByRole('radio', { name: 'Home (API)' }));
+    const canvas = within(screen.getByTestId('preview-app-canvas'));
+
+    fireEvent.press(screen.getByRole('radio', { name: '기본 루틴 준비 중' }));
+    expect(canvas.getByText('기본 루틴을 준비하고 있어요')).toBeOnTheScreen();
+    expect(canvas.getByTestId('home-routine-lookup-loading')).toBeOnTheScreen();
+    expect(canvas.queryByRole('button', { name: '다시 준비하기' })).toBeNull();
+
+    fireEvent.press(screen.getByRole('radio', { name: '기본 루틴 준비 실패' }));
+    expect(canvas.getByText('기본 루틴을 준비하지 못했어요')).toBeOnTheScreen();
+    expect(
+      canvas.getByText(
+        '기본 루틴을 확인하거나 만드는 중 문제가 생겼어요.\n잠시 후 다시 시도해 주세요.',
+      ),
+    ).toBeOnTheScreen();
+    expect(
+      canvas.getByRole('button', { name: '다시 준비하기' }),
+    ).toBeOnTheScreen();
+    expect(
+      canvas.getByTestId('home-reload-routine-gradient').props.colors,
+    ).toEqual(['#E2F5C9', '#CDEDA9', '#B7E28C'].map(processColor));
+
+    fireEvent.press(canvas.getByRole('button', { name: '다시 준비하기' }));
+    expect(canvas.getByText('기본 루틴을 준비하고 있어요')).toBeOnTheScreen();
+    expect(
+      screen.getByRole('radio', { name: '기본 루틴 준비 중' }),
+    ).toBeChecked();
+
+    fireEvent.press(
+      screen.getByRole('radio', { name: '저장된 기본 루틴 조회 완료' }),
+    );
+    expect(canvas.getByText('기본 루틴이 준비됐어요')).toBeOnTheScreen();
+    expect(
+      canvas.getByRole('button', { name: '오늘 루틴 체크인' }),
+    ).toBeOnTheScreen();
+  });
+
+  it('previews recovered and retryable decision states', async () => {
+    await render(<PreviewGallery />);
+
+    fireEvent.press(screen.getByRole('radio', { name: 'Home (API)' }));
+    const canvas = within(screen.getByTestId('preview-app-canvas'));
+
+    fireEvent.press(
+      screen.getByRole('radio', { name: '홈 재진입 · 오늘 결정 복구' }),
+    );
+    expect(canvas.getByText('상체 근력 루틴')).toBeOnTheScreen();
+    expect(canvas.getByText('계획대로 진행')).toBeOnTheScreen();
+    expect(canvas.queryByTestId('home-action-error')).toBeNull();
+
+    fireEvent.press(
+      screen.getByRole('radio', { name: '결정 응답 유실 · 재시도' }),
+    );
+    expect(
+      canvas.getByText(
+        '체크인은 저장됐지만 오늘 루틴 생성 결과를 확인하지 못했어요. 저장된 체크인으로 루틴 생성만 다시 시도할 수 있어요.',
+      ),
+    ).toBeOnTheScreen();
+    fireEvent.press(
+      canvas.getByRole('button', { name: '루틴 생성 다시 시도' }),
+    );
+    expect(canvas.getByTestId('routine-generation-loading')).toBeOnTheScreen();
+    expect(await canvas.findByText('상체 근력 루틴')).toBeOnTheScreen();
+    expect(
+      screen.getByRole('radio', { name: '홈 재진입 · 오늘 결정 복구' }),
+    ).toBeChecked();
   });
 
   it('navigates from the Home API preview into the current workout screen', async () => {

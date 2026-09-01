@@ -22,6 +22,12 @@ export type PreviewMode =
   | 'workout'
   | null;
 
+export type PreviewViewportMode = 'device' | null;
+
 export function getPreviewMode(): PreviewMode {
+  return null;
+}
+
+export function getPreviewViewportMode(): PreviewViewportMode {
   return null;
 }
