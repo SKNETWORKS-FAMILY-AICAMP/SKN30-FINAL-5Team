@@ -783,9 +783,41 @@ describe('MyPageContainer', () => {
 
     fireEvent.press(screen.getByRole('button', { name: '통증 부위 수정' }));
     expect(
-      screen.getByRole('checkbox', { name: '다른 부위 접기' }),
-    ).toBeChecked();
+      screen.getByRole('button', { name: '다른 부위 접기' }).props
+        .accessibilityState,
+    ).toMatchObject({ expanded: true });
     expect(screen.getByRole('checkbox', { name: '목' })).toBeChecked();
+  });
+
+  it('uses the onboarding-style secondary control for additional pain areas', async () => {
+    await render(
+      <MyPageContainer
+        api={accountApi()}
+        me={me()}
+        now={new Date('2026-08-19T03:00:00Z')}
+        onNavigateTab={jest.fn()}
+        onRefreshMe={jest.fn(async () => undefined)}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: '통증 부위 수정' }));
+    fireEvent.press(screen.getByRole('checkbox', { name: '있어요' }));
+
+    const toggle = screen.getByRole('button', { name: '다른 부위 보기' });
+    expect(toggle.props.accessibilityState).toMatchObject({ expanded: false });
+    expect(
+      screen.getByTestId('my-page-extended-area-caret').props.style,
+    ).toBeUndefined();
+    expect(screen.queryByRole('checkbox', { name: '목' })).toBeNull();
+
+    fireEvent.press(toggle);
+
+    expect(screen.getByText('접기')).toBeOnTheScreen();
+    expect(
+      screen.getByTestId('my-page-extended-area-caret').props.style,
+    ).toMatchObject({ transform: [{ rotate: '180deg' }] });
+    expect(screen.getByRole('checkbox', { name: '목' })).toBeOnTheScreen();
   });
 
   it('renders a legacy attention area in Korean and only allows removing it', async () => {

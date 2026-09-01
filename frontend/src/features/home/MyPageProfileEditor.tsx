@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 import {
   bodyAreaLabel,
@@ -684,12 +685,6 @@ function AttentionAreaEditor({
                 onPress={() => toggleSelected(option.code)}
               />
             ))}
-            <ChipOption
-              disabled={disabled}
-              label={showExtendedAreas ? '다른 부위 접기' : '다른 부위 더 보기'}
-              selected={showExtendedAreas}
-              onPress={() => setShowExtendedAreas((visible) => !visible)}
-            />
             {showExtendedAreas
               ? EXTENDED_BODY_AREA_OPTIONS.map((option) => (
                   <ChipOption
@@ -702,6 +697,47 @@ function AttentionAreaEditor({
                 ))
               : null}
           </View>
+          <Pressable
+            accessibilityLabel={
+              showExtendedAreas ? '다른 부위 접기' : '다른 부위 보기'
+            }
+            accessibilityRole="button"
+            accessibilityState={{ disabled, expanded: showExtendedAreas }}
+            disabled={disabled}
+            onPress={() => setShowExtendedAreas((visible) => !visible)}
+            style={styles.extendedAreaToggle}
+            testID="my-page-extended-area-toggle"
+          >
+            <Text style={styles.extendedAreaToggleLabel}>
+              {showExtendedAreas ? '접기' : '다른 부위 보기'}
+            </Text>
+            <View style={styles.extendedAreaToggleIcon}>
+              <View
+                style={
+                  showExtendedAreas
+                    ? styles.extendedAreaToggleCaretUp
+                    : undefined
+                }
+                testID="my-page-extended-area-caret"
+              >
+                <Svg
+                  aria-hidden
+                  fill="none"
+                  height={14}
+                  viewBox="0 0 24 24"
+                  width={14}
+                >
+                  <Path
+                    d="M6 9l6 6 6-6"
+                    stroke={colors.textMuted}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.4}
+                  />
+                </Svg>
+              </View>
+            </View>
+          </Pressable>
           {legacySelected.length > 0 ? (
             <View style={styles.painSection}>
               <Text style={styles.painSectionTitle}>
@@ -1039,6 +1075,33 @@ const styles = StyleSheet.create({
   },
   painSectionTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
   painChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  extendedAreaToggle: {
+    minHeight: 36,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  extendedAreaToggleLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  extendedAreaToggleIcon: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+  },
+  extendedAreaToggleCaretUp: {
+    transform: [{ rotate: '180deg' }],
+  },
   painSliderList: { width: '100%', gap: spacing.sm },
   painSliderCard: {
     borderWidth: 1,
