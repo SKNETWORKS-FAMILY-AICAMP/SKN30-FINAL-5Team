@@ -386,7 +386,7 @@ describe('Home secondary visual prototypes', () => {
 
     expect(
       screen.getByText(
-        '아직 보여줄 루틴이 없어요. 홈에서 기본 루틴을 만들어 주세요.',
+        '아직 보여줄 루틴이 없어요. 홈에서 기본 루틴을 다시 불러와 주세요.',
       ),
     ).toBeOnTheScreen();
     expect(screen.queryByText('4,200')).toBeNull();

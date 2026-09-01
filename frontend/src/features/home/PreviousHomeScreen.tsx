@@ -131,7 +131,6 @@ export type PreviousHomeScreenProps = {
   staleContext?: boolean;
   onRetryCheckin?: () => void;
 
-  onCreateRoutine?: () => void;
   onSubmitCheckin?: (draft: HomeCheckinDraft) => void;
   onStartWorkout?: () => void;
   onChooseRest?: () => void;
@@ -178,7 +177,6 @@ function HomeScreenContent({
   actionError = null,
   staleContext = false,
   onRetryCheckin,
-  onCreateRoutine,
   onSubmitCheckin,
   onStartWorkout,
   onChooseRest,
@@ -265,11 +263,7 @@ function HomeScreenContent({
             {restToday ? (
               <RestCard />
             ) : routine === null ? (
-              <NoRoutineCard
-                onCreateRoutine={onCreateRoutine}
-                pending={busy === 'checkin'}
-                useJua={useJua}
-              />
+              <NoRoutineCard onRetry={onRetry} useJua={useJua} />
             ) : (
               <Pressable
                 accessibilityRole="button"
@@ -583,25 +577,22 @@ function WeeklyProgressCard({
 }
 
 function NoRoutineCard({
-  onCreateRoutine,
-  pending,
+  onRetry,
   useJua,
 }: {
-  onCreateRoutine?: () => void;
-  pending: boolean;
+  onRetry?: () => void;
   useJua: boolean;
 }) {
   return (
     <Card style={styles.messageCard}>
-      <Text style={styles.messageTitle}>기본 루틴이 아직 없어요</Text>
+      <Text style={styles.messageTitle}>기본 루틴을 불러오지 못했어요</Text>
       <Text style={styles.messageText}>
-        프로필을 바탕으로 검수된 운동만 사용해 기본 루틴을 만들어요.
+        서버에 저장된 기본 루틴을 다시 불러와 주세요.
       </Text>
       <Button
-        label={pending ? '만드는 중…' : '기본 루틴 만들기'}
+        label="다시 불러오기"
         labelStyle={useJua ? styles.juaLabel : undefined}
-        disabled={pending}
-        onPress={onCreateRoutine}
+        onPress={onRetry}
       />
     </Card>
   );

@@ -246,18 +246,12 @@ function previewError(kind: 'network' | 'notFound' | 'permission'): ApiError {
  * Today screen. The fixture chooses response shapes, never workout decisions.
  */
 export function createTodayPreviewApi(state: TodayPreviewState): Api {
-  const api: Pick<
-    Api,
-    'createRoutine' | 'getCurrentRoutine' | 'getDailyContext' | 'getWeek'
-  > = {
+  const api: Pick<Api, 'getCurrentRoutine' | 'getDailyContext' | 'getWeek'> = {
     async getWeek() {
       if (state === 'loading') {
         return new Promise<WeekResponse>(() => undefined);
       }
       return WEEK;
-    },
-    async createRoutine(body) {
-      return { ...ROUTINE, effective_from: body.effective_from };
     },
     async getCurrentRoutine() {
       if (state === 'loading') {
@@ -323,7 +317,6 @@ export function previousHomePreviewProps(
     locationCodes: ['HOME', 'GYM'],
     busy: null,
     onRetry: () => undefined,
-    onCreateRoutine: () => undefined,
     onSubmitCheckin: () => undefined,
     onStartWorkout: () => undefined,
     onChooseRest: () => undefined,

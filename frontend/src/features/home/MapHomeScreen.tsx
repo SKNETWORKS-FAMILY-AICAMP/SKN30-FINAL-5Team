@@ -142,7 +142,7 @@ function RoutinePanel({
             </>
           ) : (
             <Text style={[styles.emptyRoutineCopy, pixelStyle]}>
-              아직 보여줄 루틴이 없어요. 홈에서 기본 루틴을 만들어 주세요.
+              아직 보여줄 루틴이 없어요. 홈에서 기본 루틴을 다시 불러와 주세요.
             </Text>
           )}
         </View>

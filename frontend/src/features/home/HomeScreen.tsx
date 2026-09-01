@@ -10,6 +10,7 @@ import {
   useState,
 } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   Easing,
   Image,
@@ -64,7 +65,7 @@ import { imageAssets, weeklyProgressMascotSources } from '../../assets';
 import { fontFamilies, useBrandFonts } from '../../app/fonts';
 import type { TabId } from '../../components/brand/BrandChrome';
 import { ProfileAvatar } from '../../components/profile/ProfileAvatar';
-import { useScale } from '../../components/scale';
+import { getContainedInterfaceScale, useScale } from '../../components/scale';
 import { GradientActionButton } from '../../components/primitives';
 import { colors } from '../../components/theme';
 import { ExerciseDetailSheet } from '../workout/ExerciseDetailSheet';
@@ -264,11 +265,7 @@ function revisionNotice(
 }
 
 export type HomeBusyKind =
-  | 'routine-creation'
-  | 'decision-generation'
-  | 'regeneration'
-  | 'revision'
-  | 'starting';
+  'decision-generation' | 'regeneration' | 'revision' | 'starting';
 
 export type HomeUserEdits = {
   routineId: string;
@@ -291,7 +288,6 @@ export type HomeScreenProps = {
   locationCodes?: readonly string[];
   nickname?: string;
   onChooseRest?: () => void;
-  onCreateRoutine?: () => void;
   onEditRoutine?: () => void;
   onNavigateTab?: (tab: HomeTab) => void;
   onNotifications?: () => void;
@@ -302,6 +298,7 @@ export type HomeScreenProps = {
   onRequestAlternative?: () => void;
   onReorderPlan?: (from: number, to: number) => void;
   onRetry?: () => void;
+  onRetryDecision?: () => void;
   onRetryCheckin?: () => void;
   onSaveCheckin?: () => void;
   onSaveEdit?: (items: readonly HomeRoutineItem[]) => void;
@@ -368,7 +365,6 @@ function HomeScreenContent({
   locationCodes = [],
   nickname,
   onChooseRest,
-  onCreateRoutine,
   onEditRoutine,
   onNavigateTab,
   onNotifications,
@@ -379,6 +375,7 @@ function HomeScreenContent({
   onRequestAlternative,
   onReorderPlan,
   onRetry,
+  onRetryDecision,
   onRetryCheckin,
   onSaveCheckin,
   onSaveEdit,
@@ -700,6 +697,8 @@ function HomeScreenContent({
   const restOption = decision?.options.find(
     (option) => option.option_code === 'REST',
   );
+  const recheckMode =
+    apiMode && (restToday || restRecommended || seriousDecision);
   const routineBlockedReason =
     routineOption && !routineOption.selectable
       ? ((routineOption.blocked_reason_code
@@ -707,11 +706,7 @@ function HomeScreenContent({
           : null) ?? '지금은 이 루틴을 시작할 수 없어요.')
       : null;
   const showCheckin =
-    contentReady &&
-    (!apiMode || routine !== null) &&
-    !restToday &&
-    !seriousDecision;
-
+    contentReady && (!apiMode || routine !== null) && !routineGenerationPending;
   return (
     <HomeStyleContext.Provider value={styles}>
       <View style={styles.screen}>
@@ -750,35 +745,36 @@ function HomeScreenContent({
                 />
               </>
             ) : null}
-            {showCheckin ? <CheckinButton onPress={openCheckin} /> : null}
-
-            {apiMode && status === 'loading' ? (
-              <HomeStateCard
-                testID="home-loading-state"
-                text="잠시만 기다려주세요."
-                title="오늘 상태를 불러오는 중이에요"
+            {showCheckin ? (
+              <CheckinButton
+                label={recheckMode ? '다시 체크인하기' : undefined}
+                onPress={openCheckin}
               />
             ) : null}
+
+            {apiMode && status === 'loading' ? (
+              <RoutineLookupCard loading />
+            ) : null}
             {apiMode && status === 'error' ? (
-              <HomeStateCard
-                actionLabel={permissionDenied ? undefined : '다시 시도'}
-                onAction={permissionDenied ? undefined : onRetry}
-                text={
-                  permissionDenied
-                    ? '계정 상태를 확인한 뒤 다시 이용해주세요.'
-                    : (errorMessage ?? '서버에 연결하지 못했어요.')
-                }
-                title={
-                  permissionDenied
-                    ? '오늘의 운동 정보에 접근할 권한이 없어요.'
-                    : 'Home을 불러오지 못했어요'
-                }
-              />
+              permissionDenied ? (
+                <HomeStateCard
+                  text="계정 상태를 확인한 뒤 다시 이용해주세요."
+                  title="오늘의 운동 정보에 접근할 권한이 없어요."
+                />
+              ) : (
+                <RoutineLookupCard loading={false} onRetry={onRetry} />
+              )
             ) : null}
             {contentReady && (actionError || blockingRevisionNotice) ? (
               <HomeStateCard
-                actionLabel={staleContext ? '최신 상태로 다시 시도' : undefined}
-                onAction={staleContext ? onRetryCheckin : undefined}
+                actionLabel={
+                  staleContext
+                    ? '최신 상태로 다시 시도'
+                    : onRetryDecision
+                      ? '루틴 생성 다시 시도'
+                      : undefined
+                }
+                onAction={staleContext ? onRetryCheckin : onRetryDecision}
                 serious={blockingRevisionNotice?.serious}
                 testID="home-action-error"
                 text={
@@ -788,29 +784,6 @@ function HomeScreenContent({
                 }
                 title={
                   blockingRevisionNotice?.title ?? '요청을 완료하지 못했어요'
-                }
-              />
-            ) : null}
-            {apiMode &&
-            contentReady &&
-            routine === null &&
-            !routineGenerationPending ? (
-              <HomeStateCard
-                actionLabel={
-                  busy === 'routine-creation' ? undefined : '기본 루틴 만들기'
-                }
-                onAction={
-                  busy === 'routine-creation' ? undefined : onCreateRoutine
-                }
-                text={
-                  busy === 'routine-creation'
-                    ? '프로필 목표와 운동 환경을 확인하고 있어요.'
-                    : '프로필 목표를 바탕으로 첫 루틴을 만들 수 있어요.'
-                }
-                title={
-                  busy === 'routine-creation'
-                    ? '기본 루틴을 만드는 중이에요'
-                    : '기본 루틴이 아직 없어요'
                 }
               />
             ) : null}
@@ -860,7 +833,7 @@ function HomeScreenContent({
             !actionError &&
             blockingRevisionNotice === null &&
             (!apiMode || routine !== null) ? (
-              <EmptyRoutineCard />
+              <EmptyRoutineCard baselineReady={apiMode && routine !== null} />
             ) : null}
             {contentReady &&
             !restToday &&
@@ -1401,12 +1374,18 @@ function WeeklyProgressCard({
   );
 }
 
-function CheckinButton({ onPress }: { onPress: () => void }) {
+function CheckinButton({
+  label = '오늘 루틴 체크인',
+  onPress,
+}: {
+  label?: string;
+  onPress: () => void;
+}) {
   const styles = useHomeStyles();
   return (
     <View style={styles.checkinWrapper}>
       <GradientActionButton
-        label="오늘 루틴 체크인"
+        label={label}
         labelStyle={styles.sheetSaveLabel}
         onPress={onPress}
         testID="home-checkin"
@@ -1416,14 +1395,72 @@ function CheckinButton({ onPress }: { onPress: () => void }) {
   );
 }
 
-function EmptyRoutineCard() {
+function EmptyRoutineCard({
+  baselineReady = false,
+}: {
+  baselineReady?: boolean;
+}) {
   const styles = useHomeStyles();
   return (
     <View style={styles.messageCard} testID="home-empty-state">
-      <Text style={styles.messageTitle}>아직 오늘의 운동이 없어요</Text>
-      <Text style={styles.messageText}>
-        오늘 체크인을 하면 컨디션에 맞는 추천 루틴을 받아볼 수 있어요.
+      <Text style={styles.messageTitle}>
+        {baselineReady ? '기본 루틴이 준비됐어요' : '아직 오늘의 운동이 없어요'}
       </Text>
+      <Text style={styles.messageText}>
+        {baselineReady
+          ? '오늘 컨디션을 체크하면 기본 루틴을 바탕으로 오늘 실행할 운동을 만들어 드려요.'
+          : '오늘 체크인을 하면 컨디션에 맞는 추천 루틴을 받아볼 수 있어요.'}
+      </Text>
+    </View>
+  );
+}
+
+function RoutineLookupCard({
+  loading,
+  onRetry,
+}: {
+  loading: boolean;
+  onRetry?: () => void;
+}) {
+  const styles = useHomeStyles();
+  return (
+    <View style={styles.messageCard} testID="home-routine-lookup-state">
+      {loading ? (
+        <ActivityIndicator
+          color="#5C9445"
+          size="small"
+          testID="home-routine-lookup-loading"
+        />
+      ) : null}
+      <Text
+        style={[
+          styles.messageTitle,
+          loading && styles.routineSetupLoadingTitle,
+        ]}
+      >
+        {loading
+          ? '기본 루틴을 준비하고 있어요'
+          : '기본 루틴을 준비하지 못했어요'}
+      </Text>
+      <Text
+        accessibilityRole={loading ? undefined : 'alert'}
+        style={styles.messageText}
+      >
+        {loading
+          ? '저장된 루틴을 확인하고, 필요하면 기본 루틴을 만들고 있어요.'
+          : '기본 루틴을 확인하거나 만드는 중 문제가 생겼어요.\n잠시 후 다시 시도해 주세요.'}
+      </Text>
+      {!loading && onRetry ? (
+        <View style={styles.routineSetupAction}>
+          <GradientActionButton
+            label="다시 준비하기"
+            labelStyle={styles.routineSetupButtonLabel}
+            onPress={onRetry}
+            testID="home-reload-routine"
+            tone="green"
+          />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -1837,12 +1874,17 @@ function RoutineCard({
 
 export function HomeBottomNavigation({
   activeTab,
+  compact = false,
   onNavigate,
 }: {
   activeTab: HomeTab;
+  compact?: boolean;
   onNavigate?: (tab: HomeTab) => void;
 }) {
   const insets = useSafeAreaInsets();
+  const { height, width } = useScale();
+  const controlScale = compact ? getContainedInterfaceScale(width, height) : 1;
+  const scaled = (value: number) => value * controlScale;
   const homeColor = activeTab === 'home' ? '#A45F00' : '#B0ACA4';
   const logColor = activeTab === 'house' ? '#A45F00' : '#B0ACA4';
   const reportColor = activeTab === 'report' ? '#A45F00' : '#B0ACA4';
@@ -1851,35 +1893,54 @@ export function HomeBottomNavigation({
     <View
       style={[
         bottomNavigationStyles.bottomBarOuter,
-        { paddingBottom: bottomNavigationBottomPadding(insets.bottom) },
+        {
+          paddingTop: scaled(8),
+          paddingHorizontal: scaled(HOME_LAYOUT.bottomBarHorizontalPadding),
+          paddingBottom: bottomNavigationBottomPadding(
+            insets.bottom,
+            controlScale,
+          ),
+        },
       ]}
       testID="bottom-navigation"
     >
       <View
         accessibilityRole="tablist"
-        style={bottomNavigationStyles.bottomBar}
+        style={[
+          bottomNavigationStyles.bottomBar,
+          {
+            borderRadius: scaled(22),
+            paddingVertical: scaled(10),
+            paddingHorizontal: scaled(6),
+          },
+        ]}
+        testID="bottom-navigation-tabs"
       >
         <TabButton
           active={activeTab === 'home'}
-          icon={<HomeTabIcon color={homeColor} />}
+          controlScale={controlScale}
+          icon={<HomeTabIcon color={homeColor} size={scaled(22)} />}
           label="홈"
           onPress={() => onNavigate?.('home')}
         />
         <TabButton
           active={activeTab === 'house'}
-          icon={<LogTabIcon color={logColor} />}
+          controlScale={controlScale}
+          icon={<LogTabIcon color={logColor} size={scaled(22)} />}
           label="끼끼의 집"
           onPress={() => onNavigate?.('house')}
         />
         <TabButton
           active={activeTab === 'report'}
-          icon={<ReportTabIcon color={reportColor} />}
+          controlScale={controlScale}
+          icon={<ReportTabIcon color={reportColor} size={scaled(22)} />}
           label="리포트"
           onPress={() => onNavigate?.('report')}
         />
         <TabButton
           active={activeTab === 'my'}
-          icon={<MyTabIcon color={myColor} />}
+          controlScale={controlScale}
+          icon={<MyTabIcon color={myColor} size={scaled(22)} />}
           label="마이페이지"
           onPress={() => onNavigate?.('my')}
         />
@@ -1888,17 +1949,25 @@ export function HomeBottomNavigation({
   );
 }
 
-export function bottomNavigationBottomPadding(safeAreaBottom: number) {
-  return Math.max(HOME_LAYOUT.bottomBarBottomPadding, safeAreaBottom);
+export function bottomNavigationBottomPadding(
+  safeAreaBottom: number,
+  controlScale = 1,
+) {
+  return Math.max(
+    HOME_LAYOUT.bottomBarBottomPadding * controlScale,
+    safeAreaBottom,
+  );
 }
 
 function TabButton({
   active,
+  controlScale,
   icon,
   label,
   onPress,
 }: {
   active: boolean;
+  controlScale: number;
   icon: React.ReactNode;
   label: string;
   onPress: () => void;
@@ -1909,12 +1978,21 @@ function TabButton({
       accessibilityRole="tab"
       accessibilityState={{ selected: active }}
       onPress={onPress}
-      style={bottomNavigationStyles.tab}
+      style={[
+        bottomNavigationStyles.tab,
+        {
+          minHeight: Math.max(44, 48 * controlScale),
+          gap: 4 * controlScale,
+          paddingVertical: 6 * controlScale,
+          paddingHorizontal: 2 * controlScale,
+        },
+      ]}
     >
       {icon}
       <Text
         style={[
           bottomNavigationStyles.tabLabel,
+          { fontSize: 11.5 * controlScale },
           active && bottomNavigationStyles.tabActive,
         ]}
       >
@@ -3596,9 +3674,9 @@ function RerollIcon({ color }: { color: string }) {
   );
 }
 
-function HomeTabIcon({ color }: { color: string }) {
+function HomeTabIcon({ color, size = 22 }: { color: string; size?: number }) {
   return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
         d="M4 11.2 12 4.5l8 6.7V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1v-7.8Z"
         fill={color}
@@ -3607,9 +3685,9 @@ function HomeTabIcon({ color }: { color: string }) {
   );
 }
 
-function LogTabIcon({ color }: { color: string }) {
+function LogTabIcon({ color, size = 22 }: { color: string; size?: number }) {
   return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
         d="M3.5 10v4M20.5 10v4M7 7.5v9M17 7.5v9M7 12h10"
         stroke={color}
@@ -3620,9 +3698,9 @@ function LogTabIcon({ color }: { color: string }) {
   );
 }
 
-function ReportTabIcon({ color }: { color: string }) {
+function ReportTabIcon({ color, size = 22 }: { color: string; size?: number }) {
   return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Rect x={4} y={12} width={3.6} height={7} rx={1.6} fill={color} />
       <Rect x={10.2} y={6} width={3.6} height={13} rx={1.6} fill={color} />
       <Rect x={16.4} y={9.5} width={3.6} height={9.5} rx={1.6} fill={color} />
@@ -3630,9 +3708,9 @@ function ReportTabIcon({ color }: { color: string }) {
   );
 }
 
-function MyTabIcon({ color }: { color: string }) {
+function MyTabIcon({ color, size = 22 }: { color: string; size?: number }) {
   return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Circle cx={12} cy={8} r={3.8} fill={color} />
       <Path d="M5 20c0-3.6 3.1-5.6 7-5.6s7 2 7 5.6" fill={color} />
     </Svg>
@@ -3889,6 +3967,16 @@ function createHomeStyles(
       fontSize: f(13),
       lineHeight: f(19.5),
       textAlign: 'center',
+    },
+    routineSetupLoadingTitle: { marginTop: s(12) },
+    routineSetupAction: {
+      alignSelf: 'stretch',
+      marginTop: s(20),
+    },
+    routineSetupButtonLabel: {
+      color: '#35512E',
+      fontSize: f(18),
+      fontWeight: '800',
     },
     routineCard: {
       position: 'relative',

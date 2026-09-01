@@ -1146,6 +1146,12 @@ export function PreviewGallery({
                         homePreviewProps(homeState).decision
                       }
                       onChooseRest={() => selectHomeState('rest')}
+                      onRetry={() => selectHomeState('routine-lookup-loading')}
+                      onRetryDecision={
+                        homeState === 'decision-retry'
+                          ? () => runHomeTransition('decision-recovered')
+                          : undefined
+                      }
                       onNavigateTab={navigateHomeTab}
                       onOpenCalendar={() => setScreenId('calendar-report')}
                       onProfile={() => setScreenId('my-page')}

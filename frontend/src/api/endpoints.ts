@@ -107,16 +107,20 @@ export function createApi(client: ApiClient) {
      * default; sending it makes this routine a USER_OVERRIDE without changing
      * the stored profile default.
      */
-    createRoutine(body: {
-      effective_from: string;
-      goal_code: string;
-      requested_duration_minutes?: number;
-    }) {
+    createRoutine(
+      body: {
+        effective_from: string;
+        goal_code: string;
+        requested_duration_minutes?: number;
+      },
+      idempotencyKey?: string,
+    ) {
       return client.request<RoutineResponse>({
         method: 'POST',
         path: '/routines',
         body,
         idempotent: true,
+        idempotencyKey,
       });
     },
 
@@ -201,16 +205,20 @@ export function createApi(client: ApiClient) {
       });
     },
 
-    createDecision(body: {
-      local_date: string;
-      daily_context_id: string;
-      expected_context_version: number;
-    }) {
+    createDecision(
+      body: {
+        local_date: string;
+        daily_context_id: string;
+        expected_context_version: number;
+      },
+      idempotencyKey?: string,
+    ) {
       return client.request<DecisionResponse>({
         method: 'POST',
         path: '/decisions',
         body,
         idempotent: true,
+        idempotencyKey,
       });
     },
 

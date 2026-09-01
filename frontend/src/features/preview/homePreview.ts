@@ -336,17 +336,29 @@ function decision(adjusted: boolean): DecisionResponse {
 }
 
 export function homePreviewProps(state: HomePreviewState): HomeScreenProps {
+  const showsRoutineLookup =
+    state === 'routine-lookup-loading' || state === 'routine-lookup-failed';
   const showsRoutine =
-    state === 'routine' || state === 'adjusted' || state === 'editing';
+    state === 'routine' ||
+    state === 'decision-recovered' ||
+    state === 'decision-retry' ||
+    state === 'adjusted' ||
+    state === 'editing';
   const showsGeneration =
     state === 'generating' || state === 'generating-final';
+  const decisionResponseLost = state === 'decision-retry';
 
   return {
     nickname: '헬끼',
     localDate: LOCAL_DATE,
-    status: 'ready',
-    routine: ROUTINE,
-    context: state === 'pre-checkin' ? null : CONTEXT,
+    status:
+      state === 'routine-lookup-loading'
+        ? 'loading'
+        : state === 'routine-lookup-failed'
+          ? 'error'
+          : 'ready',
+    routine: showsRoutineLookup ? null : ROUTINE,
+    context: state === 'pre-checkin' || showsRoutineLookup ? null : CONTEXT,
     decision: showsRoutine ? decision(state === 'adjusted') : null,
     week: WEEK,
     sessions: SESSIONS,
@@ -356,6 +368,14 @@ export function homePreviewProps(state: HomePreviewState): HomeScreenProps {
     exerciseApi: HOME_EXERCISE_PREVIEW_API,
     locationCodes: ['HOME', 'GYM'],
     busy: showsGeneration ? 'decision-generation' : null,
+    errorMessage:
+      state === 'routine-lookup-failed'
+        ? '기본 루틴을 준비하지 못했어요.'
+        : undefined,
+    actionError: decisionResponseLost
+      ? '체크인은 저장됐지만 오늘 루틴 생성 결과를 확인하지 못했어요. 저장된 체크인으로 루틴 생성만 다시 시도할 수 있어요.'
+      : null,
+    onRetryDecision: decisionResponseLost ? () => undefined : undefined,
     routineLoadingPhaseCode:
       state === 'generating-final' ? 'FINAL_VALIDATION' : undefined,
     previewState: state,

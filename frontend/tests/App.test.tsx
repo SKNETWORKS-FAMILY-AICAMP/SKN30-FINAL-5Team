@@ -115,7 +115,7 @@ describe('App boot navigation', () => {
     {
       mode: 'loading' as const,
       label: 'Page loading (API)',
-      readyText: '오늘 상태를 불러오는 중이에요',
+      readyText: '기본 루틴을 준비하고 있어요',
     },
     {
       mode: 'session' as const,
