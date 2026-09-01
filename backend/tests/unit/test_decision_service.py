@@ -146,9 +146,7 @@ class FakeRepository:
         daily_context_version: int,
         input_hash: str,
     ) -> None:
-        self.input_locks.append(
-            (user_id, daily_context_id, daily_context_version, input_hash)
-        )
+        self.input_locks.append((user_id, daily_context_id, daily_context_version, input_hash))
 
     def get_idempotency(self, session: Any, user_id: UUID, key: UUID) -> StoredIdempotency | None:
         return self.prior.get(key)
@@ -165,9 +163,7 @@ class FakeRepository:
         return self.decision_id
 
     def save_idempotency(self, session: Any, **values: Any) -> None:
-        self.prior[values["key"]] = StoredIdempotency(
-            values["request_hash"], values["payload"]
-        )
+        self.prior[values["key"]] = StoredIdempotency(values["request_hash"], values["payload"])
 
     def get_response_for_date(
         self, session: Any, user_id: UUID, local_date: Any

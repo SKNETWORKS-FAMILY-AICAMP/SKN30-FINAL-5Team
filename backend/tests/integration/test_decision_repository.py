@@ -483,9 +483,11 @@ def test_concurrent_identical_requests_create_one_completed_decision(
 
         def create_in_worker(_: int) -> UUID:
             with Session(engine) as worker_session:
-                return DecisionService(DecisionRepository(), clock=lambda: NOW).create(
-                    worker_session, user_id, request, uuid4()
-                ).decision_id
+                return (
+                    DecisionService(DecisionRepository(), clock=lambda: NOW)
+                    .create(worker_session, user_id, request, uuid4())
+                    .decision_id
+                )
 
         with ThreadPoolExecutor(max_workers=2) as executor:
             decision_ids = list(executor.map(create_in_worker, range(2)))
