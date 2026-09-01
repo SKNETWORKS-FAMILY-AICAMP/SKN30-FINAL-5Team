@@ -45,6 +45,51 @@ function exercisePage(
 }
 
 describe('ExerciseCatalogScreen', () => {
+  it('returns from a centered list header', async () => {
+    const onBack = jest.fn();
+    const api = {
+      listExercises: async () => exercisePage([]),
+      getExercise: async () => {
+        throw new Error('not used');
+      },
+    } as unknown as Pick<Api, 'listExercises' | 'getExercise'>;
+
+    render(<ExerciseCatalogScreen api={api} onBack={onBack} />);
+    await screen.findByText('조건에 맞는 운동이 아직 없어요.');
+
+    const backButton = screen.getByRole('button', { name: '돌아가기' });
+    expect(StyleSheet.flatten(backButton.props.style)).toMatchObject({
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    });
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('exercise-catalog-back-icon').props.style,
+      ),
+    ).toMatchObject({
+      width: 12,
+      height: 12,
+      borderBottomWidth: 2.5,
+      borderLeftWidth: 2.5,
+      transform: [{ rotate: '45deg' }],
+    });
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('exercise-catalog-header-copy').props.style,
+      ),
+    ).toMatchObject({ flex: 1, alignItems: 'center' });
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('exercise-catalog-header-spacer').props.style,
+      ),
+    ).toMatchObject({ width: 44, height: 44 });
+
+    fireEvent.press(backButton);
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
   // 첫 테스트는 모듈 변환 비용까지 흡수하므로 cold cache에서 여유를 둔다.
   it('lists the approved catalog and reloads when a filter changes', async () => {
     const queries: object[] = [];
@@ -173,6 +218,48 @@ describe('ExerciseCatalogScreen', () => {
     // 첫 페이지 항목은 그대로 유지된다.
     expect(screen.getByText('스쿼트')).toBeTruthy();
     expect(cursors).toEqual([undefined, 'cursor-2']);
+  });
+
+  it('keeps the paged list mounted while an exercise detail is open', async () => {
+    const api = {
+      listExercises: async (query: { cursor?: string }) =>
+        query.cursor === undefined
+          ? exercisePage(['First exercise'], 'cursor-2')
+          : exercisePage(['Target exercise'], null),
+      getExercise: async () => ({
+        exercise_id: 'ex-0-Target exercise',
+        exercise_name: 'Target exercise',
+        training_type_code: 'STRENGTH',
+        primary_body_area_codes: ['KNEE'],
+        instruction_summary: 'Reviewed target instructions.',
+        form_cues: [],
+        media_asset_key: null,
+        media_url: null,
+        mascot_animation_asset_key: null,
+        instruction_content_version: 'catalog-guide-v1',
+      }),
+    } as unknown as Pick<Api, 'listExercises' | 'getExercise'>;
+
+    render(<ExerciseCatalogScreen api={api} onBack={() => {}} />);
+
+    fireEvent.press(await screen.findByText('더 보기'));
+    expect(await screen.findByText('Target exercise')).toBeOnTheScreen();
+    const listScroll = screen.getByTestId('exercise-catalog-list-scroll');
+
+    fireEvent.press(
+      screen.getByRole('button', {
+        name: 'Target exercise 설명 열기',
+      }),
+    );
+    expect(
+      await screen.findByRole('header', { name: 'Target exercise' }),
+    ).toBeOnTheScreen();
+    expect(screen.getByTestId('exercise-catalog-list-scroll')).toBe(listScroll);
+
+    fireEvent.press(screen.getByRole('button', { name: '목록으로' }));
+    expect(await screen.findByText('First exercise')).toBeOnTheScreen();
+    expect(screen.getByText('Target exercise')).toBeOnTheScreen();
+    expect(screen.getByTestId('exercise-catalog-list-scroll')).toBe(listScroll);
   });
 });
 
