@@ -119,6 +119,24 @@ def _log_profile_configuration_error(request: Request) -> None:
 
 
 def _translate_profile_error(exc: Exception, *, request: Request | None = None) -> AppError:
+    if isinstance(exc, ApprovedCatalogUnavailableError):
+        return AppError(
+            status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+            code="APPROVED_CATALOG_UNAVAILABLE",
+            message="운영 승인된 운동 카탈로그를 현재 사용할 수 없습니다.",
+        )
+    if isinstance(exc, RoutineContentUnavailableError):
+        return AppError(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+            code="ROUTINE_CONTENT_UNAVAILABLE",
+            message="승인된 운동 콘텐츠로 기본 루틴을 구성할 수 없습니다.",
+        )
+    if isinstance(exc, RoutineDurationUnavailableError):
+        return AppError(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+            code="ROUTINE_DURATION_UNAVAILABLE",
+            message="요청한 시간에 맞는 기본 루틴을 구성할 수 없습니다.",
+        )
     if isinstance(exc, AgeRequirementNotMetError):
         return AppError(
             status_code=HTTPStatus.FORBIDDEN,

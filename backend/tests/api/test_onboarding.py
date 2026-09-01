@@ -307,6 +307,19 @@ def test_onboarding_automatically_creates_exactly_one_base_routine() -> None:
     assert next(iter(routine_repository.versions.values())) == 1
 
 
+def test_onboarding_returns_routine_creation_failure_as_a_service_error() -> None:
+    routine_repository = FakeRoutineRepository()
+    routine_repository.context = None  # type: ignore[assignment]
+
+    with _client(FakeProfileRepository(), routine_repository=routine_repository) as client:
+        response = client.put(
+            "/api/v1/me/onboarding", json=_payload(), headers={"Idempotency-Key": str(uuid4())}
+        )
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "APPROVED_CATALOG_UNAVAILABLE"
+
+
 def test_openapi_removes_equipment_from_onboarding_and_me_profile() -> None:
     with _client(FakeProfileRepository()) as client:
         schemas = client.app.openapi()["components"]["schemas"]
