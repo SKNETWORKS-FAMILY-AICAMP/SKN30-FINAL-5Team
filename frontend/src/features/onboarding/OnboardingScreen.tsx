@@ -52,38 +52,37 @@ const SEX_OPTIONS = [
 const COACHING_STYLE_OPTIONS = [
   {
     code: 'SUPPORTIVE',
-    label: '든든하게',
-    description: '적당한 응원과 함께 차근차근 안내해요.',
+    label: '차근차근',
+    description: '응원과 함께 편안하게 운동을 안내해요.',
   },
   {
     code: 'CONCISE',
-    label: '간결하게',
-    description: '핵심 정보와 기록을 짧고 명확하게 안내해요.',
+    label: '딱 필요한 만큼',
+    description: '꼭 필요한 내용만 간단하게 알려드려요.',
   },
   {
     code: 'ENERGETIC',
-    label: '활기차게',
-    description: '밝고 힘찬 말투로 운동 흐름을 안내해요.',
+    label: '힘차게',
+    description: '밝고 에너지 넘치게 운동을 함께해요.',
   },
 ] as const;
 
 const CONSENT_OPTIONS = {
   general_personal_data: {
     label: '개인정보 수집 및 이용',
-    description:
-      '닉네임·생년월일·키·체중으로 나에게 맞는 운동 강도를 계산해요.',
+    description: '입력한 정보를 운동 계획을 만드는 데 활용해요.',
   },
   sensitive_data: {
     label: '건강 관련 민감정보 처리',
-    description: '통증 부위와 컨디션 체크인을 받아 위험한 동작을 빼요.',
+    description: '통증과 컨디션 정보를 안전한 운동 계획을 만드는 데 활용해요.',
   },
   wearable_integration: {
     label: '웨어러블 연동',
-    description: '워치 데이터를 참고하여 운동을 생성해요',
+    description: '웨어러블 데이터를 운동 계획에 참고해요.',
   },
   marketing: {
     label: '마케팅 정보 수신',
-    description: '새 기능과 이벤트 소식을 보내요.',
+    description: '새로운 기능과 이벤트 소식을 받아볼 수 있어요.',
   },
 } as const;
 
@@ -120,26 +119,26 @@ export const ONBOARDING_STEPS = [
   },
   {
     key: 'coachingStyle',
-    title: '어떤 방식으로 안내해드릴까요?',
-    intro: '선택하지 않으면 기본 안내 방식으로 시작해요.',
+    title: '운동할 때 어떻게 도와드릴까요?',
+    intro: '원하는 안내 스타일을 골라주세요. 언제든 바꿀 수 있어요.',
     required: false,
   },
   {
     key: 'location',
-    title: '어디에서 운동해요?',
-    intro: '여러 장소를 선택할 수 있어요.',
+    title: '어디에서 운동할 예정인가요?',
+    intro: '운동할 수 있는 장소를 모두 선택해주세요.',
     required: true,
   },
   {
     key: 'duration',
-    title: '한 번에 몇 분 운동하고 싶나요?',
-    intro: '기본 루틴의 운동 시간으로 사용해요.',
+    title: '한 번에 얼마나 운동할까요?',
+    intro: '선택한 시간에 맞춰 운동 계획을 만들어드려요.',
     required: true,
   },
   {
     key: 'frequency',
-    title: '일주일에 몇 번 운동하고 싶나요?',
-    intro: '희망하는 주간 운동 횟수를 선택해주세요.',
+    title: '일주일에 몇 번 운동할까요?',
+    intro: '선택한 횟수에 맞춰 운동 계획을 만들어드려요.',
     required: true,
   },
   {
@@ -295,10 +294,8 @@ function OnboardingScreenContent({
   const blockedByAge =
     isApiError(submit.lastError) &&
     submit.lastError.code === 'AGE_REQUIREMENT_NOT_MET';
-  const missingRequiredConsentLabels = [
-    !generalConsent ? CONSENT_OPTIONS.general_personal_data.label : null,
-    !sensitiveConsent ? CONSENT_OPTIONS.sensitive_data.label : null,
-  ].filter((label) => label !== null);
+  const missingRequiredConsentCount =
+    Number(!generalConsent) + Number(!sensitiveConsent);
 
   const changeStep = (next: number) => {
     const bounded = clampStep(next);
@@ -479,18 +476,18 @@ function OnboardingScreenContent({
                 onPress={() => toggleLocation(item.code)}
               />
             ))}
-            {locations.length > 0 ? (
+            {locations.length > 1 ? (
               <View style={styles.preferredLocationSection}>
                 <Text style={styles.painSectionTitle}>주로 운동할 장소</Text>
                 <Text style={styles.hint}>
-                  선택한 장소 중 운동 계획에 우선 적용할 곳을 골라주세요.
+                  선택한 장소 중 가장 자주 이용할 곳을 골라주세요.
                 </Text>
                 {ONBOARDING_LOCATION_OPTIONS.filter((item) =>
                   locations.includes(item.code),
                 ).map((item) => (
                   <DescriptionOption
                     accessibilityLabel={`대표 운동 장소: ${item.label}`}
-                    description="운동 계획을 만들 때 우선 적용해요."
+                    description="운동 계획을 만들 때 이 장소를 우선 반영해요."
                     key={item.code}
                     label={item.label}
                     selected={preferredLocationCode === item.code}
@@ -556,7 +553,10 @@ function OnboardingScreenContent({
             {hasAttentionAreas === true ? (
               <View style={styles.painDetails}>
                 <View style={styles.painSection}>
-                  <Text style={styles.painSectionTitle}>통증 부위</Text>
+                  <Text style={styles.painSectionTitle}>불편한 부위</Text>
+                  <Text style={styles.hint}>
+                    해당하는 부위를 모두 선택해주세요.
+                  </Text>
                   <View
                     style={styles.optionGrid}
                     testID="onboarding-attention-area-grid"
@@ -570,18 +570,6 @@ function OnboardingScreenContent({
                         onPress={() => toggleAttentionArea(item.code)}
                       />
                     ))}
-                    <Chip
-                      fullWidth
-                      label={
-                        showExtendedAttentionAreas
-                          ? '다른 부위 접기'
-                          : '다른 부위 더 보기'
-                      }
-                      selected={showExtendedAttentionAreas}
-                      onPress={() =>
-                        setShowExtendedAttentionAreas((visible) => !visible)
-                      }
-                    />
                     {showExtendedAttentionAreas
                       ? EXTENDED_BODY_AREA_OPTIONS.map((item) => (
                           <Chip
@@ -594,6 +582,28 @@ function OnboardingScreenContent({
                         ))
                       : null}
                   </View>
+                  <Pressable
+                    accessibilityLabel={
+                      showExtendedAttentionAreas
+                        ? '다른 부위 접기'
+                        : '다른 부위 보기'
+                    }
+                    accessibilityRole="button"
+                    onPress={() =>
+                      setShowExtendedAttentionAreas((visible) => !visible)
+                    }
+                    style={styles.extendedAreaToggle}
+                    testID="onboarding-extended-area-toggle"
+                  >
+                    <Text style={styles.extendedAreaToggleLabel}>
+                      {showExtendedAttentionAreas ? '접기' : '다른 부위 보기'}
+                    </Text>
+                    <View style={styles.extendedAreaToggleIcon}>
+                      <Text style={styles.extendedAreaToggleCaret}>
+                        {showExtendedAttentionAreas ? '⌃' : '⌄'}
+                      </Text>
+                    </View>
+                  </Pressable>
                 </View>
                 <View
                   style={styles.painSliderList}
@@ -649,8 +659,9 @@ function OnboardingScreenContent({
               />
             </Card>
             <Card style={styles.cardGroup}>
-              <Text style={styles.fieldLabel}>
-                선택 동의 · 나중에 마이페이지에서 언제든 바꿀 수 있어요
+              <Text style={styles.fieldLabel}>선택 동의</Text>
+              <Text style={styles.hint}>
+                선택 항목은 동의하지 않아도 서비스를 이용할 수 있어요.
               </Text>
               <ConsentRow
                 checked={wearableConsent}
@@ -727,13 +738,7 @@ function OnboardingScreenContent({
             >
               {current.title}
             </Text>
-            <Text
-              style={
-                current.required ? styles.requiredBadge : styles.optionalBadge
-              }
-            >
-              {current.required ? '필수' : '선택'}
-            </Text>
+            <RequirementBadge compact required={current.required} />
           </View>
           {current.intro ? (
             <Text style={styles.stepIntro}>{current.intro}</Text>
@@ -747,12 +752,19 @@ function OnboardingScreenContent({
           />
         ) : submit.error ? (
           <InlineFeedback message={submit.error} tone="error" />
-        ) : current.key === 'consent' &&
-          missingRequiredConsentLabels.length > 0 ? (
-          <InlineFeedback
-            message={`남은 필수 동의: ${missingRequiredConsentLabels.join(', ')}\n안전한 루틴을 만들려면 이 동의가 필요해요.`}
-            tone="warning"
-          />
+        ) : current.key === 'consent' && missingRequiredConsentCount > 0 ? (
+          <View style={styles.consentReminder}>
+            <Text style={styles.consentReminderTitle}>
+              {missingRequiredConsentCount === 2
+                ? '필수 동의 항목을 확인해주세요.'
+                : '필수 동의 항목이 1개 남았어요.'}
+            </Text>
+            <Text style={styles.consentReminderDescription}>
+              {missingRequiredConsentCount === 2
+                ? '운동 계획을 만들기 위해 필수 항목의 동의가 필요해요.'
+                : '계속하려면 필수 항목을 확인해주세요.'}
+            </Text>
+          </View>
         ) : null}
       </ScrollView>
 
@@ -768,9 +780,11 @@ function OnboardingScreenContent({
           disabled={!valid || submit.pending || blockedByAge}
           label={
             submit.pending
-              ? '기본 루틴 준비 중...'
+              ? '온보딩 중...'
               : !valid
-                ? '입력이 필요해요'
+                ? current.key === 'consent'
+                  ? '필수 항목에 동의해주세요'
+                  : '입력이 필요해요'
                 : step === ONBOARDING_STEPS.length
                   ? '시작하기'
                   : '다음'
@@ -1051,13 +1065,35 @@ function ConsentRow({
       <View style={styles.consentContent}>
         <View style={styles.consentLabelRow}>
           <Text style={styles.consentText}>{label}</Text>
-          <Text style={required ? styles.requiredBadge : styles.optionalBadge}>
-            {required ? '필수' : '선택'}
-          </Text>
+          <RequirementBadge required={required} />
         </View>
         <Text style={styles.hint}>{description}</Text>
       </View>
     </Pressable>
+  );
+}
+
+function RequirementBadge({
+  compact = false,
+  required,
+}: {
+  compact?: boolean;
+  required: boolean;
+}) {
+  return (
+    <Text
+      style={[
+        styles.requirementBadge,
+        compact
+          ? styles.requirementBadgeCompact
+          : styles.requirementBadgeInline,
+        required
+          ? styles.requirementBadgeRequired
+          : styles.requirementBadgeOptional,
+      ]}
+    >
+      {required ? '필수' : '선택'}
+    </Text>
   );
 }
 
@@ -1178,7 +1214,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   stepHeading: { gap: 6 },
-  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 7 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   stepTitle: {
     flexShrink: 1,
     color: colors.text,
@@ -1187,25 +1223,32 @@ const styles = StyleSheet.create({
     lineHeight: 29,
   },
   stepIntro: { color: colors.textMuted, fontSize: 13, lineHeight: 20 },
-  requiredBadge: {
+  requirementBadge: {
     flexShrink: 0,
-    borderRadius: 6,
+    overflow: 'hidden',
+    borderRadius: 5,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  requirementBadgeCompact: {
+    fontSize: 9,
+    lineHeight: 12,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  requirementBadgeInline: {
+    fontSize: 10,
+    lineHeight: 14,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  requirementBadgeRequired: {
     backgroundColor: colors.fieldError,
     color: colors.surface,
-    fontSize: 11,
-    fontWeight: '700',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
   },
-  optionalBadge: {
-    flexShrink: 0,
-    borderRadius: 6,
+  requirementBadgeOptional: {
     backgroundColor: '#EFEBE3',
     color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: '700',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
   },
   cardGroup: { gap: 14 },
   input: { backgroundColor: colors.canvas },
@@ -1337,6 +1380,36 @@ const styles = StyleSheet.create({
     columnGap: spacing.sm,
     rowGap: spacing.sm,
   },
+  extendedAreaToggle: {
+    minHeight: 36,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  extendedAreaToggleLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  extendedAreaToggleIcon: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+  },
+  extendedAreaToggleCaret: {
+    color: colors.textMuted,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
   painSliderList: { gap: spacing.sm },
   painSliderCard: {
     borderWidth: 1,
@@ -1347,6 +1420,26 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   consentGroups: { gap: 14 },
+  consentReminder: {
+    gap: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.feedback,
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+  },
+  consentReminderTitle: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  consentReminderDescription: {
+    color: colors.textSub,
+    fontSize: 12,
+    lineHeight: 18,
+  },
   consentRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -1377,12 +1470,11 @@ const styles = StyleSheet.create({
   consentContent: { minWidth: 0, flex: 1, gap: 4 },
   consentLabelRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
+    alignItems: 'center',
     gap: spacing.sm,
   },
   consentText: {
-    flex: 1,
+    flexShrink: 1,
     color: colors.text,
     fontSize: 14,
     fontWeight: '600',

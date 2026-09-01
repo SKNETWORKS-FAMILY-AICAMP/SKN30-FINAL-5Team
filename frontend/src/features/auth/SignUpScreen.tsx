@@ -230,11 +230,12 @@ function SignUpScreenContent({
     : (fixture.confirmationMessageTone ?? 'error');
   const hasMinimumLengthError =
     password.length > 0 && password.length < MIN_PASSWORD_LENGTH;
+  const visiblePolicyHint = hideMaximumPasswordLength(policyHint);
   const passwordMessage = hasMinimumLengthError
     ? MIN_PASSWORD_ERROR
     : isApiFlow
-      ? policyHint
-        ? `비밀번호 조건: ${policyHint}`
+      ? visiblePolicyHint
+        ? `비밀번호 조건: ${visiblePolicyHint}`
         : 'Firebase 비밀번호 정책을 확인해요.'
       : fixture.passwordMessage;
   const passwordMessageTone = hasMinimumLengthError
@@ -460,6 +461,16 @@ function RequiredLabel({ label }: { label: string }) {
       <Text style={styles.requiredMark}>*</Text>
     </View>
   );
+}
+
+function hideMaximumPasswordLength(hint: string | null) {
+  if (!hint) return null;
+  const visibleRequirements = hint
+    .split(' · ')
+    .filter((requirement) => !/^\d+자 이하$/.test(requirement));
+  return visibleRequirements.length > 0
+    ? visibleRequirements.join(' · ')
+    : null;
 }
 
 function FieldMessage({

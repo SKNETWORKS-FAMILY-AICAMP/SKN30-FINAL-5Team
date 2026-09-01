@@ -45,7 +45,6 @@ import {
   locationLabel,
   planRevisionReasonLabel,
   sessionStatusLabel,
-  SEVERITY_OPTIONS,
 } from '../../api/labels';
 import type { Api } from '../../api/endpoints';
 import type {
@@ -116,6 +115,15 @@ const CHECKIN_DURATION_MINUTES = {
   max: 180,
   step: 10,
 } as const;
+
+const CHECKIN_SEVERITY_OPTIONS: readonly {
+  code: DiscomfortSeverityCode;
+  label: string;
+}[] = [
+  { code: 'MILD', label: '가벼워요' },
+  { code: 'MODERATE', label: '보통이에요' },
+  { code: 'SEVERE', label: '심해요' },
+];
 
 export const HOME_LAYOUT = {
   contentHorizontalPadding: 18,
@@ -706,7 +714,10 @@ function HomeScreenContent({
           : null) ?? '지금은 이 루틴을 시작할 수 없어요.')
       : null;
   const showCheckin =
-    contentReady && (!apiMode || routine !== null) && !routineGenerationPending;
+    contentReady &&
+    (!apiMode || routine !== null) &&
+    !routineGenerationPending &&
+    !staleContext;
   return (
     <HomeStyleContext.Provider value={styles}>
       <View style={styles.screen}>
@@ -787,7 +798,10 @@ function HomeScreenContent({
                 }
               />
             ) : null}
-            {apiMode && contentReady && restToday ? (
+            {apiMode &&
+            contentReady &&
+            restToday &&
+            !routineGenerationPending ? (
               <HomeStateCard
                 text="오늘은 운동을 권하거나 재촉하지 않을게요."
                 title="오늘은 휴식하기로 했어요"
@@ -835,10 +849,7 @@ function HomeScreenContent({
             (!apiMode || routine !== null) ? (
               <EmptyRoutineCard baselineReady={apiMode && routine !== null} />
             ) : null}
-            {contentReady &&
-            !restToday &&
-            !seriousDecision &&
-            routineGenerationPending ? (
+            {contentReady && routineGenerationPending ? (
               <GeneratingRoutineCard
                 content={routineLoadingContent}
                 items={generationPreviewItems}
@@ -1158,7 +1169,8 @@ function HomeHeader({
           accessibilityRole="header"
           style={[styles.greeting, useJua && styles.greetingJua]}
         >
-          안녕하세요, <Text style={styles.greetingName}>{userName}님!</Text>
+          <Text style={styles.greetingName}>{userName}님</Text>, 오늘도
+          반가워요!
         </Text>
         <Text style={styles.date}>{currentDate}</Text>
       </View>
@@ -1203,7 +1215,7 @@ function WeeklyRoutineCard({ weekDays }: { weekDays: readonly WeekDay[] }) {
   const styles = useHomeStyles();
   return (
     <View style={styles.summaryCard}>
-      <Text style={styles.cardTitle}>요일별 진행 상태</Text>
+      <Text style={styles.cardTitle}>이번 주 운동</Text>
       <View style={styles.weekRow} testID="weekly-day-row">
         {weekDays.map((day) => (
           <View
@@ -1288,10 +1300,10 @@ function WeeklyProgressCard({
       <View style={styles.progressHeader}>
         <View style={styles.progressTitleRow}>
           <Text numberOfLines={1} style={styles.cardTitle}>
-            이번 주 진행률
+            이번 주 운동 현황
           </Text>
           <Pressable
-            accessibilityLabel="이번 주 진행률 설명 보기"
+            accessibilityLabel="이번 주 운동 현황 설명 보기"
             accessibilityRole="button"
             hitSlop={14}
             onPress={onToggleTip}
@@ -1319,7 +1331,7 @@ function WeeklyProgressCard({
       {showTip ? (
         <View accessibilityLiveRegion="polite" style={styles.tip}>
           <Text style={styles.tipText}>
-            완료한 루틴 수를 이번 주 목표 횟수로 나눈 진행률이에요.
+            이번 주 목표까지 얼마나 왔는지 확인해보세요.
           </Text>
         </View>
       ) : null}
@@ -1367,6 +1379,19 @@ function WeeklyProgressCard({
               style={[styles.progressImage, !isDone && styles.todoImage]}
               testID={isDone ? 'day-done-image' : 'day-todo-image'}
             />
+            <Text
+              style={[
+                styles.progressStatus,
+                isDone
+                  ? styles.progressStatusCompleted
+                  : styles.progressStatusIncomplete,
+              ]}
+              testID={
+                isDone ? 'progress-complete-badge' : 'progress-incomplete-badge'
+              }
+            >
+              {isDone ? '✓ 완료' : '미완료'}
+            </Text>
           </View>
         ))}
       </View>
@@ -1404,11 +1429,13 @@ function EmptyRoutineCard({
   return (
     <View style={styles.messageCard} testID="home-empty-state">
       <Text style={styles.messageTitle}>
-        {baselineReady ? '기본 루틴이 준비됐어요' : '아직 오늘의 운동이 없어요'}
+        {baselineReady
+          ? '오늘 운동을 준비해볼까요?'
+          : '아직 오늘의 운동이 없어요'}
       </Text>
       <Text style={styles.messageText}>
         {baselineReady
-          ? '오늘 컨디션을 체크하면 기본 루틴을 바탕으로 오늘 실행할 운동을 만들어 드려요.'
+          ? '오늘 컨디션을 알려주면 나에게 맞게 운동을 조정해드려요.'
           : '오늘 체크인을 하면 컨디션에 맞는 추천 루틴을 받아볼 수 있어요.'}
       </Text>
     </View>
@@ -1521,7 +1548,7 @@ function GeneratingRoutineCard({
   return (
     <View style={styles.routineCard} testID="home-loading-state">
       <View style={styles.routineBadge}>
-        <Text style={styles.routineBadgeText}>오늘의 운동</Text>
+        <Text style={styles.routineBadgeText}>루틴 준비 중</Text>
       </View>
       <Text style={styles.routineTitle}>오늘의 루틴</Text>
       <View style={styles.routineLoadingSlot} testID="routine-loading-slot">
@@ -1624,7 +1651,7 @@ function RoutineCard({
     <View style={styles.routineCard} testID="home-routine-state">
       <View style={styles.routineBadgeRow}>
         <View style={styles.routineBadge}>
-          <Text style={styles.routineBadgeText}>오늘의 운동</Text>
+          <Text style={styles.routineBadgeText}>운동 준비 완료</Text>
         </View>
         {routineActionLabel === null ? null : (
           <View
@@ -1641,9 +1668,12 @@ function RoutineCard({
           </View>
         )}
       </View>
-      <Text style={styles.routineTitle}>{title}</Text>
+      <Text style={styles.routineTitle}>
+        오늘 컨디션에 맞춘 운동이 준비됐어요.
+      </Text>
+      <Text style={styles.routinePlanName}>{title}</Text>
       <Text style={styles.routineSummary}>
-        {focus} · 희망 운동 시간 {minutes}분
+        {focus} · {minutes}분
       </Text>
       <View style={styles.routineNotes}>
         {notes.map((note) => (
@@ -1663,7 +1693,9 @@ function RoutineCard({
       ) : null}
       <View style={styles.routineList}>
         {onMove ? (
-          <Text style={styles.orderHint}>핸들을 끌어 순서를 바꿔보세요</Text>
+          <Text style={styles.orderHint}>
+            운동 순서는 자유롭게 바꿀 수 있어요.
+          </Text>
         ) : null}
         {items.map((item, index) => {
           const { activeIndex, targetIndex } = drag;
@@ -1741,7 +1773,7 @@ function RoutineCard({
                           style={styles.routineGuideButton}
                         >
                           <Text style={styles.routineGuideButtonText}>
-                            자세
+                            자세 보기
                           </Text>
                         </Pressable>
                       ) : null}
@@ -1863,9 +1895,9 @@ function RoutineCard({
           accessibilityState={{ disabled: pending }}
           disabled={pending}
           onPress={onRest}
-          style={styles.routineAction}
+          style={[styles.routineAction, styles.restAction]}
         >
-          <Text style={styles.editActionLabel}>오늘은 쉬기</Text>
+          <Text style={styles.restActionLabel}>오늘은 쉬기</Text>
         </Pressable>
       ) : null}
     </View>
@@ -2383,8 +2415,8 @@ function CheckinSheet({
             수면 시간은 0~24 사이로 입력해주세요.
           </Text>
         ) : null}
-        {locationCodes.length > 1 ? (
-          <ChoiceBlock label="오늘 운동 장소">
+        {locationCodes.length > 0 ? (
+          <ChoiceBlock label="오늘 어디에서 운동할까요?">
             {locationCodes.map((code) => (
               <ChoiceButton
                 key={code}
@@ -2397,7 +2429,8 @@ function CheckinSheet({
         ) : null}
         <ChoiceBlock label="오늘 통증이 있는 부위가 있나요?">
           <ChoiceButton
-            label="없음"
+            accessibilityLabel="통증 없어요"
+            label="없어요"
             onPress={() => {
               setShowDiscomfortDetails(false);
               onClearDiscomforts();
@@ -2405,14 +2438,18 @@ function CheckinSheet({
             selected={!showDiscomfortDetails}
           />
           <ChoiceButton
-            label="있음"
+            accessibilityLabel="통증 있어요"
+            label="있어요"
             onPress={() => setShowDiscomfortDetails(true)}
             selected={showDiscomfortDetails}
           />
         </ChoiceBlock>
         {showDiscomfortDetails ? (
           <>
-            <ChoiceBlock label="오늘 불편한 부위를 모두 선택해주세요" twoColumn>
+            <ChoiceBlock
+              label="지금 불편하거나 통증이 있는 부위를 모두 선택해주세요."
+              twoColumn
+            >
               {DEFAULT_BODY_AREA_OPTIONS.map((option) => (
                 <ChoiceButton
                   key={option.code}
@@ -2423,15 +2460,6 @@ function CheckinSheet({
                   twoColumn
                 />
               ))}
-              <ChoiceButton
-                label={
-                  showExtendedAreas ? '다른 부위 접기' : '다른 부위 더 보기'
-                }
-                numberOfLines={2}
-                onPress={() => setShowExtendedAreas((visible) => !visible)}
-                selected={showExtendedAreas}
-                twoColumn
-              />
               {showExtendedAreas
                 ? EXTENDED_BODY_AREA_OPTIONS.map((option) => (
                     <ChoiceButton
@@ -2445,6 +2473,25 @@ function CheckinSheet({
                   ))
                 : null}
             </ChoiceBlock>
+            <Pressable
+              accessibilityLabel={
+                showExtendedAreas ? '다른 부위 접기' : '다른 부위 보기'
+              }
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showExtendedAreas }}
+              onPress={() => setShowExtendedAreas((visible) => !visible)}
+              style={styles.extendedAreaToggle}
+              testID="checkin-extended-area-toggle"
+            >
+              <Text style={styles.extendedAreaToggleLabel}>
+                {showExtendedAreas ? '접기' : '다른 부위 보기'}
+              </Text>
+              <View style={styles.extendedAreaToggleIcon}>
+                <Text style={styles.extendedAreaToggleCaret}>
+                  {showExtendedAreas ? '⌃' : '⌄'}
+                </Text>
+              </View>
+            </Pressable>
             {legacySelectedCodes.length > 0 ? (
               <ChoiceBlock label="이전에 저장된 부위 (해제만 가능)" twoColumn>
                 {legacySelectedCodes.map((code) => (
@@ -2468,8 +2515,9 @@ function CheckinSheet({
         ) : null}
         {selectedDiscomfortCodes.map((code) => (
           <ChoiceBlock key={code} label={`${bodyAreaLabel(code)} 통증 정도`}>
-            {SEVERITY_OPTIONS.map((option) => (
+            {CHECKIN_SEVERITY_OPTIONS.map((option) => (
               <ChoiceButton
+                accessibilityLabel={`${bodyAreaLabel(code)} ${option.label}`}
                 key={option.code}
                 label={option.label}
                 onPress={() => onChangeSeverity(code, option.code)}
@@ -2478,8 +2526,9 @@ function CheckinSheet({
             ))}
           </ChoiceBlock>
         ))}
-        <ChoiceBlock label="운동을 멈춰야 할 이상 반응">
+        <ChoiceBlock label="운동 중 주의해야 할 증상이 있나요?">
           <ChoiceButton
+            accessibilityLabel="주의 증상 없어요"
             label="없어요"
             onPress={() => {
               setShowAdverseDetails(false);
@@ -2490,6 +2539,7 @@ function CheckinSheet({
             }
           />
           <ChoiceButton
+            accessibilityLabel="주의 증상 있어요"
             label="있어요"
             onPress={() => setShowAdverseDetails(true)}
             selected={showAdverseDetails}
@@ -2497,10 +2547,11 @@ function CheckinSheet({
         </ChoiceBlock>
         {showAdverseDetails ? (
           <View style={styles.adverseSection}>
-            <Text style={styles.adverseTitle}>이런 증상이 있나요?</Text>
+            <Text style={styles.adverseTitle}>
+              해당하는 증상을 모두 선택해주세요.
+            </Text>
             <Text style={styles.adverseBody}>
-              해당하는 항목이 있으면 선택해주세요. 안전을 위해 운동을 중단하도록
-              안내할 수 있어요.
+              안전을 위해 오늘 운동 가능 여부를 확인하는 데 활용해요.
             </Text>
             <View style={styles.adverseChoiceList}>
               {ADVERSE_REACTION_OPTIONS.map((option) => (
@@ -2899,12 +2950,14 @@ function ChoiceBlock({
 }
 
 function ChoiceButton({
+  accessibilityLabel,
   label,
   numberOfLines = 1,
   onPress,
   selected,
   twoColumn = false,
 }: {
+  accessibilityLabel?: string;
   label: string;
   numberOfLines?: number;
   onPress: () => void;
@@ -2914,7 +2967,7 @@ function ChoiceButton({
   const styles = useHomeStyles();
   return (
     <Pressable
-      accessibilityLabel={label}
+      accessibilityLabel={accessibilityLabel ?? label}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
@@ -3942,9 +3995,32 @@ function createHomeStyles(
       padding: s(5),
     },
     progressCellCompleted: { backgroundColor: '#FFF3D4', opacity: 1 },
-    progressCellIncomplete: { backgroundColor: '#F3F1EB', opacity: 0.55 },
-    progressImage: { width: '78%', height: '78%' },
-    todoImage: { opacity: 1 },
+    progressCellIncomplete: { backgroundColor: '#F3F1EB' },
+    progressImage: { width: '72%', height: '72%', marginBottom: s(12) },
+    todoImage: { opacity: 0.42 },
+    progressStatus: {
+      position: 'absolute',
+      right: s(5),
+      bottom: s(5),
+      left: s(5),
+      overflow: 'hidden',
+      borderRadius: 999,
+      paddingVertical: s(2),
+      paddingHorizontal: s(3),
+      fontSize: f(9.5),
+      fontWeight: '800',
+      textAlign: 'center',
+    },
+    progressStatusCompleted: {
+      backgroundColor: '#F6BA50',
+      color: '#5A4636',
+    },
+    progressStatusIncomplete: {
+      borderWidth: s(1),
+      borderColor: '#D8D4CB',
+      backgroundColor: '#FFFFFF',
+      color: '#958476',
+    },
     checkinWrapper: { marginBottom: s(16) },
     messageCard: {
       alignItems: 'center',
@@ -4027,6 +4103,12 @@ function createHomeStyles(
       fontSize: f(26),
       fontWeight: '800',
       letterSpacing: s(-0.5),
+    },
+    routinePlanName: {
+      marginTop: s(8),
+      color: '#5A4636',
+      fontSize: f(15),
+      fontWeight: '700',
     },
     routineSummary: {
       marginTop: s(10),
@@ -4166,13 +4248,13 @@ function createHomeStyles(
       gap: s(4),
     },
     routineGuideSlot: {
-      width: s(44),
+      width: s(64),
       height: s(32),
       alignItems: 'center',
       justifyContent: 'center',
     },
     routineGuideButton: {
-      width: s(44),
+      width: s(64),
       height: s(32),
       minHeight: s(32),
       alignItems: 'center',
@@ -4268,6 +4350,19 @@ function createHomeStyles(
     },
     routineActionDisabled: { borderColor: '#EEDFCB' },
     editActionLabel: { color: '#A45F00', fontSize: f(13.5), fontWeight: '700' },
+    restAction: {
+      alignSelf: 'center',
+      flex: 0,
+      minWidth: s(132),
+      borderColor: '#D8D4CB',
+      backgroundColor: 'transparent',
+      paddingVertical: s(10),
+    },
+    restActionLabel: {
+      color: '#7B695B',
+      fontSize: f(13),
+      fontWeight: '600',
+    },
     rerollActionLabel: {
       color: '#A45F00',
       fontSize: f(12.5),
@@ -4387,6 +4482,36 @@ function createHomeStyles(
     },
     choiceButtonText: { color: '#5A4636', fontSize: f(13), fontWeight: '700' },
     choiceButtonTextSelected: { color: '#5A4636' },
+    extendedAreaToggle: {
+      minHeight: s(36),
+      alignSelf: 'center',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: s(6),
+      paddingHorizontal: s(8),
+    },
+    extendedAreaToggleLabel: {
+      color: '#958476',
+      fontSize: f(12),
+      fontWeight: '600',
+    },
+    extendedAreaToggleIcon: {
+      width: s(24),
+      height: s(24),
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: s(1),
+      borderColor: '#EEDFCB',
+      borderRadius: s(12),
+      backgroundColor: '#FFFFFF',
+    },
+    extendedAreaToggleCaret: {
+      color: '#958476',
+      fontSize: f(14),
+      fontWeight: '700',
+      lineHeight: f(16),
+    },
     adverseSection: {
       gap: s(8),
       borderWidth: s(1),

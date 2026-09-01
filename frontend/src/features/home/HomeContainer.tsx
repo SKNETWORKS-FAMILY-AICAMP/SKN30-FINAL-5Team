@@ -466,6 +466,10 @@ export function HomeContainer({
         return;
       }
       setLastDraft(draft);
+      // A fresh check-in supersedes the recommendation currently on screen.
+      // Remove it before loading so an error cannot leave the old routine
+      // looking like the result of the new request.
+      onDecisionChange(null);
 
       run('decision-generation', async () => {
         const sleepMinutes = sleepMinutesFromHours(draft.sleepHours);

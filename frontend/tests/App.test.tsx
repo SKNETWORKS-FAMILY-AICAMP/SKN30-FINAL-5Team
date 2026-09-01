@@ -186,7 +186,7 @@ describe('App boot navigation', () => {
     },
     { mode: 'profile' as const, heading: '프로필 등록' },
     { mode: 'signup' as const, heading: '회원가입' },
-    { mode: 'home' as const, heading: '안녕하세요, 헬끼님!' },
+    { mode: 'home' as const, heading: '헬끼님, 오늘도 반가워요!' },
     {
       mode: 'home-map' as const,
       heading: '목표 4회',
