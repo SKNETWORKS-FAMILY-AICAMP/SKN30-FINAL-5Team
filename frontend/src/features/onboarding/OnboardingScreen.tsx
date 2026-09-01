@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
 
 import type { Api } from '../../api/endpoints';
 import { isApiError } from '../../api/errors';
@@ -599,9 +600,30 @@ function OnboardingScreenContent({
                       {showExtendedAttentionAreas ? '접기' : '다른 부위 보기'}
                     </Text>
                     <View style={styles.extendedAreaToggleIcon}>
-                      <Text style={styles.extendedAreaToggleCaret}>
-                        {showExtendedAttentionAreas ? '⌃' : '⌄'}
-                      </Text>
+                      <View
+                        style={
+                          showExtendedAttentionAreas
+                            ? styles.extendedAreaToggleCaretUp
+                            : undefined
+                        }
+                        testID="onboarding-extended-area-caret"
+                      >
+                        <Svg
+                          aria-hidden
+                          fill="none"
+                          height={14}
+                          viewBox="0 0 24 24"
+                          width={14}
+                        >
+                          <Path
+                            d="M6 9l6 6 6-6"
+                            stroke={colors.textMuted}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2.4}
+                          />
+                        </Svg>
+                      </View>
                     </View>
                   </Pressable>
                 </View>
@@ -1404,11 +1426,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: colors.surface,
   },
-  extendedAreaToggleCaret: {
-    color: colors.textMuted,
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 16,
+  extendedAreaToggleCaretUp: {
+    transform: [{ rotate: '180deg' }],
   },
   painSliderList: { gap: spacing.sm },
   painSliderCard: {
