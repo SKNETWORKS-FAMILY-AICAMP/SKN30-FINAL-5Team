@@ -15,10 +15,13 @@ import {
   experienceLevelLabel,
   EXTENDED_BODY_AREA_OPTIONS,
   locationLabel,
+  orderBodyAreaCodes,
   primaryGoalLabel,
+  SELECTABLE_BODY_AREA_OPTIONS,
 } from '../../api/labels';
 import type {
   MeProfile,
+  PainAreaInput,
   ProfileImageUpload,
   ProfileSettingsUpdateRequest,
   SexCode,
@@ -30,6 +33,10 @@ import {
   TextField,
 } from '../../components/primitives';
 import { colors, radii, spacing } from '../../components/theme';
+import {
+  PAIN_INTENSITY_MIN,
+  PainIntensitySlider,
+} from '../../components/profile/PainIntensitySlider';
 import { ProfileAvatar } from '../../components/profile/ProfileAvatar';
 import {
   ONBOARDING_DURATION,
@@ -100,7 +107,10 @@ export function MyPageProfileEditor({
               {TITLES[field]}
             </Text>
             <Text style={styles.description}>
-              온보딩과 같은 방식으로 선택하면 바로 반영돼요.
+              {field === 'attention_area_codes' &&
+              profile.pain_areas !== undefined
+                ? '부위와 통증 정도를 확인한 뒤 저장해주세요.'
+                : '온보딩과 같은 방식으로 선택하면 바로 반영돼요.'}
             </Text>
           </View>
           <Pressable
@@ -214,11 +224,25 @@ function EditorBody({
   }
 
   if (field === 'attention_area_codes') {
+    const initialPainAreas = profile.pain_areas;
     return (
       <AttentionAreaEditor
         disabled={pending}
-        initial={profile.attention_area_codes}
-        onChange={(attention_area_codes) => onChange({ attention_area_codes })}
+        initial={
+          initialPainAreas?.map((area) => area.body_area_code) ??
+          profile.attention_area_codes
+        }
+        initialPainAreas={initialPainAreas}
+        onChange={(attention_area_codes, pain_areas) => {
+          if (pain_areas !== undefined) {
+            onChange({
+              pain_present: pain_areas.length > 0,
+              pain_areas,
+            });
+            return;
+          }
+          onChange({ attention_area_codes });
+        }}
       />
     );
   }
@@ -562,30 +586,64 @@ function LocationEditor({
 function AttentionAreaEditor({
   disabled,
   initial,
+  initialPainAreas,
   onChange,
 }: {
   disabled: boolean;
   initial: readonly string[];
-  onChange: (codes: string[]) => void;
+  initialPainAreas?: readonly PainAreaInput[];
+  onChange: (codes: string[], painAreas?: PainAreaInput[]) => void;
 }) {
-  const [hasAreas, setHasAreas] = useState(initial.length > 0);
-  const [selected, setSelected] = useState([...initial]);
+  const intensitySupported = initialPainAreas !== undefined;
+  const orderedInitial = orderBodyAreaCodes(initial);
+  const [hasAreas, setHasAreas] = useState(orderedInitial.length > 0);
+  const [selected, setSelected] = useState(orderedInitial);
+  const [painIntensityScores, setPainIntensityScores] = useState<
+    Partial<Record<string, number>>
+  >(() =>
+    Object.fromEntries(
+      (initialPainAreas ?? []).map((area) => [
+        area.body_area_code,
+        area.intensity_score,
+      ]),
+    ),
+  );
+  const [painDraftChanged, setPainDraftChanged] = useState(false);
   const [showExtendedAreas, setShowExtendedAreas] = useState(() =>
-    initial.some((code) =>
+    orderedInitial.some((code) =>
       EXTENDED_BODY_AREA_OPTIONS.some((option) => option.code === code),
     ),
   );
   const selectableCodes = new Set<string>(
-    [...DEFAULT_BODY_AREA_OPTIONS, ...EXTENDED_BODY_AREA_OPTIONS].map(
-      (option) => option.code,
-    ),
+    SELECTABLE_BODY_AREA_OPTIONS.map((option) => option.code),
   );
   const legacySelected = selected.filter((code) => !selectableCodes.has(code));
 
   const toggleSelected = (code: string) => {
-    const next = toggle(selected, code);
+    const next = orderBodyAreaCodes(toggle(selected, code));
     setSelected(next);
-    onChange(next);
+    if (intensitySupported) {
+      setPainIntensityScores((currentScores) => {
+        if (next.includes(code)) {
+          return { ...currentScores, [code]: PAIN_INTENSITY_MIN };
+        }
+        const nextScores = { ...currentScores };
+        delete nextScores[code];
+        return nextScores;
+      });
+      setPainDraftChanged(true);
+      return;
+    }
+    onChange(next, undefined);
+  };
+
+  const savePainAreas = () => {
+    const painAreas = selected.map((body_area_code) => ({
+      body_area_code,
+      intensity_score:
+        painIntensityScores[body_area_code] ?? PAIN_INTENSITY_MIN,
+    }));
+    onChange(selected, painAreas);
   };
 
   return (
@@ -598,7 +656,12 @@ function AttentionAreaEditor({
         onPress={() => {
           setHasAreas(false);
           setSelected([]);
-          if (selected.length > 0) onChange([]);
+          setPainIntensityScores({});
+          if (intensitySupported) {
+            setPainDraftChanged(selected.length > 0);
+          } else if (selected.length > 0) {
+            onChange([], undefined);
+          }
         }}
       />
       <ChipOption
@@ -657,7 +720,44 @@ function AttentionAreaEditor({
               </View>
             </View>
           ) : null}
+          {intensitySupported && selected.length > 0 ? (
+            <View
+              style={styles.painSliderList}
+              testID="my-page-pain-slider-list"
+            >
+              {selected.map((code) => (
+                <View
+                  key={code}
+                  style={styles.painSliderCard}
+                  testID={`my-page-pain-slider-card-${bodyAreaLabel(code)}`}
+                >
+                  <PainIntensitySlider
+                    bodyArea={bodyAreaLabel(code)}
+                    disabled={disabled}
+                    onChange={(value) => {
+                      setPainIntensityScores((scores) => ({
+                        ...scores,
+                        [code]: value,
+                      }));
+                      setPainDraftChanged(true);
+                    }}
+                    testIDPrefix="my-page"
+                    value={painIntensityScores[code] ?? PAIN_INTENSITY_MIN}
+                  />
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
+      ) : null}
+      {intensitySupported ? (
+        <Button
+          disabled={
+            disabled || !painDraftChanged || (hasAreas && selected.length === 0)
+          }
+          label={disabled ? '저장 중…' : '통증 정보 저장'}
+          onPress={savePainAreas}
+        />
       ) : null}
     </ChoiceCard>
   );
@@ -939,6 +1039,15 @@ const styles = StyleSheet.create({
   },
   painSectionTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
   painChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  painSliderList: { width: '100%', gap: spacing.sm },
+  painSliderCard: {
+    borderWidth: 1,
+    borderColor: colors.dangerBorder,
+    borderRadius: radii.control,
+    backgroundColor: '#FBEAE7',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
   counterCard: {
     flexDirection: 'row',
     alignItems: 'center',
