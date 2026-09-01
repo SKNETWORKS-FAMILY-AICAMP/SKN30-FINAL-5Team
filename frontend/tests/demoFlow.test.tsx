@@ -2350,9 +2350,7 @@ describe('OnboardingScreen', () => {
     acceptRequiredConsents();
     fireEvent.press(screen.getByRole('button', { name: '시작하기' }));
 
-    expect(
-      screen.getByRole('button', { name: '기본 루틴 준비 중...' }),
-    ).toBeDisabled();
+    expect(screen.getByRole('button', { name: '온보딩 중...' })).toBeDisabled();
     expect(submitOnboarding).toHaveBeenCalledTimes(1);
   });
 

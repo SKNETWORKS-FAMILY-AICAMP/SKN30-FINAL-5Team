@@ -780,7 +780,7 @@ function OnboardingScreenContent({
           disabled={!valid || submit.pending || blockedByAge}
           label={
             submit.pending
-              ? '기본 루틴 준비 중...'
+              ? '온보딩 중...'
               : !valid
                 ? current.key === 'consent'
                   ? '필수 항목에 동의해주세요'

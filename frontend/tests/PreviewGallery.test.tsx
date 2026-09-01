@@ -378,7 +378,7 @@ describe('PreviewGallery', () => {
         '시각 참고 전용: 체크인·루틴 생성·조정 결과는 fixture이며 최종 추천 1개만 표시합니다.',
       ),
     ).toBeOnTheScreen();
-    expect(canvas.getByText('기본 루틴이 준비됐어요')).toBeOnTheScreen();
+    expect(canvas.getByText('오늘 운동을 준비해볼까요?')).toBeOnTheScreen();
     expect(canvas.getByTestId('home-checkin-gradient').props.colors).toEqual(
       ['#FEE8B1', '#FEDA99', '#FFD790'].map(processColor),
     );
@@ -390,7 +390,7 @@ describe('PreviewGallery', () => {
     expect(canvas.queryByText('컨디션')).toBeNull();
     expect(canvas.queryByLabelText('오늘 걸음 수')).toBeNull();
     expect(canvas.queryByRole('button', { name: '어깨' })).toBeNull();
-    fireEvent.press(canvas.getByRole('button', { name: '있음' }));
+    fireEvent.press(canvas.getByRole('button', { name: '통증 있어요' }));
     expect(canvas.getByRole('button', { name: '어깨' })).toBeOnTheScreen();
     expect(canvas.getByRole('button', { name: '무릎' })).toBeOnTheScreen();
     expect(canvas.getByRole('button', { name: '허리' })).toBeOnTheScreen();
@@ -402,12 +402,14 @@ describe('PreviewGallery', () => {
     expect(canvas.getByText('어깨 통증 정도')).toBeOnTheScreen();
     expect(canvas.getByText('무릎 통증 정도')).toBeOnTheScreen();
     expect(canvas.queryByText('가슴 압박감 또는 통증')).toBeNull();
-    fireEvent.press(canvas.getByRole('button', { name: '있어요' }));
-    expect(canvas.getByText('이런 증상이 있나요?')).toBeOnTheScreen();
+    fireEvent.press(canvas.getByRole('button', { name: '주의 증상 있어요' }));
+    expect(
+      canvas.getByText('해당하는 증상을 모두 선택해주세요.'),
+    ).toBeOnTheScreen();
     expect(
       canvas.getByRole('button', { name: '가슴 압박감 또는 통증' }),
     ).toBeOnTheScreen();
-    fireEvent.press(canvas.getByRole('button', { name: '없어요' }));
+    fireEvent.press(canvas.getByRole('button', { name: '주의 증상 없어요' }));
 
     fireEvent.press(canvas.getByRole('button', { name: '체크인 !' }));
     expect(await canvas.findByText('상체 근력 루틴')).toBeOnTheScreen();
@@ -470,7 +472,7 @@ describe('PreviewGallery', () => {
     fireEvent.press(
       screen.getByRole('radio', { name: '저장된 기본 루틴 조회 완료' }),
     );
-    expect(canvas.getByText('기본 루틴이 준비됐어요')).toBeOnTheScreen();
+    expect(canvas.getByText('오늘 운동을 준비해볼까요?')).toBeOnTheScreen();
     expect(
       canvas.getByRole('button', { name: '오늘 루틴 체크인' }),
     ).toBeOnTheScreen();

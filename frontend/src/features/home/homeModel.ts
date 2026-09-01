@@ -117,7 +117,7 @@ export const HOME_DEFAULT_CHECKIN: HomeCheckin = {
 
 export const HOME_CHECKIN_OPTIONS = {
   fatigue: ['피곤해요', '보통이에요', '가벼워요'],
-  discomfort: ['없음', '있음'],
+  discomfort: ['없어요', '있어요'],
 } as const;
 
 export type HomeRoutineVariant = {
