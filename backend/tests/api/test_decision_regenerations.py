@@ -7,6 +7,7 @@ import pytest
 from backend.app.api.dependencies import get_v3_regeneration_service
 from backend.app.api.v1.decisions import regenerate_decision
 from backend.app.core.config import Settings
+from backend.app.db.repositories.decision import DecisionRepository
 from backend.app.domain.agents.v3_orchestration import RegenerationDifferenceCode
 from backend.app.modules.decisions.v3_regeneration import (
     V3DecisionEngineCode,
@@ -44,6 +45,18 @@ class StubRegenerationService:
             raise self.error
         assert self.result is not None
         return self.result
+
+
+class LineageFakeRepository(FakeRepository):
+    def __init__(self, *args: object, lineage: dict[str, object], **kwargs: object) -> None:
+        super().__init__(*args, **kwargs)
+        self.lineage = lineage
+
+    def get_response(self, *args: object, **kwargs: object) -> dict[str, object] | None:
+        response = super().get_response(*args, **kwargs)
+        if response is not None:
+            response.update(self.lineage)
+        return response
 
 
 def test_composition_unavailable_has_stable_sanitized_error() -> None:
@@ -296,6 +309,122 @@ def test_historical_decision_response_omits_v3_metadata() -> None:
             "meaningful_difference_codes",
         }
     )
+
+
+def test_repository_response_restores_persisted_v3_lineage() -> None:
+    root_id = uuid4()
+    parent_id = uuid4()
+    run = SimpleNamespace(
+        id=uuid4(),
+        local_date=_context().local_date,
+        status_code="COMPLETED",
+        safety_status_code="PASS",
+        recommended_action_code="KEEP",
+        input_snapshot={
+            "requested_duration_minutes": 10,
+            "duration_adjustment_source_code": "PROFILE",
+        },
+        candidates=[],
+        safety_reviews=[
+            SimpleNamespace(
+                public_guidance=None,
+                safety_status_code="PASS",
+                vetoed=False,
+                reason_codes=[],
+            )
+        ],
+        explanations=[],
+        proposals=[],
+        options=[],
+        coordinator_result={"reason_codes": []},
+        generation_mode_code="REGENERATED",
+        decision_engine_code="DETERMINISTIC_FALLBACK",
+        root_decision_run_id=root_id,
+        parent_decision_run_id=parent_id,
+        regeneration_sequence=1,
+        created_at=SimpleNamespace(),
+    )
+    session = SimpleNamespace(scalar=lambda _: run)
+
+    response = DecisionRepository().get_response(session, uuid4(), run.id)
+
+    assert response is not None
+    assert response["generation_mode_code"] == "REGENERATED"
+    assert response["decision_engine_code"] == "DETERMINISTIC_FALLBACK"
+    assert response["root_decision_id"] == root_id
+    assert response["parent_decision_id"] == parent_id
+    assert response["regeneration_sequence"] == 1
+
+
+@pytest.mark.parametrize("path", ["/api/v1/decisions", "/api/v1/decisions/{decision_id}"])
+def test_get_paths_return_persisted_v3_lineage(path: str) -> None:
+    context = _context()
+    repository = LineageFakeRepository(context, lineage={})
+    client = _client(repository, uuid4())
+
+    with client:
+        created = client.post(
+            "/api/v1/decisions",
+            headers={"Idempotency-Key": str(uuid4())},
+            json={
+                "local_date": context.local_date.isoformat(),
+                "daily_context_id": str(context.daily_context_id),
+                "expected_context_version": context.context_version,
+            },
+        )
+        decision_id = created.json()["decision_id"]
+        repository.lineage = {
+            "generation_mode_code": "ORIGINAL",
+            "decision_engine_code": "LLM_MULTI_AGENT",
+            "root_decision_id": UUID(decision_id),
+            "parent_decision_id": None,
+            "regeneration_sequence": 0,
+        }
+        target = (
+            path.format(decision_id=created.json()["decision_id"])
+            if "{decision_id}" in path
+            else path
+        )
+        initial = client.get(target, params={"local_date": context.local_date.isoformat()})
+        repository.lineage = {
+            "generation_mode_code": "REGENERATED",
+            "decision_engine_code": "DETERMINISTIC_FALLBACK",
+            "root_decision_id": UUID(decision_id),
+            "parent_decision_id": UUID(decision_id),
+            "regeneration_sequence": 1,
+        }
+        client.app.dependency_overrides[get_v3_regeneration_service] = lambda: (
+            StubRegenerationService(
+                result=V3RegenerationResult(
+                    decision_id=uuid4(),
+                    root_decision_id=UUID(decision_id),
+                    parent_decision_id=UUID(decision_id),
+                    regeneration_sequence=1,
+                    decision_engine_code=V3DecisionEngineCode.DETERMINISTIC_FALLBACK,
+                    meaningful_difference_codes=(RegenerationDifferenceCode.CORE_EXERCISE_CHANGED,),
+                )
+            )
+        )
+        rerolled = client.post(
+            f"/api/v1/decisions/{decision_id}/regenerations",
+            headers={"Idempotency-Key": str(uuid4())},
+            json={
+                "expected_plan_id": created.json()["final_plan"]["plan_id"],
+                "expected_regeneration_sequence": 0,
+            },
+        )
+        response = client.get(target, params={"local_date": context.local_date.isoformat()})
+
+    assert initial.status_code == 200
+    assert initial.json()["regeneration_sequence"] == 0
+    assert rerolled.status_code == 201
+    assert rerolled.json()["regeneration_sequence"] == 1
+    assert response.status_code == 200
+    assert response.json()["generation_mode_code"] == "REGENERATED"
+    assert response.json()["decision_engine_code"] == "DETERMINISTIC_FALLBACK"
+    assert response.json()["root_decision_id"] == decision_id
+    assert response.json()["parent_decision_id"] == decision_id
+    assert response.json()["regeneration_sequence"] == 1
 
 
 def test_regeneration_route_only_delegates_generation_to_application_service() -> None:

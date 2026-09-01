@@ -855,6 +855,11 @@ class DecisionRepository:
                     "summary": "저장된 안전 검토 결과입니다.",
                 }
             ),
+            "generation_mode_code": run.generation_mode_code,
+            "decision_engine_code": run.decision_engine_code,
+            "root_decision_id": run.root_decision_run_id,
+            "parent_decision_id": run.parent_decision_run_id,
+            "regeneration_sequence": run.regeneration_sequence,
             "created_at": run.created_at,
         }
 
