@@ -1357,6 +1357,7 @@ Idempotency-Key: uuid
 Wave 6 구현 계약:
 
 - `POST /api/v1/decisions`는 UUID 형식의 `Idempotency-Key`를 필수로 받고 생성 성공 시 201을 반환한다.
+- 같은 daily context ID·version과 동일 input hash로 완료된 decision이 있으면, 다른 `Idempotency-Key` 요청도 그 기존 `DecisionResponse`를 반환한다. 이는 요청 단위 `Idempotency-Key` 재사용 규칙과 별개의 논리적 중복 방지다.
 - `POST /api/v1/decisions`의 공개 응답은 실행 프로필과 무관하게 기존 `DecisionResponse` 계약을
   유지한다. `V3_EXECUTION_PROFILE` 기본값은 `LEGACY`이며, `SHADOW`도 legacy 응답을 유지한다.
   `DEMO`는 `APP_ENV=staging`에서만 V3 저장 결과를 응답으로 사용한다. `PRODUCTION`은 별도

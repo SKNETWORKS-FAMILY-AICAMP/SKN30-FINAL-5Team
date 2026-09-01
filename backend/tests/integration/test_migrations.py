@@ -20,11 +20,14 @@ BUNDLE_ALTERNATIVES = Path("data/generated/exercise-alternatives-merged-mvp-v0.4
 BUNDLE_PRESCRIPTIONS = Path("data/generated/exercise-prescriptions-merged-mvp-v0.1.0")
 
 
-def test_migration_history_has_catalog_media_head() -> None:
+def test_migration_history_has_decision_input_idempotency_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0033_media_s3_key_per_catalog"]
+    assert scripts.get_heads() == ["0034_decision_input_idempotency"]
+    assert scripts.get_revision("0034_decision_input_idempotency").down_revision == (
+        "0033_media_s3_key_per_catalog"
+    )
     assert scripts.get_revision("0033_media_s3_key_per_catalog").down_revision == (
         "0032_form_cue_provenance"
     )
