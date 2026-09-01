@@ -407,6 +407,34 @@ class DecisionService:
                         "coordinator_version": COORDINATOR_VERSION,
                     }
                 )
+                self._repository.acquire_input_lock(
+                    session,
+                    user_id,
+                    assembly.context.daily_context_id,
+                    assembly.context.context_version,
+                    input_hash,
+                )
+                reused = self._repository.get_completed_response_for_input(
+                    session,
+                    user_id,
+                    assembly.context.daily_context_id,
+                    assembly.context.context_version,
+                    input_hash,
+                )
+                if reused is not None:
+                    response = DecisionResponse.model_validate(reused)
+                    self._repository.save_idempotency(
+                        session,
+                        user_id=user_id,
+                        key=idempotency_key,
+                        request_hash=request_hash,
+                        payload={
+                            "outcome_code": "COMPLETED",
+                            "response": response.model_dump(mode="json"),
+                        },
+                        now=self._clock(),
+                    )
+                    return response
                 source = DurationAdjustmentSourceCode(
                     assembly.context.duration_adjustment_source_code
                 )

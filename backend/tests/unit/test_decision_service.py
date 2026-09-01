@@ -130,14 +130,28 @@ class FakeRepository:
                 else ()
             ),
         )
-        self.prior: StoredIdempotency | None = None
+        self.prior: dict[UUID, StoredIdempotency] = {}
         self.persisted: dict[str, Any] | None = None
+        self.persist_count = 0
+        self.input_locks: list[tuple[UUID, UUID, int, str]] = []
 
     def acquire_lock(self, session: Any, user_id: UUID, key: UUID) -> None:
         pass
 
+    def acquire_input_lock(
+        self,
+        session: Any,
+        user_id: UUID,
+        daily_context_id: UUID,
+        daily_context_version: int,
+        input_hash: str,
+    ) -> None:
+        self.input_locks.append(
+            (user_id, daily_context_id, daily_context_version, input_hash)
+        )
+
     def get_idempotency(self, session: Any, user_id: UUID, key: UUID) -> StoredIdempotency | None:
-        return self.prior
+        return self.prior.get(key)
 
     def assemble(
         self, session: Any, user_id: UUID, daily_context_id: UUID
@@ -145,12 +159,15 @@ class FakeRepository:
         return self.assembly
 
     def persist(self, session: Any, **values: Any) -> UUID:
+        self.persist_count += 1
         self.persisted = values
         self.decision_id = uuid4()
         return self.decision_id
 
     def save_idempotency(self, session: Any, **values: Any) -> None:
-        self.prior = StoredIdempotency(values["request_hash"], values["payload"])
+        self.prior[values["key"]] = StoredIdempotency(
+            values["request_hash"], values["payload"]
+        )
 
     def get_response_for_date(
         self, session: Any, user_id: UUID, local_date: Any
@@ -159,6 +176,25 @@ class FakeRepository:
             return None
         result = self.persisted["result"]
         if result.status_code.value in {"NEEDS_INPUT", "FAILED"}:
+            return None
+        return self.get_response(session, user_id, self.decision_id)
+
+    def get_completed_response_for_input(
+        self,
+        session: Any,
+        user_id: UUID,
+        daily_context_id: UUID,
+        daily_context_version: int,
+        input_hash: str,
+    ) -> dict[str, Any] | None:
+        if self.persisted is None:
+            return None
+        context = self.assembly.context
+        if (
+            context.daily_context_id != daily_context_id
+            or context.context_version != daily_context_version
+            or self.persisted["input_hash"] != input_hash
+        ):
             return None
         return self.get_response(session, user_id, self.decision_id)
 
@@ -322,6 +358,39 @@ def test_decision_persists_four_proposals_before_success_and_is_idempotent() -> 
     assert "date_of_birth" not in str(snapshot)
     assert "age" not in snapshot.get("profile", {})
     assert snapshot["profile"]["attention_area_codes"] == []
+
+
+def test_decision_reuses_completed_result_for_a_new_idempotency_key() -> None:
+    context = _context()
+    repository = FakeRepository(context)
+    service = DecisionService(repository, clock=lambda: NOW)
+    user_id = uuid4()
+
+    first = service.create(FakeSession(), user_id, _request(context), uuid4())  # type: ignore[arg-type]
+    retried = service.create(FakeSession(), user_id, _request(context), uuid4())  # type: ignore[arg-type]
+
+    assert retried.decision_id == first.decision_id
+    assert repository.persist_count == 1
+    assert len(repository.input_locks) == 2
+
+
+def test_decision_creates_again_when_the_daily_context_version_changes() -> None:
+    context = _context()
+    repository = FakeRepository(context)
+    service = DecisionService(repository, clock=lambda: NOW)
+    user_id = uuid4()
+
+    service.create(FakeSession(), user_id, _request(context), uuid4())  # type: ignore[arg-type]
+    updated_context = replace(context, context_version=context.context_version + 1)
+    repository.assembly = replace(repository.assembly, context=updated_context)
+    service.create(
+        FakeSession(),
+        user_id,
+        _request(updated_context, updated_context.context_version),
+        uuid4(),
+    )  # type: ignore[arg-type]
+
+    assert repository.persist_count == 2
 
 
 def test_attention_areas_are_canonical_snapshot_inputs_and_apply_caution() -> None:

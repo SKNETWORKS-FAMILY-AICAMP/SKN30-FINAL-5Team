@@ -1160,7 +1160,7 @@ Migration `0025_v3_decision_persistence`는 `decision_runs`에 다음 nullable/a
 같은 root에서 `(root_decision_run_id, regeneration_sequence)`는 unique다. V1/V2 row는 nullable
 metadata를 갖고 기존 의미를 유지한다.
 
-같은 사용자, local_date, input_hash, policy_version_id에 대한 중복 실행을 제한하는 unique 또는 idempotency 제약을 둔다.
+같은 사용자, daily_context_id, daily_context_version, input_hash에 대한 `COMPLETED` decision은 partial unique index로 하나만 허용한다. 다른 Idempotency-Key의 재시도는 이 completed 결과를 재사용하며, 새 context version 또는 다른 input_hash는 새 decision을 생성할 수 있다.
 
 `input_snapshot.profile`이 포함될 경우 허용 필드는 다음으로 제한한다.
 

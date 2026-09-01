@@ -1,6 +1,7 @@
 import json
 import os
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -9,7 +10,7 @@ from uuid import UUID, uuid4
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import Engine, create_engine, func, select
+from sqlalchemy import Engine, create_engine, delete, func, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, selectinload
 
@@ -388,6 +389,124 @@ def _decision_record_counts(session: Session) -> tuple[int, int, int, int, int, 
             DecisionExplanationRecord,
         )
     )  # type: ignore[return-value]
+
+
+@pytest.mark.integration
+def test_completed_decision_is_reused_for_an_identical_context_input(
+    postgres_session: Session,
+) -> None:
+    user_id = _add_user(postgres_session, attention_areas=())
+    context_id = _prepare_decision_inputs(postgres_session, user_id)
+    service = DecisionService(DecisionRepository(), clock=lambda: NOW)
+
+    first = service.create(postgres_session, user_id, _request(context_id), uuid4())
+    repeated = service.create(postgres_session, user_id, _request(context_id), uuid4())
+
+    assert repeated.decision_id == first.decision_id
+    assert (
+        postgres_session.scalar(
+            select(func.count()).select_from(DecisionRun).where(DecisionRun.user_id == user_id)
+        )
+        == 1
+    )
+
+
+@pytest.mark.integration
+def test_new_daily_context_version_creates_a_new_decision(
+    postgres_session: Session,
+) -> None:
+    user_id = _add_user(postgres_session, attention_areas=())
+    context_id = _prepare_decision_inputs(postgres_session, user_id)
+    service = DecisionService(DecisionRepository(), clock=lambda: NOW)
+    first = service.create(postgres_session, user_id, _request(context_id), uuid4())
+    updated = DailyContextService(DailyContextRepository(), clock=lambda: NOW).replace(
+        postgres_session,
+        user_id,
+        LOCAL_DATE,
+        DailyContextUpsertRequest.model_validate(
+            {
+                "fatigue_level_code": "MODERATE",
+                "requested_duration_minutes": 30,
+                "duration_adjustment_source_code": "PROFILE",
+                "location_code": "HOME",
+                "discomforts": [],
+                "adverse_reaction_codes": [],
+            }
+        ),
+        uuid4(),
+        1,
+    )
+    second = service.create(
+        postgres_session,
+        user_id,
+        DecisionCreateRequest(
+            local_date=LOCAL_DATE,
+            daily_context_id=updated.id,
+            expected_context_version=updated.context_version,
+        ),
+        uuid4(),
+    )
+
+    assert second.decision_id != first.decision_id
+    assert (
+        postgres_session.scalar(
+            select(func.count()).select_from(DecisionRun).where(DecisionRun.user_id == user_id)
+        )
+        == 2
+    )
+
+
+@pytest.mark.integration
+def test_concurrent_identical_requests_create_one_completed_decision(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    test_database_url = os.getenv("TEST_DATABASE_URL", "")
+    if not test_database_url:
+        pytest.skip("TEST_DATABASE_URL is not configured")
+    if not (make_url(test_database_url).database or "").endswith("_test"):
+        pytest.fail("Decision repository tests require a dedicated *_test database")
+
+    monkeypatch.setenv("DATABASE_URL", test_database_url)
+    monkeypatch.setenv("APP_ENV", "test")
+    get_settings.cache_clear()
+    command.upgrade(Config(str(ALEMBIC_CONFIG)), "head")
+    engine = create_engine(test_database_url)
+    user_id: UUID | None = None
+    try:
+        with Session(engine) as setup_session:
+            with setup_session.begin():
+                seed_catalog(setup_session, NOW)
+            user_id = _add_user(setup_session, attention_areas=())
+            context_id = _prepare_decision_inputs(setup_session, user_id)
+
+        request = _request(context_id)
+
+        def create_in_worker(_: int) -> UUID:
+            with Session(engine) as worker_session:
+                return DecisionService(DecisionRepository(), clock=lambda: NOW).create(
+                    worker_session, user_id, request, uuid4()
+                ).decision_id
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            decision_ids = list(executor.map(create_in_worker, range(2)))
+
+        assert decision_ids[0] == decision_ids[1]
+        with Session(engine) as verification_session:
+            assert (
+                verification_session.scalar(
+                    select(func.count())
+                    .select_from(DecisionRun)
+                    .where(DecisionRun.user_id == user_id)
+                )
+                == 1
+            )
+    finally:
+        if user_id is not None:
+            with Session(engine) as cleanup_session:
+                cleanup_session.execute(delete(User).where(User.id == user_id))
+                cleanup_session.commit()
+        engine.dispose()
+        get_settings.cache_clear()
 
 
 @pytest.mark.integration

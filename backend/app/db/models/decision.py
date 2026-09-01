@@ -17,6 +17,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -44,6 +45,15 @@ class DecisionRun(Base):
     __tablename__ = "decision_runs"
     __table_args__ = (
         Index("ix_decision_runs_root", "root_decision_run_id"),
+        Index(
+            "uq_decision_runs_completed_input",
+            "user_id",
+            "daily_context_id",
+            "daily_context_version",
+            "input_hash",
+            unique=True,
+            postgresql_where=text("status_code = 'COMPLETED'"),
+        ),
         UniqueConstraint(
             "root_decision_run_id",
             "regeneration_sequence",
