@@ -443,11 +443,13 @@ const calendarHistoryPreviewApi = {
 } satisfies Pick<Api, 'getWorkoutSession'>;
 
 export function PreviewGallery({
+  deviceViewport = false,
   initialScreenId = 'splash',
 }: {
+  deviceViewport?: boolean;
   initialScreenId?: PreviewScreenId | 'session-result';
 }) {
-  const { width } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
   const [screenId, setScreenId] = useState<PreviewScreenId>(
     initialScreenId === 'session-result' ? 'workout' : initialScreenId,
   );
@@ -503,20 +505,21 @@ export function PreviewGallery({
   const navigateHomeTab = useCallback((tab: TabId) => {
     setScreenId(HOME_TAB_SCREENS[tab]);
   }, []);
-  const useWideLayout = width >= 920;
+  const useWideLayout = !deviceViewport && width >= 920;
   const selectedDevicePreview = DEVICE_PREVIEWS.find(
     (preview) => preview.id === devicePreviewId,
   );
-  const canvasViewport = selectedDevicePreview ?? customViewport;
+  const canvasViewport = deviceViewport
+    ? { height, width }
+    : (selectedDevicePreview ?? customViewport);
   const usesBoundedWebCanvas = canvasViewport.width > WEB_APP_MAX_WIDTH;
   const stageAvailableWidth = Math.max(
     320,
     useWideLayout ? width - 400 : width - 48,
   );
-  const canvasPreviewScale = Math.min(
-    1,
-    stageAvailableWidth / canvasViewport.width,
-  );
+  const canvasPreviewScale = deviceViewport
+    ? 1
+    : Math.min(1, stageAvailableWidth / canvasViewport.width);
   const canvasFrame = {
     width: canvasViewport.width * canvasPreviewScale,
     height: canvasViewport.height * canvasPreviewScale,
@@ -621,13 +624,19 @@ export function PreviewGallery({
 
   return (
     <ScrollView
-      style={styles.page}
+      scrollEnabled={!deviceViewport}
+      style={[styles.page, deviceViewport && styles.devicePage]}
       contentContainerStyle={[
         styles.pageContent,
         useWideLayout && styles.pageContentWide,
+        deviceViewport && styles.devicePageContent,
       ]}
     >
-      <View accessibilityLabel="Preview controls" style={styles.controls}>
+      <View
+        accessibilityLabel="Preview controls"
+        style={[styles.controls, deviceViewport && styles.hidden]}
+        testID="preview-controls"
+      >
         <View style={styles.developmentBadge}>
           <Text style={styles.developmentBadgeText}>DEVELOPMENT ONLY</Text>
         </View>
@@ -1025,19 +1034,25 @@ export function PreviewGallery({
         </Text>
       </View>
 
-      <View style={styles.stage}>
-        <View style={styles.canvasHeading}>
-          <Text style={styles.canvasTitle}>App canvas</Text>
-          {usesBoundedWebCanvas ? (
-            <Text style={styles.canvasLimit}>App max 640px</Text>
-          ) : null}
-          <Text style={styles.canvasSize}>
-            {canvasViewport.width} × {canvasViewport.height}
-          </Text>
-        </View>
+      <View style={[styles.stage, deviceViewport && styles.deviceStage]}>
+        {!deviceViewport ? (
+          <View style={styles.canvasHeading}>
+            <Text style={styles.canvasTitle}>App canvas</Text>
+            {usesBoundedWebCanvas ? (
+              <Text style={styles.canvasLimit}>App max 640px</Text>
+            ) : null}
+            <Text style={styles.canvasSize}>
+              {canvasViewport.width} × {canvasViewport.height}
+            </Text>
+          </View>
+        ) : null}
         <View
           testID="preview-canvas-frame"
-          style={[styles.canvasFrame, canvasFrame]}
+          style={[
+            styles.canvasFrame,
+            canvasFrame,
+            deviceViewport && styles.deviceCanvasFrame,
+          ]}
         >
           <View
             testID="preview-app-canvas"
@@ -1048,6 +1063,7 @@ export function PreviewGallery({
                 height: canvasViewport.height,
                 transform: [{ scale: canvasPreviewScale }],
               },
+              deviceViewport && styles.deviceCanvas,
             ]}
           >
             <View
@@ -1491,6 +1507,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#EEF1F4',
   },
+  devicePage: {
+    backgroundColor: '#FFFFFF',
+  },
   pageContent: {
     minHeight: '100%',
     alignItems: 'center',
@@ -1502,6 +1521,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 32,
   },
+  devicePageContent: {
+    width: '100%',
+    minHeight: '100%',
+    alignItems: 'stretch',
+    padding: 0,
+  },
   controls: {
     width: '100%',
     maxWidth: 320,
@@ -1510,6 +1535,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#FFFFFF',
     padding: 20,
+  },
+  hidden: {
+    display: 'none',
   },
   developmentBadge: {
     alignSelf: 'flex-start',
@@ -1697,6 +1725,11 @@ const styles = StyleSheet.create({
   stage: {
     marginTop: 24,
   },
+  deviceStage: {
+    width: '100%',
+    flex: 1,
+    marginTop: 0,
+  },
   canvasHeading: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1730,6 +1763,15 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderRadius: 12,
     backgroundColor: '#FFFFFF',
+  },
+  deviceCanvasFrame: {
+    width: '100%',
+    flex: 1,
+    borderRadius: 0,
+  },
+  deviceCanvas: {
+    borderWidth: 0,
+    borderRadius: 0,
   },
   previewAppShell: {
     width: '100%',

@@ -22,6 +22,8 @@ export type PreviewMode =
   | 'workout'
   | null;
 
+export type PreviewViewportMode = 'device' | null;
+
 export function getPreviewMode(): PreviewMode {
   if (!__DEV__ || typeof window === 'undefined') {
     return null;
@@ -58,4 +60,15 @@ export function getPreviewMode(): PreviewMode {
   }
 
   return null;
+}
+
+export function getPreviewViewportMode(): PreviewViewportMode {
+  if (!__DEV__ || typeof window === 'undefined') {
+    return null;
+  }
+
+  return new URLSearchParams(window.location.search).get('viewport') ===
+    'device'
+    ? 'device'
+    : null;
 }

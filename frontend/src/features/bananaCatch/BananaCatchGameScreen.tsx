@@ -32,6 +32,7 @@ const CATCHER_BOTTOM_RATIO = 0.05;
 const BASKET_LIP_RATIO_IN_ASSET = 0.56;
 const BASKET_WIDTH_RATIO_IN_ASSET = 0.42;
 const DEFAULT_CATCH_LINE_Y = 0.75;
+const GAME_HORIZONTAL_INSET = '4%' as const;
 
 export function bananaCatchLayoutMetrics(width: number, height: number) {
   const safeWidth = Math.max(1, width);
@@ -136,21 +137,20 @@ export function BananaCatchGameScreen({ onBack }: { onBack: () => void }) {
         style={styles.safeArea}
         testID="banana-catch-safe-area"
       >
-        <View style={styles.header}>
+        <View style={styles.header} testID="banana-catch-header">
           <Pressable
             accessibilityLabel="끼끼의 집으로 돌아가기"
             accessibilityRole="button"
             onPress={onBack}
             style={styles.headerButton}
           >
-            <Text style={styles.headerButtonText}>‹</Text>
+            <View style={styles.backChevron} testID="banana-catch-back-icon" />
           </Pressable>
 
           <View style={styles.titleBlock}>
             <Text accessibilityRole="header" style={styles.title}>
               바나나 받아라!
             </Text>
-            <Text style={styles.subtitle}>하늘에서 오는 바나나를 잡아봐요</Text>
           </View>
 
           <View
@@ -244,8 +244,7 @@ export function BananaCatchGameScreen({ onBack }: { onBack: () => void }) {
               onAction={start}
               title="30초 동안 바나나를 받아요!"
             >
-              화면을 누르거나 드래그해서 끼끼를 움직여요. 놓쳐도 점수는 줄지
-              않아요.
+              화면을 누르거나 드래그해서 끼끼를 움직여서 바나나를 받아보세요!
             </GameCard>
           ) : null}
 
@@ -321,13 +320,12 @@ const styles = StyleSheet.create({
   header: {
     zIndex: 6,
     width: '100%',
-    maxWidth: 430,
     minHeight: 76,
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: GAME_HORIZONTAL_INSET,
   },
   headerButton: {
     width: 44,
@@ -338,15 +336,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.86)',
     ...shadows.card,
   },
-  headerButtonText: {
-    marginTop: -3,
-    color: colors.text,
-    fontSize: 36,
-    lineHeight: 38,
+  backChevron: {
+    width: 12,
+    height: 12,
+    borderBottomWidth: 2.5,
+    borderLeftWidth: 2.5,
+    borderColor: colors.text,
+    transform: [{ rotate: '45deg' }],
   },
   titleBlock: { flex: 1 },
   title: { color: colors.text, fontSize: 21, fontWeight: '900' },
-  subtitle: { color: colors.textSub, fontSize: 11, fontWeight: '600' },
   score: {
     minWidth: 64,
     minHeight: 58,

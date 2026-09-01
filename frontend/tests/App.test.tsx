@@ -61,6 +61,33 @@ describe('App boot navigation', () => {
     expect(bootResolver).not.toHaveBeenCalled();
   });
 
+  it('renders the mascot house against the current device viewport when requested', async () => {
+    const bootResolver = jest.fn(async () => 'Auth' as const);
+
+    await render(
+      <App
+        bootResolver={bootResolver}
+        previewMode="mascot-house"
+        previewViewport="device"
+      />,
+    );
+
+    const canvasStyle = StyleSheet.flatten(
+      screen.getByTestId('preview-app-canvas').props.style,
+    );
+    const frameStyle = StyleSheet.flatten(
+      screen.getByTestId('preview-canvas-frame').props.style,
+    );
+
+    expect(screen.queryByTestId('preview-controls')).toBeNull();
+    expect(canvasStyle.transform).toEqual([{ scale: 1 }]);
+    expect(frameStyle.width).toBe('100%');
+    expect(frameStyle.borderRadius).toBe(0);
+    expect(canvasStyle.borderWidth).toBe(0);
+    expect(await screen.findByTestId('mascot-house-content')).toBeOnTheScreen();
+    expect(bootResolver).not.toHaveBeenCalled();
+  });
+
   it('keeps the splash visible in explicit local preview mode', async () => {
     const bootResolver = jest.fn(async () => 'Auth' as const);
 
