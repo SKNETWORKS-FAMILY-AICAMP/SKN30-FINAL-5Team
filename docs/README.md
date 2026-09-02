@@ -9,15 +9,16 @@
 | 우선순위 | 문서 | 역할 |
 |---:|---|---|
 | 1 | `AGENTS.md` | 저장소 전체 작업·안전·품질 규칙 |
-| 2 | `docs/requirements/요구사항_정의서.ndjson` | 제품 요구사항과 기능·정책·비기능 기준 |
-| 3 | `docs/MVP_SCOPE.md` | MVP 포함·제외 범위 |
-| 4 | `docs/DOMAIN_RULES.md` | 안전·시간·주간 주기·상태 전이 불변식 |
-| 5 | `docs/API_CONTRACT.md`, `docs/DATA_MODEL.md` | 외부 계약과 영속화 계약 |
-| 6 | `docs/ARCHITECTURE.md`, `docs/TECHNICAL_PLAN.md` | 구성 요소 경계와 기술 선택 |
-| 7 | `docs/IMPLEMENTATION_PLAN.md` | 선행 관계와 구현 순서 |
-| 8 | 작업 문서·ADR | 특정 변경의 범위와 결정 이력 |
+| 2 | `docs/SERVICE_POLICY_SAFETY_AND_ADAPTATION_V1.md` | 최신 서비스 범위·안전·적응·데이터 정책 기준 |
+| 3 | `docs/requirements/요구사항_정의서.ndjson` | 제품 요구사항과 기능·정책·비기능 기준 |
+| 4 | `docs/MVP_SCOPE.md` | MVP 포함·제외 범위 |
+| 5 | `docs/DOMAIN_RULES.md` | 안전·시간·주간 주기·상태 전이 불변식 |
+| 6 | `docs/API_CONTRACT.md`, `docs/DATA_MODEL.md` | 외부 계약과 영속화 계약 |
+| 7 | `docs/ARCHITECTURE.md`, `docs/TECHNICAL_PLAN.md` | 구성 요소 경계와 기술 선택 |
+| 8 | `docs/IMPLEMENTATION_PLAN.md`, `docs/TRACEABILITY.md`, `docs/TEST_STRATEGY.md` | 구현 순서·추적성·검증 기준 |
+| 9 | 작업 문서·ADR | 특정 변경의 범위와 결정 이력 |
 
-요구사항 정의서는 제품 범위와 기능 존재 여부의 기준이다. 기술 문서와 충돌하면 구현하지 않고 요구사항에 맞춰 기술 문서를 갱신한다. 같은 우선순위 문서끼리 충돌하면 개발팀장과 PM이 함께 결정한다. 건강·안전 규칙 충돌은 외부 도메인 검수 전까지 보수적 상태인 `NEEDS_INPUT`, `BLOCKED` 또는 `FAILED`로 남긴다.
+최신 서비스 정책은 안전·적응·입력 최소화·수행 상태에 관한 하위 계약의 기준이다. 하위 문서의 이전 계약과 충돌하면 구현하지 않고 이 문서에 맞춰 갱신한다. 요구사항 정의서는 제품 범위와 기능 존재 여부의 기준이다. 같은 우선순위 문서끼리 충돌하면 개발팀장과 PM이 함께 결정한다. 건강·안전 규칙 충돌은 외부 도메인 검수 전까지 보수적 상태인 `NEEDS_INPUT`, `BLOCKED` 또는 `FAILED`로 남긴다.
 
 멀티 에이전트 로직은 현재 설계 전 단계다. proposal·coordinator·공개 회의 요약의 상세 계약과 관련 테스트는 멀티 에이전트 로직 설계 후 확정하며, 설계 전 문서의 해당 항목은 잠정 상태로 표시한다. 결정적 안전 veto와 실패 안전 규칙은 설계 전에도 변경하지 않는다.
 
@@ -26,6 +27,7 @@
 ## 3. 핵심 문서
 
 - `PROJECT_BRIEF.md`: 사용자 문제와 제품 원칙
+- `SERVICE_POLICY_SAFETY_AND_ADAPTATION_V1.md`: 최신 안전·적응·데이터 정책 기준
 - `MVP_SCOPE.md`: MVP 기능과 제외 범위
 - `ARCHITECTURE.md`: 시스템·모듈·배포 구조
 - `TECHNICAL_PLAN.md`: 기술 스택과 구현 제약

@@ -1,5 +1,8 @@
 # TASK-DATA-004: 데이터 안전 golden scenario 검증
 
+> 상태: `SUPERSEDED` — 통증 시 Alternative 후보 선택 시나리오는 2026-09-02 폐지됐다. 이 문서는
+> 당시의 데이터 검증 기록이며 현재 Safety 정책은 `contraindicated` 필터와 Safety-approved Pool을 사용한다.
+
 - Primary owner: 개발 리드·백엔드/데이터 리드
 - 관련 문서: `docs/TEST_STRATEGY.md`, `docs/DOMAIN_RULES.md` 4.3,
   `backend/tests/scenarios/README.md`

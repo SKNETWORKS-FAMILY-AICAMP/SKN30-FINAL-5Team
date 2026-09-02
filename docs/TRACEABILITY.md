@@ -34,11 +34,9 @@
 
 | 구분 | `IMPLEMENTED` | `PARTIAL` | `DEFERRED` | `MVP_EXCLUDED` |
 |---|---:|---:|---:|---:|
-| MVP 기능 F001~F011, F025~F029 | 9 | 4 | 2 | 1 |
 | 정책·비기능 POL-001~013, NFR-001~006 | 14 | 5 | 0 | 0 |
 | 확장 기능 F012~F023 | 0 | 0 | 0 | 12 |
 
-POL-009~013은 2026-08-11 사용자 명시 승인과 `ACCEPTED` ADR-0004에 따라 계약 기준으로 적용한다. POL-011의 삭제 상태·provider 실패·30일 restore tombstone 상세 계약은 `ACCEPTED` ADR-0008을 따른다. F011의 Google Calendar 계약은 `ACCEPTED` ADR-0010에 있지만, PR #96에서 실제 연동을 보류했으므로 구현 상태는 `DEFERRED`다. F010의 provider-neutral 경계는 ADR-0009에 있으나 실제 server-side Google·Kakao·Naver exchange adapter/API가 없어 `PARTIAL`이다. 멀티 에이전트 production 구조는 `ACCEPTED` ADR-0007을 기준으로 한다. ADR-0012와 TASK-AGENT-002는 2라운드 구조화 상호검토 V2의 승인된 목표 계약이지만 구현 전에는 F002·F029 완료 증거에 포함하지 않는다. ADR-0013과 TASK-AGENT-003은 Safety-first LangChain/LangGraph LLM 멀티에이전트 V3의 `ACCEPTED` 목표 계약이지만 구현·shadow 평가와 production 전환 전에는 기존 상태를 올리거나 완료 증거로 사용하지 않는다. Qdrant retrieval ADR-0014는 `ACCEPTED`다.
 
 V3-A3 orchestration domain과 persistent-checkpointer 없는 LangGraph runtime은 `origin/develop`에
 병합됐다. V3-B1 additive persistence는 migration `0025_v3_decision_persistence`, 별도 V3 SQLAlchemy
@@ -72,8 +70,7 @@ completed expert review, pricing/token/cost evidence를 fail-closed로 검증하
 | F008 | AC-F008-01 | weekly report aggregate JSON fields | `WeeklyReportService`의 completion·blocker·weekday 집계 | weekly report unit·API tests | #26·#27 | `PARTIAL` — 고완료 시간대·운동유형·강도 값은 현재 빈 목록 |
 | F009 | AC-F009-01 | weekly report `summary`, `decision_summary` | 결정적 요약과 report UI | weekly report unit·API·UI tests | #26·#27·#81·#92·#95 | `PARTIAL` — 리포트는 구현됐으나 별도 AI 회고 생성은 없음 |
 | F010 | AC-F010-01 | `users`, `user_identities`; social exchange API 없음 | Firebase token 검증·내부 identity 연결 | auth provider·Firebase·identity tests | #12·#32·#93 | `PARTIAL` |
-| F011 | AC-F011-1-1~1-8 | calendar tables는 있으나 `/calendar/**` 없음 | contract·domain rules·provider port·repository까지만 존재 | calendar unit·integration·golden tests | #33~#37·#96 | `DEFERRED` |
-| F025 | AC-F025-01 | `/me/onboarding`, `/me/consents`; profile·consent tables | profile service·repository·onboarding UI | onboarding/profile API·integration·UI tests | #14·#15·#66·#68·#85·#89·#91·#93 | `IMPLEMENTED` |
+| F025 | AC-F025-01 | `/me/onboarding`, `/me/consents`; profile·consent·terms-agreement tables | profile service·repository·onboarding UI | onboarding/profile API·integration·UI tests | #14·#15·#66·#68·#85·#89·#91·#93 | `PARTIAL` — 별도 이용약관 동의 이력과 개인정보처리방침 열람 UI는 문서 계약만 확정 |
 | F026 | AC-F026-01 | `/routines`, `/weeks/{week}/plan`; routine·week tables | routine·weekly plan services | routine/weekly plan unit·API·integration tests | #18·#28·#41 | `IMPLEMENTED` |
 | F027 | AC-F027-01 | `/weeks/{week}/plan-revisions`; `weekly_plan_revisions` | weekly plan service와 홈 수정 UI | weekly plan unit·API·integration, Home UI tests | #28·#75·#81·#92 | `IMPLEMENTED` |
 | F028 | AC-F028-01 | workout session mutation endpoints와 outcome fields | workout execution rules·service·UI | workout unit·API·integration·golden·UI tests | #23·#24·#25·#81·#92 | `IMPLEMENTED` |
@@ -86,8 +83,8 @@ completed expert review, pricing/token/cost evidence를 fail-closed로 검증하
 | POL-001~003 | `domain/rules/weekly_report.py`, weekly report/plan services와 tables | weekly policy·service·API·repository tests | #26~#28 | `IMPLEMENTED` |
 | POL-004~006 | `domain/rules/workout_execution.py`, workout service와 outcome/feedback tables | workout execution·service·API·repository·golden tests | #24·#25 | `IMPLEMENTED` |
 | POL-007 | `domain/rules/duration.py`, decision service | duration·decision golden tests | #9·#19·#78 | `IMPLEMENTED` |
-| POL-008 | `domain/rules/safety.py`, approved safety rules·alternatives, decision/workout safety flows | safety unit·golden·decision/workout tests | #11·#23·#65·#69·#72·#78·#101 | `IMPLEMENTED` |
-| POL-009~010 | consent/profile 저장과 수동 fallback은 구현; 실제 wearable/calendar provider 없음 | consent, external-context, fallback tests | #15·#33~#37·#96 | `PARTIAL` |
+| POL-008 | `domain/rules/safety.py`, approved safety rules·catalog alternative relations, decision/workout safety flows | safety unit·golden·decision/workout tests; 운동 중 Safety Event의 대체·재개 차단 검증 | #11·#23·#65·#69·#72·#78·#101 | `IMPLEMENTED` |
+| POL-009~010 | consent/profile 저장과 수동 fallback은 구현; 실제 wearable provider 없음 | consent, wearable fallback tests | #15·#96 | `PARTIAL` |
 | POL-011 | account deletion job/audit, 즉시 접근 차단·retention service | unit·API·integration·golden tests | #29·#30 | `IMPLEMENTED` |
 | POL-012 | `domain/rules/return_mode.py`, decision/workout 반영 | return mode unit·golden tests | #23·#78 | `IMPLEMENTED` |
 | POL-013 | AI trial 기간 저장·응답은 구현; 구독 결제·권한 전이는 없음 | identity/profile tests | #12·#15 | `PARTIAL` |
@@ -112,7 +109,6 @@ completed expert review, pricing/token/cost evidence를 fail-closed로 검증하
 | F008 | 2.4, 2.8, 보완-02, 4.9, 5.2 | MVP_SCOPE·DATA_MODEL | AC-F008-01 | TC-F008-01 | `PARTIAL` |
 | F009 | 3.5, 4.9, 5.2 | MVP_SCOPE·API_CONTRACT·DATA_MODEL | AC-F009-01 | TC-F009-01 | `PARTIAL` |
 | F010 | 4.4, 4.11, 5.2, 5.4 | MVP_SCOPE·ARCHITECTURE·DOMAIN_RULES·API_CONTRACT·DATA_MODEL·TEST_STRATEGY·ADR-0009·TASK-BACKEND-006 | AC-F010-01 | TC-F010-01·backend/tests/unit/test_auth_provider.py·backend/tests/scenarios/test_auth_provider_golden.py | `PARTIAL` |
-| F011 | 4.1, 4.10, 4.11, 5.2 | MVP_SCOPE·API_CONTRACT·DATA_MODEL·DOMAIN_RULES·TEST_STRATEGY·ADR-0006·ADR-0010·TASK-BACKEND-007 | AC-F011-1-1~1-8 | TC-F011-1-1~1-8·backend/tests/unit/test_external_context.py·backend/tests/scenarios/test_external_context_golden.py | `DEFERRED` |
 | F025 | 2.1, 2.4, 4.1, 4.4, 4.11, 5.2, 5.4 | MVP_SCOPE·API_CONTRACT·DATA_MODEL·DOMAIN_RULES·TEST_STRATEGY·IMPLEMENTATION_PLAN·ADR-0005 | AC-F025-01 | TC-F025-01 | `IMPLEMENTED` |
 | F026 | 3.2, 3.3, 3.5, 4.5, 4.11, 5.2 | MVP_SCOPE·DOMAIN_RULES·API_CONTRACT·DATA_MODEL | AC-F026-01 | TC-F026-01 | `IMPLEMENTED` |
 | F027 | 3.5, 4.5, 4.7, 4.11, 5.2 | MVP_SCOPE·API_CONTRACT·DATA_MODEL | AC-F027-01 | TC-F027-01 | `IMPLEMENTED` |
@@ -163,10 +159,10 @@ F012~F023은 요구사항 정의서상 MVP 이후 확장 기능이다. 각 ID는
 - 세부 요구사항마다 WBS, 계약 문서 또는 API·데이터 필드, 인수조건, 테스트 케이스, owner를 연결한다.
 - 요구사항 정의서의 ID와 문구는 임의로 합치거나 재사용하지 않는다. 범위가 바뀌면 새 세부 ID 또는 변경 기록을 추가한다.
 - F002·F029의 AC/TC는 WBS 추적표의 세부 요구사항 ID를 그대로 사용한다. 상위 그룹 행의 범위 표기는 세부 ID 범위의 요약이며, 별도의 상위 AC/TC를 만들지 않는다.
-- F002의 멀티 에이전트 구조는 공통 입력·기본 후보를 동일하게 받은 `TrainingAgent`, `RecoveryAgent`, `SafetyAgent`, `FeasibilityAgent`의 4개 proposal을 병렬 실행하고 `Coordinator`(의장)가 최종 통합하는 구조로 추적한다. `F002-1-10`, `F002-1-21`, `F002-1-26~50`, `F002-1-55~58`은 공통 입력·기본 후보, 각 Agent의 역할별 입력·출력, 실패, 저장, 최종 반영과 연결한다. `F002-1-22~25`는 제거된 별도 Safety 사전검사 단계의 기존 ID를 추적하기 위한 제외 항목이며, `F002-1-26~33`은 공통 기본 후보 준비·검증·저장을 추적한다.
-- F029의 회의 UI는 `TrainingAgent`, `RecoveryAgent`, `SafetyAgent`, `FeasibilityAgent`, `Coordinator` 요약을 표시하되, `F029-1-13`에 따라 원래 루틴 선택 UI는 제공하지 않는다. 독립적인 최종 Safety 재검사 요약은 표시하지 않는다.
-- `F002-1-51`, `F002-1-52`, `F002-1-56`에 따라 lighter·original은 공개 선택지로 추적하지 않고 내부 후보·SafetyAgent 의견 반영 기록으로만 관리한다.
-- `F002-1-55~58`은 독립적인 최종 Safety 재검사가 아니라 SafetyAgent 의견의 Coordinator 반영 확인·근거 저장·거부 후보 처리를 추적한다.
+- F002는 `SafetyPolicyEngine`이 ConstraintEnvelope와 Safety-approved Pool을 먼저 고정하고 `TrainingAgent`, `RecoveryAgent`, `FeasibilityAgent` 세 proposal과 `Coordinator`가 계획을 구성한 뒤 compiler·integrity validator가 검증하는 구조로 추적한다. 인수 조건은 Safety engine, pool, 세 proposal, compiler, validator, fallback 및 replay를 각각 연결한다.
+- F029의 신규 UI는 SafetyPolicyEngine의 제한된 결과와 Training·Recovery·Feasibility·Coordinator 요약을 표시하되, 내부 추론·prompt·원시 건강 입력은 표시하지 않는다. 원래 루틴 선택 UI는 제공하지 않는다.
+- `F002-1-51`, `F002-1-52`, `F002-1-56`에 따라 lighter·original은 공개 선택지로 추적하지 않고 내부 후보·Safety envelope 반영 기록으로만 관리한다.
+- `F002-1-55~58`은 SafetyPolicyEngine envelope와 compiled-plan integrity validator의 검증·근거 저장·거부 후보 처리를 추적한다.
 - A2 이후 F002의 후속 AC/TC는 Round 1 proposal, canonical conflict, 영향 Agent의
   Round 2 review, constraint 단조성, Coordinator 결과와 additive persistence를 각각 추적한다.
   TASK-AGENT-002 A1은 승인된 계약 동결 작업일 뿐 기존 구현 상태를 `IMPLEMENTED`로 올리지 않는다.
@@ -213,7 +209,6 @@ F012~F023은 요구사항 정의서상 MVP 이후 확장 기능이다. 각 ID는
 - F008의 고완료 시간대·운동유형·강도 패턴을 계산하기 위한 최소 데이터 기준
 - F009를 결정적 주간 요약으로 종료할지 별도 AI 회고를 구현할지 여부
 - F010 Google·Kakao·Naver 실제 출시 범위와 app·credential owner
-- F011 캘린더 보류 해제 여부와 production OAuth client·redirect URI·secret-manager owner
 - 체중 기반 예상 소모 칼로리 산식·version·단위·반올림 기준 또는 MVP 제외 결정
 - POL-013 구독 결제·권한 전이의 MVP 포함 여부
 - 447개 세부 요구사항 추적 검사를 CI에서 자동화할 시점
