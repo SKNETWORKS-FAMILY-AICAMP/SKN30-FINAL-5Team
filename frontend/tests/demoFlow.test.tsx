@@ -416,7 +416,7 @@ describe('HomeContainer', () => {
       } as unknown as Partial<Api>),
     );
 
-    expect(screen.getByText('기본 루틴을 준비하고 있어요')).toBeTruthy();
+    expect(screen.getByText('운동 계획을 준비하고 있어요')).toBeTruthy();
   });
 
   it('offers one check-in entry point before the check-in', async () => {
@@ -467,7 +467,7 @@ describe('HomeContainer', () => {
       } as unknown as Partial<Api>),
     );
 
-    expect(await screen.findByText('기본 루틴을 준비하고 있어요')).toBeTruthy();
+    expect(await screen.findByText('운동 계획을 준비하고 있어요')).toBeTruthy();
     expect(screen.queryByRole('button', { name: '다시 준비하기' })).toBeNull();
   });
 
@@ -508,7 +508,7 @@ describe('HomeContainer', () => {
     renderHome(homeApi({ createRoutine, getCurrentRoutine }));
 
     expect(
-      await screen.findByText('기본 루틴을 준비하지 못했어요'),
+      await screen.findByText('운동 계획을 준비하지 못했어요'),
     ).toBeTruthy();
     fireEvent.press(screen.getByRole('button', { name: '다시 준비하기' }));
 
@@ -533,7 +533,7 @@ describe('HomeContainer', () => {
     renderHome(homeApi({ createRoutine, getCurrentRoutine }));
 
     expect(
-      await screen.findByText('기본 루틴을 준비하지 못했어요'),
+      await screen.findByText('운동 계획을 준비하지 못했어요'),
     ).toBeTruthy();
     expect(createRoutine).not.toHaveBeenCalled();
   });
@@ -1521,7 +1521,7 @@ describe('HomeContainer', () => {
     );
 
     expect(
-      await screen.findByText('기본 루틴을 준비하지 못했어요'),
+      await screen.findByText('운동 계획을 준비하지 못했어요'),
     ).toBeTruthy();
     expect(screen.getByText('다시 준비하기')).toBeTruthy();
   });

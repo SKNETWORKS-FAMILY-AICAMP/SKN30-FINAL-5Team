@@ -96,8 +96,6 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 65. 마지막 활성 로그인 수단 일반 해제는 거부하고 account deletion 전체 해제는 허용
 66. token·email·name·nickname·provider 원본 응답과 subject가 로그·snapshot·metric label에 없음
 67. Google은 Firebase 기본 provider와 추가 scope 없음, Kakao/Naver 직접 adapter는 `openid`만 허용
-73. 하루 전체 busy는 빈 후보 배열이며 사용자 희망 운동시간을 단축하지 않음
-74. freebusy 종일 구간은 event 본문 조회 없이 busy로 처리
 75. [V3] SafetyPolicyEngine이 `STOP_AND_SEEK_HELP` 또는 생성 금지 veto를 확정하면 LLM Agent와
     Coordinator를 호출하지 않고 plan을 반환하지 않음
 76. [V3] Training·Recovery·Feasibility 세 LLM Agent가 같은 envelope·pool hash로 병렬 실행되고
@@ -255,13 +253,7 @@ ADR-0013 V3의 필수 속성·불변식:
 - Google Firebase 경로는 backend direct exchange route를 호출하지 않음
 - Kakao는 state·nonce·PKCE S256, Naver는 state·PKCE S256을 적용하고 미문서 nonce를 추정하지 않음
 - 독립 identity unlink는 총 5회·24시간 예산 뒤 REVIEW 상태이며 account deletion은 ADR-0008을 따름
-- freebusy의 겹치거나 맞닿은 구간은 병합하고 후보 전후 15분 buffer를 적용함
-- 최소 빈 구간은 사용자 희망 운동시간 + 30분이며 1분 미달 경계를 후보에서 제외함
-- availability 후보는 시작 시각 오름차순 최대 8개이고 시간대·특정 요일 필터가 없음
 - 로컬 자정 경계와 DST 23/25시간 날짜를 UTC instant로 정확히 처리함
-- freebusy가 반환한 종일 포함 모든 busy 구간을 점유로 처리하고 event list를 조회하지 않음
-- 후보 없음은 빈 배열이며 `requested_duration_minutes`를 변경하지 않음
-- performance는 공식 종료 상태 이후, 10분 경계부터 재확인할 수 있음
 
 ## 5. 테스트 데이터
 

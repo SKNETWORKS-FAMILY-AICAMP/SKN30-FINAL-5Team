@@ -89,6 +89,7 @@
 
 | 필드 | 타입 | 필수 | 소비처 | 저장 규칙 |
 |---|---|---:|---|---|
+| `nickname` | varchar(64) | 예 | UX 표시 | 1–64자, 중복 허용. 식별자·결정 입력 아님 |
 | `date_of_birth` | date | 예 | Eligibility | 암호화 저장, 만 18–64세 판정에만 사용 |
 | `medical_exercise_restriction` | boolean | 예 | Eligibility | `false`인 지원 사용자만 루틴 허용 |
 | `weight_kg` | numeric(5,2) | 예 | 예상 kcal | 25–300, Safety에 사용 금지 |
@@ -104,7 +105,15 @@
 | 웨어러블 동의 | boolean/event | 아니오 | Integration | 선택 |
 | 마케팅 동의 | boolean/event | 아니오 | Marketing | 선택 |
 
-삭제 대상 입력은 성별, 키, BMI, 온보딩 장소, 온보딩 1회 운동시간, 사용자 장비다.
+삭제 대상 입력은 성별, 키, BMI, 온보딩 장소, 온보딩 1회 운동시간, 사용자 장비다. 장소와 1회 운동시간은
+Daily Check-in의 `location_code`와 `available_time_minutes`로만 받으며, 프로필 기본값을 두지 않는다.
+
+온보딩 트랜잭션에서 만드는 기본 루틴은 장소를 후보 게이트로 사용하지 않는다. 2026-08-27에 사용자 장비를
+게이트에서 제외한 것과 같은 처리이며, 당일 장소 제약은 매일 재구성하는 Safety-approved Pool과 Feasibility가
+적용한다. 기본 루틴의 목표 시간은 승인된 서버 기본 상수 **30분**을 사용하고
+`duration_adjustment_source_code=PROFILE`로 기록하며, 사용자가 당일 값을 제출하면 그날의
+`available_time_minutes`가 requested duration이 된다. 이 상수는 정책 범위 10–60분 안에 있어야 하고
+사용자 요청 시간을 축소하는 근거로 쓰지 않는다(PM 승인, 2026-09-02).
 
 `medical_exercise_restriction=true`와 같은 지원 제외 응답은 상세 의료정보로 확장하지 않는다. Eligibility 실패 이력을 장기 저장해야 할 법적·운영 목적이 확정되지 않았다면 최소한의 가입 차단 결과만 저장하고 질문 원문이나 자유서술을 저장하지 않는다.
 
@@ -342,6 +351,8 @@ Safety는 Hard Constraint다. SafetyPolicyEngine이 BLOCK한 운동은 TrainingA
 ### 5.2 통증 입력과 온보딩 기본값
 
 Daily Check-in을 열면 활성 `persistent_pains`를 부위·NRS 기본값으로 먼저 표시한다. 사용자는 당일 상태에 맞게 항목을 수정·추가·삭제한 뒤 제출하며, 제출된 `daily_context_pains`만 그날의 SafetyPolicyEngine 입력으로 사용한다. 온보딩 통증을 자동 확정하거나 당일 입력이 없을 때 이전 값을 안전 판단에 재사용하지 않는다.
+
+당일 수정은 `daily_context_pains`에만 반영하고 `persistent_pains`를 바꾸지 않는다. 부위가 완전히 회복되는 등 평소 상태 자체가 달라지면 사용자가 마이페이지에서 `persistent_pains`를 수정하며, 이는 이후 Check-in의 기본값만 바꾸고 이미 제출된 과거 `daily_context_pains`나 저장된 결정을 소급 변경하지 않는다.
 
 ### 5.3 통증 입력 테이블
 

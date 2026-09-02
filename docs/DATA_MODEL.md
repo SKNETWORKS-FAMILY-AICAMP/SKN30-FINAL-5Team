@@ -283,8 +283,9 @@ PK는 user_id와 equipment_code의 조합이다.
 
 #### 4.5.1 user_persistent_pains
 
-선택한 지속 통증을 보관하는 현재 논리 모델이다. 이는 Daily Check-in 기본값 전용이며 당일 사용자가
-수정·추가·삭제해 `daily_context_pains`를 제출하기 전에는 Safety·루틴 생성·결정 입력에 사용하지 않는다.
+온보딩에서 선택한 지속 통증을 보관하는 물리 테이블이며 별도 Alembic migration으로 추가한다. 이는
+Daily Check-in 기본값 전용이며 당일 사용자가 수정·추가·삭제해 `daily_context_pains`를 제출하기
+전에는 Safety·루틴 생성·결정 입력에 사용하지 않는다.
 
 | 컬럼 | 설명 |
 |---|---|
@@ -300,7 +301,7 @@ PK는 user_id와 equipment_code의 조합이다.
 `user_attention_areas`를 즉시 삭제·변환하지 않고 legacy row에서 점수나 severity를 추정하지 않는다.
 원점수와 policy version은 계정 삭제 전까지 함께 보존하며 Qdrant/embedding 입력에는 사용하지 않는다.
 
-### 4.6 user_preferred_exercise_types
+### 4.6 (Legacy) user_preferred_exercise_types
 
 | 컬럼 | 설명 |
 |---|---|
@@ -308,7 +309,9 @@ PK는 user_id와 equipment_code의 조합이다.
 | exercise_type_code | 운동 유형 코드 |
 | created_at | 등록 시각 |
 
-PK는 user_id와 exercise_type_code의 조합이다.
+PK는 user_id와 exercise_type_code의 조합이다. 선호 운동 유형은 신규 온보딩에서 수집하지 않으며 결정
+입력으로 소비하지 않는다. 운동 목표 `primary_goal_code`가 `exercise_goal_tag_links`와
+`exercise_prescription_profiles` 조인으로 후보 선정을 결정한다. 이 테이블은 legacy read 보존용이다.
 
 ### 4.7 account_deletion_requests (논리 계약)
 
@@ -856,8 +859,7 @@ review 상태를 다시 확인한 뒤 단일 ACTIVE 제약 안에서 전환한�
 | local_date | 사용자 로컬 날짜 |
 | sleep_minutes | 0–1440, null은 결측 |
 | sleep_source_code | MANUAL, WEARABLE 또는 null |
-| fatigue_score | 1–5 |
-| muscle_soreness_score | 1–5 |
+| fatigue_level_code | LOW, MODERATE, HIGH |
 | available_time_minutes | 10–60 |
 | location_code | 당일 장소 |
 | pain_present | daily_context_pains 활성 row 존재 여부 |
@@ -1100,14 +1102,12 @@ metadata를 갖고 기존 의미를 유지한다.
 
 - `primary_goal_code`
 - `experience_level_code`
-- `preferred_location_code`
-- `attention_area_codes`
-- `preferred_exercise_type_codes`
-- `default_requested_duration_minutes`
-- `desired_weekly_workout_count`
+- `weekly_target_sessions`
 - `coaching_style_code`
 
 `input_snapshot.profile`에는 `date_of_birth`, `age` 및 그 밖의 연령 관련 파생값을 포함하지 않는다. 닉네임·성별·키·체중도 포함하지 않으며, 체중 기반 칼로리 추정은 운동 계획·세션 경계에서만 처리한다. 수동 외부 기록은 MVP에 포함하지 않는다.
+
+장소와 요청 시간은 더 이상 프로필 파생값이 아니므로 `input_snapshot.profile`이 아니라 당일 check-in 파생 필드로 저장한다. `preferred_location_code`, `attention_area_codes`, `default_requested_duration_minutes`, `desired_weekly_workout_count`를 포함한 기존 snapshot은 새 schema version에서 rewrite하지 않고 read 경로를 유지한다. 과거 decision의 재현 근거는 저장된 snapshot뿐이므로 이 read 호환은 제거하지 않는다.
 
 `decision-input-v4`부터 식별자를 제외한 최근 공식 workout 상태 코드(최신 7건)와 공통 후보의
 필수 장비 설명과 지원 장소 집계를 snapshot에 포함한다. Recovery는 이 요약만 참조하고 원시 운동 기록을

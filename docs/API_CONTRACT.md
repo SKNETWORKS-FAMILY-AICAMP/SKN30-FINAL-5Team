@@ -470,6 +470,7 @@ ManualActivityResponse
 
 ~~~json
 {
+  "nickname": "러너01",
   "date_of_birth": "1997-08-11",
   "medical_exercise_restriction": false,
   "primary_goal_code": "string",
@@ -637,7 +638,7 @@ MeProfile
 - weekly_target_sessions: integer
 - coaching_style_code: string
 - attention_area_codes: string[]
-- preferred_exercise_type_codes: string[]
+- preferred_exercise_type_codes: string[]  # legacy, 결정에 미사용
 - profile_version: integer
 - created_at: datetime
 - updated_at: datetime
@@ -719,36 +720,43 @@ job은 `requested_at`부터 즉시 실행할 수 있다. `operational_data_delet
 온보딩에서 받은 값 중 사용자가 이후에 바꿀 수 있는 항목이다. 마이페이지는 이 목록을 운동 설정
 중심으로 구성하며, 저장된 코드 값을 그대로 노출하지 않고 사용자 언어로 표시한다.
 
-PATCH가 지원하는 필드는 아래 15개다. 표의 `null 거부`는 필드 생략과 다르다. 필드를 보내지 않으면
-기존 값을 유지하지만 JSON `null`을 명시하면 `400 INVALID_REQUEST`다.
+PATCH가 지원하는 필드는 아래 16개이며, 그중 7개는 호환 기간에만 유지하는 legacy 필드다. 표의
+`null 거부`는 필드 생략과 다르다. 필드를 보내지 않으면 기존 값을 유지하지만 JSON `null`을 명시하면
+`400 INVALID_REQUEST`다.
 
 | 필드 | 타입·허용 값 | 빈 값·중복 | 범위·정규화·교차 검증 | 실패 |
 |---|---|---|---|---|
 | `primary_goal_code` | string, `^[A-Z][A-Z0-9_]{0,63}$`, 배포 승인 코드 | 빈 문자열·null 거부 | trim·대소문자 변환 없음. 다음 결정부터 반영 | 형식 오류 `400 INVALID_REQUEST`; 미승인 코드 `422 INVALID_ONBOARDING_CODE`; 승인 목록 없음 `503 PROFILE_CONFIGURATION_UNAVAILABLE` |
 | `weekly_target_sessions` | integer | null 거부 | 1~7회. 진행 중인 주에는 소급 적용하지 않음 | 범위·타입 오류 `400 INVALID_REQUEST` |
-| `default_requested_duration_minutes` | integer | null 거부 | 1~240분 | 범위·타입 오류 `400 INVALID_REQUEST` |
-| `preferred_location_code` | `HOME`, `GYM`, `OUTDOOR` | 빈 문자열·null 거부 | 최종 `available_location_codes`에 반드시 포함 | enum·교차 검증 오류 `400 INVALID_REQUEST` |
-| `available_location_codes` | 위 location code 배열 | 빈 배열·null·중복 거부 | 현재 또는 함께 보낸 `preferred_location_code`를 포함. 순서 외 별도 정규화 없음 | enum·중복·교차 검증 오류 `400 INVALID_REQUEST` |
-| `attention_area_codes` | `NECK`, `SHOULDER`, `ELBOW`, `WRIST_HAND`, `UPPER_BACK`, `LOWER_BACK`, `HIP`, `KNEE`, `ANKLE_FOOT`, `CHEST`, `ABDOMEN` 배열 | **빈 배열 허용**, null·중복 거부 | 건강 관련 정보. 빈 배열은 주의 부위 없음 | enum·중복 오류 `400 INVALID_REQUEST` |
-| `preferred_exercise_type_codes` | `STRENGTH`, `CARDIO`, `MOBILITY` 배열 | **빈 배열 허용**, null·중복 거부 | 순서 외 별도 정규화 없음 | enum·중복 오류 `400 INVALID_REQUEST` |
+| `persistent_pains` | `PersistentPainInput[]` (`body_area_code`, `intensity_score`) | **빈 배열 허용**, null·부위 중복 거부 | 건강 관련 정보. `OTHER` 금지, `intensity_score` 1~10. 빈 배열은 평소 통증 없음. 이후 Check-in 기본값만 바꾸며 과거 `daily_context_pains`와 저장된 결정을 소급 변경하지 않음 | enum·중복 오류 `400 INVALID_REQUEST`; 점수 범위 `422 INVALID_DOMAIN_CODE` |
 | `coaching_style_code` | `SUPPORTIVE`, `CONCISE`, `ENERGETIC` | 빈 문자열·null 거부 | trim·대소문자 변환 없음 | enum 오류 `400 INVALID_REQUEST` |
 | `experience_level_code` | string, `^[A-Z][A-Z0-9_]{0,63}$`, 배포 승인 코드 | 빈 문자열·null 거부 | trim·대소문자 변환 없음 | 형식 오류 `400 INVALID_REQUEST`; 미승인 코드 `422 INVALID_ONBOARDING_CODE`; 승인 목록 없음 `503 PROFILE_CONFIGURATION_UNAVAILABLE` |
 | `nickname` | string | trim 후 빈 문자열·null 거부 | 앞뒤 공백 제거 후 1~64자. 내부 공백은 유지 | 길이·타입 오류 `400 INVALID_REQUEST` |
-| `height_cm` | number | null 거부 | 80~250cm, 보정·반올림 없음. 건강 관련 정보 | 범위·타입 오류 `400 INVALID_REQUEST` |
 | `weight_kg` | number | null 거부 | 25~300kg, 보정·반올림 없음. 건강 관련 정보 | 범위·타입 오류 `400 INVALID_REQUEST` |
-| `sex_code` | `FEMALE`, `MALE`, `PREFER_NOT_TO_SAY` | 빈 문자열·null 거부 | 대소문자 변환 없음. 건강 관련 정보 | enum 오류 `400 INVALID_REQUEST` |
 | `timezone` | 1~64자 IANA timezone string | 빈 문자열·null 거부 | trim 없음. 저장된 생년월일을 새 timezone으로 다시 검증 | 형식 오류 `400 INVALID_REQUEST`; 알 수 없는 timezone `422 INVALID_TIMEZONE`; 암호화 설정·복호화 불가 `503 PROFILE_CONFIGURATION_UNAVAILABLE` |
 | `date_of_birth` | ISO 8601 `date` (`YYYY-MM-DD`) | 빈 문자열·null 거부 | 미래 날짜 거부, 최종 timezone 기준 만 18–64세 eligibility 재판정, 암호화 저장 | 형식·미래 날짜 `422 INVALID_DATE_OF_BIRTH`; 범위 밖 `OUT_OF_SCOPE_AGE`; 암호화 설정 없음 `503 PROFILE_CONFIGURATION_UNAVAILABLE` |
+| (Legacy) `default_requested_duration_minutes` | integer | null 거부 | 1~240분. 신규 결정에 사용하지 않음 | 범위·타입 오류 `400 INVALID_REQUEST` |
+| (Legacy) `preferred_location_code` | `HOME`, `GYM`, `OUTDOOR` | 빈 문자열·null 거부 | 최종 `available_location_codes`에 반드시 포함 | enum·교차 검증 오류 `400 INVALID_REQUEST` |
+| (Legacy) `available_location_codes` | 위 location code 배열 | 빈 배열·null·중복 거부 | 현재 또는 함께 보낸 `preferred_location_code`를 포함 | enum·중복·교차 검증 오류 `400 INVALID_REQUEST` |
+| (Legacy) `attention_area_codes` | `NECK`, `SHOULDER`, `ELBOW`, `WRIST_HAND`, `UPPER_BACK`, `LOWER_BACK`, `HIP`, `KNEE`, `ANKLE_FOOT`, `CHEST`, `ABDOMEN` 배열 | **빈 배열 허용**, null·중복 거부 | 건강 관련 정보. `persistent_pains`와 함께 보낼 수 없음 | enum·중복 오류 `400 INVALID_REQUEST` |
+| (Legacy) `height_cm` | number | null 거부 | 80~250cm, 보정·반올림 없음. 건강 관련 정보 | 범위·타입 오류 `400 INVALID_REQUEST` |
+| (Legacy) `sex_code` | `FEMALE`, `MALE`, `PREFER_NOT_TO_SAY` | 빈 문자열·null 거부 | 대소문자 변환 없음. 건강 관련 정보 | enum 오류 `400 INVALID_REQUEST` |
+| (Legacy) `preferred_exercise_type_codes` | `STRENGTH`, `CARDIO`, `MOBILITY` 배열 | **빈 배열 허용**, null·중복 거부 | 신규 결정에 사용하지 않음 | enum·중복 오류 `400 INVALID_REQUEST` |
 
 공통 규칙:
 
 - 부분 수정이다. 보내지 않은 scalar와 관계 필드는 기존 값을 유지하고, 보낸 관계 배열만 교체한다.
-- 15개 필드는 OpenAPI에서 모두 선택 사항이지만 nullable이 아니다. 빈 객체, 알 수 없는 필드와
+- 16개 필드는 OpenAPI에서 모두 선택 사항이지만 nullable이 아니다. 빈 객체, 알 수 없는 필드와
   명시적 `null`은 `400 INVALID_REQUEST`다.
-- 모든 코드 배열은 중복을 거부한다. `attention_area_codes`와
+- 모든 코드 배열은 중복을 거부한다. `persistent_pains`, `attention_area_codes`와
   `preferred_exercise_type_codes`는 빈 배열을 허용한다.
 - `preferred_location_code`는 요청값과 기존값을 병합한 최종 `available_location_codes`에 포함돼야
   한다.
+- legacy 7개 필드는 배포된 구 클라이언트의 write 호환을 위해서만 유지한다. 신규 클라이언트는 보내지
+  않으며, 서버는 이 값을 기본 루틴·당일 결정·Safety 입력으로 소비하지 않는다. 사용량과 호환성 검증
+  뒤 별도 릴리스에서 요청 필드와 컬럼을 순서대로 제거한다.
+- 마이페이지의 평소 통증 부위 수정은 `persistent_pains`를 사용한다. `attention_area_codes`와 함께
+  보내면 `400 INVALID_REQUEST`다.
 - `primary_goal_code`와 `experience_level_code`는 배포 승인 목록의 값만 허용한다.
 - 이 PATCH의 성공·오류 응답은 생년월일, 키·체중·성별과 주의 부위의 원값을 반복하지 않으며,
   해당 값은 로그에도 남기지 않는다. 성공 응답은 새 version과 갱신 시각만 반환한다.
@@ -863,14 +871,17 @@ version으로 변경을 재적용하는 요청에는 새 `Idempotency-Key`를 �
 }
 ~~~
 
-`requested_duration_minutes`는 선택 필드이며 1~240 범위다. 생략하면 프로필의
-`default_requested_duration_minutes`를 그대로 목표 시간으로 쓰고
-`duration_adjustment_source_code`는 `PROFILE`이 된다. 값을 보내면 그 값이 이 루틴의 목표
-시간이 되고 출처는 `USER_OVERRIDE`가 된다. 프로필의 기본값은 말 그대로 기본값이며 이
-요청으로 변경되지 않는다. 서버는 사용자를 대신해 `USER_OVERRIDE`를 만들지 않는다.
-같은 `Idempotency-Key`로 다른 시간을 보내면 `409 IDEMPOTENCY_KEY_REUSED`다.
+`requested_duration_minutes`는 선택 필드이며 10~60 범위다. 값을 보내면 그 값이 이 루틴의 목표
+시간이 되고 출처는 `USER_OVERRIDE`가 된다. 생략하면 배포 설정으로 승인한 서버 기본 상수(승인값
+**30분**)를 목표 시간으로 쓰고 `duration_adjustment_source_code`는 `PROFILE`이 된다. 온보딩 프로필에는
+`default_requested_duration_minutes`를 두지 않으므로 이 상수가 유일한 생략 시 기본값이며, 승인된
+상수가 없으면 `503 PROFILE_CONFIGURATION_UNAVAILABLE`로 fail-closed한다. 서버는 사용자를 대신해
+`USER_OVERRIDE`를 만들지 않는다. 같은 `Idempotency-Key`로 다른 시간을 보내면
+`409 IDEMPOTENCY_KEY_REUSED`다.
 
-서버는 현재 사용자 프로필과 장소, DOMAIN_APPROVED 운동만 사용해 보수적인 기본 루틴을 만든다. 사용자 장비 보유 여부는 운동 선정 조건이 아니다. 클라이언트는 운동 ID, 세트 또는 tier를 임의 지정하지 않는다.
+서버는 현재 사용자 프로필과 DOMAIN_APPROVED 운동만 사용해 보수적인 기본 루틴을 만든다. **장소와 사용자 장비 보유 여부는 기본 루틴의 운동 선정 조건이 아니다.** 기본 루틴은 템플릿이며, 당일 장소 제약은 Daily Check-in의 `location_code`로 매일 재구성하는 Safety-approved Pool과 Feasibility가 적용한다. 클라이언트는 운동 ID, 세트 또는 tier를 임의 지정하지 않는다.
+
+기본 루틴은 온보딩 트랜잭션 안에서 최초 1회 provisioning된다. 이 경로는 첫 Daily Check-in보다 먼저 실행되므로 장소·시간을 체크인에서 조회할 수 없고, 위의 비게이트 규칙과 서버 기본 상수로만 생성한다.
 
 `POST /api/v1/routines`는 `Idempotency-Key`가 필수이며 성공 시 `201`을 반환한다.
 서버는 `ACTIVE`, `DOMAIN_APPROVED`, `production_eligible=true`이고 도메인 검수 증적이
