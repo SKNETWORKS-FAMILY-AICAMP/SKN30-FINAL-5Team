@@ -71,6 +71,28 @@ flowchart LR
 
 ## 4. 결정 파이프라인
 
+### 4.0 기본 루틴과 당일 결정의 관계
+
+두 개념 모두 "루틴"으로 불려 혼동이 잦으므로 경계를 고정한다.
+
+**기본 루틴(base routine)** 은 사용자의 주간 운동 계획표다. 하루짜리가 아니라 주 N일치 `routine_days`를
+순환 구조로 갖는다. 온보딩 트랜잭션에서 최초 1회 provisioning되고, 이후에는 주간 리포트 확인 뒤의
+주간 계획 revision이 새 version을 만든다. 다음을 고정한다.
+
+- 오늘이 며칠째 칸인지: `(local_date - effective_from) % len(routine_days)`
+- 그 칸의 `training_type_code`, `body_focus_code`, 운동 구성과 phase·tier
+- `goal_code`와 `catalog_version`
+
+**당일 결정(decision)** 은 기본 루틴의 오늘 칸을 그날의 check-in에 맞게 조정한 결과다. 기본 루틴의
+오늘 칸이 `KEEP` 후보로 파이프라인에 들어가며, 통증·피로·시간·장소 제약이 없으면 그대로 최종 추천이
+된다. 제약이 있으면 `DOWNSHIFT`, `RECOVERY`, `REST` 등으로 조정된다.
+
+따라서 결정이 기본 루틴을 대체하는 것이 아니라 조정한다. `decision_runs.base_routine_id`는 non-null
+이며 기본 루틴이 없으면 결정을 생성할 수 없다.
+
+기본 루틴은 사용자에게 노출하지 않는다. 최종 추천 루틴 하나만 보여주는 제품 불변식을 지키기 위해서다.
+사용자 문구에도 `기본 루틴` 같은 내부 용어를 쓰지 않고 `운동 계획`으로 표현한다.
+
 ```mermaid
 flowchart TD
   A["정규화 입력 스냅샷"] --> S["Deterministic SafetyPolicyEngine"]

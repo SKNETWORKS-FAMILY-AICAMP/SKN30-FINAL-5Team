@@ -99,7 +99,7 @@ describe('PreviewGallery', () => {
     fireEvent.press(screen.getByRole('radio', { name: 'Page loading (API)' }));
     const canvas = within(screen.getByTestId('preview-app-canvas'));
 
-    expect(canvas.getByText('기본 루틴을 준비하고 있어요')).toBeOnTheScreen();
+    expect(canvas.getByText('운동 계획을 준비하고 있어요')).toBeOnTheScreen();
     expect(screen.getByText('단독 진입: ?preview=loading')).toBeOnTheScreen();
 
     fireEvent.press(screen.getByRole('radio', { name: '끼끼의 집' }));
@@ -445,15 +445,15 @@ describe('PreviewGallery', () => {
     const canvas = within(screen.getByTestId('preview-app-canvas'));
 
     fireEvent.press(screen.getByRole('radio', { name: '기본 루틴 준비 중' }));
-    expect(canvas.getByText('기본 루틴을 준비하고 있어요')).toBeOnTheScreen();
+    expect(canvas.getByText('운동 계획을 준비하고 있어요')).toBeOnTheScreen();
     expect(canvas.getByTestId('home-routine-lookup-loading')).toBeOnTheScreen();
     expect(canvas.queryByRole('button', { name: '다시 준비하기' })).toBeNull();
 
     fireEvent.press(screen.getByRole('radio', { name: '기본 루틴 준비 실패' }));
-    expect(canvas.getByText('기본 루틴을 준비하지 못했어요')).toBeOnTheScreen();
+    expect(canvas.getByText('운동 계획을 준비하지 못했어요')).toBeOnTheScreen();
     expect(
       canvas.getByText(
-        '기본 루틴을 확인하거나 만드는 중 문제가 생겼어요.\n잠시 후 다시 시도해 주세요.',
+        '운동 계획을 준비하는 중 문제가 생겼어요.\n잠시 후 다시 시도해 주세요.',
       ),
     ).toBeOnTheScreen();
     expect(
@@ -464,7 +464,7 @@ describe('PreviewGallery', () => {
     ).toEqual(['#E2F5C9', '#CDEDA9', '#B7E28C'].map(processColor));
 
     fireEvent.press(canvas.getByRole('button', { name: '다시 준비하기' }));
-    expect(canvas.getByText('기본 루틴을 준비하고 있어요')).toBeOnTheScreen();
+    expect(canvas.getByText('운동 계획을 준비하고 있어요')).toBeOnTheScreen();
     expect(
       screen.getByRole('radio', { name: '기본 루틴 준비 중' }),
     ).toBeChecked();

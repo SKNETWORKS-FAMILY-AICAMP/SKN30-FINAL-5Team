@@ -370,7 +370,7 @@ export function homePreviewProps(state: HomePreviewState): HomeScreenProps {
     busy: showsGeneration ? 'decision-generation' : null,
     errorMessage:
       state === 'routine-lookup-failed'
-        ? '기본 루틴을 준비하지 못했어요.'
+        ? '운동 계획을 준비하지 못했어요.'
         : undefined,
     actionError: decisionResponseLost
       ? '체크인은 저장됐지만 오늘 루틴 생성 결과를 확인하지 못했어요. 저장된 체크인으로 루틴 생성만 다시 시도할 수 있어요.'

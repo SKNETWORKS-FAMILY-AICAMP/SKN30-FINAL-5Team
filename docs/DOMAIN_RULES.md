@@ -679,7 +679,7 @@ structured output validation 또는 required Agent가 최종 실패하면 부분
 - 사용자의 휴식 선택은 원래 decision result와 별도로 selection에 저장한다.
 - 휴식 선택 이후 해당 로컬 날짜의 압박 알림은 차단한다.
 
-공식 운동 수행 상태는 앱의 운동 블록 완료 체크로만 확정한다. 전체 경과 타이머, 웨어러블 또는 캘린더의 수행 여부 확인 결과는 참고 신호이며 공식 상태를 변경할 수 없다. 수동 외부 운동 기록은 MVP에 포함하지 않는다.
+공식 운동 수행 상태는 앱의 운동 블록 완료 체크로만 확정한다. 전체 경과 타이머와 웨어러블 요약은 참고 신호이며 공식 상태를 변경할 수 없다. 수동 외부 운동 기록은 MVP에 포함하지 않는다.
 
 신규 write의 실행 상태 전이:
 
@@ -711,7 +711,7 @@ RUNNING/RESTING -> COMPLETED
 - 열린 주는 최종 주간 리포트를 생성할 수 없다.
 - 닫힌 주 리포트는 사용자가 요청할 때 생성한다.
 - 공식 집계는 앱 운동 블록 체크로 계산한 COMPLETED, PARTIAL, NOT_COMPLETED를 사용한다. Safety Event는 별도 안전 중단 지표로 집계한다.
-- 웨어러블 요약과 캘린더 수행 여부 확인 결과는 별도 참고 항목으로만 표시한다.
+- 웨어러블 요약은 별도 참고 항목으로만 표시한다.
 - 다음 주 계획은 직전 주 리포트가 생성되고 사용자가 확인한 뒤에만 최종 확정할 수 있다.
 - 최초 가입자의 첫 주 목표·루틴은 이전 주 리포트 없이 생성할 수 있다. 이 콜드스타트 예외 이후의 다음 주 계획부터 직전 주 리포트 생성·확인 게이트를 적용한다.
 - AI 기반 다음 주 계획 수정은 최대 2회다.
@@ -947,7 +947,7 @@ Coordinator output·compiler/validator 결과와 모든 model/prompt/graph versi
 ## 15. 필수 골든 시나리오
 
 1. 통증 없음, 프로필 희망 시간 확인: KEEP
-2. 상체 근력 40분 요청과 피로 4–5: 요청 시간과 CORE를 보존한 `LIGHT` 또는 `VERY_LIGHT` DOWNSHIFT, 허용 후보 중 40분과 가장 가까운 ±300초 계획
+2. 상체 근력 40분 요청과 피로 `HIGH`: 요청 시간과 CORE를 보존한 `LIGHT` 또는 `VERY_LIGHT` DOWNSHIFT, 허용 후보 중 40분과 가장 가까운 ±300초 계획
 3. 프로필 40분에서 사용자가 당일 30분으로 변경: 30분 요청과 가장 가까운 ±300초 계획을 사용하고 임의 추가 축소 없음
 4. 무릎 MILD 또는 MODERATE: 검수된 충돌 운동 제외와 남은 Safety-approved Pool
 5. 무릎 SEVERE: REST, 운동 계획 없음
@@ -988,13 +988,6 @@ Coordinator output·compiler/validator 결과와 모든 model/prompt/graph versi
 40. identity DB commit 실패: 전체 rollback, custom token·성공 응답 없음
 41. token·email·name·nickname·subject·원시 provider 응답이 로그·snapshot에 없음
 42. 마지막 활성 identity 일반 해제 차단, 계정 삭제 전체 해제는 허용
-43. 캘린더 미연동: 수동 체크인과 앱 운동 블록 체크로 정상 핵심 흐름
-44. 캘린더 권한 거부: 수동 경로 유지, 기존 운동 계획 불변
-45. 캘린더 `performed=true`: 공식 세션 상태 불변
-46. Google `performed=null`: fallback 안내 반환, 오류 아님
-47. 캘린더 provider 장애: `PROVIDER_UNAVAILABLE`, 계획 삭제·변경 없음
-48. 하루 전체 busy: 빈 후보 배열, 희망 운동시간 단축 없음
-49. freebusy 종일 구간: busy로 처리하며 일정 본문 조회 없음
 
 ---
 
