@@ -346,6 +346,34 @@ def _pool_safety_evaluation(
     )
 
 
+def _eligible_pool_exercises(
+    *,
+    exercises: tuple[ExercisePoolExerciseRecord, ...],
+    excluded_exercise_ids: set[UUID],
+    experience_level_code: str,
+    allowed_location_codes: set[str],
+) -> tuple[ExercisePoolExerciseRecord, ...]:
+    """Apply the deterministic pre-retrieval eligibility gates once.
+
+    Safety reconstruction may proceed only when the same pool consumed by the
+    retrieval loader still has an eligible exercise. Keeping this projection
+    shared prevents the Safety adapter from allowing a graph run that the pool
+    loader must later reject because every survivor is too difficult or in the
+    wrong location.
+    """
+
+    return tuple(
+        item
+        for item in exercises
+        if item.exercise_id not in excluded_exercise_ids
+        and is_exercise_allowed_for_user(
+            exercise_difficulty_code=item.difficulty_code,
+            user_experience_level_code=experience_level_code,
+        )
+        and bool(set(item.location_codes) & allowed_location_codes)
+    )
+
+
 class DeterministicV3SafetyPolicyAdapter:
     """Project the reviewed deterministic Safety engine into a V3 envelope."""
 
@@ -357,15 +385,6 @@ class DeterministicV3SafetyPolicyAdapter:
         application.safety_evaluation = base
         pool_evaluation = _pool_safety_evaluation(prepared, application.exercises)
         application.pool_safety_evaluation = pool_evaluation
-        safe_change_available = any(
-            candidate.candidate.action_code.value == "CHANGE"
-            for candidate in prepared.adjusted_candidates
-        )
-        allowed = base.status_code is SafetyStatusCode.PASS or (
-            base.status_code is SafetyStatusCode.REVISE and bool(prepared.adjusted_candidates)
-        )
-        if base.excluded_exercise_codes and not safe_change_available:
-            allowed = False
         excluded_codes = set(base.excluded_exercise_codes)
         if pool_evaluation is not None:
             # A pool exclusion is enforced by removing the exercise from the pool,
@@ -377,12 +396,38 @@ class DeterministicV3SafetyPolicyAdapter:
                 key=str,
             )
         )
-        if application.exercises and not {
-            record.exercise_id for record in application.exercises
-        } - set(excluded):
-            # Nothing survived the rules; fail closed rather than plan from nothing.
-            allowed = False
-        items = tuple(item for item in prepared.items if item.exercise_id not in set(excluded))
+        context = prepared.context
+        eligible_pool = _eligible_pool_exercises(
+            exercises=application.exercises,
+            excluded_exercise_ids=set(excluded),
+            experience_level_code=str(source.normalized_values["experience_level_code"]),
+            allowed_location_codes={context.location_code},
+        )
+        exclusion_only_block = (
+            base.status_code is SafetyStatusCode.BLOCKED
+            and base.required_action_code is SafetyRequiredActionCode.REST
+            and bool(base.excluded_exercise_codes)
+            and not base.emergency_reaction_codes
+            and not base.acute_reaction_codes
+            and not base.severe_body_area_codes
+        )
+        allowed = (
+            base.status_code in {SafetyStatusCode.PASS, SafetyStatusCode.REVISE}
+            or exclusion_only_block
+        ) and bool(eligible_pool)
+
+        # A caution requires the approved duration-preserving downshift. Its LOW
+        # intensity must become an immutable ceiling so a coordinator cannot
+        # return KEEP while the public Safety status says REVISE.
+        downshift = next(
+            (
+                candidate
+                for candidate in prepared.adjusted_candidates
+                if candidate.candidate.action_code.value == "DOWNSHIFT"
+            ),
+            None,
+        )
+        items = downshift.items if base.caution_exercise_codes and downshift else prepared.items
         intensities = tuple(sorted({item.intensity_code for item in items}))
         ceiling = RecoveryCeiling(
             policy_version="v3-recovery-ceiling-from-approved-routine-v1",
@@ -403,10 +448,9 @@ class DeterministicV3SafetyPolicyAdapter:
                 (item.rest_seconds_per_set for item in items), default=None
             ),
         )
-        required_action = base.required_action_code
+        required_action = None if allowed else base.required_action_code
         if not allowed and required_action is None:
             required_action = SafetyRequiredActionCode.REST
-        context = prepared.context
         return ConstraintEnvelope.create(
             requested_duration_minutes=context.requested_duration_minutes,
             primary_goal_code=context.primary_goal_code,
@@ -434,22 +478,15 @@ class PostgreSQLV3ExercisePoolSource(PostgreSQLExercisePoolSourcePort):
     ) -> EligibleExerciseProjection:
         application = _context(source)
         experience_level_code = str(source.normalized_values["experience_level_code"])
-        eligible = tuple(
-            item
-            for item in application.exercises
-            if item.exercise_id not in set(envelope.excluded_exercise_ids)
-            and is_exercise_allowed_for_user(
-                exercise_difficulty_code=item.difficulty_code,
-                user_experience_level_code=experience_level_code,
-            )
-            # Equipment is not a gate. The 2026-08-27 approval removed the
-            # issubset filter because it required the user to own every piece a
-            # movement lists, and the variant lookup is what tells them how to
-            # work around missing kit. Routine creation dropped it then; this
-            # path kept it, so a bodyweight-only profile saw a pool that was
-            # 85 stretches to 35 strength movements.
-            and bool(set(item.location_codes) & set(envelope.allowed_location_codes))
+        eligible = _eligible_pool_exercises(
+            exercises=application.exercises,
+            excluded_exercise_ids=set(envelope.excluded_exercise_ids),
+            experience_level_code=experience_level_code,
+            allowed_location_codes=set(envelope.allowed_location_codes),
         )
+        # Equipment is intentionally not a gate. The 2026-08-27 approval
+        # removed that filter because owning every listed piece is not a
+        # condition of suitability; approved variants cover missing kit.
         goal_matched = tuple(
             item for item in eligible if envelope.primary_goal_code in item.goal_codes
         )
@@ -600,23 +637,34 @@ class V3DecisionResponseProjector:
             )
         first = plan.exercises[0].catalog_record
         evaluation = context.safety_evaluation
-        safety_code: Literal["PASS", "REVISE", "BLOCKED"] = (
-            "REVISE" if evaluation and evaluation.status_code is SafetyStatusCode.REVISE else "PASS"
+        safety_revised = bool(
+            evaluation
+            and (
+                evaluation.status_code is SafetyStatusCode.REVISE
+                or evaluation.excluded_exercise_codes
+            )
         )
+        safety_code: Literal["PASS", "REVISE", "BLOCKED"] = "REVISE" if safety_revised else "PASS"
+        if evaluation and evaluation.excluded_exercise_codes:
+            public_action = "CHANGE"
+        elif evaluation and evaluation.caution_exercise_codes:
+            public_action = "DOWNSHIFT"
+        else:
+            public_action = plan.action_code.value
         reason_codes = list(bundle.failure_codes[:2]) or ["V3_COMPLETED"]
         return DecisionResponse(
             decision_id=bundle.decision_execution_id,
             local_date=source.local_date,
             status_code="COMPLETED",
             safety_status_code=safety_code,
-            action_code=plan.action_code.value,
+            action_code=public_action,
             requested_duration_minutes=plan.requested_duration_minutes,
             duration_adjustment_source_code=str(
                 source.normalized_values["duration_adjustment_source_code"]
             ),
             final_plan=DecisionPlan(
                 plan_id=plan_id,
-                action_code=plan.action_code.value,
+                action_code=public_action,
                 training_type_code=first.training_type_code,
                 body_focus_code=first.body_focus_code,
                 requested_duration_minutes=plan.requested_duration_minutes,
@@ -633,7 +681,7 @@ class V3DecisionResponseProjector:
                         NAMESPACE_URL, f"v3-option:final:{bundle.decision_execution_id}"
                     ),
                     option_code="FINAL_ROUTINE",
-                    action_code=plan.action_code.value,
+                    action_code=public_action,
                     plan_id=plan_id,
                 ),
                 DecisionOptionResponse(
@@ -648,9 +696,13 @@ class V3DecisionResponseProjector:
             summary="오늘의 안전한 운동 루틴이 준비되었습니다.",
             safety_summary=SafetySummary(
                 safety_status_code=safety_code,
-                vetoed=False,
+                vetoed=bool(evaluation and evaluation.veto),
                 reason_codes=list(evaluation.reason_codes if evaluation else ()),
-                summary="결정적 안전 정책 검증을 통과했습니다.",
+                summary=(
+                    "결정적 안전 정책에 따라 운동 구성을 조정했습니다."
+                    if safety_revised
+                    else "결정적 안전 정책 검증을 통과했습니다."
+                ),
             ),
             generation_mode_code="ORIGINAL",
             decision_engine_code=(
@@ -815,16 +867,28 @@ def _persist_public_decision(
             )
     session.flush()
     evaluation_status = response.safety_status_code
+    excluded_exercise_ids = (
+        [
+            str(exercise_id)
+            for exercise_id in bundle.root_snapshot.constraint_envelope.excluded_exercise_ids
+        ]
+        if bundle is not None
+        else []
+    )
     session.add(
         SafetyReview(
             id=uuid4(),
             decision_run_id=run.id,
             plan_candidate_id=candidate.id,
             safety_status_code=evaluation_status,
-            vetoed=evaluation_status == "BLOCKED",
+            vetoed=(
+                response.safety_summary.vetoed
+                if response.safety_summary is not None
+                else evaluation_status == "BLOCKED"
+            ),
             ruleset_version=run.safety_rule_version,
             reason_codes=response.safety_summary.reason_codes if response.safety_summary else [],
-            excluded_exercise_ids=[],
+            excluded_exercise_ids=excluded_exercise_ids,
             public_guidance=response.guidance.code if response.guidance else None,
         )
     )
