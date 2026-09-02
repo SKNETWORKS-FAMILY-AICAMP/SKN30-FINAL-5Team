@@ -51,6 +51,8 @@ import {
   NOT_COMPLETED_REASONS,
   SAFETY_GUIDANCE,
   getWorkoutResponsiveLayout,
+  WORKOUT_SAFETY_HELP,
+  WORKOUT_STOP_REASONS,
   WORKOUT_ARC,
   WORKOUT_BLOCKS,
   WORKOUT_CAROUSEL,
@@ -60,6 +62,7 @@ import {
   type WorkoutBlockStatus,
   type WorkoutPreviewState,
   type WorkoutResponsiveLayout,
+  type WorkoutExecutionState,
   type WorkoutSafetyInstruction,
   type WorkoutSafetyReport,
 } from './workoutModel';
@@ -76,7 +79,7 @@ type WorkoutOverlay =
   | 'none'
   | 'rest'
   | 'not-completed'
-  | 'safety'
+  | 'stop-reasons'
   | 'symptom'
   | 'api-safety'
   | 'api-guidance'
@@ -227,7 +230,12 @@ function WorkoutScreenContent({
   const [previewResult, setPreviewResult] = useState<WorkoutResult>(
     fixture.result,
   );
-  const [paused, setPaused] = useState(false);
+  const [executionState, setExecutionState] = useState<WorkoutExecutionState>(
+    fixture.overlay === 'rest' ? 'RESTING' : 'RUNNING',
+  );
+  const stateBeforePause = useRef<Exclude<WorkoutExecutionState, 'PAUSED'>>(
+    fixture.overlay === 'rest' ? 'RESTING' : 'RUNNING',
+  );
   const [overlay, setOverlay] = useState<WorkoutOverlay>(fixture.overlay);
   const [completedBlockIds, setCompletedBlockIds] = useState<readonly string[]>(
     fixture.completedBlockIds,
@@ -237,7 +245,11 @@ function WorkoutScreenContent({
     block: WorkoutViewBlock;
     response: ExerciseVariantsResponse;
   } | null>(null);
-  const [restSeconds, setRestSeconds] = useState(60);
+  const [restSeconds, setRestSeconds] = useState(0);
+  const [selectedStopReason, setSelectedStopReason] = useState<
+    NotCompletedReasonCode | 'SAFETY' | null
+  >(null);
+  const [safetyStopAcknowledged, setSafetyStopAcknowledged] = useState(false);
   const [carouselWidth, setCarouselWidth] = useState(0);
   const [visiblePageIndex, setVisiblePageIndex] = useState(() =>
     firstPendingIndex(WORKOUT_BLOCKS, fixture.completedBlockIds),
@@ -306,8 +318,11 @@ function WorkoutScreenContent({
   const detailBlock =
     blocks.find((block) => block.id === detailBlockId) ?? null;
   const completedCount = completedBlockIds.length;
+  const paused = executionState === 'PAUSED';
+  const targetDurationMinutes =
+    apiConfig?.plan.requested_duration_minutes ?? 30;
   const isSafetyState =
-    overlay === 'safety' ||
+    overlay === 'stop-reasons' ||
     overlay === 'symptom' ||
     overlay === 'api-safety' ||
     overlay === 'api-guidance';
@@ -316,11 +331,11 @@ function WorkoutScreenContent({
     (carouselWidth - responsiveLayout.cardWidth) / 2,
   );
   const timerCaption =
-    overlay === 'rest'
-      ? '휴식 중 · 타이머 정지'
-      : paused
-        ? '일시정지됨 · 기록용'
-        : '운동 시간';
+    executionState === 'RESTING'
+      ? '휴식 중'
+      : executionState === 'PAUSED'
+        ? '일시 정지'
+        : '운동 진행 중';
   const canSmash =
     !allBlocksCompleted &&
     visiblePageIndex === currentIndex &&
@@ -422,8 +437,7 @@ function WorkoutScreenContent({
 
   useEffect(() => {
     if (
-      paused ||
-      overlay !== 'none' ||
+      executionState === 'PAUSED' ||
       previewResult !== 'none' ||
       !sessionReady
     ) {
@@ -433,26 +447,17 @@ function WorkoutScreenContent({
       setElapsedSeconds((current) => current + 1);
     }, 1000);
     return () => clearInterval(timer);
-  }, [overlay, paused, previewResult, sessionReady]);
+  }, [executionState, previewResult, sessionReady]);
 
   useEffect(() => {
-    if (overlay !== 'rest') {
+    if (executionState !== 'RESTING') {
       return undefined;
     }
     const timer = setInterval(() => {
-      setRestSeconds((current) => {
-        if (current <= 1) {
-          setOverlay('none');
-          setPaused(false);
-          recordTimerChange('RESUME');
-          onRestChange?.(false);
-          return 0;
-        }
-        return current - 1;
-      });
+      setRestSeconds((current) => current + 1);
     }, 1000);
     return () => clearInterval(timer);
-  }, [onRestChange, overlay, recordTimerChange]);
+  }, [executionState]);
 
   useEffect(() => {
     if (carouselWidth <= 0) {
@@ -503,11 +508,16 @@ function WorkoutScreenContent({
   }, [burstKey, burstOpacity, burstScale]);
 
   const togglePaused = () => {
-    setPaused((current) => {
-      recordTimerChange(current ? 'RESUME' : 'PAUSE');
-      onPauseChange?.(!current);
-      return !current;
-    });
+    if (executionState === 'PAUSED') {
+      setExecutionState(stateBeforePause.current);
+      recordTimerChange('RESUME');
+      onPauseChange?.(false);
+      return;
+    }
+    stateBeforePause.current = executionState;
+    setExecutionState('PAUSED');
+    recordTimerChange('PAUSE');
+    onPauseChange?.(true);
   };
 
   const finalizeServerSession = async () => {
@@ -521,7 +531,7 @@ function WorkoutScreenContent({
       endedAt,
       elapsedSeconds,
     );
-    setPaused(true);
+    setExecutionState('PAUSED');
     apiConfig.onOutcome({ kind: 'finished', result });
   };
 
@@ -578,7 +588,7 @@ function WorkoutScreenContent({
     if (apiConfig === undefined) {
       applyCompletedBlock(block);
       if (completedBlockIds.length + 1 === blocks.length) {
-        setPaused(true);
+        setExecutionState('PAUSED');
         setPreviewResult('completed');
       }
       return;
@@ -691,44 +701,56 @@ function WorkoutScreenContent({
   };
 
   const openRest = () => {
-    setRestSeconds(60);
-    setPaused(true);
+    if (executionState === 'PAUSED') {
+      return;
+    }
+    setRestSeconds(0);
+    setExecutionState('RESTING');
     setOverlay('rest');
-    recordTimerChange('PAUSE');
-    onPauseChange?.(true);
     onRestChange?.(true);
   };
 
   const closeRest = () => {
-    setRestSeconds(0);
     setOverlay('none');
-    setPaused(false);
-    recordTimerChange('RESUME');
-    onPauseChange?.(false);
+    if (executionState === 'PAUSED') {
+      stateBeforePause.current = 'RUNNING';
+    } else {
+      setExecutionState('RUNNING');
+    }
     onRestChange?.(false);
   };
 
-  const openSafety = () => {
-    setApiError(null);
-    setPaused(true);
-    setOverlay('safety');
+  const pauseForOverlay = () => {
+    if (executionState === 'PAUSED') {
+      return;
+    }
+    stateBeforePause.current = executionState;
+    setExecutionState('PAUSED');
     recordTimerChange('PAUSE');
     onPauseChange?.(true);
+  };
+
+  const openStopReasons = () => {
+    setApiError(null);
+    setSelectedStopReason(null);
+    setSafetyStopAcknowledged(false);
+    pauseForOverlay();
+    setOverlay('stop-reasons');
   };
 
   const openPainReport = () => {
     setApiError(null);
-    setPaused(true);
+    pauseForOverlay();
     setOverlay(apiConfig === undefined ? 'symptom' : 'api-safety');
-    recordTimerChange('PAUSE');
-    onPauseChange?.(true);
   };
 
   const closeSheets = () => {
     setOverlay('none');
-    setPaused(false);
-    recordTimerChange('RESUME');
-    onPauseChange?.(false);
+    if (executionState === 'PAUSED') {
+      setExecutionState(stateBeforePause.current);
+      recordTimerChange('RESUME');
+      onPauseChange?.(false);
+    }
   };
 
   const finishWorkout = async () => {
@@ -764,7 +786,7 @@ function WorkoutScreenContent({
         new Date().toISOString(),
         reasonCode as NotCompletedReasonCode,
       );
-      setPaused(true);
+      setExecutionState('PAUSED');
       apiConfig.onOutcome({ kind: 'notCompleted', result });
     } catch (error) {
       setApiError(messageForError(error));
@@ -792,7 +814,7 @@ function WorkoutScreenContent({
         adverse_reaction_codes: [...selectedReactions],
       });
       if (event.session_status_code === 'STOPPED_FOR_SAFETY') {
-        setPaused(true);
+        setExecutionState('PAUSED');
         apiConfig.onOutcome({ kind: 'safetyStop', event });
         return;
       }
@@ -820,7 +842,7 @@ function WorkoutScreenContent({
       });
       setAdditionalSaved(true);
       setOverlay('none');
-      setPaused(false);
+      setExecutionState('RUNNING');
       recordTimerChange('RESUME');
     } catch (error) {
       setApiError(messageForError(error));
@@ -986,7 +1008,7 @@ function WorkoutScreenContent({
                 {timerCaption}
               </Text>
               <Text
-                accessibilityLabel={`운동 시간 ${formatWorkoutTime(elapsedSeconds)}`}
+                accessibilityLabel={`진행 시간 ${formatWorkoutTime(elapsedSeconds)} / 목표 시간 ${targetDurationMinutes}분`}
                 style={[
                   styles.timer,
                   {
@@ -999,6 +1021,9 @@ function WorkoutScreenContent({
                 ]}
               >
                 {formatWorkoutTime(elapsedSeconds)}
+              </Text>
+              <Text style={styles.targetTime}>
+                목표 시간 {targetDurationMinutes}분
               </Text>
             </View>
             <View style={styles.timerActions}>
@@ -1022,7 +1047,7 @@ function WorkoutScreenContent({
               <Pressable
                 accessibilityLabel="운동 중단"
                 accessibilityRole="button"
-                onPress={openSafety}
+                onPress={openStopReasons}
                 style={({ pressed }) => [
                   styles.stopAction,
                   {
@@ -1216,40 +1241,6 @@ function WorkoutScreenContent({
             ))}
           </Animated.ScrollView>
         </WorkoutCarouselDragSurface>
-
-        <View
-          style={[
-            styles.dotRow,
-            {
-              gap: 6 * layoutScale,
-              paddingTop: 10 * layoutScale,
-              paddingBottom: 2 * layoutScale,
-            },
-          ]}
-        >
-          {blocks.map((block, index) => {
-            const active = index === visiblePageIndex;
-            const done = block.status === 'COMPLETED';
-            return (
-              <Pressable
-                key={block.id}
-                accessibilityLabel={`${index + 1}번째 블록 보기`}
-                accessibilityRole="button"
-                onPress={() => selectVisiblePage(index)}
-                style={[
-                  styles.dot,
-                  active && styles.dotActive,
-                  done
-                    ? styles.dotDone
-                    : active
-                      ? styles.dotVisiblePending
-                      : null,
-                ]}
-                testID={`workout-dot-${index}`}
-              />
-            );
-          })}
-        </View>
       </View>
 
       <View
@@ -1260,7 +1251,7 @@ function WorkoutScreenContent({
             gap: 8 * layoutScale,
             paddingTop: 6 * layoutScale,
             paddingRight: 18 * layoutScale,
-            paddingBottom: 24 * layoutScale,
+            paddingBottom: 4 * layoutScale,
             paddingLeft: 18 * layoutScale,
           },
         ]}
@@ -1282,6 +1273,7 @@ function WorkoutScreenContent({
           style={({ pressed }) => [
             styles.smashAction,
             {
+              width: 154 * layoutScale,
               height: 58 * layoutScale,
               borderRadius: 18 * layoutScale,
               paddingHorizontal: 8 * layoutScale,
@@ -1312,45 +1304,65 @@ function WorkoutScreenContent({
                 : '블록 격파'}
           </Text>
         </Pressable>
-        <View
-          style={styles.secondaryActions}
-          testID="workout-secondary-actions"
+        <Pressable
+          accessibilityLabel="선택 휴식 타이머"
+          accessibilityRole="button"
+          accessibilityState={{ disabled: paused }}
+          disabled={paused}
+          onPress={openRest}
+          style={({ pressed }) => [
+            styles.restAction,
+            {
+              width: 108 * layoutScale,
+              height: 52 * layoutScale,
+              borderRadius: 18 * layoutScale,
+              paddingHorizontal: 8 * layoutScale,
+            },
+            paused && styles.actionDisabled,
+            pressed && styles.pressed,
+          ]}
+          testID="workout-rest-action"
         >
-          <Pressable
-            accessibilityLabel="선택 휴식 타이머"
-            accessibilityRole="button"
-            onPress={openRest}
-            style={({ pressed }) => [
-              styles.restAction,
-              {
-                height: 58 * layoutScale,
-                borderRadius: 18 * layoutScale,
-                paddingHorizontal: 8 * layoutScale,
-              },
-              pressed && styles.pressed,
-            ]}
-            testID="workout-rest-action"
-          >
+          <View style={styles.restActionContent}>
+            <TimerMark />
             <Text style={styles.restActionText}>휴식</Text>
-          </Pressable>
-          <Pressable
-            accessibilityLabel="통증 및 이상 반응 보고"
-            accessibilityRole="button"
-            onPress={openPainReport}
-            style={({ pressed }) => [
-              styles.painAction,
-              {
-                height: 58 * layoutScale,
-                borderRadius: 18 * layoutScale,
-                paddingHorizontal: 6 * layoutScale,
-              },
-              pressed && styles.pressed,
-            ]}
-            testID="workout-pain-action"
-          >
-            <Text style={styles.painActionText}>통증이{`\n`}있어요</Text>
-          </Pressable>
-        </View>
+          </View>
+        </Pressable>
+      </View>
+
+      <View
+        style={[
+          styles.dotRow,
+          {
+            gap: 6 * layoutScale,
+            paddingTop: 6 * layoutScale,
+            paddingBottom: 18 * layoutScale,
+          },
+        ]}
+        testID="workout-bottom-pagination"
+      >
+        {blocks.map((block, index) => {
+          const active = index === visiblePageIndex;
+          const done = block.status === 'COMPLETED';
+          return (
+            <Pressable
+              key={block.id}
+              accessibilityLabel={`${index + 1}번째 블록 보기`}
+              accessibilityRole="button"
+              onPress={() => selectVisiblePage(index)}
+              style={[
+                styles.dot,
+                active && styles.dotActive,
+                done
+                  ? styles.dotDone
+                  : active
+                    ? styles.dotVisiblePending
+                    : null,
+              ]}
+              testID={`workout-dot-${index}`}
+            />
+          );
+        })}
       </View>
 
       {detailBlock && variantGuide === null && overlay === 'none' ? (
@@ -1389,8 +1401,8 @@ function WorkoutScreenContent({
 
       {overlay === 'rest' ? (
         <RestSheet
-          onAddSeconds={() => setRestSeconds((current) => current + 30)}
           onClose={closeRest}
+          overallSeconds={elapsedSeconds}
           restSeconds={restSeconds}
           useJua={useJua}
         />
@@ -1403,10 +1415,34 @@ function WorkoutScreenContent({
           pending={actionPending}
         />
       ) : null}
-      {overlay === 'safety' ? (
-        <SafetyConfirmSheet
+      {overlay === 'stop-reasons' ? (
+        <StopReasonSheet
+          acknowledged={safetyStopAcknowledged}
           onClose={closeSheets}
-          onStop={() => void finishWorkout()}
+          onConfirm={() => {
+            if (selectedStopReason === 'SAFETY') {
+              openPainReport();
+              return;
+            }
+            if (selectedStopReason === null) {
+              return;
+            }
+            if (apiConfig === undefined) {
+              onNotCompleted?.(selectedStopReason);
+              setPreviewResult('stopped');
+              return;
+            }
+            if (completedCount === 0) {
+              void submitNotCompleted(selectedStopReason);
+            } else {
+              void finishWorkout();
+            }
+          }}
+          onSelect={setSelectedStopReason}
+          onToggleAcknowledgement={() =>
+            setSafetyStopAcknowledged((current) => !current)
+          }
+          selectedReason={selectedStopReason}
         />
       ) : null}
       {overlay === 'symptom' ? (
@@ -1482,6 +1518,15 @@ function PlaybackMark({ paused }: { paused: boolean }) {
     <View accessibilityElementsHidden style={styles.pauseMark}>
       <View style={styles.pauseBar} />
       <View style={styles.pauseBar} />
+    </View>
+  );
+}
+
+function TimerMark() {
+  return (
+    <View accessibilityElementsHidden style={styles.timerMark}>
+      <View style={styles.timerMarkHand} />
+      <View style={styles.timerMarkDot} />
     </View>
   );
 }
@@ -1890,13 +1935,13 @@ function ApiBanner({
 }
 
 function RestSheet({
-  onAddSeconds,
   onClose,
+  overallSeconds,
   restSeconds,
   useJua,
 }: {
-  onAddSeconds: () => void;
   onClose: () => void;
+  overallSeconds: number;
   restSeconds: number;
   useJua: boolean;
 }) {
@@ -1904,9 +1949,9 @@ function RestSheet({
     <View accessibilityViewIsModal style={styles.restSheet}>
       <View style={styles.restSheetRow}>
         <View>
-          <Text style={styles.restLabel}>선택 휴식</Text>
+          <Text style={styles.restLabel}>휴식 중</Text>
           <Text
-            accessibilityLabel={`남은 휴식 ${formatWorkoutTime(restSeconds)}`}
+            accessibilityLabel={`현재 휴식 시간 ${formatWorkoutTime(restSeconds)}`}
             style={[styles.restTimer, useJua && styles.jua]}
           >
             {formatWorkoutTime(restSeconds)}
@@ -1915,24 +1960,17 @@ function RestSheet({
         <View style={styles.restActions}>
           <Pressable
             accessibilityRole="button"
-            onPress={onAddSeconds}
-            style={styles.restAddButton}
-          >
-            <Text style={styles.restAddButtonText}>+30초</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
             onPress={onClose}
             style={styles.restEndButton}
           >
             <Text style={[styles.restEndButtonText, useJua && styles.jua]}>
-              휴식 끝
+              돌아가기
             </Text>
           </Pressable>
         </View>
       </View>
       <Text style={styles.restDescription}>
-        휴식 타이머는 선택 사항이에요. 완료 상태는 직접 체크할 때만 바뀝니다.
+        {`전체 운동 시간은 계속 흐르고 있어요 · 진행 ${formatWorkoutTime(overallSeconds)}`}
       </Text>
     </View>
   );
@@ -1958,31 +1996,154 @@ function SheetFrame({
   );
 }
 
-function SafetyConfirmSheet({
+function StopReasonSheet({
+  acknowledged,
   onClose,
-  onStop,
+  onConfirm,
+  onSelect,
+  onToggleAcknowledgement,
+  selectedReason,
 }: {
+  acknowledged: boolean;
   onClose: () => void;
-  onStop?: () => void;
+  onConfirm: () => void;
+  onSelect: (reason: NotCompletedReasonCode | 'SAFETY') => void;
+  onToggleAcknowledgement: () => void;
+  selectedReason: NotCompletedReasonCode | 'SAFETY' | null;
 }) {
+  const [helpOpen, setHelpOpen] = useState(false);
+  const safetySelected = selectedReason === 'SAFETY';
+  const canContinue =
+    selectedReason !== null && (!safetySelected || acknowledged);
   return (
-    <SheetFrame title="운동을 여기서 중단하시겠어요?">
+    <SheetFrame title="운동을 중단하는 이유를 알려주세요">
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <View style={styles.stopReasonList}>
+          {WORKOUT_STOP_REASONS.map((reason) => (
+            <ChoiceButton
+              key={reason.code}
+              label={reason.label}
+              listStyle
+              onPress={() => onSelect(reason.code)}
+              selected={selectedReason === reason.code}
+            />
+          ))}
+        </View>
+        <View style={styles.safetyReasonSection}>
+          <Text style={styles.safetyReasonEyebrow}>
+            해당 이유로 운동을 중단하면, 오늘은 더 이상 운동을 진행할 수 없어요
+          </Text>
+          <View style={styles.safetyReasonChoiceRow}>
+            <Pressable
+              accessibilityRole="radio"
+              accessibilityState={{ checked: safetySelected }}
+              onPress={() => onSelect('SAFETY')}
+              style={[
+                styles.choiceButton,
+                styles.stopReasonChoiceButton,
+                styles.safetyReasonChoice,
+                safetySelected && styles.choiceButtonSelected,
+                safetySelected && styles.stopReasonChoiceSelected,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.choiceButtonText,
+                  styles.stopReasonChoiceText,
+                  safetySelected && styles.choiceButtonTextSelected,
+                ]}
+              >
+                통증 또는 이상 반응이 있어요.
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityLabel="통증 또는 이상 반응 도움말"
+              accessibilityRole="button"
+              accessibilityState={{ expanded: helpOpen }}
+              onPress={() => setHelpOpen((current) => !current)}
+              style={({ pressed }) => [
+                styles.inlineHelpAction,
+                pressed && styles.pressed,
+              ]}
+              testID="workout-stop-safety-help"
+            >
+              <Text style={styles.inlineHelpActionText}>?</Text>
+            </Pressable>
+          </View>
+          {helpOpen ? (
+            <View style={styles.inlineHelpPopup}>
+              <Text style={styles.helpSectionTitle}>통증</Text>
+              <Text style={styles.helpSectionBody}>
+                {WORKOUT_SAFETY_HELP.pain}
+              </Text>
+              <Text style={styles.helpSectionTitle}>이상 반응</Text>
+              <Text style={styles.helpSectionBody}>
+                {WORKOUT_SAFETY_HELP.reaction}
+              </Text>
+              <Text style={styles.helpNote}>{WORKOUT_SAFETY_HELP.note}</Text>
+            </View>
+          ) : null}
+          {safetySelected ? (
+            <>
+              <Text style={styles.safetyReasonWarning}>
+                안전 관련 입력으로 운동 중단이 확정되면 현재 운동을 다시 이어 할
+                수 없습니다.
+              </Text>
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: acknowledged }}
+                onPress={onToggleAcknowledgement}
+                style={styles.acknowledgementRow}
+              >
+                <View
+                  style={[
+                    styles.acknowledgementBox,
+                    acknowledged && styles.acknowledgementBoxChecked,
+                  ]}
+                >
+                  <Text style={styles.acknowledgementMark}>
+                    {acknowledged ? '✓' : ''}
+                  </Text>
+                </View>
+                <Text style={styles.acknowledgementText}>
+                  이어하기 제한 안내를 확인했어요.
+                </Text>
+              </Pressable>
+            </>
+          ) : null}
+        </View>
+      </ScrollView>
       <Pressable
         accessibilityRole="button"
-        onPress={onStop}
-        style={styles.stopConfirmButton}
+        accessibilityState={{ disabled: !canContinue }}
+        disabled={!canContinue}
+        onPress={onConfirm}
+        style={[
+          safetySelected ? styles.dangerButton : styles.stopConfirmButton,
+          !canContinue && styles.actionDisabled,
+        ]}
         testID="workout-stop-confirm"
       >
-        <LinearGradient
-          colors={['#D97260', '#CC5A47', '#C2503C']}
-          end={{ x: 0.5, y: 1 }}
-          locations={[0, 0.55, 1]}
-          pointerEvents="none"
-          start={{ x: 0.5, y: 0 }}
-          style={styles.stopConfirmGradient}
-          testID="workout-stop-confirm-gradient"
-        />
-        <Text style={styles.stopConfirmButtonText}>중단하기</Text>
+        {!safetySelected ? (
+          <LinearGradient
+            colors={['#D97260', '#CC5A47', '#C2503C']}
+            end={{ x: 0.5, y: 1 }}
+            locations={[0, 0.55, 1]}
+            pointerEvents="none"
+            start={{ x: 0.5, y: 0 }}
+            style={styles.stopConfirmGradient}
+            testID="workout-stop-confirm-gradient"
+          />
+        ) : null}
+        <Text
+          style={
+            safetySelected
+              ? styles.dangerButtonText
+              : styles.stopConfirmButtonText
+          }
+        >
+          {safetySelected ? '안전 관련 내용 입력하기' : '이 사유로 중단하기'}
+        </Text>
       </Pressable>
       <Pressable
         accessibilityRole="button"
@@ -2361,12 +2522,14 @@ function AdditionalActivitySheet({
 function ChoiceButton({
   accessibilityLabel,
   label,
+  listStyle = false,
   multiple = false,
   onPress,
   selected,
 }: {
   accessibilityLabel?: string;
   label: string;
+  listStyle?: boolean;
   multiple?: boolean;
   onPress: () => void;
   selected: boolean;
@@ -2377,11 +2540,17 @@ function ChoiceButton({
       accessibilityRole={multiple ? 'checkbox' : 'radio'}
       accessibilityState={{ checked: selected }}
       onPress={onPress}
-      style={[styles.choiceButton, selected && styles.choiceButtonSelected]}
+      style={[
+        styles.choiceButton,
+        listStyle && styles.stopReasonChoiceButton,
+        selected && styles.choiceButtonSelected,
+        listStyle && selected && styles.stopReasonChoiceSelected,
+      ]}
     >
       <Text
         style={[
           styles.choiceButtonText,
+          listStyle && styles.stopReasonChoiceText,
           selected && styles.choiceButtonTextSelected,
         ]}
       >
@@ -2599,7 +2768,7 @@ function getWorkoutFixture(state: WorkoutPreviewState): WorkoutFixture {
         ...base,
         completedBlockIds: [first],
         elapsedSeconds: 418,
-        overlay: 'safety',
+        overlay: 'stop-reasons',
         result: 'none',
       };
     case 'symptom-mild':
@@ -2688,6 +2857,13 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     lineHeight: 40,
   },
+  targetTime: {
+    marginTop: 3,
+    color: colors.text,
+    fontSize: 12.5,
+    fontWeight: '700',
+    opacity: 0.82,
+  },
   timerPaused: { opacity: 0.55 },
   timerBrand: { fontFamily: fontFamilies.brand },
   jua: { fontFamily: fontFamilies.slogan, fontWeight: '400' },
@@ -2707,6 +2883,29 @@ const styles = StyleSheet.create({
     borderRadius: 1.4,
     backgroundColor: colors.text,
   },
+  timerMark: {
+    width: 19,
+    height: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.8,
+    borderColor: colors.textSub,
+    borderRadius: 999,
+  },
+  timerMarkHand: {
+    position: 'absolute',
+    width: 1.8,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: colors.textSub,
+    transform: [{ translateY: -2 }, { rotate: '-18deg' }],
+  },
+  timerMarkDot: {
+    width: 3.5,
+    height: 3.5,
+    borderRadius: 999,
+    backgroundColor: colors.textSub,
+  },
   playMark: {
     width: 0,
     height: 0,
@@ -2723,13 +2922,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: colors.dangerBorder,
     borderRadius: 18,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.dangerBg,
     paddingHorizontal: 14,
   },
   stopActionLabel: {
-    color: colors.textSub,
+    color: colors.dangerText,
     fontFamily: Platform.select({
       ios: 'System',
       android: 'sans-serif-medium',
@@ -3063,24 +3262,18 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     flexShrink: 0,
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
     paddingTop: 6,
     paddingRight: 18,
     paddingBottom: 24,
     paddingLeft: 18,
   },
-  secondaryActions: {
-    flex: 1,
-    flexBasis: 0,
-    minWidth: 0,
-    flexDirection: 'row',
-    gap: 8,
-  },
   smashAction: {
     height: 58,
-    flex: 1,
-    flexBasis: 0,
-    minWidth: 0,
+    flexGrow: 0,
+    flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -3115,9 +3308,8 @@ const styles = StyleSheet.create({
   },
   restAction: {
     height: 58,
-    flex: 1,
-    flexBasis: 0,
-    minWidth: 0,
+    flexGrow: 0,
+    flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
@@ -3126,26 +3318,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     paddingHorizontal: 8,
   },
-  painAction: {
-    height: 58,
-    flex: 1,
-    flexBasis: 0,
-    minWidth: 0,
+  restActionContent: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.dangerBorder,
-    borderRadius: 18,
-    backgroundColor: colors.dangerBg,
-    paddingHorizontal: 8,
+    gap: 7,
   },
-  restActionText: { color: colors.textSub, fontSize: 13.5, fontWeight: '700' },
-  painActionText: {
-    color: colors.dangerText,
-    fontSize: 12.5,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
+  restActionText: { color: colors.textSub, fontSize: 15, fontWeight: '800' },
   pressed: { opacity: 0.82 },
   restSheet: {
     position: 'absolute',
@@ -3445,6 +3624,129 @@ const styles = StyleSheet.create({
     color: colors.dangerText,
     fontSize: 12.5,
     fontWeight: '700',
+    lineHeight: 18,
+  },
+  stopReasonList: { gap: 8, marginTop: 6 },
+  stopReasonChoiceButton: {
+    width: '100%',
+    alignItems: 'flex-start',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
+  },
+  stopReasonChoiceSelected: {
+    backgroundColor: '#FFFFFF',
+  },
+  stopReasonChoiceText: {
+    textAlign: 'left',
+  },
+  safetyReasonSection: {
+    gap: 10,
+    marginTop: 16,
+    borderWidth: 1.5,
+    borderColor: colors.dangerBorder,
+    borderRadius: 18,
+    backgroundColor: colors.dangerBg,
+    padding: 14,
+  },
+  safetyReasonEyebrow: {
+    color: colors.dangerText,
+    fontSize: 12.5,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  safetyReasonChoiceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  safetyReasonChoice: {
+    flex: 1,
+    width: 'auto',
+  },
+  inlineHelpAction: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.dangerBorder,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+  },
+  inlineHelpActionText: {
+    color: colors.dangerText,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  inlineHelpPopup: {
+    gap: 6,
+    borderWidth: 1,
+    borderColor: colors.dangerBorder,
+    borderRadius: 14,
+    backgroundColor: colors.surface,
+    padding: 12,
+  },
+  safetyReasonWarning: {
+    color: colors.dangerText,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
+  },
+  acknowledgementRow: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  acknowledgementBox: {
+    width: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.dangerBorder,
+    borderRadius: 7,
+    backgroundColor: colors.surface,
+  },
+  acknowledgementBoxChecked: {
+    borderColor: colors.dangerText,
+    backgroundColor: colors.dangerText,
+  },
+  acknowledgementMark: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  acknowledgementText: {
+    flex: 1,
+    color: colors.dangerText,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  helpSection: {
+    gap: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    padding: 14,
+  },
+  helpSectionTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  helpSectionBody: {
+    color: colors.textSub,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 19,
+  },
+  helpNote: {
+    color: colors.textSub,
+    fontSize: 12.5,
+    fontWeight: '600',
     lineHeight: 18,
   },
   actionDisabled: { opacity: 0.5 },
