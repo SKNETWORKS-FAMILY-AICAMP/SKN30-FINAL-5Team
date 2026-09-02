@@ -35,7 +35,7 @@
 
 | 한국어 | 영문 | 트리거 | 데이터 소스 |
 |---|---|---|---|
-| 대체운동 | alternative | 통증이 있을 때 | `exercise_alternatives.reason_code = 'DISCOMFORT'` (220건) |
+| 대체운동 | alternative | 통증 시 교체에는 사용하지 않음(폐지) | `exercise_alternatives.reason_code = 'DISCOMFORT'` (레거시·비소비 감사 데이터) |
 | 변형운동 | variant | 장비가 없을 때 | `exercise_alternatives.reason_code = 'EQUIPMENT'` (20건 / 15개 운동) |
 
 - `DIFFICULTY`(10건)는 표본이 적어 **사용하지 않는다**.

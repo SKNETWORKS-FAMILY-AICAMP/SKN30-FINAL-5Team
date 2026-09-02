@@ -124,5 +124,5 @@ profile is `LEGACY` and no flag may silently promote V3 production traffic.
 6. Simulate provider timeout and invalid structured output; verify a deterministic fallback result.
 7. Submit a safety-veto fixture; verify zero provider calls and that no Coordinator output overrides it.
 8. Inspect sanitized logs/traces for direct identifiers, raw health data, raw wearable samples,
-   calendar text, credentials, prompts, provider raw responses, and hidden reasoning.
+   credentials, prompts, provider raw responses, and hidden reasoning.
 9. Confirm no generated staging output or run artifact is added to Git.

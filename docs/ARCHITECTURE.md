@@ -2,9 +2,15 @@
 
 ## 1. 결정
 
+### 1.1 최신 정책 정합화 기준 (2026-09-01)
+
+`SERVICE_POLICY_SAFETY_AND_ADAPTATION_V1.md`의 결정 흐름을 제품 정책 기준으로 사용한다. 파이프라인은 `Safety Engine → Safety-approved Pool → Training/Recovery/Feasibility → Coordinator → Plan Compiler → Deterministic Integrity Validator`다. Training만 운동 계획을 제안하며 Recovery와 Feasibility는 adjustment code만 반환한다. 최종 validator는 compiled plan에서 Safety envelope, 장소, Recovery/Pain cap, 카탈로그·시간 버전을 재검증한다.
+
+온보딩 eligibility, NRS 통증·Red Flag, Recovery, 실행 상태·타이머, calorie provenance는 API route가 아닌 domain/service와 repository 경계에 둔다. 운동 중 Safety Event는 세부 증상을 수집하지 않는 세션 종료 명령이며 공식 완료 상태와 분리 저장한다. 이전 V1/V2 경로는 호환 read 전용으로 유지하되 신규 write가 이 경계를 우회하면 안 된다.
+
 초기 시스템은 React Native 모바일 앱, FastAPI 모듈형 모놀리스, PostgreSQL로 구성한다. 멀티에이전트는 별도 서비스가 아니라 백엔드 도메인 내부의 독립된 결정 모듈로 구현한다.
 
-멀티 에이전트 핵심 흐름은 Training·Recovery·Safety·Feasibility 네 proposal의 병렬 실행과 Coordinator 최종 결정으로 확정한다. 에이전트 내부 상세 흐름과 공개 요약 필드는 증상 사용자 시나리오 검증 결과에 따라 추후 보완할 수 있다. 독립적인 최종 Safety 재검사는 현재 범위에 포함하지 않는다.
+현행 구현은 SafetyPolicyEngine이 먼저 `ConstraintEnvelope`와 Safety-approved Pool을 고정하고, Training·Recovery·Feasibility 세 proposal 및 Coordinator가 그 경계 안에서 계획을 조립하는 방식이다. 컴파일 후 integrity validator는 별도의 Safety 판단을 만들지 않되, compiled plan이 envelope와 시간·카탈로그 제약을 지키는지 반드시 검증한다.
 
 ADR-0012는 이 활성 흐름 사이에 결정적 conflict detection과 최대 한 번의 구조화 review를 넣는
 V2 목표를 채택했으나, 2026-08-28 ADR-0015로 `SUPERSEDED`가 됐다. 해당 흐름은 production 경로로
@@ -21,7 +27,7 @@ flowchart LR
   API --> MOD["모듈형 애플리케이션 서비스"]
   MOD --> DEC["결정 오케스트레이터"]
   DEC --> RULES["결정적 규칙·안전 게이트"]
-  DEC --> AGENTS["Training·Recovery·Safety·Feasibility proposal + Coordinator"]
+  DEC --> AGENTS["SafetyPolicyEngine + Training·Recovery·Feasibility + Coordinator"]
   MOD --> DB[("PostgreSQL")]
   MOD --> AUTH["인증 어댑터"]
   MOD -. 선택적 설명 .-> LLM["LLM 어댑터"]
@@ -59,33 +65,29 @@ flowchart LR
 | `decisions` | 요청 스냅샷, 후보, 제안, 조정, 최종 결과 | rules, agents, catalog | 자유 형식 운동 생성 |
 | `workouts` | 0초 경과 타이머 기록, 운동 블록 체크, 완료·부분·미수행·안전 중단 | decisions, repositories | 시간이나 웨어러블로 공식 완료 확정 |
 | `weekly_reports` | 닫힌 주의 집계, 리포트 생성·확인, 다음 계획 게이트 | workouts, routines | 열린 주를 최종 리포트로 확정 |
-| `integrations` | Firebase, 소셜 OAuth 교환, 웨어러블·캘린더 어댑터, 선택적 LLM | 외부 SDK/API | 도메인 결정 소유 |
+| `integrations` | Firebase, 소셜 OAuth 교환, 웨어러블 어댑터, 선택적 LLM | 외부 SDK/API | 도메인 결정 소유 |
 
 모듈 간 호출은 공개 service/port를 통하고, 다른 모듈의 repository나 ORM model을 직접 조작하지 않는다.
-
-Calendar는 `external-context-policy-v2`에 따라 integration adapter가 Google 원본을 즉시 normalized
-freebusy 구간으로 바꾸고 application service에는 raw payload나 token을 전달하지 않는다. event link는
-공식 block completion을 소유한 `workout_session_id`를 참조하고, Calendar 관찰값은 workout 상태나
-safety veto를 변경할 수 없다. DB에는 opaque credential reference만 두며 실제 credential은 별도
-secret-manager port 뒤에 둔다.
 
 ## 4. 결정 파이프라인
 
 ```mermaid
 flowchart TD
-  A["정규화 입력 스냅샷·공통 기본 후보"] --> D1["TrainingAgent"]
-  A --> D2["RecoveryAgent"]
-  A --> D3["SafetyAgent"]
-  A --> D4["FeasibilityAgent"]
-  D1 --> E["Deterministic Coordinator"]
+  A["정규화 입력 스냅샷"] --> S["Deterministic SafetyPolicyEngine"]
+  S --> P["Safety-approved Pool / ConstraintEnvelope"]
+  P --> D1["TrainingAgent"]
+  P --> D2["RecoveryAgent"]
+  P --> D3["FeasibilityAgent"]
+  D1 --> E["LLM Coordinator"]
   D2 --> E
   D3 --> E
-  D4 --> E
-  E -->|"결정"| G["결정·제안·후보 원자적 저장"]
+  E --> C["Deterministic Plan Compiler"]
+  C --> V["Integrity Validator"]
+  V -->|"pass"| G["결정·제안·후보 원자적 저장"]
   G --> H["템플릿 또는 선택적 LLM 설명"]
 ```
 
-MVP에서는 Training·Recovery·Safety·Feasibility 네 proposal Agent를 병렬 실행하고 Coordinator가 의견과 우선순위를 종합해 최종 운동 계획을 결정한다. 네 proposal 중 하나라도 누락되거나 `FAILED`이면 결정 실행은 `FAILED`이며 운동 계획을 성공 응답하지 않는다. 독립적인 Safety 최종 재검사는 현재 범위에 포함하지 않는다.
+현행 목표에서는 Training·Recovery·Feasibility 세 proposal을 병렬 실행한다. SafetyPolicyEngine의 생성 금지·veto는 Coordinator 이전에 결정되며, 최종 validator가 compiled plan의 envelope 위반을 거부한다. 필수 Agent 또는 provider 실패는 검증 가능한 결정적 fallback으로만 진행하고, 안전한 fallback이 없으면 계획 없이 실패한다.
 
 ### 4.1 (SUPERSEDED) V2 목표 — bounded structured deliberation
 
@@ -168,11 +170,11 @@ application wiring은 아직 비활성이다. V1/V2 historical 실행과 respons
 
 ## 5. 에이전트 책임
 
-- `TrainingAgent`: 주간 FITT와 목표 태그, CORE 보존 제약을 제안한다.
-- `RecoveryAgent`: 피로·수면·최근 부하·불편·복귀 상한을 제안한다.
-- `SafetyAgent`: 통증·금기·환경 조건을 기준으로 `PASS/NEEDS_INPUT/REVISE/BLOCKED`와 위험 운동·수정 의견을 제안한다. `BLOCKED` 의견은 Coordinator가 우선 반영한다.
-- `FeasibilityAgent`: 정규화된 공통 입력과 공통 기본 후보만 받아 가능 시간·장소·장비·일정·선호·기피 조건을 반영한 실제 수행 가능한 종류·순서·구성·대체안을 제안한다.
-- `Coordinator`: 네 proposal과 공통 기본 후보, 사용자 목표·선호·요청 운동 시간을 종합해 최종 루틴·FITT 조정안·변경 이유를 결정한다.
+- `SafetyPolicyEngine`: 통증·Red Flag·카탈로그 검수·장소를 결정적으로 해석해 생성 허용 여부, 제외 후보와 ceiling을 고정한다.
+- `TrainingAgent`: 승인 pool 안에서 주간 FITT·목표 태그를 반영한 PlanSpec 초안만 제안한다.
+- `RecoveryAgent`: 피로·수면·복귀 상한에 대한 `adjustment_codes`만 제안한다.
+- `FeasibilityAgent`: 장소·시간·실행 가능성에 대한 `adjustment_codes`만 제안한다.
+- `Coordinator`: 세 proposal을 종합해 하나의 PlanSpec을 선택하지만 envelope를 완화하거나 DB·Qdrant를 직접 조회할 수 없다.
 
 V3 목표에서는 Safety를 Agent 목록에서 제거하고 결정적 `SafetyPolicyEngine`으로 승격한다.
 Training은 승인 운동 pool 안에서 PlanSpec 초안을 만들고, Recovery와 Feasibility는 회복 상한과 실행
@@ -183,7 +185,7 @@ Coordinator는 운동 계획을 반환하는 경우 계획 구성요소의 합�
 
 조정기는 운동을 자유 생성하거나 안전 veto를 해제하지 않는다. LLM은 reason code를 설명 문장으로 바꾸는 선택 기능일 뿐이다.
 
-현재 멀티 에이전트의 네 proposal 병렬 실행과 Coordinator 결정은 확정한다. proposal·Coordinator·회의 UI의 상세 필드는 증상 사용자 시나리오 검증 결과에 따라 보완할 수 있으며 공개 요약은 내부 추론을 포함하지 않는다.
+공개 요약은 SafetyPolicyEngine 결과와 세 proposal·Coordinator의 제한된 결과만 보여주며 내부 추론을 포함하지 않는다.
 
 V2 목표에서 각 Agent는 Round 1 hard constraint와 preference를 분리하고, Round 2에서는 영향받은
 preference만 수정한다. Safety veto·제외, Feasibility 불가능 조건, 승인된 Recovery ceiling과
@@ -233,7 +235,7 @@ flowchart LR
   ACK --> NEXT["다음 주 계획 생성·확정"]
 ```
 
-공식 수행 상태는 운동 블록의 사용자 완료 체크로 `COMPLETED`, `PARTIAL`, `NOT_COMPLETED`, `STOPPED_FOR_SAFETY` 중 하나가 된다. 0초부터 증가하는 경과 타이머, 웨어러블과 외부 운동은 참고 신호이며 공식 완료를 확정하지 않는다.
+공식 수행 상태는 운동 블록의 사용자 완료 체크로 `COMPLETED`, `PARTIAL`, `NOT_COMPLETED` 중 하나가 된다. `STOPPED_SAFETY`는 별도 실행 상태와 Safety Event이며, 0초부터 증가하는 경과 타이머·웨어러블·외부 운동은 공식 완료를 확정하지 않는다.
 
 ## 9. 운동 실행 화면 경계
 
@@ -258,7 +260,7 @@ flowchart LR
 ## 10. 데이터와 트랜잭션 경계
 
 - PostgreSQL이 단일 진실 공급원이다.
-- decision run, 네 proposal, 후보, Safety 평가, Coordinator 결정 결과를 분리 저장한다.
+- decision run, SafetyPolicyEngine 결과, 세 proposal, 후보, Coordinator 결정 결과를 분리 저장한다.
 - V2 목표의 conflict/review 저장은 ADR-0015로 폐기됐다. `decision_deliberations`,
   `agent_review_events`, `agent_proposal_revisions`는 쓰기를 중단하되 같은 릴리스에서 삭제하지
   않는다(AGENTS.md 10절).
@@ -273,7 +275,7 @@ flowchart LR
 - 주간 리포트는 닫힌 주의 불변 집계 스냅샷과 생성 정책 버전을 저장한다.
 - 주간 리포트는 패턴 요약, 조정 방향, 다음 행동과 잠정 agent summary를 함께 저장한다.
 - 체중 기반 예상 소모 칼로리는 참고 정보로 저장하며 진단·안전 판정의 단독 근거로 사용하지 않는다.
-- `user_consents`는 일반·민감·웨어러블·캘린더·마케팅 동의의 현재 상태를 저장하고, `user_consent_events`는 동의·철회 append-only 이력을 저장한다. 모든 동의 mutation은 두 테이블의 현재 상태 갱신과 event 추가를 하나의 트랜잭션으로 처리한다.
+- `user_consents`는 일반·민감·웨어러블·마케팅 네 개인정보 consent의 현재 상태를 저장하고, `user_consent_events`는 동의·철회 append-only 이력을 저장한다. `user_terms_agreements`는 서비스 이용약관의 `terms_version`·`terms_agreed_at` 이력을 별도로 저장한다. 개인정보처리방침은 별도 동의 상태 없이 열람만 제공한다.
 - JSONB는 입력 스냅샷·proposal·확장 메타데이터에만 사용한다.
 - 계정 삭제 요청 즉시 접근을 막고 운영 DB 사용자 연결 데이터는 7일 이내, 백업은 30일 이내 만료한다.
 

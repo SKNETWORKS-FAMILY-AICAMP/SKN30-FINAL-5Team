@@ -24,8 +24,9 @@ flowchart LR
   C --> DB["DB 모델·마이그레이션"]
   C --> API["API 스키마·mock"]
   CAT --> RULE["SafetyRuleEngine·시간 계산"]
-  RULE --> AG["공통 입력·기본 후보 기반 Training·Recovery·Safety·Feasibility proposal 병렬 실행"]
-  AG --> COORD["Coordinator(의장)"]
+  RULE --> SAFE["SafetyPolicyEngine·ConstraintEnvelope·승인 Pool"]
+  SAFE --> AG["Training·Recovery·Feasibility proposal 병렬 실행"]
+  AG --> COORD["Coordinator → Compiler → Integrity validator"]
   DB --> FLOW["온보딩→세션 수직 슬라이스"]
   API --> FLOW
   COORD --> FLOW
@@ -40,7 +41,7 @@ flowchart LR
 - 현재 설계 문서 팀 리뷰
 - P0 결정의 추적성 행 확정
 - 첫 수직 슬라이스 API 예제 승인
-- Training·Recovery·Safety·Feasibility proposal의 역할별 입력·출력과 Coordinator 입력·조정 계약, 버전·실패 상세 계약 확정
+- SafetyPolicyEngine·ConstraintEnvelope·세 proposal·Coordinator·compiler·validator의 입력·출력, 버전·실패 계약 확정
 - 기존 클라이언트의 `adult_confirmed`·`age_band_code` 처리 방식을 구현 전에 확정한다. deprecation 기간 동안 구필드를 무시하고 서버 계산값을 사용하는 방식 또는 별도 API 버전 전략을 선택하고, 선택한 전략의 프론트엔드·백엔드 호환성 테스트를 완료한다.
 - 안전 미확정 항목을 owner와 due date가 있는 작업으로 분리
 
@@ -62,20 +63,20 @@ flowchart LR
 - 시간 계산기
 - 공통 입력 스냅샷과 기본 후보
 - 결정적 Safety 규칙과 시간 계산
-- 단계 0에서 승인된 계약에 따른 Training·Recovery·Safety·Feasibility proposal 병렬 실행
-- 단계 0에서 승인된 결정적 Coordinator
+- 단계 0에서 승인된 SafetyPolicyEngine과 Training·Recovery·Feasibility proposal 병렬 실행
+- 단계 0에서 승인된 Coordinator·compiler·integrity validator
 - 재현 기록 저장
 
 ### 단계 3 — 첫 수직 슬라이스
 
 범위:
 
-1. 테스트 로그인, 생년월일(`YYYY-MM-DD`) 입력, 사용자 timezone의 로컬 날짜 기준 서버 만 나이 계산·만 14세 미만 가입 차단, 생년월일 암호화 저장, 프로필에는 계산된 만 나이만 표시, 생년월일 수정 시 재검증, 에이전트·decision 입력에는 생년월일과 만 나이를 전달하지 않음
+1. 테스트 로그인, 생년월일(`YYYY-MM-DD`) 입력, 사용자 timezone의 로컬 날짜 기준 서버 만 18–64세 eligibility 판정, 생년월일 암호화 저장, API 응답·에이전트·decision 입력에는 생년월일과 만 나이를 전달하지 않음
 2. 홈·맨몸·상체 목표 온보딩
 3. 검수된 40분 기본 루틴
 4. 피로 MODERATE, 통증 없음, 희망 시간 40분 확인
-5. 증상 사용자 입력에서 SafetyAgent의 `REVISE` 의견과 다른 Agent 의견을 함께 확인
-6. 네 proposal과 Coordinator가 결정한 요청 시간 40분의 최종 루틴
+5. 증상 사용자 입력에서 SafetyPolicyEngine의 envelope·제외 운동과 세 proposal을 함께 확인
+6. Coordinator·compiler·validator가 요청 시간 40분으로 결정·검증한 최종 루틴
 7. 최종 루틴 선택, 상단 0초 경과 타이머 시작
 8. 중앙 마스코트와 하단 순서형 운동 블록 표시
 9. 운동 블록별 사용자 완료 체크와 다음 블록 이동
@@ -95,7 +96,7 @@ flowchart LR
 
 - 무릎 MILD/MODERATE 대체 시나리오
 - SEVERE REST, 중대한 이상 반응 STOP
-- `PARTIAL`, `NOT_COMPLETED`, `STOPPED_FOR_SAFETY`
+- 완료 블록 기반 `PARTIAL`, `NOT_COMPLETED`와 별도 `STOPPED_SAFETY` 실행 상태·Safety Event
 - 미수행 이유 학습 신호와 마지막 공식 완료 후 14일 복귀 모드
 - 오프라인 임시 진행 상태와 중복 요청 복구
 
@@ -106,17 +107,17 @@ flowchart LR
 - 요청 시 리포트 생성
 - 리포트 확인 전 다음 주 계획 확정 차단
 - AI 수정 최대 2회와 이후 직접 편집
-- 직접 편집 결과 요청 시간·장소·장비 제약과 SafetyAgent 의견 반영 확인
+- 직접 편집 결과 요청 시간·장소 제약과 저장된 Safety envelope·integrity validation 준수 확인
 
 ### 단계 6 — MVP 외부 연동·안정화와 후속 기능 분리
 
 - MVP 필수 Google/Kakao/Naver provider의 실제 앱 설정·통합 검증
 - 선택적 LLM 설명과 템플릿 폴백
 - 성능·보안·삭제 리허설
-- MVP에서 선택한 웨어러블·캘린더 어댑터 통합 검증
+- MVP에서 선택한 웨어러블 어댑터 통합 검증
 - 체중 기반 예상 소모 칼로리 추정치와 비의료적 안내 검증
 - 승인된 proposal·Coordinator 계약을 기준으로 공개 회의 UI 표시 세부사항 확정 및 회귀 테스트 갱신
-- MVP에서 선택한 provider 외 추가 웨어러블·캘린더 provider는 후속 기능으로 분리
+- MVP에서 선택한 provider 외 추가 웨어러블 provider는 후속 기능으로 분리
 
 ## 5. 병렬 작업 스트림
 

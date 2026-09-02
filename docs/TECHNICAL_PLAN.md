@@ -4,7 +4,7 @@
 
 이 문서는 채택된 제품 결정을 구현 기술과 저장소 경계로 변환한다. 상세 컴포넌트 흐름은 `ARCHITECTURE.md`, 도메인 불변식은 `DOMAIN_RULES.md`, 외부 계약은 `API_CONTRACT.md`, 영속화는 `DATA_MODEL.md`를 따른다.
 
-멀티 에이전트 핵심 흐름은 Training·Recovery·Safety·Feasibility 네 proposal의 병렬 실행과 Coordinator 최종 결정으로 확정한다. 에이전트 구현의 상세 필드·공개 요약은 증상 사용자 시나리오 검증 결과에 따라 추후 보완할 수 있다.
+현행 구현 흐름은 결정적 SafetyPolicyEngine → Safety-approved Pool → Training·Recovery·Feasibility 세 proposal 병렬 실행 → Coordinator → Plan Compiler → integrity validator다.
 
 ADR-0012는 결정적 conflict detection과 조건부 Round 2 review를 추가하는 V2 목표를 승인했으나
 2026-08-28 ADR-0015로 `SUPERSEDED`가 됐다. 해당 흐름은 production 경로로 구현되지 않았고 V3에서도
@@ -36,7 +36,7 @@ Python package manager는 기반 구현에서 `uv`로 결정하고 `uv.lock`을 
 
 - 백엔드는 모듈형 모놀리스다.
 - API request 안에서 결정 파이프라인을 동기 실행한다.
-- Training·Recovery·Safety·Feasibility proposal 에이전트는 Python/Pydantic 기반 논리 모듈이며 MVP에서는 병렬 실행한다. Coordinator는 네 proposal을 취합하는 의장 모듈이다.
+- SafetyPolicyEngine·compiler·validator는 provider 독립 Python/Pydantic domain core다. Training·Recovery·Feasibility proposal만 병렬 실행하며, Coordinator는 세 proposal을 취합하되 envelope를 완화할 수 없다.
 - Python/Pydantic domain core가 proposal 계약, integrity validator와 Coordinator 계약을 소유한다.
   application service는 정규화 tool/port 결과를 조립하고 domain은 DB·외부 provider를 직접 호출하지
   않는다. ADR-0015로 conflict detector와 review 단계는 제거됐다.
@@ -45,7 +45,7 @@ Python package manager는 기반 구현에서 `uv`로 결정하고 `uv.lock`을 
 - 요청 시간은 사용자가 명시적으로 변경하지 않는 한 유지하고, 다운시프트는 강도·부하·세트·반복·운동 유형·휴식 구성을 조정한다.
 - 예상 시간과 0초부터 증가하는 실제 경과 시간은 정보값이며 완료는 운동 블록 체크로 계산한다.
 - 체중 기반 예상 소모 칼로리는 참고용 추정치이며 진단·안전 판정의 단독 근거로 사용하지 않는다.
-- 웨어러블·캘린더 어댑터는 MVP 범위에 포함하되 권한 거부·미연동 수동 체크인 폴백과 공식 수행 판정 분리를 보장한다. 캘린더는 수행 여부만 확인하고, 웨어러블 운동 데이터는 캘린더에 자동 등록하지 않는다. 수동 외부 기록은 MVP 이후로 분리한다.
+- 웨어러블 어댑터는 MVP 범위에 포함하되 권한 거부·미연동 수동 체크인 폴백과 공식 수행 판정 분리를 보장한다. 수동 외부 기록은 MVP 이후로 분리한다.
 - LLM은 검수 reason code의 설명 생성에만 선택적으로 사용한다.
 - 주간 리포트는 요청 시 생성하므로 worker와 scheduler를 기본 도입하지 않는다.
 
@@ -237,15 +237,15 @@ LangGraph state는 canonical persistence가 아니다. 성공 응답 전에 Post
 proposal, review, coordination, compile/validation과 final option을 원자적으로 저장한다. persistent
 checkpointer와 외부 trace 전송은 보존·삭제·암호화 계약이 승인될 때까지 사용하지 않는다.
 
-### 6.2 현재 V1/V2 Agent 책임
+### 6.2 Agent 책임
 
 Agent별 책임:
 
-- `TrainingAgent`: 목표·진척·FITT 관점의 후보와 조정 의견
-- `RecoveryAgent`: 회복 상태와 강도 조정 의견
-- `SafetyAgent`: `PASS / NEEDS_INPUT / REVISE / BLOCKED`와 위험 운동·수정 의견
-- `FeasibilityAgent`: 시간·장소·장비·일정·선호를 반영한 실행 가능한 후보·대체안
-- `Coordinator`: 네 proposal의 우선순위를 종합해 최종 루틴·FITT 조정·변경 이유 결정
+- `SafetyPolicyEngine`: `PASS / NEEDS_INPUT / REVISE / BLOCKED`, Safety envelope와 승인 후보 pool을 결정적으로 생성
+- `TrainingAgent`: 승인 pool 안에서 목표·진척·FITT 관점의 PlanSpec 제안
+- `RecoveryAgent`: 회복 상태와 강도 조정 code 제안
+- `FeasibilityAgent`: 시간·장소·일정·선호 기반 실행 가능성 조정 code 제안
+- `Coordinator`: Training PlanSpec과 조정 code를 종합해 최종 루틴·FITT 조정·변경 이유 결정
 
 opaque confidence 점수는 MVP에서 사용하지 않는다. 입력 완전성과 proposal 상태를 명시한다. Coordinator는 공통 기본 후보 ID 중 최종 루틴 한 개만 선택한다.
 
@@ -266,7 +266,7 @@ opaque confidence 점수는 MVP에서 사용하지 않는다. 입력 완전성�
 - `/routines`, `/weeks`, `/weekly-reports`
 - `/daily-contexts`, `/decisions`, decision selection
 - `/workout-sessions`, item completion, timer events, additional activities, safety events, finish/not-completed feedback
-- `/calendar`, `/wearables`, `/me/consents`
+- `/wearables`, `/me/consents`
 
 ## 8. 데이터 원칙
 
@@ -287,7 +287,7 @@ opaque confidence 점수는 MVP에서 사용하지 않는다. 입력 완전성�
 - FastAPI는 최종 Firebase ID Token만 세션 권한으로 인정한다.
 - provider subject는 `user_identities`에 연결한다.
 - 토큰, 이메일, 이름, 원시 건강 기록을 로그에 남기지 않는다.
-- direct identifier, calendar text, GPS route, raw wearable sample을 LLM에 보내지 않는다.
+- direct identifier, GPS route, raw wearable sample을 LLM에 보내지 않는다.
 - 계정 삭제는 즉시 접근 차단, 운영 DB 7일, backup 30일을 목표로 한다.
 
 ## 10. 로컬 환경
