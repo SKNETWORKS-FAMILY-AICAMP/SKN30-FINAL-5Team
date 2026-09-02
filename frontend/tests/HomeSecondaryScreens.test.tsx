@@ -24,6 +24,7 @@ import {
 import {
   CALENDAR_DAY_VISUALS,
   CALENDAR_MONTH_STATS,
+  CALENDAR_STATUS_ORDER,
   CALENDAR_WEEK_CHIPS,
   CALENDAR_WEEKDAYS,
   CALENDAR_WEEKS,
@@ -67,7 +68,7 @@ const EXPECTED_CALENDAR_WEEKS = [
     [
       '10:done:true',
       '11:partial:true',
-      '12:today:true',
+      '12:upcoming:true',
       '13:upcoming:true',
       '14:upcoming:true',
       '15:upcoming:true',
@@ -123,7 +124,7 @@ const EXPECTED_CALENDAR_WEEKS = [
 ] as const;
 
 const EXPECTED_DAY_VISUALS = [
-  ['done', '✓', 0x2713, '#F6BA50', '#FFFFFF', '#F6BA50'],
+  ['done', '✓', 0x2713, '#5E8342', '#FFFFFF', '#5E8342'],
   ['partial', '△', 0x25b3, '#F6BA50', '#6B520C', '#F6BA50'],
   ['miss', '×', 0x00d7, '#FFFFFF', '#C0BBB1', '#E2DED4'],
   ['rest', '–', 0x2013, '#EDEAE2', '#8B8780', '#EDEAE2'],
@@ -305,13 +306,88 @@ describe('Home secondary visual prototypes', () => {
     });
   });
 
-  it('renders the status legend above the weekday row', () => {
+  it('renders the untitled status legend above the weekday row', () => {
     const view = render(<CalendarReportScreen />);
     const tree = JSON.stringify(view.toJSON());
 
+    expect(screen.queryByText('아이콘 안내')).toBeNull();
     expect(tree.indexOf('calendar-legend-done')).toBeLessThan(
       tree.indexOf('calendar-weekday-월'),
     );
+    expect(
+      CALENDAR_STATUS_ORDER.map((status) => CALENDAR_DAY_VISUALS[status].label),
+    ).toEqual(['완료', '부분 수행', '휴식', '미수행']);
+    expect(CALENDAR_MONTH_STATS.map((stat) => stat.label)).toEqual([
+      '완료',
+      '부분 수행',
+      '휴식',
+      '미수행',
+    ]);
+  });
+
+  it('marks today separately from the recorded day status', () => {
+    render(<CalendarReportScreen />);
+
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('calendar-day-week-3-2').props.style,
+      ),
+    ).toMatchObject({ borderColor: '#E0A742', backgroundColor: '#FFF3D6' });
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('calendar-day-week-3-2-number').props.style,
+      ),
+    ).toMatchObject({ color: '#A45F00', fontWeight: '800' });
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('calendar-day-week-3-1').props.style,
+      ).borderColor,
+    ).toBe('transparent');
+  });
+
+  it('shows a caret on every expandable week card and flips it when open', () => {
+    render(<CalendarReportScreen />);
+
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('calendar-week-caret-week-3', {
+          includeHiddenElements: true,
+        }).props.style,
+      ).transform,
+    ).toBeUndefined();
+
+    fireEvent.press(
+      screen.getByRole('button', { name: '3주차 진행 중, 요약 펼치기' }),
+    );
+
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('calendar-week-caret-week-3', {
+          includeHiddenElements: true,
+        }).props.style,
+      ).transform,
+    ).toEqual([{ rotate: '180deg' }]);
+  });
+
+  it('summarises an expanded week with the shared status labels', () => {
+    render(<CalendarReportScreen />);
+
+    fireEvent.press(
+      screen.getByRole('button', { name: '3주차 진행 중, 요약 펼치기' }),
+    );
+
+    expect(screen.getByText('완료 1회 / 부분 수행 1회')).toBeOnTheScreen();
+    expect(screen.queryByText(/^3주차 ·/)).toBeNull();
+    for (const status of CALENDAR_STATUS_ORDER) {
+      expect(
+        screen.getByTestId(`calendar-week-stat-${status}`),
+      ).toBeOnTheScreen();
+    }
+    expect(
+      screen.getByText(
+        '이번 주 운동을 진행하고 있어요. 남은 일정도 함께 채워봐요.',
+      ),
+    ).toBeOnTheScreen();
   });
 
   it('periodically shakes the report creation CTA when motion is allowed', async () => {

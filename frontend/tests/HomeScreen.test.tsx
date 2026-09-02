@@ -1075,7 +1075,9 @@ describe('HomeScreen Home v1 transcription', () => {
         .accessibilityState,
     ).toEqual({ expanded: true });
     expect(screen.getByText('접기')).toBeOnTheScreen();
-    expect(screen.getByText('⌃')).toBeOnTheScreen();
+    expect(
+      screen.getByTestId('checkin-extended-area-caret').props.style,
+    ).toMatchObject({ transform: [{ rotate: '180deg' }] });
   });
 
   it('adjusts the requested duration by ten minutes and submits it', () => {
@@ -1471,6 +1473,6 @@ describe('HomeScreen Home v1 transcription', () => {
       resolve(process.cwd(), 'src/features/home/HomeScreen.tsx'),
       'utf8',
     );
-    expect(source.match(/<Svg\b/g)).toHaveLength(14);
+    expect(source.match(/<Svg\b/g)).toHaveLength(15);
   });
 });

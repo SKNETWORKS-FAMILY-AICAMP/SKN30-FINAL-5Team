@@ -2182,6 +2182,7 @@ function CheckinSheet({
   pending: boolean;
 }) {
   const styles = useHomeStyles();
+  const { s } = useScale();
   const [showAdverseDetails, setShowAdverseDetails] = useState(
     draft.adverseReactionCodes.length > 0,
   );
@@ -2487,9 +2488,30 @@ function CheckinSheet({
                 {showExtendedAreas ? '접기' : '다른 부위 보기'}
               </Text>
               <View style={styles.extendedAreaToggleIcon}>
-                <Text style={styles.extendedAreaToggleCaret}>
-                  {showExtendedAreas ? '⌃' : '⌄'}
-                </Text>
+                <View
+                  style={
+                    showExtendedAreas
+                      ? styles.extendedAreaToggleCaretUp
+                      : undefined
+                  }
+                  testID="checkin-extended-area-caret"
+                >
+                  <Svg
+                    aria-hidden
+                    fill="none"
+                    height={s(14)}
+                    viewBox="0 0 24 24"
+                    width={s(14)}
+                  >
+                    <Path
+                      d="M6 9l6 6 6-6"
+                      stroke="#958476"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2.4}
+                    />
+                  </Svg>
+                </View>
               </View>
             </Pressable>
             {legacySelectedCodes.length > 0 ? (
@@ -4506,11 +4528,8 @@ function createHomeStyles(
       borderRadius: s(12),
       backgroundColor: '#FFFFFF',
     },
-    extendedAreaToggleCaret: {
-      color: '#958476',
-      fontSize: f(14),
-      fontWeight: '700',
-      lineHeight: f(16),
+    extendedAreaToggleCaretUp: {
+      transform: [{ rotate: '180deg' }],
     },
     adverseSection: {
       gap: s(8),

@@ -3,11 +3,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import {
-  coachingStyleLabel,
-  experienceLevelLabel,
-  primaryGoalLabel,
-} from '../../api/labels';
+import { experienceLevelLabel, primaryGoalLabel } from '../../api/labels';
 import type {
   ConsentValues,
   MeResponse,
@@ -28,6 +24,7 @@ import {
   MY_PAGE_PROFILE_ROWS,
   type MyPagePreviewState,
 } from './homeSecondaryModel';
+import { ONBOARDING_COACHING_STYLE_OPTIONS } from '../onboarding/onboardingOptions';
 import { buildMyPageProfileRows } from './myPageModel';
 import {
   MyPageProfileEditor,
@@ -131,7 +128,6 @@ function MyPageContent({
   const profile = me?.profile ?? null;
   const apiBacked = me !== undefined;
   const coachStyleCode = profile?.coaching_style_code ?? previewCoachStyleCode;
-  const coachStyle = coachingStyleLabel(coachStyleCode);
   const profileRows = profile
     ? buildMyPageProfileRows(profile)
     : MY_PAGE_PROFILE_ROWS;
@@ -252,9 +248,11 @@ function MyPageContent({
 
         <View style={styles.coachCard}>
           <Text style={styles.coachTitle}>헬끼 코칭 스타일</Text>
-          <Text style={styles.coachNote}>{getCoachNote(coachStyle)}</Text>
+          <Text style={styles.coachNote}>
+            원하는 방식으로 운동을 안내해드려요.
+          </Text>
           <View style={styles.coachOptions}>
-            {COACHING_STYLE_OPTIONS.map((option) => {
+            {ONBOARDING_COACHING_STYLE_OPTIONS.map((option) => {
               const selected = option.code === coachStyleCode;
               return (
                 <Pressable
@@ -340,21 +338,24 @@ function MyPageContent({
         <SectionTitle label="알림" />
         <View style={styles.rowsCard}>
           <NotificationRow
-            description="예정한 운동 시간을 알려드려요."
+            comingSoon={!persistedSettingsAvailable}
+            description="예정된 운동 시간을 알려드려요."
             enabled={notifications.routine}
             label="루틴 알림"
             disabled={!persistedSettingsAvailable}
             onToggle={() => toggleNotification('routine')}
           />
           <NotificationRow
-            description="닫힌 주 리포트가 준비되면 알려드려요."
+            comingSoon={!persistedSettingsAvailable}
+            description="이번 주 운동 리포트가 준비되면 알려드려요."
             enabled={notifications.report}
             label="주간 리포트"
             disabled={!persistedSettingsAvailable}
             onToggle={() => toggleNotification('report')}
           />
           <NotificationRow
-            description="휴식을 선택한 날에는 압박 알림을 보내지 않아요."
+            comingSoon={!persistedSettingsAvailable}
+            description="휴식일에는 알림을 보내지 않아요."
             enabled={notifications.encouragement}
             label="응원 알림"
             disabled={!persistedSettingsAvailable}
@@ -364,7 +365,7 @@ function MyPageContent({
 
         {!persistedSettingsAvailable ? (
           <InlineFeedback
-            message="알림과 연동 기기 설정은 서버 지원이 준비된 뒤 사용할 수 있어요."
+            message="알림과 기기 연동 기능은 준비 중이에요."
             style={styles.feedback}
             tone="warning"
           />
@@ -373,7 +374,7 @@ function MyPageContent({
         <SectionTitle label="선택 동의 관리" />
         <View style={styles.rowsCard}>
           <Text style={styles.consentNote}>
-            필수 동의는 서비스 이용에 필요해 여기서 바꿀 수 없어요.
+            필수 동의 항목은 여기에서 변경할 수 없어요.
           </Text>
           {consentValues ? (
             OPTIONAL_CONSENTS.map(({ key, label }) => (
@@ -437,18 +438,21 @@ function MyPageContent({
           <Pressable
             accessibilityRole="button"
             onPress={() => setDialog('logout')}
-            style={styles.textAction}
+            style={styles.logoutAction}
           >
             <Text style={styles.logoutText}>로그아웃</Text>
           </Pressable>
-          <View style={styles.divider} />
+          {/* Withdrawal is irreversible, so it never sits beside logout. */}
           {deletionDeadline === null ? (
             <Pressable
               accessibilityRole="button"
               onPress={() => setDialog('withdraw')}
-              style={styles.textAction}
+              style={styles.withdrawAction}
             >
               <Text style={styles.withdrawText}>회원 탈퇴</Text>
+              <Text style={styles.withdrawHint}>
+                운동 기록이 모두 삭제되고 되돌릴 수 없어요.
+              </Text>
             </Pressable>
           ) : null}
         </View>
@@ -500,32 +504,52 @@ function SectionTitle({ label }: { label: string }) {
 }
 
 function NotificationRow({
+  comingSoon = false,
   description,
   disabled = false,
   enabled,
   label,
   onToggle,
 }: {
+  comingSoon?: boolean;
   description: string;
   disabled?: boolean;
   enabled: boolean;
   label: string;
   onToggle: () => void;
 }) {
+  // A switch that cannot be saved yet must not look switched on.
+  const checked = comingSoon ? false : enabled;
+
   return (
     <Pressable
       accessibilityRole="switch"
-      accessibilityState={{ checked: enabled, disabled }}
+      accessibilityState={{ checked, disabled }}
       disabled={disabled}
       onPress={onToggle}
       style={styles.notificationRow}
     >
       <View style={styles.notificationCopy}>
-        <Text style={styles.notificationLabel}>{label}</Text>
-        <Text style={styles.notificationDescription}>{description}</Text>
+        <View style={styles.notificationLabelRow}>
+          <Text style={styles.notificationLabel}>{label}</Text>
+          {comingSoon ? (
+            <View style={styles.comingSoonBadge}>
+              <Text style={styles.comingSoonBadgeText}>준비 중</Text>
+            </View>
+          ) : null}
+        </View>
+        {description ? (
+          <Text style={styles.notificationDescription}>{description}</Text>
+        ) : null}
       </View>
-      <View style={[styles.switchTrack, enabled && styles.switchTrackOn]}>
-        <View style={[styles.switchKnob, enabled && styles.switchKnobOn]} />
+      <View
+        style={[
+          styles.switchTrack,
+          checked && styles.switchTrackOn,
+          disabled && styles.switchTrackDisabled,
+        ]}
+      >
+        <View style={[styles.switchKnob, checked && styles.switchKnobOn]} />
       </View>
     </Pressable>
   );
@@ -578,20 +602,6 @@ function ConfirmationDialog({
     </View>
   );
 }
-
-function getCoachNote(style: string) {
-  return {
-    간결하게: '짧고 명확한 문장으로 오늘 할 일을 안내해요.',
-    든든하게: '부담을 주지 않으면서 꾸준히 이어갈 수 있도록 응원해요.',
-    활기차게: '에너지 있는 표현으로 운동 시작을 북돋아요.',
-  }[style];
-}
-
-const COACHING_STYLE_OPTIONS = [
-  { code: 'CONCISE', label: '간결하게' },
-  { code: 'SUPPORTIVE', label: '든든하게' },
-  { code: 'ENERGETIC', label: '활기차게' },
-] as const;
 
 const OPTIONAL_CONSENTS = [
   { key: 'wearable_integration', label: '웨어러블 연동' },
@@ -815,9 +825,25 @@ const styles = StyleSheet.create({
     minWidth: 0,
     flex: 1,
   },
+  notificationLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   notificationLabel: {
     color: colors.text,
     fontSize: 14,
+    fontWeight: '700',
+  },
+  comingSoonBadge: {
+    borderRadius: 999,
+    backgroundColor: '#EDEAE2',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  comingSoonBadgeText: {
+    color: colors.textMuted,
+    fontSize: 10.5,
     fontWeight: '700',
   },
   notificationDescription: {
@@ -836,6 +862,9 @@ const styles = StyleSheet.create({
   },
   switchTrackOn: {
     backgroundColor: '#F6BA50',
+  },
+  switchTrackDisabled: {
+    opacity: 0.45,
   },
   switchKnob: {
     width: 20,
@@ -867,35 +896,52 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   accountActions: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 18,
-    paddingTop: 4,
+    gap: 14,
+    paddingTop: 14,
     paddingBottom: 8,
   },
   deletionFeedback: {
     marginBottom: 12,
   },
-  textAction: {
+  logoutAction: {
     minHeight: 44,
+    alignSelf: 'stretch',
+    alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 6,
+    borderWidth: 1.5,
+    borderColor: '#E2DED4',
+    borderRadius: 14,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 16,
   },
   logoutText: {
-    color: colors.textMuted,
-    fontSize: 12.5,
+    color: colors.textSub,
+    fontSize: 13.5,
     fontWeight: '700',
+  },
+  withdrawAction: {
+    minHeight: 44,
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    borderTopWidth: 1,
+    borderTopColor: '#E2DED4',
+    paddingTop: 14,
+    paddingHorizontal: 16,
   },
   withdrawText: {
-    color: '#C0BBB1',
+    color: colors.dangerText,
     fontSize: 12.5,
-    fontWeight: '700',
+    fontWeight: '800',
+    textDecorationLine: 'underline',
   },
-  divider: {
-    width: 1,
-    height: 12,
-    backgroundColor: '#DFDBD2',
+  withdrawHint: {
+    color: colors.textMuted,
+    fontSize: 11,
+    lineHeight: 16,
+    textAlign: 'center',
   },
   dialogOverlay: {
     position: 'absolute',

@@ -1,9 +1,11 @@
 import type { WeekResponse, WorkoutSessionLogSummary } from '../../api/types';
-import type {
-  CalendarDayStatus,
-  CalendarMonthStat,
-  CalendarWeek,
-  CalendarWeekState,
+import {
+  CALENDAR_DAY_VISUALS,
+  CALENDAR_STATUS_ORDER,
+  type CalendarDayStatus,
+  type CalendarMonthStat,
+  type CalendarWeek,
+  type CalendarWeekState,
 } from './homeSecondaryModel';
 import { weeklyReportAvailability } from '../weekly/weeklyReportModel';
 
@@ -143,18 +145,29 @@ function weekState(
   return 'unavailable';
 }
 
-function noteForState(state: CalendarWeekState): string {
+/**
+ * The weekly note follows the week's progress instead of repeating one fixed
+ * sentence: in progress, goal reached, or the week has ended.
+ */
+function noteForWeek(
+  state: CalendarWeekState,
+  doneCount: number,
+  targetWorkoutCount: number,
+): string {
   if (state === 'progress') {
-    return '이번 주는 아직 진행 중이에요. 남은 요일에 루틴을 채워보세요.';
+    if (targetWorkoutCount > 0 && doneCount >= targetWorkoutCount) {
+      return '이번 주 목표를 달성했어요!';
+    }
+    return '이번 주 운동을 진행하고 있어요. 남은 일정도 함께 채워봐요.';
   }
   if (state === 'make') {
-    return '한 주가 끝났어요. 리포트를 만들면 이번 주 운동 패턴을 정리해드려요.';
+    return '이번 주 운동 기록을 확인해보세요. 리포트를 만들면 한 주의 운동 패턴을 정리해드려요.';
   }
   if (state === 'unread') {
-    return '리포트가 준비됐어요. 아직 확인하지 않은 주예요.';
+    return '이번 주 운동 기록을 확인해보세요. 리포트가 준비됐어요.';
   }
   if (state === 'read') {
-    return '리포트를 확인한 주예요. 다시 열어볼 수 있어요.';
+    return '이번 주 운동 기록을 다시 확인해볼 수 있어요.';
   }
   if (state === 'unavailable') {
     return '리포트를 불러오지 못했어요. 잠시 후 다시 확인해주세요.';
@@ -225,7 +238,7 @@ export function buildCalendarReportData({
   }
   const monthFrom = `${month}-01`;
   const monthTo = dateString(new Date(Date.UTC(year, monthNumber, 0)));
-  const [done, partial, rest, miss] = countStatuses(
+  const monthCounts = countStatuses(
     sessions,
     monthFrom,
     monthTo,
@@ -233,26 +246,29 @@ export function buildCalendarReportData({
   );
 
   const weeks = range.weekStarts.map((start, index): CalendarWeek => {
-    const state = weekState(start, currentWeekStart, weeksByStart.get(start));
+    const week = weeksByStart.get(start);
+    const state = weekState(start, currentWeekStart, week);
     const days = Array.from({ length: 7 }, (_, dayIndex) => {
       const localDate = addDays(start, dayIndex);
       const date = parseDate(localDate);
       const recorded = statuses.get(localDate);
       const status =
-        recorded ??
-        (localDate === restLocalDate
-          ? 'rest'
-          : localDate === today
-            ? 'today'
-            : 'upcoming');
+        recorded ?? (localDate === restLocalDate ? 'rest' : 'upcoming');
       return {
         day: String(date.getUTCDate()),
         status,
         inCurrentMonth: localDate.startsWith(`${month}-`),
+        isToday: localDate === today,
         localDate,
         sessionIds: sessionIdsByDate.get(localDate) ?? [],
       };
     });
+    const stats = countStatuses(
+      sessions,
+      start,
+      addDays(start, 6),
+      restLocalDate,
+    );
     return {
       id: start,
       weekStart: start,
@@ -261,19 +277,19 @@ export function buildCalendarReportData({
       state,
       bandColor: bandColorForState(state),
       days,
-      stats: countStatuses(sessions, start, addDays(start, 6), restLocalDate),
-      note: noteForState(state),
+      stats,
+      note: noteForWeek(state, stats[0], week?.target_workout_count ?? 0),
     };
   });
 
   return {
     monthLabel: `${year}년 ${monthNumber}월`,
-    stats: [
-      { key: 'done', label: '완료', value: done, color: '#A45F00' },
-      { key: 'partial', label: '부분 수행', value: partial, color: '#EE875B' },
-      { key: 'rest', label: '휴식', value: rest, color: '#6F6B63' },
-      { key: 'miss', label: '미수행', value: miss, color: '#C0BBB1' },
-    ],
+    stats: CALENDAR_STATUS_ORDER.map((key, index) => ({
+      key,
+      label: CALENDAR_DAY_VISUALS[key].label,
+      value: monthCounts[index] ?? 0,
+      color: CALENDAR_DAY_VISUALS[key].accentColor,
+    })),
     weeks,
   };
 }

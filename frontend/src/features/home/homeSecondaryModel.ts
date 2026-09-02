@@ -18,6 +18,8 @@ export type CalendarDay = {
   day: string;
   status: CalendarDayStatus;
   inCurrentMonth: boolean;
+  /** Today is highlighted independently so it can coexist with a status mark. */
+  isToday?: boolean;
   localDate?: string;
   sessionIds?: readonly string[];
 };
@@ -76,9 +78,10 @@ export const CALENDAR_DAY_VISUALS = {
   done: {
     label: '완료',
     glyph: '✓',
-    backgroundColor: '#F6BA50',
+    backgroundColor: '#5E8342',
     color: '#FFFFFF',
-    borderColor: '#F6BA50',
+    borderColor: '#5E8342',
+    accentColor: '#4F7238',
   },
   partial: {
     label: '부분 수행',
@@ -86,6 +89,7 @@ export const CALENDAR_DAY_VISUALS = {
     backgroundColor: '#F6BA50',
     color: '#6B520C',
     borderColor: '#F6BA50',
+    accentColor: '#A45F00',
   },
   miss: {
     label: '미수행',
@@ -93,6 +97,7 @@ export const CALENDAR_DAY_VISUALS = {
     backgroundColor: '#FFFFFF',
     color: '#C0BBB1',
     borderColor: '#E2DED4',
+    accentColor: '#9A968E',
   },
   rest: {
     label: '휴식',
@@ -100,6 +105,7 @@ export const CALENDAR_DAY_VISUALS = {
     backgroundColor: '#EDEAE2',
     color: '#8B8780',
     borderColor: '#EDEAE2',
+    accentColor: '#6F6B63',
   },
   today: {
     label: '오늘',
@@ -107,6 +113,7 @@ export const CALENDAR_DAY_VISUALS = {
     backgroundColor: 'transparent',
     color: 'transparent',
     borderColor: 'transparent',
+    accentColor: '#A45F00',
   },
   upcoming: {
     label: '예정',
@@ -114,6 +121,7 @@ export const CALENDAR_DAY_VISUALS = {
     backgroundColor: 'transparent',
     color: 'transparent',
     borderColor: 'transparent',
+    accentColor: '#B7B2A8',
   },
 } as const satisfies Record<
   CalendarDayStatus,
@@ -123,8 +131,21 @@ export const CALENDAR_DAY_VISUALS = {
     backgroundColor: string;
     color: string;
     borderColor: string;
+    accentColor: string;
   }
 >;
+
+/**
+ * One order for the four recorded statuses. The monthly summary, the calendar
+ * legend and the expanded week summary all read from this list so labels,
+ * icons and colors never drift apart.
+ */
+export const CALENDAR_STATUS_ORDER = [
+  'done',
+  'partial',
+  'rest',
+  'miss',
+] as const satisfies readonly CalendarMonthStat['key'][];
 
 export const CALENDAR_WEEK_CHIPS = {
   progress: {
@@ -191,10 +212,10 @@ export const CALENDAR_WEEKDAYS = [
 ] as const;
 
 export const CALENDAR_MONTH_STATS = [
-  { key: 'done', label: '완료', value: 4, color: '#A45F00' },
-  { key: 'partial', label: '부분 수행', value: 3, color: '#EE875B' },
+  { key: 'done', label: '완료', value: 4, color: '#4F7238' },
+  { key: 'partial', label: '부분 수행', value: 3, color: '#A45F00' },
   { key: 'rest', label: '휴식', value: 3, color: '#6F6B63' },
-  { key: 'miss', label: '미수행', value: 1, color: '#C0BBB1' },
+  { key: 'miss', label: '미수행', value: 1, color: '#9A968E' },
 ] as const satisfies readonly CalendarMonthStat[];
 
 export const CALENDAR_WEEKS = [
@@ -246,14 +267,14 @@ export const CALENDAR_WEEKS = [
     days: [
       { day: '10', status: 'done', inCurrentMonth: true },
       { day: '11', status: 'partial', inCurrentMonth: true },
-      { day: '12', status: 'today', inCurrentMonth: true },
+      { day: '12', status: 'upcoming', inCurrentMonth: true, isToday: true },
       { day: '13', status: 'upcoming', inCurrentMonth: true },
       { day: '14', status: 'upcoming', inCurrentMonth: true },
       { day: '15', status: 'upcoming', inCurrentMonth: true },
       { day: '16', status: 'upcoming', inCurrentMonth: true },
     ],
     stats: [1, 1, 0, 0],
-    note: '이번 주는 아직 진행 중이에요. 남은 요일에 루틴을 채워보세요.',
+    note: '이번 주 운동을 진행하고 있어요. 남은 일정도 함께 채워봐요.',
   },
   {
     id: 'week-4',
@@ -318,9 +339,9 @@ export const MY_PAGE_PROFILE_ROWS = [
   ['primary_goal_code', '운동 목표', '체력 증진'],
   ['experience_level_code', '운동 경험', '초급'],
   ['available_location_codes', '운동 장소', '헬스장'],
-  ['default_requested_duration_minutes', '희망 시간', '40분'],
-  ['desired_weekly_workout_count', '주간 목표', '4회'],
-  ['attention_area_codes', '통증 부위', '무릎'],
+  ['default_requested_duration_minutes', '운동 시간', '40분'],
+  ['desired_weekly_workout_count', '주간 운동 횟수', '주 4회'],
+  ['attention_area_codes', '평소 불편한 부위', '무릎'],
 ] as const;
 
 export const MY_PAGE_ACCOUNT_ROWS = [

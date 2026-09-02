@@ -2599,6 +2599,9 @@ describe('OnboardingScreen', () => {
         screen.getByTestId('onboarding-extended-area-toggle').props.style,
       ),
     ).toMatchObject({ alignSelf: 'center', minHeight: 36 });
+    expect(
+      screen.getByTestId('onboarding-extended-area-caret').props.style,
+    ).toBeUndefined();
     fireEvent.press(toggle);
     expect(screen.getByRole('button', { name: '목' })).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: '가슴' })).toBeOnTheScreen();
@@ -2606,6 +2609,9 @@ describe('OnboardingScreen', () => {
     expect(
       screen.getByRole('button', { name: '다른 부위 접기' }),
     ).toBeOnTheScreen();
+    expect(
+      screen.getByTestId('onboarding-extended-area-caret').props.style,
+    ).toMatchObject({ transform: [{ rotate: '180deg' }] });
   });
 
   it('adjusts duration by 10 minutes and weekly frequency from 1 to 7', () => {

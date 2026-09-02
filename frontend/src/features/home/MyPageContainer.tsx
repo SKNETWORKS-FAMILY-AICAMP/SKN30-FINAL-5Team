@@ -187,11 +187,11 @@ export function MyPageContainer({
 
 const PROFILE_FIELD_LABELS: Record<string, string> = {
   primary_goal_code: '운동 목표',
-  desired_weekly_workout_count: '주간 목표',
-  default_requested_duration_minutes: '희망 시간',
+  desired_weekly_workout_count: '주간 운동 횟수',
+  default_requested_duration_minutes: '운동 시간',
   preferred_location_code: '선호 장소',
   available_location_codes: '운동 장소',
-  attention_area_codes: '통증 부위',
+  attention_area_codes: '평소 불편한 부위',
   preferred_exercise_type_codes: '선호 운동',
   coaching_style_code: '코칭 스타일',
   experience_level_code: '운동 경험',
