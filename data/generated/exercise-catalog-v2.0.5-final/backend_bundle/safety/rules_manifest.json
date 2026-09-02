@@ -1,0 +1,29 @@
+{
+  "files": [
+    {
+      "bytes": 280282,
+      "path": "safety_rules.jsonl",
+      "records": 595,
+      "sha256": "a95a7e432b7b0787e23d5b060c748518d27a1bb830694b6127ac96f8572f635f"
+    }
+  ],
+  "generator_version": "v2-0-5-media-gap-packager-1.0.0",
+  "review": {
+    "production_eligible": false,
+    "review_method_code": "AGENT_ONLY",
+    "status": "DOMAIN_APPROVED",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
+  },
+  "rule_set_version": {
+    "status_code": "DRAFT",
+    "version_code": "safety-rule-set-v2.0.5"
+  },
+  "schema_version": "1.0",
+  "source": {
+    "catalog_version_code": "exercise-catalog-v2.0.5-final",
+    "input_artifacts": []
+  },
+  "summary": {
+    "rule_records": 595
+  }
+}
