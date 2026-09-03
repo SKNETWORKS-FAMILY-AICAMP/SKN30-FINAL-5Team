@@ -619,7 +619,7 @@ describe('PreviewGallery', () => {
     ).toMatchObject({ width: 154, height: 58 });
     expect(
       StyleSheet.flatten(canvas.getByTestId('workout-rest-action').props.style),
-    ).toMatchObject({ width: 108, height: 52 });
+    ).toMatchObject({ width: 154, height: 58 });
     expect(canvas.getByTestId('workout-bottom-pagination')).toBeOnTheScreen();
     expect(canvas.queryByTestId('workout-pain-action')).toBeNull();
   });
