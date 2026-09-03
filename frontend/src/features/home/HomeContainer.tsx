@@ -38,6 +38,7 @@ import type {
   WeeklyPlanRevisionResponse,
   WeekResponse,
   WorkoutPlan,
+  WorkoutSessionDetailResponse,
   WorkoutSessionLogSummary,
 } from '../../api/types';
 import { moveWorkoutPlanItem } from '../../api/workoutPlan';
@@ -53,9 +54,9 @@ import {
   type HomeUserEdits,
 } from './HomeScreen';
 import {
-  availabilitySlotsForRequest,
   sleepMinutesFromHours,
   type HomeCheckinDraft,
+  type LocalWorkoutPresentationState,
 } from './homeModel';
 import type { RoutineGenerationPhaseCode } from './RoutineGenerationLoading';
 
@@ -80,6 +81,7 @@ type PendingDecisionAttempt = {
   context: DailyContextResponse;
   idempotencyKey: string;
   baseline: DecisionBaseline;
+  countsAsAlternative: boolean;
 };
 
 const FALLBACK_LOCATION_CODE = 'HOME';
@@ -112,26 +114,6 @@ function optional<T>(
     }
     throw error;
   });
-}
-
-function revisionMessage(revision: WeeklyPlanRevisionResponse): string {
-  const messages = Array.from(
-    new Set(
-      [...revision.revision_reason_codes, ...revision.finalization_reason_codes]
-        .map(planRevisionReasonLabel)
-        .filter((message): message is string => message !== null),
-    ),
-  );
-  if (messages.length > 0) {
-    return messages.join(' ');
-  }
-  if (revision.safety_status_code === 'NEEDS_INPUT') {
-    return '루틴을 조정하려면 상태를 조금 더 확인해야 해요.';
-  }
-  if (revision.safety_status_code === 'BLOCKED') {
-    return '안전 기준에 따라 이 루틴을 진행하지 않아요.';
-  }
-  return '안전 확인을 완료하지 못해 루틴을 적용하지 않았어요.';
 }
 
 function actionMessage(error: unknown): string {
@@ -209,11 +191,15 @@ export function HomeContainer({
   decision,
   onDecisionChange,
   planRevision,
-  onPlanRevisionChange,
   onSessionStarted,
   onRestChosen,
   onCheckinDecisionSuccess,
+  alternativeUsedCount = 0,
+  onAlternativeSuccess,
   onRecoverDecision,
+  todaySession = null,
+  localSessionState = 'ACTIVE',
+  onResumeWorkout,
   onTab,
   onOpenCalendar,
   finalValidationHoldMs = DEFAULT_FINAL_VALIDATION_HOLD_MS,
@@ -226,13 +212,20 @@ export function HomeContainer({
   decision: DecisionResponse | null;
   onDecisionChange: Dispatch<SetStateAction<DecisionResponse | null>>;
   planRevision: WeeklyPlanRevisionResponse | null;
-  onPlanRevisionChange: (revision: WeeklyPlanRevisionResponse | null) => void;
+  /** Retained for callers until the retired location-revision UI is removed. */
+  onPlanRevisionChange?: (revision: WeeklyPlanRevisionResponse | null) => void;
   onSessionStarted: (sessionId: string, plan: WorkoutPlan) => void;
   onRestChosen: (pressureNotificationsAllowed: boolean) => void;
   /** Clear flow-owned REST state only after a replacement decision succeeds. */
   onCheckinDecisionSuccess?: () => void;
+  /** UI-only until the backend owns the combined alternative quota. */
+  alternativeUsedCount?: number;
+  onAlternativeSuccess?: () => void;
   /** Re-read the flow-owned decision when Home data is manually refreshed. */
   onRecoverDecision?: () => void;
+  todaySession?: WorkoutSessionDetailResponse | null;
+  localSessionState?: LocalWorkoutPresentationState;
+  onResumeWorkout?: () => void;
   onTab: (tab: TabId) => void;
   onOpenCalendar: () => void;
   /** Testable presentation delay after a decision response is ready. */
@@ -420,6 +413,9 @@ export function HomeContainer({
         setPendingDecision(null);
         onDecisionChange(next);
         onCheckinDecisionSuccess?.();
+        if (attempt.countsAsAlternative && next.final_plan !== null) {
+          onAlternativeSuccess?.();
+        }
       } catch (error: unknown) {
         if (
           isAmbiguousMutationError(error) &&
@@ -434,6 +430,9 @@ export function HomeContainer({
               setPendingDecision(null);
               onDecisionChange(stored);
               onCheckinDecisionSuccess?.();
+              if (attempt.countsAsAlternative && stored.final_plan !== null) {
+                onAlternativeSuccess?.();
+              }
               return;
             }
           } catch {
@@ -456,12 +455,17 @@ export function HomeContainer({
       holdFinalValidation,
       localDate,
       onCheckinDecisionSuccess,
+      onAlternativeSuccess,
       onDecisionChange,
     ],
   );
 
   const submitCheckin = useCallback(
-    (draft: HomeCheckinDraft, refreshVersion = false) => {
+    (
+      draft: HomeCheckinDraft,
+      refreshVersion = false,
+      countsAsAlternative = false,
+    ) => {
       if (routine === null) {
         return;
       }
@@ -489,23 +493,11 @@ export function HomeContainer({
           expectedVersion = current?.context_version;
         }
 
-        const profileDuration =
-          profile?.default_requested_duration_minutes ??
-          routine.days[0]?.requested_duration_minutes;
-        const profileTimeZone =
-          profile?.timezone ??
-          Intl.DateTimeFormat().resolvedOptions().timeZone ??
-          'UTC';
-
         const saved = await api.replaceDailyContext(
           localDate,
           {
             fatigue_level_code: draft.fatigueLevelCode,
-            requested_duration_minutes: draft.requestedDurationMinutes,
-            duration_adjustment_source_code:
-              draft.requestedDurationMinutes === profileDuration
-                ? 'PROFILE'
-                : 'USER_OVERRIDE',
+            available_time_minutes: draft.availableTimeMinutes,
             location_code:
               draft.locationCode ??
               latestContext?.location_code ??
@@ -513,19 +505,14 @@ export function HomeContainer({
               locationCodes[0] ??
               FALLBACK_LOCATION_CODE,
             sleep_minutes: sleepMinutes,
-            fasting_state_code: latestContext?.fasting_state_code ?? null,
-            hydration_state_code: latestContext?.hydration_state_code ?? null,
-            discomforts: Object.entries(draft.discomforts).map(
-              ([body_area_code, severity_code]) => ({
+            sleep_source_code: sleepMinutes === null ? null : 'MANUAL',
+            pain_present: Object.keys(draft.pains).length > 0,
+            red_flag_present: draft.redFlagPresent,
+            pains: Object.entries(draft.pains).map(
+              ([body_area_code, intensity_score]) => ({
                 body_area_code,
-                severity_code,
+                intensity_score,
               }),
-            ),
-            adverse_reaction_codes: draft.adverseReactionCodes,
-            available_slots: availabilitySlotsForRequest(
-              draft.availableSlots,
-              localDate,
-              profileTimeZone,
             ),
           },
           expectedVersion,
@@ -555,6 +542,7 @@ export function HomeContainer({
           context: saved,
           idempotencyKey: createIdempotencyKey(),
           baseline,
+          countsAsAlternative,
         };
         setPendingDecision(attempt);
         // A previous routine belongs to the previous check-in. Hide it while
@@ -647,69 +635,6 @@ export function HomeContainer({
     [onDecisionChange],
   );
 
-  /**
-   * The revision sequence is only knowable from a response this client
-   * received, so the first revision of a session creates the week's initial
-   * plan. If the plan already exists, the sequence cannot be recovered.
-   */
-  const revisionSequence = useCallback(async () => {
-    if (planRevision !== null) {
-      return planRevision.revision_sequence;
-    }
-    try {
-      const initial = await api.createInitialWeeklyPlan(weekStart);
-      onPlanRevisionChange(initial);
-      return initial.revision_sequence;
-    } catch (error: unknown) {
-      if (isApiError(error) && error.code === 'INITIAL_PLAN_ALREADY_EXISTS') {
-        throw new Error(
-          '이번 주 계획 수정 요청은 이 기기에서 이번 주 계획을 만든 뒤에 사용할 수 있어요.',
-        );
-      }
-      throw error;
-    }
-  }, [api, onPlanRevisionChange, planRevision, weekStart]);
-
-  /**
-   * A revised routine changes what today's plan should be built from, so the
-   * server is asked for a fresh decision from the stored check-in.
-   */
-  const applyRevision = useCallback(
-    async (revision: WeeklyPlanRevisionResponse) => {
-      onPlanRevisionChange(revision);
-      reload();
-
-      if (revision.routine === null) {
-        onDecisionChange(null);
-        setActionError(revisionMessage(revision));
-        return;
-      }
-      if (context === null) {
-        onDecisionChange(null);
-        return;
-      }
-
-      const next = await api.createDecision({
-        local_date: localDate,
-        daily_context_id: context.id,
-        expected_context_version: context.context_version,
-      });
-      if (canShowFinalValidation(next)) {
-        await holdFinalValidation();
-      }
-      onDecisionChange(next);
-    },
-    [
-      api,
-      context,
-      holdFinalValidation,
-      localDate,
-      onDecisionChange,
-      onPlanRevisionChange,
-      reload,
-    ],
-  );
-
   const regenerateDecision = useCallback(() => {
     const plan = decision?.final_plan;
     const sequence = decision?.regeneration_sequence;
@@ -727,26 +652,22 @@ export function HomeContainer({
         await holdFinalValidation();
       }
       onDecisionChange(next);
+      if (next.final_plan !== null) {
+        onAlternativeSuccess?.();
+      }
     });
-  }, [api, decision, holdFinalValidation, onDecisionChange, run]);
+  }, [
+    api,
+    decision,
+    holdFinalValidation,
+    onAlternativeSuccess,
+    onDecisionChange,
+    run,
+  ]);
 
-  const submitUserEdits = useCallback(
-    (edits: HomeUserEdits) => {
-      run('revision', async () => {
-        const sequence = await revisionSequence();
-        const revision = await api.createPlanRevision(weekStart, {
-          source_code: 'USER',
-          expected_revision_sequence: sequence,
-          user_edits: {
-            routine_id: edits.routineId,
-            location_code: edits.locationCode,
-          },
-        });
-        await applyRevision(revision);
-      });
-    },
-    [api, applyRevision, revisionSequence, run, weekStart],
-  );
+  // The screen owns the presentation override for now. This is the single
+  // adapter seam where the future plan-item prescription mutation will attach.
+  const submitUserEdits = useCallback((_edits: HomeUserEdits) => undefined, []);
 
   const permissionDenied =
     state.status === 'error' &&
@@ -779,12 +700,15 @@ export function HomeContainer({
       routine={routine}
       context={context}
       decision={decision}
+      alternativeUsedCount={alternativeUsedCount}
+      todaySession={todaySession}
+      localSessionState={localSessionState}
       week={week}
       sessions={sessions}
       weeklyGoalCount={profile?.desired_weekly_workout_count ?? 1}
       planRevision={planRevision}
       restToday={restToday}
-      defaultDurationMinutes={profile?.default_requested_duration_minutes}
+      persistentPains={profile?.persistent_pains}
       locationCodes={locationCodes}
       busy={busy}
       routineLoadingPhaseCode={routineLoadingPhaseCode ?? undefined}
@@ -795,7 +719,11 @@ export function HomeContainer({
       }
       onRetryDecision={pendingDecision === null ? undefined : retryDecision}
       onSubmitCheckin={(draft) => submitCheckin(draft)}
+      onRequestAlternativeCheckin={(draft, changed) =>
+        changed ? submitCheckin(draft, false, true) : regenerateDecision()
+      }
       onStartWorkout={startWorkout}
+      onResumeWorkout={onResumeWorkout}
       onChooseRest={chooseRest}
       onRegenerateDecision={regenerateDecision}
       onReorderPlan={reorderPlan}

@@ -73,6 +73,8 @@ export type MeProfile = {
   attention_area_codes: string[];
   /** Present only after the additive pain-intensity profile contract is available. */
   pain_areas?: PainAreaInput[];
+  /** Daily Check-in defaults; never treat these as submitted daily pain. */
+  persistent_pains?: PainAreaInput[];
   preferred_exercise_type_codes: string[];
   profile_version: number;
   created_at: string;
@@ -231,25 +233,28 @@ export type AvailabilitySlotInput = {
 
 export type DailyContextRequest = {
   fatigue_level_code: FatigueLevelCode;
-  requested_duration_minutes: number;
-  duration_adjustment_source_code: 'PROFILE' | 'USER_OVERRIDE';
+  available_time_minutes: number;
   location_code: string;
   sleep_minutes?: number | null;
-  fasting_state_code?: string | null;
-  hydration_state_code?: string | null;
-  discomforts: DiscomfortInput[];
-  adverse_reaction_codes: string[];
-  /** `null`/omitted means unanswered; `[]` means explicitly unavailable. */
-  available_slots?: AvailabilitySlotInput[] | null;
+  sleep_source_code?: 'MANUAL' | 'WEARABLE' | null;
+  pain_present: boolean;
+  red_flag_present: boolean;
+  pains: PainAreaInput[];
 };
 
 export type DailyContextResponse = DailyContextRequest & {
   id: string;
   local_date: string;
-  availability_source_code?: 'MANUAL' | 'ROUTINE_DEFAULT';
   context_version: number;
   created_at: string;
   updated_at: string;
+  /** Transitional read compatibility for screens that still render archived contexts. */
+  requested_duration_minutes?: number;
+  duration_adjustment_source_code?: 'PROFILE' | 'USER_OVERRIDE';
+  discomforts?: DiscomfortInput[];
+  adverse_reaction_codes?: string[];
+  available_slots?: AvailabilitySlotInput[] | null;
+  availability_source_code?: 'MANUAL' | 'ROUTINE_DEFAULT';
 };
 
 export type WorkoutPlanItem = {

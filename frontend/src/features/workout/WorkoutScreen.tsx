@@ -137,6 +137,8 @@ type WorkoutApiProps = {
   sessionId: string;
   plan: WorkoutPlan;
   onOutcome: (outcome: SessionOutcome) => void;
+  /** Keeps an IN_PROGRESS session resumable while the backend stop state evolves. */
+  onReturnHomeResumable?: () => void;
 };
 
 type WorkoutScreenProps = WorkoutPreviewProps | WorkoutApiProps;
@@ -1430,6 +1432,10 @@ function WorkoutScreenContent({
             if (apiConfig === undefined) {
               onNotCompleted?.(selectedStopReason);
               setPreviewResult('stopped');
+              return;
+            }
+            if (apiConfig.onReturnHomeResumable) {
+              apiConfig.onReturnHomeResumable();
               return;
             }
             if (completedCount === 0) {

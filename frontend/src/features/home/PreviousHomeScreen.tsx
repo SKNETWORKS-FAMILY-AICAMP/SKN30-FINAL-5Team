@@ -213,7 +213,7 @@ function HomeScreenContent({
     decision?.options.find((option) => option.option_code === 'REST') ?? null;
 
   const startingDuration =
-    context?.requested_duration_minutes ??
+    context?.available_time_minutes ??
     defaultDurationMinutes ??
     routineDay?.requested_duration_minutes ??
     HOME_DURATION_CHOICES[1];

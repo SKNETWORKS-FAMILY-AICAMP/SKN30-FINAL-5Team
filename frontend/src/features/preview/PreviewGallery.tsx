@@ -1173,9 +1173,13 @@ export function PreviewGallery({
                       onProfile={() => setScreenId('my-page')}
                       onReorderPlan={reorderHomePlan}
                       onRegenerateDecision={() => runHomeTransition('adjusted')}
+                      onRequestAlternativeCheckin={() =>
+                        runHomeTransition('adjusted')
+                      }
+                      onResumeWorkout={startWorkoutPreview}
                       onStartWorkout={startWorkoutPreview}
                       onSubmitCheckin={() => runHomeTransition('routine')}
-                      onSubmitUserEdits={() => runHomeTransition('adjusted')}
+                      onSubmitUserEdits={() => undefined}
                     />
                   ) : null}
                   {screenId === 'today' ? (

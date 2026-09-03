@@ -30,6 +30,7 @@ export function ExerciseVariantsAction({
   actionStyle,
   actionTextStyle,
   api,
+  disabled = false,
   exerciseId,
   exerciseName,
   autoOpen = false,
@@ -40,6 +41,7 @@ export function ExerciseVariantsAction({
   actionStyle?: StyleProp<ViewStyle>;
   actionTextStyle?: StyleProp<TextStyle>;
   api: VariantApi;
+  disabled?: boolean;
   exerciseId: string;
   exerciseName: string;
   autoOpen?: boolean;
@@ -95,6 +97,8 @@ export function ExerciseVariantsAction({
         accessibilityHint={state.message}
         accessibilityLabel={`${exerciseName} 장비 안내 다시 확인`}
         accessibilityRole="button"
+        accessibilityState={{ disabled }}
+        disabled={disabled}
         onPress={reload}
         style={({ pressed }) => [
           presentation === 'pill' ? styles.action : styles.textAction,
@@ -118,6 +122,8 @@ export function ExerciseVariantsAction({
     <Pressable
       accessibilityLabel={`${exerciseName} ${label} 보기`}
       accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={() => onOpen(state.data)}
       style={({ pressed }) => [
         presentation === 'pill' ? styles.action : styles.textAction,

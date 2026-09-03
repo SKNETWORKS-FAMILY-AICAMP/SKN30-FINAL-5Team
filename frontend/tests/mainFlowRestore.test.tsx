@@ -262,9 +262,10 @@ describe('MainFlow restart recovery', () => {
     await waitFor(() => expect(decisionReadCount()).toBe(2));
   });
 
-  it('routes straight back into an unfinished session', async () => {
+  it('restores an unfinished session on Home and resumes on demand', async () => {
     const { api, calls } = apiWithRoutes({
       '/decisions?': decision(),
+      '/routines/current?': routine(),
       '/workout-sessions?': sessions([
         {
           session_id: 'session-1',
@@ -314,7 +315,7 @@ describe('MainFlow restart recovery', () => {
       />,
     );
 
-    // The workout screen resuming the session is observable as its detail read.
+    // Home reads progress but does not reopen the workout without a user action.
     await waitFor(
       () => {
         expect(
@@ -323,11 +324,20 @@ describe('MainFlow restart recovery', () => {
       },
       { timeout: 8000 },
     );
+    const detailReadCount = () =>
+      calls.filter((path) => path.startsWith('/workout-sessions/session-1'))
+        .length;
+    const beforeResume = detailReadCount();
+    fireEvent.press(await screen.findByRole('button', { name: '이어하기' }));
+    await waitFor(() =>
+      expect(detailReadCount()).toBeGreaterThan(beforeResume),
+    );
   });
 
-  it("does not resurrect the decision after the day's session already ended", async () => {
+  it("keeps the day's completed routine visible without reopening it", async () => {
     const { api, calls } = apiWithRoutes({
       '/decisions?': decision(),
+      '/routines/current?': routine(),
       '/workout-sessions?': sessions([
         {
           session_id: 'session-1',
@@ -342,6 +352,30 @@ describe('MainFlow restart recovery', () => {
           finished_at: '2026-08-19T09:30:00+09:00',
         },
       ]),
+      '/workout-sessions/session-1': {
+        session_id: 'session-1',
+        local_date: LOCAL_DATE,
+        status_code: 'COMPLETED',
+        completed_item_count: 1,
+        total_item_count: 1,
+        requested_duration_minutes: 30,
+        items: [
+          {
+            plan_item_id: 'item-1',
+            exercise_id: 'ex-1',
+            exercise_name: '스쿼트',
+            status_code: 'COMPLETED',
+            sets: 1,
+            reps: 10,
+            work_seconds_per_set: 1620,
+            completed_at: '2026-08-19T09:30:00+09:00',
+          },
+        ],
+        feedback: null,
+        not_completed_reason_code: null,
+        started_at: '2026-08-19T09:00:00+09:00',
+        finished_at: '2026-08-19T09:30:00+09:00',
+      },
     });
 
     render(
@@ -358,9 +392,11 @@ describe('MainFlow restart recovery', () => {
         true,
       );
     });
-    // A finished day must not reopen the session screen.
     expect(
       calls.some((path) => path.startsWith('/workout-sessions/session-1')),
-    ).toBe(false);
+    ).toBe(true);
+    expect(await screen.findByText('운동 기록')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: '이어하기' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '세트·횟수 수정' })).toBeNull();
   });
 });

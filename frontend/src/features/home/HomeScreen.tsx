@@ -35,7 +35,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
 
 import {
-  ADVERSE_REACTION_OPTIONS,
   actionLabel,
   agentTypeLabel,
   bodyAreaLabel,
@@ -51,12 +50,13 @@ import type {
   ActionCode,
   DailyContextResponse,
   DecisionResponse,
-  DiscomfortSeverityCode,
   ExerciseVariantsResponse,
+  PainAreaInput,
   RoutineResponse,
   SessionStatusCode,
   WeekResponse,
   WeeklyPlanRevisionResponse,
+  WorkoutSessionDetailResponse,
   WorkoutSessionLogSummary,
 } from '../../api/types';
 import { moveArrayItem } from '../../api/workoutPlan';
@@ -64,6 +64,7 @@ import { imageAssets, weeklyProgressMascotSources } from '../../assets';
 import { fontFamilies, useBrandFonts } from '../../app/fonts';
 import type { TabId } from '../../components/brand/BrandChrome';
 import { ProfileAvatar } from '../../components/profile/ProfileAvatar';
+import { PainIntensitySlider } from '../../components/profile/PainIntensitySlider';
 import { getContainedInterfaceScale, useScale } from '../../components/scale';
 import { GradientActionButton } from '../../components/primitives';
 import { colors } from '../../components/theme';
@@ -78,6 +79,7 @@ import {
   HOME_ROUTINE_VARIANTS,
   HOME_WEEK_DAYS,
   apiCheckinDraft,
+  applyRoutineItemOverrides,
   checkinFromContext,
   copyRoutineItems,
   formatHomeDate,
@@ -86,6 +88,9 @@ import {
   formatWeekRangeForLocalDate,
   getHomeRoutineVariant,
   getHomeRerollLabel,
+  homeCheckinDraftsEqual,
+  deriveTodayRoutineViewState,
+  routineItemOverrides,
   routineFocusFromPlan,
   routineItemsFromPlan,
   routineTitleFromPlan,
@@ -98,6 +103,9 @@ import {
   type HomeAvailabilitySlot,
   type HomePreviewState,
   type HomeRoutineItem,
+  type LocalWorkoutPresentationState,
+  type RoutineItemDraftOverride,
+  type TodayRoutinePhase,
 } from './homeModel';
 import {
   RoutineGenerationLoading,
@@ -111,19 +119,11 @@ export const HOME_BACKGROUND_COLOR = '#FFF8E5';
 const CHECKIN_AVAILABILITY_INPUT_ENABLED: boolean = false;
 
 const CHECKIN_DURATION_MINUTES = {
-  min: 5,
-  max: 180,
+  min: 10,
+  max: 60,
   step: 10,
 } as const;
-
-const CHECKIN_SEVERITY_OPTIONS: readonly {
-  code: DiscomfortSeverityCode;
-  label: string;
-}[] = [
-  { code: 'MILD', label: '가벼워요' },
-  { code: 'MODERATE', label: '보통이에요' },
-  { code: 'SEVERE', label: '심해요' },
-];
+const EMPTY_PERSISTENT_PAINS: readonly PainAreaInput[] = [];
 
 export const HOME_LAYOUT = {
   contentHorizontalPadding: 18,
@@ -276,17 +276,16 @@ export type HomeBusyKind =
   'decision-generation' | 'regeneration' | 'revision' | 'starting';
 
 export type HomeUserEdits = {
-  routineId: string;
-  locationCode: string;
+  itemOverrides: readonly RoutineItemDraftOverride[];
 };
 
 export type HomeScreenProps = {
   actionError?: string | null;
+  alternativeUsedCount?: number;
   busy?: HomeBusyKind | null;
   currentDate?: string;
   context?: DailyContextResponse | null;
   decision?: DecisionResponse | null;
-  defaultDurationMinutes?: number;
   errorMessage?: string;
   exerciseApi?: Pick<Api, 'getExercise'> &
     Partial<Pick<Api, 'getExerciseVariants'>>;
@@ -303,6 +302,10 @@ export type HomeScreenProps = {
   onOpenCheckin?: () => void;
   onProfile?: () => void;
   onRegenerateDecision?: () => void;
+  onRequestAlternativeCheckin?: (
+    draft: HomeCheckinDraft,
+    changed: boolean,
+  ) => void;
   onRequestAlternative?: () => void;
   onReorderPlan?: (from: number, to: number) => void;
   onRetry?: () => void;
@@ -311,10 +314,12 @@ export type HomeScreenProps = {
   onSaveCheckin?: () => void;
   onSaveEdit?: (items: readonly HomeRoutineItem[]) => void;
   onStartWorkout?: () => void;
+  onResumeWorkout?: () => void;
   onSubmitCheckin?: (draft: HomeCheckinDraft) => void;
   onSubmitUserEdits?: (edits: HomeUserEdits) => void;
   permissionDenied?: boolean;
   planRevision?: WeeklyPlanRevisionResponse | null;
+  persistentPains?: readonly PainAreaInput[];
   previewState?: HomePreviewState;
   profileImageUrl?: string | null;
   restToday?: boolean;
@@ -326,6 +331,8 @@ export type HomeScreenProps = {
   sessions?: readonly WorkoutSessionLogSummary[];
   staleContext?: boolean;
   status?: 'loading' | 'error' | 'ready';
+  todaySession?: WorkoutSessionDetailResponse | null;
+  localSessionState?: LocalWorkoutPresentationState;
   userName?: string;
   week?: WeekResponse | null;
   weekDays?: readonly WeekDay[];
@@ -359,11 +366,11 @@ export function HomeScreen({ previewState, ...props }: HomeScreenProps) {
 
 function HomeScreenContent({
   actionError = null,
+  alternativeUsedCount = 0,
   busy = null,
   context = null,
   currentDate = '2026.08.11 (화)',
   decision = null,
-  defaultDurationMinutes = 40,
   errorMessage,
   exerciseApi,
   hasTodayRoutine = true,
@@ -380,6 +387,7 @@ function HomeScreenContent({
   onOpenCheckin,
   onProfile,
   onRegenerateDecision,
+  onRequestAlternativeCheckin,
   onRequestAlternative,
   onReorderPlan,
   onRetry,
@@ -388,10 +396,12 @@ function HomeScreenContent({
   onSaveCheckin,
   onSaveEdit,
   onStartWorkout,
+  onResumeWorkout,
   onSubmitCheckin,
   onSubmitUserEdits,
   permissionDenied = false,
   planRevision = null,
+  persistentPains = EMPTY_PERSISTENT_PAINS,
   profileImageUrl = null,
   restToday = false,
   routine = null,
@@ -400,6 +410,8 @@ function HomeScreenContent({
   sessions = [],
   staleContext = false,
   status,
+  todaySession = null,
+  localSessionState = 'ACTIVE',
   userName = '헬끼',
   week = null,
   weekDays: previewWeekDays = HOME_WEEK_DAYS,
@@ -421,9 +433,17 @@ function HomeScreenContent({
     : initialState !== 'pre-checkin' && initialState !== 'checkin';
   const [checkedIn, setCheckedIn] = useState(startsCheckedIn);
   const [checkinOpen, setCheckinOpen] = useState(initialState === 'checkin');
+  const [checkinIntent, setCheckinIntent] = useState<'INITIAL' | 'ALTERNATIVE'>(
+    'INITIAL',
+  );
   const [timePickerTarget, setTimePickerTarget] =
     useState<TimePickerTarget | null>(null);
-  const [editOpen, setEditOpen] = useState(initialState === 'editing');
+  const [editOpen, setEditOpen] = useState(
+    initialState === 'editing' && !apiMode,
+  );
+  const [inlineEditing, setInlineEditing] = useState(
+    initialState === 'editing' && apiMode,
+  );
   const [reasonOpen, setReasonOpen] = useState(false);
   const [exerciseGuide, setExerciseGuide] = useState<HomeRoutineItem | null>(
     null,
@@ -442,18 +462,23 @@ function HomeScreenContent({
   const initialCheckin = useMemo<HomeCheckin>(
     () =>
       apiMode
-        ? checkinFromContext(
-            context,
-            defaultDurationMinutes,
-            locationCodes[0] ?? null,
-          )
+        ? checkinFromContext(context, persistentPains, locationCodes[0] ?? null)
         : initialState === 'adjusted'
           ? {
               ...HOME_DEFAULT_CHECKIN,
-              discomforts: { KNEE: 'MILD' },
+              pains: { KNEE: 3 },
+              redFlagPresent: false,
+              workoutMinutes: '40',
             }
-          : { ...HOME_DEFAULT_CHECKIN, discomforts: {} },
-    [apiMode, context, defaultDurationMinutes, initialState, locationCodes],
+          : initialState === 'pre-checkin' || initialState === 'checkin'
+            ? { ...HOME_DEFAULT_CHECKIN, pains: {} }
+            : {
+                ...HOME_DEFAULT_CHECKIN,
+                pains: {},
+                redFlagPresent: false,
+                workoutMinutes: '40',
+              },
+    [apiMode, context, initialState, locationCodes, persistentPains],
   );
   const [committedCheckin, setCommittedCheckin] =
     useState<HomeCheckin>(initialCheckin);
@@ -468,19 +493,24 @@ function HomeScreenContent({
     () => (serverPlan === null ? [] : routineItemsFromPlan(serverPlan)),
     [serverPlan],
   );
-  const displayedRoutineItems = apiMode ? serverRoutineItems : routineItems;
+  const [presentationOverrides, setPresentationOverrides] = useState<
+    readonly RoutineItemDraftOverride[]
+  >([]);
+  const presentedServerRoutineItems = useMemo(
+    () => applyRoutineItemOverrides(serverRoutineItems, presentationOverrides),
+    [presentationOverrides, serverRoutineItems],
+  );
+  const displayedRoutineItems = apiMode
+    ? presentedServerRoutineItems
+    : routineItems;
   const serverCheckin = useMemo(
     () =>
-      checkinFromContext(
-        context,
-        defaultDurationMinutes,
-        locationCodes[0] ?? null,
-      ),
-    [context, defaultDurationMinutes, locationCodes],
+      checkinFromContext(context, persistentPains, locationCodes[0] ?? null),
+    [context, locationCodes, persistentPains],
   );
   const displayedCheckin = apiMode ? serverCheckin : committedCheckin;
   const [editDraft, setEditDraft] = useState<HomeRoutineItem[]>(() =>
-    copyRoutineItems(getHomeRoutineVariant(0).items),
+    copyRoutineItems(displayedRoutineItems),
   );
   const [newItem, setNewItem] = useState<HomeRoutineItem>({
     id: 'new',
@@ -521,7 +551,7 @@ function HomeScreenContent({
   const progressPercent = weeklyCompletionPercentage(completed, goal);
   const effectiveCheckedIn = apiMode ? context !== null : checkedIn;
   const rerolls = apiMode
-    ? (decision?.regeneration_sequence ?? 0)
+    ? Math.max(alternativeUsedCount, decision?.regeneration_sequence ?? 0)
     : previewRerolls;
   const rerollLoading = apiMode
     ? busy === 'regeneration'
@@ -535,8 +565,11 @@ function HomeScreenContent({
   const seriousDecision =
     decision?.action_code === 'STOP_AND_SEEK_HELP' ||
     decision?.safety_status_code === 'BLOCKED';
+  const hasVisibleSession = todaySession !== null && serverPlan !== null;
   const hasRoutine = apiMode
-    ? serverPlan !== null && !routineGenerationPending && !restToday
+    ? serverPlan !== null &&
+      !routineGenerationPending &&
+      (hasVisibleSession || !restToday)
     : hasTodayRoutine && effectiveCheckedIn && !routineGenerationPending;
   const noRoutine = !hasRoutine && !routineGenerationPending;
   const variant = getHomeRoutineVariant(variantIndex);
@@ -583,8 +616,7 @@ function HomeScreenContent({
   const routineRevisionNotice =
     planRevision?.routine !== null ? currentRevisionNotice : null;
   const painPart =
-    Object.keys(displayedCheckin.discomforts).map(bodyAreaLabel).join('·') ||
-    null;
+    Object.keys(displayedCheckin.pains).map(bodyAreaLabel).join('·') || null;
   const displayDate =
     apiMode && localDate !== undefined
       ? formatHomeDate(localDate)
@@ -607,8 +639,9 @@ function HomeScreenContent({
     [],
   );
 
-  const openCheckin = () => {
+  const openCheckin = (intent: 'INITIAL' | 'ALTERNATIVE' = 'INITIAL') => {
     setCheckinDraft({ ...displayedCheckin });
+    setCheckinIntent(intent);
     setCheckinOpen(true);
     onOpenCheckin?.();
   };
@@ -617,60 +650,10 @@ function HomeScreenContent({
     setCheckinDraft({ ...displayedCheckin });
     setTimePickerTarget(null);
     setCheckinOpen(false);
+    setCheckinIntent('INITIAL');
   };
 
-  const saveCheckin = () => {
-    const saved = {
-      ...checkinDraft,
-      workoutMinutes: clampNumericString(
-        checkinDraft.workoutMinutes,
-        CHECKIN_DURATION_MINUTES.min,
-        CHECKIN_DURATION_MINUTES.max,
-      ),
-    };
-    setCommittedCheckin(saved);
-    setCheckinDraft(saved);
-    setCheckedIn(true);
-    setTimePickerTarget(null);
-    setCheckinOpen(false);
-    if (apiMode) {
-      onSubmitCheckin?.(apiCheckinDraft(saved));
-    } else {
-      onSaveCheckin?.();
-    }
-  };
-
-  const openEdit = () => {
-    setEditDraft(copyRoutineItems(displayedRoutineItems));
-    setNewItem({ id: 'new', name: '', sets: '', reps: '' });
-    setEditOpen(true);
-    onEditRoutine?.();
-  };
-
-  const closeEdit = () => {
-    setEditDraft(copyRoutineItems(displayedRoutineItems));
-    setEditOpen(false);
-  };
-
-  const saveEdit = () => {
-    const cleaned = cleanRoutineItems(editDraft);
-    const saved = cleaned.length
-      ? cleaned
-      : copyRoutineItems(getHomeRoutineVariant(variantIndex).items);
-    setRoutineItems(saved);
-    setEditDraft(copyRoutineItems(saved));
-    setEditOpen(false);
-    onSaveEdit?.(saved);
-  };
-
-  const requestAlternative = () => {
-    if (rerolling || rerolls >= 2) {
-      return;
-    }
-    if (apiMode) {
-      onRegenerateDecision?.();
-      return;
-    }
+  const runPreviewAlternative = () => {
     setRerolling(true);
     onRequestAlternative?.();
     if (rerollTimer.current) {
@@ -691,6 +674,119 @@ function HomeScreenContent({
     }, 900);
   };
 
+  const saveCheckin = () => {
+    const saved = {
+      ...checkinDraft,
+      workoutMinutes: clampNumericString(
+        checkinDraft.workoutMinutes,
+        CHECKIN_DURATION_MINUTES.min,
+        CHECKIN_DURATION_MINUTES.max,
+      ),
+    };
+    const savedDraft = apiCheckinDraft(saved);
+    const changed = !homeCheckinDraftsEqual(
+      savedDraft,
+      apiCheckinDraft(displayedCheckin),
+    );
+    setCommittedCheckin(saved);
+    setCheckinDraft(saved);
+    setCheckedIn(true);
+    setTimePickerTarget(null);
+    setCheckinOpen(false);
+    if (checkinIntent === 'ALTERNATIVE') {
+      setCheckinIntent('INITIAL');
+      if (apiMode) {
+        if (onRequestAlternativeCheckin) {
+          onRequestAlternativeCheckin(savedDraft, changed);
+        } else {
+          onRegenerateDecision?.();
+        }
+      } else {
+        runPreviewAlternative();
+      }
+      return;
+    }
+    if (apiMode) {
+      onSubmitCheckin?.(savedDraft);
+    } else {
+      onSaveCheckin?.();
+    }
+  };
+
+  const openEdit = () => {
+    setEditDraft(copyRoutineItems(displayedRoutineItems));
+    setNewItem({ id: 'new', name: '', sets: '', reps: '' });
+    if (apiMode) {
+      setInlineEditing(true);
+    } else {
+      setEditOpen(true);
+    }
+    onEditRoutine?.();
+  };
+
+  const closeEdit = () => {
+    setEditDraft(copyRoutineItems(displayedRoutineItems));
+    setEditOpen(false);
+  };
+
+  const saveEdit = () => {
+    const cleaned = cleanRoutineItems(editDraft);
+    const saved = cleaned.length
+      ? cleaned
+      : copyRoutineItems(getHomeRoutineVariant(variantIndex).items);
+    setRoutineItems(saved);
+    setEditDraft(copyRoutineItems(saved));
+    setEditOpen(false);
+    onSaveEdit?.(saved);
+  };
+
+  const inlineEditInvalid = editDraft.some((item) => {
+    const sets = Number(item.sets);
+    const reps = item.reps === undefined ? null : Number(item.reps);
+    return (
+      !Number.isInteger(sets) ||
+      sets < 1 ||
+      (reps !== null && (!Number.isInteger(reps) || reps < 1))
+    );
+  });
+
+  const saveInlineEdit = () => {
+    if (inlineEditInvalid) {
+      return;
+    }
+    const itemOverrides = routineItemOverrides(serverRoutineItems, editDraft);
+    setPresentationOverrides(itemOverrides);
+    setInlineEditing(false);
+    onSubmitUserEdits?.({ itemOverrides });
+  };
+
+  const patchInlinePrescription = (
+    id: string,
+    patch: Pick<Partial<HomeRoutineItem>, 'sets' | 'reps'>,
+  ) =>
+    setEditDraft((current) =>
+      current.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    );
+
+  const navigateFromHome = (tab: HomeTab) => {
+    if (inlineEditing) {
+      setEditDraft(copyRoutineItems(displayedRoutineItems));
+      setInlineEditing(false);
+    }
+    onNavigateTab?.(tab);
+  };
+
+  const requestAlternative = () => {
+    if (rerolling || rerolls >= 2) {
+      return;
+    }
+    if (apiMode) {
+      openCheckin('ALTERNATIVE');
+    } else {
+      runPreviewAlternative();
+    }
+  };
+
   const moveRoutineItem = useCallback((from: number, to: number) => {
     setRoutineItems((current) => moveArrayItem(current, from, to));
   }, []);
@@ -707,6 +803,37 @@ function HomeScreenContent({
   );
   const recheckMode =
     apiMode && (restToday || restRecommended || seriousDecision);
+  const todayRoutineState = deriveTodayRoutineViewState({
+    alternativeUsedCount: rerolls,
+    contextExists: effectiveCheckedIn,
+    decisionError: Boolean(actionError || blockingRevisionNotice),
+    decisionHasPlan: apiMode
+      ? serverPlan !== null
+      : hasTodayRoutine && effectiveCheckedIn,
+    decisionIsBlocked: Boolean(restToday || restRecommended || seriousDecision),
+    generationPending: routineGenerationPending,
+    localSessionState,
+    session: todaySession,
+  });
+  const completedPlanItemIds =
+    todayRoutineState.progress?.completedPlanItemIds ?? [];
+  const reorderUnfinishedPlan = (from: number, to: number) => {
+    const items = inlineEditing ? editDraft : displayedRoutineItems;
+    const source = items[from];
+    const target = items[to];
+    if (
+      source === undefined ||
+      target === undefined ||
+      completedPlanItemIds.includes(source.id) ||
+      completedPlanItemIds.includes(target.id)
+    ) {
+      return;
+    }
+    if (inlineEditing) {
+      setEditDraft((current) => moveArrayItem(current, from, to));
+    }
+    onReorderPlan?.(from, to);
+  };
   const routineBlockedReason =
     routineOption && !routineOption.selectable
       ? ((routineOption.blocked_reason_code
@@ -717,7 +844,8 @@ function HomeScreenContent({
     contentReady &&
     (!apiMode || routine !== null) &&
     !routineGenerationPending &&
-    !staleContext;
+    !staleContext &&
+    (!apiMode || todayRoutineState.capabilities.canCheckIn);
   return (
     <HomeStyleContext.Provider value={styles}>
       <View style={styles.screen}>
@@ -733,6 +861,7 @@ function HomeScreenContent({
           >
             <HomeHeader
               currentDate={displayDate}
+              disabled={inlineEditing}
               hasUnreadNotification={hasUnreadNotification}
               onNotifications={onNotifications}
               onProfile={onProfile}
@@ -746,6 +875,7 @@ function HomeScreenContent({
                 <WeeklyProgressCard
                   key={displayWeekLabel}
                   completed={completed}
+                  disabled={inlineEditing}
                   goal={goal}
                   onOpenCalendar={onOpenCalendar}
                   onToggleTip={() => setShowTip((current) => !current)}
@@ -759,7 +889,7 @@ function HomeScreenContent({
             {showCheckin ? (
               <CheckinButton
                 label={recheckMode ? '다시 체크인하기' : undefined}
-                onPress={openCheckin}
+                onPress={() => openCheckin('INITIAL')}
               />
             ) : null}
 
@@ -857,8 +987,8 @@ function HomeScreenContent({
               />
             ) : null}
             {contentReady &&
-            !restToday &&
-            !seriousDecision &&
+            (!restToday || hasVisibleSession) &&
+            (!seriousDecision || hasVisibleSession) &&
             blockingRevisionNotice === null &&
             hasRoutine ? (
               <RoutineCard
@@ -869,12 +999,39 @@ function HomeScreenContent({
                       ? 'DOWNSHIFT'
                       : 'KEEP'
                 }
-                editLabel={apiMode ? '운동 장소 변경' : '운동 수정하기'}
-                items={displayedRoutineItems}
+                completedItemIds={completedPlanItemIds}
+                currentPlanItemId={
+                  todayRoutineState.progress?.currentPlanItemId ?? null
+                }
+                editDisabled={inlineEditing && inlineEditInvalid}
+                editing={apiMode && inlineEditing}
+                editLabel={
+                  apiMode
+                    ? inlineEditing
+                      ? '저장하기'
+                      : '세트·횟수 수정'
+                    : '운동 수정하기'
+                }
+                items={
+                  apiMode && inlineEditing ? editDraft : displayedRoutineItems
+                }
                 minutes={routineMinutes}
                 notes={routineNotes}
-                onEdit={openEdit}
-                onMove={apiMode ? onReorderPlan : moveRoutineItem}
+                onEdit={
+                  todayRoutineState.capabilities.canEditRoutine
+                    ? inlineEditing
+                      ? saveInlineEdit
+                      : openEdit
+                    : undefined
+                }
+                onMove={
+                  todayRoutineState.capabilities.canReorderRoutine
+                    ? apiMode
+                      ? reorderUnfinishedPlan
+                      : moveRoutineItem
+                    : undefined
+                }
+                onChangePrescription={patchInlinePrescription}
                 onOpenExerciseGuide={
                   exerciseApi ? (item) => setExerciseGuide(item) : undefined
                 }
@@ -898,16 +1055,21 @@ function HomeScreenContent({
                     : undefined
                 }
                 onRequestAlternative={
-                  !apiMode || decision?.regeneration_sequence != null
+                  todayRoutineState.phase === 'READY' &&
+                  (!apiMode || decision?.regeneration_sequence != null)
                     ? requestAlternative
                     : undefined
                 }
                 onStart={
-                  !apiMode || routineOption?.selectable
-                    ? onStartWorkout
-                    : undefined
+                  todayRoutineState.capabilities.canResume
+                    ? onResumeWorkout
+                    : todayRoutineState.capabilities.canStart &&
+                        (!apiMode || routineOption?.selectable)
+                      ? onStartWorkout
+                      : undefined
                 }
                 painPart={painPart}
+                phase={todayRoutineState.phase}
                 pending={busy !== null}
                 rerolling={apiMode ? busy === 'regeneration' : rerolling}
                 rerolls={rerolls}
@@ -921,7 +1083,7 @@ function HomeScreenContent({
           </ScrollView>
         </View>
 
-        <HomeBottomNavigation activeTab="home" onNavigate={onNavigateTab} />
+        <HomeBottomNavigation activeTab="home" onNavigate={navigateFromHome} />
 
         {checkinOpen ? (
           <CheckinSheet
@@ -954,12 +1116,12 @@ function HomeScreenContent({
             onChangeSleepHours={(sleepHours) =>
               setCheckinDraft((current) => ({ ...current, sleepHours }))
             }
-            onChangeSeverity={(bodyAreaCode, severity) =>
+            onChangePainIntensity={(bodyAreaCode, intensityScore) =>
               setCheckinDraft((current) => ({
                 ...current,
-                discomforts: {
-                  ...current.discomforts,
-                  [bodyAreaCode]: severity,
+                pains: {
+                  ...current.pains,
+                  [bodyAreaCode]: intensityScore,
                 },
               }))
             }
@@ -970,16 +1132,10 @@ function HomeScreenContent({
               }))
             }
             onClose={closeCheckin}
-            onClearAdverseReactions={() =>
+            onClearPains={() =>
               setCheckinDraft((current) => ({
                 ...current,
-                adverseReactionCodes: [],
-              }))
-            }
-            onClearDiscomforts={() =>
-              setCheckinDraft((current) => ({
-                ...current,
-                discomforts: {},
+                pains: {},
               }))
             }
             onSave={saveCheckin}
@@ -994,30 +1150,24 @@ function HomeScreenContent({
                 ),
               }))
             }
-            onToggleAdverseReaction={(code) =>
+            onSetRedFlag={(redFlagPresent) =>
               setCheckinDraft((current) => ({
                 ...current,
-                adverseReactionCodes: current.adverseReactionCodes.includes(
-                  code,
-                )
-                  ? current.adverseReactionCodes.filter(
-                      (entry) => entry !== code,
-                    )
-                  : [...current.adverseReactionCodes, code],
+                redFlagPresent,
               }))
             }
             onToggleBodyArea={(code) =>
               setCheckinDraft((current) => {
-                const discomforts = { ...current.discomforts };
-                if (discomforts[code] === undefined) {
-                  discomforts[code] = 'MILD';
+                const pains = { ...current.pains };
+                if (pains[code] === undefined) {
+                  pains[code] = 1;
                 } else {
-                  delete discomforts[code];
+                  delete pains[code];
                 }
-                return { ...current, discomforts };
+                return { ...current, pains };
               })
             }
-            pending={busy === 'decision-generation'}
+            pending={busy === 'decision-generation' || busy === 'regeneration'}
           />
         ) : null}
 
@@ -1045,25 +1195,6 @@ function HomeScreenContent({
               setTimePickerTarget(null);
             }}
             targetField={timePickerTarget.field}
-          />
-        ) : null}
-
-        {editOpen && apiMode ? (
-          <ApiEditRoutineSheet
-            items={displayedRoutineItems}
-            locationCodes={locationCodes}
-            onClose={closeEdit}
-            onSave={(edits) => {
-              onSubmitUserEdits?.(edits);
-              setEditOpen(false);
-            }}
-            pending={busy === 'revision'}
-            routine={routine}
-            selectedLocationCode={
-              planRevision?.selected_location_code ??
-              context?.location_code ??
-              null
-            }
           />
         ) : null}
 
@@ -1145,6 +1276,7 @@ function HomeScreenContent({
 
 function HomeHeader({
   currentDate,
+  disabled,
   hasUnreadNotification,
   onNotifications,
   onProfile,
@@ -1153,6 +1285,7 @@ function HomeHeader({
   userName,
 }: {
   currentDate: string;
+  disabled: boolean;
   hasUnreadNotification: boolean;
   onNotifications?: () => void;
   onProfile?: () => void;
@@ -1178,10 +1311,15 @@ function HomeHeader({
         <Pressable
           accessibilityLabel="알림 보기"
           accessibilityRole="button"
-          accessibilityState={{ disabled: onNotifications === undefined }}
-          disabled={onNotifications === undefined}
+          accessibilityState={{
+            disabled: disabled || onNotifications === undefined,
+          }}
+          disabled={disabled || onNotifications === undefined}
           onPress={onNotifications}
-          style={styles.notificationButton}
+          style={[
+            styles.notificationButton,
+            disabled && styles.disabledControl,
+          ]}
         >
           <NotificationIcon />
           <View
@@ -1195,8 +1333,10 @@ function HomeHeader({
         <Pressable
           accessibilityLabel="프로필 열기"
           accessibilityRole="button"
+          accessibilityState={{ disabled }}
+          disabled={disabled}
           onPress={onProfile}
-          style={styles.profileButton}
+          style={[styles.profileButton, disabled && styles.disabledControl]}
         >
           <ProfileAvatar
             accessibilityLabel={`${userName}님의 프로필 이미지`}
@@ -1276,6 +1416,7 @@ function randomizedWeeklyProgressMascots(): ImageSourcePropType[] {
 
 function WeeklyProgressCard({
   completed,
+  disabled,
   goal,
   onOpenCalendar,
   onToggleTip,
@@ -1285,6 +1426,7 @@ function WeeklyProgressCard({
   weekLabel,
 }: {
   completed: number;
+  disabled: boolean;
   goal: number;
   onOpenCalendar?: () => void;
   onToggleTip: () => void;
@@ -1305,9 +1447,11 @@ function WeeklyProgressCard({
           <Pressable
             accessibilityLabel="이번 주 운동 현황 설명 보기"
             accessibilityRole="button"
+            accessibilityState={{ disabled }}
+            disabled={disabled}
             hitSlop={14}
             onPress={onToggleTip}
-            style={styles.iconButton}
+            style={[styles.iconButton, disabled && styles.disabledControl]}
           >
             <InfoIcon />
           </Pressable>
@@ -1319,9 +1463,13 @@ function WeeklyProgressCard({
           <Pressable
             accessibilityLabel="월별·연별 기록 달력 보기"
             accessibilityRole="button"
+            accessibilityState={{
+              disabled: disabled || onOpenCalendar === undefined,
+            }}
+            disabled={disabled || onOpenCalendar === undefined}
             hitSlop={13}
             onPress={onOpenCalendar}
-            style={styles.iconButton}
+            style={[styles.iconButton, disabled && styles.disabledControl]}
           >
             <CalendarIcon />
           </Pressable>
@@ -1590,12 +1738,17 @@ const ROUTINE_NOTES = [
 
 function RoutineCard({
   actionCode,
+  completedItemIds,
+  currentPlanItemId,
+  editDisabled,
+  editing,
   editLabel,
   focus,
   items,
   minutes,
   notes = ROUTINE_NOTES,
   onEdit,
+  onChangePrescription,
   onMove,
   onOpenExerciseGuide,
   onOpenExerciseVariants,
@@ -1605,6 +1758,7 @@ function RoutineCard({
   onStart,
   painPart,
   pending,
+  phase,
   rerolling,
   rerolls,
   revisionNotice,
@@ -1613,12 +1767,20 @@ function RoutineCard({
   variantApi,
 }: {
   actionCode?: ActionCode;
+  completedItemIds: readonly string[];
+  currentPlanItemId: string | null;
+  editDisabled: boolean;
+  editing: boolean;
   editLabel: string;
   focus: string;
   items: readonly HomeRoutineItem[];
   minutes: string;
   notes?: readonly string[];
-  onEdit: () => void;
+  onEdit?: () => void;
+  onChangePrescription: (
+    id: string,
+    patch: Pick<Partial<HomeRoutineItem>, 'sets' | 'reps'>,
+  ) => void;
   onMove?: (from: number, to: number) => void;
   onOpenExerciseGuide?: (item: HomeRoutineItem) => void;
   onOpenExerciseVariants: (
@@ -1631,6 +1793,7 @@ function RoutineCard({
   onStart?: () => void;
   painPart: string | null;
   pending: boolean;
+  phase: TodayRoutinePhase;
   rerolling: boolean;
   rerolls: number;
   revisionNotice?: string;
@@ -1647,11 +1810,39 @@ function RoutineCard({
     actionCode === 'DOWNSHIFT' ||
     actionCode === 'CHANGE' ||
     actionCode === 'RECOVERY';
+  const locked =
+    phase === 'SESSION_ACTIVE' ||
+    phase === 'STOPPED_RESUMABLE' ||
+    phase === 'STOPPED_SAFETY' ||
+    phase === 'COMPLETED';
+  const interactionsDisabled = editing;
+  const primaryActionLabel =
+    phase === 'SESSION_ACTIVE' || phase === 'STOPPED_RESUMABLE'
+      ? '이어하기'
+      : '운동 시작하기';
+  const statusCopy =
+    phase === 'STOPPED_SAFETY'
+      ? '안전 관련 중단으로 오늘은 이어서 진행할 수 없어요. 진행 기록은 그대로 보관됩니다.'
+      : phase === 'COMPLETED'
+        ? '오늘 운동 기록이에요. 완료한 운동과 진행 상태를 확인할 수 있어요.'
+        : phase === 'SESSION_ACTIVE'
+          ? '진행 중인 운동이에요. 완료한 항목부터 이어서 진행할 수 있어요.'
+          : phase === 'STOPPED_RESUMABLE'
+            ? '잠시 멈춘 운동이에요. 완료한 항목부터 이어서 진행할 수 있어요.'
+            : null;
   return (
     <View style={styles.routineCard} testID="home-routine-state">
       <View style={styles.routineBadgeRow}>
         <View style={styles.routineBadge}>
-          <Text style={styles.routineBadgeText}>운동 준비 완료</Text>
+          <Text style={styles.routineBadgeText}>
+            {phase === 'STOPPED_SAFETY'
+              ? '안전 중단'
+              : phase === 'COMPLETED'
+                ? '운동 기록'
+                : locked
+                  ? '운동 진행 중'
+                  : '운동 준비 완료'}
+          </Text>
         </View>
         {routineActionLabel === null ? null : (
           <View
@@ -1675,6 +1866,11 @@ function RoutineCard({
       <Text style={styles.routineSummary}>
         {focus} · {minutes}분
       </Text>
+      {statusCopy ? (
+        <View style={styles.adjustmentNote}>
+          <Text style={styles.adjustmentText}>{statusCopy}</Text>
+        </View>
+      ) : null}
       <View style={styles.routineNotes}>
         {notes.map((note) => (
           <Text key={note} style={styles.routineNote}>
@@ -1685,10 +1881,22 @@ function RoutineCard({
       {onOpenReasons ? (
         <Pressable
           accessibilityRole="button"
+          accessibilityState={{ disabled: interactionsDisabled }}
+          disabled={interactionsDisabled}
           onPress={onOpenReasons}
-          style={styles.reasonLink}
+          style={[
+            styles.reasonLink,
+            interactionsDisabled && styles.disabledControl,
+          ]}
         >
-          <Text style={styles.reasonLinkText}>추천 이유 보기</Text>
+          <Text
+            style={[
+              styles.reasonLinkText,
+              interactionsDisabled && styles.disabledLabel,
+            ]}
+          >
+            추천 이유 보기
+          </Text>
         </Pressable>
       ) : null}
       <View style={styles.routineList}>
@@ -1698,6 +1906,8 @@ function RoutineCard({
           </Text>
         ) : null}
         {items.map((item, index) => {
+          const completed = completedItemIds.includes(item.id);
+          const current = currentPlanItemId === item.id && !completed;
           const { activeIndex, targetIndex } = drag;
           const active = activeIndex === index;
           const dropTarget =
@@ -1725,6 +1935,7 @@ function RoutineCard({
               <Animated.View
                 style={[
                   styles.routineRow,
+                  completed && styles.routineRowCompleted,
                   active && styles.dragInnerRoutineActive,
                   {
                     transform: [
@@ -1737,8 +1948,9 @@ function RoutineCard({
                   },
                 ]}
               >
-                {onMove ? (
+                {onMove && !completed && !editing ? (
                   <DragHandle
+                    disabled={interactionsDisabled}
                     index={index}
                     onEnd={drag.end}
                     onKeyboardMove={(direction) =>
@@ -1746,40 +1958,166 @@ function RoutineCard({
                     }
                     onMove={drag.move}
                     onStart={drag.start}
-                    style={styles.routineHandle}
+                    style={[
+                      styles.routineHandle,
+                      interactionsDisabled && styles.disabledControl,
+                    ]}
                     testID={`routine-drag-${item.id}`}
                   >
                     <RoutineDragIcon />
                   </DragHandle>
                 ) : null}
-                <Text style={styles.routineItemText}>
-                  {formatRoutineItem(item)}
-                </Text>
+                {editing ? (
+                  <View
+                    style={[
+                      styles.inlinePrescriptionRow,
+                      styles.inlinePrescriptionRowEditing,
+                    ]}
+                  >
+                    <Text
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.58}
+                      numberOfLines={1}
+                      style={[
+                        styles.inlineExerciseName,
+                        styles.inlineExerciseNameEditing,
+                      ]}
+                    >
+                      {item.name}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.inlinePrescriptionUnit,
+                        styles.inlinePrescriptionUnitEditing,
+                      ]}
+                    >
+                      ·
+                    </Text>
+                    <TextInput
+                      accessibilityLabel={`${item.name} 세트 수`}
+                      inputMode="numeric"
+                      onChangeText={(sets) =>
+                        onChangePrescription(item.id, {
+                          sets: digitsOnly(sets),
+                        })
+                      }
+                      style={[
+                        styles.inlinePrescriptionInput,
+                        styles.inlinePrescriptionInputEditing,
+                      ]}
+                      value={item.sets ?? ''}
+                    />
+                    <Text
+                      style={[
+                        styles.inlinePrescriptionUnit,
+                        styles.inlinePrescriptionUnitEditing,
+                      ]}
+                    >
+                      세트
+                    </Text>
+                    <Text
+                      style={[
+                        styles.inlinePrescriptionUnit,
+                        styles.inlinePrescriptionUnitEditing,
+                      ]}
+                    >
+                      ×
+                    </Text>
+                    <TextInput
+                      accessibilityLabel={`${item.name} 반복 횟수`}
+                      inputMode="numeric"
+                      onChangeText={(reps) =>
+                        onChangePrescription(item.id, {
+                          reps: digitsOnly(reps),
+                        })
+                      }
+                      placeholder={item.workSeconds ? '시간' : '0'}
+                      placeholderTextColor="#B8AA9E"
+                      style={[
+                        styles.inlinePrescriptionInput,
+                        styles.inlinePrescriptionInputEditing,
+                      ]}
+                      value={item.reps ?? ''}
+                    />
+                    <Text
+                      style={[
+                        styles.inlinePrescriptionUnit,
+                        styles.inlinePrescriptionUnitEditing,
+                      ]}
+                    >
+                      회
+                    </Text>
+                  </View>
+                ) : (
+                  <Text
+                    accessibilityLabel={
+                      completed
+                        ? `완료: ${formatRoutineItem(item)}`
+                        : current
+                          ? `다음 운동: ${formatRoutineItem(item)}`
+                          : undefined
+                    }
+                    style={[
+                      styles.routineItemText,
+                      completed && styles.routineItemCompleted,
+                    ]}
+                  >
+                    {completed ? '✓ ' : ''}
+                    {formatRoutineItem(item)}
+                  </Text>
+                )}
                 {item.exerciseId &&
                 (onOpenExerciseGuide || variantApi?.getExerciseVariants) ? (
                   <View
-                    style={styles.routineGuideActions}
+                    style={[
+                      styles.routineGuideActions,
+                      interactionsDisabled && styles.routineGuideActionsEditing,
+                    ]}
                     testID={`routine-guide-actions-${item.id}`}
                   >
                     <View
-                      style={styles.routineGuideSlot}
+                      style={[
+                        styles.routineGuideSlot,
+                        interactionsDisabled && styles.routineGuideSlotEditing,
+                      ]}
                       testID={`routine-posture-slot-${item.id}`}
                     >
                       {onOpenExerciseGuide ? (
                         <Pressable
                           accessibilityLabel={`${item.name} 자세 보기`}
                           accessibilityRole="button"
+                          accessibilityState={{
+                            disabled: interactionsDisabled,
+                          }}
+                          disabled={interactionsDisabled}
                           onPress={() => onOpenExerciseGuide(item)}
-                          style={styles.routineGuideButton}
+                          style={[
+                            styles.routineGuideButton,
+                            interactionsDisabled &&
+                              styles.routineGuideButtonEditing,
+                            interactionsDisabled &&
+                              styles.routineGuideButtonDisabled,
+                          ]}
                         >
-                          <Text style={styles.routineGuideButtonText}>
+                          <Text
+                            style={[
+                              styles.routineGuideButtonText,
+                              interactionsDisabled &&
+                                styles.routineGuideButtonTextEditing,
+                              interactionsDisabled && styles.disabledLabel,
+                            ]}
+                            numberOfLines={1}
+                          >
                             자세 보기
                           </Text>
                         </Pressable>
                       ) : null}
                     </View>
                     <View
-                      style={styles.routineGuideSlot}
+                      style={[
+                        styles.routineGuideSlot,
+                        interactionsDisabled && styles.routineGuideSlotEditing,
+                      ]}
                       testID={`routine-equipment-slot-${item.id}`}
                     >
                       {variantApi ? (
@@ -1787,9 +2125,19 @@ function RoutineCard({
                           actionStyle={[
                             styles.routineGuideButton,
                             styles.routineEquipmentButton,
+                            interactionsDisabled &&
+                              styles.routineGuideButtonEditing,
+                            interactionsDisabled &&
+                              styles.routineGuideButtonDisabled,
                           ]}
-                          actionTextStyle={styles.routineEquipmentButtonText}
+                          actionTextStyle={[
+                            styles.routineEquipmentButtonText,
+                            interactionsDisabled &&
+                              styles.routineGuideButtonTextEditing,
+                            interactionsDisabled && styles.disabledLabel,
+                          ]}
                           api={variantApi}
+                          disabled={interactionsDisabled}
                           exerciseId={item.exerciseId}
                           exerciseName={item.name}
                           onOpen={(response) =>
@@ -1826,78 +2174,124 @@ function RoutineCard({
         </Text>
       ) : null}
 
-      <Pressable
-        accessibilityLabel="운동 시작하기"
-        accessibilityRole="button"
-        accessibilityState={{ disabled: pending || !onStart }}
-        disabled={pending || !onStart}
-        onPress={onStart}
-        style={[
-          styles.startButton,
-          (pending || !onStart) && styles.startButtonDisabled,
-        ]}
-      >
-        <LinearGradient
-          colors={
-            pending || !onStart
-              ? ['#F3ECE4', '#F3ECE4']
-              : ['#FFFDF8', '#FFF2D1', '#FFE2A3']
-          }
-          end={{ x: 0.5, y: 1 }}
-          locations={pending || !onStart ? [0, 1] : [0, 0.55, 1]}
-          pointerEvents="none"
-          start={{ x: 0.5, y: 0 }}
-          style={styles.startButtonGradient}
-          testID="home-start-gradient"
-        />
-        <Text style={styles.startLabel}>운동 시작하기</Text>
-      </Pressable>
-      <View style={styles.routineActions}>
+      {phase === 'STOPPED_SAFETY' || phase === 'COMPLETED' ? null : (
         <Pressable
-          accessibilityLabel={editLabel}
+          accessibilityLabel={primaryActionLabel}
           accessibilityRole="button"
-          onPress={onEdit}
-          style={styles.routineAction}
+          accessibilityState={{
+            disabled: interactionsDisabled || pending || !onStart,
+          }}
+          disabled={interactionsDisabled || pending || !onStart}
+          onPress={onStart}
+          style={[
+            styles.startButton,
+            (interactionsDisabled || pending || !onStart) &&
+              styles.startButtonDisabled,
+          ]}
         >
-          <EditIcon />
-          <Text style={styles.editActionLabel}>{editLabel}</Text>
-        </Pressable>
-        {onRequestAlternative ? (
-          <Pressable
-            accessibilityLabel="다른 루틴 추천 받기"
-            accessibilityRole="button"
-            accessibilityState={{
-              disabled: pending || rerolling || rerolls >= 2,
-            }}
-            disabled={pending || rerolling || rerolls >= 2}
-            onPress={onRequestAlternative}
+          <LinearGradient
+            colors={
+              interactionsDisabled || pending || !onStart
+                ? ['#E7E5E2', '#E7E5E2']
+                : ['#FFFDF8', '#FFF2D1', '#FFE2A3']
+            }
+            end={{ x: 0.5, y: 1 }}
+            locations={
+              interactionsDisabled || pending || !onStart
+                ? [0, 1]
+                : [0, 0.55, 1]
+            }
+            pointerEvents="none"
+            start={{ x: 0.5, y: 0 }}
+            style={styles.startButtonGradient}
+            testID="home-start-gradient"
+          />
+          <Text
             style={[
-              styles.routineAction,
-              rerolls >= 2 && styles.routineActionDisabled,
+              styles.startLabel,
+              interactionsDisabled && styles.startLabelDisabled,
             ]}
           >
-            <RerollIcon color={rerolls >= 2 ? '#B0ACA4' : '#A45F00'} />
-            <Text
-              numberOfLines={1}
+            {primaryActionLabel}
+          </Text>
+        </Pressable>
+      )}
+      {locked ? null : (
+        <View style={styles.routineActions}>
+          {onEdit ? (
+            <Pressable
+              accessibilityLabel={editLabel}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: editDisabled }}
+              disabled={editDisabled}
+              onPress={onEdit}
               style={[
-                styles.rerollActionLabel,
-                rerolls >= 2 && styles.rerollActionLabelDisabled,
+                styles.routineAction,
+                editDisabled && styles.routineActionDisabled,
               ]}
             >
-              {rerollLabel}
-            </Text>
-          </Pressable>
-        ) : null}
-      </View>
-      {onRest ? (
+              <EditIcon />
+              <Text style={styles.editActionLabel}>{editLabel}</Text>
+            </Pressable>
+          ) : null}
+          {onRequestAlternative ? (
+            <Pressable
+              accessibilityLabel="다른 루틴 추천 받기"
+              accessibilityRole="button"
+              accessibilityState={{
+                disabled:
+                  interactionsDisabled || pending || rerolling || rerolls >= 2,
+              }}
+              disabled={
+                interactionsDisabled || pending || rerolling || rerolls >= 2
+              }
+              onPress={onRequestAlternative}
+              style={[
+                styles.routineAction,
+                (interactionsDisabled || rerolls >= 2) &&
+                  styles.routineActionDisabled,
+                interactionsDisabled && styles.disabledAction,
+              ]}
+            >
+              <RerollIcon
+                color={
+                  interactionsDisabled || rerolls >= 2 ? '#A8A49E' : '#A45F00'
+                }
+              />
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.rerollActionLabel,
+                  (interactionsDisabled || rerolls >= 2) &&
+                    styles.rerollActionLabelDisabled,
+                ]}
+              >
+                {rerollLabel}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+      )}
+      {!locked && onRest ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityState={{ disabled: pending }}
-          disabled={pending}
+          accessibilityState={{ disabled: interactionsDisabled || pending }}
+          disabled={interactionsDisabled || pending}
           onPress={onRest}
-          style={[styles.routineAction, styles.restAction]}
+          style={[
+            styles.routineAction,
+            styles.restAction,
+            interactionsDisabled && styles.disabledAction,
+          ]}
         >
-          <Text style={styles.restActionLabel}>오늘은 쉬기</Text>
+          <Text
+            style={[
+              styles.restActionLabel,
+              interactionsDisabled && styles.disabledLabel,
+            ]}
+          >
+            오늘은 쉬기
+          </Text>
         </Pressable>
       ) : null}
     </View>
@@ -2146,16 +2540,15 @@ function CheckinSheet({
   onAddAvailabilitySlot,
   onChangeFatigue,
   onChangeLocation,
-  onChangeSeverity,
+  onChangePainIntensity,
   onChangeSleepHours,
   onChangeWorkoutMinutes,
-  onClearAdverseReactions,
-  onClearDiscomforts,
+  onClearPains,
   onClose,
   onOpenTimePicker,
   onSave,
   onRemoveAvailabilitySlot,
-  onToggleAdverseReaction,
+  onSetRedFlag,
   onToggleBodyArea,
   locationCodes,
   pending,
@@ -2164,32 +2557,25 @@ function CheckinSheet({
   onAddAvailabilitySlot: () => void;
   onChangeFatigue: (value: string) => void;
   onChangeLocation: (code: string) => void;
-  onChangeSeverity: (
-    bodyAreaCode: string,
-    severity: DiscomfortSeverityCode,
-  ) => void;
+  onChangePainIntensity: (bodyAreaCode: string, intensityScore: number) => void;
   onChangeSleepHours: (value: string) => void;
   onChangeWorkoutMinutes: (value: string) => void;
-  onClearAdverseReactions: () => void;
-  onClearDiscomforts: () => void;
+  onClearPains: () => void;
   onClose: () => void;
   onOpenTimePicker: (index: number, field: keyof HomeAvailabilitySlot) => void;
   onSave: () => void;
   onRemoveAvailabilitySlot: (index: number) => void;
-  onToggleAdverseReaction: (code: string) => void;
+  onSetRedFlag: (present: boolean) => void;
   onToggleBodyArea: (code: string) => void;
   locationCodes: readonly string[];
   pending: boolean;
 }) {
   const styles = useHomeStyles();
   const { s } = useScale();
-  const [showAdverseDetails, setShowAdverseDetails] = useState(
-    draft.adverseReactionCodes.length > 0,
-  );
   const [showDiscomfortDetails, setShowDiscomfortDetails] = useState(
-    Object.keys(draft.discomforts).length > 0,
+    Object.keys(draft.pains).length > 0,
   );
-  const selectedDiscomfortCodes = Object.keys(draft.discomforts);
+  const selectedDiscomfortCodes = Object.keys(draft.pains);
   const [showExtendedAreas, setShowExtendedAreas] = useState(() =>
     selectedDiscomfortCodes.some((code) =>
       EXTENDED_BODY_AREA_OPTIONS.some((option) => option.code === code),
@@ -2209,10 +2595,12 @@ function CheckinSheet({
     (!Number.isFinite(Number(sleepHours)) ||
       Number(sleepHours) < 0 ||
       Number(sleepHours) > 24);
+  const durationMissing = draft.workoutMinutes === '';
   const durationInvalid =
-    !/^\d+$/.test(draft.workoutMinutes) ||
-    Number(draft.workoutMinutes) < CHECKIN_DURATION_MINUTES.min ||
-    Number(draft.workoutMinutes) > CHECKIN_DURATION_MINUTES.max;
+    !durationMissing &&
+    (!/^\d+$/.test(draft.workoutMinutes) ||
+      Number(draft.workoutMinutes) < CHECKIN_DURATION_MINUTES.min ||
+      Number(draft.workoutMinutes) > CHECKIN_DURATION_MINUTES.max);
   const durationMinutes = Number(draft.workoutMinutes);
   const canDecreaseDuration =
     !pending &&
@@ -2220,8 +2608,8 @@ function CheckinSheet({
     durationMinutes > CHECKIN_DURATION_MINUTES.min;
   const canIncreaseDuration =
     !pending &&
-    !durationInvalid &&
-    durationMinutes < CHECKIN_DURATION_MINUTES.max;
+    (durationMissing ||
+      (!durationInvalid && durationMinutes < CHECKIN_DURATION_MINUTES.max));
   const availabilityError = CHECKIN_AVAILABILITY_INPUT_ENABLED
     ? validateAvailabilitySlots(draft.availableSlots)
     : null;
@@ -2229,17 +2617,17 @@ function CheckinSheet({
     draft.availableSlots && draft.availableSlots.length > 0
       ? draft.availableSlots
       : [EMPTY_AVAILABILITY_SLOT];
-  const adverseSelectionMissing =
-    showAdverseDetails && draft.adverseReactionCodes.length === 0;
   const discomfortSelectionMissing =
-    showDiscomfortDetails && Object.keys(draft.discomforts).length === 0;
+    showDiscomfortDetails && Object.keys(draft.pains).length === 0;
+  const redFlagSelectionMissing = draft.redFlagPresent === null;
   const saveDisabled =
     pending ||
     sleepInvalid ||
+    durationMissing ||
     durationInvalid ||
     availabilityError !== null ||
-    adverseSelectionMissing ||
-    discomfortSelectionMissing;
+    discomfortSelectionMissing ||
+    redFlagSelectionMissing;
   return (
     <SheetFrame onClose={onClose} title="오늘 컨디션 체크" zIndex={20}>
       <Text style={styles.sheetIntro}>
@@ -2285,11 +2673,15 @@ function CheckinSheet({
               <Text style={styles.durationStepButtonText}>−</Text>
             </Pressable>
             <Text
-              accessibilityLabel={`원하는 운동 시간 ${draft.workoutMinutes}분`}
+              accessibilityLabel={
+                durationMissing
+                  ? '원하는 운동 시간 미선택'
+                  : `원하는 운동 시간 ${draft.workoutMinutes}분`
+              }
               accessibilityLiveRegion="polite"
               style={styles.durationStepValue}
             >
-              {draft.workoutMinutes}분
+              {durationMissing ? '선택' : `${draft.workoutMinutes}분`}
             </Text>
             <Pressable
               accessibilityLabel="운동 시간 10분 늘리기"
@@ -2299,10 +2691,12 @@ function CheckinSheet({
               onPress={() =>
                 onChangeWorkoutMinutes(
                   String(
-                    Math.min(
-                      CHECKIN_DURATION_MINUTES.max,
-                      durationMinutes + CHECKIN_DURATION_MINUTES.step,
-                    ),
+                    durationMissing
+                      ? CHECKIN_DURATION_MINUTES.min
+                      : Math.min(
+                          CHECKIN_DURATION_MINUTES.max,
+                          durationMinutes + CHECKIN_DURATION_MINUTES.step,
+                        ),
                   ),
                 )
               }
@@ -2315,6 +2709,11 @@ function CheckinSheet({
             </Pressable>
           </View>
         </View>
+        {durationMissing ? (
+          <Text accessibilityRole="alert" style={styles.messageText}>
+            오늘 가능한 운동 시간을 10~60분 중에서 선택해주세요.
+          </Text>
+        ) : null}
         {CHECKIN_AVAILABILITY_INPUT_ENABLED ? (
           <>
             <View style={styles.availabilitySection}>
@@ -2434,7 +2833,7 @@ function CheckinSheet({
             label="없어요"
             onPress={() => {
               setShowDiscomfortDetails(false);
-              onClearDiscomforts();
+              onClearPains();
             }}
             selected={!showDiscomfortDetails}
           />
@@ -2457,7 +2856,7 @@ function CheckinSheet({
                   label={option.label}
                   numberOfLines={2}
                   onPress={() => onToggleBodyArea(option.code)}
-                  selected={draft.discomforts[option.code] !== undefined}
+                  selected={draft.pains[option.code] !== undefined}
                   twoColumn
                 />
               ))}
@@ -2468,7 +2867,7 @@ function CheckinSheet({
                       label={option.label}
                       numberOfLines={2}
                       onPress={() => onToggleBodyArea(option.code)}
-                      selected={draft.discomforts[option.code] !== undefined}
+                      selected={draft.pains[option.code] !== undefined}
                       twoColumn
                     />
                   ))
@@ -2536,60 +2935,46 @@ function CheckinSheet({
           </Text>
         ) : null}
         {selectedDiscomfortCodes.map((code) => (
-          <ChoiceBlock key={code} label={`${bodyAreaLabel(code)} 통증 정도`}>
-            {CHECKIN_SEVERITY_OPTIONS.map((option) => (
-              <ChoiceButton
-                accessibilityLabel={`${bodyAreaLabel(code)} ${option.label}`}
-                key={option.code}
-                label={option.label}
-                onPress={() => onChangeSeverity(code, option.code)}
-                selected={draft.discomforts[code] === option.code}
-              />
-            ))}
-          </ChoiceBlock>
+          <View
+            key={code}
+            style={styles.painSliderCard}
+            testID={`checkin-pain-slider-card-${bodyAreaLabel(code)}`}
+          >
+            <PainIntensitySlider
+              bodyArea={bodyAreaLabel(code)}
+              compact
+              disabled={pending}
+              onChange={(value) => onChangePainIntensity(code, value)}
+              testIDPrefix="checkin"
+              value={draft.pains[code] ?? 1}
+            />
+          </View>
         ))}
-        <ChoiceBlock label="운동 중 주의해야 할 증상이 있나요?">
+        <View style={styles.redFlagSection}>
+          <Text style={styles.redFlagTitle}>오늘 위험 신호가 있나요?</Text>
+          <Text style={styles.redFlagBody}>
+            오늘 가슴 통증이나 압박감, 평소와 다른 심한 숨참, 심한 어지럼 또는
+            실신할 것 같은 느낌, 심장이 매우 빠르거나 불규칙하게 뛰는 느낌 같은
+            증상이 있나요?
+          </Text>
+        </View>
+        <ChoiceBlock label="위 증상이 있나요?">
           <ChoiceButton
-            accessibilityLabel="주의 증상 없어요"
+            accessibilityLabel="위험 신호 없어요"
             label="없어요"
-            onPress={() => {
-              setShowAdverseDetails(false);
-              onClearAdverseReactions();
-            }}
-            selected={
-              !showAdverseDetails && draft.adverseReactionCodes.length === 0
-            }
+            onPress={() => onSetRedFlag(false)}
+            selected={draft.redFlagPresent === false}
           />
           <ChoiceButton
-            accessibilityLabel="주의 증상 있어요"
+            accessibilityLabel="위험 신호 있어요"
             label="있어요"
-            onPress={() => setShowAdverseDetails(true)}
-            selected={showAdverseDetails}
+            onPress={() => onSetRedFlag(true)}
+            selected={draft.redFlagPresent === true}
           />
         </ChoiceBlock>
-        {showAdverseDetails ? (
-          <View style={styles.adverseSection}>
-            <Text style={styles.adverseTitle}>
-              해당하는 증상을 모두 선택해주세요.
-            </Text>
-            <Text style={styles.adverseBody}>
-              안전을 위해 오늘 운동 가능 여부를 확인하는 데 활용해요.
-            </Text>
-            <View style={styles.adverseChoiceList}>
-              {ADVERSE_REACTION_OPTIONS.map((option) => (
-                <AdverseReactionButton
-                  key={option.code}
-                  label={option.label}
-                  onPress={() => onToggleAdverseReaction(option.code)}
-                  selected={draft.adverseReactionCodes.includes(option.code)}
-                />
-              ))}
-            </View>
-          </View>
-        ) : null}
-        {adverseSelectionMissing ? (
+        {redFlagSelectionMissing ? (
           <Text accessibilityRole="alert" style={styles.messageText}>
-            해당하는 이상 반응을 하나 이상 선택해주세요.
+            위험 신호 여부를 선택해주세요.
           </Text>
         ) : null}
         <Pressable
@@ -3012,134 +3397,6 @@ function ChoiceButton({
   );
 }
 
-function AdverseReactionButton({
-  label,
-  onPress,
-  selected,
-}: {
-  label: string;
-  onPress: () => void;
-  selected: boolean;
-}) {
-  const styles = useHomeStyles();
-  return (
-    <Pressable
-      accessibilityLabel={label}
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      onPress={onPress}
-      style={[
-        styles.adverseChoiceButton,
-        selected && styles.adverseChoiceButtonSelected,
-      ]}
-    >
-      <Text
-        style={[
-          styles.adverseChoiceText,
-          selected && styles.adverseChoiceTextSelected,
-        ]}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
-function ApiEditRoutineSheet({
-  items,
-  locationCodes,
-  onClose,
-  onSave,
-  pending,
-  routine,
-  selectedLocationCode,
-}: {
-  items: readonly HomeRoutineItem[];
-  locationCodes: readonly string[];
-  onClose: () => void;
-  onSave: (edits: HomeUserEdits) => void;
-  pending: boolean;
-  routine: RoutineResponse | null;
-  selectedLocationCode: string | null;
-}) {
-  const styles = useHomeStyles();
-  const [locationCode, setLocationCode] = useState<string | null>(
-    selectedLocationCode ?? locationCodes[0] ?? null,
-  );
-  const canSave = routine !== null && locationCode !== null && !pending;
-  return (
-    <SheetFrame onClose={onClose} title="운동 장소 변경" zIndex={22}>
-      <Text style={styles.sheetIntro}>
-        운동할 장소를 고르면 서버가 시간·장소·안전 기준을 다시 확인해 계획을
-        수정해요.
-      </Text>
-      <ScrollView
-        contentContainerStyle={styles.editScrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <ChoiceBlock label="운동 장소">
-          {locationCodes.map((code) => (
-            <ChoiceButton
-              key={code}
-              label={locationLabel(code)}
-              onPress={() => setLocationCode(code)}
-              selected={locationCode === code}
-            />
-          ))}
-        </ChoiceBlock>
-        {locationCodes.length === 0 ? (
-          <Text style={styles.messageText}>
-            프로필에 저장된 운동 장소가 없어요.
-          </Text>
-        ) : null}
-        <View style={styles.editList}>
-          <Text style={styles.checkinSectionTitle}>
-            현재 계획 {routine === null ? '' : `v${routine.version}`}
-          </Text>
-          {items.map((item) => (
-            <View key={item.id} style={styles.routineRow}>
-              <Text style={styles.routineItemText}>
-                {formatRoutineItem(item)}
-              </Text>
-            </View>
-          ))}
-          <Text style={styles.messageText}>
-            운동 구성과 순서는 안전 기준에 따라 서버가 결정해요. 장소를 바꾸면
-            가능한 구성으로 다시 확인합니다.
-          </Text>
-        </View>
-        <View style={styles.editActions}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={onClose}
-            style={styles.resetButton}
-          >
-            <Text style={styles.resetLabel}>닫기</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !canSave }}
-            disabled={!canSave}
-            onPress={() =>
-              routine !== null && locationCode !== null
-                ? onSave({ routineId: routine.id, locationCode })
-                : undefined
-            }
-            style={[
-              styles.editSaveButton,
-              !canSave && styles.routineActionDisabled,
-            ]}
-          >
-            <Text style={styles.sheetSaveLabel}>
-              {pending ? '저장 중…' : '저장하기'}
-            </Text>
-          </Pressable>
-        </View>
-      </ScrollView>
-    </SheetFrame>
-  );
-}
-
 function EditRoutineSheet({
   items,
   newItem,
@@ -3226,6 +3483,7 @@ function EditRoutineSheet({
                   ]}
                 >
                   <DragHandle
+                    disabled={false}
                     index={index}
                     onEnd={drag.end}
                     onKeyboardMove={(direction) =>
@@ -3371,6 +3629,7 @@ function EditRoutineSheet({
 
 function DragHandle({
   children,
+  disabled,
   index,
   onEnd,
   onKeyboardMove,
@@ -3380,6 +3639,7 @@ function DragHandle({
   testID,
 }: {
   children: React.ReactNode;
+  disabled: boolean;
   index: number;
   onEnd: () => void;
   onKeyboardMove: (direction: -1 | 1) => void;
@@ -3391,16 +3651,16 @@ function DragHandle({
   const responder = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onStartShouldSetPanResponderCapture: () => true,
+        onStartShouldSetPanResponder: () => !disabled,
+        onStartShouldSetPanResponderCapture: () => !disabled,
         onMoveShouldSetPanResponder: (
           _event: GestureResponderEvent,
           gesture: PanResponderGestureState,
-        ) => Math.abs(gesture.dy) > 2,
+        ) => !disabled && Math.abs(gesture.dy) > 2,
         onMoveShouldSetPanResponderCapture: (
           _event: GestureResponderEvent,
           gesture: PanResponderGestureState,
-        ) => Math.abs(gesture.dy) > 2,
+        ) => !disabled && Math.abs(gesture.dy) > 2,
         onPanResponderGrant: () => onStart(index),
         onPanResponderMove: (
           _event: GestureResponderEvent,
@@ -3411,7 +3671,7 @@ function DragHandle({
         onPanResponderTerminationRequest: () => false,
         onShouldBlockNativeResponder: () => true,
       }),
-    [index, onEnd, onMove, onStart],
+    [disabled, index, onEnd, onMove, onStart],
   );
   return (
     <View
@@ -3423,7 +3683,11 @@ function DragHandle({
       ]}
       accessibilityLabel="순서 변경 핸들"
       accessibilityRole="adjustable"
+      accessibilityState={{ disabled }}
       onAccessibilityAction={(event) => {
+        if (disabled) {
+          return;
+        }
         if (event.nativeEvent.actionName === 'increment') {
           onKeyboardMove(1);
         }
@@ -3935,6 +4199,16 @@ function createHomeStyles(
       ...shadow(4, 12, 0.18),
     },
     profileAvatar: { width: '100%', height: '100%' },
+    disabledControl: {
+      opacity: 0.42,
+    },
+    disabledAction: {
+      borderColor: '#D8D5D1',
+      backgroundColor: '#F2F1EF',
+    },
+    disabledLabel: {
+      color: '#98948E',
+    },
     summaryCard: {
       marginBottom: s(14),
       borderRadius: s(22),
@@ -4264,16 +4538,73 @@ function createHomeStyles(
       fontWeight: '700',
       lineHeight: f(19.575),
     },
+    routineItemCompleted: {
+      color: '#AAA49D',
+    },
+    routineRowCompleted: {
+      backgroundColor: '#F4F2EF',
+      opacity: 0.68,
+    },
+    inlinePrescriptionRow: {
+      minWidth: 0,
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: s(5),
+    },
+    inlinePrescriptionRowEditing: {
+      gap: s(2),
+    },
+    inlineExerciseName: {
+      minWidth: 0,
+      flex: 1,
+      color: '#5A4636',
+      fontSize: f(13),
+      fontWeight: '700',
+    },
+    inlineExerciseNameEditing: {
+      minWidth: s(50),
+    },
+    inlinePrescriptionInput: {
+      width: s(34),
+      borderWidth: s(1),
+      borderColor: '#E0A742',
+      borderRadius: s(9),
+      backgroundColor: '#FFFDF8',
+      color: '#5A4636',
+      fontSize: f(13),
+      fontWeight: '700',
+      paddingHorizontal: s(2),
+      paddingVertical: s(7),
+      textAlign: 'center',
+    },
+    inlinePrescriptionInputEditing: {
+      width: s(28),
+    },
+    inlinePrescriptionUnit: {
+      color: '#8B8178',
+      fontSize: f(11),
+      fontWeight: '700',
+    },
+    inlinePrescriptionUnitEditing: {
+      fontSize: f(9.5),
+    },
     routineGuideActions: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: s(4),
+    },
+    routineGuideActionsEditing: {
+      gap: s(2),
     },
     routineGuideSlot: {
       width: s(64),
       height: s(32),
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    routineGuideSlotEditing: {
+      width: s(44),
     },
     routineGuideButton: {
       width: s(64),
@@ -4292,6 +4623,16 @@ function createHomeStyles(
       color: '#5F7048',
       fontSize: f(11.5),
       fontWeight: '700',
+    },
+    routineGuideButtonDisabled: {
+      borderColor: '#D8D5D1',
+      backgroundColor: '#F2F1EF',
+    },
+    routineGuideButtonEditing: {
+      width: s(44),
+    },
+    routineGuideButtonTextEditing: {
+      fontSize: f(9.5),
     },
     routineEquipmentButton: {
       borderColor: '#9CC5DF',
@@ -4349,6 +4690,9 @@ function createHomeStyles(
       fontWeight: '800',
       letterSpacing: s(-0.1),
       textAlign: 'center',
+    },
+    startLabelDisabled: {
+      color: '#9C9892',
     },
     routineActions: {
       flexDirection: 'row',
@@ -4531,47 +4875,32 @@ function createHomeStyles(
     extendedAreaToggleCaretUp: {
       transform: [{ rotate: '180deg' }],
     },
-    adverseSection: {
-      gap: s(8),
+    painSliderCard: {
+      borderWidth: s(1),
+      borderColor: '#E8C3B8',
+      borderRadius: s(14),
+      backgroundColor: '#FFFDFC',
+      paddingVertical: s(12),
+      paddingHorizontal: s(14),
+    },
+    redFlagSection: {
+      gap: s(7),
       borderWidth: s(1),
       borderColor: '#E8C3B8',
       borderRadius: s(14),
       backgroundColor: '#FBECE8',
       padding: s(16),
     },
-    adverseTitle: {
+    redFlagTitle: {
       color: '#B04A2C',
       fontSize: f(15),
       fontWeight: '700',
     },
-    adverseBody: {
+    redFlagBody: {
       color: '#B04A2C',
       fontSize: f(13),
       lineHeight: f(19),
     },
-    adverseChoiceList: { gap: s(7), marginTop: s(2) },
-    adverseChoiceButton: {
-      minHeight: s(44),
-      alignItems: 'flex-start',
-      justifyContent: 'center',
-      borderWidth: s(1.5),
-      borderColor: '#E8C3B8',
-      borderRadius: s(12),
-      backgroundColor: '#FFFDFC',
-      paddingVertical: s(10),
-      paddingHorizontal: s(12),
-    },
-    adverseChoiceButtonSelected: {
-      borderColor: '#C2402F',
-      backgroundColor: '#C2402F',
-    },
-    adverseChoiceText: {
-      color: '#B04A2C',
-      fontSize: f(13),
-      fontWeight: '700',
-      lineHeight: f(19),
-    },
-    adverseChoiceTextSelected: { color: '#FFFFFF' },
     numberRow: {
       flexDirection: 'row',
       alignItems: 'center',

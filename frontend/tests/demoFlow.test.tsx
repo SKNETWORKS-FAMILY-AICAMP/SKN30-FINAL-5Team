@@ -150,15 +150,40 @@ function dailyContext(): DailyContextResponse {
     local_date: '2026-08-17',
     context_version: 1,
     fatigue_level_code: 'MODERATE',
-    requested_duration_minutes: 30,
-    duration_adjustment_source_code: 'PROFILE',
+    available_time_minutes: 30,
     location_code: 'HOME',
     sleep_minutes: 420,
-    discomforts: [],
-    adverse_reaction_codes: [],
+    sleep_source_code: 'MANUAL',
+    pain_present: false,
+    red_flag_present: false,
+    pains: [],
     created_at: '2026-08-17T00:00:00+09:00',
     updated_at: '2026-08-17T00:00:00+09:00',
   };
+}
+
+function submitRequiredCheckin(): void {
+  if (screen.queryByLabelText('원하는 운동 시간 미선택')) {
+    for (let count = 0; count < 3; count += 1) {
+      fireEvent.press(
+        screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
+      );
+    }
+  }
+  const noRedFlag = screen.queryByRole('button', {
+    name: '위험 신호 없어요',
+  });
+  const yesRedFlag = screen.queryByRole('button', {
+    name: '위험 신호 있어요',
+  });
+  if (
+    noRedFlag &&
+    !noRedFlag.props.accessibilityState?.selected &&
+    !yesRedFlag?.props.accessibilityState?.selected
+  ) {
+    fireEvent.press(noRedFlag);
+  }
+  fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
 }
 
 function week(): WeekResponse {
@@ -638,15 +663,17 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     await waitFor(() => expect(createDecision).toHaveBeenCalled());
     expect(replaceDailyContext).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
         fatigue_level_code: 'MODERATE',
-        discomforts: [],
-        adverse_reaction_codes: [],
+        available_time_minutes: 30,
+        pain_present: false,
+        pains: [],
+        red_flag_present: false,
       }),
       undefined,
     );
@@ -692,7 +719,7 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     await waitFor(() =>
       expect(onDecisionChange).toHaveBeenCalledWith(recovered),
@@ -740,7 +767,7 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     const retry = await screen.findByRole('button', {
       name: '루틴 생성 다시 시도',
@@ -782,9 +809,10 @@ describe('HomeContainer', () => {
     );
 
     fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+      await screen.findByRole('button', { name: '다른 루틴 추천 받기' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: /체크인\s*!/ }));
+    fireEvent.press(screen.getByRole('button', { name: '피곤해요' }));
+    submitRequiredCheckin();
 
     await waitFor(() =>
       expect(onDecisionChange).toHaveBeenCalledWith(recovered),
@@ -828,9 +856,10 @@ describe('HomeContainer', () => {
     );
 
     fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+      await screen.findByRole('button', { name: '다른 루틴 추천 받기' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    fireEvent.press(screen.getByRole('button', { name: '피곤해요' }));
+    submitRequiredCheckin();
 
     const retry = await screen.findByRole('button', {
       name: '루틴 생성 다시 시도',
@@ -871,9 +900,10 @@ describe('HomeContainer', () => {
     );
 
     fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+      await screen.findByRole('button', { name: '다른 루틴 추천 받기' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    fireEvent.press(screen.getByRole('button', { name: '피곤해요' }));
+    submitRequiredCheckin();
 
     expect(
       await screen.findByText('추가 입력이 필요합니다.'),
@@ -905,7 +935,7 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     await waitFor(() => expect(createDecision).toHaveBeenCalled());
     expect(screen.getByTestId('routine-generation-loading')).toBeOnTheScreen();
@@ -960,7 +990,7 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     await waitFor(() => expect(onDecisionChange).toHaveBeenCalledWith(stopped));
     expect(screen.queryByTestId('routine-generation-loading')).toBeNull();
@@ -978,22 +1008,21 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     await waitFor(() => expect(replaceDailyContext).toHaveBeenCalled());
     expect(replaceDailyContext).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ sleep_minutes: null, available_slots: null }),
+      expect.objectContaining({
+        sleep_minutes: null,
+        sleep_source_code: null,
+      }),
       undefined,
     );
   });
 
-  it('preserves stored optional check-in codes that have no approved UI choices', async () => {
-    const storedContext = {
-      ...dailyContext(),
-      fasting_state_code: 'FASTED',
-      hydration_state_code: 'LOW',
-    };
+  it('preserves the stored daily values when re-checking in', async () => {
+    const storedContext = dailyContext();
     const replaceDailyContext = jest.fn(async () => storedContext);
     renderHome(
       homeApi({
@@ -1006,20 +1035,20 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     await waitFor(() => expect(replaceDailyContext).toHaveBeenCalled());
     expect(replaceDailyContext).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
-        fasting_state_code: 'FASTED',
-        hydration_state_code: 'LOW',
+        available_time_minutes: 30,
+        red_flag_present: false,
       }),
       storedContext.context_version,
     );
   });
 
-  it('sends discomfort severity and adverse reactions as stable API codes', async () => {
+  it('sends NRS pain scores and a combined Red Flag answer', async () => {
     const replaceDailyContext = jest.fn(async () => dailyContext());
     renderHome(
       homeApi({
@@ -1033,28 +1062,35 @@ describe('HomeContainer', () => {
     );
     fireEvent.press(screen.getByRole('button', { name: '통증 있어요' }));
     fireEvent.press(screen.getByRole('button', { name: '무릎' }));
-    fireEvent.press(screen.getByRole('button', { name: '무릎 심해요' }));
-    fireEvent.press(screen.getByRole('button', { name: '주의 증상 있어요' }));
-    fireEvent.press(screen.getByRole('button', { name: '심한 어지럼' }));
+    for (let count = 1; count < 7; count += 1) {
+      fireEvent(
+        screen.getByTestId('checkin-pain-intensity-slider-무릎'),
+        'accessibilityAction',
+        { nativeEvent: { actionName: 'increment' } },
+      );
+    }
+    fireEvent.press(screen.getByRole('button', { name: '위험 신호 있어요' }));
     fireEvent.changeText(
       screen.getByLabelText('어젯밤 수면 시간 (시간)'),
       '6.5',
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     await waitFor(() => expect(replaceDailyContext).toHaveBeenCalled());
     expect(replaceDailyContext).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
         sleep_minutes: 390,
-        discomforts: [{ body_area_code: 'KNEE', severity_code: 'SEVERE' }],
-        adverse_reaction_codes: ['SEVERE_DIZZINESS'],
+        sleep_source_code: 'MANUAL',
+        pain_present: true,
+        pains: [{ body_area_code: 'KNEE', intensity_score: 7 }],
+        red_flag_present: true,
       }),
       undefined,
     );
   });
 
-  it('sends multiple discomforts and the selected daily location', async () => {
+  it('sends multiple NRS pains and the selected daily location', async () => {
     const replaceDailyContext = jest.fn(async () => dailyContext());
     const customMe = me();
     customMe.profile = {
@@ -1076,19 +1112,27 @@ describe('HomeContainer', () => {
     fireEvent.press(screen.getByRole('button', { name: '헬스장' }));
     fireEvent.press(screen.getByRole('button', { name: '통증 있어요' }));
     fireEvent.press(screen.getByRole('button', { name: '어깨' }));
-    fireEvent.press(screen.getByRole('button', { name: '어깨 보통이에요' }));
     fireEvent.press(screen.getByRole('button', { name: '무릎' }));
-    fireEvent.press(screen.getByRole('button', { name: '무릎 심해요' }));
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    fireEvent(
+      screen.getByTestId('checkin-pain-intensity-slider-어깨'),
+      'accessibilityAction',
+      { nativeEvent: { actionName: 'increment' } },
+    );
+    fireEvent(
+      screen.getByTestId('checkin-pain-intensity-slider-무릎'),
+      'accessibilityAction',
+      { nativeEvent: { actionName: 'increment' } },
+    );
+    submitRequiredCheckin();
 
     await waitFor(() => expect(replaceDailyContext).toHaveBeenCalled());
     expect(replaceDailyContext).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
         location_code: 'GYM',
-        discomforts: [
-          { body_area_code: 'SHOULDER', severity_code: 'MODERATE' },
-          { body_area_code: 'KNEE', severity_code: 'SEVERE' },
+        pains: [
+          { body_area_code: 'SHOULDER', intensity_score: 2 },
+          { body_area_code: 'KNEE', intensity_score: 2 },
         ],
       }),
       undefined,
@@ -1167,7 +1211,7 @@ describe('HomeContainer', () => {
       await screen.findByRole('button', { name: '다시 체크인하기' }),
     );
     expect(screen.getByText('오늘 컨디션 체크')).toBeOnTheScreen();
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     await waitFor(() => expect(createDecision).toHaveBeenCalled());
     expect(screen.getByTestId('routine-generation-loading')).toBeOnTheScreen();
@@ -1237,7 +1281,7 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '다시 체크인하기' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     expect(await screen.findByTestId('home-action-error')).toBeOnTheScreen();
     expect(screen.getByText('요청을 완료하지 못했어요')).toBeOnTheScreen();
@@ -1295,13 +1339,13 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     expect(await screen.findByTestId('home-action-error')).toBeOnTheScreen();
     expect(screen.queryByTestId('home-routine-state')).toBeNull();
 
     fireEvent.press(screen.getByRole('button', { name: '오늘 루틴 체크인' }));
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     await waitFor(() => expect(replaceDailyContext).toHaveBeenCalledTimes(2));
     expect(replaceDailyContext).toHaveBeenLastCalledWith(
@@ -1335,7 +1379,7 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '다시 체크인하기' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     await waitFor(() =>
       expect(onCheckinDecisionSuccess).toHaveBeenCalledTimes(1),
@@ -1371,7 +1415,7 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '다시 체크인하기' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     await screen.findByTestId('home-action-error');
     expect(onCheckinDecisionSuccess).not.toHaveBeenCalled();
@@ -1392,6 +1436,7 @@ describe('HomeContainer', () => {
     const onDecisionChange = jest.fn();
     renderHome(
       homeApi({
+        getDailyContext: jest.fn(async () => dailyContext()),
         regenerateDecision,
       }),
       { decision: decision(), onDecisionChange },
@@ -1400,6 +1445,7 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '다른 루틴 추천 받기' }),
     );
+    submitRequiredCheckin();
 
     await waitFor(() => {
       expect(regenerateDecision).toHaveBeenCalledWith('decision-1', {
