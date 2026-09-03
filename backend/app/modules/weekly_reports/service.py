@@ -356,7 +356,10 @@ class WeeklyReportService:
             "completed": completed,
             "partial": partial,
             "not_completed": not_completed,
+            # Both names carry the same number this release. The legacy key stays so a
+            # reader written against v1 keeps working while clients move over.
             "stopped_for_safety": stopped,
+            "safety_stopped_session_count": stopped,
         }
         snapshot: dict[str, Any] = {
             "input_schema_version": WEEKLY_REPORT_INPUT_SCHEMA_VERSION,
@@ -413,6 +416,7 @@ class WeeklyReportService:
             partial_count=partial,
             not_completed_count=not_completed,
             stopped_for_safety=stopped,
+            safety_stopped_session_count=stopped,
             primary_miss_reason_code=primary_reason,
             completion_rate=completion_rate,
             persistence_rate=persistence_rate,

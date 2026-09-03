@@ -29,7 +29,11 @@ class WeeklyReportCounts(BaseModel):
     completed: int
     partial: int
     not_completed: int
+    # Legacy name from the single-status era. Kept so existing clients keep reading.
     stopped_for_safety: int
+    # The same number under the split axes P1-C introduced. Optional so a report
+    # generated before this release still deserializes.
+    safety_stopped_session_count: int | None = None
 
 
 class WeeklyPatternSummary(BaseModel):

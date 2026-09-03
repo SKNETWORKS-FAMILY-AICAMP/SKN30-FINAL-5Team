@@ -516,6 +516,7 @@ def _seed_linked_graph(session: Session, user_id: UUID, suffix: str) -> dict[str
             partial_count=0,
             not_completed_count=0,
             stopped_for_safety=0,
+            safety_stopped_session_count=0,
             primary_miss_reason_code=None,
             completion_rate=1.0,
             persistence_rate=1.0,

@@ -1572,6 +1572,9 @@ Wave 6는 option의 생성과 조회까지만 구현한다. option 선택과 wor
 | is_resumable | 동일 local_date 내 이어하기 가능 여부 |
 | stop_reason_code | HIGH_FATIGUE, TIME_SHORTAGE, RESUME_LATER, PAIN_OR_ABNORMAL_RESPONSE 중단 사유 |
 | estimated_calories_burned | 체중 기반 추정치, nullable |
+| calorie_source_code | WEARABLE, MET_ESTIMATE, UNAVAILABLE. 값이 있으면 필수 |
+| calorie_policy_version | 추정에 적용한 정책 버전 |
+| calorie_input_snapshot | 재현에 필요한 최소 입력, nullable |
 | idempotency_key | 세션 생성 중복 방지 |
 
 REST selection 또는 STOP_AND_SEEK_HELP decision에는 workout_session을 만들지 않는다.
@@ -1732,6 +1735,7 @@ timezone과 target_workout_count는 해당 주를 처음 요청한 시점의 사
 | user_week_id | user_weeks FK, UNIQUE |
 | status_code | GENERATED, ACKNOWLEDGED, FAILED |
 | input_schema_version | 집계 snapshot 스키마 버전 |
+| safety_stopped_session_count | 실행 상태가 `STOPPED_SAFETY`로 끝난 세션 수 |
 | input_snapshot | 닫힌 주의 최소 집계 JSONB |
 | input_hash | 집계 해시 |
 | completed_count | 운동 블록 체크로 계산한 COMPLETED 수 |

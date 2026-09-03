@@ -1,7 +1,9 @@
 from datetime import date, datetime
+from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    JSON,
     CheckConstraint,
     Date,
     DateTime,
@@ -14,9 +16,12 @@ from sqlalchemy import (
     Uuid,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.db.base import Base
+
+_JSON = JSON().with_variant(JSONB(), "postgresql")
 
 
 class ScheduledWorkout(Base):
@@ -147,6 +152,11 @@ class WorkoutSession(Base):
     is_resumable: Mapped[bool] = mapped_column(nullable=False, default=False)
     stop_reason_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
     estimated_calories_burned: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Provenance for the number above. A client cannot tell a wearable reading from a MET
+    # estimate otherwise, and both render as one figure.
+    calorie_source_code: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    calorie_policy_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    calorie_input_snapshot: Mapped[dict[str, Any] | None] = mapped_column(_JSON, nullable=True)
     idempotency_key: Mapped[UUID] = mapped_column(Uuid, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

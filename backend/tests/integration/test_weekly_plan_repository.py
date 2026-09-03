@@ -214,6 +214,7 @@ def test_repository_resolves_report_routine_constraints_and_revision_sequence() 
                 partial_count=1,
                 not_completed_count=0,
                 stopped_for_safety=0,
+                safety_stopped_session_count=0,
                 primary_miss_reason_code=None,
                 completion_rate=0.75,
                 persistence_rate=1.0,

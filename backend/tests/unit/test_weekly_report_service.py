@@ -136,6 +136,7 @@ class FakeWeeklyReportRepository:
                 "partial": values.partial_count,
                 "not_completed": values.not_completed_count,
                 "stopped_for_safety": values.stopped_for_safety,
+                "safety_stopped_session_count": values.safety_stopped_session_count,
             },
             "primary_miss_reason_code": values.primary_miss_reason_code,
             "completion_rate": values.completion_rate,
@@ -324,6 +325,7 @@ def test_report_uses_block_evidence_and_builds_non_penalty_aggregate() -> None:
         "partial": 1,
         "not_completed": 1,
         "stopped_for_safety": 1,
+        "safety_stopped_session_count": 1,
     }
     assert response.primary_miss_reason_code == "TIME_SHORTAGE"
     assert response.completion_rate == 0.25
@@ -386,6 +388,7 @@ def test_agent_receives_deterministic_aggregate_and_only_replaces_narration() ->
             "partial": 1,
             "not_completed": 1,
             "stopped_for_safety": 1,
+            "safety_stopped_session_count": 1,
         },
         "completion_rate": 0.25,
         "persistence_rate": 0.5,
@@ -399,6 +402,7 @@ def test_agent_receives_deterministic_aggregate_and_only_replaces_narration() ->
         "partial": 1,
         "not_completed": 1,
         "stopped_for_safety": 1,
+        "safety_stopped_session_count": 1,
     }
     assert response.completion_rate == 0.25
     assert response.persistence_rate == 0.5
@@ -409,7 +413,7 @@ def test_agent_receives_deterministic_aggregate_and_only_replaces_narration() ->
             "model_code": "test-model",
             "prompt_version": "weekly-report-narration-prompt-v1",
             "fallback_reason_code": None,
-            "input_schema_version": "weekly-report-input-v1",
+            "input_schema_version": "weekly-report-input-v2",
             "input_hash": repository.last_report_values.input_hash,
         }
     }
@@ -432,6 +436,7 @@ def test_agent_failure_falls_back_without_changing_deterministic_statistics() ->
         "partial": 1,
         "not_completed": 1,
         "stopped_for_safety": 1,
+        "safety_stopped_session_count": 1,
     }
     assert response.completion_rate == 0.25
     assert response.persistence_rate == 0.5

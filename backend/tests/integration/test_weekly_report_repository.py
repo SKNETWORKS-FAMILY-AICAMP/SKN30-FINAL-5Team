@@ -220,6 +220,7 @@ def test_repository_round_trip_preserves_week_snapshot_and_block_evidence() -> N
                 partial_count=0,
                 not_completed_count=1,
                 stopped_for_safety=0,
+                safety_stopped_session_count=0,
                 primary_miss_reason_code="TIME_SHORTAGE",
                 completion_rate=1 / 3,
                 persistence_rate=1 / 3,
