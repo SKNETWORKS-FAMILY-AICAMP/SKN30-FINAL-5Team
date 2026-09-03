@@ -345,16 +345,16 @@ describe('PreviewGallery', () => {
       ),
     ).toBeOnTheScreen();
     expect(
-      within(screen.getByTestId('preview-app-canvas')).getByText('1 / 11'),
+      within(screen.getByTestId('preview-app-canvas')).getByText('1 / 9'),
     ).toBeOnTheScreen();
 
     fireEvent.press(screen.getByRole('radio', { name: '3. body' }));
     expect(
-      within(screen.getByTestId('preview-app-canvas')).getByText('3 / 11'),
+      within(screen.getByTestId('preview-app-canvas')).getByText('3 / 9'),
     ).toBeOnTheScreen();
     expect(
       within(screen.getByTestId('preview-app-canvas')).getByText(
-        '키와 체중을 입력해주세요',
+        '현재 체중을 입력해주세요',
       ),
     ).toBeOnTheScreen();
     expect(

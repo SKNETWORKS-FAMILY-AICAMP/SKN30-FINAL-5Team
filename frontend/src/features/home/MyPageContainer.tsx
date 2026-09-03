@@ -33,7 +33,6 @@ const DEFAULT_CONSENTS: ConsentValues = {
   general_personal_data: true,
   sensitive_data: true,
   wearable_integration: false,
-  calendar_integration: false,
   marketing: false,
 };
 

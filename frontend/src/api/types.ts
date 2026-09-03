@@ -95,7 +95,6 @@ export type ConsentValues = {
   general_personal_data: boolean;
   sensitive_data: boolean;
   wearable_integration: boolean;
-  calendar_integration: boolean;
   marketing: boolean;
 };
 
@@ -156,19 +155,15 @@ export type ProfileImageMutationResponse = {
 export type OnboardingRequest = {
   nickname: string;
   date_of_birth: string;
-  sex_code: SexCode;
-  height_cm: number;
+  medical_exercise_restriction: boolean;
   weight_kg: number;
   primary_goal_code: string;
   experience_level_code: string;
+  weekly_target_sessions: number;
+  coaching_style_code: string;
   timezone: string;
-  preferred_location_code: string;
-  available_location_codes: string[];
-  default_requested_duration_minutes: number;
-  desired_weekly_workout_count: number;
-  attention_area_codes: string[];
-  preferred_exercise_type_codes?: string[];
-  coaching_style_code?: string;
+  terms_version: string;
+  persistent_pains: PainAreaInput[];
   consents: ConsentValues;
 };
 
