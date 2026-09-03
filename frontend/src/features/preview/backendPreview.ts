@@ -483,44 +483,24 @@ export function createSessionPreviewApi(state: SessionPreviewState): Api {
     async reportSafetyEvent(
       _sessionId: string,
       body: {
-        discomforts: { severity_code: string }[];
-        adverse_reaction_codes: string[];
+        stop_reason_code: 'PAIN_OR_ABNORMAL_RESPONSE';
       },
     ) {
-      const hasAdverseReaction = body.adverse_reaction_codes.length > 0;
-      const hasSevereDiscomfort = body.discomforts.some(
-        (item) => item.severity_code === 'SEVERE',
-      );
-      if (hasAdverseReaction || hasSevereDiscomfort) {
-        sessionStatus = 'STOPPED_FOR_SAFETY';
-        sessionEndedAt = new Date().toISOString();
-        return {
-          event_id: 'safety-event-preview',
-          instruction_code: hasAdverseReaction
-            ? ('STOP_AND_SEEK_HELP' as const)
-            : ('STOP_SESSION' as const),
-          resulting_action_code: hasAdverseReaction
-            ? ('STOP_AND_SEEK_HELP' as const)
-            : ('REST' as const),
-          session_status_code: 'STOPPED_FOR_SAFETY' as const,
-          guidance_code: hasAdverseReaction
-            ? 'SERIOUS_ADVERSE_REACTION_STOP'
-            : 'SEVERE_OR_ACUTE_STOP',
-          guidance: hasAdverseReaction
-            ? '운동을 중단하고 필요하면 의료 도움을 받으세요.'
-            : '운동을 중단하고 상태를 확인해주세요.',
-          pressure_notifications_allowed: false,
-        };
+      if (body.stop_reason_code !== 'PAIN_OR_ABNORMAL_RESPONSE') {
+        throw previewError('지원하지 않는 안전 중단 사유입니다.');
       }
+      sessionStatus = 'STOPPED_FOR_SAFETY';
+      sessionEndedAt = new Date().toISOString();
       return {
         event_id: 'safety-event-preview',
-        instruction_code: 'SHOW_CAUTION' as const,
-        resulting_action_code: null,
-        session_status_code: 'IN_PROGRESS' as const,
-        guidance_code: 'MILD_DISCOMFORT_CAUTION',
-        guidance:
-          '불편한 부위에 부담이 가는 동작은 피하고, 불편함이 커지면 운동을 중단해주세요.',
-        pressure_notifications_allowed: true,
+        result_code: 'SESSION_STOPPED' as const,
+        execution_state_code: 'STOPPED_SAFETY' as const,
+        completion_code:
+          completedCount() > 0
+            ? ('PARTIAL' as const)
+            : ('NOT_COMPLETED' as const),
+        is_resumable: false as const,
+        guidance: '운동을 중단하고 상태를 확인해주세요.',
       };
     },
     async submitFeedback(
@@ -675,12 +655,11 @@ function notCompletedOutcome(): SessionNotCompletedResponse {
 function safetyStopOutcome(): SafetyEventResponse {
   return {
     event_id: 'safety-event-preview',
-    instruction_code: 'STOP_SESSION',
-    resulting_action_code: 'REST',
-    session_status_code: 'STOPPED_FOR_SAFETY',
-    guidance_code: 'STOP_FOR_SAFETY',
+    result_code: 'SESSION_STOPPED',
+    execution_state_code: 'STOPPED_SAFETY',
+    completion_code: 'PARTIAL',
+    is_resumable: false,
     guidance: '운동을 중단하고 상태를 확인해주세요.',
-    pressure_notifications_allowed: false,
   };
 }
 

@@ -237,6 +237,7 @@ function stubApi(overrides: Partial<Api> = {}): Api {
     getCurrentRoutine: jest.fn(),
     getExercise: jest.fn(),
     getDailyContext: jest.fn(),
+    getDailyContextDefaults: jest.fn(notFound),
     replaceDailyContext: jest.fn(),
     createDecision: jest.fn(),
     getDecision: jest.fn(),
@@ -481,6 +482,119 @@ describe('HomeContainer', () => {
     expect(screen.getByRole('button', { name: '목' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '가슴' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '복부' })).toBeTruthy();
+  });
+
+  it("pre-fills the check-in from the server's defaults, not the profile", async () => {
+    const getDailyContextDefaults = jest.fn(async () => ({
+      local_date: '2026-08-17',
+      pains: [{ body_area_code: 'SHOULDER', intensity_score: 4 }],
+    }));
+    renderHome(
+      homeApi({ getDailyContextDefaults } as unknown as Partial<Api>),
+      {
+        me: {
+          ...me(),
+          profile: {
+            ...me().profile!,
+            persistent_pains: [{ body_area_code: 'KNEE', intensity_score: 9 }],
+          },
+        },
+      },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+    );
+
+    expect(getDailyContextDefaults).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.anything(),
+    );
+    expect(
+      screen.getByRole('button', { name: '어깨' }).props.accessibilityState
+        .selected,
+    ).toBe(true);
+    expect(
+      screen.getByRole('button', { name: '무릎' }).props.accessibilityState
+        .selected,
+    ).toBe(false);
+  });
+
+  it('keeps the profile defaults when the server defaults are unavailable', async () => {
+    renderHome(homeApi(), {
+      me: {
+        ...me(),
+        profile: {
+          ...me().profile!,
+          persistent_pains: [{ body_area_code: 'KNEE', intensity_score: 2 }],
+        },
+      },
+    });
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+    );
+
+    expect(
+      screen.getByRole('button', { name: '무릎' }).props.accessibilityState
+        .selected,
+    ).toBe(true);
+  });
+
+  it('stores a set and repetition edit in the plan and sends it to the server', async () => {
+    const original = decision();
+    const onDecisionChange = jest.fn();
+    const updateDecisionPlan = jest.fn(async () => original);
+    renderHome(
+      homeApi({
+        getDailyContext: jest.fn(async () => dailyContext()),
+        updateDecisionPlan,
+      } as unknown as Partial<Api>),
+      { decision: original, onDecisionChange },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '세트·횟수 수정' }),
+    );
+    fireEvent.changeText(screen.getByLabelText('운동 1 세트 수'), '5');
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
+
+    const update = onDecisionChange.mock.calls[0]?.[0] as (
+      current: DecisionResponse | null,
+    ) => DecisionResponse | null;
+    expect(update(original)?.final_plan?.items).toEqual([
+      expect.objectContaining({ plan_item_id: 'item-1', sets: 5 }),
+      expect.objectContaining({ plan_item_id: 'item-2', sets: 3 }),
+    ]);
+
+    await waitFor(() =>
+      expect(updateDecisionPlan).toHaveBeenCalledWith('decision-1', {
+        expected_plan_id: 'plan-1',
+        item_order: ['item-1', 'item-2'],
+        item_prescriptions: [
+          { plan_item_id: 'item-1', sets: 5, reps: null },
+          { plan_item_id: 'item-2', sets: 3, reps: null },
+        ],
+      }),
+    );
+  });
+
+  it('keeps a plan edit local while the server route is unavailable', async () => {
+    const original = decision();
+    const onDecisionChange = jest.fn();
+    renderHome(
+      homeApi({ getDailyContext: jest.fn(async () => dailyContext()) }),
+      { decision: original, onDecisionChange },
+    );
+
+    fireEvent(
+      await screen.findByTestId('routine-drag-item-1'),
+      'accessibilityAction',
+      { nativeEvent: { actionName: 'increment' } },
+    );
+
+    expect(onDecisionChange).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('다시 시도')).toBeNull();
   });
 
   it('shows the reused loading screen while the saved routine lookup is pending', async () => {
@@ -1697,12 +1811,11 @@ describe('SessionScreen', () => {
     const onOutcome = jest.fn();
     const reportSafetyEvent = jest.fn(async () => ({
       event_id: 'event-1',
-      instruction_code: 'STOP_SESSION' as const,
-      resulting_action_code: 'REST' as const,
-      session_status_code: 'STOPPED_FOR_SAFETY' as const,
-      guidance_code: 'SEVERE_OR_ACUTE_STOP',
+      result_code: 'SESSION_STOPPED' as const,
+      execution_state_code: 'STOPPED_SAFETY' as const,
+      completion_code: 'NOT_COMPLETED' as const,
+      is_resumable: false as const,
       guidance: '오늘 운동은 진행하지 않는 것이 좋습니다.',
-      pressure_notifications_allowed: false,
     }));
 
     render(
@@ -1718,14 +1831,17 @@ describe('SessionScreen', () => {
     );
 
     fireEvent.press(await screen.findByText('통증·이상 반응 알리기'));
-    fireEvent.press(screen.getByText('무릎'));
-    fireEvent.press(screen.getByText('알리기'));
+    expect(screen.queryByText('심한 통증이 있는 부위')).toBeNull();
+    fireEvent.press(screen.getByText('안전하게 운동 중단하기'));
 
     await waitFor(() =>
       expect(onOutcome).toHaveBeenCalledWith(
         expect.objectContaining({ kind: 'safetyStop' }),
       ),
     );
+    expect(reportSafetyEvent).toHaveBeenCalledWith('session-1', {
+      stop_reason_code: 'PAIN_OR_ABNORMAL_RESPONSE',
+    });
   });
 });
 

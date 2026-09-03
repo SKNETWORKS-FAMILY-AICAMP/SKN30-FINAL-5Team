@@ -22,12 +22,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { fontFamilies, useBrandFonts } from '../../app/fonts';
 import type { Api } from '../../api/endpoints';
-import { messageForError } from '../../api/errors';
+import { ApiError, messageForError } from '../../api/errors';
 import {
-  ADVERSE_REACTION_OPTIONS,
-  bodyAreaLabel,
-  DEFAULT_BODY_AREA_OPTIONS,
-  EXTENDED_BODY_AREA_OPTIONS,
   formatExercisePrescription,
   trainingTypeLabel,
 } from '../../api/labels';
@@ -76,14 +72,7 @@ export const WORKOUT_LAYOUT = {
 } as const;
 
 type WorkoutOverlay =
-  | 'none'
-  | 'rest'
-  | 'not-completed'
-  | 'stop-reasons'
-  | 'symptom'
-  | 'api-safety'
-  | 'api-guidance'
-  | 'additional';
+  'none' | 'rest' | 'not-completed' | 'stop-reasons' | 'symptom' | 'additional';
 type WorkoutResult = 'none' | 'completed' | 'stopped';
 
 const ADDITIONAL_ACTIVITY_TYPES = [
@@ -263,16 +252,9 @@ function WorkoutScreenContent({
   const [selectedSeverity, setSelectedSeverity] = useState(
     fixture.safetyReport?.severityCode ?? 'MILD',
   );
-  const [selectedBodySeverities, setSelectedBodySeverities] = useState<
-    Readonly<Record<string, WorkoutSafetyReport['severityCode']>>
-  >({});
-  const [selectedReactions, setSelectedReactions] = useState<readonly string[]>(
-    [],
-  );
   const [sessionReady, setSessionReady] = useState(apiConfig === undefined);
   const [actionPending, setActionPending] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [apiGuidance, setApiGuidance] = useState<string | null>(null);
   const [additionalDurationMinutes, setAdditionalDurationMinutes] =
     useState(10);
   const [additionalActivityType, setAdditionalActivityType] =
@@ -282,7 +264,6 @@ function WorkoutScreenContent({
   const [additionalNote, setAdditionalNote] = useState('');
   const [additionalSaved, setAdditionalSaved] = useState(false);
   const useJua = brandFonts.loaded && !brandFonts.failed;
-  const selectedBodyAreas = Object.keys(selectedBodySeverities);
   const sourceBlocks = useMemo<readonly WorkoutViewBlock[]>(() => {
     if (apiConfig === undefined) {
       return WORKOUT_BLOCKS.map((block) => ({ ...block, status: 'PENDING' }));
@@ -323,11 +304,7 @@ function WorkoutScreenContent({
   const paused = executionState === 'PAUSED';
   const targetDurationMinutes =
     apiConfig?.plan.requested_duration_minutes ?? 30;
-  const isSafetyState =
-    overlay === 'stop-reasons' ||
-    overlay === 'symptom' ||
-    overlay === 'api-safety' ||
-    overlay === 'api-guidance';
+  const isSafetyState = overlay === 'stop-reasons' || overlay === 'symptom';
   const carouselPadding = Math.max(
     0,
     (carouselWidth - responsiveLayout.cardWidth) / 2,
@@ -743,7 +720,7 @@ function WorkoutScreenContent({
   const openPainReport = () => {
     setApiError(null);
     pauseForOverlay();
-    setOverlay(apiConfig === undefined ? 'symptom' : 'api-safety');
+    setOverlay('symptom');
   };
 
   const closeSheets = () => {
@@ -798,30 +775,29 @@ function WorkoutScreenContent({
   };
 
   const submitApiSafetyEvent = async () => {
-    if (
-      apiConfig === undefined ||
-      (selectedBodyAreas.length === 0 && selectedReactions.length === 0)
-    ) {
+    if (apiConfig === undefined || actionPending || !sessionReady) {
       return;
     }
     setActionPending(true);
     setApiError(null);
     try {
       const event = await apiConfig.api.reportSafetyEvent(apiConfig.sessionId, {
-        occurred_at: new Date().toISOString(),
-        discomforts: selectedBodyAreas.map((bodyAreaCode) => ({
-          body_area_code: bodyAreaCode,
-          severity_code: selectedBodySeverities[bodyAreaCode] ?? 'MILD',
-        })),
-        adverse_reaction_codes: [...selectedReactions],
+        stop_reason_code: 'PAIN_OR_ABNORMAL_RESPONSE',
       });
-      if (event.session_status_code === 'STOPPED_FOR_SAFETY') {
-        setExecutionState('PAUSED');
-        apiConfig.onOutcome({ kind: 'safetyStop', event });
-        return;
+      if (
+        event.execution_state_code !== 'STOPPED_SAFETY' ||
+        event.is_resumable !== false
+      ) {
+        throw new ApiError({
+          kind: 'server',
+          code: 'INVALID_SAFETY_EVENT_RESPONSE',
+          status: 500,
+          message:
+            '안전 중단 응답을 확인할 수 없습니다. 운동을 계속하지 마세요.',
+        });
       }
-      setApiGuidance(event.guidance);
-      setOverlay('api-guidance');
+      setExecutionState('PAUSED');
+      apiConfig.onOutcome({ kind: 'safetyStop', event });
     } catch (error) {
       setApiError(messageForError(error));
     } finally {
@@ -851,35 +827,6 @@ function WorkoutScreenContent({
     } finally {
       setActionPending(false);
     }
-  };
-
-  const toggleBodyArea = (code: string) => {
-    setSelectedBodySeverities((current) => {
-      if (current[code] !== undefined) {
-        const remaining = { ...current };
-        delete remaining[code];
-        return remaining;
-      }
-      return { ...current, [code]: 'MILD' };
-    });
-  };
-
-  const selectBodySeverity = (
-    code: string,
-    severity: WorkoutSafetyReport['severityCode'],
-  ) => {
-    setSelectedBodySeverities((current) => ({
-      ...current,
-      [code]: severity,
-    }));
-  };
-
-  const toggleReaction = (code: string) => {
-    setSelectedReactions((current) =>
-      current.includes(code)
-        ? current.filter((item) => item !== code)
-        : [...current, code],
-    );
   };
 
   const submitSafetyEvent = () => {
@@ -1441,10 +1388,15 @@ function WorkoutScreenContent({
       {overlay === 'stop-reasons' ? (
         <StopReasonSheet
           acknowledged={safetyStopAcknowledged}
+          error={apiConfig === undefined ? null : apiError}
           onClose={closeSheets}
           onConfirm={() => {
             if (selectedStopReason === 'SAFETY') {
-              openPainReport();
+              if (apiConfig === undefined) {
+                openPainReport();
+              } else {
+                void submitApiSafetyEvent();
+              }
               return;
             }
             if (selectedStopReason === null) {
@@ -1469,7 +1421,9 @@ function WorkoutScreenContent({
           onToggleAcknowledgement={() =>
             setSafetyStopAcknowledged((current) => !current)
           }
+          pending={apiConfig !== undefined && actionPending}
           selectedReason={selectedStopReason}
+          submitsSafetyStop={apiConfig !== undefined}
         />
       ) : null}
       {overlay === 'symptom' ? (
@@ -1481,28 +1435,6 @@ function WorkoutScreenContent({
           onSubmit={submitSafetyEvent}
           selectedSeverity={selectedSeverity}
           selectedSymptom={selectedSymptom}
-        />
-      ) : null}
-      {overlay === 'api-safety' ? (
-        <ApiSafetySheet
-          error={apiError}
-          onClose={closeSheets}
-          onToggleBodyArea={toggleBodyArea}
-          onToggleReaction={toggleReaction}
-          onSelectBodySeverity={selectBodySeverity}
-          onSubmit={() => void submitApiSafetyEvent()}
-          pending={actionPending}
-          selectedBodySeverities={selectedBodySeverities}
-          selectedReactions={selectedReactions}
-        />
-      ) : null}
-      {overlay === 'api-guidance' && apiGuidance ? (
-        <ApiGuidanceSheet
-          guidance={apiGuidance}
-          onConfirm={() => {
-            setApiGuidance(null);
-            closeSheets();
-          }}
         />
       ) : null}
       {overlay === 'additional' ? (
@@ -2025,18 +1957,24 @@ function SheetFrame({
 
 function StopReasonSheet({
   acknowledged,
+  error,
   onClose,
   onConfirm,
   onSelect,
   onToggleAcknowledgement,
+  pending,
   selectedReason,
+  submitsSafetyStop,
 }: {
   acknowledged: boolean;
+  error: string | null;
   onClose: () => void;
   onConfirm: () => void;
   onSelect: (reason: NotCompletedReasonCode | 'SAFETY') => void;
   onToggleAcknowledgement: () => void;
+  pending: boolean;
   selectedReason: NotCompletedReasonCode | 'SAFETY' | null;
+  submitsSafetyStop: boolean;
 }) {
   const [helpOpen, setHelpOpen] = useState(false);
   const safetySelected = selectedReason === 'SAFETY';
@@ -2140,14 +2078,15 @@ function StopReasonSheet({
           ) : null}
         </View>
       </ScrollView>
+      {error ? <Text style={styles.inlineError}>{error}</Text> : null}
       <Pressable
         accessibilityRole="button"
-        accessibilityState={{ disabled: !canContinue }}
-        disabled={!canContinue}
+        accessibilityState={{ disabled: !canContinue || pending }}
+        disabled={!canContinue || pending}
         onPress={onConfirm}
         style={[
           safetySelected ? styles.dangerButton : styles.stopConfirmButton,
-          !canContinue && styles.actionDisabled,
+          (!canContinue || pending) && styles.actionDisabled,
         ]}
         testID="workout-stop-confirm"
       >
@@ -2169,11 +2108,18 @@ function StopReasonSheet({
               : styles.stopConfirmButtonText
           }
         >
-          {safetySelected ? '안전 관련 내용 입력하기' : '이 사유로 중단하기'}
+          {pending
+            ? '중단 처리 중…'
+            : safetySelected && submitsSafetyStop
+              ? '안전하게 운동 중단하기'
+              : safetySelected
+                ? '안전 관련 내용 입력하기'
+                : '이 사유로 중단하기'}
         </Text>
       </Pressable>
       <Pressable
         accessibilityRole="button"
+        disabled={pending}
         onPress={onClose}
         style={styles.textButton}
       >
@@ -2276,171 +2222,6 @@ function SymptomSheet({
           </Pressable>
         ) : null}
       </ScrollView>
-    </SheetFrame>
-  );
-}
-
-function ApiSafetySheet({
-  error,
-  onClose,
-  onSelectBodySeverity,
-  onToggleBodyArea,
-  onToggleReaction,
-  onSubmit,
-  pending,
-  selectedBodySeverities,
-  selectedReactions,
-}: {
-  error: string | null;
-  onClose: () => void;
-  onSelectBodySeverity: (
-    code: string,
-    severity: WorkoutSafetyReport['severityCode'],
-  ) => void;
-  onToggleBodyArea: (code: string) => void;
-  onToggleReaction: (code: string) => void;
-  onSubmit: () => void;
-  pending: boolean;
-  selectedBodySeverities: Readonly<
-    Record<string, WorkoutSafetyReport['severityCode']>
-  >;
-  selectedReactions: readonly string[];
-}) {
-  const selectedBodyAreas = Object.keys(selectedBodySeverities);
-  const [showExtendedAreas, setShowExtendedAreas] = useState(() =>
-    selectedBodyAreas.some((code) =>
-      EXTENDED_BODY_AREA_OPTIONS.some((option) => option.code === code),
-    ),
-  );
-  const canSubmit =
-    selectedBodyAreas.length > 0 || selectedReactions.length > 0;
-  return (
-    <SheetFrame title="불편·이상 반응 보고">
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <Text style={styles.sheetDescription}>{PAIN_REPORT_INTRO}</Text>
-        <Text style={styles.choiceTitle}>불편한 부위</Text>
-        <View style={styles.choiceWrap}>
-          {DEFAULT_BODY_AREA_OPTIONS.map((option) => (
-            <ChoiceButton
-              key={option.code}
-              label={option.label}
-              multiple
-              onPress={() => onToggleBodyArea(option.code)}
-              selected={selectedBodyAreas.includes(option.code)}
-            />
-          ))}
-          <ChoiceButton
-            label={showExtendedAreas ? '다른 부위 접기' : '다른 부위 더 보기'}
-            multiple
-            onPress={() => setShowExtendedAreas((visible) => !visible)}
-            selected={showExtendedAreas}
-          />
-          {showExtendedAreas
-            ? EXTENDED_BODY_AREA_OPTIONS.map((option) => (
-                <ChoiceButton
-                  key={option.code}
-                  label={option.label}
-                  multiple
-                  onPress={() => onToggleBodyArea(option.code)}
-                  selected={selectedBodyAreas.includes(option.code)}
-                />
-              ))
-            : null}
-        </View>
-        {selectedBodyAreas.map((bodyAreaCode) => {
-          const bodyArea = bodyAreaLabel(bodyAreaCode);
-          return (
-            <View key={bodyAreaCode}>
-              <Text style={styles.choiceTitle}>{bodyArea} 불편함 정도</Text>
-              <View style={styles.choiceWrap}>
-                {WORKOUT_SEVERITIES.map((severity) => (
-                  <ChoiceButton
-                    key={severity.code}
-                    accessibilityLabel={`${bodyArea} ${severity.label}`}
-                    label={severity.label}
-                    onPress={() =>
-                      onSelectBodySeverity(bodyAreaCode, severity.code)
-                    }
-                    selected={
-                      selectedBodySeverities[bodyAreaCode] === severity.code
-                    }
-                  />
-                ))}
-              </View>
-            </View>
-          );
-        })}
-        <Text style={styles.choiceTitle}>이상 반응</Text>
-        <View style={styles.choiceWrap}>
-          {ADVERSE_REACTION_OPTIONS.map((option) => (
-            <ChoiceButton
-              key={option.code}
-              label={option.label}
-              multiple
-              onPress={() => onToggleReaction(option.code)}
-              selected={selectedReactions.includes(option.code)}
-            />
-          ))}
-        </View>
-        {error ? <Text style={styles.inlineError}>{error}</Text> : null}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: pending || !canSubmit }}
-          disabled={pending || !canSubmit}
-          onPress={onSubmit}
-          style={[
-            styles.stopConfirmButton,
-            (pending || !canSubmit) && styles.actionDisabled,
-          ]}
-          testID="workout-api-safety-submit"
-        >
-          <LinearGradient
-            colors={['#D97260', '#CC5A47', '#C2503C']}
-            end={{ x: 0.5, y: 1 }}
-            locations={[0, 0.55, 1]}
-            pointerEvents="none"
-            start={{ x: 0.5, y: 0 }}
-            style={styles.stopConfirmGradient}
-            testID="workout-api-safety-submit-gradient"
-          />
-          <Text style={styles.stopConfirmButtonText}>
-            {pending ? '확인 중…' : '보고하고 안전 안내 확인'}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          disabled={pending}
-          onPress={onClose}
-          style={styles.textButton}
-        >
-          <Text style={styles.textButtonLabel}>취소</Text>
-        </Pressable>
-      </ScrollView>
-    </SheetFrame>
-  );
-}
-
-function ApiGuidanceSheet({
-  guidance,
-  onConfirm,
-}: {
-  guidance: string;
-  onConfirm: () => void;
-}) {
-  return (
-    <SheetFrame title="안전 안내">
-      <View style={[styles.guidance, styles.guidanceSevere]}>
-        <Text style={[styles.guidanceText, styles.guidanceTextSevere]}>
-          {guidance}
-        </Text>
-      </View>
-      <Pressable
-        accessibilityRole="button"
-        onPress={onConfirm}
-        style={styles.outlineButtonWide}
-      >
-        <Text style={styles.outlineButtonText}>확인했어요</Text>
-      </Pressable>
     </SheetFrame>
   );
 }
