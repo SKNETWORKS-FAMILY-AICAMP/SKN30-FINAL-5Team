@@ -116,6 +116,8 @@ def test_daily_context_persists_replaces_relations_and_locks_version(
     ]
     assert first.available_time_minutes == 40
     assert postgres_session.scalar(select(func.count()).select_from(DailyContextPain)) == 1
+    # The count assertion begins a transaction; replacement owns the next one.
+    postgres_session.commit()
     second = service.replace(
         postgres_session, user_id, LOCAL_DATE, _request(discomforts=[]), uuid4(), 1
     )
@@ -153,6 +155,11 @@ def test_pre_0036_discomfort_rows_remain_readable_without_fabricating_an_nrs_sco
             ),
             Location(code="HOME", code_set_version="mvp-v1"),
             BodyArea(code="KNEE", code_set_version="mvp-v1"),
+        ]
+    )
+    postgres_session.flush()
+    postgres_session.add_all(
+        [
             DailyContext(
                 id=context_id,
                 user_id=user_id,

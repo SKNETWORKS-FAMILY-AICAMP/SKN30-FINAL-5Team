@@ -103,7 +103,7 @@ def test_specialists_return_distinct_proposals_from_owned_evidence() -> None:
     assert len({training.reason_codes, recovery.reason_codes, feasibility.reason_codes}) == 3
 
 
-def test_moderate_fatigue_proposes_duration_preserving_downshift_deterministically() -> None:
+def test_moderate_fatigue_with_seven_or_more_hours_keeps_normal_recovery() -> None:
     request = _request(_context(fatigue_level_code="MODERATE"))
 
     first = run_required_agents(request=request, agents=default_agents())
@@ -112,20 +112,22 @@ def test_moderate_fatigue_proposes_duration_preserving_downshift_deterministical
 
     assert first == second
     assert recovery.proposal_status_code is ProposalStatusCode.READY
-    assert recovery.recommended_action_code is RecommendedActionCode.DOWNSHIFT
+    assert recovery.recommended_action_code is RecommendedActionCode.KEEP
     assert recovery.estimated_duration_seconds == 600
-    assert recovery.intensity_delta == -1
+    assert recovery.intensity_delta == 0
+    assert "RECOVERY_LEVEL_NORMAL" in recovery.reason_codes
 
 
-def test_high_fatigue_fails_closed_until_recovery_content_is_approved() -> None:
+def test_high_fatigue_with_seven_or_more_hours_proposes_light_downshift() -> None:
     recovery = run_required_agents(
         request=_request(_context(fatigue_level_code="HIGH")),
         agents=default_agents(),
     ).by_agent_type(AgentTypeCode.RECOVERY)
 
-    assert recovery.proposal_status_code is ProposalStatusCode.NEEDS_INPUT
-    assert recovery.recommended_action_code is None
-    assert "APPROVED_RECOVERY_CANDIDATE_UNAVAILABLE" in recovery.reason_codes
+    assert recovery.proposal_status_code is ProposalStatusCode.READY
+    assert recovery.recommended_action_code is RecommendedActionCode.DOWNSHIFT
+    assert recovery.intensity_delta == -1
+    assert "RECOVERY_LEVEL_LIGHT" in recovery.reason_codes
 
 
 def test_feasibility_ignores_equipment_and_requires_current_location() -> None:
