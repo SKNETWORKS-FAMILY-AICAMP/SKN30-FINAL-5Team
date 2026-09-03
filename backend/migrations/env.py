@@ -13,11 +13,18 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-settings = get_settings()
-config.set_main_option(
-    "sqlalchemy.url",
-    settings.database_url.get_secret_value().replace("%", "%%"),
-)
+# A caller that already chose a database wins. Alembic's own API lets a caller pass the
+# target with `config.set_main_option("sqlalchemy.url", ...)`, and this module used to
+# overwrite that with the configured DATABASE_URL unconditionally. Test fixtures that set
+# the URL that way therefore ran their migrations against whatever the environment's
+# settings pointed at -- in practice, staging -- with nothing in the output to say so.
+# Falling back to settings keeps the ordinary `alembic upgrade head` behaviour intact.
+if not config.get_main_option("sqlalchemy.url"):
+    settings = get_settings()
+    config.set_main_option(
+        "sqlalchemy.url",
+        settings.database_url.get_secret_value().replace("%", "%%"),
+    )
 target_metadata = Base.metadata
 
 
