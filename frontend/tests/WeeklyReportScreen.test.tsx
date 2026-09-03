@@ -5,6 +5,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react-native';
 
 import type { Api } from '../src/api/endpoints';
@@ -168,6 +169,34 @@ describe('WeeklyReportScreen selected week', () => {
     expect(
       screen.getByRole('tab', { name: '리포트' }).props.accessibilityState,
     ).toEqual({ selected: true });
+  });
+
+  it('shows safety-stopped sessions separately from ordinary non-completion', async () => {
+    renderExistingReport({
+      ...REPORT,
+      counts: {
+        ...REPORT.counts,
+        not_completed: 1,
+        stopped_for_safety: 2,
+      },
+    });
+
+    const notCompleted = await screen.findByTestId(
+      'weekly-report-not-completed-count',
+    );
+    const safetyStopped = screen.getByTestId(
+      'weekly-report-safety-stopped-count',
+    );
+
+    expect(within(notCompleted).getByText('미수행')).toBeOnTheScreen();
+    expect(within(notCompleted).getByText('1')).toBeOnTheScreen();
+    expect(
+      within(safetyStopped).getByText('운동 중 안전 중단'),
+    ).toBeOnTheScreen();
+    expect(within(safetyStopped).getByText('2')).toBeOnTheScreen();
+    expect(
+      screen.getByText('일반 미수행과 구분한 별도 안전 기록이에요.'),
+    ).toBeOnTheScreen();
   });
 
   it('keeps calendar hierarchy while creating and acknowledging through the API', async () => {
