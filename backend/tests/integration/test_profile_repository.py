@@ -22,8 +22,10 @@ from backend.app.db.models.profile import (
     UserConsent,
     UserConsentEvent,
     UserEquipment,
+    UserPersistentPain,
     UserPreferredExerciseType,
     UserProfile,
+    UserTermsAgreement,
 )
 from backend.app.db.repositories.catalog import CatalogRepository
 from backend.app.db.repositories.identity import IdentityRepository
@@ -92,6 +94,8 @@ def _request(nickname: str = "러너01") -> OnboardingUpsertRequest:
         {
             "nickname": nickname,
             "date_of_birth": "2000-08-11",
+            "medical_exercise_restriction": False,
+            "terms_version": "terms-v1",
             "primary_goal_code": "GENERAL_FITNESS",
             "experience_level_code": "BEGINNER",
             "timezone": "Asia/Seoul",
@@ -110,6 +114,7 @@ def _request(nickname: str = "러너01") -> OnboardingUpsertRequest:
                 "calendar_integration": False,
                 "marketing": False,
             },
+            "persistent_pains": [{"body_area_code": "SHOULDER", "intensity_score": 3}],
         }
     )
 
@@ -144,12 +149,21 @@ def test_onboarding_persists_atomically_and_retries_idempotently(
     profile = postgres_session.get(UserProfile, current_user.user_id)
     assert profile is not None
     assert profile.profile_version == 1
+    assert profile.eligibility_result_code == "ELIGIBLE"
+    assert profile.weekly_target_sessions == 3
+    assert profile.medical_exercise_restriction is False
     assert "2000-08-11" not in profile.protected_birthdate
     assert postgres_session.scalar(select(func.count()).select_from(UserEquipment)) == 0
     assert postgres_session.scalar(select(func.count()).select_from(UserAttentionArea)) == 1
     assert postgres_session.scalar(select(func.count()).select_from(UserPreferredExerciseType)) == 1
     assert postgres_session.scalar(select(func.count()).select_from(UserConsent)) == 5
     assert postgres_session.scalar(select(func.count()).select_from(UserConsentEvent)) == 5
+    assert postgres_session.scalar(select(func.count()).select_from(UserTermsAgreement)) == 1
+    assert list(
+        postgres_session.execute(
+            select(UserPersistentPain.body_area_code, UserPersistentPain.intensity_score)
+        )
+    ) == [("SHOULDER", 3)]
     assert postgres_session.scalar(select(func.count()).select_from(MutationIdempotencyRecord)) == 1
 
 
@@ -233,6 +247,7 @@ def test_profile_settings_update_is_partial_atomic_versioned_and_idempotent(
             "attention_area_codes": [],
             "preferred_exercise_type_codes": ["MOBILITY"],
             "date_of_birth": "1999-01-02",
+            "persistent_pains": [{"body_area_code": "KNEE", "intensity_score": 4}],
         }
     )
     first = service.update_profile_settings(postgres_session, current_user.user_id, request, key, 1)
@@ -273,6 +288,13 @@ def test_profile_settings_update_is_partial_atomic_versioned_and_idempotent(
             )
         )
     ) == ["HOME"]
+    assert list(
+        postgres_session.execute(
+            select(UserPersistentPain.body_area_code, UserPersistentPain.intensity_score).where(
+                UserPersistentPain.user_id == current_user.user_id
+            )
+        )
+    ) == [("KNEE", 4)]
     assert (
         postgres_session.scalar(
             select(func.count())

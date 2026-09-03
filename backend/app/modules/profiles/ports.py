@@ -38,6 +38,9 @@ class OnboardingProfileValues:
     sex_code: str | None
     attention_area_codes: tuple[str, ...]
     preferred_exercise_type_codes: tuple[str, ...]
+    medical_exercise_restriction: bool
+    eligibility_result_code: str
+    weekly_target_sessions: int
 
 
 @dataclass(frozen=True)
@@ -128,6 +131,7 @@ class ProfileSettingsChanges:
     available_location_codes: tuple[str, ...] | None
     attention_area_codes: tuple[str, ...] | None
     preferred_exercise_type_codes: tuple[str, ...] | None
+    persistent_pains: tuple[tuple[str, int], ...] | None
 
 
 class StaleRoutinePort(Protocol):
@@ -214,6 +218,18 @@ class ProfileRepositoryPort(Protocol):
         policy_version: str,
         now: datetime,
     ) -> tuple[ConsentRecord, ...]: ...
+
+    def record_terms_agreement(
+        self, session: Session, user_id: UUID, terms_version: str, now: datetime
+    ) -> None: ...
+
+    def replace_persistent_pains(
+        self,
+        session: Session,
+        user_id: UUID,
+        pains: tuple[tuple[str, int], ...],
+        now: datetime,
+    ) -> None: ...
 
     def disable_user_for_age(self, session: Session, user_id: UUID, now: datetime) -> None: ...
 

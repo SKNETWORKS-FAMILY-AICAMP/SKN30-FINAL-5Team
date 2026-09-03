@@ -42,6 +42,7 @@ from backend.app.modules.profiles.service import (
     IdempotencyKeyReusedError,
     InvalidOnboardingCodeError,
     InvalidProfileSettingsError,
+    MedicalExerciseRestrictionError,
     ProfileConfigurationError,
     ProfileNotFoundError,
     ProfileService,
@@ -140,8 +141,14 @@ def _translate_profile_error(exc: Exception, *, request: Request | None = None) 
     if isinstance(exc, AgeRequirementNotMetError):
         return AppError(
             status_code=HTTPStatus.FORBIDDEN,
-            code="AGE_REQUIREMENT_NOT_MET",
-            message="만 14세 미만은 이용할 수 없습니다.",
+            code="OUT_OF_SCOPE_AGE",
+            message="현재 서비스는 만 18–64세 성인을 대상으로 제공됩니다.",
+        )
+    if isinstance(exc, MedicalExerciseRestrictionError):
+        return AppError(
+            status_code=HTTPStatus.FORBIDDEN,
+            code="OUT_OF_SCOPE_MEDICAL_MANAGEMENT",
+            message="개별 운동 관리는 의료진 또는 전문가와 상의해주세요.",
         )
     if isinstance(exc, InvalidBirthdateError):
         return AppError(
@@ -271,6 +278,7 @@ def upsert_onboarding(
         InvalidBirthdateError,
         InvalidTimezoneError,
         InvalidOnboardingCodeError,
+        MedicalExerciseRestrictionError,
         RequiredConsentMissingError,
         IdempotencyKeyReusedError,
         ProfileConfigurationError,

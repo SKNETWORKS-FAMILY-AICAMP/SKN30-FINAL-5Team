@@ -18,6 +18,7 @@ from backend.app.modules.profiles.codes import (
     ONBOARDING_RESPONSE_SCHEMA_VERSION,
     PROFILE_SETTINGS_RESPONSE_SCHEMA_VERSION,
     CoachingStyleCode,
+    EligibilityResultCode,
     MutationEndpointCode,
 )
 from backend.app.modules.profiles.ports import (
@@ -74,6 +75,10 @@ class StaleProfileError(Exception):
 
 class InvalidProfileSettingsError(Exception):
     """The merged profile settings violate a cross-field invariant."""
+
+
+class MedicalExerciseRestrictionError(Exception):
+    """The user needs individual medical exercise management outside this MVP."""
 
 
 def _utc_now() -> datetime:
@@ -212,6 +217,7 @@ class ProfileService:
             "available_location_codes",
             "attention_area_codes",
             "preferred_exercise_type_codes",
+            "persistent_pains",
         }
         scalar_values = {
             field_name: value
@@ -234,6 +240,14 @@ class ProfileService:
             preferred_exercise_type_codes=(
                 tuple(str(code) for code in payload["preferred_exercise_type_codes"])
                 if "preferred_exercise_type_codes" in request.model_fields_set
+                else None
+            ),
+            persistent_pains=(
+                tuple(
+                    (str(item.body_area_code), item.intensity_score)
+                    for item in request.persistent_pains or []
+                )
+                if "persistent_pains" in request.model_fields_set
                 else None
             ),
         )
@@ -309,15 +323,9 @@ class ProfileService:
         user_id: UUID,
         request: OnboardingUpsertRequest,
     ) -> None:
-        """Apply the established underage-account handling before a wider flow."""
+        """Validate the new-onboarding age scope without changing account status."""
 
-        now = self._clock()
-        try:
-            evaluate_age_eligibility(request.date_of_birth, request.timezone, at=now)
-        except AgeRequirementNotMetError:
-            with session.begin():
-                self._repository.disable_user_for_age(session, user_id, now)
-            raise
+        evaluate_age_eligibility(request.date_of_birth, request.timezone, at=self._clock())
 
     def upsert_onboarding_in_transaction(
         self,
@@ -339,12 +347,18 @@ class ProfileService:
             raise InvalidOnboardingCodeError
         if not request.consents.general_personal_data or not request.consents.sensitive_data:
             raise RequiredConsentMissingError
+        if request.medical_exercise_restriction:
+            raise MedicalExerciseRestrictionError
 
         try:
             protected_birthdate = cipher.encrypt(user_id, request.date_of_birth)
         except BirthdateEncryptionError:
             raise ProfileConfigurationError from None
 
+        weekly_target_sessions = (
+            request.weekly_target_sessions or request.desired_weekly_workout_count
+        )
+        assert weekly_target_sessions is not None
         profile_values = OnboardingProfileValues(
             nickname=request.nickname,
             primary_goal_code=request.primary_goal_code,
@@ -355,13 +369,16 @@ class ProfileService:
                 request.available_location_codes or (request.preferred_location_code,)
             ),
             default_requested_duration_minutes=request.default_requested_duration_minutes,
-            desired_weekly_workout_count=request.desired_weekly_workout_count,
+            desired_weekly_workout_count=weekly_target_sessions,
             coaching_style_code=request.coaching_style_code,
             height_cm=request.height_cm,
             weight_kg=request.weight_kg,
             sex_code=request.sex_code,
             attention_area_codes=tuple(request.attention_area_codes),
             preferred_exercise_type_codes=tuple(request.preferred_exercise_type_codes),
+            medical_exercise_restriction=request.medical_exercise_restriction,
+            eligibility_result_code=EligibilityResultCode.ELIGIBLE,
+            weekly_target_sessions=weekly_target_sessions,
         )
 
         self._repository.acquire_idempotency_lock(
@@ -393,6 +410,16 @@ class ProfileService:
             user_id,
             request.consents.by_type(),
             consent_policy_version,
+            now,
+        )
+        self._repository.record_terms_agreement(session, user_id, request.terms_version, now)
+        self._repository.replace_persistent_pains(
+            session,
+            user_id,
+            tuple(
+                (str(item.body_area_code), item.intensity_score)
+                for item in request.persistent_pains
+            ),
             now,
         )
         response = OnboardingResponse(
@@ -572,8 +599,8 @@ class ProfileService:
                 )
             return response
         except AgeRequirementNotMetError:
-            with session.begin():
-                self._repository.disable_user_for_age(session, user_id, now)
+            # D3 does not yet define what to do with an existing profile that
+            # becomes out of scope, so this endpoint must not disable it.
             raise
 
 
@@ -582,6 +609,7 @@ __all__ = [
     "InvalidBirthdateError",
     "InvalidOnboardingCodeError",
     "InvalidProfileSettingsError",
+    "MedicalExerciseRestrictionError",
     "InvalidTimezoneError",
     "ProfileConfigurationError",
     "ProfileNotFoundError",

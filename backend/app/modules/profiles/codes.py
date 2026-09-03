@@ -6,6 +6,12 @@ ONBOARDING_RESPONSE_SCHEMA_VERSION = "onboarding-response-v1"
 PROFILE_SETTINGS_RESPONSE_SCHEMA_VERSION = "profile-settings-response-v1"
 
 
+class EligibilityResultCode(StrEnum):
+    ELIGIBLE = "ELIGIBLE"
+    OUT_OF_SCOPE_AGE = "OUT_OF_SCOPE_AGE"
+    OUT_OF_SCOPE_MEDICAL_MANAGEMENT = "OUT_OF_SCOPE_MEDICAL_MANAGEMENT"
+
+
 class CoachingStyleCode(StrEnum):
     SUPPORTIVE = "SUPPORTIVE"
     CONCISE = "CONCISE"
@@ -37,6 +43,7 @@ __all__ = [
     "PROFILE_SETTINGS_RESPONSE_SCHEMA_VERSION",
     "PROFILE_CODE_SET_VERSION",
     "CoachingStyleCode",
+    "EligibilityResultCode",
     "ConsentEventCode",
     "ConsentTypeCode",
     "MutationEndpointCode",
