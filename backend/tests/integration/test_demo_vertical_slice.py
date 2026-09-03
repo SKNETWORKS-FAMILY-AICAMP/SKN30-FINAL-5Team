@@ -490,15 +490,24 @@ def test_in_session_severe_report_stops_session_and_blocks_pressure(client: Test
         headers=_key(),
         json={
             "occurred_at": "2026-08-17T10:10:00+09:00",
-            "discomforts": [{"body_area_code": "KNEE", "severity_code": "SEVERE"}],
-            "adverse_reaction_codes": [],
+            "body_area_code": "KNEE",
+            "nrs_score": 8,
         },
     )
     assert reported.status_code in {200, 201}, reported.text
     body = reported.json()
-    assert body["instruction_code"] == "STOP_SESSION"
-    assert body["session_status_code"] == "STOPPED_FOR_SAFETY"
-    assert body["pressure_notifications_allowed"] is False
+    # Knee pain is not one of the emergency reactions, so the event stops the session
+    # without escalating to STOP_AND_SEEK_HELP.
+    assert body["result_code"] == "SESSION_STOPPED"
+    assert body["execution_state_code"] == "STOPPED_SAFETY"
+    assert body["completion_code"] in {"PARTIAL", "NOT_COMPLETED"}
+    # The stop is what suppresses same-day pressure: the session is terminal and the app
+    # offers no resume, skip-and-continue or alternative for the rest of the day.
+    assert body["is_resumable"] is False
+
+    detail = client.get(f"/api/v1/workout-sessions/{session_id}", headers=_key())
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["status_code"] == "STOPPED_FOR_SAFETY"
 
 
 def test_rest_selection_suppresses_pressure_and_creates_no_session(client: TestClient) -> None:
