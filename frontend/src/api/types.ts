@@ -311,15 +311,18 @@ export type Guidance = {
   tone_code: ToneCode;
 };
 
+export type AgentTypeCode =
+  'TRAINING' | 'RECOVERY' | 'SAFETY' | 'FEASIBILITY' | 'COORDINATOR';
+
 export type AgentSummary = {
-  agent_type_code: string;
-  recommendation_code: string | null;
+  agent_type_code: AgentTypeCode;
+  recommendation_code: ActionCode | null;
   reason_codes: string[];
   summary: string;
 };
 
 export type SafetySummary = {
-  safety_status_code: string;
+  safety_status_code: SafetyStatusCode;
   vetoed: boolean;
   reason_codes: string[];
   summary: string;

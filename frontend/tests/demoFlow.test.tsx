@@ -330,11 +330,45 @@ describe('idempotency keys', () => {
   });
 
   it('reuses an explicit key for the same decision intent', async () => {
+    const serverDecision = decision({
+      public_agent_summaries: [
+        {
+          agent_type_code: 'TRAINING',
+          recommendation_code: 'KEEP',
+          reason_codes: ['PRIMARY_GOAL_PRESERVED'],
+          summary: '운동 목표와 희망 운동 시간을 유지했어요.',
+        },
+        {
+          agent_type_code: 'RECOVERY',
+          recommendation_code: 'KEEP',
+          reason_codes: ['RECOVERY_CONTEXT_REVIEWED'],
+          summary: '오늘의 회복 상태를 확인했어요.',
+        },
+        {
+          agent_type_code: 'SAFETY',
+          recommendation_code: 'KEEP',
+          reason_codes: ['NO_SAFETY_SIGNAL_REPORTED'],
+          summary: '제외한 운동 없이 계획한 강도 상한을 적용했어요.',
+        },
+        {
+          agent_type_code: 'FEASIBILITY',
+          recommendation_code: 'KEEP',
+          reason_codes: ['TIME_LOCATION_EQUIPMENT_MATCHED'],
+          summary: '희망 시간과 장소, 장비 조건을 확인했어요.',
+        },
+        {
+          agent_type_code: 'COORDINATOR',
+          recommendation_code: 'KEEP',
+          reason_codes: ['COMMON_CANDIDATE_SELECTED'],
+          summary: '모든 조건을 종합해 계획한 루틴을 추천했어요.',
+        },
+      ],
+    });
     const fetchImpl = jest.fn<typeof fetch>(async () =>
       Promise.resolve({
         ok: true,
         status: 201,
-        text: async () => JSON.stringify({ decision_id: 'decision-1' }),
+        text: async () => JSON.stringify(serverDecision),
       } as Response),
     );
     const api = createApi(
@@ -346,7 +380,7 @@ describe('idempotency keys', () => {
     );
     const idempotencyKey = '11111111-1111-4111-8111-111111111111';
 
-    await api.createDecision(
+    const response = await api.createDecision(
       {
         local_date: '2026-09-01',
         daily_context_id: 'context-1',
@@ -363,6 +397,9 @@ describe('idempotency keys', () => {
           'Idempotency-Key': idempotencyKey,
         }),
       }),
+    );
+    expect(response.public_agent_summaries).toEqual(
+      serverDecision.public_agent_summaries,
     );
   });
 
@@ -762,7 +799,17 @@ describe('HomeContainer', () => {
 
   it('writes the check-in and renders the decision the server returned', async () => {
     const replaceDailyContext = jest.fn(async () => dailyContext());
-    const createDecision = jest.fn(async () => decision());
+    const serverDecision = decision({
+      public_agent_summaries: [
+        {
+          agent_type_code: 'COORDINATOR',
+          recommendation_code: 'KEEP',
+          reason_codes: ['COMMON_CANDIDATE_SELECTED'],
+          summary: '서버가 확정한 최종 조정 이유예요.',
+        },
+      ],
+    });
+    const createDecision = jest.fn(async () => serverDecision);
     const onDecisionChange = jest.fn();
 
     renderHome(
@@ -791,9 +838,7 @@ describe('HomeContainer', () => {
       undefined,
     );
     // The decision is owned above this screen, so a tab switch cannot lose it.
-    expect(onDecisionChange).toHaveBeenCalledWith(
-      expect.objectContaining({ decision_id: 'decision-1' }),
-    );
+    expect(onDecisionChange).toHaveBeenCalledWith(serverDecision);
   });
 
   it('recovers a committed decision when the create response is lost', async () => {
