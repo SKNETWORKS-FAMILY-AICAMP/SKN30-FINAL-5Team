@@ -42,7 +42,12 @@ def _database_url() -> str:
     return database_url
 
 
-def _add_user(session: Session, *, experience_level_code: str = "BEGINNER") -> UUID:
+def _add_user(
+    session: Session,
+    *,
+    experience_level_code: str = "BEGINNER",
+    location_codes: tuple[str, ...] = ("HOME", "GYM"),
+) -> UUID:
     user_id = uuid4()
     session.add(
         User(
@@ -74,8 +79,8 @@ def _add_user(session: Session, *, experience_level_code: str = "BEGINNER") -> U
             profile_version=1,
         )
     )
-    session.add(UserAvailableLocation(user_id=user_id, location_code="HOME"))
-    session.add(UserAvailableLocation(user_id=user_id, location_code="GYM"))
+    for location_code in location_codes:
+        session.add(UserAvailableLocation(user_id=user_id, location_code=location_code))
     return user_id
 
 
@@ -88,11 +93,15 @@ def _add_exercise(
     seconds: int,
     tier: str,
     difficulty_code: str = "BEGINNER",
+    location_code: str = "HOME",
 ) -> None:
+    slug = f"synthetic-{difficulty_code.lower()}-{phase.lower()}"
+    if location_code != "HOME":
+        slug = f"{slug}-{location_code.lower()}"
     exercise = Exercise(
         id=uuid4(),
         catalog_version_id=catalog.id,
-        stable_code=f"synthetic-{difficulty_code.lower()}-{phase.lower()}",
+        stable_code=slug,
         name_ko=f"{difficulty_code} {name}",
         name_en=None,
         training_type_code="STRENGTH" if phase == "MAIN" else "MOBILITY",
@@ -113,10 +122,10 @@ def _add_exercise(
         instruction_content_version="synthetic-v1",
         review_status_code="DOMAIN_APPROVED",
         source_track_code="kspo",
-        source_identity=f"synthetic-{difficulty_code.lower()}-{phase.lower()}",
+        source_identity=slug,
     )
     session.add(exercise)
-    session.add(ExerciseLocation(exercise_id=exercise.id, location_code="HOME"))
+    session.add(ExerciseLocation(exercise_id=exercise.id, location_code=location_code))
     session.add(
         ExerciseGoalTagLink(
             exercise_id=exercise.id,
@@ -345,3 +354,45 @@ def test_postgresql_routine_repository_version_ownership_and_concurrency(
         session.execute(delete(CatalogVersion).where(CatalogVersion.id == catalog_id))
     engine.dispose()
     get_settings.cache_clear()
+
+
+@pytest.mark.integration
+def test_postgresql_routine_repository_does_not_gate_base_routine_by_location(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ADR-0017: the base routine is a weekly template, so location is not a candidate gate.
+
+    A HOME-only user must still receive a GYM-only exercise as a base-routine candidate.
+    The day's location arrives with the check-in and the Safety-approved Pool applies it.
+    """
+
+    database_url = _database_url()
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("APP_ENV", "test")
+    get_settings.cache_clear()
+    command.upgrade(Config(str(ALEMBIC_CONFIG)), "head")
+    engine = create_engine(database_url)
+    _, _, _, _, catalog_id = _seed(engine)
+
+    with Session(engine) as session, session.begin():
+        catalog = session.get(CatalogVersion, catalog_id)
+        assert catalog is not None
+        _add_exercise(
+            session,
+            catalog,
+            name="헬스장 전용 본 운동",
+            phase="MAIN",
+            seconds=490,
+            tier="CORE",
+            location_code="GYM",
+        )
+        home_only_user_id = _add_user(session, location_codes=("HOME",))
+
+    with Session(engine) as session:
+        context = RoutineRepository().get_creation_context(
+            session, home_only_user_id, "GENERAL_FITNESS"
+        )
+        assert context is not None
+        assert context.available_location_codes == ("HOME",)
+        candidate_names = {candidate.exercise_name for candidate in context.candidates}
+        assert "BEGINNER 헬스장 전용 본 운동" in candidate_names
