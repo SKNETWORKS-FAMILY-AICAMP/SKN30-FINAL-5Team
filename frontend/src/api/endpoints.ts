@@ -10,8 +10,10 @@ import type { ApiClient } from './client';
 import type {
   ConsentResponse,
   ConsentValues,
+  DailyContextDefaultsResponse,
   DailyContextRequest,
   DailyContextResponse,
+  DecisionPlanEditRequest,
   DecisionRegenerationRequest,
   DecisionResponse,
   DecisionSelectionResponse,
@@ -187,6 +189,18 @@ export function createApi(client: ApiClient) {
     },
 
     /**
+     * The server's editable defaults for a check-in that has not been
+     * submitted. The client must not re-derive them from the profile while
+     * this answers; they are display defaults, never submitted daily pain.
+     */
+    getDailyContextDefaults(localDate: string, signal?: AbortSignal) {
+      return client.request<DailyContextDefaultsResponse>({
+        path: `/daily-contexts/${localDate}/defaults`,
+        signal,
+      });
+    },
+
+    /**
      * `expectedVersion` must come from a previous read. Omitting it on an
      * existing check-in is what the server answers with `409 STALE_CONTEXT`.
      */
@@ -352,9 +366,7 @@ export function createApi(client: ApiClient) {
     reportSafetyEvent(
       sessionId: string,
       body: {
-        occurred_at: string;
-        discomforts: { body_area_code: string; severity_code: string }[];
-        adverse_reaction_codes: string[];
+        stop_reason_code: 'PAIN_OR_ABNORMAL_RESPONSE';
       },
     ) {
       return client.request<SafetyEventResponse>({
@@ -520,5 +532,25 @@ export type WeeklyPlanRevisionReadCapability = {
   ): Promise<WeeklyPlanRevisionResponse>;
 };
 
+/**
+ * Forward-compatible write boundary for the user's edit of today's final plan:
+ * set and repetition changes (ADR-0018 D4) and reordering inside one phase
+ * (D5). The backend route is not available yet, so `createApi` does not issue a
+ * speculative request and an edit lives only as long as the running app.
+ * Implementing the route and adding this method to `createApi` turns on
+ * persistence without any change in the screens.
+ *
+ * The documented `POST /weeks/{week_start}/plan-revisions` USER flow cannot
+ * carry this edit: it references a stored weekly routine version by id, and
+ * there is no contract for the client to author today's decision plan.
+ */
+export type DecisionPlanEditCapability = {
+  updateDecisionPlan(
+    decisionId: string,
+    body: DecisionPlanEditRequest,
+  ): Promise<DecisionResponse>;
+};
+
 export type Api = ReturnType<typeof createApi> &
-  Partial<WeeklyPlanRevisionReadCapability>;
+  Partial<WeeklyPlanRevisionReadCapability> &
+  Partial<DecisionPlanEditCapability>;

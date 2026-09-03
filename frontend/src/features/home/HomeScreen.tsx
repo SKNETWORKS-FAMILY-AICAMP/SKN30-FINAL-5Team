@@ -56,6 +56,7 @@ import type {
   SessionStatusCode,
   WeekResponse,
   WeeklyPlanRevisionResponse,
+  WorkoutPlan,
   WorkoutSessionDetailResponse,
   WorkoutSessionLogSummary,
 } from '../../api/types';
@@ -124,6 +125,7 @@ const CHECKIN_DURATION_MINUTES = {
   step: 10,
 } as const;
 const EMPTY_PERSISTENT_PAINS: readonly PainAreaInput[] = [];
+const EMPTY_ITEM_OVERRIDES: readonly RoutineItemDraftOverride[] = [];
 
 export const HOME_LAYOUT = {
   contentHorizontalPadding: 18,
@@ -493,12 +495,20 @@ function HomeScreenContent({
     () => (serverPlan === null ? [] : routineItemsFromPlan(serverPlan)),
     [serverPlan],
   );
-  const [presentationOverrides, setPresentationOverrides] = useState<
-    readonly RoutineItemDraftOverride[]
-  >([]);
+  // The override is tied to the plan it was made against. Any new plan from the
+  // flow above — the stored edit, a reorder, a rejected edit rolled back, a
+  // regenerated routine — is the answer to it, so it stops applying.
+  const [presentationOverrides, setPresentationOverrides] = useState<{
+    plan: WorkoutPlan | null;
+    overrides: readonly RoutineItemDraftOverride[];
+  }>({ plan: null, overrides: EMPTY_ITEM_OVERRIDES });
+  const activeOverrides =
+    presentationOverrides.plan === serverPlan
+      ? presentationOverrides.overrides
+      : EMPTY_ITEM_OVERRIDES;
   const presentedServerRoutineItems = useMemo(
-    () => applyRoutineItemOverrides(serverRoutineItems, presentationOverrides),
-    [presentationOverrides, serverRoutineItems],
+    () => applyRoutineItemOverrides(serverRoutineItems, activeOverrides),
+    [activeOverrides, serverRoutineItems],
   );
   const displayedRoutineItems = apiMode
     ? presentedServerRoutineItems
@@ -750,12 +760,15 @@ function HomeScreenContent({
     );
   });
 
+  // The override shows the edit immediately; the container applies the same
+  // edit to today's plan and asks the server to store it. Whatever comes back
+  // replaces the override, so a rejected edit does not keep being displayed.
   const saveInlineEdit = () => {
     if (inlineEditInvalid) {
       return;
     }
     const itemOverrides = routineItemOverrides(serverRoutineItems, editDraft);
-    setPresentationOverrides(itemOverrides);
+    setPresentationOverrides({ plan: serverPlan, overrides: itemOverrides });
     setInlineEditing(false);
     onSubmitUserEdits?.({ itemOverrides });
   };
@@ -825,7 +838,9 @@ function HomeScreenContent({
       source === undefined ||
       target === undefined ||
       completedPlanItemIds.includes(source.id) ||
-      completedPlanItemIds.includes(target.id)
+      completedPlanItemIds.includes(target.id) ||
+      // Warm-up, main and cool-down keep their own order (ADR-0018 D5).
+      (source.phaseCode ?? 'MAIN') !== (target.phaseCode ?? 'MAIN')
     ) {
       return;
     }

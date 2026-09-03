@@ -8,12 +8,16 @@ import type {
   DailyContextResponse,
   FatigueLevelCode,
   PainAreaInput,
+  PlanPhaseCode,
   SessionStatusCode,
   WorkoutPlan,
   WorkoutSessionDetailResponse,
   WorkoutSessionLogSummary,
 } from '../../api/types';
-import { orderedWorkoutPlanItems } from '../../api/workoutPlan';
+import {
+  orderedWorkoutPlanItems,
+  planItemPhaseCode,
+} from '../../api/workoutPlan';
 
 export type HomePreviewState =
   | 'routine-lookup-loading'
@@ -70,6 +74,8 @@ export type HomeRoutineItem = {
   id: string;
   instructionAvailable?: boolean;
   name: string;
+  /** Reordering stays inside one phase (ADR-0018 D5). */
+  phaseCode?: PlanPhaseCode;
   reps?: string;
   sets?: string;
   workSeconds?: number;
@@ -671,6 +677,7 @@ export function routineItemsFromPlan(plan: WorkoutPlan): HomeRoutineItem[] {
     id: item.plan_item_id,
     instructionAvailable: item.instruction_available,
     name: item.exercise_name,
+    phaseCode: planItemPhaseCode(item),
     reps: item.reps === null ? undefined : String(item.reps),
     sets: String(item.sets),
     workSeconds: item.reps === null ? item.work_seconds : undefined,

@@ -1,7 +1,7 @@
 """Store why a HARD session felt hard, so the next routine can lower one axis.
 
 Revision ID: 0039_workout_difficulty_reasons
-Revises: 0037_retire_calendar_integration
+Revises: 0038_workout_execution_state
 Create Date: 2026-09-03
 
 ADR-0018 (D2) fixed the downshift ladder as exercise difficulty, then intensity, then
@@ -17,8 +17,8 @@ table. Rows only ever exist for `difficulty_code='HARD'` feedback; that pairing 
 enforced in the service rather than by a constraint, because the check would have to
 reach across tables.
 
-Numbering note: 0038 is held for the in-flight workout execution work, so this revision
-chains onto 0037 and takes 0039.
+Numbering note: this revision was authored on top of 0037 while 0038 was held for the
+in-flight workout execution work. That work landed first, so it now chains onto 0038.
 """
 
 from collections.abc import Sequence
@@ -27,7 +27,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "0039_workout_difficulty_reasons"
-down_revision: str | None = "0037_retire_calendar_integration"
+down_revision: str | None = "0038_workout_execution_state"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

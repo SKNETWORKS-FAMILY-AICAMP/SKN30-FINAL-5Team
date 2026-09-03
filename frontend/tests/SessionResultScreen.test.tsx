@@ -103,12 +103,11 @@ describe('SessionResultScreen feedback', () => {
         kind: 'safetyStop' as const,
         event: {
           event_id: 'safety-event-result',
-          instruction_code: 'STOP_AND_SEEK_HELP' as const,
-          resulting_action_code: 'STOP_AND_SEEK_HELP' as const,
-          session_status_code: 'STOPPED_FOR_SAFETY' as const,
-          guidance_code: 'SEEK_HELP',
+          result_code: 'STOP_AND_SEEK_HELP' as const,
+          execution_state_code: 'STOPPED_SAFETY' as const,
+          completion_code: 'PARTIAL' as const,
+          is_resumable: false as const,
           guidance: '운동을 중단하고 상태를 확인해 주세요.',
-          pressure_notifications_allowed: false,
         },
       },
     },
@@ -136,6 +135,9 @@ describe('SessionResultScreen feedback', () => {
     expect(screen.queryByText('운동 후 통증')).toBeNull();
     expect(screen.queryByText('불편한 부위')).toBeNull();
     expect(screen.queryByText('이상 반응')).toBeNull();
+    if (outcome.kind === 'safetyStop') {
+      expect(screen.getByText('일부 완료')).toBeOnTheScreen();
+    }
   });
 
   it('submits the selected difficulty with hidden legacy compatibility values', async () => {

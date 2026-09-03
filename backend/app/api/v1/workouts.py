@@ -30,6 +30,8 @@ from backend.app.modules.workouts.schemas import (
     WorkoutSessionNotCompletedResponse,
     WorkoutSessionStartRequest,
     WorkoutSessionStartResponse,
+    WorkoutSessionStopRequest,
+    WorkoutSessionStopResponse,
     WorkoutTimerEventRequest,
     WorkoutTimerEventResponse,
 )
@@ -316,6 +318,23 @@ def record_safety_event(
 ) -> WorkoutSafetyEventResponse:
     try:
         return WorkoutService(repository).record_safety_event(
+            session, current_user.user_id, session_id, payload, idempotency_key
+        )
+    except _WORKOUT_ERRORS as exc:
+        raise _error(exc) from None
+
+
+@router.patch("/{session_id}/stop", response_model=WorkoutSessionStopResponse)
+def stop_session(
+    session_id: UUID,
+    payload: WorkoutSessionStopRequest,
+    idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db_session)],
+    repository: Annotated[WorkoutRepositoryPort, Depends(get_workout_repository)],
+) -> WorkoutSessionStopResponse:
+    try:
+        return WorkoutService(repository).stop_session(
             session, current_user.user_id, session_id, payload, idempotency_key
         )
     except _WORKOUT_ERRORS as exc:

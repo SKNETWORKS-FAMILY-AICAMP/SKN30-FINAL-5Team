@@ -87,6 +87,29 @@ class WorkoutSession(Base):
             name="ck_workout_sessions_elapsed_nonnegative",
         ),
         CheckConstraint(
+            "completion_code IS NULL OR completion_code IN ('COMPLETED','PARTIAL','NOT_COMPLETED')",
+            name="ck_workout_sessions_completion",
+        ),
+        CheckConstraint(
+            "execution_state_code IS NULL OR execution_state_code IN "
+            "('RUNNING','RESTING','PAUSED','STOPPED_RESUMABLE','STOPPED_SAFETY','COMPLETED')",
+            name="ck_workout_sessions_execution_state",
+        ),
+        CheckConstraint(
+            "stop_reason_code IS NULL OR stop_reason_code IN "
+            "('HIGH_FATIGUE','TIME_SHORTAGE','RESUME_LATER','PAIN_OR_ABNORMAL_RESPONSE')",
+            name="ck_workout_sessions_stop_reason",
+        ),
+        CheckConstraint(
+            "target_duration_seconds IS NULL OR target_duration_seconds > 0",
+            name="ck_workout_sessions_target_duration_positive",
+        ),
+        CheckConstraint(
+            "accumulated_progress_seconds >= 0 AND accumulated_rest_seconds >= 0 "
+            "AND accumulated_paused_seconds >= 0",
+            name="ck_workout_sessions_accumulated_duration_nonnegative",
+        ),
+        CheckConstraint(
             "estimated_calories_burned IS NULL OR estimated_calories_burned >= 0",
             name="ck_workout_sessions_calories_nonnegative",
         ),
@@ -109,9 +132,20 @@ class WorkoutSession(Base):
         Uuid, ForeignKey("scheduled_workouts.id", ondelete="SET NULL"), nullable=True
     )
     status_code: Mapped[str] = mapped_column(String(24), nullable=False)
+    completion_code: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    execution_state_code: Mapped[str | None] = mapped_column(String(24), nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     actual_elapsed_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    target_duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    accumulated_progress_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    accumulated_rest_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    accumulated_paused_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_state_changed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    is_resumable: Mapped[bool] = mapped_column(nullable=False, default=False)
+    stop_reason_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
     estimated_calories_burned: Mapped[float | None] = mapped_column(Float, nullable=True)
     idempotency_key: Mapped[UUID] = mapped_column(Uuid, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -219,10 +253,16 @@ class WorkoutSafetyEvent(Base):
         Uuid, ForeignKey("workout_sessions.id", ondelete="CASCADE"), nullable=False, index=True
     )
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    instruction_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    # Legacy detail columns remain readable during the compatibility window. New P1-C
+    # writes use the structured symptom/body-area/NRS fields below instead.
+    instruction_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
     resulting_action_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    guidance_code: Mapped[str] = mapped_column(String(48), nullable=False)
-    reason_code: Mapped[str] = mapped_column(String(48), nullable=False)
+    guidance_code: Mapped[str | None] = mapped_column(String(48), nullable=True)
+    reason_code: Mapped[str | None] = mapped_column(String(48), nullable=True)
+    plan_item_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("plan_items.id", ondelete="SET NULL"), nullable=True
+    )
+    result_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
     rule_version: Mapped[str] = mapped_column(String(32), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     discomforts: Mapped[list["WorkoutSafetyEventDiscomfort"]] = relationship(

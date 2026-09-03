@@ -38,8 +38,8 @@ export type SessionStatusCode =
   | 'NOT_COMPLETED'
   | 'STOPPED_FOR_SAFETY';
 
-export type SafetyInstructionCode =
-  'SHOW_CAUTION' | 'STOP_SESSION' | 'STOP_AND_SEEK_HELP';
+/** Reordering is allowed inside one phase only (ADR-0018 D5). */
+export type PlanPhaseCode = 'WARMUP' | 'MAIN' | 'COOLDOWN';
 
 export type NotCompletedReasonCode =
   | 'TIME_SHORTAGE'
@@ -251,11 +251,24 @@ export type DailyContextResponse = DailyContextRequest & {
   availability_source_code?: 'MANUAL' | 'ROUTINE_DEFAULT';
 };
 
+/**
+ * Editable defaults for a check-in the user has not submitted yet. The server
+ * owns which pains are pre-filled, so the client must not derive them from the
+ * profile while this is available. They are display defaults, never submitted
+ * daily pain.
+ */
+export type DailyContextDefaultsResponse = {
+  local_date: string;
+  pains: PainAreaInput[];
+};
+
 export type WorkoutPlanItem = {
   plan_item_id: string;
   exercise_id: string;
   exercise_name: string;
   sequence: number;
+  /** Absent on legacy plans, which the server treated as MAIN. */
+  phase_code?: PlanPhaseCode;
   tier_code: string;
   sets: number;
   reps: number | null;
@@ -338,6 +351,30 @@ export type DecisionResponse = {
   created_at: string;
 };
 
+export type PlanItemPrescriptionEdit = {
+  plan_item_id: string;
+  sets: number;
+  reps: number | null;
+};
+
+/**
+ * A user edit of today's final plan: set/repetition changes (ADR-0018 D4) and
+ * reordering inside one phase (D5). The client sends the full resulting plan
+ * rather than a patch so the server can diff it against the stored plan, decide
+ * which items the user actually changed, re-sequence each phase from 1 and run
+ * the integrity validator. It never sends exercise identity, safety state or
+ * reason codes.
+ *
+ * Proposed shape awaiting backend review; see the frontend report for the
+ * request that accompanies it.
+ */
+export type DecisionPlanEditRequest = {
+  expected_plan_id: string;
+  /** Every plan item id, in the order the user wants to perform them. */
+  item_order: string[];
+  item_prescriptions: PlanItemPrescriptionEdit[];
+};
+
 export type DecisionRegenerationRequest = {
   expected_plan_id: string;
   expected_regeneration_sequence: 0 | 1;
@@ -412,12 +449,11 @@ export type WorkoutAdditionalActivityResponse = {
 
 export type SafetyEventResponse = {
   event_id: string;
-  instruction_code: SafetyInstructionCode;
-  resulting_action_code: 'REST' | 'STOP_AND_SEEK_HELP' | null;
-  session_status_code: 'IN_PROGRESS' | 'STOPPED_FOR_SAFETY';
-  guidance_code: string;
+  result_code: 'SESSION_STOPPED' | 'STOP_AND_SEEK_HELP';
+  execution_state_code: 'STOPPED_SAFETY';
+  completion_code: 'PARTIAL' | 'NOT_COMPLETED';
+  is_resumable: false;
   guidance: string;
-  pressure_notifications_allowed: boolean;
 };
 
 export type SessionFinishResponse = {

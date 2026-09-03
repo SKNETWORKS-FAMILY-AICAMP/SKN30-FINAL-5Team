@@ -1061,13 +1061,7 @@ describe('PreviewGallery', () => {
       }),
     );
     fireEvent.press(
-      canvas.getByRole('button', { name: '안전 관련 내용 입력하기' }),
-    );
-    fireEvent.press(
-      canvas.getByRole('checkbox', { name: '가슴 압박감 또는 통증' }),
-    );
-    fireEvent.press(
-      canvas.getByRole('button', { name: '보고하고 안전 안내 확인' }),
+      canvas.getByRole('button', { name: '안전하게 운동 중단하기' }),
     );
 
     expect(

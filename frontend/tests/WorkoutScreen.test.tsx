@@ -11,6 +11,7 @@ import { Platform, processColor, ScrollView, StyleSheet } from 'react-native';
 
 import type { Api } from '../src/api/endpoints';
 import type {
+  SafetyEventResponse,
   SessionItemUpdateResponse,
   WorkoutPlan,
   WorkoutSessionDetailResponse,
@@ -154,7 +155,7 @@ function openSafetyReportFromStop() {
     }),
   );
   fireEvent.press(
-    screen.getByRole('button', { name: '안전 관련 내용 입력하기' }),
+    screen.getByRole('button', { name: '안전하게 운동 중단하기' }),
   );
 }
 
@@ -817,7 +818,7 @@ describe('WorkoutScreen', () => {
       screen.getByText(/어지럼증, 메스꺼움, 예상하지 못한 호흡 불편/),
     ).toBeOnTheScreen();
     expect(
-      screen.getByText(/진단하거나 치료 방법을 안내하지 않아요/),
+      screen.getByText(/증상 상세를 수집하거나 상태를 진단하지 않아요/),
     ).toBeOnTheScreen();
   });
 
@@ -1717,15 +1718,14 @@ describe('WorkoutScreen API mode', () => {
     expect(finishSession).not.toHaveBeenCalled();
   });
 
-  it('closes API pain reporting without submitting', async () => {
+  it('closes API safety-stop confirmation without submitting', async () => {
     const reportSafetyEvent = jest.fn(async () => ({
       event_id: 'unused-safety-event',
-      instruction_code: 'SHOW_CAUTION' as const,
-      resulting_action_code: null,
-      session_status_code: 'IN_PROGRESS' as const,
-      guidance_code: 'MILD_DISCOMFORT_CAUTION',
+      result_code: 'SESSION_STOPPED' as const,
+      execution_state_code: 'STOPPED_SAFETY' as const,
+      completion_code: 'NOT_COMPLETED' as const,
+      is_resumable: false as const,
       guidance: '사용되지 않는 안전 안내',
-      pressure_notifications_allowed: true,
     }));
     const api = workoutApi({
       getWorkoutSession: jest.fn(async () => sessionDetail('IN_PROGRESS')),
@@ -1743,16 +1743,16 @@ describe('WorkoutScreen API mode', () => {
     await waitFor(() =>
       expect(screen.queryByText('운동 세션을 준비하고 있어요…')).toBeNull(),
     );
-    openSafetyReportFromStop();
-    expect(
-      screen.getByText(
-        '어떤 통증이 있는지 알려주면, 운동을 계속할지 중단할지 결정할게요.',
-      ),
-    ).toBeOnTheScreen();
-    fireEvent.press(screen.getByRole('button', { name: '취소' }));
+    fireEvent.press(screen.getByRole('button', { name: '운동 중단' }));
+    fireEvent.press(
+      screen.getByRole('radio', { name: '통증 또는 이상 반응이 있어요.' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '돌아가기' }));
 
     expect(
-      screen.queryByRole('header', { name: '불편·이상 반응 보고' }),
+      screen.queryByRole('header', {
+        name: '운동을 중단하는 이유를 알려주세요',
+      }),
     ).toBeNull();
     expect(screen.getByRole('button', { name: '운동 중단' })).toBeOnTheScreen();
     expect(reportSafetyEvent).not.toHaveBeenCalled();
@@ -1791,15 +1791,15 @@ describe('WorkoutScreen API mode', () => {
     ).toBeNull();
   });
 
-  it('sends reviewed safety fields and renders the server guidance', async () => {
+  it('sends only the safety stop reason and ends the session', async () => {
+    const onOutcome = jest.fn();
     const reportSafetyEvent = jest.fn(async () => ({
       event_id: 'safety-api',
-      instruction_code: 'SHOW_CAUTION' as const,
-      resulting_action_code: null,
-      session_status_code: 'IN_PROGRESS' as const,
-      guidance_code: 'MILD_DISCOMFORT_CAUTION',
+      result_code: 'SESSION_STOPPED' as const,
+      execution_state_code: 'STOPPED_SAFETY' as const,
+      completion_code: 'NOT_COMPLETED' as const,
+      is_resumable: false as const,
       guidance: '서버에서 확인한 안전 안내입니다.',
-      pressure_notifications_allowed: true,
     }));
     const api = workoutApi({
       getWorkoutSession: jest.fn(async () => sessionDetail('IN_PROGRESS')),
@@ -1811,79 +1811,65 @@ describe('WorkoutScreen API mode', () => {
         api={api}
         sessionId="session-api"
         plan={API_PLAN}
-        onOutcome={jest.fn()}
+        onOutcome={onOutcome}
       />,
     );
     await waitFor(() =>
       expect(screen.queryByText('운동 세션을 준비하고 있어요…')).toBeNull(),
     );
     openSafetyReportFromStop();
-    expect(screen.queryByRole('checkbox', { name: '전신' })).toBeNull();
-    expect(screen.queryByRole('checkbox', { name: '기타 부위' })).toBeNull();
-    expect(screen.queryByRole('checkbox', { name: '목' })).toBeNull();
-    fireEvent.press(
-      screen.getByRole('checkbox', { name: '다른 부위 더 보기' }),
-    );
-    expect(screen.getByRole('checkbox', { name: '목' })).toBeOnTheScreen();
-    fireEvent.press(screen.getByRole('checkbox', { name: '무릎' }));
-    fireEvent.press(screen.getByRole('checkbox', { name: '어깨' }));
-    fireEvent.press(screen.getByRole('radio', { name: '어깨 심함' }));
-    fireEvent.press(screen.getByRole('checkbox', { name: '심한 어지럼' }));
-    const submitButton = screen.getByRole('button', {
-      name: '보고하고 안전 안내 확인',
-    });
-    const submitButtonStyle = StyleSheet.flatten(submitButton.props.style);
-    const submitLabelStyle = StyleSheet.flatten(
-      screen.getByText('보고하고 안전 안내 확인').props.style,
-    );
-    const submitGradient = screen.getByTestId(
-      'workout-api-safety-submit-gradient',
-    );
-
-    expect(submitButtonStyle).toMatchObject({
-      width: '100%',
-      borderColor: 'rgba(142, 50, 38, 0.8)',
-      borderWidth: 1,
-      borderRadius: 18,
-      padding: 17,
-      shadowColor: '#8E3226',
-      shadowOpacity: 0.11,
-      shadowRadius: 6,
-      elevation: 3,
-    });
-    expect(submitButtonStyle.backgroundColor).toBeUndefined();
-    expect(submitButtonStyle.borderBottomWidth).toBeUndefined();
-    expect(submitLabelStyle).toMatchObject({
-      color: '#FFFFFF',
-      fontFamily: Platform.select({
-        ios: 'System',
-        android: 'sans-serif-medium',
-        default: 'system-ui',
-      }),
-      fontSize: 18,
-      fontWeight: '700',
-      letterSpacing: -0.15,
-    });
-    expect(submitGradient.props.colors).toEqual(
-      ['#D97260', '#CC5A47', '#C2503C'].map(processColor),
-    );
-    expect(submitGradient.props.locations).toEqual([0, 0.55, 1]);
-
-    fireEvent.press(submitButton);
 
     await waitFor(() => expect(reportSafetyEvent).toHaveBeenCalledTimes(1));
-    expect(reportSafetyEvent).toHaveBeenCalledWith(
-      'session-api',
-      expect.objectContaining({
-        discomforts: [
-          { body_area_code: 'KNEE', severity_code: 'MILD' },
-          { body_area_code: 'SHOULDER', severity_code: 'SEVERE' },
-        ],
-        adverse_reaction_codes: ['SEVERE_DIZZINESS'],
+    expect(reportSafetyEvent).toHaveBeenCalledWith('session-api', {
+      stop_reason_code: 'PAIN_OR_ABNORMAL_RESPONSE',
+    });
+    expect(onOutcome).toHaveBeenCalledWith({
+      kind: 'safetyStop',
+      event: expect.objectContaining({
+        execution_state_code: 'STOPPED_SAFETY',
+        is_resumable: false,
       }),
+    });
+  });
+
+  it('does not continue when the server returns the removed safety contract', async () => {
+    const onOutcome = jest.fn();
+    const reportSafetyEvent = jest.fn(
+      async () =>
+        ({
+          event_id: 'legacy-safety-api',
+          session_status_code: 'IN_PROGRESS',
+          guidance: '구형 응답',
+        }) as unknown as SafetyEventResponse,
     );
+    const api = workoutApi({
+      getWorkoutSession: jest.fn(async () => sessionDetail('IN_PROGRESS')),
+      reportSafetyEvent,
+    });
+
+    render(
+      <WorkoutScreen
+        api={api}
+        sessionId="session-api"
+        plan={API_PLAN}
+        onOutcome={onOutcome}
+      />,
+    );
+    await waitFor(() =>
+      expect(screen.queryByText('운동 세션을 준비하고 있어요…')).toBeNull(),
+    );
+    openSafetyReportFromStop();
+
     expect(
-      await screen.findByText('서버에서 확인한 안전 안내입니다.'),
+      await screen.findByText(
+        '안전 중단 응답을 확인할 수 없습니다. 운동을 계속하지 마세요.',
+      ),
+    ).toBeOnTheScreen();
+    expect(onOutcome).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole('header', {
+        name: '운동을 중단하는 이유를 알려주세요',
+      }),
     ).toBeOnTheScreen();
   });
 

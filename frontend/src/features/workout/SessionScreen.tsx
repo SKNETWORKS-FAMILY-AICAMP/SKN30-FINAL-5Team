@@ -12,19 +12,15 @@
  * - `/finish` is only offered once the server reports at least one completed
  *   block; otherwise the user is routed to the not-completed reason flow
  * - reporting pain or an adverse response switches the mascot to its serious
- *   form, and a resulting stop ends the session immediately
+ *   form and ends the session without collecting symptom details
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Api } from '../../api/endpoints';
-import {
-  ADVERSE_REACTION_OPTIONS,
-  DEFAULT_BODY_AREA_OPTIONS,
-  EXTENDED_BODY_AREA_OPTIONS,
-  formatDuration,
-} from '../../api/labels';
+import { ApiError } from '../../api/errors';
+import { formatDuration } from '../../api/labels';
 import type {
   SafetyEventResponse,
   SessionFinishResponse,
@@ -40,7 +36,6 @@ import {
 } from '../../components/brand/BrandChrome';
 import { Button, Card, InlineFeedback } from '../../components/primitives';
 import {
-  SafetyNotice,
   ScreenHeading,
   ScreenShell,
 } from '../../components/states/ScreenState';
@@ -70,7 +65,6 @@ export function SessionScreen({
   const [running, setRunning] = useState(false);
   const [openDetailId, setOpenDetailId] = useState<string | null>(null);
   const [safetyOpen, setSafetyOpen] = useState(false);
-  const [caution, setCaution] = useState<SafetyEventResponse | null>(null);
   const [notCompletedOpen, setNotCompletedOpen] = useState(false);
   const started = useRef(false);
   const family = useBrandFontFamily();
@@ -134,27 +128,26 @@ export function SessionScreen({
     onOutcome({ kind: 'finished', result });
   });
 
-  const reportSafety = useAsyncAction(
-    async (bodyAreaCode: string | null, reactionCode: string | null) => {
-      const event = await api.reportSafetyEvent(sessionId, {
-        occurred_at: new Date().toISOString(),
-        discomforts: bodyAreaCode
-          ? [{ body_area_code: bodyAreaCode, severity_code: 'SEVERE' }]
-          : [],
-        adverse_reaction_codes: reactionCode ? [reactionCode] : [],
+  const reportSafety = useAsyncAction(async () => {
+    const event = await api.reportSafetyEvent(sessionId, {
+      stop_reason_code: 'PAIN_OR_ABNORMAL_RESPONSE',
+    });
+    if (
+      event.execution_state_code !== 'STOPPED_SAFETY' ||
+      event.is_resumable !== false
+    ) {
+      throw new ApiError({
+        kind: 'server',
+        code: 'INVALID_SAFETY_EVENT_RESPONSE',
+        status: 500,
+        message: '안전 중단 응답을 확인할 수 없습니다. 운동을 계속하지 마세요.',
       });
-      setSafetyOpen(false);
-      if (event.session_status_code === 'STOPPED_FOR_SAFETY') {
-        setRunning(false);
-        onOutcome({ kind: 'safetyStop', event });
-        return event;
-      }
-      // SHOW_CAUTION keeps the session running; the server does not rewrite an
-      // in-progress plan, so the client only surfaces the reviewed wording.
-      setCaution(event);
-      return event;
-    },
-  );
+    }
+    setSafetyOpen(false);
+    setRunning(false);
+    onOutcome({ kind: 'safetyStop', event });
+    return event;
+  });
 
   const markNotCompleted = useAsyncAction(async (reasonCode: string) => {
     const result = await api.markNotCompleted(
@@ -220,7 +213,7 @@ export function SessionScreen({
   const canFinish = completedCount > 0;
   const allDone = completedCount === items.length;
   const currentItem = orderedPlanItems[currentIndex];
-  const serious = safetyOpen || caution !== null;
+  const serious = safetyOpen;
 
   return (
     <ScreenShell bands tallBands contentStyle={styles.content}>
@@ -268,9 +261,6 @@ export function SessionScreen({
         }
       />
 
-      {caution ? (
-        <SafetyNotice title="주의 안내" message={caution.guidance} />
-      ) : null}
       {toggleItem.error ? (
         <InlineFeedback tone="error" message={toggleItem.error} />
       ) : null}
@@ -318,11 +308,11 @@ export function SessionScreen({
       </View>
 
       {safetyOpen ? (
-        <SafetyReportSheet
+        <SafetyStopConfirmation
           pending={reportSafety.pending}
           error={reportSafety.error}
           onCancel={() => setSafetyOpen(false)}
-          onReport={(area, reaction) => void reportSafety.run(area, reaction)}
+          onConfirm={() => void reportSafety.run()}
         />
       ) : null}
 
@@ -339,107 +329,34 @@ export function SessionScreen({
 }
 
 /**
- * Serious-tone reporting. No mascot mark, no playful copy or colour here.
+ * Serious-tone confirmation. The workout safety endpoint intentionally does
+ * not collect symptom, body-area or pain-score details.
  */
-function SafetyReportSheet({
+function SafetyStopConfirmation({
   pending,
   error,
   onCancel,
-  onReport,
+  onConfirm,
 }: {
   pending: boolean;
   error: string | null;
   onCancel: () => void;
-  onReport: (bodyAreaCode: string | null, reactionCode: string | null) => void;
+  onConfirm: () => void;
 }) {
-  const [area, setArea] = useState<string | null>(null);
-  const [reaction, setReaction] = useState<string | null>(null);
-  const [showExtendedAreas, setShowExtendedAreas] = useState(false);
-
   return (
     <Card style={styles.sheet}>
-      <Text style={styles.sheetTitle}>지금 상태를 알려주세요</Text>
+      <Text style={styles.sheetTitle}>안전을 위해 운동을 중단할게요</Text>
       <Text style={styles.sheetBody}>
-        선택한 내용에 따라 운동을 중단하도록 안내할 수 있어요.
+        통증 또는 이상 반응이 있다면 오늘 운동은 여기서 종료되며 다시 이어할 수
+        없습니다.
       </Text>
-
-      <Text style={styles.sheetLabel}>심한 통증이 있는 부위</Text>
-      <View style={styles.chipRow}>
-        {DEFAULT_BODY_AREA_OPTIONS.map((option) => (
-          <Pressable
-            key={option.code}
-            accessibilityRole="button"
-            accessibilityState={{ selected: area === option.code }}
-            onPress={() =>
-              setArea((current) =>
-                current === option.code ? null : option.code,
-              )
-            }
-            style={[styles.chip, area === option.code && styles.chipSelected]}
-          >
-            <Text style={styles.chipLabel}>{option.label}</Text>
-          </Pressable>
-        ))}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ selected: showExtendedAreas }}
-          onPress={() => setShowExtendedAreas((visible) => !visible)}
-          style={[styles.chip, showExtendedAreas && styles.chipSelected]}
-        >
-          <Text style={styles.chipLabel}>
-            {showExtendedAreas ? '다른 부위 접기' : '다른 부위 더 보기'}
-          </Text>
-        </Pressable>
-        {showExtendedAreas
-          ? EXTENDED_BODY_AREA_OPTIONS.map((option) => (
-              <Pressable
-                key={option.code}
-                accessibilityRole="button"
-                accessibilityState={{ selected: area === option.code }}
-                onPress={() =>
-                  setArea((current) =>
-                    current === option.code ? null : option.code,
-                  )
-                }
-                style={[
-                  styles.chip,
-                  area === option.code && styles.chipSelected,
-                ]}
-              >
-                <Text style={styles.chipLabel}>{option.label}</Text>
-              </Pressable>
-            ))
-          : null}
-      </View>
-
-      <Text style={styles.sheetLabel}>이상 반응</Text>
-      <View style={styles.chipRow}>
-        {ADVERSE_REACTION_OPTIONS.map((option) => (
-          <Pressable
-            key={option.code}
-            accessibilityRole="button"
-            accessibilityState={{ selected: reaction === option.code }}
-            onPress={() =>
-              setReaction((current) =>
-                current === option.code ? null : option.code,
-              )
-            }
-            style={[
-              styles.chip,
-              reaction === option.code && styles.chipSelected,
-            ]}
-          >
-            <Text style={styles.chipLabel}>{option.label}</Text>
-          </Pressable>
-        ))}
-      </View>
 
       {error ? <InlineFeedback tone="error" message={error} /> : null}
 
       <Button
-        label={pending ? '전송 중…' : '알리기'}
-        disabled={pending || (area === null && reaction === null)}
-        onPress={() => onReport(area, reaction)}
+        label={pending ? '중단 처리 중…' : '안전하게 운동 중단하기'}
+        disabled={pending}
+        onPress={onConfirm}
       />
       <Button label="닫기" tone="secondary" onPress={onCancel} />
     </Card>
