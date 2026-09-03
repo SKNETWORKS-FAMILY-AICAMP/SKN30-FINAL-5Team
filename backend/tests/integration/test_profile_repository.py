@@ -247,7 +247,7 @@ def test_profile_settings_update_is_partial_atomic_versioned_and_idempotent(
             "attention_area_codes": [],
             "preferred_exercise_type_codes": ["MOBILITY"],
             "date_of_birth": "1999-01-02",
-            "persistent_pains": [{"body_area_code": "KNEE", "intensity_score": 4}],
+            "persistent_pains": [{"body_area_code": "SHOULDER", "intensity_score": 4}],
         }
     )
     first = service.update_profile_settings(postgres_session, current_user.user_id, request, key, 1)
@@ -294,7 +294,7 @@ def test_profile_settings_update_is_partial_atomic_versioned_and_idempotent(
                 UserPersistentPain.user_id == current_user.user_id
             )
         )
-    ) == [("KNEE", 4)]
+    ) == [("SHOULDER", 4)]
     assert (
         postgres_session.scalar(
             select(func.count())
