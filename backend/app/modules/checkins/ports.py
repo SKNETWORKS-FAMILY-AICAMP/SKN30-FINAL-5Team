@@ -13,9 +13,14 @@ class DailyContextValues:
     duration_adjustment_source_code: str
     location_code: str
     sleep_minutes: int | None
+    sleep_source_code: str | None
+    available_time_minutes: int
+    pain_present: bool
+    red_flag_present: bool
     fasting_state_code: str | None
     hydration_state_code: str | None
     discomforts: tuple[tuple[str, str], ...]
+    pains: tuple[tuple[str, int, str, str], ...]
     adverse_reaction_codes: tuple[str, ...]
     # ROUTINE_DEFAULT pairs with an empty tuple and means the user did not answer.
     # MANUAL with an empty tuple is an explicit "no time today" choice.
@@ -35,6 +40,10 @@ class DailyContextRepositoryPort(Protocol):
     def get_user_timezone(self, session: Session, user_id: UUID) -> str | None:
         """Return the verified profile IANA timezone used to bound availability slots."""
         ...
+
+    def get_persistent_pain_defaults(
+        self, session: Session, user_id: UUID
+    ) -> tuple[tuple[str, int], ...]: ...
 
     def get_idempotency_record(
         self, session: Session, user_id: UUID, idempotency_key: UUID

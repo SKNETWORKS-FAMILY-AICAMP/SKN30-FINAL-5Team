@@ -18,9 +18,10 @@ from backend.app.db.models.checkin import (
     DailyContextAdverseReaction,
     DailyContextAvailabilitySlot,
     DailyContextDiscomfort,
+    DailyContextPain,
 )
 from backend.app.db.models.identity import User
-from backend.app.db.models.profile import UserProfile
+from backend.app.db.models.profile import UserPersistentPain, UserProfile
 from backend.app.db.repositories.checkin import DailyContextRepository
 from backend.app.modules.checkins.schemas import DailyContextUpsertRequest
 from backend.app.modules.checkins.service import DailyContextService, StaleContextError
@@ -110,6 +111,11 @@ def test_daily_context_persists_replaces_relations_and_locks_version(
         uuid4(),
         None,
     )
+    assert [(pain.body_area_code.value, pain.intensity_score) for pain in first.pains] == [
+        ("KNEE", 3)
+    ]
+    assert first.available_time_minutes == 40
+    assert postgres_session.scalar(select(func.count()).select_from(DailyContextPain)) == 1
     second = service.replace(
         postgres_session, user_id, LOCAL_DATE, _request(discomforts=[]), uuid4(), 1
     )
@@ -120,9 +126,62 @@ def test_daily_context_persists_replaces_relations_and_locks_version(
         service.replace(postgres_session, user_id, LOCAL_DATE, _request(discomforts=[]), uuid4(), 1)
     assert postgres_session.scalar(select(func.count()).select_from(DailyContext)) == 1
     assert postgres_session.scalar(select(func.count()).select_from(DailyContextDiscomfort)) == 0
+    assert postgres_session.scalar(select(func.count()).select_from(DailyContextPain)) == 0
     assert (
         postgres_session.scalar(select(func.count()).select_from(DailyContextAdverseReaction)) == 0
     )
+
+
+@pytest.mark.integration
+def test_pre_0036_discomfort_rows_remain_readable_without_fabricating_an_nrs_score(
+    postgres_session: Session,
+) -> None:
+    user_id = uuid4()
+    context_id = uuid4()
+    postgres_session.add_all(
+        [
+            User(
+                id=user_id,
+                status_code=UserStatusCode.ACTIVE,
+                code_set_version=IDENTITY_CODE_SET_VERSION,
+                last_active_at=NOW,
+                created_at=NOW,
+                updated_at=NOW,
+                ai_trial_started_at=NOW,
+                ai_trial_ends_at=NOW + timedelta(days=7),
+                premium_status_code=PremiumStatusCode.NOT_AVAILABLE,
+            ),
+            Location(code="HOME", code_set_version="mvp-v1"),
+            BodyArea(code="KNEE", code_set_version="mvp-v1"),
+            DailyContext(
+                id=context_id,
+                user_id=user_id,
+                local_date=LOCAL_DATE,
+                context_version=1,
+                fatigue_level_code="LOW",
+                requested_duration_minutes=30,
+                duration_adjustment_source_code="PROFILE",
+                location_code="HOME",
+                availability_source_code="ROUTINE_DEFAULT",
+                created_at=NOW,
+                updated_at=NOW,
+            ),
+            DailyContextDiscomfort(
+                id=uuid4(),
+                daily_context_id=context_id,
+                body_area_code="KNEE",
+                severity_code="MILD",
+            ),
+        ]
+    )
+    postgres_session.flush()
+
+    payload = DailyContextRepository().get_payload(postgres_session, user_id, LOCAL_DATE)
+
+    assert payload is not None
+    assert payload["pains"] == []
+    assert payload["pain_present"] is True
+    assert payload["discomforts"] == [{"body_area_code": "KNEE", "severity_code": "MILD"}]
 
 
 def _availability_request(slots: list[dict[str, str]] | None) -> DailyContextUpsertRequest:
@@ -157,6 +216,7 @@ def _seed_user_with_profile(session: Session, user_id: UUID) -> None:
                 premium_status_code=PremiumStatusCode.NOT_AVAILABLE,
             ),
             Location(code="HOME", code_set_version="mvp-v1"),
+            BodyArea(code="KNEE", code_set_version="mvp-v1"),
         ]
     )
     session.flush()
@@ -178,6 +238,33 @@ def _seed_user_with_profile(session: Session, user_id: UUID) -> None:
     )
     session.flush()
     session.commit()
+
+
+@pytest.mark.integration
+def test_persistent_pains_are_projected_as_checkin_defaults(
+    postgres_session: Session,
+) -> None:
+    user_id = uuid4()
+    _seed_user_with_profile(postgres_session, user_id)
+    postgres_session.add(
+        UserPersistentPain(
+            id=uuid4(),
+            user_id=user_id,
+            body_area_code="KNEE",
+            intensity_score=4,
+            created_at=NOW,
+            updated_at=NOW,
+        )
+    )
+    postgres_session.commit()
+
+    defaults = DailyContextService(DailyContextRepository(), clock=lambda: NOW).defaults(
+        postgres_session, user_id, LOCAL_DATE
+    )
+
+    assert [(pain.body_area_code.value, pain.intensity_score) for pain in defaults.pains] == [
+        ("KNEE", 4)
+    ]
 
 
 def _slot_count(session: Session) -> int:

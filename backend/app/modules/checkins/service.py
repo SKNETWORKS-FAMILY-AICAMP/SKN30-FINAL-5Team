@@ -8,8 +8,15 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from sqlalchemy.orm import Session
 
 from backend.app.domain.rules.external_context import CalendarAvailabilitySourceCode
+from backend.app.domain.rules.safety import BodyAreaCode, severity_from_intensity_score
+from backend.app.modules.checkins.codes import DAILY_PAIN_POLICY_VERSION
 from backend.app.modules.checkins.ports import DailyContextRepositoryPort, DailyContextValues
-from backend.app.modules.checkins.schemas import DailyContextResponse, DailyContextUpsertRequest
+from backend.app.modules.checkins.schemas import (
+    DailyContextDefaultsResponse,
+    DailyContextResponse,
+    DailyContextUpsertRequest,
+    PainInput,
+)
 
 
 class DailyContextNotFoundError(Exception):
@@ -80,6 +87,22 @@ class DailyContextService:
             raise DailyContextNotFoundError
         return DailyContextResponse.model_validate(payload)
 
+    def defaults(
+        self, session: Session, user_id: UUID, local_date: date
+    ) -> DailyContextDefaultsResponse:
+        """Project persistent pains only for editable check-in form initialization."""
+
+        persistent_pains = self._repository.get_persistent_pain_defaults(session, user_id)
+        return DailyContextDefaultsResponse(
+            local_date=local_date,
+            pains=[
+                PainInput(
+                    body_area_code=BodyAreaCode(body_area_code), intensity_score=intensity_score
+                )
+                for body_area_code, intensity_score in persistent_pains
+            ],
+        )
+
     def replace(
         self,
         session: Session,
@@ -109,16 +132,33 @@ class DailyContextService:
                 availability_source_code = CalendarAvailabilitySourceCode.MANUAL
                 available_slots = _bounded_slots(request, local_date, timezone_name)
 
+            assert request.requested_duration_minutes is not None
+            assert request.available_time_minutes is not None
+            assert request.pain_present is not None
+
             values = DailyContextValues(
                 fatigue_level_code=request.fatigue_level_code,
                 requested_duration_minutes=request.requested_duration_minutes,
                 duration_adjustment_source_code=request.duration_adjustment_source_code,
                 location_code=request.location_code,
                 sleep_minutes=request.sleep_minutes,
+                sleep_source_code=request.sleep_source_code,
+                available_time_minutes=request.available_time_minutes,
+                pain_present=request.pain_present,
+                red_flag_present=request.red_flag_present,
                 fasting_state_code=request.fasting_state_code,
                 hydration_state_code=request.hydration_state_code,
                 discomforts=tuple(
                     (item.body_area_code, item.severity_code) for item in request.discomforts
+                ),
+                pains=tuple(
+                    (
+                        str(item.body_area_code),
+                        item.intensity_score,
+                        severity_from_intensity_score(item.intensity_score).name,
+                        DAILY_PAIN_POLICY_VERSION,
+                    )
+                    for item in request.pains
                 ),
                 adverse_reaction_codes=tuple(request.adverse_reaction_codes),
                 availability_source_code=availability_source_code,

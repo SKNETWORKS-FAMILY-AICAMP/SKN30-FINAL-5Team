@@ -30,6 +30,7 @@ class FakeDailyContextRepository:
         self.contexts: dict[tuple[UUID, date], dict[str, Any]] = {}
         self.idempotency: dict[tuple[UUID, UUID], IdempotencyRecord] = {}
         self.timezone_name = timezone_name
+        self.persistent_pains: dict[UUID, tuple[tuple[str, int], ...]] = {}
 
     def acquire_mutation_lock(self, session: FakeSession, user_id: UUID, local_date: date) -> None:
         del session, user_id, local_date
@@ -37,6 +38,12 @@ class FakeDailyContextRepository:
     def get_user_timezone(self, session: FakeSession, user_id: UUID) -> str | None:
         del session, user_id
         return self.timezone_name
+
+    def get_persistent_pain_defaults(
+        self, session: FakeSession, user_id: UUID
+    ) -> tuple[tuple[str, int], ...]:
+        del session
+        return self.persistent_pains.get(user_id, ())
 
     def get_idempotency_record(
         self, session: FakeSession, user_id: UUID, idempotency_key: UUID
@@ -90,11 +97,24 @@ class FakeDailyContextRepository:
             "duration_adjustment_source_code": values.duration_adjustment_source_code,
             "location_code": values.location_code,
             "sleep_minutes": values.sleep_minutes,
+            "sleep_source_code": values.sleep_source_code,
+            "available_time_minutes": values.available_time_minutes,
+            "pain_present": values.pain_present,
+            "red_flag_present": values.red_flag_present,
             "fasting_state_code": values.fasting_state_code,
             "hydration_state_code": values.hydration_state_code,
             "discomforts": [
                 {"body_area_code": body, "severity_code": severity}
                 for body, severity in values.discomforts
+            ],
+            "pains": [
+                {
+                    "body_area_code": body,
+                    "intensity_score": intensity,
+                    "severity_code": severity,
+                    "policy_version": policy_version,
+                }
+                for body, intensity, severity, policy_version in values.pains
             ],
             "adverse_reaction_codes": list(values.adverse_reaction_codes),
             "available_slots": (
@@ -136,6 +156,21 @@ def request(
     return DailyContextUpsertRequest.model_validate(payload)
 
 
+def test_persistent_pains_are_exposed_only_as_editable_checkin_defaults() -> None:
+    repository = FakeDailyContextRepository()
+    service = DailyContextService(repository, clock=lambda: NOW)
+    user_id = uuid4()
+    repository.persistent_pains[user_id] = (("KNEE", 4), ("SHOULDER", 2))
+
+    defaults = service.defaults(FakeSession(), user_id, LOCAL_DATE)
+
+    assert defaults.local_date == LOCAL_DATE
+    assert [(pain.body_area_code.value, pain.intensity_score) for pain in defaults.pains] == [
+        ("KNEE", 4),
+        ("SHOULDER", 2),
+    ]
+
+
 def slot(start_hour: int, end_hour: int) -> dict[str, str]:
     """A same-day KST window for LOCAL_DATE."""
 
@@ -166,6 +201,35 @@ def test_manual_create_get_and_versioned_full_replacement() -> None:
     assert second.context_version == 2
     assert second.discomforts == []
     assert service.get(FakeSession(), user_id, LOCAL_DATE) == second
+
+
+def test_nrs_pain_and_safety_inputs_round_trip_with_the_policy_version() -> None:
+    repository = FakeDailyContextRepository()
+    service = DailyContextService(repository, clock=lambda: NOW)
+    payload = DailyContextUpsertRequest.model_validate(
+        {
+            "fatigue_level_code": "HIGH",
+            "available_time_minutes": 30,
+            "location_code": "HOME",
+            "sleep_minutes": 330,
+            "sleep_source_code": "MANUAL",
+            "pain_present": True,
+            "red_flag_present": True,
+            "pains": [{"body_area_code": "KNEE", "intensity_score": 6}],
+            "adverse_reaction_codes": [],
+        }
+    )
+
+    response = service.replace(FakeSession(), uuid4(), LOCAL_DATE, payload, uuid4(), None)
+
+    assert response.requested_duration_minutes == 30
+    assert response.available_time_minutes == 30
+    assert response.sleep_source_code.value == "MANUAL"
+    assert response.pain_present is True
+    assert response.red_flag_present is True
+    assert response.pains[0].intensity_score == 6
+    assert response.pains[0].severity_code.value == "MODERATE"
+    assert response.pains[0].policy_version == "pain-intensity-action-v2"
 
 
 def test_stale_or_missing_version_cannot_replace_existing_context() -> None:

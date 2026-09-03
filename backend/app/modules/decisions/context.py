@@ -26,6 +26,8 @@ class DecisionContext:
     recent_workout_status_codes: tuple[str, ...] = ()
     candidate_required_equipment_codes: tuple[str, ...] | None = None
     candidate_supported_location_codes: tuple[str, ...] | None = None
+    pains: tuple[tuple[str, int, str, str], ...] = ()
+    red_flag_present: bool = False
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -58,6 +60,16 @@ class DecisionContext:
             "sleep_minutes": self.sleep_minutes,
             "fasting_state_code": self.fasting_state_code,
             "hydration_state_code": self.hydration_state_code,
+            "red_flag_present": self.red_flag_present,
+            "pains": [
+                {
+                    "body_area_code": area,
+                    "intensity_score": intensity,
+                    "severity_code": severity,
+                    "policy_version": policy_version,
+                }
+                for area, intensity, severity, policy_version in self.pains
+            ],
             "discomforts": [
                 {"body_area_code": area, "severity_code": severity}
                 for area, severity in self.discomforts

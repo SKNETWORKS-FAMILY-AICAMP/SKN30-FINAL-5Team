@@ -533,7 +533,10 @@ def test_moderate_fatigue_returns_duration_preserving_downshift() -> None:
 
 
 def test_moderate_exclusion_uses_approved_alternative_and_preserves_duration() -> None:
-    context = _context(discomforts=(("KNEE", "MODERATE"),))
+    context = replace(
+        _context(discomforts=(("KNEE", "MODERATE"),)),
+        pains=(("KNEE", 6, "MODERATE", "pain-intensity-action-v2"),),
+    )
     repository = FakeRepository(
         context,
         safety_rule_set=_approved_rule_set(SafetyRuleEffectCode.EXCLUDE),
@@ -553,6 +556,7 @@ def test_moderate_exclusion_uses_approved_alternative_and_preserves_duration() -
     assert prepared.adjusted_candidates[-1].candidate.exercise_ids == (
         str(ALTERNATIVE_EXERCISE_ID),
     )
+    assert prepared.adjusted_candidates[-1].items[0].intensity_code == "LOW"
     safety_proposal = next(
         proposal
         for proposal in repository.persisted["proposals"]  # type: ignore[index]

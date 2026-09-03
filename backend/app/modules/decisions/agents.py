@@ -6,6 +6,7 @@ from backend.app.domain.agents.contracts import (
 )
 from backend.app.domain.agents.coordinator import CoordinatorCandidate
 from backend.app.domain.agents.runner import ProposalAgent, ProposalRequest
+from backend.app.domain.rules.recovery import RecoveryLevelCode, recovery_level
 from backend.app.domain.rules.safety import (
     ACUTE_MUSCULOSKELETAL_REACTION_CODES,
     EMERGENCY_REACTION_CODES,
@@ -107,18 +108,25 @@ class RecoveryProposalAgent(_ProposalAgent):
             evidence.append("HISTORY/recent_workout_status_codes")
             reasons.append("RECENT_EXECUTION_HISTORY_REVIEWED")
 
-        if request.context.fatigue_level_code == "HIGH":
-            return self._needs_input(
-                request,
-                reason_codes=(*reasons, "APPROVED_RECOVERY_CANDIDATE_UNAVAILABLE"),
-                evidence_reference_codes=tuple(evidence),
-                hard_constraint_codes=("DOMAIN_APPROVED_RECOVERY_CONTENT_REQUIRED",),
-            )
-        if request.context.fatigue_level_code == "MODERATE":
+        level = recovery_level(
+            sleep_minutes=request.context.sleep_minutes,
+            fatigue_level_code=request.context.fatigue_level_code,
+        )
+        reasons.append(f"RECOVERY_LEVEL_{level.value}")
+        if level is RecoveryLevelCode.VERY_LIGHT:
             return self._ready(
                 request,
                 action=RecommendedActionCode.DOWNSHIFT,
-                reason_codes=(*reasons, "MODERATE_FATIGUE_DOWNSHIFT"),
+                reason_codes=tuple(reasons),
+                evidence_reference_codes=tuple(evidence),
+                intensity_delta=-2,
+                hard_constraint_codes=("REQUESTED_DURATION_PRESERVED",),
+            )
+        if level is RecoveryLevelCode.LIGHT:
+            return self._ready(
+                request,
+                action=RecommendedActionCode.DOWNSHIFT,
+                reason_codes=tuple(reasons),
                 evidence_reference_codes=tuple(evidence),
                 intensity_delta=-1,
                 hard_constraint_codes=("REQUESTED_DURATION_PRESERVED",),
@@ -126,7 +134,7 @@ class RecoveryProposalAgent(_ProposalAgent):
         return self._ready(
             request,
             action=RecommendedActionCode.KEEP,
-            reason_codes=(*reasons, "LOW_FATIGUE_LOAD_ACCEPTED"),
+            reason_codes=tuple(reasons),
             evidence_reference_codes=tuple(evidence),
             hard_constraint_codes=("REQUESTED_DURATION_PRESERVED",),
         )
@@ -174,6 +182,19 @@ class SafetyProposalAgent(_ProposalAgent):
         self,
         request: ProposalRequest[DecisionContext, CoordinatorCandidate],
     ) -> AgentProposal:
+        if request.context.red_flag_present:
+            return AgentProposal(
+                agent_type_code=AgentTypeCode.SAFETY,
+                proposal_status_code=ProposalStatusCode.READY,
+                recommended_action_code=RecommendedActionCode.STOP_AND_SEEK_HELP,
+                requested_duration_minutes=request.requested_duration_minutes,
+                estimated_duration_seconds=request.requested_duration_minutes * 60,
+                duration_adjustment_source_code=request.duration_adjustment_source_code,
+                reason_codes=("RED_FLAG_REPORTED",),
+                policy_version=self.policy_version,
+                safety_status_code=SafetyStatusCode.BLOCKED,
+                safety_vetoed=True,
+            )
         reactions = set(request.context.adverse_reaction_codes)
         emergency = {code.value for code in EMERGENCY_REACTION_CODES}
         acute = {code.value for code in ACUTE_MUSCULOSKELETAL_REACTION_CODES}

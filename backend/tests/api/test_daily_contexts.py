@@ -42,6 +42,7 @@ def _client(repository: FakeDailyContextRepository) -> TestClient:
         readiness_probe=lambda: None,
     )
     user = CurrentUser(user_id=uuid4(), status_code=UserStatusCode.ACTIVE)
+    app.state.test_user_id = user.user_id
     app.dependency_overrides[get_current_user] = lambda: user
 
     def session_override():
@@ -68,6 +69,56 @@ def test_put_and_get_support_complete_manual_flow() -> None:
     assert created.json()["context_version"] == 1
     assert "date_of_birth" not in created.text
     assert "age" not in created.text
+
+
+def test_p1_b_nrs_and_safety_fields_round_trip_through_the_public_contract() -> None:
+    client = _client(FakeDailyContextRepository())
+    payload = {
+        "fatigue_level_code": "HIGH",
+        "available_time_minutes": 30,
+        "location_code": "HOME",
+        "sleep_minutes": 330,
+        "sleep_source_code": "MANUAL",
+        "pain_present": True,
+        "red_flag_present": True,
+        "pains": [{"body_area_code": "KNEE", "intensity_score": 6}],
+        "adverse_reaction_codes": [],
+    }
+    with client:
+        response = client.put(
+            f"/api/v1/daily-contexts/{LOCAL_DATE}",
+            json=payload,
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["available_time_minutes"] == 30
+    assert body["sleep_source_code"] == "MANUAL"
+    assert body["red_flag_present"] is True
+    assert body["pains"] == [
+        {
+            "body_area_code": "KNEE",
+            "intensity_score": 6,
+            "severity_code": "MODERATE",
+            "policy_version": "pain-intensity-action-v2",
+        }
+    ]
+
+
+def test_persistent_pain_defaults_are_available_for_checkin_initialization() -> None:
+    repository = FakeDailyContextRepository()
+    client = _client(repository)
+    repository.persistent_pains[client.app.state.test_user_id] = (("KNEE", 3),)
+
+    with client:
+        response = client.get(f"/api/v1/daily-contexts/{LOCAL_DATE}/defaults")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "local_date": LOCAL_DATE.isoformat(),
+        "pains": [{"body_area_code": "KNEE", "intensity_score": 3}],
+    }
 
 
 def test_if_match_updates_and_stale_version_returns_contract_error() -> None:
