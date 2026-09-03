@@ -33,7 +33,11 @@ from backend.app.domain.agents.retrieval import (
     ExerciseRetrievalResult,
     RetrievalStatusCode,
 )
-from backend.app.domain.agents.v3_contracts import ConstraintEnvelope, RecoveryCeiling
+from backend.app.domain.agents.v3_contracts import (
+    ConstraintEnvelope,
+    FeedbackAdjustmentEnvelope,
+    RecoveryCeiling,
+)
 from backend.app.domain.agents.v3_duration import (
     pool_size_for_duration,
     prescription_item_duration,
@@ -41,6 +45,11 @@ from backend.app.domain.agents.v3_duration import (
 from backend.app.domain.agents.v3_orchestration import GraphTerminalStatusCode
 from backend.app.domain.agents.v3_persistence import V3DecisionPersistenceBundle
 from backend.app.domain.rules.duration import DURATION_RULE_VERSION
+from backend.app.domain.rules.feedback_adjustment import (
+    AdjustmentAxisCode,
+    DifficultyReasonCode,
+    select_feedback_adjustment,
+)
 from backend.app.domain.rules.recovery import (
     RECOVERY_POLICY_VERSION,
     RecoveryLevelCode,
@@ -483,6 +492,47 @@ class DeterministicV3SafetyPolicyAdapter:
                 (item.rest_seconds_per_set for item in items), default=None
             ),
         )
+        # The last HARD feedback lowers exactly one axis (DOMAIN_RULES 6.1). Whether an
+        # easier variant or a lower intensity is reachable is answered here, from the
+        # eligible pool and the ceiling just built, because the ladder itself must not
+        # reach into the catalog or re-derive safety state.
+        easier_variant_available = any(
+            record.difficulty_code == "BEGINNER" for record in eligible_pool
+        ) and any(item.intensity_code != "LOW" for item in items)
+        intensity_reducible = intensities != ("LOW",) or (
+            maximum_sets is not None and maximum_sets > 1
+        )
+        adjustment = select_feedback_adjustment(
+            difficulty_code=context.latest_difficulty_code,
+            reason_codes=frozenset(
+                DifficultyReasonCode(code)
+                for code in context.latest_difficulty_reason_codes
+                if code in DifficultyReasonCode.__members__
+            ),
+            easier_variant_available=easier_variant_available,
+            intensity_reducible=intensity_reducible,
+        )
+        if adjustment.axis_code is AdjustmentAxisCode.INTENSITY:
+            # Lowering intensity is a ceiling change, never a catalog change: the plan
+            # keeps the same approved exercises and does less work with them.
+            intensities = ("LOW",)
+            if maximum_sets is not None:
+                maximum_sets = max(1, maximum_sets - 1)
+            ceiling = ceiling.model_copy(
+                update={
+                    "allowed_intensity_codes": intensities,
+                    "maximum_sets_per_exercise": maximum_sets,
+                }
+            )
+        feedback_adjustment = (
+            None
+            if adjustment.axis_code is AdjustmentAxisCode.NONE
+            else FeedbackAdjustmentEnvelope(
+                axis_code=adjustment.axis_code.value,
+                reason_codes=tuple(code.value for code in adjustment.reason_codes),
+                policy_version=adjustment.policy_version,
+            )
+        )
         required_action = None if allowed else base.required_action_code
         if not allowed and required_action is None:
             required_action = SafetyRequiredActionCode.REST
@@ -499,6 +549,7 @@ class DeterministicV3SafetyPolicyAdapter:
             policy_version=DECISION_POLICY_VERSION,
             catalog_version=prepared.catalog_version,
             safety_rule_version=_safety_rule_version(prepared),
+            feedback_adjustment=feedback_adjustment,
         )
 
 
