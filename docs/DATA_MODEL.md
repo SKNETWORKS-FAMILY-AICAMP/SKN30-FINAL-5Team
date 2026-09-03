@@ -27,7 +27,7 @@ schema 또는 구현 완료로 간주하지 않으며 현재 `agent_proposals` �
 
 - `user_profiles`에는 암호화된 `protected_birthdate`, `eligibility_result_code`, `weekly_target_sessions`를 두고, `weight_kg`는 kcal 전용으로 유지한다. 생년월일은 사용자 timezone 기준 18–64세 eligibility 외에는 사용하지 않는다.
 - `daily_contexts`에는 수면 source, 피로 코드, 10–60분, 장소, Red Flag를 저장한다. `daily_context_pains`는 `(daily_context_id, body_area_code)` unique, NRS 1–10, 파생 severity와 policy version을 저장한다.
-- 카탈로그는 `variant_difficulty_rank`, 검수된 `exercise_load_regions`, `exercise_contraindicated_pain_regions`, 승인 `met_value`, HOME 실행·생활용품 검수 상태를 additive하게 갖는다. `DOMAIN_APPROVED`인데 금기 relation이 빈 운동과 미검수/필수 metadata 결측 운동을 구분한다.
+- 카탈로그는 `variant_difficulty_rank`, 승인 `met_value`, HOME 실행·생활용품 검수 상태를 additive하게 갖는다. 통증 기반 제외 관계는 카탈로그에 중복 저장하지 않고 `exercise_safety_rules`를 단일 기준으로 사용하며, `exercise_load_regions`와 `exercise_contraindicated_pain_regions`는 만들지 않는다(ADR-0018). 미검수 또는 필수 metadata 결측 운동은 적재 단계에서 배제하므로, 결정 경로에는 `DOMAIN_APPROVED` 운동만 도달한다.
 - decision snapshot 또는 typed decision table은 Recovery score·level·결측 코드·정책 버전과 Pain/Recovery의 effective load cap을 저장한다.
 - 세션은 실행 상태·목표/진행/휴식/일시정지 누적 시간·중단 사유·재개 가능 여부를 저장한다. Safety Event는 선택적 `plan_item_id`, result, occurred_at, rule version만 저장하고 증상·NRS·자유서술·replacement를 저장하지 않는다.
 - 세션 kcal는 단일 값, 출처, 정책 버전과 최소 재현 snapshot을 저장한다. 웨어러블은 일별 수면 요약과 앱 세션 HR/kcal summary만 정규화해 저장한다.
@@ -661,6 +661,11 @@ DOMAIN_APPROVED이면서 `production_eligible=true`인 관계만 계획 생성�
 | updated_at | 수정 시각 |
 
 exercise_id와 movement_pattern_code 중 정확히 하나를 지정해야 한다.
+
+이 테이블은 통증 기반 운동 제외 정책의 Single Source of Truth다(ADR-0018). 같은 의미의 금기
+관계를 카탈로그 컬럼이나 별도 테이블로 중복 관리하지 않으며, 정책을 바꿀 때는 이 테이블의
+규칙을 수정한다. 카탈로그는 운동 자체의 속성만 보유하고 `이 운동은 허리 통증 시 제외`와 같은
+최종 판정값을 저장하지 않는다.
 
 프로덕션 판단에는 DOMAIN_APPROVED이면서 `production_eligible=true`인 규칙만 사용한다. Issue
 53에서 승인된 `mvp-v0.3.0` 전체 354건은 매니페스트 hash와 건수가 정확히 일치할 때만
@@ -1661,6 +1666,19 @@ row는 즉시 삭제하지 않는다. 후속 migration은 먼저 신규 write에
 구 클라이언트 write/read를 지원한 뒤, 사용량과 compatibility 검증을 거쳐 legacy write를 중단한다.
 누락된 `pain_occurred`를 false로 backfill하지 않는다. 운동 중 통증·이상 반응의 canonical 신규 원천은
 삭제되지 않는 `workout_safety_events`이며 child table은 historical read 전용이다.
+
+### 10.4.1 workout_feedback_difficulty_reasons
+
+| 컬럼 | 설명 |
+|---|---|
+| workout_session_id | FK, `workout_feedback`와 같은 세션 |
+| reason_code | `VOLUME_HIGH` 또는 `MOVEMENT_DIFFICULT` |
+| created_at | 생성 시각 |
+
+`(workout_session_id, reason_code)`에 unique 제약을 둔다. `difficulty_code=HARD`인 feedback만
+이 row를 가지며 최소 1건, 최대 2건이다. `HARD`가 아닌 feedback에 row가 있으면 안 된다.
+다음 루틴의 조정 축을 정하는 결정 입력이므로 JSONB가 아닌 typed row로 저장하고, 조정에 사용한
+값은 decision run의 재현 입력에 포함한다. 이 값은 주관적 체감이며 의료적 해석 대상이 아니다.
 
 ### 10.5 workout_skip_feedback
 

@@ -414,6 +414,30 @@ MVP 데이터 허용 범위:
 
 TIME_SHORTAGE 미수행 이력이 반복돼도 agent가 요청 시간을 자동 변경할 수 없다. 시스템은 사용자에게 희망 시간 변경 여부를 물을 수만 있고 명시적 USER_OVERRIDE가 있을 때만 반영한다.
 
+### 6.1 어려움 피드백 조정 사다리
+
+`difficulty_code=HARD` 피드백은 다음 루틴부터 한 단계 하향을 적용한다. 어느 축을 낮출지는
+`difficulty_reason_codes`가 정한다.
+
+| 입력 | 우선 조정 축 |
+|---|---|
+| `MOVEMENT_DIFFICULT`만 | 운동 난이도 |
+| `VOLUME_HIGH`만 | 운동 강도 |
+| 둘 다 | 운동 난이도를 먼저 조정한다 |
+
+조정 축의 최종 우선순위는 운동 난이도 → 운동 강도 → 시간 배분이다.
+
+1. 더 낮은 난이도의 운동 또는 variant로 교체한다.
+2. 교체할 난이도나 variant가 없으면 강도 하향으로 전환한다. 세트·반복·부하·휴식 구조로만
+   낮춘다.
+3. 강도 조절만으로 대응하기 어려우면 시간 배분을 조정한다. **이 단계는 요청 시간을 줄이지
+   않는다.** 5절이 허용하는 ±300초 창 안에서 요청값보다 짧은 쪽 계획을 선택하는 것까지만
+   허용하며, 창 밖으로 나가는 축소는 금지한다. 사용자가 직접 시간을 바꾸는 것은 별개다.
+
+한 번의 조정에서는 원칙적으로 하나의 축만 변경하고, 다음 수행 피드백으로 효과를 평가한 뒤
+다음 축으로 넘어간다. 조정 근거가 된 피드백과 적용한 축은 decision run에 기록해 재현 가능하게
+한다. 어느 단계에서도 안전 규칙의 제외 결과를 되돌리지 않는다.
+
 ---
 
 ## 7. 복귀 모드
@@ -697,8 +721,12 @@ RUNNING/RESTING -> COMPLETED
 
 운동 중 사용자가 `PAIN_OR_ABNORMAL_RESPONSE`를 선택하면 증상 유형·통증 부위·NRS를 추가 입력받지 않는다. 세션 전체를 `STOPPED_SAFETY`와 `is_resumable=false`로 전이하고, `plan_item_id`(가능한 경우), `SESSION_STOPPED` 또는 `STOP_AND_SEEK_HELP`, 시각·규칙 버전만 Safety Event로 저장한다. 당일 이어하기·Skip 후 재개·Alternative를 제공하지 않는다. 종료된 세션의 블록과 상태는 변경할 수 없다.
 
-운동 후 신규 공개 feedback은 `difficulty_code=EASY|APPROPRIATE|HARD` 하나만 받는다. 표시 문구는
-각각 `쉬웠어요`, `적당했어요`, `어려워요`다. 운동 후 통증·이상 반응 수집을 feedback에 중복하지
+운동 후 신규 공개 feedback은 `difficulty_code=EASY|APPROPRIATE|HARD`를 받는다. 표시 문구는
+각각 `쉬웠어요`, `적당했어요`, `어려워요`다. `HARD`인 경우에만 이유를
+`difficulty_reason_codes`로 하나 이상 함께 받는다. 값은 `VOLUME_HIGH`(운동량이 많아 힘들었음)와
+`MOVEMENT_DIFFICULT`(동작 자체가 어려웠음)이며 복수 선택할 수 있다. `HARD`가 아닌 경우 이유를
+받지 않는다. 이 두 코드는 다음 루틴의 조정 방향을 정하는 입력이며 의료적 해석 대상이 아니다.
+운동 후 통증·이상 반응 수집을 feedback에 중복하지
 않고 운동 중 Safety Event API를 유지한다. 기존 fatigue/satisfaction/pain/discomfort/adverse 필드는
 호환 기간 동안만 읽기·legacy write를 지원하고 새 client는 보내지 않는다. 기존 값을 삭제하거나
 통증 없음으로 재해석하지 않는다.
@@ -737,7 +765,9 @@ RUNNING/RESTING -> COMPLETED
 - 초기 계획 endpoint는 `INITIAL`만, 수정 endpoint는 `AI` 또는 `USER`만 생성한다.
 - `AI` revision의 루틴 결정은 SafetyPolicyEngine envelope와 승인 pool 안에서 Coordinator·compiler·integrity validator가 수행한다. LLM은 envelope 밖 루틴, 요청 시간, 안전 상태, veto 또는 후보를 변경할 수 없다.
 - 성공한 Coordinator 기반 `AI` revision만 횟수에 포함하며 1회와 2회는 허용하고 세 번째 요청은 `AI_REVISION_LIMIT_REACHED`로 차단한다. `NEEDS_INPUT`, `BLOCKED`, `FAILED` 결과는 성공 횟수를 늘리지 않는다.
-- `USER` revision은 AI 수정 횟수와 무관하게 허용할 수 있지만 요청 시간 일치, 허용 장소, Safety envelope·승인 pool 반영과 compiled-plan integrity를 모두 검증한다. 하나라도 불일치하면 해당 routine을 허용하지 않는다.
+- `USER` revision은 AI 수정 횟수와 무관하게 허용할 수 있지만 요청 시간 일치(아래 세트·반복 편집 예외 제외), 허용 장소, Safety envelope·승인 pool 반영과 compiled-plan integrity를 모두 검증한다. 하나라도 불일치하면 해당 routine을 허용하지 않는다.
+- 사용자가 세트 수 또는 반복 수를 직접 수정한 결과에 한해 요청 시간 ±300초 일치 검사를 면제한다(ADR-0018). 사용자의 명시적 입력이 요청 시간보다 우선하며, 면제되는 것은 시간 검사 하나뿐이다. 안전 제외 운동 포함, 승인 pool 이탈, 필수 운동 누락, 카탈로그 레코드 불일치 검사는 그대로 적용한다. 사용자 편집으로 만들어진 계획임을 저장해 재현 기록에 남긴다.
+- 사용자의 운동 순서 변경은 같은 phase 안에서만 허용한다. `WARMUP`·`MAIN`·`COOLDOWN` 경계를 넘는 이동은 거부한다. 순서를 바꾼 뒤에는 전체 `sequence`를 1부터 연속으로 다시 매긴다.
 - `NEEDS_INPUT`, `BLOCKED`, `FAILED` revision에는 routine이 없으며 finalized는 항상 false다. `PASS` 또는 `REVISE`도 routine이 없으면 finalize할 수 없다.
 - `finalized=true`는 직전 리포트가 명시적으로 `ACKNOWLEDGED`된 경우에만 허용한다. `is_first_user_week=true`, `cold_start_applied=true`, 직전 리포트 없음이 동시에 성립하는 최초 한 주만 acknowledgement를 생략할 수 있다.
 - weekly report aggregate schema와 weekly report/plan policy는 각각 version을 가지며, 입력과 version이 같으면 revision 및 finalize 판정도 같아야 한다.

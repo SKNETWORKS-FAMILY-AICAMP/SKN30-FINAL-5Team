@@ -126,12 +126,25 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
     삭제·false backfill하지 않음
 93. [Weekly pain] safety-event distinct session을 집계하고 legacy feedback과 중복하지 않으며 onboarding/
     daily pain은 `pain_report_count`에 포함하지 않음
+94. [Feedback ladder] `HARD` + `MOVEMENT_DIFFICULT`만은 난이도를, `VOLUME_HIGH`만은 강도를
+    먼저 낮추고, 둘 다면 난이도를 먼저 조정함. 한 번에 한 축만 변경함
+95. [Feedback ladder] 더 낮은 난이도·variant가 없으면 강도 하향으로 전환하고, 시간 조정 단계에
+    도달해도 `requested_duration_minutes`를 바꾸지 않으며 ±300초 창 밖으로 나가지 않음
+96. [User edit] 사용자가 세트·반복을 수정해 ±300초를 벗어나도 저장·다음 실행이 동작하고,
+    같은 요청에서 안전 제외 운동·pool 이탈·필수 운동 누락은 그대로 거부됨
+97. [User edit] phase 경계를 넘는 순서 변경은 `PHASE_BOUNDARY_VIOLATION`으로 거부하고, phase
+    안 재배치는 `sequence`를 1부터 연속으로 다시 매김
+98. [Eligibility] `OUT_OF_SCOPE_AGE` 사용자는 루틴 생성·체크인·결정·세션 시작이 차단되지만
+    로그인·조회·계정 설정·계정 삭제는 가능하고, 서버가 계정을 자동 삭제하지 않음
 
 ## 4. 속성·불변식 테스트
 
 - 사용자의 USER_OVERRIDE 없이 `requested_duration_minutes`가 바뀌지 않음
+- 어려움 피드백 조정은 `requested_duration_minutes`를 바꾸지 않고 ±300초 창 안에서만 시간 배분을
+  옮김
+- 사용자 편집 revision에서 면제되는 integrity 위반 코드는 `REQUESTED_DURATION_MISMATCH` 하나뿐임
 - 최종 루틴이 사용자의 requested duration을 보존함
-- plan이 있는 최종 루틴의 `estimated_duration_seconds`가 `requested_duration_minutes * 60`의 ±300초 이내이며 허용 후보 중 차이가 가장 작음
+- 시스템이 생성한 plan의 `estimated_duration_seconds`가 `requested_duration_minutes * 60`의 ±300초 이내이며 허용 후보 중 차이가 가장 작음. 사용자가 세트·반복을 직접 수정한 revision은 이 불변식의 유일한 예외다(ADR-0018)
 - estimated duration과 actual elapsed time이 완료 상태에 영향을 주지 않음
 - 운동 블록 완료 mutation의 중복 요청이 한 번만 반영됨
 - 완료 취소는 세션 종료 전에만 PENDING으로 되돌릴 수 있음

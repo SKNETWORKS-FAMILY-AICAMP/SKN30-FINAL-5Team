@@ -497,6 +497,7 @@ ManualActivityResponse
 - `date_of_birth`는 필수 `YYYY-MM-DD` 값이며 미래 날짜와 달력상 유효하지 않은 날짜는 `422 INVALID_DATE_OF_BIRTH`로 거부한다. 클라이언트는 입력 오류를 표시한다.
 - 서버는 사용자 timezone의 로컬 날짜를 기준으로 만 나이를 계산하며, 나이는 DB에 저장하지 않는다.
 - 만 18–64세 범위가 아니면 `OUT_OF_SCOPE_AGE` 결과로 일반 루틴 생성을 차단한다. 나이 외의 원인을 추정하거나 상세 의료정보를 요청하지 않는다.
+- 차단은 루틴 생성·Daily Check-in·결정 실행·운동 세션 시작에 적용한다. 로그인, 조회, 계정 설정, 계정 삭제는 계속 사용할 수 있어야 한다. 서버는 eligibility 판정만으로 계정을 자동 삭제하지 않는다. 범위 밖 기존 가입자 정리는 차단을 먼저 적용한 뒤 별도 승인과 릴리스로 진행한다(ADR-0018).
 - 생년월일 수정에도 동일한 서버 검증을 적용한다. 범위를 벗어난 수정 결과는 일반 자동 루틴 생성을 차단한다.
 - 기존 클라이언트 호환 전략은 구현 전에 확정한다. 기존 `adult_confirmed`·`age_band_code` 요청을 deprecation 기간 동안 무시하고 서버 계산값을 사용하는 방식 또는 별도 API 버전 전략 중 하나를 선택하며, 선택한 전략에 대한 프론트엔드·백엔드 호환성 테스트를 추가한다.
 - nickname은 서비스 표시용 최소 길이·금칙어 정책을 통과해야 한다. 세부 정책은 PM 문구 검토 후 확정한다.
@@ -945,7 +946,8 @@ requested duration은 사용자 선택값이며 서버가 변경하지 않는다
 승인된 스트레칭·가동성 처방이고 MAIN에는 목표와 직접 연결된 CORE 운동이 하나 이상
 포함되어야 한다. 각 단계가 없거나 승인된 처방으로 요청 시간의 ±5분 범위를 만족할 수 없으면
 루틴을 반환하지 않는다. 기본 routine day는 특정 요일을 강제하지 않고 ROTATION
-순서로 수행한다.
+순서로 수행한다. 사용자는 각 phase 안에서만 운동 순서를 바꿀 수 있으며 phase 경계를 넘는
+이동은 허용하지 않는다.
 
 사용자 가능 장소는 `HOME`, `GYM`, `OUTDOOR` 개별 코드 배열로 관리한다. `HOME`과 `GYM`을
 모두 선택한 사용자는 두 장소 중 하나 이상을 지원하는 운동만 받을 수 있다. 기존
@@ -1609,11 +1611,20 @@ LOW_MOTIVATION
 
 ### 12.6 운동 후 피드백
 
-신규 공개 입력의 목표 계약은 한 필드만 사용한다.
+신규 공개 입력의 목표 계약은 체감 난이도와, `HARD`일 때의 이유만 사용한다.
 
 ~~~json
 {
   "difficulty_code": "APPROPRIATE"
+}
+~~~
+
+`difficulty_code=HARD`인 경우에만 이유를 함께 보낸다.
+
+~~~json
+{
+  "difficulty_code": "HARD",
+  "difficulty_reason_codes": ["VOLUME_HIGH", "MOVEMENT_DIFFICULT"]
 }
 ~~~
 
@@ -1624,6 +1635,19 @@ EASY
 APPROPRIATE
 HARD
 ~~~
+
+어려움 이유 코드:
+
+~~~text
+VOLUME_HIGH
+MOVEMENT_DIFFICULT
+~~~
+
+`difficulty_reason_codes`는 `difficulty_code=HARD`일 때 필수이며 최소 1개, 최대 2개다. 빈 배열과
+중복 값은 `422 INVALID_DIFFICULTY_REASON`으로 거부한다. `HARD`가 아닌 요청이 이 필드를 보내도
+같은 오류로 거부하며, 값을 무시하거나 보정하지 않는다. 표시 문구는
+`VOLUME_HIGH=운동량이 많았어요`, `MOVEMENT_DIFFICULT=동작이 어려웠어요`다. 두 코드는 다음
+루틴의 조정 축을 정하는 입력이며(`DOMAIN_RULES.md` 6.1) 의료적 해석 대상이 아니다.
 
 표시 문구는 `EASY=쉬웠어요`, `APPROPRIATE=적당했어요`, `HARD=어려워요`를 유지한다. 피드백은 종료
 상태의 세션에 한 번만 저장하고 공식 수행 상태를 변경하지 않는다. 미수행 세션은 리포트 생성 전에
@@ -1919,7 +1943,18 @@ PlanRevisionResponse
 
 AI 수정은 Coordinator 권한의 서버 선택으로 최대 2회다. 서버가 현재 유효한 routine version을 선택하며 클라이언트는 AI 요청에 `user_edits`를 보낼 수 없다. 성공한 Coordinator 기반 수정 루틴만 `ai_revision_count`에 집계하며, 세 번째 AI 요청은 `409 AI_REVISION_LIMIT_REACHED`다. LLM은 reason code·조정 결과의 설명 문구를 생성하는 선택 기능일 뿐 수정 루틴·요청 시간·안전 상태·veto·후보 선택을 결정하거나 변경하지 않는다. LLM 장애 시 검수된 템플릿 설명을 사용하고 Coordinator 결정과 루틴은 유지한다.
 
-USER 편집은 임의 운동 JSON 대신 사용자 소유의 저장된 routine version과 실행 장소를 참조한다. 서버는 routine의 모든 day가 요청 시간의 ±5분 범위를 만족하는지, 모든 운동이 선택 장소를 지원하는지, 저장된 최신 Safety envelope·승인 pool을 반영했는지 다시 조회한다. 사용자 장비 보유 여부는 승인 조건이 아니다. 클라이언트가 안전 상태·의견 반영 코드를 제출할 수 없으며 compiled plan은 integrity validator를 통과해야 한다. 위반 시 422 `PLAN_REVISION_REJECTED`와 machine-readable reason code를 반환한다.
+USER 편집은 임의 운동 JSON 대신 사용자 소유의 저장된 routine version과 실행 장소를 참조한다. 서버는 routine의 모든 day가 요청 시간의 ±5분 범위를 만족하는지(아래 세트·반복 편집 예외 제외), 모든 운동이 선택 장소를 지원하는지, 저장된 최신 Safety envelope·승인 pool을 반영했는지 다시 조회한다. 사용자 장비 보유 여부는 승인 조건이 아니다. 클라이언트가 안전 상태·의견 반영 코드를 제출할 수 없으며 compiled plan은 integrity validator를 통과해야 한다. 위반 시 422 `PLAN_REVISION_REJECTED`와 machine-readable reason code를 반환한다.
+
+사용자가 세트 수 또는 반복 수를 직접 수정한 revision에 한해 요청 시간 ±300초 검사를 면제한다(ADR-0018). 사용자의 명시적 입력이 요청 시간보다 우선하므로 편집 결과가 창을 벗어나도
+저장하고 다음 실행을 허용한다. 면제되는 것은 `REQUESTED_DURATION_MISMATCH` 하나뿐이다.
+integrity validator의 나머지 검사(안전 제외 운동 포함, 승인 pool 이탈, 필수 운동 누락, 카탈로그
+레코드 불일치, envelope·pool hash 일치)는 그대로 적용한다. 이 validator가 안전 veto의 집행
+지점이므로 사용자 편집이라는 이유로 건너뛰지 않는다. 서버는 해당 revision을 사용자 편집본으로
+표시하고 적용된 면제를 재현 기록에 남긴다.
+
+운동 순서 변경은 같은 phase 안에서만 허용한다. `WARMUP`·`MAIN`·`COOLDOWN` 경계를 넘는 이동은
+422 `PLAN_REVISION_REJECTED`와 `PHASE_BOUNDARY_VIOLATION`으로 거부한다. 서버는 phase 안에서
+재배치한 뒤 전체 `sequence`를 1부터 연속으로 다시 매겨 저장한다.
 
 `NEEDS_INPUT`, `BLOCKED`, `FAILED` revision은 `routine=null`, `finalized=false`로 저장한다. `PASS` 또는 `REVISE` revision은 생성·편집된 routine이 있을 때만 `routine`을 반환하며, `finalized=true`는 콜드스타트 예외 또는 직전 주 리포트 `ACKNOWLEDGED` 상태이고 `safety_status_code=PASS` 또는 `REVISE`, `routine!=null`인 경우에만 허용한다.
 
