@@ -4,7 +4,7 @@
 
 이 문서는 초기 MVP에서 반드시 구현할 기능, 선택 기능, 제외 기능, 완료 조건과 일정 지연 시 삭제 순서를 정의한다.
 
-제품 요구는 PROJECT_BRIEF.md, 도메인 정책은 DOMAIN_RULES.md, API는 API_CONTRACT.md, 데이터 구조는 DATA_MODEL.md를 따른다.
+제품 요구는 PROJECT_BRIEF.md, 최신 서비스 정책은 SERVICE_POLICY_SAFETY_AND_ADAPTATION_V1.md, 도메인 정책은 DOMAIN_RULES.md, API는 API_CONTRACT.md, 데이터 구조는 DATA_MODEL.md를 따른다. 정책과 이 문서가 충돌하면 최신 정책을 적용한다.
 
 본 문서와 다른 참고 기획서의 범위가 충돌하면 이 문서의 MVP 분류를 적용하고 팀 합의 없이 범위를 확대하지 않는다.
 
@@ -18,12 +18,12 @@
 
 ## 3. 고정 제품·기술 조건
 
-- 만 14세 이상 운동 입문자와 복귀자를 대상으로 한다.
+- 만 18–64세 일반 성인 운동 입문자와 복귀자를 대상으로 한다.
 - 백엔드는 Python, FastAPI, Pydantic, SQLAlchemy, Alembic을 사용한다.
 - PostgreSQL을 주 데이터베이스로 사용한다.
 - 백엔드는 모듈형 모놀리스로 구성한다.
-- 전문 proposal 에이전트는 Training, Recovery, Safety, Feasibility로 구성한다.
-- 네 proposal 에이전트는 병렬 실행하고 Coordinator(의장 에이전트)는 의견과 우선순위를 종합해 최종 추천안 한 개를 결정한다.
+- SafetyPolicyEngine이 결정적 안전 경계와 승인 운동 pool을 먼저 만든다. 전문 proposal 에이전트는 Training, Recovery, Feasibility 세 개다.
+- 세 proposal은 병렬 실행하고 Coordinator는 그 결과를 종합해 최종 추천안 한 개를 선택한 뒤, compiler·integrity validator가 envelope 준수를 검증한다.
 - 안전, 통증 제외, 시간 계산, 복귀 모드는 결정적 Python 규칙이다.
 - 사용자가 요청한 운동 시간은 계획 목표로 유지하며 시스템이 임의로 더 짧은 시간으로 변경하지 않는다.
 - 예상 시간과 실제 경과 시간은 정보값이며 운동 완료 판정에 사용하지 않는다.
@@ -46,8 +46,8 @@ Firebase 로그인
 -> 연령 적격성 확인과 온보딩
 -> 검수된 운동 데이터 기반 기본 루틴
 -> 오늘의 체크인
--> 전문 에이전트 제안
--> 네 proposal 병렬 실행과 Coordinator 결정·Safety 의견 반영
+-> Safety Engine과 승인 운동 pool
+-> 세 proposal 병렬 실행, Coordinator·compiler·integrity validation
 -> 최종 추천안 확인 또는 휴식 선택
 -> 운동 실행 또는 휴식
 -> 완료, 중단 또는 미수행
@@ -85,28 +85,27 @@ Firebase 로그인
 
 - 닉네임
 - 생년월일
-- 운동 목표
-- 운동 경험
-- 선호 장소
-- 보유 장비
-- 기본 희망 운동 시간
-- 주간 희망 운동 횟수
-- 주의 또는 불편 부위
+- 의료적 운동 제한·주의 여부
+- 체중(예상 kcal 전용)
+- 운동 목표·경험·주간 목표 횟수·코치 문구 성향·timezone
+- 서비스 이용약관 동의
+- 일반 개인정보·민감정보 처리 동의
 
 선택:
 
-- 선호 운동 유형
-- 코치 문구 성향
-- 키
-- 체중
-- 성별
+- 평소 통증 부위와 NRS(`persistent_pains`)
+- 웨어러블·마케팅 동의
+
+수집하지 않음:
+
+- 성별, 키, BMI
+- 운동 장소와 1회 운동시간: 매일 Daily Check-in에서 받는다
+- 사용자 보유 장비
+- 선호 운동 유형: 운동 목표(`primary_goal_code`)가 이미 후보 선정을 좌우하므로 별도로 받지 않는다
 
 코치 문구 성향 기본값은 SUPPORTIVE이며 SUPPORTIVE, CONCISE, ENERGETIC 중 선택한다. 문구 성향은 안전 판단과 운동 강도에 영향을 주지 않는다.
 
-생년월일은 만 14세 이상 이용 자격 확인을 위해 수집하고 암호화해 저장한다.
-만 나이는 DB에 저장하지 않고, 서버가 사용자 timezone의 로컬 날짜를 기준으로
-일시 계산해 자격 확인과 프로필 표시할 때만 사용한다. 생년월일 수정 시에도
-서버가 재검증하며 만 14세 미만으로 변경하면 이용을 차단한다.
+생년월일은 만 18–64세 eligibility 확인을 위해 암호화해 저장한다. 만 나이는 DB·API에 저장하거나 표시하지 않으며, 서버가 사용자 timezone의 로컬 날짜로 eligibility에만 사용한다. 의료적 운동 제한·주의 응답과 범위 밖 연령은 일반 자동 루틴 생성을 차단한다.
 
 생년월일과 만 나이는 로그·분석 이벤트·LLM·에이전트·decision snapshot에
 포함하지 않으며, 계정 삭제와 기존 백업 만료 정책을 따른다. 암호화 키 관리와
@@ -114,7 +113,7 @@ Firebase 로그인
 
 체중이 입력된 경우에만 앱 운동 계획·세션의 예상 소모 칼로리 추정에 사용할 수 있으며, 체중이 없으면 API·저장 값은 `null`로 둔다. 체중·성별은 안전 판정이나 의료적 결론에 사용하지 않는다. 수동 외부 운동 기록과 그에 따른 별도 수기활동 상태는 MVP에서 제외하고 추후 기능으로 분류한다.
 
-일반 개인정보, 민감정보, 웨어러블 연동, 캘린더 연동, 마케팅 동의는 서로 분리해 기록한다. 민감정보·웨어러블·캘린더 동의 철회 시 해당 수집·동기화를 즉시 중단하고 비연동 경로를 제공한다.
+일반 개인정보, 민감정보, 웨어러블 연동, 마케팅 동의는 기존 네 consent code로 분리해 기록한다. 서비스 이용약관은 별도 `terms_version`·`terms_agreed_at` 이력으로 기록하며, 개인정보처리방침은 별도 동의 없이 열람 링크로 제공한다. 가입 화면은 이용약관·일반 개인정보·민감정보 처리 필수 동의와 웨어러블·마케팅 선택 동의를 함께 표시한다. 이용약관에는 고령자, 임신·산후, 만성질환자가 운동 금지 집단이 아니라 집단별 처방 검증 범위 밖이라는 지원 제외 사유를 고지한다. 민감정보·웨어러블 동의 철회 시 해당 수집·동기화를 즉시 중단하고 수동 경로를 제공한다.
 
 ### 5.3 운동 데이터
 
@@ -142,7 +141,7 @@ MVP 통합 목표:
 - 세트 간 휴식
 - 동작 전환 시간
 - 목표 태그
-- 대체 운동
+- 운동 간 대체 관계(카탈로그 검수·추적용, 운동 중 교체 UI에는 사용하지 않음)
 - 통증 부위별 제외·주의 규칙
 - 회복안 사용 가능 여부
 - 출처와 라이선스
@@ -185,9 +184,9 @@ DEPRECATED
 - 걷기와 가벼운 러닝
 - 스트레칭과 코어
 
-기본 루틴은 사용자 목표, 경험, 장소, 장비와 검수된 운동 데이터만 사용해 보수적으로 생성한다.
+기본 루틴은 사용자 목표, 경험과 검수된 운동 데이터만 사용해 보수적으로 생성한다. 장소와 보유 장비는 기본 루틴의 후보 게이트가 아니며, 당일 장소 제약은 Daily Check-in의 `location_code`로 매일 재구성하는 Safety-approved Pool과 Feasibility가 적용한다.
 
-운동 가능 시간 후보는 사용자가 일일 체크인에서 직접 입력한 가능 시간으로 계산한다. 외부 캘린더(Google) 연동은 MVP에서 제외하고 보류한다(ADR-0010 "구현 보류"). 사용자가 가능 시간을 명시하지 않으면 후보를 제시하지 않고 기존 루틴 기본값을 유지한다. 후보 계산 결과는 요청 운동시간을 바꾸지 않으며 공식 수행 상태를 변경하지 않는다. 주간 목표의 특정 요일은 강제하지 않는다. 지난 운동 기록 조회는 앱 내 월간 캘린더와 주간 리포트가 담당한다.
+운동 가능 시간 후보는 사용자가 일일 체크인에서 직접 입력한 가능 시간으로 계산한다. 사용자가 가능 시간을 명시하지 않으면 후보를 제시하지 않고 기존 루틴 기본값을 유지한다. 후보 계산 결과는 요청 운동시간을 바꾸지 않으며 공식 수행 상태를 변경하지 않는다. 주간 목표의 특정 요일은 강제하지 않는다. 지난 운동 기록 조회는 앱 내 월간 캘린더와 주간 리포트가 담당한다.
 
 루틴 화면은 먼저 근력·유산소 등 큰 운동 유형과 상체·하체 등 초점을 보여주고, 그 아래에 랫 풀 다운·레그 프레스 같은 세부 운동을 순서대로 배치한다. 각 운동은 세트·반복 또는 유산소 권장 목표를 가진다.
 
@@ -195,19 +194,19 @@ DEPRECATED
 
 필수:
 
-- 주관적 피로: LOW, MODERATE, HIGH
-- 희망 운동 시간 확인 또는 사용자의 명시적 당일 변경
-- 불편 부위와 심각도
-- 중대한 이상 반응 여부
+- 피로 코드: `LOW`, `MODERATE`, `HIGH`
+- 가능 시간: 10–60분
+- 장소
+- 당일 통증 여부와 부위별 NRS 1–10
+- Red Flag 여부
 
 선택:
 
-- 당일 장소 변경
-- 수면 시간
-- 공복
-- 수분
+- 수면 시간과 출처(`MANUAL`, `WEARABLE`)
 
-불편 부위는 여러 개를 선택할 수 있다. 심각도는 NONE, MILD, MODERATE, SEVERE 제품 척도를 사용하며 의료적 통증 척도로 해석하지 않는다.
+통증 부위는 여러 개를 선택할 수 있으며 중복할 수 없다. 서버가 NRS를 `MILD`(1–3), `MODERATE`(4–6), `SEVERE`(7–10)로 변환하고 정책 버전과 함께 저장한다. 장소는 완화할 수 없다.
+
+온보딩의 선택적 `persistent_pains`는 Daily Check-in에 표시하는 부위·NRS 기본값이다. 사용자가 당일 값을 수정·추가·삭제해 제출하기 전에는 Safety 입력이나 확정된 통증 상태로 사용하지 않는다.
 
 상세 신체 부위와 이상 반응 코드는 DOMAIN_RULES.md를 따른다.
 
@@ -215,13 +214,12 @@ DEPRECATED
 
 - TrainingAgent
 - RecoveryAgent
-- SafetyAgent
 - FeasibilityAgent
 - Coordinator(의장 에이전트)
 
-각 에이전트는 구조화된 proposal을 반환한다. 자유 형식 운동 계획을 반환하지 않는다.
+SafetyPolicyEngine은 Agent가 아닌 결정적 선행 경계다. Training만 승인 pool 안에서 운동 PlanSpec을 제안하며, Recovery와 Feasibility는 `adjustment_codes`만 반환한다. Coordinator는 이를 종합하지만 Safety envelope를 완화할 수 없다.
 
-Training·Recovery·Safety·Feasibility proposal Agent는 병렬 실행하고 Coordinator가 최종 결정한다. 에이전트별 입력·출력, 버전 필드, 공개 요약의 상세 계약은 증상 사용자 시나리오 검증 결과에 따라 추후 보완할 수 있으며, 독립적인 최종 Safety 재검사는 현재 범위에 포함하지 않는다.
+SafetyPolicyEngine이 ConstraintEnvelope와 승인 pool을 먼저 고정하고, Training·Recovery·Feasibility proposal만 병렬 실행한다. Coordinator가 선택한 PlanSpec은 compiler·integrity validator를 통과해야 한다.
 
 ### 5.7 조정과 최종 결정
 
@@ -245,7 +243,7 @@ STOP_EXERCISE
 
 - 최종 추천 루틴 1개
 - 변경 이유 최대 2개
-- 각 Agent의 판단 요약과 Coordinator의 조정 이유
+- SafetyPolicyEngine, 각 전문 Agent, Coordinator의 제한된 판단 요약과 조정 이유
 
 예외:
 
@@ -253,7 +251,7 @@ STOP_EXERCISE
 - STOP_AND_SEEK_HELP에는 운동 계획과 선택 가능한 운동 옵션을 제공하지 않는다.
 - RECOVERY의 최종 추천안은 검수된 저강도 회복 계획이다.
 
-SafetyAgent의 `PASS / NEEDS_INPUT / REVISE / BLOCKED` 의견을 Coordinator 결정에 반영한다. 독립적인 Safety 최종 재검사는 수행하지 않는다.
+SafetyPolicyEngine의 `PASS / NEEDS_INPUT / REVISE / BLOCKED` 결과와 envelope를 Coordinator 이전에 강제하고, integrity validator가 컴파일된 계획의 준수를 검증한다.
 
 초기 루틴 생성과 조정 과정에는 에이전트별 요약 의견과 최종 조정 이유를 보여주는 회의 UI를 MVP에 포함한다. 내부 프롬프트와 숨은 추론은 노출하지 않으며 구체 UI 표현은 멀티 에이전트 로직 설계 후 확정한다.
 
@@ -264,17 +262,16 @@ SafetyAgent의 `PASS / NEEDS_INPUT / REVISE / BLOCKED` 의견을 Coordinator 결
 조정 순서:
 
 ~~~text
-안전·장비·장소 충돌 제거
+안전·장소 충돌 제거
 -> 사용자 requested_duration_minutes 유지
 -> 외부 부하·강도 하향
 -> 세트·반복 또는 운동 난이도 조정
--> 검수된 대체 운동·운동 유형 조정
+-> Safety-approved Pool 내 운동 유형 조정
 -> 휴식 구성 조정
 -> CORE 목표와 운동 순서 보존
 ~~~
 
-- 프로필의 기본 희망 시간은 당일 계획의 기본 `requested_duration_minutes`다.
-- 사용자가 당일 시간을 직접 변경한 경우에만 그 값을 당일 목표로 사용한다.
+- 당일 Check-in의 `available_time_minutes`를 `requested_duration_minutes`로 사용한다.
 - 최종 추천 루틴은 사용자가 요청한 requested duration을 유지한다.
 - lighter 옵션을 별도 공개하지 않고, 다운시프트가 필요한 경우 최종 추천 루틴 자체의 부하·강도·세트·반복·운동 유형·휴식 구성을 조정한다.
 - 시스템은 40분을 임의로 15분이나 5분으로 바꾸지 않는다.
@@ -320,16 +317,15 @@ MVP 기본 범위:
 필수 규칙:
 
 - 불편 부위와 충돌하는 운동 제외
-- NRS 1–3은 같은 목표를 유지하며 `LOAD_REDUCED` → `ROM_REDUCED` → 쉬운 변형 순으로 조정
-- NRS 4–6은 통증 부위를 제외하고 `ACTIVE_RECOVERY` 또는 `SKIP_AFFECTED_AREA` 사용
-- NRS 7–10 또는 급성 근골격 신호에서 `STOP_EXERCISE`, 대체 운동 없음
+- NRS 1–3은 해당 부위 contraindicated 운동을 제외하고 남은 후보로 목표를 유지
+- NRS 4–6은 해당 운동을 제외하고 전역 `LIGHT` cap 적용
+- NRS 7–10에서 계획 생성을 중단하며 대체 운동 없음
 - red flag는 NRS와 무관하게 `STOP_AND_SEEK_HELP`
 - 중대한 이상 반응에서 STOP_AND_SEEK_HELP
-- 사용할 수 없는 장비와 장소의 운동 제외
+- 장소 제약을 충족하지 않는 운동 제외. HOME 장비값은 카탈로그 설명 범위로만 사용
 - 복귀 모드 상한 초과 금지
 - 검수되지 않은 운동과 안전 규칙 제외
-- NRS 1–3은 후보가 없어도 원 운동에 부하·ROM 다운시프트를 적용
-- NRS 4–6은 통증 부위 제외 후보 또는 검수된 `ACTIVE_RECOVERY` 후보가 없으면 계획을 노출하지 않고 검수 보류
+- Safety-approved Pool이 비면 대체 관계로 safety boundary 밖 운동을 추가하지 않고 계획을 반환하지 않음
 - 안전 veto된 원래 계획 선택 차단
 
 안전 화면은 검수된 serious tone 문구를 사용하고 마스코트의 장난스러운 애니메이션을 중단한다.
@@ -346,9 +342,9 @@ MVP 기본 범위:
 - 화면 하단의 추천 운동 블록과 다음 운동
 - 체크 버튼, 블록 격파 또는 좌측 밀기 제스처를 통한 블록 완료
 - 완료 후 다음 PENDING 블록으로 이동
-- 선택적 휴식 타이머는 보조 정보로만 제공
-- 운동 중 불편·이상 반응 보고
-- 안전 중단
+- 하단의 `블록 격파`, `휴식`, `일시정지`와 상단의 `중단`
+- `RESTING`에서는 전체·휴식 타이머를 계속 진행하고, `PAUSED`에서는 둘 다 정지
+- 중단 사유 기반 Safety Event. `PAIN_OR_ABNORMAL_RESPONSE`는 당일 이어하기를 차단
 - 네트워크 오류 시 진행 상태 임시 보존
 
 전체 경과 타이머의 시작·일시정지·재개와 애니메이션은 클라이언트에서 실행한다. 운동 순서, 세트·반복·권장 목표, 설명 콘텐츠와 예상 시간은 서버 결과를 사용한다. 제스처 표현은 클라이언트 UX이며 공식 수행 기록은 해당 plan item의 완료 mutation으로 저장한다.
@@ -361,38 +357,28 @@ MVP 기본 범위:
 COMPLETED
 PARTIAL
 NOT_COMPLETED
-STOPPED_FOR_SAFETY
 ~~~
 
-웨어러블 요약과 캘린더 수행 여부 확인 결과는 참고 신호로 사용할 수 있으나 위 상태를 확정하거나 덮어쓰지 않는다. 수동 외부 운동 기록은 MVP에서 제공하지 않는다.
+웨어러블 요약은 참고 신호로 사용할 수 있으나 위 상태를 확정하거나 덮어쓰지 않는다. 수동 외부 운동 기록은 MVP에서 제공하지 않는다.
 
 - 모든 계획 블록을 사용자가 완료 체크: COMPLETED
 - 하나 이상의 블록을 완료했지만 미완료 블록이 존재: PARTIAL
 - 완료 체크한 블록이 없음: NOT_COMPLETED
-- 안전 이벤트로 중단: STOPPED_FOR_SAFETY
+- `PAIN_OR_ABNORMAL_RESPONSE` 안전 중단도 완료 블록 수에 따라 PARTIAL 또는 NOT_COMPLETED이며, 별도 Safety Event와 `STOPPED_SAFETY` 실행 상태로 남김
 
 세트·반복·유산소 권장 시간은 블록의 처방 내용이다. MVP에서는 자동 센서나 경과 시간으로 블록 완료를 추정하지 않고 사용자의 명시적 완료 체크를 신뢰한다.
 
 완료 시:
 
 - 체감 난이도: EASY, APPROPRIATE, HARD
-- 통증 발생 여부
-- 불편 부위와 심각도
-- 이상 반응
 
-미수행 시 가장 큰 이유 하나:
+중단 사유는 다음 네 코드이며, `PAIN_OR_ABNORMAL_RESPONSE`는 세부 증상·통증 부위·NRS를 수집하지 않고 당일 세션 전체를 종료해 이어하기·Alternative를 차단한다.
 
 ~~~text
 TIME_SHORTAGE
-FATIGUE
-MUSCLE_SORENESS
-PAIN
-SCHEDULE_CHANGE
-LOCATION_EQUIPMENT
-WEATHER
-DIFFICULTY
-LOW_INTEREST
-LOW_MOTIVATION
+HIGH_FATIGUE
+RESUME_LATER
+PAIN_OR_ABNORMAL_RESPONSE
 ~~~
 
 미수행은 벌점이나 연속 기록 파괴로 표현하지 않는다.
@@ -466,7 +452,7 @@ POL-012의 14일 미접속 서비스 분류는 별도 계정 운영 정책이며
 - 리포트를 생성하고 사용자가 확인하기 전에는 다음 주 계획을 최종 확정하지 않음
 - 다음 주 계획 AI 수정은 최대 2회
 - 2회 이후 사용자가 직접 편집 가능
-- 직접 편집한 계획도 요청 시간·장소·장비 제약과 SafetyAgent 의견 반영 확인 필수
+- 직접 편집한 계획도 요청 시간·장소 제약, Safety envelope·승인 pool 반영 및 integrity validation 확인 필수
 
 주간 리포트 생성과 확인은 핵심 MVP이며 worker나 scheduler 없이 동기 API와 논리적 주 마감으로 구현한다.
 
@@ -576,19 +562,19 @@ MVP에서 선택한 연동 외 추가 HealthKit·Health Connect 제공자와 확
 
 ~~~text
 1. Firebase 테스트 사용자 인증
-2. 생년월일 입력과 서버의 만 14세 이상 이용 자격 확인, 운동 목표, 홈 장소, 장비 입력
+2. 생년월일·의료적 운동 제한 여부와 서버의 18–64세 eligibility 판정, 운동 목표·경험·주간 목표·timezone 입력
 3. DOMAIN_APPROVED seed로 기본 상체 40분 루틴 생성
-4. 통증 없음, 피로 MODERATE, 희망 운동 시간 40분 확인
-5. Training·Recovery·Safety·Feasibility proposal 병렬 생성
-6. RecoveryAgent가 당일 강도 하향 제안
-7. TrainingAgent가 상체 CORE와 운동 순서 유지 주장
-8. Coordinator가 40분 요청을 유지한 최종 루틴 1개 선택
-9. Coordinator가 Safety 의견을 반영한 최종 루틴 결정
+4. 통증 없음, 피로 `LOW`/`MODERATE`/`HIGH`, 희망 운동 시간 40분, 장소·Red Flag 확인
+5. SafetyPolicyEngine이 envelope와 승인 pool을 고정하고 Training·Recovery·Feasibility proposal 병렬 생성
+6. RecoveryAgent가 adjustment code로 당일 강도 하향 제안
+7. TrainingAgent가 승인 pool 안에서 상체 CORE와 운동 순서를 포함한 PlanSpec 제안
+8. Coordinator·compiler가 40분과 가장 가까운 허용 범위의 최종 루틴 1개 구성
+9. integrity validator가 Safety envelope를 검증
 10. 변경 이유 확인
 11. 최종 루틴 선택과 0초 경과 타이머 시작
 13. 운동 블록을 순서대로 사용자 완료 체크
 14. 모든 블록 완료로 COMPLETED 계산
-15. 난이도와 통증 저장
+15. 난이도 저장
 ~~~
 
 완료 조건:
@@ -613,7 +599,7 @@ MVP에서 선택한 연동 외 추가 HealthKit·Health Connect 제공자와 확
 상태 양호
 + 통증 없음
 + 프로필 희망 시간 확인
-+ 장소·장비 충족
++ 장소 충족
 -> KEEP
 ~~~
 
@@ -632,7 +618,7 @@ MVP에서 선택한 연동 외 추가 HealthKit·Health Connect 제공자와 확
 ### C. 사용자의 명시적 시간 변경
 
 ~~~text
-프로필 기본 희망 시간 40분
+당일 Check-in 가능 시간 40분
 -> 사용자가 오늘은 30분으로 직접 변경
 -> 당일 requested duration을 30분으로 사용
 -> 시스템이 임의로 15분 또는 5분으로 추가 축소하지 않음
@@ -721,8 +707,7 @@ SEVERE 불편 또는 급성 근골격 신호
 ### 11.1 사용자 흐름
 
 - 로그인부터 결과 반영까지 연결
-- 만 14세 이상 이용 자격 확인
-- 프로필에 서버가 계산한 만 나이 표시
+- 만 18–64세 이용 자격 확인
 - 생년월일 수정과 수정 후 서버 재검증
 - 웨어러블 없이 사용 가능
 - iOS·Android 모바일에서 핵심 흐름 수행 가능
@@ -742,11 +727,11 @@ SEVERE 불편 또는 급성 근골격 신호
 
 ### 11.3 에이전트와 규칙
 
-- 4개 proposal 에이전트 병렬 실행과 Coordinator 작동
+- SafetyPolicyEngine과 Training·Recovery·Feasibility 세 proposal 병렬 실행, Coordinator·compiler·integrity validator 작동
 - 구조화된 결과
 - 에이전트 요약 의견과 최종 조정 이유를 보여주는 회의 UI
 - 결정적 시간·통증·안전·복귀 규칙
-- SafetyAgent 의견과 `BLOCKED` 우선 반영
+- SafetyPolicyEngine의 생성 금지·veto와 `BLOCKED` 우선 반영
 - 요청 시간 보존형 강도 다운시프트
 - 동일 입력과 버전의 결과 재현
 - LLM 없는 정상 동작
@@ -811,13 +796,13 @@ SEVERE 불편 또는 급성 근골격 신호
 삭제 금지:
 
 - Firebase 기본 인증
-- 만 14세 이상 이용 자격 확인
+- 만 18–64세 이용 자격 확인
 - 기본 루틴
 - 웨어러블 요약 연동과 수동 체크인 폴백
 - 체크인 수동 가능 시간 입력과 빈 시간 후보 표시
 - 수동 체크인
-- 4개 proposal 에이전트 병렬 실행과 Coordinator
-- SafetyAgent 의견을 반영한 결정적 조정
+- SafetyPolicyEngine과 Training·Recovery·Feasibility 세 proposal, Coordinator·compiler·integrity validator
+- Safety envelope를 반영한 결정적 조정
 - 요청 시간·목표 보존형 강도 다운시프트
 - REST와 STOP_AND_SEEK_HELP
 - 전체 시간 계산
@@ -849,26 +834,26 @@ SEVERE 불편 또는 급성 근골격 신호
 
 ## 14. 아직 남은 구현 전 세부 결정
 
-- 운동 목표, 경험, 장비, 장소의 전체 머신 코드
+- 운동 목표, 경험, 장소의 전체 머신 코드
 - 수면 부족과 운동 부하 누적의 수치 정책
 - 복귀 모드의 정확한 볼륨 상한
 - 운동 중 MILD 또는 MODERATE 불편의 세션 처리
 - 외부 안전 검수자 확보와 승인 일정
-- 키, 체중, 성별을 실제 UI에서 수집할지 여부
+- 체중을 실제 UI에서 수집할지 여부
 - 주간 리포트 명시적 확인 버튼의 최종 문구와 배치
 - 체중 기반 칼로리 추정 산식·계수 버전
-- 증상이 있는 사용자 시나리오에서 SafetyAgent 의견 반영 수준과 추가 수정 가능성
+- 증상이 있는 사용자 시나리오의 Safety envelope·integrity validator 검수 범위
 
 이 항목은 새 제품 요구를 임의로 만들지 않고 담당자 승인 후 관련 계약을 함께 갱신한다.
 
 ## 15. 결정 이유와 대안
 
-핵심 MVP는 수동 체크인, 검수된 운동, 결정적 안전·권장 시간 규칙, Training·Recovery·Safety·Feasibility 네 proposal의 병렬 실행과 Coordinator 결정, 운동 블록 수행 기록, 요청 시 주간 리포트까지 하나의 폐쇄 루프로 묶는다. 제품 가설을 한 주 단위로 실제 검증할 수 있는 최소 범위이기 때문이다.
+핵심 MVP는 수동 체크인, 검수된 운동, 결정적 SafetyPolicyEngine·시간 규칙, Training·Recovery·Feasibility 세 proposal, Coordinator·compiler·integrity validator, 운동 블록 수행 기록, 요청 시 주간 리포트까지 하나의 폐쇄 루프로 묶는다. 제품 가설을 한 주 단위로 실제 검증할 수 있는 최소 범위이기 때문이다.
 
 선택한 범위:
 
 - 웨어러블 요약을 MVP에 포함하되 수동 체크인 폴백과 특정 요일 비강제 원칙을 유지
-- 외부 캘린더 연동은 보류하고, 가능 시간은 체크인의 사용자 수동 입력으로 받는다 (ADR-0010 구현 보류)
+- 가능 시간은 체크인의 사용자 수동 입력으로 받는다.
 - 수동 외부 운동 기록은 MVP에서 제외하고 추후 기능으로 분류
 - 체중 기반 칼로리 추정치를 참고 정보로 제공
 
@@ -880,7 +865,7 @@ SEVERE 불편 또는 급성 근골격 신호
 ## 16. 팀 확인 질문
 
 - Google/Kakao/Naver 앱 등록·심사·비밀값의 담당자와 완료일은 언제인가?
-- 키, 체중, 성별 선택 필드를 첫 UI에서 실제 노출할 것인가?
+- 체중 필드를 첫 UI에서 실제 노출할 것인가?
 - 주간 리포트의 필수 표시 항목과 승인 문구는 무엇인가?
 - 웨어러블 연동 기기·API·출처·품질·라이선스 후보 중 MVP 채택 항목은 무엇인가?
 - 첫 수직 슬라이스와 주간 폐쇄 루프의 각각 데모 완료일은 언제인가?

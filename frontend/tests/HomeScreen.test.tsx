@@ -115,7 +115,7 @@ describe('HomeScreen Home v1 transcription', () => {
       />,
     );
 
-    expect(screen.getByText('기본 루틴을 준비하고 있어요')).toBeOnTheScreen();
+    expect(screen.getByText('운동 계획을 준비하고 있어요')).toBeOnTheScreen();
     expect(screen.getByTestId('home-routine-lookup-loading')).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: '다시 준비하기' })).toBeNull();
     expect(screen.queryByTestId('routine-generation-loading')).toBeNull();
@@ -133,14 +133,14 @@ describe('HomeScreen Home v1 transcription', () => {
       />,
     );
 
-    expect(screen.getByText('기본 루틴을 준비하지 못했어요')).toBeOnTheScreen();
+    expect(screen.getByText('운동 계획을 준비하지 못했어요')).toBeOnTheScreen();
     expect(
       screen.getByText(
-        '기본 루틴을 확인하거나 만드는 중 문제가 생겼어요.\n잠시 후 다시 시도해 주세요.',
+        '운동 계획을 준비하는 중 문제가 생겼어요.\n잠시 후 다시 시도해 주세요.',
       ),
     ).toBeOnTheScreen();
     expect(screen.getByRole('alert')).toHaveTextContent(
-      '기본 루틴을 확인하거나 만드는 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요.',
+      '운동 계획을 준비하는 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요.',
     );
     expect(screen.queryByTestId('home-routine-lookup-loading')).toBeNull();
 

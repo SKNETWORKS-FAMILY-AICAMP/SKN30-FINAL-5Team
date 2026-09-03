@@ -4,7 +4,7 @@
 
 테스트는 빠른 단위 테스트, 계약·DB 통합 테스트, 소수의 모바일 E2E, 안전 골든 시나리오로 구성한다. 안전 불변식과 결정 재현성은 일반 기능 테스트와 별도 suite로 고정한다.
 
-현재 멀티 에이전트 기준은 [ADR-0007](adr/0007-multi-agent-structure-correction.md)에 따른 Training·Recovery·Safety·Feasibility 네 proposal의 병렬 실행과 Coordinator의 최종 결정이다. 증상 사용자 시나리오에서 SafetyAgent 의견 반영 수준을 확인하며, 결과에 따른 후속 수정 가능성은 열어 둔다. 독립적인 최종 Safety 재검사는 현재 테스트 범위에 포함하지 않는다.
+현재 구현의 테스트 기준은 결정적 SafetyPolicyEngine → Safety-approved Pool → Training·Recovery·Feasibility 세 proposal → Coordinator → compiler → integrity validator다. integrity validator는 원시 안전을 재판정하지 않으며 compiled plan이 envelope를 위반하면 반드시 실패시킨다.
 
 ADR-0012의 2라운드 구조화 상호검토는 승인된 V2 목표지만 아직 production 테스트 기준이 아니다.
 A2/A3는 현재 V1 golden을 보존하면서 아래 V2 계약 suite를 별도로 통과해야 한다.
@@ -25,7 +25,6 @@ V1/V2 통과 증거를 대체하지 않는다.
 | Integration | API + PostgreSQL 전체 use case | 백엔드 |
 | E2E | 모바일 핵심 흐름 | 전원 |
 | Golden/Safety | 대표 입력의 action·제외·시간·veto | 개발팀장 + PM |
-| Requirement | 칼로리 추정·동의·보유기간·캘린더·웨어러블·콜드스타트 | 백엔드 + 기획PM |
 
 ## 3. 필수 골든 시나리오
 
@@ -34,16 +33,15 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 1. 정상 상태는 원래 루틴 `KEEP`
 2. 40분 상체·피로 MODERATE는 40분 요청과 CORE를 유지한 강도 `DOWNSHIFT`
 3. 프로필 40분에서 사용자가 당일 30분으로 변경하면 30분을 사용하고 추가 축소하지 않음
-4. 무릎 MILD/MODERATE는 검수 충돌 제외와 대체
-5. 무릎 SEVERE는 계획 없는 `REST`
+4. 무릎 NRS 1–3/4–6은 검수된 금기 관계 운동을 제외하고, 4–6에는 `LIGHT` 상한을 추가
+5. 무릎 NRS 7–10은 계획 없는 `REST`
 6. 중대한 이상 반응은 계획 없는 `STOP_AND_SEEK_HELP`
 7. 웨어러블 없음은 수동 체크인으로 정상 처리
 8. 앱 운동 계획·세션에서 체중이 있으면 예상 소모 칼로리 추정치를 제공하고 체중이 없으면 값은 `null`
 9. 칼로리 추정치가 진단·안전 판정의 단독 근거가 아님
-10. 캘린더는 등록된 운동 일정의 수행 여부만 확인하고 세부 운동 기록을 저장하지 않으며 공식 운동 수행 상태를 변경하지 않음
 11. LLM 실패는 동일 결정과 템플릿 설명
-12. 안전 veto된 후보가 최종 루틴으로 반환되지 않음
-13. 필수 agent 하나 실패 시 decision `FAILED`, 계획 없음
+12. Safety envelope가 veto한 후보 또는 compiled plan 위반 후보가 최종 루틴으로 반환되지 않음
+13. 필수 agent/provider 실패 시 결정적 fallback을 검증하고, 안전한 fallback이 없으면 `FAILED`, 계획 없음
 14. 최초 가입자는 이전 리포트 없이 첫 주 목표·루틴을 생성
 15. 모든 운동 블록 체크는 경과 시간과 무관하게 `COMPLETED`
 16. 일부 블록 체크는 경과 시간과 무관하게 `PARTIAL`
@@ -54,28 +52,28 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 21. 마지막 공식 완료 후 13일에는 일반 상태, 14일에는 복귀 모드이며 연속 미수행은 학습 신호만 생성
 22. 계정 삭제 요청 즉시 접근 차단
 23. 동의 철회 시 해당 동기화·토큰 즉시 중단
+23-1. 가입 시 현재 서비스 이용약관 버전의 동의 이력이 저장되고 개인정보 consent 네 코드와 섞이지 않음
+23-2. 개인정보처리방침은 열람 가능하지만 별도 consent code·동의 이력을 만들지 않음
 24. 보유기간(28일/24시간/90일/12개월)과 관리자 로그 2년 검증
 25. 가입 시 14일 AI 코치 무료 체험을 시작하고 Premium 결제는 노출하지 않음
 26. Google·Kakao·Naver 로그인 선택과 인증 결과 처리
 27. 웨어러블 동의·기기 선택·수면·걸음·활동시간·활동칼로리·운동 요약 저장
 28. 웨어러블 미연동·권한 거부·API 오류가 실패 상태로 저장되고 수동 체크인·앱 블록 체크 경로가 유지됨
 29. [MVP 이후] 수동 외부 운동 종류·시간·강도·체중 입력과 예상 칼로리의 `ESTIMATED/UNKNOWN/FAILED` 처리
-30. 캘린더 동의·권한, 빈 시간 후보, 운동 계획 등록·수행 여부 확인과 연동 실패 시 계획 보존
 31. 콜드스타트의 월요일~일요일 경계, 주간 목표 횟수, 특정 요일 비강제
-32. 사용자 로컬 날짜 기준 정확히 만 14세가 되는 날 가입 허용
-33. 만 14세가 되기 하루 전이면 `만 14세 미만은 이용할 수 없습니다` 안내 후 가입 차단
+32. 사용자 로컬 날짜 기준 만 18세가 되는 날과 만 64세인 사용자는 eligibility 통과
+33. 만 18세 미만 또는 만 65세 이상은 `OUT_OF_SCOPE_AGE`로 일반 루틴 생성 차단
 34. 미래·달력상 유효하지 않은 생년월일은 입력 오류로 거부
-35. 만 14세 미만 안내 후 다음 화면으로 진행되지 않음
-36. 만 14세 이상은 별도 연령 안내 없이 다음 화면으로 이동
-37. 프로필에 서버가 계산한 만 나이만 표시되고 DB에는 저장하지 않음
-38. 생년월일 수정 시 서버가 사용자 로컬 날짜 기준으로 재검증하며 만 14세 미만 변경 시 이용 차단
+35. 범위 밖 결과는 상세 건강정보 추가 수집 없이 일반 루틴 생성이 차단됨
+36. 범위 안 사용자는 다음 온보딩 단계로 진행
+37. 생년월일·계산된 만 나이는 API 응답과 DB 평문에 없음
+38. 생년월일 수정 시 서버가 사용자 로컬 날짜 기준으로 재검증하며 범위 밖 변경 시 일반 루틴 생성 차단
 39. API 응답·로그·분석·LLM·에이전트·decision snapshot에 생년월일과 만 나이 미포함
 40. 계정 삭제 시 암호화한 생년월일 삭제 대상 포함
-41. 캘린더 동의 철회 시 동기화 중단과 비연동 경로 유지
 42. 1년 이상 서비스 활동이 없는 계정의 `DORMANT` 분류와 삭제 30일 전 통지
-43. 증상 사용자 시나리오에서 SafetyAgent의 `REVISE` 의견이 Coordinator 최종 결정에 반영되고 요청 운동 시간이 보존됨
+43. 증상 사용자 시나리오에서 SafetyPolicyEngine의 `REVISE` envelope가 compiled plan에 유지되고 요청 운동 시간이 보존됨
 44. 기존 클라이언트 구필드 호환 전략과 선택한 deprecation 또는 API 버전 전략의 프론트엔드·백엔드 호환성 테스트
-45. 동일 입력·정책·카탈로그에서 Single-Agent와 네 proposal 병렬 구조를 비교하고 역할별 판단·Safety 의견 반영·요청 시간 보존을 검증함
+45. 동일 입력·정책·카탈로그에서 SafetyPolicyEngine과 세 proposal 병렬 구조의 역할 분리·envelope 준수·요청 시간 보존을 검증함
 46. ACTIVE 사용자 삭제 요청은 즉시 DELETION_PENDING과 단 하나의 request/job을 생성
 47. 삭제 요청 직후 일반 인증 사용자 API와 외부 동기화를 차단
 48. 같은 키와 새 키 재요청 모두 최초 request ID·deadline을 반환하고 새 job을 만들지 않음
@@ -98,13 +96,6 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 65. 마지막 활성 로그인 수단 일반 해제는 거부하고 account deletion 전체 해제는 허용
 66. token·email·name·nickname·provider 원본 응답과 subject가 로그·snapshot·metric label에 없음
 67. Google은 Firebase 기본 provider와 추가 scope 없음, Kakao/Naver 직접 adapter는 `openid`만 허용
-68. 캘린더 미연동 사용자는 수동 체크인·앱 운동 블록 체크로 핵심 흐름을 정상 수행
-69. 캘린더 권한 거부는 운동 계획을 변경하지 않고 수동 경로를 유지
-70. calendar `performed=true|false|null`은 공식 workout 상태를 변경하지 않음
-71. Google Calendar `performed=null`은 검수 fallback 안내이며 오류가 아님
-72. calendar provider timeout·5xx·quota는 `PROVIDER_UNAVAILABLE`이고 계획을 삭제·변경하지 않음
-73. 하루 전체 busy는 빈 후보 배열이며 사용자 희망 운동시간을 단축하지 않음
-74. freebusy 종일 구간은 event 본문 조회 없이 busy로 처리
 75. [V3] SafetyPolicyEngine이 `STOP_AND_SEEK_HELP` 또는 생성 금지 veto를 확정하면 LLM Agent와
     Coordinator를 호출하지 않고 plan을 반환하지 않음
 76. [V3] Training·Recovery·Feasibility 세 LLM Agent가 같은 envelope·pool hash로 병렬 실행되고
@@ -128,9 +119,9 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
     pool fallback과 stable hash를 만들거나 안전한 pool이 없으면 계획 없이 종료함
 89. [V3/Vector] stored retrieval request/result와 catalog/collection/index/embedding/graph/prompt/model
     version으로 Qdrant/provider 재호출 없이 replay함
-90. [Onboarding pain] false/empty, true/non-empty, 부위 중복 금지, `OTHER` 저장 금지와 모든 1..10 점수
+90. [Daily Check-in pain] false/empty, true/non-empty, 부위 중복 금지와 모든 NRS 1..10 점수
     필수를 검증함
-91. [Onboarding pain] `pain-intensity-map-v1` 경계 1/3/4/6/7/10과 policy version 저장을 검증함
+91. [Daily Check-in pain] NRS 경계 1/3/4/6/7/10의 severity 변환과 policy version 저장을 검증함
 92. [Feedback] 신규 difficulty-only와 legacy request 양쪽을 호환 기간에 수용하고 historical field를
     삭제·false backfill하지 않음
 93. [Weekly pain] safety-event distinct session을 집계하고 legacy feedback과 중복하지 않으며 onboarding/
@@ -140,14 +131,15 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 
 - 사용자의 USER_OVERRIDE 없이 `requested_duration_minutes`가 바뀌지 않음
 - 최종 루틴이 사용자의 requested duration을 보존함
-- plan이 있는 최종 루틴의 `estimated_duration_seconds`가 `requested_duration_minutes * 60`과 정확히 일치함
+- plan이 있는 최종 루틴의 `estimated_duration_seconds`가 `requested_duration_minutes * 60`의 ±300초 이내이며 허용 후보 중 차이가 가장 작음
 - estimated duration과 actual elapsed time이 완료 상태에 영향을 주지 않음
 - 운동 블록 완료 mutation의 중복 요청이 한 번만 반영됨
 - 완료 취소는 세션 종료 전에만 PENDING으로 되돌릴 수 있음
-- 종료된 COMPLETED/PARTIAL/NOT_COMPLETED/STOPPED_FOR_SAFETY 세션은 변경할 수 없음
+- 종료된 COMPLETED/PARTIAL/NOT_COMPLETED 세션과 STOPPED_SAFETY 실행 세션은 변경할 수 없음
 - 다음 운동은 sequence상 첫 PENDING 블록임
-- 긴급 안전 이벤트는 STOP_AND_SEEK_HELP veto를 유지하고 SEVERE·급성 신호는 STOP_SESSION + REST로 종료됨
-- MILD/MODERATE 안전 이벤트는 SHOW_CAUTION이며 진행 중 계획을 자동 재작성하지 않음
+- `PAIN_OR_ABNORMAL_RESPONSE` 안전 중단은 증상 세부정보 없이 세션 전체를 종료하고 당일 이어하기·Alternative를 차단함
+- `persistent_pains`는 Daily Check-in에 기본값으로만 표시되며, 사용자가 당일 값을 제출하기 전에는 Safety 입력으로 사용되지 않음
+- Safety Event 결과는 완료 블록 수 기반 공식 수행 상태와 별도 저장됨
 - REST/STOP 응답에는 plan 없음
 - REST 선택 당일에는 추가 압박 알림을 보내지 않음
 - 복귀 모드는 마지막 공식 COMPLETED 후 14일 공백으로만 활성화됨
@@ -156,18 +148,17 @@ POL-009~013과 `ACCEPTED` ADR-0004에 연결된 정확한 보유기간·DORMANT�
 - 승인된 복귀 cap 적용 전후 requested duration이 정확히 보존됨
 - IANA timezone별 동일 instant를 사용자 로컬 날짜로 변환해 월요일 00:00~다음 월요일 00:00 경계를 판정함
 - 열린 주는 최종 report 생성을 차단하고, 닫힌 주만 불변 최소 집계 입력을 허용함
-- 닫힌 주 집계에는 원시 체크인·건강·웨어러블·캘린더 본문과 직접 식별자가 없으며 NOT_COMPLETED는 벌점 없는 학습 신호임
 - GENERATED report는 다음 계획 finalize를 차단하고 명시적 ACKNOWLEDGED 뒤에만 허용함
 - 첫 사용자 주에 cold_start가 명시되고 직전 report가 없는 경우만 acknowledgement 예외를 허용함
 - INITIAL은 초기 계획 흐름, AI/USER는 revision 흐름에서만 생성함
 - 성공한 Coordinator 기반 AI revision 1·2회는 허용하고 3회는 차단하며 비성공 상태는 횟수를 늘리지 않음
 - NEEDS_INPUT/BLOCKED/FAILED revision은 routine이 없고 finalize할 수 없음
-- USER 편집은 요청 시간·장소·장비·SafetyAgent 의견을 모두 준수함
+- USER 편집은 요청 시간·장소·Safety envelope와 compiled-plan integrity를 모두 준수함
 - LLM은 weekly routine·안전 상태·veto·후보를 변경하지 않음
 - 같은 weekly aggregate/revision 입력과 policy version은 같은 판정 결과를 만듦
 - 승인되지 않은 exercise/rule/alternative가 plan에 없음
-- Training·Recovery·Safety·Feasibility 네 proposal이 final decision과 분리되고 Coordinator가 최종 루틴 한 개를 선택한다.
-- 증상 사용자 시나리오에서 SafetyAgent의 `PASS`/`REVISE`/`BLOCKED` 의견은 Coordinator 결정에 반영하고, `NEEDS_INPUT`과 `FAILED`는 계획을 반환하지 않는 fail-closed 결과로 처리하며, 독립적인 최종 Safety 재검사는 실행하지 않는다.
+- SafetyPolicyEngine 결과, Training PlanSpec, Recovery·Feasibility adjustment code와 final decision이 분리되고 Coordinator가 최종 루틴 한 개를 선택한다.
+- 증상 사용자 시나리오에서 SafetyPolicyEngine envelope와 compiled-plan integrity validator를 강제하며, `NEEDS_INPUT`과 `FAILED`는 계획을 반환하지 않는 fail-closed 결과로 처리한다.
 
 ADR-0012 V2의 필수 속성·불변식 (SUPERSEDED, ADR-0015로 대체됨. 결정 기록으로만 보존한다):
 
@@ -192,7 +183,6 @@ ADR-0013 V3의 필수 속성·불변식:
   완화되거나 version/hash가 바뀌지 않는다.
 - ExercisePoolSnapshot은 production-approved catalog row만 포함하고 canonical order/hash를 가지며
   모든 LLM exercise reference는 pool의 부분집합이다.
-- Agent와 Coordinator invocation에는 직접 식별자, 날짜, 자유 체크인, raw 건강·웨어러블·캘린더,
   application log, prompt 원문과 provider 예외 원문이 없다.
 - Agent와 Coordinator는 DB·repository·ORM·raw SQL Tool을 등록하거나 호출하지 않는다.
 - 세 Agent의 fan-out은 병렬이며 fan-in 전 누락·invalid·timeout 결과로 Coordinator를 실행하지
@@ -232,13 +222,12 @@ ADR-0013 V3의 필수 속성·불변식:
 | `PASS` | 정상 `DecisionResponse` | 운동 계획 반환 |
 | `REVISE` | 정상 `DecisionResponse` | 조정된 운동 계획 반환 |
 
-- Training은 목표·진행, Recovery는 회복·부하, Safety는 통증·제약, Feasibility는 시간·장소·장비·일정·선호를 추적하고, Coordinator는 네 결과와 최종 결정 이유를 추적한다.
-- 동일한 입력·버전에서 Single-Agent 대비 네 proposal 병렬 구조의 역할 분리와 Safety 의견 반영 결과를 비교한다.
+- Training은 목표·진행 PlanSpec, Recovery는 회복·부하 adjustment code, Feasibility는 시간·장소·일정 adjustment code를 추적하고, SafetyPolicyEngine envelope와 Coordinator 최종 결정을 별도 추적한다.
+- 동일 입력·버전에서 세 proposal 병렬 구조, Safety envelope 및 compiled-plan integrity 결과를 비교한다.
 - 같은 입력 해시와 버전은 같은 후보와 action
 - client가 rule version이나 agent weight를 지정할 수 없음
 - 안전 상태가 PASS/REVISE가 아닌 최종 루틴은 반환·선택 불가
 - `date_of_birth`가 유효한 `YYYY-MM-DD`이며 온보딩 필수이고, 만 나이는 사용자 로컬 날짜 기준으로 일시 계산되며 DB에 저장되지 않음
-- 일반·민감·웨어러블·캘린더·마케팅 동의가 분리 저장됨
 - agent proposal과 final decision이 분리되고 내부 추론이 노출되지 않음
 - 계정 삭제의 7일은 job 실행 대기기간이 아니라 운영 DB hard-delete 완료 상한임
 - ACTIVE에서 DELETION_PENDING 전이와 최초 deletion request/job 생성은 하나의 transaction임
@@ -264,17 +253,7 @@ ADR-0013 V3의 필수 속성·불변식:
 - Google Firebase 경로는 backend direct exchange route를 호출하지 않음
 - Kakao는 state·nonce·PKCE S256, Naver는 state·PKCE S256을 적용하고 미문서 nonce를 추정하지 않음
 - 독립 identity unlink는 총 5회·24시간 예산 뒤 REVIEW 상태이며 account deletion은 ADR-0008을 따름
-- 캘린더 동의·연결 gate 이전에는 provider port를 호출하지 않음
-- availability 30/31회와 전체 calendar 60/61회 fixed-window 경계에서 provider 호출 전 차단함
-- freebusy의 겹치거나 맞닿은 구간은 병합하고 후보 전후 15분 buffer를 적용함
-- 최소 빈 구간은 사용자 희망 운동시간 + 30분이며 1분 미달 경계를 후보에서 제외함
-- availability 후보는 시작 시각 오름차순 최대 8개이고 시간대·특정 요일 필터가 없음
 - 로컬 자정 경계와 DST 23/25시간 날짜를 UTC instant로 정확히 처리함
-- freebusy가 반환한 종일 포함 모든 busy 구간을 점유로 처리하고 event list를 조회하지 않음
-- 후보 없음은 빈 배열이며 `requested_duration_minutes`를 변경하지 않음
-- performance는 공식 종료 상태 이후, 10분 경계부터 재확인할 수 있음
-- Google performance는 항상 `null`이고 캘린더 관찰값은 공식 workout 상태를 변경할 수 없음
-- calendar 제목·설명·참석자·위치·token·raw payload/error가 log·response·fixture에 없음
 
 ## 5. 테스트 데이터
 
@@ -286,8 +265,7 @@ ADR-0013 V3의 필수 속성·불변식:
 ### 5.1 Weekly policy 골든 계약
 
 주간 골든 fixture는 합성된 IANA timezone, 월요일·일요일 경계, 네 공식 세션 상태의 최소
-집계, acknowledgement 상태, revision source, 성공한 AI revision 횟수, 요청 시간·장소·장비와
-SafetyAgent opinion code만 사용한다. 원시 체크인·건강·웨어러블·캘린더 본문과 직접 식별자는
+집계, acknowledgement 상태, revision source, 성공한 AI revision 횟수, 요청 시간·장소와
 포함하지 않는다.
 
 골든 비교 축은 OPEN/CLOSED, report 허용 여부, 학습 신호와 penalty 미적용, revision 허용 여부,
@@ -308,7 +286,7 @@ blocked reason code, requested duration, duration adjustment source와 estimated
 자유 형식 summary·guidance·LLM 문구는 결정 재현성 비교에 포함하지 않는다. LLM 미사용과
 설명 생성 실패는 같은 입력·version에서 동일한 결정 결과를 만들어야 한다.
 
-Wave 6 저장 계층은 네 proposal을 agent별 레코드로 저장하고 final result와 덮어쓰거나
+현재 저장 계층은 SafetyPolicyEngine 결과와 세 proposal을 별도 레코드로 저장하고 final result와 덮어쓰거나
 합치지 않는다. 공개 API 매핑은 기존 `API_CONTRACT.md` 필드만 사용하며 fixture의
 `graph_version` 등 내부 감사 version을 임의로 공개 필드로 추가하지 않는다.
 
@@ -321,7 +299,7 @@ separator)의 SHA-256이다. 집합 의미의 context reference 순서는 hash�
 운동 sequence처럼 의미 있는 배열 순서는 임의로 정렬하지 않는다.
 
 조회 후 재실행 결과는 저장된 action, selected candidate, safety status, reason code와 duration
-결과에 일치해야 한다. 네 proposal은 agent별로 분리되어야 하며 누락·중복·FAILED를 성공
+결과에 일치해야 한다. 세 proposal은 agent별로 분리되어야 하며 누락·중복·FAILED를 성공
 결정으로 복원할 수 없다. Safety `BLOCKED` 또는 veto 결과에는 `FINAL_ROUTINE` option을
 연결할 수 없고, 저장 transaction이 실패하면 성공 응답을 공개할 수 없다.
 
@@ -404,40 +382,6 @@ PostgreSQL concurrent unique/rollback, additive Alembic round trip과 frontend c
 official discovery/JWKS에서 만든 최소 합성 fixture와 합성 HTTP failure를 사용하며 live provider나 실제
 credential을 CI 필수 조건으로 만들지 않는다. Google은 기존 Firebase 경로를 유지하고 Naver는 후속 독립 PR이다.
 
-### 5.6 Calendar 외부 컨텍스트 골든·개인정보 계약
-
-캘린더 fixture는 합성 UUIDv4, IANA timezone, local date, freebusy의 start/end 구간,
-`external-context-policy-v2`, `calendar-availability-v1`, `calendar-performance-v2`,
-`calendar-credential-v1`과
-provider/failure machine code만 사용한다. 제목, 설명, 참석자, 위치,
-calendar ID, provider subject, external event ID, access/refresh token과 원시 provider payload/error는
-fixture·snapshot·로그 기대값에 포함하지 않는다.
-
-domain unit은 동의·연결 gate, `primary` calendar 고정, 고정 비식별 calendar/event summary,
-30/31·60/61 rate limit, 10분 performance 재확인, busy 병합,
-15분 buffer, 최소 길이 ±1분, 후보 8개 상한, 자정/DST와 공식 completion 불변을 검증한다. golden
-suite는 미연동, 권한 거부, `performed=true`, Google `performed=null`, provider 장애, 하루 전체 busy와
-종일 busy, 명시적 수동 가능 시간 우선과 REST 무압박을 고정한다. privacy test는 observability
-allowlist와 금지 field 비노출을 검증한다.
-
-`ACCEPTED` ADR-0010에 따라 9C-2는 OAuth 600초 state·PKCE, secret reference, provider 호출 전 rate limit,
-연결·동기화·해제 멱등성, transaction rollback, PostgreSQL/Alembic round trip과 합성 Google HTTP
-응답 adapter test를 추가한다. 특히 다음을 필수로 검증한다.
-
-- calendar event link가 `workout_session_id`만 참조하고 PLANNED session당 하나만 생성됨
-- session의 `STOPPED_FOR_SAFETY`를 포함한 공식 종료 상태만 performance gate를 통과함
-- client `start_at`과 계획 요청 시간으로 server가 `end_at`을 계산하고 client가 시간을 단축하지 못함
-- Calendar OAuth row가 provider 호출 전에 소비되고 실패·재사용 시 되살아나지 않음
-- secret 저장/DB commit의 양방향 보상, refresh version 교체와 invalid_grant cleanup
-- `REVOKE_PENDING`에서 provider 접근 차단, secret 파기 재시도와 최종 REVOKED
-- 동의 철회와 계정 삭제가 Calendar secret을 남기지 않음
-- primary-only freebusy이고 CalendarList/event list endpoint를 호출하지 않음
-- authorize-init 재호출의 이전 state 폐기, event create idempotency와 concurrent unique/rate-limit counter
-
-live provider와 실제 credential은 CI 필수 조건으로 만들지 않는다. production enablement는 별도 Google
-test project에서 최소 scope, redirect URI, 보조 캘린더, local disconnect 뒤 Firebase 로그인 유지와
-secret-manager adapter를 검증한다.
-
 ## 6. CI 게이트
 
 구현 단계에서 다음 job을 독립 실행하도록 구성한다.
@@ -480,7 +424,6 @@ Pyright를 선택하지 않은 이유는 저장소의 Python 산출물이 표준
 ruff와 동일한 Python 툴체인으로 실행하는 편이 단순하기 때문이다. 프론트엔드 타입 검사는
 이 결정과 무관하다.
 
-프론트 component 테스트는 최상단 count-up timer, 중앙 마스코트, 하단 순서형 운동 블록, 자세·설명 펼침, 체크·밀기 완료, 다음 블록 이동, 칼로리 추정치의 참고 문구, 캘린더 등록·수행 여부 확인·권한 거부, 웨어러블 수동 체크인 폴백을 검증한다. 타이머 값과 타이머 이벤트만 변경했을 때 블록과 세션 상태가 바뀌지 않는 음성 테스트를 포함한다. 수동 외부 기록은 MVP 테스트 대상에서 제외한다.
 
 ## 7. 대안과 선택 이유
 

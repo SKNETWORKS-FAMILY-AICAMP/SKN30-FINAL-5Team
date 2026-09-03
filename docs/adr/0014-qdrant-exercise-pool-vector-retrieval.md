@@ -180,7 +180,7 @@ version으로 동일한 Agent 입력을 복원할 수 있어야 한다. score와
 ### 9. 개인정보와 건강정보 제한
 
 - 직접 사용자 식별정보, 날짜, 자유 체크인, 통증 부위, `pain_intensity_score`, severity, 원문 건강정보,
-  raw wearable/calendar data를 vector, payload, embedding input/query에 포함하지 않는다.
+  raw wearable data를 vector, payload, embedding input/query에 포함하지 않는다.
 - Qdrant payload는 exercise ID와 비사용자 catalog/index/version metadata로 제한한다.
 - `normalized_query_codes`는 목표·운동 유형·장비·장소처럼 승인된 비민감 code allowlist만 사용한다.
 - 로그·metric label에는 query 원문, eligible ID 전체 목록, 사용자/decision ID와 provider 예외 원문을

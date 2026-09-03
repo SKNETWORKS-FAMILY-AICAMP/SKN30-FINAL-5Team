@@ -1,0 +1,40 @@
+{
+  "catalog_version_code": "exercise-catalog-v2.0.5-final",
+  "files": [
+    {
+      "bytes": 56040,
+      "path": "media_assets.jsonl",
+      "records": 76,
+      "sha256": "b5941bd39428ae21f94cfae9a81743292efe6adbc50c04d6d9941785595bbbe4"
+    }
+  ],
+  "generator_version": "v2-0-5-media-gap-packager-1.0.0",
+  "media_set_version": {
+    "status_code": "DRAFT",
+    "version_code": "media-set-v2.0.5"
+  },
+  "review": {
+    "production_eligible": false,
+    "review_method_code": "DOMAIN_REVIEWER",
+    "status": "DOMAIN_APPROVED",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
+  },
+  "schema_version": "1.0",
+  "source": {
+    "catalog_version_code": "exercise-catalog-v2.0.5-final",
+    "input_artifacts": [
+      {
+        "bytes": 74176,
+        "path": "data/validation/review_results/gymvisual_media_reviewed.csv",
+        "role": "GYMVISUAL_MEDIA_REVIEW",
+        "sha256": "81230662d81c6a05630e22f6f6e00454a660627a3f49b540ff921d975013613a"
+      }
+    ],
+    "matching_rule": "source_track=gymvisual and exact four-digit source_identity",
+    "withheld_reason": "no exact approved Gymvisual source identity",
+    "withheld_records": 86
+  },
+  "summary": {
+    "media_asset_records": 76
+  }
+}

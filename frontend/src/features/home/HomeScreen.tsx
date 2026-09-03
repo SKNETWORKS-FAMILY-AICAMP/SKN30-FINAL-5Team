@@ -1466,16 +1466,16 @@ function RoutineLookupCard({
         ]}
       >
         {loading
-          ? '기본 루틴을 준비하고 있어요'
-          : '기본 루틴을 준비하지 못했어요'}
+          ? '운동 계획을 준비하고 있어요'
+          : '운동 계획을 준비하지 못했어요'}
       </Text>
       <Text
         accessibilityRole={loading ? undefined : 'alert'}
         style={styles.messageText}
       >
         {loading
-          ? '저장된 루틴을 확인하고, 필요하면 기본 루틴을 만들고 있어요.'
-          : '기본 루틴을 확인하거나 만드는 중 문제가 생겼어요.\n잠시 후 다시 시도해 주세요.'}
+          ? '잠시만 기다려 주세요.\n준비가 끝나면 오늘 컨디션을 여쭤볼게요.'
+          : '운동 계획을 준비하는 중 문제가 생겼어요.\n잠시 후 다시 시도해 주세요.'}
       </Text>
       {!loading && onRetry ? (
         <View style={styles.routineSetupAction}>

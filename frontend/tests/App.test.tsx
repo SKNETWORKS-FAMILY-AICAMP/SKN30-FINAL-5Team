@@ -142,7 +142,7 @@ describe('App boot navigation', () => {
     {
       mode: 'loading' as const,
       label: 'Page loading (API)',
-      readyText: '기본 루틴을 준비하고 있어요',
+      readyText: '운동 계획을 준비하고 있어요',
     },
     {
       mode: 'session' as const,

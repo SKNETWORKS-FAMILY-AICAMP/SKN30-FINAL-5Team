@@ -1,0 +1,144 @@
+{
+  "bundle_version": "v2-0-5-backend-bundle-2026-09-02",
+  "catalog_version_code": "exercise-catalog-v2.0.5-final",
+  "derived_from": {
+    "bundle_manifest_sha256": "c223bdbf9f439ff1cdb0b404de2267d1e79bd8607c9fc3fd1f25b9d357d3afa7",
+    "catalog_version_code": "exercise-catalog-v2.0.4-final",
+    "change_summary": "Rebuilds media from exact Gymvisual source identities: 68 to 76 approved assets. Catalog, safety, alternatives and prescriptions are unchanged.",
+    "media_gap_closure": {
+      "approval_input_sha256": "81230662d81c6a05630e22f6f6e00454a660627a3f49b540ff921d975013613a",
+      "matching_rule": "EXACT_SOURCE_IDENTITY_ONLY",
+      "media_asset_records_after": 76,
+      "media_asset_records_before": 68
+    }
+  },
+  "derived_set_versions": {
+    "alternative_set_version_code": "alternative-set-v2.0.5",
+    "prescription_set_version_code": "prescription-set-v2.0.5",
+    "rule_set_version_code": "safety-rule-set-v2.0.5"
+  },
+  "files": [
+    {
+      "bytes": 936620,
+      "path": "alternatives/alternatives.jsonl",
+      "records": 1150,
+      "sha256": "c875696a787ef39c608a02a4abf092d564689058cfcefa9d03a122ec862f3f1c"
+    },
+    {
+      "bytes": 769,
+      "path": "alternatives/alternatives_manifest.json",
+      "sha256": "dd94fa2b454df9582acfc3b09a3f0bde9b66e4f559cc18deb7e029b02949e332"
+    },
+    {
+      "bytes": 232132,
+      "path": "catalog/exercises.jsonl",
+      "records": 162,
+      "sha256": "f409f9e5d5932907a53a1a504f3dcf2c1a255f4f4461a5ab3a35fd2977a8f631"
+    },
+    {
+      "bytes": 12008,
+      "path": "catalog/input/representative_exercises.csv",
+      "sha256": "5cfdafc73dc5f7101269889955b69348116b27ba5b3902043a3eb897e8e66db1"
+    },
+    {
+      "bytes": 1102,
+      "path": "catalog/seed_manifest.json",
+      "sha256": "50c12f9fda1e465cb4e5851db8409dbf6eb478a7a11d499acb6007b9e0ae160c"
+    },
+    {
+      "bytes": 56040,
+      "path": "media/media_assets.jsonl",
+      "records": 76,
+      "sha256": "b5941bd39428ae21f94cfae9a81743292efe6adbc50c04d6d9941785595bbbe4"
+    },
+    {
+      "bytes": 1255,
+      "path": "media/media_manifest.json",
+      "sha256": "91acbb869654f5276efa6e776cda2c503a51dbe6293d86c5c608ccd52f1cbe13"
+    },
+    {
+      "bytes": 120333,
+      "path": "prescriptions/goal_tag_links.jsonl",
+      "records": 486,
+      "sha256": "ccdd04f0fe143ca93a4f72cc610203703e5f7ec0de9a90e9994805fa54b9696e"
+    },
+    {
+      "bytes": 1021,
+      "path": "prescriptions/prescription_manifest.json",
+      "sha256": "2c05b717c1ebda680e3963591f3813459b939e3138147304d523e4dab4f9a651"
+    },
+    {
+      "bytes": 465594,
+      "path": "prescriptions/prescription_profiles.jsonl",
+      "records": 1047,
+      "sha256": "04b748107037f893851823aa03c65a3ab0c8615c708b88f2c9c2c054614e6788"
+    },
+    {
+      "bytes": 748,
+      "path": "safety/rules_manifest.json",
+      "sha256": "5487f2161b3a89eaf47c5a439f6f39483f2ac02e5abf1439c456fba122d8caaa"
+    },
+    {
+      "bytes": 280282,
+      "path": "safety/safety_rules.jsonl",
+      "records": 595,
+      "sha256": "a95a7e432b7b0787e23d5b060c748518d27a1bb830694b6127ac96f8572f635f"
+    }
+  ],
+  "importer_paths": {
+    "alternatives": "alternatives/alternatives_manifest.json",
+    "catalog": "catalog/seed_manifest.json",
+    "media": "media/media_manifest.json",
+    "prescriptions": "prescriptions/prescription_manifest.json",
+    "safety": "safety/rules_manifest.json"
+  },
+  "production_eligible": false,
+  "projection": {
+    "carried_over_alternatives": {
+      "DIFFICULTY": 7,
+      "EQUIPMENT": 16,
+      "LOCATION": 23
+    },
+    "carried_over_source": "exercise-catalog-v2.0.1-final/runtime",
+    "excluded_exercise_count": 15,
+    "excluded_exercise_stable_codes": [
+      "band_front_raise_isolation_resistance_band",
+      "band_shrug_isolation_resistance_band",
+      "band_single_leg_calf_raise_isolation_resistance_band",
+      "cable_shrug_isolation_cable_machine",
+      "dumbbell_decline_shrug_isolation_dumbbell",
+      "dumbbell_decline_shrug_v_2_isolation_dumbbell",
+      "dumbbell_front_raise_isolation_dumbbell",
+      "dumbbell_front_raise_v_2_isolation_dumbbell",
+      "dumbbell_incline_shrug_isolation_dumbbell",
+      "dumbbell_seated_alternate_front_raise_isolation_dumbbell",
+      "dumbbell_seated_calf_raise_isolation_dumbbell",
+      "dumbbell_single_leg_calf_raise_isolation_dumbbell",
+      "lever_seated_calf_raise_isolation_machine",
+      "one_leg_floor_calf_raise_isolation_bodyweight",
+      "side_push_neck_stretch_mobility_stretch_bodyweight"
+    ],
+    "excluded_reason": "required exercise content is missing; the record and every row referencing it are withheld",
+    "source_manifest_sha256": "6f0b87c6e40e8f7f7d65c33a1c89dbeec86953e7a2dc8525bcdb41f1f4a9ba60",
+    "status": "PARTIAL",
+    "withheld_beginner_prescription_reason": "an INTERMEDIATE exercise is not offered to a BEGINNER",
+    "withheld_beginner_prescriptions": [
+      "bodyweight_reverse_crunch_core_brace_bodyweight",
+      "cable_triceps_pushdown_isolation_cable_machine",
+      "lat_pulldown_vertical_pull_cable_machine",
+      "row_variant_horizontal_pull_cable_machine",
+      "seated_cable_row_horizontal_pull_cable_machine"
+    ],
+    "withheld_media_records": 86
+  },
+  "schema_version": "1.0",
+  "status_code": "DRAFT",
+  "summary": {
+    "alternative_records": 1150,
+    "catalog_records": 162,
+    "goal_tag_records": 486,
+    "media_asset_records": 76,
+    "prescription_records": 1047,
+    "safety_rule_records": 595
+  }
+}

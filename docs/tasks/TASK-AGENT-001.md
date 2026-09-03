@@ -1,5 +1,7 @@
 # TASK-AGENT-001: 구조화 proposal 계약과 병렬 실행 core
 
+> 상태: SUPERSEDED. 현재 구현·문서 기준은 ADR-0015와 `SERVICE_POLICY_SAFETY_AND_ADAPTATION_V1.md`의 SafetyPolicyEngine·Training·Recovery·Feasibility 구조다.
+
 - Primary owner: 개발·데이터 팀장
 - Reviewers: 백엔드 담당자
 - 관련 요구사항: `F002-1-10`, `F002-1-38`~`F002-1-46`, `NFR-006-1-13`
