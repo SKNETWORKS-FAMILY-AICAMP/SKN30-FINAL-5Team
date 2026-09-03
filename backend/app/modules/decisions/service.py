@@ -18,6 +18,7 @@ from backend.app.domain.agents.coordinator import (
 )
 from backend.app.domain.agents.runner import ProposalAgent, ProposalRequest, run_required_agents
 from backend.app.domain.rules.duration import DURATION_RULE_VERSION, DurationAdjustmentSourceCode
+from backend.app.domain.rules.recovery import RecoveryLevelCode, recovery_level
 from backend.app.domain.rules.safety import (
     SAFETY_ENGINE_VERSION,
     AdverseReactionCode,
@@ -95,6 +96,7 @@ def _safety_context(context: DecisionContext) -> SafetyContext:
             AdverseReactionCode(code) for code in context.adverse_reaction_codes
         ),
         attention_area_codes=tuple(BodyAreaCode(code) for code in context.attention_area_codes),
+        red_flag_present=context.red_flag_present,
     )
 
 
@@ -198,7 +200,20 @@ def _build_adjusted_candidates(
     base_evaluation: SafetyEvaluation,
 ) -> tuple[AdjustedCandidateData, ...]:
     adjusted: list[AdjustedCandidateData] = []
-    if base_evaluation.caution_exercise_codes or assembly.context.fatigue_level_code == "MODERATE":
+    recovery = recovery_level(
+        sleep_minutes=assembly.context.sleep_minutes,
+        fatigue_level_code=assembly.context.fatigue_level_code,
+    )
+    has_moderate_pain = any(severity == "MODERATE" for _, _, severity, _ in assembly.context.pains)
+    force_low_intensity = has_moderate_pain or recovery in {
+        RecoveryLevelCode.LIGHT,
+        RecoveryLevelCode.VERY_LIGHT,
+    }
+    if (
+        base_evaluation.caution_exercise_codes
+        or assembly.context.fatigue_level_code == "MODERATE"
+        or force_low_intensity
+    ):
         candidate_id = f"{assembly.candidate.candidate_id}-approved-downshift"
         candidate = assembly.candidate.model_copy(
             update={
@@ -258,7 +273,8 @@ def _build_adjusted_candidates(
             display_name=alternatives_by_source[str(item.exercise_id)].item.display_name,
             intensity_code=(
                 "LOW"
-                if alternatives_by_source[str(item.exercise_id)].item.intensity_code == "LOW"
+                if force_low_intensity
+                or alternatives_by_source[str(item.exercise_id)].item.intensity_code == "LOW"
                 else item.intensity_code
             ),
         )

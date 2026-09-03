@@ -1,7 +1,7 @@
 """Drop the retired external calendar integration tables.
 
-Revision ID: 0039_retire_calendar_integration
-Revises: 0035_onboarding_eligibility
+Revision ID: 0037_retire_calendar_integration
+Revises: 0036_checkin_safety_recovery
 Create Date: 2026-09-03
 
 ADR-0016 retired the external calendar integration. The four tables 0013 created
@@ -22,16 +22,18 @@ one definition of these tables and their index names.
 migration context is running, so executing it from here is equivalent to running it
 in place.
 
-Numbering note: 0036-0038 are reserved for the in-flight check-in, workout execution
-and feedback-loop work, so this revision takes 0039 and chains onto 0035.
+Numbering note: this revision was authored as 0039 on top of 0035 while 0036-0038 were
+held for the in-flight check-in, workout execution and feedback-loop work. Check-in landed
+as 0036 first, so it is renumbered to 0037 and chains onto that head rather than opening a
+second branch off 0035.
 """
 
 import importlib.util
 import pathlib
 from collections.abc import Sequence
 
-revision: str = "0039_retire_calendar_integration"
-down_revision: str | None = "0035_onboarding_eligibility"
+revision: str = "0037_retire_calendar_integration"
+down_revision: str | None = "0036_checkin_safety_recovery"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

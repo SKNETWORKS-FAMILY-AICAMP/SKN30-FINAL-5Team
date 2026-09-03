@@ -41,6 +41,11 @@ from backend.app.domain.agents.v3_duration import (
 from backend.app.domain.agents.v3_orchestration import GraphTerminalStatusCode
 from backend.app.domain.agents.v3_persistence import V3DecisionPersistenceBundle
 from backend.app.domain.rules.duration import DURATION_RULE_VERSION
+from backend.app.domain.rules.recovery import (
+    RECOVERY_POLICY_VERSION,
+    RecoveryLevelCode,
+    recovery_level,
+)
 from backend.app.domain.rules.safety import (
     SafetyCandidate,
     SafetyCandidateItem,
@@ -437,14 +442,35 @@ class DeterministicV3SafetyPolicyAdapter:
             None,
         )
         items = downshift.items if base.caution_exercise_codes and downshift else prepared.items
+        recovery = recovery_level(
+            sleep_minutes=context.sleep_minutes,
+            fatigue_level_code=context.fatigue_level_code,
+        )
         intensities = tuple(sorted({item.intensity_code for item in items}))
+        has_moderate_pain = any(severity == "MODERATE" for _, _, severity, _ in context.pains)
+        if has_moderate_pain or recovery in {RecoveryLevelCode.LIGHT, RecoveryLevelCode.VERY_LIGHT}:
+            # Catalog prescriptions use LOW/MODERATE. LIGHT is an immutable
+            # global cap, not a catalog data mutation.
+            intensities = ("LOW",)
+        maximum_sets = max((item.sets for item in items), default=None)
+        maximum_repetitions = max(
+            (item.reps for item in items if item.reps is not None), default=None
+        )
+        if recovery is RecoveryLevelCode.LIGHT:
+            maximum_sets = min(maximum_sets, 2) if maximum_sets is not None else None
+            maximum_repetitions = (
+                min(maximum_repetitions, 10) if maximum_repetitions is not None else None
+            )
+        if recovery is RecoveryLevelCode.VERY_LIGHT:
+            maximum_sets = min(maximum_sets, 2) if maximum_sets is not None else None
+            maximum_repetitions = (
+                min(maximum_repetitions, 10) if maximum_repetitions is not None else None
+            )
         ceiling = RecoveryCeiling(
-            policy_version="v3-recovery-ceiling-from-approved-routine-v1",
+            policy_version=RECOVERY_POLICY_VERSION,
             allowed_intensity_codes=intensities,
-            maximum_sets_per_exercise=max((item.sets for item in items), default=None),
-            maximum_repetitions_per_set=max(
-                (item.reps for item in items if item.reps is not None), default=None
-            ),
+            maximum_sets_per_exercise=maximum_sets,
+            maximum_repetitions_per_set=maximum_repetitions,
             maximum_work_seconds_per_set=max(
                 (
                     item.work_seconds_per_set

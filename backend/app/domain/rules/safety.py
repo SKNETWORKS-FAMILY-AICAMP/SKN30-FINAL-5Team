@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from enum import IntEnum, StrEnum
 
 SAFETY_ENGINE_VERSION = "1.1.0"
+NRS_PAIN_POLICY_VERSION = "pain-intensity-action-v2"
 
 
 class BodyAreaCode(StrEnum):
@@ -28,6 +29,16 @@ class DiscomfortSeverityCode(IntEnum):
     MILD = 1
     MODERATE = 2
     SEVERE = 3
+
+
+def severity_from_intensity_score(intensity_score: int) -> DiscomfortSeverityCode:
+    if not 1 <= intensity_score <= 10:
+        raise InvalidSafetyInputError("intensity_score must be between 1 and 10")
+    if intensity_score <= 3:
+        return DiscomfortSeverityCode.MILD
+    if intensity_score <= 6:
+        return DiscomfortSeverityCode.MODERATE
+    return DiscomfortSeverityCode.SEVERE
 
 
 class AdverseReactionCode(StrEnum):
@@ -141,6 +152,7 @@ class SafetyContext:
     discomforts: tuple[Discomfort, ...] = ()
     adverse_reaction_codes: tuple[AdverseReactionCode, ...] = ()
     attention_area_codes: tuple[BodyAreaCode, ...] = ()
+    red_flag_present: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.discomforts, tuple):
@@ -149,6 +161,8 @@ class SafetyContext:
             raise InvalidSafetyInputError("adverse_reaction_codes must be an immutable tuple")
         if not isinstance(self.attention_area_codes, tuple):
             raise InvalidSafetyInputError("attention_area_codes must be an immutable tuple")
+        if not isinstance(self.red_flag_present, bool):
+            raise InvalidSafetyInputError("red_flag_present must be a boolean")
         if any(not isinstance(value, Discomfort) for value in self.discomforts):
             raise InvalidSafetyInputError("discomforts must contain only Discomfort values")
         if any(not isinstance(value, AdverseReactionCode) for value in self.adverse_reaction_codes):
@@ -424,6 +438,12 @@ def evaluate_safety(
     rule_set: SafetyRuleSet | None,
 ) -> SafetyEvaluation:
     """Evaluate immediate stops first, then approved catalog safety rules."""
+
+    if context.red_flag_present:
+        return _terminal_evaluation(
+            action_code=SafetyRequiredActionCode.STOP_AND_SEEK_HELP,
+            context=context,
+        )
 
     reaction_codes = frozenset(context.adverse_reaction_codes)
     if reaction_codes & EMERGENCY_REACTION_CODES:

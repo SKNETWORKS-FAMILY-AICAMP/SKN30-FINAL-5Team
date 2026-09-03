@@ -26,8 +26,11 @@ def test_migration_history_has_a_single_linear_head() -> None:
 
     # A second head means two branches were authored against the same parent, which
     # blocks every later migration until someone merges them by hand.
-    assert scripts.get_heads() == ["0039_retire_calendar_integration"]
-    assert scripts.get_revision("0039_retire_calendar_integration").down_revision == (
+    assert scripts.get_heads() == ["0037_retire_calendar_integration"]
+    assert scripts.get_revision("0037_retire_calendar_integration").down_revision == (
+        "0036_checkin_safety_recovery"
+    )
+    assert scripts.get_revision("0036_checkin_safety_recovery").down_revision == (
         "0035_onboarding_eligibility"
     )
     assert scripts.get_revision("0035_onboarding_eligibility").down_revision == (
@@ -252,7 +255,23 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
             "exercise_safety_rules",
             "exercise_alternatives",
             "exercise_media_assets",
+            "daily_context_pains",
         }.issubset(inspector.get_table_names())
+        assert {
+            "sleep_source_code",
+            "available_time_minutes",
+            "pain_present",
+            "red_flag_present",
+        }.issubset({column["name"] for column in inspector.get_columns("daily_contexts")})
+        assert {
+            "id",
+            "daily_context_id",
+            "body_area_code",
+            "intensity_score",
+            "severity_code",
+            "policy_version",
+            "created_at",
+        } == {column["name"] for column in inspector.get_columns("daily_context_pains")}
         assert {
             "id",
             "catalog_version_id",

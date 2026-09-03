@@ -22,6 +22,7 @@ from backend.app.db.models.checkin import (
     DailyContextAdverseReaction,
     DailyContextAvailabilitySlot,
     DailyContextDiscomfort,
+    DailyContextPain,
 )
 from backend.app.db.models.decision import (
     AgentProposalRecord,
@@ -98,6 +99,7 @@ __all__ = [
     "DailyContextAdverseReaction",
     "DailyContextAvailabilitySlot",
     "DailyContextDiscomfort",
+    "DailyContextPain",
     "Equipment",
     "Exercise",
     "ExerciseAlternative",
