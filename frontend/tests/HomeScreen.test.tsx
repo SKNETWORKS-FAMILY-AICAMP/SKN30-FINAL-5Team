@@ -725,10 +725,19 @@ describe('HomeScreen Home v1 transcription', () => {
 
     fireEvent.press(screen.getByRole('button', { name: '추천 이유 보기' }));
     expect(screen.getByRole('header', { name: '추천 이유' })).toBeOnTheScreen();
-    expect(screen.getByText('상세 판단')).toBeOnTheScreen();
+    expect(screen.getByText('에이전트별 판단')).toBeOnTheScreen();
+    expect(screen.getByText('최종 조정 이유')).toBeOnTheScreen();
     expect(screen.queryByText('안전 확인')).toBeNull();
     expect(screen.getByText('트레이닝')).toBeOnTheScreen();
+    expect(screen.getByText('회복')).toBeOnTheScreen();
     expect(screen.getByText('안전')).toBeOnTheScreen();
+    expect(screen.getByText('실행 가능성')).toBeOnTheScreen();
+    expect(screen.queryByText('조정')).toBeNull();
+    expect(
+      screen.getByText(
+        '운동 목표와 희망 시간은 유지하고 세트와 강도만 조정했어요.',
+      ),
+    ).toBeOnTheScreen();
 
     const collapsedCriteria = screen.getByRole('button', {
       name: '반영한 기준 펼치기',
@@ -739,7 +748,12 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.queryByText('운동 목표를 유지했어요.')).toBeNull();
 
     const tree = JSON.stringify(view.toJSON());
-    expect(tree.indexOf('상세 판단')).toBeLessThan(tree.indexOf('반영한 기준'));
+    expect(tree.indexOf('에이전트별 판단')).toBeLessThan(
+      tree.indexOf('최종 조정 이유'),
+    );
+    expect(tree.indexOf('최종 조정 이유')).toBeLessThan(
+      tree.indexOf('반영한 기준'),
+    );
 
     fireEvent.press(collapsedCriteria);
     expect(
@@ -747,6 +761,63 @@ describe('HomeScreen Home v1 transcription', () => {
         .accessibilityState,
     ).toEqual({ expanded: true });
     expect(screen.getByText('운동 목표를 유지했어요.')).toBeOnTheScreen();
+  });
+
+  it('keeps the server summary order and never exposes machine codes', () => {
+    const props = homePreviewProps('adjusted');
+    expect(props.decision).not.toBeNull();
+
+    const view = render(<HomeScreen {...props} />);
+    fireEvent.press(screen.getByRole('button', { name: '추천 이유 보기' }));
+
+    const tree = JSON.stringify(view.toJSON());
+    expect(
+      tree.indexOf('운동 목표와 희망 운동 시간을 유지했어요.'),
+    ).toBeLessThan(
+      tree.indexOf('오늘의 피로도를 고려해 운동 부담을 낮추도록 제안했어요.'),
+    );
+    expect(
+      tree.indexOf('오늘의 피로도를 고려해 운동 부담을 낮추도록 제안했어요.'),
+    ).toBeLessThan(
+      tree.indexOf(
+        '부담이 될 수 있는 운동 2개를 제외하고 강도를 중간 이하로 제한했어요.',
+      ),
+    );
+    expect(
+      tree.indexOf(
+        '부담이 될 수 있는 운동 2개를 제외하고 강도를 중간 이하로 제한했어요.',
+      ),
+    ).toBeLessThan(
+      tree.indexOf('희망 시간과 장소, 사용 가능한 장비에 맞는 구성이에요.'),
+    );
+    expect(
+      tree.indexOf('희망 시간과 장소, 사용 가능한 장비에 맞는 구성이에요.'),
+    ).toBeLessThan(
+      tree.indexOf(
+        '운동 목표와 희망 시간은 유지하고 세트와 강도만 조정했어요.',
+      ),
+    );
+    expect(tree).not.toContain('MODERATE_FATIGUE_DOWNSHIFT');
+    expect(tree).not.toContain('TIME_LOCATION_EQUIPMENT_MATCHED');
+    expect(tree).not.toContain('COMMON_CANDIDATE_SELECTED');
+  });
+
+  it('keeps legacy recommendation reasons usable without agent summaries', () => {
+    const props = homePreviewProps('adjusted');
+    expect(props.decision).not.toBeNull();
+    const decision = {
+      ...props.decision!,
+      public_agent_summaries: null,
+    };
+
+    render(<HomeScreen {...props} decision={decision} />);
+    fireEvent.press(screen.getByRole('button', { name: '추천 이유 보기' }));
+
+    expect(screen.queryByText('에이전트별 판단')).toBeNull();
+    expect(screen.queryByText('최종 조정 이유')).toBeNull();
+    expect(
+      screen.getByRole('button', { name: '반영한 기준 펼치기' }),
+    ).toBeOnTheScreen();
   });
 
   it('shows a safety caution supplied through adjustment reason codes', () => {

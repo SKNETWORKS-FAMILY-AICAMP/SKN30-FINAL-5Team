@@ -2494,6 +2494,12 @@ function RecommendationReasonSheet({
 }) {
   const styles = useHomeStyles();
   const agentSummaries = decision.public_agent_summaries ?? [];
+  const perspectiveSummaries = agentSummaries.filter(
+    (summary) => summary.agent_type_code !== 'COORDINATOR',
+  );
+  const coordinatorSummary = agentSummaries.find(
+    (summary) => summary.agent_type_code === 'COORDINATOR',
+  );
   const [criteriaExpanded, setCriteriaExpanded] = useState(false);
   return (
     <SheetFrame onClose={onClose} title="추천 이유" zIndex={24}>
@@ -2504,10 +2510,10 @@ function RecommendationReasonSheet({
         contentContainerStyle={styles.reasonSheetContent}
         showsVerticalScrollIndicator={false}
       >
-        {agentSummaries.length > 0 ? (
+        {perspectiveSummaries.length > 0 ? (
           <View style={styles.reasonSection}>
-            <Text style={styles.checkinSectionTitle}>상세 판단</Text>
-            {agentSummaries.map((summary) => (
+            <Text style={styles.checkinSectionTitle}>에이전트별 판단</Text>
+            {perspectiveSummaries.map((summary) => (
               <View
                 key={`${summary.agent_type_code}-${summary.summary}`}
                 style={styles.agentSummary}
@@ -2518,6 +2524,13 @@ function RecommendationReasonSheet({
                 <Text style={styles.reasonText}>{summary.summary}</Text>
               </View>
             ))}
+          </View>
+        ) : null}
+
+        {coordinatorSummary ? (
+          <View style={styles.reasonSection}>
+            <Text style={styles.checkinSectionTitle}>최종 조정 이유</Text>
+            <Text style={styles.reasonText}>{coordinatorSummary.summary}</Text>
           </View>
         ) : null}
 

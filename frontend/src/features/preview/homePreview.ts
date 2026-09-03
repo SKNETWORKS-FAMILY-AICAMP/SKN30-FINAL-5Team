@@ -303,14 +303,38 @@ function decision(adjusted: boolean): DecisionResponse {
         summary: '운동 목표와 희망 운동 시간을 유지했어요.',
       },
       {
+        agent_type_code: 'RECOVERY',
+        recommendation_code: adjusted ? 'DOWNSHIFT' : 'KEEP',
+        reason_codes: adjusted
+          ? ['MODERATE_FATIGUE_DOWNSHIFT']
+          : ['RECOVERY_CONTEXT_REVIEWED'],
+        summary: adjusted
+          ? '오늘의 피로도를 고려해 운동 부담을 낮추도록 제안했어요.'
+          : '오늘의 회복 상태에서 계획한 운동을 진행할 수 있어요.',
+      },
+      {
         agent_type_code: 'SAFETY',
         recommendation_code: adjusted ? 'DOWNSHIFT' : 'KEEP',
         reason_codes: adjusted
           ? ['MODERATE_FATIGUE_DOWNSHIFT']
           : ['NO_SAFETY_SIGNAL_REPORTED'],
         summary: adjusted
-          ? '오늘의 피로도를 고려해 부담을 낮췄어요.'
-          : '현재 체크인에서 운동을 막는 위험 신호는 확인되지 않았어요.',
+          ? '부담이 될 수 있는 운동 2개를 제외하고 강도를 중간 이하로 제한했어요.'
+          : '제외한 운동 없이 계획한 강도 상한을 적용했어요.',
+      },
+      {
+        agent_type_code: 'FEASIBILITY',
+        recommendation_code: 'KEEP',
+        reason_codes: ['TIME_LOCATION_EQUIPMENT_MATCHED'],
+        summary: '희망 시간과 장소, 사용 가능한 장비에 맞는 구성이에요.',
+      },
+      {
+        agent_type_code: 'COORDINATOR',
+        recommendation_code: adjusted ? 'DOWNSHIFT' : 'KEEP',
+        reason_codes: ['COMMON_CANDIDATE_SELECTED'],
+        summary: adjusted
+          ? '운동 목표와 희망 시간은 유지하고 세트와 강도만 조정했어요.'
+          : '모든 조건을 함께 확인해 계획한 루틴을 최종 추천했어요.',
       },
     ],
     safety_summary: {
