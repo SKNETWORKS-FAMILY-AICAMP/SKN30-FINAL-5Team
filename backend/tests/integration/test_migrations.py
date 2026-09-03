@@ -116,6 +116,48 @@ def test_migration_history_has_decision_input_idempotency_head() -> None:
 
 
 @pytest.mark.integration
+def test_completed_input_index_does_not_block_regenerations(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The unique input index must cover originals only.
+
+    A regeneration re-runs the same immutable daily-context input on purpose and shares
+    ``(user_id, daily_context_id, daily_context_version, input_hash)`` with its root. If the
+    predicate covered every COMPLETED row, the second regeneration of a day would violate the
+    index and the feature would break, so the predicate is asserted here rather than left to
+    review.
+    """
+
+    database_url = os.getenv("TEST_DATABASE_URL")
+    if not database_url:
+        pytest.skip("TEST_DATABASE_URL is not configured")
+    if not make_url(database_url).database.endswith("_test"):
+        pytest.fail("Migration tests require a dedicated *_test database")
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("APP_ENV", "test")
+    get_settings.cache_clear()
+    command.upgrade(Config(str(ALEMBIC_CONFIG)), "head")
+
+    with create_engine(database_url).connect() as connection:
+        indexdef = connection.execute(
+            text(
+                "SELECT indexdef FROM pg_indexes "
+                "WHERE indexname = 'uq_decision_runs_completed_input'"
+            )
+        ).scalar_one()
+
+    # PostgreSQL re-renders the predicate with explicit casts, so assert on the parts
+    # that carry the contract rather than on exact formatting.
+    normalized = " ".join(indexdef.split()).lower()
+    assert "unique index" in normalized
+    assert "(user_id, daily_context_id, daily_context_version, input_hash)" in normalized
+    assert "'completed'" in normalized
+    # Legacy V1/V2 rows carry a NULL mode and must stay covered as originals.
+    assert "coalesce(generation_mode_code" in normalized
+    assert "'original'" in normalized
+
+
+@pytest.mark.integration
 def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> None:
     test_database_url = os.getenv("TEST_DATABASE_URL")
     if not test_database_url:
