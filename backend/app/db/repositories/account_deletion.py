@@ -6,7 +6,6 @@ from sqlalchemy import case, delete, select, text
 from sqlalchemy.orm import Session
 
 from backend.app.db.models.account_deletion import AccountDeletionAudit, AccountDeletionJob
-from backend.app.db.models.calendar import CalendarConnection
 from backend.app.db.models.checkin import DailyContext
 from backend.app.db.models.decision import DecisionRun
 from backend.app.db.models.identity import User, UserIdentity
@@ -37,7 +36,6 @@ from backend.app.modules.account_deletion.ports import (
     ExternalIdentityRecord,
     IdempotencyUseRecord,
 )
-from backend.app.modules.external_context.ports import CalendarSecretCleanupPendingError
 from backend.app.modules.identity.codes import UserStatusCode
 
 
@@ -377,17 +375,8 @@ class AccountDeletionRepository:
             raise RuntimeError("external revocation is not resolved")
 
         user_id = row.user_id
-        pending_calendar_secret = session.scalar(
-            select(CalendarConnection.id)
-            .where(
-                CalendarConnection.user_id == user_id,
-                CalendarConnection.token_secret_ref.is_not(None),
-            )
-            .limit(1)
-            .with_for_update()
-        )
-        if pending_calendar_secret is not None:
-            raise CalendarSecretCleanupPendingError
+        # ADR-0016 retired the calendar integration, so there is no stored provider
+        # credential left to wait on before operational data is deleted.
         row.current_stage_code = DeletionStageCode.OPERATIONAL_DATA_DELETE
         session.flush()
 
