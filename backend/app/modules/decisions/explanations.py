@@ -19,10 +19,17 @@ from backend.app.domain.agents.contracts import (
     RecommendedActionCode,
 )
 from backend.app.domain.agents.coordinator import CoordinatorResult, CoordinatorStatusCode
+from backend.app.domain.agents.v3_contracts import (
+    ConstraintEnvelope,
+    SpecialistAgentProposal,
+    SpecialistAgentTypeCode,
+)
 from backend.app.domain.rules.safety import SafetyStatusCode
 from backend.app.modules.decisions.codes import (
     DECISION_EXPLANATION_PROMPT_VERSION,
     DECISION_EXPLANATION_TEMPLATE_VERSION,
+    V3_DECISION_EXPLANATION_PROMPT_VERSION,
+    V3_DECISION_EXPLANATION_TEMPLATE_VERSION,
 )
 from backend.app.modules.decisions.ports import (
     NarrationCompletion,
@@ -82,6 +89,7 @@ class ExplanationFallbackReasonCode(StrEnum):
     PAYLOAD_NOT_SHAREABLE = "PAYLOAD_NOT_SHAREABLE"
     LLM_PROVIDER_FAILED = "LLM_PROVIDER_FAILED"
     LLM_OUTPUT_REJECTED = "LLM_OUTPUT_REJECTED"
+    DETERMINISTIC_FALLBACK = "DETERMINISTIC_FALLBACK"
 
 
 @dataclass(frozen=True, slots=True)
@@ -501,6 +509,281 @@ def build_explanation(
     return _with_llm_sentences(template, sentences=sentences, model_code=completion.model_code)
 
 
+_V3_AGENT_TEMPLATES: Final[dict[SpecialistAgentTypeCode, str]] = {
+    SpecialistAgentTypeCode.TRAINING: "운동 목표와 요청 시간을 반영한 구성을 제안했습니다.",
+    SpecialistAgentTypeCode.RECOVERY: "현재 회복 범위에 맞는 강도와 휴식 조정을 제안했습니다.",
+    SpecialistAgentTypeCode.FEASIBILITY: "승인된 운동 풀 안에서 실행 가능한 구성을 확인했습니다.",
+}
+_V3_CODE_SENTENCE_TEMPLATES: Final[dict[str, str]] = {
+    "TRAINING_READY": "운동 목표와 요청 시간을 반영한 구성을 제안했습니다.",
+    "RECOVERY_READY": "현재 회복 범위에 맞는 강도와 휴식 조정을 제안했습니다.",
+    "FEASIBILITY_READY": "승인된 운동 풀 안에서 실행 가능한 구성을 확인했습니다.",
+    "GOAL_PRESERVED": "요청한 운동 목표를 유지하는 방향으로 제안했습니다.",
+    "RECOVERY_CONSTRAINTS_PRESERVED": "회복을 위한 강도와 휴식 상한을 유지했습니다.",
+    "FEASIBILITY_CONSTRAINTS_PRESERVED": "현재 조건에서 실행 가능한 범위를 유지했습니다.",
+}
+_V3_AGENT_FALLBACK_TEMPLATES: Final[dict[SpecialistAgentTypeCode, str]] = {
+    SpecialistAgentTypeCode.TRAINING: "검증된 대체 규칙으로 운동 구성을 준비했습니다.",
+    SpecialistAgentTypeCode.RECOVERY: "검증된 대체 규칙으로 회복 상한을 반영했습니다.",
+    SpecialistAgentTypeCode.FEASIBILITY: "검증된 대체 규칙으로 실행 가능성을 확인했습니다.",
+}
+_V3_ACTION_SUMMARIES: Final[dict[str, str]] = {
+    "KEEP": "오늘의 목표와 조건에 맞는 운동 계획을 준비했습니다.",
+    "DOWNSHIFT": "요청한 시간은 유지하고 현재 상태에 맞게 운동 부담을 낮췄습니다.",
+    "CHANGE": "요청한 시간과 목표를 지키면서 안전한 운동으로 구성을 바꿨습니다.",
+    "RECOVERY": "요청한 시간에 맞춰 회복 중심 운동 계획을 준비했습니다.",
+    "REST": "오늘은 안전을 위해 운동 대신 휴식을 권합니다.",
+    "STOP_AND_SEEK_HELP": "지금은 운동을 중단하고 필요한 도움을 요청하세요.",
+}
+_V3_FINAL_ADJUSTMENTS: Final[dict[str, str]] = {
+    "DOWNSHIFT": "요청 시간은 유지하고 강도, 반복 또는 휴식 구성을 낮춰 조정했습니다.",
+    "CHANGE": "제외된 운동 대신 승인된 운동으로 교체해 최종 구성을 만들었습니다.",
+    "RECOVERY": "회복에 맞는 강도와 동작으로 최종 구성을 조정했습니다.",
+}
+
+
+def _v3_safety_summary(
+    envelope: ConstraintEnvelope,
+    *,
+    safety_status_code: str,
+    safety_vetoed: bool,
+    reason_codes: tuple[str, ...],
+) -> ExplanationSafetySummary:
+    excluded_count = len(envelope.excluded_exercise_ids)
+    ceiling = envelope.recovery_ceiling
+    caps: list[str] = []
+    if ceiling.allowed_intensity_codes:
+        caps.append("허용 강도 범위")
+    if ceiling.allowed_load_codes:
+        caps.append("허용 부하 범위")
+    if ceiling.maximum_sets_per_exercise is not None:
+        caps.append(f"운동별 최대 {ceiling.maximum_sets_per_exercise}세트")
+    if ceiling.maximum_repetitions_per_set is not None:
+        caps.append(f"세트당 최대 {ceiling.maximum_repetitions_per_set}회")
+    if ceiling.maximum_work_seconds_per_set is not None:
+        caps.append(f"세트당 최대 {ceiling.maximum_work_seconds_per_set}초")
+    if ceiling.minimum_rest_seconds_between_sets is not None:
+        caps.append(f"세트 사이 최소 {ceiling.minimum_rest_seconds_between_sets}초 휴식")
+    exclusion = (
+        f"운동 {excluded_count}개를 제외했습니다." if excluded_count else "제외한 운동은 없습니다."
+    )
+    cap_text = (
+        f"적용한 회복 상한은 {'·'.join(caps)}입니다."
+        if caps
+        else "추가로 적용한 회복 상한은 없습니다."
+    )
+    return ExplanationSafetySummary(
+        safety_status_code=safety_status_code,
+        vetoed=safety_vetoed,
+        reason_codes=_public_reason_codes(reason_codes),
+        summary=f"{exclusion} {cap_text}",
+    )
+
+
+def build_v3_template_explanation(
+    *,
+    action_code: str,
+    safety_status_code: str,
+    safety_vetoed: bool,
+    safety_reason_codes: tuple[str, ...],
+    final_reason_codes: tuple[str, ...],
+    envelope: ConstraintEnvelope,
+    proposals: tuple[SpecialistAgentProposal, ...],
+    coaching_style_code: str,
+    fallback_used: bool,
+    fallback_reason_code: ExplanationFallbackReasonCode,
+) -> DecisionExplanation:
+    """Build reviewed V3 copy from the three proposals and SafetyPolicyEngine output."""
+
+    by_type = {proposal.agent_type_code: proposal for proposal in proposals}
+    agent_summaries: list[ExplanationAgentSummary] = []
+    for agent_type in SpecialistAgentTypeCode:
+        proposal = by_type.get(agent_type)
+        if proposal is None:
+            continue
+        signals = (
+            *((proposal.public_summary_code,) if proposal.public_summary_code else ()),
+            *proposal.reason_codes,
+            *proposal.adjustment_codes,
+            *proposal.evidence_reference_codes,
+        )
+        reviewed_summary = next(
+            (
+                _V3_CODE_SENTENCE_TEMPLATES[code]
+                for code in signals
+                if code in _V3_CODE_SENTENCE_TEMPLATES
+            ),
+            _V3_AGENT_TEMPLATES[agent_type],
+        )
+        agent_summaries.append(
+            ExplanationAgentSummary(
+                agent_type_code=agent_type.value,
+                recommendation_code=action_code
+                if agent_type is SpecialistAgentTypeCode.TRAINING
+                else None,
+                reason_codes=(_public_reason_codes(proposal.reason_codes)),
+                summary=(
+                    _V3_AGENT_FALLBACK_TEMPLATES[agent_type] if fallback_used else reviewed_summary
+                ),
+            )
+        )
+    safety_summary = _v3_safety_summary(
+        envelope,
+        safety_status_code=safety_status_code,
+        safety_vetoed=safety_vetoed,
+        reason_codes=safety_reason_codes,
+    )
+    safety_index = min(2, len(agent_summaries))
+    agent_summaries.insert(
+        safety_index,
+        ExplanationAgentSummary(
+            agent_type_code=AgentTypeCode.SAFETY.value,
+            recommendation_code=action_code,
+            reason_codes=safety_summary.reason_codes,
+            summary=safety_summary.summary,
+        ),
+    )
+    agent_summaries.append(
+        ExplanationAgentSummary(
+            agent_type_code=COORDINATOR_SUMMARY_CODE,
+            recommendation_code=action_code,
+            reason_codes=_public_reason_codes(final_reason_codes),
+            summary="세 가지 제안과 안전 정책을 종합해 최종 운동 계획을 확정했습니다.",
+        )
+    )
+    return DecisionExplanation(
+        source_code=ExplanationSourceCode.TEMPLATE,
+        summary=_V3_ACTION_SUMMARIES.get(
+            action_code, "오늘의 조건에 맞는 운동 계획을 준비했습니다."
+        ),
+        reason_codes=_public_reason_codes(final_reason_codes),
+        agent_summaries=tuple(agent_summaries),
+        safety_summary=safety_summary,
+        final_adjustment_reason=_V3_FINAL_ADJUSTMENTS.get(action_code),
+        coaching_style_code=coaching_style_code,
+        template_version=V3_DECISION_EXPLANATION_TEMPLATE_VERSION,
+        fallback_reason_code=fallback_reason_code.value,
+    )
+
+
+def _build_v3_prompt(
+    *,
+    template: DecisionExplanation,
+    action_code: str,
+    envelope: ConstraintEnvelope,
+    proposals: tuple[SpecialistAgentProposal, ...],
+) -> NarrationPrompt | None:
+    slot_codes = [_SUMMARY_SLOT]
+    for summary in template.agent_summaries:
+        slot_codes.append(f"{_AGENT_SLOT_PREFIX}{summary.agent_type_code}")
+    if template.final_adjustment_reason is not None:
+        slot_codes.append(_FINAL_ADJUSTMENT_SLOT)
+    payload: dict[str, Any] = {
+        "action_code": action_code,
+        "safety_status_code": template.safety_summary.safety_status_code,
+        "safety_vetoed": template.safety_summary.vetoed,
+        "requested_duration_minutes": envelope.requested_duration_minutes,
+        "excluded_exercise_count": len(envelope.excluded_exercise_ids),
+        "coaching_style_code": template.coaching_style_code,
+        "reason_codes": list(template.reason_codes),
+        "agents": [
+            {
+                "agent_type_code": proposal.agent_type_code.value,
+                "proposal_status_code": proposal.proposal_status_code.value,
+                "public_summary_code": proposal.public_summary_code,
+                "adjustment_codes": list(proposal.adjustment_codes),
+                "reason_codes": list(proposal.reason_codes),
+                "evidence_reference_codes": list(proposal.evidence_reference_codes),
+            }
+            for proposal in proposals
+        ],
+    }
+    if not _payload_is_shareable(payload):
+        return None
+    return NarrationPrompt(
+        prompt_version=V3_DECISION_EXPLANATION_PROMPT_VERSION,
+        instruction=_PROMPT_INSTRUCTION,
+        slot_codes=tuple(slot_codes),
+        payload=payload,
+    )
+
+
+def build_v3_explanation(
+    *,
+    action_code: str,
+    safety_status_code: str,
+    safety_vetoed: bool,
+    safety_reason_codes: tuple[str, ...],
+    final_reason_codes: tuple[str, ...],
+    envelope: ConstraintEnvelope,
+    proposals: tuple[SpecialistAgentProposal, ...],
+    coaching_style_code: str,
+    fallback_used: bool,
+    provider: NarrationProviderPort | None = None,
+) -> DecisionExplanation:
+    """Narrate an already validated V3 decision without allowing text to alter it."""
+
+    llm_allowed = (
+        safety_status_code in {SafetyStatusCode.PASS.value, SafetyStatusCode.REVISE.value}
+        and not safety_vetoed
+        and not fallback_used
+        and len(proposals) == len(SpecialistAgentTypeCode)
+    )
+    if (
+        safety_status_code not in {SafetyStatusCode.PASS.value, SafetyStatusCode.REVISE.value}
+        or safety_vetoed
+    ):
+        template_fallback_reason = ExplanationFallbackReasonCode.SAFETY_TONE_TEMPLATE_REQUIRED
+    elif fallback_used or len(proposals) != len(SpecialistAgentTypeCode):
+        template_fallback_reason = ExplanationFallbackReasonCode.DETERMINISTIC_FALLBACK
+    else:
+        template_fallback_reason = ExplanationFallbackReasonCode.LLM_DISABLED
+    template = build_v3_template_explanation(
+        action_code=action_code,
+        safety_status_code=safety_status_code,
+        safety_vetoed=safety_vetoed,
+        safety_reason_codes=safety_reason_codes,
+        final_reason_codes=final_reason_codes,
+        envelope=envelope,
+        proposals=proposals,
+        coaching_style_code=coaching_style_code,
+        fallback_used=fallback_used,
+        fallback_reason_code=template_fallback_reason,
+    )
+    if not llm_allowed or provider is None:
+        return template
+    prompt = _build_v3_prompt(
+        template=template,
+        action_code=action_code,
+        envelope=envelope,
+        proposals=proposals,
+    )
+    if prompt is None:
+        return replace(
+            template,
+            fallback_reason_code=ExplanationFallbackReasonCode.PAYLOAD_NOT_SHAREABLE.value,
+        )
+    try:
+        completion = provider.narrate(prompt)
+    except NarrationProviderUnavailableError:
+        return template
+    except Exception:
+        return replace(
+            template,
+            fallback_reason_code=ExplanationFallbackReasonCode.LLM_PROVIDER_FAILED.value,
+        )
+    sentences = _accepted_sentences(completion, prompt.slot_codes)
+    if sentences is None:
+        return replace(
+            template,
+            fallback_reason_code=ExplanationFallbackReasonCode.LLM_OUTPUT_REJECTED.value,
+        )
+    return replace(
+        _with_llm_sentences(template, sentences=sentences, model_code=completion.model_code),
+        prompt_version=V3_DECISION_EXPLANATION_PROMPT_VERSION,
+    )
+
+
 __all__ = [
     "COORDINATOR_SUMMARY_CODE",
     "DecisionExplanation",
@@ -510,4 +793,6 @@ __all__ = [
     "ExplanationSourceCode",
     "build_explanation",
     "build_template_explanation",
+    "build_v3_explanation",
+    "build_v3_template_explanation",
 ]
