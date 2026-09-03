@@ -64,6 +64,9 @@ export function SessionResultScreen({
         />
         <SafetyNotice title="안내" message={outcome.event.guidance} />
         <Card style={styles.card}>
+          <Text style={styles.status}>
+            {sessionStatusLabel(outcome.event.completion_code)}
+          </Text>
           <Text style={styles.body}>
             오늘은 더 이상 운동을 권하지 않을게요. 상태가 나아지지 않으면 의료
             전문가의 확인을 받아주세요.
