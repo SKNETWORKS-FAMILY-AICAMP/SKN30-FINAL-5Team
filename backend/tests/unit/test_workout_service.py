@@ -536,7 +536,7 @@ def test_safety_event_stops_the_session_without_collecting_symptom_detail() -> N
         FakeSession(),  # type: ignore[arg-type]
         user_id,
         session_id,
-        WorkoutSafetyEventRequest(occurred_at=NOW),
+        WorkoutSafetyEventRequest(stop_reason_code="PAIN_OR_ABNORMAL_RESPONSE"),
         uuid4(),
     )
     assert stopped.result_code == "SESSION_STOPPED"
@@ -555,7 +555,7 @@ def test_safety_event_request_rejects_symptom_detail() -> None:
 
     with pytest.raises(ValidationError):
         WorkoutSafetyEventRequest.model_validate(
-            {"occurred_at": NOW.isoformat(), "symptom_code": "KNEE_PAIN"}
+            {"stop_reason_code": "PAIN_OR_ABNORMAL_RESPONSE", "symptom_code": "KNEE_PAIN"}
         )
 
 

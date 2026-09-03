@@ -695,7 +695,7 @@ class WorkoutService:
                 session,
                 event_id=event_id,
                 session_id=session_id,
-                occurred_at=request.occurred_at,
+                occurred_at=now,
                 result_code=result_code,
                 completion_code=completion_code,
                 rule_version="workout-safety-event-v2",
@@ -705,11 +705,11 @@ class WorkoutService:
                 session,
                 session_id=session_id,
                 execution_state_code="STOPPED_SAFETY",
-                occurred_at=request.occurred_at,
+                occurred_at=now,
                 is_resumable=False,
-                stop_reason_code=WorkoutStopReasonCode.PAIN_OR_ABNORMAL_RESPONSE.value,
+                stop_reason_code=request.stop_reason_code,
                 completion_code=completion_code,
-                ended_at=request.occurred_at,
+                ended_at=now,
             )
             response = WorkoutSafetyEventResponse(
                 event_id=event_id,

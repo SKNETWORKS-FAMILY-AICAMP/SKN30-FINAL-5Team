@@ -411,7 +411,7 @@ def test_finish_not_completed_safety_and_feedback_contracts() -> None:
         safety = safety_client.post(
             f"/api/v1/workout-sessions/{safety_session_id}/safety-events",
             headers=_key(),
-            json={"occurred_at": NOW.isoformat()},
+            json={"stop_reason_code": "PAIN_OR_ABNORMAL_RESPONSE"},
         )
     assert safety.status_code == 201
     # No symptom detail is collected, so this path cannot classify an emergency; the

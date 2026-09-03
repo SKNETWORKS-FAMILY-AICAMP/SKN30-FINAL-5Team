@@ -488,9 +488,7 @@ def test_in_session_severe_report_stops_session_and_blocks_pressure(client: Test
     reported = client.post(
         f"/api/v1/workout-sessions/{session_id}/safety-events",
         headers=_key(),
-        json={
-            "occurred_at": "2026-08-17T10:10:00+09:00",
-        },
+        json={"stop_reason_code": "PAIN_OR_ABNORMAL_RESPONSE"},
     )
     assert reported.status_code in {200, 201}, reported.text
     body = reported.json()

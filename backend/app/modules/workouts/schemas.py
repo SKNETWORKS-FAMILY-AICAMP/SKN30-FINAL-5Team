@@ -148,9 +148,15 @@ class WorkoutDiscomfortInput(BaseModel):
 
 
 class WorkoutSafetyEventRequest(BaseModel):
+    """The stop reason is the whole request.
+
+    No timestamp either: the server clock decides when the stop happened, so a client
+    cannot backdate a safety event onto another local date.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
-    occurred_at: AwareDatetime
+    stop_reason_code: Literal["PAIN_OR_ABNORMAL_RESPONSE"]
 
 
 class WorkoutSafetyEventResponse(BaseModel):

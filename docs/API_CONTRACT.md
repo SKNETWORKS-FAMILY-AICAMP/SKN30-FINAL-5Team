@@ -1560,7 +1560,7 @@ PATCH /api/v1/workout-sessions/{id}/stop
 POST /api/v1/workout-sessions/{id}/safety-events
 
 ~~~json
-{"occurred_at":"2026-09-03T10:22:00+09:00"}
+{"stop_reason_code": "PAIN_OR_ABNORMAL_RESPONSE"}
 ~~~
 
 응답:
