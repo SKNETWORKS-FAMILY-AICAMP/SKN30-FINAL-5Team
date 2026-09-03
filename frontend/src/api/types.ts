@@ -117,9 +117,8 @@ export type ProfileSettingsUpdateRequest = {
   preferred_location_code?: string;
   available_location_codes?: string[];
   attention_area_codes?: string[];
-  /** Additive pain-intensity fields; never send with attention_area_codes. */
-  pain_present?: boolean;
-  pain_areas?: PainAreaInput[];
+  /** Daily Check-in defaults; never send with attention_area_codes. */
+  persistent_pains?: PainAreaInput[];
   preferred_exercise_type_codes?: string[];
   coaching_style_code?: string;
   experience_level_code?: string;

@@ -18,7 +18,7 @@ export type MyPageProfileField =
   | 'available_location_codes'
   | 'default_requested_duration_minutes'
   | 'desired_weekly_workout_count'
-  | 'attention_area_codes';
+  | 'persistent_pains';
 
 export type MyPageProfileRow = readonly [
   field: MyPageProfileField,
@@ -57,9 +57,14 @@ export function buildMyPageProfileRows(
       `주 ${profile.desired_weekly_workout_count}회`,
     ],
     [
-      'attention_area_codes',
+      'persistent_pains',
       '평소 불편한 부위',
-      profile.attention_area_codes.map(bodyAreaLabel).join(' · ') || '없음',
+      (
+        profile.persistent_pains?.map((pain) => pain.body_area_code) ??
+        profile.attention_area_codes
+      )
+        .map(bodyAreaLabel)
+        .join(' · ') || '없음',
     ],
   ] as const;
 }
