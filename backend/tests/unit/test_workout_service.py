@@ -15,6 +15,7 @@ from backend.app.modules.workouts.schemas import (
     WorkoutSessionItemUpdateRequest,
     WorkoutSessionNotCompletedRequest,
     WorkoutSessionStartRequest,
+    WorkoutSessionStopRequest,
     WorkoutTimerEventRequest,
 )
 from backend.app.modules.workouts.service import (
@@ -95,6 +96,54 @@ class FakeWorkoutRepository:
             started_at,
             None,
             self.session_state.items,
+            execution_state_code="RUNNING",
+            target_duration_seconds=600,
+            last_state_changed_at=started_at,
+        )
+        return self.session_state
+
+    def transition_execution_state(self, session: Any, **values: Any) -> SessionState:
+        assert self.session_state is not None
+        elapsed = 0
+        if self.session_state.last_state_changed_at is not None:
+            elapsed = max(
+                0,
+                int(
+                    (
+                        values["occurred_at"] - self.session_state.last_state_changed_at
+                    ).total_seconds()
+                ),
+            )
+        progress = self.session_state.accumulated_progress_seconds
+        paused = self.session_state.accumulated_paused_seconds
+        if self.session_state.execution_state_code == "RUNNING":
+            progress += elapsed
+        if self.session_state.execution_state_code == "PAUSED":
+            paused += elapsed
+        self.session_state = SessionState(
+            self.session_state.session_id,
+            (
+                "STOPPED_FOR_SAFETY"
+                if values["execution_state_code"] == "STOPPED_SAFETY"
+                else (
+                    values.get("completion_code", self.session_state.status_code)
+                    if values["execution_state_code"] == "COMPLETED"
+                    else self.session_state.status_code
+                )
+            ),
+            self.session_state.started_at,
+            values.get("ended_at", self.session_state.ended_at),
+            self.session_state.items,
+            self.session_state.estimated_calories_burned,
+            values.get("completion_code", self.session_state.completion_code),
+            values["execution_state_code"],
+            self.session_state.target_duration_seconds,
+            progress,
+            self.session_state.accumulated_rest_seconds,
+            paused,
+            values["occurred_at"],
+            values["is_resumable"],
+            values["stop_reason_code"],
         )
         return self.session_state
 
@@ -131,14 +180,6 @@ class FakeWorkoutRepository:
 
     def create_safety_event(self, session: Any, **values: Any) -> None:
         self.safety_events.append(values)
-        if values["session_status_code"] == "STOPPED_FOR_SAFETY":
-            self.finish_session(
-                session,
-                session_id=values["session_id"],
-                status_code="STOPPED_FOR_SAFETY",
-                ended_at=values["occurred_at"],
-                actual_elapsed_seconds=None,
-            )
 
     def finish_session(self, session: Any, **values: Any) -> None:
         assert self.session_state is not None
@@ -494,14 +535,16 @@ def test_severe_and_emergency_safety_events_stop_session_without_pressure() -> N
         session_id,
         WorkoutSafetyEventRequest(
             occurred_at=NOW,
-            discomforts=[{"body_area_code": "KNEE", "severity_code": "SEVERE"}],
+            symptom_code="KNEE_PAIN",
+            body_area_code="KNEE",
+            nrs_score=8,
         ),
         uuid4(),
     )
-    assert severe.instruction_code == "STOP_SESSION"
-    assert severe.resulting_action_code == "REST"
-    assert severe.session_status_code == "STOPPED_FOR_SAFETY"
-    assert severe.pressure_notifications_allowed is False
+    assert severe.result_code == "SESSION_STOPPED"
+    assert severe.execution_state_code == "STOPPED_SAFETY"
+    assert severe.completion_code == "NOT_COMPLETED"
+    assert severe.is_resumable is False
 
     emergency_repository, emergency_service, emergency_user, emergency_session = (
         _in_progress_repository()
@@ -512,13 +555,73 @@ def test_severe_and_emergency_safety_events_stop_session_without_pressure() -> N
         emergency_session,
         WorkoutSafetyEventRequest(
             occurred_at=NOW,
-            adverse_reaction_codes=["CHEST_DISCOMFORT"],
+            symptom_code="CHEST_DISCOMFORT",
         ),
         uuid4(),
     )
-    assert emergency.instruction_code == "STOP_AND_SEEK_HELP"
-    assert emergency.pressure_notifications_allowed is False
+    assert emergency.result_code == "STOP_AND_SEEK_HELP"
     assert emergency_repository.session_state.status_code == "STOPPED_FOR_SAFETY"
+
+
+def test_pause_stop_and_resume_keep_legacy_status_in_progress() -> None:
+    repository, service, user_id, session_id = _in_progress_repository()
+    paused = service.record_timer_event(
+        FakeSession(),  # type: ignore[arg-type]
+        user_id,
+        session_id,
+        WorkoutTimerEventRequest(event_code="PAUSE", occurred_at=NOW, client_recorded_at=NOW),
+        uuid4(),
+    )
+    assert paused.execution_state_code == "PAUSED"
+
+    stopped = service.stop_session(
+        FakeSession(),  # type: ignore[arg-type]
+        user_id,
+        session_id,
+        WorkoutSessionStopRequest(
+            stopped_at=NOW + timedelta(minutes=2), stop_reason_code="RESUME_LATER"
+        ),
+        uuid4(),
+    )
+    assert stopped.execution_state_code == "STOPPED_RESUMABLE"
+    assert stopped.is_resumable is True
+    assert repository.session_state is not None
+    assert repository.session_state.status_code == "IN_PROGRESS"
+
+    resumed = service.record_timer_event(
+        FakeSession(),  # type: ignore[arg-type]
+        user_id,
+        session_id,
+        WorkoutTimerEventRequest(
+            event_code="RESUME",
+            occurred_at=NOW + timedelta(minutes=3),
+            client_recorded_at=NOW,
+        ),
+        uuid4(),
+    )
+    assert resumed.execution_state_code == "RUNNING"
+
+
+def test_pain_stop_creates_safety_event_and_disables_resume() -> None:
+    repository, service, user_id, session_id = _in_progress_repository()
+    stopped = service.stop_session(
+        FakeSession(),  # type: ignore[arg-type]
+        user_id,
+        session_id,
+        WorkoutSessionStopRequest(
+            stopped_at=NOW,
+            stop_reason_code="PAIN_OR_ABNORMAL_RESPONSE",
+            symptom_code="KNEE_PAIN",
+            body_area_code="KNEE",
+            nrs_score=8,
+        ),
+        uuid4(),
+    )
+    assert stopped.execution_state_code == "STOPPED_SAFETY"
+    assert stopped.is_resumable is False
+    assert repository.safety_events[0]["symptom_code"] == "KNEE_PAIN"
+    assert repository.safety_events[0]["body_area_code"] == "KNEE"
+    assert repository.safety_events[0]["nrs_score"] == 8
 
 
 def test_feedback_is_informational_and_uses_non_diagnostic_guidance() -> None:

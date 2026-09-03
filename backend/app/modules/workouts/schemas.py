@@ -22,6 +22,9 @@ class DecisionSelectionRequest(BaseModel):
 class WorkoutSessionSummary(BaseModel):
     session_id: UUID
     status_code: Literal["PLANNED"]
+    completion_code: Literal["COMPLETED", "PARTIAL", "NOT_COMPLETED"] | None = None
+    execution_state_code: str | None = None
+    target_duration_seconds: int | None = None
 
 
 class DecisionSelectionResponse(BaseModel):
@@ -51,6 +54,13 @@ class WorkoutSessionStartResponse(BaseModel):
     started_at: datetime
     items: list[WorkoutSessionItemResponse]
     current_plan_item_id: UUID | None
+    completion_code: None = None
+    execution_state_code: Literal["RUNNING"]
+    target_duration_seconds: int
+    accumulated_progress_seconds: int
+    accumulated_rest_seconds: int
+    accumulated_paused_seconds: int
+    is_resumable: Literal[False]
 
 
 class WorkoutSessionItemUpdateRequest(BaseModel):
@@ -83,6 +93,35 @@ class WorkoutTimerEventResponse(BaseModel):
     client_recorded_at: datetime
     created_at: datetime
     session_status_code: Literal["IN_PROGRESS"]
+    execution_state_code: Literal["RUNNING", "PAUSED"]
+    accumulated_progress_seconds: int
+    accumulated_rest_seconds: int
+    accumulated_paused_seconds: int
+
+
+class WorkoutSessionStopRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    stopped_at: AwareDatetime
+    stop_reason_code: Literal[
+        "HIGH_FATIGUE", "TIME_SHORTAGE", "RESUME_LATER", "PAIN_OR_ABNORMAL_RESPONSE"
+    ]
+    symptom_code: MachineCode | None = None
+    body_area_code: BodyAreaCode | None = None
+    nrs_score: int | None = Field(default=None, ge=1, le=10)
+
+
+class WorkoutSessionStopResponse(BaseModel):
+    session_id: UUID
+    completion_code: Literal["PARTIAL", "NOT_COMPLETED"] | None
+    execution_state_code: Literal["STOPPED_RESUMABLE", "STOPPED_SAFETY"]
+    stop_reason_code: Literal[
+        "HIGH_FATIGUE", "TIME_SHORTAGE", "RESUME_LATER", "PAIN_OR_ABNORMAL_RESPONSE"
+    ]
+    is_resumable: bool
+    accumulated_progress_seconds: int
+    accumulated_rest_seconds: int
+    accumulated_paused_seconds: int
 
 
 class WorkoutAdditionalActivityRequest(BaseModel):
@@ -115,36 +154,18 @@ class WorkoutSafetyEventRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     occurred_at: AwareDatetime
-    discomforts: list[WorkoutDiscomfortInput] = Field(default_factory=list)
-    adverse_reaction_codes: list[AdverseReactionCode] = Field(default_factory=list)
-
-    @field_validator("discomforts")
-    @classmethod
-    def reject_duplicate_body_areas(
-        cls, value: list[WorkoutDiscomfortInput]
-    ) -> list[WorkoutDiscomfortInput]:
-        if len({item.body_area_code for item in value}) != len(value):
-            raise ValueError("body_area_code must not be duplicated")
-        return value
-
-    @field_validator("adverse_reaction_codes")
-    @classmethod
-    def reject_duplicate_reactions(
-        cls, value: list[AdverseReactionCode]
-    ) -> list[AdverseReactionCode]:
-        if len(set(value)) != len(value):
-            raise ValueError("adverse_reaction_codes must not contain duplicates")
-        return value
+    symptom_code: MachineCode | None = None
+    body_area_code: BodyAreaCode | None = None
+    nrs_score: int | None = Field(default=None, ge=1, le=10)
 
 
 class WorkoutSafetyEventResponse(BaseModel):
     event_id: UUID
-    instruction_code: Literal["SHOW_CAUTION", "STOP_SESSION", "STOP_AND_SEEK_HELP"]
-    resulting_action_code: Literal["REST", "STOP_AND_SEEK_HELP"] | None
-    session_status_code: Literal["IN_PROGRESS", "STOPPED_FOR_SAFETY"]
-    guidance_code: str
+    result_code: Literal["SESSION_STOPPED", "STOP_AND_SEEK_HELP"]
+    execution_state_code: Literal["STOPPED_SAFETY"]
+    completion_code: Literal["PARTIAL", "NOT_COMPLETED"]
+    is_resumable: Literal[False]
     guidance: str
-    pressure_notifications_allowed: bool
 
 
 class WorkoutSessionFinishRequest(BaseModel):
@@ -162,6 +183,8 @@ class WorkoutSessionFinishResponse(BaseModel):
     total_item_count: int
     actual_elapsed_seconds: int
     estimated_calories_burned: float | None
+    completion_code: Literal["COMPLETED", "PARTIAL"]
+    execution_state_code: Literal["COMPLETED"]
 
 
 class WorkoutSessionNotCompletedRequest(BaseModel):
@@ -179,6 +202,8 @@ class WorkoutSessionNotCompletedResponse(BaseModel):
     completed_item_count: Literal[0]
     total_item_count: int
     penalty_applied: Literal[False]
+    completion_code: Literal["NOT_COMPLETED"]
+    execution_state_code: Literal["COMPLETED"]
 
 
 class WorkoutFeedbackRequest(BaseModel):
@@ -285,6 +310,8 @@ __all__ = [
     "WorkoutSessionItemUpdateResponse",
     "WorkoutSessionStartRequest",
     "WorkoutSessionStartResponse",
+    "WorkoutSessionStopRequest",
+    "WorkoutSessionStopResponse",
     "WorkoutSessionNotCompletedRequest",
     "WorkoutSessionNotCompletedResponse",
     "WorkoutSessionItemResult",

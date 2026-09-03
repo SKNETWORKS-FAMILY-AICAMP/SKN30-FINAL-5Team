@@ -413,13 +413,12 @@ def test_finish_not_completed_safety_and_feedback_contracts() -> None:
             headers=_key(),
             json={
                 "occurred_at": NOW.isoformat(),
-                "discomforts": [],
-                "adverse_reaction_codes": ["CHEST_DISCOMFORT"],
+                "symptom_code": "CHEST_DISCOMFORT",
             },
         )
     assert safety.status_code == 201
-    assert safety.json()["instruction_code"] == "STOP_AND_SEEK_HELP"
-    assert safety.json()["pressure_notifications_allowed"] is False
+    assert safety.json()["result_code"] == "STOP_AND_SEEK_HELP"
+    assert safety.json()["execution_state_code"] == "STOPPED_SAFETY"
 
 
 def test_zero_block_finish_requires_explicit_not_completed_reason() -> None:

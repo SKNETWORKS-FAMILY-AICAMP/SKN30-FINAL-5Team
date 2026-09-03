@@ -24,7 +24,7 @@ ADR-0013의 Safety-first LLM 멀티에이전트 V3 목표 계약은 `ACCEPTED`�
 - Check-in은 선택적 수면, 필수 피로 코드(`LOW`/`MODERATE`/`HIGH`), 10–60분, 장소, 당일 NRS 통증과 Red Flag를 사용한다. 근육통은 Recovery 입력이나 계산에 사용하지 않으며, 장소는 완화할 수 없다.
 - NRS 1–3/4–6은 해당 부위의 검수된 금기 관계 운동을 제외하며, 4–6에는 전역 `LIGHT` 상한을 더한다. NRS 7–10 또는 Red Flag는 계획을 만들지 않는다. 안전 metadata 결측·미검수 운동만 fail-closed로 제외한다.
 - Recovery는 수면·피로 조합으로 `NORMAL`/`LIGHT`/`VERY_LIGHT`를 계산하고 결측을 좋은 상태로 간주하지 않는다. 통증 상한과 충돌하면 더 보수적인 상한을 적용한다.
-- 운동 중 `PAIN_OR_ABNORMAL_RESPONSE`는 증상 세부정보 없이 세션 전체를 종료한다. Safety Event에는 선택적 현재 `plan_item_id`, 결과·시각·규칙 버전만 저장하며 당일 이어하기·대체 운동을 제공하지 않는다.
+- 운동 중 `PAIN_OR_ABNORMAL_RESPONSE`는 구조화 증상 코드와 선택적 부위·NRS만 수집한 뒤 세션 전체를 종료한다. Safety Event에는 선택적 현재 `plan_item_id`, 결과·시각·규칙 버전도 저장하며 당일 이어하기·대체 운동을 제공하지 않는다.
 - 공식 수행 상태는 local date의 최종 완료 블록 수만으로 `COMPLETED`/`PARTIAL`/`NOT_COMPLETED`를 결정한다. `RUNNING`/`RESTING`/`PAUSED`/`STOPPED_RESUMABLE`/`STOPPED_SAFETY`/`COMPLETED`는 별도 실행 상태다.
 
 전환은 additive API·DB migration, 구버전 read 유지, 신규 write 전환, 호환 검증 후 legacy 제거 순서로만 진행한다.
@@ -184,7 +184,7 @@ OTHER_SERIOUS_REACTION
 ~~~
 
 아래는 이전 상세 입력 계약의 호환 기록이다. 최신 정책의 운동 중 Safety Event는 사용자가
-`PAIN_OR_ABNORMAL_RESPONSE` 사유만 선택하고, 증상 유형·통증 부위·NRS를 수집하거나 저장하지 않는다.
+`PAIN_OR_ABNORMAL_RESPONSE` 사유와 구조화 증상 코드, 선택적 통증 부위·NRS만 수집하거나 저장한다.
 
 긴급 중단 그룹:
 
@@ -719,7 +719,7 @@ RUNNING/RESTING -> COMPLETED
 
 공식 수행 상태는 서로 배타적이다. 모든 계획 블록이 COMPLETED면 `COMPLETED`, 하나 이상 완료됐지만 PENDING 블록이 남으면 `PARTIAL`, 완료 블록이 없으면 `NOT_COMPLETED`다. 중단 사유와 타이머는 이 결과를 바꾸지 않는다.
 
-운동 중 사용자가 `PAIN_OR_ABNORMAL_RESPONSE`를 선택하면 증상 유형·통증 부위·NRS를 추가 입력받지 않는다. 세션 전체를 `STOPPED_SAFETY`와 `is_resumable=false`로 전이하고, `plan_item_id`(가능한 경우), `SESSION_STOPPED` 또는 `STOP_AND_SEEK_HELP`, 시각·규칙 버전만 Safety Event로 저장한다. 당일 이어하기·Skip 후 재개·Alternative를 제공하지 않는다. 종료된 세션의 블록과 상태는 변경할 수 없다.
+운동 중 사용자가 `PAIN_OR_ABNORMAL_RESPONSE`를 선택하면 구조화 증상 코드와 선택적 통증 부위·NRS만 입력받는다. 세션 전체를 `STOPPED_SAFETY`와 `is_resumable=false`로 전이하고, `plan_item_id`(가능한 경우), `SESSION_STOPPED` 또는 `STOP_AND_SEEK_HELP`, 시각·규칙 버전도 Safety Event로 저장한다. 당일 이어하기·Skip 후 재개·Alternative를 제공하지 않는다. 종료된 세션의 블록과 상태는 변경할 수 없다.
 
 운동 후 신규 공개 feedback은 `difficulty_code=EASY|APPROPRIATE|HARD`를 받는다. 표시 문구는
 각각 `쉬웠어요`, `적당했어요`, `어려워요`다. `HARD`인 경우에만 이유를
@@ -993,7 +993,7 @@ Coordinator output·compiler/validator 결과와 모든 model/prompt/graph versi
 15. 운동 블록 일부 완료 체크: 경과 시간과 무관하게 PARTIAL
 16. 모든 운동 블록 완료 체크: 경과 시간과 무관하게 COMPLETED
 17. 완료 블록 없음: 경과 시간이 길어도 NOT_COMPLETED
-18. 운동 중 `PAIN_OR_ABNORMAL_RESPONSE` 중단: 세부 증상 수집 없이 `STOPPED_SAFETY`, 별도 Safety Event 및 완료 블록 수 기반 `PARTIAL` 또는 `NOT_COMPLETED`
+18. 운동 중 `PAIN_OR_ABNORMAL_RESPONSE` 중단: 구조화 증상 코드와 선택적 부위·NRS만 수집해 `STOPPED_SAFETY`, 별도 Safety Event 및 완료 블록 수 기반 `PARTIAL` 또는 `NOT_COMPLETED`
 19. 닫히지 않은 주 리포트 요청: 거부
 20. 직전 주 리포트 미확인 상태의 다음 계획 확정: 거부
 21. AI 수정 2회 이후 추가 AI 수정: 거부, 직접 편집 경로 제공

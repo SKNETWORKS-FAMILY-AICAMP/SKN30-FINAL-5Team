@@ -425,6 +425,11 @@ class PlanCandidate(Base):
     requested_duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
     duration_adjustment_source_code: Mapped[str] = mapped_column(String(32), nullable=False)
     estimated_duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    expected_duration_min_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    expected_duration_max_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    duration_estimation_policy_version: Mapped[str | None] = mapped_column(
+        String(128), nullable=True
+    )
     estimated_calories_burned: Mapped[float | None] = mapped_column(Float, nullable=True)
     setup_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
     warmup_seconds: Mapped[int] = mapped_column(Integer, nullable=False)

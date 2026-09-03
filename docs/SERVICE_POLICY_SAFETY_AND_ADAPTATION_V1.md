@@ -811,20 +811,20 @@ Safety Pool이 0이라고 Alternative로 승인 범위 밖의 운동을 생성�
 
 ## 11. 운동 중 Safety Event
 
-운동 실행 화면의 별도 `불편·통증 보고` 또는 `통증이 있어요` 버튼은 제거하고, 통증·이상 반응도 상단 `중단` 흐름에서 처리한다. 사용자가 중단 사유로 `통증·이상 반응이 있어요`를 선택하면 증상 종류·통증 부위·NRS를 입력받지 않고 안내와 확인을 거쳐 현재 당일 루틴 전체를 종료한다.
+운동 실행 화면의 별도 `불편·통증 보고` 또는 `통증이 있어요` 버튼은 제거하고, 통증·이상 반응도 상단 `중단` 흐름에서 처리한다. 사용자가 중단 사유로 `통증·이상 반응이 있어요`를 선택하면 구조화 증상 코드와 선택적 통증 부위·NRS만 입력받고 안내와 확인을 거쳐 현재 당일 루틴 전체를 종료한다.
 
 ### 11.1 `통증·이상 반응이 있어요`
 
 - 통증 발생 시 현재 운동만이 아니라 해당 세션 전체를 중단한다.
 - 남은 운동을 계속하거나 Skip 후 재개하지 않는다.
 - 대체 운동과 Alternative를 추천하지 않는다.
-- 통증 부위, NRS, 증상 유형은 수집하지 않는다.
+- 구조화 증상 코드와 선택적 통증 부위·NRS만 수집하며 자유서술은 수집하지 않는다.
 - 구현상 문제가 없으면 사유를 선택한 시점의 `plan_item_id`를 시스템이 자동 기록해 주간 리포트에서 `어떤 운동 수행 중 안전 중단이 발생했는지`만 확인할 수 있게 한다. 사용자의 증상을 추정하거나 통증 부위를 유추하지 않는다.
 - 원인을 진단하지 않고, 통증이 지속되거나 심해지면 전문가의 도움을 받으라는 중립적 안내를 제공한다.
 
 권장 저장 구조:
 
-`workout_safety_events`에는 `plan_item_id`, `result_code`, `occurred_at`, `rule_version`만 저장한다. `event_type_code`, 통증 부위, NRS, 자유서술 증상, `replacement_plan_item_id`는 운동 중 Safety Event 계약에서 사용하지 않는다.
+`workout_safety_events`에는 `plan_item_id`, `result_code`, `occurred_at`, `rule_version`, 구조화 `symptom_code`, 선택적 `body_area_code`, 선택적 `nrs_score`를 저장한다. `event_type_code`, 자유서술 증상, `replacement_plan_item_id`는 운동 중 Safety Event 계약에서 사용하지 않는다.
 
 결과 코드:
 
@@ -972,7 +972,7 @@ RESUME_LATER
 PAIN_OR_ABNORMAL_RESPONSE
 ```
 
-`HIGH_FATIGUE`, `TIME_SHORTAGE`, `RESUME_LATER`는 `STOPPED_RESUMABLE`로 저장하고 당일 이어하기를 허용한다. `PAIN_OR_ABNORMAL_RESPONSE`는 Safety Event와 함께 `STOPPED_SAFETY`로 저장하고 당일 이어하기를 허용하지 않는다. 증상 유형, 통증 부위, NRS, 자유서술은 받지 않는다.
+`HIGH_FATIGUE`, `TIME_SHORTAGE`, `RESUME_LATER`는 `STOPPED_RESUMABLE`로 저장하고 당일 이어하기를 허용한다. `PAIN_OR_ABNORMAL_RESPONSE`는 Safety Event와 함께 `STOPPED_SAFETY`로 저장하고 당일 이어하기를 허용하지 않는다. 구조화 증상 코드와 선택적 통증 부위·NRS만 받고 자유서술은 받지 않는다.
 
 ### 13.3 미수행 이유별 후속 활용
 
@@ -1333,7 +1333,7 @@ DEPRECATED
 37. 휴식 타이머는 0초에서 시작하고, 휴식 중에도 전체 운동 수행시간은 계속 증가한다.
 38. 모든 중단 사유에서 공통 피드백 화면을 제공하고, 피드백을 완료하지 않아도 먼저 확정한 중단 사유와 진행 상태는 남는다.
 39. `PAIN_OR_ABNORMAL_RESPONSE` 항목은 다른 사유와 색상으로 구분되고 `?`에서 예시·이어하기 불가를 안내한다.
-40. Safety Event는 증상 유형·통증 부위·NRS를 수집하지 않고 현재 `plan_item_id`만 선택적으로 자동 기록한다.
+40. Safety Event는 구조화 증상 코드와 선택적 통증 부위·NRS만 수집하고 현재 `plan_item_id`를 선택적으로 자동 기록한다.
 41. 상단에는 `중단`, 하단에는 핵심 액션 `블록 격파`와 보조 액션 `휴식`, `일시정지`가 노출되고 별도 통증 버튼은 노출되지 않는다.
 42. `RUNNING`에서 전체 타이머가 흐르고, `RESTING`에서 전체·휴식 타이머가 함께 흐르며, `PAUSED`에서는 두 타이머가 모두 멈춘다.
 43. `PAUSED`를 재개하면 직전 `RUNNING` 또는 `RESTING` 상태와 타이머 누적값에서 이어진다.
@@ -1364,7 +1364,7 @@ Red Flag 권장 문구:
 
 ### 20.3 Safety invariant
 
-> 검수된 안전 데이터가 없는 운동은 후보가 될 수 없고, Safety가 한 번 제외한 운동은 어떤 Agent나 LLM도 복구할 수 없으며, 운동 중 `통증·이상 반응이 있어요`가 중단 사유로 선택되면 세부 증상을 수집하지 않고 해당 당일 루틴을 종료하며 당일 이어하기·대체 운동을 제공하지 않는다.
+> 검수된 안전 데이터가 없는 운동은 후보가 될 수 없고, Safety가 한 번 제외한 운동은 어떤 Agent나 LLM도 복구할 수 없으며, 운동 중 `통증·이상 반응이 있어요`가 중단 사유로 선택되면 구조화 증상 코드와 선택적 부위·NRS만 수집하고 해당 당일 루틴을 종료하며 당일 이어하기·대체 운동을 제공하지 않는다.
 
 ### 20.4 필수 fallback 표
 
@@ -1377,7 +1377,7 @@ Red Flag 권장 문구:
 | wearable 미연동 | 수동 체크인 |
 | wearable sleep 결측 | 수동 수면값 |
 | 수면 미입력 | 피로와 Recovery 조합표의 `미입력` 행 사용 |
-| 운동 중 통증·이상 반응 사유 선택 | 세부 증상 입력 없이 안전 안내 후 당일 루틴 종료; 당일 이어하기·Alternative·대체 운동 없음 |
+| 운동 중 통증·이상 반응 사유 선택 | 구조화 증상 코드와 선택적 부위·NRS만 입력받아 안전 안내 후 당일 루틴 종료; 당일 이어하기·Alternative·대체 운동 없음 |
 | Feasibility 후보 0 | soft 선호·운동 수·세트를 조정하되 hard constraint를 유지; 그래도 0이면 생성 중단 |
 | Coordinator가 BLOCK 운동 반환 | 최종 validator 거부 후 승인 fallback·재검증 |
 

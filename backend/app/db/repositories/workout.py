@@ -16,8 +16,6 @@ from backend.app.db.models.workout import (
     WorkoutFeedbackAdverseReaction,
     WorkoutFeedbackDiscomfort,
     WorkoutSafetyEvent,
-    WorkoutSafetyEventAdverseReaction,
-    WorkoutSafetyEventDiscomfort,
     WorkoutSession,
     WorkoutSessionItem,
     WorkoutSkipFeedback,
@@ -133,6 +131,9 @@ class WorkoutRepository:
             estimated_calories_burned=None
             if candidate is None
             else candidate.estimated_calories_burned,
+            target_duration_seconds=(
+                0 if candidate is None else candidate.estimated_duration_seconds
+            ),
             already_selected=existing_selection is not None,
         )
 
@@ -168,9 +169,18 @@ class WorkoutRepository:
             plan_candidate_id=source.selected_candidate_id,
             scheduled_workout_id=None,
             status_code="PLANNED",
+            completion_code=None,
+            execution_state_code=None,
             started_at=None,
             ended_at=None,
             actual_elapsed_seconds=None,
+            target_duration_seconds=source.target_duration_seconds,
+            accumulated_progress_seconds=0,
+            accumulated_rest_seconds=0,
+            accumulated_paused_seconds=0,
+            last_state_changed_at=None,
+            is_resumable=False,
+            stop_reason_code=None,
             estimated_calories_burned=source.estimated_calories_burned,
             idempotency_key=idempotency_key,
             created_at=now,
@@ -211,6 +221,11 @@ class WorkoutRepository:
             .where(WorkoutSessionItem.workout_session_id == workout.id)
             .order_by(PlanItem.sequence)
         ).all()
+        local_date = session.scalar(
+            select(DecisionRun.local_date)
+            .join(PlanCandidate, PlanCandidate.decision_run_id == DecisionRun.id)
+            .where(PlanCandidate.id == workout.plan_candidate_id)
+        )
         return SessionState(
             workout.id,
             workout.status_code,
@@ -220,6 +235,16 @@ class WorkoutRepository:
                 (plan_item_id, status, completed_at) for plan_item_id, status, completed_at in items
             ),
             workout.estimated_calories_burned,
+            workout.completion_code,
+            workout.execution_state_code,
+            workout.target_duration_seconds,
+            workout.accumulated_progress_seconds,
+            workout.accumulated_rest_seconds,
+            workout.accumulated_paused_seconds,
+            workout.last_state_changed_at,
+            workout.is_resumable,
+            workout.stop_reason_code,
+            local_date,
         )
 
     def start_session(
@@ -230,10 +255,58 @@ class WorkoutRepository:
             raise LookupError("locked workout session disappeared")
         workout.status_code = "IN_PROGRESS"
         workout.started_at = started_at
+        workout.execution_state_code = "RUNNING"
+        workout.last_state_changed_at = started_at
+        workout.is_resumable = False
         session.flush()
         state = self.get_session_state(session, workout.user_id, workout.id)
         if state is None:
             raise LookupError("started workout session cannot be read")
+        return state
+
+    def transition_execution_state(
+        self,
+        session: Session,
+        *,
+        session_id: UUID,
+        execution_state_code: str,
+        occurred_at: datetime,
+        is_resumable: bool,
+        stop_reason_code: str | None,
+        completion_code: str | None = None,
+        ended_at: datetime | None = None,
+    ) -> SessionState:
+        workout = session.get(WorkoutSession, session_id)
+        if workout is None:
+            raise LookupError("locked workout session disappeared")
+        previous = workout.execution_state_code
+        if workout.last_state_changed_at is not None:
+            elapsed = max(0, int((occurred_at - workout.last_state_changed_at).total_seconds()))
+            if previous in {"RUNNING", "RESTING"}:
+                workout.accumulated_progress_seconds += elapsed
+            if previous == "RESTING":
+                workout.accumulated_rest_seconds += elapsed
+            if previous == "PAUSED":
+                workout.accumulated_paused_seconds += elapsed
+        workout.execution_state_code = execution_state_code
+        workout.last_state_changed_at = occurred_at
+        workout.is_resumable = is_resumable
+        workout.stop_reason_code = stop_reason_code
+        if completion_code is not None:
+            workout.completion_code = completion_code
+        if ended_at is not None:
+            workout.ended_at = ended_at
+            workout.actual_elapsed_seconds = workout.accumulated_progress_seconds
+        if execution_state_code == "STOPPED_SAFETY":
+            workout.status_code = "STOPPED_FOR_SAFETY"
+        elif execution_state_code == "COMPLETED" and completion_code is not None:
+            workout.status_code = completion_code
+        else:
+            workout.status_code = "IN_PROGRESS"
+        session.flush()
+        state = self.get_session_state(session, workout.user_id, workout.id)
+        if state is None:
+            raise LookupError("transitioned workout session cannot be read")
         return state
 
     def update_session_item(
@@ -318,14 +391,12 @@ class WorkoutRepository:
         event_id: UUID,
         session_id: UUID,
         occurred_at: datetime,
-        instruction_code: str,
-        resulting_action_code: str | None,
-        session_status_code: str,
-        guidance_code: str,
-        reason_code: str,
+        symptom_code: str | None,
+        body_area_code: str | None,
+        nrs_score: int | None,
+        result_code: str,
+        completion_code: str,
         rule_version: str,
-        discomforts: tuple[tuple[str, str], ...],
-        adverse_reaction_codes: tuple[str, ...],
         now: datetime,
     ) -> None:
         session.add(
@@ -333,41 +404,19 @@ class WorkoutRepository:
                 id=event_id,
                 workout_session_id=session_id,
                 occurred_at=occurred_at,
-                instruction_code=instruction_code,
-                resulting_action_code=resulting_action_code,
-                guidance_code=guidance_code,
-                reason_code=reason_code,
+                instruction_code=None,
+                resulting_action_code=None,
+                guidance_code=None,
+                reason_code=None,
+                plan_item_id=None,
+                result_code=result_code,
+                symptom_code=symptom_code,
+                body_area_code=body_area_code,
+                nrs_score=nrs_score,
                 rule_version=rule_version,
                 created_at=now,
             )
         )
-        session.add_all(
-            [
-                WorkoutSafetyEventDiscomfort(
-                    id=uuid4(),
-                    workout_safety_event_id=event_id,
-                    body_area_code=body_area_code,
-                    severity_code=severity_code,
-                )
-                for body_area_code, severity_code in discomforts
-            ]
-        )
-        session.add_all(
-            [
-                WorkoutSafetyEventAdverseReaction(
-                    workout_safety_event_id=event_id, reaction_code=reaction_code
-                )
-                for reaction_code in adverse_reaction_codes
-            ]
-        )
-        if session_status_code == "STOPPED_FOR_SAFETY":
-            self.finish_session(
-                session,
-                session_id=session_id,
-                status_code=session_status_code,
-                ended_at=occurred_at,
-                actual_elapsed_seconds=None,
-            )
         session.flush()
 
     def finish_session(
@@ -376,6 +425,8 @@ class WorkoutRepository:
         *,
         session_id: UUID,
         status_code: str,
+        completion_code: str | None = None,
+        execution_state_code: str | None = None,
         ended_at: datetime,
         actual_elapsed_seconds: int | None,
     ) -> None:
@@ -383,6 +434,10 @@ class WorkoutRepository:
         if workout is None:
             raise LookupError("locked workout session disappeared")
         workout.status_code = status_code
+        if completion_code is not None:
+            workout.completion_code = completion_code
+        if execution_state_code is not None:
+            workout.execution_state_code = execution_state_code
         workout.ended_at = ended_at
         workout.actual_elapsed_seconds = actual_elapsed_seconds
         session.flush()
@@ -511,7 +566,10 @@ class WorkoutRepository:
             .where(
                 WorkoutSession.user_id == user_id,
                 DecisionRun.local_date == local_date,
-                WorkoutSafetyEvent.resulting_action_code.in_({"REST", "STOP_AND_SEEK_HELP"}),
+                or_(
+                    WorkoutSafetyEvent.resulting_action_code.in_({"REST", "STOP_AND_SEEK_HELP"}),
+                    WorkoutSafetyEvent.result_code.in_({"SESSION_STOPPED", "STOP_AND_SEEK_HELP"}),
+                ),
             )
             .limit(1)
         )

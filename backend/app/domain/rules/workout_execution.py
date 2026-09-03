@@ -25,6 +25,28 @@ class WorkoutSessionStatusCode(StrEnum):
     STOPPED_FOR_SAFETY = "STOPPED_FOR_SAFETY"
 
 
+class WorkoutCompletionCode(StrEnum):
+    COMPLETED = "COMPLETED"
+    PARTIAL = "PARTIAL"
+    NOT_COMPLETED = "NOT_COMPLETED"
+
+
+class WorkoutExecutionStateCode(StrEnum):
+    RUNNING = "RUNNING"
+    RESTING = "RESTING"
+    PAUSED = "PAUSED"
+    STOPPED_RESUMABLE = "STOPPED_RESUMABLE"
+    STOPPED_SAFETY = "STOPPED_SAFETY"
+    COMPLETED = "COMPLETED"
+
+
+class WorkoutStopReasonCode(StrEnum):
+    HIGH_FATIGUE = "HIGH_FATIGUE"
+    TIME_SHORTAGE = "TIME_SHORTAGE"
+    RESUME_LATER = "RESUME_LATER"
+    PAIN_OR_ABNORMAL_RESPONSE = "PAIN_OR_ABNORMAL_RESPONSE"
+
+
 TERMINAL_WORKOUT_SESSION_STATUSES = frozenset(
     {
         WorkoutSessionStatusCode.COMPLETED,
@@ -207,6 +229,46 @@ def derive_official_session_status(
     if completed_count:
         return WorkoutSessionStatusCode.PARTIAL
     return WorkoutSessionStatusCode.NOT_COMPLETED
+
+
+def derive_completion_code(evidence: WorkoutCompletionEvidence) -> WorkoutCompletionCode:
+    """Derive the official completion independently from the screen execution state."""
+
+    completed_count = evidence.completed_block_count
+    if completed_count == evidence.total_block_count:
+        return WorkoutCompletionCode.COMPLETED
+    if completed_count:
+        return WorkoutCompletionCode.PARTIAL
+    return WorkoutCompletionCode.NOT_COMPLETED
+
+
+def stop_execution(
+    execution_state_code: WorkoutExecutionStateCode,
+    reason_code: WorkoutStopReasonCode,
+) -> tuple[WorkoutExecutionStateCode, bool]:
+    if execution_state_code not in {
+        WorkoutExecutionStateCode.RUNNING,
+        WorkoutExecutionStateCode.RESTING,
+        WorkoutExecutionStateCode.PAUSED,
+    }:
+        raise InvalidSessionTransitionError(
+            f"only active execution states can stop, got {execution_state_code.value}"
+        )
+    if reason_code is WorkoutStopReasonCode.PAIN_OR_ABNORMAL_RESPONSE:
+        return WorkoutExecutionStateCode.STOPPED_SAFETY, False
+    return WorkoutExecutionStateCode.STOPPED_RESUMABLE, True
+
+
+def resume_execution(
+    execution_state_code: WorkoutExecutionStateCode, *, is_resumable: bool
+) -> WorkoutExecutionStateCode:
+    if execution_state_code is WorkoutExecutionStateCode.PAUSED:
+        return WorkoutExecutionStateCode.RUNNING
+    if execution_state_code is WorkoutExecutionStateCode.STOPPED_RESUMABLE and is_resumable:
+        return WorkoutExecutionStateCode.RUNNING
+    raise InvalidSessionTransitionError(
+        f"execution state {execution_state_code.value} cannot resume"
+    )
 
 
 def is_terminal_session_status(status_code: WorkoutSessionStatusCode) -> bool:

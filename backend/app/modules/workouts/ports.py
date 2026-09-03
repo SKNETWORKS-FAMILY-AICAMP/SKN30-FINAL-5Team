@@ -31,6 +31,7 @@ class SelectionSource:
     plan_item_ids: tuple[UUID, ...]
     estimated_calories_burned: float | None
     already_selected: bool
+    target_duration_seconds: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +42,16 @@ class SessionState:
     ended_at: datetime | None
     items: tuple[tuple[UUID, str, datetime | None], ...]
     estimated_calories_burned: float | None = None
+    completion_code: str | None = None
+    execution_state_code: str | None = None
+    target_duration_seconds: int | None = None
+    accumulated_progress_seconds: int = 0
+    accumulated_rest_seconds: int = 0
+    accumulated_paused_seconds: int = 0
+    last_state_changed_at: datetime | None = None
+    is_resumable: bool = False
+    stop_reason_code: str | None = None
+    local_date: date | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,6 +156,19 @@ class WorkoutRepositoryPort(Protocol):
         self, session: Session, session_id: UUID, started_at: datetime
     ) -> SessionState: ...
 
+    def transition_execution_state(
+        self,
+        session: Session,
+        *,
+        session_id: UUID,
+        execution_state_code: str,
+        occurred_at: datetime,
+        is_resumable: bool,
+        stop_reason_code: str | None,
+        completion_code: str | None = None,
+        ended_at: datetime | None = None,
+    ) -> SessionState: ...
+
     def update_session_item(
         self,
         session: Session,
@@ -186,14 +210,12 @@ class WorkoutRepositoryPort(Protocol):
         event_id: UUID,
         session_id: UUID,
         occurred_at: datetime,
-        instruction_code: str,
-        resulting_action_code: str | None,
-        session_status_code: str,
-        guidance_code: str,
-        reason_code: str,
+        symptom_code: str | None,
+        body_area_code: str | None,
+        nrs_score: int | None,
+        result_code: str,
+        completion_code: str,
         rule_version: str,
-        discomforts: tuple[tuple[str, str], ...],
-        adverse_reaction_codes: tuple[str, ...],
         now: datetime,
     ) -> None: ...
 
@@ -205,6 +227,8 @@ class WorkoutRepositoryPort(Protocol):
         status_code: str,
         ended_at: datetime,
         actual_elapsed_seconds: int | None,
+        completion_code: str | None = None,
+        execution_state_code: str | None = None,
     ) -> None: ...
 
     def create_skip_feedback(

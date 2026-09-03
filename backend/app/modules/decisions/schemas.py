@@ -46,6 +46,9 @@ class DecisionPlan(BaseModel):
     body_focus_code: str | None
     requested_duration_minutes: int
     estimated_duration_seconds: int
+    expected_duration_min_seconds: int | None = None
+    expected_duration_max_seconds: int | None = None
+    duration_estimation_policy_version: str | None = None
     estimated_calories_burned: float | None
     setup_seconds: int
     warmup_seconds: int

@@ -20,11 +20,14 @@ BUNDLE_ALTERNATIVES = Path("data/generated/exercise-alternatives-merged-mvp-v0.4
 BUNDLE_PRESCRIPTIONS = Path("data/generated/exercise-prescriptions-merged-mvp-v0.1.0")
 
 
-def test_migration_history_has_checkin_safety_recovery_head() -> None:
+def test_migration_history_has_workout_execution_state_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0036_checkin_safety_recovery"]
+    assert scripts.get_heads() == ["0037_workout_execution_state"]
+    assert scripts.get_revision("0037_workout_execution_state").down_revision == (
+        "0036_checkin_safety_recovery"
+    )
     assert scripts.get_revision("0036_checkin_safety_recovery").down_revision == (
         "0035_onboarding_eligibility"
     )
