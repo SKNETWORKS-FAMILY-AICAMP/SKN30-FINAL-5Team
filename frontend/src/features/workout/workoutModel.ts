@@ -196,6 +196,37 @@ export const NOT_COMPLETED_REASONS = [
   { code: 'LOW_MOTIVATION', label: '오늘은 마음이 내키지 않았어요' },
 ] as const;
 
+export type WorkoutExecutionState = 'RUNNING' | 'RESTING' | 'PAUSED';
+
+export const WORKOUT_STOP_REASONS = [
+  {
+    code: 'SCHEDULE_CHANGE',
+    label: '다른 일정이나 상황이 생겼어요.',
+  },
+  {
+    code: 'TIME_SHORTAGE',
+    label: '시간이 부족해요.',
+  },
+  {
+    code: 'FATIGUE',
+    label: '피곤해서 더 진행하기 어려워요.',
+  },
+  {
+    code: 'LOW_MOTIVATION',
+    label: '오늘은 여기까지 할게요.',
+  },
+] as const satisfies readonly {
+  code: 'SCHEDULE_CHANGE' | 'TIME_SHORTAGE' | 'FATIGUE' | 'LOW_MOTIVATION';
+  label: string;
+}[];
+
+export const WORKOUT_SAFETY_HELP = {
+  pain: '운동 중 새롭게 생기거나 계속 진행하기 어려운 통증을 말해요. 일반적인 운동 후 근육통은 여기에 포함하지 않아요.',
+  reaction:
+    '어지럼증, 메스꺼움, 예상하지 못한 호흡 불편처럼 특정 부위로 설명하기 어려운 반응을 포함해요.',
+  note: '현재 느끼는 반응을 있는 그대로 선택해 주세요. 이 화면에서는 상태를 진단하거나 치료 방법을 안내하지 않아요.',
+} as const;
+
 export const SAFETY_GUIDANCE = {
   mild: '불편한 부위에 부담이 가는 동작은 제외하고 진행할게요. 움직이는 동안 불편함이 커지면 운동을 중단해주세요.',
   severePain:
