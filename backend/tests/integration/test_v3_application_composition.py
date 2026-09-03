@@ -8,7 +8,12 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from backend.app.core.config import Settings
-from backend.app.db.models.decision import AgentProposalRecord, DecisionRun, PlanCandidate
+from backend.app.db.models.decision import (
+    AgentProposalRecord,
+    DecisionExplanationRecord,
+    DecisionRun,
+    PlanCandidate,
+)
 from backend.app.db.models.v3_decision import DecisionConstraintEnvelopeRecord
 from backend.app.domain.agents.retrieval import (
     ExerciseRetrievalRequest,
@@ -118,4 +123,18 @@ def test_creation_persists_public_plan_and_separate_v3_artifacts_atomically(
         )
         == 1
     )
+    explanation = session.scalar(
+        select(DecisionExplanationRecord).where(DecisionExplanationRecord.decision_run_id == run.id)
+    )
+    assert explanation is not None
+    assert [item["agent_type_code"] for item in explanation.agent_summaries] == [
+        "TRAINING",
+        "RECOVERY",
+        "SAFETY",
+        "FEASIBILITY",
+        "COORDINATOR",
+    ]
+    assert explanation.template_version == "v3-decision-explanation-template-v1"
+    assert response.public_agent_summaries is not None
+    assert response.summary == explanation.summary
     assert retriever.calls == 1

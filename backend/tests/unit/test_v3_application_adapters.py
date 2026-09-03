@@ -22,6 +22,16 @@ from backend.tests.unit.test_decision_service import BASE_EXERCISE_ID, FakeRepos
 from backend.tests.unit.test_v3_persistence_service import make_bundle
 
 
+class FailIfNarrated:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def narrate(self, prompt):
+        del prompt
+        self.calls += 1
+        raise AssertionError("a safety-vetoed decision must not be narrated")
+
+
 def _exercise(
     exercise_id: UUID,
     difficulty_code: str,
@@ -329,10 +339,12 @@ def test_v3_projector_reports_exclusion_rebuild_as_revised_change() -> None:
     )
     DeterministicV3SafetyPolicyAdapter().evaluate(source)
 
-    response = V3DecisionResponseProjector().project_success(
+    provider = FailIfNarrated()
+    projection = V3DecisionResponseProjector(narration_provider=provider).project_success(
         source=source,
         bundle=make_bundle(),
     )
+    response = projection.response
 
     assert response.safety_status_code == "REVISE"
     assert response.action_code == "CHANGE"
@@ -341,6 +353,15 @@ def test_v3_projector_reports_exclusion_rebuild_as_revised_change() -> None:
     assert response.safety_summary is not None
     assert response.safety_summary.vetoed
     assert response.safety_summary.reason_codes == ["DIRECT_JOINT_LOAD"]
+    assert provider.calls == 0
+    assert response.public_agent_summaries is not None
+    assert [item.agent_type_code for item in response.public_agent_summaries] == [
+        "TRAINING",
+        "RECOVERY",
+        "SAFETY",
+        "FEASIBILITY",
+        "COORDINATOR",
+    ]
 
 
 def test_v3_projector_reports_caution_as_revised_downshift() -> None:
@@ -356,10 +377,11 @@ def test_v3_projector_reports_caution_as_revised_downshift() -> None:
     )
     DeterministicV3SafetyPolicyAdapter().evaluate(source)
 
-    response = V3DecisionResponseProjector().project_success(
+    projection = V3DecisionResponseProjector().project_success(
         source=source,
         bundle=make_bundle(),
     )
+    response = projection.response
 
     assert response.safety_status_code == "REVISE"
     assert response.action_code == "DOWNSHIFT"

@@ -58,13 +58,18 @@ from backend.app.modules.decisions.codes import (
     DECISION_INPUT_SCHEMA_VERSION,
     DECISION_POLICY_VERSION,
 )
-from backend.app.modules.decisions.ports import DecisionAssembly
+from backend.app.modules.decisions.explanations import (
+    DecisionExplanation,
+    build_v3_explanation,
+)
+from backend.app.modules.decisions.ports import DecisionAssembly, NarrationProviderPort
 from backend.app.modules.decisions.schemas import (
     DecisionOptionResponse,
     DecisionPlan,
     DecisionPlanItem,
     DecisionResponse,
     Guidance,
+    PublicAgentSummary,
     SafetySummary,
 )
 from backend.app.modules.decisions.service import (
@@ -76,6 +81,7 @@ from backend.app.modules.decisions.service import (
 )
 from backend.app.modules.decisions.v3_creation import (
     V3CreationIdempotencyRecord,
+    V3CreationProjection,
     V3CreationSource,
 )
 from backend.app.modules.decisions.v3_regeneration import (
@@ -93,7 +99,6 @@ from backend.app.modules.decisions.v3_sql_persistence import (
 )
 
 _SNAPSHOT_TTL = timedelta(hours=1)
-_TEMPLATE_VERSION = "v3-demo-public-template-v1"
 
 
 def _hash(value: object) -> str:
@@ -234,6 +239,7 @@ class SqlAlchemyV3CreationRepository:
         source: V3CreationSource,
         envelope: ConstraintEnvelope,
         response: DecisionResponse,
+        explanation: DecisionExplanation,
     ) -> None:
         application = _context(source)
         run, candidate = _persist_public_decision(
@@ -243,6 +249,7 @@ class SqlAlchemyV3CreationRepository:
             response=response,
             decision_id=response.decision_id,
             bundle=None,
+            explanation=explanation,
         )
         run.root_decision_run_id = run.id
         run.generation_mode_code = "ORIGINAL"
@@ -281,6 +288,7 @@ class SqlAlchemyV3CreationRepository:
         source: V3CreationSource,
         bundle: V3DecisionPersistenceBundle,
         response: DecisionResponse,
+        explanation: DecisionExplanation,
     ) -> None:
         run, candidate = _persist_public_decision(
             self._session,
@@ -289,6 +297,7 @@ class SqlAlchemyV3CreationRepository:
             response=response,
             decision_id=bundle.decision_execution_id,
             bundle=bundle,
+            explanation=explanation,
         )
         _persist_v3_bundle(self._session, run, candidate, bundle)
 
@@ -531,12 +540,18 @@ class PostgreSQLV3ExercisePoolSource(PostgreSQLExercisePoolSourcePort):
 
 
 class V3DecisionResponseProjector:
-    def __init__(self, *, clock: Callable[[], datetime] = lambda: datetime.now(UTC)) -> None:
+    def __init__(
+        self,
+        *,
+        narration_provider: NarrationProviderPort | None = None,
+        clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+    ) -> None:
+        self._narration_provider = narration_provider
         self._clock = clock
 
     def project_terminal(
         self, *, source: V3CreationSource, envelope: ConstraintEnvelope
-    ) -> DecisionResponse:
+    ) -> V3CreationProjection:
         action = envelope.safety_required_action_code or SafetyRequiredActionCode.REST
         guidance = Guidance(
             code=action.value,
@@ -555,7 +570,7 @@ class V3DecisionResponseProjector:
         option_id = uuid4()
         evaluation = _context(source).safety_evaluation
         reasons = list(evaluation.reason_codes if evaluation is not None else ())
-        return DecisionResponse(
+        response = DecisionResponse(
             decision_id=uuid4(),
             local_date=source.local_date,
             status_code="COMPLETED",
@@ -587,10 +602,37 @@ class V3DecisionResponseProjector:
             regeneration_sequence=0,
             created_at=self._clock(),
         )
+        explanation = build_v3_explanation(
+            action_code=action.value,
+            safety_status_code="BLOCKED",
+            safety_vetoed=True,
+            safety_reason_codes=tuple(reasons),
+            final_reason_codes=tuple(reasons[:2] or [action.value]),
+            envelope=envelope,
+            proposals=(),
+            coaching_style_code=_context(source).assembly.coaching_style_code,
+            fallback_used=True,
+            provider=None,
+        )
+        return V3CreationProjection(
+            response=response.model_copy(
+                update={
+                    "summary": explanation.summary,
+                    "public_agent_summaries": [
+                        PublicAgentSummary.model_validate(item)
+                        for item in explanation.agent_summaries_payload()
+                    ],
+                    "safety_summary": SafetySummary.model_validate(
+                        explanation.safety_summary_payload()
+                    ),
+                }
+            ),
+            explanation=explanation,
+        )
 
     def project_success(
         self, *, source: V3CreationSource, bundle: V3DecisionPersistenceBundle
-    ) -> DecisionResponse:
+    ) -> V3CreationProjection:
         plan = bundle.final_plan
         if plan is None:
             raise RuntimeError("V3_FINAL_PLAN_MISSING")
@@ -651,8 +693,13 @@ class V3DecisionResponseProjector:
             public_action = "DOWNSHIFT"
         else:
             public_action = plan.action_code.value
-        reason_codes = list(bundle.failure_codes[:2]) or ["V3_COMPLETED"]
-        return DecisionResponse(
+        plan_spec = bundle.coordinator_attempts[-1].plan_spec
+        final_reason_codes = (
+            tuple(plan_spec.decision_codes)
+            if plan_spec is not None
+            else tuple(bundle.failure_codes) or ("V3_COMPLETED",)
+        )
+        response = DecisionResponse(
             decision_id=bundle.decision_execution_id,
             local_date=source.local_date,
             status_code="COMPLETED",
@@ -692,8 +739,8 @@ class V3DecisionResponseProjector:
                     action_code="REST",
                 ),
             ],
-            reason_codes=reason_codes,
-            summary="오늘의 안전한 운동 루틴이 준비되었습니다.",
+            reason_codes=list(final_reason_codes[:2]),
+            summary="오늘의 운동 계획이 준비되었습니다.",
             safety_summary=SafetySummary(
                 safety_status_code=safety_code,
                 vetoed=bool(evaluation and evaluation.veto),
@@ -711,6 +758,33 @@ class V3DecisionResponseProjector:
             root_decision_id=bundle.root_decision_execution_id,
             regeneration_sequence=0,
             created_at=self._clock(),
+        )
+        explanation = build_v3_explanation(
+            action_code=public_action,
+            safety_status_code=safety_code,
+            safety_vetoed=bool(evaluation and evaluation.veto),
+            safety_reason_codes=tuple(evaluation.reason_codes if evaluation else ()),
+            final_reason_codes=final_reason_codes,
+            envelope=bundle.root_snapshot.constraint_envelope,
+            proposals=tuple(item.proposal for item in bundle.agent_proposals),
+            coaching_style_code=context.assembly.coaching_style_code,
+            fallback_used=bundle.fallback_used,
+            provider=self._narration_provider,
+        )
+        return V3CreationProjection(
+            response=response.model_copy(
+                update={
+                    "summary": explanation.summary,
+                    "public_agent_summaries": [
+                        PublicAgentSummary.model_validate(item)
+                        for item in explanation.agent_summaries_payload()
+                    ],
+                    "safety_summary": SafetySummary.model_validate(
+                        explanation.safety_summary_payload()
+                    ),
+                }
+            ),
+            explanation=explanation,
         )
 
 
@@ -739,6 +813,7 @@ def _persist_public_decision(
     response: DecisionResponse,
     decision_id: UUID,
     bundle: V3DecisionPersistenceBundle | None,
+    explanation: DecisionExplanation,
 ) -> tuple[DecisionRun, PlanCandidate]:
     now = response.created_at
     policy_version = bundle.policy_version if bundle is not None else DECISION_POLICY_VERSION
@@ -896,21 +971,17 @@ def _persist_public_decision(
         DecisionExplanationRecord(
             id=uuid4(),
             decision_run_id=run.id,
-            source_code="TEMPLATE",
-            summary=response.summary,
-            reason_codes=response.reason_codes,
-            agent_summaries=[],
-            safety_summary=(
-                response.safety_summary.model_dump(mode="json") if response.safety_summary else {}
-            ),
-            final_adjustment_reason=None,
-            coaching_style_code=assembly.coaching_style_code,
-            template_version=_TEMPLATE_VERSION,
-            prompt_version=None,
-            model_code=None,
-            fallback_reason_code=(
-                "V3_DETERMINISTIC_FALLBACK" if bundle and bundle.fallback_used else "V3_TEMPLATE"
-            ),
+            source_code=explanation.source_code.value,
+            summary=explanation.summary,
+            reason_codes=list(explanation.reason_codes),
+            agent_summaries=explanation.agent_summaries_payload(),
+            safety_summary=explanation.safety_summary_payload(),
+            final_adjustment_reason=explanation.final_adjustment_reason,
+            coaching_style_code=explanation.coaching_style_code,
+            template_version=explanation.template_version,
+            prompt_version=explanation.prompt_version,
+            model_code=explanation.model_code,
+            fallback_reason_code=explanation.fallback_reason_code,
             created_at=now,
         )
     )
@@ -1003,9 +1074,11 @@ class SqlAlchemyV3RegenerationRepository:
         session: Session,
         *,
         current_versions: V3RegenerationVersionSnapshot,
+        narration_provider: NarrationProviderPort | None = None,
     ) -> None:
         self._session = session
         self._current_versions = current_versions
+        self._narration_provider = narration_provider
         self._locked_run: DecisionRun | None = None
 
     def lock_regeneration_source(
@@ -1114,7 +1187,10 @@ class SqlAlchemyV3RegenerationRepository:
             },
             application_context=V3ApplicationContext(assembly, ()),
         )
-        response = V3DecisionResponseProjector().project_success(source=source, bundle=bundle)
+        projection = V3DecisionResponseProjector(
+            narration_provider=self._narration_provider
+        ).project_success(source=source, bundle=bundle)
+        response = projection.response
         run, candidate = _persist_public_decision(
             self._session,
             user_id=user_id,
@@ -1122,6 +1198,7 @@ class SqlAlchemyV3RegenerationRepository:
             response=response,
             decision_id=bundle.decision_execution_id,
             bundle=bundle,
+            explanation=projection.explanation,
         )
         _persist_v3_bundle(self._session, run, candidate, bundle)
         self._session.add(
@@ -1152,9 +1229,11 @@ class SqlAlchemyV3RegenerationUnitOfWork:
         session_factory: Callable[[], Session],
         *,
         current_versions: V3RegenerationVersionSnapshot,
+        narration_provider: NarrationProviderPort | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._current_versions = current_versions
+        self._narration_provider = narration_provider
         self._state: ContextVar[tuple[Session, Any, SqlAlchemyV3RegenerationRepository] | None] = (
             ContextVar("v3_regeneration_uow_state", default=None)
         )
@@ -1173,7 +1252,9 @@ class SqlAlchemyV3RegenerationUnitOfWork:
         transaction = session.begin()
         transaction.__enter__()
         repository = SqlAlchemyV3RegenerationRepository(
-            session, current_versions=self._current_versions
+            session,
+            current_versions=self._current_versions,
+            narration_provider=self._narration_provider,
         )
         self._state.set((session, transaction, repository))
         return self

@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from datetime import date
 from typing import Protocol, Self
 from uuid import UUID
@@ -22,6 +23,7 @@ from backend.app.domain.agents.v3_persistence import (
     V3DecisionPersistenceBundle,
     V3RootSnapshotPersistence,
 )
+from backend.app.modules.decisions.explanations import DecisionExplanation
 from backend.app.modules.decisions.schemas import DecisionCreateRequest, DecisionResponse
 from backend.app.modules.decisions.service import (
     DecisionContextNotFoundError,
@@ -82,6 +84,14 @@ class V3CreationIdempotencyRecord(_FrozenContract):
     response: DecisionResponse
 
 
+@dataclass(frozen=True, slots=True)
+class V3CreationProjection:
+    """Public response plus private, auditable narration metadata."""
+
+    response: DecisionResponse
+    explanation: DecisionExplanation
+
+
 class V3ProviderExecutionError(RuntimeError):
     """Sanitized provider failure; raw provider exceptions stay in the adapter."""
 
@@ -103,6 +113,7 @@ class V3CreationRepositoryPort(Protocol):
         source: V3CreationSource,
         envelope: ConstraintEnvelope,
         response: DecisionResponse,
+        explanation: DecisionExplanation,
     ) -> None: ...
     def persist_success(
         self,
@@ -111,6 +122,7 @@ class V3CreationRepositoryPort(Protocol):
         source: V3CreationSource,
         bundle: V3DecisionPersistenceBundle,
         response: DecisionResponse,
+        explanation: DecisionExplanation,
     ) -> None: ...
     def save_idempotency(
         self,
@@ -154,13 +166,13 @@ class V3DeterministicFallbackPort(Protocol):
 class V3CreationResponseProjectorPort(Protocol):
     def project_terminal(
         self, *, source: V3CreationSource, envelope: ConstraintEnvelope
-    ) -> DecisionResponse: ...
+    ) -> V3CreationProjection: ...
     def project_success(
         self,
         *,
         source: V3CreationSource,
         bundle: V3DecisionPersistenceBundle,
-    ) -> DecisionResponse: ...
+    ) -> V3CreationProjection: ...
 
 
 def _request_hash(request: DecisionCreateRequest) -> str:
@@ -216,12 +228,14 @@ class V3InitialCreationService:
 
             envelope = self._safety_policy.evaluate(source)
             if not envelope.plan_generation_allowed:
-                response = self._projector.project_terminal(source=source, envelope=envelope)
+                projection = self._projector.project_terminal(source=source, envelope=envelope)
+                response = projection.response
                 repository.persist_terminal(
                     user_id=user_id,
                     source=source,
                     envelope=envelope,
                     response=response,
+                    explanation=projection.explanation,
                 )
             else:
                 try:
@@ -246,12 +260,14 @@ class V3InitialCreationService:
                     )
                 if bundle.root_snapshot != root_snapshot or bundle.final_plan is None:
                     raise DecisionFailedError
-                response = self._projector.project_success(source=source, bundle=bundle)
+                projection = self._projector.project_success(source=source, bundle=bundle)
+                response = projection.response
                 repository.persist_success(
                     user_id=user_id,
                     source=source,
                     bundle=bundle,
                     response=response,
+                    explanation=projection.explanation,
                 )
             repository.save_idempotency(
                 user_id=user_id,
@@ -264,6 +280,7 @@ class V3InitialCreationService:
 
 __all__ = [
     "V3CreationIdempotencyRecord",
+    "V3CreationProjection",
     "V3CreationRepositoryPort",
     "V3CreationResponseProjectorPort",
     "V3CreationSafetyPolicyPort",
