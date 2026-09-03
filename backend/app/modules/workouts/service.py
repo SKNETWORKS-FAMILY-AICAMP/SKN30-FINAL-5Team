@@ -19,13 +19,17 @@ from backend.app.domain.rules.safety import (
 )
 from backend.app.domain.rules.workout_execution import (
     InvalidSessionTransitionError,
-    InvalidWorkoutSafetyEventError,
     NotCompletedReasonRequiredError,
     WorkoutBlockStatusCode,
     WorkoutCompletionEvidence,
+    WorkoutExecutionStateCode,
     WorkoutSessionStatusCode,
+    WorkoutStopReasonCode,
     classify_workout_safety_event,
+    derive_completion_code,
     mark_session_not_completed,
+    resume_execution,
+    stop_execution,
 )
 from backend.app.domain.rules.workout_execution import (
     finish_session as derive_finished_status,
@@ -39,6 +43,7 @@ from backend.app.modules.workouts.codes import (
     SESSION_ITEM_ENDPOINT_CODE,
     SESSION_NOT_COMPLETED_ENDPOINT_CODE,
     SESSION_START_ENDPOINT_CODE,
+    SESSION_STOP_ENDPOINT_CODE,
     TERMINAL_SESSION_STATUS_CODES,
     TIMER_EVENT_ENDPOINT_CODE,
 )
@@ -71,6 +76,8 @@ from backend.app.modules.workouts.schemas import (
     WorkoutSessionNotCompletedResponse,
     WorkoutSessionStartRequest,
     WorkoutSessionStartResponse,
+    WorkoutSessionStopRequest,
+    WorkoutSessionStopResponse,
     WorkoutSessionSummary,
     WorkoutTimerEventRequest,
     WorkoutTimerEventResponse,
@@ -372,7 +379,11 @@ class WorkoutService:
                 ),
                 workout_session=None
                 if workout_session_id is None
-                else WorkoutSessionSummary(session_id=workout_session_id, status_code="PLANNED"),
+                else WorkoutSessionSummary(
+                    session_id=workout_session_id,
+                    status_code="PLANNED",
+                    target_duration_seconds=source.target_duration_seconds,
+                ),
                 selected_at=now,
                 pressure_notifications_allowed=source.option_action_code != "REST",
             )
@@ -425,6 +436,12 @@ class WorkoutService:
                     ),
                     None,
                 ),
+                execution_state_code="RUNNING",
+                target_duration_seconds=state.target_duration_seconds or 0,
+                accumulated_progress_seconds=state.accumulated_progress_seconds,
+                accumulated_rest_seconds=state.accumulated_rest_seconds,
+                accumulated_paused_seconds=state.accumulated_paused_seconds,
+                is_resumable=False,
             )
             now = self._clock()
             self._save_response(
@@ -516,7 +533,7 @@ class WorkoutService:
             )
             if prior is not None:
                 return prior
-            self._required_in_progress(session, user_id, session_id)
+            state = self._required_in_progress(session, user_id, session_id)
             now = self._clock()
             event_id = self._uuid_factory()
             self._repository.create_timer_event(
@@ -528,6 +545,39 @@ class WorkoutService:
                 client_recorded_at=request.client_recorded_at,
                 now=now,
             )
+            if request.event_code == "PAUSE":
+                if (state.execution_state_code or "RUNNING") not in {"RUNNING", "RESTING"}:
+                    raise InvalidSessionStateError
+                state = self._repository.transition_execution_state(
+                    session,
+                    session_id=session_id,
+                    execution_state_code="PAUSED",
+                    occurred_at=request.occurred_at,
+                    is_resumable=False,
+                    stop_reason_code=None,
+                )
+            elif request.event_code == "RESUME":
+                if (
+                    state.execution_state_code == "STOPPED_RESUMABLE"
+                    and state.local_date is not None
+                    and request.occurred_at.date() != state.local_date
+                ):
+                    raise InvalidSessionStateError
+                try:
+                    execution_state = resume_execution(
+                        WorkoutExecutionStateCode(state.execution_state_code or "RUNNING"),
+                        is_resumable=state.is_resumable,
+                    )
+                except InvalidSessionTransitionError as exc:
+                    raise InvalidSessionStateError from exc
+                state = self._repository.transition_execution_state(
+                    session,
+                    session_id=session_id,
+                    execution_state_code=execution_state.value,
+                    occurred_at=request.occurred_at,
+                    is_resumable=False,
+                    stop_reason_code=None,
+                )
             response = WorkoutTimerEventResponse(
                 event_id=event_id,
                 session_id=session_id,
@@ -536,6 +586,12 @@ class WorkoutService:
                 client_recorded_at=request.client_recorded_at,
                 created_at=now,
                 session_status_code="IN_PROGRESS",
+                execution_state_code=cast(
+                    Literal["RUNNING", "PAUSED"], state.execution_state_code or "RUNNING"
+                ),
+                accumulated_progress_seconds=state.accumulated_progress_seconds,
+                accumulated_rest_seconds=state.accumulated_rest_seconds,
+                accumulated_paused_seconds=state.accumulated_paused_seconds,
             )
             self._save_response(
                 session,
@@ -623,51 +679,49 @@ class WorkoutService:
             if prior is not None:
                 return prior
             state = self._required_in_progress(session, user_id, session_id)
-            context = self._safety_context(request.discomforts, request.adverse_reaction_codes)
-            try:
-                decision = classify_workout_safety_event(
-                    WorkoutSessionStatusCode(state.status_code), context
-                )
-            except InvalidWorkoutSafetyEventError as exc:
-                raise InvalidSafetyEventInputError from exc
+            evidence = self._completion_evidence(state, 0)
+            if evidence.completed_block_count == evidence.total_block_count:
+                raise InvalidSessionStateError
             now = self._clock()
             event_id = self._uuid_factory()
-            action_code = (
-                None
-                if decision.resulting_action_code is None
-                else decision.resulting_action_code.value
-            )
+            completion_code = derive_completion_code(evidence).value
+            # Always SESSION_STOPPED. STOP_AND_SEEK_HELP needs to know the symptom,
+            # and this flow deliberately does not ask for one; the reviewed stop
+            # guidance already tells the user to seek emergency help if they have
+            # chest pain, fainting or similar. The check-in Red Flag path is where
+            # STOP_AND_SEEK_HELP is decided from evidence the user did give.
+            result_code = "SESSION_STOPPED"
             self._repository.create_safety_event(
                 session,
                 event_id=event_id,
                 session_id=session_id,
-                occurred_at=request.occurred_at,
-                instruction_code=decision.instruction_code.value,
-                resulting_action_code=action_code,
-                session_status_code=decision.session_status_code.value,
-                guidance_code=decision.guidance_code.value,
-                reason_code=decision.reason_code.value,
-                rule_version=decision.safety_event_rule_version,
-                discomforts=tuple(
-                    (item.body_area_code.value, item.severity_code.value)
-                    for item in request.discomforts
-                ),
-                adverse_reaction_codes=tuple(code.value for code in request.adverse_reaction_codes),
+                occurred_at=now,
+                result_code=result_code,
+                completion_code=completion_code,
+                rule_version="workout-safety-event-v2",
                 now=now,
+            )
+            self._repository.transition_execution_state(
+                session,
+                session_id=session_id,
+                execution_state_code="STOPPED_SAFETY",
+                occurred_at=now,
+                is_resumable=False,
+                stop_reason_code=request.stop_reason_code,
+                completion_code=completion_code,
+                ended_at=now,
             )
             response = WorkoutSafetyEventResponse(
                 event_id=event_id,
-                instruction_code=decision.instruction_code.value,
-                resulting_action_code=cast(
-                    Literal["REST", "STOP_AND_SEEK_HELP"] | None, action_code
+                result_code=cast(Literal["SESSION_STOPPED", "STOP_AND_SEEK_HELP"], result_code),
+                execution_state_code="STOPPED_SAFETY",
+                completion_code=cast(Literal["PARTIAL", "NOT_COMPLETED"], completion_code),
+                is_resumable=False,
+                guidance=(
+                    _GUIDANCE["SERIOUS_ADVERSE_REACTION_STOP"]
+                    if result_code == "STOP_AND_SEEK_HELP"
+                    else _GUIDANCE["SEVERE_OR_ACUTE_STOP"]
                 ),
-                session_status_code=cast(
-                    Literal["IN_PROGRESS", "STOPPED_FOR_SAFETY"],
-                    decision.session_status_code.value,
-                ),
-                guidance_code=decision.guidance_code.value,
-                guidance=_GUIDANCE[decision.guidance_code.value],
-                pressure_notifications_allowed=action_code is None,
             )
             self._save_response(
                 session,
@@ -677,6 +731,92 @@ class WorkoutService:
                 request_hash=request_hash,
                 response=response,
                 now=now,
+            )
+        return response
+
+    def stop_session(
+        self,
+        session: Session,
+        user_id: UUID,
+        session_id: UUID,
+        request: WorkoutSessionStopRequest,
+        idempotency_key: UUID,
+    ) -> WorkoutSessionStopResponse:
+        request_hash = _request_hash({"session_id": str(session_id)}, request)
+        with session.begin():
+            prior = self._prior_response(
+                session,
+                user_id=user_id,
+                endpoint_code=SESSION_STOP_ENDPOINT_CODE,
+                idempotency_key=idempotency_key,
+                request_hash=request_hash,
+                response_type=WorkoutSessionStopResponse,
+            )
+            if prior is not None:
+                return prior
+            state = self._required_in_progress(session, user_id, session_id)
+            try:
+                execution_state, is_resumable = stop_execution(
+                    WorkoutExecutionStateCode(state.execution_state_code or "RUNNING"),
+                    WorkoutStopReasonCode(request.stop_reason_code),
+                )
+            except InvalidSessionTransitionError as exc:
+                raise InvalidSessionStateError from exc
+            completion_code = (
+                derive_completion_code(self._completion_evidence(state, 0)).value
+                if execution_state is WorkoutExecutionStateCode.STOPPED_SAFETY
+                else None
+            )
+            if execution_state is WorkoutExecutionStateCode.STOPPED_SAFETY:
+                evidence = self._completion_evidence(state, 0)
+                if evidence.completed_block_count == evidence.total_block_count:
+                    raise InvalidSessionStateError
+                # Always SESSION_STOPPED. STOP_AND_SEEK_HELP needs to know the symptom,
+                # and this flow deliberately does not ask for one; the reviewed stop
+                # guidance already tells the user to seek emergency help if they have
+                # chest pain, fainting or similar. The check-in Red Flag path is where
+                # STOP_AND_SEEK_HELP is decided from evidence the user did give.
+                result_code = "SESSION_STOPPED"
+                self._repository.create_safety_event(
+                    session,
+                    event_id=self._uuid_factory(),
+                    session_id=session_id,
+                    occurred_at=request.stopped_at,
+                    result_code=result_code,
+                    completion_code=cast(str, completion_code),
+                    rule_version="workout-safety-event-v2",
+                    now=self._clock(),
+                )
+            state = self._repository.transition_execution_state(
+                session,
+                session_id=session_id,
+                execution_state_code=execution_state.value,
+                occurred_at=request.stopped_at,
+                is_resumable=is_resumable,
+                stop_reason_code=request.stop_reason_code,
+                completion_code=completion_code,
+                ended_at=(request.stopped_at if not is_resumable else None),
+            )
+            response = WorkoutSessionStopResponse(
+                session_id=session_id,
+                completion_code=cast(Literal["PARTIAL", "NOT_COMPLETED"] | None, completion_code),
+                execution_state_code=cast(
+                    Literal["STOPPED_RESUMABLE", "STOPPED_SAFETY"], execution_state.value
+                ),
+                stop_reason_code=request.stop_reason_code,
+                is_resumable=is_resumable,
+                accumulated_progress_seconds=state.accumulated_progress_seconds,
+                accumulated_rest_seconds=state.accumulated_rest_seconds,
+                accumulated_paused_seconds=state.accumulated_paused_seconds,
+            )
+            self._save_response(
+                session,
+                user_id=user_id,
+                endpoint_code=SESSION_STOP_ENDPOINT_CODE,
+                idempotency_key=idempotency_key,
+                request_hash=request_hash,
+                response=response,
+                now=self._clock(),
             )
         return response
 
@@ -710,12 +850,15 @@ class WorkoutService:
                 raise NotCompletedReasonRequiredServiceError from exc
             except InvalidSessionTransitionError as exc:
                 raise InvalidSessionStateError from exc
-            self._repository.finish_session(
+            state = self._repository.transition_execution_state(
                 session,
                 session_id=session_id,
-                status_code=status.value,
+                execution_state_code="COMPLETED",
+                occurred_at=request.finished_at,
+                is_resumable=False,
+                stop_reason_code=None,
+                completion_code=status.value,
                 ended_at=request.finished_at,
-                actual_elapsed_seconds=request.actual_elapsed_seconds,
             )
             response = WorkoutSessionFinishResponse(
                 session_id=session_id,
@@ -723,8 +866,10 @@ class WorkoutService:
                 ended_at=request.finished_at,
                 completed_item_count=evidence.completed_block_count,
                 total_item_count=evidence.total_block_count,
-                actual_elapsed_seconds=request.actual_elapsed_seconds,
+                actual_elapsed_seconds=state.accumulated_progress_seconds,
                 estimated_calories_burned=state.estimated_calories_burned,
+                completion_code=cast(Literal["COMPLETED", "PARTIAL"], status.value),
+                execution_state_code="COMPLETED",
             )
             now = self._clock()
             self._save_response(
@@ -768,12 +913,15 @@ class WorkoutService:
             except InvalidSessionTransitionError as exc:
                 raise InvalidSessionStateError from exc
             now = self._clock()
-            self._repository.finish_session(
+            self._repository.transition_execution_state(
                 session,
                 session_id=session_id,
-                status_code=status.value,
+                execution_state_code="COMPLETED",
+                occurred_at=request.ended_at,
+                is_resumable=False,
+                stop_reason_code=None,
+                completion_code=status.value,
                 ended_at=request.ended_at,
-                actual_elapsed_seconds=None,
             )
             self._repository.create_skip_feedback(
                 session,
@@ -789,6 +937,8 @@ class WorkoutService:
                 completed_item_count=0,
                 total_item_count=evidence.total_block_count,
                 penalty_applied=False,
+                completion_code="NOT_COMPLETED",
+                execution_state_code="COMPLETED",
             )
             self._save_response(
                 session,

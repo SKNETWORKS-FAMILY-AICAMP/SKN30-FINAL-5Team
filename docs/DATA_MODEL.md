@@ -1564,6 +1564,7 @@ Wave 6는 option의 생성과 조회까지만 구현한다. option 선택과 wor
 | accumulated_paused_seconds | PAUSED 누적 시간 |
 | last_state_changed_at | 실행 상태의 마지막 변경 시각 |
 | is_resumable | 동일 local_date 내 이어하기 가능 여부 |
+| stop_reason_code | HIGH_FATIGUE, TIME_SHORTAGE, RESUME_LATER, PAIN_OR_ABNORMAL_RESPONSE 중단 사유 |
 | estimated_calories_burned | 체중 기반 추정치, nullable |
 | idempotency_key | 세션 생성 중복 방지 |
 

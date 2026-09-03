@@ -289,14 +289,9 @@ def test_repository_round_trip_keeps_timer_and_additional_activity_informational
             event_id=uuid4(),
             session_id=workout_session_id,
             occurred_at=NOW,
-            instruction_code="STOP_AND_SEEK_HELP",
-            resulting_action_code="STOP_AND_SEEK_HELP",
-            session_status_code="STOPPED_FOR_SAFETY",
-            guidance_code="SERIOUS_ADVERSE_REACTION_STOP",
-            reason_code="EMERGENCY_ADVERSE_REACTION",
+            result_code="STOP_AND_SEEK_HELP",
+            completion_code="NOT_COMPLETED",
             rule_version="1.0.0",
-            discomforts=(),
-            adverse_reaction_codes=("CHEST_DISCOMFORT",),
             now=NOW,
         )
         assert repository.is_pressure_notification_suppressed(session, user_id, date(2026, 8, 14))

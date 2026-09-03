@@ -26,7 +26,10 @@ def test_migration_history_has_a_single_linear_head() -> None:
 
     # A second head means two branches were authored against the same parent, which
     # blocks every later migration until someone merges them by hand.
-    assert scripts.get_heads() == ["0037_retire_calendar_integration"]
+    assert scripts.get_heads() == ["0038_workout_execution_state"]
+    assert scripts.get_revision("0038_workout_execution_state").down_revision == (
+        "0037_retire_calendar_integration"
+    )
     assert scripts.get_revision("0037_retire_calendar_integration").down_revision == (
         "0036_checkin_safety_recovery"
     )
@@ -206,7 +209,9 @@ def test_retiring_calendar_drops_its_tables_and_restores_them_on_rollback(
     # retirement must leave that source untouched.
     assert "workout_sessions" in present
 
-    command.downgrade(config, "-1")
+    # Target this revision by name rather than "-1": later migrations land on top of it,
+    # and a relative step would exercise whichever one happens to be head instead.
+    command.downgrade(config, "0036_checkin_safety_recovery")
     with engine.connect() as connection:
         restored = set(inspect(connection).get_table_names())
         indexes = {
