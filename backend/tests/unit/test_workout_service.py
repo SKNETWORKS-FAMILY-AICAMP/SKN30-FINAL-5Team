@@ -4,6 +4,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
+from pydantic import ValidationError
 
 from backend.app.modules.workouts.ports import IdempotencyRecord, SelectionSource, SessionState
 from backend.app.modules.workouts.schemas import (
@@ -527,40 +528,35 @@ def test_zero_checked_blocks_require_not_completed_reason_without_penalty() -> N
     assert repository.skip_feedback["reason_code"] == "TIME_SHORTAGE"
 
 
-def test_severe_and_emergency_safety_events_stop_session_without_pressure() -> None:
+def test_safety_event_stops_the_session_without_collecting_symptom_detail() -> None:
+    """The stop reason is the whole input; no symptom, area or NRS is accepted."""
+
     repository, service, user_id, session_id = _in_progress_repository()
-    severe = service.record_safety_event(
+    stopped = service.record_safety_event(
         FakeSession(),  # type: ignore[arg-type]
         user_id,
         session_id,
-        WorkoutSafetyEventRequest(
-            occurred_at=NOW,
-            symptom_code="KNEE_PAIN",
-            body_area_code="KNEE",
-            nrs_score=8,
-        ),
+        WorkoutSafetyEventRequest(occurred_at=NOW),
         uuid4(),
     )
-    assert severe.result_code == "SESSION_STOPPED"
-    assert severe.execution_state_code == "STOPPED_SAFETY"
-    assert severe.completion_code == "NOT_COMPLETED"
-    assert severe.is_resumable is False
+    assert stopped.result_code == "SESSION_STOPPED"
+    assert stopped.execution_state_code == "STOPPED_SAFETY"
+    assert stopped.completion_code == "NOT_COMPLETED"
+    assert stopped.is_resumable is False
+    assert repository.session_state.status_code == "STOPPED_FOR_SAFETY"
 
-    emergency_repository, emergency_service, emergency_user, emergency_session = (
-        _in_progress_repository()
-    )
-    emergency = emergency_service.record_safety_event(
-        FakeSession(),  # type: ignore[arg-type]
-        emergency_user,
-        emergency_session,
-        WorkoutSafetyEventRequest(
-            occurred_at=NOW,
-            symptom_code="CHEST_DISCOMFORT",
-        ),
-        uuid4(),
-    )
-    assert emergency.result_code == "STOP_AND_SEEK_HELP"
-    assert emergency_repository.session_state.status_code == "STOPPED_FOR_SAFETY"
+    stored = repository.safety_events[0]
+    assert set(stored) & {"symptom_code", "body_area_code", "nrs_score"} == set()
+
+
+def test_safety_event_request_rejects_symptom_detail() -> None:
+    """Extra symptom fields are refused rather than dropped, so a client cannot assume
+    the server stored something it did not."""
+
+    with pytest.raises(ValidationError):
+        WorkoutSafetyEventRequest.model_validate(
+            {"occurred_at": NOW.isoformat(), "symptom_code": "KNEE_PAIN"}
+        )
 
 
 def test_pause_stop_and_resume_keep_legacy_status_in_progress() -> None:
@@ -611,17 +607,15 @@ def test_pain_stop_creates_safety_event_and_disables_resume() -> None:
         WorkoutSessionStopRequest(
             stopped_at=NOW,
             stop_reason_code="PAIN_OR_ABNORMAL_RESPONSE",
-            symptom_code="KNEE_PAIN",
-            body_area_code="KNEE",
-            nrs_score=8,
         ),
         uuid4(),
     )
     assert stopped.execution_state_code == "STOPPED_SAFETY"
     assert stopped.is_resumable is False
-    assert repository.safety_events[0]["symptom_code"] == "KNEE_PAIN"
-    assert repository.safety_events[0]["body_area_code"] == "KNEE"
-    assert repository.safety_events[0]["nrs_score"] == 8
+    stored = repository.safety_events[0]
+    assert stored["result_code"] == "SESSION_STOPPED"
+    # The stop reason is the whole input; no symptom detail is collected or stored.
+    assert set(stored) & {"symptom_code", "body_area_code", "nrs_score"} == set()
 
 
 def test_feedback_is_informational_and_uses_non_diagnostic_guidance() -> None:

@@ -101,9 +101,6 @@ def upgrade() -> None:
     op.alter_column("workout_safety_events", "reason_code", nullable=True)
     op.add_column("workout_safety_events", sa.Column("plan_item_id", sa.Uuid()))
     op.add_column("workout_safety_events", sa.Column("result_code", sa.String(length=32)))
-    op.add_column("workout_safety_events", sa.Column("symptom_code", sa.String(length=64)))
-    op.add_column("workout_safety_events", sa.Column("body_area_code", sa.String(length=64)))
-    op.add_column("workout_safety_events", sa.Column("nrs_score", sa.SmallInteger()))
     op.create_foreign_key(
         "fk_workout_safety_events_plan_item",
         "workout_safety_events",
@@ -112,32 +109,15 @@ def upgrade() -> None:
         ["id"],
         ondelete="SET NULL",
     )
-    op.create_foreign_key(
-        "fk_workout_safety_events_body_area",
-        "workout_safety_events",
-        "body_areas",
-        ["body_area_code"],
-        ["code"],
-        ondelete="RESTRICT",
-    )
     op.create_check_constraint(
         "ck_workout_safety_events_result",
         "workout_safety_events",
         "result_code IS NULL OR result_code IN ('SESSION_STOPPED','STOP_AND_SEEK_HELP')",
     )
-    op.create_check_constraint(
-        "ck_workout_safety_events_nrs",
-        "workout_safety_events",
-        "nrs_score IS NULL OR nrs_score BETWEEN 1 AND 10",
-    )
 
 
 def downgrade() -> None:
-    op.drop_constraint("ck_workout_safety_events_nrs", "workout_safety_events", type_="check")
     op.drop_constraint("ck_workout_safety_events_result", "workout_safety_events", type_="check")
-    op.drop_constraint(
-        "fk_workout_safety_events_body_area", "workout_safety_events", type_="foreignkey"
-    )
     op.drop_constraint(
         "fk_workout_safety_events_plan_item", "workout_safety_events", type_="foreignkey"
     )
@@ -155,9 +135,6 @@ def downgrade() -> None:
         "ELSE 'SEVERE_OR_ACUTE_STOP' END), "
         "reason_code = COALESCE(reason_code, 'SEVERE_DISCOMFORT')"
     )
-    op.drop_column("workout_safety_events", "nrs_score")
-    op.drop_column("workout_safety_events", "body_area_code")
-    op.drop_column("workout_safety_events", "symptom_code")
     op.drop_column("workout_safety_events", "result_code")
     op.drop_column("workout_safety_events", "plan_item_id")
     op.alter_column("workout_safety_events", "reason_code", nullable=False)

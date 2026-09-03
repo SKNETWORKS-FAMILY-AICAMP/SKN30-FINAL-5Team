@@ -11,7 +11,6 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.app.domain.rules.safety import (
-    EMERGENCY_REACTION_CODES,
     AdverseReactionCode,
     BodyAreaCode,
     Discomfort,
@@ -680,35 +679,23 @@ class WorkoutService:
             if prior is not None:
                 return prior
             state = self._required_in_progress(session, user_id, session_id)
-            if request.nrs_score is not None and request.body_area_code is None:
-                raise InvalidSafetyEventInputError
-            if (
-                request.symptom_code is None
-                and request.body_area_code is None
-                and request.nrs_score is None
-            ):
-                raise InvalidSafetyEventInputError
             evidence = self._completion_evidence(state, 0)
             if evidence.completed_block_count == evidence.total_block_count:
                 raise InvalidSessionStateError
             now = self._clock()
             event_id = self._uuid_factory()
             completion_code = derive_completion_code(evidence).value
-            result_code = (
-                "STOP_AND_SEEK_HELP"
-                if request.symptom_code in {code.value for code in EMERGENCY_REACTION_CODES}
-                else "SESSION_STOPPED"
-            )
+            # Always SESSION_STOPPED. STOP_AND_SEEK_HELP needs to know the symptom,
+            # and this flow deliberately does not ask for one; the reviewed stop
+            # guidance already tells the user to seek emergency help if they have
+            # chest pain, fainting or similar. The check-in Red Flag path is where
+            # STOP_AND_SEEK_HELP is decided from evidence the user did give.
+            result_code = "SESSION_STOPPED"
             self._repository.create_safety_event(
                 session,
                 event_id=event_id,
                 session_id=session_id,
                 occurred_at=request.occurred_at,
-                symptom_code=request.symptom_code,
-                body_area_code=(
-                    None if request.body_area_code is None else request.body_area_code.value
-                ),
-                nrs_score=request.nrs_score,
                 result_code=result_code,
                 completion_code=completion_code,
                 rule_version="workout-safety-event-v2",
@@ -781,32 +768,20 @@ class WorkoutService:
                 else None
             )
             if execution_state is WorkoutExecutionStateCode.STOPPED_SAFETY:
-                if request.nrs_score is not None and request.body_area_code is None:
-                    raise InvalidSafetyEventInputError
-                if (
-                    request.symptom_code is None
-                    and request.body_area_code is None
-                    and request.nrs_score is None
-                ):
-                    raise InvalidSafetyEventInputError
                 evidence = self._completion_evidence(state, 0)
                 if evidence.completed_block_count == evidence.total_block_count:
                     raise InvalidSessionStateError
-                result_code = (
-                    "STOP_AND_SEEK_HELP"
-                    if request.symptom_code in {code.value for code in EMERGENCY_REACTION_CODES}
-                    else "SESSION_STOPPED"
-                )
+                # Always SESSION_STOPPED. STOP_AND_SEEK_HELP needs to know the symptom,
+                # and this flow deliberately does not ask for one; the reviewed stop
+                # guidance already tells the user to seek emergency help if they have
+                # chest pain, fainting or similar. The check-in Red Flag path is where
+                # STOP_AND_SEEK_HELP is decided from evidence the user did give.
+                result_code = "SESSION_STOPPED"
                 self._repository.create_safety_event(
                     session,
                     event_id=self._uuid_factory(),
                     session_id=session_id,
                     occurred_at=request.stopped_at,
-                    symptom_code=request.symptom_code,
-                    body_area_code=(
-                        None if request.body_area_code is None else request.body_area_code.value
-                    ),
-                    nrs_score=request.nrs_score,
                     result_code=result_code,
                     completion_code=cast(str, completion_code),
                     rule_version="workout-safety-event-v2",

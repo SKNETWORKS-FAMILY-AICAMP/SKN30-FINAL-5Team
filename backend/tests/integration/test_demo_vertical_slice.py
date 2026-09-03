@@ -490,14 +490,12 @@ def test_in_session_severe_report_stops_session_and_blocks_pressure(client: Test
         headers=_key(),
         json={
             "occurred_at": "2026-08-17T10:10:00+09:00",
-            "body_area_code": "KNEE",
-            "nrs_score": 8,
         },
     )
     assert reported.status_code in {200, 201}, reported.text
     body = reported.json()
-    # Knee pain is not one of the emergency reactions, so the event stops the session
-    # without escalating to STOP_AND_SEEK_HELP.
+    # The stop reason is the whole input; no symptom detail is collected, so this path
+    # always ends in SESSION_STOPPED.
     assert body["result_code"] == "SESSION_STOPPED"
     assert body["execution_state_code"] == "STOPPED_SAFETY"
     assert body["completion_code"] in {"PARTIAL", "NOT_COMPLETED"}

@@ -21,7 +21,7 @@ ExercisePool retrieval 계약의 `PROPOSED` 초안이며 Qdrant metadata를 publ
 
 - 온보딩 request는 `date_of_birth`, `medical_exercise_restriction`, `weight_kg`, `primary_goal_code`, `experience_level_code`, `weekly_target_sessions`, `coaching_style_code`, `timezone`, `terms_version`, 분리된 consent를 사용한다. `date_of_birth`는 encrypted-at-rest이며 사용자 timezone 기준 18–64세 eligibility에만 사용한다.
 - Daily Check-in request는 `sleep_minutes`, `sleep_source_code`, `fatigue_level_code`, `available_time_minutes`, `location_code`, `pain_present`, `red_flag_present`, `pains[{body_area_code,intensity_score}]`를 사용한다. 근육통은 입력·Recovery 계산에 사용하지 않는다. NRS는 서버가 1–3/4–6/7–10으로 변환하고 정책 버전과 함께 저장한다.
-- 세션 중단 request는 `HIGH_FATIGUE`, `TIME_SHORTAGE`, `RESUME_LATER`, `PAIN_OR_ABNORMAL_RESPONSE`만 허용한다. 앞의 세 코드는 `STOPPED_RESUMABLE`과 당일 재개 가능 상태를 만들고, 마지막 코드는 Safety Event의 구조화 `symptom_code`, 선택적 `body_area_code`, 선택적 NRS(1–10)만 수집해 `STOPPED_SAFETY`와 비재개 상태를 만든다. Safety Event 응답은 `SESSION_STOPPED` 또는 `STOP_AND_SEEK_HELP`이다.
+- 세션 중단 request는 `HIGH_FATIGUE`, `TIME_SHORTAGE`, `RESUME_LATER`, `PAIN_OR_ABNORMAL_RESPONSE`만 허용한다. 앞의 세 코드는 `STOPPED_RESUMABLE`과 당일 재개 가능 상태를 만들고, 마지막 코드는 세부 증상 입력 없이 `STOPPED_SAFETY`와 비재개 상태를 만든다. 안전 이벤트 응답은 `SESSION_STOPPED` 또는 `STOP_AND_SEEK_HELP`이며 증상 data를 반환하지 않는다.
 - 완료 상태는 완료 블록 수에서 server-derived `COMPLETED`/`PARTIAL`/`NOT_COMPLETED`로 반환한다. 실행 상태와 타이머 누적값은 별도 반환한다.
 - 칼로리는 단일 `estimated_calories_burned`와 `calorie_source_code`(`WEARABLE`, `MET_ESTIMATE`, `UNAVAILABLE`)만 반환한다.
 
@@ -1553,14 +1553,14 @@ PATCH /api/v1/workout-sessions/{id}/stop
 `HIGH_FATIGUE`, `TIME_SHORTAGE`, `RESUME_LATER`는 `STOPPED_RESUMABLE`과
 `is_resumable=true`를 반환하고, `POST /timer-events`의 `RESUME`으로 `RUNNING`으로 전이한다.
 이때 기존 `status_code`는 `IN_PROGRESS`로 dual-write한다. `PAIN_OR_ABNORMAL_RESPONSE`는
-`symptom_code`와 선택적 `body_area_code`·`nrs_score`를 함께 보내 Safety Event를 생성하며 당일 재개할 수 없다.
+세부 증상 입력 없이 Safety Event를 생성하며 당일 재개할 수 없다.
 
 ### 12.4 운동 중 안전 이벤트
 
 POST /api/v1/workout-sessions/{id}/safety-events
 
 ~~~json
-{"occurred_at":"2026-09-03T10:22:00+09:00","symptom_code":"KNEE_PAIN","body_area_code":"KNEE","nrs_score":8}
+{"occurred_at":"2026-09-03T10:22:00+09:00"}
 ~~~
 
 응답:
@@ -1575,7 +1575,7 @@ SafetyEventResponse
 - guidance: Guidance
 ~~~
 
-Safety Event는 `symptom_code`, 선택적 `body_area_code`, 선택적 `nrs_score` 외의 상세 반응·자유서술·대체 운동을 받거나 반환하지 않는다. 현재 세션 전체를 종료하고 당일 이어하기·Skip 후 재개·Alternative를 차단한다. 안내 문구는 진단·치료·처방 없이 중단과, 지속·악화 시 도움 요청만 안내한다.
+서버는 선택 시점의 `plan_item_id`를 가능하면 자동 기록하지만, 증상 유형·통증 부위·NRS·자유서술·대체 운동을 받거나 반환하지 않는다. 현재 세션 전체를 종료하고 당일 이어하기·Skip 후 재개·Alternative를 차단한다. 안내 문구는 진단·치료·처방 없이 중단과, 지속·악화 시 도움 요청만 안내한다.
 
 ### 12.5 수행 종료
 

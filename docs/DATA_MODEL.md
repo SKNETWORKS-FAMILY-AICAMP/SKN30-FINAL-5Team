@@ -29,7 +29,7 @@ schema 또는 구현 완료로 간주하지 않으며 현재 `agent_proposals` �
 - `daily_contexts`에는 수면 source, 피로 코드, 10–60분, 장소, Red Flag를 저장한다. `daily_context_pains`는 `(daily_context_id, body_area_code)` unique, NRS 1–10, 파생 severity와 policy version을 저장한다.
 - 카탈로그는 `variant_difficulty_rank`, 승인 `met_value`, HOME 실행·생활용품 검수 상태를 additive하게 갖는다. 통증 기반 제외 관계는 카탈로그에 중복 저장하지 않고 `exercise_safety_rules`를 단일 기준으로 사용하며, `exercise_load_regions`와 `exercise_contraindicated_pain_regions`는 만들지 않는다(ADR-0018). 미검수 또는 필수 metadata 결측 운동은 적재 단계에서 배제하므로, 결정 경로에는 `DOMAIN_APPROVED` 운동만 도달한다.
 - decision snapshot 또는 typed decision table은 Recovery score·level·결측 코드·정책 버전과 Pain/Recovery의 effective load cap을 저장한다.
-- 세션은 실행 상태·목표/진행/휴식/일시정지 누적 시간·중단 사유·재개 가능 여부를 저장한다. Safety Event는 선택적 `plan_item_id`, result, occurred_at, rule version 및 구조화 `symptom_code`, 선택적 `body_area_code`, 선택적 NRS만 저장하며 자유서술·replacement는 저장하지 않는다.
+- 세션은 실행 상태·목표/진행/휴식/일시정지 누적 시간·중단 사유·재개 가능 여부를 저장한다. Safety Event는 선택적 `plan_item_id`, result, occurred_at, rule version만 저장하고 증상·NRS·자유서술·replacement를 저장하지 않는다.
 - 세션 kcal는 단일 값, 출처, 정책 버전과 최소 재현 snapshot을 저장한다. 웨어러블은 일별 수면 요약과 앱 세션 HR/kcal summary만 정규화해 저장한다.
 
 ---
@@ -1648,7 +1648,7 @@ hash·최초 응답을 저장한다. 같은 키와 다른 요청 hash는 거부�
 | rule_version | 적용한 workout safety event 규칙 버전 |
 | created_at | 서버 저장 시각 |
 
-신규 write는 `PAIN_OR_ABNORMAL_RESPONSE` 중단 사유에서만 이 row를 만들며, 구조화 `symptom_code`, 선택적 `body_area_code`, 선택적 NRS(1–10)만 저장한다. 자유서술·replacement는 저장하지 않는다. 세션은 `STOPPED_SAFETY`, `is_resumable=false`로 전이하고 공식 수행 상태는 최종 완료 블록 수로 `PARTIAL` 또는 `NOT_COMPLETED`를 계산한다. `workout_safety_event_discomforts`와 `workout_safety_event_adverse_reactions`는 historical row의 legacy read 전용이다.
+신규 write는 `PAIN_OR_ABNORMAL_RESPONSE` 중단 사유에서만 이 row를 만들며, 증상 유형·통증 부위·NRS·자유서술·replacement는 저장하지 않는다. 세션은 `STOPPED_SAFETY`, `is_resumable=false`로 전이하고 공식 수행 상태는 최종 완료 블록 수로 `PARTIAL` 또는 `NOT_COMPLETED`를 계산한다. `workout_safety_event_discomforts`와 `workout_safety_event_adverse_reactions`는 historical row의 legacy read 전용이다.
 
 ### 10.4 workout_feedback
 

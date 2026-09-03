@@ -106,9 +106,6 @@ class WorkoutSessionStopRequest(BaseModel):
     stop_reason_code: Literal[
         "HIGH_FATIGUE", "TIME_SHORTAGE", "RESUME_LATER", "PAIN_OR_ABNORMAL_RESPONSE"
     ]
-    symptom_code: MachineCode | None = None
-    body_area_code: BodyAreaCode | None = None
-    nrs_score: int | None = Field(default=None, ge=1, le=10)
 
 
 class WorkoutSessionStopResponse(BaseModel):
@@ -154,9 +151,6 @@ class WorkoutSafetyEventRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     occurred_at: AwareDatetime
-    symptom_code: MachineCode | None = None
-    body_area_code: BodyAreaCode | None = None
-    nrs_score: int | None = Field(default=None, ge=1, le=10)
 
 
 class WorkoutSafetyEventResponse(BaseModel):
