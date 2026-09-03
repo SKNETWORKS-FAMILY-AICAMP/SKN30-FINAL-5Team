@@ -28,6 +28,12 @@ class DecisionContext:
     candidate_supported_location_codes: tuple[str, ...] | None = None
     pains: tuple[tuple[str, int, str, str], ...] = ()
     red_flag_present: bool = False
+    # The most recent completed session's difficulty feedback, or None when the user has
+    # not answered yet. `DOMAIN_RULES.md` 6.1 reads only the latest one: the ladder moves
+    # a single axis and evaluates it through the next feedback, so older rows would apply
+    # an adjustment whose effect has already been measured.
+    latest_difficulty_code: str | None = None
+    latest_difficulty_reason_codes: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -39,6 +45,12 @@ class DecisionContext:
             self,
             "recent_workout_status_codes",
             tuple(self.recent_workout_status_codes),
+        )
+        # Sorted so the same feedback hashes identically regardless of row order.
+        object.__setattr__(
+            self,
+            "latest_difficulty_reason_codes",
+            tuple(sorted(set(self.latest_difficulty_reason_codes))),
         )
         for field_name in (
             "candidate_required_equipment_codes",
@@ -76,6 +88,10 @@ class DecisionContext:
             ],
             "adverse_reaction_codes": list(self.adverse_reaction_codes),
             "recent_workout_status_codes": list(self.recent_workout_status_codes),
+            "latest_difficulty_feedback": {
+                "difficulty_code": self.latest_difficulty_code,
+                "reason_codes": list(self.latest_difficulty_reason_codes),
+            },
             "candidate_constraints": {
                 "required_equipment_codes": (
                     None

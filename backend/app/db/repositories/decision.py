@@ -38,7 +38,11 @@ from backend.app.db.models.profile import (
     UserProfile,
 )
 from backend.app.db.models.routine import Routine, RoutineDay
-from backend.app.db.models.workout import WorkoutSession
+from backend.app.db.models.workout import (
+    WorkoutFeedback,
+    WorkoutFeedbackDifficultyReason,
+    WorkoutSession,
+)
 from backend.app.domain.agents.contracts import RecommendedActionCode
 from backend.app.domain.agents.coordinator import (
     CoordinatorCandidate,
@@ -244,6 +248,32 @@ class DecisionRepository:
                 .limit(7)
             ).all()
         )
+        # The latest answered feedback drives the adjustment ladder (DOMAIN_RULES 6.1).
+        # Bounded to sessions that ended before this context was last written, so a
+        # replay of the stored input reproduces the same decision.
+        latest_feedback = session.execute(
+            select(WorkoutFeedback.workout_session_id, WorkoutFeedback.difficulty_code)
+            .join(WorkoutSession, WorkoutSession.id == WorkoutFeedback.workout_session_id)
+            .where(
+                WorkoutSession.user_id == user_id,
+                WorkoutSession.ended_at.is_not(None),
+                WorkoutSession.ended_at <= daily.updated_at,
+            )
+            .order_by(WorkoutSession.ended_at.desc(), WorkoutSession.id.desc())
+            .limit(1)
+        ).first()
+        latest_difficulty_code = None if latest_feedback is None else latest_feedback[1]
+        latest_difficulty_reason_codes: tuple[str, ...] = ()
+        if latest_feedback is not None:
+            latest_difficulty_reason_codes = tuple(
+                sorted(
+                    session.scalars(
+                        select(WorkoutFeedbackDifficultyReason.reason_code).where(
+                            WorkoutFeedbackDifficultyReason.workout_session_id == latest_feedback[0]
+                        )
+                    ).all()
+                )
+            )
         required_equipment_codes = tuple(
             sorted(
                 set(
@@ -289,6 +319,8 @@ class DecisionRepository:
             supported_location_codes,
             pains,
             daily.red_flag_present,
+            latest_difficulty_code,
+            latest_difficulty_reason_codes,
         )
         item_data: list[CandidateItemData] = []
         main_durations: list[PlanItemDuration] = []

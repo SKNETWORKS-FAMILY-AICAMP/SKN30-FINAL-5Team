@@ -14,6 +14,7 @@ from backend.app.db.models.workout import (
     WorkoutAdditionalActivity,
     WorkoutFeedback,
     WorkoutFeedbackAdverseReaction,
+    WorkoutFeedbackDifficultyReason,
     WorkoutFeedbackDiscomfort,
     WorkoutSafetyEvent,
     WorkoutSafetyEventAdverseReaction,
@@ -425,6 +426,7 @@ class WorkoutRepository:
         pain_occurred: bool,
         discomforts: tuple[tuple[str, str], ...],
         adverse_reaction_codes: tuple[str, ...],
+        difficulty_reason_codes: tuple[str, ...],
         now: datetime,
     ) -> None:
         session.add(
@@ -454,6 +456,17 @@ class WorkoutRepository:
                     workout_session_id=session_id, reaction_code=reaction_code
                 )
                 for reaction_code in adverse_reaction_codes
+            ]
+        )
+        session.add_all(
+            [
+                WorkoutFeedbackDifficultyReason(
+                    id=uuid4(),
+                    workout_session_id=session_id,
+                    reason_code=reason_code,
+                    created_at=now,
+                )
+                for reason_code in difficulty_reason_codes
             ]
         )
         session.flush()

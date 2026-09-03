@@ -229,6 +229,7 @@ class WorkoutRepositoryPort(Protocol):
         pain_occurred: bool,
         discomforts: tuple[tuple[str, str], ...],
         adverse_reaction_codes: tuple[str, ...],
+        difficulty_reason_codes: tuple[str, ...],
         now: datetime,
     ) -> None: ...
 
