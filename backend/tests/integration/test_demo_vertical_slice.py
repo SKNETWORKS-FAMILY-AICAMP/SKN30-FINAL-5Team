@@ -280,6 +280,8 @@ def test_onboarding_rolls_back_when_initial_base_routine_cannot_be_created(
         json={
             "nickname": "rollback-user",
             "date_of_birth": "1997-08-11",
+            "medical_exercise_restriction": False,
+            "terms_version": "terms-v1.0.0",
             "primary_goal_code": "GENERAL_FITNESS",
             "experience_level_code": "BEGINNER",
             "timezone": DEMO_TIMEZONE,
