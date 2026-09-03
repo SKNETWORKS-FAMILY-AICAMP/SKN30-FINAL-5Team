@@ -174,13 +174,13 @@ const PREVIEW_REPORT: WeeklyReportResponse = {
     completed: 3,
     partial: 1,
     not_completed: 0,
-    stopped_for_safety: 0,
+    stopped_for_safety: 1,
   },
   weekday_failure_summary: {
     WEDNESDAY: {
       partial: 1,
       not_completed: 0,
-      stopped_for_safety: 0,
+      stopped_for_safety: 1,
     },
   },
   pattern_summary: {

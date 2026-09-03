@@ -6,18 +6,22 @@ import {
   DEFAULT_HOUSE_BACKGROUND_ID,
   DAILY_GIFT_BANANAS,
   HOUSE_ACTION_COST,
+  HOUSE_DAILY_QUESTS,
+  INTIMACY_DAILY_EARN_LIMIT,
+  INTIMACY_POINTS_PER_LEVEL,
   buildHouseView,
   buyItem,
-  claimDailyGift,
   createHouseState,
   feedMascot,
   grantWorkoutRewards,
   parseHouseState,
   petMascot,
   placeHouseItem,
+  recordGamePlay,
   registerVisit,
   restingPose,
   selectBackground,
+  settleHouseDay,
   type HouseState,
 } from '../src/features/house/houseModel';
 
@@ -100,13 +104,65 @@ describe('house rewards', () => {
   });
 });
 
-describe('daily gift and visits', () => {
-  it('gives the gift once a day', () => {
-    const claimed = claimDailyGift(createHouseState(), TODAY);
-    expect(claimed?.granted).toBe(DAILY_GIFT_BANANAS);
+describe('daily quests and visits', () => {
+  it('pays the visit quest once a day, at the amount the old gift paid', () => {
+    const visited = registerVisit(createHouseState(), TODAY);
+
+    const first = settleHouseDay(visited, {
+      today: TODAY,
+      workoutCompletedToday: false,
+    });
+    expect(first.granted).toBe(DAILY_GIFT_BANANAS);
+
+    const second = settleHouseDay(first.state, {
+      today: TODAY,
+      workoutCompletedToday: false,
+    });
+    expect(second.granted).toBe(0);
+    expect(second.state.bananas).toBe(DAILY_GIFT_BANANAS);
+  });
+
+  it('pays the workout quest only once the server says a session completed', () => {
+    const visited = registerVisit(createHouseState(), TODAY);
+    const workoutQuest = HOUSE_DAILY_QUESTS.find(
+      (quest) => quest.id === 'workout',
+    );
+
+    const resting = settleHouseDay(visited, {
+      today: TODAY,
+      workoutCompletedToday: false,
+    });
+    expect(resting.state.paidQuestIds).not.toContain('workout');
+    expect(resting.state.bananas).toBe(DAILY_GIFT_BANANAS);
+
+    const trained = settleHouseDay(resting.state, {
+      today: TODAY,
+      workoutCompletedToday: true,
+    });
+    expect(trained.granted).toBe(workoutQuest?.reward);
+    // The workout is the third source of intimacy, and it pays once.
+    expect(trained.state.intimacyPoints).toBe(1);
     expect(
-      claimDailyGift(claimed?.state ?? createHouseState(), TODAY),
-    ).toBeNull();
+      settleHouseDay(trained.state, {
+        today: TODAY,
+        workoutCompletedToday: true,
+      }).granted,
+    ).toBe(0);
+  });
+
+  it('never takes a quest reward back when a day ends unfinished', () => {
+    const yesterday = settleHouseDay(registerVisit(createHouseState(), TODAY), {
+      today: TODAY,
+      workoutCompletedToday: true,
+    });
+
+    const tomorrow = settleHouseDay(yesterday.state, {
+      today: '2026-08-23',
+      workoutCompletedToday: false,
+    });
+
+    expect(tomorrow.state.bananas).toBe(yesterday.state.bananas);
+    expect(tomorrow.state.intimacyPoints).toBe(yesterday.state.intimacyPoints);
   });
 
   it('records one visit per day and counts consecutive ones', () => {
@@ -132,14 +188,84 @@ describe('daily gift and visits', () => {
   });
 });
 
+describe('intimacy', () => {
+  it('lets the mascot be petted for free, as often as the user likes', () => {
+    let state = stateWith({ bananas: 0 });
+
+    for (let index = 0; index < INTIMACY_DAILY_EARN_LIMIT + 3; index += 1) {
+      state = petMascot(state, TODAY);
+    }
+
+    expect(state.bananas).toBe(0);
+    expect(state.pettedCount).toBe(INTIMACY_DAILY_EARN_LIMIT + 3);
+    // The touch always lands; only the intimacy it pays is capped.
+    expect(state.intimacyPoints).toBe(INTIMACY_DAILY_EARN_LIMIT);
+  });
+
+  it('starts the daily allowance over without touching what was earned', () => {
+    let state = stateWith({ bananas: 0 });
+    for (let index = 0; index < INTIMACY_DAILY_EARN_LIMIT; index += 1) {
+      state = petMascot(state, TODAY);
+    }
+
+    const next = petMascot(state, '2026-08-23');
+
+    expect(next.intimacyPoints).toBe(INTIMACY_DAILY_EARN_LIMIT + 1);
+    expect(next.pettedCount).toBe(1);
+  });
+
+  it('reads the level and the remaining allowance onto the view', () => {
+    const state = stateWith({
+      intimacyPoints: INTIMACY_POINTS_PER_LEVEL * 2 + 3,
+      intimacyLocalDate: TODAY,
+      intimacyEarnedToday: 2,
+    });
+
+    const view = buildHouseView({
+      state,
+      week: OPEN_WEEK,
+      sessions: [],
+      weekStart: WEEK_START,
+      today: TODAY,
+    });
+
+    expect(view.intimacyLevel).toBe(3);
+    expect(view.intimacyRemainingToday).toBe(INTIMACY_DAILY_EARN_LIMIT - 2);
+  });
+});
+
+describe('the banana catch game', () => {
+  it('opens once a day and reopens when the day turns', () => {
+    const played = recordGamePlay(createHouseState(), TODAY);
+
+    const todayView = buildHouseView({
+      state: played,
+      week: OPEN_WEEK,
+      sessions: [],
+      weekStart: WEEK_START,
+      today: TODAY,
+    });
+    expect(todayView.gamePlayedToday).toBe(true);
+    expect(todayView.canPlayGame).toBe(false);
+
+    const tomorrowView = buildHouseView({
+      state: played,
+      week: OPEN_WEEK,
+      sessions: [],
+      weekStart: WEEK_START,
+      today: '2026-08-23',
+    });
+    expect(tomorrowView.canPlayGame).toBe(true);
+  });
+});
+
 describe('spending', () => {
-  it('refuses feeding, petting and buying without enough bananas', () => {
-    const broke = stateWith({ bananas: HOUSE_ACTION_COST.pet - 1 });
+  it('refuses feeding and buying without enough bananas', () => {
+    const broke = stateWith({ bananas: HOUSE_ACTION_COST.feed - 1 });
 
     expect(feedMascot(broke, TODAY)).toBeNull();
-    expect(petMascot(broke, TODAY)).toBeNull();
     expect(buyItem(broke, 'yoga_mat')).toBeNull();
-    expect(broke.bananas).toBe(HOUSE_ACTION_COST.pet - 1);
+    expect(broke.bananas).toBe(HOUSE_ACTION_COST.feed - 1);
   });
 
   it('spends on an item once and keeps it', () => {

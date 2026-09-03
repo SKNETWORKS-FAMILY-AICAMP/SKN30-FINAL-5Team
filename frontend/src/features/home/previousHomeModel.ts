@@ -125,18 +125,18 @@ export function checkinDraftFromContext(
 ): HomeCheckinDraft {
   return {
     fatigueLevelCode: context.fatigue_level_code,
-    requestedDurationMinutes: context.requested_duration_minutes,
+    requestedDurationMinutes: context.available_time_minutes,
     sleepHours:
       context.sleep_minutes === null || context.sleep_minutes === undefined
         ? ''
         : String(Math.round((context.sleep_minutes / 60) * 10) / 10),
     discomforts: Object.fromEntries(
-      context.discomforts.map((entry) => [
+      (context.discomforts ?? []).map((entry) => [
         entry.body_area_code,
         entry.severity_code,
       ]),
     ),
-    adverseReactionCodes: [...context.adverse_reaction_codes],
+    adverseReactionCodes: [...(context.adverse_reaction_codes ?? [])],
   };
 }
 

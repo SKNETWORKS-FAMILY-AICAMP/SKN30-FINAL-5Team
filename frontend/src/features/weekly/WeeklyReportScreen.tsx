@@ -431,14 +431,29 @@ function ReportDetails({
             <Count label="부분" tone="partial" value={report.counts.partial} />
             <Count
               label="미수행"
+              testID="weekly-report-not-completed-count"
               tone="muted"
               value={report.counts.not_completed}
             />
-            <Count
-              label="안전 중단"
-              tone="danger"
-              value={report.counts.stopped_for_safety}
-            />
+          </View>
+
+          <View
+            accessibilityLabel={`운동 중 안전 중단 ${report.counts.stopped_for_safety}회`}
+            style={styles.safetyStoppedCard}
+            testID="weekly-report-safety-stopped-count"
+          >
+            <View style={styles.safetyStoppedCopy}>
+              <Text style={styles.safetyStoppedLabel}>운동 중 안전 중단</Text>
+              <Text style={styles.safetyStoppedNote}>
+                일반 미수행과 구분한 별도 안전 기록이에요.
+              </Text>
+            </View>
+            <View style={styles.safetyStoppedValueRow}>
+              <Text style={styles.safetyStoppedValue}>
+                {report.counts.stopped_for_safety}
+              </Text>
+              <Text style={styles.safetyStoppedUnit}>회</Text>
+            </View>
           </View>
 
           <View style={styles.rateRow}>
@@ -724,15 +739,17 @@ function NextPlanApplicationCard({
 
 function Count({
   label,
+  testID,
   tone,
   value,
 }: {
   label: string;
+  testID?: string;
   tone: 'success' | 'partial' | 'muted' | 'danger';
   value: number;
 }) {
   return (
-    <View style={styles.count}>
+    <View style={styles.count} testID={testID}>
       <Text
         style={[
           styles.countValue,
@@ -1078,6 +1095,46 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
   },
+  safetyStoppedCard: {
+    minHeight: 66,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: colors.dangerBorder,
+    borderRadius: 14,
+    backgroundColor: colors.dangerSurface,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+  },
+  safetyStoppedCopy: {
+    minWidth: 0,
+    flex: 1,
+    gap: 3,
+  },
+  safetyStoppedLabel: {
+    color: colors.danger,
+    fontSize: 12.5,
+    fontWeight: '800',
+  },
+  safetyStoppedNote: {
+    color: colors.textMuted,
+    fontSize: 10.5,
+    lineHeight: 16,
+  },
+  safetyStoppedValueRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 2,
+  },
+  safetyStoppedValue: {
+    color: colors.danger,
+    fontSize: 21,
+    fontWeight: '900',
+  },
+  safetyStoppedUnit: { color: colors.danger, fontSize: 11, fontWeight: '800' },
   rateRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -137,6 +137,8 @@ type WorkoutApiProps = {
   sessionId: string;
   plan: WorkoutPlan;
   onOutcome: (outcome: SessionOutcome) => void;
+  /** Keeps an IN_PROGRESS session resumable while the backend stop state evolves. */
+  onReturnHomeResumable?: () => void;
 };
 
 type WorkoutScreenProps = WorkoutPreviewProps | WorkoutApiProps;
@@ -995,26 +997,39 @@ function WorkoutScreenContent({
           ]}
         >
           <View testID="workout-header-top-row" style={styles.headerTopRow}>
-            <View style={styles.timerCopy}>
-              <Text
-                style={[
-                  styles.timerCaption,
-                  {
-                    fontSize: 11.5 * layoutScale,
-                    letterSpacing: 0.6 * layoutScale,
-                  },
-                ]}
-              >
-                {timerCaption}
-              </Text>
+            <View testID="workout-timer-card" style={styles.timerCopy}>
+              <View style={styles.timerMetaRow}>
+                <View style={styles.timerStatusBadge}>
+                  <View
+                    style={[
+                      styles.timerStatusDot,
+                      paused && styles.timerStatusDotPaused,
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.timerCaption,
+                      {
+                        fontSize: 11.5 * layoutScale,
+                        letterSpacing: 0.45 * layoutScale,
+                      },
+                    ]}
+                  >
+                    {timerCaption}
+                  </Text>
+                </View>
+                <Text style={styles.targetTime}>
+                  목표 {targetDurationMinutes}분
+                </Text>
+              </View>
               <Text
                 accessibilityLabel={`진행 시간 ${formatWorkoutTime(elapsedSeconds)} / 목표 시간 ${targetDurationMinutes}분`}
                 style={[
                   styles.timer,
                   {
-                    fontSize: 38 * layoutScale,
-                    letterSpacing: layoutScale,
-                    lineHeight: 40 * layoutScale,
+                    fontSize: 46 * layoutScale,
+                    letterSpacing: 1.6 * layoutScale,
+                    lineHeight: 48 * layoutScale,
                   },
                   useJua && styles.timerBrand,
                   paused && styles.timerPaused,
@@ -1022,9 +1037,7 @@ function WorkoutScreenContent({
               >
                 {formatWorkoutTime(elapsedSeconds)}
               </Text>
-              <Text style={styles.targetTime}>
-                목표 시간 {targetDurationMinutes}분
-              </Text>
+              <Text style={styles.elapsedLabel}>ELAPSED TIME</Text>
             </View>
             <View style={styles.timerActions}>
               <Pressable
@@ -1311,10 +1324,11 @@ function WorkoutScreenContent({
           disabled={paused}
           onPress={openRest}
           style={({ pressed }) => [
+            styles.smashAction,
             styles.restAction,
             {
-              width: 108 * layoutScale,
-              height: 52 * layoutScale,
+              width: 154 * layoutScale,
+              height: 58 * layoutScale,
               borderRadius: 18 * layoutScale,
               paddingHorizontal: 8 * layoutScale,
             },
@@ -1323,6 +1337,15 @@ function WorkoutScreenContent({
           ]}
           testID="workout-rest-action"
         >
+          <LinearGradient
+            colors={['#FAFAF8', '#EEEDE9', '#DDDCD7']}
+            end={{ x: 0.5, y: 1 }}
+            locations={[0, 0.55, 1]}
+            pointerEvents="none"
+            start={{ x: 0.5, y: 0 }}
+            style={styles.smashActionGradient}
+            testID="workout-rest-gradient"
+          />
           <View style={styles.restActionContent}>
             <TimerMark />
             <Text style={styles.restActionText}>휴식</Text>
@@ -1430,6 +1453,10 @@ function WorkoutScreenContent({
             if (apiConfig === undefined) {
               onNotCompleted?.(selectedStopReason);
               setPreviewResult('stopped');
+              return;
+            }
+            if (apiConfig.onReturnHomeResumable) {
+              apiConfig.onReturnHomeResumable();
               return;
             }
             if (completedCount === 0) {
@@ -2841,28 +2868,80 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
-  timerCopy: { minWidth: 0 },
+  timerCopy: {
+    minWidth: 0,
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,.72)',
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,248,229,.94)',
+    paddingTop: 10,
+    paddingRight: 14,
+    paddingBottom: 10,
+    paddingLeft: 14,
+    shadowColor: '#9A650D',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.12,
+    shadowRadius: 9,
+    elevation: 3,
+  },
+  timerMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  timerStatusBadge: {
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 999,
+    backgroundColor: '#FFE7B0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  timerStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: '#C26F00',
+  },
+  timerStatusDotPaused: { backgroundColor: '#8A8179' },
   timerCaption: {
     color: colors.text,
     fontSize: 11.5,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-    opacity: 0.85,
+    fontWeight: '800',
+    letterSpacing: 0.45,
   },
   timer: {
-    marginTop: 2,
+    marginTop: 5,
     color: colors.text,
-    fontSize: 38,
-    fontWeight: '600',
-    letterSpacing: 1,
-    lineHeight: 40,
+    fontSize: 46,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+    letterSpacing: 1.6,
+    lineHeight: 48,
   },
   targetTime: {
-    marginTop: 3,
-    color: colors.text,
-    fontSize: 12.5,
-    fontWeight: '700',
-    opacity: 0.82,
+    flexShrink: 0,
+    borderWidth: 1,
+    borderColor: '#E7CAA0',
+    borderRadius: 999,
+    backgroundColor: '#FFFDF8',
+    color: colors.textSub,
+    fontSize: 11.5,
+    fontWeight: '800',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  elapsedLabel: {
+    marginTop: -1,
+    color: colors.textSub,
+    fontSize: 8.5,
+    fontWeight: '800',
+    letterSpacing: 1.3,
+    opacity: 0.72,
   },
   timerPaused: { opacity: 0.55 },
   timerBrand: { fontFamily: fontFamilies.brand },
@@ -3307,16 +3386,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   restAction: {
-    height: 58,
-    flexGrow: 0,
-    flexShrink: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: 18,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 8,
+    borderColor: '#AAA8A1',
+    shadowColor: '#74716B',
+    shadowOpacity: 0.14,
   },
   restActionContent: {
     flexDirection: 'row',
@@ -3324,7 +3396,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 7,
   },
-  restActionText: { color: colors.textSub, fontSize: 15, fontWeight: '800' },
+  restActionText: {
+    color: '#55534E',
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
   pressed: { opacity: 0.82 },
   restSheet: {
     position: 'absolute',

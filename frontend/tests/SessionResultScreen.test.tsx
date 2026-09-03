@@ -173,6 +173,65 @@ describe('SessionResultScreen feedback', () => {
     expect(await screen.findByText('피드백을 저장했어요.')).toBeOnTheScreen();
   });
 
+  it('shows multi-select details only when the workout felt hard', () => {
+    render(
+      <SessionResultScreen
+        api={{ submitFeedback: jest.fn() } as unknown as Api}
+        sessionId="session-result"
+        outcome={finished}
+        onDone={jest.fn()}
+      />,
+    );
+
+    expect(screen.queryByText(/어떤 점이 어려웠나요/)).toBeNull();
+
+    fireEvent.press(screen.getByRole('radio', { name: '어려워요' }));
+
+    expect(
+      screen.getByText('어떤 점이 어려웠나요? (복수 선택)'),
+    ).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: '피드백 저장' })).toBeDisabled();
+
+    const formDifficulty = screen.getByRole('checkbox', {
+      name: '자세가 어려웠어요',
+    });
+    const highIntensity = screen.getByRole('checkbox', {
+      name: '강도가 높았어요',
+    });
+
+    fireEvent.press(formDifficulty);
+    fireEvent.press(highIntensity);
+
+    expect(formDifficulty.props.accessibilityState).toEqual({ checked: true });
+    expect(highIntensity.props.accessibilityState).toEqual({ checked: true });
+    expect(screen.getByRole('button', { name: '피드백 저장' })).toBeEnabled();
+  });
+
+  it('clears hard-workout details after another difficulty is selected', () => {
+    render(
+      <SessionResultScreen
+        api={{ submitFeedback: jest.fn() } as unknown as Api}
+        sessionId="session-result"
+        outcome={finished}
+        onDone={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('radio', { name: '어려워요' }));
+    fireEvent.press(
+      screen.getByRole('checkbox', { name: '자세가 어려웠어요' }),
+    );
+    fireEvent.press(screen.getByRole('radio', { name: '적당했어요' }));
+    expect(screen.queryByText(/어떤 점이 어려웠나요/)).toBeNull();
+
+    fireEvent.press(screen.getByRole('radio', { name: '어려워요' }));
+    expect(
+      screen.getByRole('checkbox', { name: '자세가 어려웠어요' }).props
+        .accessibilityState,
+    ).toEqual({ checked: false });
+    expect(screen.getByRole('button', { name: '피드백 저장' })).toBeDisabled();
+  });
+
   it('also exposes feedback after a not-completed outcome', () => {
     render(
       <SessionResultScreen

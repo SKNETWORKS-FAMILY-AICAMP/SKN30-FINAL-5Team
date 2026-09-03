@@ -150,15 +150,40 @@ function dailyContext(): DailyContextResponse {
     local_date: '2026-08-17',
     context_version: 1,
     fatigue_level_code: 'MODERATE',
-    requested_duration_minutes: 30,
-    duration_adjustment_source_code: 'PROFILE',
+    available_time_minutes: 30,
     location_code: 'HOME',
     sleep_minutes: 420,
-    discomforts: [],
-    adverse_reaction_codes: [],
+    sleep_source_code: 'MANUAL',
+    pain_present: false,
+    red_flag_present: false,
+    pains: [],
     created_at: '2026-08-17T00:00:00+09:00',
     updated_at: '2026-08-17T00:00:00+09:00',
   };
+}
+
+function submitRequiredCheckin(): void {
+  if (screen.queryByLabelText('원하는 운동 시간 미선택')) {
+    for (let count = 0; count < 3; count += 1) {
+      fireEvent.press(
+        screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
+      );
+    }
+  }
+  const noRedFlag = screen.queryByRole('button', {
+    name: '위험 신호 없어요',
+  });
+  const yesRedFlag = screen.queryByRole('button', {
+    name: '위험 신호 있어요',
+  });
+  if (
+    noRedFlag &&
+    !noRedFlag.props.accessibilityState?.selected &&
+    !yesRedFlag?.props.accessibilityState?.selected
+  ) {
+    fireEvent.press(noRedFlag);
+  }
+  fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
 }
 
 function week(): WeekResponse {
@@ -638,15 +663,17 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     await waitFor(() => expect(createDecision).toHaveBeenCalled());
     expect(replaceDailyContext).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
         fatigue_level_code: 'MODERATE',
-        discomforts: [],
-        adverse_reaction_codes: [],
+        available_time_minutes: 30,
+        pain_present: false,
+        pains: [],
+        red_flag_present: false,
       }),
       undefined,
     );
@@ -692,7 +719,7 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     await waitFor(() =>
       expect(onDecisionChange).toHaveBeenCalledWith(recovered),
@@ -740,7 +767,7 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     const retry = await screen.findByRole('button', {
       name: '루틴 생성 다시 시도',
@@ -782,9 +809,10 @@ describe('HomeContainer', () => {
     );
 
     fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+      await screen.findByRole('button', { name: '다른 루틴 추천 받기' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: /체크인\s*!/ }));
+    fireEvent.press(screen.getByRole('button', { name: '피곤해요' }));
+    submitRequiredCheckin();
 
     await waitFor(() =>
       expect(onDecisionChange).toHaveBeenCalledWith(recovered),
@@ -828,9 +856,10 @@ describe('HomeContainer', () => {
     );
 
     fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+      await screen.findByRole('button', { name: '다른 루틴 추천 받기' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    fireEvent.press(screen.getByRole('button', { name: '피곤해요' }));
+    submitRequiredCheckin();
 
     const retry = await screen.findByRole('button', {
       name: '루틴 생성 다시 시도',
@@ -871,9 +900,10 @@ describe('HomeContainer', () => {
     );
 
     fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+      await screen.findByRole('button', { name: '다른 루틴 추천 받기' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    fireEvent.press(screen.getByRole('button', { name: '피곤해요' }));
+    submitRequiredCheckin();
 
     expect(
       await screen.findByText('추가 입력이 필요합니다.'),
@@ -905,7 +935,7 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     await waitFor(() => expect(createDecision).toHaveBeenCalled());
     expect(screen.getByTestId('routine-generation-loading')).toBeOnTheScreen();
@@ -960,7 +990,7 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     await waitFor(() => expect(onDecisionChange).toHaveBeenCalledWith(stopped));
     expect(screen.queryByTestId('routine-generation-loading')).toBeNull();
@@ -978,22 +1008,21 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     await waitFor(() => expect(replaceDailyContext).toHaveBeenCalled());
     expect(replaceDailyContext).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ sleep_minutes: null, available_slots: null }),
+      expect.objectContaining({
+        sleep_minutes: null,
+        sleep_source_code: null,
+      }),
       undefined,
     );
   });
 
-  it('preserves stored optional check-in codes that have no approved UI choices', async () => {
-    const storedContext = {
-      ...dailyContext(),
-      fasting_state_code: 'FASTED',
-      hydration_state_code: 'LOW',
-    };
+  it('preserves the stored daily values when re-checking in', async () => {
+    const storedContext = dailyContext();
     const replaceDailyContext = jest.fn(async () => storedContext);
     renderHome(
       homeApi({
@@ -1006,20 +1035,20 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     await waitFor(() => expect(replaceDailyContext).toHaveBeenCalled());
     expect(replaceDailyContext).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
-        fasting_state_code: 'FASTED',
-        hydration_state_code: 'LOW',
+        available_time_minutes: 30,
+        red_flag_present: false,
       }),
       storedContext.context_version,
     );
   });
 
-  it('sends discomfort severity and adverse reactions as stable API codes', async () => {
+  it('sends NRS pain scores and a combined Red Flag answer', async () => {
     const replaceDailyContext = jest.fn(async () => dailyContext());
     renderHome(
       homeApi({
@@ -1033,28 +1062,35 @@ describe('HomeContainer', () => {
     );
     fireEvent.press(screen.getByRole('button', { name: '통증 있어요' }));
     fireEvent.press(screen.getByRole('button', { name: '무릎' }));
-    fireEvent.press(screen.getByRole('button', { name: '무릎 심해요' }));
-    fireEvent.press(screen.getByRole('button', { name: '주의 증상 있어요' }));
-    fireEvent.press(screen.getByRole('button', { name: '심한 어지럼' }));
+    for (let count = 1; count < 7; count += 1) {
+      fireEvent(
+        screen.getByTestId('checkin-pain-intensity-slider-무릎'),
+        'accessibilityAction',
+        { nativeEvent: { actionName: 'increment' } },
+      );
+    }
+    fireEvent.press(screen.getByRole('button', { name: '위험 신호 있어요' }));
     fireEvent.changeText(
       screen.getByLabelText('어젯밤 수면 시간 (시간)'),
       '6.5',
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     await waitFor(() => expect(replaceDailyContext).toHaveBeenCalled());
     expect(replaceDailyContext).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
         sleep_minutes: 390,
-        discomforts: [{ body_area_code: 'KNEE', severity_code: 'SEVERE' }],
-        adverse_reaction_codes: ['SEVERE_DIZZINESS'],
+        sleep_source_code: 'MANUAL',
+        pain_present: true,
+        pains: [{ body_area_code: 'KNEE', intensity_score: 7 }],
+        red_flag_present: true,
       }),
       undefined,
     );
   });
 
-  it('sends multiple discomforts and the selected daily location', async () => {
+  it('sends multiple NRS pains and the selected daily location', async () => {
     const replaceDailyContext = jest.fn(async () => dailyContext());
     const customMe = me();
     customMe.profile = {
@@ -1076,19 +1112,27 @@ describe('HomeContainer', () => {
     fireEvent.press(screen.getByRole('button', { name: '헬스장' }));
     fireEvent.press(screen.getByRole('button', { name: '통증 있어요' }));
     fireEvent.press(screen.getByRole('button', { name: '어깨' }));
-    fireEvent.press(screen.getByRole('button', { name: '어깨 보통이에요' }));
     fireEvent.press(screen.getByRole('button', { name: '무릎' }));
-    fireEvent.press(screen.getByRole('button', { name: '무릎 심해요' }));
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    fireEvent(
+      screen.getByTestId('checkin-pain-intensity-slider-어깨'),
+      'accessibilityAction',
+      { nativeEvent: { actionName: 'increment' } },
+    );
+    fireEvent(
+      screen.getByTestId('checkin-pain-intensity-slider-무릎'),
+      'accessibilityAction',
+      { nativeEvent: { actionName: 'increment' } },
+    );
+    submitRequiredCheckin();
 
     await waitFor(() => expect(replaceDailyContext).toHaveBeenCalled());
     expect(replaceDailyContext).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
         location_code: 'GYM',
-        discomforts: [
-          { body_area_code: 'SHOULDER', severity_code: 'MODERATE' },
-          { body_area_code: 'KNEE', severity_code: 'SEVERE' },
+        pains: [
+          { body_area_code: 'SHOULDER', intensity_score: 2 },
+          { body_area_code: 'KNEE', intensity_score: 2 },
         ],
       }),
       undefined,
@@ -1167,7 +1211,7 @@ describe('HomeContainer', () => {
       await screen.findByRole('button', { name: '다시 체크인하기' }),
     );
     expect(screen.getByText('오늘 컨디션 체크')).toBeOnTheScreen();
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     await waitFor(() => expect(createDecision).toHaveBeenCalled());
     expect(screen.getByTestId('routine-generation-loading')).toBeOnTheScreen();
@@ -1237,7 +1281,7 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '다시 체크인하기' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     expect(await screen.findByTestId('home-action-error')).toBeOnTheScreen();
     expect(screen.getByText('요청을 완료하지 못했어요')).toBeOnTheScreen();
@@ -1295,13 +1339,13 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     expect(await screen.findByTestId('home-action-error')).toBeOnTheScreen();
     expect(screen.queryByTestId('home-routine-state')).toBeNull();
 
     fireEvent.press(screen.getByRole('button', { name: '오늘 루틴 체크인' }));
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     await waitFor(() => expect(replaceDailyContext).toHaveBeenCalledTimes(2));
     expect(replaceDailyContext).toHaveBeenLastCalledWith(
@@ -1335,7 +1379,7 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '다시 체크인하기' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     await waitFor(() =>
       expect(onCheckinDecisionSuccess).toHaveBeenCalledTimes(1),
@@ -1371,7 +1415,7 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '다시 체크인하기' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+    submitRequiredCheckin();
 
     await screen.findByTestId('home-action-error');
     expect(onCheckinDecisionSuccess).not.toHaveBeenCalled();
@@ -1392,6 +1436,7 @@ describe('HomeContainer', () => {
     const onDecisionChange = jest.fn();
     renderHome(
       homeApi({
+        getDailyContext: jest.fn(async () => dailyContext()),
         regenerateDecision,
       }),
       { decision: decision(), onDecisionChange },
@@ -1400,6 +1445,7 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '다른 루틴 추천 받기' }),
     );
+    submitRequiredCheckin();
 
     await waitFor(() => {
       expect(regenerateDecision).toHaveBeenCalledWith('decision-1', {
@@ -1787,11 +1833,11 @@ describe('default fetch binding', () => {
 });
 
 describe('OnboardingScreen', () => {
-  it('omits redundant descriptions from the first five steps', () => {
+  it('keeps concise context only where the latest policy needs it', () => {
     expect(ONBOARDING_STEPS.slice(0, 5).map(({ intro }) => intro)).toEqual([
       '',
-      '',
-      '',
+      '안전한 운동 계획을 위해 현재 서비스가 지원하는 범위인지 확인해요.',
+      '체중은 예상 소모 칼로리 계산에만 사용해요.',
       '',
       '',
     ]);
@@ -1800,13 +1846,11 @@ describe('OnboardingScreen', () => {
   function fillRequiredOnboardingSteps({
     attentionArea,
     birthdate = '1997-08-11',
-    selectLocations,
-    selectOptionalPreferences = true,
+    selectConciseCoaching = true,
   }: {
     attentionArea?: string;
     birthdate?: string;
-    selectLocations?: () => void;
-    selectOptionalPreferences?: boolean;
+    selectConciseCoaching?: boolean;
   } = {}) {
     fireEvent.changeText(
       screen.getByPlaceholderText('앱에서 불릴 이름'),
@@ -1817,9 +1861,8 @@ describe('OnboardingScreen', () => {
     fireEvent.press(screen.getByLabelText(`월 ${month}월`));
     fireEvent.press(screen.getByLabelText(`일 ${day}일`));
     fireEvent.press(screen.getByText('다음'));
-    fireEvent.press(screen.getByText('여성'));
+    fireEvent.press(screen.getByText('아니요'));
     fireEvent.press(screen.getByText('다음'));
-    fireEvent.changeText(screen.getByLabelText('키'), '172.4');
     fireEvent.changeText(screen.getByLabelText('체중'), '68.5');
     fireEvent.press(screen.getByText('다음'));
     fireEvent.press(screen.getByText('체력 증진'));
@@ -1829,16 +1872,9 @@ describe('OnboardingScreen', () => {
       expect.objectContaining({ selected: true }),
     );
     fireEvent.press(screen.getByText('다음'));
-    if (selectOptionalPreferences) {
+    if (selectConciseCoaching) {
       fireEvent.press(screen.getByText('딱 필요한 만큼'));
     }
-    fireEvent.press(screen.getByText('다음'));
-    if (selectLocations) {
-      selectLocations();
-    } else {
-      fireEvent.press(screen.getByText('집'));
-    }
-    fireEvent.press(screen.getByText('다음'));
     fireEvent.press(screen.getByText('다음'));
     fireEvent.press(screen.getByText('다음'));
     if (attentionArea) {
@@ -1851,6 +1887,9 @@ describe('OnboardingScreen', () => {
   }
 
   function acceptRequiredConsents() {
+    fireEvent.press(
+      screen.getByRole('checkbox', { name: '서비스 이용약관 동의' }),
+    );
     fireEvent.press(
       screen.getByRole('checkbox', { name: '개인정보 수집 및 이용' }),
     );
@@ -1884,13 +1923,15 @@ describe('OnboardingScreen', () => {
       />,
     );
 
-    expect(screen.getByText('1 / 11')).toBeOnTheScreen();
+    expect(screen.getByText('1 / 9')).toBeOnTheScreen();
     expect(screen.getByText('기본 정보를 알려주세요')).toBeOnTheScreen();
     expect(
-      screen.queryByText('만 14세 이상만 선택할 수 있어요.'),
+      screen.queryByText('만 18세 이상만 선택할 수 있어요.'),
     ).not.toBeOnTheScreen();
     expect(screen.queryByText(/선택 가능한 최근 날짜는/)).not.toBeOnTheScreen();
-    expect(screen.queryByText('성별을 선택해주세요')).not.toBeOnTheScreen();
+    expect(
+      screen.queryByText('운동 지원 범위를 확인해주세요'),
+    ).not.toBeOnTheScreen();
 
     fireEvent.changeText(
       screen.getByPlaceholderText('앱에서 불릴 이름'),
@@ -1901,16 +1942,16 @@ describe('OnboardingScreen', () => {
     fireEvent.press(screen.getByLabelText('일 11일'));
     fireEvent.press(screen.getByText('다음'));
 
-    expect(screen.getByText('2 / 11')).toBeOnTheScreen();
-    expect(screen.getByText('성별을 선택해주세요')).toBeOnTheScreen();
+    expect(screen.getByText('2 / 9')).toBeOnTheScreen();
+    expect(screen.getByText('운동 지원 범위를 확인해주세요')).toBeOnTheScreen();
     expect(
       screen.queryByText('맞춤 운동 추천에 참고해요.'),
     ).not.toBeOnTheScreen();
     expect(
       screen.queryByText('운동 강도와 권장 범위를 조정하는 데 사용해요.'),
     ).not.toBeOnTheScreen();
-    expect(screen.getByText('여성')).toBeOnTheScreen();
-    expect(screen.getByText('남성')).toBeOnTheScreen();
+    expect(screen.getByText('아니요')).toBeOnTheScreen();
+    expect(screen.getByText('예')).toBeOnTheScreen();
     expect(screen.queryByText('선택 안 함')).not.toBeOnTheScreen();
     expect(screen.queryByText('기본 정보를 알려주세요')).not.toBeOnTheScreen();
   });
@@ -1934,7 +1975,7 @@ describe('OnboardingScreen', () => {
     );
 
     const today = new Date();
-    const latestEligibleYear = today.getFullYear() - 14;
+    const latestEligibleYear = today.getFullYear() - 18;
     const latestEligibleMonth = today.getMonth() + 1;
     const latestEligibleDay = Math.min(
       today.getDate(),
@@ -1988,7 +2029,7 @@ describe('OnboardingScreen', () => {
     expect(screen.queryByLabelText('일 30일')).not.toBeOnTheScreen();
     fireEvent.press(screen.getByLabelText('일 28일'));
     fireEvent.press(screen.getByText('다음'));
-    expect(screen.getByText('2 / 11')).toBeOnTheScreen();
+    expect(screen.getByText('2 / 9')).toBeOnTheScreen();
   });
 
   it('uses the revised onboarding copy without the removed helper text', () => {
@@ -2045,40 +2086,12 @@ describe('OnboardingScreen', () => {
       screen.queryByText('선택하지 않으면 기본 안내 방식으로 시작해요.'),
     ).not.toBeOnTheScreen();
     expect(
-      StyleSheet.flatten(screen.getByText('선택').props.style),
+      StyleSheet.flatten(screen.getByText('필수').props.style),
     ).toMatchObject({ fontSize: 9, lineHeight: 12 });
     coachingStyle.unmount();
 
-    const location = render(
-      <OnboardingScreen {...screenProps} initialStep={7} />,
-    );
-    expect(screen.getByText('어디에서 운동할 예정인가요?')).toBeOnTheScreen();
-    expect(
-      screen.getByText('운동할 수 있는 장소를 모두 선택해주세요.'),
-    ).toBeOnTheScreen();
-    fireEvent.press(screen.getByText('집'));
-    expect(screen.queryByText('주로 운동할 장소')).not.toBeOnTheScreen();
-    fireEvent.press(screen.getByText('헬스장'));
-    expect(screen.getByText('주로 운동할 장소')).toBeOnTheScreen();
-    expect(
-      screen.getByText('선택한 장소 중 가장 자주 이용할 곳을 골라주세요.'),
-    ).toBeOnTheScreen();
-    expect(
-      screen.getAllByText('운동 계획을 만들 때 이 장소를 우선 반영해요.'),
-    ).toHaveLength(2);
-    location.unmount();
-
-    const duration = render(
-      <OnboardingScreen {...screenProps} initialStep={8} />,
-    );
-    expect(screen.getByText('한 번에 얼마나 운동할까요?')).toBeOnTheScreen();
-    expect(
-      screen.getByText('선택한 시간에 맞춰 운동 계획을 만들어드려요.'),
-    ).toBeOnTheScreen();
-    duration.unmount();
-
     const frequency = render(
-      <OnboardingScreen {...screenProps} initialStep={9} />,
+      <OnboardingScreen {...screenProps} initialStep={7} />,
     );
     expect(screen.getByText('일주일에 몇 번 운동할까요?')).toBeOnTheScreen();
     expect(
@@ -2087,7 +2100,7 @@ describe('OnboardingScreen', () => {
     frequency.unmount();
 
     const attention = render(
-      <OnboardingScreen {...screenProps} initialStep={10} />,
+      <OnboardingScreen {...screenProps} initialStep={8} />,
     );
     expect(screen.getByText('평소에 통증 부위가 있나요?')).toBeOnTheScreen();
     expect(screen.getByText('평소에 통증 부위가 있나요?')).toHaveProp(
@@ -2105,7 +2118,7 @@ describe('OnboardingScreen', () => {
     ).not.toBeOnTheScreen();
     attention.unmount();
 
-    render(<OnboardingScreen {...screenProps} initialStep={11} />);
+    render(<OnboardingScreen {...screenProps} initialStep={9} />);
     expect(
       screen.queryByText('필수 2개만 동의하면 시작할 수 있어요.'),
     ).not.toBeOnTheScreen();
@@ -2230,20 +2243,24 @@ describe('OnboardingScreen', () => {
     }
   });
 
-  it('separates four consent checkboxes into required and optional items', () => {
+  it('separates five consent checkboxes into required and optional items', () => {
     render(
       <OnboardingScreen
         api={stubApi()}
-        initialStep={11}
+        initialStep={9}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
     );
 
-    const requiredLabels = ['개인정보 수집 및 이용', '건강 관련 민감정보 처리'];
+    const requiredLabels = [
+      '서비스 이용약관 동의',
+      '개인정보 수집 및 이용',
+      '건강 관련 민감정보 처리',
+    ];
     const optionalLabels = ['웨어러블 연동', '마케팅 정보 수신'];
 
-    expect(screen.getAllByRole('checkbox')).toHaveLength(4);
+    expect(screen.getAllByRole('checkbox')).toHaveLength(5);
     expect(
       screen.getByText(
         '선택 항목은 동의하지 않아도 서비스를 이용할 수 있어요.',
@@ -2278,13 +2295,14 @@ describe('OnboardingScreen', () => {
     render(
       <OnboardingScreen
         api={stubApi()}
-        initialStep={11}
+        initialStep={9}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
     );
 
     [
+      '서비스 지원 범위와 이용 기준을 확인하고 동의해요.',
       '입력한 정보를 운동 계획을 만드는 데 활용해요.',
       '통증과 컨디션 정보를 안전한 운동 계획을 만드는 데 활용해요.',
       '웨어러블 데이터를 운동 계획에 참고해요.',
@@ -2294,11 +2312,11 @@ describe('OnboardingScreen', () => {
     });
   });
 
-  it('names every remaining required consent and enables submission only after both are checked', () => {
+  it('names every required consent and enables submission only after all three are checked', () => {
     render(
       <OnboardingScreen
         api={stubApi()}
-        initialStep={11}
+        initialStep={9}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
@@ -2318,7 +2336,7 @@ describe('OnboardingScreen', () => {
       screen.getByRole('checkbox', { name: '개인정보 수집 및 이용' }),
     );
     expect(
-      screen.getByText('필수 동의 항목이 1개 남았어요.'),
+      screen.getByText('필수 동의 항목이 2개 남았어요.'),
     ).toBeOnTheScreen();
     expect(
       screen.getByText('계속하려면 필수 항목을 확인해주세요.'),
@@ -2329,6 +2347,16 @@ describe('OnboardingScreen', () => {
 
     fireEvent.press(
       screen.getByRole('checkbox', { name: '건강 관련 민감정보 처리' }),
+    );
+    expect(
+      screen.getByText('필수 동의 항목이 1개 남았어요.'),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', { name: '필수 항목에 동의해주세요' }),
+    ).toBeDisabled();
+
+    fireEvent.press(
+      screen.getByRole('checkbox', { name: '서비스 이용약관 동의' }),
     );
     expect(screen.getByRole('button', { name: '시작하기' })).toBeEnabled();
     expect(
@@ -2377,7 +2405,6 @@ describe('OnboardingScreen', () => {
             general_personal_data: true,
             sensitive_data: true,
             wearable_integration: false,
-            calendar_integration: false,
             marketing: false,
           },
         }),
@@ -2385,7 +2412,7 @@ describe('OnboardingScreen', () => {
     });
   });
 
-  it('submits enabled optional consent values while calendar consent stays disabled', async () => {
+  it('submits enabled optional consent values without a calendar field', async () => {
     const submitOnboarding = jest.fn(async (_request: OnboardingRequest) =>
       completedOnboarding(),
     );
@@ -2410,7 +2437,6 @@ describe('OnboardingScreen', () => {
             general_personal_data: true,
             sensitive_data: true,
             wearable_integration: true,
-            calendar_integration: false,
             marketing: true,
           },
         }),
@@ -2424,7 +2450,7 @@ describe('OnboardingScreen', () => {
         kind: 'permission',
         code: 'AGE_REQUIREMENT_NOT_MET',
         status: 403,
-        message: '만 14세 미만은 이용할 수 없습니다.',
+        message: '만 18세 미만이거나 만 65세 이상이면 이용할 수 없습니다.',
       });
     });
     render(
@@ -2443,18 +2469,20 @@ describe('OnboardingScreen', () => {
       expect(submitOnboarding).toHaveBeenCalledWith(
         expect.objectContaining({ date_of_birth: '1997-08-11' }),
       );
-      expect(screen.getByText('1 / 11')).toBeOnTheScreen();
+      expect(screen.getByText('1 / 9')).toBeOnTheScreen();
       expect(
-        screen.getByText('만 14세 미만은 이용할 수 없습니다.'),
+        screen.getByText(
+          '만 18세 미만이거나 만 65세 이상이면 이용할 수 없습니다.',
+        ),
       ).toBeOnTheScreen();
     });
   });
 
-  it('requires explicit location and attention answers without showing an equipment page', () => {
+  it('requires an eligible medical answer while keeping persistent pain optional', () => {
     const { rerender } = render(
       <OnboardingScreen
         api={stubApi()}
-        initialStep={7}
+        initialStep={2}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
@@ -2463,22 +2491,24 @@ describe('OnboardingScreen', () => {
     expect(
       screen.getByRole('button', { name: '입력이 필요해요' }),
     ).toBeDisabled();
-    fireEvent.press(screen.getByText('집'));
-    fireEvent.press(screen.getByText('다음'));
-    expect(screen.getByText('한 번에 얼마나 운동할까요?')).toBeOnTheScreen();
+    fireEvent.press(screen.getByText('예'));
+    expect(
+      screen.getByRole('button', { name: '입력이 필요해요' }),
+    ).toBeDisabled();
+    expect(
+      screen.getByText(/의료진 또는 자격을 갖춘 전문가/),
+    ).toBeOnTheScreen();
     expect(screen.queryByText('사용할 수 있는 장비가 있나요?')).toBeNull();
 
     rerender(
       <OnboardingScreen
         api={stubApi()}
-        initialStep={10}
+        initialStep={8}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
     );
-    expect(
-      screen.getByRole('button', { name: '입력이 필요해요' }),
-    ).toBeDisabled();
+    expect(screen.getByRole('button', { name: '다음' })).toBeEnabled();
     fireEvent.press(screen.getByText('있어요'));
     expect(screen.getByText('불편한 부위')).toBeOnTheScreen();
     expect(
@@ -2514,7 +2544,7 @@ describe('OnboardingScreen', () => {
     render(
       <OnboardingScreen
         api={stubApi()}
-        initialStep={10}
+        initialStep={8}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
@@ -2551,7 +2581,7 @@ describe('OnboardingScreen', () => {
     render(
       <OnboardingScreen
         api={stubApi()}
-        initialStep={10}
+        initialStep={8}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
@@ -2580,7 +2610,7 @@ describe('OnboardingScreen', () => {
     render(
       <OnboardingScreen
         api={stubApi()}
-        initialStep={10}
+        initialStep={8}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
@@ -2614,30 +2644,20 @@ describe('OnboardingScreen', () => {
     ).toMatchObject({ transform: [{ rotate: '180deg' }] });
   });
 
-  it('adjusts duration by 10 minutes and weekly frequency from 1 to 7', () => {
-    const view = render(
+  it('adjusts weekly frequency from 1 to 7 without asking for workout duration', () => {
+    render(
       <OnboardingScreen
         api={stubApi()}
-        initialStep={8}
+        initialStep={7}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
     );
 
-    expect(screen.getByText('30분')).toBeOnTheScreen();
-    fireEvent.press(screen.getByLabelText('운동 시간 10분 늘리기'));
-    expect(screen.getByText('40분')).toBeOnTheScreen();
-    fireEvent.press(screen.getByLabelText('운동 시간 10분 줄이기'));
-    expect(screen.getByText('30분')).toBeOnTheScreen();
-
-    view.rerender(
-      <OnboardingScreen
-        api={stubApi()}
-        initialStep={9}
-        onCompleted={jest.fn()}
-        onSignOut={jest.fn()}
-      />,
-    );
+    expect(screen.queryByText('30분')).not.toBeOnTheScreen();
+    expect(
+      screen.queryByText('한 번에 얼마나 운동할까요?'),
+    ).not.toBeOnTheScreen();
     expect(screen.getByText('주 3회')).toBeOnTheScreen();
     for (let count = 3; count < 7; count += 1) {
       fireEvent.press(screen.getByLabelText('주간 운동 횟수 1회 늘리기'));
@@ -2646,7 +2666,7 @@ describe('OnboardingScreen', () => {
     expect(screen.getByLabelText('주간 운동 횟수 1회 늘리기')).toBeDisabled();
   });
 
-  it('maps Profile gender and body values to the backend onboarding contract', async () => {
+  it('maps the supported profile values to the backend onboarding contract', async () => {
     const submitOnboarding = jest.fn(async (_request: OnboardingRequest) => ({
       user_id: 'user-1',
       onboarding_completed: true,
@@ -2675,27 +2695,32 @@ describe('OnboardingScreen', () => {
     await waitFor(() => {
       expect(submitOnboarding).toHaveBeenCalledWith(
         expect.objectContaining({
-          sex_code: 'FEMALE',
-          height_cm: 172.4,
+          medical_exercise_restriction: false,
           weight_kg: 68.5,
           primary_goal_code: 'GENERAL_FITNESS',
           experience_level_code: 'BEGINNER',
-          preferred_exercise_type_codes: [],
+          weekly_target_sessions: 3,
           coaching_style_code: 'CONCISE',
-          attention_area_codes: ['KNEE'],
+          terms_version: 'terms-v1.0.0',
+          persistent_pains: [{ body_area_code: 'KNEE', intensity_score: 1 }],
         }),
       );
-      expect(submitOnboarding.mock.calls[0]?.[0]).not.toHaveProperty(
-        'attention_severities',
-      );
-      expect(submitOnboarding.mock.calls[0]?.[0]).not.toHaveProperty(
+      const request = submitOnboarding.mock.calls[0]?.[0];
+      [
+        'sex_code',
+        'height_cm',
+        'preferred_location_code',
+        'available_location_codes',
+        'default_requested_duration_minutes',
+        'preferred_exercise_type_codes',
+        'attention_area_codes',
         'equipment_codes',
-      );
+      ].forEach((field) => expect(request).not.toHaveProperty(field));
       expect(onCompleted).toHaveBeenCalledTimes(1);
     });
   });
 
-  it('allows optional preferences to be skipped and uses the backend coaching default', async () => {
+  it('allows persistent pain to be skipped and submits the selected coaching style', async () => {
     const submitOnboarding = jest.fn(async (_request: OnboardingRequest) => ({
       user_id: 'user-1',
       onboarding_completed: true,
@@ -2716,7 +2741,7 @@ describe('OnboardingScreen', () => {
       />,
     );
 
-    fillRequiredOnboardingSteps({ selectOptionalPreferences: false });
+    fillRequiredOnboardingSteps({ selectConciseCoaching: false });
     acceptRequiredConsents();
     fireEvent.press(screen.getByText('시작하기'));
 
@@ -2724,49 +2749,37 @@ describe('OnboardingScreen', () => {
       const request = submitOnboarding.mock.calls[0]?.[0];
       expect(request).toEqual(
         expect.objectContaining({
-          preferred_exercise_type_codes: [],
-          attention_area_codes: [],
-          preferred_location_code: 'HOME',
+          persistent_pains: [],
+          coaching_style_code: 'SUPPORTIVE',
         }),
       );
-      expect(request).not.toHaveProperty('coaching_style_code');
-      expect(request).not.toHaveProperty('equipment_codes');
+      expect(request).not.toHaveProperty('preferred_location_code');
+      expect(request).not.toHaveProperty('default_requested_duration_minutes');
     });
   });
 
-  it('only offers home and gym as available workout locations', async () => {
-    const submitOnboarding = jest.fn(async (_request: OnboardingRequest) =>
-      completedOnboarding(),
-    );
+  it('removes location, duration, equipment, sex, and height from onboarding', () => {
     render(
       <OnboardingScreen
-        api={stubApi({ submitOnboarding })}
+        api={stubApi()}
+        initialStep={3}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
     );
 
-    fillRequiredOnboardingSteps({
-      selectLocations: () => {
-        expect(screen.queryByText('야외')).not.toBeOnTheScreen();
-        fireEvent.press(screen.getByText('집'));
-        fireEvent.press(screen.getByText('헬스장'));
-        fireEvent.press(
-          screen.getByRole('button', { name: '대표 운동 장소: 헬스장' }),
-        );
-      },
-    });
-    acceptRequiredConsents();
-    fireEvent.press(screen.getByText('시작하기'));
-
-    await waitFor(() => {
-      expect(submitOnboarding).toHaveBeenCalledWith(
-        expect.objectContaining({
-          available_location_codes: ['HOME', 'GYM'],
-          preferred_location_code: 'GYM',
-        }),
-      );
-    });
+    expect(screen.getByText('현재 체중을 입력해주세요')).toBeOnTheScreen();
+    expect(screen.queryByLabelText('키')).not.toBeOnTheScreen();
+    expect(screen.queryByText('성별을 선택해주세요')).not.toBeOnTheScreen();
+    expect(
+      screen.queryByText('어디에서 운동할 예정인가요?'),
+    ).not.toBeOnTheScreen();
+    expect(
+      screen.queryByText('한 번에 얼마나 운동할까요?'),
+    ).not.toBeOnTheScreen();
+    expect(
+      screen.queryByText('사용할 수 있는 장비가 있나요?'),
+    ).not.toBeOnTheScreen();
   });
 
   it('returns to the field step when the server reports an onboarding field error', async () => {
@@ -2793,7 +2806,7 @@ describe('OnboardingScreen', () => {
     fireEvent.press(screen.getByText('시작하기'));
 
     await waitFor(() => {
-      expect(screen.getByText('1 / 11')).toBeOnTheScreen();
+      expect(screen.getByText('1 / 9')).toBeOnTheScreen();
       expect(screen.getByText('닉네임을 다시 확인해주세요.')).toBeOnTheScreen();
     });
   });
@@ -2906,7 +2919,7 @@ describe('MascotStage', () => {
 });
 
 describe('MascotHouseScreen', () => {
-  it('shows the room and its mini-game collection', async () => {
+  it('shows the room and its two bottom tiles', async () => {
     const onNavigate = jest.fn();
     render(
       <MascotHouseScreen
@@ -2932,8 +2945,8 @@ describe('MascotHouseScreen', () => {
       />,
     );
 
-    expect(await screen.findByText('끼끼와 놀기')).toBeTruthy();
-    expect(screen.getByText('바나나 받기')).toBeTruthy();
+    expect(await screen.findByText('바나나 받기')).toBeTruthy();
+    expect(screen.getByText('퀘스트')).toBeTruthy();
     expect(screen.queryByText('주 3회 운동하기')).toBeNull();
     expect(screen.queryByText('0 / 3 회')).toBeNull();
     expect(screen.getByTestId('house-scene')).toBeTruthy();

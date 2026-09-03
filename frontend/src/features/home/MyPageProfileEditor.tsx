@@ -76,7 +76,7 @@ const TITLES: Record<MyPageEditableField, string> = {
   available_location_codes: '운동 장소 수정',
   default_requested_duration_minutes: '운동 시간 수정',
   desired_weekly_workout_count: '주간 운동 횟수 수정',
-  attention_area_codes: '평소 불편한 부위 수정',
+  persistent_pains: '평소 불편한 부위 수정',
 };
 
 // The profile card edits identity only; exercise settings stay in 내 운동 정보.
@@ -246,26 +246,19 @@ function EditorBody({
     );
   }
 
-  if (field === 'attention_area_codes') {
-    const initialPainAreas = profile.pain_areas;
+  if (field === 'persistent_pains') {
+    const storedPainAreas = profile.persistent_pains ?? profile.pain_areas;
+    const initialPainAreas = storedPainAreas ?? [];
     return (
       <AttentionAreaEditor
         disabled={pending}
         initial={
-          initialPainAreas?.map((area) => area.body_area_code) ??
-          profile.attention_area_codes
+          storedPainAreas !== undefined
+            ? storedPainAreas.map((area) => area.body_area_code)
+            : profile.attention_area_codes
         }
         initialPainAreas={initialPainAreas}
-        onChange={(attention_area_codes, pain_areas) => {
-          if (pain_areas !== undefined) {
-            onChange({
-              pain_present: pain_areas.length > 0,
-              pain_areas,
-            });
-            return;
-          }
-          onChange({ attention_area_codes });
-        }}
+        onChange={(persistent_pains) => onChange({ persistent_pains })}
       />
     );
   }
@@ -617,10 +610,9 @@ function AttentionAreaEditor({
 }: {
   disabled: boolean;
   initial: readonly string[];
-  initialPainAreas?: readonly PainAreaInput[];
-  onChange: (codes: string[], painAreas?: PainAreaInput[]) => void;
+  initialPainAreas: readonly PainAreaInput[];
+  onChange: (painAreas: PainAreaInput[]) => void;
 }) {
-  const intensitySupported = initialPainAreas !== undefined;
   const orderedInitial = orderBodyAreaCodes(initial);
   const [hasAreas, setHasAreas] = useState(orderedInitial.length > 0);
   const [selected, setSelected] = useState(orderedInitial);
@@ -628,7 +620,7 @@ function AttentionAreaEditor({
     Partial<Record<string, number>>
   >(() =>
     Object.fromEntries(
-      (initialPainAreas ?? []).map((area) => [
+      initialPainAreas.map((area) => [
         area.body_area_code,
         area.intensity_score,
       ]),
@@ -648,19 +640,16 @@ function AttentionAreaEditor({
   const toggleSelected = (code: string) => {
     const next = orderBodyAreaCodes(toggle(selected, code));
     setSelected(next);
-    if (intensitySupported) {
-      setPainIntensityScores((currentScores) => {
-        if (next.includes(code)) {
-          return { ...currentScores, [code]: PAIN_INTENSITY_MIN };
-        }
-        const nextScores = { ...currentScores };
-        delete nextScores[code];
-        return nextScores;
-      });
-      setPainDraftChanged(true);
-      return;
-    }
-    onChange(next, undefined);
+    setHasAreas(next.length > 0);
+    setPainIntensityScores((currentScores) => {
+      if (next.includes(code)) {
+        return { ...currentScores, [code]: PAIN_INTENSITY_MIN };
+      }
+      const nextScores = { ...currentScores };
+      delete nextScores[code];
+      return nextScores;
+    });
+    setPainDraftChanged(true);
   };
 
   const savePainAreas = () => {
@@ -669,7 +658,7 @@ function AttentionAreaEditor({
       intensity_score:
         painIntensityScores[body_area_code] ?? PAIN_INTENSITY_MIN,
     }));
-    onChange(selected, painAreas);
+    onChange(painAreas);
   };
 
   return (
@@ -683,11 +672,7 @@ function AttentionAreaEditor({
           setHasAreas(false);
           setSelected([]);
           setPainIntensityScores({});
-          if (intensitySupported) {
-            setPainDraftChanged(selected.length > 0);
-          } else if (selected.length > 0) {
-            onChange([], undefined);
-          }
+          setPainDraftChanged(selected.length > 0);
         }}
       />
       <ChipOption
@@ -784,7 +769,7 @@ function AttentionAreaEditor({
               </View>
             </View>
           ) : null}
-          {intensitySupported && selected.length > 0 ? (
+          {selected.length > 0 ? (
             <View
               style={styles.painSliderList}
               testID="my-page-pain-slider-list"
@@ -814,15 +799,13 @@ function AttentionAreaEditor({
           ) : null}
         </View>
       ) : null}
-      {intensitySupported ? (
-        <Button
-          disabled={
-            disabled || !painDraftChanged || (hasAreas && selected.length === 0)
-          }
-          label={disabled ? '저장 중…' : '통증 정보 저장'}
-          onPress={savePainAreas}
-        />
-      ) : null}
+      <Button
+        disabled={
+          disabled || !painDraftChanged || (hasAreas && selected.length === 0)
+        }
+        label={disabled ? '저장 중…' : '통증 정보 저장'}
+        onPress={savePainAreas}
+      />
     </ChoiceCard>
   );
 }
@@ -954,7 +937,7 @@ function editorDescription(
   profile: MeProfile,
 ): string {
   if (field === 'basic_profile') return BASIC_PROFILE_DESCRIPTION;
-  if (field === 'attention_area_codes' && profile.pain_areas !== undefined) {
+  if (field === 'persistent_pains') {
     return '부위와 통증 정도를 확인한 뒤 저장해주세요.';
   }
   return IMMEDIATE_SAVE_DESCRIPTION;

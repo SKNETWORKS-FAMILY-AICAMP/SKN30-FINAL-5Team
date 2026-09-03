@@ -345,16 +345,16 @@ describe('PreviewGallery', () => {
       ),
     ).toBeOnTheScreen();
     expect(
-      within(screen.getByTestId('preview-app-canvas')).getByText('1 / 11'),
+      within(screen.getByTestId('preview-app-canvas')).getByText('1 / 9'),
     ).toBeOnTheScreen();
 
     fireEvent.press(screen.getByRole('radio', { name: '3. body' }));
     expect(
-      within(screen.getByTestId('preview-app-canvas')).getByText('3 / 11'),
+      within(screen.getByTestId('preview-app-canvas')).getByText('3 / 9'),
     ).toBeOnTheScreen();
     expect(
       within(screen.getByTestId('preview-app-canvas')).getByText(
-        '키와 체중을 입력해주세요',
+        '현재 체중을 입력해주세요',
       ),
     ).toBeOnTheScreen();
     expect(
@@ -384,6 +384,11 @@ describe('PreviewGallery', () => {
     );
 
     fireEvent.press(canvas.getByRole('button', { name: '오늘 루틴 체크인' }));
+    for (let count = 0; count < 3; count += 1) {
+      fireEvent.press(
+        canvas.getByRole('button', { name: '운동 시간 10분 늘리기' }),
+      );
+    }
     expect(
       canvas.getByTestId('home-checkin-submit-gradient').props.colors,
     ).toEqual(['#FEE8B1', '#FEDA99', '#FFD790'].map(processColor));
@@ -401,15 +406,12 @@ describe('PreviewGallery', () => {
     fireEvent.press(canvas.getByRole('button', { name: '무릎' }));
     expect(canvas.getByText('어깨 통증 정도')).toBeOnTheScreen();
     expect(canvas.getByText('무릎 통증 정도')).toBeOnTheScreen();
+    expect(
+      canvas.getByTestId('checkin-pain-intensity-value-어깨'),
+    ).toHaveTextContent('1');
     expect(canvas.queryByText('가슴 압박감 또는 통증')).toBeNull();
-    fireEvent.press(canvas.getByRole('button', { name: '주의 증상 있어요' }));
-    expect(
-      canvas.getByText('해당하는 증상을 모두 선택해주세요.'),
-    ).toBeOnTheScreen();
-    expect(
-      canvas.getByRole('button', { name: '가슴 압박감 또는 통증' }),
-    ).toBeOnTheScreen();
-    fireEvent.press(canvas.getByRole('button', { name: '주의 증상 없어요' }));
+    expect(canvas.getByText(/오늘 가슴 통증이나 압박감/)).toBeOnTheScreen();
+    fireEvent.press(canvas.getByRole('button', { name: '위험 신호 없어요' }));
 
     fireEvent.press(canvas.getByRole('button', { name: '체크인 !' }));
     expect(await canvas.findByText('상체 근력 루틴')).toBeOnTheScreen();
@@ -425,6 +427,11 @@ describe('PreviewGallery', () => {
     fireEvent.press(
       canvas.getByRole('button', { name: '다른 루틴 추천 받기' }),
     );
+    expect(
+      canvas.getByRole('header', { name: '오늘 컨디션 체크' }),
+    ).toBeOnTheScreen();
+    expect(canvas.getByRole('button', { name: '헬스장' })).toBeOnTheScreen();
+    fireEvent.press(canvas.getByRole('button', { name: '체크인 !' }));
     expect(
       await canvas.findByText('오늘 컨디션에 맞춰 부담을 낮췄어요.'),
     ).toBeOnTheScreen();
@@ -612,7 +619,7 @@ describe('PreviewGallery', () => {
     ).toMatchObject({ width: 154, height: 58 });
     expect(
       StyleSheet.flatten(canvas.getByTestId('workout-rest-action').props.style),
-    ).toMatchObject({ width: 108, height: 52 });
+    ).toMatchObject({ width: 154, height: 58 });
     expect(canvas.getByTestId('workout-bottom-pagination')).toBeOnTheScreen();
     expect(canvas.queryByTestId('workout-pain-action')).toBeNull();
   });
@@ -771,8 +778,8 @@ describe('PreviewGallery', () => {
     expect(canvas.getByTestId('mascot-house-content')).toBeOnTheScreen();
     expect(canvas.queryByTestId('background-test-content')).toBeNull();
     expect(canvas.queryByTestId('moving-house-backdrop')).toBeNull();
-    expect(canvas.getByText('끼끼와 놀기')).toBeOnTheScreen();
     expect(canvas.getByText('바나나 받기')).toBeOnTheScreen();
+    expect(canvas.getByText('퀘스트')).toBeOnTheScreen();
     expect(canvas.queryByText('주 4회 운동하기')).toBeNull();
     expect(canvas.queryByText('2 / 4 회')).toBeNull();
 

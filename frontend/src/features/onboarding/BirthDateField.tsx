@@ -12,8 +12,8 @@ import {
 
 import { colors, radii, spacing } from '../../components/theme';
 
-const MINIMUM_AGE = 14;
-const MIN_BIRTH_YEAR = 1900;
+const MINIMUM_AGE = 18;
+const MAXIMUM_AGE = 64;
 const WHEEL_ITEM_HEIGHT = 44;
 const WEB_WHEEL_GESTURE_IDLE_MS = 45;
 const WEB_WHEEL_SINGLE_ITEM_DELTA = 240;
@@ -32,51 +32,91 @@ export function BirthDateField({ disabled = false, onChange, value }: Props) {
     () => getLatestEligibleBirthdate(today),
     [today],
   );
+  const earliestEligibleBirthdate = useMemo(
+    () => getEarliestEligibleBirthdate(today),
+    [today],
+  );
   const selected = parseIsoDate(value) ?? dateParts(latestEligibleBirthdate);
   const birthYears = useMemo(
     () =>
       numberRange(
-        MIN_BIRTH_YEAR,
+        earliestEligibleBirthdate.getFullYear(),
         latestEligibleBirthdate.getFullYear(),
       ).reverse(),
-    [latestEligibleBirthdate],
+    [earliestEligibleBirthdate, latestEligibleBirthdate],
   );
   const birthMonths = useMemo(() => {
+    const firstMonth =
+      selected.year === earliestEligibleBirthdate.getFullYear()
+        ? earliestEligibleBirthdate.getMonth() + 1
+        : 1;
     const lastMonth =
       selected.year === latestEligibleBirthdate.getFullYear()
         ? latestEligibleBirthdate.getMonth() + 1
         : 12;
-    return numberRange(1, lastMonth);
-  }, [latestEligibleBirthdate, selected.year]);
+    return numberRange(firstMonth, lastMonth);
+  }, [earliestEligibleBirthdate, latestEligibleBirthdate, selected.year]);
   const birthDays = useMemo(() => {
+    const firstDay =
+      selected.year === earliestEligibleBirthdate.getFullYear() &&
+      selected.month === earliestEligibleBirthdate.getMonth() + 1
+        ? earliestEligibleBirthdate.getDate()
+        : 1;
     const lastDay =
       selected.year === latestEligibleBirthdate.getFullYear() &&
       selected.month === latestEligibleBirthdate.getMonth() + 1
         ? latestEligibleBirthdate.getDate()
         : monthDays(selected.year, selected.month);
-    return numberRange(1, lastDay);
-  }, [latestEligibleBirthdate, selected.month, selected.year]);
+    return numberRange(firstDay, lastDay);
+  }, [
+    earliestEligibleBirthdate,
+    latestEligibleBirthdate,
+    selected.month,
+    selected.year,
+  ]);
 
   const changeYear = (year: number) => {
+    const earliestYear = earliestEligibleBirthdate.getFullYear();
     const latestYear = latestEligibleBirthdate.getFullYear();
-    const month = Math.min(
-      selected.month,
-      year === latestYear ? latestEligibleBirthdate.getMonth() + 1 : 12,
-    );
+    const firstMonth =
+      year === earliestYear ? earliestEligibleBirthdate.getMonth() + 1 : 1;
+    const lastMonth =
+      year === latestYear ? latestEligibleBirthdate.getMonth() + 1 : 12;
+    const month = Math.max(firstMonth, Math.min(selected.month, lastMonth));
+    const minimumDay =
+      year === earliestYear &&
+      month === earliestEligibleBirthdate.getMonth() + 1
+        ? earliestEligibleBirthdate.getDate()
+        : 1;
     const maximumDay =
       year === latestYear && month === latestEligibleBirthdate.getMonth() + 1
         ? latestEligibleBirthdate.getDate()
         : monthDays(year, month);
-    onChange(toIsoDate(year, month, Math.min(selected.day, maximumDay)));
+    onChange(
+      toIsoDate(
+        year,
+        month,
+        Math.max(minimumDay, Math.min(selected.day, maximumDay)),
+      ),
+    );
   };
   const changeMonth = (month: number) => {
+    const minimumDay =
+      selected.year === earliestEligibleBirthdate.getFullYear() &&
+      month === earliestEligibleBirthdate.getMonth() + 1
+        ? earliestEligibleBirthdate.getDate()
+        : 1;
     const maximumDay =
       selected.year === latestEligibleBirthdate.getFullYear() &&
       month === latestEligibleBirthdate.getMonth() + 1
         ? latestEligibleBirthdate.getDate()
         : monthDays(selected.year, month);
     onChange(
-      toIsoDate(selected.year, month, Math.min(selected.day, maximumDay)),
+      toIsoDate(
+        selected.year,
+        month,
+        Math.max(minimumDay, Math.min(selected.day, maximumDay)),
+      ),
     );
   };
 
@@ -117,6 +157,18 @@ export function BirthDateField({ disabled = false, onChange, value }: Props) {
 
 export function latestEligibleBirthdateIso(today = new Date()): string {
   return formatDate(getLatestEligibleBirthdate(today));
+}
+
+function getEarliestEligibleBirthdate(today: Date): Date {
+  const boundaryYear = today.getFullYear() - MAXIMUM_AGE - 1;
+  const lastDay = monthDays(boundaryYear, today.getMonth() + 1);
+  const boundary = new Date(
+    boundaryYear,
+    today.getMonth(),
+    Math.min(today.getDate(), lastDay),
+  );
+  boundary.setDate(boundary.getDate() + 1);
+  return boundary;
 }
 
 function WheelColumn({

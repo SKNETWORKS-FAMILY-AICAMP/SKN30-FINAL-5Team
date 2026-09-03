@@ -341,7 +341,7 @@ export const MY_PAGE_PROFILE_ROWS = [
   ['available_location_codes', '운동 장소', '헬스장'],
   ['default_requested_duration_minutes', '운동 시간', '40분'],
   ['desired_weekly_workout_count', '주간 운동 횟수', '주 4회'],
-  ['attention_area_codes', '평소 불편한 부위', '무릎'],
+  ['persistent_pains', '평소 불편한 부위', '무릎'],
 ] as const;
 
 export const MY_PAGE_ACCOUNT_ROWS = [

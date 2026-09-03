@@ -12,6 +12,7 @@ import type {
   RoutineResponse,
   WeekResponse,
   WorkoutPlan,
+  WorkoutSessionDetailResponse,
   WorkoutSessionLogSummary,
 } from '../../api/types';
 import type { Api } from '../../api/endpoints';
@@ -149,12 +150,13 @@ const CONTEXT: DailyContextResponse = {
   local_date: LOCAL_DATE,
   context_version: 1,
   fatigue_level_code: 'MODERATE',
-  requested_duration_minutes: 40,
-  duration_adjustment_source_code: 'PROFILE',
+  available_time_minutes: 40,
   location_code: 'HOME',
   sleep_minutes: 420,
-  discomforts: [],
-  adverse_reaction_codes: [],
+  sleep_source_code: 'MANUAL',
+  pain_present: false,
+  red_flag_present: false,
+  pains: [],
   created_at: `${LOCAL_DATE}T08:00:00+09:00`,
   updated_at: `${LOCAL_DATE}T08:00:00+09:00`,
 };
@@ -335,6 +337,38 @@ function decision(adjusted: boolean): DecisionResponse {
   };
 }
 
+function sessionDetail(
+  status: WorkoutSessionDetailResponse['status_code'],
+): WorkoutSessionDetailResponse {
+  const completedCount = status === 'COMPLETED' ? 3 : 1;
+  return {
+    session_id: `session-${status.toLowerCase()}`,
+    local_date: LOCAL_DATE,
+    status_code: status,
+    completed_item_count: completedCount,
+    total_item_count: 3,
+    requested_duration_minutes: 40,
+    items: plan().items.map((item, index) => ({
+      plan_item_id: item.plan_item_id,
+      exercise_id: item.exercise_id,
+      exercise_name: item.exercise_name,
+      status_code: index < completedCount ? 'COMPLETED' : 'PENDING',
+      sets: item.sets,
+      reps: item.reps,
+      work_seconds_per_set: item.work_seconds,
+      completed_at:
+        index < completedCount ? `${LOCAL_DATE}T08:15:00+09:00` : null,
+    })),
+    feedback: null,
+    not_completed_reason_code: null,
+    started_at: `${LOCAL_DATE}T08:00:00+09:00`,
+    finished_at:
+      status === 'IN_PROGRESS' || status === 'PLANNED'
+        ? null
+        : `${LOCAL_DATE}T08:25:00+09:00`,
+  };
+}
+
 export function homePreviewProps(state: HomePreviewState): HomeScreenProps {
   const showsRoutineLookup =
     state === 'routine-lookup-loading' || state === 'routine-lookup-failed';
@@ -343,7 +377,11 @@ export function homePreviewProps(state: HomePreviewState): HomeScreenProps {
     state === 'decision-recovered' ||
     state === 'decision-retry' ||
     state === 'adjusted' ||
-    state === 'editing';
+    state === 'editing' ||
+    state === 'session-active' ||
+    state === 'session-resumable' ||
+    state === 'session-safety-stopped' ||
+    state === 'session-completed';
   const showsGeneration =
     state === 'generating' || state === 'generating-final';
   const decisionResponseLost = state === 'decision-retry';
@@ -360,11 +398,20 @@ export function homePreviewProps(state: HomePreviewState): HomeScreenProps {
     routine: showsRoutineLookup ? null : ROUTINE,
     context: state === 'pre-checkin' || showsRoutineLookup ? null : CONTEXT,
     decision: showsRoutine ? decision(state === 'adjusted') : null,
+    todaySession:
+      state === 'session-active' || state === 'session-resumable'
+        ? sessionDetail('IN_PROGRESS')
+        : state === 'session-safety-stopped'
+          ? sessionDetail('STOPPED_FOR_SAFETY')
+          : state === 'session-completed'
+            ? sessionDetail('COMPLETED')
+            : null,
+    localSessionState:
+      state === 'session-resumable' ? 'STOPPED_RESUMABLE' : 'ACTIVE',
     week: WEEK,
     sessions: SESSIONS,
     planRevision: null,
     restToday: state === 'rest',
-    defaultDurationMinutes: 40,
     exerciseApi: HOME_EXERCISE_PREVIEW_API,
     locationCodes: ['HOME', 'GYM'],
     busy: showsGeneration ? 'decision-generation' : null,

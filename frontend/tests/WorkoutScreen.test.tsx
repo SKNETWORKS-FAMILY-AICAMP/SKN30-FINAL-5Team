@@ -481,14 +481,29 @@ describe('WorkoutScreen', () => {
     expect(formatWorkoutTime(seconds)).toBe(expected);
   });
 
-  it('renders the elapsed timer with the readable brand font', async () => {
+  it('renders the elapsed timer as a raised, readable brand card', async () => {
     await render(<WorkoutScreen />);
 
+    const timerCardStyle = StyleSheet.flatten(
+      screen.getByTestId('workout-timer-card').props.style,
+    );
     const timerStyle = StyleSheet.flatten(
       screen.getByText('00:00').props.style,
     );
+    expect(timerCardStyle).toMatchObject({
+      backgroundColor: 'rgba(255,248,229,.94)',
+      borderColor: 'rgba(255,255,255,.72)',
+      borderWidth: 1.5,
+      shadowColor: '#9A650D',
+      shadowOpacity: 0.12,
+    });
     expect(timerStyle.fontFamily).toBe(fontFamilies.brand);
-    expect(timerStyle.fontWeight).toBe('600');
+    expect(timerStyle.fontSize).toBeCloseTo(55.2);
+    expect(timerStyle).toMatchObject({
+      fontVariant: ['tabular-nums'],
+      fontWeight: '700',
+    });
+    expect(screen.getByText('ELAPSED TIME')).toBeOnTheScreen();
   });
 
   it('counts elapsed time without changing block completion', async () => {
@@ -511,7 +526,7 @@ describe('WorkoutScreen', () => {
   it('uses the three exact timer captions for active, paused, and rest states', async () => {
     await render(<WorkoutScreen />);
     expect(screen.getByText('운동 진행 중')).toBeOnTheScreen();
-    expect(screen.getByText('목표 시간 30분')).toBeOnTheScreen();
+    expect(screen.getByText('목표 30분')).toBeOnTheScreen();
 
     fireEvent.press(screen.getByRole('button', { name: '일시정지' }));
     expect(screen.getByText('일시 정지')).toBeOnTheScreen();
@@ -541,19 +556,32 @@ describe('WorkoutScreen', () => {
       flexShrink: 0,
     });
     expect(smashStyle.width).toBeCloseTo(184.8);
-    expect(restStyle.width).toBeCloseTo(129.6);
+    expect(restStyle.width).toBeCloseTo(184.8);
     expect(smashStyle.height).toBeCloseTo(69.6);
-    expect(restStyle.height).toBeCloseTo(62.4);
-    expect(smashStyle.width).toBeGreaterThan(restStyle.width);
-    expect(smashStyle.height).toBeGreaterThan(restStyle.height);
+    expect(restStyle.height).toBeCloseTo(69.6);
     expect(smashStyle.borderBottomWidth).toBeUndefined();
     expect(smashStyle).toMatchObject({
       shadowColor: '#C28B28',
       shadowOpacity: 0.13,
       elevation: 3,
     });
+    expect(restStyle).toMatchObject({
+      borderColor: '#AAA8A1',
+      overflow: 'hidden',
+      shadowColor: '#74716B',
+      shadowOpacity: 0.14,
+      elevation: 3,
+    });
+    const restGradient = screen.getByTestId('workout-rest-gradient');
+    expect(restGradient.props.colors).toEqual(
+      ['#FAFAF8', '#EEEDE9', '#DDDCD7'].map(processColor),
+    );
+    expect(restGradient.props.locations).toEqual([0, 0.55, 1]);
     expect(screen.getByText('휴식').props.style).toMatchObject({
-      fontSize: 15,
+      color: '#55534E',
+      fontSize: 18,
+      fontWeight: '800',
+      letterSpacing: 0.2,
     });
     expect(screen.getByTestId('workout-bottom-pagination')).toBeOnTheScreen();
     expect(screen.queryByTestId('workout-pain-action')).toBeNull();
@@ -577,7 +605,7 @@ describe('WorkoutScreen', () => {
     expect(smashStyle.borderBottomWidth).toBeUndefined();
   });
 
-  it('uses the original two-sided header layout and text-only stop action', async () => {
+  it('uses the timer-card header layout and text-only stop action', async () => {
     await render(<WorkoutScreen />);
 
     expect(
@@ -1883,8 +1911,8 @@ describe('WorkoutScreen API mode', () => {
     );
     expect(smashStyle.width).toBeCloseTo(184.8);
     expect(smashStyle.height).toBeCloseTo(69.6);
-    expect(restStyle.width).toBeCloseTo(129.6);
-    expect(restStyle.height).toBeCloseTo(62.4);
+    expect(restStyle.width).toBeCloseTo(184.8);
+    expect(restStyle.height).toBeCloseTo(69.6);
     expect(screen.getByTestId('workout-bottom-pagination')).toBeOnTheScreen();
     expect(screen.queryByTestId('workout-pain-action')).toBeNull();
     expect(screen.queryByTestId('workout-additional-action')).toBeNull();

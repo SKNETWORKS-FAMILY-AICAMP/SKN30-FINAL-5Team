@@ -20,6 +20,7 @@ import type {
   MeResponse,
   WeeklyPlanRevisionResponse,
   WorkoutPlan,
+  WorkoutSessionDetailResponse,
 } from '../api/types';
 import { localDateString, weekStartString } from '../api/useAsync';
 import type { TabId } from '../components/brand/BrandChrome';
@@ -56,6 +57,7 @@ export function MainFlow({
   onRefreshMe: () => Promise<void>;
   onSignOut: () => void;
 }) {
+  const localDate = localDateString(new Date(), me.profile?.timezone);
   const [step, setStep] = useState<Step>({ name: 'home' });
   const [restChoice, setRestChoice] = useState<{
     localDate: string;
@@ -65,6 +67,15 @@ export function MainFlow({
   const [planRevision, setPlanRevision] =
     useState<WeeklyPlanRevisionResponse | null>(null);
   const [recoveryNonce, setRecoveryNonce] = useState(0);
+  const [todaySession, setTodaySession] =
+    useState<WorkoutSessionDetailResponse | null>(null);
+  const [resumableSessionId, setResumableSessionId] = useState<string | null>(
+    null,
+  );
+  const [alternativeUsage, setAlternativeUsage] = useState({
+    localDate,
+    count: 0,
+  });
   const decisionRef = useRef(decision);
 
   useEffect(() => {
@@ -82,7 +93,6 @@ export function MainFlow({
     }
     const controller = new AbortController();
     const decisionIdAtStart = decisionRef.current?.decision_id ?? null;
-    const localDate = localDateString(new Date(), me.profile?.timezone);
     const weekStart = weekStartString(new Date(), me.profile?.timezone);
     const latestPlanRevisionRequest = api.getLatestWeeklyPlanRevision
       ? api
@@ -112,21 +122,23 @@ export function MainFlow({
         (item) =>
           item.status_code === 'PLANNED' || item.status_code === 'IN_PROGRESS',
       );
-      if (active && stored?.final_plan) {
-        // The user already committed to today's routine; put them back in it.
-        setDecision(stored);
-        setStep({
-          name: 'session',
-          sessionId: active.session_id,
-          plan: stored.final_plan,
-        });
+      const visibleSession =
+        active ??
+        todaySessions.find(
+          (item) => item.status_code === 'STOPPED_FOR_SAFETY',
+        ) ??
+        todaySessions[0] ??
+        null;
+      const detail =
+        visibleSession === null
+          ? null
+          : await api
+              .getWorkoutSession(visibleSession.session_id, controller.signal)
+              .catch(() => null);
+      if (controller.signal.aborted) {
         return;
       }
-      if (todaySessions.length > 0) {
-        // The day's session already ended, so the decision no longer
-        // describes what the user can do next — same as after a workout.
-        return;
-      }
+      setTodaySession(detail);
       if (stored) {
         setDecision((current) =>
           (current?.decision_id ?? null) === decisionIdAtStart
@@ -137,7 +149,7 @@ export function MainFlow({
     })();
 
     return () => controller.abort();
-  }, [api, me.profile?.timezone, recoveryNonce, step.name]);
+  }, [api, localDate, me.profile?.timezone, recoveryNonce, step.name]);
 
   const goHome = useCallback(() => setStep({ name: 'home' }), []);
   const recoverHomeDecision = useCallback(
@@ -166,7 +178,6 @@ export function MainFlow({
     },
     [recoverHomeDecision],
   );
-  const localDate = localDateString(new Date(), me.profile?.timezone);
   const routineStartLocalDate = me.profile
     ? localDateString(new Date(me.profile.created_at), me.profile.timezone)
     : undefined;
@@ -179,9 +190,15 @@ export function MainFlow({
           api={api}
           sessionId={step.sessionId}
           plan={step.plan}
-          onOutcome={(outcome) =>
-            setStep({ name: 'result', sessionId: step.sessionId, outcome })
-          }
+          onOutcome={(outcome) => {
+            setResumableSessionId(null);
+            setStep({ name: 'result', sessionId: step.sessionId, outcome });
+          }}
+          onReturnHomeResumable={() => {
+            setResumableSessionId(step.sessionId);
+            setRecoveryNonce((value) => value + 1);
+            goHome();
+          }}
         />
       );
 
@@ -192,9 +209,7 @@ export function MainFlow({
           sessionId={step.sessionId}
           outcome={step.outcome}
           onDone={() => {
-            // The session is over, so today's decision no longer describes what
-            // the user can do next.
-            setDecision(null);
+            setRecoveryNonce((value) => value + 1);
             goHome();
           }}
         />
@@ -268,12 +283,42 @@ export function MainFlow({
           me={me}
           restToday={restToday}
           decision={decision}
+          todaySession={todaySession}
+          localSessionState={
+            todaySession?.session_id === resumableSessionId
+              ? 'STOPPED_RESUMABLE'
+              : 'ACTIVE'
+          }
+          alternativeUsedCount={
+            alternativeUsage.localDate === localDate
+              ? alternativeUsage.count
+              : 0
+          }
+          onAlternativeSuccess={() =>
+            setAlternativeUsage((current) => ({
+              localDate,
+              count:
+                current.localDate === localDate
+                  ? Math.min(2, current.count + 1)
+                  : 1,
+            }))
+          }
           onDecisionChange={setDecision}
           planRevision={planRevision}
-          onPlanRevisionChange={setPlanRevision}
-          onSessionStarted={(sessionId, plan) =>
-            setStep({ name: 'session', sessionId, plan })
-          }
+          onSessionStarted={(sessionId, plan) => {
+            setResumableSessionId(null);
+            setStep({ name: 'session', sessionId, plan });
+          }}
+          onResumeWorkout={() => {
+            if (todaySession !== null && decision?.final_plan) {
+              setResumableSessionId(null);
+              setStep({
+                name: 'session',
+                sessionId: todaySession.session_id,
+                plan: decision.final_plan,
+              });
+            }
+          }}
           onRestChosen={(pressureNotificationsAllowed) =>
             setRestChoice({ localDate, pressureNotificationsAllowed })
           }

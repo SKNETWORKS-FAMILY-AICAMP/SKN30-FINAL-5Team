@@ -700,7 +700,7 @@ describe('MyPageContainer', () => {
     );
   });
 
-  it('uses the onboarding attention-area flow and can clear the selection', async () => {
+  it('migrates a legacy attention area to persistent pains when clearing it', async () => {
     const updateProfileSettings = jest.fn<Api['updateProfileSettings']>(
       async () => ({
         profile_version: 8,
@@ -727,12 +727,15 @@ describe('MyPageContainer', () => {
     ).toBeOnTheScreen();
     expect(screen.getByRole('checkbox', { name: '있어요' })).toBeChecked();
     expect(screen.getByText('불편한 부위')).toBeOnTheScreen();
-    expect(screen.queryByRole('adjustable')).toBeNull();
+    expect(
+      screen.getByRole('adjustable', { name: '무릎 통증 정도' }),
+    ).toHaveAccessibilityValue({ min: 1, max: 10, now: 1 });
     fireEvent.press(screen.getByRole('checkbox', { name: '없어요' }));
+    fireEvent.press(screen.getByRole('button', { name: '통증 정보 저장' }));
 
     await waitFor(() =>
       expect(updateProfileSettings).toHaveBeenCalledWith(
-        { attention_area_codes: [] },
+        { persistent_pains: [] },
         7,
       ),
     );
@@ -741,7 +744,7 @@ describe('MyPageContainer', () => {
 
   it('edits persisted pain scores when the additive profile contract is available', async () => {
     const current = me();
-    current.profile!.pain_areas = [
+    current.profile!.persistent_pains = [
       { body_area_code: 'KNEE', intensity_score: 4 },
       { body_area_code: 'SHOULDER', intensity_score: 2 },
     ];
@@ -795,8 +798,7 @@ describe('MyPageContainer', () => {
     await waitFor(() =>
       expect(updateProfileSettings).toHaveBeenCalledWith(
         {
-          pain_present: true,
-          pain_areas: [
+          persistent_pains: [
             { body_area_code: 'SHOULDER', intensity_score: 2 },
             { body_area_code: 'KNEE', intensity_score: 5 },
           ],
@@ -891,10 +893,11 @@ describe('MyPageContainer', () => {
     expect(screen.getByText('이전에 저장된 부위 (해제만 가능)')).toBeTruthy();
     expect(screen.getByRole('checkbox', { name: '전신' })).toBeChecked();
     fireEvent.press(screen.getByRole('checkbox', { name: '전신' }));
+    fireEvent.press(screen.getByRole('button', { name: '통증 정보 저장' }));
 
     await waitFor(() =>
       expect(updateProfileSettings).toHaveBeenCalledWith(
-        { attention_area_codes: [] },
+        { persistent_pains: [] },
         7,
       ),
     );

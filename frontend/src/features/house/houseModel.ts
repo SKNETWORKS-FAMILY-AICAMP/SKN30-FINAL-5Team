@@ -21,7 +21,7 @@
 import type { WeekResponse, WorkoutSessionLogSummary } from '../../api/types';
 import { completionStreak } from '../home/myPageModel';
 
-export const HOUSE_STATE_VERSION = 1;
+export const HOUSE_STATE_VERSION = 2;
 
 /** Bananas granted per session, by the status the server recorded. */
 export const BANANA_REWARD = {
@@ -35,13 +35,69 @@ export const BANANA_REWARD = {
   partial: 15,
 } as const;
 
-/** The one gift a day the house offers just for coming back. */
+/**
+ * What coming back pays.
+ *
+ * This was a standalone `오늘의 선물` chip. It is now the visit quest, paid
+ * the moment the house opens, and the amount is unchanged so nobody receives
+ * less for the same visit than they did before.
+ */
 export const DAILY_GIFT_BANANAS = 15;
 
+/**
+ * Petting is free.
+ *
+ * Charging for it made the one interaction the house is built around
+ * something the user could run out of, so only feeding still costs.
+ */
 export const HOUSE_ACTION_COST = {
   feed: 10,
-  pet: 5,
 } as const;
+
+/** Hearts on the house chip, and the highest level those hearts can show. */
+export const INTIMACY_MAX_LEVEL = 5;
+
+/** Interactions that raise intimacy within one local day. */
+export const INTIMACY_DAILY_EARN_LIMIT = 5;
+
+/** Points between one level and the next. */
+export const INTIMACY_POINTS_PER_LEVEL = 10;
+
+/** The banana catch game opens this many times a local day. */
+export const HOUSE_GAME_DAILY_PLAYS = 1;
+
+export type HouseQuestId = 'visit' | 'pet' | 'workout';
+
+export type HouseQuest = {
+  id: HouseQuestId;
+  label: string;
+  /** Bananas paid once, the first time the target is met on a given day. */
+  reward: number;
+  target: number;
+};
+
+/**
+ * The daily quests.
+ *
+ * Falling short pays nothing and costs nothing. No rule here takes a banana
+ * back, and an unmet quest is never described as a loss — a quiet `0 / 1` is
+ * the whole of it.
+ */
+export const HOUSE_DAILY_QUESTS: readonly HouseQuest[] = [
+  {
+    id: 'visit',
+    label: '오늘 접속하기',
+    reward: DAILY_GIFT_BANANAS,
+    target: 1,
+  },
+  {
+    id: 'pet',
+    label: '끼끼 쓰다듬기',
+    reward: 5,
+    target: INTIMACY_DAILY_EARN_LIMIT,
+  },
+  { id: 'workout', label: '오늘 운동 완료하기', reward: 10, target: 1 },
+] as const;
 
 export type HousePose = 'greeting' | 'happy' | 'eating' | 'petted' | 'resting';
 
@@ -126,9 +182,20 @@ export type HouseState = {
   itemPlacements: HouseItemPlacements;
   /** Sessions already paid for, so a reload cannot grant the same one twice. */
   rewardedSessionIds: string[];
-  claimedGiftLocalDate: string | null;
   fedLocalDate: string | null;
+  /** The day `pettedCount` belongs to. */
   pettedLocalDate: string | null;
+  pettedCount: number;
+  /** Earned intimacy. It only ever grows; nothing here takes a point back. */
+  intimacyPoints: number;
+  /** The day `intimacyEarnedToday` belongs to. */
+  intimacyLocalDate: string | null;
+  intimacyEarnedToday: number;
+  /** The day the banana catch game was last opened. */
+  playedGameLocalDate: string | null;
+  /** The day `paidQuestIds` belongs to. */
+  questLocalDate: string | null;
+  paidQuestIds: HouseQuestId[];
   visitedLocalDates: string[];
 };
 
@@ -144,12 +211,21 @@ export function createHouseState(): HouseState {
     ownedItemIds: [],
     itemPlacements: {},
     rewardedSessionIds: [],
-    claimedGiftLocalDate: null,
     fedLocalDate: null,
     pettedLocalDate: null,
+    pettedCount: 0,
+    intimacyPoints: 0,
+    intimacyLocalDate: null,
+    intimacyEarnedToday: 0,
+    playedGameLocalDate: null,
+    questLocalDate: null,
+    paidQuestIds: [],
     visitedLocalDates: [],
   };
 }
+
+/** Stored payloads this build still knows how to read. */
+const READABLE_HOUSE_STATE_VERSIONS: readonly number[] = [1, 2];
 
 /**
  * Reads a stored payload back.
@@ -157,11 +233,23 @@ export function createHouseState(): HouseState {
  * Anything unrecognised returns `null` rather than a partly-trusted object:
  * the caller then starts fresh, which is the safe direction for a value that
  * only ever grows.
+ *
+ * A version 1 payload is migrated rather than discarded. Dropping it would
+ * reset bananas someone already earned, and no rule here may take an earned
+ * reward back. The fields added in version 2 simply start at zero, so the one
+ * visible effect is that a user who had already claimed the old `오늘의 선물`
+ * today is paid the visit quest once more — over-paying by a day is the safe
+ * direction; under-paying is not.
  */
 export function parseHouseState(raw: unknown): HouseState | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const value = raw as Record<string, unknown>;
-  if (value.version !== HOUSE_STATE_VERSION) return null;
+  if (
+    typeof value.version !== 'number' ||
+    !READABLE_HOUSE_STATE_VERSIONS.includes(value.version)
+  ) {
+    return null;
+  }
   if (typeof value.bananas !== 'number' || !Number.isFinite(value.bananas)) {
     return null;
   }
@@ -187,9 +275,18 @@ export function parseHouseState(raw: unknown): HouseState | null {
     rewardedSessionIds: stringList(value.rewardedSessionIds).slice(
       -MAX_REMEMBERED_SESSIONS,
     ),
-    claimedGiftLocalDate: optionalString(value.claimedGiftLocalDate),
     fedLocalDate: optionalString(value.fedLocalDate),
     pettedLocalDate: optionalString(value.pettedLocalDate),
+    pettedCount: counter(value.pettedCount),
+    intimacyPoints: counter(value.intimacyPoints),
+    intimacyLocalDate: optionalString(value.intimacyLocalDate),
+    intimacyEarnedToday: counter(value.intimacyEarnedToday),
+    playedGameLocalDate: optionalString(value.playedGameLocalDate),
+    questLocalDate: optionalString(value.questLocalDate),
+    paidQuestIds: stringList(value.paidQuestIds).filter(
+      (id): id is HouseQuestId =>
+        HOUSE_DAILY_QUESTS.some((quest) => quest.id === id),
+    ),
     visitedLocalDates: stringList(value.visitedLocalDates).slice(
       -MAX_REMEMBERED_VISITS,
     ),
@@ -253,20 +350,45 @@ function sessionReward(statusCode: WorkoutSessionLogSummary['status_code']) {
   return 0;
 }
 
-/** `null` when today's gift is already claimed. */
-export function claimDailyGift(
-  state: HouseState,
+/** Today's tally of an interaction counter, reset when the local day turns. */
+function todaysCount(
+  countLocalDate: string | null,
+  count: number,
   today: string,
-): { state: HouseState; granted: number } | null {
-  if (state.claimedGiftLocalDate === today) return null;
+): number {
+  return countLocalDate === today ? count : 0;
+}
+
+/**
+ * Adds one intimacy point, up to the daily limit.
+ *
+ * Over the limit the interaction still happens — the mascot still reacts and
+ * the user is never told to stop — it simply stops paying intimacy. Nothing
+ * here can lower `intimacyPoints`.
+ */
+function grantIntimacy(state: HouseState, today: string): HouseState {
+  const earned = todaysCount(
+    state.intimacyLocalDate,
+    state.intimacyEarnedToday,
+    today,
+  );
+  if (earned >= INTIMACY_DAILY_EARN_LIMIT) {
+    return { ...state, intimacyLocalDate: today, intimacyEarnedToday: earned };
+  }
   return {
-    state: {
-      ...state,
-      bananas: state.bananas + DAILY_GIFT_BANANAS,
-      claimedGiftLocalDate: today,
-    },
-    granted: DAILY_GIFT_BANANAS,
+    ...state,
+    intimacyPoints: state.intimacyPoints + 1,
+    intimacyLocalDate: today,
+    intimacyEarnedToday: earned + 1,
   };
+}
+
+/** The level those five hearts show, from 1 up to `INTIMACY_MAX_LEVEL`. */
+export function intimacyLevel(points: number): number {
+  return Math.min(
+    INTIMACY_MAX_LEVEL,
+    1 + Math.floor(Math.max(0, points) / INTIMACY_POINTS_PER_LEVEL),
+  );
 }
 
 /** `null` when there are not enough bananas. */
@@ -275,20 +397,101 @@ export function feedMascot(
   today: string,
 ): HouseState | null {
   if (state.bananas < HOUSE_ACTION_COST.feed) return null;
+  return grantIntimacy(
+    {
+      ...state,
+      bananas: state.bananas - HOUSE_ACTION_COST.feed,
+      fedLocalDate: today,
+    },
+    today,
+  );
+}
+
+/**
+ * Petting always succeeds.
+ *
+ * It costs nothing and has no daily cap, so there is no failure case to
+ * report. Only the intimacy it pays is limited, and running out of that never
+ * blocks the touch itself.
+ */
+export function petMascot(state: HouseState, today: string): HouseState {
+  const petted = todaysCount(state.pettedLocalDate, state.pettedCount, today);
+  return grantIntimacy(
+    { ...state, pettedLocalDate: today, pettedCount: petted + 1 },
+    today,
+  );
+}
+
+/** Records that the banana catch game was opened today. */
+export function recordGamePlay(state: HouseState, today: string): HouseState {
+  if (state.playedGameLocalDate === today) return state;
+  return { ...state, playedGameLocalDate: today };
+}
+
+/** How far each daily quest has come today. */
+export function dailyQuestProgress(
+  state: HouseState,
+  {
+    today,
+    workoutCompletedToday,
+  }: { today: string; workoutCompletedToday: boolean },
+): Record<HouseQuestId, number> {
   return {
-    ...state,
-    bananas: state.bananas - HOUSE_ACTION_COST.feed,
-    fedLocalDate: today,
+    visit: state.visitedLocalDates.includes(today) ? 1 : 0,
+    pet: todaysCount(state.pettedLocalDate, state.pettedCount, today),
+    workout: workoutCompletedToday ? 1 : 0,
   };
 }
 
-/** `null` when there are not enough bananas. */
-export function petMascot(state: HouseState, today: string): HouseState | null {
-  if (state.bananas < HOUSE_ACTION_COST.pet) return null;
+/**
+ * Pays out every daily quest whose target has been met and not yet paid, and
+ * pays the workout its one intimacy point for the day.
+ *
+ * Idempotent within a day: `paidQuestIds` is keyed to `questLocalDate`, so
+ * re-running this on every state change never grants twice. A quest left unmet
+ * is simply not paid — it is never charged for.
+ */
+export function settleHouseDay(
+  state: HouseState,
+  args: { today: string; workoutCompletedToday: boolean },
+): { state: HouseState; granted: number } {
+  const { today } = args;
+  const progress = dailyQuestProgress(state, args);
+  const paid = new Set(
+    state.questLocalDate === today ? state.paidQuestIds : [],
+  );
+
+  let next: HouseState = state;
+  let granted = 0;
+  const newlyPaid: HouseQuestId[] = [];
+
+  for (const quest of HOUSE_DAILY_QUESTS) {
+    if (paid.has(quest.id)) continue;
+    if (progress[quest.id] < quest.target) continue;
+    granted += quest.reward;
+    newlyPaid.push(quest.id);
+    // The workout is the third way to raise intimacy, alongside petting and
+    // feeding. It pays once, the day the session lands.
+    if (quest.id === 'workout') next = grantIntimacy(next, today);
+  }
+
+  if (newlyPaid.length === 0) {
+    // Still roll the day over so a stale list cannot suppress today's payouts.
+    if (state.questLocalDate === today) return { state, granted: 0 };
+    return {
+      state: { ...state, questLocalDate: today, paidQuestIds: [] },
+      granted: 0,
+    };
+  }
+
   return {
-    ...state,
-    bananas: state.bananas - HOUSE_ACTION_COST.pet,
-    pettedLocalDate: today,
+    state: {
+      ...next,
+      bananas: next.bananas + granted,
+      questLocalDate: today,
+      paidQuestIds: [...paid, ...newlyPaid],
+    },
+    granted,
   };
 }
 
@@ -349,14 +552,24 @@ export type HouseView = {
   reportReady: boolean;
   visitStreakDays: number;
   workoutStreakDays: number;
-  giftAvailable: boolean;
   fedToday: boolean;
   pettedToday: boolean;
+  /** How many times the mascot has been petted today. */
+  pettedCountToday: number;
+  /** 1–`INTIMACY_MAX_LEVEL`; the filled hearts on the chip. */
+  intimacyLevel: number;
+  intimacyPoints: number;
+  /** Intimacy still available today, out of `INTIMACY_DAILY_EARN_LIMIT`. */
+  intimacyRemainingToday: number;
+  questProgress: Record<HouseQuestId, number>;
+  questsCompletedCount: number;
+  questCount: number;
+  gamePlayedToday: boolean;
+  canPlayGame: boolean;
   ownedItems: readonly HouseItem[];
   itemPlacements: Record<HouseItemId, HouseItemPlacement>;
   lockedItems: readonly HouseItem[];
   canFeed: boolean;
-  canPet: boolean;
   canDecorate: boolean;
 };
 
@@ -382,6 +595,17 @@ export function buildHouseView({
   const target = week === null ? null : week.target_workout_count;
   const owned = new Set<string>(state.ownedItemIds);
   const lockedItems = HOUSE_ITEMS.filter((item) => !owned.has(item.id));
+  const workoutCompletedToday = completedDates.includes(today);
+  const questProgress = dailyQuestProgress(state, {
+    today,
+    workoutCompletedToday,
+  });
+  const intimacyEarnedToday = todaysCount(
+    state.intimacyLocalDate,
+    state.intimacyEarnedToday,
+    today,
+  );
+  const gamePlayedToday = state.playedGameLocalDate === today;
 
   return {
     bananas: state.bananas,
@@ -396,9 +620,22 @@ export function buildHouseView({
     reportReady: week !== null && week.report_id !== null,
     visitStreakDays: completionStreak(state.visitedLocalDates, today),
     workoutStreakDays: completionStreak(completedDates, today),
-    giftAvailable: state.claimedGiftLocalDate !== today,
     fedToday: state.fedLocalDate === today,
-    pettedToday: state.pettedLocalDate === today,
+    pettedToday: questProgress.pet > 0,
+    pettedCountToday: questProgress.pet,
+    intimacyLevel: intimacyLevel(state.intimacyPoints),
+    intimacyPoints: state.intimacyPoints,
+    intimacyRemainingToday: Math.max(
+      0,
+      INTIMACY_DAILY_EARN_LIMIT - intimacyEarnedToday,
+    ),
+    questProgress,
+    questsCompletedCount: HOUSE_DAILY_QUESTS.filter(
+      (quest) => questProgress[quest.id] >= quest.target,
+    ).length,
+    questCount: HOUSE_DAILY_QUESTS.length,
+    gamePlayedToday,
+    canPlayGame: !gamePlayedToday,
     ownedItems: HOUSE_ITEMS.filter((item) => owned.has(item.id)),
     itemPlacements: HOUSE_ITEMS.reduce<Record<HouseItemId, HouseItemPlacement>>(
       (placements, item) => {
@@ -410,7 +647,6 @@ export function buildHouseView({
     ),
     lockedItems,
     canFeed: state.bananas >= HOUSE_ACTION_COST.feed,
-    canPet: state.bananas >= HOUSE_ACTION_COST.pet,
     canDecorate: lockedItems.some((item) => state.bananas >= item.cost),
   };
 }
@@ -472,16 +708,25 @@ export function restingPose(view: HouseView): HousePose {
   return 'greeting';
 }
 
-/** House copy. Level whatever the week looks like — never a nudge to train. */
+/**
+ * House copy, keyed to how the week has gone.
+ *
+ * The nil case stays an invitation rather than a shortfall: the mascot never
+ * expresses disappointment about a week that has not started, so there is
+ * deliberately no line here that reads as one.
+ */
 export function houseCaption(view: HouseView): string {
   if (view.weekTargetCount === null) {
     return '이번 주 정보를 불러오지 못했어요. 집은 그대로 있어요.';
   }
   if (view.weekProgress !== null && view.weekProgress >= 1) {
-    return '이번 주 목표를 채웠어요. 끼끼가 신났어요.';
+    return '이번 주 목표 달성! 대단해! 🎉';
   }
-  if (view.weekCompletedCount > 0) {
-    return `이번 주 ${view.weekCompletedCount}번 함께했어요.`;
+  if (view.weekCompletedCount === 1) {
+    return '이번 주 첫 운동 완료!\n또 같이 하자!';
+  }
+  if (view.weekCompletedCount > 1) {
+    return `이번 주 ${view.weekCompletedCount}번 함께했어요.\n한 번만 더! 💪`;
   }
   return '오늘은 그냥 놀러 와도 좋아요.';
 }
@@ -495,10 +740,30 @@ export function houseCaption(view: HouseView): string {
  */
 export function houseSpeech(view: HouseView, pose: HousePose): string {
   if (pose === 'eating') return '냠냠… 고마워요!';
-  if (pose === 'petted') return '헤헤, 기분 좋아요.';
+  if (pose === 'petted') return pettedSpeech(view.pettedCountToday);
   if (!view.fedToday && view.canFeed) return '밥 주세요!!!';
-  if (view.giftAvailable) return '오늘 선물이 와 있어요.';
   return houseCaption(view);
+}
+
+/**
+ * What the mascot says when it is petted.
+ *
+ * Petting is unlimited now, so a single fixed line would wear out within one
+ * visit. The caller passes a number it already has — the pet count for the day
+ * — and the pool is indexed by it rather than by a random draw, so the same
+ * state always renders the same bubble and tests stay deterministic.
+ */
+export const PETTED_SPEECH = [
+  '헤헤, 기분 좋아요.',
+  '해헤 좋아!\n한 번 더!',
+  '거기 좋아요…',
+  '오늘도 와 줬네요!',
+  '히히, 간지러워요.',
+] as const;
+
+export function pettedSpeech(pettedCount: number): string {
+  const index = Math.max(0, Math.floor(pettedCount) - 1) % PETTED_SPEECH.length;
+  return PETTED_SPEECH[index] ?? PETTED_SPEECH[0];
 }
 
 /**
@@ -520,4 +785,10 @@ function stringList(value: unknown): string[] {
 
 function optionalString(value: unknown): string | null {
   return typeof value === 'string' ? value : null;
+}
+
+/** A stored tally read back as a whole number, missing or corrupt meaning zero. */
+function counter(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 0;
+  return Math.max(0, Math.floor(value));
 }
