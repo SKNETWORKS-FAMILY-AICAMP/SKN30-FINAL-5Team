@@ -34,7 +34,6 @@ import type {
 } from '../src/api/types';
 import { resolveEnvConfig } from '../src/config/env';
 import { MascotStage } from '../src/components/brand/BrandChrome';
-import { CalendarStatusScreen } from '../src/features/calendar/CalendarStatusScreen';
 import { HomeContainer } from '../src/features/home/HomeContainer';
 import { MascotHouseScreen } from '../src/features/house/MascotHouseScreen';
 import {
@@ -1681,22 +1680,6 @@ describe('SessionScreen', () => {
         expect.objectContaining({ kind: 'safetyStop' }),
       ),
     );
-  });
-});
-
-describe('CalendarStatusScreen', () => {
-  it('states the integration is not available and offers no connect action', () => {
-    render(<CalendarStatusScreen onBack={jest.fn()} />);
-
-    expect(screen.getByText('연동 준비 중')).toBeTruthy();
-    expect(screen.getByText('아직 연결할 수 없어요')).toBeTruthy();
-    expect(screen.queryByText('캘린더 연결하기')).toBeNull();
-    expect(screen.queryByRole('button', { name: /연결/ })).toBeNull();
-  });
-
-  it('restates that calendar data cannot change official completion', () => {
-    render(<CalendarStatusScreen onBack={jest.fn()} />);
-    expect(screen.getByText('운동 완료 기준은 그대로예요')).toBeTruthy();
   });
 });
 
