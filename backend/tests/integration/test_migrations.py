@@ -20,12 +20,17 @@ BUNDLE_ALTERNATIVES = Path("data/generated/exercise-alternatives-merged-mvp-v0.4
 BUNDLE_PRESCRIPTIONS = Path("data/generated/exercise-prescriptions-merged-mvp-v0.1.0")
 
 
-def test_migration_history_has_workout_execution_state_head() -> None:
+def test_migration_history_has_a_single_linear_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0037_workout_execution_state"]
-    assert scripts.get_revision("0037_workout_execution_state").down_revision == (
+    # A second head means two branches were authored against the same parent, which
+    # blocks every later migration until someone merges them by hand.
+    assert scripts.get_heads() == ["0038_workout_execution_state"]
+    assert scripts.get_revision("0038_workout_execution_state").down_revision == (
+        "0037_retire_calendar_integration"
+    )
+    assert scripts.get_revision("0037_retire_calendar_integration").down_revision == (
         "0036_checkin_safety_recovery"
     )
     assert scripts.get_revision("0036_checkin_safety_recovery").down_revision == (
@@ -166,6 +171,64 @@ def test_completed_input_index_does_not_block_regenerations(
     assert "'original'" in normalized
 
 
+_CALENDAR_TABLES = (
+    "calendar_connections",
+    "calendar_event_links",
+    "calendar_oauth_requests",
+    "calendar_rate_limit_counters",
+)
+
+
+@pytest.mark.integration
+def test_retiring_calendar_drops_its_tables_and_restores_them_on_rollback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """0039 must drop only the integration tables and be reversible.
+
+    Both directions delegate to 0013, so this asserts the delegation actually runs rather
+    than trusting that the two revisions stay in step. The rollback half matters because a
+    drop migration that cannot be undone strands anyone who needs to step back past it.
+    """
+
+    database_url = os.getenv("TEST_DATABASE_URL")
+    if not database_url:
+        pytest.skip("TEST_DATABASE_URL is not configured")
+    if not make_url(database_url).database.endswith("_test"):
+        pytest.fail("Migration tests require a dedicated *_test database")
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("APP_ENV", "test")
+    get_settings.cache_clear()
+    config = Config(str(ALEMBIC_CONFIG))
+    command.upgrade(config, "head")
+
+    engine = create_engine(database_url)
+    with engine.connect() as connection:
+        present = set(inspect(connection).get_table_names())
+    assert not (present & set(_CALENDAR_TABLES))
+    # The in-app monthly record calendar is derived from workout sessions, so the
+    # retirement must leave that source untouched.
+    assert "workout_sessions" in present
+
+    # Target this revision by name rather than "-1": later migrations land on top of it,
+    # and a relative step would exercise whichever one happens to be head instead.
+    command.downgrade(config, "0036_checkin_safety_recovery")
+    with engine.connect() as connection:
+        restored = set(inspect(connection).get_table_names())
+        indexes = {
+            name
+            for table in _CALENDAR_TABLES
+            for name in (index["name"] for index in inspect(connection).get_indexes(table))
+            if name
+        }
+    assert set(_CALENDAR_TABLES) <= restored
+    assert "uq_calendar_connections_token_secret_ref" in indexes
+
+    command.upgrade(config, "head")
+    with engine.connect() as connection:
+        final = set(inspect(connection).get_table_names())
+    assert not (final & set(_CALENDAR_TABLES))
+
+
 @pytest.mark.integration
 def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> None:
     test_database_url = os.getenv("TEST_DATABASE_URL")
@@ -182,11 +245,8 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
     engine = create_engine(test_database_url)
     try:
         inspector = inspect(engine)
+        # The calendar integration tables are absent at head; 0039 retired them.
         assert {
-            "calendar_connections",
-            "calendar_event_links",
-            "calendar_oauth_requests",
-            "calendar_rate_limit_counters",
             "decision_explanations",
             "decision_deliberations",
             "agent_proposal_revisions",
@@ -349,18 +409,6 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
         assert {"condition_code", "pain_discomfort_area_code"}.issubset(
             alternative_relation_key["column_names"]
         )
-        assert {column["name"] for column in inspector.get_columns("calendar_connections")} == {
-            "id",
-            "user_id",
-            "provider_code",
-            "provider_subject",
-            "token_secret_ref",
-            "status_code",
-            "granted_at",
-            "revoked_at",
-            "created_at",
-            "updated_at",
-        }
         with engine.connect() as connection:
             body_focus_codes = set(
                 connection.scalars(

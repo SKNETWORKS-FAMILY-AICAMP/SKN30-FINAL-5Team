@@ -1,10 +1,4 @@
 from backend.app.db.models.account_deletion import AccountDeletionAudit, AccountDeletionJob
-from backend.app.db.models.calendar import (
-    CalendarConnection,
-    CalendarEventLink,
-    CalendarOAuthRequest,
-    CalendarRateLimitCounter,
-)
 from backend.app.db.models.catalog import (
     BodyArea,
     BodyFocus,
@@ -85,10 +79,6 @@ from backend.app.db.models.workout import (
 __all__ = [
     "AccountDeletionAudit",
     "AccountDeletionJob",
-    "CalendarConnection",
-    "CalendarEventLink",
-    "CalendarOAuthRequest",
-    "CalendarRateLimitCounter",
     "BodyArea",
     "BodyFocus",
     "AgentProposalRevisionRecord",

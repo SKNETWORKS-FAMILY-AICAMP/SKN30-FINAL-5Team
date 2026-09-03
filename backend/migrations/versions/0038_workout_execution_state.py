@@ -1,7 +1,7 @@
 """separate workout completion from execution state
 
-Revision ID: 0037_workout_execution_state
-Revises: 0036_checkin_safety_recovery
+Revision ID: 0038_workout_execution_state
+Revises: 0037_retire_calendar_integration
 Create Date: 2026-09-03
 """
 
@@ -10,8 +10,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0037_workout_execution_state"
-down_revision: str | Sequence[str] | None = "0036_checkin_safety_recovery"
+revision: str = "0038_workout_execution_state"
+down_revision: str | Sequence[str] | None = "0037_retire_calendar_integration"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -141,11 +141,6 @@ def downgrade() -> None:
     op.drop_constraint(
         "fk_workout_safety_events_plan_item", "workout_safety_events", type_="foreignkey"
     )
-    op.drop_column("workout_safety_events", "nrs_score")
-    op.drop_column("workout_safety_events", "body_area_code")
-    op.drop_column("workout_safety_events", "symptom_code")
-    op.drop_column("workout_safety_events", "result_code")
-    op.drop_column("workout_safety_events", "plan_item_id")
     # Preserve the historical row shape before restoring the legacy NOT NULL
     # constraints; P1-C structured values have no one-to-one legacy equivalent.
     op.execute(
@@ -160,6 +155,11 @@ def downgrade() -> None:
         "ELSE 'SEVERE_OR_ACUTE_STOP' END), "
         "reason_code = COALESCE(reason_code, 'SEVERE_DISCOMFORT')"
     )
+    op.drop_column("workout_safety_events", "nrs_score")
+    op.drop_column("workout_safety_events", "body_area_code")
+    op.drop_column("workout_safety_events", "symptom_code")
+    op.drop_column("workout_safety_events", "result_code")
+    op.drop_column("workout_safety_events", "plan_item_id")
     op.alter_column("workout_safety_events", "reason_code", nullable=False)
     op.alter_column("workout_safety_events", "guidance_code", nullable=False)
     op.alter_column("workout_safety_events", "instruction_code", nullable=False)
