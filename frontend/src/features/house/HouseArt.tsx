@@ -123,6 +123,239 @@ export function StarGlyph({ size = 16 }: { size?: number }) {
   );
 }
 
+/** Two lobes over a rotated square. Fills for a level reached, pales for one not. */
+export function HeartGlyph({
+  size = 14,
+  filled = true,
+}: {
+  size?: number;
+  filled?: boolean;
+}) {
+  const color = filled ? colors.danger : colors.disabledFill;
+  const lobe = {
+    position: 'absolute' as const,
+    width: size * 0.52,
+    height: size * 0.52,
+    borderRadius: size * 0.26,
+    backgroundColor: color,
+    top: size * 0.12,
+  };
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no"
+      style={{ width: size, height: size }}
+    >
+      <View style={[lobe, { left: size * 0.08 }]} />
+      <View style={[lobe, { left: size * 0.4 }]} />
+      <View
+        style={{
+          position: 'absolute',
+          width: size * 0.64,
+          height: size * 0.64,
+          left: size * 0.18,
+          top: size * 0.2,
+          backgroundColor: color,
+          transform: [{ rotate: '45deg' }],
+        }}
+      />
+    </View>
+  );
+}
+
+/** A teardrop with one sharp corner pointing up. Marks the visit streak. */
+export function FlameGlyph({ size = 16 }: { size?: number }) {
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no"
+      style={[styles.centered, { width: size, height: size }]}
+    >
+      <View
+        style={{
+          width: size * 0.66,
+          height: size * 0.66,
+          borderRadius: size * 0.33,
+          borderTopLeftRadius: 0,
+          backgroundColor: colors.warningText,
+          transform: [{ rotate: '45deg' }],
+        }}
+      />
+    </View>
+  );
+}
+
+/** A clipboard with a clip and two lines. Marks the quest tile. */
+export function ClipboardGlyph({ size = 22 }: { size?: number }) {
+  const line = {
+    width: size * 0.42,
+    height: Math.max(1.5, size * 0.09),
+    borderRadius: size * 0.05,
+    backgroundColor: colors.textSub,
+  };
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no"
+      style={[styles.centered, { width: size, height: size }]}
+    >
+      <View
+        style={{
+          position: 'absolute',
+          top: 0,
+          width: size * 0.36,
+          height: size * 0.16,
+          borderRadius: size * 0.06,
+          backgroundColor: colors.textSub,
+          zIndex: 1,
+        }}
+      />
+      <View
+        style={{
+          width: size * 0.76,
+          height: size * 0.88,
+          marginTop: size * 0.08,
+          borderRadius: size * 0.14,
+          borderWidth: Math.max(1.5, size * 0.08),
+          borderColor: colors.textSub,
+          backgroundColor: colors.surface,
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: size * 0.12,
+        }}
+      >
+        <View style={line} />
+        <View style={line} />
+      </View>
+    </View>
+  );
+}
+
+/** A bulb over a base. Marks the intimacy bonus row. */
+export function BulbGlyph({ size = 18 }: { size?: number }) {
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no"
+      style={[styles.centered, { width: size, height: size }]}
+    >
+      <View
+        style={{
+          width: size * 0.62,
+          height: size * 0.62,
+          borderRadius: size * 0.31,
+          backgroundColor: colors.primary,
+        }}
+      />
+      <View
+        style={{
+          width: size * 0.34,
+          height: size * 0.16,
+          marginTop: size * 0.04,
+          borderRadius: size * 0.06,
+          backgroundColor: colors.primaryBusy,
+        }}
+      />
+    </View>
+  );
+}
+
+/** A plus sign. Opens the list of ways to earn bananas. */
+export function PlusGlyph({
+  size = 14,
+  color = colors.textSub,
+}: {
+  size?: number;
+  color?: string;
+}) {
+  const bar = {
+    position: 'absolute' as const,
+    borderRadius: size * 0.1,
+    backgroundColor: color,
+  };
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no"
+      style={[styles.centered, { width: size, height: size }]}
+    >
+      <View
+        style={[bar, { width: size, height: Math.max(1.5, size * 0.16) }]}
+      />
+      <View
+        style={[bar, { width: Math.max(1.5, size * 0.16), height: size }]}
+      />
+    </View>
+  );
+}
+
+/** A chevron pointing right, for a row that opens something. */
+export function ChevronGlyph({
+  size = 14,
+  color = colors.textMuted,
+}: {
+  size?: number;
+  color?: string;
+}) {
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no"
+      style={[styles.centered, { width: size, height: size }]}
+    >
+      <View
+        style={{
+          width: size * 0.46,
+          height: size * 0.46,
+          marginLeft: -size * 0.12,
+          borderTopWidth: Math.max(1.5, size * 0.13),
+          borderRightWidth: Math.max(1.5, size * 0.13),
+          borderColor: color,
+          transform: [{ rotate: '45deg' }],
+        }}
+      />
+    </View>
+  );
+}
+
+/** A circled `i`, marking copy that explains a rule. */
+export function InfoGlyph({ size = 14 }: { size?: number }) {
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no"
+      style={[
+        styles.centered,
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          borderWidth: Math.max(1, size * 0.09),
+          borderColor: colors.textMuted,
+          gap: size * 0.09,
+        },
+      ]}
+    >
+      <View
+        style={{
+          width: Math.max(1.5, size * 0.12),
+          height: Math.max(1.5, size * 0.12),
+          borderRadius: size * 0.06,
+          backgroundColor: colors.textMuted,
+        }}
+      />
+      <View
+        style={{
+          width: Math.max(1.5, size * 0.12),
+          height: size * 0.32,
+          borderRadius: size * 0.06,
+          backgroundColor: colors.textMuted,
+        }}
+      />
+    </View>
+  );
+}
+
 /** A roof over a body. Used by the 집 꾸미기 chip. */
 export function HouseMarkGlyph({
   size = 20,

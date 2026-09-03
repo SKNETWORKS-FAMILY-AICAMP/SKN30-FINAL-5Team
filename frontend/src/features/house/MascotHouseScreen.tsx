@@ -38,14 +38,15 @@ import {
 } from './houseArtSlots';
 import {
   buyItem,
-  claimDailyGift,
   feedMascot,
   grantWorkoutRewards,
   petMascot,
   placeHouseItem,
+  recordGamePlay,
   registerVisit,
   restingPose,
   selectBackground,
+  settleHouseDay,
   buildHouseView,
   type HouseBackgroundId,
   type HouseItemId,
@@ -133,13 +134,34 @@ export function MascotHouseScreen({
     [],
   );
 
+  const sessions = remote.status === 'ready' ? remote.data.sessions : null;
+
+  /** Official completion, read off the server's status — never inferred here. */
+  const workoutCompletedToday = useMemo(
+    () =>
+      (sessions ?? []).some(
+        (session) =>
+          session.status_code === 'COMPLETED' &&
+          session.local_date === localDate,
+      ),
+    [localDate, sessions],
+  );
+
   const persist = useCallback(
     (next: HouseState) => {
-      liveState.current = next;
-      setHouseState(next);
-      void houseStore.write(next);
+      // Every write settles the day. Any action on this screen can be the one
+      // that finishes a quest, and a single seam means no caller has to
+      // remember to pay it. Settling is idempotent within a day, so writing
+      // twice never grants twice.
+      const settled = settleHouseDay(next, {
+        today: localDate,
+        workoutCompletedToday,
+      }).state;
+      liveState.current = settled;
+      setHouseState(settled);
+      void houseStore.write(settled);
     },
-    [houseStore],
+    [houseStore, localDate, workoutCompletedToday],
   );
 
   const react = useCallback(
@@ -160,8 +182,6 @@ export function MascotHouseScreen({
     },
     [],
   );
-
-  const sessions = remote.status === 'ready' ? remote.data.sessions : null;
 
   // Arrival: read the stored house once, then record the visit and pay out any
   // workout it has not paid for yet.
@@ -226,12 +246,6 @@ export function MascotHouseScreen({
         react('happy');
         return true;
       }}
-      onClaimGift={() => {
-        const claimed = claimDailyGift(houseState, localDate);
-        if (claimed === null) return;
-        persist(claimed.state);
-        react('happy');
-      }}
       onFeed={() => {
         const next = feedMascot(houseState, localDate);
         if (next === null) return false;
@@ -244,9 +258,9 @@ export function MascotHouseScreen({
         return true;
       }}
       onPet={() => {
-        const next = petMascot(houseState, localDate);
-        if (next === null) return false;
-        persist(next);
+        // Free and unlimited, so there is no failure case: the touch always
+        // lands, and only the intimacy it pays is capped.
+        persist(petMascot(liveState.current ?? houseState, localDate));
         const visibleArt =
           (reactionPose === null ? settledArt : reactionArt) ??
           housePoseArt[reactionPose ?? restingPose(view)];
@@ -255,7 +269,11 @@ export function MascotHouseScreen({
         react('petted', pettedArt);
         return true;
       }}
-      onPlayGame={setActiveMiniGame}
+      onPlayGame={(gameId) => {
+        if (!view.canPlayGame) return;
+        persist(recordGamePlay(houseState, localDate));
+        setActiveMiniGame(gameId);
+      }}
       onPlaceItem={(itemId: HouseItemId, placement: HouseItemPlacement) => {
         const base = liveState.current ?? houseState;
         const next = placeHouseItem(base, itemId, placement);

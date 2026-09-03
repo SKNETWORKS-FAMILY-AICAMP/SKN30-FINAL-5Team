@@ -26,8 +26,12 @@ import {
   houseBackdropContinuationTop,
   houseBackdropMinimumHeight,
   houseBackdropSize,
+  houseControlsTop,
   houseMascotSize,
   houseMascotTallScreenOffset,
+  houseMascotTop,
+  HOUSE_MASCOT_CONTROL_CLEARANCE,
+  HOUSE_TOUCH_HINT_RESERVED_HEIGHT,
 } from '../src/features/house/MascotHouseContent';
 import {
   FEED_POSE_HOLD_MS,
@@ -130,6 +134,12 @@ function renderHouse(
   return { ...view, onNavigate, store };
 }
 
+/**
+ * What the house holds the moment it opens with the default fixture: one
+ * completed session, plus the visit quest that replaced 오늘의 선물.
+ */
+const ARRIVAL_BANANAS = BANANA_REWARD.completed + DAILY_GIFT_BANANAS;
+
 function loadPendingMascot() {
   fireEvent(
     screen.getByTestId('house-mascot-art-preload', {
@@ -151,7 +161,7 @@ describe('MascotHouseScreen', () => {
     expect(view.UNSAFE_queryByType(BackgroundBands)).toBeNull();
   });
 
-  it('shows the room, the mini-game list and the bananas the week earned', async () => {
+  it('shows the room, the two tiles and the bananas the week earned', async () => {
     renderHouse(houseApi());
 
     expect(await screen.findByTestId('house-scene')).toBeTruthy();
@@ -163,14 +173,14 @@ describe('MascotHouseScreen', () => {
         .every((banana) => banana.props.source === imageAssets.banana),
     ).toBe(true);
     expect(screen.queryByRole('header', { name: '끼끼의 집' })).toBeNull();
-    expect(screen.getByText('끼끼와 놀기')).toBeTruthy();
-    expect(screen.queryByText('함께 할 미니게임을 골라요')).toBeNull();
+    // The panel lost its heading and its per-card blurb: two square tiles now
+    // sit side by side where the horizontal list used to scroll.
+    expect(screen.queryByText('끼끼와 놀기')).toBeNull();
+    expect(screen.queryByText('떨어지는 바나나를 받아요')).toBeNull();
+    expect(screen.queryByText('30초')).toBeNull();
     expect(screen.getByText('바나나 받기')).toBeTruthy();
-    expect(screen.getByText('떨어지는 바나나를 받아요')).toBeTruthy();
-    expect(screen.getByText('30초')).toBeTruthy();
-    expect(screen.getByTestId('house-mini-game-list').props.horizontal).toBe(
-      true,
-    );
+    expect(screen.getByText('하루 1회 플레이 가능')).toBeTruthy();
+    expect(screen.getByText('퀘스트')).toBeTruthy();
     expect(
       screen.getByTestId('house-mini-game-mascot-banana_catch', {
         includeHiddenElements: true,
@@ -187,21 +197,24 @@ describe('MascotHouseScreen', () => {
       ),
     ).toHaveStyle({ width: 40, height: 40 });
     await waitFor(() =>
-      expect(screen.getByText(`${BANANA_REWARD.completed}개`)).toBeTruthy(),
+      expect(screen.getByText(`${ARRIVAL_BANANAS}개`)).toBeTruthy(),
     );
     expect(
-      screen.getByLabelText(`바나나 ${BANANA_REWARD.completed}개 보유`),
+      screen.getByLabelText(`바나나 ${ARRIVAL_BANANAS}개 보유`),
     ).toBeTruthy();
   });
 
-  it('grants the daily gift once and then reports it as already taken', async () => {
+  it('pays the visit quest on arrival instead of offering a gift to claim', async () => {
     renderHouse(houseApi({ sessions: [] }));
 
-    const gift = await screen.findByTestId('house-gift-button');
-    fireEvent.press(gift);
+    await screen.findByTestId('house-scene');
 
-    expect(screen.getByText(`${DAILY_GIFT_BANANAS}개`)).toBeTruthy();
-    expect(screen.getByLabelText('오늘의 선물, 이미 받았어요')).toBeDisabled();
+    expect(screen.queryByTestId('house-gift-button')).toBeNull();
+    await waitFor(() =>
+      expect(screen.getByText(`${DAILY_GIFT_BANANAS}개`)).toBeTruthy(),
+    );
+    fireEvent.press(screen.getByTestId('house-quest-tile'));
+    expect(screen.getByTestId('house-quest-row-visit')).toBeTruthy();
   });
 
   it('opens the banana catch game and returns to the same house', async () => {
@@ -215,13 +228,10 @@ describe('MascotHouseScreen', () => {
     expect(screen.getByTestId('house-scene')).toBeTruthy();
   });
 
-  it('places the feed and pet actions at equal size in one row', async () => {
+  it('gives the feed button the full row and moves petting onto the mascot', async () => {
     renderHouse(houseApi());
 
     await screen.findByTestId('house-scene');
-    expect(screen.getByTestId('house-primary-actions')).toHaveStyle({
-      flexDirection: 'row',
-    });
     expect(screen.getByTestId('house-feed-action')).toHaveStyle({
       flex: 1,
       flexBasis: 0,
@@ -231,29 +241,41 @@ describe('MascotHouseScreen', () => {
     });
     expect(
       within(screen.getByTestId('house-feed-action')).getByText(
-        `바나나 주기 · ${HOUSE_ACTION_COST.feed}개`,
+        `-${HOUSE_ACTION_COST.feed}`,
       ),
     ).toHaveStyle({ color: colors.textSub, fontSize: 14 });
-    expect(screen.getByTestId('house-pet-action')).toHaveStyle({
-      flex: 1,
-      flexBasis: 0,
-      minWidth: 0,
-      paddingVertical: 15,
-    });
+
+    // Petting is a touch on the mascot itself, inside the slot that is
+    // anchored to the viewport rather than to the controls below it.
     expect(
-      within(screen.getByTestId('house-pet-action')).getByText(
-        `쓰다듬기 · ${HOUSE_ACTION_COST.pet}개`,
+      within(screen.getByTestId('house-mascot-slot')).getByTestId(
+        'house-pet-action',
       ),
-    ).toHaveStyle({ color: colors.textSub, fontSize: 14 });
+    ).toBeTruthy();
+    expect(screen.getByTestId('house-touch-hint')).toBeTruthy();
+    expect(screen.getByText('끼끼를 터치해보세요!')).toBeTruthy();
+  });
+
+  it('keeps the bottom panel at the height that fixes the backdrop boundary', async () => {
+    renderHouse(houseApi());
+
+    await screen.findByTestId('house-scene');
+    // 16 + 150 + 16 = 182, what the panel measured when it held the 끼끼와 놀기
+    // heading above one 122px card. `houseBottomPanelTop` reads this panel, so
+    // the room behind the mascot moves if the height drifts. Anything that
+    // needs more room goes above the panel — the intimacy row does.
+    expect(screen.getByTestId('house-play-panel')).toHaveStyle({ padding: 16 });
     expect(
-      within(screen.getByTestId('house-pet-action')).getByTestId(
-        'house-banana-asset',
-        { includeHiddenElements: true },
+      within(screen.getByTestId('house-play-panel')).getByTestId(
+        'house-quest-tile',
       ),
-    ).toHaveStyle({ width: 18, height: 18 });
-    expect(screen.getByTestId('house-mini-game-banana_catch')).toHaveStyle({
-      minHeight: 122,
-    });
+    ).toBeTruthy();
+    expect(
+      within(screen.getByTestId('house-play-panel')).queryByTestId(
+        'house-intimacy-bonus',
+      ),
+    ).toBeNull();
+    expect(screen.getByTestId('house-intimacy-bonus')).toBeTruthy();
   });
 
   it('shrinks buttons, cards, and navigation together on a short viewport', async () => {
@@ -269,16 +291,10 @@ describe('MascotHouseScreen', () => {
       minHeight: 44,
       paddingVertical: 15 * compactScale,
     });
-    expect(screen.getByTestId('house-pet-action')).toHaveStyle({
-      minHeight: 44,
-      paddingVertical: 15 * compactScale,
-    });
     expect(screen.getByTestId('house-play-panel')).toHaveStyle({
       padding: 16 * compactScale,
     });
     expect(screen.getByTestId('house-mini-game-banana_catch')).toHaveStyle({
-      width: 286 * compactScale,
-      minHeight: 122 * compactScale,
       padding: 12 * compactScale,
     });
     expect(screen.getByTestId('bottom-navigation')).toHaveStyle({
@@ -296,11 +312,9 @@ describe('MascotHouseScreen', () => {
     const { store } = renderHouse(houseApi());
 
     await waitFor(() =>
-      expect(screen.getByText(`${BANANA_REWARD.completed}개`)).toBeTruthy(),
+      expect(screen.getByText(`${ARRIVAL_BANANAS}개`)).toBeTruthy(),
     );
-    expect(
-      screen.getByText(`바나나 주기 · ${HOUSE_ACTION_COST.feed}개`),
-    ).toBeTruthy();
+    expect(screen.getByText('바나나 주기')).toBeTruthy();
     fireEvent.press(screen.getByTestId('house-feed-action'));
 
     expect(
@@ -315,7 +329,7 @@ describe('MascotHouseScreen', () => {
       }).props.children,
     ).toEqual(['-', HOUSE_ACTION_COST.feed]);
 
-    const remaining = BANANA_REWARD.completed - HOUSE_ACTION_COST.feed;
+    const remaining = ARRIVAL_BANANAS - HOUSE_ACTION_COST.feed;
     expect(screen.getByText(`${remaining}개`)).toBeTruthy();
     await waitFor(async () =>
       expect((await store.read())?.bananas).toBe(remaining),
@@ -326,7 +340,7 @@ describe('MascotHouseScreen', () => {
     renderHouse(houseApi());
 
     await waitFor(() =>
-      expect(screen.getByText(`${BANANA_REWARD.completed}개`)).toBeTruthy(),
+      expect(screen.getByText(`${ARRIVAL_BANANAS}개`)).toBeTruthy(),
     );
     fireEvent.press(screen.getByTestId('house-decorate-action'));
     expect(
@@ -405,7 +419,7 @@ describe('MascotHouseScreen', () => {
     const { store } = renderHouse(houseApi());
 
     await waitFor(() =>
-      expect(screen.getByText(`${BANANA_REWARD.completed}개`)).toBeTruthy(),
+      expect(screen.getByText(`${ARRIVAL_BANANAS}개`)).toBeTruthy(),
     );
     fireEvent.press(screen.getByTestId('house-decorate-action'));
     fireEvent.press(screen.getByRole('tab', { name: '소품' }));
@@ -518,12 +532,13 @@ describe('MascotHouseScreen', () => {
     ).toEqual({ disabled: true, selected: true });
   });
 
-  it('keeps the mini-game panel available when the week fails', async () => {
+  it('keeps the bottom tiles available when the week fails', async () => {
     const api = houseApi({ weekError: true });
     renderHouse(api);
 
     expect(await screen.findByTestId('house-scene')).toBeTruthy();
-    expect(screen.getByText('끼끼와 놀기')).toBeTruthy();
+    expect(screen.getByTestId('house-mini-game-banana_catch')).toBeTruthy();
+    expect(screen.getByTestId('house-quest-tile')).toBeTruthy();
     expect(screen.queryByText('목표를 불러오지 못했어요')).toBeNull();
     expect(screen.queryByTestId('house-feedback')).toBeNull();
     expect(screen.queryByLabelText('다시 시도')).toBeNull();
@@ -633,6 +648,147 @@ describe('MascotHouseScreen', () => {
     });
   });
 
+  /**
+   * The shapes the app actually meets: a small phone, the reference phone, a
+   * tall phone, a foldable, and two web windows including a short landscape
+   * one. Nothing here assumes a device — the rule is derived from measured
+   * layout, so the same assertion has to hold for all of them.
+   */
+  const CLEARANCE_VIEWPORTS = [
+    { label: 'small phone', width: 320, height: 568 },
+    { label: 'reference phone', width: 390, height: 844 },
+    { label: 'tall phone', width: 430, height: 932 },
+    { label: 'foldable', width: 412, height: 1024 },
+    { label: 'web window', width: 1280, height: 720 },
+    { label: 'short web window', width: 1024, height: 500 },
+  ] as const;
+
+  it.each(CLEARANCE_VIEWPORTS)(
+    'never lets the mascot or its hint reach the controls on a $label',
+    ({ height }) => {
+      const mascotSize = houseMascotSize(height);
+      const belowMascotHeight = HOUSE_TOUCH_HINT_RESERVED_HEIGHT + 8;
+
+      // Sweep the whole range the controls can occupy rather than one guess at
+      // their height: the design changes, the rule must not.
+      for (
+        let controlsTop = height * 0.3;
+        controlsTop < height;
+        controlsTop += 8
+      ) {
+        const top = houseMascotTop({
+          belowMascotHeight,
+          controlsTop,
+          mascotSize,
+          sceneTop: 0,
+          viewportHeight: height,
+        });
+        // Either the clearance holds, or the viewport is too short for both
+        // and the mascot has stopped at its floor rather than climbing behind
+        // the top chips. It is never somewhere in between.
+        const clears =
+          top + mascotSize + belowMascotHeight <=
+          controlsTop - HOUSE_MASCOT_CONTROL_CLEARANCE + 0.001;
+        expect(clears || top === 0).toBe(true);
+      }
+    },
+  );
+
+  it('keeps the tuned anchor whenever the controls leave room for it', () => {
+    const mascotSize = houseMascotSize(844);
+    const anchored = 844 * 0.45 - mascotSize / 2;
+
+    expect(
+      houseMascotTop({
+        belowMascotHeight: 42,
+        // The controls as they were before the intimacy row was added.
+        controlsTop: 508,
+        mascotSize,
+        sceneTop: 0,
+        viewportHeight: 844,
+      }),
+    ).toBeCloseTo(anchored, 5);
+  });
+
+  it('lifts the mascot exactly as far as taller controls require', () => {
+    const mascotSize = houseMascotSize(844);
+
+    // 442 is where the action area now starts on the reference phone.
+    expect(
+      houseMascotTop({
+        belowMascotHeight: 42,
+        controlsTop: 442,
+        mascotSize,
+        sceneTop: 0,
+        viewportHeight: 844,
+      }),
+    ).toBeCloseTo(442 - HOUSE_MASCOT_CONTROL_CLEARANCE - 42 - mascotSize, 5);
+  });
+
+  it('stops the mascot under the top chips rather than behind them', () => {
+    // A viewport too short to hold both: the floor wins over the clamp.
+    expect(
+      houseMascotTop({
+        belowMascotHeight: 42,
+        controlsTop: 180,
+        mascotSize: 111,
+        sceneTop: 120,
+        viewportHeight: 420,
+      }),
+    ).toBe(120);
+  });
+
+  it('holds the tuned anchor until the controls have been measured', () => {
+    const mascotSize = houseMascotSize(844);
+
+    expect(
+      houseMascotTop({
+        belowMascotHeight: 42,
+        controlsTop: null,
+        mascotSize,
+        sceneTop: 0,
+        viewportHeight: 844,
+      }),
+    ).toBeCloseTo(844 * 0.45 - mascotSize / 2, 5);
+    expect(houseControlsTop(null, 712, 310)).toBeNull();
+    expect(houseControlsTop(40, 712, 310)).toBe(442);
+  });
+
+  it('lifts the mascot off its anchor when the real controls grow into it', async () => {
+    renderHouse(houseApi());
+    await screen.findByTestId('house-scene');
+
+    fireEvent(screen.getByTestId('mascot-house-content'), 'layout', {
+      nativeEvent: { layout: { height: 844, width: 390, x: 0, y: 0 } },
+    });
+    fireEvent(screen.getByTestId('house-content-column'), 'layout', {
+      nativeEvent: { layout: { height: 712, width: 390, x: 0, y: 40 } },
+    });
+    // The action area as it stands with the intimacy row above the tiles.
+    fireEvent(screen.getByTestId('house-action-area'), 'layout', {
+      nativeEvent: { layout: { height: 310, width: 358, x: 16, y: 402 } },
+    });
+    fireEvent(screen.getByTestId('house-touch-hint'), 'layout', {
+      nativeEvent: { layout: { height: 34, width: 200, x: 0, y: 119 } },
+    });
+
+    const controlsTop = houseControlsTop(40, 712, 310);
+    expect(controlsTop).toBe(442);
+
+    const mascotSize = houseMascotSize(844);
+    const belowMascotHeight = 34 + 8;
+    const slotTop = StyleSheet.flatten(
+      screen.getByTestId('house-mascot-slot').props.style,
+    ).top as number;
+
+    // The tuned 45% anchor would put the hint behind the feed button, so the
+    // mascot is lifted — and lands exactly on the clearance, not further.
+    expect(slotTop).toBeLessThan(844 * 0.45 - mascotSize / 2);
+    expect(slotTop + mascotSize + belowMascotHeight).toBe(
+      controlsTop! - HOUSE_MASCOT_CONTROL_CLEARANCE,
+    );
+  });
+
   it('keeps the control boundary below the minimum scene on short screens', () => {
     expect(houseBottomPanelTop(0, 456.8, 239.3, 123.4)).toBeCloseTo(337.9, 1);
   });
@@ -678,7 +834,7 @@ describe('MascotHouseScreen', () => {
     renderHouse(houseApi());
 
     await waitFor(() =>
-      expect(screen.getByText(`${BANANA_REWARD.completed}개`)).toBeTruthy(),
+      expect(screen.getByText(`${ARRIVAL_BANANAS}개`)).toBeTruthy(),
     );
     const expected = randomHousePettedPoseArt(
       housePoseArt.greeting.source,
@@ -701,12 +857,14 @@ describe('MascotHouseScreen', () => {
           { includeHiddenElements: true },
         ),
       ).toBeTruthy();
+      // Petting costs nothing now, so the mascot sparkles and the banana
+      // count shows no deduction at all.
       expect(
-        within(screen.getByTestId('house-banana-count')).getByTestId(
+        within(screen.getByTestId('house-banana-count')).queryByTestId(
           'house-action-effect-amount',
           { includeHiddenElements: true },
-        ).props.children,
-      ).toEqual(['-', HOUSE_ACTION_COST.pet]);
+        ),
+      ).toBeNull();
 
       expect(screen.getByLabelText('인사하는 끼끼')).toBeTruthy();
       expect(
@@ -734,7 +892,7 @@ describe('MascotHouseScreen', () => {
     renderHouse(houseApi());
 
     await waitFor(() =>
-      expect(screen.getByText(`${BANANA_REWARD.completed}개`)).toBeTruthy(),
+      expect(screen.getByText(`${ARRIVAL_BANANAS}개`)).toBeTruthy(),
     );
     const random = jest.spyOn(Math, 'random').mockReturnValue(0);
     jest.useFakeTimers();
@@ -838,11 +996,13 @@ describe('MascotHouseScreen', () => {
       nativeEvent: { layout: { height: 844, width: 390, x: 0, y: 0 } },
     });
 
+    // The anchor is now resolved to pixels rather than a percentage plus a
+    // transform, because it has to be clamped against the measured controls.
+    // With no control layout reported yet it lands on the tuned 45%.
     expect(mascotSlot).toHaveStyle({
       position: 'absolute',
-      top: '45%',
+      top: 844 * 0.45 - 55.5,
       height: 111,
-      transform: [{ translateY: -55.5 }],
     });
     expect(screen.getByTestId('house-speech-bubble')).toHaveStyle({
       bottom: 119,
@@ -857,9 +1017,8 @@ describe('MascotHouseScreen', () => {
       nativeEvent: { layout: { height: 994, width: 390, x: 0, y: 0 } },
     });
     expect(mascotSlot).toHaveStyle({
-      top: '45%',
+      top: 994 * 0.45 - 58.5 + houseMascotTallScreenOffset(994),
       height: 117,
-      transform: [{ translateY: -43.5 }],
     });
     expect(screen.getByTestId('house-speech-bubble')).toHaveStyle({
       bottom: 125,
@@ -904,7 +1063,7 @@ describe('MascotHouseScreen', () => {
     expect(screen.getByTestId('house-decorate-action')).toHaveStyle(
       translucent,
     );
-    expect(screen.getByTestId('house-gift-button')).toHaveStyle(translucent);
+    expect(screen.getByTestId('house-intimacy-chip')).toHaveStyle(translucent);
   });
 
   it('uses the full responsive width with Large phone proportional insets', async () => {
@@ -931,7 +1090,6 @@ describe('MascotHouseScreen', () => {
     expect(screen.getByTestId('house-decorate-panel')).toBeTruthy();
     const covered = { includeHiddenElements: true } as const;
     expect(screen.getByTestId('house-feed-action', covered)).toBeTruthy();
-    expect(screen.getByTestId('house-pet-action', covered)).toBeTruthy();
     expect(screen.getByTestId('house-play-panel', covered)).toBeTruthy();
     expect(screen.getByTestId('house-scene')).toBeTruthy();
 
@@ -939,11 +1097,21 @@ describe('MascotHouseScreen', () => {
     expect(screen.queryByTestId('house-decorate-panel')).toBeNull();
   });
 
-  it('never offers an action it cannot pay for', async () => {
+  it('never offers an action it cannot pay for, and always offers petting', async () => {
     renderHouse(houseApi({ sessions: [] }));
 
     await screen.findByTestId('house-scene');
+    await waitFor(() =>
+      expect(screen.getByText(`${DAILY_GIFT_BANANAS}개`)).toBeTruthy(),
+    );
+
+    fireEvent.press(screen.getByTestId('house-feed-action'));
+    expect(
+      screen.getByText(`${DAILY_GIFT_BANANAS - HOUSE_ACTION_COST.feed}개`),
+    ).toBeTruthy();
     expect(screen.getByTestId('house-feed-action')).toBeDisabled();
-    expect(screen.getByTestId('house-pet-action')).toBeDisabled();
+
+    // Petting is free, so it has no unaffordable state to fall into.
+    expect(screen.getByTestId('house-pet-action')).not.toBeDisabled();
   });
 });

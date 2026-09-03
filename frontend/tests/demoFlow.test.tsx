@@ -2919,7 +2919,7 @@ describe('MascotStage', () => {
 });
 
 describe('MascotHouseScreen', () => {
-  it('shows the room and its mini-game collection', async () => {
+  it('shows the room and its two bottom tiles', async () => {
     const onNavigate = jest.fn();
     render(
       <MascotHouseScreen
@@ -2945,8 +2945,8 @@ describe('MascotHouseScreen', () => {
       />,
     );
 
-    expect(await screen.findByText('끼끼와 놀기')).toBeTruthy();
-    expect(screen.getByText('바나나 받기')).toBeTruthy();
+    expect(await screen.findByText('바나나 받기')).toBeTruthy();
+    expect(screen.getByText('퀘스트')).toBeTruthy();
     expect(screen.queryByText('주 3회 운동하기')).toBeNull();
     expect(screen.queryByText('0 / 3 회')).toBeNull();
     expect(screen.getByTestId('house-scene')).toBeTruthy();

@@ -778,8 +778,8 @@ describe('PreviewGallery', () => {
     expect(canvas.getByTestId('mascot-house-content')).toBeOnTheScreen();
     expect(canvas.queryByTestId('background-test-content')).toBeNull();
     expect(canvas.queryByTestId('moving-house-backdrop')).toBeNull();
-    expect(canvas.getByText('끼끼와 놀기')).toBeOnTheScreen();
     expect(canvas.getByText('바나나 받기')).toBeOnTheScreen();
+    expect(canvas.getByText('퀘스트')).toBeOnTheScreen();
     expect(canvas.queryByText('주 4회 운동하기')).toBeNull();
     expect(canvas.queryByText('2 / 4 회')).toBeNull();
 

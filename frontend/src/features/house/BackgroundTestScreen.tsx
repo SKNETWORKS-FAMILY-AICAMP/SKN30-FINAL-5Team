@@ -38,7 +38,6 @@ import {
 } from './BackgroundTestContent';
 import {
   buyItem,
-  claimDailyGift,
   feedMascot,
   grantWorkoutRewards,
   objectParticle,
@@ -231,22 +230,6 @@ export function BackgroundTestScreen({
         setFeedback({
           tone: 'success',
           message: `${label}${objectParticle(label)} 집에 놓았어요.`,
-        });
-        react('happy');
-      }}
-      onClaimGift={() => {
-        const claimed = claimDailyGift(houseState, localDate);
-        if (claimed === null) {
-          setFeedback({
-            tone: 'warning',
-            message: '오늘의 선물은 이미 받았어요. 내일 또 있어요.',
-          });
-          return;
-        }
-        persist(claimed.state);
-        setFeedback({
-          tone: 'success',
-          message: `오늘의 선물로 바나나 ${claimed.granted}개를 받았어요.`,
         });
         react('happy');
       }}

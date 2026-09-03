@@ -43,7 +43,6 @@ import { useScale } from '../../components/scale';
 import { colors, radii, shadows, spacing } from '../../components/theme';
 import {
   BananaGlyph,
-  GiftGlyph,
   HouseArtView,
   HouseMarkGlyph,
   StarGlyph,
@@ -130,7 +129,6 @@ export function BackgroundTestContent({
   footer,
   nickname,
   onBuyItem,
-  onClaimGift,
   onDismissFeedback,
   onFeed,
   onPet,
@@ -142,7 +140,6 @@ export function BackgroundTestContent({
   footer?: ReactNode;
   nickname: string;
   onBuyItem: (itemId: HouseItemId) => void;
-  onClaimGift: () => void;
   onDismissFeedback: () => void;
   onFeed: () => void;
   onPet: () => void;
@@ -191,25 +188,6 @@ export function BackgroundTestContent({
             </View>
 
             <View style={styles.railRight}>
-              <Pressable
-                accessibilityLabel={
-                  view.giftAvailable
-                    ? '오늘의 선물 받기'
-                    : '오늘의 선물, 이미 받았어요'
-                }
-                accessibilityRole="button"
-                accessibilityState={{ disabled: !view.giftAvailable }}
-                disabled={!view.giftAvailable}
-                onPress={onClaimGift}
-                style={[styles.chip, !view.giftAvailable && styles.spent]}
-                testID="house-gift-button"
-              >
-                <GiftGlyph size={22} />
-                <Text style={styles.chipValue}>
-                  {view.giftAvailable ? '오늘의 선물' : '받았어요'}
-                </Text>
-              </Pressable>
-
               {view.visitStreakDays > 1 ? (
                 <View style={styles.streakChip} testID="house-visit-streak">
                   <StarGlyph size={14} />
@@ -292,17 +270,13 @@ export function BackgroundTestContent({
             >
               <FeedButton enabled={view.canFeed} onPress={onFeed} />
               <Pressable
-                accessibilityLabel={`쓰다듬기, 바나나 ${HOUSE_ACTION_COST.pet}개`}
+                accessibilityLabel="끼끼 쓰다듬기"
                 accessibilityRole="button"
-                accessibilityState={{ disabled: !view.canPet }}
-                disabled={!view.canPet}
                 onPress={onPet}
-                style={[styles.petButton, !view.canPet && styles.spent]}
+                style={styles.petButton}
                 testID="house-pet-action"
               >
-                <Text style={styles.petLabel}>
-                  쓰다듬기 · 바나나 {HOUSE_ACTION_COST.pet}개
-                </Text>
+                <Text style={styles.petLabel}>쓰다듬기</Text>
               </Pressable>
 
               <WeekPanel nickname={nickname} view={view} />
