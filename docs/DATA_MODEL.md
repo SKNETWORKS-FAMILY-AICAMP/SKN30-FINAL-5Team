@@ -1118,6 +1118,12 @@ metadata를 갖고 기존 의미를 유지한다.
 필수 장비 설명과 지원 장소 집계를 snapshot에 포함한다. Recovery는 이 요약만 참조하고 원시 운동 기록을
 복제하지 않으며, Feasibility는 현재 장소와 후보 제약을 결정적으로 비교한다.
 
+`decision-input-v5`부터 `latest_difficulty_feedback`을 추가한다. 이 사용자의 가장 최근 종료 세션에
+저장된 `difficulty_code`와 정렬된 `reason_codes`이며, 식별자나 세션 원문은 담지 않는다. 값이 없으면
+`difficulty_code=null`, `reason_codes=[]`로 키 자체는 항상 존재한다. 가장 최근 한 건만 담는 이유는
+6.1의 사다리가 축을 하나만 바꾸고 그 효과를 다음 피드백으로 평가하기 때문이다. 컬럼은 문자열이라
+`decision-input-v4` 이하로 저장된 행은 값을 그대로 유지하며 재현 경로도 유지한다.
+
 ### 9.2 agent_proposals
 
 Wave 6에서는 `proposal_payload` JSONB에 검증된 구조화 proposal을 저장하고
@@ -1677,7 +1683,9 @@ row는 즉시 삭제하지 않는다. 후속 migration은 먼저 신규 write에
 | created_at | 생성 시각 |
 
 `(workout_session_id, reason_code)`에 unique 제약을 둔다. `difficulty_code=HARD`인 feedback만
-이 row를 가지며 최소 1건, 최대 2건이다. `HARD`가 아닌 feedback에 row가 있으면 안 된다.
+이 row를 가지며 최대 2건이다. `HARD`가 아닌 feedback에 row가 있으면 안 된다. 이 짝은 서비스
+계층이 강제한다. 테이블 간 조건이라 CHECK 제약으로 표현할 수 없기 때문이다. 필드가 선택인
+호환 기간에는 `HARD`인데 row가 0건인 feedback이 존재할 수 있으며, 그 경우 조정 축을 고르지 않는다.
 다음 루틴의 조정 축을 정하는 결정 입력이므로 JSONB가 아닌 typed row로 저장하고, 조정에 사용한
 값은 decision run의 재현 입력에 포함한다. 이 값은 주관적 체감이며 의료적 해석 대상이 아니다.
 

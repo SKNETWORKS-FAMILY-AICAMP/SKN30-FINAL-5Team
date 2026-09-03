@@ -989,6 +989,9 @@ class WorkoutService:
                     for item in request.discomforts
                 ),
                 adverse_reaction_codes=tuple(code.value for code in request.adverse_reaction_codes),
+                difficulty_reason_codes=tuple(
+                    sorted(code.value for code in request.difficulty_reason_codes)
+                ),
                 now=now,
             )
             guidance_code: str | None = None

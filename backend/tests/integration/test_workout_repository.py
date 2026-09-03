@@ -263,6 +263,7 @@ def test_repository_round_trip_keeps_timer_and_additional_activity_informational
             pain_occurred=False,
             discomforts=(),
             adverse_reaction_codes=(),
+            difficulty_reason_codes=(),
             now=NOW,
         )
         assert repository.feedback_exists(session, workout_session_id)

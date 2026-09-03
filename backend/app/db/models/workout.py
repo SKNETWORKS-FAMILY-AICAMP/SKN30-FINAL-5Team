@@ -329,6 +329,38 @@ class WorkoutFeedback(Base):
     adverse_reactions: Mapped[list["WorkoutFeedbackAdverseReaction"]] = relationship(
         cascade="all, delete-orphan", passive_deletes=True
     )
+    difficulty_reasons: Mapped[list["WorkoutFeedbackDifficultyReason"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True
+    )
+
+
+class WorkoutFeedbackDifficultyReason(Base):
+    """Why a `HARD` session felt hard; drives the next routine's adjustment axis.
+
+    Typed rows rather than JSONB because the decision path reads and replays these
+    (`DATA_MODEL.md` 10.4.1), and `AGENTS.md` 10 reserves JSONB for flexible proposal and
+    metadata fields rather than queried decision inputs.
+    """
+
+    __tablename__ = "workout_feedback_difficulty_reasons"
+    __table_args__ = (
+        UniqueConstraint(
+            "workout_session_id",
+            "reason_code",
+            name="uq_workout_feedback_difficulty_reason",
+        ),
+        CheckConstraint(
+            "reason_code IN ('VOLUME_HIGH','MOVEMENT_DIFFICULT')",
+            name="ck_workout_feedback_difficulty_reason_code",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    workout_session_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("workout_feedback.workout_session_id", ondelete="CASCADE"), nullable=False
+    )
+    reason_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class WorkoutFeedbackDiscomfort(Base):

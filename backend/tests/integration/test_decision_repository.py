@@ -742,7 +742,7 @@ def test_decision_repository_assembles_and_persists_active_profile_attention_are
         )
     stored = postgres_session.scalar(select(DecisionRun).where(DecisionRun.user_id == owner_id))
     assert stored is not None
-    assert stored.input_schema_version == DECISION_INPUT_SCHEMA_VERSION == "decision-input-v4"
+    assert stored.input_schema_version == DECISION_INPUT_SCHEMA_VERSION == "decision-input-v5"
     assert stored.graph_version == DECISION_GRAPH_VERSION == "decision-graph-v2"
     assert stored.input_snapshot["profile"]["attention_area_codes"] == ["KNEE", "SHOULDER"]
     assert tuple(stored.input_snapshot["profile"]["attention_area_codes"]) == (

@@ -26,7 +26,10 @@ def test_migration_history_has_a_single_linear_head() -> None:
 
     # A second head means two branches were authored against the same parent, which
     # blocks every later migration until someone merges them by hand.
-    assert scripts.get_heads() == ["0038_workout_execution_state"]
+    assert scripts.get_heads() == ["0039_workout_difficulty_reasons"]
+    assert scripts.get_revision("0039_workout_difficulty_reasons").down_revision == (
+        "0038_workout_execution_state"
+    )
     assert scripts.get_revision("0038_workout_execution_state").down_revision == (
         "0037_retire_calendar_integration"
     )
@@ -213,14 +216,17 @@ def test_retiring_calendar_drops_its_tables_and_restores_them_on_rollback(
     # and a relative step would exercise whichever one happens to be head instead.
     command.downgrade(config, "0036_checkin_safety_recovery")
     with engine.connect() as connection:
-        restored = set(inspect(connection).get_table_names())
+        # One inspector for the whole block; a second one built from the same connection
+        # reuses the earlier reflection cache and reports the tables as missing.
+        inspector = inspect(connection)
+        restored = set(inspector.get_table_names())
+        assert set(_CALENDAR_TABLES) <= restored
         indexes = {
             name
             for table in _CALENDAR_TABLES
-            for name in (index["name"] for index in inspect(connection).get_indexes(table))
+            for name in (index["name"] for index in inspector.get_indexes(table))
             if name
         }
-    assert set(_CALENDAR_TABLES) <= restored
     assert "uq_calendar_connections_token_secret_ref" in indexes
 
     command.upgrade(config, "head")

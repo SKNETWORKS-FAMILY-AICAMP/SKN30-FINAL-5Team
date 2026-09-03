@@ -2,8 +2,17 @@ from datetime import date, datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints, field_validator
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
+from backend.app.domain.rules.feedback_adjustment import DifficultyReasonCode
 from backend.app.domain.rules.safety import AdverseReactionCode, BodyAreaCode
 from backend.app.domain.rules.workout_execution import WorkoutNotCompletedReasonCode
 from backend.app.modules.checkins.codes import DiscomfortSeverityCode
@@ -210,11 +219,36 @@ class WorkoutFeedbackRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     difficulty_code: Literal["EASY", "APPROPRIATE", "HARD"]
+    difficulty_reason_codes: list[DifficultyReasonCode] = Field(default_factory=list)
     fatigue_code: MachineCode | None = None
     satisfaction_code: MachineCode | None = None
     pain_occurred: bool
     discomforts: list[WorkoutDiscomfortInput] = Field(default_factory=list)
     adverse_reaction_codes: list[AdverseReactionCode] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def reject_reasons_outside_hard(self) -> "WorkoutFeedbackRequest":
+        """Reasons belong to `HARD` only, and stay optional during the rollout.
+
+        The reasons pick which axis the next routine lowers (`DOMAIN_RULES.md` 6.1), and
+        ADR-0018 makes them required for `HARD`. That step is deliberately not taken here:
+        clients in the field still post `HARD` with no reasons, and `DOMAIN_RULES.md` 1.1
+        requires the additive API change to land before new writes are enforced. Making it
+        required now would reject the feedback those clients already send. A later release
+        promotes this to required once the client sends it and compatibility is verified;
+        until then a `HARD` row without reasons simply yields no adjustment.
+
+        Reasons sent alongside `EASY` or `APPROPRIATE` are rejected rather than dropped,
+        because storing a row that does not match what was sent would make the decision
+        irreproducible from its own input.
+        """
+
+        reasons = self.difficulty_reason_codes
+        if self.difficulty_code != "HARD" and reasons:
+            raise ValueError("difficulty_reason_codes is only allowed when difficulty_code is HARD")
+        if len(set(reasons)) != len(reasons):
+            raise ValueError("difficulty_reason_codes must not contain duplicates")
+        return self
 
     @field_validator("discomforts")
     @classmethod
