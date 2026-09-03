@@ -14,7 +14,11 @@ from backend.app.api.dependencies import (
 )
 from backend.app.core.errors import AppError
 from backend.app.modules.checkins.ports import DailyContextRepositoryPort
-from backend.app.modules.checkins.schemas import DailyContextResponse, DailyContextUpsertRequest
+from backend.app.modules.checkins.schemas import (
+    DailyContextDefaultsResponse,
+    DailyContextResponse,
+    DailyContextUpsertRequest,
+)
 from backend.app.modules.checkins.service import (
     AvailabilitySlotOutOfRangeError,
     DailyContextNotFoundError,
@@ -135,6 +139,16 @@ def get_daily_context(
         return DailyContextService(repository).get(session, current_user.user_id, local_date)
     except (DailyContextNotFoundError, SQLAlchemyError) as exc:
         raise _translate_error(exc) from None
+
+
+@router.get("/{local_date}/defaults", response_model=DailyContextDefaultsResponse)
+def get_daily_context_defaults(
+    local_date: date,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db_session)],
+    repository: Annotated[DailyContextRepositoryPort, Depends(get_daily_context_repository)],
+) -> DailyContextDefaultsResponse:
+    return DailyContextService(repository).defaults(session, current_user.user_id, local_date)
 
 
 __all__ = ["router"]

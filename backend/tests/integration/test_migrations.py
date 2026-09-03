@@ -20,11 +20,14 @@ BUNDLE_ALTERNATIVES = Path("data/generated/exercise-alternatives-merged-mvp-v0.4
 BUNDLE_PRESCRIPTIONS = Path("data/generated/exercise-prescriptions-merged-mvp-v0.1.0")
 
 
-def test_migration_history_has_onboarding_eligibility_head() -> None:
+def test_migration_history_has_checkin_safety_recovery_head() -> None:
     config = Config(str(ALEMBIC_CONFIG))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["0035_onboarding_eligibility"]
+    assert scripts.get_heads() == ["0036_checkin_safety_recovery"]
+    assert scripts.get_revision("0036_checkin_safety_recovery").down_revision == (
+        "0035_onboarding_eligibility"
+    )
     assert scripts.get_revision("0035_onboarding_eligibility").down_revision == (
         "0034_decision_input_idempotency"
     )
@@ -194,7 +197,23 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
             "exercise_safety_rules",
             "exercise_alternatives",
             "exercise_media_assets",
+            "daily_context_pains",
         }.issubset(inspector.get_table_names())
+        assert {
+            "sleep_source_code",
+            "available_time_minutes",
+            "pain_present",
+            "red_flag_present",
+        }.issubset({column["name"] for column in inspector.get_columns("daily_contexts")})
+        assert {
+            "id",
+            "daily_context_id",
+            "body_area_code",
+            "intensity_score",
+            "severity_code",
+            "policy_version",
+            "created_at",
+        } == {column["name"] for column in inspector.get_columns("daily_context_pains")}
         assert {
             "id",
             "catalog_version_id",

@@ -19,6 +19,7 @@ from backend.app.db.models.checkin import (
     DailyContext,
     DailyContextAdverseReaction,
     DailyContextDiscomfort,
+    DailyContextPain,
 )
 from backend.app.db.models.decision import (
     AgentProposalRecord,
@@ -169,16 +170,37 @@ class DecisionRepository:
         }
         if len(exercises) != len(set(exercise_ids)):
             return None
-        discomforts = tuple(
-            (body_area_code, severity_code)
-            for body_area_code, severity_code in sorted(
+        pains = tuple(
+            (body_area_code, intensity_score, severity_code, policy_version)
+            for body_area_code, intensity_score, severity_code, policy_version in sorted(
                 session.execute(
                     select(
-                        DailyContextDiscomfort.body_area_code, DailyContextDiscomfort.severity_code
-                    ).where(DailyContextDiscomfort.daily_context_id == daily.id)
+                        DailyContextPain.body_area_code,
+                        DailyContextPain.intensity_score,
+                        DailyContextPain.severity_code,
+                        DailyContextPain.policy_version,
+                    ).where(DailyContextPain.daily_context_id == daily.id)
                 ).all()
             )
         )
+        discomforts = tuple(
+            (body_area_code, severity_code) for body_area_code, _, severity_code, _ in pains
+        )
+        if not pains:
+            # Pre-0036 rows have only the three-level input. Preserve their
+            # read-time Safety behavior; no NRS score is fabricated.
+            legacy_rows = session.execute(
+                select(
+                    DailyContextDiscomfort.body_area_code,
+                    DailyContextDiscomfort.severity_code,
+                ).where(DailyContextDiscomfort.daily_context_id == daily.id)
+            )
+            discomforts = tuple(
+                sorted(
+                    (str(body_area_code), str(severity_code))
+                    for body_area_code, severity_code in legacy_rows
+                )
+            )
         reactions = tuple(
             sorted(
                 session.scalars(
@@ -248,7 +270,7 @@ class DecisionRepository:
             daily.id,
             daily.context_version,
             daily.fatigue_level_code,
-            daily.requested_duration_minutes,
+            daily.available_time_minutes or daily.requested_duration_minutes,
             daily.duration_adjustment_source_code,
             daily.location_code,
             daily.sleep_minutes,
@@ -265,6 +287,8 @@ class DecisionRepository:
             recent_workout_status_codes,
             required_equipment_codes,
             supported_location_codes,
+            pains,
+            daily.red_flag_present,
         )
         item_data: list[CandidateItemData] = []
         main_durations: list[PlanItemDuration] = []

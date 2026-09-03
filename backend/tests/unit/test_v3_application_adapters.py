@@ -96,9 +96,20 @@ def _source(
     experience_level_code: str | None = None,
     exercises: tuple[ExercisePoolExerciseRecord, ...] = (),
     discomforts: tuple[tuple[str, str], ...] = (),
+    pains: tuple[tuple[str, int, str, str], ...] = (),
+    red_flag_present: bool = False,
+    sleep_minutes: int | None = None,
+    fatigue_level_code: str | None = None,
     safety_rule_set: SafetyRuleSet | None = None,
 ) -> V3CreationSource:
     context = _context(discomforts=discomforts)
+    context = replace(
+        context,
+        pains=pains,
+        red_flag_present=red_flag_present,
+        sleep_minutes=sleep_minutes,
+        fatigue_level_code=fatigue_level_code or context.fatigue_level_code,
+    )
     if emergency:
         context = replace(context, adverse_reaction_codes=("CHEST_DISCOMFORT",))
     assembly = FakeRepository(context, safety_rule_set=safety_rule_set).assembly
@@ -128,6 +139,48 @@ def test_deterministic_safety_veto_is_immutable_and_terminal() -> None:
 
     assert not envelope.plan_generation_allowed
     assert envelope.safety_required_action_code == "STOP_AND_SEEK_HELP"
+
+
+def test_red_flag_is_an_immutable_terminal_safety_veto() -> None:
+    envelope = DeterministicV3SafetyPolicyAdapter().evaluate(_source(red_flag_present=True))
+
+    assert not envelope.plan_generation_allowed
+    assert envelope.safety_required_action_code == "STOP_AND_SEEK_HELP"
+
+
+def test_nrs_seven_to_ten_blocks_plan_generation() -> None:
+    envelope = DeterministicV3SafetyPolicyAdapter().evaluate(
+        _source(
+            discomforts=(("SHOULDER", "SEVERE"),),
+            pains=(("SHOULDER", 7, "SEVERE", "pain-intensity-action-v2"),),
+        )
+    )
+
+    assert not envelope.plan_generation_allowed
+    assert envelope.safety_required_action_code == "REST"
+
+
+def test_nrs_moderate_pain_applies_immutable_low_intensity_ceiling() -> None:
+    envelope = DeterministicV3SafetyPolicyAdapter().evaluate(
+        _source(
+            discomforts=(("SHOULDER", "MODERATE"),),
+            pains=(("SHOULDER", 6, "MODERATE", "pain-intensity-action-v2"),),
+            safety_rule_set=_shoulder_rule_set(
+                scope_code=SafetyRuleScopeCode.EXERCISE,
+                exercise_code=str(BASE_EXERCISE_ID),
+            ),
+        )
+    )
+
+    assert envelope.recovery_ceiling.allowed_intensity_codes == ("LOW",)
+
+
+def test_sleep_and_fatigue_light_recovery_applies_low_intensity_ceiling() -> None:
+    envelope = DeterministicV3SafetyPolicyAdapter().evaluate(
+        _source(sleep_minutes=360, fatigue_level_code="MODERATE")
+    )
+
+    assert envelope.recovery_ceiling.allowed_intensity_codes == ("LOW",)
 
 
 def test_v3_pool_beginner_user_excludes_intermediate_exercise() -> None:
