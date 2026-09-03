@@ -9,9 +9,7 @@ from sqlalchemy.orm import Session, selectinload
 from backend.app.db.models.catalog import (
     CatalogVersion,
     Exercise,
-    ExerciseEquipment,
     ExerciseGoalTagLink,
-    ExerciseLocation,
     ExercisePrescriptionProfile,
 )
 from backend.app.db.models.profile import (
@@ -131,23 +129,6 @@ class RoutineRepository:
                 ExerciseGoalTagLink.review_status_code == "DOMAIN_APPROVED",
             )
         ).all()
-        exercise_ids = {exercise.id for _, exercise, _ in rows}
-        location_map: dict[UUID, set[str]] = {exercise_id: set() for exercise_id in exercise_ids}
-        equipment_map: dict[UUID, set[str]] = {exercise_id: set() for exercise_id in exercise_ids}
-        if exercise_ids:
-            for exercise_id, location_code in session.execute(
-                select(ExerciseLocation.exercise_id, ExerciseLocation.location_code).where(
-                    ExerciseLocation.exercise_id.in_(exercise_ids)
-                )
-            ):
-                location_map[exercise_id].add(location_code)
-            for exercise_id, equipment_code in session.execute(
-                select(ExerciseEquipment.exercise_id, ExerciseEquipment.equipment_code).where(
-                    ExerciseEquipment.exercise_id.in_(exercise_ids)
-                )
-            ):
-                equipment_map[exercise_id].add(equipment_code)
-        location_set = set(locations)
         candidates = tuple(
             RoutineCandidate(
                 exercise_id=exercise.id,
@@ -166,10 +147,11 @@ class RoutineRepository:
                 intensity_code=prescription.intensity_code,
             )
             for prescription, exercise, goal_link in rows
-            # Equipment is no longer a gate: the 2026-08-27 decision drops it
-            # from onboarding, so suitability alone selects candidates and the
-            # variant lookup tells the user how to work around missing kit.
-            if location_map[exercise.id] & location_set
+            # Neither equipment nor location gates the base routine. Equipment left
+            # onboarding on 2026-08-27; ADR-0017 does the same for location because the
+            # base routine is a weekly template and the day's location only arrives with
+            # the check-in. The daily Safety-approved Pool applies that constraint, and
+            # the variant lookup tells the user how to work around missing kit.
         )
         return RoutineCreationContext(
             profile_duration_minutes=profile.default_requested_duration_minutes,
