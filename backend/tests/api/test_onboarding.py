@@ -46,6 +46,9 @@ class FakeProfileRepository:
         self.disabled = False
         self.consent_events = 0
         self.consent_values: dict[ConsentTypeCode, bool] = {}
+        self.terms_versions: list[str] = []
+        self.persistent_pains: tuple[tuple[str, int], ...] = ()
+        self.onboarding_values: OnboardingProfileValues | None = None
         self.me_record: MeRecord | None = None
 
     def get_me(self, session: FakeSession, user_id: UUID) -> MeRecord | None:
@@ -97,6 +100,7 @@ class FakeProfileRepository:
         now: datetime,
     ) -> OnboardingRecord:
         del session
+        self.onboarding_values = values
         self.profile_version += 1
         self.me_record = MeRecord(
             user_id=user_id,
@@ -174,11 +178,30 @@ class FakeProfileRepository:
         del session, user_id, now
         self.disabled = True
 
+    def record_terms_agreement(
+        self, session: FakeSession, user_id: UUID, terms_version: str, now: datetime
+    ) -> None:
+        del session, user_id, now
+        if terms_version not in self.terms_versions:
+            self.terms_versions.append(terms_version)
+
+    def replace_persistent_pains(
+        self,
+        session: FakeSession,
+        user_id: UUID,
+        pains: tuple[tuple[str, int], ...],
+        now: datetime,
+    ) -> None:
+        del session, user_id, now
+        self.persistent_pains = pains
+
 
 def _payload() -> dict[str, object]:
     return {
         "nickname": "러너01",
         "date_of_birth": "2000-08-11",
+        "medical_exercise_restriction": False,
+        "terms_version": "terms-v1",
         "primary_goal_code": "GENERAL_FITNESS",
         "experience_level_code": "BEGINNER",
         "timezone": "Asia/Seoul",
@@ -198,6 +221,7 @@ def _payload() -> dict[str, object]:
             "calendar_integration": False,
             "marketing": False,
         },
+        "persistent_pains": [{"body_area_code": "KNEE", "intensity_score": 3}],
     }
 
 
@@ -269,6 +293,8 @@ def test_onboarding_is_atomic_idempotent_and_does_not_expose_birthdate() -> None
     assert second.json() == first.json()
     assert repository.profile_version == 1
     assert repository.consent_events == 5
+    assert repository.terms_versions == ["terms-v1"]
+    assert repository.persistent_pains == (("KNEE", 3),)
     assert set(first.json()) == {
         "user_id",
         "onboarding_completed",
@@ -305,6 +331,8 @@ def test_onboarding_automatically_creates_exactly_one_base_routine() -> None:
     assert reonboarding.status_code == 200
     assert len(routine_repository.versions) == 1
     assert next(iter(routine_repository.versions.values())) == 1
+    routine_payload = next(iter(routine_repository.payloads.values()))
+    assert {day["requested_duration_minutes"] for day in routine_payload["days"]} == {30}
 
 
 def test_onboarding_returns_routine_creation_failure_as_a_service_error() -> None:
@@ -538,9 +566,41 @@ def test_underage_onboarding_is_blocked_without_leaking_birthdate() -> None:
         )
 
     assert response.status_code == 403
-    assert response.json()["error"]["code"] == "AGE_REQUIREMENT_NOT_MET"
-    assert repository.disabled is True
+    assert response.json()["error"]["code"] == "OUT_OF_SCOPE_AGE"
+    assert repository.disabled is False
     assert secret_birthdate not in response.text
+
+
+def test_medical_exercise_restriction_blocks_onboarding_without_profile_write() -> None:
+    repository = FakeProfileRepository()
+    payload = _payload()
+    payload["medical_exercise_restriction"] = True
+
+    with _client(repository) as client:
+        response = client.put(
+            "/api/v1/me/onboarding", json=payload, headers={"Idempotency-Key": str(uuid4())}
+        )
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "OUT_OF_SCOPE_MEDICAL_MANAGEMENT"
+    assert repository.profile_version == 0
+
+
+def test_new_weekly_target_sessions_maps_to_persisted_onboarding_value() -> None:
+    repository = FakeProfileRepository()
+    payload = _payload()
+    payload.pop("desired_weekly_workout_count")
+    payload["weekly_target_sessions"] = 4
+
+    with _client(repository) as client:
+        response = client.put(
+            "/api/v1/me/onboarding", json=payload, headers={"Idempotency-Key": str(uuid4())}
+        )
+
+    assert response.status_code == 200
+    assert repository.onboarding_values is not None
+    assert repository.onboarding_values.weekly_target_sessions == 4
+    assert repository.onboarding_values.desired_weekly_workout_count == 4
 
 
 @pytest.mark.parametrize(

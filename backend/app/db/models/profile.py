@@ -10,6 +10,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    SmallInteger,
     String,
     UniqueConstraint,
     Uuid,
@@ -67,6 +68,9 @@ class UserProfile(Base):
         String(32), nullable=False, default=PROFILE_CODE_SET_VERSION
     )
     profile_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    medical_exercise_restriction: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    eligibility_result_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    weekly_target_sessions: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -192,6 +196,46 @@ class UserConsentEvent(Base):
     )
 
 
+class UserTermsAgreement(Base):
+    __tablename__ = "user_terms_agreements"
+    __table_args__ = (UniqueConstraint("user_id", "terms_version", name="uq_user_terms_agreement"),)
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    terms_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    terms_agreed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class UserPersistentPain(Base):
+    __tablename__ = "user_persistent_pains"
+    __table_args__ = (
+        UniqueConstraint("user_id", "body_area_code", name="uq_user_persistent_pain_area"),
+        CheckConstraint(
+            "intensity_score BETWEEN 1 AND 10", name="ck_user_persistent_pains_intensity"
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    body_area_code: Mapped[str] = mapped_column(
+        String(64), ForeignKey("body_areas.code"), nullable=False
+    )
+    intensity_score: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class MutationIdempotencyRecord(Base):
     __tablename__ = "mutation_idempotency_records"
     __table_args__ = (
@@ -238,5 +282,7 @@ __all__ = [
     "UserConsentEvent",
     "UserEquipment",
     "UserPreferredExerciseType",
+    "UserPersistentPain",
     "UserProfile",
+    "UserTermsAgreement",
 ]

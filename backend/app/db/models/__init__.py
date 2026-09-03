@@ -50,8 +50,10 @@ from backend.app.db.models.profile import (
     UserConsent,
     UserConsentEvent,
     UserEquipment,
+    UserPersistentPain,
     UserPreferredExerciseType,
     UserProfile,
+    UserTermsAgreement,
 )
 from backend.app.db.models.routine import Routine, RoutineDay, RoutineItem
 from backend.app.db.models.v3_decision import (
@@ -136,7 +138,9 @@ __all__ = [
     "UserEquipment",
     "UserIdentity",
     "UserPreferredExerciseType",
+    "UserPersistentPain",
     "UserProfile",
+    "UserTermsAgreement",
     "UserWeek",
     "VectorIndexRegistry",
     "WeeklyPlanRevision",

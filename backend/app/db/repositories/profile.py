@@ -12,8 +12,10 @@ from backend.app.db.models.profile import (
     UserAvailableLocation,
     UserConsent,
     UserConsentEvent,
+    UserPersistentPain,
     UserPreferredExerciseType,
     UserProfile,
+    UserTermsAgreement,
 )
 from backend.app.modules.identity.codes import UserStatusCode
 from backend.app.modules.profiles.codes import (
@@ -169,6 +171,9 @@ class ProfileRepository:
                 height_cm=values.height_cm,
                 weight_kg=values.weight_kg,
                 sex_code=values.sex_code,
+                medical_exercise_restriction=values.medical_exercise_restriction,
+                eligibility_result_code=values.eligibility_result_code,
+                weekly_target_sessions=values.weekly_target_sessions,
                 code_set_version=PROFILE_CODE_SET_VERSION,
                 profile_version=1,
                 created_at=now,
@@ -188,6 +193,9 @@ class ProfileRepository:
             profile.height_cm = values.height_cm
             profile.weight_kg = values.weight_kg
             profile.sex_code = values.sex_code
+            profile.medical_exercise_restriction = values.medical_exercise_restriction
+            profile.eligibility_result_code = values.eligibility_result_code
+            profile.weekly_target_sessions = values.weekly_target_sessions
             profile.profile_version += 1
             profile.updated_at = now
 
@@ -338,11 +346,53 @@ class ProfileRepository:
                 )
                 for code in changes.preferred_exercise_type_codes
             )
+        if changes.persistent_pains is not None:
+            self.replace_persistent_pains(session, user_id, changes.persistent_pains, now)
 
         profile.profile_version += 1
         profile.updated_at = now
         session.flush()
         return profile.profile_version, profile.updated_at
+
+    def record_terms_agreement(
+        self, session: Session, user_id: UUID, terms_version: str, now: datetime
+    ) -> None:
+        existing = session.scalar(
+            select(UserTermsAgreement.id).where(
+                UserTermsAgreement.user_id == user_id,
+                UserTermsAgreement.terms_version == terms_version,
+            )
+        )
+        if existing is None:
+            session.add(
+                UserTermsAgreement(
+                    id=uuid4(),
+                    user_id=user_id,
+                    terms_version=terms_version,
+                    terms_agreed_at=now,
+                    created_at=now,
+                )
+            )
+
+    def replace_persistent_pains(
+        self,
+        session: Session,
+        user_id: UUID,
+        pains: tuple[tuple[str, int], ...],
+        now: datetime,
+    ) -> None:
+        session.execute(delete(UserPersistentPain).where(UserPersistentPain.user_id == user_id))
+        session.add_all(
+            UserPersistentPain(
+                id=uuid4(),
+                user_id=user_id,
+                body_area_code=body_area_code,
+                intensity_score=intensity_score,
+                created_at=now,
+                updated_at=now,
+            )
+            for body_area_code, intensity_score in pains
+        )
 
     def get_consents(self, session: Session, user_id: UUID) -> tuple[ConsentRecord, ...]:
         rows = session.scalars(

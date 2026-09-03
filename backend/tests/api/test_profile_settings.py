@@ -49,6 +49,7 @@ SUPPORTED_PROFILE_UPDATE_FIELDS = {
     "sex_code",
     "timezone",
     "date_of_birth",
+    "persistent_pains",
 }
 
 
@@ -63,6 +64,7 @@ class FakeProfileSettingsRepository:
         self.idempotency: dict[tuple[UUID, MutationEndpointCode, UUID], IdempotencyRecord] = {}
         self.update_count = 0
         self.disabled = False
+        self.persistent_pains: tuple[tuple[str, int], ...] = ()
 
     def acquire_idempotency_lock(
         self,
@@ -126,6 +128,8 @@ class FakeProfileSettingsRepository:
             value = getattr(changes, field_name)
             if value is not None:
                 values[field_name] = value
+        if changes.persistent_pains is not None:
+            self.persistent_pains = changes.persistent_pains
         values["profile_version"] = self.record.profile_version + 1
         self.record = replace(self.record, **values)
         self.update_count += 1
@@ -294,7 +298,7 @@ def _years_ago(local_date: date, years: int) -> date:
         return local_date.replace(year=local_date.year - years, day=28)
 
 
-def test_openapi_exposes_exactly_the_15_supported_non_null_fields() -> None:
+def test_openapi_exposes_exactly_the_supported_non_null_fields() -> None:
     client, _ = _client()
     schema = client.app.openapi()["components"]["schemas"]["ProfileSettingsUpdateRequest"]
 
@@ -321,6 +325,7 @@ def test_openapi_exposes_exactly_the_15_supported_non_null_fields() -> None:
         {"sex_code": "PREFER_NOT_TO_SAY"},
         {"timezone": "UTC"},
         {"date_of_birth": "1999-01-02"},
+        {"persistent_pains": [{"body_area_code": "KNEE", "intensity_score": 3}]},
     ],
 )
 def test_each_supported_field_can_be_updated_independently(
@@ -560,6 +565,49 @@ def test_empty_preferred_exercise_types_are_allowed() -> None:
     assert repository.record.preferred_exercise_type_codes == ()
 
 
+def test_persistent_pains_can_be_replaced_or_cleared() -> None:
+    client, repository = _client()
+    with client:
+        first = client.patch(
+            "/api/v1/me/profile",
+            json={"persistent_pains": [{"body_area_code": "KNEE", "intensity_score": 3}]},
+            headers=_headers(),
+        )
+        assert repository.persistent_pains == (("KNEE", 3),)
+        cleared = client.patch(
+            "/api/v1/me/profile",
+            json={"persistent_pains": []},
+            headers=_headers(version='"2"'),
+        )
+
+    assert first.status_code == 200
+    assert repository.persistent_pains == ()
+    assert cleared.status_code == 200
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"persistent_pains": [{"body_area_code": "KNEE", "intensity_score": 0}]},
+        {"persistent_pains": [{"body_area_code": "KNEE", "intensity_score": 11}]},
+        {
+            "persistent_pains": [
+                {"body_area_code": "KNEE", "intensity_score": 3},
+                {"body_area_code": "KNEE", "intensity_score": 4},
+            ]
+        },
+    ],
+)
+def test_invalid_persistent_pains_are_rejected(payload: dict[str, object]) -> None:
+    client, repository = _client()
+    before = repository.record
+    with client:
+        response = client.patch("/api/v1/me/profile", json=payload, headers=_headers())
+
+    _assert_common_error(response, status_code=400, code="INVALID_REQUEST")
+    _assert_repository_unchanged(repository, before)
+
+
 @pytest.mark.parametrize(
     "payload",
     [
@@ -788,10 +836,10 @@ def test_user_without_onboarding_profile_gets_not_found() -> None:
     assert repository.update_count == 0
 
 
-def test_underage_birthdate_disables_account_without_exposing_value() -> None:
+def test_out_of_scope_birthdate_does_not_change_existing_account_status() -> None:
     client, repository = _client()
     local_date = datetime.now(ZoneInfo("Asia/Seoul")).date()
-    secret_birthdate = (_years_ago(local_date, 14) + timedelta(days=1)).isoformat()
+    secret_birthdate = (_years_ago(local_date, 18) + timedelta(days=1)).isoformat()
     before = repository.record
     with client:
         response = client.patch(
@@ -801,16 +849,16 @@ def test_underage_birthdate_disables_account_without_exposing_value() -> None:
         )
 
     assert response.status_code == 403
-    assert response.json()["error"]["code"] == "AGE_REQUIREMENT_NOT_MET"
+    assert response.json()["error"]["code"] == "OUT_OF_SCOPE_AGE"
     assert secret_birthdate not in response.text
-    assert repository.disabled is True
+    assert repository.disabled is False
     _assert_repository_unchanged(repository, before)
 
 
 def test_exact_minimum_age_birthdate_is_accepted_without_reflecting_it() -> None:
     client, repository = _client()
     local_date = datetime.now(ZoneInfo("Asia/Seoul")).date()
-    boundary_birthdate = _years_ago(local_date, 14).isoformat()
+    boundary_birthdate = _years_ago(local_date, 18).isoformat()
     with client:
         response = client.patch(
             "/api/v1/me/profile",

@@ -48,18 +48,30 @@ class ConsentValues(BaseModel):
         }
 
 
+class PersistentPainInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    body_area_code: BodyAreaCode
+    intensity_score: int = Field(ge=1, le=10)
+
+
 class OnboardingUpsertRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     nickname: str = Field(min_length=1, max_length=64)
     date_of_birth: date
+    medical_exercise_restriction: bool
+    terms_version: str = Field(min_length=1, max_length=64)
     primary_goal_code: str = Field(pattern=r"^[A-Z][A-Z0-9_]{0,63}$")
     experience_level_code: str = Field(pattern=r"^[A-Z][A-Z0-9_]{0,63}$")
     timezone: str = Field(min_length=1, max_length=64)
     preferred_location_code: LocationCode
     available_location_codes: list[LocationCode] | None = None
-    default_requested_duration_minutes: int = Field(gt=0, le=240)
-    desired_weekly_workout_count: int = Field(gt=0, le=7)
+    default_requested_duration_minutes: int = Field(default=30, gt=0, le=240)
+    # The legacy name remains accepted while clients migrate to the P1-A
+    # contract.  Supplying both values with different counts is ambiguous.
+    desired_weekly_workout_count: int | None = Field(default=None, gt=0, le=7)
+    weekly_target_sessions: int | None = Field(default=None, gt=0, le=7)
     attention_area_codes: list[BodyAreaCode]
     preferred_exercise_type_codes: list[TrainingTypeCode] = Field(default_factory=list)
     coaching_style_code: CoachingStyleCode = CoachingStyleCode.SUPPORTIVE
@@ -67,6 +79,7 @@ class OnboardingUpsertRequest(BaseModel):
     weight_kg: float = Field(ge=25, le=300)
     sex_code: Literal["FEMALE", "MALE", "PREFER_NOT_TO_SAY"]
     consents: ConsentValues
+    persistent_pains: list[PersistentPainInput] = Field(default_factory=list)
 
     @field_validator("nickname")
     @classmethod
@@ -88,6 +101,25 @@ class OnboardingUpsertRequest(BaseModel):
         if len(value) != len(set(value)):
             raise ValueError("codes must not contain duplicates")
         return value
+
+    @field_validator("persistent_pains")
+    @classmethod
+    def reject_duplicate_persistent_pain_areas(
+        cls, value: list[PersistentPainInput]
+    ) -> list[PersistentPainInput]:
+        if len(value) != len({item.body_area_code for item in value}):
+            raise ValueError("persistent pain areas must not contain duplicates")
+        return value
+
+    @model_validator(mode="after")
+    def require_one_weekly_target(self) -> "OnboardingUpsertRequest":
+        legacy = self.desired_weekly_workout_count
+        current = self.weekly_target_sessions
+        if legacy is None and current is None:
+            raise ValueError("weekly target sessions is required")
+        if legacy is not None and current is not None and legacy != current:
+            raise ValueError("weekly target session fields must agree")
+        return self
 
 
 class OnboardingResponse(BaseModel):
@@ -123,6 +155,7 @@ class ProfileSettingsUpdateRequest(BaseModel):
     sex_code: Literal["FEMALE", "MALE", "PREFER_NOT_TO_SAY"] | None = None
     timezone: str | None = Field(default=None, min_length=1, max_length=64)
     date_of_birth: date | None = None
+    persistent_pains: list[PersistentPainInput] | None = None
 
     @field_validator("nickname", mode="before")
     @classmethod
@@ -138,6 +171,15 @@ class ProfileSettingsUpdateRequest(BaseModel):
     def reject_duplicate_codes(cls, value: list[object] | None) -> list[object] | None:
         if value is not None and len(value) != len(set(value)):
             raise ValueError("codes must not contain duplicates")
+        return value
+
+    @field_validator("persistent_pains")
+    @classmethod
+    def reject_duplicate_persistent_pain_areas(
+        cls, value: list[PersistentPainInput] | None
+    ) -> list[PersistentPainInput] | None:
+        if value is not None and len(value) != len({item.body_area_code for item in value}):
+            raise ValueError("persistent pain areas must not contain duplicates")
         return value
 
     @model_validator(mode="after")
@@ -208,6 +250,7 @@ __all__ = [
     "MeResponse",
     "OnboardingResponse",
     "OnboardingUpsertRequest",
+    "PersistentPainInput",
     "ProfileSettingsUpdateRequest",
     "ProfileSettingsUpdateResponse",
 ]

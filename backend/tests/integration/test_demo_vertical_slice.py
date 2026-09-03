@@ -161,6 +161,8 @@ def _onboard(client: TestClient, *, duration_minutes: int = 30) -> dict[str, obj
         json={
             "nickname": "데모사용자",
             "date_of_birth": "1997-08-11",
+            "medical_exercise_restriction": False,
+            "terms_version": "terms-v1.0.0",
             "primary_goal_code": "GENERAL_FITNESS",
             "experience_level_code": "BEGINNER",
             "timezone": DEMO_TIMEZONE,
@@ -278,6 +280,8 @@ def test_onboarding_rolls_back_when_initial_base_routine_cannot_be_created(
         json={
             "nickname": "rollback-user",
             "date_of_birth": "1997-08-11",
+            "medical_exercise_restriction": False,
+            "terms_version": "terms-v1.0.0",
             "primary_goal_code": "GENERAL_FITNESS",
             "experience_level_code": "BEGINNER",
             "timezone": DEMO_TIMEZONE,
