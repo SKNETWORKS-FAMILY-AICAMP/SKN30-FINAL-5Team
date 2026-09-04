@@ -1,4 +1,3 @@
-import csv
 from collections import defaultdict
 from pathlib import Path
 
@@ -8,7 +7,6 @@ from data.scripts.assign_v2_0_6_family_representatives import (
     normalized_equipment,
     read_catalog,
 )
-
 
 ROOT = Path(__file__).resolve().parents[2]
 CATALOG = ROOT / "normalized/v2_0_6_exercise_catalog.csv"
@@ -55,10 +53,11 @@ def test_representative_uses_requested_equipment_priority():
     priority = {"MACHINE": 0, "BODYWEIGHT": 1, "DUMBBELL": 2, "BARBELL": 3}
     for members in by_family.values():
         representative = next(row for row in members if row["record_type"] == "REPRESENTATIVE")
-        representative_rank = priority.get(normalized_equipment(representative["equipment_codes"]), 4)
+        representative_rank = priority.get(
+            normalized_equipment(representative["equipment_codes"]), 4
+        )
         assert representative_rank == min(
-            priority.get(normalized_equipment(row["equipment_codes"]), 4)
-            for row in members
+            priority.get(normalized_equipment(row["equipment_codes"]), 4) for row in members
         )
 
 

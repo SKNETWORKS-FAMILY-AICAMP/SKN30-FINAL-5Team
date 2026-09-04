@@ -318,9 +318,7 @@ def _overlay_normalized_content(
             if field == "form_cues_review_status" and value == APPROVED_FORM_CUES_REVIEW_STATUS:
                 value = BACKEND_APPROVED_FORM_CUES_REVIEW_STATUS
             record[field] = value
-        if normalized["instruction_content_version"] != (
-            "gif-reviewed-natural-language-ko-v2.0.6"
-        ):
+        if normalized["instruction_content_version"] != ("gif-reviewed-natural-language-ko-v2.0.6"):
             continue
         if not normalized["form_cues_ko"]:
             raise BundleBuildError(
@@ -570,15 +568,13 @@ def _validate_user_exposed_fields(records: list[dict[str, Any]]) -> None:
             errors.append(f"{stable_code}: empty cue sentence")
         if len(cues) != len(set(cues)):
             errors.append(f"{stable_code}: duplicate cue sentence")
-        if (
-            record.get("instruction_content_version") == INSTRUCTION_CONTENT_VERSION
-            and record.get("form_cues_review_status")
-            not in {
-                "REVIEW_REQUIRED",
-                APPROVED_FORM_CUES_REVIEW_STATUS,
-                BACKEND_APPROVED_FORM_CUES_REVIEW_STATUS,
-            }
-        ):
+        if record.get("instruction_content_version") == INSTRUCTION_CONTENT_VERSION and record.get(
+            "form_cues_review_status"
+        ) not in {
+            "REVIEW_REQUIRED",
+            APPROVED_FORM_CUES_REVIEW_STATUS,
+            BACKEND_APPROVED_FORM_CUES_REVIEW_STATUS,
+        }:
             errors.append(f"{stable_code}: rewritten cues must have a valid review status")
         for field in USER_EXPOSED_FIELDS:
             values = record.get(field, []) if field == "form_cues_ko" else [record.get(field, "")]

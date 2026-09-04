@@ -6,16 +6,16 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import re
 from collections import Counter
 from pathlib import Path
 from typing import Any
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CATALOG = PROJECT_ROOT / "data/normalized/v2_0_6_exercise_catalog.csv"
 DEFAULT_MAPPING = PROJECT_ROOT / "data/normalized/v2_0_6_catalog_source_mapping.json"
-DEFAULT_REPORT = PROJECT_ROOT / "data/reports/v2_0_6_catalog_merge/body_focus_movement_pattern_apply_report.json"
+DEFAULT_REPORT = (
+    PROJECT_ROOT / "data/reports/v2_0_6_catalog_merge/body_focus_movement_pattern_apply_report.json"
+)
 BODY_FOCUS_FIELD = "body_focus_code"
 MOVEMENT_FIELD = "primary_movement_pattern_code"
 REQUIRED_FIELDS = {
@@ -98,21 +98,89 @@ def classify_movement_pattern(row: dict[str, str]) -> str:
         return "JUMP_PLYOMETRIC"
     if any(token in text for token in ("달리", "달립", "걷", "walk", "run", "스텝")):
         return "GAIT"
-    if any(token in text for token in ("크런치", "싯업", "sit up", "sit-up", "컬업", "curl up", "플랭크", "plank", "복근", "복부", "골반 기울", "twist", "트위스트", "side bend", "사이드 벤드")):
+    if any(
+        token in text
+        for token in (
+            "크런치",
+            "싯업",
+            "sit up",
+            "sit-up",
+            "컬업",
+            "curl up",
+            "플랭크",
+            "plank",
+            "복근",
+            "복부",
+            "골반 기울",
+            "twist",
+            "트위스트",
+            "side bend",
+            "사이드 벤드",
+        )
+    ):
         return "CORE_BRACE"
-    if any(token in text for token in ("pull up", "pull-up", "풀업", "pulldown", "풀다운", "랫풀", "lat pulldown")):
+    if any(
+        token in text
+        for token in ("pull up", "pull-up", "풀업", "pulldown", "풀다운", "랫풀", "lat pulldown")
+    ):
         return "VERTICAL_PULL"
     if any(token in text for token in ("row", "로우", "몸 쪽으로 당기", "가슴 쪽으로 당기")):
         return "HORIZONTAL_PULL"
     if any(token in text for token in ("overhead", "오버헤드", "머리 위로 밀", "위로 밀어")):
         return "VERTICAL_PUSH"
-    if any(token in text for token in ("leg curl", "레그 컬", "무릎을 굽혀 다리", "무릎을 구부려 다리")):
+    if any(
+        token in text for token in ("leg curl", "레그 컬", "무릎을 굽혀 다리", "무릎을 구부려 다리")
+    ):
         return "KNEE_FLEXION"
-    if any(token in text for token in ("deadlift", "데드리프트", "good morning", "굿모닝", "bridge", "브릿지", "hip extension", "힙 익스텐션", "힙 리프팅", "덩키킥", "엉덩이를 들어")):
+    if any(
+        token in text
+        for token in (
+            "deadlift",
+            "데드리프트",
+            "good morning",
+            "굿모닝",
+            "bridge",
+            "브릿지",
+            "hip extension",
+            "힙 익스텐션",
+            "힙 리프팅",
+            "덩키킥",
+            "엉덩이를 들어",
+        )
+    ):
         return "HIP_DOMINANT"
-    if any(token in text for token in ("squat", "스쿼트", "lunge", "런지", "leg press", "레그 프레스", "step up", "스텝업", "무릎을 굽혀 몸", "의자에 앉듯")):
+    if any(
+        token in text
+        for token in (
+            "squat",
+            "스쿼트",
+            "lunge",
+            "런지",
+            "leg press",
+            "레그 프레스",
+            "step up",
+            "스텝업",
+            "무릎을 굽혀 몸",
+            "의자에 앉듯",
+        )
+    ):
         return "KNEE_DOMINANT"
-    if any(token in text for token in ("bench press", "벤치 프레스", "push up", "push-up", "푸시업", "dip", "딥", "fly", "플라이", "가슴 앞까지", "가슴 앞에서")):
+    if any(
+        token in text
+        for token in (
+            "bench press",
+            "벤치 프레스",
+            "push up",
+            "push-up",
+            "푸시업",
+            "dip",
+            "딥",
+            "fly",
+            "플라이",
+            "가슴 앞까지",
+            "가슴 앞에서",
+        )
+    ):
         return "HORIZONTAL_PUSH"
     return "ISOLATION"
 

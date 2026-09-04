@@ -14,8 +14,7 @@ from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CATALOG = PROJECT_ROOT / (
-    "data/generated/exercise-catalog-v2.0.6-draft/review_catalog/"
-    "exercise_catalog_merged_draft.json"
+    "data/generated/exercise-catalog-v2.0.6-draft/review_catalog/exercise_catalog_merged_draft.json"
 )
 DEFAULT_ADDITIONS = DEFAULT_CATALOG.parent / "exercise_catalog_additions.json"
 DEFAULT_RAW_GYMVISUAL = PROJECT_ROOT / "data/raw/gym_visual/exercises.json"

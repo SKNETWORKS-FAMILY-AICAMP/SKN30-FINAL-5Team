@@ -9,12 +9,13 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CATALOG = PROJECT_ROOT / "data/normalized/v2_0_6_exercise_catalog.csv"
 DEFAULT_RAW = PROJECT_ROOT / "data/raw/gym_visual/exercises.json"
 DEFAULT_MAPPING = PROJECT_ROOT / "data/normalized/v2_0_6_catalog_source_mapping.json"
-DEFAULT_REPORT = PROJECT_ROOT / "data/reports/v2_0_6_catalog_merge/gymvisual_muscle_sync_report.json"
+DEFAULT_REPORT = (
+    PROJECT_ROOT / "data/reports/v2_0_6_catalog_merge/gymvisual_muscle_sync_report.json"
+)
 PRIMARY_FIELD = "primary_body_area_codes"
 SECONDARY_FIELD = "secondary_body_area_codes"
 REQUIRED_CATALOG_FIELDS = {"source_identity", "stable_code", PRIMARY_FIELD, SECONDARY_FIELD}
@@ -95,7 +96,9 @@ def apply_sync(
     rows: list[dict[str, str]], raw_by_identity: dict[str, dict[str, Any]]
 ) -> tuple[list[dict[str, str]], dict[str, Any]]:
     changed: list[dict[str, Any]] = []
-    missing = [row["source_identity"] for row in rows if row["source_identity"] not in raw_by_identity]
+    missing = [
+        row["source_identity"] for row in rows if row["source_identity"] not in raw_by_identity
+    ]
     if missing:
         raise GymvisualMuscleSyncError(
             "catalog rows missing from GymVisual source: " + ", ".join(missing[:8])

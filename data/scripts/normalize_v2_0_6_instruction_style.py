@@ -11,7 +11,6 @@ import string
 from pathlib import Path
 from typing import Any
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CATALOG = PROJECT_ROOT / "data/normalized/v2_0_6_exercise_catalog.csv"
 DEFAULT_REPORT = (
@@ -88,7 +87,10 @@ PHRASE_REPLACEMENTS = (
     ("오른쪽 어깨에 스트레칭을 느낍니다", "오른쪽 어깨 뒤쪽이 늘어나는 느낌이 들도록 합니다"),
     ("종아리 근육에서의 스트레칭을 느낍니다", "종아리가 늘어나는 느낌이 들도록 합니다"),
     ("등근육에서 스트레칭을 느낄 때까지", "등이 당기는 느낌이 들 때까지"),
-    ("가슴과 어깨 앞부분에서 스트레칭을 느낍니다", "가슴과 어깨 앞쪽이 늘어나는 느낌이 들도록 합니다"),
+    (
+        "가슴과 어깨 앞부분에서 스트레칭을 느낍니다",
+        "가슴과 어깨 앞쪽이 늘어나는 느낌이 들도록 합니다",
+    ),
     ("스트레칭을 유지한 후", "자세를 잠시 유지한 뒤"),
 )
 STEP_SPLIT_RE = re.compile(r",\s*(?:이어서|그리고|그다음|그 다음|이후|그 후)\s*")
@@ -169,8 +171,10 @@ def apply_style(rows: list[dict[str, str]]) -> tuple[list[dict[str, str]], dict[
             row[FIELD] = normalized
             changed.append(row["source_identity"])
         numbered_steps = re.findall(r"(?:^|\s)\d+\.\s*(.*?)(?=\s+\d+\.\s*|$)", normalized)
-        if not normalized.startswith("1. ") or not numbered_steps or any(
-            not sentence.endswith("니다") for sentence in numbered_steps
+        if (
+            not normalized.startswith("1. ")
+            or not numbered_steps
+            or any(not sentence.endswith("니다") for sentence in numbered_steps)
         ):
             invalid.append(
                 {

@@ -11,8 +11,7 @@ from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CATALOG = PROJECT_ROOT / (
-    "data/generated/exercise-catalog-v2.0.6-draft/review_catalog/"
-    "exercise_catalog_merged_draft.json"
+    "data/generated/exercise-catalog-v2.0.6-draft/review_catalog/exercise_catalog_merged_draft.json"
 )
 DEFAULT_REVIEW_CSV = (
     PROJECT_ROOT / "data/validation/review_batches/v2_0_6_training_body_focus_review.csv"

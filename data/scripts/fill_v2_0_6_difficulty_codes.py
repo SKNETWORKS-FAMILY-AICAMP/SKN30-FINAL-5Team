@@ -11,7 +11,6 @@ import argparse
 import csv
 from pathlib import Path
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CATALOG = PROJECT_ROOT / "data/normalized/v2_0_6_exercise_catalog.csv"
 ALLOWED_DIFFICULTIES = {"BEGINNER", "INTERMEDIATE"}

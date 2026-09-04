@@ -20,9 +20,7 @@ DEFAULT_CATALOG = PROJECT_ROOT / "data/normalized/v2_0_6_exercise_catalog.csv"
 DEFAULT_SOURCE = Path(
     "/Users/bini/Desktop/Bini/projects/HK_data/exercises-dataset/data/exercise_catalog.json"
 )
-DEFAULT_REPORT = PROJECT_ROOT / (
-    "data/normalized/v2_0_6_safety_relevant_body_area_source_map.json"
-)
+DEFAULT_REPORT = PROJECT_ROOT / ("data/normalized/v2_0_6_safety_relevant_body_area_source_map.json")
 
 # The safety policy engine's 11 selectable physical body areas. GENERALIZED
 # and OTHER are input/control codes, not exercise-specific safety targets.

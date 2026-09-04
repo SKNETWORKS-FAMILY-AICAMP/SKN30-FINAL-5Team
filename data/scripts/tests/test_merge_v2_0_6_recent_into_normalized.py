@@ -7,9 +7,7 @@ from pathlib import Path
 
 
 def load_module():
-    script = Path(__file__).resolve().parents[1] / (
-        "merge_v2_0_6_recent_into_normalized.py"
-    )
+    script = Path(__file__).resolve().parents[1] / ("merge_v2_0_6_recent_into_normalized.py")
     spec = importlib.util.spec_from_file_location("recent_merge", script)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)

@@ -28,18 +28,15 @@ from typing import Any
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CATALOG = PROJECT_ROOT / "data/normalized/v2_0_6_exercise_catalog.csv"
 DEFAULT_LATEST_CATALOG = PROJECT_ROOT / (
-    "data/generated/exercise-catalog-v2.0.6-draft/review_catalog/"
-    "exercise_catalog_merged_draft.json"
+    "data/generated/exercise-catalog-v2.0.6-draft/review_catalog/exercise_catalog_merged_draft.json"
 )
 DEFAULT_MET_PROVENANCE = PROJECT_ROOT / "data/reports/v2_0_6_met/met_provenance.csv"
 DEFAULT_COMPENDIUM = PROJECT_ROOT / (
-    "data/raw/physical_activity_guidelines/"
-    "adult_compendium_mvp_reference_subset.jsonl"
+    "data/raw/physical_activity_guidelines/adult_compendium_mvp_reference_subset.jsonl"
 )
 DEFAULT_REPORT_DIR = PROJECT_ROOT / "data/reports/v2_0_6_catalog_merge"
 SOURCE_RELATIVE_PATH = (
-    "data/raw/physical_activity_guidelines/"
-    "adult_compendium_mvp_reference_subset.jsonl"
+    "data/raw/physical_activity_guidelines/adult_compendium_mvp_reference_subset.jsonl"
 )
 EXPECTED_RECORD_COUNT = 240
 MET_FIELDS = (
@@ -88,10 +85,7 @@ def _read_csv(path: Path) -> tuple[list[dict[str, str]], list[str]]:
         with path.open(encoding="utf-8-sig", newline="") as handle:
             reader = csv.DictReader(handle)
             fields = list(reader.fieldnames or [])
-            rows = [
-                {key: (value or "").strip() for key, value in row.items()}
-                for row in reader
-            ]
+            rows = [{key: (value or "").strip() for key, value in row.items()} for row in reader]
     except OSError as exc:
         raise CatalogMergeError(f"cannot read CSV input: {path}") from exc
     if not fields or any(key is None for key in fields):
@@ -168,9 +162,7 @@ def _validate_catalog_rows(
     fields = list(deduped[0])
     missing = sorted(set(REQUIRED_FIELDS) - set(fields))
     if missing:
-        raise CatalogMergeError(
-            f"latest catalog is missing required fields: {', '.join(missing)}"
-        )
+        raise CatalogMergeError(f"latest catalog is missing required fields: {', '.join(missing)}")
     forbidden = sorted(FORBIDDEN_RANK_FIELDS.intersection(fields))
     if forbidden:
         raise CatalogMergeError("rank fields are forbidden: " + ", ".join(forbidden))
@@ -208,25 +200,19 @@ def _validate_met_rows(
             next(item["source_identity"] for item in catalog_rows if item["stable_code"] == code)
         ).strip()
         if row.get("source_identity", "").strip() != catalog_identity:
-            raise CatalogMergeError(
-                f"MET source_identity does not match latest catalog: {code}"
-            )
+            raise CatalogMergeError(f"MET source_identity does not match latest catalog: {code}")
         missing = [field for field in MET_FIELDS if field not in row]
         if missing:
             raise CatalogMergeError(
                 f"MET provenance is missing fields for {code}: {', '.join(missing)}"
             )
         if row["met_review_status_code"] != "REVIEW_REQUIRED":
-            raise CatalogMergeError(
-                f"unreviewed MET data cannot be approval status: {code}"
-            )
+            raise CatalogMergeError(f"unreviewed MET data cannot be approval status: {code}")
         value = row["met_value"]
         activity_code = row["met_source_activity_code"]
         if value:
             if not activity_code or activity_code not in compendium:
-                raise CatalogMergeError(
-                    f"MET activity code is not in designated source: {code}"
-                )
+                raise CatalogMergeError(f"MET activity code is not in designated source: {code}")
             try:
                 numeric_value = float(value)
             except ValueError as exc:
@@ -238,21 +224,16 @@ def _validate_met_rows(
                     f"MET value does not match designated source activity: {code}"
                 )
             if row["met_source_code"] != str(compendium[activity_code]["source_id"]):
-                raise CatalogMergeError(
-                    f"MET source_code does not match designated source: {code}"
-                )
-            if row["met_mapping_method_code"] not in MET_MAPPING_METHODS or not row[
-                "met_policy_version"
-            ]:
+                raise CatalogMergeError(f"MET source_code does not match designated source: {code}")
+            if (
+                row["met_mapping_method_code"] not in MET_MAPPING_METHODS
+                or not row["met_policy_version"]
+            ):
                 raise CatalogMergeError(f"MET provenance is incomplete: {code}")
         elif activity_code or row["met_source_code"]:
-            raise CatalogMergeError(
-                f"blank MET value cannot retain activity provenance: {code}"
-            )
+            raise CatalogMergeError(f"blank MET value cannot retain activity provenance: {code}")
         elif row["met_mapping_method_code"]:
-            raise CatalogMergeError(
-                f"blank MET value cannot retain a mapping method: {code}"
-            )
+            raise CatalogMergeError(f"blank MET value cannot retain a mapping method: {code}")
         if not row["met_policy_version"]:
             raise CatalogMergeError(f"MET review provenance is incomplete: {code}")
     return met_by_code, duplicate_codes
@@ -304,9 +285,7 @@ def merge(
     expected_record_count: int = EXPECTED_RECORD_COUNT,
 ) -> dict[str, Any]:
     latest_raw = _read_json(latest_catalog_path)
-    latest_rows, latest_duplicate_codes = _validate_catalog_rows(
-        latest_raw, latest_catalog_path
-    )
+    latest_rows, latest_duplicate_codes = _validate_catalog_rows(latest_raw, latest_catalog_path)
     if len(latest_rows) != expected_record_count:
         raise CatalogMergeError(
             f"latest catalog must contain {expected_record_count} unique rows; "
@@ -406,12 +385,10 @@ def merge(
             "met_mapping_success": sum(bool(row["met_value"]) for row in met_by_code.values()),
             "met_unmapped": sum(not bool(row["met_value"]) for row in met_by_code.values()),
             "met_ambiguous_or_unclear": sum(
-                row["met_mapping_method_code"] in AMBIGUOUS_METHODS
-                for row in met_by_code.values()
+                row["met_mapping_method_code"] in AMBIGUOUS_METHODS for row in met_by_code.values()
             ),
             "met_review_required": sum(
-                row["met_review_status_code"] == "REVIEW_REQUIRED"
-                for row in met_by_code.values()
+                row["met_review_status_code"] == "REVIEW_REQUIRED" for row in met_by_code.values()
             ),
         },
         "dropped_existing_stable_codes": dropped,

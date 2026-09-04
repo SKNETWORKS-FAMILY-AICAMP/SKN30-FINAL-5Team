@@ -3,7 +3,6 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-
 SCRIPT = Path(__file__).resolve().parents[1] / "sync_v2_0_6_gymvisual_muscles.py"
 spec = importlib.util.spec_from_file_location("sync_v2_0_6_gymvisual_muscles", SCRIPT)
 assert spec and spec.loader
@@ -11,7 +10,9 @@ module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
 
-def catalog_row(identity: str, primary: str = "OLD", secondary: str = "OLD_SECONDARY") -> dict[str, str]:
+def catalog_row(
+    identity: str, primary: str = "OLD", secondary: str = "OLD_SECONDARY"
+) -> dict[str, str]:
     return {
         "source_identity": identity,
         "stable_code": f"exercise_{identity}",

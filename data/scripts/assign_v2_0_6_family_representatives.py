@@ -253,9 +253,7 @@ def singleton_family(stable_code: str) -> str:
     return code.upper()
 
 
-def representative_sort_key(
-    family: str, row: dict[str, str]
-) -> tuple[int, int, int, str]:
+def representative_sort_key(family: str, row: dict[str, str]) -> tuple[int, int, int, str]:
     equipment = normalized_equipment(row.get("equipment_codes", ""))
     return (
         EQUIPMENT_PRIORITY.get(equipment, 4),
@@ -286,9 +284,7 @@ def apply_family_assignments(rows: list[dict[str, str]]) -> dict[str, Any]:
     validate_groups(rows_by_code)
 
     group_by_code = {
-        stable_code: family
-        for family, members in FAMILY_GROUPS.items()
-        for stable_code in members
+        stable_code: family for family, members in FAMILY_GROUPS.items() for stable_code in members
     }
     grouped_codes = set(group_by_code)
     family_members: dict[str, list[dict[str, str]]] = defaultdict(list)
@@ -303,9 +299,7 @@ def apply_family_assignments(rows: list[dict[str, str]]) -> dict[str, Any]:
         family_members[family].append(row)
 
     legacy_counts = Counter(
-        row.get("family_code", "").strip()
-        for row in rows
-        if row.get("family_code", "").strip()
+        row.get("family_code", "").strip() for row in rows if row.get("family_code", "").strip()
     )
     for family, members in list(family_members.items()):
         if family not in FAMILY_GROUPS and len(members) > 1:
@@ -386,7 +380,9 @@ def main() -> None:
     rows, fields = read_catalog(args.input)
     report = apply_family_assignments(rows)
     write_catalog(args.input, rows, fields)
-    args.report.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    args.report.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     print(json.dumps(report["counts"], ensure_ascii=False, sort_keys=True))
 
 

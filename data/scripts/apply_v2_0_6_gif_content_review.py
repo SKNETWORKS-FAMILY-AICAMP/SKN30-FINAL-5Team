@@ -15,12 +15,9 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CATALOG = PROJECT_ROOT / "data/normalized/v2_0_6_exercise_catalog.csv"
-DEFAULT_REVIEW = (
-    PROJECT_ROOT / "data/validation/review_results/v2_0_6_gif_content_review.json"
-)
+DEFAULT_REVIEW = PROJECT_ROOT / "data/validation/review_results/v2_0_6_gif_content_review.json"
 DEFAULT_REPORT = (
     PROJECT_ROOT / "data/reports/v2_0_6_catalog_merge/gif_content_review_apply_report.json"
 )
@@ -74,7 +71,9 @@ def read_review(path: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     review_version = payload.get("review_version")
     content_version = payload.get("content_version")
     video_root = payload.get("video_root")
-    if not all(isinstance(value, str) and value for value in (review_version, content_version, video_root)):
+    if not all(
+        isinstance(value, str) and value for value in (review_version, content_version, video_root)
+    ):
         raise GifReviewApplyError("GIF review metadata is incomplete")
     seen: set[str] = set()
     for record in payload["records"]:
@@ -106,8 +105,10 @@ def read_review(path: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
             )
         for field, value in fields.items():
             if field == "form_cues_ko":
-                if not isinstance(value, list) or len(value) < 2 or not all(
-                    isinstance(item, str) and item.strip() for item in value
+                if (
+                    not isinstance(value, list)
+                    or len(value) < 2
+                    or not all(isinstance(item, str) and item.strip() for item in value)
                 ):
                     raise GifReviewApplyError(f"invalid form cues: {identity}")
             elif not isinstance(value, str) or not value.strip():
@@ -144,9 +145,7 @@ def apply_review(
                 continue
             raise GifReviewApplyError(f"GIF review target does not exist: {identity}")
         if row["stable_code"] != record["stable_code"]:
-            raise GifReviewApplyError(
-                f"stable_code does not match GIF review: {identity}"
-            )
+            raise GifReviewApplyError(f"stable_code does not match GIF review: {identity}")
         if record.get("action", "UPDATE") == "DELETE":
             deleted_ids.add(identity)
             deleted.append(

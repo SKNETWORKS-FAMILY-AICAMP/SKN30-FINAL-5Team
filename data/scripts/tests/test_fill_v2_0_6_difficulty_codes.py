@@ -26,7 +26,11 @@ def test_review_fills_all_blank_ids_and_preserves_existing_values(tmp_path) -> N
             {"source_identity": "0017", "difficulty_code": "", "name_en": "assisted pull-up"},
             {"source_identity": "0140", "difficulty_code": "INTERMEDIATE", "name_en": "pull-up"},
             {"source_identity": "0158", "difficulty_code": "", "name_en": "cable fly"},
-            {"source_identity": "0872", "difficulty_code": "INTERMEDIATE", "name_en": "reverse crunch"},
+            {
+                "source_identity": "0872",
+                "difficulty_code": "INTERMEDIATE",
+                "name_en": "reverse crunch",
+            },
         ],
     )
 

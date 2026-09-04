@@ -18,7 +18,6 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CATALOG = PROJECT_ROOT / "data/normalized/v2_0_6_exercise_catalog.csv"
 DEFAULT_REPORT = PROJECT_ROOT / "data/reports/v2_0_6_catalog_merge/form_cues_apply_report.json"
@@ -90,29 +89,97 @@ def _category(row: dict[str, str]) -> str:
     searchable = _searchable(row)
     if "foam_roller" in searchable or "폼롤러" in searchable:
         return "foam_roller"
-    if "stretch" in searchable or "스트레칭" in searchable or row["training_type_code"] == "MOBILITY":
+    if (
+        "stretch" in searchable
+        or "스트레칭" in searchable
+        or row["training_type_code"] == "MOBILITY"
+    ):
         return "stretch"
-    if any(token in searchable for token in ("squat", "스쿼트", "런지", "lunge", "stepup", "스텝업", "leg press", "레그 프레스")):
+    if any(
+        token in searchable
+        for token in (
+            "squat",
+            "스쿼트",
+            "런지",
+            "lunge",
+            "stepup",
+            "스텝업",
+            "leg press",
+            "레그 프레스",
+        )
+    ):
         return "lower_body"
-    if any(token in searchable for token in ("deadlift", "데드리프트", "good morning", "굿모닝", "hip extension", "힙 익스텐션", "bridge", "브리지")):
+    if any(
+        token in searchable
+        for token in (
+            "deadlift",
+            "데드리프트",
+            "good morning",
+            "굿모닝",
+            "hip extension",
+            "힙 익스텐션",
+            "bridge",
+            "브리지",
+        )
+    ):
         return "hip_hinge"
     if "calf" in searchable or "카프" in searchable or "종아리" in searchable:
         return "calf"
-    if any(token in searchable for token in ("crunch", "싯업", "situp", "컬업", "플랭크", "plank", "mountain climber", "마운틴 클라이머")):
+    if any(
+        token in searchable
+        for token in (
+            "crunch",
+            "싯업",
+            "situp",
+            "컬업",
+            "플랭크",
+            "plank",
+            "mountain climber",
+            "마운틴 클라이머",
+        )
+    ):
         return "core"
     if "pushup" in searchable or "푸시업" in searchable:
         return "floor_push"
-    if any(token in searchable for token in ("raise", "레이즈", "shoulder", "숄더", "overhead", "오버헤드", "슈러그", "push press", "푸시 프레스")):
+    if any(
+        token in searchable
+        for token in (
+            "raise",
+            "레이즈",
+            "shoulder",
+            "숄더",
+            "overhead",
+            "오버헤드",
+            "슈러그",
+            "push press",
+            "푸시 프레스",
+        )
+    ):
         return "shoulder"
     if any(token in searchable for token in ("push", "푸시", "press", "프레스", "dip", "딥스")):
         return "push"
     if any(token in searchable for token in ("pull", "풀", "row", "로우", "curl", "컬")):
         return "pull"
     if row["training_type_code"] == "CARDIO" or any(
-        token in searchable for token in ("run", "달리", "jump", "점프", "treadmill", "트레드밀", "cycle", "사이클", "elliptical", "일립티컬")
+        token in searchable
+        for token in (
+            "run",
+            "달리",
+            "jump",
+            "점프",
+            "treadmill",
+            "트레드밀",
+            "cycle",
+            "사이클",
+            "elliptical",
+            "일립티컬",
+        )
     ):
         return "cardio"
-    if any(token in searchable for token in ("machine", "머신", "cable", "케이블", "barbell", "바벨", "dumbbell", "덤벨")):
+    if any(
+        token in searchable
+        for token in ("machine", "머신", "cable", "케이블", "barbell", "바벨", "dumbbell", "덤벨")
+    ):
         return "equipment"
     return "general"
 

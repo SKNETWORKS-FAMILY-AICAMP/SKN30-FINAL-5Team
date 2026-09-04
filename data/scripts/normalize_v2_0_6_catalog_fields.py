@@ -15,7 +15,6 @@ import re
 from pathlib import Path
 from typing import Any
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CATALOG = PROJECT_ROOT / "data/normalized/v2_0_6_exercise_catalog.csv"
 DEFAULT_REPORT = (
@@ -167,7 +166,11 @@ def apply_normalization(rows: list[dict[str, str]]) -> tuple[list[dict[str, str]
         if original_name_ko != normalized_name_ko:
             row["name_ko"] = normalized_name_ko
             name_ko_updates.append(
-                {"source_identity": identity, "before": original_name_ko, "after": normalized_name_ko}
+                {
+                    "source_identity": identity,
+                    "before": original_name_ko,
+                    "after": normalized_name_ko,
+                }
             )
 
         if identity == ROW_187_SOURCE_IDENTITY:

@@ -9,9 +9,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_INPUT = PROJECT_ROOT / "data/normalized/v2_0_6_exercise_catalog.csv"
-DEFAULT_OUTPUT = (
-    PROJECT_ROOT / "data/normalized/v2_0_6_exercise_catalog_updated.csv"
-)
+DEFAULT_OUTPUT = PROJECT_ROOT / "data/normalized/v2_0_6_exercise_catalog_updated.csv"
 
 # Only rows with an explicit Compendium core-exercise match are included.
 # Ambiguous intensity or activity correspondence remains unchanged.
@@ -114,9 +112,7 @@ def update(input_path: Path, output_path: Path) -> list[dict[str, str]]:
                     "old_met_value": old_met_value,
                     "new_met_value": row.get("met_value", ""),
                     "old_met_source_activity_code": old_activity_code,
-                    "new_met_source_activity_code": row.get(
-                        "met_source_activity_code", ""
-                    ),
+                    "new_met_source_activity_code": row.get("met_source_activity_code", ""),
                     "changed_fields": changed_fields,
                 }
             )

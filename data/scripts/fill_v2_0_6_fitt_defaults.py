@@ -114,13 +114,16 @@ def apply(
     rows, field_order = _read_catalog(catalog_path)
     changes: list[dict[str, Any]] = []
     mode_counts = {mode: 0 for mode in sorted(TIMING_MODES)}
-    changed_fields = {field: 0 for field in (
-        "timing_mode_code",
-        "default_seconds_per_rep",
-        "default_work_seconds",
-        "default_rest_seconds",
-        "default_transition_seconds",
-    )}
+    changed_fields = {
+        field: 0
+        for field in (
+            "timing_mode_code",
+            "default_seconds_per_rep",
+            "default_work_seconds",
+            "default_rest_seconds",
+            "default_transition_seconds",
+        )
+    }
 
     for row in rows:
         timing_mode, timing_basis = _timing_mode(row)
@@ -184,7 +187,11 @@ def apply(
         json.dumps(report, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-    return {"catalog_records": len(rows), "timing_mode_counts": mode_counts, "report": str(report_path)}
+    return {
+        "catalog_records": len(rows),
+        "timing_mode_counts": mode_counts,
+        "report": str(report_path),
+    }
 
 
 def main() -> int:

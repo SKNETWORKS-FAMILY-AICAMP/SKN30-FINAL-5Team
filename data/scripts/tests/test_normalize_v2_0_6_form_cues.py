@@ -3,7 +3,6 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-
 SCRIPT = Path(__file__).resolve().parents[1] / "normalize_v2_0_6_form_cues.py"
 spec = importlib.util.spec_from_file_location("normalize_v2_0_6_form_cues", SCRIPT)
 assert spec and spec.loader
@@ -52,7 +51,9 @@ def test_preserves_gif_reviewed_meaning_while_removing_punctuation() -> None:
         ]
     )
 
-    assert rows[0]["form_cues_ko"] == "허리가 과도하게 꺾이지 않게 합니다|반동으로 움직이지 않습니다"
+    assert (
+        rows[0]["form_cues_ko"] == "허리가 과도하게 꺾이지 않게 합니다|반동으로 움직이지 않습니다"
+    )
     assert rows[0]["form_cues_source"] == "data/media/videos/0002.gif"
 
 
@@ -80,7 +81,14 @@ def test_distinguishes_floor_pushups_from_overhead_pressing() -> None:
         [row("0004", stable_code="pushup", name_ko="푸시업", name_en="push up")]
     )
     press_rows, _ = module.apply_normalization(
-        [row("0005", stable_code="dumbbell_push_press", name_ko="덤벨 푸시 프레스", name_en="dumbbell push press")]
+        [
+            row(
+                "0005",
+                stable_code="dumbbell_push_press",
+                name_ko="덤벨 푸시 프레스",
+                name_en="dumbbell push press",
+            )
+        ]
     )
 
     assert "손바닥 전체로 바닥을 지지합니다" in pushup_rows[0]["form_cues_ko"]

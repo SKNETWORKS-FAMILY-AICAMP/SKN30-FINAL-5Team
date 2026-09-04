@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 
-
 SCRIPT = Path(__file__).resolve().parents[1] / "apply_v2_0_6_gif_content_review.py"
 spec = importlib.util.spec_from_file_location("apply_v2_0_6_gif_content_review", SCRIPT)
 assert spec and spec.loader

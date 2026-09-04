@@ -5,7 +5,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 CODE_MAP = {
     "roller_back_stretch_mobility_stretch_foam_roller": "roller_back_stretch",

@@ -3,7 +3,6 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-
 SCRIPT = Path(__file__).resolve().parents[1] / "normalize_v2_0_6_instruction_style.py"
 spec = importlib.util.spec_from_file_location("normalize_v2_0_6_instruction_style", SCRIPT)
 assert spec and spec.loader
@@ -70,6 +69,8 @@ def test_removes_terminal_punctuation_and_uses_friendly_words() -> None:
 
 
 def test_removes_all_sentence_punctuation_except_numbered_step_markers() -> None:
-    result = module.normalize_instruction("test", "팔을 듭니다, (천천히) 내립니다! 2초간 유지합니다.")
+    result = module.normalize_instruction(
+        "test", "팔을 듭니다, (천천히) 내립니다! 2초간 유지합니다."
+    )
 
     assert result == "1. 팔을 듭니다 천천히 내립니다 2. 2초간 유지합니다"

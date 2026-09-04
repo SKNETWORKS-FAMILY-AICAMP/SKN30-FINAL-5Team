@@ -3,9 +3,10 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-
 SCRIPT = Path(__file__).resolve().parents[1] / "fill_v2_0_6_body_focus_and_movement_patterns.py"
-spec = importlib.util.spec_from_file_location("fill_v2_0_6_body_focus_and_movement_patterns", SCRIPT)
+spec = importlib.util.spec_from_file_location(
+    "fill_v2_0_6_body_focus_and_movement_patterns", SCRIPT
+)
 assert spec and spec.loader
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
@@ -28,9 +29,24 @@ def row(identity: str, **overrides: str) -> dict[str, str]:
 def test_fills_confirmed_adductors_and_patterns_from_instruction_action() -> None:
     rows, report = module.apply_fill(
         [
-            row("0168", stable_code="cable_hip_adduction", name_ko="케이블 힙 어덕션", instruction_summary_ko="다리를 몸의 정중선 쪽으로 옮깁니다"),
-            row("0597", stable_code="lever_seated_hip_abduction", name_ko="레버 시티드 힙 어브덕션", instruction_summary_ko="다리를 몸의 중심선에서 멀어지게 벌립니다"),
-            row("3667", stable_code="side_lying_hip_adduction", name_ko="사이드 라잉 힙 어덕션", instruction_summary_ko="내전근에 힘을 주고 다리를 들어 올립니다"),
+            row(
+                "0168",
+                stable_code="cable_hip_adduction",
+                name_ko="케이블 힙 어덕션",
+                instruction_summary_ko="다리를 몸의 정중선 쪽으로 옮깁니다",
+            ),
+            row(
+                "0597",
+                stable_code="lever_seated_hip_abduction",
+                name_ko="레버 시티드 힙 어브덕션",
+                instruction_summary_ko="다리를 몸의 중심선에서 멀어지게 벌립니다",
+            ),
+            row(
+                "3667",
+                stable_code="side_lying_hip_adduction",
+                name_ko="사이드 라잉 힙 어덕션",
+                instruction_summary_ko="내전근에 힘을 주고 다리를 들어 올립니다",
+            ),
         ]
     )
 
@@ -50,9 +66,17 @@ def test_classifies_instruction_actions_using_approved_pattern_codes() -> None:
     }
     for stable, (instruction, expected) in cases.items():
         training_type = "CARDIO" if stable == "cardio" else "STRENGTH"
-        assert module.classify_movement_pattern(
-            row("9999", stable_code=stable, instruction_summary_ko=instruction, training_type_code=training_type)
-        ) == expected
+        assert (
+            module.classify_movement_pattern(
+                row(
+                    "9999",
+                    stable_code=stable,
+                    instruction_summary_ko=instruction,
+                    training_type_code=training_type,
+                )
+            )
+            == expected
+        )
 
 
 def test_corrects_0514_from_jump_to_bodyweight_squat_pattern() -> None:
