@@ -195,6 +195,7 @@ def _translate_profile_error(exc: Exception, *, request: Request | None = None) 
             # Keep production diagnostics limited to a safe exception class.
             # Never log SQL text, bound parameters, tokens, or profile data.
             original = getattr(exc, "orig", None)
+            diagnostics = getattr(original, "diag", None)
             logger.error(
                 "profile_database_error",
                 extra={
@@ -203,6 +204,8 @@ def _translate_profile_error(exc: Exception, *, request: Request | None = None) 
                     "error_type": type(exc).__name__,
                     "sqlstate": getattr(original, "sqlstate", None)
                     or getattr(original, "pgcode", None),
+                    "database_schema": getattr(diagnostics, "schema_name", None),
+                    "database_table": getattr(diagnostics, "table_name", None),
                 },
             )
         return AppError(
