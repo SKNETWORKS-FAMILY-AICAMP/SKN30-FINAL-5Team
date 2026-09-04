@@ -5,7 +5,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { Animated, processColor, StyleSheet } from 'react-native';
 
 import { fontFamilies } from '../src/app/fonts';
-import { imageAssets, weeklyProgressMascotSources } from '../src/assets';
+import { imageAssets } from '../src/assets';
 import { ScaleViewportProvider } from '../src/components/scale';
 import { colors } from '../src/components/theme';
 import {
@@ -194,7 +194,7 @@ describe('HomeScreen Home v1 transcription', () => {
     );
   });
 
-  it('renders goal-sized progress cells with distinct mascots and explicit completion badges', () => {
+  it('merges the weekly goal progress and the weekday row into one card', () => {
     render(
       <HomeScreen
         previewState="routine"
@@ -203,13 +203,12 @@ describe('HomeScreen Home v1 transcription', () => {
       />,
     );
 
-    expect(screen.getAllByLabelText(/번째 주간 진행/)).toHaveLength(5);
-    expect(screen.getAllByTestId('day-done-image')).toHaveLength(3);
-    expect(screen.getAllByTestId('day-todo-image')).toHaveLength(2);
-    expect(screen.getAllByTestId('progress-complete-badge')).toHaveLength(3);
-    expect(screen.getAllByTestId('progress-incomplete-badge')).toHaveLength(2);
-    expect(screen.getByText('이번 주 운동')).toBeOnTheScreen();
     expect(screen.getByText('이번 주 운동 현황')).toBeOnTheScreen();
+    expect(screen.queryByText('이번 주 운동')).toBeNull();
+    expect(screen.getByTestId('weekly-day-row')).toBeOnTheScreen();
+    expect(screen.queryByTestId('weekly-progress-cells')).toBeNull();
+    expect(screen.queryByTestId('day-todo-image')).toBeNull();
+    expect(screen.queryByTestId('progress-complete-badge')).toBeNull();
     expect(screen.getByText('목표 5회 중 3회 완료')).toBeOnTheScreen();
     expect(screen.getByTestId('weekly-progress-percent')).toHaveTextContent(
       '60%',
@@ -225,76 +224,43 @@ describe('HomeScreen Home v1 transcription', () => {
       accessibilityRole: 'progressbar',
       accessibilityValue: { min: 0, max: 100, now: 60 },
     });
-    const completedSources = screen
-      .getAllByTestId('day-done-image')
-      .map((image) => image.props.source);
-    expect(new Set(completedSources).size).toBe(3);
-    expect(
-      completedSources.every((source) =>
-        weeklyProgressMascotSources.includes(source),
-      ),
-    ).toBe(true);
-    expect(completedSources).not.toContain(
-      imageAssets.weeklyProgressIncomplete,
-    );
-    expect(screen.getAllByTestId('day-todo-image')[0]?.props.source).toEqual(
-      imageAssets.weeklyProgressIncomplete,
-    );
     fireEvent.press(
       screen.getByRole('button', { name: '이번 주 운동 현황 설명 보기' }),
     );
     expect(
       screen.getByText('이번 주 목표까지 얼마나 왔는지 확인해보세요.'),
     ).toBeOnTheScreen();
-    expect(
-      StyleSheet.flatten(
-        screen.getAllByTestId('day-done-image')[0]?.props.style,
-      ),
-    ).toMatchObject({ height: '72%', width: '72%' });
   });
 
-  it('shows the same incomplete mascot in every slot before any routine is completed', () => {
+  it('marks completed weekdays with the workout mascot inside the circle', () => {
+    render(<HomeScreen previewState="routine" />);
+
+    const completedImages = screen.getAllByTestId('day-done-image');
+    expect(completedImages).toHaveLength(2);
+    expect(
+      completedImages.every(
+        (image) =>
+          image.props.source === imageAssets.weeklyProgressCompletedWorkout,
+      ),
+    ).toBe(true);
+    expect(StyleSheet.flatten(completedImages[0]?.props.style)).toMatchObject({
+      height: '92%',
+      width: '92%',
+    });
+  });
+
+  it('leaves every weekday circle empty before any completed session', () => {
     render(
       <HomeScreen
-        previewState="routine"
-        weeklyCompletedCount={0}
-        weeklyGoalCount={4}
+        {...homePreviewProps('routine')}
+        localDate="2026-08-19"
+        sessions={[]}
+        week={null}
       />,
     );
 
     expect(screen.queryByTestId('day-done-image')).toBeNull();
-    const incompleteImages = screen.getAllByTestId('day-todo-image');
-    expect(incompleteImages).toHaveLength(4);
-    expect(
-      incompleteImages.every(
-        (image) => image.props.source === imageAssets.weeklyProgressIncomplete,
-      ),
-    ).toBe(true);
-  });
-
-  it('keeps completed mascots stable and reveals a new one after another completion', () => {
-    const view = render(
-      <HomeScreen
-        previewState="routine"
-        weeklyCompletedCount={1}
-        weeklyGoalCount={4}
-      />,
-    );
-    const firstMascot = screen.getByTestId('day-done-image').props.source;
-
-    view.rerender(
-      <HomeScreen
-        previewState="routine"
-        weeklyCompletedCount={2}
-        weeklyGoalCount={4}
-      />,
-    );
-
-    const completedMascots = screen
-      .getAllByTestId('day-done-image')
-      .map((image) => image.props.source);
-    expect(completedMascots[0]).toBe(firstMascot);
-    expect(completedMascots[1]).not.toBe(firstMascot);
+    expect(screen.getAllByLabelText(/요일 기록 없음/)).toHaveLength(7);
   });
 
   it('renders seven weekday circles with the original completed and incomplete styles', () => {
@@ -410,7 +376,7 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.getByLabelText('월요일 일부 완료')).toBeOnTheScreen();
     expect(screen.getByLabelText('수요일 미수행')).toBeOnTheScreen();
     expect(screen.getAllByLabelText(/요일 기록 없음/)).toHaveLength(5);
-    expect(screen.queryByTestId('progress-complete-badge')).toBeNull();
+    expect(screen.queryByTestId('day-done-image')).toBeNull();
   });
 
   it('submits multiple transient discomfort areas and the selected location', () => {
@@ -1705,11 +1671,11 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(submitGradient.props.locations).toEqual([0, 0.55, 1]);
   });
 
-  it('keeps source parity after removing the weekly progress badge icon', () => {
+  it('keeps source parity after merging the weekly cards', () => {
     const source = readFileSync(
       resolve(process.cwd(), 'src/features/home/HomeScreen.tsx'),
       'utf8',
     );
-    expect(source.match(/<Svg\b/g)).toHaveLength(15);
+    expect(source.match(/<Svg\b/g)).toHaveLength(14);
   });
 });

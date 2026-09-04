@@ -52,6 +52,7 @@ describe('fidelity foundation', () => {
       'profileDefault',
       'weeklyProgressComplete',
       'weeklyProgressIncomplete',
+      'weeklyProgressCompletedWorkout',
       'mascotWarmupWalk',
       'houseCampingMorningBackground',
       'houseCampingDinnerBackground',

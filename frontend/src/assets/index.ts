@@ -24,6 +24,8 @@ export const imageAssets = {
     require('./mascot/monkey/sheet_02/monkey_06.png') as ImageSourcePropType,
   weeklyProgressIncomplete:
     require('./mascot/monkey/sheet_01/monkey_24.png') as ImageSourcePropType,
+  weeklyProgressCompletedWorkout:
+    require('./mascot/monkey/home_workout/completed_workout.png') as ImageSourcePropType,
   mascotWarmupWalk:
     require('./mascot/monkey/sheet_01/monkey_run.gif') as ImageSourcePropType,
   houseCampingMorningBackground:

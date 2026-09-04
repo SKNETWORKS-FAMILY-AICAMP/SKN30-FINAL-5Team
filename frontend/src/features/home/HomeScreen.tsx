@@ -23,7 +23,6 @@ import {
   TextInput,
   View,
   type GestureResponderEvent,
-  type ImageSourcePropType,
   type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -61,7 +60,7 @@ import type {
   WorkoutSessionLogSummary,
 } from '../../api/types';
 import { moveArrayItem } from '../../api/workoutPlan';
-import { imageAssets, weeklyProgressMascotSources } from '../../assets';
+import { imageAssets } from '../../assets';
 import { fontFamilies, useBrandFonts } from '../../app/fonts';
 import type { TabId } from '../../components/brand/BrandChrome';
 import { ProfileAvatar } from '../../components/profile/ProfileAvatar';
@@ -554,10 +553,6 @@ function HomeScreenContent({
     goal,
     Math.max(0, apiMode ? serverCompletedCount : weeklyCompletedCount),
   );
-  const progressDays = useMemo(
-    () => Array.from({ length: goal }, (_, index) => index < completed),
-    [completed, goal],
-  );
   const progressPercent = weeklyCompletionPercentage(completed, goal);
   const effectiveCheckedIn = apiMode ? context !== null : checkedIn;
   const rerolls = apiMode
@@ -885,21 +880,17 @@ function HomeScreenContent({
               userName={displayName}
             />
             {contentReady ? (
-              <>
-                <WeeklyRoutineCard weekDays={weekDays} />
-                <WeeklyProgressCard
-                  key={displayWeekLabel}
-                  completed={completed}
-                  disabled={inlineEditing}
-                  goal={goal}
-                  onOpenCalendar={onOpenCalendar}
-                  onToggleTip={() => setShowTip((current) => !current)}
-                  progressDays={progressDays}
-                  progressPercent={progressPercent}
-                  showTip={showTip}
-                  weekLabel={displayWeekLabel}
-                />
-              </>
+              <WeeklyOverviewCard
+                completed={completed}
+                disabled={inlineEditing}
+                goal={goal}
+                onOpenCalendar={onOpenCalendar}
+                onToggleTip={() => setShowTip((current) => !current)}
+                progressPercent={progressPercent}
+                showTip={showTip}
+                weekDays={weekDays}
+                weekLabel={displayWeekLabel}
+              />
             ) : null}
             {showCheckin ? (
               <CheckinButton
@@ -1366,49 +1357,6 @@ function HomeHeader({
   );
 }
 
-function WeeklyRoutineCard({ weekDays }: { weekDays: readonly WeekDay[] }) {
-  const styles = useHomeStyles();
-  return (
-    <View style={styles.summaryCard}>
-      <Text style={styles.cardTitle}>이번 주 운동</Text>
-      <View style={styles.weekRow} testID="weekly-day-row">
-        {weekDays.map((day) => (
-          <View
-            accessible
-            accessibilityLabel={weekdayAccessibilityLabel(day)}
-            key={day.label}
-            style={styles.weekDay}
-          >
-            <View
-              testID={`week-day-${day.label}`}
-              style={[
-                styles.weekCircle,
-                day.completed
-                  ? styles.weekCircleCompleted
-                  : styles.weekCircleIncomplete,
-              ]}
-            >
-              <View style={!day.completed && styles.hidden}>
-                <DayCheckIcon />
-              </View>
-            </View>
-            <Text
-              style={[
-                styles.weekLabel,
-                day.completed
-                  ? styles.weekLabelCompleted
-                  : styles.weekLabelIncomplete,
-              ]}
-            >
-              {day.label}
-            </Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-}
-
 function weekdayAccessibilityLabel(day: WeekDay): string {
   const statuses = day.statusCodes ?? (day.completed ? ['COMPLETED'] : []);
   if (statuses.length === 0) {
@@ -1417,27 +1365,20 @@ function weekdayAccessibilityLabel(day: WeekDay): string {
   return `${day.label}요일 ${statuses.map(sessionStatusLabel).join(', ')}`;
 }
 
-function randomizedWeeklyProgressMascots(): ImageSourcePropType[] {
-  const sources = Array.from(weeklyProgressMascotSources);
-  for (let index = sources.length - 1; index > 0; index -= 1) {
-    const randomIndex = Math.floor(Math.random() * (index + 1));
-    [sources[index], sources[randomIndex]] = [
-      sources[randomIndex]!,
-      sources[index]!,
-    ];
-  }
-  return sources;
-}
-
-function WeeklyProgressCard({
+/**
+ * One card carries the weekly goal progress and the weekday completion row.
+ * The weekday circles are the only completion visual, so a completed day shows
+ * the workout mascot instead of a separate goal-sized cell strip.
+ */
+function WeeklyOverviewCard({
   completed,
   disabled,
   goal,
   onOpenCalendar,
   onToggleTip,
-  progressDays,
   progressPercent,
   showTip,
+  weekDays,
   weekLabel,
 }: {
   completed: number;
@@ -1445,13 +1386,12 @@ function WeeklyProgressCard({
   goal: number;
   onOpenCalendar?: () => void;
   onToggleTip: () => void;
-  progressDays: readonly boolean[];
   progressPercent: number;
   showTip: boolean;
+  weekDays: readonly WeekDay[];
   weekLabel: string;
 }) {
   const styles = useHomeStyles();
-  const [completedMascots] = useState(randomizedWeeklyProgressMascots);
   return (
     <View style={styles.progressCard}>
       <View style={styles.progressHeader}>
@@ -1520,40 +1460,41 @@ function WeeklyProgressCard({
           {progressPercent}%
         </Text>
       </View>
-      <View style={styles.progressCells} testID="weekly-progress-cells">
-        {progressDays.map((isDone, index) => (
+      <View style={styles.weekRow} testID="weekly-day-row">
+        {weekDays.map((day) => (
           <View
-            accessibilityLabel={`${index + 1}번째 주간 진행 ${isDone ? '완료' : '미완료'}`}
-            key={`progress-${index}`}
-            style={[
-              styles.progressCell,
-              isDone
-                ? styles.progressCellCompleted
-                : styles.progressCellIncomplete,
-            ]}
+            accessible
+            accessibilityLabel={weekdayAccessibilityLabel(day)}
+            key={day.label}
+            style={styles.weekDay}
           >
-            <Image
-              resizeMode="contain"
-              source={
-                isDone
-                  ? completedMascots[index]
-                  : imageAssets.weeklyProgressIncomplete
-              }
-              style={[styles.progressImage, !isDone && styles.todoImage]}
-              testID={isDone ? 'day-done-image' : 'day-todo-image'}
-            />
+            <View
+              testID={`week-day-${day.label}`}
+              style={[
+                styles.weekCircle,
+                day.completed
+                  ? styles.weekCircleCompleted
+                  : styles.weekCircleIncomplete,
+              ]}
+            >
+              {day.completed ? (
+                <Image
+                  resizeMode="contain"
+                  source={imageAssets.weeklyProgressCompletedWorkout}
+                  style={styles.weekMascot}
+                  testID="day-done-image"
+                />
+              ) : null}
+            </View>
             <Text
               style={[
-                styles.progressStatus,
-                isDone
-                  ? styles.progressStatusCompleted
-                  : styles.progressStatusIncomplete,
+                styles.weekLabel,
+                day.completed
+                  ? styles.weekLabelCompleted
+                  : styles.weekLabelIncomplete,
               ]}
-              testID={
-                isDone ? 'progress-complete-badge' : 'progress-incomplete-badge'
-              }
             >
-              {isDone ? '✓ 완료' : '미완료'}
+              {day.label}
             </Text>
           </View>
         ))}
@@ -3929,20 +3870,6 @@ function NotificationIcon() {
   );
 }
 
-function DayCheckIcon() {
-  return (
-    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M6 12.5l4 4 8-9"
-        stroke="#5A4636"
-        strokeWidth={3.2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
-
 function InfoIcon() {
   return (
     <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
@@ -4237,13 +4164,6 @@ function createHomeStyles(
     disabledLabel: {
       color: '#98948E',
     },
-    summaryCard: {
-      marginBottom: s(14),
-      borderRadius: s(22),
-      backgroundColor: '#FFFFFF',
-      padding: s(16),
-      ...shadow(6, 18, 0.1),
-    },
     cardTitle: { color: '#5A4636', fontSize: f(15), fontWeight: '800' },
     greenText: { color: '#A45F00' },
     weekRow: { flexDirection: 'row', gap: s(6), marginTop: s(14) },
@@ -4262,6 +4182,7 @@ function createHomeStyles(
       borderStyle: 'dashed',
       backgroundColor: '#FFFFFF',
     },
+    weekMascot: { width: '92%', height: '92%' },
     weekLabel: { fontSize: f(11.5), fontWeight: '700' },
     weekLabelCompleted: { color: '#A45F00' },
     weekLabelIncomplete: { color: '#B0ACA4' },
@@ -4307,44 +4228,6 @@ function createHomeStyles(
     countValue: { color: '#A45F00', fontSize: f(15) },
     completedCountValue: { color: '#A45F00', fontSize: f(22) },
     progressPercent: { color: '#A45F00', fontSize: f(22), fontWeight: '800' },
-    progressCells: { flexDirection: 'row', gap: s(8), marginTop: s(12) },
-    progressCell: {
-      position: 'relative',
-      minWidth: 0,
-      flex: 1,
-      aspectRatio: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: s(14),
-      padding: s(5),
-    },
-    progressCellCompleted: { backgroundColor: '#FFF3D4', opacity: 1 },
-    progressCellIncomplete: { backgroundColor: '#F3F1EB' },
-    progressImage: { width: '72%', height: '72%', marginBottom: s(12) },
-    todoImage: { opacity: 0.42 },
-    progressStatus: {
-      position: 'absolute',
-      right: s(5),
-      bottom: s(5),
-      left: s(5),
-      overflow: 'hidden',
-      borderRadius: 999,
-      paddingVertical: s(2),
-      paddingHorizontal: s(3),
-      fontSize: f(9.5),
-      fontWeight: '800',
-      textAlign: 'center',
-    },
-    progressStatusCompleted: {
-      backgroundColor: '#F6BA50',
-      color: '#5A4636',
-    },
-    progressStatusIncomplete: {
-      borderWidth: s(1),
-      borderColor: '#D8D4CB',
-      backgroundColor: '#FFFFFF',
-      color: '#958476',
-    },
     checkinWrapper: { marginBottom: s(16) },
     messageCard: {
       alignItems: 'center',
