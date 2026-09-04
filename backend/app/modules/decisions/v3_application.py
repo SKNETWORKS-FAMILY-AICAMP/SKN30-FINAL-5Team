@@ -1249,9 +1249,7 @@ class SqlAlchemyV3RegenerationRepository:
                 DailyContext.local_date == run.local_date,
             )
         )
-        daily_adjustment_count = int(day_regenerations or 0) + max(
-            int(context_version or 1) - 1, 0
-        )
+        daily_adjustment_count = int(day_regenerations or 0) + max(int(context_version or 1) - 1, 0)
         plan = self._session.scalar(
             select(PlanCandidate).where(
                 PlanCandidate.decision_run_id == run.id,
@@ -1271,8 +1269,7 @@ class SqlAlchemyV3RegenerationRepository:
             successful_regeneration_count=int(count or 0),
             daily_adjustment_count=daily_adjustment_count,
             daily_context_is_current=(
-                context_version is not None
-                and int(context_version) == run.daily_context_version
+                context_version is not None and int(context_version) == run.daily_context_version
             ),
             generation_mode_code=cast(Literal["ORIGINAL", "REGENERATED"], run.generation_mode_code),
             decision_engine_code=V3DecisionEngineCode(

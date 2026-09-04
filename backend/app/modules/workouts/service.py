@@ -266,11 +266,7 @@ class WorkoutService:
                 None
                 if ended
                 else next(
-                    (
-                        item.plan_item_id
-                        for item in record.items
-                        if item.status_code != "COMPLETED"
-                    ),
+                    (item.plan_item_id for item in record.items if item.status_code != "COMPLETED"),
                     None,
                 )
             ),

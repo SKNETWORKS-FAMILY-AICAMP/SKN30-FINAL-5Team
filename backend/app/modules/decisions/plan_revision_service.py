@@ -151,9 +151,7 @@ class PlanRevisionService:
     ) -> PlanRevisionResponse:
         request_hash = _request_hash(decision_id, request)
         with session.begin():
-            self._repository.acquire_endpoint_lock(
-                session, user_id, endpoint_code, idempotency_key
-            )
+            self._repository.acquire_endpoint_lock(session, user_id, endpoint_code, idempotency_key)
             prior = self._repository.get_endpoint_idempotency(
                 session, user_id, endpoint_code, idempotency_key
             )

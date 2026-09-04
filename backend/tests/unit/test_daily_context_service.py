@@ -47,9 +47,7 @@ class FakeDailyContextRepository:
         del session
         return self.persistent_pains.get(user_id, ())
 
-    def count_daily_adjustments(
-        self, session: FakeSession, user_id: UUID, local_date: date
-    ) -> int:
+    def count_daily_adjustments(self, session: FakeSession, user_id: UUID, local_date: date) -> int:
         del session
         context = self.contexts.get((user_id, local_date))
         return max((context or {}).get("context_version", 1) - 1, 0) + (

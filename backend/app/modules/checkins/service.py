@@ -135,9 +135,11 @@ class DailyContextService:
             # The initial check-in is not an adjustment. An update is, and shares this
             # budget with successful regenerations. The repository lock above is the
             # common user/date lock used by the regeneration path as well.
-            if current_version is not None and self._repository.count_daily_adjustments(
-                session, user_id, local_date
-            ) >= DAILY_ADJUSTMENT_LIMIT:
+            if (
+                current_version is not None
+                and self._repository.count_daily_adjustments(session, user_id, local_date)
+                >= DAILY_ADJUSTMENT_LIMIT
+            ):
                 raise DailyAdjustmentLimitReachedError
 
             if request.available_slots is None:

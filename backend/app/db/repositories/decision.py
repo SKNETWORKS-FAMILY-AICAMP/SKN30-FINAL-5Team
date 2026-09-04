@@ -1148,9 +1148,7 @@ class DecisionRepository:
         """
 
         session.execute(
-            update(PlanItem)
-            .where(PlanItem.plan_candidate_id == plan_id)
-            .values(user_sequence=None)
+            update(PlanItem).where(PlanItem.plan_candidate_id == plan_id).values(user_sequence=None)
         )
         session.flush()
         for item in writes:

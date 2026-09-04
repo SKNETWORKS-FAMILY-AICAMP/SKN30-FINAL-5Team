@@ -74,9 +74,7 @@ class DailyContextRepository:
         )
         return max(int(context_version or 1) - 1, 0) + int(regenerations or 0)
 
-    def get_context_version(
-        self, session: Session, user_id: UUID, local_date: date
-    ) -> int | None:
+    def get_context_version(self, session: Session, user_id: UUID, local_date: date) -> int | None:
         return session.scalar(
             select(DailyContext.context_version).where(
                 DailyContext.user_id == user_id,

@@ -460,9 +460,7 @@ class PlanCandidate(Base):
         Integer, nullable=True
     )
     user_revision_policy_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    user_revised_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    user_revised_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

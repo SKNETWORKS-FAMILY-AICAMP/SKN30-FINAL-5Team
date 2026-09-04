@@ -71,8 +71,7 @@ _EXISTING_ENDPOINTS = (
 )
 
 _ADDED_ENDPOINTS = (
-    "'PATCH_WORKOUT_SESSION_STOP',"
-    "'PATCH_DECISION_PLAN_ITEM','PUT_DECISION_PLAN_ITEM_ORDER'"
+    "'PATCH_WORKOUT_SESSION_STOP','PATCH_DECISION_PLAN_ITEM','PUT_DECISION_PLAN_ITEM_ORDER'"
 )
 
 
@@ -170,8 +169,7 @@ def downgrade() -> None:
     # they go first. Losing them costs replay protection on requests already answered,
     # which is the price of moving backwards past the release that allowed them.
     op.execute(
-        "DELETE FROM mutation_idempotency_records "
-        f"WHERE endpoint_code IN ({_ADDED_ENDPOINTS})"
+        f"DELETE FROM mutation_idempotency_records WHERE endpoint_code IN ({_ADDED_ENDPOINTS})"
     )
     op.create_check_constraint(
         "ck_mutation_idempotency_endpoint",
@@ -179,9 +177,7 @@ def downgrade() -> None:
         f"endpoint_code IN ({_EXISTING_ENDPOINTS})",
     )
 
-    op.drop_constraint(
-        "ck_plan_candidates_user_revision_shape", "plan_candidates", type_="check"
-    )
+    op.drop_constraint("ck_plan_candidates_user_revision_shape", "plan_candidates", type_="check")
     op.drop_constraint(
         "ck_plan_candidates_user_revision_sequence", "plan_candidates", type_="check"
     )
