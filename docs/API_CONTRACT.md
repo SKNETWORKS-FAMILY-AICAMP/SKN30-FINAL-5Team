@@ -1,5 +1,42 @@
 # API_CONTRACT.md
 
+## In-app notifications (additive, 2026-09-04)
+
+All endpoints require the authenticated user and are scoped to that user only.
+
+`GET /api/v1/notifications` returns at most 20 notifications created in the last 14 days,
+ordered by `created_at` descending. The response is:
+
+```json
+{
+  "items": [{
+    "notification_id": "UUID",
+    "type": "DAILY_REWARD | WEEKLY_GOAL_REMINDER | KIKKI_RETURN",
+    "title": "string",
+    "message": "string",
+    "created_at": "ISO-8601 timestamp",
+    "read_at": "ISO-8601 timestamp | null",
+    "is_read": false,
+    "action_type": "OPEN_KIKKI_HOME | null",
+    "payload": {"remaining_workout_count": 1}
+  }],
+  "unread_count": 1
+}
+```
+
+`PATCH /api/v1/notifications/{notification_id}/read` marks one of the caller's retained
+notifications read and returns the same item shape. Repeating the request is idempotent:
+the original `read_at` is retained. Another user's ID is indistinguishable from a missing
+notification (`404 NOTIFICATION_NOT_FOUND`).
+
+The backend creates `WEEKLY_GOAL_REMINDER` only from the current persisted `UserWeek`, on
+Thursday or later in that week's timezone, while the official completed session count is
+below `target_workout_count` and the existing REST/pressure-suppression check allows it.
+Its `payload.remaining_workout_count` is required. `KIKKI_RETURN` is created during the first
+authenticated request after a previous activity timestamp at least three days old. `DAILY_REWARD` is a
+supported stored type but has no creation endpoint because this repository has no canonical
+reward-claim source of truth.
+
 ## 1. 문서 목적
 
 이 문서는 MVP 프론트엔드와 FastAPI 백엔드 사이의 REST 계약을 정의한다.
