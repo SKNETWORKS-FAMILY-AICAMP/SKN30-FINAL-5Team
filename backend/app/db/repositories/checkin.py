@@ -3,7 +3,7 @@ from hashlib import sha256
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import delete, select, text
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.orm import Session
 
 from backend.app.db.models.checkin import (
@@ -13,6 +13,7 @@ from backend.app.db.models.checkin import (
     DailyContextDiscomfort,
     DailyContextPain,
 )
+from backend.app.db.models.decision import DecisionRun
 from backend.app.db.models.profile import (
     MutationIdempotencyRecord,
     UserPersistentPain,
@@ -45,6 +46,40 @@ class DailyContextRepository:
         )
         return tuple(
             (str(body_area_code), int(intensity_score)) for body_area_code, intensity_score in rows
+        )
+
+    def count_daily_adjustments(self, session: Session, user_id: UUID, local_date: date) -> int:
+        """Read the day-wide budget while ``acquire_mutation_lock`` is held.
+
+        Context version one is the initial check-in. Later versions and every successful
+        regenerated decision each consume one adjustment.
+        """
+
+        context_version = session.scalar(
+            select(DailyContext.context_version).where(
+                DailyContext.user_id == user_id,
+                DailyContext.local_date == local_date,
+            )
+        )
+        regenerations = session.scalar(
+            select(func.count())
+            .select_from(DecisionRun)
+            .where(
+                DecisionRun.user_id == user_id,
+                DecisionRun.local_date == local_date,
+                DecisionRun.status_code == "COMPLETED",
+                DecisionRun.regeneration_sequence.is_not(None),
+                DecisionRun.regeneration_sequence > 0,
+            )
+        )
+        return max(int(context_version or 1) - 1, 0) + int(regenerations or 0)
+
+    def get_context_version(self, session: Session, user_id: UUID, local_date: date) -> int | None:
+        return session.scalar(
+            select(DailyContext.context_version).where(
+                DailyContext.user_id == user_id,
+                DailyContext.local_date == local_date,
+            )
         )
 
     def get_idempotency_record(

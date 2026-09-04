@@ -461,7 +461,10 @@ ManualActivityResponse
 | POST | /api/v1/decisions | 현재 컨텍스트로 결정 실행 |
 | GET | /api/v1/decisions/{decision_id} | 저장된 결정 조회 |
 | POST | /api/v1/decisions/{decision_id}/regenerations | [V3 backend API 구현, 기본 비활성] 추가 입력 없이 다른 루틴 재생성 |
+| PATCH | /api/v1/decisions/{decision_id}/plan-items/{plan_item_id} | 당일 plan item의 세트·반복 저장 |
+| PUT | /api/v1/decisions/{decision_id}/plan-item-order | 당일 plan의 phase 내 순서 저장 |
 | POST | /api/v1/decisions/{decision_id}/selection | 서버가 허용한 옵션 선택 |
+| GET | /api/v1/home?local_date={local_date} | 홈 복구용 decision·final_plan·workout_session 통합 조회 |
 
 ### 6.5 운동 세션
 
@@ -1445,6 +1448,14 @@ Plan Compiler와 integrity validator를 다시 통과해야 한다.
 root decision당 성공 재생성은 최대 두 번이다. 같은 Idempotency-Key와 같은 요청은 저장된 응답을
 반환하고, 같은 키의 다른 요청은 `409 IDEMPOTENCY_KEY_REUSED`다.
 
+추가로 같은 local date의 체크인 수정과 성공 재생성을 합쳐 최대 두 번만 허용한다. 체크인 최초
+생성은 세지 않으며, 체크인 수정으로 새 decision root가 생겨도 하루 통합 횟수는 초기화되지 않는다.
+두 mutation은 같은 사용자·local date 트랜잭션 잠금 아래 횟수를 검사한다. 체크인 수정 한도 초과는
+`409 DAILY_ADJUSTMENT_LIMIT_REACHED`, 재생성 한도 초과는 기존
+`409 REGENERATION_LIMIT_REACHED`를 반환한다. 멱등 재시도는 횟수를 추가로 소비하지 않는다.
+체크인이 수정되면 이전 root의 snapshot은 `409 REGENERATION_CONTEXT_STALE`이며 새 context로 만든
+decision root에서만 다시 재추천할 수 있다.
+
 | 조건 | HTTP / error.code |
 |---|---|
 | plan 또는 sequence 불일치 | `409 STALE_REGENERATION` |
@@ -1461,6 +1472,53 @@ root decision당 성공 재생성은 최대 두 번이다. 같은 Idempotency-Ke
 
 현재 backend route, Pydantic/error projection 및 DEMO application composition이 구현됐지만 `v3_regeneration_enabled=false`가
 기본값이다. production composition wiring과 frontend 버튼은 별도 승인·구현 전까지 비활성이다.
+
+### 10.7 당일 최종 계획 사용자 편집
+
+~~~http
+PATCH /api/v1/decisions/{decision_id}/plan-items/{plan_item_id}
+Idempotency-Key: uuid
+~~~
+
+~~~json
+{
+  "expected_plan_id": "uuid",
+  "expected_plan_revision": 0,
+  "sets": 3,
+  "reps": 12
+}
+~~~
+
+`sets`와 반복 기반 운동의 `reps`는 양의 정수다. 빈 값·0·음수는 거부한다. 시간 기반 운동은
+`reps=null`만 허용한다. 요청은 장소를 받지 않으며 `location_code`를 비롯한 추가 필드를 거부한다.
+성공 응답은 `decision_id`, 증가한 `plan_revision`, 갱신된 `final_plan`이다. 직접 편집은 체크인 수정과
+재추천의 하루 2회 한도에 포함하지 않는다.
+
+~~~http
+PUT /api/v1/decisions/{decision_id}/plan-item-order
+Idempotency-Key: uuid
+~~~
+
+~~~json
+{
+  "expected_plan_id": "uuid",
+  "expected_plan_revision": 1,
+  "ordered_plan_item_ids": ["uuid", "uuid"]
+}
+~~~
+
+시작 전에는 전체 plan item ID를, 진행 중 또는 재개 가능한 일반 중단 상태에서는 미완료 ID 전체만
+보낸다. 완료 항목은 기존 위치와 내용을 유지하며 서버가 변경을 거부한다. phase 경계를 넘는 순서는
+`422 ORDER_CROSSES_PHASE`다. 두 편집 mutation은 같은 키·같은 요청을 재생하고 다른 요청은
+`409 IDEMPOTENCY_KEY_REUSED`로 거부한다. `expected_plan_id`나 `expected_plan_revision` 불일치는
+`409 PLAN_REVISION_STALE`다.
+
+### 10.8 홈 상태 복구
+
+`GET /api/v1/home?local_date=YYYY-MM-DD`는 최상위에 `local_date`, `decision`, `final_plan`,
+`workout_session`을 반환한다. `final_plan`은 반환된 최신 decision의 plan과 같고, workout session은
+그 plan에 연결된 최신 세션만 반환하므로 이전 check-in root의 세션과 섞이지 않는다. 체크인 전에는
+세 값이 모두 null일 수 있다.
 
 ---
 
@@ -1767,6 +1825,8 @@ WorkoutSessionDetailResponse
 - total_item_count: integer
 - requested_duration_minutes: integer
 - items: WorkoutSessionItemResult[]
+- completed_plan_item_ids: UUID[]
+- current_plan_item_id: UUID | null
 - feedback: WorkoutFeedbackSummary | null
 - not_completed_reason_code: string | null
 - started_at: datetime | null
@@ -1790,6 +1850,8 @@ WorkoutFeedbackSummary
 - 본인의 기록만 반환한다. 다른 사용자의 `session_id`로 호출하면 `404 RESOURCE_NOT_FOUND`다.
   존재 여부를 알려주지 않기 위해 `403`을 쓰지 않는다.
 - `completed_item_count`는 명시적 운동 블록 완료 기록만 센다. 경과 시간과 웨어러블 데이터는 이 값에 영향을 주지 않는다.
+- `completed_plan_item_ids`는 명시적으로 완료한 블록을 수행 순서로 반환한다. 진행 가능한 세션의
+  `current_plan_item_id`는 첫 미완료 블록이며, 종료된 세션은 null이다.
 - `perceived_difficulty_code`는 사용자가 고른 주관적 난이도이며 의료적 해석 대상이 아니다.
 - 운동 후 불편의 상세 부위·심각도는 이 응답에 포함하지 않는다. 보고 여부만 노출한다.
 - 타이머 이력과 추가 운동 기록은 이 계약에 포함하지 않는다. 필요해지면 별도 절로 추가한다.

@@ -647,6 +647,11 @@ validator를 통과해야 하며 `STOP_AND_SEEK_HELP`를 REST나 plan으로 바�
 decision당 최대 두 번이고 idempotent하다. snapshot/envelope/pool이 stale하거나 safety·catalog·policy
 version이 바뀌면 새 decision/check-in 경로가 필요하다.
 
+root 계보 한도와 별도로, 같은 local date의 성공 재생성과 체크인 수정을 합쳐 최대 두 번만 허용한다.
+최초 체크인은 세지 않고 체크인 수정으로 root가 바뀌어도 하루 한도는 초기화하지 않는다. 두 경로는
+같은 사용자·날짜 트랜잭션 잠금 아래 현재 횟수를 검사하며 멱등 재시도는 다시 세지 않는다.
+체크인이 수정된 뒤 이전 root snapshot으로 재생성할 수 없고 새 context의 decision root가 필요하다.
+
 ---
 
 ## 9. LLM 경계
@@ -768,6 +773,9 @@ RUNNING/RESTING -> COMPLETED
 - `USER` revision은 AI 수정 횟수와 무관하게 허용할 수 있지만 요청 시간 일치(아래 세트·반복 편집 예외 제외), 허용 장소, Safety envelope·승인 pool 반영과 compiled-plan integrity를 모두 검증한다. 하나라도 불일치하면 해당 routine을 허용하지 않는다.
 - 사용자가 세트 수 또는 반복 수를 직접 수정한 결과에 한해 요청 시간 ±300초 일치 검사를 면제한다(ADR-0018). 사용자의 명시적 입력이 요청 시간보다 우선하며, 면제되는 것은 시간 검사 하나뿐이다. 안전 제외 운동 포함, 승인 pool 이탈, 필수 운동 누락, 카탈로그 레코드 불일치 검사는 그대로 적용한다. 사용자 편집으로 만들어진 계획임을 저장해 재현 기록에 남긴다.
 - 사용자의 운동 순서 변경은 같은 phase 안에서만 허용한다. `WARMUP`·`MAIN`·`COOLDOWN` 경계를 넘는 이동은 거부한다. 순서를 바꾼 뒤에는 전체 `sequence`를 1부터 연속으로 다시 매긴다.
+- plan 직접 편집은 재추천·체크인 수정의 하루 2회 한도에 포함하지 않는다. 세트·반복 편집은 장소를
+  받거나 변경하지 않고 양의 수만 저장한다. 시작 전 순서 변경은 전체 항목을 대상으로 한다. 진행 중과
+  재개 가능한 일반 중단 상태에서는 미완료 항목만 바꿀 수 있고, 완료 항목의 순서와 내용은 변경할 수 없다.
 - `NEEDS_INPUT`, `BLOCKED`, `FAILED` revision에는 routine이 없으며 finalized는 항상 false다. `PASS` 또는 `REVISE`도 routine이 없으면 finalize할 수 없다.
 - `finalized=true`는 직전 리포트가 명시적으로 `ACKNOWLEDGED`된 경우에만 허용한다. `is_first_user_week=true`, `cold_start_applied=true`, 직전 리포트 없음이 동시에 성립하는 최초 한 주만 acknowledgement를 생략할 수 있다.
 - weekly report aggregate schema와 weekly report/plan policy는 각각 version을 가지며, 입력과 version이 같으면 revision 및 finalize 판정도 같아야 한다.

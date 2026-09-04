@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from copy import copy
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from uuid import UUID, uuid4
 
 import pytest
@@ -40,7 +40,9 @@ VERSIONS = V3RegenerationVersionSnapshot(
 )
 
 
-def source(*, sequence: int = 0) -> V3StoredRegenerationSource:
+def source(
+    *, sequence: int = 0, daily_adjustment_count: int | None = None
+) -> V3StoredRegenerationSource:
     bundle = make_bundle()
     root_id = bundle.root_decision_execution_id
     decision_id = root_id if sequence == 0 else uuid4()
@@ -52,11 +54,15 @@ def source(*, sequence: int = 0) -> V3StoredRegenerationSource:
     )
     return V3StoredRegenerationSource(
         decision_id=decision_id,
+        local_date=date(2026, 8, 25),
         root_decision_id=root_id,
         parent_decision_id=None if sequence == 0 else root_id,
         plan_id=PLAN_ID,
         regeneration_sequence=sequence,
         successful_regeneration_count=sequence,
+        daily_adjustment_count=(
+            sequence if daily_adjustment_count is None else daily_adjustment_count
+        ),
         generation_mode_code="ORIGINAL" if sequence == 0 else "REGENERATED",
         decision_engine_code=V3DecisionEngineCode.LLM_MULTI_AGENT,
         terminal_status_code=GraphTerminalStatusCode.COMPLETED,
@@ -197,6 +203,30 @@ def test_disabled_limit_stale_and_ownership_fail_before_graph_execution():
         asyncio.run(
             service(current, runtime, persistence).regenerate(command(current, user_id=uuid4()))
         )
+    assert runtime.calls == 0
+
+
+def test_day_level_limit_survives_a_new_checkin_lineage() -> None:
+    current = source(sequence=0, daily_adjustment_count=2)
+    runtime = FakeRuntime(current)
+
+    with pytest.raises(V3RegenerationLimitReachedError):
+        asyncio.run(
+            service(current, runtime, FakePersistence(current)).regenerate(command(current))
+        )
+
+    assert runtime.calls == 0
+
+
+def test_checkin_edit_makes_the_previous_lineage_context_stale() -> None:
+    current = source().model_copy(update={"daily_context_is_current": False})
+    runtime = FakeRuntime(current)
+
+    with pytest.raises(V3RegenerationContextStaleError):
+        asyncio.run(
+            service(current, runtime, FakePersistence(current)).regenerate(command(current))
+        )
+
     assert runtime.calls == 0
 
 

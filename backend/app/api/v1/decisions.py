@@ -12,6 +12,7 @@ from backend.app.api.dependencies import (
     get_db_session,
     get_decision_creation_service,
     get_decision_repository,
+    get_plan_revision_repository,
     get_v3_regeneration_service,
 )
 from backend.app.core.errors import AppError
@@ -20,11 +21,24 @@ from backend.app.modules.decisions.execution_profile import (
     DecisionCreationServicePort,
     V3CompositionUnavailableError,
 )
-from backend.app.modules.decisions.ports import DecisionRepositoryPort
+from backend.app.modules.decisions.plan_revision import (
+    PlanRevisionError,
+    PlanRevisionFailureCode,
+)
+from backend.app.modules.decisions.plan_revision_service import (
+    PlanNotFoundError,
+    PlanRevisionIdempotencyKeyReusedError,
+    PlanRevisionService,
+    PlanRevisionStaleError,
+)
+from backend.app.modules.decisions.ports import DecisionRepositoryPort, PlanRevisionRepositoryPort
 from backend.app.modules.decisions.schemas import (
     DecisionCreateRequest,
     DecisionRegenerationRequest,
     DecisionResponse,
+    PlanItemOrderRequest,
+    PlanItemSetRepetitionRequest,
+    PlanRevisionResponse,
 )
 from backend.app.modules.decisions.service import (
     DecisionContextNotFoundError,
@@ -238,6 +252,140 @@ async def regenerate_decision(
             ],
         }
     )
+
+
+_PLAN_REVISION_STATUS = {
+    PlanRevisionFailureCode.PLAN_ITEM_NOT_FOUND: HTTPStatus.NOT_FOUND,
+    PlanRevisionFailureCode.PLAN_NOT_EDITABLE: HTTPStatus.CONFLICT,
+    PlanRevisionFailureCode.COMPLETED_ITEM_NOT_REORDERABLE: HTTPStatus.CONFLICT,
+    PlanRevisionFailureCode.REPETITIONS_NOT_APPLICABLE: HTTPStatus.UNPROCESSABLE_ENTITY,
+    PlanRevisionFailureCode.REPETITIONS_REQUIRED: HTTPStatus.UNPROCESSABLE_ENTITY,
+    PlanRevisionFailureCode.TIMING_BASIS_UNAVAILABLE: HTTPStatus.UNPROCESSABLE_ENTITY,
+    PlanRevisionFailureCode.ORDER_ITEMS_MISMATCH: HTTPStatus.UNPROCESSABLE_ENTITY,
+    PlanRevisionFailureCode.ORDER_CROSSES_PHASE: HTTPStatus.UNPROCESSABLE_ENTITY,
+}
+
+_PLAN_REVISION_MESSAGES = {
+    PlanRevisionFailureCode.PLAN_ITEM_NOT_FOUND: "계획에 없는 운동입니다.",
+    PlanRevisionFailureCode.PLAN_NOT_EDITABLE: "종료된 운동의 계획은 수정할 수 없습니다.",
+    PlanRevisionFailureCode.COMPLETED_ITEM_NOT_REORDERABLE: (
+        "이미 완료한 운동은 순서나 내용을 바꿀 수 없습니다."
+    ),
+    PlanRevisionFailureCode.REPETITIONS_NOT_APPLICABLE: (
+        "시간으로 수행하는 운동에는 반복 횟수를 지정할 수 없습니다."
+    ),
+    PlanRevisionFailureCode.REPETITIONS_REQUIRED: "반복 횟수를 함께 보내주세요.",
+    PlanRevisionFailureCode.TIMING_BASIS_UNAVAILABLE: (
+        "승인된 운동 시간 기준이 없어 계획을 다시 계산할 수 없습니다."
+    ),
+    PlanRevisionFailureCode.ORDER_ITEMS_MISMATCH: (
+        "순서를 바꿀 수 있는 운동 전체를 한 번에 보내주세요."
+    ),
+    PlanRevisionFailureCode.ORDER_CROSSES_PHASE: (
+        "준비·본운동·마무리 구간을 넘어서는 이동은 할 수 없습니다."
+    ),
+}
+
+
+def _plan_revision_error(exc: Exception) -> AppError:
+    if isinstance(exc, PlanNotFoundError):
+        return AppError(
+            status_code=HTTPStatus.NOT_FOUND,
+            code="PLAN_NOT_FOUND",
+            message="오늘 수정할 수 있는 운동 계획이 없습니다.",
+        )
+    if isinstance(exc, PlanRevisionStaleError):
+        return AppError(
+            status_code=HTTPStatus.CONFLICT,
+            code="PLAN_REVISION_STALE",
+            message="운동 계획이 변경되었습니다. 최신 계획으로 다시 시도해주세요.",
+        )
+    if isinstance(exc, PlanRevisionIdempotencyKeyReusedError):
+        return AppError(
+            status_code=HTTPStatus.CONFLICT,
+            code="IDEMPOTENCY_KEY_REUSED",
+            message="같은 멱등성 키를 다른 요청에 사용할 수 없습니다.",
+        )
+    if isinstance(exc, PlanRevisionError):
+        return AppError(
+            status_code=_PLAN_REVISION_STATUS[exc.code],
+            code=exc.code.value,
+            message=_PLAN_REVISION_MESSAGES[exc.code],
+        )
+    if isinstance(exc, IntegrityError):
+        return AppError(
+            status_code=HTTPStatus.CONFLICT,
+            code="PLAN_REVISION_STALE",
+            message="운동 계획이 변경되었습니다. 최신 계획으로 다시 시도해주세요.",
+        )
+    return AppError(
+        status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+        code="DATABASE_UNAVAILABLE",
+        message="결정 저장소를 일시적으로 사용할 수 없습니다.",
+    )
+
+
+@router.patch(
+    "/{decision_id}/plan-items/{plan_item_id}",
+    response_model=PlanRevisionResponse,
+)
+def edit_plan_item_sets_and_repetitions(
+    decision_id: UUID,
+    plan_item_id: UUID,
+    payload: PlanItemSetRepetitionRequest,
+    idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db_session)],
+    repository: Annotated[PlanRevisionRepositoryPort, Depends(get_plan_revision_repository)],
+) -> PlanRevisionResponse:
+    """Replace one item's set and repetition counts and return the updated plan.
+
+    This does not spend the day's re-recommendation budget: the user is rewriting their
+    own plan, not asking for a different one.
+    """
+
+    try:
+        return PlanRevisionService(repository).edit_sets_and_repetitions(
+            session, current_user.user_id, decision_id, plan_item_id, payload, idempotency_key
+        )
+    except (
+        PlanNotFoundError,
+        PlanRevisionStaleError,
+        PlanRevisionIdempotencyKeyReusedError,
+        PlanRevisionError,
+        IntegrityError,
+        SQLAlchemyError,
+    ) as exc:
+        raise _plan_revision_error(exc) from None
+
+
+@router.put(
+    "/{decision_id}/plan-item-order",
+    response_model=PlanRevisionResponse,
+)
+def edit_plan_item_order(
+    decision_id: UUID,
+    payload: PlanItemOrderRequest,
+    idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db_session)],
+    repository: Annotated[PlanRevisionRepositoryPort, Depends(get_plan_revision_repository)],
+) -> PlanRevisionResponse:
+    """Reorder the plan inside its phases and return it renumbered from 1."""
+
+    try:
+        return PlanRevisionService(repository).edit_order(
+            session, current_user.user_id, decision_id, payload, idempotency_key
+        )
+    except (
+        PlanNotFoundError,
+        PlanRevisionStaleError,
+        PlanRevisionIdempotencyKeyReusedError,
+        PlanRevisionError,
+        IntegrityError,
+        SQLAlchemyError,
+    ) as exc:
+        raise _plan_revision_error(exc) from None
 
 
 @router.get("/{decision_id}", response_model=DecisionResponse, response_model_exclude_unset=True)

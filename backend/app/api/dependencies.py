@@ -23,7 +23,11 @@ from backend.app.modules.account_deletion.ports import AccountDeletionRepository
 from backend.app.modules.catalog.service import ExerciseMediaUrlPort, ExerciseReadRepositoryPort
 from backend.app.modules.checkins.ports import DailyContextRepositoryPort
 from backend.app.modules.decisions.execution_profile import DecisionCreationServicePort
-from backend.app.modules.decisions.ports import DecisionRepositoryPort, NarrationProviderPort
+from backend.app.modules.decisions.ports import (
+    DecisionRepositoryPort,
+    NarrationProviderPort,
+    PlanRevisionRepositoryPort,
+)
 from backend.app.modules.decisions.v3_regeneration import (
     V3EngineDisabledError,
     V3RegenerationCommand,
@@ -126,6 +130,10 @@ def get_daily_context_repository() -> DailyContextRepositoryPort:
 
 
 def get_decision_repository() -> DecisionRepositoryPort:
+    return _decision_repository
+
+
+def get_plan_revision_repository() -> PlanRevisionRepositoryPort:
     return _decision_repository
 
 

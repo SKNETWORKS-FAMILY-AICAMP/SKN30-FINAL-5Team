@@ -1,7 +1,7 @@
 """Persist user-scoped in-app notification state.
 
-Revision ID: 0041_in_app_notifications
-Revises: 0040_weekly_safety_and_calorie
+Revision ID: 0042_in_app_notifications
+Revises: 0041_user_plan_revisions
 Create Date: 2026-09-04
 
 The event key is part of the server-side deduplication contract.  It prevents two
@@ -14,8 +14,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0041_in_app_notifications"
-down_revision: str | None = "0040_weekly_safety_and_calorie"
+revision: str = "0042_in_app_notifications"
+down_revision: str | None = "0041_user_plan_revisions"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
