@@ -273,7 +273,7 @@ describe('MyPageContainer', () => {
     fireEvent.press(screen.getByRole('checkbox', { name: '여성' }));
     fireEvent.changeText(screen.getByLabelText('키 입력'), '168.5');
     fireEvent.changeText(screen.getByLabelText('체중 입력'), '58.2');
-    fireEvent.press(screen.getByRole('button', { name: '기본 정보 저장' }));
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
 
     await waitFor(() =>
       expect(updateProfileSettings).toHaveBeenCalledWith(
@@ -318,7 +318,7 @@ describe('MyPageContainer', () => {
     fireEvent.press(
       screen.getByRole('button', { name: '기본 이미지로 되돌리기' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '기본 정보 저장' }));
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
 
     await waitFor(() => expect(deleteProfileImage).toHaveBeenCalledWith(7));
   });
@@ -373,7 +373,7 @@ describe('MyPageContainer', () => {
         screen.getByTestId('profile-editor-avatar-preview').props.source,
       ).toEqual({ uri: 'file:///profile.jpg' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '기본 정보 저장' }));
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
 
     await waitFor(() =>
       expect(uploadProfileImage).toHaveBeenCalledWith(
@@ -452,6 +452,7 @@ describe('MyPageContainer', () => {
     fireEvent.press(
       screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
     );
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
     expect(
       await screen.findByText(
         '운동 시간 값을 확인해주세요. 요청 값이 올바르지 않습니다.',
@@ -487,6 +488,7 @@ describe('MyPageContainer', () => {
     fireEvent.press(
       screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
     );
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
     expect(
       await screen.findByText(
         '프로필이 변경되었습니다. 최신 상태로 다시 시도해주세요.',
@@ -516,6 +518,9 @@ describe('MyPageContainer', () => {
     );
 
     fireEvent.press(screen.getByRole('button', { name: '딱 필요한 만큼' }));
+    // 선택만으로는 저장되지 않고, 저장하기 버튼을 눌러야 반영된다.
+    expect(updateProfileSettings).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
     await waitFor(() =>
       expect(updateProfileSettings).toHaveBeenCalledWith(
         { coaching_style_code: 'CONCISE' },
@@ -525,7 +530,7 @@ describe('MyPageContainer', () => {
     expect(onRefreshMe).toHaveBeenCalledTimes(1);
   });
 
-  it('opens one field editor and saves a duration change immediately', async () => {
+  it('opens one field editor and saves a duration change from the save button', async () => {
     const updateProfileSettings = jest.fn<Api['updateProfileSettings']>(
       async () => ({
         profile_version: 8,
@@ -548,19 +553,23 @@ describe('MyPageContainer', () => {
     expect(
       screen.getByRole('header', { name: '운동 시간 수정' }),
     ).toBeOnTheScreen();
-    expect(screen.getByText('변경한 내용은 바로 반영돼요.')).toBeOnTheScreen();
+    expect(
+      screen.getByText('수정한 뒤 저장하기를 눌러야 반영돼요.'),
+    ).toBeOnTheScreen();
+    // 수정 전에는 저장 버튼이 없다.
+    expect(screen.queryByRole('button', { name: '저장하기' })).toBeNull();
     fireEvent.press(
       screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
     );
+    expect(updateProfileSettings).not.toHaveBeenCalled();
 
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
     await waitFor(() =>
       expect(updateProfileSettings).toHaveBeenCalledWith(
         { default_requested_duration_minutes: 40 },
         7,
       ),
     );
-    expect(screen.queryByText('목표 저장')).toBeNull();
-    // 저장 버튼이 없으므로 저장이 끝난 사실을 화면에서 알려준다.
     expect(
       await screen.findByText('변경 사항을 저장했어요.'),
     ).toBeOnTheScreen();
@@ -678,6 +687,7 @@ describe('MyPageContainer', () => {
 
     fireEvent.press(screen.getByRole('button', { name: '운동 장소 수정' }));
     fireEvent.press(screen.getByRole('checkbox', { name: '헬스장' }));
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
     await waitFor(() =>
       expect(updateProfileSettings).toHaveBeenCalledWith(
         {
@@ -689,6 +699,7 @@ describe('MyPageContainer', () => {
     );
 
     fireEvent.press(screen.getByRole('radio', { name: '헬스장' }));
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
     await waitFor(() =>
       expect(updateProfileSettings).toHaveBeenLastCalledWith(
         {
@@ -731,7 +742,7 @@ describe('MyPageContainer', () => {
       screen.getByRole('adjustable', { name: '무릎 통증 정도' }),
     ).toHaveAccessibilityValue({ min: 1, max: 10, now: 1 });
     fireEvent.press(screen.getByRole('checkbox', { name: '없어요' }));
-    fireEvent.press(screen.getByRole('button', { name: '통증 정보 저장' }));
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
 
     await waitFor(() =>
       expect(updateProfileSettings).toHaveBeenCalledWith(
@@ -793,7 +804,7 @@ describe('MyPageContainer', () => {
       now: 5,
       text: '10점 중 5점',
     });
-    fireEvent.press(screen.getByRole('button', { name: '통증 정보 저장' }));
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
 
     await waitFor(() =>
       expect(updateProfileSettings).toHaveBeenCalledWith(
@@ -893,7 +904,7 @@ describe('MyPageContainer', () => {
     expect(screen.getByText('이전에 저장된 부위 (해제만 가능)')).toBeTruthy();
     expect(screen.getByRole('checkbox', { name: '전신' })).toBeChecked();
     fireEvent.press(screen.getByRole('checkbox', { name: '전신' }));
-    fireEvent.press(screen.getByRole('button', { name: '통증 정보 저장' }));
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
 
     await waitFor(() =>
       expect(updateProfileSettings).toHaveBeenCalledWith(

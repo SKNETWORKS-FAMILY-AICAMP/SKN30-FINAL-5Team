@@ -122,7 +122,7 @@ export function SessionResultScreen({
       />
       <MascotStage
         eyebrow="오늘의 결과"
-        art={result.status_code === 'COMPLETED' ? 'complete' : 'progress'}
+        art="feedback"
         title={
           result.status_code === 'COMPLETED'
             ? '전부 해냈어요'
@@ -228,9 +228,6 @@ function FeedbackCard({
       </FeedbackSection>
       {difficulty === 'HARD' ? (
         <FeedbackSection title="어떤 점이 어려웠나요? (복수 선택)">
-          <Text style={styles.feedbackHelp}>
-            하나 이상 선택해 주세요. 두 항목 모두 선택할 수 있어요.
-          </Text>
           {HARD_DIFFICULTY_DETAILS.map((option) => (
             <DifficultyDetailChoice
               key={option.code}
@@ -251,8 +248,10 @@ function FeedbackCard({
           (difficulty === 'HARD' && hardDifficultyDetails.length === 0)
         }
         label={feedback.pending ? '저장 중…' : '피드백 저장'}
+        labelStyle={styles.feedbackSubmitLabel}
         onPress={() => void feedback.run()}
         showChevron={false}
+        style={styles.feedbackSubmit}
         testID="session-feedback-save"
       />
     </Card>
@@ -363,11 +362,6 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     fontWeight: '800',
   },
-  feedbackHelp: {
-    color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 18,
-  },
   feedbackChoices: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -433,6 +427,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   difficultyDetailTextSelected: { color: colors.greenText },
+  feedbackSubmit: {
+    height: 42,
+    width: 'auto',
+    minWidth: 132,
+    alignSelf: 'center',
+    paddingHorizontal: 24,
+  },
+  feedbackSubmitLabel: {
+    fontSize: 14,
+  },
   status: {
     color: colors.greenText,
     fontSize: 18,

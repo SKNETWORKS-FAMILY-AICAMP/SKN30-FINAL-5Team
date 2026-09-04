@@ -128,6 +128,22 @@ function MyPageContent({
   const profile = me?.profile ?? null;
   const apiBacked = me !== undefined;
   const coachStyleCode = profile?.coaching_style_code ?? previewCoachStyleCode;
+  // Coaching style is a draft until the user presses 저장하기: selecting a card
+  // only moves the highlight. React's "adjust state when inputs change" pattern
+  // resets the draft once the saved value catches up.
+  const [coachStyleDraft, setCoachStyleDraft] = useState(coachStyleCode);
+  const [syncedCoachStyleCode, setSyncedCoachStyleCode] =
+    useState(coachStyleCode);
+  if (syncedCoachStyleCode !== coachStyleCode) {
+    setSyncedCoachStyleCode(coachStyleCode);
+    setCoachStyleDraft(coachStyleCode);
+  }
+  const coachStyleDirty = coachStyleDraft !== coachStyleCode;
+  const saveCoachStyle = () => {
+    if (!coachStyleDirty || coachingStylePending) return;
+    if (onCoachingStyleChange) onCoachingStyleChange(coachStyleDraft);
+    else setPreviewCoachStyleCode(coachStyleDraft);
+  };
   const profileRows = profile
     ? buildMyPageProfileRows(profile)
     : MY_PAGE_PROFILE_ROWS;
@@ -253,7 +269,7 @@ function MyPageContent({
           </Text>
           <View style={styles.coachOptions}>
             {ONBOARDING_COACHING_STYLE_OPTIONS.map((option) => {
-              const selected = option.code === coachStyleCode;
+              const selected = option.code === coachStyleDraft;
               return (
                 <Pressable
                   key={option.code}
@@ -263,13 +279,7 @@ function MyPageContent({
                     disabled: coachingStylePending,
                   }}
                   disabled={coachingStylePending}
-                  onPress={() => {
-                    if (onCoachingStyleChange) {
-                      onCoachingStyleChange(option.code);
-                    } else {
-                      setPreviewCoachStyleCode(option.code);
-                    }
-                  }}
+                  onPress={() => setCoachStyleDraft(option.code)}
                   style={[
                     styles.coachOption,
                     selected && styles.coachOptionSelected,
@@ -287,6 +297,14 @@ function MyPageContent({
               );
             })}
           </View>
+          {coachStyleDirty ? (
+            <Button
+              disabled={coachingStylePending}
+              label={coachingStylePending ? '저장 중…' : '저장하기'}
+              onPress={saveCoachStyle}
+              style={styles.coachSaveButton}
+            />
+          ) : null}
         </View>
 
         {coachingStyleError ? (
@@ -406,9 +424,6 @@ function MyPageContent({
           )}
           {consentValues && consentError ? (
             <InlineFeedback message={consentError} tone="error" />
-          ) : null}
-          {consentPending && consentValues ? (
-            <Text style={styles.consentNote}>저장 중…</Text>
           ) : null}
         </View>
 
@@ -747,6 +762,9 @@ const styles = StyleSheet.create({
   coachOptions: {
     flexDirection: 'row',
     gap: 6,
+    marginTop: 12,
+  },
+  coachSaveButton: {
     marginTop: 12,
   },
   coachOption: {

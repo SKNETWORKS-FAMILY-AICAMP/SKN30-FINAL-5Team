@@ -1,10 +1,10 @@
 /**
  * The house's artwork, declared as slots rather than as image imports.
  *
- * The room and the temporary house mascot are connected. Extra pose artwork
- * and every decoration are still being drawn. Declaring each one as a slot
- * fixes its id, label and footprint now, so dropping finished art in later is
- * a one-line change to `source` with no edit to the screen.
+ * The room, temporary house mascot and reviewed decorations are connected.
+ * Declaring each one as a slot fixes its id, label and footprint now, so
+ * dropping finished art in later is a one-line change to `source` with no edit
+ * to the screen.
  *
  * Only reviewed assets are wired up. A slot with `source: null` renders as a
  * labelled placeholder, which is honest about being unfinished — an
@@ -265,13 +265,43 @@ export function randomHousePettedPoseArt(
   };
 }
 
-/** Decorations. All pending, each with its own colour so the room reads. */
+/** Decorations. Missing artwork keeps its labelled placeholder. */
 export const houseItemArt: Record<HouseItemId, HouseArtSlot> = {
-  yoga_mat: slot('item-yoga_mat', '요가 매트', null, '#DCD3F2', '#9E8FD0'),
-  dumbbell: slot('item-dumbbell', '아령', null, '#D6E7CB', '#7FA46B'),
-  plant: slot('item-plant', '화분', null, '#D9EBC9', '#78A45C'),
-  cushion: slot('item-cushion', '쿠션', null, '#E3E9CC', '#93A268'),
-  lamp: slot('item-lamp', '스탠드', null, '#FBEFD1', '#D8AE55'),
+  yoga_mat: slot(
+    'item-yoga_mat',
+    '요가 매트',
+    imageAssets.houseYogaMat,
+    '#DCD3F2',
+    '#9E8FD0',
+  ),
+  dumbbell: slot(
+    'item-dumbbell',
+    '아령',
+    imageAssets.houseDumbbell,
+    '#D6E7CB',
+    '#7FA46B',
+  ),
+  plant: slot(
+    'item-plant',
+    '화분',
+    imageAssets.housePlant,
+    '#D9EBC9',
+    '#78A45C',
+  ),
+  cushion: slot(
+    'item-cushion',
+    '쿠션',
+    imageAssets.houseCushion,
+    '#E3E9CC',
+    '#93A268',
+  ),
+  lamp: slot(
+    'item-lamp',
+    '스탠드',
+    imageAssets.houseLamp,
+    '#FBEFD1',
+    '#D8AE55',
+  ),
   star_frame: slot('item-star_frame', '별 액자', null, '#EFE3C8', '#B4915A'),
   window: slot('item-window', '창문 커튼', null, '#DCEAD3', '#8FAE7C'),
 };

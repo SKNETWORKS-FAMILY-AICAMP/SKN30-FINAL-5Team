@@ -21,6 +21,10 @@ npx expo start --web
 
 `http://localhost:8081/?preview=splash`
 
+개발용 전체 화면 목록은 `?preview=gallery`에서 확인합니다. 실제 앱의 초기
+설정·프로필 조회/복구 상태는 `?preview=app-status`, 끼끼의 집에서 여는 바나나
+미니게임은 `?preview=banana-catch`로 바로 열 수 있습니다.
+
 품질 검증 명령:
 
 ```bash

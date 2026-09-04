@@ -8,7 +8,6 @@ export const PAIN_INTENSITY_MAX = 10;
 
 type Props = {
   bodyArea: string;
-  compact?: boolean;
   disabled?: boolean;
   onChange: (value: number) => void;
   testIDPrefix: string;
@@ -17,7 +16,6 @@ type Props = {
 
 export function PainIntensitySlider({
   bodyArea,
-  compact = false,
   disabled = false,
   onChange,
   testIDPrefix,
@@ -61,7 +59,7 @@ export function PainIntensitySlider({
         </Text>
         <Text
           accessibilityLiveRegion="polite"
-          style={[styles.value, compact && styles.valueCompact]}
+          style={styles.value}
           testID={`${testIDPrefix}-pain-intensity-value-${bodyArea}`}
         >
           {boundedValue}
@@ -100,16 +98,12 @@ export function PainIntensitySlider({
       >
         <View
           pointerEvents="none"
-          style={[styles.track, compact && styles.trackCompact]}
+          style={styles.track}
           testID={`${testIDPrefix}-pain-intensity-track-${bodyArea}`}
         >
           <View style={[styles.fill, { width: `${progress * 100}%` }]} />
           <View
-            style={[
-              styles.thumb,
-              compact && styles.thumbCompact,
-              { left: `${progress * 100}%` },
-            ]}
+            style={[styles.thumb, { left: `${progress * 100}%` }]}
             testID={`${testIDPrefix}-pain-intensity-thumb-${bodyArea}`}
           />
         </View>
@@ -139,39 +133,28 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   value: {
-    minWidth: 38,
+    minWidth: 34,
     flexShrink: 0,
     borderWidth: 1,
     borderColor: colors.dangerBorder,
-    borderRadius: 12,
+    borderRadius: 10,
     backgroundColor: colors.surface,
     color: '#8E3226',
-    fontSize: 18,
-    fontWeight: '400',
-    lineHeight: 24,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    textAlign: 'center',
-  },
-  valueCompact: {
-    minWidth: 34,
-    borderRadius: 10,
     fontSize: 16,
+    fontWeight: '400',
     lineHeight: 20,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 2,
+    textAlign: 'center',
   },
   touchTarget: {
     height: 40,
     justifyContent: 'center',
   },
   track: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(162, 63, 42, 0.12)',
-  },
-  trackCompact: {
     height: 4,
     borderRadius: 2,
+    backgroundColor: 'rgba(162, 63, 42, 0.12)',
   },
   fill: {
     height: '100%',
@@ -180,22 +163,14 @@ const styles = StyleSheet.create({
   },
   thumb: {
     position: 'absolute',
-    top: -8,
-    width: 24,
-    height: 24,
-    marginLeft: -12,
-    borderWidth: 3,
-    borderColor: colors.surface,
-    borderRadius: 12,
-    backgroundColor: 'rgba(142, 50, 38, 0.72)',
-  },
-  thumbCompact: {
     top: -7,
     width: 18,
     height: 18,
     marginLeft: -9,
     borderWidth: 2,
+    borderColor: colors.surface,
     borderRadius: 9,
+    backgroundColor: 'rgba(142, 50, 38, 0.72)',
   },
   rangeLabels: {
     flexDirection: 'row',

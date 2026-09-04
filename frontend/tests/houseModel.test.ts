@@ -274,7 +274,7 @@ describe('spending', () => {
     const bought = buyItem(rich, 'yoga_mat');
     expect(bought?.bananas).toBe(30);
     expect(bought?.ownedItemIds).toEqual(['yoga_mat']);
-    expect(bought?.itemPlacements.yoga_mat).toEqual({ x: 0.24, y: 0.57 });
+    expect(bought?.itemPlacements.yoga_mat).toEqual({ x: 0.24, y: 0.46 });
     expect(buyItem(bought ?? rich, 'yoga_mat')).toBeNull();
   });
 

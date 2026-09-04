@@ -763,7 +763,7 @@ describe('HomeContainer', () => {
 
     fireEvent.press(
       await screen.findByRole('button', {
-        name: /운동 1.*자세 보기/,
+        name: /운동 1.*자세/,
       }),
     );
 
@@ -2706,8 +2706,8 @@ describe('OnboardingScreen', () => {
         screen.getByTestId('onboarding-pain-slider-card-손목·손').props.style,
       ),
     ).toMatchObject({
-      backgroundColor: '#FBEAE7',
-      borderColor: '#F1BFAE',
+      backgroundColor: '#FFFDFC',
+      borderColor: '#E8C3B8',
     });
     expect(
       StyleSheet.flatten(

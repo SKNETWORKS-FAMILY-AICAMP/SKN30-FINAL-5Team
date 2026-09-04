@@ -15,9 +15,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { Api } from '../api/endpoints';
+import { messageForError } from '../api/errors';
 import type {
   DecisionResponse,
   MeResponse,
+  NotificationListResponse,
+  NotificationResponse,
   WeeklyPlanRevisionResponse,
   WorkoutPlan,
   WorkoutSessionDetailResponse,
@@ -28,6 +31,10 @@ import { ExerciseCatalogScreen } from '../features/catalog/ExerciseCatalogScreen
 import { CalendarReportContainer } from '../features/home/CalendarReportContainer';
 import { HomeContainer } from '../features/home/HomeContainer';
 import { MyPageContainer } from '../features/home/MyPageContainer';
+import {
+  NotificationSheet,
+  type NotificationLoadStatus,
+} from '../features/home/NotificationSheet';
 import { MascotHouseScreen } from '../features/house/MascotHouseScreen';
 import type { SessionOutcome } from '../features/workout/SessionScreen';
 import { SessionResultScreen } from '../features/workout/SessionResultScreen';
@@ -74,11 +81,98 @@ export function MainFlow({
     localDate,
     count: 0,
   });
+  const [notificationResponse, setNotificationResponse] =
+    useState<NotificationListResponse | null>(null);
+  const [notificationStatus, setNotificationStatus] =
+    useState<NotificationLoadStatus>('idle');
+  const [notificationError, setNotificationError] = useState<string | null>(
+    null,
+  );
+  const [notificationSheetOpen, setNotificationSheetOpen] = useState(false);
+  const [pendingNotificationId, setPendingNotificationId] = useState<
+    string | null
+  >(null);
+  const [notificationToastVisible, setNotificationToastVisible] =
+    useState(false);
+  const knownNotificationIds = useRef<Set<string> | null>(null);
+  const notificationRequestSequence = useRef(0);
   const decisionRef = useRef(decision);
 
   useEffect(() => {
     decisionRef.current = decision;
   }, [decision]);
+
+  const refreshNotifications = useCallback(
+    async (signal?: AbortSignal): Promise<boolean> => {
+      if (signal?.aborted) {
+        return false;
+      }
+      const requestSequence = notificationRequestSequence.current + 1;
+      notificationRequestSequence.current = requestSequence;
+      setNotificationStatus('loading');
+      setNotificationError(null);
+      try {
+        const next = await api.listNotifications(signal);
+        if (
+          signal?.aborted ||
+          requestSequence !== notificationRequestSequence.current
+        ) {
+          return false;
+        }
+
+        const previousIds = knownNotificationIds.current;
+        const hasNewUnread =
+          previousIds !== null &&
+          next.items.some(
+            (item) => !item.is_read && !previousIds.has(item.notification_id),
+          );
+        knownNotificationIds.current = new Set(
+          next.items.map((item) => item.notification_id),
+        );
+        setNotificationResponse(next);
+        setNotificationStatus('ready');
+        if (hasNewUnread) {
+          setNotificationToastVisible(true);
+        }
+        return true;
+      } catch (error: unknown) {
+        if (
+          signal?.aborted ||
+          (error instanceof Error && error.name === 'AbortError') ||
+          requestSequence !== notificationRequestSequence.current
+        ) {
+          return false;
+        }
+        setNotificationStatus('error');
+        setNotificationError(messageForError(error));
+        return false;
+      }
+    },
+    [api],
+  );
+
+  useEffect(() => {
+    if (step.name !== 'home') {
+      return;
+    }
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => void refreshNotifications(controller.signal),
+      0,
+    );
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [refreshNotifications, step.name]);
+
+  useEffect(() => {
+    if (!notificationToastVisible) {
+      return;
+    }
+    const timeout = setTimeout(() => setNotificationToastVisible(false), 2_500);
+    return () => clearTimeout(timeout);
+  }, [notificationToastVisible]);
 
   // A restart loses this flow's in-memory state, so recover today's stored
   // decision — and an unfinished session — from the server on entry and
@@ -175,6 +269,35 @@ export function MainFlow({
       setStep({ name: 'home' });
     },
     [recoverHomeDecision],
+  );
+  const openNotifications = useCallback(() => {
+    setNotificationSheetOpen(true);
+    void refreshNotifications();
+  }, [refreshNotifications]);
+  const selectNotification = useCallback(
+    (notification: NotificationResponse) => {
+      if (pendingNotificationId !== null) {
+        return;
+      }
+      setPendingNotificationId(notification.notification_id);
+      setNotificationError(null);
+      void (async () => {
+        try {
+          await api.markNotificationRead(notification.notification_id);
+          await refreshNotifications();
+          if (notification.action_type === 'OPEN_KIKKI_HOME') {
+            setNotificationSheetOpen(false);
+            onTab('house');
+          }
+        } catch (error: unknown) {
+          setNotificationStatus('error');
+          setNotificationError(messageForError(error));
+        } finally {
+          setPendingNotificationId(null);
+        }
+      })();
+    },
+    [api, onTab, pendingNotificationId, refreshNotifications],
   );
   const routineStartLocalDate = me.profile
     ? localDateString(new Date(me.profile.created_at), me.profile.timezone)
@@ -273,55 +396,72 @@ export function MainFlow({
     case 'home':
     default:
       return (
-        <HomeContainer
-          api={api}
-          me={me}
-          restToday={restToday}
-          decision={decision}
-          todaySession={todaySession}
-          localSessionState={
-            todaySession?.session_id === resumableSessionId
-              ? 'STOPPED_RESUMABLE'
-              : 'ACTIVE'
-          }
-          alternativeUsedCount={
-            alternativeUsage.localDate === localDate
-              ? alternativeUsage.count
-              : 0
-          }
-          onAlternativeSuccess={() =>
-            setAlternativeUsage((current) => ({
-              localDate,
-              count:
-                current.localDate === localDate
-                  ? Math.min(2, current.count + 1)
-                  : 1,
-            }))
-          }
-          onDecisionChange={setDecision}
-          planRevision={planRevision}
-          onSessionStarted={(sessionId, plan) => {
-            setResumableSessionId(null);
-            setStep({ name: 'session', sessionId, plan });
-          }}
-          onResumeWorkout={() => {
-            if (todaySession !== null && decision?.final_plan) {
-              setResumableSessionId(null);
-              setStep({
-                name: 'session',
-                sessionId: todaySession.session_id,
-                plan: decision.final_plan,
-              });
+        <>
+          <HomeContainer
+            api={api}
+            me={me}
+            restToday={restToday}
+            decision={decision}
+            todaySession={todaySession}
+            localSessionState={
+              todaySession?.session_id === resumableSessionId
+                ? 'STOPPED_RESUMABLE'
+                : 'ACTIVE'
             }
-          }}
-          onRestChosen={(pressureNotificationsAllowed) =>
-            setRestChoice({ localDate, pressureNotificationsAllowed })
-          }
-          onCheckinDecisionSuccess={() => setRestChoice(null)}
-          onRecoverDecision={recoverHomeDecision}
-          onTab={onTab}
-          onOpenCalendar={() => setStep({ name: 'calendar-report' })}
-        />
+            alternativeUsedCount={
+              alternativeUsage.localDate === localDate
+                ? alternativeUsage.count
+                : 0
+            }
+            hasUnreadNotification={
+              (notificationResponse?.unread_count ?? 0) > 0
+            }
+            notificationToastVisible={notificationToastVisible}
+            onNotifications={openNotifications}
+            onAlternativeSuccess={() =>
+              setAlternativeUsage((current) => ({
+                localDate,
+                count:
+                  current.localDate === localDate
+                    ? Math.min(2, current.count + 1)
+                    : 1,
+              }))
+            }
+            onDecisionChange={setDecision}
+            planRevision={planRevision}
+            onSessionStarted={(sessionId, plan) => {
+              setResumableSessionId(null);
+              setStep({ name: 'session', sessionId, plan });
+            }}
+            onResumeWorkout={() => {
+              if (todaySession !== null && decision?.final_plan) {
+                setResumableSessionId(null);
+                setStep({
+                  name: 'session',
+                  sessionId: todaySession.session_id,
+                  plan: decision.final_plan,
+                });
+              }
+            }}
+            onRestChosen={(pressureNotificationsAllowed) =>
+              setRestChoice({ localDate, pressureNotificationsAllowed })
+            }
+            onCheckinDecisionSuccess={() => setRestChoice(null)}
+            onRecoverDecision={recoverHomeDecision}
+            onTab={onTab}
+            onOpenCalendar={() => setStep({ name: 'calendar-report' })}
+          />
+          <NotificationSheet
+            errorMessage={notificationError}
+            onClose={() => setNotificationSheetOpen(false)}
+            onRetry={() => void refreshNotifications()}
+            onSelect={selectNotification}
+            pendingNotificationId={pendingNotificationId}
+            response={notificationResponse}
+            status={notificationStatus}
+            visible={notificationSheetOpen}
+          />
+        </>
       );
   }
 }
