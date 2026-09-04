@@ -17,6 +17,10 @@ from backend.app.modules.checkins.schemas import (
     DailyContextUpsertRequest,
     PainInput,
 )
+from backend.app.modules.decisions.daily_adjustment import (
+    DAILY_ADJUSTMENT_LIMIT,
+    DailyAdjustmentLimitReachedError,
+)
 
 
 class DailyContextNotFoundError(Exception):
@@ -122,6 +126,20 @@ class DailyContextService:
                     raise IdempotencyKeyReusedError
                 return DailyContextResponse.model_validate(existing.response_payload)
 
+            current_version = self._repository.get_context_version(session, user_id, local_date)
+            if current_version != expected_version:
+                # Preserve optimistic-concurrency precedence even after the daily budget
+                # is spent; a stale client must refresh before learning mutation state.
+                raise StaleContextError
+
+            # The initial check-in is not an adjustment. An update is, and shares this
+            # budget with successful regenerations. The repository lock above is the
+            # common user/date lock used by the regeneration path as well.
+            if current_version is not None and self._repository.count_daily_adjustments(
+                session, user_id, local_date
+            ) >= DAILY_ADJUSTMENT_LIMIT:
+                raise DailyAdjustmentLimitReachedError
+
             if request.available_slots is None:
                 availability_source_code = CalendarAvailabilitySourceCode.ROUTINE_DEFAULT
                 available_slots: tuple[tuple[datetime, datetime], ...] = ()
@@ -186,6 +204,7 @@ __all__ = [
     "DailyContextNotFoundError",
     "DailyContextService",
     "IdempotencyKeyReusedError",
+    "DailyAdjustmentLimitReachedError",
     "ProfileTimezoneMissingError",
     "StaleContextError",
 ]

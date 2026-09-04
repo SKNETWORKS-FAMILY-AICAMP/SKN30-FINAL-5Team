@@ -413,6 +413,19 @@ class PlanCandidate(Base):
             "action_code IN ('KEEP','DOWNSHIFT','CHANGE','RECOVERY')",
             name="ck_plan_candidates_action",
         ),
+        CheckConstraint(
+            "user_revision_sequence >= 0",
+            name="ck_plan_candidates_user_revision_sequence",
+        ),
+        CheckConstraint(
+            "(user_revision_sequence = 0 AND user_revised_at IS NULL "
+            "AND user_revision_policy_version IS NULL "
+            "AND user_revised_estimated_duration_seconds IS NULL) OR "
+            "(user_revision_sequence > 0 AND user_revised_at IS NOT NULL "
+            "AND user_revision_policy_version IS NOT NULL "
+            "AND user_revised_estimated_duration_seconds IS NOT NULL)",
+            name="ck_plan_candidates_user_revision_shape",
+        ),
     )
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     decision_run_id: Mapped[UUID] = mapped_column(
@@ -437,6 +450,19 @@ class PlanCandidate(Base):
     goal_tags: Mapped[list[str]] = mapped_column(_JSON, nullable=False)
     duration_rule_version: Mapped[str] = mapped_column(String(128), nullable=False)
     selected: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # A user edit of the day's plan (DOMAIN_RULES 11.2). Zero means the plan is still
+    # exactly what the decision produced; the counter doubles as the optimistic
+    # concurrency token the edit endpoints check.
+    user_revision_sequence: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    user_revised_estimated_duration_seconds: Mapped[int | None] = mapped_column(
+        Integer, nullable=True
+    )
+    user_revision_policy_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    user_revised_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -449,6 +475,35 @@ class PlanItem(Base):
     __tablename__ = "plan_items"
     __table_args__ = (
         UniqueConstraint("plan_candidate_id", "sequence", name="uq_plan_items_candidate_sequence"),
+        Index(
+            "uq_plan_items_candidate_user_sequence",
+            "plan_candidate_id",
+            "user_sequence",
+            unique=True,
+            postgresql_where=text("user_sequence IS NOT NULL"),
+        ),
+        CheckConstraint(
+            "user_sequence IS NULL OR user_sequence > 0",
+            name="ck_plan_items_user_sequence_positive",
+        ),
+        CheckConstraint(
+            "user_sets IS NULL OR user_sets > 0", name="ck_plan_items_user_sets_positive"
+        ),
+        CheckConstraint(
+            "user_work_seconds_per_set IS NULL OR user_work_seconds_per_set > 0",
+            name="ck_plan_items_user_work_seconds_per_set_positive",
+        ),
+        CheckConstraint(
+            "user_reps IS NULL OR user_reps > 0", name="ck_plan_items_user_reps_positive"
+        ),
+        CheckConstraint(
+            "user_work_seconds IS NULL OR user_work_seconds >= 0",
+            name="ck_plan_items_user_work_seconds_nonnegative",
+        ),
+        CheckConstraint(
+            "user_rest_seconds IS NULL OR user_rest_seconds >= 0",
+            name="ck_plan_items_user_rest_seconds_nonnegative",
+        ),
     )
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     plan_candidate_id: Mapped[UUID] = mapped_column(
@@ -470,6 +525,15 @@ class PlanItem(Base):
     intensity_code: Mapped[str] = mapped_column(String(32), nullable=False)
     instruction_content_version: Mapped[str] = mapped_column(String(80), nullable=False)
     display_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    # The user's own edit, kept beside the decision's numbers rather than over them, so
+    # the run stays replayable from what the agents actually prescribed (AGENTS.md 12).
+    # NULL means "no edit"; readers resolve the effective value with COALESCE.
+    user_sequence: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    user_sets: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    user_reps: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    user_work_seconds_per_set: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    user_work_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    user_rest_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class SafetyReview(Base):

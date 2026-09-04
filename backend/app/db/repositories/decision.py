@@ -4,7 +4,7 @@ from hashlib import sha256
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text, update
 from sqlalchemy.orm import Session, selectinload
 
 from backend.app.db.models.catalog import (
@@ -42,6 +42,7 @@ from backend.app.db.models.workout import (
     WorkoutFeedback,
     WorkoutFeedbackDifficultyReason,
     WorkoutSession,
+    WorkoutSessionItem,
 )
 from backend.app.domain.agents.contracts import RecommendedActionCode
 from backend.app.domain.agents.coordinator import (
@@ -70,12 +71,16 @@ from backend.app.modules.decisions.codes import (
 )
 from backend.app.modules.decisions.context import DecisionContext
 from backend.app.modules.decisions.explanations import DecisionExplanation
+from backend.app.modules.decisions.plan_revision import PlanRevisionItem
 from backend.app.modules.decisions.ports import (
     AlternativeItemData,
     CandidateItemData,
     DecisionAssembly,
+    PlanRevisionSource,
+    PlanRevisionWrite,
     StoredIdempotency,
 )
+from backend.app.modules.workouts.codes import TERMINAL_SESSION_STATUS_CODES
 
 
 def replace_candidate_item_exercise(
@@ -90,6 +95,44 @@ def replace_candidate_item_exercise(
         instruction_content_version=alternative.instruction_content_version,
         display_name=alternative.name_ko,
     )
+
+
+def _effective_sequence(item: PlanItem) -> int:
+    return item.user_sequence if item.user_sequence is not None else item.sequence
+
+
+def _effective_items(plan: PlanCandidate) -> list[PlanItem]:
+    """Order by the sequence the user sees, which a reorder may have rewritten."""
+
+    return sorted(plan.items, key=_effective_sequence)
+
+
+def _plan_item_payload(item: PlanItem) -> dict[str, Any]:
+    work_seconds = (
+        item.user_work_seconds if item.user_work_seconds is not None else item.work_seconds
+    )
+    rest_seconds = (
+        item.user_rest_seconds if item.user_rest_seconds is not None else item.rest_seconds
+    )
+    return {
+        "plan_item_id": item.id,
+        "exercise_id": item.exercise_id,
+        "exercise_name": item.display_name,
+        "sequence": _effective_sequence(item),
+        # Carried so a client can honour the phase-bounded reorder rule (ADR-0018 D5)
+        # instead of guessing which moves the server will accept.
+        "phase_code": item.phase_code,
+        "tier_code": item.tier_code,
+        "sets": item.user_sets if item.user_sets is not None else item.sets,
+        "reps": item.user_reps if item.user_reps is not None else item.reps,
+        "work_seconds": work_seconds,
+        "rest_seconds": rest_seconds,
+        "transition_seconds": item.transition_seconds,
+        "estimated_item_seconds": work_seconds + rest_seconds + item.transition_seconds,
+        "instruction_available": bool(item.instruction_content_version),
+        "mascot_animation_asset_key": None,
+        "replacement_of_exercise_id": None,
+    }
 
 
 class DecisionRepository:
@@ -849,7 +892,14 @@ class DecisionRepository:
                 "training_type_code": plan.training_type_code,
                 "body_focus_code": plan.body_focus_code,
                 "requested_duration_minutes": plan.requested_duration_minutes,
-                "estimated_duration_seconds": plan.estimated_duration_seconds,
+                # A user edit replaces the measured total but never the request itself
+                # (DOMAIN_RULES 11.2); the request stays exactly what it was.
+                "estimated_duration_seconds": (
+                    plan.user_revised_estimated_duration_seconds
+                    if plan.user_revision_sequence > 0
+                    else plan.estimated_duration_seconds
+                ),
+                "plan_revision": plan.user_revision_sequence,
                 "expected_duration_min_seconds": plan.expected_duration_min_seconds,
                 "expected_duration_max_seconds": plan.expected_duration_max_seconds,
                 "duration_estimation_policy_version": plan.duration_estimation_policy_version,
@@ -857,27 +907,9 @@ class DecisionRepository:
                 "setup_seconds": plan.setup_seconds,
                 "warmup_seconds": plan.warmup_seconds,
                 "cooldown_seconds": plan.cooldown_seconds,
-                "items": [
-                    {
-                        "plan_item_id": i.id,
-                        "exercise_id": i.exercise_id,
-                        "exercise_name": i.display_name,
-                        "sequence": i.sequence,
-                        "tier_code": i.tier_code,
-                        "sets": i.sets,
-                        "reps": i.reps,
-                        "work_seconds": i.work_seconds,
-                        "rest_seconds": i.rest_seconds,
-                        "transition_seconds": i.transition_seconds,
-                        "estimated_item_seconds": (
-                            i.work_seconds + i.rest_seconds + i.transition_seconds
-                        ),
-                        "instruction_available": bool(i.instruction_content_version),
-                        "mascot_animation_asset_key": None,
-                        "replacement_of_exercise_id": None,
-                    }
-                    for i in plan.items
-                ],
+                # The user's override wins where it exists; the decision's own numbers
+                # stay in their columns so the run is still replayable from them.
+                "items": [_plan_item_payload(i) for i in _effective_items(plan)],
             },
             "options": [
                 {
@@ -948,6 +980,208 @@ class DecisionRepository:
                 "summary": "규칙 기반 최종 결정이 완료되었습니다.",
             }
         ]
+
+    # --- user plan revisions ---------------------------------------------------------
+
+    def acquire_endpoint_lock(
+        self, session: Session, user_id: UUID, endpoint_code: str, key: UUID
+    ) -> None:
+        """Serialize one endpoint's idempotency key the way the workout path does."""
+
+        lock_key = int.from_bytes(
+            sha256(f"{user_id}:{endpoint_code}:{key}".encode()).digest()[:8],
+            "big",
+            signed=True,
+        )
+        session.execute(text("SELECT pg_advisory_xact_lock(:lock_key)"), {"lock_key": lock_key})
+
+    def get_endpoint_idempotency(
+        self, session: Session, user_id: UUID, endpoint_code: str, key: UUID
+    ) -> StoredIdempotency | None:
+        row = session.scalar(
+            select(MutationIdempotencyRecord).where(
+                MutationIdempotencyRecord.user_id == user_id,
+                MutationIdempotencyRecord.endpoint_code == endpoint_code,
+                MutationIdempotencyRecord.idempotency_key == key,
+            )
+        )
+        return None if row is None else StoredIdempotency(row.request_hash, row.response_payload)
+
+    def save_endpoint_idempotency(
+        self,
+        session: Session,
+        *,
+        user_id: UUID,
+        endpoint_code: str,
+        key: UUID,
+        request_hash: str,
+        payload: dict[str, Any],
+        now: datetime,
+    ) -> None:
+        session.add(
+            MutationIdempotencyRecord(
+                id=uuid4(),
+                user_id=user_id,
+                endpoint_code=endpoint_code,
+                idempotency_key=key,
+                request_hash=request_hash,
+                response_payload=payload,
+                response_schema_version=DECISION_RESPONSE_SCHEMA_VERSION,
+                created_at=now,
+            )
+        )
+
+    def lock_plan_for_revision(
+        self, session: Session, user_id: UUID, decision_id: UUID
+    ) -> PlanRevisionSource | None:
+        """Load the day's selected plan for editing, holding its row until commit.
+
+        The lock is on ``plan_candidates`` because that row carries the revision counter
+        two concurrent edits would otherwise both read as the same number and both write
+        as the next one, leaving one edit silently discarded.
+        """
+
+        plan_row = session.execute(
+            select(
+                PlanCandidate.id,
+                PlanCandidate.user_revision_sequence,
+                PlanCandidate.requested_duration_minutes,
+                PlanCandidate.setup_seconds,
+                PlanCandidate.warmup_seconds,
+                PlanCandidate.cooldown_seconds,
+            )
+            .join(DecisionRun, DecisionRun.id == PlanCandidate.decision_run_id)
+            .where(
+                DecisionRun.id == decision_id,
+                DecisionRun.user_id == user_id,
+                DecisionRun.status_code == "COMPLETED",
+                PlanCandidate.selected.is_(True),
+            )
+            .with_for_update(of=PlanCandidate)
+        ).one_or_none()
+        if plan_row is None:
+            return None
+        plan_id = plan_row[0]
+
+        item_rows = session.execute(
+            select(
+                PlanItem.id,
+                func.coalesce(PlanItem.user_sequence, PlanItem.sequence),
+                PlanItem.phase_code,
+                func.coalesce(PlanItem.user_sets, PlanItem.sets),
+                func.coalesce(PlanItem.user_reps, PlanItem.reps),
+                func.coalesce(PlanItem.user_work_seconds_per_set, PlanItem.work_seconds_per_set),
+                PlanItem.rest_seconds_per_set,
+                PlanItem.transition_seconds,
+                Exercise.default_seconds_per_rep,
+                Exercise.default_work_seconds,
+            )
+            .join(Exercise, Exercise.id == PlanItem.exercise_id)
+            .where(PlanItem.plan_candidate_id == plan_id)
+            .order_by(func.coalesce(PlanItem.user_sequence, PlanItem.sequence))
+        ).all()
+
+        session_row = session.execute(
+            select(WorkoutSession.id, WorkoutSession.status_code)
+            .where(
+                WorkoutSession.plan_candidate_id == plan_id,
+                WorkoutSession.user_id == user_id,
+            )
+            .order_by(WorkoutSession.created_at.desc())
+            .limit(1)
+        ).one_or_none()
+        completed: frozenset[UUID] = frozenset()
+        editable = True
+        if session_row is not None:
+            editable = session_row[1] not in TERMINAL_SESSION_STATUS_CODES
+            completed = frozenset(
+                session.scalars(
+                    select(WorkoutSessionItem.plan_item_id).where(
+                        WorkoutSessionItem.workout_session_id == session_row[0],
+                        WorkoutSessionItem.status_code == "COMPLETED",
+                    )
+                ).all()
+            )
+
+        return PlanRevisionSource(
+            decision_id=decision_id,
+            plan_id=plan_id,
+            user_revision_sequence=plan_row[1],
+            requested_duration_minutes=plan_row[2],
+            setup_seconds=plan_row[3],
+            warmup_seconds=plan_row[4],
+            cooldown_seconds=plan_row[5],
+            items=tuple(
+                PlanRevisionItem(
+                    plan_item_id=row[0],
+                    sequence=row[1],
+                    phase_code=row[2],
+                    sets=row[3],
+                    reps=row[4],
+                    work_seconds_per_set=row[5],
+                    rest_seconds_per_set=row[6],
+                    transition_seconds=row[7],
+                    seconds_per_rep=row[8],
+                    default_work_seconds=row[9],
+                )
+                for row in item_rows
+            ),
+            completed_plan_item_ids=completed,
+            editable=editable,
+        )
+
+    def save_plan_revision(
+        self,
+        session: Session,
+        *,
+        plan_id: UUID,
+        writes: tuple[PlanRevisionWrite, ...],
+        estimated_duration_seconds: int,
+        policy_version: str,
+        now: datetime,
+    ) -> int:
+        """Write the override columns and return the new revision number.
+
+        The sequence override is cleared for the whole plan first. A reorder swaps
+        positions, and the partial unique index is checked per statement, so writing the
+        new numbers straight over the old ones collides with a row that has not moved yet.
+        """
+
+        session.execute(
+            update(PlanItem)
+            .where(PlanItem.plan_candidate_id == plan_id)
+            .values(user_sequence=None)
+        )
+        session.flush()
+        for item in writes:
+            session.execute(
+                update(PlanItem)
+                .where(PlanItem.id == item.plan_item_id)
+                .values(
+                    user_sequence=item.sequence,
+                    user_sets=item.sets,
+                    user_reps=item.reps,
+                    user_work_seconds_per_set=item.work_seconds_per_set,
+                    user_work_seconds=item.work_seconds,
+                    user_rest_seconds=item.rest_seconds,
+                )
+            )
+        revision = session.scalar(
+            select(PlanCandidate.user_revision_sequence).where(PlanCandidate.id == plan_id)
+        )
+        next_revision = (revision or 0) + 1
+        session.execute(
+            update(PlanCandidate)
+            .where(PlanCandidate.id == plan_id)
+            .values(
+                user_revision_sequence=next_revision,
+                user_revised_estimated_duration_seconds=estimated_duration_seconds,
+                user_revision_policy_version=policy_version,
+                user_revised_at=now,
+            )
+        )
+        session.flush()
+        return next_revision
 
     @staticmethod
     def _guidance(code: str | None) -> dict[str, str] | None:

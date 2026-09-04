@@ -11,10 +11,11 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Final, Literal, Self, cast
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from backend.app.db.models.catalog import Exercise
+from backend.app.db.models.checkin import DailyContext
 from backend.app.db.models.decision import (
     DecisionExplanationRecord,
     DecisionOption,
@@ -1193,6 +1194,20 @@ class SqlAlchemyV3RegenerationRepository:
     def lock_regeneration_source(
         self, *, user_id: UUID, decision_id: UUID
     ) -> V3StoredRegenerationSource | None:
+        local_date = self._session.scalar(
+            select(DecisionRun.local_date).where(
+                DecisionRun.id == decision_id, DecisionRun.user_id == user_id
+            )
+        )
+        if local_date is None:
+            return None
+        # Deliberately identical to DailyContextRepository's key. Check-in edits and
+        # regenerations then spend the shared budget serially across their transactions.
+        lock_input = f"{user_id}:{local_date.isoformat()}".encode()
+        lock_key = int.from_bytes(hashlib.sha256(lock_input).digest()[:8], "big", signed=True)
+        self._session.execute(
+            text("SELECT pg_advisory_xact_lock(:lock_key)"), {"lock_key": lock_key}
+        )
         run = self._session.scalar(
             select(DecisionRun)
             .where(DecisionRun.id == decision_id, DecisionRun.user_id == user_id)
@@ -1219,6 +1234,24 @@ class SqlAlchemyV3RegenerationRepository:
                 DecisionRun.status_code == "COMPLETED",
             )
         )
+        day_regenerations = self._session.scalar(
+            select(func.count(DecisionRun.id)).where(
+                DecisionRun.user_id == user_id,
+                DecisionRun.local_date == run.local_date,
+                DecisionRun.status_code == "COMPLETED",
+                DecisionRun.regeneration_sequence.is_not(None),
+                DecisionRun.regeneration_sequence > 0,
+            )
+        )
+        context_version = self._session.scalar(
+            select(DailyContext.context_version).where(
+                DailyContext.user_id == user_id,
+                DailyContext.local_date == run.local_date,
+            )
+        )
+        daily_adjustment_count = int(day_regenerations or 0) + max(
+            int(context_version or 1) - 1, 0
+        )
         plan = self._session.scalar(
             select(PlanCandidate).where(
                 PlanCandidate.decision_run_id == run.id,
@@ -1230,11 +1263,17 @@ class SqlAlchemyV3RegenerationRepository:
         self._locked_run = run
         return V3StoredRegenerationSource(
             decision_id=run.id,
+            local_date=run.local_date,
             root_decision_id=run.root_decision_run_id,
             parent_decision_id=run.parent_decision_run_id,
             plan_id=plan.id,
             regeneration_sequence=run.regeneration_sequence or 0,
             successful_regeneration_count=int(count or 0),
+            daily_adjustment_count=daily_adjustment_count,
+            daily_context_is_current=(
+                context_version is not None
+                and int(context_version) == run.daily_context_version
+            ),
             generation_mode_code=cast(Literal["ORIGINAL", "REGENERATED"], run.generation_mode_code),
             decision_engine_code=V3DecisionEngineCode(
                 run.decision_engine_code or "DETERMINISTIC_FALLBACK"
