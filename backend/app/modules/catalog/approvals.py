@@ -586,6 +586,103 @@ _APPROVALS = {
         approved_on="2026-08-18",
         approver_role_codes=("DEVELOPMENT_LEAD", "PM", "DOMAIN_REVIEWER"),
     ),
+    (
+        "CATALOG",
+        "exercise-catalog-v2.0.6-final",
+    ): DerivedDataApproval(
+        artifact_kind="CATALOG",
+        version_code="exercise-catalog-v2.0.6-final",
+        manifest_sha256="a811aba17747b3f1a74207397aad4c672fbbf0ce4ce9b4da508ce65ceea9cefc",
+        record_count=237,
+        approval_record_code="V2-0-6-PRODUCTION-APPROVAL-2026-09-04-R01",
+        approved_on="2026-09-04",
+        approver_role_codes=("PM", "DOMAIN_REVIEWER"),
+        approval_metadata={
+            "review_method_code": "DOMAIN_REVIEWER",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "evidence_manifest_path": "data/reports/v2_0_6_catalog/catalog_approval_manifest.json",
+            "review_basis": (
+                "PM directly reviewed exercise names, descriptions, beginner suitability, "
+                "and general-pool inclusion."
+            ),
+        },
+    ),
+    (
+        "SAFETY_RULES",
+        "safety-rule-set-v2.0.6",
+    ): DerivedDataApproval(
+        artifact_kind="SAFETY_RULES",
+        version_code="safety-rule-set-v2.0.6",
+        manifest_sha256="ff70f4bd9ee2ed8781fb72ddee43b1697e06eefb6cdbd039c7e6b68a0dce16e4",
+        record_count=2131,
+        approval_record_code="V2-0-6-PRODUCTION-APPROVAL-2026-09-04-R01",
+        approved_on="2026-09-04",
+        approver_role_codes=("PM", "DOMAIN_REVIEWER"),
+        approval_metadata={
+            "review_method_code": "DOMAIN_REVIEWER",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "evidence_manifest_path": "data/reports/v2_0_6_catalog/catalog_approval_manifest.json",
+            "derived_from": "approved normalized primary and secondary body-area mappings",
+        },
+    ),
+    (
+        "ALTERNATIVES",
+        "alternative-set-v2.0.6-stretch-strap-fallback",
+    ): DerivedDataApproval(
+        artifact_kind="ALTERNATIVES",
+        version_code="alternative-set-v2.0.6-stretch-strap-fallback",
+        manifest_sha256="2a10913eb5c8e5532c7ed27a0af99abbdea8445cec19bf391d496559da5452c7",
+        record_count=1,
+        approval_record_code="V2-0-6-PRODUCTION-APPROVAL-2026-09-04-R01",
+        approved_on="2026-09-04",
+        approver_role_codes=("PM", "DOMAIN_REVIEWER"),
+        approval_metadata={
+            "review_method_code": "DOMAIN_REVIEWER",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "evidence_manifest_path": (
+                "data/reports/v2_0_6_catalog/stretch_strap_fallback_approval_manifest.json"
+            ),
+            "policy": "STRETCH_STRAP_TO_BODYWEIGHT_ONLY",
+        },
+    ),
+    (
+        "PRESCRIPTIONS",
+        "prescription-set-v2.0.6",
+    ): DerivedDataApproval(
+        artifact_kind="PRESCRIPTIONS",
+        version_code="prescription-set-v2.0.6",
+        manifest_sha256="659d95393db3482276db7d5c19ec859b01404685270b42f04bcecac31b395616",
+        record_count=2160,
+        approval_record_code="V2-0-6-PRODUCTION-APPROVAL-2026-09-04-R01",
+        approved_on="2026-09-04",
+        approver_role_codes=("PM", "DOMAIN_REVIEWER"),
+        approval_metadata={
+            "review_method_code": "DOMAIN_REVIEWER",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "evidence_manifest_path": "data/reports/v2_0_6_catalog/catalog_approval_manifest.json",
+            "goal_tag_records": 711,
+            "prescription_records": 1449,
+        },
+    ),
+    (
+        "MEDIA_ASSETS",
+        "media-set-v2.0.6",
+    ): DerivedDataApproval(
+        artifact_kind="MEDIA_ASSETS",
+        version_code="media-set-v2.0.6",
+        manifest_sha256="938b17a54a449dd03dbdb58d18ee4593a479e2d86ab5376d1a2514d5b5f55e2d",
+        record_count=237,
+        approval_record_code="V2-0-6-PRODUCTION-APPROVAL-2026-09-04-R01",
+        approved_on="2026-09-04",
+        approver_role_codes=("PM", "DOMAIN_REVIEWER"),
+        approval_metadata={
+            "review_method_code": "DOMAIN_REVIEWER",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "evidence_manifest_path": "data/reports/v2_0_6_catalog/catalog_approval_manifest.json",
+            "media_records": 237,
+            "rights_review_status": "APPROVED",
+        },
+    ),
 }
 
 

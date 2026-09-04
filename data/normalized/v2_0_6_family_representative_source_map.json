@@ -1,0 +1,2341 @@
+{
+  "schema_version": "exercise-catalog-v2.0.6-family-representative-v1",
+  "status": "DRAFT",
+  "policy": {
+    "family_code": "shared_stable_movement_family_code",
+    "representative_priority": [
+      "MACHINE",
+      "BODYWEIGHT",
+      "DUMBBELL",
+      "BARBELL"
+    ],
+    "difficulty_priority_reference": [
+      "BODYWEIGHT",
+      "DUMBBELL",
+      "MACHINE",
+      "BARBELL"
+    ],
+    "difficulty_values_changed": false,
+    "unreviewed_ambiguous_rows": "kept_as_singleton_representatives"
+  },
+  "counts": {
+    "catalog_records": 237,
+    "family_count": 162,
+    "representative_count": 162,
+    "variant_count": 75,
+    "explicit_family_count": 33,
+    "explicit_group_member_count": 108,
+    "legacy_family_value_count": 162
+  },
+  "explicit_family_groups": {
+    "BENT_OVER_ROW": [
+      "barbell_bent_over_row",
+      "dumbbell_one_arm_bent_over_row",
+      "dumbbell_bent_over_row"
+    ],
+    "BICEPS_CURL": [
+      "barbell_curl",
+      "barbell_lying_preacher_curl",
+      "barbell_preacher_curl",
+      "dumbbell_alternate_biceps_curl",
+      "dumbbell_incline_curl",
+      "dumbbell_preacher_curl_isolation_dumbbell",
+      "dumbbell_standing_curl_isolation_dumbbell"
+    ],
+    "CALF_RAISE_REVERSE": [
+      "reverse_calf_raise_isolation_resistance_band",
+      "smith_reverse_calf_raises_isolation_machine"
+    ],
+    "CALF_RAISE_STANDING": [
+      "band_two_legs_calf_raise_band_under_both_legs_v_2_isolation_resistance_band",
+      "bodyweight_standing_calf_raise_isolation_bodyweight",
+      "one_leg_donkey_calf_raise_isolation_bodyweight",
+      "barbell_standing_leg_calf_raise",
+      "barbell_standing_rocking_leg_calf_raise"
+    ],
+    "CHEST_FLY": [
+      "lever_seated_fly",
+      "cable_decline_fly"
+    ],
+    "CHEST_PRESS": [
+      "smith_bench_press",
+      "barbell_incline_bench_press",
+      "cable_incline_bench_press",
+      "dumbbell_incline_bench_press",
+      "dumbbell_decline_hammer_press",
+      "dumbbell_incline_hammer_press"
+    ],
+    "CRUNCH": [
+      "bodyweight_crunch_core_brace_bodyweight",
+      "crunch_on_stability_ball",
+      "crunch_on_stability_ball_arms_straight"
+    ],
+    "DEADLIFT": [
+      "barbell_deadlift_hip_dominant_barbell",
+      "dumbbell_deadlift"
+    ],
+    "DIP": [
+      "assisted_triceps_dip_kneeling",
+      "bench_dip_knees_bent",
+      "chest_dip_on_dip_pull_up_cage"
+    ],
+    "FRONT_RAISE": [
+      "barbell_front_raise_isolation_barbell",
+      "dumbbell_lateral_to_front_raise_isolation_dumbbell"
+    ],
+    "GLUTE_BRIDGE": [
+      "bodyweight_glute_bridge_hip_dominant_bodyweight",
+      "rear_decline_bridge",
+      "single_leg_bridge_with_outstretched_leg"
+    ],
+    "GOOD_MORNING": [
+      "barbell_good_morning",
+      "barbell_seated_good_morning",
+      "smith_bent_knee_good_morning"
+    ],
+    "HIP_ABDUCTION": [
+      "lever_seated_hip_abduction",
+      "side_hip_abduction",
+      "resistance_band_seated_hip_abduction"
+    ],
+    "HIP_ADDUCTION": [
+      "cable_hip_adduction",
+      "lever_seated_hip_adduction",
+      "side_lying_hip_adduction_male"
+    ],
+    "INCLINE_ROW": [
+      "barbell_incline_row",
+      "dumbbell_incline_row"
+    ],
+    "JUMP_SQUAT": [
+      "jump_squat",
+      "barbell_jump_squat",
+      "dumbbell_plyo_squat"
+    ],
+    "LATERAL_RAISE": [
+      "dumbbell_lateral_raise_isolation_dumbbell",
+      "lever_lateral_raise"
+    ],
+    "LAT_PULLDOWN": [
+      "alternate_lateral_pulldown",
+      "lat_pulldown_vertical_pull_cable_machine"
+    ],
+    "LEG_CURL": [
+      "seated_leg_curl_knee_flexion_machine",
+      "lever_lying_leg_curl",
+      "lever_lying_two_one_leg_curl"
+    ],
+    "LEG_EXTENSION": [
+      "lever_leg_extension",
+      "resistance_band_leg_extension"
+    ],
+    "LUNGE": [
+      "bodyweight_forward_lunge_knee_dominant_bodyweight",
+      "barbell_lunge",
+      "walking_lunge",
+      "smith_sprint_lunge"
+    ],
+    "PULL_UP": [
+      "assisted_pull_up",
+      "assisted_standing_pull_up",
+      "bodyweight_pull_up_biceps_vertical_pull_bodyweight_pull_up_bar"
+    ],
+    "PUSH_UP": [
+      "push_up_horizontal_push_bodyweight",
+      "push_up_wall",
+      "close_grip_push_up_horizontal_push_bodyweight",
+      "close_grip_push_up_on_knees"
+    ],
+    "REAR_DELTOID_ROW": [
+      "barbell_rear_delt_row",
+      "cable_standing_rear_delt_row_with_rope"
+    ],
+    "REVERSE_FLY": [
+      "dumbbell_rear_fly_isolation_dumbbell",
+      "dumbbell_incline_rear_lateral_raise",
+      "dumbbell_rear_lateral_raise_support_head",
+      "lever_seated_reverse_fly_parallel_grip",
+      "lever_seated_reverse_fly"
+    ],
+    "SEATED_CABLE_ROW": [
+      "seated_cable_row_horizontal_pull_cable_machine",
+      "cable_decline_seated_wide_grip_row",
+      "cable_low_seated_row",
+      "cable_seated_one_arm_alternate_row",
+      "cable_seated_wide_grip_row",
+      "cable_straight_back_seated_row"
+    ],
+    "SEATED_SHOULDER_PRESS": [
+      "barbell_seated_overhead_press",
+      "seated_shoulder_press_vertical_push_dumbbell"
+    ],
+    "SHRUG": [
+      "dumbbell_shrug_isolation_dumbbell",
+      "barbell_shrug"
+    ],
+    "SIDE_PLANK": [
+      "bodyweight_incline_side_plank",
+      "side_bridge"
+    ],
+    "SIT_UP": [
+      "curl_up",
+      "flexion_leg_sit_up_bent_knee",
+      "quarter_sit_up"
+    ],
+    "SPLIT_SQUAT": [
+      "bodyweight_split_squat_knee_dominant_bodyweight",
+      "dumbbell_single_leg_split_squat",
+      "band_single_leg_split_squat",
+      "smith_single_leg_split_squat"
+    ],
+    "SQUAT": [
+      "bodyweight_squat",
+      "dumbbell_goblet_squat_knee_dominant_dumbbell",
+      "barbell_bench_squat",
+      "dumbbell_bench_squat",
+      "barbell_full_squat",
+      "barbell_narrow_stance_squat",
+      "barbell_overhead_squat"
+    ],
+    "TRICEPS_EXTENSION": [
+      "overhead_triceps_extension_isolation_barbell",
+      "dumbbell_seated_bench_extension",
+      "bodyweight_kneeling_triceps_extension"
+    ]
+  },
+  "records": [
+    {
+      "stable_code": "45_degree_side_bend",
+      "family_code": "45_DEGREE_SIDE_BEND",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "alternate_heel_touchers",
+      "family_code": "ALTERNATE_HEEL_TOUCHERS",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "alternate_lateral_pulldown",
+      "family_code": "LAT_PULLDOWN",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "ankle_circles_mobility_stretch_bodyweight",
+      "family_code": "ANKLE_CIRCLES",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "assisted_pull_up",
+      "family_code": "PULL_UP",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "assisted_standing_pull_up",
+      "family_code": "PULL_UP",
+      "record_type": "VARIANT",
+      "representative_stable_code": "assisted_pull_up",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "assisted_triceps_dip_kneeling",
+      "family_code": "DIP",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "astride_jumps_male",
+      "family_code": "ASTRIDE_JUMPS_MALE",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "band_single_leg_split_squat",
+      "family_code": "SPLIT_SQUAT",
+      "record_type": "VARIANT",
+      "representative_stable_code": "smith_single_leg_split_squat",
+      "equipment_class": "OTHER",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "band_two_legs_calf_raise_band_under_both_legs_v_2_isolation_resistance_band",
+      "family_code": "CALF_RAISE_STANDING",
+      "record_type": "VARIANT",
+      "representative_stable_code": "bodyweight_standing_calf_raise_isolation_bodyweight",
+      "equipment_class": "OTHER",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "barbell_bench_squat",
+      "family_code": "SQUAT",
+      "record_type": "VARIANT",
+      "representative_stable_code": "bodyweight_squat",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "barbell_bent_over_row",
+      "family_code": "BENT_OVER_ROW",
+      "record_type": "VARIANT",
+      "representative_stable_code": "dumbbell_bent_over_row",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "barbell_curl",
+      "family_code": "BICEPS_CURL",
+      "record_type": "VARIANT",
+      "representative_stable_code": "dumbbell_standing_curl_isolation_dumbbell",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "barbell_deadlift_hip_dominant_barbell",
+      "family_code": "DEADLIFT",
+      "record_type": "VARIANT",
+      "representative_stable_code": "dumbbell_deadlift",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "barbell_decline_bent_arm_pullover",
+      "family_code": "BARBELL_DECLINE_BENT_ARM_PULLOVER",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "barbell_decline_close_grip_to_skull_press",
+      "family_code": "BARBELL_DECLINE_CLOSE_GRIP_TO_SKULL_PRESS",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "barbell_front_raise_isolation_barbell",
+      "family_code": "FRONT_RAISE",
+      "record_type": "VARIANT",
+      "representative_stable_code": "dumbbell_lateral_to_front_raise_isolation_dumbbell",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "barbell_full_squat",
+      "family_code": "SQUAT",
+      "record_type": "VARIANT",
+      "representative_stable_code": "bodyweight_squat",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "barbell_good_morning",
+      "family_code": "GOOD_MORNING",
+      "record_type": "VARIANT",
+      "representative_stable_code": "smith_bent_knee_good_morning",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "barbell_incline_bench_press",
+      "family_code": "CHEST_PRESS",
+      "record_type": "VARIANT",
+      "representative_stable_code": "smith_bench_press",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "barbell_incline_row",
+      "family_code": "INCLINE_ROW",
+      "record_type": "VARIANT",
+      "representative_stable_code": "dumbbell_incline_row",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "barbell_jump_squat",
+      "family_code": "JUMP_SQUAT",
+      "record_type": "VARIANT",
+      "representative_stable_code": "jump_squat",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "barbell_lunge",
+      "family_code": "LUNGE",
+      "record_type": "VARIANT",
+      "representative_stable_code": "smith_sprint_lunge",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "barbell_lying_close_grip_triceps_extension",
+      "family_code": "BARBELL_LYING_CLOSE_GRIP_TRICEPS_EXTENSION",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "barbell_lying_lifting_on_hip",
+      "family_code": "BARBELL_LYING_LIFTING_ON_HIP",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "barbell_lying_preacher_curl",
+      "family_code": "BICEPS_CURL",
+      "record_type": "VARIANT",
+      "representative_stable_code": "dumbbell_standing_curl_isolation_dumbbell",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "barbell_narrow_stance_squat",
+      "family_code": "SQUAT",
+      "record_type": "VARIANT",
+      "representative_stable_code": "bodyweight_squat",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "barbell_overhead_squat",
+      "family_code": "SQUAT",
+      "record_type": "VARIANT",
+      "representative_stable_code": "bodyweight_squat",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "barbell_preacher_curl",
+      "family_code": "BICEPS_CURL",
+      "record_type": "VARIANT",
+      "representative_stable_code": "dumbbell_standing_curl_isolation_dumbbell",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "barbell_pullover_to_press",
+      "family_code": "BARBELL_PULLOVER_TO_PRESS",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "barbell_rack_pull",
+      "family_code": "BARBELL_RACK_PULL",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "barbell_rear_delt_row",
+      "family_code": "REAR_DELTOID_ROW",
+      "record_type": "VARIANT",
+      "representative_stable_code": "cable_standing_rear_delt_row_with_rope",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "barbell_romanian_deadlift",
+      "family_code": "BARBELL_ROMANIAN_DEADLIFT",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "barbell_seated_good_morning",
+      "family_code": "GOOD_MORNING",
+      "record_type": "VARIANT",
+      "representative_stable_code": "smith_bent_knee_good_morning",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "barbell_seated_overhead_press",
+      "family_code": "SEATED_SHOULDER_PRESS",
+      "record_type": "VARIANT",
+      "representative_stable_code": "seated_shoulder_press_vertical_push_dumbbell",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "barbell_seated_twist",
+      "family_code": "BARBELL_SEATED_TWIST",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "barbell_shrug",
+      "family_code": "SHRUG",
+      "record_type": "VARIANT",
+      "representative_stable_code": "dumbbell_shrug_isolation_dumbbell",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "barbell_side_bent",
+      "family_code": "BARBELL_SIDE_BENT",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "barbell_standing_leg_calf_raise",
+      "family_code": "CALF_RAISE_STANDING",
+      "record_type": "VARIANT",
+      "representative_stable_code": "bodyweight_standing_calf_raise_isolation_bodyweight",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "barbell_standing_rocking_leg_calf_raise",
+      "family_code": "CALF_RAISE_STANDING",
+      "record_type": "VARIANT",
+      "representative_stable_code": "bodyweight_standing_calf_raise_isolation_bodyweight",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "barbell_straight_leg_deadlift_hip_dominant_barbell",
+      "family_code": "BARBELL_STRAIGHT_LEG_DEADLIFT",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "barbell_sumo_deadlift",
+      "family_code": "BARBELL_SUMO_DEADLIFT",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "barbell_upright_row",
+      "family_code": "BARBELL_UPRIGHT_ROW",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "behind_head_chest_stretch",
+      "family_code": "BEHIND_HEAD_CHEST_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "bench_dip_knees_bent",
+      "family_code": "DIP",
+      "record_type": "VARIANT",
+      "representative_stable_code": "assisted_triceps_dip_kneeling",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "bench_hip_extension",
+      "family_code": "BENCH_HIP_EXTENSION",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "body_up",
+      "family_code": "BODY_UP",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "bodyweight_back_extension_hip_dominant_bodyweight",
+      "family_code": "BODYWEIGHT_BACK_EXTENSION",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "bodyweight_crunch_core_brace_bodyweight",
+      "family_code": "CRUNCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "bodyweight_forward_lunge_knee_dominant_bodyweight",
+      "family_code": "LUNGE",
+      "record_type": "VARIANT",
+      "representative_stable_code": "smith_sprint_lunge",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "bodyweight_glute_bridge_hip_dominant_bodyweight",
+      "family_code": "GLUTE_BRIDGE",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "bodyweight_incline_side_plank",
+      "family_code": "SIDE_PLANK",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "bodyweight_kneeling_triceps_extension",
+      "family_code": "TRICEPS_EXTENSION",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "bodyweight_pull_up_biceps_vertical_pull_bodyweight_pull_up_bar",
+      "family_code": "PULL_UP",
+      "record_type": "VARIANT",
+      "representative_stable_code": "assisted_pull_up",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "bodyweight_reverse_crunch_core_brace_bodyweight",
+      "family_code": "BODYWEIGHT_REVERSE_CRUNCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "bodyweight_split_squat_knee_dominant_bodyweight",
+      "family_code": "SPLIT_SQUAT",
+      "record_type": "VARIANT",
+      "representative_stable_code": "smith_single_leg_split_squat",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "bodyweight_squat",
+      "family_code": "SQUAT",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "bodyweight_standing_calf_raise_isolation_bodyweight",
+      "family_code": "CALF_RAISE_STANDING",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "bottoms_up",
+      "family_code": "BOTTOMS_UP",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "butterfly_adductor_stretch_mobility_stretch_bodyweight",
+      "family_code": "BUTTERFLY_ADDUCTOR_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "cable_decline_fly",
+      "family_code": "CHEST_FLY",
+      "record_type": "VARIANT",
+      "representative_stable_code": "lever_seated_fly",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "cable_decline_seated_wide_grip_row",
+      "family_code": "SEATED_CABLE_ROW",
+      "record_type": "VARIANT",
+      "representative_stable_code": "seated_cable_row_horizontal_pull_cable_machine",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "cable_hip_adduction",
+      "family_code": "HIP_ADDUCTION",
+      "record_type": "VARIANT",
+      "representative_stable_code": "lever_seated_hip_adduction",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "cable_incline_bench_press",
+      "family_code": "CHEST_PRESS",
+      "record_type": "VARIANT",
+      "representative_stable_code": "smith_bench_press",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "cable_low_seated_row",
+      "family_code": "SEATED_CABLE_ROW",
+      "record_type": "VARIANT",
+      "representative_stable_code": "seated_cable_row_horizontal_pull_cable_machine",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "cable_pushdown_straight_arm",
+      "family_code": "CABLE_PUSHDOWN_STRAIGHT_ARM",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "cable_seated_one_arm_alternate_row",
+      "family_code": "SEATED_CABLE_ROW",
+      "record_type": "VARIANT",
+      "representative_stable_code": "seated_cable_row_horizontal_pull_cable_machine",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "cable_seated_wide_grip_row",
+      "family_code": "SEATED_CABLE_ROW",
+      "record_type": "VARIANT",
+      "representative_stable_code": "seated_cable_row_horizontal_pull_cable_machine",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "cable_standing_hip_extension",
+      "family_code": "CABLE_STANDING_HIP_EXTENSION",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "cable_standing_rear_delt_row_with_rope",
+      "family_code": "REAR_DELTOID_ROW",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "cable_straight_back_seated_row",
+      "family_code": "SEATED_CABLE_ROW",
+      "record_type": "VARIANT",
+      "representative_stable_code": "seated_cable_row_horizontal_pull_cable_machine",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "cable_triceps_pushdown_isolation_cable_machine",
+      "family_code": "CABLE_TRICEPS_PUSHDOWN",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "calf_push_stretch_with_hands_against_wall",
+      "family_code": "CALF_PUSH_STRETCH_WITH_HANDS_AGAINST_WALL",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "cardio_gait_bodyweight",
+      "family_code": "CARDIO_GAIT_BODYWEIGHT",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "cardio_gait_bodyweight_rex_000058",
+      "family_code": "CARDIO_GAIT_BODYWEIGHT_REX_000058",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "cardio_gait_machine",
+      "family_code": "CARDIO_GAIT_MACHINE",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "cardio_gait_machine_rex_000071",
+      "family_code": "CARDIO_GAIT_MACHINE_REX_000071",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "chair_leg_extended_stretch_mobility_stretch_bodyweight",
+      "family_code": "CHAIR_LEG_EXTENDED_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "chest_dip_on_dip_pull_up_cage",
+      "family_code": "DIP",
+      "record_type": "VARIANT",
+      "representative_stable_code": "assisted_triceps_dip_kneeling",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "chest_front_shoulder_stretch_mobility_stretch_bodyweight",
+      "family_code": "CHEST_FRONT_SHOULDER_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "close_grip_push_up_horizontal_push_bodyweight",
+      "family_code": "PUSH_UP",
+      "record_type": "VARIANT",
+      "representative_stable_code": "push_up_horizontal_push_bodyweight",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "close_grip_push_up_on_knees",
+      "family_code": "PUSH_UP",
+      "record_type": "VARIANT",
+      "representative_stable_code": "push_up_horizontal_push_bodyweight",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "cocoons",
+      "family_code": "COCOONS",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "cross_body_crunch",
+      "family_code": "CROSS_BODY_CRUNCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "crunch_on_stability_ball",
+      "family_code": "CRUNCH",
+      "record_type": "VARIANT",
+      "representative_stable_code": "bodyweight_crunch_core_brace_bodyweight",
+      "equipment_class": "OTHER",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "crunch_on_stability_ball_arms_straight",
+      "family_code": "CRUNCH",
+      "record_type": "VARIANT",
+      "representative_stable_code": "bodyweight_crunch_core_brace_bodyweight",
+      "equipment_class": "OTHER",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "curl_up",
+      "family_code": "SIT_UP",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "curtsey_squat",
+      "family_code": "CURTSEY_SQUAT",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "dead_bug",
+      "family_code": "DEAD_BUG",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "dumbbell_alternate_biceps_curl",
+      "family_code": "BICEPS_CURL",
+      "record_type": "VARIANT",
+      "representative_stable_code": "dumbbell_standing_curl_isolation_dumbbell",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "dumbbell_arnold_press",
+      "family_code": "DUMBBELL_ARNOLD_PRESS",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "dumbbell_bench_squat",
+      "family_code": "SQUAT",
+      "record_type": "VARIANT",
+      "representative_stable_code": "bodyweight_squat",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "dumbbell_bent_over_row",
+      "family_code": "BENT_OVER_ROW",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "dumbbell_cuban_press",
+      "family_code": "DUMBBELL_CUBAN_PRESS",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "dumbbell_deadlift",
+      "family_code": "DEADLIFT",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "dumbbell_decline_hammer_press",
+      "family_code": "CHEST_PRESS",
+      "record_type": "VARIANT",
+      "representative_stable_code": "smith_bench_press",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "dumbbell_goblet_squat_knee_dominant_dumbbell",
+      "family_code": "SQUAT",
+      "record_type": "VARIANT",
+      "representative_stable_code": "bodyweight_squat",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "dumbbell_incline_bench_press",
+      "family_code": "CHEST_PRESS",
+      "record_type": "VARIANT",
+      "representative_stable_code": "smith_bench_press",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "dumbbell_incline_curl",
+      "family_code": "BICEPS_CURL",
+      "record_type": "VARIANT",
+      "representative_stable_code": "dumbbell_standing_curl_isolation_dumbbell",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "dumbbell_incline_hammer_press",
+      "family_code": "CHEST_PRESS",
+      "record_type": "VARIANT",
+      "representative_stable_code": "smith_bench_press",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "dumbbell_incline_rear_lateral_raise",
+      "family_code": "REVERSE_FLY",
+      "record_type": "VARIANT",
+      "representative_stable_code": "lever_seated_reverse_fly",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "dumbbell_incline_row",
+      "family_code": "INCLINE_ROW",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "dumbbell_lateral_raise_isolation_dumbbell",
+      "family_code": "LATERAL_RAISE",
+      "record_type": "VARIANT",
+      "representative_stable_code": "lever_lateral_raise",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "dumbbell_lateral_to_front_raise_isolation_dumbbell",
+      "family_code": "FRONT_RAISE",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "dumbbell_one_arm_bent_over_row",
+      "family_code": "BENT_OVER_ROW",
+      "record_type": "VARIANT",
+      "representative_stable_code": "dumbbell_bent_over_row",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "dumbbell_plyo_squat",
+      "family_code": "JUMP_SQUAT",
+      "record_type": "VARIANT",
+      "representative_stable_code": "jump_squat",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "dumbbell_preacher_curl_isolation_dumbbell",
+      "family_code": "BICEPS_CURL",
+      "record_type": "VARIANT",
+      "representative_stable_code": "dumbbell_standing_curl_isolation_dumbbell",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "dumbbell_push_press",
+      "family_code": "DUMBBELL_PUSH_PRESS",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "dumbbell_rear_fly_isolation_dumbbell",
+      "family_code": "REVERSE_FLY",
+      "record_type": "VARIANT",
+      "representative_stable_code": "lever_seated_reverse_fly",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "dumbbell_rear_lateral_raise_support_head",
+      "family_code": "REVERSE_FLY",
+      "record_type": "VARIANT",
+      "representative_stable_code": "lever_seated_reverse_fly",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "dumbbell_seated_bench_extension",
+      "family_code": "TRICEPS_EXTENSION",
+      "record_type": "VARIANT",
+      "representative_stable_code": "bodyweight_kneeling_triceps_extension",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "dumbbell_shrug_isolation_dumbbell",
+      "family_code": "SHRUG",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "dumbbell_single_leg_split_squat",
+      "family_code": "SPLIT_SQUAT",
+      "record_type": "VARIANT",
+      "representative_stable_code": "smith_single_leg_split_squat",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "dumbbell_standing_curl_isolation_dumbbell",
+      "family_code": "BICEPS_CURL",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "dumbbell_step_up_lunge_knee_dominant_dumbbell_step_box",
+      "family_code": "DUMBBELL_STEP_UP_LUNGE",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "dynamic_chest_stretch_mobility_stretch_bodyweight",
+      "family_code": "DYNAMIC_CHEST_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "elbow_to_knee",
+      "family_code": "ELBOW_TO_KNEE",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "exercise_ball_hip_flexor_stretch_mobility_stretch_stability_ball",
+      "family_code": "EXERCISE_BALL_HIP_FLEXOR_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "OTHER",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "farmers_walk",
+      "family_code": "FARMERS_WALK",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "flexion_leg_sit_up_bent_knee",
+      "family_code": "SIT_UP",
+      "record_type": "VARIANT",
+      "representative_stable_code": "curl_up",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "flutter_kicks",
+      "family_code": "FLUTTER_KICKS",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "groin_crunch",
+      "family_code": "GROIN_CRUNCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "half_knee_bends_male",
+      "family_code": "HALF_KNEE_BENDS_MALE",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "hamstring_stretch_mobility_stretch_bodyweight",
+      "family_code": "HAMSTRING_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "hand_grip_squeeze_isolation_household_weight",
+      "family_code": "HAND_GRIP_SQUEEZE",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "OTHER",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "incline_scapula_push_up",
+      "family_code": "INCLINE_SCAPULA_PUSH_UP",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "intermediate_hip_flexor_and_quad_stretch",
+      "family_code": "INTERMEDIATE_HIP_FLEXOR_AND_QUAD_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "OTHER",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "inverted_row_horizontal_pull_bodyweight",
+      "family_code": "INVERTED_ROW",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "iron_cross_stretch",
+      "family_code": "IRON_CROSS_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "isometric_chest_squeeze",
+      "family_code": "ISOMETRIC_CHEST_SQUEEZE",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "jump_squat",
+      "family_code": "JUMP_SQUAT",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "kettlebell_sumo_high_pull",
+      "family_code": "KETTLEBELL_SUMO_HIGH_PULL",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "OTHER",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "kettlebell_swing",
+      "family_code": "KETTLEBELL_SWING",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "OTHER",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "kick_out_sit",
+      "family_code": "KICK_OUT_SIT",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "knee_touch_crunch",
+      "family_code": "KNEE_TOUCH_CRUNCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "kneeling_lat_stretch_mobility_stretch_bodyweight",
+      "family_code": "KNEELING_LAT_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "kneeling_plank_tap_shoulder_male",
+      "family_code": "KNEELING_PLANK_TAP_SHOULDER_MALE",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "lat_pulldown_vertical_pull_cable_machine",
+      "family_code": "LAT_PULLDOWN",
+      "record_type": "VARIANT",
+      "representative_stable_code": "alternate_lateral_pulldown",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "left_hook_boxing",
+      "family_code": "LEFT_HOOK_BOXING",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "lever_lateral_raise",
+      "family_code": "LATERAL_RAISE",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "lever_leg_extension",
+      "family_code": "LEG_EXTENSION",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "lever_lying_leg_curl",
+      "family_code": "LEG_CURL",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "lever_lying_two_one_leg_curl",
+      "family_code": "LEG_CURL",
+      "record_type": "VARIANT",
+      "representative_stable_code": "lever_lying_leg_curl",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "lever_seated_fly",
+      "family_code": "CHEST_FLY",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "lever_seated_hip_abduction",
+      "family_code": "HIP_ABDUCTION",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "lever_seated_hip_adduction",
+      "family_code": "HIP_ADDUCTION",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "lever_seated_reverse_fly",
+      "family_code": "REVERSE_FLY",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "lever_seated_reverse_fly_parallel_grip",
+      "family_code": "REVERSE_FLY",
+      "record_type": "VARIANT",
+      "representative_stable_code": "lever_seated_reverse_fly",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "lower_back_curl_core_brace_bodyweight",
+      "family_code": "LOWER_BACK_CURL",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "lying_leg_raise_flat_bench",
+      "family_code": "LYING_LEG_RAISE_FLAT_BENCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "monster_walk",
+      "family_code": "MONSTER_WALK",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "mountain_climber",
+      "family_code": "MOUNTAIN_CLIMBER",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "neck_lateral_stretch_mobility_stretch_bodyweight",
+      "family_code": "NECK_LATERAL_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "oblique_crunches_floor",
+      "family_code": "OBLIQUE_CRUNCHES_FLOOR",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "one_arm_wall_lats_isolation_bodyweight",
+      "family_code": "ONE_ARM_WALL_LATS",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "one_leg_donkey_calf_raise_isolation_bodyweight",
+      "family_code": "CALF_RAISE_STANDING",
+      "record_type": "VARIANT",
+      "representative_stable_code": "bodyweight_standing_calf_raise_isolation_bodyweight",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "one_leg_squat",
+      "family_code": "ONE_LEG_SQUAT",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "overhead_triceps_extension_isolation_barbell",
+      "family_code": "TRICEPS_EXTENSION",
+      "record_type": "VARIANT",
+      "representative_stable_code": "bodyweight_kneeling_triceps_extension",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "overhead_triceps_stretch_mobility_stretch_bodyweight",
+      "family_code": "OVERHEAD_TRICEPS_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "pelvic_tilt",
+      "family_code": "PELVIC_TILT",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "peroneals_stretch",
+      "family_code": "PERONEALS_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "OTHER",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "pike_to_cobra_push_up",
+      "family_code": "PIKE_TO_COBRA_PUSH_UP",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "posterior_step_to_overhead_reach",
+      "family_code": "POSTERIOR_STEP_TO_OVERHEAD_REACH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "posterior_tibialis_stretch",
+      "family_code": "POSTERIOR_TIBIALIS_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "OTHER",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "push_and_pull_bodyweight",
+      "family_code": "PUSH_AND_PULL_BODYWEIGHT",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "push_up_horizontal_push_bodyweight",
+      "family_code": "PUSH_UP",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "push_up_wall",
+      "family_code": "PUSH_UP",
+      "record_type": "VARIANT",
+      "representative_stable_code": "push_up_horizontal_push_bodyweight",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "quadruped_quadriceps_stretch_mobility_stretch_bodyweight",
+      "family_code": "ALL_FOURS_SQUAT_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "quads",
+      "family_code": "QUADS",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "quarter_sit_up",
+      "family_code": "SIT_UP",
+      "record_type": "VARIANT",
+      "representative_stable_code": "curl_up",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "quick_feet",
+      "family_code": "QUICK_FEET",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "rear_decline_bridge",
+      "family_code": "GLUTE_BRIDGE",
+      "record_type": "VARIANT",
+      "representative_stable_code": "bodyweight_glute_bridge_hip_dominant_bodyweight",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "rear_deltoid_stretch_mobility_stretch_bodyweight",
+      "family_code": "REAR_DELTOID_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "resistance_band_leg_extension",
+      "family_code": "LEG_EXTENSION",
+      "record_type": "VARIANT",
+      "representative_stable_code": "lever_leg_extension",
+      "equipment_class": "OTHER",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "resistance_band_seated_hip_abduction",
+      "family_code": "HIP_ABDUCTION",
+      "record_type": "VARIANT",
+      "representative_stable_code": "lever_seated_hip_abduction",
+      "equipment_class": "OTHER",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "reverse_calf_raise_isolation_resistance_band",
+      "family_code": "CALF_RAISE_REVERSE",
+      "record_type": "VARIANT",
+      "representative_stable_code": "smith_reverse_calf_raises_isolation_machine",
+      "equipment_class": "OTHER",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "reverse_hyper_on_flat_bench",
+      "family_code": "REVERSE_HYPER_ON_FLAT_BENCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "reverse_wrist_curl_isolation_barbell",
+      "family_code": "REVERSE_WRIST_CURL",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "rocking_frog_stretch",
+      "family_code": "ROCKING_FROG_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "roller_back_stretch",
+      "family_code": "ROLLER_BACK_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "OTHER",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "foam_roller_thigh_stretch",
+      "family_code": "ROLLER_BODY_SAW",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "OTHER",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "foam_roller_outer_thigh_stretch_2205",
+      "family_code": "ROLLER_HIP_LAT_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "OTHER",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "roller_hip_stretch",
+      "family_code": "ROLLER_HIP_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "OTHER",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "foam_roller_calf_stretch_2206",
+      "family_code": "ROLLER_REVERSE_CRUNCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "OTHER",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "foam_roller_hamstring_stretch",
+      "family_code": "ROLLER_SEATED_SHOULDER_FLEXOR_DEPRESOR_RETRACTOR",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "OTHER",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "foam_roller_calf_stretch_2209",
+      "family_code": "ROLLER_SEATED_SINGLE_LEG_SHOULDER_FLEXOR_DEPRESOR_RETRACTOR",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "OTHER",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "foam_roller_outer_thigh_stretch_2207",
+      "family_code": "ROLLER_SIDE_LAT_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "OTHER",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "run_equipment",
+      "family_code": "RUN_EQUIPMENT",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "runners_stretch_mobility_stretch_bodyweight",
+      "family_code": "RUNNERS_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "scapular_pull_up_vertical_pull_bodyweight_pull_up_bar",
+      "family_code": "SCAPULAR_PULL_UP",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "seated_cable_row_horizontal_pull_cable_machine",
+      "family_code": "SEATED_CABLE_ROW",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "seated_calf_raise_isolation_barbell",
+      "family_code": "SEATED_CALF_RAISE",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "seated_calf_stretch_mobility_stretch_bodyweight",
+      "family_code": "SEATED_CALF_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "seated_glute_stretch_mobility_stretch_bodyweight",
+      "family_code": "SEATED_GLUTE_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "seated_leg_curl_knee_flexion_machine",
+      "family_code": "LEG_CURL",
+      "record_type": "VARIANT",
+      "representative_stable_code": "lever_lying_leg_curl",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "seated_leg_raise",
+      "family_code": "SEATED_LEG_RAISE",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "seated_lower_back_stretch_mobility_stretch_bodyweight",
+      "family_code": "SEATED_LOWER_BACK_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "seated_piriformis_stretch_mobility_stretch_bodyweight",
+      "family_code": "SEATED_PIRIFORMIS_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "seated_shoulder_press_vertical_push_dumbbell",
+      "family_code": "SEATED_SHOULDER_PRESS",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "DUMBBELL",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "seated_side_crunch_wall",
+      "family_code": "SEATED_SIDE_CRUNCH_WALL",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "seated_wide_angle_stretch_mobility_stretch_bodyweight",
+      "family_code": "SEATED_WIDE_ANGLE_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "short_stride_run",
+      "family_code": "SHORT_STRIDE_RUN",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "side_bridge",
+      "family_code": "SIDE_PLANK",
+      "record_type": "VARIANT",
+      "representative_stable_code": "bodyweight_incline_side_plank",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "side_hip_abduction",
+      "family_code": "HIP_ABDUCTION",
+      "record_type": "VARIANT",
+      "representative_stable_code": "lever_seated_hip_abduction",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "side_hip_on_parallel_bars",
+      "family_code": "SIDE_HIP_ON_PARALLEL_BARS",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "side_lying_floor_stretch",
+      "family_code": "SIDE_LYING_FLOOR_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "side_lying_hip_adduction_male",
+      "family_code": "HIP_ADDUCTION",
+      "record_type": "VARIANT",
+      "representative_stable_code": "lever_seated_hip_adduction",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "side_lying_quadriceps_stretch_mobility_stretch_bodyweight",
+      "family_code": "SIDE_LYING_QUADRICEPS_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "side_wrist_pull_stretch_mobility_stretch_bodyweight",
+      "family_code": "SIDE_WRIST_PULL_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "single_leg_bridge_with_outstretched_leg",
+      "family_code": "GLUTE_BRIDGE",
+      "record_type": "VARIANT",
+      "representative_stable_code": "bodyweight_glute_bridge_hip_dominant_bodyweight",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "single_leg_platform_slide",
+      "family_code": "SINGLE_LEG_PLATFORM_SLIDE",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "ski_step",
+      "family_code": "SKI_STEP",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "sled_45_degree_leg_wide_press",
+      "family_code": "SLED_45_DEGREE_LEG_WIDE_PRESS",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "smith_bench_press",
+      "family_code": "CHEST_PRESS",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "smith_bent_knee_good_morning",
+      "family_code": "GOOD_MORNING",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "smith_close_grip_bench_press",
+      "family_code": "SMITH_CLOSE_GRIP_BENCH_PRESS",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "smith_leg_press",
+      "family_code": "SMITH_LEG_PRESS",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "smith_narrow_row",
+      "family_code": "SMITH_NARROW_ROW",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "smith_reverse_calf_raises_isolation_machine",
+      "family_code": "CALF_RAISE_REVERSE",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "smith_single_leg_split_squat",
+      "family_code": "SPLIT_SQUAT",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "smith_sprint_lunge",
+      "family_code": "LUNGE",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "INTERMEDIATE",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "sphinx",
+      "family_code": "SPHINX",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "spine_stretch_mobility_stretch_bodyweight",
+      "family_code": "SPINE_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "standing_calves",
+      "family_code": "STANDING_CALVES",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "standing_lateral_stretch_mobility_stretch_bodyweight",
+      "family_code": "STANDING_LATERAL_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "stationary_bike_walk",
+      "family_code": "STATIONARY_BIKE_WALK",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "triceps_stretch_mobility_stretch_bodyweight",
+      "family_code": "TRICEPS_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "two_toe_touch_male",
+      "family_code": "TWO_TOE_TOUCH_MALE",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "upper_back_stretch_mobility_stretch_bodyweight",
+      "family_code": "UPPER_BACK_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "upward_facing_dog",
+      "family_code": "UPWARD_FACING_DOG",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "walk_elliptical_cross_trainer",
+      "family_code": "WALK_ELLIPTICAL_CROSS_TRAINER",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "MACHINE",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "walking_lunge",
+      "family_code": "LUNGE",
+      "record_type": "VARIANT",
+      "representative_stable_code": "smith_sprint_lunge",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "EXPLICIT_SAME_MOVEMENT_GROUP"
+    },
+    {
+      "stable_code": "wall_calf_stretch_mobility_stretch_bodyweight",
+      "family_code": "WALL_CALF_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "weighted_svend_press",
+      "family_code": "WEIGHTED_SVEND_PRESS",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "OTHER",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "world_greatest_stretch_mobility_stretch_bodyweight",
+      "family_code": "WORLD_GREATEST_STRETCH",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "wrist_circles_mobility_stretch_bodyweight",
+      "family_code": "WRIST_CIRCLES",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BODYWEIGHT",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    },
+    {
+      "stable_code": "wrist_curl_isolation_barbell",
+      "family_code": "WRIST_CURL",
+      "record_type": "REPRESENTATIVE",
+      "representative_stable_code": "",
+      "equipment_class": "BARBELL",
+      "difficulty_code": "BEGINNER",
+      "decision_source": "SINGLETON_OR_LEGACY_SINGLE_FAMILY"
+    }
+  ]
+}

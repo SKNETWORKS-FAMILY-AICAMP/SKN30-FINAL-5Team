@@ -1,0 +1,15 @@
+{
+  "gif_overrides": [
+    "0274",
+    "1368",
+    "3666",
+    "3672"
+  ],
+  "input_record_count": 237,
+  "instruction_format": "NUMBERED_POLITE_KO_STEPS",
+  "invalid_records": [],
+  "one_sided_completion_count": 0,
+  "production_eligible": false,
+  "status": "DRAFT",
+  "updated_record_count": 0
+}

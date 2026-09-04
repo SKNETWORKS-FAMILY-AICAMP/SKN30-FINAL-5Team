@@ -96,6 +96,14 @@ class BundleSummary(CatalogInputModel):
     media_asset_records: Annotated[int | None, Field(ge=0)] = None
 
 
+class BundleInputPolicy(CatalogInputModel):
+    """Auditable exclusions for auxiliary, non-importable catalog inputs."""
+
+    canonical_catalog_source: Annotated[str, Field(min_length=1, max_length=500)]
+    excluded_auxiliary_artifacts: list[Annotated[str, Field(min_length=1, max_length=500)]]
+    excluded_reason: Annotated[str, Field(min_length=1, max_length=500)]
+
+
 class CatalogBundleManifest(CatalogInputModel):
     schema_version: Literal["1.0", "1.1"]
     bundle_version: Annotated[str, Field(min_length=1, max_length=120)]
@@ -108,6 +116,7 @@ class CatalogBundleManifest(CatalogInputModel):
     derived_from: dict[str, Any] | None = None
     files: list[BundleManifestFile]
     importer_paths: dict[str, Annotated[str, Field(min_length=1, max_length=500)]]
+    input_policy: BundleInputPolicy | None = None
     production_eligible: Literal[False]
     projection: dict[str, Any] | None = None
     status_code: Literal["DRAFT"]

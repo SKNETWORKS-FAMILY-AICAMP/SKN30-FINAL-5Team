@@ -5,6 +5,7 @@
   "production_eligible": false,
   "purpose": "Direct V2 backend code-set projection; runtime V2 body-focus values remain unchanged.",
   "body_focus_code_to_backend_code": {
+    "ADDUCTORS": "ADDUCTORS",
     "BACK": "BACK",
     "BICEPS": "BICEPS",
     "CALVES": "CALVES",
@@ -23,6 +24,7 @@
   "guards": [
     "does_not_change_runtime_jsonl",
     "does_not_change_stable_code_or_foreign_keys",
-    "requires_catalog_v2_code_set"
+    "requires_catalog_v2_code_set",
+    "ADDUCTORS_additive_backend_code_set_applied_v2_0_6"
   ]
 }

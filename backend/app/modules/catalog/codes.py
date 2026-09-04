@@ -54,6 +54,7 @@ class BodyFocusCode(StrEnum):
     QUADRICEPS = "QUADRICEPS"
     HAMSTRINGS = "HAMSTRINGS"
     CALVES = "CALVES"
+    ADDUCTORS = "ADDUCTORS"
     CORE = "CORE"
     FULL_BODY = "FULL_BODY"
     CARDIO = "CARDIO"
@@ -72,6 +73,7 @@ V2_BODY_FOCUS_CODES = frozenset(
         BodyFocusCode.QUADRICEPS,
         BodyFocusCode.HAMSTRINGS,
         BodyFocusCode.CALVES,
+        BodyFocusCode.ADDUCTORS,
         BodyFocusCode.CORE,
         BodyFocusCode.FULL_BODY,
         BodyFocusCode.CARDIO,
@@ -243,6 +245,7 @@ APPROVED_DISPLAY_NAMES_KO: dict[type[StrEnum], dict[StrEnum, str]] = {
         BodyFocusCode.QUADRICEPS: "대퇴사두근",
         BodyFocusCode.HAMSTRINGS: "햄스트링",
         BodyFocusCode.CALVES: "종아리",
+        BodyFocusCode.ADDUCTORS: "내전근",
         BodyFocusCode.CORE: "코어",
         BodyFocusCode.FULL_BODY: "전신",
         BodyFocusCode.CARDIO: "유산소",

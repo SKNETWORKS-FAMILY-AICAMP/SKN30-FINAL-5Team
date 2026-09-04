@@ -1,0 +1,44 @@
+{
+  "validation_status": "PASS",
+  "review_status_code": "DOMAIN_APPROVED",
+  "review_method_code": "USER_CONFIRMED",
+  "reviewed_at": "2026-09-04T00:00:00+09:00",
+  "production_eligible": false,
+  "catalog_path": "data/normalized/v2_0_6_exercise_catalog.csv",
+  "guide_summary": {
+    "count": 34,
+    "expected_count": 34,
+    "unique_combination_count": 34,
+    "all_expected_combinations_present": true
+  },
+  "variant_and_gap_summary": {
+    "source_equipment_code": "RESISTANCE_BAND",
+    "source_home_count": 6,
+    "candidate_count": 6,
+    "gap_count": 0,
+    "all_source_home_exercises_resolved": true
+  },
+  "dumbbell_variant_summary": {
+    "source_equipment_code": "DUMBBELL",
+    "source_home_count": 20,
+    "candidate_count": 6
+  },
+  "foam_variant_summary": {
+    "source_equipment_code": "FOAM_ROLLER",
+    "source_home_count": 8,
+    "candidate_count": 8
+  },
+  "stretch_summary": {
+    "catalog_stretch_strap_count": 0,
+    "review_count": 0,
+    "all_catalog_stretch_strap_rows_reviewed": true
+  },
+  "checks": {
+    "jsonl_and_json_parse": true,
+    "guide_checks": true,
+    "variant_checks": true,
+    "stretch_checks": true
+  },
+  "error_count": 0,
+  "errors": []
+}

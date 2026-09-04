@@ -1,0 +1,135 @@
+{
+  "bundle_version": "v2-0-6-backend-bundle-final-2026-09-04",
+  "catalog_version_code": "exercise-catalog-v2.0.6-final",
+  "derived_from": {
+    "catalog_source_path": "data/normalized/v2_0_6_exercise_catalog.csv",
+    "catalog_source_records": 237,
+    "catalog_source_sha256": "c9143eb25bf88ba60fc7440ef0b4a55c0fd6dddf62ee56925cd526785c5cca27",
+    "change_summary": "Direct 237-row normalized v2.0.6 backend projection with importer-required stretch-strap fallbacks.",
+    "generator_version": "v2-0-6-normalized-backend-projection-1.0.0"
+  },
+  "derived_set_versions": {
+    "alternative_set_version_code": "alternative-set-v2.0.6-stretch-strap-fallback",
+    "prescription_set_version_code": "prescription-set-v2.0.6",
+    "rule_set_version_code": "safety-rule-set-v2.0.6"
+  },
+  "files": [
+    {
+      "bytes": 1036,
+      "path": "alternatives/alternatives.jsonl",
+      "records": 1,
+      "sha256": "b0a7641a4b52d9e22966e2e5b25050ad87ed0df237562bb597ff36f5504dc9ae"
+    },
+    {
+      "bytes": 1183,
+      "path": "alternatives/alternatives_manifest.json",
+      "sha256": "2a10913eb5c8e5532c7ed27a0af99abbdea8445cec19bf391d496559da5452c7"
+    },
+    {
+      "bytes": 190,
+      "path": "alternatives/input/alternative_projection_conflicts.json",
+      "sha256": "bc80f6e5b5b41d1b13a7037b5980b2d23753ce77c543fbdf88777c42c559dc0c"
+    },
+    {
+      "bytes": 51695,
+      "path": "audit/projection_audit.jsonl",
+      "records": 237,
+      "sha256": "b36f0a6d6a1c518c75e06abe3a25758da04c60d2a34c2ca985731f5f097a7c56"
+    },
+    {
+      "bytes": 346270,
+      "path": "catalog/exercises.jsonl",
+      "records": 237,
+      "sha256": "2a32d7a7e09ef3cf6f7894c9d609f4759f28f5f5ad142fc5b93af5b8c5430211"
+    },
+    {
+      "bytes": 9785,
+      "path": "catalog/input/representative_exercises.csv",
+      "sha256": "fd7099554043cfbfa9ea0e5658bc8078c620272c728aa9c1c8ac2bc6a2178627"
+    },
+    {
+      "bytes": 1322,
+      "path": "catalog/seed_manifest.json",
+      "sha256": "a811aba17747b3f1a74207397aad4c672fbbf0ce4ce9b4da508ce65ceea9cefc"
+    },
+    {
+      "bytes": 170906,
+      "path": "media/media_assets.jsonl",
+      "records": 237,
+      "sha256": "f4bb0e7141e6ed38ae2cd05eda9e071f8ed76887dcf7e70503d3926e88b037e3"
+    },
+    {
+      "bytes": 1231,
+      "path": "media/media_manifest.json",
+      "sha256": "938b17a54a449dd03dbdb58d18ee4593a479e2d86ab5376d1a2514d5b5f55e2d"
+    },
+    {
+      "bytes": 155760,
+      "path": "prescriptions/goal_tag_links.jsonl",
+      "records": 711,
+      "sha256": "6b8dc5abeb82ce2e4260de1374b381b175070d3fb5012563bf9979bbba403bc2"
+    },
+    {
+      "bytes": 1254,
+      "path": "prescriptions/prescription_manifest.json",
+      "sha256": "659d95393db3482276db7d5c19ec859b01404685270b42f04bcecac31b395616"
+    },
+    {
+      "bytes": 617100,
+      "path": "prescriptions/prescription_profiles.jsonl",
+      "records": 1449,
+      "sha256": "d2c99ad6bd588d91c35489d39b80421d53f4cb8214b6aaaa2b6d99660e9a5012"
+    },
+    {
+      "bytes": 1054,
+      "path": "safety/rules_manifest.json",
+      "sha256": "ff70f4bd9ee2ed8781fb72ddee43b1697e06eefb6cdbd039c7e6b68a0dce16e4"
+    },
+    {
+      "bytes": 1831639,
+      "path": "safety/safety_rules.jsonl",
+      "records": 2131,
+      "sha256": "e422f06d21961501cbd8c22fd021594baaa30489f1630f632334399311e41414"
+    }
+  ],
+  "importer_paths": {
+    "alternatives": "alternatives/alternatives_manifest.json",
+    "catalog": "catalog/seed_manifest.json",
+    "media": "media/media_manifest.json",
+    "prescriptions": "prescriptions/prescription_manifest.json",
+    "safety": "safety/rules_manifest.json"
+  },
+  "input_policy": {
+    "canonical_catalog_source": "data/normalized/v2_0_6_exercise_catalog.csv",
+    "excluded_auxiliary_artifacts": [
+      "data/normalized/home_equipment_substitution_guides_v1.jsonl",
+      "data/normalized/dumbbell_bodyweight_variant_candidates_v1.jsonl",
+      "data/normalized/foam_roller_bodyweight_variant_candidates_v1.jsonl",
+      "data/normalized/resistance_band_bodyweight_variant_candidates_v1.jsonl",
+      "data/normalized/stretch_strap_home_suitability_review_v1.jsonl",
+      "data/reports/resistance_band_bodyweight_variant_gap_report_v1.json",
+      "data/reports/home_equipment_substitution_guides_v1_validation.json"
+    ],
+    "excluded_reason": "household substitutions, cautions, and replacement exercises are not stored in equipment descriptions or alternatives"
+  },
+  "production_eligible": false,
+  "projection": {
+    "alternative_conflict_count": 0,
+    "conflict_report_path": "alternatives/input/alternative_projection_conflicts.json",
+    "fallback_policy": "STRETCH_STRAP_TO_BODYWEIGHT_ONLY",
+    "importer_alternative_records": 1,
+    "media_coverage": "EXACT_ALL_CATALOG_RECORDS",
+    "runtime_alternative_records": 1,
+    "status": "DIRECT"
+  },
+  "schema_version": "1.0",
+  "status_code": "DRAFT",
+  "summary": {
+    "alternative_records": 1,
+    "catalog_records": 237,
+    "goal_tag_records": 711,
+    "media_asset_records": 237,
+    "prescription_records": 1449,
+    "safety_rule_records": 2131
+  }
+}

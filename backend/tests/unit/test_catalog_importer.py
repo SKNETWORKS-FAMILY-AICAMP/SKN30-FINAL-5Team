@@ -187,6 +187,7 @@ def test_v2_code_sets_include_new_source_patterns_and_equipment() -> None:
         "QUADRICEPS",
         "HAMSTRINGS",
         "CALVES",
+        "ADDUCTORS",
         "CORE",
         "FULL_BODY",
         "CARDIO",
