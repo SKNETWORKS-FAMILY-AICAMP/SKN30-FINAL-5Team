@@ -11,6 +11,8 @@ from backend.app.core.config import Settings
 COMPOSE_PATH = Path("infra/deployment/compose.staging.yaml")
 CADDYFILE_PATH = Path("infra/deployment/Caddyfile")
 ENV_EXAMPLE_PATH = Path("infra/deployment/.env.staging.example")
+WEB_COMPOSE_PATH = Path("infra/deployment/compose.staging.web.yaml")
+WEB_CADDYFILE_PATH = Path("infra/deployment/Caddyfile.web")
 USER_DATA_PATH = Path("infra/aws/user-data.sh")
 
 
@@ -88,6 +90,22 @@ def test_tls_configuration_carries_no_literal_domain_or_secret() -> None:
     assert "sk-" not in caddyfile
     # A wildcard origin plus a bearer token would let any site call the API.
     assert "CORS_ALLOWED_ORIGINS=*" not in env_example
+
+
+def test_web_overlay_separates_landing_app_and_api_without_literal_domains() -> None:
+    overlay = yaml.safe_load(WEB_COMPOSE_PATH.read_text(encoding="utf-8"))
+    caddyfile = WEB_CADDYFILE_PATH.read_text(encoding="utf-8")
+
+    caddy = overlay["services"]["caddy"]
+    assert "./Caddyfile.web:/etc/caddy/Caddyfile:ro" in caddy["volumes"]
+    assert any("/srv/landing:ro" in item for item in caddy["volumes"])
+    assert any("/srv/app:ro" in item for item in caddy["volumes"])
+    assert "handle /api/*" in caddyfile
+    assert "reverse_proxy api:8000" in caddyfile
+    assert "root * /srv/landing" in caddyfile
+    assert "root * /srv/app" in caddyfile
+    assert "try_files {path} /index.html" in caddyfile
+    assert "helkki.com" not in caddyfile
 
 
 def test_staging_baseline_is_fail_closed_and_contains_no_provider_secret() -> None:

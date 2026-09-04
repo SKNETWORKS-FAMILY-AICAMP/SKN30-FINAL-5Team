@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HELKKI - HOW IT WORKS</title>
+  <script>document.documentElement.classList.add('font-loading');</script>
+  <link href="fonts.css" rel="stylesheet">
+  <noscript><style>html.font-loading body { visibility: visible; }</style></noscript>
+  <script>
+    (() => {
+      const release = () => document.documentElement.classList.remove('font-loading');
+      if (!document.fonts) return release();
+      const timeout = new Promise((resolve) => window.setTimeout(resolve, 1500));
+      const fontReady = document.fonts.load('400 1em Pretendard').then(() => document.fonts.ready);
+      Promise.race([fontReady, timeout]).then(release, release);
+    })();
+  </script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap">
+  <style>
+    @layer base {
+      html, body { margin: 0; padding: 0; background-color: #FFFDF9; color: #3D2D20; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; }
+      body { overscroll-behavior: none; }
+    }
+    ::-webkit-scrollbar { display: none; }
+    .keep-all { word-break: keep-all; overflow-wrap: normal; }
+    .reveal-enabled [data-reveal] { opacity: 0; transform: translateY(16px); transition: opacity 600ms ease-out, transform 600ms ease-out; }
+    .reveal-enabled [data-reveal].is-revealed { opacity: 1; transform: translateY(0); }
+    @media (prefers-reduced-motion: reduce) { .reveal-enabled [data-reveal] { opacity: 1; transform: none; transition: none; } }
+  </style>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script id="tailwind-config">
+    tailwind.config = { theme: { extend: { colors: { "surface": "#FFFDF9", "surface-cream": "#FFF8E5", "butter-yellow": "#F4B942", "butter-yellow-hover": "#E5A830", "coral-orange": "#E8875B", "text-dark": "#3D2D20", "text-warm": "#5A4636", "text-muted": "#856F5E" }, fontFamily: { sans: ["Pretendard", "-apple-system", "BlinkMacSystemFont", "system-ui", "sans-serif"] } } } };
+  </script>
+</head>
+<body class="min-h-screen bg-[#FFFDF9] font-sans text-text-warm antialiased selection:bg-butter-yellow/30 selection:text-text-dark">
+  <header class="sticky top-0 z-50 w-full border-b border-[#F7EFE8] bg-[#FFFDF9]/90 backdrop-blur-sm">
+    <div class="mx-auto flex max-w-[1200px] items-center justify-between gap-4 px-8 py-4 sm:px-16">
+      <a class="flex shrink-0 items-center gap-2 focus:outline-none" href="index.html"><span class="text-[24px] font-extrabold tracking-tight text-text-dark sm:text-[26px]">HELKKI</span></a>
+      <nav class="flex items-center gap-4 overflow-x-auto whitespace-nowrap sm:gap-8" aria-label="주요 메뉴">
+        <a href="index.html" class="text-[14px] font-medium text-text-warm transition-colors hover:text-coral-orange sm:text-[15px]">HOME</a>
+        <a href="multi-agent.html" aria-current="page" class="relative text-[14px] font-bold text-coral-orange after:absolute after:-bottom-[3px] after:left-0 after:h-[2px] after:w-full after:rounded-full after:bg-coral-orange sm:text-[15px]">HOW IT WORKS</a>
+        <a href="kikki.html" class="text-[14px] font-medium text-text-warm transition-colors hover:text-coral-orange sm:text-[15px]">ABOUT KKIKKI</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="relative flex min-h-[300px] w-full items-center justify-center overflow-hidden py-9 text-center">
+      <div aria-hidden="true" class="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-tr from-[#E8875B]/10 via-[#F4B942]/10 to-transparent blur-3xl"></div>
+      <div class="mx-auto flex w-full max-w-[800px] flex-col items-center px-8 sm:px-16">
+        <span class="mb-3 block text-[13px] font-bold uppercase tracking-wider text-coral-orange">HOW IT WORKS</span>
+        <h1 class="text-[36px] font-bold leading-[1.3] tracking-tight text-text-dark sm:text-[42px] keep-all"><span class="block">맞춤 루틴은</span><span class="block">어떻게 만들어질까요?</span></h1>
+        <p class="mt-4 text-[16px] font-normal leading-[1.6] text-text-warm keep-all">운동 목표와 몸 상태, 실행 가능성을 함께 고려해<br>맞춤 루틴을 조정해요.</p>
+      </div>
+    </section>
+
+    <section class="mx-auto mt-10 max-w-[1040px] px-6 sm:px-8" data-reveal>
+      <div class="flex flex-col items-center rounded-3xl border border-orange-100/60 bg-white p-5 text-center shadow-md shadow-orange-950/5 lg:p-6">
+        <h2 class="mb-6 text-[22px] font-bold text-text-dark">맞춤 루틴이 만들어지는 과정</h2>
+        <div class="flex w-full max-w-[1000px] flex-col items-center justify-center gap-3 md:flex-row md:gap-4">
+          <div class="rounded-2xl border border-[#F5ECCB] bg-surface-cream px-3 py-2.5 text-[15px] font-bold text-text-dark shadow-sm">사용자 상태</div>
+          <span class="material-symbols-outlined rotate-90 text-[24px] text-text-muted/40 md:rotate-0">arrow_forward</span>
+          <div class="flex flex-col items-center gap-1 rounded-2xl border border-coral-orange/20 bg-[#FFF2E8] px-3 py-2.5 text-[15px] font-bold text-coral-orange shadow-sm"><span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[18px]">verified_user</span>안전 기준 확인</span><span class="text-[10px] font-medium text-coral-orange/60">SafetyPolicyEngine</span></div>
+          <span class="material-symbols-outlined rotate-90 text-[24px] text-text-muted/40 md:rotate-0">arrow_forward</span>
+          <div class="flex w-full flex-col gap-1.5 rounded-2xl border border-[#F2E3D8] bg-[#FFFDF9] p-3 md:w-auto"><div class="mb-1 flex flex-col items-center"><span class="text-[14px] font-bold text-text-dark">Agent별 판단</span><span class="text-[10px] font-medium text-text-muted/75">LangGraph</span></div><div class="rounded-xl border border-orange-100/60 bg-white px-3 py-1.5 text-[13px] font-bold text-text-dark shadow-sm">Training</div><div class="rounded-xl border border-orange-100/60 bg-white px-3 py-1.5 text-[13px] font-bold text-text-dark shadow-sm">Recovery</div><div class="rounded-xl border border-orange-100/60 bg-white px-3 py-1.5 text-[13px] font-bold text-text-dark shadow-sm">Feasibility</div></div>
+          <span class="material-symbols-outlined rotate-90 text-[24px] text-text-muted/40 md:rotate-0">arrow_forward</span>
+          <div class="flex flex-col items-center gap-1 rounded-2xl border border-butter-yellow/40 bg-butter-yellow/20 px-3 py-2.5 text-[15px] font-bold text-text-dark shadow-sm"><span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[18px] text-butter-yellow-hover">merge</span>최종 조정</span><span class="text-[10px] font-medium text-text-muted/75">Coordinator</span></div>
+          <span class="material-symbols-outlined rotate-90 text-[24px] text-text-muted/40 md:rotate-0">arrow_forward</span>
+          <div class="flex items-center gap-1.5 rounded-2xl border border-orange-200 bg-white px-3 py-2.5 text-[15px] font-bold text-text-dark shadow-md shadow-orange-100"><span class="material-symbols-outlined text-[18px] text-coral-orange">fitness_center</span>루틴 구성</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mx-auto mt-11 max-w-[1120px] px-8 pb-10 sm:px-16" data-reveal>
+      <div class="mb-5 text-center"><h2 class="text-[28px] font-bold tracking-tight text-text-dark">각 Agent가 보는 기준</h2><p class="mt-2 text-[15px] text-text-warm">운동 목표, 회복 상태, 실행 가능성을 나눠 살펴봐요.</p></div>
+      <div class="grid grid-cols-1 gap-3 xl:grid-cols-3">
+        <article class="h-full rounded-3xl border border-[#F5E6DA]/70 bg-white px-5 py-4 shadow-sm"><div class="mb-2.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-surface-cream text-butter-yellow-hover"><span class="material-symbols-outlined text-[22px]">model_training</span></div><h3 class="mb-2 text-[18px] font-bold text-text-dark">Training Agent</h3><p class="text-[15px] leading-[1.6] text-text-warm keep-all">운동 목표와 현재 수준에 맞는<br class="hidden lg:block"> 운동 구성을 제안해요.</p></article>
+        <article class="h-full rounded-3xl border border-[#F5E6DA]/70 bg-white px-5 py-4 shadow-sm"><div class="mb-2.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-[#FFF2E8] text-coral-orange"><span class="material-symbols-outlined text-[22px]">bedtime</span></div><h3 class="mb-2 text-[18px] font-bold text-text-dark">Recovery Agent</h3><p class="text-[15px] leading-[1.6] text-text-warm keep-all">컨디션과 회복 상태를 바탕으로<br class="hidden lg:block"> 운동 강도를 조정해요.</p></article>
+        <article class="h-full rounded-3xl border border-[#F5E6DA]/70 bg-white px-5 py-4 shadow-sm"><div class="mb-2.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-[#F2F5E6] text-[#7C9A4B]"><span class="material-symbols-outlined text-[22px]">schedule</span></div><h3 class="mb-2 text-[18px] font-bold text-text-dark">Feasibility Agent</h3><p class="text-[15px] leading-[1.6] text-text-warm keep-all">가능한 시간과 환경을 고려해<br class="hidden lg:block"> 실제로 할 수 있는지 확인해요.</p></article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="w-full border-t border-[#F5E6DA]/70 bg-[#FFFDF9]"><div class="mx-auto flex max-w-[1200px] flex-wrap items-center justify-center gap-x-3 gap-y-1 px-8 py-4 text-[12px] text-text-muted sm:px-16"><span class="font-semibold tracking-wide text-text-warm">HELKKI</span><span aria-hidden="true">|</span><span>SKN30-FINAL-5Team</span><span aria-hidden="true">|</span><a href="https://github.com/SKNETWORKS-FAMILY-AICAMP/SKN30-FINAL-5Team" target="_blank" rel="noopener noreferrer" class="transition-colors hover:text-coral-orange">GitHub ↗</a></div></footer>
+  <script>
+    const targets = document.querySelectorAll('[data-reveal]');
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
+      targets.forEach((target) => target.classList.add('is-revealed'));
+    } else {
+      document.documentElement.classList.add('reveal-enabled');
+      const revealObserver = new IntersectionObserver((entries) => entries.forEach((entry) => { if (entry.isIntersecting) entry.target.classList.add('is-revealed'); }), { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
+      const resetObserver = new IntersectionObserver((entries) => entries.forEach((entry) => { if (!entry.isIntersecting) entry.target.classList.remove('is-revealed'); }), { rootMargin: '80px 0px 80px 0px', threshold: 0 });
+      targets.forEach((target) => { revealObserver.observe(target); resetObserver.observe(target); });
+    }
+  </script>
+</body>
+</html>
