@@ -300,6 +300,14 @@ class ExerciseDetailResponse(BaseModel):
     media_url: str | None = None
     mascot_animation_asset_key: str | None = None
     instruction_content_version: str
+    household_equipment_guides: list["HouseholdEquipmentGuide"] | None = None
+
+
+class HouseholdEquipmentGuide(BaseModel):
+    equipment_code: EquipmentCode
+    proposal_ko: str
+    examples_ko: list[str]
+    cautions_ko: list[str]
 
 
 class ExerciseListItem(BaseModel):
@@ -326,6 +334,9 @@ class ExerciseVariantItem(BaseModel):
     form_cues: list[str]
     media_asset_key: str | None = None
     goal_preservation_code: str
+    missing_equipment_code: EquipmentCode | None = None
+    selection_rationale_ko: str | None = None
+    household_guide: HouseholdEquipmentGuide | None = None
 
 
 class ExerciseVariantsResponse(BaseModel):

@@ -43,6 +43,7 @@ from backend.app.db.models.workout import (
     WorkoutFeedbackDifficultyReason,
     WorkoutSession,
     WorkoutSessionItem,
+    WorkoutSkipFeedback,
 )
 from backend.app.domain.agents.contracts import RecommendedActionCode
 from backend.app.domain.agents.coordinator import (
@@ -276,20 +277,41 @@ class DecisionRepository:
                 )
             )
         )
-        recent_workout_status_codes = tuple(
-            session.scalars(
-                select(WorkoutSession.status_code)
-                .where(
-                    WorkoutSession.user_id == user_id,
-                    WorkoutSession.status_code.in_(
-                        ("COMPLETED", "PARTIAL", "NOT_COMPLETED", "STOPPED_FOR_SAFETY")
-                    ),
-                    WorkoutSession.ended_at.is_not(None),
-                    WorkoutSession.ended_at <= daily.updated_at,
-                )
-                .order_by(WorkoutSession.ended_at.desc(), WorkoutSession.id.desc())
-                .limit(7)
-            ).all()
+        recent_sessions = session.execute(
+            select(
+                WorkoutSession.status_code,
+                WorkoutSession.stop_reason_code,
+                WorkoutSkipFeedback.reason_code,
+            )
+            .outerjoin(
+                WorkoutSkipFeedback,
+                WorkoutSkipFeedback.workout_session_id == WorkoutSession.id,
+            )
+            .where(
+                WorkoutSession.user_id == user_id,
+                WorkoutSession.status_code.in_(
+                    ("COMPLETED", "PARTIAL", "NOT_COMPLETED", "STOPPED_FOR_SAFETY")
+                ),
+                WorkoutSession.ended_at.is_not(None),
+                WorkoutSession.ended_at <= daily.updated_at,
+            )
+            .order_by(WorkoutSession.ended_at.desc(), WorkoutSession.id.desc())
+            .limit(7)
+        ).all()
+        recent_workout_status_codes = tuple(row.status_code for row in recent_sessions)
+        # Rotation deliberately ignores NOT_COMPLETED, but recommendation learning
+        # keeps its typed skip reason alongside PARTIAL's stop reason.  These are
+        # persisted in the decision input so a replay sees the same signal.
+        recent_adherence_reason_codes = tuple(
+            sorted(
+                {
+                    reason_code
+                    for status_code, stop_reason_code, skip_reason_code in recent_sessions
+                    if status_code in {"PARTIAL", "NOT_COMPLETED"}
+                    for reason_code in (stop_reason_code, skip_reason_code)
+                    if reason_code is not None
+                }
+            )
         )
         # The latest answered feedback drives the adjustment ladder (DOMAIN_RULES 6.1).
         # Bounded to sessions that ended before this context was last written, so a
@@ -364,6 +386,7 @@ class DecisionRepository:
             daily.red_flag_present,
             latest_difficulty_code,
             latest_difficulty_reason_codes,
+            recent_adherence_reason_codes,
         )
         item_data: list[CandidateItemData] = []
         main_durations: list[PlanItemDuration] = []
@@ -520,6 +543,13 @@ class DecisionRepository:
         source_items = {item.exercise_id: item for item in item_data}
         alternative_items: list[AlternativeItemData] = []
         for relation, alternative in alternative_rows:
+            if relation.reason_code == "EQUIPMENT":
+                missing_equipment_code = relation.source_metadata.get("missing_equipment_code")
+                if (
+                    not isinstance(missing_equipment_code, str)
+                    or missing_equipment_code in equipment
+                ):
+                    continue
             if not required_equipment[alternative.id].issubset(set(equipment)):
                 continue
             if daily.location_code not in available_locations[alternative.id]:
@@ -535,6 +565,7 @@ class DecisionRepository:
                         alternative.primary_movement_pattern_code,
                     ),
                     evidence_reference_code=f"ALTERNATIVE/{relation.id}",
+                    reason_code=relation.reason_code,
                     pain_discomfort_area_code=relation.pain_discomfort_area_code,
                     condition_code=relation.condition_code,
                     service_action_code=relation.service_action_code,

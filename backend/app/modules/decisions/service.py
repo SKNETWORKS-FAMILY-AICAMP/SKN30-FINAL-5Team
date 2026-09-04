@@ -147,6 +147,7 @@ def _choose_alternative(
     safety_rule_set: SafetyRuleSet | None,
 ) -> AlternativeItemData | None:
     requirements = _pain_alternative_requirements(context)
+    equipment_options = tuple(option for option in options if option.reason_code == "EQUIPMENT")
     if requirements:
         pain_options = tuple(
             option
@@ -172,12 +173,23 @@ def _choose_alternative(
             # it is not a pain Alternative and is never used to satisfy a pain
             # area requirement.
             candidates = (
-                tuple(option for option in options if option.pain_discomfort_area_code is None)
+                equipment_options
+                + tuple(
+                    option
+                    for option in options
+                    if option.reason_code != "EQUIPMENT"
+                    and option.pain_discomfort_area_code is None
+                )
                 if source_id in excluded
-                else ()
+                else equipment_options
             )
     else:
-        candidates = tuple(options) if source_id in excluded else ()
+        candidates = (
+            equipment_options
+            + tuple(option for option in options if option.reason_code != "EQUIPMENT")
+            if source_id in excluded
+            else equipment_options
+        )
 
     for option in sorted(candidates, key=lambda value: value.evidence_reference_code):
         evaluation = evaluate_safety(
@@ -244,6 +256,11 @@ def _build_adjusted_candidates(
     source_ids = {str(item.exercise_id) for item in assembly.items}
     for source_id in sorted(source_ids):
         options = options_by_source.get(source_id, ())
+        # A Safety BLOCKED result has no eligible base-plan exercise.  An
+        # equipment relation cannot turn that into an exercise fallback; only
+        # a separately approved safety alternative may resolve the exclusion.
+        if base_evaluation.status_code is SafetyStatusCode.BLOCKED:
+            options = tuple(option for option in options if option.reason_code != "EQUIPMENT")
         selected = _choose_alternative(
             source_id=source_id,
             options=options,

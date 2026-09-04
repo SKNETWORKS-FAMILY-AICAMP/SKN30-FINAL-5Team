@@ -62,6 +62,7 @@ from backend.app.domain.rules.safety import (
     SafetyEvaluation,
     SafetyRequiredActionCode,
     SafetyStatusCode,
+    block_for_no_eligible_exercise,
     evaluate_safety,
 )
 from backend.app.domain.rules.training_level import is_exercise_allowed_for_user
@@ -458,6 +459,19 @@ class DeterministicV3SafetyPolicyAdapter:
             experience_level_code=str(source.normalized_values["experience_level_code"]),
             allowed_location_codes={context.location_code},
         )
+        if (
+            not eligible_pool
+            and base.status_code
+            not in {
+                SafetyStatusCode.NEEDS_INPUT,
+                SafetyStatusCode.FAILED,
+            }
+            and base.required_action_code is not SafetyRequiredActionCode.STOP_AND_SEEK_HELP
+        ):
+            # No approved, user-eligible exercise remains.  This is a terminal
+            # BLOCKED/REST result, never a reason to manufacture a fallback.
+            base = block_for_no_eligible_exercise(base)
+            application.safety_evaluation = base
         exclusion_only_block = (
             base.status_code is SafetyStatusCode.BLOCKED
             and base.required_action_code is SafetyRequiredActionCode.REST

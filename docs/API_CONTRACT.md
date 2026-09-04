@@ -1055,9 +1055,21 @@ ExerciseDetailResponse
 - media_url: string | null
 - mascot_animation_asset_key: string | null
 - instruction_content_version: string
+- household_equipment_guides: HouseholdEquipmentGuide[] | null
+
+HouseholdEquipmentGuide
+- equipment_code: string
+- proposal_ko: string
+- examples_ko: string[]
+- cautions_ko: string[]
 ~~~
 
 자세·설명 콘텐츠는 검수된 정보만 반환하며 카메라 자세 인식이나 자동 자세 판정을 의미하지 않는다.
+
+`household_equipment_guides`는 생활도구 bundle 검증을 통과한 안내에만 사용하는 additive 필드다.
+각 안내는 대체 제안, 예시, 주의사항을 포함하며, 안내 문구에서 중량을
+파싱하거나 `recommended_load` 값을 추론하지 않는다. 안내가 없으면 기존 상세 응답과 호환되도록
+`null`을 반환한다.
 
 구현 상태: 이 endpoint는 구현됐다. 인증된 사용자만 호출할 수 있고 `review_status_code`가
 `DOMAIN_APPROVED`인 운동만 반환하며, 그 외에는 `404 RESOURCE_NOT_FOUND`다. `media_asset_key`는
@@ -1137,6 +1149,9 @@ ExerciseVariantItem
 - form_cues: string[]
 - media_asset_key: string | null
 - goal_preservation_code: string
+- missing_equipment_code: string | null
+- selection_rationale_ko: string | null
+- household_guide: HouseholdEquipmentGuide | null
 ~~~
 
 - 인증된 사용자만 호출할 수 있다.
@@ -1153,6 +1168,11 @@ ExerciseVariantItem
 - 여러 운영 승인 alternative set이 한 source에 동시에 연결되면 재현 가능한 단일 set을 정할 수
   없으므로 `503 APPROVED_CATALOG_UNAVAILABLE`로 fail closed한다.
 - `media_asset_key`는 §8.3과 동일한 권리·승인 조건을 만족할 때만 반환한다.
+- `missing_equipment_code`, `selection_rationale_ko`, `household_guide`는 생활도구 bundle에서 검증된
+  `DOMAIN_APPROVED` `EQUIPMENT` 관계에만 추가로 채워진다. 기존 장비 관계에는 모두 `null`일 수 있다.
+- 이 endpoint는 후보 안내 전용이다. 사용자 장비 보유 여부가 명시적으로 확인되어 해당 장비가 없을
+  때에만 계획 생성 계층이 변형운동을 대체 후보로 사용할 수 있으며, 관계가 존재한다는 이유만으로
+  원운동을 자동 교체하지 않는다. 안전 제외와 `BLOCKED` 판정은 이 안내로 우회할 수 없다.
 
 ---
 

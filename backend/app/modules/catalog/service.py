@@ -28,6 +28,7 @@ from backend.app.modules.catalog.codes import (
     LocationCode,
     TrainingTypeCode,
 )
+from backend.app.modules.catalog.home_equipment import HomeEquipmentGuideProviderPort
 from backend.app.modules.catalog.media_mapping import parse_source_identity
 from backend.app.modules.catalog.schemas import (
     AlternativeManifest,
@@ -43,6 +44,7 @@ from backend.app.modules.catalog.schemas import (
     ExerciseSafetyRuleRecord,
     ExerciseVariantItem,
     ExerciseVariantsResponse,
+    HouseholdEquipmentGuide,
     ManifestFile,
     MediaAssetRecord,
     MediaManifest,
@@ -144,6 +146,16 @@ class ExerciseDetailRecord:
     media_set_version_code: str | None = None
     media_source_manifest_hash: str | None = None
     media_approval_metadata: dict[str, Any] | None = None
+    exercise_stable_code: str | None = None
+    household_equipment_guides: tuple["HouseholdEquipmentGuideRecord", ...] = ()
+
+
+@dataclass(frozen=True)
+class HouseholdEquipmentGuideRecord:
+    equipment_code: str
+    proposal_ko: str
+    examples_ko: tuple[str, ...]
+    cautions_ko: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -172,6 +184,9 @@ class ExerciseVariantRecord:
     form_cues: tuple[str, ...]
     goal_preservation_code: str
     media_asset_key: str | None = None
+    missing_equipment_code: str | None = None
+    selection_rationale_ko: str | None = None
+    household_guide: HouseholdEquipmentGuideRecord | None = None
 
 
 @dataclass(frozen=True)
@@ -251,9 +266,11 @@ class ExerciseReadService:
         self,
         repository: ExerciseReadRepositoryPort,
         media_url_provider: ExerciseMediaUrlPort | None = None,
+        home_equipment_guide_provider: HomeEquipmentGuideProviderPort | None = None,
     ) -> None:
         self._repository = repository
         self._media_url_provider = media_url_provider or NullExerciseMediaUrlProvider()
+        self._home_equipment_guide_provider = home_equipment_guide_provider
 
     def list_exercises(
         self,
@@ -324,6 +341,23 @@ class ExerciseReadService:
         if _is_approved_media_candidate(record):
             assert record.media_source_object_key is not None
             media_url = self._media_url_provider.create_url(record.media_source_object_key)
+        guides = record.household_equipment_guides
+        if (
+            not guides
+            and record.exercise_stable_code is not None
+            and self._home_equipment_guide_provider is not None
+        ):
+            guides = tuple(
+                HouseholdEquipmentGuideRecord(
+                    equipment_code=guide.equipment_code,
+                    proposal_ko=guide.proposal_ko,
+                    examples_ko=guide.examples_ko,
+                    cautions_ko=guide.cautions_ko,
+                )
+                for guide in self._home_equipment_guide_provider.guides_for(
+                    record.exercise_stable_code
+                )
+            )
         return ExerciseDetailResponse(
             exercise_id=record.exercise_id,
             exercise_name=record.exercise_name,
@@ -335,6 +369,18 @@ class ExerciseReadService:
             media_url=media_url,
             mascot_animation_asset_key=None,
             instruction_content_version=record.instruction_content_version,
+            household_equipment_guides=(
+                [
+                    HouseholdEquipmentGuide(
+                        equipment_code=EquipmentCode(guide.equipment_code),
+                        proposal_ko=guide.proposal_ko,
+                        examples_ko=list(guide.examples_ko),
+                        cautions_ko=list(guide.cautions_ko),
+                    )
+                    for guide in guides
+                ]
+                or None
+            ),
         )
 
     def get_equipment_variants(
@@ -361,6 +407,22 @@ class ExerciseReadService:
                     form_cues=list(item.form_cues),
                     media_asset_key=item.media_asset_key,
                     goal_preservation_code=item.goal_preservation_code,
+                    missing_equipment_code=(
+                        None
+                        if item.missing_equipment_code is None
+                        else EquipmentCode(item.missing_equipment_code)
+                    ),
+                    selection_rationale_ko=item.selection_rationale_ko,
+                    household_guide=(
+                        None
+                        if item.household_guide is None
+                        else HouseholdEquipmentGuide(
+                            equipment_code=EquipmentCode(item.household_guide.equipment_code),
+                            proposal_ko=item.household_guide.proposal_ko,
+                            examples_ko=list(item.household_guide.examples_ko),
+                            cautions_ko=list(item.household_guide.cautions_ko),
+                        )
+                    ),
                 )
                 for item in record.items
             ],

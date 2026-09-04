@@ -148,7 +148,7 @@ class FeasibilityProposalAgent(_ProposalAgent):
         request: ProposalRequest[DecisionContext, CoordinatorCandidate],
     ) -> AgentProposal:
         supported_locations = request.context.candidate_supported_location_codes
-        evidence = (
+        evidence: tuple[str, ...] = (
             "CANDIDATE/supported_location_codes",
             "CONTEXT/location_code",
             "CONTEXT/requested_duration_minutes",
@@ -163,10 +163,14 @@ class FeasibilityProposalAgent(_ProposalAgent):
                 evidence_reference_codes=evidence,
                 hard_constraint_codes=("CURRENT_LOCATION_REQUIRED",),
             )
+        reason_codes = ["TIME_LOCATION_MATCHED"]
+        if request.context.recent_adherence_reason_codes:
+            evidence += ("HISTORY/recent_adherence_reason_codes",)
+            reason_codes.append("RECENT_ADHERENCE_REASONS_REVIEWED")
         return self._ready(
             request,
             action=RecommendedActionCode.KEEP,
-            reason_codes=("TIME_LOCATION_MATCHED",),
+            reason_codes=tuple(reason_codes),
             evidence_reference_codes=evidence,
             hard_constraint_codes=(
                 "CURRENT_LOCATION_SUPPORTED",
