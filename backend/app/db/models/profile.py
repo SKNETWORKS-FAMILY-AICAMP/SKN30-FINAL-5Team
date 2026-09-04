@@ -52,7 +52,7 @@ class UserProfile(Base):
             "AND profile_image_content_type IN ('image/jpeg','image/png','image/webp') "
             "AND profile_image_byte_size > 0 AND profile_image_byte_size <= 10485760)",
             name="ck_user_profiles_profile_image_metadata",
-        ),
+        ).ddl_if(dialect="postgresql"),
     )
 
     user_id: Mapped[UUID] = mapped_column(
