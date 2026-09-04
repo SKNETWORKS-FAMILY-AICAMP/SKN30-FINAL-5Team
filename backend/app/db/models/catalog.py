@@ -30,7 +30,7 @@ class CatalogVersion(Base):
             name="ck_catalog_versions_status_code",
         ),
         CheckConstraint(
-            "manifest_schema_version IN ('1.0')",
+            "manifest_schema_version IN ('1.0', '1.1')",
             name="ck_catalog_versions_manifest_schema_version",
         ),
         CheckConstraint(
@@ -38,7 +38,7 @@ class CatalogVersion(Base):
             name="ck_catalog_versions_code_set_version",
         ),
         CheckConstraint(
-            "source_track_code IN ('wger', 'kspo', 'merged')",
+            "source_track_code IN ('wger', 'kspo', 'gymvisual', 'merged')",
             name="ck_catalog_versions_source_track_code",
         ),
         CheckConstraint(

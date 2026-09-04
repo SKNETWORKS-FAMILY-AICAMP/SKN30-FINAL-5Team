@@ -688,6 +688,11 @@ def _validate_v2_alternative_metadata(
             "V2_REVIEW_METHOD_INVALID",
             "V2 alternative artifacts require DOMAIN_REVIEWER evidence",
         )
+    # v2.0.6 keeps the historical importer path but intentionally publishes
+    # an empty relationship artifact.  There are no record-level metadata
+    # invariants to apply when the artifact contains no records.
+    if not records:
+        return
     expected_version = manifest.alternative_set_version.version_code
     for record in records:
         if (
@@ -1169,20 +1174,33 @@ class CatalogDataBundleImporter:
         media_directory: Path | None = None,
         media_reference_map: dict[str, str] | None = None,
         approved_v2_bundle: bool = False,
+        production_release: bool = False,
     ) -> CatalogDataBundleImportResult:
         # A DRAFT bundle stays confined to local/test. The reviewed V2 release is
         # a different artifact: import_v2_bundle only reaches this call after every
         # one of its four manifests matched an exact approval-registry entry, and
         # those entries carry the DOMAIN_REVIEWER sign-off that the repository
-        # turns into PRODUCTION_APPROVED. Staging is allowed for that path alone;
-        # production still requires its own separately reviewed release decision.
+        # turns into PRODUCTION_APPROVED. Production is reachable only through
+        # the v2.0.6 promotion script's explicit release flag.
         release_import = self._v2_import and approved_v2_bundle
-        allowed_envs = {"local", "test", "staging"} if release_import else {"local", "test"}
+        if production_release and not release_import:
+            raise CatalogImportError(
+                "CATALOG_IMPORT_ENVIRONMENT_FORBIDDEN",
+                "production release imports require the exact approved V2 bundle path",
+            )
+        allowed_envs = (
+            {"local", "test", "staging", "production"}
+            if production_release and release_import
+            else {"local", "test", "staging"}
+            if release_import
+            else {"local", "test"}
+        )
         if self._app_env not in allowed_envs:
             raise CatalogImportError(
                 "CATALOG_IMPORT_ENVIRONMENT_FORBIDDEN",
                 (
-                    "approved V2 release import is allowed only in local, test, or staging"
+                    "approved V2 release import is allowed only in local, test, staging, "
+                    "or production"
                     if release_import
                     else "DRAFT catalog data import is allowed only in local or test"
                 ),
@@ -1337,6 +1355,7 @@ class CatalogDataBundleImporter:
         bundle_directory: Path,
         *,
         expected_bundle_manifest_sha256: str,
+        allow_production: bool = False,
     ) -> CatalogDataBundleImportResult:
         if not self._v2_import:
             raise CatalogImportError("V2_IMPORT_REQUIRED", "V2 bundle importer mode is required")
@@ -1447,6 +1466,7 @@ class CatalogDataBundleImporter:
             media_directory,
             media_reference_map,
             True,
+            production_release=allow_production,
         )
 
     def _import_derived_set(

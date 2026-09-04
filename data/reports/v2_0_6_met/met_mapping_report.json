@@ -1,0 +1,73 @@
+{
+  "status": "DRAFT",
+  "production_eligible": false,
+  "policy_version": "v2.0.6-met-compendium-direct-similar-1.0.0",
+  "policy": {
+    "source_file": "data/raw/physical_activity_guidelines/adult_compendium_mvp_reference_subset.jsonl",
+    "direct_activity_description_only": false,
+    "direct_mapping_allowed": true,
+    "similar_activity_mapping_allowed": true,
+    "no_estimation_or_calculation": true,
+    "no_met_category_average_or_interpolation": true,
+    "no_unmatched_exercise_value_copy": true,
+    "unresolved_or_condition_mismatch_remain_blank": true,
+    "met_review_status_requires_explicit_approval": true,
+    "met_review_status_code": "DOMAIN_APPROVED",
+    "met_approval_manifest": "data/reports/v2_0_6_met/met_review_approval_manifest.json",
+    "rank_not_generated_or_used": true
+  },
+  "inputs": {
+    "normalized_catalog": {
+      "path": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv",
+      "sha256": "fcfe76f5dbf03802759aea36417dc46019728e232ddf608980d4022cfb5cdeb7",
+      "records": 237,
+      "sha256_after_enrichment": "fcfe76f5dbf03802759aea36417dc46019728e232ddf608980d4022cfb5cdeb7"
+    },
+    "compendium_subset": {
+      "path": "data/raw/physical_activity_guidelines/adult_compendium_mvp_reference_subset.jsonl",
+      "sha256": "d0a124f2862e70772e34d6de2619a914f5e5bf6fda0b71550c61e3e340f55e52",
+      "activity_records": 28
+    }
+  },
+  "counts": {
+    "catalog_records": 237,
+    "mapping_success": 237,
+    "unmapped": 0,
+    "direct_mappings": 53,
+    "similar_activity_mappings": 184,
+    "review_needed": 0,
+    "approved": 237,
+    "met_values_non_empty": 237
+  },
+  "mapped_activity_codes": [
+    "01200",
+    "02020",
+    "02024",
+    "02048",
+    "02052",
+    "02054",
+    "02056",
+    "02057",
+    "02058",
+    "02064",
+    "02065",
+    "02101",
+    "02112",
+    "12020",
+    "12150",
+    "12255",
+    "15110",
+    "17018"
+  ],
+  "outputs": {
+    "normalized_catalog": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv",
+    "mapping_results": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/reports/v2_0_6_met/met_mapping_results.csv",
+    "mapping_evidence": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/reports/v2_0_6_met/met_mapping_evidence.csv",
+    "direct_mappings": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/reports/v2_0_6_met/met_direct_mappings.csv",
+    "similar_activity_mappings": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/reports/v2_0_6_met/met_similar_activity_mappings.csv",
+    "unmapped_exercises": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/reports/v2_0_6_met/met_unmapped_exercises.csv",
+    "provenance": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/reports/v2_0_6_met/met_provenance.csv",
+    "column_source": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/reports/v2_0_6_met/catalog_column_source_report.csv",
+    "rank_usage": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/reports/v2_0_6_met/rank_usage_report.json"
+  }
+}

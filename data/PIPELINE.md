@@ -111,6 +111,23 @@ CSV이며, 아직 최종 family 확정이나 대체 관계가 아니다.
 통합 카탈로그 확정, 부하 검토와 도메인 안전 정책 검토가 모두 끝나기 전에는 mobility
 generated seed·안전 규칙·대체 관계를 생성하지 않는다.
 
+### v2.0.6 기준 카탈로그 복구 병합
+
+기준 파일이 최근 240개 통합 검토 산출물보다 적은 경우 다음 동기화 스크립트를
+사용한다.
+
+```bash
+python data/scripts/merge_v2_0_6_recent_into_normalized.py
+python data/scripts/build_v2_0_6_catalog_from_normalized.py
+```
+
+최신 `stable_code` 행이 기존 중복을 대체하며, MET 값과 6개 provenance 컬럼도 별도의
+`data/reports/v2_0_6_met/met_provenance.csv`에서 같은 방식으로 덮어쓴다. MET 값은
+`adult_compendium_mvp_reference_subset.jsonl`의 activity code, source id, 원천 MET와
+일치할 때만 기록된다. 병합 상세는 `data/reports/v2_0_6_catalog_merge/merge_report.json`
+및 `merge_changes.csv`에서 확인한다. 결과는 여전히 DRAFT이고 사람 검수 전 production
+승인으로 해석하지 않는다.
+
 ### KSPO·wger 공통 후보 정렬과 공백 보충
 
 `align_source_candidates.py`는 KSPO·wger의 검토 결과를 Gym Visual 후보 공통 컬럼과
@@ -298,3 +315,88 @@ bundle 내부 진입점은 `catalog/seed_manifest.json`, `safety/rules_manifest.
 runtime alternatives 285건은 backend의 `(source, alternative, reason, goal, rule_version)`
 관계 키로 손실 없이 importer에 전달된다. conflict report는 직접 전달 검증 결과를 보존하며,
 bundle과 모든 파생 산출물은 여전히 `DRAFT`·`production_eligible=false` 상태다.
+
+### v2.0.6 DRAFT media-gated bundle
+
+v2.0.5 bundle에서 exact `representative_exercise_id` → `stable_code` → `source_identity`가
+확인되고 `AVAILABLE`·`APPROVED`인 미디어가 있는 운동만 catalog로 투영한다. catalog의 필수
+컬럼과 원천 provenance는 유지하며, safety·prescription·goal tag는 남은 stable code로만
+필터링한다. `alternatives/alternatives.jsonl`은 의도적으로 0건이며 DISCOMFORT 관계를
+생성하거나 소비하지 않는다. 기존 importer의 STRETCH_STRAP bodyweight fallback 불변조건을
+약화하지 않기 위해 해당 장비 운동 3건은 미디어가 있어도 보류한다.
+
+```bash
+python3 data/scripts/build_v2_0_6_draft_backend_bundle.py
+V2_UV_CACHE=/private/tmp/skn30-uv-cache UV_CACHE_DIR=$V2_UV_CACHE \
+  uv run python data/scripts/validate_v2_backend_bundle.py \
+  data/generated/exercise-catalog-v2.0.6-draft/backend_bundle
+```
+
+현재 산출물은 catalog 73건, 승인 media 73건, safety 273건, goal tag 219건,
+prescription 516건, alternatives 0건이다. 이 bundle은 DRAFT이며 운영 적재·승인·활성화는
+수행하지 않는다. 호환성용 `alternatives/alternatives.jsonl`은 빈 파일로 유지하고,
+`alternatives/input/alternative_projection_conflicts.json`도 conflict 0건 보고서로 함께 고정한다.
+
+catalog의 `instruction_summary_ko`, `form_cues_ko`, `name_ko`는 사용자 노출 필드로 검증한다.
+Gymvisual 원천 `instruction_steps.ko`를 `source_identity`로 연결해 동작 순서를 보존하고,
+`form_cues_ko`에는 개발용 posture/support/body-area 코드를 남기지 않는다. 해부학 전문용어와
+비존댓말 표현은 행동 중심의 한국어 문장으로 다듬되, 설명을 다시 쓴 모든 row의
+`form_cues_review_status`는 검수 완료 시 정규화 원본에서 `APPROVED`로 기록한다. 백엔드
+번들 생성 시에는 기존 백엔드 enum과의 호환을 위해 `DOMAIN_APPROVED`로 투영한다. 원문과 변환문, 버전, provenance는
+`backend_bundle/audit/content_naturalization_audit.jsonl`에만 기록하며 catalog schema에는
+audit 컬럼을 추가하지 않는다. 사용자 노출 필드 검증은 대문자·소문자 snake_case, `stable_code`,
+body-area code, 빈 문장·중복 cue·모호한 템플릿을 발견하면 실패한다.
+
+### v2.0.6 training/body focus 후보 검수 큐
+
+merged catalog 240건의 원천 분류 후보는 별도 검수 산출물로 생성한다.
+
+v2.0.6 통합 카탈로그의 사람 수정 기준은
+`normalized/v2_0_6_exercise_catalog.csv` 하나로 통일한다. 원천·검수 batch·기존 draft는
+최초 bootstrap의 입력 또는 검증 근거로만 사용하고, 이후 최종 생성기는 이 정규화 CSV만
+읽는다. JSON·검수용 전체 CSV·원천 매핑·빈값 리포트는
+`generated/exercise-catalog-v2.0.6-draft/review_catalog/`에 생성되는 산출물이며 직접
+수정하지 않는다. backend bundle의 media-gated runtime catalog는 별도 73건 산출물이다.
+
+```bash
+python3 data/scripts/bootstrap_v2_0_6_normalized_catalog.py
+python3 data/scripts/build_v2_0_6_catalog_from_normalized.py
+```
+
+```bash
+python3 data/scripts/build_training_body_focus_candidates.py
+```
+
+`exercise_catalog_additions.json`은 `id == source_identity`로만 연결하고, additions에 없는
+기존 Gymvisual 행은 raw Gymvisual의 동일 ID를 사용한다. 후보 파일은
+`catalog/training_body_focus_candidates.jsonl`이며 runtime catalog를 덮어쓰지 않는다.
+STRENGTH의 명확한 후보만 `CANDIDATE_READY`가 될 수 있고, CARDIO·MOBILITY 및 모든
+원천·기존값 충돌과 애매한 body focus는 `REVIEW_REQUIRED`로 보존한다.
+
+### v2.0.6 MET 매핑 및 provenance
+
+`normalized/v2_0_6_exercise_catalog.csv`에 MET 컬럼 6개를 추가할 때 신규 MET 원천은
+`raw/physical_activity_guidelines/adult_compendium_mvp_reference_subset.jsonl` 하나만
+사용한다. `enrich_v2_0_6_met.py`는 먼저 직접 대응을 확인한 뒤, 운동 형태·장비·자세·수행
+방식이 충분히 대응하는 원천 activity를 `SIMILAR_ACTIVITY`로 매핑한다. MET 숫자는 원천
+activity의 값을 그대로 사용하며 계산·평균·보간·운동 간 복사는 하지 않는다. 속도·경사·사이클
+등의 조건이 충분히 대응하지 않으면 빈값으로 둔다. 검수 전 매핑 성공 행은
+`met_review_status_code=REVIEW_REQUIRED`로 유지하며, 승인 후에는 승인 근거 manifest와
+CSV source hash를 확인한 뒤 `DOMAIN_APPROVED`로 기록한다. 전체 산출물은
+`production_eligible=false`를 유지한다.
+
+```bash
+python3 data/scripts/enrich_v2_0_6_met.py --force
+python3 data/scripts/build_v2_0_6_catalog_from_normalized.py
+```
+
+매핑 결과와 검수 대상은 `reports/v2_0_6_met/`의
+`met_mapping_report.json`, `met_mapping_results.csv`, `met_mapping_evidence.csv`,
+`met_direct_mappings.csv`, `met_similar_activity_mappings.csv`, `met_unmapped_exercises.csv`,
+`met_provenance.csv`, `catalog_column_source_report.csv`, `rank_usage_report.json`으로
+추적한다. `rank` 및 `variant_difficulty_rank`는 정규화·생성 산출물에 포함하지 않는다.
+
+검수 완료한 생활도구 대체 제안·주의사항·대체운동 후보는
+`DOMAIN_APPROVED`로 기록할 수 있지만, v2.0.6 최종 카탈로그의 장비 설명 칸이나
+`alternatives` 관계로 복사하지 않는다. 해당 보조 JSONL·gap report·validation report는
+검수 증적으로만 보존하고 DB 적재 입력에서는 제외한다.

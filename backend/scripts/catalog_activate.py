@@ -52,6 +52,11 @@ V2_CATALOG_VERSION_CODE = "exercise-catalog-v2.0.1-final"
 V2_RULE_SET_VERSION = "safety-rule-set-v2.0.1"
 V2_ALTERNATIVE_SET_VERSION = "alternative-set-v2.0.1"
 V2_PRESCRIPTION_SET_VERSION = "prescription-set-v2.0.1"
+V2_0_6_CATALOG_VERSION_CODE = "exercise-catalog-v2.0.6-final"
+V2_0_6_RULE_SET_VERSION = "safety-rule-set-v2.0.6"
+V2_0_6_ALTERNATIVE_SET_VERSION = "alternative-set-v2.0.6-stretch-strap-fallback"
+V2_0_6_PRESCRIPTION_SET_VERSION = "prescription-set-v2.0.6"
+V2_0_6_MEDIA_SET_VERSION = "media-set-v2.0.6"
 
 
 def _approved_record_count(artifact_kind: ArtifactKind, version_code: str) -> int:
@@ -100,6 +105,9 @@ def _routine_input_counts(session: Session, catalog: CatalogVersion) -> tuple[in
 
 def validate_v2_activation(session: Session, catalog: CatalogVersion) -> None:
     """Fail closed unless every approved V2 component is exact and exposable."""
+    if catalog.version_code == V2_0_6_CATALOG_VERSION_CODE:
+        _validate_v2_0_6_activation(session, catalog)
+        return
     if catalog.version_code != V2_CATALOG_VERSION_CODE:
         return
     if catalog.exercise_record_count != 102 or not isinstance(
@@ -157,6 +165,100 @@ def validate_v2_activation(session: Session, catalog: CatalogVersion) -> None:
     if unapproved_exposable_media:
         raise SystemExit(
             "refusing to activate V2: an exposable media asset lacks registry approval"
+        )
+
+
+def _validate_v2_0_6_activation(session: Session, catalog: CatalogVersion) -> None:
+    """Fail closed unless every v2.0.6 approved set is present and exposed."""
+    if catalog.exercise_record_count != 237 or not isinstance(
+        catalog.manifest_metadata.get("production_approval"), dict
+    ):
+        raise SystemExit("refusing to activate v2.0.6: catalog approval hash/count is not recorded")
+
+    safety_count = session.scalar(
+        select(func.count())
+        .select_from(ExerciseSafetyRule)
+        .where(
+            ExerciseSafetyRule.catalog_version_id == catalog.id,
+            ExerciseSafetyRule.rule_set_version_code == V2_0_6_RULE_SET_VERSION,
+            ExerciseSafetyRule.production_eligible.is_(True),
+        )
+    )
+    alternative_count = session.scalar(
+        select(func.count())
+        .select_from(ExerciseAlternative)
+        .join(Exercise, Exercise.id == ExerciseAlternative.source_exercise_id)
+        .where(
+            Exercise.catalog_version_id == catalog.id,
+            ExerciseAlternative.alternative_set_version_code == V2_0_6_ALTERNATIVE_SET_VERSION,
+            ExerciseAlternative.production_eligible.is_(True),
+        )
+    )
+    media_count = session.scalar(
+        select(func.count())
+        .select_from(ExerciseMediaAsset)
+        .where(
+            ExerciseMediaAsset.catalog_version_id == catalog.id,
+            ExerciseMediaAsset.media_set_version_code == V2_0_6_MEDIA_SET_VERSION,
+            ExerciseMediaAsset.media_status == "AVAILABLE",
+            ExerciseMediaAsset.rights_review_status == "APPROVED",
+            ExerciseMediaAsset.approval_metadata.is_not(None),
+        )
+    )
+    goal_links = session.scalar(
+        select(func.count())
+        .select_from(ExerciseGoalTagLink)
+        .join(Exercise, Exercise.id == ExerciseGoalTagLink.exercise_id)
+        .where(Exercise.catalog_version_id == catalog.id)
+    )
+    prescriptions = session.scalar(
+        select(func.count())
+        .select_from(ExercisePrescriptionProfile)
+        .join(Exercise, Exercise.id == ExercisePrescriptionProfile.exercise_id)
+        .where(Exercise.catalog_version_id == catalog.id)
+    )
+    expected = {
+        "safety": _approved_record_count("SAFETY_RULES", V2_0_6_RULE_SET_VERSION),
+        "alternatives": _approved_record_count("ALTERNATIVES", V2_0_6_ALTERNATIVE_SET_VERSION),
+        "media": _approved_record_count("MEDIA_ASSETS", V2_0_6_MEDIA_SET_VERSION),
+        "goal_links": 711,
+        "prescriptions": 1449,
+    }
+    actual = {
+        "safety": int(safety_count or 0),
+        "alternatives": int(alternative_count or 0),
+        "media": int(media_count or 0),
+        "goal_links": int(goal_links or 0),
+        "prescriptions": int(prescriptions or 0),
+    }
+    if actual != expected:
+        raise SystemExit(
+            "refusing to activate v2.0.6: approved derived-data counts do not match "
+            f"expected={expected}, actual={actual}"
+        )
+
+    prescription = catalog.manifest_metadata.get("prescription_artifact")
+    if (
+        not isinstance(prescription, dict)
+        or prescription.get("version_code") != V2_0_6_PRESCRIPTION_SET_VERSION
+        or prescription.get("goal_tag_records") != 711
+        or prescription.get("prescription_records") != 1449
+    ):
+        raise SystemExit("refusing to activate v2.0.6: prescription approval is incomplete")
+
+    unapproved_exposable_media = session.scalar(
+        select(func.count())
+        .select_from(ExerciseMediaAsset)
+        .where(
+            ExerciseMediaAsset.catalog_version_id == catalog.id,
+            ExerciseMediaAsset.media_status == "AVAILABLE",
+            ExerciseMediaAsset.rights_review_status == "APPROVED",
+            ExerciseMediaAsset.approval_metadata.is_(None),
+        )
+    )
+    if unapproved_exposable_media:
+        raise SystemExit(
+            "refusing to activate v2.0.6: an exposable media asset lacks registry approval"
         )
 
 

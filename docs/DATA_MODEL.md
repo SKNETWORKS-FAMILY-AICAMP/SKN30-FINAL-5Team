@@ -413,7 +413,7 @@ backup restore 직후 사용자 접근 차단과 동일 삭제 policy 재적용�
 |---|---|
 | id | UUID, PK |
 | version_code | 사람이 읽을 수 있는 유일 버전 |
-| status_code | DRAFT, ACTIVE, DEPRECATED. 첫 importer slice는 DRAFT만 생성 |
+| status_code | DRAFT, ACTIVE, DEPRECATED. 일반 importer는 DRAFT를 생성하고, 승인된 v2.0.6 promotion/import만 ACTIVE 전환 대상 |
 | manifest_schema_version | 검증한 seed manifest schema version |
 | generator_version | seed를 만든 generator version |
 | code_set_version | importer가 검증한 machine code 집합 버전. `mvp-v1` 또는 migration 0026의 `catalog-v2` |
@@ -433,7 +433,8 @@ backup restore 직후 사용자 접근 차단과 동일 삭제 policy 재적용�
 `status_interpretation_code=PRODUCTION_APPROVED`, `production_eligible=true`,
 `activated_at IS NOT NULL`을 모두 만족해야 한다. DRAFT importer는 `AGENT_ONLY` 또는 검증된
 `DOMAIN_REVIEWER` 증적을 수용하지만 `PIPELINE_COMPATIBILITY_ONLY`, `production_eligible=false`만
-생성한다.
+생성한다. 승인 registry의 version·manifest hash·record count가 모두 일치하는 v2.0.6
+전용 promotion/import만 `PRODUCTION_APPROVED`와 운영 활성화를 허용한다.
 
 `DOMAIN_APPROVED`는 파이프라인 호환 상태이며 그 문자열만으로 ACTIVE 또는 production-safe로
 승격하지 않는다. `production_eligible=false`인 version은 사용자 추천에 사용할 수 없다.
@@ -557,12 +558,12 @@ body_areas의 MVP 허용 코드는 DOMAIN_RULES.md의 불편 부위 코드와 �
 
 각 lookup 행은 `code_set_version`을 저장한다. 최초 catalog importer의 `mvp-v1`은 실제
 DRAFT 카탈로그 산출물이 사용하는 코드만 Pydantic `StrEnum`으로 검증한다. migration 0026은
-`catalog-v2`와 14개 body-focus code를 additive하게 허용한다. `CORE`, `FULL_BODY`처럼 두 code-set이
+`catalog-v2`와 15개 body-focus code를 additive하게 허용한다. `CORE`, `FULL_BODY`처럼 두 code-set이
 공유하는 stable code는 전역 code PK의 기존 lookup 행을 재사용한다. 기존 machine code를 한국어
 label로 바꾸거나 삭제하지 않으며 새 코드는 후속 version에 추가한다.
 
 `catalog-v2` body-focus code는 `CHEST`, `BACK`, `SHOULDERS`, `BICEPS`, `TRICEPS`, `FOREARMS`,
-`GLUTES`, `QUADRICEPS`, `HAMSTRINGS`, `CALVES`, `CORE`, `FULL_BODY`, `CARDIO`, `MOBILITY`다.
+`GLUTES`, `QUADRICEPS`, `HAMSTRINGS`, `CALVES`, `ADDUCTORS`, `CORE`, `FULL_BODY`, `CARDIO`, `MOBILITY`다.
 V2 import에서는 legacy `UPPER_BODY`, `LOWER_BODY`를 거부하지만 V1 row와 응답의 decoding은 유지한다.
 `CARDIO`와 `MOBILITY` training type은 같은 이름의 body-focus를 사용한다.
 `display_name_ko`는 machine code와 분리하고 PM 승인값만 저장한다. PM 승인 표시명이 아직

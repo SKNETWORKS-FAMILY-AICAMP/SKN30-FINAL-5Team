@@ -1,0 +1,3345 @@
+{
+  "status": "DRAFT",
+  "policy": {
+    "field": "safety_relevant_body_area_codes",
+    "selectable_body_area_codes": [
+      "NECK",
+      "SHOULDER",
+      "ELBOW",
+      "WRIST_HAND",
+      "UPPER_BACK",
+      "LOWER_BACK",
+      "HIP",
+      "KNEE",
+      "ANKLE_FOOT",
+      "CHEST",
+      "ABDOMEN"
+    ],
+    "primary_secondary_copy": false,
+    "manual_basis": "instruction_summary_ko and analogous reviewed movement checks"
+  },
+  "catalog_source": {
+    "path": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv",
+    "sha256": "fdf22db1cca2114fa3d50826f97cd2a87e9706f44c41d966fa23fe2ec09e6b98"
+  },
+  "hk_source": {
+    "path": "/Users/bini/Desktop/Bini/projects/HK_data/exercises-dataset/data/exercise_catalog.json",
+    "sha256": "0d747467786dd99153ab875214efc2aeb612e2f4e49fb61edf5c5557a06476da"
+  },
+  "counts": {
+    "catalog_records": 237,
+    "direct_source_records": 202,
+    "manual_instruction_review_records": 35
+  },
+  "records": [
+    {
+      "source_identity": "1368",
+      "name_en": "ankle circles",
+      "name_ko": "발목 돌리기",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1369",
+      "name_en": "band two legs calf raise - (band under both legs)",
+      "name_ko": "밴드 카프레이즈",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": "1. 양발로 밴드를 밟고 서서 양끝을 손에 잡습니다 2. 뒤꿈치를 들어 발 앞부분으로 올라갔다가 천천히 뒤꿈치를 바닥으로 내립니다"
+    },
+    {
+      "source_identity": "0032",
+      "name_en": "barbell deadlift",
+      "name_ko": "바벨 데드리프트",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0041",
+      "name_en": "barbell front raise",
+      "name_ko": "바벨 프론트 레이즈",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK"
+      ],
+      "instruction_summary_ko": "1. 발을 어깨넓이로 벌리고 섭니다 2. 팔을 곧게 펼친 상태를 유지하면서 바벨을 앞으로 위쪽으로 들어올려 어깨 높이에 도달하게 합니다"
+    },
+    {
+      "source_identity": "0116",
+      "name_en": "barbell straight leg deadlift",
+      "name_ko": "바벨 루마니안 데드리프트",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": "1. 발을 어깨 너비로 벌리고 발가락을 앞으로 향하게 섭니다 2. 골반에서 몸을 굽히면서 바벨을 지면으로 내립니다 3. 종아리와 엉덩이를 사용하여 바벨을 들어올려 시작 자세로 돌아옵니다"
+    },
+    {
+      "source_identity": "0489",
+      "name_en": "hyperextension",
+      "name_ko": "백 익스텐션",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0274",
+      "name_en": "crunch floor",
+      "name_ko": "크런치",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3470",
+      "name_en": "forward lunge (male)",
+      "name_ko": "포워드 런지",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3013",
+      "name_en": "low glute bridge on floor",
+      "name_ko": "글루트 브리지",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0140",
+      "name_en": "biceps pull-up",
+      "name_ko": "풀업",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": "1. 풀업 봉에서 손바닥이 자신을 향하도록 매달리되 손은 어깨 너비로 벌립니다 2. 코어에 힘을 주고 팔꿈치를 구부려 가슴을 봉 쪽으로 당깁니다 3. 동작의 가장 높은 지점에서 멈춘 후 천천히 시작 자세로 내려갑니다 4. 어렵다면 어시스트 풀업 머신이나 밴드를 사용해 같은 동작으로 수행합니다"
+    },
+    {
+      "source_identity": "0872",
+      "name_en": "reverse crunch",
+      "name_ko": "리버스 크런치",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "2368",
+      "name_en": "split squats",
+      "name_ko": "스플릿 스쿼트",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1373",
+      "name_en": "bodyweight standing calf raise",
+      "name_ko": "스탠딩 카프 레이즈",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": "1. 발을 어깨 너비만큼 벌려 서고 손가락을 앞으로 향합니다 2. 천천히 발뒤꿈치를 바닥에서 들어 올리면서 발 앞부분으로 체중을 옮깁니다 3. 가장 높은 지점에서 잠시 멈춘 후 천천히 발뒤꿈치를 시작 자세로 내립니다"
+    },
+    {
+      "source_identity": "1494",
+      "name_en": "butterfly yoga pose",
+      "name_ko": "나비자세",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "WRIST_HAND",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0201",
+      "name_en": "cable pushdown",
+      "name_ko": "케이블 트라이셉스 푸시다운 머신",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND"
+      ],
+      "instruction_summary_ko": "1. 머신을 향해 어깨 너비로 발을 벌리고 무릎을 약간 구부립니다 2. 팔꿈치가 완전히 펴질 때까지 바를 아래로 밉니다 3. 잠깐 멈춘 후 천천히 바를 시작 자세로 돌립니다"
+    },
+    {
+      "source_identity": "3672",
+      "name_en": "back and forth step",
+      "name_ko": "앞뒤 스텝",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3636",
+      "name_en": "high knee against wall",
+      "name_ko": "하이니",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3666",
+      "name_en": "walking on incline treadmill",
+      "name_ko": "인클라인 트레드밀",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "2311",
+      "name_en": "walking on stepmill",
+      "name_ko": "스텝밀 머신(천국의 계단)",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "WRIST_HAND",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1548",
+      "name_en": "chair leg extended stretch",
+      "name_ko": "시티드 레그 익스텐션 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1271",
+      "name_en": "chest and front of shoulder stretch",
+      "name_ko": "가슴·어깨 앞면 스트레칭",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "CHEST"
+      ],
+      "instruction_summary_ko": "1. 발을 어깨 너비로 떨어뜨리고 곧게 선 자세로 시작합니다 2. 부드럽게 어깨 뼈를 함께 짜면서 손을 앞으로 밀어 가슴과 어깨 앞쪽이 늘어나는 느낌이 들도록 합니다"
+    },
+    {
+      "source_identity": "0259",
+      "name_en": "close-grip push-up",
+      "name_ko": "클로즈 그립 푸시업",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1760",
+      "name_en": "dumbbell goblet squat",
+      "name_ko": "덤벨 고블릿 스쿼트",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": "1. 어깨너비로 발을 벌리고 서서 덤벨을 양손으로 수직으로 잡아 가슴에 안깁니다 2. 가슴을 위로 유지하고 코어를 조이면서 엉덩이를 뒤로 밀고 무릎을 굽혀 몸을 스쿼트 자세로 내립니다 3. 바닥에서 잠깐 멈춘 후 발꿈치를 밀어 시작 자세로 돌아옵니다"
+    },
+    {
+      "source_identity": "0334",
+      "name_en": "dumbbell lateral raise",
+      "name_ko": "덤벨 레터럴 레이즈",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK"
+      ],
+      "instruction_summary_ko": "1. 어깨 너비만큼 발을 벌리고 각 손에 덤벨을 들되 손가락이 몸 쪽을 향합니다 2. 팔을 옆으로 들어올려 바닥과 평행하게 만들고 팔꿈치에 살짝 구부립니다 3. 정상에서 잠시 멈추었다가 팔을 천천히 시작 자세로 내립니다"
+    },
+    {
+      "source_identity": "0335",
+      "name_en": "dumbbell lateral to front raise",
+      "name_ko": "덤벨 레터럴 투 프론트 레이즈",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK"
+      ],
+      "instruction_summary_ko": "1. 어깨 너비만큼 발을 벌리고 각 손에 덤벨을 들되 손가락이 몸 쪽을 향합니다 2. 팔을 옆으로 들어올려 바닥과 평행하게 만들고 팔꿈치에 살짝 구부립니다 3. 정상에서 잠시 멈추었다가 팔을 천천히 시작 자세로 내립니다"
+    },
+    {
+      "source_identity": "0372",
+      "name_en": "dumbbell preacher curl",
+      "name_ko": "덤벨 프리처 컬",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "CHEST"
+      ],
+      "instruction_summary_ko": "1. 프리처 컬 벤치에 앉아 팔을 패드에 올리고 가슴을 패드에 댑니다 2. 이두근이 완전히 수축되고 덤벨이 어깨 높이에 올 때까지 덤벨을 계속 올립니다 3. 천천히 덤벨을 시작 자세로 내립니다"
+    },
+    {
+      "source_identity": "0378",
+      "name_en": "dumbbell rear fly",
+      "name_ko": "덤벨 리어 델트 플라이",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": "1. 발을 어깨 넓이로 벌리고 양손에 덤벨을 잡습니다 2. 무릎을 약간 구부리고 엉덩이에서 구부리면서 등을 곧게 펼칩니다 3. 가장 높은 지점에서 잠시 멈춘 후 천천히 팔을 시작 자세로 내립니다"
+    },
+    {
+      "source_identity": "0406",
+      "name_en": "dumbbell shrug",
+      "name_ko": "덤벨 슈러그",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK"
+      ],
+      "instruction_summary_ko": "1. 발을 어깨 너비로 벌리고 섭니다 2. 어깨를 최대한 높이 올려 귀에 닿으려는 듯이 합니다 3. 수축을 유지한 후 어깨를 시작 자세로 천천히 내립니다"
+    },
+    {
+      "source_identity": "0416",
+      "name_en": "dumbbell standing biceps curl",
+      "name_ko": "덤벨 바이셉스 컬",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND"
+      ],
+      "instruction_summary_ko": "1. 손바닥이 앞을 향하고 팔을 완전히 뻗은 상태로 양손에 덤벨을 들고 바르게 섭니다 2. 이두근이 완전히 수축되고 덤벨이 어깨 높이에 도달할 때까지 계속 올립니다 3. 덤벨을 천천히 시작 자세로 내리기 시작합니다"
+    },
+    {
+      "source_identity": "2796",
+      "name_en": "dumbbell step-up lunge",
+      "name_ko": "덤벨 스텝업 런지",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": "1. 양손에 덤벨을 들고 옆을 향하도록 손가락을 한 채로 계단이나 플랫폼 앞에 섭니다 2. 오른쪽 발뒤꿈치를 통해 몸을 밀어올리면서 계단 위로 올라가 왼쪽 발도 함께 올립니다 3. 두 발이 모두 계단 위에 올려지면 왼쪽 발을 내려 시작 자세로 돌아가면서 오른쪽 발은 계단 위에 유지합니다 4. 반대쪽도 같은 순서로 수행합니다"
+    },
+    {
+      "source_identity": "1167",
+      "name_en": "dynamic chest stretch (male)",
+      "name_ko": "다이내믹 가슴 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1559",
+      "name_en": "exercise ball hip flexor stretch",
+      "name_ko": "짐볼 고관절 스트레칭",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": "1. 짐볼을 바닥에 놓고 그 앞에 무릎을 꿇으습니다 2. 오른쪽 발을 짐볼 위에 올려놓되 무릎을 90도 각도로 구부리습니다 3. 자세를 잠시 유지한 뒤 반대쪽으로 바꿔 반복합니다"
+    },
+    {
+      "source_identity": "1511",
+      "name_en": "hamstring stretch",
+      "name_ko": "햄스트링 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0854",
+      "name_en": "weighted standing hand squeeze",
+      "name_ko": "손 악력 쥐기",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND"
+      ],
+      "instruction_summary_ko": "1. 발을 어깨 너비만큼 떨어뜨리고 각 손에 웨이트를 들고 서 있습니다 2. 팔을 앞으로 곧게 뻗어 손가락이 마주보도록 합니다"
+    },
+    {
+      "source_identity": "0499",
+      "name_en": "inverted row",
+      "name_ko": "인버티드 로우",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": "1. 막대나 서스펜션 트레이너 앞에 서면서 발을 어깨너비로 벌립니다 2. 가슴을 막대나 손잡이 쪽으로 당기면서 어깨뼈를 함께 조입니다 3. 위쪽에서 잠시 멈춘 후 천천히 시작 자세로 내려옵니다"
+    },
+    {
+      "source_identity": "1346",
+      "name_en": "kneeling lat stretch",
+      "name_ko": "무릎 꿇고 광배근 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0198",
+      "name_en": "cable pulldown",
+      "name_ko": "랫풀다운 머신",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "KNEE",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1352",
+      "name_en": "lower back curl",
+      "name_ko": "로어 백 컬",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "UPPER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1403",
+      "name_en": "neck side stretch",
+      "name_ko": "목 옆면 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "NECK",
+        "SHOULDER",
+        "UPPER_BACK",
+        "LOWER_BACK"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1355",
+      "name_en": "one arm against wall",
+      "name_ko": "벽 짚고 한 팔 광배근 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1386",
+      "name_en": "one leg donkey calf raise",
+      "name_ko": "한발 동키 카프 레이즈",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": "1. 발을 어깨 너비로 벌리고 발가락을 앞으로 향하게 하고 서서 있습니다 2. 한다리를 바닥에서 들어올려 무릎을 약간 구부린 상태로 유지합니다 3. 가장 높은 지점에서 잠시 멈춘 후 발뒤꿈치를 천천히 내립니다"
+    },
+    {
+      "source_identity": "0109",
+      "name_en": "barbell standing overhead triceps extension",
+      "name_ko": "바벨 오버헤드 트라이셉스 익스텐션",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK"
+      ],
+      "instruction_summary_ko": "1. 발을 어깨 너비로 벌리고 서서 바벨을 손바닥이 아래를 향하도록 잡습니다 2. 팔꿈치를 머리에 가깝게 유지하면서 팔꿈치를 구부려 천천히 바벨을 머리 뒤로 내립니다 3. 잠시 멈춘 후 팔을 펴서 바벨을 시작 자세로 올려 펼칩니다"
+    },
+    {
+      "source_identity": "0643",
+      "name_en": "overhead triceps stretch",
+      "name_ko": "오버헤드 삼두근 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0662",
+      "name_en": "push-up",
+      "name_ko": "푸시업",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": "1. 손이 어깨 너비보다 약간 넓고 발이 함께 있으며 머리에서 발끝까지 일직선인 높은 플랭크 자세에서 시작합니다 2. 코어를 조여 팔꿈치를 구부려 가슴을 땅 쪽으로 낮추면서 몸을 일직선으로 유지합니다 3. 가슴이 땅 바로 위에 있을 때 잠깐 멈춘 후 팔을 펴서 처음 자세로 다시 올립니다 4. 어려우면 무릎을 바닥에 대고 수행하거나 내려갈 때만 천천히 버틴 뒤 무릎을 대고 올라옵니다"
+    },
+    {
+      "source_identity": "1512",
+      "name_en": "quadruped quadriceps stretch",
+      "name_ko": "네발 햄스트링 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0669",
+      "name_en": "rear deltoid stretch",
+      "name_ko": "후면 어깨 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1000",
+      "name_en": "band single leg reverse calf raise",
+      "name_ko": "리버스 카프 레이즈",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": "1. 엉덩이 너비로 발을 벌리고 서서 밴드를 발 앞부분에 감습니다 2. 천천히 발꿈치를 지면에서 들어 발 앞부분에 체중을 올립니다 3. 가장 높은 지점에서 잠시 멈춘 후 천천히 발꿈치를 시작 자세로 내립니다"
+    },
+    {
+      "source_identity": "0082",
+      "name_en": "barbell reverse wrist curl",
+      "name_ko": "바벨 리버스 리스트 컬",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "ELBOW",
+        "WRIST_HAND"
+      ],
+      "instruction_summary_ko": "1. 벤치에 앉아 발은 바닥에 놓습니다 2. 손목을 천천히 위로 굽히며 바벨을 몸 방향으로 올립니다 3. 상단에서 잠시 멈춘 후 천천히 바벨을 시작 자세로 내립니다"
+    },
+    {
+      "source_identity": "2208",
+      "name_en": "roller back stretch",
+      "name_ko": "폼롤러 등 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "2202",
+      "name_en": "roller hip stretch",
+      "name_ko": "폼롤러 둔근 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1585",
+      "name_en": "runners stretch",
+      "name_ko": "러너스 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0688",
+      "name_en": "scapular pull-up",
+      "name_ko": "스캐풀라 풀업",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": "1. 풀업 바에 매달려 손바닥이 몸을 향하게 하고 팔을 완전히 펼칩니다 2. 어깨 견갑골을 아래로 그리고 뒤로 당겨서 수축시킵니다 3. 동작의 가장 높은 지점에서 잠시 멈춘 후 천천히 몸을 시작 자세로 내려갑니다"
+    },
+    {
+      "source_identity": "0861",
+      "name_en": "cable seated row",
+      "name_ko": "시티드 케이블 로우 머신",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": "1. 케이블 로우 머신에 앉아 발을 풋레스트에 평평하게 놓고 무릎을 약간 구부립니다 2. 핸들을 몸 쪽으로 당기며 견갑골을 함께 조입니다 3. 운동의 최고점에서 잠시 멈춘 후 천천히 핸들을 시작 자세로 돌려놓습니다"
+    },
+    {
+      "source_identity": "0088",
+      "name_en": "barbell seated calf raise",
+      "name_ko": "바벨 시티드 카프 레이즈",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1390",
+      "name_en": "seated calf stretch (male)",
+      "name_ko": "앉아서 종아리 스트레칭",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": "1. 의자나 벤치의 끝에 앉아 발을 땅에 평평하게 놓습니다 2. 약간 앞으로 기울여 종아리가 늘어나는 느낌이 들도록 합니다"
+    },
+    {
+      "source_identity": "1424",
+      "name_en": "seated glute stretch",
+      "name_ko": "앉아서 둔근 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0599",
+      "name_en": "lever seated leg curl",
+      "name_ko": "레그 컬 머신",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": "1. 머신을 몸에 맞게 조절하고 등받이에 등을 붙여 앉습니다 2. 위쪽 다리를 고정한 상태에서 다리를 가능한 한 높이 위로 구부립니다 3. 천천히 레버를 시작 자세로 내립니다"
+    },
+    {
+      "source_identity": "0690",
+      "name_en": "seated lower back stretch",
+      "name_ko": "앉아서 허리 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "2567",
+      "name_en": "seated piriformis stretch",
+      "name_ko": "앉아서 이상근 스트레칭",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "ELBOW",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": "1. 오른쪽 무릎을 구부려 오른쪽 발을 왼쪽 무릎의 바깥쪽에 놓습니다 2. 왼쪽 팔꿈치를 오른쪽 무릎의 바깥쪽에 놓고 부드럽게 상체를 오른쪽으로 회전합니다 3. 자세를 잠시 유지한 뒤 반대쪽으로 바꾸어 반복합니다"
+    },
+    {
+      "source_identity": "0405",
+      "name_en": "dumbbell seated shoulder press",
+      "name_ko": "숄더 프레스",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1587",
+      "name_en": "seated wide angle pose sequence",
+      "name_ko": "앉아서 허벅지 안쪽 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0613",
+      "name_en": "lying (side) quads stretch",
+      "name_ko": "옆으로 누워 햄스트링 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "WRIST_HAND",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0721",
+      "name_en": "side wrist pull stretch",
+      "name_ko": "손목 당기기 스트레칭",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND"
+      ],
+      "instruction_summary_ko": "1. 발을 어깨너비로 벌리고 팔을 앞으로 펼쳐 섭니다 2. 오른팔을 옆으로 펴 땅과 평행하게 하고 손바닥은 아래를 향합니다 3. 반대쪽에서 반복합니다"
+    },
+    {
+      "source_identity": "0763",
+      "name_en": "smith reverse calf raises",
+      "name_ko": "스미스 리버스 카프 레이즈 머신",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": "1. 바를 마주보고 발을 엉덩이너비로 벌려 발끝을 앞쪽을 향하게 섭니다 2. 발의 앞부분을 스텝이나 플랫폼의 가장자리에 올리고 발뒤꿈치를 내리게 합니다 3. 가장 높은 지점에서 잠깐 멈춘 후 발뒤꿈치를 천천히 시작 자세로 내립니다"
+    },
+    {
+      "source_identity": "1363",
+      "name_en": "spine stretch",
+      "name_ko": "척추 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0794",
+      "name_en": "standing lateral stretch",
+      "name_ko": "서서 옆구리 스트레칭",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": "1. 발을 어깨너비로 벌리고 무릎을 약간 구부린 상태로 서 있습니다 2. 옆구리와 등 근육에 늘어남을 느끼면서 상체를 한쪽 방향으로 천천히 몸을 기울입니다 3. 시작 자세로 돌아와 다른 쪽에서 반복합니다 4. 반대쪽도 같은 순서로 수행합니다"
+    },
+    {
+      "source_identity": "0817",
+      "name_en": "triceps stretch",
+      "name_ko": "삼두근 스트레칭",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW"
+      ],
+      "instruction_summary_ko": "1. 서거나 앉은 상태에서 등을 곧게 펴고 섭니다 2. 한쪽 팔을 머리 위로 쭉 뻗어 팔꿈치를 구부립니다 3. 반대쪽 손을 팔꿈치에 놓고 머리 쪽으로 부드럽게 당깁니다"
+    },
+    {
+      "source_identity": "1365",
+      "name_en": "upper back stretch",
+      "name_ko": "상부 등 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "WRIST_HAND",
+        "UPPER_BACK"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1377",
+      "name_en": "calf stretch with hands against wall",
+      "name_ko": "벽 짚고 종아리 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1604",
+      "name_en": "world greatest stretch",
+      "name_ko": "런지 스트레칭",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": "1. 한쪽 발을 앞으로 크게 내디뎌 런지 자세를 만들고 양손을 앞발 안쪽 바닥에 둡니다 2. 한 손을 들어 상체를 회전한 뒤 손을 바닥으로 돌리고 반대쪽도 수행합니다"
+    },
+    {
+      "source_identity": "1428",
+      "name_en": "wrist circles",
+      "name_ko": "손목 돌리기",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND"
+      ],
+      "instruction_summary_ko": "1. 팔을 앞으로 곧게 뻗습니다 2. 팔을 고정하고 손목을 원형 운동으로 회전합니다"
+    },
+    {
+      "source_identity": "0126",
+      "name_en": "barbell wrist curl",
+      "name_ko": "바벨 리스트 컬",
+      "source_type": "INSTRUCTION_REVIEW_MANUAL",
+      "safety_relevant_body_area_codes": [
+        "ELBOW",
+        "WRIST_HAND"
+      ],
+      "instruction_summary_ko": "1. 벤치에 앉아 발을 땅에 디디고 팔뚝을 허벅지 위에 올린 상태에서 손바닥이 위를 향하도록 바벨을 잡습니다 2. 손목을 굽혀 바벨을 팔뚝 쪽으로 천천히 들어올립니다 3. 가장 높은 지점에서 잠깐 멈춘 후 천천히 바벨을 시작 자세로 내립니다"
+    },
+    {
+      "source_identity": "0002",
+      "name_en": "45° side bend",
+      "name_ko": "45도 사이드 벤드",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0006",
+      "name_en": "alternate heel touchers",
+      "name_ko": "좌우 발뒤꿈치 터치",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0007",
+      "name_en": "alternate lateral pulldown",
+      "name_ko": "좌우 레터럴 풀다운",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0017",
+      "name_en": "assisted pull-up",
+      "name_ko": "어시스트 풀업",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0019",
+      "name_en": "assisted triceps dip (kneeling)",
+      "name_ko": "어시스트 딥스",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "KNEE",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0022",
+      "name_en": "barbell pullover to press",
+      "name_ko": "바벨 풀오버 투 프레스",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0026",
+      "name_en": "barbell bench squat",
+      "name_ko": "바벨 벤치 스쿼트",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0027",
+      "name_en": "barbell bent over row",
+      "name_ko": "바벨 벤트오버 로우",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "KNEE",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0031",
+      "name_en": "barbell curl",
+      "name_ko": "바벨 컬",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0034",
+      "name_en": "barbell decline bent arm pullover",
+      "name_ko": "바벨 디클라인 벤트암 풀오버",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0035",
+      "name_en": "barbell decline close grip to skull press",
+      "name_ko": "바벨 디클라인 클로즈그립 스컬 프레스",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0043",
+      "name_en": "barbell full squat",
+      "name_ko": "바벨 풀 스쿼트",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0044",
+      "name_en": "barbell good morning",
+      "name_ko": "바벨 굿모닝",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0047",
+      "name_en": "barbell incline bench press",
+      "name_ko": "바벨 인클라인 벤치 프레스",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0049",
+      "name_en": "barbell incline row",
+      "name_ko": "바벨 인클라인 로우",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0053",
+      "name_en": "barbell jump squat",
+      "name_ko": "바벨 점프 스쿼트",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0054",
+      "name_en": "barbell lunge",
+      "name_ko": "바벨 런지",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0056",
+      "name_en": "barbell lying close-grip triceps extension",
+      "name_ko": "바벨 라잉 클로즈그립 삼두 익스텐션",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0058",
+      "name_en": "barbell lying lifting (on hip)",
+      "name_ko": "바벨 라잉 힙 리프팅",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0059",
+      "name_en": "barbell lying preacher curl",
+      "name_ko": "바벨 라잉 프리처 컬",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0063",
+      "name_en": "barbell narrow stance squat",
+      "name_ko": "바벨 내로우 스탠스 스쿼트",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "ELBOW",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0069",
+      "name_en": "barbell overhead squat",
+      "name_ko": "바벨 오버헤드 스쿼트",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "WRIST_HAND",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0070",
+      "name_en": "barbell preacher curl",
+      "name_ko": "바벨 프리처 컬",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0074",
+      "name_en": "barbell rack pull",
+      "name_ko": "바벨 랙 풀",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0076",
+      "name_en": "barbell rear delt row",
+      "name_ko": "바벨 리어 델트 로우",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0085",
+      "name_en": "barbell romanian deadlift",
+      "name_ko": "바벨 루마니안 데드리프트",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0090",
+      "name_en": "barbell seated good morning",
+      "name_ko": "바벨 시티드 굿모닝",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0091",
+      "name_en": "barbell seated overhead press",
+      "name_ko": "바벨 시티드 오버헤드 프레스",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0094",
+      "name_en": "barbell seated twist",
+      "name_ko": "바벨 시티드 트위스트",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "ELBOW",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "KNEE",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0095",
+      "name_en": "barbell shrug",
+      "name_ko": "바벨 슈러그",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0096",
+      "name_en": "barbell side bent",
+      "name_ko": "바벨 사이드 벤드",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0108",
+      "name_en": "barbell standing leg calf raise",
+      "name_ko": "바벨 스탠딩 레그 카프 레이즈",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0111",
+      "name_en": "barbell standing rocking leg calf raise",
+      "name_ko": "바벨 스탠딩 록킹 레그 카프 레이즈",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0117",
+      "name_en": "barbell sumo deadlift",
+      "name_ko": "바벨 스모 데드리프트",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0121",
+      "name_en": "barbell upright row",
+      "name_ko": "바벨 업라이트 로우",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0129",
+      "name_en": "bench dip (knees bent)",
+      "name_ko": "벤치 딥(무릎 굽힘)",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0130",
+      "name_en": "bench hip extension",
+      "name_ko": "벤치 힙 익스텐션",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "UPPER_BACK",
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0137",
+      "name_en": "body-up",
+      "name_ko": "벤치 덩키킥",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "ANKLE_FOOT",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0138",
+      "name_en": "bottoms-up",
+      "name_ko": "누워서 다리 당기기",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0158",
+      "name_en": "cable decline fly",
+      "name_ko": "케이블 디클라인 플라이",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0159",
+      "name_en": "cable decline seated wide-grip row",
+      "name_ko": "케이블 디클라인 시티드 와이드그립 로우",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0168",
+      "name_en": "cable hip adduction",
+      "name_ko": "케이블 힙 어덕션",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0169",
+      "name_en": "cable incline bench press",
+      "name_ko": "케이블 인클라인 벤치 프레스",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0180",
+      "name_en": "cable low seated row",
+      "name_ko": "케이블 시티드 로우(낮은 위치)",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0199",
+      "name_en": "cable pushdown (straight arm)",
+      "name_ko": "케이블 푸시다운(팔을 곧게 편 자세)",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0214",
+      "name_en": "cable seated one arm alternate row",
+      "name_ko": "케이블 시티드 원암 교대 로우",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0218",
+      "name_en": "cable seated wide-grip row",
+      "name_ko": "케이블 시티드 와이드그립 로우",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0228",
+      "name_en": "cable standing hip extension",
+      "name_ko": "케이블 스탠딩 힙 익스텐션",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0233",
+      "name_en": "cable standing rear delt row (with rope)",
+      "name_ko": "케이블 스탠딩 리어 델트 로우(로프)",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0239",
+      "name_en": "cable straight back seated row",
+      "name_ko": "케이블 스트레이트백 시티드 로우",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0260",
+      "name_en": "cocoons",
+      "name_ko": "누워서 몸 접기",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "ELBOW",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0262",
+      "name_en": "cross body crunch",
+      "name_ko": "크로스바디 크런치",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "ELBOW",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0271",
+      "name_en": "crunch (on stability ball)",
+      "name_ko": "짐볼 크런치",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0272",
+      "name_en": "crunch (on stability ball, arms straight)",
+      "name_ko": "짐볼 팔을 곧게 편 크런치",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0276",
+      "name_en": "dead bug",
+      "name_ko": "데드 버그",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0285",
+      "name_en": "dumbbell alternate biceps curl",
+      "name_ko": "덤벨 교대 이두 컬",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0287",
+      "name_en": "dumbbell arnold press",
+      "name_ko": "덤벨 아놀드 프레스",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0291",
+      "name_en": "dumbbell bench squat",
+      "name_ko": "덤벨 벤치 스쿼트",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0292",
+      "name_en": "dumbbell one arm bent-over row",
+      "name_ko": "덤벨 원암 벤트오버 로우",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0293",
+      "name_en": "dumbbell bent over row",
+      "name_ko": "덤벨 벤트오버 로우",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0299",
+      "name_en": "dumbbell cuban press",
+      "name_ko": "덤벨 쿠반 프레스",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0300",
+      "name_en": "dumbbell deadlift",
+      "name_ko": "덤벨 데드리프트",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0303",
+      "name_en": "dumbbell decline hammer press",
+      "name_ko": "덤벨 디클라인 해머 프레스",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "HIP",
+        "KNEE",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0314",
+      "name_en": "dumbbell incline bench press",
+      "name_ko": "덤벨 인클라인 벤치 프레스",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0317",
+      "name_en": "dumbbell incline curl",
+      "name_ko": "덤벨 인클라인 컬",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0321",
+      "name_en": "dumbbell incline hammer press",
+      "name_ko": "덤벨 인클라인 해머 프레스",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "HIP",
+        "KNEE",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0326",
+      "name_en": "dumbbell incline rear lateral raise",
+      "name_ko": "덤벨 인클라인 리어 레터럴 레이즈",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0327",
+      "name_en": "dumbbell incline row",
+      "name_ko": "덤벨 인클라인 로우",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0371",
+      "name_en": "dumbbell plyo squat",
+      "name_ko": "덤벨 플라이오 스쿼트",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0379",
+      "name_en": "dumbbell rear lateral raise (support head)",
+      "name_ko": "덤벨 리어 레터럴 레이즈(머리 지지)",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0389",
+      "name_en": "dumbbell seated bench extension",
+      "name_ko": "덤벨 시티드 벤치 익스텐션",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "UPPER_BACK",
+        "LOWER_BACK"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0410",
+      "name_en": "dumbbell single leg split squat",
+      "name_ko": "덤벨 싱글 레그 스플릿 스쿼트",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0443",
+      "name_en": "elbow-to-knee",
+      "name_ko": "팔꿈치-무릎 터치",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "ELBOW",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0456",
+      "name_en": "flexion leg sit up (bent knee)",
+      "name_ko": "무릎을 굽힌 레그 싯업",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "ELBOW",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0459",
+      "name_en": "flutter kicks",
+      "name_ko": "플러터 킥",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0469",
+      "name_en": "groin crunch",
+      "name_ko": "발바닥 붙이고 크런치",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "ELBOW",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0513",
+      "name_en": "jump squat",
+      "name_ko": "점프 스쿼트",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0514",
+      "name_en": "jump squat",
+      "name_ko": "점프 스쿼트",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0548",
+      "name_en": "kettlebell sumo high pull",
+      "name_ko": "케틀벨 스모 하이 풀",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0549",
+      "name_en": "kettlebell swing",
+      "name_ko": "케틀벨 스윙",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "WRIST_HAND",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0555",
+      "name_en": "kick out sit",
+      "name_ko": "킥아웃 싯업",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0584",
+      "name_en": "lever lateral raise",
+      "name_ko": "레버 레터럴 레이즈",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "WRIST_HAND",
+        "UPPER_BACK"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0585",
+      "name_en": "lever leg extension",
+      "name_ko": "레버 레그 익스텐션",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0586",
+      "name_en": "lever lying leg curl",
+      "name_ko": "레버 라잉 레그 컬",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "ELBOW",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0596",
+      "name_en": "lever seated fly",
+      "name_ko": "레버 시티드 플라이",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0597",
+      "name_en": "lever seated hip abduction",
+      "name_ko": "레버 시티드 힙 어브덕션",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0598",
+      "name_en": "lever seated hip adduction",
+      "name_ko": "레버 시티드 힙 어덕션",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0601",
+      "name_en": "lever seated reverse fly (parallel grip)",
+      "name_ko": "레버 시티드 리버스 플라이(평행 그립)",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0602",
+      "name_en": "lever seated reverse fly",
+      "name_ko": "레버 시티드 리버스 플라이",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0620",
+      "name_en": "lying leg raise flat bench",
+      "name_ko": "플랫 벤치 라잉 레그 레이즈",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0628",
+      "name_en": "monster walk",
+      "name_ko": "몬스터 워크",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0630",
+      "name_en": "mountain climber",
+      "name_ko": "마운틴 클라이머",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0635",
+      "name_en": "oblique crunches floor",
+      "name_ko": "바닥 오블리크 크런치",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "KNEE",
+        "ANKLE_FOOT",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0659",
+      "name_en": "push-up (wall)",
+      "name_ko": "벽 푸시업",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "HIP",
+        "KNEE",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0668",
+      "name_en": "rear decline bridge",
+      "name_ko": "리어 디클라인 브리지",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0684",
+      "name_en": "run (equipment)",
+      "name_ko": "러닝머신",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0689",
+      "name_en": "seated leg raise",
+      "name_ko": "시티드 레그 레이즈",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0691",
+      "name_en": "seated side crunch (wall)",
+      "name_ko": "벽 짚고 시티드 사이드 크런치",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "ELBOW",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0705",
+      "name_en": "side bridge",
+      "name_ko": "사이드 브리지",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0709",
+      "name_en": "side hip (on parallel bars)",
+      "name_ko": "평행봉 사이드 힙",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0710",
+      "name_en": "side hip abduction",
+      "name_ko": "사이드 힙 어브덕션",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0730",
+      "name_en": "single leg platform slide",
+      "name_ko": "싱글 레그 발판 슬라이드",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0740",
+      "name_en": "sled 45в° leg wide press",
+      "name_ko": "45도 와이드 레그 프레스",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0748",
+      "name_en": "smith bench press",
+      "name_ko": "스미스 벤치 프레스",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0749",
+      "name_en": "smith bent knee good morning",
+      "name_ko": "스미스 벤트 니 굿모닝",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0751",
+      "name_en": "smith close-grip bench press",
+      "name_ko": "스미스 클로즈그립 벤치 프레스",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0760",
+      "name_en": "smith leg press",
+      "name_ko": "스미스 레그 프레스",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0761",
+      "name_en": "smith narrow row",
+      "name_ko": "스미스 내로우 로우",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0768",
+      "name_en": "smith single leg split squat",
+      "name_ko": "스미스 싱글 레그 스플릿 스쿼트",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0769",
+      "name_en": "smith sprint lunge",
+      "name_ko": "스미스 스프린트 런지",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0798",
+      "name_en": "stationary bike walk",
+      "name_ko": "사이클",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "0856",
+      "name_en": "weighted svend press",
+      "name_ko": "스벤드 프레스",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1001",
+      "name_en": "band single leg split squat",
+      "name_ko": "밴드 싱글 레그 스플릿 스쿼트",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1259",
+      "name_en": "behind head chest stretch",
+      "name_ko": "머리 뒤 가슴 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1297",
+      "name_en": "isometric chest squeeze",
+      "name_ko": "체스트 스퀴즈",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "KNEE",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1358",
+      "name_en": "side lying floor stretch",
+      "name_ko": "옆으로 누워 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "UPPER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1362",
+      "name_en": "sphinx",
+      "name_ko": "스핑크스 자세",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "NECK",
+        "SHOULDER",
+        "ELBOW",
+        "UPPER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1366",
+      "name_en": "upward facing dog",
+      "name_ko": "업독",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1388",
+      "name_en": "peroneals stretch",
+      "name_ko": "밴드 종아리 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "WRIST_HAND",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1389",
+      "name_en": "posterior tibialis stretch",
+      "name_ko": "밴드 정강이 종아리 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "WRIST_HAND",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1397",
+      "name_en": "standing calves",
+      "name_ko": "스탠딩 카프 레이즈",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1407",
+      "name_en": "calf push stretch with hands against wall",
+      "name_ko": "벽 짚고 종아리 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1419",
+      "name_en": "iron cross stretch",
+      "name_ko": "아이언 크로스 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1423",
+      "name_en": "reverse hyper on flat bench",
+      "name_ko": "플랫 벤치 리버스 하이퍼익스텐션",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1430",
+      "name_en": "chest dip (on dip-pull-up cage)",
+      "name_ko": "딥-풀업 케이지 체스트 딥",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "KNEE",
+        "ANKLE_FOOT",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1432",
+      "name_en": "assisted standing pull-up",
+      "name_ko": "어시스트 스탠딩 풀업",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "ELBOW",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1460",
+      "name_en": "walking lunge",
+      "name_ko": "워킹 런지",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1476",
+      "name_en": "one leg squat",
+      "name_ko": "싱글 레그 스쿼트",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1564",
+      "name_en": "intermediate hip flexor and quad stretch",
+      "name_ko": "고관절 햄스트링 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "WRIST_HAND",
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1687",
+      "name_en": "posterior step to overhead reach",
+      "name_ko": "리버스 오버헤드 리치",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1689",
+      "name_en": "push and pull bodyweight",
+      "name_ko": "맨몸 푸시 앤 풀",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1700",
+      "name_en": "dumbbell push press",
+      "name_ko": "덤벨 푸시 프레스",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "1771",
+      "name_en": "bodyweight kneeling triceps extension",
+      "name_ko": "맨몸 니링 삼두 익스텐션",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "2133",
+      "name_en": "farmers walk",
+      "name_ko": "파머스 워크",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "WRIST_HAND",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "2141",
+      "name_en": "walk elliptical cross trainer",
+      "name_ko": "일립티컬",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "2203",
+      "name_en": "foam roller hamstring stretch",
+      "name_ko": "폼롤러 햄스트링 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "HIP",
+        "KNEE",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "2204",
+      "name_en": "foam roller thigh stretch",
+      "name_ko": "폼롤러 허벅지 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "LOWER_BACK",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "2205",
+      "name_en": "foam roller outer thigh stretch",
+      "name_ko": "폼롤러 옆허벅지 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "2206",
+      "name_en": "foam roller calf stretch",
+      "name_ko": "폼롤러 종아리 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "2207",
+      "name_en": "foam roller outer thigh stretch",
+      "name_ko": "폼롤러 옆허벅지 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "2209",
+      "name_en": "foam roller calf stretch",
+      "name_ko": "폼롤러 종아리 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "HIP",
+        "KNEE",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "2271",
+      "name_en": "left hook. boxing",
+      "name_ko": "레프트 훅",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "2398",
+      "name_en": "close-grip push-up (on knees)",
+      "name_ko": "클로즈그립 푸시업(무릎 대고)",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "HIP",
+        "KNEE",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "2571",
+      "name_en": "rocking frog stretch",
+      "name_ko": "개구리 스트레칭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3006",
+      "name_en": "resistance band seated hip abduction",
+      "name_ko": "저항 밴드 시티드 힙 어브덕션",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3007",
+      "name_en": "resistance band leg extension",
+      "name_ko": "저항 밴드 레그 익스텐션",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3011",
+      "name_en": "incline scapula push up",
+      "name_ko": "날개뼈 푸시업",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3016",
+      "name_en": "curl-up",
+      "name_ko": "컬업",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "ELBOW",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3147",
+      "name_en": "pelvic tilt",
+      "name_ko": "골반 기울이기",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3195",
+      "name_en": "lever lying two-one leg curl",
+      "name_ko": "레버 라잉 투-원 레그 컬",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "ELBOW",
+        "UPPER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3201",
+      "name_en": "quarter sit-up",
+      "name_ko": "쿼터 싯업",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "ELBOW",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3220",
+      "name_en": "astride jumps (male)",
+      "name_ko": "점핑잭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3221",
+      "name_en": "half knee bends (male)",
+      "name_ko": "하프 니 벤드",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3231",
+      "name_en": "two toe touch (male)",
+      "name_ko": "투 토 터치",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3239",
+      "name_en": "kneeling plank tap shoulder (male)",
+      "name_ko": "니링 플랭크 숄더 탭",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3533",
+      "name_en": "quads",
+      "name_ko": "불가리안 스플릿 스쿼트",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "CHEST"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3544",
+      "name_en": "bodyweight incline side plank",
+      "name_ko": "맨몸 인클라인 사이드 플랭크",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3552",
+      "name_en": "quick feet",
+      "name_ko": "제자리 빠르게 뛰기",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3640",
+      "name_en": "knee touch crunch",
+      "name_ko": "니 터치 크런치",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "UPPER_BACK",
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3645",
+      "name_en": "single leg bridge with outstretched leg",
+      "name_ko": "싱글 레그 브릿지",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "UPPER_BACK",
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3656",
+      "name_en": "short stride run",
+      "name_ko": "짧은 보폭 달리기",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3662",
+      "name_en": "pike-to-cobra push-up",
+      "name_ko": "파이크-코브라 푸시업",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "SHOULDER",
+        "ELBOW",
+        "WRIST_HAND",
+        "HIP",
+        "KNEE",
+        "CHEST",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3667",
+      "name_en": "side lying hip adduction (male)",
+      "name_ko": "사이드 라잉 힙 어덕션",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "HIP",
+        "KNEE"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3671",
+      "name_en": "ski step",
+      "name_ko": "스키 스텝",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "UPPER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT"
+      ],
+      "instruction_summary_ko": null
+    },
+    {
+      "source_identity": "3769",
+      "name_en": "curtsey squat",
+      "name_ko": "뒤로 교차 런지",
+      "source_type": "HK_EXERCISE_CATALOG_DIRECT",
+      "safety_relevant_body_area_codes": [
+        "LOWER_BACK",
+        "HIP",
+        "KNEE",
+        "ANKLE_FOOT",
+        "ABDOMEN"
+      ],
+      "instruction_summary_ko": null
+    }
+  ]
+}
