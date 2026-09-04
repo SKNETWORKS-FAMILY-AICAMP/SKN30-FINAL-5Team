@@ -17,6 +17,7 @@ from backend.app.db.models.profile import (
     UserProfile,
     UserTermsAgreement,
 )
+from backend.app.db.models.reward import BananaWallet
 from backend.app.modules.identity.codes import UserStatusCode
 from backend.app.modules.profiles.codes import (
     PROFILE_CODE_SET_VERSION,
@@ -31,6 +32,7 @@ from backend.app.modules.profiles.ports import (
     MeRecord,
     OnboardingProfileValues,
     OnboardingRecord,
+    ProfileImageRecord,
     ProfileSettingsChanges,
     ProfileSettingsRecord,
 )
@@ -78,6 +80,7 @@ class ProfileRepository:
                         .order_by(UserPreferredExerciseType.exercise_type_code)
                     )
                 ),
+                profile_image_object_key=profile.profile_image_object_key,
                 profile_version=profile.profile_version,
                 created_at=profile.created_at,
                 updated_at=profile.updated_at,
@@ -88,8 +91,47 @@ class ProfileRepository:
             premium_status_code=user.premium_status_code,
             ai_trial_started_at=user.ai_trial_started_at,
             ai_trial_ends_at=user.ai_trial_ends_at,
+            banana_balance=session.scalar(
+                select(BananaWallet.balance).where(BananaWallet.user_id == user_id)
+            )
+            or 0,
             profile=profile_record,
         )
+
+    def get_profile_image_for_update(
+        self, session: Session, user_id: UUID
+    ) -> ProfileImageRecord | None:
+        profile = session.scalar(
+            select(UserProfile).where(UserProfile.user_id == user_id).with_for_update()
+        )
+        if profile is None:
+            return None
+        return ProfileImageRecord(
+            profile.profile_image_object_key,
+            profile.profile_version,
+            profile.updated_at,
+        )
+
+    def update_profile_image(
+        self,
+        session: Session,
+        user_id: UUID,
+        *,
+        object_key: str | None,
+        content_type: str | None,
+        byte_size: int | None,
+        now: datetime,
+    ) -> tuple[int, datetime]:
+        profile = session.get(UserProfile, user_id)
+        if profile is None:
+            raise RuntimeError("locked profile does not exist")
+        profile.profile_image_object_key = object_key
+        profile.profile_image_content_type = content_type
+        profile.profile_image_byte_size = byte_size
+        profile.profile_version += 1
+        profile.updated_at = now
+        session.flush()
+        return profile.profile_version, profile.updated_at
 
     def acquire_idempotency_lock(
         self,

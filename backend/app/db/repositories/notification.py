@@ -8,12 +8,14 @@ from sqlalchemy.orm import Session
 from backend.app.db.models.decision import DecisionRun
 from backend.app.db.models.notification import InAppNotification
 from backend.app.db.models.profile import UserProfile
+from backend.app.db.models.reward import BananaTransaction
 from backend.app.db.models.weekly_report import UserWeek
 from backend.app.db.models.workout import DecisionSelection, WorkoutSession
 from backend.app.modules.notifications.ports import (
     NotificationRecord,
     WeeklyNotificationProgress,
 )
+from backend.app.modules.rewards.codes import BananaTransactionType
 
 
 class NotificationRepository:
@@ -27,6 +29,18 @@ class NotificationRepository:
 
     def get_user_timezone(self, session: Session, user_id: UUID) -> str | None:
         return session.scalar(select(UserProfile.timezone).where(UserProfile.user_id == user_id))
+
+    def is_daily_reward_claimed(self, session: Session, user_id: UUID, local_date: date) -> bool:
+        return (
+            session.scalar(
+                select(BananaTransaction.id).where(
+                    BananaTransaction.user_id == user_id,
+                    BananaTransaction.transaction_type == BananaTransactionType.DAILY_REWARD,
+                    BananaTransaction.source_local_date == local_date,
+                )
+            )
+            is not None
+        )
 
     def get_weekly_progress(
         self, session: Session, user_id: UUID, week_start: date
@@ -82,6 +96,15 @@ class NotificationRepository:
         )
         session.flush()
         return record
+
+    def delete_by_event_key(self, session: Session, user_id: UUID, event_key: str) -> None:
+        session.execute(
+            delete(InAppNotification).where(
+                InAppNotification.user_id == user_id,
+                InAppNotification.event_key == event_key,
+                InAppNotification.type_code == "DAILY_REWARD",
+            )
+        )
 
     def purge_expired_and_trim(
         self, session: Session, user_id: UUID, cutoff: datetime, max_count: int

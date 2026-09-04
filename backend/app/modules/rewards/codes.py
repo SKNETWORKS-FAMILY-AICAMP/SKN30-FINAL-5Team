@@ -1,0 +1,32 @@
+from enum import StrEnum
+
+
+class BananaTransactionType(StrEnum):
+    DAILY_REWARD = "DAILY_REWARD"
+    WORKOUT_COMPLETED = "WORKOUT_COMPLETED"
+    WORKOUT_PARTIAL = "WORKOUT_PARTIAL"
+    WORKOUT_SAFETY_STOPPED = "WORKOUT_SAFETY_STOPPED"
+    WORKOUT_DAILY_QUEST = "WORKOUT_DAILY_QUEST"
+    HOUSE_FEED = "HOUSE_FEED"
+    HOUSE_ITEM_PURCHASE = "HOUSE_ITEM_PURCHASE"
+
+
+class BananaSpendActionCode(StrEnum):
+    FEED_MASCOT = "FEED_MASCOT"
+    PURCHASE_HOUSE_ITEM = "PURCHASE_HOUSE_ITEM"
+
+
+DAILY_REWARD_BANANAS = 15
+WORKOUT_COMPLETED_BANANAS = 30
+WORKOUT_PARTIAL_BANANAS = 15
+WORKOUT_DAILY_QUEST_BANANAS = 10
+HOUSE_FEED_COST = 10
+HOUSE_ITEM_COSTS: dict[str, int] = {
+    "yoga_mat": 20,
+    "dumbbell": 20,
+    "plant": 25,
+    "cushion": 25,
+    "lamp": 30,
+    "star_frame": 35,
+    "window": 35,
+}

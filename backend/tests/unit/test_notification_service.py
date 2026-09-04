@@ -27,6 +27,7 @@ class FakeNotificationRepository:
         )
         self.records: list[NotificationRecord] = []
         self.locked_user_ids: list[UUID] = []
+        self.daily_reward_claimed = False
 
     def acquire_user_lock(self, session: FakeSession, user_id: UUID) -> None:
         del session
@@ -35,6 +36,12 @@ class FakeNotificationRepository:
     def get_user_timezone(self, session: FakeSession, user_id: UUID) -> str | None:
         del session, user_id
         return self.timezone
+
+    def is_daily_reward_claimed(
+        self, session: FakeSession, user_id: UUID, local_date: date
+    ) -> bool:
+        del session, user_id, local_date
+        return self.daily_reward_claimed
 
     def get_weekly_progress(
         self, session: FakeSession, user_id: UUID, week_start: date
@@ -58,6 +65,14 @@ class FakeNotificationRepository:
             self.records.append(record)
             return record
         return existing
+
+    def delete_by_event_key(self, session: FakeSession, user_id: UUID, event_key: str) -> None:
+        del session
+        self.records = [
+            item
+            for item in self.records
+            if not (item.user_id == user_id and item.event_key == event_key)
+        ]
 
     def purge_expired_and_trim(
         self, session: FakeSession, user_id: UUID, cutoff: datetime, max_count: int
@@ -127,10 +142,13 @@ def test_weekly_goal_notification_uses_canonical_remaining_count_on_thursday() -
         FakeSession(), uuid4(), previous_last_active_at=None
     )
 
-    assert response.unread_count == 1
-    assert response.items[0].type == "WEEKLY_GOAL_REMINDER"
-    assert response.items[0].payload == {"remaining_workout_count": 1}
-    assert response.items[0].message == "이번 주 운동 목표를 확인해 보세요."
+    assert response.unread_count == 2
+    weekly = next(item for item in response.items if item.type == "WEEKLY_GOAL_REMINDER")
+    daily = next(item for item in response.items if item.type == "DAILY_REWARD")
+    assert weekly.payload == {"remaining_workout_count": 1}
+    assert weekly.message == "이번 주 운동 목표를 확인해 보세요."
+    assert daily.action_type == "CLAIM_DAILY_REWARD"
+    assert daily.payload["reward_amount"] == 15
 
 
 def test_weekly_goal_notification_is_not_created_before_thursday_or_after_goal() -> None:
@@ -139,14 +157,14 @@ def test_weekly_goal_notification_is_not_created_before_thursday_or_after_goal()
     response = _service(repository, FakeWorkoutRepository(), monday).list_notifications(
         FakeSession(), uuid4(), previous_last_active_at=None
     )
-    assert response.items == []
+    assert [item.type for item in response.items] == ["DAILY_REWARD"]
 
     repository.progress = WeeklyNotificationProgress("Asia/Seoul", 3, 3)
     thursday = datetime(2026, 9, 3, 1, tzinfo=UTC)
     response = _service(repository, FakeWorkoutRepository(), thursday).list_notifications(
         FakeSession(), uuid4(), previous_last_active_at=None
     )
-    assert response.items == []
+    assert [item.type for item in response.items] == ["DAILY_REWARD"]
 
 
 def test_weekly_goal_notification_respects_existing_rest_pressure_suppression() -> None:
@@ -154,7 +172,7 @@ def test_weekly_goal_notification_respects_existing_rest_pressure_suppression() 
     response = _service(
         FakeNotificationRepository(), FakeWorkoutRepository(suppressed=True), now
     ).list_notifications(FakeSession(), uuid4(), previous_last_active_at=None)
-    assert response.items == []
+    assert [item.type for item in response.items] == ["DAILY_REWARD"]
 
 
 def test_return_notification_requires_three_days_and_is_deduplicated_per_return_event() -> None:
@@ -169,7 +187,7 @@ def test_return_notification_requires_three_days_and_is_deduplicated_per_return_
         user_id,
         previous_last_active_at=now - timedelta(days=3) + timedelta(seconds=1),
     )
-    assert under_three_days.items == []
+    assert [item.type for item in under_three_days.items] == ["DAILY_REWARD"]
 
     first = service.list_notifications(
         FakeSession(), user_id, previous_last_active_at=now - timedelta(days=3)
@@ -177,9 +195,37 @@ def test_return_notification_requires_three_days_and_is_deduplicated_per_return_
     repeated = service.list_notifications(
         FakeSession(), user_id, previous_last_active_at=now - timedelta(days=3)
     )
-    assert [item.type for item in first.items] == ["KIKKI_RETURN"]
-    assert len(repeated.items) == 1
-    assert repeated.items[0].action_type == "OPEN_KIKKI_HOME"
+    assert {item.type for item in first.items} == {"DAILY_REWARD", "KIKKI_RETURN"}
+    assert len(repeated.items) == 2
+    returned = next(item for item in repeated.items if item.type == "KIKKI_RETURN")
+    assert returned.action_type == "OPEN_KIKKI_HOME"
+
+
+def test_daily_reward_notification_is_not_created_after_the_canonical_claim() -> None:
+    repository = FakeNotificationRepository()
+    repository.progress = None
+    repository.daily_reward_claimed = True
+
+    user_id = uuid4()
+    repository.records.append(
+        NotificationRecord(
+            notification_id=uuid4(),
+            user_id=user_id,
+            type_code="DAILY_REWARD",
+            title="old",
+            message="old",
+            action_type="CLAIM_DAILY_REWARD",
+            payload={},
+            event_key="daily-reward:2026-09-04",
+            created_at=datetime(2026, 9, 4, tzinfo=UTC),
+            read_at=None,
+        )
+    )
+    response = _service(
+        repository, FakeWorkoutRepository(), datetime(2026, 9, 4, tzinfo=UTC)
+    ).list_notifications(FakeSession(), user_id, previous_last_active_at=None)
+
+    assert response.items == []
 
 
 def test_read_is_idempotent_and_isolated_by_user() -> None:

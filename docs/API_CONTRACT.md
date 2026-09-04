@@ -17,7 +17,7 @@ ordered by `created_at` descending. The response is:
     "created_at": "ISO-8601 timestamp",
     "read_at": "ISO-8601 timestamp | null",
     "is_read": false,
-    "action_type": "OPEN_KIKKI_HOME | null",
+    "action_type": "CLAIM_DAILY_REWARD | OPEN_KIKKI_HOME | null",
     "payload": {"remaining_workout_count": 1}
   }],
   "unread_count": 1
@@ -33,9 +33,53 @@ The backend creates `WEEKLY_GOAL_REMINDER` only from the current persisted `User
 Thursday or later in that week's timezone, while the official completed session count is
 below `target_workout_count` and the existing REST/pressure-suppression check allows it.
 Its `payload.remaining_workout_count` is required. `KIKKI_RETURN` is created during the first
-authenticated request after a previous activity timestamp at least three days old. `DAILY_REWARD` is a
-supported stored type but has no creation endpoint because this repository has no canonical
-reward-claim source of truth.
+authenticated request after a previous activity timestamp at least three days old. `DAILY_REWARD` is
+created only when the current user-local date has not been claimed in the server wallet. It carries
+`action_type=CLAIM_DAILY_REWARD` and `payload.reward_amount=15`.
+
+## Banana rewards (additive, 2026-09-04)
+
+All endpoints require the authenticated user and are user-scoped. `GET /api/v1/rewards` returns the
+server wallet balance and user-timezone daily reward state. The read reconciles eligible canonical
+`WorkoutSession` outcomes into idempotent transaction records; clients never submit a session ID or
+reward amount.
+
+```json
+{
+  "balance": 70,
+  "daily_reward": {
+    "local_date": "2026-09-05",
+    "reward_amount": 15,
+    "is_claimable": true,
+    "is_claimed": false,
+    "claimed_at": null
+  }
+}
+```
+
+`POST /api/v1/rewards/daily-reward/claim` claims the 15-banana daily reward. It is idempotent for a
+user-local date, including concurrent requests: repeat calls return the original transaction and never
+increase the balance again.
+
+`POST /api/v1/rewards/spend` requires `Idempotency-Key: UUID` and accepts either
+`{"action_code":"FEED_MASCOT"}` (10 bananas) or
+`{"action_code":"PURCHASE_HOUSE_ITEM","house_item_code":"yoga_mat"}`. The server owns the current
+fixed house costs. It returns `409 INSUFFICIENT_BANANA_BALANCE` when funds are insufficient.
+An already purchased house item is rejected server-side, including concurrent requests.
+
+Canonical workout rewards are 30 for `COMPLETED`, 15 for `PARTIAL` and `STOPPED_FOR_SAFETY`, plus the
+existing once-per-local-day 10 completed-workout house quest. `NOT_COMPLETED` never deducts bananas.
+`GET /api/v1/me` adds top-level integer `banana_balance` (default 0); clients use `/rewards` for
+claimability and a reconciled balance.
+
+## Profile image (additive, 2026-09-04)
+
+`POST /api/v1/me/profile-image` accepts multipart field `file` and requires `If-Match:
+"{profile_version}"` and `Idempotency-Key`. JPEG, PNG, and WebP files with a matching binary signature are accepted up to 10 MiB.
+`DELETE /api/v1/me/profile-image` requires the same two headers. Both return
+`profile_image_url`, `profile_version`, and `updated_at`. URLs are short-lived presigned GET URLs and are
+not persisted. The `profile.profile_image_url` field in `GET /api/v1/me` is additive and is null with no stored image or
+when a URL cannot be issued. DB stores only object key, MIME type, and byte size.
 
 ## 1. 문서 목적
 

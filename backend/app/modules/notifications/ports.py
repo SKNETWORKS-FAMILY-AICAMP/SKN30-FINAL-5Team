@@ -32,6 +32,10 @@ class NotificationRepositoryPort(Protocol):
 
     def get_user_timezone(self, session: Session, user_id: UUID) -> str | None: ...
 
+    def is_daily_reward_claimed(
+        self, session: Session, user_id: UUID, local_date: date
+    ) -> bool: ...
+
     def get_weekly_progress(
         self, session: Session, user_id: UUID, week_start: date
     ) -> WeeklyNotificationProgress | None: ...
@@ -39,6 +43,8 @@ class NotificationRepositoryPort(Protocol):
     def create_if_absent(
         self, session: Session, record: NotificationRecord
     ) -> NotificationRecord: ...
+
+    def delete_by_event_key(self, session: Session, user_id: UUID, event_key: str) -> None: ...
 
     def purge_expired_and_trim(
         self, session: Session, user_id: UUID, cutoff: datetime, max_count: int

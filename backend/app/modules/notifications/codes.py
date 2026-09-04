@@ -8,6 +8,7 @@ class NotificationTypeCode(StrEnum):
 
 
 class NotificationActionType(StrEnum):
+    CLAIM_DAILY_REWARD = "CLAIM_DAILY_REWARD"
     OPEN_KIKKI_HOME = "OPEN_KIKKI_HOME"
 
 

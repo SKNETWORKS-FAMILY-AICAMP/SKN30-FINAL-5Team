@@ -50,6 +50,8 @@ class Settings(BaseSettings):
     exercise_media_s3_region: str | None = None
     exercise_media_s3_prefix: str = "videos/"
     exercise_media_url_expiry_seconds: int = 300
+    profile_image_s3_prefix: str = "profile-images/"
+    profile_image_url_expiry_seconds: int = 300
     consent_policy_version: str | None = None
     # Narration은 선택 기능이다. 기본값은 비활성이며 결정적 템플릿만 사용한다.
     llm_enabled: bool = False
@@ -179,11 +181,25 @@ class Settings(BaseSettings):
             raise ValueError("EXERCISE_MEDIA_S3_PREFIX must remain videos/")
         return value
 
+    @field_validator("profile_image_s3_prefix")
+    @classmethod
+    def validate_profile_image_prefix(cls, value: str) -> str:
+        if value != "profile-images/":
+            raise ValueError("PROFILE_IMAGE_S3_PREFIX must remain profile-images/")
+        return value
+
     @field_validator("exercise_media_url_expiry_seconds")
     @classmethod
     def validate_exercise_media_url_expiry(cls, value: int) -> int:
         if not 60 <= value <= 900:
             raise ValueError("EXERCISE_MEDIA_URL_EXPIRY_SECONDS must be within [60, 900]")
+        return value
+
+    @field_validator("profile_image_url_expiry_seconds")
+    @classmethod
+    def validate_profile_image_url_expiry(cls, value: int) -> int:
+        if not 60 <= value <= 900:
+            raise ValueError("PROFILE_IMAGE_URL_EXPIRY_SECONDS must be within [60, 900]")
         return value
 
     @field_validator("firebase_clock_skew_seconds")

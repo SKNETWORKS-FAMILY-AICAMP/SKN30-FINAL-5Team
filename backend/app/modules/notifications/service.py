@@ -57,6 +57,7 @@ class NotificationService:
                 MAX_RECENT_NOTIFICATIONS,
             )
             self._create_return_notification(session, user_id, now, previous_last_active_at)
+            self._create_daily_reward_notification(session, user_id, now)
             self._create_weekly_goal_reminder(session, user_id, now)
             self._repository.purge_expired_and_trim(
                 session,
@@ -133,6 +134,33 @@ class NotificationService:
                 message="또 바나나 먹고 싶다... 🐵",
                 action_type=NotificationActionType.OPEN_KIKKI_HOME,
                 payload={},
+                event_key=event_key,
+                created_at=now,
+                read_at=None,
+            ),
+        )
+
+    def _create_daily_reward_notification(
+        self, session: Session, user_id: UUID, now: datetime
+    ) -> None:
+        timezone_name = self._repository.get_user_timezone(session, user_id)
+        if timezone_name is None:
+            return
+        local_date = now.astimezone(ZoneInfo(timezone_name)).date()
+        event_key = f"daily-reward:{local_date.isoformat()}"
+        if self._repository.is_daily_reward_claimed(session, user_id, local_date):
+            self._repository.delete_by_event_key(session, user_id, event_key)
+            return
+        self._create_if_absent(
+            session,
+            NotificationRecord(
+                notification_id=self._uuid_factory(),
+                user_id=user_id,
+                type_code=NotificationTypeCode.DAILY_REWARD,
+                title="오늘의 바나나 선물이 도착했어요.",
+                message="바나나 15개를 받아 보세요.",
+                action_type=NotificationActionType.CLAIM_DAILY_REWARD,
+                payload={"reward_amount": 15, "local_date": local_date.isoformat()},
                 event_key=event_key,
                 created_at=now,
                 read_at=None,
