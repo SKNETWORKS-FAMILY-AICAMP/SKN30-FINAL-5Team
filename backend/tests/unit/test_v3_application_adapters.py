@@ -101,6 +101,8 @@ def _source(
     sleep_minutes: int | None = None,
     fatigue_level_code: str | None = None,
     safety_rule_set: SafetyRuleSet | None = None,
+    latest_difficulty_code: str | None = None,
+    latest_difficulty_reason_codes: tuple[str, ...] = (),
 ) -> V3CreationSource:
     context = _context(discomforts=discomforts)
     context = replace(
@@ -109,6 +111,8 @@ def _source(
         red_flag_present=red_flag_present,
         sleep_minutes=sleep_minutes,
         fatigue_level_code=fatigue_level_code or context.fatigue_level_code,
+        latest_difficulty_code=latest_difficulty_code,
+        latest_difficulty_reason_codes=latest_difficulty_reason_codes,
     )
     if emergency:
         context = replace(context, adverse_reaction_codes=("CHEST_DISCOMFORT",))

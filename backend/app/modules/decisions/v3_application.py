@@ -8,7 +8,7 @@ from collections.abc import Callable
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Any, Literal, Self, cast
+from typing import Any, Final, Literal, Self, cast
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from sqlalchemy import func, select
@@ -397,6 +397,37 @@ def _eligible_pool_exercises(
     )
 
 
+EASIEST_EXERCISE_DIFFICULTY_CODE: Final = "BEGINNER"
+
+
+def _apply_difficulty_adjustment(
+    eligible: tuple[ExercisePoolExerciseRecord, ...],
+    *,
+    envelope: ConstraintEnvelope,
+) -> tuple[ExercisePoolExerciseRecord, ...]:
+    """Narrow the pool to the easiest approved movements when the ladder says to.
+
+    This is rung 1 of `DOMAIN_RULES.md` 6.1: "replace with a lower-difficulty exercise or
+    variant". Doing it by removing the harder records means every downstream consumer -
+    the specialist agents, the deterministic fallback, and the integrity validator that
+    re-checks membership - sees the same narrowed pool, so no coordinator output can put
+    a harder movement back in.
+
+    The adapter only picks this axis after finding an easier record among exactly these
+    eligible exercises, so the filter cannot empty the pool. It is still written to fall
+    back to the unfiltered pool rather than trust that: an empty pool would fail the run
+    outright, and a slightly harder session is the better failure than no session.
+    """
+
+    adjustment = envelope.feedback_adjustment
+    if adjustment is None or adjustment.axis_code != AdjustmentAxisCode.EXERCISE_DIFFICULTY.value:
+        return eligible
+    easier = tuple(
+        record for record in eligible if record.difficulty_code == EASIEST_EXERCISE_DIFFICULTY_CODE
+    )
+    return easier or eligible
+
+
 class DeterministicV3SafetyPolicyAdapter:
     """Project the reviewed deterministic Safety engine into a V3 envelope."""
 
@@ -570,6 +601,7 @@ class PostgreSQLV3ExercisePoolSource(PostgreSQLExercisePoolSourcePort):
             experience_level_code=experience_level_code,
             allowed_location_codes=set(envelope.allowed_location_codes),
         )
+        eligible = _apply_difficulty_adjustment(eligible, envelope=envelope)
         # Equipment is intentionally not a gate. The 2026-08-27 approval
         # removed that filter because owning every listed piece is not a
         # condition of suitability; approved variants cover missing kit.
