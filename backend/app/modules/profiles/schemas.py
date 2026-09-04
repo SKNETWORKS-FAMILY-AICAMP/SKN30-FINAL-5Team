@@ -65,19 +65,22 @@ class OnboardingUpsertRequest(BaseModel):
     primary_goal_code: str = Field(pattern=r"^[A-Z][A-Z0-9_]{0,63}$")
     experience_level_code: str = Field(pattern=r"^[A-Z][A-Z0-9_]{0,63}$")
     timezone: str = Field(min_length=1, max_length=64)
-    preferred_location_code: LocationCode
+    # Location and duration are selected by Daily Check-in after onboarding.
+    # Keep the legacy fields readable for older clients, but do not require
+    # them from the current onboarding contract.
+    preferred_location_code: LocationCode = LocationCode.HOME
     available_location_codes: list[LocationCode] | None = None
     default_requested_duration_minutes: int = Field(default=30, gt=0, le=240)
     # The legacy name remains accepted while clients migrate to the P1-A
     # contract.  Supplying both values with different counts is ambiguous.
     desired_weekly_workout_count: int | None = Field(default=None, gt=0, le=7)
     weekly_target_sessions: int | None = Field(default=None, gt=0, le=7)
-    attention_area_codes: list[BodyAreaCode]
+    attention_area_codes: list[BodyAreaCode] = Field(default_factory=list)
     preferred_exercise_type_codes: list[TrainingTypeCode] = Field(default_factory=list)
     coaching_style_code: CoachingStyleCode = CoachingStyleCode.SUPPORTIVE
-    height_cm: float = Field(ge=80, le=250)
+    height_cm: float | None = Field(default=None, ge=80, le=250)
     weight_kg: float = Field(ge=25, le=300)
-    sex_code: Literal["FEMALE", "MALE", "PREFER_NOT_TO_SAY"]
+    sex_code: Literal["FEMALE", "MALE", "PREFER_NOT_TO_SAY"] | None = None
     consents: ConsentValues
     persistent_pains: list[PersistentPainInput] = Field(default_factory=list)
 

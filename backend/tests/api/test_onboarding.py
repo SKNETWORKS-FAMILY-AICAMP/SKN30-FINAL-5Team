@@ -35,8 +35,19 @@ NOW = datetime(2026, 8, 13, 6, 0, tzinfo=UTC)
 
 
 class FakeSession:
+    last: "FakeSession | None" = None
+
+    def __init__(self, *, active: bool = False) -> None:
+        self.active = active
+        self.rollback_called = False
+        FakeSession.last = self
+
     def begin(self) -> nullcontext[None]:
         return nullcontext()
+
+    def rollback(self) -> None:
+        self.rollback_called = True
+        self.active = False
 
 
 class FakeProfileRepository:
@@ -230,6 +241,7 @@ def _client(
     *,
     missing_configuration_keys: tuple[str, ...] = (),
     routine_repository: FakeRoutineRepository | None = None,
+    session_active: bool = False,
 ) -> TestClient:
     settings = Settings(
         app_env="test",
@@ -264,7 +276,7 @@ def _client(
     )
 
     def session_override():
-        yield FakeSession()
+        yield FakeSession(active=session_active)
 
     app.dependency_overrides[get_db_session] = session_override
     app.dependency_overrides[get_profile_repository] = lambda: repository
@@ -272,6 +284,17 @@ def _client(
         routine_repository or FakeRoutineRepository()
     )
     return TestClient(app)
+
+
+def test_onboarding_closes_a_transaction_left_by_authentication_dependencies() -> None:
+    with _client(FakeProfileRepository(), session_active=True) as client:
+        response = client.put(
+            "/api/v1/me/onboarding", json=_payload(), headers={"Idempotency-Key": str(uuid4())}
+        )
+
+    assert response.status_code == 200
+    assert FakeSession.last is not None
+    assert FakeSession.last.rollback_called is True
 
 
 def test_onboarding_is_atomic_idempotent_and_does_not_expose_birthdate() -> None:
@@ -389,18 +412,22 @@ def test_onboarding_rejects_removed_equipment_field() -> None:
     assert repository.profile_version == 0
 
 
-@pytest.mark.parametrize("field_name", ["sex_code", "height_cm", "weight_kg"])
-@pytest.mark.parametrize("explicit_null", [False, True])
-def test_required_body_metrics_reject_missing_and_null_values(
-    field_name: str,
-    explicit_null: bool,
-) -> None:
+def test_current_frontend_onboarding_contract_does_not_require_legacy_fields() -> None:
     repository = FakeProfileRepository()
     payload = _payload()
-    if explicit_null:
-        payload[field_name] = None
-    else:
-        payload.pop(field_name)
+    for field_name in (
+        "preferred_location_code",
+        "available_location_codes",
+        "default_requested_duration_minutes",
+        "desired_weekly_workout_count",
+        "attention_area_codes",
+        "preferred_exercise_type_codes",
+        "height_cm",
+        "sex_code",
+    ):
+        payload.pop(field_name, None)
+    payload["weekly_target_sessions"] = 3
+    payload["persistent_pains"] = []
 
     with _client(repository) as client:
         response = client.put(
@@ -409,8 +436,30 @@ def test_required_body_metrics_reject_missing_and_null_values(
             headers={"Idempotency-Key": str(uuid4())},
         )
 
-    assert response.status_code == 422
-    assert repository.profile_version == 0
+    assert response.status_code == 200
+    assert repository.profile_version == 1
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    [("height_cm", None), ("sex_code", None)],
+)
+def test_legacy_body_metrics_accept_explicit_null_for_new_clients(
+    field_name: str,
+    value: None,
+) -> None:
+    repository = FakeProfileRepository()
+    payload = _payload()
+    payload[field_name] = value
+
+    with _client(repository) as client:
+        response = client.put(
+            "/api/v1/me/onboarding",
+            json=payload,
+            headers={"Idempotency-Key": str(uuid4())},
+        )
+
+    assert response.status_code == 200
 
 
 def test_invalid_sex_code_is_rejected() -> None:
@@ -494,7 +543,7 @@ def test_body_metrics_outside_boundaries_are_rejected(
     assert response.status_code == 422
 
 
-def test_attention_area_codes_is_required() -> None:
+def test_attention_area_codes_defaults_to_empty_for_new_clients() -> None:
     repository = FakeProfileRepository()
     payload = _payload()
     payload.pop("attention_area_codes")
@@ -506,8 +555,8 @@ def test_attention_area_codes_is_required() -> None:
             headers={"Idempotency-Key": str(uuid4())},
         )
 
-    assert response.status_code == 422
-    assert repository.profile_version == 0
+    assert response.status_code == 200
+    assert repository.profile_version == 1
 
 
 @pytest.mark.parametrize(

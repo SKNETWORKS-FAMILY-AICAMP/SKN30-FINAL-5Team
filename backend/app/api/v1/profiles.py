@@ -294,6 +294,11 @@ def upsert_onboarding(
     birthdate_cipher: Annotated[BirthdateCipher | None, Depends(get_birthdate_cipher)],
 ) -> OnboardingResponse:
     try:
+        # Authentication and return-notification dependencies may have issued
+        # a read after their own transaction completed.  SQLAlchemy starts a
+        # new transaction for that read, so close it before the onboarding
+        # service opens its atomic write transaction.
+        session.rollback()
         return OnboardingCompletionService(
             _service(request, repository, birthdate_cipher), RoutineService(routine_repository)
         ).complete(session, current_user.user_id, payload, idempotency_key)
