@@ -12,6 +12,7 @@ from backend.app.db.models.catalog import (
     ExerciseGoalTagLink,
     ExercisePrescriptionProfile,
 )
+from backend.app.db.models.decision import PlanCandidate
 from backend.app.db.models.profile import (
     MutationIdempotencyRecord,
     UserAvailableLocation,
@@ -19,6 +20,7 @@ from backend.app.db.models.profile import (
     UserProfile,
 )
 from backend.app.db.models.routine import Routine, RoutineDay, RoutineItem
+from backend.app.db.models.workout import WorkoutSession
 from backend.app.domain.rules.training_level import allowed_exercise_difficulty_codes
 from backend.app.modules.routines.codes import (
     ROUTINE_RESPONSE_SCHEMA_VERSION,
@@ -176,6 +178,30 @@ class RoutineRepository:
             session.scalar(select(Routine.id).where(Routine.user_id == user_id).limit(1))
             is not None
         )
+
+    def get_recent_performed_body_focus_codes(
+        self, session: Session, user_id: UUID, local_date: date
+    ) -> tuple[str, ...]:
+        """Return seven local days of actual COMPLETED/PARTIAL body-focus history."""
+
+        profile = session.get(UserProfile, user_id)
+        if profile is None:
+            return ()
+        ended_local_date = func.date(func.timezone(profile.timezone, WorkoutSession.ended_at))
+        values = session.scalars(
+            select(PlanCandidate.body_focus_code)
+            .join(WorkoutSession, WorkoutSession.plan_candidate_id == PlanCandidate.id)
+            .where(
+                WorkoutSession.user_id == user_id,
+                WorkoutSession.status_code.in_(("COMPLETED", "PARTIAL")),
+                WorkoutSession.ended_at.is_not(None),
+                PlanCandidate.body_focus_code.is_not(None),
+                ended_local_date >= local_date - timedelta(days=6),
+                ended_local_date <= local_date,
+            )
+            .order_by(WorkoutSession.ended_at.desc(), WorkoutSession.id.desc())
+        ).all()
+        return tuple(value for value in values if value is not None)
 
     def create_routine(
         self,

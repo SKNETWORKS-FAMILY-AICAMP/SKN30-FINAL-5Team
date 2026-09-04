@@ -34,6 +34,7 @@ class DecisionContext:
     # an adjustment whose effect has already been measured.
     latest_difficulty_code: str | None = None
     latest_difficulty_reason_codes: tuple[str, ...] = ()
+    recent_adherence_reason_codes: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -51,6 +52,11 @@ class DecisionContext:
             self,
             "latest_difficulty_reason_codes",
             tuple(sorted(set(self.latest_difficulty_reason_codes))),
+        )
+        object.__setattr__(
+            self,
+            "recent_adherence_reason_codes",
+            tuple(sorted(set(self.recent_adherence_reason_codes))),
         )
         for field_name in (
             "candidate_required_equipment_codes",
@@ -88,6 +94,7 @@ class DecisionContext:
             ],
             "adverse_reaction_codes": list(self.adverse_reaction_codes),
             "recent_workout_status_codes": list(self.recent_workout_status_codes),
+            "recent_adherence_reason_codes": list(self.recent_adherence_reason_codes),
             "latest_difficulty_feedback": {
                 "difficulty_code": self.latest_difficulty_code,
                 "reason_codes": list(self.latest_difficulty_reason_codes),

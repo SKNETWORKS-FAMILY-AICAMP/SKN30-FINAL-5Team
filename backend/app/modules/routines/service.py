@@ -251,7 +251,50 @@ def _select_exact_plan(
 def _build_days(
     context: RoutineCreationContext,
     requested_duration_minutes: int | None = None,
+    recent_performed_body_focus_codes: tuple[str, ...] = (),
 ) -> tuple[RoutineDayValues, ...]:
+    previous_body_focus_code = next(iter(recent_performed_body_focus_codes), None)
+    days: list[RoutineDayValues] = []
+    for sequence in range(1, context.weekly_target_sessions + 1):
+        rotated_context = context
+        if previous_body_focus_code is not None:
+            rotated_candidates = tuple(
+                item
+                for item in context.candidates
+                if item.phase_code != RoutinePhaseCode.MAIN
+                or item.body_focus_code != previous_body_focus_code
+            )
+            # Rotation is preference-based, never a fixed focus order.  Use the
+            # previous focus only when an alternative MAIN focus actually exists.
+            if any(item.phase_code == RoutinePhaseCode.MAIN for item in rotated_candidates):
+                rotated_context = replace(context, candidates=rotated_candidates)
+        try:
+            day = _build_day(
+                rotated_context,
+                sequence=sequence,
+                requested_duration_minutes=requested_duration_minutes,
+            )
+        except (RoutineContentUnavailableError, RoutineDurationUnavailableError):
+            # A catalog may not satisfy the duration target with a different focus.
+            # Keep the validated plan instead of shortening it or hard-coding an order.
+            if rotated_context is context:
+                raise
+            day = _build_day(
+                context,
+                sequence=sequence,
+                requested_duration_minutes=requested_duration_minutes,
+            )
+        days.append(day)
+        previous_body_focus_code = day.body_focus_code
+    return tuple(days)
+
+
+def _build_day(
+    context: RoutineCreationContext,
+    *,
+    sequence: int,
+    requested_duration_minutes: int | None,
+) -> RoutineDayValues:
     setup_seconds, selected, duration_request = _select_exact_plan(
         context, requested_duration_minutes
     )
@@ -300,18 +343,15 @@ def _build_days(
         for sequence, item in enumerate(selected, start=1)
     )
     main = next(item for item in selected if item.phase_code == RoutinePhaseCode.MAIN)
-    return tuple(
-        RoutineDayValues(
-            sequence=sequence,
-            title=f"루틴 {sequence}",
-            training_type_code=main.training_type_code,
-            body_focus_code=main.body_focus_code,
-            requested_duration_minutes=duration_request.requested_duration_minutes,
-            estimated_duration_seconds=assessment.estimated_duration_seconds,
-            setup_seconds=setup_seconds,
-            items=items,
-        )
-        for sequence in range(1, context.desired_weekly_workout_count + 1)
+    return RoutineDayValues(
+        sequence=sequence,
+        title=f"루틴 {sequence}",
+        training_type_code=main.training_type_code,
+        body_focus_code=main.body_focus_code,
+        requested_duration_minutes=duration_request.requested_duration_minutes,
+        estimated_duration_seconds=assessment.estimated_duration_seconds,
+        setup_seconds=setup_seconds,
+        items=items,
     )
 
 
@@ -367,7 +407,16 @@ class RoutineService:
         context = self._repository.get_creation_context(session, user_id, request.goal_code)
         if context is None:
             raise ApprovedCatalogUnavailableError
-        days = _build_days(context, request.requested_duration_minutes)
+        recent_performed_body_focus_codes = self._repository.get_recent_performed_body_focus_codes(
+            session,
+            user_id,
+            request.effective_from,
+        )
+        days = _build_days(
+            context,
+            request.requested_duration_minutes,
+            recent_performed_body_focus_codes,
+        )
         routine_id = self._repository.create_routine(
             session,
             user_id,

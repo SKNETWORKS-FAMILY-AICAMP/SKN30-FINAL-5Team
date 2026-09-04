@@ -207,6 +207,7 @@ def test_safety_veto_never_calls_provider() -> None:
     service, repository, runtime, _, _ = build(envelope=veto)
     result = asyncio.run(service.create(object(), uuid4(), command_request(), uuid4()))
     assert result.action_code == "REST"
+    assert service._exercise_pool_loader.calls == 0  # type: ignore[attr-defined]
     assert runtime.calls == 0
     assert len(repository.terminals) == 1
 

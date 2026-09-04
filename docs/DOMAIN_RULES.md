@@ -251,6 +251,11 @@ FAILED
 
 안전 상태와 최종 액션은 다른 축이다. `BLOCKED`는 원인에 따라 REST 또는 STOP_AND_SEEK_HELP로 사용자에게 표시할 수 있고, `FAILED`는 제품 오류이며 운동 액션을 성공 결과로 만들지 않는다.
 
+승인 Safety 필터와 사용자 적격성 필터를 모두 적용한 뒤 eligible exercise가 0개면
+`BLOCKED`와 `REST`를 반환하고 `final_plan`은 `null`이다. 이 경우 대체 운동을 임의로 만들지 않으며,
+기존 `reason_codes`와 `summary`에 `NO_APPROVED_SAFE_EXERCISE` 차단 사유를 포함한다. `NEEDS_INPUT`은
+필수 입력 누락에만 사용한다.
+
 ---
 
 ## 4. 결정 순서
@@ -458,6 +463,14 @@ RETURN_MODE_COMPLETION_GAP_DAYS=14
 `NOT_COMPLETED` 이력과 연속 미수행 횟수는 다음 계획의 학습 신호로만 사용하며 복귀 모드를
 활성화하거나 벌점을 부과하지 않는다. 마지막 공식 완료 이력이 없는 콜드스타트 사용자는
 미수행 이력만으로 복귀 모드에 들어가지 않는다.
+
+주간 body-focus rotation은 `weekly_target_sessions`를 목표로 최근 7일의 실제 수행 세션에서만
+읽는다. `COMPLETED`와 하나 이상의 블록을 수행한 `PARTIAL`은 `PlanCandidate.body_focus_code`를
+포함하고, `NOT_COMPLETED`와 생성만 된 루틴은 제외한다. 가장 최근 실제 수행 세션과 같은 primary
+body focus는 다른 승인 후보가 가능한 경우 연속하지 않으며, safety-relevant body-area label이나
+고정 부위 순서는 rotation 입력으로 사용하지 않는다. 반면 추천 학습에는 세 공식 상태를 모두
+사용하고, `PARTIAL`의 중단 사유와 `NOT_COMPLETED`의 skip reason, 운동 후 feedback은 다음 결정
+입력 스냅샷에 보존한다.
 
 POL-012의 14일 미접속 서비스 분류는 계정 참여 상태를 위한 별도 운영 정책이며, 운동 복귀
 모드를 활성화하는 근거가 아니다. 운동 복귀 모드의 유일한 날짜 근거는 마지막 공식

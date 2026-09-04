@@ -20,6 +20,7 @@ def _context(
     *,
     difficulty_code: str | None = None,
     reason_codes: tuple[str, ...] = (),
+    adherence_reason_codes: tuple[str, ...] = (),
 ) -> DecisionContext:
     return DecisionContext(
         LOCAL_DATE,
@@ -41,6 +42,7 @@ def _context(
         (),
         latest_difficulty_code=difficulty_code,
         latest_difficulty_reason_codes=reason_codes,
+        recent_adherence_reason_codes=adherence_reason_codes,
     )
 
 
@@ -87,3 +89,11 @@ def test_feedback_changes_the_snapshot() -> None:
     with_feedback = _context(difficulty_code="HARD", reason_codes=("VOLUME_HIGH",)).snapshot()
 
     assert without != with_feedback
+
+
+def test_partial_and_not_completed_reasons_are_replayable_learning_inputs() -> None:
+    snapshot = _context(
+        adherence_reason_codes=("TIME_SHORTAGE", "SCHEDULE_CHANGE", "TIME_SHORTAGE")
+    ).snapshot()
+
+    assert snapshot["recent_adherence_reason_codes"] == ["SCHEDULE_CHANGE", "TIME_SHORTAGE"]

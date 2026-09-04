@@ -245,6 +245,7 @@ class CatalogRepository:
             media_approval_metadata=(
                 media_candidate.approval_metadata if media_candidate is not None else None
             ),
+            exercise_stable_code=exercise.stable_code,
         )
 
     def list_media_mapping_exercises(
@@ -352,6 +353,12 @@ class CatalogRepository:
             select(
                 ExerciseAlternative.alternative_set_version_code,
                 ExerciseAlternative.goal_preservation_code,
+                ExerciseAlternative.source_metadata["missing_equipment_code"].astext.label(
+                    "missing_equipment_code"
+                ),
+                ExerciseAlternative.source_metadata["selection_rationale_ko"].astext.label(
+                    "selection_rationale_ko"
+                ),
                 variant_exercise.id,
                 variant_exercise.name_ko,
                 variant_exercise.instruction_summary_ko,
@@ -404,7 +411,6 @@ class CatalogRepository:
                 .order_by(ExerciseEquipment.exercise_id, ExerciseEquipment.equipment_code)
             ):
                 required_equipment[variant_id].append(code)
-
         return ExerciseVariantsRecord(
             source_exercise_id=exercise_id,
             catalog_version=catalog_version_code,
@@ -421,6 +427,8 @@ class CatalogRepository:
                     form_cues=tuple(row.form_cues_ko),
                     goal_preservation_code=row.goal_preservation_code,
                     media_asset_key=row.media_asset_key,
+                    missing_equipment_code=row.missing_equipment_code,
+                    selection_rationale_ko=row.selection_rationale_ko,
                 )
                 for row in rows
             ),

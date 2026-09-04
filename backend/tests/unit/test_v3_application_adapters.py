@@ -3,6 +3,7 @@ from uuid import UUID
 
 from backend.app.domain.agents.retrieval import ExercisePoolExerciseRecord
 from backend.app.domain.rules.safety import (
+    NO_APPROVED_SAFE_EXERCISE_REASON_CODE,
     BodyAreaCode,
     DiscomfortSeverityCode,
     SafetyReviewStatusCode,
@@ -358,6 +359,15 @@ def test_v3_rebuild_blocks_when_only_safety_survivor_is_not_user_eligible() -> N
 
     assert not envelope.plan_generation_allowed
     assert envelope.safety_required_action_code == "REST"
+
+    projection = V3DecisionResponseProjector().project_terminal(source=source, envelope=envelope)
+
+    assert projection.response.safety_status_code == "BLOCKED"
+    assert projection.response.action_code == "REST"
+    assert projection.response.final_plan is None
+    assert NO_APPROVED_SAFE_EXERCISE_REASON_CODE in projection.response.reason_codes
+    assert projection.response.safety_summary is not None
+    assert NO_APPROVED_SAFE_EXERCISE_REASON_CODE in projection.response.safety_summary.reason_codes
 
 
 def test_v3_caution_freezes_low_intensity_downshift_ceiling() -> None:

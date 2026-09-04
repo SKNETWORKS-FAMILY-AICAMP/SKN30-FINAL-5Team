@@ -376,6 +376,37 @@ class SafetyEvaluation:
                 )
 
 
+NO_APPROVED_SAFE_EXERCISE_REASON_CODE = "NO_APPROVED_SAFE_EXERCISE"
+
+
+def block_for_no_eligible_exercise(evaluation: SafetyEvaluation) -> SafetyEvaluation:
+    """Turn an empty approved pool into an explainable REST safety veto.
+
+    This is deliberately applied only after all approved eligibility filters have
+    run.  It does not invent a substitute movement: an empty pool means there is
+    no approved exercise the compiled plan may use.
+    """
+
+    return SafetyEvaluation(
+        status_code=SafetyStatusCode.BLOCKED,
+        required_action_code=SafetyRequiredActionCode.REST,
+        veto=True,
+        plan_allowed=False,
+        excluded_exercise_codes=evaluation.excluded_exercise_codes,
+        caution_exercise_codes=evaluation.caution_exercise_codes,
+        applied_rule_codes=evaluation.applied_rule_codes,
+        reason_codes=tuple(
+            sorted({*evaluation.reason_codes, NO_APPROVED_SAFE_EXERCISE_REASON_CODE})
+        ),
+        emergency_reaction_codes=evaluation.emergency_reaction_codes,
+        acute_reaction_codes=evaluation.acute_reaction_codes,
+        severe_body_area_codes=evaluation.severe_body_area_codes,
+        safety_rule_set_version=evaluation.safety_rule_set_version,
+        rule_availability_code=evaluation.rule_availability_code,
+        safety_engine_version=evaluation.safety_engine_version,
+    )
+
+
 def _sorted_codes[SafetyCodeT: StrEnum](
     values: AbstractSet[SafetyCodeT],
 ) -> tuple[SafetyCodeT, ...]:

@@ -1,4 +1,5 @@
 from http import HTTPStatus
+from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
@@ -18,6 +19,10 @@ from backend.app.modules.catalog.codes import (
     DifficultyCode,
     EquipmentCode,
     TrainingTypeCode,
+)
+from backend.app.modules.catalog.home_equipment import (
+    FileHomeEquipmentGuideProvider,
+    HomeEquipmentBundleValidationError,
 )
 from backend.app.modules.catalog.schemas import (
     ExerciseDetailResponse,
@@ -91,12 +96,24 @@ def get_exercise_detail(
 ) -> ExerciseDetailResponse:
     del current_user
     try:
-        return ExerciseReadService(repository, media_url_provider).get_detail(session, exercise_id)
+        return ExerciseReadService(
+            repository,
+            media_url_provider,
+            FileHomeEquipmentGuideProvider(
+                Path("data/generated/home-equipment-variants-v1-final/backend_bundle")
+            ),
+        ).get_detail(session, exercise_id)
     except ExerciseNotFoundError:
         raise AppError(
             status_code=HTTPStatus.NOT_FOUND,
             code="RESOURCE_NOT_FOUND",
             message="해당 운동 정보를 찾을 수 없습니다.",
+        ) from None
+    except HomeEquipmentBundleValidationError:
+        raise AppError(
+            status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+            code="APPROVED_CATALOG_UNAVAILABLE",
+            message="검수된 생활도구 안내를 사용할 수 없습니다.",
         ) from None
     except SQLAlchemyError:
         raise AppError(
