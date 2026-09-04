@@ -1,0 +1,29 @@
+# Staging web entry point. Keep the API on WEB_DOMAIN because the currently
+# deployed Expo bundle uses that origin as its API base URL.
+{
+	email {$ACME_EMAIL}
+}
+
+{$WEB_DOMAIN} {
+	encode zstd gzip
+
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+
+	handle {
+		root * /srv/landing
+		file_server
+	}
+}
+
+{$APP_DOMAIN} {
+	encode zstd gzip
+	root * /srv/app
+	try_files {path} /index.html
+	file_server
+}
+
+{$APEX_DOMAIN} {
+	redir https://{$WEB_DOMAIN}{uri} permanent
+}

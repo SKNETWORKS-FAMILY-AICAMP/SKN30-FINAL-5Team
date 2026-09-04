@@ -13,6 +13,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web --port 8081",
+    "build:web": "expo export --platform web --output-dir dist/web",
     "scene-editor": "expo start --web --port 8082",
     "format": "prettier --write App.tsx index.ts src tests app.json eas.json package.json tsconfig.json eslint.config.js jest.config.js .prettierrc.json TECHNICAL_DECISIONS.md README.md",
     "format:check": "prettier --check App.tsx index.ts src tests app.json eas.json package.json tsconfig.json eslint.config.js jest.config.js .prettierrc.json TECHNICAL_DECISIONS.md README.md",

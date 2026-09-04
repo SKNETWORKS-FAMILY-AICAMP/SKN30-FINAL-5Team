@@ -96,6 +96,34 @@ Pass the origin only, without the `/api/v1` suffix: the client appends that pref
 (`frontend/src/api/client.ts`), so including it here produces `/api/v1/api/v1/...` and every
 request 404s.
 
+### Landing page and Expo web app on separate hosts
+
+Use `compose.staging.web.yaml` when the public entry page and the Expo web app
+share one Caddy instance. The overlay serves the landing page on `WEB_DOMAIN`,
+preserves `WEB_DOMAIN/api/*` for backward compatibility, serves the existing
+Expo export on `APP_DOMAIN`, and redirects `APEX_DOMAIN` to `WEB_DOMAIN`.
+
+Build a new Expo web release when needed with:
+
+```bash
+cd frontend
+npm run build:web
+```
+
+Set `LANDING_SITE_ROOT` and `WEB_APP_ROOT` to absolute host paths. Set
+`CORS_ALLOWED_ORIGINS` to the exact `https://APP_DOMAIN` origin because an Expo
+bundle built with `WEB_DOMAIN` as its API base makes a cross-origin API request
+after the app moves to `APP_DOMAIN`.
+
+```bash
+docker compose --env-file infra/deployment/.env.staging \
+  -f infra/deployment/compose.staging.yaml \
+  -f infra/deployment/compose.staging.web.yaml config --quiet
+docker compose --env-file infra/deployment/.env.staging \
+  -f infra/deployment/compose.staging.yaml \
+  -f infra/deployment/compose.staging.web.yaml up -d api caddy
+```
+
 The `caddy_data` volume holds the certificate and the ACME account key. Do not prune it between
 deploys: re-requesting on every restart reaches the Let's Encrypt rate limit within a day. If a
 certificate must be reissued, use the staging ACME endpoint first.
