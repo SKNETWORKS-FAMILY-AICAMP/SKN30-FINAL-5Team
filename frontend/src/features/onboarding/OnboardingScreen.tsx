@@ -1227,11 +1227,11 @@ const styles = StyleSheet.create({
   painSliderList: { gap: spacing.sm },
   painSliderCard: {
     borderWidth: 1,
-    borderColor: colors.dangerBorder,
-    borderRadius: radii.control,
-    backgroundColor: '#FBEAE7',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    borderColor: '#E8C3B8',
+    borderRadius: 14,
+    backgroundColor: '#FFFDFC',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
   consentGroups: { gap: 14 },
   consentReminder: {

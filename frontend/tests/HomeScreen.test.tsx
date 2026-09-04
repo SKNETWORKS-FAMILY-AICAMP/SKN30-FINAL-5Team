@@ -469,6 +469,32 @@ describe('HomeScreen Home v1 transcription', () => {
     ).toBeNull();
   });
 
+  it('styles rest as a calm full-width secondary action', () => {
+    const onChooseRest = jest.fn();
+    render(
+      <HomeScreen
+        {...homePreviewProps('routine')}
+        onChooseRest={onChooseRest}
+      />,
+    );
+
+    const restButton = screen.getByRole('button', { name: '오늘은 쉬기' });
+    expect(StyleSheet.flatten(restButton.props.style)).toMatchObject({
+      alignSelf: 'stretch',
+      minHeight: expect.any(Number),
+      borderColor: '#BFD09F',
+      backgroundColor: '#F4F8E9',
+      overflow: 'hidden',
+    });
+    expect(screen.getByTestId('home-rest-gradient').props.colors).toEqual(
+      ['#FCFFF8', '#EEF5E2'].map(processColor),
+    );
+    expect(screen.getByTestId('home-rest-icon')).toBeVisible();
+
+    fireEvent.press(restButton);
+    expect(onChooseRest).toHaveBeenCalledTimes(1);
+  });
+
   it('temporarily hides available-time controls from check-in', () => {
     const onSubmitCheckin = jest.fn();
     const props = homePreviewProps('routine');
@@ -507,9 +533,9 @@ describe('HomeScreen Home v1 transcription', () => {
   it('shows posture for every API item and variants only when the server returns them', async () => {
     render(<HomeScreen {...homePreviewProps('routine')} />);
 
-    expect(screen.getAllByText('자세 보기')).toHaveLength(3);
+    expect(screen.getAllByText('자세')).toHaveLength(3);
     const postureButton = screen.getByRole('button', {
-      name: '밴드 로우 자세 보기',
+      name: '밴드 로우 자세',
     });
     const equipmentButton = await screen.findByRole('button', {
       name: '밴드 로우 장비 보기',
@@ -531,7 +557,7 @@ describe('HomeScreen Home v1 transcription', () => {
       backgroundColor: '#E7F3FA',
     });
     const postureTextStyle = StyleSheet.flatten(
-      screen.getAllByText('자세 보기')[0]?.props.style,
+      screen.getAllByText('자세')[0]?.props.style,
     );
     expect(
       StyleSheet.flatten(screen.getByText('장비').props.style),
@@ -541,9 +567,9 @@ describe('HomeScreen Home v1 transcription', () => {
       fontWeight: postureTextStyle.fontWeight,
     });
     expect(postureStyle).toMatchObject({
-      width: expect.any(Number),
       height: expect.any(Number),
     });
+    expect(postureStyle.width).toBeCloseTo(48 * 1.2);
     const emptyEquipmentSlot = screen.getByTestId(
       'routine-equipment-slot-plan-item-2',
     );
@@ -587,7 +613,7 @@ describe('HomeScreen Home v1 transcription', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '푸시업 자세 보기' }));
+    fireEvent.press(screen.getByRole('button', { name: '푸시업 자세' }));
 
     expect(screen.getByRole('header', { name: '푸시업' })).toBeOnTheScreen();
     expect(
@@ -1676,6 +1702,6 @@ describe('HomeScreen Home v1 transcription', () => {
       resolve(process.cwd(), 'src/features/home/HomeScreen.tsx'),
       'utf8',
     );
-    expect(source.match(/<Svg\b/g)).toHaveLength(14);
+    expect(source.match(/<Svg\b/g)).toHaveLength(15);
   });
 });

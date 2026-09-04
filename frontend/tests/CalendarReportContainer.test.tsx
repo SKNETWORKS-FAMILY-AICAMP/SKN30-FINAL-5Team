@@ -36,6 +36,48 @@ function week(
 }
 
 describe('CalendarReportContainer', () => {
+  it('uses the standard navigation CTA to create a weekly report', async () => {
+    const listWorkoutSessions = jest.fn<Api['listWorkoutSessions']>(
+      async () => ({ items: [], next_cursor: null }),
+    );
+    const getWeek = jest.fn<Api['getWeek']>(async (weekStart) =>
+      week(weekStart, weekStart === '2026-08-10' ? 'OPEN' : 'CLOSED'),
+    );
+    const onOpenWeeklyReport = jest.fn();
+
+    await render(
+      <CalendarReportContainer
+        api={{ listWorkoutSessions, getWeek } as unknown as Api}
+        now={new Date('2026-08-12T03:00:00Z')}
+        onOpenWeeklyReport={onOpenWeeklyReport}
+        timeZone="Asia/Seoul"
+      />,
+    );
+
+    expect(await screen.findByText('2026년 8월')).toBeOnTheScreen();
+    fireEvent.press(
+      screen.getByRole('button', {
+        name: '2주차 리포트 생성 가능!, 요약 펼치기',
+      }),
+    );
+
+    const reportAction = screen.getByRole('button', {
+      name: '주간 리포트 만들기',
+    });
+    expect(
+      screen.getByTestId('calendar-week-report-action-gradient'),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByTestId('calendar-week-report-action-chevron'),
+    ).toBeOnTheScreen();
+    expect(StyleSheet.flatten(reportAction.props.style)).toMatchObject({
+      height: 46,
+    });
+
+    fireEvent.press(reportAction);
+    expect(onOpenWeeklyReport).toHaveBeenCalledWith('2026-08-03');
+  });
+
   it('celebrates an open week after the completed-session target is reached', async () => {
     const listWorkoutSessions = jest.fn<Api['listWorkoutSessions']>(
       async () => ({
@@ -282,9 +324,13 @@ describe('CalendarReportContainer', () => {
       expect.anything(),
     );
     fireEvent.press(screen.getByRole('button', { name: '운동 기록 닫기' }));
-    fireEvent.press(
-      screen.getByRole('button', { name: '주간 리포트 보기  ›' }),
-    );
+    expect(
+      screen.getByTestId('calendar-week-report-action-gradient'),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByTestId('calendar-week-report-action-chevron'),
+    ).toBeOnTheScreen();
+    fireEvent.press(screen.getByRole('button', { name: '주간 리포트 보기' }));
     expect(onOpenWeeklyReport).toHaveBeenCalledWith('2026-08-03');
     fireEvent.press(
       screen.getByRole('button', {

@@ -153,8 +153,8 @@ export const HOUSE_ITEMS: readonly HouseItem[] = [
 ] as const;
 
 const DEFAULT_ITEM_PLACEMENTS: Record<HouseItemId, HouseItemPlacement> = {
-  yoga_mat: { x: 0.24, y: 0.57 },
-  dumbbell: { x: 0.62, y: 0.57 },
+  yoga_mat: { x: 0.24, y: 0.46 },
+  dumbbell: { x: 0.62, y: 0.46 },
   plant: { x: 0.1, y: 0.46 },
   cushion: { x: 0.72, y: 0.47 },
   lamp: { x: 0.82, y: 0.34 },

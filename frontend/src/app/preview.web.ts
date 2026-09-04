@@ -1,7 +1,9 @@
 export type PreviewMode =
   | 'account'
+  | 'app-status'
   | 'auth'
   | 'background_test'
+  | 'banana-catch'
   | 'calendar-report'
   | 'exercise-catalog'
   | 'gallery'
@@ -35,8 +37,10 @@ export function getPreviewMode(): PreviewMode {
 
   if (
     requestedPreview === 'account' ||
+    requestedPreview === 'app-status' ||
     requestedPreview === 'auth' ||
     requestedPreview === 'background_test' ||
+    requestedPreview === 'banana-catch' ||
     requestedPreview === 'calendar-report' ||
     requestedPreview === 'exercise-catalog' ||
     requestedPreview === 'gallery' ||

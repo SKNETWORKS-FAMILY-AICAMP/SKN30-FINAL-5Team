@@ -65,11 +65,12 @@ export function BrandTitle({
 }
 
 /** Mascot artwork available to the stage. Ignored when `serious`. */
-export type MascotArt = 'progress' | 'complete';
+export type MascotArt = 'progress' | 'complete' | 'feedback';
 
 const MASCOT_ART = {
   progress: imageAssets.progressMascot,
   complete: imageAssets.mascotComplete,
+  feedback: imageAssets.mascotFeedback,
 } as const;
 
 export function MascotStage({
@@ -93,7 +94,13 @@ export function MascotStage({
       accessibilityLabel={serious ? '안전 안내 화면' : `${title} 안내`}
       style={[styles.mascotStage, serious && styles.mascotStageSerious]}
     >
-      <View style={[styles.mascot, serious && styles.mascotSerious]}>
+      <View
+        style={[
+          styles.mascot,
+          art === 'feedback' && styles.mascotPlain,
+          serious && styles.mascotSerious,
+        ]}
+      >
         {serious ? (
           // Safety screens drop the mascot entirely. A pain or adverse-response
           // notice must not carry a character illustration.
@@ -212,6 +219,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 32,
     backgroundColor: colors.brandFill,
+  },
+  mascotPlain: {
+    backgroundColor: colors.surface,
   },
   mascotSerious: {
     backgroundColor: colors.dangerSurface,

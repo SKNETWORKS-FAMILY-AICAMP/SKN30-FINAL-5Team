@@ -10,6 +10,8 @@ export const imageAssets = {
   arrowDown: require('./map/arrow-down.png') as ImageSourcePropType,
   mascotComplete:
     require('./mascot/mascot-complete.png') as ImageSourcePropType,
+  mascotFeedback:
+    require('./mascot/monkey/feedback_asset/kkikki_ddabong.png') as ImageSourcePropType,
   progressMascot:
     require('./mascot/progress-mascot.webp') as ImageSourcePropType,
   dayTodo: require('./mascot/day-todo.webp') as ImageSourcePropType,
@@ -44,6 +46,11 @@ export const imageAssets = {
     require('./house/camping/background/thumbnails/kkikki_indoor.jpg') as ImageSourcePropType,
   houseSnowingOnsenBackgroundThumbnail:
     require('./house/camping/background/thumbnails/snowing_onsen.jpg') as ImageSourcePropType,
+  houseCushion: require('./house/things/comfy.png') as ImageSourcePropType,
+  houseLamp: require('./house/things/stand.png') as ImageSourcePropType,
+  housePlant: require('./house/things/hwaboon.png') as ImageSourcePropType,
+  houseDumbbell: require('./house/things/weight.png') as ImageSourcePropType,
+  houseYogaMat: require('./house/things/yoga_matt.png') as ImageSourcePropType,
   houseMascotMonkey01:
     require('./mascot/monkey/sheet_01/monkey_01.png') as ImageSourcePropType,
   houseMascotCollectingBananasEmpty:

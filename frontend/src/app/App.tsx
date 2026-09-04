@@ -176,8 +176,10 @@ export function App({
   const usesPreviewGallery =
     activePreview === 'gallery' ||
     activePreview === 'account' ||
+    activePreview === 'app-status' ||
     activePreview === 'auth' ||
     activePreview === 'background_test' ||
+    activePreview === 'banana-catch' ||
     activePreview === 'exercise-catalog' ||
     activePreview === 'loading' ||
     activePreview === 'mascot-house' ||
@@ -204,10 +206,14 @@ export function App({
             <PreviewGallery />
           ) : activePreview === 'account' ? (
             <PreviewGallery initialScreenId="account" />
+          ) : activePreview === 'app-status' ? (
+            <PreviewGallery initialScreenId="app-status" />
           ) : activePreview === 'auth' ? (
             <PreviewGallery initialScreenId="auth" />
           ) : activePreview === 'background_test' ? (
             <PreviewGallery initialScreenId="background_test" />
+          ) : activePreview === 'banana-catch' ? (
+            <PreviewGallery initialScreenId="banana-catch" />
           ) : activePreview === 'exercise-catalog' ? (
             <PreviewGallery initialScreenId="exercise-catalog" />
           ) : activePreview === 'loading' ? (

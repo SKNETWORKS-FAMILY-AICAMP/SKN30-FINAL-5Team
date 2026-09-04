@@ -564,6 +564,31 @@ export type ExerciseVariantsResponse = {
   alternative_set_version: string | null;
 };
 
+export type NotificationTypeCode =
+  'DAILY_REWARD' | 'WEEKLY_GOAL_REMINDER' | 'KIKKI_RETURN';
+
+export type NotificationActionType = 'OPEN_KIKKI_HOME' | null;
+
+export type NotificationResponse = {
+  notification_id: string;
+  type: NotificationTypeCode;
+  title: string;
+  message: string;
+  created_at: string;
+  read_at: string | null;
+  is_read: boolean;
+  action_type: NotificationActionType;
+  payload: {
+    remaining_workout_count?: number;
+    [key: string]: unknown;
+  };
+};
+
+export type NotificationListResponse = {
+  items: NotificationResponse[];
+  unread_count: number;
+};
+
 export type WeekResponse = {
   week_id: string;
   week_start: string;

@@ -22,6 +22,8 @@ import type {
   ExerciseVariantsResponse,
   MeResponse,
   NotCompletedReasonCode,
+  NotificationListResponse,
+  NotificationResponse,
   OnboardingRequest,
   OnboardingResponse,
   ProfileImageMutationResponse,
@@ -48,6 +50,22 @@ export function createApi(client: ApiClient) {
   return {
     getMe(signal?: AbortSignal) {
       return client.request<MeResponse>({ path: '/me', signal });
+    },
+
+    listNotifications(signal?: AbortSignal) {
+      return client.request<NotificationListResponse>({
+        path: '/notifications',
+        signal,
+      });
+    },
+
+    markNotificationRead(notificationId: string, signal?: AbortSignal) {
+      return client.request<NotificationResponse>({
+        method: 'PATCH',
+        path: `/notifications/${notificationId}/read`,
+        idempotent: true,
+        signal,
+      });
     },
 
     submitOnboarding(body: OnboardingRequest) {

@@ -17,7 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
-import { Card } from '../../components/primitives';
+import { Card, GradientActionButton } from '../../components/primitives';
 import { colors } from '../../components/theme';
 import type { TabId } from '../../components/brand/BrandChrome';
 import { HomeBottomNavigation } from './HomeScreen';
@@ -917,20 +917,13 @@ function WeekDetail({
       </View>
       <Text style={styles.weekNote}>{note}</Text>
       {canOpenReport ? (
-        <Pressable
-          accessibilityRole="button"
+        <GradientActionButton
+          label={actionLabel}
+          labelStyle={styles.weekActionLabel}
           onPress={onOpenReport}
-          style={[styles.weekAction, state === 'make' && styles.weekActionMake]}
-        >
-          <Text
-            style={[
-              styles.weekActionText,
-              state === 'make' && styles.weekActionTextMake,
-            ]}
-          >
-            {actionLabel} ›
-          </Text>
-        </Pressable>
+          style={styles.weekAction}
+          testID="calendar-week-report-action"
+        />
       ) : null}
     </View>
   );
@@ -1324,41 +1317,12 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   weekAction: {
-    alignItems: 'center',
+    height: 46,
     marginTop: 12,
-    borderRadius: 14,
-    backgroundColor: '#F6BA50',
-    padding: 14,
   },
-  weekActionSecondary: {
-    borderWidth: 1.5,
-    borderColor: '#F1D39A',
-    backgroundColor: colors.surface,
-  },
-  weekActionMake: {
-    borderBottomWidth: 4,
-    borderBottomColor: '#D98B16',
-    backgroundColor: '#F6BA50',
-  },
-  weekActionDisabled: {
-    borderWidth: 1.5,
-    borderColor: '#DFDBD2',
-    borderStyle: 'dashed',
-    backgroundColor: colors.surface,
-  },
-  weekActionText: {
-    color: colors.text,
+  weekActionLabel: {
     fontSize: 14,
     fontWeight: '800',
-  },
-  weekActionTextSecondary: {
-    color: '#A45F00',
-  },
-  weekActionTextMake: {
-    color: colors.text,
-  },
-  weekActionTextDisabled: {
-    color: '#B7B2A8',
   },
   legendRow: {
     flexDirection: 'row',

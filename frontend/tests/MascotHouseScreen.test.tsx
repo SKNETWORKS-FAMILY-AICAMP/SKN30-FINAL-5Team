@@ -27,10 +27,15 @@ import {
   houseBackdropMinimumHeight,
   houseBackdropSize,
   houseControlsTop,
+  HOUSE_ITEM_CONTROL_CLEARANCE,
+  houseItemPlacementMinY,
+  houseItemPlacementMaxY,
+  housePlacedItemSize,
   houseMascotSize,
   houseMascotTallScreenOffset,
   houseMascotTop,
   HOUSE_MASCOT_CONTROL_CLEARANCE,
+  HOUSE_SPEECH_BUBBLE_DURATION_MS,
   HOUSE_TOUCH_HINT_RESERVED_HEIGHT,
 } from '../src/features/house/MascotHouseContent';
 import {
@@ -40,6 +45,7 @@ import {
 import {
   houseBananaPoseArt,
   houseBackgroundArt,
+  houseItemArt,
   housePoseArt,
   houseRegularPoseArt,
   houseRoomArt,
@@ -150,6 +156,16 @@ function loadPendingMascot() {
 }
 
 describe('MascotHouseScreen', () => {
+  it('connects the reviewed decoration assets and leaves missing art pending', () => {
+    expect(houseItemArt.cushion.source).toBe(imageAssets.houseCushion);
+    expect(houseItemArt.lamp.source).toBe(imageAssets.houseLamp);
+    expect(houseItemArt.plant.source).toBe(imageAssets.housePlant);
+    expect(houseItemArt.dumbbell.source).toBe(imageAssets.houseDumbbell);
+    expect(houseItemArt.yoga_mat.source).toBe(imageAssets.houseYogaMat);
+    expect(houseItemArt.star_frame.source).toBeNull();
+    expect(houseItemArt.window.source).toBeNull();
+  });
+
   it('uses the shared solid canvas while the house is loading', () => {
     const pendingApi = {
       getWeek: jest.fn(() => new Promise<never>(() => undefined)),
@@ -415,7 +431,7 @@ describe('MascotHouseScreen', () => {
     });
   });
 
-  it('allows drag placement only while 집 꾸미기 is open and persists it', async () => {
+  it('allows drag placement only while 집 꾸미기 is open and keeps it above the controls', async () => {
     const { store } = renderHouse(houseApi());
 
     await waitFor(() =>
@@ -427,6 +443,24 @@ describe('MascotHouseScreen', () => {
     fireEvent(screen.getByTestId('house-decoration-canvas'), 'layout', {
       nativeEvent: { layout: { height: 844, width: 390, x: 0, y: 0 } },
     });
+    fireEvent(screen.getByTestId('house-content-column'), 'layout', {
+      nativeEvent: { layout: { height: 712, width: 390, x: 0, y: 40 } },
+    });
+    fireEvent(screen.getByTestId('house-scene'), 'layout', {
+      nativeEvent: { layout: { height: 394, width: 358, x: 16, y: 8 } },
+    });
+    fireEvent(screen.getByTestId('house-top-left-controls'), 'layout', {
+      nativeEvent: { layout: { height: 130, width: 84, x: 0, y: 0 } },
+    });
+    fireEvent(screen.getByTestId('house-top-center-controls'), 'layout', {
+      nativeEvent: { layout: { height: 90, width: 140, x: 109, y: 0 } },
+    });
+    fireEvent(screen.getByTestId('house-top-right-controls'), 'layout', {
+      nativeEvent: { layout: { height: 150, width: 84, x: 274, y: 0 } },
+    });
+    fireEvent(screen.getByTestId('house-action-area'), 'layout', {
+      nativeEvent: { layout: { height: 310, width: 358, x: 16, y: 402 } },
+    });
 
     const placed = screen.getByTestId('house-placed-item-yoga_mat');
     expect(
@@ -437,25 +471,46 @@ describe('MascotHouseScreen', () => {
       borderWidth: 1.5,
       borderStyle: 'dashed',
       borderColor: colors.brandOutline,
-    });
-    expect(screen.getAllByTestId('house-art-item-yoga_mat')[0]).toHaveStyle({
-      borderWidth: 0,
+      height: 132,
+      width: 132,
     });
 
     fireEvent(placed, 'responderGrant', {
       nativeEvent: { pageX: 100, pageY: 100 },
     });
     fireEvent(placed, 'responderMove', {
-      nativeEvent: { pageX: 150, pageY: 180 },
+      nativeEvent: { pageX: 150, pageY: 700 },
     });
     fireEvent(placed, 'responderRelease');
 
     await waitFor(async () =>
       expect((await store.read())?.itemPlacements.yoga_mat).toEqual({
-        x: 0.24 + 50 / (390 - 44),
-        y: 0.57 + 80 / (844 - 44),
+        x: 0.24 + 50 / (390 - 132),
+        y: (442 - 132 - HOUSE_ITEM_CONTROL_CLEARANCE) / (844 - 132),
       }),
     );
+    expect(screen.getByTestId('house-placed-item-yoga_mat')).toHaveStyle({
+      top: 442 - 132 - HOUSE_ITEM_CONTROL_CLEARANCE,
+    });
+
+    const bottomClamped = screen.getByTestId('house-placed-item-yoga_mat');
+    fireEvent(bottomClamped, 'responderGrant', {
+      nativeEvent: { pageX: 150, pageY: 700 },
+    });
+    fireEvent(bottomClamped, 'responderMove', {
+      nativeEvent: { pageX: 150, pageY: 0 },
+    });
+    fireEvent(bottomClamped, 'responderRelease');
+
+    await waitFor(async () =>
+      expect((await store.read())?.itemPlacements.yoga_mat).toEqual({
+        x: 0.24 + 50 / (390 - 132),
+        y: (40 + 8 + 150 + HOUSE_ITEM_CONTROL_CLEARANCE) / (844 - 132),
+      }),
+    );
+    expect(screen.getByTestId('house-placed-item-yoga_mat')).toHaveStyle({
+      top: 40 + 8 + 150 + HOUSE_ITEM_CONTROL_CLEARANCE,
+    });
 
     fireEvent.press(screen.getByLabelText('집 꾸미기 닫기'));
     expect(
@@ -753,6 +808,83 @@ describe('MascotHouseScreen', () => {
     expect(houseControlsTop(null, 712, 310)).toBeNull();
     expect(houseControlsTop(40, 712, 310)).toBe(442);
   });
+
+  it('limits decoration placement to the area between top and bottom controls', () => {
+    expect(houseItemPlacementMinY(844, 198)).toBe(
+      (198 + HOUSE_ITEM_CONTROL_CLEARANCE) / (844 - 44),
+    );
+    expect(houseItemPlacementMinY(844, null)).toBe(0);
+    expect(houseItemPlacementMaxY(844, 442)).toBe(
+      (442 - 44 - HOUSE_ITEM_CONTROL_CLEARANCE) / (844 - 44),
+    );
+    expect(houseItemPlacementMaxY(844, null)).toBe(1);
+    expect(houseItemPlacementMaxY(40, 20)).toBe(0);
+  });
+
+  it('sizes placed decoration artwork independently from its shop preview', () => {
+    expect(housePlacedItemSize('yoga_mat')).toBe(132);
+    expect(housePlacedItemSize('dumbbell')).toBe(44);
+    expect(housePlacedItemSize('plant')).toBe(88);
+    expect(housePlacedItemSize('cushion')).toBe(66);
+    expect(housePlacedItemSize('lamp')).toBe(132);
+  });
+
+  it('keeps placed assets below the controls, mascot, and speech bubble', async () => {
+    renderHouse(houseApi());
+
+    await screen.findByTestId('house-scene');
+    expect(screen.getByTestId('house-decoration-canvas')).toHaveStyle({
+      zIndex: 1,
+    });
+    expect(screen.getByTestId('house-safe-area')).toHaveStyle({ zIndex: 2 });
+    expect(screen.getByTestId('house-mascot-slot')).toHaveStyle({ zIndex: 3 });
+  });
+
+  it('hides speech after five seconds and shows it again for a new reaction', async () => {
+    jest.useFakeTimers();
+    try {
+      renderHouse(houseApi());
+      await waitFor(() =>
+        expect(screen.getByTestId('house-speech-bubble')).toBeTruthy(),
+      );
+
+      act(() => jest.advanceTimersByTime(4800));
+      expect(screen.getByTestId('house-speech-bubble')).toBeTruthy();
+      act(() => jest.advanceTimersByTime(300));
+      expect(screen.queryByTestId('house-speech-bubble')).toBeNull();
+
+      fireEvent.press(screen.getByTestId('house-pet-action'));
+      expect(screen.getByTestId('house-speech-bubble')).toBeTruthy();
+      expect(HOUSE_SPEECH_BUBBLE_DURATION_MS).toBe(5000);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it.each(CLEARANCE_VIEWPORTS)(
+    'keeps decorations clear of both control groups on a $label',
+    ({ height }) => {
+      const topControlsBottom = height * 0.2;
+      const bottomControlsTop = height * 0.7;
+
+      for (const itemSize of [44, 66, 88, 132]) {
+        const usableHeight = height - itemSize;
+        const minimumTop =
+          houseItemPlacementMinY(height, topControlsBottom, itemSize) *
+          usableHeight;
+        const maximumTop =
+          houseItemPlacementMaxY(height, bottomControlsTop, itemSize) *
+          usableHeight;
+
+        expect(minimumTop).toBeCloseTo(
+          topControlsBottom + HOUSE_ITEM_CONTROL_CLEARANCE,
+        );
+        expect(maximumTop + itemSize).toBeCloseTo(
+          bottomControlsTop - HOUSE_ITEM_CONTROL_CLEARANCE,
+        );
+      }
+    },
+  );
 
   it('lifts the mascot off its anchor when the real controls grow into it', async () => {
     renderHouse(houseApi());

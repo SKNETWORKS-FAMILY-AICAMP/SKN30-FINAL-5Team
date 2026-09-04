@@ -292,6 +292,7 @@ export type HomeScreenProps = {
     Partial<Pick<Api, 'getExerciseVariants'>>;
   hasTodayRoutine?: boolean;
   hasUnreadNotification?: boolean;
+  notificationToastVisible?: boolean;
   localDate?: string;
   locationCodes?: readonly string[];
   nickname?: string;
@@ -376,6 +377,7 @@ function HomeScreenContent({
   exerciseApi,
   hasTodayRoutine = true,
   hasUnreadNotification = false,
+  notificationToastVisible = false,
   initialState,
   localDate,
   locationCodes = [],
@@ -1090,6 +1092,19 @@ function HomeScreenContent({
         </View>
 
         <HomeBottomNavigation activeTab="home" onNavigate={navigateFromHome} />
+
+        {notificationToastVisible ? (
+          <View
+            accessibilityLiveRegion="polite"
+            accessibilityRole="alert"
+            pointerEvents="none"
+            style={styles.notificationToast}
+          >
+            <Text style={styles.notificationToastText}>
+              끼끼가 소식을 가져왔어요!
+            </Text>
+          </View>
+        ) : null}
 
         {checkinOpen ? (
           <CheckinSheet
@@ -2040,7 +2055,7 @@ function RoutineCard({
                     >
                       {onOpenExerciseGuide ? (
                         <Pressable
-                          accessibilityLabel={`${item.name} 자세 보기`}
+                          accessibilityLabel={`${item.name} 자세`}
                           accessibilityRole="button"
                           accessibilityState={{
                             disabled: interactionsDisabled,
@@ -2064,7 +2079,7 @@ function RoutineCard({
                             ]}
                             numberOfLines={1}
                           >
-                            자세 보기
+                            자세
                           </Text>
                         </Pressable>
                       ) : null}
@@ -2230,6 +2245,7 @@ function RoutineCard({
       )}
       {!locked && onRest ? (
         <Pressable
+          accessibilityLabel="오늘은 쉬기"
           accessibilityRole="button"
           accessibilityState={{ disabled: interactionsDisabled || pending }}
           disabled={interactionsDisabled || pending}
@@ -2237,13 +2253,37 @@ function RoutineCard({
           style={[
             styles.routineAction,
             styles.restAction,
-            interactionsDisabled && styles.disabledAction,
+            (interactionsDisabled || pending) && styles.restActionDisabled,
           ]}
         >
+          <LinearGradient
+            colors={
+              interactionsDisabled || pending
+                ? ['#F2F1EF', '#ECEAE7']
+                : ['#FCFFF8', '#EEF5E2']
+            }
+            end={{ x: 1, y: 1 }}
+            pointerEvents="none"
+            start={{ x: 0, y: 0 }}
+            style={styles.restActionGradient}
+            testID="home-rest-gradient"
+          />
+          <View
+            style={[
+              styles.restActionIcon,
+              (interactionsDisabled || pending) &&
+                styles.restActionIconDisabled,
+            ]}
+            testID="home-rest-icon"
+          >
+            <RestIcon
+              color={interactionsDisabled || pending ? '#98948E' : '#667A4F'}
+            />
+          </View>
           <Text
             style={[
               styles.restActionLabel,
-              interactionsDisabled && styles.disabledLabel,
+              (interactionsDisabled || pending) && styles.disabledLabel,
             ]}
           >
             오늘은 쉬기
@@ -2911,7 +2951,6 @@ function CheckinSheet({
           >
             <PainIntensitySlider
               bodyArea={bodyAreaLabel(code)}
-              compact
               disabled={pending}
               onChange={(value) => onChangePainIntensity(code, value)}
               testIDPrefix="checkin"
@@ -3968,6 +4007,21 @@ function RerollIcon({ color }: { color: string }) {
   );
 }
 
+function RestIcon({ color }: { color: string }) {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M18.4 15.1A7.7 7.7 0 0 1 8.9 5.6a8.2 8.2 0 1 0 9.5 9.5Z"
+        stroke={color}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.8}
+      />
+      <Circle cx={17.6} cy={6.6} r={1.1} fill={color} />
+    </Svg>
+  );
+}
+
 function HomeTabIcon({ color, size = 22 }: { color: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -4143,6 +4197,26 @@ function createHomeStyles(
       borderWidth: s(1.5),
       borderColor: colors.surface,
       backgroundColor: '#E9503F',
+    },
+    notificationToast: {
+      position: 'absolute',
+      top: topPadding + s(64),
+      right: s(24),
+      left: s(24),
+      zIndex: 30,
+      alignItems: 'center',
+      borderWidth: s(1),
+      borderColor: colors.successBorder,
+      borderRadius: s(16),
+      backgroundColor: colors.surface,
+      paddingVertical: s(12),
+      paddingHorizontal: s(18),
+      ...shadow(5, 12, 0.16),
+    },
+    notificationToastText: {
+      color: colors.text,
+      fontSize: f(14),
+      fontWeight: '800',
     },
     hidden: { display: 'none' },
     profileButton: {
@@ -4509,7 +4583,7 @@ function createHomeStyles(
       gap: s(2),
     },
     routineGuideSlot: {
-      width: s(64),
+      width: s(48),
       height: s(32),
       alignItems: 'center',
       justifyContent: 'center',
@@ -4518,7 +4592,7 @@ function createHomeStyles(
       width: s(44),
     },
     routineGuideButton: {
-      width: s(64),
+      width: s(48),
       height: s(32),
       minHeight: s(32),
       alignItems: 'center',
@@ -4628,17 +4702,50 @@ function createHomeStyles(
     routineActionDisabled: { borderColor: '#EEDFCB' },
     editActionLabel: { color: '#A45F00', fontSize: f(13.5), fontWeight: '700' },
     restAction: {
-      alignSelf: 'center',
+      position: 'relative',
+      alignSelf: 'stretch',
       flex: 0,
-      minWidth: s(132),
-      borderColor: '#D8D4CB',
-      backgroundColor: 'transparent',
-      paddingVertical: s(10),
+      minHeight: s(50),
+      borderWidth: s(1),
+      borderColor: '#BFD09F',
+      borderRadius: s(16),
+      backgroundColor: '#F4F8E9',
+      overflow: 'hidden',
+      paddingVertical: s(12),
+      paddingHorizontal: s(18),
+      ...shadow(3, 8, 0.07),
+    },
+    restActionDisabled: {
+      borderColor: '#D8D5D1',
+      shadowOpacity: 0,
+      elevation: 0,
+    },
+    restActionGradient: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+    },
+    restActionIcon: {
+      width: s(28),
+      height: s(28),
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: s(1),
+      borderColor: '#D5E2BD',
+      borderRadius: s(999),
+      backgroundColor: 'rgba(255, 255, 255, 0.72)',
+    },
+    restActionIconDisabled: {
+      borderColor: '#DDDAD5',
+      backgroundColor: 'rgba(255, 255, 255, 0.48)',
     },
     restActionLabel: {
-      color: '#7B695B',
-      fontSize: f(13),
-      fontWeight: '600',
+      color: '#52653F',
+      fontSize: f(14),
+      fontWeight: '700',
+      letterSpacing: s(-0.1),
     },
     rerollActionLabel: {
       color: '#A45F00',

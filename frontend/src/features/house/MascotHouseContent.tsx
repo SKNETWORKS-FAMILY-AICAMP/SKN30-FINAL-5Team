@@ -241,8 +241,25 @@ const HOUSE_COLUMN_TOP_PADDING = spacing.sm;
 const HOUSE_COLUMN_GAP = spacing.sm;
 const HOUSE_STAGE_MIN_HEIGHT = 210;
 
-const PLACED_ITEM_SIZE = 44;
+const PLACED_ITEM_BASE_SIZE = 44;
+export const HOUSE_ITEM_CONTROL_CLEARANCE = spacing.sm;
 const DECORATE_GRID_GAP = spacing.sm;
+
+const HOUSE_PLACED_ITEM_SCALE: Record<HouseItemId, number> = {
+  yoga_mat: 3,
+  dumbbell: 1,
+  plant: 2,
+  cushion: 1.5,
+  lamp: 3,
+  star_frame: 1,
+  window: 1,
+};
+
+export function housePlacedItemSize(itemId: HouseItemId): number {
+  return PLACED_ITEM_BASE_SIZE * HOUSE_PLACED_ITEM_SCALE[itemId];
+}
+
+export const HOUSE_SPEECH_BUBBLE_DURATION_MS = 5000;
 
 export const HOUSE_MINI_GAMES = [
   {
@@ -505,6 +522,42 @@ export function houseBottomPanelTop(
 /** @deprecated Use `houseBottomPanelTop`; retained for existing callers. */
 export const houseWeekPanelTop = houseBottomPanelTop;
 
+/**
+ * Largest persisted y-coordinate that keeps a decoration wholly above the
+ * measured controls. Stored coordinates remain relative to the full canvas.
+ */
+export function houseItemPlacementMaxY(
+  canvasHeight: number,
+  controlsTop: number | null,
+  itemSize: number = PLACED_ITEM_BASE_SIZE,
+): number {
+  const usableHeight = Math.max(0, canvasHeight - itemSize);
+  if (usableHeight <= 0) return 0;
+  if (controlsTop === null || !Number.isFinite(controlsTop)) return 1;
+
+  const maximumTop = Math.max(
+    0,
+    Math.min(canvasHeight, controlsTop) -
+      itemSize -
+      HOUSE_ITEM_CONTROL_CLEARANCE,
+  );
+  return clampUnit(maximumTop / usableHeight);
+}
+
+/** Smallest persisted y-coordinate that clears every control in the top rails. */
+export function houseItemPlacementMinY(
+  canvasHeight: number,
+  topControlsBottom: number | null,
+  itemSize: number = PLACED_ITEM_BASE_SIZE,
+): number {
+  const usableHeight = Math.max(0, canvasHeight - itemSize);
+  if (usableHeight <= 0 || topControlsBottom === null) return 0;
+  if (!Number.isFinite(topControlsBottom)) return 0;
+  return clampUnit(
+    (topControlsBottom + HOUSE_ITEM_CONTROL_CLEARANCE) / usableHeight,
+  );
+}
+
 export function MascotHouseContent({
   footer,
   onBuyItem,
@@ -553,7 +606,9 @@ export function MascotHouseContent({
   const [actionAreaHeight, setActionAreaHeight] = useState<number | null>(null);
   /** Measured so the mascot's floor sits under the title and the top chips. */
   const [stageTop, setStageTop] = useState<number | null>(null);
-  const [topRailHeight, setTopRailHeight] = useState<number | null>(null);
+  const [leftRailHeight, setLeftRailHeight] = useState<number | null>(null);
+  const [centerRailHeight, setCenterRailHeight] = useState<number | null>(null);
+  const [rightRailHeight, setRightRailHeight] = useState<number | null>(null);
   /** Measured so the hint under the mascot is counted in its clearance. */
   const [touchHintHeight, setTouchHintHeight] = useState<number | null>(null);
   const [bottomPanelHeight, setBottomPanelHeight] = useState<number | null>(
@@ -615,13 +670,28 @@ export function MascotHouseContent({
   const belowMascotHeight =
     (touchHintHeight ?? HOUSE_TOUCH_HINT_RESERVED_HEIGHT * controlScale) +
     spacing.sm * controlScale;
+  // All three rails hold controls, so the scene has to clear the tallest one.
+  const topRailHeight = Math.max(
+    leftRailHeight ?? 0,
+    centerRailHeight ?? 0,
+    rightRailHeight ?? 0,
+  );
+  const topControlsBottom =
+    columnLayout !== null &&
+    stageTop !== null &&
+    leftRailHeight !== null &&
+    centerRailHeight !== null &&
+    rightRailHeight !== null
+      ? columnLayout.y + stageTop + topRailHeight
+      : null;
   const mascotTop = houseMascotTop({
     belowMascotHeight,
     controlsTop,
     mascotSize,
-    sceneTop: (columnLayout?.y ?? 0) + (stageTop ?? 0) + (topRailHeight ?? 0),
+    sceneTop: (columnLayout?.y ?? 0) + (stageTop ?? 0) + topRailHeight,
     viewportHeight: viewport.height,
   });
+  const speech = houseSpeech(view, pose);
 
   return (
     <View
@@ -655,8 +725,9 @@ export function MascotHouseContent({
       >
         <SpeechBubble
           controlScale={controlScale}
+          key={speech}
           mascotSize={mascotSize}
-          text={houseSpeech(view, pose)}
+          text={speech}
         />
         <Pressable
           accessibilityLabel="끼끼 쓰다듬기"
@@ -692,12 +763,14 @@ export function MascotHouseContent({
           <DraggablePlacedItem
             canvasHeight={decorationCanvas.height}
             canvasWidth={decorationCanvas.width}
+            controlsTop={controlsTop}
             editable={decorating}
             itemId={item.id}
             key={item.id}
             label={item.label}
             onPlace={onPlaceItem}
             placement={view.itemPlacements[item.id]}
+            topControlsBottom={topControlsBottom}
           />
         ))}
       </View>
@@ -729,9 +802,10 @@ export function MascotHouseContent({
           >
             <View
               onLayout={(event) =>
-                setTopRailHeight(event.nativeEvent.layout.height)
+                setLeftRailHeight(event.nativeEvent.layout.height)
               }
               style={[styles.railLeft, compactStyles.rail]}
+              testID="house-top-left-controls"
             >
               <View
                 accessible
@@ -754,25 +828,16 @@ export function MascotHouseContent({
                 </Pressable>
                 <SpendActionEffectOverlay effect={actionEffect} />
               </View>
-
-              <Pressable
-                accessibilityLabel="집 꾸미기"
-                accessibilityRole="button"
-                onPress={() => setDecorating(true)}
-                style={[styles.chip, compactStyles.chip]}
-                testID="house-decorate-action"
-              >
-                <HouseMarkGlyph
-                  size={22 * controlScale}
-                  color={colors.brandOutline}
-                />
-                <Text style={[styles.chipValue, compactStyles.chipValue]}>
-                  집 꾸미기
-                </Text>
-              </Pressable>
             </View>
 
-            <View style={styles.railCenter} pointerEvents="box-none">
+            <View
+              onLayout={(event) =>
+                setCenterRailHeight(event.nativeEvent.layout.height)
+              }
+              pointerEvents="box-none"
+              style={styles.railCenter}
+              testID="house-top-center-controls"
+            >
               <Pressable
                 accessibilityLabel={`친밀도 레벨 ${view.intimacyLevel}, 자세히 보기`}
                 accessibilityRole="button"
@@ -806,7 +871,29 @@ export function MascotHouseContent({
               </Pressable>
             </View>
 
-            <View style={[styles.railRight, compactStyles.rail]}>
+            <View
+              onLayout={(event) =>
+                setRightRailHeight(event.nativeEvent.layout.height)
+              }
+              style={[styles.railRight, compactStyles.rail]}
+              testID="house-top-right-controls"
+            >
+              <Pressable
+                accessibilityLabel="집 꾸미기"
+                accessibilityRole="button"
+                onPress={() => setDecorating(true)}
+                style={[styles.chip, compactStyles.chip]}
+                testID="house-decorate-action"
+              >
+                <HouseMarkGlyph
+                  size={22 * controlScale}
+                  color={colors.brandOutline}
+                />
+                <Text style={[styles.chipValue, compactStyles.chipValue]}>
+                  집 꾸미기
+                </Text>
+              </Pressable>
+
               {view.visitStreakDays > 1 ? (
                 <View
                   style={[styles.streakChip, compactStyles.streakChip]}
@@ -1132,6 +1219,18 @@ function SpeechBubble({
   text: string;
 }) {
   const compactStyles = houseControlStyles(controlScale);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setVisible(false),
+      HOUSE_SPEECH_BUBBLE_DURATION_MS,
+    );
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!visible) return null;
+
   return (
     <View
       style={[
@@ -1932,19 +2031,23 @@ function FixedGrid({
 function DraggablePlacedItem({
   canvasHeight,
   canvasWidth,
+  controlsTop,
   editable,
   itemId,
   label,
   onPlace,
   placement,
+  topControlsBottom,
 }: {
   canvasHeight: number;
   canvasWidth: number;
+  controlsTop: number | null;
   editable: boolean;
   itemId: HouseItemId;
   label: string;
   onPlace: (itemId: HouseItemId, placement: HouseItemPlacement) => void;
   placement: HouseItemPlacement;
+  topControlsBottom: number | null;
 }) {
   const [dragPlacement, setDragPlacement] = useState<HouseItemPlacement | null>(
     null,
@@ -1955,15 +2058,26 @@ function DraggablePlacedItem({
     pageY: number;
     placement: HouseItemPlacement;
   } | null>(null);
-  const usableWidth = Math.max(0, canvasWidth - PLACED_ITEM_SIZE);
-  const usableHeight = Math.max(0, canvasHeight - PLACED_ITEM_SIZE);
+  const itemSize = housePlacedItemSize(itemId);
+  const usableWidth = Math.max(0, canvasWidth - itemSize);
+  const usableHeight = Math.max(0, canvasHeight - itemSize);
+  const maximumY = houseItemPlacementMaxY(canvasHeight, controlsTop, itemSize);
+  const minimumY = Math.min(
+    houseItemPlacementMinY(canvasHeight, topControlsBottom, itemSize),
+    maximumY,
+  );
+  const boundedPlacement = (candidate: HouseItemPlacement) => ({
+    x: clampUnit(candidate.x),
+    y: Math.min(maximumY, Math.max(minimumY, clampUnit(candidate.y))),
+  });
 
   const startDragging = (event: GestureResponderEvent) => {
-    livePlacementRef.current = placement;
+    const startPlacement = boundedPlacement(placement);
+    livePlacementRef.current = startPlacement;
     dragOrigin.current = {
       pageX: event.nativeEvent.pageX,
       pageY: event.nativeEvent.pageY,
-      placement,
+      placement: startPlacement,
     };
   };
   const continueDragging = (event: GestureResponderEvent) => {
@@ -1974,9 +2088,15 @@ function DraggablePlacedItem({
         origin.placement.x +
           (event.nativeEvent.pageX - origin.pageX) / usableWidth,
       ),
-      y: clampUnit(
-        origin.placement.y +
-          (event.nativeEvent.pageY - origin.pageY) / usableHeight,
+      y: Math.min(
+        maximumY,
+        Math.max(
+          minimumY,
+          clampUnit(
+            origin.placement.y +
+              (event.nativeEvent.pageY - origin.pageY) / usableHeight,
+          ),
+        ),
       ),
     };
     livePlacementRef.current = next;
@@ -1989,7 +2109,7 @@ function DraggablePlacedItem({
     setDragPlacement(null);
     onPlace(itemId, next);
   };
-  const renderedPlacement = dragPlacement ?? placement;
+  const renderedPlacement = boundedPlacement(dragPlacement ?? placement);
 
   return (
     <View
@@ -2007,8 +2127,10 @@ function DraggablePlacedItem({
         styles.placedItem,
         editable && styles.placedItemEditable,
         {
+          height: itemSize,
           left: renderedPlacement.x * usableWidth,
           top: renderedPlacement.y * usableHeight,
+          width: itemSize,
         },
       ]}
       testID={`house-placed-item-${itemId}`}
@@ -2077,6 +2199,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: 'transparent',
+    zIndex: 2,
   },
   column: {
     flex: 1,
@@ -2142,6 +2265,7 @@ const styles = StyleSheet.create({
     right: 0,
     left: 0,
     alignItems: 'center',
+    zIndex: 3,
   },
   touchHint: {
     position: 'absolute',
@@ -2422,11 +2546,10 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
+    zIndex: 1,
   },
   placedItem: {
     position: 'absolute',
-    width: PLACED_ITEM_SIZE,
-    height: PLACED_ITEM_SIZE,
     borderWidth: 0,
     borderRadius: radii.control,
   },
