@@ -194,12 +194,15 @@ def _translate_profile_error(exc: Exception, *, request: Request | None = None) 
         elif isinstance(exc, SQLAlchemyError) and request is not None:
             # Keep production diagnostics limited to a safe exception class.
             # Never log SQL text, bound parameters, tokens, or profile data.
+            original = getattr(exc, "orig", None)
             logger.error(
                 "profile_database_error",
                 extra={
                     "event_code": "PROFILE_DATABASE_ERROR",
                     "request_id": str(getattr(request.state, "request_id", "unavailable")),
                     "error_type": type(exc).__name__,
+                    "sqlstate": getattr(original, "sqlstate", None)
+                    or getattr(original, "pgcode", None),
                 },
             )
         return AppError(
