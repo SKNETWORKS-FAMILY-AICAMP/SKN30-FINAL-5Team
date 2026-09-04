@@ -26,7 +26,10 @@ def test_migration_history_has_a_single_linear_head() -> None:
 
     # A second head means two branches were authored against the same parent, which
     # blocks every later migration until someone merges them by hand.
-    assert scripts.get_heads() == ["0040_weekly_safety_and_calorie"]
+    assert scripts.get_heads() == ["0041_user_plan_revisions"]
+    assert scripts.get_revision("0041_user_plan_revisions").down_revision == (
+        "0040_weekly_safety_and_calorie"
+    )
     assert scripts.get_revision("0040_weekly_safety_and_calorie").down_revision == (
         "0039_workout_difficulty_reasons"
     )
