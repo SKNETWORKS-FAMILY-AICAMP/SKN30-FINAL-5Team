@@ -20,6 +20,7 @@ import {
   useRef,
   useState,
   type Dispatch,
+  type ReactNode,
   type SetStateAction,
 } from 'react';
 
@@ -213,6 +214,8 @@ export function HomeContainer({
   onTab,
   onOpenCalendar,
   hasUnreadNotification = false,
+  notificationPanel,
+  onDismissNotificationPanel,
   notificationToastVisible = false,
   onNotifications,
   finalValidationHoldMs = DEFAULT_FINAL_VALIDATION_HOLD_MS,
@@ -242,6 +245,8 @@ export function HomeContainer({
   onTab: (tab: TabId) => void;
   onOpenCalendar: () => void;
   hasUnreadNotification?: boolean;
+  notificationPanel?: ReactNode;
+  onDismissNotificationPanel?: () => void;
   notificationToastVisible?: boolean;
   onNotifications?: () => void;
   /** Testable presentation delay after a decision response is ready. */
@@ -839,6 +844,8 @@ export function HomeContainer({
       onSubmitUserEdits={submitUserEdits}
       onNavigateTab={onTab}
       hasUnreadNotification={hasUnreadNotification}
+      notificationPanel={notificationPanel}
+      onDismissNotificationPanel={onDismissNotificationPanel}
       notificationToastVisible={notificationToastVisible}
       onNotifications={onNotifications}
       onProfile={() => onTab('my')}

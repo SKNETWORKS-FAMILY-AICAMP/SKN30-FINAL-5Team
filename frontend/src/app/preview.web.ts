@@ -13,6 +13,7 @@ export type PreviewMode =
   | 'loading'
   | 'mascot-house'
   | 'my-page'
+  | 'notifications'
   | 'onboarding'
   | 'profile'
   | 'signup'
@@ -50,6 +51,7 @@ export function getPreviewMode(): PreviewMode {
     requestedPreview === 'loading' ||
     requestedPreview === 'mascot-house' ||
     requestedPreview === 'my-page' ||
+    requestedPreview === 'notifications' ||
     requestedPreview === 'onboarding' ||
     requestedPreview === 'profile' ||
     requestedPreview === 'signup' ||

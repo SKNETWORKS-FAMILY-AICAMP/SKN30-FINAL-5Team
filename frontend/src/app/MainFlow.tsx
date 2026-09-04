@@ -270,10 +270,14 @@ export function MainFlow({
     },
     [recoverHomeDecision],
   );
-  const openNotifications = useCallback(() => {
+  const toggleNotifications = useCallback(() => {
+    if (notificationSheetOpen) {
+      setNotificationSheetOpen(false);
+      return;
+    }
     setNotificationSheetOpen(true);
     void refreshNotifications();
-  }, [refreshNotifications]);
+  }, [notificationSheetOpen, refreshNotifications]);
   const selectNotification = useCallback(
     (notification: NotificationResponse) => {
       if (pendingNotificationId !== null) {
@@ -416,8 +420,24 @@ export function MainFlow({
             hasUnreadNotification={
               (notificationResponse?.unread_count ?? 0) > 0
             }
+            notificationPanel={
+              <NotificationSheet
+                errorMessage={notificationError}
+                onRetry={() => void refreshNotifications()}
+                onSelect={selectNotification}
+                pendingNotificationId={pendingNotificationId}
+                response={notificationResponse}
+                status={notificationStatus}
+                visible={notificationSheetOpen}
+              />
+            }
+            onDismissNotificationPanel={
+              notificationSheetOpen
+                ? () => setNotificationSheetOpen(false)
+                : undefined
+            }
             notificationToastVisible={notificationToastVisible}
-            onNotifications={openNotifications}
+            onNotifications={toggleNotifications}
             onAlternativeSuccess={() =>
               setAlternativeUsage((current) => ({
                 localDate,
@@ -450,16 +470,6 @@ export function MainFlow({
             onRecoverDecision={recoverHomeDecision}
             onTab={onTab}
             onOpenCalendar={() => setStep({ name: 'calendar-report' })}
-          />
-          <NotificationSheet
-            errorMessage={notificationError}
-            onClose={() => setNotificationSheetOpen(false)}
-            onRetry={() => void refreshNotifications()}
-            onSelect={selectNotification}
-            pendingNotificationId={pendingNotificationId}
-            response={notificationResponse}
-            status={notificationStatus}
-            visible={notificationSheetOpen}
           />
         </>
       );

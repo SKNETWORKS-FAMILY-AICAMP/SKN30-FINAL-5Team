@@ -1,17 +1,18 @@
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type {
   NotificationListResponse,
   NotificationResponse,
 } from '../../api/types';
+import { useScale } from '../../components/scale';
 import { colors, shadows, spacing } from '../../components/theme';
 
 export type NotificationLoadStatus = 'idle' | 'loading' | 'ready' | 'error';
@@ -46,7 +47,6 @@ function createdAtLabel(value: string): string {
 
 export function NotificationSheet({
   errorMessage,
-  onClose,
   onRetry,
   onSelect,
   pendingNotificationId,
@@ -55,7 +55,6 @@ export function NotificationSheet({
   visible,
 }: {
   errorMessage?: string | null;
-  onClose: () => void;
   onRetry: () => void;
   onSelect: (notification: NotificationResponse) => void;
   pendingNotificationId: string | null;
@@ -64,187 +63,188 @@ export function NotificationSheet({
   visible: boolean;
 }) {
   const items = response?.items ?? [];
+  const { height, s, width } = useScale();
+  const insets = useSafeAreaInsets();
+  const popoverWidth = Math.min(s(360), Math.max(0, width - s(44)));
+  const popoverMaxHeight = Math.max(
+    0,
+    Math.min(
+      s(400),
+      height -
+        Math.max(insets.top, s(58)) -
+        s(60) -
+        Math.max(insets.bottom, s(16)),
+    ),
+  );
+
+  if (!visible) {
+    return null;
+  }
 
   return (
-    <Modal
-      animationType="slide"
-      onRequestClose={onClose}
-      presentationStyle="overFullScreen"
-      statusBarTranslucent
-      transparent
-      visible={visible}
+    <Pressable
+      onPress={(event) => event.stopPropagation()}
+      onPointerDown={(event) => event.stopPropagation()}
+      style={[
+        styles.popover,
+        {
+          maxHeight: popoverMaxHeight,
+          minHeight: Math.min(s(180), popoverMaxHeight),
+          top: s(56),
+          width: popoverWidth,
+        },
+      ]}
+      testID="notification-popover"
     >
-      <Pressable accessible={false} onPress={onClose} style={styles.overlay}>
-        <Pressable
-          accessibilityViewIsModal
-          onPress={(event) => event.stopPropagation()}
-          style={styles.sheet}
-        >
-          <View style={styles.handle} />
-          <View style={styles.header}>
-            <View>
-              <Text accessibilityRole="header" style={styles.title}>
-                알림
-              </Text>
-              {response && response.unread_count > 0 ? (
-                <Text style={styles.unreadSummary}>
-                  읽지 않은 소식 {response.unread_count}개
-                </Text>
-              ) : null}
-            </View>
-            <Pressable
-              accessibilityLabel="알림함 닫기"
-              accessibilityRole="button"
-              onPress={onClose}
-              style={styles.closeButton}
-            >
-              <Text style={styles.closeText}>×</Text>
-            </Pressable>
-          </View>
+      <View
+        pointerEvents="none"
+        style={[
+          styles.pointer,
+          { height: s(14), right: s(73), top: -s(7), width: s(14) },
+        ]}
+        testID="notification-popover-pointer"
+      />
+      <View style={styles.header}>
+        <View>
+          <Text accessibilityRole="header" style={styles.title}>
+            알림
+          </Text>
+          {response && response.unread_count > 0 ? (
+            <Text style={styles.unreadSummary}>
+              읽지 않은 소식 {response.unread_count}개
+            </Text>
+          ) : null}
+        </View>
+      </View>
 
-          {status === 'loading' && response === null ? (
-            <View style={styles.state}>
-              <ActivityIndicator color={colors.primaryBusy} />
-              <Text style={styles.stateText}>알림을 불러오고 있어요.</Text>
-            </View>
-          ) : status === 'error' && response === null ? (
-            <View style={styles.state}>
-              <Text style={styles.stateTitle}>알림을 불러오지 못했어요.</Text>
-              <Text style={styles.stateText}>{errorMessage}</Text>
-              <Pressable
-                accessibilityRole="button"
-                onPress={onRetry}
-                style={styles.retryButton}
-              >
-                <Text style={styles.retryText}>다시 시도</Text>
+      {status === 'loading' && response === null ? (
+        <View style={styles.state}>
+          <ActivityIndicator color={colors.primaryBusy} />
+          <Text style={styles.stateText}>알림을 불러오고 있어요.</Text>
+        </View>
+      ) : status === 'error' && response === null ? (
+        <View style={styles.state}>
+          <Text style={styles.stateTitle}>알림을 불러오지 못했어요.</Text>
+          <Text style={styles.stateText}>{errorMessage}</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onRetry}
+            style={styles.retryButton}
+          >
+            <Text style={styles.retryText}>다시 시도</Text>
+          </Pressable>
+        </View>
+      ) : items.length === 0 ? (
+        <View style={styles.state}>
+          <Text style={styles.stateTitle}>아직 새로운 소식이 없어요.</Text>
+          <Text style={styles.stateText}>
+            끼끼가 소식을 가져오면 여기에 알려드릴게요.
+          </Text>
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          style={styles.scroll}
+        >
+          {status === 'error' ? (
+            <View style={styles.inlineError}>
+              <Text style={styles.inlineErrorText}>{errorMessage}</Text>
+              <Pressable accessibilityRole="button" onPress={onRetry}>
+                <Text style={styles.inlineRetryText}>다시 불러오기</Text>
               </Pressable>
             </View>
-          ) : items.length === 0 ? (
-            <View style={styles.state}>
-              <Text style={styles.stateTitle}>아직 새로운 소식이 없어요.</Text>
-              <Text style={styles.stateText}>
-                끼끼가 소식을 가져오면 여기에 알려드릴게요.
-              </Text>
-            </View>
-          ) : (
-            <ScrollView
-              contentContainerStyle={styles.list}
-              showsVerticalScrollIndicator={false}
-            >
-              {status === 'error' ? (
-                <View style={styles.inlineError}>
-                  <Text style={styles.inlineErrorText}>{errorMessage}</Text>
-                  <Pressable accessibilityRole="button" onPress={onRetry}>
-                    <Text style={styles.inlineRetryText}>다시 불러오기</Text>
-                  </Pressable>
+          ) : null}
+          {items.map((notification) => {
+            const pending =
+              pendingNotificationId === notification.notification_id;
+            const title = notificationTitle(notification);
+            return (
+              <Pressable
+                key={notification.notification_id}
+                accessibilityLabel={`${title} 알림 확인`}
+                accessibilityRole="button"
+                accessibilityState={{
+                  busy: pending,
+                  disabled: pendingNotificationId !== null,
+                }}
+                disabled={pendingNotificationId !== null}
+                onPress={() => onSelect(notification)}
+                style={[
+                  styles.item,
+                  !notification.is_read && styles.unreadItem,
+                  pending && styles.pendingItem,
+                ]}
+              >
+                <View style={styles.itemHeading}>
+                  {!notification.is_read ? (
+                    <View
+                      accessibilityLabel="읽지 않은 알림"
+                      style={styles.unreadDot}
+                    />
+                  ) : null}
+                  <Text style={styles.itemTitle}>{title}</Text>
                 </View>
-              ) : null}
-              {items.map((notification) => {
-                const pending =
-                  pendingNotificationId === notification.notification_id;
-                const title = notificationTitle(notification);
-                return (
-                  <Pressable
-                    key={notification.notification_id}
-                    accessibilityLabel={`${title} 알림 확인`}
-                    accessibilityRole="button"
-                    accessibilityState={{
-                      busy: pending,
-                      disabled: pendingNotificationId !== null,
-                    }}
-                    disabled={pendingNotificationId !== null}
-                    onPress={() => onSelect(notification)}
-                    style={[
-                      styles.item,
-                      !notification.is_read && styles.unreadItem,
-                      pending && styles.pendingItem,
-                    ]}
-                  >
-                    <View style={styles.itemHeading}>
-                      {!notification.is_read ? (
-                        <View
-                          accessibilityLabel="읽지 않은 알림"
-                          style={styles.unreadDot}
-                        />
-                      ) : null}
-                      <Text style={styles.itemTitle}>{title}</Text>
-                    </View>
-                    <Text style={styles.itemMessage}>
-                      {notification.message}
-                    </Text>
-                    <View style={styles.itemFooter}>
-                      <Text style={styles.itemTime}>
-                        {createdAtLabel(notification.created_at)}
-                      </Text>
-                      {pending ? (
-                        <ActivityIndicator
-                          color={colors.primaryBusy}
-                          size="small"
-                        />
-                      ) : notification.action_type === 'OPEN_KIKKI_HOME' ? (
-                        <Text style={styles.actionText}>끼끼의 집 보기 ›</Text>
-                      ) : null}
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          )}
-        </Pressable>
-      </Pressable>
-    </Modal>
+                <Text style={styles.itemMessage}>{notification.message}</Text>
+                <View style={styles.itemFooter}>
+                  <Text style={styles.itemTime}>
+                    {createdAtLabel(notification.created_at)}
+                  </Text>
+                  {pending ? (
+                    <ActivityIndicator
+                      color={colors.primaryBusy}
+                      size="small"
+                    />
+                  ) : notification.action_type === 'OPEN_KIKKI_HOME' ? (
+                    <Text style={styles.actionText}>끼끼의 집 보기 ›</Text>
+                  ) : null}
+                </View>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      )}
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(55, 42, 31, 0.36)',
-  },
-  sheet: {
-    maxHeight: '72%',
-    minHeight: 300,
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    backgroundColor: colors.canvas,
-    paddingTop: spacing.sm,
-    paddingHorizontal: spacing.xl,
-    paddingBottom: 28,
+  popover: {
+    position: 'absolute',
+    right: 0,
+    zIndex: 50,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
     ...shadows.card,
   },
-  handle: {
-    width: 42,
-    height: 4,
-    alignSelf: 'center',
-    borderRadius: 999,
-    backgroundColor: colors.borderSoft,
+  pointer: {
+    position: 'absolute',
+    transform: [{ rotate: '45deg' }],
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.surface,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
   },
-  title: { color: colors.text, fontSize: 22, fontWeight: '800' },
+  title: { color: colors.text, fontSize: 18, fontWeight: '800' },
   unreadSummary: {
     marginTop: 3,
     color: colors.primaryBusy,
     fontSize: 12,
     fontWeight: '700',
   },
-  closeButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 14,
-    backgroundColor: colors.surface,
-  },
-  closeText: { color: colors.textSub, fontSize: 28, lineHeight: 30 },
   state: {
-    minHeight: 210,
+    minHeight: 136,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
@@ -271,7 +271,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   retryText: { color: colors.text, fontSize: 14, fontWeight: '800' },
-  list: { gap: spacing.md, paddingBottom: spacing.md },
+  scroll: { flexShrink: 1, overflow: 'hidden' },
+  list: { gap: spacing.sm, paddingTop: spacing.xs },
   inlineError: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -290,13 +291,13 @@ const styles = StyleSheet.create({
   item: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 18,
+    borderRadius: 14,
     backgroundColor: colors.surface,
-    padding: spacing.lg,
+    padding: spacing.md,
   },
   unreadItem: {
-    borderColor: colors.successBorder,
-    backgroundColor: colors.successSurface,
+    borderColor: colors.dangerBorder,
+    backgroundColor: colors.dangerBg,
   },
   pendingItem: { opacity: 0.64 },
   itemHeading: { flexDirection: 'row', alignItems: 'center', gap: 8 },

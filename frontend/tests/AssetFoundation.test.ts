@@ -37,6 +37,7 @@ describe('fidelity foundation', () => {
 
   it('keeps every decoded and density-aware image in one registry', () => {
     expect(Object.keys(imageAssets)).toEqual([
+      'splashMascot',
       'splashIsland',
       'questionMark',
       'mailbox',

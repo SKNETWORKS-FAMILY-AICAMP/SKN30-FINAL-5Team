@@ -13,32 +13,41 @@ import Svg, { TSpan, Text as SvgText } from 'react-native-svg';
 
 import { fontFamilies, useBrandFonts } from '../../app/fonts';
 import { imageAssets } from '../../assets';
-import { BASE_H, useScale } from '../../components/scale';
+import { useScale } from '../../components/scale';
 import { colors } from '../../components/theme';
 
 export const SPLASH_ORIGINAL = {
   width: 390,
   height: 844,
-  islandWidth: 460,
-  islandMaxWidthRatio: 0.9,
-  islandAspectRatio: 460 / 307,
-  sloganTop: 203,
+  mascotWidth: 147,
+  mascotMaxWidthRatio: 0.54,
+  mascotAspectRatio: 210 / 212,
+  mascotMessageGap: 16,
   sloganFontSize: 18,
   sloganLineHeight: 18,
   sloganLetterSpacing: 18 * 0.01,
-  sloganStrokeWidth: 6,
-  sloganShadowOffsetY: 2,
-  brandTop: 227,
-  brandFontSize: 26,
-  brandLineHeight: 26,
-  brandLetterSpacing: 26 * 0.02,
-  brandStrokeWidth: 6,
-  brandShadowOffsetY: 3,
+  sloganStrokeWidth: 4,
+  sloganShadowOffsetY: 1,
+  brandTopOffset: 27,
+  brandFontSize: 42,
+  brandLineHeight: 42,
+  brandLetterSpacing: 42 * 0.04,
+  brandStrokeWidth: 5,
+  brandShadowOffsetY: 2,
 } as const;
 
 export const SPLASH_ASSETS = {
+  mascot: imageAssets.splashMascot,
   questionMark: imageAssets.questionMark,
   splashIsland: imageAssets.splashIsland,
+} as const;
+
+export const SPLASH_COLORS = {
+  background: '#FBE6BD',
+  brandFill: '#F2B75B',
+  brandOutline: '#806B5A',
+  sloganFill: '#FFFDF8',
+  sloganOutline: '#806B5A',
 } as const;
 
 export const SPLASH_WEB_TEXT_PAINT_ORDER = 'stroke fill' as const;
@@ -150,29 +159,44 @@ const WebTextElement = 'div' as unknown as ComponentType<WebTextElementProps>;
 
 export function getSplashLayout(viewport: SplashViewport) {
   const { width, height } = viewport;
-  const y = (value: number) => (value * height) / BASE_H;
-  const islandWidth = Math.min(
-    SPLASH_ORIGINAL.islandWidth,
-    width * SPLASH_ORIGINAL.islandMaxWidthRatio,
+  const contentScale = Math.min(
+    1,
+    width / SPLASH_ORIGINAL.width,
+    height / SPLASH_ORIGINAL.height,
   );
+  const mascotWidth = Math.min(
+    SPLASH_ORIGINAL.mascotWidth * contentScale,
+    width * SPLASH_ORIGINAL.mascotMaxWidthRatio,
+  );
+  const mascotHeight = mascotWidth / SPLASH_ORIGINAL.mascotAspectRatio;
+  const screenMidpoint = height / 2;
+  const halfMascotMessageGap =
+    (SPLASH_ORIGINAL.mascotMessageGap * contentScale) / 2;
+  const sloganTop = screenMidpoint + halfMascotMessageGap;
 
   return {
     width,
     height,
-    islandLeft: (width - islandWidth) / 2,
-    islandWidth,
-    sloganTop: y(SPLASH_ORIGINAL.sloganTop),
-    sloganFontSize: SPLASH_ORIGINAL.sloganFontSize,
-    sloganLineHeight: SPLASH_ORIGINAL.sloganLineHeight,
-    sloganLetterSpacing: SPLASH_ORIGINAL.sloganLetterSpacing,
-    sloganStrokeWidth: SPLASH_ORIGINAL.sloganStrokeWidth,
-    sloganShadowOffsetY: SPLASH_ORIGINAL.sloganShadowOffsetY,
-    brandTop: y(SPLASH_ORIGINAL.brandTop),
-    brandFontSize: SPLASH_ORIGINAL.brandFontSize,
-    brandLineHeight: SPLASH_ORIGINAL.brandLineHeight,
-    brandLetterSpacing: SPLASH_ORIGINAL.brandLetterSpacing,
-    brandStrokeWidth: SPLASH_ORIGINAL.brandStrokeWidth,
-    brandShadowOffsetY: SPLASH_ORIGINAL.brandShadowOffsetY,
+    contentScale,
+    screenMidpoint,
+    mascotTop: screenMidpoint - halfMascotMessageGap - mascotHeight,
+    mascotLeft: (width - mascotWidth) / 2,
+    mascotWidth,
+    mascotHeight,
+    textLeft: width * 0.05,
+    textWidth: width * 0.9,
+    sloganTop,
+    sloganFontSize: SPLASH_ORIGINAL.sloganFontSize * contentScale,
+    sloganLineHeight: SPLASH_ORIGINAL.sloganLineHeight * contentScale,
+    sloganLetterSpacing: SPLASH_ORIGINAL.sloganLetterSpacing * contentScale,
+    sloganStrokeWidth: SPLASH_ORIGINAL.sloganStrokeWidth * contentScale,
+    sloganShadowOffsetY: SPLASH_ORIGINAL.sloganShadowOffsetY * contentScale,
+    brandTop: sloganTop + SPLASH_ORIGINAL.brandTopOffset * contentScale,
+    brandFontSize: SPLASH_ORIGINAL.brandFontSize * contentScale,
+    brandLineHeight: SPLASH_ORIGINAL.brandLineHeight * contentScale,
+    brandLetterSpacing: SPLASH_ORIGINAL.brandLetterSpacing * contentScale,
+    brandStrokeWidth: SPLASH_ORIGINAL.brandStrokeWidth * contentScale,
+    brandShadowOffsetY: SPLASH_ORIGINAL.brandShadowOffsetY * contentScale,
   };
 }
 
@@ -312,57 +336,59 @@ export function SplashScreen({
       edges={['top', 'right', 'bottom', 'left']}
       testID="splash-screen"
     >
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <Image
         accessible={false}
         importantForAccessibility="no"
         resizeMode="contain"
-        source={SPLASH_ASSETS.splashIsland}
-        testID="splash-island"
+        source={SPLASH_ASSETS.mascot}
+        testID="splash-mascot"
         style={[
-          styles.island,
+          styles.mascot,
           {
-            width: layout.islandWidth,
-            aspectRatio: SPLASH_ORIGINAL.islandAspectRatio,
+            top: layout.mascotTop,
+            left: layout.mascotLeft,
+            width: layout.mascotWidth,
+            height: layout.mascotHeight,
           },
         ]}
       />
       <OutlinedText
-        accessibilityLabel="헬끼"
-        accessibilityRole="header"
-        containerLeft={layout.islandLeft}
-        containerWidth={layout.islandWidth}
-        fill={colors.brandFill}
-        fontFamily={useLocalFonts ? fontFamilies.brand : undefined}
-        fontSize={layout.brandFontSize}
-        fontWeight="800"
-        letterSpacing={layout.brandLetterSpacing}
-        lineHeight={layout.brandLineHeight}
-        shadowColor="rgba(107,74,43,0.35)"
-        shadowOffsetY={layout.brandShadowOffsetY}
-        stroke={colors.brandOutline}
-        strokeWidth={layout.brandStrokeWidth}
-        testID="splash-brand"
-        text="Helkki"
-        top={layout.brandTop}
-      />
-      <OutlinedText
         accessibilityLabel="혼자 하는 운동이 어려울 때"
-        containerLeft={layout.islandLeft}
-        containerWidth={layout.islandWidth}
-        fill={colors.slogan}
+        containerLeft={layout.textLeft}
+        containerWidth={layout.textWidth}
+        fill={SPLASH_COLORS.sloganFill}
         fontFamily={useLocalFonts ? fontFamilies.slogan : undefined}
         fontSize={layout.sloganFontSize}
         fontWeight="400"
         letterSpacing={layout.sloganLetterSpacing}
         lineHeight={layout.sloganLineHeight}
-        shadowColor="rgba(90,70,54,0.35)"
+        shadowColor="rgba(128,107,90,0.2)"
         shadowOffsetY={layout.sloganShadowOffsetY}
-        stroke={colors.sloganOutline}
+        stroke={SPLASH_COLORS.sloganOutline}
         strokeWidth={layout.sloganStrokeWidth}
         testID="splash-slogan"
         text="혼자 하는 운동이 어려울 때"
         top={layout.sloganTop}
+      />
+      <OutlinedText
+        accessibilityLabel="HELKKI"
+        accessibilityRole="header"
+        containerLeft={layout.textLeft}
+        containerWidth={layout.textWidth}
+        fill={SPLASH_COLORS.brandFill}
+        fontFamily={useLocalFonts ? fontFamilies.brand : undefined}
+        fontSize={layout.brandFontSize}
+        fontWeight="800"
+        letterSpacing={layout.brandLetterSpacing}
+        lineHeight={layout.brandLineHeight}
+        shadowColor="rgba(128,107,90,0.2)"
+        shadowOffsetY={layout.brandShadowOffsetY}
+        stroke={SPLASH_COLORS.brandOutline}
+        strokeWidth={layout.brandStrokeWidth}
+        testID="splash-brand"
+        text="HELKKI"
+        top={layout.brandTop}
       />
 
       {bootStatus === 'error' ? (
@@ -391,7 +417,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    backgroundColor: colors.splashBackground,
+    backgroundColor: SPLASH_COLORS.background,
   },
   outlinedText: {
     position: 'absolute',
@@ -403,8 +429,8 @@ const styles = StyleSheet.create({
     right: 0,
     left: 0,
   },
-  island: {
-    alignSelf: 'center',
+  mascot: {
+    position: 'absolute',
     zIndex: 1,
   },
   errorCard: {

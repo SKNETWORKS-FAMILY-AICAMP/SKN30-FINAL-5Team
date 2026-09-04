@@ -1080,6 +1080,7 @@ describe('HomeScreen Home v1 transcription', () => {
 
   it('does not show a fake unread notification or enable an unwired bell', () => {
     const onNotifications = jest.fn();
+    const onDismissNotificationPanel = jest.fn();
     const view = render(<HomeScreen previewState="routine" />);
     const disabledButton = screen.getByRole('button', { name: '알림 보기' });
 
@@ -1101,14 +1102,20 @@ describe('HomeScreen Home v1 transcription', () => {
     view.rerender(
       <HomeScreen
         hasUnreadNotification
+        onDismissNotificationPanel={onDismissNotificationPanel}
         onNotifications={onNotifications}
         previewState="routine"
       />,
     );
     const button = screen.getByRole('button', { name: '알림 보기' });
     expect(button.props.accessibilityState.disabled).toBe(false);
+    const stopPropagation = jest.fn();
+    fireEvent(button, 'pointerDown', { stopPropagation });
+    expect(stopPropagation).toHaveBeenCalledTimes(1);
     fireEvent.press(button);
     expect(onNotifications).toHaveBeenCalledTimes(1);
+    fireEvent(screen.getByTestId('home-screen'), 'pointerDown');
+    expect(onDismissNotificationPanel).toHaveBeenCalledTimes(1);
   });
 
   it('shows only persisted check-in fields and keeps safe defaults', () => {

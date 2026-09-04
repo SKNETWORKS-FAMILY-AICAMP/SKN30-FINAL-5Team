@@ -23,7 +23,9 @@ npx expo start --web
 
 개발용 전체 화면 목록은 `?preview=gallery`에서 확인합니다. 실제 앱의 초기
 설정·프로필 조회/복구 상태는 `?preview=app-status`, 끼끼의 집에서 여는 바나나
-미니게임은 `?preview=banana-catch`로 바로 열 수 있습니다.
+미니게임은 `?preview=banana-catch`, 알림 기능은 `?preview=notifications`로 바로
+열 수 있습니다. 알림 프리뷰는 실제 네트워크 요청 없이 red dot, 2.5초 토스트,
+알림함의 읽음·빈 목록·로딩·오류 상태와 끼끼의 집 이동을 확인합니다.
 
 품질 검증 명령:
 

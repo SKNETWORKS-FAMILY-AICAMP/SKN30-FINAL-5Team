@@ -93,8 +93,9 @@ describe('App boot navigation', () => {
 
     await render(<App bootResolver={bootResolver} splashPreview />);
 
-    expect(screen.getByRole('header', { name: '헬끼' })).toBeOnTheScreen();
-    expect(screen.getByTestId('splash-island')).toBeOnTheScreen();
+    expect(screen.getByRole('header', { name: 'HELKKI' })).toBeOnTheScreen();
+    expect(screen.getByTestId('splash-mascot')).toBeOnTheScreen();
+    expect(screen.queryByTestId('splash-island')).toBeNull();
     expect(screen.queryByTestId('question-mark')).toBeNull();
     expect(bootResolver).not.toHaveBeenCalled();
   });
@@ -150,6 +151,11 @@ describe('App boot navigation', () => {
       readyText: '집 꾸미기',
     },
     {
+      mode: 'notifications' as const,
+      label: 'Home (API)',
+      readyText: '오늘 운동을 준비해볼까요?',
+    },
+    {
       mode: 'loading' as const,
       label: 'Page loading (API)',
       readyText: '운동 계획을 준비하고 있어요',
@@ -183,7 +189,13 @@ describe('App boot navigation', () => {
     expect(await screen.findByText(readyText)).toBeOnTheScreen();
     expect(
       screen.getByText(
-        `단독 진입: ?preview=${mode === 'session-result' ? 'workout' : mode}`,
+        `단독 진입: ?preview=${
+          mode === 'session-result'
+            ? 'workout'
+            : mode === 'notifications'
+              ? 'home'
+              : mode
+        }`,
       ),
     ).toBeOnTheScreen();
     expect(bootResolver).not.toHaveBeenCalled();
