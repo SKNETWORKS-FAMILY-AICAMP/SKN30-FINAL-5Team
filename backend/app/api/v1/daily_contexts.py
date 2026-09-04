@@ -27,6 +27,7 @@ from backend.app.modules.checkins.service import (
     ProfileTimezoneMissingError,
     StaleContextError,
 )
+from backend.app.modules.decisions.daily_adjustment import DailyAdjustmentLimitReachedError
 from backend.app.modules.identity.service import CurrentUser
 
 router = APIRouter(prefix="/daily-contexts", tags=["daily-contexts"])
@@ -71,6 +72,12 @@ def _translate_error(exc: Exception) -> AppError:
             status_code=HTTPStatus.CONFLICT,
             code="IDEMPOTENCY_KEY_REUSED",
             message="동일한 멱등성 키를 다른 요청에 사용할 수 없습니다.",
+        )
+    if isinstance(exc, DailyAdjustmentLimitReachedError):
+        return AppError(
+            status_code=HTTPStatus.CONFLICT,
+            code="DAILY_ADJUSTMENT_LIMIT_REACHED",
+            message="오늘의 체크인 수정과 재추천 가능 횟수를 모두 사용했습니다.",
         )
     if isinstance(exc, AvailabilitySlotOutOfRangeError):
         return AppError(
@@ -120,6 +127,7 @@ def replace_daily_context(
         DailyContextNotFoundError,
         StaleContextError,
         IdempotencyKeyReusedError,
+        DailyAdjustmentLimitReachedError,
         AvailabilitySlotOutOfRangeError,
         ProfileTimezoneMissingError,
         IntegrityError,

@@ -15,11 +15,16 @@ come from the prescription because they are the choices the plan is making.
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
+from enum import StrEnum
 from uuid import UUID
 
 from backend.app.domain.agents.retrieval import ExercisePoolExerciseRecord
-from backend.app.domain.agents.v3_contracts import ExercisePrescription
-from backend.app.domain.rules.duration import SECONDS_PER_MINUTE, PlanItemDuration
+from backend.app.domain.agents.v3_contracts import ConstraintEnvelope, ExercisePrescription
+from backend.app.domain.rules.duration import (
+    DURATION_TOLERANCE_SECONDS,
+    SECONDS_PER_MINUTE,
+    PlanItemDuration,
+)
 
 # A pool this small stops offering variety even for a short session; a pool this
 # large inflates the agent payload and the measured provider latency without
@@ -117,10 +122,61 @@ def pool_size_for_duration(
     return min(bounded, len(exercises))
 
 
+class PlanDurationPreferenceCode(StrEnum):
+    """Which end of the approved tolerance window a plan should settle on."""
+
+    CLOSEST_TO_REQUEST = "CLOSEST_TO_REQUEST"
+    SHORTER_WITHIN_WINDOW = "SHORTER_WITHIN_WINDOW"
+
+
+def plan_duration_preference(envelope: ConstraintEnvelope) -> PlanDurationPreferenceCode:
+    """Read the time axis of the feedback ladder off the hashed envelope.
+
+    `DOMAIN_RULES.md` 6.1 rung 3 is the only thing that moves this away from the default.
+    It does not shorten the requested duration: it goes exactly as far as settling on the
+    shorter side of the window `DOMAIN_RULES.md` 5 already approved, and no further.
+    Deriving it from the envelope rather than from the feedback row keeps the choice part
+    of the constraint set the plan was hashed against, so a replay picks the same end.
+    """
+
+    adjustment = envelope.feedback_adjustment
+    if adjustment is not None and adjustment.axis_code == "TIME_ALLOCATION":
+        return PlanDurationPreferenceCode.SHORTER_WITHIN_WINDOW
+    return PlanDurationPreferenceCode.CLOSEST_TO_REQUEST
+
+
+def accepts_additional_seconds(
+    *,
+    accumulated_seconds: int,
+    additional_seconds: int,
+    target_seconds: int,
+    preference: PlanDurationPreferenceCode,
+) -> bool:
+    """Answer whether one more prescribed exercise belongs in the plan.
+
+    `SHORTER_WITHIN_WINDOW` stops as soon as the plan reaches the floor of the window, so
+    the session lands on the short side without ever dropping below it.
+
+    `CLOSEST_TO_REQUEST` keeps adding only while the total moves strictly nearer the
+    request, which is `AGENTS.md` section 7's rule that the closest achievable plan wins.
+    Because the gap never widens, a plan built this way is always at least as close as one
+    that stopped at the floor, and so can never leave a window the shorter plan was inside.
+    """
+
+    if preference is PlanDurationPreferenceCode.SHORTER_WITHIN_WINDOW:
+        return accumulated_seconds < target_seconds - DURATION_TOLERANCE_SECONDS
+    return abs(accumulated_seconds + additional_seconds - target_seconds) < abs(
+        accumulated_seconds - target_seconds
+    )
+
+
 __all__ = [
     "POOL_SIZE_MAXIMUM",
     "POOL_SIZE_MINIMUM",
+    "PlanDurationPreferenceCode",
     "TimingBasisUnavailableError",
+    "accepts_additional_seconds",
+    "plan_duration_preference",
     "plan_duration_seconds",
     "pool_size_for_duration",
     "prescription_item_duration",

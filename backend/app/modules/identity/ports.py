@@ -25,6 +25,7 @@ class VerifiedFirebaseIdentity:
 class IdentityUserRecord:
     user_id: UUID
     status_code: UserStatusCode
+    last_active_at: datetime | None = None
 
 
 class FirebaseTokenVerifier(Protocol):

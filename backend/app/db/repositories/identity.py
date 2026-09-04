@@ -47,6 +47,7 @@ class IdentityRepository:
         return IdentityUserRecord(
             user_id=user.id,
             status_code=UserStatusCode(user.status_code),
+            last_active_at=user.last_active_at,
         )
 
     def create_firebase_user(
@@ -75,7 +76,11 @@ class IdentityRepository:
         )
         session.add_all((user, identity))
         session.flush()
-        return IdentityUserRecord(user_id=user_id, status_code=UserStatusCode.ACTIVE)
+        return IdentityUserRecord(
+            user_id=user_id,
+            status_code=UserStatusCode.ACTIVE,
+            last_active_at=now,
+        )
 
     def touch_last_active(self, session: Session, user_id: UUID, now: datetime) -> None:
         user = session.get(User, user_id)
