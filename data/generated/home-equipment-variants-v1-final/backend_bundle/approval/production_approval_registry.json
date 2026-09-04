@@ -1,0 +1,64 @@
+{
+  "approval_date": "2026-09-04",
+  "approval_owner_role": "PM_DIRECT_REVIEW",
+  "bundle_version": "home-equipment-variants-v1-final-2026-09-04",
+  "datasets": [
+    {
+      "approved_version": "home-equipment-substitution-v1",
+      "dataset_code": "HOME_EQUIPMENT_SUBSTITUTION_GUIDES",
+      "manifest_path": "guides/substitution_guides_manifest.json",
+      "record_count": 34,
+      "review_artifact_paths": [
+        "data/reports/home_equipment_substitution_guides_v1_validation.json"
+      ],
+      "status_code": "DOMAIN_APPROVED"
+    },
+    {
+      "approved_version": "bodyweight-variant-candidates-v1",
+      "dataset_code": "HOME_EQUIPMENT_BODYWEIGHT_VARIANTS",
+      "manifest_path": "variants/bodyweight_variant_candidates_manifest.json",
+      "record_count": 20,
+      "review_artifact_paths": [
+        "data/reports/home_equipment_substitution_guides_v1_validation.json",
+        "data/reports/resistance_band_bodyweight_variant_gap_report_v1.json"
+      ],
+      "status_code": "DOMAIN_APPROVED"
+    }
+  ],
+  "excluded_candidates": [
+    {
+      "dataset_code": "STRETCH_STRAP_HOME_SUITABILITY",
+      "excluded_record_count": 0,
+      "reason": "No row has both DOMAIN_APPROVED and home_suitability_decision=APPROVED.",
+      "reason_code": "NO_DOMAIN_APPROVED_IMPORTABLE_RECORD",
+      "source_path": "data/normalized/stretch_strap_home_suitability_review_v1.jsonl"
+    },
+    {
+      "dataset_code": "NON_DOMAIN_APPROVED_GUIDES",
+      "excluded_record_count": 0,
+      "reason_code": "REVIEW_STATUS_NOT_DOMAIN_APPROVED"
+    },
+    {
+      "dataset_code": "NON_DOMAIN_APPROVED_VARIANTS",
+      "excluded_record_count": 0,
+      "reason_code": "REVIEW_STATUS_NOT_DOMAIN_APPROVED"
+    },
+    {
+      "dataset_code": "VALIDATION_EVIDENCE",
+      "reason_code": "EVIDENCE_ONLY_NOT_DB_IMPORT",
+      "source_path": "data/reports/home_equipment_substitution_guides_v1_validation.json"
+    },
+    {
+      "dataset_code": "GAP_REPORT",
+      "reason_code": "EVIDENCE_ONLY_NOT_DB_IMPORT",
+      "source_path": "data/reports/resistance_band_bodyweight_variant_gap_report_v1.json"
+    }
+  ],
+  "generated_at": "2026-09-04T00:00:00+09:00",
+  "generator_version": "home-equipment-variants-backend-bundle-1.0.0",
+  "importer_entry_path": "approval/production_approval_registry.json",
+  "production_eligible": true,
+  "review_method_code": "USER_CONFIRMED",
+  "schema_version": "production-approval-registry-v1",
+  "status_code": "DOMAIN_APPROVED"
+}
