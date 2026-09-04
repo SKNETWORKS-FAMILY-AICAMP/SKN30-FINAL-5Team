@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "review_status_code": "DOMAIN_APPROVED",
+  "review_method_code": "USER_CONFIRMED",
+  "reviewer_code": "USER_CONFIRMED",
+  "reviewed_at": "2026-09-04T00:00:00+09:00",
+  "production_eligible": false,
+  "approved_record_count": 237,
+  "source_catalog_path": "data/normalized/v2_0_6_exercise_catalog.csv",
+  "source_catalog_sha256": "fcfe76f5dbf03802759aea36417dc46019728e232ddf608980d4022cfb5cdeb7",
+  "evidence": [
+    "data/reports/v2_0_6_met/met_mapping_report.json",
+    "data/reports/v2_0_6_met/met_mapping_evidence.csv",
+    "data/raw/physical_activity_guidelines/adult_compendium_mvp_reference_subset.jsonl"
+  ],
+  "scope": "MET mapping values and provenance only; no catalog, safety, alternative, or media approval"
+}

@@ -1,0 +1,37 @@
+﻿column_name,source,mapping_rule
+body_focus_code,data/normalized/v2_0_6_exercise_catalog.csv#body_focus_code,canonical normalized catalog value; preserved without inference
+default_rest_seconds,data/normalized/v2_0_6_exercise_catalog.csv#default_rest_seconds,canonical normalized catalog value; preserved without inference
+default_seconds_per_rep,data/normalized/v2_0_6_exercise_catalog.csv#default_seconds_per_rep,canonical normalized catalog value; preserved without inference
+default_transition_seconds,data/normalized/v2_0_6_exercise_catalog.csv#default_transition_seconds,canonical normalized catalog value; preserved without inference
+default_work_seconds,data/normalized/v2_0_6_exercise_catalog.csv#default_work_seconds,canonical normalized catalog value; preserved without inference
+difficulty_code,data/normalized/v2_0_6_exercise_catalog.csv#difficulty_code,canonical normalized catalog value; preserved without inference
+equipment_codes,data/normalized/v2_0_6_exercise_catalog.csv#equipment_codes,canonical normalized catalog value; preserved without inference
+family_code,data/normalized/v2_0_6_exercise_catalog.csv#family_code,canonical normalized catalog value; preserved without inference
+form_cues_ko,data/normalized/v2_0_6_exercise_catalog.csv#form_cues_ko,canonical normalized catalog value; preserved without inference
+form_cues_review_status,data/normalized/v2_0_6_exercise_catalog.csv#form_cues_review_status,canonical normalized catalog value; preserved without inference
+form_cues_source,data/normalized/v2_0_6_exercise_catalog.csv#form_cues_source,canonical normalized catalog value; preserved without inference
+general_pool_included,data/normalized/v2_0_6_exercise_catalog.csv#general_pool_included,canonical normalized catalog value; preserved without inference
+instruction_content_version,data/normalized/v2_0_6_exercise_catalog.csv#instruction_content_version,canonical normalized catalog value; preserved without inference
+instruction_summary_ko,data/normalized/v2_0_6_exercise_catalog.csv#instruction_summary_ko,canonical normalized catalog value; preserved without inference
+location_codes,data/normalized/v2_0_6_exercise_catalog.csv#location_codes,canonical normalized catalog value; preserved without inference
+name_en,data/normalized/v2_0_6_exercise_catalog.csv#name_en,canonical normalized catalog value; preserved without inference
+name_ko,data/normalized/v2_0_6_exercise_catalog.csv#name_ko,canonical normalized catalog value; preserved without inference
+primary_body_area_codes,data/normalized/v2_0_6_exercise_catalog.csv#primary_body_area_codes,canonical normalized catalog value; preserved without inference
+primary_movement_pattern_code,data/normalized/v2_0_6_exercise_catalog.csv#primary_movement_pattern_code,canonical normalized catalog value; preserved without inference
+record_type,data/normalized/v2_0_6_exercise_catalog.csv#record_type,canonical normalized catalog value; preserved without inference
+recovery_eligible,data/normalized/v2_0_6_exercise_catalog.csv#recovery_eligible,canonical normalized catalog value; preserved without inference
+representative_stable_code,data/normalized/v2_0_6_exercise_catalog.csv#representative_stable_code,canonical normalized catalog value; preserved without inference
+review_status_code,data/normalized/v2_0_6_exercise_catalog.csv#review_status_code,canonical normalized catalog value; preserved without inference
+secondary_body_area_codes,data/normalized/v2_0_6_exercise_catalog.csv#secondary_body_area_codes,canonical normalized catalog value; preserved without inference
+safety_relevant_body_area_codes,data/normalized/v2_0_6_exercise_catalog.csv#safety_relevant_body_area_codes,canonical normalized catalog value; preserved without inference
+source_identity,data/normalized/v2_0_6_exercise_catalog.csv#source_identity,canonical normalized catalog value; preserved without inference
+source_track,data/normalized/v2_0_6_exercise_catalog.csv#source_track,canonical normalized catalog value; preserved without inference
+stable_code,data/normalized/v2_0_6_exercise_catalog.csv#stable_code,canonical normalized catalog value; preserved without inference
+timing_mode_code,data/normalized/v2_0_6_exercise_catalog.csv#timing_mode_code,canonical normalized catalog value; preserved without inference
+training_type_code,data/normalized/v2_0_6_exercise_catalog.csv#training_type_code,canonical normalized catalog value; preserved without inference
+met_value,"data/raw/physical_activity_guidelines/adult_compendium_mvp_reference_subset.jsonl#activity_code,activity_description,met_value,source_id,source_locator",designated Adult Compendium JSONL; selected DIRECT or SIMILAR_ACTIVITY source row
+met_source_code,"data/raw/physical_activity_guidelines/adult_compendium_mvp_reference_subset.jsonl#activity_code,activity_description,met_value,source_id,source_locator",designated Adult Compendium JSONL; selected DIRECT or SIMILAR_ACTIVITY source row
+met_source_activity_code,"data/raw/physical_activity_guidelines/adult_compendium_mvp_reference_subset.jsonl#activity_code,activity_description,met_value,source_id,source_locator",designated Adult Compendium JSONL; selected DIRECT or SIMILAR_ACTIVITY source row
+met_mapping_method_code,"data/raw/physical_activity_guidelines/adult_compendium_mvp_reference_subset.jsonl#activity_code,activity_description,met_value,source_id,source_locator",designated Adult Compendium JSONL; selected DIRECT or SIMILAR_ACTIVITY source row
+met_review_status_code,"data/raw/physical_activity_guidelines/adult_compendium_mvp_reference_subset.jsonl#activity_code,activity_description,met_value,source_id,source_locator",designated Adult Compendium JSONL; selected DIRECT or SIMILAR_ACTIVITY source row
+met_policy_version,"data/raw/physical_activity_guidelines/adult_compendium_mvp_reference_subset.jsonl#activity_code,activity_description,met_value,source_id,source_locator",designated Adult Compendium JSONL; selected DIRECT or SIMILAR_ACTIVITY source row

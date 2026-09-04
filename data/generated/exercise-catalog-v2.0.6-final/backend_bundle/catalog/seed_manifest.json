@@ -1,0 +1,44 @@
+{
+  "catalog_version": {
+    "status_code": "DRAFT",
+    "version_code": "exercise-catalog-v2.0.6-final"
+  },
+  "files": [
+    {
+      "bytes": 346270,
+      "path": "exercises.jsonl",
+      "records": 237,
+      "sha256": "2a32d7a7e09ef3cf6f7894c9d609f4759f28f5f5ad142fc5b93af5b8c5430211"
+    }
+  ],
+  "generator_version": "v2-0-6-normalized-backend-projection-1.0.0",
+  "review": {
+    "production_eligible": false,
+    "review_method_code": "DOMAIN_REVIEWER",
+    "status": "DOMAIN_APPROVED",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
+  },
+  "schema_version": "1.1",
+  "source": {
+    "input_artifacts": [
+      {
+        "bytes": 9785,
+        "path": "input/representative_exercises.csv",
+        "role": "representative_catalog_csv",
+        "sha256": "fd7099554043cfbfa9ea0e5658bc8078c620272c728aa9c1c8ac2bc6a2178627"
+      },
+      {
+        "bytes": 4341,
+        "path": "data/normalized/v2_representative_decisions.json",
+        "role": "recovery_eligibility_policy",
+        "sha256": "ad7adb2b6d730ae3d9f77902af222cc79bfe77d69f869d3e571db77d859af29f"
+      }
+    ],
+    "review_batch_directory": "data/reports",
+    "taxonomy_registry_sha256": "79e487cc1a41ea39db9b4afb0799b3297840de878a2ae4ed621ef3e4403a0985",
+    "track": "gymvisual"
+  },
+  "summary": {
+    "exercise_records": 237
+  }
+}

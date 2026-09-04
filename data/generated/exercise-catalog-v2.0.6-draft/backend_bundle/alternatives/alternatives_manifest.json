@@ -1,0 +1,38 @@
+{
+  "alternative_set_version": {
+    "status_code": "DRAFT",
+    "version_code": "alternative-set-v2.0.6-stretch-strap-fallback"
+  },
+  "files": [
+    {
+      "bytes": 1036,
+      "path": "alternatives.jsonl",
+      "records": 1,
+      "sha256": "f8da958c5fce6fc05f98025d5b7deb9af2458f0d9843dead2da5fe83cffea4cf"
+    }
+  ],
+  "generator_version": "v2-0-6-normalized-backend-projection-1.0.0",
+  "review": {
+    "production_eligible": false,
+    "review_method_code": "DOMAIN_REVIEWER",
+    "status": "DOMAIN_APPROVED",
+    "status_interpretation": "PIPELINE_COMPATIBILITY_ONLY"
+  },
+  "schema_version": "1.0",
+  "source": {
+    "catalog_sha256": "c9143eb25bf88ba60fc7440ef0b4a55c0fd6dddf62ee56925cd526785c5cca27",
+    "catalog_version_code": "exercise-catalog-v2.0.6-draft",
+    "fallback_policy": "STRETCH_STRAP_TO_BODYWEIGHT_ONLY",
+    "input_artifacts": [
+      {
+        "bytes": 1013,
+        "path": "data/reports/v2_0_6_catalog/stretch_strap_fallback_approval_manifest.json",
+        "role": "fallback_approval_manifest",
+        "sha256": "794855ce2325f93d25b676e3a86cec00c285fdcfa37a3c35d7a4e324fa3c9b7f"
+      }
+    ]
+  },
+  "summary": {
+    "alternative_records": 1
+  }
+}

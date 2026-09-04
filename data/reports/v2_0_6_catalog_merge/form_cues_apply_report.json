@@ -1,0 +1,24 @@
+{
+  "editorial_safety_category_counts": {
+    "calf": 7,
+    "cardio": 6,
+    "core": 16,
+    "equipment": 15,
+    "floor_push": 2,
+    "general": 17,
+    "hip_hinge": 13,
+    "lower_body": 21,
+    "pull": 34,
+    "push": 15,
+    "shoulder": 14,
+    "stretch": 29
+  },
+  "editorial_safety_record_count": 189,
+  "form_cue_format": "TWO_PUNCTUATION_FREE_POLITE_KO_CUES",
+  "form_cues_review_status": "APPROVED",
+  "gif_reviewed_record_count": 48,
+  "input_record_count": 237,
+  "production_eligible": false,
+  "status": "DRAFT",
+  "updated_record_count": 0
+}

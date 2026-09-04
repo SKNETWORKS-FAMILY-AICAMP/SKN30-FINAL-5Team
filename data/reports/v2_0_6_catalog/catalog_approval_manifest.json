@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "catalog_version_code": "exercise-catalog-v2.0.6-final",
+  "status": "DOMAIN_APPROVED",
+  "review_status_code": "DOMAIN_APPROVED",
+  "review_method_code": "DOMAIN_REVIEWER",
+  "reviewer_code": "PM_DIRECT_REVIEW",
+  "reviewed_at": "2026-09-04T00:00:00+09:00",
+  "status_interpretation": "PRODUCTION_APPROVED",
+  "status_interpretation_code": "PRODUCTION_APPROVED",
+  "production_eligible": true,
+  "scope": "All 237 v2.0.6 catalog rows; PM directly confirmed exercise names, descriptions, beginner suitability, catalog values, and inclusion in the general routine candidate pool.",
+  "source_catalog_path": "data/normalized/v2_0_6_exercise_catalog.csv",
+  "source_catalog_sha256": "c9143eb25bf88ba60fc7440ef0b4a55c0fd6dddf62ee56925cd526785c5cca27",
+  "record_count": 237,
+  "general_pool_included_counts": {
+    "true": 237,
+    "false": 0,
+    "null": 0
+  },
+  "before_review_status_counts": {
+    "blank": 165,
+    "DOMAIN_APPROVED": 72
+  },
+  "after_review_status_counts": {
+    "DOMAIN_APPROVED": 237
+  },
+  "evidence": [
+    {
+      "type": "PM_DIRECT_REVIEW",
+      "reviewer_code": "PM_DIRECT_REVIEW",
+      "reviewed_at": "2026-09-04T00:00:00+09:00",
+      "basis": "exercise names, descriptions, beginner suitability, catalog values, and general routine candidate-pool inclusion confirmed by PM"
+    },
+    {
+      "type": "MET_APPROVAL_MANIFEST",
+      "path": "data/reports/v2_0_6_met/met_review_approval_manifest.json",
+      "scope": "MET values and provenance only"
+    }
+  ]
+}

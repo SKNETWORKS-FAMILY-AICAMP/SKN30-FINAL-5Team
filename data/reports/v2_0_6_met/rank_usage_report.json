@@ -1,0 +1,13 @@
+{
+  "status": "PASS",
+  "rank_fields_checked": [
+    "rank",
+    "variant_difficulty_rank"
+  ],
+  "rank_fields_in_normalized_catalog": [],
+  "rank_fields_generated": [],
+  "rank_fields_used_for_mapping": [],
+  "variant_difficulty_rank_generated": false,
+  "policy": "rank and variant_difficulty_rank are excluded from v2.0.6 normalized and generated outputs",
+  "source_catalog_sha256": "fcfe76f5dbf03802759aea36417dc46019728e232ddf608980d4022cfb5cdeb7"
+}

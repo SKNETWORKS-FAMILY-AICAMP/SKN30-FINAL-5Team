@@ -1020,10 +1020,10 @@ RoutineItem
 ~~~
 
 `catalog-v2`의 `body_focus_code` 허용값은 `CHEST`, `BACK`, `SHOULDERS`, `BICEPS`, `TRICEPS`,
-`FOREARMS`, `GLUTES`, `QUADRICEPS`, `HAMSTRINGS`, `CALVES`, `CORE`, `FULL_BODY`, `CARDIO`,
+`FOREARMS`, `GLUTES`, `QUADRICEPS`, `HAMSTRINGS`, `CALVES`, `ADDUCTORS`, `CORE`, `FULL_BODY`, `CARDIO`,
 `MOBILITY`다. 기존 V1 응답의 `UPPER_BODY`, `LOWER_BODY` decoding은 하위 호환을 위해 유지하지만
 V2 importer는 두 legacy code를 새 catalog row에 허용하지 않는다. 필드의 nullable 여부와 이름은
-변경하지 않는다.
+변경하지 않는다. `ADDUCTORS`는 v2.0.6부터 additive하게 허용한다.
 
 requested duration은 사용자 선택값이며 서버가 변경하지 않는다. 운동 계획을 반환하는 경우 estimated duration은 `requested_duration_minutes * 60`에서 앞뒤 300초 이내여야 한다. 승인된 후보 중 요청값과 차이가 가장 작은 계획을 선택하며, 같은 차이면 더 짧게 만드는 것보다 더 길게 만드는 계획을 우선한다. 실제 운동 경과 시간은 사용자 속도에 따라 달라질 수 있으며 완료 판정에는 사용하지 않는다.
 

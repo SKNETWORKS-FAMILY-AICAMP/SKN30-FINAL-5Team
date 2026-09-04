@@ -1,0 +1,33 @@
+{
+  "status": "DRAFT",
+  "production_eligible": false,
+  "policy": {
+    "join_key": "source_identity_exact_match",
+    "derivation": "CARDIO->CARDIO, MOBILITY->MOBILITY, other nonblank body focus->STRENGTH",
+    "blank_body_focus_exception": "explicit review batch STRENGTH only",
+    "body_focus_column_changed": false,
+    "review_status_not_promoted": true
+  },
+  "inputs": {
+    "canonical_catalog": {
+      "path": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv",
+      "records": 240
+    },
+    "review_batch": {
+      "path": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/validation/review_batches/v2_0_6_training_body_focus_review.csv",
+      "records": 240
+    }
+  },
+  "counts": {
+    "catalog_records": 240,
+    "filled": 0,
+    "unchanged": 240,
+    "conflicts": 0,
+    "blank_body_focus_filled_as_strength": 0
+  },
+  "blank_body_focus_stable_codes_filled_as_strength": [],
+  "outputs": {
+    "normalized_catalog": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv",
+    "report": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/reports/v2_0_6_catalog_merge/training_type_apply_report.json"
+  }
+}

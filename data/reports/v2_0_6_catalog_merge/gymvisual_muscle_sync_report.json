@@ -1,0 +1,14 @@
+{
+  "input_record_count": 237,
+  "production_eligible": false,
+  "records": [],
+  "status": "DRAFT",
+  "synonym_normalization": {
+    "latissimus dorsi": "lats",
+    "lats": "lats",
+    "trapezius": "traps",
+    "traps": "traps"
+  },
+  "unchanged_record_count": 237,
+  "updated_record_count": 0
+}

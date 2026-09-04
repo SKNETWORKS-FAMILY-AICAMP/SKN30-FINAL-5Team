@@ -1,0 +1,8 @@
+{
+  "status": "DRAFT",
+  "production_eligible": false,
+  "ignored_source_fields": [
+    "exercise_contraindicated_pain_regions"
+  ],
+  "policy": "not copied into the catalog or safety policy data"
+}
