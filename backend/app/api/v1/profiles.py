@@ -191,6 +191,17 @@ def _translate_profile_error(exc: Exception, *, request: Request | None = None) 
     if isinstance(exc, (ProfileConfigurationError, SQLAlchemyError)):
         if isinstance(exc, ProfileConfigurationError) and request is not None:
             _log_profile_configuration_error(request)
+        elif isinstance(exc, SQLAlchemyError) and request is not None:
+            # Keep production diagnostics limited to a safe exception class.
+            # Never log SQL text, bound parameters, tokens, or profile data.
+            logger.error(
+                "profile_database_error",
+                extra={
+                    "event_code": "PROFILE_DATABASE_ERROR",
+                    "request_id": str(getattr(request.state, "request_id", "unavailable")),
+                    "error_type": type(exc).__name__,
+                },
+            )
         return AppError(
             status_code=HTTPStatus.SERVICE_UNAVAILABLE,
             code=(
