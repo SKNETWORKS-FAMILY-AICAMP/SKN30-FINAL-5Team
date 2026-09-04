@@ -309,8 +309,7 @@ def build(target: Path = TARGET) -> dict[str, Any]:
                     "excluded_record_count": excluded_stretch,
                     "reason_code": "NO_DOMAIN_APPROVED_IMPORTABLE_RECORD",
                     "reason": (
-                        "No row has both DOMAIN_APPROVED and "
-                        "home_suitability_decision=APPROVED."
+                        "No row has both DOMAIN_APPROVED and home_suitability_decision=APPROVED."
                     ),
                 },
                 {
