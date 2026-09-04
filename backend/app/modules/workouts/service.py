@@ -248,6 +248,7 @@ class WorkoutService:
         feedback = None
         if record.feedback is not None:
             feedback = WorkoutFeedbackSummary.model_validate(record.feedback, from_attributes=True)
+        ended = record.status_code in TERMINAL_SESSION_STATUS_CODES
         return WorkoutSessionDetailResponse(
             session_id=record.session_id,
             local_date=record.local_date,
@@ -256,6 +257,19 @@ class WorkoutService:
             total_item_count=len(record.items),
             requested_duration_minutes=record.requested_duration_minutes,
             items=items,
+            completed_plan_item_ids=[
+                item.plan_item_id for item in record.items if item.status_code == "COMPLETED"
+            ],
+            # An ended session has no next block, so pointing at one would invite a client
+            # to resume something the server considers finished.
+            current_plan_item_id=(
+                None
+                if ended
+                else next(
+                    (item.plan_item_id for item in record.items if item.status_code != "COMPLETED"),
+                    None,
+                )
+            ),
             feedback=feedback,
             not_completed_reason_code=record.not_completed_reason_code,
             started_at=record.started_at,

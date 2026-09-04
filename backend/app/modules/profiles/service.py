@@ -27,6 +27,7 @@ from backend.app.modules.profiles.ports import (
     BirthdateEncryptionError,
     MeProfileRecord,
     OnboardingProfileValues,
+    ProfileImageUrlProvider,
     ProfileRepositoryPort,
     ProfileSettingsChanges,
     ProfileSettingsRecord,
@@ -100,6 +101,7 @@ class ProfileService:
         experience_level_codes: tuple[str, ...],
         consent_policy_version: str | None,
         stale_routines: StaleRoutinePort | None = None,
+        profile_image_url_provider: ProfileImageUrlProvider | None = None,
         clock: Callable[[], datetime] = _utc_now,
     ) -> None:
         self._repository = repository
@@ -109,6 +111,7 @@ class ProfileService:
         self._experience_level_codes = frozenset(experience_level_codes)
         self._consent_policy_version = consent_policy_version
         self._clock = clock
+        self._profile_image_url_provider = profile_image_url_provider
 
     def _require_onboarding_configuration(self) -> tuple[BirthdateCipher, str]:
         if (
@@ -261,6 +264,14 @@ class ProfileService:
         if record.profile is not None:
             profile = MeProfile(
                 nickname=record.profile.nickname,
+                profile_image_url=(
+                    self._profile_image_url_provider.create_url(
+                        record.profile.profile_image_object_key
+                    )
+                    if self._profile_image_url_provider is not None
+                    and record.profile.profile_image_object_key is not None
+                    else None
+                ),
                 age=self._derive_age(user_id, record.profile),
                 primary_goal_code=record.profile.primary_goal_code,
                 experience_level_code=record.profile.experience_level_code,
@@ -285,6 +296,7 @@ class ProfileService:
             premium_status_code=record.premium_status_code,
             ai_trial_started_at=record.ai_trial_started_at,
             ai_trial_ends_at=record.ai_trial_ends_at,
+            banana_balance=record.banana_balance,
             profile=profile,
         )
 

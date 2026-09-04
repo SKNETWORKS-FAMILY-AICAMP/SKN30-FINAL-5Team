@@ -278,6 +278,10 @@ class WorkoutRepositoryPort(Protocol):
         self, session: Session, user_id: UUID, session_id: UUID
     ) -> WorkoutLogDetail | None: ...
 
+    def get_workout_log_detail_for_plan(
+        self, session: Session, user_id: UUID, plan_id: UUID
+    ) -> WorkoutLogDetail | None: ...
+
 
 __all__ = [
     "IdempotencyRecord",

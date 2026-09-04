@@ -38,6 +38,7 @@ from backend.app.db.models.decision import (
     SafetyReview,
 )
 from backend.app.db.models.identity import User, UserIdentity
+from backend.app.db.models.notification import InAppNotification
 from backend.app.db.models.profile import (
     MutationIdempotencyRecord,
     UserAttentionArea,
@@ -50,6 +51,7 @@ from backend.app.db.models.profile import (
     UserProfile,
     UserTermsAgreement,
 )
+from backend.app.db.models.reward import BananaTransaction, BananaWallet
 from backend.app.db.models.routine import Routine, RoutineDay, RoutineItem
 from backend.app.db.models.v3_decision import (
     DecisionConstraintEnvelopeRecord,
@@ -82,6 +84,8 @@ __all__ = [
     "AccountDeletionJob",
     "BodyArea",
     "BodyFocus",
+    "BananaTransaction",
+    "BananaWallet",
     "AgentProposalRevisionRecord",
     "AgentProposalRecord",
     "AgentReviewEventRecord",
@@ -112,6 +116,7 @@ __all__ = [
     "ExercisePrescriptionProfile",
     "ExerciseSafetyRule",
     "Location",
+    "InAppNotification",
     "MovementPattern",
     "PlanCandidate",
     "PlanIntegrityValidationRecord",

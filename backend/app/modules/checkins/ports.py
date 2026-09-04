@@ -45,6 +45,14 @@ class DailyContextRepositoryPort(Protocol):
         self, session: Session, user_id: UUID
     ) -> tuple[tuple[str, int], ...]: ...
 
+    def count_daily_adjustments(self, session: Session, user_id: UUID, local_date: date) -> int:
+        """Count successful regenerations and check-in revisions for one local day."""
+        ...
+
+    def get_context_version(
+        self, session: Session, user_id: UUID, local_date: date
+    ) -> int | None: ...
+
     def get_idempotency_record(
         self, session: Session, user_id: UUID, idempotency_key: UUID
     ) -> IdempotencyRecord | None: ...

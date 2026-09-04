@@ -1,5 +1,29 @@
 # DATA_MODEL.md
 
+## Banana wallets and profile images (migrations 0043, 0044)
+
+`banana_wallets` is one row per user: its `user_id` is both primary key and a cascading FK to `users`, and
+its balance is nonnegative. `banana_transactions` is an immutable signed ledger with post-transaction
+balance, stable transaction type, user-local source date, and a server-generated event key.
+`(user_id,event_key)` is unique for all duplicate handling; nullable unique `workout_session_id` permits at
+most one base reward per canonical workout session. `(user_id,transaction_type,reference_code)` prevents
+repurchasing the same house item while preserving repeated `HOUSE_FEED` rows because its reference is null.
+The service holds a user-scoped PostgreSQL advisory
+transaction lock before creating a wallet or changing its balance.
+
+`user_profiles` stores only `profile_image_object_key`, content type, and byte size. The all-null-or-all-set
+check permits `profile-images/{user UUID}/{object UUID}.{jpg|png|webp}`, the approved MIME types, and
+1..10,485,760 bytes. Image bytes and presigned URLs are never stored in PostgreSQL.
+
+## In-app notifications (migration 0042)
+
+`in_app_notifications` persists the user-visible notification state. It has a cascading
+`user_id` foreign key, stable `type_code`, title/message/action fields, flexible UI payload,
+timezone-aware `created_at`/`read_at`, and a unique `(user_id, event_key)` server-side
+deduplication constraint. The service removes records older than 14 days and retains at most
+20 recent rows per user. `payload.remaining_workout_count` is populated only for
+`WEEKLY_GOAL_REMINDER`; no health or direct-identifier values are stored in payload.
+
 ## 1. 문서 목적
 
 이 문서는 MVP의 PostgreSQL 논리 모델, 핵심 관계, 무결성 제약, 버전 및 삭제 정책을 정의한다.
@@ -1432,6 +1456,10 @@ Coordinator가 거절한 재현용 후보는 실제 계산값을 보존하며 `d
 | estimated_calories_burned | 체중 기반 예상 소모 칼로리 추정치, nullable |
 | goal_preservation_score | 비안전 목적 점수 |
 | duration_rule_version | 시간 규칙 버전 |
+| user_revision_sequence | 사용자 편집 낙관적 잠금 버전, 미편집 0 |
+| user_revised_estimated_duration_seconds | 사용자 편집 후 재계산 시간, nullable |
+| user_revision_policy_version | 사용자 편집 규칙 버전, nullable |
+| user_revised_at | 마지막 사용자 편집 시각, nullable |
 | created_at | 생성 시각 |
 
 requested_duration_minutes는 사용자 입력에서만 가져오며 시스템이 임의 변경하지 않는다. 계획이 있는 후보의 estimated_duration_seconds는 `requested_duration_minutes * 60`과 ±300초 이내여야 하며, 허용 범위 안에서 차이가 가장 작은 계획을 선택한다(동률이면 더 긴 계획). 이는 계획 단계의 hard target이지만 실제 수행의 hard execution limit이나 완료 조건은 아니다. estimated_calories_burned는 제공된 체중이 있을 때만 계산하며 진단·안전 판정의 단독 근거로 사용하지 않는다.
@@ -1455,8 +1483,17 @@ requested_duration_minutes는 사용자 입력에서만 가져오며 시스템�
 | estimated_item_seconds | 항목 권장 예상 시간 |
 | instruction_content_version | 표시한 자세·설명 콘텐츠 버전 |
 | mascot_animation_asset_key | 실행 화면 중앙 애니메이션 참조, nullable |
+| user_sequence | 사용자 저장 순서 override, nullable |
+| user_sets | 사용자 저장 세트 override, nullable |
+| user_reps | 사용자 저장 반복 override, nullable |
+| user_work_seconds_per_set | 사용자 반복 편집으로 재계산한 세트 시간, nullable |
+| user_work_seconds | 사용자 편집 후 전체 동작 시간, nullable |
+| user_rest_seconds | 사용자 편집 후 전체 휴식 시간, nullable |
 
-처방값은 decision 시점 스냅샷이며 원본 운동 데이터 변경에 따라 바뀌지 않는다.
+처방값은 decision 시점 스냅샷이며 원본 운동 데이터 변경에 따라 바뀌지 않는다. 사용자 편집은 원본
+처방 컬럼을 덮어쓰지 않고 nullable override에 저장한다. read는 override를 우선 사용하므로 decision
+재현 근거와 실제 사용자 수행 plan을 함께 보존한다. `(plan_candidate_id, user_sequence)`는 override가
+있는 행에서 unique이고, 수량과 순서는 양수다.
 
 ### 9.5 safety_reviews
 
@@ -1572,6 +1609,9 @@ Wave 6는 option의 생성과 조회까지만 구현한다. option 선택과 wor
 | is_resumable | 동일 local_date 내 이어하기 가능 여부 |
 | stop_reason_code | HIGH_FATIGUE, TIME_SHORTAGE, RESUME_LATER, PAIN_OR_ABNORMAL_RESPONSE 중단 사유 |
 | estimated_calories_burned | 체중 기반 추정치, nullable |
+| calorie_source_code | WEARABLE, MET_ESTIMATE, UNAVAILABLE. 값이 있으면 필수 |
+| calorie_policy_version | 추정에 적용한 정책 버전 |
+| calorie_input_snapshot | 재현에 필요한 최소 입력, nullable |
 | idempotency_key | 세션 생성 중복 방지 |
 
 REST selection 또는 STOP_AND_SEEK_HELP decision에는 workout_session을 만들지 않는다.
@@ -1732,6 +1772,7 @@ timezone과 target_workout_count는 해당 주를 처음 요청한 시점의 사
 | user_week_id | user_weeks FK, UNIQUE |
 | status_code | GENERATED, ACKNOWLEDGED, FAILED |
 | input_schema_version | 집계 snapshot 스키마 버전 |
+| safety_stopped_session_count | 실행 상태가 `STOPPED_SAFETY`로 끝난 세션 수 |
 | input_snapshot | 닫힌 주의 최소 집계 JSONB |
 | input_hash | 집계 해시 |
 | completed_count | 운동 블록 체크로 계산한 COMPLETED 수 |

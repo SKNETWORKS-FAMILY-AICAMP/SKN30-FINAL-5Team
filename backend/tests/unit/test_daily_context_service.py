@@ -15,6 +15,7 @@ from backend.app.modules.checkins.service import (
     ProfileTimezoneMissingError,
     StaleContextError,
 )
+from backend.app.modules.decisions.daily_adjustment import DailyAdjustmentLimitReachedError
 
 NOW = datetime(2026, 8, 14, 3, 0, tzinfo=UTC)
 LOCAL_DATE = date(2026, 8, 14)
@@ -31,6 +32,7 @@ class FakeDailyContextRepository:
         self.idempotency: dict[tuple[UUID, UUID], IdempotencyRecord] = {}
         self.timezone_name = timezone_name
         self.persistent_pains: dict[UUID, tuple[tuple[str, int], ...]] = {}
+        self.successful_regenerations = 0
 
     def acquire_mutation_lock(self, session: FakeSession, user_id: UUID, local_date: date) -> None:
         del session, user_id, local_date
@@ -44,6 +46,20 @@ class FakeDailyContextRepository:
     ) -> tuple[tuple[str, int], ...]:
         del session
         return self.persistent_pains.get(user_id, ())
+
+    def count_daily_adjustments(self, session: FakeSession, user_id: UUID, local_date: date) -> int:
+        del session
+        context = self.contexts.get((user_id, local_date))
+        return max((context or {}).get("context_version", 1) - 1, 0) + (
+            self.successful_regenerations
+        )
+
+    def get_context_version(
+        self, session: FakeSession, user_id: UUID, local_date: date
+    ) -> int | None:
+        del session
+        context = self.contexts.get((user_id, local_date))
+        return None if context is None else int(context["context_version"])
 
     def get_idempotency_record(
         self, session: FakeSession, user_id: UUID, idempotency_key: UUID
@@ -242,6 +258,22 @@ def test_stale_or_missing_version_cannot_replace_existing_context() -> None:
         service.replace(FakeSession(), user_id, LOCAL_DATE, request(), uuid4(), None)
     with pytest.raises(StaleContextError):
         service.replace(FakeSession(), user_id, LOCAL_DATE, request(), uuid4(), 9)
+
+
+def test_checkin_edit_and_regeneration_share_a_two_adjustment_daily_budget() -> None:
+    repository = FakeDailyContextRepository()
+    service = DailyContextService(repository, clock=lambda: NOW)
+    user_id = uuid4()
+    service.replace(FakeSession(), user_id, LOCAL_DATE, request(), uuid4(), None)
+    repository.successful_regenerations = 1
+
+    second = service.replace(
+        FakeSession(), user_id, LOCAL_DATE, request(fatigue="HIGH"), uuid4(), 1
+    )
+    assert second.context_version == 2
+
+    with pytest.raises(DailyAdjustmentLimitReachedError):
+        service.replace(FakeSession(), user_id, LOCAL_DATE, request(), uuid4(), 2)
 
 
 def test_idempotent_retry_does_not_increment_and_changed_payload_conflicts() -> None:

@@ -320,6 +320,11 @@ class WorkoutSessionDetailResponse(BaseModel):
     total_item_count: int
     requested_duration_minutes: int
     items: list[WorkoutSessionItemResult]
+    # What a client needs to restore the workout screen without replaying the item list
+    # itself. `current_plan_item_id` is the next block to perform, and is null once the
+    # session has ended, whatever is still pending.
+    completed_plan_item_ids: list[UUID] = Field(default_factory=list)
+    current_plan_item_id: UUID | None = None
     feedback: WorkoutFeedbackSummary | None
     not_completed_reason_code: str | None
     started_at: datetime | None

@@ -93,6 +93,60 @@ describe('PreviewGallery', () => {
     expect(screen.getByRole('radio', { name: 'pending' })).toBeChecked();
   });
 
+  it('previews every app status shown before the signed-in flow', async () => {
+    await render(<PreviewGallery />);
+
+    fireEvent.press(screen.getByRole('radio', { name: 'App status (actual)' }));
+    const canvas = within(screen.getByTestId('preview-app-canvas'));
+
+    expect(
+      canvas.getByRole('header', { name: '설정이 필요해요' }),
+    ).toBeOnTheScreen();
+    expect(canvas.getByText('EXPO_PUBLIC_API_BASE_URL')).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByRole('radio', { name: '프로필 조회 중' }));
+    expect(
+      canvas.getByRole('header', { name: '불러오는 중' }),
+    ).toBeOnTheScreen();
+    expect(canvas.getByText('계정 정보를 확인하고 있어요')).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByRole('radio', { name: '프로필 조회 실패' }));
+    expect(
+      canvas.getByRole('header', { name: '연결하지 못했어요' }),
+    ).toBeOnTheScreen();
+    fireEvent.press(canvas.getByRole('button', { name: '다시 시도' }));
+    expect(screen.getByRole('radio', { name: '프로필 조회 중' })).toBeChecked();
+    expect(canvas.getByText('계정 정보를 확인하고 있어요')).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByRole('radio', { name: '프로필 조회 실패' }));
+    fireEvent.press(canvas.getByRole('button', { name: '로그아웃' }));
+    expect(
+      canvas.getByRole('header', {
+        name: '오늘도 자신과의 싸움에서\n승리하러 왔군요',
+      }),
+    ).toBeOnTheScreen();
+  });
+
+  it('opens the actual banana game and returns to the mascot house', async () => {
+    await render(<PreviewGallery initialScreenId="banana-catch" />);
+    const canvas = within(screen.getByTestId('preview-app-canvas'));
+
+    expect(
+      canvas.getByRole('header', { name: '바나나 받아라!' }),
+    ).toBeOnTheScreen();
+    expect(canvas.getByRole('button', { name: '게임 시작' })).toBeOnTheScreen();
+    expect(
+      screen.getByText('단독 진입: ?preview=banana-catch'),
+    ).toBeOnTheScreen();
+
+    fireEvent.press(
+      canvas.getByRole('button', { name: '끼끼의 집으로 돌아가기' }),
+    );
+    expect(
+      await canvas.findByRole('button', { name: '집 꾸미기' }),
+    ).toBeOnTheScreen();
+  });
+
   it('compares the production loading UI used by each main tab', async () => {
     await render(<PreviewGallery />);
 
@@ -418,7 +472,7 @@ describe('PreviewGallery', () => {
     fireEvent.press(canvas.getByRole('button', { name: '추천 이유 보기' }));
     expect(canvas.getByRole('header', { name: '추천 이유' })).toBeOnTheScreen();
     fireEvent.press(canvas.getByRole('button', { name: '닫기' }));
-    fireEvent.press(canvas.getByRole('button', { name: '푸시업 자세 보기' }));
+    fireEvent.press(canvas.getByRole('button', { name: '푸시업 자세' }));
     expect(
       await canvas.findByText('통증이 없는 범위에서 천천히 움직여주세요.'),
     ).toBeOnTheScreen();

@@ -21,6 +21,10 @@ import {
   WEB_APP_MAX_WIDTH,
 } from '../../components/scale';
 import type { TabId } from '../../components/brand/BrandChrome';
+import {
+  ProfileErrorScreen,
+  ProfileLoadingScreen,
+} from '../../app/SessionStatusScreens';
 import { LoginScreen } from '../auth/LoginScreen';
 import {
   LOGIN_PREVIEW_OPTIONS,
@@ -30,7 +34,9 @@ import {
 } from '../auth/previewStates';
 import { SignInScreen } from '../auth/SignInScreen';
 import { SignUpScreen } from '../auth/SignUpScreen';
+import { BananaCatchGameScreen } from '../bananaCatch/BananaCatchGameScreen';
 import { ExerciseCatalogScreen } from '../catalog/ExerciseCatalogScreen';
+import { ConfigurationRequiredScreen } from '../config/ConfigurationRequiredScreen';
 import { CalendarReportContainer } from '../home/CalendarReportContainer';
 import { CalendarReportScreen } from '../home/CalendarReportScreen';
 import { HOME_PREVIEW_OPTIONS, type HomePreviewState } from '../home/homeModel';
@@ -138,6 +144,7 @@ export const DEVICE_PREVIEWS = [
 export const SPLASH_DEVICE_PREVIEWS = DEVICE_PREVIEWS;
 export type PreviewScreenId =
   | 'splash'
+  | 'app-status'
   | 'loading'
   | 'auth'
   | 'login'
@@ -150,6 +157,7 @@ export type PreviewScreenId =
   | 'workout'
   | 'session'
   | 'mascot-house'
+  | 'banana-catch'
   | 'background_test'
   | 'calendar-report'
   | 'weekly-report'
@@ -165,7 +173,10 @@ type PreviewScreen = {
 const PREVIEW_SCREEN_GROUPS = [
   {
     label: 'App boot',
-    screens: [{ id: 'splash', label: 'Splash (API)' }],
+    screens: [
+      { id: 'splash', label: 'Splash (API)' },
+      { id: 'app-status', label: 'App status (actual)' },
+    ],
   },
   {
     label: 'States',
@@ -205,6 +216,7 @@ const PREVIEW_SCREEN_GROUPS = [
     label: 'Mascot house',
     screens: [
       { id: 'mascot-house', label: 'Mascot house (API)' },
+      { id: 'banana-catch', label: 'Banana catch (actual)' },
       { id: 'background_test', label: 'background_test (mock)' },
     ],
   },
@@ -300,7 +312,25 @@ function isWorkoutPreviewState(
 }
 
 type SplashPreviewState = 'pending' | 'error';
+type AppStatusPreviewState =
+  'configuration' | 'profile-loading' | 'profile-error';
 type PageLoadingPreviewState = 'home' | 'house' | 'calendar-report' | 'my-page';
+
+const APP_STATUS_PREVIEW_OPTIONS = [
+  { id: 'configuration', label: '환경 설정 누락' },
+  { id: 'profile-loading', label: '프로필 조회 중' },
+  { id: 'profile-error', label: '프로필 조회 실패' },
+] as const satisfies readonly {
+  id: AppStatusPreviewState;
+  label: string;
+}[];
+
+const APP_STATUS_PREVIEW_ISSUES = [
+  {
+    key: 'EXPO_PUBLIC_API_BASE_URL',
+    message: 'API 서버 주소가 설정되지 않았습니다.',
+  },
+] as const;
 
 const PAGE_LOADING_PREVIEW_OPTIONS = [
   { id: 'home', label: 'Home · 오늘 상태' },
@@ -454,6 +484,8 @@ export function PreviewGallery({
     initialScreenId === 'session-result' ? 'workout' : initialScreenId,
   );
   const [splashState, setSplashState] = useState<SplashPreviewState>('pending');
+  const [appStatusState, setAppStatusState] =
+    useState<AppStatusPreviewState>('configuration');
   const [pageLoadingState, setPageLoadingState] =
     useState<PageLoadingPreviewState>('home');
   const [devicePreviewId, setDevicePreviewId] =
@@ -755,6 +787,21 @@ export function PreviewGallery({
           </>
         ) : null}
 
+        {screenId === 'app-status' ? (
+          <>
+            <PreviewStateOptions
+              label="실제 앱 초기 상태"
+              options={APP_STATUS_PREVIEW_OPTIONS}
+              selected={appStatusState}
+              onSelect={setAppStatusState}
+            />
+            <Text style={styles.contractNotice}>
+              DemoApp이 인증 화면이나 홈으로 넘어가기 전에 실제로 표시하는 설정
+              누락, 프로필 조회, 조회 실패·복구 화면입니다.
+            </Text>
+          </>
+        ) : null}
+
         {screenId === 'auth' ? (
           <Text style={styles.contractNotice}>
             이전 통합 SignInScreen의 mock입니다. 현재 앱의 인증 진입에는
@@ -901,6 +948,13 @@ export function PreviewGallery({
               바나나·꾸미기 상태는 아직 서버에 없어 기기에만 저장됩니다.
             </Text>
           </>
+        ) : null}
+
+        {screenId === 'banana-catch' ? (
+          <Text style={styles.contractNotice}>
+            실제 앱에서 끼끼의 집의 ‘바나나 받기’를 눌러 진입하는 30초
+            미니게임입니다. 점수와 플레이 결과는 저장하거나 전송하지 않습니다.
+          </Text>
         ) : null}
 
         {screenId === 'background_test' ? (
@@ -1088,6 +1142,24 @@ export function PreviewGallery({
                       viewportOverride={canvasViewport}
                     />
                   ) : null}
+                  {screenId === 'app-status' &&
+                  appStatusState === 'configuration' ? (
+                    <ConfigurationRequiredScreen
+                      issues={[...APP_STATUS_PREVIEW_ISSUES]}
+                    />
+                  ) : null}
+                  {screenId === 'app-status' &&
+                  appStatusState === 'profile-loading' ? (
+                    <ProfileLoadingScreen />
+                  ) : null}
+                  {screenId === 'app-status' &&
+                  appStatusState === 'profile-error' ? (
+                    <ProfileErrorScreen
+                      message="계정 정보를 불러오지 못했어요. 연결을 확인한 뒤 다시 시도해주세요."
+                      onRetry={() => setAppStatusState('profile-loading')}
+                      onSignOut={() => setScreenId('login')}
+                    />
+                  ) : null}
                   {screenId === 'loading' && pageLoadingState === 'home' ? (
                     <HomeScreen
                       {...homePreviewProps('pre-checkin')}
@@ -1205,6 +1277,11 @@ export function PreviewGallery({
                       onNavigate={navigateHomeTab}
                       store={housePreviewStore}
                       timeZone="Asia/Seoul"
+                    />
+                  ) : null}
+                  {screenId === 'banana-catch' ? (
+                    <BananaCatchGameScreen
+                      onBack={() => setScreenId('mascot-house')}
                     />
                   ) : null}
                   {screenId === 'background_test' ? (

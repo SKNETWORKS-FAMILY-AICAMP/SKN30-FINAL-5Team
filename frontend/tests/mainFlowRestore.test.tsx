@@ -20,6 +20,8 @@ import { createApi, type Api } from '../src/api/endpoints';
 import type {
   DecisionResponse,
   MeResponse,
+  NotificationListResponse,
+  NotificationResponse,
   RoutineResponse,
   WeeklyPlanRevisionResponse,
   WorkoutPlan,
@@ -127,6 +129,23 @@ function routine(): RoutineResponse {
     catalog_version: 'catalog-v1',
     days: [],
     created_at: '2026-08-19T00:00:00+09:00',
+  };
+}
+
+function notification(
+  overrides: Partial<NotificationResponse> = {},
+): NotificationResponse {
+  return {
+    notification_id: 'notification-1',
+    type: 'KIKKI_RETURN',
+    title: '끼끼가 기다리고 있어요',
+    message: '끼끼의 집에 들러주세요.',
+    created_at: '2026-09-04T09:00:00+09:00',
+    read_at: null,
+    is_read: false,
+    action_type: 'OPEN_KIKKI_HOME',
+    payload: {},
+    ...overrides,
   };
 }
 
@@ -398,5 +417,88 @@ describe('MainFlow restart recovery', () => {
     expect(await screen.findByText('운동 기록')).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: '이어하기' })).toBeNull();
     expect(screen.queryByRole('button', { name: '세트·횟수 수정' })).toBeNull();
+  });
+
+  it('shows unread state, marks the selected notification, re-reads the count and opens the house', async () => {
+    const { api } = apiWithRoutes({
+      '/decisions?': decision(),
+      '/routines/current?': routine(),
+      '/workout-sessions?': sessions([]),
+    });
+    const item = notification();
+    const listNotifications = jest.fn<
+      Promise<NotificationListResponse>,
+      [AbortSignal?]
+    >(async () => ({ items: [item], unread_count: 1 }));
+    const markNotificationRead = jest.fn(async () => ({
+      ...item,
+      is_read: true,
+      read_at: '2026-09-04T09:01:00+09:00',
+    }));
+
+    render(
+      <MainFlow
+        api={{ ...api, listNotifications, markNotificationRead }}
+        me={me()}
+        onRefreshMe={async () => undefined}
+        onSignOut={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(listNotifications).toHaveBeenCalledTimes(1));
+    expect(screen.getByLabelText('읽지 않은 알림 있음')).toBeVisible();
+
+    fireEvent.press(screen.getByRole('button', { name: '알림 보기' }));
+    fireEvent.press(
+      await screen.findByRole('button', {
+        name: '끼끼가 기다리고 있어요 알림 확인',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(markNotificationRead).toHaveBeenCalledWith('notification-1');
+      expect(listNotifications.mock.calls.length).toBeGreaterThanOrEqual(3);
+      expect(
+        screen.getByRole('tab', { name: '끼끼의 집' }).props.accessibilityState
+          .selected,
+      ).toBe(true);
+    });
+  });
+
+  it('shows one toast only when a later Home read contains a new unread id', async () => {
+    const { api } = apiWithRoutes({
+      '/decisions?': decision(),
+      '/routines/current?': routine(),
+      '/workout-sessions?': sessions([]),
+    });
+    const first = notification({ notification_id: 'existing' });
+    const added = notification({
+      notification_id: 'new',
+      title: '새 소식',
+    });
+    const listNotifications = jest
+      .fn<Promise<NotificationListResponse>, [AbortSignal?]>()
+      .mockResolvedValueOnce({ items: [first], unread_count: 1 })
+      .mockResolvedValueOnce({ items: [added, first], unread_count: 2 });
+
+    render(
+      <MainFlow
+        api={{ ...api, listNotifications }}
+        me={me()}
+        onRefreshMe={async () => undefined}
+        onSignOut={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(listNotifications).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText('끼끼가 소식을 가져왔어요!')).toBeNull();
+
+    fireEvent.press(screen.getByRole('tab', { name: '끼끼의 집' }));
+    fireEvent.press(await screen.findByRole('tab', { name: '홈' }));
+
+    expect(
+      await screen.findByText('끼끼가 소식을 가져왔어요!'),
+    ).toBeOnTheScreen();
+    expect(listNotifications).toHaveBeenCalledTimes(2);
   });
 });

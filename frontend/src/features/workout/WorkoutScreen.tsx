@@ -703,10 +703,14 @@ function WorkoutScreenContent({
     if (executionState === 'PAUSED') {
       return;
     }
-    stateBeforePause.current = executionState;
+    const leavingRest = executionState === 'RESTING';
+    stateBeforePause.current = leavingRest ? 'RUNNING' : executionState;
     setExecutionState('PAUSED');
     recordTimerChange('PAUSE');
     onPauseChange?.(true);
+    if (leavingRest) {
+      onRestChange?.(false);
+    }
   };
 
   const openStopReasons = () => {
@@ -1372,7 +1376,6 @@ function WorkoutScreenContent({
       {overlay === 'rest' ? (
         <RestSheet
           onClose={closeRest}
-          overallSeconds={elapsedSeconds}
           restSeconds={restSeconds}
           useJua={useJua}
         />
@@ -1895,42 +1898,37 @@ function ApiBanner({
 
 function RestSheet({
   onClose,
-  overallSeconds,
   restSeconds,
   useJua,
 }: {
   onClose: () => void;
-  overallSeconds: number;
   restSeconds: number;
   useJua: boolean;
 }) {
   return (
-    <View accessibilityViewIsModal style={styles.restSheet}>
-      <View style={styles.restSheetRow}>
-        <View>
-          <Text style={styles.restLabel}>휴식 중</Text>
-          <Text
-            accessibilityLabel={`현재 휴식 시간 ${formatWorkoutTime(restSeconds)}`}
-            style={[styles.restTimer, useJua && styles.jua]}
-          >
-            {formatWorkoutTime(restSeconds)}
+    <View
+      pointerEvents="box-none"
+      style={styles.restOverlay}
+      testID="workout-rest-overlay"
+    >
+      <View style={styles.restTimerCard} testID="workout-rest-timer-card">
+        <Text style={styles.restMessage}>휴식도 운동의 일부에요</Text>
+        <Text
+          accessibilityLabel={`현재 휴식 시간 ${formatWorkoutTime(restSeconds)}`}
+          style={[styles.restTimer, useJua && styles.jua]}
+        >
+          {formatWorkoutTime(restSeconds)}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onClose}
+          style={styles.restEndButton}
+        >
+          <Text style={[styles.restEndButtonText, useJua && styles.jua]}>
+            돌아가기
           </Text>
-        </View>
-        <View style={styles.restActions}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={onClose}
-            style={styles.restEndButton}
-          >
-            <Text style={[styles.restEndButtonText, useJua && styles.jua]}>
-              돌아가기
-            </Text>
-          </Pressable>
-        </View>
+        </Pressable>
       </View>
-      <Text style={styles.restDescription}>
-        {`전체 운동 시간은 계속 흐르고 있어요 · 진행 ${formatWorkoutTime(overallSeconds)}`}
-      </Text>
     </View>
   );
 }
@@ -2085,29 +2083,21 @@ function StopReasonSheet({
         disabled={!canContinue || pending}
         onPress={onConfirm}
         style={[
-          safetySelected ? styles.dangerButton : styles.stopConfirmButton,
+          styles.stopConfirmButton,
           (!canContinue || pending) && styles.actionDisabled,
         ]}
         testID="workout-stop-confirm"
       >
-        {!safetySelected ? (
-          <LinearGradient
-            colors={['#D97260', '#CC5A47', '#C2503C']}
-            end={{ x: 0.5, y: 1 }}
-            locations={[0, 0.55, 1]}
-            pointerEvents="none"
-            start={{ x: 0.5, y: 0 }}
-            style={styles.stopConfirmGradient}
-            testID="workout-stop-confirm-gradient"
-          />
-        ) : null}
-        <Text
-          style={
-            safetySelected
-              ? styles.dangerButtonText
-              : styles.stopConfirmButtonText
-          }
-        >
+        <LinearGradient
+          colors={['#D97260', '#CC5A47', '#C2503C']}
+          end={{ x: 0.5, y: 1 }}
+          locations={[0, 0.55, 1]}
+          pointerEvents="none"
+          start={{ x: 0.5, y: 0 }}
+          style={styles.stopConfirmGradient}
+          testID="workout-stop-confirm-gradient"
+        />
+        <Text style={styles.stopConfirmButtonText}>
           {pending
             ? '중단 처리 중…'
             : safetySelected && submitsSafetyStop
@@ -3184,41 +3174,53 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   pressed: { opacity: 0.82 },
-  restSheet: {
+  restOverlay: {
     position: 'absolute',
+    top: 0,
     right: 0,
     bottom: 0,
     left: 0,
-    zIndex: 30,
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    backgroundColor: colors.primary,
-    paddingTop: 20,
-    paddingRight: 18,
-    paddingBottom: 28,
-    paddingLeft: 18,
-  },
-  restSheetRow: {
-    flexDirection: 'row',
+    zIndex: 40,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(20,32,16,.62)',
+    padding: 24,
   },
-  restLabel: {
+  restTimerCard: {
+    width: '100%',
+    maxWidth: 360,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,.82)',
+    borderRadius: 26,
+    backgroundColor: 'rgba(255,253,248,.96)',
+    paddingTop: 28,
+    paddingRight: 24,
+    paddingBottom: 24,
+    paddingLeft: 24,
+    shadowColor: '#8D5C09',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  restMessage: {
     color: colors.text,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-    opacity: 0.85,
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: -0.2,
+    textAlign: 'center',
   },
   restTimer: {
-    marginTop: 2,
+    marginTop: 12,
     color: colors.text,
-    fontSize: 44,
-    fontWeight: '900',
-    lineHeight: 44,
+    fontSize: 56,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+    letterSpacing: 2,
+    lineHeight: 58,
   },
-  restActions: { flexDirection: 'row', gap: 8 },
   restAddButton: {
     minHeight: 46,
     justifyContent: 'center',
@@ -3235,22 +3237,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   restEndButton: {
+    width: '100%',
     minHeight: 46,
+    alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 22,
     borderRadius: 16,
     backgroundColor: colors.yellow,
     paddingVertical: 13,
     paddingHorizontal: 17,
   },
   restEndButtonText: { color: '#342E17', fontSize: 16, fontWeight: '900' },
-  restDescription: {
-    marginTop: 10,
-    color: colors.text,
-    fontSize: 12.5,
-    fontWeight: '600',
-    lineHeight: 18,
-    opacity: 0.85,
-  },
   sheetOverlay: {
     position: 'absolute',
     top: 0,

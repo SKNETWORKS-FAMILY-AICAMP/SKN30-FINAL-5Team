@@ -23,6 +23,7 @@ from backend.app.integrations.birthdate_crypto import (
 from backend.app.integrations.firebase_auth import build_firebase_token_verifier
 from backend.app.integrations.llm_provider import build_narration_provider
 from backend.app.integrations.s3.exercise_media import build_exercise_media_url_provider
+from backend.app.integrations.s3.profile_image import build_s3_profile_image_adapter
 from backend.app.integrations.v3_application_composition import (
     V3ApplicationCompositionError,
     compose_v3_application_services,
@@ -88,6 +89,7 @@ def create_app(
     birthdate_cipher: BirthdateCipher | None = None,
     narration_provider: NarrationProviderPort | None = None,
     exercise_media_url_provider: ExerciseMediaUrlPort | None = None,
+    profile_image_storage: object | None = None,
     v3_creation_service: DecisionCreationServicePort | None = None,
     v3_shadow_service: V3ShadowCreationPort | None = None,
     v3_promotion_gate: V3ProductionPromotionGatePort | None = None,
@@ -146,6 +148,11 @@ def create_app(
         exercise_media_url_provider
         if exercise_media_url_provider is not None
         else build_exercise_media_url_provider(resolved_settings)
+    )
+    application.state.profile_image_storage = (
+        profile_image_storage
+        if profile_image_storage is not None
+        else build_s3_profile_image_adapter(resolved_settings)
     )
     promotion_gate = (
         v3_promotion_gate

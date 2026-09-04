@@ -691,6 +691,24 @@ class WorkoutRepository:
             for row in rows
         )
 
+    def get_workout_log_detail_for_plan(
+        self, session: Session, user_id: UUID, plan_id: UUID
+    ) -> WorkoutLogDetail | None:
+        """Return the newest session for exactly the plan rendered by the home state."""
+
+        session_id = session.scalar(
+            select(WorkoutSession.id)
+            .where(
+                WorkoutSession.user_id == user_id,
+                WorkoutSession.plan_candidate_id == plan_id,
+            )
+            .order_by(WorkoutSession.created_at.desc(), WorkoutSession.id.desc())
+            .limit(1)
+        )
+        if session_id is None:
+            return None
+        return self.get_workout_log_detail(session, user_id, session_id)
+
     def get_workout_log_detail(
         self, session: Session, user_id: UUID, session_id: UUID
     ) -> WorkoutLogDetail | None:
@@ -720,21 +738,23 @@ class WorkoutRepository:
         ).one_or_none()
         if row is None:
             return None
+        # A user edit lives in the override columns beside the decision's own numbers,
+        # so the session has to read the same effective values the plan renders.
         item_rows = session.execute(
             select(
                 WorkoutSessionItem.plan_item_id,
                 PlanItem.exercise_id,
                 Exercise.name_ko,
                 WorkoutSessionItem.status_code,
-                PlanItem.sets,
-                PlanItem.reps,
-                PlanItem.work_seconds_per_set,
+                func.coalesce(PlanItem.user_sets, PlanItem.sets),
+                func.coalesce(PlanItem.user_reps, PlanItem.reps),
+                func.coalesce(PlanItem.user_work_seconds_per_set, PlanItem.work_seconds_per_set),
                 WorkoutSessionItem.completed_at,
             )
             .join(PlanItem, PlanItem.id == WorkoutSessionItem.plan_item_id)
             .join(Exercise, Exercise.id == PlanItem.exercise_id)
             .where(WorkoutSessionItem.workout_session_id == session_id)
-            .order_by(PlanItem.sequence)
+            .order_by(func.coalesce(PlanItem.user_sequence, PlanItem.sequence))
         ).all()
         items = tuple(
             WorkoutLogItem(

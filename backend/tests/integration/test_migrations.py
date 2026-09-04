@@ -26,7 +26,22 @@ def test_migration_history_has_a_single_linear_head() -> None:
 
     # A second head means two branches were authored against the same parent, which
     # blocks every later migration until someone merges them by hand.
-    assert scripts.get_heads() == ["0039_workout_difficulty_reasons"]
+    assert scripts.get_heads() == ["0044_profile_image_metadata"]
+    assert scripts.get_revision("0044_profile_image_metadata").down_revision == (
+        "0043_banana_wallet_rewards"
+    )
+    assert scripts.get_revision("0043_banana_wallet_rewards").down_revision == (
+        "0042_in_app_notifications"
+    )
+    assert scripts.get_revision("0042_in_app_notifications").down_revision == (
+        "0041_user_plan_revisions"
+    )
+    assert scripts.get_revision("0041_user_plan_revisions").down_revision == (
+        "0040_weekly_safety_and_calorie"
+    )
+    assert scripts.get_revision("0040_weekly_safety_and_calorie").down_revision == (
+        "0039_workout_difficulty_reasons"
+    )
     assert scripts.get_revision("0039_workout_difficulty_reasons").down_revision == (
         "0038_workout_execution_state"
     )
@@ -267,7 +282,33 @@ def test_postgresql_migration_round_trip(monkeypatch: pytest.MonkeyPatch) -> Non
             "exercise_alternatives",
             "exercise_media_assets",
             "daily_context_pains",
+            "in_app_notifications",
+            "banana_wallets",
+            "banana_transactions",
         }.issubset(inspector.get_table_names())
+        assert {
+            "user_id",
+            "balance",
+            "created_at",
+            "updated_at",
+        } == {column["name"] for column in inspector.get_columns("banana_wallets")}
+        assert {
+            "id",
+            "user_id",
+            "workout_session_id",
+            "transaction_type",
+            "amount",
+            "balance_after",
+            "event_key",
+            "reference_code",
+            "source_local_date",
+            "created_at",
+        } == {column["name"] for column in inspector.get_columns("banana_transactions")}
+        assert {
+            "profile_image_object_key",
+            "profile_image_content_type",
+            "profile_image_byte_size",
+        }.issubset({column["name"] for column in inspector.get_columns("user_profiles")})
         assert {
             "sleep_source_code",
             "available_time_minutes",

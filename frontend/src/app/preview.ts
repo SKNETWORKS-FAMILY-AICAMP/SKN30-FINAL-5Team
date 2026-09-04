@@ -1,7 +1,9 @@
 export type PreviewMode =
   | 'account'
+  | 'app-status'
   | 'auth'
   | 'background_test'
+  | 'banana-catch'
   | 'calendar-report'
   | 'exercise-catalog'
   | 'gallery'

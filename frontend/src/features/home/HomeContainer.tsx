@@ -212,6 +212,9 @@ export function HomeContainer({
   onResumeWorkout,
   onTab,
   onOpenCalendar,
+  hasUnreadNotification = false,
+  notificationToastVisible = false,
+  onNotifications,
   finalValidationHoldMs = DEFAULT_FINAL_VALIDATION_HOLD_MS,
 }: {
   api: Api;
@@ -238,6 +241,9 @@ export function HomeContainer({
   onResumeWorkout?: () => void;
   onTab: (tab: TabId) => void;
   onOpenCalendar: () => void;
+  hasUnreadNotification?: boolean;
+  notificationToastVisible?: boolean;
+  onNotifications?: () => void;
   /** Testable presentation delay after a decision response is ready. */
   finalValidationHoldMs?: number;
 }) {
@@ -832,6 +838,9 @@ export function HomeContainer({
       onReorderPlan={reorderPlan}
       onSubmitUserEdits={submitUserEdits}
       onNavigateTab={onTab}
+      hasUnreadNotification={hasUnreadNotification}
+      notificationToastVisible={notificationToastVisible}
+      onNotifications={onNotifications}
       onProfile={() => onTab('my')}
       onOpenCalendar={onOpenCalendar}
     />

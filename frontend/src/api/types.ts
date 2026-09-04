@@ -311,15 +311,18 @@ export type Guidance = {
   tone_code: ToneCode;
 };
 
+export type AgentTypeCode =
+  'TRAINING' | 'RECOVERY' | 'SAFETY' | 'FEASIBILITY' | 'COORDINATOR';
+
 export type AgentSummary = {
-  agent_type_code: string;
-  recommendation_code: string | null;
+  agent_type_code: AgentTypeCode;
+  recommendation_code: ActionCode | null;
   reason_codes: string[];
   summary: string;
 };
 
 export type SafetySummary = {
-  safety_status_code: string;
+  safety_status_code: SafetyStatusCode;
   vetoed: boolean;
   reason_codes: string[];
   summary: string;
@@ -559,6 +562,31 @@ export type ExerciseVariantsResponse = {
   items: ExerciseVariantItem[];
   catalog_version: string;
   alternative_set_version: string | null;
+};
+
+export type NotificationTypeCode =
+  'DAILY_REWARD' | 'WEEKLY_GOAL_REMINDER' | 'KIKKI_RETURN';
+
+export type NotificationActionType = 'OPEN_KIKKI_HOME' | null;
+
+export type NotificationResponse = {
+  notification_id: string;
+  type: NotificationTypeCode;
+  title: string;
+  message: string;
+  created_at: string;
+  read_at: string | null;
+  is_read: boolean;
+  action_type: NotificationActionType;
+  payload: {
+    remaining_workout_count?: number;
+    [key: string]: unknown;
+  };
+};
+
+export type NotificationListResponse = {
+  items: NotificationResponse[];
+  unread_count: number;
 };
 
 export type WeekResponse = {

@@ -12,7 +12,11 @@ from backend.app.domain.agents.v3_contracts import (
     ExercisePrescription,
     PlanActionCode,
 )
-from backend.app.domain.agents.v3_duration import prescription_item_duration
+from backend.app.domain.agents.v3_duration import (
+    accepts_additional_seconds,
+    plan_duration_preference,
+    prescription_item_duration,
+)
 from backend.app.domain.agents.v3_orchestration import FallbackRequest
 from backend.app.domain.rules.duration import DURATION_TOLERANCE_SECONDS, SECONDS_PER_MINUTE
 
@@ -44,13 +48,15 @@ class DeterministicGraphFallbackProvider:
         mandatory = tuple(envelope.mandatory_exercise_ids)
         ordered_ids = self._ordered_ids(pool, mandatory)
         target_seconds = envelope.requested_duration_minutes * SECONDS_PER_MINUTE
+        # Which end of the approved window to settle on is the ladder's time axis
+        # (DOMAIN_RULES 6.1 rung 3), read off the envelope so a replay builds the
+        # same plan. Without an adjustment the request itself is the target.
+        preference = plan_duration_preference(envelope)
 
         prescriptions: list[ExercisePrescription] = []
         estimated_seconds = 0
         for exercise_id in ordered_ids:
             required = exercise_id in set(mandatory)
-            if not required and estimated_seconds >= target_seconds - DURATION_TOLERANCE_SECONDS:
-                break
             record = records.get(exercise_id)
             if record is None or exercise_id in set(envelope.excluded_exercise_ids):
                 if required:
@@ -67,10 +73,18 @@ class DeterministicGraphFallbackProvider:
                 if required:
                     return None
                 continue
+            item_seconds = prescription_item_duration(prescription, record).estimated_item_seconds
+            # A mandatory exercise is part of the plan whatever it costs; the
+            # window check below still refuses a plan it pushes out of range.
+            if not required and not accepts_additional_seconds(
+                accumulated_seconds=estimated_seconds,
+                additional_seconds=item_seconds,
+                target_seconds=target_seconds,
+                preference=preference,
+            ):
+                continue
             prescriptions.append(prescription)
-            estimated_seconds += prescription_item_duration(
-                prescription, record
-            ).estimated_item_seconds
+            estimated_seconds += item_seconds
 
         if not prescriptions:
             return None

@@ -4,7 +4,7 @@ from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Request
+from fastapi import APIRouter, Depends, File, Header, Request, UploadFile
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -23,6 +23,12 @@ from backend.app.modules.profiles.age import (
     InvalidBirthdateError,
     InvalidTimezoneError,
 )
+from backend.app.modules.profiles.images import (
+    MAX_PROFILE_IMAGE_BYTES,
+    InvalidProfileImageError,
+    ProfileImageService,
+    ProfileImageStorageUnavailableError,
+)
 from backend.app.modules.profiles.onboarding_completion import OnboardingCompletionService
 from backend.app.modules.profiles.ports import (
     BirthdateCipher,
@@ -35,6 +41,7 @@ from backend.app.modules.profiles.schemas import (
     MeResponse,
     OnboardingResponse,
     OnboardingUpsertRequest,
+    ProfileImageMutationResponse,
     ProfileSettingsUpdateRequest,
     ProfileSettingsUpdateResponse,
 )
@@ -83,6 +90,7 @@ def _service(
         experience_level_codes=settings.onboarding_experience_level_codes,
         consent_policy_version=settings.consent_policy_version,
         stale_routines=stale_routines,
+        profile_image_url_provider=getattr(request.app.state, "profile_image_storage", None),
     )
 
 
@@ -238,6 +246,22 @@ def _translate_profile_update_error(exc: Exception, *, request: Request) -> AppE
     return _translate_profile_error(exc, request=request)
 
 
+def _translate_profile_image_error(exc: Exception, *, request: Request) -> AppError:
+    if isinstance(exc, InvalidProfileImageError):
+        return AppError(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+            code="INVALID_PROFILE_IMAGE",
+            message="JPEG, PNG, WEBP 형식의 5MB 이하 이미지만 업로드할 수 있습니다.",
+        )
+    if isinstance(exc, ProfileImageStorageUnavailableError):
+        return AppError(
+            status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+            code="PROFILE_IMAGE_STORAGE_UNAVAILABLE",
+            message="프로필 이미지 저장소를 일시적으로 사용할 수 없습니다.",
+        )
+    return _translate_profile_update_error(exc, request=request)
+
+
 @router.get("", response_model=MeResponse)
 def get_me(
     request: Request,
@@ -366,6 +390,70 @@ def update_profile_settings(
         SQLAlchemyError,
     ) as exc:
         raise _translate_profile_update_error(exc, request=request) from None
+
+
+@router.post("/profile-image", response_model=ProfileImageMutationResponse)
+async def upload_profile_image(
+    file: Annotated[UploadFile, File()],
+    request: Request,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db_session)],
+    repository: Annotated[ProfileRepositoryPort, Depends(get_profile_repository)],
+    idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> ProfileImageMutationResponse:
+    try:
+        result = ProfileImageService(
+            repository, getattr(request.app.state, "profile_image_storage", None)
+        ).upload(
+            session,
+            current_user.user_id,
+            idempotency_key,
+            _expected_profile_version(if_match),
+            file.content_type,
+            await file.read(MAX_PROFILE_IMAGE_BYTES + 1),
+        )
+        return ProfileImageMutationResponse(**result.__dict__)
+    except (
+        InvalidProfileImageError,
+        ProfileImageStorageUnavailableError,
+        ProfileNotFoundError,
+        StaleProfileError,
+        IdempotencyKeyReusedError,
+        SQLAlchemyError,
+    ) as exc:
+        raise _translate_profile_image_error(exc, request=request) from None
+    finally:
+        await file.close()
+
+
+@router.delete("/profile-image", response_model=ProfileImageMutationResponse)
+def delete_profile_image(
+    request: Request,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db_session)],
+    repository: Annotated[ProfileRepositoryPort, Depends(get_profile_repository)],
+    idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> ProfileImageMutationResponse:
+    try:
+        result = ProfileImageService(
+            repository, getattr(request.app.state, "profile_image_storage", None)
+        ).delete(
+            session,
+            current_user.user_id,
+            idempotency_key,
+            _expected_profile_version(if_match),
+        )
+        return ProfileImageMutationResponse(**result.__dict__)
+    except (
+        ProfileImageStorageUnavailableError,
+        ProfileNotFoundError,
+        StaleProfileError,
+        IdempotencyKeyReusedError,
+        SQLAlchemyError,
+    ) as exc:
+        raise _translate_profile_image_error(exc, request=request) from None
 
 
 __all__ = ["router"]

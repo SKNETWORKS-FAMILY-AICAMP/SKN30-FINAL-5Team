@@ -45,6 +45,14 @@ class UserProfile(Base):
             name="ck_user_profiles_coaching_style",
         ),
         CheckConstraint("profile_version > 0", name="ck_user_profiles_version_positive"),
+        CheckConstraint(
+            "(profile_image_object_key IS NULL AND "
+            "profile_image_content_type IS NULL AND profile_image_byte_size IS NULL) OR "
+            "(profile_image_object_key ~ '^profile-images/[0-9a-f-]+/[0-9a-f-]+\\.(jpg|png|webp)$' "
+            "AND profile_image_content_type IN ('image/jpeg','image/png','image/webp') "
+            "AND profile_image_byte_size > 0 AND profile_image_byte_size <= 10485760)",
+            name="ck_user_profiles_profile_image_metadata",
+        ).ddl_if(dialect="postgresql"),
     )
 
     user_id: Mapped[UUID] = mapped_column(
@@ -71,6 +79,9 @@ class UserProfile(Base):
     medical_exercise_restriction: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     eligibility_result_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     weekly_target_sessions: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    profile_image_object_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    profile_image_content_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    profile_image_byte_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -252,10 +263,13 @@ class MutationIdempotencyRecord(Base):
             "'POST_DECISION_SELECTION', 'PATCH_WORKOUT_SESSION_START', "
             "'PATCH_WORKOUT_SESSION_ITEM', 'POST_WORKOUT_TIMER_EVENT', "
             "'POST_WORKOUT_ADDITIONAL_ACTIVITY', 'POST_WORKOUT_SAFETY_EVENT', "
+            "'PATCH_WORKOUT_SESSION_STOP', "
             "'PATCH_WORKOUT_SESSION_FINISH', 'PATCH_WORKOUT_SESSION_NOT_COMPLETED', "
             "'POST_WORKOUT_FEEDBACK', 'POST_WEEKLY_REPORT', "
             "'POST_WEEKLY_REPORT_ACKNOWLEDGEMENT', 'POST_WEEKLY_PLAN', "
-            "'POST_WEEKLY_PLAN_REVISION', 'DELETE_ME')",
+            "'POST_WEEKLY_PLAN_REVISION', 'DELETE_ME', "
+            "'PATCH_DECISION_PLAN_ITEM', 'PUT_DECISION_PLAN_ITEM_ORDER', "
+            "'POST_ME_PROFILE_IMAGE', 'DELETE_ME_PROFILE_IMAGE')",
             name="ck_mutation_idempotency_endpoint",
         ),
     )

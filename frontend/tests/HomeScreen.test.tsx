@@ -5,7 +5,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { Animated, processColor, StyleSheet } from 'react-native';
 
 import { fontFamilies } from '../src/app/fonts';
-import { imageAssets, weeklyProgressMascotSources } from '../src/assets';
+import { imageAssets } from '../src/assets';
 import { ScaleViewportProvider } from '../src/components/scale';
 import { colors } from '../src/components/theme';
 import {
@@ -194,7 +194,7 @@ describe('HomeScreen Home v1 transcription', () => {
     );
   });
 
-  it('renders goal-sized progress cells with distinct mascots and explicit completion badges', () => {
+  it('merges the weekly goal progress and the weekday row into one card', () => {
     render(
       <HomeScreen
         previewState="routine"
@@ -203,13 +203,12 @@ describe('HomeScreen Home v1 transcription', () => {
       />,
     );
 
-    expect(screen.getAllByLabelText(/번째 주간 진행/)).toHaveLength(5);
-    expect(screen.getAllByTestId('day-done-image')).toHaveLength(3);
-    expect(screen.getAllByTestId('day-todo-image')).toHaveLength(2);
-    expect(screen.getAllByTestId('progress-complete-badge')).toHaveLength(3);
-    expect(screen.getAllByTestId('progress-incomplete-badge')).toHaveLength(2);
-    expect(screen.getByText('이번 주 운동')).toBeOnTheScreen();
     expect(screen.getByText('이번 주 운동 현황')).toBeOnTheScreen();
+    expect(screen.queryByText('이번 주 운동')).toBeNull();
+    expect(screen.getByTestId('weekly-day-row')).toBeOnTheScreen();
+    expect(screen.queryByTestId('weekly-progress-cells')).toBeNull();
+    expect(screen.queryByTestId('day-todo-image')).toBeNull();
+    expect(screen.queryByTestId('progress-complete-badge')).toBeNull();
     expect(screen.getByText('목표 5회 중 3회 완료')).toBeOnTheScreen();
     expect(screen.getByTestId('weekly-progress-percent')).toHaveTextContent(
       '60%',
@@ -225,76 +224,43 @@ describe('HomeScreen Home v1 transcription', () => {
       accessibilityRole: 'progressbar',
       accessibilityValue: { min: 0, max: 100, now: 60 },
     });
-    const completedSources = screen
-      .getAllByTestId('day-done-image')
-      .map((image) => image.props.source);
-    expect(new Set(completedSources).size).toBe(3);
-    expect(
-      completedSources.every((source) =>
-        weeklyProgressMascotSources.includes(source),
-      ),
-    ).toBe(true);
-    expect(completedSources).not.toContain(
-      imageAssets.weeklyProgressIncomplete,
-    );
-    expect(screen.getAllByTestId('day-todo-image')[0]?.props.source).toEqual(
-      imageAssets.weeklyProgressIncomplete,
-    );
     fireEvent.press(
       screen.getByRole('button', { name: '이번 주 운동 현황 설명 보기' }),
     );
     expect(
       screen.getByText('이번 주 목표까지 얼마나 왔는지 확인해보세요.'),
     ).toBeOnTheScreen();
-    expect(
-      StyleSheet.flatten(
-        screen.getAllByTestId('day-done-image')[0]?.props.style,
-      ),
-    ).toMatchObject({ height: '72%', width: '72%' });
   });
 
-  it('shows the same incomplete mascot in every slot before any routine is completed', () => {
+  it('marks completed weekdays with the workout mascot inside the circle', () => {
+    render(<HomeScreen previewState="routine" />);
+
+    const completedImages = screen.getAllByTestId('day-done-image');
+    expect(completedImages).toHaveLength(2);
+    expect(
+      completedImages.every(
+        (image) =>
+          image.props.source === imageAssets.weeklyProgressCompletedWorkout,
+      ),
+    ).toBe(true);
+    expect(StyleSheet.flatten(completedImages[0]?.props.style)).toMatchObject({
+      height: '92%',
+      width: '92%',
+    });
+  });
+
+  it('leaves every weekday circle empty before any completed session', () => {
     render(
       <HomeScreen
-        previewState="routine"
-        weeklyCompletedCount={0}
-        weeklyGoalCount={4}
+        {...homePreviewProps('routine')}
+        localDate="2026-08-19"
+        sessions={[]}
+        week={null}
       />,
     );
 
     expect(screen.queryByTestId('day-done-image')).toBeNull();
-    const incompleteImages = screen.getAllByTestId('day-todo-image');
-    expect(incompleteImages).toHaveLength(4);
-    expect(
-      incompleteImages.every(
-        (image) => image.props.source === imageAssets.weeklyProgressIncomplete,
-      ),
-    ).toBe(true);
-  });
-
-  it('keeps completed mascots stable and reveals a new one after another completion', () => {
-    const view = render(
-      <HomeScreen
-        previewState="routine"
-        weeklyCompletedCount={1}
-        weeklyGoalCount={4}
-      />,
-    );
-    const firstMascot = screen.getByTestId('day-done-image').props.source;
-
-    view.rerender(
-      <HomeScreen
-        previewState="routine"
-        weeklyCompletedCount={2}
-        weeklyGoalCount={4}
-      />,
-    );
-
-    const completedMascots = screen
-      .getAllByTestId('day-done-image')
-      .map((image) => image.props.source);
-    expect(completedMascots[0]).toBe(firstMascot);
-    expect(completedMascots[1]).not.toBe(firstMascot);
+    expect(screen.getAllByLabelText(/요일 기록 없음/)).toHaveLength(7);
   });
 
   it('renders seven weekday circles with the original completed and incomplete styles', () => {
@@ -410,7 +376,7 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.getByLabelText('월요일 일부 완료')).toBeOnTheScreen();
     expect(screen.getByLabelText('수요일 미수행')).toBeOnTheScreen();
     expect(screen.getAllByLabelText(/요일 기록 없음/)).toHaveLength(5);
-    expect(screen.queryByTestId('progress-complete-badge')).toBeNull();
+    expect(screen.queryByTestId('day-done-image')).toBeNull();
   });
 
   it('submits multiple transient discomfort areas and the selected location', () => {
@@ -503,6 +469,32 @@ describe('HomeScreen Home v1 transcription', () => {
     ).toBeNull();
   });
 
+  it('styles rest as a calm full-width secondary action', () => {
+    const onChooseRest = jest.fn();
+    render(
+      <HomeScreen
+        {...homePreviewProps('routine')}
+        onChooseRest={onChooseRest}
+      />,
+    );
+
+    const restButton = screen.getByRole('button', { name: '오늘은 쉬기' });
+    expect(StyleSheet.flatten(restButton.props.style)).toMatchObject({
+      alignSelf: 'stretch',
+      minHeight: expect.any(Number),
+      borderColor: '#BFD09F',
+      backgroundColor: '#F4F8E9',
+      overflow: 'hidden',
+    });
+    expect(screen.getByTestId('home-rest-gradient').props.colors).toEqual(
+      ['#FCFFF8', '#EEF5E2'].map(processColor),
+    );
+    expect(screen.getByTestId('home-rest-icon')).toBeVisible();
+
+    fireEvent.press(restButton);
+    expect(onChooseRest).toHaveBeenCalledTimes(1);
+  });
+
   it('temporarily hides available-time controls from check-in', () => {
     const onSubmitCheckin = jest.fn();
     const props = homePreviewProps('routine');
@@ -541,9 +533,9 @@ describe('HomeScreen Home v1 transcription', () => {
   it('shows posture for every API item and variants only when the server returns them', async () => {
     render(<HomeScreen {...homePreviewProps('routine')} />);
 
-    expect(screen.getAllByText('자세 보기')).toHaveLength(3);
+    expect(screen.getAllByText('자세')).toHaveLength(3);
     const postureButton = screen.getByRole('button', {
-      name: '밴드 로우 자세 보기',
+      name: '밴드 로우 자세',
     });
     const equipmentButton = await screen.findByRole('button', {
       name: '밴드 로우 장비 보기',
@@ -565,7 +557,7 @@ describe('HomeScreen Home v1 transcription', () => {
       backgroundColor: '#E7F3FA',
     });
     const postureTextStyle = StyleSheet.flatten(
-      screen.getAllByText('자세 보기')[0]?.props.style,
+      screen.getAllByText('자세')[0]?.props.style,
     );
     expect(
       StyleSheet.flatten(screen.getByText('장비').props.style),
@@ -575,9 +567,9 @@ describe('HomeScreen Home v1 transcription', () => {
       fontWeight: postureTextStyle.fontWeight,
     });
     expect(postureStyle).toMatchObject({
-      width: expect.any(Number),
       height: expect.any(Number),
     });
+    expect(postureStyle.width).toBeCloseTo(48 * 1.2);
     const emptyEquipmentSlot = screen.getByTestId(
       'routine-equipment-slot-plan-item-2',
     );
@@ -621,7 +613,7 @@ describe('HomeScreen Home v1 transcription', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '푸시업 자세 보기' }));
+    fireEvent.press(screen.getByRole('button', { name: '푸시업 자세' }));
 
     expect(screen.getByRole('header', { name: '푸시업' })).toBeOnTheScreen();
     expect(
@@ -725,10 +717,19 @@ describe('HomeScreen Home v1 transcription', () => {
 
     fireEvent.press(screen.getByRole('button', { name: '추천 이유 보기' }));
     expect(screen.getByRole('header', { name: '추천 이유' })).toBeOnTheScreen();
-    expect(screen.getByText('상세 판단')).toBeOnTheScreen();
+    expect(screen.getByText('에이전트별 판단')).toBeOnTheScreen();
+    expect(screen.getByText('최종 조정 이유')).toBeOnTheScreen();
     expect(screen.queryByText('안전 확인')).toBeNull();
     expect(screen.getByText('트레이닝')).toBeOnTheScreen();
+    expect(screen.getByText('회복')).toBeOnTheScreen();
     expect(screen.getByText('안전')).toBeOnTheScreen();
+    expect(screen.getByText('실행 가능성')).toBeOnTheScreen();
+    expect(screen.queryByText('조정')).toBeNull();
+    expect(
+      screen.getByText(
+        '운동 목표와 희망 시간은 유지하고 세트와 강도만 조정했어요.',
+      ),
+    ).toBeOnTheScreen();
 
     const collapsedCriteria = screen.getByRole('button', {
       name: '반영한 기준 펼치기',
@@ -739,7 +740,12 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.queryByText('운동 목표를 유지했어요.')).toBeNull();
 
     const tree = JSON.stringify(view.toJSON());
-    expect(tree.indexOf('상세 판단')).toBeLessThan(tree.indexOf('반영한 기준'));
+    expect(tree.indexOf('에이전트별 판단')).toBeLessThan(
+      tree.indexOf('최종 조정 이유'),
+    );
+    expect(tree.indexOf('최종 조정 이유')).toBeLessThan(
+      tree.indexOf('반영한 기준'),
+    );
 
     fireEvent.press(collapsedCriteria);
     expect(
@@ -747,6 +753,63 @@ describe('HomeScreen Home v1 transcription', () => {
         .accessibilityState,
     ).toEqual({ expanded: true });
     expect(screen.getByText('운동 목표를 유지했어요.')).toBeOnTheScreen();
+  });
+
+  it('keeps the server summary order and never exposes machine codes', () => {
+    const props = homePreviewProps('adjusted');
+    expect(props.decision).not.toBeNull();
+
+    const view = render(<HomeScreen {...props} />);
+    fireEvent.press(screen.getByRole('button', { name: '추천 이유 보기' }));
+
+    const tree = JSON.stringify(view.toJSON());
+    expect(
+      tree.indexOf('운동 목표와 희망 운동 시간을 유지했어요.'),
+    ).toBeLessThan(
+      tree.indexOf('오늘의 피로도를 고려해 운동 부담을 낮추도록 제안했어요.'),
+    );
+    expect(
+      tree.indexOf('오늘의 피로도를 고려해 운동 부담을 낮추도록 제안했어요.'),
+    ).toBeLessThan(
+      tree.indexOf(
+        '부담이 될 수 있는 운동 2개를 제외하고 강도를 중간 이하로 제한했어요.',
+      ),
+    );
+    expect(
+      tree.indexOf(
+        '부담이 될 수 있는 운동 2개를 제외하고 강도를 중간 이하로 제한했어요.',
+      ),
+    ).toBeLessThan(
+      tree.indexOf('희망 시간과 장소, 사용 가능한 장비에 맞는 구성이에요.'),
+    );
+    expect(
+      tree.indexOf('희망 시간과 장소, 사용 가능한 장비에 맞는 구성이에요.'),
+    ).toBeLessThan(
+      tree.indexOf(
+        '운동 목표와 희망 시간은 유지하고 세트와 강도만 조정했어요.',
+      ),
+    );
+    expect(tree).not.toContain('MODERATE_FATIGUE_DOWNSHIFT');
+    expect(tree).not.toContain('TIME_LOCATION_EQUIPMENT_MATCHED');
+    expect(tree).not.toContain('COMMON_CANDIDATE_SELECTED');
+  });
+
+  it('keeps legacy recommendation reasons usable without agent summaries', () => {
+    const props = homePreviewProps('adjusted');
+    expect(props.decision).not.toBeNull();
+    const decision = {
+      ...props.decision!,
+      public_agent_summaries: null,
+    };
+
+    render(<HomeScreen {...props} decision={decision} />);
+    fireEvent.press(screen.getByRole('button', { name: '추천 이유 보기' }));
+
+    expect(screen.queryByText('에이전트별 판단')).toBeNull();
+    expect(screen.queryByText('최종 조정 이유')).toBeNull();
+    expect(
+      screen.getByRole('button', { name: '반영한 기준 펼치기' }),
+    ).toBeOnTheScreen();
   });
 
   it('shows a safety caution supplied through adjustment reason codes', () => {
@@ -1634,7 +1697,7 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(submitGradient.props.locations).toEqual([0, 0.55, 1]);
   });
 
-  it('keeps source parity after removing the weekly progress badge icon', () => {
+  it('keeps source parity after merging the weekly cards', () => {
     const source = readFileSync(
       resolve(process.cwd(), 'src/features/home/HomeScreen.tsx'),
       'utf8',

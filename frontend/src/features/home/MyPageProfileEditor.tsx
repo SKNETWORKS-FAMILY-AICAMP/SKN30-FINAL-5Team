@@ -82,8 +82,8 @@ const TITLES: Record<MyPageEditableField, string> = {
 // The profile card edits identity only; exercise settings stay in 내 운동 정보.
 const BASIC_PROFILE_DESCRIPTION =
   '닉네임과 프로필 사진, 기본 정보만 바꿔요. 운동 설정은 내 운동 정보에서 바꿀 수 있어요.';
-// Fields that save on selection say so once; the rest keep their own guidance.
-const IMMEDIATE_SAVE_DESCRIPTION = '변경한 내용은 바로 반영돼요.';
+// Nothing saves until the user presses the save button, so every field says so.
+const EXPLICIT_SAVE_DESCRIPTION = '수정한 뒤 저장하기를 눌러야 반영돼요.';
 
 export function MyPageProfileEditor({
   error = null,
@@ -96,15 +96,15 @@ export function MyPageProfileEditor({
 }: Props) {
   const stopPropagation = (event: GestureResponderEvent) =>
     event.stopPropagation();
-  // Selections save without a save button, so the sheet has to say when the
-  // change actually landed on the server. React's "adjust state when inputs
-  // change" pattern: a request that stops pending without an error succeeded.
+  // Edits collect into a draft; only the save button sends them. React's
+  // "adjust state when inputs change" pattern: a request that stops pending
+  // without an error succeeded, which clears the draft and reports the save.
+  const [draft, setDraft] = useState<ProfileSettingsUpdateRequest | null>(null);
   const [saveTracker, setSaveTracker] = useState({ pending, succeeded: false });
   if (saveTracker.pending !== pending) {
-    setSaveTracker({
-      pending,
-      succeeded: saveTracker.pending && error === null,
-    });
+    const succeeded = saveTracker.pending && error === null;
+    setSaveTracker({ pending, succeeded });
+    if (succeeded) setDraft(null);
   }
   const saved = saveTracker.succeeded && !pending && error === null;
 
@@ -147,10 +147,17 @@ export function MyPageProfileEditor({
             field={field}
             onBasicProfileChange={onBasicProfileChange}
             onChange={onChange}
+            onDraftChange={setDraft}
             pending={pending}
             profile={profile}
           />
-          {pending ? <Text style={styles.pending}>저장 중…</Text> : null}
+          {draft ? (
+            <Button
+              disabled={pending}
+              label={pending ? '저장 중…' : '저장하기'}
+              onPress={() => onChange(draft)}
+            />
+          ) : null}
           {error ? <InlineFeedback message={error} tone="error" /> : null}
           {saved && !pending && error === null ? (
             <InlineFeedback
@@ -169,12 +176,15 @@ function EditorBody({
   field,
   onBasicProfileChange,
   onChange,
+  onDraftChange,
   pending = false,
   profile,
 }: Pick<
   Props,
   'field' | 'onBasicProfileChange' | 'onChange' | 'pending' | 'profile'
->) {
+> & {
+  onDraftChange: (draft: ProfileSettingsUpdateRequest | null) => void;
+}) {
   if (field === 'basic_profile') {
     return (
       <BasicProfileEditor
@@ -188,43 +198,43 @@ function EditorBody({
 
   if (field === 'primary_goal_code') {
     return (
-      <ChoiceCard>
-        {mergeDescriptionOptions(
+      <SingleChoiceEditor
+        current={profile.primary_goal_code}
+        disabled={pending}
+        onSelect={(code) =>
+          onDraftChange(
+            code === profile.primary_goal_code
+              ? null
+              : { primary_goal_code: code },
+          )
+        }
+        options={mergeDescriptionOptions(
           ONBOARDING_GOAL_OPTIONS,
           profile.primary_goal_code,
           primaryGoalLabel,
-        ).map((option) => (
-          <DescriptionOption
-            key={option.code}
-            description={option.description}
-            disabled={pending}
-            label={option.label}
-            selected={profile.primary_goal_code === option.code}
-            onPress={() => onChange({ primary_goal_code: option.code })}
-          />
-        ))}
-      </ChoiceCard>
+        )}
+      />
     );
   }
 
   if (field === 'experience_level_code') {
     return (
-      <ChoiceCard>
-        {mergeDescriptionOptions(
+      <SingleChoiceEditor
+        current={profile.experience_level_code}
+        disabled={pending}
+        onSelect={(code) =>
+          onDraftChange(
+            code === profile.experience_level_code
+              ? null
+              : { experience_level_code: code },
+          )
+        }
+        options={mergeDescriptionOptions(
           ONBOARDING_EXPERIENCE_OPTIONS,
           profile.experience_level_code,
           experienceLevelLabel,
-        ).map((option) => (
-          <DescriptionOption
-            key={option.code}
-            description={option.description}
-            disabled={pending}
-            label={option.label}
-            selected={profile.experience_level_code === option.code}
-            onPress={() => onChange({ experience_level_code: option.code })}
-          />
-        ))}
-      </ChoiceCard>
+        )}
+      />
     );
   }
 
@@ -240,7 +250,14 @@ function EditorBody({
           locationLabel,
         )}
         onChange={(available_location_codes, preferred_location_code) =>
-          onChange({ available_location_codes, preferred_location_code })
+          onDraftChange(
+            sameCodes(
+              available_location_codes,
+              profile.available_location_codes,
+            ) && preferred_location_code === profile.preferred_location_code
+              ? null
+              : { available_location_codes, preferred_location_code },
+          )
         }
       />
     );
@@ -258,20 +275,24 @@ function EditorBody({
             : profile.attention_area_codes
         }
         initialPainAreas={initialPainAreas}
-        onChange={(persistent_pains) => onChange({ persistent_pains })}
+        onChange={(persistent_pains) =>
+          onDraftChange(persistent_pains === null ? null : { persistent_pains })
+        }
       />
     );
   }
 
   if (field === 'default_requested_duration_minutes') {
     return (
-      <ImmediateStepper
+      <DraftStepper
         decreaseLabel="운동 시간 10분 줄이기"
         increaseLabel="운동 시간 10분 늘리기"
         max={ONBOARDING_DURATION.max}
         min={ONBOARDING_DURATION.min}
-        onChange={(default_requested_duration_minutes) =>
-          onChange({ default_requested_duration_minutes })
+        onDraftChange={(next) =>
+          onDraftChange(
+            next === null ? null : { default_requested_duration_minutes: next },
+          )
         }
         pending={pending}
         step={ONBOARDING_DURATION.step}
@@ -282,13 +303,15 @@ function EditorBody({
   }
 
   return (
-    <ImmediateStepper
+    <DraftStepper
       decreaseLabel="주간 운동 횟수 1회 줄이기"
       increaseLabel="주간 운동 횟수 1회 늘리기"
       max={ONBOARDING_WEEKLY_COUNT.max}
       min={ONBOARDING_WEEKLY_COUNT.min}
-      onChange={(desired_weekly_workout_count) =>
-        onChange({ desired_weekly_workout_count })
+      onDraftChange={(next) =>
+        onDraftChange(
+          next === null ? null : { desired_weekly_workout_count: next },
+        )
       }
       pending={pending}
       prefix="주 "
@@ -296,6 +319,39 @@ function EditorBody({
       suffix="회"
       value={profile.desired_weekly_workout_count}
     />
+  );
+}
+
+/** Keeps the highlighted choice local until the save button sends it. */
+function SingleChoiceEditor({
+  current,
+  disabled,
+  onSelect,
+  options,
+}: {
+  current: string;
+  disabled: boolean;
+  onSelect: (code: string) => void;
+  options: readonly { code: string; label: string; description: string }[];
+}) {
+  const [selected, setSelected] = useState(current);
+
+  return (
+    <ChoiceCard>
+      {options.map((option) => (
+        <DescriptionOption
+          key={option.code}
+          description={option.description}
+          disabled={disabled}
+          label={option.label}
+          selected={selected === option.code}
+          onPress={() => {
+            setSelected(option.code);
+            onSelect(option.code);
+          }}
+        />
+      ))}
+    </ChoiceCard>
   );
 }
 
@@ -510,11 +566,13 @@ function BasicProfileEditor({
         placeholder="25~300"
         value={weightKg}
       />
-      <Button
-        disabled={!hasChanges || pending || imagePickerPending}
-        label={pending ? '저장 중…' : '기본 정보 저장'}
-        onPress={save}
-      />
+      {hasChanges ? (
+        <Button
+          disabled={pending || imagePickerPending}
+          label={pending ? '저장 중…' : '저장하기'}
+          onPress={save}
+        />
+      ) : null}
     </View>
   );
 }
@@ -611,7 +669,7 @@ function AttentionAreaEditor({
   disabled: boolean;
   initial: readonly string[];
   initialPainAreas: readonly PainAreaInput[];
-  onChange: (painAreas: PainAreaInput[]) => void;
+  onChange: (painAreas: PainAreaInput[] | null) => void;
 }) {
   const orderedInitial = orderBodyAreaCodes(initial);
   const [hasAreas, setHasAreas] = useState(orderedInitial.length > 0);
@@ -626,7 +684,6 @@ function AttentionAreaEditor({
       ]),
     ),
   );
-  const [painDraftChanged, setPainDraftChanged] = useState(false);
   const [showExtendedAreas, setShowExtendedAreas] = useState(() =>
     orderedInitial.some((code) =>
       EXTENDED_BODY_AREA_OPTIONS.some((option) => option.code === code),
@@ -637,28 +694,33 @@ function AttentionAreaEditor({
   );
   const legacySelected = selected.filter((code) => !selectableCodes.has(code));
 
-  const toggleSelected = (code: string) => {
-    const next = orderBodyAreaCodes(toggle(selected, code));
-    setSelected(next);
-    setHasAreas(next.length > 0);
-    setPainIntensityScores((currentScores) => {
-      if (next.includes(code)) {
-        return { ...currentScores, [code]: PAIN_INTENSITY_MIN };
-      }
-      const nextScores = { ...currentScores };
-      delete nextScores[code];
-      return nextScores;
-    });
-    setPainDraftChanged(true);
+  // An empty "있어요" selection is not savable, so it reports no draft.
+  const reportDraft = (
+    nextSelected: readonly string[],
+    nextScores: Partial<Record<string, number>>,
+    nextHasAreas: boolean,
+  ) => {
+    if (nextHasAreas && nextSelected.length === 0) {
+      onChange(null);
+      return;
+    }
+    onChange(
+      nextSelected.map((body_area_code) => ({
+        body_area_code,
+        intensity_score: nextScores[body_area_code] ?? PAIN_INTENSITY_MIN,
+      })),
+    );
   };
 
-  const savePainAreas = () => {
-    const painAreas = selected.map((body_area_code) => ({
-      body_area_code,
-      intensity_score:
-        painIntensityScores[body_area_code] ?? PAIN_INTENSITY_MIN,
-    }));
-    onChange(painAreas);
+  const toggleSelected = (code: string) => {
+    const next = orderBodyAreaCodes(toggle(selected, code));
+    const nextScores = { ...painIntensityScores };
+    if (next.includes(code)) nextScores[code] = PAIN_INTENSITY_MIN;
+    else delete nextScores[code];
+    setSelected(next);
+    setHasAreas(next.length > 0);
+    setPainIntensityScores(nextScores);
+    reportDraft(next, nextScores, next.length > 0);
   };
 
   return (
@@ -672,7 +734,7 @@ function AttentionAreaEditor({
           setHasAreas(false);
           setSelected([]);
           setPainIntensityScores({});
-          setPainDraftChanged(selected.length > 0);
+          if (selected.length > 0) reportDraft([], {}, false);
         }}
       />
       <ChipOption
@@ -680,7 +742,10 @@ function AttentionAreaEditor({
         grow
         label="있어요"
         selected={hasAreas}
-        onPress={() => setHasAreas(true)}
+        onPress={() => {
+          setHasAreas(true);
+          reportDraft(selected, painIntensityScores, true);
+        }}
       />
       {hasAreas ? (
         <View style={styles.painSection}>
@@ -784,11 +849,12 @@ function AttentionAreaEditor({
                     bodyArea={bodyAreaLabel(code)}
                     disabled={disabled}
                     onChange={(value) => {
-                      setPainIntensityScores((scores) => ({
-                        ...scores,
+                      const nextScores = {
+                        ...painIntensityScores,
                         [code]: value,
-                      }));
-                      setPainDraftChanged(true);
+                      };
+                      setPainIntensityScores(nextScores);
+                      reportDraft(selected, nextScores, hasAreas);
                     }}
                     testIDPrefix="my-page"
                     value={painIntensityScores[code] ?? PAIN_INTENSITY_MIN}
@@ -799,24 +865,17 @@ function AttentionAreaEditor({
           ) : null}
         </View>
       ) : null}
-      <Button
-        disabled={
-          disabled || !painDraftChanged || (hasAreas && selected.length === 0)
-        }
-        label={disabled ? '저장 중…' : '통증 정보 저장'}
-        onPress={savePainAreas}
-      />
     </ChoiceCard>
   );
 }
 
-/** Saves each step immediately, using the same control as onboarding. */
-function ImmediateStepper({
+/** Keeps the stepped value local until the save button sends it. */
+function DraftStepper({
   decreaseLabel,
   increaseLabel,
   max,
   min,
-  onChange,
+  onDraftChange,
   pending,
   prefix = '',
   step,
@@ -827,7 +886,7 @@ function ImmediateStepper({
   increaseLabel: string;
   max: number;
   min: number;
-  onChange: (value: number) => void;
+  onDraftChange: (value: number | null) => void;
   pending: boolean;
   prefix?: string;
   step: number;
@@ -845,7 +904,7 @@ function ImmediateStepper({
       min={min}
       onChange={(next) => {
         setCurrent(next);
-        onChange(next);
+        onDraftChange(next === value ? null : next);
       }}
       prefix={prefix}
       step={step}
@@ -940,13 +999,17 @@ function editorDescription(
   if (field === 'persistent_pains') {
     return '부위와 통증 정도를 확인한 뒤 저장해주세요.';
   }
-  return IMMEDIATE_SAVE_DESCRIPTION;
+  return EXPLICIT_SAVE_DESCRIPTION;
 }
 
 function toggle(values: readonly string[], code: string): string[] {
   return values.includes(code)
     ? values.filter((value) => value !== code)
     : [...values, code];
+}
+
+function sameCodes(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((code) => b.includes(code));
 }
 
 function mergeOptions(
@@ -1028,7 +1091,6 @@ const styles = StyleSheet.create({
   basicLabel: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
   basicChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   locationEditor: { gap: spacing.md },
-  pending: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
   choiceCard: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1104,10 +1166,10 @@ const styles = StyleSheet.create({
   painSliderList: { width: '100%', gap: spacing.sm },
   painSliderCard: {
     borderWidth: 1,
-    borderColor: colors.dangerBorder,
-    borderRadius: radii.control,
-    backgroundColor: '#FBEAE7',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    borderColor: '#E8C3B8',
+    borderRadius: 14,
+    backgroundColor: '#FFFDFC',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
 });

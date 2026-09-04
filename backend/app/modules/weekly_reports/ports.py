@@ -63,6 +63,7 @@ class ReportValues:
     partial_count: int
     not_completed_count: int
     stopped_for_safety: int
+    safety_stopped_session_count: int
     primary_miss_reason_code: str | None
     completion_rate: float
     persistence_rate: float

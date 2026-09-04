@@ -115,6 +115,11 @@ describe('App boot navigation', () => {
 
   it.each([
     {
+      mode: 'app-status' as const,
+      label: 'App status (actual)',
+      readyText: 'EXPO_PUBLIC_API_BASE_URL',
+    },
+    {
       mode: 'auth' as const,
       label: 'Auth (mock)',
       readyText: '헬끼에 로그인',
@@ -123,6 +128,11 @@ describe('App boot navigation', () => {
       mode: 'background_test' as const,
       label: 'background_test (mock)',
       readyText: '집 꾸미기',
+    },
+    {
+      mode: 'banana-catch' as const,
+      label: 'Banana catch (actual)',
+      readyText: '30초 동안 바나나를 받아요!',
     },
     {
       mode: 'account' as const,
