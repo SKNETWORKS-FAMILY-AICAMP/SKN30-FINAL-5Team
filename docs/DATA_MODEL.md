@@ -1,5 +1,14 @@
 # DATA_MODEL.md
 
+## In-app notifications (migration 0041)
+
+`in_app_notifications` persists the user-visible notification state. It has a cascading
+`user_id` foreign key, stable `type_code`, title/message/action fields, flexible UI payload,
+timezone-aware `created_at`/`read_at`, and a unique `(user_id, event_key)` server-side
+deduplication constraint. The service removes records older than 14 days and retains at most
+20 recent rows per user. `payload.remaining_workout_count` is populated only for
+`WEEKLY_GOAL_REMINDER`; no health or direct-identifier values are stored in payload.
+
 ## 1. 문서 목적
 
 이 문서는 MVP의 PostgreSQL 논리 모델, 핵심 관계, 무결성 제약, 버전 및 삭제 정책을 정의한다.

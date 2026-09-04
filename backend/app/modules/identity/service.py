@@ -21,6 +21,7 @@ class AccountAuthenticationRequiredError(Exception):
 class CurrentUser:
     user_id: UUID
     status_code: UserStatusCode
+    previous_last_active_at: datetime | None = None
 
 
 def _utc_now() -> datetime:
@@ -61,7 +62,11 @@ class CurrentUserService:
 
             self._repository.touch_last_active(session, record.user_id, now)
 
-        return CurrentUser(user_id=record.user_id, status_code=record.status_code)
+        return CurrentUser(
+            user_id=record.user_id,
+            status_code=record.status_code,
+            previous_last_active_at=record.last_active_at,
+        )
 
 
 class DeletionLifecycleUserService:

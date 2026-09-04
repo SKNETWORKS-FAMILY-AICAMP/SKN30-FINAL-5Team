@@ -38,6 +38,7 @@ from backend.app.db.models.decision import (
     SafetyReview,
 )
 from backend.app.db.models.identity import User, UserIdentity
+from backend.app.db.models.notification import InAppNotification
 from backend.app.db.models.profile import (
     MutationIdempotencyRecord,
     UserAttentionArea,
@@ -112,6 +113,7 @@ __all__ = [
     "ExercisePrescriptionProfile",
     "ExerciseSafetyRule",
     "Location",
+    "InAppNotification",
     "MovementPattern",
     "PlanCandidate",
     "PlanIntegrityValidationRecord",
