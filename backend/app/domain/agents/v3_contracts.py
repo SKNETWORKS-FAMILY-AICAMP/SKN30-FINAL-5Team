@@ -16,8 +16,20 @@ from backend.app.domain.agents.retrieval import ExercisePoolExerciseRecord, Exer
 from backend.app.domain.rules.duration import DURATION_TOLERANCE_SECONDS
 from backend.app.domain.rules.safety import SafetyRequiredActionCode
 
+# v4 adds the feedback adjustment axis. The version describes the payload actually
+# emitted, so an envelope carrying no adjustment stays v3 and keeps its old hash: a
+# stored envelope is the only evidence a past decision can be replayed against
+# (`AGENTS.md` 12), and rewriting every existing hash to record an absent field would
+# invalidate that evidence for no gain.
+ConstraintEnvelopeSchemaVersion = Literal["constraint-envelope-v3", "constraint-envelope-v4"]
 CONSTRAINT_ENVELOPE_SCHEMA_VERSION: Final[Literal["constraint-envelope-v3"]] = (
     "constraint-envelope-v3"
+)
+CONSTRAINT_ENVELOPE_ADJUSTED_SCHEMA_VERSION: Final[Literal["constraint-envelope-v4"]] = (
+    "constraint-envelope-v4"
+)
+FEEDBACK_ADJUSTMENT_SCHEMA_VERSION: Final[Literal["feedback-adjustment-v1"]] = (
+    "feedback-adjustment-v1"
 )
 RECOVERY_CEILING_SCHEMA_VERSION: Final[Literal["recovery-ceiling-v1"]] = "recovery-ceiling-v1"
 REGENERATION_CONTEXT_SCHEMA_VERSION: Final[Literal["regeneration-context-v1"]] = (
@@ -140,12 +152,34 @@ class RecoveryCeiling(BaseModel):
         return _canonical_codes(values, field_name=info.field_name or "recovery codes")
 
 
+class FeedbackAdjustmentEnvelope(BaseModel):
+    """Which axis the last `HARD` feedback lowers, carried so the plan is replayable.
+
+    The ladder that picks the axis lives in `domain/rules/feedback_adjustment.py`. This is
+    only its frozen result: keeping it inside the envelope means the adjustment is part of
+    the hashed constraint set a coordinator cannot argue with, rather than a side input
+    that could differ between the decision and its replay.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    schema_version: Literal["feedback-adjustment-v1"] = FEEDBACK_ADJUSTMENT_SCHEMA_VERSION
+    axis_code: str
+    reason_codes: tuple[str, ...] = Field(min_length=1)
+    policy_version: str
+
+    @field_validator("axis_code", "policy_version")
+    @classmethod
+    def validate_machine_code(cls, value: str) -> str:
+        return _machine_code(value, field_name="feedback adjustment code")
+
+
 class ConstraintEnvelope(BaseModel):
     """Immutable projection of deterministic Safety, duration, and feasibility constraints."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
-    schema_version: Literal["constraint-envelope-v3"] = CONSTRAINT_ENVELOPE_SCHEMA_VERSION
+    schema_version: ConstraintEnvelopeSchemaVersion = CONSTRAINT_ENVELOPE_SCHEMA_VERSION
     requested_duration_minutes: int = Field(gt=0)
     primary_goal_code: str
     allowed_location_codes: tuple[str, ...] = Field(min_length=1)
@@ -158,6 +192,8 @@ class ConstraintEnvelope(BaseModel):
     policy_version: str
     catalog_version: str
     safety_rule_version: str
+    # Absent on v3 envelopes and whenever the last feedback picked no axis.
+    feedback_adjustment: FeedbackAdjustmentEnvelope | None = None
     envelope_hash: str
 
     _machine_fields: ClassVar[tuple[str, ...]] = (
@@ -202,15 +238,27 @@ class ConstraintEnvelope(BaseModel):
         return self
 
     def _hash_payload(self) -> dict[str, object]:
-        return self.model_dump(mode="json", exclude={"envelope_hash"})
+        payload = self.model_dump(mode="json", exclude={"envelope_hash"})
+        if payload.get("feedback_adjustment") is None:
+            # Absent means "no adjustment", which is the same constraint set a v3
+            # envelope described. Dropping the key keeps those hashes stable.
+            payload.pop("feedback_adjustment", None)
+        return payload
 
     @classmethod
     def create(cls, **values: object) -> Self:
-        payload = {
-            "schema_version": CONSTRAINT_ENVELOPE_SCHEMA_VERSION,
+        adjusted = values.get("feedback_adjustment") is not None
+        payload: dict[str, object] = {
+            "schema_version": (
+                CONSTRAINT_ENVELOPE_ADJUSTED_SCHEMA_VERSION
+                if adjusted
+                else CONSTRAINT_ENVELOPE_SCHEMA_VERSION
+            ),
             "safety_required_action_code": None,
             **values,
         }
+        if not adjusted:
+            payload.pop("feedback_adjustment", None)
         payload["envelope_hash"] = _canonical_hash(payload)
         return cls.model_validate(payload)
 

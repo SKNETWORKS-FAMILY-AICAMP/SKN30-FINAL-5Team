@@ -23,7 +23,8 @@ ExercisePool retrieval 계약의 `PROPOSED` 초안이며 Qdrant metadata를 publ
 - Daily Check-in request는 `sleep_minutes`, `sleep_source_code`, `fatigue_level_code`, `available_time_minutes`, `location_code`, `pain_present`, `red_flag_present`, `pains[{body_area_code,intensity_score}]`를 사용한다. 근육통은 입력·Recovery 계산에 사용하지 않는다. NRS는 서버가 1–3/4–6/7–10으로 변환하고 정책 버전과 함께 저장한다.
 - 세션 중단 request는 `HIGH_FATIGUE`, `TIME_SHORTAGE`, `RESUME_LATER`, `PAIN_OR_ABNORMAL_RESPONSE`만 허용한다. 앞의 세 코드는 `STOPPED_RESUMABLE`과 당일 재개 가능 상태를 만들고, 마지막 코드는 세부 증상 입력 없이 `STOPPED_SAFETY`와 비재개 상태를 만든다. 안전 이벤트 응답은 `SESSION_STOPPED` 또는 `STOP_AND_SEEK_HELP`이며 증상 data를 반환하지 않는다.
 - 완료 상태는 완료 블록 수에서 server-derived `COMPLETED`/`PARTIAL`/`NOT_COMPLETED`로 반환한다. 실행 상태와 타이머 누적값은 별도 반환한다.
-- 칼로리는 단일 `estimated_calories_burned`와 `calorie_source_code`(`WEARABLE`, `MET_ESTIMATE`, `UNAVAILABLE`)만 반환한다.
+- 칼로리는 단일 `estimated_calories_burned`와 `calorie_source_code`(`WEARABLE`, `MET_ESTIMATE`, `UNAVAILABLE`)만 반환한다. 값이 있으면 출처가 반드시 함께 있으며, 이는 DB CHECK 제약으로 강제한다.
+- 주간 집계의 안전 중단 수는 `safety_stopped_session_count`로 반환한다. 기존 `stopped_for_safety`는 호환 기간 동안 같은 값으로 함께 반환하며, 두 이름의 의미 차이는 집계 schema version(`weekly-report-input-v2`)이 구분한다. 이미 생성된 리포트의 snapshot은 재작성하지 않는다.
 
 ---
 
@@ -1808,7 +1809,8 @@ POST /api/v1/weeks/{week_start}/report
     "completed": 2,
     "partial": 1,
     "not_completed": 1,
-    "stopped_for_safety": 0
+    "stopped_for_safety": 0,
+    "safety_stopped_session_count": 0
   },
   "primary_miss_reason_code": "TIME_SHORTAGE",
   "completion_rate": 0.5,

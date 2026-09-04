@@ -179,7 +179,10 @@ def apply_narration(
                 "completed": values.completed_count,
                 "partial": values.partial_count,
                 "not_completed": values.not_completed_count,
+                # Both names carry the same number this release; the legacy key stays so
+                # a narration prompt written against v1 keeps working.
                 "stopped_for_safety": values.stopped_for_safety,
+                "safety_stopped_session_count": values.safety_stopped_session_count,
             },
             "completion_rate": values.completion_rate,
             "persistence_rate": values.persistence_rate,
