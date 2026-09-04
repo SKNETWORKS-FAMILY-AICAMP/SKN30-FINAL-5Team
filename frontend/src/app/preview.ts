@@ -13,6 +13,7 @@ export type PreviewMode =
   | 'loading'
   | 'mascot-house'
   | 'my-page'
+  | 'notifications'
   | 'onboarding'
   | 'profile'
   | 'signup'

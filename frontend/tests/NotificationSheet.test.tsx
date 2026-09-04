@@ -1,6 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 
 import type { NotificationResponse } from '../src/api/types';
+import { ScaleViewportProvider } from '../src/components/scale';
+import { colors } from '../src/components/theme';
 import {
   NotificationSheet,
   notificationTitle,
@@ -47,7 +50,6 @@ describe('NotificationSheet', () => {
     const onSelect = jest.fn();
     render(
       <NotificationSheet
-        onClose={jest.fn()}
         onRetry={jest.fn()}
         onSelect={onSelect}
         pendingNotificationId={null}
@@ -73,11 +75,17 @@ describe('NotificationSheet', () => {
         .getAllByRole('button')
         .map((item) => item.props.accessibilityLabel),
     ).toEqual(
-      expect.arrayContaining([
-        '알림함 닫기',
-        '최신 알림 알림 확인',
-        '이전 알림 알림 확인',
-      ]),
+      expect.arrayContaining(['최신 알림 알림 확인', '이전 알림 알림 확인']),
+    );
+    const [unreadItem, readItem] = screen.getAllByRole('button');
+    expect(StyleSheet.flatten(unreadItem.props.style)).toEqual(
+      expect.objectContaining({
+        borderColor: colors.dangerBorder,
+        backgroundColor: colors.dangerBg,
+      }),
+    );
+    expect(StyleSheet.flatten(readItem.props.style)).toEqual(
+      expect.objectContaining({ backgroundColor: colors.surface }),
     );
     fireEvent.press(
       screen.getByRole('button', { name: '최신 알림 알림 확인' }),
@@ -87,11 +95,65 @@ describe('NotificationSheet', () => {
     );
   });
 
+  it('opens as a compact popover below the notification button', () => {
+    const viewports = [
+      { width: 320, height: 568 },
+      { width: 390, height: 844 },
+      { width: 768, height: 1024 },
+    ];
+
+    for (const viewport of viewports) {
+      const view = render(
+        <ScaleViewportProvider viewport={viewport}>
+          <NotificationSheet
+            onRetry={jest.fn()}
+            onSelect={jest.fn()}
+            pendingNotificationId={null}
+            response={{ items: [notification()], unread_count: 1 }}
+            status="ready"
+            visible
+          />
+        </ScaleViewportProvider>,
+      );
+      const scale = Math.min(viewport.width / 390, 1.2);
+      const popover = StyleSheet.flatten(
+        screen.getByTestId('notification-popover').props.style,
+      );
+      const pointer = StyleSheet.flatten(
+        screen.getByTestId('notification-popover-pointer').props.style,
+      );
+
+      expect(popover).toEqual(
+        expect.objectContaining({
+          position: 'absolute',
+          right: 0,
+          top: 56 * scale,
+          width: Math.min(360 * scale, viewport.width - 44 * scale),
+          backgroundColor: colors.surface,
+        }),
+      );
+      expect(pointer).toEqual(
+        expect.objectContaining({
+          right: 73 * scale,
+          width: 14 * scale,
+          backgroundColor: colors.surface,
+        }),
+      );
+      expect(popover.width).toBeLessThanOrEqual(viewport.width - 44 * scale);
+      expect(screen.queryByLabelText('알림함 닫기')).not.toBeOnTheScreen();
+      const stopPropagation = jest.fn();
+      fireEvent(screen.getByTestId('notification-popover'), 'pointerDown', {
+        stopPropagation,
+      });
+      expect(stopPropagation).toHaveBeenCalledTimes(1);
+      view.unmount();
+    }
+  });
+
   it('shows loading, empty and retryable error states', () => {
     const onRetry = jest.fn();
     const view = render(
       <NotificationSheet
-        onClose={jest.fn()}
         onRetry={onRetry}
         onSelect={jest.fn()}
         pendingNotificationId={null}
@@ -105,7 +167,6 @@ describe('NotificationSheet', () => {
     view.rerender(
       <NotificationSheet
         errorMessage="네트워크를 확인해주세요."
-        onClose={jest.fn()}
         onRetry={onRetry}
         onSelect={jest.fn()}
         pendingNotificationId={null}
@@ -119,7 +180,6 @@ describe('NotificationSheet', () => {
 
     view.rerender(
       <NotificationSheet
-        onClose={jest.fn()}
         onRetry={onRetry}
         onSelect={jest.fn()}
         pendingNotificationId={null}

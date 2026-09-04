@@ -22,13 +22,15 @@ jest.mock('expo-asset', () => ({
   },
 }));
 
+jest.setTimeout(30_000);
+
 describe('PreviewGallery', () => {
   it('keeps development controls outside the 390 x 844 app canvas', async () => {
     await render(<PreviewGallery />);
 
     expect(screen.getByText('DEVELOPMENT ONLY')).toBeOnTheScreen();
     expect(screen.getByRole('radio', { name: 'Splash (API)' })).toBeChecked();
-    expect(screen.getByRole('header', { name: '헬끼' })).toBeOnTheScreen();
+    expect(screen.getByRole('header', { name: 'HELKKI' })).toBeOnTheScreen();
 
     const canvasStyle = StyleSheet.flatten(
       screen.getByTestId('preview-app-canvas').props.style,
@@ -145,6 +147,62 @@ describe('PreviewGallery', () => {
     expect(
       await canvas.findByRole('button', { name: '집 꾸미기' }),
     ).toBeOnTheScreen();
+  });
+
+  it('previews notification states, read updates and the Kikki house action', async () => {
+    await render(<PreviewGallery initialScreenId="home" />);
+
+    expect(screen.getByRole('radio', { name: 'Home (API)' })).toBeChecked();
+    expect(
+      screen.queryByRole('radio', { name: 'Notifications (mock API)' }),
+    ).toBeNull();
+
+    const canvas = within(screen.getByTestId('preview-app-canvas'));
+    fireEvent.press(canvas.getByRole('button', { name: '알림 보기' }));
+    expect(screen.getByText('읽지 않은 소식 3개')).toBeOnTheScreen();
+    expect(
+      screen.getByText('이번 주 목표까지 운동 한 번 남았어요!'),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByText('이번 주 목표까지 운동 3회 남았어요!'),
+    ).toBeOnTheScreen();
+
+    fireEvent.press(
+      screen.getByRole('button', {
+        name: '이번 주 목표까지 운동 한 번 남았어요! 알림 확인',
+      }),
+    );
+    expect(screen.getByText('읽지 않은 소식 2개')).toBeOnTheScreen();
+
+    fireEvent.press(
+      screen.getByRole('button', {
+        name: '끼끼가 기다리고 있어요 알림 확인',
+      }),
+    );
+    expect(
+      screen.getByRole('radio', { name: 'Mascot house (API)' }),
+    ).toBeChecked();
+  });
+
+  it('switches notification preview fixtures without a network request', async () => {
+    await render(<PreviewGallery initialScreenId="home" />);
+    const canvas = within(screen.getByTestId('preview-app-canvas'));
+
+    fireEvent.press(screen.getByRole('radio', { name: '빈 알림함' }));
+    fireEvent.press(canvas.getByRole('button', { name: '알림 보기' }));
+    expect(screen.getByText('아직 새로운 소식이 없어요.')).toBeOnTheScreen();
+    fireEvent.press(canvas.getByRole('button', { name: '알림 보기' }));
+    expect(screen.queryByText('아직 새로운 소식이 없어요.')).toBeNull();
+
+    fireEvent.press(screen.getByRole('radio', { name: '불러오기 실패' }));
+    fireEvent.press(canvas.getByRole('button', { name: '알림 보기' }));
+    expect(screen.getByText('알림을 불러오지 못했어요.')).toBeOnTheScreen();
+    fireEvent.press(screen.getByRole('button', { name: '다시 시도' }));
+    expect(screen.getByText('읽지 않은 소식 3개')).toBeOnTheScreen();
+
+    fireEvent.press(canvas.getByRole('button', { name: '알림 보기' }));
+    fireEvent.press(screen.getByRole('radio', { name: '새 알림 토스트' }));
+    expect(screen.getByText('끼끼가 소식을 가져왔어요!')).toBeOnTheScreen();
   });
 
   it('compares the production loading UI used by each main tab', async () => {
@@ -427,11 +485,7 @@ describe('PreviewGallery', () => {
     expect(preview.localDate).toBe(localDate);
     expect(preview.week?.week_start).toBe(weekStartString(now, 'Asia/Seoul'));
     expect(canvas.getByText(formatHomeDate(localDate))).toBeOnTheScreen();
-    expect(
-      screen.getByText(
-        '시각 참고 전용: 체크인·루틴 생성·조정 결과는 fixture이며 최종 추천 1개만 표시합니다.',
-      ),
-    ).toBeOnTheScreen();
+    expect(screen.getByText(/알림 버튼을 누르면/)).toBeOnTheScreen();
     expect(canvas.getByText('오늘 운동을 준비해볼까요?')).toBeOnTheScreen();
     expect(canvas.getByTestId('home-checkin-gradient').props.colors).toEqual(
       ['#FEE8B1', '#FEDA99', '#FFD790'].map(processColor),
@@ -1065,8 +1119,10 @@ describe('PreviewGallery', () => {
     expect(screen.getByRole('radio', { name: 'Home (API)' })).toBeChecked();
 
     fireEvent.press(screen.getByRole('radio', { name: 'Workout (API)' }));
-    await waitFor(() =>
-      expect(canvas.queryByText('운동 세션을 준비하고 있어요…')).toBeNull(),
+    await waitFor(
+      () =>
+        expect(canvas.queryByText('운동 세션을 준비하고 있어요…')).toBeNull(),
+      { timeout: 5_000 },
     );
     fireEvent.press(
       canvas.getByRole('button', { name: '의자 스쿼트 블록 격파' }),

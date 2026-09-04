@@ -292,6 +292,8 @@ export type HomeScreenProps = {
     Partial<Pick<Api, 'getExerciseVariants'>>;
   hasTodayRoutine?: boolean;
   hasUnreadNotification?: boolean;
+  notificationPanel?: React.ReactNode;
+  onDismissNotificationPanel?: () => void;
   notificationToastVisible?: boolean;
   localDate?: string;
   locationCodes?: readonly string[];
@@ -377,6 +379,8 @@ function HomeScreenContent({
   exerciseApi,
   hasTodayRoutine = true,
   hasUnreadNotification = false,
+  notificationPanel,
+  onDismissNotificationPanel,
   notificationToastVisible = false,
   initialState,
   localDate,
@@ -860,7 +864,11 @@ function HomeScreenContent({
     (!apiMode || todayRoutineState.capabilities.canCheckIn);
   return (
     <HomeStyleContext.Provider value={styles}>
-      <View style={styles.screen}>
+      <View
+        onPointerDown={onDismissNotificationPanel}
+        style={styles.screen}
+        testID="home-screen"
+      >
         <StatusBar style="dark" />
         <View
           style={[styles.gradient, { backgroundColor: HOME_BACKGROUND_COLOR }]}
@@ -875,6 +883,7 @@ function HomeScreenContent({
               currentDate={displayDate}
               disabled={inlineEditing}
               hasUnreadNotification={hasUnreadNotification}
+              notificationPanel={notificationPanel}
               onNotifications={onNotifications}
               onProfile={onProfile}
               profileImageUrl={profileImageUrl}
@@ -1299,6 +1308,7 @@ function HomeHeader({
   currentDate,
   disabled,
   hasUnreadNotification,
+  notificationPanel,
   onNotifications,
   onProfile,
   profileImageUrl,
@@ -1308,6 +1318,7 @@ function HomeHeader({
   currentDate: string;
   disabled: boolean;
   hasUnreadNotification: boolean;
+  notificationPanel?: React.ReactNode;
   onNotifications?: () => void;
   onProfile?: () => void;
   profileImageUrl?: string | null;
@@ -1336,6 +1347,7 @@ function HomeHeader({
             disabled: disabled || onNotifications === undefined,
           }}
           disabled={disabled || onNotifications === undefined}
+          onPointerDown={(event) => event.stopPropagation()}
           onPress={onNotifications}
           style={[
             styles.notificationButton,
@@ -1367,6 +1379,7 @@ function HomeHeader({
             testID="home-profile-avatar"
           />
         </Pressable>
+        {notificationPanel}
       </View>
     </View>
   );
@@ -4149,6 +4162,7 @@ function createHomeStyles(
       paddingBottom: s(14),
     },
     header: {
+      zIndex: 40,
       flexDirection: 'row',
       alignItems: 'flex-start',
       justifyContent: 'space-between',
@@ -4176,7 +4190,13 @@ function createHomeStyles(
       fontWeight: '600',
       opacity: 0.95,
     },
-    headerActions: { flexDirection: 'row', alignItems: 'center', gap: s(10) },
+    headerActions: {
+      position: 'relative',
+      zIndex: 50,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: s(10),
+    },
     notificationButton: {
       position: 'relative',
       width: s(44),

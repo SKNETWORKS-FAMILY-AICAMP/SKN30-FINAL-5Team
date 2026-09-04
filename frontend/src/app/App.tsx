@@ -183,6 +183,7 @@ export function App({
     activePreview === 'exercise-catalog' ||
     activePreview === 'loading' ||
     activePreview === 'mascot-house' ||
+    activePreview === 'notifications' ||
     activePreview === 'session' ||
     activePreview === 'session-result' ||
     activePreview === 'today' ||
@@ -223,6 +224,9 @@ export function App({
               deviceViewport={activePreviewViewport === 'device'}
               initialScreenId="mascot-house"
             />
+          ) : activePreview === 'notifications' ? (
+            // Preserve the old preview URL as an alias for the consolidated Home preview.
+            <PreviewGallery initialScreenId="home" />
           ) : activePreview === 'session' ? (
             <PreviewGallery initialScreenId="session" />
           ) : activePreview === 'session-result' ? (

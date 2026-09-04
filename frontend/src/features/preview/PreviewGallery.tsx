@@ -89,6 +89,11 @@ import {
 import { homePreviewProps } from './homePreview';
 import { onboardingPreviewApi } from './onboardingPreview';
 import {
+  NotificationPreview,
+  NOTIFICATION_PREVIEW_OPTIONS,
+  type NotificationPreviewState,
+} from './NotificationPreview';
+import {
   accountPreviewApi,
   createHousePreviewApi,
   createSessionPreviewApi,
@@ -501,6 +506,8 @@ export function PreviewGallery({
     useState<ProfilePreviewState>('editing');
   const [onboardingStep, setOnboardingStep] = useState(1);
   const [homeState, setHomeState] = useState<HomePreviewState>('pre-checkin');
+  const [notificationState, setNotificationState] =
+    useState<NotificationPreviewState>('unread');
   const [homeDecisionOverride, setHomeDecisionOverride] = useState<
     DecisionResponse | undefined
   >(undefined);
@@ -898,9 +905,17 @@ export function PreviewGallery({
               selected={homeState}
               onSelect={selectHomeState}
             />
+            <PreviewStateOptions
+              label="알림 상태"
+              options={NOTIFICATION_PREVIEW_OPTIONS}
+              selected={notificationState}
+              onSelect={setNotificationState}
+            />
             <Text style={styles.contractNotice}>
               시각 참고 전용: 체크인·루틴 생성·조정 결과는 fixture이며 최종 추천
-              1개만 표시합니다.
+              1개만 표시합니다. 알림 버튼을 누르면 네트워크 요청 없이 red dot,
+              토스트, 알림함 상태와 읽음 처리를 확인할 수 있습니다. KIKKI_RETURN
+              알림은 끼끼의 집 프리뷰로 이동합니다.
             </Text>
           </>
         ) : null}
@@ -1227,31 +1242,37 @@ export function PreviewGallery({
                     />
                   ) : null}
                   {screenId === 'home' ? (
-                    <HomeScreen
-                      {...homePreviewProps(homeState)}
-                      decision={
-                        homeDecisionOverride ??
-                        homePreviewProps(homeState).decision
-                      }
-                      onChooseRest={() => selectHomeState('rest')}
-                      onRetry={() => selectHomeState('routine-lookup-loading')}
-                      onRetryDecision={
-                        homeState === 'decision-retry'
-                          ? () => runHomeTransition('decision-recovered')
-                          : undefined
-                      }
-                      onNavigateTab={navigateHomeTab}
-                      onOpenCalendar={() => setScreenId('calendar-report')}
-                      onProfile={() => setScreenId('my-page')}
-                      onReorderPlan={reorderHomePlan}
-                      onRegenerateDecision={() => runHomeTransition('adjusted')}
-                      onRequestAlternativeCheckin={() =>
-                        runHomeTransition('adjusted')
-                      }
-                      onResumeWorkout={startWorkoutPreview}
-                      onStartWorkout={startWorkoutPreview}
-                      onSubmitCheckin={() => runHomeTransition('routine')}
-                      onSubmitUserEdits={() => undefined}
+                    <NotificationPreview
+                      key={notificationState}
+                      homeProps={{
+                        ...homePreviewProps(homeState),
+                        decision:
+                          homeDecisionOverride ??
+                          homePreviewProps(homeState).decision,
+                        onChooseRest: () => selectHomeState('rest'),
+                        onRetry: () =>
+                          selectHomeState('routine-lookup-loading'),
+                        onRetryDecision:
+                          homeState === 'decision-retry'
+                            ? () => runHomeTransition('decision-recovered')
+                            : undefined,
+                        onNavigateTab: navigateHomeTab,
+                        onOpenCalendar: () => setScreenId('calendar-report'),
+                        onProfile: () => setScreenId('my-page'),
+                        onReorderPlan: reorderHomePlan,
+                        onRegenerateDecision: () =>
+                          runHomeTransition('adjusted'),
+                        onRequestAlternativeCheckin: () =>
+                          runHomeTransition('adjusted'),
+                        onResumeWorkout: startWorkoutPreview,
+                        onStartWorkout: startWorkoutPreview,
+                        onSubmitCheckin: () => runHomeTransition('routine'),
+                        onSubmitUserEdits: () => undefined,
+                      }}
+                      initiallyOpen={false}
+                      onNavigateHomeTab={navigateHomeTab}
+                      onOpenKikkiHome={() => setScreenId('mascot-house')}
+                      state={notificationState}
                     />
                   ) : null}
                   {screenId === 'today' ? (
