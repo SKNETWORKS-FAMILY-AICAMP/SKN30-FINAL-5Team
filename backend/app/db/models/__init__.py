@@ -51,6 +51,7 @@ from backend.app.db.models.profile import (
     UserProfile,
     UserTermsAgreement,
 )
+from backend.app.db.models.reward import BananaTransaction, BananaWallet
 from backend.app.db.models.routine import Routine, RoutineDay, RoutineItem
 from backend.app.db.models.v3_decision import (
     DecisionConstraintEnvelopeRecord,
@@ -83,6 +84,8 @@ __all__ = [
     "AccountDeletionJob",
     "BodyArea",
     "BodyFocus",
+    "BananaTransaction",
+    "BananaWallet",
     "AgentProposalRevisionRecord",
     "AgentProposalRecord",
     "AgentReviewEventRecord",

@@ -15,6 +15,7 @@ from backend.app.db.repositories.decision import DecisionRepository
 from backend.app.db.repositories.identity import IdentityRepository
 from backend.app.db.repositories.notification import NotificationRepository
 from backend.app.db.repositories.profile import ProfileRepository
+from backend.app.db.repositories.reward import RewardRepository
 from backend.app.db.repositories.routine import RoutineRepository
 from backend.app.db.repositories.weekly_plan import WeeklyPlanRepository
 from backend.app.db.repositories.weekly_report import WeeklyReportRepository
@@ -51,6 +52,7 @@ from backend.app.modules.identity.service import (
 from backend.app.modules.notifications.ports import NotificationRepositoryPort
 from backend.app.modules.notifications.service import NotificationService
 from backend.app.modules.profiles.ports import BirthdateCipher, ProfileRepositoryPort
+from backend.app.modules.rewards.ports import RewardRepositoryPort
 from backend.app.modules.routines.ports import RoutineRepositoryPort
 from backend.app.modules.weekly_plans.ports import WeeklyPlanRepositoryPort
 from backend.app.modules.weekly_reports.ports import (
@@ -64,6 +66,7 @@ _catalog_repository = CatalogRepository()
 _identity_repository = IdentityRepository()
 _notification_repository = NotificationRepository()
 _profile_repository = ProfileRepository()
+_reward_repository = RewardRepository()
 _routine_repository = RoutineRepository()
 _daily_context_repository = DailyContextRepository()
 _decision_repository = DecisionRepository()
@@ -119,6 +122,10 @@ def get_account_deletion_repository() -> AccountDeletionRepositoryPort:
 
 def get_profile_repository() -> ProfileRepositoryPort:
     return _profile_repository
+
+
+def get_reward_repository() -> RewardRepositoryPort:
+    return _reward_repository
 
 
 def get_routine_repository() -> RoutineRepositoryPort:
@@ -295,6 +302,7 @@ __all__ = [
     "get_narration_provider",
     "get_notification_repository",
     "get_profile_repository",
+    "get_reward_repository",
     "get_routine_repository",
     "get_workout_repository",
     "get_weekly_report_repository",

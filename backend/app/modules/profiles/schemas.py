@@ -196,6 +196,12 @@ class ProfileSettingsUpdateResponse(BaseModel):
     updated_at: datetime
 
 
+class ProfileImageMutationResponse(BaseModel):
+    profile_image_url: str | None
+    profile_version: int
+    updated_at: datetime
+
+
 class MeProfile(BaseModel):
     """Profile view of the authenticated user.
 
@@ -204,6 +210,7 @@ class MeProfile(BaseModel):
     """
 
     nickname: str
+    profile_image_url: str | None = None
     age: int | None = None
     primary_goal_code: str
     experience_level_code: str
@@ -227,6 +234,7 @@ class MeResponse(BaseModel):
     premium_status_code: str
     ai_trial_started_at: datetime
     ai_trial_ends_at: datetime
+    banana_balance: int = 0
     profile: MeProfile | None = None
 
 
@@ -253,4 +261,5 @@ __all__ = [
     "PersistentPainInput",
     "ProfileSettingsUpdateRequest",
     "ProfileSettingsUpdateResponse",
+    "ProfileImageMutationResponse",
 ]

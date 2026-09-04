@@ -78,6 +78,7 @@ class MeProfileRecord:
     profile_version: int
     created_at: datetime
     updated_at: datetime
+    profile_image_object_key: str | None = None
 
 
 @dataclass(frozen=True)
@@ -87,7 +88,8 @@ class MeRecord:
     premium_status_code: str
     ai_trial_started_at: datetime
     ai_trial_ends_at: datetime
-    profile: MeProfileRecord | None
+    profile: MeProfileRecord | None = None
+    banana_balance: int = 0
 
 
 @dataclass(frozen=True)
@@ -134,6 +136,17 @@ class ProfileSettingsChanges:
     persistent_pains: tuple[tuple[str, int], ...] | None
 
 
+@dataclass(frozen=True)
+class ProfileImageRecord:
+    object_key: str | None
+    profile_version: int
+    updated_at: datetime | None = None
+
+
+class ProfileImageUrlProvider(Protocol):
+    def create_url(self, object_key: str) -> str | None: ...
+
+
 class StaleRoutinePort(Protocol):
     """Retires routines a profile edit has made unreachable.
 
@@ -159,6 +172,21 @@ class StaleRoutinePort(Protocol):
 
 class ProfileRepositoryPort(Protocol):
     def get_me(self, session: Session, user_id: UUID) -> MeRecord | None: ...
+
+    def get_profile_image_for_update(
+        self, session: Session, user_id: UUID
+    ) -> ProfileImageRecord | None: ...
+
+    def update_profile_image(
+        self,
+        session: Session,
+        user_id: UUID,
+        *,
+        object_key: str | None,
+        content_type: str | None,
+        byte_size: int | None,
+        now: datetime,
+    ) -> tuple[int, datetime]: ...
 
     def acquire_idempotency_lock(
         self,

@@ -49,8 +49,11 @@ def test_notification_list_and_read_contract() -> None:
         repeated_read = client.patch(f"/api/v1/notifications/{notification_id}/read")
 
     assert listed.status_code == 200
-    assert listed.json()["unread_count"] == 1
-    assert listed.json()["items"][0]["type"] == "KIKKI_RETURN"
+    assert listed.json()["unread_count"] == 2
+    assert {item["type"] for item in listed.json()["items"]} == {
+        "DAILY_REWARD",
+        "KIKKI_RETURN",
+    }
     assert read.status_code == 200
     assert read.json()["is_read"] is True
     assert repeated_read.status_code == 200
