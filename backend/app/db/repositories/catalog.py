@@ -1,5 +1,6 @@
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from enum import StrEnum
+from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import and_, func, insert, inspect, or_, select
@@ -218,9 +219,7 @@ class CatalogRepository:
         )
         source_object_key = None
         if media_candidate is not None:
-            candidate_key = media_candidate.source_metadata.get("source_object_key")
-            if isinstance(candidate_key, str):
-                source_object_key = candidate_key
+            source_object_key = _verified_source_object_key(media_candidate.source_metadata)
         return ExerciseDetailRecord(
             exercise_id=exercise.id,
             exercise_name=exercise.name_ko,
@@ -968,6 +967,31 @@ class CatalogRepository:
                 )
             )
         session.flush()
+
+
+def _verified_source_object_key(source_metadata: Mapping[str, Any] | None) -> str | None:
+    """Read the reviewed source object key from either import layout.
+
+    Catalogs up to v2.0.4 wrote the verified source-object fields at the top
+    level of `source_metadata`. The v2.0.6 media import nests the same three
+    fields under `record`, so reading only the top level returned nothing and
+    every exercise in the active catalog answered with a null `media_url` -- the
+    app then showed its "GIF is not ready yet" placeholder even though the
+    object was in S3 and already verified. Both layouts are reviewed output, so
+    read either rather than rewriting approved catalog metadata.
+    """
+
+    if not source_metadata:
+        return None
+    candidate = source_metadata.get("source_object_key")
+    if isinstance(candidate, str) and candidate:
+        return candidate
+    nested = source_metadata.get("record")
+    if isinstance(nested, Mapping):
+        candidate = nested.get("source_object_key")
+        if isinstance(candidate, str) and candidate:
+            return candidate
+    return None
 
 
 __all__ = ["CatalogRepository"]
