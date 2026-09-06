@@ -125,3 +125,22 @@ def test_explicit_production_gate_result_controls_factory_construction(monkeypat
 
     assert build_optional_v3_demo_runtime(settings, production_promotion_approved=True) is runtime
     assert captured["execution_profile"] == "PRODUCTION"
+
+
+def test_openai_provider_gate_allows_an_approved_production_profile() -> None:
+    from backend.app.integrations.llm_agents.openai import openai_demo_gates_ready
+
+    settings = Settings(
+        app_env="staging",
+        database_url="postgresql+psycopg://test:test@localhost/test",
+        v3_execution_profile="PRODUCTION",
+        v3_production_promotion_approved=True,
+        v3_langgraph_enabled=True,
+        llm_agents_enabled=True,
+        llm_agents_provider_code="OPENAI",
+        llm_agents_model_code="approved-model-v1",
+        llm_agents_approved_model_codes=("approved-model-v1",),
+        openai_api_key="redacted-test-only-value",
+    )
+
+    assert openai_demo_gates_ready(settings, execution_profile="PRODUCTION") is True

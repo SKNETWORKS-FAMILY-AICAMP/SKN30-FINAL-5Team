@@ -1317,8 +1317,10 @@ Wave 6 구현 계약:
 - 같은 daily context ID·version과 동일 input hash로 완료된 decision이 있으면, 다른 `Idempotency-Key` 요청도 그 기존 `DecisionResponse`를 반환한다. 이는 요청 단위 `Idempotency-Key` 재사용 규칙과 별개의 논리적 중복 방지다.
 - `POST /api/v1/decisions`의 공개 응답은 실행 프로필과 무관하게 기존 `DecisionResponse` 계약을
   유지한다. `V3_EXECUTION_PROFILE` 기본값은 `LEGACY`이며, `SHADOW`도 legacy 응답을 유지한다.
-  `DEMO`는 `APP_ENV=staging`에서만 V3 저장 결과를 응답으로 사용한다. `PRODUCTION`은 별도
-  production promotion gate가 승인한 경우에만 V3를 사용하고 그렇지 않으면 legacy로 fail closed한다.
+  `DEMO`는 `APP_ENV=staging`에서만 V3 저장 결과를 응답으로 사용한다. 공개 서비스 배포는
+  `V3_EXECUTION_PROFILE=PRODUCTION`과 승인된 promotion gate를 사용하며, 루틴 생성은
+  V3 결과만 응답한다. runtime·index·provider 구성이 누락된 경우 legacy 결과로 전환하지 않고
+  `503 V3_COMPOSITION_UNAVAILABLE` 또는 안전한 결정적 fallback 결과를 반환한다.
 - `GET /api/v1/decisions/{decision_id}`는 인증 사용자 소유의 `COMPLETED` 결정만 반환한다.
 - `GET /api/v1/decisions?local_date=YYYY-MM-DD`는 해당 날짜의 가장 최근 `COMPLETED` 결정을
   반환한다. 재시작한 클라이언트가 당일 결정을 복원하는 read 전용 경로이며 에이전트·narration을

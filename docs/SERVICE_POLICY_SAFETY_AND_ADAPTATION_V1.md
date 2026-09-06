@@ -60,6 +60,21 @@
 
 모든 제품정책은 `policy_version`과 함께 결정 기록에 저장하고 향후 사용자 데이터로 검증·보정한다.
 
+### 2.4 운영 루틴 생성 엔진
+
+공개 서비스의 루틴 생성은 승인된 V3 경로만 사용한다. 이 경로는 결정적
+`SafetyPolicyEngine`과 `ConstraintEnvelope`, PostgreSQL에서 재검증한
+Safety-approved Pool, Qdrant의 후보 순위 검색, Training·Recovery·Feasibility
+LLM Agent와 Coordinator, compiler 및 최종 integrity validator로 구성된다.
+
+배포 시 `V3_EXECUTION_PROFILE=PRODUCTION`,
+`V3_PRODUCTION_PROMOTION_APPROVED=true`, `V3_LANGGRAPH_ENABLED=true`,
+`LLM_AGENTS_ENABLED=true`, `QDRANT_ENABLED=true`가 함께 설정되어야 한다.
+이 중 하나라도 만족하지 않거나 V3 runtime·활성 vector index가 준비되지 않으면
+legacy 루틴으로 우회하지 않고 계획 없는 오류로 종료한다. 단일 요청에서 LLM 또는
+vector provider가 실패하면 저장된 Safety envelope와 승인 pool을 벗어나지 않는
+결정적 fallback만 허용하며, 안전한 fallback도 없으면 계획을 만들지 않는다.
+
 ---
 
 ## 3. 서비스 범위 및 온보딩

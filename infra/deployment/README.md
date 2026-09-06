@@ -9,19 +9,21 @@ high-availability production architecture.
 `compose.staging.yaml` runs only FastAPI and Qdrant. The API binds to EC2 loopback until a reviewed
 domain and TLS reverse proxy are configured; Qdrant is reachable only on the Compose network.
 
-The baseline is intentionally fail-closed: V3, LLM calls, Qdrant retrieval and production promotion
-remain disabled. `infra/deployment/.env.staging` is generated on the host from AWS Secrets Manager
-and must contain only `DATABASE_URL` and non-secret operational settings. Never copy a developer
-`.env` file to EC2.
+The public service runs the approved V3 route. Its canonical deployment always combines the base,
+authenticated-Qdrant and V3-production overlays. `infra/deployment/.env.staging` is generated on
+the host from AWS Secrets Manager and is never committed, printed or copied from a developer `.env`
+file.
 
 ```bash
 docker compose --env-file infra/deployment/.env.staging \
-  -f infra/deployment/compose.staging.yaml config --quiet
-docker compose -f infra/deployment/compose.staging.yaml build api
-docker compose -f infra/deployment/compose.staging.yaml run --rm --no-deps api \
+  -f infra/deployment/compose.staging.yaml \
+  -f infra/deployment/compose.staging.qdrant.yaml \
+  -f infra/deployment/compose.staging.v3production.yaml config --quiet
+docker compose --env-file infra/deployment/.env.staging -f infra/deployment/compose.staging.yaml -f infra/deployment/compose.staging.qdrant.yaml -f infra/deployment/compose.staging.v3production.yaml build api
+docker compose --env-file infra/deployment/.env.staging -f infra/deployment/compose.staging.yaml -f infra/deployment/compose.staging.qdrant.yaml -f infra/deployment/compose.staging.v3production.yaml run --rm --no-deps api \
   uv run --no-sync alembic -c backend/alembic.ini upgrade head
-docker compose -f infra/deployment/compose.staging.yaml up -d
-docker compose -f infra/deployment/compose.staging.yaml ps
+docker compose --env-file infra/deployment/.env.staging -f infra/deployment/compose.staging.yaml -f infra/deployment/compose.staging.qdrant.yaml -f infra/deployment/compose.staging.v3production.yaml up -d
+docker compose --env-file infra/deployment/.env.staging -f infra/deployment/compose.staging.yaml -f infra/deployment/compose.staging.qdrant.yaml -f infra/deployment/compose.staging.v3production.yaml ps
 for attempt in $(seq 1 24); do
   curl --fail http://127.0.0.1:8000/api/v1/health/ready && break
   sleep 5
@@ -189,26 +191,28 @@ API pointed at the in-Compose plaintext endpoint. The overlay also resets the AP
 parks the in-Compose `qdrant` service under an unused profile, so only `api` and `caddy` start.
 
 Enabling Qdrant is necessary but not sufficient for vector retrieval: the retriever is only
-constructed on the V3 path, so the demo profile below is what actually puts it in use.
+constructed on the V3 path, so the production profile below is what actually puts it in use.
 
-### Applying the V3 demo profile
+### Applying the public V3 production profile
 
-`compose.staging.v3demo.yaml` makes V3 authoritative and is the overlay that puts Qdrant retrieval
-on the routine-creation path. Apply it on top of the Qdrant overlay, which supplies `OPENAI_API_KEY`
+`compose.staging.v3production.yaml` makes V3 authoritative and is the required overlay that puts
+Qdrant retrieval and the LLM multi-agent path on every public routine-creation request. Apply it on
+top of the Qdrant overlay, which supplies `OPENAI_API_KEY`
 and the index this profile ranks against:
 
 ```bash
-docker compose --env-file infra/deployment/.env.staging   -f infra/deployment/compose.staging.yaml   -f infra/deployment/compose.staging.qdrant.yaml   -f infra/deployment/compose.staging.v3demo.yaml up -d
+docker compose --env-file infra/deployment/.env.staging   -f infra/deployment/compose.staging.yaml   -f infra/deployment/compose.staging.qdrant.yaml   -f infra/deployment/compose.staging.v3production.yaml up -d
 ```
 
 The approved agent model code is `gpt-5.6-terra`, and `LLM_AGENTS_APPROVED_MODEL_CODES` must contain
 it. `backend/app/integrations/llm_agents/openai.py` ANDs every provider gate: if any one fails, the
 chat model is `None`, the V3 runtime is never built, and the retriever is never constructed. The
-symptom is not an error but a silent deterministic fallback, so confirm retrieval positively rather
+runtime is not composed and routine creation must not silently use the legacy service. Confirm
+retrieval positively rather
 than reading a healthy `/health/ready` as proof.
 
-`APP_ENV=production` with `V3_EXECUTION_PROFILE=DEMO` is rejected during settings validation, so this
-overlay cannot promote V3 outside staging. `V3_PRODUCTION_PROMOTION_APPROVED` stays `false`.
+`V3_PRODUCTION_PROMOTION_APPROVED=true` is part of this overlay. It records the approved production
+composition and must never be set by a client request or the shadow evaluator.
 
 Before #150 runs any index builder, an operator with read-only Aurora access must execute the
 following queries and transfer only the returned non-secret catalog/registry fields. Do not print
