@@ -42,15 +42,20 @@ The EC2 instance role reads `/helkki/staging/firebase_id` and
 `FIREBASE_PROJECT_ID`. If `firebase_id` is a JSON secret, extract its
 `FIREBASE_PROJECT_ID` scalar field before writing the environment file; do not write the complete
 JSON object as the environment value. The service-account JSON must be written only to
-`/opt/helkki/secrets/firebase-admin-service-account.json` with mode `0600`. Compose mounts that file
-read-only at `/run/secrets/firebase-admin-service-account.json`, and
+`/opt/helkki/secrets/firebase-admin-service-account.json`, owned by `root` with mode `0640` and the
+group set to the API container's GID (`10001`, the `app` user in `backend/Dockerfile`). Compose
+mounts that file read-only at `/run/secrets/firebase-admin-service-account.json`, and
 `GOOGLE_APPLICATION_CREDENTIALS` must use that container path.
 
+A bind mount carries the host permissions into the container, and the API does not run as root, so
+mode `0600` on a root-owned file makes the credential unreadable and every protected route fails
+closed with `AUTH_PROVIDER_UNAVAILABLE`. Group read is what the container needs; world read is
+never acceptable.
+
 Do not write the JSON to `.env.staging`, a release directory, command output, CloudWatch, or S3.
-Before starting Compose, validate that the host file exists, has mode `600`, and that
-`docker compose ... config --quiet` succeeds. A deployment missing either Firebase environment value
-must be treated as a failed release because protected API routes fail closed with
-`AUTH_PROVIDER_UNAVAILABLE`.
+Before starting Compose, validate that the host file exists, that
+`stat -c '%a %g'` reports `640 10001`, and that `docker compose ... config --quiet` succeeds. A
+deployment missing either Firebase environment value must be treated as a failed release.
 
 ## Birthdate encryption with AWS KMS
 
