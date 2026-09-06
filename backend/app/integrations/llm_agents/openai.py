@@ -64,13 +64,10 @@ def openai_demo_gates_ready(settings: Settings, *, execution_profile: str) -> bo
     a user back to the legacy decision service.
     """
 
-    profile_allowed = (
-        (settings.app_env == "staging" and execution_profile == "DEMO")
-        or (
-            settings.app_env in {"staging", "production"}
-            and execution_profile == "PRODUCTION"
-            and settings.v3_production_promotion_approved
-        )
+    profile_allowed = (settings.app_env == "staging" and execution_profile == "DEMO") or (
+        settings.app_env in {"staging", "production"}
+        and execution_profile == "PRODUCTION"
+        and settings.v3_production_promotion_approved
     )
 
     return all(

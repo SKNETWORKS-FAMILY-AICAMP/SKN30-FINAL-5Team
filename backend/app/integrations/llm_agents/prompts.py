@@ -30,7 +30,7 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
     {
         LlmAgentRoleCode.TRAINING: RolePrompt(
             role_code=LlmAgentRoleCode.TRAINING,
-            version="v3-training-prompt-v5",
+            version="v3-training-prompt-v6",
             instruction=(
                 "Act as the Training specialist and the sole owner of the draft exercise plan. "
                 "Return an ordered exercise_prescriptions list that preserves the primary goal, "
@@ -43,9 +43,11 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
                 "straight into loaded work. Use an exercise only in a phase its phase_codes "
                 "allow. Main work carries the goal, so prefer pool exercises whose "
                 "role_eligibility_code is CORE there and keep SUPPORT work to the edges. "
+                "A session is a workout, not an inventory: use at most 10 distinct exercises "
+                "in the whole plan, at most 2 of them in WARMUP and at most 2 in COOLDOWN. "
                 "The plan should land within five minutes of the requested duration rather "
                 "than hitting it to the second; get as close as the pool allows and vary sets "
-                "to absorb the remainder. "
+                "to absorb the remainder rather than adding more movements. "
                 f"{_COMMON_BOUNDARY}"
             ),
         ),
@@ -77,14 +79,16 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
         ),
         LlmAgentRoleCode.COORDINATOR: RolePrompt(
             role_code=LlmAgentRoleCode.COORDINATOR,
-            version="v3-coordinator-prompt-v4",
+            version="v3-coordinator-prompt-v5",
             instruction=(
                 "Coordinate exactly the three supplied specialist proposals into one PlanSpec. "
                 "Use Training's exercise_prescriptions as the sole draft plan and consider the "
                 "Recovery and Feasibility adjustment_codes as advisory perspectives without a "
                 "fixed precedence between specialist responses. Keep each prescription's "
                 "phase_code, ordered WARMUP first, then MAIN, then COOLDOWN; the PlanSpec must "
-                "carry all three phases, so never drop a phase while adjusting. The plan should "
+                "carry all three phases, so never drop a phase while adjusting, and keep it to "
+                "at most 10 distinct exercises with at most 2 in WARMUP and 2 in COOLDOWN. "
+                "The plan should "
                 "land within five minutes of the requested duration rather than hitting it to "
                 "the second. Do not weaken safety, duration, "
                 "goal, location, or recovery constraints. Equipment is not a selection "

@@ -29,6 +29,11 @@ COPY data/generated/exercise-catalog-v2.0.4-final/backend_bundle \
     ./data/generated/exercise-catalog-v2.0.4-final/backend_bundle
 COPY data/generated/exercise-catalog-v2.0.6-final/backend_bundle \
     ./data/generated/exercise-catalog-v2.0.6-final/backend_bundle
+# The exercise detail route reads this bundle on every request, not just during
+# a promotion command, so leaving it out of the image made GET /exercises/{id}
+# answer APPROVED_CATALOG_UNAVAILABLE for every exercise in the catalog.
+COPY data/generated/home-equipment-variants-v1-final/backend_bundle \
+    ./data/generated/home-equipment-variants-v1-final/backend_bundle
 
 RUN chown -R app:app /app
 

@@ -18,6 +18,12 @@ from backend.app.domain.agents.v3_contracts import (
     _hash_value,
 )
 from backend.app.domain.rules.duration import DURATION_TOLERANCE_SECONDS, SECONDS_PER_MINUTE
+from backend.app.domain.rules.plan_shape import (
+    MAX_PHASE_EXERCISE_TYPES,
+    MAX_PLAN_EXERCISE_TYPES,
+    PLAN_PHASE_ORDER,
+    phase_rank,
+)
 from backend.app.domain.rules.safety import SafetyRequiredActionCode
 
 INTEGRITY_VALIDATION_SCHEMA_VERSION: Final[Literal["plan-integrity-validation-v1"]] = (
@@ -36,6 +42,8 @@ class IntegrityViolationCode(StrEnum):
     LOCATION_NOT_ALLOWED = "LOCATION_NOT_ALLOWED"
     EQUIPMENT_NOT_AVAILABLE = "EQUIPMENT_NOT_AVAILABLE"
     RECOVERY_CEILING_EXCEEDED = "RECOVERY_CEILING_EXCEEDED"
+    PLAN_PHASE_COVERAGE_INVALID = "PLAN_PHASE_COVERAGE_INVALID"
+    PLAN_EXERCISE_VARIETY_EXCEEDED = "PLAN_EXERCISE_VARIETY_EXCEEDED"
     CATALOG_RECORD_MISMATCH = "CATALOG_RECORD_MISMATCH"
     STOP_AND_SEEK_HELP = "STOP_AND_SEEK_HELP"
     PLAN_GENERATION_FORBIDDEN = "PLAN_GENERATION_FORBIDDEN"
@@ -57,6 +65,13 @@ _CONDITIONALLY_REPAIRABLE = frozenset(
         IntegrityViolationCode.LOCATION_NOT_ALLOWED,
         IntegrityViolationCode.EQUIPMENT_NOT_AVAILABLE,
         IntegrityViolationCode.RECOVERY_CEILING_EXCEEDED,
+        # Shape violations are the Coordinator's to correct: the pool always
+        # reserves candidates for every phase, so one repair round can restore
+        # the shape without weakening any safety bound. When repair does not,
+        # routing hands the request to the deterministic fallback, which builds
+        # the same shape from the same approved pool.
+        IntegrityViolationCode.PLAN_PHASE_COVERAGE_INVALID,
+        IntegrityViolationCode.PLAN_EXERCISE_VARIETY_EXCEEDED,
     }
 )
 
@@ -237,6 +252,24 @@ def validate_plan_integrity(
             codes.add(IntegrityViolationCode.EXERCISE_OUTSIDE_POOL)
         if set(ids) & set(envelope.excluded_exercise_ids):
             codes.add(IntegrityViolationCode.SAFETY_EXCLUDED_EXERCISE_INCLUDED)
+        # Session shape. The prompts ask for a warmup and a cooldown, but asking
+        # is not enforcing: an LLM that answered with twelve MAIN blocks used to
+        # reach the user unchallenged. Enforce it here, downstream of the
+        # coordinator, where every other plan bound is already asserted.
+        phases = tuple(item.prescription.phase_code for item in compiled_plan.exercises)
+        ranks = [phase_rank(phase) for phase in phases]
+        if set(phases) != set(PLAN_PHASE_ORDER) or ranks != sorted(ranks):
+            codes.add(IntegrityViolationCode.PLAN_PHASE_COVERAGE_INVALID)
+        if len(set(ids)) > MAX_PLAN_EXERCISE_TYPES:
+            codes.add(IntegrityViolationCode.PLAN_EXERCISE_VARIETY_EXCEEDED)
+        for phase_code, cap in MAX_PHASE_EXERCISE_TYPES.items():
+            phase_ids = {
+                item.prescription.exercise_id
+                for item in compiled_plan.exercises
+                if item.prescription.phase_code == phase_code
+            }
+            if len(phase_ids) > cap:
+                codes.add(IntegrityViolationCode.PLAN_EXERCISE_VARIETY_EXCEEDED)
         for item in compiled_plan.exercises:
             prescription = item.prescription
             canonical = pool_records.get(prescription.exercise_id)
@@ -252,6 +285,12 @@ def validate_plan_integrity(
                 or prescription.location_code not in canonical.location_codes
             ):
                 codes.add(IntegrityViolationCode.LOCATION_NOT_ALLOWED)
+            # A phase is a reviewed property of the exercise, so a plan may not
+            # call a loaded compound lift a cooldown. Records that predate the
+            # phase projection carry no phase_codes and are left to the
+            # plan-level coverage check above.
+            if canonical.phase_codes and prescription.phase_code not in canonical.phase_codes:
+                codes.add(IntegrityViolationCode.PLAN_PHASE_COVERAGE_INVALID)
             # Equipment is not a gate. The 2026-08-27 approval dropped it from
             # onboarding, so a user has no UserEquipment rows and the envelope
             # allowlist is empty by design. Comparing against it rejected every

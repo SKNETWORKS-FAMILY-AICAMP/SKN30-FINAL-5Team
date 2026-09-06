@@ -14,6 +14,7 @@ from backend.tests.unit.test_v3_agent_contracts import (
     A,
     B,
     C,
+    D,
     envelope,
     exercise,
     pool,
@@ -266,3 +267,124 @@ def test_equipment_outside_the_catalog_record_is_still_rejected() -> None:
     assert IntegrityViolationCode.EQUIPMENT_NOT_AVAILABLE in {
         item.code for item in result.violations
     }
+
+
+def _validate(compiled: CompiledPlan, current_envelope: ConstraintEnvelope, current_pool):
+    return validate_plan_integrity(
+        compiled,
+        envelope=current_envelope,
+        pool=current_pool,
+        repair_attempt=0,
+        validator_version=VALIDATOR_VERSION,
+        context=context(),
+    )
+
+
+def _compiled_with(
+    current_envelope: ConstraintEnvelope,
+    prescriptions,
+    *,
+    records=None,
+) -> tuple[CompiledPlan, ExercisePoolSnapshot]:
+    current_pool = pool(current_envelope, records)
+    current_input = coordinator_input(current_envelope, current_pool)
+    compiled = compile_plan(
+        plan(current_input, plan_prescriptions=prescriptions),
+        envelope=current_envelope,
+        pool=current_pool,
+        compiler_version=COMPILER_VERSION,
+        coordinator_input=current_input,
+    )
+    return compiled, current_pool
+
+
+def _rephased(compiled: CompiledPlan, phase_codes: tuple[str, ...]) -> CompiledPlan:
+    """Force phases onto an already compiled plan.
+
+    PlanSpec refuses to build a plan that misses a phase, so a coordinator
+    answer cannot reach here in this shape. A deterministic fallback plan can:
+    DeterministicFallbackPlanSpec carries no such contract, which is how an
+    all-MAIN session used to reach the user once the graph fell back.
+    """
+
+    return compiled.model_copy(
+        update={
+            "exercises": tuple(
+                item.model_copy(
+                    update={
+                        "prescription": item.prescription.model_copy(update={"phase_code": code})
+                    }
+                )
+                for item, code in zip(compiled.exercises, phase_codes, strict=True)
+            )
+        }
+    )
+
+
+def test_plan_without_a_warmup_or_cooldown_is_a_repairable_violation() -> None:
+    current_envelope = envelope()
+    valid, current_pool = _compiled_with(
+        current_envelope,
+        (
+            prescription(A, 1, phase_code="WARMUP"),
+            prescription(B, 2),
+            prescription(D, 3, phase_code="COOLDOWN"),
+        ),
+    )
+    compiled = _rephased(valid, ("MAIN", "MAIN", "MAIN"))
+
+    result = _validate(compiled, current_envelope, current_pool)
+
+    assert result.status_code is IntegrityValidationStatusCode.REPAIRABLE
+    codes = {violation.code for violation in result.violations}
+    assert IntegrityViolationCode.PLAN_PHASE_COVERAGE_INVALID in codes
+    assert all(
+        violation.repairable
+        for violation in result.violations
+        if violation.code is IntegrityViolationCode.PLAN_PHASE_COVERAGE_INVALID
+    )
+
+
+def test_prescription_in_a_phase_the_catalog_does_not_approve_is_flagged() -> None:
+    # A phase is a reviewed property of the exercise: a loaded compound lift is
+    # not a cooldown just because a plan puts it last.
+    current_envelope = envelope()
+    records = (
+        exercise(A, phase_codes=("WARMUP", "MAIN")),
+        exercise(B, phase_codes=("MAIN",)),
+        exercise(C, phase_codes=("WARMUP", "MAIN", "COOLDOWN")),
+        exercise(D, phase_codes=("MAIN",)),
+    )
+    compiled, current_pool = _compiled_with(
+        current_envelope,
+        (
+            prescription(A, 1, phase_code="WARMUP"),
+            prescription(B, 2),
+            prescription(D, 3, phase_code="COOLDOWN"),
+        ),
+        records=records,
+    )
+
+    result = _validate(compiled, current_envelope, current_pool)
+
+    codes = {violation.code for violation in result.violations}
+    assert IntegrityViolationCode.PLAN_PHASE_COVERAGE_INVALID in codes
+
+
+def test_plan_spending_more_than_the_warmup_type_budget_is_flagged() -> None:
+    # Warmup prepares the body; it does not absorb leftover minutes.
+    current_envelope = envelope()
+    valid, current_pool = _compiled_with(
+        current_envelope,
+        (
+            prescription(A, 1, phase_code="WARMUP"),
+            prescription(B, 2),
+            prescription(D, 3, phase_code="COOLDOWN"),
+        ),
+    )
+    compiled = _rephased(valid, ("WARMUP", "WARMUP", "WARMUP"))
+
+    result = _validate(compiled, current_envelope, current_pool)
+
+    codes = {violation.code for violation in result.violations}
+    assert IntegrityViolationCode.PLAN_EXERCISE_VARIETY_EXCEEDED in codes
