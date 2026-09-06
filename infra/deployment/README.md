@@ -35,6 +35,23 @@ and they terminate at Caddy; the API keeps its own port on loopback so `curl 127
 works over SSH for operators. OpenAI credentials are not part of this baseline and require a
 separately rotated staging credential and provider approval.
 
+## Firebase Admin credential injection
+
+The EC2 instance role reads `/helkki/staging/firebase_id` and
+`/helkki/staging/firebase-admin-service-account` from AWS Secrets Manager. The first becomes
+`FIREBASE_PROJECT_ID`. If `firebase_id` is a JSON secret, extract its
+`FIREBASE_PROJECT_ID` scalar field before writing the environment file; do not write the complete
+JSON object as the environment value. The service-account JSON must be written only to
+`/opt/helkki/secrets/firebase-admin-service-account.json` with mode `0600`. Compose mounts that file
+read-only at `/run/secrets/firebase-admin-service-account.json`, and
+`GOOGLE_APPLICATION_CREDENTIALS` must use that container path.
+
+Do not write the JSON to `.env.staging`, a release directory, command output, CloudWatch, or S3.
+Before starting Compose, validate that the host file exists, has mode `600`, and that
+`docker compose ... config --quiet` succeeds. A deployment missing either Firebase environment value
+must be treated as a failed release because protected API routes fail closed with
+`AUTH_PROVIDER_UNAVAILABLE`.
+
 ## Birthdate encryption with AWS KMS
 
 Staging and production never use `BIRTHDATE_ENCRYPTION_KEY_BASE64`; that setting remains restricted

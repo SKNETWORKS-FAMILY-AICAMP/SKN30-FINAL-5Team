@@ -45,6 +45,10 @@ services:
       - "8000"
     ports:
       - "127.0.0.1:8000:8000"
+    volumes:
+      # The Firebase Admin service account stays on the host with mode 0600.
+      # Do not place the JSON in the image, repository, or .env.staging.
+      - ${FIREBASE_ADMIN_CREDENTIALS_HOST_PATH:?set FIREBASE_ADMIN_CREDENTIALS_HOST_PATH in .env.staging}:/run/secrets/firebase-admin-service-account.json:ro
     depends_on:
       qdrant:
         condition: service_healthy
