@@ -1,0 +1,27 @@
+# Makes the approved V3 path authoritative for every public routine creation.
+#
+# Always compose this after the authenticated Qdrant overlay:
+#   docker compose --env-file infra/deployment/.env.staging \
+#     -f infra/deployment/compose.staging.yaml \
+#     -f infra/deployment/compose.staging.qdrant.yaml \
+#     -f infra/deployment/compose.staging.v3production.yaml up -d
+#
+# Do not replace this with the DEMO overlay on the public service.  The
+# application selects no legacy decision service when this profile cannot be
+# composed; routine creation fails closed instead.
+
+services:
+  api:
+    environment:
+      V3_EXECUTION_PROFILE: PRODUCTION
+      V3_LANGGRAPH_ENABLED: "true"
+      V3_REGENERATION_ENABLED: "true"
+      V3_PRODUCTION_PROMOTION_APPROVED: "true"
+      LLM_AGENTS_ENABLED: "true"
+      LLM_AGENTS_PROVIDER_CODE: OPENAI
+      LLM_AGENTS_MODEL_CODE: gpt-5.6-terra
+      LLM_AGENTS_APPROVED_MODEL_CODES: '["gpt-5.6-terra"]'
+      LLM_AGENTS_TIMEOUT_SECONDS: "60"
+      LLM_AGENTS_MAX_OUTPUT_TOKENS: "4000"
+      # Narration is optional and cannot affect routine decisions.
+      LLM_MODEL_CODE: gpt-5.6-terra

@@ -13,6 +13,8 @@ CADDYFILE_PATH = Path("infra/deployment/Caddyfile")
 ENV_EXAMPLE_PATH = Path("infra/deployment/.env.staging.example")
 WEB_COMPOSE_PATH = Path("infra/deployment/compose.staging.web.yaml")
 WEB_CADDYFILE_PATH = Path("infra/deployment/Caddyfile.web")
+QDRANT_OVERLAY_PATH = Path("infra/deployment/compose.staging.qdrant.yaml")
+V3_PRODUCTION_OVERLAY_PATH = Path("infra/deployment/compose.staging.v3production.yaml")
 USER_DATA_PATH = Path("infra/aws/user-data.sh")
 
 
@@ -171,12 +173,34 @@ def test_staging_env_example_and_bootstrap_contain_no_secret_values() -> None:
     assert "BIRTHDATE_KMS_KEY_ID=alias/helkki-staging-birthdate" in env_example
     assert "AWS_ACCESS_KEY_ID" not in env_example
     assert "AWS_SECRET_ACCESS_KEY" not in env_example
-    assert "OPENAI_API_KEY" not in env_example
+    assert "OPENAI_API_KEY=<aws-secrets-manager-injected-openai-api-key>" in env_example
     assert "sk-" not in env_example
     assert "sk-" not in user_data
     assert "v2.40.3" in user_data
     assert "v0.36.1" in user_data
     assert "sha256sum --check" in user_data
+
+
+def test_public_v3_overlay_requires_authoritative_agents_and_vector_retrieval() -> None:
+    qdrant = QDRANT_OVERLAY_PATH.read_text(encoding="utf-8")
+    v3 = yaml.safe_load(V3_PRODUCTION_OVERLAY_PATH.read_text(encoding="utf-8"))["services"]["api"]
+    v3_environment = _environment(v3)
+
+    assert 'QDRANT_ENABLED: "true"' in qdrant
+    assert 'QDRANT_TLS_ENABLED: "true"' in qdrant
+    assert v3_environment == {
+        "V3_EXECUTION_PROFILE": "PRODUCTION",
+        "V3_LANGGRAPH_ENABLED": "true",
+        "V3_REGENERATION_ENABLED": "true",
+        "V3_PRODUCTION_PROMOTION_APPROVED": "true",
+        "LLM_AGENTS_ENABLED": "true",
+        "LLM_AGENTS_PROVIDER_CODE": "OPENAI",
+        "LLM_AGENTS_MODEL_CODE": "gpt-5.6-terra",
+        "LLM_AGENTS_APPROVED_MODEL_CODES": '["gpt-5.6-terra"]',
+        "LLM_AGENTS_TIMEOUT_SECONDS": "60",
+        "LLM_AGENTS_MAX_OUTPUT_TOKENS": "4000",
+        "LLM_MODEL_CODE": "gpt-5.6-terra",
+    }
 
 
 def test_ec2_role_policy_grants_only_required_birthdate_kms_operations() -> None:

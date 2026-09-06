@@ -56,12 +56,26 @@ def build_openai_shadow_chat_model(
 
 
 def openai_demo_gates_ready(settings: Settings, *, execution_profile: str) -> bool:
-    """Allow provider construction only for the explicit staging DEMO profile."""
+    """Allow the approved V3 runtime profile to construct its bounded provider.
+
+    ``PRODUCTION`` remains an explicit, server-owned promotion: it requires the
+    promotion input in addition to the normal provider gates.  Without that
+    input the application must expose V3 composition failure rather than route
+    a user back to the legacy decision service.
+    """
+
+    profile_allowed = (
+        (settings.app_env == "staging" and execution_profile == "DEMO")
+        or (
+            settings.app_env in {"staging", "production"}
+            and execution_profile == "PRODUCTION"
+            and settings.v3_production_promotion_approved
+        )
+    )
 
     return all(
         (
-            settings.app_env == "staging",
-            execution_profile == "DEMO",
+            profile_allowed,
             settings.llm_agents_enabled,
             settings.llm_agents_provider_code == "OPENAI",
             settings.llm_agents_model_code in settings.llm_agents_approved_model_codes,

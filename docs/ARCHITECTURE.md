@@ -186,9 +186,10 @@ flowchart TD
 - persistent LangGraph checkpointer는 V3 첫 구현에 포함하지 않는다. PostgreSQL decision record가
   canonical source of truth다.
 
-V3 domain/runtime/persistence 기반과 regeneration API boundary는 단계적으로 구현 중이지만 production
-application wiring은 아직 비활성이다. V1/V2 historical 실행과 response를 보존하고 전체 구현·검증 후
-별도 production 전환 승인으로 새 `graph_version`에서만 활성화한다.
+공개 루틴 생성은 V3 domain/runtime/persistence 경로를 사용한다. 배포 구성은 `PRODUCTION`
+profile, 승인된 promotion gate, LangGraph, 인증된 TLS Qdrant index와 LLM Agent를 함께 요구하며,
+어느 구성요소도 legacy 결정 경로로 조용히 대체하지 않는다. 요청 단위 provider 장애만 결정적
+Safety-approved fallback으로 처리하고, 그 fallback도 검증할 수 없으면 계획 없이 실패한다.
 
 ## 5. 에이전트 책임
 
