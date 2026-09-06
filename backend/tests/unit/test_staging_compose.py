@@ -214,3 +214,37 @@ def test_ec2_role_policy_grants_only_required_birthdate_kms_operations() -> None
     assert statement["Condition"]["ForAnyValue:StringEquals"]["kms:ResourceAliases"] == (
         "alias/helkki-staging-birthdate"
     )
+
+
+def test_staging_firebase_admin_credential_is_host_mounted_read_only() -> None:
+    api = _compose()["services"]["api"]
+    env_example = ENV_EXAMPLE_PATH.read_text(encoding="utf-8")
+
+    assert api["volumes"] == [
+        "${FIREBASE_ADMIN_CREDENTIALS_HOST_PATH:?set "
+        "FIREBASE_ADMIN_CREDENTIALS_HOST_PATH in .env.staging}:"
+        "/run/secrets/firebase-admin-service-account.json:ro"
+    ]
+    assert "FIREBASE_PROJECT_ID=<aws-secrets-manager-injected-firebase-project-id>" in env_example
+    assert "extract its\n# `FIREBASE_PROJECT_ID` scalar field" in env_example
+    assert (
+        "GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/firebase-admin-service-account.json"
+        in env_example
+    )
+    assert "private_key" not in env_example
+
+
+def test_ec2_role_policy_can_read_only_the_staging_firebase_secret_names() -> None:
+    policy = json.loads(Path("infra/aws/ec2-staging-secrets-policy.json").read_text())
+    statement = next(
+        item for item in policy["Statement"] if item["Sid"] == "ReadStagingDeploymentSecrets"
+    )
+
+    assert statement["Action"] == "secretsmanager:GetSecretValue"
+    assert (
+        "arn:aws:secretsmanager:ap-northeast-2:343953861875:secret:/helkki/staging/firebase_id-*"
+    ) in statement["Resource"]
+    assert (
+        "arn:aws:secretsmanager:ap-northeast-2:343953861875:secret:"
+        "/helkki/staging/firebase-admin-service-account-*"
+    ) in statement["Resource"]

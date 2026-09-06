@@ -6,6 +6,11 @@
 
 {$WEB_DOMAIN} {
 	encode zstd gzip
+	# HTML entry documents must be revalidated so a newly deployed Expo
+	# bundle is not hidden behind a stale onboarding shell.
+	header {
+		Cache-Control "no-store"
+	}
 
 	handle /api/* {
 		reverse_proxy api:8000
@@ -19,6 +24,11 @@
 
 {$APP_DOMAIN} {
 	encode zstd gzip
+	# The HTML entry point contains the fingerprinted JS bundle reference.
+	# Do not let browsers keep an obsolete onboarding bundle indefinitely.
+	header {
+		Cache-Control "no-store"
+	}
 	root * /srv/app
 	try_files {path} /index.html
 	file_server

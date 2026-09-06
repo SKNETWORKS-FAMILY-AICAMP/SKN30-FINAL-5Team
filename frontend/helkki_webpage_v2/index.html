@@ -89,34 +89,34 @@
 <body class="bg-[#FFFDF9] font-sans text-text-warm antialiased selection:bg-butter-yellow/30 selection:text-text-dark min-h-screen">
 <!-- 01. HEADER: 공통 상단 네비게이션, Sticky 적용 -->
 <header class="w-full sticky top-0 z-50 bg-[#FFFDF9]/90 backdrop-blur-sm border-b border-[#F7EFE8]">
-<div class="max-w-[1200px] mx-auto px-8 sm:px-16 py-4 flex items-center justify-between gap-4">
+<div class="max-w-[1200px] mx-auto px-4 py-3 sm:px-16 sm:py-4 flex items-center justify-between gap-2 sm:gap-4">
 <a class="flex items-center gap-2 focus:outline-none flex-shrink-0" href="index.html">
-<span class="text-[24px] sm:text-[26px] tracking-tight font-extrabold text-text-dark">HELKKI</span>
+<span class="text-[20px] sm:text-[26px] tracking-tight font-extrabold text-text-dark">HELKKI</span>
 </a>
-<nav class="flex items-center gap-4 sm:gap-8 overflow-x-auto whitespace-nowrap hide-scrollbar">
-<a href="index.html" aria-current="page" class="text-[14px] sm:text-[15px] font-bold text-coral-orange relative after:content-[''] after:absolute after:left-0 after:-bottom-[3px] after:w-full after:h-[2px] after:bg-coral-orange after:rounded-full">HOME</a>
-<a href="multi-agent.html" class="text-[14px] sm:text-[15px] font-medium text-text-warm hover:text-coral-orange transition-colors">HOW IT WORKS</a>
-<a href="kikki.html" class="text-[14px] sm:text-[15px] font-medium text-text-warm hover:text-coral-orange transition-colors">ABOUT KKIKKI</a>
+<nav class="flex min-w-0 items-center justify-end gap-2 whitespace-nowrap sm:gap-8">
+<a href="index.html" aria-current="page" class="shrink-0 text-[11px] sm:text-[15px] font-bold text-coral-orange relative after:content-[''] after:absolute after:left-0 after:-bottom-[3px] after:w-full after:h-[2px] after:bg-coral-orange after:rounded-full">HOME</a>
+<a href="multi-agent.html" class="shrink-0 text-[11px] sm:text-[15px] font-medium text-text-warm hover:text-coral-orange transition-colors">HOW IT WORKS</a>
+<a href="kikki.html" class="shrink-0 text-[11px] sm:text-[15px] font-medium text-text-warm hover:text-coral-orange transition-colors">ABOUT KKIKKI</a>
 </nav>
 </div>
 </header>
 <!-- MAIN CONTENT WRAPPER (Desktop 1200px container, px-16) -->
 <main class="w-full">
 <!-- 02. HERO SECTION (약 48% / 52% Split Layout, vertical center) -->
-<section class="relative w-full overflow-hidden flex items-center min-h-[680px] py-12">
+<section class="relative w-full overflow-hidden flex items-center min-h-[calc(100dvh-3rem)] py-10 sm:min-h-[680px] sm:py-12">
 <div class="pointer-events-none absolute right-[4%] top-1/2 -translate-y-1/2 w-[680px] h-[580px] bg-gradient-to-tr from-[#E8875B]/12 via-[#F4B942]/10 to-transparent rounded-full blur-3xl -z-10"></div>
 <div class="pointer-events-none absolute left-[-6%] bottom-0 w-[440px] h-[380px] bg-[#FFF8E5]/70 rounded-full blur-3xl -z-10"></div>
-<div class="max-w-[1200px] mx-auto px-8 sm:px-16 w-full">
-<div class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+<div class="max-w-[1200px] mx-auto px-4 sm:px-16 w-full">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-12 lg:gap-16 items-center">
 <!-- Hero Left (~45% / 5 cols of 12) -->
-<div class="lg:col-span-5 flex flex-col items-start text-left">
-<h1 class="text-[44px] lg:text-[48px] leading-[1.25] font-bold text-text-dark tracking-tight keep-all"><span class="block whitespace-nowrap">지금의 나에게 맞는 운동,</span><span class="block"><span class="text-[#e8875b]">헬끼</span>와 함께 고민해요.</span></h1>
-<p class="mt-[22px] text-[16px] leading-[1.6] text-text-warm font-normal keep-all">
-            컨디션과 운동 경험에 맞춰<br>지금 할 수 있는 운동을 추천해요.
+<div class="lg:col-span-5 flex min-h-[calc(100dvh-5rem)] flex-col items-start justify-center text-left sm:min-h-0 sm:justify-start">
+<h1 class="text-[36px] sm:text-[44px] lg:text-[48px] leading-[1.25] font-bold text-text-dark tracking-tight keep-all"><span class="block sm:whitespace-nowrap">지금의 나에게 맞는 운동,</span><span class="block"><span class="text-[#e8875b]">헬끼</span>와 함께 고민해요.</span></h1>
+<p class="mt-4 sm:mt-[22px] text-[15px] sm:text-[16px] leading-[1.6] text-text-warm font-normal keep-all">
+            컨디션과 운동 경험에 맞춰 <br class="hidden sm:block">지금 할 수 있는 운동을 추천해요.
           </p>
-<div class="mt-[26px]">
+<div class="mt-5 sm:mt-[26px]">
 <!-- 단 하나의 메인 CTA 버튼 -->
-<a id="start-helkki" class="inline-flex items-center justify-center gap-2.5 bg-butter-yellow hover:bg-butter-yellow-hover text-text-dark font-semibold text-[16px] px-8 py-3.5 rounded-full shadow-[0_6px_20px_rgba(244,185,66,0.32)] hover:shadow-[0_8px_24px_rgba(244,185,66,0.42)] active:translate-y-[1px] transition-all" href="app-entry.html">
+<a id="start-helkki" class="inline-flex items-center justify-center gap-2.5 bg-butter-yellow hover:bg-butter-yellow-hover text-text-dark font-semibold text-[15px] sm:text-[16px] px-6 sm:px-8 py-3.5 rounded-full shadow-[0_6px_20px_rgba(244,185,66,0.32)] hover:shadow-[0_8px_24px_rgba(244,185,66,0.42)] active:translate-y-[1px] transition-all" href="app-entry.html">
 <span class="">헬끼 시작하기</span>
 <span class="material-symbols-outlined text-[20px] font-semibold">arrow_forward</span>
 </a>
@@ -125,7 +125,7 @@
 <!-- Hero Right (~55% / 7 cols of 12): Product UI Preview + Mascot KKIKKI -->
 <div class="lg:col-span-7 relative flex justify-center lg:justify-end">
 <!-- 실제 서비스 기반 제품 프리뷰 카드 (White container taking ~90% width) -->
-<div class="relative w-full max-w-[480px] bg-white rounded-3xl p-6 sm:p-7 shadow-xl shadow-orange-950/5 border border-orange-100/60 z-0">
+<div class="relative w-full max-w-[480px] bg-white rounded-3xl p-4 sm:p-7 shadow-xl shadow-orange-950/5 border border-orange-100/60 z-0">
 <!-- 상단 날짜 및 인사 -->
 <div class="flex items-center justify-between pb-3.5 mb-4 border-b border-[#F7EFE8]">
 <div class="flex items-center gap-2.5">
@@ -173,10 +173,10 @@
 </div>
 </div>
 <!-- KKIKKI LOCK: 공식 끼끼 마스코트 (우측 하단 플로팅 마스코트 + 🍌 장식) -->
-<div class="absolute -bottom-[32px] -right-[18px] sm:-right-[32px] flex items-end justify-center pointer-events-none z-10">
+<div class="absolute -bottom-5 right-0 sm:-bottom-[32px] sm:-right-[32px] flex items-end justify-center pointer-events-none z-10">
 <div class="relative flex items-center justify-center">
 <div class="absolute -top-2 -right-2 text-[22px] select-none filter drop-shadow-sm">🍌</div>
-<img alt="헬끼 마스코트 끼끼" class="w-[145px] sm:w-[155px] h-auto object-contain mascot-blend select-none" src="끼끼.png" style="background: transparent;">
+<img alt="헬끼 마스코트 끼끼" class="w-[145px] sm:w-[155px] h-auto object-contain mascot-blend select-none" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCOog_xvtUEsIT9HDqLJguSvuD9JSa4l-_V_ZJ6bRTdmLglrYRtcSPiO0uCSCPMg5D9TcGKXVu_MviekbaUmCdxe5dt5W4KG_GnIeAsD6ZXN1aVaPTwCuaAWmcoKG-covZbMY2GE9mLvlqq18R7QAVBy4wTmlJn_1Qi4UzZWiiHUqxhxdBo-ctE6SpqU49DtKjAHTshR2nRQfS5Pj2B0hiIlGOcm2_GEkguReNwt3gLN9sPWuNJccl27Wn1YFBDleWCHig" style="background: transparent;">
 </div>
 </div>
 </div>
@@ -184,21 +184,21 @@
 </div>
 </section>
 <!-- 03. FEATURE INTRO (Hero와 간격 56px, Section Header와 Feature 01 간격 32px) -->
-<section class="max-w-[1200px] mx-auto px-8 sm:px-16 mt-[72px] mb-[32px] text-center" data-reveal>
+<section class="max-w-[1200px] mx-auto px-4 sm:px-16 mt-14 sm:mt-[72px] mb-6 sm:mb-[32px] text-center" data-reveal>
 <span class="text-[12px] font-bold tracking-wider text-[#E8875B] uppercase block mb-2">HOW HELKKI WORKS</span>
-<h2 class="text-[32px] font-bold text-[#4A3B32] tracking-tight mb-2">헬끼와 운동을 이어가는 방법</h2>
-<p class="text-[16px] text-[#7A6B60] font-normal">상태에 맞게 운동하고, 기록은 다음 계획으로 이어져요.</p>
+<h2 class="text-[26px] sm:text-[32px] font-bold text-[#4A3B32] tracking-tight mb-2">헬끼와 운동을 이어가는 방법</h2>
+<p class="text-[15px] sm:text-[16px] text-[#7A6B60] font-normal keep-all">상태에 맞게 운동하고, 기록은 다음 계획으로 이어져요.</p>
 </section>
 <!-- FEATURES CONTAINER (간격 22px) -->
-<div class="max-w-[1200px] mx-auto px-8 sm:px-16 flex flex-col gap-[22px] pb-14">
+<div class="max-w-[1200px] mx-auto px-4 sm:px-16 flex flex-col gap-4 sm:gap-[22px] pb-10 sm:pb-14">
 <!-- 04. FEATURE 01: 상태에 맞춰 달라지는 운동 (Left Text ~39% / Right UI ~57%, 패딩 38px) -->
-<div class="bg-white rounded-3xl p-8 lg:p-[38px] shadow-md shadow-orange-950/5 border border-orange-100/60" data-reveal>
-<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+<div class="bg-white rounded-3xl p-4 sm:p-8 lg:p-[38px] shadow-md shadow-orange-950/5 border border-orange-100/60" data-reveal>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 lg:gap-8 items-center">
 <!-- Left Text (~39%) -->
 <div class="lg:col-span-5 flex flex-col items-start gap-3.5">
 <div>
 <span class="text-[12px] font-semibold text-coral-orange uppercase tracking-wider mb-1 block">Feature 01</span>
-<h3 class="text-[26px] text-text-dark font-bold leading-tight">상태에 맞춰 달라지는 운동</h3>
+<h3 class="text-[22px] sm:text-[26px] text-text-dark font-bold leading-tight">상태에 맞춰 달라지는 운동</h3>
 </div>
 <p class="text-[16px] leading-[1.6] text-text-warm font-normal keep-all">
             컨디션에 맞춰 루틴을 조정해요.
@@ -215,8 +215,8 @@
 </ul>
 </div>
 <!-- Right UI Preview (~57%) -->
-<div class="lg:col-span-7 bg-[#FFFDF9] rounded-2xl p-5 sm:p-6 border border-[#F2E3D8] shadow-sm flex flex-col gap-3.5">
-<div class="flex items-center justify-between pb-2.5 border-b border-[#F7EFE8]">
+<div class="lg:col-span-7 bg-[#FFFDF9] rounded-2xl p-3.5 sm:p-6 border border-[#F2E3D8] shadow-sm flex flex-col gap-3.5">
+<div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#F7EFE8]">
 <div class="flex items-center gap-2">
 <span class="material-symbols-outlined text-coral-orange text-[20px]">checklist</span>
 <span class="text-[16px] text-text-dark font-bold">루틴 체크인</span>
@@ -248,10 +248,10 @@
 </div>
 </div>
 <!-- 05. FEATURE 02: 운동 기록이 다음 계획으로 (Left UI ~57% / Right Text ~39%, 패딩 38px) -->
-<div class="bg-white rounded-3xl p-8 lg:p-[38px] shadow-md shadow-orange-950/5 border border-orange-100/60" data-reveal>
-<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+<div class="bg-white rounded-3xl p-4 sm:p-8 lg:p-[38px] shadow-md shadow-orange-950/5 border border-orange-100/60" data-reveal>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 lg:gap-8 items-center">
 <!-- Left UI Preview (~57%) -->
-<div class="lg:col-span-7 order-2 lg:order-1 bg-[#FFFDF9] rounded-2xl p-5 sm:p-6 border border-[#F2E3D8] shadow-sm flex flex-col gap-3.5">
+<div class="lg:col-span-7 order-2 lg:order-1 bg-[#FFFDF9] rounded-2xl p-3.5 sm:p-6 border border-[#F2E3D8] shadow-sm flex flex-col gap-3.5">
 <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#F7EFE8]">
 <span class="text-[16px] font-bold text-text-dark flex items-center gap-2">
 <span class="material-symbols-outlined text-coral-orange text-[20px]">calendar_month</span>
@@ -290,7 +290,7 @@
 <div class="lg:col-span-5 order-1 lg:order-2 flex flex-col items-start gap-3.5">
 <div>
 <span class="text-[12px] font-semibold text-coral-orange uppercase tracking-wider mb-1 block">Feature 02</span>
-<h3 class="text-[26px] text-text-dark font-bold leading-tight">운동 기록이 다음 계획으로</h3>
+<h3 class="text-[22px] sm:text-[26px] text-text-dark font-bold leading-tight">운동 기록이 다음 계획으로</h3>
 </div>
 <p class="text-[16px] leading-[1.6] text-text-warm font-normal keep-all">
             운동 기록을 다음 루틴에 반영해요.
@@ -302,7 +302,7 @@
 </main>
 <!-- 06. MINIMAL FOOTER: 간결하게 "HELKKI" 텍스트만 표시 -->
 <footer class="w-full border-t border-[#F5E6DA]/70 bg-[#FFFDF9]">
-<div class="max-w-[1200px] mx-auto flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-8 py-4 text-[12px] text-text-muted sm:px-16">
+<div class="max-w-[1200px] mx-auto flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-4 text-[12px] text-text-muted sm:px-16">
 <span class="font-semibold tracking-wide text-text-warm">HELKKI</span><span aria-hidden="true">|</span><span>SKN30-FINAL-5Team</span><span aria-hidden="true">|</span><a href="https://github.com/SKNETWORKS-FAMILY-AICAMP/SKN30-FINAL-5Team" target="_blank" rel="noopener noreferrer" class="transition-colors hover:text-coral-orange">GitHub ↗</a>
 </div>
 </footer>
@@ -332,5 +332,9 @@
 
   setupReveal();
 
+  const startHelkkiLink = document.getElementById('start-helkki');
+  if (startHelkkiLink && window.matchMedia('(max-width: 767px)').matches) {
+    startHelkkiLink.href = 'https://app.helkki.com/';
+  }
 </script>
 </body></html>
