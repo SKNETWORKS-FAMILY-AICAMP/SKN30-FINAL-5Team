@@ -34,6 +34,16 @@ COPY data/generated/exercise-catalog-v2.0.6-final/backend_bundle \
 # answer APPROVED_CATALOG_UNAVAILABLE for every exercise in the catalog.
 COPY data/generated/home-equipment-variants-v1-final/backend_bundle \
     ./data/generated/home-equipment-variants-v1-final/backend_bundle
+# That bundle's approval registry names its review evidence, and the loader
+# refuses to serve reviewed content unless those files are on disk. They sit
+# outside the bundle directory, so shipping only the bundle still failed the
+# gate with REVIEW_ARTIFACT_MISSING. Copy the named artifacts and nothing more:
+# data/reports as a whole is several megabytes of unrelated analysis output.
+# backend/tests/unit/test_home_equipment_bundle_validation.py keeps this list
+# and the registry in step.
+COPY data/reports/home_equipment_substitution_guides_v1_validation.json \
+    data/reports/resistance_band_bodyweight_variant_gap_report_v1.json \
+    ./data/reports/
 
 RUN chown -R app:app /app
 
