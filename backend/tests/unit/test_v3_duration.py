@@ -43,8 +43,19 @@ QUERY_HASH = "c" * 64
 VALIDATOR_VERSION = "v3-integrity-validator-v1"
 
 
-def reps_record(exercise_id: UUID = REPS_EXERCISE) -> ExercisePoolExerciseRecord:
+# The catalog approves each exercise for the phases it may serve, and the pool
+# snapshot carries that projection forward. These fixtures exercise duration
+# arithmetic rather than session shape, so they default to a record every phase
+# can use; the shape tests pass the narrower values they need.
+ALL_PHASES: tuple[str, ...] = ("WARMUP", "MAIN", "COOLDOWN")
+
+
+def reps_record(
+    exercise_id: UUID = REPS_EXERCISE,
+    phase_codes: tuple[str, ...] = ALL_PHASES,
+) -> ExercisePoolExerciseRecord:
     return ExercisePoolExerciseRecord(
+        phase_codes=phase_codes,
         exercise_id=exercise_id,
         catalog_version="catalog-v3",
         content_version="content-v1",
@@ -67,8 +78,12 @@ def reps_record(exercise_id: UUID = REPS_EXERCISE) -> ExercisePoolExerciseRecord
     )
 
 
-def timed_record(exercise_id: UUID = TIMED_EXERCISE) -> ExercisePoolExerciseRecord:
+def timed_record(
+    exercise_id: UUID = TIMED_EXERCISE,
+    phase_codes: tuple[str, ...] = ALL_PHASES,
+) -> ExercisePoolExerciseRecord:
     return ExercisePoolExerciseRecord(
+        phase_codes=phase_codes,
         exercise_id=exercise_id,
         catalog_version="catalog-v3",
         content_version="content-v1",

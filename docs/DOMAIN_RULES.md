@@ -372,7 +372,16 @@ RECOVERY 콘텐츠는 DOMAIN_APPROVED 상태의 가벼운 걷기, 호흡, 가동
 
 이 허용 범위는 2026-08-27 프로젝트 오너 승인으로 도입됐다. 근거와 경위는 `docs/tasks/TASK-ROUTINE-EQUIPMENT-AND-DURATION.md`에 있다. 구현 상수는 `backend/app/domain/rules/duration.py`의 `DURATION_TOLERANCE_SECONDS`이며 V1/V2 루틴 경로와 V3 계획 경로가 같은 값을 공유한다.
 
-V3 경로의 시간 산출은 `backend/app/domain/agents/v3_duration.py`가 담당한다. 반복 기반 운동은 카탈로그의 `default_seconds_per_rep`으로 환산하고, 동작 전환은 카탈로그 `default_transition_seconds`를 사용한다. 모델이 제시한 값이 아니라 검수된 카탈로그 값을 기준으로 삼는다. V3 계획은 현재 모든 항목을 `MAIN`으로 구성하므로 `setup_seconds`, `warmup_seconds`, `cooldown_seconds`가 아직 0이다. 이 구간의 도입은 별도 과제로 관리한다.
+V3 경로의 시간 산출은 `backend/app/domain/agents/v3_duration.py`가 담당한다. 반복 기반 운동은 카탈로그의 `default_seconds_per_rep`으로 환산하고, 동작 전환은 카탈로그 `default_transition_seconds`를 사용한다. 모델이 제시한 값이 아니라 검수된 카탈로그 값을 기준으로 삼는다. `warmup_seconds`와 `cooldown_seconds`는 해당 phase 항목들의 `estimated_item_seconds` 합이며, V1/V2 루틴 경로와 같은 방식으로 계산한다. V3는 별도의 장비 준비 블록을 모델링하지 않으므로 `setup_seconds`는 0이다.
+
+세션 구성 한도는 `backend/app/domain/rules/plan_shape.py`에 있으며 V1/V2 루틴 경로와 V3 계획 경로가 공유한다.
+
+- 계획은 `WARMUP`·`MAIN`·`COOLDOWN`을 모두 포함하고 그 순서를 지킨다.
+- 서로 다른 운동 종목은 한 세션에 최대 10개, 그중 `WARMUP` 최대 2개, `COOLDOWN` 최대 2개다.
+- 같은 운동을 여러 블록으로 나눠도 종목 수는 1개로 센다. 남는 시간은 종목을 늘리는 대신 세트 수로 흡수한다.
+- phase는 운동의 검수된 속성이다. 계획은 카탈로그가 승인하지 않은 phase에 운동을 배치할 수 없다.
+
+V3에서 이 한도는 컴파일된 계획에 대한 무결성 검증(`validate_plan_integrity`)이 강제한다. 위반은 조정자 1회 재수정 대상이며, 재수정으로도 해소되지 않으면 결정론적 폴백이 같은 승인 풀에서 같은 형태를 다시 만든다. 폴백조차 해당 phase 후보를 찾지 못하면 계획을 반환하지 않고 실패한다.
 
 ~~~text
 estimated_duration_seconds

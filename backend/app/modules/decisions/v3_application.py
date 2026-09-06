@@ -841,9 +841,20 @@ class V3DecisionResponseProjector:
                 requested_duration_minutes=plan.requested_duration_minutes,
                 estimated_duration_seconds=plan.estimated_duration_seconds,
                 estimated_calories_burned=None,
+                # V3 models no separate setup block; the compiled duration is
+                # the whole session. Warmup and cooldown are the time actually
+                # spent in those phases, computed the same way the base-routine
+                # planner computes them, so a V3 plan and a legacy plan report
+                # the same field the same way. Reporting a flat zero here made
+                # every V3 routine look like it had no preparation or settling
+                # work even when the plan carried both.
                 setup_seconds=0,
-                warmup_seconds=0,
-                cooldown_seconds=0,
+                warmup_seconds=sum(
+                    item.estimated_item_seconds for item in items if item.phase_code == "WARMUP"
+                ),
+                cooldown_seconds=sum(
+                    item.estimated_item_seconds for item in items if item.phase_code == "COOLDOWN"
+                ),
                 items=items,
             ),
             options=[

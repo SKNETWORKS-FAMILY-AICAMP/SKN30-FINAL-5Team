@@ -34,8 +34,12 @@ OUTSIDE = UUID("00000000-0000-0000-0000-000000000099")
 QUERY_HASH = "b" * 64
 
 
-def exercise(exercise_id: UUID) -> ExercisePoolExerciseRecord:
+def exercise(
+    exercise_id: UUID,
+    phase_codes: tuple[str, ...] = ("WARMUP", "MAIN", "COOLDOWN"),
+) -> ExercisePoolExerciseRecord:
     return ExercisePoolExerciseRecord(
+        phase_codes=phase_codes,
         exercise_id=exercise_id,
         catalog_version="catalog-v3",
         content_version=f"content-{exercise_id.int}",
@@ -91,8 +95,12 @@ def envelope(
     )
 
 
-def pool(current_envelope: ConstraintEnvelope) -> ExercisePoolSnapshot:
-    records = tuple(exercise(value) for value in (A, B, C, D))
+def pool(
+    current_envelope: ConstraintEnvelope,
+    records: tuple[ExercisePoolExerciseRecord, ...] | None = None,
+) -> ExercisePoolSnapshot:
+    if records is None:
+        records = tuple(exercise(value) for value in (A, B, C, D))
     return ExercisePoolSnapshot.create(
         catalog_version="catalog-v3",
         constraint_envelope_hash=current_envelope.envelope_hash,

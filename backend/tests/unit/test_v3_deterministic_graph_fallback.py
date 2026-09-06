@@ -11,6 +11,11 @@ from backend.app.domain.agents.v3_orchestration import (
 )
 from backend.app.domain.agents.v3_validation import IntegrityValidationContext
 from backend.app.domain.rules.duration import DURATION_TOLERANCE_SECONDS
+from backend.app.domain.rules.plan_shape import (
+    MAX_PHASE_EXERCISE_TYPES,
+    MAX_PLAN_EXERCISE_TYPES,
+    phase_rank,
+)
 from backend.app.integrations.langgraph.fallback import DeterministicGraphFallbackProvider
 from backend.tests.unit.test_v3_demo_runtime import _blocked_root_snapshot
 from backend.tests.unit.test_v3_duration import _envelope as duration_envelope
@@ -159,3 +164,73 @@ def test_fallback_builds_a_plan_when_the_equipment_allowlist_is_empty() -> None:
     for prescription in spec.exercise_prescriptions:
         record = by_id[prescription.exercise_id]
         assert set(prescription.equipment_codes) == set(record.equipment_codes)
+
+
+def test_fallback_opens_with_a_warmup_and_closes_with_a_cooldown() -> None:
+    # The fallback never passed phase_code, so every prescription defaulted to
+    # MAIN and the deterministic path could only produce a session with no
+    # preparation and no settling work.
+    envelope = duration_envelope(requested_duration_minutes=30)
+    records = tuple(reps_record(UUID(int=index)) for index in range(1, 11))
+    pool = duration_pool(envelope, records)
+
+    spec = DeterministicGraphFallbackProvider().generate(
+        FallbackRequest.create(
+            constraint_envelope=envelope,
+            exercise_pool=pool,
+            fallback_version="v3-deterministic-fallback-v1",
+        )
+    )
+
+    assert spec is not None
+    phases = [item.phase_code for item in spec.exercise_prescriptions]
+    assert phases[0] == "WARMUP"
+    assert phases[-1] == "COOLDOWN"
+    assert set(phases) == {"WARMUP", "MAIN", "COOLDOWN"}
+    assert phases == sorted(phases, key=phase_rank)
+    assert [item.sequence for item in spec.exercise_prescriptions] == list(
+        range(1, len(phases) + 1)
+    )
+
+
+def test_fallback_keeps_the_session_inside_the_exercise_type_budget() -> None:
+    # A session is a workout, not an inventory: the base-routine planner has
+    # always capped distinct exercises, and the V3 path inherited no such bound.
+    envelope = duration_envelope(requested_duration_minutes=120)
+    records = tuple(reps_record(UUID(int=index)) for index in range(1, 31))
+    pool = duration_pool(envelope, records)
+
+    spec = DeterministicGraphFallbackProvider().generate(
+        FallbackRequest.create(
+            constraint_envelope=envelope,
+            exercise_pool=pool,
+            fallback_version="v3-deterministic-fallback-v1",
+        )
+    )
+
+    if spec is not None:
+        prescriptions = spec.exercise_prescriptions
+        assert len({item.exercise_id for item in prescriptions}) <= MAX_PLAN_EXERCISE_TYPES
+        for phase_code, cap in MAX_PHASE_EXERCISE_TYPES.items():
+            phase_ids = {
+                item.exercise_id for item in prescriptions if item.phase_code == phase_code
+            }
+            assert len(phase_ids) <= cap
+
+
+def test_fallback_declines_when_the_pool_has_no_cooldown_candidate() -> None:
+    # A plan missing a phase cannot pass integrity validation, so there is no
+    # safe fallback to hand back; the request fails closed instead.
+    envelope = duration_envelope(requested_duration_minutes=30)
+    records = tuple(
+        reps_record(UUID(int=index), phase_codes=("WARMUP", "MAIN")) for index in range(1, 11)
+    )
+    pool = duration_pool(envelope, records)
+
+    request = FallbackRequest.create(
+        constraint_envelope=envelope,
+        exercise_pool=pool,
+        fallback_version="v3-deterministic-fallback-v1",
+    )
+
+    assert DeterministicGraphFallbackProvider().generate(request) is None

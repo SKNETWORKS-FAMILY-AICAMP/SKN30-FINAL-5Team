@@ -26,7 +26,15 @@ from backend.app.domain.agents.v3_validation import (
     validate_plan_integrity,
 )
 from backend.app.domain.rules.safety import SafetyRequiredActionCode
-from backend.tests.unit.test_v3_agent_contracts import OUTSIDE, A, B, envelope, pool, prescription
+from backend.tests.unit.test_v3_agent_contracts import (
+    OUTSIDE,
+    A,
+    B,
+    C,
+    envelope,
+    pool,
+    prescription,
+)
 from backend.tests.unit.test_v3_coordinator_contracts import coordinator_input, plan, proposals
 
 COMPILER_VERSION = "v3-plan-compiler-v1"
@@ -45,8 +53,14 @@ def fallback_spec(
         pool_hash=current_pool.pool_hash,
         action_code=PlanActionCode.KEEP,
         requested_duration_minutes=6,
-        estimated_duration_seconds=330,
-        exercise_prescriptions=(prescription(A, 1), prescription(second_id, 2)),
+        estimated_duration_seconds=495,
+        # A valid plan covers all three phases; integrity validation rejects one
+        # that does not, so a fixture standing in for a good fallback has to.
+        exercise_prescriptions=(
+            prescription(A, 1, phase_code="WARMUP"),
+            prescription(second_id, 2),
+            prescription(C, 3, phase_code="COOLDOWN"),
+        ),
         reason_codes=("DETERMINISTIC_FALLBACK",),
         fallback_version="fallback-v1",
     )

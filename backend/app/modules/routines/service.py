@@ -17,6 +17,10 @@ from backend.app.domain.rules.duration import (
     require_exact_duration,
     validate_requested_duration,
 )
+from backend.app.domain.rules.plan_shape import (
+    MAX_PHASE_EXERCISE_TYPES,
+    MAX_PLAN_EXERCISE_TYPES,
+)
 from backend.app.modules.routines.codes import RoutinePhaseCode, RoutineTierCode
 from backend.app.modules.routines.ports import (
     RoutineCandidate,
@@ -81,17 +85,14 @@ def _candidate_duration(candidate: RoutineCandidate) -> PlanItemDuration:
 
 # A session is a workout, not an inventory. Filling the requested time by
 # stacking ever more exercises produced 22-item plans that were mostly warmup
-# and cooldown work, so the shape is bounded and the set count absorbs the
-# remaining time instead.
-# A session is a workout, not an inventory. Filling the requested time by
-# stacking ever more exercises produced 22-item plans that were mostly warmup
 # and cooldown work, so the number of distinct exercises is bounded and the set
-# count absorbs the rest.
+# count absorbs the rest. The bounds live in domain.rules.plan_shape because the
+# V3 planner has to answer to the same shape; it did not, and shipped flat
+# twelve-exercise plans with one warmup block.
 MAX_PHASE_TYPES: Final[dict[str, int]] = {
-    RoutinePhaseCode.WARMUP: 2,
-    RoutinePhaseCode.COOLDOWN: 2,
+    str(phase_code): cap for phase_code, cap in MAX_PHASE_EXERCISE_TYPES.items()
 }
-MAX_PLAN_TYPES: Final = 10
+MAX_PLAN_TYPES: Final = MAX_PLAN_EXERCISE_TYPES
 # One exercise may be split across blocks rather than run as a single long set
 # run: four sets of push-ups, three of squats, then four more of push-ups is a
 # session; eight straight sets of push-ups is not. Blocks of the same exercise
