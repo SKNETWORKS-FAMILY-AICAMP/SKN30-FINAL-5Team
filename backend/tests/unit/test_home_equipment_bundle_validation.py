@@ -105,3 +105,24 @@ def test_self_reference_and_unknown_exercise_codes_are_rejected() -> None:
         validate_bundle_references(self_referencing, _references(bundle))
     with pytest.raises(HomeEquipmentBundleValidationError, match="EXERCISE_REFERENCE_NOT_FOUND"):
         validate_bundle_references(unknown_exercise, _references(bundle))
+
+
+def test_every_review_artifact_the_registry_names_is_shipped_in_the_image() -> None:
+    """The loader is fail-closed on review evidence, so the image must carry it.
+
+    Shipping the bundle alone left the runtime failing REVIEW_ARTIFACT_MISSING,
+    which surfaced as a 503 on every GET /exercises/{id}. These paths are
+    resolved against the container working directory, so a path the Dockerfile
+    does not copy is a path the API cannot serve.
+    """
+
+    registry = json.loads((BUNDLE / "approval" / "production_approval_registry.json").read_text())
+    required = {
+        path for dataset in registry["datasets"] for path in dataset["review_artifact_paths"]
+    }
+    assert required, "the registry must name its review evidence"
+
+    dockerfile = Path("backend/Dockerfile").read_text(encoding="utf-8")
+    for path in sorted(required):
+        assert Path(path).is_file(), f"{path} is missing from the repository"
+        assert path in dockerfile, f"{path} is not copied into the image"
