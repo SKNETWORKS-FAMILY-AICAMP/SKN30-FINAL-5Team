@@ -41,6 +41,11 @@ class DecisionContext:
     def __post_init__(self) -> None:
         object.__setattr__(
             self,
+            "attention_area_codes",
+            tuple(sorted(set(self.attention_area_codes))),
+        )
+        object.__setattr__(
+            self,
             "recent_workout_status_codes",
             tuple(self.recent_workout_status_codes),
         )

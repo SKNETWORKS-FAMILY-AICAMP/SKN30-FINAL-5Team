@@ -419,11 +419,7 @@ def test_profile_attention_areas_do_not_affect_decision_input_or_safety() -> Non
 
     first_snapshot = first_repository.persisted["input_snapshot"]  # type: ignore[index]
     reordered_snapshot = reordered_repository.persisted["input_snapshot"]  # type: ignore[index]
-    assert first_repository.assembly.context.attention_area_codes == (
-        "SHOULDER",
-        "KNEE",
-        "SHOULDER",
-    )
+    assert first_repository.assembly.context.attention_area_codes == ("KNEE", "SHOULDER")
     assert first_snapshot == reordered_snapshot
     assert "attention_area_codes" not in first_snapshot["profile"]
     assert (

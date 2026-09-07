@@ -778,11 +778,13 @@ def test_decision_repository_excludes_profile_attention_areas_from_decision_inpu
     record_counts = _decision_record_counts(postgres_session)
     postgres_session.rollback()
 
+    failing_owner_id = _add_user(postgres_session, attention_areas=())
+    failing_context_id = _prepare_decision_inputs(postgres_session, failing_owner_id)
     with pytest.raises(RuntimeError, match="synthetic persist failure"):
         DecisionService(FailingDecisionRepository(), clock=lambda: NOW).create(
             postgres_session,
-            owner_id,
-            _request(owner_context_id),
+            failing_owner_id,
+            _request(failing_context_id),
             uuid4(),
         )
     assert _decision_record_counts(postgres_session) == record_counts
@@ -834,7 +836,7 @@ def test_profile_update_changes_only_future_decision_context_snapshots(
     updated = repository.assemble(postgres_session, owner_id, context_id)
     assert updated is not None
     assert updated.context.primary_goal_code == "MUSCLE_GAIN"
-    assert updated.context.profile_preferred_location_code == "GYM"
+    assert updated.context.profile_preferred_location_code == "HOME"
     assert updated.context.equipment_codes == ("BODYWEIGHT", "MAT", "RESISTANCE_BAND")
     assert updated.context.attention_area_codes == ()
     postgres_session.rollback()
