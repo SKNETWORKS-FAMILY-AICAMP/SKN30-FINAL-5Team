@@ -2,7 +2,6 @@ import type { MeProfile, WorkoutSessionLogSummary } from '../../api/types';
 import {
   bodyAreaLabel,
   experienceLevelLabel,
-  locationLabel,
   primaryGoalLabel,
 } from '../../api/labels';
 
@@ -15,8 +14,6 @@ export type MyPageStats = {
 export type MyPageProfileField =
   | 'primary_goal_code'
   | 'experience_level_code'
-  | 'available_location_codes'
-  | 'default_requested_duration_minutes'
   | 'desired_weekly_workout_count'
   | 'persistent_pains';
 
@@ -39,17 +36,6 @@ export function buildMyPageProfileRows(
       'experience_level_code',
       '운동 경험',
       experienceLevelLabel(profile.experience_level_code),
-    ],
-    [
-      'available_location_codes',
-      '운동 장소',
-      profile.available_location_codes.map(locationLabel).join(' · ') ||
-        locationLabel(profile.preferred_location_code),
-    ],
-    [
-      'default_requested_duration_minutes',
-      '운동 시간',
-      `${profile.default_requested_duration_minutes}분`,
     ],
     [
       'desired_weekly_workout_count',

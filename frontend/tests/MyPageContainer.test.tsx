@@ -123,13 +123,15 @@ describe('MyPageContainer', () => {
     ).toEqual(expect.objectContaining({ selected: true }));
     expect(screen.queryByRole('button', { name: '나이 수정' })).toBeNull();
     expect(screen.queryByRole('button', { name: '시간대 수정' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '운동 장소 수정' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '운동 시간 수정' })).toBeNull();
     expect(screen.queryByText('BODYWEIGHT')).toBeNull();
     expect(screen.queryByText('완료 운동')).toBeNull();
     expect(screen.queryByText('연속 기록')).toBeNull();
     expect(screen.queryByText('이번 주')).toBeNull();
   });
 
-  it('offers the onboarding goal, experience, and location choices', async () => {
+  it('offers the current onboarding goal and experience choices', async () => {
     await render(
       <MyPageContainer
         api={accountApi()}
@@ -150,15 +152,6 @@ describe('MyPageContainer', () => {
     fireEvent.press(screen.getByRole('button', { name: '운동 경험 수정' }));
     expect(screen.getByRole('radio', { name: '초급' })).toBeChecked();
     expect(screen.getByRole('radio', { name: '중급' })).toBeOnTheScreen();
-    fireEvent.press(screen.getByTestId('profile-editor-backdrop'));
-
-    fireEvent.press(screen.getByRole('button', { name: '운동 장소 수정' }));
-    expect(
-      screen.getByRole('header', { name: '운동 장소 수정' }),
-    ).toBeOnTheScreen();
-    expect(screen.getByRole('checkbox', { name: '집' })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: '헬스장' })).toBeOnTheScreen();
-    expect(screen.queryByRole('checkbox', { name: '야외' })).toBeNull();
   });
 
   it('never exposes an unmapped machine code', async () => {
@@ -237,7 +230,7 @@ describe('MyPageContainer', () => {
     expect(screen.queryByText('헬끼님')).toBeNull();
   });
 
-  it('updates all basic profile fields from the profile entry point', async () => {
+  it('updates only current onboarding profile fields from the profile entry point', async () => {
     const updateProfileSettings = jest.fn<Api['updateProfileSettings']>(
       async () => ({
         profile_version: 8,
@@ -266,12 +259,13 @@ describe('MyPageContainer', () => {
     expect(screen.queryByText('시간대')).toBeNull();
     expect(screen.queryByText('선택하지 않음')).toBeNull();
     expect(screen.queryByText(/변경할 때만/)).toBeNull();
+    expect(screen.queryByLabelText('키 입력')).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: '여성' })).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: '남성' })).toBeNull();
     fireEvent.changeText(screen.getByLabelText('닉네임 입력'), '새 닉네임');
     fireEvent.press(screen.getByRole('button', { name: '연도 1997년' }));
     fireEvent.press(screen.getByRole('button', { name: '월 4월' }));
     fireEvent.press(screen.getByRole('button', { name: '일 3일' }));
-    fireEvent.press(screen.getByRole('checkbox', { name: '여성' }));
-    fireEvent.changeText(screen.getByLabelText('키 입력'), '168.5');
     fireEvent.changeText(screen.getByLabelText('체중 입력'), '58.2');
     fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
 
@@ -280,8 +274,6 @@ describe('MyPageContainer', () => {
         {
           nickname: '새 닉네임',
           date_of_birth: '1997-04-03',
-          sex_code: 'FEMALE',
-          height_cm: 168.5,
           weight_kg: 58.2,
         },
         7,
@@ -432,7 +424,7 @@ describe('MyPageContainer', () => {
           code: 'INVALID_REQUEST',
           status: 400,
           message: '요청 값이 올바르지 않습니다.',
-          details: [{ field: 'body.default_requested_duration_minutes' }],
+          details: [{ field: 'body.desired_weekly_workout_count' }],
         });
       },
     );
@@ -448,14 +440,16 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '운동 시간 수정' }));
     fireEvent.press(
-      screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
+      screen.getByRole('button', { name: '주간 운동 횟수 수정' }),
+    );
+    fireEvent.press(
+      screen.getByRole('button', { name: '주간 운동 횟수 1회 늘리기' }),
     );
     fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
     expect(
       await screen.findByText(
-        '운동 시간 값을 확인해주세요. 요청 값이 올바르지 않습니다.',
+        '주간 운동 횟수 값을 확인해주세요. 요청 값이 올바르지 않습니다.',
       ),
     ).toBeOnTheScreen();
   });
@@ -484,9 +478,11 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '운동 시간 수정' }));
     fireEvent.press(
-      screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
+      screen.getByRole('button', { name: '주간 운동 횟수 수정' }),
+    );
+    fireEvent.press(
+      screen.getByRole('button', { name: '주간 운동 횟수 1회 늘리기' }),
     );
     fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
     expect(
@@ -530,7 +526,7 @@ describe('MyPageContainer', () => {
     expect(onRefreshMe).toHaveBeenCalledTimes(1);
   });
 
-  it('opens one field editor and saves a duration change from the save button', async () => {
+  it('opens one field editor and saves a weekly-count change from the save button', async () => {
     const updateProfileSettings = jest.fn<Api['updateProfileSettings']>(
       async () => ({
         profile_version: 8,
@@ -549,9 +545,11 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '운동 시간 수정' }));
+    fireEvent.press(
+      screen.getByRole('button', { name: '주간 운동 횟수 수정' }),
+    );
     expect(
-      screen.getByRole('header', { name: '운동 시간 수정' }),
+      screen.getByRole('header', { name: '주간 운동 횟수 수정' }),
     ).toBeOnTheScreen();
     expect(
       screen.getByText('수정한 뒤 저장하기를 눌러야 반영돼요.'),
@@ -559,14 +557,14 @@ describe('MyPageContainer', () => {
     // 수정 전에는 저장 버튼이 없다.
     expect(screen.queryByRole('button', { name: '저장하기' })).toBeNull();
     fireEvent.press(
-      screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
+      screen.getByRole('button', { name: '주간 운동 횟수 1회 늘리기' }),
     );
     expect(updateProfileSettings).not.toHaveBeenCalled();
 
     fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
     await waitFor(() =>
       expect(updateProfileSettings).toHaveBeenCalledWith(
-        { default_requested_duration_minutes: 40 },
+        { desired_weekly_workout_count: 5 },
         7,
       ),
     );
@@ -647,16 +645,20 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '운동 시간 수정' }));
+    fireEvent.press(
+      screen.getByRole('button', { name: '주간 운동 횟수 수정' }),
+    );
     fireEvent.press(screen.getByTestId('profile-editor-sheet'), {
       stopPropagation: jest.fn(),
     });
     expect(
-      screen.getByRole('header', { name: '운동 시간 수정' }),
+      screen.getByRole('header', { name: '주간 운동 횟수 수정' }),
     ).toBeOnTheScreen();
 
     fireEvent.press(screen.getByTestId('profile-editor-backdrop'));
-    expect(screen.queryByRole('header', { name: '운동 시간 수정' })).toBeNull();
+    expect(
+      screen.queryByRole('header', { name: '주간 운동 횟수 수정' }),
+    ).toBeNull();
   });
 
   it('saves an optional consent immediately without a save button', async () => {
@@ -693,51 +695,6 @@ describe('MyPageContainer', () => {
       ),
     );
     expect(screen.queryByText('동의 변경 저장')).toBeNull();
-  });
-
-  it('updates both available and preferred workout locations', async () => {
-    const updateProfileSettings = jest.fn<Api['updateProfileSettings']>(
-      async () => ({
-        profile_version: 8,
-        updated_at: '2026-08-19T09:00:00+09:00',
-      }),
-    );
-
-    await render(
-      <MyPageContainer
-        api={accountApi({ updateProfileSettings })}
-        me={me()}
-        now={new Date('2026-08-19T03:00:00Z')}
-        onNavigateTab={jest.fn()}
-        onRefreshMe={jest.fn(async () => undefined)}
-        onSignOut={jest.fn()}
-      />,
-    );
-
-    fireEvent.press(screen.getByRole('button', { name: '운동 장소 수정' }));
-    fireEvent.press(screen.getByRole('checkbox', { name: '헬스장' }));
-    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
-    await waitFor(() =>
-      expect(updateProfileSettings).toHaveBeenCalledWith(
-        {
-          available_location_codes: ['HOME', 'GYM'],
-          preferred_location_code: 'HOME',
-        },
-        7,
-      ),
-    );
-
-    fireEvent.press(screen.getByRole('radio', { name: '헬스장' }));
-    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
-    await waitFor(() =>
-      expect(updateProfileSettings).toHaveBeenLastCalledWith(
-        {
-          available_location_codes: ['HOME', 'GYM'],
-          preferred_location_code: 'GYM',
-        },
-        7,
-      ),
-    );
   });
 
   it('migrates a legacy attention area to persistent pains when clearing it', async () => {

@@ -15,7 +15,6 @@ import {
   DEFAULT_BODY_AREA_OPTIONS,
   experienceLevelLabel,
   EXTENDED_BODY_AREA_OPTIONS,
-  locationLabel,
   orderBodyAreaCodes,
   primaryGoalLabel,
   SELECTABLE_BODY_AREA_OPTIONS,
@@ -25,7 +24,6 @@ import type {
   PainAreaInput,
   ProfileImageUpload,
   ProfileSettingsUpdateRequest,
-  SexCode,
 } from '../../api/types';
 import {
   Button,
@@ -43,14 +41,12 @@ import { ProfileAvatar } from '../../components/profile/ProfileAvatar';
 import {
   ONBOARDING_EXPERIENCE_OPTIONS,
   ONBOARDING_GOAL_OPTIONS,
-  ONBOARDING_LOCATION_OPTIONS,
   ONBOARDING_WEEKLY_COUNT,
 } from '../onboarding/onboardingOptions';
 import {
   BirthDateField,
   latestEligibleBirthdateIso,
 } from '../onboarding/BirthDateField';
-import { CHECKIN_DURATION_MINUTES } from './homeConstants';
 import type { MyPageProfileField } from './myPageModel';
 
 export type MyPageEditableField = MyPageProfileField | 'basic_profile';
@@ -73,15 +69,12 @@ const TITLES: Record<MyPageEditableField, string> = {
   basic_profile: '프로필 수정',
   primary_goal_code: '운동 목표 수정',
   experience_level_code: '운동 경험 수정',
-  available_location_codes: '운동 장소 수정',
-  default_requested_duration_minutes: '운동 시간 수정',
   desired_weekly_workout_count: '주간 운동 횟수 수정',
   persistent_pains: '평소 불편한 부위 수정',
 };
 
-// The profile card edits identity only; exercise settings stay in 내 운동 정보.
 const BASIC_PROFILE_DESCRIPTION =
-  '닉네임과 프로필 사진, 기본 정보만 바꿔요. 운동 설정은 내 운동 정보에서 바꿀 수 있어요.';
+  '닉네임과 프로필 사진, 생년월일, 체중을 바꿀 수 있어요. 운동 설정은 내 운동 정보에서 바꿀 수 있어요.';
 // Nothing saves until the user presses the save button, so every field says so.
 const EXPLICIT_SAVE_DESCRIPTION = '수정한 뒤 저장하기를 눌러야 반영돼요.';
 
@@ -125,9 +118,7 @@ export function MyPageProfileEditor({
             <Text accessibilityRole="header" style={styles.title}>
               {TITLES[field]}
             </Text>
-            <Text style={styles.description}>
-              {editorDescription(field, profile)}
-            </Text>
+            <Text style={styles.description}>{editorDescription(field)}</Text>
           </View>
           <Pressable
             accessibilityLabel="프로필 편집 닫기"
@@ -238,31 +229,6 @@ function EditorBody({
     );
   }
 
-  if (field === 'available_location_codes') {
-    return (
-      <LocationEditor
-        disabled={pending}
-        initial={profile.available_location_codes}
-        initialPreferred={profile.preferred_location_code}
-        options={mergeOptions(
-          ONBOARDING_LOCATION_OPTIONS,
-          profile.available_location_codes,
-          locationLabel,
-        )}
-        onChange={(available_location_codes, preferred_location_code) =>
-          onDraftChange(
-            sameCodes(
-              available_location_codes,
-              profile.available_location_codes,
-            ) && preferred_location_code === profile.preferred_location_code
-              ? null
-              : { available_location_codes, preferred_location_code },
-          )
-        }
-      />
-    );
-  }
-
   if (field === 'persistent_pains') {
     const storedPainAreas = profile.persistent_pains ?? profile.pain_areas;
     const initialPainAreas = storedPainAreas ?? [];
@@ -278,26 +244,6 @@ function EditorBody({
         onChange={(persistent_pains) =>
           onDraftChange(persistent_pains === null ? null : { persistent_pains })
         }
-      />
-    );
-  }
-
-  if (field === 'default_requested_duration_minutes') {
-    return (
-      <DraftStepper
-        decreaseLabel="운동 시간 10분 줄이기"
-        increaseLabel="운동 시간 10분 늘리기"
-        max={CHECKIN_DURATION_MINUTES.max}
-        min={CHECKIN_DURATION_MINUTES.min}
-        onDraftChange={(next) =>
-          onDraftChange(
-            next === null ? null : { default_requested_duration_minutes: next },
-          )
-        }
-        pending={pending}
-        step={CHECKIN_DURATION_MINUTES.step}
-        suffix="분"
-        value={profile.default_requested_duration_minutes}
       />
     );
   }
@@ -355,11 +301,6 @@ function SingleChoiceEditor({
   );
 }
 
-const BASIC_SEX_OPTIONS = [
-  { code: 'FEMALE', label: '여성' },
-  { code: 'MALE', label: '남성' },
-] as const satisfies readonly { code: SexCode; label: string }[];
-
 function BasicProfileEditor({
   onBasicProfileChange,
   onChange,
@@ -379,8 +320,6 @@ function BasicProfileEditor({
   const [imagePickerPending, setImagePickerPending] = useState(false);
   const [dateOfBirth, setDateOfBirth] = useState(latestEligibleBirthdateIso);
   const [dateOfBirthChanged, setDateOfBirthChanged] = useState(false);
-  const [sexCode, setSexCode] = useState<SexCode | null>(null);
-  const [heightCm, setHeightCm] = useState('');
   const [weightKg, setWeightKg] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
@@ -388,16 +327,13 @@ function BasicProfileEditor({
     nickname.trim().length < 1 || nickname.trim().length > 64
       ? '닉네임은 1~64자로 입력해주세요.'
       : null;
-  const heightError = validateOptionalNumber(heightCm, 80, 250, '키');
   const weightError = validateOptionalNumber(weightKg, 25, 300, '체중');
   const hasChanges =
     nickname.trim() !== profile.nickname ||
     profileImageChange !== undefined ||
     dateOfBirthChanged ||
-    sexCode !== null ||
-    heightCm !== '' ||
     weightKg !== '';
-  const invalid = Boolean(nicknameError || heightError || weightError);
+  const invalid = Boolean(nicknameError || weightError);
 
   const pickProfileImage = async () => {
     if (pending || imagePickerPending) return;
@@ -460,8 +396,6 @@ function BasicProfileEditor({
       body.nickname = normalizedNickname;
     }
     if (dateOfBirthChanged) body.date_of_birth = dateOfBirth;
-    if (sexCode) body.sex_code = sexCode;
-    if (heightCm) body.height_cm = Number(heightCm);
     if (weightKg) body.weight_kg = Number(weightKg);
     if (onBasicProfileChange) {
       onBasicProfileChange(body, profileImageChange);
@@ -473,7 +407,7 @@ function BasicProfileEditor({
   return (
     <View style={styles.basicForm}>
       <InlineFeedback
-        message="생년월일·성별·키·체중은 개인정보 보호를 위해 기존 값을 다시 보여주지 않아요. 바꿀 항목만 입력해주세요."
+        message="생년월일과 체중은 개인정보 보호를 위해 기존 값을 다시 보여주지 않아요. 바꿀 항목만 입력해주세요."
         tone="warning"
       />
       <TextField
@@ -532,30 +466,6 @@ function BasicProfileEditor({
         }}
         value={dateOfBirth}
       />
-      <View style={styles.basicGroup}>
-        <Text style={styles.basicLabel}>성별</Text>
-        <View style={styles.basicChoices}>
-          {BASIC_SEX_OPTIONS.map((option) => (
-            <ChipOption
-              key={option.code}
-              disabled={pending}
-              label={option.label}
-              onPress={() => setSexCode(option.code)}
-              selected={sexCode === option.code}
-            />
-          ))}
-        </View>
-      </View>
-      <TextField
-        accessibilityLabel="키 입력"
-        editable={!pending}
-        error={submitted && heightError ? heightError : undefined}
-        inputMode="decimal"
-        label="키(cm)"
-        onChangeText={setHeightCm}
-        placeholder="80~250"
-        value={heightCm}
-      />
       <TextField
         accessibilityLabel="체중 입력"
         editable={!pending}
@@ -595,69 +505,6 @@ function validateOptionalNumber(
   return Number.isFinite(parsed) && parsed >= min && parsed <= max
     ? null
     : `${label}는 ${min}~${max} 범위로 입력해주세요.`;
-}
-
-function LocationEditor({
-  disabled,
-  initial,
-  initialPreferred,
-  onChange,
-  options,
-}: {
-  disabled: boolean;
-  initial: readonly string[];
-  initialPreferred: string;
-  onChange: (available: string[], preferred: string) => void;
-  options: readonly ChoiceOption[];
-}) {
-  const [selected, setSelected] = useState([...initial]);
-  const [preferred, setPreferred] = useState(initialPreferred);
-
-  return (
-    <View style={styles.locationEditor}>
-      <ChoiceCard>
-        {options.map((option) => (
-          <ChipOption
-            key={option.code}
-            disabled={disabled}
-            label={option.label}
-            selected={selected.includes(option.code)}
-            onPress={() => {
-              const next = toggle(selected, option.code);
-              if (next.length === 0) return;
-              const nextPreferred = next.includes(preferred)
-                ? preferred
-                : (next[0] ?? preferred);
-              setSelected(next);
-              setPreferred(nextPreferred);
-              onChange(next, nextPreferred);
-            }}
-          />
-        ))}
-      </ChoiceCard>
-      <View style={styles.basicGroup}>
-        <Text style={styles.painSectionTitle}>주로 운동할 장소</Text>
-        <Text style={styles.basicLabel}>
-          선택한 장소 중 가장 자주 이용할 곳을 골라주세요.
-        </Text>
-        {options
-          .filter((option) => selected.includes(option.code))
-          .map((option) => (
-            <DescriptionOption
-              key={option.code}
-              description="운동 계획을 만들 때 이 장소를 우선 반영해요."
-              disabled={disabled}
-              label={option.label}
-              selected={preferred === option.code}
-              onPress={() => {
-                setPreferred(option.code);
-                onChange(selected, option.code);
-              }}
-            />
-          ))}
-      </View>
-    </View>
-  );
 }
 
 function AttentionAreaEditor({
@@ -914,8 +761,6 @@ function DraftStepper({
   );
 }
 
-type ChoiceOption = { code: string; label: string };
-
 function ChoiceCard({ children }: { children: React.ReactNode }) {
   return <Card style={styles.choiceCard}>{children}</Card>;
 }
@@ -991,10 +836,7 @@ function DescriptionOption({
   );
 }
 
-function editorDescription(
-  field: MyPageEditableField,
-  profile: MeProfile,
-): string {
+function editorDescription(field: MyPageEditableField): string {
   if (field === 'basic_profile') return BASIC_PROFILE_DESCRIPTION;
   if (field === 'persistent_pains') {
     return '부위와 통증 정도를 확인한 뒤 저장해주세요.';
@@ -1006,24 +848,6 @@ function toggle(values: readonly string[], code: string): string[] {
   return values.includes(code)
     ? values.filter((value) => value !== code)
     : [...values, code];
-}
-
-function sameCodes(a: readonly string[], b: readonly string[]): boolean {
-  return a.length === b.length && a.every((code) => b.includes(code));
-}
-
-function mergeOptions(
-  options: readonly ChoiceOption[],
-  current: readonly string[],
-  labelFor: (code: string) => string,
-): readonly ChoiceOption[] {
-  const known = new Set(options.map((option) => option.code));
-  return [
-    ...options,
-    ...current
-      .filter((code) => !known.has(code))
-      .map((code) => ({ code, label: labelFor(code) })),
-  ];
 }
 
 function mergeDescriptionOptions(
@@ -1087,10 +911,7 @@ const styles = StyleSheet.create({
   profileImageActions: { minWidth: 0, flex: 1, gap: spacing.sm },
   profileImageLabel: { color: colors.text, fontSize: 14, fontWeight: '700' },
   profileImageHint: { color: colors.textMuted, fontSize: 12 },
-  basicGroup: { gap: spacing.sm },
   basicLabel: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
-  basicChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  locationEditor: { gap: spacing.md },
   choiceCard: {
     flexDirection: 'row',
     flexWrap: 'wrap',

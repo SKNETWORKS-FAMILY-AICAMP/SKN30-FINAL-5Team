@@ -338,8 +338,6 @@ export const CALENDAR_WEEKS = [
 export const MY_PAGE_PROFILE_ROWS = [
   ['primary_goal_code', '운동 목표', '체력 증진'],
   ['experience_level_code', '운동 경험', '초급'],
-  ['available_location_codes', '운동 장소', '헬스장'],
-  ['default_requested_duration_minutes', '운동 시간', '40분'],
   ['desired_weekly_workout_count', '주간 운동 횟수', '주 4회'],
   ['persistent_pains', '평소 불편한 부위', '무릎'],
 ] as const;
