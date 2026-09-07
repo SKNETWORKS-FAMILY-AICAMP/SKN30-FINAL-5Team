@@ -90,7 +90,6 @@ export function HomeScreenContent({
   context = null,
   currentDate = '2026.08.11 (화)',
   decision = null,
-  errorMessage,
   exerciseApi,
   hasTodayRoutine = true,
   hasUnreadNotification = false,
@@ -209,9 +208,6 @@ export function HomeScreenContent({
     () => (serverPlan === null ? [] : routineItemsFromPlan(serverPlan)),
     [serverPlan],
   );
-  // The override is tied to the plan it was made against. Any new plan from the
-  // flow above — the stored edit, a reorder, a rejected edit rolled back, a
-  // regenerated routine — is the answer to it, so it stops applying.
   const [presentationOverrides, setPresentationOverrides] = useState<{
     plan: WorkoutPlan | null;
     overrides: readonly RoutineItemDraftOverride[];
@@ -453,9 +449,6 @@ export function HomeScreenContent({
     );
   });
 
-  // The override shows the edit immediately; the container applies the same
-  // edit to today's plan and asks the server to store it. Whatever comes back
-  // replaces the override, so a rejected edit does not keep being displayed.
   const saveInlineEdit = () => {
     if (inlineEditInvalid) {
       return;
@@ -525,14 +518,12 @@ export function HomeScreenContent({
     todayRoutineState.progress?.completedPlanItemIds ?? [];
   const reorderUnfinishedPlan = (from: number, to: number) => {
     const items = inlineEditing ? editDraft : displayedRoutineItems;
-    const source = items[from];
-    const target = items[to];
+    const [source, target] = [items[from], items[to]];
     if (
       source === undefined ||
       target === undefined ||
       completedPlanItemIds.includes(source.id) ||
       completedPlanItemIds.includes(target.id) ||
-      // Warm-up, main and cool-down keep their own order (ADR-0018 D5).
       (source.phaseCode ?? 'MAIN') !== (target.phaseCode ?? 'MAIN')
     ) {
       return;
