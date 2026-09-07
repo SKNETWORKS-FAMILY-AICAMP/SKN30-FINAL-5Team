@@ -6,6 +6,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from backend.app.modules.catalog.codes import DEFAULT_LOCATION_CODE
 from backend.app.modules.profiles.age import (
     AgeRequirementNotMetError,
     InvalidBirthdateError,
@@ -77,10 +78,6 @@ class StaleProfileError(Exception):
     """The expected profile version no longer matches the stored version."""
 
 
-class InvalidProfileSettingsError(Exception):
-    """The merged profile settings violate a cross-field invariant."""
-
-
 class MedicalExerciseRestrictionError(Exception):
     """The user needs individual medical exercise management outside this MVP."""
 
@@ -95,8 +92,9 @@ def _request_hash(payload: dict[str, object]) -> str:
 
 
 # Settings fields the API still accepts but no longer applies. A deployed client
-# that sends one gets a successful no-op for that field rather than a 422, and
-# the stored column keeps whatever it already held until a later release drops it.
+# that sends one gets a successful no-op for that field rather than a 422. There is
+# no longer a column behind any of them: migrations 0049 and 0050 dropped the
+# storage once a full release had gone by without a writer.
 #
 # `coaching_style_code`: every user shares one narration context.
 # The rest: ADR-0017 stopped collecting sex, height and workout location. Location
@@ -226,7 +224,6 @@ class ProfileService:
     @staticmethod
     def _profile_settings_changes(
         request: ProfileSettingsUpdateRequest,
-        current: ProfileSettingsRecord,
         protected_birthdate: str | None,
     ) -> ProfileSettingsChanges:
         # Ignored fields are dropped before anything reads the payload, so a
@@ -237,17 +234,7 @@ class ProfileService:
             for field_name, value in request.model_dump(mode="json", exclude_unset=True).items()
             if field_name not in _IGNORED_SETTINGS_FIELDS
         }
-        preferred_location = str(
-            payload.get("preferred_location_code", current.preferred_location_code)
-        )
-        available_locations = tuple(
-            str(code)
-            for code in payload.get("available_location_codes", current.available_location_codes)
-        )
-        if preferred_location not in available_locations:
-            raise InvalidProfileSettingsError
         relationship_fields = {
-            "available_location_codes",
             "attention_area_codes",
             "preferred_exercise_type_codes",
             "persistent_pains",
@@ -260,9 +247,6 @@ class ProfileService:
         return ProfileSettingsChanges(
             protected_birthdate=protected_birthdate,
             scalar_values=scalar_values,
-            available_location_codes=(
-                available_locations if "available_location_codes" in payload else None
-            ),
             attention_area_codes=(
                 tuple(str(code) for code in payload["attention_area_codes"])
                 if "attention_area_codes" in payload
@@ -304,15 +288,17 @@ class ProfileService:
                 primary_goal_code=record.profile.primary_goal_code,
                 experience_level_code=record.profile.experience_level_code,
                 timezone=record.profile.timezone,
-                preferred_location_code=record.profile.preferred_location_code,
-                available_location_codes=list(record.profile.available_location_codes),
+                # Retired response fields. Nothing stores a location, a style, a sex
+                # or a height any more, but a deployed client still reads the first
+                # three off this object, so they report the fixed values the service
+                # applies instead of disappearing mid-release. FE-5 and FE-8 remove
+                # the last readers; the fields go with the release after that.
+                preferred_location_code=DEFAULT_LOCATION_CODE.value,
+                available_location_codes=[DEFAULT_LOCATION_CODE.value],
                 default_requested_duration_minutes=(
                     record.profile.default_requested_duration_minutes
                 ),
                 desired_weekly_workout_count=record.profile.desired_weekly_workout_count,
-                # Legacy rows may still hold CONCISE or ENERGETIC. The field stays
-                # in the response for deployed clients, but reports the one style
-                # the service actually applies.
                 coaching_style_code=FIXED_COACHING_STYLE_CODE,
                 attention_area_codes=list(record.profile.attention_area_codes),
                 preferred_exercise_type_codes=list(record.profile.preferred_exercise_type_codes),
@@ -411,18 +397,12 @@ class ProfileService:
             primary_goal_code=request.primary_goal_code,
             experience_level_code=request.experience_level_code,
             timezone=request.timezone,
-            preferred_location_code=request.preferred_location_code,
-            available_location_codes=tuple(
-                request.available_location_codes or (request.preferred_location_code,)
-            ),
+            # The request still carries a location, a coaching style, a sex and a
+            # height for write compatibility. None of them is stored: ADR-0017 and
+            # the single-style decision removed the columns behind them.
             default_requested_duration_minutes=request.default_requested_duration_minutes,
             desired_weekly_workout_count=weekly_target_sessions,
-            # The request value is deliberately dropped: narration is one fixed
-            # context for every user now.
-            coaching_style_code=FIXED_COACHING_STYLE_CODE,
-            height_cm=request.height_cm,
             weight_kg=request.weight_kg,
-            sex_code=request.sex_code,
             attention_area_codes=tuple(request.attention_area_codes),
             preferred_exercise_type_codes=tuple(request.preferred_exercise_type_codes),
             medical_exercise_restriction=request.medical_exercise_restriction,
@@ -618,7 +598,7 @@ class ProfileService:
                 protected_birthdate = self._protected_birthdate_for_update(
                     user_id, request, current, now
                 )
-                changes = self._profile_settings_changes(request, current, protected_birthdate)
+                changes = self._profile_settings_changes(request, protected_birthdate)
                 profile_version, updated_at = self._repository.update_profile_settings(
                     session, user_id, changes, now
                 )
@@ -657,7 +637,6 @@ __all__ = [
     "IdempotencyKeyReusedError",
     "InvalidBirthdateError",
     "InvalidOnboardingCodeError",
-    "InvalidProfileSettingsError",
     "MedicalExerciseRestrictionError",
     "InvalidTimezoneError",
     "ProfileConfigurationError",

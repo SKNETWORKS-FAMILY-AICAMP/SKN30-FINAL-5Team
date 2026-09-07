@@ -26,7 +26,13 @@ def test_migration_history_has_a_single_linear_head() -> None:
 
     # A second head means two branches were authored against the same parent, which
     # blocks every later migration until someone merges them by hand.
-    assert scripts.get_heads() == ["0048_integrated_catalog_v2_0_7"]
+    assert scripts.get_heads() == ["0050_drop_retired_profile_cols"]
+    assert scripts.get_revision("0050_drop_retired_profile_cols").down_revision == (
+        "0049_drop_profile_coaching_style"
+    )
+    assert scripts.get_revision("0049_drop_profile_coaching_style").down_revision == (
+        "0048_integrated_catalog_v2_0_7"
+    )
     assert scripts.get_revision("0048_integrated_catalog_v2_0_7").down_revision == (
         "0047_social_oauth_google"
     )
@@ -260,6 +266,67 @@ def test_retiring_calendar_drops_its_tables_and_restores_them_on_rollback(
     with engine.connect() as connection:
         final = set(inspect(connection).get_table_names())
     assert not (final & set(_CALENDAR_TABLES))
+
+
+_RETIRED_PROFILE_COLUMNS = frozenset(
+    {"coaching_style_code", "preferred_location_code", "height_cm", "sex_code"}
+)
+
+
+@pytest.mark.integration
+def test_dropping_the_retired_profile_columns_is_reversible(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """0049 and 0050 must remove exactly the retired storage and be reversible.
+
+    `weight_kg` sits between the dropped columns in the same table and is still a
+    required onboarding input, so it is asserted explicitly: a rollback that loses
+    it would take the calorie estimate with it.
+    """
+
+    database_url = os.getenv("TEST_DATABASE_URL")
+    if not database_url:
+        pytest.skip("TEST_DATABASE_URL is not configured")
+    if not make_url(database_url).database.endswith("_test"):
+        pytest.fail("Migration tests require a dedicated *_test database")
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("APP_ENV", "test")
+    get_settings.cache_clear()
+    config = Config(str(ALEMBIC_CONFIG))
+    command.upgrade(config, "head")
+
+    engine = create_engine(database_url)
+    with engine.connect() as connection:
+        inspector = inspect(connection)
+        columns = {column["name"] for column in inspector.get_columns("user_profiles")}
+        checks = {check["name"] for check in inspector.get_check_constraints("user_profiles")}
+        assert "user_available_locations" not in set(inspector.get_table_names())
+    assert not (columns & _RETIRED_PROFILE_COLUMNS)
+    assert "weight_kg" in columns
+    assert "ck_user_profiles_coaching_style" not in checks
+
+    # Target the revision by name rather than "-2": a later migration would make a
+    # relative step land somewhere else entirely.
+    command.downgrade(config, "0048_integrated_catalog_v2_0_7")
+    with engine.connect() as connection:
+        # One inspector for the whole block; a second one built from the same
+        # connection reuses the earlier reflection cache.
+        inspector = inspect(connection)
+        restored = {column["name"] for column in inspector.get_columns("user_profiles")}
+        restored_checks = {
+            check["name"] for check in inspector.get_check_constraints("user_profiles")
+        }
+        assert "user_available_locations" in set(inspector.get_table_names())
+    assert _RETIRED_PROFILE_COLUMNS <= restored
+    assert "weight_kg" in restored
+    assert "ck_user_profiles_coaching_style" in restored_checks
+
+    command.upgrade(config, "head")
+    with engine.connect() as connection:
+        inspector = inspect(connection)
+        final = {column["name"] for column in inspector.get_columns("user_profiles")}
+        assert "user_available_locations" not in set(inspector.get_table_names())
+    assert not (final & _RETIRED_PROFILE_COLUMNS)
 
 
 @pytest.mark.integration

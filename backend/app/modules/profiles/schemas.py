@@ -86,8 +86,9 @@ class OnboardingUpsertRequest(BaseModel):
     experience_level_code: str = Field(pattern=r"^[A-Z][A-Z0-9_]{0,63}$")
     timezone: str = Field(min_length=1, max_length=64)
     # Location and duration are selected by Daily Check-in after onboarding.
-    # Keep the legacy fields readable for older clients, but do not require
-    # them from the current onboarding contract.
+    # These two are accepted and discarded: migration 0050 dropped the columns
+    # they used to reach. They stay declared because this model forbids extra
+    # keys, so removing them would turn a deployed client's request into a 422.
     preferred_location_code: LocationCode = LocationCode.HOME
     available_location_codes: list[LocationCode] | None = None
     default_requested_duration_minutes: int = Field(default=30, gt=0, le=240)
@@ -97,10 +98,9 @@ class OnboardingUpsertRequest(BaseModel):
     weekly_target_sessions: int | None = Field(default=None, gt=0, le=7)
     attention_area_codes: list[BodyAreaCode] = Field(default_factory=list)
     preferred_exercise_type_codes: list[TrainingTypeCode] = Field(default_factory=list)
-    # Legacy write-compatibility field. Onboarding no longer asks for a coaching
-    # style; every profile stores FIXED_COACHING_STYLE_CODE. The field stays
-    # declared because this model forbids extra keys, so removing it would turn a
-    # deployed client's request into a 422 instead of ignoring one stale value.
+    # Legacy write-compatibility fields, accepted and discarded for the same
+    # reason as the two above. `weight_kg` between them is not legacy: it is a
+    # required onboarding input and the calorie estimate reads it.
     coaching_style_code: CoachingStyleCode = FIXED_COACHING_STYLE_CODE
     height_cm: float | None = Field(default=None, ge=80, le=250)
     weight_kg: float = Field(ge=25, le=300)
@@ -153,6 +153,8 @@ class OnboardingResponse(BaseModel):
     user_id: UUID
     onboarding_completed: bool
     profile_version: int
+    # Retained for deployed clients and always FIXED_COACHING_STYLE_CODE; nothing
+    # stores a per-user style since migration 0049.
     coaching_style_code: CoachingStyleCode
     ai_trial_started_at: datetime
     ai_trial_ends_at: datetime
@@ -170,11 +172,12 @@ class ProfileSettingsUpdateRequest(BaseModel):
     primary_goal_code: str | None = Field(default=None, pattern=r"^[A-Z][A-Z0-9_]{0,63}$")
     desired_weekly_workout_count: int | None = Field(default=None, gt=0, le=7)
     default_requested_duration_minutes: int | None = Field(default=None, gt=0, le=240)
+    # Accepted and ignored, like the rest of the retired settings; see
+    # `_IGNORED_SETTINGS_FIELDS` in the service and OnboardingUpsertRequest.
     preferred_location_code: LocationCode | None = None
     available_location_codes: list[LocationCode] | None = None
     attention_area_codes: list[BodyAreaCode] | None = None
     preferred_exercise_type_codes: list[TrainingTypeCode] | None = None
-    # Accepted and ignored; see OnboardingUpsertRequest.coaching_style_code.
     coaching_style_code: CoachingStyleCode | None = None
     experience_level_code: str | None = Field(default=None, pattern=r"^[A-Z][A-Z0-9_]{0,63}$")
     nickname: str | None = Field(default=None, min_length=1, max_length=64)
@@ -235,6 +238,11 @@ class MeProfile(BaseModel):
 
     `age` is derived per request from the protected birthdate and is null when
     the deployment cannot decrypt it. The birthdate itself is never returned.
+
+    `preferred_location_code`, `available_location_codes` and `coaching_style_code`
+    are retired: nothing stores them since migrations 0049 and 0050. They stay in
+    the response because deployed clients read them, and they report the fixed
+    values the service applies. FE-5 and FE-8 remove the last readers.
     """
 
     nickname: str

@@ -10,12 +10,12 @@ from backend.app.db.models.catalog import ExerciseEquipment, ExerciseLocation
 from backend.app.db.models.decision import DecisionRun, SafetyReview
 from backend.app.db.models.profile import (
     MutationIdempotencyRecord,
-    UserAvailableLocation,
     UserEquipment,
     UserProfile,
 )
 from backend.app.db.models.routine import Routine, RoutineDay
 from backend.app.db.models.weekly_report import UserWeek, WeeklyPlanRevision, WeeklyReport
+from backend.app.modules.catalog.codes import DEFAULT_LOCATION_CODE, SELECTABLE_LOCATION_CODES
 from backend.app.modules.weekly_plans.codes import WEEKLY_PLAN_RESPONSE_SCHEMA_VERSION
 from backend.app.modules.weekly_plans.ports import (
     LatestPlanRevision,
@@ -113,15 +113,11 @@ class WeeklyPlanRepository:
             )
             is not None
         )
-        allowed_locations = tuple(
-            sorted(
-                session.scalars(
-                    select(UserAvailableLocation.location_code).where(
-                        UserAvailableLocation.user_id == user_id
-                    )
-                ).all()
-            )
-        ) or (profile.preferred_location_code,)
+        # ADR-0017 moved the workout location to the Daily Check-in, so the profile no
+        # longer narrows the week. The plan may use any location the product offers;
+        # the routine's own supported locations still intersect this downstream, and
+        # the day's constraint comes from the Safety-approved Pool.
+        allowed_locations = tuple(sorted(code.value for code in SELECTABLE_LOCATION_CODES))
         equipment = tuple(
             sorted(
                 session.scalars(
@@ -180,7 +176,9 @@ class WeeklyPlanRepository:
                 None if source_report is None else source_report.status_code
             ),
             requested_duration_minutes=profile.default_requested_duration_minutes,
-            preferred_location_code=profile.preferred_location_code,
+            # Only the default selection when the caller names no location. Keeping
+            # the previous profile default keeps that choice stable for every user.
+            preferred_location_code=DEFAULT_LOCATION_CODE.value,
             allowed_location_codes=allowed_locations,
             available_equipment_codes=equipment,
             safety_status_code=safety_status_code,

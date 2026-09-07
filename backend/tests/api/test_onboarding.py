@@ -18,6 +18,7 @@ from backend.app.core.config import Settings
 from backend.app.core.logging import JsonFormatter
 from backend.app.integrations.birthdate_crypto import LocalAesGcmBirthdateCipher
 from backend.app.main import create_app
+from backend.app.modules.catalog.codes import DEFAULT_LOCATION_CODE
 from backend.app.modules.identity.codes import UserStatusCode
 from backend.app.modules.identity.service import CurrentUser
 from backend.app.modules.profiles.codes import (
@@ -131,11 +132,8 @@ class FakeProfileRepository:
                 primary_goal_code=values.primary_goal_code,
                 experience_level_code=values.experience_level_code,
                 timezone=values.timezone,
-                preferred_location_code=values.preferred_location_code,
-                available_location_codes=values.available_location_codes,
                 default_requested_duration_minutes=values.default_requested_duration_minutes,
                 desired_weekly_workout_count=values.desired_weekly_workout_count,
-                coaching_style_code=values.coaching_style_code,
                 attention_area_codes=values.attention_area_codes,
                 preferred_exercise_type_codes=values.preferred_exercise_type_codes,
                 profile_version=self.profile_version,
@@ -146,7 +144,6 @@ class FakeProfileRepository:
         return OnboardingRecord(
             user_id=user_id,
             profile_version=self.profile_version,
-            coaching_style_code=values.coaching_style_code,
             ai_trial_started_at=NOW,
             ai_trial_ends_at=datetime(2026, 8, 27, 6, 0, tzinfo=UTC),
             premium_status_code="NOT_AVAILABLE",
@@ -903,7 +900,6 @@ def test_onboarding_succeeds_without_a_coaching_style() -> None:
     assert response.status_code == 200
     assert response.json()["coaching_style_code"] == FIXED_COACHING_STYLE_CODE.value
     assert repository.onboarding_values is not None
-    assert repository.onboarding_values.coaching_style_code == FIXED_COACHING_STYLE_CODE
 
 
 @pytest.mark.parametrize("style", [code.value for code in CoachingStyleCode])
@@ -911,7 +907,8 @@ def test_a_deployed_client_may_still_send_a_style_and_it_is_ignored(style: str) 
     """Write compatibility: the request is accepted, the value is not applied.
 
     The onboarding model forbids extra keys, so the field has to stay declared;
-    dropping it would turn an older client's request into a 422.
+    dropping it would turn an older client's request into a 422. Migration 0049
+    removed the column, so the submitted value now reaches nothing at all.
     """
 
     repository = FakeProfileRepository()
@@ -928,11 +925,16 @@ def test_a_deployed_client_may_still_send_a_style_and_it_is_ignored(style: str) 
     assert response.status_code == 200
     assert response.json()["coaching_style_code"] == FIXED_COACHING_STYLE_CODE.value
     assert repository.onboarding_values is not None
-    assert repository.onboarding_values.coaching_style_code == FIXED_COACHING_STYLE_CODE
 
 
-def test_me_reports_the_fixed_style_for_a_legacy_profile() -> None:
-    """A row stored before this release must not report a style the app cannot set."""
+def test_me_still_reports_the_retired_profile_fields_with_fixed_values() -> None:
+    """Migrations 0049 and 0050 removed the storage; the response keeps the fields.
+
+    A deployed client reads all three off `/api/v1/me`, so they must not vanish in
+    the release that drops the columns. They report the values the service applies:
+    the one coaching style, and the location every profile already carried after
+    ADR-0017 stopped collecting one.
+    """
 
     repository = FakeProfileRepository()
     client = _client(repository)
@@ -942,13 +944,13 @@ def test_me_reports_the_fixed_style_for_a_legacy_profile() -> None:
             headers={"Idempotency-Key": str(uuid4())},
             json=_payload(),
         )
-        assert repository.me_record is not None
-        assert repository.me_record.profile is not None
-        object.__setattr__(repository.me_record.profile, "coaching_style_code", "ENERGETIC")
         read = client.get("/api/v1/me")
 
     assert read.status_code == 200
-    assert read.json()["profile"]["coaching_style_code"] == FIXED_COACHING_STYLE_CODE.value
+    profile = read.json()["profile"]
+    assert profile["coaching_style_code"] == FIXED_COACHING_STYLE_CODE.value
+    assert profile["preferred_location_code"] == DEFAULT_LOCATION_CODE.value
+    assert profile["available_location_codes"] == [DEFAULT_LOCATION_CODE.value]
 
 
 @pytest.mark.parametrize("field_name", RETIRED_CONSENT_FIELDS)

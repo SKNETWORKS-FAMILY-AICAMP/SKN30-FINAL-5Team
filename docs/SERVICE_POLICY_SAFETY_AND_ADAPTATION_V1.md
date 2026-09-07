@@ -111,7 +111,7 @@ vector provider가 실패하면 저장된 Safety envelope와 승인 pool을 벗�
 | `primary_goal_code` | varchar(64) | 예 | Training | 목표 코드 사용 |
 | `experience_level_code` | varchar(32) | 예 | Training | `BEGINNER`, `INTERMEDIATE` |
 | `weekly_target_sessions` | smallint | 예 | Weekly Plan/Report | 1–7 |
-| `coaching_style_code` | varchar(32) | 예 | UX | Safety·선택에 영향 금지 |
+| `coaching_style_code` | (폐기) | 아니오 | UX | 2026-09-07 G6로 단일 스타일 고정. 요청은 write 호환으로 계속 받되 무시하며, 저장 컬럼은 migration 0049에서 제거했다 |
 | `persistent_pains` | `PersistentPainInput[]` | 아니오 | Daily Check-in 기본값 | 원인·진단명 없이 부위와 NRS만 민감정보로 저장. 제출 전 Safety 입력으로 사용 금지 |
 | `timezone` | varchar(64) | 예 | 날짜 경계 | IANA timezone |
 | `terms_version` | varchar(64) | 예 | 이용약관 동의 이력 | 현재 게시된 서비스 이용약관 버전 |
@@ -224,18 +224,23 @@ Recovery 또는 Pain cap이 적용되면 경험 코드는 유지하고 세트·�
 - 예: `3`이면 Session A/B/C를 계획하지만 4번째 추가 운동 요청도 허용
 - 기존 필드 전환: 현재 `desired_weekly_workout_count`를 목표 계약에서 `weekly_target_sessions`로 이름을 통일하되 API 호환 기간을 둔다.
 
-#### `coaching_style_code`
+#### `coaching_style_code` (2026-09-07 폐기)
+
+승인 게이트 G6이 코칭 스타일 선택을 없애고 모든 사용자에게 같은 컨텍스트를 주기로 확정했다.
+선택 화면과 저장 컬럼이 모두 사라졌으므로 아래 세 코드는 더 이상 수집·저장 대상이 아니다.
+`SUPPORTIVE`가 고정 값이며 응답에는 하위 호환을 위해 남는다. `decision_explanations`의 같은 이름
+컬럼은 결정 기록이므로 유지한다.
 
 - 종류: 안정적인 표현 성향 머신 코드
 - 의미: 같은 결정 내용을 어떤 말투와 길이로 보여줄지 정한다.
 - 사용처: 사용자 문구의 어조·길이
 - 사용 금지: Safety, 운동 선택, 강도, 시간, progression
 
-| 코드 | 사용자 표시 예 | 표현 원칙 |
-|---|---|---|
-| `SUPPORTIVE` | 든든하게 | 공감하고 부담을 주지 않는 문구 |
-| `CONCISE` | 간결하게 | 핵심 행동과 이유를 짧게 표시 |
-| `ENERGETIC` | 활기차게 | 활기 있는 표현, 단 Safety 화면은 진지한 어조 유지 |
+| 코드 | 사용자 표시 예 | 표현 원칙 | 현재 상태 |
+|---|---|---|---|
+| `SUPPORTIVE` | 든든하게 | 공감하고 부담을 주지 않는 문구 | 고정 값 |
+| `CONCISE` | 간결하게 | 핵심 행동과 이유를 짧게 표시 | 폐기 |
+| `ENERGETIC` | 활기차게 | 활기 있는 표현, 단 Safety 화면은 진지한 어조 유지 | 폐기 |
 
 #### `persistent_pains`
 
@@ -307,7 +312,6 @@ Recovery 또는 Pain cap이 적용되면 경험 코드는 유지하고 세트·�
   "primary_goal_code": "GENERAL_FITNESS",
   "experience_level_code": "BEGINNER",
   "weekly_target_sessions": 3,
-  "coaching_style_code": "SUPPORTIVE",
   "persistent_pains": [
     {"body_area_code": "LOWER_BACK", "intensity_score": 3}
   ],

@@ -10,7 +10,6 @@ from backend.app.db.models.catalog import ExerciseEquipment, ExerciseLocation
 from backend.app.db.models.decision import DecisionRun, SafetyReview
 from backend.app.db.models.profile import (
     MutationIdempotencyRecord,
-    UserAvailableLocation,
     UserEquipment,
     UserProfile,
 )
@@ -31,7 +30,6 @@ def test_repository_resolves_report_routine_constraints_and_revision_sequence() 
         engine,
         tables=[
             UserProfile.__table__,
-            UserAvailableLocation.__table__,
             UserEquipment.__table__,
             MutationIdempotencyRecord.__table__,
             DecisionRun.__table__,
@@ -62,25 +60,16 @@ def test_repository_resolves_report_routine_constraints_and_revision_sequence() 
                 primary_goal_code="GENERAL_FITNESS",
                 experience_level_code="BEGINNER",
                 timezone="Asia/Seoul",
-                preferred_location_code="HOME",
                 default_requested_duration_minutes=40,
                 desired_weekly_workout_count=4,
-                coaching_style_code="SUPPORTIVE",
-                height_cm=None,
                 weight_kg=None,
-                sex_code=None,
                 code_set_version=PROFILE_CODE_SET_VERSION,
                 profile_version=1,
                 created_at=NOW,
                 updated_at=NOW,
             )
         )
-        session.add_all(
-            [
-                UserAvailableLocation(user_id=user_id, location_code="HOME"),
-                UserEquipment(user_id=user_id, equipment_code="MAT"),
-            ]
-        )
+        session.add(UserEquipment(user_id=user_id, equipment_code="MAT"))
         session.add(
             Routine(
                 id=routine_id,
@@ -241,7 +230,7 @@ def test_repository_resolves_report_routine_constraints_and_revision_sequence() 
         assert context.source_weekly_report_id == report_id
         assert context.previous_report_status_code == "ACKNOWLEDGED"
         assert context.current_routine_id == routine_id
-        assert context.allowed_location_codes == ("HOME",)
+        assert context.allowed_location_codes == ("GYM", "HOME")
         assert context.available_equipment_codes == ("MAT",)
         assert context.safety_status_code == "REVISE"
         assert context.safety_opinion_codes == ("EXCLUDE_CONFLICT",)

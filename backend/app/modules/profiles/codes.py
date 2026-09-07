@@ -19,12 +19,12 @@ class CoachingStyleCode(StrEnum):
     ENERGETIC = "ENERGETIC"
 
 
-# Every user now receives the same narration context. The style was collected at
-# onboarding but never reached a template: `decisions.explanations` only carries
+# Every user receives the same narration context. The style was collected at
+# onboarding but never reached a template: `decisions.explanations` only carried
 # the value through to the narration prompt, so three stored values produced one
-# behaviour. Requests may still send a style for write compatibility; the value
-# is ignored and this constant is stored instead. The column and its CHECK
-# constraint stay until a later release drops them.
+# behaviour. Requests may still send a style for write compatibility; the value is
+# ignored. Migration 0049 dropped the column, so this constant is now the only
+# source of the style, including the value both responses still report.
 FIXED_COACHING_STYLE_CODE = CoachingStyleCode.SUPPORTIVE
 
 

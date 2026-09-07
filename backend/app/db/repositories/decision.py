@@ -367,7 +367,11 @@ class DecisionRepository:
             # Profile attention areas are a Check-in UI prefill only. The decision
             # receives pain/discomfort rows the user confirmed for this context.
             (),
-            profile.preferred_location_code,
+            # ADR-0017 removed the profile location, so the profile contributes
+            # nothing here. The snapshot keeps the key at null rather than dropping
+            # it: the stored shape is what past runs are replayed from, and changing
+            # it belongs with a decision input schema version bump.
+            None,
             recent_workout_status_codes,
             required_equipment_codes,
             supported_location_codes,

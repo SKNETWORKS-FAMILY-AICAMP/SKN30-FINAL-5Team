@@ -21,7 +21,7 @@ from backend.app.domain.rules.external_context import (
     CalendarAvailabilitySourceCode,
 )
 from backend.app.domain.rules.safety import AdverseReactionCode, BodyAreaCode
-from backend.app.modules.catalog.codes import LocationCode
+from backend.app.modules.catalog.codes import SELECTABLE_LOCATION_CODES, LocationCode
 from backend.app.modules.checkins.codes import (
     DAILY_PAIN_POLICY_VERSION,
     DiscomfortSeverityCode,
@@ -220,8 +220,10 @@ class DailyContextDefaultsResponse(BaseModel):
 
     local_date: date
     pains: list[PainInput] = Field(default_factory=list)
+    # One source for the location set: the same constant the weekly plan and the
+    # base routine read now that ADR-0017 left no per-user location to narrow it.
     selectable_location_codes: list[LocationCode] = Field(
-        default_factory=lambda: [LocationCode.HOME, LocationCode.GYM]
+        default_factory=lambda: list(SELECTABLE_LOCATION_CODES)
     )
     recommended_duration_minutes: int = RECOMMENDED_DAILY_DURATION_MINUTES
     duration_recommendation_policy_version: str = DAILY_CHECKIN_DURATION_POLICY_VERSION

@@ -202,7 +202,6 @@ nonce와 token은 저장하지 않으며 keyed-digest secret은 DB·로그·fixt
 | experience_level_code | 운동 경험 |
 | timezone | IANA timezone |
 | weekly_target_sessions | 주간 목표 운동 횟수(1–7) |
-| coaching_style_code | SUPPORTIVE, CONCISE, ENERGETIC |
 | weight_kg | 온보딩 요청 필수, DB nullable 유지, 체중 기반 칼로리 추정에만 사용 |
 | profile_version | 낙관적 잠금 버전 |
 | created_at | 생성 시각 |
@@ -840,17 +839,16 @@ duration service 양쪽에서 검증한다. 승인된 pool이 요청 시간을 �
 임의로 줄이지 않는다(AGENTS.md 7절, 2026-08-27 승인). `requested_duration_minutes`는 사용자
 요청값 그대로 보존한다. `schedule_rule=ROTATION`이며 특정 요일을 저장하지 않는다.
 
-### 6.3.1 user_available_locations
+### 6.3.1 user_available_locations (제거됨)
 
-| 컬럼 | 설명 |
-|---|---|
-| user_id | users FK |
-| location_code | locations FK, HOME, GYM, OUTDOOR 개별 코드 |
-| created_at | 생성 시각 |
+ADR-0017에 따라 운동 장소를 사용자별로 저장하지 않는다. `user_available_locations` 테이블과
+`user_profiles.preferred_location_code`는 migration 0050에서 제거했다. 같은 migration이
+`user_profiles.height_cm`과 `user_profiles.sex_code`도 제거했다. 세 컬럼과 테이블은 모두 직전
+릴리스에서 이미 writer가 없었다.
 
-PK는 `(user_id, location_code)`다. 기존 `user_profiles.preferred_location_code`는 하위 호환을
-위해 유지하고 migration에서 현재 값을 관계 테이블로 backfill한다. 복합 장소 enum은 만들지
-않는다.
+당일 장소는 `daily_contexts.location_code`가 유일한 출처이며, 주간 계획과 기본 루틴은 서비스가
+제공하는 장소 집합(`HOME`, `GYM`)을 사용한다. `locations` 참조 테이블과 `OUTDOOR` 값은 기존
+카탈로그 데이터 호환을 위해 유지한다. rollback은 테이블과 컬럼을 되살리고 `HOME`으로 backfill한다.
 
 ### 6.3.2 exercise_goal_tag_links와 exercise_prescription_profiles
 
@@ -1148,11 +1146,12 @@ metadata를 갖고 기존 의미를 유지한다.
 - `primary_goal_code`
 - `experience_level_code`
 - `weekly_target_sessions`
-- `coaching_style_code`
 
 `input_snapshot.profile`에는 `date_of_birth`, `age` 및 그 밖의 연령 관련 파생값을 포함하지 않는다. 닉네임·성별·키·체중도 포함하지 않으며, 체중 기반 칼로리 추정은 운동 계획·세션 경계에서만 처리한다. 수동 외부 기록은 MVP에 포함하지 않는다.
 
 장소와 요청 시간은 더 이상 프로필 파생값이 아니므로 `input_snapshot.profile`이 아니라 당일 check-in 파생 필드로 저장한다. `preferred_location_code`, `attention_area_codes`, `default_requested_duration_minutes`, `desired_weekly_workout_count`를 포함한 기존 snapshot은 새 schema version에서 rewrite하지 않고 read 경로를 유지한다. 과거 decision의 재현 근거는 저장된 snapshot뿐이므로 이 read 호환은 제거하지 않는다.
+
+migration 0050 이후 `input_snapshot.profile.preferred_location_code`는 항상 `null`이다. 프로필이 더 이상 장소를 갖지 않기 때문이며, key 자체는 저장 shape을 바꾸지 않기 위해 남겨 둔다. key를 빼는 것은 `DECISION_INPUT_SCHEMA_VERSION` 상향과 함께 별도 작업으로 처리한다.
 
 `decision-input-v4`부터 식별자를 제외한 최근 공식 workout 상태 코드(최신 7건)와 공통 후보의
 필수 장비 설명과 지원 장소 집계를 snapshot에 포함한다. Recovery는 이 요약만 참조하고 원시 운동 기록을
@@ -1581,7 +1580,7 @@ Wave 6는 option의 생성과 조회까지만 구현한다. option 선택과 wor
 | agent_summaries | Training·Recovery·Safety·Feasibility·Coordinator의 제한된 요약 JSONB |
 | safety_summary | SafetyPolicyEngine 상태·veto·근거 요약 JSONB |
 | final_adjustment_reason | 최종 조정 이유 요약, nullable |
-| coaching_style_code | 문구 톤 입력값 |
+| coaching_style_code | 문구 톤 입력값. 결정 기록이므로 프로필 컬럼 제거와 무관하게 유지한다 |
 | template_version | 검수 템플릿 버전 |
 | prompt_version | LLM 미사용 시 null |
 | model_code | LLM 미사용 시 null |

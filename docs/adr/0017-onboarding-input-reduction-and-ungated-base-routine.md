@@ -75,6 +75,28 @@
 - staging 카탈로그는 `exercise-catalog-v2.0.4-final`이므로 세 목표 모두 승인 pool이 존재한다.
   v2.0.5 배포가 대기 중이다.
 
+## 시행 기록
+
+이 ADR은 "제거 대상 요청 필드는 즉시 삭제하지 않고 legacy로 표시해 write 호환 기간을 둔 뒤 별도
+릴리스에서 요청 필드와 컬럼을 순서대로 제거한다"고 정했다. 그 순서는 다음과 같이 끝났다.
+
+| 시점 | 내용 |
+|---|---|
+| 2026-09-07 (1단계, `134316e`) | `PATCH /api/v1/me/profile`이 `preferred_location_code`, `available_location_codes`, `height_cm`, `sex_code`를 받되 적용하지 않는다. 온보딩도 요청의 장소를 쓰지 않는다. 컬럼은 그대로 두었다. |
+| 2026-09-07 (2단계, migration 0050) | `user_profiles.preferred_location_code`, `height_cm`, `sex_code`와 `user_available_locations` 테이블을 제거했다. 요청 필드는 write 호환을 위해 그대로 받고 계속 무시한다. |
+
+2단계에서 확정한 경계는 다음과 같다.
+
+- **`weight_kg`는 제거 대상이 아니다.** 온보딩 필수 입력이며 칼로리 추정이 읽는다.
+- **주간 계획과 기본 루틴의 장소**는 프로필 대신 서비스가 제공하는 장소 집합(`HOME`, `GYM`)을
+  쓴다. 프로필이 좁히던 제약이 사라지므로 이전에 실패하던 조합이 성공할 수는 있어도 그 반대는
+  없다. 당일 제약은 그대로 Safety-approved Pool이 적용한다.
+- **`MeProfile`의 `preferred_location_code`와 `available_location_codes` 응답 필드는 남긴다.**
+  배포된 프론트가 아직 읽는다. FE-5가 마지막 reader를 제거한 다음 릴리스에서 함께 뺀다.
+- **`input_snapshot.profile.preferred_location_code` key는 남기고 값만 `null`이 된다.** 저장된
+  snapshot이 과거 결정의 유일한 재현 근거이므로 shape을 바꾸지 않았다. key 제거는
+  `DECISION_INPUT_SCHEMA_VERSION` 상향과 함께 별도 작업으로 남는다.
+
 ## 미확정 사항
 
 - 만 18–64세 범위 밖 기존 가입자의 처리 방침.

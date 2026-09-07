@@ -18,7 +18,6 @@ from backend.app.db.models.identity import User
 from backend.app.db.models.profile import (
     MutationIdempotencyRecord,
     UserAttentionArea,
-    UserAvailableLocation,
     UserConsent,
     UserConsentEvent,
     UserEquipment,
@@ -282,13 +281,6 @@ def test_profile_settings_update_is_partial_atomic_versioned_and_idempotent(
         == []
     )
     assert list(
-        postgres_session.scalars(
-            select(UserAvailableLocation.location_code).where(
-                UserAvailableLocation.user_id == current_user.user_id
-            )
-        )
-    ) == ["HOME"]
-    assert list(
         postgres_session.execute(
             select(UserPersistentPain.body_area_code, UserPersistentPain.intensity_score).where(
                 UserPersistentPain.user_id == current_user.user_id
@@ -412,13 +404,9 @@ def test_concurrent_profile_updates_allow_only_one_expected_version(
                 primary_goal_code="GENERAL_FITNESS",
                 experience_level_code="BEGINNER",
                 timezone="Asia/Seoul",
-                preferred_location_code="HOME",
                 default_requested_duration_minutes=30,
                 desired_weekly_workout_count=3,
-                coaching_style_code="SUPPORTIVE",
-                height_cm=170,
                 weight_kg=65,
-                sex_code="PREFER_NOT_TO_SAY",
                 profile_version=1,
             )
         )
@@ -433,7 +421,6 @@ def test_concurrent_profile_updates_allow_only_one_expected_version(
                 premium_status_code="NOT_AVAILABLE",
             )
         )
-        setup.add(UserAvailableLocation(user_id=user_id, location_code="HOME"))
         setup.add(UserEquipment(user_id=user_id, equipment_code="MAT"))
         setup.commit()
 

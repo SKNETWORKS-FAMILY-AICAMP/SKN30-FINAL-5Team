@@ -121,7 +121,6 @@ class FakeProfileSettingsRepository:
         if changes.protected_birthdate is not None:
             values["protected_birthdate"] = changes.protected_birthdate
         for field_name in (
-            "available_location_codes",
             "attention_area_codes",
             "preferred_exercise_type_codes",
         ):
@@ -147,14 +146,9 @@ def _record(protected_birthdate: str) -> ProfileSettingsRecord:
         primary_goal_code="GENERAL_FITNESS",
         experience_level_code="BEGINNER",
         timezone="Asia/Seoul",
-        preferred_location_code="HOME",
-        available_location_codes=("GYM", "HOME"),
         default_requested_duration_minutes=40,
         desired_weekly_workout_count=3,
-        coaching_style_code="SUPPORTIVE",
-        height_cm=172.0,
         weight_kg=68.5,
-        sex_code="FEMALE",
         attention_area_codes=("KNEE",),
         preferred_exercise_type_codes=("STRENGTH",),
         profile_version=1,
@@ -932,13 +926,14 @@ def test_unauthenticated_request_is_rejected() -> None:
 def test_patch_accepts_a_coaching_style_without_applying_it(style: str) -> None:
     """Write compatibility: a deployed client's style is a no-op, not a 422.
 
-    The request model forbids extra keys, so the field stays declared. What
-    changes is that the value never reaches the stored column.
+    The request model forbids extra keys, so the field stays declared. There is no
+    longer a column behind it at all, so the value reaches nothing and the rest of
+    the request still applies.
     """
 
     client, repository = _client()
     assert repository.record is not None
-    stored_before = repository.record.coaching_style_code
+    before = repository.record
     with client:
         response = client.patch(
             "/api/v1/me/profile",
@@ -948,8 +943,9 @@ def test_patch_accepts_a_coaching_style_without_applying_it(style: str) -> None:
 
     assert response.status_code == 200
     assert repository.record is not None
-    assert repository.record.coaching_style_code == stored_before
-    assert repository.record.nickname == "새 닉네임"
+    assert repository.record == replace(
+        before, nickname="새 닉네임", profile_version=before.profile_version + 1
+    )
 
 
 # ADR-0017 stopped collecting sex, height and workout location. Location moved to
@@ -975,8 +971,10 @@ def test_fields_retired_by_adr_0017_are_accepted_without_being_applied(
 
     assert response.status_code == 200
     assert repository.record is not None
-    for field_name in payload:
-        assert getattr(repository.record, field_name) == getattr(before, field_name)
+    # Nothing to compare field by field any more: migration 0050 dropped the
+    # columns, so "not applied" means the stored record is untouched apart from
+    # the version every accepted PATCH bumps.
+    assert repository.record == replace(before, profile_version=before.profile_version + 1)
 
 
 def test_a_retired_field_does_not_block_the_rest_of_the_patch() -> None:
@@ -984,7 +982,7 @@ def test_a_retired_field_does_not_block_the_rest_of_the_patch() -> None:
 
     client, repository = _client()
     assert repository.record is not None
-    location_before = repository.record.preferred_location_code
+    before = repository.record
     with client:
         response = client.patch(
             "/api/v1/me/profile",
@@ -994,12 +992,13 @@ def test_a_retired_field_does_not_block_the_rest_of_the_patch() -> None:
 
     assert response.status_code == 200
     assert repository.record is not None
-    assert repository.record.nickname == "새 닉네임"
-    assert repository.record.preferred_location_code == location_before
+    assert repository.record == replace(
+        before, nickname="새 닉네임", profile_version=before.profile_version + 1
+    )
 
 
 def test_a_retired_location_pair_no_longer_trips_the_cross_field_rule() -> None:
-    """`preferred` had to be inside `available`. Neither is applied now, so a
+    """`preferred` had to be inside `available`. Neither is stored now, so a
     combination that used to be a 400 is a successful no-op instead."""
 
     client, repository = _client()
@@ -1014,8 +1013,7 @@ def test_a_retired_location_pair_no_longer_trips_the_cross_field_rule() -> None:
 
     assert response.status_code == 200
     assert repository.record is not None
-    assert repository.record.preferred_location_code == before.preferred_location_code
-    assert repository.record.available_location_codes == before.available_location_codes
+    assert repository.record == replace(before, profile_version=before.profile_version + 1)
 
 
 @pytest.mark.parametrize(

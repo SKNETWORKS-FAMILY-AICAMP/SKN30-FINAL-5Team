@@ -102,7 +102,7 @@ ExercisePool retrieval 계약의 `PROPOSED` 초안이며 Qdrant metadata를 publ
 
 `SERVICE_POLICY_SAFETY_AND_ADAPTATION_V1.md`를 현재 API의 기준으로 한다. 모든 endpoint와 Pydantic schema는 이 절의 필드·코드를 따른다.
 
-- 온보딩 request는 `date_of_birth`, `medical_exercise_restriction`, `weight_kg`, `primary_goal_code`, `experience_level_code`, `weekly_target_sessions`, `timezone`, `terms_version`, 분리된 consent를 사용한다. `coaching_style_code`는 구 클라이언트 write 호환을 위해 받되 무시하며, 응답과 새 저장값은 항상 `SUPPORTIVE`다. `date_of_birth`는 encrypted-at-rest이며 사용자 timezone 기준 18–64세 eligibility에만 사용한다.
+- 온보딩 request는 `date_of_birth`, `medical_exercise_restriction`, `weight_kg`, `primary_goal_code`, `experience_level_code`, `weekly_target_sessions`, `timezone`, `terms_version`, 분리된 consent를 사용한다. `coaching_style_code`는 구 클라이언트 write 호환을 위해 받되 무시하며, 응답은 항상 `SUPPORTIVE`다. 저장 컬럼은 migration 0049에서 제거했으므로 저장값 자체가 없다. `date_of_birth`는 encrypted-at-rest이며 사용자 timezone 기준 18–64세 eligibility에만 사용한다.
 - Daily Check-in request는 `sleep_minutes`, `sleep_source_code`, `fatigue_level_code`, `available_time_minutes`(10–90), `location_code`, `pain_present`, `red_flag_present`, `pains[{body_area_code,intensity_score}]`를 사용한다. `GET /api/v1/daily-contexts/{local_date}/defaults`는 선택적 통증 기본값, `selectable_location_codes=[HOME,GYM]`, `recommended_duration_minutes=30`, `duration_recommendation_policy_version`을 반환한다. `OUTDOOR`는 기존 데이터·승인 pool 호환을 위해 read/write 값으로 유지하지만 사용자 선택지에는 포함하지 않는다. 권장값은 사용자 요청을 대체하지 않는다. 근육통은 입력·Recovery 계산에 사용하지 않는다. NRS는 서버가 1–3/4–6/7–10으로 변환하고 정책 버전과 함께 저장한다.
 - 세션 중단 request는 `HIGH_FATIGUE`, `TIME_SHORTAGE`, `RESUME_LATER`, `PAIN_OR_ABNORMAL_RESPONSE`만 허용한다. 앞의 세 코드는 `STOPPED_RESUMABLE`과 당일 재개 가능 상태를 만들고, 마지막 코드는 세부 증상 입력 없이 `STOPPED_SAFETY`와 비재개 상태를 만든다. 안전 이벤트 응답은 `SESSION_STOPPED` 또는 `STOP_AND_SEEK_HELP`이며 증상 data를 반환하지 않는다.
 - 완료 상태는 완료 블록 수에서 server-derived `COMPLETED`/`PARTIAL`/`NOT_COMPLETED`로 반환한다. 실행 상태와 타이머 누적값은 별도 반환한다.
@@ -715,9 +715,9 @@ MeProfile
 - experience_level_code: string
 - timezone: IANA timezone
 - weekly_target_sessions: integer
-- coaching_style_code: string  # always SUPPORTIVE; retained for response compatibility
-- preferred_location_code: string  # legacy response field
-- available_location_codes: string[]  # legacy response field
+- coaching_style_code: string  # always SUPPORTIVE; response-only, no stored column
+- preferred_location_code: string  # always HOME; response-only, no stored column
+- available_location_codes: string[]  # always [HOME]; response-only, no stored column
 - default_requested_duration_minutes: integer
 - attention_area_codes: string[]
 - preferred_exercise_type_codes: string[]  # legacy, 결정에 미사용
@@ -811,18 +811,18 @@ PATCH가 지원하는 필드는 아래 16개이며, 그중 일부는 호환 기�
 | `primary_goal_code` | string, `^[A-Z][A-Z0-9_]{0,63}$`, 배포 승인 코드 | 빈 문자열·null 거부 | trim·대소문자 변환 없음. 다음 결정부터 반영 | 형식 오류 `400 INVALID_REQUEST`; 미승인 코드 `422 INVALID_ONBOARDING_CODE`; 승인 목록 없음 `503 PROFILE_CONFIGURATION_UNAVAILABLE` |
 | `weekly_target_sessions` | integer | null 거부 | 1~7회. 진행 중인 주에는 소급 적용하지 않음 | 범위·타입 오류 `400 INVALID_REQUEST` |
 | `persistent_pains` | `PersistentPainInput[]` (`body_area_code`, `intensity_score`) | **빈 배열 허용**, null·부위 중복 거부 | 건강 관련 정보. `OTHER` 금지, `intensity_score` 1~10. 빈 배열은 평소 통증 없음. 이후 Check-in 기본값만 바꾸며 과거 `daily_context_pains`와 저장된 결정을 소급 변경하지 않음 | enum·중복 오류 `400 INVALID_REQUEST`; 점수 범위 `422 INVALID_DOMAIN_CODE` |
-| (Legacy) `coaching_style_code` | `SUPPORTIVE`, `CONCISE`, `ENERGETIC` | 빈 문자열·null 거부 | 구 클라이언트 호환을 위해 검증 후 무시한다. 응답·새 저장값은 항상 `SUPPORTIVE` | enum 오류 `400 INVALID_REQUEST` |
+| (Legacy) `coaching_style_code` | `SUPPORTIVE`, `CONCISE`, `ENERGETIC` | 빈 문자열·null 거부 | 구 클라이언트 호환을 위해 검증 후 무시한다. 저장 컬럼이 없으며 응답은 항상 `SUPPORTIVE` | enum 오류 `400 INVALID_REQUEST` |
 | `experience_level_code` | string, `^[A-Z][A-Z0-9_]{0,63}$`, 배포 승인 코드 | 빈 문자열·null 거부 | trim·대소문자 변환 없음 | 형식 오류 `400 INVALID_REQUEST`; 미승인 코드 `422 INVALID_ONBOARDING_CODE`; 승인 목록 없음 `503 PROFILE_CONFIGURATION_UNAVAILABLE` |
 | `nickname` | string | trim 후 빈 문자열·null 거부 | 앞뒤 공백 제거 후 1~64자. 내부 공백은 유지 | 길이·타입 오류 `400 INVALID_REQUEST` |
 | `weight_kg` | number | null 거부 | 25~300kg, 보정·반올림 없음. 건강 관련 정보 | 범위·타입 오류 `400 INVALID_REQUEST` |
 | `timezone` | 1~64자 IANA timezone string | 빈 문자열·null 거부 | trim 없음. 저장된 생년월일을 새 timezone으로 다시 검증 | 형식 오류 `400 INVALID_REQUEST`; 알 수 없는 timezone `422 INVALID_TIMEZONE`; 암호화 설정·복호화 불가 `503 PROFILE_CONFIGURATION_UNAVAILABLE` |
 | `date_of_birth` | ISO 8601 `date` (`YYYY-MM-DD`) | 빈 문자열·null 거부 | 미래 날짜 거부, 최종 timezone 기준 만 18–64세 eligibility 재판정, 암호화 저장 | 형식·미래 날짜 `422 INVALID_DATE_OF_BIRTH`; 범위 밖 `OUT_OF_SCOPE_AGE`; 암호화 설정 없음 `503 PROFILE_CONFIGURATION_UNAVAILABLE` |
 | (Legacy) `default_requested_duration_minutes` | integer | null 거부 | 1~240분. 신규 결정에 사용하지 않음 | 범위·타입 오류 `400 INVALID_REQUEST` |
-| (Legacy) `preferred_location_code` | `HOME`, `GYM`, `OUTDOOR` | 빈 문자열·null 거부 | 구 클라이언트 호환을 위해 검증 후 무시한다. 운동 장소는 Daily Check-in에서만 받는다 | enum 오류 `400 INVALID_REQUEST` |
-| (Legacy) `available_location_codes` | 위 location code 배열 | 빈 배열·null·중복 거부 | 구 클라이언트 호환을 위해 검증 후 무시한다. `preferred_location_code`와의 교차 검증을 수행하지 않는다 | enum·중복 오류 `400 INVALID_REQUEST` |
+| (Legacy) `preferred_location_code` | `HOME`, `GYM`, `OUTDOOR` | 빈 문자열·null 거부 | 구 클라이언트 호환을 위해 검증 후 무시한다. 저장 컬럼이 없으며 운동 장소는 Daily Check-in에서만 받는다 | enum 오류 `400 INVALID_REQUEST` |
+| (Legacy) `available_location_codes` | 위 location code 배열 | 빈 배열·null·중복 거부 | 구 클라이언트 호환을 위해 검증 후 무시한다. 저장 테이블이 없으며 `preferred_location_code`와의 교차 검증도 수행하지 않는다 | enum·중복 오류 `400 INVALID_REQUEST` |
 | `attention_area_codes` | `NECK`, `SHOULDER`, `ELBOW`, `WRIST_HAND`, `UPPER_BACK`, `LOWER_BACK`, `HIP`, `KNEE`, `ANKLE_FOOT`, `CHEST`, `ABDOMEN` 배열 | **빈 배열 허용**, null·중복 거부 | 온보딩·프로필의 Check-in 기본 선택값이다. 사용자는 Check-in에서 해제·변경할 수 있으며, 이 값 자체는 Safety·루틴 생성·결정 스냅샷에 사용하지 않는다. 최종 제출된 Check-in `pains`만 결정에 반영한다. `persistent_pains`와 함께 보낼 수 없음 | enum·중복 오류 `400 INVALID_REQUEST` |
-| (Legacy) `height_cm` | number | null 거부 | 구 클라이언트 호환을 위해 검증 후 무시한다 | 범위·타입 오류 `400 INVALID_REQUEST` |
-| (Legacy) `sex_code` | `FEMALE`, `MALE`, `PREFER_NOT_TO_SAY` | 빈 문자열·null 거부 | 구 클라이언트 호환을 위해 검증 후 무시한다 | enum 오류 `400 INVALID_REQUEST` |
+| (Legacy) `height_cm` | number | null 거부 | 구 클라이언트 호환을 위해 검증 후 무시한다. 저장 컬럼이 없다 | 범위·타입 오류 `400 INVALID_REQUEST` |
+| (Legacy) `sex_code` | `FEMALE`, `MALE`, `PREFER_NOT_TO_SAY` | 빈 문자열·null 거부 | 구 클라이언트 호환을 위해 검증 후 무시한다. 저장 컬럼이 없다 | enum 오류 `400 INVALID_REQUEST` |
 | (Legacy) `preferred_exercise_type_codes` | `STRENGTH`, `CARDIO`, `MOBILITY` 배열 | **빈 배열 허용**, null·중복 거부 | 신규 결정에 사용하지 않음 | enum·중복 오류 `400 INVALID_REQUEST` |
 
 공통 규칙:
@@ -834,8 +834,11 @@ PATCH가 지원하는 필드는 아래 16개이며, 그중 일부는 호환 기�
   `preferred_exercise_type_codes`는 빈 배열을 허용한다.
 - `coaching_style_code`, `preferred_location_code`, `available_location_codes`, `height_cm`, `sex_code`는
   배포된 구 클라이언트의 write 호환을 위해서만 유지한다. 신규 클라이언트는 보내지 않으며, 서버는
-  검증 뒤 이 값을 저장하거나 profile version 변경의 근거로 사용하지 않는다. 응답 field와 DB column은
-  다음 릴리스까지 남긴다.
+  검증 뒤 이 값을 저장하거나 profile version 변경의 근거로 사용하지 않는다. DB column은 migration
+  0049·0050에서 제거했다. `coaching_style_code`, `preferred_location_code`,
+  `available_location_codes` 응답 field는 배포된 프론트가 아직 읽으므로 고정값으로 남기고,
+  FE-5·FE-8이 마지막 reader를 제거한 다음 릴리스에서 함께 뺀다. `height_cm`과 `sex_code`는 애초에
+  응답 field가 아니다.
 - 마이페이지의 평소 통증 부위 수정은 `persistent_pains`를 사용한다. `attention_area_codes`와 함께
   보내면 `400 INVALID_REQUEST`다.
 - `primary_goal_code`와 `experience_level_code`는 배포 승인 목록의 값만 허용한다.
@@ -1030,10 +1033,11 @@ requested duration은 사용자 선택값이며 서버가 변경하지 않는다
 순서로 수행한다. 사용자는 각 phase 안에서만 운동 순서를 바꿀 수 있으며 phase 경계를 넘는
 이동은 허용하지 않는다.
 
-사용자 가능 장소는 `HOME`, `GYM`, `OUTDOOR` 개별 코드 배열로 관리한다. `HOME`과 `GYM`을
-모두 선택한 사용자는 두 장소 중 하나 이상을 지원하는 운동만 받을 수 있다. 기존
-`preferred_location_code`는 호환 기간 동안 유지하고, `available_location_codes`가 없으면
-해당 단일 값을 사용한다.
+운동 장소는 사용자별로 저장하지 않는다(ADR-0017). 프로필의 장소 저장은 migration 0050에서
+제거했고, 당일 장소는 Daily Check-in의 `location_code`로만 받는다. 주간 계획과 기본 루틴은
+서비스가 제공하는 장소 집합(`HOME`, `GYM`)을 사용하며, 그중 어느 장소를 쓸지는 루틴이 지원하는
+장소와의 교집합과 당일 Safety-approved Pool이 정한다. `OUTDOOR`는 기존 데이터 호환을 위해 값으로만
+남기고 선택지에 넣지 않는다.
 
 ### 8.3 운동 자세·설명
 

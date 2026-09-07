@@ -9,7 +9,6 @@ from backend.app.db.models.identity import User
 from backend.app.db.models.profile import (
     MutationIdempotencyRecord,
     UserAttentionArea,
-    UserAvailableLocation,
     UserConsent,
     UserConsentEvent,
     UserPersistentPain,
@@ -52,17 +51,8 @@ class ProfileRepository:
                 primary_goal_code=profile.primary_goal_code,
                 experience_level_code=profile.experience_level_code,
                 timezone=profile.timezone,
-                preferred_location_code=profile.preferred_location_code,
-                available_location_codes=tuple(
-                    session.scalars(
-                        select(UserAvailableLocation.location_code)
-                        .where(UserAvailableLocation.user_id == user_id)
-                        .order_by(UserAvailableLocation.location_code)
-                    )
-                ),
                 default_requested_duration_minutes=profile.default_requested_duration_minutes,
                 desired_weekly_workout_count=profile.desired_weekly_workout_count,
-                coaching_style_code=profile.coaching_style_code,
                 attention_area_codes=tuple(
                     session.scalars(
                         select(UserAttentionArea.body_area_code)
@@ -206,13 +196,9 @@ class ProfileRepository:
                 primary_goal_code=values.primary_goal_code,
                 experience_level_code=values.experience_level_code,
                 timezone=values.timezone,
-                preferred_location_code=values.preferred_location_code,
                 default_requested_duration_minutes=values.default_requested_duration_minutes,
                 desired_weekly_workout_count=values.desired_weekly_workout_count,
-                coaching_style_code=values.coaching_style_code,
-                height_cm=values.height_cm,
                 weight_kg=values.weight_kg,
-                sex_code=values.sex_code,
                 medical_exercise_restriction=values.medical_exercise_restriction,
                 eligibility_result_code=values.eligibility_result_code,
                 weekly_target_sessions=values.weekly_target_sessions,
@@ -228,32 +214,21 @@ class ProfileRepository:
             profile.primary_goal_code = values.primary_goal_code
             profile.experience_level_code = values.experience_level_code
             profile.timezone = values.timezone
-            profile.preferred_location_code = values.preferred_location_code
             profile.default_requested_duration_minutes = values.default_requested_duration_minutes
             profile.desired_weekly_workout_count = values.desired_weekly_workout_count
-            profile.coaching_style_code = values.coaching_style_code
-            profile.height_cm = values.height_cm
             profile.weight_kg = values.weight_kg
-            profile.sex_code = values.sex_code
             profile.medical_exercise_restriction = values.medical_exercise_restriction
             profile.eligibility_result_code = values.eligibility_result_code
             profile.weekly_target_sessions = values.weekly_target_sessions
             profile.profile_version += 1
             profile.updated_at = now
 
-        session.execute(
-            delete(UserAvailableLocation).where(UserAvailableLocation.user_id == user_id)
-        )
         session.execute(delete(UserAttentionArea).where(UserAttentionArea.user_id == user_id))
         session.execute(
             delete(UserPreferredExerciseType).where(UserPreferredExerciseType.user_id == user_id)
         )
         session.add_all(
             [
-                UserAvailableLocation(user_id=user_id, location_code=code, created_at=now)
-                for code in values.available_location_codes
-            ]
-            + [
                 UserAttentionArea(
                     id=uuid4(),
                     user_id=user_id,
@@ -281,7 +256,6 @@ class ProfileRepository:
         return OnboardingRecord(
             user_id=user_id,
             profile_version=profile.profile_version,
-            coaching_style_code=profile.coaching_style_code,
             ai_trial_started_at=user.ai_trial_started_at,
             ai_trial_ends_at=user.ai_trial_ends_at,
             premium_status_code=user.premium_status_code,
@@ -303,20 +277,9 @@ class ProfileRepository:
             primary_goal_code=profile.primary_goal_code,
             experience_level_code=profile.experience_level_code,
             timezone=profile.timezone,
-            preferred_location_code=profile.preferred_location_code,
-            available_location_codes=tuple(
-                session.scalars(
-                    select(UserAvailableLocation.location_code)
-                    .where(UserAvailableLocation.user_id == user_id)
-                    .order_by(UserAvailableLocation.location_code)
-                )
-            ),
             default_requested_duration_minutes=profile.default_requested_duration_minutes,
             desired_weekly_workout_count=profile.desired_weekly_workout_count,
-            coaching_style_code=profile.coaching_style_code,
-            height_cm=profile.height_cm,
             weight_kg=profile.weight_kg,
-            sex_code=profile.sex_code,
             attention_area_codes=tuple(
                 session.scalars(
                     select(UserAttentionArea.body_area_code)
@@ -353,14 +316,6 @@ class ProfileRepository:
         for field_name, value in changes.scalar_values.items():
             setattr(profile, field_name, value)
 
-        if changes.available_location_codes is not None:
-            session.execute(
-                delete(UserAvailableLocation).where(UserAvailableLocation.user_id == user_id)
-            )
-            session.add_all(
-                UserAvailableLocation(user_id=user_id, location_code=code, created_at=now)
-                for code in changes.available_location_codes
-            )
         if changes.attention_area_codes is not None:
             session.execute(delete(UserAttentionArea).where(UserAttentionArea.user_id == user_id))
             session.add_all(

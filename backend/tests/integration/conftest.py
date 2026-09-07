@@ -10,8 +10,8 @@ only ever showed up locally -- which is worse, because it trained everyone to re
 integration run as noise.
 
 Rebuilding the schema, rather than truncating, is deliberate: migrations seed
-`body_areas`, `body_focuses`, `decision_policy_versions` and `user_available_locations`,
-so emptying every table leaves the suite without rows it never inserts itself. Fixing the
+`body_areas`, `body_focuses` and `decision_policy_versions`, so emptying every table
+leaves the suite without rows it never inserts itself. Fixing the
 individual teardowns was the other option, but the modules disagree about who owns the
 shared lookup tables; a shared starting point settles that without making one module's
 cleanup responsible for another's rows. Per-test isolation still comes from each module's

@@ -15,7 +15,6 @@ from backend.app.db.models.catalog import (
 from backend.app.db.models.decision import PlanCandidate
 from backend.app.db.models.profile import (
     MutationIdempotencyRecord,
-    UserAvailableLocation,
     UserEquipment,
     UserProfile,
 )
@@ -23,6 +22,7 @@ from backend.app.db.models.routine import Routine, RoutineDay, RoutineItem
 from backend.app.db.models.workout import WorkoutSession
 from backend.app.domain.rules.plan_naming import build_plan_name
 from backend.app.domain.rules.training_level import allowed_exercise_difficulty_codes
+from backend.app.modules.catalog.codes import SELECTABLE_LOCATION_CODES
 from backend.app.modules.routines.codes import (
     ROUTINE_RESPONSE_SCHEMA_VERSION,
     RoutineStatusCode,
@@ -102,13 +102,10 @@ class RoutineRepository:
         allowed_difficulties = allowed_exercise_difficulty_codes(profile.experience_level_code)
         if not allowed_difficulties:
             return None
-        locations = tuple(
-            session.scalars(
-                select(UserAvailableLocation.location_code).where(
-                    UserAvailableLocation.user_id == user_id
-                )
-            ).all()
-        ) or (profile.preferred_location_code,)
+        # ADR-0017 removed the profile location, and the base routine has never
+        # gated candidates on it. The context still reports which locations the
+        # product offers so a reader is not left guessing what the empty tuple meant.
+        locations = tuple(code.value for code in SELECTABLE_LOCATION_CODES)
         equipment = tuple(
             session.scalars(
                 select(UserEquipment.equipment_code).where(UserEquipment.user_id == user_id)

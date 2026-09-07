@@ -24,7 +24,7 @@ from backend.app.db.models.catalog import (
     TrainingType,
 )
 from backend.app.db.models.identity import User
-from backend.app.db.models.profile import UserAvailableLocation, UserProfile
+from backend.app.db.models.profile import UserProfile
 from backend.app.db.repositories.routine import RoutineRepository
 from backend.app.modules.routines.schemas import RoutineCreateRequest
 from backend.app.modules.routines.service import RoutineService
@@ -46,7 +46,6 @@ def _add_user(
     session: Session,
     *,
     experience_level_code: str = "BEGINNER",
-    location_codes: tuple[str, ...] = ("HOME", "GYM"),
 ) -> UUID:
     user_id = uuid4()
     session.add(
@@ -68,19 +67,13 @@ def _add_user(
             primary_goal_code="GENERAL_FITNESS",
             experience_level_code=experience_level_code,
             timezone="Asia/Seoul",
-            preferred_location_code="HOME",
             default_requested_duration_minutes=10,
             desired_weekly_workout_count=2,
-            coaching_style_code="SUPPORTIVE",
-            height_cm=None,
             weight_kg=None,
-            sex_code=None,
             code_set_version="profile-mvp-v1",
             profile_version=1,
         )
     )
-    for location_code in location_codes:
-        session.add(UserAvailableLocation(user_id=user_id, location_code=location_code))
     return user_id
 
 
@@ -362,8 +355,10 @@ def test_postgresql_routine_repository_does_not_gate_base_routine_by_location(
 ) -> None:
     """ADR-0017: the base routine is a weekly template, so location is not a candidate gate.
 
-    A HOME-only user must still receive a GYM-only exercise as a base-routine candidate.
-    The day's location arrives with the check-in and the Safety-approved Pool applies it.
+    A user must still receive a GYM-only exercise as a base-routine candidate. The
+    day's location arrives with the check-in and the Safety-approved Pool applies it.
+    Nothing narrows the location per user any more: the profile stopped storing one,
+    so the context reports the locations the product offers.
     """
 
     database_url = _database_url()
@@ -386,13 +381,11 @@ def test_postgresql_routine_repository_does_not_gate_base_routine_by_location(
             tier="CORE",
             location_code="GYM",
         )
-        home_only_user_id = _add_user(session, location_codes=("HOME",))
+        user_id = _add_user(session)
 
     with Session(engine) as session:
-        context = RoutineRepository().get_creation_context(
-            session, home_only_user_id, "GENERAL_FITNESS"
-        )
+        context = RoutineRepository().get_creation_context(session, user_id, "GENERAL_FITNESS")
         assert context is not None
-        assert context.available_location_codes == ("HOME",)
+        assert context.available_location_codes == ("HOME", "GYM")
         candidate_names = {candidate.exercise_name for candidate in context.candidates}
         assert "BEGINNER 헬스장 전용 본 운동" in candidate_names

@@ -1,4 +1,5 @@
 from enum import StrEnum
+from typing import Final
 
 CATALOG_CODE_SET_VERSION = "mvp-v1"
 CATALOG_V2_CODE_SET_VERSION = "catalog-v2"
@@ -183,6 +184,19 @@ class LocationCode(StrEnum):
     HOME = "HOME"
     GYM = "GYM"
     OUTDOOR = "OUTDOOR"
+
+
+# Locations the product actually offers. ADR-0017 moved the workout location to the
+# Daily Check-in, so no profile value narrows this set any more, and the 2026-09-07
+# G7 decision keeps `OUTDOOR` as a stored value without offering it. Anything that
+# used to read a location off the profile reads this instead.
+SELECTABLE_LOCATION_CODES: Final[tuple[LocationCode, ...]] = (
+    LocationCode.HOME,
+    LocationCode.GYM,
+)
+# The location assumed when a caller supplies none. It is a display and default-
+# selection value only; it never narrows an approved pool.
+DEFAULT_LOCATION_CODE: Final[LocationCode] = LocationCode.HOME
 
 
 class BodyAreaCode(StrEnum):
