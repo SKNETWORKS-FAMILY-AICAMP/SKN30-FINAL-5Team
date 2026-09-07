@@ -279,6 +279,8 @@ export type DailyContextResponse = DailyContextRequest & {
 export type DailyContextDefaultsResponse = {
   local_date: string;
   pains: PainAreaInput[];
+  /** Server-owned choices for the daily check-in; legacy responses may omit it. */
+  selectable_location_codes?: string[];
 };
 
 export type WorkoutPlanItem = {
