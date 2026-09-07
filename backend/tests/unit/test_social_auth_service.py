@@ -12,15 +12,18 @@ from backend.app.domain.rules.auth_provider import (
     AuthorizationFlow,
     AuthProviderCode,
     AuthProviderContractError,
+    ProviderFailureKindCode,
     ProviderTokenEvidence,
     RateLimitDimensionCode,
 )
 from backend.app.modules.identity.codes import UserStatusCode
 from backend.app.modules.identity.ports import IdentityUserRecord
+from backend.app.modules.social_auth.ports import ProviderExchangeError
 from backend.app.modules.social_auth.service import SocialOAuthService
 
 NOW = datetime(2026, 9, 7, 12, 0, tzinfo=UTC)
 REDIRECT_URI = "https://app.example.test/oauth/kakao/callback"
+GOOGLE_REDIRECT_URI = "https://app.example.test/oauth/google/callback"
 VERIFIER = "a" * 43
 CHALLENGE = (
     base64.urlsafe_b64encode(hashlib.sha256(VERIFIER.encode()).digest()).rstrip(b"=").decode()
@@ -83,6 +86,16 @@ class FakeKakao:
         return self.evidence
 
 
+class FakeGoogle(FakeKakao):
+    def build_authorization_url(self, **kwargs: str) -> str:
+        return f"https://accounts.google.com/o/oauth2/v2/auth?state={kwargs['state']}"
+
+
+class FailingGoogle(FakeGoogle):
+    def exchange_authorization_code(self, **_: str) -> ProviderTokenEvidence:
+        raise ProviderExchangeError(ProviderFailureKindCode.AUTHORIZATION_CODE_INVALID_GRANT)
+
+
 class FakeFirebaseTokens:
     def __init__(self) -> None:
         self.subjects: list[str] = []
@@ -109,6 +122,7 @@ def _service(
     repository: FakeRepository,
     kakao: FakeKakao,
     *,
+    google: FakeGoogle | None = None,
     now: datetime = NOW,
 ) -> SocialOAuthService:
     return SocialOAuthService(
@@ -117,6 +131,10 @@ def _service(
         FakeFirebaseTokens(),
         redirect_uris=frozenset({REDIRECT_URI}),
         rate_limit_hmac_key=b"test-rate-limit-key",
+        google=google,
+        google_redirect_uris=frozenset({GOOGLE_REDIRECT_URI})
+        if google is not None
+        else frozenset(),
         clock=lambda: now,
     )
 
@@ -304,3 +322,98 @@ def test_expired_flow_is_deleted_and_rejected() -> None:
         )
     assert captured.value.code is AuthFailureCode.OAUTH_STATE_EXPIRED
     assert repository.flows == {}
+
+
+def test_google_exchange_uses_the_same_single_use_state_nonce_and_pkce_guards() -> None:
+    repository = FakeRepository()
+    google = FakeGoogle(_evidence())
+    service = _service(repository, FakeKakao(_evidence()), google=google)
+    session = _session()
+    started = service.authorize_init(
+        session,
+        provider_code="GOOGLE",
+        redirect_uri=GOOGLE_REDIRECT_URI,
+        code_challenge=CHALLENGE,
+        client_ip="192.0.2.1",
+    )
+    google.evidence = ProviderTokenEvidence(
+        provider_code=AuthProviderCode.GOOGLE,
+        issuer_matches=True,
+        audience_matches=True,
+        signature_valid=True,
+        token_not_expired=True,
+        provider_subject="opaque-google-subject",
+        nonce_matches=None,
+        token_nonce_claim=started.nonce,
+    )
+
+    token = service.exchange(
+        session,
+        provider_code="GOOGLE",
+        authorization_code="one-time-code",
+        redirect_uri=GOOGLE_REDIRECT_URI,
+        state=started.state,
+        nonce=started.nonce,
+        code_verifier=VERIFIER,
+        client_ip="192.0.2.1",
+    )
+
+    assert token == "firebase-custom-token"
+    assert google.exchange_calls == 1
+    assert repository.flows == {}
+    assert repository.resolved_subjects == ["opaque-google-subject"]
+
+
+def test_google_invalid_grant_consumes_the_flow_and_fails_closed() -> None:
+    repository = FakeRepository()
+    google = FailingGoogle(_evidence())
+    service = _service(repository, FakeKakao(_evidence()), google=google)
+    session = _session()
+    started = service.authorize_init(
+        session,
+        provider_code="GOOGLE",
+        redirect_uri=GOOGLE_REDIRECT_URI,
+        code_challenge=CHALLENGE,
+        client_ip="192.0.2.1",
+    )
+
+    with pytest.raises(AuthProviderContractError) as captured:
+        service.exchange(
+            session,
+            provider_code="GOOGLE",
+            authorization_code="one-time-code",
+            redirect_uri=GOOGLE_REDIRECT_URI,
+            state=started.state,
+            nonce=started.nonce,
+            code_verifier=VERIFIER,
+            client_ip="192.0.2.1",
+        )
+
+    assert captured.value.code is AuthFailureCode.AUTHORIZATION_CODE_REUSED
+    assert repository.flows == {}
+    assert repository.resolved_subjects == []
+
+
+def test_google_rate_limit_blocks_the_eleventh_authorize_init() -> None:
+    repository = FakeRepository()
+    service = _service(repository, FakeKakao(_evidence()), google=FakeGoogle(_evidence()))
+    session = _session()
+    for _ in range(10):
+        service.authorize_init(
+            session,
+            provider_code="GOOGLE",
+            redirect_uri=GOOGLE_REDIRECT_URI,
+            code_challenge=CHALLENGE,
+            client_ip="192.0.2.1",
+        )
+
+    with pytest.raises(AuthProviderContractError) as captured:
+        service.authorize_init(
+            session,
+            provider_code="GOOGLE",
+            redirect_uri=GOOGLE_REDIRECT_URI,
+            code_challenge=CHALLENGE,
+            client_ip="192.0.2.1",
+        )
+
+    assert captured.value.code is AuthFailureCode.RATE_LIMITED

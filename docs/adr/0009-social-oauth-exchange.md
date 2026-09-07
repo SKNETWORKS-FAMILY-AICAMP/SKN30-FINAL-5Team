@@ -1,4 +1,19 @@
-# ADR-0009: KAKAO 소셜 OAuth 교환과 provider 경계
+# ADR-0009: Google·Kakao 소셜 OAuth 교환과 provider 경계
+
+> 2026-09-07 개발리드 지시: 이 ADR의 Google Firebase-native 전용, Kakao 단독 활성 provider,
+> Naver 후속 adapter 관련 기존 서술은 아래 Google 직접 OAuth/OIDC 구현 결정으로 대체한다.
+> 활성 backend authorization-code provider는 `GOOGLE`, `KAKAO`이며 Naver는 이번 범위에서 제외한다.
+
+## Google 직접 OAuth/OIDC 계약 (2026-09-07)
+
+- Google authorization endpoint는 `https://accounts.google.com/o/oauth2/v2/auth`, token endpoint는
+  `https://oauth2.googleapis.com/token`, JWKS endpoint는 `https://www.googleapis.com/oauth2/v3/certs`다.
+- `openid`만 요청하고, provider별 exact redirect URI, state, nonce, PKCE S256을 모두 요구한다.
+- RS256 signature, `iss` (`https://accounts.google.com` 또는 legacy `accounts.google.com`), `aud`,
+  `exp`, non-empty `sub`, nonce를 검증한 뒤에만 Firebase custom token을 발급한다.
+- `invalid_grant`는 provider 상세를 노출하지 않고 `409 AUTHORIZATION_CODE_REUSED`로 fail closed한다.
+- raw authorization code, state, nonce, verifier, access/refresh/ID token, secret, subject와 profile
+  claim은 DB·cache·로그·fixture·오류 details에 저장하거나 기록하지 않는다.
 
 - 상태: ACCEPTED
 - 날짜: 2026-08-14
@@ -29,10 +44,10 @@ Kakao 앱과 credential 확보 여부는 확인되지 않았다. F010의 Google/
 
 | 기준 | Google | Kakao | Naver |
 |---|---|---|---|
-| 권장 경로 | Firebase 기본 provider | backend authorization code + OIDC + Firebase custom token | backend authorization code + OIDC + Firebase custom token |
+| 권장 경로 | backend authorization code + OIDC + Firebase custom token | backend authorization code + OIDC + Firebase custom token | 범위 제외 |
 | Firebase 중복 | 높음 | 낮음 | 낮음 |
-| 최소 scope | Firebase 결과에서 UID만 소비 | `openid`만 | `openid`만 |
-| state/nonce/PKCE | Firebase SDK 관리 | state·nonce·PKCE S256 | state·PKCE S256; 공식 문서에서 nonce 미확인 |
+| 최소 scope | `openid`만 | `openid`만 | 해당 없음 |
+| state/nonce/PKCE | state·nonce·PKCE S256 | state·nonce·PKCE S256 | 해당 없음 |
 | 연결 해제 | Firebase Admin/SDK 경계 | Admin key + subject unlink | 사용자 token revoke + disconnect callback |
 | 출시 전 확인 | Firebase/Google console | Kakao 앱·REST key·redirect URI·OIDC | 앱 공개 검수·redirect URI·revoke 운영 |
 | 운영 복잡도 | 낮음 | 중간 | 높음 |

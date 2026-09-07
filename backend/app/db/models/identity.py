@@ -68,7 +68,8 @@ class UserIdentity(Base):
     __table_args__ = (
         CheckConstraint(
             "(provider_code = 'FIREBASE' AND code_set_version = 'identity-mvp-v1') "
-            "OR (provider_code = 'KAKAO' AND code_set_version = 'identity-social-v1')",
+            "OR (provider_code IN ('GOOGLE', 'KAKAO') "
+            "AND code_set_version = 'identity-social-v1')",
             name="ck_user_identities_provider_code_set",
         ),
         Index(
@@ -111,7 +112,7 @@ class SocialOAuthAuthorizationRequest(Base):
     __tablename__ = "social_oauth_authorization_requests"
     __table_args__ = (
         CheckConstraint(
-            "provider_code IN ('KAKAO')",
+            "provider_code IN ('GOOGLE', 'KAKAO')",
             name="ck_social_oauth_authorization_provider",
         ),
         CheckConstraint(
@@ -136,7 +137,9 @@ class SocialOAuthAuthorizationRequest(Base):
 class SocialOAuthRateLimitWindow(Base):
     __tablename__ = "social_oauth_rate_limit_windows"
     __table_args__ = (
-        CheckConstraint("provider_code IN ('KAKAO')", name="ck_social_oauth_rate_provider"),
+        CheckConstraint(
+            "provider_code IN ('GOOGLE', 'KAKAO')", name="ck_social_oauth_rate_provider"
+        ),
         CheckConstraint(
             "dimension_code IN ('CLIENT_IP', 'PROVIDER_REDIRECT')",
             name="ck_social_oauth_rate_dimension",

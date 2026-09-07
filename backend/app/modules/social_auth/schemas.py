@@ -13,7 +13,7 @@ class SocialAuthorizationInitRequest(BaseModel):
 
 
 class SocialAuthorizationInitResponse(BaseModel):
-    provider_code: Literal["KAKAO"]
+    provider_code: Literal["GOOGLE", "KAKAO"]
     authorization_url: str
     state: str
     nonce: str

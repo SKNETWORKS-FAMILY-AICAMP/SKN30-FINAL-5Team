@@ -112,6 +112,9 @@ PostgreSQL ENUM을 광범위하게 사용하지 않는다. 자주 변경될 수 
 
 ### 4.2 user_identities
 
+> 2026-09-07 Google OAuth 증분: `identity-social-v1`은 `GOOGLE`, `KAKAO` identity에 사용한다.
+> 기존 `identity-mvp-v1` FIREBASE row는 변경하거나 rewrite하지 않는다.
+
 | 컬럼 | 설명 |
 |---|---|
 | id | UUID, PK |
@@ -141,6 +144,8 @@ user ID이며 KAKAO 공식 문서상 OIDC에서는 String, 원천 API에서는 L
 
 ### 4.2.1 social_oauth_authorization_requests
 
+> 2026-09-07 Google OAuth 증분: `provider_code`는 `GOOGLE`, `KAKAO`를 허용한다.
+
 Firebase 인증 전 KAKAO authorization 요청을 600초 동안 검증하기 위한 transient row다. 사용자
 계정이나 provider subject와 연결하지 않는다.
 
@@ -163,6 +168,8 @@ transaction에서 row를 삭제한다. row가 없으면 `INVALID_OAUTH_STATE`, r
 논리적으로 정리하며 scheduler를 추가하지 않는다.
 
 ### 4.2.2 social_oauth_rate_limit_windows
+
+> 2026-09-07 Google OAuth 증분: `provider_code`는 `GOOGLE`, `KAKAO`를 허용한다.
 
 비인증 social init/exchange의 PostgreSQL fixed-window counter다.
 

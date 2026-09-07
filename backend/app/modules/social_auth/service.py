@@ -26,6 +26,7 @@ from backend.app.domain.rules.auth_provider import (
 from backend.app.modules.social_auth.ports import (
     FirebaseCustomTokenIssuer,
     FirebaseCustomTokenUnavailableError,
+    GoogleOAuthPort,
     KakaoOAuthPort,
     ProviderExchangeError,
     SocialOAuthRepositoryPort,
@@ -53,24 +54,43 @@ class SocialOAuthService:
         *,
         redirect_uris: frozenset[str],
         rate_limit_hmac_key: bytes,
+        google: GoogleOAuthPort | None = None,
+        google_redirect_uris: frozenset[str] = frozenset(),
         clock: Callable[[], datetime] = _utc_now,
     ) -> None:
-        if not redirect_uris or not rate_limit_hmac_key:
-            raise ValueError("Kakao OAuth requires approved redirects and rate-limit key material")
+        if not (redirect_uris or google_redirect_uris) or not rate_limit_hmac_key:
+            raise ValueError("Social OAuth requires approved redirects and rate-limit key material")
         self._repository = repository
-        self._kakao = kakao
+        self._providers: dict[AuthProviderCode, KakaoOAuthPort | GoogleOAuthPort] = {
+            AuthProviderCode.KAKAO: kakao,
+        }
+        if google is not None:
+            self._providers[AuthProviderCode.GOOGLE] = google
         self._firebase_tokens = firebase_tokens
-        self._redirect_uris = redirect_uris
+        self._redirect_uris = {
+            AuthProviderCode.KAKAO: redirect_uris,
+            AuthProviderCode.GOOGLE: google_redirect_uris,
+        }
         self._rate_limit_hmac_key = rate_limit_hmac_key
         self._clock = clock
 
-    def _require_kakao(self, provider_code: str) -> AuthProviderCode:
-        if provider_code != AuthProviderCode.KAKAO:
+    def _require_provider(self, provider_code: str) -> AuthProviderCode:
+        try:
+            provider = AuthProviderCode(provider_code)
+        except ValueError:
+            raise AuthProviderContractError(AuthFailureCode.INVALID_OAUTH_STATE) from None
+        if provider not in self._providers:
             raise AuthProviderContractError(AuthFailureCode.INVALID_OAUTH_STATE)
-        return AuthProviderCode.KAKAO
+        return provider
 
-    def _redirect_key(self, redirect_uri: str, *, require_registered: bool) -> str:
-        if require_registered and redirect_uri not in self._redirect_uris:
+    def _redirect_key(
+        self,
+        provider_code: AuthProviderCode,
+        redirect_uri: str,
+        *,
+        require_registered: bool,
+    ) -> str:
+        if require_registered and redirect_uri not in self._redirect_uris[provider_code]:
             raise AuthProviderContractError(AuthFailureCode.INVALID_OAUTH_STATE)
         return hashlib.sha256(redirect_uri.encode("utf-8")).hexdigest()
 
@@ -128,8 +148,8 @@ class SocialOAuthService:
         code_challenge: str,
         client_ip: str,
     ) -> AuthorizationInitResult:
-        provider = self._require_kakao(provider_code)
-        redirect_key = self._redirect_key(redirect_uri, require_registered=True)
+        provider = self._require_provider(provider_code)
+        redirect_key = self._redirect_key(provider, redirect_uri, require_registered=True)
         now = self._clock()
         self._apply_rate_limits(
             session,
@@ -152,7 +172,7 @@ class SocialOAuthService:
         with session.begin():
             self._repository.create_flow(session, flow)
         return AuthorizationInitResult(
-            authorization_url=self._kakao.build_authorization_url(
+            authorization_url=self._providers[provider].build_authorization_url(
                 redirect_uri=redirect_uri,
                 state=state,
                 nonce=nonce,
@@ -175,11 +195,11 @@ class SocialOAuthService:
         code_verifier: str,
         client_ip: str,
     ) -> str:
-        provider = self._require_kakao(provider_code)
+        provider = self._require_provider(provider_code)
         # Hash first so an otherwise-valid state is consumed even when an
         # attacker changes the callback URI.  The stored hash came only from a
         # registered init URI, so a mismatch cannot reach the provider.
-        redirect_key = self._redirect_key(redirect_uri, require_registered=False)
+        redirect_key = self._redirect_key(provider, redirect_uri, require_registered=False)
         now = self._clock()
         self._apply_rate_limits(
             session,
@@ -213,7 +233,7 @@ class SocialOAuthService:
             raise AuthProviderContractError(AuthFailureCode.INVALID_OAUTH_STATE)
 
         try:
-            evidence = self._kakao.exchange_authorization_code(
+            evidence = self._providers[provider].exchange_authorization_code(
                 authorization_code=authorization_code,
                 redirect_uri=redirect_uri,
                 code_verifier=code_verifier,

@@ -57,6 +57,7 @@ from backend.app.modules.rewards.ports import RewardRepositoryPort
 from backend.app.modules.routines.ports import RoutineRepositoryPort
 from backend.app.modules.social_auth.ports import (
     FirebaseCustomTokenIssuer,
+    GoogleOAuthPort,
     KakaoOAuthPort,
     SocialOAuthRepositoryPort,
 )
@@ -117,6 +118,10 @@ def get_social_oauth_repository() -> SocialOAuthRepositoryPort:
 
 def get_kakao_oauth_client(request: Request) -> KakaoOAuthPort:
     return request.app.state.kakao_oauth_client
+
+
+def get_google_oauth_client(request: Request) -> GoogleOAuthPort:
+    return request.app.state.google_oauth_client
 
 
 def get_firebase_custom_token_issuer(request: Request) -> FirebaseCustomTokenIssuer:

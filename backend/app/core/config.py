@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     kakao_client_secret: SecretStr | None = None
     kakao_redirect_uris: Annotated[tuple[str, ...], NoDecode] = ()
     kakao_oauth_timeout_seconds: float = 3.0
+    google_oauth_client_id: SecretStr | None = None
+    google_oauth_client_secret: SecretStr | None = None
+    google_oauth_redirect_uris: Annotated[tuple[str, ...], NoDecode] = ()
+    google_oauth_timeout_seconds: float = 3.0
     social_oauth_rate_limit_hmac_key: SecretStr | None = None
     birthdate_encryption_key_base64: SecretStr | None = None
     birthdate_encryption_key_id: str = "local-v1"
@@ -230,6 +234,8 @@ class Settings(BaseSettings):
     @field_validator(
         "kakao_rest_api_key",
         "kakao_client_secret",
+        "google_oauth_client_id",
+        "google_oauth_client_secret",
         "social_oauth_rate_limit_hmac_key",
         mode="before",
     )
@@ -239,11 +245,11 @@ class Settings(BaseSettings):
             return None
         return value
 
-    @field_validator("kakao_oauth_timeout_seconds")
+    @field_validator("kakao_oauth_timeout_seconds", "google_oauth_timeout_seconds")
     @classmethod
-    def validate_kakao_oauth_timeout_seconds(cls, value: float) -> float:
+    def validate_social_oauth_timeout_seconds(cls, value: float) -> float:
         if not 0 < value <= 10:
-            raise ValueError("KAKAO_OAUTH_TIMEOUT_SECONDS must be within (0, 10]")
+            raise ValueError("social OAuth timeout must be within (0, 10]")
         return value
 
     @field_validator("qdrant_api_key", mode="before")
@@ -397,6 +403,7 @@ class Settings(BaseSettings):
         "onboarding_experience_level_codes",
         "cors_allowed_origins",
         "kakao_redirect_uris",
+        "google_oauth_redirect_uris",
         "llm_agents_approved_model_codes",
         mode="before",
     )
@@ -427,16 +434,16 @@ class Settings(BaseSettings):
             raise ValueError("CORS_ALLOWED_ORIGINS must list exact origins, not '*'")
         return value
 
-    @field_validator("kakao_redirect_uris")
+    @field_validator("kakao_redirect_uris", "google_oauth_redirect_uris")
     @classmethod
-    def validate_kakao_redirect_uris(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+    def validate_social_oauth_redirect_uris(cls, value: tuple[str, ...]) -> tuple[str, ...]:
         normalized = tuple(item.strip() for item in value)
         if len(normalized) != len(set(normalized)) or any(not item for item in normalized):
-            raise ValueError("KAKAO_REDIRECT_URIS must be unique non-empty URIs")
+            raise ValueError("social OAuth redirect URIs must be unique and non-empty")
         for uri in normalized:
             parsed = urlsplit(uri)
             if parsed.scheme not in {"https", "http"} or not parsed.netloc or parsed.fragment:
-                raise ValueError("KAKAO_REDIRECT_URIS must contain absolute callback URIs")
+                raise ValueError("social OAuth redirect URIs must be absolute callbacks")
         return normalized
 
     @field_validator("llm_agents_approved_model_codes")
