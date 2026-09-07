@@ -248,10 +248,12 @@ def _client(
     missing_configuration_keys: tuple[str, ...] = (),
     routine_repository: FakeRoutineRepository | None = None,
     session_active: bool = False,
+    terms_version: str | None = None,
 ) -> TestClient:
     settings = Settings(
         app_env="test",
         database_url="postgresql+psycopg://test:test@localhost/test",
+        terms_version=terms_version,
         consent_policy_version=(
             None if "CONSENT_POLICY_VERSION" in missing_configuration_keys else "privacy-v1"
         ),
@@ -978,3 +980,64 @@ def test_retired_consents_are_stored_as_not_granted(field_name: str) -> None:
     # The approved consents are untouched by the retirement.
     assert states["GENERAL_PERSONAL_DATA"] is True
     assert states["SENSITIVE_DATA"] is True
+
+
+def test_onboarding_requirements_tell_the_client_which_revision_to_submit() -> None:
+    client = _client(FakeProfileRepository(), terms_version="terms-v2.0.0")
+    with client:
+        response = client.get("/api/v1/legal/onboarding-requirements")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["terms_version"] == "terms-v2.0.0"
+    assert body["consent_policy_version"] == "privacy-v1"
+    assert body["required_consent_type_codes"] == ["GENERAL_PERSONAL_DATA", "SENSITIVE_DATA"]
+    # Retired types are absent, so a client rendering this list cannot show them.
+    presented = set(body["required_consent_type_codes"]) | set(body["optional_consent_type_codes"])
+    assert "WEARABLE_INTEGRATION" not in presented
+    assert "CALENDAR_INTEGRATION" not in presented
+
+
+def test_onboarding_requirements_fail_closed_without_an_approved_revision() -> None:
+    client = _client(FakeProfileRepository())
+    with client:
+        response = client.get("/api/v1/legal/onboarding-requirements")
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "LEGAL_POLICY_UNAVAILABLE"
+
+
+def test_onboarding_rejects_a_revision_the_deployment_did_not_approve() -> None:
+    """The client used to name the revision it had agreed to, so the stored
+    agreement recorded whatever the oldest installed build believed."""
+
+    repository = FakeProfileRepository()
+    client = _client(repository, terms_version="terms-v2.0.0")
+    payload = _payload()
+    payload["terms_version"] = "terms-v1"
+    with client:
+        response = client.put(
+            "/api/v1/me/onboarding",
+            headers={"Idempotency-Key": str(uuid4())},
+            json=payload,
+        )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "TERMS_VERSION_MISMATCH"
+    assert repository.terms_versions == []
+
+
+def test_onboarding_accepts_the_approved_revision() -> None:
+    repository = FakeProfileRepository()
+    client = _client(repository, terms_version="terms-v2.0.0")
+    payload = _payload()
+    payload["terms_version"] = "terms-v2.0.0"
+    with client:
+        response = client.put(
+            "/api/v1/me/onboarding",
+            headers={"Idempotency-Key": str(uuid4())},
+            json=payload,
+        )
+
+    assert response.status_code == 200
+    assert repository.terms_versions == ["terms-v2.0.0"]

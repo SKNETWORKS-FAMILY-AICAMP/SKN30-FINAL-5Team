@@ -278,6 +278,19 @@ class ConsentResponse(BaseModel):
     consents: list[ConsentState]
 
 
+class OnboardingRequirementsResponse(BaseModel):
+    """What the client must show, and which revision it must submit.
+
+    Retired consent types are absent by construction: the client renders this
+    list, so a code that is not here cannot be presented.
+    """
+
+    terms_version: str
+    consent_policy_version: str
+    required_consent_type_codes: list[ConsentTypeCode]
+    optional_consent_type_codes: list[ConsentTypeCode]
+
+
 __all__ = [
     "RETIRED_CONSENT_FIELDS",
     "ConsentResponse",
@@ -285,6 +298,7 @@ __all__ = [
     "ConsentValues",
     "MeProfile",
     "MeResponse",
+    "OnboardingRequirementsResponse",
     "OnboardingResponse",
     "OnboardingUpsertRequest",
     "PersistentPainInput",

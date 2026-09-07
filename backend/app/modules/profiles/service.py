@@ -21,6 +21,9 @@ from backend.app.modules.profiles.codes import (
     EligibilityResultCode,
     MutationEndpointCode,
 )
+from backend.app.modules.profiles.legal import (
+    validate_submitted_terms_version,
+)
 from backend.app.modules.profiles.ports import (
     BirthdateCipher,
     BirthdateDecryptionError,
@@ -118,6 +121,7 @@ class ProfileService:
         primary_goal_codes: tuple[str, ...],
         experience_level_codes: tuple[str, ...],
         consent_policy_version: str | None,
+        terms_version: str | None = None,
         stale_routines: StaleRoutinePort | None = None,
         profile_image_url_provider: ProfileImageUrlProvider | None = None,
         clock: Callable[[], datetime] = _utc_now,
@@ -128,6 +132,7 @@ class ProfileService:
         self._primary_goal_codes = frozenset(primary_goal_codes)
         self._experience_level_codes = frozenset(experience_level_codes)
         self._consent_policy_version = consent_policy_version
+        self._terms_version = terms_version
         self._clock = clock
         self._profile_image_url_provider = profile_image_url_provider
 
@@ -385,6 +390,10 @@ class ProfileService:
             raise InvalidOnboardingCodeError
         if not request.consents.general_personal_data or not request.consents.sensitive_data:
             raise RequiredConsentMissingError
+        # The deployment decides which revision users accept. Until one is
+        # approved this is a no-op, so the setting can ship without a
+        # coordinated client release.
+        validate_submitted_terms_version(request.terms_version, approved=self._terms_version)
         if request.medical_exercise_restriction:
             raise MedicalExerciseRestrictionError
 
