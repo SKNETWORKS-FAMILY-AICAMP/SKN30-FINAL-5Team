@@ -223,9 +223,9 @@ class SocialOAuthService:
 
             failure = classify_provider_failure(exc.kind)
             raise AuthProviderContractError(failure.public_error_code) from None
-        validate_provider_nonce(claim, token_nonce_claim=(
-            getattr(evidence, "token_nonce_claim", None)
-        ))
+        validate_provider_nonce(
+            claim, token_nonce_claim=(getattr(evidence, "token_nonce_claim", None))
+        )
         subject = validate_provider_token(evidence)
 
         with session.begin():

@@ -23,9 +23,7 @@ NOW = datetime(2026, 9, 7, 12, 0, tzinfo=UTC)
 REDIRECT_URI = "https://app.example.test/oauth/kakao/callback"
 VERIFIER = "a" * 43
 CHALLENGE = (
-    base64.urlsafe_b64encode(hashlib.sha256(VERIFIER.encode()).digest())
-    .rstrip(b"=")
-    .decode()
+    base64.urlsafe_b64encode(hashlib.sha256(VERIFIER.encode()).digest()).rstrip(b"=").decode()
 )
 
 

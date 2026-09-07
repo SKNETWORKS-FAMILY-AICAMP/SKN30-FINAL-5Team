@@ -56,11 +56,20 @@ class KakaoOAuthClient:
         nonce: str,
         code_challenge: str,
     ) -> str:
-        return f"{_AUTHORIZE_URL}?{urlencode({
-            'response_type': 'code', 'client_id': self._rest_api_key,
-            'redirect_uri': redirect_uri, 'state': state, 'nonce': nonce,
-            'code_challenge': code_challenge, 'code_challenge_method': 'S256', 'scope': 'openid',
-        })}"
+        return f"{_AUTHORIZE_URL}?{
+            urlencode(
+                {
+                    'response_type': 'code',
+                    'client_id': self._rest_api_key,
+                    'redirect_uri': redirect_uri,
+                    'state': state,
+                    'nonce': nonce,
+                    'code_challenge': code_challenge,
+                    'code_challenge_method': 'S256',
+                    'scope': 'openid',
+                }
+            )
+        }"
 
     def exchange_authorization_code(
         self,
