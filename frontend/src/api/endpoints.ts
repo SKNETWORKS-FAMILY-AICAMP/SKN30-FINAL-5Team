@@ -1,8 +1,7 @@
 /**
  * One function per implemented `/api/v1` endpoint.
  *
- * Profile-image methods are the frontend side of a proposed multipart contract;
- * the backend must review and implement that contract before production use.
+ * Profile-image methods use the implemented multipart upload/delete contract.
  * Calendar and wearable routes remain absent while there is nothing to call.
  */
 

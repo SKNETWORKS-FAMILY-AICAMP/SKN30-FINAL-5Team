@@ -383,6 +383,163 @@ describe('MyPageContainer', () => {
     expect(updateProfileSettings).not.toHaveBeenCalled();
   });
 
+  it('keeps a failed image selection for an explicit retry without reporting success', async () => {
+    const uploadProfileImage = jest
+      .fn<Api['uploadProfileImage']>()
+      .mockRejectedValueOnce(
+        new ApiError({
+          kind: 'unavailable',
+          code: 'PROFILE_IMAGE_STORAGE_UNAVAILABLE',
+          status: 503,
+          message: '프로필 이미지 저장소를 일시적으로 사용할 수 없습니다.',
+        }),
+      )
+      .mockResolvedValueOnce({
+        profile_image_url: 'https://cdn.example.com/profiles/user-1.jpg',
+        profile_version: 8,
+        updated_at: '2026-08-19T09:00:00+09:00',
+      });
+    const onRefreshMe = jest.fn(async () => undefined);
+    jest
+      .mocked(ImagePicker.requestMediaLibraryPermissionsAsync)
+      .mockResolvedValueOnce({
+        granted: true,
+        status: ImagePicker.PermissionStatus.GRANTED,
+        canAskAgain: true,
+        expires: 'never',
+      });
+    jest.mocked(ImagePicker.launchImageLibraryAsync).mockResolvedValueOnce({
+      canceled: false,
+      assets: [
+        {
+          uri: 'file:///retry-profile.jpg',
+          width: 800,
+          height: 800,
+          type: 'image',
+          fileName: 'retry-profile.jpg',
+          fileSize: 123_456,
+          mimeType: 'image/jpeg',
+        },
+      ],
+    });
+
+    await render(
+      <MyPageContainer
+        api={accountApi({ uploadProfileImage })}
+        me={me()}
+        now={new Date('2026-08-19T03:00:00Z')}
+        onNavigateTab={jest.fn()}
+        onRefreshMe={onRefreshMe}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: '프로필 수정' }));
+    fireEvent.press(
+      screen.getByRole('button', { name: '사진 보관함에서 선택' }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('profile-editor-avatar-preview').props.source,
+      ).toEqual({ uri: 'file:///retry-profile.jpg' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
+
+    expect(
+      await screen.findByText(
+        '프로필 사진을 저장하지 못했어요. 프로필 이미지 저장소를 일시적으로 사용할 수 없습니다. 사진 변경은 그대로 두었어요. 저장하기를 눌러 다시 시도해주세요.',
+      ),
+    ).toBeOnTheScreen();
+    expect(screen.queryByTestId('profile-editor-saved')).toBeNull();
+    expect(
+      screen.getByTestId('profile-editor-avatar-preview').props.source,
+    ).toEqual({ uri: 'file:///retry-profile.jpg' });
+
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
+
+    await waitFor(() => expect(uploadProfileImage).toHaveBeenCalledTimes(2));
+    expect(await screen.findByTestId('profile-editor-saved')).toBeOnTheScreen();
+    expect(onRefreshMe).toHaveBeenCalledTimes(1);
+  });
+
+  it('distinguishes an image failure after other profile fields were saved', async () => {
+    const updateProfileSettings = jest.fn<Api['updateProfileSettings']>(
+      async () => ({
+        profile_version: 8,
+        updated_at: '2026-08-19T09:00:00+09:00',
+      }),
+    );
+    const uploadProfileImage = jest.fn<Api['uploadProfileImage']>(async () => {
+      throw new ApiError({
+        kind: 'unavailable',
+        code: 'PROFILE_IMAGE_STORAGE_UNAVAILABLE',
+        status: 503,
+        message: '프로필 이미지 저장소를 일시적으로 사용할 수 없습니다.',
+      });
+    });
+    const onRefreshMe = jest.fn(async () => undefined);
+    jest
+      .mocked(ImagePicker.requestMediaLibraryPermissionsAsync)
+      .mockResolvedValueOnce({
+        granted: true,
+        status: ImagePicker.PermissionStatus.GRANTED,
+        canAskAgain: true,
+        expires: 'never',
+      });
+    jest.mocked(ImagePicker.launchImageLibraryAsync).mockResolvedValueOnce({
+      canceled: false,
+      assets: [
+        {
+          uri: 'file:///partial-profile.jpg',
+          width: 800,
+          height: 800,
+          type: 'image',
+          fileName: 'partial-profile.jpg',
+          mimeType: 'image/jpeg',
+        },
+      ],
+    });
+
+    await render(
+      <MyPageContainer
+        api={accountApi({ updateProfileSettings, uploadProfileImage })}
+        me={me()}
+        now={new Date('2026-08-19T03:00:00Z')}
+        onNavigateTab={jest.fn()}
+        onRefreshMe={onRefreshMe}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: '프로필 수정' }));
+    fireEvent.changeText(screen.getByLabelText('닉네임 입력'), '새 닉네임');
+    fireEvent.press(
+      screen.getByRole('button', { name: '사진 보관함에서 선택' }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('profile-editor-avatar-preview').props.source,
+      ).toEqual({ uri: 'file:///partial-profile.jpg' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
+
+    expect(
+      await screen.findByText(
+        '다른 프로필 변경은 저장했지만 프로필 사진은 저장하지 못했어요. 프로필 이미지 저장소를 일시적으로 사용할 수 없습니다. 사진 변경은 그대로 두었어요. 저장하기를 눌러 다시 시도해주세요.',
+      ),
+    ).toBeOnTheScreen();
+    expect(updateProfileSettings).toHaveBeenCalledWith(
+      { nickname: '새 닉네임' },
+      7,
+    );
+    expect(uploadProfileImage).toHaveBeenCalledWith(
+      expect.objectContaining({ uri: 'file:///partial-profile.jpg' }),
+      8,
+    );
+    expect(onRefreshMe).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('profile-editor-saved')).toBeNull();
+  });
+
   it('shows guidance when photo-library permission is denied', async () => {
     const uploadProfileImage = jest.fn<Api['uploadProfileImage']>();
     jest
