@@ -166,9 +166,7 @@ def test_success_response_requires_persistence_and_public_success_status() -> No
 def test_production_snapshot_hash_ignores_profile_attention_area_defaults() -> None:
     case = case_by_code("CHRONIC_KNEE_ATTENTION_CAUTION")
     _, canonical_repository = execute_service_case(case)
-    _, cleared_repository = execute_service_case(
-        replace(case, attention_area_codes=())
-    )
+    _, cleared_repository = execute_service_case(replace(case, attention_area_codes=()))
     assert canonical_repository.persisted is not None
     assert cleared_repository.persisted is not None
 

@@ -418,9 +418,7 @@ class WeeklyReportRepository:
                 "agent_summaries": report.agent_summaries,
                 "summary": report.summary,
                 "total_workout_seconds": metrics.get("total_workout_seconds"),
-                "total_estimated_calories_burned": metrics.get(
-                    "total_estimated_calories_burned"
-                ),
+                "total_estimated_calories_burned": metrics.get("total_estimated_calories_burned"),
                 "average_intensity_code": metrics.get("average_intensity_code"),
                 "most_performed_training_type_code": metrics.get(
                     "most_performed_training_type_code"

@@ -178,9 +178,9 @@ def test_repository_round_trip_preserves_week_snapshot_and_block_evidence() -> N
         session.add_all(
             [
                 WorkoutSessionItem(
-                        id=uuid4(),
-                        workout_session_id=completed_session_id,
-                        plan_item_id=completed_plan_item_id,
+                    id=uuid4(),
+                    workout_session_id=completed_session_id,
+                    plan_item_id=completed_plan_item_id,
                     status_code="COMPLETED",
                     completed_at=NOW,
                     updated_at=NOW,
@@ -198,8 +198,8 @@ def test_repository_round_trip_preserves_week_snapshot_and_block_evidence() -> N
                     reason_code="TIME_SHORTAGE",
                     created_at=NOW,
                 ),
-                ]
-            )
+            ]
+        )
         session.execute(
             text(
                 "INSERT INTO exercises (id, training_type_code) VALUES (:id, :training_type_code)"

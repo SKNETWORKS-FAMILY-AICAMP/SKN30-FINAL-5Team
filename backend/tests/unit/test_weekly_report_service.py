@@ -393,12 +393,14 @@ def test_report_uses_block_evidence_and_builds_non_penalty_aggregate() -> None:
 
 def test_report_keeps_an_uncomputed_calorie_total_distinct_from_zero() -> None:
     repository = FakeWeeklyReportRepository()
-    repository.evidence = tuple(
-        replace(row, estimated_calories_burned=None) for row in _evidence()
-    )
+    repository.evidence = tuple(replace(row, estimated_calories_burned=None) for row in _evidence())
 
     response = _service(repository).create_report(
-        FakeSession(), uuid4(), WEEK_START, _request(), uuid4()  # type: ignore[arg-type]
+        FakeSession(),
+        uuid4(),
+        WEEK_START,
+        _request(),
+        uuid4(),  # type: ignore[arg-type]
     )
 
     assert response.total_estimated_calories_burned is None
@@ -411,12 +413,20 @@ def test_report_compares_completed_count_with_the_closest_prior_report() -> None
     prior_week_start = WEEK_START - timedelta(days=7)
     repository.evidence = (_evidence()[0],)
     service.create_report(
-        FakeSession(), user_id, prior_week_start, _request(), uuid4()  # type: ignore[arg-type]
+        FakeSession(),
+        user_id,
+        prior_week_start,
+        _request(),
+        uuid4(),  # type: ignore[arg-type]
     )
     repository.evidence = _evidence()
 
     response = service.create_report(
-        FakeSession(), user_id, WEEK_START, _request(), uuid4()  # type: ignore[arg-type]
+        FakeSession(),
+        user_id,
+        WEEK_START,
+        _request(),
+        uuid4(),  # type: ignore[arg-type]
     )
 
     assert response.completed_count_change == 0
