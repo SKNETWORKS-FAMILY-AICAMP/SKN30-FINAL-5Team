@@ -279,6 +279,8 @@ def test_exercise_detail_route_remains_available() -> None:
     assert response.status_code == 200
     assert response.json()["exercise_id"] == str(exercise_id)
     assert response.json()["exercise_name"] == "기존 상세 운동"
+    assert response.json()["instruction_steps"] == ["기존 상세 설명"]
+    assert response.json()["cautions"] == ["천천히 수행합니다."]
     assert response.json()["media_asset_key"] is None
     assert response.json()["media_url"] is None
 
@@ -316,6 +318,7 @@ def test_exercise_detail_returns_persisted_household_equipment_guide() -> None:
             "cautions_ko": ["Keep a secure grip."],
         }
     ]
+    assert response.json()["cautions"] == ["cue", "Keep a secure grip."]
 
 
 def test_exercise_detail_reads_guide_from_validated_bundle() -> None:
@@ -501,6 +504,9 @@ def test_equipment_variants_return_reviewed_display_contract_in_stable_order() -
 
     with _client(repository) as client:
         response = client.get(f"/api/v1/exercises/{source_id}/variants")
+        home = client.get(f"/api/v1/exercises/{source_id}/variants?location_code=HOME")
+        gym = client.get(f"/api/v1/exercises/{source_id}/variants?location_code=GYM")
+        outdoor = client.get(f"/api/v1/exercises/{source_id}/variants?location_code=OUTDOOR")
 
     assert response.status_code == 200
     assert response.json() == {
@@ -535,6 +541,12 @@ def test_equipment_variants_return_reviewed_display_contract_in_stable_order() -
         "catalog_version": "catalog-production-v1",
         "alternative_set_version": "alternative-set-v2.0.1",
     }
+    assert home.status_code == 200
+    assert home.json() == response.json()
+    assert gym.status_code == 200
+    assert gym.json()["items"] == []
+    assert outdoor.status_code == 200
+    assert outdoor.json()["items"] == []
 
 
 def test_equipment_variant_returns_missing_equipment_rationale_and_guide() -> None:

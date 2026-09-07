@@ -21,7 +21,7 @@ ADR-0013의 Safety-first LLM 멀티에이전트 V3 목표 계약은 `ACCEPTED`�
 `SERVICE_POLICY_SAFETY_AND_ADAPTATION_V1.md`가 이 문서의 온보딩·체크인·통증·운동 실행 계약 기준이다.
 
 - 지원 범위는 18–64세 일반 성인이다. 생년월일은 암호화해 수집하고 사용자 timezone의 local date 기준으로 서버가 eligibility를 판정한다. 성별·키·온보딩 장소·기본 시간·사용자 장비는 수집하지 않는다. 선택적 `persistent_pains`는 Daily Check-in 기본값으로만 저장하며, 생년월일과 함께 Eligibility 외의 결정, LLM, snapshot, 로그에 사용하지 않는다.
-- Check-in은 선택적 수면, 필수 피로 코드(`LOW`/`MODERATE`/`HIGH`), 10–60분, 장소, 당일 NRS 통증과 Red Flag를 사용한다. 근육통은 Recovery 입력이나 계산에 사용하지 않으며, 장소는 완화할 수 없다.
+- Check-in은 선택적 수면, 필수 피로 코드(`LOW`/`MODERATE`/`HIGH`), 10–90분, 장소, 당일 NRS 통증과 Red Flag를 사용한다. 기본 권장값은 30분이지만 서버는 이 값을 사용자 요청으로 대체하지 않는다. 근육통은 Recovery 입력이나 계산에 사용하지 않으며, 장소는 완화할 수 없다.
 - NRS 1–3/4–6은 해당 부위의 검수된 금기 관계 운동을 제외하며, 4–6에는 전역 `LIGHT` 상한을 더한다. NRS 7–10 또는 Red Flag는 계획을 만들지 않는다. 안전 metadata 결측·미검수 운동만 fail-closed로 제외한다.
 - Recovery는 수면·피로 조합으로 `NORMAL`/`LIGHT`/`VERY_LIGHT`를 계산하고 결측을 좋은 상태로 간주하지 않는다. 통증 상한과 충돌하면 더 보수적인 상한을 적용한다.
 - 운동 중 `PAIN_OR_ABNORMAL_RESPONSE`는 증상 세부정보 없이 세션 전체를 종료한다. Safety Event에는 선택적 현재 `plan_item_id`, 결과·시각·규칙 버전만 저장하며 당일 이어하기·대체 운동을 제공하지 않는다.
@@ -374,7 +374,9 @@ RECOVERY 콘텐츠는 DOMAIN_APPROVED 상태의 가벼운 걷기, 호흡, 가동
 
 V3 경로의 시간 산출은 `backend/app/domain/agents/v3_duration.py`가 담당한다. 반복 기반 운동은 카탈로그의 `default_seconds_per_rep`으로 환산하고, 동작 전환은 카탈로그 `default_transition_seconds`를 사용한다. 모델이 제시한 값이 아니라 검수된 카탈로그 값을 기준으로 삼는다. `warmup_seconds`와 `cooldown_seconds`는 해당 phase 항목들의 `estimated_item_seconds` 합이며, V1/V2 루틴 경로와 같은 방식으로 계산한다. V3는 별도의 장비 준비 블록을 모델링하지 않으므로 `setup_seconds`는 0이다.
 
-세션 구성 한도는 `backend/app/domain/rules/plan_shape.py`에 있으며 V1/V2 루틴 경로와 V3 계획 경로가 공유한다.
+세션 구성 한도는 `backend/app/domain/rules/plan_shape.py`에 있으며 V1/V2 루틴 경로와 V3 계획 경로가 공유한다. 서로 다른 운동 종류는 최대 10개다. WARMUP·COOLDOWN은 각각 최대 2개 종류이고 같은 운동을 반복하지 않는다. MAIN은 요청 시간을 구성하기 위해 같은 승인 운동을 운동당 최대 10블록까지 반복할 수 있으나, 같은 운동이 인접한 MAIN 블록에 올 수 없다. Recovery ceiling이 있으면 반복 블록의 세트 합계도 운동당 ceiling을 넘을 수 없다.
+
+공개 루틴 이름은 `plan_naming.py`가 컴파일된 MAIN의 부위·동작 패턴·운동 유형과 조정 action에서 결정한다. 이름과 근거 machine code, `PLAN_NAMING_RULE_VERSION`을 함께 반환하며 LLM·진단·의료 표현을 사용하지 않는다. 데이터가 부족하면 `오늘의 운동 루틴`으로 폴백한다.
 
 - 계획은 `WARMUP`·`MAIN`·`COOLDOWN`을 모두 포함하고 그 순서를 지킨다.
 - 서로 다른 운동 종목은 한 세션에 최대 10개, 그중 `WARMUP` 최대 2개, `COOLDOWN` 최대 2개다.
@@ -409,7 +411,7 @@ MVP 데이터 허용 범위:
 
 운동 시작 후 `actual_elapsed_seconds`는 0초부터 증가하는 클라이언트 경과 타이머 값이다. 이 값은 수행량 확인과 기록에만 사용하며 운동 블록, 세션 상태 또는 안전 결과를 자동 판정하지 않는다. 시작·일시정지·재개·종료 이벤트는 별도 이력으로 누적하되 공식 수행 상태를 변경하지 않는다.
 
-예상 소모 칼로리 산식과 계수는 버전 관리하며 개발 전 확정한다. 표시 문구는 추정치임을 명시하고 의료적 해석을 제공하지 않는다.
+예상 소모 칼로리는 공식 완료 블록과 누적 운동 진행 시간만으로 서버가 계산한다. `actual_elapsed_seconds`와 웨어러블·계획 조정 값은 계산 입력으로 사용하지 않는다. 승인된 MET 매핑과 저장된 체중이 모두 있을 때 `MET × 3.5 × weight_kg ÷ 200 × 완료 블록에 배분된 진행 시간(분)`을 사용하고, 0.1 kcal HALF_UP 반올림·정책 버전·MET 출처 버전·입력 snapshot을 저장한다. 체중 또는 승인 매핑이 없으면 세션 완료를 실패시키지 않고 추정값은 `null`/`UNAVAILABLE`로 저장한다. 표시 문구는 추정치임을 명시하고 의료적 해석을 제공하지 않는다.
 
 ---
 
@@ -963,7 +965,7 @@ CACHE_AND_WORK_DELETE -> AUDIT_DEIDENTIFICATION -> BACKUP_EXPIRY_VERIFICATION`�
 
 #### 13.3.1 이전 계약 — 사용자 수동 가능 시간
 
-최신 정책은 Daily Check-in의 단일 `available_time_minutes`(10–60)만 사용한다. 아래 슬롯·캘린더
+최신 정책은 Daily Check-in의 단일 `available_time_minutes`(10–90)만 사용한다. 아래 슬롯·캘린더
 계약은 기존 구현·read 호환 기록이며 신규 결정 입력이나 제품 범위로 해석하지 않는다.
 
 - 가능 시간 입력은 선택이다. 입력하지 않아도 체크인, 결정, 운동 실행, 주간 리포트의 핵심 흐름이

@@ -13,6 +13,7 @@ from backend.app.domain.rules.duration import (
     DURATION_TOLERANCE_SECONDS,
     SECONDS_PER_MINUTE,
 )
+from backend.app.domain.rules.plan_naming import build_plan_name
 from backend.app.modules.routines.ports import (
     RoutineCandidate,
     RoutineCreationContext,
@@ -156,6 +157,19 @@ class FakeRoutineRepository:
         exercise_names = {
             candidate.exercise_id: candidate.exercise_name for candidate in self.context.candidates
         }
+        candidates = {candidate.exercise_id: candidate for candidate in self.context.candidates}
+
+        def routine_name(day: RoutineDayValues):
+            main = tuple(
+                candidates[item.exercise_id] for item in day.items if item.phase_code == "MAIN"
+            )
+            return build_plan_name(
+                action_code="KEEP",
+                main_body_focus_codes=(item.body_focus_code for item in main),
+                main_movement_pattern_codes=(),
+                main_training_type_codes=(item.training_type_code for item in main),
+            )
+
         payload = {
             "id": routine_id,
             "version": version,
@@ -170,6 +184,9 @@ class FakeRoutineRepository:
                     "title": day.title,
                     "training_type_code": day.training_type_code,
                     "body_focus_code": day.body_focus_code,
+                    "routine_name": (plan_name := routine_name(day)).value,
+                    "routine_name_reason_codes": list(plan_name.reason_codes),
+                    "routine_naming_rule_version": plan_name.rule_version,
                     "requested_duration_minutes": day.requested_duration_minutes,
                     "estimated_duration_seconds": day.estimated_duration_seconds,
                     "estimated_calories_burned": None,
@@ -232,6 +249,9 @@ def test_first_and_next_routine_versions_preserve_phase_order_and_duration() -> 
         "COOLDOWN",
     ]
     assert second.days[0].items[1].tier_code == "CORE"
+    assert second.days[0].routine_name == second.days[0].title
+    assert second.days[0].routine_name_reason_codes is not None
+    assert second.days[0].routine_naming_rule_version == "1.0.0"
 
 
 def test_rotation_avoids_the_latest_actual_body_focus_without_fixed_order() -> None:

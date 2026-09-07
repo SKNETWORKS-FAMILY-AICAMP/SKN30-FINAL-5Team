@@ -6,7 +6,13 @@ from uuid import UUID, uuid4
 import pytest
 from pydantic import ValidationError
 
-from backend.app.modules.workouts.ports import IdempotencyRecord, SelectionSource, SessionState
+from backend.app.modules.workouts.ports import (
+    CalorieEstimateSource,
+    CompletedWorkoutBlock,
+    IdempotencyRecord,
+    SelectionSource,
+    SessionState,
+)
 from backend.app.modules.workouts.schemas import (
     DecisionSelectionRequest,
     WorkoutAdditionalActivityRequest,
@@ -36,7 +42,9 @@ class FakeSession:
 
 
 class FakeWorkoutRepository:
-    def __init__(self, source: SelectionSource) -> None:
+    def __init__(
+        self, source: SelectionSource, calorie_source: CalorieEstimateSource | None = None
+    ) -> None:
         self.source = source
         self.idempotency: dict[tuple[str, UUID], IdempotencyRecord] = {}
         self.user_id: UUID | None = None
@@ -47,6 +55,8 @@ class FakeWorkoutRepository:
         self.safety_events: list[dict[str, Any]] = []
         self.skip_feedback: dict[str, Any] | None = None
         self.feedback: dict[str, Any] | None = None
+        self.calorie_estimate: dict[str, Any] | None = None
+        self.calorie_source = calorie_source
         self.item_update_count = 0
 
     def acquire_idempotency_lock(self, *args: Any) -> None:
@@ -147,6 +157,16 @@ class FakeWorkoutRepository:
             values["stop_reason_code"],
         )
         return self.session_state
+
+    def get_calorie_estimate_source(
+        self, session: Any, user_id: UUID, session_id: UUID
+    ) -> CalorieEstimateSource | None:
+        if self.session_state is None or session_id != self.session_state.session_id:
+            return None
+        return self.calorie_source or CalorieEstimateSource(weight_kg=None, completed_blocks=())
+
+    def save_calorie_estimate(self, session: Any, **values: Any) -> None:
+        self.calorie_estimate = values
 
     def update_session_item(
         self,
@@ -616,6 +636,48 @@ def test_pain_stop_creates_safety_event_and_disables_resume() -> None:
     assert stored["result_code"] == "SESSION_STOPPED"
     # The stop reason is the whole input; no symptom detail is collected or stored.
     assert set(stored) & {"symptom_code", "body_area_code", "nrs_score"} == set()
+    assert repository.calorie_estimate is not None
+    assert repository.calorie_estimate["source_code"] == "UNAVAILABLE"
+
+
+def test_completed_block_calorie_estimate_is_saved_from_profile_weight_and_met_mapping() -> None:
+    selection = _source()
+    plan_item_id = selection.plan_item_ids[0]
+    repository = FakeWorkoutRepository(
+        selection,
+        CalorieEstimateSource(
+            weight_kg=70,
+            completed_blocks=(
+                CompletedWorkoutBlock(
+                    exercise_id=plan_item_id,
+                    exercise_stable_code="barbell_deadlift",
+                    exercise_name_en="barbell deadlift",
+                    planned_seconds=600,
+                ),
+            ),
+        ),
+    )
+    repository.user_id = uuid4()
+    repository.session_state = SessionState(
+        plan_item_id,
+        "COMPLETED",
+        NOW,
+        NOW,
+        ((plan_item_id, "COMPLETED", NOW),),
+        accumulated_progress_seconds=600,
+    )
+    service = WorkoutService(repository, clock=lambda: NOW)
+
+    result = service._persist_completed_block_calorie_estimate(
+        FakeSession(),  # type: ignore[arg-type]
+        user_id=repository.user_id,
+        session_id=plan_item_id,
+        accumulated_progress_seconds=600,
+    )
+
+    assert result.estimated_calories_burned == 73.5
+    assert repository.calorie_estimate is not None
+    assert repository.calorie_estimate["policy_version"] == "met-completed-blocks-v1"
 
 
 def test_feedback_is_informational_and_uses_non_diagnostic_guidance() -> None:

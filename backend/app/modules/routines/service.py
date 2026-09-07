@@ -17,6 +17,7 @@ from backend.app.domain.rules.duration import (
     require_exact_duration,
     validate_requested_duration,
 )
+from backend.app.domain.rules.plan_naming import build_plan_name
 from backend.app.domain.rules.plan_shape import (
     MAX_PHASE_EXERCISE_TYPES,
     MAX_PLAN_EXERCISE_TYPES,
@@ -344,9 +345,19 @@ def _build_day(
         for sequence, item in enumerate(selected, start=1)
     )
     main = next(item for item in selected if item.phase_code == RoutinePhaseCode.MAIN)
+    plan_name = build_plan_name(
+        action_code="KEEP",
+        main_body_focus_codes=(
+            item.body_focus_code for item in selected if item.phase_code == RoutinePhaseCode.MAIN
+        ),
+        main_movement_pattern_codes=(),
+        main_training_type_codes=(
+            item.training_type_code for item in selected if item.phase_code == RoutinePhaseCode.MAIN
+        ),
+    )
     return RoutineDayValues(
         sequence=sequence,
-        title=f"루틴 {sequence}",
+        title=plan_name.value,
         training_type_code=main.training_type_code,
         body_focus_code=main.body_focus_code,
         requested_duration_minutes=duration_request.requested_duration_minutes,

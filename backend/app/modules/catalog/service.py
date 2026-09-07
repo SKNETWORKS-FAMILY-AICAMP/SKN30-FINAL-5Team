@@ -4,6 +4,7 @@ import csv
 import hashlib
 import io
 import json
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -216,6 +217,27 @@ class ExerciseVariantSetUnavailableError(Exception):
     """Equipment variants do not resolve to one approved derived-data set."""
 
 
+_INSTRUCTION_STEP_MARKER = re.compile(r"(?:^|\s)(\d+)\.\s+")
+
+
+def _instruction_steps(instruction_summary: str) -> list[str]:
+    """Split reviewed numbered steps without allowing display parsing to fail lookup."""
+
+    matches = tuple(_INSTRUCTION_STEP_MARKER.finditer(instruction_summary))
+    if len(matches) < 2:
+        return [instruction_summary]
+    steps = [
+        instruction_summary[match.end() : next_match.start()].strip()
+        for match, next_match in zip(matches, matches[1:], strict=False)
+    ]
+    steps.append(instruction_summary[matches[-1].end() :].strip())
+    return steps if all(steps) else [instruction_summary]
+
+
+def _unique_strings(values: tuple[str, ...]) -> list[str]:
+    return list(dict.fromkeys(values))
+
+
 class InvalidExerciseListQueryError(Exception):
     """The exercise list cursor is malformed or belongs to another catalog."""
 
@@ -365,6 +387,16 @@ class ExerciseReadService:
             primary_body_area_codes=list(record.primary_body_area_codes),
             instruction_summary=record.instruction_summary,
             form_cues=list(record.form_cues),
+            instruction_steps=_instruction_steps(record.instruction_summary),
+            cautions=(
+                _unique_strings(
+                    (
+                        *record.form_cues,
+                        *(caution for guide in guides for caution in guide.cautions_ko),
+                    )
+                )
+                or None
+            ),
             media_asset_key=record.media_asset_key,
             media_url=media_url,
             mascot_animation_asset_key=None,
@@ -387,11 +419,13 @@ class ExerciseReadService:
         self,
         session: Session,
         exercise_id: UUID,
+        *,
+        location_code: str | None = None,
     ) -> ExerciseVariantsResponse:
         record = self._repository.get_equipment_variants(session, exercise_id)
         if record is None:
             raise ExerciseNotFoundError
-        return ExerciseVariantsResponse(
+        response = ExerciseVariantsResponse(
             source_exercise_id=record.source_exercise_id,
             source_required_equipment_codes=[
                 EquipmentCode(code) for code in record.source_required_equipment_codes
@@ -429,6 +463,9 @@ class ExerciseReadService:
             catalog_version=record.catalog_version,
             alternative_set_version=record.alternative_set_version,
         )
+        if location_code is not None and location_code != "HOME":
+            return response.model_copy(update={"items": []})
+        return response
 
 
 def _is_approved_media_candidate(record: ExerciseDetailRecord) -> bool:

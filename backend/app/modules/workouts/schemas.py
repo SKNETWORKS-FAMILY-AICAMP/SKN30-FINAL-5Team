@@ -192,6 +192,7 @@ class WorkoutSessionFinishResponse(BaseModel):
     total_item_count: int
     actual_elapsed_seconds: int
     estimated_calories_burned: float | None
+    calorie_source_code: Literal["MET_ESTIMATE", "UNAVAILABLE"]
     completion_code: Literal["COMPLETED", "PARTIAL"]
     execution_state_code: Literal["COMPLETED"]
 

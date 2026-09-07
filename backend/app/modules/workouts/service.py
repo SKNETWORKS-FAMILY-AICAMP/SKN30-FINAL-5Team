@@ -4,12 +4,19 @@ import hashlib
 import json
 from collections.abc import Callable
 from datetime import UTC, date, datetime
+from decimal import Decimal, InvalidOperation
 from typing import Literal, TypeVar, cast
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from backend.app.domain.rules.calories import (
+    CalorieEstimate,
+    CompletedBlockMetInput,
+    allocate_completed_progress_seconds,
+    estimate_calories,
+)
 from backend.app.domain.rules.safety import (
     AdverseReactionCode,
     BodyAreaCode,
@@ -34,6 +41,7 @@ from backend.app.domain.rules.workout_execution import (
 from backend.app.domain.rules.workout_execution import (
     finish_session as derive_finished_status,
 )
+from backend.app.modules.workouts.calorie_met_mapping import approved_met_value_for_exercise_name
 from backend.app.modules.workouts.codes import (
     ADDITIONAL_ACTIVITY_ENDPOINT_CODE,
     FEEDBACK_ENDPOINT_CODE,
@@ -193,6 +201,50 @@ class WorkoutService:
         self._repository = repository
         self._clock = clock
         self._uuid_factory = uuid_factory
+
+    def _persist_completed_block_calorie_estimate(
+        self,
+        session: Session,
+        *,
+        user_id: UUID,
+        session_id: UUID,
+        accumulated_progress_seconds: int,
+    ) -> CalorieEstimate:
+        source = self._repository.get_calorie_estimate_source(session, user_id, session_id)
+        if source is None:
+            raise LookupError("workout session disappeared before calorie estimation")
+        allocated_seconds = allocate_completed_progress_seconds(
+            total_progress_seconds=accumulated_progress_seconds,
+            planned_seconds=tuple(block.planned_seconds for block in source.completed_blocks),
+        )
+        try:
+            weight_kg = None if source.weight_kg is None else Decimal(str(source.weight_kg))
+        except (InvalidOperation, ValueError):
+            weight_kg = None
+        estimate = estimate_calories(
+            weight_kg=weight_kg,
+            blocks=tuple(
+                CompletedBlockMetInput(
+                    exercise_id=block.exercise_id,
+                    exercise_stable_code=block.exercise_stable_code,
+                    met_value=approved_met_value_for_exercise_name(block.exercise_name_en),
+                    planned_seconds=block.planned_seconds,
+                    allocated_progress_seconds=allocated,
+                )
+                for block, allocated in zip(source.completed_blocks, allocated_seconds, strict=True)
+            ),
+        )
+        if estimate.policy_version is None or estimate.input_snapshot is None:
+            raise AssertionError("calorie estimate provenance must always be present")
+        self._repository.save_calorie_estimate(
+            session,
+            session_id=session_id,
+            estimated_calories_burned=estimate.estimated_calories_burned,
+            source_code=estimate.source_code,
+            policy_version=estimate.policy_version,
+            input_snapshot=estimate.input_snapshot,
+        )
+        return estimate
 
     def list_workout_logs(
         self,
@@ -715,7 +767,7 @@ class WorkoutService:
                 rule_version="workout-safety-event-v2",
                 now=now,
             )
-            self._repository.transition_execution_state(
+            state = self._repository.transition_execution_state(
                 session,
                 session_id=session_id,
                 execution_state_code="STOPPED_SAFETY",
@@ -724,6 +776,12 @@ class WorkoutService:
                 stop_reason_code=request.stop_reason_code,
                 completion_code=completion_code,
                 ended_at=now,
+            )
+            self._persist_completed_block_calorie_estimate(
+                session,
+                user_id=user_id,
+                session_id=session_id,
+                accumulated_progress_seconds=state.accumulated_progress_seconds,
             )
             response = WorkoutSafetyEventResponse(
                 event_id=event_id,
@@ -811,6 +869,13 @@ class WorkoutService:
                 completion_code=completion_code,
                 ended_at=(request.stopped_at if not is_resumable else None),
             )
+            if execution_state is WorkoutExecutionStateCode.STOPPED_SAFETY:
+                self._persist_completed_block_calorie_estimate(
+                    session,
+                    user_id=user_id,
+                    session_id=session_id,
+                    accumulated_progress_seconds=state.accumulated_progress_seconds,
+                )
             response = WorkoutSessionStopResponse(
                 session_id=session_id,
                 completion_code=cast(Literal["PARTIAL", "NOT_COMPLETED"] | None, completion_code),
@@ -874,6 +939,12 @@ class WorkoutService:
                 completion_code=status.value,
                 ended_at=request.finished_at,
             )
+            estimate = self._persist_completed_block_calorie_estimate(
+                session,
+                user_id=user_id,
+                session_id=session_id,
+                accumulated_progress_seconds=state.accumulated_progress_seconds,
+            )
             response = WorkoutSessionFinishResponse(
                 session_id=session_id,
                 status_code=cast(Literal["COMPLETED", "PARTIAL"], status.value),
@@ -881,7 +952,10 @@ class WorkoutService:
                 completed_item_count=evidence.completed_block_count,
                 total_item_count=evidence.total_block_count,
                 actual_elapsed_seconds=state.accumulated_progress_seconds,
-                estimated_calories_burned=state.estimated_calories_burned,
+                estimated_calories_burned=estimate.estimated_calories_burned,
+                calorie_source_code=cast(
+                    Literal["MET_ESTIMATE", "UNAVAILABLE"], estimate.source_code
+                ),
                 completion_code=cast(Literal["COMPLETED", "PARTIAL"], status.value),
                 execution_state_code="COMPLETED",
             )
@@ -927,7 +1001,7 @@ class WorkoutService:
             except InvalidSessionTransitionError as exc:
                 raise InvalidSessionStateError from exc
             now = self._clock()
-            self._repository.transition_execution_state(
+            state = self._repository.transition_execution_state(
                 session,
                 session_id=session_id,
                 execution_state_code="COMPLETED",
@@ -936,6 +1010,12 @@ class WorkoutService:
                 stop_reason_code=None,
                 completion_code=status.value,
                 ended_at=request.ended_at,
+            )
+            self._persist_completed_block_calorie_estimate(
+                session,
+                user_id=user_id,
+                session_id=session_id,
+                accumulated_progress_seconds=state.accumulated_progress_seconds,
             )
             self._repository.create_skip_feedback(
                 session,

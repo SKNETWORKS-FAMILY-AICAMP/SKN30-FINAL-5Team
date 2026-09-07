@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from backend.app.db.models.catalog import Exercise
 from backend.app.db.models.decision import DecisionRun, PlanCandidate, PlanItem
-from backend.app.db.models.profile import MutationIdempotencyRecord
+from backend.app.db.models.profile import MutationIdempotencyRecord, UserProfile
 from backend.app.db.models.workout import (
     DecisionSelection,
     WorkoutAdditionalActivity,
@@ -25,6 +25,8 @@ from backend.app.db.models.workout import (
 from backend.app.domain.rules.safety import EMERGENCY_REACTION_CODES
 from backend.app.modules.workouts.codes import WORKOUT_RESPONSE_SCHEMA_VERSION
 from backend.app.modules.workouts.ports import (
+    CalorieEstimateSource,
+    CompletedWorkoutBlock,
     IdempotencyRecord,
     ReturnHistory,
     SelectionSource,
@@ -309,6 +311,71 @@ class WorkoutRepository:
         if state is None:
             raise LookupError("transitioned workout session cannot be read")
         return state
+
+    def get_calorie_estimate_source(
+        self, session: Session, user_id: UUID, session_id: UUID
+    ) -> CalorieEstimateSource | None:
+        workout = session.scalar(
+            select(WorkoutSession.id).where(
+                WorkoutSession.id == session_id, WorkoutSession.user_id == user_id
+            )
+        )
+        if workout is None:
+            return None
+        weight_kg = session.scalar(
+            select(UserProfile.weight_kg).where(UserProfile.user_id == user_id)
+        )
+        effective_work_seconds = func.coalesce(PlanItem.user_work_seconds, PlanItem.work_seconds)
+        effective_rest_seconds = func.coalesce(PlanItem.user_rest_seconds, PlanItem.rest_seconds)
+        rows = session.execute(
+            select(
+                PlanItem.exercise_id,
+                Exercise.stable_code,
+                Exercise.name_en,
+                (
+                    effective_work_seconds + effective_rest_seconds + PlanItem.transition_seconds
+                ).label("planned_seconds"),
+            )
+            .select_from(WorkoutSessionItem)
+            .join(PlanItem, PlanItem.id == WorkoutSessionItem.plan_item_id)
+            .join(Exercise, Exercise.id == PlanItem.exercise_id)
+            .where(
+                WorkoutSessionItem.workout_session_id == session_id,
+                WorkoutSessionItem.status_code == "COMPLETED",
+            )
+            .order_by(PlanItem.sequence)
+        ).all()
+        return CalorieEstimateSource(
+            weight_kg=weight_kg,
+            completed_blocks=tuple(
+                CompletedWorkoutBlock(
+                    exercise_id=exercise_id,
+                    exercise_stable_code=stable_code,
+                    exercise_name_en=name_en,
+                    planned_seconds=max(0, int(planned_seconds)),
+                )
+                for exercise_id, stable_code, name_en, planned_seconds in rows
+            ),
+        )
+
+    def save_calorie_estimate(
+        self,
+        session: Session,
+        *,
+        session_id: UUID,
+        estimated_calories_burned: float | None,
+        source_code: str,
+        policy_version: str,
+        input_snapshot: dict[str, object],
+    ) -> None:
+        workout = session.get(WorkoutSession, session_id)
+        if workout is None:
+            raise LookupError("locked workout session disappeared")
+        workout.estimated_calories_burned = estimated_calories_burned
+        workout.calorie_source_code = source_code
+        workout.calorie_policy_version = policy_version
+        workout.calorie_input_snapshot = input_snapshot
+        session.flush()
 
     def update_session_item(
         self,

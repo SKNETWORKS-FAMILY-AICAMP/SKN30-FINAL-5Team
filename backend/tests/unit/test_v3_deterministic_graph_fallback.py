@@ -135,6 +135,43 @@ def test_fallback_declines_when_the_pool_cannot_reach_the_requested_duration() -
     assert provider.generate(request) is None
 
 
+def test_fallback_builds_a_90_minute_plan_with_nonconsecutive_main_repetitions() -> None:
+    envelope = duration_envelope(
+        requested_duration_minutes=90,
+        maximum_sets_per_exercise=None,
+    )
+    records = tuple(reps_record(UUID(int=index)) for index in range(1, 11))
+    pool = duration_pool(envelope, records)
+
+    spec = DeterministicGraphFallbackProvider().generate(
+        FallbackRequest.create(
+            constraint_envelope=envelope,
+            exercise_pool=pool,
+            fallback_version="v3-deterministic-fallback-v1",
+        )
+    )
+
+    assert spec is not None
+    assert abs(spec.estimated_duration_seconds - 90 * 60) <= DURATION_TOLERANCE_SECONDS
+    assert (
+        len({item.exercise_id for item in spec.exercise_prescriptions}) <= MAX_PLAN_EXERCISE_TYPES
+    )
+    main_ids = [
+        item.exercise_id for item in spec.exercise_prescriptions if item.phase_code == "MAIN"
+    ]
+    assert any(main_ids.count(exercise_id) > 1 for exercise_id in main_ids)
+    assert all(
+        previous != current for previous, current in zip(main_ids, main_ids[1:], strict=False)
+    )
+    for phase_code in ("WARMUP", "COOLDOWN"):
+        phase_ids = [
+            item.exercise_id
+            for item in spec.exercise_prescriptions
+            if item.phase_code == phase_code
+        ]
+        assert len(phase_ids) == len(set(phase_ids))
+
+
 def test_fallback_builds_a_plan_when_the_equipment_allowlist_is_empty() -> None:
     # The production shape. Onboarding stopped collecting equipment on
     # 2026-08-27, so the envelope allowlist is empty and intersecting a

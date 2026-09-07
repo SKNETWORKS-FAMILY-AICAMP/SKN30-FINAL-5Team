@@ -50,7 +50,7 @@ schema 또는 구현 완료로 간주하지 않으며 현재 `agent_proposals` �
 `SERVICE_POLICY_SAFETY_AND_ADAPTATION_V1.md`를 현재 데이터 모델의 기준으로 한다. 암호화 생년월일은 eligibility 필수 입력으로 유지한다. 성별·키·사전 통증·장비·기본 장소/시간과 severity-only 안전 이벤트는 현재 모델에 포함하지 않는다.
 
 - `user_profiles`에는 암호화된 `protected_birthdate`, `eligibility_result_code`, `weekly_target_sessions`를 두고, `weight_kg`는 kcal 전용으로 유지한다. 생년월일은 사용자 timezone 기준 18–64세 eligibility 외에는 사용하지 않는다.
-- `daily_contexts`에는 수면 source, 피로 코드, 10–60분, 장소, Red Flag를 저장한다. `daily_context_pains`는 `(daily_context_id, body_area_code)` unique, NRS 1–10, 파생 severity와 policy version을 저장한다.
+- `daily_contexts`에는 수면 source, 피로 코드, 10–90분, 장소, Red Flag를 저장한다. `daily_context_pains`는 `(daily_context_id, body_area_code)` unique, NRS 1–10, 파생 severity와 policy version을 저장한다.
 - 카탈로그는 `variant_difficulty_rank`, 승인 `met_value`, HOME 실행·생활용품 검수 상태를 additive하게 갖는다. 통증 기반 제외 관계는 카탈로그에 중복 저장하지 않고 `exercise_safety_rules`를 단일 기준으로 사용하며, `exercise_load_regions`와 `exercise_contraindicated_pain_regions`는 만들지 않는다(ADR-0018). 미검수 또는 필수 metadata 결측 운동은 적재 단계에서 배제하므로, 결정 경로에는 `DOMAIN_APPROVED` 운동만 도달한다.
 - decision snapshot 또는 typed decision table은 Recovery score·level·결측 코드·정책 버전과 Pain/Recovery의 effective load cap을 저장한다.
 - 세션은 실행 상태·목표/진행/휴식/일시정지 누적 시간·중단 사유·재개 가능 여부를 저장한다. Safety Event는 선택적 `plan_item_id`, result, occurred_at, rule version만 저장하고 증상·NRS·자유서술·replacement를 저장하지 않는다.
@@ -890,7 +890,7 @@ review 상태를 다시 확인한 뒤 단일 ACTIVE 제약 안에서 전환한�
 | sleep_minutes | 0–1440, null은 결측 |
 | sleep_source_code | MANUAL, WEARABLE 또는 null |
 | fatigue_level_code | LOW, MODERATE, HIGH |
-| available_time_minutes | 10–60 |
+| available_time_minutes | 10–90 |
 | location_code | 당일 장소 |
 | pain_present | daily_context_pains 활성 row 존재 여부 |
 | red_flag_present | true이면 루틴 생성 중단 |

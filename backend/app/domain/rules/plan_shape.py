@@ -7,9 +7,10 @@ flat twelve-exercise list with no preparation or settling work. Keeping the
 numbers here means both planners answer to the same reviewed shape.
 """
 
+from collections.abc import Sequence
 from typing import Final, Literal
 
-PLAN_SHAPE_RULE_VERSION: Final = "1.0.0"
+PLAN_SHAPE_RULE_VERSION: Final = "1.1.0"
 
 PhaseCode = Literal["WARMUP", "MAIN", "COOLDOWN"]
 
@@ -28,6 +29,25 @@ MAX_PHASE_EXERCISE_TYPES: Final[dict[PhaseCode, int]] = {
     "COOLDOWN": 2,
 }
 
+# MAIN may reuse a movement to fill a longer requested session, but only after
+# other MAIN candidates have had a chance to appear. The finite block cap keeps
+# a small approved pool from becoming an unbounded loop. WARMUP and COOLDOWN
+# remain one block per exercise, and neighbouring MAIN blocks must differ.
+MAX_MAIN_BLOCKS_PER_EXERCISE: Final = 10
+
+
+def has_consecutive_main_repetition(
+    blocks: Sequence[tuple[object, PhaseCode]],
+) -> bool:
+    """Return whether equal exercise IDs occupy neighbouring MAIN blocks."""
+
+    return any(
+        previous_id == current_id and previous_phase == current_phase == "MAIN"
+        for (previous_id, previous_phase), (current_id, current_phase) in zip(
+            blocks, blocks[1:], strict=False
+        )
+    )
+
 
 def phase_rank(phase_code: str) -> int:
     """Sort key placing WARMUP before MAIN before COOLDOWN."""
@@ -37,9 +57,11 @@ def phase_rank(phase_code: str) -> int:
 
 __all__ = [
     "MAX_PHASE_EXERCISE_TYPES",
+    "MAX_MAIN_BLOCKS_PER_EXERCISE",
     "MAX_PLAN_EXERCISE_TYPES",
     "PLAN_PHASE_ORDER",
     "PLAN_SHAPE_RULE_VERSION",
     "PhaseCode",
+    "has_consecutive_main_repetition",
     "phase_rank",
 ]

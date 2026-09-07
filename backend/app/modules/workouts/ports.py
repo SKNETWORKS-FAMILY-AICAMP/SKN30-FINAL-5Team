@@ -55,6 +55,20 @@ class SessionState:
 
 
 @dataclass(frozen=True, slots=True)
+class CompletedWorkoutBlock:
+    exercise_id: UUID
+    exercise_stable_code: str
+    exercise_name_en: str | None
+    planned_seconds: int
+
+
+@dataclass(frozen=True, slots=True)
+class CalorieEstimateSource:
+    weight_kg: float | None
+    completed_blocks: tuple[CompletedWorkoutBlock, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class ReturnHistory:
     last_completed_local_date: date | None
     not_completed_history_count: int
@@ -168,6 +182,21 @@ class WorkoutRepositoryPort(Protocol):
         completion_code: str | None = None,
         ended_at: datetime | None = None,
     ) -> SessionState: ...
+
+    def get_calorie_estimate_source(
+        self, session: Session, user_id: UUID, session_id: UUID
+    ) -> CalorieEstimateSource | None: ...
+
+    def save_calorie_estimate(
+        self,
+        session: Session,
+        *,
+        session_id: UUID,
+        estimated_calories_burned: float | None,
+        source_code: str,
+        policy_version: str,
+        input_snapshot: dict[str, object],
+    ) -> None: ...
 
     def update_session_item(
         self,
@@ -285,6 +314,8 @@ class WorkoutRepositoryPort(Protocol):
 
 __all__ = [
     "IdempotencyRecord",
+    "CalorieEstimateSource",
+    "CompletedWorkoutBlock",
     "ReturnHistory",
     "SelectionSource",
     "SessionState",

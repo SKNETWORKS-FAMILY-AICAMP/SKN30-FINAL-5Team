@@ -118,6 +118,9 @@ def test_persistent_pain_defaults_are_available_for_checkin_initialization() -> 
     assert response.json() == {
         "local_date": LOCAL_DATE.isoformat(),
         "pains": [{"body_area_code": "KNEE", "intensity_score": 3}],
+        "selectable_location_codes": ["HOME", "GYM"],
+        "recommended_duration_minutes": 30,
+        "duration_recommendation_policy_version": "1.1.0",
     }
 
 
