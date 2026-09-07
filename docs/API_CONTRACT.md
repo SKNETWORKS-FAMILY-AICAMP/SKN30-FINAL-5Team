@@ -133,8 +133,8 @@ ExercisePool retrieval 계약의 `PROPOSED` 초안이며 Qdrant metadata를 publ
 ## 3. 인증
 
 MVP 세션 권한 공급자는 Firebase Authentication이며 첫 직접 social OAuth 구현 provider는 KAKAO다.
-상세 provider-neutral 계약과 구현 순서는 `PROPOSED` ADR-0009와 `auth-provider-policy-v1`을 따른다.
-ADR-0009가 `ACCEPTED`되기 전 아래 KAKAO endpoint는 예약 계약이며 구현하지 않는다.
+상세 provider-neutral 계약과 구현 순서는 `ACCEPTED` ADR-0009와 `auth-provider-policy-v1`을 따른다.
+KAKAO endpoint는 구현되어 있으며 Naver는 별도 증분에서 활성화한다.
 
 클라이언트는 다음 헤더를 보낸다.
 
@@ -163,7 +163,7 @@ Google Firebase 로그인은 client 공식 SDK가 소유한다. 앱은 추가 Go
 않고 로그인 후 Firebase ID Token만 공통 Authorization header로 보낸다.
 
 Kakao와 Naver의 모바일 OAuth 시작·교환은 다음 공개 endpoint를 사용한다. 첫 구현 provider는
-`KAKAO`이며 `NAVER`는 별도 증분에서 활성화한다. ADR-0009 승인 전에는 예약 계약이다.
+`KAKAO`이며 `NAVER`는 별도 증분에서 활성화한다.
 
 ~~~http
 POST /api/v1/auth/social/{provider_code}/authorize-init
@@ -406,8 +406,8 @@ health endpoint는 인증 없이 호출할 수 있지만 민감한 설정, DB �
 
 | 메서드 | 경로 | 설명 |
 |---|---|---|
-| POST | /api/v1/auth/social/{provider_code}/authorize-init | [예약] KAKAO server-bound OAuth flow 시작 |
-| POST | /api/v1/auth/social/{provider_code}/exchange | [예약] KAKAO authorization code를 검증하고 Firebase custom token으로 교환 |
+| POST | /api/v1/auth/social/{provider_code}/authorize-init | KAKAO server-bound OAuth flow 시작 |
+| POST | /api/v1/auth/social/{provider_code}/exchange | KAKAO authorization code를 검증하고 Firebase custom token으로 교환 |
 | GET | /api/v1/me | 현재 사용자와 온보딩 상태 |
 | GET | /api/v1/me/identities | 현재 사용자에 연결된 인증 provider 목록 |
 | PUT | /api/v1/me/onboarding | 프로필과 주의 부위 저장 |

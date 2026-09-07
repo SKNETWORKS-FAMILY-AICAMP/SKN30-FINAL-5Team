@@ -369,6 +369,10 @@ class ProviderTokenEvidence:
     token_not_expired: bool
     provider_subject: str | None
     nonce_matches: bool | None
+    # Ephemeral claim passed to the application service for a constant-time
+    # comparison against the consumed authorization-flow nonce digest. It is
+    # deliberately never persisted or logged.
+    token_nonce_claim: str | None = dataclass_field(default=None, repr=False)
 
 
 @dataclass(frozen=True, slots=True)

@@ -37,7 +37,12 @@ from backend.app.db.models.decision import (
     PlanItem,
     SafetyReview,
 )
-from backend.app.db.models.identity import User, UserIdentity
+from backend.app.db.models.identity import (
+    SocialOAuthAuthorizationRequest,
+    SocialOAuthRateLimitWindow,
+    User,
+    UserIdentity,
+)
 from backend.app.db.models.notification import InAppNotification
 from backend.app.db.models.profile import (
     MutationIdempotencyRecord,
@@ -126,6 +131,8 @@ __all__ = [
     "RoutineItem",
     "SafetyReview",
     "ScheduledWorkout",
+    "SocialOAuthAuthorizationRequest",
+    "SocialOAuthRateLimitWindow",
     "MutationIdempotencyRecord",
     "TrainingType",
     "User",
