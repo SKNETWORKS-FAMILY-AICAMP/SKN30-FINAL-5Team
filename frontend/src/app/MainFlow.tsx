@@ -39,6 +39,7 @@ import {
   type NotificationLoadStatus,
 } from '../features/home/NotificationSheet';
 import { MascotHouseScreen } from '../features/house/MascotHouseScreen';
+import { RewardsScreen } from '../features/rewards/RewardsScreen';
 import type { SessionOutcome } from '../features/workout/SessionScreen';
 import { SessionResultScreen } from '../features/workout/SessionResultScreen';
 import { WorkoutScreen } from '../features/workout/WorkoutScreen';
@@ -57,6 +58,7 @@ type Step =
   | { name: 'calendar-report' }
   | { name: 'account' }
   | { name: 'exercises' }
+  | { name: 'rewards' }
   | { name: 'house' };
 
 export function MainFlow({
@@ -295,6 +297,9 @@ export function MainFlow({
           if (notification.action_type === 'OPEN_KIKKI_HOME') {
             setNotificationSheetOpen(false);
             onTab('house');
+          } else if (notification.action_type === 'CLAIM_DAILY_REWARD') {
+            setNotificationSheetOpen(false);
+            setStep({ name: 'rewards' });
           }
         } catch (error: unknown) {
           setNotificationStatus('error');
@@ -351,6 +356,15 @@ export function MainFlow({
           nickname={me.profile?.nickname ?? '회원'}
           onNavigate={onTab}
           timeZone={me.profile?.timezone}
+        />
+      );
+
+    case 'rewards':
+      return (
+        <RewardsScreen
+          api={api}
+          backAccessibilityLabel="홈으로 돌아가기"
+          onBack={goHome}
         />
       );
 

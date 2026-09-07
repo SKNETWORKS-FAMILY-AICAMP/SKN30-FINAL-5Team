@@ -95,6 +95,29 @@ describe('NotificationSheet', () => {
     );
   });
 
+  it('labels the daily reward action without claiming it inside the sheet', () => {
+    render(
+      <NotificationSheet
+        onRetry={jest.fn()}
+        onSelect={jest.fn()}
+        pendingNotificationId={null}
+        response={{
+          items: [
+            notification({
+              type: 'DAILY_REWARD',
+              action_type: 'CLAIM_DAILY_REWARD',
+            }),
+          ],
+          unread_count: 1,
+        }}
+        status="ready"
+        visible
+      />,
+    );
+
+    expect(screen.getByText('바나나 받기 ›')).toBeOnTheScreen();
+  });
+
   it('opens as a compact popover below the notification button', () => {
     const viewports = [
       { width: 320, height: 568 },

@@ -103,10 +103,10 @@ describe('RewardsScreen', () => {
       .fn<Api['getRewards']>()
       .mockRejectedValueOnce(
         new ApiError({
-          kind: 'conflict',
-          code: 'INSUFFICIENT_BANANA_BALANCE',
-          status: 409,
-          message: '바나나가 부족합니다.',
+          kind: 'network',
+          code: 'NETWORK_UNAVAILABLE',
+          status: 0,
+          message: '네트워크에 연결하지 못했습니다.',
         }),
       )
       .mockResolvedValueOnce(wallet);
@@ -116,9 +116,7 @@ describe('RewardsScreen', () => {
     );
 
     expect(
-      await screen.findByText(
-        '바나나 잔액이 부족해요. 현재 잔액을 확인한 뒤 다시 시도해주세요.',
-      ),
+      await screen.findByText('네트워크에 연결하지 못했습니다.'),
     ).toBeTruthy();
 
     fireEvent.press(screen.getByText('다시 시도'));
