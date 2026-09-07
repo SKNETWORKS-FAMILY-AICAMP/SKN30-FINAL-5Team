@@ -117,10 +117,10 @@ describe('MyPageContainer', () => {
     expect(screen.queryByRole('button', { name: '장비 수정' })).toBeNull();
     expect(screen.queryByText('맨몸 · 밴드')).toBeNull();
     expect(screen.queryByText('캘린더 연동')).toBeNull();
-    expect(screen.getAllByText('차근차근')).toHaveLength(1);
-    expect(
-      screen.getByRole('button', { name: '차근차근' }).props.accessibilityState,
-    ).toEqual(expect.objectContaining({ selected: true }));
+    expect(screen.queryByText('헬끼 코칭 스타일')).toBeNull();
+    expect(screen.queryByText('차근차근')).toBeNull();
+    expect(screen.queryByText('딱 필요한 만큼')).toBeNull();
+    expect(screen.queryByText('힘차게')).toBeNull();
     expect(screen.queryByRole('button', { name: '나이 수정' })).toBeNull();
     expect(screen.queryByRole('button', { name: '시간대 수정' })).toBeNull();
     expect(screen.queryByRole('button', { name: '운동 장소 수정' })).toBeNull();
@@ -490,39 +490,6 @@ describe('MyPageContainer', () => {
         '프로필이 변경되었습니다. 최신 상태로 다시 시도해주세요.',
       ),
     ).toBeOnTheScreen();
-    expect(onRefreshMe).toHaveBeenCalledTimes(1);
-  });
-
-  it('saves coaching style with the current profile version and refreshes me', async () => {
-    const updateProfileSettings = jest.fn<Api['updateProfileSettings']>(
-      async () => ({
-        profile_version: 8,
-        updated_at: '2026-08-19T09:00:00+09:00',
-      }),
-    );
-    const onRefreshMe = jest.fn(async () => undefined);
-
-    await render(
-      <MyPageContainer
-        api={accountApi({ updateProfileSettings })}
-        me={me()}
-        now={new Date('2026-08-19T03:00:00Z')}
-        onNavigateTab={jest.fn()}
-        onRefreshMe={onRefreshMe}
-        onSignOut={jest.fn()}
-      />,
-    );
-
-    fireEvent.press(screen.getByRole('button', { name: '딱 필요한 만큼' }));
-    // 선택만으로는 저장되지 않고, 저장하기 버튼을 눌러야 반영된다.
-    expect(updateProfileSettings).not.toHaveBeenCalled();
-    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
-    await waitFor(() =>
-      expect(updateProfileSettings).toHaveBeenCalledWith(
-        { coaching_style_code: 'CONCISE' },
-        7,
-      ),
-    );
     expect(onRefreshMe).toHaveBeenCalledTimes(1);
   });
 

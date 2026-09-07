@@ -37,7 +37,6 @@ import { useScale } from '../../components/scale';
 import { colors, radii, spacing } from '../../components/theme';
 import { PROFILE_BODY_LIMITS } from '../profile/profileModel';
 import {
-  ONBOARDING_COACHING_STYLE_OPTIONS,
   ONBOARDING_EXPERIENCE_OPTIONS,
   ONBOARDING_GOAL_OPTIONS,
   ONBOARDING_WEEKLY_COUNT,
@@ -101,12 +100,6 @@ export const ONBOARDING_STEPS = [
     required: true,
   },
   {
-    key: 'coachingStyle',
-    title: '운동할 때 어떻게 도와드릴까요?',
-    intro: '원하는 안내 스타일을 골라주세요. 언제든 바꿀 수 있어요.',
-    required: true,
-  },
-  {
     key: 'frequency',
     title: '일주일에 몇 번 운동할까요?',
     intro: '선택한 횟수에 맞춰 운동 계획을 만들어드려요.',
@@ -165,9 +158,6 @@ function OnboardingScreenContent({
   const [experienceLevelCode, setExperienceLevelCode] = useState<
     (typeof ONBOARDING_EXPERIENCE_OPTIONS)[number]['code']
   >(ONBOARDING_EXPERIENCE_OPTIONS[0].code);
-  const [coachingStyleCode, setCoachingStyleCode] = useState<
-    (typeof ONBOARDING_COACHING_STYLE_OPTIONS)[number]['code']
-  >(ONBOARDING_COACHING_STYLE_OPTIONS[0].code);
   const [weeklyCount, setWeeklyCount] = useState(3);
   const [hasAttentionAreas, setHasAttentionAreas] = useState<boolean | null>(
     null,
@@ -210,7 +200,6 @@ function OnboardingScreenContent({
         experience_level_code: experienceLevelCode,
         timezone,
         weekly_target_sessions: weeklyCount,
-        coaching_style_code: coachingStyleCode,
         terms_version: CURRENT_TERMS_VERSION,
         persistent_pains:
           hasAttentionAreas === true
@@ -240,7 +229,6 @@ function OnboardingScreenContent({
 
   const valid = isStepValid(current.key, {
     birthdate,
-    coachingStyleCode,
     experienceLevelCode,
     generalConsent,
     hasAttentionAreas,
@@ -401,23 +389,6 @@ function OnboardingScreenContent({
                 selected={experienceLevelCode === item.code}
                 onPress={() => {
                   setExperienceLevelCode(item.code);
-                  submit.clearError();
-                }}
-              />
-            ))}
-          </ChoiceCard>
-        );
-      case 'coachingStyle':
-        return (
-          <ChoiceCard>
-            {ONBOARDING_COACHING_STYLE_OPTIONS.map((item) => (
-              <DescriptionOption
-                key={item.code}
-                description={item.description}
-                label={item.label}
-                selected={coachingStyleCode === item.code}
-                onPress={() => {
-                  setCoachingStyleCode(item.code);
                   submit.clearError();
                 }}
               />
@@ -748,8 +719,6 @@ type FormState = {
   primaryGoalCode: (typeof ONBOARDING_GOAL_OPTIONS)[number]['code'] | null;
   experienceLevelCode:
     (typeof ONBOARDING_EXPERIENCE_OPTIONS)[number]['code'] | null;
-  coachingStyleCode:
-    (typeof ONBOARDING_COACHING_STYLE_OPTIONS)[number]['code'] | null;
   hasAttentionAreas: boolean | null;
   attentionAreas: string[];
   painIntensityScores: Partial<Record<string, number>>;
@@ -777,8 +746,6 @@ function isStepValid(
       return form.primaryGoalCode !== null;
     case 'experience':
       return form.experienceLevelCode !== null;
-    case 'coachingStyle':
-      return form.coachingStyleCode !== null;
     case 'attention':
       return (
         form.hasAttentionAreas !== true ||
@@ -1004,7 +971,6 @@ function onboardingErrorStep(error: unknown): number | null {
       weight_kg: 'body',
       primary_goal_code: 'goal',
       experience_level_code: 'experience',
-      coaching_style_code: 'coachingStyle',
       weekly_target_sessions: 'frequency',
       persistent_pains: 'attention',
       terms_version: 'consent',

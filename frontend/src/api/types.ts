@@ -178,7 +178,6 @@ export type OnboardingRequest = {
   primary_goal_code: string;
   experience_level_code: string;
   weekly_target_sessions: number;
-  coaching_style_code: string;
   timezone: string;
   terms_version: string;
   persistent_pains: PainAreaInput[];
