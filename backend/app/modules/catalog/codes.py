@@ -6,6 +6,13 @@ CATALOG_MANIFEST_SCHEMA_VERSION = "1.0"
 APPROVED_TAXONOMY_REGISTRY_SHA256 = (
     "89e61bba1baf1ccedca94adcb88127f32f529a1b46162ee8392f2cd2ef1372c7"
 )
+# The Gymvisual v2.0.6/v2.0.7 lineage was reviewed against the current
+# normalized taxonomy registry. Keep this exact approval separate from the
+# legacy v2 importer hash above; accepting either hash generically would make
+# a catalog's code-set provenance ambiguous.
+APPROVED_GYMVISUAL_V2_TAXONOMY_REGISTRY_SHA256 = (
+    "79e487cc1a41ea39db9b4afb0799b3297840de878a2ae4ed621ef3e4403a0985"
+)
 
 
 class CatalogVersionStatusCode(StrEnum):

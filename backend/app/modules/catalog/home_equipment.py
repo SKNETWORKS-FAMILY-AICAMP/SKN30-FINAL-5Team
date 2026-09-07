@@ -37,6 +37,17 @@ class EquipmentVariant:
 
 
 @dataclass(frozen=True)
+class GymStartingGuide:
+    exercise_stable_code: str
+    equipment_code: str
+    proposal_ko: str
+    examples_ko: tuple[str, ...]
+    cautions_ko: tuple[str, ...]
+    review_status_code: str
+    content_version: str
+
+
+@dataclass(frozen=True)
 class HomeEquipmentBundle:
     manifest_hash: str
     bundle_version: str
@@ -55,6 +66,14 @@ class HomeEquipmentGuideProviderPort(Protocol):
     def guides_for(self, exercise_stable_code: str) -> tuple[HouseholdGuide, ...]: ...
 
 
+class GymEquipmentGuideProviderPort(Protocol):
+    def guides_for(
+        self,
+        exercise_stable_code: str,
+        required_equipment_codes: tuple[str, ...],
+    ) -> tuple[GymStartingGuide, ...]: ...
+
+
 class FileHomeEquipmentGuideProvider:
     """Read only validated bundle content; this class never writes to a database."""
 
@@ -66,6 +85,26 @@ class FileHomeEquipmentGuideProvider:
             guide
             for guide in load_home_equipment_bundle(self._bundle_root).guides
             if guide.exercise_stable_code == exercise_stable_code
+        )
+
+
+class FileGymEquipmentGuideProvider:
+    """Read validated gym starting guides from the integrated DRAFT bundle."""
+
+    def __init__(self, bundle_root: Path) -> None:
+        self._bundle_root = bundle_root
+
+    def guides_for(
+        self,
+        exercise_stable_code: str,
+        required_equipment_codes: tuple[str, ...],
+    ) -> tuple[GymStartingGuide, ...]:
+        required = frozenset(required_equipment_codes)
+        return tuple(
+            guide
+            for guide in load_integrated_gym_starting_guides(self._bundle_root)
+            if guide.exercise_stable_code == exercise_stable_code
+            and guide.equipment_code in required
         )
 
 
@@ -282,6 +321,73 @@ def load_home_equipment_bundle(root: Path) -> HomeEquipmentBundle:
         guides=guides,
         variants=variants,
     )
+
+
+def load_integrated_gym_starting_guides(root: Path) -> tuple[GymStartingGuide, ...]:
+    """Validate and expose only DOMAIN_APPROVED gym advisory content.
+
+    The integrated bundle is DRAFT as a catalog release, but its gym-guide rows
+    are separately reviewed presentation data.  This loader never changes
+    exercise eligibility, location, or safety policy.
+    """
+
+    root = root.resolve()
+    _require(root.is_dir(), "BUNDLE_DIRECTORY_INVALID")
+    manifest = _read_json(root / "bundle_manifest.json")
+    _require(
+        manifest.get("schema_version") == "integrated-exercise-importer-v1"
+        and manifest.get("status_code") == "DRAFT"
+        and manifest.get("production_eligible") is False,
+        "MANIFEST_INVALID",
+    )
+    paths = manifest.get("importer_paths")
+    _require(isinstance(paths, dict), "MANIFEST_INVALID")
+    assert isinstance(paths, dict)
+    gym_path = paths.get("gym_equipment")
+    _require(isinstance(gym_path, str), "MANIFEST_INVALID")
+    assert isinstance(gym_path, str)
+    files_raw = manifest.get("files")
+    _require(isinstance(files_raw, list), "MANIFEST_INVALID")
+    assert isinstance(files_raw, list)
+    entries = [
+        entry for entry in files_raw if isinstance(entry, dict) and entry.get("path") == gym_path
+    ]
+    _require(len(entries) == 1, "MANIFEST_PATH_MISMATCH")
+    path = _checked_file(root, entries[0])
+    rows = _read_jsonl(path)
+    summary = manifest.get("summary")
+    _require(
+        isinstance(summary, dict)
+        and summary.get("gym_guide_records") == len(rows)
+        and len(rows) == 67,
+        "MANIFEST_RECORD_COUNT_MISMATCH",
+    )
+    guides = tuple(
+        GymStartingGuide(
+            exercise_stable_code=str(row.get("exercise_stable_code", "")),
+            equipment_code=str(row.get("equipment_code", "")),
+            proposal_ko=str(row.get("proposal_ko", "")),
+            examples_ko=_string_list(row.get("examples_ko"), "GUIDE_RECORD_INVALID"),
+            cautions_ko=_string_list(row.get("cautions_ko"), "GUIDE_RECORD_INVALID"),
+            review_status_code=str(row.get("review_status_code", "")),
+            content_version=str(row.get("content_version", "")),
+        )
+        for row in rows
+    )
+    _require(
+        all(
+            guide.exercise_stable_code
+            and guide.equipment_code
+            and guide.proposal_ko
+            and guide.review_status_code == "DOMAIN_APPROVED"
+            and guide.content_version
+            for guide in guides
+        )
+        and len({(guide.exercise_stable_code, guide.equipment_code) for guide in guides})
+        == len(guides),
+        "GUIDE_RECORD_INVALID",
+    )
+    return guides
 
 
 def validate_bundle_references(

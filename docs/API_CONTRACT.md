@@ -1044,6 +1044,7 @@ ExerciseDetailResponse
 - exercise_id: UUID
 - exercise_name: string
 - training_type_code: string
+- body_focus_code: string | null  # catalog's single representative focus
 - primary_body_area_codes: string[]
 - instruction_summary: string  # legacy full reviewed text
 - instruction_steps: string[] | null  # numbered steps split by the server
@@ -1054,8 +1055,15 @@ ExerciseDetailResponse
 - mascot_animation_asset_key: string | null
 - instruction_content_version: string
 - household_equipment_guides: HouseholdEquipmentGuide[] | null
+- gym_equipment_starting_guides: GymEquipmentStartingGuide[] | null
 
 HouseholdEquipmentGuide
+- equipment_code: string
+- proposal_ko: string
+- examples_ko: string[]
+- cautions_ko: string[]
+
+GymEquipmentStartingGuide
 - equipment_code: string
 - proposal_ko: string
 - examples_ko: string[]
@@ -1068,6 +1076,10 @@ HouseholdEquipmentGuide
 각 안내는 대체 제안, 예시, 주의사항을 포함하며, 안내 문구에서 중량을
 파싱하거나 `recommended_load` 값을 추론하지 않는다. 안내가 없으면 기존 상세 응답과 호환되도록
 `null`을 반환한다.
+
+`gym_equipment_starting_guides`도 동일하게 검수된 장비별 시작 참고 안내만 제공하는 additive
+필드다. 두 guide 필드는 안전 판정·운동 장소·대체 관계를 변경하지 않는다. 클라이언트는 현재 운동
+장소와 보유 장비에 맞는 안내만 표시하며, 안내가 없을 때도 기존 상세를 그대로 렌더링한다.
 
 구현 상태: 이 endpoint는 구현됐다. 인증된 사용자만 호출할 수 있고 `review_status_code`가
 `DOMAIN_APPROVED`인 운동만 반환하며, 그 외에는 `404 RESOURCE_NOT_FOUND`다. `media_asset_key`는
@@ -1110,6 +1122,7 @@ ExerciseListItem
 - name: string
 - training_type_code: string
 - difficulty_code: string
+- body_focus_code: string | null  # catalog's single representative focus
 - primary_body_area_codes: string[]
 - required_equipment_codes: string[]
 - media_asset_key: string | null

@@ -89,6 +89,7 @@ class CatalogRepository:
                 Exercise.name_ko,
                 Exercise.training_type_code,
                 Exercise.difficulty_code,
+                Exercise.body_focus_code,
                 ExerciseMediaAsset.s3_key.label("media_asset_key"),
             )
             .outerjoin(
@@ -169,6 +170,7 @@ class CatalogRepository:
                 primary_body_area_codes=tuple(primary_body_areas[row.id]),
                 required_equipment_codes=tuple(required_equipment[row.id]),
                 media_asset_key=row.media_asset_key,
+                body_focus_code=row.body_focus_code,
             )
             for row in rows
         )
@@ -224,7 +226,18 @@ class CatalogRepository:
             exercise_id=exercise.id,
             exercise_name=exercise.name_ko,
             training_type_code=exercise.training_type_code,
+            body_focus_code=exercise.body_focus_code,
             primary_body_area_codes=primary_body_area_codes,
+            required_equipment_codes=tuple(
+                session.scalars(
+                    select(ExerciseEquipment.equipment_code)
+                    .where(
+                        ExerciseEquipment.exercise_id == exercise_id,
+                        ExerciseEquipment.requirement_code == EquipmentRequirementCode.REQUIRED,
+                    )
+                    .order_by(ExerciseEquipment.equipment_code)
+                )
+            ),
             instruction_summary=exercise.instruction_summary_ko,
             form_cues=tuple(exercise.form_cues_ko),
             instruction_content_version=exercise.instruction_content_version,
@@ -558,6 +571,12 @@ class CatalogRepository:
             "general_pool_included",
             "form_cues_source",
             "form_cues_review_status",
+            "met_value",
+            "met_source_code",
+            "met_source_activity_code",
+            "met_mapping_method_code",
+            "met_review_status_code",
+            "met_policy_version",
         )
         exercise_values: list[dict[str, object]] = []
         children: list[ExerciseBodyPart | ExerciseEquipment | ExerciseLocation] = []

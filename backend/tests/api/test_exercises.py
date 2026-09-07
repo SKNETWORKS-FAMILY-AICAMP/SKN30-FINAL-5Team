@@ -101,6 +101,7 @@ def _record(index: int) -> ExerciseListRecord:
         exercise_name=f"운동 {index + 1}",
         training_type_code="STRENGTH" if index % 2 == 0 else "MOBILITY",
         difficulty_code="BEGINNER" if index % 2 == 0 else "INTERMEDIATE",
+        body_focus_code="CHEST" if index % 2 == 0 else "MOBILITY",
         primary_body_area_codes=("HIP", "KNEE") if index % 2 == 0 else ("SHOULDER",),
         required_equipment_codes=("BODYWEIGHT", "DUMBBELL") if index % 3 == 0 else ("BODYWEIGHT",),
     )
@@ -157,6 +158,7 @@ def test_exercise_list_returns_contract_and_uses_default_limit() -> None:
         "name": "운동 1",
         "training_type_code": "STRENGTH",
         "difficulty_code": "BEGINNER",
+        "body_focus_code": "CHEST",
         "primary_body_area_codes": ["HIP", "KNEE"],
         "required_equipment_codes": ["BODYWEIGHT", "DUMBBELL"],
         "media_asset_key": None,
@@ -283,6 +285,8 @@ def test_exercise_detail_route_remains_available() -> None:
     assert response.json()["cautions"] == ["천천히 수행합니다."]
     assert response.json()["media_asset_key"] is None
     assert response.json()["media_url"] is None
+    assert response.json()["body_focus_code"] is None
+    assert response.json()["gym_equipment_starting_guides"] is None
 
 
 def test_exercise_detail_returns_persisted_household_equipment_guide() -> None:
@@ -333,6 +337,7 @@ def test_exercise_detail_reads_guide_from_validated_bundle() -> None:
         form_cues=("cue",),
         instruction_content_version="instruction-v1",
         exercise_stable_code="dumbbell_alternate_biceps_curl",
+        required_equipment_codes=("DUMBBELL",),
     )
 
     with _client(repository) as client:
@@ -344,6 +349,31 @@ def test_exercise_detail_reads_guide_from_validated_bundle() -> None:
     assert guides[0]["equipment_code"] == "DUMBBELL"
     assert guides[0]["examples_ko"]
     assert guides[0]["cautions_ko"]
+
+
+def test_exercise_detail_reads_matching_gym_starting_guide_from_integrated_bundle() -> None:
+    repository = FakeExerciseRepository(())
+    exercise_id = uuid4()
+    repository.details[exercise_id] = ExerciseDetailRecord(
+        exercise_id=exercise_id,
+        exercise_name="gym guide exercise",
+        training_type_code="STRENGTH",
+        primary_body_area_codes=("KNEE",),
+        instruction_summary="instruction",
+        form_cues=("cue",),
+        instruction_content_version="instruction-v1",
+        exercise_stable_code="barbell_bench_squat",
+        required_equipment_codes=("BARBELL",),
+    )
+
+    with _client(repository) as client:
+        response = client.get(f"/api/v1/exercises/{exercise_id}")
+
+    assert response.status_code == 200
+    guides = response.json()["gym_equipment_starting_guides"]
+    assert guides is not None
+    assert guides[0]["equipment_code"] == "BARBELL"
+    assert guides[0]["proposal_ko"]
 
 
 def test_exercise_detail_returns_url_only_for_exact_registry_approved_media() -> None:

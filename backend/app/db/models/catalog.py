@@ -182,6 +182,12 @@ class Exercise(Base):
             "form_cues_review_status IN ('REVIEW_REQUIRED', 'DOMAIN_APPROVED')",
             name="ck_exercises_form_cues_review_status",
         ),
+        CheckConstraint("met_value IS NULL OR met_value > 0", name="ck_exercises_met_value"),
+        CheckConstraint(
+            "met_review_status_code IS NULL OR "
+            "met_review_status_code IN ('REVIEW_REQUIRED', 'DOMAIN_APPROVED')",
+            name="ck_exercises_met_review_status",
+        ),
         CheckConstraint("default_rest_seconds >= 0", name="ck_exercises_rest_seconds"),
         CheckConstraint(
             "default_transition_seconds BETWEEN 10 AND 20",
@@ -238,6 +244,14 @@ class Exercise(Base):
     # signed them. NULL means the payload did not state it.
     form_cues_source: Mapped[str | None] = mapped_column(String(120), nullable=True)
     form_cues_review_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # Reviewed MET provenance is nullable so older catalog versions remain
+    # readable.  Consumers must not manufacture a value when any field is absent.
+    met_value: Mapped[float | None] = mapped_column(nullable=True)
+    met_source_code: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    met_source_activity_code: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    met_mapping_method_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    met_review_status_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    met_policy_version: Mapped[str | None] = mapped_column(String(120), nullable=True)
     timing_mode_code: Mapped[str] = mapped_column(String(32), nullable=False)
     default_seconds_per_rep: Mapped[int | None] = mapped_column(Integer, nullable=True)
     default_work_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)

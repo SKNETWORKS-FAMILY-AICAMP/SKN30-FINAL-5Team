@@ -209,6 +209,20 @@ class ExerciseRecord(CatalogInputModel):
             raise ValueError("a VARIANT must not name itself as its representative")
         return self
 
+    @model_validator(mode="after")
+    def validate_met_provenance(self) -> "ExerciseRecord":
+        fields = (
+            self.met_value,
+            self.met_source_code,
+            self.met_source_activity_code,
+            self.met_mapping_method_code,
+            self.met_review_status_code,
+            self.met_policy_version,
+        )
+        if any(value is not None for value in fields) and any(value is None for value in fields):
+            raise ValueError("MET provenance must be complete when present")
+        return self
+
     @field_validator("body_focus_code", mode="before")
     @classmethod
     def validate_v2_body_focus_code(
@@ -301,6 +315,7 @@ class ExerciseDetailResponse(BaseModel):
     exercise_id: UUID
     exercise_name: str
     training_type_code: str
+    body_focus_code: BodyFocusCode | None = None
     primary_body_area_codes: list[str]
     instruction_summary: str
     form_cues: list[str]
@@ -311,9 +326,17 @@ class ExerciseDetailResponse(BaseModel):
     mascot_animation_asset_key: str | None = None
     instruction_content_version: str
     household_equipment_guides: list["HouseholdEquipmentGuide"] | None = None
+    gym_equipment_starting_guides: list["GymEquipmentStartingGuide"] | None = None
 
 
 class HouseholdEquipmentGuide(BaseModel):
+    equipment_code: EquipmentCode
+    proposal_ko: str
+    examples_ko: list[str]
+    cautions_ko: list[str]
+
+
+class GymEquipmentStartingGuide(BaseModel):
     equipment_code: EquipmentCode
     proposal_ko: str
     examples_ko: list[str]
@@ -325,6 +348,7 @@ class ExerciseListItem(BaseModel):
     name: str
     training_type_code: TrainingTypeCode
     difficulty_code: DifficultyCode
+    body_focus_code: BodyFocusCode | None = None
     primary_body_area_codes: list[BodyAreaCode]
     required_equipment_codes: list[EquipmentCode]
     media_asset_key: str | None = None

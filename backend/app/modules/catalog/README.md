@@ -29,6 +29,13 @@
   적재됩니다. 그 밖의 파생 데이터는 계속 false로 fail-closed 처리합니다.
 - 현재 매니페스트에 없는 URL·license code는 추정하지 않습니다. source 매니페스트 전체를
   보존하므로 후속 schema가 해당 필드를 제공하면 손실 없이 저장할 수 있습니다.
+- `IntegratedCatalogBundleImporter`는 PR #269의 v2.0.7 DRAFT wrapper를 검증한 뒤 237개 catalog
+  row와 승인된 MET 6개 provenance field를 적재한다. Gymvisual v2 lineage의 승인 taxonomy hash를
+  legacy v2 importer hash와 별도로 pin하며, 미승인 MET·stable-code/장비 참조·파일 hash/count 불일치는
+  적재 전에 fail-closed한다. 이 경로는 activation이나 production promotion을 수행하지 않는다.
+- home household guide와 gym starting guide는 검수된 상세 안내용 advisory data다. 안내는 운동의
+  required equipment와 stable code를 재검증하지만 safety eligibility, 장소 호환성, 대체 관계 또는
+  운동 계획을 변경하지 않는다.
 - `python -m backend.scripts.catalog_promote_v2`는 V1 경로와 분리된 V2 전용 명령입니다. 승인된
   bundle·taxonomy hash와 네 artifact의 version/hash/count를 exact-match로 검증하고 한 transaction에
   적재합니다. 기본 동작은 DRAFT 유지이며 `--activate`를 명시해야 activation gate까지 실행합니다.
