@@ -1,5 +1,5 @@
 /**
- * Firebase Authentication adapter (email/password).
+ * Firebase Authentication adapter (email/password and approved social paths).
  *
  * The backend only accepts a verified Firebase ID token, so this is the single
  * place the app obtains one. There is no local bypass: when configuration is
@@ -14,6 +14,7 @@ import {
   createUserWithEmailAndPassword,
   getAuth,
   onAuthStateChanged,
+  signInWithCustomToken,
   signInWithEmailAndPassword,
   signOut,
   validatePassword,
@@ -22,8 +23,9 @@ import {
   type User,
 } from 'firebase/auth';
 
-import type { UserFacingError } from '../api/errors';
-import type { FirebaseWebConfig } from '../config/env';
+import { isUserFacingError, type UserFacingError } from '../api/errors';
+import type { FirebaseWebConfig, SocialOAuthRedirectUris } from '../config/env';
+import { requestSocialFirebaseCustomToken } from './socialOAuth';
 
 export type AuthUser = {
   uid: string;
@@ -39,6 +41,8 @@ export type PasswordCheck =
 export type AuthAdapter = {
   observe(listener: (user: AuthUser | null) => void): () => void;
   signIn(email: string, password: string): Promise<void>;
+  signInWithGoogle(): Promise<void>;
+  signInWithKakao(): Promise<void>;
   signUp(email: string, password: string): Promise<void>;
   signOutUser(): Promise<void>;
   getIdToken(): Promise<string | null>;
@@ -103,6 +107,12 @@ const AUTH_MESSAGES: Record<string, string> = {
     '네트워크에 연결하지 못했습니다. 연결을 확인해주세요.',
   'auth/operation-not-allowed':
     'Firebase 테스트 프로젝트에서 이메일/비밀번호 로그인이 켜져 있지 않습니다.',
+  'auth/account-exists-with-different-credential':
+    '이미 다른 로그인 방식으로 가입된 계정입니다.',
+  'auth/invalid-custom-token':
+    '소셜 로그인을 완료하지 못했습니다. 다시 시도해주세요.',
+  'auth/custom-token-mismatch':
+    '소셜 로그인을 완료하지 못했습니다. 다시 시도해주세요.',
 };
 
 function toAuthFailure(error: unknown): AuthFailure {
@@ -194,6 +204,10 @@ function unmetRequirements(status: PasswordValidationStatus): string[] {
 
 export function createFirebaseAuthAdapter(
   config: FirebaseWebConfig,
+  options: {
+    apiBaseUrl: string;
+    socialOAuthRedirectUris: SocialOAuthRedirectUris;
+  },
 ): AuthAdapter {
   let app: FirebaseApp;
   let auth: Auth;
@@ -217,6 +231,54 @@ export function createFirebaseAuthAdapter(
       try {
         await signInWithEmailAndPassword(auth, email.trim(), password);
       } catch (error) {
+        throw toAuthFailure(error);
+      }
+    },
+
+    async signInWithGoogle() {
+      try {
+        const redirectUri = options.socialOAuthRedirectUris.GOOGLE;
+        if (!redirectUri) {
+          throw new AuthFailure(
+            'auth/social-config-missing',
+            'Google 로그인 callback 주소가 설정되지 않았습니다.',
+          );
+        }
+        const customToken = await requestSocialFirebaseCustomToken(
+          'GOOGLE',
+          options.apiBaseUrl,
+          redirectUri,
+        );
+        await signInWithCustomToken(auth, customToken);
+      } catch (error) {
+        if (isUserFacingError(error)) {
+          throw error;
+        }
+        throw toAuthFailure(error);
+      }
+    },
+
+    async signInWithKakao() {
+      try {
+        const redirectUri = options.socialOAuthRedirectUris.KAKAO;
+        if (!redirectUri) {
+          throw new AuthFailure(
+            'auth/social-config-missing',
+            '카카오 로그인 callback 주소가 설정되지 않았습니다.',
+          );
+        }
+        const customToken = await requestSocialFirebaseCustomToken(
+          'KAKAO',
+          options.apiBaseUrl,
+          redirectUri,
+        );
+        // Consume the one-time token immediately. It is never copied into app
+        // state or storage; subsequent API requests use Firebase ID tokens.
+        await signInWithCustomToken(auth, customToken);
+      } catch (error) {
+        if (isUserFacingError(error)) {
+          throw error;
+        }
         throw toAuthFailure(error);
       }
     },

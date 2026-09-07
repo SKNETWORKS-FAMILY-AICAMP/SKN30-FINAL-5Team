@@ -9,7 +9,7 @@ import {
 import { StyleSheet } from 'react-native';
 
 import { fontFamilies } from '../src/app/fonts';
-import type { AuthAdapter } from '../src/auth/firebase';
+import { AuthFailure, type AuthAdapter } from '../src/auth/firebase';
 import { AuthFlow } from '../src/features/auth/AuthFlow';
 import { LoginScreen } from '../src/features/auth/LoginScreen';
 import { SignUpScreen } from '../src/features/auth/SignUpScreen';
@@ -20,6 +20,8 @@ function authAdapter(overrides: Partial<AuthAdapter> = {}): AuthAdapter {
   return {
     observe: () => () => undefined,
     signIn: jest.fn(async () => undefined),
+    signInWithGoogle: jest.fn(async () => undefined),
+    signInWithKakao: jest.fn(async () => undefined),
     signUp: jest.fn(async () => undefined),
     signOutUser: jest.fn(async () => undefined),
     getIdToken: jest.fn(async () => null),
@@ -173,8 +175,8 @@ describe('auth visual prototypes', () => {
     ).toBeOnTheScreen();
     expect(screen.queryByRole('checkbox')).toBeNull();
     expect(
-      screen.queryByRole('button', { name: 'Google로 계속하기' }),
-    ).toBeNull();
+      screen.getByRole('button', { name: 'Google로 계속하기' }),
+    ).toBeOnTheScreen();
 
     fireEvent.changeText(screen.getByLabelText('이메일'), 'user@example.com');
     fireEvent.changeText(screen.getByLabelText('비밀번호'), 'password1');
@@ -189,6 +191,41 @@ describe('auth visual prototypes', () => {
     expect(
       await screen.findByText('비밀번호 조건: 6자 이상'),
     ).toBeOnTheScreen();
+  });
+
+  it('starts Google and Kakao from the production signed-out flow', async () => {
+    const signInWithGoogle = jest.fn(async () => undefined);
+    const signInWithKakao = jest.fn(async () => undefined);
+    render(
+      <AuthFlow auth={authAdapter({ signInWithGoogle, signInWithKakao })} />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: 'Google로 계속하기' }));
+    await waitFor(() => expect(signInWithGoogle).toHaveBeenCalledTimes(1));
+
+    fireEvent.press(screen.getByRole('button', { name: '카카오로 계속하기' }));
+    await waitFor(() => expect(signInWithKakao).toHaveBeenCalledTimes(1));
+    expect(
+      screen.queryByRole('button', { name: /네이버/ }),
+    ).not.toBeOnTheScreen();
+  });
+
+  it.each([
+    ['취소', '카카오 로그인이 취소되었습니다.'],
+    [
+      '네트워크 오류',
+      '네트워크에 연결하지 못했습니다. 연결을 확인하고 다시 시도해주세요.',
+    ],
+    ['로그인 실패', '카카오 로그인을 완료하지 못했습니다. 다시 시도해주세요.'],
+  ])('shows a user-safe social %s state', async (_case, message) => {
+    const signInWithKakao = jest.fn(async () => {
+      throw new AuthFailure('social/test', message);
+    });
+    render(<AuthFlow auth={authAdapter({ signInWithKakao })} />);
+
+    fireEvent.press(screen.getByRole('button', { name: '카카오로 계속하기' }));
+
+    expect(await screen.findByText(message)).toBeOnTheScreen();
   });
 
   it('connects SignUp to the Firebase password policy and account creation', async () => {

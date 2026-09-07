@@ -24,6 +24,8 @@ function adapter(overrides: Partial<AuthAdapter> = {}): AuthAdapter {
   return {
     observe: () => () => undefined,
     signIn: jest.fn(async () => undefined),
+    signInWithGoogle: jest.fn(async () => undefined),
+    signInWithKakao: jest.fn(async () => undefined),
     signUp: jest.fn(async () => undefined),
     signOutUser: jest.fn(async () => undefined),
     getIdToken: jest.fn(async () => null),
