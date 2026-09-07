@@ -10,7 +10,11 @@ import {
 import { StyleSheet } from 'react-native';
 
 import type { Api } from '../src/api/endpoints';
-import type { WeekResponse, WorkoutSessionLogSummary } from '../src/api/types';
+import type {
+  BananaWalletResponse,
+  WeekResponse,
+  WorkoutSessionLogSummary,
+} from '../src/api/types';
 import { imageAssets } from '../src/assets';
 import { BackgroundBands } from '../src/components/brand/BrandChrome';
 import {
@@ -113,6 +117,17 @@ function houseApi({
       items: sessions,
       next_cursor: null,
     })),
+    getRewards: jest.fn(async (): Promise<BananaWalletResponse> => ({
+      balance: 120,
+      daily_reward: {
+        local_date: '2026-08-18',
+        reward_amount: 15,
+        is_claimable: true,
+        is_claimed: false,
+        claimed_at: null,
+      },
+    })),
+    claimDailyReward: jest.fn(),
   } as unknown as Api;
 }
 
@@ -246,6 +261,20 @@ describe('MascotHouseScreen', () => {
     await screen.findByTestId('house-scene');
     fireEvent.press(screen.getByTestId('house-mini-game-banana_catch'));
     expect(screen.getByTestId('banana-catch-screen')).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
+    expect(screen.getByTestId('house-scene')).toBeTruthy();
+  });
+
+  it('opens the server-backed wallet from the banana chip and returns', async () => {
+    const api = houseApi();
+    renderHouse(api);
+
+    await screen.findByTestId('house-scene');
+    fireEvent.press(screen.getByLabelText('바나나 지갑 보기'));
+
+    expect(await screen.findByLabelText('보유 바나나 120개')).toBeTruthy();
+    expect(api.getRewards).toHaveBeenCalledTimes(1);
 
     fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
     expect(screen.getByTestId('house-scene')).toBeTruthy();

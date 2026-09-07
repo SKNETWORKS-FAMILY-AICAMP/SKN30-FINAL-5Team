@@ -563,6 +563,7 @@ export function MascotHouseContent({
   footer,
   onBuyItem,
   onFeed,
+  onOpenRewards,
   onPet,
   onPlayGame,
   onPlaceItem,
@@ -575,6 +576,7 @@ export function MascotHouseContent({
   footer?: ReactNode;
   onBuyItem: (itemId: HouseItemId) => boolean;
   onFeed: () => boolean;
+  onOpenRewards: () => void;
   onPet: () => boolean;
   onPlayGame: (gameId: HouseMiniGameId) => void;
   onPlaceItem: (itemId: HouseItemId, placement: HouseItemPlacement) => void;
@@ -588,8 +590,9 @@ export function MascotHouseContent({
   /**
    * 오늘의 퀘스트, opened as an overlay over the same action stack the
    * decorate panel covers. Every affordance that asks "how do I earn more?" —
-   * the banana chip's `+`, the intimacy chip, the bonus row, the quest tile —
-   * opens it, because the quest list is the one answer to all four. It is a
+   * the intimacy chip, the bonus row and the quest tile — opens it, because
+   * the quest list is the one answer to all three. The banana chip's `+` opens
+   * the server-backed wallet instead. It is a
    * panel and not a screen so the backdrop, the mascot and the tab bar all
    * stay exactly where they are.
    */
@@ -819,9 +822,9 @@ export function MascotHouseContent({
                   {view.bananas}개
                 </Text>
                 <Pressable
-                  accessibilityLabel="바나나 얻는 방법 보기"
+                  accessibilityLabel="바나나 지갑 보기"
                   accessibilityRole="button"
-                  onPress={openQuests}
+                  onPress={onOpenRewards}
                   style={[styles.chipPlus, { marginLeft: spacing.xs }]}
                   testID="house-banana-earn-action"
                 >

@@ -8,6 +8,9 @@
 
 import type { ApiClient } from './client';
 import type {
+  BananaSpendRequest,
+  BananaSpendResponse,
+  BananaWalletResponse,
   ConsentResponse,
   ConsentValues,
   DailyContextDefaultsResponse,
@@ -16,6 +19,7 @@ import type {
   DecisionRegenerationRequest,
   DecisionResponse,
   DecisionSelectionResponse,
+  DailyRewardClaimResponse,
   ExerciseDetailResponse,
   ExerciseListResponse,
   ExerciseVariantsResponse,
@@ -68,6 +72,31 @@ export function createApi(client: ApiClient) {
         path: `/notifications/${notificationId}/read`,
         idempotent: true,
         signal,
+      });
+    },
+
+    getRewards(signal?: AbortSignal) {
+      return client.request<BananaWalletResponse>({
+        path: '/rewards',
+        signal,
+      });
+    },
+
+    claimDailyReward() {
+      return client.request<DailyRewardClaimResponse>({
+        method: 'POST',
+        path: '/rewards/daily-reward/claim',
+        idempotent: true,
+      });
+    },
+
+    spendBananas(body: BananaSpendRequest, idempotencyKey?: string) {
+      return client.request<BananaSpendResponse>({
+        method: 'POST',
+        path: '/rewards/spend',
+        body,
+        idempotent: true,
+        idempotencyKey,
       });
     },
 
