@@ -43,8 +43,14 @@ def upgrade() -> None:
         sa.Column("code_challenge_method", sa.String(length=16), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
-        sa.CheckConstraint("provider_code IN ('KAKAO')", name="ck_social_oauth_authorization_provider"),
-        sa.CheckConstraint("code_challenge_method = 'S256'", name="ck_social_oauth_authorization_pkce"),
+        sa.CheckConstraint(
+            "provider_code IN ('KAKAO')",
+            name="ck_social_oauth_authorization_provider",
+        ),
+        sa.CheckConstraint(
+            "code_challenge_method = 'S256'",
+            name="ck_social_oauth_authorization_pkce",
+        ),
         sa.CheckConstraint("expires_at > created_at", name="ck_social_oauth_authorization_expiry"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("state_hash"),
@@ -66,7 +72,10 @@ def upgrade() -> None:
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
-        sa.CheckConstraint("provider_code IN ('KAKAO')", name="ck_social_oauth_rate_provider"),
+        sa.CheckConstraint(
+            "provider_code IN ('KAKAO')",
+            name="ck_social_oauth_rate_provider",
+        ),
         sa.CheckConstraint(
             "dimension_code IN ('CLIENT_IP', 'PROVIDER_REDIRECT')",
             name="ck_social_oauth_rate_dimension",
@@ -75,7 +84,10 @@ def upgrade() -> None:
         sa.CheckConstraint("expires_at > window_started_at", name="ck_social_oauth_rate_expiry"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
-            "provider_code", "dimension_code", "key_digest", "window_started_at",
+            "provider_code",
+            "dimension_code",
+            "key_digest",
+            "window_started_at",
             name="uq_social_oauth_rate_limit_window",
         ),
     )
@@ -97,12 +109,34 @@ def downgrade() -> None:
         END $$;
         """
     )
-    op.drop_index("ix_social_oauth_rate_limit_windows_expires_at", table_name="social_oauth_rate_limit_windows")
+    op.drop_index(
+        "ix_social_oauth_rate_limit_windows_expires_at",
+        table_name="social_oauth_rate_limit_windows",
+    )
     op.drop_table("social_oauth_rate_limit_windows")
-    op.drop_index("ix_social_oauth_authorization_requests_expires_at", table_name="social_oauth_authorization_requests")
+    op.drop_index(
+        "ix_social_oauth_authorization_requests_expires_at",
+        table_name="social_oauth_authorization_requests",
+    )
     op.drop_table("social_oauth_authorization_requests")
-    op.drop_constraint("ck_user_identities_provider_code_set", "user_identities", type_="check")
-    op.create_check_constraint("ck_user_identities_provider_code", "user_identities", "provider_code IN ('FIREBASE')")
-    op.create_check_constraint("ck_user_identities_code_set_version", "user_identities", "code_set_version = 'identity-mvp-v1'")
+    op.drop_constraint(
+        "ck_user_identities_provider_code_set",
+        "user_identities",
+        type_="check",
+    )
+    op.create_check_constraint(
+        "ck_user_identities_provider_code",
+        "user_identities",
+        "provider_code IN ('FIREBASE')",
+    )
+    op.create_check_constraint(
+        "ck_user_identities_code_set_version",
+        "user_identities",
+        "code_set_version = 'identity-mvp-v1'",
+    )
     op.drop_constraint("ck_users_code_set_version", "users", type_="check")
-    op.create_check_constraint("ck_users_code_set_version", "users", "code_set_version = 'identity-mvp-v1'")
+    op.create_check_constraint(
+        "ck_users_code_set_version",
+        "users",
+        "code_set_version = 'identity-mvp-v1'",
+    )
