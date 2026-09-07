@@ -37,6 +37,7 @@ from backend.app.modules.decisions.ports import (
     NarrationProviderPort,
     NarrationProviderUnavailableError,
 )
+from backend.app.modules.profiles.codes import FIXED_COACHING_STYLE_CODE
 
 COORDINATOR_SUMMARY_CODE: Final = "COORDINATOR"
 _MAX_PUBLIC_REASON_CODES: Final = 2
@@ -255,6 +256,11 @@ def build_template_explanation(
 ) -> DecisionExplanation:
     """Return reviewed narration built only from approved codes."""
 
+    # Kept as a parameter only while callers that predate BL-1 are deployed.
+    # Narration is no longer personalized by style, so new records and prompts
+    # must converge on the single approved context.
+    del coaching_style_code
+
     by_type = {proposal.agent_type_code: proposal for proposal in proposals}
     agent_summaries: list[ExplanationAgentSummary] = []
     for agent_type in REQUIRED_AGENT_TYPES:
@@ -303,7 +309,7 @@ def build_template_explanation(
         agent_summaries=tuple(agent_summaries),
         safety_summary=safety_summary,
         final_adjustment_reason=final_adjustment_reason,
-        coaching_style_code=coaching_style_code,
+        coaching_style_code=FIXED_COACHING_STYLE_CODE.value,
         fallback_reason_code=fallback_reason_code.value,
     )
 
@@ -595,6 +601,8 @@ def build_v3_template_explanation(
 ) -> DecisionExplanation:
     """Build reviewed V3 copy from the three proposals and SafetyPolicyEngine output."""
 
+    del coaching_style_code
+
     by_type = {proposal.agent_type_code: proposal for proposal in proposals}
     agent_summaries: list[ExplanationAgentSummary] = []
     for agent_type in SpecialistAgentTypeCode:
@@ -660,7 +668,7 @@ def build_v3_template_explanation(
         agent_summaries=tuple(agent_summaries),
         safety_summary=safety_summary,
         final_adjustment_reason=_V3_FINAL_ADJUSTMENTS.get(action_code),
-        coaching_style_code=coaching_style_code,
+        coaching_style_code=FIXED_COACHING_STYLE_CODE.value,
         template_version=V3_DECISION_EXPLANATION_TEMPLATE_VERSION,
         fallback_reason_code=fallback_reason_code.value,
     )

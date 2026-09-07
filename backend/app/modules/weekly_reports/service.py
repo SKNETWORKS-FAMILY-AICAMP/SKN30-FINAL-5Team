@@ -163,7 +163,7 @@ class WeeklyReportService:
             evidence = self._repository.get_week_evidence(
                 session, user_id, week.week_start, week.week_end
             )
-            values = self._build_report_values(week, evidence, now)
+            values = self._build_report_values(session, week, evidence, now)
             values = apply_narration(values, self._narration_agent)
             existing = self._repository.get_report_for_week(session, week.week_id)
             if existing is not None:
@@ -284,6 +284,7 @@ class WeeklyReportService:
 
     def _build_report_values(
         self,
+        session: Session,
         week: WeekRecord,
         evidence_rows: tuple[WeeklySessionEvidence, ...],
         now: datetime,
@@ -295,6 +296,10 @@ class WeeklyReportService:
         pain_report_count = 0
         adjusted_total = 0
         adjusted_success = 0
+        total_workout_seconds = 0
+        calorie_values: list[float] = []
+        intensity_codes: list[str] = []
+        training_type_codes: list[str] = []
         for row in evidence_rows:
             if row.stored_status_code not in _TERMINAL_STATUS_CODES:
                 raise WeekOutcomesIncompleteError
@@ -325,6 +330,13 @@ class WeeklyReportService:
                 difficulty_counts[row.feedback_difficulty_code] += 1
             if row.pain_occurred is True:
                 pain_report_count += 1
+            total_workout_seconds += row.progress_seconds
+            if row.estimated_calories_burned is not None:
+                calorie_values.append(row.estimated_calories_burned)
+            # These values come from completed exercise blocks only. A plan item
+            # that was never checked off must not affect a performed-workout metric.
+            intensity_codes.extend(row.intensity_codes)
+            training_type_codes.extend(row.training_type_codes)
 
         completed = counts["COMPLETED"]
         partial = counts["PARTIAL"]
@@ -352,6 +364,27 @@ class WeeklyReportService:
         blocker_codes = [
             code for code, _ in sorted(reason_counts.items(), key=lambda item: (-item[1], item[0]))
         ]
+        total_estimated_calories_burned = (
+            None if not calorie_values else round(sum(calorie_values), 2)
+        )
+        average_intensity_code = self._average_intensity_code(intensity_codes)
+        most_performed_training_type_code = self._mode_code(training_type_codes)
+        prior_completed_count = self._repository.get_prior_week_completed_count(
+            session, week.user_id, week.week_start
+        )
+        completed_count_change = (
+            None if prior_completed_count is None else completed - prior_completed_count
+        )
+        highlight_codes = self._highlight_codes(
+            completed=completed,
+            partial=partial,
+            adjusted_success=adjusted_success,
+        )
+        improvement_codes = self._improvement_codes(
+            partial=partial,
+            not_completed=not_completed,
+            stopped=stopped,
+        )
         count_snapshot = {
             "completed": completed,
             "partial": partial,
@@ -380,6 +413,15 @@ class WeeklyReportService:
             "feedback_summary": {
                 "difficulty_counts": dict(sorted(difficulty_counts.items())),
                 "pain_report_count": pain_report_count,
+            },
+            "weekly_metrics": {
+                "total_workout_seconds": total_workout_seconds,
+                "total_estimated_calories_burned": total_estimated_calories_burned,
+                "average_intensity_code": average_intensity_code,
+                "most_performed_training_type_code": most_performed_training_type_code,
+                "completed_count_change": completed_count_change,
+                "highlight_codes": highlight_codes,
+                "improvement_codes": improvement_codes,
             },
         }
         pattern_summary = {
@@ -429,9 +471,60 @@ class WeeklyReportService:
             next_action=next_action,
             agent_summaries=None,
             summary=summary,
+            total_workout_seconds=total_workout_seconds,
+            total_estimated_calories_burned=total_estimated_calories_burned,
+            average_intensity_code=average_intensity_code,
+            most_performed_training_type_code=most_performed_training_type_code,
+            completed_count_change=completed_count_change,
+            highlight_codes=highlight_codes,
+            improvement_codes=improvement_codes,
             report_policy_version=WEEKLY_REPORT_POLICY_VERSION,
             generated_at=now,
         )
+
+    @staticmethod
+    def _mode_code(codes: list[str]) -> str | None:
+        if not codes:
+            return None
+        counts = Counter(codes)
+        return min(counts, key=lambda code: (-counts[code], code))
+
+    @staticmethod
+    def _average_intensity_code(codes: list[str]) -> str | None:
+        """Return the closest supported intensity code from completed blocks.
+
+        The approved catalog currently exposes LOW and MODERATE. Unknown legacy
+        codes are excluded rather than silently assigning them a load score.
+        A midpoint rounds up, which makes the tie break explicit and reproducible.
+        """
+
+        scores = {"LOW": 1, "MODERATE": 2}
+        values = [scores[code] for code in codes if code in scores]
+        if not values:
+            return None
+        return "MODERATE" if sum(values) / len(values) >= 1.5 else "LOW"
+
+    @staticmethod
+    def _highlight_codes(*, completed: int, partial: int, adjusted_success: int) -> list[str]:
+        codes: list[str] = []
+        if completed:
+            codes.append("COMPLETED_SESSION_RECORDED")
+        if partial:
+            codes.append("PARTIAL_SESSION_PROGRESS_RECORDED")
+        if adjusted_success:
+            codes.append("ADJUSTED_PLAN_PROGRESS_RECORDED")
+        return codes
+
+    @staticmethod
+    def _improvement_codes(*, partial: int, not_completed: int, stopped: int) -> list[str]:
+        codes: list[str] = []
+        if stopped:
+            codes.append("SAFETY_STOPPED_SESSION_RECORDED")
+        if not_completed:
+            codes.append("MISSED_SESSION_PATTERN_RECORDED")
+        if partial:
+            codes.append("PARTIAL_SESSION_PATTERN_RECORDED")
+        return codes
 
     def _prior_response(
         self,

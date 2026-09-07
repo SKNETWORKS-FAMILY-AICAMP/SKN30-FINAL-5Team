@@ -1,4 +1,5 @@
 from contextlib import nullcontext
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import UUID, uuid4
@@ -114,6 +115,20 @@ class FakeWeeklyReportRepository:
     ) -> tuple[WeeklySessionEvidence, ...]:
         return self.evidence
 
+    def get_prior_week_completed_count(
+        self, session: Any, user_id: UUID, week_start: date
+    ) -> int | None:
+        prior = [
+            (start, stored)
+            for start, week in self.weeks.items()
+            if start < week_start
+            if (stored := self.reports_by_week.get(week.week_id)) is not None
+        ]
+        if not prior:
+            return None
+        _, stored = max(prior, key=lambda item: item[0])
+        return stored.response_payload["counts"]["completed"]
+
     def get_report_for_week(self, session: Any, week_id: UUID) -> StoredReport | None:
         return self.reports_by_week.get(week_id)
 
@@ -149,6 +164,13 @@ class FakeWeeklyReportRepository:
             "next_action": values.next_action,
             "agent_summaries": values.agent_summaries,
             "summary": values.summary,
+            "total_workout_seconds": values.total_workout_seconds,
+            "total_estimated_calories_burned": values.total_estimated_calories_burned,
+            "average_intensity_code": values.average_intensity_code,
+            "most_performed_training_type_code": values.most_performed_training_type_code,
+            "completed_count_change": values.completed_count_change,
+            "highlight_codes": values.highlight_codes,
+            "improvement_codes": values.improvement_codes,
             "acknowledged_at": None,
             "generated_at": values.generated_at,
         }
@@ -214,6 +236,10 @@ def _evidence() -> tuple[WeeklySessionEvidence, ...]:
             "KEEP",
             "APPROPRIATE",
             False,
+            progress_seconds=900,
+            estimated_calories_burned=90.5,
+            training_type_codes=("STRENGTH", "STRENGTH"),
+            intensity_codes=("LOW", "MODERATE"),
         ),
         WeeklySessionEvidence(
             WEEK_START + timedelta(days=1),
@@ -224,6 +250,10 @@ def _evidence() -> tuple[WeeklySessionEvidence, ...]:
             "DOWNSHIFT",
             "HARD",
             False,
+            progress_seconds=600,
+            estimated_calories_burned=45.25,
+            training_type_codes=("CARDIO",),
+            intensity_codes=("MODERATE",),
         ),
         WeeklySessionEvidence(
             WEEK_START + timedelta(days=2),
@@ -234,6 +264,7 @@ def _evidence() -> tuple[WeeklySessionEvidence, ...]:
             "KEEP",
             None,
             False,
+            progress_seconds=0,
         ),
         WeeklySessionEvidence(
             WEEK_START + timedelta(days=3),
@@ -244,6 +275,7 @@ def _evidence() -> tuple[WeeklySessionEvidence, ...]:
             "RECOVERY",
             None,
             True,
+            progress_seconds=120,
         ),
     )
 
@@ -332,6 +364,21 @@ def test_report_uses_block_evidence_and_builds_non_penalty_aggregate() -> None:
     assert response.persistence_rate == 0.5
     assert response.negotiation_success_rate == 0.5
     assert response.adjustment_direction_code == "MIXED"
+    assert response.total_workout_seconds == 1620
+    assert response.total_estimated_calories_burned == 135.75
+    assert response.average_intensity_code == "MODERATE"
+    assert response.most_performed_training_type_code == "STRENGTH"
+    assert response.completed_count_change is None
+    assert response.highlight_codes == [
+        "COMPLETED_SESSION_RECORDED",
+        "PARTIAL_SESSION_PROGRESS_RECORDED",
+        "ADJUSTED_PLAN_PROGRESS_RECORDED",
+    ]
+    assert response.improvement_codes == [
+        "SAFETY_STOPPED_SESSION_RECORDED",
+        "MISSED_SESSION_PATTERN_RECORDED",
+        "PARTIAL_SESSION_PATTERN_RECORDED",
+    ]
     assert "벌점" not in response.summary
     assert repository.last_report_values is not None
     snapshot = repository.last_report_values.input_snapshot
@@ -341,6 +388,38 @@ def test_report_uses_block_evidence_and_builds_non_penalty_aggregate() -> None:
     }
     assert "user_id" not in snapshot
     assert "session_id" not in snapshot
+    assert snapshot["weekly_metrics"]["total_estimated_calories_burned"] == 135.75
+
+
+def test_report_keeps_an_uncomputed_calorie_total_distinct_from_zero() -> None:
+    repository = FakeWeeklyReportRepository()
+    repository.evidence = tuple(
+        replace(row, estimated_calories_burned=None) for row in _evidence()
+    )
+
+    response = _service(repository).create_report(
+        FakeSession(), uuid4(), WEEK_START, _request(), uuid4()  # type: ignore[arg-type]
+    )
+
+    assert response.total_estimated_calories_burned is None
+
+
+def test_report_compares_completed_count_with_the_closest_prior_report() -> None:
+    repository = FakeWeeklyReportRepository()
+    service = _service(repository)
+    user_id = uuid4()
+    prior_week_start = WEEK_START - timedelta(days=7)
+    repository.evidence = (_evidence()[0],)
+    service.create_report(
+        FakeSession(), user_id, prior_week_start, _request(), uuid4()  # type: ignore[arg-type]
+    )
+    repository.evidence = _evidence()
+
+    response = service.create_report(
+        FakeSession(), user_id, WEEK_START, _request(), uuid4()  # type: ignore[arg-type]
+    )
+
+    assert response.completed_count_change == 0
 
 
 class RecordingNarrationAgent:
@@ -413,7 +492,7 @@ def test_agent_receives_deterministic_aggregate_and_only_replaces_narration() ->
             "model_code": "test-model",
             "prompt_version": "weekly-report-narration-prompt-v1",
             "fallback_reason_code": None,
-            "input_schema_version": "weekly-report-input-v2",
+            "input_schema_version": "weekly-report-input-v3",
             "input_hash": repository.last_report_values.input_hash,
         }
     }

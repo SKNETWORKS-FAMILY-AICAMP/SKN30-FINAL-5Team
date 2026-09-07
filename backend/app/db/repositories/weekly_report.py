@@ -6,13 +6,15 @@ from uuid import UUID, uuid4
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session, selectinload
 
-from backend.app.db.models.decision import DecisionRun
+from backend.app.db.models.catalog import Exercise
+from backend.app.db.models.decision import DecisionRun, PlanItem
 from backend.app.db.models.profile import MutationIdempotencyRecord, UserProfile
 from backend.app.db.models.weekly_report import UserWeek, WeeklyReport
 from backend.app.db.models.workout import (
     DecisionSelection,
     WorkoutFeedback,
     WorkoutSession,
+    WorkoutSessionItem,
     WorkoutSkipFeedback,
 )
 from backend.app.modules.weekly_reports.codes import WEEKLY_REPORT_RESPONSE_SCHEMA_VERSION
@@ -203,6 +205,7 @@ class WeeklyReportRepository:
             )
             .order_by(DecisionRun.local_date, WorkoutSession.id)
         ).all()
+        plan_shape = self._completed_plan_shape(session, tuple(row[0].id for row in rows))
         return tuple(
             WeeklySessionEvidence(
                 local_date=local_date,
@@ -216,6 +219,10 @@ class WeeklyReportRepository:
                 selected_action_code=selected_action_code,
                 feedback_difficulty_code=difficulty_code,
                 pain_occurred=pain_occurred,
+                progress_seconds=workout.accumulated_progress_seconds,
+                estimated_calories_burned=workout.estimated_calories_burned,
+                training_type_codes=plan_shape.get(workout.id, ((), ()))[0],
+                intensity_codes=plan_shape.get(workout.id, ((), ()))[1],
             )
             for (
                 workout,
@@ -225,6 +232,56 @@ class WeeklyReportRepository:
                 difficulty_code,
                 pain_occurred,
             ) in rows
+        )
+
+    @staticmethod
+    def _completed_plan_shape(
+        session: Session, workout_session_ids: tuple[UUID, ...]
+    ) -> dict[UUID, tuple[tuple[str, ...], tuple[str, ...]]]:
+        """Training type and intensity for completed blocks, keyed by session.
+
+        Read per completed block rather than per distinct exercise: a movement
+        repeated across blocks weighs as much as it actually occupied.
+        """
+
+        if not workout_session_ids:
+            return {}
+        rows = session.execute(
+            select(
+                WorkoutSessionItem.workout_session_id,
+                Exercise.training_type_code,
+                PlanItem.intensity_code,
+            )
+            .join(PlanItem, PlanItem.id == WorkoutSessionItem.plan_item_id)
+            .join(Exercise, Exercise.id == PlanItem.exercise_id)
+            .where(
+                WorkoutSessionItem.workout_session_id.in_(set(workout_session_ids)),
+                WorkoutSessionItem.status_code == "COMPLETED",
+            )
+            .order_by(WorkoutSessionItem.workout_session_id, PlanItem.sequence)
+        ).all()
+        shape: dict[UUID, tuple[list[str], list[str]]] = {}
+        for candidate_id, training_type_code, intensity_code in rows:
+            types, intensities = shape.setdefault(candidate_id, ([], []))
+            types.append(training_type_code)
+            intensities.append(intensity_code)
+        return {
+            candidate_id: (tuple(types), tuple(intensities))
+            for candidate_id, (types, intensities) in shape.items()
+        }
+
+    def get_prior_week_completed_count(
+        self, session: Session, user_id: UUID, week_start: date
+    ) -> int | None:
+        return session.scalar(
+            select(WeeklyReport.completed_count)
+            .join(UserWeek, UserWeek.id == WeeklyReport.user_week_id)
+            .where(
+                UserWeek.user_id == user_id,
+                UserWeek.week_start_local_date < week_start,
+            )
+            .order_by(UserWeek.week_start_local_date.desc())
+            .limit(1)
         )
 
     def get_report_for_week(self, session: Session, week_id: UUID) -> StoredReport | None:
@@ -333,6 +390,8 @@ class WeeklyReportRepository:
 
     @staticmethod
     def _stored_report(report: WeeklyReport, week: UserWeek) -> StoredReport:
+        raw_metrics = report.input_snapshot.get("weekly_metrics", {})
+        metrics = raw_metrics if isinstance(raw_metrics, dict) else {}
         return StoredReport(
             input_hash=report.input_hash,
             response_payload={
@@ -358,6 +417,17 @@ class WeeklyReportRepository:
                 "next_action": report.next_action,
                 "agent_summaries": report.agent_summaries,
                 "summary": report.summary,
+                "total_workout_seconds": metrics.get("total_workout_seconds"),
+                "total_estimated_calories_burned": metrics.get(
+                    "total_estimated_calories_burned"
+                ),
+                "average_intensity_code": metrics.get("average_intensity_code"),
+                "most_performed_training_type_code": metrics.get(
+                    "most_performed_training_type_code"
+                ),
+                "completed_count_change": metrics.get("completed_count_change"),
+                "highlight_codes": metrics.get("highlight_codes"),
+                "improvement_codes": metrics.get("improvement_codes"),
                 "acknowledged_at": report.acknowledged_at,
                 "generated_at": report.generated_at,
             },

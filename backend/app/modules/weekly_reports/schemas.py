@@ -60,6 +60,15 @@ class WeeklyReportResponse(BaseModel):
     next_action: str
     agent_summaries: dict[str, Any] | None
     summary: str
+    # Added as optional fields so reports generated before the metrics expansion
+    # continue to deserialize and existing clients can ignore them.
+    total_workout_seconds: int | None = None
+    total_estimated_calories_burned: float | None = None
+    average_intensity_code: str | None = None
+    most_performed_training_type_code: str | None = None
+    completed_count_change: int | None = None
+    highlight_codes: list[str] | None = None
+    improvement_codes: list[str] | None = None
     acknowledged_at: datetime | None
     generated_at: datetime
 
