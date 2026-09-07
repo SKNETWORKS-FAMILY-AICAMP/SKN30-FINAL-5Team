@@ -283,6 +283,8 @@ export type WorkoutPlanItem = {
 
 export type WorkoutPlan = {
   plan_id: string;
+  /** Absent on historical plans created before decision-plan editing shipped. */
+  plan_revision?: number;
   action_code: ActionCode;
   training_type_code: string;
   body_focus_code: string | null;
@@ -360,22 +362,24 @@ export type PlanItemPrescriptionEdit = {
   reps: number | null;
 };
 
-/**
- * A user edit of today's final plan: set/repetition changes (ADR-0018 D4) and
- * reordering inside one phase (D5). The client sends the full resulting plan
- * rather than a patch so the server can diff it against the stored plan, decide
- * which items the user actually changed, re-sequence each phase from 1 and run
- * the integrity validator. It never sends exercise identity, safety state or
- * reason codes.
- *
- * Proposed shape awaiting backend review; see the frontend report for the
- * request that accompanies it.
- */
-export type DecisionPlanEditRequest = {
+export type PlanItemSetRepetitionRequest = {
   expected_plan_id: string;
-  /** Every plan item id, in the order the user wants to perform them. */
-  item_order: string[];
-  item_prescriptions: PlanItemPrescriptionEdit[];
+  expected_plan_revision: number;
+  sets: number;
+  reps: number | null;
+};
+
+export type PlanItemOrderRequest = {
+  expected_plan_id: string;
+  expected_plan_revision: number;
+  /** All movable items; completed session items are deliberately omitted. */
+  ordered_plan_item_ids: string[];
+};
+
+export type PlanRevisionResponse = {
+  decision_id: string;
+  plan_revision: number;
+  final_plan: WorkoutPlan;
 };
 
 export type DecisionRegenerationRequest = {

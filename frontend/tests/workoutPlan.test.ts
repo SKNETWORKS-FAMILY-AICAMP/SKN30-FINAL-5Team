@@ -4,7 +4,8 @@ import {
   moveArrayItem,
   moveWorkoutPlanItem,
   orderedWorkoutPlanItems,
-  planEditRequest,
+  planItemOrderRequest,
+  workoutPlanRevision,
 } from '../src/api/workoutPlan';
 
 function phasedPlan(phases: readonly PlanPhaseCode[]): WorkoutPlan {
@@ -135,15 +136,16 @@ describe('user prescription edits', () => {
     ).toBe(source);
   });
 
-  it('sends the resulting order and prescriptions in performed order', () => {
-    expect(planEditRequest(plan())).toEqual({
+  it('builds the revision-checked order from incomplete items only', () => {
+    const source = { ...plan(), plan_revision: 4 };
+    expect(planItemOrderRequest(source, ['item-2'])).toEqual({
       expected_plan_id: 'plan-1',
-      item_order: ['item-1', 'item-2', 'item-3'],
-      item_prescriptions: [
-        { plan_item_id: 'item-1', sets: 3, reps: 10 },
-        { plan_item_id: 'item-2', sets: 3, reps: 10 },
-        { plan_item_id: 'item-3', sets: 3, reps: 10 },
-      ],
+      expected_plan_revision: 4,
+      ordered_plan_item_ids: ['item-1', 'item-3'],
     });
+  });
+
+  it('treats a historical plan without a revision as revision zero', () => {
+    expect(workoutPlanRevision(plan())).toBe(0);
   });
 });

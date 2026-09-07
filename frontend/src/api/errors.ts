@@ -59,6 +59,7 @@ const CODE_KIND: Record<string, ApiErrorKind> = {
   OUT_OF_SCOPE_MEDICAL_MANAGEMENT: 'permission',
   STALE_CONTEXT: 'stale',
   STALE_PLAN_REVISION: 'stale',
+  PLAN_REVISION_STALE: 'stale',
   OPTION_NOT_SELECTABLE: 'conflict',
   RATE_LIMITED: 'rateLimited',
 };

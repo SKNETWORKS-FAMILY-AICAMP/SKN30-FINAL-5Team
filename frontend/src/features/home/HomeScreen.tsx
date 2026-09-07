@@ -274,7 +274,11 @@ function revisionNotice(
 }
 
 export type HomeBusyKind =
-  'decision-generation' | 'regeneration' | 'revision' | 'starting';
+  | 'decision-generation'
+  | 'plan-edit'
+  | 'regeneration'
+  | 'revision'
+  | 'starting';
 
 export type HomeUserEdits = {
   itemOverrides: readonly RoutineItemDraftOverride[];
@@ -313,6 +317,7 @@ export type HomeScreenProps = {
   onRequestAlternative?: () => void;
   onReorderPlan?: (from: number, to: number) => void;
   onRetry?: () => void;
+  onRetryPlanEdit?: () => void;
   onRetryDecision?: () => void;
   onRetryCheckin?: () => void;
   onSaveCheckin?: () => void;
@@ -398,6 +403,7 @@ function HomeScreenContent({
   onRequestAlternative,
   onReorderPlan,
   onRetry,
+  onRetryPlanEdit,
   onRetryDecision,
   onRetryCheckin,
   onSaveCheckin,
@@ -928,11 +934,17 @@ function HomeScreenContent({
                 actionLabel={
                   staleContext
                     ? '최신 상태로 다시 시도'
-                    : onRetryDecision
-                      ? '루틴 생성 다시 시도'
-                      : undefined
+                    : onRetryPlanEdit
+                      ? '수정 저장 다시 시도'
+                      : onRetryDecision
+                        ? '루틴 생성 다시 시도'
+                        : undefined
                 }
-                onAction={staleContext ? onRetryCheckin : onRetryDecision}
+                onAction={
+                  staleContext
+                    ? onRetryCheckin
+                    : (onRetryPlanEdit ?? onRetryDecision)
+                }
                 serious={blockingRevisionNotice?.serious}
                 testID="home-action-error"
                 text={
