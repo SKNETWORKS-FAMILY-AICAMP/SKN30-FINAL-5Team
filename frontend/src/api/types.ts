@@ -539,11 +539,23 @@ export type ExerciseDetailResponse = {
   primary_body_area_codes: string[];
   instruction_summary: string;
   form_cues: string[];
+  /** Server-separated reviewed steps; legacy responses may omit this field. */
+  instruction_steps?: string[] | null;
+  /** Reviewed form cues plus household-equipment cautions. */
+  cautions?: string[] | null;
   media_asset_key: string | null;
   /** Short-lived URL resolved by the backend; absent until the backend PR lands. */
   media_url?: string | null;
   mascot_animation_asset_key: string | null;
   instruction_content_version: string;
+  household_equipment_guides?: HouseholdEquipmentGuide[] | null;
+};
+
+export type HouseholdEquipmentGuide = {
+  equipment_code: string;
+  proposal_ko: string;
+  examples_ko: string[];
+  cautions_ko: string[];
 };
 
 export type ExerciseVariantItem = {
