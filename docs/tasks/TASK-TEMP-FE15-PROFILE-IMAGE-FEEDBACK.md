@@ -14,6 +14,9 @@
 - `GET /api/v1/me`의 `profile_image_url: null`은 저장 이미지 없음과 조회 시점 URL 발급 실패를 모두
   포함한다. 프론트는 이 읽기 응답만으로 저장 실패를 추론하지 않는다.
 - 사진 URL과 사용자 식별자는 로그에 남기지 않는다.
+- 계약상 최대 크기는 10 MiB지만 백엔드의 `INVALID_PROFILE_IMAGE` message에는 일시적으로 5MB가
+  남아 있다. 프론트는 이 machine code에 한해 10MB 기준 문구를 사용하고 다른 오류의 서버 문구는
+  그대로 유지한다.
 
 ## 구현 계획
 
@@ -21,6 +24,7 @@
 2. 사진 단계 실패 시 선택한 로컬 미리보기를 유지하고 명시적 재시도 안내를 표시한다.
 3. 프로필 필드 저장 후 사진만 실패한 부분 성공 상태를 별도 문구로 표시한다.
 4. 컴포넌트 테스트로 실패·부분 성공·재시도·성공 표시 억제를 검증한다.
+5. `INVALID_PROFILE_IMAGE`는 검토된 10MB 제한으로 안내하고 오래된 5MB 문구를 노출하지 않는다.
 
 ## 예상 변경 파일
 
@@ -42,3 +46,11 @@
 - `MyPageContainer` 컴포넌트 테스트
 - 전체 프론트 테스트
 - 프로덕션 빌드
+
+### 10MB 오류 문구 후속 검증 (2026-09-07)
+
+- `prettier --write`: 통과
+- `eslint src/features/home/MyPageContainer.tsx tests/MyPageContainer.test.tsx`: 통과
+- `npm run typecheck`: 통과
+- `npm test -- --runInBand tests/MyPageContainer.test.tsx`: 30개 테스트 통과
+- 전체 프론트 테스트와 프로덕션 빌드는 이번 후속 수정에서 실행하지 않았다.

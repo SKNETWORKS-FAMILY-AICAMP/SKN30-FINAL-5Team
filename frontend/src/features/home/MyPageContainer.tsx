@@ -204,7 +204,11 @@ function profileImageSaveError(
   const prefix = otherProfileChangesSaved
     ? '다른 프로필 변경은 저장했지만 프로필 사진은 저장하지 못했어요.'
     : '프로필 사진을 저장하지 못했어요.';
-  const userMessage = `${prefix} ${messageForError(cause)} ${retryGuidance}`;
+  const causeMessage =
+    isApiError(cause) && cause.code === 'INVALID_PROFILE_IMAGE'
+      ? 'JPEG, PNG, WEBP 형식의 10MB 이하 이미지만 업로드할 수 있습니다.'
+      : messageForError(cause);
+  const userMessage = `${prefix} ${causeMessage} ${retryGuidance}`;
   return Object.assign(new Error(userMessage), { userMessage });
 }
 

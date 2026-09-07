@@ -468,6 +468,70 @@ describe('MyPageContainer', () => {
     expect(onRefreshMe).toHaveBeenCalledTimes(1);
   });
 
+  it('uses the reviewed 10MB limit for an invalid profile image response', async () => {
+    const uploadProfileImage = jest.fn<Api['uploadProfileImage']>(async () => {
+      throw new ApiError({
+        kind: 'validation',
+        code: 'INVALID_PROFILE_IMAGE',
+        status: 422,
+        // The backend message is temporarily stale; the machine code is stable.
+        message:
+          'JPEG, PNG, WEBP 형식의 5MB 이하 이미지만 업로드할 수 있습니다.',
+      });
+    });
+    jest
+      .mocked(ImagePicker.requestMediaLibraryPermissionsAsync)
+      .mockResolvedValueOnce({
+        granted: true,
+        status: ImagePicker.PermissionStatus.GRANTED,
+        canAskAgain: true,
+        expires: 'never',
+      });
+    jest.mocked(ImagePicker.launchImageLibraryAsync).mockResolvedValueOnce({
+      canceled: false,
+      assets: [
+        {
+          uri: 'file:///invalid-profile.jpg',
+          width: 800,
+          height: 800,
+          type: 'image',
+          fileName: 'invalid-profile.jpg',
+          fileSize: 1_048_576,
+          mimeType: 'image/jpeg',
+        },
+      ],
+    });
+
+    await render(
+      <MyPageContainer
+        api={accountApi({ uploadProfileImage })}
+        me={me()}
+        now={new Date('2026-08-19T03:00:00Z')}
+        onNavigateTab={jest.fn()}
+        onRefreshMe={jest.fn(async () => undefined)}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: '프로필 수정' }));
+    fireEvent.press(
+      screen.getByRole('button', { name: '사진 보관함에서 선택' }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('profile-editor-avatar-preview').props.source,
+      ).toEqual({ uri: 'file:///invalid-profile.jpg' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
+
+    expect(
+      await screen.findByText(
+        '프로필 사진을 저장하지 못했어요. JPEG, PNG, WEBP 형식의 10MB 이하 이미지만 업로드할 수 있습니다. 사진 변경은 그대로 두었어요. 저장하기를 눌러 다시 시도해주세요.',
+      ),
+    ).toBeOnTheScreen();
+    expect(screen.queryByText(/5MB 이하/)).toBeNull();
+  });
+
   it('distinguishes an image failure after other profile fields were saved', async () => {
     const updateProfileSettings = jest.fn<Api['updateProfileSettings']>(
       async () => ({
