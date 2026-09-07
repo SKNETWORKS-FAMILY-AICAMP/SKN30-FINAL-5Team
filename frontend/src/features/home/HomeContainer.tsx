@@ -70,6 +70,7 @@ import type { RoutineGenerationPhaseCode } from './RoutineGenerationLoading';
 type HomeData = {
   routine: RoutineResponse;
   context: DailyContextResponse | null;
+  previousContext: DailyContextResponse | null;
   /** Server-owned check-in defaults, used only until today's check-in exists. */
   checkinDefaults: DailyContextDefaultsResponse | null;
   week: WeekResponse | null;
@@ -93,7 +94,6 @@ type PendingDecisionAttempt = {
   countsAsAlternative: boolean;
 };
 
-const FALLBACK_LOCATION_CODE = 'HOME';
 const EMPTY_SESSIONS: WorkoutSessionLogSummary[] = [];
 const DEFAULT_FINAL_VALIDATION_HOLD_MS = 1_500;
 /** Long enough for a drag to settle, short enough to save before a hand-off. */
@@ -104,6 +104,12 @@ function wait(milliseconds: number): Promise<void> {
     return Promise.resolve();
   }
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function previousLocalDate(localDate: string): string {
+  const date = new Date(`${localDate}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
 }
 
 function canShowFinalValidation(decision: DecisionResponse): boolean {
@@ -318,44 +324,55 @@ export function HomeContainer({
             throw creationError;
           }
         });
-      const [routine, context, checkinDefaults, week, sessionList] =
-        await Promise.all([
-          routinePromise,
-          optional(api.getDailyContext(localDate, signal), ['notFound']),
-          // The check-in must still open when this is unavailable, so every
-          // absence falls back to the profile defaults the screen already has.
-          optional(api.getDailyContextDefaults(localDate, signal), [
-            'notFound',
-            'validation',
-            'conflict',
-            'unavailable',
-            'server',
-          ]),
-          // Weekly summaries are secondary. They may be absent while the daily
-          // flow remains usable, but authentication and permission errors still
-          // surface through the Home state.
-          optional(api.getWeek(weekStart, signal), [
-            'notFound',
-            'validation',
-            'conflict',
-            'unavailable',
-            'server',
-          ]),
-          optional(
-            api.listWorkoutSessions(
-              {
-                fromLocalDate: weekStart,
-                toLocalDate: localDate,
-                limit: 100,
-              },
-              signal,
-            ),
-            ['notFound', 'validation', 'unavailable', 'server'],
+      const [
+        routine,
+        context,
+        previousContext,
+        checkinDefaults,
+        week,
+        sessionList,
+      ] = await Promise.all([
+        routinePromise,
+        optional(api.getDailyContext(localDate, signal), ['notFound']),
+        optional(api.getDailyContext(previousLocalDate(localDate), signal), [
+          'notFound',
+        ]),
+        // The check-in must still open when this is unavailable. Persistent
+        // pains can fall back to the profile, but location choices cannot:
+        // the defaults response is their only authority.
+        optional(api.getDailyContextDefaults(localDate, signal), [
+          'notFound',
+          'validation',
+          'conflict',
+          'unavailable',
+          'server',
+        ]),
+        // Weekly summaries are secondary. They may be absent while the daily
+        // flow remains usable, but authentication and permission errors still
+        // surface through the Home state.
+        optional(api.getWeek(weekStart, signal), [
+          'notFound',
+          'validation',
+          'conflict',
+          'unavailable',
+          'server',
+        ]),
+        optional(
+          api.listWorkoutSessions(
+            {
+              fromLocalDate: weekStart,
+              toLocalDate: localDate,
+              limit: 100,
+            },
+            signal,
           ),
-        ]);
+          ['notFound', 'validation', 'unavailable', 'server'],
+        ),
+      ]);
       return {
         routine,
         context,
+        previousContext,
         checkinDefaults,
         week,
         sessions: sessionList?.items ?? [],
@@ -384,21 +401,28 @@ export function HomeContainer({
   const data = state.status === 'ready' ? state.data : null;
   const routine = data?.routine ?? null;
   const context = data?.context ?? null;
+  const previousContext = data?.previousContext ?? null;
   const checkinDefaults = data?.checkinDefaults ?? null;
   const week = data?.week ?? null;
   const sessions = data?.sessions ?? EMPTY_SESSIONS;
 
-  // Memoised because it feeds the mutation callbacks' dependency lists; a new
-  // array each render would rebuild them on every render.
-  const locationCodes = useMemo(
-    () =>
-      profile === null || profile === undefined
-        ? []
-        : profile.available_location_codes.length > 0
-          ? profile.available_location_codes
-          : [profile.preferred_location_code],
-    [profile],
-  );
+  const locationCodes = useMemo(() => {
+    const choices = (checkinDefaults?.selectable_location_codes ?? []).filter(
+      (code, index, codes) =>
+        (code === 'HOME' || code === 'GYM') && codes.indexOf(code) === index,
+    );
+    const preferred = [
+      context?.location_code,
+      previousContext?.location_code,
+    ].find((code) => code !== undefined && choices.includes(code));
+    return preferred === undefined
+      ? choices
+      : [preferred, ...choices.filter((code) => code !== preferred)];
+  }, [
+    checkinDefaults?.selectable_location_codes,
+    context?.location_code,
+    previousContext?.location_code,
+  ]);
 
   const run = useCallback((kind: HomeBusyKind, action: () => Promise<void>) => {
     // Overlapping actions can represent different user intents. Serialize
@@ -513,6 +537,15 @@ export function HomeContainer({
         if (sleepMinutes === undefined) {
           throw new Error('sleep hours out of range');
         }
+        if (
+          draft.locationCode === null ||
+          !locationCodes.includes(draft.locationCode)
+        ) {
+          throw Object.assign(new Error('daily location is required'), {
+            userMessage:
+              '운동 장소 선택지를 다시 불러온 뒤 집 또는 헬스장을 선택해주세요.',
+          });
+        }
 
         // A previous attempt lost the optimistic-lock race, so the retry has to
         // carry the version that is stored now rather than the stale one.
@@ -531,12 +564,7 @@ export function HomeContainer({
           {
             fatigue_level_code: draft.fatigueLevelCode,
             available_time_minutes: draft.availableTimeMinutes,
-            location_code:
-              draft.locationCode ??
-              latestContext?.location_code ??
-              profile?.preferred_location_code ??
-              locationCodes[0] ??
-              FALLBACK_LOCATION_CODE,
+            location_code: draft.locationCode,
             sleep_minutes: sleepMinutes,
             sleep_source_code: sleepMinutes === null ? null : 'MANUAL',
             pain_present: Object.keys(draft.pains).length > 0,
@@ -553,7 +581,14 @@ export function HomeContainer({
         // Check-in persistence is already complete even if decision creation
         // later loses its response. Reflect it now so a retry never rewrites
         // the same check-in merely to regenerate today's routine.
-        setData({ routine, context: saved, checkinDefaults, week, sessions });
+        setData({
+          routine,
+          context: saved,
+          previousContext,
+          checkinDefaults,
+          week,
+          sessions,
+        });
         let baseline: DecisionBaseline =
           decision === null
             ? { status: 'unknown' }
@@ -593,7 +628,7 @@ export function HomeContainer({
       localDate,
       locationCodes,
       onDecisionChange,
-      profile,
+      previousContext,
       requestDecision,
       routine,
       run,

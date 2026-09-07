@@ -188,7 +188,7 @@ export function HomeScreenContent({
         apiMode,
         context,
         persistentPains,
-        locationCodes[0] ?? null,
+        locationCodes,
         initialState,
       ),
     [apiMode, context, initialState, locationCodes, persistentPains],
@@ -225,8 +225,7 @@ export function HomeScreenContent({
     ? presentedServerRoutineItems
     : routineItems;
   const serverCheckin = useMemo(
-    () =>
-      checkinFromContext(context, persistentPains, locationCodes[0] ?? null),
+    () => checkinFromContext(context, persistentPains, locationCodes),
     [context, locationCodes, persistentPains],
   );
   const displayedCheckin = apiMode ? serverCheckin : committedCheckin;
@@ -809,6 +808,7 @@ export function HomeScreenContent({
           <CheckinSheet
             draft={checkinDraft}
             locationCodes={apiMode ? locationCodes : []}
+            locationRequired={apiMode}
             onAddAvailabilitySlot={() =>
               setCheckinDraft((current) => ({
                 ...current,

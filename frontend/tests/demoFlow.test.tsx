@@ -445,6 +445,11 @@ describe('HomeContainer', () => {
     return stubApi({
       getCurrentRoutine: jest.fn(async () => routine()),
       getDailyContext: jest.fn(notFound),
+      getDailyContextDefaults: jest.fn(async () => ({
+        local_date: '2026-08-17',
+        pains: [],
+        selectable_location_codes: ['HOME', 'GYM'],
+      })),
       getWeek: jest.fn(async () => week()),
       ...overrides,
     } as unknown as Partial<Api>);
@@ -525,6 +530,7 @@ describe('HomeContainer', () => {
     const getDailyContextDefaults = jest.fn(async () => ({
       local_date: '2026-08-17',
       pains: [{ body_area_code: 'SHOULDER', intensity_score: 4 }],
+      selectable_location_codes: ['HOME', 'GYM'],
     }));
     renderHome(
       homeApi({ getDailyContextDefaults } as unknown as Partial<Api>),
@@ -558,7 +564,7 @@ describe('HomeContainer', () => {
   });
 
   it('keeps the profile defaults when the server defaults are unavailable', async () => {
-    renderHome(homeApi(), {
+    renderHome(homeApi({ getDailyContextDefaults: jest.fn(notFound) }), {
       me: {
         ...me(),
         profile: {
@@ -576,6 +582,73 @@ describe('HomeContainer', () => {
       screen.getByRole('button', { name: '무릎' }).props.accessibilityState
         .selected,
     ).toBe(true);
+  });
+
+  it('uses server locations, hides outdoor, and defaults to the previous check-in', async () => {
+    const getDailyContext = jest
+      .fn<Api['getDailyContext']>()
+      .mockImplementationOnce(notFound)
+      .mockResolvedValueOnce({
+        ...dailyContext(),
+        location_code: 'GYM',
+      });
+    const customMe = me();
+    customMe.profile = {
+      ...customMe.profile!,
+      preferred_location_code: 'OUTDOOR',
+      available_location_codes: ['OUTDOOR'],
+    };
+    renderHome(
+      homeApi({
+        getDailyContext,
+        getDailyContextDefaults: jest.fn(async () => ({
+          local_date: '2026-08-17',
+          pains: [],
+          selectable_location_codes: ['HOME', 'OUTDOOR', 'GYM'],
+        })),
+      }),
+      { me: customMe },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+    );
+
+    expect(screen.getByRole('button', { name: '집' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: '헬스장' })).toHaveProp(
+      'accessibilityState',
+      { selected: true },
+    );
+    expect(screen.queryByRole('button', { name: '야외' })).toBeNull();
+    expect(getDailyContext).toHaveBeenCalledTimes(2);
+  });
+
+  it('blocks check-in when the server location choices are unavailable', async () => {
+    const customMe = me();
+    customMe.profile = {
+      ...customMe.profile!,
+      preferred_location_code: 'GYM',
+      available_location_codes: ['HOME', 'GYM'],
+    };
+    renderHome(homeApi({ getDailyContextDefaults: jest.fn(notFound) }), {
+      me: customMe,
+    });
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+    );
+
+    expect(
+      screen.getByText(
+        '운동 장소 선택지를 불러오지 못했어요. 잠시 후 다시 시도해주세요.',
+      ),
+    ).toHaveProp('accessibilityRole', 'alert');
+    expect(screen.queryByRole('button', { name: '집' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '헬스장' })).toBeNull();
+    expect(screen.getByRole('button', { name: '체크인 !' })).toHaveProp(
+      'accessibilityState',
+      { disabled: true },
+    );
   });
 
   it('stores a set and repetition edit in the plan and sends it to the server', async () => {
@@ -1253,11 +1326,15 @@ describe('HomeContainer', () => {
     const customMe = me();
     customMe.profile = {
       ...customMe.profile!,
-      available_location_codes: ['HOME', 'GYM'],
       attention_area_codes: ['SHOULDER', 'KNEE'],
     };
     renderHome(
       homeApi({
+        getDailyContextDefaults: jest.fn(async () => ({
+          local_date: '2026-08-17',
+          pains: [],
+          selectable_location_codes: ['HOME', 'GYM'],
+        })),
         replaceDailyContext,
         createDecision: jest.fn(async () => decision()),
       }),

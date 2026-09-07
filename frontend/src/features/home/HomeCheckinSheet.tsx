@@ -58,6 +58,7 @@ export function CheckinSheet({
   onSetRedFlag,
   onToggleBodyArea,
   locationCodes,
+  locationRequired,
   pending,
 }: {
   draft: HomeCheckin;
@@ -75,6 +76,7 @@ export function CheckinSheet({
   onSetRedFlag: (present: boolean) => void;
   onToggleBodyArea: (code: string) => void;
   locationCodes: readonly string[];
+  locationRequired: boolean;
   pending: boolean;
 }) {
   const styles = useHomeStyles();
@@ -126,6 +128,10 @@ export function CheckinSheet({
       : [EMPTY_AVAILABILITY_SLOT];
   const discomfortSelectionMissing =
     showDiscomfortDetails && Object.keys(draft.pains).length === 0;
+  const locationSelectionMissing =
+    locationRequired &&
+    (draft.locationCode === null ||
+      !locationCodes.includes(draft.locationCode));
   const redFlagSelectionMissing = draft.redFlagPresent === null;
   const saveDisabled =
     pending ||
@@ -134,6 +140,7 @@ export function CheckinSheet({
     durationInvalid ||
     availabilityError !== null ||
     discomfortSelectionMissing ||
+    locationSelectionMissing ||
     redFlagSelectionMissing;
   return (
     <SheetFrame onClose={onClose} title="오늘 컨디션 체크" zIndex={20}>
@@ -322,17 +329,22 @@ export function CheckinSheet({
             수면 시간은 0~24 사이로 입력해주세요.
           </Text>
         ) : null}
-        {locationCodes.length > 0 ? (
-          <ChoiceBlock label="오늘 어디에서 운동할까요?">
-            {locationCodes.map((code) => (
-              <ChoiceButton
-                key={code}
-                label={locationLabel(code)}
-                onPress={() => onChangeLocation(code)}
-                selected={draft.locationCode === code}
-              />
-            ))}
-          </ChoiceBlock>
+        <ChoiceBlock label="오늘 어디에서 운동할까요?">
+          {locationCodes.map((code) => (
+            <ChoiceButton
+              key={code}
+              label={locationLabel(code)}
+              onPress={() => onChangeLocation(code)}
+              selected={draft.locationCode === code}
+            />
+          ))}
+        </ChoiceBlock>
+        {locationSelectionMissing ? (
+          <Text accessibilityRole="alert" style={styles.messageText}>
+            {locationCodes.length === 0
+              ? '운동 장소 선택지를 불러오지 못했어요. 잠시 후 다시 시도해주세요.'
+              : '집 또는 헬스장을 선택해주세요.'}
+          </Text>
         ) : null}
         <ChoiceBlock label="오늘 통증이 있는 부위가 있나요?">
           <ChoiceButton
