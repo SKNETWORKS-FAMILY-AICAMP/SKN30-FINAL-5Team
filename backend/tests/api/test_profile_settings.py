@@ -962,3 +962,27 @@ def test_unauthenticated_request_is_rejected() -> None:
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "AUTHENTICATION_REQUIRED"
     assert repository.update_count == 0
+
+
+@pytest.mark.parametrize("style", [code.value for code in CoachingStyleCode])
+def test_patch_accepts_a_coaching_style_without_applying_it(style: str) -> None:
+    """Write compatibility: a deployed client's style is a no-op, not a 422.
+
+    The request model forbids extra keys, so the field stays declared. What
+    changes is that the value never reaches the stored column.
+    """
+
+    client, repository = _client()
+    assert repository.record is not None
+    stored_before = repository.record.coaching_style_code
+    with client:
+        response = client.patch(
+            "/api/v1/me/profile",
+            json={"coaching_style_code": style, "nickname": "새 닉네임"},
+            headers=_headers(),
+        )
+
+    assert response.status_code == 200
+    assert repository.record is not None
+    assert repository.record.coaching_style_code == stored_before
+    assert repository.record.nickname == "새 닉네임"

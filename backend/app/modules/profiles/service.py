@@ -15,9 +15,9 @@ from backend.app.modules.profiles.age import (
 )
 from backend.app.modules.profiles.codes import (
     CONSENT_RESPONSE_SCHEMA_VERSION,
+    FIXED_COACHING_STYLE_CODE,
     ONBOARDING_RESPONSE_SCHEMA_VERSION,
     PROFILE_SETTINGS_RESPONSE_SCHEMA_VERSION,
-    CoachingStyleCode,
     EligibilityResultCode,
     MutationEndpointCode,
 )
@@ -89,6 +89,12 @@ def _utc_now() -> datetime:
 def _request_hash(payload: dict[str, object]) -> str:
     raw = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode()
     return hashlib.sha256(raw).hexdigest()
+
+
+# Settings fields the API still accepts but no longer applies. A deployed client
+# that sends one gets a successful no-op for that field rather than a 422, and
+# the stored column keeps whatever it already held until a later release drops it.
+_IGNORED_SETTINGS_FIELDS = frozenset({"coaching_style_code"})
 
 
 class ProfileService:
@@ -225,7 +231,9 @@ class ProfileService:
         scalar_values = {
             field_name: value
             for field_name, value in payload.items()
-            if field_name not in relationship_fields and field_name != "date_of_birth"
+            if field_name not in relationship_fields
+            and field_name != "date_of_birth"
+            and field_name not in _IGNORED_SETTINGS_FIELDS
         }
         return ProfileSettingsChanges(
             protected_birthdate=protected_birthdate,
@@ -282,7 +290,10 @@ class ProfileService:
                     record.profile.default_requested_duration_minutes
                 ),
                 desired_weekly_workout_count=record.profile.desired_weekly_workout_count,
-                coaching_style_code=CoachingStyleCode(record.profile.coaching_style_code),
+                # Legacy rows may still hold CONCISE or ENERGETIC. The field stays
+                # in the response for deployed clients, but reports the one style
+                # the service actually applies.
+                coaching_style_code=FIXED_COACHING_STYLE_CODE,
                 attention_area_codes=list(record.profile.attention_area_codes),
                 preferred_exercise_type_codes=list(record.profile.preferred_exercise_type_codes),
                 profile_version=record.profile.profile_version,
@@ -382,7 +393,9 @@ class ProfileService:
             ),
             default_requested_duration_minutes=request.default_requested_duration_minutes,
             desired_weekly_workout_count=weekly_target_sessions,
-            coaching_style_code=request.coaching_style_code,
+            # The request value is deliberately dropped: narration is one fixed
+            # context for every user now.
+            coaching_style_code=FIXED_COACHING_STYLE_CODE,
             height_cm=request.height_cm,
             weight_kg=request.weight_kg,
             sex_code=request.sex_code,
@@ -438,7 +451,7 @@ class ProfileService:
             user_id=record.user_id,
             onboarding_completed=True,
             profile_version=record.profile_version,
-            coaching_style_code=CoachingStyleCode(record.coaching_style_code),
+            coaching_style_code=FIXED_COACHING_STYLE_CODE,
             ai_trial_started_at=record.ai_trial_started_at,
             ai_trial_ends_at=record.ai_trial_ends_at,
             premium_status_code=record.premium_status_code,

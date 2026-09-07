@@ -587,7 +587,10 @@ class DecisionRepository:
             safety_candidate,
             safety_rule_set,
             tuple(alternative_items),
-            coaching_style_code=profile.coaching_style_code,
+            # The stored per-profile style is deliberately not read. Narration is
+            # one fixed context for every user, so legacy rows that still hold
+            # CONCISE or ENERGETIC must not produce a different prompt than a
+            # profile written today. DecisionAssembly carries the fixed default.
         )
 
     def persist(

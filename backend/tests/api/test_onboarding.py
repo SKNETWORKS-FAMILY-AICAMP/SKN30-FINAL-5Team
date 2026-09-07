@@ -20,7 +20,12 @@ from backend.app.integrations.birthdate_crypto import LocalAesGcmBirthdateCipher
 from backend.app.main import create_app
 from backend.app.modules.identity.codes import UserStatusCode
 from backend.app.modules.identity.service import CurrentUser
-from backend.app.modules.profiles.codes import ConsentTypeCode, MutationEndpointCode
+from backend.app.modules.profiles.codes import (
+    FIXED_COACHING_STYLE_CODE,
+    CoachingStyleCode,
+    ConsentTypeCode,
+    MutationEndpointCode,
+)
 from backend.app.modules.profiles.ports import (
     ConsentRecord,
     IdempotencyRecord,
@@ -876,3 +881,68 @@ def test_get_consents_before_onboarding_is_empty() -> None:
         read = client.get("/api/v1/me/consents")
     assert read.status_code == 200
     assert read.json()["consents"] == []
+
+
+def test_onboarding_succeeds_without_a_coaching_style() -> None:
+    """The style is no longer collected, so omitting it must not fail validation."""
+
+    repository = FakeProfileRepository()
+    client = _client(repository)
+    payload = _payload()
+    del payload["coaching_style_code"]
+    with client:
+        response = client.put(
+            "/api/v1/me/onboarding",
+            headers={"Idempotency-Key": str(uuid4())},
+            json=payload,
+        )
+
+    assert response.status_code == 200
+    assert response.json()["coaching_style_code"] == FIXED_COACHING_STYLE_CODE.value
+    assert repository.onboarding_values is not None
+    assert repository.onboarding_values.coaching_style_code == FIXED_COACHING_STYLE_CODE
+
+
+@pytest.mark.parametrize("style", [code.value for code in CoachingStyleCode])
+def test_a_deployed_client_may_still_send_a_style_and_it_is_ignored(style: str) -> None:
+    """Write compatibility: the request is accepted, the value is not applied.
+
+    The onboarding model forbids extra keys, so the field has to stay declared;
+    dropping it would turn an older client's request into a 422.
+    """
+
+    repository = FakeProfileRepository()
+    client = _client(repository)
+    payload = _payload()
+    payload["coaching_style_code"] = style
+    with client:
+        response = client.put(
+            "/api/v1/me/onboarding",
+            headers={"Idempotency-Key": str(uuid4())},
+            json=payload,
+        )
+
+    assert response.status_code == 200
+    assert response.json()["coaching_style_code"] == FIXED_COACHING_STYLE_CODE.value
+    assert repository.onboarding_values is not None
+    assert repository.onboarding_values.coaching_style_code == FIXED_COACHING_STYLE_CODE
+
+
+def test_me_reports_the_fixed_style_for_a_legacy_profile() -> None:
+    """A row stored before this release must not report a style the app cannot set."""
+
+    repository = FakeProfileRepository()
+    client = _client(repository)
+    with client:
+        client.put(
+            "/api/v1/me/onboarding",
+            headers={"Idempotency-Key": str(uuid4())},
+            json=_payload(),
+        )
+        assert repository.me_record is not None
+        assert repository.me_record.profile is not None
+        object.__setattr__(repository.me_record.profile, "coaching_style_code", "ENERGETIC")
+        read = client.get("/api/v1/me")
+
+    assert read.status_code == 200
+    assert read.json()["profile"]["coaching_style_code"] == FIXED_COACHING_STYLE_CODE.value
