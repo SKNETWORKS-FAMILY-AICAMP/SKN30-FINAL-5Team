@@ -567,7 +567,8 @@ export type ExerciseVariantsResponse = {
 export type NotificationTypeCode =
   'DAILY_REWARD' | 'WEEKLY_GOAL_REMINDER' | 'KIKKI_RETURN';
 
-export type NotificationActionType = 'OPEN_KIKKI_HOME' | null;
+export type NotificationActionType =
+  'CLAIM_DAILY_REWARD' | 'OPEN_KIKKI_HOME' | null;
 
 export type NotificationResponse = {
   notification_id: string;

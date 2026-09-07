@@ -197,6 +197,8 @@ export function NotificationSheet({
                     />
                   ) : notification.action_type === 'OPEN_KIKKI_HOME' ? (
                     <Text style={styles.actionText}>끼끼의 집 보기 ›</Text>
+                  ) : notification.action_type === 'CLAIM_DAILY_REWARD' ? (
+                    <Text style={styles.actionText}>바나나 받기 ›</Text>
                   ) : null}
                 </View>
               </Pressable>

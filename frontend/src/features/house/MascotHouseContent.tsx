@@ -560,6 +560,7 @@ export function houseItemPlacementMinY(
 }
 
 export function MascotHouseContent({
+  actionError,
   footer,
   onBuyItem,
   onFeed,
@@ -570,12 +571,14 @@ export function MascotHouseContent({
   onSelectBackground,
   mascotArt,
   pose,
+  spendPending = false,
   view,
 }: {
+  actionError?: string | null;
   /** The tab bar, rendered inside the backdrop so the scene runs behind it. */
   footer?: ReactNode;
-  onBuyItem: (itemId: HouseItemId) => boolean;
-  onFeed: () => boolean;
+  onBuyItem: (itemId: HouseItemId) => boolean | Promise<boolean>;
+  onFeed: () => boolean | Promise<boolean>;
   onOpenRewards: () => void;
   onPet: () => boolean;
   onPlayGame: (gameId: HouseMiniGameId) => void;
@@ -583,6 +586,7 @@ export function MascotHouseContent({
   onSelectBackground: (backgroundId: HouseBackgroundId) => void;
   mascotArt?: HouseArtSlot;
   pose: HousePose;
+  spendPending?: boolean;
   view: HouseView;
 }) {
   const scaleViewport = useScale();
@@ -832,6 +836,11 @@ export function MascotHouseContent({
                 </Pressable>
                 <SpendActionEffectOverlay effect={actionEffect} />
               </View>
+              {actionError ? (
+                <Text accessibilityRole="alert" style={styles.walletError}>
+                  {actionError}
+                </Text>
+              ) : null}
             </View>
 
             <View
@@ -950,14 +959,16 @@ export function MascotHouseContent({
               >
                 <FeedButton
                   controlScale={controlScale}
-                  enabled={view.canFeed}
+                  enabled={view.canFeed && !spendPending}
                   onPress={() => {
-                    if (onFeed()) {
-                      showActionEffect({
-                        amount: HOUSE_ACTION_COST.feed,
-                        mascotEffect: 'banana',
-                      });
-                    }
+                    void Promise.resolve(onFeed()).then((succeeded) => {
+                      if (succeeded) {
+                        showActionEffect({
+                          amount: HOUSE_ACTION_COST.feed,
+                          mascotEffect: 'banana',
+                        });
+                      }
+                    });
                   }}
                 />
               </View>
@@ -987,6 +998,7 @@ export function MascotHouseContent({
                 onClose={() => setDecorating(false)}
                 onSelectBackground={onSelectBackground}
                 onSpend={(amount) => showActionEffect({ amount })}
+                spendPending={spendPending}
                 view={view}
               />
             ) : null}
@@ -1713,13 +1725,15 @@ function DecoratePanel({
   onClose,
   onSelectBackground,
   onSpend,
+  spendPending,
   view,
 }: {
   controlScale: number;
-  onBuyItem: (itemId: HouseItemId) => boolean;
+  onBuyItem: (itemId: HouseItemId) => boolean | Promise<boolean>;
   onClose: () => void;
   onSelectBackground: (backgroundId: HouseBackgroundId) => void;
   onSpend: (amount: number) => void;
+  spendPending: boolean;
   view: HouseView;
 }) {
   const compactStyles = houseControlStyles(controlScale);
@@ -1850,7 +1864,7 @@ function DecoratePanel({
             ))}
 
             {view.lockedItems.map((item) => {
-              const affordable = view.bananas >= item.cost;
+              const affordable = view.bananas >= item.cost && !spendPending;
               return (
                 <Pressable
                   accessibilityLabel={`${item.label}, 바나나 ${item.cost}개`}
@@ -1859,7 +1873,11 @@ function DecoratePanel({
                   disabled={!affordable}
                   key={item.id}
                   onPress={() => {
-                    if (onBuyItem(item.id)) onSpend(item.cost);
+                    void Promise.resolve(onBuyItem(item.id)).then(
+                      (succeeded) => {
+                        if (succeeded) onSpend(item.cost);
+                      },
+                    );
                   }}
                   style={[styles.itemTile, !affordable && styles.spent]}
                   testID={`house-item-${item.id}`}
@@ -2259,6 +2277,12 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 13,
     fontWeight: '800',
+  },
+  walletError: {
+    maxWidth: 180,
+    color: colors.danger,
+    fontSize: 11,
+    lineHeight: 15,
   },
   streakChip: {
     flexDirection: 'row',

@@ -1,6 +1,7 @@
 import type { Api } from '../../api/endpoints';
 import { ApiError } from '../../api/errors';
 import type {
+  BananaSpendRequest,
   ConsentValues,
   RoutineResponse,
   SafetyEventResponse,
@@ -228,6 +229,8 @@ export function createHousePreviewApi(state: HousePreviewState): Api {
           previewHouseSession('house-session-3', '2026-08-22', 'COMPLETED'),
         ]
       : [];
+  let bananaBalance = state === 'loaded' ? 120 : 45;
+  let dailyRewardClaimed = false;
 
   return {
     async getWeek() {
@@ -238,6 +241,75 @@ export function createHousePreviewApi(state: HousePreviewState): Api {
     },
     async listWorkoutSessions() {
       return { items: sessions, next_cursor: null };
+    },
+    async getRewards() {
+      return {
+        balance: bananaBalance,
+        daily_reward: {
+          local_date: '2026-08-22',
+          reward_amount: 15,
+          is_claimable: !dailyRewardClaimed,
+          is_claimed: dailyRewardClaimed,
+          claimed_at: dailyRewardClaimed ? '2026-08-22T10:00:00+09:00' : null,
+        },
+      };
+    },
+    async claimDailyReward() {
+      if (!dailyRewardClaimed) bananaBalance += 15;
+      dailyRewardClaimed = true;
+      return {
+        balance: bananaBalance,
+        daily_reward: {
+          local_date: '2026-08-22',
+          reward_amount: 15,
+          is_claimable: false,
+          is_claimed: true,
+          claimed_at: '2026-08-22T10:00:00+09:00',
+        },
+        transaction: {
+          transaction_id: 'preview-daily-reward',
+          transaction_type: 'DAILY_REWARD' as const,
+          amount: 15,
+          balance_after: bananaBalance,
+          created_at: '2026-08-22T10:00:00+09:00',
+        },
+      };
+    },
+    async spendBananas(body: BananaSpendRequest) {
+      const costs: Record<string, number> = {
+        yoga_mat: 20,
+        dumbbell: 20,
+        plant: 25,
+        cushion: 25,
+        lamp: 30,
+        star_frame: 35,
+        window: 35,
+      };
+      const cost =
+        body.action_code === 'FEED_MASCOT'
+          ? 10
+          : (costs[body.house_item_code ?? ''] ?? 0);
+      bananaBalance = Math.max(0, bananaBalance - cost);
+      return {
+        balance: bananaBalance,
+        daily_reward: {
+          local_date: '2026-08-22',
+          reward_amount: 15,
+          is_claimable: !dailyRewardClaimed,
+          is_claimed: dailyRewardClaimed,
+          claimed_at: dailyRewardClaimed ? '2026-08-22T10:00:00+09:00' : null,
+        },
+        transaction: {
+          transaction_id: `preview-${body.action_code}`,
+          transaction_type:
+            body.action_code === 'FEED_MASCOT'
+              ? ('HOUSE_FEED' as const)
+              : ('HOUSE_ITEM_PURCHASE' as const),
+          amount: -cost,
+          balance_after: bananaBalance,
+          created_at: '2026-08-22T10:00:00+09:00',
+        },
+      };
     },
   } as unknown as Api;
 }

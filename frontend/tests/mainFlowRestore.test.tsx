@@ -18,6 +18,7 @@ import {
 import { ApiClient } from '../src/api/client';
 import { createApi, type Api } from '../src/api/endpoints';
 import type {
+  BananaWalletResponse,
   DecisionResponse,
   MeResponse,
   NotificationListResponse,
@@ -463,6 +464,71 @@ describe('MainFlow restart recovery', () => {
           .selected,
       ).toBe(true);
     });
+  });
+
+  it('opens the server-backed reward wallet from a daily reward notification', async () => {
+    const { api } = apiWithRoutes({
+      '/decisions?': decision(),
+      '/routines/current?': routine(),
+      '/workout-sessions?': sessions([]),
+    });
+    const item = notification({
+      type: 'DAILY_REWARD',
+      title: '오늘의 바나나가 도착했어요',
+      message: '지금 받을 수 있어요.',
+      action_type: 'CLAIM_DAILY_REWARD',
+    });
+    const listNotifications = jest.fn<
+      Promise<NotificationListResponse>,
+      [AbortSignal?]
+    >(async () => ({ items: [item], unread_count: 1 }));
+    const markNotificationRead = jest.fn(async () => ({
+      ...item,
+      is_read: true,
+      read_at: '2026-09-04T09:01:00+09:00',
+    }));
+    const wallet: BananaWalletResponse = {
+      balance: 42,
+      daily_reward: {
+        local_date: LOCAL_DATE,
+        reward_amount: 15,
+        is_claimable: true,
+        is_claimed: false,
+        claimed_at: null,
+      },
+    };
+    const getRewards = jest.fn(async () => wallet);
+
+    render(
+      <MainFlow
+        api={{
+          ...api,
+          getRewards,
+          listNotifications,
+          markNotificationRead,
+        }}
+        me={me()}
+        onRefreshMe={async () => undefined}
+        onSignOut={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(listNotifications).toHaveBeenCalledTimes(1));
+    fireEvent.press(screen.getByRole('button', { name: '알림 보기' }));
+    fireEvent.press(
+      await screen.findByRole('button', {
+        name: '오늘의 바나나가 도착했어요 알림 확인',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(markNotificationRead).toHaveBeenCalledWith('notification-1');
+      expect(getRewards).toHaveBeenCalledTimes(1);
+    });
+    expect(
+      await screen.findByRole('button', { name: '바나나 15개 받기' }),
+    ).toBeOnTheScreen();
+    expect(screen.getByLabelText('홈으로 돌아가기')).toBeOnTheScreen();
   });
 
   it('shows one toast only when a later Home read contains a new unread id', async () => {

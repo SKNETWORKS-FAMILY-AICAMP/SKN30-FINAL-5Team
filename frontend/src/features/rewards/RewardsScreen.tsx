@@ -2,7 +2,6 @@ import { useCallback, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Api } from '../../api/endpoints';
-import { isApiError } from '../../api/errors';
 import type {
   BananaTransactionResponse,
   BananaWalletResponse,
@@ -42,9 +41,11 @@ const TRANSACTION_LABELS: Record<
 
 export function RewardsScreen({
   api,
+  backAccessibilityLabel = '끼끼의 집으로 돌아가기',
   onBack,
 }: {
   api: Api;
+  backAccessibilityLabel?: string;
   onBack: () => void;
 }) {
   const [tab, setTab] = useState<RewardsTab>('wallet');
@@ -78,7 +79,7 @@ export function RewardsScreen({
     <ScreenShell bands contentStyle={styles.screenContent}>
       <View style={styles.topRow}>
         <Pressable
-          accessibilityLabel="끼끼의 집으로 돌아가기"
+          accessibilityLabel={backAccessibilityLabel}
           accessibilityRole="button"
           hitSlop={10}
           onPress={onBack}
@@ -109,7 +110,7 @@ export function RewardsScreen({
 
       {tab === 'wallet' ? (
         <WalletContent
-          claimError={rewardErrorMessage(claim.lastError, claim.error)}
+          claimError={claim.error}
           claimPending={claim.pending}
           confirmedTransactions={confirmedTransactions}
           onClaim={handleClaim}
@@ -175,10 +176,7 @@ function WalletContent({
   if (state.status === 'error') {
     return (
       <ErrorState
-        message={
-          rewardErrorMessage(state.error, state.message) ??
-          '바나나 지갑을 불러오지 못했어요.'
-        }
+        message={state.message || '바나나 지갑을 불러오지 못했어요.'}
         onRetry={onRetry}
       />
     );
@@ -333,16 +331,6 @@ function KkikkiPassPreview() {
       />
     </View>
   );
-}
-
-function rewardErrorMessage(
-  error: unknown,
-  fallback: string | null,
-): string | null {
-  if (isApiError(error) && error.code === 'INSUFFICIENT_BANANA_BALANCE') {
-    return '바나나 잔액이 부족해요. 현재 잔액을 확인한 뒤 다시 시도해주세요.';
-  }
-  return fallback;
 }
 
 const styles = StyleSheet.create({
