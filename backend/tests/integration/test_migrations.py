@@ -26,7 +26,10 @@ def test_migration_history_has_a_single_linear_head() -> None:
 
     # A second head means two branches were authored against the same parent, which
     # blocks every later migration until someone merges them by hand.
-    assert scripts.get_heads() == ["0047_social_oauth_google"]
+    assert scripts.get_heads() == ["0048_integrated_catalog_v2_0_7"]
+    assert scripts.get_revision("0048_integrated_catalog_v2_0_7").down_revision == (
+        "0047_social_oauth_google"
+    )
     assert scripts.get_revision("0047_social_oauth_google").down_revision == (
         "0046_social_oauth_kakao"
     )

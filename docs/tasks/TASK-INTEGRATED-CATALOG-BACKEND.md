@@ -42,7 +42,7 @@ v2.0.7 DRAFT bundle을 추가했다. 현재 백엔드는 MET를 입력으로 읽
 ## 변경 예상 파일
 
 - `backend/app/db/models/catalog.py`, `backend/app/db/repositories/catalog.py`
-- `backend/migrations/versions/0047_integrated_catalog_v2_0_7.py`
+- `backend/migrations/versions/0048_integrated_catalog_v2_0_7.py`
 - `backend/app/modules/catalog/{schemas.py,service.py,home_equipment.py}`
 - `backend/app/api/v1/exercises.py`
 - `backend/tests/{unit,integration,api}/...`
