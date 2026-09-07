@@ -35,6 +35,7 @@ function exercisePage(
       name,
       training_type_code: 'STRENGTH',
       difficulty_code: 'BEGINNER',
+      body_focus_code: 'QUADRICEPS',
       primary_body_area_codes: ['KNEE'],
       required_equipment_codes: ['MAT', 'STABILITY_BALL', 'CHAIR'],
       media_asset_key: null,
@@ -105,9 +106,13 @@ describe('ExerciseCatalogScreen', () => {
 
     const view = render(<ExerciseCatalogScreen api={api} onBack={() => {}} />);
 
-    expect(await screen.findByText('스쿼트')).toBeTruthy();
+    expect(
+      await screen.findByText('스쿼트', undefined, { timeout: 5000 }),
+    ).toBeTruthy();
     expect(view.UNSAFE_queryByType(BackgroundBands)).toBeNull();
     expect(screen.getByText('런지')).toBeTruthy();
+    expect(screen.getAllByText('주요 근육 대퇴사두근')).toHaveLength(2);
+    expect(screen.getAllByText('상세 부위 무릎')).toHaveLength(2);
     expect(screen.getAllByText('장비 매트, 짐볼, 의자')).toHaveLength(2);
     // 카탈로그 버전 같은 내부 정보는 사용자 화면에 노출하지 않는다.
     expect(screen.queryByText(/카탈로그 버전/)).toBeNull();
@@ -216,12 +221,32 @@ describe('ExerciseCatalogScreen', () => {
   });
 
   it('labels catalog-v2 body focus and equipment codes', () => {
+    expect(bodyFocusLabel('FUTURE_FOCUS')).toBe('확인되지 않은 항목');
     expect(bodyFocusLabel('CHEST')).toBe('가슴');
     expect(bodyFocusLabel('HAMSTRINGS')).toBe('햄스트링');
+    expect(bodyFocusLabel('ADDUCTORS')).toBe('내전근');
     expect(bodyFocusLabel('CARDIO')).toBe('유산소');
     expect(bodyFocusLabel('MOBILITY')).toBe('가동성');
     expect(equipmentLabel('EZ_BAR')).toBe('이지바');
     expect(equipmentLabel('FOAM_ROLLER')).toBe('폼롤러');
+  });
+
+  it('uses detailed body areas when a legacy list item has no focus code', async () => {
+    const page = exercisePage(['레거시 스쿼트']);
+    const api = {
+      listExercises: async () => ({
+        ...page,
+        items: page.items.map(({ body_focus_code: _focus, ...item }) => item),
+      }),
+      getExercise: async () => {
+        throw new Error('not used');
+      },
+    } as unknown as Pick<Api, 'listExercises' | 'getExercise'>;
+
+    render(<ExerciseCatalogScreen api={api} onBack={() => {}} />);
+
+    expect(await screen.findByText('주요 근육 무릎')).toBeOnTheScreen();
+    expect(screen.queryByText('상세 부위 무릎')).toBeNull();
   });
 
   it('pages with the server cursor instead of refetching page one', async () => {

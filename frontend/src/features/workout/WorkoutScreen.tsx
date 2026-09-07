@@ -37,7 +37,10 @@ import { orderedWorkoutPlanItems } from '../../api/workoutPlan';
 import { imageAssets } from '../../assets';
 import { colors, shadows } from '../../components/theme';
 import { useScale } from '../../components/scale';
-import { ExerciseDetailSheet } from './ExerciseDetailSheet';
+import {
+  ExerciseDetailSheet,
+  type ExerciseGuideContext,
+} from './ExerciseDetailSheet';
 import {
   ExerciseVariantsAction,
   ExerciseVariantsContent,
@@ -122,6 +125,8 @@ type WorkoutPreviewProps = {
 
 type WorkoutApiProps = {
   api: Api;
+  /** Current workout context; FE-2 can pass its location/equipment selection here. */
+  exerciseGuideContext?: ExerciseGuideContext;
   initialEquipmentGuideExerciseId?: string;
   sessionId: string;
   plan: WorkoutPlan;
@@ -1347,6 +1352,7 @@ function WorkoutScreenContent({
               <ExerciseDetailSheet
                 api={apiConfig.api}
                 exerciseId={detailBlock.exerciseId}
+                guideContext={apiConfig.exerciseGuideContext}
               />
             ) : (
               <View style={styles.tipList}>

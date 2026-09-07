@@ -1245,6 +1245,7 @@ function HomeScreenContent({
             <ExerciseDetailSheet
               api={exerciseApi}
               exerciseId={exerciseGuide.exerciseId}
+              guideContext={{ locationCode: displayedCheckin.locationCode }}
             />
           </SheetFrame>
         ) : null}
