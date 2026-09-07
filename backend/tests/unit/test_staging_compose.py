@@ -248,3 +248,27 @@ def test_ec2_role_policy_can_read_only_the_staging_firebase_secret_names() -> No
         "arn:aws:secretsmanager:ap-northeast-2:343953861875:secret:"
         "/helkki/staging/firebase-admin-service-account-*"
     ) in statement["Resource"]
+
+
+def test_ec2_role_policy_grants_the_writes_profile_image_upload_needs() -> None:
+    """Profile image upload is the only write path into the media bucket.
+
+    `S3ProfileImageAdapter` reuses `exercise_media_s3_bucket` under the
+    `profile-images/` prefix and needs PutObject to store, GetObject to presign
+    and DeleteObject to replace or roll back. The adapter turns a missing grant
+    into a warning log and a False return, so a policy that only grants reads
+    surfaces as "the picture will not change" rather than an obvious error.
+    """
+
+    policy = json.loads(Path("infra/aws/ec2-staging-exercise-media-policy.json").read_text())
+    statement = next(
+        item for item in policy["Statement"] if item["Sid"] == "ManagePrivateProfileImages"
+    )
+
+    assert set(statement["Action"]) == {"s3:GetObject", "s3:PutObject", "s3:DeleteObject"}
+    assert statement["Resource"].endswith("/profile-images/*")
+    # The exercise media grant stays read-only; only the profile prefix is writable.
+    source = next(
+        item for item in policy["Statement"] if item["Sid"] == "ReadExerciseMediaSourceObjects"
+    )
+    assert set(source["Action"]) == {"s3:GetObject"}

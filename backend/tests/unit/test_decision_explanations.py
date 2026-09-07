@@ -177,6 +177,18 @@ def test_template_narration_is_deterministic() -> None:
     assert first == second
 
 
+def test_legacy_coaching_style_cannot_change_new_decision_copy() -> None:
+    supportive = build_explanation(
+        result=_result(), proposals=_proposals(), coaching_style_code="SUPPORTIVE"
+    )
+    legacy_energetic = build_explanation(
+        result=_result(), proposals=_proposals(), coaching_style_code="ENERGETIC"
+    )
+
+    assert legacy_energetic == supportive
+    assert legacy_energetic.coaching_style_code == "SUPPORTIVE"
+
+
 def test_llm_rewrite_replaces_sentences_but_never_codes() -> None:
     provider = RecordingProvider()
     result = _result(
@@ -471,7 +483,7 @@ def test_prompt_payload_carries_only_machine_codes() -> None:
         assert leaf is None or isinstance(leaf, bool | int) or leaf.replace("_", "").isalnum()
 
 
-def test_free_text_in_the_payload_blocks_the_provider_call() -> None:
+def test_legacy_coaching_style_is_not_sent_to_the_provider() -> None:
     provider = RecordingProvider()
 
     explanation = build_explanation(
@@ -482,11 +494,10 @@ def test_free_text_in_the_payload_blocks_the_provider_call() -> None:
         provider=provider,
     )
 
-    assert provider.prompts == []
-    assert (
-        explanation.fallback_reason_code
-        == ExplanationFallbackReasonCode.PAYLOAD_NOT_SHAREABLE.value
-    )
+    assert explanation.source_code is ExplanationSourceCode.LLM
+    assert len(provider.prompts) == 1
+    assert provider.prompts[0].payload["coaching_style_code"] == "SUPPORTIVE"
+    assert "chaesihan@example.com" not in str(provider.prompts[0].payload)
 
 
 def test_internal_prompt_text_is_not_part_of_the_stored_explanation() -> None:
@@ -547,6 +558,6 @@ def test_downshift_records_a_final_adjustment_reason() -> None:
     )
 
     assert explanation.final_adjustment_reason == "요청하신 시간은 유지하고 강도만 낮췄습니다."
-    assert explanation.coaching_style_code == "CONCISE"
+    assert explanation.coaching_style_code == "SUPPORTIVE"
     keep_only = replace(explanation, final_adjustment_reason=None)
     assert keep_only.final_adjustment_reason is None

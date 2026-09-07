@@ -309,8 +309,8 @@ def test_safety_veto_survives_other_agent_keep_proposals_and_replay(case_code: s
     assert replayed.selected_candidate_id is None
 
 
-def test_attention_area_order_and_duplicates_have_one_canonical_snapshot_and_hash() -> None:
-    canonical = case_by_code("CHRONIC_KNEE_ATTENTION_CAUTION")
+def test_profile_attention_defaults_do_not_affect_decision_or_snapshot() -> None:
+    canonical = case_by_code("PROFILE_ATTENTION_PREFILL_IGNORED")
     reordered = replace(canonical, attention_area_codes=("KNEE", "KNEE"))
     canonical_response, canonical_repository = execute_service_case(canonical)
     reordered_response, reordered_repository = execute_service_case(reordered)
@@ -327,8 +327,10 @@ def test_attention_area_order_and_duplicates_have_one_canonical_snapshot_and_has
         canonical_repository.persisted["input_hash"] == reordered_repository.persisted["input_hash"]
     )
     assert canonical_repository.persisted["result"] == reordered_repository.persisted["result"]
-    assert canonical_response.action_code == reordered_response.action_code == "DOWNSHIFT"
-    assert safety_proposal(canonical_repository).reason_codes == ("ATTENTION_AREA_CAUTION_APPLIED",)
+    assert canonical_response.action_code == reordered_response.action_code == "KEEP"
+    assert safety_proposal(canonical_repository).reason_codes == (
+        "NO_APPLICABLE_SAFETY_RESTRICTION",
+    )
     assert safety_proposal(canonical_repository).safety_vetoed is False
     assert safety_proposal(canonical_repository).excluded_exercise_ids == ()
     assert canonical_response.requested_duration_minutes == 40

@@ -19,7 +19,7 @@ Coordinator에 합성 assembly만 제공하며 안전 판단을 테스트 코드
 | `SAFETY_VETO_BYPASS_BLOCKED` | LOW, 40분 | KNEE SEVERE | 없음 | Safety REST, 다른 agent plan 제안 가능 | REST / BLOCKED / true | 계획 없음 | 없음 / 없음 | template / 동일 |
 | `KNEE_MILD_CAUTION_DOWNSHIFT` | LOW, 40분 | KNEE MILD | 없음 | Safety DOWNSHIFT, no veto | DOWNSHIFT / REVISE / false | 제거 없음 | approved-downshift / 2400초 | template / 동일 |
 | `KNEE_MODERATE_APPROVED_ALTERNATIVE` | LOW, 40분 | KNEE MODERATE | 없음 | Safety CHANGE, excluded base | CHANGE / REVISE / true | base → 승인 alternative | safety-change / 2400초 | template / 동일 |
-| `CHRONIC_KNEE_ATTENTION_CAUTION` | LOW, 40분 | 당일 불편 없음, KNEE 주의 | 없음 | Safety DOWNSHIFT, no veto | DOWNSHIFT / REVISE / false | 제거 없음 | approved-downshift / 2400초 | template / canonical 동일 |
+| `PROFILE_ATTENTION_PREFILL_IGNORED` | LOW, 40분 | 당일 불편 없음, KNEE 기본 선택값 | 없음 | Safety PASS | KEEP / PASS / false | 제거 없음 | candidate-original / 2400초 | template / canonical 동일 |
 
 기존 USER_OVERRIDE, MILD EXCLUDE 레코드 해석, SEVERE REST, 중대 이상반응 STOP,
 필수 agent 실패 시나리오도 Coordinator/replay fixture에 유지합니다. LLM failure mode는 실패하는

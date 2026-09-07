@@ -110,7 +110,15 @@ class ProfileImageService:
                     byte_size=len(content),
                     now=now,
                 )
-                response = ProfileImageMutation(storage.create_url(object_key), version, updated_at)
+                url = storage.create_url(object_key)
+                if url is None:
+                    # The object is stored but cannot be handed back. Returning a
+                    # 200 with a null URL is indistinguishable from "no picture",
+                    # so the upload looks like it worked and nothing changes on
+                    # screen. Fail instead; the except block below removes the
+                    # object this call just wrote.
+                    raise ProfileImageStorageUnavailableError
+                response = ProfileImageMutation(url, version, updated_at)
                 self._save_response(
                     session,
                     user_id,

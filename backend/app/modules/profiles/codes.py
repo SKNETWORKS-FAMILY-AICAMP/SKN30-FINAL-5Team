@@ -19,6 +19,15 @@ class CoachingStyleCode(StrEnum):
     ENERGETIC = "ENERGETIC"
 
 
+# Every user now receives the same narration context. The style was collected at
+# onboarding but never reached a template: `decisions.explanations` only carries
+# the value through to the narration prompt, so three stored values produced one
+# behaviour. Requests may still send a style for write compatibility; the value
+# is ignored and this constant is stored instead. The column and its CHECK
+# constraint stay until a later release drops them.
+FIXED_COACHING_STYLE_CODE = CoachingStyleCode.SUPPORTIVE
+
+
 class ConsentTypeCode(StrEnum):
     GENERAL_PERSONAL_DATA = "GENERAL_PERSONAL_DATA"
     SENSITIVE_DATA = "SENSITIVE_DATA"
@@ -42,6 +51,7 @@ class MutationEndpointCode(StrEnum):
 
 __all__ = [
     "CONSENT_RESPONSE_SCHEMA_VERSION",
+    "FIXED_COACHING_STYLE_CODE",
     "ONBOARDING_RESPONSE_SCHEMA_VERSION",
     "PROFILE_SETTINGS_RESPONSE_SCHEMA_VERSION",
     "PROFILE_IMAGE_RESPONSE_SCHEMA_VERSION",

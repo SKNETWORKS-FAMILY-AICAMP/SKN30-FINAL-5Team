@@ -29,6 +29,7 @@ from backend.app.modules.profiles.images import (
     ProfileImageService,
     ProfileImageStorageUnavailableError,
 )
+from backend.app.modules.profiles.legal import TermsVersionMismatchError
 from backend.app.modules.profiles.onboarding_completion import OnboardingCompletionService
 from backend.app.modules.profiles.ports import (
     BirthdateCipher,
@@ -89,6 +90,7 @@ def _service(
         primary_goal_codes=settings.onboarding_primary_goal_codes,
         experience_level_codes=settings.onboarding_experience_level_codes,
         consent_policy_version=settings.consent_policy_version,
+        terms_version=settings.terms_version,
         stale_routines=stale_routines,
         profile_image_url_provider=getattr(request.app.state, "profile_image_storage", None),
     )
@@ -181,6 +183,12 @@ def _translate_profile_error(exc: Exception, *, request: Request | None = None) 
             status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
             code="REQUIRED_CONSENT_MISSING",
             message="필수 동의가 필요합니다.",
+        )
+    if isinstance(exc, TermsVersionMismatchError):
+        return AppError(
+            status_code=HTTPStatus.CONFLICT,
+            code="TERMS_VERSION_MISMATCH",
+            message="약관이 업데이트되었습니다. 최신 약관을 다시 확인해 주세요.",
         )
     if isinstance(exc, IdempotencyKeyReusedError):
         return AppError(
@@ -326,6 +334,7 @@ def upsert_onboarding(
         InvalidOnboardingCodeError,
         MedicalExerciseRestrictionError,
         RequiredConsentMissingError,
+        TermsVersionMismatchError,
         IdempotencyKeyReusedError,
         ProfileConfigurationError,
         ApprovedCatalogUnavailableError,

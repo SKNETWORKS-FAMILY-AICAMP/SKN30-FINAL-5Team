@@ -15,11 +15,14 @@ from backend.app.modules.profiles.age import (
 )
 from backend.app.modules.profiles.codes import (
     CONSENT_RESPONSE_SCHEMA_VERSION,
+    FIXED_COACHING_STYLE_CODE,
     ONBOARDING_RESPONSE_SCHEMA_VERSION,
     PROFILE_SETTINGS_RESPONSE_SCHEMA_VERSION,
-    CoachingStyleCode,
     EligibilityResultCode,
     MutationEndpointCode,
+)
+from backend.app.modules.profiles.legal import (
+    validate_submitted_terms_version,
 )
 from backend.app.modules.profiles.ports import (
     BirthdateCipher,
@@ -91,6 +94,24 @@ def _request_hash(payload: dict[str, object]) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
+# Settings fields the API still accepts but no longer applies. A deployed client
+# that sends one gets a successful no-op for that field rather than a 422, and
+# the stored column keeps whatever it already held until a later release drops it.
+#
+# `coaching_style_code`: every user shares one narration context.
+# The rest: ADR-0017 stopped collecting sex, height and workout location. Location
+# is now a Daily Check-in input, so the profile is no longer its source of truth.
+_IGNORED_SETTINGS_FIELDS = frozenset(
+    {
+        "coaching_style_code",
+        "preferred_location_code",
+        "available_location_codes",
+        "height_cm",
+        "sex_code",
+    }
+)
+
+
 class ProfileService:
     def __init__(
         self,
@@ -100,6 +121,7 @@ class ProfileService:
         primary_goal_codes: tuple[str, ...],
         experience_level_codes: tuple[str, ...],
         consent_policy_version: str | None,
+        terms_version: str | None = None,
         stale_routines: StaleRoutinePort | None = None,
         profile_image_url_provider: ProfileImageUrlProvider | None = None,
         clock: Callable[[], datetime] = _utc_now,
@@ -110,6 +132,7 @@ class ProfileService:
         self._primary_goal_codes = frozenset(primary_goal_codes)
         self._experience_level_codes = frozenset(experience_level_codes)
         self._consent_policy_version = consent_policy_version
+        self._terms_version = terms_version
         self._clock = clock
         self._profile_image_url_provider = profile_image_url_provider
 
@@ -206,7 +229,14 @@ class ProfileService:
         current: ProfileSettingsRecord,
         protected_birthdate: str | None,
     ) -> ProfileSettingsChanges:
-        payload = request.model_dump(mode="json", exclude_unset=True)
+        # Ignored fields are dropped before anything reads the payload, so a
+        # deployed client that still sends them cannot trip a cross-field rule
+        # over values the service is not going to apply.
+        payload = {
+            field_name: value
+            for field_name, value in request.model_dump(mode="json", exclude_unset=True).items()
+            if field_name not in _IGNORED_SETTINGS_FIELDS
+        }
         preferred_location = str(
             payload.get("preferred_location_code", current.preferred_location_code)
         )
@@ -231,18 +261,16 @@ class ProfileService:
             protected_birthdate=protected_birthdate,
             scalar_values=scalar_values,
             available_location_codes=(
-                available_locations
-                if "available_location_codes" in request.model_fields_set
-                else None
+                available_locations if "available_location_codes" in payload else None
             ),
             attention_area_codes=(
                 tuple(str(code) for code in payload["attention_area_codes"])
-                if "attention_area_codes" in request.model_fields_set
+                if "attention_area_codes" in payload
                 else None
             ),
             preferred_exercise_type_codes=(
                 tuple(str(code) for code in payload["preferred_exercise_type_codes"])
-                if "preferred_exercise_type_codes" in request.model_fields_set
+                if "preferred_exercise_type_codes" in payload
                 else None
             ),
             persistent_pains=(
@@ -250,7 +278,7 @@ class ProfileService:
                     (str(item.body_area_code), item.intensity_score)
                     for item in request.persistent_pains or []
                 )
-                if "persistent_pains" in request.model_fields_set
+                if "persistent_pains" in payload
                 else None
             ),
         )
@@ -282,7 +310,10 @@ class ProfileService:
                     record.profile.default_requested_duration_minutes
                 ),
                 desired_weekly_workout_count=record.profile.desired_weekly_workout_count,
-                coaching_style_code=CoachingStyleCode(record.profile.coaching_style_code),
+                # Legacy rows may still hold CONCISE or ENERGETIC. The field stays
+                # in the response for deployed clients, but reports the one style
+                # the service actually applies.
+                coaching_style_code=FIXED_COACHING_STYLE_CODE,
                 attention_area_codes=list(record.profile.attention_area_codes),
                 preferred_exercise_type_codes=list(record.profile.preferred_exercise_type_codes),
                 profile_version=record.profile.profile_version,
@@ -359,6 +390,10 @@ class ProfileService:
             raise InvalidOnboardingCodeError
         if not request.consents.general_personal_data or not request.consents.sensitive_data:
             raise RequiredConsentMissingError
+        # The deployment decides which revision users accept. Until one is
+        # approved this is a no-op, so the setting can ship without a
+        # coordinated client release.
+        validate_submitted_terms_version(request.terms_version, approved=self._terms_version)
         if request.medical_exercise_restriction:
             raise MedicalExerciseRestrictionError
 
@@ -382,7 +417,9 @@ class ProfileService:
             ),
             default_requested_duration_minutes=request.default_requested_duration_minutes,
             desired_weekly_workout_count=weekly_target_sessions,
-            coaching_style_code=request.coaching_style_code,
+            # The request value is deliberately dropped: narration is one fixed
+            # context for every user now.
+            coaching_style_code=FIXED_COACHING_STYLE_CODE,
             height_cm=request.height_cm,
             weight_kg=request.weight_kg,
             sex_code=request.sex_code,
@@ -438,7 +475,7 @@ class ProfileService:
             user_id=record.user_id,
             onboarding_completed=True,
             profile_version=record.profile_version,
-            coaching_style_code=CoachingStyleCode(record.coaching_style_code),
+            coaching_style_code=FIXED_COACHING_STYLE_CODE,
             ai_trial_started_at=record.ai_trial_started_at,
             ai_trial_ends_at=record.ai_trial_ends_at,
             premium_status_code=record.premium_status_code,
