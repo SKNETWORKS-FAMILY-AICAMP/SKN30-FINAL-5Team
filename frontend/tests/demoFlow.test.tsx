@@ -2674,9 +2674,12 @@ describe('OnboardingScreen', () => {
       '개인정보 수집 및 이용',
       '건강 관련 민감정보 처리',
     ];
-    const optionalLabels = ['웨어러블 연동', '마케팅 정보 수신'];
+    const optionalLabels = ['마케팅 정보 수신'];
 
-    expect(screen.getAllByRole('checkbox')).toHaveLength(5);
+    expect(screen.getAllByRole('checkbox')).toHaveLength(4);
+    expect(
+      screen.queryByRole('checkbox', { name: '웨어러블 연동' }),
+    ).not.toBeOnTheScreen();
     expect(
       screen.getByText(
         '선택 항목은 동의하지 않아도 서비스를 이용할 수 있어요.',
@@ -2721,7 +2724,6 @@ describe('OnboardingScreen', () => {
       '서비스 지원 범위와 이용 기준을 확인하고 동의해요.',
       '입력한 정보를 운동 계획을 만드는 데 활용해요.',
       '통증과 컨디션 정보를 안전한 운동 계획을 만드는 데 활용해요.',
-      '웨어러블 데이터를 운동 계획에 참고해요.',
       '새로운 기능과 이벤트 소식을 받아볼 수 있어요.',
     ].forEach((description) => {
       expect(screen.getByText(description)).toBeOnTheScreen();
@@ -2828,7 +2830,7 @@ describe('OnboardingScreen', () => {
     });
   });
 
-  it('submits enabled optional consent values without a calendar field', async () => {
+  it('submits marketing consent while keeping wearable integration disabled', async () => {
     const submitOnboarding = jest.fn(async (_request: OnboardingRequest) =>
       completedOnboarding(),
     );
@@ -2842,7 +2844,6 @@ describe('OnboardingScreen', () => {
 
     fillRequiredOnboardingSteps();
     acceptRequiredConsents();
-    fireEvent.press(screen.getByRole('checkbox', { name: '웨어러블 연동' }));
     fireEvent.press(screen.getByRole('checkbox', { name: '마케팅 정보 수신' }));
     fireEvent.press(screen.getByText('시작하기'));
 
@@ -2852,7 +2853,7 @@ describe('OnboardingScreen', () => {
           consents: {
             general_personal_data: true,
             sensitive_data: true,
-            wearable_integration: true,
+            wearable_integration: false,
             marketing: true,
           },
         }),

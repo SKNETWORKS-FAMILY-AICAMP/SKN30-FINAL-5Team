@@ -31,7 +31,6 @@ import { ONBOARDING_COACHING_STYLE_OPTIONS } from '../onboarding/onboardingOptio
  * not a toggle.
  */
 const OPTIONAL_CONSENTS = [
-  { key: 'wearable_integration', label: '웨어러블 연동' },
   { key: 'marketing', label: '마케팅 정보 수신' },
 ] as const;
 
