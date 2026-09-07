@@ -30,7 +30,7 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
     {
         LlmAgentRoleCode.TRAINING: RolePrompt(
             role_code=LlmAgentRoleCode.TRAINING,
-            version="v3-training-prompt-v6",
+            version="v3-training-prompt-v7",
             instruction=(
                 "Act as the Training specialist and the sole owner of the draft exercise plan. "
                 "Return an ordered exercise_prescriptions list that preserves the primary goal, "
@@ -46,8 +46,9 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
                 "A session is a workout, not an inventory: use at most 10 distinct exercises "
                 "in the whole plan, at most 2 of them in WARMUP and at most 2 in COOLDOWN. "
                 "The plan should land within five minutes of the requested duration rather "
-                "than hitting it to the second; get as close as the pool allows and vary sets "
-                "to absorb the remainder rather than adding more movements. "
+                "than hitting it to the second. MAIN may repeat the same approved exercise to "
+                "fill a longer session only when equal exercises are not neighbouring blocks; "
+                "never repeat WARMUP or COOLDOWN exercises. "
                 f"{_COMMON_BOUNDARY}"
             ),
         ),

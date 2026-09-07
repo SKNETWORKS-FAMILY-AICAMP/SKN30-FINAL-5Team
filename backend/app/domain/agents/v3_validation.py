@@ -22,6 +22,7 @@ from backend.app.domain.rules.plan_shape import (
     MAX_PHASE_EXERCISE_TYPES,
     MAX_PLAN_EXERCISE_TYPES,
     PLAN_PHASE_ORDER,
+    has_consecutive_main_repetition,
     phase_rank,
 )
 from backend.app.domain.rules.safety import SafetyRequiredActionCode
@@ -44,6 +45,8 @@ class IntegrityViolationCode(StrEnum):
     RECOVERY_CEILING_EXCEEDED = "RECOVERY_CEILING_EXCEEDED"
     PLAN_PHASE_COVERAGE_INVALID = "PLAN_PHASE_COVERAGE_INVALID"
     PLAN_EXERCISE_VARIETY_EXCEEDED = "PLAN_EXERCISE_VARIETY_EXCEEDED"
+    PLAN_PHASE_REPETITION_INVALID = "PLAN_PHASE_REPETITION_INVALID"
+    PLAN_MAIN_REPEAT_CONSECUTIVE = "PLAN_MAIN_REPEAT_CONSECUTIVE"
     CATALOG_RECORD_MISMATCH = "CATALOG_RECORD_MISMATCH"
     STOP_AND_SEEK_HELP = "STOP_AND_SEEK_HELP"
     PLAN_GENERATION_FORBIDDEN = "PLAN_GENERATION_FORBIDDEN"
@@ -72,6 +75,8 @@ _CONDITIONALLY_REPAIRABLE = frozenset(
         # the same shape from the same approved pool.
         IntegrityViolationCode.PLAN_PHASE_COVERAGE_INVALID,
         IntegrityViolationCode.PLAN_EXERCISE_VARIETY_EXCEEDED,
+        IntegrityViolationCode.PLAN_PHASE_REPETITION_INVALID,
+        IntegrityViolationCode.PLAN_MAIN_REPEAT_CONSECUTIVE,
     }
 )
 
@@ -167,8 +172,10 @@ class IntegrityValidationResult(BaseModel):
 
 def _recovery_exceeded(compiled_plan: CompiledPlan, envelope: ConstraintEnvelope) -> bool:
     ceiling = envelope.recovery_ceiling
+    sets_by_exercise: dict[UUID, int] = {}
     for compiled in compiled_plan.exercises:
         item = compiled.prescription
+        sets_by_exercise[item.exercise_id] = sets_by_exercise.get(item.exercise_id, 0) + item.sets
         if (
             ceiling.allowed_intensity_codes
             and item.intensity_code not in ceiling.allowed_intensity_codes
@@ -179,7 +186,6 @@ def _recovery_exceeded(compiled_plan: CompiledPlan, envelope: ConstraintEnvelope
         if any(
             actual is not None and maximum is not None and actual > maximum
             for actual, maximum in (
-                (item.sets, ceiling.maximum_sets_per_exercise),
                 (item.repetitions_per_set, ceiling.maximum_repetitions_per_set),
                 (item.work_seconds_per_set, ceiling.maximum_work_seconds_per_set),
             )
@@ -190,6 +196,10 @@ def _recovery_exceeded(compiled_plan: CompiledPlan, envelope: ConstraintEnvelope
             and item.rest_seconds_between_sets < ceiling.minimum_rest_seconds_between_sets
         ):
             return True
+    if ceiling.maximum_sets_per_exercise is not None and any(
+        sets > ceiling.maximum_sets_per_exercise for sets in sets_by_exercise.values()
+    ):
+        return True
     return False
 
 
@@ -263,13 +273,17 @@ def validate_plan_integrity(
         if len(set(ids)) > MAX_PLAN_EXERCISE_TYPES:
             codes.add(IntegrityViolationCode.PLAN_EXERCISE_VARIETY_EXCEEDED)
         for phase_code, cap in MAX_PHASE_EXERCISE_TYPES.items():
-            phase_ids = {
+            phase_ids = tuple(
                 item.prescription.exercise_id
                 for item in compiled_plan.exercises
                 if item.prescription.phase_code == phase_code
-            }
-            if len(phase_ids) > cap:
+            )
+            if len(set(phase_ids)) > cap:
                 codes.add(IntegrityViolationCode.PLAN_EXERCISE_VARIETY_EXCEEDED)
+            if len(phase_ids) != len(set(phase_ids)):
+                codes.add(IntegrityViolationCode.PLAN_PHASE_REPETITION_INVALID)
+        if has_consecutive_main_repetition(tuple(zip(ids, phases, strict=True))):
+            codes.add(IntegrityViolationCode.PLAN_MAIN_REPEAT_CONSECUTIVE)
         for item in compiled_plan.exercises:
             prescription = item.prescription
             canonical = pool_records.get(prescription.exercise_id)

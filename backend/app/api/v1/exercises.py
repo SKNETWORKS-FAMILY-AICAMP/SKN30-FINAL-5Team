@@ -18,6 +18,7 @@ from backend.app.modules.catalog.codes import (
     BodyAreaCode,
     DifficultyCode,
     EquipmentCode,
+    LocationCode,
     TrainingTypeCode,
 )
 from backend.app.modules.catalog.home_equipment import (
@@ -129,10 +130,15 @@ def get_exercise_variants(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_db_session)],
     repository: Annotated[ExerciseReadRepositoryPort, Depends(get_catalog_repository)],
+    location_code: Annotated[LocationCode | None, Query()] = None,
 ) -> ExerciseVariantsResponse:
     del current_user
     try:
-        return ExerciseReadService(repository).get_equipment_variants(session, exercise_id)
+        return ExerciseReadService(repository).get_equipment_variants(
+            session,
+            exercise_id,
+            location_code=location_code,
+        )
     except ExerciseNotFoundError:
         raise AppError(
             status_code=HTTPStatus.NOT_FOUND,

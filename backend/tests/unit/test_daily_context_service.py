@@ -185,6 +185,39 @@ def test_persistent_pains_are_exposed_only_as_editable_checkin_defaults() -> Non
         ("KNEE", 4),
         ("SHOULDER", 2),
     ]
+    assert [location.value for location in defaults.selectable_location_codes] == ["HOME", "GYM"]
+
+
+@pytest.mark.parametrize("minutes", (10, 30, 60, 61, 90))
+def test_daily_checkin_accepts_the_full_10_to_90_minute_range(minutes: int) -> None:
+    request = DailyContextUpsertRequest(
+        fatigue_level_code="LOW",
+        available_time_minutes=minutes,
+        location_code="HOME",
+    )
+
+    assert request.requested_duration_minutes == minutes
+
+
+@pytest.mark.parametrize("location_code", ("HOME", "GYM", "OUTDOOR"))
+def test_daily_checkin_keeps_all_persisted_location_codes_compatible(location_code: str) -> None:
+    request = DailyContextUpsertRequest(
+        fatigue_level_code="LOW",
+        available_time_minutes=30,
+        location_code=location_code,
+    )
+
+    assert request.location_code.value == location_code
+
+
+@pytest.mark.parametrize("minutes", (9, 91))
+def test_daily_checkin_rejects_duration_outside_10_to_90_minutes(minutes: int) -> None:
+    with pytest.raises(ValueError):
+        DailyContextUpsertRequest(
+            fatigue_level_code="LOW",
+            available_time_minutes=minutes,
+            location_code="HOME",
+        )
 
 
 def slot(start_hour: int, end_hour: int) -> dict[str, str]:

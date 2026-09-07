@@ -20,9 +20,11 @@ from backend.app.domain.agents.v3_duration import (
 from backend.app.domain.agents.v3_orchestration import FallbackRequest
 from backend.app.domain.rules.duration import DURATION_TOLERANCE_SECONDS, SECONDS_PER_MINUTE
 from backend.app.domain.rules.plan_shape import (
+    MAX_MAIN_BLOCKS_PER_EXERCISE,
     MAX_PHASE_EXERCISE_TYPES,
     MAX_PLAN_EXERCISE_TYPES,
     PhaseCode,
+    has_consecutive_main_repetition,
     phase_rank,
 )
 
@@ -66,14 +68,29 @@ class DeterministicGraphFallbackProvider:
         # spent: it has to be able to satisfy the shape from the same pool.
         excluded = set(envelope.excluded_exercise_ids)
         required_ids = set(mandatory)
-        placed: dict[UUID, PhaseCode] = {}
+        placed: list[tuple[UUID, PhaseCode]] = []
+        sets_by_exercise: dict[UUID, int] = {}
         estimated_seconds = 0
 
         def place(exercise_id: UUID, phase_code: PhaseCode, *, required: bool) -> bool:
             nonlocal estimated_seconds
             record = records.get(exercise_id)
-            if record is None or exercise_id in excluded or exercise_id in placed:
+            existing_phases = tuple(
+                existing_phase
+                for existing_id, existing_phase in placed
+                if existing_id == exercise_id
+            )
+            if record is None or exercise_id in excluded:
                 return False
+            if phase_code != "MAIN" and existing_phases:
+                return False
+            if phase_code == "MAIN" and existing_phases:
+                if "MAIN" not in existing_phases:
+                    return False
+                if existing_phases.count("MAIN") >= MAX_MAIN_BLOCKS_PER_EXERCISE:
+                    return False
+                if placed[-1] == (exercise_id, "MAIN"):
+                    return False
             prescription = self._prescribe(
                 record,
                 envelope=envelope,
@@ -81,6 +98,12 @@ class DeterministicGraphFallbackProvider:
                 phase_code=phase_code,
             )
             if prescription is None:
+                return False
+            maximum_sets = envelope.recovery_ceiling.maximum_sets_per_exercise
+            if (
+                maximum_sets is not None
+                and sets_by_exercise.get(exercise_id, 0) + prescription.sets > maximum_sets
+            ):
                 return False
             item_seconds = prescription_item_duration(prescription, record).estimated_item_seconds
             # A mandatory exercise, and the one warmup and cooldown the shape
@@ -93,7 +116,8 @@ class DeterministicGraphFallbackProvider:
                 preference=preference,
             ):
                 return False
-            placed[exercise_id] = phase_code
+            placed.append((exercise_id, phase_code))
+            sets_by_exercise[exercise_id] = sets_by_exercise.get(exercise_id, 0) + prescription.sets
             estimated_seconds += item_seconds
             return True
 
@@ -110,7 +134,7 @@ class DeterministicGraphFallbackProvider:
         # is invalid however well the remaining time is filled.
         structural: tuple[PhaseCode, ...] = ("WARMUP", "COOLDOWN")
         for phase_code in structural:
-            if any(value == phase_code for value in placed.values()):
+            if any(value == phase_code for _, value in placed):
                 continue
             if not any(
                 place(exercise_id, phase_code, required=True)
@@ -122,16 +146,25 @@ class DeterministicGraphFallbackProvider:
                 return None
 
         for exercise_id in ordered_ids:
-            if exercise_id in placed or len(placed) >= MAX_PLAN_EXERCISE_TYPES:
+            distinct_ids = {placed_id for placed_id, _ in placed}
+            if exercise_id in distinct_ids or len(distinct_ids) >= MAX_PLAN_EXERCISE_TYPES:
                 continue
             record = records.get(exercise_id)
             if record is None:
                 continue
             phase_code = _preferred_phase(record)
             cap = MAX_PHASE_EXERCISE_TYPES.get(phase_code)
-            if cap is not None and sum(value == phase_code for value in placed.values()) >= cap:
+            if cap is not None and sum(value == phase_code for _, value in placed) >= cap:
                 continue
             place(exercise_id, phase_code, required=exercise_id in required_ids)
+
+        main_ids = tuple(exercise_id for exercise_id, phase_code in placed if phase_code == "MAIN")
+        while main_ids:
+            added_in_round = False
+            for exercise_id in main_ids:
+                added_in_round = place(exercise_id, "MAIN", required=False) or added_in_round
+            if not added_in_round:
+                break
 
         prescriptions = self._ordered_prescriptions(placed, records=records, envelope=envelope)
         if prescriptions is None:
@@ -168,14 +201,16 @@ class DeterministicGraphFallbackProvider:
 
     def _ordered_prescriptions(
         self,
-        placed: dict[UUID, PhaseCode],
+        placed: list[tuple[UUID, PhaseCode]],
         *,
         records: dict[UUID, ExercisePoolExerciseRecord],
         envelope: ConstraintEnvelope,
     ) -> tuple[ExercisePrescription, ...] | None:
         """Re-number the selected exercises into canonical WARMUP-MAIN-COOLDOWN order."""
 
-        ordered = sorted(placed.items(), key=lambda entry: phase_rank(entry[1]))
+        ordered = sorted(placed, key=lambda entry: phase_rank(entry[1]))
+        if has_consecutive_main_repetition(ordered):
+            return None
         prescriptions: list[ExercisePrescription] = []
         for sequence, (exercise_id, phase_code) in enumerate(ordered, start=1):
             prescription = self._prescribe(

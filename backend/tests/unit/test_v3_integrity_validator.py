@@ -388,3 +388,87 @@ def test_plan_spending_more_than_the_warmup_type_budget_is_flagged() -> None:
 
     codes = {violation.code for violation in result.violations}
     assert IntegrityViolationCode.PLAN_EXERCISE_VARIETY_EXCEEDED in codes
+
+
+def test_consecutive_main_repetition_is_repairable() -> None:
+    current_envelope = envelope()
+    valid, current_pool = _compiled_with(
+        current_envelope,
+        (
+            prescription(A, 1, phase_code="WARMUP"),
+            prescription(B, 2),
+            prescription(C, 3),
+            prescription(D, 4, phase_code="COOLDOWN"),
+        ),
+    )
+    repeated = valid.exercises[1]
+    compiled = valid.model_copy(
+        update={
+            "exercises": (
+                valid.exercises[0],
+                repeated,
+                repeated.model_copy(
+                    update={
+                        "prescription": repeated.prescription.model_copy(update={"sequence": 3})
+                    }
+                ),
+                valid.exercises[3].model_copy(
+                    update={
+                        "prescription": valid.exercises[3].prescription.model_copy(
+                            update={"sequence": 4}
+                        )
+                    }
+                ),
+            )
+        }
+    )
+
+    result = _validate(compiled, current_envelope, current_pool)
+
+    violation = next(
+        item
+        for item in result.violations
+        if item.code is IntegrityViolationCode.PLAN_MAIN_REPEAT_CONSECUTIVE
+    )
+    assert violation.repairable
+
+
+def test_repeated_main_blocks_cannot_exceed_the_recovery_set_ceiling_in_total() -> None:
+    current_envelope = envelope()
+    valid, current_pool = _compiled_with(
+        current_envelope,
+        (
+            prescription(A, 1, phase_code="WARMUP"),
+            prescription(B, 2),
+            prescription(C, 3),
+            prescription(D, 4, phase_code="COOLDOWN"),
+        ),
+    )
+    repeated = valid.exercises[1]
+    compiled = valid.model_copy(
+        update={
+            "exercises": (
+                valid.exercises[0],
+                repeated,
+                valid.exercises[2],
+                repeated.model_copy(
+                    update={
+                        "prescription": repeated.prescription.model_copy(update={"sequence": 4})
+                    }
+                ),
+                valid.exercises[3].model_copy(
+                    update={
+                        "prescription": valid.exercises[3].prescription.model_copy(
+                            update={"sequence": 5}
+                        )
+                    }
+                ),
+            )
+        }
+    )
+
+    result = _validate(compiled, current_envelope, current_pool)
+
+    assert IntegrityViolationCode.RECOVERY_CEILING_EXCEEDED in {
+        item.code for item in result.violations
+    }

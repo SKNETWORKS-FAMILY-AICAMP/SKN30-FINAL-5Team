@@ -10,6 +10,12 @@ from pydantic import (
     model_validator,
 )
 
+from backend.app.domain.rules.duration import (
+    DAILY_CHECKIN_DURATION_MINUTES_MAX,
+    DAILY_CHECKIN_DURATION_MINUTES_MIN,
+    DAILY_CHECKIN_DURATION_POLICY_VERSION,
+    RECOMMENDED_DAILY_DURATION_MINUTES,
+)
 from backend.app.domain.rules.external_context import (
     MAX_AVAILABILITY_SLOTS,
     CalendarAvailabilitySourceCode,
@@ -93,7 +99,11 @@ class DailyContextUpsertRequest(BaseModel):
     location_code: LocationCode
     sleep_minutes: int | None = Field(default=None, ge=0, le=1440)
     sleep_source_code: SleepSourceCode | None = None
-    available_time_minutes: int | None = Field(default=None, ge=10, le=60)
+    available_time_minutes: int | None = Field(
+        default=None,
+        ge=DAILY_CHECKIN_DURATION_MINUTES_MIN,
+        le=DAILY_CHECKIN_DURATION_MINUTES_MAX,
+    )
     pain_present: bool | None = None
     red_flag_present: bool = False
     fasting_state_code: str | None = Field(default=None, pattern=r"^[A-Z][A-Z0-9_]{0,31}$")
@@ -142,8 +152,12 @@ class DailyContextUpsertRequest(BaseModel):
         if self.available_time_minutes is None:
             if self.requested_duration_minutes is None:
                 raise ValueError("available_time_minutes is required")
-            if not 10 <= self.requested_duration_minutes <= 60:
-                raise ValueError("legacy requested_duration_minutes must be between 10 and 60")
+            if not (
+                DAILY_CHECKIN_DURATION_MINUTES_MIN
+                <= self.requested_duration_minutes
+                <= DAILY_CHECKIN_DURATION_MINUTES_MAX
+            ):
+                raise ValueError("legacy requested_duration_minutes must be between 10 and 90")
             self.available_time_minutes = self.requested_duration_minutes
         elif (
             self.requested_duration_minutes is not None
@@ -206,6 +220,11 @@ class DailyContextDefaultsResponse(BaseModel):
 
     local_date: date
     pains: list[PainInput] = Field(default_factory=list)
+    selectable_location_codes: list[LocationCode] = Field(
+        default_factory=lambda: [LocationCode.HOME, LocationCode.GYM]
+    )
+    recommended_duration_minutes: int = RECOMMENDED_DAILY_DURATION_MINUTES
+    duration_recommendation_policy_version: str = DAILY_CHECKIN_DURATION_POLICY_VERSION
 
 
 __all__ = [

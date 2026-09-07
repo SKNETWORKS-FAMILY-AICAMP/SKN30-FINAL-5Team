@@ -417,6 +417,10 @@ def test_v3_projector_reports_exclusion_rebuild_as_revised_change() -> None:
     assert response.action_code == "CHANGE"
     assert response.final_plan is not None
     assert response.final_plan.action_code == "CHANGE"
+    assert response.final_plan.routine_name is not None
+    assert response.final_plan.routine_name_reason_codes is not None
+    assert "LOAD_ADJUSTED" in response.final_plan.routine_name_reason_codes
+    assert response.final_plan.routine_naming_rule_version == "1.0.0"
     assert response.safety_summary is not None
     assert response.safety_summary.vetoed
     assert response.safety_summary.reason_codes == ["DIRECT_JOINT_LOAD"]

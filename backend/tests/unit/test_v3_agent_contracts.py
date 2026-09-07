@@ -274,11 +274,11 @@ def test_pool_outside_exercise_id_is_rejected() -> None:
         ).validate_proposal(outside_proposal)
 
 
-def test_duplicate_exercise_id_is_rejected() -> None:
+def test_consecutive_main_repetition_is_rejected() -> None:
     current_envelope = envelope()
     current_pool = pool(current_envelope)
 
-    with pytest.raises(ValidationError, match="duplicate exercise IDs"):
+    with pytest.raises(ValidationError, match="must not be consecutive"):
         proposal(
             SpecialistAgentTypeCode.TRAINING,
             current_envelope,

@@ -47,6 +47,9 @@ class DecisionPlan(BaseModel):
     action_code: str
     training_type_code: str
     body_focus_code: str | None
+    routine_name: str | None = None
+    routine_name_reason_codes: list[str] | None = None
+    routine_naming_rule_version: str | None = None
     requested_duration_minutes: int
     estimated_duration_seconds: int
     expected_duration_min_seconds: int | None = None

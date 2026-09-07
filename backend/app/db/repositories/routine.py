@@ -21,6 +21,7 @@ from backend.app.db.models.profile import (
 )
 from backend.app.db.models.routine import Routine, RoutineDay, RoutineItem
 from backend.app.db.models.workout import WorkoutSession
+from backend.app.domain.rules.plan_naming import build_plan_name
 from backend.app.domain.rules.training_level import allowed_exercise_difficulty_codes
 from backend.app.modules.routines.codes import (
     ROUTINE_RESPONSE_SCHEMA_VERSION,
@@ -297,6 +298,24 @@ class RoutineRepository:
                     "title": day.title,
                     "training_type_code": day.training_type_code,
                     "body_focus_code": day.body_focus_code,
+                    "routine_name": (
+                        plan_name := build_plan_name(
+                            action_code="KEEP",
+                            main_body_focus_codes=(
+                                exercises[item.exercise_id].body_focus_code
+                                for item in day.items
+                                if item.phase_code == "MAIN"
+                            ),
+                            main_movement_pattern_codes=(),
+                            main_training_type_codes=(
+                                exercises[item.exercise_id].training_type_code
+                                for item in day.items
+                                if item.phase_code == "MAIN"
+                            ),
+                        )
+                    ).value,
+                    "routine_name_reason_codes": list(plan_name.reason_codes),
+                    "routine_naming_rule_version": plan_name.rule_version,
                     "requested_duration_minutes": day.requested_duration_minutes,
                     "estimated_duration_seconds": day.estimated_duration_seconds,
                     "estimated_calories_burned": day.estimated_calories_burned,

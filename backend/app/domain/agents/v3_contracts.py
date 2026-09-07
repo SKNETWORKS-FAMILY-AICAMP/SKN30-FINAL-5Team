@@ -14,6 +14,10 @@ from pydantic_core import to_jsonable_python
 
 from backend.app.domain.agents.retrieval import ExercisePoolExerciseRecord, ExercisePoolSnapshot
 from backend.app.domain.rules.duration import DURATION_TOLERANCE_SECONDS
+from backend.app.domain.rules.plan_shape import (
+    MAX_MAIN_BLOCKS_PER_EXERCISE,
+    has_consecutive_main_repetition,
+)
 from backend.app.domain.rules.safety import SafetyRequiredActionCode
 
 # v4 adds the feedback adjustment axis. The version describes the payload actually
@@ -341,9 +345,6 @@ _PHASE_ORDER: Final[tuple[str, ...]] = ("WARMUP", "MAIN", "COOLDOWN")
 
 
 def _validate_prescription_order(values: tuple[ExercisePrescription, ...]) -> None:
-    ids = tuple(value.exercise_id for value in values)
-    if len(ids) != len(set(ids)):
-        raise ValueError("exercise prescriptions must not contain duplicate exercise IDs")
     if tuple(value.sequence for value in values) != tuple(range(1, len(values) + 1)):
         raise ValueError("exercise prescriptions must use contiguous canonical sequence")
     # Preparation comes first and settling comes last. Ordering holds for any
@@ -352,6 +353,16 @@ def _validate_prescription_order(values: tuple[ExercisePrescription, ...]) -> No
     ranks = [_PHASE_ORDER.index(value.phase_code) for value in values]
     if ranks != sorted(ranks):
         raise ValueError("exercise prescriptions must run WARMUP then MAIN then COOLDOWN")
+    blocks = tuple((value.exercise_id, value.phase_code) for value in values)
+    if has_consecutive_main_repetition(blocks):
+        raise ValueError("MAIN exercise repetitions must not be consecutive")
+    for phase_code in ("WARMUP", "COOLDOWN"):
+        phase_ids = tuple(value.exercise_id for value in values if value.phase_code == phase_code)
+        if len(phase_ids) != len(set(phase_ids)):
+            raise ValueError(f"{phase_code} exercise prescriptions must not repeat")
+    main_ids = tuple(value.exercise_id for value in values if value.phase_code == "MAIN")
+    if any(main_ids.count(exercise_id) > MAX_MAIN_BLOCKS_PER_EXERCISE for exercise_id in main_ids):
+        raise ValueError("MAIN exercise repetitions exceed the session block limit")
 
 
 def _pool_records(pool: ExercisePoolSnapshot) -> dict[UUID, ExercisePoolExerciseRecord]:
@@ -366,12 +377,14 @@ def _validate_prescription_constraints(
 ) -> None:
     records = _pool_records(pool)
     prescribed_ids = {item.exercise_id for item in prescriptions}
+    sets_by_exercise: dict[UUID, int] = {}
     if not prescribed_ids.issubset(records):
         raise ValueError("exercise prescription references an ID outside ExercisePoolSnapshot")
     if prescribed_ids & set(envelope.excluded_exercise_ids):
         raise ValueError("exercise prescription cannot relax Safety exclusions")
     ceiling = envelope.recovery_ceiling
     for item in prescriptions:
+        sets_by_exercise[item.exercise_id] = sets_by_exercise.get(item.exercise_id, 0) + item.sets
         record = records[item.exercise_id]
         if item.location_code not in envelope.allowed_location_codes:
             raise ValueError("exercise prescription uses a disallowed location")
@@ -391,7 +404,6 @@ def _validate_prescription_constraints(
         if ceiling.allowed_load_codes and item.load_code not in ceiling.allowed_load_codes:
             raise ValueError("exercise prescription relaxes the Recovery load ceiling")
         numeric_ceilings = (
-            (item.sets, ceiling.maximum_sets_per_exercise, "sets"),
             (
                 item.repetitions_per_set,
                 ceiling.maximum_repetitions_per_set,
@@ -405,6 +417,10 @@ def _validate_prescription_constraints(
         minimum_rest = ceiling.minimum_rest_seconds_between_sets
         if minimum_rest is not None and item.rest_seconds_between_sets < minimum_rest:
             raise ValueError("exercise prescription relaxes the Recovery rest ceiling")
+    if ceiling.maximum_sets_per_exercise is not None and any(
+        sets > ceiling.maximum_sets_per_exercise for sets in sets_by_exercise.values()
+    ):
+        raise ValueError("exercise prescriptions exceed the Recovery sets ceiling")
 
 
 class SpecialistAgentInput(BaseModel):

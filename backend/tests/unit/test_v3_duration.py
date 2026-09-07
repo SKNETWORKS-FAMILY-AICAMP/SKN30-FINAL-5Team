@@ -204,6 +204,7 @@ def _envelope(
     # Production sends (): the 2026-08-27 approval dropped equipment from
     # onboarding, so a real user has no UserEquipment rows.
     allowed_equipment_codes: tuple[str, ...] = ("BODYWEIGHT",),
+    maximum_sets_per_exercise: int | None = 3,
 ) -> ConstraintEnvelope:
     return ConstraintEnvelope.create(
         requested_duration_minutes=requested_duration_minutes,
@@ -216,7 +217,7 @@ def _envelope(
             policy_version="recovery-policy-v1",
             allowed_intensity_codes=("LOW", "MODERATE"),
             allowed_load_codes=("BODYWEIGHT",),
-            maximum_sets_per_exercise=3,
+            maximum_sets_per_exercise=maximum_sets_per_exercise,
             maximum_repetitions_per_set=12,
             maximum_work_seconds_per_set=60,
             minimum_rest_seconds_between_sets=30,

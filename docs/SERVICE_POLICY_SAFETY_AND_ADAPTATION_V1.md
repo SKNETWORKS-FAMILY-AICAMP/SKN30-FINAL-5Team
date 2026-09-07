@@ -56,7 +56,7 @@
 - 수행 상태는 당일 최종 완료 블록 개수로 판정
 - 반복 피드백 2–3회
 - 주간 목표 현실화의 80%, 2주, 3-of-4 trigger
-- 서비스 지원시간 10–60분
+- 서비스 지원시간 10–90분. Daily Check-in 기본 권장값은 30분이며 사용자 요청을 대체하지 않는다.
 
 모든 제품정책은 `policy_version`과 함께 결정 기록에 저장하고 향후 사용자 데이터로 검증·보정한다.
 
@@ -127,7 +127,7 @@ Daily Check-in의 `location_code`와 `available_time_minutes`로만 받으며, �
 게이트에서 제외한 것과 같은 처리이며, 당일 장소 제약은 매일 재구성하는 Safety-approved Pool과 Feasibility가
 적용한다. 기본 루틴의 목표 시간은 승인된 서버 기본 상수 **30분**을 사용하고
 `duration_adjustment_source_code=PROFILE`로 기록하며, 사용자가 당일 값을 제출하면 그날의
-`available_time_minutes`가 requested duration이 된다. 이 상수는 정책 범위 10–60분 안에 있어야 하고
+`available_time_minutes`가 requested duration이 된다. 이 상수는 정책 범위 10–90분 안에 있어야 하고
 사용자 요청 시간을 축소하는 근거로 쓰지 않는다(PM 승인, 2026-09-02).
 
 `medical_exercise_restriction=true`와 같은 지원 제외 응답은 상세 의료정보로 확장하지 않는다. Eligibility 실패 이력을 장기 저장해야 할 법적·운영 목적이 확정되지 않았다면 최소한의 가입 차단 결과만 저장하고 질문 원문이나 자유서술을 저장하지 않는다.
@@ -358,7 +358,7 @@ Safety는 Hard Constraint다. SafetyPolicyEngine이 BLOCK한 운동은 TrainingA
 | `sleep_minutes` | smallint nullable | 아니오 | 0–1440, `null`은 결측 |
 | `sleep_source_code` | varchar(16) nullable | 조건부 | `MANUAL`, `WEARABLE` |
 | `fatigue_level_code` | varchar(16) | 예 | `LOW`, `MODERATE`, `HIGH` |
-| `available_time_minutes` | smallint | 예 | 10–60 |
+| `available_time_minutes` | smallint | 예 | 10–90 |
 | `location_code` | varchar(64) | 예 | `HOME`, `GYM` 등 승인 코드 |
 | `pain_present` | boolean | 예 | pain row 존재 여부와 일치 |
 | `red_flag_present` | boolean | 예 | `true`면 루틴 생성 STOP |
@@ -782,7 +782,7 @@ SUPPORT
 
 ### 9.3 시간과 장소
 
-- `available_time_minutes`: 10–60
+- `available_time_minutes`: 10–90
 - 장소: Hard Constraint
 - FeasibilityAgent는 후보가 없으면 운동 수·세트 및 soft preference를 조정할 수 있다.
 - 장소와 Safety는 완화할 수 없다.

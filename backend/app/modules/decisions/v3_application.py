@@ -51,6 +51,7 @@ from backend.app.domain.rules.feedback_adjustment import (
     DifficultyReasonCode,
     select_feedback_adjustment,
 )
+from backend.app.domain.rules.plan_naming import build_plan_name
 from backend.app.domain.rules.recovery import (
     RECOVERY_POLICY_VERSION,
     RecoveryLevelCode,
@@ -823,6 +824,17 @@ class V3DecisionResponseProjector:
             if plan_spec is not None
             else tuple(bundle.failure_codes) or ("V3_COMPLETED",)
         )
+        main_records = tuple(
+            item.catalog_record for item in plan.exercises if item.prescription.phase_code == "MAIN"
+        )
+        plan_name = build_plan_name(
+            action_code=public_action,
+            main_body_focus_codes=(item.body_focus_code for item in main_records),
+            main_movement_pattern_codes=(
+                pattern for item in main_records for pattern in item.movement_pattern_codes
+            ),
+            main_training_type_codes=(item.training_type_code for item in main_records),
+        )
         response = DecisionResponse(
             decision_id=bundle.decision_execution_id,
             local_date=source.local_date,
@@ -838,6 +850,9 @@ class V3DecisionResponseProjector:
                 action_code=public_action,
                 training_type_code=first.training_type_code,
                 body_focus_code=first.body_focus_code,
+                routine_name=plan_name.value,
+                routine_name_reason_codes=list(plan_name.reason_codes),
+                routine_naming_rule_version=plan_name.rule_version,
                 requested_duration_minutes=plan.requested_duration_minutes,
                 estimated_duration_seconds=plan.estimated_duration_seconds,
                 estimated_calories_burned=None,

@@ -296,6 +296,8 @@ class ExerciseDetailResponse(BaseModel):
     primary_body_area_codes: list[str]
     instruction_summary: str
     form_cues: list[str]
+    instruction_steps: list[str] | None = None
+    cautions: list[str] | None = None
     media_asset_key: str | None = None
     media_url: str | None = None
     mascot_animation_asset_key: str | None = None
