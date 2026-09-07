@@ -91,4 +91,12 @@ def test_integrated_catalog_import_is_idempotent_on_postgresql() -> None:
                 == 237
             )
     finally:
+        # This test proves importer replay, not long-lived DRAFT data.  Leaving
+        # its MET-bearing rows behind would make another migration test's
+        # documented forward-fix downgrade guard fail for an unrelated reason.
+        with Session(engine) as cleanup:
+            with cleanup.begin():
+                cleanup.execute(
+                    delete(CatalogVersion).where(CatalogVersion.version_code == VERSION_CODE)
+                )
         engine.dispose()

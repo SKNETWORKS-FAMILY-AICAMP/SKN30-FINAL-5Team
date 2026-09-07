@@ -554,11 +554,20 @@ def _snapshot_hash_payload(
     vector_ranked_exercise_ids: tuple[UUID, ...],
     retrieval_metadata: RetrievalMetadata,
 ) -> dict[str, object]:
+    exercise_payloads = []
+    for exercise in exercises:
+        payload = exercise.model_dump(mode="json")
+        # FITT is additive agent context.  Omitting its absent value preserves
+        # the hash of snapshots created before this projection existed; a real
+        # reviewed FITT context remains part of every new snapshot's lineage.
+        if payload.get("fitt_context") is None:
+            payload.pop("fitt_context", None)
+        exercise_payloads.append(payload)
     return {
         "schema_version": EXERCISE_POOL_SNAPSHOT_SCHEMA_VERSION,
         "catalog_version": catalog_version,
         "constraint_envelope_hash": constraint_envelope_hash,
-        "exercises": [exercise.model_dump(mode="json") for exercise in exercises],
+        "exercises": exercise_payloads,
         "mandatory_exercise_ids": [str(value) for value in mandatory_exercise_ids],
         "vector_ranked_exercise_ids": [str(value) for value in vector_ranked_exercise_ids],
         "retrieval_metadata": retrieval_metadata.model_dump(mode="json"),
