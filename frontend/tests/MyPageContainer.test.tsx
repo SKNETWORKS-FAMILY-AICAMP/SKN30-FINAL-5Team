@@ -117,6 +117,8 @@ describe('MyPageContainer', () => {
     expect(screen.queryByRole('button', { name: '장비 수정' })).toBeNull();
     expect(screen.queryByText('맨몸 · 밴드')).toBeNull();
     expect(screen.queryByText('캘린더 연동')).toBeNull();
+    expect(screen.queryByText('연동 기기')).toBeNull();
+    expect(screen.queryByText('웨어러블 연동')).toBeNull();
     expect(screen.queryByText('헬끼 코칭 스타일')).toBeNull();
     expect(screen.queryByText('차근차근')).toBeNull();
     expect(screen.queryByText('딱 필요한 만큼')).toBeNull();
@@ -555,7 +557,7 @@ describe('MyPageContainer', () => {
     );
 
     expect(
-      await screen.findByText('알림과 기기 연동 기능은 준비 중이에요.'),
+      await screen.findByText('알림 기능은 준비 중이에요.'),
     ).toBeOnTheScreen();
     expect(
       screen.getByText('예정된 운동 시간을 알려드려요.'),
@@ -626,6 +628,7 @@ describe('MyPageContainer', () => {
         expect.objectContaining({
           general_personal_data: true,
           sensitive_data: true,
+          wearable_integration: false,
           marketing: true,
         }),
       ),

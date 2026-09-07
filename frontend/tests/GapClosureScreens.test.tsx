@@ -408,6 +408,7 @@ describe('AccountScreen editing', () => {
     );
 
     fireEvent.press(await screen.findByText('마케팅 정보 수신'));
+    expect(screen.queryByText('웨어러블 연동')).toBeNull();
     fireEvent.press(screen.getByText('동의 변경 저장'));
 
     await waitFor(() => {
@@ -416,6 +417,7 @@ describe('AccountScreen editing', () => {
     expect(putConsents[0]).toMatchObject({
       general_personal_data: true,
       sensitive_data: true,
+      wearable_integration: false,
       marketing: true,
     });
   });

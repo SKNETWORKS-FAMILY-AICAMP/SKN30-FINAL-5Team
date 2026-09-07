@@ -58,10 +58,6 @@ const CONSENT_OPTIONS = {
     label: '건강 관련 민감정보 처리',
     description: '통증과 컨디션 정보를 안전한 운동 계획을 만드는 데 활용해요.',
   },
-  wearable_integration: {
-    label: '웨어러블 연동',
-    description: '웨어러블 데이터를 운동 계획에 참고해요.',
-  },
   marketing: {
     label: '마케팅 정보 수신',
     description: '새로운 기능과 이벤트 소식을 받아볼 수 있어요.',
@@ -171,7 +167,6 @@ function OnboardingScreenContent({
   const [generalConsent, setGeneralConsent] = useState(false);
   const [sensitiveConsent, setSensitiveConsent] = useState(false);
   const [termsConsent, setTermsConsent] = useState(false);
-  const [wearableConsent, setWearableConsent] = useState(false);
   const [marketingConsent, setMarketingConsent] = useState(false);
   const current = ONBOARDING_STEPS[step - 1] ?? ONBOARDING_STEPS[0];
   const timezone = useMemo(() => {
@@ -212,7 +207,7 @@ function OnboardingScreenContent({
         consents: {
           general_personal_data: generalConsent,
           sensitive_data: sensitiveConsent,
-          wearable_integration: wearableConsent,
+          wearable_integration: false,
           marketing: marketingConsent,
         },
       });
@@ -572,13 +567,6 @@ function OnboardingScreenContent({
               <Text style={styles.hint}>
                 선택 항목은 동의하지 않아도 서비스를 이용할 수 있어요.
               </Text>
-              <ConsentRow
-                checked={wearableConsent}
-                description={CONSENT_OPTIONS.wearable_integration.description}
-                label={CONSENT_OPTIONS.wearable_integration.label}
-                required={false}
-                onPress={() => setWearableConsent((value) => !value)}
-              />
               <ConsentRow
                 checked={marketingConsent}
                 description={CONSENT_OPTIONS.marketing.description}

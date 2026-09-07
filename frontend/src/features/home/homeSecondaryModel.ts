@@ -345,7 +345,6 @@ export const MY_PAGE_PROFILE_ROWS = [
 ] as const;
 
 export const MY_PAGE_ACCOUNT_ROWS = [
-  ['연동 기기', '없음'],
   ['개인정보 및 동의', ''],
   ['문의하기', ''],
   ['이용약관', ''],

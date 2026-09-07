@@ -304,7 +304,7 @@ function MyPageContent({
 
         {!persistedSettingsAvailable ? (
           <InlineFeedback
-            message="알림과 기기 연동 기능은 준비 중이에요."
+            message="알림 기능은 준비 중이에요."
             style={styles.feedback}
             tone="warning"
           />
@@ -360,11 +360,7 @@ function MyPageContent({
               style={styles.accountRow}
             >
               <Text style={styles.accountLabel}>{label}</Text>
-              <Text style={styles.accountValue}>
-                {!persistedSettingsAvailable && label === '연동 기기'
-                  ? '준비 중'
-                  : value}
-              </Text>
+              <Text style={styles.accountValue}>{value}</Text>
               <Text style={styles.rowArrow}>›</Text>
             </Pressable>
           ))}
@@ -540,7 +536,6 @@ function ConfirmationDialog({
 }
 
 const OPTIONAL_CONSENTS = [
-  { key: 'wearable_integration', label: '웨어러블 연동' },
   { key: 'marketing', label: '마케팅 정보 수신' },
 ] as const satisfies readonly {
   key: keyof ConsentValues;

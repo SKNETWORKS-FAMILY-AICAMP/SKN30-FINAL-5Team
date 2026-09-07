@@ -766,9 +766,10 @@ describe('Home secondary visual prototypes', () => {
     );
 
     fireEvent.press(screen.getByRole('switch', { name: /응원 알림/ }));
-    fireEvent.press(screen.getByRole('button', { name: /연동 기기/ }));
+    expect(screen.queryByRole('button', { name: /연동 기기/ })).toBeNull();
+    fireEvent.press(screen.getByRole('button', { name: /개인정보 및 동의/ }));
     expect(onNotificationChange).toHaveBeenCalledWith('encouragement', true);
-    expect(onAccountAction).toHaveBeenCalledWith('연동 기기');
+    expect(onAccountAction).toHaveBeenCalledWith('개인정보 및 동의');
   });
 
   it('renders logout and withdrawal confirmations as callback-only states', async () => {
