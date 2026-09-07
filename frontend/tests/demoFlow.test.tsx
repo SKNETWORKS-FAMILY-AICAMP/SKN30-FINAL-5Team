@@ -242,6 +242,12 @@ function stubApi(overrides: Partial<Api> = {}): Api {
     createDecision: jest.fn(),
     getDecision: jest.fn(),
     getDecisionForDate: jest.fn(notFound),
+    getHomeState: jest.fn(async (localDate: string) => ({
+      local_date: localDate,
+      decision: null,
+      final_plan: null,
+      workout_session: null,
+    })),
     regenerateDecision: jest.fn(),
     selectOption: jest.fn(),
     listWorkoutSessions: jest.fn(async () => ({

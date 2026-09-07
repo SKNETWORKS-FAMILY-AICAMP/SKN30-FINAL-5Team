@@ -354,6 +354,18 @@ export type DecisionResponse = {
   created_at: string;
 };
 
+/**
+ * A consistent snapshot used to restore Home after a client restart.
+ * `final_plan` mirrors the returned decision's plan and `workout_session`, when
+ * present, is already scoped by the server to that exact plan.
+ */
+export type HomeStateResponse = {
+  local_date: string;
+  decision: DecisionResponse | null;
+  final_plan: WorkoutPlan | null;
+  workout_session: WorkoutSessionDetailResponse | null;
+};
+
 export type PlanItemPrescriptionEdit = {
   plan_item_id: string;
   sets: number;

@@ -20,6 +20,7 @@ import type {
   ExerciseDetailResponse,
   ExerciseListResponse,
   ExerciseVariantsResponse,
+  HomeStateResponse,
   MeResponse,
   NotCompletedReasonCode,
   NotificationListResponse,
@@ -268,6 +269,18 @@ export function createApi(client: ApiClient) {
     getDecisionForDate(localDate: string, signal?: AbortSignal) {
       return client.request<DecisionResponse>({
         path: '/decisions',
+        query: { local_date: localDate },
+        signal,
+      });
+    },
+
+    /**
+     * A server-composed Home snapshot. This prevents a decision from being
+     * paired with a workout session that belongs to a different plan.
+     */
+    getHomeState(localDate: string, signal?: AbortSignal) {
+      return client.request<HomeStateResponse>({
+        path: '/home',
         query: { local_date: localDate },
         signal,
       });

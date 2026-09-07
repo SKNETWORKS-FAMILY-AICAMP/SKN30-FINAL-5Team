@@ -4,8 +4,45 @@ import { ApiClient } from '../src/api/client';
 import { createApi } from '../src/api/endpoints';
 import type {
   ExerciseVariantsResponse,
+  HomeStateResponse,
   NotificationListResponse,
 } from '../src/api/types';
+
+it('gets the server-composed Home state for the requested local date', async () => {
+  const payload: HomeStateResponse = {
+    local_date: '2026-09-07',
+    decision: null,
+    final_plan: null,
+    workout_session: null,
+  };
+  const fetchImpl = jest.fn<typeof fetch>(async () =>
+    Promise.resolve({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify(payload),
+    } as Response),
+  );
+  const api = createApi(
+    new ApiClient({
+      baseUrl: 'https://api.example.test',
+      getToken: async () => null,
+      fetchImpl,
+    }),
+  );
+  const controller = new AbortController();
+
+  await expect(
+    api.getHomeState('2026-09-07', controller.signal),
+  ).resolves.toEqual(payload);
+  expect(fetchImpl).toHaveBeenCalledWith(
+    'https://api.example.test/api/v1/home?local_date=2026-09-07',
+    expect.objectContaining({
+      method: 'GET',
+      body: undefined,
+      signal: controller.signal,
+    }),
+  );
+});
 
 it('calls the reviewed equipment-variant endpoint without a mutation body', async () => {
   const payload: ExerciseVariantsResponse = {

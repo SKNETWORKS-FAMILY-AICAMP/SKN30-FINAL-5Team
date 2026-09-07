@@ -15,7 +15,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { Api } from '../api/endpoints';
-import { messageForError } from '../api/errors';
+import { isApiError, messageForError } from '../api/errors';
 import type {
   DecisionResponse,
   MeResponse,
@@ -29,7 +29,10 @@ import { localDateString, weekStartString } from '../api/useAsync';
 import type { TabId } from '../components/brand/BrandChrome';
 import { ExerciseCatalogScreen } from '../features/catalog/ExerciseCatalogScreen';
 import { CalendarReportContainer } from '../features/home/CalendarReportContainer';
-import { HomeContainer } from '../features/home/HomeContainer';
+import {
+  HomeContainer,
+  type HomeRecoveryState,
+} from '../features/home/HomeContainer';
 import { MyPageContainer } from '../features/home/MyPageContainer';
 import {
   NotificationSheet,
@@ -74,6 +77,9 @@ export function MainFlow({
   const [recoveryNonce, setRecoveryNonce] = useState(0);
   const [todaySession, setTodaySession] =
     useState<WorkoutSessionDetailResponse | null>(null);
+  const [homeRecoveryState, setHomeRecoveryState] = useState<HomeRecoveryState>(
+    { status: 'loading' },
+  );
   const [resumableSessionId, setResumableSessionId] = useState<string | null>(
     null,
   );
@@ -174,16 +180,19 @@ export function MainFlow({
     return () => clearTimeout(timeout);
   }, [notificationToastVisible]);
 
-  // A restart loses this flow's in-memory state, so recover today's stored
-  // decision — and an unfinished session — from the server on entry and
-  // explicit refresh.
-  // Nothing here re-runs agents; both calls only read what a decision run
-  // already persisted.
+  // A restart loses this flow's in-memory state, so recover today's decision
+  // and its plan-scoped session from one consistent server snapshot. This
+  // read never re-runs agents or starts a workout session.
   useEffect(() => {
     if (step.name !== 'home') {
       return;
     }
     const controller = new AbortController();
+    const loadingTimeout = setTimeout(() => {
+      if (!controller.signal.aborted) {
+        setHomeRecoveryState({ status: 'loading' });
+      }
+    }, 0);
     const decisionIdAtStart = decisionRef.current?.decision_id ?? null;
     const weekStart = weekStartString(new Date(), me.profile?.timezone);
     const latestPlanRevisionRequest = api.getLatestWeeklyPlanRevision
@@ -193,54 +202,43 @@ export function MainFlow({
       : Promise.resolve(null);
 
     void (async () => {
-      const [stored, sessions, latestPlanRevision] = await Promise.all([
-        api.getDecisionForDate(localDate, controller.signal).catch(() => null),
+      const [homeResult, latestPlanRevision] = await Promise.all([
         api
-          .listWorkoutSessions(
-            { fromLocalDate: localDate, toLocalDate: localDate },
-            controller.signal,
-          )
-          .catch(() => null),
+          .getHomeState(localDate, controller.signal)
+          .then((data) => ({ status: 'success' as const, data }))
+          .catch((error: unknown) => ({ status: 'error' as const, error })),
         latestPlanRevisionRequest,
       ]);
       if (controller.signal.aborted) {
         return;
       }
+      clearTimeout(loadingTimeout);
       if (latestPlanRevision !== null) {
         setPlanRevision(latestPlanRevision);
       }
-      const todaySessions = sessions?.items ?? [];
-      const active = todaySessions.find(
-        (item) =>
-          item.status_code === 'PLANNED' || item.status_code === 'IN_PROGRESS',
-      );
-      const visibleSession =
-        active ??
-        todaySessions.find(
-          (item) => item.status_code === 'STOPPED_FOR_SAFETY',
-        ) ??
-        todaySessions[0] ??
-        null;
-      const detail =
-        visibleSession === null
-          ? null
-          : await api
-              .getWorkoutSession(visibleSession.session_id, controller.signal)
-              .catch(() => null);
-      if (controller.signal.aborted) {
+      if (homeResult.status === 'error') {
+        setHomeRecoveryState({
+          status: 'error',
+          message: messageForError(homeResult.error),
+          permissionDenied:
+            isApiError(homeResult.error) &&
+            homeResult.error.kind === 'permission',
+        });
         return;
       }
-      setTodaySession(detail);
-      if (stored) {
-        setDecision((current) =>
-          (current?.decision_id ?? null) === decisionIdAtStart
-            ? stored
-            : current,
-        );
-      }
+      setTodaySession(homeResult.data.workout_session);
+      setDecision((current) =>
+        (current?.decision_id ?? null) === decisionIdAtStart
+          ? homeResult.data.decision
+          : current,
+      );
+      setHomeRecoveryState({ status: 'ready' });
     })();
 
-    return () => controller.abort();
+    return () => {
+      clearTimeout(loadingTimeout);
+      controller.abort();
+    };
   }, [api, localDate, me.profile?.timezone, recoveryNonce, step.name]);
 
   const goHome = useCallback(() => setStep({ name: 'home' }), []);
@@ -404,6 +402,7 @@ export function MainFlow({
           <HomeContainer
             api={api}
             me={me}
+            recoveryState={homeRecoveryState}
             restToday={restToday}
             decision={decision}
             todaySession={todaySession}
