@@ -40,10 +40,6 @@ class UserProfile(Base):
             "desired_weekly_workout_count BETWEEN 1 AND 7",
             name="ck_user_profiles_weekly_count",
         ),
-        CheckConstraint(
-            "coaching_style_code IN ('SUPPORTIVE', 'CONCISE', 'ENERGETIC')",
-            name="ck_user_profiles_coaching_style",
-        ),
         CheckConstraint("profile_version > 0", name="ck_user_profiles_version_positive"),
         CheckConstraint(
             "(profile_image_object_key IS NULL AND "
@@ -63,15 +59,9 @@ class UserProfile(Base):
     primary_goal_code: Mapped[str] = mapped_column(String(64), nullable=False)
     experience_level_code: Mapped[str] = mapped_column(String(64), nullable=False)
     timezone: Mapped[str] = mapped_column(String(64), nullable=False)
-    preferred_location_code: Mapped[str] = mapped_column(
-        String(64), ForeignKey("locations.code"), nullable=False
-    )
     default_requested_duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
     desired_weekly_workout_count: Mapped[int] = mapped_column(Integer, nullable=False)
-    coaching_style_code: Mapped[str] = mapped_column(String(32), nullable=False)
-    height_cm: Mapped[float | None] = mapped_column(Float, nullable=True)
     weight_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
-    sex_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
     code_set_version: Mapped[str] = mapped_column(
         String(32), nullable=False, default=PROFILE_CODE_SET_VERSION
     )
@@ -98,20 +88,6 @@ class UserEquipment(Base):
     )
     equipment_code: Mapped[str] = mapped_column(
         String(64), ForeignKey("equipment.code"), primary_key=True
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
-
-
-class UserAvailableLocation(Base):
-    __tablename__ = "user_available_locations"
-
-    user_id: Mapped[UUID] = mapped_column(
-        Uuid, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
-    )
-    location_code: Mapped[str] = mapped_column(
-        String(64), ForeignKey("locations.code"), primary_key=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -290,7 +266,6 @@ class MutationIdempotencyRecord(Base):
 
 __all__ = [
     "MutationIdempotencyRecord",
-    "UserAvailableLocation",
     "UserAttentionArea",
     "UserConsent",
     "UserConsentEvent",

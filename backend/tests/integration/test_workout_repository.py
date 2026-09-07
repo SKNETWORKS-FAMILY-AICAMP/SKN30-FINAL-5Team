@@ -22,7 +22,6 @@ from backend.app.db.models.decision import (
 )
 from backend.app.db.models.identity import User
 from backend.app.db.models.profile import (
-    UserAvailableLocation,
     UserEquipment,
     UserProfile,
 )
@@ -350,18 +349,13 @@ def _add_postgres_user(session: Session) -> UUID:
                 primary_goal_code="GENERAL_FITNESS",
                 experience_level_code="BEGINNER",
                 timezone="Asia/Seoul",
-                preferred_location_code="HOME",
                 default_requested_duration_minutes=30,
                 desired_weekly_workout_count=3,
-                coaching_style_code="SUPPORTIVE",
-                height_cm=175.0,
                 weight_kg=70.0,
-                sex_code="PREFER_NOT_TO_SAY",
                 code_set_version="profile-mvp-v1",
                 profile_version=1,
             )
         )
-        session.add(UserAvailableLocation(user_id=user_id, location_code="HOME"))
         session.add_all(
             UserEquipment(user_id=user_id, equipment_code=code)
             for code in ("BODYWEIGHT", "MAT", "RESISTANCE_BAND")

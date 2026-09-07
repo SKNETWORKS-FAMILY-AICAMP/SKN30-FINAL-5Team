@@ -36,7 +36,6 @@ from backend.app.db.models.decision import (
 from backend.app.db.models.identity import User
 from backend.app.db.models.profile import (
     UserAttentionArea,
-    UserAvailableLocation,
     UserEquipment,
     UserProfile,
 )
@@ -154,18 +153,13 @@ def _add_user(
                 primary_goal_code="GENERAL_FITNESS",
                 experience_level_code="BEGINNER",
                 timezone="Asia/Seoul",
-                preferred_location_code="HOME",
                 default_requested_duration_minutes=30,
                 desired_weekly_workout_count=3,
-                coaching_style_code="SUPPORTIVE",
-                height_cm=175.0,
                 weight_kg=70.0,
-                sex_code="PREFER_NOT_TO_SAY",
                 code_set_version="profile-mvp-v1",
                 profile_version=1,
             )
         )
-        session.add(UserAvailableLocation(user_id=user_id, location_code="HOME"))
         session.add_all(
             UserEquipment(user_id=user_id, equipment_code=code)
             for code in ("BODYWEIGHT", "MAT", "RESISTANCE_BAND")
@@ -721,7 +715,9 @@ def test_decision_repository_excludes_profile_attention_areas_from_decision_inpu
     assembly = repository.assemble(postgres_session, owner_id, owner_context_id)
     assert assembly is not None
     assert assembly.context.attention_area_codes == ()
-    assert assembly.context.profile_preferred_location_code == "HOME"
+    # ADR-0017 left the profile with no location to contribute; the snapshot keeps
+    # the key so the stored shape does not change under past runs.
+    assert assembly.context.profile_preferred_location_code is None
     assert "attention_area_codes" not in assembly.context.snapshot()["profile"]
     postgres_session.rollback()
 
@@ -807,7 +803,7 @@ def test_profile_update_changes_only_future_decision_context_snapshots(
     assert stored is not None
     old_snapshot = stored.input_snapshot
     assert old_snapshot["profile"]["primary_goal_code"] == "GENERAL_FITNESS"
-    assert old_snapshot["profile"]["preferred_location_code"] == "HOME"
+    assert old_snapshot["profile"]["preferred_location_code"] is None
     assert "attention_area_codes" not in old_snapshot["profile"]
     postgres_session.rollback()
 
@@ -836,7 +832,7 @@ def test_profile_update_changes_only_future_decision_context_snapshots(
     updated = repository.assemble(postgres_session, owner_id, context_id)
     assert updated is not None
     assert updated.context.primary_goal_code == "MUSCLE_GAIN"
-    assert updated.context.profile_preferred_location_code == "HOME"
+    assert updated.context.profile_preferred_location_code is None
     assert updated.context.equipment_codes == ("BODYWEIGHT", "MAT", "RESISTANCE_BAND")
     assert updated.context.attention_area_codes == ()
     postgres_session.rollback()

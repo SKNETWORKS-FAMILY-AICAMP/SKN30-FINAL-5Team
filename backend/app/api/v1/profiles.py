@@ -49,7 +49,6 @@ from backend.app.modules.profiles.schemas import (
 from backend.app.modules.profiles.service import (
     IdempotencyKeyReusedError,
     InvalidOnboardingCodeError,
-    InvalidProfileSettingsError,
     MedicalExerciseRestrictionError,
     ProfileConfigurationError,
     ProfileNotFoundError,
@@ -256,12 +255,6 @@ def _translate_profile_update_error(exc: Exception, *, request: Request) -> AppE
             code="STALE_PROFILE",
             message="프로필이 변경되었습니다. 최신 상태로 다시 시도해주세요.",
         )
-    if isinstance(exc, InvalidProfileSettingsError):
-        return AppError(
-            status_code=HTTPStatus.BAD_REQUEST,
-            code="INVALID_REQUEST",
-            message="프로필 설정 조합이 올바르지 않습니다.",
-        )
     if isinstance(exc, IntegrityError):
         return AppError(
             status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
@@ -412,7 +405,6 @@ def update_profile_settings(
         InvalidBirthdateError,
         InvalidTimezoneError,
         InvalidOnboardingCodeError,
-        InvalidProfileSettingsError,
         IdempotencyKeyReusedError,
         ProfileConfigurationError,
         ProfileNotFoundError,

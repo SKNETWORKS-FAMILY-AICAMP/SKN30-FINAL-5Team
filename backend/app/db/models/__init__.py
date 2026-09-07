@@ -47,7 +47,6 @@ from backend.app.db.models.notification import InAppNotification
 from backend.app.db.models.profile import (
     MutationIdempotencyRecord,
     UserAttentionArea,
-    UserAvailableLocation,
     UserConsent,
     UserConsentEvent,
     UserEquipment,
@@ -137,7 +136,6 @@ __all__ = [
     "TrainingType",
     "User",
     "UserAttentionArea",
-    "UserAvailableLocation",
     "UserConsent",
     "UserConsentEvent",
     "UserEquipment",

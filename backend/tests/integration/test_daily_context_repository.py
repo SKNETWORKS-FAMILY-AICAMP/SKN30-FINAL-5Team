@@ -235,10 +235,8 @@ def _seed_user_with_profile(session: Session, user_id: UUID) -> None:
             primary_goal_code="GENERAL_FITNESS",
             experience_level_code="BEGINNER",
             timezone="Asia/Seoul",
-            preferred_location_code="HOME",
             default_requested_duration_minutes=30,
             desired_weekly_workout_count=3,
-            coaching_style_code="SUPPORTIVE",
             code_set_version="profile-mvp-v1",
             profile_version=1,
         )

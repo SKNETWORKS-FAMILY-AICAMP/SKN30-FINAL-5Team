@@ -12,7 +12,6 @@ from backend.app.db.models.identity import User, UserIdentity
 from backend.app.db.models.profile import (
     MutationIdempotencyRecord,
     UserAttentionArea,
-    UserAvailableLocation,
     UserConsent,
     UserConsentEvent,
     UserEquipment,
@@ -393,7 +392,6 @@ class AccountDeletionRepository:
             UserConsent,
             UserAttentionArea,
             UserPreferredExerciseType,
-            UserAvailableLocation,
             UserEquipment,
             UserProfile,
         ):

@@ -28,14 +28,9 @@ class OnboardingProfileValues:
     primary_goal_code: str
     experience_level_code: str
     timezone: str
-    preferred_location_code: str
-    available_location_codes: tuple[str, ...]
     default_requested_duration_minutes: int
     desired_weekly_workout_count: int
-    coaching_style_code: str
-    height_cm: float | None
     weight_kg: float | None
-    sex_code: str | None
     attention_area_codes: tuple[str, ...]
     preferred_exercise_type_codes: tuple[str, ...]
     medical_exercise_restriction: bool
@@ -47,7 +42,6 @@ class OnboardingProfileValues:
 class OnboardingRecord:
     user_id: UUID
     profile_version: int
-    coaching_style_code: str
     ai_trial_started_at: datetime
     ai_trial_ends_at: datetime
     premium_status_code: str
@@ -68,11 +62,8 @@ class MeProfileRecord:
     primary_goal_code: str
     experience_level_code: str
     timezone: str
-    preferred_location_code: str
-    available_location_codes: tuple[str, ...]
     default_requested_duration_minutes: int
     desired_weekly_workout_count: int
-    coaching_style_code: str
     attention_area_codes: tuple[str, ...]
     preferred_exercise_type_codes: tuple[str, ...]
     profile_version: int
@@ -113,14 +104,9 @@ class ProfileSettingsRecord:
     primary_goal_code: str
     experience_level_code: str
     timezone: str
-    preferred_location_code: str
-    available_location_codes: tuple[str, ...]
     default_requested_duration_minutes: int
     desired_weekly_workout_count: int
-    coaching_style_code: str
-    height_cm: float | None
     weight_kg: float | None
-    sex_code: str | None
     attention_area_codes: tuple[str, ...]
     preferred_exercise_type_codes: tuple[str, ...]
     profile_version: int
@@ -130,7 +116,6 @@ class ProfileSettingsRecord:
 class ProfileSettingsChanges:
     protected_birthdate: str | None
     scalar_values: dict[str, object]
-    available_location_codes: tuple[str, ...] | None
     attention_area_codes: tuple[str, ...] | None
     preferred_exercise_type_codes: tuple[str, ...] | None
     persistent_pains: tuple[tuple[str, int], ...] | None
