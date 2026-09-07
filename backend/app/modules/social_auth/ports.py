@@ -75,6 +75,25 @@ class KakaoOAuthPort(Protocol):
     ) -> ProviderTokenEvidence: ...
 
 
+class GoogleOAuthPort(Protocol):
+    def build_authorization_url(
+        self,
+        *,
+        redirect_uri: str,
+        state: str,
+        nonce: str,
+        code_challenge: str,
+    ) -> str: ...
+
+    def exchange_authorization_code(
+        self,
+        *,
+        authorization_code: str,
+        redirect_uri: str,
+        code_verifier: str,
+    ) -> ProviderTokenEvidence: ...
+
+
 class FirebaseCustomTokenIssuer(Protocol):
     def create_custom_token(self, firebase_subject: str) -> str: ...
 
@@ -83,6 +102,7 @@ __all__ = [
     "ClaimedAuthorizationFlow",
     "FirebaseCustomTokenIssuer",
     "FirebaseCustomTokenUnavailableError",
+    "GoogleOAuthPort",
     "KakaoOAuthPort",
     "ProviderExchangeError",
     "SocialOAuthRepositoryPort",

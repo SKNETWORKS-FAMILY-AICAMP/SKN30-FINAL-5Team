@@ -15,6 +15,7 @@ class IdentityProviderCode(StrEnum):
     """Provider codes implemented by the first identity vertical slice."""
 
     FIREBASE = "FIREBASE"
+    GOOGLE = "GOOGLE"
     KAKAO = "KAKAO"
 
 

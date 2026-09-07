@@ -81,14 +81,16 @@ def _valid_evidence(**changes: object) -> ProviderTokenEvidence:
     return ProviderTokenEvidence(**values)  # type: ignore[arg-type]
 
 
-def test_kakao_is_selected_while_google_remains_firebase_native() -> None:
+def test_google_uses_the_backend_authorization_code_policy() -> None:
     policy = provider_policy(AuthProviderCode.GOOGLE)
 
     assert MVP_PROVIDER_CODE is AuthProviderCode.KAKAO
     assert IDENTITY_SOCIAL_CODE_SET_VERSION == "identity-social-v1"
-    assert policy.authentication_path_code is AuthenticationPathCode.FIREBASE_NATIVE
-    assert policy.allowed_scopes == frozenset()
-    assert policy.state_mode_code is SecurityControlModeCode.FIREBASE_SDK_MANAGED
+    assert policy.authentication_path_code is AuthenticationPathCode.BACKEND_AUTHORIZATION_CODE
+    assert policy.allowed_scopes == frozenset({"openid"})
+    assert policy.state_mode_code is SecurityControlModeCode.REQUIRED
+    assert policy.nonce_mode_code is SecurityControlModeCode.REQUIRED
+    assert policy.pkce_mode_code is SecurityControlModeCode.REQUIRED
     assert policy.policy_version == AUTH_PROVIDER_POLICY_VERSION
 
 

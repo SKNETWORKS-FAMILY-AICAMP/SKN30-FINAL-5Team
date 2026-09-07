@@ -1,5 +1,10 @@
 # ARCHITECTURE.md
 
+> 2026-09-07 authentication increment: `GOOGLE` and `KAKAO` use server-owned
+> authorization-code/OIDC adapters behind the social-auth application service. Both
+> return Firebase custom tokens; FastAPI continues to grant API access only from a
+> Firebase ID Token. Naver is outside this increment.
+
 ## 1. 결정
 
 ### 1.1 최신 정책 정합화 기준 (2026-09-01)

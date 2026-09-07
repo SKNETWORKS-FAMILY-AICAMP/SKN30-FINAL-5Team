@@ -132,6 +132,29 @@ ExercisePool retrieval 계약의 `PROPOSED` 초안이며 Qdrant metadata를 publ
 
 ## 3. 인증
 
+> 2026-09-07 개발리드 지시: 이 절의 Google Firebase-native 전용, Kakao 단독 활성 provider,
+> Naver 후속 adapter 관련 기존 서술은 대체한다. 활성 backend social OAuth provider는 `GOOGLE`,
+> `KAKAO`이며 Naver는 이번 범위에서 제외한다.
+
+Google과 Kakao는 같은 server-bound authorization-code API를 사용한다.
+
+~~~http
+POST /api/v1/auth/social/{provider_code}/authorize-init
+POST /api/v1/auth/social/{provider_code}/exchange
+~~~
+
+- `provider_code`: `GOOGLE` | `KAKAO`
+- `redirect_uri`: provider별 등록된 exact callback URI
+- `code_challenge_method`: `S256`
+- `nonce`, `code_verifier`: GOOGLE과 KAKAO 모두 필수
+- 응답 `provider_code`: `GOOGLE` | `KAKAO`
+
+두 provider 모두 `openid`만 요청한다. backend는 state·nonce·PKCE S256·redirect URI를 검증하고,
+OIDC ID token의 RS256 signature, issuer, audience, expiry, non-empty subject, nonce를 확인한다.
+성공 시에만 `FIREBASE_CUSTOM_TOKEN`을 반환하며 최종 API 권한은 Firebase ID Token만 인정한다.
+Google/Kakao authorization code의 `invalid_grant`는 `409 AUTHORIZATION_CODE_REUSED`이고, timeout,
+rate limit, 5xx, JWKS 오류는 provider 상세 없이 `503 PROVIDER_UNAVAILABLE`이다.
+
 MVP 세션 권한 공급자는 Firebase Authentication이며 첫 직접 social OAuth 구현 provider는 KAKAO다.
 상세 provider-neutral 계약과 구현 순서는 `ACCEPTED` ADR-0009와 `auth-provider-policy-v1`을 따른다.
 KAKAO endpoint는 구현되어 있으며 Naver는 별도 증분에서 활성화한다.

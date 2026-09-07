@@ -25,6 +25,7 @@ from backend.app.integrations.firebase_auth import (
     build_firebase_token_verifier,
 )
 from backend.app.integrations.llm_provider import build_narration_provider
+from backend.app.integrations.oauth.google import GoogleOAuthClient, UnavailableGoogleOAuthClient
 from backend.app.integrations.oauth.kakao import KakaoOAuthClient, UnavailableKakaoOAuthClient
 from backend.app.integrations.s3.exercise_media import build_exercise_media_url_provider
 from backend.app.integrations.s3.profile_image import build_s3_profile_image_adapter
@@ -49,7 +50,11 @@ from backend.app.modules.decisions.service import DecisionService
 from backend.app.modules.decisions.v3_regeneration import V3RegenerationServicePort
 from backend.app.modules.identity.ports import FirebaseTokenVerifier
 from backend.app.modules.profiles.ports import BirthdateCipher
-from backend.app.modules.social_auth.ports import FirebaseCustomTokenIssuer, KakaoOAuthPort
+from backend.app.modules.social_auth.ports import (
+    FirebaseCustomTokenIssuer,
+    GoogleOAuthPort,
+    KakaoOAuthPort,
+)
 from backend.app.modules.weekly_reports.narration import WeeklyReportNarrationAgent
 
 
@@ -93,6 +98,7 @@ def create_app(
     firebase_token_verifier: FirebaseTokenVerifier | None = None,
     firebase_custom_token_issuer: FirebaseCustomTokenIssuer | None = None,
     kakao_oauth_client: KakaoOAuthPort | None = None,
+    google_oauth_client: GoogleOAuthPort | None = None,
     birthdate_cipher: BirthdateCipher | None = None,
     narration_provider: NarrationProviderPort | None = None,
     exercise_media_url_provider: ExerciseMediaUrlPort | None = None,
@@ -162,6 +168,22 @@ def create_app(
             )
             if resolved_settings.kakao_rest_api_key is not None
             else UnavailableKakaoOAuthClient()
+        )
+    )
+    application.state.google_oauth_client = (
+        google_oauth_client
+        if google_oauth_client is not None
+        else (
+            GoogleOAuthClient(
+                client_id=resolved_settings.google_oauth_client_id.get_secret_value(),
+                client_secret=resolved_settings.google_oauth_client_secret.get_secret_value(),
+                timeout_seconds=resolved_settings.google_oauth_timeout_seconds,
+            )
+            if (
+                resolved_settings.google_oauth_client_id is not None
+                and resolved_settings.google_oauth_client_secret is not None
+            )
+            else UnavailableGoogleOAuthClient()
         )
     )
     application.state.birthdate_cipher = (
