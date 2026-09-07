@@ -371,8 +371,8 @@ def test_multiple_fields_update_without_resetting_omitted_values() -> None:
         ("desired_weekly_workout_count", 7),
         ("default_requested_duration_minutes", 1),
         ("default_requested_duration_minutes", 240),
-        ("height_cm", 80),
-        ("height_cm", 250),
+        # height_cm is not here on purpose: ADR-0017 stopped collecting it, so
+        # PATCH accepts the value without applying it. See the ignored-field test.
         ("weight_kg", 25),
         ("weight_kg", 300),
     ],
@@ -521,22 +521,6 @@ def test_duplicate_array_codes_are_rejected(payload: dict[str, object]) -> None:
     _assert_repository_unchanged(repository, before)
 
 
-@pytest.mark.parametrize(
-    "payload",
-    [{"available_location_codes": []}],
-)
-def test_arrays_that_must_retain_values_reject_empty_lists(
-    payload: dict[str, object],
-) -> None:
-    client, repository = _client()
-    before = repository.record
-    with client:
-        response = client.patch("/api/v1/me/profile", json=payload, headers=_headers())
-
-    _assert_common_error(response, status_code=400, code="INVALID_REQUEST")
-    _assert_repository_unchanged(repository, before)
-
-
 def test_empty_attention_areas_are_allowed() -> None:
     client, repository = _client()
     with client:
@@ -605,26 +589,6 @@ def test_invalid_persistent_pains_are_rejected(payload: dict[str, object]) -> No
         response = client.patch("/api/v1/me/profile", json=payload, headers=_headers())
 
     _assert_common_error(response, status_code=400, code="INVALID_REQUEST")
-    _assert_repository_unchanged(repository, before)
-
-
-@pytest.mark.parametrize(
-    "payload",
-    [
-        {"available_location_codes": ["GYM"]},
-        {"preferred_location_code": "OUTDOOR"},
-    ],
-)
-def test_invalid_final_location_combination_is_rejected(
-    payload: dict[str, object],
-) -> None:
-    client, repository = _client()
-    before = repository.record
-    with client:
-        response = client.patch("/api/v1/me/profile", json=payload, headers=_headers())
-
-    assert response.status_code == 400
-    assert response.json()["error"]["code"] == "INVALID_REQUEST"
     _assert_repository_unchanged(repository, before)
 
 
@@ -986,3 +950,90 @@ def test_patch_accepts_a_coaching_style_without_applying_it(style: str) -> None:
     assert repository.record is not None
     assert repository.record.coaching_style_code == stored_before
     assert repository.record.nickname == "새 닉네임"
+
+
+# ADR-0017 stopped collecting sex, height and workout location. Location moved to
+# Daily Check-in, so the profile is no longer its source of truth. The request
+# fields stay declared for write compatibility and the values are not applied.
+_ADR_0017_IGNORED_PAYLOADS = [
+    {"preferred_location_code": "GYM"},
+    {"available_location_codes": ["GYM", "OUTDOOR"]},
+    {"height_cm": 181.0},
+    {"sex_code": "MALE"},
+]
+
+
+@pytest.mark.parametrize("payload", _ADR_0017_IGNORED_PAYLOADS)
+def test_fields_retired_by_adr_0017_are_accepted_without_being_applied(
+    payload: dict[str, object],
+) -> None:
+    client, repository = _client()
+    assert repository.record is not None
+    before = repository.record
+    with client:
+        response = client.patch("/api/v1/me/profile", json=payload, headers=_headers())
+
+    assert response.status_code == 200
+    assert repository.record is not None
+    for field_name in payload:
+        assert getattr(repository.record, field_name) == getattr(before, field_name)
+
+
+def test_a_retired_field_does_not_block_the_rest_of_the_patch() -> None:
+    """A mixed request still applies what the service does own."""
+
+    client, repository = _client()
+    assert repository.record is not None
+    location_before = repository.record.preferred_location_code
+    with client:
+        response = client.patch(
+            "/api/v1/me/profile",
+            json={"preferred_location_code": "GYM", "nickname": "새 닉네임"},
+            headers=_headers(),
+        )
+
+    assert response.status_code == 200
+    assert repository.record is not None
+    assert repository.record.nickname == "새 닉네임"
+    assert repository.record.preferred_location_code == location_before
+
+
+def test_a_retired_location_pair_no_longer_trips_the_cross_field_rule() -> None:
+    """`preferred` had to be inside `available`. Neither is applied now, so a
+    combination that used to be a 400 is a successful no-op instead."""
+
+    client, repository = _client()
+    assert repository.record is not None
+    before = repository.record
+    with client:
+        response = client.patch(
+            "/api/v1/me/profile",
+            json={"preferred_location_code": "OUTDOOR", "available_location_codes": ["GYM"]},
+            headers=_headers(),
+        )
+
+    assert response.status_code == 200
+    assert repository.record is not None
+    assert repository.record.preferred_location_code == before.preferred_location_code
+    assert repository.record.available_location_codes == before.available_location_codes
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"available_location_codes": ["HOME", "HOME"]},
+        {"preferred_location_code": "NOT_A_CODE"},
+        {"height_cm": 10.0},
+    ],
+)
+def test_retired_fields_are_still_schema_validated(payload: dict[str, object]) -> None:
+    """Ignored is not unvalidated: a malformed value is still a 400, so a client
+    sending nonsense learns about it rather than getting a silent success."""
+
+    client, repository = _client()
+    before = repository.record
+    with client:
+        response = client.patch("/api/v1/me/profile", json=payload, headers=_headers())
+
+    _assert_common_error(response, status_code=400, code="INVALID_REQUEST")
+    _assert_repository_unchanged(repository, before)

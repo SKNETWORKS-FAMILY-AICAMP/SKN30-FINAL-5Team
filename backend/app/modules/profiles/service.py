@@ -94,7 +94,19 @@ def _request_hash(payload: dict[str, object]) -> str:
 # Settings fields the API still accepts but no longer applies. A deployed client
 # that sends one gets a successful no-op for that field rather than a 422, and
 # the stored column keeps whatever it already held until a later release drops it.
-_IGNORED_SETTINGS_FIELDS = frozenset({"coaching_style_code"})
+#
+# `coaching_style_code`: every user shares one narration context.
+# The rest: ADR-0017 stopped collecting sex, height and workout location. Location
+# is now a Daily Check-in input, so the profile is no longer its source of truth.
+_IGNORED_SETTINGS_FIELDS = frozenset(
+    {
+        "coaching_style_code",
+        "preferred_location_code",
+        "available_location_codes",
+        "height_cm",
+        "sex_code",
+    }
+)
 
 
 class ProfileService:
@@ -212,7 +224,14 @@ class ProfileService:
         current: ProfileSettingsRecord,
         protected_birthdate: str | None,
     ) -> ProfileSettingsChanges:
-        payload = request.model_dump(mode="json", exclude_unset=True)
+        # Ignored fields are dropped before anything reads the payload, so a
+        # deployed client that still sends them cannot trip a cross-field rule
+        # over values the service is not going to apply.
+        payload = {
+            field_name: value
+            for field_name, value in request.model_dump(mode="json", exclude_unset=True).items()
+            if field_name not in _IGNORED_SETTINGS_FIELDS
+        }
         preferred_location = str(
             payload.get("preferred_location_code", current.preferred_location_code)
         )
@@ -231,26 +250,22 @@ class ProfileService:
         scalar_values = {
             field_name: value
             for field_name, value in payload.items()
-            if field_name not in relationship_fields
-            and field_name != "date_of_birth"
-            and field_name not in _IGNORED_SETTINGS_FIELDS
+            if field_name not in relationship_fields and field_name != "date_of_birth"
         }
         return ProfileSettingsChanges(
             protected_birthdate=protected_birthdate,
             scalar_values=scalar_values,
             available_location_codes=(
-                available_locations
-                if "available_location_codes" in request.model_fields_set
-                else None
+                available_locations if "available_location_codes" in payload else None
             ),
             attention_area_codes=(
                 tuple(str(code) for code in payload["attention_area_codes"])
-                if "attention_area_codes" in request.model_fields_set
+                if "attention_area_codes" in payload
                 else None
             ),
             preferred_exercise_type_codes=(
                 tuple(str(code) for code in payload["preferred_exercise_type_codes"])
-                if "preferred_exercise_type_codes" in request.model_fields_set
+                if "preferred_exercise_type_codes" in payload
                 else None
             ),
             persistent_pains=(
@@ -258,7 +273,7 @@ class ProfileService:
                     (str(item.body_area_code), item.intensity_score)
                     for item in request.persistent_pains or []
                 )
-                if "persistent_pains" in request.model_fields_set
+                if "persistent_pains" in payload
                 else None
             ),
         )
