@@ -107,11 +107,6 @@ export function MyPageContainer({
     },
   );
 
-  const updateCoach = (coachingStyleCode: string) => {
-    if (profile === null) return;
-    void updateProfile.run({ coaching_style_code: coachingStyleCode });
-  };
-
   const consents = useAsyncData((signal) => api.getConsents(signal), [api]);
   const storedConsents =
     consents.state.status === 'ready'
@@ -145,9 +140,6 @@ export function MyPageContainer({
     <MyPageScreen
       me={me}
       joinedDays={joinedDays}
-      coachingStylePending={updateProfile.pending}
-      coachingStyleError={updateProfile.error}
-      onCoachingStyleChange={updateCoach}
       profileUpdatePending={updateProfile.pending || updateBasicProfile.pending}
       profileUpdateError={profileUpdateErrorMessage(
         updateBasicProfile.error ?? updateProfile.error,
@@ -192,7 +184,6 @@ const PROFILE_FIELD_LABELS: Record<string, string> = {
   available_location_codes: '운동 장소',
   persistent_pains: '평소 불편한 부위',
   preferred_exercise_type_codes: '선호 운동',
-  coaching_style_code: '코칭 스타일',
   experience_level_code: '운동 경험',
   nickname: '닉네임',
   height_cm: '키',

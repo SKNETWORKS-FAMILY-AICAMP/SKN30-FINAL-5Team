@@ -457,12 +457,12 @@ describe('PreviewGallery', () => {
       ),
     ).toBeOnTheScreen();
     expect(
-      within(screen.getByTestId('preview-app-canvas')).getByText('1 / 9'),
+      within(screen.getByTestId('preview-app-canvas')).getByText('1 / 8'),
     ).toBeOnTheScreen();
 
     fireEvent.press(screen.getByRole('radio', { name: '3. body' }));
     expect(
-      within(screen.getByTestId('preview-app-canvas')).getByText('3 / 9'),
+      within(screen.getByTestId('preview-app-canvas')).getByText('3 / 8'),
     ).toBeOnTheScreen();
     expect(
       within(screen.getByTestId('preview-app-canvas')).getByText(
