@@ -101,6 +101,7 @@ export function HomeScreenContent({
   initialState,
   localDate,
   locationCodes = [],
+  recommendedDurationMinutes = null,
   nickname,
   onChooseRest,
   onEditRoutine,
@@ -812,6 +813,7 @@ export function HomeScreenContent({
             draft={checkinDraft}
             locationCodes={apiMode ? locationCodes : []}
             locationRequired={apiMode}
+            recommendedDurationMinutes={recommendedDurationMinutes}
             onAddAvailabilitySlot={() =>
               setCheckinDraft((current) => ({
                 ...current,

@@ -8,7 +8,7 @@ export const CHECKIN_AVAILABILITY_INPUT_ENABLED: boolean = false;
 
 export const CHECKIN_DURATION_MINUTES = {
   min: 10,
-  max: 60,
+  max: 90,
   step: 10,
 } as const;
 

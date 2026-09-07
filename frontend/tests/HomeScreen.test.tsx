@@ -1364,6 +1364,57 @@ describe('HomeScreen Home v1 transcription', () => {
     );
   });
 
+  it('allows 90 minutes and treats the server recommendation as guidance', () => {
+    const onSubmitCheckin = jest.fn();
+    render(
+      <HomeScreen
+        {...homePreviewProps('pre-checkin')}
+        onSubmitCheckin={onSubmitCheckin}
+        recommendedDurationMinutes={35}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: '오늘 루틴 체크인' }));
+    expect(
+      screen.getByText('1회 권장 운동 시간은 35분이에요.'),
+    ).toBeOnTheScreen();
+
+    for (let count = 0; count < 9; count += 1) {
+      fireEvent.press(
+        screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
+      );
+    }
+
+    expect(screen.getByLabelText('원하는 운동 시간 90분')).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
+    ).toBeDisabled();
+    expect(
+      screen.getByText(
+        '권장 시간보다 길게 선택해도 괜찮아요. 오늘 가능한 시간에 맞춰 선택해주세요.',
+      ),
+    ).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByRole('button', { name: '위험 신호 없어요' }));
+    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+
+    expect(onSubmitCheckin).toHaveBeenCalledWith(
+      expect.objectContaining({ availableTimeMinutes: 90 }),
+    );
+  });
+
+  it('keeps check-in usable when recommendation guidance is absent', () => {
+    render(<HomeScreen previewState="checkin" />);
+
+    expect(screen.queryByText(/1회 권장 운동 시간은/)).toBeNull();
+    expect(
+      screen.getByText('오늘 가능한 운동 시간을 10~90분 중에서 선택해주세요.'),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
+    ).toBeEnabled();
+  });
+
   it('requires one combined Red Flag answer without collecting symptom details', () => {
     render(<HomeScreen previewState="checkin" />);
 

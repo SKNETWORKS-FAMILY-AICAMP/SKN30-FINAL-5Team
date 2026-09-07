@@ -281,6 +281,9 @@ export type DailyContextDefaultsResponse = {
   pains: PainAreaInput[];
   /** Server-owned choices for the daily check-in; legacy responses may omit it. */
   selectable_location_codes?: string[];
+  /** Guidance only. The user's requested duration may exceed this value. */
+  recommended_duration_minutes?: number;
+  duration_recommendation_policy_version?: string;
 };
 
 export type WorkoutPlanItem = {

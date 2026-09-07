@@ -531,6 +531,8 @@ describe('HomeContainer', () => {
       local_date: '2026-08-17',
       pains: [{ body_area_code: 'SHOULDER', intensity_score: 4 }],
       selectable_location_codes: ['HOME', 'GYM'],
+      recommended_duration_minutes: 35,
+      duration_recommendation_policy_version: 'daily-duration-v1',
     }));
     renderHome(
       homeApi({ getDailyContextDefaults } as unknown as Partial<Api>),
@@ -561,6 +563,9 @@ describe('HomeContainer', () => {
       screen.getByRole('button', { name: '무릎' }).props.accessibilityState
         .selected,
     ).toBe(false);
+    expect(
+      screen.getByText('1회 권장 운동 시간은 35분이에요.'),
+    ).toBeOnTheScreen();
   });
 
   it('keeps the profile defaults when the server defaults are unavailable', async () => {
@@ -912,6 +917,52 @@ describe('HomeContainer', () => {
     );
     // The decision is owned above this screen, so a tab switch cannot lose it.
     expect(onDecisionChange).toHaveBeenCalledWith(serverDecision);
+  });
+
+  it('shows the server error instead of a shorter routine when 90 minutes cannot be planned', async () => {
+    const replaceDailyContext = jest.fn(async () => ({
+      ...dailyContext(),
+      available_time_minutes: 90,
+    }));
+    const createDecision = jest.fn(async () => {
+      throw new ApiError({
+        kind: 'validation',
+        code: 'ROUTINE_DURATION_UNAVAILABLE',
+        status: 422,
+        message: '90분 계획을 구성할 수 없어요.',
+      });
+    });
+    const onDecisionChange = jest.fn();
+
+    renderHome(homeApi({ replaceDailyContext, createDecision }), {
+      onDecisionChange,
+    });
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+    );
+    for (let count = 0; count < 9; count += 1) {
+      fireEvent.press(
+        screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
+      );
+    }
+    fireEvent.press(screen.getByRole('button', { name: '위험 신호 없어요' }));
+    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+
+    expect(
+      await screen.findByText('90분 계획을 구성할 수 없어요.'),
+    ).toBeOnTheScreen();
+    expect(replaceDailyContext).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ available_time_minutes: 90 }),
+      undefined,
+    );
+    expect(createDecision).toHaveBeenCalledTimes(1);
+    expect(onDecisionChange).toHaveBeenCalledWith(null);
+    expect(onDecisionChange.mock.calls.every(([value]) => value === null)).toBe(
+      true,
+    );
+    expect(screen.queryByText('운동 1')).toBeNull();
   });
 
   it('recovers a committed decision when the create response is lost', async () => {

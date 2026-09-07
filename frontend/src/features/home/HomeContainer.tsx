@@ -867,6 +867,9 @@ export function HomeContainer({
       restToday={restToday}
       persistentPains={checkinDefaults?.pains ?? profile?.persistent_pains}
       locationCodes={locationCodes}
+      recommendedDurationMinutes={
+        checkinDefaults?.recommended_duration_minutes ?? null
+      }
       busy={busy}
       routineLoadingPhaseCode={routineLoadingPhaseCode ?? undefined}
       actionError={actionError}
