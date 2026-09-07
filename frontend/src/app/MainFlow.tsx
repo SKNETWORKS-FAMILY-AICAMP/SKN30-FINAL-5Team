@@ -43,7 +43,12 @@ import { WeeklyReportScreen } from '../features/weekly/WeeklyReportScreen';
 
 type Step =
   | { name: 'home' }
-  | { name: 'session'; sessionId: string; plan: WorkoutPlan }
+  | {
+      name: 'session';
+      sessionId: string;
+      plan: WorkoutPlan;
+      locationCode?: string;
+    }
   | { name: 'result'; sessionId: string; outcome: SessionOutcome }
   | { name: 'weekly'; weekStart: string }
   | { name: 'calendar-report' }
@@ -313,6 +318,7 @@ export function MainFlow({
       return (
         <WorkoutScreen
           api={api}
+          locationCode={step.locationCode}
           sessionId={step.sessionId}
           plan={step.plan}
           onOutcome={(outcome) => {
@@ -449,17 +455,18 @@ export function MainFlow({
             }
             onDecisionChange={setDecision}
             planRevision={planRevision}
-            onSessionStarted={(sessionId, plan) => {
+            onSessionStarted={(sessionId, plan, locationCode) => {
               setResumableSessionId(null);
-              setStep({ name: 'session', sessionId, plan });
+              setStep({ name: 'session', sessionId, plan, locationCode });
             }}
-            onResumeWorkout={() => {
+            onResumeWorkout={(locationCode) => {
               if (todaySession !== null && decision?.final_plan) {
                 setResumableSessionId(null);
                 setStep({
                   name: 'session',
                   sessionId: todaySession.session_id,
                   plan: decision.final_plan,
+                  locationCode,
                 });
               }
             }}

@@ -128,6 +128,8 @@ type WorkoutApiProps = {
   /** Current workout context; FE-2 can pass its location/equipment selection here. */
   exerciseGuideContext?: ExerciseGuideContext;
   initialEquipmentGuideExerciseId?: string;
+  /** Daily Check-in location used by the read-only variant endpoint. */
+  locationCode?: string;
   sessionId: string;
   plan: WorkoutPlan;
   onOutcome: (outcome: SessionOutcome) => void;
@@ -1197,6 +1199,7 @@ function WorkoutScreenContent({
                       }
                       exerciseId={block.exerciseId}
                       exerciseName={block.name}
+                      locationCode={apiConfig.locationCode}
                       label="장비가 없을 때"
                       onOpen={(response) => {
                         setDetailBlockId(null);

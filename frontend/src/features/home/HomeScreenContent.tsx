@@ -175,6 +175,8 @@ export function HomeScreenContent({
     exerciseName: string;
     response: ExerciseVariantsResponse;
   } | null>(null);
+  const variantsAvailableInContext =
+    context?.location_code === undefined || context.location_code === 'HOME';
   const [showTip, setShowTip] = useState(false);
   const [rerolling, setRerolling] = useState(initialState === 'generating');
   const [previewRerolls, setPreviewRerolls] = useState(0);
@@ -722,6 +724,7 @@ export function HomeScreenContent({
                 items={
                   apiMode && inlineEditing ? editDraft : displayedRoutineItems
                 }
+                locationCode={context?.location_code}
                 minutes={routineMinutes}
                 notes={routineNotes}
                 onEdit={
@@ -940,7 +943,7 @@ export function HomeScreenContent({
           </SheetFrame>
         ) : null}
 
-        {variantGuide ? (
+        {variantGuide && variantsAvailableInContext ? (
           <SheetFrame
             onClose={() => setVariantGuide(null)}
             title={`${variantGuide.exerciseName} 장비 안내`}

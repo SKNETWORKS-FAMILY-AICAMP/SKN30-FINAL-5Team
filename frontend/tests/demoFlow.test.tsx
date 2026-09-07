@@ -1629,10 +1629,16 @@ describe('HomeContainer', () => {
     }));
     const onSessionStarted = jest.fn();
 
-    renderHome(homeApi({ selectOption } as unknown as Partial<Api>), {
-      decision: decision(),
-      onSessionStarted,
-    });
+    renderHome(
+      homeApi({
+        getDailyContext: jest.fn(async () => dailyContext()),
+        selectOption,
+      } as unknown as Partial<Api>),
+      {
+        decision: decision(),
+        onSessionStarted,
+      },
+    );
 
     fireEvent.press(
       await screen.findByRole('button', { name: '운동 시작하기' }),
@@ -1642,6 +1648,7 @@ describe('HomeContainer', () => {
       expect(onSessionStarted).toHaveBeenCalledWith(
         'session-1',
         decision().final_plan,
+        'HOME',
       ),
     );
   });

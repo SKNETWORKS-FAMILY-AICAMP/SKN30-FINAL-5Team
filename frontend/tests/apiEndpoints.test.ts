@@ -32,10 +32,10 @@ it('calls the reviewed equipment-variant endpoint without a mutation body', asyn
   const controller = new AbortController();
 
   await expect(
-    api.getExerciseVariants('exercise-1', controller.signal),
+    api.getExerciseVariants('exercise-1', 'HOME', controller.signal),
   ).resolves.toEqual(payload);
   expect(fetchImpl).toHaveBeenCalledWith(
-    'https://api.example.test/api/v1/exercises/exercise-1/variants',
+    'https://api.example.test/api/v1/exercises/exercise-1/variants?location_code=HOME',
     expect.objectContaining({
       method: 'GET',
       body: undefined,

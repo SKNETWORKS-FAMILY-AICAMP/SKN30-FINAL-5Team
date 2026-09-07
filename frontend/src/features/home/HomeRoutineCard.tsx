@@ -35,6 +35,7 @@ export function RoutineCard({
   editLabel,
   focus,
   items,
+  locationCode,
   minutes,
   notes = ROUTINE_NOTES,
   onEdit,
@@ -64,6 +65,7 @@ export function RoutineCard({
   editLabel: string;
   focus: string;
   items: readonly HomeRoutineItem[];
+  locationCode?: string;
   minutes: string;
   notes?: readonly string[];
   onEdit?: () => void;
@@ -430,6 +432,7 @@ export function RoutineCard({
                           disabled={interactionsDisabled}
                           exerciseId={item.exerciseId}
                           exerciseName={item.name}
+                          locationCode={locationCode}
                           onOpen={(response) =>
                             onOpenExerciseVariants(item, response)
                           }

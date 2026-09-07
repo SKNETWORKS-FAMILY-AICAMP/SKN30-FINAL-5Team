@@ -1,7 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react-native';
 import { Animated, processColor, StyleSheet } from 'react-native';
 
 import { fontFamilies } from '../src/app/fonts';
@@ -531,7 +537,19 @@ describe('HomeScreen Home v1 transcription', () => {
   });
 
   it('shows posture for every API item and variants only when the server returns them', async () => {
-    render(<HomeScreen {...homePreviewProps('routine')} />);
+    const props = homePreviewProps('routine');
+    const getExerciseVariants = jest.fn(
+      props.exerciseApi!.getExerciseVariants!,
+    );
+    render(
+      <HomeScreen
+        {...props}
+        exerciseApi={{
+          getExercise: props.exerciseApi!.getExercise,
+          getExerciseVariants,
+        }}
+      />,
+    );
 
     expect(screen.getAllByText('자세')).toHaveLength(3);
     const postureButton = screen.getByRole('button', {
@@ -589,6 +607,11 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(
       screen.getByTestId('routine-guide-actions-plan-item-3'),
     ).toBeVisible();
+    expect(getExerciseVariants).toHaveBeenCalledWith(
+      'exercise-2',
+      'HOME',
+      expect.any(AbortSignal),
+    );
   });
 
   it('opens reviewed posture guidance from an API routine item', async () => {
@@ -646,43 +669,91 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.queryByTestId('exercise-posture-guide')).toBeNull();
   });
 
-  it('shows equipment guidance without a variant section when required equipment exists', async () => {
+  it('hides the action when a HOME lookup has no reviewed variants', async () => {
     const props = homePreviewProps('routine');
+    const getExerciseVariants = jest.fn(async (exerciseId: string) => ({
+      source_exercise_id: exerciseId,
+      source_required_equipment_codes:
+        exerciseId === 'exercise-1' ? ['BODYWEIGHT', 'MAT'] : ['BODYWEIGHT'],
+      items: [],
+      catalog_version: 'home-equipment-only-v1',
+      alternative_set_version: null,
+    }));
     render(
       <HomeScreen
         {...props}
         exerciseApi={{
           getExercise: props.exerciseApi!.getExercise,
-          async getExerciseVariants(exerciseId) {
-            return {
-              source_exercise_id: exerciseId,
-              source_required_equipment_codes:
-                exerciseId === 'exercise-1'
-                  ? ['BODYWEIGHT', 'MAT']
-                  : ['BODYWEIGHT'],
-              items: [],
-              catalog_version: 'home-equipment-only-v1',
-              alternative_set_version: null,
-            };
-          },
+          getExerciseVariants,
         }}
       />,
     );
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '푸시업 장비 보기' }),
+    await waitFor(
+      () =>
+        expect(
+          screen.queryByTestId('exercise-variants-loading-exercise-1'),
+        ).toBeNull(),
+      { timeout: 5000 },
+    );
+    expect(
+      screen.queryByRole('button', { name: '푸시업 장비 보기' }),
+    ).toBeNull();
+    expect(getExerciseVariants).toHaveBeenCalledWith(
+      'exercise-1',
+      'HOME',
+      expect.any(AbortSignal),
+    );
+  });
+
+  it.each(['GYM', 'OUTDOOR'])(
+    'hides variant entry points without a lookup in a %s context',
+    async (locationCode) => {
+      const props = homePreviewProps('routine');
+      const getExerciseVariants = jest.fn(
+        props.exerciseApi!.getExerciseVariants!,
+      );
+      render(
+        <HomeScreen
+          {...props}
+          context={{ ...props.context!, location_code: locationCode }}
+          exerciseApi={{
+            getExercise: props.exerciseApi!.getExercise,
+            getExerciseVariants,
+          }}
+        />,
+      );
+
+      expect(
+        screen.queryByTestId('exercise-variants-loading-exercise-2'),
+      ).toBeNull();
+      expect(
+        screen.queryByRole('button', { name: '밴드 로우 장비 보기' }),
+      ).toBeNull();
+      expect(getExerciseVariants).not.toHaveBeenCalled();
+    },
+  );
+
+  it('shows a retry state when a HOME variant lookup fails', async () => {
+    const props = homePreviewProps('routine');
+    const getExerciseVariants = jest.fn(async () => {
+      throw new Error('network unavailable');
+    });
+    render(
+      <HomeScreen
+        {...props}
+        exerciseApi={{
+          getExercise: props.exerciseApi!.getExercise,
+          getExerciseVariants,
+        }}
+      />,
     );
 
     expect(
-      screen.getByRole('header', { name: '푸시업 장비 안내' }),
+      await screen.findByRole('button', {
+        name: '밴드 로우 장비 안내 다시 확인',
+      }),
     ).toBeOnTheScreen();
-    expect(screen.getByText('매트')).toBeOnTheScreen();
-    expect(screen.queryByTestId('exercise-variants-list')).toBeNull();
-    expect(
-      screen.queryByText(
-        '장비가 없을 때 아래 방법으로 동작을 변형할 수 있어요.',
-      ),
-    ).toBeNull();
   });
 
   it('hides variant actions while the backend capability is unavailable', () => {
