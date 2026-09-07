@@ -102,10 +102,7 @@ def get_exercise_detail(
             repository,
             media_url_provider,
             FileHomeEquipmentGuideProvider(
-                Path(
-                    "data/generated/integrated-catalog-v2.0.7-draft/backend_bundle/"
-                    "home_equipment"
-                )
+                Path("data/generated/integrated-catalog-v2.0.7-draft/backend_bundle/home_equipment")
             ),
             FileGymEquipmentGuideProvider(
                 Path("data/generated/integrated-catalog-v2.0.7-draft/backend_bundle")
