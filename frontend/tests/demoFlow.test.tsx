@@ -46,6 +46,7 @@ import { SessionScreen } from '../src/features/workout/SessionScreen';
 function plan(itemCount = 2): WorkoutPlan {
   return {
     plan_id: 'plan-1',
+    plan_revision: 0,
     action_code: 'KEEP',
     training_type_code: 'STRENGTH',
     body_focus_code: 'FULL_BODY',
@@ -243,6 +244,55 @@ function stubApi(overrides: Partial<Api> = {}): Api {
     getDecision: jest.fn(),
     getDecisionForDate: jest.fn(notFound),
     regenerateDecision: jest.fn(),
+    updateDecisionPlanItem: jest.fn(
+      async (
+        _decisionId: string,
+        planItemId: string,
+        body: {
+          expected_plan_revision: number;
+          sets: number;
+          reps: number | null;
+        },
+      ) => ({
+        decision_id: 'decision-1',
+        plan_revision: body.expected_plan_revision + 1,
+        final_plan: {
+          ...plan(),
+          plan_revision: body.expected_plan_revision + 1,
+          items: plan().items.map((item) =>
+            item.plan_item_id === planItemId
+              ? { ...item, sets: body.sets, reps: body.reps }
+              : item,
+          ),
+        },
+      }),
+    ),
+    updateDecisionPlanOrder: jest.fn(
+      async (
+        _decisionId: string,
+        body: {
+          expected_plan_revision: number;
+          ordered_plan_item_ids: string[];
+        },
+      ) => {
+        const original = plan();
+        const byId = new Map(
+          original.items.map((item) => [item.plan_item_id, item]),
+        );
+        return {
+          decision_id: 'decision-1',
+          plan_revision: body.expected_plan_revision + 1,
+          final_plan: {
+            ...original,
+            plan_revision: body.expected_plan_revision + 1,
+            items: body.ordered_plan_item_ids.map((id, index) => ({
+              ...byId.get(id)!,
+              sequence: index + 1,
+            })),
+          },
+        };
+      },
+    ),
     selectOption: jest.fn(),
     listWorkoutSessions: jest.fn(async () => ({
       items: [],
@@ -659,11 +709,22 @@ describe('HomeContainer', () => {
   it('stores a set and repetition edit in the plan and sends it to the server', async () => {
     const original = decision();
     const onDecisionChange = jest.fn();
-    const updateDecisionPlan = jest.fn(async () => original);
+    const savedPlan = {
+      ...plan(),
+      plan_revision: 1,
+      items: plan().items.map((item) =>
+        item.plan_item_id === 'item-1' ? { ...item, sets: 5 } : item,
+      ),
+    };
+    const updateDecisionPlanItem = jest.fn(async () => ({
+      decision_id: 'decision-1',
+      plan_revision: 1,
+      final_plan: savedPlan,
+    }));
     renderHome(
       homeApi({
         getDailyContext: jest.fn(async () => dailyContext()),
-        updateDecisionPlan,
+        updateDecisionPlanItem,
       } as unknown as Partial<Api>),
       { decision: original, onDecisionChange },
     );
@@ -683,22 +744,45 @@ describe('HomeContainer', () => {
     ]);
 
     await waitFor(() =>
-      expect(updateDecisionPlan).toHaveBeenCalledWith('decision-1', {
-        expected_plan_id: 'plan-1',
-        item_order: ['item-1', 'item-2'],
-        item_prescriptions: [
-          { plan_item_id: 'item-1', sets: 5, reps: null },
-          { plan_item_id: 'item-2', sets: 3, reps: null },
-        ],
-      }),
+      expect(updateDecisionPlanItem).toHaveBeenCalledWith(
+        'decision-1',
+        'item-1',
+        {
+          expected_plan_id: 'plan-1',
+          expected_plan_revision: 0,
+          sets: 5,
+          reps: null,
+        },
+        expect.any(String),
+      ),
     );
+    const serverUpdate = onDecisionChange.mock.calls.at(-1)?.[0] as (
+      current: DecisionResponse | null,
+    ) => DecisionResponse | null;
+    expect(serverUpdate(original)?.final_plan).toEqual(savedPlan);
   });
 
-  it('keeps a plan edit local while the server route is unavailable', async () => {
+  it('persists the complete movable order instead of keeping a local-only edit', async () => {
     const original = decision();
     const onDecisionChange = jest.fn();
+    const reorderedPlan = {
+      ...plan(),
+      plan_revision: 1,
+      items: [
+        { ...plan().items[1]!, sequence: 1 },
+        { ...plan().items[0]!, sequence: 2 },
+      ],
+    };
+    const updateDecisionPlanOrder = jest.fn(async () => ({
+      decision_id: 'decision-1',
+      plan_revision: 1,
+      final_plan: reorderedPlan,
+    }));
     renderHome(
-      homeApi({ getDailyContext: jest.fn(async () => dailyContext()) }),
+      homeApi({
+        getDailyContext: jest.fn(async () => dailyContext()),
+        updateDecisionPlanOrder,
+      }),
       { decision: original, onDecisionChange },
     );
 
@@ -708,8 +792,92 @@ describe('HomeContainer', () => {
       { nativeEvent: { actionName: 'increment' } },
     );
 
-    expect(onDecisionChange).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText('다시 시도')).toBeNull();
+    await waitFor(() =>
+      expect(updateDecisionPlanOrder).toHaveBeenCalledWith(
+        'decision-1',
+        {
+          expected_plan_id: 'plan-1',
+          expected_plan_revision: 0,
+          ordered_plan_item_ids: ['item-2', 'item-1'],
+        },
+        expect.any(String),
+      ),
+    );
+  });
+
+  it('retries an ambiguous plan edit with the same idempotency key', async () => {
+    const original = decision();
+    const onRecoverDecision = jest.fn();
+    const savedPlan = { ...plan(), plan_revision: 1 };
+    const updateDecisionPlanItem = jest
+      .fn<Api['updateDecisionPlanItem']>()
+      .mockRejectedValueOnce(
+        new ApiError({
+          kind: 'network',
+          code: 'NETWORK_UNAVAILABLE',
+          status: 0,
+          message: '서버 응답을 받지 못했어요.',
+        }),
+      )
+      .mockResolvedValueOnce({
+        decision_id: 'decision-1',
+        plan_revision: 1,
+        final_plan: savedPlan,
+      });
+    renderHome(
+      homeApi({
+        getDailyContext: jest.fn(async () => dailyContext()),
+        updateDecisionPlanItem,
+      }),
+      { decision: original, onRecoverDecision },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '세트·횟수 수정' }),
+    );
+    fireEvent.changeText(screen.getByLabelText('운동 1 세트 수'), '5');
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '수정 저장 다시 시도' }),
+    );
+    await waitFor(() =>
+      expect(updateDecisionPlanItem).toHaveBeenCalledTimes(2),
+    );
+    expect(updateDecisionPlanItem.mock.calls[0]?.[3]).toBe(
+      updateDecisionPlanItem.mock.calls[1]?.[3],
+    );
+    expect(onRecoverDecision).toHaveBeenCalledTimes(1);
+  });
+
+  it('recovers a stale plan without offering the same stale mutation again', async () => {
+    const onRecoverDecision = jest.fn();
+    const updateDecisionPlanItem = jest.fn(async () => {
+      throw new ApiError({
+        kind: 'stale',
+        code: 'PLAN_REVISION_STALE',
+        status: 409,
+        message: '운동 계획이 변경되었습니다. 최신 계획으로 다시 시도해주세요.',
+      });
+    });
+    renderHome(
+      homeApi({
+        getDailyContext: jest.fn(async () => dailyContext()),
+        updateDecisionPlanItem,
+      } as unknown as Partial<Api>),
+      { decision: decision(), onRecoverDecision },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '세트·횟수 수정' }),
+    );
+    fireEvent.changeText(screen.getByLabelText('운동 1 세트 수'), '5');
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
+
+    await waitFor(() => expect(onRecoverDecision).toHaveBeenCalledTimes(1));
+    expect(
+      screen.queryByRole('button', { name: '수정 저장 다시 시도' }),
+    ).toBeNull();
   });
 
   it('shows the reused loading screen while the saved routine lookup is pending', async () => {
@@ -873,6 +1041,7 @@ describe('HomeContainer', () => {
       expect.objectContaining({ plan_item_id: 'item-2', sequence: 1 }),
       expect.objectContaining({ plan_item_id: 'item-1', sequence: 2 }),
     ]);
+    await waitFor(() => expect(onDecisionChange).toHaveBeenCalledTimes(2));
   });
 
   it('writes the check-in and renders the decision the server returned', async () => {

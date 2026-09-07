@@ -15,7 +15,6 @@
 
 import {
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -37,6 +36,7 @@ import type {
   DailyContextResponse,
   DecisionResponse,
   MeResponse,
+  PlanRevisionResponse,
   RoutineResponse,
   WeeklyPlanRevisionResponse,
   WeekResponse,
@@ -47,7 +47,8 @@ import type {
 import {
   applyPlanItemPrescriptions,
   moveWorkoutPlanItem,
-  planEditRequest,
+  planItemOrderRequest,
+  workoutPlanRevision,
 } from '../../api/workoutPlan';
 import {
   localDateString,
@@ -94,10 +95,30 @@ type PendingDecisionAttempt = {
   countsAsAlternative: boolean;
 };
 
+type PlanEditAttempt = {
+  decisionId: string;
+  optimisticPlan: WorkoutPlan;
+  execute: () => Promise<PlanRevisionResponse>;
+};
+
 const EMPTY_SESSIONS: WorkoutSessionLogSummary[] = [];
 const DEFAULT_FINAL_VALIDATION_HOLD_MS = 1_500;
-/** Long enough for a drag to settle, short enough to save before a hand-off. */
-const PLAN_EDIT_SAVE_DELAY_MS = 500;
+
+function planFromRevision(response: PlanRevisionResponse): WorkoutPlan {
+  return {
+    ...response.final_plan,
+    plan_revision: response.plan_revision,
+  };
+}
+
+function canRetryPlanEdit(error: unknown): boolean {
+  return (
+    !isApiError(error) ||
+    error.kind === 'network' ||
+    error.kind === 'server' ||
+    error.kind === 'unavailable'
+  );
+}
 
 function wait(milliseconds: number): Promise<void> {
   if (milliseconds <= 0) {
@@ -400,6 +421,8 @@ export function HomeContainer({
   const [lastDraft, setLastDraft] = useState<HomeCheckinDraft | null>(null);
   const [pendingDecision, setPendingDecision] =
     useState<PendingDecisionAttempt | null>(null);
+  const [pendingPlanEdit, setPendingPlanEdit] =
+    useState<PlanEditAttempt | null>(null);
   const inFlight = useRef(false);
 
   const data = state.status === 'ready' ? state.data : null;
@@ -438,6 +461,7 @@ export function HomeContainer({
     setBusy(kind);
     setRoutineLoadingPhaseCode(null);
     setActionError(null);
+    setPendingPlanEdit(null);
     setStaleContext(false);
 
     void action()
@@ -697,88 +721,74 @@ export function HomeContainer({
     });
   }, [api, decision, onRestChosen, run]);
 
-  /**
-   * A user edit of today's plan — set and repetition changes (ADR-0018 D4) or a
-   * reorder inside one phase (D5) — is applied to the decision first so the
-   * routine card and the workout screen read the same plan, then sent to the
-   * server. `updateDecisionPlan` is optional: until the route exists the edit
-   * lives only as long as the running app, and implementing it turns on
-   * persistence without another change here.
-   *
-   * Dragging emits one move per step, so the request is deferred until the user
-   * settles rather than sending an intermediate order.
-   */
-  const planSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // A drag emits several moves before React re-renders, so the edit chain reads
-  // its own last result rather than the decision prop of the current render.
-  const editedPlan = useRef<{ decisionId: string; plan: WorkoutPlan } | null>(
-    null,
-  );
-
-  useEffect(
-    () => () => {
-      if (planSaveTimer.current !== null) {
-        clearTimeout(planSaveTimer.current);
-      }
-    },
-    [],
-  );
-
-  const applyPlanEdit = useCallback(
-    (edit: (plan: WorkoutPlan) => WorkoutPlan) => {
-      const decisionId = decision?.decision_id ?? null;
-      const current =
-        editedPlan.current?.decisionId === decisionId
-          ? editedPlan.current.plan
-          : (decision?.final_plan ?? null);
-      if (decisionId === null || current === null) {
+  const persistPlanEdit = useCallback(
+    (attempt: PlanEditAttempt) => {
+      if (inFlight.current) {
         return;
       }
-      const plan = edit(current);
-      if (plan === current) {
-        return;
-      }
-      editedPlan.current = { decisionId, plan };
+      inFlight.current = true;
+      setBusy('plan-edit');
+      setActionError(null);
+      setPendingPlanEdit(null);
       onDecisionChange((latest) =>
-        latest?.decision_id === decisionId
-          ? { ...latest, final_plan: plan }
+        latest?.decision_id === attempt.decisionId
+          ? { ...latest, final_plan: attempt.optimisticPlan }
           : latest,
       );
 
-      const save = api.updateDecisionPlan;
-      if (save === undefined) {
-        return;
-      }
-      if (planSaveTimer.current !== null) {
-        clearTimeout(planSaveTimer.current);
-      }
-      planSaveTimer.current = setTimeout(() => {
-        planSaveTimer.current = null;
-        void save(decisionId, planEditRequest(plan))
-          .then((next) => {
-            setActionError(null);
-            editedPlan.current = null;
-            onDecisionChange((latest) =>
-              latest?.decision_id === next.decision_id ? next : latest,
-            );
-          })
-          .catch((error: unknown) => {
-            setActionError(actionMessage(error));
-            editedPlan.current = null;
-            // The server did not accept the edit, so stop showing it and read
-            // back the plan it actually stored.
-            onRecoverDecision?.();
-          });
-      }, PLAN_EDIT_SAVE_DELAY_MS);
+      void attempt
+        .execute()
+        .then((response) => {
+          setActionError(null);
+          onDecisionChange((latest) =>
+            latest?.decision_id === response.decision_id
+              ? { ...latest, final_plan: planFromRevision(response) }
+              : latest,
+          );
+        })
+        .catch((error: unknown) => {
+          setActionError(actionMessage(error));
+          setPendingPlanEdit(canRetryPlanEdit(error) ? attempt : null);
+          // A stale or ambiguous result cannot remain an authoritative local
+          // plan. Read back the decision the server actually stored.
+          onRecoverDecision?.();
+        })
+        .finally(() => {
+          inFlight.current = false;
+          setBusy(null);
+        });
     },
-    [api, decision, onDecisionChange, onRecoverDecision],
+    [onDecisionChange, onRecoverDecision],
   );
 
   const reorderPlan = useCallback(
     (from: number, to: number) => {
-      applyPlanEdit((plan) => moveWorkoutPlanItem(plan, from, to));
+      const current = decision?.final_plan;
+      if (!decision || !current) {
+        return;
+      }
+      const plan = moveWorkoutPlanItem(current, from, to);
+      if (plan === current) {
+        return;
+      }
+      const completedPlanItemIds =
+        todaySession?.items
+          .filter((item) => item.status_code === 'COMPLETED')
+          .map((item) => item.plan_item_id) ?? [];
+      const body = planItemOrderRequest(plan, completedPlanItemIds);
+      const idempotencyKey = createIdempotencyKey();
+      persistPlanEdit({
+        decisionId: decision.decision_id,
+        optimisticPlan: plan,
+        execute: () =>
+          api.updateDecisionPlanOrder(
+            decision.decision_id,
+            body,
+            idempotencyKey,
+          ),
+      });
     },
-    [applyPlanEdit],
+    [api, decision, persistPlanEdit, todaySession],
   );
 
   const regenerateDecision = useCallback(() => {
@@ -821,10 +831,56 @@ export function HomeContainer({
       if (prescriptions.length === 0) {
         return;
       }
-      applyPlanEdit((plan) => applyPlanItemPrescriptions(plan, prescriptions));
+      const current = decision?.final_plan;
+      if (!decision || !current) {
+        return;
+      }
+      const changed = prescriptions.filter((edit) => {
+        const item = current.items.find(
+          (candidate) => candidate.plan_item_id === edit.plan_item_id,
+        );
+        return (
+          item !== undefined &&
+          (item.sets !== edit.sets || item.reps !== edit.reps)
+        );
+      });
+      const plan = applyPlanItemPrescriptions(current, changed);
+      if (changed.length === 0 || plan === current) {
+        return;
+      }
+      const idempotencyKeys = changed.map(() => createIdempotencyKey());
+      persistPlanEdit({
+        decisionId: decision.decision_id,
+        optimisticPlan: plan,
+        execute: async () => {
+          let serverPlan = current;
+          let response: PlanRevisionResponse | null = null;
+          for (const [index, edit] of changed.entries()) {
+            response = await api.updateDecisionPlanItem(
+              decision.decision_id,
+              edit.plan_item_id,
+              {
+                expected_plan_id: serverPlan.plan_id,
+                expected_plan_revision: workoutPlanRevision(serverPlan),
+                sets: edit.sets,
+                reps: edit.reps,
+              },
+              idempotencyKeys[index],
+            );
+            serverPlan = planFromRevision(response);
+          }
+          return response!;
+        },
+      });
     },
-    [applyPlanEdit],
+    [api, decision, persistPlanEdit],
   );
+
+  const retryPlanEdit = useCallback(() => {
+    if (pendingPlanEdit !== null) {
+      persistPlanEdit(pendingPlanEdit);
+    }
+  }, [pendingPlanEdit, persistPlanEdit]);
 
   const permissionDenied =
     state.status === 'error' &&
@@ -878,6 +934,7 @@ export function HomeContainer({
         lastDraft === null ? undefined : () => submitCheckin(lastDraft, true)
       }
       onRetryDecision={pendingDecision === null ? undefined : retryDecision}
+      onRetryPlanEdit={pendingPlanEdit === null ? undefined : retryPlanEdit}
       onSubmitCheckin={(draft) => submitCheckin(draft)}
       onRequestAlternativeCheckin={(draft, changed) =>
         changed ? submitCheckin(draft, false, true) : regenerateDecision()

@@ -13,7 +13,6 @@ import type {
   DailyContextDefaultsResponse,
   DailyContextRequest,
   DailyContextResponse,
-  DecisionPlanEditRequest,
   DecisionRegenerationRequest,
   DecisionResponse,
   DecisionSelectionResponse,
@@ -26,6 +25,9 @@ import type {
   NotificationResponse,
   OnboardingRequest,
   OnboardingResponse,
+  PlanItemOrderRequest,
+  PlanItemSetRepetitionRequest,
+  PlanRevisionResponse,
   ProfileImageMutationResponse,
   ProfileImageUpload,
   ProfileSettingsUpdateRequest,
@@ -284,6 +286,35 @@ export function createApi(client: ApiClient) {
         path: `/decisions/${decisionId}/regenerations`,
         body,
         idempotent: true,
+      });
+    },
+
+    updateDecisionPlanItem(
+      decisionId: string,
+      planItemId: string,
+      body: PlanItemSetRepetitionRequest,
+      idempotencyKey?: string,
+    ) {
+      return client.request<PlanRevisionResponse>({
+        method: 'PATCH',
+        path: `/decisions/${decisionId}/plan-items/${planItemId}`,
+        body,
+        idempotent: true,
+        idempotencyKey,
+      });
+    },
+
+    updateDecisionPlanOrder(
+      decisionId: string,
+      body: PlanItemOrderRequest,
+      idempotencyKey?: string,
+    ) {
+      return client.request<PlanRevisionResponse>({
+        method: 'PUT',
+        path: `/decisions/${decisionId}/plan-item-order`,
+        body,
+        idempotent: true,
+        idempotencyKey,
       });
     },
 
@@ -555,25 +586,5 @@ export type WeeklyPlanRevisionReadCapability = {
   ): Promise<WeeklyPlanRevisionResponse>;
 };
 
-/**
- * Forward-compatible write boundary for the user's edit of today's final plan:
- * set and repetition changes (ADR-0018 D4) and reordering inside one phase
- * (D5). The backend route is not available yet, so `createApi` does not issue a
- * speculative request and an edit lives only as long as the running app.
- * Implementing the route and adding this method to `createApi` turns on
- * persistence without any change in the screens.
- *
- * The documented `POST /weeks/{week_start}/plan-revisions` USER flow cannot
- * carry this edit: it references a stored weekly routine version by id, and
- * there is no contract for the client to author today's decision plan.
- */
-export type DecisionPlanEditCapability = {
-  updateDecisionPlan(
-    decisionId: string,
-    body: DecisionPlanEditRequest,
-  ): Promise<DecisionResponse>;
-};
-
 export type Api = ReturnType<typeof createApi> &
-  Partial<WeeklyPlanRevisionReadCapability> &
-  Partial<DecisionPlanEditCapability>;
+  Partial<WeeklyPlanRevisionReadCapability>;

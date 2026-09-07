@@ -1,5 +1,5 @@
 import type {
-  DecisionPlanEditRequest,
+  PlanItemOrderRequest,
   PlanItemPrescriptionEdit,
   PlanPhaseCode,
   RoutineDay,
@@ -144,16 +144,24 @@ export function applyPlanItemPrescriptions(
   return changed ? { ...plan, items } : plan;
 }
 
-/** The full resulting plan, as the user-edit contract expects it. */
-export function planEditRequest(plan: WorkoutPlan): DecisionPlanEditRequest {
-  const items = orderedWorkoutPlanItems(plan.items);
+export function workoutPlanRevision(plan: WorkoutPlan): number {
+  return plan.plan_revision ?? 0;
+}
+
+/**
+ * The order endpoint needs the complete movable set. Completed blocks are
+ * history and stay in their performed positions on the server.
+ */
+export function planItemOrderRequest(
+  plan: WorkoutPlan,
+  completedPlanItemIds: readonly string[] = [],
+): PlanItemOrderRequest {
+  const completed = new Set(completedPlanItemIds);
   return {
     expected_plan_id: plan.plan_id,
-    item_order: items.map((item) => item.plan_item_id),
-    item_prescriptions: items.map((item) => ({
-      plan_item_id: item.plan_item_id,
-      sets: item.sets,
-      reps: item.reps,
-    })),
+    expected_plan_revision: workoutPlanRevision(plan),
+    ordered_plan_item_ids: orderedWorkoutPlanItems(plan.items)
+      .filter((item) => !completed.has(item.plan_item_id))
+      .map((item) => item.plan_item_id),
   };
 }

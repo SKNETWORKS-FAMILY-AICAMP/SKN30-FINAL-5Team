@@ -114,6 +114,7 @@ export function HomeScreenContent({
   onRequestAlternative,
   onReorderPlan,
   onRetry,
+  onRetryPlanEdit,
   onRetryDecision,
   onRetryCheckin,
   onSaveCheckin,
@@ -619,11 +620,17 @@ export function HomeScreenContent({
                 actionLabel={
                   staleContext
                     ? '최신 상태로 다시 시도'
-                    : onRetryDecision
-                      ? '루틴 생성 다시 시도'
-                      : undefined
+                    : onRetryPlanEdit
+                      ? '수정 저장 다시 시도'
+                      : onRetryDecision
+                        ? '루틴 생성 다시 시도'
+                        : undefined
                 }
-                onAction={staleContext ? onRetryCheckin : onRetryDecision}
+                onAction={
+                  staleContext
+                    ? onRetryCheckin
+                    : (onRetryPlanEdit ?? onRetryDecision)
+                }
                 serious={blockingRevisionNotice?.serious}
                 testID="home-action-error"
                 text={

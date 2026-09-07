@@ -37,7 +37,11 @@ export type WeekDay = {
 };
 
 export type HomeBusyKind =
-  'decision-generation' | 'regeneration' | 'revision' | 'starting';
+  | 'decision-generation'
+  | 'plan-edit'
+  | 'regeneration'
+  | 'revision'
+  | 'starting';
 
 export type HomeUserEdits = {
   itemOverrides: readonly RoutineItemDraftOverride[];
@@ -78,6 +82,7 @@ export type HomeScreenProps = {
   onRequestAlternative?: () => void;
   onReorderPlan?: (from: number, to: number) => void;
   onRetry?: () => void;
+  onRetryPlanEdit?: () => void;
   onRetryDecision?: () => void;
   onRetryCheckin?: () => void;
   onSaveCheckin?: () => void;
