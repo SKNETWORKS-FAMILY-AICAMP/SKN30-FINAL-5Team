@@ -21,6 +21,8 @@ class DecisionContext:
     primary_goal_code: str
     experience_level_code: str
     equipment_codes: tuple[str, ...]
+    # Deprecated compatibility slot. Profile attention areas are Check-in UI prefill
+    # only and must never affect a decision or be persisted in its input snapshot.
     attention_area_codes: tuple[str, ...]
     profile_preferred_location_code: str | None = None
     recent_workout_status_codes: tuple[str, ...] = ()
@@ -37,11 +39,6 @@ class DecisionContext:
     recent_adherence_reason_codes: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        object.__setattr__(
-            self,
-            "attention_area_codes",
-            tuple(sorted(set(self.attention_area_codes))),
-        )
         object.__setattr__(
             self,
             "recent_workout_status_codes",
@@ -116,7 +113,6 @@ class DecisionContext:
                 "experience_level_code": self.experience_level_code,
                 "default_requested_duration_minutes": self.profile_duration_minutes,
                 "equipment_codes": list(self.equipment_codes),
-                "attention_area_codes": list(self.attention_area_codes),
                 "preferred_location_code": self.profile_preferred_location_code,
             },
         }

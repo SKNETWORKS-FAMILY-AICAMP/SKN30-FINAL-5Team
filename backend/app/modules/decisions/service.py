@@ -95,7 +95,10 @@ def _safety_context(context: DecisionContext) -> SafetyContext:
         adverse_reaction_codes=tuple(
             AdverseReactionCode(code) for code in context.adverse_reaction_codes
         ),
-        attention_area_codes=tuple(BodyAreaCode(code) for code in context.attention_area_codes),
+        # Only pains/discomforts submitted in this Daily Check-in may constrain
+        # safety. Profile attention areas are UI defaults and are intentionally
+        # excluded from the decision input.
+        attention_area_codes=(),
         red_flag_present=context.red_flag_present,
     )
 

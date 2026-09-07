@@ -163,23 +163,23 @@ def test_success_response_requires_persistence_and_public_success_status() -> No
     )
 
 
-def test_production_snapshot_hash_is_canonical_for_attention_area_order_and_duplicates() -> None:
+def test_production_snapshot_hash_ignores_profile_attention_area_defaults() -> None:
     case = case_by_code("CHRONIC_KNEE_ATTENTION_CAUTION")
     _, canonical_repository = execute_service_case(case)
-    _, duplicate_repository = execute_service_case(
-        replace(case, attention_area_codes=("KNEE", "KNEE"))
+    _, cleared_repository = execute_service_case(
+        replace(case, attention_area_codes=())
     )
     assert canonical_repository.persisted is not None
-    assert duplicate_repository.persisted is not None
+    assert cleared_repository.persisted is not None
 
     assert (
         canonical_repository.persisted["input_snapshot"]
-        == duplicate_repository.persisted["input_snapshot"]
+        == cleared_repository.persisted["input_snapshot"]
     )
     assert (
-        canonical_repository.persisted["input_hash"] == duplicate_repository.persisted["input_hash"]
+        canonical_repository.persisted["input_hash"] == cleared_repository.persisted["input_hash"]
     )
-    assert canonical_repository.persisted["result"] == duplicate_repository.persisted["result"]
+    assert canonical_repository.persisted["result"] == cleared_repository.persisted["result"]
 
 
 def test_production_hash_changes_for_safety_duration_and_version_inputs(

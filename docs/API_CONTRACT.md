@@ -797,7 +797,7 @@ PATCH가 지원하는 필드는 아래 16개이며, 그중 일부는 호환 기�
 | (Legacy) `default_requested_duration_minutes` | integer | null 거부 | 1~240분. 신규 결정에 사용하지 않음 | 범위·타입 오류 `400 INVALID_REQUEST` |
 | (Legacy) `preferred_location_code` | `HOME`, `GYM`, `OUTDOOR` | 빈 문자열·null 거부 | 구 클라이언트 호환을 위해 검증 후 무시한다. 운동 장소는 Daily Check-in에서만 받는다 | enum 오류 `400 INVALID_REQUEST` |
 | (Legacy) `available_location_codes` | 위 location code 배열 | 빈 배열·null·중복 거부 | 구 클라이언트 호환을 위해 검증 후 무시한다. `preferred_location_code`와의 교차 검증을 수행하지 않는다 | enum·중복 오류 `400 INVALID_REQUEST` |
-| (Legacy) `attention_area_codes` | `NECK`, `SHOULDER`, `ELBOW`, `WRIST_HAND`, `UPPER_BACK`, `LOWER_BACK`, `HIP`, `KNEE`, `ANKLE_FOOT`, `CHEST`, `ABDOMEN` 배열 | **빈 배열 허용**, null·중복 거부 | 건강 관련 정보. `persistent_pains`와 함께 보낼 수 없음 | enum·중복 오류 `400 INVALID_REQUEST` |
+| `attention_area_codes` | `NECK`, `SHOULDER`, `ELBOW`, `WRIST_HAND`, `UPPER_BACK`, `LOWER_BACK`, `HIP`, `KNEE`, `ANKLE_FOOT`, `CHEST`, `ABDOMEN` 배열 | **빈 배열 허용**, null·중복 거부 | 온보딩·프로필의 Check-in 기본 선택값이다. 사용자는 Check-in에서 해제·변경할 수 있으며, 이 값 자체는 Safety·루틴 생성·결정 스냅샷에 사용하지 않는다. 최종 제출된 Check-in `pains`만 결정에 반영한다. `persistent_pains`와 함께 보낼 수 없음 | enum·중복 오류 `400 INVALID_REQUEST` |
 | (Legacy) `height_cm` | number | null 거부 | 구 클라이언트 호환을 위해 검증 후 무시한다 | 범위·타입 오류 `400 INVALID_REQUEST` |
 | (Legacy) `sex_code` | `FEMALE`, `MALE`, `PREFER_NOT_TO_SAY` | 빈 문자열·null 거부 | 구 클라이언트 호환을 위해 검증 후 무시한다 | enum 오류 `400 INVALID_REQUEST` |
 | (Legacy) `preferred_exercise_type_codes` | `STRENGTH`, `CARDIO`, `MOBILITY` 배열 | **빈 배열 허용**, null·중복 거부 | 신규 결정에 사용하지 않음 | enum·중복 오류 `400 INVALID_REQUEST` |
