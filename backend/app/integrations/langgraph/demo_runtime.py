@@ -177,9 +177,9 @@ def _canonical_validations(
         canonical = canonical[-2:]
         compiled_candidates = compiled_candidates[-len(canonical) :]
         plans = (
-            (graph.coordinator_initial_plan, graph.coordinator_repair_plan)
+            (graph.coordinator_agent_plan, graph.coordinator_repair_plan)
             if len(canonical) == 2
-            else (graph.coordinator_repair_plan or graph.coordinator_initial_plan,)
+            else (graph.coordinator_repair_plan or graph.coordinator_agent_plan,)
         )
     attempts = tuple(
         V3CoordinatorAttemptPersistence(
@@ -323,7 +323,7 @@ class V3DemoRuntime:
             envelope_hash=envelope.envelope_hash,
             pool_hash=root_snapshot.exercise_pool.pool_hash,
             round_one_proposals=graph.round_one_proposals,
-            coordinator_initial_plan=graph.coordinator_initial_plan,
+            coordinator_agent_plan=graph.coordinator_agent_plan,
             coordinator_repair_plan=graph.coordinator_repair_plan,
             compiled_plan=compiled,
             integrity_violation_codes=(
