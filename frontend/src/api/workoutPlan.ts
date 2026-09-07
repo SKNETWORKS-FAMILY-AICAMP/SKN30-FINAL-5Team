@@ -2,9 +2,35 @@ import type {
   DecisionPlanEditRequest,
   PlanItemPrescriptionEdit,
   PlanPhaseCode,
+  RoutineDay,
   WorkoutPlan,
   WorkoutPlanItem,
 } from './types';
+import { bodyFocusLabel, trainingTypeLabel } from './labels';
+
+function fallbackRoutineTitle(plan: {
+  body_focus_code: string | null;
+  training_type_code: string;
+}): string {
+  const focus =
+    plan.body_focus_code === null ? '' : bodyFocusLabel(plan.body_focus_code);
+  return `${focus ? `${focus} ` : ''}${trainingTypeLabel(plan.training_type_code)} 루틴`;
+}
+
+function serverRoutineTitle(value: string | null | undefined): string | null {
+  const title = value?.trim();
+  return title ? title : null;
+}
+
+/** Prefer the BM-5 server name while keeping historical plan compatibility. */
+export function routineTitleFromPlan(plan: WorkoutPlan): string {
+  return serverRoutineTitle(plan.routine_name) ?? fallbackRoutineTitle(plan);
+}
+
+/** Routine templates use the same server-owned naming and legacy fallback. */
+export function routineTitleFromDay(day: RoutineDay): string {
+  return serverRoutineTitle(day.routine_name) ?? fallbackRoutineTitle(day);
+}
 
 /** Plans written before the phase field existed were all MAIN. */
 export function planItemPhaseCode(item: WorkoutPlanItem): PlanPhaseCode {

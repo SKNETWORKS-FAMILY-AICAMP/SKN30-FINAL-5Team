@@ -23,17 +23,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { fontFamilies, useBrandFonts } from '../../app/fonts';
 import type { Api } from '../../api/endpoints';
 import { ApiError, messageForError } from '../../api/errors';
-import {
-  formatExercisePrescription,
-  trainingTypeLabel,
-} from '../../api/labels';
+import { formatExercisePrescription } from '../../api/labels';
 import type {
   ExerciseVariantsResponse,
   NotCompletedReasonCode,
   SessionItem,
   WorkoutPlan,
 } from '../../api/types';
-import { orderedWorkoutPlanItems } from '../../api/workoutPlan';
+import {
+  orderedWorkoutPlanItems,
+  routineTitleFromPlan,
+} from '../../api/workoutPlan';
 import { imageAssets } from '../../assets';
 import { colors, shadows } from '../../components/theme';
 import { useScale } from '../../components/scale';
@@ -1067,7 +1067,7 @@ function WorkoutScreenContent({
             >
               {apiConfig === undefined
                 ? '전신 기본 루틴'
-                : `${trainingTypeLabel(apiConfig.plan.training_type_code)} 루틴`}
+                : routineTitleFromPlan(apiConfig.plan)}
             </Text>
             <Text style={styles.routineStep}>
               {Math.min(currentIndex + 1, blocks.length)} / {blocks.length} 블록
