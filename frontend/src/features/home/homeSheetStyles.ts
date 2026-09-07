@@ -212,6 +212,24 @@ export function createHomeSheetStyles(
       fontWeight: '800',
       textAlign: 'center',
     },
+    durationGuidance: {
+      gap: s(4),
+      borderRadius: s(14),
+      backgroundColor: '#FFF8E5',
+      paddingVertical: s(11),
+      paddingHorizontal: s(14),
+    },
+    durationRecommendation: {
+      color: '#5A4636',
+      fontSize: f(13),
+      fontWeight: '700',
+      lineHeight: f(19),
+    },
+    durationRecommendationDetail: {
+      color: '#786454',
+      fontSize: f(12),
+      lineHeight: f(18),
+    },
     numberInputGroup: { flexDirection: 'row', alignItems: 'center', gap: s(6) },
     numberInput: {
       width: s(84),

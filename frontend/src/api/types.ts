@@ -260,6 +260,9 @@ export type DailyContextResponse = DailyContextRequest & {
 export type DailyContextDefaultsResponse = {
   local_date: string;
   pains: PainAreaInput[];
+  /** Guidance only. The user's requested duration may exceed this value. */
+  recommended_duration_minutes?: number;
+  duration_recommendation_policy_version?: string;
 };
 
 export type WorkoutPlanItem = {

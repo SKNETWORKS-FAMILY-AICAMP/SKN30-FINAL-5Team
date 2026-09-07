@@ -58,6 +58,7 @@ export function CheckinSheet({
   onSetRedFlag,
   onToggleBodyArea,
   locationCodes,
+  recommendedDurationMinutes,
   pending,
 }: {
   draft: HomeCheckin;
@@ -75,6 +76,7 @@ export function CheckinSheet({
   onSetRedFlag: (present: boolean) => void;
   onToggleBodyArea: (code: string) => void;
   locationCodes: readonly string[];
+  recommendedDurationMinutes: number | null;
   pending: boolean;
 }) {
   const styles = useHomeStyles();
@@ -109,6 +111,11 @@ export function CheckinSheet({
       Number(draft.workoutMinutes) < CHECKIN_DURATION_MINUTES.min ||
       Number(draft.workoutMinutes) > CHECKIN_DURATION_MINUTES.max);
   const durationMinutes = Number(draft.workoutMinutes);
+  const exceedsRecommendation =
+    recommendedDurationMinutes !== null &&
+    !durationMissing &&
+    !durationInvalid &&
+    durationMinutes > recommendedDurationMinutes;
   const canDecreaseDuration =
     !pending &&
     !durationInvalid &&
@@ -216,9 +223,26 @@ export function CheckinSheet({
             </Pressable>
           </View>
         </View>
+        {recommendedDurationMinutes !== null ? (
+          <View style={styles.durationGuidance}>
+            <Text style={styles.durationRecommendation}>
+              1회 권장 운동 시간은 {recommendedDurationMinutes}분이에요.
+            </Text>
+            {exceedsRecommendation ? (
+              <Text
+                accessibilityLiveRegion="polite"
+                style={styles.durationRecommendationDetail}
+              >
+                권장 시간보다 길게 선택해도 괜찮아요. 오늘 가능한 시간에 맞춰
+                선택해주세요.
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
         {durationMissing ? (
           <Text accessibilityRole="alert" style={styles.messageText}>
-            오늘 가능한 운동 시간을 10~60분 중에서 선택해주세요.
+            오늘 가능한 운동 시간을 {CHECKIN_DURATION_MINUTES.min}~
+            {CHECKIN_DURATION_MINUTES.max}분 중에서 선택해주세요.
           </Text>
         ) : null}
         {CHECKIN_AVAILABILITY_INPUT_ENABLED ? (

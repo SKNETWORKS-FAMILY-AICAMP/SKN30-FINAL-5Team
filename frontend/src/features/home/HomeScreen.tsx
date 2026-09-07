@@ -60,6 +60,8 @@ export type HomeScreenProps = {
   notificationToastVisible?: boolean;
   localDate?: string;
   locationCodes?: readonly string[];
+  /** Server-provided guidance; never computed or enforced by the client. */
+  recommendedDurationMinutes?: number | null;
   nickname?: string;
   onChooseRest?: () => void;
   onEditRoutine?: () => void;

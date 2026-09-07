@@ -41,7 +41,6 @@ import {
 } from '../../components/profile/PainIntensitySlider';
 import { ProfileAvatar } from '../../components/profile/ProfileAvatar';
 import {
-  ONBOARDING_DURATION,
   ONBOARDING_EXPERIENCE_OPTIONS,
   ONBOARDING_GOAL_OPTIONS,
   ONBOARDING_LOCATION_OPTIONS,
@@ -51,6 +50,7 @@ import {
   BirthDateField,
   latestEligibleBirthdateIso,
 } from '../onboarding/BirthDateField';
+import { CHECKIN_DURATION_MINUTES } from './homeConstants';
 import type { MyPageProfileField } from './myPageModel';
 
 export type MyPageEditableField = MyPageProfileField | 'basic_profile';
@@ -287,15 +287,15 @@ function EditorBody({
       <DraftStepper
         decreaseLabel="운동 시간 10분 줄이기"
         increaseLabel="운동 시간 10분 늘리기"
-        max={ONBOARDING_DURATION.max}
-        min={ONBOARDING_DURATION.min}
+        max={CHECKIN_DURATION_MINUTES.max}
+        min={CHECKIN_DURATION_MINUTES.min}
         onDraftChange={(next) =>
           onDraftChange(
             next === null ? null : { default_requested_duration_minutes: next },
           )
         }
         pending={pending}
-        step={ONBOARDING_DURATION.step}
+        step={CHECKIN_DURATION_MINUTES.step}
         suffix="분"
         value={profile.default_requested_duration_minutes}
       />
