@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     profile_image_s3_prefix: str = "profile-images/"
     profile_image_url_expiry_seconds: int = 300
     consent_policy_version: str | None = None
+    # The terms revision users are asked to accept. Unset means the deployment has
+    # not approved one yet, and onboarding keeps accepting whatever a client
+    # claims, which is the behaviour that shipped before this setting existed.
+    terms_version: str | None = None
     # Narration은 선택 기능이다. 기본값은 비활성이며 결정적 템플릿만 사용한다.
     llm_enabled: bool = False
     llm_provider_code: Literal["NONE", "OPENAI"] = "NONE"
@@ -349,7 +353,7 @@ class Settings(BaseSettings):
             raise ValueError("LLM_MAX_OUTPUT_TOKENS must be within (0, 2000]")
         return value
 
-    @field_validator("consent_policy_version", mode="before")
+    @field_validator("consent_policy_version", "terms_version", mode="before")
     @classmethod
     def normalize_optional_version(cls, value: object) -> object:
         if isinstance(value, str):

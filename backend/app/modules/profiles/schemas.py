@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Any, Literal
+from typing import Any, Final, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -9,7 +9,16 @@ from backend.app.modules.catalog.codes import (
     LocationCode,
     TrainingTypeCode,
 )
-from backend.app.modules.profiles.codes import CoachingStyleCode, ConsentTypeCode
+from backend.app.modules.profiles.codes import (
+    FIXED_COACHING_STYLE_CODE,
+    CoachingStyleCode,
+    ConsentTypeCode,
+)
+
+# Consent request fields for features the service no longer offers. Kept for
+# write compatibility, never applied. See ADR-0016 (calendar) and ADR-0019
+# (wearable); `ConsentTypeCode` keeps both codes so existing records stay readable.
+RETIRED_CONSENT_FIELDS: Final = ("wearable_integration", "calendar_integration")
 
 
 def _exclude_explicit_null_from_patch_schema(schema: dict[str, Any]) -> None:
@@ -34,9 +43,20 @@ class ConsentValues(BaseModel):
 
     general_personal_data: bool
     sensitive_data: bool
+    # Retired features. The fields stay declared because this model forbids extra
+    # keys, so removing them would turn a deployed client's request into a 422
+    # instead of ignoring a value the service no longer acts on. Whatever arrives
+    # is discarded and the consent is stored as not granted: there is nothing to
+    # consent to. Calendar was retired by ADR-0016, wearable by ADR-0019.
     wearable_integration: bool = False
     calendar_integration: bool = False
     marketing: bool = False
+
+    @model_validator(mode="after")
+    def clear_retired_consents(self) -> "ConsentValues":
+        for field_name in RETIRED_CONSENT_FIELDS:
+            object.__setattr__(self, field_name, False)
+        return self
 
     def by_type(self) -> dict[ConsentTypeCode, bool]:
         return {
@@ -77,7 +97,11 @@ class OnboardingUpsertRequest(BaseModel):
     weekly_target_sessions: int | None = Field(default=None, gt=0, le=7)
     attention_area_codes: list[BodyAreaCode] = Field(default_factory=list)
     preferred_exercise_type_codes: list[TrainingTypeCode] = Field(default_factory=list)
-    coaching_style_code: CoachingStyleCode = CoachingStyleCode.SUPPORTIVE
+    # Legacy write-compatibility field. Onboarding no longer asks for a coaching
+    # style; every profile stores FIXED_COACHING_STYLE_CODE. The field stays
+    # declared because this model forbids extra keys, so removing it would turn a
+    # deployed client's request into a 422 instead of ignoring one stale value.
+    coaching_style_code: CoachingStyleCode = FIXED_COACHING_STYLE_CODE
     height_cm: float | None = Field(default=None, ge=80, le=250)
     weight_kg: float = Field(ge=25, le=300)
     sex_code: Literal["FEMALE", "MALE", "PREFER_NOT_TO_SAY"] | None = None
@@ -150,6 +174,7 @@ class ProfileSettingsUpdateRequest(BaseModel):
     available_location_codes: list[LocationCode] | None = None
     attention_area_codes: list[BodyAreaCode] | None = None
     preferred_exercise_type_codes: list[TrainingTypeCode] | None = None
+    # Accepted and ignored; see OnboardingUpsertRequest.coaching_style_code.
     coaching_style_code: CoachingStyleCode | None = None
     experience_level_code: str | None = Field(default=None, pattern=r"^[A-Z][A-Z0-9_]{0,63}$")
     nickname: str | None = Field(default=None, min_length=1, max_length=64)
@@ -253,12 +278,27 @@ class ConsentResponse(BaseModel):
     consents: list[ConsentState]
 
 
+class OnboardingRequirementsResponse(BaseModel):
+    """What the client must show, and which revision it must submit.
+
+    Retired consent types are absent by construction: the client renders this
+    list, so a code that is not here cannot be presented.
+    """
+
+    terms_version: str
+    consent_policy_version: str
+    required_consent_type_codes: list[ConsentTypeCode]
+    optional_consent_type_codes: list[ConsentTypeCode]
+
+
 __all__ = [
+    "RETIRED_CONSENT_FIELDS",
     "ConsentResponse",
     "ConsentState",
     "ConsentValues",
     "MeProfile",
     "MeResponse",
+    "OnboardingRequirementsResponse",
     "OnboardingResponse",
     "OnboardingUpsertRequest",
     "PersistentPainInput",

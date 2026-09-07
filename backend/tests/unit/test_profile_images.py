@@ -8,6 +8,7 @@ from backend.app.modules.profiles.codes import MutationEndpointCode
 from backend.app.modules.profiles.images import (
     InvalidProfileImageError,
     ProfileImageService,
+    ProfileImageStorageUnavailableError,
 )
 from backend.app.modules.profiles.ports import IdempotencyRecord, ProfileImageRecord
 from backend.app.modules.profiles.service import StaleProfileError
@@ -63,8 +64,9 @@ class FakeRepository:
 
 
 class FakeStorage:
-    def __init__(self) -> None:
+    def __init__(self, *, presign_fails: bool = False) -> None:
         self.objects: dict[str, bytes] = {}
+        self.presign_fails = presign_fails
 
     def put(self, object_key: str, content: bytes, content_type: str) -> bool:
         del content_type
@@ -75,7 +77,9 @@ class FakeStorage:
         self.objects.pop(object_key, None)
         return True
 
-    def create_url(self, object_key: str) -> str:
+    def create_url(self, object_key: str) -> str | None:
+        if self.presign_fails:
+            return None
         return f"https://example.test/{object_key}"
 
 
@@ -120,3 +124,22 @@ def test_upload_reuses_the_stored_response_for_the_same_idempotency_key() -> Non
     assert replay == first
     assert repository.record.profile_version == 2
     assert len(storage.objects) == 1
+
+
+def test_upload_fails_when_the_stored_object_cannot_be_handed_back() -> None:
+    """A 200 with a null URL is indistinguishable from "no picture" to a client,
+    so the upload appears to succeed while nothing changes on screen. The write
+    must fail loudly instead, and must not leave the object behind."""
+
+    repository, storage = FakeRepository(), FakeStorage(presign_fails=True)
+    service = ProfileImageService(
+        repository, storage, clock=lambda: NOW, uuid_factory=lambda: UUID(int=1)
+    )
+
+    with pytest.raises(ProfileImageStorageUnavailableError):
+        service.upload(FakeSession(), uuid4(), uuid4(), 1, "image/png", PNG)
+
+    # The object this call wrote is removed rather than left orphaned. The
+    # metadata write is undone by `session.begin()` in production; FakeSession
+    # does not model rollback, so that is not asserted here.
+    assert storage.objects == {}

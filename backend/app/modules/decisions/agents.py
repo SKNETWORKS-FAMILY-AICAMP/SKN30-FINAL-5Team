@@ -232,7 +232,7 @@ class SafetyProposalAgent(_ProposalAgent):
         evaluations = dict(request.candidate_safety_evaluations)
         candidate_evidence = dict(request.candidate_evidence_reference_codes)
         if not evaluations:
-            if request.context.discomforts or request.context.attention_area_codes:
+            if request.context.discomforts:
                 return AgentProposal.failed(
                     agent_type_code=AgentTypeCode.SAFETY,
                     requested_duration_minutes=request.requested_duration_minutes,
@@ -357,17 +357,12 @@ class SafetyProposalAgent(_ProposalAgent):
                     policy_version=self.policy_version,
                     reason_code="SAFETY_DOWNSHIFT_UNAVAILABLE",
                 )
-            chronic_only = bool(request.context.attention_area_codes) and not bool(
-                request.context.discomforts
-            )
             return self._ready_safety(
                 request,
                 action=RecommendedActionCode.DOWNSHIFT,
                 status=SafetyStatusCode.REVISE,
                 vetoed=False,
-                reason_codes=(
-                    "ATTENTION_AREA_CAUTION_APPLIED" if chronic_only else "SAFETY_CAUTION_APPLIED",
-                ),
+                reason_codes=("SAFETY_CAUTION_APPLIED",),
                 evidence_reference_codes=evidence_codes,
             )
 

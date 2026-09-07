@@ -74,7 +74,9 @@ class DecisionAssembly:
     safety_rule_set: SafetyRuleSet | None = None
     alternative_items: tuple[AlternativeItemData, ...] = ()
     adjusted_candidates: tuple[AdjustedCandidateData, ...] = ()
-    # Narration tone only. It is not a decision input and stays out of the input snapshot.
+    # Narration tone only. It is not a decision input and stays out of the input
+    # snapshot. Every user now shares one context, so this is a fixed default
+    # rather than a per-profile read; see profiles.codes.FIXED_COACHING_STYLE_CODE.
     coaching_style_code: str = "SUPPORTIVE"
 
     @property

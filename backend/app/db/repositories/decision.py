@@ -33,7 +33,6 @@ from backend.app.db.models.decision import (
 )
 from backend.app.db.models.profile import (
     MutationIdempotencyRecord,
-    UserAttentionArea,
     UserEquipment,
     UserProfile,
 )
@@ -265,18 +264,6 @@ class DecisionRepository:
                 ).all()
             )
         )
-        attention_areas = tuple(
-            sorted(
-                set(
-                    session.scalars(
-                        select(UserAttentionArea.body_area_code).where(
-                            UserAttentionArea.user_id == user_id,
-                            UserAttentionArea.is_active.is_(True),
-                        )
-                    ).all()
-                )
-            )
-        )
         recent_sessions = session.execute(
             select(
                 WorkoutSession.status_code,
@@ -377,7 +364,9 @@ class DecisionRepository:
             profile.primary_goal_code,
             profile.experience_level_code,
             equipment,
-            attention_areas,
+            # Profile attention areas are a Check-in UI prefill only. The decision
+            # receives pain/discomfort rows the user confirmed for this context.
+            (),
             profile.preferred_location_code,
             recent_workout_status_codes,
             required_equipment_codes,
@@ -587,7 +576,10 @@ class DecisionRepository:
             safety_candidate,
             safety_rule_set,
             tuple(alternative_items),
-            coaching_style_code=profile.coaching_style_code,
+            # The stored per-profile style is deliberately not read. Narration is
+            # one fixed context for every user, so legacy rows that still hold
+            # CONCISE or ENERGETIC must not produce a different prompt than a
+            # profile written today. DecisionAssembly carries the fixed default.
         )
 
     def persist(
