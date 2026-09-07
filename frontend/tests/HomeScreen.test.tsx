@@ -1704,11 +1704,31 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(submitGradient.props.locations).toEqual([0, 0.55, 1]);
   });
 
-  it('keeps source parity after merging the weekly cards', () => {
-    const source = readFileSync(
-      resolve(process.cwd(), 'src/features/home/HomeScreen.tsx'),
-      'utf8',
+  it('keeps source parity after splitting the home screen modules', () => {
+    const moduleSources = [
+      'HomeScreen.tsx',
+      'HomeScreenContent.tsx',
+      'HomeOverview.tsx',
+      'HomeRoutineCard.tsx',
+      'HomeChrome.tsx',
+      'HomeCheckinSheet.tsx',
+      'HomeEditRoutineSheet.tsx',
+      'HomeSupport.tsx',
+      'homeConstants.ts',
+      'homeContentModel.ts',
+      'homeRevisionNotice.ts',
+      'homeStyles.tsx',
+      'homeSheetStyles.ts',
+    ].map((fileName) =>
+      readFileSync(
+        resolve(process.cwd(), 'src/features/home', fileName),
+        'utf8',
+      ),
     );
+    moduleSources.forEach((moduleSource) => {
+      expect(moduleSource.split(/\r?\n/).length).toBeLessThan(1_000);
+    });
+    const source = moduleSources.join('\n');
     expect(source.match(/<Svg\b/g)).toHaveLength(15);
   });
 });
