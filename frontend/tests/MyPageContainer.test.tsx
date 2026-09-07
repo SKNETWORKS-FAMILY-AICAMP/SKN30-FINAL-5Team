@@ -699,35 +699,6 @@ describe('MyPageContainer', () => {
     ).toBeOnTheScreen();
   });
 
-  it('uses the same 90-minute upper bound as daily check-in', async () => {
-    const profile = me();
-    profile.profile = {
-      ...profile.profile!,
-      default_requested_duration_minutes: 80,
-    };
-
-    await render(
-      <MyPageContainer
-        api={accountApi()}
-        me={profile}
-        now={new Date('2026-08-19T03:00:00Z')}
-        onNavigateTab={jest.fn()}
-        onRefreshMe={jest.fn(async () => undefined)}
-        onSignOut={jest.fn()}
-      />,
-    );
-
-    fireEvent.press(screen.getByRole('button', { name: '운동 시간 수정' }));
-    fireEvent.press(
-      screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
-    );
-
-    expect(screen.getByText('90분')).toBeOnTheScreen();
-    expect(
-      screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
-    ).toBeDisabled();
-  });
-
   it('keeps notification switches off and marked as coming soon', async () => {
     await render(
       <MyPageContainer

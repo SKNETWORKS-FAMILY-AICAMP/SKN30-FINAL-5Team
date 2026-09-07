@@ -321,6 +321,7 @@ export function MainFlow({
       return (
         <WorkoutScreen
           api={api}
+          exerciseGuideContext={{ locationCode: step.locationCode ?? null }}
           locationCode={step.locationCode}
           sessionId={step.sessionId}
           plan={step.plan}
