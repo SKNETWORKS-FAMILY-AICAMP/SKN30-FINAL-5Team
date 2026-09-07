@@ -7,6 +7,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react-native';
 import { Animated, processColor, StyleSheet } from 'react-native';
 
@@ -1224,6 +1225,23 @@ describe('HomeScreen Home v1 transcription', () => {
       screen.getByText('오늘 상태를 알려주면 루틴을 맞춰 조정해드려요.'),
     ).toBeOnTheScreen();
     expect(screen.getByText('오늘 위험 신호가 있나요?')).toBeOnTheScreen();
+    expect(screen.queryByText('위 증상이 있나요?')).toBeNull();
+    const redFlagGroup = screen.getByTestId('checkin-red-flag-section');
+    expect(redFlagGroup).toHaveProp('role', 'group');
+    expect(redFlagGroup).toHaveProp(
+      'accessibilityLabel',
+      '오늘 위험 신호가 있나요?',
+    );
+    expect(
+      within(redFlagGroup).getByRole('button', { name: '위험 신호 없어요' }),
+    ).toBeOnTheScreen();
+    expect(
+      within(redFlagGroup).getByRole('button', { name: '위험 신호 있어요' }),
+    ).toBeOnTheScreen();
+    expect(screen.getByText('위험 신호 여부를 선택해주세요.')).toHaveProp(
+      'accessibilityRole',
+      'alert',
+    );
   });
 
   it('starts workout duration empty and selects 10 minutes with plus', () => {

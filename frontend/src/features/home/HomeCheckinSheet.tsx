@@ -456,28 +456,33 @@ export function CheckinSheet({
             />
           </View>
         ))}
-        <View style={styles.redFlagSection}>
+        <View
+          accessibilityLabel="오늘 위험 신호가 있나요?"
+          role="group"
+          style={styles.redFlagSection}
+          testID="checkin-red-flag-section"
+        >
           <Text style={styles.redFlagTitle}>오늘 위험 신호가 있나요?</Text>
           <Text style={styles.redFlagBody}>
             오늘 가슴 통증이나 압박감, 평소와 다른 심한 숨참, 심한 어지럼 또는
             실신할 것 같은 느낌, 심장이 매우 빠르거나 불규칙하게 뛰는 느낌 같은
             증상이 있나요?
           </Text>
+          <View style={styles.choiceRow}>
+            <ChoiceButton
+              accessibilityLabel="위험 신호 없어요"
+              label="없어요"
+              onPress={() => onSetRedFlag(false)}
+              selected={draft.redFlagPresent === false}
+            />
+            <ChoiceButton
+              accessibilityLabel="위험 신호 있어요"
+              label="있어요"
+              onPress={() => onSetRedFlag(true)}
+              selected={draft.redFlagPresent === true}
+            />
+          </View>
         </View>
-        <ChoiceBlock label="위 증상이 있나요?">
-          <ChoiceButton
-            accessibilityLabel="위험 신호 없어요"
-            label="없어요"
-            onPress={() => onSetRedFlag(false)}
-            selected={draft.redFlagPresent === false}
-          />
-          <ChoiceButton
-            accessibilityLabel="위험 신호 있어요"
-            label="있어요"
-            onPress={() => onSetRedFlag(true)}
-            selected={draft.redFlagPresent === true}
-          />
-        </ChoiceBlock>
         {redFlagSelectionMissing ? (
           <Text accessibilityRole="alert" style={styles.messageText}>
             위험 신호 여부를 선택해주세요.
