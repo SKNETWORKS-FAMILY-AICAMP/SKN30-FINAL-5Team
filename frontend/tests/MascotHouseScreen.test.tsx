@@ -45,6 +45,7 @@ import {
 import {
   houseBananaPoseArt,
   houseBackgroundArt,
+  houseDecorateButtonArt,
   houseItemArt,
   housePoseArt,
   houseRegularPoseArt,
@@ -57,6 +58,7 @@ import {
   BANANA_REWARD,
   DAILY_GIFT_BANANAS,
   HOUSE_ACTION_COST,
+  HOUSE_BONDING_COPY,
 } from '../src/features/house/houseModel';
 import { createMemoryHouseStore } from '../src/features/house/houseStorage';
 
@@ -157,6 +159,7 @@ function loadPendingMascot() {
 
 describe('MascotHouseScreen', () => {
   it('connects the reviewed decoration assets and leaves missing art pending', () => {
+    expect(houseDecorateButtonArt.source).toBe(imageAssets.houseDecorateButton);
     expect(houseItemArt.cushion.source).toBe(imageAssets.houseCushion);
     expect(houseItemArt.lamp.source).toBe(imageAssets.houseLamp);
     expect(houseItemArt.plant.source).toBe(imageAssets.housePlant);
@@ -231,6 +234,10 @@ describe('MascotHouseScreen', () => {
     );
     fireEvent.press(screen.getByTestId('house-quest-tile'));
     expect(screen.getByTestId('house-quest-row-visit')).toBeTruthy();
+    expect(screen.getByTestId('house-quest-row-pet')).toHaveProp(
+      'accessibilityLabel',
+      expect.stringContaining(HOUSE_BONDING_COPY.questLabel),
+    );
   });
 
   it('opens the banana catch game and returns to the same house', async () => {
@@ -268,8 +275,13 @@ describe('MascotHouseScreen', () => {
         'house-pet-action',
       ),
     ).toBeTruthy();
+    expect(
+      screen.getByLabelText(HOUSE_BONDING_COPY.actionAccessibilityLabel),
+    ).toBeTruthy();
     expect(screen.getByTestId('house-touch-hint')).toBeTruthy();
     expect(screen.getByText('끼끼를 터치해보세요!')).toBeTruthy();
+    expect(screen.getByText(HOUSE_BONDING_COPY.hintDescription)).toBeTruthy();
+    expect(screen.getByText(HOUSE_BONDING_COPY.bonusDescription)).toBeTruthy();
   });
 
   it('keeps the bottom panel at the height that fixes the backdrop boundary', async () => {
@@ -1006,7 +1018,9 @@ describe('MascotHouseScreen', () => {
       ).toBe(expected.source);
       loadPendingMascot();
 
-      const petted = screen.getByLabelText('쓰다듬어 주는 중');
+      const petted = screen.getByLabelText(
+        HOUSE_BONDING_COPY.poseAccessibilityLabel,
+      );
       expect(petted.props.source).toBe(expected.source);
       expect(petted.props.source).not.toBe(housePoseArt.greeting.source);
       expect(houseRegularPoseArt.map((slot) => slot.source)).toContain(
@@ -1192,9 +1206,16 @@ describe('MascotHouseScreen', () => {
       backgroundColor: 'rgba(255, 255, 255, 0.76)',
     };
     expect(screen.getByTestId('house-banana-count')).toHaveStyle(translucent);
-    expect(screen.getByTestId('house-decorate-action')).toHaveStyle(
-      translucent,
-    );
+    expect(screen.getByTestId('house-decorate-action')).toHaveStyle({
+      ...translucent,
+      minHeight: 44,
+    });
+    expect(
+      screen.getByTestId('house-art-decorate-button', {
+        includeHiddenElements: true,
+      }),
+    ).toBeTruthy();
+    expect(screen.queryByLabelText('집 꾸미기 버튼')).toBeNull();
     expect(screen.getByTestId('house-intimacy-chip')).toHaveStyle(translucent);
   });
 

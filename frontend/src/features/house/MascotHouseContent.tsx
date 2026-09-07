@@ -62,7 +62,6 @@ import {
   FlameGlyph,
   HeartGlyph,
   HouseArtView,
-  HouseMarkGlyph,
   InfoGlyph,
   PlusGlyph,
   StarGlyph,
@@ -72,6 +71,7 @@ import {
   houseBackgroundArt,
   houseBackgroundLabels,
   houseBackgroundThumbnailArt,
+  houseDecorateButtonArt,
   houseItemArt,
   housePoseArt,
   type HouseArtSlot,
@@ -79,6 +79,7 @@ import {
 import {
   HOUSE_ACTION_COST,
   HOUSE_BACKGROUND_IDS,
+  HOUSE_BONDING_COPY,
   HOUSE_DAILY_QUESTS,
   HOUSE_GAME_DAILY_PLAYS,
   INTIMACY_DAILY_EARN_LIMIT,
@@ -730,7 +731,7 @@ export function MascotHouseContent({
           text={speech}
         />
         <Pressable
-          accessibilityLabel="끼끼 쓰다듬기"
+          accessibilityLabel={HOUSE_BONDING_COPY.actionAccessibilityLabel}
           accessibilityRole="button"
           onPress={() => {
             if (onPet())
@@ -885,10 +886,21 @@ export function MascotHouseContent({
                 style={[styles.chip, compactStyles.chip]}
                 testID="house-decorate-action"
               >
-                <HouseMarkGlyph
-                  size={22 * controlScale}
-                  color={colors.brandOutline}
-                />
+                <View
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                  pointerEvents="none"
+                >
+                  <HouseArtView
+                    showPlaceholderLabel={false}
+                    showPlaceholderOutline={false}
+                    slot={houseDecorateButtonArt}
+                    style={{
+                      height: 28 * controlScale,
+                      width: 28 * controlScale,
+                    }}
+                  />
+                </View>
                 <Text style={[styles.chipValue, compactStyles.chipValue]}>
                   집 꾸미기
                 </Text>
@@ -1330,7 +1342,7 @@ function TouchHint({
       </Text>
       <View style={styles.touchHintBodyRow}>
         <Text style={[styles.touchHintBody, compactStyles.touchHintBody]}>
-          쓰다듬으면 친밀도가 올라가요
+          {HOUSE_BONDING_COPY.hintDescription}
         </Text>
         <HeartGlyph filled={false} size={11 * controlScale} />
         <InfoGlyph size={12 * controlScale} />
@@ -1372,7 +1384,7 @@ function IntimacyBonusRow({
           </Text>
         </Text>
         <Text style={[styles.bonusBody, compactStyles.bonusBody]}>
-          쓰다듬기, 바나나 주기, 운동 완료 등으로 친밀도를 올려보세요!
+          {HOUSE_BONDING_COPY.bonusDescription}
         </Text>
       </View>
       <ChevronGlyph size={14 * controlScale} />
@@ -2231,6 +2243,7 @@ const styles = StyleSheet.create({
   },
   chip: {
     minWidth: 84,
+    minHeight: 44,
     alignItems: 'center',
     gap: 3,
     borderRadius: 14,
