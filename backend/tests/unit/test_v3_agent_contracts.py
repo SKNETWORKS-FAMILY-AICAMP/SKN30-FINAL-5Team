@@ -7,6 +7,8 @@ import pytest
 from pydantic import ValidationError
 
 from backend.app.domain.agents.retrieval import (
+    ExerciseFittContext,
+    ExerciseFittVolumeRange,
     ExercisePoolExerciseRecord,
     ExercisePoolSnapshot,
     RetrievalMetadata,
@@ -52,6 +54,24 @@ def exercise(
         default_seconds_per_rep=3,
         default_rest_seconds=30,
         default_transition_seconds=15,
+        fitt_context=ExerciseFittContext(
+            source_code="fitt-test-source-v1",
+            policy_version="fitt-test-policy-v1",
+            review_status_code="DOMAIN_APPROVED",
+            template_id="FITT-COMPOUND-PUSH-V1",
+            frequency_code="PER_SESSION",
+            intensity_code="MODERATE",
+            time_mode_code="REPS",
+            type_code="STRENGTH",
+            volume=ExerciseFittVolumeRange(
+                min_sets=2,
+                max_sets=3,
+                min_reps=8,
+                max_reps=12,
+                default_sets=3,
+                default_reps=8,
+            ),
+        ),
         recovery_eligible=True,
         goal_codes=("GENERAL_FITNESS",),
         equipment_codes=("BODYWEIGHT",),

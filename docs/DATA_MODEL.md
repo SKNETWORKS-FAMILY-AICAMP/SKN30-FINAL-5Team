@@ -520,6 +520,12 @@ payload는 exercise ID와 catalog/index version metadata만 허용하고 사용�
 | recovery_eligible | 회복안 후보 여부 |
 | instruction_summary_ko | 블록에서 펼쳐볼 자세·수행 설명 |
 | form_cues_ko | 검수된 핵심 자세 포인트 JSONB |
+| met_value | 승인된 활동 강도(MET), nullable |
+| met_source_code | MET 출처 machine code, nullable |
+| met_source_activity_code | 출처 활동 code, nullable |
+| met_mapping_method_code | MET 매핑 방법 code, nullable |
+| met_review_status_code | MET 검수 상태, nullable |
+| met_policy_version | MET 정책·매핑 version, nullable |
 | mascot_animation_asset_key | 운동 실행 중앙 마스코트 애니메이션 참조, nullable |
 | instruction_content_version | 설명 콘텐츠 버전 |
 | review_status_code | DRAFT, TECH_REVIEWED, DOMAIN_APPROVED, REJECTED, DEPRECATED |
@@ -534,6 +540,8 @@ backend importer는 S3 업로드를 수행하지 않으며 media artifact가 없
 UNIQUE 제약은 catalog_version_id와 stable_code 조합에 둔다.
 
 프로덕션 후보는 review_status_code가 DOMAIN_APPROVED인 운동만 사용한다.
+MET provenance 여섯 필드는 함께 존재하거나 모두 null이어야 한다. 미승인 또는 결측 MET는
+계산·처방값으로 추론하지 않으며, 새 v2.0.7 DRAFT importer는 `DOMAIN_APPROVED` MET만 저장한다.
 추천 후보는 사용자의 `experience_level_code`가 허용하는 누적 난이도를 따른다. `BEGINNER`는
 `BEGINNER` 운동만, `INTERMEDIATE`는 `BEGINNER`와 `INTERMEDIATE` 운동을 허용한다. 승인 처방도
 같은 방향성 호환성을 적용하므로 `BEGINNER` 운동에는 두 처방 레벨이 가능하고,

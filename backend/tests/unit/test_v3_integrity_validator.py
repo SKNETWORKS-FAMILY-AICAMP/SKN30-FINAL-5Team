@@ -143,6 +143,67 @@ def test_recovery_ceiling_and_safety_exclusion_cannot_be_relaxed() -> None:
     }
 
 
+def test_compiled_plan_fitt_upper_bound_is_enforced_after_coordination() -> None:
+    current_envelope = envelope()
+    compiled, current_pool = compiled_plan(current_envelope)
+    first = compiled.exercises[0]
+    over_limit = compiled.model_copy(
+        update={
+            "exercises": (
+                first.model_copy(
+                    update={
+                        "prescription": first.prescription.model_copy(
+                            update={"repetitions_per_set": 13}
+                        )
+                    }
+                ),
+                *compiled.exercises[1:],
+            )
+        }
+    )
+
+    result = validate_plan_integrity(
+        over_limit,
+        envelope=current_envelope,
+        pool=current_pool,
+        repair_attempt=0,
+        validator_version=VALIDATOR_VERSION,
+        context=context(),
+    )
+
+    assert result.status_code is IntegrityValidationStatusCode.REPAIRABLE
+    assert IntegrityViolationCode.FITT_RANGE_EXCEEDED in {item.code for item in result.violations}
+
+
+def test_compiled_plan_with_missing_fitt_range_requires_review() -> None:
+    current_envelope = envelope()
+    compiled, current_pool = compiled_plan(current_envelope)
+    first = compiled.exercises[0]
+    no_fitt = first.catalog_record.model_copy(update={"fitt_context": None})
+    missing = compiled.model_copy(
+        update={
+            "exercises": (
+                first.model_copy(update={"catalog_record": no_fitt}),
+                *compiled.exercises[1:],
+            )
+        }
+    )
+
+    result = validate_plan_integrity(
+        missing,
+        envelope=current_envelope,
+        pool=current_pool,
+        repair_attempt=0,
+        validator_version=VALIDATOR_VERSION,
+        context=context(),
+    )
+
+    assert result.status_code is IntegrityValidationStatusCode.NON_REPAIRABLE
+    assert IntegrityViolationCode.FITT_RANGE_UNAVAILABLE in {
+        item.code for item in result.violations
+    }
+
+
 def test_repair_attempt_one_makes_every_repeated_violation_non_repairable() -> None:
     current_envelope = envelope()
     compiled, current_pool = compiled_plan(current_envelope)

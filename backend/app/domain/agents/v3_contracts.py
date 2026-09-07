@@ -12,7 +12,11 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 from pydantic_core import to_jsonable_python
 
-from backend.app.domain.agents.retrieval import ExercisePoolExerciseRecord, ExercisePoolSnapshot
+from backend.app.domain.agents.retrieval import (
+    ExerciseFittVolumeRange,
+    ExercisePoolExerciseRecord,
+    ExercisePoolSnapshot,
+)
 from backend.app.domain.rules.duration import DURATION_TOLERANCE_SECONDS
 from backend.app.domain.rules.plan_shape import (
     MAX_MAIN_BLOCKS_PER_EXERCISE,
@@ -144,6 +148,7 @@ class RecoveryCeiling(BaseModel):
     maximum_repetitions_per_set: int | None = Field(default=None, gt=0)
     maximum_work_seconds_per_set: int | None = Field(default=None, gt=0)
     minimum_rest_seconds_between_sets: int | None = Field(default=None, ge=0)
+    per_exercise_volume_ceilings: tuple[ExerciseVolumeCeiling, ...] = ()
 
     @field_validator("policy_version")
     @classmethod
@@ -154,6 +159,44 @@ class RecoveryCeiling(BaseModel):
     @classmethod
     def validate_code_sets(cls, values: tuple[str, ...], info: ValidationInfo) -> tuple[str, ...]:
         return _canonical_codes(values, field_name=info.field_name or "recovery codes")
+
+    @field_validator("per_exercise_volume_ceilings")
+    @classmethod
+    def validate_per_exercise_ceilings(
+        cls, values: tuple[ExerciseVolumeCeiling, ...]
+    ) -> tuple[ExerciseVolumeCeiling, ...]:
+        ids = tuple(value.exercise_id for value in values)
+        if len(ids) != len(set(ids)) or ids != tuple(sorted(ids, key=str)):
+            raise ValueError("per_exercise_volume_ceilings must use unique canonical UUID order")
+        return values
+
+
+class ExerciseVolumeCeiling(BaseModel):
+    """Recovery's per-exercise cap, derived from an approved FITT upper bound."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    exercise_id: UUID
+    maximum_sets_per_exercise: int = Field(gt=0)
+    maximum_repetitions_per_set: int = Field(gt=0)
+
+
+def _fitt_volume_range_or_error(
+    record: ExercisePoolExerciseRecord,
+) -> ExerciseFittVolumeRange:
+    context = record.fitt_context
+    if context is None or context.review_status_code != "DOMAIN_APPROVED" or context.volume is None:
+        raise ValueError("exercise prescription requires an approved FITT volume range")
+    return context.volume
+
+
+def _per_exercise_volume_ceiling(
+    ceiling: RecoveryCeiling, exercise_id: UUID
+) -> ExerciseVolumeCeiling | None:
+    return next(
+        (item for item in ceiling.per_exercise_volume_ceilings if item.exercise_id == exercise_id),
+        None,
+    )
 
 
 class FeedbackAdjustmentEnvelope(BaseModel):
@@ -386,6 +429,33 @@ def _validate_prescription_constraints(
     for item in prescriptions:
         sets_by_exercise[item.exercise_id] = sets_by_exercise.get(item.exercise_id, 0) + item.sets
         record = records[item.exercise_id]
+        if (
+            ceiling.maximum_sets_per_exercise is not None
+            and item.sets > ceiling.maximum_sets_per_exercise
+        ):
+            raise ValueError("exercise prescription exceeds the Recovery sets ceiling")
+        if (
+            ceiling.maximum_repetitions_per_set is not None
+            and item.repetitions_per_set is not None
+            and item.repetitions_per_set > ceiling.maximum_repetitions_per_set
+        ):
+            raise ValueError("exercise prescription exceeds the Recovery repetitions ceiling")
+        if record.timing_mode_code == "REPS":
+            volume = _fitt_volume_range_or_error(record)
+            if item.repetitions_per_set is None:
+                raise ValueError("REPS exercise prescription requires repetitions")
+            if not volume.min_sets <= item.sets <= volume.max_sets:
+                raise ValueError("exercise prescription is outside the approved FITT sets range")
+            if not volume.min_reps <= item.repetitions_per_set <= volume.max_reps:
+                raise ValueError(
+                    "exercise prescription is outside the approved FITT repetitions range"
+                )
+            exercise_ceiling = _per_exercise_volume_ceiling(ceiling, item.exercise_id)
+            if exercise_ceiling is not None and (
+                item.sets > exercise_ceiling.maximum_sets_per_exercise
+                or item.repetitions_per_set > exercise_ceiling.maximum_repetitions_per_set
+            ):
+                raise ValueError("exercise prescription exceeds the per-exercise Recovery ceiling")
         if item.location_code not in envelope.allowed_location_codes:
             raise ValueError("exercise prescription uses a disallowed location")
         if item.location_code not in record.location_codes:
@@ -799,6 +869,7 @@ __all__ = [
     "ConstraintEnvelope",
     "CoordinatorInput",
     "ExercisePrescription",
+    "ExerciseVolumeCeiling",
     "LLMInvocationMetadata",
     "LLMInvocationStatusCode",
     "PlanActionCode",

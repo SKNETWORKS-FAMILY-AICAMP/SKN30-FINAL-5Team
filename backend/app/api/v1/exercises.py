@@ -22,6 +22,7 @@ from backend.app.modules.catalog.codes import (
     TrainingTypeCode,
 )
 from backend.app.modules.catalog.home_equipment import (
+    FileGymEquipmentGuideProvider,
     FileHomeEquipmentGuideProvider,
     HomeEquipmentBundleValidationError,
 )
@@ -101,7 +102,10 @@ def get_exercise_detail(
             repository,
             media_url_provider,
             FileHomeEquipmentGuideProvider(
-                Path("data/generated/home-equipment-variants-v1-final/backend_bundle")
+                Path("data/generated/integrated-catalog-v2.0.7-draft/backend_bundle/home_equipment")
+            ),
+            FileGymEquipmentGuideProvider(
+                Path("data/generated/integrated-catalog-v2.0.7-draft/backend_bundle")
             ),
         ).get_detail(session, exercise_id)
     except ExerciseNotFoundError:

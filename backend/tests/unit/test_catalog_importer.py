@@ -10,7 +10,9 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
+from backend.app.modules.catalog import service as catalog_service
 from backend.app.modules.catalog.codes import (
+    APPROVED_GYMVISUAL_V2_TAXONOMY_REGISTRY_SHA256,
     APPROVED_TAXONOMY_REGISTRY_SHA256,
     CATALOG_V2_CODE_SET_VERSION,
     V2_BODY_FOCUS_CODES,
@@ -26,7 +28,9 @@ from backend.app.modules.catalog.service import (
     CatalogImporter,
     CatalogImportError,
     CatalogRepositoryPort,
+    IntegratedCatalogBundleImporter,
     load_catalog_artifact,
+    load_integrated_catalog_bundle,
 )
 
 GENERATED_CATALOG_ARTIFACTS = (
@@ -36,6 +40,7 @@ GENERATED_CATALOG_ARTIFACTS = (
     ("exercise-catalog-seed-wger-tranche3-v0.1.0", 3),
     ("exercise-catalog-seed-merged-mvp-v0.4.0", 56),
 )
+INTEGRATED_CATALOG_BUNDLE = Path("data/generated/integrated-catalog-v2.0.7-draft/backend_bundle")
 
 
 def _exercise_record(stable_code: str = "supported_sit_to_stand") -> dict[str, Any]:
@@ -156,6 +161,53 @@ def test_loads_current_generated_catalog_artifacts(
     artifact = load_catalog_artifact(root)
 
     assert len(artifact.records) == record_count
+
+
+def test_integrated_bundle_has_complete_reviewed_met_and_equipment_references() -> None:
+    bundle = load_integrated_catalog_bundle(INTEGRATED_CATALOG_BUNDLE)
+
+    assert len(bundle.catalog.records) == 237
+    assert bundle.gym_guide_record_count == 67
+    assert len(bundle.home_equipment.guides) == 34
+    assert all(
+        record.met_value is not None
+        and record.met_source_code is not None
+        and record.met_source_activity_code is not None
+        and record.met_mapping_method_code is not None
+        and record.met_review_status_code == "DOMAIN_APPROVED"
+        and record.met_policy_version is not None
+        for record in bundle.catalog.records
+    )
+
+
+def test_integrated_bundle_rejects_unapproved_met_before_import(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    catalog_root = INTEGRATED_CATALOG_BUNDLE / "catalog" / "catalog"
+    catalog = load_catalog_artifact(
+        catalog_root,
+        v2_import=True,
+        v2_taxonomy_registry_sha256=APPROVED_GYMVISUAL_V2_TAXONOMY_REGISTRY_SHA256,
+    )
+    records = (
+        catalog.records[0].model_copy(update={"met_review_status_code": "REVIEW_REQUIRED"}),
+        *catalog.records[1:],
+    )
+    monkeypatch.setattr(
+        catalog_service,
+        "load_catalog_artifact",
+        lambda *_args, **_kwargs: CatalogArtifact(
+            catalog.manifest,
+            catalog.manifest_hash,
+            records,
+            catalog.code_set_version,
+        ),
+    )
+
+    with pytest.raises(CatalogImportError) as exc_info:
+        load_integrated_catalog_bundle(INTEGRATED_CATALOG_BUNDLE)
+
+    assert exc_info.value.code == "INTEGRATED_CATALOG_CONTRACT_INVALID"
 
 
 def test_pydantic_strenum_rejects_unknown_machine_code() -> None:
@@ -484,6 +536,17 @@ def test_same_version_with_another_manifest_hash_fails_closed(tmp_path: Path) ->
         importer.import_artifact(session, second)
 
     assert exc_info.value.code == "CATALOG_VERSION_HASH_CONFLICT"
+
+
+def test_integrated_catalog_importer_uses_the_validated_catalog_artifact() -> None:
+    repository = FakeRepository()
+    result = IntegratedCatalogBundleImporter(
+        cast(CatalogRepositoryPort, repository), "test"
+    ).import_bundle(cast(Session, FakeSession()), INTEGRATED_CATALOG_BUNDLE)
+
+    assert result.imported is True
+    assert result.version_code == "exercise-catalog-v2.0.7-draft"
+    assert result.exercise_record_count == 237
 
 
 @pytest.mark.parametrize("app_env", ["staging", "production"])
