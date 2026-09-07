@@ -3,6 +3,7 @@ import { ApiError } from '../../api/errors';
 import type {
   DailyContextResponse,
   DecisionResponse,
+  HomeStateResponse,
   MeResponse,
   RoutineResponse,
   WeekResponse,
@@ -247,7 +248,29 @@ function previewError(kind: 'network' | 'notFound' | 'permission'): ApiError {
  * Today screen. The fixture chooses response shapes, never workout decisions.
  */
 export function createTodayPreviewApi(state: TodayPreviewState): Api {
-  const api: Pick<Api, 'getCurrentRoutine' | 'getDailyContext' | 'getWeek'> = {
+  const api: Pick<
+    Api,
+    'getCurrentRoutine' | 'getDailyContext' | 'getHomeState' | 'getWeek'
+  > = {
+    async getHomeState(localDate): Promise<HomeStateResponse> {
+      if (state === 'loading') {
+        return new Promise<HomeStateResponse>(() => undefined);
+      }
+      if (state === 'error') {
+        throw previewError('network');
+      }
+      if (state === 'permission') {
+        throw previewError('permission');
+      }
+      const storedDecision =
+        state === 'checked-in' || state === 'rest' ? DECISION : null;
+      return {
+        local_date: localDate,
+        decision: storedDecision,
+        final_plan: storedDecision?.final_plan ?? null,
+        workout_session: null,
+      };
+    },
     async getWeek() {
       if (state === 'loading') {
         return new Promise<WeekResponse>(() => undefined);

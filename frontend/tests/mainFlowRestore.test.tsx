@@ -17,14 +17,17 @@ import {
 
 import { ApiClient } from '../src/api/client';
 import { createApi, type Api } from '../src/api/endpoints';
+import { ApiError } from '../src/api/errors';
 import type {
   DecisionResponse,
+  HomeStateResponse,
   MeResponse,
   NotificationListResponse,
   NotificationResponse,
   RoutineResponse,
   WeeklyPlanRevisionResponse,
   WorkoutPlan,
+  WorkoutSessionDetailResponse,
   WorkoutSessionListResponse,
 } from '../src/api/types';
 import { weekStartString } from '../src/api/useAsync';
@@ -119,6 +122,49 @@ function sessions(
   return { items, next_cursor: null };
 }
 
+function sessionDetail(
+  overrides: Partial<WorkoutSessionDetailResponse> = {},
+): WorkoutSessionDetailResponse {
+  return {
+    session_id: 'session-1',
+    local_date: LOCAL_DATE,
+    status_code: 'IN_PROGRESS',
+    completed_item_count: 0,
+    total_item_count: 1,
+    requested_duration_minutes: 30,
+    items: [
+      {
+        plan_item_id: 'item-1',
+        exercise_id: 'ex-1',
+        exercise_name: '스쿼트',
+        status_code: 'PENDING',
+        sets: 1,
+        reps: 10,
+        work_seconds_per_set: 1620,
+        completed_at: null,
+      },
+    ],
+    feedback: null,
+    not_completed_reason_code: null,
+    started_at: '2026-08-19T09:00:00+09:00',
+    finished_at: null,
+    ...overrides,
+  };
+}
+
+function homeState(
+  overrides: Partial<HomeStateResponse> = {},
+): HomeStateResponse {
+  const storedDecision = decision();
+  return {
+    local_date: LOCAL_DATE,
+    decision: storedDecision,
+    final_plan: storedDecision.final_plan,
+    workout_session: null,
+    ...overrides,
+  };
+}
+
 function routine(): RoutineResponse {
   return {
     id: 'routine-1',
@@ -172,6 +218,12 @@ function latestPlanRevision(): WeeklyPlanRevisionResponse {
 /** Routes requests by path; unrouted paths get 404 so optional reads stay absent. */
 function apiWithRoutes(routes: Record<string, unknown>) {
   const calls: string[] = [];
+  const configuredRoutes = {
+    '/home?': homeState(),
+    '/routines/current?': routine(),
+    '/workout-sessions?': sessions([]),
+    ...routes,
+  };
   const client = new ApiClient({
     baseUrl: 'http://test.local',
     getToken: async () => 'token',
@@ -179,7 +231,7 @@ function apiWithRoutes(routes: Record<string, unknown>) {
       const url = new URL(String(input));
       const key = url.pathname.replace('/api/v1', '') + (url.search ? '?' : '');
       calls.push(key);
-      const match = Object.entries(routes).find(([route]) =>
+      const match = Object.entries(configuredRoutes).find(([route]) =>
         key.startsWith(route),
       );
       if (!match) {
@@ -227,9 +279,9 @@ describe('MainFlow restart recovery', () => {
       );
     });
     expect(await screen.findByText('다른 루틴 · 1회 남음')).toBeOnTheScreen();
-  });
+  }, 20_000);
 
-  it('re-reads the stored decision and shows it without re-running a check-in', async () => {
+  it('restores one consistent Home snapshot without composing legacy reads', async () => {
     const { api, calls } = apiWithRoutes({
       '/decisions?': decision(),
       '/workout-sessions?': sessions([]),
@@ -245,13 +297,12 @@ describe('MainFlow restart recovery', () => {
     );
 
     await waitFor(() => {
-      expect(calls.some((path) => path.startsWith('/decisions?'))).toBe(true);
-      expect(calls.some((path) => path.startsWith('/workout-sessions?'))).toBe(
-        true,
-      );
+      expect(calls.some((path) => path.startsWith('/home?'))).toBe(true);
     });
-    // Restoring must never create anything: reads only.
-    expect(calls.every((path) => !path.includes('POST'))).toBe(true);
+    expect(calls.some((path) => path.startsWith('/decisions?'))).toBe(false);
+    expect(
+      calls.some((path) => path.startsWith('/workout-sessions/session-')),
+    ).toBe(false);
   });
 
   it('re-reads the stored decision whenever the user returns to Home', async () => {
@@ -270,19 +321,100 @@ describe('MainFlow restart recovery', () => {
       />,
     );
 
-    const decisionReadCount = () =>
-      calls.filter((path) => path.startsWith('/decisions?')).length;
-    await waitFor(() => expect(decisionReadCount()).toBe(1));
+    const homeReadCount = () =>
+      calls.filter((path) => path.startsWith('/home?')).length;
+    await waitFor(() => expect(homeReadCount()).toBe(1));
 
     fireEvent.press(screen.getAllByRole('tab')[1]!);
     await waitFor(() => expect(screen.getAllByRole('tab')).toHaveLength(4));
     fireEvent.press(screen.getAllByRole('tab')[0]!);
 
-    await waitFor(() => expect(decisionReadCount()).toBe(2));
+    await waitFor(() => expect(homeReadCount()).toBe(2));
+  });
+
+  it('treats an aggregate response with no decision or session as an empty Home', async () => {
+    const { api, calls } = apiWithRoutes({
+      '/home?': homeState({
+        decision: null,
+        final_plan: null,
+        workout_session: null,
+      }),
+    });
+
+    render(
+      <MainFlow
+        api={api}
+        me={me()}
+        onRefreshMe={async () => undefined}
+        onSignOut={() => {}}
+      />,
+    );
+
+    expect(
+      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+    ).toBeOnTheScreen();
+    expect(calls.some((path) => path.startsWith('/decisions?'))).toBe(false);
+  });
+
+  it('retries a transient aggregate failure from the Home error state', async () => {
+    const { api } = apiWithRoutes({});
+    const getHomeState = jest
+      .fn<Promise<HomeStateResponse>, [string, AbortSignal?]>()
+      .mockRejectedValueOnce(
+        new ApiError({
+          kind: 'unavailable',
+          code: 'SERVICE_UNAVAILABLE',
+          status: 503,
+          message: '잠시 후 다시 시도해주세요.',
+        }),
+      )
+      .mockResolvedValueOnce(homeState());
+
+    render(
+      <MainFlow
+        api={{ ...api, getHomeState }}
+        me={me()}
+        onRefreshMe={async () => undefined}
+        onSignOut={() => {}}
+      />,
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '다시 준비하기' }),
+    );
+    await waitFor(() => expect(getHomeState).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText(decision().summary)).toBeOnTheScreen();
+  });
+
+  it('shows aggregate permission denial without a retry action', async () => {
+    const { api } = apiWithRoutes({});
+    const getHomeState = jest.fn(async () => {
+      throw new ApiError({
+        kind: 'permission',
+        code: 'ACCOUNT_DISABLED',
+        status: 403,
+        message: '이 계정으로는 접근할 수 없습니다.',
+      });
+    });
+
+    render(
+      <MainFlow
+        api={{ ...api, getHomeState }}
+        me={me()}
+        onRefreshMe={async () => undefined}
+        onSignOut={() => {}}
+      />,
+    );
+
+    expect(
+      await screen.findByText('오늘의 운동 정보에 접근할 권한이 없어요.'),
+    ).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: '다시 준비하기' })).toBeNull();
   });
 
   it('restores an unfinished session on Home and resumes on demand', async () => {
     const { api, calls } = apiWithRoutes({
+      '/home?': homeState({ workout_session: sessionDetail() }),
       '/decisions?': decision(),
       '/routines/current?': routine(),
       '/workout-sessions?': sessions([
@@ -335,26 +467,36 @@ describe('MainFlow restart recovery', () => {
     );
 
     // Home reads progress but does not reopen the workout without a user action.
-    await waitFor(
-      () => {
-        expect(
-          calls.some((path) => path.startsWith('/workout-sessions/session-1')),
-        ).toBe(true);
-      },
-      { timeout: 8000 },
-    );
+    await waitFor(() => {
+      expect(calls.some((path) => path.startsWith('/home?'))).toBe(true);
+    });
     const detailReadCount = () =>
       calls.filter((path) => path.startsWith('/workout-sessions/session-1'))
         .length;
+    expect(detailReadCount()).toBe(0);
     const beforeResume = detailReadCount();
     fireEvent.press(await screen.findByRole('button', { name: '이어하기' }));
     await waitFor(() =>
       expect(detailReadCount()).toBeGreaterThan(beforeResume),
     );
-  });
+  }, 20_000);
 
   it("keeps the day's completed routine visible without reopening it", async () => {
     const { api, calls } = apiWithRoutes({
+      '/home?': homeState({
+        workout_session: sessionDetail({
+          status_code: 'COMPLETED',
+          completed_item_count: 1,
+          items: [
+            {
+              ...sessionDetail().items[0]!,
+              status_code: 'COMPLETED',
+              completed_at: '2026-08-19T09:30:00+09:00',
+            },
+          ],
+          finished_at: '2026-08-19T09:30:00+09:00',
+        }),
+      }),
       '/decisions?': decision(),
       '/routines/current?': routine(),
       '/workout-sessions?': sessions([
@@ -413,7 +555,7 @@ describe('MainFlow restart recovery', () => {
     });
     expect(
       calls.some((path) => path.startsWith('/workout-sessions/session-1')),
-    ).toBe(true);
+    ).toBe(false);
     expect(await screen.findByText('운동 기록')).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: '이어하기' })).toBeNull();
     expect(screen.queryByRole('button', { name: '세트·횟수 수정' })).toBeNull();

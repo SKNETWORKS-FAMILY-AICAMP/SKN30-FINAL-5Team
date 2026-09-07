@@ -78,6 +78,11 @@ type HomeData = {
   sessions: WorkoutSessionLogSummary[];
 };
 
+export type HomeRecoveryState =
+  | { status: 'loading' }
+  | { status: 'ready' }
+  | { status: 'error'; message: string; permissionDenied: boolean };
+
 type PendingRoutineAttempt = {
   scope: string;
   idempotencyKey: string;
@@ -245,6 +250,7 @@ export function HomeContainer({
   onDismissNotificationPanel,
   notificationToastVisible = false,
   onNotifications,
+  recoveryState,
   finalValidationHoldMs = DEFAULT_FINAL_VALIDATION_HOLD_MS,
 }: {
   api: Api;
@@ -280,6 +286,8 @@ export function HomeContainer({
   onDismissNotificationPanel?: () => void;
   notificationToastVisible?: boolean;
   onNotifications?: () => void;
+  /** The flow-owned aggregate snapshot read used on Home entry and retry. */
+  recoveryState?: HomeRecoveryState;
   /** Testable presentation delay after a decision response is ready. */
   finalValidationHoldMs?: number;
 }) {
@@ -882,24 +890,30 @@ export function HomeContainer({
     }
   }, [pendingPlanEdit, persistPlanEdit]);
 
+  const recoveryError =
+    recoveryState?.status === 'error' ? recoveryState : null;
   const permissionDenied =
-    state.status === 'error' &&
-    isApiError(state.error) &&
-    state.error.kind === 'permission';
+    recoveryError?.permissionDenied === true ||
+    (state.status === 'error' &&
+      isApiError(state.error) &&
+      state.error.kind === 'permission');
+  const homeStatus =
+    permissionDenied || state.status === 'error' || recoveryError !== null
+      ? 'error'
+      : state.status === 'loading' || recoveryState?.status === 'loading'
+        ? 'loading'
+        : 'ready';
+  const homeErrorMessage =
+    recoveryError?.message ??
+    (state.status === 'error' ? state.message : undefined);
 
   return (
     <HomeScreen
       nickname={profile?.nickname ?? '회원'}
       profileImageUrl={profile?.profile_image_url ?? null}
       localDate={localDate}
-      status={
-        state.status === 'ready'
-          ? 'ready'
-          : state.status === 'error'
-            ? 'error'
-            : 'loading'
-      }
-      errorMessage={state.status === 'error' ? state.message : undefined}
+      status={homeStatus}
+      errorMessage={homeErrorMessage}
       exerciseApi={api}
       permissionDenied={permissionDenied}
       onRetry={
