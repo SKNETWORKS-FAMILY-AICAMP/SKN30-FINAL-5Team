@@ -311,10 +311,18 @@ describe('environment configuration', () => {
       EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: 'demo.firebaseapp.com',
       EXPO_PUBLIC_FIREBASE_PROJECT_ID: 'demo',
       EXPO_PUBLIC_FIREBASE_APP_ID: 'app',
+      EXPO_PUBLIC_GOOGLE_OAUTH_REDIRECT_URI:
+        'https://app.example.test/oauth/google/callback',
+      EXPO_PUBLIC_KAKAO_REDIRECT_URI:
+        'https://app.example.test/oauth/kakao/callback',
     });
     expect(config.status).toBe('ready');
     if (config.status === 'ready') {
       expect(config.apiBaseUrl).toBe('http://10.0.2.2:8000');
+      expect(config.socialOAuthRedirectUris).toEqual({
+        GOOGLE: 'https://app.example.test/oauth/google/callback',
+        KAKAO: 'https://app.example.test/oauth/kakao/callback',
+      });
     }
   });
 });

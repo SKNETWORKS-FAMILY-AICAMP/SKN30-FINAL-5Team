@@ -11,6 +11,8 @@ export const authPreviewAdapter: AuthAdapter = {
     return () => undefined;
   },
   async signIn() {},
+  async signInWithGoogle() {},
+  async signInWithKakao() {},
   async signUp() {},
   async signOutUser() {},
   async getIdToken() {
