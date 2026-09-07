@@ -1,0 +1,13 @@
+{
+  "status": "PASS",
+  "bundle_version": "integrated-catalog-v2.0.7-draft-2026-09-07",
+  "bundle_manifest_sha256": "682c519caa729b3d26dac1b97e45699e24ead8425b3d09f5a8bfa4c41a9231bf",
+  "summary": {
+    "catalog_records": 237,
+    "gym_guide_records": 67,
+    "home_guide_records": 34,
+    "fitt_reference_records": 208,
+    "met_fields_per_catalog_record": 6
+  },
+  "source_catalog_sha256": "6bf15616bf6db93bc420eca22335f65df0e5eb2a7dd8fdab98d83ea66b7c6cbc"
+}

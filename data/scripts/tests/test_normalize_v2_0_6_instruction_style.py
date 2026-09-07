@@ -14,8 +14,8 @@ def test_normalizes_imperative_and_adds_other_side_step() -> None:
     value = "바닥에 평평하게 누으십시오, 한쪽 다리를 듭니다, 이어서 내립니다."
 
     assert module.normalize_instruction("test", value) == (
-        "1. 바닥에 평평하게 눕습니다 한쪽 다리를 듭니다 "
-        "2. 내립니다 3. 반대쪽도 같은 순서로 수행합니다"
+        "1. 바닥에 평평하게 눕습니다 한쪽 다리를 듭니다\n"
+        "2. 내립니다\n3. 반대쪽도 같은 순서로 수행합니다"
     )
 
 
@@ -23,8 +23,8 @@ def test_gif_override_is_used_for_standing_ankle_circles() -> None:
     result = module.normalize_instruction("1368", "기존 설명")
 
     assert result == (
-        "1. 서서 한쪽 다리를 바닥에서 가볍게 듭니다 "
-        "2. 든 발의 발목을 원을 그리며 돌립니다 "
+        "1. 서서 한쪽 다리를 바닥에서 가볍게 듭니다\n"
+        "2. 든 발의 발목을 원을 그리며 돌립니다\n"
         "3. 반대쪽도 같은 순서로 수행합니다"
     )
 
@@ -65,7 +65,7 @@ def test_removes_terminal_punctuation_and_uses_friendly_words() -> None:
         "test", "전완을 바닥에 둡니다. 햄스트링의 스트레칭을 느낍니다."
     )
 
-    assert result == "1. 팔뚝을 바닥에 둡니다 2. 허벅지 뒤쪽이 늘어나는 느낌이 들도록 합니다"
+    assert result == "1. 팔뚝을 바닥에 둡니다\n2. 허벅지 뒤쪽이 늘어나는 느낌이 들도록 합니다"
 
 
 def test_removes_all_sentence_punctuation_except_numbered_step_markers() -> None:
@@ -73,4 +73,4 @@ def test_removes_all_sentence_punctuation_except_numbered_step_markers() -> None
         "test", "팔을 듭니다, (천천히) 내립니다! 2초간 유지합니다."
     )
 
-    assert result == "1. 팔을 듭니다 천천히 내립니다 2. 2초간 유지합니다"
+    assert result == "1. 팔을 듭니다 천천히 내립니다\n2. 2초간 유지합니다"

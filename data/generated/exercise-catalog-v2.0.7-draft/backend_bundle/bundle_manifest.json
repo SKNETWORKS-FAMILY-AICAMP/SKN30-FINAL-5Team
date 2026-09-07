@@ -1,0 +1,141 @@
+{
+  "bundle_version": "v2-0-7-met-backend-bundle-draft-2026-09-06",
+  "catalog_version_code": "exercise-catalog-v2.0.7-draft",
+  "derived_from": {
+    "baseline_bundle_manifest_sha256": "ab0e3d9f9aaa53c5e4572d854830341fb610cdc24040dcc0f2c6c62a6fec9a36",
+    "catalog_source_path": "data/normalized/v2_0_6_exercise_catalog.csv",
+    "catalog_source_records": 237,
+    "catalog_source_sha256": "c9143eb25bf88ba60fc7440ef0b4a55c0fd6dddf62ee56925cd526785c5cca27",
+    "change_summary": "MET six-field projection only; exercise, safety, prescription, media and alternative semantics unchanged. Catalog version and provenance hashes retargeted.",
+    "generator_version": "v2-0-7-met-projection-1.0.0"
+  },
+  "derived_set_versions": {
+    "alternative_set_version_code": "alternative-set-v2.0.6-stretch-strap-fallback",
+    "prescription_set_version_code": "prescription-set-v2.0.6",
+    "rule_set_version_code": "safety-rule-set-v2.0.6"
+  },
+  "files": [
+    {
+      "bytes": 1036,
+      "path": "alternatives/alternatives.jsonl",
+      "records": 1,
+      "sha256": "f5014f867a36f947602e0ac9765fc984fbbdcbeb531f275e306cb5bc8b1001b3"
+    },
+    {
+      "bytes": 1183,
+      "path": "alternatives/alternatives_manifest.json",
+      "sha256": "6dbbefbf1ce68f59edc2f52747ee5272873a716564f845ad948c53f20794ebad"
+    },
+    {
+      "bytes": 190,
+      "path": "alternatives/input/alternative_projection_conflicts.json",
+      "sha256": "bc80f6e5b5b41d1b13a7037b5980b2d23753ce77c543fbdf88777c42c559dc0c"
+    },
+    {
+      "bytes": 51695,
+      "path": "audit/projection_audit.jsonl",
+      "records": 237,
+      "sha256": "b36f0a6d6a1c518c75e06abe3a25758da04c60d2a34c2ca985731f5f097a7c56"
+    },
+    {
+      "bytes": 408080,
+      "path": "catalog/exercises.jsonl",
+      "records": 237,
+      "sha256": "8690b4586b5b86695c20873f9439cb000921e774abc0a8549670e48da8cb26c1"
+    },
+    {
+      "bytes": 1107,
+      "path": "catalog/input/met_review_approval_manifest.json",
+      "sha256": "2568be6b2b8197abadcf511638f1ed42bdc5f36793313673ce2a1b3168310162"
+    },
+    {
+      "bytes": 9785,
+      "path": "catalog/input/representative_exercises.csv",
+      "sha256": "fd7099554043cfbfa9ea0e5658bc8078c620272c728aa9c1c8ac2bc6a2178627"
+    },
+    {
+      "bytes": 1539,
+      "path": "catalog/seed_manifest.json",
+      "sha256": "b4f4ea1f6f7462e5414ddd63cb628257ec66ac831c461a008fc1f73259fb6c37"
+    },
+    {
+      "bytes": 170906,
+      "path": "media/media_assets.jsonl",
+      "records": 237,
+      "sha256": "f4bb0e7141e6ed38ae2cd05eda9e071f8ed76887dcf7e70503d3926e88b037e3"
+    },
+    {
+      "bytes": 1231,
+      "path": "media/media_manifest.json",
+      "sha256": "b94124693e8192c2556ecf5bfbbb45d1622b8b0cc072260541da030d62514c79"
+    },
+    {
+      "bytes": 155760,
+      "path": "prescriptions/goal_tag_links.jsonl",
+      "records": 711,
+      "sha256": "16edf7103184972edfd65d1d211e3e6e2cdd1602a34a813ce54652dbeb132990"
+    },
+    {
+      "bytes": 1254,
+      "path": "prescriptions/prescription_manifest.json",
+      "sha256": "50cc64677fa2bdaa9e1d21ba6261c9f28bc7dd17b8b507c967be5c364d6dbcb7"
+    },
+    {
+      "bytes": 617100,
+      "path": "prescriptions/prescription_profiles.jsonl",
+      "records": 1449,
+      "sha256": "d6725499038cf7b2900fb23066579cfe881d669dfed84f225794da14fca09086"
+    },
+    {
+      "bytes": 1054,
+      "path": "safety/rules_manifest.json",
+      "sha256": "11ac8eaaafbb48f6b7ed6ff40aa8a99a1d2dac06233239f4335d4edd1c25b0dc"
+    },
+    {
+      "bytes": 1831639,
+      "path": "safety/safety_rules.jsonl",
+      "records": 2131,
+      "sha256": "7d59b211e059602ebc9e2ce5827773fae412612526f8bb08054236c13ff0dcda"
+    }
+  ],
+  "importer_paths": {
+    "alternatives": "alternatives/alternatives_manifest.json",
+    "catalog": "catalog/seed_manifest.json",
+    "media": "media/media_manifest.json",
+    "prescriptions": "prescriptions/prescription_manifest.json",
+    "safety": "safety/rules_manifest.json"
+  },
+  "input_policy": {
+    "canonical_catalog_source": "data/normalized/v2_0_6_exercise_catalog.csv",
+    "excluded_auxiliary_artifacts": [
+      "data/normalized/home_equipment_substitution_guides_v1.jsonl",
+      "data/normalized/dumbbell_bodyweight_variant_candidates_v1.jsonl",
+      "data/normalized/foam_roller_bodyweight_variant_candidates_v1.jsonl",
+      "data/normalized/resistance_band_bodyweight_variant_candidates_v1.jsonl",
+      "data/normalized/stretch_strap_home_suitability_review_v1.jsonl",
+      "data/reports/resistance_band_bodyweight_variant_gap_report_v1.json",
+      "data/reports/home_equipment_substitution_guides_v1_validation.json"
+    ],
+    "excluded_reason": "household substitutions, cautions, and replacement exercises are not stored in equipment descriptions or alternatives"
+  },
+  "production_eligible": false,
+  "projection": {
+    "alternative_conflict_count": 0,
+    "conflict_report_path": "alternatives/input/alternative_projection_conflicts.json",
+    "fallback_policy": "STRETCH_STRAP_TO_BODYWEIGHT_ONLY",
+    "importer_alternative_records": 1,
+    "media_coverage": "EXACT_ALL_CATALOG_RECORDS",
+    "runtime_alternative_records": 1,
+    "status": "DIRECT"
+  },
+  "schema_version": "1.0",
+  "status_code": "DRAFT",
+  "summary": {
+    "alternative_records": 1,
+    "catalog_records": 237,
+    "goal_tag_records": 711,
+    "media_asset_records": 237,
+    "prescription_records": 1449,
+    "safety_rule_records": 2131
+  }
+}

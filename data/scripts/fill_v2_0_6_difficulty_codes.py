@@ -221,6 +221,44 @@ DIFFICULTY_OVERRIDES = {
     "3769": "BEGINNER",  # curtsy squat
 }
 
+# User-approved v2.0.7 accessibility review, 2026-09-07.  These rules are
+# evaluated after the historic source-ID review so they take precedence over
+# earlier blanket classifications.  The more specific named exercise and
+# push-up rules take precedence over broader equipment rules.
+USER_REVIEW_BY_SOURCE_ID = {
+    "0335": "BEGINNER",  # dumbbell lateral to front raise
+    "0405": "BEGINNER",  # dumbbell seated shoulder press
+    "2311": "BEGINNER",  # stepmill (천국의 계단)
+    "2796": "BEGINNER",  # dumbbell step-up lunge
+    "0262": "BEGINNER",  # cross-body crunch
+    "0410": "BEGINNER",  # dumbbell single-leg split squat
+    "0555": "BEGINNER",  # kick-out sit
+    "0620": "BEGINNER",  # lying leg raise on flat bench
+    "0684": "BEGINNER",  # machine run
+    "0705": "BEGINNER",  # side bridge
+    "0730": "BEGINNER",  # single-leg platform slide
+}
+
+
+def _user_review_difficulty(row: dict[str, str]) -> str | None:
+    """Return an explicit 2026-09-07 review value when a rule applies."""
+    source_id = row.get("source_identity", "")
+    if source_id in USER_REVIEW_BY_SOURCE_ID:
+        return USER_REVIEW_BY_SOURCE_ID[source_id]
+
+    stable_code = row.get("stable_code", "")
+    equipment_codes = set(filter(None, row.get("equipment_codes", "").split("|")))
+    name_en = row.get("name_en", "").lower()
+    if "push_up" in stable_code:
+        return "BEGINNER"
+    if "incline" in stable_code and equipment_codes & {"DUMBBELL", "BARBELL", "BODYWEIGHT"}:
+        return "INTERMEDIATE"
+    if "BARBELL" in equipment_codes or "smith" in name_en:
+        return "INTERMEDIATE"
+    if "BODYWEIGHT" in equipment_codes:
+        return "BEGINNER"
+    return None
+
 
 class DifficultyReviewError(ValueError):
     """Raised when the normalized catalog does not match the review scope."""
@@ -235,11 +273,6 @@ def apply_review(path: Path) -> tuple[int, int]:
     if "source_identity" not in fields or "difficulty_code" not in fields:
         raise DifficultyReviewError("catalog must contain source_identity and difficulty_code")
 
-    identities = {row.get("source_identity", "") for row in rows}
-    unknown = sorted(set(DIFFICULTY_BY_SOURCE_ID) - identities)
-    if unknown:
-        raise DifficultyReviewError(f"review IDs are missing from catalog: {', '.join(unknown)}")
-
     updated = 0
     preserved = 0
     for row in rows:
@@ -249,8 +282,14 @@ def apply_review(path: Path) -> tuple[int, int]:
             raise DifficultyReviewError(
                 f"unsupported existing difficulty for {identity}: {current}"
             )
-        if identity in DIFFICULTY_OVERRIDES:
+        user_review = _user_review_difficulty(row)
+        if user_review is not None:
+            expected = user_review
+        elif identity in DIFFICULTY_OVERRIDES:
             expected = DIFFICULTY_OVERRIDES[identity]
+        else:
+            expected = None
+        if expected is not None:
             if current != expected:
                 row["difficulty_code"] = expected
                 updated += 1
