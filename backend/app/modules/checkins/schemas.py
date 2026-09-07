@@ -13,7 +13,7 @@ from pydantic import (
 from backend.app.domain.rules.duration import (
     DAILY_CHECKIN_DURATION_MINUTES_MAX,
     DAILY_CHECKIN_DURATION_MINUTES_MIN,
-    DURATION_RULE_VERSION,
+    DAILY_CHECKIN_DURATION_POLICY_VERSION,
     RECOMMENDED_DAILY_DURATION_MINUTES,
 )
 from backend.app.domain.rules.external_context import (
@@ -224,7 +224,7 @@ class DailyContextDefaultsResponse(BaseModel):
         default_factory=lambda: [LocationCode.HOME, LocationCode.GYM]
     )
     recommended_duration_minutes: int = RECOMMENDED_DAILY_DURATION_MINUTES
-    duration_recommendation_policy_version: str = DURATION_RULE_VERSION
+    duration_recommendation_policy_version: str = DAILY_CHECKIN_DURATION_POLICY_VERSION
 
 
 __all__ = [

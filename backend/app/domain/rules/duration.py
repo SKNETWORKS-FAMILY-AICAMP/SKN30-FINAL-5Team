@@ -3,10 +3,13 @@
 from dataclasses import dataclass
 from enum import StrEnum
 
-DURATION_RULE_VERSION = "1.1.0"
+# This version is persisted in decision replay records. The planned-duration
+# assessment itself did not change in the September Check-in expansion.
+DURATION_RULE_VERSION = "1.0.0"
 SECONDS_PER_MINUTE = 60
 DAILY_CHECKIN_DURATION_MINUTES_MIN = 10
 DAILY_CHECKIN_DURATION_MINUTES_MAX = 90
+DAILY_CHECKIN_DURATION_POLICY_VERSION = "1.1.0"
 # The daily recommendation is guidance only. It never rewrites a submitted
 # requested duration or the 30-minute server default used while onboarding.
 RECOMMENDED_DAILY_DURATION_MINUTES = 30
