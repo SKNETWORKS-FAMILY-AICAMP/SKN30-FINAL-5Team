@@ -43,6 +43,8 @@ class IntegrityViolationCode(StrEnum):
     LOCATION_NOT_ALLOWED = "LOCATION_NOT_ALLOWED"
     EQUIPMENT_NOT_AVAILABLE = "EQUIPMENT_NOT_AVAILABLE"
     RECOVERY_CEILING_EXCEEDED = "RECOVERY_CEILING_EXCEEDED"
+    FITT_RANGE_UNAVAILABLE = "FITT_RANGE_UNAVAILABLE"
+    FITT_RANGE_EXCEEDED = "FITT_RANGE_EXCEEDED"
     PLAN_PHASE_COVERAGE_INVALID = "PLAN_PHASE_COVERAGE_INVALID"
     PLAN_EXERCISE_VARIETY_EXCEEDED = "PLAN_EXERCISE_VARIETY_EXCEEDED"
     PLAN_PHASE_REPETITION_INVALID = "PLAN_PHASE_REPETITION_INVALID"
@@ -68,6 +70,7 @@ _CONDITIONALLY_REPAIRABLE = frozenset(
         IntegrityViolationCode.LOCATION_NOT_ALLOWED,
         IntegrityViolationCode.EQUIPMENT_NOT_AVAILABLE,
         IntegrityViolationCode.RECOVERY_CEILING_EXCEEDED,
+        IntegrityViolationCode.FITT_RANGE_EXCEEDED,
         # Shape violations are the Coordinator's to correct: the pool always
         # reserves candidates for every phase, so one repair round can restore
         # the shape without weakening any safety bound. When repair does not,
@@ -181,6 +184,22 @@ def _recovery_exceeded(compiled_plan: CompiledPlan, envelope: ConstraintEnvelope
             and item.intensity_code not in ceiling.allowed_intensity_codes
         ):
             return True
+        per_exercise_ceiling = next(
+            (
+                value
+                for value in ceiling.per_exercise_volume_ceilings
+                if value.exercise_id == item.exercise_id
+            ),
+            None,
+        )
+        if per_exercise_ceiling is not None and (
+            item.sets > per_exercise_ceiling.maximum_sets_per_exercise
+            or (
+                item.repetitions_per_set is not None
+                and item.repetitions_per_set > per_exercise_ceiling.maximum_repetitions_per_set
+            )
+        ):
+            return True
         if ceiling.allowed_load_codes and item.load_code not in ceiling.allowed_load_codes:
             return True
         if any(
@@ -201,6 +220,31 @@ def _recovery_exceeded(compiled_plan: CompiledPlan, envelope: ConstraintEnvelope
     ):
         return True
     return False
+
+
+def _fitt_violation_codes(compiled_plan: CompiledPlan) -> set[IntegrityViolationCode]:
+    codes: set[IntegrityViolationCode] = set()
+    for compiled in compiled_plan.exercises:
+        prescription = compiled.prescription
+        record = compiled.catalog_record
+        if record.timing_mode_code != "REPS":
+            continue
+        fitt = record.fitt_context
+        if (
+            fitt is None
+            or fitt.review_status_code != "DOMAIN_APPROVED"
+            or fitt.volume is None
+            or prescription.repetitions_per_set is None
+        ):
+            codes.add(IntegrityViolationCode.FITT_RANGE_UNAVAILABLE)
+            continue
+        volume = fitt.volume
+        if not (
+            volume.min_sets <= prescription.sets <= volume.max_sets
+            and volume.min_reps <= prescription.repetitions_per_set <= volume.max_reps
+        ):
+            codes.add(IntegrityViolationCode.FITT_RANGE_EXCEEDED)
+    return codes
 
 
 def validate_plan_integrity(
@@ -317,6 +361,7 @@ def validate_plan_integrity(
                 codes.add(IntegrityViolationCode.EQUIPMENT_NOT_AVAILABLE)
         if _recovery_exceeded(compiled_plan, envelope):
             codes.add(IntegrityViolationCode.RECOVERY_CEILING_EXCEEDED)
+        codes.update(_fitt_violation_codes(compiled_plan))
 
     if repair_attempt == 1 and codes:
         codes.add(IntegrityViolationCode.REPAIR_ATTEMPT_EXHAUSTED)

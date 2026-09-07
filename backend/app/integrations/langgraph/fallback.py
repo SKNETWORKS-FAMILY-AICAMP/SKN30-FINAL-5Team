@@ -105,6 +105,20 @@ class DeterministicGraphFallbackProvider:
                 and sets_by_exercise.get(exercise_id, 0) + prescription.sets > maximum_sets
             ):
                 return False
+            per_exercise_ceiling = next(
+                (
+                    item
+                    for item in envelope.recovery_ceiling.per_exercise_volume_ceilings
+                    if item.exercise_id == exercise_id
+                ),
+                None,
+            )
+            if (
+                per_exercise_ceiling is not None
+                and sets_by_exercise.get(exercise_id, 0) + prescription.sets
+                > per_exercise_ceiling.maximum_sets_per_exercise
+            ):
+                return False
             item_seconds = prescription_item_duration(prescription, record).estimated_item_seconds
             # A mandatory exercise, and the one warmup and cooldown the shape
             # requires, are part of the plan whatever they cost; the window
@@ -253,9 +267,19 @@ class DeterministicGraphFallbackProvider:
         ceiling = envelope.recovery_ceiling
         intensity = ceiling.allowed_intensity_codes[0] if ceiling.allowed_intensity_codes else "LOW"
         load = ceiling.allowed_load_codes[0] if ceiling.allowed_load_codes else None
-        sets = ceiling.maximum_sets_per_exercise or 1
+        per_exercise_ceiling = next(
+            (
+                item
+                for item in ceiling.per_exercise_volume_ceilings
+                if item.exercise_id == record.exercise_id
+            ),
+            None,
+        )
 
         if record.timing_mode_code == "DURATION":
+            # A duration prescription is one reviewed work block. It is not
+            # assigned the recovery maximum merely because that maximum exists.
+            sets = 1
             repetitions = None
             work_seconds = record.default_work_seconds
             if ceiling.maximum_work_seconds_per_set is not None and work_seconds is not None:
@@ -264,10 +288,22 @@ class DeterministicGraphFallbackProvider:
                 return None
         else:
             work_seconds = None
-            # No approved repetition count exists outside the recovery ceiling, so
-            # the fallback declines rather than inventing a volume of its own.
-            repetitions = ceiling.maximum_repetitions_per_set
-            if repetitions is None:
+            fitt = record.fitt_context
+            if fitt is None or fitt.review_status_code != "DOMAIN_APPROVED" or fitt.volume is None:
+                # A missing/unapproved FITT mapping is REVIEW_REQUIRED. A
+                # deterministic fallback must not manufacture a set/rep range.
+                return None
+            volume = fitt.volume
+            sets = volume.default_sets
+            repetitions = volume.default_reps
+            if per_exercise_ceiling is not None:
+                sets = min(sets, per_exercise_ceiling.maximum_sets_per_exercise)
+                repetitions = min(repetitions, per_exercise_ceiling.maximum_repetitions_per_set)
+            if ceiling.maximum_sets_per_exercise is not None:
+                sets = min(sets, ceiling.maximum_sets_per_exercise)
+            if ceiling.maximum_repetitions_per_set is not None:
+                repetitions = min(repetitions, ceiling.maximum_repetitions_per_set)
+            if sets < volume.min_sets or repetitions < volume.min_reps:
                 return None
 
         rest_seconds = max(

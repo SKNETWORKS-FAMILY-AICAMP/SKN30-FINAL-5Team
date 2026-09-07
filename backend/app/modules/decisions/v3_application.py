@@ -30,12 +30,15 @@ from backend.app.db.models.v3_decision import DecisionConstraintEnvelopeRecord
 from backend.app.db.repositories.decision import DecisionRepository
 from backend.app.db.repositories.vector_index import VectorIndexRepository
 from backend.app.domain.agents.retrieval import (
+    ExerciseFittContext,
+    ExerciseFittVolumeRange,
     ExercisePoolExerciseRecord,
     ExerciseRetrievalResult,
     RetrievalStatusCode,
 )
 from backend.app.domain.agents.v3_contracts import (
     ConstraintEnvelope,
+    ExerciseVolumeCeiling,
     FeedbackAdjustmentEnvelope,
     RecoveryCeiling,
 )
@@ -51,6 +54,7 @@ from backend.app.domain.rules.feedback_adjustment import (
     DifficultyReasonCode,
     select_feedback_adjustment,
 )
+from backend.app.domain.rules.fitt import context_for_exercise
 from backend.app.domain.rules.plan_naming import build_plan_name
 from backend.app.domain.rules.recovery import (
     RECOVERY_POLICY_VERSION,
@@ -140,6 +144,78 @@ def _context(source: V3CreationSource) -> V3ApplicationContext:
     return value
 
 
+def _exercise_fitt_context(
+    *, stable_code: str, experience_level_code: str, timing_mode_code: str
+) -> ExerciseFittContext:
+    """Adapt the reviewed FITT files before the immutable agent snapshot is built."""
+
+    context = context_for_exercise(
+        stable_code=stable_code,
+        experience_level_code=experience_level_code,
+        timing_mode_code=timing_mode_code,
+    )
+    volume = (
+        None
+        if context.volume is None
+        else ExerciseFittVolumeRange(
+            min_sets=context.volume.min_sets,
+            max_sets=context.volume.max_sets,
+            min_reps=context.volume.min_reps,
+            max_reps=context.volume.max_reps,
+            default_sets=context.volume.default_sets,
+            default_reps=context.volume.default_reps,
+        )
+    )
+    return ExerciseFittContext(
+        source_code=context.source_code,
+        policy_version=context.policy_version,
+        review_status_code=context.review_status_code,
+        template_id=context.template_id,
+        frequency_code=context.frequency_code,
+        intensity_code=context.intensity_code,
+        time_mode_code=context.time_mode_code,
+        type_code=context.type_code,
+        volume=volume,
+    )
+
+
+def _fitt_volume_ceilings(
+    exercises: tuple[ExercisePoolExerciseRecord, ...], *, recovery: RecoveryLevelCode
+) -> tuple[ExerciseVolumeCeiling, ...]:
+    """Turn reviewed FITT maxima into immutable Recovery caps; never loosen them."""
+
+    recovery_sets_cap = (
+        2 if recovery in {RecoveryLevelCode.LIGHT, RecoveryLevelCode.VERY_LIGHT} else None
+    )
+    recovery_reps_cap = (
+        10 if recovery in {RecoveryLevelCode.LIGHT, RecoveryLevelCode.VERY_LIGHT} else None
+    )
+    ceilings: list[ExerciseVolumeCeiling] = []
+    for record in exercises:
+        context = record.fitt_context
+        if (
+            context is None
+            or context.review_status_code != "DOMAIN_APPROVED"
+            or context.volume is None
+        ):
+            continue
+        volume = context.volume
+        ceilings.append(
+            ExerciseVolumeCeiling(
+                exercise_id=record.exercise_id,
+                maximum_sets_per_exercise=min(
+                    volume.max_sets,
+                    recovery_sets_cap if recovery_sets_cap is not None else volume.max_sets,
+                ),
+                maximum_repetitions_per_set=min(
+                    volume.max_reps,
+                    recovery_reps_cap if recovery_reps_cap is not None else volume.max_reps,
+                ),
+            )
+        )
+    return tuple(sorted(ceilings, key=lambda item: str(item.exercise_id)))
+
+
 class SqlAlchemyV3CreationUnitOfWork:
     """Use the API request session for one atomic creation transaction."""
 
@@ -211,6 +287,11 @@ class SqlAlchemyV3CreationRepository:
                         default_work_seconds=item.default_work_seconds,
                         default_rest_seconds=item.default_rest_seconds,
                         default_transition_seconds=item.default_transition_seconds,
+                        fitt_context=_exercise_fitt_context(
+                            stable_code=item.stable_code or f"exercise-{item.exercise_id}",
+                            experience_level_code=assembly.context.experience_level_code,
+                            timing_mode_code=item.timing_mode_code,
+                        ),
                         recovery_eligible=item.recovery_eligible,
                         goal_codes=tuple(sorted(item.goal_codes)),
                         phase_codes=tuple(sorted(item.phase_codes)),
@@ -522,6 +603,12 @@ class DeterministicV3SafetyPolicyAdapter:
             maximum_repetitions = (
                 min(maximum_repetitions, 10) if maximum_repetitions is not None else None
             )
+        volume_ceilings = _fitt_volume_ceilings(eligible_pool, recovery=recovery)
+        if volume_ceilings:
+            # These global fields preserve the existing wire contract, while
+            # the per-exercise values below are the actual FITT-derived bound.
+            maximum_sets = max(item.maximum_sets_per_exercise for item in volume_ceilings)
+            maximum_repetitions = max(item.maximum_repetitions_per_set for item in volume_ceilings)
         ceiling = RecoveryCeiling(
             policy_version=RECOVERY_POLICY_VERSION,
             allowed_intensity_codes=intensities,
@@ -538,6 +625,7 @@ class DeterministicV3SafetyPolicyAdapter:
             minimum_rest_seconds_between_sets=min(
                 (item.rest_seconds_per_set for item in items), default=None
             ),
+            per_exercise_volume_ceilings=volume_ceilings,
         )
         # The last HARD feedback lowers exactly one axis (DOMAIN_RULES 6.1). Whether an
         # easier variant or a lower intensity is reachable is answered here, from the
@@ -564,11 +652,20 @@ class DeterministicV3SafetyPolicyAdapter:
             # keeps the same approved exercises and does less work with them.
             intensities = ("LOW",)
             if maximum_sets is not None:
-                maximum_sets = max(1, maximum_sets - 1)
+                maximum_sets = max(2, maximum_sets - 1)
+            # The recovery adjustment may tighten a FITT maximum, but never
+            # below the lowest reviewed strength range (two sets).
+            volume_ceilings = tuple(
+                item.model_copy(
+                    update={"maximum_sets_per_exercise": max(2, item.maximum_sets_per_exercise - 1)}
+                )
+                for item in volume_ceilings
+            )
             ceiling = ceiling.model_copy(
                 update={
                     "allowed_intensity_codes": intensities,
                     "maximum_sets_per_exercise": maximum_sets,
+                    "per_exercise_volume_ceilings": volume_ceilings,
                 }
             )
         feedback_adjustment = (

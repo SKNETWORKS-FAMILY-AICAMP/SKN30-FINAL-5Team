@@ -1,6 +1,6 @@
 # TASK-INTEGRATED-CATALOG-BACKEND: v2.0.7 통합 카탈로그 백엔드 적재·조회 계약
 
-- Primary owner: backend engineer
+- Primary owner: backend development lead (data/AI authority delegated)
 - Reviewers: backend owner, frontend owner, development lead, data lead
 - 관련 요구사항: 2026-09 통합 운동 카탈로그 후속 인계 1~5번
 - 관련 ADR: ADR-0004, ADR-0014
@@ -24,7 +24,9 @@ v2.0.7 DRAFT bundle을 추가했다. 현재 백엔드는 MET를 입력으로 읽
 ## 제외 범위
 
 - catalog의 운영 승인·활성화·운영 DB 적재
-- FITT agent context, Recovery ceiling, integrity validator 변경(인계 6~10번; AI/data·규칙 소유)
+- None. FITT agent context, Recovery ceiling, and integrity validation
+  handoff items 6--10 are included after explicit development-lead and
+  data/AI authorization.
 - 운동 데이터, 안전 규칙, 장비 대체 관계의 신규 생성 또는 수정
 - 프론트엔드 표시 구현
 
@@ -45,6 +47,8 @@ v2.0.7 DRAFT bundle을 추가했다. 현재 백엔드는 MET를 입력으로 읽
 - `backend/app/api/v1/exercises.py`
 - `backend/tests/{unit,integration,api}/...`
 - `docs/{API_CONTRACT.md,DATA_MODEL.md}`
+- `backend/app/domain/rules/fitt.py`, `backend/app/domain/agents/{retrieval.py,v3_contracts.py,v3_validation.py}`
+- `backend/app/modules/decisions/v3_application.py`, `backend/app/integrations/langgraph/fallback.py`
 
 ## API 영향
 
@@ -82,5 +86,35 @@ stable-code count, MET 값, guide reference와 멱등성을 확인한다. 운영
 
 ## 알려진 제한과 후속 작업
 
-FITT reference를 agent context와 validator에 연결하는 인계 6~10번은 별도 task 및 AI/data·안전
-검토가 필요하다. gym/home guide는 추천 규칙을 바꾸지 않는 상세 안내 데이터다.
+## FITT follow-up (handoff 6--10)
+
+The V3 pool projection loads the approved stable-code FITT reference and its
+reviewed template. It carries source, policy, review status, F/I/T/type
+context, and a deterministic per-exercise volume range to Training, Recovery,
+and Feasibility. A missing or unapproved mapping is explicitly
+`REVIEW_REQUIRED`; no range is inferred.
+
+For approved strength mappings, the policy is: BEGINNER compound 2--3 x
+8--12, BEGINNER isolation 2--3 x 10--15, INTERMEDIATE compound 2--4 x 8--12,
+and INTERMEDIATE isolation 2--4 x 10--15. Defaults are deterministic values
+inside those ranges and never substitute a maximum simply because it is a
+maximum.
+
+The same per-exercise upper values constrain RecoveryCeiling, compilation,
+the downstream compiled-plan integrity validator, and deterministic fallback.
+Recovery may only tighten a FITT upper bound. Fallback starts from an approved
+default and clamps it downward to a tighter recovery ceiling; it never starts
+from a maximum.
+
+## Expanded test plan and manual verification
+
+- Unit tests: CSV/template validation, all four strength-level ranges,
+  missing/unapproved fail-closed handling, recovery tightening, compiled-plan
+  rejection, and deterministic fallback default behavior.
+- Golden/safety tests: an over-limit coordinator result is rejected by the
+  compiled-plan integrity validator downstream of coordination; specialist
+  ownership remains unchanged.
+- PostgreSQL test DB only: run `upgrade head -> downgrade base -> upgrade
+  head`, then run the integrated DRAFT importer twice and assert stable catalog
+  row counts, MET provenance, guide references, and no duplicate catalog
+  version/child rows. The test URL must name a database ending in `_test`.

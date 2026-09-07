@@ -74,6 +74,70 @@ class RetrievalAuditCode(StrEnum):
     DETERMINISTIC_POOL_FALLBACK_USED = "DETERMINISTIC_POOL_FALLBACK_USED"
 
 
+class ExerciseFittVolumeRange(BaseModel):
+    """Approved selectable volume range frozen into the agent pool snapshot."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    min_sets: int = Field(gt=0)
+    max_sets: int = Field(gt=0)
+    min_reps: int = Field(gt=0)
+    max_reps: int = Field(gt=0)
+    default_sets: int = Field(gt=0)
+    default_reps: int = Field(gt=0)
+
+    @model_validator(mode="after")
+    def validate_range(self) -> Self:
+        if self.min_sets > self.max_sets or self.min_reps > self.max_reps:
+            raise ValueError("FITT range minimum cannot exceed maximum")
+        if not self.min_sets <= self.default_sets <= self.max_sets:
+            raise ValueError("FITT default_sets must be within the approved range")
+        if not self.min_reps <= self.default_reps <= self.max_reps:
+            raise ValueError("FITT default_reps must be within the approved range")
+        return self
+
+
+class ExerciseFittContext(BaseModel):
+    """Reviewed FITT projection; it contains no user or raw-health data."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    source_code: str
+    policy_version: str
+    review_status_code: str
+    template_id: str | None = None
+    frequency_code: str | None = None
+    intensity_code: str | None = None
+    time_mode_code: str | None = None
+    type_code: str | None = None
+    volume: ExerciseFittVolumeRange | None = None
+
+    @field_validator(
+        "source_code",
+        "policy_version",
+        "review_status_code",
+        "template_id",
+        "frequency_code",
+        "intensity_code",
+        "time_mode_code",
+        "type_code",
+    )
+    @classmethod
+    def validate_codes(cls, value: str | None, info: ValidationInfo) -> str | None:
+        if value is None:
+            return None
+        return _validate_machine_reference(value, field_name=info.field_name or "FITT field")
+
+    @model_validator(mode="after")
+    def validate_review_state(self) -> Self:
+        if self.review_status_code == "DOMAIN_APPROVED":
+            if self.template_id is None or self.frequency_code is None or self.type_code is None:
+                raise ValueError("approved FITT context requires template and F/I/T metadata")
+        elif self.volume is not None:
+            raise ValueError("unapproved FITT context cannot provide a selectable volume range")
+        return self
+
+
 def _validate_machine_reference(value: str, *, field_name: str) -> str:
     if not _MACHINE_REFERENCE_PATTERN.fullmatch(value):
         raise ValueError(f"{field_name} must contain only a structured machine reference")
@@ -323,6 +387,9 @@ class ExercisePoolExerciseRecord(BaseModel):
     default_work_seconds: int | None = Field(default=None, gt=0)
     default_rest_seconds: int = Field(ge=0)
     default_transition_seconds: int = Field(ge=10, le=20)
+    # A missing range deliberately means REVIEW_REQUIRED to downstream plan
+    # construction; it must not be filled from difficulty or a name heuristic.
+    fitt_context: ExerciseFittContext | None = None
     recovery_eligible: bool
     goal_codes: tuple[str, ...]
     # The reviewed phases this exercise is approved for and the role it plays in
@@ -382,6 +449,11 @@ class ExercisePoolExerciseRecord(BaseModel):
                 raise ValueError("DURATION timing requires work seconds without seconds per rep")
         else:
             raise ValueError("timing_mode_code must be REPS or DURATION")
+        if self.fitt_context is not None and self.fitt_context.time_mode_code not in {
+            None,
+            self.timing_mode_code,
+        }:
+            raise ValueError("FITT timing mode must match the catalog timing mode")
         return self
 
 

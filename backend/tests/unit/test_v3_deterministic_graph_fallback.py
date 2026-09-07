@@ -45,6 +45,30 @@ def test_default_fallback_compiles_and_passes_integrity_validation() -> None:
     )
 
 
+def test_fallback_uses_approved_fitt_defaults_not_recovery_maxima() -> None:
+    root = make_bundle().root_snapshot
+    provider = DeterministicGraphFallbackProvider()
+    spec = provider.generate(
+        FallbackRequest.create(
+            constraint_envelope=root.constraint_envelope,
+            exercise_pool=root.exercise_pool,
+            fallback_version="v3-deterministic-fallback-v1",
+        )
+    )
+
+    assert spec is not None
+    records = {item.exercise_id: item for item in root.exercise_pool.exercises}
+    for prescription in spec.exercise_prescriptions:
+        record = records[prescription.exercise_id]
+        if record.timing_mode_code != "REPS":
+            continue
+        assert record.fitt_context is not None
+        assert record.fitt_context.volume is not None
+        volume = record.fitt_context.volume
+        assert prescription.sets == volume.default_sets
+        assert prescription.repetitions_per_set == volume.default_reps
+
+
 def test_safety_veto_cannot_be_overridden_by_default_fallback() -> None:
     root = _blocked_root_snapshot()
     provider = DeterministicGraphFallbackProvider()
