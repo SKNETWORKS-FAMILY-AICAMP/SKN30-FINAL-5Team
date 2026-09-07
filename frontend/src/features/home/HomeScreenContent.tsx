@@ -10,7 +10,7 @@ import type {
   SessionStatusCode,
   WorkoutPlan,
 } from '../../api/types';
-import { moveArrayItem } from '../../api/workoutPlan';
+import { moveArrayItem, routineTitleFromPlan } from '../../api/workoutPlan';
 import { useBrandFonts } from '../../app/fonts';
 import type { TabId } from '../../components/brand/BrandChrome';
 import { useScale } from '../../components/scale';
@@ -32,7 +32,6 @@ import {
   routineItemOverrides,
   routineFocusFromPlan,
   routineItemsFromPlan,
-  routineTitleFromPlan,
   weekDaysFromSessions,
   weeklyCompletionPercentage,
   weekStartForLocalDate,

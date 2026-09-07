@@ -1163,6 +1163,23 @@ describe('WorkoutScreen', () => {
 });
 
 describe('WorkoutScreen API mode', () => {
+  it('shows the server-owned routine name', () => {
+    const api = workoutApi({
+      getWorkoutSession: jest.fn(() => new Promise<never>(() => undefined)),
+    });
+
+    render(
+      <WorkoutScreen
+        api={api}
+        sessionId="session-api"
+        plan={{ ...API_PLAN, routine_name: '전신 근력 시작하기' }}
+        onOutcome={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText('전신 근력 시작하기')).toBeOnTheScreen();
+  });
+
   it('does not record rest as a pause and resumes API mode after leaving stop reasons', async () => {
     const recordTimerEvent = jest.fn(async () => ({
       event_id: 'timer-event-api',

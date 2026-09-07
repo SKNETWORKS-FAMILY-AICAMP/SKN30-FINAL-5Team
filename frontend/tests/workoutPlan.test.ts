@@ -1,10 +1,12 @@
-import type { PlanPhaseCode, WorkoutPlan } from '../src/api/types';
+import type { PlanPhaseCode, RoutineDay, WorkoutPlan } from '../src/api/types';
 import {
   applyPlanItemPrescriptions,
   moveArrayItem,
   moveWorkoutPlanItem,
   orderedWorkoutPlanItems,
   planEditRequest,
+  routineTitleFromDay,
+  routineTitleFromPlan,
 } from '../src/api/workoutPlan';
 
 function phasedPlan(phases: readonly PlanPhaseCode[]): WorkoutPlan {
@@ -105,6 +107,38 @@ describe('shared workout plan order', () => {
       ['item-3', 2],
       ['item-2', 3],
     ]);
+  });
+});
+
+describe('server-owned routine names', () => {
+  it('uses the server name for a compiled plan', () => {
+    expect(
+      routineTitleFromPlan({
+        ...plan(),
+        routine_name: '전신 기초 근력',
+      }),
+    ).toBe('전신 기초 근력');
+  });
+
+  it('keeps the legacy title when a plan has no server name', () => {
+    expect(routineTitleFromPlan(plan())).toBe('근력 루틴');
+  });
+
+  it('uses the same rule for a base-routine day', () => {
+    const day: RoutineDay = {
+      id: 'day-1',
+      sequence: 1,
+      title: '기존 제목',
+      training_type_code: 'STRENGTH',
+      body_focus_code: 'FULL_BODY',
+      routine_name: '전신 근력 시작하기',
+      requested_duration_minutes: 30,
+      estimated_duration_seconds: 1800,
+      estimated_calories_burned: null,
+      items: [],
+    };
+
+    expect(routineTitleFromDay(day)).toBe('전신 근력 시작하기');
   });
 });
 

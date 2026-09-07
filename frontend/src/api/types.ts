@@ -198,6 +198,10 @@ export type RoutineDay = {
   title: string;
   training_type_code: string;
   body_focus_code: string | null;
+  /** Server-owned display name; absent on responses created before BM-5. */
+  routine_name?: string | null;
+  routine_name_reason_codes?: string[] | null;
+  routine_naming_rule_version?: string | null;
   requested_duration_minutes: number;
   estimated_duration_seconds: number;
   estimated_calories_burned: number | null;
@@ -286,6 +290,10 @@ export type WorkoutPlan = {
   action_code: ActionCode;
   training_type_code: string;
   body_focus_code: string | null;
+  /** Server-owned display name; absent on historical and legacy plans. */
+  routine_name?: string | null;
+  routine_name_reason_codes?: string[] | null;
+  routine_naming_rule_version?: string | null;
   requested_duration_minutes: number;
   estimated_duration_seconds: number;
   estimated_calories_burned: number | null;

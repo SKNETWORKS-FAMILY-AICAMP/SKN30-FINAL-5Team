@@ -684,12 +684,6 @@ export function routineItemsFromPlan(plan: WorkoutPlan): HomeRoutineItem[] {
   }));
 }
 
-export function routineTitleFromPlan(plan: WorkoutPlan): string {
-  const focus =
-    plan.body_focus_code === null ? '' : bodyFocusLabel(plan.body_focus_code);
-  return `${focus ? `${focus} ` : ''}${trainingTypeLabel(plan.training_type_code)} 루틴`;
-}
-
 export function routineFocusFromPlan(plan: WorkoutPlan): string {
   const labels = [
     plan.body_focus_code === null ? null : bodyFocusLabel(plan.body_focus_code),
