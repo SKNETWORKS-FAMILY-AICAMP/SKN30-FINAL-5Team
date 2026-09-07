@@ -20,8 +20,12 @@ from backend.app.integrations.birthdate_crypto import (
     KmsClient,
     LocalAesGcmBirthdateCipher,
 )
-from backend.app.integrations.firebase_auth import build_firebase_token_verifier
+from backend.app.integrations.firebase_auth import (
+    build_firebase_custom_token_issuer,
+    build_firebase_token_verifier,
+)
 from backend.app.integrations.llm_provider import build_narration_provider
+from backend.app.integrations.oauth.kakao import KakaoOAuthClient, UnavailableKakaoOAuthClient
 from backend.app.integrations.s3.exercise_media import build_exercise_media_url_provider
 from backend.app.integrations.s3.profile_image import build_s3_profile_image_adapter
 from backend.app.integrations.v3_application_composition import (
@@ -45,6 +49,7 @@ from backend.app.modules.decisions.service import DecisionService
 from backend.app.modules.decisions.v3_regeneration import V3RegenerationServicePort
 from backend.app.modules.identity.ports import FirebaseTokenVerifier
 from backend.app.modules.profiles.ports import BirthdateCipher
+from backend.app.modules.social_auth.ports import FirebaseCustomTokenIssuer, KakaoOAuthPort
 from backend.app.modules.weekly_reports.narration import WeeklyReportNarrationAgent
 
 
@@ -86,6 +91,8 @@ def create_app(
     settings: Settings | None = None,
     readiness_probe: Callable[[], None] | None = None,
     firebase_token_verifier: FirebaseTokenVerifier | None = None,
+    firebase_custom_token_issuer: FirebaseCustomTokenIssuer | None = None,
+    kakao_oauth_client: KakaoOAuthPort | None = None,
     birthdate_cipher: BirthdateCipher | None = None,
     narration_provider: NarrationProviderPort | None = None,
     exercise_media_url_provider: ExerciseMediaUrlPort | None = None,
@@ -129,6 +136,32 @@ def create_app(
             resolved_settings.firebase_project_id,
             resolved_settings.firebase_clock_skew_seconds,
             resolved_settings.google_application_credentials,
+        )
+    )
+    application.state.firebase_custom_token_issuer = (
+        firebase_custom_token_issuer
+        if firebase_custom_token_issuer is not None
+        else build_firebase_custom_token_issuer(
+            resolved_settings.firebase_project_id,
+            resolved_settings.firebase_clock_skew_seconds,
+            resolved_settings.google_application_credentials,
+        )
+    )
+    application.state.kakao_oauth_client = (
+        kakao_oauth_client
+        if kakao_oauth_client is not None
+        else (
+            KakaoOAuthClient(
+                rest_api_key=resolved_settings.kakao_rest_api_key.get_secret_value(),
+                client_secret=(
+                    resolved_settings.kakao_client_secret.get_secret_value()
+                    if resolved_settings.kakao_client_secret is not None
+                    else None
+                ),
+                timeout_seconds=resolved_settings.kakao_oauth_timeout_seconds,
+            )
+            if resolved_settings.kakao_rest_api_key is not None
+            else UnavailableKakaoOAuthClient()
         )
     )
     application.state.birthdate_cipher = (

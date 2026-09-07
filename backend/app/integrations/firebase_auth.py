@@ -13,6 +13,7 @@ from backend.app.modules.identity.ports import (
     InvalidFirebaseTokenError,
     VerifiedFirebaseIdentity,
 )
+from backend.app.modules.social_auth.ports import FirebaseCustomTokenUnavailableError
 
 _APP_INITIALIZATION_LOCK = Lock()
 
@@ -21,6 +22,10 @@ class UnavailableFirebaseTokenVerifier:
     def verify_id_token(self, token: str) -> VerifiedFirebaseIdentity:
         del token
         raise FirebaseVerifierUnavailableError
+
+    def create_custom_token(self, firebase_subject: str) -> str:
+        del firebase_subject
+        raise FirebaseCustomTokenUnavailableError
 
 
 class FirebaseAdminTokenVerifier:
@@ -124,6 +129,15 @@ class FirebaseAdminTokenVerifier:
             raise InvalidFirebaseTokenError
         return VerifiedFirebaseIdentity(firebase_subject=subject)
 
+    def create_custom_token(self, firebase_subject: str) -> str:
+        if not firebase_subject.strip():
+            raise FirebaseCustomTokenUnavailableError
+        try:
+            token = auth.create_custom_token(firebase_subject, app=self._get_app())
+        except (ValueError, DefaultCredentialsError, exceptions.FirebaseError) as exc:
+            raise FirebaseCustomTokenUnavailableError from exc
+        return token.decode("utf-8") if isinstance(token, bytes) else str(token)
+
 
 def build_firebase_token_verifier(
     project_id: str | None,
@@ -135,8 +149,19 @@ def build_firebase_token_verifier(
     return FirebaseAdminTokenVerifier(project_id, clock_skew_seconds, credentials_path)
 
 
+def build_firebase_custom_token_issuer(
+    project_id: str | None,
+    clock_skew_seconds: int = 0,
+    credentials_path: Path | None = None,
+) -> FirebaseAdminTokenVerifier | UnavailableFirebaseTokenVerifier:
+    if project_id is None:
+        return UnavailableFirebaseTokenVerifier()
+    return FirebaseAdminTokenVerifier(project_id, clock_skew_seconds, credentials_path)
+
+
 __all__ = [
     "FirebaseAdminTokenVerifier",
     "UnavailableFirebaseTokenVerifier",
     "build_firebase_token_verifier",
+    "build_firebase_custom_token_issuer",
 ]
