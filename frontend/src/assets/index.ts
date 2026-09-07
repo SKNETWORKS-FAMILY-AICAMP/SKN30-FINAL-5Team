@@ -48,6 +48,8 @@ export const imageAssets = {
     require('./house/camping/background/thumbnails/kkikki_indoor.jpg') as ImageSourcePropType,
   houseSnowingOnsenBackgroundThumbnail:
     require('./house/camping/background/thumbnails/snowing_onsen.jpg') as ImageSourcePropType,
+  houseDecorateButton:
+    require('./house/zip_ggumigi/house.png') as ImageSourcePropType,
   houseCushion: require('./house/things/comfy.png') as ImageSourcePropType,
   houseLamp: require('./house/things/stand.png') as ImageSourcePropType,
   housePlant: require('./house/things/hwaboon.png') as ImageSourcePropType,

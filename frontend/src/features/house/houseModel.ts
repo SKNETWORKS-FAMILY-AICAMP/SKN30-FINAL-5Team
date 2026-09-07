@@ -76,6 +76,17 @@ export type HouseQuest = {
   target: number;
 };
 
+/** Shared presentation copy for the mascot touch interaction. */
+export const HOUSE_BONDING_COPY = {
+  actionAccessibilityLabel: '끼끼와 교감하기',
+  actionLabel: '교감하기',
+  bonusDescription:
+    '끼끼와 교감하기, 바나나 주기, 운동 완료로 친밀도를 올려보세요!',
+  hintDescription: '터치해서 교감하면 친밀도가 올라가요',
+  poseAccessibilityLabel: '끼끼와 교감하는 중',
+  questLabel: '끼끼와 교감하기',
+} as const;
+
 /**
  * The daily quests.
  *
@@ -92,7 +103,7 @@ export const HOUSE_DAILY_QUESTS: readonly HouseQuest[] = [
   },
   {
     id: 'pet',
-    label: '끼끼 쓰다듬기',
+    label: HOUSE_BONDING_COPY.questLabel,
     reward: 5,
     target: INTIMACY_DAILY_EARN_LIMIT,
   },
