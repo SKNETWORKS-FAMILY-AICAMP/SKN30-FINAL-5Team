@@ -102,14 +102,31 @@ const EXERCISE_DETAILS: Record<string, ExerciseDetailResponse> = {
     primary_body_area_codes: ['HIP', 'KNEE'],
     instruction_summary:
       '의자 앞에 서서 엉덩이를 뒤로 보내며 천천히 앉았다가 다시 일어나요.',
+    instruction_steps: [
+      '의자 앞에 발을 골반 너비로 두고 서요.',
+      '엉덩이를 뒤로 보내며 의자에 천천히 앉아요.',
+      '발바닥으로 바닥을 밀며 다시 일어나요.',
+    ],
     form_cues: [
       '무릎과 발끝이 같은 방향을 향하게 해요.',
       '의자에 닿는 순간에도 몸의 긴장을 유지해요.',
+    ],
+    cautions: [
+      '무릎과 발끝이 같은 방향을 향하게 해요.',
+      '의자가 미끄러지지 않는지 먼저 확인해요.',
     ],
     media_asset_key: null,
     media_url: null,
     mascot_animation_asset_key: null,
     instruction_content_version: 'preview-v1',
+    household_equipment_guides: [
+      {
+        equipment_code: 'CHAIR',
+        proposal_ko: '등받이가 있고 흔들리지 않는 의자를 사용해요.',
+        examples_ko: ['식탁 의자', '고정형 책상 의자'],
+        cautions_ko: ['바퀴가 달린 의자는 사용하지 않아요.'],
+      },
+    ],
   },
   'preview-band-row': {
     exercise_id: 'preview-band-row',

@@ -10,8 +10,11 @@ import { useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 
 import type { Api } from '../../api/endpoints';
-import { bodyAreaLabel } from '../../api/labels';
-import type { ExerciseDetailResponse } from '../../api/types';
+import { bodyAreaLabel, equipmentLabel } from '../../api/labels';
+import type {
+  ExerciseDetailResponse,
+  HouseholdEquipmentGuide,
+} from '../../api/types';
 import { useAsyncData } from '../../api/useAsync';
 import { ErrorState, LoadingState } from '../../components/states/ScreenState';
 import { colors, spacing } from '../../components/theme';
@@ -36,6 +39,8 @@ export function ExerciseDetailSheet({
   }
 
   const detail = state.data;
+  const instructionSteps = detail.instruction_steps ?? [];
+  const cautions = detail.cautions ?? detail.form_cues;
 
   return (
     <View style={styles.container} testID="exercise-posture-guide">
@@ -45,22 +50,87 @@ export function ExerciseDetailSheet({
       />
 
       <View style={styles.instructions} testID="exercise-instruction-content">
-        <Text style={styles.summary}>{detail.instruction_summary}</Text>
-
         {detail.primary_body_area_codes.length > 0 ? (
-          <Text style={styles.areas}>
-            주요 부위:{' '}
-            {detail.primary_body_area_codes.map(bodyAreaLabel).join(', ')}
-          </Text>
+          <View style={styles.section} testID="exercise-primary-areas">
+            <Text accessibilityRole="header" style={styles.sectionTitle}>
+              주요 부위
+            </Text>
+            <Text style={styles.areas}>
+              {detail.primary_body_area_codes.map(bodyAreaLabel).join(', ')}
+            </Text>
+          </View>
         ) : null}
 
-        {detail.form_cues.map((cue) => (
-          <View key={cue} style={styles.cueRow}>
-            <Text style={styles.bullet}>·</Text>
-            <Text style={styles.cue}>{cue}</Text>
+        <View style={styles.section} testID="exercise-instruction-steps">
+          <Text accessibilityRole="header" style={styles.sectionTitle}>
+            자세 설명
+          </Text>
+          {instructionSteps.length > 0 ? (
+            instructionSteps.map((step, index) => (
+              <Text key={`${index}-${step}`} style={styles.step}>
+                {index + 1}. {step}
+              </Text>
+            ))
+          ) : (
+            <Text style={styles.summary}>{detail.instruction_summary}</Text>
+          )}
+        </View>
+
+        {cautions.length > 0 ? (
+          <View style={styles.section} testID="exercise-cautions">
+            <Text accessibilityRole="header" style={styles.sectionTitle}>
+              주의사항
+            </Text>
+            <BulletList items={cautions} />
           </View>
-        ))}
+        ) : null}
+
+        {detail.household_equipment_guides?.length ? (
+          <View style={styles.section} testID="household-equipment-guides">
+            <Text accessibilityRole="header" style={styles.sectionTitle}>
+              생활도구 안내
+            </Text>
+            {detail.household_equipment_guides.map((guide) => (
+              <HouseholdEquipmentCard
+                guide={guide}
+                key={guide.equipment_code}
+              />
+            ))}
+          </View>
+        ) : null}
       </View>
+    </View>
+  );
+}
+
+function BulletList({ items }: { items: string[] }) {
+  return items.map((item, index) => (
+    <View key={`${index}-${item}`} style={styles.cueRow}>
+      <Text style={styles.bullet}>·</Text>
+      <Text style={styles.cue}>{item}</Text>
+    </View>
+  ));
+}
+
+function HouseholdEquipmentCard({ guide }: { guide: HouseholdEquipmentGuide }) {
+  return (
+    <View style={styles.equipmentCard}>
+      <Text style={styles.equipmentTitle}>
+        {equipmentLabel(guide.equipment_code)} 활용
+      </Text>
+      <Text style={styles.equipmentProposal}>{guide.proposal_ko}</Text>
+      {guide.examples_ko.length > 0 ? (
+        <View style={styles.equipmentGroup}>
+          <Text style={styles.equipmentLabel}>활용 예시</Text>
+          <BulletList items={guide.examples_ko} />
+        </View>
+      ) : null}
+      {guide.cautions_ko.length > 0 ? (
+        <View style={styles.equipmentGroup}>
+          <Text style={styles.equipmentLabel}>사용 시 주의사항</Text>
+          <BulletList items={guide.cautions_ko} />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -178,17 +248,31 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   instructions: {
+    gap: spacing.lg,
+  },
+  section: {
     gap: spacing.sm,
+  },
+  sectionTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '800',
+    lineHeight: 24,
   },
   summary: {
     color: colors.text,
     fontSize: 16,
     lineHeight: 24,
   },
+  step: {
+    color: colors.textSub,
+    fontSize: 15,
+    lineHeight: 23,
+  },
   areas: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
+    color: colors.textSub,
+    fontSize: 15,
+    lineHeight: 23,
   },
   cueRow: {
     flexDirection: 'row',
@@ -204,5 +288,33 @@ const styles = StyleSheet.create({
     color: colors.textSub,
     fontSize: 15,
     lineHeight: 23,
+  },
+  equipmentCard: {
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    padding: spacing.md,
+  },
+  equipmentTitle: {
+    color: colors.greenText,
+    fontSize: 15,
+    fontWeight: '800',
+    lineHeight: 22,
+  },
+  equipmentProposal: {
+    color: colors.textSub,
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  equipmentGroup: {
+    gap: spacing.xs,
+  },
+  equipmentLabel: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 21,
   },
 });
