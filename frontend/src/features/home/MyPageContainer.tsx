@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import type { Api } from '../../api/endpoints';
-import { isApiError } from '../../api/errors';
+import { isApiError, messageForError } from '../../api/errors';
 import type {
   ConsentValues,
   MeResponse,
@@ -88,10 +88,21 @@ export function MyPageContainer({
           profileWasUpdated = true;
         }
         if (imageChange !== undefined) {
-          if (imageChange === null) {
-            await api.deleteProfileImage(expectedVersion);
-          } else {
-            await api.uploadProfileImage(imageChange, expectedVersion);
+          try {
+            if (imageChange === null) {
+              await api.deleteProfileImage(expectedVersion);
+            } else {
+              await api.uploadProfileImage(imageChange, expectedVersion);
+            }
+          } catch (error) {
+            if (
+              !profileWasUpdated &&
+              isApiError(error) &&
+              error.code === 'STALE_PROFILE'
+            ) {
+              await onRefreshMe().catch(() => undefined);
+            }
+            throw profileImageSaveError(error, profileWasUpdated);
           }
         }
       } catch (error) {
@@ -182,6 +193,19 @@ export function MyPageContainer({
       previewState={previewState}
     />
   );
+}
+
+function profileImageSaveError(
+  cause: unknown,
+  otherProfileChangesSaved: boolean,
+): Error & { readonly userMessage: string } {
+  const retryGuidance =
+    '사진 변경은 그대로 두었어요. 저장하기를 눌러 다시 시도해주세요.';
+  const prefix = otherProfileChangesSaved
+    ? '다른 프로필 변경은 저장했지만 프로필 사진은 저장하지 못했어요.'
+    : '프로필 사진을 저장하지 못했어요.';
+  const userMessage = `${prefix} ${messageForError(cause)} ${retryGuidance}`;
+  return Object.assign(new Error(userMessage), { userMessage });
 }
 
 const PROFILE_FIELD_LABELS: Record<string, string> = {
