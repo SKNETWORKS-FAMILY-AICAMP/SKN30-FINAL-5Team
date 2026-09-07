@@ -28,6 +28,25 @@ export type MeaningfulDifferenceCode =
   | 'EXERCISE_ORDER_CHANGED'
   | 'ROUTINE_STRUCTURE_CHANGED';
 
+export type BodyFocusCode =
+  | 'UPPER_BODY'
+  | 'LOWER_BODY'
+  | 'CHEST'
+  | 'BACK'
+  | 'SHOULDERS'
+  | 'BICEPS'
+  | 'TRICEPS'
+  | 'FOREARMS'
+  | 'GLUTES'
+  | 'QUADRICEPS'
+  | 'HAMSTRINGS'
+  | 'CALVES'
+  | 'ADDUCTORS'
+  | 'CORE'
+  | 'FULL_BODY'
+  | 'CARDIO'
+  | 'MOBILITY';
+
 export type SexCode = 'FEMALE' | 'MALE' | 'PREFER_NOT_TO_SAY';
 
 export type SessionStatusCode =
@@ -521,6 +540,8 @@ export type ExerciseListItem = {
   name: string;
   training_type_code: string;
   difficulty_code: string;
+  /** Catalog-owned representative focus; legacy responses may omit it. */
+  body_focus_code?: BodyFocusCode | null;
   primary_body_area_codes: string[];
   required_equipment_codes: string[];
   media_asset_key: string | null;
@@ -536,22 +557,32 @@ export type ExerciseDetailResponse = {
   exercise_id: string;
   exercise_name: string;
   training_type_code: string;
+  /** Catalog-owned representative focus; legacy responses may omit it. */
+  body_focus_code?: BodyFocusCode | null;
   primary_body_area_codes: string[];
   instruction_summary: string;
   form_cues: string[];
   /** Server-separated reviewed steps; legacy responses may omit this field. */
   instruction_steps?: string[] | null;
-  /** Reviewed form cues plus household-equipment cautions. */
+  /** Reviewed form cues plus applicable equipment cautions. */
   cautions?: string[] | null;
   media_asset_key: string | null;
-  /** Short-lived URL resolved by the backend; absent until the backend PR lands. */
+  /** Short-lived URL resolved by the backend when approved media is available. */
   media_url?: string | null;
   mascot_animation_asset_key: string | null;
   instruction_content_version: string;
   household_equipment_guides?: HouseholdEquipmentGuide[] | null;
+  gym_equipment_starting_guides?: GymEquipmentStartingGuide[] | null;
 };
 
 export type HouseholdEquipmentGuide = {
+  equipment_code: string;
+  proposal_ko: string;
+  examples_ko: string[];
+  cautions_ko: string[];
+};
+
+export type GymEquipmentStartingGuide = {
   equipment_code: string;
   proposal_ko: string;
   examples_ko: string[];

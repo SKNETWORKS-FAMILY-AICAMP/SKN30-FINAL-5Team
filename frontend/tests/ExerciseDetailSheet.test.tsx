@@ -15,6 +15,7 @@ const baseDetail: ExerciseDetailResponse = {
   exercise_id: 'exercise-1',
   exercise_name: '의자 스쿼트',
   training_type_code: 'STRENGTH',
+  body_focus_code: 'GLUTES',
   primary_body_area_codes: ['HIP', 'KNEE'],
   instruction_summary: '의자 앞에서 천천히 앉았다가 일어나요.',
   form_cues: ['무릎과 발끝의 방향을 맞춰요.'],
@@ -78,7 +79,8 @@ describe('ExerciseDetailSheet', () => {
 
     expect(
       screen.getAllByRole('header').map((header) => header.props.children),
-    ).toEqual(['주요 부위', '자세 설명', '주의사항']);
+    ).toEqual(['주요 근육', '상세 부위', '자세 설명', '주의사항']);
+    expect(screen.getByText('둔근')).toBeOnTheScreen();
     expect(
       screen.getByText('1. 발을 골반 너비로 두고 서요.'),
     ).toBeOnTheScreen();
@@ -105,7 +107,7 @@ describe('ExerciseDetailSheet', () => {
     expect(screen.queryByText(/^1\. /)).toBeNull();
   });
 
-  it('shows every reviewed household-equipment guide field', async () => {
+  it('shows every reviewed household-equipment guide field at home', async () => {
     render(
       <ExerciseDetailSheet
         api={detailApi({
@@ -122,10 +124,14 @@ describe('ExerciseDetailSheet', () => {
           ],
         })}
         exerciseId="exercise-1"
+        guideContext={{
+          locationCode: 'HOME',
+          availableEquipmentCodes: ['CHAIR'],
+        }}
       />,
     );
 
-    expect(await screen.findByText('생활도구 안내')).toBeOnTheScreen();
+    expect(await screen.findByText('집 생활도구 안내')).toBeOnTheScreen();
     expect(screen.getByText('의자 활용')).toBeOnTheScreen();
     expect(
       screen.getByText('등받이가 있는 튼튼한 의자를 사용해요.'),
@@ -136,5 +142,73 @@ describe('ExerciseDetailSheet', () => {
     expect(
       screen.getByText('바퀴가 달린 의자는 사용하지 않아요.'),
     ).toBeOnTheScreen();
+  });
+
+  it('shows only available gym equipment guidance as a reference', async () => {
+    render(
+      <ExerciseDetailSheet
+        api={detailApi({
+          ...baseDetail,
+          household_equipment_guides: [
+            {
+              equipment_code: 'CHAIR',
+              proposal_ko: '집에서만 보여야 해요.',
+              examples_ko: [],
+              cautions_ko: [],
+            },
+          ],
+          gym_equipment_starting_guides: [
+            {
+              equipment_code: 'BARBELL',
+              proposal_ko: '빈 바로 움직임을 확인해요.',
+              examples_ko: ['20kg 올림픽 바'],
+              cautions_ko: ['무게보다 자세를 먼저 확인해요.'],
+            },
+            {
+              equipment_code: 'DUMBBELL',
+              proposal_ko: '없는 장비 안내예요.',
+              examples_ko: [],
+              cautions_ko: [],
+            },
+          ],
+        })}
+        exerciseId="exercise-1"
+        guideContext={{
+          locationCode: 'GYM',
+          availableEquipmentCodes: ['BARBELL'],
+        }}
+      />,
+    );
+
+    expect(await screen.findByText('헬스장 장비 시작 안내')).toBeOnTheScreen();
+    expect(screen.getByText('빈 바로 움직임을 확인해요.')).toBeOnTheScreen();
+    expect(screen.getByText(/시작 무게는 참고값/)).toBeOnTheScreen();
+    expect(screen.queryByText('집에서만 보여야 해요.')).toBeNull();
+    expect(screen.queryByText('없는 장비 안내예요.')).toBeNull();
+  });
+
+  it('keeps legacy focus rendering and hides guides when context is missing', async () => {
+    render(
+      <ExerciseDetailSheet
+        api={detailApi({
+          ...baseDetail,
+          body_focus_code: undefined,
+          household_equipment_guides: [
+            {
+              equipment_code: 'CHAIR',
+              proposal_ko: '장소가 확인되어야 보여요.',
+              examples_ko: [],
+              cautions_ko: [],
+            },
+          ],
+        })}
+        exerciseId="exercise-1"
+      />,
+    );
+
+    expect(await screen.findByText('고관절, 무릎')).toBeOnTheScreen();
+    expect(screen.getByRole('header', { name: '주요 근육' })).toBeOnTheScreen();
+    expect(screen.queryByRole('header', { name: '상세 부위' })).toBeNull();
+    expect(screen.queryByText('장소가 확인되어야 보여요.')).toBeNull();
   });
 });

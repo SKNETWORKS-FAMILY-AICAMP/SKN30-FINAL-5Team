@@ -19,6 +19,7 @@ import {
 import type { Api } from '../../api/endpoints';
 import {
   bodyAreaLabel,
+  bodyFocusLabel,
   equipmentLabel,
   experienceLevelLabel,
   trainingTypeLabel,
@@ -34,7 +35,10 @@ import {
   ScreenShell,
 } from '../../components/states/ScreenState';
 import { colors, radii, spacing } from '../../components/theme';
-import { ExerciseDetailSheet } from '../workout/ExerciseDetailSheet';
+import {
+  ExerciseDetailSheet,
+  type ExerciseGuideContext,
+} from '../workout/ExerciseDetailSheet';
 
 const TRAINING_TYPE_FILTERS = [
   { code: undefined, label: '전체' },
@@ -55,9 +59,11 @@ const difficultyLabel = (code: string) => experienceLevelLabel(code);
 
 export function ExerciseCatalogScreen({
   api,
+  exerciseGuideContext,
   onBack,
 }: {
   api: Pick<Api, 'listExercises' | 'getExercise'>;
+  exerciseGuideContext?: ExerciseGuideContext;
   onBack: () => void;
 }) {
   const [trainingType, setTrainingType] = useState<string | undefined>();
@@ -154,7 +160,11 @@ export function ExerciseCatalogScreen({
         >
           <ScreenShell>
             <ScreenHeading title={openExercise.name} />
-            <ExerciseDetailSheet api={api} exerciseId={openExercise.id} />
+            <ExerciseDetailSheet
+              api={api}
+              exerciseId={openExercise.id}
+              guideContext={exerciseGuideContext}
+            />
             <Button
               label="목록으로"
               tone="secondary"
@@ -275,9 +285,20 @@ function CatalogList({
             <Text style={styles.itemName}>{item.name}</Text>
             <Text style={styles.itemMeta}>
               {trainingTypeLabel(item.training_type_code)}
-              {' · '}
-              {item.primary_body_area_codes.map(bodyAreaLabel).join(', ')}
             </Text>
+            <Text
+              style={styles.itemFocus}
+              testID={`exercise-body-focus-${item.id}`}
+            >
+              {`주요 근육 ${catalogFocusLabel(item)}`}
+            </Text>
+            {item.body_focus_code && item.primary_body_area_codes.length > 0 ? (
+              <Text style={styles.itemAreas}>
+                {`상세 부위 ${item.primary_body_area_codes
+                  .map(bodyAreaLabel)
+                  .join(', ')}`}
+              </Text>
+            ) : null}
             <View style={styles.itemFooter}>
               {item.required_equipment_codes.length > 0 ? (
                 <Text style={styles.itemEquipment}>
@@ -309,6 +330,16 @@ function CatalogList({
       ) : null}
     </ScrollView>
   );
+}
+
+function catalogFocusLabel(item: ExerciseListItem): string {
+  if (item.body_focus_code) {
+    return bodyFocusLabel(item.body_focus_code);
+  }
+  const legacyAreas = item.primary_body_area_codes
+    .map(bodyAreaLabel)
+    .join(', ');
+  return legacyAreas || '정보 없음';
 }
 
 const styles = StyleSheet.create({
@@ -413,6 +444,15 @@ const styles = StyleSheet.create({
   itemMeta: {
     color: colors.textSub,
     fontSize: 13,
+  },
+  itemFocus: {
+    color: colors.textSub,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  itemAreas: {
+    color: colors.textMuted,
+    fontSize: 12,
   },
   itemFooter: {
     flexDirection: 'row',
