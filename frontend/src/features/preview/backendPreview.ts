@@ -175,7 +175,18 @@ const PREVIEW_REPORT: WeeklyReportResponse = {
     partial: 1,
     not_completed: 0,
     stopped_for_safety: 1,
+    safety_stopped_session_count: 1,
   },
+  total_workout_seconds: 4860,
+  total_estimated_calories_burned: 312.5,
+  average_intensity_code: 'MODERATE',
+  most_performed_training_type_code: 'STRENGTH',
+  completed_count_change: 1,
+  highlight_codes: [
+    'COMPLETED_SESSION_RECORDED',
+    'ADJUSTED_PLAN_PROGRESS_RECORDED',
+  ],
+  improvement_codes: ['SAFETY_STOPPED_SESSION_RECORDED'],
   weekday_failure_summary: {
     WEDNESDAY: {
       partial: 1,

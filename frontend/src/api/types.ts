@@ -725,7 +725,17 @@ export type WeeklyReportResponse = {
     partial: number;
     not_completed: number;
     stopped_for_safety: number;
+    /** Additive alias; absent on reports generated before the split-axis contract. */
+    safety_stopped_session_count?: number | null;
   };
+  /** Additive BL-4 aggregates. Absent on reports generated before that contract. */
+  total_workout_seconds?: number | null;
+  total_estimated_calories_burned?: number | null;
+  average_intensity_code?: string | null;
+  most_performed_training_type_code?: string | null;
+  completed_count_change?: number | null;
+  highlight_codes?: string[] | null;
+  improvement_codes?: string[] | null;
   weekday_failure_summary: Record<
     string,
     {

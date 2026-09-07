@@ -933,7 +933,7 @@ describe('PreviewGallery', () => {
       await canvas.findByRole('button', { name: '리포트 생성하기' }),
     );
     expect(
-      await canvas.findByText('이번 주 목표에 맞춰 차근차근 운동했어요.'),
+      await canvas.findByText('안전 중단 기록을 먼저 확인해 주세요'),
     ).toBeOnTheScreen();
     fireEvent.press(canvas.getByRole('button', { name: '리포트 확인했어요' }));
     expect(await canvas.findByText('리포트를 확인했어요')).toBeOnTheScreen();
