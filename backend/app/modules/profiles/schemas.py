@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Any, Literal
+from typing import Any, Final, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -14,6 +14,11 @@ from backend.app.modules.profiles.codes import (
     CoachingStyleCode,
     ConsentTypeCode,
 )
+
+# Consent request fields for features the service no longer offers. Kept for
+# write compatibility, never applied. See ADR-0016 (calendar) and ADR-0019
+# (wearable); `ConsentTypeCode` keeps both codes so existing records stay readable.
+RETIRED_CONSENT_FIELDS: Final = ("wearable_integration", "calendar_integration")
 
 
 def _exclude_explicit_null_from_patch_schema(schema: dict[str, Any]) -> None:
@@ -38,9 +43,20 @@ class ConsentValues(BaseModel):
 
     general_personal_data: bool
     sensitive_data: bool
+    # Retired features. The fields stay declared because this model forbids extra
+    # keys, so removing them would turn a deployed client's request into a 422
+    # instead of ignoring a value the service no longer acts on. Whatever arrives
+    # is discarded and the consent is stored as not granted: there is nothing to
+    # consent to. Calendar was retired by ADR-0016, wearable by ADR-0019.
     wearable_integration: bool = False
     calendar_integration: bool = False
     marketing: bool = False
+
+    @model_validator(mode="after")
+    def clear_retired_consents(self) -> "ConsentValues":
+        for field_name in RETIRED_CONSENT_FIELDS:
+            object.__setattr__(self, field_name, False)
+        return self
 
     def by_type(self) -> dict[ConsentTypeCode, bool]:
         return {
@@ -263,6 +279,7 @@ class ConsentResponse(BaseModel):
 
 
 __all__ = [
+    "RETIRED_CONSENT_FIELDS",
     "ConsentResponse",
     "ConsentState",
     "ConsentValues",

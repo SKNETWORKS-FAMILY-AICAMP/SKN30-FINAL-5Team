@@ -34,6 +34,7 @@ from backend.app.modules.profiles.ports import (
     OnboardingProfileValues,
     OnboardingRecord,
 )
+from backend.app.modules.profiles.schemas import RETIRED_CONSENT_FIELDS
 from backend.tests.unit.test_routine_service import FakeRoutineRepository
 
 NOW = datetime(2026, 8, 13, 6, 0, tzinfo=UTC)
@@ -946,3 +947,34 @@ def test_me_reports_the_fixed_style_for_a_legacy_profile() -> None:
 
     assert read.status_code == 200
     assert read.json()["profile"]["coaching_style_code"] == FIXED_COACHING_STYLE_CODE.value
+
+
+@pytest.mark.parametrize("field_name", RETIRED_CONSENT_FIELDS)
+def test_retired_consents_are_stored_as_not_granted(field_name: str) -> None:
+    """A client that still asks for wearable or calendar consent gets a no-op.
+
+    There is nothing to consent to, so granting must not be recorded. The record
+    itself stays: "not granted" is a truthful state, and dropping it would make
+    "declined" indistinguishable from "never asked".
+    """
+
+    repository = FakeProfileRepository()
+    client = _client(repository)
+    payload = _payload()
+    consents = dict(payload["consents"])  # type: ignore[arg-type]
+    consents[field_name] = True
+    payload["consents"] = consents
+    with client:
+        onboarded = client.put(
+            "/api/v1/me/onboarding",
+            headers={"Idempotency-Key": str(uuid4())},
+            json=payload,
+        )
+        read = client.get("/api/v1/me/consents")
+
+    assert onboarded.status_code == 200
+    states = {item["consent_type_code"]: item["granted"] for item in read.json()["consents"]}
+    assert states[field_name.upper()] is False
+    # The approved consents are untouched by the retirement.
+    assert states["GENERAL_PERSONAL_DATA"] is True
+    assert states["SENSITIVE_DATA"] is True
