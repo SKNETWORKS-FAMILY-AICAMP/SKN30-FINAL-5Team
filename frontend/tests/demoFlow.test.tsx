@@ -249,6 +249,16 @@ function stubApi(overrides: Partial<Api> = {}): Api {
       final_plan: null,
       workout_session: null,
     })),
+    getRewards: jest.fn(async () => ({
+      balance: 0,
+      daily_reward: {
+        local_date: '2026-08-22',
+        reward_amount: 15,
+        is_claimable: true,
+        is_claimed: false,
+        claimed_at: null,
+      },
+    })),
     regenerateDecision: jest.fn(),
     updateDecisionPlanItem: jest.fn(
       async (
