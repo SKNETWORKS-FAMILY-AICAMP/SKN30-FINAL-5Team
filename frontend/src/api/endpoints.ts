@@ -192,9 +192,14 @@ export function createApi(client: ApiClient) {
      * Reviewed EQUIPMENT variants for display only. An empty `items` array
      * means this exercise must not expose a variant action.
      */
-    getExerciseVariants(exerciseId: string, signal?: AbortSignal) {
+    getExerciseVariants(
+      exerciseId: string,
+      locationCode?: string,
+      signal?: AbortSignal,
+    ) {
       return client.request<ExerciseVariantsResponse>({
         path: `/exercises/${exerciseId}/variants`,
+        query: { location_code: locationCode },
         signal,
       });
     },

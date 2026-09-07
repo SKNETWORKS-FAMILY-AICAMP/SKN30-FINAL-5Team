@@ -1245,6 +1245,7 @@ describe('WorkoutScreen API mode', () => {
     render(
       <WorkoutScreen
         api={api}
+        locationCode="HOME"
         sessionId="session-api"
         plan={API_PLAN}
         onOutcome={jest.fn()}
@@ -1280,9 +1281,54 @@ describe('WorkoutScreen API mode', () => {
     expect(updateSessionItem).not.toHaveBeenCalled();
     expect(getExerciseVariants).toHaveBeenCalledWith(
       'exercise-api',
+      'HOME',
       expect.any(AbortSignal),
     );
-  });
+  }, 10_000);
+
+  it.each(['GYM', 'OUTDOOR'])(
+    'hides variant entry points without a lookup during a %s workout',
+    async (locationCode) => {
+      const getExerciseVariants = jest.fn(async (exerciseId: string) => ({
+        source_exercise_id: exerciseId,
+        source_required_equipment_codes: ['BODYWEIGHT', 'CHAIR'],
+        items: [
+          {
+            exercise_id: 'exercise-bodyweight-squat',
+            exercise_name: '맨몸 스쿼트',
+            required_equipment_codes: ['BODYWEIGHT'],
+            instruction_summary: '의자 없이 가능한 범위까지 앉아요.',
+            form_cues: ['무릎과 발끝 방향을 맞춰요.'],
+            media_asset_key: null,
+            goal_preservation_code: 'GENERAL_FITNESS',
+          },
+        ],
+        catalog_version: 'test-catalog-v1',
+        alternative_set_version: 'test-alternatives-v1',
+      }));
+      const api = workoutApi({
+        getExerciseVariants,
+        getWorkoutSession: jest.fn(() => new Promise<never>(() => undefined)),
+      });
+
+      render(
+        <WorkoutScreen
+          api={api}
+          locationCode={locationCode}
+          sessionId="session-api"
+          plan={API_PLAN}
+          onOutcome={jest.fn()}
+        />,
+      );
+
+      expect(
+        screen.queryByRole('button', {
+          name: '의자 스쿼트 장비가 없을 때 보기',
+        }),
+      ).toBeNull();
+      expect(getExerciseVariants).not.toHaveBeenCalled();
+    },
+  );
 
   it('loads reviewed exercise guidance inside the scrollable detail sheet', async () => {
     const plan = {

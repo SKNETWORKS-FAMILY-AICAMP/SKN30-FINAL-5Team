@@ -230,7 +230,11 @@ export function HomeContainer({
   planRevision: WeeklyPlanRevisionResponse | null;
   /** Retained for callers until the retired location-revision UI is removed. */
   onPlanRevisionChange?: (revision: WeeklyPlanRevisionResponse | null) => void;
-  onSessionStarted: (sessionId: string, plan: WorkoutPlan) => void;
+  onSessionStarted: (
+    sessionId: string,
+    plan: WorkoutPlan,
+    locationCode?: string,
+  ) => void;
   onRestChosen: (pressureNotificationsAllowed: boolean) => void;
   /** Clear flow-owned REST state only after a replacement decision succeeds. */
   onCheckinDecisionSuccess?: () => void;
@@ -241,7 +245,7 @@ export function HomeContainer({
   onRecoverDecision?: () => void;
   todaySession?: WorkoutSessionDetailResponse | null;
   localSessionState?: LocalWorkoutPresentationState;
-  onResumeWorkout?: () => void;
+  onResumeWorkout?: (locationCode?: string) => void;
   onTab: (tab: TabId) => void;
   onOpenCalendar: () => void;
   hasUnreadNotification?: boolean;
@@ -630,9 +634,13 @@ export function HomeContainer({
       if (selection.workout_session === null) {
         return;
       }
-      onSessionStarted(selection.workout_session.session_id, plan);
+      onSessionStarted(
+        selection.workout_session.session_id,
+        plan,
+        context?.location_code,
+      );
     });
-  }, [api, decision, onSessionStarted, run]);
+  }, [api, context?.location_code, decision, onSessionStarted, run]);
 
   const chooseRest = useCallback(() => {
     if (decision === null) {
@@ -837,7 +845,11 @@ export function HomeContainer({
         changed ? submitCheckin(draft, false, true) : regenerateDecision()
       }
       onStartWorkout={startWorkout}
-      onResumeWorkout={onResumeWorkout}
+      onResumeWorkout={
+        onResumeWorkout
+          ? () => onResumeWorkout(context?.location_code)
+          : undefined
+      }
       onChooseRest={chooseRest}
       onRegenerateDecision={regenerateDecision}
       onReorderPlan={reorderPlan}

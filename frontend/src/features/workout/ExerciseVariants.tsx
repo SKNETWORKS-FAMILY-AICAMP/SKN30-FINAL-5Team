@@ -3,8 +3,8 @@
  *
  * This UI never changes the active routine or workout session. The backend
  * owns which equipment requirements and EQUIPMENT relationships are approved.
- * The action is available for any exercise with required equipment, while the
- * variant section is rendered only when reviewed variants exist.
+ * The action is available only in a HOME context and only when the server
+ * returns at least one reviewed variant.
  */
 
 import { useEffect, useRef } from 'react';
@@ -33,6 +33,7 @@ export function ExerciseVariantsAction({
   disabled = false,
   exerciseId,
   exerciseName,
+  locationCode,
   autoOpen = false,
   label = '장비',
   onOpen,
@@ -44,19 +45,67 @@ export function ExerciseVariantsAction({
   disabled?: boolean;
   exerciseId: string;
   exerciseName: string;
+  /** Undefined preserves the backend's legacy HOME-compatible behavior. */
+  locationCode?: string;
   autoOpen?: boolean;
   label?: string;
   onOpen: (response: ExerciseVariantsResponse) => void;
   presentation?: 'pill' | 'text';
+}) {
+  if (!supportsEquipmentVariants(locationCode)) {
+    return null;
+  }
+
+  return (
+    <HomeExerciseVariantsAction
+      actionStyle={actionStyle}
+      actionTextStyle={actionTextStyle}
+      api={api}
+      autoOpen={autoOpen}
+      disabled={disabled}
+      exerciseId={exerciseId}
+      exerciseName={exerciseName}
+      label={label}
+      locationCode={locationCode}
+      onOpen={onOpen}
+      presentation={presentation}
+    />
+  );
+}
+
+function HomeExerciseVariantsAction({
+  actionStyle,
+  actionTextStyle,
+  api,
+  disabled,
+  exerciseId,
+  exerciseName,
+  locationCode,
+  autoOpen,
+  label,
+  onOpen,
+  presentation,
+}: {
+  actionStyle?: StyleProp<ViewStyle>;
+  actionTextStyle?: StyleProp<TextStyle>;
+  api: VariantApi;
+  disabled: boolean;
+  exerciseId: string;
+  exerciseName: string;
+  locationCode?: string;
+  autoOpen: boolean;
+  label: string;
+  onOpen: (response: ExerciseVariantsResponse) => void;
+  presentation: 'pill' | 'text';
 }) {
   const getExerciseVariants = api.getExerciseVariants;
   const openedAutomatically = useRef(false);
   const { state, reload } = useAsyncData<ExerciseVariantsResponse>(
     (signal) =>
       getExerciseVariants
-        ? getExerciseVariants(exerciseId, signal)
+        ? getExerciseVariants(exerciseId, locationCode, signal)
         : Promise.resolve(emptyVariants(exerciseId)),
-    [getExerciseVariants, exerciseId],
+    [getExerciseVariants, exerciseId, locationCode],
   );
 
   useEffect(() => {
@@ -64,7 +113,7 @@ export function ExerciseVariantsAction({
       !autoOpen ||
       openedAutomatically.current ||
       state.status !== 'ready' ||
-      !hasRequiredEquipment(state.data.source_required_equipment_codes)
+      state.data.items.length === 0
     ) {
       return;
     }
@@ -114,7 +163,7 @@ export function ExerciseVariantsAction({
     );
   }
 
-  if (!hasRequiredEquipment(state.data.source_required_equipment_codes)) {
+  if (state.data.items.length === 0) {
     return null;
   }
 
@@ -206,8 +255,8 @@ function equipmentSummary(codes: readonly string[]): string {
   return equipmentCodes.map(equipmentLabel).join(', ');
 }
 
-function hasRequiredEquipment(codes: readonly string[]): boolean {
-  return codes.some((code) => code !== 'BODYWEIGHT');
+function supportsEquipmentVariants(locationCode?: string): boolean {
+  return locationCode === undefined || locationCode === 'HOME';
 }
 
 const styles = StyleSheet.create({

@@ -123,6 +123,8 @@ type WorkoutPreviewProps = {
 type WorkoutApiProps = {
   api: Api;
   initialEquipmentGuideExerciseId?: string;
+  /** Daily Check-in location used by the read-only variant endpoint. */
+  locationCode?: string;
   sessionId: string;
   plan: WorkoutPlan;
   onOutcome: (outcome: SessionOutcome) => void;
@@ -1192,6 +1194,7 @@ function WorkoutScreenContent({
                       }
                       exerciseId={block.exerciseId}
                       exerciseName={block.name}
+                      locationCode={apiConfig.locationCode}
                       label="장비가 없을 때"
                       onOpen={(response) => {
                         setDetailBlockId(null);
