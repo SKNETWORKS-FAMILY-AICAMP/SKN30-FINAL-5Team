@@ -3,9 +3,111 @@ import { jest } from '@jest/globals';
 import { ApiClient } from '../src/api/client';
 import { createApi } from '../src/api/endpoints';
 import type {
+  BananaSpendResponse,
+  BananaWalletResponse,
+  DailyRewardClaimResponse,
   ExerciseVariantsResponse,
   NotificationListResponse,
 } from '../src/api/types';
+
+it('reads and mutates the server-backed banana wallet through reviewed endpoints', async () => {
+  const wallet: BananaWalletResponse = {
+    balance: 20,
+    daily_reward: {
+      local_date: '2026-09-07',
+      reward_amount: 15,
+      is_claimable: true,
+      is_claimed: false,
+      claimed_at: null,
+    },
+  };
+  const claim: DailyRewardClaimResponse = {
+    ...wallet,
+    balance: 35,
+    daily_reward: {
+      ...wallet.daily_reward,
+      is_claimable: false,
+      is_claimed: true,
+      claimed_at: '2026-09-07T14:00:00+09:00',
+    },
+    transaction: {
+      transaction_id: 'transaction-claim',
+      transaction_type: 'DAILY_REWARD',
+      amount: 15,
+      balance_after: 35,
+      created_at: '2026-09-07T14:00:00+09:00',
+    },
+  };
+  const spend: BananaSpendResponse = {
+    ...claim,
+    balance: 25,
+    transaction: {
+      transaction_id: 'transaction-spend',
+      transaction_type: 'HOUSE_FEED',
+      amount: -10,
+      balance_after: 25,
+      created_at: '2026-09-07T14:01:00+09:00',
+    },
+  };
+  const responses = [wallet, claim, spend];
+  const fetchImpl = jest.fn<typeof fetch>(async () => {
+    const payload = responses.shift();
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify(payload),
+    } as Response);
+  });
+  const api = createApi(
+    new ApiClient({
+      baseUrl: 'https://api.example.test',
+      getToken: async () => 'token',
+      fetchImpl,
+    }),
+  );
+  const controller = new AbortController();
+  const spendKey = '11111111-1111-4111-8111-111111111111';
+
+  await expect(api.getRewards(controller.signal)).resolves.toEqual(wallet);
+  await expect(api.claimDailyReward()).resolves.toEqual(claim);
+  await expect(
+    api.spendBananas({ action_code: 'FEED_MASCOT' }, spendKey),
+  ).resolves.toEqual(spend);
+
+  expect(fetchImpl).toHaveBeenNthCalledWith(
+    1,
+    'https://api.example.test/api/v1/rewards',
+    expect.objectContaining({
+      method: 'GET',
+      body: undefined,
+      signal: controller.signal,
+    }),
+  );
+  expect(fetchImpl).toHaveBeenNthCalledWith(
+    2,
+    'https://api.example.test/api/v1/rewards/daily-reward/claim',
+    expect.objectContaining({
+      method: 'POST',
+      body: undefined,
+      headers: expect.objectContaining({
+        Authorization: 'Bearer token',
+        'Idempotency-Key': expect.any(String),
+      }),
+    }),
+  );
+  expect(fetchImpl).toHaveBeenNthCalledWith(
+    3,
+    'https://api.example.test/api/v1/rewards/spend',
+    expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ action_code: 'FEED_MASCOT' }),
+      headers: expect.objectContaining({
+        Authorization: 'Bearer token',
+        'Idempotency-Key': spendKey,
+      }),
+    }),
+  );
+});
 
 it('calls the reviewed equipment-variant endpoint without a mutation body', async () => {
   const payload: ExerciseVariantsResponse = {

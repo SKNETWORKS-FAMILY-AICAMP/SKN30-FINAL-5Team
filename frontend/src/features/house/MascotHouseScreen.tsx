@@ -28,6 +28,7 @@ import type { TabId } from '../../components/brand/BrandChrome';
 import { LoadingState, ScreenShell } from '../../components/states/ScreenState';
 import { HomeBottomNavigation } from '../home/HomeScreen';
 import { BananaCatchGameScreen } from '../bananaCatch/BananaCatchGameScreen';
+import { RewardsScreen } from '../rewards/RewardsScreen';
 import { MascotHouseContent, type HouseMiniGameId } from './MascotHouseContent';
 import {
   housePoseArt,
@@ -99,6 +100,7 @@ export function MascotHouseScreen({
   const [activeMiniGame, setActiveMiniGame] = useState<HouseMiniGameId | null>(
     null,
   );
+  const [rewardsOpen, setRewardsOpen] = useState(false);
   const lastBananaArt = useRef<HouseArtSlot['source']>(null);
   const lastRegularArt = useRef<HouseArtSlot['source']>(null);
   const poseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -220,6 +222,10 @@ export function MascotHouseScreen({
     return <BananaCatchGameScreen onBack={() => setActiveMiniGame(null)} />;
   }
 
+  if (rewardsOpen) {
+    return <RewardsScreen api={api} onBack={() => setRewardsOpen(false)} />;
+  }
+
   if (remote.status !== 'ready' || houseState === null) {
     return (
       <ScreenShell footer={tabBar}>
@@ -257,6 +263,7 @@ export function MascotHouseScreen({
         react('eating', bananaArt, FEED_POSE_HOLD_MS, regularArt);
         return true;
       }}
+      onOpenRewards={() => setRewardsOpen(true)}
       onPet={() => {
         // Free and unlimited, so there is no failure case: the touch always
         // lands, and only the intimacy it pays is capped.

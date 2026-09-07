@@ -589,6 +589,51 @@ export type NotificationListResponse = {
   unread_count: number;
 };
 
+export type BananaTransactionType =
+  | 'DAILY_REWARD'
+  | 'WORKOUT_COMPLETED'
+  | 'WORKOUT_PARTIAL'
+  | 'WORKOUT_SAFETY_STOPPED'
+  | 'WORKOUT_DAILY_QUEST'
+  | 'HOUSE_FEED'
+  | 'HOUSE_ITEM_PURCHASE';
+
+export type DailyRewardStatus = {
+  local_date: string;
+  reward_amount: number;
+  is_claimable: boolean;
+  is_claimed: boolean;
+  claimed_at: string | null;
+};
+
+export type BananaWalletResponse = {
+  balance: number;
+  daily_reward: DailyRewardStatus;
+};
+
+export type BananaTransactionResponse = {
+  transaction_id: string;
+  transaction_type: BananaTransactionType;
+  amount: number;
+  balance_after: number;
+  created_at: string;
+};
+
+export type DailyRewardClaimResponse = BananaWalletResponse & {
+  transaction: BananaTransactionResponse;
+};
+
+export type BananaSpendRequest =
+  | { action_code: 'FEED_MASCOT'; house_item_code?: never }
+  | {
+      action_code: 'PURCHASE_HOUSE_ITEM';
+      house_item_code: string;
+    };
+
+export type BananaSpendResponse = BananaWalletResponse & {
+  transaction: BananaTransactionResponse;
+};
+
 export type WeekResponse = {
   week_id: string;
   week_start: string;
