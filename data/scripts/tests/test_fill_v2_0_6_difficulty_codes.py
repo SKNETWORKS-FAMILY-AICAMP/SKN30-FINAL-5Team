@@ -6,7 +6,7 @@ from data.scripts.fill_v2_0_6_difficulty_codes import apply_review
 
 
 def write_catalog(path, rows):
-    fields = ["source_identity", "difficulty_code", "name_en"]
+    fields = list(dict.fromkeys(field for row in rows for field in row))
     with path.open("w", encoding="utf-8-sig", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields, lineterminator="\n")
         writer.writeheader()
@@ -60,3 +60,52 @@ def test_review_fills_all_blank_ids_and_preserves_existing_values(tmp_path) -> N
     assert result["0158"] == "INTERMEDIATE"
     assert result["0872"] == "BEGINNER"
     assert all(result.values())
+
+
+def test_user_review_rules_apply_in_documented_precedence_order(tmp_path) -> None:
+    path = tmp_path / "catalog.csv"
+    write_catalog(
+        path,
+        [
+            {
+                "source_identity": "0335",
+                "stable_code": "dumbbell_lateral_to_front_raise_isolation_dumbbell",
+                "equipment_codes": "DUMBBELL",
+                "difficulty_code": "INTERMEDIATE",
+                "name_en": "dumbbell lateral to front raise",
+            },
+            {
+                "source_identity": "test-push",
+                "stable_code": "incline_scapula_push_up",
+                "equipment_codes": "BODYWEIGHT",
+                "difficulty_code": "INTERMEDIATE",
+                "name_en": "incline scapula push-up",
+            },
+            {
+                "source_identity": "test-incline",
+                "stable_code": "bodyweight_incline_side_plank",
+                "equipment_codes": "BODYWEIGHT",
+                "difficulty_code": "BEGINNER",
+                "name_en": "bodyweight incline side plank",
+            },
+        ],
+    )
+    from data.scripts.fill_v2_0_6_difficulty_codes import DIFFICULTY_BY_SOURCE_ID
+
+    rows = read_catalog(path)
+    rows.extend(
+        {
+            "source_identity": source_id,
+            "difficulty_code": "",
+            "name_en": source_id,
+        }
+        for source_id in DIFFICULTY_BY_SOURCE_ID
+        if source_id not in {row["source_identity"] for row in rows}
+    )
+    write_catalog(path, rows)
+
+    apply_review(path)
+    result = {row["source_identity"]: row["difficulty_code"] for row in read_catalog(path)}
+    assert result["0335"] == "BEGINNER"
+    assert result["test-push"] == "BEGINNER"
+    assert result["test-incline"] == "INTERMEDIATE"

@@ -1,0 +1,13 @@
+{
+  "bundle_version": "home-equipment-variants-v1-final-2026-09-04",
+  "data_path": "variants/bodyweight_variant_candidates.jsonl",
+  "data_sha256": "85809a02ea89aa7f81d89e8553debf5907e269c23a4a7f82c5848db8e8ab5370",
+  "dataset_version": "bodyweight-variant-candidates-v1",
+  "generated_at": "2026-09-04T00:00:00+09:00",
+  "generator_version": "home-equipment-variants-backend-bundle-1.0.0",
+  "importer_entry_path": "variants/bodyweight_variant_candidates_manifest.json",
+  "record_count": 20,
+  "review_status_code": "DOMAIN_APPROVED",
+  "safety_contract": "EQUIPMENT-only relations; catalog safety rules remain authoritative",
+  "schema_version": "home-equipment-importer-v1"
+}

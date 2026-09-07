@@ -78,7 +78,14 @@ def test_stretch_cues_do_not_add_medical_claims() -> None:
 
 def test_distinguishes_floor_pushups_from_overhead_pressing() -> None:
     pushup_rows, _ = module.apply_normalization(
-        [row("0004", stable_code="pushup", name_ko="푸시업", name_en="push up")]
+        [
+            row(
+                "0004",
+                stable_code="push_up_horizontal_push_bodyweight",
+                name_ko="푸시업",
+                name_en="push up",
+            )
+        ]
     )
     press_rows, _ = module.apply_normalization(
         [
@@ -92,7 +99,38 @@ def test_distinguishes_floor_pushups_from_overhead_pressing() -> None:
     )
 
     assert "손바닥 전체로 바닥을 지지합니다" in pushup_rows[0]["form_cues_ko"]
+    assert module.PUSH_UP_EASING_CUE in pushup_rows[0]["form_cues_ko"]
     assert "허리를 과하게 젖히지 말고" in press_rows[0]["form_cues_ko"]
+
+
+def test_preserves_existing_knee_pushup_cues() -> None:
+    rows, _ = module.apply_normalization(
+        [
+            row(
+                "0007",
+                stable_code="close_grip_push_up_on_knees",
+                name_ko="무릎 대고 클로즈 그립 푸시업",
+                name_en="close grip push-up on knees",
+            )
+        ]
+    )
+
+    assert module.PUSH_UP_EASING_CUE not in rows[0]["form_cues_ko"]
+
+
+def test_does_not_apply_knee_cue_to_wall_pushups() -> None:
+    rows, _ = module.apply_normalization(
+        [
+            row(
+                "0008",
+                stable_code="push_up_wall",
+                name_ko="벽 푸시업",
+                name_en="wall push-up",
+            )
+        ]
+    )
+
+    assert module.PUSH_UP_EASING_CUE not in rows[0]["form_cues_ko"]
 
 
 def test_form_cues_do_not_repeat_the_exercise_name() -> None:

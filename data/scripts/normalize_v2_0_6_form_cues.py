@@ -37,6 +37,13 @@ REQUIRED_FIELDS = {
 GIF_REVIEWED_CONTENT_VERSION = "gif-reviewed-natural-language-ko-v2.0.6"
 EDITORIAL_SOURCE = "data/scripts/normalize_v2_0_6_form_cues.py"
 FORM_CUES_REVIEW_STATUS = "APPROVED"
+PUSH_UP_EASING_CUE = "수행이 어렵다면 무릎을 바닥에 대고 범위를 줄여 진행합니다"
+KNEE_MODIFIABLE_PUSH_UP_CODES = frozenset(
+    {
+        "close_grip_push_up_horizontal_push_bodyweight",
+        "push_up_horizontal_push_bodyweight",
+    }
+)
 PUNCTUATION_TRANSLATION = str.maketrans(
     "", "", string.punctuation + "…·，。！？：；（）「」『』〈〉《》"
 )
@@ -253,6 +260,8 @@ def apply_normalization(rows: list[dict[str, str]]) -> tuple[list[dict[str, str]
     for row in rows:
         gif_reviewed = row["instruction_content_version"] == GIF_REVIEWED_CONTENT_VERSION
         cues = _clean_existing_cues(row["form_cues_ko"]) if gif_reviewed else _generated_cues(row)
+        if row["stable_code"] in KNEE_MODIFIABLE_PUSH_UP_CODES:
+            cues[-1] = PUSH_UP_EASING_CUE
         if len(cues) != 2 or any(not cue for cue in cues):
             raise FormCueNormalizationError(f"expected two form cues: {row['source_identity']}")
         normalized = "|".join(cues)
@@ -276,6 +285,7 @@ def apply_normalization(rows: list[dict[str, str]]) -> tuple[list[dict[str, str]
         ),
         "editorial_safety_category_counts": dict(sorted(categories.items())),
         "form_cue_format": "TWO_PUNCTUATION_FREE_POLITE_KO_CUES",
+        "push_up_easing_cue": PUSH_UP_EASING_CUE,
         "form_cues_review_status": FORM_CUES_REVIEW_STATUS,
     }
 

@@ -1,0 +1,169 @@
+{
+  "status": "USER_APPROVED",
+  "production_eligible": false,
+  "policy": {
+    "join_key": "source_identity_exact_match",
+    "changed_source_identities": [
+      "0130",
+      "0137",
+      "0613",
+      "1512",
+      "1564",
+      "2204",
+      "2206"
+    ],
+    "unchanged_domains": [
+      "MET fields",
+      "safety",
+      "prescriptions",
+      "alternatives",
+      "media links"
+    ]
+  },
+  "inputs": {
+    "catalog_path": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv",
+    "catalog_sha256_before": "b3a9ccaf3c2b415f5085d5c1ef1d841f476311186455e0b540aeef896fe98402",
+    "catalog_records": 237
+  },
+  "outputs": {
+    "catalog_path": "/Users/bini/Desktop/Bini/단위프로젝트/SKN30-FINAL-5Team/data/normalized/v2_0_6_exercise_catalog.csv",
+    "catalog_sha256_after": "6bf15616bf6db93bc420eca22335f65df0e5eb2a7dd8fdab98d83ea66b7c6cbc",
+    "changed_fields": 19,
+    "changed_records": 7
+  },
+  "changes": [
+    {
+      "source_identity": "0130",
+      "stable_code": "bench_hip_extension",
+      "field": "instruction_summary_ko",
+      "previous_value": "1. 벤치에 앉아 등을 벤치에 붙이고 발을 땅에 디딥니다\n2. 둔근과 햄스트링에 힘을 주어 무릎에서 어깨까지 일직선을 이루는 높이까지 엉덩이를 들어올립니다\n3. 가장 높은 지점에서 잠깐 멈춘 후 천천히 엉덩이를 시작 자세로 내립니다",
+      "new_value": "1. 벤치에 양손과 한쪽 무릎을 올려 몸통을 안정적으로 지지합니다\n2. 반대쪽 다리를 무릎을 편 채 뒤로 들어 올려 엉덩이 높이까지 뻗습니다\n3. 골반을 유지하며 다리를 천천히 내린 뒤 반대쪽도 같은 순서로 수행합니다"
+    },
+    {
+      "source_identity": "0130",
+      "stable_code": "bench_hip_extension",
+      "field": "instruction_content_version",
+      "previous_value": "user-natural-language-ko-v2.0.6",
+      "new_value": "gif-reviewed-natural-language-ko-v2.0.6"
+    },
+    {
+      "source_identity": "0137",
+      "stable_code": "body_up",
+      "field": "name_ko",
+      "previous_value": "벤치 덩키킥",
+      "new_value": "푸시업"
+    },
+    {
+      "source_identity": "0137",
+      "stable_code": "body_up",
+      "field": "primary_movement_pattern_code",
+      "previous_value": "HIP_DOMINANT",
+      "new_value": "HORIZONTAL_PUSH"
+    },
+    {
+      "source_identity": "0137",
+      "stable_code": "body_up",
+      "field": "instruction_summary_ko",
+      "previous_value": "1. 벤치를 양손으로 짚고 상체를 고정합니다\n2. 한쪽 다리를 무릎을 굽힌 채 뒤쪽 위로 들어 올린 뒤 천천히 시작 자세로 돌아오며 반대쪽도 수행합니다",
+      "new_value": "1. 바닥에 엎드려 양손을 어깨 아래에 두고 다리를 곧게 뻗습니다\n2. 손바닥으로 바닥을 밀어 팔을 펴며 상체를 들어 올립니다\n3. 몸통을 길게 유지하며 팔꿈치를 굽혀 천천히 시작 자세로 돌아옵니다"
+    },
+    {
+      "source_identity": "0137",
+      "stable_code": "body_up",
+      "field": "form_cues_ko",
+      "previous_value": "허리가 과도하게 꺾이지 않도록 몸통을 고정합니다|다리를 올릴 때 벤치에 기대어 어깨가 무너지지 않게 합니다",
+      "new_value": "허리가 과하게 꺾이지 않도록 배 주변에 가볍게 힘을 줍니다|수행이 어렵다면 무릎을 바닥에 대고 범위를 줄여 진행합니다"
+    },
+    {
+      "source_identity": "0613",
+      "stable_code": "side_lying_quadriceps_stretch_mobility_stretch_bodyweight",
+      "field": "name_ko",
+      "previous_value": "옆으로 누워 햄스트링 스트레칭",
+      "new_value": "옆으로 누워 대퇴사두근 스트레칭"
+    },
+    {
+      "source_identity": "0613",
+      "stable_code": "side_lying_quadriceps_stretch_mobility_stretch_bodyweight",
+      "field": "primary_body_area_codes",
+      "previous_value": "hamstrings",
+      "new_value": "quadriceps"
+    },
+    {
+      "source_identity": "0613",
+      "stable_code": "side_lying_quadriceps_stretch_mobility_stretch_bodyweight",
+      "field": "instruction_summary_ko",
+      "previous_value": "1. 옆으로 누워 아래쪽 팔로 머리를 받칩니다\n2. 위쪽 다리를 편안한 범위에서 뒤로 움직여 허벅지 뒤쪽의 당김을 느낀 뒤 천천히 돌아옵니다",
+      "new_value": "1. 옆으로 누워 아래쪽 팔로 머리를 받치고 두 다리를 편안히 뻗습니다\n2. 위쪽 무릎을 굽혀 발목이나 발등을 잡고 발뒤꿈치를 엉덩이 쪽으로 부드럽게 당깁니다\n3. 허벅지 앞쪽이 당기는 범위에서 유지한 뒤 반대쪽도 수행합니다"
+    },
+    {
+      "source_identity": "1512",
+      "stable_code": "quadruped_quadriceps_stretch_mobility_stretch_bodyweight",
+      "field": "name_ko",
+      "previous_value": "네발 햄스트링 스트레칭",
+      "new_value": "네발 대퇴사두근 스트레칭"
+    },
+    {
+      "source_identity": "1512",
+      "stable_code": "quadruped_quadriceps_stretch_mobility_stretch_bodyweight",
+      "field": "primary_body_area_codes",
+      "previous_value": "hamstrings",
+      "new_value": "quadriceps"
+    },
+    {
+      "source_identity": "1512",
+      "stable_code": "quadruped_quadriceps_stretch_mobility_stretch_bodyweight",
+      "field": "secondary_body_area_codes",
+      "previous_value": "glutes",
+      "new_value": ""
+    },
+    {
+      "source_identity": "1512",
+      "stable_code": "quadruped_quadriceps_stretch_mobility_stretch_bodyweight",
+      "field": "instruction_summary_ko",
+      "previous_value": "1. 손과 무릎을 바닥에 대고 네발기기 자세를 만듭니다\n2. 한쪽 무릎을 굽힌 채 다리를 뒤쪽 위로 들어 올렸다가 천천히 시작 자세로 내립니다\n3. 반대쪽도 같은 순서로 수행합니다",
+      "new_value": "1. 손은 어깨 아래, 무릎은 엉덩이 아래에 두고 네발기기 자세를 만듭니다\n2. 한쪽 무릎을 굽혀 발을 엉덩이 쪽으로 가져가며 허벅지 앞쪽이 당기는 범위로 골반을 천천히 낮춥니다\n3. 편안한 범위에서 유지한 뒤 반대쪽도 수행합니다"
+    },
+    {
+      "source_identity": "1564",
+      "stable_code": "intermediate_hip_flexor_and_quad_stretch",
+      "field": "name_ko",
+      "previous_value": "고관절 햄스트링 스트레칭",
+      "new_value": "고관절 굴곡근·대퇴사두근 스트레칭"
+    },
+    {
+      "source_identity": "1564",
+      "stable_code": "intermediate_hip_flexor_and_quad_stretch",
+      "field": "primary_body_area_codes",
+      "previous_value": "hamstrings",
+      "new_value": "quadriceps"
+    },
+    {
+      "source_identity": "1564",
+      "stable_code": "intermediate_hip_flexor_and_quad_stretch",
+      "field": "secondary_body_area_codes",
+      "previous_value": "glutes",
+      "new_value": "hip flexors"
+    },
+    {
+      "source_identity": "1564",
+      "stable_code": "intermediate_hip_flexor_and_quad_stretch",
+      "field": "instruction_summary_ko",
+      "previous_value": "1. 바닥에 누워 한쪽 다리를 길게 뻗고 반대쪽 다리를 들어 올립니다\n2. 다리를 편안한 범위에서 몸 쪽으로 당겼다가 천천히 내려 반대쪽도 수행합니다",
+      "new_value": "1. 한쪽 무릎을 굽혀 발목이나 발에 건 스트랩을 잡고 편안히 눕습니다\n2. 발을 엉덩이 쪽으로 부드럽게 당겨 허벅지 앞쪽과 고관절 앞쪽의 당김을 느낍니다\n3. 편안한 범위에서 유지한 뒤 반대쪽도 수행합니다"
+    },
+    {
+      "source_identity": "2204",
+      "stable_code": "foam_roller_thigh_stretch",
+      "field": "primary_body_area_codes",
+      "previous_value": "shoulders",
+      "new_value": "core"
+    },
+    {
+      "source_identity": "2206",
+      "stable_code": "foam_roller_calf_stretch_2206",
+      "field": "primary_body_area_codes",
+      "previous_value": "hip flexors",
+      "new_value": "core"
+    }
+  ]
+}
