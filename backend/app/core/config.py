@@ -87,6 +87,14 @@ class Settings(BaseSettings):
     llm_agents_max_attempts: int = 2
     llm_agents_max_output_tokens: int = 1200
     llm_agents_approved_model_codes: Annotated[tuple[str, ...], NoDecode] = ()
+    # LangSmith tracing. ADR-0020 limits this to the staging shadow and demo
+    # runtimes: the production decision path never receives a tracer, and
+    # `provider.py` keeps ambient tracing disabled so an env var alone cannot
+    # start exporting prompt content.
+    langsmith_tracing_enabled: bool = False
+    langsmith_endpoint: str = "https://api.smith.langchain.com"
+    langsmith_api_key: SecretStr | None = None
+    langsmith_project: str | None = None
     # V3 graph construction is separately gated so incomplete provider/domain
     # wiring cannot alter the existing V1/V2 production decision path.
     v3_langgraph_enabled: bool = False
@@ -481,6 +489,15 @@ class Settings(BaseSettings):
                 raise ValueError("staging/production Qdrant requires TLS")
         if self.v3_execution_profile == "DEMO" and self.app_env != "staging":
             raise ValueError("V3_EXECUTION_PROFILE=DEMO is allowed only when APP_ENV=staging")
+        if self.langsmith_tracing_enabled:
+            # 자격 증명 없이 켜면 트레이스가 조용히 사라지는 대신 기동을 막는다.
+            if self.langsmith_api_key is None:
+                raise ValueError("LANGSMITH_TRACING requires LANGSMITH_API_KEY")
+            if not self.langsmith_endpoint.startswith("https://"):
+                raise ValueError("LANGSMITH_ENDPOINT must be https")
+            # ADR-0020: 실험 표면에만 허용한다. production에서 켜지면 기동을 막는다.
+            if self.app_env == "production":
+                raise ValueError("LANGSMITH_TRACING is not allowed when APP_ENV=production")
         return self
 
 

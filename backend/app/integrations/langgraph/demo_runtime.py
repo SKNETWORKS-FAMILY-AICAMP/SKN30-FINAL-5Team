@@ -50,6 +50,7 @@ from backend.app.integrations.langgraph.state import (
     V3GraphInput,
     V3GraphResult,
 )
+from backend.app.integrations.langsmith_tracing import build_langsmith_tracer
 from backend.app.integrations.llm_agents.coordinator import LangChainCoordinatorAdapter
 from backend.app.integrations.llm_agents.openai import (
     build_openai_demo_chat_model,
@@ -380,14 +381,19 @@ def build_v3_demo_runtime(
     if model is None:
         return None
     resolved_versions = versions or V3DemoRuntimeVersions()
+    # ADR-0020 allows LangSmith on the demo surface. `build_langsmith_tracer`
+    # returns None unless the deployment configured it, so the default stays untraced.
+    tracer = build_langsmith_tracer(settings)
+    tracing_callbacks = () if tracer is None else (tracer,)
     return V3DemoRuntime(
         settings=settings,
-        graph_runtime=V3LangGraphRuntime(create_v3_graph()),
+        graph_runtime=V3LangGraphRuntime(create_v3_graph(), tracing_callbacks=tracing_callbacks),
         invoker=StructuredChatInvoker(
             chat_model=model,
             model_code=settings.llm_agents_model_code,
             max_attempts=min(settings.llm_agents_max_attempts, 2),
             use_native_json_schema=chat_model is None,
+            tracing_callbacks=tracing_callbacks,
         ),
         identity_provider=identity_provider or BoundV3DemoIdentityProvider(),
         fallback_provider=fallback_provider

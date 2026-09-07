@@ -18,8 +18,10 @@ The feature is disabled by default under `LLM_AGENTS_*`. An enabled but incomple
 returns `LLM_AGENT_PROVIDER_UNAVAILABLE` without blocking application startup. An approved
 provider adapter must configure its network timeout from `LLM_AGENTS_TIMEOUT_SECONDS` before
 injecting the model. Prompt/request/response bodies and provider exception messages are not
-logged. LangSmith tracing and callbacks are disabled for every structured invocation so an
-ambient tracing configuration cannot export these bodies.
+logged. Ambient LangSmith tracing is disabled for every structured invocation, and that switch
+is not settings-driven, so an ambient tracing configuration cannot export these bodies. A
+composition may inject a tracer as an explicit callback instead; ADR-0020 limits that to the
+staging shadow and demo runtimes.
 
 Failures are all-or-nothing and expose only stable codes:
 `LLM_AGENT_PROVIDER_UNAVAILABLE`, `LLM_AGENT_PROVIDER_TIMEOUT`,

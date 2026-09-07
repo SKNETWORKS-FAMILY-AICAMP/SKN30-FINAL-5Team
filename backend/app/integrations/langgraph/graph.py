@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from langchain_core.callbacks import BaseCallbackHandler
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
+from langsmith import tracing_context
 
 from backend.app.core.config import Settings
 from backend.app.integrations.langgraph import nodes
@@ -80,18 +82,29 @@ def create_v3_graph() -> CompiledStateGraph:
 @dataclass(frozen=True, slots=True)
 class V3LangGraphRuntime:
     graph: CompiledStateGraph
+    # Injected tracing handlers, empty by default. Only the staging shadow and demo
+    # compositions pass one (ADR-0020); the production path leaves this empty.
+    tracing_callbacks: tuple[BaseCallbackHandler, ...] = ()
 
     async def ainvoke(self, graph_input: V3GraphInput) -> V3GraphResult:
-        final_state = await self.graph.ainvoke(
-            {
-                "graph_input": graph_input,
-                "agent_outcomes": (),
-                "invocation_audits": (),
-                "integrity_validations": (),
-                "compiled_plans": (),
-            },
-            config={"callbacks": [], "max_concurrency": 3},
-        )
+        # Ambient tracing stays off here for the same reason it does in the
+        # structured invoker: an environment variable must not be able to export
+        # node payloads. Handlers passed in `callbacks` still run, so an injected
+        # tracer remains the only path to LangSmith.
+        with tracing_context(enabled=False):
+            final_state = await self.graph.ainvoke(
+                {
+                    "graph_input": graph_input,
+                    "agent_outcomes": (),
+                    "invocation_audits": (),
+                    "integrity_validations": (),
+                    "compiled_plans": (),
+                },
+                config={
+                    "callbacks": list(self.tracing_callbacks),
+                    "max_concurrency": 3,
+                },
+            )
         result = final_state.get("result")
         if not isinstance(result, V3GraphResult):
             raise RuntimeError("V3 graph terminated without a sanitized result")

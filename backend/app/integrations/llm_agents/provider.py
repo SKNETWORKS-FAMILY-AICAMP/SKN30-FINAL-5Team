@@ -8,6 +8,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any, TypeVar, cast
 
+from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.exceptions import OutputParserException
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage
@@ -133,6 +134,10 @@ class StructuredChatInvoker:
     model_code: str
     max_attempts: int = 2
     use_native_json_schema: bool = False
+    # Injected tracing handlers. Empty by default, and the production composition
+    # leaves it empty: only the staging shadow and demo runtimes pass one
+    # (ADR-0020). The ambient tracing switch below stays off either way.
+    tracing_callbacks: tuple[BaseCallbackHandler, ...] = ()
 
     def __post_init__(self) -> None:
         if self.max_attempts not in {1, 2}:
@@ -185,10 +190,13 @@ class StructuredChatInvoker:
             try:
                 # LangSmith is a transitive dependency of langchain-core. Disable it
                 # explicitly so ambient tracing settings cannot export prompt content.
+                # This stays unconditionally False: an env var must never be able to
+                # start an export. `langchain_core` still runs handlers passed here
+                # explicitly, so an injected tracer is the only way to trace.
                 with tracing_context(enabled=False):
                     raw_output = structured_model.invoke(
                         list(messages),
-                        config={"callbacks": []},
+                        config={"callbacks": list(self.tracing_callbacks)},
                     )
                 parsed_payload, raw_message = _structured_payload(raw_output)
                 parsed_output = cast(

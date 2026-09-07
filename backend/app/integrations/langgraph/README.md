@@ -40,9 +40,11 @@ at most once. The integrity validator runs on the compiled plan and is the only
 deterministic gate on Coordinator output. Fallback output passes through the same
 injected compiler and validator.
 
-The graph compiles with `checkpointer=False`, no store, and empty callbacks. Its
-return value is the framework-neutral `V3GraphResult`; PostgreSQL persistence is a
-later application step and remains the canonical source of truth.
+The graph compiles with `checkpointer=False` and no store. Callbacks are empty unless a
+composition injects a tracer, which ADR-0020 permits only for the staging shadow and demo
+runtimes; `ainvoke` keeps ambient tracing off either way, so an environment variable cannot
+attach one. Its return value is the framework-neutral `V3GraphResult`; PostgreSQL persistence
+is a later application step and remains the canonical source of truth.
 
 ## Staging demo composition
 
@@ -66,6 +68,9 @@ prescription can be built, the graph returns a plan-less terminal bundle.
 
 The project directly pins only `langgraph==1.2.11`, the stable release verified as
 Python 3.12 compatible when this runtime was implemented. CLI, Server, Studio,
-provider SDK, persistent-checkpoint, and tracing integrations are not direct
-dependencies. Packages required transitively by base LangGraph remain lockfile
-implementation details and are not imported by this runtime.
+provider SDK, and persistent-checkpoint integrations are not direct dependencies.
+`graph.py` imports one symbol from `langsmith`, `tracing_context`, purely to keep ambient
+tracing off; the package never constructs a tracer. Building one belongs to
+`integrations/langsmith_tracing.py`, and a composition injects the result. `langsmith` itself
+arrives transitively with `langchain-core`. Packages required transitively by base LangGraph
+remain lockfile implementation details and are not imported by this runtime.

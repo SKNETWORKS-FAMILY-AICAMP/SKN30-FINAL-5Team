@@ -62,7 +62,8 @@ Python package manager는 기반 구현에서 `uv`로 결정하고 `uv.lock`을 
 필요성이 실제 요구사항과 측정으로 확인되면 ADR을 거쳐 추가한다.
 
 ADR-0013에 따라 위 LangGraph 제외는 V1/V2에만 적용된다. V3는 구현 단계에서 runtime을 도입하되 persistent
-checkpointer, 장기 memory, LangSmith SaaS 전송은 별도 승인 없이는 포함하지 않는다.
+checkpointer와 장기 memory는 별도 승인 없이는 포함하지 않는다. LangSmith SaaS 전송은 2026-09-07
+ADR-0020으로 승인됐으며, staging의 shadow·demo 런타임에 한정한다. 프로덕션 decision 경로는 제외다.
 
 ## 4. 목표 저장소 구조
 
@@ -343,7 +344,9 @@ opaque confidence 점수는 MVP에서 사용하지 않는다. 입력 완전성�
   resolver 호환성을 검증한다.
 - OpenAI model은 integrations 아래 factory에서만 만들며 temperature 0, bounded timeout,
   provider retry 0을 고정한다. 전체 retry 상한은 기존 `StructuredChatInvoker`가 소유한다.
-- LangSmith tracing과 callbacks는 명시적으로 비활성화하고 provider raw body/error는 결과·로그에
+- 암묵적 LangSmith tracing은 명시적으로 비활성화한 채로 둔다. `tracing_context(enabled=False)`는
+  설정으로 뒤집지 않으므로 환경변수만으로는 전송이 시작되지 않는다. shadow·demo composition이
+  tracer를 callback으로 주입할 때만 기록된다(ADR-0020). provider raw body/error는 결과·로그에
   전달하지 않는다.
 - token은 provider `AIMessage.usage_metadata`의 유효한 input/output count가 모두 있을 때만 기록한다.
   비용은 exact model이 일치하는 외부 versioned pricing reference가 주입될 때만 계산한다.

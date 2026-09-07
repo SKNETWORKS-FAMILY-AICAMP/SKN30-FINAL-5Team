@@ -46,6 +46,7 @@ from backend.app.integrations.langgraph.state import (
     V3GraphInput,
     V3GraphResult,
 )
+from backend.app.integrations.langsmith_tracing import build_langsmith_tracer
 from backend.app.integrations.llm_agents.coordinator import LangChainCoordinatorAdapter
 from backend.app.integrations.llm_agents.openai import build_openai_shadow_chat_model
 from backend.app.integrations.llm_agents.provider import StructuredChatInvoker
@@ -497,15 +498,20 @@ def build_v3_shadow_runtime(
     model = chat_model or build_openai_shadow_chat_model(
         settings, allow_provider_calls=allow_provider_calls
     )
+    # ADR-0020 allows LangSmith on the shadow surface. `build_langsmith_tracer`
+    # returns None unless the deployment configured it, so the default stays untraced.
+    tracer = build_langsmith_tracer(settings)
+    tracing_callbacks = () if tracer is None else (tracer,)
     invoker = StructuredChatInvoker(
         chat_model=model,
         model_code=settings.llm_agents_model_code,
         max_attempts=settings.llm_agents_max_attempts,
         use_native_json_schema=chat_model is None and model is not None,
+        tracing_callbacks=tracing_callbacks,
     )
     return V3ShadowRuntime(
         settings=settings,
-        graph_runtime=V3LangGraphRuntime(create_v3_graph()),
+        graph_runtime=V3LangGraphRuntime(create_v3_graph(), tracing_callbacks=tracing_callbacks),
         invoker=invoker,
         fallback_provider=fallback_provider or _NoFallbackProvider(),
         versions=versions or V3ShadowRuntimeVersions(),
