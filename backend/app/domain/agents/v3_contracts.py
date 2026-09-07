@@ -13,7 +13,6 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validat
 from pydantic_core import to_jsonable_python
 
 from backend.app.domain.agents.retrieval import (
-    ExerciseFittVolumeRange,
     ExercisePoolExerciseRecord,
     ExercisePoolSnapshot,
 )
@@ -179,15 +178,6 @@ class ExerciseVolumeCeiling(BaseModel):
     exercise_id: UUID
     maximum_sets_per_exercise: int = Field(gt=0)
     maximum_repetitions_per_set: int = Field(gt=0)
-
-
-def _fitt_volume_range_or_error(
-    record: ExercisePoolExerciseRecord,
-) -> ExerciseFittVolumeRange:
-    context = record.fitt_context
-    if context is None or context.review_status_code != "DOMAIN_APPROVED" or context.volume is None:
-        raise ValueError("exercise prescription requires an approved FITT volume range")
-    return context.volume
 
 
 def _per_exercise_volume_ceiling(
@@ -441,12 +431,19 @@ def _validate_prescription_constraints(
         ):
             raise ValueError("exercise prescription exceeds the Recovery repetitions ceiling")
         if record.timing_mode_code == "REPS":
-            volume = _fitt_volume_range_or_error(record)
             if item.repetitions_per_set is None:
                 raise ValueError("REPS exercise prescription requires repetitions")
-            if not volume.min_sets <= item.sets <= volume.max_sets:
+            # A reviewed FITT range bounds the prescription wherever one exists.
+            # Where none covers the exercise the Recovery ceiling checked above
+            # stays the operative bound, exactly as it did before FITT ranges
+            # were introduced. Treating an absent range as a violation would
+            # reject every plan rather than bound any, which bounds nothing.
+            volume = record.approved_fitt_volume()
+            if volume is not None and not volume.min_sets <= item.sets <= volume.max_sets:
                 raise ValueError("exercise prescription is outside the approved FITT sets range")
-            if not volume.min_reps <= item.repetitions_per_set <= volume.max_reps:
+            if volume is not None and not (
+                volume.min_reps <= item.repetitions_per_set <= volume.max_reps
+            ):
                 raise ValueError(
                     "exercise prescription is outside the approved FITT repetitions range"
                 )

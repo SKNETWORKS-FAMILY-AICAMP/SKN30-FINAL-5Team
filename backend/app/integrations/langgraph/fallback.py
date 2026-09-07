@@ -288,23 +288,28 @@ class DeterministicGraphFallbackProvider:
                 return None
         else:
             work_seconds = None
-            fitt = record.fitt_context
-            if fitt is None or fitt.review_status_code != "DOMAIN_APPROVED" or fitt.volume is None:
-                # A missing/unapproved FITT mapping is REVIEW_REQUIRED. A
-                # deterministic fallback must not manufacture a set/rep range.
-                return None
-            volume = fitt.volume
-            sets = volume.default_sets
-            repetitions = volume.default_reps
+            volume = record.approved_fitt_volume()
+            if volume is None:
+                # No reviewed range covers this exercise. The Recovery ceiling is
+                # then the only approved source of a volume, as it was before FITT
+                # ranges existed; the fallback still declines rather than inventing
+                # one of its own.
+                repetitions = ceiling.maximum_repetitions_per_set
+                if repetitions is None:
+                    return None
+                sets = ceiling.maximum_sets_per_exercise or 1
+            else:
+                sets = volume.default_sets
+                repetitions = volume.default_reps
+                if ceiling.maximum_sets_per_exercise is not None:
+                    sets = min(sets, ceiling.maximum_sets_per_exercise)
+                if ceiling.maximum_repetitions_per_set is not None:
+                    repetitions = min(repetitions, ceiling.maximum_repetitions_per_set)
+                if sets < volume.min_sets or repetitions < volume.min_reps:
+                    return None
             if per_exercise_ceiling is not None:
                 sets = min(sets, per_exercise_ceiling.maximum_sets_per_exercise)
                 repetitions = min(repetitions, per_exercise_ceiling.maximum_repetitions_per_set)
-            if ceiling.maximum_sets_per_exercise is not None:
-                sets = min(sets, ceiling.maximum_sets_per_exercise)
-            if ceiling.maximum_repetitions_per_set is not None:
-                repetitions = min(repetitions, ceiling.maximum_repetitions_per_set)
-            if sets < volume.min_sets or repetitions < volume.min_reps:
-                return None
 
         rest_seconds = max(
             ceiling.minimum_rest_seconds_between_sets or 0, record.default_rest_seconds

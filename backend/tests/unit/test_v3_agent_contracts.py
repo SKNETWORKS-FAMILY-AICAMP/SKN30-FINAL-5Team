@@ -227,6 +227,27 @@ def test_three_specialist_inputs_and_proposals_are_valid(
     assert current_proposal.schema_version == "specialist-agent-proposal-v1"
 
 
+def test_training_proposal_is_valid_without_a_reviewed_fitt_range() -> None:
+    """The promoted catalog has no reviewed range, and it still has to be plannable.
+
+    A contract that requires an approved range per REPS exercise rejects every
+    Training proposal while the reviewed reference and the catalog use different
+    identifiers. The Recovery ceiling is the bound that applies either way and is
+    still enforced above.
+    """
+
+    current_envelope = envelope()
+    unmapped_pool = pool(
+        current_envelope,
+        tuple(exercise(value).model_copy(update={"fitt_context": None}) for value in (A, B, C, D)),
+    )
+    current_input = agent_input(SpecialistAgentTypeCode.TRAINING, current_envelope, unmapped_pool)
+
+    current_input.validate_proposal(
+        proposal(SpecialistAgentTypeCode.TRAINING, current_envelope, unmapped_pool)
+    )
+
+
 @pytest.mark.parametrize(
     "agent_type",
     (

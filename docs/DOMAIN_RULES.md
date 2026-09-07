@@ -223,6 +223,15 @@ OPTIONAL
 `BEGINNER` 운동과 `BEGINNER` FITT로 재구성할 수 있다. 후보는 `DOMAIN_APPROVED` 운동으로
 제한하며 `beginner_suitable` 또는 별도 `intermediate_suitable` 플래그를 사용하지 않는다.
 
+검수된 FITT 세트·반복 범위(`catalog_enrichment_v3_fitt.csv` × `fitt_template_v1.csv`)가 어떤
+운동을 실제로 덮고 있을 때, 그 운동의 처방은 승인 범위 안에 있어야 한다. 범위가 없는 운동은
+Recovery ceiling이 유일한 승인 볼륨 근거이며, 이름·움직임·난이도에서 범위를 추론하지 않는다.
+범위의 부재는 위반이 아니라 미검수 상태다 — 부재를 위반으로 처리하면 아무 볼륨도 제한하지
+못한 채 모든 계획이 거부된다. 현재 승격 카탈로그(v2.0.6)의 `stable_code`는 검수 참조의
+`NEX-` 식별자와 이어지는 검수된 매핑이 없어 커버리지가 0이다. 이 상태는
+`backend/tests/unit/test_fitt_policy.py`가 명시적으로 고정하고 있으며, 매핑이 도착하면
+그 테스트를 교체해야 한다.
+
 ### 3.6 코치 문구 성향
 
 ~~~text
