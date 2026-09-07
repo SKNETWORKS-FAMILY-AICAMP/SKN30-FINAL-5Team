@@ -12,7 +12,9 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CATALOG = PROJECT_ROOT / "data/normalized/v2_0_6_exercise_catalog.csv"
-DEFAULT_REPORT = PROJECT_ROOT / "data/reports/v2_0_6_catalog_merge/media_review_corrections_apply_report.json"
+DEFAULT_REPORT = (
+    PROJECT_ROOT / "data/reports/v2_0_6_catalog_merge/media_review_corrections_apply_report.json"
+)
 
 
 class MediaReviewCorrectionError(ValueError):
@@ -70,18 +72,24 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def apply_corrections(catalog_path: Path = DEFAULT_CATALOG, report_path: Path = DEFAULT_REPORT) -> dict:
+def apply_corrections(
+    catalog_path: Path = DEFAULT_CATALOG, report_path: Path = DEFAULT_REPORT
+) -> dict:
     rows, fields = read_csv(catalog_path)
     required = {"source_identity", *{field for values in CORRECTIONS.values() for field in values}}
     missing_fields = sorted(required - set(fields))
     if missing_fields:
-        raise MediaReviewCorrectionError(f"canonical CSV is missing fields: {', '.join(missing_fields)}")
+        raise MediaReviewCorrectionError(
+            f"canonical CSV is missing fields: {', '.join(missing_fields)}"
+        )
     indexed = {row["source_identity"].strip(): row for row in rows}
     if "" in indexed or len(indexed) != len(rows):
         raise MediaReviewCorrectionError("source_identity is blank or duplicated")
     missing_ids = sorted(set(CORRECTIONS) - set(indexed))
     if missing_ids:
-        raise MediaReviewCorrectionError(f"approved source identities absent: {', '.join(missing_ids)}")
+        raise MediaReviewCorrectionError(
+            f"approved source identities absent: {', '.join(missing_ids)}"
+        )
 
     before = sha256(catalog_path)
     changes: list[dict[str, str]] = []
@@ -89,7 +97,15 @@ def apply_corrections(catalog_path: Path = DEFAULT_CATALOG, report_path: Path = 
         row = indexed[identity]
         for field, value in values.items():
             if row[field] != value:
-                changes.append({"source_identity": identity, "stable_code": row.get("stable_code", ""), "field": field, "previous_value": row[field], "new_value": value})
+                changes.append(
+                    {
+                        "source_identity": identity,
+                        "stable_code": row.get("stable_code", ""),
+                        "field": field,
+                        "previous_value": row[field],
+                        "new_value": value,
+                    }
+                )
                 row[field] = value
     with catalog_path.open("w", encoding="utf-8-sig", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields, lineterminator="\n")
@@ -99,13 +115,34 @@ def apply_corrections(catalog_path: Path = DEFAULT_CATALOG, report_path: Path = 
     report = {
         "status": "USER_APPROVED",
         "production_eligible": False,
-        "policy": {"join_key": "source_identity_exact_match", "changed_source_identities": list(CORRECTIONS), "unchanged_domains": ["MET fields", "safety", "prescriptions", "alternatives", "media links"]},
-        "inputs": {"catalog_path": str(catalog_path), "catalog_sha256_before": before, "catalog_records": len(rows)},
-        "outputs": {"catalog_path": str(catalog_path), "catalog_sha256_after": sha256(catalog_path), "changed_fields": len(changes), "changed_records": len({change["source_identity"] for change in changes})},
+        "policy": {
+            "join_key": "source_identity_exact_match",
+            "changed_source_identities": list(CORRECTIONS),
+            "unchanged_domains": [
+                "MET fields",
+                "safety",
+                "prescriptions",
+                "alternatives",
+                "media links",
+            ],
+        },
+        "inputs": {
+            "catalog_path": str(catalog_path),
+            "catalog_sha256_before": before,
+            "catalog_records": len(rows),
+        },
+        "outputs": {
+            "catalog_path": str(catalog_path),
+            "catalog_sha256_after": sha256(catalog_path),
+            "changed_fields": len(changes),
+            "changed_records": len({change["source_identity"] for change in changes}),
+        },
         "changes": changes,
     }
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    report_path.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     return report
 
 
@@ -114,7 +151,11 @@ def main() -> int:
     parser.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
     parser.add_argument("--report", type=Path, default=DEFAULT_REPORT)
     args = parser.parse_args()
-    print(json.dumps(apply_corrections(args.catalog, args.report)["outputs"], ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            apply_corrections(args.catalog, args.report)["outputs"], ensure_ascii=False, indent=2
+        )
+    )
     return 0
 
 

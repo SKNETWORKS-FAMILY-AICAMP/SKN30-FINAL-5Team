@@ -191,6 +191,14 @@ class ExerciseRecord(CatalogInputModel):
     # Provenance for form_cues_ko, so an unreviewed cue is answerable in SQL.
     form_cues_source: Annotated[str, Field(min_length=1, max_length=120)] | None = None
     form_cues_review_status: Literal["REVIEW_REQUIRED", "DOMAIN_APPROVED"] | None = None
+    # v2.0.7 MET projection. These are optional so historical v2 bundles remain
+    # importable while the new bundle can carry reviewed MET provenance.
+    met_value: Annotated[float, Field(gt=0)] | None = None
+    met_source_code: Annotated[str, Field(min_length=1, max_length=120)] | None = None
+    met_source_activity_code: Annotated[str, Field(min_length=1, max_length=40)] | None = None
+    met_mapping_method_code: Annotated[str, Field(min_length=1, max_length=80)] | None = None
+    met_review_status_code: Literal["REVIEW_REQUIRED", "DOMAIN_APPROVED"] | None = None
+    met_policy_version: Annotated[str, Field(min_length=1, max_length=120)] | None = None
 
     @model_validator(mode="after")
     def validate_family_identity(self) -> "ExerciseRecord":
