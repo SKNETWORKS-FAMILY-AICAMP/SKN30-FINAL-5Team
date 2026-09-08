@@ -260,6 +260,7 @@ export function CheckinButton({
         label={label}
         labelStyle={styles.sheetSaveLabel}
         onPress={onPress}
+        style={styles.checkinButton}
         testID="home-checkin"
         trailing={<CheckinChevronIcon />}
       />
@@ -300,6 +301,7 @@ export function EmptyRoutineCard({
             label={checkinLabel ?? '오늘 루틴 체크인'}
             labelStyle={styles.sheetSaveLabel}
             onPress={onCheckin}
+            style={styles.checkinButton}
             testID="home-checkin"
             trailing={<CheckinChevronIcon />}
           />
