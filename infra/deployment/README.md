@@ -235,6 +235,39 @@ and the approval registry only (`backend/tests/unit/test_catalog_v2_0_7_release.
 `upgrade head -> downgrade base -> upgrade head` and the promotion twice on a dedicated test database
 whose name ends in `_test` before pointing it at Aurora.
 
+#### The vector index must be rebuilt with it
+
+Activating v2.0.7 creates a new catalog version UUID, and `v3_demo_retrieval` resolves the index by
+that UUID (`get_active_for_catalog`). An index built against the previous catalog does not carry
+over, and the miss is not an error: retrieval answers `VECTOR_INDEX_NOT_READY` and falls back to the
+deterministic pool. Routine creation keeps working and quietly stops using vector retrieval, so
+nothing in the health check or the logs will say the release regressed.
+
+Rehearsing the promotion on a `_test` database shows the gap directly -- after activation the
+registry holds no row for the new catalog at all:
+
+```sql
+SELECT count(*) FROM vector_index_registry AS v
+JOIN catalog_versions AS c ON c.id = v.catalog_version_id
+WHERE c.activated_at IS NOT NULL AND v.status_code = 'ACTIVE';
+```
+
+Rebuild after `--activate`, on the staging host, with the authenticated Qdrant overlay composed:
+
+```bash
+uv run --no-sync python -m backend.scripts.build_qdrant_index   --catalog-version exercise-catalog-v2.0.7-final   --vector-index-version <approved-index-version>   --allow-provider-calls
+```
+
+`--allow-provider-calls` is what it says: the builder embeds every indexable exercise through OpenAI,
+so it spends the staging credential and must not be run speculatively. The command refuses itself
+unless `APP_ENV=staging`, `QDRANT_ENABLED=true`, the embedding contract is fully configured and
+`V3_PRODUCTION_PROMOTION_APPROVED=false` -- the production overlay sets that flag true, so run the
+build before composing it, then bring the production overlay up.
+
+Verify with the registry query above before and after: exactly one `ACTIVE` row for the new catalog
+UUID, and a collection whose point count matches the builder's preflight count. Until that row
+exists, treat V3 routine quality as unverified regardless of what the API returns.
+
 ## Qdrant staging readiness and #150 handoff
 
 `compose.staging.yaml` stays fail-closed on its own and is **not executable for a real staging index
