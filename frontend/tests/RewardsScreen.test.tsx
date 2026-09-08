@@ -124,14 +124,15 @@ describe('RewardsScreen', () => {
     expect(getRewards).toHaveBeenCalledTimes(2);
   });
 
-  it('marks Kkikki Pass as a non-purchasable mockup', async () => {
+  it('marks HELKKI PASS as a non-purchasable mockup', async () => {
     const onBack = jest.fn();
     render(<RewardsScreen api={rewardsApi()} onBack={onBack} />);
 
     await screen.findByLabelText('보유 바나나 42개');
-    fireEvent.press(screen.getByText('끼끼패스 미리보기'));
+    fireEvent.press(screen.getByText('HELKKI PASS 미리보기'));
 
     expect(screen.getByTestId('kkikki-pass-preview')).toBeTruthy();
+    expect(screen.getByText('HELKKI PASS')).toBeTruthy();
     expect(screen.getByText('기능 미리보기')).toBeTruthy();
     expect(
       screen.getByText(

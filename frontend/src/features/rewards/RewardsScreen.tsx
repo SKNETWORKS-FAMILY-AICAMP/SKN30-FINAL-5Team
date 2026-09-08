@@ -103,7 +103,7 @@ export function RewardsScreen({
         />
         <RewardsTabButton
           active={tab === 'pass'}
-          label="끼끼패스 미리보기"
+          label="HELKKI PASS 미리보기"
           onPress={() => setTab('pass')}
         />
       </View>
@@ -303,7 +303,7 @@ function KkikkiPassPreview() {
         <View style={styles.previewBadge}>
           <Text style={styles.previewBadgeText}>기능 미리보기</Text>
         </View>
-        <Text style={styles.passTitle}>끼끼패스</Text>
+        <Text style={styles.passTitle}>HELKKI PASS</Text>
         <Text style={styles.passDescription}>
           끼끼와 운동을 더 즐겁게 이어가는 모습을 살펴보는 목업이에요. 실제
           구독이나 결제는 아직 제공하지 않아요.
