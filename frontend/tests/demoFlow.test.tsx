@@ -3375,7 +3375,7 @@ describe('MascotHouseScreen', () => {
       />,
     );
 
-    expect(await screen.findByText('바나나 받기')).toBeTruthy();
+    expect(await screen.findByText('미니게임')).toBeTruthy();
     expect(screen.getByText('퀘스트')).toBeTruthy();
     expect(screen.queryByText('주 3회 운동하기')).toBeNull();
     expect(screen.queryByText('0 / 3 회')).toBeNull();

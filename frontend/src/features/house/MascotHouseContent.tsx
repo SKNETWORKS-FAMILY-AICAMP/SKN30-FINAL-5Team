@@ -265,7 +265,7 @@ export const HOUSE_SPEECH_BUBBLE_DURATION_MS = 5000;
 export const HOUSE_MINI_GAMES = [
   {
     id: 'banana_catch',
-    title: '바나나 받기',
+    title: '미니게임',
     /** Shown under the title on the tile, in place of the old description. */
     limitLabel: '하루 1회 플레이 가능',
     imageSource: imageAssets.houseMascotCollectingBananasEmpty,

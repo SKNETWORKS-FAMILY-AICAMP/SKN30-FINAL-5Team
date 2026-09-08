@@ -268,7 +268,7 @@ describe('MascotHouseScreen', () => {
     expect(screen.queryByText('끼끼와 놀기')).toBeNull();
     expect(screen.queryByText('떨어지는 바나나를 받아요')).toBeNull();
     expect(screen.queryByText('30초')).toBeNull();
-    expect(screen.getByText('바나나 받기')).toBeTruthy();
+    expect(screen.getByText('미니게임')).toBeTruthy();
     expect(screen.getByText('하루 1회 플레이 가능')).toBeTruthy();
     expect(screen.getByText('퀘스트')).toBeTruthy();
     expect(

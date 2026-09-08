@@ -967,7 +967,7 @@ export function PreviewGallery({
 
         {screenId === 'banana-catch' ? (
           <Text style={styles.contractNotice}>
-            실제 앱에서 끼끼의 집의 ‘바나나 받기’를 눌러 진입하는 30초
+            실제 앱에서 끼끼의 집의 ‘미니게임’을 눌러 진입하는 30초
             미니게임입니다. 점수와 플레이 결과는 저장하거나 전송하지 않습니다.
           </Text>
         ) : null}
