@@ -48,12 +48,6 @@ export function WeeklyReportSummary({
           <Text accessibilityRole="header" style={styles.heroTitle}>
             {report.summary}
           </Text>
-          {safetyStopped ? (
-            <Text accessibilityRole="alert" style={styles.safetyBody}>
-              운동 중 안전 중단 {safetyStoppedCount}회가 기록되었습니다. 다음
-              운동 전 몸 상태와 안내를 확인해 주세요.
-            </Text>
-          ) : null}
         </View>
         <View style={styles.heroMascotArea}>
           <View style={styles.speechBubble}>
@@ -387,18 +381,18 @@ const styles = StyleSheet.create({
     width: 0,
   },
   heroCopy: { flex: 1, gap: 6 },
+  safetyBody: {
+    color: colors.danger,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 21,
+  },
   eyebrow: { color: colors.greenText, fontSize: 12, fontWeight: '900' },
   heroTitle: {
     color: colors.text,
     fontSize: 20,
     fontWeight: '900',
     lineHeight: 28,
-  },
-  safetyBody: {
-    color: colors.danger,
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 21,
   },
   progressRow: { alignItems: 'center', flexDirection: 'row', gap: 16 },
   progressBadge: {

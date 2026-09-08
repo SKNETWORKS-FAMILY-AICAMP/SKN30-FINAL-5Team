@@ -203,9 +203,6 @@ describe('WeeklyReportScreen selected week', () => {
       within(safetyStopped).getByText('운동 중 안전 중단'),
     ).toBeOnTheScreen();
     expect(within(safetyStopped).getByText('2')).toBeOnTheScreen();
-    expect(
-      screen.getByText(/다음 운동 전 몸 상태와 안내를 확인해 주세요/),
-    ).toBeOnTheScreen();
   });
 
   it('keeps the weekly summary as the headline on safety-stopped weeks', async () => {
@@ -226,9 +223,11 @@ describe('WeeklyReportScreen selected week', () => {
     expect(
       screen.queryByText('안전 중단 기록을 먼저 확인해 주세요'),
     ).toBeNull();
-    expect(
-      screen.getByText(/다음 운동 전 몸 상태와 안내를 확인해 주세요/),
-    ).toBeOnTheScreen();
+    // The stop is still reported, once, in the record summary below.
+    const safetyStopped = screen.getByTestId(
+      'weekly-report-safety-stopped-count',
+    );
+    expect(within(safetyStopped).getByText('1')).toBeOnTheScreen();
   });
 
   it('breaks the mascot speech bubble across two lines', async () => {
