@@ -1689,18 +1689,56 @@ function QuestPanel({
             </Text>
           </>
         ) : (
-          <View style={styles.questWeekly}>
-            <Text style={styles.questWeeklyTitle}>
-              {view.weekTargetCount === null
-                ? '이번 주 정보를 불러오지 못했어요.'
-                : `이번 주 ${view.weekTargetCount}회 중 ${view.weekCompletedCount}회 함께했어요.`}
-            </Text>
-            <Text style={styles.questWeeklyBody}>
-              쉬는 날은 그냥 쉬어도 괜찮아요. 주간 목표만 채우면 돼요.
-            </Text>
-          </View>
+          <QuestWeeklyProgress view={view} />
         )}
       </ScrollView>
+    </View>
+  );
+}
+
+function QuestWeeklyProgress({ view }: { view: HouseView }) {
+  if (view.weekTargetCount === null) {
+    return (
+      <View style={styles.questWeekly}>
+        <Text style={styles.questWeeklyTitle}>
+          이번 주 정보를 불러오지 못했어요.
+        </Text>
+      </View>
+    );
+  }
+
+  const completed = Math.min(view.weekCompletedCount, view.weekTargetCount);
+  const progressPercent = Math.round(
+    (completed / Math.max(1, view.weekTargetCount)) * 100,
+  );
+
+  return (
+    <View
+      accessibilityLabel={`이번 주 운동 목표 ${view.weekTargetCount}회 중 ${completed}회 완료`}
+      accessibilityRole="progressbar"
+      accessibilityValue={{ min: 0, max: 100, now: progressPercent }}
+      style={styles.questWeekly}
+      testID="house-weekly-progress"
+    >
+      <Text style={styles.questWeeklyEyebrow}>이번 주 운동 목표</Text>
+      <Text style={styles.questWeeklyCount}>
+        {completed} / {view.weekTargetCount}회
+      </Text>
+      <View style={styles.questWeeklyDots} testID="house-weekly-progress-dots">
+        {Array.from({ length: view.weekTargetCount }, (_, index) => (
+          <View
+            key={index}
+            style={[
+              styles.questWeeklyDot,
+              index < completed && styles.questWeeklyDotComplete,
+            ]}
+            testID={`house-weekly-progress-dot-${index}`}
+          />
+        ))}
+      </View>
+      <Text style={styles.questWeeklyBody}>
+        {view.weekTargetCount}회 완료하면 주간 목표를 달성해요.
+      </Text>
     </View>
   );
 }
@@ -2590,10 +2628,36 @@ const styles = StyleSheet.create({
   questWeekly: {
     gap: spacing.sm,
   },
+  questWeeklyEyebrow: {
+    color: colors.textSub,
+    fontSize: 12,
+    fontWeight: '700',
+  },
   questWeeklyTitle: {
     color: colors.text,
     fontSize: 14,
     fontWeight: '800',
+  },
+  questWeeklyCount: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  questWeeklyDots: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  questWeeklyDot: {
+    width: 13,
+    height: 13,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceAlt,
+  },
+  questWeeklyDotComplete: {
+    borderColor: colors.greenBorder,
+    backgroundColor: colors.greenBand,
   },
   questWeeklyBody: {
     color: colors.textSub,

@@ -318,6 +318,31 @@ describe('MascotHouseScreen', () => {
     );
   });
 
+  it('shows weekly quest progress as a count and completion dots', async () => {
+    renderHouse(houseApi());
+
+    await screen.findByTestId('house-scene');
+    fireEvent.press(screen.getByTestId('house-quest-tile'));
+    fireEvent.press(screen.getByTestId('house-quest-tab-weekly'));
+
+    expect(screen.getByText('이번 주 운동 목표')).toBeTruthy();
+    expect(screen.getByText('1 / 3회')).toBeTruthy();
+    expect(screen.getByText('3회 완료하면 주간 목표를 달성해요.')).toBeTruthy();
+    expect(screen.getByTestId('house-weekly-progress')).toHaveProp(
+      'accessibilityValue',
+      { min: 0, max: 100, now: 33 },
+    );
+    expect(
+      screen.getByTestId('house-weekly-progress-dots').props.children,
+    ).toHaveLength(3);
+    expect(screen.getByTestId('house-weekly-progress-dot-0')).toHaveStyle({
+      backgroundColor: colors.greenBand,
+    });
+    expect(screen.getByTestId('house-weekly-progress-dot-1')).toHaveStyle({
+      backgroundColor: colors.surfaceAlt,
+    });
+  });
+
   it('opens the banana catch game and returns to the same house', async () => {
     renderHouse(houseApi());
 
