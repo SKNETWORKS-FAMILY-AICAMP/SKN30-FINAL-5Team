@@ -44,8 +44,8 @@ _REGISTERED_ARTIFACTS = (
     (
         "PRESCRIPTIONS",
         "prescription-set-v2.0.7",
-        "6fb25790c4135f1ded946a4e9f8d9198486bcaa8491cd034ad69e3aa9b62d2a4",
-        2160,
+        "110a416e3518d2b0ba33e6e54f6e7a040c9e5dfe05e9435d95cc2f96e22ae83e",
+        2103,
         "catalog/prescriptions/prescription_manifest.json",
         ("goal_tag_records", "prescription_records"),
     ),

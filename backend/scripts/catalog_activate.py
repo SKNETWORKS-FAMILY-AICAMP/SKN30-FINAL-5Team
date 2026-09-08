@@ -43,7 +43,11 @@ from backend.app.db.models.catalog import (
     ExercisePrescriptionProfile,
     ExerciseSafetyRule,
 )
-from backend.app.modules.catalog.approvals import ArtifactKind, get_approved_record_count
+from backend.app.modules.catalog.approvals import (
+    ArtifactKind,
+    get_approved_metadata_count,
+    get_approved_record_count,
+)
 from backend.scripts.demo_seed import _require_demo_database, _require_demo_environment
 
 REVIEWED_METHOD_CODE = "DOMAIN_REVIEWER"
@@ -62,6 +66,24 @@ V2_0_7_RULE_SET_VERSION = "safety-rule-set-v2.0.7"
 V2_0_7_ALTERNATIVE_SET_VERSION = "alternative-set-v2.0.7-stretch-strap-fallback"
 V2_0_7_PRESCRIPTION_SET_VERSION = "prescription-set-v2.0.7"
 V2_0_7_MEDIA_SET_VERSION = "media-set-v2.0.7"
+
+
+def _approved_prescription_split(version_code: str) -> tuple[int, int]:
+    """Read the approved goal-tag and prescription row counts from the registry.
+
+    These were the two literals left in this gate. A prescription set that is
+    re-approved with different rows -- which is what a difficulty re-review
+    produces -- then failed activation with a number nobody had edited here.
+    """
+    goal_links = get_approved_metadata_count("PRESCRIPTIONS", version_code, "goal_tag_records")
+    prescriptions = get_approved_metadata_count(
+        "PRESCRIPTIONS", version_code, "prescription_records"
+    )
+    if goal_links is None or prescriptions is None:
+        raise SystemExit(
+            f"refusing to activate: {version_code} has no approved prescription row counts"
+        )
+    return goal_links, prescriptions
 
 
 def _approved_record_count(artifact_kind: ArtifactKind, version_code: str) -> int:
@@ -250,12 +272,15 @@ def _validate_v2_release_activation(
         .join(Exercise, Exercise.id == ExercisePrescriptionProfile.exercise_id)
         .where(Exercise.catalog_version_id == catalog.id)
     )
+    approved_goal_links, approved_prescriptions = _approved_prescription_split(
+        prescription_set_version
+    )
     expected = {
         "safety": _approved_record_count("SAFETY_RULES", rule_set_version),
         "alternatives": _approved_record_count("ALTERNATIVES", alternative_set_version),
         "media": _approved_record_count("MEDIA_ASSETS", media_set_version),
-        "goal_links": 711,
-        "prescriptions": 1449,
+        "goal_links": approved_goal_links,
+        "prescriptions": approved_prescriptions,
     }
     actual = {
         "safety": int(safety_count or 0),
@@ -274,8 +299,8 @@ def _validate_v2_release_activation(
     if (
         not isinstance(prescription, dict)
         or prescription.get("version_code") != prescription_set_version
-        or prescription.get("goal_tag_records") != 711
-        or prescription.get("prescription_records") != 1449
+        or prescription.get("goal_tag_records") != approved_goal_links
+        or prescription.get("prescription_records") != approved_prescriptions
     ):
         raise SystemExit(f"refusing to activate {release}: prescription approval is incomplete")
 

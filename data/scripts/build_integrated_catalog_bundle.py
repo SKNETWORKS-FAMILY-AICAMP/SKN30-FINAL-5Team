@@ -60,6 +60,27 @@ def _copy_tree(source: Path, target: Path) -> None:
             shutil.copyfile(path, destination)
 
 
+def _validate_prescription_levels(
+    catalog_rows: list[dict[str, Any]], profiles: list[dict[str, Any]]
+) -> None:
+    """Fail the build on the mismatch the importer would reject at promotion.
+
+    This ran only inside the API importer before, so a bundle could be built,
+    hashed, registered and shipped to a release host before anything noticed.
+    """
+
+    difficulty = {row["stable_code"]: row["difficulty_code"] for row in catalog_rows}
+    for index, row in enumerate(profiles, 1):
+        code = row["exercise_stable_code"]
+        if code not in difficulty:
+            raise ValueError(f"prescription row {index}: {code} is absent from the catalog")
+        if not _prescription_allowed(difficulty[code], row["experience_level_code"]):
+            raise ValueError(
+                f"prescription row {index}: {row['experience_level_code']} prescription on a "
+                f"{difficulty[code]} exercise ({code})"
+            )
+
+
 def _validate_addons(
     catalog_rows: list[dict[str, Any]],
     gym: list[dict[str, Any]],
@@ -113,6 +134,74 @@ def _validate_addons(
         seen_stable.add(stable)
 
 
+def _align_prescriptions_to_difficulty(stage: Path, catalog_rows: list[dict[str, Any]]) -> int:
+    """Drop prescription rows the catalog's reviewed difficulty no longer permits.
+
+    Difficulty and prescription level are both reviewed values, and the v2.0.6
+    difficulty re-review moved exercises without the prescription review being
+    re-run. A BEGINNER prescription on an exercise now reviewed INTERMEDIATE is
+    not a judgement call: the directional rule the importer enforces forbids it,
+    so the row is removed rather than re-authored. The opposite direction is
+    left alone -- an exercise reviewed down to BEGINNER keeps only the
+    prescriptions it actually has, because inventing a beginner set/rep volume
+    would be a clinical decision this generator has no basis to make.
+    """
+
+    difficulty = {row["stable_code"]: row["difficulty_code"] for row in catalog_rows}
+    profiles_path = stage / "catalog/prescriptions/prescription_profiles.jsonl"
+    profiles = _read_jsonl(profiles_path)
+    kept = [
+        row
+        for row in profiles
+        if _prescription_allowed(
+            difficulty.get(row["exercise_stable_code"]), row["experience_level_code"]
+        )
+    ]
+    removed = len(profiles) - len(kept)
+    if not removed:
+        return 0
+    profiles_path.write_text(
+        "".join(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n" for row in kept),
+        encoding="utf-8",
+    )
+    manifest_path = stage / "catalog/prescriptions/prescription_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    for entry in manifest["files"]:
+        if entry["path"] == "prescription_profiles.jsonl":
+            entry.update(
+                {
+                    "sha256": _sha256(profiles_path),
+                    "bytes": profiles_path.stat().st_size,
+                    "records": len(kept),
+                }
+            )
+    manifest["summary"]["prescription_records"] = len(kept)
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    # The catalog wrapper declares its own record summary, and the importer
+    # compares that declaration against the child manifests before it trusts
+    # either. Refreshing file hashes alone leaves the two disagreeing.
+    wrapper_path = stage / "catalog/bundle_manifest.json"
+    wrapper = json.loads(wrapper_path.read_text(encoding="utf-8"))
+    wrapper["summary"]["prescription_records"] = len(kept)
+    wrapper_path.write_text(
+        json.dumps(wrapper, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    return removed
+
+
+def _prescription_allowed(difficulty_code: str | None, experience_level_code: str) -> bool:
+    """The directional rule: prescribe at or above the exercise's own difficulty."""
+
+    if difficulty_code is None:
+        return False
+    order = {"BEGINNER": 0, "INTERMEDIATE": 1}
+    if difficulty_code not in order or experience_level_code not in order:
+        return False
+    return order[experience_level_code] >= order[difficulty_code]
+
+
 def build(target: Path = TARGET, reports: Path = REPORTS) -> dict[str, Any]:
     if target.exists() or reports.exists():
         raise ValueError("refusing to overwrite an existing integrated bundle or report")
@@ -156,6 +245,7 @@ def build(target: Path = TARGET, reports: Path = REPORTS) -> dict[str, Any]:
             ),
             encoding="utf-8",
         )
+        removed_prescriptions = _align_prescriptions_to_difficulty(stage, catalog_rows)
         seed_path = stage / "catalog/catalog/seed_manifest.json"
         seed = json.loads(seed_path.read_text())
         seed["files"][0].update(
@@ -181,6 +271,9 @@ def build(target: Path = TARGET, reports: Path = REPORTS) -> dict[str, Any]:
         )
         catalog_rows = _read_jsonl(catalog_path)
         _validate_addons(catalog_rows, gym_rows, home_rows, fitt_rows, fitt_mapping_rows)
+        _validate_prescription_levels(
+            catalog_rows, _read_jsonl(stage / "catalog/prescriptions/prescription_profiles.jsonl")
+        )
         home.build(target=stage / "home_equipment")
         gym_path = stage / "gym_equipment/starting_guides.jsonl"
         gym_path.parent.mkdir(parents=True, exist_ok=True)
@@ -230,6 +323,7 @@ def build(target: Path = TARGET, reports: Path = REPORTS) -> dict[str, Any]:
                 "fitt_reference_records": len(fitt_rows),
                 "fitt_stable_code_mapping_records": len(fitt_mapping_rows),
                 "met_fields_per_catalog_record": 6,
+                "prescription_rows_removed_for_difficulty": removed_prescriptions,
             },
             "completeness_checks": {
                 "catalog_stable_codes": True,
@@ -237,6 +331,7 @@ def build(target: Path = TARGET, reports: Path = REPORTS) -> dict[str, Any]:
                 "home_references_catalog": True,
                 "fitt_reference_approved": True,
                 "fitt_references_catalog": True,
+                "prescription_levels_match_difficulty": True,
                 "met_projection_present": True,
                 "artifact_inventory_complete": True,
             },

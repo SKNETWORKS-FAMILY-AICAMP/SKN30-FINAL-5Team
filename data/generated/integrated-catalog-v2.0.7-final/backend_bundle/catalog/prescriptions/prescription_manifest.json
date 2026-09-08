@@ -7,10 +7,10 @@
       "sha256": "5568112662a371c938e712eefc15ff6d6e6220460c32cccb90a735114da65bd9"
     },
     {
-      "bytes": 585222,
+      "bytes": 562511,
       "path": "prescription_profiles.jsonl",
-      "records": 1449,
-      "sha256": "3cf2675d4a91fe515c935ae6fbc25fdfd6a51c69c0cd5a132afa54c23ef0aef4"
+      "records": 1392,
+      "sha256": "2a2839adddff99cced2202200786de79fae49b808a4a03055095cd8b6d4e55c1"
     }
   ],
   "generator_version": "v2-0-6-normalized-backend-projection-1.0.0",
@@ -35,6 +35,6 @@
   "summary": {
     "exercise_records": 237,
     "goal_tag_records": 711,
-    "prescription_records": 1449
+    "prescription_records": 1392
   }
 }

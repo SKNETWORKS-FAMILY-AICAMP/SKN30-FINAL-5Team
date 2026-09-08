@@ -751,8 +751,8 @@ _APPROVALS = {
     ): DerivedDataApproval(
         artifact_kind="PRESCRIPTIONS",
         version_code="prescription-set-v2.0.7",
-        manifest_sha256="6fb25790c4135f1ded946a4e9f8d9198486bcaa8491cd034ad69e3aa9b62d2a4",
-        record_count=2160,
+        manifest_sha256="110a416e3518d2b0ba33e6e54f6e7a040c9e5dfe05e9435d95cc2f96e22ae83e",
+        record_count=2103,
         approval_record_code="V2-0-7-PRODUCTION-APPROVAL-2026-09-08-R01",
         approved_on="2026-09-08",
         approver_role_codes=("DEVELOPMENT_LEAD", "DATA_LEAD", "DOMAIN_REVIEWER"),
@@ -760,9 +760,13 @@ _APPROVALS = {
             "review_method_code": "DOMAIN_REVIEWER",
             "status_interpretation_code": "PRODUCTION_APPROVED",
             "derived_from": "prescription-set-v2.0.6",
-            "carried_over_unchanged": True,
+            # 57 BEGINNER rows on 19 exercises the v2.0.6 difficulty re-review moved to
+            # INTERMEDIATE were dropped: the directional rule forbids them and the
+            # importer rejects the bundle otherwise. No prescription was re-authored.
+            "carried_over_unchanged": False,
+            "prescription_rows_removed_for_difficulty": 57,
             "goal_tag_records": 711,
-            "prescription_records": 1449,
+            "prescription_records": 1392,
         },
     ),
     (
@@ -807,6 +811,23 @@ def get_catalog_approval(
     return get_derived_data_approval("CATALOG", version_code, manifest_sha256, record_count)
 
 
+def get_approved_metadata_count(
+    artifact_kind: ArtifactKind, version_code: str, field: str
+) -> int | None:
+    """Return one counted field from an approval's metadata.
+
+    A prescription approval covers two row kinds and records each separately, so
+    an activation gate that wants one of them would otherwise pin the literal.
+    Reading it here keeps the number in the approval record, the same reason
+    `get_approved_record_count` exists.
+    """
+    approval = _APPROVALS.get((artifact_kind, version_code))
+    if approval is None or approval.approval_metadata is None:
+        return None
+    value = approval.approval_metadata.get(field)
+    return value if isinstance(value, int) else None
+
+
 def get_approved_record_count(artifact_kind: ArtifactKind, version_code: str) -> int | None:
     """Return how many rows the approval covers, without needing the manifest hash.
 
@@ -820,6 +841,7 @@ def get_approved_record_count(artifact_kind: ArtifactKind, version_code: str) ->
 __all__ = [
     "ArtifactKind",
     "DerivedDataApproval",
+    "get_approved_metadata_count",
     "get_approved_record_count",
     "get_catalog_approval",
     "get_derived_data_approval",
