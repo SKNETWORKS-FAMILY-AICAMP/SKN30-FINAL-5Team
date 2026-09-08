@@ -138,6 +138,15 @@ class WorkoutRepository:
                 0 if candidate is None else candidate.estimated_duration_seconds
             ),
             already_selected=existing_selection is not None,
+            safety_excluded_exercise_ids=()
+            if safety is None
+            else tuple(UUID(str(value)) for value in safety.excluded_exercise_ids),
+            plan_exercise_ids=()
+            if candidate is None
+            else tuple(
+                item.exercise_id
+                for item in sorted(candidate.items, key=lambda value: value.sequence)
+            ),
         )
 
     def create_selection(
