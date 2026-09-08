@@ -208,11 +208,13 @@ function TabButton({
 
 export function SheetFrame({
   children,
+  compact = false,
   onClose,
   title,
   zIndex,
 }: {
   children: React.ReactNode;
+  compact?: boolean;
   onClose: () => void;
   title: string;
   zIndex: number;
@@ -226,7 +228,10 @@ export function SheetFrame({
       onPress={onClose}
       style={[styles.sheetOverlay, { zIndex }]}
     >
-      <Pressable onPress={stopPropagation} style={styles.sheet}>
+      <Pressable
+        onPress={stopPropagation}
+        style={[styles.sheet, compact && styles.checkinSheet]}
+      >
         <View style={styles.sheetHeader}>
           <Text accessibilityRole="header" style={styles.sheetTitle}>
             {title}

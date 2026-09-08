@@ -163,7 +163,7 @@ function dailyContext(): DailyContextResponse {
 }
 
 function submitRequiredCheckin(): void {
-  if (screen.queryByLabelText('원하는 운동 시간 미선택')) {
+  if (screen.queryByLabelText('운동 가능 시간 미선택')) {
     for (let count = 0; count < 3; count += 1) {
       fireEvent.press(
         screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
@@ -590,7 +590,7 @@ describe('HomeContainer', () => {
     expect(screen.getByRole('button', { name: '허리' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '전신' })).toBeNull();
     expect(screen.queryByRole('button', { name: '기타 부위' })).toBeNull();
-    expect(screen.queryByRole('button', { name: '목' })).toBeNull();
+    expect(screen.getByRole('button', { name: '목' })).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: '가슴' })).toBeNull();
     expect(screen.queryByRole('button', { name: '복부' })).toBeNull();
 
@@ -637,9 +637,7 @@ describe('HomeContainer', () => {
       screen.getByRole('button', { name: '무릎' }).props.accessibilityState
         .selected,
     ).toBe(false);
-    expect(
-      screen.getByText('1회 권장 운동 시간은 35분이에요.'),
-    ).toBeOnTheScreen();
+    expect(screen.getByText('1회 권장 운동 시간: 35분')).toBeOnTheScreen();
   });
 
   it('keeps the profile defaults when the server defaults are unavailable', async () => {
@@ -1545,10 +1543,7 @@ describe('HomeContainer', () => {
       );
     }
     fireEvent.press(screen.getByRole('button', { name: '위험 신호 있어요' }));
-    fireEvent.changeText(
-      screen.getByLabelText('어젯밤 수면 시간 (시간)'),
-      '6.5',
-    );
+    fireEvent.changeText(screen.getByLabelText('수면 시간 (시간)'), '6.5');
     submitRequiredCheckin();
 
     await waitFor(() => expect(replaceDailyContext).toHaveBeenCalled());
@@ -1689,7 +1684,7 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '다시 체크인하기' }),
     );
-    expect(screen.getByText('오늘 컨디션 체크')).toBeOnTheScreen();
+    expect(screen.getByText('컨디션 체크')).toBeOnTheScreen();
     submitRequiredCheckin();
 
     await waitFor(() => expect(createDecision).toHaveBeenCalled());

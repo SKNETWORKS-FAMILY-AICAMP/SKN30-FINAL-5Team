@@ -14,8 +14,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import {
   bodyAreaLabel,
-  DEFAULT_BODY_AREA_OPTIONS,
-  EXTENDED_BODY_AREA_OPTIONS,
+  SELECTABLE_BODY_AREA_OPTIONS,
   locationLabel,
 } from '../../api/labels';
 import { PainIntensitySlider } from '../../components/profile/PainIntensitySlider';
@@ -41,6 +40,19 @@ import {
 import { SheetFrame } from './HomeChrome';
 import { useHomeStyles } from './homeStyles';
 import { DeleteIcon } from './HomeSupport';
+
+const DEFAULT_BODY_AREA_OPTIONS = [
+  'SHOULDER',
+  'LOWER_BACK',
+  'KNEE',
+  'NECK',
+  'WRIST_HAND',
+  'ANKLE_FOOT',
+].map((code) => ({ code, label: bodyAreaLabel(code) }));
+const EXTENDED_BODY_AREA_OPTIONS = SELECTABLE_BODY_AREA_OPTIONS.filter(
+  (option) =>
+    !DEFAULT_BODY_AREA_OPTIONS.some(({ code }) => code === option.code),
+);
 
 export function CheckinSheet({
   draft,
@@ -83,6 +95,7 @@ export function CheckinSheet({
 }) {
   const styles = useHomeStyles();
   const { s } = useScale();
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [showDiscomfortDetails, setShowDiscomfortDetails] = useState(
     Object.keys(draft.pains).length > 0,
   );
@@ -113,11 +126,6 @@ export function CheckinSheet({
       Number(draft.workoutMinutes) < CHECKIN_DURATION_MINUTES.min ||
       Number(draft.workoutMinutes) > CHECKIN_DURATION_MINUTES.max);
   const durationMinutes = Number(draft.workoutMinutes);
-  const exceedsRecommendation =
-    recommendedDurationMinutes !== null &&
-    !durationMissing &&
-    !durationInvalid &&
-    durationMinutes > recommendedDurationMinutes;
   const canDecreaseDuration =
     !pending &&
     !durationInvalid &&
@@ -140,6 +148,8 @@ export function CheckinSheet({
     (draft.locationCode === null ||
       !locationCodes.includes(draft.locationCode));
   const redFlagSelectionMissing = draft.redFlagPresent === null;
+  const submitDisabled =
+    pending || (locationRequired && locationCodes.length === 0);
   const saveDisabled =
     pending ||
     sleepInvalid ||
@@ -150,12 +160,12 @@ export function CheckinSheet({
     locationSelectionMissing ||
     redFlagSelectionMissing;
   return (
-    <SheetFrame onClose={onClose} title="오늘 컨디션 체크" zIndex={20}>
-      <Text style={styles.sheetIntro}>
-        오늘 상태를 알려주면 루틴을 맞춰 조정해드려요.
+    <SheetFrame compact onClose={onClose} title="컨디션 체크" zIndex={20}>
+      <Text style={[styles.sheetIntro, styles.checkinIntro]}>
+        현재 상태에 맞춰 운동을 조정해드려요.
       </Text>
       <ScrollView
-        contentContainerStyle={styles.sheetScrollContent}
+        contentContainerStyle={styles.checkinScrollContent}
         showsVerticalScrollIndicator={false}
       >
         <ChoiceBlock label="피로도">
@@ -168,85 +178,78 @@ export function CheckinSheet({
             />
           ))}
         </ChoiceBlock>
-        <View style={styles.numberRow}>
-          <Text style={styles.numberLabel}>원하는 운동 시간</Text>
-          <View style={styles.durationStepper}>
-            <Pressable
-              accessibilityLabel="운동 시간 10분 줄이기"
-              accessibilityRole="button"
-              accessibilityState={{ disabled: !canDecreaseDuration }}
-              disabled={!canDecreaseDuration}
-              onPress={() =>
-                onChangeWorkoutMinutes(
-                  String(
-                    Math.max(
-                      CHECKIN_DURATION_MINUTES.min,
-                      durationMinutes - CHECKIN_DURATION_MINUTES.step,
+        <View style={styles.checkinSection}>
+          <View style={styles.durationRow}>
+            <Text style={styles.numberLabel}>운동 가능 시간</Text>
+            <View style={styles.durationStepper}>
+              <Pressable
+                accessibilityLabel="운동 시간 10분 줄이기"
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !canDecreaseDuration }}
+                disabled={!canDecreaseDuration}
+                onPress={() =>
+                  onChangeWorkoutMinutes(
+                    String(
+                      Math.max(
+                        CHECKIN_DURATION_MINUTES.min,
+                        durationMinutes - CHECKIN_DURATION_MINUTES.step,
+                      ),
                     ),
-                  ),
-                )
-              }
-              style={[
-                styles.durationStepButton,
-                !canDecreaseDuration && styles.durationStepButtonDisabled,
-              ]}
-            >
-              <Text style={styles.durationStepButtonText}>−</Text>
-            </Pressable>
-            <Text
-              accessibilityLabel={
-                durationMissing
-                  ? '원하는 운동 시간 미선택'
-                  : `원하는 운동 시간 ${draft.workoutMinutes}분`
-              }
-              accessibilityLiveRegion="polite"
-              style={styles.durationStepValue}
-            >
-              {durationMissing ? '선택' : `${draft.workoutMinutes}분`}
-            </Text>
-            <Pressable
-              accessibilityLabel="운동 시간 10분 늘리기"
-              accessibilityRole="button"
-              accessibilityState={{ disabled: !canIncreaseDuration }}
-              disabled={!canIncreaseDuration}
-              onPress={() =>
-                onChangeWorkoutMinutes(
-                  String(
-                    durationMissing
-                      ? CHECKIN_DURATION_MINUTES.min
-                      : Math.min(
-                          CHECKIN_DURATION_MINUTES.max,
-                          durationMinutes + CHECKIN_DURATION_MINUTES.step,
-                        ),
-                  ),
-                )
-              }
-              style={[
-                styles.durationStepButton,
-                !canIncreaseDuration && styles.durationStepButtonDisabled,
-              ]}
-            >
-              <Text style={styles.durationStepButtonText}>+</Text>
-            </Pressable>
+                  )
+                }
+                style={[
+                  styles.durationStepButton,
+                  !canDecreaseDuration && styles.durationStepButtonDisabled,
+                ]}
+              >
+                <Text style={styles.durationStepButtonText}>−</Text>
+              </Pressable>
+              <Text
+                accessibilityLabel={
+                  durationMissing
+                    ? '운동 가능 시간 미선택'
+                    : `운동 가능 시간 ${draft.workoutMinutes}분`
+                }
+                accessibilityLiveRegion="polite"
+                style={styles.durationStepValue}
+              >
+                {durationMissing ? '선택' : `${draft.workoutMinutes}분`}
+              </Text>
+              <Pressable
+                accessibilityLabel="운동 시간 10분 늘리기"
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !canIncreaseDuration }}
+                disabled={!canIncreaseDuration}
+                onPress={() =>
+                  onChangeWorkoutMinutes(
+                    String(
+                      durationMissing
+                        ? CHECKIN_DURATION_MINUTES.min
+                        : Math.min(
+                            CHECKIN_DURATION_MINUTES.max,
+                            durationMinutes + CHECKIN_DURATION_MINUTES.step,
+                          ),
+                    ),
+                  )
+                }
+                style={[
+                  styles.durationStepButton,
+                  !canIncreaseDuration && styles.durationStepButtonDisabled,
+                ]}
+              >
+                <Text style={styles.durationStepButtonText}>+</Text>
+              </Pressable>
+            </View>
           </View>
-        </View>
-        {recommendedDurationMinutes !== null ? (
           <View style={styles.durationGuidance}>
             <Text style={styles.durationRecommendation}>
-              1회 권장 운동 시간은 {recommendedDurationMinutes}분이에요.
+              {recommendedDurationMinutes !== null
+                ? `1회 권장 운동 시간: ${recommendedDurationMinutes}분`
+                : `운동 가능 시간: ${CHECKIN_DURATION_MINUTES.min}~${CHECKIN_DURATION_MINUTES.max}분`}
             </Text>
-            {exceedsRecommendation ? (
-              <Text
-                accessibilityLiveRegion="polite"
-                style={styles.durationRecommendationDetail}
-              >
-                권장 시간보다 길게 선택해도 괜찮아요. 오늘 가능한 시간에 맞춰
-                선택해주세요.
-              </Text>
-            ) : null}
           </View>
-        ) : null}
-        {durationMissing ? (
+        </View>
+        {submitAttempted && (durationMissing || durationInvalid) ? (
           <Text accessibilityRole="alert" style={styles.messageText}>
             오늘 가능한 운동 시간을 {CHECKIN_DURATION_MINUTES.min}~
             {CHECKIN_DURATION_MINUTES.max}분 중에서 선택해주세요.
@@ -335,11 +338,11 @@ export function CheckinSheet({
         ) : null}
         <View style={styles.numberRow}>
           <Text style={styles.numberLabel}>
-            어젯밤 수면 시간 <Text style={styles.optionalText}>(선택)</Text>
+            수면 시간 <Text style={styles.optionalText}>(선택)</Text>
           </Text>
           <View style={styles.numberInputGroup}>
             <TextInput
-              accessibilityLabel="어젯밤 수면 시간 (시간)"
+              accessibilityLabel="수면 시간 (시간)"
               inputMode="decimal"
               onChangeText={onChangeSleepHours}
               style={styles.numberInput}
@@ -353,7 +356,7 @@ export function CheckinSheet({
             수면 시간은 0~24 사이로 입력해주세요.
           </Text>
         ) : null}
-        <ChoiceBlock label="오늘 어디에서 운동할까요?">
+        <ChoiceBlock label="운동 장소">
           {locationCodes.map((code) => (
             <ChoiceButton
               key={code}
@@ -363,14 +366,15 @@ export function CheckinSheet({
             />
           ))}
         </ChoiceBlock>
-        {locationSelectionMissing ? (
+        {locationSelectionMissing &&
+        (submitAttempted || locationCodes.length === 0) ? (
           <Text accessibilityRole="alert" style={styles.messageText}>
             {locationCodes.length === 0
               ? '운동 장소 선택지를 불러오지 못했어요. 잠시 후 다시 시도해주세요.'
               : '집 또는 헬스장을 선택해주세요.'}
           </Text>
         ) : null}
-        <ChoiceBlock label="오늘 통증이 있는 부위가 있나요?">
+        <ChoiceBlock label="통증이 있는 부위가 있나요?">
           <ChoiceButton
             accessibilityLabel="통증 없어요"
             label="없어요"
@@ -390,7 +394,8 @@ export function CheckinSheet({
         {showDiscomfortDetails ? (
           <>
             <ChoiceBlock
-              label="지금 불편하거나 통증이 있는 부위를 모두 선택해주세요."
+              invalid={submitAttempted && discomfortSelectionMissing}
+              label="통증이 있는 부위를 모두 선택해주세요."
               twoColumn
             >
               {DEFAULT_BODY_AREA_OPTIONS.map((option) => (
@@ -472,11 +477,6 @@ export function CheckinSheet({
             ) : null}
           </>
         ) : null}
-        {discomfortSelectionMissing ? (
-          <Text accessibilityRole="alert" style={styles.messageText}>
-            불편한 부위를 한 곳 이상 선택해주세요.
-          </Text>
-        ) : null}
         {selectedDiscomfortCodes.map((code) => (
           <View
             key={code}
@@ -493,17 +493,27 @@ export function CheckinSheet({
           </View>
         ))}
         <View
-          accessibilityLabel="오늘 위험 신호가 있나요?"
+          accessibilityLabel="운동 전 확인이 필요해요"
           role="group"
           style={styles.redFlagSection}
           testID="checkin-red-flag-section"
         >
-          <Text style={styles.redFlagTitle}>오늘 위험 신호가 있나요?</Text>
+          <Text style={styles.redFlagTitle}>운동 전 확인이 필요해요</Text>
           <Text style={styles.redFlagBody}>
-            오늘 가슴 통증이나 압박감, 평소와 다른 심한 숨참, 심한 어지럼 또는
-            실신할 것 같은 느낌, 심장이 매우 빠르거나 불규칙하게 뛰는 느낌 같은
-            증상이 있나요?
+            현재 다음과 같은 증상이 있나요?
           </Text>
+          <View style={styles.redFlagSymptoms}>
+            {[
+              '가슴 통증·압박감',
+              '심한 숨참',
+              '심한 어지럼·실신 느낌',
+              '심한 두근거림',
+            ].map((symptom) => (
+              <Text key={symptom} style={styles.redFlagBody}>
+                • {symptom}
+              </Text>
+            ))}
+          </View>
           <View style={styles.choiceRow}>
             <ChoiceButton
               accessibilityLabel="위험 신호 없어요"
@@ -519,7 +529,7 @@ export function CheckinSheet({
             />
           </View>
         </View>
-        {redFlagSelectionMissing ? (
+        {submitAttempted && redFlagSelectionMissing ? (
           <Text accessibilityRole="alert" style={styles.messageText}>
             위험 신호 여부를 선택해주세요.
           </Text>
@@ -527,12 +537,15 @@ export function CheckinSheet({
         <Pressable
           accessibilityLabel="체크인 !"
           accessibilityRole="button"
-          accessibilityState={{ disabled: saveDisabled }}
-          disabled={saveDisabled}
-          onPress={onSave}
+          accessibilityState={{ disabled: submitDisabled }}
+          disabled={submitDisabled}
+          onPress={() => {
+            setSubmitAttempted(true);
+            if (!saveDisabled) onSave();
+          }}
           style={[
             styles.sheetSaveButton,
-            saveDisabled && styles.routineActionDisabled,
+            submitDisabled && styles.routineActionDisabled,
           ]}
         >
           <LinearGradient
@@ -885,17 +898,25 @@ function TimeWheelColumn({
 
 function ChoiceBlock({
   children,
+  invalid = false,
   label,
   twoColumn = false,
 }: {
   children: React.ReactNode;
+  invalid?: boolean;
   label: string;
   twoColumn?: boolean;
 }) {
   const styles = useHomeStyles();
   return (
     <View style={styles.checkinSection}>
-      <Text style={styles.checkinSectionTitle}>{label}</Text>
+      <Text
+        accessibilityRole={invalid ? 'alert' : undefined}
+        accessibilityLiveRegion={invalid ? 'assertive' : undefined}
+        style={[styles.checkinSectionTitle, invalid && styles.redFlagTitle]}
+      >
+        {label}
+      </Text>
       <View style={[styles.choiceRow, twoColumn && styles.choiceRowTwoColumn]}>
         {children}
       </View>

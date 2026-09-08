@@ -518,7 +518,7 @@ describe('PreviewGallery', () => {
       canvas.getByTestId('checkin-pain-intensity-value-어깨'),
     ).toHaveTextContent('1');
     expect(canvas.queryByText('가슴 압박감 또는 통증')).toBeNull();
-    expect(canvas.getByText(/오늘 가슴 통증이나 압박감/)).toBeOnTheScreen();
+    expect(canvas.getByText('• 가슴 통증·압박감')).toBeOnTheScreen();
     fireEvent.press(canvas.getByRole('button', { name: '위험 신호 없어요' }));
 
     fireEvent.press(canvas.getByRole('button', { name: '체크인 !' }));
@@ -536,7 +536,7 @@ describe('PreviewGallery', () => {
       canvas.getByRole('button', { name: '다른 루틴 추천 받기' }),
     );
     expect(
-      canvas.getByRole('header', { name: '오늘 컨디션 체크' }),
+      canvas.getByRole('header', { name: '컨디션 체크' }),
     ).toBeOnTheScreen();
     expect(canvas.getByRole('button', { name: '헬스장' })).toBeOnTheScreen();
     fireEvent.press(canvas.getByRole('button', { name: '체크인 !' }));
