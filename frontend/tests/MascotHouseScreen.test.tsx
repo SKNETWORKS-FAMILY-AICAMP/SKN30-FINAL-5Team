@@ -337,6 +337,47 @@ describe('MascotHouseScreen', () => {
     await waitFor(() => expect(api.getRewards).toHaveBeenCalledTimes(3));
   });
 
+  it('keeps only one house panel or child screen active at a time', async () => {
+    renderHouse(houseApi({ rewardBalance: 120 }));
+
+    await screen.findByTestId('house-scene');
+
+    // 퀘스트 → 집 꾸미기 → 닫기 → 기본 화면
+    fireEvent.press(screen.getByTestId('house-quest-tile'));
+    expect(screen.getByTestId('house-quest-panel')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('house-decorate-action'));
+    expect(screen.queryByTestId('house-quest-panel')).toBeNull();
+    expect(screen.getByTestId('house-decorate-panel')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('집 꾸미기 닫기'));
+    expect(screen.queryByTestId('house-decorate-panel')).toBeNull();
+    expect(screen.getByTestId('house-scene')).toBeTruthy();
+
+    // 집 꾸미기 → 바나나 + → 뒤로가기 → 기본 화면
+    fireEvent.press(screen.getByTestId('house-decorate-action'));
+    fireEvent.press(screen.getByLabelText('바나나 지갑 보기'));
+    expect(await screen.findByLabelText('보유 바나나 120개')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
+    expect(await screen.findByTestId('house-scene')).toBeTruthy();
+    expect(screen.queryByTestId('house-decorate-panel')).toBeNull();
+
+    // 퀘스트 → 바나나 + → 뒤로가기 → 기본 화면
+    fireEvent.press(screen.getByTestId('house-quest-tile'));
+    fireEvent.press(screen.getByLabelText('바나나 지갑 보기'));
+    expect(await screen.findByLabelText('보유 바나나 120개')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
+    expect(await screen.findByTestId('house-scene')).toBeTruthy();
+    expect(screen.queryByTestId('house-quest-panel')).toBeNull();
+
+    // 집 꾸미기 → 퀘스트 → 닫기 → 기본 화면
+    fireEvent.press(screen.getByTestId('house-decorate-action'));
+    fireEvent.press(screen.getByTestId('house-intimacy-chip'));
+    expect(screen.queryByTestId('house-decorate-panel')).toBeNull();
+    expect(screen.getByTestId('house-quest-panel')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('오늘의 퀘스트 닫기'));
+    expect(screen.queryByTestId('house-quest-panel')).toBeNull();
+    expect(screen.getByTestId('house-scene')).toBeTruthy();
+  });
+
   it('gives the feed button the full row and moves petting onto the mascot', async () => {
     renderHouse(houseApi());
 

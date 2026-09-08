@@ -274,6 +274,8 @@ export const HOUSE_MINI_GAMES = [
 
 export type HouseMiniGameId = (typeof HOUSE_MINI_GAMES)[number]['id'];
 
+type HousePanel = 'decorate' | 'quests';
+
 /**
  * The bottom panel's inner height.
  *
@@ -590,7 +592,7 @@ export function MascotHouseContent({
   view: HouseView;
 }) {
   const scaleViewport = useScale();
-  const [decorating, setDecorating] = useState(false);
+  const [activePanel, setActivePanel] = useState<HousePanel | null>(null);
   /**
    * 오늘의 퀘스트, opened as an overlay over the same action stack the
    * decorate panel covers. Every affordance that asks "how do I earn more?" —
@@ -600,9 +602,10 @@ export function MascotHouseContent({
    * panel and not a screen so the backdrop, the mascot and the tab bar all
    * stay exactly where they are.
    */
-  const [questing, setQuesting] = useState(false);
-  const openQuests = () => setQuesting(true);
-  const overlayOpen = decorating || questing;
+  const decorating = activePanel === 'decorate';
+  const questing = activePanel === 'quests';
+  const openQuests = () => setActivePanel('quests');
+  const overlayOpen = activePanel !== null;
   const [measuredViewport, setMeasuredViewport] = useState<{
     width: number;
     height: number;
@@ -828,7 +831,10 @@ export function MascotHouseContent({
                 <Pressable
                   accessibilityLabel="바나나 지갑 보기"
                   accessibilityRole="button"
-                  onPress={onOpenRewards}
+                  onPress={() => {
+                    setActivePanel(null);
+                    onOpenRewards();
+                  }}
                   style={[styles.chipPlus, { marginLeft: spacing.xs }]}
                   testID="house-banana-earn-action"
                 >
@@ -894,7 +900,7 @@ export function MascotHouseContent({
               <Pressable
                 accessibilityLabel="집 꾸미기"
                 accessibilityRole="button"
-                onPress={() => setDecorating(true)}
+                onPress={() => setActivePanel('decorate')}
                 style={[styles.chip, compactStyles.chip]}
                 testID="house-decorate-action"
               >
@@ -986,7 +992,10 @@ export function MascotHouseContent({
                 controlScale={controlScale}
                 onHeightChange={setBottomPanelHeight}
                 onOpenQuests={openQuests}
-                onPlayGame={onPlayGame}
+                onPlayGame={(gameId) => {
+                  setActivePanel(null);
+                  onPlayGame(gameId);
+                }}
                 view={view}
               />
             </View>
@@ -995,7 +1004,7 @@ export function MascotHouseContent({
               <DecoratePanel
                 controlScale={controlScale}
                 onBuyItem={onBuyItem}
-                onClose={() => setDecorating(false)}
+                onClose={() => setActivePanel(null)}
                 onSelectBackground={onSelectBackground}
                 onSpend={(amount) => showActionEffect({ amount })}
                 spendPending={spendPending}
@@ -1006,7 +1015,7 @@ export function MascotHouseContent({
             {questing ? (
               <QuestPanel
                 controlScale={controlScale}
-                onClose={() => setQuesting(false)}
+                onClose={() => setActivePanel(null)}
                 view={view}
               />
             ) : null}

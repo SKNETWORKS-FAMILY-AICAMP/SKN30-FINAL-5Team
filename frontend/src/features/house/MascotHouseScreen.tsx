@@ -113,10 +113,9 @@ export function MascotHouseScreen({
   const [reactionPose, setReactionPose] = useState<HousePose | null>(null);
   const [reactionArt, setReactionArt] = useState<HouseArtSlot | null>(null);
   const [settledArt, setSettledArt] = useState<HouseArtSlot | null>(null);
-  const [activeMiniGame, setActiveMiniGame] = useState<HouseMiniGameId | null>(
-    null,
-  );
-  const [rewardsOpen, setRewardsOpen] = useState(false);
+  const [activeScreen, setActiveScreen] = useState<
+    { kind: 'mini-game'; gameId: HouseMiniGameId } | { kind: 'rewards' } | null
+  >(null);
   const lastBananaArt = useRef<HouseArtSlot['source']>(null);
   const lastRegularArt = useRef<HouseArtSlot['source']>(null);
   const poseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -259,16 +258,19 @@ export function MascotHouseScreen({
     <HomeBottomNavigation compact activeTab="house" onNavigate={onNavigate} />
   );
 
-  if (activeMiniGame === 'banana_catch') {
-    return <BananaCatchGameScreen onBack={() => setActiveMiniGame(null)} />;
+  if (
+    activeScreen?.kind === 'mini-game' &&
+    activeScreen.gameId === 'banana_catch'
+  ) {
+    return <BananaCatchGameScreen onBack={() => setActiveScreen(null)} />;
   }
 
-  if (rewardsOpen) {
+  if (activeScreen?.kind === 'rewards') {
     return (
       <RewardsScreen
         api={api}
         onBack={() => {
-          setRewardsOpen(false);
+          setActiveScreen(null);
           reloadRemote();
         }}
       />
@@ -349,7 +351,7 @@ export function MascotHouseScreen({
         react('eating', bananaArt, FEED_POSE_HOLD_MS, regularArt);
         return true;
       }}
-      onOpenRewards={() => setRewardsOpen(true)}
+      onOpenRewards={() => setActiveScreen({ kind: 'rewards' })}
       onPet={() => {
         // Free and unlimited, so there is no failure case: the touch always
         // lands, and only the intimacy it pays is capped.
@@ -365,7 +367,7 @@ export function MascotHouseScreen({
       onPlayGame={(gameId) => {
         if (!view.canPlayGame) return;
         persist(recordGamePlay(houseState, localDate));
-        setActiveMiniGame(gameId);
+        setActiveScreen({ kind: 'mini-game', gameId });
       }}
       onPlaceItem={(itemId: HouseItemId, placement: HouseItemPlacement) => {
         const base = liveState.current ?? houseState;
