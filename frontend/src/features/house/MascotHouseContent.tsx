@@ -621,6 +621,8 @@ export function MascotHouseContent({
   const [bottomPanelHeight, setBottomPanelHeight] = useState<number | null>(
     null,
   );
+  /** Keeps the quest overlay aligned to the intimacy bonus row at every scale. */
+  const [questPanelTop, setQuestPanelTop] = useState<number | null>(null);
   const [decorationCanvas, setDecorationCanvas] = useState({
     width: 0,
     height: 0,
@@ -986,11 +988,18 @@ export function MascotHouseContent({
               {/* Above the panel on purpose. The panel's own height fixes the
                   backdrop boundary, so anything that grows the controls has to
                   grow upward into the scene instead of downward into it. */}
-              <IntimacyBonusRow
-                controlScale={controlScale}
-                onPress={openQuests}
-                view={view}
-              />
+              <View
+                onLayout={(event) =>
+                  setQuestPanelTop(event.nativeEvent.layout.y)
+                }
+                testID="house-quest-panel-anchor"
+              >
+                <IntimacyBonusRow
+                  controlScale={controlScale}
+                  onPress={openQuests}
+                  view={view}
+                />
+              </View>
 
               <HouseTilePanel
                 controlScale={controlScale}
@@ -1020,6 +1029,7 @@ export function MascotHouseContent({
               <QuestPanel
                 controlScale={controlScale}
                 onClose={() => setActivePanel(null)}
+                panelTop={questPanelTop ?? 0}
                 view={view}
               />
             ) : null}
@@ -1641,10 +1651,12 @@ function HouseTile({
 function QuestPanel({
   controlScale,
   onClose,
+  panelTop,
   view,
 }: {
   controlScale: number;
   onClose: () => void;
+  panelTop: number;
   view: HouseView;
 }) {
   const compactStyles = houseControlStyles(controlScale);
@@ -1652,7 +1664,12 @@ function QuestPanel({
 
   return (
     <View
-      style={[styles.panel, compactStyles.panel, styles.questPanel]}
+      style={[
+        styles.panel,
+        compactStyles.panel,
+        styles.questPanel,
+        { top: panelTop },
+      ]}
       testID="house-quest-panel"
     >
       <View style={styles.decorateHeader}>
@@ -2591,8 +2608,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   questList: {
-    flexGrow: 0,
-    flexShrink: 1,
+    flex: 1,
+    minHeight: 0,
   },
   questListContent: {
     gap: spacing.md,
@@ -2820,7 +2837,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
-    maxHeight: '100%',
   },
   decorateGrid: {
     flex: 1,

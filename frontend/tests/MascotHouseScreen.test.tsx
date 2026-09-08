@@ -344,10 +344,15 @@ describe('MascotHouseScreen', () => {
     });
   });
 
-  it('lets each quest tab size the panel to its own content', async () => {
+  it('keeps both quest tabs at the height of the intimacy bonus area', async () => {
     renderHouse(houseApi());
 
     await screen.findByTestId('house-scene');
+    fireEvent(screen.getByTestId('house-quest-panel-anchor'), 'layout', {
+      nativeEvent: {
+        layout: { x: 0, y: 56, width: 358, height: 64 },
+      },
+    });
     fireEvent.press(screen.getByTestId('house-quest-tile'));
 
     const panelStyle = StyleSheet.flatten(
@@ -358,15 +363,18 @@ describe('MascotHouseScreen', () => {
       right: 0,
       bottom: 0,
       left: 0,
-      maxHeight: '100%',
+      top: 56,
     });
-    expect(panelStyle.top).toBeUndefined();
 
     fireEvent.press(screen.getByTestId('house-quest-tab-weekly'));
     expect(screen.getByTestId('house-weekly-progress')).toBeTruthy();
+    expect(screen.getByTestId('house-quest-panel')).toHaveStyle({
+      top: 56,
+      bottom: 0,
+    });
     expect(screen.getByTestId('house-quest-list')).toHaveStyle({
-      flexGrow: 0,
-      flexShrink: 1,
+      flex: 1,
+      minHeight: 0,
     });
   });
 
