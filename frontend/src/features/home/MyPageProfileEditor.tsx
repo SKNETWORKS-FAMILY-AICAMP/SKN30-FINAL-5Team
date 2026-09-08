@@ -91,11 +91,12 @@ const MY_PAGE_EXTENDED_BODY_AREA_CODES = [
 const MY_PAGE_DEFAULT_BODY_AREA_OPTIONS = MY_PAGE_DEFAULT_BODY_AREA_CODES.map(
   (code) => ({ code, label: bodyAreaLabel(code) }),
 );
-const MY_PAGE_EXTENDED_BODY_AREA_OPTIONS =
-  MY_PAGE_EXTENDED_BODY_AREA_CODES.map((code) => ({
+const MY_PAGE_EXTENDED_BODY_AREA_OPTIONS = MY_PAGE_EXTENDED_BODY_AREA_CODES.map(
+  (code) => ({
     code,
     label: bodyAreaLabel(code),
-  }));
+  }),
+);
 const MY_PAGE_SELECTABLE_BODY_AREA_OPTIONS = [
   ...MY_PAGE_DEFAULT_BODY_AREA_OPTIONS,
   ...MY_PAGE_EXTENDED_BODY_AREA_OPTIONS,
@@ -141,10 +142,7 @@ export function MyPageProfileEditor({
     >
       <Pressable
         onPress={stopPropagation}
-        style={[
-          styles.sheet,
-          { paddingBottom: Math.max(16, bottomInset) },
-        ]}
+        style={[styles.sheet, { paddingBottom: Math.max(16, bottomInset) }]}
         testID="profile-editor-sheet"
       >
         <View style={styles.headingRow}>

@@ -6,7 +6,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { bodyAreaLabel, decisionReasonLabel } from '../../api/labels';
 import type {
   ExerciseVariantsResponse,
-  PainAreaInput,
   SessionStatusCode,
   WorkoutPlan,
 } from '../../api/types';
@@ -68,21 +67,22 @@ import {
   clampNumericString,
   cleanRoutineItems,
   digitsOnly,
+  hasInvalidRoutinePrescription,
+  patchRoutinePrescription,
 } from './HomeSupport';
 import { createHomeStyles, HomeStyleContext } from './homeStyles';
 
 import type { HomeScreenProps } from './HomeScreen';
 import {
   buildInitialCheckin,
+  EMPTY_ITEM_OVERRIDES,
+  EMPTY_PERSISTENT_PAINS,
   recommendationReasonsFromDecision,
   shouldShowGuidanceCard,
   routineNotesFromDecision,
   type TimePickerTarget,
 } from './homeContentModel';
 import { revisionNotice } from './homeRevisionNotice';
-
-const EMPTY_PERSISTENT_PAINS: readonly PainAreaInput[] = [];
-const EMPTY_ITEM_OVERRIDES: readonly RoutineItemDraftOverride[] = [];
 
 export function HomeScreenContent({
   actionError = null,
@@ -328,7 +328,6 @@ export function HomeScreenContent({
         ? formatWeekRangeForLocalDate(localDate)
         : '이번 주'
     : weekLabel;
-  const displayName = nickname ?? userName;
 
   useEffect(
     () => () => {
@@ -440,15 +439,7 @@ export function HomeScreenContent({
     onSaveEdit?.(saved);
   };
 
-  const inlineEditInvalid = editDraft.some((item) => {
-    const sets = Number(item.sets);
-    const reps = item.reps === undefined ? null : Number(item.reps);
-    return (
-      !Number.isInteger(sets) ||
-      sets < 1 ||
-      (reps !== null && (!Number.isInteger(reps) || reps < 1))
-    );
-  });
+  const inlineEditInvalid = hasInvalidRoutinePrescription(editDraft);
 
   const saveInlineEdit = () => {
     if (inlineEditInvalid) {
@@ -463,10 +454,7 @@ export function HomeScreenContent({
   const patchInlinePrescription = (
     id: string,
     patch: Pick<Partial<HomeRoutineItem>, 'sets' | 'reps'>,
-  ) =>
-    setEditDraft((current) =>
-      current.map((item) => (item.id === id ? { ...item, ...patch } : item)),
-    );
+  ) => setEditDraft((current) => patchRoutinePrescription(current, id, patch));
 
   const navigateFromHome = (tab: TabId) => {
     if (inlineEditing) {
@@ -584,7 +572,7 @@ export function HomeScreenContent({
               onProfile={onProfile}
               profileImageUrl={profileImageUrl}
               useJua={useJua}
-              userName={displayName}
+              userName={nickname ?? userName}
             />
             {contentReady ? (
               <WeeklyOverviewCard

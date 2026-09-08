@@ -292,9 +292,7 @@ function CatalogList({
             <View style={styles.itemFooter}>
               {item.required_equipment_codes.length > 0 ? (
                 <Text style={styles.itemEquipment}>
-                  {item.required_equipment_codes
-                    .map(equipmentLabel)
-                    .join(', ')}
+                  {item.required_equipment_codes.map(equipmentLabel).join(', ')}
                 </Text>
               ) : null}
               <View style={styles.itemBadge}>

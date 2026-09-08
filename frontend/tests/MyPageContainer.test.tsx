@@ -1016,14 +1016,7 @@ describe('MyPageContainer', () => {
     expect(
       screen.getByTestId('my-page-extended-area-caret').props.style,
     ).toBeUndefined();
-    for (const label of [
-      '어깨',
-      '허리',
-      '무릎',
-      '목',
-      '손목·손',
-      '발목·발',
-    ]) {
+    for (const label of ['어깨', '허리', '무릎', '목', '손목·손', '발목·발']) {
       expect(screen.getByRole('checkbox', { name: label })).toBeOnTheScreen();
     }
     expect(screen.queryByRole('checkbox', { name: '팔꿈치' })).toBeNull();
@@ -1034,13 +1027,7 @@ describe('MyPageContainer', () => {
     expect(
       screen.getByTestId('my-page-extended-area-caret').props.style,
     ).toMatchObject({ transform: [{ rotate: '180deg' }] });
-    for (const label of [
-      '팔꿈치',
-      '등 위쪽',
-      '고관절',
-      '가슴',
-      '복부',
-    ]) {
+    for (const label of ['팔꿈치', '등 위쪽', '고관절', '가슴', '복부']) {
       expect(screen.getByRole('checkbox', { name: label })).toBeOnTheScreen();
     }
   });
