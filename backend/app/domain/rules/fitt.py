@@ -1,9 +1,10 @@
 """Reviewed FITT-reference loading and deterministic strength volume bounds.
 
 This module deliberately does not infer an exercise prescription from a name,
-movement, or difficulty.  It joins only the reviewed stable-code mapping in
-``catalog_enrichment_v3_fitt.csv`` to its reviewed template.  Callers receive
-``REVIEW_REQUIRED`` when either side is absent or unapproved.
+movement, or difficulty. It joins a catalog stable code through the reviewed
+identity mapping to ``catalog_enrichment_v3_fitt.csv`` and its reviewed
+template. Callers receive ``REVIEW_REQUIRED`` when any link is absent or
+unapproved.
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
-FITT_CONTEXT_POLICY_VERSION = "fitt-context-policy-v1"
+FITT_CONTEXT_POLICY_VERSION = "fitt-context-policy-v2"
 FITT_REFERENCE_SOURCE_CODE = "catalog-enrichment-v3-fitt"
 DOMAIN_APPROVED = "DOMAIN_APPROVED"
 REVIEW_REQUIRED = "REVIEW_REQUIRED"
@@ -54,6 +55,10 @@ def _default_template_path() -> Path:
     return _repo_root() / "data" / "normalized" / "fitt_template_v1.csv"
 
 
+def _default_mapping_path() -> Path:
+    return _repo_root() / "data" / "normalized" / "v2_0_7_fitt_stable_code_mapping.csv"
+
+
 def review_required_context() -> FittContext:
     return FittContext(
         source_code=FITT_REFERENCE_SOURCE_CODE,
@@ -85,19 +90,25 @@ def _range_lower(value: str | None) -> int | None:
     return _integer(first)
 
 
+def _keyed_rows(path: Path, key: str) -> dict[str, dict[str, str]]:
+    with path.open(encoding="utf-8", newline="") as handle:
+        result: dict[str, dict[str, str]] = {}
+        for row in csv.DictReader(handle):
+            value = row.get(key, "")
+            if not value or value in result:
+                raise ValueError(f"{path.name}: blank or duplicate {key}")
+            result[value] = row
+    return result
+
+
 @lru_cache(maxsize=1)
-def _rows() -> tuple[dict[str, dict[str, str]], dict[str, dict[str, str]]]:
-    with _default_reference_path().open(encoding="utf-8", newline="") as handle:
-        references = {
-            row["exercise_id"]: row for row in csv.DictReader(handle) if row.get("exercise_id")
-        }
-    with _default_template_path().open(encoding="utf-8", newline="") as handle:
-        templates = {
-            row["fitt_template_id"]: row
-            for row in csv.DictReader(handle)
-            if row.get("fitt_template_id")
-        }
-    return references, templates
+def _rows() -> tuple[
+    dict[str, dict[str, str]], dict[str, dict[str, str]], dict[str, dict[str, str]]
+]:
+    mappings = _keyed_rows(_default_mapping_path(), "exercise_stable_code")
+    references = _keyed_rows(_default_reference_path(), "exercise_id")
+    templates = _keyed_rows(_default_template_path(), "fitt_template_id")
+    return mappings, references, templates
 
 
 def _strength_volume(
@@ -144,9 +155,16 @@ def context_for_exercise(
     categories and to a supported experience level.
     """
 
-    references, templates = _rows()
-    reference = references.get(stable_code)
-    if reference is None or reference.get("fitt_status") != "APPROVED":
+    mappings, references, templates = _rows()
+    mapping = mappings.get(stable_code)
+    if mapping is None or mapping.get("review_status_code") != DOMAIN_APPROVED:
+        return review_required_context()
+    reference = references.get(mapping.get("exercise_id", ""))
+    if (
+        reference is None
+        or reference.get("fitt_status") != "APPROVED"
+        or mapping.get("fitt_template_id") != reference.get("fitt_template_id")
+    ):
         return review_required_context()
     template_id = reference.get("fitt_template_id") or None
     template = templates.get(template_id or "")
@@ -181,6 +199,7 @@ __all__ = [
     "FittContext",
     "FittVolumeRange",
     "REVIEW_REQUIRED",
+    "_default_mapping_path",
     "context_for_exercise",
     "review_required_context",
 ]

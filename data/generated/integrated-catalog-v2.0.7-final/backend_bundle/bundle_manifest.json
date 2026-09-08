@@ -1,0 +1,206 @@
+{
+  "schema_version": "integrated-exercise-importer-v1",
+  "bundle_version": "integrated-catalog-v2.0.7-final-2026-09-08",
+  "status_code": "DRAFT",
+  "production_eligible": false,
+  "source_catalog": {
+    "path": "data\\normalized\\v2_0_6_exercise_catalog.csv",
+    "sha256": "6bf15616bf6db93bc420eca22335f65df0e5eb2a7dd8fdab98d83ea66b7c6cbc",
+    "records": 237
+  },
+  "importer_paths": {
+    "catalog": "catalog/bundle_manifest.json",
+    "home_equipment": "home_equipment/bundle_manifest.json",
+    "gym_equipment": "gym_equipment/starting_guides.jsonl"
+  },
+  "summary": {
+    "catalog_records": 237,
+    "gym_guide_records": 67,
+    "home_guide_records": 34,
+    "fitt_reference_records": 208,
+    "fitt_stable_code_mapping_records": 89,
+    "met_fields_per_catalog_record": 6,
+    "prescription_rows_removed_for_difficulty": 57,
+    "prescription_rows_derived_for_difficulty": 72
+  },
+  "completeness_checks": {
+    "catalog_stable_codes": true,
+    "gym_references_catalog": true,
+    "home_references_catalog": true,
+    "fitt_reference_approved": true,
+    "fitt_references_catalog": true,
+    "prescription_levels_match_difficulty": true,
+    "met_projection_present": true,
+    "artifact_inventory_complete": true
+  },
+  "files": [
+    {
+      "path": "catalog/alternatives/alternatives.jsonl",
+      "sha256": "2e663b5ee89fb02f766b24c6b658e8bd5232e0fc895480772644306141d26f53",
+      "bytes": 999,
+      "records": 1
+    },
+    {
+      "path": "catalog/alternatives/alternatives_manifest.json",
+      "sha256": "d59a69dd6ccaa162903a300993be01941f58e7fca0d175f944f3ec32868d0176",
+      "bytes": 1220
+    },
+    {
+      "path": "catalog/alternatives/input/alternative_projection_conflicts.json",
+      "sha256": "5be44329a70a6ebaddd74dd9f64b37368772b0fe79a43206ca789f69f53a2657",
+      "bytes": 199
+    },
+    {
+      "path": "catalog/audit/projection_audit.jsonl",
+      "sha256": "a6fe5bea127c4daa603e5401df3e914e16b95ecda468cde901fcf0182080e31c",
+      "bytes": 49325,
+      "records": 237
+    },
+    {
+      "path": "catalog/bundle_manifest.json",
+      "sha256": "821a9cae807af43eba193a38e870cfb6ba26d655209e98a1238c1d0f7319ca15",
+      "bytes": 5538
+    },
+    {
+      "path": "catalog/catalog/exercises.jsonl",
+      "sha256": "651a6c28004605c384417dfd428d611dd98f5e8caa38c945e2099e5a8d813133",
+      "bytes": 392786,
+      "records": 237
+    },
+    {
+      "path": "catalog/catalog/input/met_review_approval_manifest.json",
+      "sha256": "f6b63210ca8c991cbabf1f33f0e6c90dbb2ccffde3f4c4cf6f20bcfa4ae94129",
+      "bytes": 1127
+    },
+    {
+      "path": "catalog/catalog/input/representative_exercises.csv",
+      "sha256": "fd7099554043cfbfa9ea0e5658bc8078c620272c728aa9c1c8ac2bc6a2178627",
+      "bytes": 9785
+    },
+    {
+      "path": "catalog/catalog/seed_manifest.json",
+      "sha256": "93847c5c8ffddac57a74b2ca7a80fa2ec036ec3d2687588526a2302b993a31dc",
+      "bytes": 1604
+    },
+    {
+      "path": "catalog/media/media_assets.jsonl",
+      "sha256": "ebe40ccde4105e94a3eb7e5a2df8a8e7ab4b79ac6a2c22f3fb1f42959b8ceb21",
+      "bytes": 166403,
+      "records": 237
+    },
+    {
+      "path": "catalog/media/media_manifest.json",
+      "sha256": "34c6d4cbdde6daaebba85d6e3ba3f4449e9ef80e6dd0b1e66aceb62bb79442f1",
+      "bytes": 1270
+    },
+    {
+      "path": "catalog/prescriptions/goal_tag_links.jsonl",
+      "sha256": "5568112662a371c938e712eefc15ff6d6e6220460c32cccb90a735114da65bd9",
+      "bytes": 150072,
+      "records": 711
+    },
+    {
+      "path": "catalog/prescriptions/prescription_manifest.json",
+      "sha256": "2299cfdbdd23a6bf66ce90d9aca39e2c5d4bbc9c33a8b0ead49557cdecdb0904",
+      "bytes": 1294
+    },
+    {
+      "path": "catalog/prescriptions/prescription_profiles.jsonl",
+      "sha256": "0b27d9a14fa4f9e6da2b25ff1cc7e67131049ec780725b4a986eb9b07ac730ed",
+      "bytes": 591254,
+      "records": 1464
+    },
+    {
+      "path": "catalog/safety/rules_manifest.json",
+      "sha256": "bd471174683ce02f1beb7714a972ba49a25eb5ab02732910365a181da03dd644",
+      "bytes": 1088
+    },
+    {
+      "path": "catalog/safety/safety_rules.jsonl",
+      "sha256": "08a4891a5b9183b1f72c263e8155a46564a7f1ee8e0593ccba80990c8fdb9dc7",
+      "bytes": 1752792,
+      "records": 2131
+    },
+    {
+      "path": "gym_equipment/starting_guides.jsonl",
+      "sha256": "c8707b40e683bcaad7d7810c038d40d462d7e0c93eb9473a00f72681cca61bb2",
+      "bytes": 37888,
+      "records": 67
+    },
+    {
+      "path": "home_equipment/approval/production_approval_registry.json",
+      "sha256": "7e399bc153d7659b1efc9a4b6a3ef707c1c0a051ccd093279a2da5f1c1b672d6",
+      "bytes": 2458
+    },
+    {
+      "path": "home_equipment/bundle_manifest.json",
+      "sha256": "8a137ed9d616b008fbeeca8b27e7fd0685092e169ce0a5a0b0c27a029e9dd38a",
+      "bytes": 1609
+    },
+    {
+      "path": "home_equipment/guides/substitution_guides.jsonl",
+      "sha256": "369924bd4f6d5f3c16ca59b314f7b94f8a6e89c0723e3685511c86a58e51eac0",
+      "bytes": 16658,
+      "records": 34
+    },
+    {
+      "path": "home_equipment/guides/substitution_guides_manifest.json",
+      "sha256": "ef1d039837f634ddae996f0f04583559cbaddd3173d8a74296192645c0b4e40a",
+      "bytes": 563
+    },
+    {
+      "path": "home_equipment/variants/bodyweight_variant_candidates.jsonl",
+      "sha256": "85809a02ea89aa7f81d89e8553debf5907e269c23a4a7f82c5848db8e8ab5370",
+      "bytes": 9630,
+      "records": 20
+    },
+    {
+      "path": "home_equipment/variants/bodyweight_variant_candidates_manifest.json",
+      "sha256": "1709f3c0c8e60941c5ef73fccc354ea75004e6bb0338226cdb033fdbfc5490ba",
+      "bytes": 681
+    },
+    {
+      "path": "sources/catalog_enrichment_v3_fitt.csv",
+      "sha256": "8f22de2c437c4486f2df0a14a771b1f620c4bd57e4876643d85fd57991877a54",
+      "bytes": 215177
+    },
+    {
+      "path": "sources/fitt_stable_code_mapping_approval.json",
+      "sha256": "56d828c21e619bd3c2c19ce96e66fbaaee9abd398e6c910ffcb2551823f3c5ad",
+      "bytes": 3363
+    },
+    {
+      "path": "sources/gym_equipment_starting_guides_v1.jsonl",
+      "sha256": "3d1f613547ce5f857d0fdce13102a5ea3e35ea67a0752b91bf5e04d5a26a31b0",
+      "bytes": 37821,
+      "records": 67
+    },
+    {
+      "path": "sources/home_equipment_substitution_guides_v1.jsonl",
+      "sha256": "04459ae787e6eb56e49817b36c3e07dc6940afc0502378aa3a134adf60fdca8f",
+      "bytes": 16184,
+      "records": 34
+    },
+    {
+      "path": "sources/v2_0_6_exercise_catalog.csv",
+      "sha256": "6bf15616bf6db93bc420eca22335f65df0e5eb2a7dd8fdab98d83ea66b7c6cbc",
+      "bytes": 209931
+    },
+    {
+      "path": "sources/v2_0_6_fitt_defaults_source_map.json",
+      "sha256": "d3396f4269fefc7729334f424355355ab8c9fe8a324b273d90fa76c68a8e02c3",
+      "bytes": 173479
+    },
+    {
+      "path": "sources/v2_0_7_fitt_stable_code_mapping.csv",
+      "sha256": "571ec0a06bba47f3fb1c7bde6d42af689f33bd9697f5152aa8baba235a52ba0e",
+      "bytes": 19104
+    }
+  ],
+  "promotion": {
+    "catalog_version_code": "exercise-catalog-v2.0.7-final",
+    "approval_record_code": "V2-0-7-PRODUCTION-APPROVAL-2026-09-08-R01",
+    "review_method_code": "DOMAIN_REVIEWER",
+    "status_interpretation_code": "PRODUCTION_APPROVED"
+  }
+}

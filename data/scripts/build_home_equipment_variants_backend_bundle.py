@@ -49,7 +49,7 @@ def _sha256(path: Path) -> str:
 
 
 def _relative(path: Path) -> str:
-    return str(path.relative_to(ROOT))
+    return path.relative_to(ROOT).as_posix()
 
 
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -344,7 +344,7 @@ def build(target: Path = TARGET) -> dict[str, Any]:
         (registry_path, None),
     ]:
         entry = {
-            "path": str(path.relative_to(target)),
+            "path": path.relative_to(target).as_posix(),
             "bytes": path.stat().st_size,
             "sha256": _sha256(path),
         }

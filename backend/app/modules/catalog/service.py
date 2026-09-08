@@ -1276,8 +1276,12 @@ def _validate_bundle_exercise_references(
         )
 
 
-def load_integrated_catalog_bundle(bundle_directory: Path) -> IntegratedCatalogBundle:
-    """Validate the v2.0.7 DRAFT wrapper before importing its catalog artifact."""
+def load_integrated_catalog_bundle(
+    bundle_directory: Path,
+    *,
+    expected_catalog_version: str = "exercise-catalog-v2.0.7-draft",
+) -> IntegratedCatalogBundle:
+    """Validate a v2.0.7 wrapper before importing its catalog artifact."""
 
     root = bundle_directory.resolve()
     manifest_raw = _read_bytes(root / "bundle_manifest.json", "MANIFEST_UNREADABLE")
@@ -1345,7 +1349,7 @@ def load_integrated_catalog_bundle(bundle_directory: Path) -> IntegratedCatalogB
         v2_taxonomy_registry_sha256=APPROVED_GYMVISUAL_V2_TAXONOMY_REGISTRY_SHA256,
     )
     if (
-        catalog.manifest.catalog_version.version_code != "exercise-catalog-v2.0.7-draft"
+        catalog.manifest.catalog_version.version_code != expected_catalog_version
         or len(catalog.records) != summary.get("catalog_records")
         or len(catalog.records) != 237
         or any(record.met_review_status_code != "DOMAIN_APPROVED" for record in catalog.records)
