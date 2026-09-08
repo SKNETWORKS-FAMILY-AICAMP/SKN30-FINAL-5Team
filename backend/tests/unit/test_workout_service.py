@@ -223,11 +223,27 @@ class FakeWorkoutRepository:
         self.feedback = values
 
 
-def _source(*, option_code: str = "FINAL_ROUTINE", vetoed: bool = False) -> SelectionSource:
+def _source(
+    *,
+    option_code: str = "FINAL_ROUTINE",
+    vetoed: bool = False,
+    # A veto that was honoured by substitution is recorded as REVISE and stays
+    # selectable; only BLOCKED and FAILED are terminal. Defaulted so existing
+    # callers keep pairing `vetoed` with the terminal status they meant.
+    safety_status_code: str | None = None,
+    safety_excluded_exercise_ids: tuple[UUID, ...] = (),
+    plan_exercise_ids: tuple[UUID, ...] | None = None,
+) -> SelectionSource:
     decision_id = uuid4()
     option_id = uuid4()
     candidate_id = uuid4() if option_code == "FINAL_ROUTINE" else None
     action = "KEEP" if option_code == "FINAL_ROUTINE" else "REST"
+    status = safety_status_code or ("PASS" if not vetoed else "BLOCKED")
+    exercises = (
+        plan_exercise_ids
+        if plan_exercise_ids is not None
+        else ((uuid4(), uuid4()) if candidate_id else ())
+    )
     return SelectionSource(
         decision_id=decision_id,
         option_id=option_id,
@@ -236,16 +252,18 @@ def _source(*, option_code: str = "FINAL_ROUTINE", vetoed: bool = False) -> Sele
         option_selectable=True,
         option_plan_candidate_id=candidate_id,
         decision_status_code="COMPLETED",
-        decision_safety_status_code="PASS" if not vetoed else "BLOCKED",
+        decision_safety_status_code=status,
         recommended_action_code=action,
         selected_candidate_id=candidate_id,
         selected_candidate_action_code=action if candidate_id else None,
         safety_candidate_id=candidate_id,
-        safety_status_code="PASS" if not vetoed else "BLOCKED",
+        safety_status_code=status,
         safety_vetoed=vetoed,
-        plan_item_ids=(uuid4(), uuid4()) if candidate_id else (),
+        plan_item_ids=tuple(uuid4() for _ in exercises),
         estimated_calories_burned=None,
         already_selected=False,
+        safety_excluded_exercise_ids=safety_excluded_exercise_ids,
+        plan_exercise_ids=exercises,
     )
 
 
@@ -293,6 +311,52 @@ def test_rest_selection_does_not_create_workout_session() -> None:
 
 def test_safety_vetoed_final_routine_is_not_selectable() -> None:
     repository = FakeWorkoutRepository(_source(vetoed=True))
+    with pytest.raises(OptionNotSelectableError):
+        _select(repository, uuid4())
+
+
+def test_a_veto_honoured_by_substitution_stays_startable() -> None:
+    """The outcome a user who reports discomfort is meant to receive.
+
+    Safety excluded the loaded movements and the plan was rebuilt without them,
+    which is recorded as REVISE with the veto flag set. Reading that flag as
+    terminal made the routine visible but impossible to start, which is what
+    reached staging: every such decision had a plan on screen and zero starts.
+    """
+
+    excluded = (uuid4(), uuid4())
+    repository = FakeWorkoutRepository(
+        _source(
+            vetoed=True,
+            safety_status_code="REVISE",
+            safety_excluded_exercise_ids=excluded,
+            plan_exercise_ids=(uuid4(), uuid4()),
+        )
+    )
+
+    _, response = _select(repository, uuid4())
+
+    assert response.workout_session is not None
+
+
+def test_a_plan_still_carrying_an_excluded_exercise_is_refused() -> None:
+    """ADR-0015: the veto cannot be overridden, checked against the plan itself.
+
+    This is the case the removed `safety_vetoed is False` proxy never actually
+    tested, because it only ever ran against a BLOCKED status the status check
+    already refuses.
+    """
+
+    kept = uuid4()
+    repository = FakeWorkoutRepository(
+        _source(
+            vetoed=True,
+            safety_status_code="REVISE",
+            safety_excluded_exercise_ids=(kept, uuid4()),
+            plan_exercise_ids=(uuid4(), kept),
+        )
+    )
+
     with pytest.raises(OptionNotSelectableError):
         _select(repository, uuid4())
 

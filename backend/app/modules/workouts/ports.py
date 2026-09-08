@@ -32,6 +32,11 @@ class SelectionSource:
     estimated_calories_burned: float | None
     already_selected: bool
     target_duration_seconds: int = 0
+    # What the safety veto excluded, and what the published plan actually
+    # prescribes. The selection gate compares the two rather than trusting a
+    # flag that says only that a veto fired, not whether it was honoured.
+    safety_excluded_exercise_ids: tuple[UUID, ...] = ()
+    plan_exercise_ids: tuple[UUID, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
