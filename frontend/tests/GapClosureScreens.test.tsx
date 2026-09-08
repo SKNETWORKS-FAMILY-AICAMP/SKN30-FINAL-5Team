@@ -111,9 +111,9 @@ describe('ExerciseCatalogScreen', () => {
     ).toBeTruthy();
     expect(view.UNSAFE_queryByType(BackgroundBands)).toBeNull();
     expect(screen.getByText('런지')).toBeTruthy();
-    expect(screen.getAllByText('주요 근육 대퇴사두근')).toHaveLength(2);
-    expect(screen.getAllByText('상세 부위 무릎')).toHaveLength(2);
-    expect(screen.getAllByText('장비 매트, 짐볼, 의자')).toHaveLength(2);
+    expect(screen.getAllByText('근력 · 대퇴사두근')).toHaveLength(2);
+    expect(screen.queryByText('상세 부위 무릎')).toBeNull();
+    expect(screen.getAllByText('매트, 짐볼, 의자')).toHaveLength(2);
     // 카탈로그 버전 같은 내부 정보는 사용자 화면에 노출하지 않는다.
     expect(screen.queryByText(/카탈로그 버전/)).toBeNull();
 
@@ -245,7 +245,7 @@ describe('ExerciseCatalogScreen', () => {
 
     render(<ExerciseCatalogScreen api={api} onBack={() => {}} />);
 
-    expect(await screen.findByText('주요 근육 무릎')).toBeOnTheScreen();
+    expect(await screen.findByText('근력 · 무릎')).toBeOnTheScreen();
     expect(screen.queryByText('상세 부위 무릎')).toBeNull();
   });
 
