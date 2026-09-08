@@ -1079,7 +1079,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 12,
   },
-  chipGrow: { minWidth: 72, flexGrow: 1, alignItems: 'center' },
+  chipGrow: {
+    minWidth: 72,
+    flexBasis: 0,
+    flexGrow: 1,
+    alignItems: 'center',
+  },
   chipFlow: {
     minHeight: 48,
     flexGrow: 1,

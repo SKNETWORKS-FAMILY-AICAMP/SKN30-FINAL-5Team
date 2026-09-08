@@ -256,6 +256,11 @@ describe('MyPageContainer', () => {
       screen.getByRole('header', { name: '프로필 수정' }),
     ).toBeOnTheScreen();
     expect(
+      screen.queryByText(
+        '닉네임, 프로필 사진, 생년월일, 체중을 수정할 수 있어요.',
+      ),
+    ).toBeNull();
+    expect(
       screen.getByText('생년월일과 체중은 변경할 항목만 입력해주세요.'),
     ).toBeOnTheScreen();
     expect(screen.queryByText('시간대')).toBeNull();
@@ -1070,24 +1075,20 @@ describe('MyPageContainer', () => {
     expect(screen.queryByRole('checkbox', { name: '전신' })).toBeNull();
   });
 
-  it('opens the reviewed exercise catalog from the local my-page screen', async () => {
-    const onOpenExerciseCatalog = jest.fn();
-
+  it('does not duplicate the exercise catalog entry after it moves to Home', async () => {
     await render(
       <MyPageContainer
         api={accountApi()}
         me={me()}
         now={new Date('2026-08-19T03:00:00Z')}
         onNavigateTab={jest.fn()}
-        onOpenExerciseCatalog={onOpenExerciseCatalog}
         onRefreshMe={jest.fn(async () => undefined)}
         onSignOut={jest.fn()}
       />,
     );
 
-    expect(screen.getByText('운동 도구')).toBeOnTheScreen();
-    fireEvent.press(screen.getByText('운동 카탈로그'));
-    expect(onOpenExerciseCatalog).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('운동 도구')).toBeNull();
+    expect(screen.queryByText('운동 카탈로그')).toBeNull();
   });
 
   it('connects logout and irreversible account deletion confirmations', async () => {

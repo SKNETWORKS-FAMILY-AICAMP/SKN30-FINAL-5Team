@@ -71,7 +71,6 @@ export function CheckinSheet({
   onToggleBodyArea,
   locationCodes,
   locationRequired,
-  recommendedDurationMinutes,
   pending,
 }: {
   draft: HomeCheckin;
@@ -90,7 +89,6 @@ export function CheckinSheet({
   onToggleBodyArea: (code: string) => void;
   locationCodes: readonly string[];
   locationRequired: boolean;
-  recommendedDurationMinutes: number | null;
   pending: boolean;
 }) {
   const styles = useHomeStyles();
@@ -148,8 +146,6 @@ export function CheckinSheet({
     (draft.locationCode === null ||
       !locationCodes.includes(draft.locationCode));
   const redFlagSelectionMissing = draft.redFlagPresent === null;
-  const submitDisabled =
-    pending || (locationRequired && locationCodes.length === 0);
   const saveDisabled =
     pending ||
     sleepInvalid ||
@@ -159,11 +155,9 @@ export function CheckinSheet({
     discomfortSelectionMissing ||
     locationSelectionMissing ||
     redFlagSelectionMissing;
+  const submitDisabled = saveDisabled;
   return (
     <SheetFrame compact onClose={onClose} title="컨디션 체크" zIndex={20}>
-      <Text style={[styles.sheetIntro, styles.checkinIntro]}>
-        현재 상태에 맞춰 운동을 조정해드려요.
-      </Text>
       <ScrollView
         contentContainerStyle={styles.checkinScrollContent}
         showsVerticalScrollIndicator={false}
@@ -241,11 +235,6 @@ export function CheckinSheet({
               </Pressable>
             </View>
           </View>
-          <Text style={styles.durationRecommendation}>
-            {recommendedDurationMinutes !== null
-              ? `1회 권장 운동 시간: ${recommendedDurationMinutes}분`
-              : `운동 가능 시간: ${CHECKIN_DURATION_MINUTES.min}~${CHECKIN_DURATION_MINUTES.max}분`}
-          </Text>
         </View>
         {submitAttempted && (durationMissing || durationInvalid) ? (
           <Text accessibilityRole="alert" style={styles.messageText}>

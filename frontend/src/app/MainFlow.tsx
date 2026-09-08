@@ -411,17 +411,11 @@ export function MainFlow({
           onNavigateTab={onTab}
           onRefreshMe={onRefreshMe}
           onSignOut={onSignOut}
-          onOpenExerciseCatalog={() => setStep({ name: 'exercises' })}
         />
       );
 
     case 'exercises':
-      return (
-        <ExerciseCatalogScreen
-          api={api}
-          onBack={() => setStep({ name: 'account' })}
-        />
-      );
+      return <ExerciseCatalogScreen api={api} onBack={goHome} />;
 
     case 'home':
     default:
@@ -497,6 +491,7 @@ export function MainFlow({
             onRecoverDecision={recoverHomeDecision}
             onTab={onTab}
             onOpenCalendar={() => setStep({ name: 'calendar-report' })}
+            onOpenExerciseCatalog={() => setStep({ name: 'exercises' })}
           />
         </>
       );

@@ -67,7 +67,7 @@ export function ExerciseDetailSheet({
         {representativeFocus ? (
           <View style={styles.section} testID="exercise-body-focus">
             <Text accessibilityRole="header" style={styles.sectionTitle}>
-              주요 근육
+              사용 근육
             </Text>
             <Text style={styles.areas}>{representativeFocus}</Text>
           </View>
@@ -76,10 +76,13 @@ export function ExerciseDetailSheet({
         {detail.body_focus_code && detail.primary_body_area_codes.length > 0 ? (
           <View style={styles.section} testID="exercise-primary-areas">
             <Text accessibilityRole="header" style={styles.sectionTitle}>
-              상세 부위
+              주의 부위
             </Text>
             <Text style={styles.areas}>
               {detail.primary_body_area_codes.map(bodyAreaLabel).join(', ')}
+            </Text>
+            <Text style={styles.areaCaution}>
+              해당 부위에 통증이 있는 경우 주의가 필요해요.
             </Text>
           </View>
         ) : null}
@@ -360,6 +363,11 @@ const styles = StyleSheet.create({
     color: colors.textSub,
     fontSize: 15,
     lineHeight: 23,
+  },
+  areaCaution: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
   },
   cueRow: {
     flexDirection: 'row',

@@ -51,7 +51,6 @@ type MyPageScreenProps = {
   onConsentChange?: (key: keyof ConsentValues, enabled: boolean) => void;
   onNavigateTab?: (tab: TabId) => void;
   onNotificationChange?: (key: string, enabled: boolean) => void;
-  onOpenExerciseCatalog?: () => void;
   onBasicProfileChange?: (
     body: ProfileSettingsUpdateRequest,
     imageChange: ProfileImageChange | undefined,
@@ -89,7 +88,6 @@ function MyPageContent({
   onConsentChange,
   onNavigateTab,
   onNotificationChange,
-  onOpenExerciseCatalog,
   onBasicProfileChange,
   onProfileFieldChange,
   onRetryProfile,
@@ -257,23 +255,6 @@ function MyPageContent({
             </Pressable>
           ))}
         </View>
-
-        {onOpenExerciseCatalog ? (
-          <>
-            <SectionTitle label="운동 도구" />
-            <View style={styles.rowsCard}>
-              <Pressable
-                accessibilityRole="button"
-                onPress={onOpenExerciseCatalog}
-                style={styles.infoRow}
-              >
-                <Text style={styles.infoLabel}>운동 카탈로그</Text>
-                <Text style={styles.infoValue}>둘러보기</Text>
-                <Text style={styles.rowArrow}>›</Text>
-              </Pressable>
-            </View>
-          </>
-        ) : null}
 
         <SectionTitle label="알림" />
         <View style={styles.rowsCard}>

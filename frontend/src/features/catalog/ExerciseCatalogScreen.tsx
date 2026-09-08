@@ -13,6 +13,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 
@@ -22,11 +23,12 @@ import {
   bodyFocusLabel,
   equipmentLabel,
   experienceLevelLabel,
+  SELECTABLE_BODY_AREA_OPTIONS,
   trainingTypeLabel,
 } from '../../api/labels';
 import type { ExerciseListItem, ExerciseListResponse } from '../../api/types';
-import { useAsyncAction, useAsyncData } from '../../api/useAsync';
-import { Button, Card, InlineFeedback } from '../../components/primitives';
+import { useAsyncData } from '../../api/useAsync';
+import { Button, Card } from '../../components/primitives';
 import {
   EmptyState,
   ErrorState,
@@ -40,19 +42,9 @@ import {
   type ExerciseGuideContext,
 } from '../workout/ExerciseDetailSheet';
 
-const TRAINING_TYPE_FILTERS = [
+const BODY_AREA_FILTERS = [
   { code: undefined, label: '전체' },
-  { code: 'STRENGTH', label: '근력' },
-  { code: 'CARDIO', label: '유산소' },
-  { code: 'MOBILITY', label: '스트레칭' },
-] as const;
-
-// Difficulty uses the same words as the onboarding experience step so one
-// concept never appears as both 입문 and 초급.
-const DIFFICULTY_FILTERS = [
-  { code: undefined, label: '전체' },
-  { code: 'BEGINNER', label: '초급' },
-  { code: 'INTERMEDIATE', label: '중급' },
+  ...SELECTABLE_BODY_AREA_OPTIONS,
 ] as const;
 
 const difficultyLabel = (code: string) => experienceLevelLabel(code);
@@ -66,43 +58,19 @@ export function ExerciseCatalogScreen({
   exerciseGuideContext?: ExerciseGuideContext;
   onBack: () => void;
 }) {
-  const [trainingType, setTrainingType] = useState<string | undefined>();
-  const [difficulty, setDifficulty] = useState<string | undefined>();
-  const [extraItems, setExtraItems] = useState<ExerciseListItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [bodyArea, setBodyArea] = useState<string | undefined>();
   const [openExercise, setOpenExercise] = useState<ExerciseListItem | null>(
     null,
   );
 
   const { state, reload } = useAsyncData<ExerciseListResponse>(
-    (signal) =>
-      api.listExercises(
-        { trainingTypeCode: trainingType, difficultyCode: difficulty },
-        signal,
-      ),
-    // Changing a filter restarts from the first page.
-    [api, trainingType, difficulty],
+    (signal) => loadEntireCatalog(api, bodyArea, signal),
+    [api, bodyArea],
   );
 
-  const loadMore = useAsyncAction(async (cursor: string) => {
-    const page = await api.listExercises({
-      trainingTypeCode: trainingType,
-      difficultyCode: difficulty,
-      cursor,
-    });
-    setExtraItems((current) => [...current, ...page.items]);
-    return page;
-  });
-  const [nextCursor, setNextCursor] = useState<string | null | undefined>();
-
-  const selectTrainingType = useCallback((code: string | undefined) => {
-    setTrainingType(code);
-    setExtraItems([]);
-    setNextCursor(undefined);
-  }, []);
-  const selectDifficulty = useCallback((code: string | undefined) => {
-    setDifficulty(code);
-    setExtraItems([]);
-    setNextCursor(undefined);
+  const selectBodyArea = useCallback((code: string | undefined) => {
+    setBodyArea(code);
   }, []);
 
   return (
@@ -110,18 +78,44 @@ export function ExerciseCatalogScreen({
       <ScreenShell scroll={false} contentStyle={styles.screenContent}>
         <CatalogHeader onBack={onBack} />
 
-        <View style={styles.filterGroup}>
+        <View style={styles.catalogControls}>
+          <View style={styles.searchField}>
+            <View
+              accessibilityElementsHidden
+              importantForAccessibility="no"
+              style={styles.searchIcon}
+            >
+              <View style={styles.searchIconCircle} />
+              <View style={styles.searchIconHandle} />
+            </View>
+            <TextInput
+              accessibilityLabel="운동명 검색"
+              autoCapitalize="none"
+              autoCorrect={false}
+              onChangeText={setSearchQuery}
+              placeholder="운동명으로 검색"
+              placeholderTextColor={colors.textMuted}
+              returnKeyType="search"
+              style={styles.searchInput}
+              value={searchQuery}
+            />
+            {searchQuery.length > 0 ? (
+              <Pressable
+                accessibilityLabel="검색어 지우기"
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={() => setSearchQuery('')}
+                style={styles.searchClearButton}
+              >
+                <Text style={styles.searchClearText}>×</Text>
+              </Pressable>
+            ) : null}
+          </View>
           <FilterRow
-            groupLabel="운동 유형"
-            options={TRAINING_TYPE_FILTERS}
-            selected={trainingType}
-            onSelect={selectTrainingType}
-          />
-          <FilterRow
-            groupLabel="난이도"
-            options={DIFFICULTY_FILTERS}
-            selected={difficulty}
-            onSelect={selectDifficulty}
+            groupLabel="운동 부위"
+            options={BODY_AREA_FILTERS}
+            selected={bodyArea}
+            onSelect={selectBodyArea}
           />
         </View>
 
@@ -131,21 +125,9 @@ export function ExerciseCatalogScreen({
           <ErrorState message={state.message} onRetry={reload} />
         ) : (
           <CatalogList
-            firstPage={state.data}
-            extraItems={extraItems}
-            nextCursor={
-              nextCursor === undefined ? state.data.next_cursor : nextCursor
-            }
-            loadingMore={loadMore.pending}
-            loadMoreError={loadMore.error}
+            items={filterByExerciseName(state.data.items, searchQuery)}
+            searchActive={searchQuery.trim().length > 0}
             onOpen={setOpenExercise}
-            onLoadMore={(cursor) =>
-              void loadMore.run(cursor).then((page) => {
-                if (page) {
-                  setNextCursor(page.next_cursor);
-                }
-              })
-            }
           />
         )}
       </ScreenShell>
@@ -193,9 +175,6 @@ function CatalogHeader({ onBack }: { onBack: () => void }) {
         <Text accessibilityRole="header" style={styles.headerTitle}>
           운동 카탈로그
         </Text>
-        <Text style={styles.headerSubtitle}>
-          운동 계획에 활용되는 운동을 모아봤어요.
-        </Text>
       </View>
       <View
         pointerEvents="none"
@@ -218,54 +197,58 @@ function FilterRow<Code extends string | undefined>({
   onSelect: (code: Code) => void;
 }) {
   return (
-    <View style={styles.filterRow}>
+    <View style={styles.filterSection}>
       <Text style={styles.filterGroupLabel}>{groupLabel}</Text>
-      {options.map(({ code, label }) => {
-        const active = selected === code;
-        return (
-          <Pressable
-            key={label}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
-            onPress={() => onSelect(code)}
-            style={[styles.filterChip, active && styles.filterChipActive]}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                active && styles.filterChipTextActive,
-              ]}
+      <ScrollView
+        horizontal
+        contentContainerStyle={styles.filterRow}
+        showsHorizontalScrollIndicator={false}
+      >
+        {options.map(({ code, label }) => {
+          const active = selected === code;
+          return (
+            <Pressable
+              key={label}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              onPress={() => onSelect(code)}
+              style={[styles.filterChip, active && styles.filterChipActive]}
             >
-              {label}
-            </Text>
-          </Pressable>
-        );
-      })}
+              <Text
+                style={[
+                  styles.filterChipText,
+                  active && styles.filterChipTextActive,
+                ]}
+              >
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }
 
 function CatalogList({
-  firstPage,
-  extraItems,
-  nextCursor,
-  loadingMore,
-  loadMoreError,
+  items,
+  searchActive,
   onOpen,
-  onLoadMore,
 }: {
-  firstPage: ExerciseListResponse;
-  extraItems: ExerciseListItem[];
-  nextCursor: string | null;
-  loadingMore: boolean;
-  loadMoreError: string | null;
+  items: ExerciseListItem[];
+  searchActive: boolean;
   onOpen: (exercise: ExerciseListItem) => void;
-  onLoadMore: (cursor: string) => void;
 }) {
-  const items = [...firstPage.items, ...extraItems];
-
   if (items.length === 0) {
-    return <EmptyState message="조건에 맞는 운동이 아직 없어요." />;
+    return (
+      <EmptyState
+        message={
+          searchActive
+            ? '검색한 운동명을 찾지 못했어요.'
+            : '이 부위의 운동이 아직 없어요.'
+        }
+      />
+    );
   }
 
   return (
@@ -304,20 +287,47 @@ function CatalogList({
           </Card>
         </Pressable>
       ))}
-
-      {loadMoreError ? (
-        <InlineFeedback tone="error" message={loadMoreError} />
-      ) : null}
-      {nextCursor !== null ? (
-        <Button
-          label={loadingMore ? '불러오는 중…' : '더 보기'}
-          tone="secondary"
-          disabled={loadingMore}
-          onPress={() => onLoadMore(nextCursor)}
-        />
-      ) : null}
     </ScrollView>
   );
+}
+
+async function loadEntireCatalog(
+  api: Pick<Api, 'listExercises'>,
+  bodyAreaCode: string | undefined,
+  signal?: AbortSignal,
+): Promise<ExerciseListResponse> {
+  const items: ExerciseListItem[] = [];
+  let cursor: string | null | undefined;
+  let catalogVersion = '';
+  const seenCursors = new Set<string>();
+
+  do {
+    const page = await api.listExercises(
+      { bodyAreaCode, cursor: cursor ?? undefined, limit: 100 },
+      signal,
+    );
+    if (catalogVersion === '') catalogVersion = page.catalog_version;
+    items.push(...page.items);
+    cursor = page.next_cursor;
+    if (cursor !== null) {
+      if (seenCursors.has(cursor)) break;
+      seenCursors.add(cursor);
+    }
+  } while (cursor !== null);
+
+  return { items, next_cursor: null, catalog_version: catalogVersion };
+}
+
+function filterByExerciseName(
+  items: ExerciseListItem[],
+  searchQuery: string,
+): ExerciseListItem[] {
+  const query = searchQuery.trim().toLocaleLowerCase('ko-KR');
+  return query.length === 0
+    ? items
+    : items.filter((item) =>
+        item.name.toLocaleLowerCase('ko-KR').includes(query),
+      );
 }
 
 function catalogFocusLabel(item: ExerciseListItem): string {
@@ -370,25 +380,77 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'center',
   },
-  headerSubtitle: {
-    color: colors.textSub,
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: 'center',
-  },
   headerSideSpacer: {
     width: 44,
     height: 44,
   },
-  filterGroup: {
-    gap: spacing.xs,
-    marginBottom: spacing.xs,
+  catalogControls: {
+    gap: spacing.md,
+    marginBottom: spacing.sm,
   },
-  filterRow: {
+  searchField: {
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
-    flexWrap: 'wrap',
     gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.control,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 14,
+  },
+  searchIcon: {
+    width: 18,
+    height: 18,
+  },
+  searchIconCircle: {
+    position: 'absolute',
+    top: 1,
+    left: 1,
+    width: 12,
+    height: 12,
+    borderWidth: 2,
+    borderColor: colors.textMuted,
+    borderRadius: 6,
+  },
+  searchIconHandle: {
+    position: 'absolute',
+    right: 1,
+    bottom: 2,
+    width: 7,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: colors.textMuted,
+    transform: [{ rotate: '45deg' }],
+  },
+  searchInput: {
+    minWidth: 0,
+    flex: 1,
+    color: colors.text,
+    fontSize: 15,
+    paddingVertical: 0,
+  },
+  searchClearButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    backgroundColor: colors.surfaceAlt,
+  },
+  searchClearText: {
+    marginTop: -2,
+    color: colors.textMuted,
+    fontSize: 20,
+    lineHeight: 22,
+  },
+  filterSection: {
+    gap: spacing.xs,
+  },
+  filterRow: {
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingRight: spacing.sm,
   },
   filterGroupLabel: {
     color: colors.textMuted,
@@ -396,8 +458,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   filterChip: {
+    minHeight: 36,
+    justifyContent: 'center',
     paddingHorizontal: 10,
-    paddingVertical: 3,
+    paddingVertical: 6,
     borderRadius: radii.button,
     borderWidth: 1,
     borderColor: colors.border,

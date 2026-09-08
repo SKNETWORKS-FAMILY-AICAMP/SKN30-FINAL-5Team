@@ -22,7 +22,6 @@ type MyPageContainerProps = {
   api: Api;
   me: MeResponse;
   onNavigateTab: (tab: TabId) => void;
-  onOpenExerciseCatalog?: () => void;
   onRefreshMe: () => Promise<void>;
   onSignOut: () => void;
   now?: Date;
@@ -40,7 +39,6 @@ export function MyPageContainer({
   api,
   me,
   onNavigateTab,
-  onOpenExerciseCatalog,
   onRefreshMe,
   onSignOut,
   now,
@@ -180,7 +178,6 @@ export function MyPageContainer({
       onConfirmWithdraw={() => void requestDeletion.run()}
       onConfirmLogout={onSignOut}
       onNavigateTab={onNavigateTab}
-      onOpenExerciseCatalog={onOpenExerciseCatalog}
       persistedSettingsAvailable={false}
       previewState={previewState}
     />

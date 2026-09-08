@@ -182,7 +182,7 @@ export const HOME_DEFAULT_CHECKIN: HomeCheckin = {
   locationCode: null,
   redFlagPresent: null,
   sleepHours: '',
-  workoutMinutes: '',
+  workoutMinutes: '30',
 };
 
 export const HOME_CHECKIN_OPTIONS = {

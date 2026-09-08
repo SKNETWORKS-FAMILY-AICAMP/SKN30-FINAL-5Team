@@ -57,6 +57,7 @@ import { EditRoutineSheet } from './HomeEditRoutineSheet';
 import {
   CheckinButton,
   EmptyRoutineCard,
+  ExerciseCatalogShortcut,
   GeneratingRoutineCard,
   HomeHeader,
   HomeStateCard,
@@ -100,12 +101,12 @@ export function HomeScreenContent({
   initialState,
   localDate,
   locationCodes = [],
-  recommendedDurationMinutes = null,
   nickname,
   onEditRoutine,
   onNavigateTab,
   onNotifications,
   onOpenCalendar,
+  onOpenExerciseCatalog,
   onOpenCheckin,
   onProfile,
   onRegenerateDecision,
@@ -587,6 +588,12 @@ export function HomeScreenContent({
                 weekLabel={displayWeekLabel}
               />
             ) : null}
+            {contentReady ? (
+              <ExerciseCatalogShortcut
+                disabled={inlineEditing}
+                onPress={onOpenExerciseCatalog}
+              />
+            ) : null}
             {showCheckin && !showGuidanceCard ? (
               <CheckinButton
                 label={checkinLabel}
@@ -799,7 +806,6 @@ export function HomeScreenContent({
             draft={checkinDraft}
             locationCodes={apiMode ? locationCodes : []}
             locationRequired={apiMode}
-            recommendedDurationMinutes={recommendedDurationMinutes}
             onAddAvailabilitySlot={() =>
               setCheckinDraft((current) => ({
                 ...current,

@@ -65,14 +65,13 @@ export type HomeScreenProps = {
   notificationToastVisible?: boolean;
   localDate?: string;
   locationCodes?: readonly string[];
-  /** Server-provided guidance; never computed or enforced by the client. */
-  recommendedDurationMinutes?: number | null;
   nickname?: string;
   onChooseRest?: () => void;
   onEditRoutine?: () => void;
   onNavigateTab?: (tab: HomeTab) => void;
   onNotifications?: () => void;
   onOpenCalendar?: () => void;
+  onOpenExerciseCatalog?: () => void;
   onOpenCheckin?: () => void;
   onProfile?: () => void;
   onRegenerateDecision?: () => void;

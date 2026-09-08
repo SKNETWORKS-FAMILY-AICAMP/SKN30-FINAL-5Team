@@ -70,9 +70,6 @@ const TITLES: Record<MyPageEditableField, string> = {
   persistent_pains: '평소 불편한 부위 수정',
 };
 
-const BASIC_PROFILE_DESCRIPTION =
-  '닉네임, 프로필 사진, 생년월일, 체중을 수정할 수 있어요.';
-
 const MY_PAGE_DEFAULT_BODY_AREA_CODES = [
   'SHOULDER',
   'LOWER_BACK',
@@ -895,7 +892,7 @@ function DescriptionOption({
 }
 
 function editorDescription(field: MyPageEditableField): string {
-  if (field === 'basic_profile') return BASIC_PROFILE_DESCRIPTION;
+  if (field === 'basic_profile') return '';
   if (field === 'persistent_pains') {
     return '부위와 통증 정도를 확인한 뒤 저장해주세요.';
   }

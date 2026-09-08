@@ -556,7 +556,9 @@ describe('HomeContainer', () => {
       } as unknown as Partial<Api>),
     );
 
-    expect(screen.getByText('운동 계획을 준비하고 있어요')).toBeTruthy();
+    expect(
+      screen.getByText('헬끼 준비 중이에요 조금만 기다려주세요!'),
+    ).toBeTruthy();
   });
 
   it('offers one check-in entry point before the check-in', async () => {
@@ -636,7 +638,8 @@ describe('HomeContainer', () => {
       screen.getByRole('button', { name: '무릎' }).props.accessibilityState
         .selected,
     ).toBe(false);
-    expect(screen.getByText('1회 권장 운동 시간: 35분')).toBeOnTheScreen();
+    expect(screen.queryByText(/권장 운동 시간/)).toBeNull();
+    expect(screen.getByLabelText('운동 가능 시간 30분')).toBeOnTheScreen();
   });
 
   it('keeps the profile defaults when the server defaults are unavailable', async () => {
@@ -909,7 +912,9 @@ describe('HomeContainer', () => {
       } as unknown as Partial<Api>),
     );
 
-    expect(await screen.findByText('운동 계획을 준비하고 있어요')).toBeTruthy();
+    expect(
+      await screen.findByText('헬끼 준비 중이에요 조금만 기다려주세요!'),
+    ).toBeTruthy();
     expect(screen.queryByRole('button', { name: '다시 준비하기' })).toBeNull();
   });
 
@@ -1131,7 +1136,7 @@ describe('HomeContainer', () => {
     fireEvent.press(
       await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
     );
-    for (let count = 0; count < 9; count += 1) {
+    for (let count = 0; count < 6; count += 1) {
       fireEvent.press(
         screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
       );
@@ -2398,6 +2403,15 @@ describe('OnboardingScreen', () => {
     ).not.toBeOnTheScreen();
     expect(screen.getByText('아니요')).toBeOnTheScreen();
     expect(screen.getByText('예')).toBeOnTheScreen();
+    expect(
+      StyleSheet.flatten(
+        screen.getByRole('button', { name: '아니요' }).props.style,
+      ).flexBasis,
+    ).toBe(0);
+    expect(
+      StyleSheet.flatten(screen.getByRole('button', { name: '예' }).props.style)
+        .flexBasis,
+    ).toBe(0);
     expect(screen.queryByText('선택 안 함')).not.toBeOnTheScreen();
     expect(screen.queryByText('기본 정보를 알려주세요')).not.toBeOnTheScreen();
   });

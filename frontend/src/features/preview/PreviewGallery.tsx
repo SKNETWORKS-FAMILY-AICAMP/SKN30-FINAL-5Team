@@ -1257,6 +1257,8 @@ export function PreviewGallery({
                             : undefined,
                         onNavigateTab: navigateHomeTab,
                         onOpenCalendar: () => setScreenId('calendar-report'),
+                        onOpenExerciseCatalog: () =>
+                          setScreenId('exercise-catalog'),
                         onProfile: () => setScreenId('my-page'),
                         onReorderPlan: reorderHomePlan,
                         onRegenerateDecision: () =>
@@ -1372,9 +1374,6 @@ export function PreviewGallery({
                       api={accountPreviewApi}
                       me={PREVIEW_ME}
                       onNavigateTab={navigateHomeTab}
-                      onOpenExerciseCatalog={() =>
-                        setScreenId('exercise-catalog')
-                      }
                       onRefreshMe={async () => undefined}
                       onSignOut={() => undefined}
                       previewState={myPageState}
@@ -1383,7 +1382,7 @@ export function PreviewGallery({
                   {screenId === 'exercise-catalog' ? (
                     <ExerciseCatalogScreen
                       api={exerciseCatalogApi}
-                      onBack={() => setScreenId('my-page')}
+                      onBack={() => setScreenId('home')}
                     />
                   ) : null}
                   {screenId === 'workout' ? (

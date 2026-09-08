@@ -199,6 +199,38 @@ export function createHomeStyles(
     progressPercent: { color: '#A45F00', fontSize: f(22), fontWeight: '800' },
     checkinButton: { height: Math.max(44, s(52)) },
     checkinWrapper: { marginBottom: s(16) },
+    catalogShortcut: {
+      minHeight: Math.max(52, s(56)),
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: s(12),
+      marginBottom: s(16),
+      borderWidth: s(1),
+      borderColor: '#F1D39A',
+      borderRadius: s(18),
+      backgroundColor: '#FFFFFF',
+      paddingVertical: s(10),
+      paddingHorizontal: s(16),
+      ...shadow(4, 12, 0.08),
+    },
+    catalogShortcutPressed: { opacity: 0.72 },
+    catalogShortcutCopy: { minWidth: 0, flex: 1 },
+    catalogShortcutTitle: {
+      color: '#5A4636',
+      fontSize: f(15),
+      fontWeight: '800',
+    },
+    catalogShortcutDescription: {
+      marginTop: s(2),
+      color: '#958476',
+      fontSize: f(12),
+      lineHeight: f(18),
+    },
+    catalogShortcutArrow: {
+      color: '#A45F00',
+      fontSize: f(26),
+      lineHeight: f(28),
+    },
     messageCard: {
       alignItems: 'center',
       marginBottom: s(16),
@@ -207,6 +239,9 @@ export function createHomeStyles(
       paddingVertical: s(22),
       paddingHorizontal: s(20),
       ...shadow(6, 18, 0.1),
+    },
+    routineSetupLoadingCard: {
+      paddingVertical: s(16),
     },
     messageCardAction: { alignSelf: 'stretch', marginTop: s(14) },
     messageTitle: {

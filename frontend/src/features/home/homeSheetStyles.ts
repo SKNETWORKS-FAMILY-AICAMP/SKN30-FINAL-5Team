@@ -26,7 +26,6 @@ export function createHomeSheetStyles(
       paddingBottom: s(30),
     },
     checkinSheet: { paddingTop: s(14), paddingBottom: s(16) },
-    checkinIntro: { marginTop: s(2), lineHeight: f(18) },
     checkinScrollContent: { gap: s(6), paddingTop: s(10), paddingBottom: s(5) },
     redFlagSymptoms: {
       flexDirection: 'row',
@@ -229,18 +228,6 @@ export function createHomeSheetStyles(
       fontSize: f(15),
       fontWeight: '800',
       textAlign: 'center',
-    },
-    durationRecommendation: {
-      marginTop: s(4),
-      color: '#5A4636',
-      fontSize: f(13),
-      fontWeight: '700',
-      lineHeight: f(19),
-    },
-    durationRecommendationDetail: {
-      color: '#786454',
-      fontSize: f(12),
-      lineHeight: f(18),
     },
     numberInputGroup: { flexDirection: 'row', alignItems: 'center', gap: s(6) },
     numberInput: {

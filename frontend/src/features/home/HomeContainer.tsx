@@ -245,6 +245,7 @@ export function HomeContainer({
   onResumeWorkout,
   onTab,
   onOpenCalendar,
+  onOpenExerciseCatalog,
   hasUnreadNotification = false,
   notificationPanel,
   onDismissNotificationPanel,
@@ -281,6 +282,7 @@ export function HomeContainer({
   onResumeWorkout?: (locationCode?: string) => void;
   onTab: (tab: TabId) => void;
   onOpenCalendar: () => void;
+  onOpenExerciseCatalog?: () => void;
   hasUnreadNotification?: boolean;
   notificationPanel?: ReactNode;
   onDismissNotificationPanel?: () => void;
@@ -918,9 +920,6 @@ export function HomeContainer({
       safetyGuidance={safetyGuidance}
       persistentPains={checkinDefaults?.pains ?? profile?.persistent_pains}
       locationCodes={locationCodes}
-      recommendedDurationMinutes={
-        checkinDefaults?.recommended_duration_minutes ?? null
-      }
       busy={busy}
       routineLoadingPhaseCode={routineLoadingPhaseCode ?? undefined}
       actionError={actionError}
@@ -951,6 +950,7 @@ export function HomeContainer({
       onNotifications={onNotifications}
       onProfile={() => onTab('my')}
       onOpenCalendar={onOpenCalendar}
+      onOpenExerciseCatalog={onOpenExerciseCatalog}
     />
   );
 }
