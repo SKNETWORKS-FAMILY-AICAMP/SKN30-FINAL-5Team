@@ -115,3 +115,39 @@ def test_registered_counts_are_the_bundle_on_disk() -> None:
             f"{kind}: approvals.py records {count} but the bundle manifest sums to {actual} "
             f"over {', '.join(fields)}"
         )
+
+
+def test_every_catalog_row_carries_complete_met_provenance() -> None:
+    """A calorie estimate needs all six MET fields, not just a value.
+
+    `_has_approved_met_provenance` refuses a partial record, so a bundle that
+    dropped one field would still import and still activate, and every finished
+    session would quietly report no calories at all. Checking the pinned bundle
+    is the only place that failure is loud.
+    """
+
+    required = (
+        "met_value",
+        "met_source_code",
+        "met_source_activity_code",
+        "met_mapping_method_code",
+        "met_review_status_code",
+        "met_policy_version",
+    )
+    exercises = [
+        json.loads(line)
+        for line in (DEFAULT_BUNDLE_DIRECTORY / "catalog/catalog/exercises.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if line.strip()
+    ]
+    assert exercises, "the pinned bundle must carry a catalog"
+    incomplete = [
+        row["stable_code"]
+        for row in exercises
+        if any(not row.get(field) for field in required)
+        or row["met_review_status_code"] != "DOMAIN_APPROVED"
+    ]
+    assert not incomplete, (
+        f"{len(incomplete)} rows cannot produce a calorie estimate: {incomplete[:5]}"
+    )
