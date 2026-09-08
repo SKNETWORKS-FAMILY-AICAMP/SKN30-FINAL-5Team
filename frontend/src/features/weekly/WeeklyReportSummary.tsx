@@ -45,9 +45,18 @@ export function WeeklyReportSummary({
       <View style={[styles.card, styles.heroCard]}>
         <View style={styles.heroCopy}>
           <Text style={styles.eyebrow}>한 주 돌아보기</Text>
-          <Text accessibilityRole="header" style={styles.heroTitle}>
-            {report.summary}
+          {/* A short fixed headline keeps its own line whatever the viewport;
+              the server summary reads as body copy below it, so a longer week
+              summary wraps without pushing the heading off balance. */}
+          <Text
+            accessibilityRole="header"
+            adjustsFontSizeToFit
+            numberOfLines={1}
+            style={styles.heroTitle}
+          >
+            꾸준히 해내고 있어요!
           </Text>
+          <Text style={styles.heroBody}>{report.summary}</Text>
         </View>
         <View style={styles.heroMascotArea}>
           <View style={styles.speechBubble}>
@@ -348,9 +357,9 @@ const styles = StyleSheet.create({
     gap: 16,
     padding: 18,
   },
-  heroCard: { alignItems: 'center', flexDirection: 'row', gap: 14 },
-  heroMascotArea: { alignItems: 'center', gap: 10, width: 116 },
-  heroMascot: { height: 96, width: 96 },
+  heroCard: { alignItems: 'flex-start', flexDirection: 'row', gap: 12 },
+  heroMascotArea: { alignItems: 'center', gap: 9, width: 100 },
+  heroMascot: { height: 88, width: 88 },
   speechBubble: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
@@ -390,10 +399,11 @@ const styles = StyleSheet.create({
   eyebrow: { color: colors.greenText, fontSize: 12, fontWeight: '900' },
   heroTitle: {
     color: colors.text,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '900',
-    lineHeight: 28,
+    lineHeight: 25,
   },
+  heroBody: { color: colors.textSub, fontSize: 13.5, lineHeight: 20 },
   progressRow: { alignItems: 'center', flexDirection: 'row', gap: 16 },
   progressBadge: {
     alignItems: 'center',

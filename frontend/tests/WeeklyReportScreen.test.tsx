@@ -205,7 +205,7 @@ describe('WeeklyReportScreen selected week', () => {
     expect(within(safetyStopped).getByText('2')).toBeOnTheScreen();
   });
 
-  it('keeps the weekly summary as the headline on safety-stopped weeks', async () => {
+  it('opens on the week itself on safety-stopped weeks', async () => {
     renderExistingReport({
       ...REPORT,
       counts: {
@@ -215,11 +215,9 @@ describe('WeeklyReportScreen selected week', () => {
       },
     });
 
-    // The report is written after the week closes, so it opens on the week
-    // itself. The safety notice stays, one level down from the headline.
-    expect(
-      await screen.findByRole('header', { name: REPORT.summary }),
-    ).toBeOnTheScreen();
+    // The report is written after the week closes, so a safety stop does not
+    // take over the heading; the week summary still leads the card.
+    expect(await screen.findByText(REPORT.summary)).toBeOnTheScreen();
     expect(
       screen.queryByText('안전 중단 기록을 먼저 확인해 주세요'),
     ).toBeNull();
