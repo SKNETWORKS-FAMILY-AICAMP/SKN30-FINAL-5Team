@@ -539,7 +539,6 @@ describe('HomeContainer', () => {
       planRevision: null,
       onPlanRevisionChange: jest.fn(),
       onSessionStarted: jest.fn(),
-      onRestChosen: jest.fn(),
       onTab: jest.fn(),
       onOpenCalendar: jest.fn(),
       finalValidationHoldMs: 0,
@@ -1613,30 +1612,14 @@ describe('HomeContainer', () => {
     );
   });
 
-  it('reports a rest selection without creating a session', async () => {
-    const selectOption = jest.fn(async () => ({
-      selection_id: 'sel-1',
-      decision_id: 'decision-1',
-      option_id: 'option-rest',
-      selected_action_code: 'REST' as const,
-      workout_session: null,
-      selected_at: '2026-08-17T02:00:00+09:00',
-      pressure_notifications_allowed: false,
-    }));
-    const onRestChosen = jest.fn();
-    const onSessionStarted = jest.fn();
-
+  it('does not offer REST even when the server returns a selectable option', async () => {
+    const selectOption = jest.fn();
     renderHome(homeApi({ selectOption } as unknown as Partial<Api>), {
       decision: decision(),
-      onRestChosen,
-      onSessionStarted,
     });
-
-    fireEvent.press(await screen.findByText('오늘은 쉬기'));
-
-    await waitFor(() => expect(onRestChosen).toHaveBeenCalledWith(false));
-    expect(selectOption).toHaveBeenCalledWith('decision-1', 'option-rest');
-    expect(onSessionStarted).not.toHaveBeenCalled();
+    await screen.findByRole('button', { name: '운동 시작하기' });
+    expect(screen.queryByRole('button', { name: '오늘은 쉬기' })).toBeNull();
+    expect(selectOption).not.toHaveBeenCalled();
   });
 
   it('runs the first-check-in loading flow again after the user leaves rest mode', async () => {
@@ -1670,7 +1653,6 @@ describe('HomeContainer', () => {
           planRevision={null}
           onPlanRevisionChange={jest.fn()}
           onSessionStarted={jest.fn()}
-          onRestChosen={jest.fn()}
           onCheckinDecisionSuccess={() => setRestToday(false)}
           onTab={jest.fn()}
           onOpenCalendar={jest.fn()}
@@ -1741,7 +1723,6 @@ describe('HomeContainer', () => {
           planRevision={null}
           onPlanRevisionChange={jest.fn()}
           onSessionStarted={jest.fn()}
-          onRestChosen={jest.fn()}
           onCheckinDecisionSuccess={() => setRestToday(false)}
           onTab={jest.fn()}
           onOpenCalendar={jest.fn()}

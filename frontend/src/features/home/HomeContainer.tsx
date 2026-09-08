@@ -231,11 +231,11 @@ export function HomeContainer({
   api,
   me,
   restToday,
+  safetyGuidance,
   decision,
   onDecisionChange,
   planRevision,
   onSessionStarted,
-  onRestChosen,
   onCheckinDecisionSuccess,
   alternativeUsedCount = 0,
   onAlternativeSuccess,
@@ -257,6 +257,7 @@ export function HomeContainer({
   me: MeResponse;
   /** Owned by the flow above, so the choice survives leaving this screen. */
   restToday: boolean;
+  safetyGuidance?: string;
   /** Today's decision, held above so a tab switch does not discard it. */
   decision: DecisionResponse | null;
   onDecisionChange: Dispatch<SetStateAction<DecisionResponse | null>>;
@@ -268,7 +269,6 @@ export function HomeContainer({
     plan: WorkoutPlan,
     locationCode?: string,
   ) => void;
-  onRestChosen: (pressureNotificationsAllowed: boolean) => void;
   /** Clear flow-owned REST state only after a replacement decision succeeds. */
   onCheckinDecisionSuccess?: () => void;
   /** UI-only until the backend owns the combined alternative quota. */
@@ -709,26 +709,6 @@ export function HomeContainer({
     });
   }, [api, context?.location_code, decision, onSessionStarted, run]);
 
-  const chooseRest = useCallback(() => {
-    if (decision === null) {
-      return;
-    }
-    const option = decision.options.find(
-      (entry) => entry.option_code === 'REST' && entry.selectable,
-    );
-    if (option === undefined) {
-      return;
-    }
-
-    run('starting', async () => {
-      const selection = await api.selectOption(
-        decision.decision_id,
-        option.option_id,
-      );
-      onRestChosen(selection.pressure_notifications_allowed ?? false);
-    });
-  }, [api, decision, onRestChosen, run]);
-
   const persistPlanEdit = useCallback(
     (attempt: PlanEditAttempt) => {
       if (inFlight.current) {
@@ -935,6 +915,7 @@ export function HomeContainer({
       weeklyGoalCount={profile?.desired_weekly_workout_count ?? 1}
       planRevision={planRevision}
       restToday={restToday}
+      safetyGuidance={safetyGuidance}
       persistentPains={checkinDefaults?.pains ?? profile?.persistent_pains}
       locationCodes={locationCodes}
       recommendedDurationMinutes={
@@ -959,7 +940,6 @@ export function HomeContainer({
           ? () => onResumeWorkout(context?.location_code)
           : undefined
       }
-      onChooseRest={chooseRest}
       onRegenerateDecision={regenerateDecision}
       onReorderPlan={reorderPlan}
       onSubmitUserEdits={submitUserEdits}

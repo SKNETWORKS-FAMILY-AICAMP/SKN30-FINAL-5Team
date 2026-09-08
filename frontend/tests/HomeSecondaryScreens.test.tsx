@@ -40,7 +40,7 @@ const EXPECTED_CALENDAR_WEEKS = [
       '28:done:false',
       '29:partial:false',
       '30:done:false',
-      '31:miss:false',
+      '31:rest:false',
       '1:partial:true',
       '2:rest:true',
     ],
@@ -56,10 +56,10 @@ const EXPECTED_CALENDAR_WEEKS = [
       '5:done:true',
       '6:partial:true',
       '7:done:true',
-      '8:miss:true',
+      '8:rest:true',
       '9:rest:true',
     ],
-    [3, 1, 2, 1],
+    [3, 1, 3, 0],
   ],
   [
     'week-3',
@@ -126,8 +126,8 @@ const EXPECTED_CALENDAR_WEEKS = [
 const EXPECTED_DAY_VISUALS = [
   ['done', '✓', 0x2713, '#5E8342', '#FFFFFF', '#5E8342'],
   ['partial', '△', 0x25b3, '#F6BA50', '#6B520C', '#F6BA50'],
-  ['miss', '×', 0x00d7, '#FFFFFF', '#C0BBB1', '#E2DED4'],
   ['rest', '–', 0x2013, '#EDEAE2', '#8B8780', '#EDEAE2'],
+  ['safety', '!', 0x21, '#FCE3E7', '#C45C70', '#FCE3E7'],
   ['today', '', undefined, 'transparent', 'transparent', 'transparent'],
   ['upcoming', '', undefined, 'transparent', 'transparent', 'transparent'],
 ] as const;
@@ -210,8 +210,8 @@ describe('Home secondary visual prototypes', () => {
     expect(CALENDAR_MONTH_STATS.map(({ key, value }) => [key, value])).toEqual([
       ['done', 4],
       ['partial', 3],
-      ['rest', 3],
-      ['miss', 1],
+      ['rest', 4],
+      ['safety', 0],
     ]);
     expect(CALENDAR_WEEKDAYS.map(({ label, color }) => [label, color])).toEqual(
       [
@@ -231,8 +231,8 @@ describe('Home secondary visual prototypes', () => {
 
     expect(screen.getByText('6주차')).toBeOnTheScreen();
     expect(
-      screen.getByTestId('calendar-day-week-2-0-mark-glyph').props.children,
-    ).toBe('–');
+      screen.getByTestId('calendar-day-week-2-0-mark-moon'),
+    ).toBeOnTheScreen();
     expect(
       screen.getByTestId('calendar-day-week-3-2-mark-glyph').props.children,
     ).toBe('');
@@ -316,12 +316,12 @@ describe('Home secondary visual prototypes', () => {
     );
     expect(
       CALENDAR_STATUS_ORDER.map((status) => CALENDAR_DAY_VISUALS[status].label),
-    ).toEqual(['완료', '부분 수행', '휴식', '미수행']);
+    ).toEqual(['완료', '부분 수행', '휴식', '안전 중단']);
     expect(CALENDAR_MONTH_STATS.map((stat) => stat.label)).toEqual([
       '완료',
       '부분 수행',
       '휴식',
-      '미수행',
+      '안전 중단',
     ]);
   });
 
@@ -462,9 +462,11 @@ describe('Home secondary visual prototypes', () => {
     fireEvent.press(
       screen.getByRole('button', { name: '이 루틴으로 시작하기' }),
     );
-    fireEvent.press(screen.getByRole('button', { name: '오늘은 휴식하기' }));
+    expect(
+      screen.queryByRole('button', { name: '오늘은 휴식하기' }),
+    ).toBeNull();
     expect(onStartWorkout).toHaveBeenCalledTimes(1);
-    expect(onSelectRest).toHaveBeenCalledTimes(1);
+    expect(onSelectRest).not.toHaveBeenCalled();
   });
 
   it('shows an empty API state at the bottom without restoring map controls', async () => {

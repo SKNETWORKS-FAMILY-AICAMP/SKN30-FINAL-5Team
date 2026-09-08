@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   Platform,
   Pressable,
@@ -10,7 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { agentTypeLabel } from '../../api/labels';
+import { decisionReasonLabel } from '../../api/labels';
 import type { DecisionResponse } from '../../api/types';
 import type { TabId } from '../../components/brand/BrandChrome';
 import { getContainedInterfaceScale, useScale } from '../../components/scale';
@@ -261,71 +260,58 @@ export function RecommendationReasonSheet({
   reasons: readonly string[];
 }) {
   const styles = useHomeStyles();
-  const agentSummaries = decision.public_agent_summaries ?? [];
-  const perspectiveSummaries = agentSummaries.filter(
-    (summary) => summary.agent_type_code !== 'COORDINATOR',
+  const codes = [
+    ...new Set([
+      ...decision.reason_codes,
+      ...(decision.adjustment_reason_codes ?? []),
+      ...(decision.safety_summary?.reason_codes ?? []),
+    ]),
+  ];
+  const goalCodes = codes.filter((code) => /GOAL|TIME|DURATION/.test(code));
+  const environmentCodes = codes.filter((code) =>
+    /LOCATION|EQUIPMENT/.test(code),
   );
-  const coordinatorSummary = agentSummaries.find(
-    (summary) => summary.agent_type_code === 'COORDINATOR',
+  const conditionCodes = codes.filter(
+    (code) => !goalCodes.includes(code) && !environmentCodes.includes(code),
   );
-  const [criteriaExpanded, setCriteriaExpanded] = useState(false);
+  const describe = (selectedCodes: string[], fallback: string) => {
+    const labels = [...new Set(selectedCodes.map(decisionReasonLabel))].filter(
+      (label): label is string => label !== null && reasons.includes(label),
+    );
+    return labels.length > 0 ? labels.join(' ') : fallback;
+  };
+  const sections = [
+    {
+      title: '운동 목표',
+      text: describe(goalCodes, '목표와 운동 가능 시간을 고려했어요.'),
+    },
+    {
+      title: '컨디션',
+      text: describe(
+        conditionCodes,
+        '체크인에서 알려주신 몸 상태를 고려했어요.',
+      ),
+    },
+    {
+      title: '운동 환경',
+      text: describe(
+        environmentCodes,
+        '운동 장소와 사용할 수 있는 장비를 고려했어요.',
+      ),
+    },
+  ];
   return (
-    <SheetFrame onClose={onClose} title="추천 이유" zIndex={24}>
-      <Text style={styles.sheetIntro}>
-        저장된 체크인과 안전 기준을 바탕으로 서버가 결정한 내용이에요.
-      </Text>
+    <SheetFrame onClose={onClose} title="이 루틴을 추천한 이유" zIndex={24}>
       <ScrollView
         contentContainerStyle={styles.reasonSheetContent}
         showsVerticalScrollIndicator={false}
       >
-        {perspectiveSummaries.length > 0 ? (
-          <View style={styles.reasonSection}>
-            <Text style={styles.checkinSectionTitle}>에이전트별 판단</Text>
-            {perspectiveSummaries.map((summary) => (
-              <View
-                key={`${summary.agent_type_code}-${summary.summary}`}
-                style={styles.agentSummary}
-              >
-                <Text style={styles.agentSummaryLabel}>
-                  {agentTypeLabel(summary.agent_type_code)}
-                </Text>
-                <Text style={styles.reasonText}>{summary.summary}</Text>
-              </View>
-            ))}
+        {sections.map((section) => (
+          <View key={section.title} style={styles.reasonSection}>
+            <Text style={styles.checkinSectionTitle}>{section.title}</Text>
+            <Text style={styles.reasonText}>{section.text}</Text>
           </View>
-        ) : null}
-
-        {coordinatorSummary ? (
-          <View style={styles.reasonSection}>
-            <Text style={styles.checkinSectionTitle}>최종 조정 이유</Text>
-            <Text style={styles.reasonText}>{coordinatorSummary.summary}</Text>
-          </View>
-        ) : null}
-
-        {reasons.length > 0 ? (
-          <View style={styles.reasonSection}>
-            <Pressable
-              accessibilityLabel={`반영한 기준 ${criteriaExpanded ? '접기' : '펼치기'}`}
-              accessibilityRole="button"
-              accessibilityState={{ expanded: criteriaExpanded }}
-              onPress={() => setCriteriaExpanded((current) => !current)}
-              style={styles.reasonDisclosureHeader}
-            >
-              <Text style={styles.checkinSectionTitle}>반영한 기준</Text>
-              <Text style={styles.reasonDisclosureAction}>
-                {criteriaExpanded ? '접기' : '펼치기'}
-              </Text>
-            </Pressable>
-            {criteriaExpanded
-              ? reasons.map((reason) => (
-                  <View key={reason} style={styles.reasonRow}>
-                    <Text style={styles.reasonBullet}>•</Text>
-                    <Text style={styles.reasonText}>{reason}</Text>
-                  </View>
-                ))
-              : null}
-          </View>
-        ) : null}
+        ))}
       </ScrollView>
     </SheetFrame>
   );

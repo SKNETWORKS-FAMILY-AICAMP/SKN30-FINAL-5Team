@@ -292,7 +292,7 @@ export function SessionScreen({
         />
         {!canFinish ? (
           <Text style={styles.footerNote}>
-            완료한 블록이 하나도 없어요. 블록을 체크하거나 미수행으로 기록해요.
+            완료한 블록이 하나도 없어요. 블록을 체크하거나 휴식으로 기록해요.
           </Text>
         ) : null}
         <Button

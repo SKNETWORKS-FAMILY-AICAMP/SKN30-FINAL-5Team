@@ -532,12 +532,13 @@ export function createApi(client: ApiClient) {
      * `revision_sequence` and `ai_revision_count` that a later revision needs;
      * there is no read endpoint for them, so the caller must keep what it gets.
      */
-    createInitialWeeklyPlan(weekStart: string) {
+    createInitialWeeklyPlan(weekStart: string, idempotencyKey?: string) {
       return client.request<WeeklyPlanRevisionResponse>({
         method: 'POST',
         path: `/weeks/${weekStart}/plan`,
         body: {},
         idempotent: true,
+        idempotencyKey,
       });
     },
 
@@ -571,12 +572,17 @@ export function createApi(client: ApiClient) {
       });
     },
 
-    acknowledgeWeeklyReport(reportId: string, acknowledgedAt: string) {
+    acknowledgeWeeklyReport(
+      reportId: string,
+      acknowledgedAt: string,
+      idempotencyKey?: string,
+    ) {
       return client.request<WeeklyReportResponse>({
         method: 'POST',
         path: `/weekly-reports/${reportId}/acknowledgement`,
         body: { acknowledged_at: acknowledgedAt },
         idempotent: true,
+        idempotencyKey,
       });
     },
 

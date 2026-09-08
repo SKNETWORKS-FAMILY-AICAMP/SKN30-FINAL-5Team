@@ -41,7 +41,10 @@ import {
 import { MascotHouseScreen } from '../features/house/MascotHouseScreen';
 import { RewardsScreen } from '../features/rewards/RewardsScreen';
 import type { SessionOutcome } from '../features/workout/SessionScreen';
-import { SessionResultScreen } from '../features/workout/SessionResultScreen';
+import {
+  isRestOutcome,
+  SessionResultScreen,
+} from '../features/workout/SessionResultScreen';
 import { WorkoutScreen } from '../features/workout/WorkoutScreen';
 import { WeeklyReportScreen } from '../features/weekly/WeeklyReportScreen';
 
@@ -74,9 +77,10 @@ export function MainFlow({
 }) {
   const localDate = localDateString(new Date(), me.profile?.timezone);
   const [step, setStep] = useState<Step>({ name: 'home' });
-  const [restChoice, setRestChoice] = useState<{
+  const [restLocalDate, setRestLocalDate] = useState<string | null>(null);
+  const [homeSafetyGuidance, setHomeSafetyGuidance] = useState<{
     localDate: string;
-    pressureNotificationsAllowed: boolean;
+    message: string;
   } | null>(null);
   const [decision, setDecision] = useState<DecisionResponse | null>(null);
   const [planRevision, setPlanRevision] =
@@ -86,9 +90,6 @@ export function MainFlow({
     useState<WorkoutSessionDetailResponse | null>(null);
   const [homeRecoveryState, setHomeRecoveryState] = useState<HomeRecoveryState>(
     { status: 'loading' },
-  );
-  const [resumableSessionId, setResumableSessionId] = useState<string | null>(
-    null,
   );
   const [alternativeUsage, setAlternativeUsage] = useState({
     localDate,
@@ -314,7 +315,9 @@ export function MainFlow({
   const routineStartLocalDate = me.profile
     ? localDateString(new Date(me.profile.created_at), me.profile.timezone)
     : undefined;
-  const restToday = restChoice?.localDate === localDate;
+  const restToday =
+    restLocalDate === localDate ||
+    todaySession?.status_code === 'NOT_COMPLETED';
 
   switch (step.name) {
     case 'session':
@@ -326,13 +329,18 @@ export function MainFlow({
           sessionId={step.sessionId}
           plan={step.plan}
           onOutcome={(outcome) => {
-            setResumableSessionId(null);
+            if (isRestOutcome(outcome)) {
+              setRestLocalDate(localDate);
+              setHomeSafetyGuidance(
+                outcome.kind === 'safetyStop'
+                  ? { localDate, message: outcome.event.guidance }
+                  : null,
+              );
+              setRecoveryNonce((value) => value + 1);
+              goHome();
+              return;
+            }
             setStep({ name: 'result', sessionId: step.sessionId, outcome });
-          }}
-          onReturnHomeResumable={() => {
-            setResumableSessionId(step.sessionId);
-            setRecoveryNonce((value) => value + 1);
-            goHome();
           }}
         />
       );
@@ -388,7 +396,6 @@ export function MainFlow({
           api={api}
           timeZone={me.profile?.timezone}
           routineStartLocalDate={routineStartLocalDate}
-          restLocalDate={restChoice?.localDate}
           onNavigateTab={onTab}
           onOpenWeeklyReport={(weekStart) =>
             setStep({ name: 'weekly', weekStart })
@@ -425,13 +432,13 @@ export function MainFlow({
             me={me}
             recoveryState={homeRecoveryState}
             restToday={restToday}
+            safetyGuidance={
+              homeSafetyGuidance?.localDate === localDate
+                ? homeSafetyGuidance.message
+                : undefined
+            }
             decision={decision}
             todaySession={todaySession}
-            localSessionState={
-              todaySession?.session_id === resumableSessionId
-                ? 'STOPPED_RESUMABLE'
-                : 'ACTIVE'
-            }
             alternativeUsedCount={
               alternativeUsage.localDate === localDate
                 ? alternativeUsage.count
@@ -470,12 +477,10 @@ export function MainFlow({
             onDecisionChange={setDecision}
             planRevision={planRevision}
             onSessionStarted={(sessionId, plan, locationCode) => {
-              setResumableSessionId(null);
               setStep({ name: 'session', sessionId, plan, locationCode });
             }}
             onResumeWorkout={(locationCode) => {
               if (todaySession !== null && decision?.final_plan) {
-                setResumableSessionId(null);
                 setStep({
                   name: 'session',
                   sessionId: todaySession.session_id,
@@ -484,10 +489,11 @@ export function MainFlow({
                 });
               }
             }}
-            onRestChosen={(pressureNotificationsAllowed) =>
-              setRestChoice({ localDate, pressureNotificationsAllowed })
-            }
-            onCheckinDecisionSuccess={() => setRestChoice(null)}
+            onCheckinDecisionSuccess={() => {
+              setRestLocalDate(null);
+              setTodaySession(null);
+              setHomeSafetyGuidance(null);
+            }}
             onRecoverDecision={recoverHomeDecision}
             onTab={onTab}
             onOpenCalendar={() => setStep({ name: 'calendar-report' })}

@@ -1,3 +1,4 @@
+import { RestIcon } from './HomeSupport';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -698,15 +699,27 @@ function CalendarStatusMark({
       ]}
       testID={testID}
     >
-      <Text
-        style={[
-          styles.statusMarkText,
-          { color: visual.color, fontSize: size * 0.6, lineHeight: size * 0.6 },
-        ]}
-        testID={`${testID}-glyph`}
-      >
-        {beforeRoutineStart ? '' : visual.glyph}
-      </Text>
+      {!beforeRoutineStart && status === 'rest' ? (
+        <RestIcon
+          color={visual.color}
+          size={size * 0.8}
+          testID={`${testID}-moon`}
+        />
+      ) : (
+        <Text
+          style={[
+            styles.statusMarkText,
+            {
+              color: visual.color,
+              fontSize: size * 0.6,
+              lineHeight: size * 0.6,
+            },
+          ]}
+          testID={`${testID}-glyph`}
+        >
+          {beforeRoutineStart ? '' : visual.glyph}
+        </Text>
+      )}
     </View>
   );
 }

@@ -58,7 +58,7 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.getByTestId('home-routine-state')).toBeOnTheScreen();
     expect(screen.getByText('운동 준비 완료')).toBeOnTheScreen();
     expect(
-      screen.getByText('오늘 컨디션에 맞춘 운동이 준비됐어요.'),
+      screen.getByText('컨디션에 맞춘 운동을 준비했어요.'),
     ).toBeOnTheScreen();
     expect(screen.getByText('상체 근력 · 40분')).toBeOnTheScreen();
     expect(
@@ -381,7 +381,7 @@ describe('HomeScreen Home v1 transcription', () => {
     );
 
     expect(screen.getByLabelText('월요일 일부 완료')).toBeOnTheScreen();
-    expect(screen.getByLabelText('수요일 미수행')).toBeOnTheScreen();
+    expect(screen.getByLabelText('수요일 휴식')).toBeOnTheScreen();
     expect(screen.getAllByLabelText(/요일 기록 없음/)).toHaveLength(5);
     expect(screen.queryByTestId('day-done-image')).toBeNull();
   });
@@ -474,7 +474,7 @@ describe('HomeScreen Home v1 transcription', () => {
     ).toBeNull();
   });
 
-  it('styles rest as a calm full-width secondary action', () => {
+  it('does not mount the preserved rest button after check-in', () => {
     const onChooseRest = jest.fn();
     render(
       <HomeScreen
@@ -482,22 +482,10 @@ describe('HomeScreen Home v1 transcription', () => {
         onChooseRest={onChooseRest}
       />,
     );
-
-    const restButton = screen.getByRole('button', { name: '오늘은 쉬기' });
-    expect(StyleSheet.flatten(restButton.props.style)).toMatchObject({
-      alignSelf: 'stretch',
-      minHeight: expect.any(Number),
-      borderColor: '#BFD09F',
-      backgroundColor: '#F4F8E9',
-      overflow: 'hidden',
-    });
-    expect(screen.getByTestId('home-rest-gradient').props.colors).toEqual(
-      ['#FCFFF8', '#EEF5E2'].map(processColor),
-    );
-    expect(screen.getByTestId('home-rest-icon')).toBeVisible();
-
-    fireEvent.press(restButton);
-    expect(onChooseRest).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: '오늘은 쉬기' })).toBeNull();
+    expect(screen.queryByTestId('home-rest-gradient')).toBeNull();
+    expect(screen.queryByTestId('home-rest-icon')).toBeNull();
+    expect(onChooseRest).not.toHaveBeenCalled();
   });
 
   it('temporarily hides available-time controls from check-in', () => {
@@ -655,16 +643,15 @@ describe('HomeScreen Home v1 transcription', () => {
     );
 
     expect(
-      screen.getByRole('header', { name: '밴드 로우 장비 안내' }),
+      screen.getByRole('header', { name: '밴드가 없을 때' }),
     ).toBeOnTheScreen();
-    expect(screen.getByText('원래 운동의 필요 장비')).toBeOnTheScreen();
-    expect(screen.getByText('밴드')).toBeOnTheScreen();
+    expect(screen.queryByText('원래 운동의 필요 장비')).toBeNull();
     expect(screen.getByText('엎드려 등 당기기')).toBeOnTheScreen();
     expect(
-      screen.getByText(
+      screen.queryByText(
         '이 안내는 운동을 교체하지 않으며 현재 루틴과 수행 기록도 바꾸지 않아요.',
       ),
-    ).toBeOnTheScreen();
+    ).toBeNull();
     expect(screen.queryByTestId('exercise-posture-guide')).toBeNull();
   });
 
@@ -782,86 +769,29 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.queryByText('장비')).toBeNull();
   });
 
-  it('opens recommendation details without adding another Home card', () => {
+  it('explains the recommendation by goal, condition and environment without internal terminology', () => {
     const view = render(<HomeScreen {...homePreviewProps('adjusted')} />);
-
-    fireEvent.press(screen.getByRole('button', { name: '추천 이유 보기' }));
-    expect(screen.getByRole('header', { name: '추천 이유' })).toBeOnTheScreen();
-    expect(screen.getByText('에이전트별 판단')).toBeOnTheScreen();
-    expect(screen.getByText('최종 조정 이유')).toBeOnTheScreen();
-    expect(screen.queryByText('안전 확인')).toBeNull();
-    expect(screen.getByText('트레이닝')).toBeOnTheScreen();
-    expect(screen.getByText('회복')).toBeOnTheScreen();
-    expect(screen.getByText('안전')).toBeOnTheScreen();
-    expect(screen.getByText('실행 가능성')).toBeOnTheScreen();
-    expect(screen.queryByText('조정')).toBeNull();
+    fireEvent.press(
+      screen.getByRole('button', { name: '이 루틴을 추천한 이유 >' }),
+    );
     expect(
-      screen.getByText(
-        '운동 목표와 희망 시간은 유지하고 세트와 강도만 조정했어요.',
-      ),
+      screen.getByRole('header', { name: '이 루틴을 추천한 이유' }),
     ).toBeOnTheScreen();
-
-    const collapsedCriteria = screen.getByRole('button', {
-      name: '반영한 기준 펼치기',
-    });
-    expect(collapsedCriteria.props.accessibilityState).toEqual({
-      expanded: false,
-    });
-    expect(screen.queryByText('운동 목표를 유지했어요.')).toBeNull();
-
+    expect(screen.getByText('운동 목표')).toBeOnTheScreen();
+    expect(screen.getByText('컨디션')).toBeOnTheScreen();
+    expect(screen.getByText('운동 환경')).toBeOnTheScreen();
     const tree = JSON.stringify(view.toJSON());
-    expect(tree.indexOf('에이전트별 판단')).toBeLessThan(
-      tree.indexOf('최종 조정 이유'),
-    );
-    expect(tree.indexOf('최종 조정 이유')).toBeLessThan(
-      tree.indexOf('반영한 기준'),
-    );
-
-    fireEvent.press(collapsedCriteria);
-    expect(
-      screen.getByRole('button', { name: '반영한 기준 접기' }).props
-        .accessibilityState,
-    ).toEqual({ expanded: true });
-    expect(screen.getByText('운동 목표를 유지했어요.')).toBeOnTheScreen();
-  });
-
-  it('keeps the server summary order and never exposes machine codes', () => {
-    const props = homePreviewProps('adjusted');
-    expect(props.decision).not.toBeNull();
-
-    const view = render(<HomeScreen {...props} />);
-    fireEvent.press(screen.getByRole('button', { name: '추천 이유 보기' }));
-
-    const tree = JSON.stringify(view.toJSON());
-    expect(
-      tree.indexOf('운동 목표와 희망 운동 시간을 유지했어요.'),
-    ).toBeLessThan(
-      tree.indexOf('오늘의 피로도를 고려해 운동 부담을 낮추도록 제안했어요.'),
-    );
-    expect(
-      tree.indexOf('오늘의 피로도를 고려해 운동 부담을 낮추도록 제안했어요.'),
-    ).toBeLessThan(
-      tree.indexOf(
-        '부담이 될 수 있는 운동 2개를 제외하고 강도를 중간 이하로 제한했어요.',
-      ),
-    );
-    expect(
-      tree.indexOf(
-        '부담이 될 수 있는 운동 2개를 제외하고 강도를 중간 이하로 제한했어요.',
-      ),
-    ).toBeLessThan(
-      tree.indexOf('희망 시간과 장소, 사용 가능한 장비에 맞는 구성이에요.'),
-    );
-    expect(
-      tree.indexOf('희망 시간과 장소, 사용 가능한 장비에 맞는 구성이에요.'),
-    ).toBeLessThan(
-      tree.indexOf(
-        '운동 목표와 희망 시간은 유지하고 세트와 강도만 조정했어요.',
-      ),
-    );
-    expect(tree).not.toContain('MODERATE_FATIGUE_DOWNSHIFT');
-    expect(tree).not.toContain('TIME_LOCATION_EQUIPMENT_MATCHED');
-    expect(tree).not.toContain('COMMON_CANDIDATE_SELECTED');
+    for (const internal of [
+      '서버가 결정',
+      '에이전트별 판단',
+      '최종 조정 이유',
+      '반영한 기준',
+      'MODERATE_FATIGUE_DOWNSHIFT',
+      'COMMON_CANDIDATE_SELECTED',
+    ]) {
+      expect(tree).not.toContain(internal);
+    }
+    expect(tree.indexOf('운동 목표')).toBeLessThan(tree.indexOf('운동 환경'));
   });
 
   it('keeps legacy recommendation reasons usable without agent summaries', () => {
@@ -873,13 +803,13 @@ describe('HomeScreen Home v1 transcription', () => {
     };
 
     render(<HomeScreen {...props} decision={decision} />);
-    fireEvent.press(screen.getByRole('button', { name: '추천 이유 보기' }));
+    fireEvent.press(
+      screen.getByRole('button', { name: '이 루틴을 추천한 이유 >' }),
+    );
 
     expect(screen.queryByText('에이전트별 판단')).toBeNull();
     expect(screen.queryByText('최종 조정 이유')).toBeNull();
-    expect(
-      screen.getByRole('button', { name: '반영한 기준 펼치기' }),
-    ).toBeOnTheScreen();
+    expect(screen.getByText('운동 환경')).toBeOnTheScreen();
   });
 
   it('shows a safety caution supplied through adjustment reason codes', () => {
@@ -894,8 +824,9 @@ describe('HomeScreen Home v1 transcription', () => {
 
     render(<HomeScreen {...props} decision={decision} />);
 
-    fireEvent.press(screen.getByRole('button', { name: '추천 이유 보기' }));
-    fireEvent.press(screen.getByRole('button', { name: '반영한 기준 펼치기' }));
+    fireEvent.press(
+      screen.getByRole('button', { name: '이 루틴을 추천한 이유 >' }),
+    );
     expect(
       screen.getByText('불편한 부위를 고려해 강도를 낮췄어요.'),
     ).toBeOnTheScreen();
@@ -912,18 +843,14 @@ describe('HomeScreen Home v1 transcription', () => {
     ).toBeOnTheScreen();
 
     adjustedView.rerender(<HomeScreen {...homePreviewProps('routine')} />);
-    expect(screen.getByText('계획대로 진행')).toBeOnTheScreen();
-    expect(
-      screen.getByLabelText('루틴 진행 방식: 계획대로 진행'),
-    ).toBeOnTheScreen();
+    expect(screen.queryByText('계획대로 진행')).toBeNull();
+    expect(screen.queryByLabelText('루틴 진행 방식: 계획대로 진행')).toBeNull();
   });
 
   it('renders the matching action badge in preview mode', () => {
     const previewView = render(<HomeScreen previewState="routine" />);
 
-    expect(
-      screen.getByLabelText('루틴 진행 방식: 계획대로 진행'),
-    ).toBeOnTheScreen();
+    expect(screen.queryByLabelText('루틴 진행 방식: 계획대로 진행')).toBeNull();
 
     previewView.unmount();
     render(<HomeScreen previewState="adjusted" />);

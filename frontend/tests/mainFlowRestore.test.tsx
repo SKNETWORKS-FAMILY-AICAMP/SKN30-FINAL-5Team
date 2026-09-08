@@ -254,6 +254,134 @@ function apiWithRoutes(routes: Record<string, unknown>) {
 }
 
 describe('MainFlow restart recovery', () => {
+  it.each([0, 1])(
+    'ends a session with %i completed blocks through the appropriate home flow',
+    async (completedCount) => {
+      const storedPlan = plan();
+      storedPlan.items.push({
+        ...storedPlan.items[0]!,
+        plan_item_id: 'item-2',
+        sequence: 2,
+      });
+      const initial = sessionDetail();
+      const storedSession = sessionDetail({
+        total_item_count: 2,
+        completed_item_count: completedCount,
+        items: [
+          {
+            ...initial.items[0]!,
+            status_code: completedCount ? 'COMPLETED' : 'PENDING',
+          },
+          {
+            ...initial.items[0]!,
+            plan_item_id: 'item-2',
+            status_code: 'PENDING',
+          },
+        ],
+      });
+      let ended = false;
+      const { api } = apiWithRoutes({});
+      const submitFeedback = jest.fn<
+        ReturnType<Api['submitFeedback']>,
+        Parameters<Api['submitFeedback']>
+      >(async () => ({
+        session_id: 'session-1',
+        session_status_code: 'PARTIAL',
+        created_at: new Date().toISOString(),
+        guidance_code: null,
+        guidance: null,
+        pressure_notifications_allowed: true,
+      }));
+      const markNotCompleted = jest.fn<
+        ReturnType<Api['markNotCompleted']>,
+        Parameters<Api['markNotCompleted']>
+      >(async (_id, endedAt, reason) => {
+        ended = true;
+        return {
+          session_id: 'session-1',
+          status_code: 'NOT_COMPLETED',
+          reason_code: reason,
+          ended_at: endedAt,
+        };
+      });
+      const finishSession = jest.fn<
+        ReturnType<Api['finishSession']>,
+        Parameters<Api['finishSession']>
+      >(async (_id, endedAt) => {
+        ended = true;
+        return {
+          session_id: 'session-1',
+          status_code: 'PARTIAL',
+          completed_item_count: 1,
+          total_item_count: 2,
+          actual_elapsed_seconds: 0,
+          estimated_calories_burned: null,
+          ended_at: endedAt,
+        };
+      });
+      const liveApi: Api = {
+        ...api,
+        getHomeState: async () =>
+          homeState({
+            decision: { ...decision(), final_plan: storedPlan },
+            final_plan: storedPlan,
+            workout_session: {
+              ...storedSession,
+              status_code: ended
+                ? completedCount
+                  ? 'PARTIAL'
+                  : 'NOT_COMPLETED'
+                : 'IN_PROGRESS',
+            },
+          }),
+        getWorkoutSession: async () => storedSession,
+        recordTimerEvent: async () => ({ event_id: 'timer-1' }),
+        markNotCompleted,
+        finishSession,
+        submitFeedback,
+      };
+      render(
+        <MainFlow
+          api={liveApi}
+          me={me()}
+          onRefreshMe={async () => undefined}
+          onSignOut={() => {}}
+        />,
+      );
+      fireEvent.press(await screen.findByRole('button', { name: '이어하기' }));
+      await waitFor(() =>
+        expect(screen.queryByText('운동 세션을 준비하고 있어요…')).toBeNull(),
+      );
+      fireEvent.press(screen.getByRole('button', { name: '운동 중단' }));
+      fireEvent.press(screen.getByRole('radio', { name: '시간이 부족해요.' }));
+      fireEvent.press(
+        screen.getByRole('button', { name: '이 사유로 중단하기' }),
+      );
+      if (completedCount === 0) {
+        expect(
+          await screen.findByText('오늘은 휴식하기로 했어요'),
+        ).toBeOnTheScreen();
+        expect(markNotCompleted).toHaveBeenCalledTimes(1);
+        expect(finishSession).not.toHaveBeenCalled();
+        expect(submitFeedback).not.toHaveBeenCalled();
+        expect(screen.queryByTestId('session-feedback-save')).toBeNull();
+      } else {
+        const save = await screen.findByRole('button', {
+          name: '피드백 저장하고 홈으로',
+        });
+        expect(save).toBeDisabled();
+        expect(screen.queryByRole('button', { name: '홈으로' })).toBeNull();
+        expect(markNotCompleted).not.toHaveBeenCalled();
+        expect(finishSession).toHaveBeenCalledTimes(1);
+        fireEvent.press(screen.getByRole('radio', { name: '적당했어요' }));
+        expect(save).toBeEnabled();
+        fireEvent.press(save);
+        await waitFor(() => expect(submitFeedback).toHaveBeenCalledTimes(1));
+        expect(await screen.findByTestId('home-screen')).toBeOnTheScreen();
+      }
+    },
+  );
+
   it.each(['HOME', 'GYM'])(
     'preserves %s equipment guidance when resuming through MainFlow',
     async (locationCode) => {
@@ -467,7 +595,9 @@ describe('MainFlow restart recovery', () => {
       await screen.findByRole('button', { name: '다시 준비하기' }),
     );
     await waitFor(() => expect(getHomeState).toHaveBeenCalledTimes(2));
-    expect(await screen.findByText(decision().summary)).toBeOnTheScreen();
+    expect(
+      await screen.findByText('컨디션에 맞춘 운동을 준비했어요.'),
+    ).toBeOnTheScreen();
   });
 
   it('shows aggregate permission denial without a retry action', async () => {

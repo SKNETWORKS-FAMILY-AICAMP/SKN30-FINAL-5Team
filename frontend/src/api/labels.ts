@@ -44,7 +44,7 @@ const SESSION_STATUS: Record<string, string> = {
   IN_PROGRESS: '진행 중',
   COMPLETED: '완료',
   PARTIAL: '일부 완료',
-  NOT_COMPLETED: '미수행',
+  NOT_COMPLETED: '휴식',
   STOPPED_FOR_SAFETY: '안전 중단',
 };
 

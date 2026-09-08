@@ -21,12 +21,15 @@ type CalendarReportInput = {
   sessions: readonly WorkoutSessionLogSummary[];
   weeksByStart: ReadonlyMap<string, WeekResponse>;
   restLocalDate?: string | null;
+  /** Left edge of the rest fill. Without it no empty day is filled. */
+  routineStartLocalDate?: string;
 };
 
 const DAY_STATUS_PRIORITY: Partial<Record<CalendarDayStatus, number>> = {
   done: 1,
   partial: 2,
-  miss: 3,
+  rest: 3,
+  safety: 4,
 };
 
 function parseDate(value: string): Date {
@@ -102,12 +105,16 @@ export function calendarGridRange(month: string): {
   return { fromLocalDate, toLocalDate, weekStarts };
 }
 
+/**
+ * A pain or adverse-reaction stop keeps its own status. Folding it into rest
+ * hid days where the user had completed blocks before stopping, and it
+ * disagreed with the weekly report, which already counts safety stops apart.
+ */
 function sessionDayStatus(status: string): CalendarDayStatus | null {
   if (status === 'COMPLETED') return 'done';
   if (status === 'PARTIAL') return 'partial';
-  if (status === 'NOT_COMPLETED' || status === 'STOPPED_FOR_SAFETY') {
-    return 'miss';
-  }
+  if (status === 'STOPPED_FOR_SAFETY') return 'safety';
+  if (status === 'NOT_COMPLETED') return 'rest';
   return null;
 }
 
@@ -193,30 +200,61 @@ function rangeLabel(start: string): string {
   return `${format(start)} – ${format(end)}`;
 }
 
+/**
+ * Resolve one grid day.
+ *
+ * A day the user let pass without any record is a rest day: not working out is
+ * how a rest day looks in the data. Only days the routine already covers are
+ * filled, and only once they are over - today is still open and the future is
+ * not decided, so neither is turned into a rest day.
+ */
+function dayStatusResolver({
+  statuses,
+  today,
+  restLocalDate,
+  routineStartLocalDate,
+}: {
+  statuses: ReadonlyMap<string, CalendarDayStatus>;
+  today: string;
+  restLocalDate?: string | null;
+  routineStartLocalDate?: string;
+}): (localDate: string) => CalendarDayStatus {
+  return (localDate) => {
+    const recorded = statuses.get(localDate);
+    if (recorded !== undefined) return recorded;
+    if (localDate === restLocalDate) return 'rest';
+    if (
+      routineStartLocalDate !== undefined &&
+      localDate >= routineStartLocalDate &&
+      localDate < today
+    ) {
+      return 'rest';
+    }
+    return 'upcoming';
+  };
+}
+
+/**
+ * Counts are days, not sessions, so the totals match the marks on the grid.
+ * The weekly report counts sessions instead; the units differ on purpose.
+ */
 function countStatuses(
-  sessions: readonly WorkoutSessionLogSummary[],
+  resolveDayStatus: (localDate: string) => CalendarDayStatus,
   from: string,
   to: string,
-  restLocalDate?: string | null,
 ): readonly [number, number, number, number] {
   let done = 0;
   let partial = 0;
-  let miss = 0;
-  for (const session of sessions) {
-    if (session.local_date < from || session.local_date > to) continue;
-    const status = sessionDayStatus(session.status_code);
+  let rest = 0;
+  let safety = 0;
+  for (let cursor = from; cursor <= to; cursor = addDays(cursor, 1)) {
+    const status = resolveDayStatus(cursor);
     if (status === 'done') done += 1;
-    if (status === 'partial') partial += 1;
-    if (status === 'miss') miss += 1;
+    else if (status === 'partial') partial += 1;
+    else if (status === 'rest') rest += 1;
+    else if (status === 'safety') safety += 1;
   }
-  const rest =
-    restLocalDate !== null &&
-    restLocalDate !== undefined &&
-    restLocalDate >= from &&
-    restLocalDate <= to
-      ? 1
-      : 0;
-  return [done, partial, rest, miss];
+  return [done, partial, rest, safety];
 }
 
 export function buildCalendarReportData({
@@ -225,6 +263,7 @@ export function buildCalendarReportData({
   sessions,
   weeksByStart,
   restLocalDate,
+  routineStartLocalDate,
 }: CalendarReportInput): CalendarReportData {
   const { year, monthNumber } = monthParts(month);
   const range = calendarGridRange(month);
@@ -236,14 +275,15 @@ export function buildCalendarReportData({
     ids.push(session.session_id);
     sessionIdsByDate.set(session.local_date, ids);
   }
+  const resolveDayStatus = dayStatusResolver({
+    statuses,
+    today,
+    restLocalDate,
+    routineStartLocalDate,
+  });
   const monthFrom = `${month}-01`;
   const monthTo = dateString(new Date(Date.UTC(year, monthNumber, 0)));
-  const monthCounts = countStatuses(
-    sessions,
-    monthFrom,
-    monthTo,
-    restLocalDate,
-  );
+  const monthCounts = countStatuses(resolveDayStatus, monthFrom, monthTo);
 
   const weeks = range.weekStarts.map((start, index): CalendarWeek => {
     const week = weeksByStart.get(start);
@@ -251,9 +291,7 @@ export function buildCalendarReportData({
     const days = Array.from({ length: 7 }, (_, dayIndex) => {
       const localDate = addDays(start, dayIndex);
       const date = parseDate(localDate);
-      const recorded = statuses.get(localDate);
-      const status =
-        recorded ?? (localDate === restLocalDate ? 'rest' : 'upcoming');
+      const status = resolveDayStatus(localDate);
       return {
         day: String(date.getUTCDate()),
         status,
@@ -263,12 +301,7 @@ export function buildCalendarReportData({
         sessionIds: sessionIdsByDate.get(localDate) ?? [],
       };
     });
-    const stats = countStatuses(
-      sessions,
-      start,
-      addDays(start, 6),
-      restLocalDate,
-    );
+    const stats = countStatuses(resolveDayStatus, start, addDays(start, 6));
     return {
       id: start,
       weekStart: start,

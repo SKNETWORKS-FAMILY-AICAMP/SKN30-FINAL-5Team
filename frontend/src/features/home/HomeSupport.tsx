@@ -120,9 +120,24 @@ export function RerollIcon({ color }: { color: string }) {
   );
 }
 
-export function RestIcon({ color }: { color: string }) {
+export function RestIcon({
+  color,
+  size = 18,
+  testID,
+}: {
+  color: string;
+  size?: number;
+  testID?: string;
+}) {
   return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+    <Svg
+      accessible={false}
+      width={size}
+      height={size}
+      testID={testID}
+      viewBox="0 0 24 24"
+      fill="none"
+    >
       <Path
         d="M18.4 15.1A7.7 7.7 0 0 1 8.9 5.6a8.2 8.2 0 1 0 9.5 9.5Z"
         stroke={color}

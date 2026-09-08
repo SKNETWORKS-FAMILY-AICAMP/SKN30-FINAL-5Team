@@ -13,7 +13,10 @@ import { useBrandFonts } from '../../app/fonts';
 import type { TabId } from '../../components/brand/BrandChrome';
 import { useScale } from '../../components/scale';
 import { ExerciseDetailSheet } from '../workout/ExerciseDetailSheet';
-import { ExerciseVariantsContent } from '../workout/ExerciseVariants';
+import {
+  ExerciseVariantsContent,
+  equipmentGuideTitle,
+} from '../workout/ExerciseVariants';
 import {
   HOME_ROUTINE_VARIANTS,
   HOME_WEEK_DAYS,
@@ -99,7 +102,6 @@ export function HomeScreenContent({
   locationCodes = [],
   recommendedDurationMinutes = null,
   nickname,
-  onChooseRest,
   onEditRoutine,
   onNavigateTab,
   onNotifications,
@@ -125,6 +127,7 @@ export function HomeScreenContent({
   persistentPains = EMPTY_PERSISTENT_PAINS,
   profileImageUrl = null,
   restToday = false,
+  safetyGuidance,
   routine = null,
   routineLoadingContent,
   routineLoadingPhaseCode,
@@ -278,7 +281,10 @@ export function HomeScreenContent({
   const seriousDecision =
     decision?.action_code === 'STOP_AND_SEEK_HELP' ||
     decision?.safety_status_code === 'BLOCKED';
-  const hasVisibleSession = todaySession !== null && serverPlan !== null;
+  const hasVisibleSession =
+    todaySession !== null &&
+    todaySession.status_code !== 'NOT_COMPLETED' &&
+    serverPlan !== null;
   const hasRoutine = apiMode
     ? serverPlan !== null &&
       !routineGenerationPending &&
@@ -483,9 +489,6 @@ export function HomeScreenContent({
   const routineOption = decision?.options.find(
     (option) => option.option_code === 'FINAL_ROUTINE',
   );
-  const restOption = decision?.options.find(
-    (option) => option.option_code === 'REST',
-  );
   const recheckMode =
     apiMode && (restToday || restRecommended || seriousDecision);
   const todayRoutineState = deriveTodayRoutineViewState({
@@ -640,6 +643,9 @@ export function HomeScreenContent({
                 title="오늘은 휴식하기로 했어요"
               />
             ) : null}
+            {safetyGuidance ? (
+              <HomeStateCard serious title="안전 안내" text={safetyGuidance} />
+            ) : null}
             {apiMode && contentReady && seriousDecision ? (
               <HomeStateCard
                 serious
@@ -662,8 +668,6 @@ export function HomeScreenContent({
             !seriousDecision &&
             restRecommended ? (
               <HomeStateCard
-                actionLabel={restOption?.selectable ? '오늘은 쉬기' : undefined}
-                onAction={restOption?.selectable ? onChooseRest : undefined}
                 text={
                   decision?.guidance?.message ??
                   decision?.summary ??
@@ -747,14 +751,6 @@ export function HomeScreenContent({
                 onOpenReasons={
                   hasRecommendationDetails
                     ? () => setReasonOpen(true)
-                    : undefined
-                }
-                onRest={
-                  decision?.options.some(
-                    (option) =>
-                      option.option_code === 'REST' && option.selectable,
-                  )
-                    ? onChooseRest
                     : undefined
                 }
                 onRequestAlternative={
@@ -934,7 +930,7 @@ export function HomeScreenContent({
         {variantGuide && variantsAvailableInContext ? (
           <SheetFrame
             onClose={() => setVariantGuide(null)}
-            title={`${variantGuide.exerciseName} 장비 안내`}
+            title={equipmentGuideTitle(variantGuide.response)}
             zIndex={25}
           >
             <ScrollView

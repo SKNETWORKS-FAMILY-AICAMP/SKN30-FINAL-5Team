@@ -21,10 +21,7 @@ import {
   digitsOnly,
 } from './HomeSupport';
 
-const ROUTINE_NOTES = [
-  '오늘 컨디션과 운동 목표를 반영했어요.',
-  '사용자 적합성과 안전 기준을 확인한 구성이에요.',
-] as const;
+const ROUTINE_NOTES: readonly string[] = [];
 
 export function RoutineCard({
   actionCode,
@@ -97,7 +94,9 @@ export function RoutineCard({
   const drag = useDragController(onMove ?? (() => undefined));
   const rerollLabel = getHomeRerollLabel(rerolls, rerolling);
   const routineActionLabel =
-    actionCode === undefined ? null : actionLabel(actionCode);
+    actionCode === undefined || actionCode === 'KEEP'
+      ? null
+      : actionLabel(actionCode);
   const adjustedAction =
     actionCode === 'DOWNSHIFT' ||
     actionCode === 'CHANGE' ||
@@ -151,25 +150,11 @@ export function RoutineCard({
           </View>
         )}
       </View>
-      <Text style={styles.routineTitle}>
-        오늘 컨디션에 맞춘 운동이 준비됐어요.
-      </Text>
+      <Text style={styles.routineTitle}>컨디션에 맞춘 운동을 준비했어요.</Text>
       <Text style={styles.routinePlanName}>{title}</Text>
       <Text style={styles.routineSummary}>
         {focus} · {minutes}분
       </Text>
-      {statusCopy ? (
-        <View style={styles.adjustmentNote}>
-          <Text style={styles.adjustmentText}>{statusCopy}</Text>
-        </View>
-      ) : null}
-      <View style={styles.routineNotes}>
-        {notes.map((note) => (
-          <Text key={note} style={styles.routineNote}>
-            {note}
-          </Text>
-        ))}
-      </View>
       {onOpenReasons ? (
         <Pressable
           accessibilityRole="button"
@@ -187,9 +172,23 @@ export function RoutineCard({
               interactionsDisabled && styles.disabledLabel,
             ]}
           >
-            추천 이유 보기
+            이 루틴을 추천한 이유 {'>'}
           </Text>
         </Pressable>
+      ) : null}
+      {statusCopy ? (
+        <View style={styles.adjustmentNote}>
+          <Text style={styles.adjustmentText}>{statusCopy}</Text>
+        </View>
+      ) : null}
+      {notes.length > 0 ? (
+        <View style={styles.routineNotes}>
+          {notes.map((note) => (
+            <Text key={note} style={styles.routineNote}>
+              {note}
+            </Text>
+          ))}
+        </View>
       ) : null}
       <View style={styles.routineList}>
         {onMove ? (

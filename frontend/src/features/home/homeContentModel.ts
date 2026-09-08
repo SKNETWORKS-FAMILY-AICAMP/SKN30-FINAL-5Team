@@ -56,8 +56,8 @@ export function routineNotesFromDecision(
 ): string[] | undefined {
   return decision === null
     ? undefined
-    : [decision.summary, decision.guidance?.message].filter(
-        (note): note is string => Boolean(note),
+    : [decision.guidance?.message].filter((note): note is string =>
+        Boolean(note),
       );
 }
 

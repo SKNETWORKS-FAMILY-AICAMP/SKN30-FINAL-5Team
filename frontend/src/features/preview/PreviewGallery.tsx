@@ -388,8 +388,8 @@ function addPreviewDays(localDate: string, amount: number): string {
 
 function isRecordedStatus(
   status: CalendarDayStatus,
-): status is 'done' | 'partial' | 'miss' {
-  return status === 'done' || status === 'partial' || status === 'miss';
+): status is 'done' | 'partial' | 'rest' {
+  return status === 'done' || status === 'partial' || status === 'rest';
 }
 
 const CALENDAR_HISTORY_PREVIEW_WEEKS = CALENDAR_WEEKS.map((week) => ({
@@ -410,13 +410,13 @@ function calendarHistoryPreviewDetail(
   sessionId: string,
 ): WorkoutSessionDetailResponse {
   const match =
-    /^calendar-history-(done|partial|miss)-(\d{4}-\d{2}-\d{2})$/.exec(
+    /^calendar-history-(done|partial|rest)-(\d{4}-\d{2}-\d{2})$/.exec(
       sessionId,
     );
   if (match === null) {
     throw new Error('Unknown calendar history preview session');
   }
-  const status = match[1] as 'done' | 'partial' | 'miss';
+  const status = match[1] as 'done' | 'partial' | 'rest';
   const localDate = match[2]!;
   const completedItemCount =
     status === 'done' ? 3 : status === 'partial' ? 2 : 0;
@@ -455,17 +455,17 @@ function calendarHistoryPreviewDetail(
     requested_duration_minutes: 30,
     items,
     feedback:
-      status === 'miss'
+      status === 'rest'
         ? null
         : {
             perceived_difficulty_code:
               status === 'done' ? 'APPROPRIATE' : 'HARD',
             post_workout_discomfort_reported: false,
           },
-    not_completed_reason_code: status === 'miss' ? 'SCHEDULE_CHANGE' : null,
-    started_at: status === 'miss' ? null : `${localDate}T19:00:00+09:00`,
+    not_completed_reason_code: status === 'rest' ? 'SCHEDULE_CHANGE' : null,
+    started_at: status === 'rest' ? null : `${localDate}T19:00:00+09:00`,
     finished_at:
-      status === 'miss'
+      status === 'rest'
         ? `${localDate}T19:00:00+09:00`
         : `${localDate}T19:${status === 'done' ? '30' : '20'}:00+09:00`,
   };
@@ -944,8 +944,8 @@ export function PreviewGallery({
               onSelect={setSessionState}
             />
             <Text style={styles.contractNotice}>
-              세션 시작, 블록 완료, 타이머 이벤트, 안전 중단과 미수행 기록을
-              실제 API 응답 형태의 개발용 fixture로 확인합니다.
+              세션 시작, 블록 완료, 타이머 이벤트, 안전 중단과 휴식 기록을 실제
+              API 응답 형태의 개발용 fixture로 확인합니다.
             </Text>
           </>
         ) : null}
@@ -1092,7 +1092,7 @@ export function PreviewGallery({
                 : workoutState === 'api-flow'
                   ? '개발 확인 전용 API를 사용합니다. 시작·타이머·블록·중단·안전 보고·피드백은 실제 프론트엔드 API 계약으로 연결되며, 데이터는 네트워크로 전송되지 않습니다.'
                   : selectedWorkoutResultState !== null
-                    ? '실제 앱 흐름의 Workout 결과 UI입니다. 서버가 확정한 완료·일부 완료·미수행·안전 중단 결과를 갤러리 fixture로 표시합니다.'
+                    ? '실제 앱 흐름의 Workout 결과 UI입니다. 서버가 확정한 완료·일부 완료·휴식·안전 중단 결과를 갤러리 fixture로 표시합니다.'
                     : '세부 화면 시각 확인용 fixture입니다. 타이머와 블록 체크는 공식 완료를 결정하지 않습니다.'}
             </Text>
           </>
@@ -1249,7 +1249,6 @@ export function PreviewGallery({
                         decision:
                           homeDecisionOverride ??
                           homePreviewProps(homeState).decision,
-                        onChooseRest: () => selectHomeState('rest'),
                         onRetry: () =>
                           selectHomeState('routine-lookup-loading'),
                         onRetryDecision:
@@ -1396,7 +1395,7 @@ export function PreviewGallery({
                         outcome={sessionResultPreviewOutcome(
                           selectedWorkoutResultState,
                         )}
-                        onDone={() => undefined}
+                        onDone={() => setScreenId('home')}
                       />
                     ) : isWorkoutPreviewState(workoutState) ? (
                       <WorkoutScreen previewState={workoutState} />

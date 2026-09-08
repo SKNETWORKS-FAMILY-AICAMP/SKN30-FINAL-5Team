@@ -49,6 +49,7 @@ export type HomeUserEdits = {
 
 export type HomeScreenProps = {
   actionError?: string | null;
+  safetyGuidance?: string;
   alternativeUsedCount?: number;
   busy?: HomeBusyKind | null;
   currentDate?: string;
