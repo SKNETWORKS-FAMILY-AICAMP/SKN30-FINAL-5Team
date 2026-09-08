@@ -1,0 +1,20 @@
+{
+  "status": "PASS",
+  "catalog_version_code": "exercise-catalog-v2.0.7-final",
+  "bundle_manifest_sha256": "fdb7dd7783f7b5698e94e1fecc3acfcb7780a28d51391f05d7cce043417a4c2c",
+  "catalog_bundle_manifest_sha256": "70af93efaa49b1f6d231f3ffe3fd1885622f835ad97e3453764c14ec48c8a50f",
+  "summary": {
+    "catalog_records": 237,
+    "gym_guide_records": 67,
+    "home_guide_records": 34,
+    "fitt_reference_records": 208,
+    "fitt_stable_code_mapping_records": 89,
+    "met_fields_per_catalog_record": 6
+  },
+  "checks": {
+    "regenerated_from_normalized_sources": true,
+    "fitt_references_catalog": true,
+    "catalog_and_derived_versions_retargeted": true,
+    "file_inventory_complete": true
+  }
+}

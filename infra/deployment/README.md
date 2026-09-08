@@ -171,6 +171,40 @@ uv run --no-sync python -m backend.scripts.catalog_activate activate exercise-ca
 `PRODUCTION_APPROVED` on its own. Reaching for that flag here would record a review that did not
 happen. The four unreviewed KSPO/wger catalogs stay `DRAFT`/`AGENT_ONLY` and are never activated.
 
+### Integrated v2.0.7
+
+`exercise-catalog-v2.0.7-final` is the same reviewed v2.0.6 content retargeted as one release, plus
+the separately approved six-field MET projection. It has its own promotion command, and that command
+is the only way it reaches staging or production:
+
+```bash
+uv run --no-sync alembic -c backend/alembic.ini upgrade head
+uv run --no-sync python -m backend.scripts.catalog_promote_v2_0_7
+uv run --no-sync python -m backend.scripts.catalog_promote_v2_0_7 --activate
+```
+
+The DRAFT path is not an alternative route to the same rows. `import_loaded_artifact` still refuses
+anything but `local` and `test`, and `integrated-catalog-v2.0.7-draft` never leaves a developer
+machine. `catalog_promote_v2_0_7` pins three hashes before it opens a transaction -- the integrated
+wrapper manifest, the inner catalog bundle manifest, and the taxonomy registry -- and
+`import_v2_bundle` then matches every sub-manifest against its approval-registry entry
+(`V2-0-7-PRODUCTION-APPROVAL-2026-09-08-R01`). A rebuilt bundle whose bytes moved fails closed at the
+first hash rather than importing content nobody approved.
+
+`--activate` is a separate invocation on purpose: the import commits atomically first, so a failed
+activation never leaves half a catalog live. Production additionally requires `APP_ENV=production`,
+which `promote_v2_0_7` passes through as `allow_production`; staging cannot reach that branch.
+
+Two things follow the activation rather than preceding it. Calorie estimates stay `UNAVAILABLE` until
+this catalog is active, because `met_value` is read from the catalog row and no earlier promoted
+catalog carries one. Reviewed FITT volume ranges apply to the 89 exercises the identity-registry join
+covers; the rest stay `REVIEW_REQUIRED` and remain bounded by the Recovery ceiling alone.
+
+**This procedure has not been run against a real database.** It is verified against the pinned bundle
+and the approval registry only (`backend/tests/unit/test_catalog_v2_0_7_release.py`). Run
+`upgrade head -> downgrade base -> upgrade head` and the promotion twice on a dedicated test database
+whose name ends in `_test` before pointing it at Aurora.
+
 ## Qdrant staging readiness and #150 handoff
 
 `compose.staging.yaml` stays fail-closed on its own and is **not executable for a real staging index

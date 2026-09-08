@@ -57,6 +57,11 @@ V2_0_6_RULE_SET_VERSION = "safety-rule-set-v2.0.6"
 V2_0_6_ALTERNATIVE_SET_VERSION = "alternative-set-v2.0.6-stretch-strap-fallback"
 V2_0_6_PRESCRIPTION_SET_VERSION = "prescription-set-v2.0.6"
 V2_0_6_MEDIA_SET_VERSION = "media-set-v2.0.6"
+V2_0_7_CATALOG_VERSION_CODE = "exercise-catalog-v2.0.7-final"
+V2_0_7_RULE_SET_VERSION = "safety-rule-set-v2.0.7"
+V2_0_7_ALTERNATIVE_SET_VERSION = "alternative-set-v2.0.7-stretch-strap-fallback"
+V2_0_7_PRESCRIPTION_SET_VERSION = "prescription-set-v2.0.7"
+V2_0_7_MEDIA_SET_VERSION = "media-set-v2.0.7"
 
 
 def _approved_record_count(artifact_kind: ArtifactKind, version_code: str) -> int:
@@ -106,7 +111,24 @@ def _routine_input_counts(session: Session, catalog: CatalogVersion) -> tuple[in
 def validate_v2_activation(session: Session, catalog: CatalogVersion) -> None:
     """Fail closed unless every approved V2 component is exact and exposable."""
     if catalog.version_code == V2_0_6_CATALOG_VERSION_CODE:
-        _validate_v2_0_6_activation(session, catalog)
+        _validate_v2_release_activation(
+            session,
+            catalog,
+            rule_set_version=V2_0_6_RULE_SET_VERSION,
+            alternative_set_version=V2_0_6_ALTERNATIVE_SET_VERSION,
+            prescription_set_version=V2_0_6_PRESCRIPTION_SET_VERSION,
+            media_set_version=V2_0_6_MEDIA_SET_VERSION,
+        )
+        return
+    if catalog.version_code == V2_0_7_CATALOG_VERSION_CODE:
+        _validate_v2_release_activation(
+            session,
+            catalog,
+            rule_set_version=V2_0_7_RULE_SET_VERSION,
+            alternative_set_version=V2_0_7_ALTERNATIVE_SET_VERSION,
+            prescription_set_version=V2_0_7_PRESCRIPTION_SET_VERSION,
+            media_set_version=V2_0_7_MEDIA_SET_VERSION,
+        )
         return
     if catalog.version_code != V2_CATALOG_VERSION_CODE:
         return
@@ -168,19 +190,30 @@ def validate_v2_activation(session: Session, catalog: CatalogVersion) -> None:
         )
 
 
-def _validate_v2_0_6_activation(session: Session, catalog: CatalogVersion) -> None:
-    """Fail closed unless every v2.0.6 approved set is present and exposed."""
+def _validate_v2_release_activation(
+    session: Session,
+    catalog: CatalogVersion,
+    *,
+    rule_set_version: str,
+    alternative_set_version: str,
+    prescription_set_version: str,
+    media_set_version: str,
+) -> None:
+    """Fail closed unless every approved 237-row release set is present and exposed."""
+    release = catalog.version_code
     if catalog.exercise_record_count != 237 or not isinstance(
         catalog.manifest_metadata.get("production_approval"), dict
     ):
-        raise SystemExit("refusing to activate v2.0.6: catalog approval hash/count is not recorded")
+        raise SystemExit(
+            f"refusing to activate {release}: catalog approval hash/count is not recorded"
+        )
 
     safety_count = session.scalar(
         select(func.count())
         .select_from(ExerciseSafetyRule)
         .where(
             ExerciseSafetyRule.catalog_version_id == catalog.id,
-            ExerciseSafetyRule.rule_set_version_code == V2_0_6_RULE_SET_VERSION,
+            ExerciseSafetyRule.rule_set_version_code == rule_set_version,
             ExerciseSafetyRule.production_eligible.is_(True),
         )
     )
@@ -190,7 +223,7 @@ def _validate_v2_0_6_activation(session: Session, catalog: CatalogVersion) -> No
         .join(Exercise, Exercise.id == ExerciseAlternative.source_exercise_id)
         .where(
             Exercise.catalog_version_id == catalog.id,
-            ExerciseAlternative.alternative_set_version_code == V2_0_6_ALTERNATIVE_SET_VERSION,
+            ExerciseAlternative.alternative_set_version_code == alternative_set_version,
             ExerciseAlternative.production_eligible.is_(True),
         )
     )
@@ -199,7 +232,7 @@ def _validate_v2_0_6_activation(session: Session, catalog: CatalogVersion) -> No
         .select_from(ExerciseMediaAsset)
         .where(
             ExerciseMediaAsset.catalog_version_id == catalog.id,
-            ExerciseMediaAsset.media_set_version_code == V2_0_6_MEDIA_SET_VERSION,
+            ExerciseMediaAsset.media_set_version_code == media_set_version,
             ExerciseMediaAsset.media_status == "AVAILABLE",
             ExerciseMediaAsset.rights_review_status == "APPROVED",
             ExerciseMediaAsset.approval_metadata.is_not(None),
@@ -218,9 +251,9 @@ def _validate_v2_0_6_activation(session: Session, catalog: CatalogVersion) -> No
         .where(Exercise.catalog_version_id == catalog.id)
     )
     expected = {
-        "safety": _approved_record_count("SAFETY_RULES", V2_0_6_RULE_SET_VERSION),
-        "alternatives": _approved_record_count("ALTERNATIVES", V2_0_6_ALTERNATIVE_SET_VERSION),
-        "media": _approved_record_count("MEDIA_ASSETS", V2_0_6_MEDIA_SET_VERSION),
+        "safety": _approved_record_count("SAFETY_RULES", rule_set_version),
+        "alternatives": _approved_record_count("ALTERNATIVES", alternative_set_version),
+        "media": _approved_record_count("MEDIA_ASSETS", media_set_version),
         "goal_links": 711,
         "prescriptions": 1449,
     }
@@ -233,18 +266,18 @@ def _validate_v2_0_6_activation(session: Session, catalog: CatalogVersion) -> No
     }
     if actual != expected:
         raise SystemExit(
-            "refusing to activate v2.0.6: approved derived-data counts do not match "
+            f"refusing to activate {release}: approved derived-data counts do not match "
             f"expected={expected}, actual={actual}"
         )
 
     prescription = catalog.manifest_metadata.get("prescription_artifact")
     if (
         not isinstance(prescription, dict)
-        or prescription.get("version_code") != V2_0_6_PRESCRIPTION_SET_VERSION
+        or prescription.get("version_code") != prescription_set_version
         or prescription.get("goal_tag_records") != 711
         or prescription.get("prescription_records") != 1449
     ):
-        raise SystemExit("refusing to activate v2.0.6: prescription approval is incomplete")
+        raise SystemExit(f"refusing to activate {release}: prescription approval is incomplete")
 
     unapproved_exposable_media = session.scalar(
         select(func.count())
@@ -258,7 +291,7 @@ def _validate_v2_0_6_activation(session: Session, catalog: CatalogVersion) -> No
     )
     if unapproved_exposable_media:
         raise SystemExit(
-            "refusing to activate v2.0.6: an exposable media asset lacks registry approval"
+            f"refusing to activate {release}: an exposable media asset lacks registry approval"
         )
 
 

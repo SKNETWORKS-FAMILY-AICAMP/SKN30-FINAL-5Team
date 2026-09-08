@@ -132,11 +132,7 @@ def test_every_review_artifact_the_registry_names_is_shipped_in_the_image() -> N
 def test_exercise_detail_runtime_bundle_is_shipped_without_retired_met_mapping() -> None:
     dockerfile = Path("backend/Dockerfile").read_text(encoding="utf-8")
     dockerignore = Path("backend/Dockerfile.dockerignore").read_text(encoding="utf-8")
-    runtime_paths = (
-        "data/generated/integrated-catalog-v2.0.7-draft/backend_bundle/bundle_manifest.json",
-        "data/generated/integrated-catalog-v2.0.7-draft/backend_bundle/gym_equipment",
-        "data/generated/integrated-catalog-v2.0.7-draft/backend_bundle/home_equipment",
-    )
+    runtime_paths = ("data/generated/integrated-catalog-v2.0.7-final/backend_bundle",)
 
     for path in runtime_paths:
         assert path in dockerfile
