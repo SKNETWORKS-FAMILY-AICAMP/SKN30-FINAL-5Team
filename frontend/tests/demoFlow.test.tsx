@@ -248,6 +248,16 @@ function stubApi(overrides: Partial<Api> = {}): Api {
       items: [],
       next_cursor: null,
     })),
+    getRewards: jest.fn(async () => ({
+      balance: 0,
+      daily_reward: {
+        local_date: '2026-08-22',
+        reward_amount: 15,
+        is_claimable: true,
+        is_claimed: false,
+        claimed_at: null,
+      },
+    })),
     startSession: jest.fn(),
     updateSessionItem: jest.fn(),
     recordTimerEvent: jest.fn(),
