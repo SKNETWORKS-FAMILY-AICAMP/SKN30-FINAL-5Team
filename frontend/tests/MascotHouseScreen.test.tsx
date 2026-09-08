@@ -343,6 +343,32 @@ describe('MascotHouseScreen', () => {
     });
   });
 
+  it('lets each quest tab size the panel to its own content', async () => {
+    renderHouse(houseApi());
+
+    await screen.findByTestId('house-scene');
+    fireEvent.press(screen.getByTestId('house-quest-tile'));
+
+    const panelStyle = StyleSheet.flatten(
+      screen.getByTestId('house-quest-panel').props.style,
+    );
+    expect(panelStyle).toMatchObject({
+      position: 'absolute',
+      right: 0,
+      bottom: 0,
+      left: 0,
+      maxHeight: '100%',
+    });
+    expect(panelStyle.top).toBeUndefined();
+
+    fireEvent.press(screen.getByTestId('house-quest-tab-weekly'));
+    expect(screen.getByTestId('house-weekly-progress')).toBeTruthy();
+    expect(screen.getByTestId('house-quest-list')).toHaveStyle({
+      flexGrow: 0,
+      flexShrink: 1,
+    });
+  });
+
   it('opens the banana catch game and returns to the same house', async () => {
     renderHouse(houseApi());
 

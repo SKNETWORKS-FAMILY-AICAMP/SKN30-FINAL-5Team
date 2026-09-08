@@ -1610,7 +1610,7 @@ function QuestPanel({
 
   return (
     <View
-      style={[styles.panel, compactStyles.panel, styles.decoratePanel]}
+      style={[styles.panel, compactStyles.panel, styles.questPanel]}
       testID="house-quest-panel"
     >
       <View style={styles.decorateHeader}>
@@ -2790,6 +2790,13 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     left: 0,
+  },
+  questPanel: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    left: 0,
+    maxHeight: '100%',
   },
   decorateGrid: {
     flex: 1,
