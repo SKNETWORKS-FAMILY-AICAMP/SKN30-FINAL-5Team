@@ -11,6 +11,7 @@ import { colors, spacing } from '../theme';
 import { Card } from './Card';
 
 type StepCounterProps = {
+  compact?: boolean;
   decreaseLabel: string;
   disabled?: boolean;
   increaseLabel: string;
@@ -24,6 +25,7 @@ type StepCounterProps = {
 };
 
 export function StepCounter({
+  compact = false,
   decreaseLabel,
   disabled = false,
   increaseLabel,
@@ -39,7 +41,7 @@ export function StepCounter({
   const canIncrease = !disabled && value < max;
 
   return (
-    <Card style={styles.counterCard}>
+    <Card style={[styles.counterCard, compact && styles.counterCardCompact]}>
       <Pressable
         accessibilityLabel={decreaseLabel}
         accessibilityRole="button"
@@ -48,6 +50,7 @@ export function StepCounter({
         onPress={() => onChange(Math.max(min, value - step))}
         style={[
           styles.counterButton,
+          compact && styles.counterButtonCompact,
           !canDecrease && styles.counterButtonDisabled,
         ]}
       >
@@ -68,6 +71,7 @@ export function StepCounter({
         onPress={() => onChange(Math.min(max, value + step))}
         style={[
           styles.counterButton,
+          compact && styles.counterButtonCompact,
           !canIncrease && styles.counterButtonDisabled,
         ]}
       >
@@ -89,6 +93,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.lg,
   },
+  counterCardCompact: {
+    gap: spacing.md,
+    padding: spacing.md,
+  },
   counterButton: {
     width: 56,
     height: 56,
@@ -98,6 +106,11 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
     borderRadius: 28,
     backgroundColor: colors.surface,
+  },
+  counterButtonCompact: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   counterButtonDisabled: { borderColor: colors.border, opacity: 0.4 },
   counterIcon: {

@@ -142,6 +142,7 @@ function MyPageContent({
         : 'profile';
 
   const toggleNotification = (key: keyof typeof notifications) => {
+    if (!persistedSettingsAvailable) return;
     const enabled = !notifications[key];
     setNotifications((current) => ({ ...current, [key]: enabled }));
     onNotificationChange?.(key, enabled);
@@ -302,14 +303,6 @@ function MyPageContent({
           />
         </View>
 
-        {!persistedSettingsAvailable ? (
-          <InlineFeedback
-            message="알림 기능은 준비 중이에요."
-            style={styles.feedback}
-            tone="warning"
-          />
-        ) : null}
-
         <SectionTitle label="선택 동의 관리" />
         <View style={styles.rowsCard}>
           <Text style={styles.consentNote}>
@@ -348,7 +341,7 @@ function MyPageContent({
           ) : null}
         </View>
 
-        <SectionTitle label="계정 · 앱" />
+        <SectionTitle compact label="계정 · 앱" />
         <View style={styles.rowsCard}>
           {MY_PAGE_ACCOUNT_ROWS.map(([label, value]) => (
             <Pressable
@@ -431,8 +424,18 @@ function MyPageContent({
   );
 }
 
-function SectionTitle({ label }: { label: string }) {
-  return <Text style={styles.sectionTitle}>{label}</Text>;
+function SectionTitle({
+  compact = false,
+  label,
+}: {
+  compact?: boolean;
+  label: string;
+}) {
+  return (
+    <Text style={[styles.sectionTitle, compact && styles.compactSectionTitle]}>
+      {label}
+    </Text>
+  );
 }
 
 function NotificationRow({
@@ -665,6 +668,10 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.2,
   },
+  compactSectionTitle: {
+    marginTop: 12,
+    paddingBottom: 6,
+  },
   rowsCard: {
     ...shadow,
     borderRadius: 20,
@@ -760,13 +767,13 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   accountRow: {
-    minHeight: 52,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#F0EDE5',
-    paddingVertical: 12,
+    paddingVertical: 9,
   },
   accountLabel: {
     flex: 1,
@@ -781,9 +788,9 @@ const styles = StyleSheet.create({
   },
   accountActions: {
     alignItems: 'center',
-    gap: 14,
-    paddingTop: 14,
-    paddingBottom: 8,
+    gap: 10,
+    paddingTop: 10,
+    paddingBottom: 4,
   },
   deletionFeedback: {
     marginBottom: 12,
@@ -805,14 +812,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   withdrawAction: {
-    minHeight: 44,
+    minHeight: 40,
     alignSelf: 'stretch',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
     borderTopWidth: 1,
     borderTopColor: '#E2DED4',
-    paddingTop: 14,
+    paddingTop: 10,
     paddingHorizontal: 16,
   },
   withdrawText: {
