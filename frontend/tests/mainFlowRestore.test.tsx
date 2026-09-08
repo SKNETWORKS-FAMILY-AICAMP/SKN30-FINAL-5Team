@@ -33,6 +33,7 @@ import type {
 } from '../src/api/types';
 import { weekStartString } from '../src/api/useAsync';
 import { MainFlow } from '../src/app/MainFlow';
+import { homePreviewProps } from '../src/features/preview/homePreview';
 
 const LOCAL_DATE = new Date().toISOString().slice(0, 10);
 
@@ -253,6 +254,88 @@ function apiWithRoutes(routes: Record<string, unknown>) {
 }
 
 describe('MainFlow restart recovery', () => {
+  it.each(['HOME', 'GYM'])(
+    'preserves %s equipment guidance when resuming through MainFlow',
+    async (locationCode) => {
+      const storedPlan = plan();
+      storedPlan.items[0]!.instruction_available = true;
+      const { api } = apiWithRoutes({
+        '/home?': homeState({
+          decision: { ...decision(), final_plan: storedPlan },
+          final_plan: storedPlan,
+          workout_session: sessionDetail(),
+        }),
+        '/daily-contexts/': {
+          ...homePreviewProps('routine').context!,
+          location_code: locationCode,
+        },
+        '/workout-sessions/session-1': sessionDetail(),
+        '/exercises/ex-1/variants': {
+          source_exercise_id: 'ex-1',
+          source_required_equipment_codes: [],
+          items: [],
+          catalog_version: 'test-v1',
+          alternative_set_version: null,
+        },
+        '/exercises/ex-1': {
+          exercise_id: 'ex-1',
+          exercise_name: '스쿼트',
+          training_type_code: 'STRENGTH',
+          body_focus_code: null,
+          primary_body_area_codes: ['HIP'],
+          instruction_summary: '천천히 앉았다가 일어나요.',
+          form_cues: [],
+          household_equipment_guides: [
+            {
+              equipment_code: 'CHAIR',
+              proposal_ko: '흔들리지 않는 의자를 준비해요.',
+              examples_ko: [],
+              cautions_ko: [],
+            },
+          ],
+          gym_equipment_starting_guides: [
+            {
+              equipment_code: 'BARBELL',
+              proposal_ko: '가벼운 바부터 동작을 확인해요.',
+              examples_ko: [],
+              cautions_ko: [],
+            },
+          ],
+          media_asset_key: null,
+          media_url: null,
+          mascot_animation_asset_key: null,
+          instruction_content_version: 'test-v1',
+        },
+      });
+
+      render(
+        <MainFlow
+          api={api}
+          me={me()}
+          onRefreshMe={async () => undefined}
+          onSignOut={() => {}}
+        />,
+      );
+      await screen.findByRole('button', { name: '이어하기' });
+      fireEvent.press(screen.getByRole('button', { name: '이어하기' }));
+      await screen.findByTestId('workout-header-top-row');
+      await waitFor(() =>
+        expect(screen.queryByText('운동 세션을 준비하고 있어요…')).toBeNull(),
+      );
+      fireEvent.press(screen.getByRole('button', { name: '자세 설명 보기' }));
+      const expected =
+        locationCode === 'HOME'
+          ? 'household-equipment-guides'
+          : 'gym-equipment-starting-guides';
+      const excluded =
+        locationCode === 'HOME'
+          ? 'gym-equipment-starting-guides'
+          : 'household-equipment-guides';
+      expect(await screen.findByTestId(expected)).toBeOnTheScreen();
+      expect(screen.queryByTestId(excluded)).toBeNull();
+    },
+  );
+
   it('restores the latest weekly revision when the read capability is available', async () => {
     const { api } = apiWithRoutes({
       '/decisions?': decision(),
