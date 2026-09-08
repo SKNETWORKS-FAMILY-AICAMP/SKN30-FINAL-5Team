@@ -58,6 +58,8 @@ export function CheckinSheet({
   onSetRedFlag,
   onToggleBodyArea,
   locationCodes,
+  locationRequired,
+  recommendedDurationMinutes,
   pending,
 }: {
   draft: HomeCheckin;
@@ -75,6 +77,8 @@ export function CheckinSheet({
   onSetRedFlag: (present: boolean) => void;
   onToggleBodyArea: (code: string) => void;
   locationCodes: readonly string[];
+  locationRequired: boolean;
+  recommendedDurationMinutes: number | null;
   pending: boolean;
 }) {
   const styles = useHomeStyles();
@@ -109,6 +113,11 @@ export function CheckinSheet({
       Number(draft.workoutMinutes) < CHECKIN_DURATION_MINUTES.min ||
       Number(draft.workoutMinutes) > CHECKIN_DURATION_MINUTES.max);
   const durationMinutes = Number(draft.workoutMinutes);
+  const exceedsRecommendation =
+    recommendedDurationMinutes !== null &&
+    !durationMissing &&
+    !durationInvalid &&
+    durationMinutes > recommendedDurationMinutes;
   const canDecreaseDuration =
     !pending &&
     !durationInvalid &&
@@ -126,6 +135,10 @@ export function CheckinSheet({
       : [EMPTY_AVAILABILITY_SLOT];
   const discomfortSelectionMissing =
     showDiscomfortDetails && Object.keys(draft.pains).length === 0;
+  const locationSelectionMissing =
+    locationRequired &&
+    (draft.locationCode === null ||
+      !locationCodes.includes(draft.locationCode));
   const redFlagSelectionMissing = draft.redFlagPresent === null;
   const saveDisabled =
     pending ||
@@ -134,6 +147,7 @@ export function CheckinSheet({
     durationInvalid ||
     availabilityError !== null ||
     discomfortSelectionMissing ||
+    locationSelectionMissing ||
     redFlagSelectionMissing;
   return (
     <SheetFrame onClose={onClose} title="오늘 컨디션 체크" zIndex={20}>
@@ -216,9 +230,26 @@ export function CheckinSheet({
             </Pressable>
           </View>
         </View>
+        {recommendedDurationMinutes !== null ? (
+          <View style={styles.durationGuidance}>
+            <Text style={styles.durationRecommendation}>
+              1회 권장 운동 시간은 {recommendedDurationMinutes}분이에요.
+            </Text>
+            {exceedsRecommendation ? (
+              <Text
+                accessibilityLiveRegion="polite"
+                style={styles.durationRecommendationDetail}
+              >
+                권장 시간보다 길게 선택해도 괜찮아요. 오늘 가능한 시간에 맞춰
+                선택해주세요.
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
         {durationMissing ? (
           <Text accessibilityRole="alert" style={styles.messageText}>
-            오늘 가능한 운동 시간을 10~60분 중에서 선택해주세요.
+            오늘 가능한 운동 시간을 {CHECKIN_DURATION_MINUTES.min}~
+            {CHECKIN_DURATION_MINUTES.max}분 중에서 선택해주세요.
           </Text>
         ) : null}
         {CHECKIN_AVAILABILITY_INPUT_ENABLED ? (
@@ -322,17 +353,22 @@ export function CheckinSheet({
             수면 시간은 0~24 사이로 입력해주세요.
           </Text>
         ) : null}
-        {locationCodes.length > 0 ? (
-          <ChoiceBlock label="오늘 어디에서 운동할까요?">
-            {locationCodes.map((code) => (
-              <ChoiceButton
-                key={code}
-                label={locationLabel(code)}
-                onPress={() => onChangeLocation(code)}
-                selected={draft.locationCode === code}
-              />
-            ))}
-          </ChoiceBlock>
+        <ChoiceBlock label="오늘 어디에서 운동할까요?">
+          {locationCodes.map((code) => (
+            <ChoiceButton
+              key={code}
+              label={locationLabel(code)}
+              onPress={() => onChangeLocation(code)}
+              selected={draft.locationCode === code}
+            />
+          ))}
+        </ChoiceBlock>
+        {locationSelectionMissing ? (
+          <Text accessibilityRole="alert" style={styles.messageText}>
+            {locationCodes.length === 0
+              ? '운동 장소 선택지를 불러오지 못했어요. 잠시 후 다시 시도해주세요.'
+              : '집 또는 헬스장을 선택해주세요.'}
+          </Text>
         ) : null}
         <ChoiceBlock label="오늘 통증이 있는 부위가 있나요?">
           <ChoiceButton
@@ -456,28 +492,33 @@ export function CheckinSheet({
             />
           </View>
         ))}
-        <View style={styles.redFlagSection}>
+        <View
+          accessibilityLabel="오늘 위험 신호가 있나요?"
+          role="group"
+          style={styles.redFlagSection}
+          testID="checkin-red-flag-section"
+        >
           <Text style={styles.redFlagTitle}>오늘 위험 신호가 있나요?</Text>
           <Text style={styles.redFlagBody}>
             오늘 가슴 통증이나 압박감, 평소와 다른 심한 숨참, 심한 어지럼 또는
             실신할 것 같은 느낌, 심장이 매우 빠르거나 불규칙하게 뛰는 느낌 같은
             증상이 있나요?
           </Text>
+          <View style={styles.choiceRow}>
+            <ChoiceButton
+              accessibilityLabel="위험 신호 없어요"
+              label="없어요"
+              onPress={() => onSetRedFlag(false)}
+              selected={draft.redFlagPresent === false}
+            />
+            <ChoiceButton
+              accessibilityLabel="위험 신호 있어요"
+              label="있어요"
+              onPress={() => onSetRedFlag(true)}
+              selected={draft.redFlagPresent === true}
+            />
+          </View>
         </View>
-        <ChoiceBlock label="위 증상이 있나요?">
-          <ChoiceButton
-            accessibilityLabel="위험 신호 없어요"
-            label="없어요"
-            onPress={() => onSetRedFlag(false)}
-            selected={draft.redFlagPresent === false}
-          />
-          <ChoiceButton
-            accessibilityLabel="위험 신호 있어요"
-            label="있어요"
-            onPress={() => onSetRedFlag(true)}
-            selected={draft.redFlagPresent === true}
-          />
-        </ChoiceBlock>
         {redFlagSelectionMissing ? (
           <Text accessibilityRole="alert" style={styles.messageText}>
             위험 신호 여부를 선택해주세요.

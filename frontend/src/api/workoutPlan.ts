@@ -1,10 +1,36 @@
 import type {
-  DecisionPlanEditRequest,
+  PlanItemOrderRequest,
   PlanItemPrescriptionEdit,
   PlanPhaseCode,
+  RoutineDay,
   WorkoutPlan,
   WorkoutPlanItem,
 } from './types';
+import { bodyFocusLabel, trainingTypeLabel } from './labels';
+
+function fallbackRoutineTitle(plan: {
+  body_focus_code: string | null;
+  training_type_code: string;
+}): string {
+  const focus =
+    plan.body_focus_code === null ? '' : bodyFocusLabel(plan.body_focus_code);
+  return `${focus ? `${focus} ` : ''}${trainingTypeLabel(plan.training_type_code)} 루틴`;
+}
+
+function serverRoutineTitle(value: string | null | undefined): string | null {
+  const title = value?.trim();
+  return title ? title : null;
+}
+
+/** Prefer the BM-5 server name while keeping historical plan compatibility. */
+export function routineTitleFromPlan(plan: WorkoutPlan): string {
+  return serverRoutineTitle(plan.routine_name) ?? fallbackRoutineTitle(plan);
+}
+
+/** Routine templates use the same server-owned naming and legacy fallback. */
+export function routineTitleFromDay(day: RoutineDay): string {
+  return serverRoutineTitle(day.routine_name) ?? fallbackRoutineTitle(day);
+}
 
 /** Plans written before the phase field existed were all MAIN. */
 export function planItemPhaseCode(item: WorkoutPlanItem): PlanPhaseCode {
@@ -118,16 +144,24 @@ export function applyPlanItemPrescriptions(
   return changed ? { ...plan, items } : plan;
 }
 
-/** The full resulting plan, as the user-edit contract expects it. */
-export function planEditRequest(plan: WorkoutPlan): DecisionPlanEditRequest {
-  const items = orderedWorkoutPlanItems(plan.items);
+export function workoutPlanRevision(plan: WorkoutPlan): number {
+  return plan.plan_revision ?? 0;
+}
+
+/**
+ * The order endpoint needs the complete movable set. Completed blocks are
+ * history and stay in their performed positions on the server.
+ */
+export function planItemOrderRequest(
+  plan: WorkoutPlan,
+  completedPlanItemIds: readonly string[] = [],
+): PlanItemOrderRequest {
+  const completed = new Set(completedPlanItemIds);
   return {
     expected_plan_id: plan.plan_id,
-    item_order: items.map((item) => item.plan_item_id),
-    item_prescriptions: items.map((item) => ({
-      plan_item_id: item.plan_item_id,
-      sets: item.sets,
-      reps: item.reps,
-    })),
+    expected_plan_revision: workoutPlanRevision(plan),
+    ordered_plan_item_ids: orderedWorkoutPlanItems(plan.items)
+      .filter((item) => !completed.has(item.plan_item_id))
+      .map((item) => item.plan_item_id),
   };
 }

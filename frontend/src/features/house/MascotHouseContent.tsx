@@ -62,7 +62,6 @@ import {
   FlameGlyph,
   HeartGlyph,
   HouseArtView,
-  HouseMarkGlyph,
   InfoGlyph,
   PlusGlyph,
   StarGlyph,
@@ -72,6 +71,7 @@ import {
   houseBackgroundArt,
   houseBackgroundLabels,
   houseBackgroundThumbnailArt,
+  houseDecorateButtonArt,
   houseItemArt,
   housePoseArt,
   type HouseArtSlot,
@@ -79,6 +79,7 @@ import {
 import {
   HOUSE_ACTION_COST,
   HOUSE_BACKGROUND_IDS,
+  HOUSE_BONDING_COPY,
   HOUSE_DAILY_QUESTS,
   HOUSE_GAME_DAILY_PLAYS,
   INTIMACY_DAILY_EARN_LIMIT,
@@ -559,27 +560,33 @@ export function houseItemPlacementMinY(
 }
 
 export function MascotHouseContent({
+  actionError,
   footer,
   onBuyItem,
   onFeed,
+  onOpenRewards,
   onPet,
   onPlayGame,
   onPlaceItem,
   onSelectBackground,
   mascotArt,
   pose,
+  spendPending = false,
   view,
 }: {
+  actionError?: string | null;
   /** The tab bar, rendered inside the backdrop so the scene runs behind it. */
   footer?: ReactNode;
-  onBuyItem: (itemId: HouseItemId) => boolean;
-  onFeed: () => boolean;
+  onBuyItem: (itemId: HouseItemId) => boolean | Promise<boolean>;
+  onFeed: () => boolean | Promise<boolean>;
+  onOpenRewards: () => void;
   onPet: () => boolean;
   onPlayGame: (gameId: HouseMiniGameId) => void;
   onPlaceItem: (itemId: HouseItemId, placement: HouseItemPlacement) => void;
   onSelectBackground: (backgroundId: HouseBackgroundId) => void;
   mascotArt?: HouseArtSlot;
   pose: HousePose;
+  spendPending?: boolean;
   view: HouseView;
 }) {
   const scaleViewport = useScale();
@@ -587,8 +594,9 @@ export function MascotHouseContent({
   /**
    * 오늘의 퀘스트, opened as an overlay over the same action stack the
    * decorate panel covers. Every affordance that asks "how do I earn more?" —
-   * the banana chip's `+`, the intimacy chip, the bonus row, the quest tile —
-   * opens it, because the quest list is the one answer to all four. It is a
+   * the intimacy chip, the bonus row and the quest tile — opens it, because
+   * the quest list is the one answer to all three. The banana chip's `+` opens
+   * the server-backed wallet instead. It is a
    * panel and not a screen so the backdrop, the mascot and the tab bar all
    * stay exactly where they are.
    */
@@ -730,7 +738,7 @@ export function MascotHouseContent({
           text={speech}
         />
         <Pressable
-          accessibilityLabel="끼끼 쓰다듬기"
+          accessibilityLabel={HOUSE_BONDING_COPY.actionAccessibilityLabel}
           accessibilityRole="button"
           onPress={() => {
             if (onPet())
@@ -818,9 +826,9 @@ export function MascotHouseContent({
                   {view.bananas}개
                 </Text>
                 <Pressable
-                  accessibilityLabel="바나나 얻는 방법 보기"
+                  accessibilityLabel="바나나 지갑 보기"
                   accessibilityRole="button"
-                  onPress={openQuests}
+                  onPress={onOpenRewards}
                   style={[styles.chipPlus, { marginLeft: spacing.xs }]}
                   testID="house-banana-earn-action"
                 >
@@ -828,6 +836,11 @@ export function MascotHouseContent({
                 </Pressable>
                 <SpendActionEffectOverlay effect={actionEffect} />
               </View>
+              {actionError ? (
+                <Text accessibilityRole="alert" style={styles.walletError}>
+                  {actionError}
+                </Text>
+              ) : null}
             </View>
 
             <View
@@ -885,10 +898,21 @@ export function MascotHouseContent({
                 style={[styles.chip, compactStyles.chip]}
                 testID="house-decorate-action"
               >
-                <HouseMarkGlyph
-                  size={22 * controlScale}
-                  color={colors.brandOutline}
-                />
+                <View
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                  pointerEvents="none"
+                >
+                  <HouseArtView
+                    showPlaceholderLabel={false}
+                    showPlaceholderOutline={false}
+                    slot={houseDecorateButtonArt}
+                    style={{
+                      height: 28 * controlScale,
+                      width: 28 * controlScale,
+                    }}
+                  />
+                </View>
                 <Text style={[styles.chipValue, compactStyles.chipValue]}>
                   집 꾸미기
                 </Text>
@@ -935,14 +959,16 @@ export function MascotHouseContent({
               >
                 <FeedButton
                   controlScale={controlScale}
-                  enabled={view.canFeed}
+                  enabled={view.canFeed && !spendPending}
                   onPress={() => {
-                    if (onFeed()) {
-                      showActionEffect({
-                        amount: HOUSE_ACTION_COST.feed,
-                        mascotEffect: 'banana',
-                      });
-                    }
+                    void Promise.resolve(onFeed()).then((succeeded) => {
+                      if (succeeded) {
+                        showActionEffect({
+                          amount: HOUSE_ACTION_COST.feed,
+                          mascotEffect: 'banana',
+                        });
+                      }
+                    });
                   }}
                 />
               </View>
@@ -972,6 +998,7 @@ export function MascotHouseContent({
                 onClose={() => setDecorating(false)}
                 onSelectBackground={onSelectBackground}
                 onSpend={(amount) => showActionEffect({ amount })}
+                spendPending={spendPending}
                 view={view}
               />
             ) : null}
@@ -1330,7 +1357,7 @@ function TouchHint({
       </Text>
       <View style={styles.touchHintBodyRow}>
         <Text style={[styles.touchHintBody, compactStyles.touchHintBody]}>
-          쓰다듬으면 친밀도가 올라가요
+          {HOUSE_BONDING_COPY.hintDescription}
         </Text>
         <HeartGlyph filled={false} size={11 * controlScale} />
         <InfoGlyph size={12 * controlScale} />
@@ -1372,7 +1399,7 @@ function IntimacyBonusRow({
           </Text>
         </Text>
         <Text style={[styles.bonusBody, compactStyles.bonusBody]}>
-          쓰다듬기, 바나나 주기, 운동 완료 등으로 친밀도를 올려보세요!
+          {HOUSE_BONDING_COPY.bonusDescription}
         </Text>
       </View>
       <ChevronGlyph size={14 * controlScale} />
@@ -1698,13 +1725,15 @@ function DecoratePanel({
   onClose,
   onSelectBackground,
   onSpend,
+  spendPending,
   view,
 }: {
   controlScale: number;
-  onBuyItem: (itemId: HouseItemId) => boolean;
+  onBuyItem: (itemId: HouseItemId) => boolean | Promise<boolean>;
   onClose: () => void;
   onSelectBackground: (backgroundId: HouseBackgroundId) => void;
   onSpend: (amount: number) => void;
+  spendPending: boolean;
   view: HouseView;
 }) {
   const compactStyles = houseControlStyles(controlScale);
@@ -1835,7 +1864,7 @@ function DecoratePanel({
             ))}
 
             {view.lockedItems.map((item) => {
-              const affordable = view.bananas >= item.cost;
+              const affordable = view.bananas >= item.cost && !spendPending;
               return (
                 <Pressable
                   accessibilityLabel={`${item.label}, 바나나 ${item.cost}개`}
@@ -1844,7 +1873,11 @@ function DecoratePanel({
                   disabled={!affordable}
                   key={item.id}
                   onPress={() => {
-                    if (onBuyItem(item.id)) onSpend(item.cost);
+                    void Promise.resolve(onBuyItem(item.id)).then(
+                      (succeeded) => {
+                        if (succeeded) onSpend(item.cost);
+                      },
+                    );
                   }}
                   style={[styles.itemTile, !affordable && styles.spent]}
                   testID={`house-item-${item.id}`}
@@ -2231,6 +2264,7 @@ const styles = StyleSheet.create({
   },
   chip: {
     minWidth: 84,
+    minHeight: 44,
     alignItems: 'center',
     gap: 3,
     borderRadius: 14,
@@ -2243,6 +2277,12 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 13,
     fontWeight: '800',
+  },
+  walletError: {
+    maxWidth: 180,
+    color: colors.danger,
+    fontSize: 11,
+    lineHeight: 15,
   },
   streakChip: {
     flexDirection: 'row',

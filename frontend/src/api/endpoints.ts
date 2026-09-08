@@ -1,31 +1,37 @@
 /**
  * One function per implemented `/api/v1` endpoint.
  *
- * Profile-image methods are the frontend side of a proposed multipart contract;
- * the backend must review and implement that contract before production use.
+ * Profile-image methods use the implemented multipart upload/delete contract.
  * Calendar and wearable routes remain absent while there is nothing to call.
  */
 
 import type { ApiClient } from './client';
 import type {
+  BananaSpendRequest,
+  BananaSpendResponse,
+  BananaWalletResponse,
   ConsentResponse,
   ConsentValues,
   DailyContextDefaultsResponse,
   DailyContextRequest,
   DailyContextResponse,
-  DecisionPlanEditRequest,
   DecisionRegenerationRequest,
   DecisionResponse,
   DecisionSelectionResponse,
+  DailyRewardClaimResponse,
   ExerciseDetailResponse,
   ExerciseListResponse,
   ExerciseVariantsResponse,
+  HomeStateResponse,
   MeResponse,
   NotCompletedReasonCode,
   NotificationListResponse,
   NotificationResponse,
   OnboardingRequest,
   OnboardingResponse,
+  PlanItemOrderRequest,
+  PlanItemSetRepetitionRequest,
+  PlanRevisionResponse,
   ProfileImageMutationResponse,
   ProfileImageUpload,
   ProfileSettingsUpdateRequest,
@@ -65,6 +71,31 @@ export function createApi(client: ApiClient) {
         path: `/notifications/${notificationId}/read`,
         idempotent: true,
         signal,
+      });
+    },
+
+    getRewards(signal?: AbortSignal) {
+      return client.request<BananaWalletResponse>({
+        path: '/rewards',
+        signal,
+      });
+    },
+
+    claimDailyReward() {
+      return client.request<DailyRewardClaimResponse>({
+        method: 'POST',
+        path: '/rewards/daily-reward/claim',
+        idempotent: true,
+      });
+    },
+
+    spendBananas(body: BananaSpendRequest, idempotencyKey?: string) {
+      return client.request<BananaSpendResponse>({
+        method: 'POST',
+        path: '/rewards/spend',
+        body,
+        idempotent: true,
+        idempotencyKey,
       });
     },
 
@@ -192,9 +223,14 @@ export function createApi(client: ApiClient) {
      * Reviewed EQUIPMENT variants for display only. An empty `items` array
      * means this exercise must not expose a variant action.
      */
-    getExerciseVariants(exerciseId: string, signal?: AbortSignal) {
+    getExerciseVariants(
+      exerciseId: string,
+      locationCode?: string,
+      signal?: AbortSignal,
+    ) {
       return client.request<ExerciseVariantsResponse>({
         path: `/exercises/${exerciseId}/variants`,
+        query: { location_code: locationCode },
         signal,
       });
     },
@@ -273,12 +309,53 @@ export function createApi(client: ApiClient) {
       });
     },
 
+    /**
+     * A server-composed Home snapshot. This prevents a decision from being
+     * paired with a workout session that belongs to a different plan.
+     */
+    getHomeState(localDate: string, signal?: AbortSignal) {
+      return client.request<HomeStateResponse>({
+        path: '/home',
+        query: { local_date: localDate },
+        signal,
+      });
+    },
+
     regenerateDecision(decisionId: string, body: DecisionRegenerationRequest) {
       return client.request<DecisionResponse>({
         method: 'POST',
         path: `/decisions/${decisionId}/regenerations`,
         body,
         idempotent: true,
+      });
+    },
+
+    updateDecisionPlanItem(
+      decisionId: string,
+      planItemId: string,
+      body: PlanItemSetRepetitionRequest,
+      idempotencyKey?: string,
+    ) {
+      return client.request<PlanRevisionResponse>({
+        method: 'PATCH',
+        path: `/decisions/${decisionId}/plan-items/${planItemId}`,
+        body,
+        idempotent: true,
+        idempotencyKey,
+      });
+    },
+
+    updateDecisionPlanOrder(
+      decisionId: string,
+      body: PlanItemOrderRequest,
+      idempotencyKey?: string,
+    ) {
+      return client.request<PlanRevisionResponse>({
+        method: 'PUT',
+        path: `/decisions/${decisionId}/plan-item-order`,
+        body,
+        idempotent: true,
+        idempotencyKey,
       });
     },
 
@@ -550,25 +627,5 @@ export type WeeklyPlanRevisionReadCapability = {
   ): Promise<WeeklyPlanRevisionResponse>;
 };
 
-/**
- * Forward-compatible write boundary for the user's edit of today's final plan:
- * set and repetition changes (ADR-0018 D4) and reordering inside one phase
- * (D5). The backend route is not available yet, so `createApi` does not issue a
- * speculative request and an edit lives only as long as the running app.
- * Implementing the route and adding this method to `createApi` turns on
- * persistence without any change in the screens.
- *
- * The documented `POST /weeks/{week_start}/plan-revisions` USER flow cannot
- * carry this edit: it references a stored weekly routine version by id, and
- * there is no contract for the client to author today's decision plan.
- */
-export type DecisionPlanEditCapability = {
-  updateDecisionPlan(
-    decisionId: string,
-    body: DecisionPlanEditRequest,
-  ): Promise<DecisionResponse>;
-};
-
 export type Api = ReturnType<typeof createApi> &
-  Partial<WeeklyPlanRevisionReadCapability> &
-  Partial<DecisionPlanEditCapability>;
+  Partial<WeeklyPlanRevisionReadCapability>;

@@ -10,7 +10,7 @@ import type {
   SessionStatusCode,
   WorkoutPlan,
 } from '../../api/types';
-import { moveArrayItem } from '../../api/workoutPlan';
+import { moveArrayItem, routineTitleFromPlan } from '../../api/workoutPlan';
 import { useBrandFonts } from '../../app/fonts';
 import type { TabId } from '../../components/brand/BrandChrome';
 import { useScale } from '../../components/scale';
@@ -32,7 +32,6 @@ import {
   routineItemOverrides,
   routineFocusFromPlan,
   routineItemsFromPlan,
-  routineTitleFromPlan,
   weekDaysFromSessions,
   weeklyCompletionPercentage,
   weekStartForLocalDate,
@@ -91,7 +90,6 @@ export function HomeScreenContent({
   context = null,
   currentDate = '2026.08.11 (화)',
   decision = null,
-  errorMessage,
   exerciseApi,
   hasTodayRoutine = true,
   hasUnreadNotification = false,
@@ -101,6 +99,7 @@ export function HomeScreenContent({
   initialState,
   localDate,
   locationCodes = [],
+  recommendedDurationMinutes = null,
   nickname,
   onChooseRest,
   onEditRoutine,
@@ -114,6 +113,7 @@ export function HomeScreenContent({
   onRequestAlternative,
   onReorderPlan,
   onRetry,
+  onRetryPlanEdit,
   onRetryDecision,
   onRetryCheckin,
   onSaveCheckin,
@@ -175,6 +175,8 @@ export function HomeScreenContent({
     exerciseName: string;
     response: ExerciseVariantsResponse;
   } | null>(null);
+  const variantsAvailableInContext =
+    context?.location_code === undefined || context.location_code === 'HOME';
   const [showTip, setShowTip] = useState(false);
   const [rerolling, setRerolling] = useState(initialState === 'generating');
   const [previewRerolls, setPreviewRerolls] = useState(0);
@@ -188,7 +190,7 @@ export function HomeScreenContent({
         apiMode,
         context,
         persistentPains,
-        locationCodes[0] ?? null,
+        locationCodes,
         initialState,
       ),
     [apiMode, context, initialState, locationCodes, persistentPains],
@@ -206,9 +208,6 @@ export function HomeScreenContent({
     () => (serverPlan === null ? [] : routineItemsFromPlan(serverPlan)),
     [serverPlan],
   );
-  // The override is tied to the plan it was made against. Any new plan from the
-  // flow above — the stored edit, a reorder, a rejected edit rolled back, a
-  // regenerated routine — is the answer to it, so it stops applying.
   const [presentationOverrides, setPresentationOverrides] = useState<{
     plan: WorkoutPlan | null;
     overrides: readonly RoutineItemDraftOverride[];
@@ -225,8 +224,7 @@ export function HomeScreenContent({
     ? presentedServerRoutineItems
     : routineItems;
   const serverCheckin = useMemo(
-    () =>
-      checkinFromContext(context, persistentPains, locationCodes[0] ?? null),
+    () => checkinFromContext(context, persistentPains, locationCodes),
     [context, locationCodes, persistentPains],
   );
   const displayedCheckin = apiMode ? serverCheckin : committedCheckin;
@@ -451,9 +449,6 @@ export function HomeScreenContent({
     );
   });
 
-  // The override shows the edit immediately; the container applies the same
-  // edit to today's plan and asks the server to store it. Whatever comes back
-  // replaces the override, so a rejected edit does not keep being displayed.
   const saveInlineEdit = () => {
     if (inlineEditInvalid) {
       return;
@@ -523,14 +518,12 @@ export function HomeScreenContent({
     todayRoutineState.progress?.completedPlanItemIds ?? [];
   const reorderUnfinishedPlan = (from: number, to: number) => {
     const items = inlineEditing ? editDraft : displayedRoutineItems;
-    const source = items[from];
-    const target = items[to];
+    const [source, target] = [items[from], items[to]];
     if (
       source === undefined ||
       target === undefined ||
       completedPlanItemIds.includes(source.id) ||
       completedPlanItemIds.includes(target.id) ||
-      // Warm-up, main and cool-down keep their own order (ADR-0018 D5).
       (source.phaseCode ?? 'MAIN') !== (target.phaseCode ?? 'MAIN')
     ) {
       return;
@@ -618,11 +611,17 @@ export function HomeScreenContent({
                 actionLabel={
                   staleContext
                     ? '최신 상태로 다시 시도'
-                    : onRetryDecision
-                      ? '루틴 생성 다시 시도'
-                      : undefined
+                    : onRetryPlanEdit
+                      ? '수정 저장 다시 시도'
+                      : onRetryDecision
+                        ? '루틴 생성 다시 시도'
+                        : undefined
                 }
-                onAction={staleContext ? onRetryCheckin : onRetryDecision}
+                onAction={
+                  staleContext
+                    ? onRetryCheckin
+                    : (onRetryPlanEdit ?? onRetryDecision)
+                }
                 serious={blockingRevisionNotice?.serious}
                 testID="home-action-error"
                 text={
@@ -722,6 +721,7 @@ export function HomeScreenContent({
                 items={
                   apiMode && inlineEditing ? editDraft : displayedRoutineItems
                 }
+                locationCode={context?.location_code}
                 minutes={routineMinutes}
                 notes={routineNotes}
                 onEdit={
@@ -809,6 +809,8 @@ export function HomeScreenContent({
           <CheckinSheet
             draft={checkinDraft}
             locationCodes={apiMode ? locationCodes : []}
+            locationRequired={apiMode}
+            recommendedDurationMinutes={recommendedDurationMinutes}
             onAddAvailabilitySlot={() =>
               setCheckinDraft((current) => ({
                 ...current,
@@ -935,11 +937,12 @@ export function HomeScreenContent({
             <ExerciseDetailSheet
               api={exerciseApi}
               exerciseId={exerciseGuide.exerciseId}
+              guideContext={{ locationCode: displayedCheckin.locationCode }}
             />
           </SheetFrame>
         ) : null}
 
-        {variantGuide ? (
+        {variantGuide && variantsAvailableInContext ? (
           <SheetFrame
             onClose={() => setVariantGuide(null)}
             title={`${variantGuide.exerciseName} 장비 안내`}

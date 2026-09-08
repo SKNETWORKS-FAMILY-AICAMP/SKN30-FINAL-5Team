@@ -138,6 +138,7 @@ const BODY_FOCUS: Record<string, string> = {
   QUADRICEPS: '대퇴사두근',
   HAMSTRINGS: '햄스트링',
   CALVES: '종아리',
+  ADDUCTORS: '내전근',
   CORE: '코어',
   FULL_BODY: '전신',
   CARDIO: '유산소',

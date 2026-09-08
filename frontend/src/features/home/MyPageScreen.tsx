@@ -24,7 +24,6 @@ import {
   MY_PAGE_PROFILE_ROWS,
   type MyPagePreviewState,
 } from './homeSecondaryModel';
-import { ONBOARDING_COACHING_STYLE_OPTIONS } from '../onboarding/onboardingOptions';
 import { buildMyPageProfileRows } from './myPageModel';
 import {
   MyPageProfileEditor,
@@ -40,8 +39,6 @@ export const MY_PAGE_LAYOUT = {
 } as const;
 
 type MyPageScreenProps = {
-  coachingStyleError?: string | null;
-  coachingStylePending?: boolean;
   consentError?: string | null;
   consentPending?: boolean;
   consentValues?: ConsentValues | null;
@@ -49,7 +46,6 @@ type MyPageScreenProps = {
   joinedDays?: number | null;
   me?: MeResponse;
   onAccountAction?: (label: string) => void;
-  onCoachingStyleChange?: (code: string) => void;
   onConfirmLogout?: () => void;
   onConfirmWithdraw?: () => void;
   onConsentChange?: (key: keyof ConsentValues, enabled: boolean) => void;
@@ -81,8 +77,6 @@ export function MyPageScreen({
 }
 
 function MyPageContent({
-  coachingStyleError = null,
-  coachingStylePending = false,
   consentError = null,
   consentPending = false,
   consentValues = null,
@@ -90,7 +84,6 @@ function MyPageContent({
   joinedDays = null,
   me,
   onAccountAction,
-  onCoachingStyleChange,
   onConfirmLogout,
   onConfirmWithdraw,
   onConsentChange,
@@ -108,8 +101,6 @@ function MyPageContent({
   withdrawalError = null,
   withdrawalPending = false,
 }: MyPageScreenProps) {
-  const [previewCoachStyleCode, setPreviewCoachStyleCode] =
-    useState('SUPPORTIVE');
   const [editingField, setEditingField] = useState<MyPageEditableField | null>(
     null,
   );
@@ -127,23 +118,6 @@ function MyPageContent({
   });
   const profile = me?.profile ?? null;
   const apiBacked = me !== undefined;
-  const coachStyleCode = profile?.coaching_style_code ?? previewCoachStyleCode;
-  // Coaching style is a draft until the user presses 저장하기: selecting a card
-  // only moves the highlight. React's "adjust state when inputs change" pattern
-  // resets the draft once the saved value catches up.
-  const [coachStyleDraft, setCoachStyleDraft] = useState(coachStyleCode);
-  const [syncedCoachStyleCode, setSyncedCoachStyleCode] =
-    useState(coachStyleCode);
-  if (syncedCoachStyleCode !== coachStyleCode) {
-    setSyncedCoachStyleCode(coachStyleCode);
-    setCoachStyleDraft(coachStyleCode);
-  }
-  const coachStyleDirty = coachStyleDraft !== coachStyleCode;
-  const saveCoachStyle = () => {
-    if (!coachStyleDirty || coachingStylePending) return;
-    if (onCoachingStyleChange) onCoachingStyleChange(coachStyleDraft);
-    else setPreviewCoachStyleCode(coachStyleDraft);
-  };
   const profileRows = profile
     ? buildMyPageProfileRows(profile)
     : MY_PAGE_PROFILE_ROWS;
@@ -262,59 +236,6 @@ function MyPageContent({
           </View>
         </Card>
 
-        <View style={styles.coachCard}>
-          <Text style={styles.coachTitle}>헬끼 코칭 스타일</Text>
-          <Text style={styles.coachNote}>
-            원하는 방식으로 운동을 안내해드려요.
-          </Text>
-          <View style={styles.coachOptions}>
-            {ONBOARDING_COACHING_STYLE_OPTIONS.map((option) => {
-              const selected = option.code === coachStyleDraft;
-              return (
-                <Pressable
-                  key={option.code}
-                  accessibilityRole="button"
-                  accessibilityState={{
-                    selected,
-                    disabled: coachingStylePending,
-                  }}
-                  disabled={coachingStylePending}
-                  onPress={() => setCoachStyleDraft(option.code)}
-                  style={[
-                    styles.coachOption,
-                    selected && styles.coachOptionSelected,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.coachOptionText,
-                      selected && styles.coachOptionTextSelected,
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          {coachStyleDirty ? (
-            <Button
-              disabled={coachingStylePending}
-              label={coachingStylePending ? '저장 중…' : '저장하기'}
-              onPress={saveCoachStyle}
-              style={styles.coachSaveButton}
-            />
-          ) : null}
-        </View>
-
-        {coachingStyleError ? (
-          <InlineFeedback
-            message={coachingStyleError}
-            style={styles.feedback}
-            tone="error"
-          />
-        ) : null}
-
         <SectionTitle label="내 운동 정보" />
         <View style={styles.rowsCard}>
           {profileRows.map(([field, label, value]) => (
@@ -383,7 +304,7 @@ function MyPageContent({
 
         {!persistedSettingsAvailable ? (
           <InlineFeedback
-            message="알림과 기기 연동 기능은 준비 중이에요."
+            message="알림 기능은 준비 중이에요."
             style={styles.feedback}
             tone="warning"
           />
@@ -439,11 +360,7 @@ function MyPageContent({
               style={styles.accountRow}
             >
               <Text style={styles.accountLabel}>{label}</Text>
-              <Text style={styles.accountValue}>
-                {!persistedSettingsAvailable && label === '연동 기기'
-                  ? '준비 중'
-                  : value}
-              </Text>
+              <Text style={styles.accountValue}>{value}</Text>
               <Text style={styles.rowArrow}>›</Text>
             </Pressable>
           ))}
@@ -619,7 +536,6 @@ function ConfirmationDialog({
 }
 
 const OPTIONAL_CONSENTS = [
-  { key: 'wearable_integration', label: '웨어러블 연동' },
   { key: 'marketing', label: '마케팅 정보 수신' },
 ] as const satisfies readonly {
   key: keyof ConsentValues;
@@ -739,56 +655,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     paddingHorizontal: 16,
     paddingVertical: 12,
-  },
-  coachCard: {
-    marginTop: MY_PAGE_LAYOUT.sectionGap,
-    borderRadius: 20,
-    backgroundColor: '#FFEBC2',
-    paddingHorizontal: 14,
-    paddingTop: 14,
-    paddingBottom: 16,
-  },
-  coachTitle: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  coachNote: {
-    marginTop: 8,
-    color: '#4A5B44',
-    fontSize: 12.5,
-    lineHeight: 19,
-  },
-  coachOptions: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 12,
-  },
-  coachSaveButton: {
-    marginTop: 12,
-  },
-  coachOption: {
-    minHeight: 38,
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: '#F1D39A',
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 4,
-  },
-  coachOptionSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
-  },
-  coachOptionText: {
-    color: '#A45F00',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  coachOptionTextSelected: {
-    color: colors.text,
   },
   sectionTitle: {
     marginTop: 16,

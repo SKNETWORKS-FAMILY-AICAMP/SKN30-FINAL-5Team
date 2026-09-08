@@ -18,9 +18,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Api } from '../../api/endpoints';
-import type { WeekResponse, WorkoutSessionLogSummary } from '../../api/types';
+import { isApiError, messageForError } from '../../api/errors';
+import type {
+  BananaSpendRequest,
+  BananaWalletResponse,
+  WeekResponse,
+  WorkoutSessionLogSummary,
+} from '../../api/types';
 import {
   localDateString,
+  useAsyncAction,
   useAsyncData,
   weekStartString,
 } from '../../api/useAsync';
@@ -28,6 +35,7 @@ import type { TabId } from '../../components/brand/BrandChrome';
 import { LoadingState, ScreenShell } from '../../components/states/ScreenState';
 import { HomeBottomNavigation } from '../home/HomeScreen';
 import { BananaCatchGameScreen } from '../bananaCatch/BananaCatchGameScreen';
+import { RewardsScreen } from '../rewards/RewardsScreen';
 import { MascotHouseContent, type HouseMiniGameId } from './MascotHouseContent';
 import {
   housePoseArt,
@@ -63,12 +71,21 @@ import {
 /** How long ordinary reactions are held before the mascot settles back. */
 const POSE_HOLD_MS = 2600;
 
+function spendErrorMessage(error: unknown, fallback: string | null) {
+  if (isApiError(error) && error.code === 'INSUFFICIENT_BANANA_BALANCE') {
+    return '바나나 잔액이 부족해요. 지갑을 확인한 뒤 다시 시도해주세요.';
+  }
+  return fallback;
+}
+
 /** Feeding stays visible about three seconds longer than it did originally. */
 export const FEED_POSE_HOLD_MS = POSE_HOLD_MS + 3000;
 
 type HouseRemote = {
   week: WeekResponse | null;
   sessions: WorkoutSessionLogSummary[];
+  wallet: BananaWalletResponse | null;
+  walletError: string | null;
 };
 
 export function MascotHouseScreen({
@@ -99,13 +116,19 @@ export function MascotHouseScreen({
   const [activeMiniGame, setActiveMiniGame] = useState<HouseMiniGameId | null>(
     null,
   );
+  const [rewardsOpen, setRewardsOpen] = useState(false);
   const lastBananaArt = useRef<HouseArtSlot['source']>(null);
   const lastRegularArt = useRef<HouseArtSlot['source']>(null);
   const poseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** The latest house state, readable from an async callback without a stale closure. */
   const liveState = useRef<HouseState | null>(null);
+  const serverBalance = useRef(0);
 
-  const { state: remote } = useAsyncData<HouseRemote>(
+  const {
+    reload: reloadRemote,
+    setData: setRemoteData,
+    state: remote,
+  } = useAsyncData<HouseRemote>(
     async (signal) => {
       // Neither request rejects: the house stays reachable offline, and the
       // week-aware mascot copy degrades locally instead of failing the screen.
@@ -119,9 +142,17 @@ export function MascotHouseScreen({
         )
         .then((page) => page.items)
         .catch(() => []);
+      const rewards = await api
+        .getRewards(signal)
+        .then((wallet) => ({ wallet, walletError: null }))
+        .catch((error: unknown) => ({
+          wallet: null,
+          walletError: messageForError(error),
+        }));
       return {
         week: week === 'failed' ? null : week,
         sessions,
+        ...rewards,
       };
     },
     [api, localDate, weekStart],
@@ -135,6 +166,12 @@ export function MascotHouseScreen({
   );
 
   const sessions = remote.status === 'ready' ? remote.data.sessions : null;
+  const walletBalance =
+    remote.status === 'ready' ? (remote.data.wallet?.balance ?? 0) : 0;
+
+  useEffect(() => {
+    serverBalance.current = walletBalance;
+  }, [walletBalance]);
 
   /** Official completion, read off the server's status — never inferred here. */
   const workoutCompletedToday = useMemo(
@@ -157,9 +194,10 @@ export function MascotHouseScreen({
         today: localDate,
         workoutCompletedToday,
       }).state;
-      liveState.current = settled;
-      setHouseState(settled);
-      void houseStore.write(settled);
+      const serverBacked = { ...settled, bananas: serverBalance.current };
+      liveState.current = serverBacked;
+      setHouseState(serverBacked);
+      void houseStore.write(serverBacked);
     },
     [houseStore, localDate, workoutCompletedToday],
   );
@@ -182,6 +220,11 @@ export function MascotHouseScreen({
     },
     [],
   );
+  const spendRequest = useCallback(
+    (body: BananaSpendRequest) => api.spendBananas(body),
+    [api],
+  );
+  const spend = useAsyncAction(spendRequest);
 
   // Arrival: read the stored house once, then record the visit and pay out any
   // workout it has not paid for yet.
@@ -220,6 +263,18 @@ export function MascotHouseScreen({
     return <BananaCatchGameScreen onBack={() => setActiveMiniGame(null)} />;
   }
 
+  if (rewardsOpen) {
+    return (
+      <RewardsScreen
+        api={api}
+        onBack={() => {
+          setRewardsOpen(false);
+          reloadRemote();
+        }}
+      />
+    );
+  }
+
   if (remote.status !== 'ready' || houseState === null) {
     return (
       <ScreenShell footer={tabBar}>
@@ -229,7 +284,7 @@ export function MascotHouseScreen({
   }
 
   const view = buildHouseView({
-    state: houseState,
+    state: { ...houseState, bananas: walletBalance },
     week: remote.data.week,
     sessions: remote.data.sessions,
     weekStart,
@@ -238,18 +293,55 @@ export function MascotHouseScreen({
 
   return (
     <MascotHouseContent
+      actionError={
+        spendErrorMessage(spend.lastError, spend.error) ??
+        (remote.status === 'ready' ? remote.data.walletError : null)
+      }
       footer={tabBar}
-      onBuyItem={(itemId: HouseItemId) => {
-        const next = buyItem(houseState, itemId);
+      onBuyItem={async (itemId: HouseItemId) => {
+        const current = {
+          ...(liveState.current ?? houseState),
+          bananas: serverBalance.current,
+        };
+        const next = buyItem(current, itemId);
         if (next === null) return false;
-        persist(next);
+        const result = await spend.run({
+          action_code: 'PURCHASE_HOUSE_ITEM',
+          house_item_code: itemId,
+        });
+        if (!result) return false;
+        serverBalance.current = result.balance;
+        setRemoteData({
+          ...remote.data,
+          wallet: {
+            balance: result.balance,
+            daily_reward: result.daily_reward,
+          },
+          walletError: null,
+        });
+        persist({ ...next, bananas: result.balance });
         react('happy');
         return true;
       }}
-      onFeed={() => {
-        const next = feedMascot(houseState, localDate);
+      onFeed={async () => {
+        const current = {
+          ...(liveState.current ?? houseState),
+          bananas: serverBalance.current,
+        };
+        const next = feedMascot(current, localDate);
         if (next === null) return false;
-        persist(next);
+        const result = await spend.run({ action_code: 'FEED_MASCOT' });
+        if (!result) return false;
+        serverBalance.current = result.balance;
+        setRemoteData({
+          ...remote.data,
+          wallet: {
+            balance: result.balance,
+            daily_reward: result.daily_reward,
+          },
+          walletError: null,
+        });
+        persist({ ...next, bananas: result.balance });
         const bananaArt = randomHouseBananaPoseArt(lastBananaArt.current);
         const regularArt = randomHouseRegularPoseArt(lastRegularArt.current);
         lastBananaArt.current = bananaArt.source;
@@ -257,6 +349,7 @@ export function MascotHouseScreen({
         react('eating', bananaArt, FEED_POSE_HOLD_MS, regularArt);
         return true;
       }}
+      onOpenRewards={() => setRewardsOpen(true)}
       onPet={() => {
         // Free and unlimited, so there is no failure case: the touch always
         // lands, and only the intimacy it pays is capped.
@@ -288,6 +381,7 @@ export function MascotHouseScreen({
         (reactionPose === null ? settledArt : reactionArt) ?? undefined
       }
       pose={reactionPose ?? restingPose(view)}
+      spendPending={spend.pending}
       view={view}
     />
   );

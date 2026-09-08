@@ -6,6 +6,7 @@ import {
   DEFAULT_HOUSE_BACKGROUND_ID,
   DAILY_GIFT_BANANAS,
   HOUSE_ACTION_COST,
+  HOUSE_BONDING_COPY,
   HOUSE_DAILY_QUESTS,
   INTIMACY_DAILY_EARN_LIMIT,
   INTIMACY_POINTS_PER_LEVEL,
@@ -66,6 +67,12 @@ function stateWith(overrides: Partial<HouseState>): HouseState {
 }
 
 describe('house rewards', () => {
+  it('uses the shared bonding copy for the mascot interaction quest', () => {
+    expect(HOUSE_DAILY_QUESTS.find((quest) => quest.id === 'pet')?.label).toBe(
+      HOUSE_BONDING_COPY.questLabel,
+    );
+  });
+
   it('pays for a completed workout once, however often the list is re-read', () => {
     const sessions = [session('s1', '2026-08-18', 'COMPLETED')];
 

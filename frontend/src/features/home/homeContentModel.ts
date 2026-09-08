@@ -22,11 +22,11 @@ export function buildInitialCheckin(
   apiMode: boolean,
   context: DailyContextResponse | null,
   persistentPains: readonly PainAreaInput[],
-  locationCode: string | null,
+  locationCodes: readonly string[],
   initialState: HomePreviewState,
 ): HomeCheckin {
   if (apiMode) {
-    return checkinFromContext(context, persistentPains, locationCode);
+    return checkinFromContext(context, persistentPains, locationCodes);
   }
   if (initialState === 'adjusted') {
     return {

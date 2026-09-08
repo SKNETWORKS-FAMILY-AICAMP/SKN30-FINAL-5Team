@@ -117,19 +117,23 @@ describe('MyPageContainer', () => {
     expect(screen.queryByRole('button', { name: '장비 수정' })).toBeNull();
     expect(screen.queryByText('맨몸 · 밴드')).toBeNull();
     expect(screen.queryByText('캘린더 연동')).toBeNull();
-    expect(screen.getAllByText('차근차근')).toHaveLength(1);
-    expect(
-      screen.getByRole('button', { name: '차근차근' }).props.accessibilityState,
-    ).toEqual(expect.objectContaining({ selected: true }));
+    expect(screen.queryByText('연동 기기')).toBeNull();
+    expect(screen.queryByText('웨어러블 연동')).toBeNull();
+    expect(screen.queryByText('헬끼 코칭 스타일')).toBeNull();
+    expect(screen.queryByText('차근차근')).toBeNull();
+    expect(screen.queryByText('딱 필요한 만큼')).toBeNull();
+    expect(screen.queryByText('힘차게')).toBeNull();
     expect(screen.queryByRole('button', { name: '나이 수정' })).toBeNull();
     expect(screen.queryByRole('button', { name: '시간대 수정' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '운동 장소 수정' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '운동 시간 수정' })).toBeNull();
     expect(screen.queryByText('BODYWEIGHT')).toBeNull();
     expect(screen.queryByText('완료 운동')).toBeNull();
     expect(screen.queryByText('연속 기록')).toBeNull();
     expect(screen.queryByText('이번 주')).toBeNull();
   });
 
-  it('offers the onboarding goal, experience, and location choices', async () => {
+  it('offers the current onboarding goal and experience choices', async () => {
     await render(
       <MyPageContainer
         api={accountApi()}
@@ -150,15 +154,6 @@ describe('MyPageContainer', () => {
     fireEvent.press(screen.getByRole('button', { name: '운동 경험 수정' }));
     expect(screen.getByRole('radio', { name: '초급' })).toBeChecked();
     expect(screen.getByRole('radio', { name: '중급' })).toBeOnTheScreen();
-    fireEvent.press(screen.getByTestId('profile-editor-backdrop'));
-
-    fireEvent.press(screen.getByRole('button', { name: '운동 장소 수정' }));
-    expect(
-      screen.getByRole('header', { name: '운동 장소 수정' }),
-    ).toBeOnTheScreen();
-    expect(screen.getByRole('checkbox', { name: '집' })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: '헬스장' })).toBeOnTheScreen();
-    expect(screen.queryByRole('checkbox', { name: '야외' })).toBeNull();
   });
 
   it('never exposes an unmapped machine code', async () => {
@@ -237,7 +232,7 @@ describe('MyPageContainer', () => {
     expect(screen.queryByText('헬끼님')).toBeNull();
   });
 
-  it('updates all basic profile fields from the profile entry point', async () => {
+  it('updates only current onboarding profile fields from the profile entry point', async () => {
     const updateProfileSettings = jest.fn<Api['updateProfileSettings']>(
       async () => ({
         profile_version: 8,
@@ -266,12 +261,13 @@ describe('MyPageContainer', () => {
     expect(screen.queryByText('시간대')).toBeNull();
     expect(screen.queryByText('선택하지 않음')).toBeNull();
     expect(screen.queryByText(/변경할 때만/)).toBeNull();
+    expect(screen.queryByLabelText('키 입력')).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: '여성' })).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: '남성' })).toBeNull();
     fireEvent.changeText(screen.getByLabelText('닉네임 입력'), '새 닉네임');
     fireEvent.press(screen.getByRole('button', { name: '연도 1997년' }));
     fireEvent.press(screen.getByRole('button', { name: '월 4월' }));
     fireEvent.press(screen.getByRole('button', { name: '일 3일' }));
-    fireEvent.press(screen.getByRole('checkbox', { name: '여성' }));
-    fireEvent.changeText(screen.getByLabelText('키 입력'), '168.5');
     fireEvent.changeText(screen.getByLabelText('체중 입력'), '58.2');
     fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
 
@@ -280,8 +276,6 @@ describe('MyPageContainer', () => {
         {
           nickname: '새 닉네임',
           date_of_birth: '1997-04-03',
-          sex_code: 'FEMALE',
-          height_cm: 168.5,
           weight_kg: 58.2,
         },
         7,
@@ -389,6 +383,227 @@ describe('MyPageContainer', () => {
     expect(updateProfileSettings).not.toHaveBeenCalled();
   });
 
+  it('keeps a failed image selection for an explicit retry without reporting success', async () => {
+    const uploadProfileImage = jest
+      .fn<Api['uploadProfileImage']>()
+      .mockRejectedValueOnce(
+        new ApiError({
+          kind: 'unavailable',
+          code: 'PROFILE_IMAGE_STORAGE_UNAVAILABLE',
+          status: 503,
+          message: '프로필 이미지 저장소를 일시적으로 사용할 수 없습니다.',
+        }),
+      )
+      .mockResolvedValueOnce({
+        profile_image_url: 'https://cdn.example.com/profiles/user-1.jpg',
+        profile_version: 8,
+        updated_at: '2026-08-19T09:00:00+09:00',
+      });
+    const onRefreshMe = jest.fn(async () => undefined);
+    jest
+      .mocked(ImagePicker.requestMediaLibraryPermissionsAsync)
+      .mockResolvedValueOnce({
+        granted: true,
+        status: ImagePicker.PermissionStatus.GRANTED,
+        canAskAgain: true,
+        expires: 'never',
+      });
+    jest.mocked(ImagePicker.launchImageLibraryAsync).mockResolvedValueOnce({
+      canceled: false,
+      assets: [
+        {
+          uri: 'file:///retry-profile.jpg',
+          width: 800,
+          height: 800,
+          type: 'image',
+          fileName: 'retry-profile.jpg',
+          fileSize: 123_456,
+          mimeType: 'image/jpeg',
+        },
+      ],
+    });
+
+    await render(
+      <MyPageContainer
+        api={accountApi({ uploadProfileImage })}
+        me={me()}
+        now={new Date('2026-08-19T03:00:00Z')}
+        onNavigateTab={jest.fn()}
+        onRefreshMe={onRefreshMe}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: '프로필 수정' }));
+    fireEvent.press(
+      screen.getByRole('button', { name: '사진 보관함에서 선택' }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('profile-editor-avatar-preview').props.source,
+      ).toEqual({ uri: 'file:///retry-profile.jpg' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
+
+    expect(
+      await screen.findByText(
+        '프로필 사진을 저장하지 못했어요. 프로필 이미지 저장소를 일시적으로 사용할 수 없습니다. 사진 변경은 그대로 두었어요. 저장하기를 눌러 다시 시도해주세요.',
+      ),
+    ).toBeOnTheScreen();
+    expect(screen.queryByTestId('profile-editor-saved')).toBeNull();
+    expect(
+      screen.getByTestId('profile-editor-avatar-preview').props.source,
+    ).toEqual({ uri: 'file:///retry-profile.jpg' });
+
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
+
+    await waitFor(() => expect(uploadProfileImage).toHaveBeenCalledTimes(2));
+    expect(await screen.findByTestId('profile-editor-saved')).toBeOnTheScreen();
+    expect(onRefreshMe).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the reviewed 10MB limit for an invalid profile image response', async () => {
+    const uploadProfileImage = jest.fn<Api['uploadProfileImage']>(async () => {
+      throw new ApiError({
+        kind: 'validation',
+        code: 'INVALID_PROFILE_IMAGE',
+        status: 422,
+        // The backend message is temporarily stale; the machine code is stable.
+        message:
+          'JPEG, PNG, WEBP 형식의 5MB 이하 이미지만 업로드할 수 있습니다.',
+      });
+    });
+    jest
+      .mocked(ImagePicker.requestMediaLibraryPermissionsAsync)
+      .mockResolvedValueOnce({
+        granted: true,
+        status: ImagePicker.PermissionStatus.GRANTED,
+        canAskAgain: true,
+        expires: 'never',
+      });
+    jest.mocked(ImagePicker.launchImageLibraryAsync).mockResolvedValueOnce({
+      canceled: false,
+      assets: [
+        {
+          uri: 'file:///invalid-profile.jpg',
+          width: 800,
+          height: 800,
+          type: 'image',
+          fileName: 'invalid-profile.jpg',
+          fileSize: 1_048_576,
+          mimeType: 'image/jpeg',
+        },
+      ],
+    });
+
+    await render(
+      <MyPageContainer
+        api={accountApi({ uploadProfileImage })}
+        me={me()}
+        now={new Date('2026-08-19T03:00:00Z')}
+        onNavigateTab={jest.fn()}
+        onRefreshMe={jest.fn(async () => undefined)}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: '프로필 수정' }));
+    fireEvent.press(
+      screen.getByRole('button', { name: '사진 보관함에서 선택' }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('profile-editor-avatar-preview').props.source,
+      ).toEqual({ uri: 'file:///invalid-profile.jpg' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
+
+    expect(
+      await screen.findByText(
+        '프로필 사진을 저장하지 못했어요. JPEG, PNG, WEBP 형식의 10MB 이하 이미지만 업로드할 수 있습니다. 사진 변경은 그대로 두었어요. 저장하기를 눌러 다시 시도해주세요.',
+      ),
+    ).toBeOnTheScreen();
+    expect(screen.queryByText(/5MB 이하/)).toBeNull();
+  });
+
+  it('distinguishes an image failure after other profile fields were saved', async () => {
+    const updateProfileSettings = jest.fn<Api['updateProfileSettings']>(
+      async () => ({
+        profile_version: 8,
+        updated_at: '2026-08-19T09:00:00+09:00',
+      }),
+    );
+    const uploadProfileImage = jest.fn<Api['uploadProfileImage']>(async () => {
+      throw new ApiError({
+        kind: 'unavailable',
+        code: 'PROFILE_IMAGE_STORAGE_UNAVAILABLE',
+        status: 503,
+        message: '프로필 이미지 저장소를 일시적으로 사용할 수 없습니다.',
+      });
+    });
+    const onRefreshMe = jest.fn(async () => undefined);
+    jest
+      .mocked(ImagePicker.requestMediaLibraryPermissionsAsync)
+      .mockResolvedValueOnce({
+        granted: true,
+        status: ImagePicker.PermissionStatus.GRANTED,
+        canAskAgain: true,
+        expires: 'never',
+      });
+    jest.mocked(ImagePicker.launchImageLibraryAsync).mockResolvedValueOnce({
+      canceled: false,
+      assets: [
+        {
+          uri: 'file:///partial-profile.jpg',
+          width: 800,
+          height: 800,
+          type: 'image',
+          fileName: 'partial-profile.jpg',
+          mimeType: 'image/jpeg',
+        },
+      ],
+    });
+
+    await render(
+      <MyPageContainer
+        api={accountApi({ updateProfileSettings, uploadProfileImage })}
+        me={me()}
+        now={new Date('2026-08-19T03:00:00Z')}
+        onNavigateTab={jest.fn()}
+        onRefreshMe={onRefreshMe}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: '프로필 수정' }));
+    fireEvent.changeText(screen.getByLabelText('닉네임 입력'), '새 닉네임');
+    fireEvent.press(
+      screen.getByRole('button', { name: '사진 보관함에서 선택' }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('profile-editor-avatar-preview').props.source,
+      ).toEqual({ uri: 'file:///partial-profile.jpg' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
+
+    expect(
+      await screen.findByText(
+        '다른 프로필 변경은 저장했지만 프로필 사진은 저장하지 못했어요. 프로필 이미지 저장소를 일시적으로 사용할 수 없습니다. 사진 변경은 그대로 두었어요. 저장하기를 눌러 다시 시도해주세요.',
+      ),
+    ).toBeOnTheScreen();
+    expect(updateProfileSettings).toHaveBeenCalledWith(
+      { nickname: '새 닉네임' },
+      7,
+    );
+    expect(uploadProfileImage).toHaveBeenCalledWith(
+      expect.objectContaining({ uri: 'file:///partial-profile.jpg' }),
+      8,
+    );
+    expect(onRefreshMe).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('profile-editor-saved')).toBeNull();
+  });
+
   it('shows guidance when photo-library permission is denied', async () => {
     const uploadProfileImage = jest.fn<Api['uploadProfileImage']>();
     jest
@@ -432,7 +647,7 @@ describe('MyPageContainer', () => {
           code: 'INVALID_REQUEST',
           status: 400,
           message: '요청 값이 올바르지 않습니다.',
-          details: [{ field: 'body.default_requested_duration_minutes' }],
+          details: [{ field: 'body.desired_weekly_workout_count' }],
         });
       },
     );
@@ -448,14 +663,16 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '운동 시간 수정' }));
     fireEvent.press(
-      screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
+      screen.getByRole('button', { name: '주간 운동 횟수 수정' }),
+    );
+    fireEvent.press(
+      screen.getByRole('button', { name: '주간 운동 횟수 1회 늘리기' }),
     );
     fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
     expect(
       await screen.findByText(
-        '운동 시간 값을 확인해주세요. 요청 값이 올바르지 않습니다.',
+        '주간 운동 횟수 값을 확인해주세요. 요청 값이 올바르지 않습니다.',
       ),
     ).toBeOnTheScreen();
   });
@@ -484,9 +701,11 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '운동 시간 수정' }));
     fireEvent.press(
-      screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
+      screen.getByRole('button', { name: '주간 운동 횟수 수정' }),
+    );
+    fireEvent.press(
+      screen.getByRole('button', { name: '주간 운동 횟수 1회 늘리기' }),
     );
     fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
     expect(
@@ -497,40 +716,7 @@ describe('MyPageContainer', () => {
     expect(onRefreshMe).toHaveBeenCalledTimes(1);
   });
 
-  it('saves coaching style with the current profile version and refreshes me', async () => {
-    const updateProfileSettings = jest.fn<Api['updateProfileSettings']>(
-      async () => ({
-        profile_version: 8,
-        updated_at: '2026-08-19T09:00:00+09:00',
-      }),
-    );
-    const onRefreshMe = jest.fn(async () => undefined);
-
-    await render(
-      <MyPageContainer
-        api={accountApi({ updateProfileSettings })}
-        me={me()}
-        now={new Date('2026-08-19T03:00:00Z')}
-        onNavigateTab={jest.fn()}
-        onRefreshMe={onRefreshMe}
-        onSignOut={jest.fn()}
-      />,
-    );
-
-    fireEvent.press(screen.getByRole('button', { name: '딱 필요한 만큼' }));
-    // 선택만으로는 저장되지 않고, 저장하기 버튼을 눌러야 반영된다.
-    expect(updateProfileSettings).not.toHaveBeenCalled();
-    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
-    await waitFor(() =>
-      expect(updateProfileSettings).toHaveBeenCalledWith(
-        { coaching_style_code: 'CONCISE' },
-        7,
-      ),
-    );
-    expect(onRefreshMe).toHaveBeenCalledTimes(1);
-  });
-
-  it('opens one field editor and saves a duration change from the save button', async () => {
+  it('opens one field editor and saves a weekly-count change from the save button', async () => {
     const updateProfileSettings = jest.fn<Api['updateProfileSettings']>(
       async () => ({
         profile_version: 8,
@@ -549,9 +735,11 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '운동 시간 수정' }));
+    fireEvent.press(
+      screen.getByRole('button', { name: '주간 운동 횟수 수정' }),
+    );
     expect(
-      screen.getByRole('header', { name: '운동 시간 수정' }),
+      screen.getByRole('header', { name: '주간 운동 횟수 수정' }),
     ).toBeOnTheScreen();
     expect(
       screen.getByText('수정한 뒤 저장하기를 눌러야 반영돼요.'),
@@ -559,14 +747,14 @@ describe('MyPageContainer', () => {
     // 수정 전에는 저장 버튼이 없다.
     expect(screen.queryByRole('button', { name: '저장하기' })).toBeNull();
     fireEvent.press(
-      screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
+      screen.getByRole('button', { name: '주간 운동 횟수 1회 늘리기' }),
     );
     expect(updateProfileSettings).not.toHaveBeenCalled();
 
     fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
     await waitFor(() =>
       expect(updateProfileSettings).toHaveBeenCalledWith(
-        { default_requested_duration_minutes: 40 },
+        { desired_weekly_workout_count: 5 },
         7,
       ),
     );
@@ -588,7 +776,7 @@ describe('MyPageContainer', () => {
     );
 
     expect(
-      await screen.findByText('알림과 기기 연동 기능은 준비 중이에요.'),
+      await screen.findByText('알림 기능은 준비 중이에요.'),
     ).toBeOnTheScreen();
     expect(
       screen.getByText('예정된 운동 시간을 알려드려요.'),
@@ -618,16 +806,20 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '운동 시간 수정' }));
+    fireEvent.press(
+      screen.getByRole('button', { name: '주간 운동 횟수 수정' }),
+    );
     fireEvent.press(screen.getByTestId('profile-editor-sheet'), {
       stopPropagation: jest.fn(),
     });
     expect(
-      screen.getByRole('header', { name: '운동 시간 수정' }),
+      screen.getByRole('header', { name: '주간 운동 횟수 수정' }),
     ).toBeOnTheScreen();
 
     fireEvent.press(screen.getByTestId('profile-editor-backdrop'));
-    expect(screen.queryByRole('header', { name: '운동 시간 수정' })).toBeNull();
+    expect(
+      screen.queryByRole('header', { name: '주간 운동 횟수 수정' }),
+    ).toBeNull();
   });
 
   it('saves an optional consent immediately without a save button', async () => {
@@ -659,56 +851,12 @@ describe('MyPageContainer', () => {
         expect.objectContaining({
           general_personal_data: true,
           sensitive_data: true,
+          wearable_integration: false,
           marketing: true,
         }),
       ),
     );
     expect(screen.queryByText('동의 변경 저장')).toBeNull();
-  });
-
-  it('updates both available and preferred workout locations', async () => {
-    const updateProfileSettings = jest.fn<Api['updateProfileSettings']>(
-      async () => ({
-        profile_version: 8,
-        updated_at: '2026-08-19T09:00:00+09:00',
-      }),
-    );
-
-    await render(
-      <MyPageContainer
-        api={accountApi({ updateProfileSettings })}
-        me={me()}
-        now={new Date('2026-08-19T03:00:00Z')}
-        onNavigateTab={jest.fn()}
-        onRefreshMe={jest.fn(async () => undefined)}
-        onSignOut={jest.fn()}
-      />,
-    );
-
-    fireEvent.press(screen.getByRole('button', { name: '운동 장소 수정' }));
-    fireEvent.press(screen.getByRole('checkbox', { name: '헬스장' }));
-    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
-    await waitFor(() =>
-      expect(updateProfileSettings).toHaveBeenCalledWith(
-        {
-          available_location_codes: ['HOME', 'GYM'],
-          preferred_location_code: 'HOME',
-        },
-        7,
-      ),
-    );
-
-    fireEvent.press(screen.getByRole('radio', { name: '헬스장' }));
-    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
-    await waitFor(() =>
-      expect(updateProfileSettings).toHaveBeenLastCalledWith(
-        {
-          available_location_codes: ['HOME', 'GYM'],
-          preferred_location_code: 'GYM',
-        },
-        7,
-      ),
-    );
   });
 
   it('migrates a legacy attention area to persistent pains when clearing it', async () => {

@@ -64,6 +64,7 @@ describe('fidelity foundation', () => {
       'houseCampingDinnerBackgroundThumbnail',
       'houseIndoorBackgroundThumbnail',
       'houseSnowingOnsenBackgroundThumbnail',
+      'houseDecorateButton',
       'houseCushion',
       'houseLamp',
       'housePlant',

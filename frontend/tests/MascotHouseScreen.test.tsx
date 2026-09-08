@@ -10,7 +10,13 @@ import {
 import { StyleSheet } from 'react-native';
 
 import type { Api } from '../src/api/endpoints';
-import type { WeekResponse, WorkoutSessionLogSummary } from '../src/api/types';
+import { ApiError } from '../src/api/errors';
+import type {
+  BananaSpendRequest,
+  BananaWalletResponse,
+  WeekResponse,
+  WorkoutSessionLogSummary,
+} from '../src/api/types';
 import { imageAssets } from '../src/assets';
 import { BackgroundBands } from '../src/components/brand/BrandChrome';
 import {
@@ -45,6 +51,7 @@ import {
 import {
   houseBananaPoseArt,
   houseBackgroundArt,
+  houseDecorateButtonArt,
   houseItemArt,
   housePoseArt,
   houseRegularPoseArt,
@@ -57,6 +64,7 @@ import {
   BANANA_REWARD,
   DAILY_GIFT_BANANAS,
   HOUSE_ACTION_COST,
+  HOUSE_BONDING_COPY,
 } from '../src/features/house/houseModel';
 import { createMemoryHouseStore } from '../src/features/house/houseStorage';
 
@@ -96,12 +104,33 @@ function completedSession(
 }
 
 function houseApi({
+  rewardBalance,
+  rewardError,
   sessions = [completedSession('s1', '2026-08-18')],
+  spendError,
   weekError = false,
 }: {
+  rewardBalance?: number;
+  rewardError?: Error;
   sessions?: WorkoutSessionLogSummary[];
+  spendError?: Error;
   weekError?: boolean;
 } = {}) {
+  let balance =
+    rewardBalance ??
+    DAILY_GIFT_BANANAS +
+      sessions.reduce((total, session) => {
+        if (session.status_code === 'COMPLETED') {
+          return total + BANANA_REWARD.completed;
+        }
+        if (
+          session.status_code === 'PARTIAL' ||
+          session.status_code === 'STOPPED_FOR_SAFETY'
+        ) {
+          return total + BANANA_REWARD.partial;
+        }
+        return total;
+      }, 0);
   return {
     getWeek: jest.fn(async () => {
       if (weekError) throw new Error('offline');
@@ -111,6 +140,50 @@ function houseApi({
       items: sessions,
       next_cursor: null,
     })),
+    getRewards: jest.fn(async (): Promise<BananaWalletResponse> => {
+      if (rewardError) throw rewardError;
+      return {
+        balance,
+        daily_reward: {
+          local_date: '2026-08-18',
+          reward_amount: 15,
+          is_claimable: true,
+          is_claimed: false,
+          claimed_at: null,
+        },
+      };
+    }),
+    claimDailyReward: jest.fn(),
+    spendBananas: jest.fn(async (body: BananaSpendRequest) => {
+      if (spendError) throw spendError;
+      const cost =
+        body.action_code === 'FEED_MASCOT'
+          ? HOUSE_ACTION_COST.feed
+          : body.house_item_code === 'window'
+            ? 35
+            : 20;
+      balance -= cost;
+      return {
+        balance,
+        daily_reward: {
+          local_date: '2026-08-18',
+          reward_amount: 15,
+          is_claimable: true,
+          is_claimed: false,
+          claimed_at: null,
+        },
+        transaction: {
+          transaction_id: `transaction-${body.action_code}`,
+          transaction_type:
+            body.action_code === 'FEED_MASCOT'
+              ? 'HOUSE_FEED'
+              : 'HOUSE_ITEM_PURCHASE',
+          amount: -cost,
+          balance_after: balance,
+          created_at: '2026-08-18T10:00:00+09:00',
+        },
+      };
+    }),
   } as unknown as Api;
 }
 
@@ -157,6 +230,7 @@ function loadPendingMascot() {
 
 describe('MascotHouseScreen', () => {
   it('connects the reviewed decoration assets and leaves missing art pending', () => {
+    expect(houseDecorateButtonArt.source).toBe(imageAssets.houseDecorateButton);
     expect(houseItemArt.cushion.source).toBe(imageAssets.houseCushion);
     expect(houseItemArt.lamp.source).toBe(imageAssets.houseLamp);
     expect(houseItemArt.plant.source).toBe(imageAssets.housePlant);
@@ -231,6 +305,10 @@ describe('MascotHouseScreen', () => {
     );
     fireEvent.press(screen.getByTestId('house-quest-tile'));
     expect(screen.getByTestId('house-quest-row-visit')).toBeTruthy();
+    expect(screen.getByTestId('house-quest-row-pet')).toHaveProp(
+      'accessibilityLabel',
+      expect.stringContaining(HOUSE_BONDING_COPY.questLabel),
+    );
   });
 
   it('opens the banana catch game and returns to the same house', async () => {
@@ -242,6 +320,21 @@ describe('MascotHouseScreen', () => {
 
     fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
     expect(screen.getByTestId('house-scene')).toBeTruthy();
+  });
+
+  it('opens the server-backed wallet from the banana chip and returns', async () => {
+    const api = houseApi({ rewardBalance: 120 });
+    renderHouse(api);
+
+    await screen.findByTestId('house-scene');
+    fireEvent.press(screen.getByLabelText('바나나 지갑 보기'));
+
+    expect(await screen.findByLabelText('보유 바나나 120개')).toBeTruthy();
+    expect(api.getRewards).toHaveBeenCalledTimes(2);
+
+    fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
+    expect(await screen.findByTestId('house-scene')).toBeTruthy();
+    await waitFor(() => expect(api.getRewards).toHaveBeenCalledTimes(3));
   });
 
   it('gives the feed button the full row and moves petting onto the mascot', async () => {
@@ -268,8 +361,13 @@ describe('MascotHouseScreen', () => {
         'house-pet-action',
       ),
     ).toBeTruthy();
+    expect(
+      screen.getByLabelText(HOUSE_BONDING_COPY.actionAccessibilityLabel),
+    ).toBeTruthy();
     expect(screen.getByTestId('house-touch-hint')).toBeTruthy();
     expect(screen.getByText('끼끼를 터치해보세요!')).toBeTruthy();
+    expect(screen.getByText(HOUSE_BONDING_COPY.hintDescription)).toBeTruthy();
+    expect(screen.getByText(HOUSE_BONDING_COPY.bonusDescription)).toBeTruthy();
   });
 
   it('keeps the bottom panel at the height that fixes the backdrop boundary', async () => {
@@ -325,35 +423,58 @@ describe('MascotHouseScreen', () => {
   });
 
   it('spends bananas on feeding and keeps the balance in the store', async () => {
-    const { store } = renderHouse(houseApi());
+    const api = houseApi();
+    const { store } = renderHouse(api);
 
     await waitFor(() =>
       expect(screen.getByText(`${ARRIVAL_BANANAS}개`)).toBeTruthy(),
     );
     expect(screen.getByText('바나나 주기')).toBeTruthy();
-    fireEvent.press(screen.getByTestId('house-feed-action'));
-
-    expect(
-      within(screen.getByTestId('house-banana-count')).getByTestId(
-        'house-action-effect-spend',
-        { includeHiddenElements: true },
-      ),
-    ).toBeTruthy();
-    expect(
-      screen.getByTestId('house-action-effect-amount', {
-        includeHiddenElements: true,
-      }).props.children,
-    ).toEqual(['-', HOUSE_ACTION_COST.feed]);
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('house-feed-action'));
+    });
 
     const remaining = ARRIVAL_BANANAS - HOUSE_ACTION_COST.feed;
     expect(screen.getByText(`${remaining}개`)).toBeTruthy();
+    expect(api.spendBananas).toHaveBeenCalledWith({
+      action_code: 'FEED_MASCOT',
+    });
     await waitFor(async () =>
       expect((await store.read())?.bananas).toBe(remaining),
     );
+  }, 15_000);
+
+  it('keeps local house state unchanged when the server rejects a spend', async () => {
+    const api = houseApi({
+      spendError: new ApiError({
+        kind: 'conflict',
+        code: 'INSUFFICIENT_BANANA_BALANCE',
+        status: 409,
+        message: '바나나가 부족합니다.',
+      }),
+    });
+    const { store } = renderHouse(api);
+
+    await screen.findByText(`${ARRIVAL_BANANAS}개`);
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('house-feed-action'));
+    });
+
+    expect(
+      await screen.findByText(
+        '바나나 잔액이 부족해요. 지갑을 확인한 뒤 다시 시도해주세요.',
+      ),
+    ).toBeOnTheScreen();
+    expect(api.spendBananas).toHaveBeenCalledWith({
+      action_code: 'FEED_MASCOT',
+    });
+    expect((await store.read())?.bananas).toBe(ARRIVAL_BANANAS);
+    expect(screen.queryByLabelText('바나나를 먹는 끼끼')).toBeNull();
   });
 
   it('places a decoration in the room once it is bought', async () => {
-    renderHouse(houseApi());
+    const api = houseApi();
+    renderHouse(api);
 
     await waitFor(() =>
       expect(screen.getByText(`${ARRIVAL_BANANAS}개`)).toBeTruthy(),
@@ -370,12 +491,18 @@ describe('MascotHouseScreen', () => {
 
     expect(screen.queryByTestId('house-feedback')).toBeNull();
     expect(screen.queryByText('요가 매트를 집에 놓았어요.')).toBeNull();
-    expect(
-      within(screen.getByTestId('house-banana-count')).getByTestId(
-        'house-action-effect-amount',
-        { includeHiddenElements: true },
-      ).props.children,
-    ).toEqual(['-', 20]);
+    await waitFor(() =>
+      expect(
+        within(screen.getByTestId('house-banana-count')).getByTestId(
+          'house-action-effect-amount',
+          { includeHiddenElements: true },
+        ).props.children,
+      ).toEqual(['-', 20]),
+    );
+    expect(api.spendBananas).toHaveBeenCalledWith({
+      action_code: 'PURCHASE_HOUSE_ITEM',
+      house_item_code: 'yoga_mat',
+    });
     // Once in the room, once as an owned tile in the still-open panel.
     expect(screen.getAllByTestId('house-art-item-yoga_mat').length).toBe(2);
 
@@ -439,7 +566,9 @@ describe('MascotHouseScreen', () => {
     );
     fireEvent.press(screen.getByTestId('house-decorate-action'));
     fireEvent.press(screen.getByRole('tab', { name: '소품' }));
-    fireEvent.press(screen.getByTestId('house-item-yoga_mat'));
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('house-item-yoga_mat'));
+    });
     fireEvent(screen.getByTestId('house-decoration-canvas'), 'layout', {
       nativeEvent: { layout: { height: 844, width: 390, x: 0, y: 0 } },
     });
@@ -1006,7 +1135,9 @@ describe('MascotHouseScreen', () => {
       ).toBe(expected.source);
       loadPendingMascot();
 
-      const petted = screen.getByLabelText('쓰다듬어 주는 중');
+      const petted = screen.getByLabelText(
+        HOUSE_BONDING_COPY.poseAccessibilityLabel,
+      );
       expect(petted.props.source).toBe(expected.source);
       expect(petted.props.source).not.toBe(housePoseArt.greeting.source);
       expect(houseRegularPoseArt.map((slot) => slot.source)).toContain(
@@ -1030,7 +1161,9 @@ describe('MascotHouseScreen', () => {
     jest.useFakeTimers();
 
     try {
-      fireEvent.press(screen.getByTestId('house-feed-action'));
+      await act(async () => {
+        fireEvent.press(screen.getByTestId('house-feed-action'));
+      });
 
       expect(FEED_POSE_HOLD_MS).toBe(5600);
       expect(screen.getByLabelText('인사하는 끼끼')).toBeTruthy();
@@ -1164,7 +1297,9 @@ describe('MascotHouseScreen', () => {
     expect(screen.queryByTestId('house-feedback')).toBeNull();
     expect(screen.queryByTestId('house-feedback-overlay')).toBeNull();
 
-    fireEvent.press(screen.getByTestId('house-feed-action'));
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('house-feed-action'));
+    });
     expect(screen.getByTestId('house-art-pose-greeting')).toHaveStyle({
       top: 0,
       width: 117,
@@ -1192,9 +1327,16 @@ describe('MascotHouseScreen', () => {
       backgroundColor: 'rgba(255, 255, 255, 0.76)',
     };
     expect(screen.getByTestId('house-banana-count')).toHaveStyle(translucent);
-    expect(screen.getByTestId('house-decorate-action')).toHaveStyle(
-      translucent,
-    );
+    expect(screen.getByTestId('house-decorate-action')).toHaveStyle({
+      ...translucent,
+      minHeight: 44,
+    });
+    expect(
+      screen.getByTestId('house-art-decorate-button', {
+        includeHiddenElements: true,
+      }),
+    ).toBeTruthy();
+    expect(screen.queryByLabelText('집 꾸미기 버튼')).toBeNull();
     expect(screen.getByTestId('house-intimacy-chip')).toHaveStyle(translucent);
   });
 
@@ -1237,7 +1379,9 @@ describe('MascotHouseScreen', () => {
       expect(screen.getByText(`${DAILY_GIFT_BANANAS}개`)).toBeTruthy(),
     );
 
-    fireEvent.press(screen.getByTestId('house-feed-action'));
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('house-feed-action'));
+    });
     expect(
       screen.getByText(`${DAILY_GIFT_BANANAS - HOUSE_ACTION_COST.feed}개`),
     ).toBeTruthy();

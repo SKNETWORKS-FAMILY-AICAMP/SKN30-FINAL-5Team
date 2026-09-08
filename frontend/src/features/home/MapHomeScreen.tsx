@@ -9,8 +9,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { trainingTypeLabel } from '../../api/labels';
 import type { RoutineResponse, WeekResponse } from '../../api/types';
+import { routineTitleFromDay } from '../../api/workoutPlan';
 import { colors } from '../../components/theme';
 import { fontFamilies, useAuthFonts } from '../../app/fonts';
 import type { TabId } from '../../components/brand/BrandChrome';
@@ -116,8 +116,9 @@ function RoutinePanel({
           {day ? (
             <>
               <Text style={[styles.routineSummary, pixelStyle]}>
-                {trainingTypeLabel(day.training_type_code)} ·{' '}
-                {day.requested_duration_minutes}분 · 블록 {day.items.length}개
+                {routineTitleFromDay(day)} {' · '}
+                {day.requested_duration_minutes}분 {' · '}블록{' '}
+                {day.items.length}개
               </Text>
               <ScrollView
                 contentContainerStyle={styles.routineItems}

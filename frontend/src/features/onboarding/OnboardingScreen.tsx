@@ -37,7 +37,6 @@ import { useScale } from '../../components/scale';
 import { colors, radii, spacing } from '../../components/theme';
 import { PROFILE_BODY_LIMITS } from '../profile/profileModel';
 import {
-  ONBOARDING_COACHING_STYLE_OPTIONS,
   ONBOARDING_EXPERIENCE_OPTIONS,
   ONBOARDING_GOAL_OPTIONS,
   ONBOARDING_WEEKLY_COUNT,
@@ -58,10 +57,6 @@ const CONSENT_OPTIONS = {
   sensitive_data: {
     label: '건강 관련 민감정보 처리',
     description: '통증과 컨디션 정보를 안전한 운동 계획을 만드는 데 활용해요.',
-  },
-  wearable_integration: {
-    label: '웨어러블 연동',
-    description: '웨어러블 데이터를 운동 계획에 참고해요.',
   },
   marketing: {
     label: '마케팅 정보 수신',
@@ -98,12 +93,6 @@ export const ONBOARDING_STEPS = [
     key: 'experience',
     title: '운동 경험은 어느 정도인가요?',
     intro: '',
-    required: true,
-  },
-  {
-    key: 'coachingStyle',
-    title: '운동할 때 어떻게 도와드릴까요?',
-    intro: '원하는 안내 스타일을 골라주세요. 언제든 바꿀 수 있어요.',
     required: true,
   },
   {
@@ -165,9 +154,6 @@ function OnboardingScreenContent({
   const [experienceLevelCode, setExperienceLevelCode] = useState<
     (typeof ONBOARDING_EXPERIENCE_OPTIONS)[number]['code']
   >(ONBOARDING_EXPERIENCE_OPTIONS[0].code);
-  const [coachingStyleCode, setCoachingStyleCode] = useState<
-    (typeof ONBOARDING_COACHING_STYLE_OPTIONS)[number]['code']
-  >(ONBOARDING_COACHING_STYLE_OPTIONS[0].code);
   const [weeklyCount, setWeeklyCount] = useState(3);
   const [hasAttentionAreas, setHasAttentionAreas] = useState<boolean | null>(
     null,
@@ -181,7 +167,6 @@ function OnboardingScreenContent({
   const [generalConsent, setGeneralConsent] = useState(false);
   const [sensitiveConsent, setSensitiveConsent] = useState(false);
   const [termsConsent, setTermsConsent] = useState(false);
-  const [wearableConsent, setWearableConsent] = useState(false);
   const [marketingConsent, setMarketingConsent] = useState(false);
   const current = ONBOARDING_STEPS[step - 1] ?? ONBOARDING_STEPS[0];
   const timezone = useMemo(() => {
@@ -210,7 +195,6 @@ function OnboardingScreenContent({
         experience_level_code: experienceLevelCode,
         timezone,
         weekly_target_sessions: weeklyCount,
-        coaching_style_code: coachingStyleCode,
         terms_version: CURRENT_TERMS_VERSION,
         persistent_pains:
           hasAttentionAreas === true
@@ -223,7 +207,7 @@ function OnboardingScreenContent({
         consents: {
           general_personal_data: generalConsent,
           sensitive_data: sensitiveConsent,
-          wearable_integration: wearableConsent,
+          wearable_integration: false,
           marketing: marketingConsent,
         },
       });
@@ -240,7 +224,6 @@ function OnboardingScreenContent({
 
   const valid = isStepValid(current.key, {
     birthdate,
-    coachingStyleCode,
     experienceLevelCode,
     generalConsent,
     hasAttentionAreas,
@@ -401,23 +384,6 @@ function OnboardingScreenContent({
                 selected={experienceLevelCode === item.code}
                 onPress={() => {
                   setExperienceLevelCode(item.code);
-                  submit.clearError();
-                }}
-              />
-            ))}
-          </ChoiceCard>
-        );
-      case 'coachingStyle':
-        return (
-          <ChoiceCard>
-            {ONBOARDING_COACHING_STYLE_OPTIONS.map((item) => (
-              <DescriptionOption
-                key={item.code}
-                description={item.description}
-                label={item.label}
-                selected={coachingStyleCode === item.code}
-                onPress={() => {
-                  setCoachingStyleCode(item.code);
                   submit.clearError();
                 }}
               />
@@ -602,13 +568,6 @@ function OnboardingScreenContent({
                 선택 항목은 동의하지 않아도 서비스를 이용할 수 있어요.
               </Text>
               <ConsentRow
-                checked={wearableConsent}
-                description={CONSENT_OPTIONS.wearable_integration.description}
-                label={CONSENT_OPTIONS.wearable_integration.label}
-                required={false}
-                onPress={() => setWearableConsent((value) => !value)}
-              />
-              <ConsentRow
                 checked={marketingConsent}
                 description={CONSENT_OPTIONS.marketing.description}
                 label={CONSENT_OPTIONS.marketing.label}
@@ -748,8 +707,6 @@ type FormState = {
   primaryGoalCode: (typeof ONBOARDING_GOAL_OPTIONS)[number]['code'] | null;
   experienceLevelCode:
     (typeof ONBOARDING_EXPERIENCE_OPTIONS)[number]['code'] | null;
-  coachingStyleCode:
-    (typeof ONBOARDING_COACHING_STYLE_OPTIONS)[number]['code'] | null;
   hasAttentionAreas: boolean | null;
   attentionAreas: string[];
   painIntensityScores: Partial<Record<string, number>>;
@@ -777,8 +734,6 @@ function isStepValid(
       return form.primaryGoalCode !== null;
     case 'experience':
       return form.experienceLevelCode !== null;
-    case 'coachingStyle':
-      return form.coachingStyleCode !== null;
     case 'attention':
       return (
         form.hasAttentionAreas !== true ||
@@ -1004,7 +959,6 @@ function onboardingErrorStep(error: unknown): number | null {
       weight_kg: 'body',
       primary_goal_code: 'goal',
       experience_level_code: 'experience',
-      coaching_style_code: 'coachingStyle',
       weekly_target_sessions: 'frequency',
       persistent_pains: 'attention',
       terms_version: 'consent',

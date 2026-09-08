@@ -2,10 +2,9 @@
  * 끼끼의 집 — the mascot home's own state and the rules around it.
  *
  * Nothing here is a safety, planning or completion decision, so it lives
- * entirely on the client: the server has no banana, decoration or visit
- * concept yet. Keeping the rules in one pure module means the screen only
- * renders a value it was handed, and the same rules can move behind an API
- * later without the view changing.
+ * in a pure client module, while the server wallet remains the source of truth
+ * for the spendable banana balance. Keeping the presentation rules together
+ * means the view only renders the value it was handed.
  *
  * Two product invariants shape every rule below.
  *
@@ -76,6 +75,17 @@ export type HouseQuest = {
   target: number;
 };
 
+/** Shared presentation copy for the mascot touch interaction. */
+export const HOUSE_BONDING_COPY = {
+  actionAccessibilityLabel: '끼끼와 교감하기',
+  actionLabel: '교감하기',
+  bonusDescription:
+    '끼끼와 교감하기, 바나나 주기, 운동 완료로 친밀도를 올려보세요!',
+  hintDescription: '터치해서 교감하면 친밀도가 올라가요',
+  poseAccessibilityLabel: '끼끼와 교감하는 중',
+  questLabel: '끼끼와 교감하기',
+} as const;
+
 /**
  * The daily quests.
  *
@@ -92,7 +102,7 @@ export const HOUSE_DAILY_QUESTS: readonly HouseQuest[] = [
   },
   {
     id: 'pet',
-    label: '끼끼 쓰다듬기',
+    label: HOUSE_BONDING_COPY.questLabel,
     reward: 5,
     target: INTIMACY_DAILY_EARN_LIMIT,
   },
@@ -149,7 +159,7 @@ export const HOUSE_ITEMS: readonly HouseItem[] = [
   { id: 'cushion', label: '쿠션', cost: 25 },
   { id: 'lamp', label: '스탠드', cost: 30 },
   { id: 'star_frame', label: '별 액자', cost: 35 },
-  { id: 'window', label: '창문 커튼', cost: 40 },
+  { id: 'window', label: '창문 커튼', cost: 35 },
 ] as const;
 
 const DEFAULT_ITEM_PLACEMENTS: Record<HouseItemId, HouseItemPlacement> = {

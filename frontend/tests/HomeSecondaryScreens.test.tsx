@@ -421,7 +421,15 @@ describe('Home secondary visual prototypes', () => {
         onSelectRest={onSelectRest}
         onStartWorkout={onStartWorkout}
         previewState="map"
-        routine={PREVIEW_ROUTINE}
+        routine={{
+          ...PREVIEW_ROUTINE,
+          days: [
+            {
+              ...PREVIEW_ROUTINE.days[0]!,
+              routine_name: '전신 근력 시작하기',
+            },
+          ],
+        }}
         week={PREVIEW_OPEN_WEEK}
       />,
     );
@@ -432,7 +440,9 @@ describe('Home secondary visual prototypes', () => {
       screen.getByText('진행 중인 주예요. 편한 날에 하나씩 채워요.'),
     ).toBeOnTheScreen();
     expect(screen.getByText('지금 내 루틴')).toBeOnTheScreen();
-    expect(screen.getByText('근력 · 30분 · 블록 3개')).toBeOnTheScreen();
+    expect(
+      screen.getByText('전신 근력 시작하기 · 30분 · 블록 3개'),
+    ).toBeOnTheScreen();
     expect(screen.getByText('의자 스쿼트')).toBeOnTheScreen();
     expect(screen.getAllByText('3세트 × 10회')).toHaveLength(3);
     expect(screen.getByText('제자리 걷기')).toBeOnTheScreen();
@@ -766,9 +776,10 @@ describe('Home secondary visual prototypes', () => {
     );
 
     fireEvent.press(screen.getByRole('switch', { name: /응원 알림/ }));
-    fireEvent.press(screen.getByRole('button', { name: /연동 기기/ }));
+    expect(screen.queryByRole('button', { name: /연동 기기/ })).toBeNull();
+    fireEvent.press(screen.getByRole('button', { name: /개인정보 및 동의/ }));
     expect(onNotificationChange).toHaveBeenCalledWith('encouragement', true);
-    expect(onAccountAction).toHaveBeenCalledWith('연동 기기');
+    expect(onAccountAction).toHaveBeenCalledWith('개인정보 및 동의');
   });
 
   it('renders logout and withdrawal confirmations as callback-only states', async () => {

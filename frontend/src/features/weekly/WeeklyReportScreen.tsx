@@ -12,11 +12,6 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Api } from '../../api/endpoints';
-import {
-  adjustmentDirectionLabel,
-  notCompletedReasonLabel,
-  weekdayLabel,
-} from '../../api/labels';
 import type {
   WeeklyPlanRevisionResponse,
   WeeklyReportResponse,
@@ -40,6 +35,7 @@ import {
   assertWeekMatchesSelection,
   weeklyReportAvailability,
 } from './weeklyReportModel';
+import { WeeklyReportSummary } from './WeeklyReportSummary';
 
 type WeeklyReportScreenProps = {
   api: Api;
@@ -193,6 +189,7 @@ export function WeeklyReportScreen({
       ) : (
         <ReportDetails
           report={visibleReport}
+          targetWorkoutCount={week.target_workout_count}
           pending={acknowledge.pending}
           error={acknowledge.error}
           onAcknowledge={() => void acknowledge.run(visibleReport.report_id)}
@@ -374,6 +371,7 @@ function ChecklistRow({ label }: { label: string }) {
 
 function ReportDetails({
   report,
+  targetWorkoutCount,
   pending,
   error,
   onAcknowledge,
@@ -383,6 +381,7 @@ function ReportDetails({
   onRetryNextPlan,
 }: {
   report: WeeklyReportResponse;
+  targetWorkoutCount: number;
   pending: boolean;
   error: string | null;
   onAcknowledge: () => void;
@@ -392,208 +391,15 @@ function ReportDetails({
   onRetryNextPlan?: () => void;
 }) {
   const acknowledged = report.acknowledged_at !== null;
-  const weekdaySummaries = WEEKDAY_CODES.flatMap((code) => {
-    const summary = report.weekday_failure_summary[code];
-    return summary ? [{ code, summary }] : [];
-  });
-  const hasBlockerDetails =
-    report.primary_miss_reason_code !== null ||
-    report.pattern_summary.blocker_reason_codes.length > 0 ||
-    weekdaySummaries.length > 0;
-  const hasHighCompletionPatterns =
-    report.pattern_summary.high_completion_windows.length > 0 ||
-    report.pattern_summary.high_completion_exercise_types.length > 0 ||
-    report.pattern_summary.high_completion_intensity_codes.length > 0;
 
   return (
     <>
-      <View style={styles.reportStep}>
-        <StepHeading number="1" title="이번 주 수행 결과" />
-        <View style={styles.reportCard}>
-          <View style={styles.reportHeadingRow}>
-            <View style={styles.reportHeadingCopy}>
-              <Text style={styles.reportTitle}>{report.summary}</Text>
-            </View>
-            <View style={styles.completionBadge}>
-              <Text style={styles.completionValue}>
-                {Math.round(report.completion_rate * 100)}%
-              </Text>
-              <Text style={styles.completionLabel}>완료율</Text>
-            </View>
-          </View>
-
-          <View style={styles.counts}>
-            <Count
-              label="완료"
-              tone="success"
-              value={report.counts.completed}
-            />
-            <Count label="부분" tone="partial" value={report.counts.partial} />
-            <Count
-              label="미수행"
-              testID="weekly-report-not-completed-count"
-              tone="muted"
-              value={report.counts.not_completed}
-            />
-          </View>
-
-          <View
-            accessibilityLabel={`운동 중 안전 중단 ${report.counts.stopped_for_safety}회`}
-            style={styles.safetyStoppedCard}
-            testID="weekly-report-safety-stopped-count"
-          >
-            <View style={styles.safetyStoppedCopy}>
-              <Text style={styles.safetyStoppedLabel}>운동 중 안전 중단</Text>
-              <Text style={styles.safetyStoppedNote}>
-                일반 미수행과 구분한 별도 안전 기록이에요.
-              </Text>
-            </View>
-            <View style={styles.safetyStoppedValueRow}>
-              <Text style={styles.safetyStoppedValue}>
-                {report.counts.stopped_for_safety}
-              </Text>
-              <Text style={styles.safetyStoppedUnit}>회</Text>
-            </View>
-          </View>
-
-          <View style={styles.rateRow}>
-            <Text style={styles.rateLabel}>운동 지속률</Text>
-            <Text style={styles.rateValue}>
-              {Math.round(report.persistence_rate * 100)}%
-            </Text>
-          </View>
-        </View>
-
-        {hasHighCompletionPatterns ? (
-          <View style={styles.patternCard}>
-            <Text style={styles.insightEyebrow}>잘 이어진 조건</Text>
-            {report.pattern_summary.high_completion_windows.length > 0 ? (
-              <PatternRow
-                label="시간대"
-                values={report.pattern_summary.high_completion_windows}
-              />
-            ) : null}
-            {report.pattern_summary.high_completion_exercise_types.length >
-            0 ? (
-              <PatternRow
-                label="운동 유형"
-                values={report.pattern_summary.high_completion_exercise_types}
-              />
-            ) : null}
-            {report.pattern_summary.high_completion_intensity_codes.length >
-            0 ? (
-              <PatternRow
-                label="강도"
-                values={report.pattern_summary.high_completion_intensity_codes}
-              />
-            ) : null}
-          </View>
-        ) : null}
-      </View>
+      <WeeklyReportSummary
+        report={report}
+        targetWorkoutCount={targetWorkoutCount}
+      />
 
       <View style={styles.reportStep}>
-        <StepHeading number="2" title="지속 방해 요인" />
-        <View style={styles.blockerCard}>
-          {hasBlockerDetails ? (
-            <>
-              {report.primary_miss_reason_code ? (
-                <View style={styles.reasonPill}>
-                  <Text style={styles.reasonPillLabel}>
-                    가장 자주 기록된 방해 요인
-                  </Text>
-                  <Text style={styles.reasonPillValue}>
-                    {notCompletedReasonLabel(report.primary_miss_reason_code)}
-                  </Text>
-                </View>
-              ) : null}
-
-              {report.pattern_summary.blocker_reason_codes.length > 0 ? (
-                <View style={styles.blockerGroup}>
-                  <Text style={styles.blockerGroupLabel}>기록된 방해 요인</Text>
-                  <View style={styles.blockerList}>
-                    {report.pattern_summary.blocker_reason_codes.map(
-                      (code, index) => (
-                        <View
-                          key={`${code}-${index}`}
-                          style={styles.blockerReasonChip}
-                        >
-                          <Text style={styles.blockerReasonText}>
-                            {notCompletedReasonLabel(code)}
-                          </Text>
-                        </View>
-                      ),
-                    )}
-                  </View>
-                </View>
-              ) : null}
-
-              {weekdaySummaries.length > 0 ? (
-                <View style={styles.blockerGroup}>
-                  <Text style={styles.blockerGroupLabel}>
-                    운동이 이어지지 않은 요일
-                  </Text>
-                  <View style={styles.weekdayList}>
-                    {weekdaySummaries.map(({ code, summary }) => (
-                      <View key={code} style={styles.weekdayChip}>
-                        <Text style={styles.weekdayChipLabel}>
-                          {weekdayLabel(code)}
-                        </Text>
-                        <Text style={styles.weekdayCountMuted}>
-                          부분 {summary.partial}
-                        </Text>
-                        <Text style={styles.weekdayCountMuted}>
-                          미수행 {summary.not_completed}
-                        </Text>
-                        <Text style={styles.weekdayCountDanger}>
-                          안전 중단 {summary.stopped_for_safety}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              ) : null}
-            </>
-          ) : (
-            <Text style={styles.emptyBlockerText}>
-              이번 주에는 걸림돌 기록이 없었어요
-            </Text>
-          )}
-          <Text style={styles.learningNote}>
-            이 기록은 점수가 아니라 다음 주 구성을 고르는 재료예요.
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.reportStep}>
-        <StepHeading number="3" title="AI 조정 내역" />
-        <View style={styles.insightCard}>
-          <Text style={styles.insightBody}>{report.decision_summary}</Text>
-          {report.negotiation_success_rate !== null ? (
-            <View style={styles.rateRow}>
-              <Text style={styles.rateLabel}>AI 조정 합의율</Text>
-              <Text style={styles.rateValue}>
-                {Math.round(report.negotiation_success_rate * 100)}%
-              </Text>
-            </View>
-          ) : null}
-        </View>
-      </View>
-
-      <View style={styles.reportStep}>
-        <StepHeading number="4" title="다음 주 반영 사항" />
-        <View style={styles.nextCard}>
-          <View style={styles.nextMarker}>
-            <Text style={styles.nextMarkerText}>→</Text>
-          </View>
-          <View style={styles.nextCopy}>
-            <Text style={styles.nextEyebrow}>다음 주 방향</Text>
-            <Text style={styles.nextTitle}>
-              {adjustmentDirectionLabel(report.adjustment_direction_code)}
-            </Text>
-            <Text style={styles.nextBody}>{report.next_action}</Text>
-          </View>
-        </View>
-
         {error && !acknowledged ? (
           <InlineFeedback tone="error" message={error} />
         ) : null}
@@ -646,36 +452,6 @@ function ReportDetails({
         )}
       </View>
     </>
-  );
-}
-
-const WEEKDAY_CODES = [
-  'MONDAY',
-  'TUESDAY',
-  'WEDNESDAY',
-  'THURSDAY',
-  'FRIDAY',
-  'SATURDAY',
-  'SUNDAY',
-] as const;
-
-function StepHeading({ number, title }: { number: string; title: string }) {
-  return (
-    <View style={styles.sectionHeadingRow}>
-      <View style={styles.sectionNumber}>
-        <Text style={styles.sectionNumberText}>{number}</Text>
-      </View>
-      <Text style={styles.sectionEyebrow}>{title}</Text>
-    </View>
-  );
-}
-
-function PatternRow({ label, values }: { label: string; values: string[] }) {
-  return (
-    <View style={styles.patternRow}>
-      <Text style={styles.patternLabel}>{label}</Text>
-      <Text style={styles.patternValue}>{values.join(' · ')}</Text>
-    </View>
   );
 }
 
@@ -733,34 +509,6 @@ function NextPlanApplicationCard({
           </Text>
         </Pressable>
       ) : null}
-    </View>
-  );
-}
-
-function Count({
-  label,
-  testID,
-  tone,
-  value,
-}: {
-  label: string;
-  testID?: string;
-  tone: 'success' | 'partial' | 'muted' | 'danger';
-  value: number;
-}) {
-  return (
-    <View style={styles.count} testID={testID}>
-      <Text
-        style={[
-          styles.countValue,
-          tone === 'partial' && styles.countValuePartial,
-          tone === 'muted' && styles.countValueMuted,
-          tone === 'danger' && styles.countValueDanger,
-        ]}
-      >
-        {value}
-      </Text>
-      <Text style={styles.countLabel}>{label}</Text>
     </View>
   );
 }

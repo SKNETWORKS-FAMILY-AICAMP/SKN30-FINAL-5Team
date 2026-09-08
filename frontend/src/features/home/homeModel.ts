@@ -632,7 +632,7 @@ export function deriveTodayRoutineViewState({
 export function checkinFromContext(
   context: DailyContextResponse | null,
   persistentPains: readonly PainAreaInput[] = [],
-  fallbackLocationCode: string | null = null,
+  selectableLocationCodes: readonly string[] = [],
 ): HomeCheckin {
   if (context === null) {
     return {
@@ -643,7 +643,7 @@ export function checkinFromContext(
           intensity_score,
         ]),
       ),
-      locationCode: fallbackLocationCode,
+      locationCode: selectableLocationCodes[0] ?? null,
     };
   }
   const sleepHours =
@@ -664,7 +664,11 @@ export function checkinFromContext(
       ]),
     ),
     fatigue: FATIGUE_LABEL_BY_CODE[context.fatigue_level_code],
-    locationCode: context.location_code,
+    locationCode:
+      selectableLocationCodes.length === 0 ||
+      selectableLocationCodes.includes(context.location_code)
+        ? context.location_code
+        : (selectableLocationCodes[0] ?? null),
     sleepHours,
     workoutMinutes: String(context.available_time_minutes),
     redFlagPresent: context.red_flag_present,
@@ -682,12 +686,6 @@ export function routineItemsFromPlan(plan: WorkoutPlan): HomeRoutineItem[] {
     sets: String(item.sets),
     workSeconds: item.reps === null ? item.work_seconds : undefined,
   }));
-}
-
-export function routineTitleFromPlan(plan: WorkoutPlan): string {
-  const focus =
-    plan.body_focus_code === null ? '' : bodyFocusLabel(plan.body_focus_code);
-  return `${focus ? `${focus} ` : ''}${trainingTypeLabel(plan.training_type_code)} 루틴`;
 }
 
 export function routineFocusFromPlan(plan: WorkoutPlan): string {

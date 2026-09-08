@@ -15,7 +15,6 @@
 
 import {
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -37,6 +36,7 @@ import type {
   DailyContextResponse,
   DecisionResponse,
   MeResponse,
+  PlanRevisionResponse,
   RoutineResponse,
   WeeklyPlanRevisionResponse,
   WeekResponse,
@@ -47,7 +47,8 @@ import type {
 import {
   applyPlanItemPrescriptions,
   moveWorkoutPlanItem,
-  planEditRequest,
+  planItemOrderRequest,
+  workoutPlanRevision,
 } from '../../api/workoutPlan';
 import {
   localDateString,
@@ -70,11 +71,17 @@ import type { RoutineGenerationPhaseCode } from './RoutineGenerationLoading';
 type HomeData = {
   routine: RoutineResponse;
   context: DailyContextResponse | null;
+  previousContext: DailyContextResponse | null;
   /** Server-owned check-in defaults, used only until today's check-in exists. */
   checkinDefaults: DailyContextDefaultsResponse | null;
   week: WeekResponse | null;
   sessions: WorkoutSessionLogSummary[];
 };
+
+export type HomeRecoveryState =
+  | { status: 'loading' }
+  | { status: 'ready' }
+  | { status: 'error'; message: string; permissionDenied: boolean };
 
 type PendingRoutineAttempt = {
   scope: string;
@@ -93,17 +100,42 @@ type PendingDecisionAttempt = {
   countsAsAlternative: boolean;
 };
 
-const FALLBACK_LOCATION_CODE = 'HOME';
+type PlanEditAttempt = {
+  decisionId: string;
+  optimisticPlan: WorkoutPlan;
+  execute: () => Promise<PlanRevisionResponse>;
+};
+
 const EMPTY_SESSIONS: WorkoutSessionLogSummary[] = [];
 const DEFAULT_FINAL_VALIDATION_HOLD_MS = 1_500;
-/** Long enough for a drag to settle, short enough to save before a hand-off. */
-const PLAN_EDIT_SAVE_DELAY_MS = 500;
+
+function planFromRevision(response: PlanRevisionResponse): WorkoutPlan {
+  return {
+    ...response.final_plan,
+    plan_revision: response.plan_revision,
+  };
+}
+
+function canRetryPlanEdit(error: unknown): boolean {
+  return (
+    !isApiError(error) ||
+    error.kind === 'network' ||
+    error.kind === 'server' ||
+    error.kind === 'unavailable'
+  );
+}
 
 function wait(milliseconds: number): Promise<void> {
   if (milliseconds <= 0) {
     return Promise.resolve();
   }
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function previousLocalDate(localDate: string): string {
+  const date = new Date(`${localDate}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
 }
 
 function canShowFinalValidation(decision: DecisionResponse): boolean {
@@ -218,6 +250,7 @@ export function HomeContainer({
   onDismissNotificationPanel,
   notificationToastVisible = false,
   onNotifications,
+  recoveryState,
   finalValidationHoldMs = DEFAULT_FINAL_VALIDATION_HOLD_MS,
 }: {
   api: Api;
@@ -230,7 +263,11 @@ export function HomeContainer({
   planRevision: WeeklyPlanRevisionResponse | null;
   /** Retained for callers until the retired location-revision UI is removed. */
   onPlanRevisionChange?: (revision: WeeklyPlanRevisionResponse | null) => void;
-  onSessionStarted: (sessionId: string, plan: WorkoutPlan) => void;
+  onSessionStarted: (
+    sessionId: string,
+    plan: WorkoutPlan,
+    locationCode?: string,
+  ) => void;
   onRestChosen: (pressureNotificationsAllowed: boolean) => void;
   /** Clear flow-owned REST state only after a replacement decision succeeds. */
   onCheckinDecisionSuccess?: () => void;
@@ -241,7 +278,7 @@ export function HomeContainer({
   onRecoverDecision?: () => void;
   todaySession?: WorkoutSessionDetailResponse | null;
   localSessionState?: LocalWorkoutPresentationState;
-  onResumeWorkout?: () => void;
+  onResumeWorkout?: (locationCode?: string) => void;
   onTab: (tab: TabId) => void;
   onOpenCalendar: () => void;
   hasUnreadNotification?: boolean;
@@ -249,6 +286,8 @@ export function HomeContainer({
   onDismissNotificationPanel?: () => void;
   notificationToastVisible?: boolean;
   onNotifications?: () => void;
+  /** The flow-owned aggregate snapshot read used on Home entry and retry. */
+  recoveryState?: HomeRecoveryState;
   /** Testable presentation delay after a decision response is ready. */
   finalValidationHoldMs?: number;
 }) {
@@ -318,44 +357,55 @@ export function HomeContainer({
             throw creationError;
           }
         });
-      const [routine, context, checkinDefaults, week, sessionList] =
-        await Promise.all([
-          routinePromise,
-          optional(api.getDailyContext(localDate, signal), ['notFound']),
-          // The check-in must still open when this is unavailable, so every
-          // absence falls back to the profile defaults the screen already has.
-          optional(api.getDailyContextDefaults(localDate, signal), [
-            'notFound',
-            'validation',
-            'conflict',
-            'unavailable',
-            'server',
-          ]),
-          // Weekly summaries are secondary. They may be absent while the daily
-          // flow remains usable, but authentication and permission errors still
-          // surface through the Home state.
-          optional(api.getWeek(weekStart, signal), [
-            'notFound',
-            'validation',
-            'conflict',
-            'unavailable',
-            'server',
-          ]),
-          optional(
-            api.listWorkoutSessions(
-              {
-                fromLocalDate: weekStart,
-                toLocalDate: localDate,
-                limit: 100,
-              },
-              signal,
-            ),
-            ['notFound', 'validation', 'unavailable', 'server'],
+      const [
+        routine,
+        context,
+        previousContext,
+        checkinDefaults,
+        week,
+        sessionList,
+      ] = await Promise.all([
+        routinePromise,
+        optional(api.getDailyContext(localDate, signal), ['notFound']),
+        optional(api.getDailyContext(previousLocalDate(localDate), signal), [
+          'notFound',
+        ]),
+        // The check-in must still open when this is unavailable. Persistent
+        // pains can fall back to the profile, but location choices cannot:
+        // the defaults response is their only authority.
+        optional(api.getDailyContextDefaults(localDate, signal), [
+          'notFound',
+          'validation',
+          'conflict',
+          'unavailable',
+          'server',
+        ]),
+        // Weekly summaries are secondary. They may be absent while the daily
+        // flow remains usable, but authentication and permission errors still
+        // surface through the Home state.
+        optional(api.getWeek(weekStart, signal), [
+          'notFound',
+          'validation',
+          'conflict',
+          'unavailable',
+          'server',
+        ]),
+        optional(
+          api.listWorkoutSessions(
+            {
+              fromLocalDate: weekStart,
+              toLocalDate: localDate,
+              limit: 100,
+            },
+            signal,
           ),
-        ]);
+          ['notFound', 'validation', 'unavailable', 'server'],
+        ),
+      ]);
       return {
         routine,
         context,
+        previousContext,
         checkinDefaults,
         week,
         sessions: sessionList?.items ?? [],
@@ -379,26 +429,35 @@ export function HomeContainer({
   const [lastDraft, setLastDraft] = useState<HomeCheckinDraft | null>(null);
   const [pendingDecision, setPendingDecision] =
     useState<PendingDecisionAttempt | null>(null);
+  const [pendingPlanEdit, setPendingPlanEdit] =
+    useState<PlanEditAttempt | null>(null);
   const inFlight = useRef(false);
 
   const data = state.status === 'ready' ? state.data : null;
   const routine = data?.routine ?? null;
   const context = data?.context ?? null;
+  const previousContext = data?.previousContext ?? null;
   const checkinDefaults = data?.checkinDefaults ?? null;
   const week = data?.week ?? null;
   const sessions = data?.sessions ?? EMPTY_SESSIONS;
 
-  // Memoised because it feeds the mutation callbacks' dependency lists; a new
-  // array each render would rebuild them on every render.
-  const locationCodes = useMemo(
-    () =>
-      profile === null || profile === undefined
-        ? []
-        : profile.available_location_codes.length > 0
-          ? profile.available_location_codes
-          : [profile.preferred_location_code],
-    [profile],
-  );
+  const locationCodes = useMemo(() => {
+    const choices = (checkinDefaults?.selectable_location_codes ?? []).filter(
+      (code, index, codes) =>
+        (code === 'HOME' || code === 'GYM') && codes.indexOf(code) === index,
+    );
+    const preferred = [
+      context?.location_code,
+      previousContext?.location_code,
+    ].find((code) => code !== undefined && choices.includes(code));
+    return preferred === undefined
+      ? choices
+      : [preferred, ...choices.filter((code) => code !== preferred)];
+  }, [
+    checkinDefaults?.selectable_location_codes,
+    context?.location_code,
+    previousContext?.location_code,
+  ]);
 
   const run = useCallback((kind: HomeBusyKind, action: () => Promise<void>) => {
     // Overlapping actions can represent different user intents. Serialize
@@ -410,6 +469,7 @@ export function HomeContainer({
     setBusy(kind);
     setRoutineLoadingPhaseCode(null);
     setActionError(null);
+    setPendingPlanEdit(null);
     setStaleContext(false);
 
     void action()
@@ -513,6 +573,15 @@ export function HomeContainer({
         if (sleepMinutes === undefined) {
           throw new Error('sleep hours out of range');
         }
+        if (
+          draft.locationCode === null ||
+          !locationCodes.includes(draft.locationCode)
+        ) {
+          throw Object.assign(new Error('daily location is required'), {
+            userMessage:
+              '운동 장소 선택지를 다시 불러온 뒤 집 또는 헬스장을 선택해주세요.',
+          });
+        }
 
         // A previous attempt lost the optimistic-lock race, so the retry has to
         // carry the version that is stored now rather than the stale one.
@@ -531,12 +600,7 @@ export function HomeContainer({
           {
             fatigue_level_code: draft.fatigueLevelCode,
             available_time_minutes: draft.availableTimeMinutes,
-            location_code:
-              draft.locationCode ??
-              latestContext?.location_code ??
-              profile?.preferred_location_code ??
-              locationCodes[0] ??
-              FALLBACK_LOCATION_CODE,
+            location_code: draft.locationCode,
             sleep_minutes: sleepMinutes,
             sleep_source_code: sleepMinutes === null ? null : 'MANUAL',
             pain_present: Object.keys(draft.pains).length > 0,
@@ -553,7 +617,14 @@ export function HomeContainer({
         // Check-in persistence is already complete even if decision creation
         // later loses its response. Reflect it now so a retry never rewrites
         // the same check-in merely to regenerate today's routine.
-        setData({ routine, context: saved, checkinDefaults, week, sessions });
+        setData({
+          routine,
+          context: saved,
+          previousContext,
+          checkinDefaults,
+          week,
+          sessions,
+        });
         let baseline: DecisionBaseline =
           decision === null
             ? { status: 'unknown' }
@@ -593,7 +664,7 @@ export function HomeContainer({
       localDate,
       locationCodes,
       onDecisionChange,
-      profile,
+      previousContext,
       requestDecision,
       routine,
       run,
@@ -630,9 +701,13 @@ export function HomeContainer({
       if (selection.workout_session === null) {
         return;
       }
-      onSessionStarted(selection.workout_session.session_id, plan);
+      onSessionStarted(
+        selection.workout_session.session_id,
+        plan,
+        context?.location_code,
+      );
     });
-  }, [api, decision, onSessionStarted, run]);
+  }, [api, context?.location_code, decision, onSessionStarted, run]);
 
   const chooseRest = useCallback(() => {
     if (decision === null) {
@@ -654,88 +729,74 @@ export function HomeContainer({
     });
   }, [api, decision, onRestChosen, run]);
 
-  /**
-   * A user edit of today's plan — set and repetition changes (ADR-0018 D4) or a
-   * reorder inside one phase (D5) — is applied to the decision first so the
-   * routine card and the workout screen read the same plan, then sent to the
-   * server. `updateDecisionPlan` is optional: until the route exists the edit
-   * lives only as long as the running app, and implementing it turns on
-   * persistence without another change here.
-   *
-   * Dragging emits one move per step, so the request is deferred until the user
-   * settles rather than sending an intermediate order.
-   */
-  const planSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // A drag emits several moves before React re-renders, so the edit chain reads
-  // its own last result rather than the decision prop of the current render.
-  const editedPlan = useRef<{ decisionId: string; plan: WorkoutPlan } | null>(
-    null,
-  );
-
-  useEffect(
-    () => () => {
-      if (planSaveTimer.current !== null) {
-        clearTimeout(planSaveTimer.current);
-      }
-    },
-    [],
-  );
-
-  const applyPlanEdit = useCallback(
-    (edit: (plan: WorkoutPlan) => WorkoutPlan) => {
-      const decisionId = decision?.decision_id ?? null;
-      const current =
-        editedPlan.current?.decisionId === decisionId
-          ? editedPlan.current.plan
-          : (decision?.final_plan ?? null);
-      if (decisionId === null || current === null) {
+  const persistPlanEdit = useCallback(
+    (attempt: PlanEditAttempt) => {
+      if (inFlight.current) {
         return;
       }
-      const plan = edit(current);
-      if (plan === current) {
-        return;
-      }
-      editedPlan.current = { decisionId, plan };
+      inFlight.current = true;
+      setBusy('plan-edit');
+      setActionError(null);
+      setPendingPlanEdit(null);
       onDecisionChange((latest) =>
-        latest?.decision_id === decisionId
-          ? { ...latest, final_plan: plan }
+        latest?.decision_id === attempt.decisionId
+          ? { ...latest, final_plan: attempt.optimisticPlan }
           : latest,
       );
 
-      const save = api.updateDecisionPlan;
-      if (save === undefined) {
-        return;
-      }
-      if (planSaveTimer.current !== null) {
-        clearTimeout(planSaveTimer.current);
-      }
-      planSaveTimer.current = setTimeout(() => {
-        planSaveTimer.current = null;
-        void save(decisionId, planEditRequest(plan))
-          .then((next) => {
-            setActionError(null);
-            editedPlan.current = null;
-            onDecisionChange((latest) =>
-              latest?.decision_id === next.decision_id ? next : latest,
-            );
-          })
-          .catch((error: unknown) => {
-            setActionError(actionMessage(error));
-            editedPlan.current = null;
-            // The server did not accept the edit, so stop showing it and read
-            // back the plan it actually stored.
-            onRecoverDecision?.();
-          });
-      }, PLAN_EDIT_SAVE_DELAY_MS);
+      void attempt
+        .execute()
+        .then((response) => {
+          setActionError(null);
+          onDecisionChange((latest) =>
+            latest?.decision_id === response.decision_id
+              ? { ...latest, final_plan: planFromRevision(response) }
+              : latest,
+          );
+        })
+        .catch((error: unknown) => {
+          setActionError(actionMessage(error));
+          setPendingPlanEdit(canRetryPlanEdit(error) ? attempt : null);
+          // A stale or ambiguous result cannot remain an authoritative local
+          // plan. Read back the decision the server actually stored.
+          onRecoverDecision?.();
+        })
+        .finally(() => {
+          inFlight.current = false;
+          setBusy(null);
+        });
     },
-    [api, decision, onDecisionChange, onRecoverDecision],
+    [onDecisionChange, onRecoverDecision],
   );
 
   const reorderPlan = useCallback(
     (from: number, to: number) => {
-      applyPlanEdit((plan) => moveWorkoutPlanItem(plan, from, to));
+      const current = decision?.final_plan;
+      if (!decision || !current) {
+        return;
+      }
+      const plan = moveWorkoutPlanItem(current, from, to);
+      if (plan === current) {
+        return;
+      }
+      const completedPlanItemIds =
+        todaySession?.items
+          .filter((item) => item.status_code === 'COMPLETED')
+          .map((item) => item.plan_item_id) ?? [];
+      const body = planItemOrderRequest(plan, completedPlanItemIds);
+      const idempotencyKey = createIdempotencyKey();
+      persistPlanEdit({
+        decisionId: decision.decision_id,
+        optimisticPlan: plan,
+        execute: () =>
+          api.updateDecisionPlanOrder(
+            decision.decision_id,
+            body,
+            idempotencyKey,
+          ),
+      });
     },
-    [applyPlanEdit],
+    [api, decision, persistPlanEdit, todaySession],
   );
 
   const regenerateDecision = useCallback(() => {
@@ -778,29 +839,81 @@ export function HomeContainer({
       if (prescriptions.length === 0) {
         return;
       }
-      applyPlanEdit((plan) => applyPlanItemPrescriptions(plan, prescriptions));
+      const current = decision?.final_plan;
+      if (!decision || !current) {
+        return;
+      }
+      const changed = prescriptions.filter((edit) => {
+        const item = current.items.find(
+          (candidate) => candidate.plan_item_id === edit.plan_item_id,
+        );
+        return (
+          item !== undefined &&
+          (item.sets !== edit.sets || item.reps !== edit.reps)
+        );
+      });
+      const plan = applyPlanItemPrescriptions(current, changed);
+      if (changed.length === 0 || plan === current) {
+        return;
+      }
+      const idempotencyKeys = changed.map(() => createIdempotencyKey());
+      persistPlanEdit({
+        decisionId: decision.decision_id,
+        optimisticPlan: plan,
+        execute: async () => {
+          let serverPlan = current;
+          let response: PlanRevisionResponse | null = null;
+          for (const [index, edit] of changed.entries()) {
+            response = await api.updateDecisionPlanItem(
+              decision.decision_id,
+              edit.plan_item_id,
+              {
+                expected_plan_id: serverPlan.plan_id,
+                expected_plan_revision: workoutPlanRevision(serverPlan),
+                sets: edit.sets,
+                reps: edit.reps,
+              },
+              idempotencyKeys[index],
+            );
+            serverPlan = planFromRevision(response);
+          }
+          return response!;
+        },
+      });
     },
-    [applyPlanEdit],
+    [api, decision, persistPlanEdit],
   );
 
+  const retryPlanEdit = useCallback(() => {
+    if (pendingPlanEdit !== null) {
+      persistPlanEdit(pendingPlanEdit);
+    }
+  }, [pendingPlanEdit, persistPlanEdit]);
+
+  const recoveryError =
+    recoveryState?.status === 'error' ? recoveryState : null;
   const permissionDenied =
-    state.status === 'error' &&
-    isApiError(state.error) &&
-    state.error.kind === 'permission';
+    recoveryError?.permissionDenied === true ||
+    (state.status === 'error' &&
+      isApiError(state.error) &&
+      state.error.kind === 'permission');
+  const homeStatus =
+    permissionDenied || state.status === 'error' || recoveryError !== null
+      ? 'error'
+      : state.status === 'loading' || recoveryState?.status === 'loading'
+        ? 'loading'
+        : 'ready';
+  const homeErrorMessage =
+    recoveryError?.message ??
+    (state.status === 'error' ? state.message : undefined);
 
   return (
     <HomeScreen
       nickname={profile?.nickname ?? '회원'}
       profileImageUrl={profile?.profile_image_url ?? null}
       localDate={localDate}
-      status={
-        state.status === 'ready'
-          ? 'ready'
-          : state.status === 'error'
-            ? 'error'
-            : 'loading'
-      }
-      errorMessage={state.status === 'error' ? state.message : undefined}
+      status={homeStatus}
+      errorMessage={homeErrorMessage}
       exerciseApi={api}
       permissionDenied={permissionDenied}
       onRetry={
@@ -824,6 +937,9 @@ export function HomeContainer({
       restToday={restToday}
       persistentPains={checkinDefaults?.pains ?? profile?.persistent_pains}
       locationCodes={locationCodes}
+      recommendedDurationMinutes={
+        checkinDefaults?.recommended_duration_minutes ?? null
+      }
       busy={busy}
       routineLoadingPhaseCode={routineLoadingPhaseCode ?? undefined}
       actionError={actionError}
@@ -832,12 +948,17 @@ export function HomeContainer({
         lastDraft === null ? undefined : () => submitCheckin(lastDraft, true)
       }
       onRetryDecision={pendingDecision === null ? undefined : retryDecision}
+      onRetryPlanEdit={pendingPlanEdit === null ? undefined : retryPlanEdit}
       onSubmitCheckin={(draft) => submitCheckin(draft)}
       onRequestAlternativeCheckin={(draft, changed) =>
         changed ? submitCheckin(draft, false, true) : regenerateDecision()
       }
       onStartWorkout={startWorkout}
-      onResumeWorkout={onResumeWorkout}
+      onResumeWorkout={
+        onResumeWorkout
+          ? () => onResumeWorkout(context?.location_code)
+          : undefined
+      }
       onChooseRest={chooseRest}
       onRegenerateDecision={regenerateDecision}
       onReorderPlan={reorderPlan}

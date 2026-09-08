@@ -41,14 +41,10 @@ import Svg, {
 import { InlineFeedback } from '../../components/primitives';
 import { useScale } from '../../components/scale';
 import { colors, radii, shadows, spacing } from '../../components/theme';
-import {
-  BananaGlyph,
-  HouseArtView,
-  HouseMarkGlyph,
-  StarGlyph,
-} from './HouseArt';
+import { BananaGlyph, HouseArtView, StarGlyph } from './HouseArt';
 import {
   HOUSE_BACKDROP_FALLBACK,
+  houseDecorateButtonArt,
   houseItemArt,
   housePoseArt,
   houseRoomArt,
@@ -56,6 +52,7 @@ import {
 import {
   CHEAPEST_ITEM_COST,
   HOUSE_ACTION_COST,
+  HOUSE_BONDING_COPY,
   houseSpeech,
   type HouseItemId,
   type HousePose,
@@ -182,7 +179,18 @@ export function BackgroundTestContent({
                 style={styles.chip}
                 testID="house-decorate-action"
               >
-                <HouseMarkGlyph size={22} color={colors.brandOutline} />
+                <View
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                  pointerEvents="none"
+                >
+                  <HouseArtView
+                    showPlaceholderLabel={false}
+                    showPlaceholderOutline={false}
+                    slot={houseDecorateButtonArt}
+                    style={styles.decorateButtonArt}
+                  />
+                </View>
                 <Text style={styles.chipValue}>집 꾸미기</Text>
               </Pressable>
             </View>
@@ -270,13 +278,15 @@ export function BackgroundTestContent({
             >
               <FeedButton enabled={view.canFeed} onPress={onFeed} />
               <Pressable
-                accessibilityLabel="끼끼 쓰다듬기"
+                accessibilityLabel={HOUSE_BONDING_COPY.actionAccessibilityLabel}
                 accessibilityRole="button"
                 onPress={onPet}
                 style={styles.petButton}
                 testID="house-pet-action"
               >
-                <Text style={styles.petLabel}>쓰다듬기</Text>
+                <Text style={styles.petLabel}>
+                  {HOUSE_BONDING_COPY.actionLabel}
+                </Text>
               </Pressable>
 
               <WeekPanel nickname={nickname} view={view} />
@@ -736,6 +746,7 @@ const styles = StyleSheet.create({
   },
   chip: {
     minWidth: 84,
+    minHeight: 44,
     alignItems: 'center',
     gap: 3,
     borderRadius: 14,
@@ -753,6 +764,10 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 13,
     fontWeight: '800',
+  },
+  decorateButtonArt: {
+    width: 28,
+    height: 28,
   },
   streakChip: {
     flexDirection: 'row',

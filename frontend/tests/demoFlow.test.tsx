@@ -46,6 +46,7 @@ import { SessionScreen } from '../src/features/workout/SessionScreen';
 function plan(itemCount = 2): WorkoutPlan {
   return {
     plan_id: 'plan-1',
+    plan_revision: 0,
     action_code: 'KEEP',
     training_type_code: 'STRENGTH',
     body_focus_code: 'FULL_BODY',
@@ -242,7 +243,72 @@ function stubApi(overrides: Partial<Api> = {}): Api {
     createDecision: jest.fn(),
     getDecision: jest.fn(),
     getDecisionForDate: jest.fn(notFound),
+    getHomeState: jest.fn(async (localDate: string) => ({
+      local_date: localDate,
+      decision: null,
+      final_plan: null,
+      workout_session: null,
+    })),
+    getRewards: jest.fn(async () => ({
+      balance: 0,
+      daily_reward: {
+        local_date: '2026-08-22',
+        reward_amount: 15,
+        is_claimable: true,
+        is_claimed: false,
+        claimed_at: null,
+      },
+    })),
     regenerateDecision: jest.fn(),
+    updateDecisionPlanItem: jest.fn(
+      async (
+        _decisionId: string,
+        planItemId: string,
+        body: {
+          expected_plan_revision: number;
+          sets: number;
+          reps: number | null;
+        },
+      ) => ({
+        decision_id: 'decision-1',
+        plan_revision: body.expected_plan_revision + 1,
+        final_plan: {
+          ...plan(),
+          plan_revision: body.expected_plan_revision + 1,
+          items: plan().items.map((item) =>
+            item.plan_item_id === planItemId
+              ? { ...item, sets: body.sets, reps: body.reps }
+              : item,
+          ),
+        },
+      }),
+    ),
+    updateDecisionPlanOrder: jest.fn(
+      async (
+        _decisionId: string,
+        body: {
+          expected_plan_revision: number;
+          ordered_plan_item_ids: string[];
+        },
+      ) => {
+        const original = plan();
+        const byId = new Map(
+          original.items.map((item) => [item.plan_item_id, item]),
+        );
+        return {
+          decision_id: 'decision-1',
+          plan_revision: body.expected_plan_revision + 1,
+          final_plan: {
+            ...original,
+            plan_revision: body.expected_plan_revision + 1,
+            items: body.ordered_plan_item_ids.map((id, index) => ({
+              ...byId.get(id)!,
+              sequence: index + 1,
+            })),
+          },
+        };
+      },
+    ),
     selectOption: jest.fn(),
     listWorkoutSessions: jest.fn(async () => ({
       items: [],
@@ -311,10 +377,18 @@ describe('environment configuration', () => {
       EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: 'demo.firebaseapp.com',
       EXPO_PUBLIC_FIREBASE_PROJECT_ID: 'demo',
       EXPO_PUBLIC_FIREBASE_APP_ID: 'app',
+      EXPO_PUBLIC_GOOGLE_OAUTH_REDIRECT_URI:
+        'https://app.example.test/oauth/google/callback',
+      EXPO_PUBLIC_KAKAO_REDIRECT_URI:
+        'https://app.example.test/oauth/kakao/callback',
     });
     expect(config.status).toBe('ready');
     if (config.status === 'ready') {
       expect(config.apiBaseUrl).toBe('http://10.0.2.2:8000');
+      expect(config.socialOAuthRedirectUris).toEqual({
+        GOOGLE: 'https://app.example.test/oauth/google/callback',
+        KAKAO: 'https://app.example.test/oauth/kakao/callback',
+      });
     }
   });
 });
@@ -445,6 +519,11 @@ describe('HomeContainer', () => {
     return stubApi({
       getCurrentRoutine: jest.fn(async () => routine()),
       getDailyContext: jest.fn(notFound),
+      getDailyContextDefaults: jest.fn(async () => ({
+        local_date: '2026-08-17',
+        pains: [],
+        selectable_location_codes: ['HOME', 'GYM'],
+      })),
       getWeek: jest.fn(async () => week()),
       ...overrides,
     } as unknown as Partial<Api>);
@@ -525,6 +604,9 @@ describe('HomeContainer', () => {
     const getDailyContextDefaults = jest.fn(async () => ({
       local_date: '2026-08-17',
       pains: [{ body_area_code: 'SHOULDER', intensity_score: 4 }],
+      selectable_location_codes: ['HOME', 'GYM'],
+      recommended_duration_minutes: 35,
+      duration_recommendation_policy_version: 'daily-duration-v1',
     }));
     renderHome(
       homeApi({ getDailyContextDefaults } as unknown as Partial<Api>),
@@ -555,10 +637,13 @@ describe('HomeContainer', () => {
       screen.getByRole('button', { name: '무릎' }).props.accessibilityState
         .selected,
     ).toBe(false);
+    expect(
+      screen.getByText('1회 권장 운동 시간은 35분이에요.'),
+    ).toBeOnTheScreen();
   });
 
   it('keeps the profile defaults when the server defaults are unavailable', async () => {
-    renderHome(homeApi(), {
+    renderHome(homeApi({ getDailyContextDefaults: jest.fn(notFound) }), {
       me: {
         ...me(),
         profile: {
@@ -578,14 +663,92 @@ describe('HomeContainer', () => {
     ).toBe(true);
   });
 
+  it('uses server locations, hides outdoor, and defaults to the previous check-in', async () => {
+    const getDailyContext = jest
+      .fn<Api['getDailyContext']>()
+      .mockImplementationOnce(notFound)
+      .mockResolvedValueOnce({
+        ...dailyContext(),
+        location_code: 'GYM',
+      });
+    const customMe = me();
+    customMe.profile = {
+      ...customMe.profile!,
+      preferred_location_code: 'OUTDOOR',
+      available_location_codes: ['OUTDOOR'],
+    };
+    renderHome(
+      homeApi({
+        getDailyContext,
+        getDailyContextDefaults: jest.fn(async () => ({
+          local_date: '2026-08-17',
+          pains: [],
+          selectable_location_codes: ['HOME', 'OUTDOOR', 'GYM'],
+        })),
+      }),
+      { me: customMe },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+    );
+
+    expect(screen.getByRole('button', { name: '집' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: '헬스장' })).toHaveProp(
+      'accessibilityState',
+      { selected: true },
+    );
+    expect(screen.queryByRole('button', { name: '야외' })).toBeNull();
+    expect(getDailyContext).toHaveBeenCalledTimes(2);
+  });
+
+  it('blocks check-in when the server location choices are unavailable', async () => {
+    const customMe = me();
+    customMe.profile = {
+      ...customMe.profile!,
+      preferred_location_code: 'GYM',
+      available_location_codes: ['HOME', 'GYM'],
+    };
+    renderHome(homeApi({ getDailyContextDefaults: jest.fn(notFound) }), {
+      me: customMe,
+    });
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+    );
+
+    expect(
+      screen.getByText(
+        '운동 장소 선택지를 불러오지 못했어요. 잠시 후 다시 시도해주세요.',
+      ),
+    ).toHaveProp('accessibilityRole', 'alert');
+    expect(screen.queryByRole('button', { name: '집' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '헬스장' })).toBeNull();
+    expect(screen.getByRole('button', { name: '체크인 !' })).toHaveProp(
+      'accessibilityState',
+      { disabled: true },
+    );
+  });
+
   it('stores a set and repetition edit in the plan and sends it to the server', async () => {
     const original = decision();
     const onDecisionChange = jest.fn();
-    const updateDecisionPlan = jest.fn(async () => original);
+    const savedPlan = {
+      ...plan(),
+      plan_revision: 1,
+      items: plan().items.map((item) =>
+        item.plan_item_id === 'item-1' ? { ...item, sets: 5 } : item,
+      ),
+    };
+    const updateDecisionPlanItem = jest.fn(async () => ({
+      decision_id: 'decision-1',
+      plan_revision: 1,
+      final_plan: savedPlan,
+    }));
     renderHome(
       homeApi({
         getDailyContext: jest.fn(async () => dailyContext()),
-        updateDecisionPlan,
+        updateDecisionPlanItem,
       } as unknown as Partial<Api>),
       { decision: original, onDecisionChange },
     );
@@ -605,22 +768,45 @@ describe('HomeContainer', () => {
     ]);
 
     await waitFor(() =>
-      expect(updateDecisionPlan).toHaveBeenCalledWith('decision-1', {
-        expected_plan_id: 'plan-1',
-        item_order: ['item-1', 'item-2'],
-        item_prescriptions: [
-          { plan_item_id: 'item-1', sets: 5, reps: null },
-          { plan_item_id: 'item-2', sets: 3, reps: null },
-        ],
-      }),
+      expect(updateDecisionPlanItem).toHaveBeenCalledWith(
+        'decision-1',
+        'item-1',
+        {
+          expected_plan_id: 'plan-1',
+          expected_plan_revision: 0,
+          sets: 5,
+          reps: null,
+        },
+        expect.any(String),
+      ),
     );
+    const serverUpdate = onDecisionChange.mock.calls.at(-1)?.[0] as (
+      current: DecisionResponse | null,
+    ) => DecisionResponse | null;
+    expect(serverUpdate(original)?.final_plan).toEqual(savedPlan);
   });
 
-  it('keeps a plan edit local while the server route is unavailable', async () => {
+  it('persists the complete movable order instead of keeping a local-only edit', async () => {
     const original = decision();
     const onDecisionChange = jest.fn();
+    const reorderedPlan = {
+      ...plan(),
+      plan_revision: 1,
+      items: [
+        { ...plan().items[1]!, sequence: 1 },
+        { ...plan().items[0]!, sequence: 2 },
+      ],
+    };
+    const updateDecisionPlanOrder = jest.fn(async () => ({
+      decision_id: 'decision-1',
+      plan_revision: 1,
+      final_plan: reorderedPlan,
+    }));
     renderHome(
-      homeApi({ getDailyContext: jest.fn(async () => dailyContext()) }),
+      homeApi({
+        getDailyContext: jest.fn(async () => dailyContext()),
+        updateDecisionPlanOrder,
+      }),
       { decision: original, onDecisionChange },
     );
 
@@ -630,8 +816,92 @@ describe('HomeContainer', () => {
       { nativeEvent: { actionName: 'increment' } },
     );
 
-    expect(onDecisionChange).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText('다시 시도')).toBeNull();
+    await waitFor(() =>
+      expect(updateDecisionPlanOrder).toHaveBeenCalledWith(
+        'decision-1',
+        {
+          expected_plan_id: 'plan-1',
+          expected_plan_revision: 0,
+          ordered_plan_item_ids: ['item-2', 'item-1'],
+        },
+        expect.any(String),
+      ),
+    );
+  });
+
+  it('retries an ambiguous plan edit with the same idempotency key', async () => {
+    const original = decision();
+    const onRecoverDecision = jest.fn();
+    const savedPlan = { ...plan(), plan_revision: 1 };
+    const updateDecisionPlanItem = jest
+      .fn<Api['updateDecisionPlanItem']>()
+      .mockRejectedValueOnce(
+        new ApiError({
+          kind: 'network',
+          code: 'NETWORK_UNAVAILABLE',
+          status: 0,
+          message: '서버 응답을 받지 못했어요.',
+        }),
+      )
+      .mockResolvedValueOnce({
+        decision_id: 'decision-1',
+        plan_revision: 1,
+        final_plan: savedPlan,
+      });
+    renderHome(
+      homeApi({
+        getDailyContext: jest.fn(async () => dailyContext()),
+        updateDecisionPlanItem,
+      }),
+      { decision: original, onRecoverDecision },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '세트·횟수 수정' }),
+    );
+    fireEvent.changeText(screen.getByLabelText('운동 1 세트 수'), '5');
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '수정 저장 다시 시도' }),
+    );
+    await waitFor(() =>
+      expect(updateDecisionPlanItem).toHaveBeenCalledTimes(2),
+    );
+    expect(updateDecisionPlanItem.mock.calls[0]?.[3]).toBe(
+      updateDecisionPlanItem.mock.calls[1]?.[3],
+    );
+    expect(onRecoverDecision).toHaveBeenCalledTimes(1);
+  });
+
+  it('recovers a stale plan without offering the same stale mutation again', async () => {
+    const onRecoverDecision = jest.fn();
+    const updateDecisionPlanItem = jest.fn(async () => {
+      throw new ApiError({
+        kind: 'stale',
+        code: 'PLAN_REVISION_STALE',
+        status: 409,
+        message: '운동 계획이 변경되었습니다. 최신 계획으로 다시 시도해주세요.',
+      });
+    });
+    renderHome(
+      homeApi({
+        getDailyContext: jest.fn(async () => dailyContext()),
+        updateDecisionPlanItem,
+      } as unknown as Partial<Api>),
+      { decision: decision(), onRecoverDecision },
+    );
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '세트·횟수 수정' }),
+    );
+    fireEvent.changeText(screen.getByLabelText('운동 1 세트 수'), '5');
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
+
+    await waitFor(() => expect(onRecoverDecision).toHaveBeenCalledTimes(1));
+    expect(
+      screen.queryByRole('button', { name: '수정 저장 다시 시도' }),
+    ).toBeNull();
   });
 
   it('shows the reused loading screen while the saved routine lookup is pending', async () => {
@@ -795,6 +1065,7 @@ describe('HomeContainer', () => {
       expect.objectContaining({ plan_item_id: 'item-2', sequence: 1 }),
       expect.objectContaining({ plan_item_id: 'item-1', sequence: 2 }),
     ]);
+    await waitFor(() => expect(onDecisionChange).toHaveBeenCalledTimes(2));
   });
 
   it('writes the check-in and renders the decision the server returned', async () => {
@@ -839,6 +1110,52 @@ describe('HomeContainer', () => {
     );
     // The decision is owned above this screen, so a tab switch cannot lose it.
     expect(onDecisionChange).toHaveBeenCalledWith(serverDecision);
+  });
+
+  it('shows the server error instead of a shorter routine when 90 minutes cannot be planned', async () => {
+    const replaceDailyContext = jest.fn(async () => ({
+      ...dailyContext(),
+      available_time_minutes: 90,
+    }));
+    const createDecision = jest.fn(async () => {
+      throw new ApiError({
+        kind: 'validation',
+        code: 'ROUTINE_DURATION_UNAVAILABLE',
+        status: 422,
+        message: '90분 계획을 구성할 수 없어요.',
+      });
+    });
+    const onDecisionChange = jest.fn();
+
+    renderHome(homeApi({ replaceDailyContext, createDecision }), {
+      onDecisionChange,
+    });
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+    );
+    for (let count = 0; count < 9; count += 1) {
+      fireEvent.press(
+        screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
+      );
+    }
+    fireEvent.press(screen.getByRole('button', { name: '위험 신호 없어요' }));
+    fireEvent.press(screen.getByRole('button', { name: '체크인 !' }));
+
+    expect(
+      await screen.findByText('90분 계획을 구성할 수 없어요.'),
+    ).toBeOnTheScreen();
+    expect(replaceDailyContext).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ available_time_minutes: 90 }),
+      undefined,
+    );
+    expect(createDecision).toHaveBeenCalledTimes(1);
+    expect(onDecisionChange).toHaveBeenCalledWith(null);
+    expect(onDecisionChange.mock.calls.every(([value]) => value === null)).toBe(
+      true,
+    );
+    expect(screen.queryByText('운동 1')).toBeNull();
   });
 
   it('recovers a committed decision when the create response is lost', async () => {
@@ -1253,11 +1570,15 @@ describe('HomeContainer', () => {
     const customMe = me();
     customMe.profile = {
       ...customMe.profile!,
-      available_location_codes: ['HOME', 'GYM'],
       attention_area_codes: ['SHOULDER', 'KNEE'],
     };
     renderHome(
       homeApi({
+        getDailyContextDefaults: jest.fn(async () => ({
+          local_date: '2026-08-17',
+          pains: [],
+          selectable_location_codes: ['HOME', 'GYM'],
+        })),
         replaceDailyContext,
         createDecision: jest.fn(async () => decision()),
       }),
@@ -1629,10 +1950,16 @@ describe('HomeContainer', () => {
     }));
     const onSessionStarted = jest.fn();
 
-    renderHome(homeApi({ selectOption } as unknown as Partial<Api>), {
-      decision: decision(),
-      onSessionStarted,
-    });
+    renderHome(
+      homeApi({
+        getDailyContext: jest.fn(async () => dailyContext()),
+        selectOption,
+      } as unknown as Partial<Api>),
+      {
+        decision: decision(),
+        onSessionStarted,
+      },
+    );
 
     fireEvent.press(
       await screen.findByRole('button', { name: '운동 시작하기' }),
@@ -1642,6 +1969,7 @@ describe('HomeContainer', () => {
       expect(onSessionStarted).toHaveBeenCalledWith(
         'session-1',
         decision().final_plan,
+        'HOME',
       ),
     );
   });
@@ -1978,6 +2306,10 @@ describe('default fetch binding', () => {
 
 describe('OnboardingScreen', () => {
   it('keeps concise context only where the latest policy needs it', () => {
+    expect(ONBOARDING_STEPS).toHaveLength(8);
+    expect(ONBOARDING_STEPS.map(({ key }) => key)).not.toContain(
+      'coachingStyle',
+    );
     expect(ONBOARDING_STEPS.slice(0, 5).map(({ intro }) => intro)).toEqual([
       '',
       '안전한 운동 계획을 위해 현재 서비스가 지원하는 범위인지 확인해요.',
@@ -1990,11 +2322,9 @@ describe('OnboardingScreen', () => {
   function fillRequiredOnboardingSteps({
     attentionArea,
     birthdate = '1997-08-11',
-    selectConciseCoaching = true,
   }: {
     attentionArea?: string;
     birthdate?: string;
-    selectConciseCoaching?: boolean;
   } = {}) {
     fireEvent.changeText(
       screen.getByPlaceholderText('앱에서 불릴 이름'),
@@ -2015,10 +2345,6 @@ describe('OnboardingScreen', () => {
       'accessibilityState',
       expect.objectContaining({ selected: true }),
     );
-    fireEvent.press(screen.getByText('다음'));
-    if (selectConciseCoaching) {
-      fireEvent.press(screen.getByText('딱 필요한 만큼'));
-    }
     fireEvent.press(screen.getByText('다음'));
     fireEvent.press(screen.getByText('다음'));
     if (attentionArea) {
@@ -2067,7 +2393,7 @@ describe('OnboardingScreen', () => {
       />,
     );
 
-    expect(screen.getByText('1 / 9')).toBeOnTheScreen();
+    expect(screen.getByText('1 / 8')).toBeOnTheScreen();
     expect(screen.getByText('기본 정보를 알려주세요')).toBeOnTheScreen();
     expect(
       screen.queryByText('만 18세 이상만 선택할 수 있어요.'),
@@ -2086,7 +2412,7 @@ describe('OnboardingScreen', () => {
     fireEvent.press(screen.getByLabelText('일 11일'));
     fireEvent.press(screen.getByText('다음'));
 
-    expect(screen.getByText('2 / 9')).toBeOnTheScreen();
+    expect(screen.getByText('2 / 8')).toBeOnTheScreen();
     expect(screen.getByText('운동 지원 범위를 확인해주세요')).toBeOnTheScreen();
     expect(
       screen.queryByText('맞춤 운동 추천에 참고해요.'),
@@ -2173,7 +2499,7 @@ describe('OnboardingScreen', () => {
     expect(screen.queryByLabelText('일 30일')).not.toBeOnTheScreen();
     fireEvent.press(screen.getByLabelText('일 28일'));
     fireEvent.press(screen.getByText('다음'));
-    expect(screen.getByText('2 / 9')).toBeOnTheScreen();
+    expect(screen.getByText('2 / 8')).toBeOnTheScreen();
   });
 
   it('uses the revised onboarding copy without the removed helper text', () => {
@@ -2198,44 +2524,8 @@ describe('OnboardingScreen', () => {
     expect(screen.getByRole('button', { name: '중급' })).toBeOnTheScreen();
     experience.unmount();
 
-    const coachingStyle = render(
-      <OnboardingScreen {...screenProps} initialStep={6} />,
-    );
-    expect(
-      screen.getByText('운동할 때 어떻게 도와드릴까요?'),
-    ).toBeOnTheScreen();
-    expect(
-      screen.getByText(
-        '원하는 안내 스타일을 골라주세요. 언제든 바꿀 수 있어요.',
-      ),
-    ).toBeOnTheScreen();
-    [
-      {
-        label: '차근차근',
-        description: '응원과 함께 편안하게 운동을 안내해요.',
-      },
-      {
-        label: '딱 필요한 만큼',
-        description: '꼭 필요한 내용만 간단하게 알려드려요.',
-      },
-      {
-        label: '힘차게',
-        description: '밝고 에너지 넘치게 운동을 함께해요.',
-      },
-    ].forEach(({ label, description }) => {
-      expect(screen.getByText(label)).toBeOnTheScreen();
-      expect(screen.getByText(description)).toBeOnTheScreen();
-    });
-    expect(
-      screen.queryByText('선택하지 않으면 기본 안내 방식으로 시작해요.'),
-    ).not.toBeOnTheScreen();
-    expect(
-      StyleSheet.flatten(screen.getByText('필수').props.style),
-    ).toMatchObject({ fontSize: 9, lineHeight: 12 });
-    coachingStyle.unmount();
-
     const frequency = render(
-      <OnboardingScreen {...screenProps} initialStep={7} />,
+      <OnboardingScreen {...screenProps} initialStep={6} />,
     );
     expect(screen.getByText('일주일에 몇 번 운동할까요?')).toBeOnTheScreen();
     expect(
@@ -2244,7 +2534,7 @@ describe('OnboardingScreen', () => {
     frequency.unmount();
 
     const attention = render(
-      <OnboardingScreen {...screenProps} initialStep={8} />,
+      <OnboardingScreen {...screenProps} initialStep={7} />,
     );
     expect(screen.getByText('평소에 통증 부위가 있나요?')).toBeOnTheScreen();
     expect(screen.getByText('평소에 통증 부위가 있나요?')).toHaveProp(
@@ -2262,7 +2552,7 @@ describe('OnboardingScreen', () => {
     ).not.toBeOnTheScreen();
     attention.unmount();
 
-    render(<OnboardingScreen {...screenProps} initialStep={9} />);
+    render(<OnboardingScreen {...screenProps} initialStep={8} />);
     expect(
       screen.queryByText('필수 2개만 동의하면 시작할 수 있어요.'),
     ).not.toBeOnTheScreen();
@@ -2391,7 +2681,7 @@ describe('OnboardingScreen', () => {
     render(
       <OnboardingScreen
         api={stubApi()}
-        initialStep={9}
+        initialStep={8}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
@@ -2402,9 +2692,12 @@ describe('OnboardingScreen', () => {
       '개인정보 수집 및 이용',
       '건강 관련 민감정보 처리',
     ];
-    const optionalLabels = ['웨어러블 연동', '마케팅 정보 수신'];
+    const optionalLabels = ['마케팅 정보 수신'];
 
-    expect(screen.getAllByRole('checkbox')).toHaveLength(5);
+    expect(screen.getAllByRole('checkbox')).toHaveLength(4);
+    expect(
+      screen.queryByRole('checkbox', { name: '웨어러블 연동' }),
+    ).not.toBeOnTheScreen();
     expect(
       screen.getByText(
         '선택 항목은 동의하지 않아도 서비스를 이용할 수 있어요.',
@@ -2439,7 +2732,7 @@ describe('OnboardingScreen', () => {
     render(
       <OnboardingScreen
         api={stubApi()}
-        initialStep={9}
+        initialStep={8}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
@@ -2449,7 +2742,6 @@ describe('OnboardingScreen', () => {
       '서비스 지원 범위와 이용 기준을 확인하고 동의해요.',
       '입력한 정보를 운동 계획을 만드는 데 활용해요.',
       '통증과 컨디션 정보를 안전한 운동 계획을 만드는 데 활용해요.',
-      '웨어러블 데이터를 운동 계획에 참고해요.',
       '새로운 기능과 이벤트 소식을 받아볼 수 있어요.',
     ].forEach((description) => {
       expect(screen.getByText(description)).toBeOnTheScreen();
@@ -2460,7 +2752,7 @@ describe('OnboardingScreen', () => {
     render(
       <OnboardingScreen
         api={stubApi()}
-        initialStep={9}
+        initialStep={8}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
@@ -2556,7 +2848,7 @@ describe('OnboardingScreen', () => {
     });
   });
 
-  it('submits enabled optional consent values without a calendar field', async () => {
+  it('submits marketing consent while keeping wearable integration disabled', async () => {
     const submitOnboarding = jest.fn(async (_request: OnboardingRequest) =>
       completedOnboarding(),
     );
@@ -2570,7 +2862,6 @@ describe('OnboardingScreen', () => {
 
     fillRequiredOnboardingSteps();
     acceptRequiredConsents();
-    fireEvent.press(screen.getByRole('checkbox', { name: '웨어러블 연동' }));
     fireEvent.press(screen.getByRole('checkbox', { name: '마케팅 정보 수신' }));
     fireEvent.press(screen.getByText('시작하기'));
 
@@ -2580,7 +2871,7 @@ describe('OnboardingScreen', () => {
           consents: {
             general_personal_data: true,
             sensitive_data: true,
-            wearable_integration: true,
+            wearable_integration: false,
             marketing: true,
           },
         }),
@@ -2613,7 +2904,7 @@ describe('OnboardingScreen', () => {
       expect(submitOnboarding).toHaveBeenCalledWith(
         expect.objectContaining({ date_of_birth: '1997-08-11' }),
       );
-      expect(screen.getByText('1 / 9')).toBeOnTheScreen();
+      expect(screen.getByText('1 / 8')).toBeOnTheScreen();
       expect(
         screen.getByText(
           '만 18세 미만이거나 만 65세 이상이면 이용할 수 없습니다.',
@@ -2647,7 +2938,7 @@ describe('OnboardingScreen', () => {
     rerender(
       <OnboardingScreen
         api={stubApi()}
-        initialStep={8}
+        initialStep={7}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
@@ -2688,7 +2979,7 @@ describe('OnboardingScreen', () => {
     render(
       <OnboardingScreen
         api={stubApi()}
-        initialStep={8}
+        initialStep={7}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
@@ -2725,7 +3016,7 @@ describe('OnboardingScreen', () => {
     render(
       <OnboardingScreen
         api={stubApi()}
-        initialStep={8}
+        initialStep={7}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
@@ -2754,7 +3045,7 @@ describe('OnboardingScreen', () => {
     render(
       <OnboardingScreen
         api={stubApi()}
-        initialStep={8}
+        initialStep={7}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
@@ -2792,7 +3083,7 @@ describe('OnboardingScreen', () => {
     render(
       <OnboardingScreen
         api={stubApi()}
-        initialStep={7}
+        initialStep={6}
         onCompleted={jest.fn()}
         onSignOut={jest.fn()}
       />,
@@ -2844,7 +3135,6 @@ describe('OnboardingScreen', () => {
           primary_goal_code: 'GENERAL_FITNESS',
           experience_level_code: 'BEGINNER',
           weekly_target_sessions: 3,
-          coaching_style_code: 'CONCISE',
           terms_version: 'terms-v1.0.0',
           persistent_pains: [{ body_area_code: 'KNEE', intensity_score: 1 }],
         }),
@@ -2859,12 +3149,13 @@ describe('OnboardingScreen', () => {
         'preferred_exercise_type_codes',
         'attention_area_codes',
         'equipment_codes',
+        'coaching_style_code',
       ].forEach((field) => expect(request).not.toHaveProperty(field));
       expect(onCompleted).toHaveBeenCalledTimes(1);
     });
   });
 
-  it('allows persistent pain to be skipped and submits the selected coaching style', async () => {
+  it('allows persistent pain to be skipped without submitting a coaching style', async () => {
     const submitOnboarding = jest.fn(async (_request: OnboardingRequest) => ({
       user_id: 'user-1',
       onboarding_completed: true,
@@ -2885,7 +3176,7 @@ describe('OnboardingScreen', () => {
       />,
     );
 
-    fillRequiredOnboardingSteps({ selectConciseCoaching: false });
+    fillRequiredOnboardingSteps();
     acceptRequiredConsents();
     fireEvent.press(screen.getByText('시작하기'));
 
@@ -2894,9 +3185,9 @@ describe('OnboardingScreen', () => {
       expect(request).toEqual(
         expect.objectContaining({
           persistent_pains: [],
-          coaching_style_code: 'SUPPORTIVE',
         }),
       );
+      expect(request).not.toHaveProperty('coaching_style_code');
       expect(request).not.toHaveProperty('preferred_location_code');
       expect(request).not.toHaveProperty('default_requested_duration_minutes');
     });
@@ -2950,7 +3241,7 @@ describe('OnboardingScreen', () => {
     fireEvent.press(screen.getByText('시작하기'));
 
     await waitFor(() => {
-      expect(screen.getByText('1 / 9')).toBeOnTheScreen();
+      expect(screen.getByText('1 / 8')).toBeOnTheScreen();
       expect(screen.getByText('닉네임을 다시 확인해주세요.')).toBeOnTheScreen();
     });
   });

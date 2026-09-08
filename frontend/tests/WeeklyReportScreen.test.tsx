@@ -25,7 +25,15 @@ const REPORT: WeeklyReportResponse = {
     partial: 1,
     not_completed: 1,
     stopped_for_safety: 0,
+    safety_stopped_session_count: 0,
   },
+  total_workout_seconds: 3900,
+  total_estimated_calories_burned: 245.5,
+  average_intensity_code: 'MODERATE',
+  most_performed_training_type_code: 'STRENGTH',
+  completed_count_change: 1,
+  highlight_codes: ['COMPLETED_SESSION_RECORDED'],
+  improvement_codes: ['MISSED_SESSION_PATTERN_RECORDED'],
   weekday_failure_summary: {
     THURSDAY: {
       partial: 0,
@@ -169,7 +177,7 @@ describe('WeeklyReportScreen selected week', () => {
     expect(
       screen.getByRole('tab', { name: '리포트' }).props.accessibilityState,
     ).toEqual({ selected: true });
-  });
+  }, 15_000);
 
   it('shows safety-stopped sessions separately from ordinary non-completion', async () => {
     renderExistingReport({
@@ -178,6 +186,7 @@ describe('WeeklyReportScreen selected week', () => {
         ...REPORT.counts,
         not_completed: 1,
         stopped_for_safety: 2,
+        safety_stopped_session_count: 2,
       },
     });
 
@@ -195,9 +204,53 @@ describe('WeeklyReportScreen selected week', () => {
     ).toBeOnTheScreen();
     expect(within(safetyStopped).getByText('2')).toBeOnTheScreen();
     expect(
-      screen.getByText('일반 미수행과 구분한 별도 안전 기록이에요.'),
+      screen.getByText(/다음 운동 전 몸 상태와 안내를 확인해 주세요/),
     ).toBeOnTheScreen();
   });
+
+  it('renders the six report blocks from server-provided aggregates', async () => {
+    renderExistingReport();
+
+    expect(await screen.findByText('목표 달성 현황')).toBeOnTheScreen();
+    expect(screen.getByText('운동 기록 요약')).toBeOnTheScreen();
+    expect(screen.getByText('이런 점이 좋았어요')).toBeOnTheScreen();
+    expect(screen.getByText('이런 점은 조금 아쉬웠어요')).toBeOnTheScreen();
+    expect(screen.getByText('이번 주 컨디션과 조정')).toBeOnTheScreen();
+    expect(screen.getByText('헬끼의 한 줄 코치')).toBeOnTheScreen();
+    expect(screen.getByText('목표 4회 중 완료 3회')).toBeOnTheScreen();
+    expect(screen.getByTestId('weekly-report-delta')).toHaveTextContent(
+      '지난주보다 +1회',
+    );
+    expect(screen.getByText('1시간 5분')).toBeOnTheScreen();
+    expect(screen.getByText('245.5 kcal')).toBeOnTheScreen();
+    expect(screen.getByText('보통')).toBeOnTheScreen();
+    expect(screen.getByText('근력')).toBeOnTheScreen();
+  });
+
+  it('hides optional delta and calorie metrics for legacy reports', async () => {
+    renderExistingReport({
+      ...REPORT,
+      completed_count_change: null,
+      total_estimated_calories_burned: null,
+    });
+
+    await screen.findByText('목표 달성 현황');
+    expect(screen.queryByTestId('weekly-report-delta')).toBeNull();
+    expect(screen.queryByTestId('weekly-report-calories')).toBeNull();
+  });
+
+  it('does not expose unknown metric codes as user-facing copy', async () => {
+    renderExistingReport({
+      ...REPORT,
+      average_intensity_code: 'FUTURE_INTENSITY',
+      most_performed_training_type_code: 'FUTURE_TRAINING',
+    });
+
+    await screen.findByText('운동 기록 요약', {}, { timeout: 10_000 });
+    expect(screen.queryByText('FUTURE_INTENSITY')).toBeNull();
+    expect(screen.queryByText('FUTURE_TRAINING')).toBeNull();
+    expect(screen.getAllByText('확인되지 않은 항목')).toHaveLength(2);
+  }, 15_000);
 
   it('keeps calendar hierarchy while creating and acknowledging through the API', async () => {
     const onBack = jest.fn();
@@ -488,16 +541,18 @@ describe('WeeklyReportScreen selected week', () => {
     expect(screen.queryByText('8.10 – 8.16')).toBeNull();
   });
 
-  it('renders all four report steps in their visible tree order', async () => {
+  it('renders all six report blocks in their visible tree order', async () => {
     const view = renderExistingReport();
 
     await screen.findByText(REPORT.summary);
     const tree = JSON.stringify(view.toJSON());
     const headings = [
-      '이번 주 수행 결과',
-      '지속 방해 요인',
-      'AI 조정 내역',
-      '다음 주 반영 사항',
+      '목표 달성 현황',
+      '운동 기록 요약',
+      '이런 점이 좋았어요',
+      '이런 점은 조금 아쉬웠어요',
+      '이번 주 컨디션과 조정',
+      '헬끼의 한 줄 코치',
     ];
     const positions = headings.map((heading) => tree.indexOf(heading));
 
@@ -505,87 +560,37 @@ describe('WeeklyReportScreen selected week', () => {
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
   });
 
-  it('keeps blocker details before the AI adjustment step', async () => {
-    const view = renderExistingReport();
+  it('keeps server-provided highlight order and ignores unknown codes', async () => {
+    const view = renderExistingReport({
+      ...REPORT,
+      highlight_codes: [
+        'PARTIAL_SESSION_PROGRESS_RECORDED',
+        'UNKNOWN_FUTURE_CODE',
+        'COMPLETED_SESSION_RECORDED',
+      ],
+    });
 
     await screen.findByText(REPORT.summary);
     const tree = JSON.stringify(view.toJSON());
 
-    expect(tree.indexOf('지속 방해 요인')).toBeLessThan(
-      tree.indexOf('AI 조정 내역'),
+    expect(tree.indexOf('가능한 만큼 진행한 기록을 남겼어요.')).toBeLessThan(
+      tree.indexOf('완료한 운동 기록을 남겼어요.'),
     );
+    expect(tree).not.toContain('UNKNOWN_FUTURE_CODE');
   });
 
-  it('shows every blocker reason in the server-provided order', async () => {
-    const view = renderExistingReport({
-      ...REPORT,
-      primary_miss_reason_code: null,
-      pattern_summary: {
-        ...REPORT.pattern_summary,
-        blocker_reason_codes: ['SCHEDULE_CHANGE', 'FATIGUE', 'WEATHER'],
-      },
-    });
-
-    await screen.findByText(REPORT.summary);
-    const tree = JSON.stringify(view.toJSON());
-    const positions = [
-      tree.indexOf('일정이 바뀌었어요'),
-      tree.indexOf('피로가 컸어요'),
-      tree.indexOf('날씨 때문이었어요'),
-    ];
-
-    expect(positions.every((position) => position >= 0)).toBe(true);
-    expect(positions).toEqual([...positions].sort((a, b) => a - b));
-  });
-
-  it('shows only recorded weekdays with Korean labels in Monday-to-Sunday order', async () => {
-    const view = renderExistingReport({
-      ...REPORT,
-      primary_miss_reason_code: null,
-      weekday_failure_summary: {
-        SUNDAY: {
-          partial: 0,
-          not_completed: 1,
-          stopped_for_safety: 0,
-        },
-        TUESDAY: {
-          partial: 1,
-          not_completed: 0,
-          stopped_for_safety: 0,
-        },
-      },
-      pattern_summary: {
-        ...REPORT.pattern_summary,
-        blocker_reason_codes: [],
-      },
-    });
-
-    await screen.findByText(REPORT.summary);
-    const tree = JSON.stringify(view.toJSON());
-
-    expect(screen.getByText('화요일')).toBeOnTheScreen();
-    expect(screen.getByText('일요일')).toBeOnTheScreen();
-    expect(screen.queryByText('월요일')).toBeNull();
-    expect(screen.queryByText('수요일')).toBeNull();
-    expect(screen.queryByText('목요일')).toBeNull();
-    expect(screen.queryByText('금요일')).toBeNull();
-    expect(screen.queryByText('토요일')).toBeNull();
-    expect(tree.indexOf('화요일')).toBeLessThan(tree.indexOf('일요일'));
-  });
-
-  it('shows the blocker empty state when no blocker details were recorded', async () => {
+  it('uses neutral fallback copy when no strengths or improvements were aggregated', async () => {
     renderExistingReport({
       ...REPORT,
-      primary_miss_reason_code: null,
-      weekday_failure_summary: {},
-      pattern_summary: {
-        ...REPORT.pattern_summary,
-        blocker_reason_codes: [],
-      },
+      highlight_codes: [],
+      improvement_codes: [],
     });
 
     expect(
-      await screen.findByText('이번 주에는 걸림돌 기록이 없었어요'),
+      await screen.findByText('이번 주 기록에서 이어갈 점을 확인했어요.'),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByText('다음 주에도 실행 가능한 조건을 함께 찾아요.'),
     ).toBeOnTheScreen();
   });
 

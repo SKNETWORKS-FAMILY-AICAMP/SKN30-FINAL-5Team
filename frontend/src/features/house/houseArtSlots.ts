@@ -17,6 +17,7 @@ import { houseMascotMonkeySources, imageAssets } from '../../assets';
 import { colors } from '../../components/theme';
 import {
   DEFAULT_HOUSE_BACKGROUND_ID,
+  HOUSE_BONDING_COPY,
   type HouseBackgroundId,
   type HouseItemId,
   type HousePose,
@@ -126,6 +127,15 @@ export const houseBackgroundThumbnailArt: Record<
 /** Default room art retained for previews that do not own house state. */
 export const houseRoomArt = houseBackgroundArt[DEFAULT_HOUSE_BACKGROUND_ID];
 
+/** Reviewed icon for the house decoration entry point. */
+export const houseDecorateButtonArt = slot(
+  'decorate-button',
+  '집 꾸미기 버튼',
+  imageAssets.houseDecorateButton,
+  colors.yellowSoft,
+  colors.yellowDeep,
+);
+
 /**
  * The gradient standing in for the backdrop until the illustration arrives.
  * Sky, tree line, meadow, path — top to bottom.
@@ -167,7 +177,7 @@ export const housePoseArt: Record<HousePose, HouseArtSlot> = {
   ),
   petted: slot(
     'pose-petted',
-    '쓰다듬어 주는 중',
+    HOUSE_BONDING_COPY.poseAccessibilityLabel,
     imageAssets.houseMascotMonkey01,
     colors.yellowSoft,
     colors.yellowDeep,

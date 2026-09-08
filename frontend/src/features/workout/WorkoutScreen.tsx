@@ -23,21 +23,24 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { fontFamilies, useBrandFonts } from '../../app/fonts';
 import type { Api } from '../../api/endpoints';
 import { ApiError, messageForError } from '../../api/errors';
-import {
-  formatExercisePrescription,
-  trainingTypeLabel,
-} from '../../api/labels';
+import { formatExercisePrescription } from '../../api/labels';
 import type {
   ExerciseVariantsResponse,
   NotCompletedReasonCode,
   SessionItem,
   WorkoutPlan,
 } from '../../api/types';
-import { orderedWorkoutPlanItems } from '../../api/workoutPlan';
+import {
+  orderedWorkoutPlanItems,
+  routineTitleFromPlan,
+} from '../../api/workoutPlan';
 import { imageAssets } from '../../assets';
 import { colors, shadows } from '../../components/theme';
 import { useScale } from '../../components/scale';
-import { ExerciseDetailSheet } from './ExerciseDetailSheet';
+import {
+  ExerciseDetailSheet,
+  type ExerciseGuideContext,
+} from './ExerciseDetailSheet';
 import {
   ExerciseVariantsAction,
   ExerciseVariantsContent,
@@ -122,7 +125,11 @@ type WorkoutPreviewProps = {
 
 type WorkoutApiProps = {
   api: Api;
+  /** Current workout context; FE-2 can pass its location/equipment selection here. */
+  exerciseGuideContext?: ExerciseGuideContext;
   initialEquipmentGuideExerciseId?: string;
+  /** Daily Check-in location used by the read-only variant endpoint. */
+  locationCode?: string;
   sessionId: string;
   plan: WorkoutPlan;
   onOutcome: (outcome: SessionOutcome) => void;
@@ -1060,7 +1067,7 @@ function WorkoutScreenContent({
             >
               {apiConfig === undefined
                 ? '전신 기본 루틴'
-                : `${trainingTypeLabel(apiConfig.plan.training_type_code)} 루틴`}
+                : routineTitleFromPlan(apiConfig.plan)}
             </Text>
             <Text style={styles.routineStep}>
               {Math.min(currentIndex + 1, blocks.length)} / {blocks.length} 블록
@@ -1192,6 +1199,7 @@ function WorkoutScreenContent({
                       }
                       exerciseId={block.exerciseId}
                       exerciseName={block.name}
+                      locationCode={apiConfig.locationCode}
                       label="장비가 없을 때"
                       onOpen={(response) => {
                         setDetailBlockId(null);
@@ -1347,6 +1355,7 @@ function WorkoutScreenContent({
               <ExerciseDetailSheet
                 api={apiConfig.api}
                 exerciseId={detailBlock.exerciseId}
+                guideContext={apiConfig.exerciseGuideContext}
               />
             ) : (
               <View style={styles.tipList}>
