@@ -1,3 +1,4 @@
+import csv
 import json
 from pathlib import Path
 
@@ -11,9 +12,31 @@ from backend.app.domain.rules.fitt import (
     context_for_exercise,
 )
 
+# The catalog the API actually serves. Reading an older bundle here is what let
+# a timing-mode conflict reach production unnoticed.
 PROMOTED_CATALOG = Path(
-    "data/generated/exercise-catalog-v2.0.6-final/backend_bundle/catalog/exercises.jsonl"
+    "data/generated/integrated-catalog-v2.0.7-final/backend_bundle/catalog/catalog/exercises.jsonl"
 )
+
+# Reviewed FITT rows whose timing mode contradicts the promoted catalog's. The
+# join is by permanent source identity and is correct; the two sources simply
+# disagree about whether the movement is counted in repetitions or held for
+# time. The catalog owns that answer, so these carry no approved FITT context.
+CATALOG_TIMING_CONFLICTS = {
+    "bodyweight_crunch_core_brace_bodyweight",
+    "bodyweight_reverse_crunch_core_brace_bodyweight",
+    "dead_bug",
+    "lower_back_curl_core_brace_bodyweight",
+    "seated_side_crunch_wall",
+}
+
+
+def _promoted_exercises() -> list[dict[str, str]]:
+    return [
+        json.loads(line)
+        for line in PROMOTED_CATALOG.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 @pytest.mark.parametrize(
@@ -101,31 +124,72 @@ def test_reviewed_fitt_references_are_copied_into_the_backend_image() -> None:
         assert f"!{relative}" in ignorefile, f"{relative} is excluded by the dockerignore"
 
 
-def test_promoted_catalog_uses_only_reviewed_fitt_mapping_coverage() -> None:
+def test_a_reference_contradicting_the_catalog_timing_mode_is_review_required() -> None:
+    """A disagreement is withheld rather than resolved in favour of either source.
 
-    stable_codes = [
-        json.loads(line)["stable_code"]
-        for line in PROMOTED_CATALOG.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
-    assert stable_codes, "the promoted catalog must not be empty"
+    `ExercisePoolExerciseRecord` refuses a record whose FITT timing mode differs
+    from the catalog's, and the pool is built as one model validation, so a
+    single contradicting row failed every routine creation instead of degrading
+    that one exercise.
+    """
+
+    contradicting = sorted(CATALOG_TIMING_CONFLICTS)[0]
+    catalog = {row["stable_code"]: row for row in _promoted_exercises()}
+    assert catalog[contradicting]["timing_mode_code"] == "REPS"
+
+    context = context_for_exercise(
+        stable_code=contradicting,
+        experience_level_code="BEGINNER",
+        timing_mode_code="REPS",
+    )
+
+    assert context.review_status_code == REVIEW_REQUIRED
+    assert context.time_mode_code is None
+    assert context.volume is None
+
+
+def test_no_promoted_exercise_yields_a_context_the_agent_snapshot_rejects() -> None:
+    """The invariant `ExercisePoolExerciseRecord.validate_timing_basis` enforces.
+
+    Checked against every exercise at its own timing mode. The earlier version of
+    this test asked for "REPS" for all of them, which is why it agreed with a
+    catalog it never actually matched.
+    """
+
+    for row in _promoted_exercises():
+        for level in ("BEGINNER", "INTERMEDIATE"):
+            context = context_for_exercise(
+                stable_code=row["stable_code"],
+                experience_level_code=level,
+                timing_mode_code=row["timing_mode_code"],
+            )
+            assert context.time_mode_code in {None, row["timing_mode_code"]}, (
+                f"{row['stable_code']} would fail the pool build"
+            )
+
+
+def test_promoted_catalog_uses_only_reviewed_fitt_mapping_coverage() -> None:
+    catalog = _promoted_exercises()
+    assert catalog, "the promoted catalog must not be empty"
 
     approved = {
-        code
-        for code in stable_codes
+        row["stable_code"]
+        for row in catalog
         if context_for_exercise(
-            stable_code=code,
+            stable_code=row["stable_code"],
             experience_level_code="BEGINNER",
-            timing_mode_code="REPS",
+            timing_mode_code=row["timing_mode_code"],
         ).review_status_code
         != REVIEW_REQUIRED
     }
     mapping_codes = {
         row["exercise_stable_code"]
-        for row in __import__("csv").DictReader(
-            _default_mapping_path().read_text(encoding="utf-8").splitlines()
-        )
+        for row in csv.DictReader(_default_mapping_path().read_text(encoding="utf-8").splitlines())
     }
 
-    assert approved == mapping_codes
-    assert len(approved) == 89
+    assert len(mapping_codes) == 89
+    # Approval is the mapping minus the rows the catalog contradicts. Pinning
+    # the difference keeps a future catalog re-review from silently widening it.
+    assert mapping_codes - approved == CATALOG_TIMING_CONFLICTS
+    assert approved == mapping_codes - CATALOG_TIMING_CONFLICTS
+    assert len(approved) == 84
