@@ -70,3 +70,31 @@ export function recommendationReasonsFromDecision(
         ),
       ]);
 }
+
+/**
+ * The guidance card is Home's main call to action and carries the check-in
+ * entry point at its own bottom, so the standalone check-in button is only
+ * rendered when there is no guidance card to hold it.
+ */
+export function shouldShowGuidanceCard(input: {
+  actionError: boolean;
+  apiMode: boolean;
+  blockingRevisionNotice: unknown;
+  contentReady: boolean;
+  noRoutine: boolean;
+  restRecommended: boolean;
+  restToday: boolean;
+  routineExists: boolean;
+  seriousDecision: boolean;
+}): boolean {
+  return (
+    input.contentReady &&
+    !input.restToday &&
+    !input.seriousDecision &&
+    !input.restRecommended &&
+    input.noRoutine &&
+    !input.actionError &&
+    input.blockingRevisionNotice === null &&
+    (!input.apiMode || input.routineExists)
+  );
+}

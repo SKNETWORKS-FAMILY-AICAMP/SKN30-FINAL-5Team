@@ -207,6 +207,7 @@ export function createHomeStyles(
       paddingHorizontal: s(20),
       ...shadow(6, 18, 0.1),
     },
+    messageCardAction: { alignSelf: 'stretch', marginTop: s(14) },
     messageTitle: {
       color: '#5A4636',
       fontSize: f(15),

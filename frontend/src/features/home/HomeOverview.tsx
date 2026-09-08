@@ -267,10 +267,19 @@ export function CheckinButton({
   );
 }
 
+/**
+ * The guidance card is Home's main call to action: it explains why the check-in
+ * exists and carries the check-in entry point at its own bottom, so Home reads
+ * greeting -> weekly progress -> guidance -> check-in without a detached button.
+ */
 export function EmptyRoutineCard({
   baselineReady = false,
+  checkinLabel,
+  onCheckin,
 }: {
   baselineReady?: boolean;
+  checkinLabel?: string;
+  onCheckin?: () => void;
 }) {
   const styles = useHomeStyles();
   return (
@@ -285,6 +294,17 @@ export function EmptyRoutineCard({
           ? '오늘 컨디션을 알려주면 나에게 맞게 운동을 조정해드려요.'
           : '오늘 체크인을 하면 컨디션에 맞는 추천 루틴을 받아볼 수 있어요.'}
       </Text>
+      {onCheckin ? (
+        <View style={styles.messageCardAction}>
+          <GradientActionButton
+            label={checkinLabel ?? '오늘 루틴 체크인'}
+            labelStyle={styles.sheetSaveLabel}
+            onPress={onCheckin}
+            testID="home-checkin"
+            trailing={<CheckinChevronIcon />}
+          />
+        </View>
+      ) : null}
     </View>
   );
 }

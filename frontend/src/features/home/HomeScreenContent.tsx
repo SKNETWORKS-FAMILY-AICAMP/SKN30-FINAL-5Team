@@ -75,6 +75,7 @@ import type { HomeScreenProps } from './HomeScreen';
 import {
   buildInitialCheckin,
   recommendationReasonsFromDecision,
+  shouldShowGuidanceCard,
   routineNotesFromDecision,
   type TimePickerTarget,
 } from './homeContentModel';
@@ -545,6 +546,18 @@ export function HomeScreenContent({
     !routineGenerationPending &&
     !staleContext &&
     (!apiMode || todayRoutineState.capabilities.canCheckIn);
+  const showGuidanceCard = shouldShowGuidanceCard({
+    actionError: Boolean(actionError),
+    apiMode,
+    blockingRevisionNotice,
+    contentReady,
+    noRoutine,
+    restRecommended,
+    restToday,
+    routineExists: routine !== null,
+    seriousDecision,
+  });
+  const checkinLabel = recheckMode ? '다시 체크인하기' : undefined;
   return (
     <HomeStyleContext.Provider value={styles}>
       <View
@@ -586,9 +599,9 @@ export function HomeScreenContent({
                 weekLabel={displayWeekLabel}
               />
             ) : null}
-            {showCheckin ? (
+            {showCheckin && !showGuidanceCard ? (
               <CheckinButton
-                label={recheckMode ? '다시 체크인하기' : undefined}
+                label={checkinLabel}
                 onPress={() => openCheckin('INITIAL')}
               />
             ) : null}
@@ -675,15 +688,14 @@ export function HomeScreenContent({
                 title="오늘은 휴식을 추천해요"
               />
             ) : null}
-            {contentReady &&
-            !restToday &&
-            !seriousDecision &&
-            !restRecommended &&
-            noRoutine &&
-            !actionError &&
-            blockingRevisionNotice === null &&
-            (!apiMode || routine !== null) ? (
-              <EmptyRoutineCard baselineReady={apiMode && routine !== null} />
+            {showGuidanceCard ? (
+              <EmptyRoutineCard
+                baselineReady={apiMode && routine !== null}
+                checkinLabel={checkinLabel}
+                onCheckin={
+                  showCheckin ? () => openCheckin('INITIAL') : undefined
+                }
+              />
             ) : null}
             {contentReady && routineGenerationPending ? (
               <GeneratingRoutineCard
