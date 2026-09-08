@@ -55,6 +55,16 @@ COPY data/generated/integrated-catalog-v2.0.7-draft/backend_bundle/gym_equipment
 COPY data/generated/integrated-catalog-v2.0.7-draft/backend_bundle/home_equipment \
     ./data/generated/integrated-catalog-v2.0.7-draft/backend_bundle/home_equipment
 
+# `backend.app.domain.rules.fitt` opens these two reviewed references while
+# building the agent pool on the V3 decision path, not only during a promotion
+# command, so leaving them out of the image makes every V3 routine creation
+# raise FileNotFoundError. Copy exactly the two files the module opens:
+# data/normalized as a whole is several megabytes of pipeline intermediates.
+# backend/tests/unit/test_fitt_policy.py keeps this list and the module in step.
+COPY data/normalized/catalog_enrichment_v3_fitt.csv \
+    data/normalized/fitt_template_v1.csv \
+    ./data/normalized/
+
 RUN chown -R app:app /app
 
 USER app
