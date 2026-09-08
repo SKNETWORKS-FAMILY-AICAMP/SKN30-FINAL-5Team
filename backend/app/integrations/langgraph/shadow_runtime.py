@@ -39,6 +39,7 @@ from backend.app.domain.agents.v3_validation import (
     IntegrityValidationStatusCode,
     validate_plan_integrity,
 )
+from backend.app.integrations.langgraph.fallback import DETERMINISTIC_FALLBACK_VERSION
 from backend.app.integrations.langgraph.graph import V3LangGraphRuntime, create_v3_graph
 from backend.app.integrations.langgraph.state import (
     IntegrityValidatorPort,
@@ -79,7 +80,7 @@ class V3ShadowRuntimeVersions:
     graph_version: str = "v3-langgraph-shadow-v2"
     compiler_version: str = "v3-plan-compiler-v1"
     validator_version: str = "v3-integrity-validator-v1"
-    fallback_version: str = "v3-deterministic-fallback-v1"
+    fallback_version: str = DETERMINISTIC_FALLBACK_VERSION
 
 
 @dataclass(frozen=True, slots=True)

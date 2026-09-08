@@ -34,7 +34,10 @@ from backend.app.domain.agents.v3_validation import (
     IntegrityValidationResult,
     IntegrityViolationCode,
 )
-from backend.app.integrations.langgraph.fallback import DeterministicGraphFallbackProvider
+from backend.app.integrations.langgraph.fallback import (
+    DETERMINISTIC_FALLBACK_VERSION,
+    DeterministicGraphFallbackProvider,
+)
 from backend.app.integrations.langgraph.graph import V3LangGraphRuntime, create_v3_graph
 from backend.app.integrations.langgraph.shadow_runtime import (
     _Compiler,
@@ -130,7 +133,7 @@ class V3DemoRuntimeVersions:
     prompt_version: str = "v3-prompts-v1"
     compiler_version: str = "v3-plan-compiler-v1"
     validator_version: str = "v3-integrity-validator-v1"
-    fallback_version: str = "v3-deterministic-fallback-v1"
+    fallback_version: str = DETERMINISTIC_FALLBACK_VERSION
     provider_code: str = "OPENAI"
 
 

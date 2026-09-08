@@ -222,14 +222,17 @@ class StructuredChatInvoker:
                     validated_output = domain_validator(parsed_output)
                     validated_output = output_schema.model_validate(validated_output)
                 except Exception:  # domain validators may use different error types
-                    return self.failure(
-                        code=LlmAgentFailureCode.DOMAIN_INVALID,
-                        role_code=role_code,
-                        prompt_version=prompt_version,
-                        output_schema_version=output_schema_version,
-                        attempt_count=attempt_count,
-                        telemetry=telemetry,
-                    )
+                    failure_code = LlmAgentFailureCode.DOMAIN_INVALID
+                    if attempt_count == self.max_attempts:
+                        return self.failure(
+                            code=failure_code,
+                            role_code=role_code,
+                            prompt_version=prompt_version,
+                            output_schema_version=output_schema_version,
+                            attempt_count=attempt_count,
+                            telemetry=telemetry,
+                        )
+                    continue
                 return StructuredAgentResult.success(validated_output, telemetry=telemetry)
 
             if attempt_count == self.max_attempts:
@@ -331,14 +334,17 @@ class StructuredChatInvoker:
                     validated_output = domain_validator(parsed_output)
                     validated_output = output_schema.model_validate(validated_output)
                 except Exception:
-                    return self.failure(
-                        code=LlmAgentFailureCode.DOMAIN_INVALID,
-                        role_code=role_code,
-                        prompt_version=prompt_version,
-                        output_schema_version=output_schema_version,
-                        attempt_count=attempt_count,
-                        telemetry=telemetry,
-                    )
+                    failure_code = LlmAgentFailureCode.DOMAIN_INVALID
+                    if attempt_count == self.max_attempts:
+                        return self.failure(
+                            code=failure_code,
+                            role_code=role_code,
+                            prompt_version=prompt_version,
+                            output_schema_version=output_schema_version,
+                            attempt_count=attempt_count,
+                            telemetry=telemetry,
+                        )
+                    continue
                 return StructuredAgentResult.success(validated_output, telemetry=telemetry)
 
             if attempt_count == self.max_attempts:

@@ -13,8 +13,10 @@ from backend.app.domain.agents.v3_contracts import (
     PlanActionCode,
 )
 from backend.app.domain.agents.v3_duration import (
+    PlanDurationPreferenceCode,
     accepts_additional_seconds,
     plan_duration_preference,
+    plan_duration_seconds,
     prescription_item_duration,
 )
 from backend.app.domain.agents.v3_orchestration import FallbackRequest
@@ -28,6 +30,8 @@ from backend.app.domain.rules.plan_shape import (
     phase_rank,
 )
 
+DETERMINISTIC_FALLBACK_VERSION = "v3-deterministic-fallback-v2"
+
 
 @dataclass(frozen=True, slots=True)
 class DeterministicGraphFallbackProvider:
@@ -35,11 +39,12 @@ class DeterministicGraphFallbackProvider:
 
     A fallback is still a downshift, so it lowers intensity and load to the
     lowest value the envelope allows while keeping the user's requested
-    duration (AGENTS.md section 7). Time is filled by adding approved movements
-    rather than by driving any single exercise past its recovery ceiling.
+    duration (AGENTS.md section 7). Time is filled with approved movements and
+    longer between-set recovery rather than by driving any exercise past its
+    work ceiling.
     """
 
-    fallback_version: str = "v3-deterministic-fallback-v1"
+    fallback_version: str = DETERMINISTIC_FALLBACK_VERSION
 
     def generate(self, request: FallbackRequest) -> DeterministicFallbackPlanSpec | None:
         envelope = request.constraint_envelope
@@ -183,6 +188,13 @@ class DeterministicGraphFallbackProvider:
         prescriptions = self._ordered_prescriptions(placed, records=records, envelope=envelope)
         if prescriptions is None:
             return None
+        prescriptions = self._extend_rests_to_duration(
+            prescriptions,
+            records=records,
+            target_seconds=target_seconds,
+            preference=preference,
+        )
+        estimated_seconds = plan_duration_seconds(prescriptions, records)
         if abs(estimated_seconds - target_seconds) > DURATION_TOLERANCE_SECONDS:
             # Section 7 requires the request to fail rather than quietly hand the
             # user a session that is shorter than the one they asked for.
@@ -237,6 +249,69 @@ class DeterministicGraphFallbackProvider:
                 return None
             prescriptions.append(prescription)
         return tuple(prescriptions) or None
+
+    @staticmethod
+    def _extend_rests_to_duration(
+        prescriptions: tuple[ExercisePrescription, ...],
+        *,
+        records: dict[UUID, ExercisePoolExerciseRecord],
+        target_seconds: int,
+        preference: PlanDurationPreferenceCode,
+    ) -> tuple[ExercisePrescription, ...]:
+        """Fill a short safe plan by lengthening its already-approved rest structure.
+
+        Recovery ceilings place a lower bound on rest and upper bounds on work.
+        Increasing rest therefore cannot relax Safety or Recovery.  It also avoids
+        adding needless movements or exceeding a per-exercise set ceiling merely to
+        reach the requested duration.  A prescription stores one rest value for all
+        of its between-set gaps, so the small subset calculation below finds the
+        nearest deterministic whole-second distribution without inventing work.
+        """
+
+        current_seconds = plan_duration_seconds(prescriptions, records)
+        desired_seconds = (
+            target_seconds - DURATION_TOLERANCE_SECONDS
+            if preference is PlanDurationPreferenceCode.SHORTER_WITHIN_WINDOW
+            else target_seconds
+        )
+        deficit = desired_seconds - current_seconds
+        rest_slots = tuple(max(item.sets - 1, 0) for item in prescriptions)
+        total_slots = sum(rest_slots)
+        if deficit <= 0 or total_slots == 0:
+            return prescriptions
+
+        seconds_per_slot, remainder = divmod(deficit, total_slots)
+        selected: set[int] = set()
+        if remainder:
+            # At most ten distinct exercises are present, so exhaustive subset
+            # selection is bounded and gives a stable closest non-short result.
+            candidates = tuple(index for index, slots in enumerate(rest_slots) if slots)
+            best: tuple[int, tuple[int, ...]] | None = None
+            for mask in range(1 << len(candidates)):
+                indices = tuple(
+                    candidates[offset] for offset in range(len(candidates)) if mask & (1 << offset)
+                )
+                added = sum(rest_slots[index] for index in indices)
+                if added < remainder:
+                    continue
+                choice = (added, indices)
+                if best is None or choice < best:
+                    best = choice
+            if best is not None:
+                selected.update(best[1])
+
+        return tuple(
+            item.model_copy(
+                update={
+                    "rest_seconds_between_sets": item.rest_seconds_between_sets
+                    + seconds_per_slot
+                    + (1 if index in selected else 0)
+                }
+            )
+            if rest_slots[index]
+            else item
+            for index, item in enumerate(prescriptions)
+        )
 
     @staticmethod
     def _prescribe(
@@ -349,4 +424,4 @@ def _preferred_phase(record: ExercisePoolExerciseRecord) -> PhaseCode:
     return "COOLDOWN"
 
 
-__all__ = ["DeterministicGraphFallbackProvider"]
+__all__ = ["DETERMINISTIC_FALLBACK_VERSION", "DeterministicGraphFallbackProvider"]

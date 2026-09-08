@@ -30,7 +30,7 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
     {
         LlmAgentRoleCode.TRAINING: RolePrompt(
             role_code=LlmAgentRoleCode.TRAINING,
-            version="v3-training-prompt-v8",
+            version="v3-training-prompt-v9",
             instruction=(
                 "Act as the Training specialist and the sole owner of the draft exercise plan. "
                 "Return an ordered exercise_prescriptions list that preserves the primary goal, "
@@ -52,6 +52,9 @@ ROLE_PROMPTS: Final[Mapping[LlmAgentRoleCode, RolePrompt]] = MappingProxyType(
                 "when time and recovery permit. Never always select the maximum. If the FITT "
                 "context is REVIEW_REQUIRED or has no volume, do not invent a range; remain inside "
                 "the supplied recovery ceiling and other deterministic constraints. "
+                "If MAIN repeats an exercise, all blocks for that exercise share one cumulative "
+                "maximum_sets_per_exercise and per-exercise sets ceiling. Do not repeat an "
+                "exercise when the sum of its block sets would exceed either ceiling. "
                 "The plan should land within five minutes of the requested duration rather "
                 "than hitting it to the second. MAIN may repeat the same approved exercise to "
                 "fill a longer session only when equal exercises are not neighbouring blocks; "
