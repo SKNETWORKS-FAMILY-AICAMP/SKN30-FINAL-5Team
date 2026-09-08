@@ -256,7 +256,7 @@ describe('MyPageContainer', () => {
       screen.getByRole('header', { name: '프로필 수정' }),
     ).toBeOnTheScreen();
     expect(
-      screen.getByText(/개인정보 보호를 위해 기존 값을 다시 보여주지 않아요/),
+      screen.getByText('생년월일과 체중은 변경할 항목만 입력해주세요.'),
     ).toBeOnTheScreen();
     expect(screen.queryByText('시간대')).toBeNull();
     expect(screen.queryByText('선택하지 않음')).toBeNull();
@@ -742,8 +742,8 @@ describe('MyPageContainer', () => {
       screen.getByRole('header', { name: '주간 운동 횟수 수정' }),
     ).toBeOnTheScreen();
     expect(
-      screen.getByText('수정한 뒤 저장하기를 눌러야 반영돼요.'),
-    ).toBeOnTheScreen();
+      screen.queryByText('수정한 뒤 저장하기를 눌러야 반영돼요.'),
+    ).toBeNull();
     // 수정 전에는 저장 버튼이 없다.
     expect(screen.queryByRole('button', { name: '저장하기' })).toBeNull();
     fireEvent.press(
@@ -775,9 +775,7 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    expect(
-      await screen.findByText('알림 기능은 준비 중이에요.'),
-    ).toBeOnTheScreen();
+    expect(screen.queryByText('알림 기능은 준비 중이에요.')).toBeNull();
     expect(
       screen.getByText('예정된 운동 시간을 알려드려요.'),
     ).toBeOnTheScreen();
@@ -788,10 +786,14 @@ describe('MyPageContainer', () => {
       screen.getByText('휴식일에는 알림을 보내지 않아요.'),
     ).toBeOnTheScreen();
     expect(screen.getAllByText('준비 중').length).toBeGreaterThanOrEqual(3);
-    expect(
-      screen.getByRole('switch', { name: '루틴 알림' }).props
-        .accessibilityState,
-    ).toEqual(expect.objectContaining({ checked: false, disabled: true }));
+    const routineSwitch = screen.getByRole('switch', { name: '루틴 알림' });
+    expect(routineSwitch.props.accessibilityState).toEqual(
+      expect.objectContaining({ checked: false, disabled: true }),
+    );
+    fireEvent.press(routineSwitch);
+    expect(routineSwitch.props.accessibilityState).toEqual(
+      expect.objectContaining({ checked: false, disabled: true }),
+    );
   });
 
   it('keeps the profile editor inside the screen and closes from its backdrop', async () => {
@@ -967,7 +969,7 @@ describe('MyPageContainer', () => {
     );
   });
 
-  it('opens extended attention areas when an extended value is already selected', async () => {
+  it('keeps a selected default attention area visible without expanding', async () => {
     const current = me();
     current.profile!.attention_area_codes = ['NECK'];
 
@@ -986,9 +988,9 @@ describe('MyPageContainer', () => {
       screen.getByRole('button', { name: '평소 불편한 부위 수정' }),
     );
     expect(
-      screen.getByRole('button', { name: '다른 부위 접기' }).props
+      screen.getByRole('button', { name: '다른 부위 보기' }).props
         .accessibilityState,
-    ).toMatchObject({ expanded: true });
+    ).toMatchObject({ expanded: false });
     expect(screen.getByRole('checkbox', { name: '목' })).toBeChecked();
   });
 
@@ -1014,7 +1016,10 @@ describe('MyPageContainer', () => {
     expect(
       screen.getByTestId('my-page-extended-area-caret').props.style,
     ).toBeUndefined();
-    expect(screen.queryByRole('checkbox', { name: '목' })).toBeNull();
+    for (const label of ['어깨', '허리', '무릎', '목', '손목·손', '발목·발']) {
+      expect(screen.getByRole('checkbox', { name: label })).toBeOnTheScreen();
+    }
+    expect(screen.queryByRole('checkbox', { name: '팔꿈치' })).toBeNull();
 
     fireEvent.press(toggle);
 
@@ -1022,7 +1027,9 @@ describe('MyPageContainer', () => {
     expect(
       screen.getByTestId('my-page-extended-area-caret').props.style,
     ).toMatchObject({ transform: [{ rotate: '180deg' }] });
-    expect(screen.getByRole('checkbox', { name: '목' })).toBeOnTheScreen();
+    for (const label of ['팔꿈치', '등 위쪽', '고관절', '가슴', '복부']) {
+      expect(screen.getByRole('checkbox', { name: label })).toBeOnTheScreen();
+    }
   });
 
   it('renders a legacy attention area in Korean and only allows removing it', async () => {

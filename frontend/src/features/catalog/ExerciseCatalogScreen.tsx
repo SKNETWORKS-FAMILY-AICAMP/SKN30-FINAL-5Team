@@ -283,28 +283,16 @@ function CatalogList({
         >
           <Card style={styles.itemCard}>
             <Text style={styles.itemName}>{item.name}</Text>
-            <Text style={styles.itemMeta}>
-              {trainingTypeLabel(item.training_type_code)}
-            </Text>
             <Text
-              style={styles.itemFocus}
+              style={styles.itemSummary}
               testID={`exercise-body-focus-${item.id}`}
             >
-              {`주요 근육 ${catalogFocusLabel(item)}`}
+              {`${trainingTypeLabel(item.training_type_code)} · ${catalogFocusLabel(item)}`}
             </Text>
-            {item.body_focus_code && item.primary_body_area_codes.length > 0 ? (
-              <Text style={styles.itemAreas}>
-                {`상세 부위 ${item.primary_body_area_codes
-                  .map(bodyAreaLabel)
-                  .join(', ')}`}
-              </Text>
-            ) : null}
             <View style={styles.itemFooter}>
               {item.required_equipment_codes.length > 0 ? (
                 <Text style={styles.itemEquipment}>
-                  {`장비 ${item.required_equipment_codes
-                    .map(equipmentLabel)
-                    .join(', ')}`}
+                  {item.required_equipment_codes.map(equipmentLabel).join(', ')}
                 </Text>
               ) : null}
               <View style={styles.itemBadge}>
@@ -393,7 +381,8 @@ const styles = StyleSheet.create({
     height: 44,
   },
   filterGroup: {
-    gap: spacing.sm,
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
   },
   filterRow: {
     flexDirection: 'row',
@@ -407,8 +396,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   filterChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
     borderRadius: radii.button,
     borderWidth: 1,
     borderColor: colors.border,
@@ -434,25 +423,18 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
   },
   itemCard: {
-    gap: spacing.xs,
+    gap: 4,
+    padding: 14,
   },
   itemName: {
     color: colors.text,
     fontSize: 15,
     fontWeight: '700',
   },
-  itemMeta: {
-    color: colors.textSub,
-    fontSize: 13,
-  },
-  itemFocus: {
+  itemSummary: {
     color: colors.textSub,
     fontSize: 13,
     fontWeight: '600',
-  },
-  itemAreas: {
-    color: colors.textMuted,
-    fontSize: 12,
   },
   itemFooter: {
     flexDirection: 'row',
@@ -463,7 +445,7 @@ const styles = StyleSheet.create({
   itemEquipment: {
     minWidth: 0,
     flex: 1,
-    color: colors.textMuted,
+    color: colors.textSub,
     fontSize: 12,
   },
   itemBadge: {

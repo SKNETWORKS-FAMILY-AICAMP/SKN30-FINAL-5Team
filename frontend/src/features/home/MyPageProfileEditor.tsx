@@ -8,16 +8,13 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
 import {
   bodyAreaLabel,
-  DEFAULT_BODY_AREA_OPTIONS,
   experienceLevelLabel,
-  EXTENDED_BODY_AREA_OPTIONS,
-  orderBodyAreaCodes,
   primaryGoalLabel,
-  SELECTABLE_BODY_AREA_OPTIONS,
 } from '../../api/labels';
 import type {
   MeProfile,
@@ -74,9 +71,42 @@ const TITLES: Record<MyPageEditableField, string> = {
 };
 
 const BASIC_PROFILE_DESCRIPTION =
-  '닉네임과 프로필 사진, 생년월일, 체중을 바꿀 수 있어요. 운동 설정은 내 운동 정보에서 바꿀 수 있어요.';
-// Nothing saves until the user presses the save button, so every field says so.
-const EXPLICIT_SAVE_DESCRIPTION = '수정한 뒤 저장하기를 눌러야 반영돼요.';
+  '닉네임, 프로필 사진, 생년월일, 체중을 수정할 수 있어요.';
+
+const MY_PAGE_DEFAULT_BODY_AREA_CODES = [
+  'SHOULDER',
+  'LOWER_BACK',
+  'KNEE',
+  'NECK',
+  'WRIST_HAND',
+  'ANKLE_FOOT',
+] as const;
+const MY_PAGE_EXTENDED_BODY_AREA_CODES = [
+  'ELBOW',
+  'UPPER_BACK',
+  'HIP',
+  'CHEST',
+  'ABDOMEN',
+] as const;
+const MY_PAGE_DEFAULT_BODY_AREA_OPTIONS = MY_PAGE_DEFAULT_BODY_AREA_CODES.map(
+  (code) => ({ code, label: bodyAreaLabel(code) }),
+);
+const MY_PAGE_EXTENDED_BODY_AREA_OPTIONS = MY_PAGE_EXTENDED_BODY_AREA_CODES.map(
+  (code) => ({
+    code,
+    label: bodyAreaLabel(code),
+  }),
+);
+const MY_PAGE_SELECTABLE_BODY_AREA_OPTIONS = [
+  ...MY_PAGE_DEFAULT_BODY_AREA_OPTIONS,
+  ...MY_PAGE_EXTENDED_BODY_AREA_OPTIONS,
+];
+const myPageBodyAreaOrder = new Map<string, number>(
+  MY_PAGE_SELECTABLE_BODY_AREA_OPTIONS.map((option, index) => [
+    option.code,
+    index,
+  ]),
+);
 
 export function MyPageProfileEditor({
   error = null,
@@ -87,6 +117,7 @@ export function MyPageProfileEditor({
   pending = false,
   profile,
 }: Props) {
+  const { bottom: bottomInset } = useSafeAreaInsets();
   const stopPropagation = (event: GestureResponderEvent) =>
     event.stopPropagation();
   // Edits collect into a draft; only the save button sends them. React's
@@ -100,6 +131,7 @@ export function MyPageProfileEditor({
     if (succeeded) setDraft(null);
   }
   const saved = saveTracker.succeeded && !pending && error === null;
+  const description = editorDescription(field);
 
   return (
     <Pressable
@@ -110,7 +142,7 @@ export function MyPageProfileEditor({
     >
       <Pressable
         onPress={stopPropagation}
-        style={styles.sheet}
+        style={[styles.sheet, { paddingBottom: Math.max(16, bottomInset) }]}
         testID="profile-editor-sheet"
       >
         <View style={styles.headingRow}>
@@ -118,7 +150,9 @@ export function MyPageProfileEditor({
             <Text accessibilityRole="header" style={styles.title}>
               {TITLES[field]}
             </Text>
-            <Text style={styles.description}>{editorDescription(field)}</Text>
+            {description ? (
+              <Text style={styles.description}>{description}</Text>
+            ) : null}
           </View>
           <Pressable
             accessibilityLabel="프로필 편집 닫기"
@@ -131,7 +165,10 @@ export function MyPageProfileEditor({
         </View>
 
         <ScrollView
-          contentContainerStyle={styles.editorContent}
+          contentContainerStyle={[
+            styles.editorContent,
+            field === 'persistent_pains' && styles.painEditorContent,
+          ]}
           keyboardShouldPersistTaps="handled"
         >
           <EditorBody
@@ -142,7 +179,9 @@ export function MyPageProfileEditor({
             pending={pending}
             profile={profile}
           />
-          {draft ? (
+          {draft &&
+          field !== 'basic_profile' &&
+          field !== 'persistent_pains' ? (
             <Button
               disabled={pending}
               label={pending ? '저장 중…' : '저장하기'}
@@ -158,6 +197,20 @@ export function MyPageProfileEditor({
             />
           ) : null}
         </ScrollView>
+        {field === 'persistent_pains' && draft ? (
+          <View
+            style={[
+              styles.stickySaveArea,
+              { paddingBottom: Math.max(spacing.sm, bottomInset) },
+            ]}
+          >
+            <Button
+              disabled={pending}
+              label={pending ? '저장 중…' : '저장하기'}
+              onPress={() => onChange(draft)}
+            />
+          </View>
+        ) : null}
       </Pressable>
     </Pressable>
   );
@@ -407,7 +460,8 @@ function BasicProfileEditor({
   return (
     <View style={styles.basicForm}>
       <InlineFeedback
-        message="생년월일과 체중은 개인정보 보호를 위해 기존 값을 다시 보여주지 않아요. 바꿀 항목만 입력해주세요."
+        message="생년월일과 체중은 변경할 항목만 입력해주세요."
+        style={styles.privacyNotice}
         tone="warning"
       />
       <TextField
@@ -426,7 +480,7 @@ function BasicProfileEditor({
               ? profile.profile_image_url
               : profileImageChange?.uri
           }
-          size={72}
+          size={60}
           testID="profile-editor-avatar-preview"
         />
         <View style={styles.profileImageActions}>
@@ -439,6 +493,7 @@ function BasicProfileEditor({
                 : '사진 보관함에서 선택'
             }
             onPress={() => void pickProfileImage()}
+            style={styles.profileImageButton}
             tone="secondary"
           />
           {(profileImageChange?.uri ?? profile.profile_image_url) ? (
@@ -449,6 +504,7 @@ function BasicProfileEditor({
                 setImagePickerError(null);
                 setProfileImageChange(null);
               }}
+              style={styles.profileImageButton}
               tone="secondary"
             />
           ) : null}
@@ -459,6 +515,7 @@ function BasicProfileEditor({
         <InlineFeedback message={imagePickerError} tone="error" />
       ) : null}
       <BirthDateField
+        compact
         disabled={pending}
         onChange={(value) => {
           setDateOfBirth(value);
@@ -518,7 +575,7 @@ function AttentionAreaEditor({
   initialPainAreas: readonly PainAreaInput[];
   onChange: (painAreas: PainAreaInput[] | null) => void;
 }) {
-  const orderedInitial = orderBodyAreaCodes(initial);
+  const orderedInitial = orderMyPageBodyAreaCodes(initial);
   const [hasAreas, setHasAreas] = useState(orderedInitial.length > 0);
   const [selected, setSelected] = useState(orderedInitial);
   const [painIntensityScores, setPainIntensityScores] = useState<
@@ -533,11 +590,11 @@ function AttentionAreaEditor({
   );
   const [showExtendedAreas, setShowExtendedAreas] = useState(() =>
     orderedInitial.some((code) =>
-      EXTENDED_BODY_AREA_OPTIONS.some((option) => option.code === code),
+      MY_PAGE_EXTENDED_BODY_AREA_OPTIONS.some((option) => option.code === code),
     ),
   );
   const selectableCodes = new Set<string>(
-    SELECTABLE_BODY_AREA_OPTIONS.map((option) => option.code),
+    MY_PAGE_SELECTABLE_BODY_AREA_OPTIONS.map((option) => option.code),
   );
   const legacySelected = selected.filter((code) => !selectableCodes.has(code));
 
@@ -560,7 +617,7 @@ function AttentionAreaEditor({
   };
 
   const toggleSelected = (code: string) => {
-    const next = orderBodyAreaCodes(toggle(selected, code));
+    const next = orderMyPageBodyAreaCodes(toggle(selected, code));
     const nextScores = { ...painIntensityScores };
     if (next.includes(code)) nextScores[code] = PAIN_INTENSITY_MIN;
     else delete nextScores[code];
@@ -601,7 +658,7 @@ function AttentionAreaEditor({
             해당하는 부위를 모두 선택해주세요.
           </Text>
           <View style={styles.painChoices}>
-            {DEFAULT_BODY_AREA_OPTIONS.map((option) => (
+            {MY_PAGE_DEFAULT_BODY_AREA_OPTIONS.map((option) => (
               <ChipOption
                 key={option.code}
                 disabled={disabled}
@@ -611,7 +668,7 @@ function AttentionAreaEditor({
               />
             ))}
             {showExtendedAreas
-              ? EXTENDED_BODY_AREA_OPTIONS.map((option) => (
+              ? MY_PAGE_EXTENDED_BODY_AREA_OPTIONS.map((option) => (
                   <ChipOption
                     key={option.code}
                     disabled={disabled}
@@ -744,6 +801,7 @@ function DraftStepper({
 
   return (
     <StepCounter
+      compact
       decreaseLabel={decreaseLabel}
       disabled={pending}
       increaseLabel={increaseLabel}
@@ -841,7 +899,15 @@ function editorDescription(field: MyPageEditableField): string {
   if (field === 'persistent_pains') {
     return '부위와 통증 정도를 확인한 뒤 저장해주세요.';
   }
-  return EXPLICIT_SAVE_DESCRIPTION;
+  return '';
+}
+
+function orderMyPageBodyAreaCodes(codes: readonly string[]): string[] {
+  return [...codes].sort(
+    (left, right) =>
+      (myPageBodyAreaOrder.get(left) ?? Number.MAX_SAFE_INTEGER) -
+      (myPageBodyAreaOrder.get(right) ?? Number.MAX_SAFE_INTEGER),
+  );
 }
 
 function toggle(values: readonly string[], code: string): string[] {
@@ -876,39 +942,49 @@ const styles = StyleSheet.create({
     elevation: 30,
   },
   sheet: {
-    maxHeight: '82%',
+    maxHeight: '90%',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     backgroundColor: colors.canvas,
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 28,
+    paddingTop: 16,
+    paddingBottom: 16,
   },
   headingRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
   },
-  headingCopy: { flex: 1, gap: 5 },
+  headingCopy: { flex: 1, gap: 3 },
   title: { color: colors.text, fontSize: 19, fontWeight: '800' },
   description: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
   closeButton: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 14,
     backgroundColor: colors.surface,
   },
   closeText: { color: colors.text, fontSize: 25, lineHeight: 26 },
-  editorContent: { gap: 14, paddingTop: 20 },
-  basicForm: { gap: spacing.md },
+  editorContent: { gap: 10, paddingTop: 12 },
+  painEditorContent: { paddingBottom: spacing.sm },
+  stickySaveArea: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.canvas,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
+  basicForm: { gap: spacing.sm },
+  privacyNotice: { paddingHorizontal: 11, paddingVertical: 8 },
   profileImageEditor: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: spacing.md,
+    gap: spacing.sm,
   },
-  profileImageActions: { minWidth: 0, flex: 1, gap: spacing.sm },
+  profileImageActions: { minWidth: 0, flex: 1, gap: 6 },
+  profileImageButton: { minHeight: 44 },
   profileImageLabel: { color: colors.text, fontSize: 14, fontWeight: '700' },
   profileImageHint: { color: colors.textMuted, fontSize: 12 },
   basicLabel: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
@@ -916,6 +992,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+    padding: 14,
   },
   chip: {
     borderWidth: 1.5,
@@ -938,7 +1015,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radii.control,
     backgroundColor: colors.canvas,
-    padding: 14,
+    padding: 12,
   },
   descriptionTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
   descriptionText: {

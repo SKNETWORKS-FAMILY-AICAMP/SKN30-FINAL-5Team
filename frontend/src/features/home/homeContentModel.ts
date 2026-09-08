@@ -10,6 +10,7 @@ import {
   type HomeAvailabilitySlot,
   type HomeCheckin,
   type HomePreviewState,
+  type RoutineItemDraftOverride,
 } from './homeModel';
 import { uniqueText } from './homeRevisionNotice';
 
@@ -17,6 +18,9 @@ export type TimePickerTarget = {
   field: keyof HomeAvailabilitySlot;
   index: number;
 };
+
+export const EMPTY_PERSISTENT_PAINS: readonly PainAreaInput[] = [];
+export const EMPTY_ITEM_OVERRIDES: readonly RoutineItemDraftOverride[] = [];
 
 export function buildInitialCheckin(
   apiMode: boolean,

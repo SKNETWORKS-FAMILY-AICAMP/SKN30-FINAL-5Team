@@ -253,3 +253,25 @@ export function cleanRoutineItems(items: readonly HomeRoutineItem[]) {
   }
   return cleaned;
 }
+
+export function hasInvalidRoutinePrescription(
+  items: readonly HomeRoutineItem[],
+) {
+  return items.some((item) => {
+    const sets = Number(item.sets);
+    const reps = item.reps === undefined ? null : Number(item.reps);
+    return (
+      !Number.isInteger(sets) ||
+      sets < 1 ||
+      (reps !== null && (!Number.isInteger(reps) || reps < 1))
+    );
+  });
+}
+
+export function patchRoutinePrescription(
+  items: readonly HomeRoutineItem[],
+  id: string,
+  patch: Pick<Partial<HomeRoutineItem>, 'sets' | 'reps'>,
+) {
+  return items.map((item) => (item.id === id ? { ...item, ...patch } : item));
+}
