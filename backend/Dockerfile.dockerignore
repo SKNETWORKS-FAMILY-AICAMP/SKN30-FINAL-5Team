@@ -15,7 +15,13 @@
 !data/generated/exercise-catalog-v2.0.6-final/
 !data/generated/exercise-catalog-v2.0.6-final/backend_bundle/
 !data/generated/exercise-catalog-v2.0.6-final/backend_bundle/**
-
+!data/generated/integrated-catalog-v2.0.7-draft/
+!data/generated/integrated-catalog-v2.0.7-draft/backend_bundle/
+!data/generated/integrated-catalog-v2.0.7-draft/backend_bundle/bundle_manifest.json
+!data/generated/integrated-catalog-v2.0.7-draft/backend_bundle/gym_equipment/
+!data/generated/integrated-catalog-v2.0.7-draft/backend_bundle/gym_equipment/**
+!data/generated/integrated-catalog-v2.0.7-draft/backend_bundle/home_equipment/
+!data/generated/integrated-catalog-v2.0.7-draft/backend_bundle/home_equipment/**
 **/.env
 **/.env.*
 **/.git

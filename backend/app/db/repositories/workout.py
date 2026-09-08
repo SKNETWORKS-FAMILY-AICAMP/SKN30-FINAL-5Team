@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import and_, func, or_, select, text
 from sqlalchemy.orm import Session, selectinload
 
-from backend.app.db.models.catalog import Exercise
+from backend.app.db.models.catalog import CatalogVersion, Exercise
 from backend.app.db.models.decision import DecisionRun, PlanCandidate, PlanItem
 from backend.app.db.models.profile import MutationIdempotencyRecord, UserProfile
 from backend.app.db.models.workout import (
@@ -331,7 +331,13 @@ class WorkoutRepository:
             select(
                 PlanItem.exercise_id,
                 Exercise.stable_code,
-                Exercise.name_en,
+                CatalogVersion.version_code,
+                Exercise.met_value,
+                Exercise.met_source_code,
+                Exercise.met_source_activity_code,
+                Exercise.met_mapping_method_code,
+                Exercise.met_review_status_code,
+                Exercise.met_policy_version,
                 (
                     effective_work_seconds + effective_rest_seconds + PlanItem.transition_seconds
                 ).label("planned_seconds"),
@@ -339,6 +345,7 @@ class WorkoutRepository:
             .select_from(WorkoutSessionItem)
             .join(PlanItem, PlanItem.id == WorkoutSessionItem.plan_item_id)
             .join(Exercise, Exercise.id == PlanItem.exercise_id)
+            .join(CatalogVersion, CatalogVersion.id == Exercise.catalog_version_id)
             .where(
                 WorkoutSessionItem.workout_session_id == session_id,
                 WorkoutSessionItem.status_code == "COMPLETED",
@@ -351,10 +358,27 @@ class WorkoutRepository:
                 CompletedWorkoutBlock(
                     exercise_id=exercise_id,
                     exercise_stable_code=stable_code,
-                    exercise_name_en=name_en,
+                    catalog_version_code=catalog_version_code,
+                    met_value=met_value,
+                    met_source_code=met_source_code,
+                    met_source_activity_code=met_source_activity_code,
+                    met_mapping_method_code=met_mapping_method_code,
+                    met_review_status_code=met_review_status_code,
+                    met_policy_version=met_policy_version,
                     planned_seconds=max(0, int(planned_seconds)),
                 )
-                for exercise_id, stable_code, name_en, planned_seconds in rows
+                for (
+                    exercise_id,
+                    stable_code,
+                    catalog_version_code,
+                    met_value,
+                    met_source_code,
+                    met_source_activity_code,
+                    met_mapping_method_code,
+                    met_review_status_code,
+                    met_policy_version,
+                    planned_seconds,
+                ) in rows
             ),
         )
 

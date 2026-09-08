@@ -12,7 +12,8 @@ from backend.app.modules.catalog.home_equipment import (
     validate_bundle_references,
 )
 
-BUNDLE = Path("data/generated/home-equipment-variants-v1-final/backend_bundle")
+INTEGRATED_BUNDLE = Path("data/generated/integrated-catalog-v2.0.7-draft/backend_bundle")
+BUNDLE = INTEGRATED_BUNDLE / "home_equipment"
 
 
 def _references(bundle) -> dict[str, ApprovedExerciseReference]:
@@ -126,3 +127,19 @@ def test_every_review_artifact_the_registry_names_is_shipped_in_the_image() -> N
     for path in sorted(required):
         assert Path(path).is_file(), f"{path} is missing from the repository"
         assert path in dockerfile, f"{path} is not copied into the image"
+
+
+def test_exercise_detail_runtime_bundle_is_shipped_without_retired_met_mapping() -> None:
+    dockerfile = Path("backend/Dockerfile").read_text(encoding="utf-8")
+    dockerignore = Path("backend/Dockerfile.dockerignore").read_text(encoding="utf-8")
+    runtime_paths = (
+        "data/generated/integrated-catalog-v2.0.7-draft/backend_bundle/bundle_manifest.json",
+        "data/generated/integrated-catalog-v2.0.7-draft/backend_bundle/gym_equipment",
+        "data/generated/integrated-catalog-v2.0.7-draft/backend_bundle/home_equipment",
+    )
+
+    for path in runtime_paths:
+        assert path in dockerfile
+        assert path in dockerignore
+    assert "home-equipment-variants-v1-final/backend_bundle" not in dockerfile
+    assert "exercise-met-mapping-v0.1.0" not in dockerfile

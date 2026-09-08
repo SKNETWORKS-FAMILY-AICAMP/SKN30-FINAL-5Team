@@ -640,7 +640,7 @@ def test_pain_stop_creates_safety_event_and_disables_resume() -> None:
     assert repository.calorie_estimate["source_code"] == "UNAVAILABLE"
 
 
-def test_completed_block_calorie_estimate_is_saved_from_profile_weight_and_met_mapping() -> None:
+def test_completed_block_calorie_estimate_is_saved_from_profile_weight_and_catalog_met() -> None:
     selection = _source()
     plan_item_id = selection.plan_item_ids[0]
     repository = FakeWorkoutRepository(
@@ -651,7 +651,13 @@ def test_completed_block_calorie_estimate_is_saved_from_profile_weight_and_met_m
                 CompletedWorkoutBlock(
                     exercise_id=plan_item_id,
                     exercise_stable_code="barbell_deadlift",
-                    exercise_name_en="barbell deadlift",
+                    catalog_version_code="integrated-catalog-v2.0.7-final",
+                    met_value=6.0,
+                    met_source_code="ADULT_COMPENDIUM_PDF_2024",
+                    met_source_activity_code="02050",
+                    met_mapping_method_code="DIRECT",
+                    met_review_status_code="DOMAIN_APPROVED",
+                    met_policy_version="v2.0.6-met-compendium-direct-similar-1.0.0",
                     planned_seconds=600,
                 ),
             ),
@@ -677,7 +683,10 @@ def test_completed_block_calorie_estimate_is_saved_from_profile_weight_and_met_m
 
     assert result.estimated_calories_burned == 73.5
     assert repository.calorie_estimate is not None
-    assert repository.calorie_estimate["policy_version"] == "met-completed-blocks-v1"
+    assert repository.calorie_estimate["policy_version"] == "met-completed-blocks-v2"
+    snapshot = repository.calorie_estimate["input_snapshot"]
+    assert snapshot["met_mapping_source_version"] == "integrated-catalog-v2.0.7-final"
+    assert snapshot["completed_blocks"][0]["met_mapping_method_code"] == "DIRECT"
 
 
 def test_feedback_is_informational_and_uses_non_diagnostic_guidance() -> None:
