@@ -2774,6 +2774,7 @@ const styles = StyleSheet.create({
   },
   decorateGrid: {
     flex: 1,
+    minHeight: 0,
   },
   panel: {
     gap: spacing.sm,
@@ -2940,6 +2941,7 @@ const styles = StyleSheet.create({
   },
   decorateGridContent: {
     width: '100%',
+    paddingBottom: spacing.lg,
   },
   fixedGrid: {
     width: '100%',

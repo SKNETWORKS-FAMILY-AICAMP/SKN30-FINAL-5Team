@@ -23,7 +23,7 @@ import {
   MIN_COMPACT_INTERFACE_SCALE,
   ScaleViewportProvider,
 } from '../src/components/scale';
-import { colors } from '../src/components/theme';
+import { colors, spacing } from '../src/components/theme';
 import {
   HOUSE_ACTION_EFFECT_MS,
   HOUSE_BACKDROP_ZOOM,
@@ -641,8 +641,10 @@ describe('MascotHouseScreen', () => {
     expect(backgroundList.props.contentContainerStyle).toEqual(
       expect.objectContaining({
         width: '100%',
+        paddingBottom: spacing.lg,
       }),
     );
+    expect(backgroundList).toHaveStyle({ flex: 1, minHeight: 0 });
     expect(
       screen.getByTestId('house-background-grid-row-0').props.children,
     ).toHaveLength(2);
@@ -659,8 +661,10 @@ describe('MascotHouseScreen', () => {
     expect(itemList.props.contentContainerStyle).toEqual(
       expect.objectContaining({
         width: '100%',
+        paddingBottom: spacing.lg,
       }),
     );
+    expect(itemList).toHaveStyle({ flex: 1, minHeight: 0 });
     expect(
       screen.getByTestId('house-item-grid-row-0').props.children,
     ).toHaveLength(3);
