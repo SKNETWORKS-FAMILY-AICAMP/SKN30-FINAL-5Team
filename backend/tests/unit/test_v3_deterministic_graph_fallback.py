@@ -295,3 +295,83 @@ def test_fallback_declines_when_the_pool_has_no_cooldown_candidate() -> None:
     )
 
     assert DeterministicGraphFallbackProvider().generate(request) is None
+
+
+def test_fallback_still_plans_when_no_reviewed_fitt_range_covers_the_pool() -> None:
+    """Golden scenario 5 must hold for the catalog actually promoted today.
+
+    No reviewed range covers any promoted `stable_code`, so a fallback that
+    declines without one returns nothing at all and the graph terminates. The
+    Recovery ceiling is the approved volume in that case, exactly as it was
+    before FITT ranges existed.
+    """
+
+    root = make_bundle().root_snapshot
+    pool = root.exercise_pool
+    # Rebuild rather than copy: the snapshot re-derives and re-checks its own
+    # pool_hash, which is the point -- an unmapped pool has to be a real one.
+    unmapped_pool = ExercisePoolSnapshot.create(
+        catalog_version=pool.catalog_version,
+        constraint_envelope_hash=pool.constraint_envelope_hash,
+        exercises=tuple(
+            record.model_copy(update={"fitt_context": None}) for record in pool.exercises
+        ),
+        mandatory_exercise_ids=pool.mandatory_exercise_ids,
+        vector_ranked_exercise_ids=pool.vector_ranked_exercise_ids,
+        retrieval_metadata=pool.retrieval_metadata,
+        created_at=pool.created_at,
+    )
+    provider = DeterministicGraphFallbackProvider()
+
+    spec = provider.generate(
+        FallbackRequest.create(
+            constraint_envelope=root.constraint_envelope,
+            exercise_pool=unmapped_pool,
+            fallback_version="v3-deterministic-fallback-v1",
+        )
+    )
+
+    assert spec is not None
+    ceiling = root.constraint_envelope.recovery_ceiling
+    records = {item.exercise_id: item for item in unmapped_pool.exercises}
+    reps_prescriptions = [
+        prescription
+        for prescription in spec.exercise_prescriptions
+        if records[prescription.exercise_id].timing_mode_code == "REPS"
+    ]
+    assert reps_prescriptions, "the pool must still contribute its REPS exercises"
+    for prescription in reps_prescriptions:
+        assert prescription.repetitions_per_set == ceiling.maximum_repetitions_per_set
+        if ceiling.maximum_sets_per_exercise is not None:
+            assert prescription.sets <= ceiling.maximum_sets_per_exercise
+
+
+def test_unmapped_pool_fallback_compiles_and_passes_integrity_validation() -> None:
+    """Golden scenario 5, end to end, on a pool no reviewed FITT range covers."""
+
+    root = make_bundle().root_snapshot
+    pool = root.exercise_pool
+    unmapped_pool = ExercisePoolSnapshot.create(
+        catalog_version=pool.catalog_version,
+        constraint_envelope_hash=pool.constraint_envelope_hash,
+        exercises=tuple(
+            record.model_copy(update={"fitt_context": None}) for record in pool.exercises
+        ),
+        mandatory_exercise_ids=pool.mandatory_exercise_ids,
+        vector_ranked_exercise_ids=pool.vector_ranked_exercise_ids,
+        retrieval_metadata=pool.retrieval_metadata,
+        created_at=pool.created_at,
+    )
+
+    outcome = execute_deterministic_fallback(
+        DeterministicGraphFallbackProvider(),
+        envelope=root.constraint_envelope,
+        pool=unmapped_pool,
+        fallback_version="v3-deterministic-fallback-v1",
+        compiler_version="v3-plan-compiler-v1",
+        validator_version="v3-integrity-validator-v1",
+        validation_context=IntegrityValidationContext(),
+    )
+
+    assert outcome.compiled_plan is not None
+    assert outcome.terminal_result is None

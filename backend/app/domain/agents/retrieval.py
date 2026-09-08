@@ -456,6 +456,25 @@ class ExercisePoolExerciseRecord(BaseModel):
             raise ValueError("FITT timing mode must match the catalog timing mode")
         return self
 
+    def approved_fitt_volume(self) -> ExerciseFittVolumeRange | None:
+        """Return the reviewed selectable range, or None when none covers this exercise.
+
+        A reviewed range does not exist for every catalog entry, and the absence
+        of one is not a licence to infer a volume: callers fall back to the
+        Recovery ceiling, which is the bound that applies either way. Returning
+        None rather than raising keeps "no approved range" distinguishable from
+        "an approved range this plan broke", which are different findings.
+        """
+
+        context = self.fitt_context
+        if (
+            context is None
+            or context.review_status_code != "DOMAIN_APPROVED"
+            or context.volume is None
+        ):
+            return None
+        return context.volume
+
 
 class RetrievalMetadata(BaseModel):
     """Version and failure lineage included in the immutable pool hash."""
