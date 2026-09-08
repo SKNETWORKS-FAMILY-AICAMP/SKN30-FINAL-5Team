@@ -195,6 +195,7 @@ function renderHouse(
   const onNavigate = jest.fn();
   const house = (
     <MascotHouseScreen
+      accountId={'test-account'}
       api={api}
       nickname="범중"
       now={NOW}
