@@ -51,7 +51,6 @@ export function RoutineCard({
   rerolls,
   revisionNotice,
   startBlockedReason,
-  title,
   variantApi,
 }: {
   actionCode?: ActionCode;
@@ -151,7 +150,6 @@ export function RoutineCard({
         )}
       </View>
       <Text style={styles.routineTitle}>컨디션에 맞춘 운동을 준비했어요.</Text>
-      <Text style={styles.routinePlanName}>{title}</Text>
       <Text style={styles.routineSummary}>
         {focus} · {minutes}분
       </Text>

@@ -524,7 +524,7 @@ describe('PreviewGallery', () => {
     fireEvent.press(canvas.getByRole('button', { name: '위험 신호 없어요' }));
 
     fireEvent.press(canvas.getByRole('button', { name: '체크인 !' }));
-    expect(await canvas.findByText('상체 근력 루틴')).toBeOnTheScreen();
+    expect(await canvas.findByText('상체 · 근력 · 40분')).toBeOnTheScreen();
     fireEvent.press(
       canvas.getByRole('button', { name: '이 루틴을 추천한 이유 >' }),
     );
@@ -607,7 +607,7 @@ describe('PreviewGallery', () => {
     fireEvent.press(
       screen.getByRole('radio', { name: '홈 재진입 · 오늘 결정 복구' }),
     );
-    expect(canvas.getByText('상체 근력 루틴')).toBeOnTheScreen();
+    expect(canvas.getByText('상체 · 근력 · 40분')).toBeOnTheScreen();
     expect(canvas.queryByText('계획대로 진행')).toBeNull();
     expect(canvas.queryByTestId('home-action-error')).toBeNull();
 
@@ -623,7 +623,7 @@ describe('PreviewGallery', () => {
       canvas.getByRole('button', { name: '루틴 생성 다시 시도' }),
     );
     expect(canvas.getByTestId('routine-generation-loading')).toBeOnTheScreen();
-    expect(await canvas.findByText('상체 근력 루틴')).toBeOnTheScreen();
+    expect(await canvas.findByText('상체 · 근력 · 40분')).toBeOnTheScreen();
     expect(
       screen.getByRole('radio', { name: '홈 재진입 · 오늘 결정 복구' }),
     ).toBeChecked();

@@ -160,7 +160,7 @@ function openSafetyReportFromStop() {
 }
 
 describe('WorkoutScreen', () => {
-  it('keeps a static mascot visible while the GIF loads and if it fails', () => {
+  it('removes the static mascot after the GIF loads and restores it on failure', () => {
     render(<WorkoutScreen />);
     const fallback = screen.getByTestId('workout-mascot-fallback');
     expect(fallback.props.source).toBe(
@@ -174,11 +174,12 @@ describe('WorkoutScreen', () => {
         screen.getByTestId('workout-warmup-mascot').props.style,
       ).opacity,
     ).toBe(1);
+    expect(screen.queryByTestId('workout-mascot-fallback')).toBeNull();
     fireEvent(animation, 'error', {
       nativeEvent: { error: 'Unsupported image' },
     });
     expect(screen.queryByTestId('workout-warmup-mascot')).toBeNull();
-    expect(fallback).toBeOnTheScreen();
+    expect(screen.getByTestId('workout-mascot-fallback')).toBeOnTheScreen();
   });
 
   it('uses set and repetition prescriptions for every preview workout block', () => {
@@ -943,7 +944,12 @@ describe('WorkoutScreen', () => {
 
     expect(screen.getAllByText('휴식 중')).toHaveLength(1);
     expect(screen.getByText('휴식도 운동의 일부예요')).toBeOnTheScreen();
-    expect(screen.getByLabelText('경과 휴식 00:00')).toBeOnTheScreen();
+    expect(screen.getByLabelText('휴식 경과 00:00')).toHaveTextContent('00:00');
+    expect(screen.getByText('휴식 경과')).toHaveStyle({
+      fontSize: 13,
+      textAlign: 'center',
+    });
+    expect(screen.queryByText('경과 휴식')).toBeNull();
     const restOverlay = screen.getByTestId('workout-rest-overlay');
     expect(restOverlay.props.pointerEvents).toBe('box-none');
     expect(StyleSheet.flatten(restOverlay.props.style)).toMatchObject({
@@ -974,20 +980,21 @@ describe('WorkoutScreen', () => {
       elevation: 4,
     });
     expect(
-      StyleSheet.flatten(screen.getByLabelText('경과 휴식 00:00').props.style),
+      StyleSheet.flatten(screen.getByLabelText('휴식 경과 00:00').props.style),
     ).toMatchObject({
       color: '#5A4636',
       fontSize: 56,
       fontVariant: ['tabular-nums'],
       letterSpacing: 2,
       lineHeight: 58,
+      textAlign: 'center',
     });
     expect(screen.queryByText('REST TIME')).toBeNull();
     expect(
       screen.queryByText(/전체 운동 시간은 계속 흐르고 있어요/),
     ).toBeNull();
     await act(() => jest.advanceTimersByTime(2000));
-    expect(screen.getByLabelText('경과 휴식 00:02')).toBeOnTheScreen();
+    expect(screen.getByLabelText('휴식 경과 00:02')).toHaveTextContent('00:02');
     expect(screen.queryByRole('button', { name: '휴식 일시정지' })).toBeNull();
     expect(screen.queryByRole('button', { name: '휴식 재개' })).toBeNull();
     fireEvent.press(screen.getByRole('button', { name: '돌아가기' }));

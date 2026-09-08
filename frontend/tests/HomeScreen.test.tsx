@@ -61,9 +61,17 @@ describe('HomeScreen Home v1 transcription', () => {
       screen.getByText('컨디션에 맞춘 운동을 준비했어요.'),
     ).toBeOnTheScreen();
     expect(screen.getByText('상체 근력 · 40분')).toBeOnTheScreen();
+    expect(screen.queryByText('상체 근력 루틴')).toBeNull();
     expect(
       screen.getByText('운동 순서는 자유롭게 바꿀 수 있어요.'),
     ).toBeOnTheScreen();
+  });
+
+  it('shows API routine focus, type, and duration without a duplicate name', () => {
+    render(<HomeScreen {...homePreviewProps('routine')} />);
+
+    expect(screen.getByText('상체 · 근력 · 40분')).toBeOnTheScreen();
+    expect(screen.queryByText('상체 근력 루틴')).toBeNull();
   });
 
   it('shows routine generation in the exercise-list slot for API requests', () => {

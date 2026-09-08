@@ -1567,16 +1567,18 @@ function MascotStage({
           ]}
           testID="workout-mascot-frame"
         >
-          <Image
-            accessible={false}
-            resizeMode="contain"
-            source={imageAssets.weeklyProgressCompletedWorkout}
-            style={[
-              styles.mascotAnimation,
-              { width: 94 * scale, height: 94 * scale },
-            ]}
-            testID="workout-mascot-fallback"
-          />
+          {!mascotLoaded || mascotFailed ? (
+            <Image
+              accessible={false}
+              resizeMode="contain"
+              source={imageAssets.weeklyProgressCompletedWorkout}
+              style={[
+                styles.mascotAnimation,
+                { width: 94 * scale, height: 94 * scale },
+              ]}
+              testID="workout-mascot-fallback"
+            />
+          ) : null}
           {!mascotFailed ? (
             <Image
               accessible={false}
@@ -1948,11 +1950,12 @@ function RestSheet({
     >
       <View style={styles.restTimerCard} testID="workout-rest-timer-card">
         <Text style={styles.restMessage}>휴식도 운동의 일부예요</Text>
+        <Text style={styles.restLabel}>휴식 경과</Text>
         <Text
-          accessibilityLabel={`경과 휴식 ${formatWorkoutTime(restSeconds)}`}
+          accessibilityLabel={`휴식 경과 ${formatWorkoutTime(restSeconds)}`}
           style={[styles.restTimer, useJua && styles.jua]}
         >
-          경과 휴식 {formatWorkoutTime(restSeconds)}
+          {formatWorkoutTime(restSeconds)}
         </Text>
         <Pressable
           accessibilityRole="button"
@@ -3247,8 +3250,17 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
     textAlign: 'center',
   },
-  restTimer: {
+  restLabel: {
     marginTop: 12,
+    color: colors.textSub,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  restTimer: {
+    textAlign: 'center',
+    marginTop: 4,
     color: colors.text,
     fontSize: 56,
     fontWeight: '700',
