@@ -43,15 +43,6 @@ export function WeeklyReportSummary({
   return (
     <View style={styles.container} testID="weekly-report-summary">
       <View style={[styles.card, styles.heroCard]}>
-        {!safetyStopped ? (
-          <Image
-            accessibilityIgnoresInvertColors
-            accessible={false}
-            resizeMode="contain"
-            source={imageAssets.weeklyProgressComplete}
-            style={styles.heroImage}
-          />
-        ) : null}
         <View style={styles.heroCopy}>
           <Text style={styles.eyebrow}>한 주 돌아보기</Text>
           <Text accessibilityRole="header" style={styles.heroTitle}>
@@ -65,6 +56,21 @@ export function WeeklyReportSummary({
               운동 전 몸 상태와 안내를 확인해 주세요.
             </Text>
           ) : null}
+        </View>
+        <View style={styles.heroMascotArea}>
+          <View style={styles.speechBubble}>
+            <Text style={styles.speechBubbleText}>
+              이번 주도{'\n'}수고했어요!
+            </Text>
+            <View style={styles.speechTail} />
+          </View>
+          <Image
+            accessibilityIgnoresInvertColors
+            accessibilityLabel="응원하는 끼끼"
+            resizeMode="contain"
+            source={imageAssets.weeklyProgressComplete}
+            style={styles.heroMascot}
+          />
         </View>
       </View>
 
@@ -189,7 +195,16 @@ export function WeeklyReportSummary({
       </ReportBlock>
 
       <ReportBlock index="6" title="헬끼의 한 줄 코치">
-        <Text style={styles.coachText}>{report.next_action}</Text>
+        <View style={styles.coachBody}>
+          <Text style={styles.coachText}>{report.next_action}</Text>
+          <Image
+            accessibilityIgnoresInvertColors
+            accessible={false}
+            resizeMode="contain"
+            source={imageAssets.mascotFeedback}
+            style={styles.coachMascot}
+          />
+        </View>
       </ReportBlock>
     </View>
   );
@@ -342,7 +357,42 @@ const styles = StyleSheet.create({
     padding: 18,
   },
   heroCard: { alignItems: 'center', flexDirection: 'row', gap: 14 },
-  heroImage: { height: 86, width: 86 },
+  heroMascotArea: {
+    alignItems: 'flex-end',
+    height: 116,
+    justifyContent: 'flex-end',
+    width: 132,
+  },
+  heroMascot: { height: 110, width: 110 },
+  speechBubble: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    left: 0,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    position: 'absolute',
+    top: 3,
+    zIndex: 2,
+  },
+  speechBubbleText: {
+    color: colors.text,
+    fontSize: 11.5,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  speechTail: {
+    borderBottomColor: 'transparent',
+    borderBottomWidth: 8,
+    borderLeftColor: colors.surface,
+    borderLeftWidth: 12,
+    borderTopColor: 'transparent',
+    borderTopWidth: 8,
+    bottom: 4,
+    height: 0,
+    position: 'absolute',
+    right: -8,
+    width: 0,
+  },
   heroCopy: { flex: 1, gap: 6 },
   eyebrow: { color: colors.greenText, fontSize: 12, fontWeight: '900' },
   heroTitle: {
@@ -440,6 +490,14 @@ const styles = StyleSheet.create({
   },
   directionLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '800' },
   directionTitle: { color: colors.text, fontSize: 17, fontWeight: '900' },
+  coachBody: { minHeight: 84, paddingRight: 96, position: 'relative' },
+  coachMascot: {
+    bottom: -4,
+    height: 84,
+    position: 'absolute',
+    right: 8,
+    width: 92,
+  },
   coachText: {
     color: colors.text,
     fontSize: 17,
