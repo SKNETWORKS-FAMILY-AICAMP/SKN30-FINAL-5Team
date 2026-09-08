@@ -57,6 +57,36 @@ Before starting Compose, validate that the host file exists, that
 `stat -c '%a %g'` reports `640 10001`, and that `docker compose ... config --quiet` succeeds. A
 deployment missing either Firebase environment value must be treated as a failed release.
 
+## Social login credential injection
+
+Three secrets carry the social login credentials: `/helkki/staging/kakao-oauth` and
+`/helkki/staging/google-oauth` hold the provider client credentials, and
+`/helkki/staging/social-oauth-hmac-key` holds a key we generate ourselves. The EC2 role reads all
+three through `infra/aws/ec2-staging-secrets-policy.json`; a secret that is not listed there is
+unreadable no matter what the environment file says.
+
+The API takes these from `.env.staging` like any other value -- `compose.staging.yaml` loads that
+file wholesale, so no Compose change is needed to add them. Write the provider values as
+`KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`, `GOOGLE_OAUTH_CLIENT_ID` and
+`GOOGLE_OAUTH_CLIENT_SECRET`. `KAKAO_CLIENT_SECRET` may be empty when the Kakao console has the
+client secret turned off; the other three are required.
+
+`SOCIAL_OAUTH_RATE_LIMIT_HMAC_KEY` is not a provider credential. It keys the digest that stands in
+for the client IP and redirect URI in `social_oauth_rate_limit_windows`, which is how the rate limit
+works without storing either in the clear. Generate it once with `openssl rand -base64 32`. Without
+it every social route answers `PROVIDER_UNAVAILABLE`, which is the intended fail-closed behaviour and
+not a reason to hardcode a value.
+
+`KAKAO_REDIRECT_URIS` and `GOOGLE_OAUTH_REDIRECT_URIS` are public configuration and belong in
+`.env.staging` directly, not in Secrets Manager. They must match the callbacks registered in each
+provider console exactly. `Settings` accepts only absolute `http(s)` callbacks and rejects a custom
+app scheme at startup, so the mobile flow needs an https callback that hands control back to the
+app; that callback is a frontend decision (FE-11) and has to be settled before the values are final.
+
+Rotating any of the three is an environment-file regeneration and an API restart. Nothing about a
+provider credential or the HMAC key may reach `.env.staging.example`, a release directory, command
+output, CloudWatch, or S3.
+
 ## Birthdate encryption with AWS KMS
 
 Staging and production never use `BIRTHDATE_ENCRYPTION_KEY_BASE64`; that setting remains restricted
