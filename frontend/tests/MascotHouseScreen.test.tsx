@@ -319,29 +319,27 @@ describe('MascotHouseScreen', () => {
     );
   });
 
-  it('shows weekly quest progress as a count and completion dots', async () => {
+  it('shows the three weekly quests with the daily quest row UI', async () => {
     renderHouse(houseApi());
 
     await screen.findByTestId('house-scene');
     fireEvent.press(screen.getByTestId('house-quest-tile'));
     fireEvent.press(screen.getByTestId('house-quest-tab-weekly'));
 
-    expect(screen.getByText('이번 주 운동 목표')).toBeTruthy();
-    expect(screen.getByText('1 / 3회')).toBeTruthy();
-    expect(screen.getByText('3회 완료하면 주간 목표를 달성해요.')).toBeTruthy();
-    expect(screen.getByTestId('house-weekly-progress')).toHaveProp(
-      'accessibilityValue',
-      { min: 0, max: 100, now: 33 },
+    expect(screen.getByTestId('house-weekly-quest-row-visit')).toHaveProp(
+      'accessibilityLabel',
+      '주 4회 방문, 1 / 4',
+    );
+    expect(screen.getByTestId('house-weekly-quest-row-report')).toHaveProp(
+      'accessibilityLabel',
+      '주간 리포트 확인, 0 / 1',
     );
     expect(
-      screen.getByTestId('house-weekly-progress-dots').props.children,
-    ).toHaveLength(3);
-    expect(screen.getByTestId('house-weekly-progress-dot-0')).toHaveStyle({
-      backgroundColor: colors.greenBand,
-    });
-    expect(screen.getByTestId('house-weekly-progress-dot-1')).toHaveStyle({
-      backgroundColor: colors.surfaceAlt,
-    });
+      screen.getByTestId('house-weekly-quest-row-workout_goal'),
+    ).toHaveProp('accessibilityLabel', '운동 목표 달성, 1 / 3');
+    expect(
+      within(screen.getByTestId('house-weekly-quest-list')).queryByText(/^\+/),
+    ).toBeNull();
   });
 
   it('keeps both quest tabs at the height of the intimacy bonus area', async () => {
@@ -367,7 +365,7 @@ describe('MascotHouseScreen', () => {
     });
 
     fireEvent.press(screen.getByTestId('house-quest-tab-weekly'));
-    expect(screen.getByTestId('house-weekly-progress')).toBeTruthy();
+    expect(screen.getByTestId('house-weekly-quest-list')).toBeTruthy();
     expect(screen.getByTestId('house-quest-panel')).toHaveStyle({
       top: 56,
       bottom: 0,

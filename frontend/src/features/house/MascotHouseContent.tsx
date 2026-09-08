@@ -88,6 +88,7 @@ import {
   houseSpeech,
   type HouseBackgroundId,
   type HouseQuest,
+  type HouseWeeklyQuest,
   type HouseItemId,
   type HouseItemPlacement,
   type HousePose,
@@ -1748,80 +1749,66 @@ function QuestPanel({
             </Text>
           </>
         ) : (
-          <QuestWeeklyProgress view={view} />
+          <WeeklyQuestList view={view} />
         )}
       </ScrollView>
     </View>
   );
 }
 
-function QuestWeeklyProgress({ view }: { view: HouseView }) {
-  if (view.weekTargetCount === null) {
-    return (
-      <View style={styles.questWeekly}>
-        <Text style={styles.questWeeklyTitle}>
+function WeeklyQuestList({ view }: { view: HouseView }) {
+  return (
+    <View style={styles.weeklyQuestList} testID="house-weekly-quest-list">
+      {view.weeklyQuests.map((quest) => (
+        <QuestRow
+          key={quest.id}
+          progress={quest.progress}
+          quest={quest}
+          testID={`house-weekly-quest-row-${quest.id}`}
+        />
+      ))}
+      {view.weekTargetCount === null ? (
+        <Text style={styles.questFootnote}>
           이번 주 정보를 불러오지 못했어요.
         </Text>
-      </View>
-    );
-  }
-
-  const completed = Math.min(view.weekCompletedCount, view.weekTargetCount);
-  const progressPercent = Math.round(
-    (completed / Math.max(1, view.weekTargetCount)) * 100,
-  );
-
-  return (
-    <View
-      accessibilityLabel={`이번 주 운동 목표 ${view.weekTargetCount}회 중 ${completed}회 완료`}
-      accessibilityRole="progressbar"
-      accessibilityValue={{ min: 0, max: 100, now: progressPercent }}
-      style={styles.questWeekly}
-      testID="house-weekly-progress"
-    >
-      <Text style={styles.questWeeklyEyebrow}>이번 주 운동 목표</Text>
-      <Text style={styles.questWeeklyCount}>
-        {completed} / {view.weekTargetCount}회
-      </Text>
-      <View style={styles.questWeeklyDots} testID="house-weekly-progress-dots">
-        {Array.from({ length: view.weekTargetCount }, (_, index) => (
-          <View
-            key={index}
-            style={[
-              styles.questWeeklyDot,
-              index < completed && styles.questWeeklyDotComplete,
-            ]}
-            testID={`house-weekly-progress-dot-${index}`}
-          />
-        ))}
-      </View>
-      <Text style={styles.questWeeklyBody}>
-        {view.weekTargetCount}회 완료하면 주간 목표를 달성해요.
-      </Text>
+      ) : null}
     </View>
   );
 }
 
+type QuestRowDefinition = Pick<HouseQuest, 'id' | 'label' | 'target'> &
+  Partial<Pick<HouseQuest, 'reward'>>;
+
 function QuestRow({
   progress,
   quest,
+  testID,
 }: {
-  progress: number;
-  quest: HouseQuest;
+  progress: number | null;
+  quest: QuestRowDefinition | HouseWeeklyQuest;
+  testID?: string;
 }) {
-  const done = progress >= quest.target;
+  const target = quest.target;
+  const done = progress !== null && target !== null && progress >= target;
   // A one-step quest already reads as finished from its mark, so the count is
   // only spelled out where it actually carries information.
-  const counted = quest.target > 1 || !done;
+  const countText =
+    progress !== null && target !== null && (target > 1 || !done)
+      ? `(${progress}/${target})`
+      : null;
+  const progressLabel =
+    progress !== null && target !== null
+      ? `${progress} / ${target}${done ? ', 완료' : ''}`
+      : '진행 정보 없음';
 
   return (
     <View
       accessible
-      accessibilityLabel={`${quest.label}, ${progress} / ${quest.target}${
-        done ? ', 완료' : ''
-      }, 바나나 ${quest.reward}개`}
+      accessibilityLabel={`${quest.label}, ${progressLabel}${
+        quest.reward === undefined ? '' : `, 바나나 ${quest.reward}개`
+      }`}
       style={styles.questRow}
-      testID={`house-quest-row-${quest.id}`}
+      testID={testID ?? `house-quest-row-${quest.id}`}
     >
       <View style={[styles.questMark, done && styles.questMarkDone]}>
         {done ? (
@@ -1832,17 +1819,16 @@ function QuestRow({
       </View>
       <Text style={styles.questLabel}>
         {quest.label}
-        {counted ? (
-          <Text style={styles.questCount}>
-            {' '}
-            ({progress}/{quest.target})
-          </Text>
+        {countText !== null ? (
+          <Text style={styles.questCount}> {countText}</Text>
         ) : null}
       </Text>
-      <View style={styles.questReward}>
-        <Text style={styles.questRewardLabel}>+{quest.reward}</Text>
-        <BananaGlyph size={16} />
-      </View>
+      {quest.reward !== undefined ? (
+        <View style={styles.questReward}>
+          <Text style={styles.questRewardLabel}>+{quest.reward}</Text>
+          <BananaGlyph size={16} />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -2666,44 +2652,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
     textAlign: 'center',
   },
-  questWeekly: {
-    gap: spacing.sm,
-  },
-  questWeeklyEyebrow: {
-    color: colors.textSub,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  questWeeklyTitle: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  questWeeklyCount: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: '900',
-  },
-  questWeeklyDots: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  questWeeklyDot: {
-    width: 13,
-    height: 13,
-    borderRadius: 7,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceAlt,
-  },
-  questWeeklyDotComplete: {
-    borderColor: colors.greenBorder,
-    backgroundColor: colors.greenBand,
-  },
-  questWeeklyBody: {
-    color: colors.textSub,
-    fontSize: 12,
-    lineHeight: 18,
+  weeklyQuestList: {
+    gap: spacing.md,
   },
   bubble: {
     position: 'absolute',

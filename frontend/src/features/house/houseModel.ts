@@ -75,6 +75,20 @@ export type HouseQuest = {
   target: number;
 };
 
+export const HOUSE_WEEKLY_VISIT_TARGET = 4;
+
+export type HouseWeeklyQuestId = 'visit' | 'report' | 'workout_goal';
+
+export type HouseWeeklyQuest = {
+  id: HouseWeeklyQuestId;
+  label: string;
+  /** `null` means that the server-backed weekly state is unavailable. */
+  progress: number | null;
+  /** Weekly rewards are not displayed until the server owns their payout. */
+  reward?: never;
+  target: number | null;
+};
+
 /** Shared presentation copy for the mascot touch interaction. */
 export const HOUSE_BONDING_COPY = {
   actionAccessibilityLabel: '끼끼와 교감하기',
@@ -574,6 +588,7 @@ export type HouseView = {
   questProgress: Record<HouseQuestId, number>;
   questsCompletedCount: number;
   questCount: number;
+  weeklyQuests: readonly HouseWeeklyQuest[];
   gamePlayedToday: boolean;
   canPlayGame: boolean;
   ownedItems: readonly HouseItem[];
@@ -603,6 +618,34 @@ export function buildHouseView({
     (date) => date >= weekStart && date <= today,
   ).length;
   const target = week === null ? null : week.target_workout_count;
+  const weeklyVisitCount = state.visitedLocalDates.filter(
+    (date) => date >= weekStart && date <= today,
+  ).length;
+  const weeklyQuests: readonly HouseWeeklyQuest[] = [
+    {
+      id: 'visit',
+      label: '주 4회 방문',
+      progress: Math.min(weeklyVisitCount, HOUSE_WEEKLY_VISIT_TARGET),
+      target: HOUSE_WEEKLY_VISIT_TARGET,
+    },
+    {
+      id: 'report',
+      label: '주간 리포트 확인',
+      progress:
+        week === null
+          ? null
+          : week.report_status_code === 'ACKNOWLEDGED'
+            ? 1
+            : 0,
+      target: week === null ? null : 1,
+    },
+    {
+      id: 'workout_goal',
+      label: '운동 목표 달성',
+      progress: target === null ? null : Math.min(weekCompletedCount, target),
+      target,
+    },
+  ];
   const owned = new Set<string>(state.ownedItemIds);
   const lockedItems = HOUSE_ITEMS.filter((item) => !owned.has(item.id));
   const workoutCompletedToday = completedDates.includes(today);
@@ -644,6 +687,7 @@ export function buildHouseView({
       (quest) => questProgress[quest.id] >= quest.target,
     ).length,
     questCount: HOUSE_DAILY_QUESTS.length,
+    weeklyQuests,
     gamePlayedToday,
     canPlayGame: !gamePlayedToday,
     ownedItems: HOUSE_ITEMS.filter((item) => owned.has(item.id)),
