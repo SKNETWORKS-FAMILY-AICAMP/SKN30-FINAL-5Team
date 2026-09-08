@@ -48,8 +48,12 @@
       opacity: 1;
       transform: translateY(0);
     }
+    @media (max-width: 639px) {
+      .reveal-enabled [data-mobile-hero-reveal] { opacity: 0; transform: translateY(16px); transition: opacity 600ms ease-out, transform 600ms ease-out; }
+      .reveal-enabled [data-mobile-hero-reveal].is-revealed { opacity: 1; transform: translateY(0); }
+    }
     @media (prefers-reduced-motion: reduce) {
-      .reveal-enabled [data-reveal] { opacity: 1; transform: none; transition: none; }
+      .reveal-enabled [data-reveal], .reveal-enabled [data-mobile-hero-reveal] { opacity: 1; transform: none; transition: none; }
     }
   </style>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -95,15 +99,16 @@
 </a>
 <nav class="flex min-w-0 items-center justify-end gap-2 whitespace-nowrap sm:gap-8">
 <a href="index.html" aria-current="page" class="shrink-0 text-[11px] sm:text-[15px] font-bold text-coral-orange relative after:content-[''] after:absolute after:left-0 after:-bottom-[3px] after:w-full after:h-[2px] after:bg-coral-orange after:rounded-full">HOME</a>
-<a href="multi-agent.html" class="shrink-0 text-[11px] sm:text-[15px] font-medium text-text-warm hover:text-coral-orange transition-colors">HOW IT WORKS</a>
-<a href="kikki.html" class="shrink-0 text-[11px] sm:text-[15px] font-medium text-text-warm hover:text-coral-orange transition-colors">ABOUT KKIKKI</a>
+<a href="multi-agent.html" class="shrink-0 text-[11px] sm:text-[15px] font-medium text-text-warm hover:text-coral-orange transition-colors"><span class="sm:hidden">HOW</span><span class="hidden sm:inline">HOW IT WORKS</span></a>
+<a href="kikki.html" class="shrink-0 text-[11px] sm:text-[15px] font-medium text-text-warm hover:text-coral-orange transition-colors"><span class="sm:hidden">KKIKKI</span><span class="hidden sm:inline">ABOUT KKIKKI</span></a>
+<a href="helkki-pass.html" class="shrink-0 text-[10px] sm:text-[15px] font-medium text-text-warm hover:text-coral-orange transition-colors"><span class="sm:hidden">PASS</span><span class="hidden sm:inline">HELKKI PASS</span></a>
 </nav>
 </div>
 </header>
 <!-- MAIN CONTENT WRAPPER (Desktop 1200px container, px-16) -->
 <main class="w-full">
 <!-- 02. HERO SECTION (약 48% / 52% Split Layout, vertical center) -->
-<section class="relative w-full overflow-hidden flex items-center min-h-[calc(100dvh-3rem)] py-10 sm:min-h-[680px] sm:py-12">
+<section class="relative w-full overflow-hidden flex items-center min-h-[calc(100dvh-3rem)] py-10 sm:min-h-[680px] sm:py-12" data-mobile-hero-reveal>
 <div class="pointer-events-none absolute right-[4%] top-1/2 -translate-y-1/2 w-[680px] h-[580px] bg-gradient-to-tr from-[#E8875B]/12 via-[#F4B942]/10 to-transparent rounded-full blur-3xl -z-10"></div>
 <div class="pointer-events-none absolute left-[-6%] bottom-0 w-[440px] h-[380px] bg-[#FFF8E5]/70 rounded-full blur-3xl -z-10"></div>
 <div class="max-w-[1200px] mx-auto px-4 sm:px-16 w-full">
@@ -184,58 +189,58 @@
 </div>
 </section>
 <!-- 03. FEATURE INTRO (Hero와 간격 56px, Section Header와 Feature 01 간격 32px) -->
-<section class="max-w-[1200px] mx-auto px-4 sm:px-16 mt-14 sm:mt-[72px] mb-6 sm:mb-[32px] text-center" data-reveal>
+<section class="max-w-[1200px] mx-auto px-4 sm:px-16 mt-12 sm:mt-[72px] mb-5 sm:mb-[32px] text-center" data-reveal>
 <span class="text-[12px] font-bold tracking-wider text-[#E8875B] uppercase block mb-2">HOW HELKKI WORKS</span>
 <h2 class="text-[26px] sm:text-[32px] font-bold text-[#4A3B32] tracking-tight mb-2">헬끼와 운동을 이어가는 방법</h2>
 <p class="text-[15px] sm:text-[16px] text-[#7A6B60] font-normal keep-all">상태에 맞게 운동하고, 기록은 다음 계획으로 이어져요.</p>
 </section>
 <!-- FEATURES CONTAINER (간격 22px) -->
-<div class="max-w-[1200px] mx-auto px-4 sm:px-16 flex flex-col gap-4 sm:gap-[22px] pb-10 sm:pb-14">
+<div class="max-w-[1200px] mx-auto px-4 sm:px-16 flex flex-col gap-3 sm:gap-[22px] pb-8 sm:pb-14">
 <!-- 04. FEATURE 01: 상태에 맞춰 달라지는 운동 (Left Text ~39% / Right UI ~57%, 패딩 38px) -->
-<div class="bg-white rounded-3xl p-4 sm:p-8 lg:p-[38px] shadow-md shadow-orange-950/5 border border-orange-100/60" data-reveal>
-<div class="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 lg:gap-8 items-center">
+<div class="bg-white rounded-3xl p-3.5 sm:p-8 lg:p-[38px] shadow-md shadow-orange-950/5 border border-orange-100/60" data-reveal>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-8 items-center">
 <!-- Left Text (~39%) -->
-<div class="lg:col-span-5 flex flex-col items-start gap-3.5">
+<div class="lg:col-span-5 flex flex-col items-start gap-3 sm:gap-3.5">
 <div>
 <span class="text-[12px] font-semibold text-coral-orange uppercase tracking-wider mb-1 block">Feature 01</span>
 <h3 class="text-[22px] sm:text-[26px] text-text-dark font-bold leading-tight">상태에 맞춰 달라지는 운동</h3>
 </div>
-<p class="text-[16px] leading-[1.6] text-text-warm font-normal keep-all">
+<p class="text-[15px] leading-[1.55] text-text-warm font-normal keep-all sm:text-[16px] sm:leading-[1.6]">
             컨디션에 맞춰 루틴을 조정해요.
           </p>
-<ul class="flex flex-col gap-2 pt-1 text-[14px] text-text-dark font-medium">
-<li class="flex items-center gap-2">
+<ul class="flex flex-col gap-1.5 pt-0.5 text-[14px] text-text-dark font-medium sm:gap-2 sm:pt-1">
+<li class="flex items-center gap-1.5 sm:gap-2">
 <span class="w-1.5 h-1.5 rounded-full bg-coral-orange flex-shrink-0"></span>
 <span class="">컨디션 · 피로도 · 수면 · 통증 확인</span>
 </li>
-<li class="flex items-center gap-2">
+<li class="flex items-center gap-1.5 sm:gap-2">
 <span class="w-1.5 h-1.5 rounded-full bg-coral-orange flex-shrink-0"></span>
 <span class="">현재 상태에 맞는 루틴 추천</span>
 </li>
 </ul>
 </div>
 <!-- Right UI Preview (~57%) -->
-<div class="lg:col-span-7 bg-[#FFFDF9] rounded-2xl p-3.5 sm:p-6 border border-[#F2E3D8] shadow-sm flex flex-col gap-3.5">
-<div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#F7EFE8]">
+<div class="lg:col-span-7 bg-[#FFFDF9] rounded-2xl p-3 sm:p-6 border border-[#F2E3D8] shadow-sm flex flex-col gap-2.5 sm:gap-3.5">
+<div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#F7EFE8] sm:pb-2.5">
 <div class="flex items-center gap-2">
 <span class="material-symbols-outlined text-coral-orange text-[20px]">checklist</span>
 <span class="text-[16px] text-text-dark font-bold">루틴 체크인</span>
 </div>
 <span class="text-[12px] font-semibold text-text-muted">Step 1 / 2</span>
 </div>
-<div class="flex flex-wrap gap-2">
-<span class="px-3 py-1.5 rounded-full bg-[#FFF2E8] text-coral-orange text-[13px] font-semibold flex items-center gap-1.5 border border-coral-orange/30">
+<div class="flex flex-wrap gap-1.5 sm:gap-2">
+<span class="px-2.5 py-1 rounded-full bg-[#FFF2E8] text-coral-orange text-[13px] font-semibold flex items-center gap-1.5 border border-coral-orange/30 sm:px-3 sm:py-1.5">
 <span class="material-symbols-outlined text-[14px]">check</span> 컨디션 양호
             </span>
-<span class="px-3 py-1.5 rounded-full bg-surface-cream text-text-dark text-[13px] font-semibold border border-[#F5ECCB]">피로도 보통</span>
-<span class="px-3 py-1.5 rounded-full bg-surface-cream text-text-dark text-[13px] font-semibold border border-[#F5ECCB]">수면 7시간</span>
-<span class="px-3 py-1.5 rounded-full bg-surface-cream text-text-dark text-[13px] font-semibold border border-[#F5ECCB]">통증 없음</span>
+<span class="px-2.5 py-1 rounded-full bg-surface-cream text-text-dark text-[13px] font-semibold border border-[#F5ECCB] sm:px-3 sm:py-1.5">피로도 보통</span>
+<span class="px-2.5 py-1 rounded-full bg-surface-cream text-text-dark text-[13px] font-semibold border border-[#F5ECCB] sm:px-3 sm:py-1.5">수면 7시간</span>
+<span class="px-2.5 py-1 rounded-full bg-surface-cream text-text-dark text-[13px] font-semibold border border-[#F5ECCB] sm:px-3 sm:py-1.5">통증 없음</span>
 </div>
 <div class="flex justify-center text-text-muted/50 py-0">
 <span class="material-symbols-outlined text-[16px]">arrow_downward</span>
 </div>
-<div class="bg-white rounded-xl p-3.5 border border-[#F3E5D8] shadow-sm flex items-center justify-between">
-<div class="flex items-center gap-3">
+<div class="bg-white rounded-xl p-3 border border-[#F3E5D8] shadow-sm flex items-center justify-between sm:p-3.5">
+<div class="flex items-center gap-2.5 sm:gap-3">
 <span class="material-symbols-outlined text-butter-yellow text-[22px]">fitness_center</span>
 <div>
 <p class="text-[14px] font-bold text-text-dark">추천 운동 루틴</p>
@@ -248,11 +253,11 @@
 </div>
 </div>
 <!-- 05. FEATURE 02: 운동 기록이 다음 계획으로 (Left UI ~57% / Right Text ~39%, 패딩 38px) -->
-<div class="bg-white rounded-3xl p-4 sm:p-8 lg:p-[38px] shadow-md shadow-orange-950/5 border border-orange-100/60" data-reveal>
-<div class="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 lg:gap-8 items-center">
+<div class="bg-white rounded-3xl p-3.5 sm:p-8 lg:p-[38px] shadow-md shadow-orange-950/5 border border-orange-100/60" data-reveal>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-8 items-center">
 <!-- Left UI Preview (~57%) -->
-<div class="lg:col-span-7 order-2 lg:order-1 bg-[#FFFDF9] rounded-2xl p-3.5 sm:p-6 border border-[#F2E3D8] shadow-sm flex flex-col gap-3.5">
-<div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#F7EFE8]">
+<div class="lg:col-span-7 order-2 lg:order-1 bg-[#FFFDF9] rounded-2xl p-3 sm:p-6 border border-[#F2E3D8] shadow-sm flex flex-col gap-2.5 sm:gap-3.5">
+<div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#F7EFE8] sm:pb-2.5">
 <span class="text-[16px] font-bold text-text-dark flex items-center gap-2">
 <span class="material-symbols-outlined text-coral-orange text-[20px]">calendar_month</span>
               운동 캘린더
@@ -265,7 +270,7 @@
 </div>
 </div>
 <!-- 주간 기록 (월~일) -->
-<div class="grid grid-cols-7 gap-1.5 sm:gap-2 text-center text-[13px] font-semibold">
+<div class="grid grid-cols-7 gap-1 sm:gap-2 text-center text-[13px] font-semibold">
 <span class="text-text-muted pb-1 text-[12px]">월</span>
 <span class="text-text-muted pb-1 text-[12px]">화</span>
 <span class="text-text-muted pb-1 text-[12px]">수</span>
@@ -273,26 +278,26 @@
 <span class="text-text-muted pb-1 text-[12px]">금</span>
 <span class="text-text-muted pb-1 text-[12px]">토</span>
 <span class="text-text-muted pb-1 text-[12px]">일</span>
-<div class="py-2.5 rounded-xl bg-butter-yellow/30 text-text-dark font-bold">✓</div>
-<div class="py-2.5 rounded-xl bg-[#EFE4D8] text-text-muted/60 font-bold">×</div>
-<div class="py-2.5 rounded-xl bg-[#FFF2E8] text-coral-orange font-bold">△</div>
-<div class="py-2.5 rounded-xl bg-[#EFE4D8] text-text-warm font-medium">―</div>
-<div class="py-2.5 rounded-xl bg-butter-yellow/30 text-text-dark font-bold">✓</div>
-<div class="py-2.5 rounded-xl bg-[#FFF4ED] text-coral-orange text-[13px] font-medium flex items-center justify-center">―</div>
-<div class="py-2.5 rounded-xl text-text-muted/40 text-[13px] font-normal flex items-center justify-center">×</div>
+<div class="py-2 rounded-xl bg-butter-yellow/30 text-text-dark font-bold sm:py-2.5">✓</div>
+<div class="py-2 rounded-xl bg-[#EFE4D8] text-text-muted/60 font-bold sm:py-2.5">×</div>
+<div class="py-2 rounded-xl bg-[#FFF2E8] text-coral-orange font-bold sm:py-2.5">△</div>
+<div class="py-2 rounded-xl bg-[#EFE4D8] text-text-warm font-medium sm:py-2.5">―</div>
+<div class="py-2 rounded-xl bg-butter-yellow/30 text-text-dark font-bold sm:py-2.5">✓</div>
+<div class="py-2 rounded-xl bg-[#FFF4ED] text-coral-orange text-[13px] font-medium flex items-center justify-center sm:py-2.5">―</div>
+<div class="py-2 rounded-xl text-text-muted/40 text-[13px] font-normal flex items-center justify-center sm:py-2.5">×</div>
 </div>
-<div class="bg-surface-cream px-4 py-2.5 rounded-xl border border-[#F4E8BE] flex items-center justify-center gap-2 text-center">
+<div class="bg-surface-cream px-3 py-2 rounded-xl border border-[#F4E8BE] flex items-center justify-center gap-2 text-center sm:px-4 sm:py-2.5">
 <span class="material-symbols-outlined text-coral-orange text-[18px]">sync</span>
 <span class="text-[13.5px] text-text-dark font-bold leading-snug">운동 기록 → 다음 루틴에 반영</span>
 </div>
 </div>
 <!-- Right Text (~39%) -->
-<div class="lg:col-span-5 order-1 lg:order-2 flex flex-col items-start gap-3.5">
+<div class="lg:col-span-5 order-1 lg:order-2 flex flex-col items-start gap-3 sm:gap-3.5">
 <div>
 <span class="text-[12px] font-semibold text-coral-orange uppercase tracking-wider mb-1 block">Feature 02</span>
 <h3 class="text-[22px] sm:text-[26px] text-text-dark font-bold leading-tight">운동 기록이 다음 계획으로</h3>
 </div>
-<p class="text-[16px] leading-[1.6] text-text-warm font-normal keep-all">
+<p class="text-[15px] leading-[1.55] text-text-warm font-normal keep-all sm:text-[16px] sm:leading-[1.6]">
             운동 기록을 다음 루틴에 반영해요.
           </p>
 </div>
@@ -310,24 +315,24 @@
 <script>
   const setupReveal = () => {
     const targets = document.querySelectorAll('[data-reveal]');
+    const mobileHero = document.querySelector('[data-mobile-hero-reveal]');
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
       targets.forEach((target) => target.classList.add('is-revealed'));
+      mobileHero?.classList.add('is-revealed');
       return;
     }
 
     document.documentElement.classList.add('reveal-enabled');
+    if (mobileHero) {
+      if (window.matchMedia('(max-width: 639px)').matches) window.requestAnimationFrame(() => mobileHero.classList.add('is-revealed'));
+      else mobileHero.classList.add('is-revealed');
+    }
     const revealObserver = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
-        if (entry.isIntersecting) entry.target.classList.add('is-revealed');
+        if (entry.isIntersecting) { entry.target.classList.add('is-revealed'); revealObserver.unobserve(entry.target); }
       });
     }, { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
-    const resetObserver = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (!entry.isIntersecting) entry.target.classList.remove('is-revealed');
-      });
-    }, { rootMargin: '80px 0px 80px 0px', threshold: 0 });
-
-    targets.forEach((target) => { revealObserver.observe(target); resetObserver.observe(target); });
+    targets.forEach((target) => revealObserver.observe(target));
   };
 
   setupReveal();
