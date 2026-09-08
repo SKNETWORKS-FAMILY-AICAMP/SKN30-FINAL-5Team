@@ -2,7 +2,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
 import { bodyAreaLabel, decisionReasonLabel } from '../../api/labels';
 import type {
   ExerciseVariantsResponse,
@@ -40,7 +39,6 @@ import {
   type HomeRoutineItem,
   type RoutineItemDraftOverride,
 } from './homeModel';
-
 import {
   CHECKIN_AVAILABILITY_INPUT_ENABLED,
   CHECKIN_DURATION_MINUTES,
@@ -70,7 +68,6 @@ import {
   digitsOnly,
 } from './HomeSupport';
 import { createHomeStyles, HomeStyleContext } from './homeStyles';
-
 import type { HomeScreenProps } from './HomeScreen';
 import {
   buildInitialCheckin,
@@ -80,7 +77,6 @@ import {
   type TimePickerTarget,
 } from './homeContentModel';
 import { revisionNotice } from './homeRevisionNotice';
-
 const EMPTY_PERSISTENT_PAINS: readonly PainAreaInput[] = [];
 const EMPTY_ITEM_OVERRIDES: readonly RoutineItemDraftOverride[] = [];
 
@@ -605,7 +601,6 @@ export function HomeScreenContent({
                 onPress={() => openCheckin('INITIAL')}
               />
             ) : null}
-
             {apiMode && status === 'loading' ? (
               <RoutineLookupCard loading />
             ) : null}
@@ -801,9 +796,7 @@ export function HomeScreenContent({
             ) : null}
           </ScrollView>
         </View>
-
         <HomeBottomNavigation activeTab="home" onNavigate={navigateFromHome} />
-
         {notificationToastVisible ? (
           <View
             accessibilityLiveRegion="polite"
@@ -816,7 +809,6 @@ export function HomeScreenContent({
             </Text>
           </View>
         ) : null}
-
         {checkinOpen ? (
           <CheckinSheet
             draft={checkinDraft}
@@ -904,7 +896,6 @@ export function HomeScreenContent({
             pending={busy === 'decision-generation' || busy === 'regeneration'}
           />
         ) : null}
-
         {CHECKIN_AVAILABILITY_INPUT_ENABLED && timePickerTarget ? (
           <TimePickerSheet
             initialValue={
@@ -931,7 +922,6 @@ export function HomeScreenContent({
             targetField={timePickerTarget.field}
           />
         ) : null}
-
         {reasonOpen && decision !== null ? (
           <RecommendationReasonSheet
             decision={decision}
@@ -939,7 +929,6 @@ export function HomeScreenContent({
             reasons={recommendationReasons}
           />
         ) : null}
-
         {exerciseGuide?.exerciseId && exerciseApi ? (
           <SheetFrame
             onClose={() => setExerciseGuide(null)}
@@ -953,7 +942,6 @@ export function HomeScreenContent({
             />
           </SheetFrame>
         ) : null}
-
         {variantGuide && variantsAvailableInContext ? (
           <SheetFrame
             onClose={() => setVariantGuide(null)}
@@ -968,7 +956,6 @@ export function HomeScreenContent({
             </ScrollView>
           </SheetFrame>
         ) : null}
-
         {editOpen && !apiMode ? (
           <EditRoutineSheet
             items={editDraft}
