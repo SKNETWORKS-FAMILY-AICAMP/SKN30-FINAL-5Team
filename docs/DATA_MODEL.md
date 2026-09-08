@@ -1625,8 +1625,8 @@ Wave 6는 option의 생성과 조회까지만 구현한다. option 선택과 wor
 | stop_reason_code | HIGH_FATIGUE, TIME_SHORTAGE, RESUME_LATER, PAIN_OR_ABNORMAL_RESPONSE 중단 사유 |
 | estimated_calories_burned | 체중 기반 추정치, nullable |
 | calorie_source_code | WEARABLE, MET_ESTIMATE, UNAVAILABLE. 값이 있으면 필수 |
-| calorie_policy_version | 추정에 적용한 정책 버전 |
-| calorie_input_snapshot | 재현에 필요한 최소 입력, nullable |
+| calorie_policy_version | 추정에 적용한 정책 버전. DB 카탈로그 MET 전환 이후 `met-completed-blocks-v2` |
+| calorie_input_snapshot | 재현에 필요한 최소 입력. 카탈로그 version code와 운동별 MET 6필드, 체중, 배분 시간을 포함, nullable |
 | idempotency_key | 세션 생성 중복 방지 |
 
 REST selection 또는 STOP_AND_SEEK_HELP decision에는 workout_session을 만들지 않는다.

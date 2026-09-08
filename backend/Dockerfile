@@ -29,12 +29,7 @@ COPY data/generated/exercise-catalog-v2.0.4-final/backend_bundle \
     ./data/generated/exercise-catalog-v2.0.4-final/backend_bundle
 COPY data/generated/exercise-catalog-v2.0.6-final/backend_bundle \
     ./data/generated/exercise-catalog-v2.0.6-final/backend_bundle
-# The exercise detail route reads this bundle on every request, not just during
-# a promotion command, so leaving it out of the image made GET /exercises/{id}
-# answer APPROVED_CATALOG_UNAVAILABLE for every exercise in the catalog.
-COPY data/generated/home-equipment-variants-v1-final/backend_bundle \
-    ./data/generated/home-equipment-variants-v1-final/backend_bundle
-# That bundle's approval registry names its review evidence, and the loader
+# The integrated home bundle's approval registry names its review evidence, and the loader
 # refuses to serve reviewed content unless those files are on disk. They sit
 # outside the bundle directory, so shipping only the bundle still failed the
 # gate with REVIEW_ARTIFACT_MISSING. Copy the named artifacts and nothing more:
@@ -44,6 +39,21 @@ COPY data/generated/home-equipment-variants-v1-final/backend_bundle \
 COPY data/reports/home_equipment_substitution_guides_v1_validation.json \
     data/reports/resistance_band_bodyweight_variant_gap_report_v1.json \
     ./data/reports/
+
+# The exercise detail route moved its guide providers from the
+# home-equipment-variants-v1-final bundle to this one, so this is the bundle
+# GET /exercises/{id} now reads on every request. Leaving it out makes that
+# route answer APPROVED_CATALOG_UNAVAILABLE for every exercise -- the same
+# failure the v1 bundle already caused once. The request path opens the
+# top-level manifest and these two subtrees only; catalog/ and sources/ are
+# 3.8MB it never touches. backend/tests/api/test_exercises.py keeps this
+# list and the route in step.
+COPY data/generated/integrated-catalog-v2.0.7-draft/backend_bundle/bundle_manifest.json \
+    ./data/generated/integrated-catalog-v2.0.7-draft/backend_bundle/
+COPY data/generated/integrated-catalog-v2.0.7-draft/backend_bundle/gym_equipment \
+    ./data/generated/integrated-catalog-v2.0.7-draft/backend_bundle/gym_equipment
+COPY data/generated/integrated-catalog-v2.0.7-draft/backend_bundle/home_equipment \
+    ./data/generated/integrated-catalog-v2.0.7-draft/backend_bundle/home_equipment
 
 RUN chown -R app:app /app
 
