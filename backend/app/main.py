@@ -13,7 +13,7 @@ from backend.app.core.catalog_guard import validate_catalog_manifests
 from backend.app.core.config import Settings, get_settings
 from backend.app.core.errors import register_exception_handlers
 from backend.app.core.logging import configure_logging
-from backend.app.core.middleware import RequestContextMiddleware
+from backend.app.core.middleware import ErrorEnvelopeMiddleware, RequestContextMiddleware
 from backend.app.db.session import DatabaseManager
 from backend.app.integrations.birthdate_crypto import (
     AwsKmsBirthdateCipher,
@@ -265,6 +265,10 @@ def create_app(
 
     application.state.decision_creation_service_factory = build_decision_creation_service
     application.state.v3_regeneration_service = v3_regeneration_service
+    # Added first so it sits *inside* CORS: `add_middleware` prepends, and the
+    # outermost layer is the one added last. An error answered above CORS
+    # reaches a browser without the headers that let the client read it.
+    application.add_middleware(ErrorEnvelopeMiddleware)
     if resolved_settings.cors_allowed_origins:
         # Only the listed origins, and only the headers the client actually
         # sends. Needed for the browser-based demo; native builds send no
