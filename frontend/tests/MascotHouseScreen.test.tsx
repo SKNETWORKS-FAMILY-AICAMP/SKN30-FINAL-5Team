@@ -438,7 +438,10 @@ describe('MascotHouseScreen', () => {
   });
 
   it('gives the feed button the full row and moves petting onto the mascot', async () => {
-    renderHouse(houseApi());
+    renderHouse(houseApi(), createMemoryHouseStore(), {
+      width: 390,
+      height: 844,
+    });
 
     await screen.findByTestId('house-scene');
     expect(screen.getByTestId('house-feed-action')).toHaveStyle({
@@ -477,15 +480,27 @@ describe('MascotHouseScreen', () => {
     );
     expect(screen.getByText('끼끼와 친해지는 방법')).toBeTruthy();
     expect(screen.getByText(HOUSE_BONDING_COPY.hintDescription)).toBeTruthy();
+    const infoButtonTop = (mascotSizeBeforeInfo - 22) / 2;
+    const infoButtonLeft = 390 / 2 + mascotSizeBeforeInfo / 2 + spacing.xs;
     expect(screen.getByTestId('house-bonding-tooltip')).toHaveStyle({
       position: 'absolute',
-      top: mascotSizeBeforeInfo + 36,
+      top: infoButtonTop + 22 + spacing.xs,
+      left: infoButtonLeft,
+      width: 390 - infoButtonLeft - spacing.sm,
     });
     expect(screen.getByTestId('house-bonding-info')).toHaveStyle({
-      top: (mascotSizeBeforeInfo - 22) / 2,
+      top: infoButtonTop,
       left: '50%',
       marginLeft: mascotSizeBeforeInfo / 2 + spacing.xs,
     });
+    expect(screen.getByText('끼끼와 친해지는 방법')).toHaveProp(
+      'lineBreakStrategyIOS',
+      'hangul-word',
+    );
+    expect(screen.getByText(HOUSE_BONDING_COPY.hintDescription)).toHaveProp(
+      'textBreakStrategy',
+      'balanced',
+    );
     expect(screen.getByTestId('house-mascot-slot')).toHaveStyle({
       top: mascotTopBeforeInfo,
     });

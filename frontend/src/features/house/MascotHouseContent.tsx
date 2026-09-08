@@ -28,6 +28,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -756,6 +757,7 @@ export function MascotHouseContent({
           infoOpen={bondingInfoOpen}
           mascotSize={mascotSize}
           onToggleInfo={() => setBondingInfoOpen((current) => !current)}
+          viewportWidth={viewport.width}
         />
         <TouchHint
           controlScale={controlScale}
@@ -1336,12 +1338,26 @@ function BondingInfo({
   infoOpen,
   mascotSize,
   onToggleInfo,
+  viewportWidth,
 }: {
   controlScale: number;
   infoOpen: boolean;
   mascotSize: number;
   onToggleInfo: () => void;
+  viewportWidth: number;
 }) {
+  const buttonSize = 22;
+  const buttonTop = (mascotSize - buttonSize) / 2;
+  const rightSideGap = spacing.xs * controlScale;
+  const tooltipLeft = viewportWidth / 2 + mascotSize / 2 + rightSideGap;
+  const tooltipWidth = Math.max(
+    0,
+    Math.min(
+      196 * controlScale,
+      viewportWidth - tooltipLeft - spacing.sm * controlScale,
+    ),
+  );
+
   return (
     <>
       <Pressable
@@ -1354,9 +1370,9 @@ function BondingInfo({
         style={({ pressed }) => [
           styles.bondingInfoButton,
           {
-            top: (mascotSize - 22) / 2,
+            top: buttonTop,
             left: '50%',
-            marginLeft: mascotSize / 2 + spacing.xs * controlScale,
+            marginLeft: mascotSize / 2 + rightSideGap,
           },
           pressed && styles.tilePressed,
         ]}
@@ -1369,14 +1385,26 @@ function BondingInfo({
           accessibilityLiveRegion="polite"
           style={[
             styles.bondingInfoTooltip,
-            { top: mascotSize + 36 * controlScale },
+            {
+              top: buttonTop + buttonSize + spacing.xs * controlScale,
+              left: tooltipLeft,
+              width: tooltipWidth,
+            },
           ]}
           testID="house-bonding-tooltip"
         >
-          <Text style={styles.bondingInfoTooltipTitle}>
+          <Text
+            lineBreakStrategyIOS="hangul-word"
+            style={styles.bondingInfoTooltipTitle}
+            textBreakStrategy="balanced"
+          >
             끼끼와 친해지는 방법
           </Text>
-          <Text style={styles.bondingInfoTooltipBody}>
+          <Text
+            lineBreakStrategyIOS="hangul-word"
+            style={styles.bondingInfoTooltipBody}
+            textBreakStrategy="balanced"
+          >
             {HOUSE_BONDING_COPY.hintDescription}
           </Text>
         </View>
@@ -2412,8 +2440,6 @@ const styles = StyleSheet.create({
   bondingInfoTooltip: {
     position: 'absolute',
     zIndex: 5,
-    alignSelf: 'center',
-    width: 248,
     gap: 3,
     borderRadius: radii.control,
     backgroundColor: colors.surface,
@@ -2425,12 +2451,14 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 12,
     fontWeight: '800',
+    ...(Platform.OS === 'web' ? { wordBreak: 'keep-all' as const } : {}),
   },
   bondingInfoTooltipBody: {
     color: colors.textSub,
     fontSize: 11,
     lineHeight: 16,
     fontWeight: '600',
+    ...(Platform.OS === 'web' ? { wordBreak: 'keep-all' as const } : {}),
   },
   railCenter: {
     position: 'absolute',
