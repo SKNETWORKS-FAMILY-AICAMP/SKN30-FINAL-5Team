@@ -1,6 +1,8 @@
+import logging
 from typing import Annotated
 from uuid import UUID
 
+import pytest
 from fastapi import Query
 from fastapi.testclient import TestClient
 
@@ -95,6 +97,80 @@ def test_unhandled_error_does_not_expose_exception_message() -> None:
     assert response.json()["error"]["code"] == "INTERNAL_ERROR"
     assert response.json()["error"]["request_id"] == response.headers["X-Request-ID"]
     assert secret not in response.text
+
+
+def _app_failing_on(path: str, error: Exception, origin: str | None = None):
+    application = create_app(
+        settings=Settings(
+            app_env="test",
+            database_url="postgresql+psycopg://test:test@localhost/test",
+            cors_allowed_origins=origin or (),
+        ),
+        readiness_probe=lambda: None,
+    )
+
+    def fail() -> None:
+        raise error
+
+    application.add_api_route(path, fail)
+    return application
+
+
+def test_unhandled_error_is_readable_by_the_browser_that_caused_it() -> None:
+    """A 500 answered above CORS is discarded by the browser as a transport error.
+
+    The client then cannot tell a server failure from a lost connection, and
+    reports the wrong one to the user. The envelope is only useful if the
+    request's own origin is allowed to read it.
+    """
+
+    origin = "http://localhost:8081"
+    application = _app_failing_on("/api/v1/test-failure", RuntimeError("boom"), origin)
+
+    with TestClient(application, raise_server_exceptions=False) as client:
+        response = client.get("/api/v1/test-failure", headers={"Origin": origin})
+
+    assert response.status_code == 500
+    assert response.headers["access-control-allow-origin"] == origin
+    assert response.json()["error"]["code"] == "INTERNAL_ERROR"
+
+
+def test_an_unlisted_origin_still_cannot_read_an_unhandled_error() -> None:
+    application = _app_failing_on(
+        "/api/v1/test-failure", RuntimeError("boom"), "http://localhost:8081"
+    )
+
+    with TestClient(application, raise_server_exceptions=False) as client:
+        response = client.get("/api/v1/test-failure", headers={"Origin": "http://evil.example"})
+
+    assert response.status_code == 500
+    assert "access-control-allow-origin" not in response.headers
+
+
+def test_unhandled_error_keeps_a_stack_trace_in_the_logs(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Answering below CORS means uvicorn never prints the trace any more.
+
+    `JsonFormatter` drops `exc_info`, so the trace has to travel as an explicit
+    field or a 500 becomes undiagnosable from the deployed logs.
+    """
+
+    application = _app_failing_on("/api/v1/test-failure", RuntimeError("boom"))
+
+    with caplog.at_level(logging.ERROR, logger="backend.error"):
+        with TestClient(application, raise_server_exceptions=False) as client:
+            response = client.get("/api/v1/test-failure")
+
+    assert response.status_code == 500
+    record = next(r for r in caplog.records if r.msg == "unhandled_request_error")
+    assert record.exception_type == "RuntimeError"
+    assert record.path == "/api/v1/test-failure"
+    assert "RuntimeError: boom" in record.stack_trace
+    # The frame that raised, so a trimmed or summarised trace fails here.
+    assert ", in fail" in record.stack_trace
+    # The trace belongs in the log, never in the answer to the caller.
+    assert "boom" not in response.text
 
 
 def test_cors_preflight_allows_a_configured_browser_origin() -> None:
