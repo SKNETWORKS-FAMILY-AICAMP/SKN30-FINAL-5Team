@@ -149,6 +149,43 @@ def test_advisory_specialist_prompt_forbids_exercise_plans(adapter_type: type) -
     assert "advisory" in system_message.content
 
 
+def test_training_receives_structured_fitt_ranges_and_non_maximum_guidance() -> None:
+    current_envelope = envelope()
+    current_pool = pool(current_envelope)
+    expected = proposal(SpecialistAgentTypeCode.TRAINING, current_envelope, current_pool)
+    model = ToolCallingFakeChatModel(
+        responses=[tool_response(SpecialistAgentProposal, expected, 1)]
+    )
+
+    result = _adapter(TrainingAgentAdapter, model).propose(  # type: ignore[attr-defined]
+        constraint_envelope=current_envelope,
+        exercise_pool=current_pool,
+    )
+
+    assert result.succeeded
+    system_message = next(
+        message for message in model.seen_messages[0] if isinstance(message, SystemMessage)
+    )
+    human_message = next(
+        message for message in model.seen_messages[0] if isinstance(message, HumanMessage)
+    )
+    assert isinstance(system_message.content, str)
+    assert "Never always select the maximum" in system_message.content
+    assert "REVIEW_REQUIRED" in system_message.content
+    assert isinstance(human_message.content, str)
+    payload = json.loads(human_message.content)["input"]
+    fitt = payload["exercise_pool"]["exercises"][0]["fitt_context"]
+    assert fitt["review_status_code"] == "DOMAIN_APPROVED"
+    assert fitt["volume"] == {
+        "default_reps": 8,
+        "default_sets": 3,
+        "max_reps": 12,
+        "max_sets": 3,
+        "min_reps": 8,
+        "min_sets": 2,
+    }
+
+
 def test_three_roles_can_share_one_provider_neutral_model_and_invoker() -> None:
     current_envelope = envelope()
     current_pool = pool(current_envelope)

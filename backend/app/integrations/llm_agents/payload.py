@@ -124,6 +124,10 @@ _POOL_EXERCISE_FIELDS: Final = (
     "default_work_seconds",
     "default_rest_seconds",
     "default_transition_seconds",
+    # Reviewed, per-exercise FITT reference and selectable volume bounds. The
+    # domain validator remains authoritative; this lets Training choose inside
+    # the range instead of seeing only the final ceiling.
+    "fitt_context",
     "recovery_eligible",
     "goal_codes",
     # The reviewed session shape. Without these an agent cannot tell which part

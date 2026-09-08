@@ -23,6 +23,10 @@ GYM_GUIDES = ROOT / "data/normalized/gym_equipment_starting_guides_v1.jsonl"
 HOME_GUIDES = ROOT / "data/normalized/home_equipment_substitution_guides_v1.jsonl"
 FITT_REFERENCE = ROOT / "data/normalized/catalog_enrichment_v3_fitt.csv"
 FITT_SOURCE_MAP = ROOT / "data/normalized/v2_0_6_fitt_defaults_source_map.json"
+FITT_STABLE_CODE_MAPPING = ROOT / "data/normalized/v2_0_7_fitt_stable_code_mapping.csv"
+FITT_MAPPING_APPROVAL = (
+    ROOT / "data/reports/integrated_catalog_v2_0_7/fitt_stable_code_mapping_approval.json"
+)
 TARGET = ROOT / "data/generated/integrated-catalog-v2.0.7-draft/backend_bundle"
 REPORTS = ROOT / "data/reports/integrated_catalog_v2_0_7"
 VERSION = "integrated-catalog-v2.0.7-draft-2026-09-07"
@@ -57,8 +61,13 @@ def _copy_tree(source: Path, target: Path) -> None:
 
 
 def _validate_addons(
-    catalog_codes: set[str], gym: list[dict[str, Any]], home: list[dict[str, Any]]
+    catalog_rows: list[dict[str, Any]],
+    gym: list[dict[str, Any]],
+    home: list[dict[str, Any]],
+    fitt: list[dict[str, str]],
+    fitt_mapping: list[dict[str, str]],
 ) -> None:
+    catalog_codes = {row["stable_code"] for row in catalog_rows}
     for label, rows in (("gym", gym), ("home", home)):
         seen: set[tuple[str, str]] = set()
         for index, row in enumerate(rows, 1):
@@ -74,6 +83,34 @@ def _validate_addons(
             seen.add(key)
             if row.get("review_status_code") != "DOMAIN_APPROVED":
                 raise ValueError(f"{label} row {index}: only DOMAIN_APPROVED rows are importable")
+    fitt_by_id = {row.get("exercise_id", ""): row for row in fitt}
+    if "" in fitt_by_id or len(fitt_by_id) != len(fitt):
+        raise ValueError("FITT reference contains blank or duplicate exercise IDs")
+    catalog_by_code = {row["stable_code"]: row for row in catalog_rows}
+    seen_nex: set[str] = set()
+    seen_stable: set[str] = set()
+    for index, row in enumerate(fitt_mapping, 1):
+        nex = row.get("exercise_id", "")
+        stable = row.get("exercise_stable_code", "")
+        reference = fitt_by_id.get(nex)
+        catalog = catalog_by_code.get(stable)
+        if nex in seen_nex or stable in seen_stable:
+            raise ValueError(f"FITT mapping row {index}: duplicate identifier")
+        if reference is None or catalog is None:
+            raise ValueError(
+                f"FITT mapping row {index}: reference is absent from the catalog or FITT"
+            )
+        if (
+            row.get("review_status_code") != "DOMAIN_APPROVED"
+            or row.get("review_method_code") != "IDENTITY_REGISTRY_EXACT_JOIN"
+            or reference.get("fitt_status") != "APPROVED"
+            or row.get("fitt_template_id") != reference.get("fitt_template_id")
+            or row.get("source_system") != catalog.get("source_track")
+            or row.get("source_id") != catalog.get("source_identity")
+        ):
+            raise ValueError(f"FITT mapping row {index}: approval or identity mismatch")
+        seen_nex.add(nex)
+        seen_stable.add(stable)
 
 
 def build(target: Path = TARGET, reports: Path = REPORTS) -> dict[str, Any]:
@@ -89,6 +126,8 @@ def build(target: Path = TARGET, reports: Path = REPORTS) -> dict[str, Any]:
     home_rows = _read_jsonl(HOME_GUIDES)
     with FITT_REFERENCE.open(newline="", encoding="utf-8") as handle:
         fitt_rows = list(csv.DictReader(handle))
+    with FITT_STABLE_CODE_MAPPING.open(newline="", encoding="utf-8") as handle:
+        fitt_mapping_rows = list(csv.DictReader(handle))
     if not fitt_rows or any(row.get("fitt_status") != "APPROVED" for row in fitt_rows):
         raise ValueError("FITT reference contains missing or unapproved rows")
     with tempfile.TemporaryDirectory(prefix="integrated-catalog-") as temporary:
@@ -141,15 +180,22 @@ def build(target: Path = TARGET, reports: Path = REPORTS) -> dict[str, Any]:
             json.dumps(catalog_manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )
         catalog_rows = _read_jsonl(catalog_path)
-        codes = {row["stable_code"] for row in catalog_rows}
-        _validate_addons(codes, gym_rows, home_rows)
+        _validate_addons(catalog_rows, gym_rows, home_rows, fitt_rows, fitt_mapping_rows)
         home.build(target=stage / "home_equipment")
         gym_path = stage / "gym_equipment/starting_guides.jsonl"
         gym_path.parent.mkdir(parents=True, exist_ok=True)
         gym_path.write_text(gym.render(gym_rows), encoding="utf-8")
         sources = stage / "sources"
         sources.mkdir()
-        for source in (CATALOG, GYM_GUIDES, HOME_GUIDES, FITT_REFERENCE, FITT_SOURCE_MAP):
+        for source in (
+            CATALOG,
+            GYM_GUIDES,
+            HOME_GUIDES,
+            FITT_REFERENCE,
+            FITT_SOURCE_MAP,
+            FITT_STABLE_CODE_MAPPING,
+            FITT_MAPPING_APPROVAL,
+        ):
             shutil.copyfile(source, sources / source.name)
         files: list[dict[str, Any]] = []
         for path in sorted(stage.rglob("*")):
@@ -182,6 +228,7 @@ def build(target: Path = TARGET, reports: Path = REPORTS) -> dict[str, Any]:
                 "gym_guide_records": len(gym_rows),
                 "home_guide_records": len(home_rows),
                 "fitt_reference_records": len(fitt_rows),
+                "fitt_stable_code_mapping_records": len(fitt_mapping_rows),
                 "met_fields_per_catalog_record": 6,
             },
             "completeness_checks": {
@@ -189,6 +236,7 @@ def build(target: Path = TARGET, reports: Path = REPORTS) -> dict[str, Any]:
                 "gym_references_catalog": True,
                 "home_references_catalog": True,
                 "fitt_reference_approved": True,
+                "fitt_references_catalog": True,
                 "met_projection_present": True,
                 "artifact_inventory_complete": True,
             },
