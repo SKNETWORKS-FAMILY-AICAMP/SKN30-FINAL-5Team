@@ -134,6 +134,88 @@ def _validate_addons(
         seen_stable.add(stable)
 
 
+def _add_reviewed_beginner_prescriptions(
+    stage: Path, catalog_rows: list[dict[str, Any]]
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Add the BEGINNER rows the reviewed corpus derives for the same difficulty review.
+
+    The re-review moved exercises down to BEGINNER without the prescription
+    review being re-run, so they carried INTERMEDIATE rows only and never
+    reached a beginner's pool. The rule applied here is not invented: it is the
+    single INTERMEDIATE-to-BEGINNER transformation every exercise carrying both
+    levels already agrees on, learned from the corpus by
+    ``build_v2_0_7_beginner_prescription_derivation`` and approved as
+    ``V2-0-7-BEGINNER-PRESCRIPTION-DERIVATION-2026-09-08-R01``.
+
+    Runs after the incompatible rows are dropped so the corpus it learns from is
+    already consistent with the reviewed difficulties.
+    """
+
+    derivation = _load(
+        "beginner_derivation",
+        ROOT / "data/scripts/build_v2_0_7_beginner_prescription_derivation.py",
+    )
+    profiles_path = stage / "catalog/prescriptions/prescription_profiles.jsonl"
+    profiles = _read_jsonl(profiles_path)
+    catalog = {row["stable_code"]: row for row in catalog_rows}
+    derived, undecidable = derivation.derive(profiles, catalog, derivation.learn_mapping(profiles))
+    if undecidable:
+        raise ValueError(
+            f"prescription rows outside the approved derivation need a reviewer: {undecidable}"
+        )
+    evidence = derivation.evidence(profiles, derived)
+    if not derived:
+        return [], evidence
+    combined = profiles + derived
+    combined.sort(
+        key=lambda row: (
+            row["exercise_stable_code"],
+            row["goal_code"],
+            row["phase_code"],
+            row["experience_level_code"],
+        )
+    )
+    profiles_path.write_text(
+        "".join(
+            json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n" for row in combined
+        ),
+        encoding="utf-8",
+    )
+    _restate_prescription_counts(stage, profiles_path, len(combined))
+    return derived, evidence
+
+
+def _restate_prescription_counts(stage: Path, profiles_path: Path, records: int) -> None:
+    """Keep the prescription manifest and the catalog wrapper agreeing on the count.
+
+    The importer compares the wrapper's declared summary against the child
+    manifests before it trusts either, so refreshing file hashes alone leaves the
+    two disagreeing and the bundle fails closed at promotion.
+    """
+
+    manifest_path = stage / "catalog/prescriptions/prescription_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    for entry in manifest["files"]:
+        if entry["path"] == "prescription_profiles.jsonl":
+            entry.update(
+                {
+                    "sha256": _sha256(profiles_path),
+                    "bytes": profiles_path.stat().st_size,
+                    "records": records,
+                }
+            )
+    manifest["summary"]["prescription_records"] = records
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    wrapper_path = stage / "catalog/bundle_manifest.json"
+    wrapper = json.loads(wrapper_path.read_text(encoding="utf-8"))
+    wrapper["summary"]["prescription_records"] = records
+    wrapper_path.write_text(
+        json.dumps(wrapper, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+
+
 def _align_prescriptions_to_difficulty(stage: Path, catalog_rows: list[dict[str, Any]]) -> int:
     """Drop prescription rows the catalog's reviewed difficulty no longer permits.
 
@@ -141,10 +223,7 @@ def _align_prescriptions_to_difficulty(stage: Path, catalog_rows: list[dict[str,
     difficulty re-review moved exercises without the prescription review being
     re-run. A BEGINNER prescription on an exercise now reviewed INTERMEDIATE is
     not a judgement call: the directional rule the importer enforces forbids it,
-    so the row is removed rather than re-authored. The opposite direction is
-    left alone -- an exercise reviewed down to BEGINNER keeps only the
-    prescriptions it actually has, because inventing a beginner set/rep volume
-    would be a clinical decision this generator has no basis to make.
+    so the row is removed rather than re-authored.
     """
 
     difficulty = {row["stable_code"]: row["difficulty_code"] for row in catalog_rows}
@@ -164,30 +243,7 @@ def _align_prescriptions_to_difficulty(stage: Path, catalog_rows: list[dict[str,
         "".join(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n" for row in kept),
         encoding="utf-8",
     )
-    manifest_path = stage / "catalog/prescriptions/prescription_manifest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    for entry in manifest["files"]:
-        if entry["path"] == "prescription_profiles.jsonl":
-            entry.update(
-                {
-                    "sha256": _sha256(profiles_path),
-                    "bytes": profiles_path.stat().st_size,
-                    "records": len(kept),
-                }
-            )
-    manifest["summary"]["prescription_records"] = len(kept)
-    manifest_path.write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
-    # The catalog wrapper declares its own record summary, and the importer
-    # compares that declaration against the child manifests before it trusts
-    # either. Refreshing file hashes alone leaves the two disagreeing.
-    wrapper_path = stage / "catalog/bundle_manifest.json"
-    wrapper = json.loads(wrapper_path.read_text(encoding="utf-8"))
-    wrapper["summary"]["prescription_records"] = len(kept)
-    wrapper_path.write_text(
-        json.dumps(wrapper, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
+    _restate_prescription_counts(stage, profiles_path, len(kept))
     return removed
 
 
@@ -246,6 +302,9 @@ def build(target: Path = TARGET, reports: Path = REPORTS) -> dict[str, Any]:
             encoding="utf-8",
         )
         removed_prescriptions = _align_prescriptions_to_difficulty(stage, catalog_rows)
+        derived_prescriptions, derivation_evidence = _add_reviewed_beginner_prescriptions(
+            stage, catalog_rows
+        )
         seed_path = stage / "catalog/catalog/seed_manifest.json"
         seed = json.loads(seed_path.read_text())
         seed["files"][0].update(
@@ -324,6 +383,7 @@ def build(target: Path = TARGET, reports: Path = REPORTS) -> dict[str, Any]:
                 "fitt_stable_code_mapping_records": len(fitt_mapping_rows),
                 "met_fields_per_catalog_record": 6,
                 "prescription_rows_removed_for_difficulty": removed_prescriptions,
+                "prescription_rows_derived_for_difficulty": len(derived_prescriptions),
             },
             "completeness_checks": {
                 "catalog_stable_codes": True,
@@ -351,6 +411,10 @@ def build(target: Path = TARGET, reports: Path = REPORTS) -> dict[str, Any]:
         report_dir.mkdir()
         (report_dir / "integrated_catalog_validation.json").write_text(
             json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+        (report_dir / "beginner_prescription_derivation.json").write_text(
+            json.dumps(derivation_evidence, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
         )
         (report_dir / "INTEGRATED_CATALOG_HANDOFF.md").write_text(
             "# 통합 카탈로그 번들 인계\n\n"

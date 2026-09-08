@@ -163,6 +163,11 @@ def build(target: Path = TARGET, reports: Path = REPORTS) -> dict[str, Any]:
         reports.mkdir(parents=True, exist_ok=True)
         shutil.copytree(stage, target)
         _write_json(reports / "promotion_candidate_validation.json", report)
+        # The derivation record is written by the draft build, which is the only
+        # step that still holds the corpus before the rows were added.
+        derivation = temp / "draft_reports/beginner_prescription_derivation.json"
+        if derivation.is_file():
+            shutil.copyfile(derivation, reports / derivation.name)
     return report
 
 

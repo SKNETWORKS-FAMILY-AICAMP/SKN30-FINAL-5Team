@@ -78,13 +78,13 @@
     {
       "bytes": 1294,
       "path": "prescriptions/prescription_manifest.json",
-      "sha256": "110a416e3518d2b0ba33e6e54f6e7a040c9e5dfe05e9435d95cc2f96e22ae83e"
+      "sha256": "2299cfdbdd23a6bf66ce90d9aca39e2c5d4bbc9c33a8b0ead49557cdecdb0904"
     },
     {
-      "bytes": 562511,
+      "bytes": 591254,
       "path": "prescriptions/prescription_profiles.jsonl",
-      "records": 1392,
-      "sha256": "2a2839adddff99cced2202200786de79fae49b808a4a03055095cd8b6d4e55c1"
+      "records": 1464,
+      "sha256": "0b27d9a14fa4f9e6da2b25ff1cc7e67131049ec780725b4a986eb9b07ac730ed"
     },
     {
       "bytes": 1088,
@@ -135,7 +135,7 @@
     "catalog_records": 237,
     "goal_tag_records": 711,
     "media_asset_records": 237,
-    "prescription_records": 1392,
+    "prescription_records": 1464,
     "safety_rule_records": 2131
   }
 }

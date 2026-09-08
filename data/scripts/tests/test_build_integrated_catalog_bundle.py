@@ -28,6 +28,9 @@ def test_builds_complete_additive_bundle(tmp_path: Path) -> None:
         # directional rule forbids them; a nonzero count here is expected until
         # the prescription review is re-run against the current difficulties.
         "prescription_rows_removed_for_difficulty": 57,
+        # ...and 72 BEGINNER rows derived back for the 24 the same review moved
+        # down, under the approved derivation rule.
+        "prescription_rows_derived_for_difficulty": 72,
     }
     catalog = builder._read_jsonl(root / "catalog/catalog/exercises.jsonl")
     codes = {row["stable_code"] for row in catalog}

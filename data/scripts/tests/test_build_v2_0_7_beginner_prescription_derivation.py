@@ -13,6 +13,9 @@ builder = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(builder)
 
 ROOT = Path(__file__).resolve().parents[3]
+_REPORT = (
+    ROOT / "data/reports/integrated_catalog_v2_0_7_final/beginner_prescription_derivation.json"
+)
 
 
 def _profile(code, level, goal, phase="MAIN", **overrides):
@@ -79,23 +82,37 @@ def test_an_input_the_corpus_never_showed_is_left_to_a_reviewer(tmp_path: Path) 
     assert len(undecidable) == 1 and "target" in undecidable[0]
 
 
-def test_real_derivation_covers_every_target_and_invents_nothing() -> None:
-    """Against the pinned bundle: 24 exercises, 72 rows, nothing outside the rule."""
+def test_the_shipped_bundle_has_nothing_left_to_derive() -> None:
+    """Idempotency, and the evidence that the approved rows were actually applied.
+
+    Running the derivation against a bundle that already carries them must find
+    no target, which is also why the shipped record cannot be regenerated from
+    the shipped bundle -- the build writes it from the corpus that needed it.
+    """
 
     payload = builder.build(report=ROOT / "data/reports/.derivation-check.json")
     try:
-        assert payload["summary"] == {
-            "exercises": 24,
-            "derived_rows": 72,
-            "rows_outside_the_rule": 0,
-        }
-        assert payload["derivation"]["ambiguous_inputs"] == 0
-        # Every derived row is a BEGINNER row whose source was INTERMEDIATE.
-        assert {row["experience_level_code"] for row in payload["rows"]} == {"BEGINNER"}
-        # The status must stay honest: these are not reviewed rows yet.
-        assert payload["status"] == "DERIVED_PENDING_REVIEW"
+        assert payload["summary"]["derived_rows"] == 0
+        assert payload["summary"]["rows_outside_the_rule"] == 0
     finally:
         (ROOT / "data/reports/.derivation-check.json").unlink(missing_ok=True)
+
+
+def test_shipped_record_documents_the_approved_rule_and_rows() -> None:
+    payload = json.loads(_REPORT.read_text(encoding="utf-8"))
+
+    assert payload["summary"] == {
+        "exercises": 24,
+        "derived_rows": 72,
+        "rows_outside_the_rule": 0,
+    }
+    assert payload["derivation"]["ambiguous_inputs"] == 0
+    assert {row["experience_level_code"] for row in payload["rows"]} == {"BEGINNER"}
+    # The approval covers the rule, and the record must say so rather than
+    # implying each row was reviewed on its own.
+    assert payload["status"] == "APPROVED"
+    assert payload["approval"]["approval_record_code"] == builder.APPROVAL_RECORD_CODE
+    assert "not an independent review of each row" in payload["approval"]["scope"]
 
 
 def test_derived_reps_stay_inside_the_approved_beginner_fitt_range() -> None:
@@ -103,10 +120,7 @@ def test_derived_reps_stay_inside_the_approved_beginner_fitt_range() -> None:
 
     from backend.app.domain.rules.fitt import context_for_exercise
 
-    report = (
-        ROOT / "data/reports/integrated_catalog_v2_0_7_final/beginner_prescription_derivation.json"
-    )
-    rows = json.loads(report.read_text(encoding="utf-8"))["rows"]
+    rows = json.loads(_REPORT.read_text(encoding="utf-8"))["rows"]
     checked = 0
     for row in rows:
         if row["reps"] is None:

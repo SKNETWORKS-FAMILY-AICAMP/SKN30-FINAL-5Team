@@ -1,8 +1,8 @@
 {
   "status": "PASS",
   "catalog_version_code": "exercise-catalog-v2.0.7-final",
-  "bundle_manifest_sha256": "fa239a24ca82676be3ce64c4bae1fb2377218bdeb25f5c4ed16591d025aedb39",
-  "catalog_bundle_manifest_sha256": "98a3d6c63dbc0720a5b2e83833307aa4e2902152b9187037f590590e1fa63eea",
+  "bundle_manifest_sha256": "de2d4cd7748c1ea1febecb9f060c87c1abbb724660166712152674cad0b6df45",
+  "catalog_bundle_manifest_sha256": "821a9cae807af43eba193a38e870cfb6ba26d655209e98a1238c1d0f7319ca15",
   "summary": {
     "catalog_records": 237,
     "gym_guide_records": 67,
@@ -10,7 +10,8 @@
     "fitt_reference_records": 208,
     "fitt_stable_code_mapping_records": 89,
     "met_fields_per_catalog_record": 6,
-    "prescription_rows_removed_for_difficulty": 57
+    "prescription_rows_removed_for_difficulty": 57,
+    "prescription_rows_derived_for_difficulty": 72
   },
   "checks": {
     "regenerated_from_normalized_sources": true,

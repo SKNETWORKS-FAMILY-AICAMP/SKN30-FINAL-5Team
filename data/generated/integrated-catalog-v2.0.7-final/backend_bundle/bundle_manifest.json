@@ -20,7 +20,8 @@
     "fitt_reference_records": 208,
     "fitt_stable_code_mapping_records": 89,
     "met_fields_per_catalog_record": 6,
-    "prescription_rows_removed_for_difficulty": 57
+    "prescription_rows_removed_for_difficulty": 57,
+    "prescription_rows_derived_for_difficulty": 72
   },
   "completeness_checks": {
     "catalog_stable_codes": true,
@@ -57,7 +58,7 @@
     },
     {
       "path": "catalog/bundle_manifest.json",
-      "sha256": "98a3d6c63dbc0720a5b2e83833307aa4e2902152b9187037f590590e1fa63eea",
+      "sha256": "821a9cae807af43eba193a38e870cfb6ba26d655209e98a1238c1d0f7319ca15",
       "bytes": 5538
     },
     {
@@ -100,14 +101,14 @@
     },
     {
       "path": "catalog/prescriptions/prescription_manifest.json",
-      "sha256": "110a416e3518d2b0ba33e6e54f6e7a040c9e5dfe05e9435d95cc2f96e22ae83e",
+      "sha256": "2299cfdbdd23a6bf66ce90d9aca39e2c5d4bbc9c33a8b0ead49557cdecdb0904",
       "bytes": 1294
     },
     {
       "path": "catalog/prescriptions/prescription_profiles.jsonl",
-      "sha256": "2a2839adddff99cced2202200786de79fae49b808a4a03055095cd8b6d4e55c1",
-      "bytes": 562511,
-      "records": 1392
+      "sha256": "0b27d9a14fa4f9e6da2b25ff1cc7e67131049ec780725b4a986eb9b07ac730ed",
+      "bytes": 591254,
+      "records": 1464
     },
     {
       "path": "catalog/safety/rules_manifest.json",

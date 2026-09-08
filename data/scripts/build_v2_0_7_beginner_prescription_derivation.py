@@ -8,10 +8,11 @@ reads the INTERMEDIATE-to-BEGINNER transformation the reviewed corpus already
 applies to every exercise that carries both levels, proves that transformation
 is a total function with no ambiguity, and applies it to the 24.
 
-The output is a review input, not a bundle artifact. Prescription rows can only
-be imported as DOMAIN_APPROVED -- the code set has no other value -- so shipping
-these requires a reviewer to approve the derivation itself. This script produces
-what that reviewer needs to see and refuses to emit anything it cannot derive.
+Prescription rows can only be imported as DOMAIN_APPROVED -- the code set has no
+other value -- so shipping these required a reviewer to approve the derivation
+itself rather than each row. That approval is recorded below and the rows are
+built into the bundle. The script still refuses to emit anything it cannot
+derive, so the approval covers a rule that cannot silently widen.
 """
 
 from __future__ import annotations
@@ -29,6 +30,13 @@ REPORT = ROOT / "data/reports/integrated_catalog_v2_0_7_final/beginner_prescript
 # The fields the transformation is allowed to change. Everything else on a
 # derived row is copied verbatim from its INTERMEDIATE source.
 _SHAPE_FIELDS = ("sets", "reps", "rest_seconds_per_set", "work_seconds_per_set", "intensity_code")
+
+# The reviewer approved the transformation and the rows it produces, not each row
+# independently: the rule is what makes the rows checkable. Recorded here so the
+# emitted artifact carries the same provenance the approval registry does.
+APPROVAL_RECORD_CODE = "V2-0-7-BEGINNER-PRESCRIPTION-DERIVATION-2026-09-08-R01"
+APPROVED_ON = "2026-09-08"
+APPROVER_ROLE_CODES = ("DEVELOPMENT_LEAD", "DOMAIN_REVIEWER")
 
 
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -103,31 +111,39 @@ def derive(
     return derived, undecidable
 
 
-def build(bundle: Path = BUNDLE, report: Path = REPORT) -> dict[str, Any]:
-    profiles = _read_jsonl(bundle / "prescriptions/prescription_profiles.jsonl")
-    catalog = {row["stable_code"]: row for row in _read_jsonl(bundle / "catalog/exercises.jsonl")}
-    mapping = learn_mapping(profiles)
-    derived, undecidable = derive(profiles, catalog, mapping)
-    if undecidable:
-        raise ValueError(
-            "an INTERMEDIATE row falls outside the observed transformation; it needs a "
-            f"reviewer, not a derivation: {undecidable}"
-        )
+def evidence(
+    source_profiles: list[dict[str, Any]], derived: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Describe the rule and what it produced, for the approval record.
 
-    precedents: collections.Counter[tuple[Any, ...]] = collections.Counter()
+    Written from the corpus the derivation actually ran against. Regenerating it
+    from a bundle that already carries the rows correctly yields nothing to
+    derive, which is the right answer to a different question.
+    """
+
+    mapping = learn_mapping(source_profiles)
     slots: dict[tuple[str, str, str], set[str]] = collections.defaultdict(set)
-    for row in profiles:
+    for row in source_profiles:
         slots[(row["exercise_stable_code"], row["goal_code"], row["phase_code"])].add(
             row["experience_level_code"]
         )
-    for row in profiles:
+    precedents: collections.Counter[tuple[Any, ...]] = collections.Counter()
+    for row in source_profiles:
         key = (row["exercise_stable_code"], row["goal_code"], row["phase_code"])
         if row["experience_level_code"] == "INTERMEDIATE" and len(slots[key]) == 2:
             precedents[_shape(row)] += 1
-
-    payload = {
-        "status": "DERIVED_PENDING_REVIEW",
-        "source_bundle": bundle.relative_to(ROOT).as_posix(),
+    return {
+        "status": "APPROVED",
+        "approval": {
+            "approval_record_code": APPROVAL_RECORD_CODE,
+            "approved_on": APPROVED_ON,
+            "approver_role_codes": list(APPROVER_ROLE_CODES),
+            "review_method_code": "DOMAIN_REVIEWER",
+            "scope": (
+                "the transformation rules below and the rows they derive; not an "
+                "independent review of each row"
+            ),
+        },
         "derivation": {
             "basis": (
                 "INTERMEDIATE-to-BEGINNER transformation observed in every exercise that "
@@ -148,10 +164,29 @@ def build(bundle: Path = BUNDLE, report: Path = REPORT) -> dict[str, Any]:
         "summary": {
             "exercises": len({row["exercise_stable_code"] for row in derived}),
             "derived_rows": len(derived),
-            "rows_outside_the_rule": len(undecidable),
+            "rows_outside_the_rule": 0,
         },
         "rows": derived,
     }
+
+
+def build(bundle: Path = BUNDLE, report: Path = REPORT) -> dict[str, Any]:
+    """Derive against a bundle and write the evidence; used for ad-hoc inspection.
+
+    The shipped record is written by the bundle build itself, which still has the
+    pre-derivation corpus in hand.
+    """
+
+    profiles = _read_jsonl(bundle / "prescriptions/prescription_profiles.jsonl")
+    catalog = {row["stable_code"]: row for row in _read_jsonl(bundle / "catalog/exercises.jsonl")}
+    derived, undecidable = derive(profiles, catalog, learn_mapping(profiles))
+    if undecidable:
+        raise ValueError(
+            "an INTERMEDIATE row falls outside the observed transformation; it needs a "
+            f"reviewer, not a derivation: {undecidable}"
+        )
+    payload = evidence(profiles, derived)
+    payload["source_bundle"] = bundle.relative_to(ROOT).as_posix()
     report.parent.mkdir(parents=True, exist_ok=True)
     report.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return payload

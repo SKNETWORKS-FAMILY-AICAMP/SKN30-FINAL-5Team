@@ -751,8 +751,8 @@ _APPROVALS = {
     ): DerivedDataApproval(
         artifact_kind="PRESCRIPTIONS",
         version_code="prescription-set-v2.0.7",
-        manifest_sha256="110a416e3518d2b0ba33e6e54f6e7a040c9e5dfe05e9435d95cc2f96e22ae83e",
-        record_count=2103,
+        manifest_sha256="2299cfdbdd23a6bf66ce90d9aca39e2c5d4bbc9c33a8b0ead49557cdecdb0904",
+        record_count=2175,
         approval_record_code="V2-0-7-PRODUCTION-APPROVAL-2026-09-08-R01",
         approved_on="2026-09-08",
         approver_role_codes=("DEVELOPMENT_LEAD", "DATA_LEAD", "DOMAIN_REVIEWER"),
@@ -765,8 +765,15 @@ _APPROVALS = {
             # importer rejects the bundle otherwise. No prescription was re-authored.
             "carried_over_unchanged": False,
             "prescription_rows_removed_for_difficulty": 57,
+            # 72 BEGINNER rows on 24 exercises the same review moved down were
+            # derived from the transformation the reviewed corpus already applies
+            # and approved as a rule, not row by row.
+            "prescription_rows_derived_for_difficulty": 72,
+            "derivation_approval_record_code": (
+                "V2-0-7-BEGINNER-PRESCRIPTION-DERIVATION-2026-09-08-R01"
+            ),
             "goal_tag_records": 711,
-            "prescription_records": 1392,
+            "prescription_records": 1464,
         },
     ),
     (
