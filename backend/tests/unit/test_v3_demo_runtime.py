@@ -271,7 +271,7 @@ def test_required_specialist_provider_failure_uses_validated_fallback() -> None:
     source = make_bundle()
     root_snapshot = source.root_snapshot
     fallback = DeterministicFallbackPlanSpec.create(
-        fallback_version="v3-deterministic-fallback-v1",
+        fallback_version="v3-deterministic-fallback-v2",
         envelope_hash=root_snapshot.constraint_envelope.envelope_hash,
         pool_hash=root_snapshot.exercise_pool.pool_hash,
         action_code=PlanActionCode.KEEP,

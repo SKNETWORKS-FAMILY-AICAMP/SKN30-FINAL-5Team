@@ -220,7 +220,7 @@ def test_three_roles_can_share_one_provider_neutral_model_and_invoker() -> None:
     assert model.invocation_count == 3
 
 
-def test_specialist_rejects_exercise_id_outside_pool_without_retry() -> None:
+def test_specialist_retries_domain_invalid_output_once_then_fails_closed() -> None:
     current_envelope = envelope()
     current_pool = pool(current_envelope)
     outside = proposal(
@@ -229,7 +229,12 @@ def test_specialist_rejects_exercise_id_outside_pool_without_retry() -> None:
         current_pool,
         prescriptions=(prescription(OUTSIDE, 1),),
     )
-    model = ToolCallingFakeChatModel(responses=[tool_response(SpecialistAgentProposal, outside, 1)])
+    model = ToolCallingFakeChatModel(
+        responses=[
+            tool_response(SpecialistAgentProposal, outside, 1),
+            tool_response(SpecialistAgentProposal, outside, 2),
+        ]
+    )
     adapter = _adapter(TrainingAgentAdapter, model)
 
     result = adapter.propose(  # type: ignore[attr-defined]
@@ -240,8 +245,71 @@ def test_specialist_rejects_exercise_id_outside_pool_without_retry() -> None:
     assert result.output is None
     assert result.failure is not None
     assert result.failure.code is LlmAgentFailureCode.DOMAIN_INVALID
-    assert result.failure.attempt_count == 1
-    assert model.invocation_count == 1
+    assert result.failure.attempt_count == 2
+    assert model.invocation_count == 2
+
+
+def test_specialist_recovers_when_domain_retry_returns_a_valid_proposal() -> None:
+    current_envelope = envelope()
+    current_pool = pool(current_envelope)
+    outside = proposal(
+        SpecialistAgentTypeCode.TRAINING,
+        current_envelope,
+        current_pool,
+        prescriptions=(prescription(OUTSIDE, 1),),
+    )
+    expected = proposal(SpecialistAgentTypeCode.TRAINING, current_envelope, current_pool)
+    model = ToolCallingFakeChatModel(
+        responses=[
+            tool_response(SpecialistAgentProposal, outside, 1),
+            tool_response(SpecialistAgentProposal, expected, 2),
+        ]
+    )
+
+    result = _adapter(TrainingAgentAdapter, model).propose(  # type: ignore[attr-defined]
+        constraint_envelope=current_envelope,
+        exercise_pool=current_pool,
+    )
+
+    assert result.output == expected
+    assert result.failure is None
+    assert model.invocation_count == 2
+
+
+def test_async_specialist_recovers_when_domain_retry_returns_a_valid_proposal() -> None:
+    current_envelope = envelope()
+    current_pool = pool(current_envelope)
+    outside = proposal(
+        SpecialistAgentTypeCode.TRAINING,
+        current_envelope,
+        current_pool,
+        prescriptions=(prescription(OUTSIDE, 1),),
+    )
+    expected = proposal(SpecialistAgentTypeCode.TRAINING, current_envelope, current_pool)
+    model = ToolCallingFakeChatModel(
+        responses=[
+            tool_response(SpecialistAgentProposal, outside, 1),
+            tool_response(SpecialistAgentProposal, expected, 2),
+        ]
+    )
+
+    result = asyncio.run(
+        _adapter(TrainingAgentAdapter, model).apropose(  # type: ignore[attr-defined]
+            constraint_envelope=current_envelope,
+            exercise_pool=current_pool,
+        )
+    )
+
+    assert result.output == expected
+    assert result.failure is None
+    assert model.invocation_count == 2
+
+
+def test_training_prompt_explains_that_repeated_blocks_share_the_sets_ceiling() -> None:
+    instruction = ROLE_PROMPTS[LlmAgentRoleCode.TRAINING].instruction
+
+    assert "all blocks for that exercise share one cumulative" in instruction
+    assert "Do not repeat an exercise" in instruction
 
 
 def test_schema_invalid_output_is_retried_once_then_succeeds() -> None:

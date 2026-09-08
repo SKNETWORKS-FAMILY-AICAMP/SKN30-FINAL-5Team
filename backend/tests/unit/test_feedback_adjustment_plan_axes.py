@@ -27,7 +27,10 @@ from backend.app.domain.agents.v3_duration import (
 )
 from backend.app.domain.agents.v3_orchestration import FallbackRequest
 from backend.app.domain.rules.duration import DURATION_TOLERANCE_SECONDS
-from backend.app.integrations.langgraph.fallback import DeterministicGraphFallbackProvider
+from backend.app.integrations.langgraph.fallback import (
+    DETERMINISTIC_FALLBACK_VERSION,
+    DeterministicGraphFallbackProvider,
+)
 from backend.app.modules.decisions.v3_application import (
     DeterministicV3SafetyPolicyAdapter,
     PostgreSQLV3ExercisePoolSource,
@@ -36,7 +39,7 @@ from backend.tests.unit.test_v3_application_adapters import _exercise, _source
 from backend.tests.unit.test_v3_duration import _pool as duration_pool
 from backend.tests.unit.test_v3_duration import reps_record
 
-FALLBACK_VERSION = "v3-deterministic-fallback-v1"
+FALLBACK_VERSION = DETERMINISTIC_FALLBACK_VERSION
 TARGET_MINUTES = 30
 TARGET_SECONDS = TARGET_MINUTES * 60
 
