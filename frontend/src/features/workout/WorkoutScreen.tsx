@@ -1523,6 +1523,8 @@ function MascotStage({
   serious: boolean;
   useJua: boolean;
 }) {
+  const [mascotLoaded, setMascotLoaded] = useState(false);
+  const [mascotFailed, setMascotFailed] = useState(false);
   return (
     <View
       accessibilityLabel={serious ? '안전 안내 화면' : `${blockName} 운동 안내`}
@@ -1567,13 +1569,32 @@ function MascotStage({
           <Image
             accessible={false}
             resizeMode="contain"
-            source={imageAssets.mascotWarmupWalk}
+            source={imageAssets.weeklyProgressCompletedWorkout}
             style={[
               styles.mascotAnimation,
               { width: 94 * scale, height: 94 * scale },
             ]}
-            testID="workout-warmup-mascot"
+            testID="workout-mascot-fallback"
           />
+          {!mascotFailed ? (
+            <Image
+              accessible={false}
+              onLoad={() => setMascotLoaded(true)}
+              onError={() => setMascotFailed(true)}
+              resizeMode="contain"
+              source={imageAssets.mascotWarmupWalk}
+              style={[
+                styles.mascotAnimation,
+                {
+                  position: 'absolute',
+                  width: 94 * scale,
+                  height: 94 * scale,
+                  opacity: mascotLoaded ? 1 : 0,
+                },
+              ]}
+              testID="workout-warmup-mascot"
+            />
+          ) : null}
         </View>
       )}
       <View style={[styles.mascotCopy, { maxWidth: 190 * scale }]}>

@@ -160,6 +160,27 @@ function openSafetyReportFromStop() {
 }
 
 describe('WorkoutScreen', () => {
+  it('keeps a static mascot visible while the GIF loads and if it fails', () => {
+    render(<WorkoutScreen />);
+    const fallback = screen.getByTestId('workout-mascot-fallback');
+    expect(fallback.props.source).toBe(
+      imageAssets.weeklyProgressCompletedWorkout,
+    );
+    const animation = screen.getByTestId('workout-warmup-mascot');
+    expect(StyleSheet.flatten(animation.props.style).opacity).toBe(0);
+    fireEvent(animation, 'load');
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('workout-warmup-mascot').props.style,
+      ).opacity,
+    ).toBe(1);
+    fireEvent(animation, 'error', {
+      nativeEvent: { error: 'Unsupported image' },
+    });
+    expect(screen.queryByTestId('workout-warmup-mascot')).toBeNull();
+    expect(fallback).toBeOnTheScreen();
+  });
+
   it('uses set and repetition prescriptions for every preview workout block', () => {
     render(<WorkoutScreen />);
 
