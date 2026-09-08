@@ -407,6 +407,11 @@ describe('MascotHouseScreen', () => {
     ).toBeTruthy();
     expect(screen.getByTestId('house-touch-hint')).toBeTruthy();
     expect(screen.getByText('끼끼를 터치해보세요!')).toBeTruthy();
+    expect(screen.queryByText(HOUSE_BONDING_COPY.hintDescription)).toBeNull();
+    fireEvent.press(
+      screen.getByRole('button', { name: '끼끼와 친해지는 방법 안내' }),
+    );
+    expect(screen.getByText('끼끼와 친해지는 방법')).toBeTruthy();
     expect(screen.getByText(HOUSE_BONDING_COPY.hintDescription)).toBeTruthy();
     expect(screen.getByText(HOUSE_BONDING_COPY.bonusDescription)).toBeTruthy();
   });

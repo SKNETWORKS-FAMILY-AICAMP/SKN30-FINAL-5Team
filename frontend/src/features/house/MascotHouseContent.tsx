@@ -140,7 +140,7 @@ export const HOUSE_MASCOT_ANCHOR_RATIO = 0.45;
 export const HOUSE_MASCOT_CONTROL_CLEARANCE = 12;
 
 /** Reserved for the touch hint until it has been measured. */
-export const HOUSE_TOUCH_HINT_RESERVED_HEIGHT = 34;
+export const HOUSE_TOUCH_HINT_RESERVED_HEIGHT = 24;
 
 /**
  * Screen y of the first control, or `null` before the controls are measured.
@@ -1349,11 +1349,12 @@ function TouchHint({
   visible: boolean;
 }) {
   const compactStyles = houseControlStyles(controlScale);
+  const [infoOpen, setInfoOpen] = useState(false);
   if (!visible) return null;
   return (
     <View
       onLayout={(event) => onMeasure(event.nativeEvent.layout.height)}
-      pointerEvents="none"
+      pointerEvents="box-none"
       style={[
         styles.touchHint,
         compactStyles.touchHint,
@@ -1361,16 +1362,37 @@ function TouchHint({
       ]}
       testID="house-touch-hint"
     >
-      <Text style={[styles.touchHintTitle, compactStyles.touchHintTitle]}>
-        끼끼를 터치해보세요!
-      </Text>
-      <View style={styles.touchHintBodyRow}>
-        <Text style={[styles.touchHintBody, compactStyles.touchHintBody]}>
-          {HOUSE_BONDING_COPY.hintDescription}
+      <View style={styles.touchHintTitleRow}>
+        <Text style={[styles.touchHintTitle, compactStyles.touchHintTitle]}>
+          끼끼를 터치해보세요!
         </Text>
-        <HeartGlyph filled={false} size={11 * controlScale} />
-        <InfoGlyph size={12 * controlScale} />
+        <Pressable
+          accessibilityLabel="끼끼와 친해지는 방법 안내"
+          accessibilityRole="button"
+          accessibilityState={{ expanded: infoOpen }}
+          hitSlop={8}
+          onPress={() => setInfoOpen((current) => !current)}
+          style={({ pressed }) => [
+            styles.touchHintInfoButton,
+            pressed && styles.tilePressed,
+          ]}
+          testID="house-bonding-info"
+        >
+          <InfoGlyph size={14 * controlScale} />
+        </Pressable>
       </View>
+      {infoOpen ? (
+        <View
+          accessibilityLiveRegion="polite"
+          style={styles.touchHintTooltip}
+          testID="house-bonding-tooltip"
+        >
+          <Text style={styles.touchHintTooltipTitle}>끼끼와 친해지는 방법</Text>
+          <Text style={styles.touchHintTooltipBody}>
+            {HOUSE_BONDING_COPY.hintDescription}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -2320,19 +2342,43 @@ const styles = StyleSheet.create({
     position: 'absolute',
     alignItems: 'center',
   },
+  touchHintTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
   touchHintTitle: {
     color: colors.text,
     fontSize: 13,
     fontWeight: '900',
   },
-  touchHintBodyRow: {
-    flexDirection: 'row',
+  touchHintInfoButton: {
     alignItems: 'center',
-    gap: spacing.xs,
+    justifyContent: 'center',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(255, 255, 255, 0.86)',
   },
-  touchHintBody: {
+  touchHintTooltip: {
+    width: 248,
+    gap: 3,
+    marginTop: spacing.xs,
+    borderRadius: radii.control,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    ...shadows.card,
+  },
+  touchHintTooltipTitle: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  touchHintTooltipBody: {
     color: colors.textSub,
     fontSize: 11,
+    lineHeight: 16,
     fontWeight: '600',
   },
   railCenter: {

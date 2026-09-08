@@ -81,7 +81,7 @@ export const HOUSE_BONDING_COPY = {
   actionLabel: '교감하기',
   bonusDescription:
     '끼끼와 교감하기, 바나나 주기, 운동 완료로 친밀도를 올려보세요!',
-  hintDescription: '터치해서 교감하면 친밀도가 올라가요',
+  hintDescription: '끼끼를 터치해 교감하면 친밀도가 올라가요.',
   poseAccessibilityLabel: '끼끼와 교감하는 중',
   questLabel: '끼끼와 교감하기',
 } as const;
