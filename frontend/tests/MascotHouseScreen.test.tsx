@@ -467,9 +467,11 @@ describe('MascotHouseScreen', () => {
     expect(screen.getByTestId('house-touch-hint')).toBeTruthy();
     expect(screen.getByText('끼끼를 터치해보세요!')).toBeTruthy();
     expect(screen.queryByText(HOUSE_BONDING_COPY.hintDescription)).toBeNull();
-    const mascotTopBeforeInfo = StyleSheet.flatten(
+    const mascotSlotStyleBeforeInfo = StyleSheet.flatten(
       screen.getByTestId('house-mascot-slot').props.style,
-    ).top;
+    );
+    const mascotTopBeforeInfo = mascotSlotStyleBeforeInfo.top;
+    const mascotSizeBeforeInfo = mascotSlotStyleBeforeInfo.height;
     fireEvent.press(
       screen.getByRole('button', { name: '끼끼와 친해지는 방법 안내' }),
     );
@@ -477,13 +479,21 @@ describe('MascotHouseScreen', () => {
     expect(screen.getByText(HOUSE_BONDING_COPY.hintDescription)).toBeTruthy();
     expect(screen.getByTestId('house-bonding-tooltip')).toHaveStyle({
       position: 'absolute',
-      top: 26,
+      top: mascotSizeBeforeInfo + 36,
+    });
+    expect(screen.getByTestId('house-bonding-info')).toHaveStyle({
+      top: (mascotSizeBeforeInfo - 22) / 2,
+      left: '50%',
+      marginLeft: mascotSizeBeforeInfo / 2 + spacing.xs,
     });
     expect(screen.getByTestId('house-mascot-slot')).toHaveStyle({
       top: mascotTopBeforeInfo,
     });
     fireEvent(screen.getByTestId('mascot-house-content'), 'pointerDown');
     expect(screen.queryByTestId('house-bonding-tooltip')).toBeNull();
+    fireEvent.press(screen.getByTestId('house-pet-action'));
+    expect(screen.queryByTestId('house-touch-hint')).toBeNull();
+    expect(screen.getByTestId('house-bonding-info')).toBeTruthy();
     expect(screen.getByText(HOUSE_BONDING_COPY.bonusDescription)).toBeTruthy();
   });
 

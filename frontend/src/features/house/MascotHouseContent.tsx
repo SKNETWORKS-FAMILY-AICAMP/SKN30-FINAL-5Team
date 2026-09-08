@@ -751,12 +751,16 @@ export function MascotHouseContent({
             slot={mascotArt ?? housePoseArt[pose]}
           />
         </Pressable>
-        <TouchHint
+        <BondingInfo
           controlScale={controlScale}
           infoOpen={bondingInfoOpen}
           mascotSize={mascotSize}
-          onMeasure={setTouchHintHeight}
           onToggleInfo={() => setBondingInfoOpen((current) => !current)}
+        />
+        <TouchHint
+          controlScale={controlScale}
+          mascotSize={mascotSize}
+          onMeasure={setTouchHintHeight}
           visible={pose !== 'petted' && pose !== 'eating'}
         />
         <MascotActionEffectOverlay effect={actionEffect} />
@@ -1326,6 +1330,61 @@ function FeedButton({
   );
 }
 
+/** The always-available help control anchored beside the mascot. */
+function BondingInfo({
+  controlScale,
+  infoOpen,
+  mascotSize,
+  onToggleInfo,
+}: {
+  controlScale: number;
+  infoOpen: boolean;
+  mascotSize: number;
+  onToggleInfo: () => void;
+}) {
+  return (
+    <>
+      <Pressable
+        accessibilityLabel="끼끼와 친해지는 방법 안내"
+        accessibilityRole="button"
+        accessibilityState={{ expanded: infoOpen }}
+        hitSlop={8}
+        onPointerDown={(event) => event.stopPropagation()}
+        onPress={onToggleInfo}
+        style={({ pressed }) => [
+          styles.bondingInfoButton,
+          {
+            top: (mascotSize - 22) / 2,
+            left: '50%',
+            marginLeft: mascotSize / 2 + spacing.xs * controlScale,
+          },
+          pressed && styles.tilePressed,
+        ]}
+        testID="house-bonding-info"
+      >
+        <InfoGlyph size={14 * controlScale} />
+      </Pressable>
+      {infoOpen ? (
+        <View
+          accessibilityLiveRegion="polite"
+          style={[
+            styles.bondingInfoTooltip,
+            { top: mascotSize + 36 * controlScale },
+          ]}
+          testID="house-bonding-tooltip"
+        >
+          <Text style={styles.bondingInfoTooltipTitle}>
+            끼끼와 친해지는 방법
+          </Text>
+          <Text style={styles.bondingInfoTooltipBody}>
+            {HOUSE_BONDING_COPY.hintDescription}
+          </Text>
+        </View>
+      ) : null}
+    </>
+  );
+}
+
 /**
  * The invitation to touch the mascot.
  *
@@ -1336,18 +1395,14 @@ function FeedButton({
  */
 function TouchHint({
   controlScale,
-  infoOpen,
   mascotSize,
   onMeasure,
-  onToggleInfo,
   visible,
 }: {
   controlScale: number;
-  infoOpen: boolean;
   mascotSize: number;
   /** Reports the hint's height so the mascot's clearance can account for it. */
   onMeasure: (height: number) => void;
-  onToggleInfo: () => void;
   visible: boolean;
 }) {
   const compactStyles = houseControlStyles(controlScale);
@@ -1355,7 +1410,7 @@ function TouchHint({
   return (
     <View
       onLayout={(event) => onMeasure(event.nativeEvent.layout.height)}
-      pointerEvents="box-none"
+      pointerEvents="none"
       style={[
         styles.touchHint,
         compactStyles.touchHint,
@@ -1363,38 +1418,9 @@ function TouchHint({
       ]}
       testID="house-touch-hint"
     >
-      <View style={styles.touchHintTitleRow}>
-        <Text style={[styles.touchHintTitle, compactStyles.touchHintTitle]}>
-          끼끼를 터치해보세요!
-        </Text>
-        <Pressable
-          accessibilityLabel="끼끼와 친해지는 방법 안내"
-          accessibilityRole="button"
-          accessibilityState={{ expanded: infoOpen }}
-          hitSlop={8}
-          onPointerDown={(event) => event.stopPropagation()}
-          onPress={onToggleInfo}
-          style={({ pressed }) => [
-            styles.touchHintInfoButton,
-            pressed && styles.tilePressed,
-          ]}
-          testID="house-bonding-info"
-        >
-          <InfoGlyph size={14 * controlScale} />
-        </Pressable>
-      </View>
-      {infoOpen ? (
-        <View
-          accessibilityLiveRegion="polite"
-          style={styles.touchHintTooltip}
-          testID="house-bonding-tooltip"
-        >
-          <Text style={styles.touchHintTooltipTitle}>끼끼와 친해지는 방법</Text>
-          <Text style={styles.touchHintTooltipBody}>
-            {HOUSE_BONDING_COPY.hintDescription}
-          </Text>
-        </View>
-      ) : null}
+      <Text style={[styles.touchHintTitle, compactStyles.touchHintTitle]}>
+        끼끼를 터치해보세요!
+      </Text>
     </View>
   );
 }
@@ -2368,17 +2394,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     alignItems: 'center',
   },
-  touchHintTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
   touchHintTitle: {
     color: colors.text,
     fontSize: 13,
     fontWeight: '900',
   },
-  touchHintInfoButton: {
+  bondingInfoButton: {
+    position: 'absolute',
+    zIndex: 5,
     alignItems: 'center',
     justifyContent: 'center',
     width: 22,
@@ -2386,9 +2409,8 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     backgroundColor: 'rgba(255, 255, 255, 0.86)',
   },
-  touchHintTooltip: {
+  bondingInfoTooltip: {
     position: 'absolute',
-    top: 26,
     zIndex: 5,
     alignSelf: 'center',
     width: 248,
@@ -2399,12 +2421,12 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     ...shadows.card,
   },
-  touchHintTooltipTitle: {
+  bondingInfoTooltipTitle: {
     color: colors.text,
     fontSize: 12,
     fontWeight: '800',
   },
-  touchHintTooltipBody: {
+  bondingInfoTooltipBody: {
     color: colors.textSub,
     fontSize: 11,
     lineHeight: 16,
