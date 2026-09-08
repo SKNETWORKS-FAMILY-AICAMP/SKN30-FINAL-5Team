@@ -166,6 +166,14 @@ def context_for_exercise(
         or mapping.get("fitt_template_id") != reference.get("fitt_template_id")
     ):
         return review_required_context()
+    # The catalog owns an exercise's timing mode. A reference that disagrees
+    # with it is describing different work, so the identity join alone is not
+    # enough to call this row reviewed context for *this* exercise. The agent
+    # snapshot refuses a record whose FITT timing contradicts the catalog's,
+    # and returning the row anyway fails the entire pool build rather than the
+    # one exercise.
+    if (reference.get("timing_mode_code") or None) not in {None, timing_mode_code}:
+        return review_required_context()
     template_id = reference.get("fitt_template_id") or None
     template = templates.get(template_id or "")
     if template is None:
