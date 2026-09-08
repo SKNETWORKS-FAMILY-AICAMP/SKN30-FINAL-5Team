@@ -271,6 +271,7 @@ describe('MascotHouseScreen', () => {
     expect(screen.getByText('미니게임')).toBeTruthy();
     expect(screen.getByText('하루 1회 플레이 가능')).toBeTruthy();
     expect(screen.getByText('퀘스트')).toBeTruthy();
+    expect(screen.queryByTestId('house-quest-tile-count')).toBeNull();
     expect(
       screen.getByTestId('house-mini-game-mascot-banana_catch', {
         includeHiddenElements: true,

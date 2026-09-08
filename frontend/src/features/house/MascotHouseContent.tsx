@@ -367,12 +367,6 @@ function houseControlStyles(controlScale: number) {
       paddingVertical: scaled(3),
     },
     tileBadgeLabel: { fontSize: scaled(10) },
-    tileCountBadge: {
-      width: scaled(22),
-      height: scaled(22),
-      borderRadius: scaled(11),
-    },
-    tileCountLabel: { fontSize: scaled(12) },
     bonusRow: {
       gap: scaled(spacing.md),
       borderRadius: scaled(16),
@@ -1506,7 +1500,6 @@ function HouseTilePanel({
         <HouseTile
           caption={`${view.questsCompletedCount} / ${view.questCount} 완료`}
           controlScale={controlScale}
-          count={view.questsCompletedCount}
           label={`퀘스트, ${view.questCount}개 중 ${view.questsCompletedCount}개 완료`}
           onPress={onOpenQuests}
           testID="house-quest-tile"
@@ -1525,7 +1518,6 @@ function HouseTile({
   caption,
   children,
   controlScale,
-  count,
   disabled = false,
   label,
   onPress,
@@ -1537,7 +1529,6 @@ function HouseTile({
   caption: string;
   children: ReactNode;
   controlScale: number;
-  count?: number;
   disabled?: boolean;
   label: string;
   onPress: () => void;
@@ -1569,17 +1560,6 @@ function HouseTile({
         >
           <Text style={[styles.tileBadgeLabel, compactStyles.tileBadgeLabel]}>
             {badge}
-          </Text>
-        </View>
-      ) : null}
-
-      {count !== undefined && count > 0 ? (
-        <View
-          style={[styles.tileCountBadge, compactStyles.tileCountBadge]}
-          testID={`${testID}-count`}
-        >
-          <Text style={[styles.tileCountLabel, compactStyles.tileCountLabel]}>
-            {count}
           </Text>
         </View>
       ) : null}
@@ -2559,23 +2539,6 @@ const styles = StyleSheet.create({
     color: colors.textSub,
     fontSize: 10,
     fontWeight: '800',
-  },
-  tileCountBadge: {
-    position: 'absolute',
-    top: -8,
-    right: -6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.danger,
-    zIndex: 2,
-  },
-  tileCountLabel: {
-    color: colors.surface,
-    fontSize: 12,
-    fontWeight: '900',
   },
   questList: {
     flexGrow: 0,
