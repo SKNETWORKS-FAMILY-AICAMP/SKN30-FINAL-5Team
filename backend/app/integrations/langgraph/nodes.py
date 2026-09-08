@@ -215,7 +215,15 @@ def parallel_agents(state: V3GraphState) -> dict[str, object]:
     return {"agent_outcomes": ()}
 
 
-def canonicalize_agents(state: V3GraphState) -> dict[str, object]:
+def collect_proposals(state: V3GraphState) -> dict[str, object]:
+    """Fan the three specialist branches back in, in `SPECIALIST_AGENT_ORDER`.
+
+    The branches merge through an append reducer, so their arrival order is the
+    order they happened to finish in. Reading them back by role is what makes a
+    run replayable: the proposals, failure codes, and audits this returns are
+    the same for the same three outcomes however the supersteps interleaved.
+    """
+
     by_role = {outcome.agent_type: outcome for outcome in state.get("agent_outcomes", ())}
     failures: list[str] = []
     proposals: list[SpecialistAgentProposal] = []
@@ -257,7 +265,14 @@ def canonicalize_agents(state: V3GraphState) -> dict[str, object]:
     }
 
 
-async def coordinator_initial(state: V3GraphState) -> dict[str, object]:
+async def coordinator_agent(state: V3GraphState) -> dict[str, object]:
+    """Run the Coordinator once over the collected proposals to draft a PlanSpec.
+
+    This is the plan's first and usually only coordination pass (`repair_attempt`
+    0). `coordinator_repair` runs the second pass, and only when the integrity
+    validator rejects what this one produced.
+    """
+
     graph_input = state["graph_input"]
     try:
         async with asyncio.timeout(graph_input.node_timeout_seconds):
@@ -292,7 +307,7 @@ async def coordinator_initial(state: V3GraphState) -> dict[str, object]:
         }
     return {
         "plan_spec": result.output,
-        "coordinator_initial_plan": result.output,
+        "coordinator_agent_plan": result.output,
         "invocation_audits": (audit,),
     }
 
@@ -438,7 +453,7 @@ def finalize(state: V3GraphState) -> dict[str, object]:
                 used_fallback=state.get("used_fallback", False),
                 repair_attempts=state.get("repair_attempts", 0),
                 round_one_proposals=state.get("round_one_proposals", ()),
-                coordinator_initial_plan=state.get("coordinator_initial_plan"),
+                coordinator_agent_plan=state.get("coordinator_agent_plan"),
                 coordinator_repair_plan=state.get("coordinator_repair_plan"),
                 integrity_validations=state.get("integrity_validations", ()),
                 compiled_plans=state.get("compiled_plans", ()),
@@ -455,7 +470,7 @@ def finalize(state: V3GraphState) -> dict[str, object]:
         used_fallback=state.get("used_fallback", False),
         repair_attempts=state.get("repair_attempts", 0),
         round_one_proposals=state.get("round_one_proposals", ()),
-        coordinator_initial_plan=state.get("coordinator_initial_plan"),
+        coordinator_agent_plan=state.get("coordinator_agent_plan"),
         coordinator_repair_plan=state.get("coordinator_repair_plan"),
         integrity_validations=state.get("integrity_validations", ()),
         compiled_plans=state.get("compiled_plans", ()),
@@ -478,7 +493,7 @@ def terminal(state: V3GraphState) -> dict[str, object]:
         used_fallback=state.get("used_fallback", False),
         repair_attempts=state.get("repair_attempts", 0),
         round_one_proposals=state.get("round_one_proposals", ()),
-        coordinator_initial_plan=state.get("coordinator_initial_plan"),
+        coordinator_agent_plan=state.get("coordinator_agent_plan"),
         coordinator_repair_plan=state.get("coordinator_repair_plan"),
         integrity_validations=state.get("integrity_validations", ()),
         compiled_plans=state.get("compiled_plans", ()),
@@ -489,9 +504,9 @@ def terminal(state: V3GraphState) -> dict[str, object]:
 
 
 __all__ = [
-    "canonicalize_agents",
+    "collect_proposals",
     "compile_plan",
-    "coordinator_initial",
+    "coordinator_agent",
     "coordinator_repair",
     "fallback",
     "feasibility_agent",
