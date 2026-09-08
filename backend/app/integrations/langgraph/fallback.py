@@ -164,7 +164,15 @@ class DeterministicGraphFallbackProvider:
                 # valid session can be built from it.
                 return None
 
-        for exercise_id in ordered_ids:
+        # Among equally approved candidates, take the ones whose reviewed volume
+        # spans more than one set first. A single-set block has no gap between
+        # sets, so it offers the session no recovery time of its own; filling a
+        # long request out of single-set blocks leaves the whole shortfall to be
+        # absorbed by the few multi-set blocks that happen to be present, which
+        # is how a thirty-minute LIGHT session ended up prescribing rests of
+        # nearly four minutes. Relative rank is preserved inside each group, so
+        # this reorders equals rather than overriding retrieval.
+        for exercise_id in self._time_bearing_first(ordered_ids, records, envelope):
             distinct_ids = {placed_id for placed_id, _ in placed}
             if exercise_id in distinct_ids or len(distinct_ids) >= MAX_PLAN_EXERCISE_TYPES:
                 continue
@@ -210,6 +218,29 @@ class DeterministicGraphFallbackProvider:
             exercise_prescriptions=tuple(prescriptions),
             reason_codes=("LLM_PROVIDER_FALLBACK",),
         )
+
+    @staticmethod
+    def _time_bearing_first(
+        ordered_ids: tuple[UUID, ...],
+        records: dict[UUID, ExercisePoolExerciseRecord],
+        envelope: ConstraintEnvelope,
+    ) -> tuple[UUID, ...]:
+        """Stable partition: candidates carrying a rest gap of their own come first."""
+
+        multi_set: list[UUID] = []
+        single_set: list[UUID] = []
+        for exercise_id in ordered_ids:
+            record = records.get(exercise_id)
+            prescription = (
+                None
+                if record is None
+                else DeterministicGraphFallbackProvider._prescribe(
+                    record, envelope=envelope, sequence=1, phase_code="MAIN"
+                )
+            )
+            target = multi_set if prescription is not None and prescription.sets > 1 else single_set
+            target.append(exercise_id)
+        return (*multi_set, *single_set)
 
     @staticmethod
     def _ordered_ids(pool: ExercisePoolSnapshot, mandatory: tuple[UUID, ...]) -> tuple[UUID, ...]:
