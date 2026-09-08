@@ -593,6 +593,7 @@ export function MascotHouseContent({
 }) {
   const scaleViewport = useScale();
   const [activePanel, setActivePanel] = useState<HousePanel | null>(null);
+  const [bondingInfoOpen, setBondingInfoOpen] = useState(false);
   /**
    * 오늘의 퀘스트, opened as an overlay over the same action stack the
    * decorate panel covers. Every affordance that asks "how do I earn more?" —
@@ -706,6 +707,7 @@ export function MascotHouseContent({
 
   return (
     <View
+      onPointerDown={() => setBondingInfoOpen(false)}
       onLayout={(event) => {
         const { height, width } = event.nativeEvent.layout;
         setMeasuredViewport((current) =>
@@ -757,8 +759,10 @@ export function MascotHouseContent({
         </Pressable>
         <TouchHint
           controlScale={controlScale}
+          infoOpen={bondingInfoOpen}
           mascotSize={mascotSize}
           onMeasure={setTouchHintHeight}
+          onToggleInfo={() => setBondingInfoOpen((current) => !current)}
           visible={pose !== 'petted' && pose !== 'eating'}
         />
         <MascotActionEffectOverlay effect={actionEffect} />
@@ -1338,18 +1342,21 @@ function FeedButton({
  */
 function TouchHint({
   controlScale,
+  infoOpen,
   mascotSize,
   onMeasure,
+  onToggleInfo,
   visible,
 }: {
   controlScale: number;
+  infoOpen: boolean;
   mascotSize: number;
   /** Reports the hint's height so the mascot's clearance can account for it. */
   onMeasure: (height: number) => void;
+  onToggleInfo: () => void;
   visible: boolean;
 }) {
   const compactStyles = houseControlStyles(controlScale);
-  const [infoOpen, setInfoOpen] = useState(false);
   if (!visible) return null;
   return (
     <View
@@ -1371,7 +1378,8 @@ function TouchHint({
           accessibilityRole="button"
           accessibilityState={{ expanded: infoOpen }}
           hitSlop={8}
-          onPress={() => setInfoOpen((current) => !current)}
+          onPointerDown={(event) => event.stopPropagation()}
+          onPress={onToggleInfo}
           style={({ pressed }) => [
             styles.touchHintInfoButton,
             pressed && styles.tilePressed,
@@ -2399,9 +2407,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.86)',
   },
   touchHintTooltip: {
+    position: 'absolute',
+    top: 26,
+    zIndex: 5,
+    alignSelf: 'center',
     width: 248,
     gap: 3,
-    marginTop: spacing.xs,
     borderRadius: radii.control,
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.md,
