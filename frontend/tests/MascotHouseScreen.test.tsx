@@ -305,6 +305,13 @@ describe('MascotHouseScreen', () => {
     );
     fireEvent.press(screen.getByTestId('house-quest-tile'));
     expect(screen.getByTestId('house-quest-row-visit')).toBeTruthy();
+    expect(screen.getByText('접속하기')).toBeTruthy();
+    expect(screen.getByTestId('house-quest-row-workout')).toHaveProp(
+      'accessibilityLabel',
+      expect.stringContaining('운동 완료하기'),
+    );
+    expect(screen.queryByText('오늘 접속하기')).toBeNull();
+    expect(screen.queryByText('오늘 운동 완료하기')).toBeNull();
     expect(screen.getByTestId('house-quest-row-pet')).toHaveProp(
       'accessibilityLabel',
       expect.stringContaining(HOUSE_BONDING_COPY.questLabel),

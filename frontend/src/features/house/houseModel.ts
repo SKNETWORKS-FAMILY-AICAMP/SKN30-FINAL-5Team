@@ -96,7 +96,7 @@ export const HOUSE_BONDING_COPY = {
 export const HOUSE_DAILY_QUESTS: readonly HouseQuest[] = [
   {
     id: 'visit',
-    label: '오늘 접속하기',
+    label: '접속하기',
     reward: DAILY_GIFT_BANANAS,
     target: 1,
   },
@@ -106,7 +106,7 @@ export const HOUSE_DAILY_QUESTS: readonly HouseQuest[] = [
     reward: 5,
     target: INTIMACY_DAILY_EARN_LIMIT,
   },
-  { id: 'workout', label: '오늘 운동 완료하기', reward: 10, target: 1 },
+  { id: 'workout', label: '운동 완료하기', reward: 10, target: 1 },
 ] as const;
 
 export type HousePose = 'greeting' | 'happy' | 'eating' | 'petted' | 'resting';
