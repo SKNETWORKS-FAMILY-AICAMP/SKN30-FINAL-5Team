@@ -241,13 +241,11 @@ export function CheckinSheet({
               </Pressable>
             </View>
           </View>
-          <View style={styles.durationGuidance}>
-            <Text style={styles.durationRecommendation}>
-              {recommendedDurationMinutes !== null
-                ? `1회 권장 운동 시간: ${recommendedDurationMinutes}분`
-                : `운동 가능 시간: ${CHECKIN_DURATION_MINUTES.min}~${CHECKIN_DURATION_MINUTES.max}분`}
-            </Text>
-          </View>
+          <Text style={styles.durationRecommendation}>
+            {recommendedDurationMinutes !== null
+              ? `1회 권장 운동 시간: ${recommendedDurationMinutes}분`
+              : `운동 가능 시간: ${CHECKIN_DURATION_MINUTES.min}~${CHECKIN_DURATION_MINUTES.max}분`}
+          </Text>
         </View>
         {submitAttempted && (durationMissing || durationInvalid) ? (
           <Text accessibilityRole="alert" style={styles.messageText}>

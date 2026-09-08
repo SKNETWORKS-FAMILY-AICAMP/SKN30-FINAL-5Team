@@ -230,14 +230,8 @@ export function createHomeSheetStyles(
       fontWeight: '800',
       textAlign: 'center',
     },
-    durationGuidance: {
-      gap: s(4),
-      borderRadius: s(14),
-      backgroundColor: '#FFF8E5',
-      paddingTop: s(4),
-      paddingHorizontal: 0,
-    },
     durationRecommendation: {
+      marginTop: s(4),
       color: '#5A4636',
       fontSize: f(13),
       fontWeight: '700',
