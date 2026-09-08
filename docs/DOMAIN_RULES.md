@@ -778,13 +778,17 @@ RUNNING/RESTING -> COMPLETED
 - 닫힌 주 리포트는 사용자가 요청할 때 생성한다.
 - 공식 집계는 앱 운동 블록 체크로 계산한 COMPLETED, PARTIAL, NOT_COMPLETED를 사용한다. Safety Event는 별도 안전 중단 지표로 집계한다.
 - 웨어러블 요약은 별도 참고 항목으로만 표시한다.
-- 다음 주 계획은 직전 주 리포트가 생성되고 사용자가 확인한 뒤에만 최종 확정할 수 있다.
+- 다음 주 계획은 직전 주 리포트가 생성되고 상세 화면의 자동 확인 저장이 완료된 뒤에만 최종 확정할 수 있다.
 - 최초 가입자의 첫 주 목표·루틴은 이전 주 리포트 없이 생성할 수 있다. 이 콜드스타트 예외 이후의 다음 주 계획부터 직전 주 리포트 생성·확인 게이트를 적용한다.
 - AI 기반 다음 주 계획 수정은 최대 2회다.
 - 2회를 모두 사용하면 사용자가 직접 편집할 수 있으나 모든 수정은 시간·장소·안전 규칙을 다시 통과해야 한다.
 - 주간 리포트 생성과 계획 수정에서 필수 규칙 또는 에이전트가 실패하면 `FAILED`이며 추정값으로 계속하지 않는다.
 
-주간 리포트 확인은 최초 열람으로 추정하지 않고 사용자의 명시적 acknowledgement mutation으로 기록한다.
+주간 리포트 상세를 정상적으로 조회하거나 생성하면 클라이언트가 기존 acknowledgement mutation을
+자동 호출한다. 별도 확인 버튼은 제공하지 않는다(프로젝트 소유자 결정, 2026-09-08).
+GET 자체는 상태를 변경하지 않으며, 서버의 `ACKNOWLEDGED` 응답을 확인한 뒤에만 적용 가능한
+다음 주 계획 생성을 자동 요청한다. 과거 리포트의 다음 주가 이미 지난 경우 계획을 소급 생성하지 않는다.
+실패해도 리포트 본문을 유지하고 재시도를 제공하며, 동일 요청 재시도에는 같은 멱등 키를 사용한다.
 
 ### 11.1 닫힌 주 집계 입력 계약
 
@@ -810,7 +814,7 @@ RUNNING/RESTING -> COMPLETED
   받거나 변경하지 않고 양의 수만 저장한다. 시작 전 순서 변경은 전체 항목을 대상으로 한다. 진행 중과
   재개 가능한 일반 중단 상태에서는 미완료 항목만 바꿀 수 있고, 완료 항목의 순서와 내용은 변경할 수 없다.
 - `NEEDS_INPUT`, `BLOCKED`, `FAILED` revision에는 routine이 없으며 finalized는 항상 false다. `PASS` 또는 `REVISE`도 routine이 없으면 finalize할 수 없다.
-- `finalized=true`는 직전 리포트가 명시적으로 `ACKNOWLEDGED`된 경우에만 허용한다. `is_first_user_week=true`, `cold_start_applied=true`, 직전 리포트 없음이 동시에 성립하는 최초 한 주만 acknowledgement를 생략할 수 있다.
+- `finalized=true`는 직전 리포트의 확인 저장이 완료되어 `ACKNOWLEDGED`된 경우에만 허용한다. `is_first_user_week=true`, `cold_start_applied=true`, 직전 리포트 없음이 동시에 성립하는 최초 한 주만 acknowledgement를 생략할 수 있다.
 - weekly report aggregate schema와 weekly report/plan policy는 각각 version을 가지며, 입력과 version이 같으면 revision 및 finalize 판정도 같아야 한다.
 
 ---
@@ -1071,7 +1075,6 @@ Coordinator output·compiler/validator 결과와 모든 model/prompt/graph versi
 - 회복 콘텐츠 목록
 - 안전 문구의 외부 도메인 최종 검수
 - PAR-Q+ 문항 사용 여부와 번역·라이선스
-- 주간 리포트 acknowledgement UX
 - 첫 출시 국가와 대상 사용자가 대한민국인지
 - Kakao 앱·REST key·client secret·production redirect URI owner와 등록 완료일
 - Google/Firebase 프로젝트 및 Naver 앱 등록·심사 담당자와 완료일
@@ -1094,5 +1097,4 @@ Coordinator output·compiler/validator 결과와 모든 model/prompt/graph versi
 
 - 수면 부족, 최근 부하, 복귀 첫 세션의 전문가 승인 상한은 무엇인가?
 - 계획 시간이 요청 시간과 정확히 일치하더라도 실제 경과 시간은 달라질 수 있음을 UI에서 어떤 문구로 표시할 것인가?
-- 주간 리포트 명시적 확인 버튼의 최종 문구와 배치는 무엇인가?
 - 안전 문구와 부위별 제외표의 최종 외부 승인자는 누구인가?

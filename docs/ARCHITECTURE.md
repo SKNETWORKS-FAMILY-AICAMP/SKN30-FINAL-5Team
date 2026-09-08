@@ -259,7 +259,7 @@ flowchart LR
   PLAN["이번 주 계획"] --> EXEC["앱 운동 실행"]
   EXEC --> CLOSE["주 마감"]
   CLOSE --> REPORT["요청 시 주간 리포트 생성"]
-  REPORT --> ACK["사용자 확인"]
+  REPORT --> ACK["상세 열람 후 확인 자동 저장"]
   ACK --> NEXT["다음 주 계획 생성·확정"]
 ```
 
@@ -372,5 +372,4 @@ MVP 배포는 관리형 PostgreSQL 하나와 컨테이너 또는 단일 애플�
 
 - Google/Kakao/Naver 앱 등록과 비밀값을 누가 소유하는가?
 - 첫 파일럿의 사용자 timezone은 다지역을 지원하는가, 한국 시간만 허용하는가?
-- 주간 리포트 명시적 확인 버튼의 최종 문구와 배치는 무엇인가?
 - 배포 환경은 데모 1개인지 staging과 production을 분리할지?
