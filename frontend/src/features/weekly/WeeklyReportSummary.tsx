@@ -46,9 +46,7 @@ export function WeeklyReportSummary({
         <View style={styles.heroCopy}>
           <Text style={styles.eyebrow}>한 주 돌아보기</Text>
           <Text accessibilityRole="header" style={styles.heroTitle}>
-            {safetyStopped
-              ? '안전 중단 기록을 먼저 확인해 주세요'
-              : report.summary}
+            {report.summary}
           </Text>
           {safetyStopped ? (
             <Text accessibilityRole="alert" style={styles.safetyBody}>
@@ -357,40 +355,35 @@ const styles = StyleSheet.create({
     padding: 18,
   },
   heroCard: { alignItems: 'center', flexDirection: 'row', gap: 14 },
-  heroMascotArea: {
-    alignItems: 'flex-end',
-    height: 116,
-    justifyContent: 'flex-end',
-    width: 132,
-  },
-  heroMascot: { height: 110, width: 110 },
+  heroMascotArea: { alignItems: 'center', gap: 10, width: 116 },
+  heroMascot: { height: 96, width: 96 },
   speechBubble: {
     backgroundColor: colors.surface,
-    borderRadius: 20,
-    left: 0,
-    paddingHorizontal: 13,
-    paddingVertical: 8,
-    position: 'absolute',
-    top: 3,
-    zIndex: 2,
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
   },
   speechBubbleText: {
     color: colors.text,
     fontSize: 11.5,
     fontWeight: '700',
     lineHeight: 16,
+    textAlign: 'center',
   },
   speechTail: {
-    borderBottomColor: 'transparent',
-    borderBottomWidth: 8,
-    borderLeftColor: colors.surface,
-    borderLeftWidth: 12,
-    borderTopColor: 'transparent',
+    borderLeftColor: 'transparent',
+    borderLeftWidth: 7,
+    borderRightColor: 'transparent',
+    borderRightWidth: 7,
+    borderTopColor: colors.surface,
     borderTopWidth: 8,
-    bottom: 4,
+    bottom: -8,
     height: 0,
+    left: '50%',
+    marginLeft: -7,
     position: 'absolute',
-    right: -8,
     width: 0,
   },
   heroCopy: { flex: 1, gap: 6 },
