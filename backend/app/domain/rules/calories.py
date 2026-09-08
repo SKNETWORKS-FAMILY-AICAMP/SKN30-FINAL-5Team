@@ -8,8 +8,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from typing import Final
 from uuid import UUID
 
-CALORIE_POLICY_VERSION: Final = "met-completed-blocks-v1"
-MET_MAPPING_SOURCE_VERSION: Final = "exercise-met-mapping-v0.1.0"
+CALORIE_POLICY_VERSION: Final = "met-completed-blocks-v2"
 KCAL_DECIMAL_PLACES: Final = Decimal("0.1")
 
 
@@ -20,6 +19,12 @@ class CompletedBlockMetInput:
     met_value: Decimal | None
     planned_seconds: int
     allocated_progress_seconds: int
+    catalog_version_code: str | None = None
+    met_source_code: str | None = None
+    met_source_activity_code: str | None = None
+    met_mapping_method_code: str | None = None
+    met_review_status_code: str | None = None
+    met_policy_version: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,6 +33,35 @@ class CalorieEstimate:
     source_code: str
     policy_version: str | None
     input_snapshot: dict[str, object] | None
+
+
+def _has_approved_met_provenance(block: CompletedBlockMetInput) -> bool:
+    return bool(
+        block.met_value is not None
+        and block.met_value > 0
+        and block.catalog_version_code
+        and block.met_source_code
+        and block.met_source_activity_code
+        and block.met_mapping_method_code
+        and block.met_review_status_code == "DOMAIN_APPROVED"
+        and block.met_policy_version
+    )
+
+
+def _block_snapshot(block: CompletedBlockMetInput) -> dict[str, object]:
+    return {
+        "exercise_id": str(block.exercise_id),
+        "exercise_stable_code": block.exercise_stable_code,
+        "catalog_version_code": block.catalog_version_code,
+        "met_value": None if block.met_value is None else str(block.met_value),
+        "met_source_code": block.met_source_code,
+        "met_source_activity_code": block.met_source_activity_code,
+        "met_mapping_method_code": block.met_mapping_method_code,
+        "met_review_status_code": block.met_review_status_code,
+        "met_policy_version": block.met_policy_version,
+        "planned_seconds": block.planned_seconds,
+        "allocated_progress_seconds": block.allocated_progress_seconds,
+    }
 
 
 def allocate_completed_progress_seconds(
@@ -75,30 +109,30 @@ def estimate_calories(
     usable = tuple(
         block
         for block in completed
-        if block.met_value is not None and block.allocated_progress_seconds > 0
+        if _has_approved_met_provenance(block) and block.allocated_progress_seconds > 0
     )
-    if weight_kg is None or not usable:
-        reason_code = "WEIGHT_MISSING" if weight_kg is None else "MET_MAPPING_OR_PROGRESS_MISSING"
+    catalog_versions = {block.catalog_version_code for block in usable}
+    met_mapping_source_version = (
+        next(iter(catalog_versions)) if len(catalog_versions) == 1 else None
+    )
+    if weight_kg is None or not usable or met_mapping_source_version is None:
+        if weight_kg is None:
+            reason_code = "WEIGHT_MISSING"
+        elif not usable:
+            reason_code = "APPROVED_CATALOG_MET_OR_PROGRESS_MISSING"
+        else:
+            reason_code = "CATALOG_VERSION_MISMATCH"
         return CalorieEstimate(
             None,
             "UNAVAILABLE",
             CALORIE_POLICY_VERSION,
             {
                 "calorie_policy_version": CALORIE_POLICY_VERSION,
-                "met_mapping_source_version": MET_MAPPING_SOURCE_VERSION,
+                "met_mapping_source_version": met_mapping_source_version,
                 "availability": "UNAVAILABLE",
                 "reason_code": reason_code,
                 "weight_kg": None if weight_kg is None else str(weight_kg),
-                "completed_blocks": [
-                    {
-                        "exercise_id": str(block.exercise_id),
-                        "exercise_stable_code": block.exercise_stable_code,
-                        "met_value": None if block.met_value is None else str(block.met_value),
-                        "planned_seconds": block.planned_seconds,
-                        "allocated_progress_seconds": block.allocated_progress_seconds,
-                    }
-                    for block in completed
-                ],
+                "completed_blocks": [_block_snapshot(block) for block in completed],
                 "rounding": "HALF_UP_1_DECIMAL_KCAL",
             },
         )
@@ -121,18 +155,9 @@ def estimate_calories(
         policy_version=CALORIE_POLICY_VERSION,
         input_snapshot={
             "calorie_policy_version": CALORIE_POLICY_VERSION,
-            "met_mapping_source_version": MET_MAPPING_SOURCE_VERSION,
+            "met_mapping_source_version": met_mapping_source_version,
             "weight_kg": str(weight_kg),
-            "completed_blocks": [
-                {
-                    "exercise_id": str(block.exercise_id),
-                    "exercise_stable_code": block.exercise_stable_code,
-                    "met_value": str(block.met_value),
-                    "planned_seconds": block.planned_seconds,
-                    "allocated_progress_seconds": block.allocated_progress_seconds,
-                }
-                for block in usable
-            ],
+            "completed_blocks": [_block_snapshot(block) for block in usable],
             "rounding": "HALF_UP_1_DECIMAL_KCAL",
         },
     )
@@ -143,6 +168,5 @@ __all__ = [
     "allocate_completed_progress_seconds",
     "CompletedBlockMetInput",
     "CalorieEstimate",
-    "MET_MAPPING_SOURCE_VERSION",
     "estimate_calories",
 ]

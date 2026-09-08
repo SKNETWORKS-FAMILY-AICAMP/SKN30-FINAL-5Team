@@ -58,7 +58,13 @@ class SessionState:
 class CompletedWorkoutBlock:
     exercise_id: UUID
     exercise_stable_code: str
-    exercise_name_en: str | None
+    catalog_version_code: str
+    met_value: float | None
+    met_source_code: str | None
+    met_source_activity_code: str | None
+    met_mapping_method_code: str | None
+    met_review_status_code: str | None
+    met_policy_version: str | None
     planned_seconds: int
 
 

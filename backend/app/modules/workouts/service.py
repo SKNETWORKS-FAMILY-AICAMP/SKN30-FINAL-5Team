@@ -41,7 +41,6 @@ from backend.app.domain.rules.workout_execution import (
 from backend.app.domain.rules.workout_execution import (
     finish_session as derive_finished_status,
 )
-from backend.app.modules.workouts.calorie_met_mapping import approved_met_value_for_exercise_name
 from backend.app.modules.workouts.codes import (
     ADDITIONAL_ACTIVITY_ENDPOINT_CODE,
     FEEDBACK_ENDPOINT_CODE,
@@ -221,18 +220,32 @@ class WorkoutService:
             weight_kg = None if source.weight_kg is None else Decimal(str(source.weight_kg))
         except (InvalidOperation, ValueError):
             weight_kg = None
-        estimate = estimate_calories(
-            weight_kg=weight_kg,
-            blocks=tuple(
+        completed_blocks: list[CompletedBlockMetInput] = []
+        for block, allocated in zip(source.completed_blocks, allocated_seconds, strict=True):
+            try:
+                met_value = None if block.met_value is None else Decimal(str(block.met_value))
+                if met_value is not None and (not met_value.is_finite() or met_value <= 0):
+                    met_value = None
+            except (InvalidOperation, ValueError):
+                met_value = None
+            completed_blocks.append(
                 CompletedBlockMetInput(
                     exercise_id=block.exercise_id,
                     exercise_stable_code=block.exercise_stable_code,
-                    met_value=approved_met_value_for_exercise_name(block.exercise_name_en),
+                    met_value=met_value,
                     planned_seconds=block.planned_seconds,
                     allocated_progress_seconds=allocated,
+                    catalog_version_code=block.catalog_version_code,
+                    met_source_code=block.met_source_code,
+                    met_source_activity_code=block.met_source_activity_code,
+                    met_mapping_method_code=block.met_mapping_method_code,
+                    met_review_status_code=block.met_review_status_code,
+                    met_policy_version=block.met_policy_version,
                 )
-                for block, allocated in zip(source.completed_blocks, allocated_seconds, strict=True)
-            ),
+            )
+        estimate = estimate_calories(
+            weight_kg=weight_kg,
+            blocks=completed_blocks,
         )
         if estimate.policy_version is None or estimate.input_snapshot is None:
             raise AssertionError("calorie estimate provenance must always be present")

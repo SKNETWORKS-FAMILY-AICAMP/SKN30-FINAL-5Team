@@ -407,7 +407,7 @@ class V3GraphResult(BaseModel):
     envelope_hash: str
     pool_hash: str
     round_one_proposals: tuple[SpecialistAgentProposal, ...]
-    coordinator_initial_plan: PlanSpec | None
+    coordinator_agent_plan: PlanSpec | None
     coordinator_repair_plan: PlanSpec | None
     compiled_plan: CompiledPlan | None
     integrity_violation_codes: tuple[IntegrityViolationCode, ...]
@@ -448,8 +448,8 @@ class V3GraphResult(BaseModel):
         ):
             raise ValueError("Round 1 proposals must reference the graph envelope and pool")
         if (
-            self.coordinator_initial_plan is not None
-            and self.coordinator_initial_plan.repair_attempt != 0
+            self.coordinator_agent_plan is not None
+            and self.coordinator_agent_plan.repair_attempt != 0
         ):
             raise ValueError("initial Coordinator plan must use repair attempt 0")
         if (
@@ -474,7 +474,7 @@ class V3GraphResult(BaseModel):
             raise ValueError("final plan must be the validated compiled plan")
         if completed and self.integrity_violation_codes:
             raise ValueError("completed graph cannot retain integrity violations")
-        for plan in (self.coordinator_initial_plan, self.coordinator_repair_plan):
+        for plan in (self.coordinator_agent_plan, self.coordinator_repair_plan):
             if plan is not None and (
                 plan.envelope_hash != self.envelope_hash or plan.pool_hash != self.pool_hash
             ):
@@ -494,7 +494,7 @@ class V3GraphResult(BaseModel):
     def create(cls, **values: object) -> Self:
         payload = {
             "schema_version": V3_GRAPH_RESULT_SCHEMA_VERSION,
-            "coordinator_initial_plan": None,
+            "coordinator_agent_plan": None,
             "coordinator_repair_plan": None,
             "compiled_plan": None,
             "fallback_used": False,

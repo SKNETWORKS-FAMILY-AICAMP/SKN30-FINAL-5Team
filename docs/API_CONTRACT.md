@@ -106,7 +106,7 @@ ExercisePool retrieval 계약의 `PROPOSED` 초안이며 Qdrant metadata를 publ
 - Daily Check-in request는 `sleep_minutes`, `sleep_source_code`, `fatigue_level_code`, `available_time_minutes`(10–90), `location_code`, `pain_present`, `red_flag_present`, `pains[{body_area_code,intensity_score}]`를 사용한다. `GET /api/v1/daily-contexts/{local_date}/defaults`는 선택적 통증 기본값, `selectable_location_codes=[HOME,GYM]`, `recommended_duration_minutes=30`, `duration_recommendation_policy_version`을 반환한다. `OUTDOOR`는 기존 데이터·승인 pool 호환을 위해 read/write 값으로 유지하지만 사용자 선택지에는 포함하지 않는다. 권장값은 사용자 요청을 대체하지 않는다. 근육통은 입력·Recovery 계산에 사용하지 않는다. NRS는 서버가 1–3/4–6/7–10으로 변환하고 정책 버전과 함께 저장한다.
 - 세션 중단 request는 `HIGH_FATIGUE`, `TIME_SHORTAGE`, `RESUME_LATER`, `PAIN_OR_ABNORMAL_RESPONSE`만 허용한다. 앞의 세 코드는 `STOPPED_RESUMABLE`과 당일 재개 가능 상태를 만들고, 마지막 코드는 세부 증상 입력 없이 `STOPPED_SAFETY`와 비재개 상태를 만든다. 안전 이벤트 응답은 `SESSION_STOPPED` 또는 `STOP_AND_SEEK_HELP`이며 증상 data를 반환하지 않는다.
 - 완료 상태는 완료 블록 수에서 server-derived `COMPLETED`/`PARTIAL`/`NOT_COMPLETED`로 반환한다. 실행 상태와 타이머 누적값은 별도 반환한다.
-- 운동 세션 종료 응답은 `estimated_calories_burned`와 `calorie_source_code`(`MET_ESTIMATE`, `UNAVAILABLE`)를 함께 반환한다. 값은 완료 블록·누적 운동 진행 시간·저장 체중·승인 MET 매핑으로 서버가 계산한 추정치이며, 체중 또는 매핑이 없으면 `null`/`UNAVAILABLE`이다. 클라이언트의 `actual_elapsed_seconds`, 웨어러블·계획 조정 값은 칼로리 계산 입력이 아니다. 값이 있으면 출처가 반드시 함께 있으며, DB CHECK 제약으로 강제한다.
+- 운동 세션 종료 응답은 `estimated_calories_burned`와 `calorie_source_code`(`MET_ESTIMATE`, `UNAVAILABLE`)를 함께 반환한다. 값은 완료 블록·누적 운동 진행 시간·저장 체중과 해당 계획이 참조한 DB 카탈로그 행의 승인 MET provenance 6필드로 서버가 계산한 추정치다. 6필드가 완전하지 않거나 `met_review_status_code`가 `DOMAIN_APPROVED`가 아니거나 체중이 없으면 `null`/`UNAVAILABLE`이다. 운동 영문 이름 기반 외부 CSV 매핑은 사용하지 않는다. 클라이언트의 `actual_elapsed_seconds`, 웨어러블·계획 조정 값은 칼로리 계산 입력이 아니다. 값이 있으면 출처가 반드시 함께 있으며, DB CHECK 제약으로 강제한다.
 - 주간 집계의 안전 중단 수는 `safety_stopped_session_count`로 반환한다. 기존 `stopped_for_safety`는 호환 기간 동안 같은 값으로 함께 반환한다. 안전 중단을 completion 축에서 분리한 것은 `weekly-report-input-v2`, 수행 지표를 추가한 것은 `weekly-report-input-v3`이며 이미 생성된 리포트의 snapshot은 재작성하지 않는다.
 - 신규 동의 수집 목록은 `GENERAL_PERSONAL_DATA`, `SENSITIVE_DATA`, `MARKETING`뿐이다. `WEARABLE_INTEGRATION`, `CALENDAR_INTEGRATION`은 기존 기록과 구 클라이언트 요청을 읽기 위해 코드·request field만 남기며, 새 요청값은 적용하지 않는다.
 
@@ -1775,7 +1775,7 @@ IN_PROGRESS 세션만 `/finish`로 종료할 수 있다. 서버가 저장된 운
 - 하나 이상의 블록 완료 체크와 하나 이상의 PENDING 블록: PARTIAL
 - 완료 체크 블록 없음: `/finish`를 거부하고 `/not-completed`와 이유를 요구
 
-응답은 server-derived `status_code`, 완료·전체 블록 수, 실제 경과 시간과 선택적 칼로리 추정치 및 `calorie_source_code`를 반환한다. `estimated_calories_burned`는 저장된 체중·승인 MET·공식 완료 블록에 배분된 누적 운동 진행 시간으로 서버가 계산하는 응답 전용 값이며 클라이언트 요청으로 받지 않는다. 체중 또는 MET 매핑이 없으면 값은 null이고 출처는 `UNAVAILABLE`이다. `actual_elapsed_seconds`는 일시정지 구간을 제외한 화면 표시 카운터 값이며 상태 계산과 칼로리 추정에 사용하지 않는다. 클라이언트는 최종 상태나 칼로리 추정치를 직접 지정할 수 없다. 칼로리 추정치는 참고 정보이며 안전·의료 판단에 사용하지 않는다.
+응답은 server-derived `status_code`, 완료·전체 블록 수, 실제 경과 시간과 선택적 칼로리 추정치 및 `calorie_source_code`를 반환한다. `estimated_calories_burned`는 저장된 체중·해당 계획의 DB 카탈로그 행에 저장된 승인 MET provenance·공식 완료 블록에 배분된 누적 운동 진행 시간으로 서버가 계산하는 응답 전용 값이며 클라이언트 요청으로 받지 않는다. 카탈로그 MET 6필드가 불완전하거나 미승인이거나 체중이 없으면 값은 null이고 출처는 `UNAVAILABLE`이다. `actual_elapsed_seconds`는 일시정지 구간을 제외한 화면 표시 카운터 값이며 상태 계산과 칼로리 추정에 사용하지 않는다. 클라이언트는 최종 상태나 칼로리 추정치를 직접 지정할 수 없다. 칼로리 추정치는 참고 정보이며 안전·의료 판단에 사용하지 않는다.
 
 ### 12.5 미수행
 

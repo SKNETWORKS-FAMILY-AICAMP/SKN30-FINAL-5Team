@@ -71,6 +71,7 @@ _CONDITIONALLY_REPAIRABLE = frozenset(
         IntegrityViolationCode.EQUIPMENT_NOT_AVAILABLE,
         IntegrityViolationCode.RECOVERY_CEILING_EXCEEDED,
         IntegrityViolationCode.FITT_RANGE_EXCEEDED,
+        IntegrityViolationCode.FITT_RANGE_UNAVAILABLE,
         # Shape violations are the Coordinator's to correct: the pool always
         # reserves candidates for every phase, so one repair round can restore
         # the shape without weakening any safety bound. When repair does not,
@@ -223,22 +224,28 @@ def _recovery_exceeded(compiled_plan: CompiledPlan, envelope: ConstraintEnvelope
 
 
 def _fitt_violation_codes(compiled_plan: CompiledPlan) -> set[IntegrityViolationCode]:
+    """Check the reviewed FITT range for the exercises one actually covers.
+
+    No reviewed range covers every catalog entry. Where none covers an exercise
+    the Recovery ceiling checked by `_recovery_exceeded` is the operative bound,
+    so an absent range is not a violation of anything -- reporting it as one
+    would reject every plan while bounding no volume at all.
+    """
+
     codes: set[IntegrityViolationCode] = set()
     for compiled in compiled_plan.exercises:
         prescription = compiled.prescription
         record = compiled.catalog_record
         if record.timing_mode_code != "REPS":
             continue
-        fitt = record.fitt_context
-        if (
-            fitt is None
-            or fitt.review_status_code != "DOMAIN_APPROVED"
-            or fitt.volume is None
-            or prescription.repetitions_per_set is None
-        ):
+        volume = record.approved_fitt_volume()
+        if volume is None:
+            continue
+        if prescription.repetitions_per_set is None:
+            # An approved range exists and the prescription omitted the value it
+            # bounds. That is the Coordinator's to correct, not missing data.
             codes.add(IntegrityViolationCode.FITT_RANGE_UNAVAILABLE)
             continue
-        volume = fitt.volume
         if not (
             volume.min_sets <= prescription.sets <= volume.max_sets
             and volume.min_reps <= prescription.repetitions_per_set <= volume.max_reps

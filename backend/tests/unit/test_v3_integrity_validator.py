@@ -175,22 +175,82 @@ def test_compiled_plan_fitt_upper_bound_is_enforced_after_coordination() -> None
     assert IntegrityViolationCode.FITT_RANGE_EXCEEDED in {item.code for item in result.violations}
 
 
-def test_compiled_plan_with_missing_fitt_range_requires_review() -> None:
+def _without_fitt_context(compiled, pool):
+    """Return the plan and pool with the first exercise's reviewed range removed."""
+
+    first = compiled.exercises[0]
+    unmapped_record = first.catalog_record.model_copy(update={"fitt_context": None})
+    unmapped_plan = compiled.model_copy(
+        update={
+            "exercises": (
+                first.model_copy(update={"catalog_record": unmapped_record}),
+                *compiled.exercises[1:],
+            )
+        }
+    )
+    # The canonical-record check compares the compiled record against the pool,
+    # so the pool has to lose the range too or the test measures that instead.
+    unmapped_pool = pool.model_copy(
+        update={
+            "exercises": tuple(
+                unmapped_record if record.exercise_id == unmapped_record.exercise_id else record
+                for record in pool.exercises
+            )
+        }
+    )
+    return unmapped_plan, unmapped_pool
+
+
+def test_exercise_no_reviewed_fitt_range_covers_is_not_a_fitt_violation() -> None:
+    """No reviewed range covers every catalog entry, and an absent bound is not broken.
+
+    The Recovery ceiling is still enforced for the exercise. Reporting the
+    absence as a violation would reject every plan while bounding no volume,
+    which is what happened when the reviewed reference and the promoted catalog
+    turned out to use different identifiers.
+    """
+
+    current_envelope = envelope()
+    compiled, current_pool = compiled_plan(current_envelope)
+    unmapped, unmapped_pool = _without_fitt_context(compiled, current_pool)
+
+    result = validate_plan_integrity(
+        unmapped,
+        envelope=current_envelope,
+        pool=unmapped_pool,
+        repair_attempt=0,
+        validator_version=VALIDATOR_VERSION,
+        context=context(),
+    )
+
+    assert result.status_code is IntegrityValidationStatusCode.PASS
+    assert not result.violations
+
+
+def test_approved_range_with_no_prescribed_repetitions_is_repairable() -> None:
+    """The one case the unavailable code still reports: a Coordinator omission."""
+
     current_envelope = envelope()
     compiled, current_pool = compiled_plan(current_envelope)
     first = compiled.exercises[0]
-    no_fitt = first.catalog_record.model_copy(update={"fitt_context": None})
-    missing = compiled.model_copy(
+    assert first.catalog_record.approved_fitt_volume() is not None
+    omitted = compiled.model_copy(
         update={
             "exercises": (
-                first.model_copy(update={"catalog_record": no_fitt}),
+                first.model_copy(
+                    update={
+                        "prescription": first.prescription.model_copy(
+                            update={"repetitions_per_set": None}
+                        )
+                    }
+                ),
                 *compiled.exercises[1:],
             )
         }
     )
 
     result = validate_plan_integrity(
-        missing,
+        omitted,
         envelope=current_envelope,
         pool=current_pool,
         repair_attempt=0,
@@ -198,7 +258,7 @@ def test_compiled_plan_with_missing_fitt_range_requires_review() -> None:
         context=context(),
     )
 
-    assert result.status_code is IntegrityValidationStatusCode.NON_REPAIRABLE
+    assert result.status_code is IntegrityValidationStatusCode.REPAIRABLE
     assert IntegrityViolationCode.FITT_RANGE_UNAVAILABLE in {
         item.code for item in result.violations
     }

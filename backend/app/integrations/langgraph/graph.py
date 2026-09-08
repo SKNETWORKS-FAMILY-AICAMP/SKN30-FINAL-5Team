@@ -30,8 +30,8 @@ def create_v3_graph() -> CompiledStateGraph:
     builder.add_node("agent_training", nodes.training_agent)
     builder.add_node("agent_recovery", nodes.recovery_agent)
     builder.add_node("agent_feasibility", nodes.feasibility_agent)
-    builder.add_node("canonicalize_agents", nodes.canonicalize_agents)
-    builder.add_node("coordinator_initial", nodes.coordinator_initial)
+    builder.add_node("collect_proposals", nodes.collect_proposals)
+    builder.add_node("coordinator_agent", nodes.coordinator_agent)
     builder.add_node("compile", nodes.compile_plan)
     builder.add_node("validate", nodes.validate_plan)
     builder.add_node("coordinator_repair", nodes.coordinator_repair)
@@ -50,10 +50,10 @@ def create_v3_graph() -> CompiledStateGraph:
     builder.add_edge("parallel_agents", "agent_feasibility")
     builder.add_edge(
         ["agent_training", "agent_recovery", "agent_feasibility"],
-        "canonicalize_agents",
+        "collect_proposals",
     )
-    builder.add_conditional_edges("canonicalize_agents", after_agents)
-    builder.add_edge("coordinator_initial", "compile")
+    builder.add_conditional_edges("collect_proposals", after_agents)
+    builder.add_edge("coordinator_agent", "compile")
     builder.add_conditional_edges(
         "compile",
         after_compile,
