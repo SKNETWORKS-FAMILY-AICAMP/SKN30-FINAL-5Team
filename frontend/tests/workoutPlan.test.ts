@@ -125,6 +125,34 @@ describe('server-owned routine names', () => {
     expect(routineTitleFromPlan(plan())).toBe('근력 루틴');
   });
 
+  it.each([
+    ['MOBILITY', '스트레칭 루틴'],
+    ['CARDIO', '유산소 루틴'],
+  ])(
+    'states a %s plan once when it is both the focus and the training type',
+    (code, expected) => {
+      expect(
+        routineTitleFromPlan({
+          ...plan(),
+          body_focus_code: code,
+          training_type_code: code,
+          routine_name: null,
+        }),
+      ).toBe(expected);
+    },
+  );
+
+  it('still names the focus when it differs from the training type', () => {
+    expect(
+      routineTitleFromPlan({
+        ...plan(),
+        body_focus_code: 'BACK',
+        training_type_code: 'STRENGTH',
+        routine_name: null,
+      }),
+    ).toBe('등 근력 루틴');
+  });
+
   it('uses the same rule for a base-routine day', () => {
     const day: RoutineDay = {
       id: 'day-1',

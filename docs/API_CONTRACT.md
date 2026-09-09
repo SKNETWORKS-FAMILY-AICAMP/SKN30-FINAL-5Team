@@ -1400,6 +1400,8 @@ WorkoutPlan
 - routine_name: string | null  # compiled MAIN 구성으로 정한 서버 표시명
 - routine_name_reason_codes: string[] | null
 - routine_naming_rule_version: string | null
+  # 생성 응답과 저장된 결정 조회(GET /decisions, GET /decisions/{id})가 같은 값을 돌려준다.
+  # 이 필드가 없던 시점에 저장된 결정만 null이며, 클라이언트는 기존 표시명 계산으로 폴백한다.
 - requested_duration_minutes: integer
 - estimated_duration_seconds: integer
 - estimated_calories_burned: number | null  # 체중 기반 추정치

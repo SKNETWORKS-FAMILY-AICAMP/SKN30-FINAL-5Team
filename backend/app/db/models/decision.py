@@ -435,6 +435,15 @@ class PlanCandidate(Base):
     action_code: Mapped[str] = mapped_column(String(32), nullable=False)
     training_type_code: Mapped[str] = mapped_column(String(64), nullable=False)
     body_focus_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # The user-facing plan name decided at decision time, kept with the rule
+    # version that produced it. Reading a stored decision has to hand back the
+    # same name the client was first shown, and it cannot be recomputed on read
+    # without re-reading a catalog that may have moved on. Nullable because runs
+    # created before this column existed have no recorded name; those replay
+    # without one and the client keeps its own compatibility fallback.
+    routine_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    routine_name_reason_codes: Mapped[list[str] | None] = mapped_column(_JSON, nullable=True)
+    routine_naming_rule_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
     requested_duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
     duration_adjustment_source_code: Mapped[str] = mapped_column(String(32), nullable=False)
     estimated_duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
