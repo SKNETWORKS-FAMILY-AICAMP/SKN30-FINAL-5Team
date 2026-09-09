@@ -1459,6 +1459,9 @@ Coordinator가 거절한 재현용 후보는 실제 계산값을 보존하며 `d
 | decision_run_id | decision_runs FK |
 | candidate_code | ORIGINAL, FINAL, RECOVERY, FALLBACK |
 | action_code | KEEP, DOWNSHIFT, CHANGE, RECOVERY |
+| routine_name | 결정 시점에 정한 공개 표시명, nullable |
+| routine_name_reason_codes | 표시명 근거 코드 배열, nullable |
+| routine_naming_rule_version | 표시명 규칙 버전, nullable |
 | setup_seconds | 장비 준비 |
 | warmup_seconds | 준비 운동 |
 | cooldown_seconds | 마무리 |
@@ -1476,6 +1479,11 @@ Coordinator가 거절한 재현용 후보는 실제 계산값을 보존하며 `d
 | user_revision_policy_version | 사용자 편집 규칙 버전, nullable |
 | user_revised_at | 마지막 사용자 편집 시각, nullable |
 | created_at | 생성 시각 |
+
+routine_name은 결정 시점에 `build_plan_name`이 MAIN 구성으로 정한 값을 그대로 기록한다. 저장된 결정을
+다시 읽을 때 같은 이름을 돌려주기 위한 것이며, 읽는 시점에 다시 계산하지 않는다. 이름의 근거가 되는
+카탈로그 버전이 이미 교체되었을 수 있어 재계산 값은 사용자가 실제로 본 이름과 달라질 수 있기 때문이다.
+이 컬럼이 생기기 전에 저장된 결정은 값이 없으며 null로 재생된다.
 
 requested_duration_minutes는 사용자 입력에서만 가져오며 시스템이 임의 변경하지 않는다. 계획이 있는 후보의 estimated_duration_seconds는 `requested_duration_minutes * 60`과 ±300초 이내여야 하며, 허용 범위 안에서 차이가 가장 작은 계획을 선택한다(동률이면 더 긴 계획). 이는 계획 단계의 hard target이지만 실제 수행의 hard execution limit이나 완료 조건은 아니다. estimated_calories_burned는 제공된 체중이 있을 때만 계산하며 진단·안전 판정의 단독 근거로 사용하지 않는다.
 

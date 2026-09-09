@@ -1137,6 +1137,11 @@ def _persist_public_decision(
             action_code=plan_response.action_code,
             training_type_code=plan_response.training_type_code,
             body_focus_code=plan_response.body_focus_code,
+            # Recorded so replaying this decision returns the name the user was
+            # actually shown, rather than leaving the client to invent one.
+            routine_name=plan_response.routine_name,
+            routine_name_reason_codes=plan_response.routine_name_reason_codes,
+            routine_naming_rule_version=plan_response.routine_naming_rule_version,
             requested_duration_minutes=plan_response.requested_duration_minutes,
             duration_adjustment_source_code=response.duration_adjustment_source_code,
             estimated_duration_seconds=plan_response.estimated_duration_seconds,
