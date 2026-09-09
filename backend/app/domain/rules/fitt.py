@@ -121,14 +121,17 @@ def _strength_volume(
         return None
     if experience_level_code not in {"BEGINNER", "INTERMEDIATE"}:
         return None
-    min_sets, max_sets = (2, 3) if experience_level_code == "BEGINNER" else (2, 4)
-    min_reps, max_reps = (8, 12) if category == "COMPOUND_STRENGTH" else (10, 15)
-    default_sets = _integer(template.get("default_sets"))
-    default_reps = _range_lower(template.get("default_reps"))
+    if experience_level_code == "BEGINNER":
+        min_sets, max_sets, default_sets = 2, 2, 2
+    else:
+        min_sets, max_sets, default_sets = 2, 4, 3
+    if category == "COMPOUND_STRENGTH":
+        min_reps, max_reps = (10, 15) if experience_level_code == "BEGINNER" else (6, 15)
+        default_reps = 12
+    else:
+        min_reps, max_reps, default_reps = 12, 20, 15
     if (
-        default_sets is None
-        or default_reps is None
-        or not min_sets <= default_sets <= max_sets
+        not min_sets <= default_sets <= max_sets
         or not min_reps <= default_reps <= max_reps
     ):
         return None

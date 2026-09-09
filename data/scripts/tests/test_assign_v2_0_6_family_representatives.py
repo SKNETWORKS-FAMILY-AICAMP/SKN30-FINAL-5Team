@@ -18,15 +18,20 @@ def test_normalized_catalog_has_complete_family_relationships():
 
     assert report["counts"]["catalog_records"] == 237
     assert all(row["family_code"] for row in rows)
-    assert all(row["record_type"] in {"REPRESENTATIVE", "VARIANT"} for row in rows)
+    assert all(
+        row["record_type"] in {"REPRESENTATIVE", "VARIANT", "SEPARATE_EXERCISE"}
+        for row in rows
+    )
 
     by_family = defaultdict(list)
     for row in rows:
         by_family[row["family_code"]].append(row)
-    assert all(
-        sum(row["record_type"] == "REPRESENTATIVE" for row in members) == 1
-        for members in by_family.values()
-    )
+    for members in by_family.values():
+        record_types = {row["record_type"] for row in members}
+        if record_types == {"SEPARATE_EXERCISE"}:
+            assert len(members) == 1
+        else:
+            assert sum(row["record_type"] == "REPRESENTATIVE" for row in members) == 1
 
 
 def test_variant_parent_is_only_populated_for_variants_and_matches_family():
@@ -35,7 +40,7 @@ def test_variant_parent_is_only_populated_for_variants_and_matches_family():
     by_code = {row["stable_code"]: row for row in rows}
 
     for row in rows:
-        if row["record_type"] == "REPRESENTATIVE":
+        if row["record_type"] in {"REPRESENTATIVE", "SEPARATE_EXERCISE"}:
             assert row["representative_stable_code"] == ""
         else:
             parent = by_code[row["representative_stable_code"]]
@@ -52,6 +57,8 @@ def test_representative_uses_requested_equipment_priority():
 
     priority = {"MACHINE": 0, "BODYWEIGHT": 1, "DUMBBELL": 2, "BARBELL": 3}
     for members in by_family.values():
+        if all(row["record_type"] == "SEPARATE_EXERCISE" for row in members):
+            continue
         representative = next(row for row in members if row["record_type"] == "REPRESENTATIVE")
         representative_rank = priority.get(
             normalized_equipment(representative["equipment_codes"]), 4
@@ -80,3 +87,31 @@ def test_squat_family_uses_0514_as_bodyweight_representative():
         for row in squat
         if row["record_type"] == "VARIANT"
     )
+
+
+def test_requested_family_re_review_is_materialized() -> None:
+    rows, _ = read_catalog(CATALOG)
+    apply_family_assignments(rows)
+    by_code = {row["stable_code"]: row for row in rows}
+
+    assert by_code["barbell_straight_leg_deadlift_hip_dominant_barbell"] == {
+        **by_code["barbell_straight_leg_deadlift_hip_dominant_barbell"],
+        "family_code": "ROMANIAN_DEADLIFT",
+        "record_type": "VARIANT",
+        "representative_stable_code": "barbell_romanian_deadlift",
+    }
+    assert by_code["bodyweight_back_extension_hip_dominant_bodyweight"]["family_code"] == (
+        "BACK_EXTENSION"
+    )
+    assert by_code["bodyweight_reverse_crunch_core_brace_bodyweight"]["family_code"] == (
+        "REVERSE_CRUNCH"
+    )
+    assert by_code["bodyweight_standing_calf_raise_isolation_bodyweight"]["family_code"] == (
+        "CALF_RAISE"
+    )
+    assert by_code["smith_close_grip_bench_press"]["family_code"] == "CHEST_PRESS"
+    assert by_code["smith_close_grip_bench_press"]["record_type"] == "VARIANT"
+    assert by_code["smith_close_grip_bench_press"]["representative_stable_code"] == (
+        "smith_bench_press"
+    )
+    assert by_code["cardio_gait_bodyweight_rex_000058"]["record_type"] == "SEPARATE_EXERCISE"

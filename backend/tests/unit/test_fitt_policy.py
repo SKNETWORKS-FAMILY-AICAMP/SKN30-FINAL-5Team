@@ -18,17 +18,7 @@ PROMOTED_CATALOG = Path(
     "data/generated/integrated-catalog-v2.0.7-final/backend_bundle/catalog/catalog/exercises.jsonl"
 )
 
-# Reviewed FITT rows whose timing mode contradicts the promoted catalog's. The
-# join is by permanent source identity and is correct; the two sources simply
-# disagree about whether the movement is counted in repetitions or held for
-# time. The catalog owns that answer, so these carry no approved FITT context.
-CATALOG_TIMING_CONFLICTS = {
-    "bodyweight_crunch_core_brace_bodyweight",
-    "bodyweight_reverse_crunch_core_brace_bodyweight",
-    "dead_bug",
-    "lower_back_curl_core_brace_bodyweight",
-    "seated_side_crunch_wall",
-}
+CATALOG_TIMING_CONFLICTS: set[str] = set()
 
 
 def _promoted_exercises() -> list[dict[str, str]]:
@@ -46,25 +36,25 @@ def _promoted_exercises() -> list[dict[str, str]]:
             "barbell_deadlift_hip_dominant_barbell",
             "BEGINNER",
             "FITT-COMPOUND-HINGE-V1",
-            (2, 3, 8, 12, 3, 8),
+            (2, 2, 10, 15, 2, 12),
         ),
         (
             "barbell_deadlift_hip_dominant_barbell",
             "INTERMEDIATE",
             "FITT-COMPOUND-HINGE-V1",
-            (2, 4, 8, 12, 3, 8),
+            (2, 4, 6, 15, 3, 12),
         ),
         (
             "barbell_front_raise_isolation_barbell",
             "BEGINNER",
             "FITT-ISOLATION-STRENGTH-V1",
-            (2, 3, 10, 15, 3, 10),
+            (2, 2, 12, 20, 2, 15),
         ),
         (
             "barbell_front_raise_isolation_barbell",
             "INTERMEDIATE",
             "FITT-ISOLATION-STRENGTH-V1",
-            (2, 4, 10, 15, 3, 10),
+            (2, 4, 12, 20, 3, 15),
         ),
     ),
 )
@@ -124,7 +114,7 @@ def test_reviewed_fitt_references_are_copied_into_the_backend_image() -> None:
         assert f"!{relative}" in ignorefile, f"{relative} is excluded by the dockerignore"
 
 
-def test_a_reference_contradicting_the_catalog_timing_mode_is_review_required() -> None:
+def test_fitt_timing_references_match_the_catalog() -> None:
     """A disagreement is withheld rather than resolved in favour of either source.
 
     `ExercisePoolExerciseRecord` refuses a record whose FITT timing mode differs
@@ -133,19 +123,15 @@ def test_a_reference_contradicting_the_catalog_timing_mode_is_review_required() 
     that one exercise.
     """
 
-    contradicting = sorted(CATALOG_TIMING_CONFLICTS)[0]
     catalog = {row["stable_code"]: row for row in _promoted_exercises()}
-    assert catalog[contradicting]["timing_mode_code"] == "REPS"
-
-    context = context_for_exercise(
-        stable_code=contradicting,
-        experience_level_code="BEGINNER",
-        timing_mode_code="REPS",
-    )
-
-    assert context.review_status_code == REVIEW_REQUIRED
-    assert context.time_mode_code is None
-    assert context.volume is None
+    assert CATALOG_TIMING_CONFLICTS == set()
+    for stable_code, record in catalog.items():
+        context = context_for_exercise(
+            stable_code=stable_code,
+            experience_level_code="BEGINNER",
+            timing_mode_code=record["timing_mode_code"],
+        )
+        assert context.time_mode_code in {None, record["timing_mode_code"]}
 
 
 def test_no_promoted_exercise_yields_a_context_the_agent_snapshot_rejects() -> None:
@@ -192,4 +178,4 @@ def test_promoted_catalog_uses_only_reviewed_fitt_mapping_coverage() -> None:
     # the difference keeps a future catalog re-review from silently widening it.
     assert mapping_codes - approved == CATALOG_TIMING_CONFLICTS
     assert approved == mapping_codes - CATALOG_TIMING_CONFLICTS
-    assert len(approved) == 84
+    assert len(approved) == 89

@@ -27,12 +27,12 @@ EQUIPMENT_PRIORITY = {
     "BARBELL": 3,
 }
 DIFFICULTY_PRIORITY = {"BEGINNER": 0, "INTERMEDIATE": 1}
-VALID_RECORD_TYPES = {"REPRESENTATIVE", "VARIANT"}
+VALID_RECORD_TYPES = {"REPRESENTATIVE", "VARIANT", "SEPARATE_EXERCISE"}
 
 # When equipment and difficulty tie, prefer the plain/base movement over a
 # unilateral, grip, stance, or range-of-motion variation.
 REPRESENTATIVE_PREFERENCES = {
-    "CALF_RAISE_STANDING": "bodyweight_standing_calf_raise_isolation_bodyweight",
+    "CALF_RAISE": "bodyweight_standing_calf_raise_isolation_bodyweight",
     "BENT_OVER_ROW": "dumbbell_bent_over_row",
     "SEATED_CABLE_ROW": "seated_cable_row_horizontal_pull_cable_machine",
     "REVERSE_FLY": "lever_seated_reverse_fly",
@@ -41,17 +41,19 @@ REPRESENTATIVE_PREFERENCES = {
     "CRUNCH": "bodyweight_crunch_core_brace_bodyweight",
     "SIT_UP": "curl_up",
     "SQUAT": "bodyweight_squat",
+    "CHEST_PRESS": "smith_bench_press",
 }
 
 # Only high-confidence same-movement relationships are grouped here.  The
 # remaining rows receive a stable singleton family and stay representatives.
 FAMILY_GROUPS: dict[str, tuple[str, ...]] = {
-    "CALF_RAISE_STANDING": (
+    "CALF_RAISE": (
         "band_two_legs_calf_raise_band_under_both_legs_v_2_isolation_resistance_band",
         "bodyweight_standing_calf_raise_isolation_bodyweight",
         "one_leg_donkey_calf_raise_isolation_bodyweight",
         "barbell_standing_leg_calf_raise",
         "barbell_standing_rocking_leg_calf_raise",
+        "seated_calf_raise_isolation_barbell",
     ),
     "CALF_RAISE_REVERSE": (
         "reverse_calf_raise_isolation_resistance_band",
@@ -119,6 +121,12 @@ FAMILY_GROUPS: dict[str, tuple[str, ...]] = {
         "barbell_deadlift_hip_dominant_barbell",
         "dumbbell_deadlift",
     ),
+    # Straight-leg and Romanian deadlifts share the same hip-hinge action; the
+    # knee position is a form variation, not a separate movement family.
+    "ROMANIAN_DEADLIFT": (
+        "barbell_romanian_deadlift",
+        "barbell_straight_leg_deadlift_hip_dominant_barbell",
+    ),
     "SPLIT_SQUAT": (
         "bodyweight_split_squat_knee_dominant_bodyweight",
         "dumbbell_single_leg_split_squat",
@@ -171,6 +179,7 @@ FAMILY_GROUPS: dict[str, tuple[str, ...]] = {
     ),
     "CHEST_PRESS": (
         "smith_bench_press",
+        "smith_close_grip_bench_press",
         "barbell_incline_bench_press",
         "cable_incline_bench_press",
         "dumbbell_incline_bench_press",
@@ -220,6 +229,20 @@ FAMILY_GROUPS: dict[str, tuple[str, ...]] = {
         "flexion_leg_sit_up_bent_knee",
         "quarter_sit_up",
     ),
+}
+
+# These rows are intentionally standalone movements.  They have no reviewed
+# same-movement peer, so marking them separately makes that decision explicit
+# without inventing a representative parent.
+SEPARATE_EXERCISE_CODES = {"cardio_gait_bodyweight_rex_000058"}
+
+# Correct reviewed singleton names without turning a distinct movement into a
+# false variant relationship.  The foam-roller calf stretch previously carried
+# an unrelated reverse-crunch family code.
+SINGLETON_FAMILY_CODES = {
+    "bodyweight_back_extension_hip_dominant_bodyweight": "BACK_EXTENSION",
+    "bodyweight_reverse_crunch_core_brace_bodyweight": "REVERSE_CRUNCH",
+    "foam_roller_calf_stretch_2206": "ROLLER_CALF_STRETCH",
 }
 
 
@@ -295,7 +318,9 @@ def apply_family_assignments(rows: list[dict[str, str]]) -> dict[str, Any]:
         else:
             # Existing single-record family codes are retained.  Invalid
             # multi-record legacy families are split into stable singletons.
-            family = row.get("family_code", "").strip() or singleton_family(stable_code)
+            family = SINGLETON_FAMILY_CODES.get(
+                stable_code, row.get("family_code", "").strip() or singleton_family(stable_code)
+            )
         family_members[family].append(row)
 
     legacy_counts = Counter(
@@ -316,7 +341,14 @@ def apply_family_assignments(rows: list[dict[str, str]]) -> dict[str, Any]:
         representative = sorted(members, key=lambda row: representative_sort_key(family, row))[0]
         for row in members:
             row["family_code"] = family
-            if row is representative:
+            if row["stable_code"] in SEPARATE_EXERCISE_CODES:
+                if len(members) != 1:
+                    raise ValueError(
+                        f"separate exercise must remain a singleton: {row['stable_code']}"
+                    )
+                row["record_type"] = "SEPARATE_EXERCISE"
+                row["representative_stable_code"] = ""
+            elif row is representative:
                 row["record_type"] = "REPRESENTATIVE"
                 row["representative_stable_code"] = ""
             else:

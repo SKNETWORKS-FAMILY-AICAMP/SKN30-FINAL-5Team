@@ -795,6 +795,109 @@ _APPROVALS = {
             "rights_review_status": "APPROVED",
         },
     ),
+    # v2.0.8 is the PM-approved catalog correction release. The source rows
+    # remain 237; only reviewed family, timing, FITT, and prescription values
+    # changed. Hashes and counts below are pinned to the generated candidate.
+    (
+        "CATALOG",
+        "exercise-catalog-v2.0.8-final",
+    ): DerivedDataApproval(
+        artifact_kind="CATALOG",
+        version_code="exercise-catalog-v2.0.8-final",
+        manifest_sha256="09ab8305a0a506e14ed452d8244dd481dbbc347441a99a742e4426bc0d85423b",
+        record_count=237,
+        approval_record_code="V2-0-8-PM-APPROVAL-2026-09-09-R01",
+        approved_on="2026-09-09",
+        approver_role_codes=("PM",),
+        approval_metadata={
+            "review_method_code": "PM_DIRECT_REVIEW",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "evidence_manifest_path": (
+                "data/reports/integrated_catalog_v2_0_8_final/"
+                "promotion_candidate_validation.json"
+            ),
+            "scope": "family_timing_classification_fitt_prescription_corrections",
+            "beginner_candidate_policy": "unchanged",
+        },
+    ),
+    (
+        "SAFETY_RULES",
+        "safety-rule-set-v2.0.8",
+    ): DerivedDataApproval(
+        artifact_kind="SAFETY_RULES",
+        version_code="safety-rule-set-v2.0.8",
+        manifest_sha256="7e1a573593d03b1121d44f0d9b150a988d2cd422aefb26a0242574b9b81d9ed3",
+        record_count=2131,
+        approval_record_code="V2-0-8-PM-APPROVAL-2026-09-09-R01",
+        approved_on="2026-09-09",
+        approver_role_codes=("PM",),
+        approval_metadata={
+            "review_method_code": "PM_DIRECT_REVIEW",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "derived_from": "safety-rule-set-v2.0.7",
+            "carried_over_unchanged": True,
+        },
+    ),
+    (
+        "ALTERNATIVES",
+        "alternative-set-v2.0.8-stretch-strap-fallback",
+    ): DerivedDataApproval(
+        artifact_kind="ALTERNATIVES",
+        version_code="alternative-set-v2.0.8-stretch-strap-fallback",
+        manifest_sha256="a37ca2d415b7ab270afaab3a711604469cfd12b56726973a37f04aed70cda449",
+        record_count=1,
+        approval_record_code="V2-0-8-PM-APPROVAL-2026-09-09-R01",
+        approved_on="2026-09-09",
+        approver_role_codes=("PM",),
+        approval_metadata={
+            "review_method_code": "PM_DIRECT_REVIEW",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "derived_from": "alternative-set-v2.0.7-stretch-strap-fallback",
+            "carried_over_unchanged": True,
+        },
+    ),
+    (
+        "PRESCRIPTIONS",
+        "prescription-set-v2.0.8",
+    ): DerivedDataApproval(
+        artifact_kind="PRESCRIPTIONS",
+        version_code="prescription-set-v2.0.8",
+        manifest_sha256="07a6f4d0f8aea6ad75c4ee6da09b46da67c5753d935a36fe7ba9eb556be4a84d",
+        record_count=2175,
+        approval_record_code="V2-0-8-PM-APPROVAL-2026-09-09-R01",
+        approved_on="2026-09-09",
+        approver_role_codes=("PM",),
+        approval_metadata={
+            "review_method_code": "PM_DIRECT_REVIEW",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "derived_from": "prescription-set-v2.0.7",
+            "goal_tag_records": 711,
+            "prescription_records": 1464,
+            "low_load_high_rep_policy": {
+                "compound_default_reps": 12,
+                "isolation_default_reps": 15,
+            },
+        },
+    ),
+    (
+        "MEDIA_ASSETS",
+        "media-set-v2.0.8",
+    ): DerivedDataApproval(
+        artifact_kind="MEDIA_ASSETS",
+        version_code="media-set-v2.0.8",
+        manifest_sha256="4dbcfc63d59de676a9df0f330fb578c315447cccc316efa32bfe04e79c884812",
+        record_count=237,
+        approval_record_code="V2-0-8-PM-APPROVAL-2026-09-09-R01",
+        approved_on="2026-09-09",
+        approver_role_codes=("PM",),
+        approval_metadata={
+            "review_method_code": "PM_DIRECT_REVIEW",
+            "status_interpretation_code": "PRODUCTION_APPROVED",
+            "derived_from": "media-set-v2.0.7",
+            "carried_over_unchanged": True,
+            "rights_review_status": "APPROVED",
+        },
+    ),
 }
 
 

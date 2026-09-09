@@ -394,14 +394,23 @@ def _goal_and_prescriptions(
                         profiles.append(_profile(row, goal, level, phase, 1, None, work, 0, "LOW"))
                     continue
                 beginner = level == "BEGINNER"
-                if goal == "FAT_LOSS":
-                    sets, reps, work, rest = (2, 12, None, 40) if beginner else (3, 12, None, 30)
+                compound = row["primary_movement_pattern_code"] in MUSCLE_CORE_PATTERNS
+                sets = 2 if beginner else 3
+                if compound:
+                    reps = 12
+                    intensity = "LIGHT_MODERATE"
                 else:
-                    sets, reps, work, rest = (2, 10, None, 60) if beginner else (3, 10, None, 75)
+                    reps = 15
+                    intensity = "LIGHT"
+                rest = (40 if beginner else 30) if goal == "FAT_LOSS" else (60 if beginner else 75)
+                work = None
                 if row["timing_mode_code"] == "DURATION":
-                    work, reps = (60 if goal == "FAT_LOSS" else 45), None
+                    reps = None
+                    work = int(row.get("default_work_seconds") or 60)
+                    rest = int(row.get("default_rest_seconds") or 0)
+                    intensity = "LIGHT_MODERATE" if row["training_type_code"] == "CARDIO" else "LOW"
                 profiles.append(
-                    _profile(row, goal, level, "MAIN", sets, reps, work, rest, "MODERATE")
+                    _profile(row, goal, level, "MAIN", sets, reps, work, rest, intensity)
                 )
     links.sort(key=lambda item: (item["exercise_stable_code"], item["goal_code"]))
     profiles.sort(
