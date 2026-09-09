@@ -55,10 +55,12 @@ ALL_PHASES: tuple[str, ...] = ("WARMUP", "MAIN", "COOLDOWN")
 def reps_record(
     exercise_id: UUID = REPS_EXERCISE,
     phase_codes: tuple[str, ...] = ALL_PHASES,
+    family_code: str | None = None,
 ) -> ExercisePoolExerciseRecord:
     return ExercisePoolExerciseRecord(
         phase_codes=phase_codes,
         exercise_id=exercise_id,
+        family_code=family_code,
         catalog_version="catalog-v3",
         content_version="content-v1",
         stable_code=f"reps-exercise-{exercise_id.int}",

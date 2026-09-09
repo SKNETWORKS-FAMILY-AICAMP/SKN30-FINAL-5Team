@@ -41,21 +41,17 @@ def _terminal_failure_codes(state: V3GraphState) -> tuple[str, ...]:
     Integrity violations are the answer whenever validation ran, so they are
     reported under their own codes rather than collapsed into one.
     """
-    codes = state.get("failure_codes", ())
-    if codes:
-        return tuple(codes)
-    violations = tuple(
+    codes = set(state.get("failure_codes", ()))
+    codes.update(
         f"V3_INTEGRITY_{code}"
         for validation in state.get("integrity_validations", ())
         for code in validation.violation_codes
     )
-    if violations:
-        return tuple(sorted(set(violations)))
     if state.get("used_fallback") and state.get("fallback_plan_spec") is None:
-        return ("V3_FALLBACK_PLAN_UNAVAILABLE",)
-    if state.get("compiled_plan") is None:
-        return ("V3_COMPILED_PLAN_MISSING",)
-    return ()
+        codes.add("V3_FALLBACK_PLAN_UNAVAILABLE")
+    if state.get("compiled_plan") is None and not codes:
+        codes.add("V3_COMPILED_PLAN_MISSING")
+    return tuple(sorted(codes))
 
 
 def _invocation_audit(

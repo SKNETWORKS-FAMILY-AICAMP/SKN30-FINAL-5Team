@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -13,8 +14,10 @@ from backend.app.domain.agents.v3_contracts import (
     PlanActionCode,
 )
 from backend.app.domain.agents.v3_duration import (
+    PlanDurationPreferenceCode,
     accepts_additional_seconds,
     plan_duration_preference,
+    plan_duration_seconds,
     prescription_item_duration,
 )
 from backend.app.domain.agents.v3_orchestration import FallbackRequest
@@ -28,6 +31,8 @@ from backend.app.domain.rules.plan_shape import (
     phase_rank,
 )
 
+DETERMINISTIC_FALLBACK_VERSION = "v3-deterministic-fallback-v2"
+
 
 @dataclass(frozen=True, slots=True)
 class DeterministicGraphFallbackProvider:
@@ -35,11 +40,12 @@ class DeterministicGraphFallbackProvider:
 
     A fallback is still a downshift, so it lowers intensity and load to the
     lowest value the envelope allows while keeping the user's requested
-    duration (AGENTS.md section 7). Time is filled by adding approved movements
-    rather than by driving any single exercise past its recovery ceiling.
+    duration (AGENTS.md section 7). Time is filled with approved movements and
+    longer between-set recovery rather than by driving any exercise past its
+    work ceiling.
     """
 
-    fallback_version: str = "v3-deterministic-fallback-v1"
+    fallback_version: str = DETERMINISTIC_FALLBACK_VERSION
 
     def generate(self, request: FallbackRequest) -> DeterministicFallbackPlanSpec | None:
         envelope = request.constraint_envelope
@@ -150,21 +156,53 @@ class DeterministicGraphFallbackProvider:
         for phase_code in structural:
             if any(value == phase_code for _, value in placed):
                 continue
-            if not any(
-                place(exercise_id, phase_code, required=True)
+            candidates = tuple(
+                exercise_id
                 for exercise_id in ordered_ids
                 if _serves_phase(records.get(exercise_id), phase_code)
+            )
+            # Prefer a movement whose family this session has not used yet, so
+            # filling a required phase does not quietly spend a second slot on a
+            # variant of something already prescribed. Preference, not a filter:
+            # a plan missing its warmup or cooldown is invalid outright, which is
+            # a worse outcome than one repeated family.
+            if not any(
+                place(exercise_id, phase_code, required=True)
+                for exercise_id in self._unused_family_first(candidates, records, placed)
             ):
                 # The approved pool carries no candidate for this phase, so no
                 # valid session can be built from it.
                 return None
 
-        for exercise_id in ordered_ids:
+        # Among equally approved candidates, take the ones whose reviewed volume
+        # spans more than one set first. A single-set block has no gap between
+        # sets, so it offers the session no recovery time of its own; filling a
+        # long request out of single-set blocks leaves the whole shortfall to be
+        # absorbed by the few multi-set blocks that happen to be present, which
+        # is how a thirty-minute LIGHT session ended up prescribing rests of
+        # nearly four minutes. Relative rank is preserved inside each group, so
+        # this reorders equals rather than overriding retrieval.
+        for exercise_id in self._time_bearing_first(ordered_ids, records, envelope):
             distinct_ids = {placed_id for placed_id, _ in placed}
             if exercise_id in distinct_ids or len(distinct_ids) >= MAX_PLAN_EXERCISE_TYPES:
                 continue
             record = records.get(exercise_id)
             if record is None:
+                continue
+            # One movement per family. The catalog groups near-identical variants
+            # under a family code -- barbell, seated and smith good mornings are
+            # one family -- and taking several of them spends the session's
+            # exercise budget without giving the user anything new to do. Read
+            # from what is already placed so the mandatory and structural blocks
+            # above claim their families too. A record with no family code groups
+            # with nothing, so those are never skipped.
+            placed_families = {
+                placed_record.family_code
+                for placed_id, _ in placed
+                if (placed_record := records.get(placed_id)) is not None
+                and placed_record.family_code
+            }
+            if record.family_code and record.family_code in placed_families:
                 continue
             phase_code = _preferred_phase(record)
             cap = MAX_PHASE_EXERCISE_TYPES.get(phase_code)
@@ -183,6 +221,13 @@ class DeterministicGraphFallbackProvider:
         prescriptions = self._ordered_prescriptions(placed, records=records, envelope=envelope)
         if prescriptions is None:
             return None
+        prescriptions = self._extend_rests_to_duration(
+            prescriptions,
+            records=records,
+            target_seconds=target_seconds,
+            preference=preference,
+        )
+        estimated_seconds = plan_duration_seconds(prescriptions, records)
         if abs(estimated_seconds - target_seconds) > DURATION_TOLERANCE_SECONDS:
             # Section 7 requires the request to fail rather than quietly hand the
             # user a session that is shorter than the one they asked for.
@@ -198,6 +243,51 @@ class DeterministicGraphFallbackProvider:
             exercise_prescriptions=tuple(prescriptions),
             reason_codes=("LLM_PROVIDER_FALLBACK",),
         )
+
+    @staticmethod
+    def _unused_family_first(
+        exercise_ids: tuple[UUID, ...],
+        records: dict[UUID, ExercisePoolExerciseRecord],
+        placed: Sequence[tuple[UUID, PhaseCode]],
+    ) -> tuple[UUID, ...]:
+        """Stable partition: candidates from an as-yet-unused family come first."""
+
+        used = {
+            record.family_code
+            for placed_id, _ in placed
+            if (record := records.get(placed_id)) is not None and record.family_code
+        }
+        fresh: list[UUID] = []
+        repeated: list[UUID] = []
+        for exercise_id in exercise_ids:
+            record = records.get(exercise_id)
+            family_code = None if record is None else record.family_code
+            target = repeated if family_code and family_code in used else fresh
+            target.append(exercise_id)
+        return (*fresh, *repeated)
+
+    @staticmethod
+    def _time_bearing_first(
+        ordered_ids: tuple[UUID, ...],
+        records: dict[UUID, ExercisePoolExerciseRecord],
+        envelope: ConstraintEnvelope,
+    ) -> tuple[UUID, ...]:
+        """Stable partition: candidates carrying a rest gap of their own come first."""
+
+        multi_set: list[UUID] = []
+        single_set: list[UUID] = []
+        for exercise_id in ordered_ids:
+            record = records.get(exercise_id)
+            prescription = (
+                None
+                if record is None
+                else DeterministicGraphFallbackProvider._prescribe(
+                    record, envelope=envelope, sequence=1, phase_code="MAIN"
+                )
+            )
+            target = multi_set if prescription is not None and prescription.sets > 1 else single_set
+            target.append(exercise_id)
+        return (*multi_set, *single_set)
 
     @staticmethod
     def _ordered_ids(pool: ExercisePoolSnapshot, mandatory: tuple[UUID, ...]) -> tuple[UUID, ...]:
@@ -237,6 +327,69 @@ class DeterministicGraphFallbackProvider:
                 return None
             prescriptions.append(prescription)
         return tuple(prescriptions) or None
+
+    @staticmethod
+    def _extend_rests_to_duration(
+        prescriptions: tuple[ExercisePrescription, ...],
+        *,
+        records: dict[UUID, ExercisePoolExerciseRecord],
+        target_seconds: int,
+        preference: PlanDurationPreferenceCode,
+    ) -> tuple[ExercisePrescription, ...]:
+        """Fill a short safe plan by lengthening its already-approved rest structure.
+
+        Recovery ceilings place a lower bound on rest and upper bounds on work.
+        Increasing rest therefore cannot relax Safety or Recovery.  It also avoids
+        adding needless movements or exceeding a per-exercise set ceiling merely to
+        reach the requested duration.  A prescription stores one rest value for all
+        of its between-set gaps, so the small subset calculation below finds the
+        nearest deterministic whole-second distribution without inventing work.
+        """
+
+        current_seconds = plan_duration_seconds(prescriptions, records)
+        desired_seconds = (
+            target_seconds - DURATION_TOLERANCE_SECONDS
+            if preference is PlanDurationPreferenceCode.SHORTER_WITHIN_WINDOW
+            else target_seconds
+        )
+        deficit = desired_seconds - current_seconds
+        rest_slots = tuple(max(item.sets - 1, 0) for item in prescriptions)
+        total_slots = sum(rest_slots)
+        if deficit <= 0 or total_slots == 0:
+            return prescriptions
+
+        seconds_per_slot, remainder = divmod(deficit, total_slots)
+        selected: set[int] = set()
+        if remainder:
+            # At most ten distinct exercises are present, so exhaustive subset
+            # selection is bounded and gives a stable closest non-short result.
+            candidates = tuple(index for index, slots in enumerate(rest_slots) if slots)
+            best: tuple[int, tuple[int, ...]] | None = None
+            for mask in range(1 << len(candidates)):
+                indices = tuple(
+                    candidates[offset] for offset in range(len(candidates)) if mask & (1 << offset)
+                )
+                added = sum(rest_slots[index] for index in indices)
+                if added < remainder:
+                    continue
+                choice = (added, indices)
+                if best is None or choice < best:
+                    best = choice
+            if best is not None:
+                selected.update(best[1])
+
+        return tuple(
+            item.model_copy(
+                update={
+                    "rest_seconds_between_sets": item.rest_seconds_between_sets
+                    + seconds_per_slot
+                    + (1 if index in selected else 0)
+                }
+            )
+            if rest_slots[index]
+            else item
+            for index, item in enumerate(prescriptions)
+        )
 
     @staticmethod
     def _prescribe(
@@ -349,4 +502,4 @@ def _preferred_phase(record: ExercisePoolExerciseRecord) -> PhaseCode:
     return "COOLDOWN"
 
 
-__all__ = ["DeterministicGraphFallbackProvider"]
+__all__ = ["DETERMINISTIC_FALLBACK_VERSION", "DeterministicGraphFallbackProvider"]

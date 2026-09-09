@@ -1351,10 +1351,12 @@ application loader가 방식 A로 사전 조회한 승인 운동 snapshot이다.
 mandatory ID는 `exercise_payload`의 부분집합이어야 한다. user ID, 자유 체크인, 통증 부위·점수,
 원시 건강·웨어러블 값은 pool에 포함하지 않는다. `created_at`은 `pool_hash` 입력에서 제외한다.
 
-pool snapshot schema는 `exercise-pool-snapshot-v4`다. v3 대비 각 운동 레코드가 카탈로그의 승인된
-타이밍 기준(`default_seconds_per_rep`, `default_work_seconds`, `default_rest_seconds`,
-`default_transition_seconds`)을 함께 싣는다. 계획 시간을 검수된 값으로 계산하기 위한 정수 필드이며
-식별 정보가 아니다. 레코드 형태가 바뀌었으므로 v3로 저장된 snapshot은 v4 계약으로 replay할 수 없다.
+pool snapshot schema는 `exercise-pool-snapshot-v5`다. v4 대비 각 운동 레코드가 카탈로그의
+`family_code`를 함께 싣는다. 도구만 다른 변형을 한 세션에 겹쳐 넣지 않기 위한 그룹 코드이며 식별
+정보가 아니다. v4는 각 운동 레코드가 카탈로그의 승인된 타이밍 기준(`default_seconds_per_rep`,
+`default_work_seconds`, `default_rest_seconds`, `default_transition_seconds`)을 함께 실으면서
+v3와 갈라졌다. 레코드 형태가 바뀌면 `pool_hash`도 바뀌므로 이전 버전으로 저장된 snapshot은 새 계약으로
+replay할 수 없다. 저장된 root artifact를 다시 읽을 수 있도록 v4는 계속 허용한다.
 pool 크기는 고정값이 아니라 `requested_duration_minutes`에서 도출한다.
 
 ### 9.2.3.1 [migration 0025, ADR-0014] decision_exercise_retrievals
@@ -1459,6 +1461,9 @@ Coordinator가 거절한 재현용 후보는 실제 계산값을 보존하며 `d
 | decision_run_id | decision_runs FK |
 | candidate_code | ORIGINAL, FINAL, RECOVERY, FALLBACK |
 | action_code | KEEP, DOWNSHIFT, CHANGE, RECOVERY |
+| routine_name | 결정 시점에 정한 공개 표시명, nullable |
+| routine_name_reason_codes | 표시명 근거 코드 배열, nullable |
+| routine_naming_rule_version | 표시명 규칙 버전, nullable |
 | setup_seconds | 장비 준비 |
 | warmup_seconds | 준비 운동 |
 | cooldown_seconds | 마무리 |
@@ -1476,6 +1481,11 @@ Coordinator가 거절한 재현용 후보는 실제 계산값을 보존하며 `d
 | user_revision_policy_version | 사용자 편집 규칙 버전, nullable |
 | user_revised_at | 마지막 사용자 편집 시각, nullable |
 | created_at | 생성 시각 |
+
+routine_name은 결정 시점에 `build_plan_name`이 MAIN 구성으로 정한 값을 그대로 기록한다. 저장된 결정을
+다시 읽을 때 같은 이름을 돌려주기 위한 것이며, 읽는 시점에 다시 계산하지 않는다. 이름의 근거가 되는
+카탈로그 버전이 이미 교체되었을 수 있어 재계산 값은 사용자가 실제로 본 이름과 달라질 수 있기 때문이다.
+이 컬럼이 생기기 전에 저장된 결정은 값이 없으며 null로 재생된다.
 
 requested_duration_minutes는 사용자 입력에서만 가져오며 시스템이 임의 변경하지 않는다. 계획이 있는 후보의 estimated_duration_seconds는 `requested_duration_minutes * 60`과 ±300초 이내여야 하며, 허용 범위 안에서 차이가 가장 작은 계획을 선택한다(동률이면 더 긴 계획). 이는 계획 단계의 hard target이지만 실제 수행의 hard execution limit이나 완료 조건은 아니다. estimated_calories_burned는 제공된 체중이 있을 때만 계산하며 진단·안전 판정의 단독 근거로 사용하지 않는다.
 

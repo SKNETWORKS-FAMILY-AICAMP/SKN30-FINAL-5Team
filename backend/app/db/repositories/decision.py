@@ -918,6 +918,13 @@ class DecisionRepository:
                 "action_code": plan.action_code,
                 "training_type_code": plan.training_type_code,
                 "body_focus_code": plan.body_focus_code,
+                # The name decided when the plan was built, so a replayed
+                # decision reports the same title the create response did.
+                # Runs stored before the column existed replay as null, which
+                # is what the client's compatibility fallback already expects.
+                "routine_name": plan.routine_name,
+                "routine_name_reason_codes": plan.routine_name_reason_codes,
+                "routine_naming_rule_version": plan.routine_naming_rule_version,
                 "requested_duration_minutes": plan.requested_duration_minutes,
                 # A user edit replaces the measured total but never the request itself
                 # (DOMAIN_RULES 11.2); the request stays exactly what it was.

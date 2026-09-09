@@ -12,8 +12,16 @@ function fallbackRoutineTitle(plan: {
   body_focus_code: string | null;
   training_type_code: string;
 }): string {
+  // CARDIO and MOBILITY are both a body focus and a training type. Joining the
+  // two labels blindly restated the same code twice -- '유산소 유산소 루틴', and
+  // for MOBILITY the maps even disagree on the word, giving '가동성 스트레칭
+  // 루틴'. One code means one word, which is the rule the server's
+  // build_plan_name already applies to the name it decides.
   const focus =
-    plan.body_focus_code === null ? '' : bodyFocusLabel(plan.body_focus_code);
+    plan.body_focus_code === null ||
+    plan.body_focus_code === plan.training_type_code
+      ? ''
+      : bodyFocusLabel(plan.body_focus_code);
   return `${focus ? `${focus} ` : ''}${trainingTypeLabel(plan.training_type_code)} 루틴`;
 }
 

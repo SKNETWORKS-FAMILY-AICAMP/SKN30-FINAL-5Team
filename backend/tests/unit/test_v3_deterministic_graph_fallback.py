@@ -3,6 +3,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from backend.app.domain.agents.retrieval import ExercisePoolSnapshot
+from backend.app.domain.agents.v3_contracts import ConstraintEnvelope
 from backend.app.domain.agents.v3_duration import plan_duration_seconds
 from backend.app.domain.agents.v3_orchestration import (
     FallbackRequest,
@@ -14,9 +15,13 @@ from backend.app.domain.rules.duration import DURATION_TOLERANCE_SECONDS
 from backend.app.domain.rules.plan_shape import (
     MAX_PHASE_EXERCISE_TYPES,
     MAX_PLAN_EXERCISE_TYPES,
+    families_over_budget,
     phase_rank,
 )
-from backend.app.integrations.langgraph.fallback import DeterministicGraphFallbackProvider
+from backend.app.integrations.langgraph.fallback import (
+    DETERMINISTIC_FALLBACK_VERSION,
+    DeterministicGraphFallbackProvider,
+)
 from backend.tests.unit.test_v3_demo_runtime import _blocked_root_snapshot
 from backend.tests.unit.test_v3_duration import _envelope as duration_envelope
 from backend.tests.unit.test_v3_duration import _pool as duration_pool
@@ -32,7 +37,7 @@ def test_default_fallback_compiles_and_passes_integrity_validation() -> None:
         provider,
         envelope=root.constraint_envelope,
         pool=root.exercise_pool,
-        fallback_version="v3-deterministic-fallback-v1",
+        fallback_version=DETERMINISTIC_FALLBACK_VERSION,
         compiler_version="v3-plan-compiler-v1",
         validator_version="v3-integrity-validator-v1",
         validation_context=IntegrityValidationContext(),
@@ -52,7 +57,7 @@ def test_fallback_uses_approved_fitt_defaults_not_recovery_maxima() -> None:
         FallbackRequest.create(
             constraint_envelope=root.constraint_envelope,
             exercise_pool=root.exercise_pool,
-            fallback_version="v3-deterministic-fallback-v1",
+            fallback_version=DETERMINISTIC_FALLBACK_VERSION,
         )
     )
 
@@ -75,7 +80,7 @@ def test_safety_veto_cannot_be_overridden_by_default_fallback() -> None:
     request = FallbackRequest.create(
         constraint_envelope=root.constraint_envelope,
         exercise_pool=root.exercise_pool,
-        fallback_version="v3-deterministic-fallback-v1",
+        fallback_version=DETERMINISTIC_FALLBACK_VERSION,
     )
 
     assert provider.generate(request) is None
@@ -83,7 +88,7 @@ def test_safety_veto_cannot_be_overridden_by_default_fallback() -> None:
         provider,
         envelope=root.constraint_envelope,
         pool=root.exercise_pool,
-        fallback_version="v3-deterministic-fallback-v1",
+        fallback_version=DETERMINISTIC_FALLBACK_VERSION,
         compiler_version="v3-plan-compiler-v1",
         validator_version="v3-integrity-validator-v1",
         validation_context=IntegrityValidationContext(),
@@ -112,7 +117,7 @@ def test_fallback_returns_no_plan_when_mandatory_exercise_has_no_allowed_locatio
     request = FallbackRequest.create(
         constraint_envelope=incompatible_envelope,
         exercise_pool=incompatible_pool,
-        fallback_version="v3-deterministic-fallback-v1",
+        fallback_version=DETERMINISTIC_FALLBACK_VERSION,
     )
 
     assert provider.generate(request) is None
@@ -130,7 +135,7 @@ def test_fallback_fills_the_requested_duration_instead_of_declaring_it() -> None
         FallbackRequest.create(
             constraint_envelope=envelope,
             exercise_pool=pool,
-            fallback_version="v3-deterministic-fallback-v1",
+            fallback_version=DETERMINISTIC_FALLBACK_VERSION,
         )
     )
 
@@ -140,6 +145,49 @@ def test_fallback_fills_the_requested_duration_instead_of_declaring_it() -> None
     )
     assert spec.estimated_duration_seconds == measured
     assert abs(measured - 30 * 60) <= DURATION_TOLERANCE_SECONDS
+
+
+def test_light_recovery_fallback_fills_30_minutes_without_raising_work_caps() -> None:
+    """The production default-like LIGHT envelope must retain a safe 30-minute fallback."""
+
+    source = duration_envelope(requested_duration_minutes=30, maximum_sets_per_exercise=2)
+    ceiling = source.recovery_ceiling.model_copy(
+        update={
+            "allowed_intensity_codes": ("LOW",),
+            "maximum_repetitions_per_set": 10,
+        }
+    )
+    values = source.model_dump(exclude={"envelope_hash"})
+    values["recovery_ceiling"] = ceiling
+    envelope = ConstraintEnvelope.create(**values)
+    records = (
+        reps_record(UUID(int=1), phase_codes=("WARMUP",)),
+        *tuple(reps_record(UUID(int=index), phase_codes=("MAIN",)) for index in range(2, 10)),
+        reps_record(UUID(int=10), phase_codes=("COOLDOWN",)),
+    )
+    pool = duration_pool(envelope, records)
+
+    outcome = execute_deterministic_fallback(
+        DeterministicGraphFallbackProvider(),
+        envelope=envelope,
+        pool=pool,
+        fallback_version=DETERMINISTIC_FALLBACK_VERSION,
+        compiler_version="v3-plan-compiler-v1",
+        validator_version="v3-integrity-validator-v1",
+        validation_context=IntegrityValidationContext(),
+    )
+
+    assert outcome.compiled_plan is not None
+    assert outcome.terminal_result is None
+    assert outcome.compiled_plan.estimated_duration_seconds == 30 * 60
+    assert all(item.prescription.sets <= 2 for item in outcome.compiled_plan.exercises)
+    assert all(
+        item.prescription.repetitions_per_set is None or item.prescription.repetitions_per_set <= 10
+        for item in outcome.compiled_plan.exercises
+    )
+    assert all(
+        item.prescription.intensity_code == "LOW" for item in outcome.compiled_plan.exercises
+    )
 
 
 def test_fallback_declines_when_the_pool_cannot_reach_the_requested_duration() -> None:
@@ -153,7 +201,7 @@ def test_fallback_declines_when_the_pool_cannot_reach_the_requested_duration() -
     request = FallbackRequest.create(
         constraint_envelope=envelope,
         exercise_pool=pool,
-        fallback_version="v3-deterministic-fallback-v1",
+        fallback_version=DETERMINISTIC_FALLBACK_VERSION,
     )
 
     assert provider.generate(request) is None
@@ -171,7 +219,7 @@ def test_fallback_builds_a_90_minute_plan_with_nonconsecutive_main_repetitions()
         FallbackRequest.create(
             constraint_envelope=envelope,
             exercise_pool=pool,
-            fallback_version="v3-deterministic-fallback-v1",
+            fallback_version=DETERMINISTIC_FALLBACK_VERSION,
         )
     )
 
@@ -213,7 +261,7 @@ def test_fallback_builds_a_plan_when_the_equipment_allowlist_is_empty() -> None:
         FallbackRequest.create(
             constraint_envelope=envelope,
             exercise_pool=pool,
-            fallback_version="v3-deterministic-fallback-v1",
+            fallback_version=DETERMINISTIC_FALLBACK_VERSION,
         )
     )
 
@@ -239,7 +287,7 @@ def test_fallback_opens_with_a_warmup_and_closes_with_a_cooldown() -> None:
         FallbackRequest.create(
             constraint_envelope=envelope,
             exercise_pool=pool,
-            fallback_version="v3-deterministic-fallback-v1",
+            fallback_version=DETERMINISTIC_FALLBACK_VERSION,
         )
     )
 
@@ -265,7 +313,7 @@ def test_fallback_keeps_the_session_inside_the_exercise_type_budget() -> None:
         FallbackRequest.create(
             constraint_envelope=envelope,
             exercise_pool=pool,
-            fallback_version="v3-deterministic-fallback-v1",
+            fallback_version=DETERMINISTIC_FALLBACK_VERSION,
         )
     )
 
@@ -277,6 +325,61 @@ def test_fallback_keeps_the_session_inside_the_exercise_type_budget() -> None:
                 item.exercise_id for item in prescriptions if item.phase_code == phase_code
             }
             assert len(phase_ids) <= cap
+
+
+def test_fallback_takes_one_exercise_per_movement_family() -> None:
+    # The catalog groups near-identical variants under a family code. Three good
+    # mornings that differ only by implement spend the session's exercise budget
+    # without giving the user anything new to do, so selection takes one of them
+    # and moves on to a different movement.
+    envelope = duration_envelope(requested_duration_minutes=60)
+    family = tuple(
+        reps_record(UUID(int=index), family_code="GOOD_MORNING") for index in range(1, 4)
+    )
+    others = tuple(reps_record(UUID(int=index)) for index in range(4, 21))
+    pool = duration_pool(envelope, family + others)
+
+    spec = DeterministicGraphFallbackProvider().generate(
+        FallbackRequest.create(
+            constraint_envelope=envelope,
+            exercise_pool=pool,
+            fallback_version=DETERMINISTIC_FALLBACK_VERSION,
+        )
+    )
+
+    assert spec is not None
+    records = {record.exercise_id: record for record in family + others}
+    assert (
+        families_over_budget(
+            (item.exercise_id, records[item.exercise_id].family_code)
+            for item in spec.exercise_prescriptions
+        )
+        == ()
+    )
+
+
+def test_fallback_still_uses_a_family_member_when_it_is_the_only_candidate() -> None:
+    # One-per-family narrows the choice; it must not empty a phase. A pool whose
+    # only cooldown candidates share a family still has to yield a plan.
+    envelope = duration_envelope(requested_duration_minutes=30)
+    records = (
+        reps_record(UUID(int=1), phase_codes=("WARMUP",), family_code="CAT_COW"),
+        reps_record(UUID(int=2), phase_codes=("COOLDOWN",), family_code="HAMSTRING_STRETCH"),
+        reps_record(UUID(int=3), phase_codes=("COOLDOWN",), family_code="HAMSTRING_STRETCH"),
+    ) + tuple(reps_record(UUID(int=index), phase_codes=("MAIN",)) for index in range(4, 14))
+    pool = duration_pool(envelope, records)
+
+    spec = DeterministicGraphFallbackProvider().generate(
+        FallbackRequest.create(
+            constraint_envelope=envelope,
+            exercise_pool=pool,
+            fallback_version=DETERMINISTIC_FALLBACK_VERSION,
+        )
+    )
+
+    assert spec is not None
+    phases = {item.phase_code for item in spec.exercise_prescriptions}
+    assert {"WARMUP", "MAIN", "COOLDOWN"} <= phases
 
 
 def test_fallback_declines_when_the_pool_has_no_cooldown_candidate() -> None:
@@ -291,7 +394,7 @@ def test_fallback_declines_when_the_pool_has_no_cooldown_candidate() -> None:
     request = FallbackRequest.create(
         constraint_envelope=envelope,
         exercise_pool=pool,
-        fallback_version="v3-deterministic-fallback-v1",
+        fallback_version=DETERMINISTIC_FALLBACK_VERSION,
     )
 
     assert DeterministicGraphFallbackProvider().generate(request) is None
@@ -327,7 +430,7 @@ def test_fallback_still_plans_when_no_reviewed_fitt_range_covers_the_pool() -> N
         FallbackRequest.create(
             constraint_envelope=root.constraint_envelope,
             exercise_pool=unmapped_pool,
-            fallback_version="v3-deterministic-fallback-v1",
+            fallback_version=DETERMINISTIC_FALLBACK_VERSION,
         )
     )
 
@@ -367,7 +470,7 @@ def test_unmapped_pool_fallback_compiles_and_passes_integrity_validation() -> No
         DeterministicGraphFallbackProvider(),
         envelope=root.constraint_envelope,
         pool=unmapped_pool,
-        fallback_version="v3-deterministic-fallback-v1",
+        fallback_version=DETERMINISTIC_FALLBACK_VERSION,
         compiler_version="v3-plan-compiler-v1",
         validator_version="v3-integrity-validator-v1",
         validation_context=IntegrityValidationContext(),

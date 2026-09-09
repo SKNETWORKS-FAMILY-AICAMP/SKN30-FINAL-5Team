@@ -214,7 +214,7 @@ def test_provider_failure_uses_validated_deterministic_fallback_without_coordina
         prescription(C, 3, phase_code="COOLDOWN"),
     )
     fallback = DeterministicFallbackPlanSpec.create(
-        fallback_version="v3-deterministic-fallback-v1",
+        fallback_version="v3-deterministic-fallback-v2",
         envelope_hash=current_envelope.envelope_hash,
         pool_hash=current_pool.pool_hash,
         action_code=PlanActionCode.KEEP,

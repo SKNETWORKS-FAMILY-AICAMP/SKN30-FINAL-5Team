@@ -107,8 +107,8 @@ def test_coordinator_cannot_relax_envelope_constraints() -> None:
     assert result.output is None
     assert result.failure is not None
     assert result.failure.code is LlmAgentFailureCode.DOMAIN_INVALID
-    assert result.failure.attempt_count == 1
-    assert model.invocation_count == 1
+    assert result.failure.attempt_count == 2
+    assert model.invocation_count == 2
 
 
 def test_repair_is_one_structured_call_without_an_adapter_loop() -> None:

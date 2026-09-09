@@ -1183,6 +1183,7 @@ export function PreviewGallery({
                   ) : null}
                   {screenId === 'loading' && pageLoadingState === 'house' ? (
                     <MascotHouseScreen
+                      accountId={'preview-account'}
                       api={PAGE_LOADING_PREVIEW_API}
                       nickname={PREVIEW_ME.profile?.nickname ?? '미리보기'}
                       now={GALLERY_PREVIEW_NOW}
@@ -1292,6 +1293,7 @@ export function PreviewGallery({
                   ) : null}
                   {screenId === 'mascot-house' ? (
                     <MascotHouseScreen
+                      accountId={'preview-account'}
                       key={houseState}
                       api={houseApi}
                       nickname={PREVIEW_ME.profile?.nickname ?? '미리보기'}
@@ -1308,6 +1310,7 @@ export function PreviewGallery({
                   ) : null}
                   {screenId === 'background_test' ? (
                     <BackgroundTestScreen
+                      accountId={'preview-account'}
                       key={houseState}
                       api={houseApi}
                       nickname={PREVIEW_ME.profile?.nickname ?? '미리보기'}

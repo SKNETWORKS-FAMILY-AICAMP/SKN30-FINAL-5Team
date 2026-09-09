@@ -1,4 +1,5 @@
 import logging
+import traceback
 from http import HTTPStatus
 from typing import Any
 
@@ -153,6 +154,13 @@ async def unhandled_error_handler(request: Request, exc: Exception) -> JSONRespo
             "request_id": _request_id(request),
             "path": request.url.path,
             "exception_type": type(exc).__name__,
+            # Carried explicitly. `ErrorEnvelopeMiddleware` answers below the
+            # CORS layer, so the exception no longer reaches Starlette's
+            # ServerErrorMiddleware and uvicorn no longer prints the trace, and
+            # `JsonFormatter` drops `exc_info` because it is a standard record
+            # field. Without this a 500 is no longer diagnosable from the logs.
+            # It stays out of the response body, which is asserted separately.
+            "stack_trace": "".join(traceback.format_exception(type(exc), exc, exc.__traceback__)),
         },
     )
     return _error_response(

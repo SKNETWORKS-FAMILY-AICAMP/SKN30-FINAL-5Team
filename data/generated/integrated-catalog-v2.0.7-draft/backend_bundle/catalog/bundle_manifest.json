@@ -38,10 +38,10 @@
       "sha256": "b36f0a6d6a1c518c75e06abe3a25758da04c60d2a34c2ca985731f5f097a7c56"
     },
     {
-      "bytes": 392549,
+      "bytes": 392786,
       "path": "catalog/exercises.jsonl",
       "records": 237,
-      "sha256": "ec78bc6a1e81efb24e11004d82f3413b8877601b7180a9180c8504047dc2731f"
+      "sha256": "651a6c28004605c384417dfd428d611dd98f5e8caa38c945e2099e5a8d813133"
     },
     {
       "bytes": 1107,
@@ -54,9 +54,9 @@
       "sha256": "fd7099554043cfbfa9ea0e5658bc8078c620272c728aa9c1c8ac2bc6a2178627"
     },
     {
-      "bytes": 1554,
+      "bytes": 1604,
       "path": "catalog/seed_manifest.json",
-      "sha256": "4978d07bbb9940d8ec954efdb667199bffc794e0bfeb6c1655b18bafd4cb9bde"
+      "sha256": "f40fc857b0cf7ae8f6e2ff7a3c038bef4101f878a997607282c860654000fef8"
     },
     {
       "bytes": 170906,
@@ -76,15 +76,15 @@
       "sha256": "16edf7103184972edfd65d1d211e3e6e2cdd1602a34a813ce54652dbeb132990"
     },
     {
-      "bytes": 1254,
+      "bytes": 1294,
       "path": "prescriptions/prescription_manifest.json",
-      "sha256": "50cc64677fa2bdaa9e1d21ba6261c9f28bc7dd17b8b507c967be5c364d6dbcb7"
+      "sha256": "3c6bcec826cc342caddbc0157a06148e50a4af22ceb014304754fb8afc833b0a"
     },
     {
-      "bytes": 617100,
+      "bytes": 591254,
       "path": "prescriptions/prescription_profiles.jsonl",
-      "records": 1449,
-      "sha256": "d6725499038cf7b2900fb23066579cfe881d669dfed84f225794da14fca09086"
+      "records": 1464,
+      "sha256": "65c470a52d4bb1843e47942bccbb0939213635f2e29f3599a0433a45036ee0e7"
     },
     {
       "bytes": 1054,
@@ -135,7 +135,7 @@
     "catalog_records": 237,
     "goal_tag_records": 711,
     "media_asset_records": 237,
-    "prescription_records": 1449,
+    "prescription_records": 1464,
     "safety_rule_records": 2131
   }
 }

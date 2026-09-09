@@ -3348,6 +3348,7 @@ describe('MascotHouseScreen', () => {
     const onNavigate = jest.fn();
     render(
       <MascotHouseScreen
+        accountId={'test-account'}
         api={stubApi({
           getWeek: jest.fn(async () => ({
             week_id: 'week-1',
@@ -3386,6 +3387,7 @@ describe('MascotHouseScreen', () => {
   it('exposes every tab, including the mascot house', async () => {
     render(
       <MascotHouseScreen
+        accountId={'test-account'}
         api={stubApi({
           getWeek: jest.fn(async () => {
             throw new Error('unavailable');

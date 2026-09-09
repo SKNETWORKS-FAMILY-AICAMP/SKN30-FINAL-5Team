@@ -511,6 +511,80 @@ def test_plan_spending_more_than_the_warmup_type_budget_is_flagged() -> None:
     assert IntegrityViolationCode.PLAN_EXERCISE_VARIETY_EXCEEDED in codes
 
 
+def test_plan_taking_two_exercises_from_one_family_is_flagged() -> None:
+    # The catalog's GOOD_MORNING family holds three variants that differ by
+    # implement, not by what they train. Listing several of them pads a session
+    # instead of varying it, so the compiled plan must not carry more than one.
+    current_envelope = envelope()
+    records = (
+        exercise(A, family_code="GOOD_MORNING"),
+        exercise(B, family_code="GOOD_MORNING"),
+        exercise(C),
+        exercise(D),
+    )
+    compiled, current_pool = _compiled_with(
+        current_envelope,
+        (
+            prescription(C, 1, phase_code="WARMUP"),
+            prescription(A, 2),
+            prescription(B, 3),
+            prescription(D, 4, phase_code="COOLDOWN"),
+        ),
+        records=records,
+    )
+
+    result = _validate(compiled, current_envelope, current_pool)
+
+    codes = {violation.code for violation in result.violations}
+    assert IntegrityViolationCode.PLAN_EXERCISE_FAMILY_REPEATED in codes
+
+
+def test_plan_keeping_one_exercise_per_family_passes() -> None:
+    current_envelope = envelope()
+    records = (
+        exercise(A, family_code="GOOD_MORNING"),
+        exercise(B, family_code="ROMANIAN_DEADLIFT"),
+        exercise(C),
+        exercise(D),
+    )
+    compiled, current_pool = _compiled_with(
+        current_envelope,
+        (
+            prescription(C, 1, phase_code="WARMUP"),
+            prescription(A, 2),
+            prescription(B, 3),
+            prescription(D, 4, phase_code="COOLDOWN"),
+        ),
+        records=records,
+    )
+
+    result = _validate(compiled, current_envelope, current_pool)
+
+    codes = {violation.code for violation in result.violations}
+    assert IntegrityViolationCode.PLAN_EXERCISE_FAMILY_REPEATED not in codes
+
+
+def test_exercises_without_a_family_code_are_never_grouped() -> None:
+    # The catalog leaves family_code unset for exercises that belong to no
+    # family. Collapsing those together would refuse ordinary, valid plans.
+    current_envelope = envelope()
+    compiled, current_pool = _compiled_with(
+        current_envelope,
+        (
+            prescription(C, 1, phase_code="WARMUP"),
+            prescription(A, 2),
+            prescription(B, 3),
+            prescription(D, 4, phase_code="COOLDOWN"),
+        ),
+        records=(exercise(A), exercise(B), exercise(C), exercise(D)),
+    )
+
+    result = _validate(compiled, current_envelope, current_pool)
+
+    codes = {violation.code for violation in result.violations}
+    assert IntegrityViolationCode.PLAN_EXERCISE_FAMILY_REPEATED not in codes
+
+
 def test_consecutive_main_repetition_is_repairable() -> None:
     current_envelope = envelope()
     valid, current_pool = _compiled_with(

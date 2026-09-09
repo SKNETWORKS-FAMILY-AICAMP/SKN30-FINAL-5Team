@@ -668,6 +668,19 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.getByText('호흡을 멈추지 않기')).toBeOnTheScreen();
   });
 
+  it('keeps posture guidance scrollable inside the capped sheet', async () => {
+    render(<HomeScreen {...homePreviewProps('routine')} />);
+
+    fireEvent.press(screen.getByRole('button', { name: '푸시업 자세' }));
+
+    // The sheet frame caps its height, so content past the fold is only
+    // reachable when it is rendered inside the sheet's scroll view.
+    const scroll = await screen.findByTestId('exercise-guide-scroll');
+    expect(
+      await within(scroll).findByText('호흡을 멈추지 않기'),
+    ).toBeOnTheScreen();
+  });
+
   it('opens reviewed equipment variant guidance without replacing the routine item', async () => {
     render(<HomeScreen {...homePreviewProps('routine')} />);
 

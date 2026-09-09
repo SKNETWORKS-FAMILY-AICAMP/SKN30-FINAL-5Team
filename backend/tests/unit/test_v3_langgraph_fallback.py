@@ -104,7 +104,10 @@ def test_failed_integrity_validation_is_named_in_the_terminal_result() -> None:
     result = asyncio.run(V3LangGraphRuntime(create_v3_graph()).ainvoke(current_input))
 
     assert result.status_code == "FAILED"
-    assert result.failure_codes == ("V3_INTEGRITY_EQUIPMENT_NOT_AVAILABLE",)
+    assert set(result.failure_codes) == {
+        "V3_FALLBACK_PLAN_UNAVAILABLE",
+        "V3_INTEGRITY_EQUIPMENT_NOT_AVAILABLE",
+    }
 
 
 def test_a_fallback_that_produces_no_plan_says_so() -> None:
@@ -114,3 +117,4 @@ def test_a_fallback_that_produces_no_plan_says_so() -> None:
 
     assert result.status_code == "FAILED"
     assert "V3_COORDINATOR_TIMEOUT" in result.failure_codes
+    assert "V3_FALLBACK_PLAN_UNAVAILABLE" in result.failure_codes

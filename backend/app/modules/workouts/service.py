@@ -414,10 +414,21 @@ class WorkoutService:
 
             workout_session_id: UUID | None = None
             if source.option_code == "FINAL_ROUTINE":
+                # A veto that fired is not the same as a veto that was ignored.
+                # REVISE is the recorded outcome of a veto that was honoured by
+                # replacing the excluded movements, and it is the answer a user
+                # who reported discomfort is meant to receive. The terminal
+                # outcomes carry BLOCKED or FAILED and are refused by the status
+                # check above, so the enforceable invariant here is the one
+                # ADR-0015 states: the plan must not contain what safety
+                # excluded. That is checked directly, against the published plan.
+                veto_honoured = not (
+                    set(source.safety_excluded_exercise_ids) & set(source.plan_exercise_ids)
+                )
                 valid_final = (
                     source.decision_safety_status_code in {"PASS", "REVISE"}
                     and source.safety_status_code in {"PASS", "REVISE"}
-                    and source.safety_vetoed is False
+                    and veto_honoured
                     and source.selected_candidate_id is not None
                     and source.option_plan_candidate_id == source.selected_candidate_id
                     and source.safety_candidate_id == source.selected_candidate_id

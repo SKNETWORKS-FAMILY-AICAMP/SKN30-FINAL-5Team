@@ -48,6 +48,7 @@ import {
   HOME_BACKGROUND_COLOR,
 } from './homeConstants';
 import {
+  ExerciseGuideSheet,
   HomeBottomNavigation,
   RecommendationReasonSheet,
   SheetFrame,
@@ -922,22 +923,16 @@ export function HomeScreenContent({
           />
         ) : null}
         {exerciseGuide?.exerciseId && exerciseApi ? (
-          <SheetFrame
+          <ExerciseGuideSheet
             onClose={() => setExerciseGuide(null)}
             title={exerciseGuide.name}
-            zIndex={25}
           >
-            <ScrollView
-              contentContainerStyle={styles.sheetScrollContent}
-              showsVerticalScrollIndicator={false}
-            >
-              <ExerciseDetailSheet
-                api={exerciseApi}
-                exerciseId={exerciseGuide.exerciseId}
-                guideContext={{ locationCode: displayedCheckin.locationCode }}
-              />
-            </ScrollView>
-          </SheetFrame>
+            <ExerciseDetailSheet
+              api={exerciseApi}
+              exerciseId={exerciseGuide.exerciseId}
+              guideContext={{ locationCode: displayedCheckin.locationCode }}
+            />
+          </ExerciseGuideSheet>
         ) : null}
         {variantGuide && variantsAvailableInContext ? (
           <SheetFrame
