@@ -120,3 +120,57 @@ it('counts a safety stop apart from rest even when no block was completed', () =
     ['safety', 1],
   ]);
 });
+
+it('keeps a completed day completed when a later session on it was abandoned', () => {
+  // Two sessions on one date: the user finished a workout in the morning and
+  // started another they did not finish. The day is still a completed day, and
+  // counting it as rest is the hiding of completed blocks sessionDayStatus
+  // exists to avoid.
+  const data = buildCalendarReportData({
+    month: '2026-09',
+    today: '2026-09-08',
+    weeksByStart: new Map(),
+    sessions: [
+      session('done', '2026-09-05', 'COMPLETED'),
+      session('abandoned', '2026-09-05', 'NOT_COMPLETED'),
+    ],
+  });
+
+  expect(dayStatus(data, '2026-09-05')).toBe('done');
+  expect(data.stats.map(({ key, value }) => ({ key, value }))).toEqual([
+    { key: 'done', value: 1 },
+    { key: 'partial', value: 0 },
+    { key: 'rest', value: 0 },
+    { key: 'safety', value: 0 },
+  ]);
+});
+
+it('keeps a completed day completed when a safety stop follows it', () => {
+  const data = buildCalendarReportData({
+    month: '2026-09',
+    today: '2026-09-08',
+    weeksByStart: new Map(),
+    sessions: [
+      session('done', '2026-09-05', 'COMPLETED'),
+      session('safety', '2026-09-05', 'STOPPED_FOR_SAFETY'),
+    ],
+  });
+
+  expect(dayStatus(data, '2026-09-05')).toBe('done');
+});
+
+it('shows a safety stop rather than rest when both fall on one day', () => {
+  // A pain stop is a named event in the legend, not an absence, so it outranks
+  // a plain missed session.
+  const data = buildCalendarReportData({
+    month: '2026-09',
+    today: '2026-09-08',
+    weeksByStart: new Map(),
+    sessions: [
+      session('missed', '2026-09-05', 'NOT_COMPLETED'),
+      session('safety', '2026-09-05', 'STOPPED_FOR_SAFETY'),
+    ],
+  });
+
+  expect(dayStatus(data, '2026-09-05')).toBe('safety');
+});

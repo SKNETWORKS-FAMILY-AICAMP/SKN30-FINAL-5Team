@@ -1471,6 +1471,24 @@ describe('HomeScreen Home v1 transcription', () => {
     ).toBe(true);
   });
 
+  it('explains what is missing when the dimmed check-in button is pressed', () => {
+    // setSubmitAttempted only ever runs from this button's onPress. A truly
+    // disabled Pressable never fires it, which left every message gated on it
+    // unreachable and told a blocked user nothing.
+    render(<HomeScreen previewState="checkin" />);
+
+    const submitButton = screen.getByRole('button', { name: '체크인 !' });
+    expect(submitButton).toBeDisabled();
+    expect(screen.queryByText('위험 신호 여부를 선택해주세요.')).toBeNull();
+
+    fireEvent.press(submitButton);
+
+    expect(
+      screen.getByText('위험 신호 여부를 선택해주세요.'),
+    ).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: '체크인 !' })).toBeDisabled();
+  });
+
   it('dims the check-in submit button while required inputs are missing', () => {
     render(<HomeScreen previewState="checkin" />);
 

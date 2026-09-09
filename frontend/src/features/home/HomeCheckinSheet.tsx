@@ -524,8 +524,12 @@ export function CheckinSheet({
         <Pressable
           accessibilityLabel="체크인 !"
           accessibilityRole="button"
+          // Announced and styled as disabled, but still pressable on purpose.
+          // `setSubmitAttempted` only ever runs here, so a truly disabled button
+          // could never set it: every message gated on it was unreachable and a
+          // blocked check-in explained nothing. Pressing now reveals what is
+          // missing; `saveDisabled` below is what actually withholds the submit.
           accessibilityState={{ disabled: submitDisabled }}
-          disabled={submitDisabled}
           onPress={() => {
             setSubmitAttempted(true);
             if (!saveDisabled) onSave();
