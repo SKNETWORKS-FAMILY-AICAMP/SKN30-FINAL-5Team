@@ -15,6 +15,7 @@ from backend.app.domain.rules.duration import DURATION_TOLERANCE_SECONDS
 from backend.app.domain.rules.plan_shape import (
     MAX_PHASE_EXERCISE_TYPES,
     MAX_PLAN_EXERCISE_TYPES,
+    families_over_budget,
     phase_rank,
 )
 from backend.app.integrations.langgraph.fallback import (
@@ -324,6 +325,61 @@ def test_fallback_keeps_the_session_inside_the_exercise_type_budget() -> None:
                 item.exercise_id for item in prescriptions if item.phase_code == phase_code
             }
             assert len(phase_ids) <= cap
+
+
+def test_fallback_takes_one_exercise_per_movement_family() -> None:
+    # The catalog groups near-identical variants under a family code. Three good
+    # mornings that differ only by implement spend the session's exercise budget
+    # without giving the user anything new to do, so selection takes one of them
+    # and moves on to a different movement.
+    envelope = duration_envelope(requested_duration_minutes=60)
+    family = tuple(
+        reps_record(UUID(int=index), family_code="GOOD_MORNING") for index in range(1, 4)
+    )
+    others = tuple(reps_record(UUID(int=index)) for index in range(4, 21))
+    pool = duration_pool(envelope, family + others)
+
+    spec = DeterministicGraphFallbackProvider().generate(
+        FallbackRequest.create(
+            constraint_envelope=envelope,
+            exercise_pool=pool,
+            fallback_version=DETERMINISTIC_FALLBACK_VERSION,
+        )
+    )
+
+    assert spec is not None
+    records = {record.exercise_id: record for record in family + others}
+    assert (
+        families_over_budget(
+            (item.exercise_id, records[item.exercise_id].family_code)
+            for item in spec.exercise_prescriptions
+        )
+        == ()
+    )
+
+
+def test_fallback_still_uses_a_family_member_when_it_is_the_only_candidate() -> None:
+    # One-per-family narrows the choice; it must not empty a phase. A pool whose
+    # only cooldown candidates share a family still has to yield a plan.
+    envelope = duration_envelope(requested_duration_minutes=30)
+    records = (
+        reps_record(UUID(int=1), phase_codes=("WARMUP",), family_code="CAT_COW"),
+        reps_record(UUID(int=2), phase_codes=("COOLDOWN",), family_code="HAMSTRING_STRETCH"),
+        reps_record(UUID(int=3), phase_codes=("COOLDOWN",), family_code="HAMSTRING_STRETCH"),
+    ) + tuple(reps_record(UUID(int=index), phase_codes=("MAIN",)) for index in range(4, 14))
+    pool = duration_pool(envelope, records)
+
+    spec = DeterministicGraphFallbackProvider().generate(
+        FallbackRequest.create(
+            constraint_envelope=envelope,
+            exercise_pool=pool,
+            fallback_version=DETERMINISTIC_FALLBACK_VERSION,
+        )
+    )
+
+    assert spec is not None
+    phases = {item.phase_code for item in spec.exercise_prescriptions}
+    assert {"WARMUP", "MAIN", "COOLDOWN"} <= phases
 
 
 def test_fallback_declines_when_the_pool_has_no_cooldown_candidate() -> None:

@@ -1351,10 +1351,12 @@ application loader가 방식 A로 사전 조회한 승인 운동 snapshot이다.
 mandatory ID는 `exercise_payload`의 부분집합이어야 한다. user ID, 자유 체크인, 통증 부위·점수,
 원시 건강·웨어러블 값은 pool에 포함하지 않는다. `created_at`은 `pool_hash` 입력에서 제외한다.
 
-pool snapshot schema는 `exercise-pool-snapshot-v4`다. v3 대비 각 운동 레코드가 카탈로그의 승인된
-타이밍 기준(`default_seconds_per_rep`, `default_work_seconds`, `default_rest_seconds`,
-`default_transition_seconds`)을 함께 싣는다. 계획 시간을 검수된 값으로 계산하기 위한 정수 필드이며
-식별 정보가 아니다. 레코드 형태가 바뀌었으므로 v3로 저장된 snapshot은 v4 계약으로 replay할 수 없다.
+pool snapshot schema는 `exercise-pool-snapshot-v5`다. v4 대비 각 운동 레코드가 카탈로그의
+`family_code`를 함께 싣는다. 도구만 다른 변형을 한 세션에 겹쳐 넣지 않기 위한 그룹 코드이며 식별
+정보가 아니다. v4는 각 운동 레코드가 카탈로그의 승인된 타이밍 기준(`default_seconds_per_rep`,
+`default_work_seconds`, `default_rest_seconds`, `default_transition_seconds`)을 함께 실으면서
+v3와 갈라졌다. 레코드 형태가 바뀌면 `pool_hash`도 바뀌므로 이전 버전으로 저장된 snapshot은 새 계약으로
+replay할 수 없다. 저장된 root artifact를 다시 읽을 수 있도록 v4는 계속 허용한다.
 pool 크기는 고정값이 아니라 `requested_duration_minutes`에서 도출한다.
 
 ### 9.2.3.1 [migration 0025, ADR-0014] decision_exercise_retrievals

@@ -625,7 +625,13 @@ class V3DecisionRepository:
             "constraint-envelope-v4",
         }:
             raise ValueError("unsupported envelope schema version")
-        if pool.pool_schema_version != "exercise-pool-snapshot-v4":
+        # v5 adds the catalog family code the pool record now carries. v4 stays
+        # accepted the way constraint-envelope-v3 did through its own bump, so a
+        # root artifact written before the field existed is still readable.
+        if pool.pool_schema_version not in {
+            "exercise-pool-snapshot-v4",
+            "exercise-pool-snapshot-v5",
+        }:
             raise ValueError("unsupported pool schema version")
         if (
             retrieval.request_schema_version != "exercise-retrieval-request-v1"
