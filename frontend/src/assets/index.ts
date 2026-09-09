@@ -18,6 +18,7 @@ export const imageAssets = {
     require('./mascot/progress-mascot.webp') as ImageSourcePropType,
   dayTodo: require('./mascot/day-todo.webp') as ImageSourcePropType,
   banana: require('./mascot/monkey/banana/banana.png') as ImageSourcePropType,
+  helkkiPass: require('./pass/helkki-pass.png') as ImageSourcePropType,
   bananaCatchBackground:
     require('./game_background/kkiisland_banana_game.png') as ImageSourcePropType,
   bananaCatchGrass:

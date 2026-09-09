@@ -49,6 +49,7 @@ describe('fidelity foundation', () => {
       'progressMascot',
       'dayTodo',
       'banana',
+      'helkkiPass',
       'bananaCatchBackground',
       'bananaCatchGrass',
       'profileDefault',
