@@ -58,7 +58,7 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.getByTestId('home-routine-state')).toBeOnTheScreen();
     expect(screen.getByText('운동 준비 완료')).toBeOnTheScreen();
     expect(
-      screen.getByText('컨디션에 맞춘 운동을 준비했어요.'),
+      screen.getByText('컨디션에 맞춘 운동을 준비했어요'),
     ).toBeOnTheScreen();
     expect(screen.getByText('상체 근력 · 40분')).toBeOnTheScreen();
     expect(screen.queryByText('상체 근력 루틴')).toBeNull();
@@ -1600,6 +1600,37 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.queryByRole('button', { name: '이어하기' })).toBeNull();
     expect(screen.queryByRole('button', { name: '운동 시작하기' })).toBeNull();
     expect(screen.getByText(/진행 기록은 그대로 보관됩니다/)).toBeOnTheScreen();
+    expect(
+      screen.getByText('컨디션에 맞춘 운동을 준비했어요'),
+    ).toBeOnTheScreen();
+    expect(screen.queryByText('조금만 더 힘내요!')).toBeNull();
+  });
+
+  it('changes the routine heading for stopped and fully completed workouts', () => {
+    const resumableView = render(
+      <HomeScreen {...homePreviewProps('session-resumable')} />,
+    );
+    expect(screen.getByText('조금만 더 힘내요!')).toBeOnTheScreen();
+
+    resumableView.unmount();
+    const partialProps = homePreviewProps('session-completed');
+    const partialView = render(
+      <HomeScreen
+        {...partialProps}
+        todaySession={
+          partialProps.todaySession
+            ? { ...partialProps.todaySession, status_code: 'PARTIAL' }
+            : null
+        }
+      />,
+    );
+    expect(screen.getByText('조금만 더 힘내요!')).toBeOnTheScreen();
+
+    partialView.unmount();
+    render(<HomeScreen {...homePreviewProps('session-completed')} />);
+    expect(
+      screen.getByText('오늘도 자신과의 싸움에서 승리했군요!'),
+    ).toBeOnTheScreen();
   });
 
   it('parses and formats prescriptions only when both sets and reps exist', () => {

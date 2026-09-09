@@ -3,7 +3,11 @@ import { Animated, Pressable, Text, TextInput, View } from 'react-native';
 
 import type { Api } from '../../api/endpoints';
 import { actionLabel } from '../../api/labels';
-import type { ActionCode, ExerciseVariantsResponse } from '../../api/types';
+import type {
+  ActionCode,
+  ExerciseVariantsResponse,
+  SessionStatusCode,
+} from '../../api/types';
 import { ExerciseVariantsAction } from '../workout/ExerciseVariants';
 import {
   formatRoutineItem,
@@ -50,6 +54,7 @@ export function RoutineCard({
   rerolling,
   rerolls,
   revisionNotice,
+  sessionStatusCode,
   startBlockedReason,
   variantApi,
 }: {
@@ -85,6 +90,7 @@ export function RoutineCard({
   rerolling: boolean;
   rerolls: number;
   revisionNotice?: string;
+  sessionStatusCode?: SessionStatusCode;
   startBlockedReason?: string | null;
   title: string;
   variantApi?: Partial<Pick<Api, 'getExerciseVariants'>>;
@@ -120,6 +126,14 @@ export function RoutineCard({
           : phase === 'STOPPED_RESUMABLE'
             ? '잠시 멈춘 운동이에요. 완료한 항목부터 이어서 진행할 수 있어요.'
             : null;
+  const routineHeading =
+    phase === 'STOPPED_RESUMABLE' ||
+    sessionStatusCode === 'PARTIAL' ||
+    sessionStatusCode === 'NOT_COMPLETED'
+      ? '조금만 더 힘내요!'
+      : phase === 'COMPLETED' && sessionStatusCode === 'COMPLETED'
+        ? '오늘도 자신과의 싸움에서 승리했군요!'
+        : '컨디션에 맞춘 운동을 준비했어요';
   return (
     <View style={styles.routineCard} testID="home-routine-state">
       <View style={styles.routineBadgeRow}>
@@ -149,7 +163,7 @@ export function RoutineCard({
           </View>
         )}
       </View>
-      <Text style={styles.routineTitle}>컨디션에 맞춘 운동을 준비했어요.</Text>
+      <Text style={styles.routineTitle}>{routineHeading}</Text>
       <Text style={styles.routineSummary}>
         {focus} · {minutes}분
       </Text>

@@ -780,6 +780,7 @@ export function HomeScreenContent({
                 rerolling={apiMode ? busy === 'regeneration' : rerolling}
                 rerolls={rerolls}
                 revisionNotice={routineRevisionNotice?.text}
+                sessionStatusCode={todaySession?.status_code}
                 startBlockedReason={routineBlockedReason}
                 title={routineTitle}
                 focus={routineFocus}

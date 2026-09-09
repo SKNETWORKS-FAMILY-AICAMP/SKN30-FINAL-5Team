@@ -596,7 +596,7 @@ describe('MainFlow restart recovery', () => {
     );
     await waitFor(() => expect(getHomeState).toHaveBeenCalledTimes(2));
     expect(
-      await screen.findByText('컨디션에 맞춘 운동을 준비했어요.'),
+      await screen.findByText('컨디션에 맞춘 운동을 준비했어요'),
     ).toBeOnTheScreen();
   });
 
