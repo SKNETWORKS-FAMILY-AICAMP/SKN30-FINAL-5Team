@@ -43,8 +43,6 @@ import {
 } from './onboardingOptions';
 import { BirthDateField, latestEligibleBirthdateIso } from './BirthDateField';
 
-const CURRENT_TERMS_VERSION = 'terms-v1.0.0';
-
 const CONSENT_OPTIONS = {
   service_terms: {
     label: '서비스 이용약관 동의',
@@ -119,7 +117,7 @@ export const ONBOARDING_STEPS = [
 ] as const;
 
 type Props = {
-  api: Pick<Api, 'submitOnboarding'>;
+  api: Pick<Api, 'getOnboardingRequirements' | 'submitOnboarding'>;
   onCompleted: () => void;
   onSignOut: () => void;
   initialStep?: number;
@@ -189,6 +187,7 @@ function OnboardingScreenContent({
       return;
     }
     try {
+      const requirements = await api.getOnboardingRequirements();
       await api.submitOnboarding({
         nickname: nickname.trim(),
         date_of_birth: birthdate.trim(),
@@ -198,7 +197,7 @@ function OnboardingScreenContent({
         experience_level_code: experienceLevelCode,
         timezone,
         weekly_target_sessions: weeklyCount,
-        terms_version: CURRENT_TERMS_VERSION,
+        terms_version: requirements.terms_version,
         persistent_pains:
           hasAttentionAreas === true
             ? attentionAreas.map((code) => ({

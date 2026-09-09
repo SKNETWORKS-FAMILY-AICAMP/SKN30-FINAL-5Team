@@ -124,6 +124,20 @@ export type ConsentState = {
   updated_at: string;
 };
 
+/**
+ * What the deployment requires before onboarding may be submitted.
+ *
+ * The terms revision is decided by the server, not by a build-time constant in
+ * the client: a stored agreement has to name the revision the user was actually
+ * shown, and the oldest installed build must not get to decide that.
+ */
+export type OnboardingRequirementsResponse = {
+  terms_version: string;
+  consent_policy_version: string;
+  required_consent_type_codes: string[];
+  optional_consent_type_codes: string[];
+};
+
 export type ConsentResponse = {
   user_id: string;
   consents: ConsentState[];
