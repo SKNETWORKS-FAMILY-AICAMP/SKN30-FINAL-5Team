@@ -12,6 +12,7 @@ from backend.app.modules.decisions.plan_revision import (
     PlanRevisionItem,
     apply_order_edit,
     apply_set_repetition_edit,
+    plan_estimated_duration_seconds,
 )
 from backend.app.modules.decisions.plan_revision_service import (
     PlanRevisionIdempotencyKeyReusedError,
@@ -34,14 +35,17 @@ def _item(
     sequence: int | None = None,
     phase_code: str = "MAIN",
     reps: int | None = 10,
+    work_seconds_per_set: int | None = -1,
 ) -> PlanRevisionItem:
+    if work_seconds_per_set == -1:
+        work_seconds_per_set = 20 if reps is not None else 30
     return PlanRevisionItem(
         plan_item_id=UUID(int=number),
         sequence=sequence or number,
         phase_code=phase_code,
         sets=2,
         reps=reps,
-        work_seconds_per_set=20 if reps is not None else 30,
+        work_seconds_per_set=work_seconds_per_set,
         rest_seconds_per_set=10,
         transition_seconds=5,
         seconds_per_rep=2 if reps is not None else None,
@@ -274,3 +278,71 @@ def test_completed_item_content_cannot_be_changed() -> None:
             _Session(), uuid4(), repository.decision_id, UUID(int=1), request, uuid4()
         )
     assert failure.value.code is PlanRevisionFailureCode.COMPLETED_ITEM_NOT_REORDERABLE
+
+
+def test_repetition_item_without_a_stored_per_set_basis_is_still_timed() -> None:
+    """The decision path used to store the raw prescription, which is None for every
+    repetition-based block. Those plans are timeable from the catalog basis loaded
+    beside the item, and refusing to time them is what blocked reordering."""
+
+    item = _item(1, reps=10, work_seconds_per_set=None)
+
+    assert item.effective_work_seconds_per_set == 20  # 10 reps x 2 s/rep
+    assert item.work_seconds == 40  # 2 sets
+
+
+def test_duration_item_without_a_stored_per_set_basis_is_still_timed() -> None:
+    item = _item(1, reps=None, work_seconds_per_set=None)
+
+    assert item.effective_work_seconds_per_set == 30
+    assert item.work_seconds == 60
+
+
+def test_reorder_succeeds_when_no_item_recorded_its_per_set_basis() -> None:
+    items = (
+        _item(1, phase_code="WARMUP", reps=None, work_seconds_per_set=None),
+        _item(2, reps=10, work_seconds_per_set=None),
+        _item(3, reps=12, work_seconds_per_set=None),
+        _item(4, phase_code="COOLDOWN", reps=None, work_seconds_per_set=None),
+    )
+
+    reordered = apply_order_edit(
+        items,
+        ordered_plan_item_ids=[UUID(int=1), UUID(int=3), UUID(int=2), UUID(int=4)],
+        completed_plan_item_ids=frozenset(),
+    )
+
+    assert [item.plan_item_id for item in reordered] == [
+        UUID(int=1),
+        UUID(int=3),
+        UUID(int=2),
+        UUID(int=4),
+    ]
+    assert (
+        plan_estimated_duration_seconds(
+            reordered, setup_seconds=0, warmup_seconds=0, cooldown_seconds=0
+        )
+        > 0
+    )
+
+
+def test_an_item_with_no_recoverable_basis_still_fails() -> None:
+    """A repetition-based item whose catalog record carries no seconds-per-rep has
+    nothing to recover from, and must not be silently timed as zero."""
+
+    item = PlanRevisionItem(
+        plan_item_id=UUID(int=1),
+        sequence=1,
+        phase_code="MAIN",
+        sets=2,
+        reps=10,
+        work_seconds_per_set=None,
+        rest_seconds_per_set=10,
+        transition_seconds=5,
+        seconds_per_rep=None,
+        default_work_seconds=None,
+    )
+
+    with pytest.raises(PlanRevisionError) as excinfo:
+        _ = item.work_seconds
+    assert excinfo.value.code is PlanRevisionFailureCode.TIMING_BASIS_UNAVAILABLE
