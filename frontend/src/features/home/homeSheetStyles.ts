@@ -424,6 +424,13 @@ export function createHomeSheetStyles(
       borderRadius: s(18),
     },
     sheetSaveLabel: { color: '#5A4636', fontSize: f(18), fontWeight: '800' },
+    sheetSaveButtonDisabled: {
+      borderColor: '#E3DAD0',
+      shadowOpacity: 0,
+      elevation: 0,
+    },
+    sheetSaveGradientDisabled: { opacity: 0.35 },
+    sheetSaveLabelDisabled: { color: '#AFA69B' },
     editScrollContent: { paddingBottom: s(5) },
     editList: { gap: s(8), marginTop: s(14) },
     editRow: {

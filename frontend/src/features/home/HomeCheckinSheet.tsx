@@ -532,8 +532,9 @@ export function CheckinSheet({
           }}
           style={[
             styles.sheetSaveButton,
-            submitDisabled && styles.routineActionDisabled,
+            submitDisabled && styles.sheetSaveButtonDisabled,
           ]}
+          testID="home-checkin-submit"
         >
           <LinearGradient
             colors={['#FEE8B1', '#FEDA99', '#FFD790']}
@@ -541,10 +542,18 @@ export function CheckinSheet({
             locations={[0, 0.55, 1]}
             pointerEvents="none"
             start={{ x: 0.5, y: 0 }}
-            style={styles.sheetSaveGradient}
+            style={[
+              styles.sheetSaveGradient,
+              submitDisabled && styles.sheetSaveGradientDisabled,
+            ]}
             testID="home-checkin-submit-gradient"
           />
-          <Text style={styles.sheetSaveLabel}>
+          <Text
+            style={[
+              styles.sheetSaveLabel,
+              submitDisabled && styles.sheetSaveLabelDisabled,
+            ]}
+          >
             {pending ? '보내는 중…' : '체크인 !'}
           </Text>
         </Pressable>

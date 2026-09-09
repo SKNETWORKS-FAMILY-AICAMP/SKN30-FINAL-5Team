@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import * as ImagePicker from 'expo-image-picker';
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -295,11 +296,20 @@ describe('MyPageContainer', () => {
     expect(screen.queryByLabelText('키 입력')).toBeNull();
     expect(screen.queryByRole('checkbox', { name: '여성' })).toBeNull();
     expect(screen.queryByRole('checkbox', { name: '남성' })).toBeNull();
+    // 저장 버튼은 늘 보이되, 입력이 없거나 값이 올바르지 않으면 비활성화된다.
+    expect(screen.getByRole('button', { name: '저장하기' })).toBeDisabled();
     fireEvent.changeText(screen.getByLabelText('닉네임 입력'), '새 닉네임');
+    expect(screen.getByRole('button', { name: '저장하기' })).toBeEnabled();
+    fireEvent.changeText(screen.getByLabelText('체중 입력'), '9');
+    expect(screen.getByRole('button', { name: '저장하기' })).toBeDisabled();
+    expect(
+      screen.getByText('체중는 25~300 범위로 입력해주세요.'),
+    ).toBeOnTheScreen();
     fireEvent.press(screen.getByRole('button', { name: '연도 1997년' }));
     fireEvent.press(screen.getByRole('button', { name: '월 4월' }));
     fireEvent.press(screen.getByRole('button', { name: '일 3일' }));
     fireEvent.changeText(screen.getByLabelText('체중 입력'), '58.2');
+    expect(screen.getByRole('button', { name: '저장하기' })).toBeEnabled();
     fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
 
     await waitFor(() =>
@@ -412,6 +422,93 @@ describe('MyPageContainer', () => {
       ),
     );
     expect(updateProfileSettings).not.toHaveBeenCalled();
+  });
+
+  it('keeps the latest profile fields when a delayed image selection finishes', async () => {
+    const updateProfileSettings = jest.fn<Api['updateProfileSettings']>(
+      async () => ({
+        profile_version: 8,
+        updated_at: '2026-08-19T09:00:00+09:00',
+      }),
+    );
+    const uploadProfileImage = jest.fn<Api['uploadProfileImage']>(async () => ({
+      profile_image_url: 'https://cdn.example.com/profiles/latest.jpg',
+      profile_version: 9,
+      updated_at: '2026-08-19T09:00:01+09:00',
+    }));
+    let resolvePicker!: (
+      result: Awaited<ReturnType<typeof ImagePicker.launchImageLibraryAsync>>,
+    ) => void;
+    jest
+      .mocked(ImagePicker.requestMediaLibraryPermissionsAsync)
+      .mockResolvedValueOnce({
+        granted: true,
+        status: ImagePicker.PermissionStatus.GRANTED,
+        canAskAgain: true,
+        expires: 'never',
+      });
+    jest.mocked(ImagePicker.launchImageLibraryAsync).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolvePicker = resolve;
+        }),
+    );
+
+    await render(
+      <MyPageContainer
+        api={accountApi({ updateProfileSettings, uploadProfileImage })}
+        me={me()}
+        now={new Date('2026-08-19T03:00:00Z')}
+        onNavigateTab={jest.fn()}
+        onRefreshMe={jest.fn(async () => undefined)}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: '프로필 수정' }));
+    fireEvent.press(
+      screen.getByRole('button', { name: '사진 보관함에서 선택' }),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: '저장하기' })).toBeDisabled(),
+    );
+
+    fireEvent.changeText(screen.getByLabelText('닉네임 입력'), '최신 닉네임');
+    expect(screen.getByRole('button', { name: '저장하기' })).toBeDisabled();
+
+    await act(async () => {
+      resolvePicker({
+        canceled: false,
+        assets: [
+          {
+            uri: 'file:///latest-profile.jpg',
+            width: 800,
+            height: 800,
+            type: 'image',
+            fileName: 'latest-profile.jpg',
+            fileSize: 123_456,
+            mimeType: 'image/jpeg',
+          },
+        ],
+      });
+    });
+
+    expect(screen.getByLabelText('닉네임 입력').props.value).toBe(
+      '최신 닉네임',
+    );
+    expect(screen.getByRole('button', { name: '저장하기' })).toBeEnabled();
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
+
+    await waitFor(() =>
+      expect(updateProfileSettings).toHaveBeenCalledWith(
+        { nickname: '최신 닉네임' },
+        7,
+      ),
+    );
+    expect(uploadProfileImage).toHaveBeenCalledWith(
+      expect.objectContaining({ uri: 'file:///latest-profile.jpg' }),
+      8,
+    );
   });
 
   it('keeps a failed image selection for an explicit retry without reporting success', async () => {
@@ -775,12 +872,13 @@ describe('MyPageContainer', () => {
     expect(
       screen.queryByText('수정한 뒤 저장하기를 눌러야 반영돼요.'),
     ).toBeNull();
-    // 수정 전에는 저장 버튼이 없다.
-    expect(screen.queryByRole('button', { name: '저장하기' })).toBeNull();
+    // 저장 버튼은 늘 보이되, 기본값 그대로면 비활성화 상태다.
+    expect(screen.getByRole('button', { name: '저장하기' })).toBeDisabled();
     fireEvent.press(
       screen.getByRole('button', { name: '주간 운동 횟수 1회 늘리기' }),
     );
     expect(updateProfileSettings).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: '저장하기' })).toBeEnabled();
 
     fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
     await waitFor(() =>
@@ -813,9 +911,7 @@ describe('MyPageContainer', () => {
     expect(
       screen.getByText('이번 주 운동 리포트가 준비되면 알려드려요.'),
     ).toBeOnTheScreen();
-    expect(
-      screen.getByText('휴식일에는 알림을 보내지 않아요.'),
-    ).toBeOnTheScreen();
+    expect(screen.getByRole('switch', { name: '응원 알림' })).toBeOnTheScreen();
     expect(screen.getAllByText('준비 중').length).toBeGreaterThanOrEqual(3);
     const routineSwitch = screen.getByRole('switch', { name: '루틴 알림' });
     expect(routineSwitch.props.accessibilityState).toEqual(

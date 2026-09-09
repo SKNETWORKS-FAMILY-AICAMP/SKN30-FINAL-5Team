@@ -1,5 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   type GestureResponderEvent,
   Pressable,
@@ -25,6 +25,7 @@ import type {
 import {
   Button,
   Card,
+  GradientActionButton,
   InlineFeedback,
   StepCounter,
   TextField,
@@ -48,6 +49,15 @@ import type { MyPageProfileField } from './myPageModel';
 
 export type MyPageEditableField = MyPageProfileField | 'basic_profile';
 export type ProfileImageChange = ProfileImageUpload | null;
+
+/**
+ * A pending edit. `imageChange` only applies to the basic profile sheet, where
+ * the picture is saved alongside the settings body.
+ */
+type EditorDraft = {
+  body: ProfileSettingsUpdateRequest;
+  imageChange?: ProfileImageChange;
+};
 
 type Props = {
   error?: string | null;
@@ -120,7 +130,8 @@ export function MyPageProfileEditor({
   // Edits collect into a draft; only the save button sends them. React's
   // "adjust state when inputs change" pattern: a request that stops pending
   // without an error succeeded, which clears the draft and reports the save.
-  const [draft, setDraft] = useState<ProfileSettingsUpdateRequest | null>(null);
+  const [draft, setDraft] = useState<EditorDraft | null>(null);
+  const [interactionPending, setInteractionPending] = useState(false);
   const [saveTracker, setSaveTracker] = useState({ pending, succeeded: false });
   if (saveTracker.pending !== pending) {
     const succeeded = saveTracker.pending && error === null;
@@ -129,6 +140,18 @@ export function MyPageProfileEditor({
   }
   const saved = saveTracker.succeeded && !pending && error === null;
   const description = editorDescription(field);
+  const submitDraft = () => {
+    if (draft === null || pending) return;
+    if (field !== 'basic_profile') {
+      onChange(draft.body);
+      return;
+    }
+    if (onBasicProfileChange) {
+      onBasicProfileChange(draft.body, draft.imageChange);
+    } else if (Object.keys(draft.body).length > 0) {
+      onChange(draft.body);
+    }
+  };
 
   return (
     <Pressable
@@ -162,29 +185,16 @@ export function MyPageProfileEditor({
         </View>
 
         <ScrollView
-          contentContainerStyle={[
-            styles.editorContent,
-            field === 'persistent_pains' && styles.painEditorContent,
-          ]}
+          contentContainerStyle={styles.editorContent}
           keyboardShouldPersistTaps="handled"
         >
           <EditorBody
             field={field}
-            onBasicProfileChange={onBasicProfileChange}
-            onChange={onChange}
             onDraftChange={setDraft}
+            onInteractionPendingChange={setInteractionPending}
             pending={pending}
             profile={profile}
           />
-          {draft &&
-          field !== 'basic_profile' &&
-          field !== 'persistent_pains' ? (
-            <Button
-              disabled={pending}
-              label={pending ? '저장 중…' : '저장하기'}
-              onPress={() => onChange(draft)}
-            />
-          ) : null}
           {error ? <InlineFeedback message={error} tone="error" /> : null}
           {saved && !pending && error === null ? (
             <InlineFeedback
@@ -194,20 +204,23 @@ export function MyPageProfileEditor({
             />
           ) : null}
         </ScrollView>
-        {field === 'persistent_pains' && draft ? (
-          <View
-            style={[
-              styles.stickySaveArea,
-              { paddingBottom: Math.max(spacing.sm, bottomInset) },
-            ]}
-          >
-            <Button
-              disabled={pending}
-              label={pending ? '저장 중…' : '저장하기'}
-              onPress={() => onChange(draft)}
-            />
-          </View>
-        ) : null}
+        <View
+          style={[
+            styles.stickySaveArea,
+            { paddingBottom: Math.max(spacing.sm, bottomInset) },
+          ]}
+        >
+          <GradientActionButton
+            accessibilityLabel="저장하기"
+            disabled={draft === null || pending || interactionPending}
+            label={pending ? '저장 중…' : '저장하기'}
+            labelStyle={styles.saveLabel}
+            onPress={submitDraft}
+            showChevron={false}
+            style={styles.saveButton}
+            testID="profile-editor-save"
+          />
+        </View>
       </Pressable>
     </Pressable>
   );
@@ -215,22 +228,22 @@ export function MyPageProfileEditor({
 
 function EditorBody({
   field,
-  onBasicProfileChange,
-  onChange,
   onDraftChange,
+  onInteractionPendingChange,
   pending = false,
   profile,
-}: Pick<
-  Props,
-  'field' | 'onBasicProfileChange' | 'onChange' | 'pending' | 'profile'
-> & {
-  onDraftChange: (draft: ProfileSettingsUpdateRequest | null) => void;
+}: Pick<Props, 'field' | 'pending' | 'profile'> & {
+  onDraftChange: (draft: EditorDraft | null) => void;
+  onInteractionPendingChange: (pending: boolean) => void;
 }) {
+  const reportBody = (body: ProfileSettingsUpdateRequest | null) =>
+    onDraftChange(body === null ? null : { body });
+
   if (field === 'basic_profile') {
     return (
       <BasicProfileEditor
-        onBasicProfileChange={onBasicProfileChange}
-        onChange={onChange}
+        onDraftChange={onDraftChange}
+        onPickerPendingChange={onInteractionPendingChange}
         pending={pending}
         profile={profile}
       />
@@ -243,7 +256,7 @@ function EditorBody({
         current={profile.primary_goal_code}
         disabled={pending}
         onSelect={(code) =>
-          onDraftChange(
+          reportBody(
             code === profile.primary_goal_code
               ? null
               : { primary_goal_code: code },
@@ -264,7 +277,7 @@ function EditorBody({
         current={profile.experience_level_code}
         disabled={pending}
         onSelect={(code) =>
-          onDraftChange(
+          reportBody(
             code === profile.experience_level_code
               ? null
               : { experience_level_code: code },
@@ -292,7 +305,7 @@ function EditorBody({
         }
         initialPainAreas={initialPainAreas}
         onChange={(persistent_pains) =>
-          onDraftChange(persistent_pains === null ? null : { persistent_pains })
+          reportBody(persistent_pains === null ? null : { persistent_pains })
         }
       />
     );
@@ -305,7 +318,7 @@ function EditorBody({
       max={ONBOARDING_WEEKLY_COUNT.max}
       min={ONBOARDING_WEEKLY_COUNT.min}
       onDraftChange={(next) =>
-        onDraftChange(
+        reportBody(
           next === null ? null : { desired_weekly_workout_count: next },
         )
       }
@@ -351,43 +364,66 @@ function SingleChoiceEditor({
   );
 }
 
+type BasicProfileForm = {
+  dateOfBirth: string;
+  dateOfBirthChanged: boolean;
+  imageChange: ProfileImageChange | undefined;
+  nickname: string;
+  weightKg: string;
+};
+
+/**
+ * The sheet footer owns the save button, so every edit reports the whole form
+ * as a draft. An incomplete or unchanged form reports no draft, which keeps the
+ * button disabled and leaves the stored profile untouched.
+ */
 function BasicProfileEditor({
-  onBasicProfileChange,
-  onChange,
+  onDraftChange,
+  onPickerPendingChange,
   pending,
   profile,
 }: {
-  onBasicProfileChange?: Props['onBasicProfileChange'];
-  onChange: (body: ProfileSettingsUpdateRequest) => void;
+  onDraftChange: (draft: EditorDraft | null) => void;
+  onPickerPendingChange: (pending: boolean) => void;
   pending: boolean;
   profile: MeProfile;
 }) {
-  const [nickname, setNickname] = useState(profile.nickname);
-  const [profileImageChange, setProfileImageChange] = useState<
-    ProfileImageChange | undefined
-  >(undefined);
+  const [form, setForm] = useState<BasicProfileForm>({
+    dateOfBirth: latestEligibleBirthdateIso(),
+    dateOfBirthChanged: false,
+    imageChange: undefined,
+    nickname: profile.nickname,
+    weightKg: '',
+  });
+  const formRef = useRef(form);
   const [imagePickerError, setImagePickerError] = useState<string | null>(null);
   const [imagePickerPending, setImagePickerPending] = useState(false);
-  const [dateOfBirth, setDateOfBirth] = useState(latestEligibleBirthdateIso);
-  const [dateOfBirthChanged, setDateOfBirthChanged] = useState(false);
-  const [weightKg, setWeightKg] = useState('');
-  const [submitted, setSubmitted] = useState(false);
+  const {
+    dateOfBirth,
+    imageChange: profileImageChange,
+    nickname,
+    weightKg,
+  } = form;
 
   const nicknameError =
     nickname.trim().length < 1 || nickname.trim().length > 64
       ? '닉네임은 1~64자로 입력해주세요.'
       : null;
   const weightError = validateOptionalNumber(weightKg, 25, 300, '체중');
-  const hasChanges =
-    nickname.trim() !== profile.nickname ||
-    profileImageChange !== undefined ||
-    dateOfBirthChanged ||
-    weightKg !== '';
-  const invalid = Boolean(nicknameError || weightError);
+
+  const update = (patch: Partial<BasicProfileForm>) => {
+    // An image picker can resolve after other fields changed. Always merge its
+    // result into the latest form rather than the render that opened it.
+    const next = { ...formRef.current, ...patch };
+    formRef.current = next;
+    setForm(next);
+    onDraftChange(basicProfileDraft(next, profile));
+  };
 
   const pickProfileImage = async () => {
     if (pending || imagePickerPending) return;
     setImagePickerPending(true);
+    onPickerPendingChange(true);
     setImagePickerError(null);
     try {
       const permission =
@@ -421,12 +457,14 @@ function BasicProfileEditor({
       }
 
       const mimeType = asset.mimeType ?? 'image/jpeg';
-      setProfileImageChange({
-        uri: asset.uri,
-        fileName: asset.fileName ?? defaultImageFileName(mimeType),
-        mimeType,
-        fileSize: asset.fileSize ?? undefined,
-        webFile: asset.file ?? undefined,
+      update({
+        imageChange: {
+          uri: asset.uri,
+          fileName: asset.fileName ?? defaultImageFileName(mimeType),
+          mimeType,
+          fileSize: asset.fileSize ?? undefined,
+          webFile: asset.file ?? undefined,
+        },
       });
     } catch {
       setImagePickerError(
@@ -434,23 +472,7 @@ function BasicProfileEditor({
       );
     } finally {
       setImagePickerPending(false);
-    }
-  };
-
-  const save = () => {
-    setSubmitted(true);
-    if (!hasChanges || invalid || pending) return;
-    const body: ProfileSettingsUpdateRequest = {};
-    const normalizedNickname = nickname.trim();
-    if (normalizedNickname !== profile.nickname) {
-      body.nickname = normalizedNickname;
-    }
-    if (dateOfBirthChanged) body.date_of_birth = dateOfBirth;
-    if (weightKg) body.weight_kg = Number(weightKg);
-    if (onBasicProfileChange) {
-      onBasicProfileChange(body, profileImageChange);
-    } else if (Object.keys(body).length > 0) {
-      onChange(body);
+      onPickerPendingChange(false);
     }
   };
 
@@ -464,10 +486,10 @@ function BasicProfileEditor({
       <TextField
         accessibilityLabel="닉네임 입력"
         editable={!pending}
-        error={submitted && nicknameError ? nicknameError : undefined}
+        error={nicknameError ?? undefined}
         label="닉네임"
         maxLength={64}
-        onChangeText={setNickname}
+        onChangeText={(value) => update({ nickname: value })}
         value={nickname}
       />
       <View style={styles.profileImageEditor}>
@@ -499,7 +521,7 @@ function BasicProfileEditor({
               label="기본 이미지로 되돌리기"
               onPress={() => {
                 setImagePickerError(null);
-                setProfileImageChange(null);
+                update({ imageChange: null });
               }}
               style={styles.profileImageButton}
               tone="secondary"
@@ -514,31 +536,41 @@ function BasicProfileEditor({
       <BirthDateField
         compact
         disabled={pending}
-        onChange={(value) => {
-          setDateOfBirth(value);
-          setDateOfBirthChanged(true);
-        }}
+        onChange={(value) =>
+          update({ dateOfBirth: value, dateOfBirthChanged: true })
+        }
         value={dateOfBirth}
       />
       <TextField
         accessibilityLabel="체중 입력"
         editable={!pending}
-        error={submitted && weightError ? weightError : undefined}
+        error={weightError ?? undefined}
         inputMode="decimal"
         label="체중(kg)"
-        onChangeText={setWeightKg}
+        onChangeText={(value) => update({ weightKg: value })}
         placeholder="25~300"
         value={weightKg}
       />
-      {hasChanges ? (
-        <Button
-          disabled={pending || imagePickerPending}
-          label={pending ? '저장 중…' : '저장하기'}
-          onPress={save}
-        />
-      ) : null}
     </View>
   );
+}
+
+/** Reports the pending basic-profile edit, or null when it is not savable. */
+function basicProfileDraft(
+  form: BasicProfileForm,
+  profile: MeProfile,
+): EditorDraft | null {
+  const nickname = form.nickname.trim();
+  if (nickname.length < 1 || nickname.length > 64) return null;
+  if (validateOptionalNumber(form.weightKg, 25, 300, '체중')) return null;
+
+  const body: ProfileSettingsUpdateRequest = {};
+  if (nickname !== profile.nickname) body.nickname = nickname;
+  if (form.dateOfBirthChanged) body.date_of_birth = form.dateOfBirth;
+  if (form.weightKg) body.weight_kg = Number(form.weightKg);
+  const changedImage = form.imageChange !== undefined;
+  if (!changedImage && Object.keys(body).length === 0) return null;
+  return changedImage ? { body, imageChange: form.imageChange } : { body };
 }
 
 const MAX_PROFILE_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -649,92 +681,98 @@ function AttentionAreaEditor({
         }}
       />
       {hasAreas ? (
-        <View style={styles.painSection}>
-          <Text style={styles.painSectionTitle}>불편한 부위</Text>
-          <Text style={styles.basicLabel}>
-            해당하는 부위를 모두 선택해주세요.
-          </Text>
-          <View style={styles.painChoices}>
-            {MY_PAGE_DEFAULT_BODY_AREA_OPTIONS.map((option) => (
-              <ChipOption
-                key={option.code}
-                disabled={disabled}
-                label={option.label}
-                selected={selected.includes(option.code)}
-                onPress={() => toggleSelected(option.code)}
-              />
-            ))}
-            {showExtendedAreas
-              ? MY_PAGE_EXTENDED_BODY_AREA_OPTIONS.map((option) => (
-                  <ChipOption
-                    key={option.code}
-                    disabled={disabled}
-                    label={option.label}
-                    selected={selected.includes(option.code)}
-                    onPress={() => toggleSelected(option.code)}
-                  />
-                ))
-              : null}
-          </View>
-          <Pressable
-            accessibilityLabel={
-              showExtendedAreas ? '다른 부위 접기' : '다른 부위 보기'
-            }
-            accessibilityRole="button"
-            accessibilityState={{ disabled, expanded: showExtendedAreas }}
-            disabled={disabled}
-            onPress={() => setShowExtendedAreas((visible) => !visible)}
-            style={styles.extendedAreaToggle}
-            testID="my-page-extended-area-toggle"
-          >
-            <Text style={styles.extendedAreaToggleLabel}>
-              {showExtendedAreas ? '접기' : '다른 부위 보기'}
-            </Text>
-            <View style={styles.extendedAreaToggleIcon}>
-              <View
-                style={
-                  showExtendedAreas
-                    ? styles.extendedAreaToggleCaretUp
-                    : undefined
-                }
-                testID="my-page-extended-area-caret"
-              >
-                <Svg
-                  aria-hidden
-                  fill="none"
-                  height={14}
-                  viewBox="0 0 24 24"
-                  width={14}
-                >
-                  <Path
-                    d="M6 9l6 6 6-6"
-                    stroke={colors.textMuted}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2.4}
-                  />
-                </Svg>
-              </View>
+        <View style={styles.painDetails}>
+          <View style={styles.painSection}>
+            <Text style={styles.painSectionTitle}>불편한 부위</Text>
+            <Text style={styles.hint}>해당하는 부위를 모두 선택해주세요.</Text>
+            <View
+              style={styles.optionGrid}
+              testID="my-page-attention-area-grid"
+            >
+              {MY_PAGE_DEFAULT_BODY_AREA_OPTIONS.map((option) => (
+                <ChipOption
+                  key={option.code}
+                  disabled={disabled}
+                  grid
+                  label={option.label}
+                  selected={selected.includes(option.code)}
+                  onPress={() => toggleSelected(option.code)}
+                />
+              ))}
+              {showExtendedAreas
+                ? MY_PAGE_EXTENDED_BODY_AREA_OPTIONS.map((option) => (
+                    <ChipOption
+                      key={option.code}
+                      disabled={disabled}
+                      grid
+                      label={option.label}
+                      selected={selected.includes(option.code)}
+                      onPress={() => toggleSelected(option.code)}
+                    />
+                  ))
+                : null}
             </View>
-          </Pressable>
-          {legacySelected.length > 0 ? (
-            <View style={styles.painSection}>
-              <Text style={styles.painSectionTitle}>
-                이전에 저장된 부위 (해제만 가능)
+            <Pressable
+              accessibilityLabel={
+                showExtendedAreas ? '다른 부위 접기' : '다른 부위 보기'
+              }
+              accessibilityRole="button"
+              accessibilityState={{ disabled, expanded: showExtendedAreas }}
+              disabled={disabled}
+              onPress={() => setShowExtendedAreas((visible) => !visible)}
+              style={styles.extendedAreaToggle}
+              testID="my-page-extended-area-toggle"
+            >
+              <Text style={styles.extendedAreaToggleLabel}>
+                {showExtendedAreas ? '접기' : '다른 부위 보기'}
               </Text>
-              <View style={styles.painChoices}>
-                {legacySelected.map((code) => (
-                  <ChipOption
-                    key={code}
-                    disabled={disabled}
-                    label={bodyAreaLabel(code)}
-                    selected
-                    onPress={() => toggleSelected(code)}
-                  />
-                ))}
+              <View style={styles.extendedAreaToggleIcon}>
+                <View
+                  style={
+                    showExtendedAreas
+                      ? styles.extendedAreaToggleCaretUp
+                      : undefined
+                  }
+                  testID="my-page-extended-area-caret"
+                >
+                  <Svg
+                    aria-hidden
+                    fill="none"
+                    height={14}
+                    viewBox="0 0 24 24"
+                    width={14}
+                  >
+                    <Path
+                      d="M6 9l6 6 6-6"
+                      stroke={colors.textMuted}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2.4}
+                    />
+                  </Svg>
+                </View>
               </View>
-            </View>
-          ) : null}
+            </Pressable>
+            {legacySelected.length > 0 ? (
+              <View style={styles.painSection}>
+                <Text style={styles.painSectionTitle}>
+                  이전에 저장된 부위 (해제만 가능)
+                </Text>
+                <View style={styles.optionGrid}>
+                  {legacySelected.map((code) => (
+                    <ChipOption
+                      key={code}
+                      disabled={disabled}
+                      grid
+                      label={bodyAreaLabel(code)}
+                      selected
+                      onPress={() => toggleSelected(code)}
+                    />
+                  ))}
+                </View>
+              </View>
+            ) : null}
+          </View>
           {selected.length > 0 ? (
             <View
               style={styles.painSliderList}
@@ -822,12 +860,14 @@ function ChoiceCard({ children }: { children: React.ReactNode }) {
 
 function ChipOption({
   disabled,
+  grid = false,
   grow = false,
   label,
   onPress,
   selected,
 }: {
   disabled: boolean;
+  grid?: boolean;
   grow?: boolean;
   label: string;
   onPress: () => void;
@@ -842,10 +882,16 @@ function ChipOption({
       style={[
         styles.chip,
         grow && styles.chipGrow,
+        grid && styles.chipGrid,
         selected && styles.chipSelected,
       ]}
     >
-      <Text style={[styles.chipLabel, selected && styles.chipLabelSelected]}>
+      <Text
+        adjustsFontSizeToFit={grid}
+        minimumFontScale={grid ? 0.85 : undefined}
+        numberOfLines={grid ? 1 : undefined}
+        style={[styles.chipLabel, selected && styles.chipLabelSelected]}
+      >
         {label}
       </Text>
     </Pressable>
@@ -964,8 +1010,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   closeText: { color: colors.text, fontSize: 25, lineHeight: 26 },
-  editorContent: { gap: 10, paddingTop: 12 },
-  painEditorContent: { paddingBottom: spacing.sm },
+  editorContent: { gap: 10, paddingTop: 12, paddingBottom: spacing.sm },
   stickySaveArea: {
     borderTopWidth: 1,
     borderTopColor: colors.border,
@@ -973,6 +1018,14 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     paddingBottom: spacing.sm,
   },
+  saveButton: {
+    width: 'auto',
+    minWidth: 184,
+    height: 48,
+    alignSelf: 'center',
+    paddingHorizontal: 32,
+  },
+  saveLabel: { fontSize: 17, fontWeight: '800' },
   basicForm: { gap: spacing.sm },
   privacyNotice: { paddingHorizontal: 11, paddingVertical: 8 },
   profileImageEditor: {
@@ -984,7 +1037,6 @@ const styles = StyleSheet.create({
   profileImageButton: { minHeight: 44 },
   profileImageLabel: { color: colors.text, fontSize: 14, fontWeight: '700' },
   profileImageHint: { color: colors.textMuted, fontSize: 12 },
-  basicLabel: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
   choiceCard: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1000,6 +1052,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   chipGrow: { minWidth: 72, flexGrow: 1, alignItems: 'center' },
+  chipGrid: {
+    width: '48.5%',
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   chipSelected: {
     borderColor: colors.primary,
     backgroundColor: colors.primary,
@@ -1022,6 +1080,7 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   descriptionTextSelected: { color: 'rgba(255, 255, 255, 0.75)' },
+  painDetails: { width: '100%', gap: spacing.md },
   painSection: {
     width: '100%',
     gap: spacing.sm,
@@ -1029,8 +1088,16 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
     paddingTop: spacing.md,
   },
+  hint: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
+  optionGrid: {
+    width: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    columnGap: spacing.sm,
+    rowGap: spacing.sm,
+  },
   painSectionTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
-  painChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   extendedAreaToggle: {
     minHeight: 36,
     alignSelf: 'center',

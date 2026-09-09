@@ -262,7 +262,6 @@ function MyPageContent({
           />
           <NotificationRow
             comingSoon={!persistedSettingsAvailable}
-            description="휴식일에는 알림을 보내지 않아요."
             enabled={notifications.encouragement}
             label="응원 알림"
             disabled={!persistedSettingsAvailable}
@@ -376,7 +375,7 @@ function NotificationRow({
   onToggle,
 }: {
   comingSoon?: boolean;
-  description: string;
+  description?: string;
   disabled?: boolean;
   enabled: boolean;
   label: string;

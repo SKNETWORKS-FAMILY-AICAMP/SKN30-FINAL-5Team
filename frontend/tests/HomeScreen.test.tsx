@@ -1458,6 +1458,42 @@ describe('HomeScreen Home v1 transcription', () => {
     ).toBe(true);
   });
 
+  it('dims the check-in submit button while required inputs are missing', () => {
+    render(<HomeScreen previewState="checkin" />);
+
+    const submitButton = screen.getByRole('button', { name: '체크인 !' });
+    expect(submitButton).toBeDisabled();
+    const disabledButtonStyle = StyleSheet.flatten(submitButton.props.style);
+    const disabledGradientStyle = StyleSheet.flatten(
+      screen.getByTestId('home-checkin-submit-gradient').props.style,
+    );
+    const disabledLabelStyle = StyleSheet.flatten(
+      screen.getByText('체크인 !').props.style,
+    );
+
+    expect(disabledButtonStyle.borderColor).toBe('#E3DAD0');
+    expect(disabledButtonStyle.shadowOpacity).toBe(0);
+    expect(disabledGradientStyle.opacity).toBe(0.35);
+    expect(disabledLabelStyle.color).toBe('#AFA69B');
+
+    fireEvent.press(screen.getByRole('button', { name: '위험 신호 없어요' }));
+
+    expect(screen.getByRole('button', { name: '체크인 !' })).toBeEnabled();
+    expect(
+      StyleSheet.flatten(
+        screen.getByRole('button', { name: '체크인 !' }).props.style,
+      ).borderColor,
+    ).toBe('rgba(244, 166, 42, 0.8)');
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('home-checkin-submit-gradient').props.style,
+      ).opacity,
+    ).toBeUndefined();
+    expect(
+      StyleSheet.flatten(screen.getByText('체크인 !').props.style).color,
+    ).toBe('#5A4636');
+  });
+
   it('isolates check-in draft changes until save and discards them on close', () => {
     render(<HomeScreen previewState="routine" />);
 

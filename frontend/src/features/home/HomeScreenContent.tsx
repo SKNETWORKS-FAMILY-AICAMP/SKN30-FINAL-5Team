@@ -927,11 +927,16 @@ export function HomeScreenContent({
             title={exerciseGuide.name}
             zIndex={25}
           >
-            <ExerciseDetailSheet
-              api={exerciseApi}
-              exerciseId={exerciseGuide.exerciseId}
-              guideContext={{ locationCode: displayedCheckin.locationCode }}
-            />
+            <ScrollView
+              contentContainerStyle={styles.sheetScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <ExerciseDetailSheet
+                api={exerciseApi}
+                exerciseId={exerciseGuide.exerciseId}
+                guideContext={{ locationCode: displayedCheckin.locationCode }}
+              />
+            </ScrollView>
           </SheetFrame>
         ) : null}
         {variantGuide && variantsAvailableInContext ? (
