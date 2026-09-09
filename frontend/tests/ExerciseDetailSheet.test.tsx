@@ -79,7 +79,10 @@ describe('ExerciseDetailSheet', () => {
 
     expect(
       screen.getAllByRole('header').map((header) => header.props.children),
-    ).toEqual(['주요 근육', '상세 부위', '자세 설명', '주의사항']);
+    ).toEqual(['사용 근육', '주의 부위', '자세 설명', '주의사항']);
+    expect(
+      screen.getByText('해당 부위에 통증이 있는 경우 주의가 필요해요.'),
+    ).toBeOnTheScreen();
     expect(screen.getByText('둔근')).toBeOnTheScreen();
     expect(
       screen.getByText('1. 발을 골반 너비로 두고 서요.'),
@@ -207,8 +210,8 @@ describe('ExerciseDetailSheet', () => {
     );
 
     expect(await screen.findByText('고관절, 무릎')).toBeOnTheScreen();
-    expect(screen.getByRole('header', { name: '주요 근육' })).toBeOnTheScreen();
-    expect(screen.queryByRole('header', { name: '상세 부위' })).toBeNull();
+    expect(screen.getByRole('header', { name: '사용 근육' })).toBeOnTheScreen();
+    expect(screen.queryByRole('header', { name: '주의 부위' })).toBeNull();
     expect(screen.queryByText('장소가 확인되어야 보여요.')).toBeNull();
   });
 });

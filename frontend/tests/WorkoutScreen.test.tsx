@@ -151,7 +151,7 @@ function openSafetyReportFromStop() {
   );
   fireEvent.press(
     screen.getByRole('checkbox', {
-      name: '이어하기 제한 안내를 확인했어요.',
+      name: '오늘은 운동을 다시 이어할 수 없음을 확인했어요.',
     }),
   );
   fireEvent.press(
@@ -160,6 +160,28 @@ function openSafetyReportFromStop() {
 }
 
 describe('WorkoutScreen', () => {
+  it('removes the static mascot after the GIF loads and restores it on failure', () => {
+    render(<WorkoutScreen />);
+    const fallback = screen.getByTestId('workout-mascot-fallback');
+    expect(fallback.props.source).toBe(
+      imageAssets.weeklyProgressCompletedWorkout,
+    );
+    const animation = screen.getByTestId('workout-warmup-mascot');
+    expect(StyleSheet.flatten(animation.props.style).opacity).toBe(0);
+    fireEvent(animation, 'load');
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('workout-warmup-mascot').props.style,
+      ).opacity,
+    ).toBe(1);
+    expect(screen.queryByTestId('workout-mascot-fallback')).toBeNull();
+    fireEvent(animation, 'error', {
+      nativeEvent: { error: 'Unsupported image' },
+    });
+    expect(screen.queryByTestId('workout-warmup-mascot')).toBeNull();
+    expect(screen.getByTestId('workout-mascot-fallback')).toBeOnTheScreen();
+  });
+
   it('uses set and repetition prescriptions for every preview workout block', () => {
     render(<WorkoutScreen />);
 
@@ -297,11 +319,10 @@ describe('WorkoutScreen', () => {
     expect(StyleSheet.flatten(carousel.props.style)).toMatchObject({
       flexGrow: 0,
       flexShrink: 0,
-      height: 352.8,
     });
     expect(
       StyleSheet.flatten(carousel.props.contentContainerStyle),
-    ).toMatchObject({ alignItems: 'center', minHeight: '100%' });
+    ).toMatchObject({ alignItems: 'flex-start' });
     expect(
       StyleSheet.flatten(
         screen.getByTestId('workout-carousel-drag-surface').props.style,
@@ -309,7 +330,7 @@ describe('WorkoutScreen', () => {
     ).toMatchObject({
       flex: 1,
       minHeight: 0,
-      justifyContent: 'center',
+      justifyContent: 'flex-start',
     });
 
     layoutCarousel(390);
@@ -504,7 +525,7 @@ describe('WorkoutScreen', () => {
       fontVariant: ['tabular-nums'],
       fontWeight: '700',
     });
-    expect(screen.getByText('ELAPSED TIME')).toBeOnTheScreen();
+    expect(screen.queryByText('ELAPSED TIME')).toBeNull();
   });
 
   it('counts elapsed time without changing block completion', async () => {
@@ -624,8 +645,8 @@ describe('WorkoutScreen', () => {
       backgroundColor: 'rgba(255,255,255,.18)',
     });
     expect(pauseStyle.borderRadius).toBeCloseTo(21.6);
-    expect(pauseStyle.height).toBeCloseTo(62.4);
-    expect(pauseStyle.width).toBeCloseTo(62.4);
+    expect(pauseStyle.height).toBeCloseTo(57.6);
+    expect(pauseStyle.width).toBeCloseTo(57.6);
     const stopStyle = StyleSheet.flatten(
       screen.getByTestId('workout-stop-action').props.style,
     );
@@ -635,7 +656,7 @@ describe('WorkoutScreen', () => {
       borderWidth: 1.5,
     });
     expect(stopStyle.borderRadius).toBeCloseTo(21.6);
-    expect(stopStyle.height).toBeCloseTo(62.4);
+    expect(stopStyle.height).toBeCloseTo(57.6);
     const stopLabelStyle = StyleSheet.flatten(
       screen.getByText('중단').props.style,
     );
@@ -740,11 +761,7 @@ describe('WorkoutScreen', () => {
         '사유를 선택한 뒤 운동 중단 여부를 한 번 더 확인해요.',
       ),
     ).toBeNull();
-    expect(
-      screen.getByText(
-        '해당 이유로 운동을 중단하면, 오늘은 더 이상 운동을 진행할 수 없어요',
-      ),
-    ).toBeOnTheScreen();
+    expect(screen.getByText('안전 중단')).toBeOnTheScreen();
     const reasonChoice = screen.getByRole('radio', {
       name: '다른 일정이나 상황이 생겼어요.',
     });
@@ -840,9 +857,7 @@ describe('WorkoutScreen', () => {
       screen.getByRole('radio', { name: '통증 또는 이상 반응이 있어요.' }),
     );
     expect(
-      screen.getByText(
-        '안전 관련 입력으로 운동 중단이 확정되면 현재 운동을 다시 이어 할 수 없습니다.',
-      ),
+      screen.getByText(/선택하면 오늘 운동은 종료되며 다시 이어할 수 없습니다/),
     ).toBeOnTheScreen();
     const continueButton = screen.getByRole('button', {
       name: '안전 관련 내용 입력하기',
@@ -850,7 +865,7 @@ describe('WorkoutScreen', () => {
     expect(continueButton).toBeDisabled();
     fireEvent.press(
       screen.getByRole('checkbox', {
-        name: '이어하기 제한 안내를 확인했어요.',
+        name: '오늘은 운동을 다시 이어할 수 없음을 확인했어요.',
       }),
     );
     expect(continueButton).toBeEnabled();
@@ -928,8 +943,13 @@ describe('WorkoutScreen', () => {
     );
 
     expect(screen.getAllByText('휴식 중')).toHaveLength(1);
-    expect(screen.getByText('휴식도 운동의 일부에요')).toBeOnTheScreen();
-    expect(screen.getByLabelText('현재 휴식 시간 00:00')).toBeOnTheScreen();
+    expect(screen.getByText('휴식도 운동의 일부예요')).toBeOnTheScreen();
+    expect(screen.getByLabelText('휴식 경과 00:00')).toHaveTextContent('00:00');
+    expect(screen.getByText('휴식 경과')).toHaveStyle({
+      fontSize: 13,
+      textAlign: 'center',
+    });
+    expect(screen.queryByText('경과 휴식')).toBeNull();
     const restOverlay = screen.getByTestId('workout-rest-overlay');
     expect(restOverlay.props.pointerEvents).toBe('box-none');
     expect(StyleSheet.flatten(restOverlay.props.style)).toMatchObject({
@@ -960,22 +980,21 @@ describe('WorkoutScreen', () => {
       elevation: 4,
     });
     expect(
-      StyleSheet.flatten(
-        screen.getByLabelText('현재 휴식 시간 00:00').props.style,
-      ),
+      StyleSheet.flatten(screen.getByLabelText('휴식 경과 00:00').props.style),
     ).toMatchObject({
       color: '#5A4636',
       fontSize: 56,
       fontVariant: ['tabular-nums'],
       letterSpacing: 2,
       lineHeight: 58,
+      textAlign: 'center',
     });
     expect(screen.queryByText('REST TIME')).toBeNull();
     expect(
       screen.queryByText(/전체 운동 시간은 계속 흐르고 있어요/),
     ).toBeNull();
     await act(() => jest.advanceTimersByTime(2000));
-    expect(screen.getByLabelText('현재 휴식 시간 00:02')).toBeOnTheScreen();
+    expect(screen.getByLabelText('휴식 경과 00:02')).toHaveTextContent('00:02');
     expect(screen.queryByRole('button', { name: '휴식 일시정지' })).toBeNull();
     expect(screen.queryByRole('button', { name: '휴식 재개' })).toBeNull();
     fireEvent.press(screen.getByRole('button', { name: '돌아가기' }));
@@ -1004,7 +1023,7 @@ describe('WorkoutScreen', () => {
 
     fireEvent.press(screen.getByRole('button', { name: '돌아가기' }));
     expect(screen.getByText('운동 진행 중')).toBeOnTheScreen();
-    expect(screen.queryByText('휴식도 운동의 일부에요')).toBeNull();
+    expect(screen.queryByText('휴식도 운동의 일부예요')).toBeNull();
     expect(onPauseChange).toHaveBeenNthCalledWith(1, true);
     expect(onPauseChange).toHaveBeenNthCalledWith(2, false);
   });
@@ -1286,9 +1305,9 @@ describe('WorkoutScreen API mode', () => {
     fireEvent.press(equipmentAction);
 
     expect(
-      screen.getByRole('header', { name: '의자 스쿼트 장비 안내' }),
+      screen.getByRole('header', { name: '의자가 없을 때' }),
     ).toBeOnTheScreen();
-    expect(screen.getByText('의자')).toBeOnTheScreen();
+    expect(screen.queryByText('원래 운동의 필요 장비')).toBeNull();
     expect(screen.getByText('맨몸 스쿼트')).toBeOnTheScreen();
     expect(
       screen.getByText(
@@ -1302,6 +1321,24 @@ describe('WorkoutScreen API mode', () => {
       expect.any(AbortSignal),
     );
   }, 10_000);
+
+  it('leaves no fixed card height or action spacing when no guide or reviewed variant exists', async () => {
+    render(
+      <WorkoutScreen
+        api={workoutApi()}
+        locationCode="HOME"
+        sessionId="session-api"
+        plan={API_PLAN}
+        onOutcome={jest.fn()}
+      />,
+    );
+    await waitFor(() => expect(screen.queryByText('장비 확인 중…')).toBeNull());
+    const card = screen.getByTestId('workout-card-0');
+    expect(StyleSheet.flatten(card.props.style).height).toBeUndefined();
+    const actions = screen.getByTestId('workout-actions-0');
+    expect(within(actions).queryByRole('button')).toBeNull();
+    expect(StyleSheet.flatten(actions.props.style).marginTop).toBeUndefined();
+  });
 
   it.each(['GYM', 'OUTDOOR'])(
     'hides variant entry points without a lookup during a %s workout',

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -15,18 +15,26 @@ import { colors, radii, spacing } from '../../components/theme';
 const MINIMUM_AGE = 18;
 const MAXIMUM_AGE = 64;
 const WHEEL_ITEM_HEIGHT = 44;
+const COMPACT_WHEEL_ITEM_HEIGHT = 38;
 const WEB_WHEEL_GESTURE_IDLE_MS = 45;
 const WEB_WHEEL_SINGLE_ITEM_DELTA = 240;
 const WEB_WHEEL_ACCELERATION_DELTA = 70;
 const WEB_WHEEL_MAX_ITEMS_PER_GESTURE = 18;
 
 type Props = {
+  compact?: boolean;
   disabled?: boolean;
   onChange: (value: string) => void;
   value: string;
 };
 
-export function BirthDateField({ disabled = false, onChange, value }: Props) {
+export function BirthDateField({
+  compact = false,
+  disabled = false,
+  onChange,
+  value,
+}: Props) {
+  const itemHeight = compact ? COMPACT_WHEEL_ITEM_HEIGHT : WHEEL_ITEM_HEIGHT;
   const today = useMemo(() => new Date(), []);
   const latestEligibleBirthdate = useMemo(
     () => getLatestEligibleBirthdate(today),
@@ -128,6 +136,7 @@ export function BirthDateField({ disabled = false, onChange, value }: Props) {
       <Text style={styles.fieldLabel}>생년월일</Text>
       <View pointerEvents={disabled ? 'none' : 'auto'} style={styles.wheelRow}>
         <WheelColumn
+          itemHeight={itemHeight}
           label="연도"
           onChange={changeYear}
           options={birthYears}
@@ -135,6 +144,7 @@ export function BirthDateField({ disabled = false, onChange, value }: Props) {
           suffix="년"
         />
         <WheelColumn
+          itemHeight={itemHeight}
           label="월"
           onChange={changeMonth}
           options={birthMonths}
@@ -142,6 +152,7 @@ export function BirthDateField({ disabled = false, onChange, value }: Props) {
           suffix="월"
         />
         <WheelColumn
+          itemHeight={itemHeight}
           label="일"
           onChange={(day) =>
             onChange(toIsoDate(selected.year, selected.month, day))
@@ -172,12 +183,14 @@ function getEarliestEligibleBirthdate(today: Date): Date {
 }
 
 function WheelColumn({
+  itemHeight,
   label,
   onChange,
   options,
   selected,
   suffix,
 }: {
+  itemHeight: number;
   label: string;
   onChange: (value: number) => void;
   options: number[];
@@ -209,9 +222,12 @@ function WheelColumn({
     }
   };
 
-  const scrollToIndex = (index: number, animated: boolean) => {
-    scrollRef.current?.scrollTo({ animated, y: index * WHEEL_ITEM_HEIGHT });
-  };
+  const scrollToIndex = useCallback(
+    (index: number, animated: boolean) => {
+      scrollRef.current?.scrollTo({ animated, y: index * itemHeight });
+    },
+    [itemHeight],
+  );
 
   const commitIndex = (index: number) => {
     const boundedIndex = Math.max(0, Math.min(options.length - 1, index));
@@ -233,9 +249,9 @@ function WheelColumn({
   const settleAtOffset = (offsetY: number, align = true) => {
     const index = Math.max(
       0,
-      Math.min(options.length - 1, Math.round(offsetY / WHEEL_ITEM_HEIGHT)),
+      Math.min(options.length - 1, Math.round(offsetY / itemHeight)),
     );
-    const targetOffset = index * WHEEL_ITEM_HEIGHT;
+    const targetOffset = index * itemHeight;
     if (align && Math.abs(offsetY - targetOffset) > 1) {
       scrollToIndex(index, true);
     }
@@ -250,7 +266,7 @@ function WheelColumn({
     }
     pendingInternalSelectionRef.current = null;
     scrollToIndex(selectedIndex, false);
-  }, [options, selected, selectedIndex]);
+  }, [options, scrollToIndex, selected, selectedIndex]);
 
   useEffect(
     () => () => {
@@ -288,7 +304,7 @@ function WheelColumn({
     clearWebSettleTimer();
     if (deltaY === 0) return;
     const modeMultiplier =
-      deltaMode === 1 ? 16 : deltaMode === 2 ? WHEEL_ITEM_HEIGHT * 3 : 1;
+      deltaMode === 1 ? 16 : deltaMode === 2 ? itemHeight * 3 : 1;
     const normalizedDelta = deltaY * modeMultiplier;
     if (
       webWheelDeltaRef.current !== 0 &&
@@ -344,12 +360,21 @@ function WheelColumn({
   return (
     <View style={styles.wheelColumn}>
       <Text style={styles.wheelLabel}>{label}</Text>
-      <View style={styles.wheelViewport}>
-        <View pointerEvents="none" style={styles.wheelSelection} />
+      <View style={[styles.wheelViewport, { height: itemHeight * 3 }]}>
+        <View
+          pointerEvents="none"
+          style={[
+            styles.wheelSelection,
+            { height: itemHeight, top: itemHeight },
+          ]}
+        />
         <ScrollView
           ref={scrollRef}
           accessibilityLabel={`${label} 선택 스크롤`}
-          contentContainerStyle={styles.wheelContent}
+          contentContainerStyle={[
+            styles.wheelContent,
+            { paddingVertical: itemHeight },
+          ]}
           decelerationRate="fast"
           disableIntervalMomentum
           nestedScrollEnabled
@@ -380,7 +405,7 @@ function WheelColumn({
           scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
           snapToAlignment="start"
-          snapToInterval={WHEEL_ITEM_HEIGHT}
+          snapToInterval={itemHeight}
           style={styles.wheelScroll}
           {...webWheelProps}
         >
@@ -394,7 +419,7 @@ function WheelColumn({
                 accessibilityState={{ selected: selectedOption }}
                 key={option}
                 onPress={() => selectIndex(index)}
-                style={styles.wheelItem}
+                style={[styles.wheelItem, { height: itemHeight }]}
               >
                 <Text
                   style={[
@@ -478,7 +503,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   wheelViewport: {
-    height: WHEEL_ITEM_HEIGHT * 3,
     overflow: 'hidden',
     borderWidth: 1.5,
     borderColor: colors.border,
@@ -486,18 +510,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.canvas,
   },
   wheelScroll: { zIndex: 1 },
-  wheelContent: { paddingVertical: WHEEL_ITEM_HEIGHT },
+  wheelContent: {},
   wheelSelection: {
     position: 'absolute',
-    top: WHEEL_ITEM_HEIGHT,
     right: 5,
     left: 5,
-    height: WHEEL_ITEM_HEIGHT,
     borderRadius: 9,
     backgroundColor: '#FFF3D4',
   },
   wheelItem: {
-    height: WHEEL_ITEM_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
   },

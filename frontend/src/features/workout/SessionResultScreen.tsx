@@ -6,21 +6,18 @@
  * framing.
  */
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Api } from '../../api/endpoints';
-import { notCompletedReasonLabel, sessionStatusLabel } from '../../api/labels';
 import { useAsyncAction } from '../../api/useAsync';
 import { MascotStage } from '../../components/brand/BrandChrome';
 import {
-  Button,
   Card,
   GradientActionButton,
   InlineFeedback,
 } from '../../components/primitives';
 import {
-  SafetyNotice,
   ScreenHeading,
   ScreenShell,
 } from '../../components/states/ScreenState';
@@ -30,7 +27,7 @@ import type { SessionOutcome } from './SessionScreen';
 const DIFFICULTIES = [
   { code: 'EASY' as const, label: '쉬웠어요' },
   { code: 'APPROPRIATE' as const, label: '적당했어요' },
-  { code: 'HARD' as const, label: '어려워요' },
+  { code: 'HARD' as const, label: '어려웠어요' },
 ];
 
 const HARD_DIFFICULTY_DETAILS = [
@@ -40,6 +37,12 @@ const HARD_DIFFICULTY_DETAILS = [
 
 type HardDifficultyDetailCode =
   (typeof HARD_DIFFICULTY_DETAILS)[number]['code'];
+
+export function isRestOutcome(outcome: SessionOutcome): boolean {
+  return outcome.kind === 'safetyStop'
+    ? outcome.event.completion_code === 'NOT_COMPLETED'
+    : outcome.result.status_code === 'NOT_COMPLETED';
+}
 
 export function SessionResultScreen({
   api,
@@ -52,62 +55,38 @@ export function SessionResultScreen({
   outcome: SessionOutcome;
   onDone: () => void;
 }) {
+  const resting = isRestOutcome(outcome);
+  useEffect(() => {
+    if (resting) onDone();
+  }, [resting, onDone]);
+  if (resting) return null;
   if (outcome.kind === 'safetyStop') {
     return (
       <ScreenShell>
         <ScreenHeading title="운동을 중단했어요" />
-        <MascotStage
-          serious
-          eyebrow="안전 안내"
-          title="운동을 중단했어요"
-          caption="오늘은 더 이상 운동을 권하지 않아요."
-        />
-        <SafetyNotice title="안내" message={outcome.event.guidance} />
-        <Card style={styles.card}>
-          <Text style={styles.status}>
-            {sessionStatusLabel(outcome.event.completion_code)}
+        <Card style={[styles.card, styles.feedbackSerious]}>
+          <Text style={styles.cardTitle}>
+            오늘은 운동을 더 진행하지 않는 것을 권장해요.
           </Text>
+          <Text style={styles.body}>{outcome.event.guidance}</Text>
           <Text style={styles.body}>
-            오늘은 더 이상 운동을 권하지 않을게요. 상태가 나아지지 않으면 의료
-            전문가의 확인을 받아주세요.
+            몸 상태를 확인하고, 불편함이 계속되면 의료 전문가의 확인을
+            받아주세요.
           </Text>
+          <Text style={styles.note}>진행한 운동까지 기록했어요.</Text>
         </Card>
         <FeedbackCard
           api={api}
           legacyPainOccurred
           sessionId={sessionId}
           serious
+          onDone={onDone}
         />
-        <Button label="홈으로" onPress={onDone} />
       </ScreenShell>
     );
   }
 
-  if (outcome.kind === 'notCompleted') {
-    return (
-      <ScreenShell>
-        <ScreenHeading title="오늘 기록을 저장했어요" />
-        <MascotStage
-          eyebrow="기록 완료"
-          title="오늘도 확인했어요"
-          caption="못 한 날도 다음 계획을 만드는 데 도움이 돼요."
-        />
-        <Card style={styles.card}>
-          <Text style={styles.status}>
-            {sessionStatusLabel(outcome.result.status_code)}
-          </Text>
-          <Text style={styles.body}>
-            이유: {notCompletedReasonLabel(outcome.result.reason_code)}
-          </Text>
-          <Text style={styles.note}>
-            못 한 날도 다음 계획을 만드는 데 도움이 되는 신호예요.
-          </Text>
-        </Card>
-        <FeedbackCard api={api} sessionId={sessionId} />
-        <Button label="홈으로" onPress={onDone} />
-      </ScreenShell>
-    );
-  }
+  if (outcome.kind === 'notCompleted') return null;
 
   const result = outcome.result;
 
@@ -131,24 +110,13 @@ export function SessionResultScreen({
         caption={`블록 ${result.completed_item_count} / ${result.total_item_count} 완료`}
       />
 
-      <Card style={styles.card}>
-        <Text style={styles.status}>
-          {sessionStatusLabel(result.status_code)}
+      {result.estimated_calories_burned !== null ? (
+        <Text style={styles.note}>
+          예상 소모 칼로리 약 {Math.round(result.estimated_calories_burned)}kcal
         </Text>
-        <Text style={styles.body}>
-          블록 {result.completed_item_count} / {result.total_item_count} 완료
-        </Text>
-        {result.estimated_calories_burned !== null ? (
-          <Text style={styles.note}>
-            예상 소모 칼로리 약 {Math.round(result.estimated_calories_burned)}
-            kcal (참고용 추정치)
-          </Text>
-        ) : null}
-      </Card>
+      ) : null}
 
-      <FeedbackCard api={api} sessionId={sessionId} />
-
-      <Button label="홈으로" onPress={onDone} />
+      <FeedbackCard api={api} sessionId={sessionId} onDone={onDone} />
     </ScreenShell>
   );
 }
@@ -156,12 +124,14 @@ export function SessionResultScreen({
 function FeedbackCard({
   api,
   legacyPainOccurred = false,
+  onDone,
   serious = false,
   sessionId,
 }: {
   api: Api;
-  legacyPainOccurred?: boolean;
   serious?: boolean;
+  legacyPainOccurred?: boolean;
+  onDone: () => void;
   sessionId: string;
 }) {
   const [difficulty, setDifficulty] = useState<
@@ -200,6 +170,7 @@ function FeedbackCard({
     });
     setSaved(true);
     setSavedGuidance(response.guidance);
+    onDone();
   });
 
   if (saved) {
@@ -215,8 +186,7 @@ function FeedbackCard({
 
   return (
     <Card style={[styles.card, serious && styles.feedbackSerious]}>
-      <Text style={styles.cardTitle}>오늘 운동 체감 난이도</Text>
-      <FeedbackSection title="체감 난이도 (필수)">
+      <FeedbackSection title="오늘 운동은 어땠나요?">
         {DIFFICULTIES.map((option) => (
           <FeedbackChoice
             key={option.code}
@@ -247,7 +217,7 @@ function FeedbackCard({
           difficulty === null ||
           (difficulty === 'HARD' && hardDifficultyDetails.length === 0)
         }
-        label={feedback.pending ? '저장 중…' : '피드백 저장'}
+        label={feedback.pending ? '저장 중…' : '피드백 저장하고 홈으로'}
         labelStyle={styles.feedbackSubmitLabel}
         onPress={() => void feedback.run()}
         showChevron={false}

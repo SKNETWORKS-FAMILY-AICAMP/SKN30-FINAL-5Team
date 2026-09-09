@@ -1,11 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  within,
-} from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 import type { Api } from '../src/api/endpoints';
 import { ApiError } from '../src/api/errors';
@@ -52,7 +46,7 @@ function rewardsApi(overrides: Partial<Api> = {}): Api {
 }
 
 describe('RewardsScreen', () => {
-  it('shows loading, then the server wallet and an honest empty history', async () => {
+  it('shows loading, then the server wallet', async () => {
     let resolveWallet!: (value: BananaWalletResponse) => void;
     const api = rewardsApi({
       getRewards: jest.fn(
@@ -71,12 +65,9 @@ describe('RewardsScreen', () => {
 
     expect(screen.getByLabelText('보유 바나나 42개')).toBeTruthy();
     expect(screen.getByText('바나나 15개 받기')).toBeTruthy();
-    expect(
-      screen.getByText('이번 화면에서 새로 확인된 거래가 없어요.'),
-    ).toBeTruthy();
   });
 
-  it('claims the daily reward through the API and displays only its real transaction', async () => {
+  it('claims the daily reward through the API and shows the new balance', async () => {
     const claimDailyReward = jest.fn(async () => claimed);
     render(
       <RewardsScreen
@@ -90,12 +81,12 @@ describe('RewardsScreen', () => {
 
     expect(await screen.findByLabelText('보유 바나나 57개')).toBeTruthy();
     expect(claimDailyReward).toHaveBeenCalledTimes(1);
-    const transaction = screen.getByTestId('banana-transaction-row');
-    expect(within(transaction).getByText('오늘의 바나나')).toBeTruthy();
-    expect(within(transaction).getByText('+15')).toBeTruthy();
-    expect(
-      screen.queryByText('이번 화면에서 새로 확인된 거래가 없어요.'),
-    ).toBeNull();
+    expect(screen.getByText('오늘 보상 받기 완료')).toBeTruthy();
+    expect(screen.getByTestId('banana-transaction-row')).toHaveProp(
+      'accessibilityLabel',
+      '오늘의 바나나 지급 15개, 거래 후 57개',
+    );
+    expect(screen.getByText('오늘의 바나나 +15 · 거래 후 57개')).toBeTruthy();
   });
 
   it('shows the balance error and retries the wallet request', async () => {
@@ -124,18 +115,19 @@ describe('RewardsScreen', () => {
     expect(getRewards).toHaveBeenCalledTimes(2);
   });
 
-  it('marks Kkikki Pass as a non-purchasable mockup', async () => {
+  it('marks HELKKI PASS as a non-purchasable mockup', async () => {
     const onBack = jest.fn();
     render(<RewardsScreen api={rewardsApi()} onBack={onBack} />);
 
     await screen.findByLabelText('보유 바나나 42개');
-    fireEvent.press(screen.getByText('끼끼패스 미리보기'));
+    fireEvent.press(screen.getAllByText('HELKKI PASS')[0]);
 
     expect(screen.getByTestId('kkikki-pass-preview')).toBeTruthy();
-    expect(screen.getByText('기능 미리보기')).toBeTruthy();
+    expect(screen.getByTestId('helkki-pass-art')).toBeTruthy();
+    expect(screen.getByText('혜택')).toBeTruthy();
     expect(
       screen.getByText(
-        '이 화면에서는 결제 수단을 입력받거나 구매를 시도하지 않아요.',
+        '기능 미리보기 · 혜택은 미확정이며 실제 결제는 지원하지 않아요.',
       ),
     ).toBeTruthy();
     expect(screen.queryByText('구매하기')).toBeNull();

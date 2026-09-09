@@ -23,10 +23,11 @@ import {
   MIN_COMPACT_INTERFACE_SCALE,
   ScaleViewportProvider,
 } from '../src/components/scale';
-import { colors } from '../src/components/theme';
+import { colors, spacing } from '../src/components/theme';
 import {
   HOUSE_ACTION_EFFECT_MS,
   HOUSE_BACKDROP_ZOOM,
+  HOUSE_GIFT_EFFECT_MS,
   HOUSE_MASCOT_SIZE,
   houseBottomPanelTop,
   houseBackdropContinuationTop,
@@ -103,6 +104,26 @@ function completedSession(
   };
 }
 
+function claimedGift() {
+  return {
+    local_date: '2026-08-18',
+    reward_amount: 15,
+    is_claimable: false,
+    is_claimed: true,
+    claimed_at: '2026-08-18T09:00:00+09:00',
+  } as const;
+}
+
+function giftTransaction(balanceAfter: number) {
+  return {
+    transaction_id: 'transaction-daily-reward',
+    transaction_type: 'DAILY_REWARD',
+    amount: 15,
+    balance_after: balanceAfter,
+    created_at: '2026-08-18T09:00:00+09:00',
+  } as const;
+}
+
 function houseApi({
   rewardBalance,
   rewardError,
@@ -116,6 +137,7 @@ function houseApi({
   spendError?: Error;
   weekError?: boolean;
 } = {}) {
+  let giftClaimed = false;
   let balance =
     rewardBalance ??
     DAILY_GIFT_BANANAS +
@@ -144,16 +166,33 @@ function houseApi({
       if (rewardError) throw rewardError;
       return {
         balance,
-        daily_reward: {
-          local_date: '2026-08-18',
-          reward_amount: 15,
-          is_claimable: true,
-          is_claimed: false,
-          claimed_at: null,
-        },
+        daily_reward: giftClaimed
+          ? claimedGift()
+          : {
+              local_date: '2026-08-18',
+              reward_amount: 15,
+              is_claimable: true,
+              is_claimed: false,
+              claimed_at: null,
+            },
       };
     }),
-    claimDailyReward: jest.fn(),
+    claimDailyReward: jest.fn(async () => {
+      if (giftClaimed) {
+        return {
+          balance,
+          daily_reward: claimedGift(),
+          transaction: giftTransaction(balance),
+        };
+      }
+      giftClaimed = true;
+      balance += 15;
+      return {
+        balance,
+        daily_reward: claimedGift(),
+        transaction: giftTransaction(balance),
+      };
+    }),
     spendBananas: jest.fn(async (body: BananaSpendRequest) => {
       if (spendError) throw spendError;
       const cost =
@@ -269,9 +308,10 @@ describe('MascotHouseScreen', () => {
     expect(screen.queryByText('끼끼와 놀기')).toBeNull();
     expect(screen.queryByText('떨어지는 바나나를 받아요')).toBeNull();
     expect(screen.queryByText('30초')).toBeNull();
-    expect(screen.getByText('바나나 받기')).toBeTruthy();
+    expect(screen.getByText('미니게임')).toBeTruthy();
     expect(screen.getByText('하루 1회 플레이 가능')).toBeTruthy();
     expect(screen.getByText('퀘스트')).toBeTruthy();
+    expect(screen.queryByTestId('house-quest-tile-count')).toBeNull();
     expect(
       screen.getByTestId('house-mini-game-mascot-banana_catch', {
         includeHiddenElements: true,
@@ -295,21 +335,202 @@ describe('MascotHouseScreen', () => {
     ).toBeTruthy();
   });
 
-  it('pays the visit quest on arrival instead of offering a gift to claim', async () => {
+  it('marks the daily visit quest while keeping the server gift separate', async () => {
     renderHouse(houseApi({ sessions: [] }));
 
     await screen.findByTestId('house-scene');
 
     expect(screen.queryByTestId('house-gift-button')).toBeNull();
+    expect(screen.getByTestId('house-daily-gift')).toBeTruthy();
     await waitFor(() =>
       expect(screen.getByText(`${DAILY_GIFT_BANANAS}개`)).toBeTruthy(),
     );
     fireEvent.press(screen.getByTestId('house-quest-tile'));
     expect(screen.getByTestId('house-quest-row-visit')).toBeTruthy();
+    expect(screen.getByText('접속하기')).toBeTruthy();
+    expect(screen.getByTestId('house-quest-row-workout')).toHaveProp(
+      'accessibilityLabel',
+      expect.stringContaining('운동 완료하기'),
+    );
+    expect(screen.queryByText('오늘 접속하기')).toBeNull();
+    expect(screen.queryByText('오늘 운동 완료하기')).toBeNull();
     expect(screen.getByTestId('house-quest-row-pet')).toHaveProp(
       'accessibilityLabel',
       expect.stringContaining(HOUSE_BONDING_COPY.questLabel),
     );
+  });
+
+  it('shows the three weekly quests with the daily quest row UI', async () => {
+    renderHouse(houseApi());
+
+    await screen.findByTestId('house-scene');
+    fireEvent.press(screen.getByTestId('house-quest-tile'));
+    fireEvent.press(screen.getByTestId('house-quest-tab-weekly'));
+
+    expect(screen.getByTestId('house-weekly-quest-row-visit')).toHaveProp(
+      'accessibilityLabel',
+      '주 4회 앱 접속, 진행 정보 없음, 보상 준비 중',
+    );
+    expect(screen.getByTestId('house-weekly-quest-row-report')).toHaveProp(
+      'accessibilityLabel',
+      '주간 리포트 확인, 0 / 1, 보상 준비 중',
+    );
+    expect(
+      screen.getByTestId('house-weekly-quest-row-workout_goal'),
+    ).toHaveProp('accessibilityLabel', '운동 목표 달성, 1 / 3, 보상 준비 중');
+    const weeklyList = within(screen.getByTestId('house-weekly-quest-list'));
+    expect(weeklyList.getAllByText('보상 준비 중')).toHaveLength(3);
+    expect(weeklyList.queryByText(/^\+/)).toBeNull();
+  });
+
+  it('names the weekly tab 주간 퀘스트 while it is open', async () => {
+    renderHouse(houseApi());
+
+    await screen.findByTestId('house-scene');
+    fireEvent.press(screen.getByTestId('house-quest-tile'));
+    expect(screen.getByText('오늘의 퀘스트')).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId('house-quest-tab-weekly'));
+    expect(screen.getByText('주간 퀘스트')).toBeTruthy();
+    expect(screen.queryByText('오늘의 퀘스트')).toBeNull();
+
+    fireEvent.press(screen.getByTestId('house-quest-tab-daily'));
+    expect(screen.getByText('오늘의 퀘스트')).toBeTruthy();
+  });
+
+  it('claims today’s gift from the house and closes it afterwards', async () => {
+    const api = houseApi({ sessions: [] });
+    renderHouse(api);
+
+    await screen.findByTestId('house-scene');
+    await waitFor(() =>
+      expect(screen.getByText(`${DAILY_GIFT_BANANAS}개`)).toBeTruthy(),
+    );
+
+    const gift = screen.getByTestId('house-daily-gift');
+    expect(gift).toHaveProp(
+      'accessibilityLabel',
+      `오늘의 선물, 바나나 ${DAILY_GIFT_BANANAS}개 받기`,
+    );
+    fireEvent.press(gift);
+
+    await waitFor(() =>
+      expect(
+        screen.getByLabelText(`바나나 ${DAILY_GIFT_BANANAS * 2}개 보유`),
+      ).toBeTruthy(),
+    );
+    expect(api.claimDailyReward).toHaveBeenCalledTimes(1);
+    // The claimed gift is gone for the day, and the count says what arrived.
+    expect(screen.queryByTestId('house-daily-gift')).toBeNull();
+    expect(
+      within(screen.getByTestId('house-banana-count')).getByTestId(
+        'house-action-effect-amount',
+        { includeHiddenElements: true },
+      ).props.children,
+    ).toEqual(['+', DAILY_GIFT_BANANAS]);
+  });
+
+  it('serializes the daily gift and banana spending mutations', async () => {
+    const api = houseApi({ sessions: [] });
+    let resolveClaim!: (value: {
+      balance: number;
+      daily_reward: ReturnType<typeof claimedGift>;
+      transaction: ReturnType<typeof giftTransaction>;
+    }) => void;
+    jest.mocked(api.claimDailyReward).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveClaim = resolve;
+        }),
+    );
+    renderHouse(api);
+
+    await screen.findByTestId('house-daily-gift');
+    fireEvent.press(screen.getByTestId('house-daily-gift'));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('house-feed-action')).toBeDisabled(),
+    );
+    fireEvent.press(screen.getByTestId('house-feed-action'));
+    expect(api.spendBananas).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveClaim({
+        balance: DAILY_GIFT_BANANAS * 2,
+        daily_reward: claimedGift(),
+        transaction: giftTransaction(DAILY_GIFT_BANANAS * 2),
+      });
+    });
+    expect(screen.getByTestId('house-feed-action')).toBeEnabled();
+  });
+
+  it('holds the gift’s +15 for a beat and then clears it', async () => {
+    jest.useFakeTimers();
+    try {
+      renderHouse(houseApi({ sessions: [] }));
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+      fireEvent.press(screen.getByTestId('house-daily-gift'));
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(
+        screen.getByTestId('house-action-effect-gain', {
+          includeHiddenElements: true,
+        }),
+      ).toBeTruthy();
+      act(() => jest.advanceTimersByTime(HOUSE_GIFT_EFFECT_MS - 1));
+      expect(
+        screen.queryByTestId('house-action-effect-gain', {
+          includeHiddenElements: true,
+        }),
+      ).toBeTruthy();
+      act(() => jest.advanceTimersByTime(1));
+      expect(
+        screen.queryByTestId('house-action-effect-gain', {
+          includeHiddenElements: true,
+        }),
+      ).toBeNull();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('keeps both quest tabs at the height of the intimacy bonus area', async () => {
+    renderHouse(houseApi());
+
+    await screen.findByTestId('house-scene');
+    fireEvent(screen.getByTestId('house-quest-panel-anchor'), 'layout', {
+      nativeEvent: {
+        layout: { x: 0, y: 56, width: 358, height: 64 },
+      },
+    });
+    fireEvent.press(screen.getByTestId('house-quest-tile'));
+
+    const panelStyle = StyleSheet.flatten(
+      screen.getByTestId('house-quest-panel').props.style,
+    );
+    expect(panelStyle).toMatchObject({
+      position: 'absolute',
+      right: 0,
+      bottom: 0,
+      left: 0,
+      top: 56,
+    });
+
+    fireEvent.press(screen.getByTestId('house-quest-tab-weekly'));
+    expect(screen.getByTestId('house-weekly-quest-list')).toBeTruthy();
+    expect(screen.getByTestId('house-quest-panel')).toHaveStyle({
+      top: 56,
+      bottom: 0,
+    });
+    expect(screen.getByTestId('house-quest-list')).toHaveStyle({
+      flex: 1,
+      minHeight: 0,
+    });
   });
 
   it('opens the banana catch game and returns to the same house', async () => {
@@ -338,8 +559,52 @@ describe('MascotHouseScreen', () => {
     await waitFor(() => expect(api.getRewards).toHaveBeenCalledTimes(3));
   });
 
+  it('keeps only one house panel or child screen active at a time', async () => {
+    renderHouse(houseApi({ rewardBalance: 120 }));
+
+    await screen.findByTestId('house-scene');
+
+    // 퀘스트 → 집 꾸미기 → 닫기 → 기본 화면
+    fireEvent.press(screen.getByTestId('house-quest-tile'));
+    expect(screen.getByTestId('house-quest-panel')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('house-decorate-action'));
+    expect(screen.queryByTestId('house-quest-panel')).toBeNull();
+    expect(screen.getByTestId('house-decorate-panel')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('집 꾸미기 닫기'));
+    expect(screen.queryByTestId('house-decorate-panel')).toBeNull();
+    expect(screen.getByTestId('house-scene')).toBeTruthy();
+
+    // 집 꾸미기 → 바나나 + → 뒤로가기 → 기본 화면
+    fireEvent.press(screen.getByTestId('house-decorate-action'));
+    fireEvent.press(screen.getByLabelText('바나나 지갑 보기'));
+    expect(await screen.findByLabelText('보유 바나나 120개')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
+    expect(await screen.findByTestId('house-scene')).toBeTruthy();
+    expect(screen.queryByTestId('house-decorate-panel')).toBeNull();
+
+    // 퀘스트 → 바나나 + → 뒤로가기 → 기본 화면
+    fireEvent.press(screen.getByTestId('house-quest-tile'));
+    fireEvent.press(screen.getByLabelText('바나나 지갑 보기'));
+    expect(await screen.findByLabelText('보유 바나나 120개')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
+    expect(await screen.findByTestId('house-scene')).toBeTruthy();
+    expect(screen.queryByTestId('house-quest-panel')).toBeNull();
+
+    // 집 꾸미기 → 퀘스트 → 닫기 → 기본 화면
+    fireEvent.press(screen.getByTestId('house-decorate-action'));
+    fireEvent.press(screen.getByTestId('house-intimacy-chip'));
+    expect(screen.queryByTestId('house-decorate-panel')).toBeNull();
+    expect(screen.getByTestId('house-quest-panel')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('오늘의 퀘스트 닫기'));
+    expect(screen.queryByTestId('house-quest-panel')).toBeNull();
+    expect(screen.getByTestId('house-scene')).toBeTruthy();
+  });
+
   it('gives the feed button the full row and moves petting onto the mascot', async () => {
-    renderHouse(houseApi());
+    renderHouse(houseApi(), createMemoryHouseStore(), {
+      width: 390,
+      height: 844,
+    });
 
     await screen.findByTestId('house-scene');
     expect(screen.getByTestId('house-feed-action')).toHaveStyle({
@@ -367,7 +632,46 @@ describe('MascotHouseScreen', () => {
     ).toBeTruthy();
     expect(screen.getByTestId('house-touch-hint')).toBeTruthy();
     expect(screen.getByText('끼끼를 터치해보세요!')).toBeTruthy();
+    expect(screen.queryByText(HOUSE_BONDING_COPY.hintDescription)).toBeNull();
+    const mascotSlotStyleBeforeInfo = StyleSheet.flatten(
+      screen.getByTestId('house-mascot-slot').props.style,
+    );
+    const mascotTopBeforeInfo = mascotSlotStyleBeforeInfo.top;
+    const mascotSizeBeforeInfo = mascotSlotStyleBeforeInfo.height;
+    fireEvent.press(
+      screen.getByRole('button', { name: '끼끼와 친해지는 방법 안내' }),
+    );
+    expect(screen.getByText('끼끼와 친해지는 방법')).toBeTruthy();
     expect(screen.getByText(HOUSE_BONDING_COPY.hintDescription)).toBeTruthy();
+    const infoButtonTop = (mascotSizeBeforeInfo - 22) / 2;
+    const infoButtonLeft = 390 / 2 + mascotSizeBeforeInfo / 2 + spacing.xs;
+    expect(screen.getByTestId('house-bonding-tooltip')).toHaveStyle({
+      position: 'absolute',
+      top: infoButtonTop + 22 + spacing.xs,
+      left: infoButtonLeft,
+      width: 390 - infoButtonLeft - spacing.sm,
+    });
+    expect(screen.getByTestId('house-bonding-info')).toHaveStyle({
+      top: infoButtonTop,
+      left: '50%',
+      marginLeft: mascotSizeBeforeInfo / 2 + spacing.xs,
+    });
+    expect(screen.getByText('끼끼와 친해지는 방법')).toHaveProp(
+      'lineBreakStrategyIOS',
+      'hangul-word',
+    );
+    expect(screen.getByText(HOUSE_BONDING_COPY.hintDescription)).toHaveProp(
+      'textBreakStrategy',
+      'balanced',
+    );
+    expect(screen.getByTestId('house-mascot-slot')).toHaveStyle({
+      top: mascotTopBeforeInfo,
+    });
+    fireEvent(screen.getByTestId('mascot-house-content'), 'pointerDown');
+    expect(screen.queryByTestId('house-bonding-tooltip')).toBeNull();
+    fireEvent.press(screen.getByTestId('house-pet-action'));
+    expect(screen.queryByTestId('house-touch-hint')).toBeNull();
+    expect(screen.getByTestId('house-bonding-info')).toBeTruthy();
     expect(screen.getByText(HOUSE_BONDING_COPY.bonusDescription)).toBeTruthy();
   });
 
@@ -393,7 +697,7 @@ describe('MascotHouseScreen', () => {
     expect(screen.getByTestId('house-intimacy-bonus')).toBeTruthy();
   });
 
-  it('shrinks buttons, cards, and navigation together on a short viewport', async () => {
+  it('shrinks house controls while keeping the shared navigation fixed', async () => {
     renderHouse(houseApi(), createMemoryHouseStore(), {
       width: 390,
       height: 620,
@@ -413,13 +717,17 @@ describe('MascotHouseScreen', () => {
       padding: 12 * compactScale,
     });
     expect(screen.getByTestId('bottom-navigation')).toHaveStyle({
-      paddingTop: 8 * compactScale,
-      paddingHorizontal: 14 * compactScale,
-      paddingBottom: 26 * compactScale,
+      paddingTop: 8,
+      paddingHorizontal: 14,
+      paddingBottom: 26,
     });
     expect(screen.getByTestId('bottom-navigation-tabs')).toHaveStyle({
-      paddingVertical: 10 * compactScale,
-      paddingHorizontal: 6 * compactScale,
+      paddingVertical: 10,
+      paddingHorizontal: 6,
+    });
+    expect(screen.getByRole('tab', { name: '홈' })).toHaveStyle({
+      minHeight: 48,
+      paddingVertical: 6,
     });
   });
 
@@ -525,8 +833,10 @@ describe('MascotHouseScreen', () => {
     expect(backgroundList.props.contentContainerStyle).toEqual(
       expect.objectContaining({
         width: '100%',
+        paddingBottom: spacing.lg,
       }),
     );
+    expect(backgroundList).toHaveStyle({ flex: 1, minHeight: 0 });
     expect(
       screen.getByTestId('house-background-grid-row-0').props.children,
     ).toHaveLength(2);
@@ -543,8 +853,10 @@ describe('MascotHouseScreen', () => {
     expect(itemList.props.contentContainerStyle).toEqual(
       expect.objectContaining({
         width: '100%',
+        paddingBottom: spacing.lg,
       }),
     );
+    expect(itemList).toHaveStyle({ flex: 1, minHeight: 0 });
     expect(
       screen.getByTestId('house-item-grid-row-0').props.children,
     ).toHaveLength(3);

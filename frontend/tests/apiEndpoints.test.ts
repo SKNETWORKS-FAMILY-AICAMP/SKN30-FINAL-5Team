@@ -12,6 +12,49 @@ import type {
   PlanRevisionResponse,
 } from '../src/api/types';
 
+it('preserves acknowledgement and initial-plan idempotency keys across retries', async () => {
+  const fetchImpl = jest.fn<typeof fetch>(
+    async () =>
+      ({
+        ok: true,
+        status: 200,
+        text: async () => '{}',
+      }) as Response,
+  );
+  const api = createApi(
+    new ApiClient({
+      baseUrl: 'https://api.example.test',
+      getToken: async () => null,
+      fetchImpl,
+    }),
+  );
+  const reportId = '11111111-1111-4111-8111-111111111111';
+  const ackKey = '22222222-2222-4222-8222-222222222222';
+  const timestamp = '2026-09-08T10:00:00+09:00';
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await api.acknowledgeWeeklyReport(reportId, timestamp, ackKey);
+    await api.createInitialWeeklyPlan('2026-09-07', reportId);
+  }
+  for (const index of [0, 2]) {
+    expect(fetchImpl.mock.calls[index]).toEqual([
+      `https://api.example.test/api/v1/weekly-reports/${reportId}/acknowledgement`,
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ acknowledged_at: timestamp }),
+        headers: expect.objectContaining({ 'Idempotency-Key': ackKey }),
+      }),
+    ]);
+    expect(fetchImpl.mock.calls[index + 1]).toEqual([
+      'https://api.example.test/api/v1/weeks/2026-09-07/plan',
+      expect.objectContaining({
+        method: 'POST',
+        body: '{}',
+        headers: expect.objectContaining({ 'Idempotency-Key': reportId }),
+      }),
+    ]);
+  }
+});
+
 it('reads and mutates the server-backed banana wallet through reviewed endpoints', async () => {
   const wallet: BananaWalletResponse = {
     balance: 20,

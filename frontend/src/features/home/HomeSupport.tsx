@@ -120,9 +120,24 @@ export function RerollIcon({ color }: { color: string }) {
   );
 }
 
-export function RestIcon({ color }: { color: string }) {
+export function RestIcon({
+  color,
+  size = 18,
+  testID,
+}: {
+  color: string;
+  size?: number;
+  testID?: string;
+}) {
   return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+    <Svg
+      accessible={false}
+      width={size}
+      height={size}
+      testID={testID}
+      viewBox="0 0 24 24"
+      fill="none"
+    >
       <Path
         d="M18.4 15.1A7.7 7.7 0 0 1 8.9 5.6a8.2 8.2 0 1 0 9.5 9.5Z"
         stroke={color}
@@ -252,4 +267,26 @@ export function cleanRoutineItems(items: readonly HomeRoutineItem[]) {
     });
   }
   return cleaned;
+}
+
+export function hasInvalidRoutinePrescription(
+  items: readonly HomeRoutineItem[],
+) {
+  return items.some((item) => {
+    const sets = Number(item.sets);
+    const reps = item.reps === undefined ? null : Number(item.reps);
+    return (
+      !Number.isInteger(sets) ||
+      sets < 1 ||
+      (reps !== null && (!Number.isInteger(reps) || reps < 1))
+    );
+  });
+}
+
+export function patchRoutinePrescription(
+  items: readonly HomeRoutineItem[],
+  id: string,
+  patch: Pick<Partial<HomeRoutineItem>, 'sets' | 'reps'>,
+) {
+  return items.map((item) => (item.id === id ? { ...item, ...patch } : item));
 }

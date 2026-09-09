@@ -44,6 +44,7 @@ import {
 import {
   ExerciseVariantsAction,
   ExerciseVariantsContent,
+  equipmentGuideTitle,
 } from './ExerciseVariants';
 import type { SessionOutcome } from './SessionScreen';
 import {
@@ -133,8 +134,6 @@ type WorkoutApiProps = {
   sessionId: string;
   plan: WorkoutPlan;
   onOutcome: (outcome: SessionOutcome) => void;
-  /** Keeps an IN_PROGRESS session resumable while the backend stop state evolves. */
-  onReturnHomeResumable?: () => void;
 };
 
 type WorkoutScreenProps = WorkoutPreviewProps | WorkoutApiProps;
@@ -995,7 +994,6 @@ function WorkoutScreenContent({
               >
                 {formatWorkoutTime(elapsedSeconds)}
               </Text>
-              <Text style={styles.elapsedLabel}>ELAPSED TIME</Text>
             </View>
             <View style={styles.timerActions}>
               <Pressable
@@ -1005,8 +1003,8 @@ function WorkoutScreenContent({
                 style={({ pressed }) => [
                   styles.roundAction,
                   {
-                    width: 52 * layoutScale,
-                    height: 52 * layoutScale,
+                    width: 48 * layoutScale,
+                    height: 48 * layoutScale,
                     borderRadius: 18 * layoutScale,
                   },
                   pressed && styles.pressed,
@@ -1018,11 +1016,18 @@ function WorkoutScreenContent({
               <Pressable
                 accessibilityLabel="운동 중단"
                 accessibilityRole="button"
+                disabled={
+                  apiConfig !== undefined && (actionPending || !sessionReady)
+                }
+                accessibilityState={{
+                  disabled:
+                    apiConfig !== undefined && (actionPending || !sessionReady),
+                }}
                 onPress={openStopReasons}
                 style={({ pressed }) => [
                   styles.stopAction,
                   {
-                    height: 52 * layoutScale,
+                    height: 48 * layoutScale,
                     borderRadius: 18 * layoutScale,
                     paddingHorizontal: 14 * layoutScale,
                   },
@@ -1156,7 +1161,7 @@ function WorkoutScreenContent({
             style={[
               styles.carouselViewport,
               {
-                height: responsiveLayout.cardHeight + 14 * layoutScale,
+                minHeight: 0,
               },
             ]}
             testID="workout-carousel"
@@ -1376,9 +1381,9 @@ function WorkoutScreenContent({
           accessibilityLabel={`${variantGuide.block.name} 장비 안내`}
           block={variantGuide.block}
           detail={<ExerciseVariantsContent response={variantGuide.response} />}
-          eyebrow="필요 장비와 변형 방법"
+          eyebrow=""
           onClose={() => setVariantGuide(null)}
-          title={`${variantGuide.block.name} 장비 안내`}
+          title={equipmentGuideTitle(variantGuide.response)}
         />
       ) : null}
 
@@ -1417,10 +1422,6 @@ function WorkoutScreenContent({
             if (apiConfig === undefined) {
               onNotCompleted?.(selectedStopReason);
               setPreviewResult('stopped');
-              return;
-            }
-            if (apiConfig.onReturnHomeResumable) {
-              apiConfig.onReturnHomeResumable();
               return;
             }
             if (completedCount === 0) {
@@ -1523,6 +1524,8 @@ function MascotStage({
   serious: boolean;
   useJua: boolean;
 }) {
+  const [mascotLoaded, setMascotLoaded] = useState(false);
+  const [mascotFailed, setMascotFailed] = useState(false);
   return (
     <View
       accessibilityLabel={serious ? '안전 안내 화면' : `${blockName} 운동 안내`}
@@ -1564,16 +1567,37 @@ function MascotStage({
           ]}
           testID="workout-mascot-frame"
         >
-          <Image
-            accessible={false}
-            resizeMode="contain"
-            source={imageAssets.mascotWarmupWalk}
-            style={[
-              styles.mascotAnimation,
-              { width: 94 * scale, height: 94 * scale },
-            ]}
-            testID="workout-warmup-mascot"
-          />
+          {!mascotLoaded || mascotFailed ? (
+            <Image
+              accessible={false}
+              resizeMode="contain"
+              source={imageAssets.weeklyProgressCompletedWorkout}
+              style={[
+                styles.mascotAnimation,
+                { width: 94 * scale, height: 94 * scale },
+              ]}
+              testID="workout-mascot-fallback"
+            />
+          ) : null}
+          {!mascotFailed ? (
+            <Image
+              accessible={false}
+              onLoad={() => setMascotLoaded(true)}
+              onError={() => setMascotFailed(true)}
+              resizeMode="contain"
+              source={imageAssets.mascotWarmupWalk}
+              style={[
+                styles.mascotAnimation,
+                {
+                  position: 'absolute',
+                  width: 94 * scale,
+                  height: 94 * scale,
+                  opacity: mascotLoaded ? 1 : 0,
+                },
+              ]}
+              testID="workout-warmup-mascot"
+            />
+          ) : null}
         </View>
       )}
       <View style={[styles.mascotCopy, { maxWidth: 190 * scale }]}>
@@ -1690,6 +1714,7 @@ function ArcBlockCard({
   scrollX: Animated.Value;
   variantAction?: React.ReactNode;
 }) {
+  const [cardHeight, setCardHeight] = useState(0);
   const inputRange = WORKOUT_ARC.INPUT_OFFSETS.map(
     (offset) => (index + offset) * layout.stride,
   );
@@ -1720,7 +1745,7 @@ function ArcBlockCard({
     <Animated.View
       style={[
         styles.blockCard,
-        { height: layout.cardHeight, width: layout.cardWidth },
+        { width: layout.cardWidth, alignSelf: 'flex-start' },
         current
           ? styles.blockCardCurrent
           : done
@@ -1729,15 +1754,16 @@ function ArcBlockCard({
         {
           opacity,
           transform: [
-            { translateY: layout.cardHeight / 2 },
+            { translateY: cardHeight / 2 },
             { rotate },
-            { translateY: -layout.cardHeight / 2 },
+            { translateY: -cardHeight / 2 },
             { translateY: lift },
             { scale },
           ],
         },
       ]}
       testID={`workout-card-${index}`}
+      onLayout={(event) => setCardHeight(event.nativeEvent.layout.height)}
     >
       <View style={styles.blockCardHeader}>
         <View
@@ -1833,7 +1859,9 @@ function ExerciseDetailOverlay({
         <View style={styles.sheetHandle} />
         <View style={styles.detailSheetHeader}>
           <View style={styles.detailSheetHeading}>
-            <Text style={styles.detailSheetEyebrow}>{eyebrow}</Text>
+            {eyebrow ? (
+              <Text style={styles.detailSheetEyebrow}>{eyebrow}</Text>
+            ) : null}
             <Text
               accessibilityRole="header"
               style={[styles.sheetTitle, styles.detailSheetTitle]}
@@ -1921,9 +1949,10 @@ function RestSheet({
       testID="workout-rest-overlay"
     >
       <View style={styles.restTimerCard} testID="workout-rest-timer-card">
-        <Text style={styles.restMessage}>휴식도 운동의 일부에요</Text>
+        <Text style={styles.restMessage}>휴식도 운동의 일부예요</Text>
+        <Text style={styles.restLabel}>휴식 경과</Text>
         <Text
-          accessibilityLabel={`현재 휴식 시간 ${formatWorkoutTime(restSeconds)}`}
+          accessibilityLabel={`휴식 경과 ${formatWorkoutTime(restSeconds)}`}
           style={[styles.restTimer, useJua && styles.jua]}
         >
           {formatWorkoutTime(restSeconds)}
@@ -1990,6 +2019,7 @@ function StopReasonSheet({
   return (
     <SheetFrame title="운동을 중단하는 이유를 알려주세요">
       <ScrollView showsVerticalScrollIndicator={false}>
+        <Text style={styles.helpSectionTitle}>일반 중단</Text>
         <View style={styles.stopReasonList}>
           {WORKOUT_STOP_REASONS.map((reason) => (
             <ChoiceButton
@@ -2002,9 +2032,7 @@ function StopReasonSheet({
           ))}
         </View>
         <View style={styles.safetyReasonSection}>
-          <Text style={styles.safetyReasonEyebrow}>
-            해당 이유로 운동을 중단하면, 오늘은 더 이상 운동을 진행할 수 없어요
-          </Text>
+          <Text style={styles.safetyReasonEyebrow}>안전 중단</Text>
           <View style={styles.safetyReasonChoiceRow}>
             <Pressable
               accessibilityRole="radio"
@@ -2058,8 +2086,9 @@ function StopReasonSheet({
           {safetySelected ? (
             <>
               <Text style={styles.safetyReasonWarning}>
-                안전 관련 입력으로 운동 중단이 확정되면 현재 운동을 다시 이어 할
-                수 없습니다.
+                새로 발생한 통증, 심한 어지럼, 메스꺼움, 호흡 불편 등으로 운동을
+                계속하기 어려울 때 선택해주세요. 선택하면 오늘 운동은 종료되며
+                다시 이어할 수 없습니다.
               </Text>
               <Pressable
                 accessibilityRole="checkbox"
@@ -2078,7 +2107,7 @@ function StopReasonSheet({
                   </Text>
                 </View>
                 <Text style={styles.acknowledgementText}>
-                  이어하기 제한 안내를 확인했어요.
+                  오늘은 운동을 다시 이어할 수 없음을 확인했어요.
                 </Text>
               </Pressable>
             </>
@@ -2640,7 +2669,7 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
     paddingHorizontal: WORKOUT_LAYOUT.headerHorizontalPadding,
-    paddingBottom: 14,
+    paddingBottom: 10,
   },
   headerTopRow: {
     flexDirection: 'row',
@@ -2655,9 +2684,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,.72)',
     borderRadius: 20,
     backgroundColor: 'rgba(255,248,229,.94)',
-    paddingTop: 10,
+    paddingTop: 8,
     paddingRight: 14,
-    paddingBottom: 10,
+    paddingBottom: 8,
     paddingLeft: 14,
     shadowColor: '#9A650D',
     shadowOffset: { width: 0, height: 5 },
@@ -2953,15 +2982,15 @@ const styles = StyleSheet.create({
     width: '100%',
     minHeight: 0,
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
   },
   carouselViewport: { flexGrow: 0, flexShrink: 0 },
   carouselHint: { color: colors.textMuted, fontSize: 13, fontWeight: '800' },
   carouselCount: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
   blockCarousel: {
-    minHeight: '100%',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingTop: 14,
+    paddingBottom: 36,
   },
   blockCard: {
     ...shadows.card,
@@ -3021,10 +3050,9 @@ const styles = StyleSheet.create({
     width: '100%',
     flexDirection: 'column',
     alignItems: 'stretch',
-    gap: 8,
-    marginTop: 12,
   },
   infoButton: {
+    marginTop: 8,
     minHeight: 44,
     minWidth: 0,
     width: '100%',
@@ -3049,6 +3077,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   cardVariantAction: {
+    marginTop: 8,
     minHeight: 44,
     minWidth: 0,
     width: '100%',
@@ -3221,8 +3250,17 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
     textAlign: 'center',
   },
-  restTimer: {
+  restLabel: {
     marginTop: 12,
+    color: colors.textSub,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  restTimer: {
+    textAlign: 'center',
+    marginTop: 4,
     color: colors.text,
     fontSize: 56,
     fontWeight: '700',

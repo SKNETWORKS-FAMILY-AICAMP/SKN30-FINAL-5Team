@@ -4,11 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { experienceLevelLabel, primaryGoalLabel } from '../../api/labels';
-import type {
-  ConsentValues,
-  MeResponse,
-  ProfileSettingsUpdateRequest,
-} from '../../api/types';
+import type { MeResponse, ProfileSettingsUpdateRequest } from '../../api/types';
 import { Button, Card, InlineFeedback } from '../../components/primitives';
 import {
   EmptyState,
@@ -39,26 +35,20 @@ export const MY_PAGE_LAYOUT = {
 } as const;
 
 type MyPageScreenProps = {
-  consentError?: string | null;
-  consentPending?: boolean;
-  consentValues?: ConsentValues | null;
   deletionDeadline?: string | null;
   joinedDays?: number | null;
   me?: MeResponse;
   onAccountAction?: (label: string) => void;
   onConfirmLogout?: () => void;
   onConfirmWithdraw?: () => void;
-  onConsentChange?: (key: keyof ConsentValues, enabled: boolean) => void;
   onNavigateTab?: (tab: TabId) => void;
   onNotificationChange?: (key: string, enabled: boolean) => void;
-  onOpenExerciseCatalog?: () => void;
   onBasicProfileChange?: (
     body: ProfileSettingsUpdateRequest,
     imageChange: ProfileImageChange | undefined,
   ) => void;
   onProfileFieldChange?: (body: ProfileSettingsUpdateRequest) => void;
   onRetryProfile?: () => void;
-  onRetryConsents?: () => void;
   persistedSettingsAvailable?: boolean;
   previewState?: MyPagePreviewState;
   profileUpdateError?: string | null;
@@ -77,23 +67,17 @@ export function MyPageScreen({
 }
 
 function MyPageContent({
-  consentError = null,
-  consentPending = false,
-  consentValues = null,
   deletionDeadline = null,
   joinedDays = null,
   me,
   onAccountAction,
   onConfirmLogout,
   onConfirmWithdraw,
-  onConsentChange,
   onNavigateTab,
   onNotificationChange,
-  onOpenExerciseCatalog,
   onBasicProfileChange,
   onProfileFieldChange,
   onRetryProfile,
-  onRetryConsents,
   persistedSettingsAvailable = true,
   previewState = 'profile',
   profileUpdateError = null,
@@ -142,6 +126,7 @@ function MyPageContent({
         : 'profile';
 
   const toggleNotification = (key: keyof typeof notifications) => {
+    if (!persistedSettingsAvailable) return;
     const enabled = !notifications[key];
     setNotifications((current) => ({ ...current, [key]: enabled }));
     onNotificationChange?.(key, enabled);
@@ -257,23 +242,6 @@ function MyPageContent({
           ))}
         </View>
 
-        {onOpenExerciseCatalog ? (
-          <>
-            <SectionTitle label="운동 도구" />
-            <View style={styles.rowsCard}>
-              <Pressable
-                accessibilityRole="button"
-                onPress={onOpenExerciseCatalog}
-                style={styles.infoRow}
-              >
-                <Text style={styles.infoLabel}>운동 카탈로그</Text>
-                <Text style={styles.infoValue}>둘러보기</Text>
-                <Text style={styles.rowArrow}>›</Text>
-              </Pressable>
-            </View>
-          </>
-        ) : null}
-
         <SectionTitle label="알림" />
         <View style={styles.rowsCard}>
           <NotificationRow
@@ -294,7 +262,6 @@ function MyPageContent({
           />
           <NotificationRow
             comingSoon={!persistedSettingsAvailable}
-            description="휴식일에는 알림을 보내지 않아요."
             enabled={notifications.encouragement}
             label="응원 알림"
             disabled={!persistedSettingsAvailable}
@@ -302,53 +269,7 @@ function MyPageContent({
           />
         </View>
 
-        {!persistedSettingsAvailable ? (
-          <InlineFeedback
-            message="알림 기능은 준비 중이에요."
-            style={styles.feedback}
-            tone="warning"
-          />
-        ) : null}
-
-        <SectionTitle label="선택 동의 관리" />
-        <View style={styles.rowsCard}>
-          <Text style={styles.consentNote}>
-            필수 동의 항목은 여기에서 변경할 수 없어요.
-          </Text>
-          {consentValues ? (
-            OPTIONAL_CONSENTS.map(({ key, label }) => (
-              <NotificationRow
-                key={key}
-                description=""
-                disabled={consentPending}
-                enabled={consentValues[key]}
-                label={label}
-                onToggle={() => onConsentChange?.(key, !consentValues[key])}
-              />
-            ))
-          ) : consentError ? (
-            <InlineFeedback
-              action={
-                onRetryConsents ? (
-                  <Button
-                    label="다시 시도"
-                    onPress={onRetryConsents}
-                    tone="secondary"
-                  />
-                ) : undefined
-              }
-              message={consentError}
-              tone="error"
-            />
-          ) : (
-            <Text style={styles.consentNote}>동의 정보를 불러오고 있어요…</Text>
-          )}
-          {consentValues && consentError ? (
-            <InlineFeedback message={consentError} tone="error" />
-          ) : null}
-        </View>
-
-        <SectionTitle label="계정 · 앱" />
+        <SectionTitle compact label="계정 · 앱" />
         <View style={styles.rowsCard}>
           {MY_PAGE_ACCOUNT_ROWS.map(([label, value]) => (
             <Pressable
@@ -431,8 +352,18 @@ function MyPageContent({
   );
 }
 
-function SectionTitle({ label }: { label: string }) {
-  return <Text style={styles.sectionTitle}>{label}</Text>;
+function SectionTitle({
+  compact = false,
+  label,
+}: {
+  compact?: boolean;
+  label: string;
+}) {
+  return (
+    <Text style={[styles.sectionTitle, compact && styles.compactSectionTitle]}>
+      {label}
+    </Text>
+  );
 }
 
 function NotificationRow({
@@ -444,7 +375,7 @@ function NotificationRow({
   onToggle,
 }: {
   comingSoon?: boolean;
-  description: string;
+  description?: string;
   disabled?: boolean;
   enabled: boolean;
   label: string;
@@ -534,13 +465,6 @@ function ConfirmationDialog({
     </View>
   );
 }
-
-const OPTIONAL_CONSENTS = [
-  { key: 'marketing', label: '마케팅 정보 수신' },
-] as const satisfies readonly {
-  key: keyof ConsentValues;
-  label: string;
-}[];
 
 const shadow = {
   shadowColor: '#5A4636',
@@ -649,13 +573,6 @@ const styles = StyleSheet.create({
   feedback: {
     marginTop: 10,
   },
-  consentNote: {
-    color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
   sectionTitle: {
     marginTop: 16,
     paddingHorizontal: 6,
@@ -664,6 +581,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.2,
+  },
+  compactSectionTitle: {
+    marginTop: 12,
+    paddingBottom: 6,
   },
   rowsCard: {
     ...shadow,
@@ -760,13 +681,13 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   accountRow: {
-    minHeight: 52,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#F0EDE5',
-    paddingVertical: 12,
+    paddingVertical: 9,
   },
   accountLabel: {
     flex: 1,
@@ -781,9 +702,9 @@ const styles = StyleSheet.create({
   },
   accountActions: {
     alignItems: 'center',
-    gap: 14,
-    paddingTop: 14,
-    paddingBottom: 8,
+    gap: 10,
+    paddingTop: 10,
+    paddingBottom: 4,
   },
   deletionFeedback: {
     marginBottom: 12,
@@ -805,14 +726,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   withdrawAction: {
-    minHeight: 44,
+    minHeight: 40,
     alignSelf: 'stretch',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
     borderTopWidth: 1,
     borderTopColor: '#E2DED4',
-    paddingTop: 14,
+    paddingTop: 10,
     paddingHorizontal: 16,
   },
   withdrawText: {

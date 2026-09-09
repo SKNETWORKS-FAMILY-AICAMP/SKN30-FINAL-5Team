@@ -56,7 +56,10 @@ describe('ExerciseCatalogScreen', () => {
     } as unknown as Pick<Api, 'listExercises' | 'getExercise'>;
 
     render(<ExerciseCatalogScreen api={api} onBack={onBack} />);
-    await screen.findByText('조건에 맞는 운동이 아직 없어요.');
+    await screen.findByText('이 부위의 운동이 아직 없어요.');
+    expect(
+      screen.queryByText('운동 계획에 활용되는 운동을 모아봤어요.'),
+    ).toBeNull();
 
     const backButton = screen.getByRole('button', { name: '돌아가기' });
     expect(StyleSheet.flatten(backButton.props.style)).toMatchObject({
@@ -92,7 +95,7 @@ describe('ExerciseCatalogScreen', () => {
   });
 
   // 첫 테스트는 모듈 변환 비용까지 흡수하므로 cold cache에서 여유를 둔다.
-  it('lists the approved catalog and reloads when a filter changes', async () => {
+  it('lists the approved catalog and reloads when the body-area filter changes', async () => {
     const queries: object[] = [];
     const api = {
       listExercises: async (query: object) => {
@@ -111,20 +114,20 @@ describe('ExerciseCatalogScreen', () => {
     ).toBeTruthy();
     expect(view.UNSAFE_queryByType(BackgroundBands)).toBeNull();
     expect(screen.getByText('런지')).toBeTruthy();
-    expect(screen.getAllByText('주요 근육 대퇴사두근')).toHaveLength(2);
-    expect(screen.getAllByText('상세 부위 무릎')).toHaveLength(2);
-    expect(screen.getAllByText('장비 매트, 짐볼, 의자')).toHaveLength(2);
+    expect(screen.getAllByText('근력 · 대퇴사두근')).toHaveLength(2);
+    expect(screen.queryByText('상세 부위 무릎')).toBeNull();
+    expect(screen.getAllByText('매트, 짐볼, 의자')).toHaveLength(2);
     // 카탈로그 버전 같은 내부 정보는 사용자 화면에 노출하지 않는다.
     expect(screen.queryByText(/카탈로그 버전/)).toBeNull();
 
-    fireEvent.press(screen.getByText('스트레칭'));
+    fireEvent.press(screen.getByRole('button', { name: '무릎' }));
     await waitFor(() => {
       expect(queries.length).toBeGreaterThanOrEqual(2);
     });
-    expect(queries.at(-1)).toMatchObject({ trainingTypeCode: 'MOBILITY' });
+    expect(queries.at(-1)).toMatchObject({ bodyAreaCode: 'KNEE', limit: 100 });
   }, 15000);
 
-  it('labels the filter rows and hides equipment when an exercise needs none', async () => {
+  it('offers only a body-area filter and hides equipment when an exercise needs none', async () => {
     const page = exercisePage(['맨몸 스쿼트']);
     const api = {
       listExercises: async () => ({
@@ -142,11 +145,9 @@ describe('ExerciseCatalogScreen', () => {
     render(<ExerciseCatalogScreen api={api} onBack={() => {}} />);
 
     expect(await screen.findByText('맨몸 스쿼트')).toBeTruthy();
-    expect(screen.getByText('운동 유형')).toBeTruthy();
-    expect(screen.getByText('난이도')).toBeTruthy();
-    // 난이도는 온보딩 운동 경험과 같은 용어를 쓴다.
-    expect(screen.getAllByText('초급').length).toBeGreaterThan(0);
-    expect(screen.queryByText('입문')).toBeNull();
+    expect(screen.getByText('운동 부위')).toBeTruthy();
+    expect(screen.queryByText('운동 유형')).toBeNull();
+    expect(screen.queryByText('난이도')).toBeNull();
     expect(screen.queryByText(/^장비/)).toBeNull();
     expect(screen.queryByText('장비 없음')).toBeNull();
   });
@@ -245,11 +246,11 @@ describe('ExerciseCatalogScreen', () => {
 
     render(<ExerciseCatalogScreen api={api} onBack={() => {}} />);
 
-    expect(await screen.findByText('주요 근육 무릎')).toBeOnTheScreen();
+    expect(await screen.findByText('근력 · 무릎')).toBeOnTheScreen();
     expect(screen.queryByText('상세 부위 무릎')).toBeNull();
   });
 
-  it('pages with the server cursor instead of refetching page one', async () => {
+  it('loads every server page so exercise-name search covers the full catalog', async () => {
     const cursors: (string | undefined)[] = [];
     const api = {
       listExercises: async (query: { cursor?: string }) => {
@@ -265,12 +266,18 @@ describe('ExerciseCatalogScreen', () => {
 
     render(<ExerciseCatalogScreen api={api} onBack={() => {}} />);
 
-    fireEvent.press(await screen.findByText('더 보기'));
-
     expect(await screen.findByText('플랭크')).toBeTruthy();
     // 첫 페이지 항목은 그대로 유지된다.
     expect(screen.getByText('스쿼트')).toBeTruthy();
     expect(cursors).toEqual([undefined, 'cursor-2']);
+
+    fireEvent.changeText(screen.getByLabelText('운동명 검색'), '플랭');
+    expect(screen.getByText('플랭크')).toBeOnTheScreen();
+    expect(screen.queryByText('스쿼트')).toBeNull();
+    fireEvent.changeText(screen.getByLabelText('운동명 검색'), '없는 운동');
+    expect(
+      screen.getByText('검색한 운동명을 찾지 못했어요.'),
+    ).toBeOnTheScreen();
   });
 
   it('keeps the paged list mounted while an exercise detail is open', async () => {
@@ -295,7 +302,6 @@ describe('ExerciseCatalogScreen', () => {
 
     render(<ExerciseCatalogScreen api={api} onBack={() => {}} />);
 
-    fireEvent.press(await screen.findByText('더 보기'));
     expect(await screen.findByText('Target exercise')).toBeOnTheScreen();
     const listScroll = screen.getByTestId('exercise-catalog-list-scroll');
 

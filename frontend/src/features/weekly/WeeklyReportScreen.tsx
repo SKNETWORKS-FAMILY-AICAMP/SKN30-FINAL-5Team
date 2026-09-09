@@ -3,13 +3,21 @@
  *
  * The server remains responsible for deciding whether a week is closed and
  * for generating/acknowledging the report. This screen only renders the saved
- * week/report state and sends explicit user actions to the existing endpoints.
+ * week/report state and automatically saves acknowledgement before applying a plan.
  */
 
 import { StatusBar } from 'expo-status-bar';
 import { useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
 
 import type { Api } from '../../api/endpoints';
 import type {
@@ -29,6 +37,7 @@ import {
 } from '../../components/primitives';
 import { ErrorState, LoadingState } from '../../components/states/ScreenState';
 import { colors } from '../../components/theme';
+import { imageAssets } from '../../assets';
 import { HomeBottomNavigation } from '../home/HomeScreen';
 import {
   assertReportMatchesWeek,
@@ -36,6 +45,7 @@ import {
   weeklyReportAvailability,
 } from './weeklyReportModel';
 import { WeeklyReportSummary } from './WeeklyReportSummary';
+import { useWeeklyReportApplication } from './useWeeklyReportApplication';
 
 type WeeklyReportScreenProps = {
   api: Api;
@@ -100,44 +110,6 @@ export function WeeklyReportScreen({
     });
   });
 
-  const saveNextPlan = async (reportId: string) => {
-    if (
-      !canApplyNextPlan ||
-      nextWeekStart === null ||
-      onPlanRevisionChange === undefined
-    ) {
-      return;
-    }
-    const revision = await api.createInitialWeeklyPlan(nextWeekStart);
-    if (
-      revision.week_start !== nextWeekStart ||
-      revision.source_weekly_report_id !== reportId
-    ) {
-      throw new Error(
-        '다음 주 계획 정보가 리포트와 일치하지 않습니다. 다시 시도해주세요.',
-      );
-    }
-    onPlanRevisionChange(revision);
-  };
-
-  const applyNextPlan = useAsyncAction(async (reportId: string) => {
-    await saveNextPlan(reportId);
-  });
-
-  const acknowledge = useAsyncAction(async (reportId: string) => {
-    if (state.status !== 'ready') return;
-    const report = await api.acknowledgeWeeklyReport(
-      reportId,
-      new Date().toISOString(),
-    );
-    assertReportMatchesWeek(state.data.week, report, 'ACKNOWLEDGED');
-    setReportOverride({
-      weekStart,
-      report,
-    });
-    await saveNextPlan(reportId);
-  });
-
   if (state.status === 'loading') {
     return (
       <ReportPage onBack={onBack} onNavigateTab={onNavigateTab}>
@@ -172,8 +144,15 @@ export function WeeklyReportScreen({
       : null;
 
   return (
-    <ReportPage onBack={onBack} onNavigateTab={onNavigateTab}>
-      <WeekSummaryCard week={week} hasReport={visibleReport !== null} />
+    <ReportPage
+      onBack={onBack}
+      onNavigateTab={onNavigateTab}
+      report={visibleReport}
+      week={week}
+    >
+      {visibleReport === null ? (
+        <WeekSummaryCard week={week} hasReport={false} />
+      ) : null}
 
       {generate.error ? (
         <InlineFeedback tone="warning" message={generate.error} />
@@ -188,24 +167,13 @@ export function WeeklyReportScreen({
         <OpenWeekCard />
       ) : (
         <ReportDetails
+          key={visibleReport.report_id}
+          api={api}
           report={visibleReport}
-          targetWorkoutCount={week.target_workout_count}
-          pending={acknowledge.pending}
-          error={acknowledge.error}
-          onAcknowledge={() => void acknowledge.run(visibleReport.report_id)}
+          week={week}
           nextPlan={appliedPlan}
-          nextPlanPending={applyNextPlan.pending}
-          nextPlanError={applyNextPlan.error}
-          onRetryNextPlan={
-            !canApplyNextPlan ||
-            onPlanRevisionChange === undefined ||
-            nextWeekStart === null
-              ? undefined
-              : () => {
-                  acknowledge.clearError();
-                  void applyNextPlan.run(visibleReport.report_id);
-                }
-          }
+          nextWeekStart={canApplyNextPlan ? nextWeekStart : null}
+          onPlanRevisionChange={onPlanRevisionChange}
         />
       )}
     </ReportPage>
@@ -216,10 +184,14 @@ function ReportPage({
   children,
   onBack,
   onNavigateTab,
+  report,
+  week,
 }: {
   children: ReactNode;
   onBack: () => void;
   onNavigateTab?: (tab: TabId) => void;
+  report?: WeeklyReportResponse | null;
+  week?: WeekResponse;
 }) {
   return (
     <SafeAreaView edges={['left', 'right']} style={styles.screen}>
@@ -229,24 +201,71 @@ function ReportPage({
         showsVerticalScrollIndicator={false}
         style={styles.scroll}
       >
-        <View style={styles.pageHeader}>
-          <Pressable
-            accessibilityLabel="운동 캘린더로 돌아가기"
-            accessibilityRole="button"
-            hitSlop={8}
-            onPress={onBack}
-            style={styles.backButton}
+        <View style={styles.masthead} testID="weekly-report-masthead">
+          <View
+            style={[styles.pageHeader, report && styles.pageHeaderWithMascot]}
           >
-            <Text style={styles.backGlyph}>‹</Text>
-          </Pressable>
-          <View style={styles.pageHeading}>
-            <Text style={styles.eyebrow}>리포트 · 주간 상세</Text>
-            <Text accessibilityRole="header" style={styles.pageTitle}>
-              주간 리포트
-            </Text>
+            <Pressable
+              accessibilityLabel="운동 캘린더로 돌아가기"
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={onBack}
+              style={styles.backButton}
+            >
+              <Svg
+                accessible={false}
+                width={24}
+                height={24}
+                viewBox="0 0 24 24"
+              >
+                <Path
+                  d="M15.5 5l-7 7 7 7"
+                  fill="none"
+                  stroke={colors.text}
+                  strokeWidth={2.4}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
+            </Pressable>
+            <View style={styles.pageHeading}>
+              <Text style={styles.eyebrow}>리포트 · 주간 상세</Text>
+              <Text accessibilityRole="header" style={styles.pageTitle}>
+                주간 리포트
+              </Text>
+            </View>
           </View>
+          {report && week ? (
+            <>
+              <Image
+                accessibilityIgnoresInvertColors
+                accessibilityLabel="응원하는 끼끼"
+                resizeMode="contain"
+                source={imageAssets.weeklyProgressComplete}
+                style={styles.headerMascot}
+              />
+              <View style={styles.reportWeekRow}>
+                <View style={styles.reportWeekCopy}>
+                  <Text style={styles.weekLabel}>선택한 주</Text>
+                  <Text style={styles.reportWeekRange}>
+                    {formatWeekRange(week.week_start, week.week_end)}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.reportIntro} testID="weekly-report-intro">
+                <Text
+                  accessibilityRole="header"
+                  style={styles.introTitle}
+                  textBreakStrategy="balanced"
+                  lineBreakStrategyIOS="hangul-word"
+                >
+                  이번 주도 수고했어요!
+                </Text>
+              </View>
+            </>
+          ) : null}
         </View>
-        {children}
+        <View style={styles.reportBody}>{children}</View>
       </ScrollView>
       <HomeBottomNavigation activeTab="report" onNavigate={onNavigateTab} />
     </SafeAreaView>
@@ -261,10 +280,10 @@ function WeekSummaryCard({
   hasReport: boolean;
 }) {
   const closed = week.status_code === 'CLOSED';
-  const statusLabel = !closed ? '진행 중' : hasReport ? '리포트 준비됨' : null;
+  const statusLabel = !closed ? '진행 중' : null;
 
   return (
-    <View style={styles.weekCard}>
+    <View style={[styles.weekCard, hasReport && styles.weekCardCompact]}>
       <View style={styles.weekCardTop}>
         <View style={styles.weekCardCopy}>
           <Text style={styles.weekLabel}>선택한 주</Text>
@@ -287,13 +306,17 @@ function WeekSummaryCard({
           </View>
         ) : null}
       </View>
-      <View style={styles.weekGoalRow}>
-        <View style={styles.weekGoalCount}>
-          <Text style={styles.weekGoalValue}>{week.target_workout_count}</Text>
-          <Text style={styles.weekGoalUnit}>회</Text>
+      {!hasReport ? (
+        <View style={styles.weekGoalRow}>
+          <View style={styles.weekGoalCount}>
+            <Text style={styles.weekGoalValue}>
+              {week.target_workout_count}
+            </Text>
+            <Text style={styles.weekGoalUnit}>회</Text>
+          </View>
+          <Text style={styles.weekGoalLabel}>이 주에 계획한 운동</Text>
         </View>
-        <Text style={styles.weekGoalLabel}>이 주에 계획한 운동</Text>
-      </View>
+      ) : null}
     </View>
   );
 }
@@ -317,7 +340,7 @@ function ReportGenerationCard({
         운동 기록을 리포트로 정리할까요?
       </Text>
       <Text style={styles.generationBody}>
-        저장된 완료·부분 수행·미수행 기록을 바탕으로 다음 주에 이어갈 방향을
+        저장된 완료·부분 수행·휴식 기록을 바탕으로 다음 주에 이어갈 방향을
         정리해요.
       </Text>
       <View style={styles.generationChecklist}>
@@ -335,7 +358,7 @@ function ReportGenerationCard({
         testID="weekly-report-generate"
       />
       <Text style={styles.generationFootnote}>
-        리포트를 열어보는 것만으로는 확인 처리되지 않아요.
+        리포트를 열면 확인 내용이 자동으로 저장돼요.
       </Text>
     </View>
   );
@@ -370,87 +393,65 @@ function ChecklistRow({ label }: { label: string }) {
 }
 
 function ReportDetails({
+  api,
   report,
-  targetWorkoutCount,
-  pending,
-  error,
-  onAcknowledge,
+  week,
   nextPlan,
-  nextPlanPending,
-  nextPlanError,
-  onRetryNextPlan,
+  nextWeekStart,
+  onPlanRevisionChange,
 }: {
+  api: Api;
   report: WeeklyReportResponse;
-  targetWorkoutCount: number;
-  pending: boolean;
-  error: string | null;
-  onAcknowledge: () => void;
+  week: WeekResponse;
   nextPlan: WeeklyPlanRevisionResponse | null;
-  nextPlanPending: boolean;
-  nextPlanError: string | null;
-  onRetryNextPlan?: () => void;
+  nextWeekStart: string | null;
+  onPlanRevisionChange?: (revision: WeeklyPlanRevisionResponse) => void;
 }) {
-  const acknowledged = report.acknowledged_at !== null;
+  const application = useWeeklyReportApplication({
+    api,
+    report,
+    week,
+    nextWeekStart,
+    existingPlan: nextPlan,
+    onPlanRevisionChange,
+  });
+  const appliesPlan =
+    nextWeekStart !== null && onPlanRevisionChange !== undefined;
 
   return (
     <>
       <WeeklyReportSummary
         report={report}
-        targetWorkoutCount={targetWorkoutCount}
+        targetWorkoutCount={week.target_workout_count}
       />
-
-      <View style={styles.reportStep}>
-        {error && !acknowledged ? (
-          <InlineFeedback tone="error" message={error} />
-        ) : null}
-
-        {acknowledged ? (
-          <>
-            <View style={styles.acknowledgedCard}>
-              <View style={styles.acknowledgedMark}>
-                <Text style={styles.acknowledgedMarkText}>✓</Text>
-              </View>
-              <View style={styles.acknowledgedCopy}>
-                <Text style={styles.acknowledgedTitle}>
-                  리포트를 확인했어요
-                </Text>
-                <Text style={styles.acknowledgedBody}>
-                  확인한 내용을 다음 주 계획에 연결해요.
-                </Text>
-              </View>
-            </View>
-            {onRetryNextPlan ? (
-              <NextPlanApplicationCard
-                error={error ?? nextPlanError}
-                onRetry={onRetryNextPlan}
-                pending={pending || nextPlanPending}
-                revision={nextPlan}
-              />
-            ) : null}
-          </>
-        ) : (
-          <View style={styles.acknowledgeSection}>
-            <Text style={styles.acknowledgeHint}>
-              내용을 확인했다면 다음 주 계획에 반영할 수 있도록 알려주세요.
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ busy: pending, disabled: pending }}
-              disabled={pending}
-              onPress={onAcknowledge}
-              style={({ pressed }) => [
-                styles.acknowledgeButton,
-                pressed && !pending && styles.buttonPressed,
-                pending && styles.buttonDisabled,
-              ]}
-            >
-              <Text style={styles.acknowledgeButtonText}>
-                {pending ? '확인을 저장하고 있어요…' : '리포트 확인했어요'}
-              </Text>
-            </Pressable>
-          </View>
-        )}
-      </View>
+      {appliesPlan ? (
+        <NextPlanApplicationCard
+          error={application.error}
+          onRetry={() => void application.retry()}
+          pending={
+            application.pending ||
+            (application.error === null && application.revision === null)
+          }
+          revision={application.revision}
+        />
+      ) : application.error ? (
+        <View style={styles.applicationCard}>
+          <InlineFeedback tone="error" message={application.error} />
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => void application.retry()}
+            style={styles.applicationButton}
+          >
+            <Text style={styles.applicationButtonText}>다시 반영하기</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <Text accessibilityLiveRegion="polite" style={styles.applicationBody}>
+          {application.acknowledged
+            ? '리포트 확인을 자동으로 저장했어요.'
+            : '리포트 확인을 자동으로 저장하고 있어요.'}
+        </Text>
+      )}
     </>
   );
 }
@@ -486,16 +487,18 @@ function NextPlanApplicationCard({
             ? '다음 주 계획에 반영했어요'
             : draft
               ? '계획 초안은 저장됐지만 아직 확정되지 않았어요'
-              : '다음 주 계획 반영이 필요해요'}
+              : '자동 반영을 완료하지 못했어요'}
       </Text>
       {revision ? (
         <Text style={styles.applicationBody}>
-          {formatWeekRange(revision.week_start, revision.week_end)} · 홈에서
-          해당 주의 최종 루틴을 확인할 수 있어요.
+          {formatWeekRange(revision.week_start, revision.week_end)} ·{' '}
+          {finalized
+            ? '홈에서 해당 주의 최종 루틴을 확인할 수 있어요.'
+            : '계획 확정에 필요한 상태를 홈에서 확인해주세요.'}
         </Text>
       ) : null}
       {error ? <InlineFeedback tone="error" message={error} /> : null}
-      {!pending && revision === null ? (
+      {!pending && error ? (
         <Pressable
           accessibilityRole="button"
           onPress={onRetry}
@@ -504,9 +507,7 @@ function NextPlanApplicationCard({
             pressed && styles.buttonPressed,
           ]}
         >
-          <Text style={styles.applicationButtonText}>
-            {error ? '다시 반영하기' : '다음 주 계획 반영하기'}
-          </Text>
+          <Text style={styles.applicationButtonText}>다시 반영하기</Text>
         </Pressable>
       ) : null}
     </View>
@@ -563,12 +564,38 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: colors.surface,
   },
-  backGlyph: {
-    marginTop: -3,
-    color: colors.textSub,
-    fontSize: 34,
-    fontWeight: '500',
-    lineHeight: 38,
+  masthead: { position: 'relative', zIndex: 0, overflow: 'visible' },
+  reportBody: { gap: 12, zIndex: 1 },
+  pageHeaderWithMascot: { paddingRight: 132 },
+  headerMascot: {
+    position: 'absolute',
+    right: 8,
+    // Extend beneath the following goal card; the report body paints in front.
+    bottom: -48,
+    width: 144,
+    height: 157,
+  },
+  reportWeekRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginTop: 12,
+    paddingRight: 136,
+  },
+  reportWeekCopy: { width: 115 },
+  reportWeekRange: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: '800',
+    lineHeight: 28,
+    marginTop: 3,
+  },
+  reportIntro: { paddingRight: 132, marginTop: 16, paddingBottom: 4, gap: 7 },
+  introTitle: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: '800',
+    lineHeight: 29,
   },
   pageHeading: {
     minWidth: 0,
@@ -609,6 +636,14 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 12,
+  },
+  weekCardCompact: {
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    paddingHorizontal: 4,
+    paddingVertical: 6,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   weekCardCopy: {
     minWidth: 0,
@@ -1083,70 +1118,6 @@ const styles = StyleSheet.create({
     color: colors.textSub,
     fontSize: 12.5,
     lineHeight: 19,
-  },
-  acknowledgeSection: {
-    borderRadius: 18,
-    backgroundColor: colors.surface,
-    padding: 14,
-  },
-  acknowledgeHint: {
-    color: colors.textMuted,
-    fontSize: 11.5,
-    lineHeight: 17,
-    textAlign: 'center',
-  },
-  acknowledgeButton: {
-    minHeight: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 11,
-    borderRadius: 15,
-    backgroundColor: colors.green,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  acknowledgeButtonText: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  acknowledgedCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderWidth: 1.5,
-    borderColor: colors.successBorder,
-    borderRadius: 18,
-    backgroundColor: colors.successSurface,
-    padding: 15,
-  },
-  acknowledgedMark: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 18,
-    backgroundColor: colors.green,
-  },
-  acknowledgedMarkText: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '800',
-  },
-  acknowledgedCopy: {
-    minWidth: 0,
-    flex: 1,
-  },
-  acknowledgedTitle: {
-    color: colors.greenText,
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  acknowledgedBody: {
-    marginTop: 2,
-    color: colors.textSub,
-    fontSize: 11.5,
-    lineHeight: 17,
   },
   applicationCard: {
     gap: 8,

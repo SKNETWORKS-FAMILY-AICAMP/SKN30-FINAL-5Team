@@ -438,7 +438,6 @@ export function homePreviewProps(state: HomePreviewState): HomeScreenProps {
     restToday: state === 'rest',
     exerciseApi: HOME_EXERCISE_PREVIEW_API,
     locationCodes: ['HOME', 'GYM'],
-    recommendedDurationMinutes: 30,
     busy: showsGeneration ? 'decision-generation' : null,
     errorMessage:
       state === 'routine-lookup-failed'

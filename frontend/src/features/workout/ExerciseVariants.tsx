@@ -195,25 +195,18 @@ export function ExerciseVariantsContent({
 
   return (
     <View style={styles.content} testID="exercise-variants-content">
-      <View style={styles.sourceCard}>
-        <Text style={styles.sectionTitle}>원래 운동의 필요 장비</Text>
-        <Text style={styles.equipmentText}>
-          {equipmentSummary(response.source_required_equipment_codes)}
-        </Text>
-      </View>
-
       {hasVariants ? (
         <View style={styles.variantSection} testID="exercise-variants-list">
-          <Text style={styles.intro}>
-            장비가 없을 때 아래 방법으로 동작을 변형할 수 있어요.
-          </Text>
-
           {response.items.map((item) => (
             <View key={item.exercise_id} style={styles.variantCard}>
               <Text style={styles.variantName}>{item.exercise_name}</Text>
-              <Text style={styles.variantEquipment}>
-                필요 장비: {equipmentSummary(item.required_equipment_codes)}
-              </Text>
+              {item.required_equipment_codes.some(
+                (code) => code !== 'BODYWEIGHT',
+              ) ? (
+                <Text style={styles.variantEquipment}>
+                  준비물: {equipmentSummary(item.required_equipment_codes)}
+                </Text>
+              ) : null}
               <Text style={styles.summary}>{item.instruction_summary}</Text>
               {item.form_cues.map((cue, index) => (
                 <View
@@ -226,15 +219,26 @@ export function ExerciseVariantsContent({
               ))}
             </View>
           ))}
-
-          <Text style={styles.notice}>
-            이 안내는 운동을 교체하지 않으며 현재 루틴과 수행 기록도 바꾸지
-            않아요.
-          </Text>
         </View>
       ) : null}
     </View>
   );
+}
+
+export function equipmentGuideTitle(
+  response: ExerciseVariantsResponse,
+): string {
+  const codes = response.source_required_equipment_codes.filter(
+    (code) => code !== 'BODYWEIGHT',
+  );
+  if (codes.length === 0) return '장비가 없을 때';
+  const equipment = codes.map(equipmentLabel).join(' · ');
+  const last = equipment.charCodeAt(equipment.length - 1);
+  const particle =
+    last >= 0xac00 && last <= 0xd7a3 && (last - 0xac00) % 28 !== 0
+      ? '이'
+      : '가';
+  return `${equipment}${particle} 없을 때`;
 }
 
 function emptyVariants(exerciseId: string): ExerciseVariantsResponse {

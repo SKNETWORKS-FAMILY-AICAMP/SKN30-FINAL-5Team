@@ -3,7 +3,11 @@ import { Animated, Pressable, Text, TextInput, View } from 'react-native';
 
 import type { Api } from '../../api/endpoints';
 import { actionLabel } from '../../api/labels';
-import type { ActionCode, ExerciseVariantsResponse } from '../../api/types';
+import type {
+  ActionCode,
+  ExerciseVariantsResponse,
+  SessionStatusCode,
+} from '../../api/types';
 import { ExerciseVariantsAction } from '../workout/ExerciseVariants';
 import {
   formatRoutineItem,
@@ -21,10 +25,7 @@ import {
   digitsOnly,
 } from './HomeSupport';
 
-const ROUTINE_NOTES = [
-  '오늘 컨디션과 운동 목표를 반영했어요.',
-  '사용자 적합성과 안전 기준을 확인한 구성이에요.',
-] as const;
+const ROUTINE_NOTES: readonly string[] = [];
 
 export function RoutineCard({
   actionCode,
@@ -53,8 +54,8 @@ export function RoutineCard({
   rerolling,
   rerolls,
   revisionNotice,
+  sessionStatusCode,
   startBlockedReason,
-  title,
   variantApi,
 }: {
   actionCode?: ActionCode;
@@ -89,15 +90,17 @@ export function RoutineCard({
   rerolling: boolean;
   rerolls: number;
   revisionNotice?: string;
+  sessionStatusCode?: SessionStatusCode;
   startBlockedReason?: string | null;
-  title: string;
   variantApi?: Partial<Pick<Api, 'getExerciseVariants'>>;
 }) {
   const styles = useHomeStyles();
   const drag = useDragController(onMove ?? (() => undefined));
   const rerollLabel = getHomeRerollLabel(rerolls, rerolling);
   const routineActionLabel =
-    actionCode === undefined ? null : actionLabel(actionCode);
+    actionCode === undefined || actionCode === 'KEEP'
+      ? null
+      : actionLabel(actionCode);
   const adjustedAction =
     actionCode === 'DOWNSHIFT' ||
     actionCode === 'CHANGE' ||
@@ -122,6 +125,14 @@ export function RoutineCard({
           : phase === 'STOPPED_RESUMABLE'
             ? '잠시 멈춘 운동이에요. 완료한 항목부터 이어서 진행할 수 있어요.'
             : null;
+  const routineHeading =
+    phase === 'STOPPED_RESUMABLE' ||
+    sessionStatusCode === 'PARTIAL' ||
+    sessionStatusCode === 'NOT_COMPLETED'
+      ? '조금만 더 힘내요!'
+      : phase === 'COMPLETED' && sessionStatusCode === 'COMPLETED'
+        ? '오늘도 자신과의 싸움에서 승리했군요!'
+        : '컨디션에 맞춘 운동을 준비했어요';
   return (
     <View style={styles.routineCard} testID="home-routine-state">
       <View style={styles.routineBadgeRow}>
@@ -151,25 +162,10 @@ export function RoutineCard({
           </View>
         )}
       </View>
-      <Text style={styles.routineTitle}>
-        오늘 컨디션에 맞춘 운동이 준비됐어요.
-      </Text>
-      <Text style={styles.routinePlanName}>{title}</Text>
+      <Text style={styles.routineTitle}>{routineHeading}</Text>
       <Text style={styles.routineSummary}>
         {focus} · {minutes}분
       </Text>
-      {statusCopy ? (
-        <View style={styles.adjustmentNote}>
-          <Text style={styles.adjustmentText}>{statusCopy}</Text>
-        </View>
-      ) : null}
-      <View style={styles.routineNotes}>
-        {notes.map((note) => (
-          <Text key={note} style={styles.routineNote}>
-            {note}
-          </Text>
-        ))}
-      </View>
       {onOpenReasons ? (
         <Pressable
           accessibilityRole="button"
@@ -187,9 +183,23 @@ export function RoutineCard({
               interactionsDisabled && styles.disabledLabel,
             ]}
           >
-            추천 이유 보기
+            이 루틴을 추천한 이유 {'>'}
           </Text>
         </Pressable>
+      ) : null}
+      {statusCopy ? (
+        <View style={styles.adjustmentNote}>
+          <Text style={styles.adjustmentText}>{statusCopy}</Text>
+        </View>
+      ) : null}
+      {notes.length > 0 ? (
+        <View style={styles.routineNotes}>
+          {notes.map((note) => (
+            <Text key={note} style={styles.routineNote}>
+              {note}
+            </Text>
+          ))}
+        </View>
       ) : null}
       <View style={styles.routineList}>
         {onMove ? (

@@ -10,7 +10,7 @@ export type MyPagePreviewState =
   | 'logout'
   | 'withdraw';
 export type CalendarDayStatus =
-  'done' | 'partial' | 'miss' | 'rest' | 'today' | 'upcoming';
+  'done' | 'partial' | 'rest' | 'safety' | 'today' | 'upcoming';
 export type CalendarWeekState =
   'progress' | 'make' | 'unread' | 'read' | 'unavailable' | 'upcoming';
 
@@ -25,7 +25,7 @@ export type CalendarDay = {
 };
 
 export type CalendarMonthStat = {
-  key: 'done' | 'partial' | 'rest' | 'miss';
+  key: 'done' | 'partial' | 'rest' | 'safety';
   label: string;
   value: number;
   color: string;
@@ -91,14 +91,6 @@ export const CALENDAR_DAY_VISUALS = {
     borderColor: '#F6BA50',
     accentColor: '#A45F00',
   },
-  miss: {
-    label: '미수행',
-    glyph: '×',
-    backgroundColor: '#FFFFFF',
-    color: '#C0BBB1',
-    borderColor: '#E2DED4',
-    accentColor: '#9A968E',
-  },
   rest: {
     label: '휴식',
     glyph: '–',
@@ -106,6 +98,18 @@ export const CALENDAR_DAY_VISUALS = {
     color: '#8B8780',
     borderColor: '#EDEAE2',
     accentColor: '#6F6B63',
+  },
+  /**
+   * A pain or adverse-reaction stop is its own outcome, not a rest day. The
+   * colors mirror the weekly report's safety icon so both screens read alike.
+   */
+  safety: {
+    label: '안전 중단',
+    glyph: '!',
+    backgroundColor: '#FCE3E7',
+    color: '#C45C70',
+    borderColor: '#FCE3E7',
+    accentColor: '#C45C70',
   },
   today: {
     label: '오늘',
@@ -144,7 +148,7 @@ export const CALENDAR_STATUS_ORDER = [
   'done',
   'partial',
   'rest',
-  'miss',
+  'safety',
 ] as const satisfies readonly CalendarMonthStat['key'][];
 
 export const CALENDAR_WEEK_CHIPS = {
@@ -214,8 +218,8 @@ export const CALENDAR_WEEKDAYS = [
 export const CALENDAR_MONTH_STATS = [
   { key: 'done', label: '완료', value: 4, color: '#4F7238' },
   { key: 'partial', label: '부분 수행', value: 3, color: '#A45F00' },
-  { key: 'rest', label: '휴식', value: 3, color: '#6F6B63' },
-  { key: 'miss', label: '미수행', value: 1, color: '#9A968E' },
+  { key: 'rest', label: '휴식', value: 4, color: '#6F6B63' },
+  { key: 'safety', label: '안전 중단', value: 0, color: '#C45C70' },
 ] as const satisfies readonly CalendarMonthStat[];
 
 export const CALENDAR_WEEKS = [
@@ -231,7 +235,7 @@ export const CALENDAR_WEEKS = [
       { day: '28', status: 'done', inCurrentMonth: false },
       { day: '29', status: 'partial', inCurrentMonth: false },
       { day: '30', status: 'done', inCurrentMonth: false },
-      { day: '31', status: 'miss', inCurrentMonth: false },
+      { day: '31', status: 'rest', inCurrentMonth: false },
       { day: '1', status: 'partial', inCurrentMonth: true },
       { day: '2', status: 'rest', inCurrentMonth: true },
     ],
@@ -251,10 +255,10 @@ export const CALENDAR_WEEKS = [
       { day: '5', status: 'done', inCurrentMonth: true },
       { day: '6', status: 'partial', inCurrentMonth: true },
       { day: '7', status: 'done', inCurrentMonth: true },
-      { day: '8', status: 'miss', inCurrentMonth: true },
+      { day: '8', status: 'rest', inCurrentMonth: true },
       { day: '9', status: 'rest', inCurrentMonth: true },
     ],
-    stats: [3, 1, 2, 1],
+    stats: [3, 1, 3, 0],
     note: '한 주가 끝났어요. 리포트를 만들면 이번 주 운동 패턴을 정리해드려요.',
   },
   {

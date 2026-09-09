@@ -75,13 +75,30 @@ export type HouseQuest = {
   target: number;
 };
 
+export const HOUSE_WEEKLY_VISIT_TARGET = 4;
+
+export type HouseWeeklyQuestId = 'visit' | 'report' | 'workout_goal';
+
+export type HouseWeeklyQuest = {
+  id: HouseWeeklyQuestId;
+  label: string;
+  /** `null` means that the server-backed weekly state is unavailable. */
+  progress: number | null;
+  /**
+   * `null` until the backend owns and returns the reviewed reward policy.
+   * The client must not invent an amount or add it to `bananas`.
+   */
+  reward: number | null;
+  target: number | null;
+};
+
 /** Shared presentation copy for the mascot touch interaction. */
 export const HOUSE_BONDING_COPY = {
   actionAccessibilityLabel: '끼끼와 교감하기',
   actionLabel: '교감하기',
   bonusDescription:
     '끼끼와 교감하기, 바나나 주기, 운동 완료로 친밀도를 올려보세요!',
-  hintDescription: '터치해서 교감하면 친밀도가 올라가요',
+  hintDescription: '끼끼를 터치해 교감하면 친밀도가 올라가요.',
   poseAccessibilityLabel: '끼끼와 교감하는 중',
   questLabel: '끼끼와 교감하기',
 } as const;
@@ -96,7 +113,7 @@ export const HOUSE_BONDING_COPY = {
 export const HOUSE_DAILY_QUESTS: readonly HouseQuest[] = [
   {
     id: 'visit',
-    label: '오늘 접속하기',
+    label: '접속하기',
     reward: DAILY_GIFT_BANANAS,
     target: 1,
   },
@@ -106,7 +123,7 @@ export const HOUSE_DAILY_QUESTS: readonly HouseQuest[] = [
     reward: 5,
     target: INTIMACY_DAILY_EARN_LIMIT,
   },
-  { id: 'workout', label: '오늘 운동 완료하기', reward: 10, target: 1 },
+  { id: 'workout', label: '운동 완료하기', reward: 10, target: 1 },
 ] as const;
 
 export type HousePose = 'greeting' | 'happy' | 'eating' | 'petted' | 'resting';
@@ -552,6 +569,14 @@ export function selectBackground(
 
 export type HouseView = {
   bananas: number;
+  /** Bananas the server pays for today's gift, once a day. */
+  dailyGiftAmount: number;
+  /**
+   * Whether today's gift is still waiting on the server. `false` also covers
+   * "not known yet": the wallet failing to load leaves the gift closed rather
+   * than promising a banana the server may already have paid.
+   */
+  dailyGiftClaimable: boolean;
   selectedBackgroundId: HouseBackgroundId;
   /** `null` when the week could not be read; the screen says so rather than guessing. */
   weekTargetCount: number | null;
@@ -574,6 +599,7 @@ export type HouseView = {
   questProgress: Record<HouseQuestId, number>;
   questsCompletedCount: number;
   questCount: number;
+  weeklyQuests: readonly HouseWeeklyQuest[];
   gamePlayedToday: boolean;
   canPlayGame: boolean;
   ownedItems: readonly HouseItem[];
@@ -589,12 +615,15 @@ export function buildHouseView({
   sessions,
   weekStart,
   today,
+  dailyGift = null,
 }: {
   state: HouseState;
   week: WeekResponse | null;
   sessions: readonly WorkoutSessionLogSummary[];
   weekStart: string;
   today: string;
+  /** The server's daily reward status; `null` while it is unknown. */
+  dailyGift?: { amount: number; claimable: boolean } | null;
 }): HouseView {
   const completedDates = sessions
     .filter((session) => session.status_code === 'COMPLETED')
@@ -603,6 +632,36 @@ export function buildHouseView({
     (date) => date >= weekStart && date <= today,
   ).length;
   const target = week === null ? null : week.target_workout_count;
+  const weeklyQuests: readonly HouseWeeklyQuest[] = [
+    {
+      id: 'visit',
+      label: '주 4회 앱 접속',
+      // House visits are device-local and are not evidence of an app visit.
+      // Keep this unknown until the backend supplies an app-visit count.
+      progress: null,
+      reward: null,
+      target: HOUSE_WEEKLY_VISIT_TARGET,
+    },
+    {
+      id: 'report',
+      label: '주간 리포트 확인',
+      progress:
+        week === null
+          ? null
+          : week.report_status_code === 'ACKNOWLEDGED'
+            ? 1
+            : 0,
+      reward: null,
+      target: week === null ? null : 1,
+    },
+    {
+      id: 'workout_goal',
+      label: '운동 목표 달성',
+      progress: target === null ? null : Math.min(weekCompletedCount, target),
+      reward: null,
+      target,
+    },
+  ];
   const owned = new Set<string>(state.ownedItemIds);
   const lockedItems = HOUSE_ITEMS.filter((item) => !owned.has(item.id));
   const workoutCompletedToday = completedDates.includes(today);
@@ -619,6 +678,8 @@ export function buildHouseView({
 
   return {
     bananas: state.bananas,
+    dailyGiftAmount: dailyGift?.amount ?? DAILY_GIFT_BANANAS,
+    dailyGiftClaimable: dailyGift?.claimable ?? false,
     selectedBackgroundId: state.selectedBackgroundId,
     weekTargetCount: target,
     weekCompletedCount,
@@ -644,6 +705,7 @@ export function buildHouseView({
       (quest) => questProgress[quest.id] >= quest.target,
     ).length,
     questCount: HOUSE_DAILY_QUESTS.length,
+    weeklyQuests,
     gamePlayedToday,
     canPlayGame: !gamePlayedToday,
     ownedItems: HOUSE_ITEMS.filter((item) => owned.has(item.id)),

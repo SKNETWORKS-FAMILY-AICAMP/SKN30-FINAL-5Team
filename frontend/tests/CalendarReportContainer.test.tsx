@@ -291,14 +291,15 @@ describe('CalendarReportContainer', () => {
 
     expect(await screen.findByText('2026년 8월')).toBeOnTheScreen();
     expect(
-      screen.getByTestId('calendar-day-2026-08-03-0-mark-glyph').props.children,
-    ).toBe('–');
+      screen.getByTestId('calendar-day-2026-08-03-0-mark-moon'),
+    ).toBeOnTheScreen();
     expect(
       screen.getByTestId('calendar-day-2026-08-03-1-mark-glyph').props.children,
     ).toBe('✓');
+    // A safety stop keeps its own mark instead of borrowing the rest moon.
     expect(
       screen.getByTestId('calendar-day-2026-08-03-5-mark-glyph').props.children,
-    ).toBe('×');
+    ).toBe('!');
     expect(
       screen.getByTestId('calendar-day-2026-08-10-2-mark-glyph').props.children,
     ).toBe('△');

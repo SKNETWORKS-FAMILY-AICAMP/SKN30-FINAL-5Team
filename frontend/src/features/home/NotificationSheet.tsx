@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
   },
   retryText: { color: colors.text, fontSize: 14, fontWeight: '800' },
   scroll: { flexShrink: 1, overflow: 'hidden' },
-  list: { gap: spacing.sm, paddingTop: spacing.xs },
+  list: { gap: spacing.xs, paddingTop: spacing.xs },
   inlineError: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -295,7 +295,8 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 14,
     backgroundColor: colors.surface,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
   },
   unreadItem: {
     borderColor: colors.dangerBorder,
@@ -317,7 +318,7 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   itemMessage: {
-    marginTop: 6,
+    marginTop: 3,
     color: colors.textSub,
     fontSize: 13,
     lineHeight: 19,
@@ -327,7 +328,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
   },
   itemTime: { color: colors.textFaint, fontSize: 11 },
   actionText: {

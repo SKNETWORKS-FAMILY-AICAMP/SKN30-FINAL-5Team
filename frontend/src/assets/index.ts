@@ -18,6 +18,7 @@ export const imageAssets = {
     require('./mascot/progress-mascot.webp') as ImageSourcePropType,
   dayTodo: require('./mascot/day-todo.webp') as ImageSourcePropType,
   banana: require('./mascot/monkey/banana/banana.png') as ImageSourcePropType,
+  helkkiPass: require('./pass/helkki-pass.png') as ImageSourcePropType,
   bananaCatchBackground:
     require('./game_background/kkiisland_banana_game.png') as ImageSourcePropType,
   bananaCatchGrass:
@@ -31,7 +32,7 @@ export const imageAssets = {
   weeklyProgressCompletedWorkout:
     require('./mascot/monkey/home_workout/completed_workout.png') as ImageSourcePropType,
   mascotWarmupWalk:
-    require('./mascot/monkey/sheet_01/monkey_run.gif') as ImageSourcePropType,
+    require('./mascot/monkey/sheet_01/monkey_run_02.gif') as ImageSourcePropType,
   houseCampingMorningBackground:
     require('./house/camping/background/morning_camp.png') as ImageSourcePropType,
   houseCampingDinnerBackground:

@@ -1818,7 +1818,7 @@ timezone과 target_workout_count는 해당 주를 처음 요청한 시점의 사
 | summary | 템플릿 또는 승인된 설명 |
 | report_policy_version | 생성 정책 버전 |
 | generated_at | 생성 시각 |
-| acknowledged_at | 사용자 확인 시각, nullable |
+| acknowledged_at | 최초 리포트 확인 저장 시각, nullable. 상세 화면 정상 조회·생성 후 자동 저장하며 기존 수동 확인 시각은 유지 |
 
 동일한 닫힌 주와 input_hash에 대해 멱등 생성한다. MVP 주간 리포트는 생성 후 불변이며 사용자용 세션 정정·리포트 재생성 API는 제공하지 않는다. 운영 정정이 필요하면 후속 ADR에서 version 모델과 감사 절차를 먼저 정의한다.
 

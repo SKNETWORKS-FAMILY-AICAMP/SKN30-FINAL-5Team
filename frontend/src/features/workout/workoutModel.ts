@@ -18,7 +18,7 @@ export const WORKOUT_PREVIEW_OPTIONS = [
   { id: 'partial', label: '일부 블록 완료' },
   { id: 'all-blocks', label: '전체 블록 체크' },
   { id: 'rest', label: '선택 휴식' },
-  { id: 'not-completed', label: '미수행 이유' },
+  { id: 'not-completed', label: '휴식 이유' },
   { id: 'safety', label: '안전 중단 확인' },
   { id: 'completed', label: '완료 결과' },
   { id: 'stopped', label: '안전 중단 결과' },

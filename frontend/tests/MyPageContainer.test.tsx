@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import * as ImagePicker from 'expo-image-picker';
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -133,6 +134,32 @@ describe('MyPageContainer', () => {
     expect(screen.queryByText('이번 주')).toBeNull();
   });
 
+  it('no longer shows the optional consent section', async () => {
+    const getConsents = jest.fn<Api['getConsents']>(async () => ({
+      user_id: 'user-1',
+      consents: [],
+    }));
+
+    await render(
+      <MyPageContainer
+        api={accountApi({ getConsents })}
+        me={me()}
+        now={new Date('2026-08-19T03:00:00Z')}
+        onNavigateTab={jest.fn()}
+        onRefreshMe={jest.fn(async () => undefined)}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    expect(await screen.findByText('민지님')).toBeOnTheScreen();
+    expect(screen.queryByText('선택 동의 관리')).toBeNull();
+    expect(screen.queryByText('마케팅 정보 수신')).toBeNull();
+    expect(
+      screen.queryByText('필수 동의 항목은 여기에서 변경할 수 없어요.'),
+    ).toBeNull();
+    expect(getConsents).not.toHaveBeenCalled();
+  });
+
   it('offers the current onboarding goal and experience choices', async () => {
     await render(
       <MyPageContainer
@@ -256,7 +283,12 @@ describe('MyPageContainer', () => {
       screen.getByRole('header', { name: '프로필 수정' }),
     ).toBeOnTheScreen();
     expect(
-      screen.getByText(/개인정보 보호를 위해 기존 값을 다시 보여주지 않아요/),
+      screen.queryByText(
+        '닉네임, 프로필 사진, 생년월일, 체중을 수정할 수 있어요.',
+      ),
+    ).toBeNull();
+    expect(
+      screen.getByText('생년월일과 체중은 변경할 항목만 입력해주세요.'),
     ).toBeOnTheScreen();
     expect(screen.queryByText('시간대')).toBeNull();
     expect(screen.queryByText('선택하지 않음')).toBeNull();
@@ -264,11 +296,20 @@ describe('MyPageContainer', () => {
     expect(screen.queryByLabelText('키 입력')).toBeNull();
     expect(screen.queryByRole('checkbox', { name: '여성' })).toBeNull();
     expect(screen.queryByRole('checkbox', { name: '남성' })).toBeNull();
+    // 저장 버튼은 늘 보이되, 입력이 없거나 값이 올바르지 않으면 비활성화된다.
+    expect(screen.getByRole('button', { name: '저장하기' })).toBeDisabled();
     fireEvent.changeText(screen.getByLabelText('닉네임 입력'), '새 닉네임');
+    expect(screen.getByRole('button', { name: '저장하기' })).toBeEnabled();
+    fireEvent.changeText(screen.getByLabelText('체중 입력'), '9');
+    expect(screen.getByRole('button', { name: '저장하기' })).toBeDisabled();
+    expect(
+      screen.getByText('체중는 25~300 범위로 입력해주세요.'),
+    ).toBeOnTheScreen();
     fireEvent.press(screen.getByRole('button', { name: '연도 1997년' }));
     fireEvent.press(screen.getByRole('button', { name: '월 4월' }));
     fireEvent.press(screen.getByRole('button', { name: '일 3일' }));
     fireEvent.changeText(screen.getByLabelText('체중 입력'), '58.2');
+    expect(screen.getByRole('button', { name: '저장하기' })).toBeEnabled();
     fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
 
     await waitFor(() =>
@@ -381,6 +422,93 @@ describe('MyPageContainer', () => {
       ),
     );
     expect(updateProfileSettings).not.toHaveBeenCalled();
+  });
+
+  it('keeps the latest profile fields when a delayed image selection finishes', async () => {
+    const updateProfileSettings = jest.fn<Api['updateProfileSettings']>(
+      async () => ({
+        profile_version: 8,
+        updated_at: '2026-08-19T09:00:00+09:00',
+      }),
+    );
+    const uploadProfileImage = jest.fn<Api['uploadProfileImage']>(async () => ({
+      profile_image_url: 'https://cdn.example.com/profiles/latest.jpg',
+      profile_version: 9,
+      updated_at: '2026-08-19T09:00:01+09:00',
+    }));
+    let resolvePicker!: (
+      result: Awaited<ReturnType<typeof ImagePicker.launchImageLibraryAsync>>,
+    ) => void;
+    jest
+      .mocked(ImagePicker.requestMediaLibraryPermissionsAsync)
+      .mockResolvedValueOnce({
+        granted: true,
+        status: ImagePicker.PermissionStatus.GRANTED,
+        canAskAgain: true,
+        expires: 'never',
+      });
+    jest.mocked(ImagePicker.launchImageLibraryAsync).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolvePicker = resolve;
+        }),
+    );
+
+    await render(
+      <MyPageContainer
+        api={accountApi({ updateProfileSettings, uploadProfileImage })}
+        me={me()}
+        now={new Date('2026-08-19T03:00:00Z')}
+        onNavigateTab={jest.fn()}
+        onRefreshMe={jest.fn(async () => undefined)}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: '프로필 수정' }));
+    fireEvent.press(
+      screen.getByRole('button', { name: '사진 보관함에서 선택' }),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: '저장하기' })).toBeDisabled(),
+    );
+
+    fireEvent.changeText(screen.getByLabelText('닉네임 입력'), '최신 닉네임');
+    expect(screen.getByRole('button', { name: '저장하기' })).toBeDisabled();
+
+    await act(async () => {
+      resolvePicker({
+        canceled: false,
+        assets: [
+          {
+            uri: 'file:///latest-profile.jpg',
+            width: 800,
+            height: 800,
+            type: 'image',
+            fileName: 'latest-profile.jpg',
+            fileSize: 123_456,
+            mimeType: 'image/jpeg',
+          },
+        ],
+      });
+    });
+
+    expect(screen.getByLabelText('닉네임 입력').props.value).toBe(
+      '최신 닉네임',
+    );
+    expect(screen.getByRole('button', { name: '저장하기' })).toBeEnabled();
+    fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
+
+    await waitFor(() =>
+      expect(updateProfileSettings).toHaveBeenCalledWith(
+        { nickname: '최신 닉네임' },
+        7,
+      ),
+    );
+    expect(uploadProfileImage).toHaveBeenCalledWith(
+      expect.objectContaining({ uri: 'file:///latest-profile.jpg' }),
+      8,
+    );
   });
 
   it('keeps a failed image selection for an explicit retry without reporting success', async () => {
@@ -742,14 +870,15 @@ describe('MyPageContainer', () => {
       screen.getByRole('header', { name: '주간 운동 횟수 수정' }),
     ).toBeOnTheScreen();
     expect(
-      screen.getByText('수정한 뒤 저장하기를 눌러야 반영돼요.'),
-    ).toBeOnTheScreen();
-    // 수정 전에는 저장 버튼이 없다.
-    expect(screen.queryByRole('button', { name: '저장하기' })).toBeNull();
+      screen.queryByText('수정한 뒤 저장하기를 눌러야 반영돼요.'),
+    ).toBeNull();
+    // 저장 버튼은 늘 보이되, 기본값 그대로면 비활성화 상태다.
+    expect(screen.getByRole('button', { name: '저장하기' })).toBeDisabled();
     fireEvent.press(
       screen.getByRole('button', { name: '주간 운동 횟수 1회 늘리기' }),
     );
     expect(updateProfileSettings).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: '저장하기' })).toBeEnabled();
 
     fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
     await waitFor(() =>
@@ -775,23 +904,23 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    expect(
-      await screen.findByText('알림 기능은 준비 중이에요.'),
-    ).toBeOnTheScreen();
+    expect(screen.queryByText('알림 기능은 준비 중이에요.')).toBeNull();
     expect(
       screen.getByText('예정된 운동 시간을 알려드려요.'),
     ).toBeOnTheScreen();
     expect(
       screen.getByText('이번 주 운동 리포트가 준비되면 알려드려요.'),
     ).toBeOnTheScreen();
-    expect(
-      screen.getByText('휴식일에는 알림을 보내지 않아요.'),
-    ).toBeOnTheScreen();
+    expect(screen.getByRole('switch', { name: '응원 알림' })).toBeOnTheScreen();
     expect(screen.getAllByText('준비 중').length).toBeGreaterThanOrEqual(3);
-    expect(
-      screen.getByRole('switch', { name: '루틴 알림' }).props
-        .accessibilityState,
-    ).toEqual(expect.objectContaining({ checked: false, disabled: true }));
+    const routineSwitch = screen.getByRole('switch', { name: '루틴 알림' });
+    expect(routineSwitch.props.accessibilityState).toEqual(
+      expect.objectContaining({ checked: false, disabled: true }),
+    );
+    fireEvent.press(routineSwitch);
+    expect(routineSwitch.props.accessibilityState).toEqual(
+      expect.objectContaining({ checked: false, disabled: true }),
+    );
   });
 
   it('keeps the profile editor inside the screen and closes from its backdrop', async () => {
@@ -820,43 +949,6 @@ describe('MyPageContainer', () => {
     expect(
       screen.queryByRole('header', { name: '주간 운동 횟수 수정' }),
     ).toBeNull();
-  });
-
-  it('saves an optional consent immediately without a save button', async () => {
-    const replaceConsents = jest.fn<Api['replaceConsents']>(async (body) => ({
-      user_id: 'user-1',
-      consents: Object.entries(body).map(([key, granted]) => ({
-        consent_type_code: key.toUpperCase(),
-        granted,
-        policy_version: 'consent-v1',
-        updated_at: '2026-08-19T09:00:00+09:00',
-      })),
-    }));
-
-    await render(
-      <MyPageContainer
-        api={accountApi({ replaceConsents })}
-        me={me()}
-        now={new Date('2026-08-19T03:00:00Z')}
-        onNavigateTab={jest.fn()}
-        onRefreshMe={jest.fn(async () => undefined)}
-        onSignOut={jest.fn()}
-      />,
-    );
-
-    fireEvent.press(await screen.findByText('마케팅 정보 수신'));
-
-    await waitFor(() =>
-      expect(replaceConsents).toHaveBeenCalledWith(
-        expect.objectContaining({
-          general_personal_data: true,
-          sensitive_data: true,
-          wearable_integration: false,
-          marketing: true,
-        }),
-      ),
-    );
-    expect(screen.queryByText('동의 변경 저장')).toBeNull();
   });
 
   it('migrates a legacy attention area to persistent pains when clearing it', async () => {
@@ -967,7 +1059,7 @@ describe('MyPageContainer', () => {
     );
   });
 
-  it('opens extended attention areas when an extended value is already selected', async () => {
+  it('keeps a selected default attention area visible without expanding', async () => {
     const current = me();
     current.profile!.attention_area_codes = ['NECK'];
 
@@ -986,9 +1078,9 @@ describe('MyPageContainer', () => {
       screen.getByRole('button', { name: '평소 불편한 부위 수정' }),
     );
     expect(
-      screen.getByRole('button', { name: '다른 부위 접기' }).props
+      screen.getByRole('button', { name: '다른 부위 보기' }).props
         .accessibilityState,
-    ).toMatchObject({ expanded: true });
+    ).toMatchObject({ expanded: false });
     expect(screen.getByRole('checkbox', { name: '목' })).toBeChecked();
   });
 
@@ -1014,7 +1106,10 @@ describe('MyPageContainer', () => {
     expect(
       screen.getByTestId('my-page-extended-area-caret').props.style,
     ).toBeUndefined();
-    expect(screen.queryByRole('checkbox', { name: '목' })).toBeNull();
+    for (const label of ['어깨', '허리', '무릎', '목', '손목·손', '발목·발']) {
+      expect(screen.getByRole('checkbox', { name: label })).toBeOnTheScreen();
+    }
+    expect(screen.queryByRole('checkbox', { name: '팔꿈치' })).toBeNull();
 
     fireEvent.press(toggle);
 
@@ -1022,7 +1117,9 @@ describe('MyPageContainer', () => {
     expect(
       screen.getByTestId('my-page-extended-area-caret').props.style,
     ).toMatchObject({ transform: [{ rotate: '180deg' }] });
-    expect(screen.getByRole('checkbox', { name: '목' })).toBeOnTheScreen();
+    for (const label of ['팔꿈치', '등 위쪽', '고관절', '가슴', '복부']) {
+      expect(screen.getByRole('checkbox', { name: label })).toBeOnTheScreen();
+    }
   });
 
   it('renders a legacy attention area in Korean and only allows removing it', async () => {
@@ -1063,24 +1160,20 @@ describe('MyPageContainer', () => {
     expect(screen.queryByRole('checkbox', { name: '전신' })).toBeNull();
   });
 
-  it('opens the reviewed exercise catalog from the local my-page screen', async () => {
-    const onOpenExerciseCatalog = jest.fn();
-
+  it('does not duplicate the exercise catalog entry after it moves to Home', async () => {
     await render(
       <MyPageContainer
         api={accountApi()}
         me={me()}
         now={new Date('2026-08-19T03:00:00Z')}
         onNavigateTab={jest.fn()}
-        onOpenExerciseCatalog={onOpenExerciseCatalog}
         onRefreshMe={jest.fn(async () => undefined)}
         onSignOut={jest.fn()}
       />,
     );
 
-    expect(screen.getByText('운동 도구')).toBeOnTheScreen();
-    fireEvent.press(screen.getByText('운동 카탈로그'));
-    expect(onOpenExerciseCatalog).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('운동 도구')).toBeNull();
+    expect(screen.queryByText('운동 카탈로그')).toBeNull();
   });
 
   it('connects logout and irreversible account deletion confirmations', async () => {

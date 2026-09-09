@@ -119,6 +119,7 @@ export type PreviousHomeScreenProps = {
 
   /** Set once the user chose REST today; suppresses every workout prompt. */
   restToday?: boolean;
+  safetyGuidance?: string;
 
   /** Profile default, used for the first check-in of the day. */
   defaultDurationMinutes?: number;
@@ -179,7 +180,6 @@ function HomeScreenContent({
   onRetryCheckin,
   onSubmitCheckin,
   onStartWorkout,
-  onChooseRest,
   onRequestAiRevision,
   onSubmitUserEdits,
   onNavigateTab,
@@ -209,9 +209,6 @@ function HomeScreenContent({
     decision?.options.find(
       (option) => option.option_code === 'FINAL_ROUTINE',
     ) ?? null;
-  const restOption =
-    decision?.options.find((option) => option.option_code === 'REST') ?? null;
-
   const startingDuration =
     context?.available_time_minutes ??
     defaultDurationMinutes ??
@@ -340,22 +337,6 @@ function HomeScreenContent({
                 onStart={onStartWorkout}
                 useJua={useJua}
               />
-            ) : null}
-
-            {/*
-              The REST opt-out lives outside the routine card because a safety
-              veto leaves no plan to attach it to, and the user must still be
-              able to take it.
-            */}
-            {!restToday && restOption !== null ? (
-              <View style={formStyles.restOption}>
-                <Button
-                  label="오늘은 쉬기"
-                  tone="secondary"
-                  disabled={!restOption.selectable || busy === 'starting'}
-                  onPress={onChooseRest}
-                />
-              </View>
             ) : null}
           </>
         )}

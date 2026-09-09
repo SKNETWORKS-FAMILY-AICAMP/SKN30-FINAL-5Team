@@ -5,6 +5,7 @@ import { imageAssets } from '../../assets';
 import { ProfileAvatar } from '../../components/profile/ProfileAvatar';
 import { GradientActionButton } from '../../components/primitives';
 import { useScale } from '../../components/scale';
+import { colors } from '../../components/theme';
 import { formatRoutineItem, type HomeRoutineItem } from './homeModel';
 import type { WeekDay } from './HomeScreen';
 import { useHomeStyles } from './homeStyles';
@@ -260,6 +261,7 @@ export function CheckinButton({
         label={label}
         labelStyle={styles.sheetSaveLabel}
         onPress={onPress}
+        style={styles.checkinButton}
         testID="home-checkin"
         trailing={<CheckinChevronIcon />}
       />
@@ -267,10 +269,51 @@ export function CheckinButton({
   );
 }
 
+export function ExerciseCatalogShortcut({
+  disabled,
+  onPress,
+}: {
+  disabled: boolean;
+  onPress?: () => void;
+}) {
+  const styles = useHomeStyles();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled: disabled || onPress === undefined }}
+      disabled={disabled || onPress === undefined}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.catalogShortcut,
+        pressed && styles.catalogShortcutPressed,
+        disabled && styles.disabledControl,
+      ]}
+      testID="home-exercise-catalog"
+    >
+      <View style={styles.catalogShortcutCopy}>
+        <Text style={styles.catalogShortcutTitle}>운동 카탈로그</Text>
+        <Text style={styles.catalogShortcutDescription}>
+          운동명과 부위로 둘러보기
+        </Text>
+      </View>
+      <Text style={styles.catalogShortcutArrow}>›</Text>
+    </Pressable>
+  );
+}
+
+/**
+ * The guidance card is Home's main call to action: it explains why the check-in
+ * exists and carries the check-in entry point at its own bottom, so Home reads
+ * greeting -> weekly progress -> guidance -> check-in without a detached button.
+ */
 export function EmptyRoutineCard({
   baselineReady = false,
+  checkinLabel,
+  onCheckin,
 }: {
   baselineReady?: boolean;
+  checkinLabel?: string;
+  onCheckin?: () => void;
 }) {
   const styles = useHomeStyles();
   return (
@@ -285,6 +328,18 @@ export function EmptyRoutineCard({
           ? '오늘 컨디션을 알려주면 나에게 맞게 운동을 조정해드려요.'
           : '오늘 체크인을 하면 컨디션에 맞는 추천 루틴을 받아볼 수 있어요.'}
       </Text>
+      {onCheckin ? (
+        <View style={styles.messageCardAction}>
+          <GradientActionButton
+            label={checkinLabel ?? '오늘 루틴 체크인'}
+            labelStyle={styles.sheetSaveLabel}
+            onPress={onCheckin}
+            style={styles.checkinButton}
+            testID="home-checkin"
+            trailing={<CheckinChevronIcon />}
+          />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -298,10 +353,13 @@ export function RoutineLookupCard({
 }) {
   const styles = useHomeStyles();
   return (
-    <View style={styles.messageCard} testID="home-routine-lookup-state">
+    <View
+      style={[styles.messageCard, loading && styles.routineSetupLoadingCard]}
+      testID="home-routine-lookup-state"
+    >
       {loading ? (
         <ActivityIndicator
-          color="#5C9445"
+          color={colors.primary}
           size="small"
           testID="home-routine-lookup-loading"
         />
@@ -313,17 +371,16 @@ export function RoutineLookupCard({
         ]}
       >
         {loading
-          ? '운동 계획을 준비하고 있어요'
+          ? '헬끼 준비 중이에요 조금만 기다려주세요!'
           : '운동 계획을 준비하지 못했어요'}
       </Text>
-      <Text
-        accessibilityRole={loading ? undefined : 'alert'}
-        style={styles.messageText}
-      >
-        {loading
-          ? '잠시만 기다려 주세요.\n준비가 끝나면 오늘 컨디션을 여쭤볼게요.'
-          : '운동 계획을 준비하는 중 문제가 생겼어요.\n잠시 후 다시 시도해 주세요.'}
-      </Text>
+      {!loading ? (
+        <Text accessibilityRole="alert" style={styles.messageText}>
+          {
+            '운동 계획을 준비하는 중 문제가 생겼어요.\n잠시 후 다시 시도해 주세요.'
+          }
+        </Text>
+      ) : null}
       {!loading && onRetry ? (
         <View style={styles.routineSetupAction}>
           <GradientActionButton

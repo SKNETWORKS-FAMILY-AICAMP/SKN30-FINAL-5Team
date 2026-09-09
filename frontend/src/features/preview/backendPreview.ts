@@ -34,7 +34,7 @@ export type SessionPreviewState =
 export const SESSION_RESULT_PREVIEW_OPTIONS = [
   { id: 'completed', label: '완료' },
   { id: 'partial', label: '일부 완료' },
-  { id: 'not-completed', label: '미수행' },
+  { id: 'not-completed', label: '휴식' },
   { id: 'safety-stop', label: '안전 중단' },
 ] as const;
 
@@ -524,7 +524,7 @@ export function createSessionPreviewApi(state: SessionPreviewState): Api {
           kind: 'conflict',
           code: 'NOT_COMPLETED_REASON_REQUIRED',
           status: 409,
-          message: '완료한 블록이 없어 미수행 이유가 필요해요.',
+          message: '완료한 블록이 없어 휴식 이유가 필요해요.',
         });
       }
       sessionStatus =

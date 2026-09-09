@@ -36,7 +36,6 @@ type MapHomeScreenProps = {
 
 export function MapHomeScreen({
   onNavigateTab,
-  onSelectRest,
   onStartWorkout,
   routine = null,
   week = null,
@@ -59,7 +58,6 @@ export function MapHomeScreen({
         </View>
 
         <RoutinePanel
-          onSelectRest={onSelectRest}
           onStartWorkout={onStartWorkout}
           pixelStyle={pixelStyle}
           routine={routine}

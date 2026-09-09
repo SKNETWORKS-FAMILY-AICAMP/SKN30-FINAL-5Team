@@ -309,6 +309,59 @@ describe('background selection', () => {
 });
 
 describe('house view', () => {
+  it('builds weekly visit, report and workout-goal quest progress', () => {
+    const acknowledgedWeek: WeekResponse = {
+      ...OPEN_WEEK,
+      report_id: 'report-1',
+      report_status_code: 'ACKNOWLEDGED',
+    };
+    const state = stateWith({
+      visitedLocalDates: [
+        '2026-08-10',
+        '2026-08-17',
+        '2026-08-18',
+        '2026-08-19',
+        '2026-08-22',
+      ],
+    });
+
+    const view = buildHouseView({
+      state,
+      week: acknowledgedWeek,
+      sessions: [
+        session('s1', '2026-08-18', 'COMPLETED'),
+        session('s2', '2026-08-19', 'COMPLETED'),
+        session('s3', '2026-08-20', 'COMPLETED'),
+      ],
+      weekStart: WEEK_START,
+      today: TODAY,
+    });
+
+    expect(view.weeklyQuests).toEqual([
+      {
+        id: 'visit',
+        label: '주 4회 앱 접속',
+        progress: null,
+        reward: null,
+        target: 4,
+      },
+      {
+        id: 'report',
+        label: '주간 리포트 확인',
+        progress: 1,
+        reward: null,
+        target: 1,
+      },
+      {
+        id: 'workout_goal',
+        label: '운동 목표 달성',
+        progress: 3,
+        reward: null,
+        target: 3,
+      },
+    ]);
+  });
+
   it('counts only this week’s completed sessions against the target', () => {
     const view = buildHouseView({
       state: createHouseState(),
@@ -337,6 +390,29 @@ describe('house view', () => {
 
     expect(view.weekTargetCount).toBeNull();
     expect(view.weekProgress).toBeNull();
+    expect(view.weeklyQuests).toEqual([
+      {
+        id: 'visit',
+        label: '주 4회 앱 접속',
+        progress: null,
+        reward: null,
+        target: 4,
+      },
+      {
+        id: 'report',
+        label: '주간 리포트 확인',
+        progress: null,
+        reward: null,
+        target: null,
+      },
+      {
+        id: 'workout_goal',
+        label: '운동 목표 달성',
+        progress: null,
+        reward: null,
+        target: null,
+      },
+    ]);
   });
 
   it('lifts the pose at the target and never lowers it below greeting', () => {

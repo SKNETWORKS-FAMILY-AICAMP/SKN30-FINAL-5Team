@@ -2,20 +2,21 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
 import { bodyAreaLabel, decisionReasonLabel } from '../../api/labels';
 import type {
   ExerciseVariantsResponse,
-  PainAreaInput,
   SessionStatusCode,
   WorkoutPlan,
 } from '../../api/types';
-import { moveArrayItem, routineTitleFromPlan } from '../../api/workoutPlan';
+import { moveArrayItem } from '../../api/workoutPlan';
 import { useBrandFonts } from '../../app/fonts';
 import type { TabId } from '../../components/brand/BrandChrome';
 import { useScale } from '../../components/scale';
 import { ExerciseDetailSheet } from '../workout/ExerciseDetailSheet';
-import { ExerciseVariantsContent } from '../workout/ExerciseVariants';
+import {
+  ExerciseVariantsContent,
+  equipmentGuideTitle,
+} from '../workout/ExerciseVariants';
 import {
   HOME_ROUTINE_VARIANTS,
   HOME_WEEK_DAYS,
@@ -40,7 +41,6 @@ import {
   type HomeRoutineItem,
   type RoutineItemDraftOverride,
 } from './homeModel';
-
 import {
   CHECKIN_AVAILABILITY_INPUT_ENABLED,
   CHECKIN_DURATION_MINUTES,
@@ -58,6 +58,7 @@ import { EditRoutineSheet } from './HomeEditRoutineSheet';
 import {
   CheckinButton,
   EmptyRoutineCard,
+  ExerciseCatalogShortcut,
   GeneratingRoutineCard,
   HomeHeader,
   HomeStateCard,
@@ -69,20 +70,21 @@ import {
   clampNumericString,
   cleanRoutineItems,
   digitsOnly,
+  hasInvalidRoutinePrescription,
+  patchRoutinePrescription,
 } from './HomeSupport';
 import { createHomeStyles, HomeStyleContext } from './homeStyles';
-
 import type { HomeScreenProps } from './HomeScreen';
 import {
   buildInitialCheckin,
+  EMPTY_ITEM_OVERRIDES,
+  EMPTY_PERSISTENT_PAINS,
   recommendationReasonsFromDecision,
+  shouldShowGuidanceCard,
   routineNotesFromDecision,
   type TimePickerTarget,
 } from './homeContentModel';
 import { revisionNotice } from './homeRevisionNotice';
-
-const EMPTY_PERSISTENT_PAINS: readonly PainAreaInput[] = [];
-const EMPTY_ITEM_OVERRIDES: readonly RoutineItemDraftOverride[] = [];
 
 export function HomeScreenContent({
   actionError = null,
@@ -100,13 +102,12 @@ export function HomeScreenContent({
   initialState,
   localDate,
   locationCodes = [],
-  recommendedDurationMinutes = null,
   nickname,
-  onChooseRest,
   onEditRoutine,
   onNavigateTab,
   onNotifications,
   onOpenCalendar,
+  onOpenExerciseCatalog,
   onOpenCheckin,
   onProfile,
   onRegenerateDecision,
@@ -128,6 +129,7 @@ export function HomeScreenContent({
   persistentPains = EMPTY_PERSISTENT_PAINS,
   profileImageUrl = null,
   restToday = false,
+  safetyGuidance,
   routine = null,
   routineLoadingContent,
   routineLoadingPhaseCode,
@@ -281,7 +283,10 @@ export function HomeScreenContent({
   const seriousDecision =
     decision?.action_code === 'STOP_AND_SEEK_HELP' ||
     decision?.safety_status_code === 'BLOCKED';
-  const hasVisibleSession = todaySession !== null && serverPlan !== null;
+  const hasVisibleSession =
+    todaySession !== null &&
+    todaySession.status_code !== 'NOT_COMPLETED' &&
+    serverPlan !== null;
   const hasRoutine = apiMode
     ? serverPlan !== null &&
       !routineGenerationPending &&
@@ -289,12 +294,6 @@ export function HomeScreenContent({
     : hasTodayRoutine && effectiveCheckedIn && !routineGenerationPending;
   const noRoutine = !hasRoutine && !routineGenerationPending;
   const variant = getHomeRoutineVariant(variantIndex);
-  const routineTitle =
-    serverPlan === null
-      ? adjustedRoutine
-        ? '컨디션 맞춤 루틴'
-        : variant.title
-      : routineTitleFromPlan(serverPlan);
   const routineFocus =
     serverPlan === null ? variant.focus : routineFocusFromPlan(serverPlan);
   const routineMinutes =
@@ -328,7 +327,6 @@ export function HomeScreenContent({
         ? formatWeekRangeForLocalDate(localDate)
         : '이번 주'
     : weekLabel;
-  const displayName = nickname ?? userName;
 
   useEffect(
     () => () => {
@@ -440,15 +438,7 @@ export function HomeScreenContent({
     onSaveEdit?.(saved);
   };
 
-  const inlineEditInvalid = editDraft.some((item) => {
-    const sets = Number(item.sets);
-    const reps = item.reps === undefined ? null : Number(item.reps);
-    return (
-      !Number.isInteger(sets) ||
-      sets < 1 ||
-      (reps !== null && (!Number.isInteger(reps) || reps < 1))
-    );
-  });
+  const inlineEditInvalid = hasInvalidRoutinePrescription(editDraft);
 
   const saveInlineEdit = () => {
     if (inlineEditInvalid) {
@@ -463,10 +453,7 @@ export function HomeScreenContent({
   const patchInlinePrescription = (
     id: string,
     patch: Pick<Partial<HomeRoutineItem>, 'sets' | 'reps'>,
-  ) =>
-    setEditDraft((current) =>
-      current.map((item) => (item.id === id ? { ...item, ...patch } : item)),
-    );
+  ) => setEditDraft((current) => patchRoutinePrescription(current, id, patch));
 
   const navigateFromHome = (tab: TabId) => {
     if (inlineEditing) {
@@ -497,9 +484,6 @@ export function HomeScreenContent({
   const restRecommended = decision?.action_code === 'REST';
   const routineOption = decision?.options.find(
     (option) => option.option_code === 'FINAL_ROUTINE',
-  );
-  const restOption = decision?.options.find(
-    (option) => option.option_code === 'REST',
   );
   const recheckMode =
     apiMode && (restToday || restRecommended || seriousDecision);
@@ -546,6 +530,18 @@ export function HomeScreenContent({
     !routineGenerationPending &&
     !staleContext &&
     (!apiMode || todayRoutineState.capabilities.canCheckIn);
+  const showGuidanceCard = shouldShowGuidanceCard({
+    actionError: Boolean(actionError),
+    apiMode,
+    blockingRevisionNotice,
+    contentReady,
+    noRoutine,
+    restRecommended,
+    restToday,
+    routineExists: routine !== null,
+    seriousDecision,
+  });
+  const checkinLabel = recheckMode ? '다시 체크인하기' : undefined;
   return (
     <HomeStyleContext.Provider value={styles}>
       <View
@@ -572,7 +568,7 @@ export function HomeScreenContent({
               onProfile={onProfile}
               profileImageUrl={profileImageUrl}
               useJua={useJua}
-              userName={displayName}
+              userName={nickname ?? userName}
             />
             {contentReady ? (
               <WeeklyOverviewCard
@@ -587,13 +583,18 @@ export function HomeScreenContent({
                 weekLabel={displayWeekLabel}
               />
             ) : null}
-            {showCheckin ? (
+            {contentReady ? (
+              <ExerciseCatalogShortcut
+                disabled={inlineEditing}
+                onPress={onOpenExerciseCatalog}
+              />
+            ) : null}
+            {showCheckin && !showGuidanceCard ? (
               <CheckinButton
-                label={recheckMode ? '다시 체크인하기' : undefined}
+                label={checkinLabel}
                 onPress={() => openCheckin('INITIAL')}
               />
             ) : null}
-
             {apiMode && status === 'loading' ? (
               <RoutineLookupCard loading />
             ) : null}
@@ -644,6 +645,9 @@ export function HomeScreenContent({
                 title="오늘은 휴식하기로 했어요"
               />
             ) : null}
+            {safetyGuidance ? (
+              <HomeStateCard serious title="안전 안내" text={safetyGuidance} />
+            ) : null}
             {apiMode && contentReady && seriousDecision ? (
               <HomeStateCard
                 serious
@@ -666,8 +670,6 @@ export function HomeScreenContent({
             !seriousDecision &&
             restRecommended ? (
               <HomeStateCard
-                actionLabel={restOption?.selectable ? '오늘은 쉬기' : undefined}
-                onAction={restOption?.selectable ? onChooseRest : undefined}
                 text={
                   decision?.guidance?.message ??
                   decision?.summary ??
@@ -676,15 +678,14 @@ export function HomeScreenContent({
                 title="오늘은 휴식을 추천해요"
               />
             ) : null}
-            {contentReady &&
-            !restToday &&
-            !seriousDecision &&
-            !restRecommended &&
-            noRoutine &&
-            !actionError &&
-            blockingRevisionNotice === null &&
-            (!apiMode || routine !== null) ? (
-              <EmptyRoutineCard baselineReady={apiMode && routine !== null} />
+            {showGuidanceCard ? (
+              <EmptyRoutineCard
+                baselineReady={apiMode && routine !== null}
+                checkinLabel={checkinLabel}
+                onCheckin={
+                  showCheckin ? () => openCheckin('INITIAL') : undefined
+                }
+              />
             ) : null}
             {contentReady && routineGenerationPending ? (
               <GeneratingRoutineCard
@@ -754,14 +755,6 @@ export function HomeScreenContent({
                     ? () => setReasonOpen(true)
                     : undefined
                 }
-                onRest={
-                  decision?.options.some(
-                    (option) =>
-                      option.option_code === 'REST' && option.selectable,
-                  )
-                    ? onChooseRest
-                    : undefined
-                }
                 onRequestAlternative={
                   todayRoutineState.phase === 'READY' &&
                   (!apiMode || decision?.regeneration_sequence != null)
@@ -782,17 +775,15 @@ export function HomeScreenContent({
                 rerolling={apiMode ? busy === 'regeneration' : rerolling}
                 rerolls={rerolls}
                 revisionNotice={routineRevisionNotice?.text}
+                sessionStatusCode={todaySession?.status_code}
                 startBlockedReason={routineBlockedReason}
-                title={routineTitle}
                 focus={routineFocus}
                 variantApi={exerciseApi}
               />
             ) : null}
           </ScrollView>
         </View>
-
         <HomeBottomNavigation activeTab="home" onNavigate={navigateFromHome} />
-
         {notificationToastVisible ? (
           <View
             accessibilityLiveRegion="polite"
@@ -805,13 +796,11 @@ export function HomeScreenContent({
             </Text>
           </View>
         ) : null}
-
         {checkinOpen ? (
           <CheckinSheet
             draft={checkinDraft}
             locationCodes={apiMode ? locationCodes : []}
             locationRequired={apiMode}
-            recommendedDurationMinutes={recommendedDurationMinutes}
             onAddAvailabilitySlot={() =>
               setCheckinDraft((current) => ({
                 ...current,
@@ -893,7 +882,6 @@ export function HomeScreenContent({
             pending={busy === 'decision-generation' || busy === 'regeneration'}
           />
         ) : null}
-
         {CHECKIN_AVAILABILITY_INPUT_ENABLED && timePickerTarget ? (
           <TimePickerSheet
             initialValue={
@@ -920,7 +908,6 @@ export function HomeScreenContent({
             targetField={timePickerTarget.field}
           />
         ) : null}
-
         {reasonOpen && decision !== null ? (
           <RecommendationReasonSheet
             decision={decision}
@@ -928,7 +915,6 @@ export function HomeScreenContent({
             reasons={recommendationReasons}
           />
         ) : null}
-
         {exerciseGuide?.exerciseId && exerciseApi ? (
           <ExerciseGuideSheet
             onClose={() => setExerciseGuide(null)}
@@ -941,11 +927,10 @@ export function HomeScreenContent({
             />
           </ExerciseGuideSheet>
         ) : null}
-
         {variantGuide && variantsAvailableInContext ? (
           <SheetFrame
             onClose={() => setVariantGuide(null)}
-            title={`${variantGuide.exerciseName} 장비 안내`}
+            title={equipmentGuideTitle(variantGuide.response)}
             zIndex={25}
           >
             <ScrollView
@@ -956,7 +941,6 @@ export function HomeScreenContent({
             </ScrollView>
           </SheetFrame>
         ) : null}
-
         {editOpen && !apiMode ? (
           <EditRoutineSheet
             items={editDraft}

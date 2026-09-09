@@ -10,6 +10,7 @@ import {
   type HomeAvailabilitySlot,
   type HomeCheckin,
   type HomePreviewState,
+  type RoutineItemDraftOverride,
 } from './homeModel';
 import { uniqueText } from './homeRevisionNotice';
 
@@ -17,6 +18,9 @@ export type TimePickerTarget = {
   field: keyof HomeAvailabilitySlot;
   index: number;
 };
+
+export const EMPTY_PERSISTENT_PAINS: readonly PainAreaInput[] = [];
+export const EMPTY_ITEM_OVERRIDES: readonly RoutineItemDraftOverride[] = [];
 
 export function buildInitialCheckin(
   apiMode: boolean,
@@ -52,8 +56,8 @@ export function routineNotesFromDecision(
 ): string[] | undefined {
   return decision === null
     ? undefined
-    : [decision.summary, decision.guidance?.message].filter(
-        (note): note is string => Boolean(note),
+    : [decision.guidance?.message].filter((note): note is string =>
+        Boolean(note),
       );
 }
 
@@ -69,4 +73,32 @@ export function recommendationReasonsFromDecision(
           decisionReasonLabel,
         ),
       ]);
+}
+
+/**
+ * The guidance card is Home's main call to action and carries the check-in
+ * entry point at its own bottom, so the standalone check-in button is only
+ * rendered when there is no guidance card to hold it.
+ */
+export function shouldShowGuidanceCard(input: {
+  actionError: boolean;
+  apiMode: boolean;
+  blockingRevisionNotice: unknown;
+  contentReady: boolean;
+  noRoutine: boolean;
+  restRecommended: boolean;
+  restToday: boolean;
+  routineExists: boolean;
+  seriousDecision: boolean;
+}): boolean {
+  return (
+    input.contentReady &&
+    !input.restToday &&
+    !input.seriousDecision &&
+    !input.restRecommended &&
+    input.noRoutine &&
+    !input.actionError &&
+    input.blockingRevisionNotice === null &&
+    (!input.apiMode || input.routineExists)
+  );
 }
