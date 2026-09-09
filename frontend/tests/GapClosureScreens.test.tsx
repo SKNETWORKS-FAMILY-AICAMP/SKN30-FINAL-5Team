@@ -215,6 +215,37 @@ describe('ExerciseCatalogScreen', () => {
       await screen.findByTestId('exercise-media-placeholder'),
     ).toBeOnTheScreen();
     expect(screen.queryByTestId('exercise-media-image')).toBeNull();
+    // Nothing is being shown, so there is nothing to credit.
+    expect(screen.queryByTestId('exercise-media-credit')).toBeNull();
+  });
+
+  it('credits the GIF source directly under the image', async () => {
+    const api = {
+      listExercises: async () => exercisePage(['스쿼트']),
+      getExercise: async () => ({
+        exercise_id: 'ex-0-스쿼트',
+        exercise_name: '스쿼트',
+        training_type_code: 'STRENGTH',
+        primary_body_area_codes: ['KNEE'],
+        instruction_summary: '검수된 스쿼트 설명입니다.',
+        form_cues: [],
+        media_asset_key: 'catalog-media/squat.gif',
+        media_url: 'https://cdn.example.com/squat.gif',
+        mascot_animation_asset_key: null,
+        instruction_content_version: 'catalog-guide-v1',
+      }),
+    } as unknown as Pick<Api, 'listExercises' | 'getExercise'>;
+
+    render(<ExerciseCatalogScreen api={api} onBack={() => {}} />);
+
+    fireEvent.press(
+      await screen.findByRole('button', { name: '스쿼트 설명 열기' }),
+    );
+
+    expect(await screen.findByTestId('exercise-media-image')).toBeOnTheScreen();
+    expect(
+      screen.getByText('© Gym visual - Aliaksandr Makatserchyk'),
+    ).toBeOnTheScreen();
   });
 
   it('does not expose an unknown equipment machine code', () => {
