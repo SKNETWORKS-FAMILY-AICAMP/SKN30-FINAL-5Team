@@ -128,6 +128,7 @@ def _validate_addons(
             or row.get("fitt_template_id") != reference.get("fitt_template_id")
             or row.get("source_system") != catalog.get("source_track")
             or row.get("source_id") != catalog.get("source_identity")
+            or reference.get("timing_mode_code") != catalog.get("timing_mode_code")
         ):
             raise ValueError(f"FITT mapping row {index}: approval or identity mismatch")
         seen_nex.add(nex)
@@ -247,6 +248,49 @@ def _align_prescriptions_to_difficulty(stage: Path, catalog_rows: list[dict[str,
     return removed
 
 
+def _align_prescription_defaults(stage: Path, catalog_rows: list[dict[str, Any]]) -> None:
+    """Apply the reviewed low-load/high-repetition defaults to legacy profiles."""
+    profiles_path = stage / "catalog/prescriptions/prescription_profiles.jsonl"
+    profiles = _read_jsonl(profiles_path)
+    catalog = {row["stable_code"]: row for row in catalog_rows}
+    compound_patterns = {
+        "HIP_DOMINANT",
+        "KNEE_DOMINANT",
+        "HORIZONTAL_PUSH",
+        "HORIZONTAL_PULL",
+        "VERTICAL_PUSH",
+        "VERTICAL_PULL",
+        "CORE_BRACE",
+    }
+    for profile in profiles:
+        row = catalog.get(profile["exercise_stable_code"])
+        if row is None:
+            continue
+        beginner = profile["experience_level_code"] == "BEGINNER"
+        profile["sets"] = 2 if beginner else 3
+        compound = row["primary_movement_pattern_code"] in compound_patterns
+        profile["reps"] = (
+            None if row["timing_mode_code"] == "DURATION" else (12 if compound else 15)
+        )
+        profile["intensity_code"] = "LIGHT_MODERATE" if compound else "LIGHT"
+        if row["timing_mode_code"] == "DURATION":
+            profile["work_seconds_per_set"] = int(row.get("default_work_seconds") or 60)
+            profile["rest_seconds_per_set"] = int(row.get("default_rest_seconds") or 0)
+            if row["training_type_code"] == "MOBILITY":
+                profile["intensity_code"] = "LOW"
+            elif row["training_type_code"] == "CARDIO":
+                profile["intensity_code"] = "LIGHT_MODERATE"
+        else:
+            profile["work_seconds_per_set"] = None
+    profiles_path.write_text(
+        "".join(
+            json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n" for row in profiles
+        ),
+        encoding="utf-8",
+    )
+    _restate_prescription_counts(stage, profiles_path, len(profiles))
+
+
 def _prescription_allowed(difficulty_code: str | None, experience_level_code: str) -> bool:
     """The directional rule: prescribe at or above the exercise's own difficulty."""
 
@@ -302,6 +346,7 @@ def build(target: Path = TARGET, reports: Path = REPORTS) -> dict[str, Any]:
             encoding="utf-8",
         )
         removed_prescriptions = _align_prescriptions_to_difficulty(stage, catalog_rows)
+        _align_prescription_defaults(stage, catalog_rows)
         derived_prescriptions, derivation_evidence = _add_reviewed_beginner_prescriptions(
             stage, catalog_rows
         )

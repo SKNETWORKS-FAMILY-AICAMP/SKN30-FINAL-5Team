@@ -66,6 +66,11 @@ V2_0_7_RULE_SET_VERSION = "safety-rule-set-v2.0.7"
 V2_0_7_ALTERNATIVE_SET_VERSION = "alternative-set-v2.0.7-stretch-strap-fallback"
 V2_0_7_PRESCRIPTION_SET_VERSION = "prescription-set-v2.0.7"
 V2_0_7_MEDIA_SET_VERSION = "media-set-v2.0.7"
+V2_0_8_CATALOG_VERSION_CODE = "exercise-catalog-v2.0.8-final"
+V2_0_8_RULE_SET_VERSION = "safety-rule-set-v2.0.8"
+V2_0_8_ALTERNATIVE_SET_VERSION = "alternative-set-v2.0.8-stretch-strap-fallback"
+V2_0_8_PRESCRIPTION_SET_VERSION = "prescription-set-v2.0.8"
+V2_0_8_MEDIA_SET_VERSION = "media-set-v2.0.8"
 
 
 def _approved_prescription_split(version_code: str) -> tuple[int, int]:
@@ -150,6 +155,16 @@ def validate_v2_activation(session: Session, catalog: CatalogVersion) -> None:
             alternative_set_version=V2_0_7_ALTERNATIVE_SET_VERSION,
             prescription_set_version=V2_0_7_PRESCRIPTION_SET_VERSION,
             media_set_version=V2_0_7_MEDIA_SET_VERSION,
+        )
+        return
+    if catalog.version_code == V2_0_8_CATALOG_VERSION_CODE:
+        _validate_v2_release_activation(
+            session,
+            catalog,
+            rule_set_version=V2_0_8_RULE_SET_VERSION,
+            alternative_set_version=V2_0_8_ALTERNATIVE_SET_VERSION,
+            prescription_set_version=V2_0_8_PRESCRIPTION_SET_VERSION,
+            media_set_version=V2_0_8_MEDIA_SET_VERSION,
         )
         return
     if catalog.version_code != V2_CATALOG_VERSION_CODE:
