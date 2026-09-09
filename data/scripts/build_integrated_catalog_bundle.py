@@ -264,7 +264,9 @@ def _align_prescription_defaults(stage: Path, catalog_rows: list[dict[str, Any]]
         beginner = profile["experience_level_code"] == "BEGINNER"
         profile["sets"] = 2 if beginner else 3
         compound = row["primary_movement_pattern_code"] in compound_patterns
-        profile["reps"] = None if row["timing_mode_code"] == "DURATION" else (12 if compound else 15)
+        profile["reps"] = (
+            None if row["timing_mode_code"] == "DURATION" else (12 if compound else 15)
+        )
         profile["intensity_code"] = "LIGHT_MODERATE" if compound else "LIGHT"
         if row["timing_mode_code"] == "DURATION":
             profile["work_seconds_per_set"] = int(row.get("default_work_seconds") or 60)
@@ -276,7 +278,10 @@ def _align_prescription_defaults(stage: Path, catalog_rows: list[dict[str, Any]]
         else:
             profile["work_seconds_per_set"] = None
     profiles_path.write_text(
-        "".join(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n" for row in profiles),
+        "".join(
+            json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n"
+            for row in profiles
+        ),
         encoding="utf-8",
     )
     _restate_prescription_counts(stage, profiles_path, len(profiles))
