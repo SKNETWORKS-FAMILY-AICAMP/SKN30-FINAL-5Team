@@ -246,6 +246,37 @@ export function SheetFrame({
   );
 }
 
+/**
+ * Reviewed posture guidance in a height-capped sheet.
+ *
+ * `SheetFrame` caps itself at 88% of the screen, so instruction content has to
+ * scroll inside it the way the check-in and equipment sheets already do.
+ * Rendering the guide directly in the frame left every cue below the fold
+ * unreachable.
+ */
+export function ExerciseGuideSheet({
+  children,
+  onClose,
+  title,
+}: {
+  children: React.ReactNode;
+  onClose: () => void;
+  title: string;
+}) {
+  const styles = useHomeStyles();
+  return (
+    <SheetFrame onClose={onClose} title={title} zIndex={25}>
+      <ScrollView
+        contentContainerStyle={styles.sheetScrollContent}
+        showsVerticalScrollIndicator={false}
+        testID="exercise-guide-scroll"
+      >
+        {children}
+      </ScrollView>
+    </SheetFrame>
+  );
+}
+
 export function RecommendationReasonSheet({
   decision,
   onClose,
