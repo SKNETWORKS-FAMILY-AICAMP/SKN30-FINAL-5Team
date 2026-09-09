@@ -387,7 +387,7 @@ def choose_template(
             ("CORE_DYNAMIC", "CORE"): "FITT-CORE-DYNAMIC-V1",
             ("CORE_ISOMETRIC", "CORE"): "FITT-CORE-ISOMETRIC-V1",
             ("MOBILITY", "MOBILITY"): "FITT-MOBILITY-V1",
-            ("CARDIO", "CARDIO"): "FITT-CARDIO-CONTINUOUS-V1",
+            ("CARDIO", "CARDIO"): "FITT-CARDIO-V1",
         }
         base_template_id = category_prefix.get((training_category, movement_pattern))
     if not base_template_id:
@@ -426,7 +426,7 @@ def resolve_beginner_template_id(
     if source["training_type_code"] == "MOBILITY":
         return "FITT-MOBILITY-V1"
     if source["training_type_code"] == "CARDIO":
-        return "FITT-CARDIO-CONTINUOUS-V1"
+        return "FITT-CARDIO-V1"
     return template_id
 
 
