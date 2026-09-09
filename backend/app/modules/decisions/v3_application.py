@@ -46,6 +46,9 @@ from backend.app.domain.agents.v3_duration import (
     pool_size_for_duration,
     prescription_item_duration,
 )
+from backend.app.domain.agents.v3_duration import (
+    work_seconds_per_set as resolved_work_seconds_per_set,
+)
 from backend.app.domain.agents.v3_orchestration import GraphTerminalStatusCode
 from backend.app.domain.agents.v3_persistence import V3DecisionPersistenceBundle
 from backend.app.domain.rules.duration import DURATION_RULE_VERSION
@@ -1172,7 +1175,8 @@ def _persist_public_decision(
         )
         for item in plan_response.items:
             exercise = catalog[item.exercise_id]
-            prescription = compiled_by_id[item.exercise_id].prescription
+            compiled_item = compiled_by_id[item.exercise_id]
+            prescription = compiled_item.prescription
             session.add(
                 PlanItem(
                     id=item.plan_item_id,
@@ -1183,7 +1187,15 @@ def _persist_public_decision(
                     tier_code=item.tier_code,
                     sets=item.sets,
                     reps=item.reps,
-                    work_seconds_per_set=prescription.work_seconds_per_set,
+                    # The resolved figure, not the raw prescription. A repetition-based
+                    # prescription carries no work_seconds_per_set of its own -- it is
+                    # reps times the catalog's seconds-per-rep basis, which is what
+                    # `work_seconds` two lines down is already totalled from. Storing
+                    # the raw None left the column empty on nearly every MAIN block and
+                    # made those plans unreorderable.
+                    work_seconds_per_set=resolved_work_seconds_per_set(
+                        prescription, compiled_item.catalog_record
+                    ),
                     rest_seconds_per_set=prescription.rest_seconds_between_sets,
                     work_seconds=item.work_seconds,
                     rest_seconds=item.rest_seconds,

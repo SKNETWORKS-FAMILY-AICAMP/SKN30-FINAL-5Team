@@ -67,11 +67,30 @@ class PlanRevisionItem:
     default_work_seconds: int | None
 
     @property
-    def work_seconds(self) -> int:
-        per_set = self.work_seconds_per_set
-        if per_set is None:
+    def effective_work_seconds_per_set(self) -> int:
+        """One set's work seconds, resolved the way `v3_duration` resolves a prescription.
+
+        The stored per-set value is missing on every repetition-based block written
+        before the decision path recorded the resolved figure rather than the raw
+        prescription, which left `work_seconds_per_set` NULL for most MAIN blocks.
+        Those plans are still perfectly timeable: the reviewed catalog basis is loaded
+        onto this item precisely so the value can be recovered. Recovering it here is
+        what keeps a reorder from failing on a plan the user can otherwise run.
+        """
+
+        if self.work_seconds_per_set is not None:
+            return self.work_seconds_per_set
+        if self.reps is not None:
+            if self.seconds_per_rep is None:
+                raise PlanRevisionError(PlanRevisionFailureCode.TIMING_BASIS_UNAVAILABLE)
+            return self.reps * self.seconds_per_rep
+        if self.default_work_seconds is None:
             raise PlanRevisionError(PlanRevisionFailureCode.TIMING_BASIS_UNAVAILABLE)
-        return self.sets * per_set
+        return self.default_work_seconds
+
+    @property
+    def work_seconds(self) -> int:
+        return self.sets * self.effective_work_seconds_per_set
 
     @property
     def rest_seconds(self) -> int:
@@ -120,9 +139,12 @@ def apply_set_repetition_edit(
     if target.reps is None:
         if reps is not None:
             raise PlanRevisionError(PlanRevisionFailureCode.REPETITIONS_NOT_APPLICABLE)
-        if target.work_seconds_per_set is None:
-            raise PlanRevisionError(PlanRevisionFailureCode.TIMING_BASIS_UNAVAILABLE)
-        edited = replace(target, sets=sets)
+        # Resolving rather than reading the column keeps a duration-based block
+        # editable when only the catalog carries its basis, and normalises the
+        # stored value on the way out.
+        edited = replace(
+            target, sets=sets, work_seconds_per_set=target.effective_work_seconds_per_set
+        )
     else:
         if reps is None:
             raise PlanRevisionError(PlanRevisionFailureCode.REPETITIONS_REQUIRED)

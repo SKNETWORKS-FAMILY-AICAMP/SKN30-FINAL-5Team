@@ -189,7 +189,10 @@ class PlanRevisionService:
                         sequence=item.sequence,
                         sets=item.sets,
                         reps=item.reps,
-                        work_seconds_per_set=item.work_seconds_per_set,
+                        # The resolved figure, not the stored column: a plan whose
+                        # per-set basis was never recorded is repaired by the first
+                        # edit instead of carrying the gap forward.
+                        work_seconds_per_set=item.effective_work_seconds_per_set,
                         work_seconds=item.work_seconds,
                         rest_seconds=item.rest_seconds,
                     )
