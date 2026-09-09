@@ -223,6 +223,43 @@ def test_the_promoted_catalog_still_yields_a_light_thirty_minute_plan() -> None:
     assert abs(plan.estimated_duration_seconds - REQUESTED_MINUTES * 60) <= 5 * 60
 
 
+# Three minutes. A LIGHT session is LOW intensity at two sets, so a rest longer
+# than this is not a training decision -- it is the plan admitting it had no
+# work left to prescribe and padding the clock instead.
+MAX_REASONABLE_REST_SECONDS = 180
+
+
+def test_the_light_plan_does_not_pad_the_clock_with_outsized_rests() -> None:
+    """Time has to be spread over the session, not dropped on a few gaps.
+
+    Only a multi-set block has a gap between sets, so when the plan is filled
+    with single-set blocks the entire shortfall lands on the two or three blocks
+    that happen to carry one. That is how a thirty-minute session came to
+    prescribe rests of nearly four minutes while the pool held 121 candidates.
+    """
+
+    records = _pool_records()
+    envelope = _light_envelope(records)
+    outcome = execute_deterministic_fallback(
+        DeterministicGraphFallbackProvider(),
+        envelope=envelope,
+        pool=_snapshot(envelope, records),
+        fallback_version=DETERMINISTIC_FALLBACK_VERSION,
+        compiler_version="v3-plan-compiler-v1",
+        validator_version="v3-integrity-validator-v1",
+        validation_context=IntegrityValidationContext(),
+    )
+
+    plan = outcome.compiled_plan
+    assert plan is not None
+    rests = [item.prescription.rest_seconds_between_sets for item in plan.exercises]
+    assert max(rests) <= MAX_REASONABLE_REST_SECONDS
+    # The bound above is only meaningful if the time is actually distributed, so
+    # the plan must carry several gaps rather than one very long one.
+    gaps = sum(max(item.prescription.sets - 1, 0) for item in plan.exercises)
+    assert gaps >= 6
+
+
 def test_the_light_plan_reaches_the_duration_without_relaxing_any_ceiling() -> None:
     """The duration is bought with rest, which is bounded below, never above."""
 
