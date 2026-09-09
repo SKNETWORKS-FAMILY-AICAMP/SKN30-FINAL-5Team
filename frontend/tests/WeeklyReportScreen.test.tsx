@@ -193,7 +193,7 @@ describe('WeeklyReportScreen selected week', () => {
     const view = render(
       <StrictMode>{automaticScreen(api, onChange)}</StrictMode>,
     );
-    await screen.findByText(REPORT.summary);
+    await screen.findByTestId('weekly-report-summary');
     expect(api.acknowledgeWeeklyReport).toHaveBeenCalledTimes(1);
     expect(api.createInitialWeeklyPlan).not.toHaveBeenCalled();
     expect(
@@ -223,7 +223,7 @@ describe('WeeklyReportScreen selected week', () => {
     api.acknowledgeWeeklyReport.mockRejectedValueOnce(new Error('offline'));
     render(automaticScreen(api));
     const retry = await screen.findByRole('button', { name: '다시 반영하기' });
-    expect(screen.getByText(REPORT.summary)).toBeOnTheScreen();
+    expect(screen.getByTestId('weekly-report-summary')).toBeOnTheScreen();
     expect(api.createInitialWeeklyPlan).not.toHaveBeenCalled();
     fireEvent.press(retry);
     await screen.findByText('다음 주 계획에 반영했어요');
@@ -260,7 +260,7 @@ describe('WeeklyReportScreen selected week', () => {
     );
     const onChange = jest.fn();
     const view = render(automaticScreen(api, onChange));
-    await screen.findByText(REPORT.summary);
+    await screen.findByTestId('weekly-report-summary');
     view.unmount();
     await act(async () =>
       resolveAck({
@@ -384,7 +384,7 @@ describe('WeeklyReportScreen selected week', () => {
     );
 
     expect(
-      await screen.findByText('선택한 주의 저장된 리포트입니다.'),
+      await screen.findByTestId('weekly-report-summary'),
     ).toBeOnTheScreen();
     expect(getWeek).toHaveBeenCalledWith('2026-08-03', expect.anything());
     expect(getWeeklyReport).toHaveBeenCalledWith(
@@ -439,8 +439,10 @@ describe('WeeklyReportScreen selected week', () => {
     });
 
     // The report is written after the week closes, so a safety stop does not
-    // take over the heading; the week summary still leads the card.
-    expect(await screen.findByText(REPORT.summary)).toBeOnTheScreen();
+    // take over the heading; the greeting still leads the masthead.
+    expect(
+      await screen.findByRole('header', { name: '이번 주도 수고했어요!' }),
+    ).toBeOnTheScreen();
     expect(
       screen.queryByText('안전 중단 기록을 먼저 확인해 주세요'),
     ).toBeNull();
@@ -468,9 +470,12 @@ describe('WeeklyReportScreen selected week', () => {
   it('keeps the intro outside the first goal card and omits the redundant ready badge', async () => {
     renderExistingReport();
     const intro = await screen.findByTestId('weekly-report-intro');
-    expect(within(intro).getByText(REPORT.summary)).toBeOnTheScreen();
+    expect(
+      within(intro).getByRole('header', { name: '이번 주도 수고했어요!' }),
+    ).toBeOnTheScreen();
+    // The greeting stands alone; the summary sentence was dropped from the detail view.
+    expect(screen.queryByText(REPORT.summary)).toBeNull();
     const summary = screen.getByTestId('weekly-report-summary');
-    expect(within(summary).queryByText(REPORT.summary)).toBeNull();
     expect(within(summary).getAllByRole('header')[0]).toHaveTextContent(
       '목표 달성 현황',
     );
@@ -514,6 +519,21 @@ describe('WeeklyReportScreen selected week', () => {
     expect(screen.queryByText('평균 강도')).toBeNull();
     expect(screen.queryByText('보통')).toBeNull();
     expect(screen.getByText('근력')).toBeOnTheScreen();
+  });
+
+  it('decorates the reflection and condition cards with tone badges and markers', async () => {
+    renderExistingReport();
+
+    expect(
+      await screen.findByTestId('weekly-report-badge-good'),
+    ).toBeOnTheScreen();
+    expect(screen.getByTestId('weekly-report-badge-watch')).toBeOnTheScreen();
+    expect(
+      screen.getByTestId('weekly-report-badge-condition'),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByTestId('weekly-report-direction-icon'),
+    ).toBeOnTheScreen();
   });
 
   it('shows the main missed reason as a separate note below the missed-pattern item', async () => {
@@ -852,7 +872,7 @@ describe('WeeklyReportScreen selected week', () => {
       expect(createWeeklyReport).toHaveBeenCalledWith('2026-08-03'),
     );
     expect(
-      await screen.findByText('선택한 주의 저장된 리포트입니다.'),
+      await screen.findByTestId('weekly-report-summary'),
     ).toBeOnTheScreen();
     expect(screen.getByText('75%')).toBeOnTheScreen();
     expect(getWeeklyReport).not.toHaveBeenCalled();
@@ -1063,7 +1083,7 @@ describe('WeeklyReportScreen selected week', () => {
   it('renders all six report blocks in their visible tree order', async () => {
     const view = renderExistingReport();
 
-    await screen.findByText(REPORT.summary);
+    await screen.findByTestId('weekly-report-summary');
     const tree = JSON.stringify(view.toJSON());
     const headings = [
       '목표 달성 현황',
@@ -1089,7 +1109,7 @@ describe('WeeklyReportScreen selected week', () => {
       ],
     });
 
-    await screen.findByText(REPORT.summary);
+    await screen.findByTestId('weekly-report-summary');
     const tree = JSON.stringify(view.toJSON());
 
     expect(tree.indexOf('가능한 만큼 진행한 기록을 남겼어요.')).toBeLessThan(
@@ -1116,21 +1136,21 @@ describe('WeeklyReportScreen selected week', () => {
   it('hides the negotiation rate when the server returns null', async () => {
     renderExistingReport({ ...REPORT, negotiation_success_rate: null });
 
-    await screen.findByText(REPORT.summary);
+    await screen.findByTestId('weekly-report-summary');
     expect(screen.queryByText('AI 조정 합의율')).toBeNull();
   });
 
   it('hides high-completion patterns when every pattern list is empty', async () => {
     renderExistingReport();
 
-    await screen.findByText(REPORT.summary);
+    await screen.findByTestId('weekly-report-summary');
     expect(screen.queryByText('잘 이어진 조건')).toBeNull();
   });
 
   it('does not use penalty language in the report', async () => {
     const view = renderExistingReport();
 
-    await screen.findByText(REPORT.summary);
+    await screen.findByTestId('weekly-report-summary');
     expect(JSON.stringify(view.toJSON())).not.toContain('벌점');
   });
 });

@@ -10,7 +10,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useState, type ReactNode } from 'react';
 import {
   Image,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -261,13 +260,6 @@ function ReportPage({
                   lineBreakStrategyIOS="hangul-word"
                 >
                   이번 주도 수고했어요!
-                </Text>
-                <Text
-                  style={styles.introBody}
-                  textBreakStrategy="balanced"
-                  lineBreakStrategyIOS="hangul-word"
-                >
-                  {report.summary}
                 </Text>
               </View>
             </>
@@ -604,12 +596,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
     lineHeight: 29,
-  },
-  introBody: {
-    color: colors.textSub,
-    fontSize: 13,
-    lineHeight: 21,
-    ...(Platform.OS === 'web' ? { wordBreak: 'keep-all' as const } : {}),
   },
   pageHeading: {
     minWidth: 0,

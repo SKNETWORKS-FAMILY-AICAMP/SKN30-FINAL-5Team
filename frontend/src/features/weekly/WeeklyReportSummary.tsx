@@ -187,28 +187,41 @@ export function WeeklyReportSummary({
         style={[styles.reflectionRow, roomy && styles.reflectionRowWide]}
         testID="weekly-report-reflections"
       >
-        <ReportBlock tone="positive" title="이런 점이 좋았어요">
+        <ReportBlock badge="good" tone="positive" title="이런 점이 좋았어요">
           <CopyList
             fallback="이번 주 기록에서 이어갈 점을 확인했어요."
             items={highlights}
+            tone="positive"
           />
         </ReportBlock>
 
-        <ReportBlock tone="improvement" title="다음 주에 살펴볼 점">
+        <ReportBlock
+          badge="watch"
+          tone="improvement"
+          title="다음 주에 살펴볼 점"
+        >
           <CopyList
             fallback="다음 주에도 실행 가능한 조건을 함께 찾아요."
             items={improvements}
+            tone="improvement"
           />
         </ReportBlock>
       </View>
 
-      <ReportBlock title="이번 주 컨디션과 조정">
-        <Text style={styles.bodyText}>{report.decision_summary}</Text>
+      <ReportBlock badge="condition" title="이번 주 컨디션과 조정">
+        <View style={styles.decisionQuote}>
+          <Text style={styles.bodyText}>{report.decision_summary}</Text>
+        </View>
         <View style={styles.directionCard}>
-          <Text style={styles.directionLabel}>다음 주 방향</Text>
-          <Text style={styles.directionTitle}>
-            {adjustmentDirectionLabel(report.adjustment_direction_code)}
-          </Text>
+          <View style={styles.directionIcon}>
+            <DirectionIcon code={report.adjustment_direction_code} />
+          </View>
+          <View style={styles.directionCopy}>
+            <Text style={styles.directionLabel}>다음 주 방향</Text>
+            <Text style={styles.directionTitle}>
+              {adjustmentDirectionLabel(report.adjustment_direction_code)}
+            </Text>
+          </View>
         </View>
       </ReportBlock>
 
@@ -233,10 +246,12 @@ export function WeeklyReportSummary({
 }
 
 function ReportBlock({
+  badge,
   children,
   tone,
   title,
 }: {
+  badge?: BlockBadgeName;
   children: ReactNode;
   tone?: 'positive' | 'improvement';
   title: string;
@@ -251,12 +266,92 @@ function ReportBlock({
       ]}
     >
       <View style={styles.blockHeading}>
+        {badge ? <BlockBadge name={badge} /> : null}
         <Text accessibilityRole="header" style={styles.blockTitle}>
           {title}
         </Text>
       </View>
       {children}
     </View>
+  );
+}
+
+type BlockBadgeName = 'good' | 'watch' | 'condition';
+
+// Heading badges are decoration; the block title still carries the meaning.
+const BLOCK_BADGES: Record<
+  BlockBadgeName,
+  { background: string; filled: boolean; glyph: string; stroke: string }
+> = {
+  good: {
+    background: colors.primary,
+    filled: true,
+    glyph: 'M12 4.6l1.9 4.5 4.5 1.9-4.5 1.9L12 17.4l-1.9-4.5L5.6 11l4.5-1.9Z',
+    stroke: colors.surface,
+  },
+  watch: {
+    background: '#DE8B62',
+    filled: false,
+    glyph: 'M10.6 15.2a4.6 4.6 0 1 1 0-9.2 4.6 4.6 0 0 1 0 9.2Zm3.5-1.1L18 18',
+    stroke: colors.surface,
+  },
+  condition: {
+    background: colors.greenBand,
+    filled: false,
+    glyph: 'M4 12h3l2.2-4.4L12.4 16l2-4H20',
+    stroke: colors.greenText,
+  },
+};
+
+function BlockBadge({ name }: { name: BlockBadgeName }) {
+  const badge = BLOCK_BADGES[name];
+  return (
+    <View
+      accessible={false}
+      style={[styles.blockBadge, { backgroundColor: badge.background }]}
+      testID={'weekly-report-badge-' + name}
+    >
+      <Svg accessible={false} height={20} width={20} viewBox="0 0 24 24">
+        <Path
+          d={badge.glyph}
+          fill={badge.filled ? badge.stroke : 'none'}
+          stroke={badge.stroke}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={badge.filled ? 1 : 2}
+        />
+      </Svg>
+    </View>
+  );
+}
+
+// Presentation-only mapping; the server still decides the direction itself.
+const DIRECTION_GLYPHS: Record<string, string> = {
+  INCREASE: 'M12 18V6m-5 5 5-5 5 5',
+  REDUCE: 'M12 6v12m-5-5 5 5 5-5',
+  DECREASE: 'M12 6v12m-5-5 5 5 5-5',
+  MAINTAIN: 'M6 10h12M6 14h12',
+  MIXED: 'M5 15l4-4 3 3 6-7',
+};
+
+function DirectionIcon({ code }: { code: string }) {
+  return (
+    <Svg
+      accessible={false}
+      height={22}
+      width={22}
+      viewBox="0 0 24 24"
+      testID="weekly-report-direction-icon"
+    >
+      <Path
+        d={DIRECTION_GLYPHS[code] ?? DIRECTION_GLYPHS.MIXED}
+        fill="none"
+        stroke={colors.greenText}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+      />
+    </Svg>
   );
 }
 
@@ -306,19 +401,54 @@ function Metric({
 
 type CopyItem = { text: string; note?: string };
 
+const LIST_TONES = {
+  positive: {
+    border: '#F2E1B8',
+    glyph: 'M6 12.4l3.7 3.6L18 7.8',
+    marker: '#FFEBC2',
+    markerColor: '#A45F00',
+  },
+  improvement: {
+    border: '#F1DACD',
+    glyph: 'M5.5 12h11m-4.6-5 5 5-5 5',
+    marker: '#FBE0D3',
+    markerColor: '#9C4F32',
+  },
+} as const;
+
 function CopyList({
   fallback,
   items,
+  tone,
 }: {
   fallback: string;
   items: CopyItem[];
+  tone: keyof typeof LIST_TONES;
 }) {
   const visible = items.length > 0 ? items : [{ text: fallback }];
+  const palette = LIST_TONES[tone];
   return (
     <View style={styles.copyList}>
       {visible.map((item) => (
-        <View key={item.text} style={styles.copyRow}>
-          <View style={styles.copyDot} />
+        <View
+          key={item.text}
+          style={[styles.copyChip, { borderColor: palette.border }]}
+        >
+          <View
+            accessible={false}
+            style={[styles.copyMarker, { backgroundColor: palette.marker }]}
+          >
+            <Svg accessible={false} height={16} width={16} viewBox="0 0 24 24">
+              <Path
+                d={palette.glyph}
+                fill="none"
+                stroke={palette.markerColor}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.4}
+              />
+            </Svg>
+          </View>
           <View style={styles.copyContent}>
             <Text style={styles.bodyText}>{item.text}</Text>
             {item.note ? (
@@ -478,7 +608,14 @@ function ReportIcon({ name }: { name: ReportIconName }) {
 const styles = StyleSheet.create({
   container: { gap: 16 },
   block: { gap: 16, flexGrow: 1, minWidth: 0 },
-  blockHeading: { flexDirection: 'row', alignItems: 'center' },
+  blockHeading: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  blockBadge: {
+    alignItems: 'center',
+    borderRadius: 999,
+    height: 32,
+    justifyContent: 'center',
+    width: 32,
+  },
   blockTitle: {
     color: colors.text,
     flex: 1,
@@ -578,24 +715,53 @@ const styles = StyleSheet.create({
   reflectionRowWide: { flexDirection: 'row', alignItems: 'stretch' },
   positiveCard: { backgroundColor: '#FFF5DA', borderColor: '#F4E5BD' },
   improvementCard: { backgroundColor: '#FFF0E9', borderColor: '#F1DDD2' },
-  copyList: { gap: 10 },
-  copyRow: { alignItems: 'flex-start', flexDirection: 'row', gap: 9 },
-  copyContent: { flex: 1, minWidth: 0, gap: 3 },
-  noteText: { color: colors.textSub, fontSize: 12, lineHeight: 19 },
-  copyDot: {
-    backgroundColor: colors.textSub,
-    borderRadius: 3,
-    height: 5,
-    marginTop: 9,
-    width: 5,
+  copyList: { gap: 8 },
+  copyChip: {
+    alignItems: 'flex-start',
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
   },
+  copyMarker: {
+    alignItems: 'center',
+    borderRadius: 999,
+    height: 24,
+    justifyContent: 'center',
+    width: 24,
+  },
+  copyContent: { flex: 1, minWidth: 0, gap: 3, paddingTop: 1 },
+  noteText: { color: colors.textSub, fontSize: 12, lineHeight: 19 },
   bodyText: { color: colors.text, flexShrink: 1, fontSize: 14, lineHeight: 23 },
+  decisionQuote: {
+    borderLeftColor: colors.primary,
+    borderLeftWidth: 3,
+    borderRadius: 2,
+    paddingLeft: 12,
+    paddingVertical: 2,
+  },
   directionCard: {
+    alignItems: 'center',
     backgroundColor: colors.canvas,
     borderRadius: 16,
-    gap: 6,
+    flexDirection: 'row',
+    gap: 12,
     padding: 15,
   },
+  directionIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.greenBorder,
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 38,
+    justifyContent: 'center',
+    width: 38,
+  },
+  directionCopy: { flex: 1, gap: 4, minWidth: 0 },
   directionLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
   directionTitle: {
     color: colors.text,

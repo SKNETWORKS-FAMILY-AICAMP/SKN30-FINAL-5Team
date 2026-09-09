@@ -113,7 +113,6 @@ export function SessionResultScreen({
       {result.estimated_calories_burned !== null ? (
         <Text style={styles.note}>
           예상 소모 칼로리 약 {Math.round(result.estimated_calories_burned)}kcal
-          (참고용 추정치)
         </Text>
       ) : null}
 
