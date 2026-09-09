@@ -22,6 +22,7 @@ from backend.app.domain.rules.plan_shape import (
     MAX_PHASE_EXERCISE_TYPES,
     MAX_PLAN_EXERCISE_TYPES,
     PLAN_PHASE_ORDER,
+    families_over_budget,
     has_consecutive_main_repetition,
     phase_rank,
 )
@@ -49,6 +50,7 @@ class IntegrityViolationCode(StrEnum):
     PLAN_EXERCISE_VARIETY_EXCEEDED = "PLAN_EXERCISE_VARIETY_EXCEEDED"
     PLAN_PHASE_REPETITION_INVALID = "PLAN_PHASE_REPETITION_INVALID"
     PLAN_MAIN_REPEAT_CONSECUTIVE = "PLAN_MAIN_REPEAT_CONSECUTIVE"
+    PLAN_EXERCISE_FAMILY_REPEATED = "PLAN_EXERCISE_FAMILY_REPEATED"
     CATALOG_RECORD_MISMATCH = "CATALOG_RECORD_MISMATCH"
     STOP_AND_SEEK_HELP = "STOP_AND_SEEK_HELP"
     PLAN_GENERATION_FORBIDDEN = "PLAN_GENERATION_FORBIDDEN"
@@ -81,6 +83,7 @@ _CONDITIONALLY_REPAIRABLE = frozenset(
         IntegrityViolationCode.PLAN_EXERCISE_VARIETY_EXCEEDED,
         IntegrityViolationCode.PLAN_PHASE_REPETITION_INVALID,
         IntegrityViolationCode.PLAN_MAIN_REPEAT_CONSECUTIVE,
+        IntegrityViolationCode.PLAN_EXERCISE_FAMILY_REPEATED,
     }
 )
 
@@ -323,6 +326,16 @@ def validate_plan_integrity(
             codes.add(IntegrityViolationCode.PLAN_PHASE_COVERAGE_INVALID)
         if len(set(ids)) > MAX_PLAN_EXERCISE_TYPES:
             codes.add(IntegrityViolationCode.PLAN_EXERCISE_VARIETY_EXCEEDED)
+        # Near-identical variants share a catalog family code, so a plan naming
+        # three good mornings is padding the session rather than varying it.
+        # Deterministic selection already refuses this; assert it here so a plan
+        # that came from the LLM cannot reach the user with it either.
+        if families_over_budget(
+            (item.prescription.exercise_id, record.family_code)
+            for item in compiled_plan.exercises
+            if (record := pool_records.get(item.prescription.exercise_id)) is not None
+        ):
+            codes.add(IntegrityViolationCode.PLAN_EXERCISE_FAMILY_REPEATED)
         for phase_code, cap in MAX_PHASE_EXERCISE_TYPES.items():
             phase_ids = tuple(
                 item.prescription.exercise_id

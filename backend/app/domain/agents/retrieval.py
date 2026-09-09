@@ -21,8 +21,8 @@ EXERCISE_RETRIEVAL_REQUEST_SCHEMA_VERSION: Final[Literal["exercise-retrieval-req
 EXERCISE_RETRIEVAL_RESULT_SCHEMA_VERSION: Final[Literal["exercise-retrieval-result-v1"]] = (
     "exercise-retrieval-result-v1"
 )
-EXERCISE_POOL_SNAPSHOT_SCHEMA_VERSION: Final[Literal["exercise-pool-snapshot-v4"]] = (
-    "exercise-pool-snapshot-v4"
+EXERCISE_POOL_SNAPSHOT_SCHEMA_VERSION: Final[Literal["exercise-pool-snapshot-v5"]] = (
+    "exercise-pool-snapshot-v5"
 )
 
 _MACHINE_REFERENCE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
@@ -375,6 +375,10 @@ class ExercisePoolExerciseRecord(BaseModel):
     catalog_version: str
     content_version: str
     stable_code: str
+    # The reviewed movement family. Near-identical variants share one code, so a
+    # plan can offer one of them instead of stacking all three. None means the
+    # catalog records no family, and those exercises never group together.
+    family_code: str | None = None
     training_type_code: str
     body_focus_code: str
     movement_pattern_codes: tuple[str, ...]
@@ -627,7 +631,7 @@ class ExercisePoolSnapshot(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
-    schema_version: Literal["exercise-pool-snapshot-v4"] = EXERCISE_POOL_SNAPSHOT_SCHEMA_VERSION
+    schema_version: Literal["exercise-pool-snapshot-v5"] = EXERCISE_POOL_SNAPSHOT_SCHEMA_VERSION
     catalog_version: str
     constraint_envelope_hash: str
     exercises: tuple[ExercisePoolExerciseRecord, ...] = Field(min_length=1)

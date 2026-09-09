@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -155,10 +156,19 @@ class DeterministicGraphFallbackProvider:
         for phase_code in structural:
             if any(value == phase_code for _, value in placed):
                 continue
-            if not any(
-                place(exercise_id, phase_code, required=True)
+            candidates = tuple(
+                exercise_id
                 for exercise_id in ordered_ids
                 if _serves_phase(records.get(exercise_id), phase_code)
+            )
+            # Prefer a movement whose family this session has not used yet, so
+            # filling a required phase does not quietly spend a second slot on a
+            # variant of something already prescribed. Preference, not a filter:
+            # a plan missing its warmup or cooldown is invalid outright, which is
+            # a worse outcome than one repeated family.
+            if not any(
+                place(exercise_id, phase_code, required=True)
+                for exercise_id in self._unused_family_first(candidates, records, placed)
             ):
                 # The approved pool carries no candidate for this phase, so no
                 # valid session can be built from it.
@@ -178,6 +188,21 @@ class DeterministicGraphFallbackProvider:
                 continue
             record = records.get(exercise_id)
             if record is None:
+                continue
+            # One movement per family. The catalog groups near-identical variants
+            # under a family code -- barbell, seated and smith good mornings are
+            # one family -- and taking several of them spends the session's
+            # exercise budget without giving the user anything new to do. Read
+            # from what is already placed so the mandatory and structural blocks
+            # above claim their families too. A record with no family code groups
+            # with nothing, so those are never skipped.
+            placed_families = {
+                placed_record.family_code
+                for placed_id, _ in placed
+                if (placed_record := records.get(placed_id)) is not None
+                and placed_record.family_code
+            }
+            if record.family_code and record.family_code in placed_families:
                 continue
             phase_code = _preferred_phase(record)
             cap = MAX_PHASE_EXERCISE_TYPES.get(phase_code)
@@ -218,6 +243,28 @@ class DeterministicGraphFallbackProvider:
             exercise_prescriptions=tuple(prescriptions),
             reason_codes=("LLM_PROVIDER_FALLBACK",),
         )
+
+    @staticmethod
+    def _unused_family_first(
+        exercise_ids: tuple[UUID, ...],
+        records: dict[UUID, ExercisePoolExerciseRecord],
+        placed: Sequence[tuple[UUID, PhaseCode]],
+    ) -> tuple[UUID, ...]:
+        """Stable partition: candidates from an as-yet-unused family come first."""
+
+        used = {
+            record.family_code
+            for placed_id, _ in placed
+            if (record := records.get(placed_id)) is not None and record.family_code
+        }
+        fresh: list[UUID] = []
+        repeated: list[UUID] = []
+        for exercise_id in exercise_ids:
+            record = records.get(exercise_id)
+            family_code = None if record is None else record.family_code
+            target = repeated if family_code and family_code in used else fresh
+            target.append(exercise_id)
+        return (*fresh, *repeated)
 
     @staticmethod
     def _time_bearing_first(

@@ -39,10 +39,12 @@ QUERY_HASH = "b" * 64
 def exercise(
     exercise_id: UUID,
     phase_codes: tuple[str, ...] = ("WARMUP", "MAIN", "COOLDOWN"),
+    family_code: str | None = None,
 ) -> ExercisePoolExerciseRecord:
     return ExercisePoolExerciseRecord(
         phase_codes=phase_codes,
         exercise_id=exercise_id,
+        family_code=family_code,
         catalog_version="catalog-v3",
         content_version=f"content-{exercise_id.int}",
         stable_code=f"exercise-{exercise_id.int}",

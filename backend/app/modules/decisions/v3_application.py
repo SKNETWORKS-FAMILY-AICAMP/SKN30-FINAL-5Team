@@ -278,6 +278,7 @@ class SqlAlchemyV3CreationRepository:
                         catalog_version=item.catalog_version_code,
                         content_version=item.instruction_content_version,
                         stable_code=item.stable_code or f"exercise-{item.exercise_id}",
+                        family_code=item.family_code,
                         training_type_code=item.training_type_code,
                         body_focus_code=item.body_focus_code,
                         movement_pattern_codes=(item.primary_movement_pattern_code,),
