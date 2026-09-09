@@ -92,7 +92,6 @@ export function RoutineCard({
   revisionNotice?: string;
   sessionStatusCode?: SessionStatusCode;
   startBlockedReason?: string | null;
-  title: string;
   variantApi?: Partial<Pick<Api, 'getExerciseVariants'>>;
 }) {
   const styles = useHomeStyles();

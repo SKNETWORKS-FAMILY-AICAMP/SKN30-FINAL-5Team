@@ -8,7 +8,7 @@ import type {
   SessionStatusCode,
   WorkoutPlan,
 } from '../../api/types';
-import { moveArrayItem, routineTitleFromPlan } from '../../api/workoutPlan';
+import { moveArrayItem } from '../../api/workoutPlan';
 import { useBrandFonts } from '../../app/fonts';
 import type { TabId } from '../../components/brand/BrandChrome';
 import { useScale } from '../../components/scale';
@@ -294,12 +294,6 @@ export function HomeScreenContent({
     : hasTodayRoutine && effectiveCheckedIn && !routineGenerationPending;
   const noRoutine = !hasRoutine && !routineGenerationPending;
   const variant = getHomeRoutineVariant(variantIndex);
-  const routineTitle =
-    serverPlan === null
-      ? adjustedRoutine
-        ? '컨디션 맞춤 루틴'
-        : variant.title
-      : routineTitleFromPlan(serverPlan);
   const routineFocus =
     serverPlan === null ? variant.focus : routineFocusFromPlan(serverPlan);
   const routineMinutes =
@@ -783,7 +777,6 @@ export function HomeScreenContent({
                 revisionNotice={routineRevisionNotice?.text}
                 sessionStatusCode={todaySession?.status_code}
                 startBlockedReason={routineBlockedReason}
-                title={routineTitle}
                 focus={routineFocus}
                 variantApi={exerciseApi}
               />

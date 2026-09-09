@@ -25,11 +25,22 @@ type CalendarReportInput = {
   routineStartLocalDate?: string;
 };
 
+/**
+ * Which status a day keeps when it holds more than one session; highest wins.
+ *
+ * What the user performed outranks what they did not. A day where a workout was
+ * completed and a second session was later abandoned is a completed day, and
+ * showing it as rest is the exact hiding of completed blocks `sessionDayStatus`
+ * below sets out to avoid. Safety still outranks rest, because a pain stop is a
+ * distinct event the legend names, not an absence; the weekly report counts
+ * safety stops separately either way. A status absent here (`today`,
+ * `upcoming`) falls back to 0 and never displaces a performed session.
+ */
 const DAY_STATUS_PRIORITY: Partial<Record<CalendarDayStatus, number>> = {
-  done: 1,
-  partial: 2,
-  rest: 3,
-  safety: 4,
+  done: 4,
+  partial: 3,
+  safety: 2,
+  rest: 1,
 };
 
 function parseDate(value: string): Date {
