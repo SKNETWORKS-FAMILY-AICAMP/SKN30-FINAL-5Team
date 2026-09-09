@@ -254,8 +254,13 @@ def _align_prescription_defaults(stage: Path, catalog_rows: list[dict[str, Any]]
     profiles = _read_jsonl(profiles_path)
     catalog = {row["stable_code"]: row for row in catalog_rows}
     compound_patterns = {
-        "HIP_DOMINANT", "KNEE_DOMINANT", "HORIZONTAL_PUSH", "HORIZONTAL_PULL",
-        "VERTICAL_PUSH", "VERTICAL_PULL", "CORE_BRACE",
+        "HIP_DOMINANT",
+        "KNEE_DOMINANT",
+        "HORIZONTAL_PUSH",
+        "HORIZONTAL_PULL",
+        "VERTICAL_PUSH",
+        "VERTICAL_PULL",
+        "CORE_BRACE",
     }
     for profile in profiles:
         row = catalog.get(profile["exercise_stable_code"])
@@ -279,8 +284,7 @@ def _align_prescription_defaults(stage: Path, catalog_rows: list[dict[str, Any]]
             profile["work_seconds_per_set"] = None
     profiles_path.write_text(
         "".join(
-            json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n"
-            for row in profiles
+            json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n" for row in profiles
         ),
         encoding="utf-8",
     )

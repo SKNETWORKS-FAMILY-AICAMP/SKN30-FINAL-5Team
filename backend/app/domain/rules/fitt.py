@@ -130,10 +130,7 @@ def _strength_volume(
         default_reps = 12
     else:
         min_reps, max_reps, default_reps = 12, 20, 15
-    if (
-        not min_sets <= default_sets <= max_sets
-        or not min_reps <= default_reps <= max_reps
-    ):
+    if not min_sets <= default_sets <= max_sets or not min_reps <= default_reps <= max_reps:
         return None
     return FittVolumeRange(
         min_sets=min_sets,

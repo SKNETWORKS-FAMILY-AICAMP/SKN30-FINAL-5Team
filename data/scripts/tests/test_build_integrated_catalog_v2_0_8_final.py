@@ -26,12 +26,9 @@ def test_builds_loadable_v208_candidate_with_reviewed_catalog_corrections(tmp_pa
     assert rows["barbell_straight_leg_deadlift_hip_dominant_barbell"].family_code == (
         "ROMANIAN_DEADLIFT"
     )
-    assert (
-        rows["barbell_straight_leg_deadlift_hip_dominant_barbell"].representative_stable_code
-        == (
-        "barbell_romanian_deadlift"
-        )
-    )
+    assert rows[
+        "barbell_straight_leg_deadlift_hip_dominant_barbell"
+    ].representative_stable_code == ("barbell_romanian_deadlift")
     assert rows["smith_close_grip_bench_press"].family_code == "CHEST_PRESS"
     assert rows["cardio_gait_machine"].default_work_seconds == 600
     assert rows["cardio_gait_machine"].default_rest_seconds == 0

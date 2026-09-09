@@ -13,6 +13,7 @@ builder = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = builder
 spec.loader.exec_module(builder)
 
+
 def test_rejects_catalog_revised_after_the_v206_fallback_approval(tmp_path: Path) -> None:
     """The v2.0.6 approval hash must not be reused for the v2.0.8 source."""
 

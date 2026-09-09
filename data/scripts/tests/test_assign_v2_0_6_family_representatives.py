@@ -19,8 +19,7 @@ def test_normalized_catalog_has_complete_family_relationships():
     assert report["counts"]["catalog_records"] == 237
     assert all(row["family_code"] for row in rows)
     assert all(
-        row["record_type"] in {"REPRESENTATIVE", "VARIANT", "SEPARATE_EXERCISE"}
-        for row in rows
+        row["record_type"] in {"REPRESENTATIVE", "VARIANT", "SEPARATE_EXERCISE"} for row in rows
     )
 
     by_family = defaultdict(list)

@@ -73,9 +73,7 @@ def _read_csv(path: Path) -> tuple[list[dict[str, str]], list[str]]:
         return list(reader), list(reader.fieldnames or [])
 
 
-def _write_csv(
-    path: Path, rows: list[dict[str, str]], fields: list[str], *, bom: bool
-) -> None:
+def _write_csv(path: Path, rows: list[dict[str, str]], fields: list[str], *, bom: bool) -> None:
     with path.open("w", encoding="utf-8-sig" if bom else "utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields, lineterminator="\n")
         writer.writeheader()

@@ -813,8 +813,7 @@ _APPROVALS = {
             "review_method_code": "PM_DIRECT_REVIEW",
             "status_interpretation_code": "PRODUCTION_APPROVED",
             "evidence_manifest_path": (
-                "data/reports/integrated_catalog_v2_0_8_final/"
-                "promotion_candidate_validation.json"
+                "data/reports/integrated_catalog_v2_0_8_final/promotion_candidate_validation.json"
             ),
             "scope": "family_timing_classification_fitt_prescription_corrections",
             "beginner_candidate_policy": "unchanged",
