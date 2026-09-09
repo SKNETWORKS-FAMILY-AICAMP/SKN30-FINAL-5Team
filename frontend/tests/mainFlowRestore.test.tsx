@@ -695,6 +695,61 @@ describe('MainFlow restart recovery', () => {
     );
   }, 20_000);
 
+  it('leaves the session resumable when the user steps away instead of stopping', async () => {
+    // Confirming a stop is terminal by design. Without a separate exit there was
+    // no way to step away and come back, and Home lost 이어하기 entirely.
+    const { api, calls } = apiWithRoutes({
+      '/home?': homeState({ workout_session: sessionDetail() }),
+      '/decisions?': decision(),
+      '/routines/current?': routine(),
+      '/workout-sessions?': sessions([
+        {
+          session_id: 'session-1',
+          local_date: LOCAL_DATE,
+          status_code: 'IN_PROGRESS',
+          completed_item_count: 0,
+          total_item_count: 1,
+          requested_duration_minutes: 30,
+          training_type_code: 'STRENGTH',
+          not_completed_reason_code: null,
+          started_at: '2026-08-19T09:00:00+09:00',
+          finished_at: null,
+        },
+      ]),
+      '/workout-sessions/session-1': sessionDetail(),
+    });
+
+    render(
+      <MainFlow
+        api={api}
+        me={me()}
+        onRefreshMe={async () => undefined}
+        onSignOut={() => {}}
+      />,
+    );
+
+    fireEvent.press(await screen.findByRole('button', { name: '이어하기' }));
+    await screen.findByTestId('workout-header-top-row');
+    await waitFor(() =>
+      expect(screen.queryByText('운동 세션을 준비하고 있어요…')).toBeNull(),
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: '운동 중단' }));
+    fireEvent.press(
+      await screen.findByRole('button', { name: '나중에 이어하기' }),
+    );
+
+    // Back on Home, still resumable, and nothing was submitted to end it.
+    expect(
+      await screen.findByRole('button', { name: '이어하기' }),
+    ).toBeTruthy();
+    expect(
+      calls.some(
+        (path) => path.includes('/not-completed') || path.includes('/finish'),
+      ),
+    ).toBe(false);
+  }, 20_000);
+
   it("keeps the day's completed routine visible without reopening it", async () => {
     const { api, calls } = apiWithRoutes({
       '/home?': homeState({
