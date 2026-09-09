@@ -65,6 +65,7 @@ type HouseRemote = {
 };
 
 export function BackgroundTestScreen({
+  accountId,
   api,
   nickname,
   now,
@@ -72,6 +73,8 @@ export function BackgroundTestScreen({
   store,
   timeZone,
 }: {
+  /** Partitions stored house state so a second account starts its own house. */
+  accountId: string;
   api: Api;
   nickname: string;
   /** Injected by tests so the local date is not the wall clock. */
@@ -85,7 +88,10 @@ export function BackgroundTestScreen({
   const localDate = localDateString(referenceNow, timeZone);
   const weekStart = weekStartString(referenceNow, timeZone);
 
-  const houseStore = useMemo(() => store ?? createHouseStore(), [store]);
+  const houseStore = useMemo(
+    () => store ?? createHouseStore(accountId),
+    [accountId, store],
+  );
   const [houseState, setHouseState] = useState<HouseState | null>(null);
   const [feedback, setFeedback] = useState<BackgroundTestFeedback | null>(null);
   const [dismissedWeekFailure, setDismissedWeekFailure] = useState<

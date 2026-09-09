@@ -353,6 +353,7 @@ export function MainFlow({
     case 'house':
       return (
         <MascotHouseScreen
+          accountId={me.user_id}
           api={api}
           nickname={me.profile?.nickname ?? '회원'}
           onNavigate={onTab}

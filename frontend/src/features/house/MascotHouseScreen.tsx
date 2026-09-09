@@ -89,12 +89,15 @@ type HouseRemote = {
 };
 
 export function MascotHouseScreen({
+  accountId,
   api,
   now,
   onNavigate,
   store,
   timeZone,
 }: {
+  /** Partitions stored house state so a second account starts its own house. */
+  accountId: string;
   api: Api;
   nickname: string;
   /** Injected by tests so the local date is not the wall clock. */
@@ -108,7 +111,10 @@ export function MascotHouseScreen({
   const localDate = localDateString(referenceNow, timeZone);
   const weekStart = weekStartString(referenceNow, timeZone);
 
-  const houseStore = useMemo(() => store ?? createHouseStore(), [store]);
+  const houseStore = useMemo(
+    () => store ?? createHouseStore(accountId),
+    [accountId, store],
+  );
   const [houseState, setHouseState] = useState<HouseState | null>(null);
   const [reactionPose, setReactionPose] = useState<HousePose | null>(null);
   const [reactionArt, setReactionArt] = useState<HouseArtSlot | null>(null);
