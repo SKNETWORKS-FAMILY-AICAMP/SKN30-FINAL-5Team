@@ -36,6 +36,7 @@ import { resolveEnvConfig } from '../src/config/env';
 import { MascotStage } from '../src/components/brand/BrandChrome';
 import { HomeContainer } from '../src/features/home/HomeContainer';
 import { MascotHouseScreen } from '../src/features/house/MascotHouseScreen';
+import { BirthDateField } from '../src/features/onboarding/BirthDateField';
 import {
   ONBOARDING_STEPS,
   OnboardingScreen,
@@ -2619,6 +2620,32 @@ describe('OnboardingScreen', () => {
         configurable: true,
         value: originalPlatform,
       });
+    }
+  });
+
+  it('realigns the selected date when the wheel item height changes', () => {
+    const onChange = jest.fn();
+    const scrollTo = jest.spyOn(ScrollView.prototype, 'scrollTo');
+    try {
+      const birthdate = render(
+        <BirthDateField
+          compact={false}
+          onChange={onChange}
+          value="2000-06-15"
+        />,
+      );
+      scrollTo.mockClear();
+
+      birthdate.rerender(
+        <BirthDateField compact onChange={onChange} value="2000-06-15" />,
+      );
+
+      expect(scrollTo).toHaveBeenCalledWith({
+        animated: false,
+        y: 5 * 38,
+      });
+    } finally {
+      scrollTo.mockRestore();
     }
   });
 

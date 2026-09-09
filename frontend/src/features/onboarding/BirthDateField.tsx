@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -222,9 +222,12 @@ function WheelColumn({
     }
   };
 
-  const scrollToIndex = (index: number, animated: boolean) => {
-    scrollRef.current?.scrollTo({ animated, y: index * itemHeight });
-  };
+  const scrollToIndex = useCallback(
+    (index: number, animated: boolean) => {
+      scrollRef.current?.scrollTo({ animated, y: index * itemHeight });
+    },
+    [itemHeight],
+  );
 
   const commitIndex = (index: number) => {
     const boundedIndex = Math.max(0, Math.min(options.length - 1, index));
@@ -263,7 +266,7 @@ function WheelColumn({
     }
     pendingInternalSelectionRef.current = null;
     scrollToIndex(selectedIndex, false);
-  }, [options, selected, selectedIndex]);
+  }, [options, scrollToIndex, selected, selectedIndex]);
 
   useEffect(
     () => () => {
