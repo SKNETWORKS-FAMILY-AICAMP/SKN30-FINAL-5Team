@@ -234,6 +234,12 @@ function me(): MeResponse {
 function stubApi(overrides: Partial<Api> = {}): Api {
   return {
     getMe: jest.fn(),
+    getOnboardingRequirements: jest.fn(async () => ({
+      terms_version: 'terms-test-v1',
+      consent_policy_version: 'consent-test-v1',
+      required_consent_type_codes: ['GENERAL_PERSONAL_DATA', 'SENSITIVE_DATA'],
+      optional_consent_type_codes: [],
+    })),
     submitOnboarding: jest.fn(),
     createRoutine: jest.fn(),
     getCurrentRoutine: jest.fn(),
@@ -2821,7 +2827,7 @@ describe('OnboardingScreen', () => {
     ).not.toBeOnTheScreen();
   });
 
-  it('shows onboarding progress in the final button while the profile is being created', () => {
+  it('shows onboarding progress in the final button while the profile is being created', async () => {
     const submitOnboarding = jest.fn(() => new Promise<never>(() => undefined));
     render(
       <OnboardingScreen
@@ -2835,8 +2841,12 @@ describe('OnboardingScreen', () => {
     acceptRequiredConsents();
     fireEvent.press(screen.getByRole('button', { name: '시작하기' }));
 
-    expect(screen.getByRole('button', { name: '온보딩 중...' })).toBeDisabled();
-    expect(submitOnboarding).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: '온보딩 중...' }),
+      ).toBeDisabled();
+      expect(submitOnboarding).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('submits optional consents as false because they are no longer collected', async () => {
@@ -3092,6 +3102,12 @@ describe('OnboardingScreen', () => {
   });
 
   it('maps the supported profile values to the backend onboarding contract', async () => {
+    const getOnboardingRequirements = jest.fn(async () => ({
+      terms_version: 'terms-server-v2.3.0',
+      consent_policy_version: 'consent-server-v4',
+      required_consent_type_codes: ['GENERAL_PERSONAL_DATA', 'SENSITIVE_DATA'],
+      optional_consent_type_codes: [],
+    }));
     const submitOnboarding = jest.fn(async (_request: OnboardingRequest) => ({
       user_id: 'user-1',
       onboarding_completed: true,
@@ -3107,7 +3123,7 @@ describe('OnboardingScreen', () => {
 
     render(
       <OnboardingScreen
-        api={stubApi({ submitOnboarding })}
+        api={stubApi({ getOnboardingRequirements, submitOnboarding })}
         onCompleted={onCompleted}
         onSignOut={jest.fn()}
       />,
@@ -3125,7 +3141,7 @@ describe('OnboardingScreen', () => {
           primary_goal_code: 'GENERAL_FITNESS',
           experience_level_code: 'BEGINNER',
           weekly_target_sessions: 3,
-          terms_version: 'terms-v1.0.0',
+          terms_version: 'terms-server-v2.3.0',
           persistent_pains: [{ body_area_code: 'KNEE', intensity_score: 1 }],
         }),
       );
@@ -3141,8 +3157,43 @@ describe('OnboardingScreen', () => {
         'equipment_codes',
         'coaching_style_code',
       ].forEach((field) => expect(request).not.toHaveProperty(field));
+      expect(getOnboardingRequirements).toHaveBeenCalledTimes(1);
+      expect(
+        getOnboardingRequirements.mock.invocationCallOrder[0],
+      ).toBeLessThan(submitOnboarding.mock.invocationCallOrder[0] ?? 0);
       expect(onCompleted).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('does not submit onboarding when legal requirements are unavailable', async () => {
+    const getOnboardingRequirements = jest.fn(async () => {
+      throw new ApiError({
+        kind: 'server',
+        code: 'LEGAL_POLICY_UNAVAILABLE',
+        status: 503,
+        message: '약관 정보를 불러오지 못했습니다.',
+      });
+    });
+    const submitOnboarding = jest.fn(async () => completedOnboarding());
+
+    render(
+      <OnboardingScreen
+        api={stubApi({ getOnboardingRequirements, submitOnboarding })}
+        onCompleted={jest.fn()}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    fillRequiredOnboardingSteps();
+    acceptRequiredConsents();
+    fireEvent.press(screen.getByText('시작하기'));
+
+    expect(
+      await screen.findByText('약관 정보를 불러오지 못했습니다.'),
+    ).toBeOnTheScreen();
+    expect(getOnboardingRequirements).toHaveBeenCalledTimes(1);
+    expect(submitOnboarding).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: '시작하기' })).toBeEnabled();
   });
 
   it('allows persistent pain to be skipped without submitting a coaching style', async () => {

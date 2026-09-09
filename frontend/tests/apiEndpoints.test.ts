@@ -12,6 +12,43 @@ import type {
   PlanRevisionResponse,
 } from '../src/api/types';
 
+it('gets the server-approved onboarding legal requirements', async () => {
+  const payload = {
+    terms_version: 'terms-v2.0.0',
+    consent_policy_version: 'privacy-v3',
+    required_consent_type_codes: ['GENERAL_PERSONAL_DATA', 'SENSITIVE_DATA'],
+    optional_consent_type_codes: [],
+  };
+  const fetchImpl = jest.fn<typeof fetch>(async () =>
+    Promise.resolve({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify(payload),
+    } as Response),
+  );
+  const api = createApi(
+    new ApiClient({
+      baseUrl: 'https://api.example.test',
+      getToken: async () => 'token',
+      fetchImpl,
+    }),
+  );
+  const controller = new AbortController();
+
+  await expect(
+    api.getOnboardingRequirements(controller.signal),
+  ).resolves.toEqual(payload);
+  expect(fetchImpl).toHaveBeenCalledWith(
+    'https://api.example.test/api/v1/legal/onboarding-requirements',
+    expect.objectContaining({
+      method: 'GET',
+      body: undefined,
+      signal: controller.signal,
+      headers: expect.objectContaining({ Authorization: 'Bearer token' }),
+    }),
+  );
+});
+
 it('preserves acknowledgement and initial-plan idempotency keys across retries', async () => {
   const fetchImpl = jest.fn<typeof fetch>(
     async () =>

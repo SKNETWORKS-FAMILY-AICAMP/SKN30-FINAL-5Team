@@ -28,6 +28,7 @@ import type {
   NotificationListResponse,
   NotificationResponse,
   OnboardingRequest,
+  OnboardingRequirementsResponse,
   OnboardingResponse,
   PlanItemOrderRequest,
   PlanItemSetRepetitionRequest,
@@ -588,6 +589,18 @@ export function createApi(client: ApiClient) {
 
     getConsents(signal?: AbortSignal) {
       return client.request<ConsentResponse>({ path: '/me/consents', signal });
+    },
+
+    /**
+     * The revision onboarding must submit, and the consents it must present.
+     * Fails closed on the server when the deployment has approved neither, so a
+     * client cannot invent a revision to agree to.
+     */
+    getOnboardingRequirements(signal?: AbortSignal) {
+      return client.request<OnboardingRequirementsResponse>({
+        path: '/legal/onboarding-requirements',
+        signal,
+      });
     },
 
     /**
