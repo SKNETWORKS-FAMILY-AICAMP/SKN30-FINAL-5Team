@@ -133,6 +133,32 @@ describe('MyPageContainer', () => {
     expect(screen.queryByText('이번 주')).toBeNull();
   });
 
+  it('no longer shows the optional consent section', async () => {
+    const getConsents = jest.fn<Api['getConsents']>(async () => ({
+      user_id: 'user-1',
+      consents: [],
+    }));
+
+    await render(
+      <MyPageContainer
+        api={accountApi({ getConsents })}
+        me={me()}
+        now={new Date('2026-08-19T03:00:00Z')}
+        onNavigateTab={jest.fn()}
+        onRefreshMe={jest.fn(async () => undefined)}
+        onSignOut={jest.fn()}
+      />,
+    );
+
+    expect(await screen.findByText('민지님')).toBeOnTheScreen();
+    expect(screen.queryByText('선택 동의 관리')).toBeNull();
+    expect(screen.queryByText('마케팅 정보 수신')).toBeNull();
+    expect(
+      screen.queryByText('필수 동의 항목은 여기에서 변경할 수 없어요.'),
+    ).toBeNull();
+    expect(getConsents).not.toHaveBeenCalled();
+  });
+
   it('offers the current onboarding goal and experience choices', async () => {
     await render(
       <MyPageContainer
@@ -827,43 +853,6 @@ describe('MyPageContainer', () => {
     expect(
       screen.queryByRole('header', { name: '주간 운동 횟수 수정' }),
     ).toBeNull();
-  });
-
-  it('saves an optional consent immediately without a save button', async () => {
-    const replaceConsents = jest.fn<Api['replaceConsents']>(async (body) => ({
-      user_id: 'user-1',
-      consents: Object.entries(body).map(([key, granted]) => ({
-        consent_type_code: key.toUpperCase(),
-        granted,
-        policy_version: 'consent-v1',
-        updated_at: '2026-08-19T09:00:00+09:00',
-      })),
-    }));
-
-    await render(
-      <MyPageContainer
-        api={accountApi({ replaceConsents })}
-        me={me()}
-        now={new Date('2026-08-19T03:00:00Z')}
-        onNavigateTab={jest.fn()}
-        onRefreshMe={jest.fn(async () => undefined)}
-        onSignOut={jest.fn()}
-      />,
-    );
-
-    fireEvent.press(await screen.findByText('마케팅 정보 수신'));
-
-    await waitFor(() =>
-      expect(replaceConsents).toHaveBeenCalledWith(
-        expect.objectContaining({
-          general_personal_data: true,
-          sensitive_data: true,
-          wearable_integration: false,
-          marketing: true,
-        }),
-      ),
-    );
-    expect(screen.queryByText('동의 변경 저장')).toBeNull();
   });
 
   it('migrates a legacy attention area to persistent pains when clearing it', async () => {

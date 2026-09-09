@@ -4,11 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { experienceLevelLabel, primaryGoalLabel } from '../../api/labels';
-import type {
-  ConsentValues,
-  MeResponse,
-  ProfileSettingsUpdateRequest,
-} from '../../api/types';
+import type { MeResponse, ProfileSettingsUpdateRequest } from '../../api/types';
 import { Button, Card, InlineFeedback } from '../../components/primitives';
 import {
   EmptyState,
@@ -39,16 +35,12 @@ export const MY_PAGE_LAYOUT = {
 } as const;
 
 type MyPageScreenProps = {
-  consentError?: string | null;
-  consentPending?: boolean;
-  consentValues?: ConsentValues | null;
   deletionDeadline?: string | null;
   joinedDays?: number | null;
   me?: MeResponse;
   onAccountAction?: (label: string) => void;
   onConfirmLogout?: () => void;
   onConfirmWithdraw?: () => void;
-  onConsentChange?: (key: keyof ConsentValues, enabled: boolean) => void;
   onNavigateTab?: (tab: TabId) => void;
   onNotificationChange?: (key: string, enabled: boolean) => void;
   onBasicProfileChange?: (
@@ -57,7 +49,6 @@ type MyPageScreenProps = {
   ) => void;
   onProfileFieldChange?: (body: ProfileSettingsUpdateRequest) => void;
   onRetryProfile?: () => void;
-  onRetryConsents?: () => void;
   persistedSettingsAvailable?: boolean;
   previewState?: MyPagePreviewState;
   profileUpdateError?: string | null;
@@ -76,22 +67,17 @@ export function MyPageScreen({
 }
 
 function MyPageContent({
-  consentError = null,
-  consentPending = false,
-  consentValues = null,
   deletionDeadline = null,
   joinedDays = null,
   me,
   onAccountAction,
   onConfirmLogout,
   onConfirmWithdraw,
-  onConsentChange,
   onNavigateTab,
   onNotificationChange,
   onBasicProfileChange,
   onProfileFieldChange,
   onRetryProfile,
-  onRetryConsents,
   persistedSettingsAvailable = true,
   previewState = 'profile',
   profileUpdateError = null,
@@ -282,44 +268,6 @@ function MyPageContent({
             disabled={!persistedSettingsAvailable}
             onToggle={() => toggleNotification('encouragement')}
           />
-        </View>
-
-        <SectionTitle label="선택 동의 관리" />
-        <View style={styles.rowsCard}>
-          <Text style={styles.consentNote}>
-            필수 동의 항목은 여기에서 변경할 수 없어요.
-          </Text>
-          {consentValues ? (
-            OPTIONAL_CONSENTS.map(({ key, label }) => (
-              <NotificationRow
-                key={key}
-                description=""
-                disabled={consentPending}
-                enabled={consentValues[key]}
-                label={label}
-                onToggle={() => onConsentChange?.(key, !consentValues[key])}
-              />
-            ))
-          ) : consentError ? (
-            <InlineFeedback
-              action={
-                onRetryConsents ? (
-                  <Button
-                    label="다시 시도"
-                    onPress={onRetryConsents}
-                    tone="secondary"
-                  />
-                ) : undefined
-              }
-              message={consentError}
-              tone="error"
-            />
-          ) : (
-            <Text style={styles.consentNote}>동의 정보를 불러오고 있어요…</Text>
-          )}
-          {consentValues && consentError ? (
-            <InlineFeedback message={consentError} tone="error" />
-          ) : null}
         </View>
 
         <SectionTitle compact label="계정 · 앱" />
@@ -519,13 +467,6 @@ function ConfirmationDialog({
   );
 }
 
-const OPTIONAL_CONSENTS = [
-  { key: 'marketing', label: '마케팅 정보 수신' },
-] as const satisfies readonly {
-  key: keyof ConsentValues;
-  label: string;
-}[];
-
 const shadow = {
   shadowColor: '#5A4636',
   shadowOffset: { width: 0, height: 4 },
@@ -632,13 +573,6 @@ const styles = StyleSheet.create({
   },
   feedback: {
     marginTop: 10,
-  },
-  consentNote: {
-    color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
   },
   sectionTitle: {
     marginTop: 16,

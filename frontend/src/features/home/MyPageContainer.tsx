@@ -2,16 +2,8 @@ import { useState } from 'react';
 
 import type { Api } from '../../api/endpoints';
 import { isApiError, messageForError } from '../../api/errors';
-import type {
-  ConsentValues,
-  MeResponse,
-  ProfileSettingsUpdateRequest,
-} from '../../api/types';
-import {
-  localDateString,
-  useAsyncAction,
-  useAsyncData,
-} from '../../api/useAsync';
+import type { MeResponse, ProfileSettingsUpdateRequest } from '../../api/types';
+import { localDateString, useAsyncAction } from '../../api/useAsync';
 import type { TabId } from '../../components/brand/BrandChrome';
 import type { MyPagePreviewState } from './homeSecondaryModel';
 import { MyPageScreen } from './MyPageScreen';
@@ -26,13 +18,6 @@ type MyPageContainerProps = {
   onSignOut: () => void;
   now?: Date;
   previewState?: MyPagePreviewState;
-};
-
-const DEFAULT_CONSENTS: ConsentValues = {
-  general_personal_data: true,
-  sensitive_data: true,
-  wearable_integration: false,
-  marketing: false,
 };
 
 export function MyPageContainer({
@@ -116,22 +101,6 @@ export function MyPageContainer({
     },
   );
 
-  const consents = useAsyncData((signal) => api.getConsents(signal), [api]);
-  const storedConsents =
-    consents.state.status === 'ready'
-      ? consents.state.data.consents.reduce<ConsentValues>(
-          (values, consent) => ({
-            ...values,
-            [consent.consent_type_code.toLowerCase()]: consent.granted,
-          }),
-          DEFAULT_CONSENTS,
-        )
-      : null;
-  const updateConsents = useAsyncAction(async (next: ConsentValues) => {
-    const response = await api.replaceConsents(next);
-    consents.setData(response);
-  });
-
   const requestDeletion = useAsyncAction(async () => {
     const response = await api.requestAccountDeletion();
     setDeletionDeadline(response.operational_data_delete_by);
@@ -159,19 +128,6 @@ export function MyPageContainer({
       }
       onProfileFieldChange={(body) => void updateProfile.run(body)}
       onRetryProfile={() => void onRefreshMe()}
-      consentValues={storedConsents}
-      consentPending={
-        consents.state.status === 'loading' || updateConsents.pending
-      }
-      consentError={
-        updateConsents.error ??
-        (consents.state.status === 'error' ? consents.state.message : null)
-      }
-      onConsentChange={(key, enabled) => {
-        if (storedConsents === null) return;
-        void updateConsents.run({ ...storedConsents, [key]: enabled });
-      }}
-      onRetryConsents={consents.reload}
       deletionDeadline={deletionDeadline}
       withdrawalPending={requestDeletion.pending}
       withdrawalError={requestDeletion.error}

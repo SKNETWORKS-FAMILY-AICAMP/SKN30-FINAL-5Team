@@ -50,6 +50,10 @@ const CONSENT_OPTIONS = {
     label: '서비스 이용약관 동의',
     description: '서비스 지원 범위와 이용 기준을 확인하고 동의해요.',
   },
+  privacy_policy: {
+    label: '개인정보처리방침 확인',
+    description: '개인정보를 어떤 목적으로 처리하고 보관하는지 확인해요.',
+  },
   general_personal_data: {
     label: '개인정보 수집 및 이용',
     description: '입력한 정보를 운동 계획을 만드는 데 활용해요.',
@@ -58,11 +62,10 @@ const CONSENT_OPTIONS = {
     label: '건강 관련 민감정보 처리',
     description: '통증과 컨디션 정보를 안전한 운동 계획을 만드는 데 활용해요.',
   },
-  marketing: {
-    label: '마케팅 정보 수신',
-    description: '새로운 기능과 이벤트 소식을 받아볼 수 있어요.',
-  },
 } as const;
+
+/** Terms, privacy policy, general personal data, sensitive data. */
+const REQUIRED_CONSENT_COUNT = 4;
 
 export const ONBOARDING_STEPS = [
   {
@@ -167,7 +170,7 @@ function OnboardingScreenContent({
   const [generalConsent, setGeneralConsent] = useState(false);
   const [sensitiveConsent, setSensitiveConsent] = useState(false);
   const [termsConsent, setTermsConsent] = useState(false);
-  const [marketingConsent, setMarketingConsent] = useState(false);
+  const [privacyPolicyConsent, setPrivacyPolicyConsent] = useState(false);
   const current = ONBOARDING_STEPS[step - 1] ?? ONBOARDING_STEPS[0];
   const timezone = useMemo(() => {
     try {
@@ -208,7 +211,7 @@ function OnboardingScreenContent({
           general_personal_data: generalConsent,
           sensitive_data: sensitiveConsent,
           wearable_integration: false,
-          marketing: marketingConsent,
+          marketing: false,
         },
       });
     } catch (error) {
@@ -232,6 +235,7 @@ function OnboardingScreenContent({
     attentionAreas,
     painIntensityScores,
     primaryGoalCode,
+    privacyPolicyConsent,
     sensitiveConsent,
     termsConsent,
     weightKg,
@@ -242,7 +246,10 @@ function OnboardingScreenContent({
       submit.lastError.code,
     );
   const missingRequiredConsentCount =
-    Number(!termsConsent) + Number(!generalConsent) + Number(!sensitiveConsent);
+    Number(!termsConsent) +
+    Number(!privacyPolicyConsent) +
+    Number(!generalConsent) +
+    Number(!sensitiveConsent);
 
   const changeStep = (next: number) => {
     const bounded = clampStep(next);
@@ -548,6 +555,13 @@ function OnboardingScreenContent({
                 onPress={() => setTermsConsent((value) => !value)}
               />
               <ConsentRow
+                checked={privacyPolicyConsent}
+                description={CONSENT_OPTIONS.privacy_policy.description}
+                label={CONSENT_OPTIONS.privacy_policy.label}
+                required
+                onPress={() => setPrivacyPolicyConsent((value) => !value)}
+              />
+              <ConsentRow
                 checked={generalConsent}
                 description={CONSENT_OPTIONS.general_personal_data.description}
                 label={CONSENT_OPTIONS.general_personal_data.label}
@@ -560,19 +574,6 @@ function OnboardingScreenContent({
                 label={CONSENT_OPTIONS.sensitive_data.label}
                 required
                 onPress={() => setSensitiveConsent((value) => !value)}
-              />
-            </Card>
-            <Card style={styles.cardGroup}>
-              <Text style={styles.fieldLabel}>선택 동의</Text>
-              <Text style={styles.hint}>
-                선택 항목은 동의하지 않아도 서비스를 이용할 수 있어요.
-              </Text>
-              <ConsentRow
-                checked={marketingConsent}
-                description={CONSENT_OPTIONS.marketing.description}
-                label={CONSENT_OPTIONS.marketing.label}
-                required={false}
-                onPress={() => setMarketingConsent((value) => !value)}
               />
             </Card>
           </View>
@@ -652,12 +653,12 @@ function OnboardingScreenContent({
         ) : current.key === 'consent' && missingRequiredConsentCount > 0 ? (
           <View style={styles.consentReminder}>
             <Text style={styles.consentReminderTitle}>
-              {missingRequiredConsentCount === 3
+              {missingRequiredConsentCount === REQUIRED_CONSENT_COUNT
                 ? '필수 동의 항목을 확인해주세요.'
                 : `필수 동의 항목이 ${missingRequiredConsentCount}개 남았어요.`}
             </Text>
             <Text style={styles.consentReminderDescription}>
-              {missingRequiredConsentCount === 3
+              {missingRequiredConsentCount === REQUIRED_CONSENT_COUNT
                 ? '운동 계획을 만들기 위해 필수 항목의 동의가 필요해요.'
                 : '계속하려면 필수 항목을 확인해주세요.'}
             </Text>
@@ -711,6 +712,7 @@ type FormState = {
   attentionAreas: string[];
   painIntensityScores: Partial<Record<string, number>>;
   generalConsent: boolean;
+  privacyPolicyConsent: boolean;
   sensitiveConsent: boolean;
   termsConsent: boolean;
 };
@@ -749,7 +751,12 @@ function isStepValid(
           }))
       );
     case 'consent':
-      return form.termsConsent && form.generalConsent && form.sensitiveConsent;
+      return (
+        form.termsConsent &&
+        form.privacyPolicyConsent &&
+        form.generalConsent &&
+        form.sensitiveConsent
+      );
     default:
       return true;
   }
