@@ -122,6 +122,8 @@ export function MascotHouseScreen({
   /** The latest house state, readable from an async callback without a stale closure. */
   const liveState = useRef<HouseState | null>(null);
   const serverBalance = useRef(0);
+  /** Serializes wallet mutations so an older response cannot replace a newer balance. */
+  const walletMutationInFlight = useRef(false);
 
   const {
     reload: reloadRemote,
@@ -224,6 +226,20 @@ export function MascotHouseScreen({
     [api],
   );
   const spend = useAsyncAction(spendRequest);
+  const claimGiftRequest = useCallback(() => api.claimDailyReward(), [api]);
+  const claimGift = useAsyncAction(claimGiftRequest);
+  const walletMutationPending = spend.pending || claimGift.pending;
+  const runWalletMutation = async <T,>(
+    request: () => Promise<T | undefined>,
+  ) => {
+    if (walletMutationInFlight.current) return undefined;
+    walletMutationInFlight.current = true;
+    try {
+      return await request();
+    } finally {
+      walletMutationInFlight.current = false;
+    }
+  };
 
   // Arrival: read the stored house once, then record the visit and pay out any
   // workout it has not paid for yet.
@@ -255,7 +271,7 @@ export function MascotHouseScreen({
   }, [houseStore, localDate, persist, sessions]);
 
   const tabBar = (
-    <HomeBottomNavigation compact activeTab="house" onNavigate={onNavigate} />
+    <HomeBottomNavigation activeTab="house" onNavigate={onNavigate} />
   );
 
   if (
@@ -285,18 +301,27 @@ export function MascotHouseScreen({
     );
   }
 
+  const dailyReward = remote.data.wallet?.daily_reward ?? null;
   const view = buildHouseView({
     state: { ...houseState, bananas: walletBalance },
     week: remote.data.week,
     sessions: remote.data.sessions,
     weekStart,
     today: localDate,
+    dailyGift:
+      dailyReward === null
+        ? null
+        : {
+            amount: dailyReward.reward_amount,
+            claimable: dailyReward.is_claimable && !dailyReward.is_claimed,
+          },
   });
 
   return (
     <MascotHouseContent
       actionError={
         spendErrorMessage(spend.lastError, spend.error) ??
+        claimGift.error ??
         (remote.status === 'ready' ? remote.data.walletError : null)
       }
       footer={tabBar}
@@ -307,10 +332,12 @@ export function MascotHouseScreen({
         };
         const next = buyItem(current, itemId);
         if (next === null) return false;
-        const result = await spend.run({
-          action_code: 'PURCHASE_HOUSE_ITEM',
-          house_item_code: itemId,
-        });
+        const result = await runWalletMutation(() =>
+          spend.run({
+            action_code: 'PURCHASE_HOUSE_ITEM',
+            house_item_code: itemId,
+          }),
+        );
         if (!result) return false;
         serverBalance.current = result.balance;
         setRemoteData({
@@ -325,6 +352,25 @@ export function MascotHouseScreen({
         react('happy');
         return true;
       }}
+      giftPending={walletMutationPending}
+      onClaimDailyGift={async () => {
+        // The server owns "once a day": it answers with the same wallet on a
+        // repeat, so nothing here has to remember whether today was paid.
+        const result = await runWalletMutation(() => claimGift.run());
+        if (!result) return false;
+        serverBalance.current = result.balance;
+        setRemoteData({
+          ...remote.data,
+          wallet: {
+            balance: result.balance,
+            daily_reward: result.daily_reward,
+          },
+          walletError: null,
+        });
+        persist(liveState.current ?? houseState);
+        react('happy');
+        return true;
+      }}
       onFeed={async () => {
         const current = {
           ...(liveState.current ?? houseState),
@@ -332,7 +378,9 @@ export function MascotHouseScreen({
         };
         const next = feedMascot(current, localDate);
         if (next === null) return false;
-        const result = await spend.run({ action_code: 'FEED_MASCOT' });
+        const result = await runWalletMutation(() =>
+          spend.run({ action_code: 'FEED_MASCOT' }),
+        );
         if (!result) return false;
         serverBalance.current = result.balance;
         setRemoteData({
@@ -383,7 +431,7 @@ export function MascotHouseScreen({
         (reactionPose === null ? settledArt : reactionArt) ?? undefined
       }
       pose={reactionPose ?? restingPose(view)}
-      spendPending={spend.pending}
+      spendPending={walletMutationPending}
       view={view}
     />
   );

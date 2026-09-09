@@ -61,6 +61,7 @@ import {
   ChevronGlyph,
   ClipboardGlyph,
   FlameGlyph,
+  GiftGlyph,
   HeartGlyph,
   HouseArtView,
   InfoGlyph,
@@ -293,9 +294,17 @@ const HOUSE_PANEL_CONTENT_HEIGHT = 150;
 
 export const HOUSE_ACTION_EFFECT_MS = 900;
 
+/**
+ * The gift's `+15` is read, not just felt, so it holds longer than a spend.
+ */
+export const HOUSE_GIFT_EFFECT_MS = 1600;
+
 type HouseActionEffect = {
   id: number;
   amount: number;
+  /** A gain reads `+`; everything else is a deduction. */
+  gain?: boolean;
+  durationMs: number;
   mascotEffect?: 'banana' | 'sparkle';
 };
 
@@ -316,6 +325,13 @@ function houseControlStyles(controlScale: number) {
       paddingVertical: scaled(9),
     },
     chipValue: { fontSize: scaled(13) },
+    giftCard: {
+      top: scaled(-8),
+      right: scaled(-12),
+      width: scaled(30),
+      height: scaled(30),
+      borderRadius: scaled(10),
+    },
     streakChip: {
       gap: scaled(5),
       paddingHorizontal: scaled(10),
@@ -561,12 +577,14 @@ export function MascotHouseContent({
   actionError,
   footer,
   onBuyItem,
+  onClaimDailyGift,
   onFeed,
   onOpenRewards,
   onPet,
   onPlayGame,
   onPlaceItem,
   onSelectBackground,
+  giftPending = false,
   mascotArt,
   pose,
   spendPending = false,
@@ -576,12 +594,15 @@ export function MascotHouseContent({
   /** The tab bar, rendered inside the backdrop so the scene runs behind it. */
   footer?: ReactNode;
   onBuyItem: (itemId: HouseItemId) => boolean | Promise<boolean>;
+  /** Claims today's server-paid gift; `false` when nothing was claimed. */
+  onClaimDailyGift: () => boolean | Promise<boolean>;
   onFeed: () => boolean | Promise<boolean>;
   onOpenRewards: () => void;
   onPet: () => boolean;
   onPlayGame: (gameId: HouseMiniGameId) => void;
   onPlaceItem: (itemId: HouseItemId, placement: HouseItemPlacement) => void;
   onSelectBackground: (backgroundId: HouseBackgroundId) => void;
+  giftPending?: boolean;
   mascotArt?: HouseArtSlot;
   pose: HousePose;
   spendPending?: boolean;
@@ -603,6 +624,8 @@ export function MascotHouseContent({
   const questing = activePanel === 'quests';
   const openQuests = () => setActivePanel('quests');
   const overlayOpen = activePanel !== null;
+  /** Today's gift is open only while the server still owes it. */
+  const giftOpen = view.dailyGiftClaimable && !giftPending;
   const [measuredViewport, setMeasuredViewport] = useState<{
     width: number;
     height: number;
@@ -645,17 +668,20 @@ export function MascotHouseContent({
 
   const showActionEffect = (effect: {
     amount: number;
+    gain?: boolean;
+    durationMs?: number;
     mascotEffect?: 'banana' | 'sparkle';
   }) => {
     actionEffectId.current += 1;
-    setActionEffect({ ...effect, id: actionEffectId.current });
+    const durationMs = effect.durationMs ?? HOUSE_ACTION_EFFECT_MS;
+    setActionEffect({ ...effect, durationMs, id: actionEffectId.current });
     if (actionEffectTimer.current !== null) {
       clearTimeout(actionEffectTimer.current);
     }
     actionEffectTimer.current = setTimeout(() => {
       setActionEffect(null);
       actionEffectTimer.current = null;
-    }, HOUSE_ACTION_EFFECT_MS);
+    }, durationMs);
   };
   const viewport = measuredViewport ?? scaleViewport;
   const controlScale = getContainedInterfaceScale(
@@ -825,29 +851,63 @@ export function MascotHouseContent({
               style={[styles.railLeft, compactStyles.rail]}
               testID="house-top-left-controls"
             >
-              <View
-                accessible
-                accessibilityLabel={`바나나 ${view.bananas}개 보유`}
-                style={[styles.chip, compactStyles.chip]}
-                testID="house-banana-count"
-              >
-                <BananaGlyph size={40 * controlScale} />
-                <Text style={[styles.chipValue, compactStyles.chipValue]}>
-                  {view.bananas}개
-                </Text>
-                <Pressable
-                  accessibilityLabel="바나나 지갑 보기"
-                  accessibilityRole="button"
-                  onPress={() => {
-                    setActivePanel(null);
-                    onOpenRewards();
-                  }}
-                  style={[styles.chipPlus, { marginLeft: spacing.xs }]}
-                  testID="house-banana-earn-action"
+              <View style={styles.bananaAnchor}>
+                <View
+                  accessible
+                  accessibilityLabel={`바나나 ${view.bananas}개 보유`}
+                  style={[styles.chip, compactStyles.chip]}
+                  testID="house-banana-count"
                 >
-                  <PlusGlyph size={12 * controlScale} />
-                </Pressable>
-                <SpendActionEffectOverlay effect={actionEffect} />
+                  <BananaGlyph size={40 * controlScale} />
+                  <Text style={[styles.chipValue, compactStyles.chipValue]}>
+                    {view.bananas}개
+                  </Text>
+                  <Pressable
+                    accessibilityLabel="바나나 지갑 보기"
+                    accessibilityRole="button"
+                    onPress={() => {
+                      setActivePanel(null);
+                      onOpenRewards();
+                    }}
+                    style={[styles.chipPlus, { marginLeft: spacing.xs }]}
+                    testID="house-banana-earn-action"
+                  >
+                    <PlusGlyph size={12 * controlScale} />
+                  </Pressable>
+                  <SpendActionEffectOverlay effect={actionEffect} />
+                </View>
+
+                {/* 오늘의 선물, on the banana card's top-right corner. The
+                    server owns "once a day", so a claimed gift is simply gone
+                    for the day: no closed box, no warning colour, no retry.
+                    The `+15` floats over the count in its place. */}
+                {view.dailyGiftClaimable ? (
+                  <Pressable
+                    accessibilityLabel={`오늘의 선물, 바나나 ${view.dailyGiftAmount}개 받기`}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: !giftOpen }}
+                    disabled={!giftOpen}
+                    hitSlop={10}
+                    onPress={() => {
+                      void Promise.resolve(onClaimDailyGift()).then(
+                        (claimed) => {
+                          if (claimed) {
+                            showActionEffect({
+                              amount: view.dailyGiftAmount,
+                              gain: true,
+                              durationMs: HOUSE_GIFT_EFFECT_MS,
+                              mascotEffect: 'sparkle',
+                            });
+                          }
+                        },
+                      );
+                    }}
+                    style={[styles.giftCard, compactStyles.giftCard]}
+                    testID="house-daily-gift"
+                  >
+                    <GiftGlyph size={18 * controlScale} />
+                  </Pressable>
+                ) : null}
               </View>
               {actionError ? (
                 <Text accessibilityRole="alert" style={styles.walletError}>
@@ -1662,6 +1722,7 @@ function QuestPanel({
 }) {
   const compactStyles = houseControlStyles(controlScale);
   const [tab, setTab] = useState<'daily' | 'weekly'>('daily');
+  const title = tab === 'weekly' ? '주간 퀘스트' : '오늘의 퀘스트';
 
   return (
     <View
@@ -1675,10 +1736,10 @@ function QuestPanel({
     >
       <View style={styles.decorateHeader}>
         <View style={styles.decorateHeading}>
-          <Text style={styles.weekTitle}>오늘의 퀘스트</Text>
+          <Text style={styles.weekTitle}>{title}</Text>
         </View>
         <Pressable
-          accessibilityLabel="오늘의 퀘스트 닫기"
+          accessibilityLabel={`${title} 닫기`}
           accessibilityRole="button"
           onPress={onClose}
           style={styles.closeButton}
@@ -1800,13 +1861,17 @@ function QuestRow({
     progress !== null && target !== null
       ? `${progress} / ${target}${done ? ', 완료' : ''}`
       : '진행 정보 없음';
+  const rewardLabel =
+    quest.reward === null
+      ? '보상 준비 중'
+      : quest.reward === undefined
+        ? null
+        : `바나나 ${quest.reward}개`;
 
   return (
     <View
       accessible
-      accessibilityLabel={`${quest.label}, ${progressLabel}${
-        quest.reward === undefined ? '' : `, 바나나 ${quest.reward}개`
-      }`}
+      accessibilityLabel={`${quest.label}, ${progressLabel}${rewardLabel ? `, ${rewardLabel}` : ''}`}
       style={styles.questRow}
       testID={testID ?? `house-quest-row-${quest.id}`}
     >
@@ -1825,8 +1890,15 @@ function QuestRow({
       </Text>
       {quest.reward !== undefined ? (
         <View style={styles.questReward}>
-          <Text style={styles.questRewardLabel}>+{quest.reward}</Text>
-          <BananaGlyph size={16} />
+          <Text
+            style={[
+              styles.questRewardLabel,
+              quest.reward === null && styles.questRewardPendingLabel,
+            ]}
+          >
+            {quest.reward === null ? '보상 준비 중' : `+${quest.reward}`}
+          </Text>
+          {quest.reward === null ? null : <BananaGlyph size={16} />}
         </View>
       ) : null}
     </View>
@@ -2019,11 +2091,13 @@ function DecoratePanel({
 
 function FloatingActionEffect({
   children,
+  durationMs = HOUSE_ACTION_EFFECT_MS,
   effectId,
   style,
   testID,
 }: {
   children: ReactNode;
+  durationMs?: number;
   effectId: number;
   style: object;
   testID: string;
@@ -2033,13 +2107,13 @@ function FloatingActionEffect({
   useEffect(() => {
     progress.setValue(0);
     const animation = Animated.timing(progress, {
-      duration: HOUSE_ACTION_EFFECT_MS,
+      duration: durationMs,
       toValue: 1,
       useNativeDriver: true,
     });
     animation.start();
     return () => animation.stop();
-  }, [effectId, progress]);
+  }, [durationMs, effectId, progress]);
 
   return (
     <Animated.View
@@ -2083,20 +2157,23 @@ function SpendActionEffectOverlay({
   // Petting spends nothing, so it gets the sparkle on the mascot and no
   // deduction chip on the banana count.
   if (effect === null || effect.amount <= 0) return null;
+  const gain = effect.gain === true;
 
   return (
     <FloatingActionEffect
+      durationMs={effect.durationMs}
       effectId={effect.id}
       style={styles.spendActionEffect}
-      testID="house-action-effect-spend"
+      testID={gain ? 'house-action-effect-gain' : 'house-action-effect-spend'}
     >
-      <View style={styles.spendEffect}>
+      <View style={[styles.spendEffect, gain && styles.gainEffect]}>
         <BananaGlyph size={18} />
         <Text
-          style={styles.spendEffectLabel}
+          style={[styles.spendEffectLabel, gain && styles.gainEffectLabel]}
           testID="house-action-effect-amount"
         >
-          -{effect.amount}
+          {gain ? '+' : '-'}
+          {effect.amount}
         </Text>
       </View>
     </FloatingActionEffect>
@@ -2112,6 +2189,7 @@ function MascotActionEffectOverlay({
 
   return (
     <FloatingActionEffect
+      durationMs={effect.durationMs}
       effectId={effect.id}
       style={styles.mascotActionEffect}
       testID={`house-mascot-effect-${effect.mascotEffect}`}
@@ -2392,6 +2470,31 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
+  bananaAnchor: {
+    position: 'relative',
+    alignSelf: 'flex-start',
+  },
+  /**
+   * Overlaps the banana card's top-right corner on purpose: it keeps the left
+   * rail as narrow as the card itself, so the gift never reaches the intimacy
+   * chip in the middle. `hitSlop` carries the touch target the 30px box does
+   * not.
+   */
+  giftCard: {
+    position: 'absolute',
+    top: -8,
+    right: -12,
+    zIndex: 3,
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    ...shadows.card,
+  },
   walletError: {
     maxWidth: 180,
     color: colors.danger,
@@ -2647,6 +2750,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '900',
   },
+  questRewardPendingLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '700',
+  },
   questFootnote: {
     color: colors.textMuted,
     fontSize: 11,
@@ -2819,6 +2927,14 @@ const styles = StyleSheet.create({
     top: '18%',
     zIndex: 4,
     alignSelf: 'center',
+  },
+  gainEffect: {
+    borderWidth: 1,
+    borderColor: colors.successBorder,
+    backgroundColor: colors.successSurface,
+  },
+  gainEffectLabel: {
+    color: colors.greenText,
   },
   spendEffect: {
     flexDirection: 'row',

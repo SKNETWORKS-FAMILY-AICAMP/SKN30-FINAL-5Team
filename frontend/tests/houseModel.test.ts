@@ -338,12 +338,25 @@ describe('house view', () => {
     });
 
     expect(view.weeklyQuests).toEqual([
-      { id: 'visit', label: '주 4회 방문', progress: 4, target: 4 },
-      { id: 'report', label: '주간 리포트 확인', progress: 1, target: 1 },
+      {
+        id: 'visit',
+        label: '주 4회 앱 접속',
+        progress: null,
+        reward: null,
+        target: 4,
+      },
+      {
+        id: 'report',
+        label: '주간 리포트 확인',
+        progress: 1,
+        reward: null,
+        target: 1,
+      },
       {
         id: 'workout_goal',
         label: '운동 목표 달성',
         progress: 3,
+        reward: null,
         target: 3,
       },
     ]);
@@ -378,17 +391,25 @@ describe('house view', () => {
     expect(view.weekTargetCount).toBeNull();
     expect(view.weekProgress).toBeNull();
     expect(view.weeklyQuests).toEqual([
-      { id: 'visit', label: '주 4회 방문', progress: 0, target: 4 },
+      {
+        id: 'visit',
+        label: '주 4회 앱 접속',
+        progress: null,
+        reward: null,
+        target: 4,
+      },
       {
         id: 'report',
         label: '주간 리포트 확인',
         progress: null,
+        reward: null,
         target: null,
       },
       {
         id: 'workout_goal',
         label: '운동 목표 달성',
         progress: null,
+        reward: null,
         target: null,
       },
     ]);

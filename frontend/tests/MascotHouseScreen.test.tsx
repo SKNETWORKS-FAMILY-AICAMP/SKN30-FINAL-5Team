@@ -27,6 +27,7 @@ import { colors, spacing } from '../src/components/theme';
 import {
   HOUSE_ACTION_EFFECT_MS,
   HOUSE_BACKDROP_ZOOM,
+  HOUSE_GIFT_EFFECT_MS,
   HOUSE_MASCOT_SIZE,
   houseBottomPanelTop,
   houseBackdropContinuationTop,
@@ -103,6 +104,26 @@ function completedSession(
   };
 }
 
+function claimedGift() {
+  return {
+    local_date: '2026-08-18',
+    reward_amount: 15,
+    is_claimable: false,
+    is_claimed: true,
+    claimed_at: '2026-08-18T09:00:00+09:00',
+  } as const;
+}
+
+function giftTransaction(balanceAfter: number) {
+  return {
+    transaction_id: 'transaction-daily-reward',
+    transaction_type: 'DAILY_REWARD',
+    amount: 15,
+    balance_after: balanceAfter,
+    created_at: '2026-08-18T09:00:00+09:00',
+  } as const;
+}
+
 function houseApi({
   rewardBalance,
   rewardError,
@@ -116,6 +137,7 @@ function houseApi({
   spendError?: Error;
   weekError?: boolean;
 } = {}) {
+  let giftClaimed = false;
   let balance =
     rewardBalance ??
     DAILY_GIFT_BANANAS +
@@ -144,16 +166,33 @@ function houseApi({
       if (rewardError) throw rewardError;
       return {
         balance,
-        daily_reward: {
-          local_date: '2026-08-18',
-          reward_amount: 15,
-          is_claimable: true,
-          is_claimed: false,
-          claimed_at: null,
-        },
+        daily_reward: giftClaimed
+          ? claimedGift()
+          : {
+              local_date: '2026-08-18',
+              reward_amount: 15,
+              is_claimable: true,
+              is_claimed: false,
+              claimed_at: null,
+            },
       };
     }),
-    claimDailyReward: jest.fn(),
+    claimDailyReward: jest.fn(async () => {
+      if (giftClaimed) {
+        return {
+          balance,
+          daily_reward: claimedGift(),
+          transaction: giftTransaction(balance),
+        };
+      }
+      giftClaimed = true;
+      balance += 15;
+      return {
+        balance,
+        daily_reward: claimedGift(),
+        transaction: giftTransaction(balance),
+      };
+    }),
     spendBananas: jest.fn(async (body: BananaSpendRequest) => {
       if (spendError) throw spendError;
       const cost =
@@ -295,12 +334,13 @@ describe('MascotHouseScreen', () => {
     ).toBeTruthy();
   });
 
-  it('pays the visit quest on arrival instead of offering a gift to claim', async () => {
+  it('marks the daily visit quest while keeping the server gift separate', async () => {
     renderHouse(houseApi({ sessions: [] }));
 
     await screen.findByTestId('house-scene');
 
     expect(screen.queryByTestId('house-gift-button')).toBeNull();
+    expect(screen.getByTestId('house-daily-gift')).toBeTruthy();
     await waitFor(() =>
       expect(screen.getByText(`${DAILY_GIFT_BANANAS}개`)).toBeTruthy(),
     );
@@ -328,18 +368,134 @@ describe('MascotHouseScreen', () => {
 
     expect(screen.getByTestId('house-weekly-quest-row-visit')).toHaveProp(
       'accessibilityLabel',
-      '주 4회 방문, 1 / 4',
+      '주 4회 앱 접속, 진행 정보 없음, 보상 준비 중',
     );
     expect(screen.getByTestId('house-weekly-quest-row-report')).toHaveProp(
       'accessibilityLabel',
-      '주간 리포트 확인, 0 / 1',
+      '주간 리포트 확인, 0 / 1, 보상 준비 중',
     );
     expect(
       screen.getByTestId('house-weekly-quest-row-workout_goal'),
-    ).toHaveProp('accessibilityLabel', '운동 목표 달성, 1 / 3');
+    ).toHaveProp('accessibilityLabel', '운동 목표 달성, 1 / 3, 보상 준비 중');
+    const weeklyList = within(screen.getByTestId('house-weekly-quest-list'));
+    expect(weeklyList.getAllByText('보상 준비 중')).toHaveLength(3);
+    expect(weeklyList.queryByText(/^\+/)).toBeNull();
+  });
+
+  it('names the weekly tab 주간 퀘스트 while it is open', async () => {
+    renderHouse(houseApi());
+
+    await screen.findByTestId('house-scene');
+    fireEvent.press(screen.getByTestId('house-quest-tile'));
+    expect(screen.getByText('오늘의 퀘스트')).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId('house-quest-tab-weekly'));
+    expect(screen.getByText('주간 퀘스트')).toBeTruthy();
+    expect(screen.queryByText('오늘의 퀘스트')).toBeNull();
+
+    fireEvent.press(screen.getByTestId('house-quest-tab-daily'));
+    expect(screen.getByText('오늘의 퀘스트')).toBeTruthy();
+  });
+
+  it('claims today’s gift from the house and closes it afterwards', async () => {
+    const api = houseApi({ sessions: [] });
+    renderHouse(api);
+
+    await screen.findByTestId('house-scene');
+    await waitFor(() =>
+      expect(screen.getByText(`${DAILY_GIFT_BANANAS}개`)).toBeTruthy(),
+    );
+
+    const gift = screen.getByTestId('house-daily-gift');
+    expect(gift).toHaveProp(
+      'accessibilityLabel',
+      `오늘의 선물, 바나나 ${DAILY_GIFT_BANANAS}개 받기`,
+    );
+    fireEvent.press(gift);
+
+    await waitFor(() =>
+      expect(
+        screen.getByLabelText(`바나나 ${DAILY_GIFT_BANANAS * 2}개 보유`),
+      ).toBeTruthy(),
+    );
+    expect(api.claimDailyReward).toHaveBeenCalledTimes(1);
+    // The claimed gift is gone for the day, and the count says what arrived.
+    expect(screen.queryByTestId('house-daily-gift')).toBeNull();
     expect(
-      within(screen.getByTestId('house-weekly-quest-list')).queryByText(/^\+/),
-    ).toBeNull();
+      within(screen.getByTestId('house-banana-count')).getByTestId(
+        'house-action-effect-amount',
+        { includeHiddenElements: true },
+      ).props.children,
+    ).toEqual(['+', DAILY_GIFT_BANANAS]);
+  });
+
+  it('serializes the daily gift and banana spending mutations', async () => {
+    const api = houseApi({ sessions: [] });
+    let resolveClaim!: (value: {
+      balance: number;
+      daily_reward: ReturnType<typeof claimedGift>;
+      transaction: ReturnType<typeof giftTransaction>;
+    }) => void;
+    jest.mocked(api.claimDailyReward).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveClaim = resolve;
+        }),
+    );
+    renderHouse(api);
+
+    await screen.findByTestId('house-daily-gift');
+    fireEvent.press(screen.getByTestId('house-daily-gift'));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('house-feed-action')).toBeDisabled(),
+    );
+    fireEvent.press(screen.getByTestId('house-feed-action'));
+    expect(api.spendBananas).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveClaim({
+        balance: DAILY_GIFT_BANANAS * 2,
+        daily_reward: claimedGift(),
+        transaction: giftTransaction(DAILY_GIFT_BANANAS * 2),
+      });
+    });
+    expect(screen.getByTestId('house-feed-action')).toBeEnabled();
+  });
+
+  it('holds the gift’s +15 for a beat and then clears it', async () => {
+    jest.useFakeTimers();
+    try {
+      renderHouse(houseApi({ sessions: [] }));
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+      fireEvent.press(screen.getByTestId('house-daily-gift'));
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(
+        screen.getByTestId('house-action-effect-gain', {
+          includeHiddenElements: true,
+        }),
+      ).toBeTruthy();
+      act(() => jest.advanceTimersByTime(HOUSE_GIFT_EFFECT_MS - 1));
+      expect(
+        screen.queryByTestId('house-action-effect-gain', {
+          includeHiddenElements: true,
+        }),
+      ).toBeTruthy();
+      act(() => jest.advanceTimersByTime(1));
+      expect(
+        screen.queryByTestId('house-action-effect-gain', {
+          includeHiddenElements: true,
+        }),
+      ).toBeNull();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('keeps both quest tabs at the height of the intimacy bonus area', async () => {
@@ -540,7 +696,7 @@ describe('MascotHouseScreen', () => {
     expect(screen.getByTestId('house-intimacy-bonus')).toBeTruthy();
   });
 
-  it('shrinks buttons, cards, and navigation together on a short viewport', async () => {
+  it('shrinks house controls while keeping the shared navigation fixed', async () => {
     renderHouse(houseApi(), createMemoryHouseStore(), {
       width: 390,
       height: 620,
@@ -560,13 +716,17 @@ describe('MascotHouseScreen', () => {
       padding: 12 * compactScale,
     });
     expect(screen.getByTestId('bottom-navigation')).toHaveStyle({
-      paddingTop: 8 * compactScale,
-      paddingHorizontal: 14 * compactScale,
-      paddingBottom: 26 * compactScale,
+      paddingTop: 8,
+      paddingHorizontal: 14,
+      paddingBottom: 26,
     });
     expect(screen.getByTestId('bottom-navigation-tabs')).toHaveStyle({
-      paddingVertical: 10 * compactScale,
-      paddingHorizontal: 6 * compactScale,
+      paddingVertical: 10,
+      paddingHorizontal: 6,
+    });
+    expect(screen.getByRole('tab', { name: '홈' })).toHaveStyle({
+      minHeight: 48,
+      paddingVertical: 6,
     });
   });
 

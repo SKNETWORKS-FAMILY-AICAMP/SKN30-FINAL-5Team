@@ -84,8 +84,11 @@ export type HouseWeeklyQuest = {
   label: string;
   /** `null` means that the server-backed weekly state is unavailable. */
   progress: number | null;
-  /** Weekly rewards are not displayed until the server owns their payout. */
-  reward?: never;
+  /**
+   * `null` until the backend owns and returns the reviewed reward policy.
+   * The client must not invent an amount or add it to `bananas`.
+   */
+  reward: number | null;
   target: number | null;
 };
 
@@ -566,6 +569,14 @@ export function selectBackground(
 
 export type HouseView = {
   bananas: number;
+  /** Bananas the server pays for today's gift, once a day. */
+  dailyGiftAmount: number;
+  /**
+   * Whether today's gift is still waiting on the server. `false` also covers
+   * "not known yet": the wallet failing to load leaves the gift closed rather
+   * than promising a banana the server may already have paid.
+   */
+  dailyGiftClaimable: boolean;
   selectedBackgroundId: HouseBackgroundId;
   /** `null` when the week could not be read; the screen says so rather than guessing. */
   weekTargetCount: number | null;
@@ -604,12 +615,15 @@ export function buildHouseView({
   sessions,
   weekStart,
   today,
+  dailyGift = null,
 }: {
   state: HouseState;
   week: WeekResponse | null;
   sessions: readonly WorkoutSessionLogSummary[];
   weekStart: string;
   today: string;
+  /** The server's daily reward status; `null` while it is unknown. */
+  dailyGift?: { amount: number; claimable: boolean } | null;
 }): HouseView {
   const completedDates = sessions
     .filter((session) => session.status_code === 'COMPLETED')
@@ -618,14 +632,14 @@ export function buildHouseView({
     (date) => date >= weekStart && date <= today,
   ).length;
   const target = week === null ? null : week.target_workout_count;
-  const weeklyVisitCount = state.visitedLocalDates.filter(
-    (date) => date >= weekStart && date <= today,
-  ).length;
   const weeklyQuests: readonly HouseWeeklyQuest[] = [
     {
       id: 'visit',
-      label: '주 4회 방문',
-      progress: Math.min(weeklyVisitCount, HOUSE_WEEKLY_VISIT_TARGET),
+      label: '주 4회 앱 접속',
+      // House visits are device-local and are not evidence of an app visit.
+      // Keep this unknown until the backend supplies an app-visit count.
+      progress: null,
+      reward: null,
       target: HOUSE_WEEKLY_VISIT_TARGET,
     },
     {
@@ -637,12 +651,14 @@ export function buildHouseView({
           : week.report_status_code === 'ACKNOWLEDGED'
             ? 1
             : 0,
+      reward: null,
       target: week === null ? null : 1,
     },
     {
       id: 'workout_goal',
       label: '운동 목표 달성',
       progress: target === null ? null : Math.min(weekCompletedCount, target),
+      reward: null,
       target,
     },
   ];
@@ -662,6 +678,8 @@ export function buildHouseView({
 
   return {
     bananas: state.bananas,
+    dailyGiftAmount: dailyGift?.amount ?? DAILY_GIFT_BANANAS,
+    dailyGiftClaimable: dailyGift?.claimable ?? false,
     selectedBackgroundId: state.selectedBackgroundId,
     weekTargetCount: target,
     weekCompletedCount,
