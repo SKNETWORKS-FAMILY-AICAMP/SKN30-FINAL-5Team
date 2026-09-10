@@ -125,6 +125,25 @@ export function moveWorkoutPlanItem(
 }
 
 /**
+ * One set's work, in seconds.
+ *
+ * `work_seconds` is the item total across every set. Reading it as the per-set
+ * figure showed a 2 x 30s plank as "2세트 x 1분", and it is also the number a
+ * duration edit replaces, so it has to be the per-set one. The server now sends
+ * it; the division is the fallback for a plan stored before it did, and it is
+ * exact because the total was written as sets x per-set.
+ */
+export function planItemWorkSecondsPerSet(item: WorkoutPlanItem): number {
+  if (
+    item.work_seconds_per_set !== undefined &&
+    item.work_seconds_per_set !== null
+  ) {
+    return item.work_seconds_per_set;
+  }
+  return item.sets > 0 ? Math.round(item.work_seconds / item.sets) : 0;
+}
+
+/**
  * Apply the user's set and repetition edits to the plan the whole app reads,
  * so the routine card and the running workout cannot disagree about what was
  * prescribed. Edits for unknown items are ignored.
@@ -140,14 +159,28 @@ export function applyPlanItemPrescriptions(
   let changed = false;
   const items = plan.items.map((item) => {
     const edit = byId.get(item.plan_item_id);
+    if (edit === undefined) {
+      return item;
+    }
+    const workSecondsPerSet =
+      edit.workSecondsPerSet ?? planItemWorkSecondsPerSet(item);
     if (
-      edit === undefined ||
-      (edit.sets === item.sets && edit.reps === item.reps)
+      edit.sets === item.sets &&
+      edit.reps === item.reps &&
+      workSecondsPerSet === planItemWorkSecondsPerSet(item)
     ) {
       return item;
     }
     changed = true;
-    return { ...item, sets: edit.sets, reps: edit.reps };
+    return {
+      ...item,
+      sets: edit.sets,
+      reps: edit.reps,
+      work_seconds_per_set: workSecondsPerSet,
+      // Kept consistent with the per-set figure so the optimistic plan totals
+      // the same way the server's answer will.
+      work_seconds: edit.sets * workSecondsPerSet,
+    };
   });
   return changed ? { ...plan, items } : plan;
 }

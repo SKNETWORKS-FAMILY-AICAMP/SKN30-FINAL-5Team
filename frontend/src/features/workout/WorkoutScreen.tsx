@@ -32,6 +32,7 @@ import type {
 } from '../../api/types';
 import {
   orderedWorkoutPlanItems,
+  planItemWorkSecondsPerSet,
   routineTitleFromPlan,
 } from '../../api/workoutPlan';
 import { imageAssets } from '../../assets';
@@ -291,7 +292,8 @@ function WorkoutScreenContent({
       meta: formatExercisePrescription({
         reps: item.reps,
         sets: item.sets,
-        workSeconds: item.work_seconds,
+        // Per set, not the item total: the label reads "N세트 × ...".
+        workSeconds: planItemWorkSecondsPerSet(item),
       }),
       tips: [],
       status: 'PENDING',

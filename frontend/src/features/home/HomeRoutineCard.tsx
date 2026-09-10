@@ -72,7 +72,7 @@ export function RoutineCard({
   onEdit?: () => void;
   onChangePrescription: (
     id: string,
-    patch: Pick<Partial<HomeRoutineItem>, 'sets' | 'reps'>,
+    patch: Pick<Partial<HomeRoutineItem>, 'sets' | 'reps' | 'workSeconds'>,
   ) => void;
   onMove?: (from: number, to: number) => void;
   onOpenExerciseGuide?: (item: HomeRoutineItem) => void;
@@ -325,30 +325,67 @@ export function RoutineCard({
                     >
                       ×
                     </Text>
-                    <TextInput
-                      accessibilityLabel={`${item.name} 반복 횟수`}
-                      inputMode="numeric"
-                      onChangeText={(reps) =>
-                        onChangePrescription(item.id, {
-                          reps: digitsOnly(reps),
-                        })
-                      }
-                      placeholder={item.workSeconds ? '시간' : '0'}
-                      placeholderTextColor="#B8AA9E"
-                      style={[
-                        styles.inlinePrescriptionInput,
-                        styles.inlinePrescriptionInputEditing,
-                      ]}
-                      value={item.reps ?? ''}
-                    />
-                    <Text
-                      style={[
-                        styles.inlinePrescriptionUnit,
-                        styles.inlinePrescriptionUnitEditing,
-                      ]}
-                    >
-                      회
-                    </Text>
+                    {/*
+                      Which number the item is measured in decides the field.
+                      Both used to be the repetition input, so editing a
+                      time-based block sent a duration as `reps` -- refused by
+                      the server, and the failed edit blocked starting.
+                    */}
+                    {item.workSeconds === undefined ? (
+                      <>
+                        <TextInput
+                          accessibilityLabel={`${item.name} 반복 횟수`}
+                          inputMode="numeric"
+                          onChangeText={(reps) =>
+                            onChangePrescription(item.id, {
+                              reps: digitsOnly(reps),
+                            })
+                          }
+                          placeholder="0"
+                          placeholderTextColor="#B8AA9E"
+                          style={[
+                            styles.inlinePrescriptionInput,
+                            styles.inlinePrescriptionInputEditing,
+                          ]}
+                          value={item.reps ?? ''}
+                        />
+                        <Text
+                          style={[
+                            styles.inlinePrescriptionUnit,
+                            styles.inlinePrescriptionUnitEditing,
+                          ]}
+                        >
+                          회
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <TextInput
+                          accessibilityLabel={`${item.name} 세트당 시간(초)`}
+                          inputMode="numeric"
+                          onChangeText={(seconds) =>
+                            onChangePrescription(item.id, {
+                              workSeconds: digitsOnly(seconds),
+                            })
+                          }
+                          placeholder="0"
+                          placeholderTextColor="#B8AA9E"
+                          style={[
+                            styles.inlinePrescriptionInput,
+                            styles.inlinePrescriptionInputEditing,
+                          ]}
+                          value={item.workSeconds}
+                        />
+                        <Text
+                          style={[
+                            styles.inlinePrescriptionUnit,
+                            styles.inlinePrescriptionUnitEditing,
+                          ]}
+                        >
+                          초
+                        </Text>
+                      </>
+                    )}
                   </View>
                 ) : (
                   <Text

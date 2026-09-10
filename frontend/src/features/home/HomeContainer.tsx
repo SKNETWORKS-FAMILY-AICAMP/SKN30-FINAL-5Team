@@ -48,6 +48,7 @@ import {
   applyPlanItemPrescriptions,
   moveWorkoutPlanItem,
   planItemOrderRequest,
+  planItemWorkSecondsPerSet,
   workoutPlanRevision,
 } from '../../api/workoutPlan';
 import {
@@ -817,6 +818,7 @@ export function HomeContainer({
         plan_item_id: override.planItemId,
         sets: override.sets,
         reps: override.reps,
+        workSecondsPerSet: override.workSecondsPerSet,
       }));
       if (prescriptions.length === 0) {
         return;
@@ -825,14 +827,29 @@ export function HomeContainer({
       if (!decision || !current) {
         return;
       }
-      const changed = prescriptions.filter((edit) => {
+      const changed = prescriptions.flatMap((edit) => {
         const item = current.items.find(
           (candidate) => candidate.plan_item_id === edit.plan_item_id,
         );
-        return (
-          item !== undefined &&
-          (item.sets !== edit.sets || item.reps !== edit.reps)
-        );
+        if (item === undefined) {
+          return [];
+        }
+        // Only when the user actually retyped it. A sets-only edit leaves the
+        // duration to the server, which resolves it from the reviewed catalog
+        // rather than trusting a figure this screen derived.
+        const editedWorkSeconds =
+          edit.workSecondsPerSet !== null &&
+          edit.workSecondsPerSet !== planItemWorkSecondsPerSet(item)
+            ? edit.workSecondsPerSet
+            : null;
+        if (
+          item.sets === edit.sets &&
+          item.reps === edit.reps &&
+          editedWorkSeconds === null
+        ) {
+          return [];
+        }
+        return [{ ...edit, workSecondsPerSet: editedWorkSeconds }];
       });
       const plan = applyPlanItemPrescriptions(current, changed);
       if (changed.length === 0 || plan === current) {
@@ -854,6 +871,11 @@ export function HomeContainer({
                 expected_plan_revision: workoutPlanRevision(serverPlan),
                 sets: edit.sets,
                 reps: edit.reps,
+                // Sent only for an item measured in time; the server refuses it
+                // on a repetition-based one, whose per-set work it derives.
+                ...(edit.workSecondsPerSet === null
+                  ? {}
+                  : { work_seconds_per_set: edit.workSecondsPerSet }),
               },
               idempotencyKeys[index],
             );

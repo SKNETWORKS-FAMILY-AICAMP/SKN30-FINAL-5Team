@@ -5,6 +5,7 @@ import {
   moveWorkoutPlanItem,
   orderedWorkoutPlanItems,
   planItemOrderRequest,
+  planItemWorkSecondsPerSet,
   routineTitleFromDay,
   routineTitleFromPlan,
   workoutPlanRevision,
@@ -209,5 +210,76 @@ describe('user prescription edits', () => {
 
   it('treats a historical plan without a revision as revision zero', () => {
     expect(workoutPlanRevision(plan())).toBe(0);
+  });
+});
+
+describe('planItemWorkSecondsPerSet', () => {
+  const base = plan().items[0]!;
+
+  it('uses the per-set figure the server sends', () => {
+    expect(
+      planItemWorkSecondsPerSet({
+        ...base,
+        sets: 2,
+        work_seconds: 60,
+        work_seconds_per_set: 30,
+      }),
+    ).toBe(30);
+  });
+
+  it('divides the item total for a plan stored before the field existed', () => {
+    // `work_seconds` is the total across sets. Reading it directly showed a
+    // 2 x 30s block as "2세트 × 1분", and it is the number a duration edit
+    // replaces, so it has to be the per-set one.
+    const { work_seconds_per_set: _omitted, ...withoutPerSet } = {
+      ...base,
+      sets: 2,
+      work_seconds: 60,
+      work_seconds_per_set: null,
+    };
+
+    expect(planItemWorkSecondsPerSet(withoutPerSet)).toBe(30);
+  });
+
+  it('does not divide by zero sets', () => {
+    expect(
+      planItemWorkSecondsPerSet({
+        ...base,
+        sets: 0,
+        work_seconds: 60,
+        work_seconds_per_set: null,
+      }),
+    ).toBe(0);
+  });
+});
+
+describe('applyPlanItemPrescriptions with a duration edit', () => {
+  it('rewrites the per-set seconds and keeps the item total consistent', () => {
+    const source = plan();
+    const durationPlan: WorkoutPlan = {
+      ...source,
+      items: [
+        {
+          ...source.items[0]!,
+          plan_item_id: 'timed',
+          sets: 2,
+          reps: null,
+          work_seconds: 60,
+          work_seconds_per_set: 30,
+        },
+      ],
+    };
+
+    const revised = applyPlanItemPrescriptions(durationPlan, [
+      {
+        plan_item_id: 'timed',
+        sets: 2,
+        reps: null,
+        workSecondsPerSet: 45,
+      },
+    ]);
+
+    expect(revised.items[0]!.work_seconds_per_set).toBe(45);
+    expect(revised.items[0]!.work_seconds).toBe(90);
   });
 });

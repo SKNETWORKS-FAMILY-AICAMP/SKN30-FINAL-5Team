@@ -32,6 +32,7 @@ class PlanRevisionFailureCode(StrEnum):
     PLAN_NOT_EDITABLE = "PLAN_NOT_EDITABLE"
     REPETITIONS_NOT_APPLICABLE = "REPETITIONS_NOT_APPLICABLE"
     REPETITIONS_REQUIRED = "REPETITIONS_REQUIRED"
+    WORK_SECONDS_NOT_APPLICABLE = "WORK_SECONDS_NOT_APPLICABLE"
     TIMING_BASIS_UNAVAILABLE = "TIMING_BASIS_UNAVAILABLE"
     ORDER_ITEMS_MISMATCH = "ORDER_ITEMS_MISMATCH"
     ORDER_CROSSES_PHASE = "ORDER_CROSSES_PHASE"
@@ -124,14 +125,24 @@ def apply_set_repetition_edit(
     plan_item_id: UUID,
     sets: int,
     reps: int | None,
+    work_seconds_per_set: int | None = None,
 ) -> tuple[PlanRevisionItem, ...]:
     """Return the plan with one item's volume replaced by the user's own numbers.
 
-    A repetition-based item recomputes its per-set work from the catalog's seconds-per-rep
-    basis, so the plan's measured duration still reflects reviewed data rather than a
-    number the client sent. A duration-based item has no repetition count to change, and
-    the request is refused rather than silently ignored: accepting it would store a plan
-    that does not match what was asked for.
+    Which number expresses the volume depends on how the item is measured, and the two
+    modes are exclusive:
+
+    - A repetition-based item takes ``reps``. Its per-set work is recomputed from the
+      catalog's seconds-per-rep basis, so the plan's measured duration still reflects
+      reviewed data rather than a number the client sent.
+    - A duration-based item takes ``work_seconds_per_set``. There is nothing to convert
+      here: the number the user picks *is* the per-set work, exactly as reps are for the
+      other mode. Omitting it keeps the catalog basis, which is what a sets-only edit
+      does.
+
+    Sending the wrong one is refused rather than ignored, in both directions. Accepting
+    it would store a plan that does not match what was asked for -- and silently dropping
+    a duration the user typed is how a time-based block became uneditable.
     """
 
     target = _require_item(items, plan_item_id)
@@ -143,11 +154,19 @@ def apply_set_repetition_edit(
         # editable when only the catalog carries its basis, and normalises the
         # stored value on the way out.
         edited = replace(
-            target, sets=sets, work_seconds_per_set=target.effective_work_seconds_per_set
+            target,
+            sets=sets,
+            work_seconds_per_set=(
+                work_seconds_per_set
+                if work_seconds_per_set is not None
+                else target.effective_work_seconds_per_set
+            ),
         )
     else:
         if reps is None:
             raise PlanRevisionError(PlanRevisionFailureCode.REPETITIONS_REQUIRED)
+        if work_seconds_per_set is not None:
+            raise PlanRevisionError(PlanRevisionFailureCode.WORK_SECONDS_NOT_APPLICABLE)
         if target.seconds_per_rep is None:
             raise PlanRevisionError(PlanRevisionFailureCode.TIMING_BASIS_UNAVAILABLE)
         edited = replace(

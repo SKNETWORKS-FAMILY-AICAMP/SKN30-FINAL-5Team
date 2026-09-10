@@ -260,6 +260,7 @@ _PLAN_REVISION_STATUS = {
     PlanRevisionFailureCode.COMPLETED_ITEM_NOT_REORDERABLE: HTTPStatus.CONFLICT,
     PlanRevisionFailureCode.REPETITIONS_NOT_APPLICABLE: HTTPStatus.UNPROCESSABLE_ENTITY,
     PlanRevisionFailureCode.REPETITIONS_REQUIRED: HTTPStatus.UNPROCESSABLE_ENTITY,
+    PlanRevisionFailureCode.WORK_SECONDS_NOT_APPLICABLE: HTTPStatus.UNPROCESSABLE_ENTITY,
     PlanRevisionFailureCode.TIMING_BASIS_UNAVAILABLE: HTTPStatus.UNPROCESSABLE_ENTITY,
     PlanRevisionFailureCode.ORDER_ITEMS_MISMATCH: HTTPStatus.UNPROCESSABLE_ENTITY,
     PlanRevisionFailureCode.ORDER_CROSSES_PHASE: HTTPStatus.UNPROCESSABLE_ENTITY,
@@ -275,6 +276,9 @@ _PLAN_REVISION_MESSAGES = {
         "시간으로 수행하는 운동에는 반복 횟수를 지정할 수 없습니다."
     ),
     PlanRevisionFailureCode.REPETITIONS_REQUIRED: "반복 횟수를 함께 보내주세요.",
+    PlanRevisionFailureCode.WORK_SECONDS_NOT_APPLICABLE: (
+        "반복 횟수로 수행하는 운동에는 세트당 시간을 지정할 수 없습니다."
+    ),
     PlanRevisionFailureCode.TIMING_BASIS_UNAVAILABLE: (
         "승인된 운동 시간 기준이 없어 계획을 다시 계산할 수 없습니다."
     ),
