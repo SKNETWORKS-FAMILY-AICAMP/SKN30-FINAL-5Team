@@ -1064,7 +1064,7 @@ describe('PreviewGallery', () => {
       screen.getByRole('radio', { name: 'Exercise catalog (API)' }),
     ).toBeChecked();
     expect(
-      await canvas.findByRole('header', { name: '운동 카탈로그' }),
+      await canvas.findByRole('header', { name: '운동 리스트' }),
     ).toBeOnTheScreen();
     expect(canvas.getByText('바벨 데드리프트')).toBeOnTheScreen();
     expect(
@@ -1086,7 +1086,7 @@ describe('PreviewGallery', () => {
 
     fireEvent.press(canvas.getByRole('button', { name: '목록으로' }));
     expect(
-      await canvas.findByRole('header', { name: '운동 카탈로그' }),
+      await canvas.findByRole('header', { name: '운동 리스트' }),
     ).toBeOnTheScreen();
     fireEvent.press(canvas.getByRole('button', { name: '돌아가기' }));
     expect(screen.getByRole('radio', { name: 'Home (API)' })).toBeChecked();

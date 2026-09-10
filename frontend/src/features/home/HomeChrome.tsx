@@ -306,9 +306,6 @@ export function RecommendationReasonSheet({
   const [criteriaExpanded, setCriteriaExpanded] = useState(false);
   return (
     <SheetFrame onClose={onClose} title="이 루틴을 추천한 이유" zIndex={24}>
-      <Text style={styles.sheetIntro}>
-        저장된 체크인과 안전 기준을 바탕으로 서버가 결정한 내용이에요.
-      </Text>
       <ScrollView
         contentContainerStyle={styles.reasonSheetContent}
         showsVerticalScrollIndicator={false}

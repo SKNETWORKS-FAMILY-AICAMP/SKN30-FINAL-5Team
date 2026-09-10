@@ -118,7 +118,7 @@ describe('CalendarReportContainer', () => {
     expect(screen.getByText('이번 주 목표를 달성했어요!')).toBeOnTheScreen();
   });
 
-  it('disables and darkens dates before the user started their routine', async () => {
+  it('disables and softens dates before the user started their routine', async () => {
     const listWorkoutSessions = jest.fn<Api['listWorkoutSessions']>(
       async () => ({ items: [], next_cursor: null }),
     );
@@ -160,9 +160,30 @@ describe('CalendarReportContainer', () => {
     });
     expect(unavailableDay.props.accessibilityState).toEqual({ disabled: true });
     expect(StyleSheet.flatten(unavailableDay.props.style)).toMatchObject({
-      backgroundColor: '#C9C5BC',
+      backgroundColor: '#EFECE6',
       opacity: 1,
     });
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('calendar-week-2026-07-27').props.style,
+      ),
+    ).toMatchObject({
+      backgroundColor: '#F4F2ED',
+      borderColor: '#E2DED6',
+    });
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('calendar-chip-2026-07-27').props.style,
+      ),
+    ).toMatchObject({
+      backgroundColor: '#F1EFEA',
+      borderColor: '#DEDAD2',
+    });
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('calendar-chip-2026-07-27-label').props.style,
+      ).color,
+    ).toBe('#9B968E');
     expect(
       screen.getByTestId('calendar-day-2026-08-03-0-mark-glyph').props.children,
     ).toBe('');

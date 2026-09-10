@@ -325,6 +325,32 @@ describe('MascotHouseScreen', () => {
     expect(houseItemArt.window.source).toBeNull();
   });
 
+  it('preserves saved pending decorations while hiding them from the room and list', async () => {
+    const store = createMemoryHouseStore({
+      ...createHouseState(),
+      ownedItemIds: ['star_frame', 'window'],
+      itemPlacements: {
+        star_frame: { x: 0.18, y: 0.25 },
+        window: { x: 0.66, y: 0.2 },
+      },
+    });
+    renderHouse(houseApi({ rewardBalance: 100, sessions: [] }), store);
+
+    await screen.findByTestId('house-scene');
+    expect(screen.queryByTestId('house-placed-item-star_frame')).toBeNull();
+    expect(screen.queryByTestId('house-placed-item-window')).toBeNull();
+
+    fireEvent.press(screen.getByTestId('house-decorate-action'));
+    fireEvent.press(screen.getByRole('tab', { name: '소품' }));
+    expect(screen.queryByText('별 액자')).toBeNull();
+    expect(screen.queryByText('창문 커튼')).toBeNull();
+
+    expect((await store.read())?.ownedItemIds).toEqual([
+      'star_frame',
+      'window',
+    ]);
+  });
+
   it('uses the shared solid canvas while the house is loading', () => {
     const pendingApi = {
       getWeek: jest.fn(() => new Promise<never>(() => undefined)),
@@ -348,12 +374,14 @@ describe('MascotHouseScreen', () => {
         .every((banana) => banana.props.source === imageAssets.banana),
     ).toBe(true);
     expect(screen.queryByRole('header', { name: '끼끼의 집' })).toBeNull();
-    // The panel lost its heading and its per-card blurb: compact square tiles now
-    // sit side by side where the horizontal list used to scroll.
+    // Compact square tiles sit side by side where the horizontal list used to
+    // scroll; both keep a caption row so their icons share the same height.
     expect(screen.queryByText('끼끼와 놀기')).toBeNull();
     expect(screen.queryByText('떨어지는 바나나를 받아요')).toBeNull();
     expect(screen.queryByText('30초')).toBeNull();
     expect(screen.getByText('미니게임')).toBeTruthy();
+    expect(screen.getByText('끼끼와 놀아요!')).toBeTruthy();
+    expect(screen.queryByText('2가지 놀이')).toBeNull();
     expect(screen.getByText('퀘스트')).toBeTruthy();
     expect(screen.queryByTestId('house-quest-tile-count')).toBeNull();
     // Each game's own name lives in the 미니게임 panel, not on the tile.
@@ -604,6 +632,14 @@ describe('MascotHouseScreen', () => {
     });
     expect(screen.getByText('바나나 받아라')).toBeTruthy();
     expect(screen.getByText('끼끼 달리기')).toBeTruthy();
+    const runnerMascot = screen.getByTestId(
+      'house-mini-game-mascot-kikki_runner',
+      { includeHiddenElements: true },
+    );
+    expect(runnerMascot.props.source).toBe(imageAssets.kikkiRunnerMascot);
+    expect(runnerMascot).toHaveStyle({
+      transform: [{ translateY: 5 }, { scaleX: -1 }],
+    });
     // No play-limit blurb under either title.
     expect(screen.queryByText('하루 1회 플레이 가능')).toBeNull();
     expect(screen.queryByText('언제든 플레이')).toBeNull();
@@ -731,6 +767,41 @@ describe('MascotHouseScreen', () => {
     }
   });
 
+  it('reflects the runner reward in the house after confirmation', async () => {
+    jest.useFakeTimers();
+    const random = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    try {
+      const startingBalance = 100;
+      const api = houseApi({ rewardBalance: startingBalance });
+      renderHouse(api);
+
+      await screen.findByTestId('house-scene');
+      fireEvent.press(screen.getByTestId('house-mini-game-tile'));
+      fireEvent.press(screen.getByTestId('house-mini-game-kikki_runner'));
+      fireEvent.press(screen.getByRole('button', { name: '달리기 시작' }));
+      act(() => jest.advanceTimersByTime(30_000));
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(api.claimMiniGameReward).toHaveBeenCalledTimes(1);
+      const sent = (api.claimMiniGameReward as jest.Mock).mock
+        .calls[0]?.[0] as { score: number };
+      expect(sent.score).toBeGreaterThan(0);
+
+      fireEvent.press(screen.getByRole('button', { name: '확인' }));
+      expect(await screen.findByTestId('house-scene')).toBeOnTheScreen();
+      expect(
+        screen.getByLabelText(
+          `바나나 ${startingBalance + Math.min(Math.floor(sent.score / 2), 25)}개 보유`,
+        ),
+      ).toBeOnTheScreen();
+    } finally {
+      random.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
   it('keeps the daily play available when the game is left before it finishes', async () => {
     // The play used to be spent on open, so backing out of the game burned the
     // day's only try without the user ever having played a round.
@@ -759,12 +830,18 @@ describe('MascotHouseScreen', () => {
     fireEvent.press(screen.getByLabelText('HELKKI PASS 보기'));
 
     expect(await screen.findByTestId('kkikki-pass-preview')).toBeTruthy();
-    expect(screen.getByText('‹')).toHaveStyle({
+    expect(screen.getByTestId('helkki-pass-back')).toHaveStyle({
       width: 44,
       height: 44,
-      lineHeight: 44,
-      textAlign: 'center',
-      textAlignVertical: 'center',
+      alignItems: 'center',
+      justifyContent: 'center',
+    });
+    expect(screen.getByTestId('helkki-pass-back-icon')).toHaveStyle({
+      width: 12,
+      height: 12,
+      borderBottomWidth: 2.5,
+      borderLeftWidth: 2.5,
+      transform: [{ rotate: '45deg' }],
     });
     expect(screen.queryByText('바나나 지갑')).toBeNull();
     expect(screen.queryByLabelText('보유 바나나 120개')).toBeNull();
@@ -1079,9 +1156,11 @@ describe('MascotHouseScreen', () => {
     expect(
       screen.getByTestId('house-item-grid-row-1').props.children,
     ).toHaveLength(3);
-    expect(
-      screen.getByTestId('house-item-grid-row-2').props.children,
-    ).toHaveLength(3);
+    expect(screen.queryByTestId('house-item-grid-row-2')).toBeNull();
+    expect(screen.queryByTestId('house-item-star_frame')).toBeNull();
+    expect(screen.queryByTestId('house-item-window')).toBeNull();
+    expect(screen.queryByText('별 액자')).toBeNull();
+    expect(screen.queryByText('창문 커튼')).toBeNull();
     expect(screen.getByTestId('house-item-yoga_mat')).toHaveStyle({
       width: '100%',
     });

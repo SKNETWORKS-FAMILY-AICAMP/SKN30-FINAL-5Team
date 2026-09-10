@@ -153,6 +153,7 @@ describe('ExerciseCatalogScreen', () => {
 
     expect(await screen.findByText('맨몸 스쿼트')).toBeTruthy();
     expect(screen.getByText('운동 부위')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '전신' })).toBeNull();
     expect(screen.queryByText('운동 유형')).toBeNull();
     expect(screen.queryByText('난이도')).toBeNull();
     expect(screen.queryByText(/^장비/)).toBeNull();

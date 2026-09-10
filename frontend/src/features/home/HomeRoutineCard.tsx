@@ -28,6 +28,10 @@ import {
 
 const ROUTINE_NOTES: readonly string[] = [];
 
+// Keep the reviewed equipment-action implementation ready for a later product
+// decision. For now the row uses one secondary-action slot for posture only.
+const SHOW_ROUTINE_EQUIPMENT_ACTION = false;
+
 export function RoutineCard({
   actionCode,
   completedItemIds,
@@ -130,13 +134,11 @@ export function RoutineCard({
   const statusCopy =
     phase === 'STOPPED_SAFETY'
       ? '안전 관련 중단으로 오늘은 이어서 진행할 수 없어요. 진행 기록은 그대로 보관됩니다.'
-      : phase === 'COMPLETED'
-        ? '오늘 운동 기록이에요. 완료한 운동과 진행 상태를 확인할 수 있어요.'
-        : phase === 'SESSION_ACTIVE'
+      : phase === 'SESSION_ACTIVE'
+        ? '이어서 운동을 진행할 수 있어요'
+        : phase === 'STOPPED_RESUMABLE'
           ? '이어서 운동을 진행할 수 있어요'
-          : phase === 'STOPPED_RESUMABLE'
-            ? '이어서 운동을 진행할 수 있어요'
-            : null;
+          : null;
   const routineHeading =
     phase === 'STOPPED_SAFETY'
       ? '오늘은 회복에 집중해요'
@@ -421,7 +423,9 @@ export function RoutineCard({
                     </Text>
                   )}
                   {item.exerciseId &&
-                  (onOpenExerciseGuide || variantApi?.getExerciseVariants) ? (
+                  (onOpenExerciseGuide ||
+                    (SHOW_ROUTINE_EQUIPMENT_ACTION &&
+                      variantApi?.getExerciseVariants)) ? (
                     <View
                       style={[
                         styles.routineGuideActions,
@@ -469,41 +473,43 @@ export function RoutineCard({
                           </Pressable>
                         ) : null}
                       </View>
-                      <View
-                        style={[
-                          styles.routineGuideSlot,
-                          interactionsDisabled &&
-                            styles.routineGuideSlotEditing,
-                        ]}
-                        testID={`routine-equipment-slot-${item.id}`}
-                      >
-                        {variantApi ? (
-                          <ExerciseVariantsAction
-                            actionStyle={[
-                              styles.routineGuideButton,
-                              styles.routineEquipmentButton,
-                              interactionsDisabled &&
-                                styles.routineGuideButtonEditing,
-                              interactionsDisabled &&
-                                styles.routineGuideButtonDisabled,
-                            ]}
-                            actionTextStyle={[
-                              styles.routineEquipmentButtonText,
-                              interactionsDisabled &&
-                                styles.routineGuideButtonTextEditing,
-                              interactionsDisabled && styles.disabledLabel,
-                            ]}
-                            api={variantApi}
-                            disabled={interactionsDisabled}
-                            exerciseId={item.exerciseId}
-                            exerciseName={item.name}
-                            locationCode={locationCode}
-                            onOpen={(response) =>
-                              onOpenExerciseVariants(item, response)
-                            }
-                          />
-                        ) : null}
-                      </View>
+                      {SHOW_ROUTINE_EQUIPMENT_ACTION ? (
+                        <View
+                          style={[
+                            styles.routineGuideSlot,
+                            interactionsDisabled &&
+                              styles.routineGuideSlotEditing,
+                          ]}
+                          testID={`routine-equipment-slot-${item.id}`}
+                        >
+                          {variantApi ? (
+                            <ExerciseVariantsAction
+                              actionStyle={[
+                                styles.routineGuideButton,
+                                styles.routineEquipmentButton,
+                                interactionsDisabled &&
+                                  styles.routineGuideButtonEditing,
+                                interactionsDisabled &&
+                                  styles.routineGuideButtonDisabled,
+                              ]}
+                              actionTextStyle={[
+                                styles.routineEquipmentButtonText,
+                                interactionsDisabled &&
+                                  styles.routineGuideButtonTextEditing,
+                                interactionsDisabled && styles.disabledLabel,
+                              ]}
+                              api={variantApi}
+                              disabled={interactionsDisabled}
+                              exerciseId={item.exerciseId}
+                              exerciseName={item.name}
+                              locationCode={locationCode}
+                              onOpen={(response) =>
+                                onOpenExerciseVariants(item, response)
+                              }
+                            />
+                          ) : null}
+                        </View>
+                      ) : null}
                     </View>
                   ) : null}
                 </Animated.View>

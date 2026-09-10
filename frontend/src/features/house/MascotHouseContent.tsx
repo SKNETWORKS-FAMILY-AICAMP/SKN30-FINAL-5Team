@@ -108,6 +108,14 @@ const HOUSE_HORIZONTAL_INSET = '4%' as const;
  */
 export const HOUSE_BACKDROP_ZOOM = 0.5;
 
+/**
+ * Decorations without reviewed artwork stay in the domain model and saved
+ * state, but are not offered or drawn until their asset is connected.
+ */
+function hasRenderableHouseItemArt(itemId: HouseItemId): boolean {
+  return houseItemArt[itemId].source !== null;
+}
+
 /** The selected mascot is displayed at 75% of the former 148px frame. */
 export const HOUSE_MASCOT_SIZE = 148 * 0.75;
 
@@ -281,7 +289,7 @@ export const HOUSE_MINI_GAMES: readonly {
   {
     id: 'kikki_runner',
     title: '끼끼 달리기',
-    imageSource: imageAssets.mascotWarmupWalk,
+    imageSource: imageAssets.kikkiRunnerMascot,
   },
 ];
 
@@ -817,20 +825,22 @@ export function MascotHouseContent({
         style={styles.decorationCanvas}
         testID="house-decoration-canvas"
       >
-        {view.ownedItems.map((item) => (
-          <DraggablePlacedItem
-            canvasHeight={decorationCanvas.height}
-            canvasWidth={decorationCanvas.width}
-            controlsTop={controlsTop}
-            editable={decorating}
-            itemId={item.id}
-            key={item.id}
-            label={item.label}
-            onPlace={onPlaceItem}
-            placement={view.itemPlacements[item.id]}
-            topControlsBottom={topControlsBottom}
-          />
-        ))}
+        {view.ownedItems
+          .filter((item) => hasRenderableHouseItemArt(item.id))
+          .map((item) => (
+            <DraggablePlacedItem
+              canvasHeight={decorationCanvas.height}
+              canvasWidth={decorationCanvas.width}
+              controlsTop={controlsTop}
+              editable={decorating}
+              itemId={item.id}
+              key={item.id}
+              label={item.label}
+              onPlace={onPlaceItem}
+              placement={view.itemPlacements[item.id]}
+              topControlsBottom={topControlsBottom}
+            />
+          ))}
       </View>
 
       <SafeAreaView
@@ -1618,9 +1628,9 @@ function HouseTilePanel({
     >
       <View style={[styles.tileRow, compactStyles.tileRow]}>
         <HouseTile
-          caption={`${HOUSE_MINI_GAMES.length}가지 놀이`}
+          caption="끼끼와 놀아요!"
           controlScale={controlScale}
-          label={`미니게임, ${HOUSE_MINI_GAMES.length}가지 놀이`}
+          label="미니게임"
           onPress={onOpenGames}
           testID="house-mini-game-tile"
           title="미니게임"
@@ -1693,9 +1703,11 @@ function HouseTile({
     >
       <View style={[styles.tileIcon, compactStyles.tileIcon]}>{children}</View>
       <Text style={[styles.tileTitle, compactStyles.tileTitle]}>{title}</Text>
-      <Text style={[styles.tileCaption, compactStyles.tileCaption]}>
-        {caption}
-      </Text>
+      {caption ? (
+        <Text style={[styles.tileCaption, compactStyles.tileCaption]}>
+          {caption}
+        </Text>
+      ) : null}
     </Pressable>
   );
 }
@@ -1777,7 +1789,10 @@ function MiniGamePanel({
                   importantForAccessibility="no"
                   resizeMode="contain"
                   source={game.imageSource}
-                  style={styles.miniGameMascot}
+                  style={[
+                    styles.miniGameMascot,
+                    game.id === 'kikki_runner' && styles.miniGameRunnerMascot,
+                  ]}
                   testID={`house-mini-game-mascot-${game.id}`}
                 />
               </View>
@@ -2128,38 +2143,10 @@ function DecoratePanel({
           testID="house-item-list"
         >
           <FixedGrid columns={3} testID="house-item-grid">
-            {view.ownedItems.map((item) => (
-              <View key={item.id} style={[styles.itemTile, styles.itemOwned]}>
-                <HouseArtView
-                  showPlaceholderLabel={false}
-                  showPlaceholderOutline={false}
-                  slot={houseItemArt[item.id]}
-                  style={styles.itemArt}
-                />
-                <Text style={styles.itemLabel}>{item.label}</Text>
-                <Text style={styles.itemOwnedLabel}>배치됨</Text>
-              </View>
-            ))}
-
-            {view.lockedItems.map((item) => {
-              const affordable = view.bananas >= item.cost && !spendPending;
-              return (
-                <Pressable
-                  accessibilityLabel={`${item.label}, 바나나 ${item.cost}개`}
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: !affordable }}
-                  disabled={!affordable}
-                  key={item.id}
-                  onPress={() => {
-                    void Promise.resolve(onBuyItem(item.id)).then(
-                      (succeeded) => {
-                        if (succeeded) onSpend(item.cost);
-                      },
-                    );
-                  }}
-                  style={[styles.itemTile, !affordable && styles.spent]}
-                  testID={`house-item-${item.id}`}
-                >
+            {view.ownedItems
+              .filter((item) => hasRenderableHouseItemArt(item.id))
+              .map((item) => (
+                <View key={item.id} style={[styles.itemTile, styles.itemOwned]}>
                   <HouseArtView
                     showPlaceholderLabel={false}
                     showPlaceholderOutline={false}
@@ -2167,13 +2154,45 @@ function DecoratePanel({
                     style={styles.itemArt}
                   />
                   <Text style={styles.itemLabel}>{item.label}</Text>
-                  <View style={styles.itemCost}>
-                    <BananaGlyph size={12} />
-                    <Text style={styles.itemCostLabel}>{item.cost}</Text>
-                  </View>
-                </Pressable>
-              );
-            })}
+                  <Text style={styles.itemOwnedLabel}>배치됨</Text>
+                </View>
+              ))}
+
+            {view.lockedItems
+              .filter((item) => hasRenderableHouseItemArt(item.id))
+              .map((item) => {
+                const affordable = view.bananas >= item.cost && !spendPending;
+                return (
+                  <Pressable
+                    accessibilityLabel={`${item.label}, 바나나 ${item.cost}개`}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: !affordable }}
+                    disabled={!affordable}
+                    key={item.id}
+                    onPress={() => {
+                      void Promise.resolve(onBuyItem(item.id)).then(
+                        (succeeded) => {
+                          if (succeeded) onSpend(item.cost);
+                        },
+                      );
+                    }}
+                    style={[styles.itemTile, !affordable && styles.spent]}
+                    testID={`house-item-${item.id}`}
+                  >
+                    <HouseArtView
+                      showPlaceholderLabel={false}
+                      showPlaceholderOutline={false}
+                      slot={houseItemArt[item.id]}
+                      style={styles.itemArt}
+                    />
+                    <Text style={styles.itemLabel}>{item.label}</Text>
+                    <View style={styles.itemCost}>
+                      <BananaGlyph size={12} />
+                      <Text style={styles.itemCostLabel}>{item.cost}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
           </FixedGrid>
         </ScrollView>
       )}
@@ -3064,6 +3083,9 @@ const styles = StyleSheet.create({
   miniGameMascot: {
     width: 42,
     height: 42,
+  },
+  miniGameRunnerMascot: {
+    transform: [{ translateY: 5 }, { scaleX: -1 }],
   },
   miniGameCopy: {
     flex: 1,

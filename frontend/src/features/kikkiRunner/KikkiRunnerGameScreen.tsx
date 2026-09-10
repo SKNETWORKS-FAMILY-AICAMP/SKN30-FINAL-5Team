@@ -26,6 +26,14 @@ import {
 
 const GROUND_HEIGHT_PERCENT = 22;
 const PLAYER_SIZE = 86;
+/**
+ * The runner sprite bakes transparent padding under the mascot's feet, so the
+ * artwork has to be pushed down inside its box to stand on the grass line.
+ * The inset is a share of PLAYER_SIZE rather than a raw pixel value, and the
+ * grass line itself is a percentage of the arena, so the feet stay planted on
+ * every phone size.
+ */
+const PLAYER_FOOT_INSET = Math.round(PLAYER_SIZE * 0.19);
 
 export function KikkiRunnerGameScreen({
   onBack,
@@ -94,7 +102,6 @@ export function KikkiRunnerGameScreen({
             <Text accessibilityRole="header" style={styles.title}>
               끼끼 달리기
             </Text>
-            <Text style={styles.subtitle}>바나나 섬 한 바퀴</Text>
           </View>
 
           <View
@@ -178,7 +185,7 @@ export function KikkiRunnerGameScreen({
             <Image
               accessibilityLabel="달리는 끼끼"
               resizeMode="contain"
-              source={imageAssets.mascotWarmupWalk}
+              source={imageAssets.kikkiRunnerMascot}
               style={styles.playerImage}
             />
           </View>
@@ -226,11 +233,11 @@ export function KikkiRunnerGameScreen({
 
           {game.status === 'finished' ? (
             <RunnerCard
-              actionLabel="한 번 더"
-              onAction={start}
-              title={`${game.distanceM}m를 달리고 바나나 ${game.score}개를 만났어요!`}
+              actionLabel="확인"
+              onAction={onBack}
+              title={`${game.distanceM}m 달리고 바나나 ${game.score}개를 모았어요!`}
             >
-              기록은 이 화면 안에서만 보여요. 편할 때 다시 달려도 좋아요.
+              내일 또 끼끼와 달려봐요!
             </RunnerCard>
           ) : null}
 
@@ -266,7 +273,7 @@ function RunnerCard({
         <Image
           accessible={false}
           resizeMode="contain"
-          source={imageAssets.mascotWarmupWalk}
+          source={imageAssets.kikkiRunnerMascot}
           style={styles.cardMascot}
         />
         <Text style={styles.cardTitle}>{title}</Text>
@@ -316,7 +323,6 @@ const styles = StyleSheet.create({
   },
   titleBlock: { flex: 1, alignItems: 'center' },
   title: { color: colors.text, fontSize: 20, fontWeight: '900' },
-  subtitle: { color: colors.textSub, fontSize: 11, fontWeight: '700' },
   scoreBlock: {
     minWidth: 72,
     alignItems: 'flex-end',
@@ -399,7 +405,11 @@ const styles = StyleSheet.create({
     width: PLAYER_SIZE,
     height: PLAYER_SIZE,
   },
-  playerImage: { width: '100%', height: '100%' },
+  playerImage: {
+    width: '100%',
+    height: '100%',
+    transform: [{ translateY: PLAYER_FOOT_INSET }, { scaleX: -1 }],
+  },
   ground: {
     position: 'absolute',
     right: 0,
@@ -459,7 +469,12 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     ...shadows.card,
   },
-  cardMascot: { width: 76, height: 76, marginBottom: spacing.sm },
+  cardMascot: {
+    width: 76,
+    height: 76,
+    marginBottom: spacing.sm,
+    transform: [{ scaleX: -1 }],
+  },
   cardTitle: {
     color: colors.text,
     fontSize: 20,

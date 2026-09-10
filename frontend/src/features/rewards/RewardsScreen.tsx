@@ -66,7 +66,7 @@ export function RewardsScreen({
           style={({ pressed }) => [styles.back, pressed && styles.pressed]}
           testID="rewards-back"
         >
-          <Text style={styles.backText}>‹</Text>
+          <View style={styles.backChevron} testID="rewards-back-icon" />
         </Pressable>
         <ScreenHeading
           subtitle="서버에 저장된 바나나와 준비 중인 혜택을 확인해요."
@@ -121,7 +121,7 @@ export function HelkkiPassScreen({
           style={({ pressed }) => [styles.back, pressed && styles.pressed]}
           testID="helkki-pass-back"
         >
-          <Text style={styles.backText}>‹</Text>
+          <View style={styles.backChevron} testID="helkki-pass-back-icon" />
         </Pressable>
         <ScreenHeading
           subtitle="끼끼와 함께하는 PASS 혜택을 미리 확인해요."
@@ -328,15 +328,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     ...shadows.card,
   },
-  backText: {
-    width: 44,
-    height: 44,
-    color: colors.text,
-    fontSize: 34,
-    lineHeight: 44,
-    textAlign: 'center',
-    textAlignVertical: 'center',
-    includeFontPadding: false,
+  backChevron: {
+    width: 12,
+    height: 12,
+    borderBottomWidth: 2.5,
+    borderLeftWidth: 2.5,
+    borderColor: colors.text,
+    transform: [{ rotate: '45deg' }],
   },
   pressed: {
     opacity: 0.76,

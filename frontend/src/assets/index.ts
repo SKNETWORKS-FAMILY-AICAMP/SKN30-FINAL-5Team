@@ -33,6 +33,8 @@ export const imageAssets = {
     require('./mascot/monkey/home_workout/completed_workout.png') as ImageSourcePropType,
   mascotWarmupWalk:
     require('./mascot/monkey/sheet_01/monkey_run_02.gif') as ImageSourcePropType,
+  kikkiRunnerMascot:
+    require('./mascot/monkey/sheet_01/monkey_run_03.gif') as ImageSourcePropType,
   houseCampingMorningBackground:
     require('./house/camping/background/morning_camp.png') as ImageSourcePropType,
   houseCampingDinnerBackground:

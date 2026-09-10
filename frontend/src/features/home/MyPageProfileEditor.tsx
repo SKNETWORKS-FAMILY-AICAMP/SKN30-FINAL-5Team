@@ -78,7 +78,7 @@ const TITLES: Record<MyPageEditableField, string> = {
   primary_goal_code: '운동 목표 수정',
   experience_level_code: '운동 경험 수정',
   desired_weekly_workout_count: '주간 운동 횟수 수정',
-  persistent_pains: '평소 불편한 부위 수정',
+  persistent_pains: '통증 부위 수정',
 };
 
 const MY_PAGE_DEFAULT_BODY_AREA_CODES = [
@@ -476,7 +476,7 @@ function BasicProfileEditor({
   return (
     <View style={styles.basicForm}>
       <InlineFeedback
-        message="생년월일과 체중은 변경할 항목만 입력해주세요."
+        message="변경하지 않은 사항은 유지돼요"
         style={styles.privacyNotice}
         tone="warning"
       />

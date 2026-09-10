@@ -694,7 +694,7 @@ function CalendarStatusMark({
   const vectorMark =
     !beforeRoutineStart && (status === 'partial' || status === 'rest');
   const markColors = beforeRoutineStart
-    ? { backgroundColor: '#A9A49B', borderColor: '#8B8780' }
+    ? { backgroundColor: '#ECE9E3', borderColor: '#D8D3CA' }
     : vectorMark
       ? { backgroundColor: 'transparent', borderColor: 'transparent' }
       : {
@@ -854,8 +854,8 @@ function StateChip({
   const chipStyle: StyleProp<ViewStyle> = [
     styles.stateChip,
     {
-      backgroundColor: beforeRoutineStart ? '#C9C5BC' : chip.backgroundColor,
-      borderColor: beforeRoutineStart ? '#9A968E' : chip.borderColor,
+      backgroundColor: beforeRoutineStart ? '#F1EFEA' : chip.backgroundColor,
+      borderColor: beforeRoutineStart ? '#DEDAD2' : chip.borderColor,
       borderStyle: beforeRoutineStart ? 'solid' : chip.borderStyle,
     },
   ];
@@ -864,7 +864,7 @@ function StateChip({
     <Text
       style={[
         styles.stateChipText,
-        { color: beforeRoutineStart ? '#5F5B55' : chip.color },
+        { color: beforeRoutineStart ? '#9B968E' : chip.color },
       ]}
       testID={`calendar-chip-${weekId}-label`}
     >
@@ -1180,9 +1180,9 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   weekBandBeforeRoutine: {
-    borderColor: '#A9A49B',
+    borderColor: '#E2DED6',
     borderStyle: 'solid',
-    backgroundColor: '#D9D6CF',
+    backgroundColor: '#F4F2ED',
     opacity: 1,
   },
   weekBandExpanded: {
@@ -1270,7 +1270,7 @@ const styles = StyleSheet.create({
   },
   dayCellBeforeRoutine: {
     borderRadius: 12,
-    backgroundColor: '#C9C5BC',
+    backgroundColor: '#EFECE6',
     opacity: 1,
   },
   dayNumber: {
@@ -1283,8 +1283,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   dayNumberBeforeRoutine: {
-    color: '#5F5B55',
-    fontWeight: '700',
+    color: '#9B968E',
+    fontWeight: '600',
   },
   statusMark: {
     width: 20,

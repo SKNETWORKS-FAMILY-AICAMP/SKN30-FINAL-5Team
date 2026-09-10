@@ -12,8 +12,9 @@ describe('BananaCatchGameScreen', () => {
   it('starts, moves the catcher and finishes after thirty seconds', () => {
     jest.useFakeTimers();
     const random = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    const onBack = jest.fn();
     try {
-      render(<BananaCatchGameScreen onBack={() => {}} />);
+      render(<BananaCatchGameScreen onBack={onBack} />);
 
       expect(screen.getByTestId('banana-catch-background').props).toEqual(
         expect.objectContaining({
@@ -92,8 +93,11 @@ describe('BananaCatchGameScreen', () => {
       });
 
       act(() => jest.advanceTimersByTime(30_000));
-      expect(screen.getByText(/바나나 \d+개를 받았어요!/)).toBeTruthy();
-      expect(screen.getByText('한 번 더')).toBeTruthy();
+      expect(screen.getByText(/바나나 \d+개를 모았어요!/)).toBeTruthy();
+      expect(screen.getByText('내일 또 끼끼와 도전해봐요!')).toBeTruthy();
+      expect(screen.queryByText('한 번 더')).toBeNull();
+      fireEvent.press(screen.getByRole('button', { name: '확인' }));
+      expect(onBack).toHaveBeenCalledTimes(1);
     } finally {
       random.mockRestore();
       jest.useRealTimers();

@@ -27,12 +27,11 @@ import {
 } from '../../api/labels';
 import type { ExerciseListItem, ExerciseListResponse } from '../../api/types';
 import { useAsyncData } from '../../api/useAsync';
-import { Button, Card } from '../../components/primitives';
+import { Card } from '../../components/primitives';
 import {
   EmptyState,
   ErrorState,
   LoadingState,
-  ScreenHeading,
   ScreenShell,
 } from '../../components/states/ScreenState';
 import { colors, radii, spacing } from '../../components/theme';
@@ -54,7 +53,6 @@ const BODY_FOCUS_FILTER_CODES = [
   'CALVES',
   'ADDUCTORS',
   'CORE',
-  'FULL_BODY',
   'CARDIO',
   'MOBILITY',
 ] as const;
@@ -161,16 +159,15 @@ export function ExerciseCatalogScreen({
           visible
         >
           <ScreenShell>
-            <ScreenHeading title={openExercise.name} />
+            <CatalogHeader
+              backAccessibilityLabel="목록으로"
+              onBack={() => setOpenExercise(null)}
+              title={openExercise.name}
+            />
             <ExerciseDetailSheet
               api={api}
               exerciseId={openExercise.id}
               guideContext={exerciseGuideContext}
-            />
-            <Button
-              label="목록으로"
-              tone="secondary"
-              onPress={() => setOpenExercise(null)}
             />
           </ScreenShell>
         </Modal>
@@ -179,11 +176,19 @@ export function ExerciseCatalogScreen({
   );
 }
 
-function CatalogHeader({ onBack }: { onBack: () => void }) {
+function CatalogHeader({
+  backAccessibilityLabel = '돌아가기',
+  onBack,
+  title = '운동 리스트',
+}: {
+  backAccessibilityLabel?: string;
+  onBack: () => void;
+  title?: string;
+}) {
   return (
     <View style={styles.catalogHeader} testID="exercise-catalog-list-header">
       <Pressable
-        accessibilityLabel="돌아가기"
+        accessibilityLabel={backAccessibilityLabel}
         accessibilityRole="button"
         hitSlop={8}
         onPress={onBack}
@@ -193,7 +198,7 @@ function CatalogHeader({ onBack }: { onBack: () => void }) {
       </Pressable>
       <View style={styles.headerCopy} testID="exercise-catalog-header-copy">
         <Text accessibilityRole="header" style={styles.headerTitle}>
-          운동 카탈로그
+          {title}
         </Text>
       </View>
       <View

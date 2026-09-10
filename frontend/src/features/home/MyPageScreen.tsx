@@ -17,6 +17,11 @@ import type { TabId } from '../../components/brand/BrandChrome';
 import { ProfileAvatar } from '../../components/profile/ProfileAvatar';
 import { HomeBottomNavigation } from './HomeScreen';
 import {
+  accountDetailForLabel,
+  MyPageAccountDetails,
+  type MyPageAccountDetail,
+} from './MyPageAccountDetails';
+import {
   MY_PAGE_ACCOUNT_ROWS,
   MY_PAGE_PROFILE_ROWS,
   type MyPagePreviewState,
@@ -89,6 +94,8 @@ function MyPageContent({
   const [editingField, setEditingField] = useState<MyPageEditableField | null>(
     null,
   );
+  const [accountDetail, setAccountDetail] =
+    useState<MyPageAccountDetail | null>(null);
   const [dialog, setDialog] = useState<'logout' | 'withdraw' | null>(
     previewState === 'logout'
       ? 'logout'
@@ -133,6 +140,11 @@ function MyPageContent({
     onNotificationChange?.(key, enabled);
   };
 
+  const openAccountAction = (label: string) => {
+    onAccountAction?.(label);
+    setAccountDetail(accountDetailForLabel(label));
+  };
+
   if (pageState !== 'profile') {
     return (
       <SafeAreaView edges={['left', 'right']} style={styles.screen}>
@@ -158,6 +170,19 @@ function MyPageContent({
             />
           )}
         </View>
+        <HomeBottomNavigation activeTab="my" onNavigate={onNavigateTab} />
+      </SafeAreaView>
+    );
+  }
+
+  if (accountDetail !== null) {
+    return (
+      <SafeAreaView edges={['left', 'right']} style={styles.screen}>
+        <StatusBar style="dark" />
+        <MyPageAccountDetails
+          detail={accountDetail}
+          onBack={() => setAccountDetail(null)}
+        />
         <HomeBottomNavigation activeTab="my" onNavigate={onNavigateTab} />
       </SafeAreaView>
     );
@@ -272,20 +297,26 @@ function MyPageContent({
 
         <SectionTitle compact label="계정 · 앱" />
         <View style={styles.rowsCard}>
-          {MY_PAGE_ACCOUNT_ROWS.map(([label, value]) => (
-            <Pressable
-              key={label}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: onAccountAction === undefined }}
-              disabled={onAccountAction === undefined}
-              onPress={() => onAccountAction?.(label)}
-              style={styles.accountRow}
-            >
-              <Text style={styles.accountLabel}>{label}</Text>
-              <Text style={styles.accountValue}>{value}</Text>
-              <Text style={styles.rowArrow}>›</Text>
-            </Pressable>
-          ))}
+          {MY_PAGE_ACCOUNT_ROWS.map(([label, value]) => {
+            const detail = accountDetailForLabel(label);
+            const disabled = detail === null && onAccountAction === undefined;
+            return (
+              <Pressable
+                key={label}
+                accessibilityRole="button"
+                accessibilityState={{ disabled }}
+                disabled={disabled}
+                onPress={() => openAccountAction(label)}
+                style={styles.accountRow}
+              >
+                <Text style={styles.accountLabel}>{label}</Text>
+                <Text style={styles.accountValue}>{value}</Text>
+                {label === '앱 버전' ? null : (
+                  <Text style={styles.rowArrow}>›</Text>
+                )}
+              </Pressable>
+            );
+          })}
         </View>
 
         <View style={styles.accountActions}>

@@ -271,11 +271,11 @@ export function BananaCatchGameScreen({
 
           {game.status === 'finished' ? (
             <GameCard
-              actionLabel="한 번 더"
-              onAction={start}
-              title={`바나나 ${game.score}개를 받았어요!`}
+              actionLabel="확인"
+              onAction={onBack}
+              title={`바나나 ${game.score}개를 모았어요!`}
             >
-              원하는 만큼 다시 놀 수 있어요.
+              내일 또 끼끼와 도전해봐요!
             </GameCard>
           ) : null}
 
