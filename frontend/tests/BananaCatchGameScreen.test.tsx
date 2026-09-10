@@ -139,6 +139,33 @@ describe('BananaCatchGameScreen', () => {
     }
   });
 
+  it('reports the finished score exactly once', () => {
+    jest.useFakeTimers();
+    const random = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    const onPlayed = jest.fn();
+    try {
+      render(<BananaCatchGameScreen onBack={() => {}} onPlayed={onPlayed} />);
+      fireEvent.press(screen.getByRole('button', { name: '게임 시작' }));
+
+      // Mid-round: nothing is reported, so leaving early costs no daily play.
+      act(() => jest.advanceTimersByTime(10_000));
+      expect(onPlayed).not.toHaveBeenCalled();
+
+      // Past the full 30s round.
+      act(() => jest.advanceTimersByTime(25_000));
+      expect(onPlayed).toHaveBeenCalledTimes(1);
+      const score = onPlayed.mock.calls[0]?.[0] as number;
+      expect(score).toBeGreaterThan(0);
+
+      // Further ticks must not report the round again.
+      act(() => jest.advanceTimersByTime(5_000));
+      expect(onPlayed).toHaveBeenCalledTimes(1);
+    } finally {
+      random.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
   it('returns to the house from the header', () => {
     const onBack = jest.fn();
     render(<BananaCatchGameScreen onBack={onBack} />);

@@ -223,6 +223,28 @@ function houseApi({
         },
       };
     }),
+    claimMiniGameReward: jest.fn(async ({ score }: { score: number }) => {
+      // Mirrors the server: the payout is derived from the score, not sent.
+      const amount = Math.min(Math.floor(score / 2), 25);
+      balance += amount;
+      return {
+        balance,
+        daily_reward: {
+          local_date: '2026-08-18',
+          reward_amount: 15,
+          is_claimable: true,
+          is_claimed: false,
+          claimed_at: null,
+        },
+        transaction: {
+          transaction_id: 'transaction-MINI_GAME',
+          transaction_type: 'MINI_GAME',
+          amount,
+          balance_after: balance,
+          created_at: '2026-08-18T10:00:00+09:00',
+        },
+      };
+    }),
   } as unknown as Api;
 }
 
@@ -542,6 +564,37 @@ describe('MascotHouseScreen', () => {
 
     fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
     expect(screen.getByTestId('house-scene')).toBeTruthy();
+  });
+
+  it('claims the mini-game reward with the finished score', async () => {
+    jest.useFakeTimers();
+    const random = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    try {
+      const api = houseApi({ rewardBalance: 100 });
+      renderHouse(api);
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+      fireEvent.press(screen.getByTestId('house-mini-game-banana_catch'));
+      fireEvent.press(screen.getByRole('button', { name: '게임 시작' }));
+      act(() => jest.advanceTimersByTime(35_000));
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      // Only the score is sent; the payout is the server's to derive.
+      expect(api.claimMiniGameReward).toHaveBeenCalledTimes(1);
+      const sent = (api.claimMiniGameReward as jest.Mock).mock
+        .calls[0]?.[0] as {
+        score: number;
+      };
+      expect(sent.score).toBeGreaterThan(0);
+      expect(Object.keys(sent)).toEqual(['score']);
+    } finally {
+      random.mockRestore();
+      jest.useRealTimers();
+    }
   });
 
   it('keeps the daily play available when the game is left before it finishes', async () => {

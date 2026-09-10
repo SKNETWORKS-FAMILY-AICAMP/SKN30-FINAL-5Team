@@ -6,7 +6,8 @@
 its balance is nonnegative. `banana_transactions` is an immutable signed ledger with post-transaction
 balance, stable transaction type, user-local source date, and a server-generated event key.
 `(user_id,event_key)` is unique for all duplicate handling; nullable unique `workout_session_id` permits at
-most one base reward per canonical workout session. `(user_id,transaction_type,reference_code)` prevents
+most one base reward per canonical workout session. The mini-game payout uses the user-local date as its
+event key (`mini-game:<date>`), which is what limits it to one paid round a day. `(user_id,transaction_type,reference_code)` prevents
 repurchasing the same house item while preserving repeated `HOUSE_FEED` rows because its reference is null.
 The service holds a user-scoped PostgreSQL advisory
 transaction lock before creating a wallet or changing its balance.
