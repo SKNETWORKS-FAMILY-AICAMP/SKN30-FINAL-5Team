@@ -215,18 +215,62 @@ describe('Home frontend-only edit adapters', () => {
   it('creates and applies only changed set and repetition overrides', () => {
     const original = [
       { id: 'item-1', name: '의자 스쿼트', sets: '2', reps: '10' },
-      { id: 'item-2', name: '플랭크', sets: '2', workSeconds: 30 },
+      { id: 'item-2', name: '플랭크', sets: '2', workSeconds: '30' },
     ];
     const edited = [
       { id: 'item-1', name: '의자 스쿼트', sets: '3', reps: '12' },
-      { id: 'item-2', name: '플랭크', sets: '2', workSeconds: 30 },
+      { id: 'item-2', name: '플랭크', sets: '2', workSeconds: '30' },
     ];
     const overrides = routineItemOverrides(original, edited);
 
-    expect(overrides).toEqual([{ planItemId: 'item-1', sets: 3, reps: 12 }]);
+    expect(overrides).toEqual([
+      { planItemId: 'item-1', sets: 3, reps: 12, workSecondsPerSet: null },
+    ]);
     expect(applyRoutineItemOverrides(original, overrides)[0]).toMatchObject({
       sets: '3',
       reps: '12',
     });
+  });
+
+  it('carries a duration-based edit as seconds, never as repetitions', () => {
+    // The screen offered one numeric field beside the sets, so a time edit was
+    // sent as `reps` -- which the server refuses for an item measured in time,
+    // and the failed edit blocked starting the workout.
+    const original = [
+      { id: 'item-2', name: '플랭크', sets: '2', workSeconds: '30' },
+    ];
+    const edited = [
+      { id: 'item-2', name: '플랭크', sets: '2', workSeconds: '45' },
+    ];
+
+    const overrides = routineItemOverrides(original, edited);
+
+    expect(overrides).toEqual([
+      { planItemId: 'item-2', sets: 2, reps: null, workSecondsPerSet: 45 },
+    ]);
+    expect(applyRoutineItemOverrides(original, overrides)[0]).toMatchObject({
+      sets: '2',
+      workSeconds: '45',
+    });
+    expect(
+      applyRoutineItemOverrides(original, overrides)[0]?.reps,
+    ).toBeUndefined();
+  });
+
+  it('drops a duration edit that is not a usable number', () => {
+    const original = [
+      { id: 'item-2', name: '플랭크', sets: '2', workSeconds: '30' },
+    ];
+
+    expect(
+      routineItemOverrides(original, [
+        { id: 'item-2', name: '플랭크', sets: '2', workSeconds: '0' },
+      ]),
+    ).toEqual([]);
+    expect(
+      routineItemOverrides(original, [
+        { id: 'item-2', name: '플랭크', sets: '2', workSeconds: '' },
+      ]),
+    ).toEqual([]);
   });
 });

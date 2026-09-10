@@ -255,7 +255,7 @@ function apiWithRoutes(routes: Record<string, unknown>) {
 
 describe('MainFlow restart recovery', () => {
   it.each([0, 1])(
-    'ends a session with %i completed blocks through the appropriate home flow',
+    'stops a session with %i completed blocks without ending it, then asks how it went',
     async (completedCount) => {
       const storedPlan = plan();
       storedPlan.items.push({
@@ -279,8 +279,24 @@ describe('MainFlow restart recovery', () => {
           },
         ],
       });
-      let ended = false;
+      let stopped = false;
       const { api } = apiWithRoutes({});
+      const stopSession = jest.fn<
+        ReturnType<Api['stopSession']>,
+        Parameters<Api['stopSession']>
+      >(async () => {
+        stopped = true;
+        return {
+          session_id: 'session-1',
+          completion_code: null,
+          execution_state_code: 'STOPPED_RESUMABLE',
+          stop_reason_code: 'RESUME_LATER',
+          is_resumable: true,
+          accumulated_progress_seconds: 0,
+          accumulated_rest_seconds: 0,
+          accumulated_paused_seconds: 0,
+        };
+      });
       const submitFeedback = jest.fn<
         ReturnType<Api['submitFeedback']>,
         Parameters<Api['submitFeedback']>
@@ -295,49 +311,39 @@ describe('MainFlow restart recovery', () => {
       const markNotCompleted = jest.fn<
         ReturnType<Api['markNotCompleted']>,
         Parameters<Api['markNotCompleted']>
-      >(async (_id, endedAt, reason) => {
-        ended = true;
-        return {
-          session_id: 'session-1',
-          status_code: 'NOT_COMPLETED',
-          reason_code: reason,
-          ended_at: endedAt,
-        };
-      });
+      >(async (_id, endedAt, reason) => ({
+        session_id: 'session-1',
+        status_code: 'NOT_COMPLETED',
+        reason_code: reason,
+        ended_at: endedAt,
+      }));
       const finishSession = jest.fn<
         ReturnType<Api['finishSession']>,
         Parameters<Api['finishSession']>
-      >(async (_id, endedAt) => {
-        ended = true;
-        return {
-          session_id: 'session-1',
-          status_code: 'PARTIAL',
-          completed_item_count: 1,
-          total_item_count: 2,
-          actual_elapsed_seconds: 0,
-          estimated_calories_burned: null,
-          ended_at: endedAt,
-        };
-      });
+      >(async (_id, endedAt) => ({
+        session_id: 'session-1',
+        status_code: 'PARTIAL',
+        completed_item_count: 1,
+        total_item_count: 2,
+        actual_elapsed_seconds: 0,
+        estimated_calories_burned: null,
+        ended_at: endedAt,
+      }));
       const liveApi: Api = {
         ...api,
         getHomeState: async () =>
           homeState({
             decision: { ...decision(), final_plan: storedPlan },
             final_plan: storedPlan,
-            workout_session: {
-              ...storedSession,
-              status_code: ended
-                ? completedCount
-                  ? 'PARTIAL'
-                  : 'NOT_COMPLETED'
-                : 'IN_PROGRESS',
-            },
+            // A stop no longer ends the session, so Home keeps reading it as
+            // IN_PROGRESS and keeps offering 이어하기.
+            workout_session: { ...storedSession, status_code: 'IN_PROGRESS' },
           }),
         getWorkoutSession: async () => storedSession,
         recordTimerEvent: async () => ({ event_id: 'timer-1' }),
         markNotCompleted,
         finishSession,
+        stopSession,
         submitFeedback,
       };
       render(
@@ -357,28 +363,32 @@ describe('MainFlow restart recovery', () => {
       fireEvent.press(
         screen.getByRole('button', { name: '이 사유로 중단하기' }),
       );
-      if (completedCount === 0) {
-        expect(
-          await screen.findByText('오늘은 휴식하기로 했어요'),
-        ).toBeOnTheScreen();
-        expect(markNotCompleted).toHaveBeenCalledTimes(1);
-        expect(finishSession).not.toHaveBeenCalled();
-        expect(submitFeedback).not.toHaveBeenCalled();
-        expect(screen.queryByTestId('session-feedback-save')).toBeNull();
-      } else {
-        const save = await screen.findByRole('button', {
-          name: '피드백 저장하고 홈으로',
-        });
-        expect(save).toBeDisabled();
-        expect(screen.queryByRole('button', { name: '홈으로' })).toBeNull();
-        expect(markNotCompleted).not.toHaveBeenCalled();
-        expect(finishSession).toHaveBeenCalledTimes(1);
-        fireEvent.press(screen.getByRole('radio', { name: '적당했어요' }));
-        expect(save).toBeEnabled();
-        fireEvent.press(save);
-        await waitFor(() => expect(submitFeedback).toHaveBeenCalledTimes(1));
-        expect(await screen.findByTestId('home-screen')).toBeOnTheScreen();
-      }
+      // How many blocks were checked no longer decides the path: both go
+      // through the resumable stop, and neither closes the session.
+      const save = await screen.findByRole('button', {
+        name: '피드백 저장하고 홈으로',
+      });
+      expect(stopSession).toHaveBeenCalledTimes(1);
+      expect(stopSession).toHaveBeenCalledWith(
+        'session-1',
+        expect.any(String),
+        'TIME_SHORTAGE',
+      );
+      expect(markNotCompleted).not.toHaveBeenCalled();
+      expect(finishSession).not.toHaveBeenCalled();
+      expect(save).toBeDisabled();
+
+      fireEvent.press(screen.getByRole('radio', { name: '적당했어요' }));
+      expect(save).toBeEnabled();
+      fireEvent.press(save);
+      await waitFor(() => expect(submitFeedback).toHaveBeenCalledTimes(1));
+
+      // Back on Home the session is still there to continue.
+      expect(await screen.findByTestId('home-screen')).toBeOnTheScreen();
+      expect(stopped).toBe(true);
+      expect(
+        await screen.findByRole('button', { name: '이어하기' }),
+      ).toBeOnTheScreen();
     },
   );
 
@@ -695,9 +705,11 @@ describe('MainFlow restart recovery', () => {
     );
   }, 20_000);
 
-  it('leaves the session resumable when the user steps away instead of stopping', async () => {
-    // Confirming a stop is terminal by design. Without a separate exit there was
-    // no way to step away and come back, and Home lost 이어하기 entirely.
+  it('leaves the session resumable after the user stops with a reason', async () => {
+    // Confirming a stop used to close the session, which is what took 이어하기
+    // away. It now goes through `/stop`, and the terminal endpoints stay
+    // untouched -- checked against the real client rather than a stub, because
+    // the bug was in which endpoint the screen picked.
     const { api, calls } = apiWithRoutes({
       '/home?': homeState({ workout_session: sessionDetail() }),
       '/decisions?': decision(),
@@ -735,19 +747,22 @@ describe('MainFlow restart recovery', () => {
     );
 
     fireEvent.press(screen.getByRole('button', { name: '운동 중단' }));
-    fireEvent.press(
-      await screen.findByRole('button', { name: '나중에 이어하기' }),
-    );
+    fireEvent.press(screen.getByRole('radio', { name: '시간이 부족해요.' }));
+    fireEvent.press(screen.getByRole('button', { name: '이 사유로 중단하기' }));
 
-    // Back on Home, still resumable, and nothing was submitted to end it.
-    expect(
-      await screen.findByRole('button', { name: '이어하기' }),
-    ).toBeTruthy();
+    // Asked how it went, and the session was never closed to ask.
+    await screen.findByRole('button', { name: '피드백 저장하고 홈으로' });
+    await waitFor(() =>
+      expect(calls.some((path) => path.includes('/stop'))).toBe(true),
+    );
     expect(
       calls.some(
         (path) => path.includes('/not-completed') || path.includes('/finish'),
       ),
     ).toBe(false);
+    expect(
+      screen.queryByRole('button', { name: '나중에 이어하기' }),
+    ).toBeNull();
   }, 20_000);
 
   it("keeps the day's completed routine visible without reopening it", async () => {

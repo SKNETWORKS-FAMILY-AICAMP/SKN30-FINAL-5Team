@@ -64,3 +64,9 @@ class MiniGameRewardRequest(BaseModel):
 
 class MiniGameRewardResponse(BananaWalletResponse):
     transaction: BananaTransactionResponse
+
+
+class BondingQuestRewardResponse(BananaWalletResponse):
+    """The wallet after paying the house bonding quest, with its transaction."""
+
+    transaction: BananaTransactionResponse

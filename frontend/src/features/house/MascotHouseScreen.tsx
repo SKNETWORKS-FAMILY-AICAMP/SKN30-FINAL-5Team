@@ -233,6 +233,8 @@ export function MascotHouseScreen({
     [api],
   );
   const spend = useAsyncAction(spendRequest);
+  const claimBondingRequest = useCallback(() => api.claimBondingQuest(), [api]);
+  const claimBonding = useAsyncAction(claimBondingRequest);
   const claimMiniGameRequest = useCallback(
     (score: number) => api.claimMiniGameReward({ score }),
     [api],
@@ -253,6 +255,29 @@ export function MascotHouseScreen({
       walletMutationInFlight.current = false;
     }
   };
+
+  // The bonding quest is settled locally, but the wallet is the only balance the
+  // app shows, so the payout has to come from the server. The house used to add
+  // it to its own stored number, which every write then overwrote with the
+  // wallet balance -- the quest looked complete and paid nothing.
+  const bondingClaimedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (houseState === null) return;
+    if (houseState.questLocalDate !== localDate) return;
+    if (!houseState.paidQuestIds.includes('pet')) return;
+    if (bondingClaimedFor.current === localDate) return;
+    bondingClaimedFor.current = localDate;
+    void runWalletMutation(() => claimBonding.run()).then((result) => {
+      if (!result) return;
+      serverBalance.current = result.balance;
+      if (remote.status !== 'ready') return;
+      setRemoteData({
+        ...remote.data,
+        wallet: { balance: result.balance, daily_reward: result.daily_reward },
+        walletError: null,
+      });
+    });
+  }, [houseState, localDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Arrival: read the stored house once, then record the visit and pay out any
   // workout it has not paid for yet.

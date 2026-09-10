@@ -10,6 +10,7 @@ class BananaTransactionType(StrEnum):
     HOUSE_FEED = "HOUSE_FEED"
     HOUSE_ITEM_PURCHASE = "HOUSE_ITEM_PURCHASE"
     MINI_GAME = "MINI_GAME"
+    HOUSE_BONDING_QUEST = "HOUSE_BONDING_QUEST"
 
 
 class BananaSpendActionCode(StrEnum):
@@ -21,6 +22,11 @@ DAILY_REWARD_BANANAS = 15
 WORKOUT_COMPLETED_BANANAS = 30
 WORKOUT_PARTIAL_BANANAS = 15
 WORKOUT_DAILY_QUEST_BANANAS = 10
+# The house bonding quest. Claimed once a local day like the daily reward, which
+# it mirrors: the server cannot observe petting, so it pays a fixed amount on
+# request rather than verifying the quest. The exposure is the same shape and the
+# same size as the existing daily claim -- one fixed payout a day.
+HOUSE_BONDING_QUEST_BANANAS = 5
 # The house mini-game pays out in proportion to the score the player actually
 # reached. The score arrives from the client, so the server decides the payout
 # from it rather than accepting an amount, bounds it, and pays at most once a

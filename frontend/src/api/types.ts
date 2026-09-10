@@ -313,7 +313,10 @@ export type WorkoutPlanItem = {
   tier_code: string;
   sets: number;
   reps: number | null;
+  /** The item total across every set, not one set's work. */
   work_seconds: number;
+  /** One set's work. Absent on plans stored before the server carried it. */
+  work_seconds_per_set?: number | null;
   rest_seconds: number;
   transition_seconds: number;
   estimated_item_seconds: number;
@@ -417,6 +420,8 @@ export type PlanItemPrescriptionEdit = {
   plan_item_id: string;
   sets: number;
   reps: number | null;
+  /** One set's work, for a duration-based item. Absent means "leave it alone". */
+  workSecondsPerSet?: number | null;
 };
 
 export type PlanItemSetRepetitionRequest = {
@@ -424,6 +429,11 @@ export type PlanItemSetRepetitionRequest = {
   expected_plan_revision: number;
   sets: number;
   reps: number | null;
+  /**
+   * One set's work, for a duration-based item. The server rejects it on a
+   * repetition-based item, whose per-set work comes from reps and the catalog.
+   */
+  work_seconds_per_set?: number | null;
 };
 
 export type PlanItemOrderRequest = {
@@ -520,6 +530,21 @@ export type SafetyEventResponse = {
   guidance: string;
 };
 
+export type SessionStopResponse = {
+  session_id: string;
+  completion_code: 'PARTIAL' | 'NOT_COMPLETED' | null;
+  execution_state_code: 'STOPPED_RESUMABLE' | 'STOPPED_SAFETY';
+  stop_reason_code:
+    | 'HIGH_FATIGUE'
+    | 'TIME_SHORTAGE'
+    | 'RESUME_LATER'
+    | 'PAIN_OR_ABNORMAL_RESPONSE';
+  is_resumable: boolean;
+  accumulated_progress_seconds: number;
+  accumulated_rest_seconds: number;
+  accumulated_paused_seconds: number;
+};
+
 export type SessionFinishResponse = {
   session_id: string;
   status_code: SessionStatusCode;
@@ -556,7 +581,11 @@ export type WorkoutFeedbackSummary = {
 export type WorkoutFeedbackResponse = {
   session_id: string;
   session_status_code:
-    'COMPLETED' | 'PARTIAL' | 'NOT_COMPLETED' | 'STOPPED_FOR_SAFETY';
+    | 'IN_PROGRESS'
+    | 'COMPLETED'
+    | 'PARTIAL'
+    | 'NOT_COMPLETED'
+    | 'STOPPED_FOR_SAFETY';
   created_at: string;
   guidance_code: string | null;
   guidance: string | null;
@@ -683,7 +712,8 @@ export type BananaTransactionType =
   | 'WORKOUT_DAILY_QUEST'
   | 'HOUSE_FEED'
   | 'HOUSE_ITEM_PURCHASE'
-  | 'MINI_GAME';
+  | 'MINI_GAME'
+  | 'HOUSE_BONDING_QUEST';
 
 export type DailyRewardStatus = {
   local_date: string;
@@ -730,6 +760,14 @@ export type MiniGameRewardRequest = {
 };
 
 export type MiniGameRewardResponse = BananaWalletResponse & {
+  transaction: BananaTransactionResponse;
+};
+
+/**
+ * The house bonding quest, paid once a local day. The server owns the amount and
+ * the limit, so the request carries nothing.
+ */
+export type BondingQuestRewardResponse = BananaWalletResponse & {
   transaction: BananaTransactionResponse;
 };
 

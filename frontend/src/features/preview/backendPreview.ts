@@ -513,6 +513,24 @@ export function createSessionPreviewApi(state: SessionPreviewState): Api {
         alternative_set_version: hasVariant ? 'alternative-set-v2.0.1' : null,
       };
     },
+    async stopSession(
+      _sessionId: string,
+      _stoppedAt: string,
+      _reasonCode: NotCompletedReasonCode,
+    ) {
+      // Deliberately leaves `sessionStatus` alone: a resumable stop does not end
+      // the session, which is the whole point of it.
+      return {
+        session_id: 'session-preview',
+        completion_code: null,
+        execution_state_code: 'STOPPED_RESUMABLE' as const,
+        stop_reason_code: 'RESUME_LATER' as const,
+        is_resumable: true,
+        accumulated_progress_seconds: 0,
+        accumulated_rest_seconds: 0,
+        accumulated_paused_seconds: 0,
+      };
+    },
     async finishSession(
       _sessionId: string,
       finishedAt: string,

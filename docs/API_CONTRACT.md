@@ -67,6 +67,16 @@ increase the balance again.
 fixed house costs. It returns `409 INSUFFICIENT_BANANA_BALANCE` when funds are insufficient.
 An already purchased house item is rejected server-side, including concurrent requests.
 
+`POST /api/v1/rewards/bonding-quest/claim` pays the house bonding quest (끼끼와 교감하기), a fixed
+5 bananas, at most once per user-local date. It takes no body. The server cannot observe petting, so
+it pays on request rather than verifying the quest -- the same arrangement, and the same bounded
+exposure, as the daily reward claim. Repeat calls return the original transaction and never raise the
+balance again. Transactions use type `HOUSE_BONDING_QUEST`.
+
+All three house daily quests now settle in the wallet: 접속하기 through the daily reward, 끼끼와
+교감하기 through this endpoint, and 운동 완료하기 through the `WORKOUT_DAILY_QUEST` sync. The wallet
+balance is the only number the app shows, so a payout that does not reach it is not paid at all.
+
 `POST /api/v1/rewards/mini-game/claim` pays out one finished house mini-game round. The body is
 `{"score": integer}` and nothing else: the amount is the server's, derived as `score // 2` bananas and
 capped at 25, so a strong round stays under the 30 a completed workout pays. The score is reported by
@@ -502,7 +512,7 @@ ManualActivityResponse
 | POST | /api/v1/decisions | 현재 컨텍스트로 결정 실행 |
 | GET | /api/v1/decisions/{decision_id} | 저장된 결정 조회 |
 | POST | /api/v1/decisions/{decision_id}/regenerations | [V3 backend API 구현, 기본 비활성] 추가 입력 없이 다른 루틴 재생성 |
-| PATCH | /api/v1/decisions/{decision_id}/plan-items/{plan_item_id} | 당일 plan item의 세트·반복 저장 |
+| PATCH | /api/v1/decisions/{decision_id}/plan-items/{plan_item_id} | 당일 plan item의 세트·반복 또는 세트당 시간 저장 |
 | PUT | /api/v1/decisions/{decision_id}/plan-item-order | 당일 plan의 phase 내 순서 저장 |
 | POST | /api/v1/decisions/{decision_id}/selection | 서버가 허용한 옵션 선택 |
 | GET | /api/v1/home?local_date={local_date} | 홈 복구용 decision·final_plan·workout_session 통합 조회 |
@@ -1586,10 +1596,36 @@ Idempotency-Key: uuid
 }
 ~~~
 
-`sets`와 반복 기반 운동의 `reps`는 양의 정수다. 빈 값·0·음수는 거부한다. 시간 기반 운동은
-`reps=null`만 허용한다. 요청은 장소를 받지 않으며 `location_code`를 비롯한 추가 필드를 거부한다.
+시간 기반 운동은 `reps` 대신 `work_seconds_per_set`을 보낸다.
+
+~~~json
+{
+  "expected_plan_id": "uuid",
+  "expected_plan_revision": 0,
+  "sets": 2,
+  "work_seconds_per_set": 45
+}
+~~~
+
+`sets`, `reps`, `work_seconds_per_set`은 모두 양의 정수다. 빈 값·0·음수는 거부한다.
+
+운동의 측정 방식이 어느 필드를 쓸지 정하며 둘은 배타적이다.
+
+- 반복 기반 운동은 `reps`가 필수이고 `work_seconds_per_set`을 보내면
+  `422 WORK_SECONDS_NOT_APPLICABLE`이다. 세트당 시간은 `reps × 카탈로그 seconds_per_rep`으로
+  서버가 계산하므로, 둘을 함께 받으면 저장된 반복 수와 모순되는 시간을 저장하게 된다.
+- 시간 기반 운동은 `reps`를 보내면 `422 REPETITIONS_NOT_APPLICABLE`이다.
+  `work_seconds_per_set`은 선택이며, 생략하면 승인된 카탈로그 기준을 유지한다. 세트 수만 바꾸는
+  편집이 여기 해당한다.
+
+요청은 장소를 받지 않으며 `location_code`를 비롯한 추가 필드를 거부한다.
 성공 응답은 `decision_id`, 증가한 `plan_revision`, 갱신된 `final_plan`이다. 직접 편집은 체크인 수정과
 재추천의 하루 2회 한도에 포함하지 않는다.
+
+`final_plan`의 각 item은 `work_seconds`(해당 운동의 전체 합)와 함께
+`work_seconds_per_set`(한 세트분)을 반환한다. 화면이 세트 수 옆에 표시하는 값과 시간 기반 편집이
+대체하는 값은 후자다. 이 필드를 기록하기 전에 저장된 계획에서는 서버가 `work_seconds / sets`로
+계산해 채우며, 합이 `sets × 세트당`으로 기록됐으므로 정확하다.
 
 ~~~http
 PUT /api/v1/decisions/{decision_id}/plan-item-order
@@ -1740,13 +1776,32 @@ start·block·timer·additional-activity mutation은 `ended_at`이 있거나 공
 PATCH /api/v1/workout-sessions/{id}/stop
 
 ~~~json
-{"stopped_at":"2026-09-03T10:22:00+09:00","stop_reason_code":"RESUME_LATER"}
+{
+  "stopped_at": "2026-09-03T10:22:00+09:00",
+  "stop_reason_code": "RESUME_LATER",
+  "not_completed_reason_code": "TIME_SHORTAGE"
+}
 ~~~
 
 `HIGH_FATIGUE`, `TIME_SHORTAGE`, `RESUME_LATER`는 `STOPPED_RESUMABLE`과
 `is_resumable=true`를 반환하고, `POST /timer-events`의 `RESUME`으로 `RUNNING`으로 전이한다.
 이때 기존 `status_code`는 `IN_PROGRESS`로 dual-write한다. `PAIN_OR_ABNORMAL_RESPONSE`는
 세부 증상 입력 없이 Safety Event를 생성하며 당일 재개할 수 없다.
+
+**일반 중단은 세션을 종료하지 않는다.** 사유를 선택한 일반 중단은 `/finish`나
+`/not-completed`가 아니라 이 endpoint를 호출한다. 종료된 세션은 이어할 수 없으므로 종료로
+처리하면 이어하기 자체가 사라진다.
+
+`not_completed_reason_code`는 선택 필드이며 `WorkoutNotCompletedReasonCode` 값을 받는다.
+`stop_reason_code`는 어떤 실행 전이가 일어났는지를 나타내는 코드이므로 사용자가 고른 사유를
+담을 수 없다. 이 필드는 사용자의 답이며 `workout_skip_feedback`에 저장한다. 같은 세션을 다시
+중단하면 마지막 값으로 대체한다. 재개하지 않은 세션은 누구도 종료하지 않으므로, 사용자가
+사유를 남길 수 있는 마지막 시점이 중단 시점이다. 필드를 보내지 않는 기존 client는 그대로
+동작하며 사유를 기록하지 않는다.
+
+닫힌 주의 주간 리포트는 종료되지 않은 세션을 거부하지 않고 완료 블록으로 공식 상태를
+계산한다. 닫힌 주에는 재개가 불가능하고, 공식 수행 상태의 근거는 언제나 블록 체크이기
+때문이다. 완료 블록이 없는 세션은 여전히 미수행 사유를 요구한다.
 
 ### 12.4 운동 중 안전 이벤트
 
@@ -1851,18 +1906,42 @@ MOVEMENT_DIFFICULT
 
 `difficulty_reason_codes`의 목표 계약은 `difficulty_code=HARD`일 때 필수이며 최소 1개, 최대
 2개다. 중복 값은 `422`로 거부한다. `HARD`가 아닌 요청이 이 필드를 보내면 같은 오류로 거부하며,
-값을 무시하거나 보정하지 않는다. 표시 문구는 `VOLUME_HIGH=운동량이 많았어요`,
-`MOVEMENT_DIFFICULT=동작이 어려웠어요`다. 두 코드는 다음 루틴의 조정 축을 정하는
+값을 무시하거나 보정하지 않는다. 두 코드는 다음 루틴의 조정 축을 정하는
 입력이며(`DOMAIN_RULES.md` 6.1) 의료적 해석 대상이 아니다.
+
+표시 문구는 `VOLUME_HIGH=운동량이 많았어요`, `MOVEMENT_DIFFICULT=동작이 어려웠어요`가 기준이다.
+현재 앱은 같은 코드에 `VOLUME_HIGH=강도가 높았어요`, `MOVEMENT_DIFFICULT=자세가 어려웠어요`를
+쓴다. 같은 조정 축을 가리키는 동의 표현으로 보고 그대로 둔다(프로젝트 소유자 판단, 2026-09-10).
+문구를 통일할 때도 코드는 바뀌지 않으므로 저장된 값과 집계는 영향을 받지 않는다.
 
 필수 승격은 1.1의 전환 순서를 따른다. 현재 단계에서 이 필드는 **선택**이며, `HARD`를 이유 없이
 보내는 기존 클라이언트 요청을 계속 수용한다. 이유가 없는 `HARD` row는 조정 축을 고르지 못하므로
 다음 루틴을 바꾸지 않는다. 클라이언트가 값을 보내기 시작하고 호환 검증을 마친 뒤 별도 릴리스에서
 필수로 승격한다.
 
-표시 문구는 `EASY=쉬웠어요`, `APPROPRIATE=적당했어요`, `HARD=어려워요`를 유지한다. 피드백은 종료
-상태의 세션에 한 번만 저장하고 공식 수행 상태를 변경하지 않는다. 미수행 세션은 리포트 생성 전에
-`/not-completed`의 `reason_code`를 먼저 저장해야 한다.
+표시 문구는 `EASY=쉬웠어요`, `APPROPRIATE=적당했어요`, `HARD=어려워요`를 유지한다. 피드백은 공식
+수행 상태를 변경하지 않는다. 미수행 세션은 리포트 생성 전에 `/not-completed`의 `reason_code`를
+먼저 저장해야 한다.
+
+피드백은 **중단한 세션**에 저장하며, 세션당 한 행을 **갱신**한다.
+
+- 종료 상태(`COMPLETED`, `PARTIAL`, `NOT_COMPLETED`, `STOPPED_FOR_SAFETY`)와 실행 상태
+  `STOPPED_RESUMABLE`을 받는다. 후자의 `session_status_code`는 `IN_PROGRESS`다.
+- 수행 중(`RUNNING`, `RESTING`, `PAUSED`)인 세션은 `409 INVALID_STATE_TRANSITION`으로 거부한다.
+  "오늘 운동은 어땠나요"에 답이 생기는 시점은 사용자가 멈춘 뒤다.
+- 같은 세션에 다시 저장하면 마지막 요청이 이전 값을 완전히 대체한다. 자식 행
+  (`discomforts`, `adverse_reactions`, `difficulty_reasons`)도 함께 교체하며 병합하지 않는다.
+  두 답을 합치면 사용자가 준 적 없는 조합이 저장되기 때문이다.
+- `409 FEEDBACK_ALREADY_EXISTS`는 더 이상 발생하지 않는다.
+- `created_at`은 최초 응답 시각을, `workout_feedback.updated_at`은 현재 저장된 답의 시각을
+  가진다.
+
+종료 상태를 요구하던 이전 계약은 이어하기와 양립할 수 없었다. 사유를 골라 중단한 사용자는 이미
+답을 갖고 있지만 세션은 재개 가능한 `IN_PROGRESS`이므로, 답을 받으려면 세션을 종료해야 했고 종료된
+세션은 이어할 수 없었다. 갱신형인 이유도 같다. 재개해서 더 수행한 뒤의 답이 그 세션을 설명한다.
+
+과거 결정의 재현성은 영향을 받지 않는다. 결정은 자신의 `input_snapshot`을 읽으며, daily check-in이
+가변인 것과 같은 이유다(`DATA_MODEL.md` 10.4.1).
 
 현재 구현의 `fatigue_code`, `satisfaction_code`, `pain_occurred`, `discomforts`,
 `adverse_reaction_codes`는 즉시 삭제하지 않는다. 후속 호환 단계에서 다음 순서로 전환한다.

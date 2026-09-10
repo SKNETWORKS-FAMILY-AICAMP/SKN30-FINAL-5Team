@@ -18,6 +18,7 @@ import type {
   DecisionRegenerationRequest,
   DecisionResponse,
   DecisionSelectionResponse,
+  BondingQuestRewardResponse,
   DailyRewardClaimResponse,
   MiniGameRewardRequest,
   MiniGameRewardResponse,
@@ -45,6 +46,7 @@ import type {
   SessionItemUpdateResponse,
   SessionNotCompletedResponse,
   SessionStartResponse,
+  SessionStopResponse,
   WeeklyPlanRevisionRequest,
   WeeklyPlanRevisionResponse,
   WeeklyReportResponse,
@@ -88,6 +90,18 @@ export function createApi(client: ApiClient) {
       return client.request<DailyRewardClaimResponse>({
         method: 'POST',
         path: '/rewards/daily-reward/claim',
+        idempotent: true,
+      });
+    },
+
+    /**
+     * Claims the house bonding quest for today. Idempotent for the user-local
+     * day: a repeat returns the original transaction and never pays twice.
+     */
+    claimBondingQuest() {
+      return client.request<BondingQuestRewardResponse>({
+        method: 'POST',
+        path: '/rewards/bonding-quest/claim',
         idempotent: true,
       });
     },
@@ -489,6 +503,29 @@ export function createApi(client: ApiClient) {
       });
     },
 
+    /**
+     * Stops the session without ending it, so Home can still offer 이어하기.
+     *
+     * `reasonCode` is the user's own answer and is what the weekly report reads
+     * if they never come back; the server keeps only the latest one.
+     */
+    stopSession(
+      sessionId: string,
+      stoppedAt: string,
+      reasonCode: NotCompletedReasonCode,
+    ) {
+      return client.request<SessionStopResponse>({
+        method: 'PATCH',
+        path: `/workout-sessions/${sessionId}/stop`,
+        body: {
+          stopped_at: stoppedAt,
+          stop_reason_code: 'RESUME_LATER',
+          not_completed_reason_code: reasonCode,
+        },
+        idempotent: true,
+      });
+    },
+
     finishSession(
       sessionId: string,
       finishedAt: string,
@@ -524,6 +561,7 @@ export function createApi(client: ApiClient) {
         difficulty_code: 'EASY' | 'APPROPRIATE' | 'HARD';
         fatigue_code?: string | null;
         satisfaction_code?: string | null;
+        difficulty_reason_codes?: ('VOLUME_HIGH' | 'MOVEMENT_DIFFICULT')[];
         pain_occurred: boolean;
         discomforts: { body_area_code: string; severity_code: string }[];
         adverse_reaction_codes: string[];

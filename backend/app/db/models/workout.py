@@ -333,6 +333,9 @@ class WorkoutFeedback(Base):
     satisfaction_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     pain_occurred: Mapped[bool] = mapped_column(nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # The row is rewritten whenever the user answers again after resuming, so
+    # `created_at` alone no longer says when the stored answer was given.
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     discomforts: Mapped[list["WorkoutFeedbackDiscomfort"]] = relationship(
         cascade="all, delete-orphan", passive_deletes=True
     )

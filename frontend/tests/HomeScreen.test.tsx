@@ -1624,7 +1624,14 @@ describe('HomeScreen Home v1 transcription', () => {
 
     expect(onSubmitUserEdits).toHaveBeenCalledWith(
       expect.objectContaining({
-        itemOverrides: [{ planItemId: 'plan-item-2', sets: 4, reps: 8 }],
+        itemOverrides: [
+          {
+            planItemId: 'plan-item-2',
+            sets: 4,
+            reps: 8,
+            workSecondsPerSet: null,
+          },
+        ],
       }),
     );
     expect(screen.getByText('푸시업 · 4세트 × 8회')).toBeOnTheScreen();

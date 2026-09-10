@@ -329,24 +329,23 @@ export function MainFlow({
           sessionId={step.sessionId}
           plan={step.plan}
           onOutcome={(outcome) => {
-            if (isRestOutcome(outcome)) {
+            if (outcome.kind === 'safetyStop') {
+              // The day is rest from here, and Home says so -- but the user is
+              // still asked how the session went before leaving, which is the
+              // only place that question gets asked for a safety stop.
               setRestLocalDate(localDate);
-              setHomeSafetyGuidance(
-                outcome.kind === 'safetyStop'
-                  ? { localDate, message: outcome.event.guidance }
-                  : null,
-              );
+              setHomeSafetyGuidance({
+                localDate,
+                message: outcome.event.guidance,
+              });
+            } else if (isRestOutcome(outcome)) {
+              setRestLocalDate(localDate);
+              setHomeSafetyGuidance(null);
               setRecoveryNonce((value) => value + 1);
               goHome();
               return;
             }
             setStep({ name: 'result', sessionId: step.sessionId, outcome });
-          }}
-          onResumeLater={() => {
-            // Nothing is submitted: the session stays IN_PROGRESS, so Home reads
-            // it back as resumable. The nonce makes Home re-read it on arrival.
-            setRecoveryNonce((value) => value + 1);
-            goHome();
           }}
         />
       );

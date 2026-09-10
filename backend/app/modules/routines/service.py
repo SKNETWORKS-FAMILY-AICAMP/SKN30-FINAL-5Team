@@ -21,6 +21,7 @@ from backend.app.domain.rules.plan_naming import build_plan_name
 from backend.app.domain.rules.plan_shape import (
     MAX_PHASE_EXERCISE_TYPES,
     MAX_PLAN_EXERCISE_TYPES,
+    space_repeated_blocks,
 )
 from backend.app.modules.routines.codes import RoutinePhaseCode, RoutineTierCode
 from backend.app.modules.routines.ports import (
@@ -224,7 +225,15 @@ def _select_exact_plan(
                 setup_seconds = min(max(target - content_seconds, 0), 60)
                 deviation = abs(content_seconds + setup_seconds - target)
                 if deviation <= DURATION_TOLERANCE_SECONDS:
-                    selected = (*warmup_items, *main_items, *cooldown_items)
+                    # A candidate split across several blocks is built adjacently
+                    # by `_subsets`, so two blocks of one movement arrive next to
+                    # each other and the session reads as one long exercise.
+                    # Spread them; the V3 path already refuses that shape.
+                    selected = (
+                        *warmup_items,
+                        *space_repeated_blocks(main_items, key=lambda item: item.exercise_id),
+                        *cooldown_items,
+                    )
                     matches.append((deviation, setup_seconds, selected))
     if not matches:
         raise RoutineDurationUnavailableError
