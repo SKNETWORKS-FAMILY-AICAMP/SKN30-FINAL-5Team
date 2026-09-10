@@ -67,6 +67,14 @@ increase the balance again.
 fixed house costs. It returns `409 INSUFFICIENT_BANANA_BALANCE` when funds are insufficient.
 An already purchased house item is rejected server-side, including concurrent requests.
 
+`POST /api/v1/rewards/mini-game/claim` pays out one finished house mini-game round. The body is
+`{"score": integer}` and nothing else: the amount is the server's, derived as `score // 2` bananas and
+capped at 25, so a strong round stays under the 30 a completed workout pays. The score is reported by
+the client, so it is bounded rather than trusted -- a score above 200 is refused as `INVALID_REQUEST`
+rather than clamped. The user-local date is the idempotency key, so a retry with the same score replays
+the original transaction while a second, different score that day is refused as `INVALID_BANANA_SPEND`.
+A round earning nothing returns `400 INVALID_MINI_GAME_SCORE`. Transactions use type `MINI_GAME`.
+
 Canonical workout rewards are 30 for `COMPLETED`, 15 for `PARTIAL` and `STOPPED_FOR_SAFETY`, plus the
 existing once-per-local-day 10 completed-workout house quest. `NOT_COMPLETED` never deducts bananas.
 `GET /api/v1/me` adds top-level integer `banana_balance` (default 0); clients use `/rewards` for

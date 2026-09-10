@@ -342,6 +342,12 @@ export function MainFlow({
             }
             setStep({ name: 'result', sessionId: step.sessionId, outcome });
           }}
+          onResumeLater={() => {
+            // Nothing is submitted: the session stays IN_PROGRESS, so Home reads
+            // it back as resumable. The nonce makes Home re-read it on arrival.
+            setRecoveryNonce((value) => value + 1);
+            goHome();
+          }}
         />
       );
 

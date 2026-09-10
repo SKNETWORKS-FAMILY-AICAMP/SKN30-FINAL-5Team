@@ -15,10 +15,13 @@ from backend.app.modules.rewards.schemas import (
     BananaSpendResponse,
     BananaWalletResponse,
     DailyRewardClaimResponse,
+    MiniGameRewardRequest,
+    MiniGameRewardResponse,
 )
 from backend.app.modules.rewards.service import (
     InsufficientBananaBalanceError,
     InvalidBananaSpendError,
+    InvalidMiniGameScoreError,
     RewardProfileNotFoundError,
     RewardService,
 )
@@ -44,6 +47,12 @@ def _error(exc: Exception) -> AppError:
             status_code=HTTPStatus.BAD_REQUEST,
             code="INVALID_BANANA_SPEND",
             message="바나나 사용 요청이 올바르지 않습니다.",
+        )
+    if isinstance(exc, InvalidMiniGameScoreError):
+        return AppError(
+            status_code=HTTPStatus.BAD_REQUEST,
+            code="INVALID_MINI_GAME_SCORE",
+            message="이번 판으로는 받을 바나나가 없어요.",
         )
     if isinstance(exc, SQLAlchemyError):
         return AppError(
@@ -98,6 +107,33 @@ def spend_bananas(
         RewardProfileNotFoundError,
         InsufficientBananaBalanceError,
         InvalidBananaSpendError,
+        SQLAlchemyError,
+    ) as exc:
+        raise _error(exc) from None
+
+
+@router.post("/mini-game/claim", response_model=MiniGameRewardResponse)
+def claim_mini_game_reward(
+    payload: MiniGameRewardRequest,
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db_session)],
+    repository: Annotated[RewardRepositoryPort, Depends(get_reward_repository)],
+) -> MiniGameRewardResponse:
+    """Pay out one finished mini-game round in proportion to its score.
+
+    The request carries the score, never an amount: the payout, its cap and the
+    once-a-day limit are the server's. The local day is the idempotency key, so
+    a retry with the same score replays rather than paying twice.
+    """
+
+    try:
+        return RewardService(repository).claim_mini_game_reward(
+            session, current_user.user_id, payload
+        )
+    except (
+        RewardProfileNotFoundError,
+        InvalidBananaSpendError,
+        InvalidMiniGameScoreError,
         SQLAlchemyError,
     ) as exc:
         raise _error(exc) from None

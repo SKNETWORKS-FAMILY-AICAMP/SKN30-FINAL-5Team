@@ -291,10 +291,7 @@ export function ExerciseCatalogShortcut({
       testID="home-exercise-catalog"
     >
       <View style={styles.catalogShortcutCopy}>
-        <Text style={styles.catalogShortcutTitle}>운동 카탈로그</Text>
-        <Text style={styles.catalogShortcutDescription}>
-          운동명과 부위로 둘러보기
-        </Text>
+        <Text style={styles.catalogShortcutTitle}>운동 리스트 보기</Text>
       </View>
       <Text style={styles.catalogShortcutArrow}>›</Text>
     </Pressable>

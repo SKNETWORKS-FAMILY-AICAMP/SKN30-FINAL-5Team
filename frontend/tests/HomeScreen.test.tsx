@@ -155,7 +155,7 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.getByText('이번 주 운동 현황')).toBeOnTheScreen();
     const shortcut = screen.getByTestId('home-exercise-catalog');
     expect(shortcut).toBeEnabled();
-    expect(screen.getByText('운동명과 부위로 둘러보기')).toBeOnTheScreen();
+    expect(screen.getByText('운동 리스트 보기')).toBeOnTheScreen();
     fireEvent.press(shortcut);
     expect(onOpenExerciseCatalog).toHaveBeenCalledTimes(1);
   });
@@ -815,7 +815,7 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.queryByText('장비')).toBeNull();
   });
 
-  it('explains the recommendation by goal, condition and environment without internal terminology', () => {
+  it('explains the recommendation with server-supplied per-agent reasoning', () => {
     const view = render(<HomeScreen {...homePreviewProps('adjusted')} />);
     fireEvent.press(
       screen.getByRole('button', { name: '이 루틴을 추천한 이유 >' }),
@@ -823,21 +823,17 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(
       screen.getByRole('header', { name: '이 루틴을 추천한 이유' }),
     ).toBeOnTheScreen();
-    expect(screen.getByText('운동 목표')).toBeOnTheScreen();
-    expect(screen.getByText('컨디션')).toBeOnTheScreen();
-    expect(screen.getByText('운동 환경')).toBeOnTheScreen();
+    expect(screen.getByText('에이전트별 판단')).toBeOnTheScreen();
+    expect(screen.getByText('최종 조정 이유')).toBeOnTheScreen();
+    expect(screen.getByText('반영한 기준')).toBeOnTheScreen();
+    // Machine codes stay internal however the sections are composed.
     const tree = JSON.stringify(view.toJSON());
     for (const internal of [
-      '서버가 결정',
-      '에이전트별 판단',
-      '최종 조정 이유',
-      '반영한 기준',
       'MODERATE_FATIGUE_DOWNSHIFT',
       'COMMON_CANDIDATE_SELECTED',
     ]) {
       expect(tree).not.toContain(internal);
     }
-    expect(tree.indexOf('운동 목표')).toBeLessThan(tree.indexOf('운동 환경'));
   });
 
   it('keeps legacy recommendation reasons usable without agent summaries', () => {
@@ -855,7 +851,8 @@ describe('HomeScreen Home v1 transcription', () => {
 
     expect(screen.queryByText('에이전트별 판단')).toBeNull();
     expect(screen.queryByText('최종 조정 이유')).toBeNull();
-    expect(screen.getByText('운동 환경')).toBeOnTheScreen();
+    // The reviewed criteria list still stands on its own for older decisions.
+    expect(screen.getByText('반영한 기준')).toBeOnTheScreen();
   });
 
   it('shows a safety caution supplied through adjustment reason codes', () => {
@@ -873,6 +870,8 @@ describe('HomeScreen Home v1 transcription', () => {
     fireEvent.press(
       screen.getByRole('button', { name: '이 루틴을 추천한 이유 >' }),
     );
+    // The criteria list is collapsed until asked for.
+    fireEvent.press(screen.getByRole('button', { name: '반영한 기준 펼치기' }));
     expect(
       screen.getByText('불편한 부위를 고려해 강도를 낮췄어요.'),
     ).toBeOnTheScreen();

@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   AppState,
   Image,
@@ -27,9 +27,17 @@ import {
 const GROUND_HEIGHT_PERCENT = 22;
 const PLAYER_SIZE = 86;
 
-export function KikkiRunnerGameScreen({ onBack }: { onBack: () => void }) {
+export function KikkiRunnerGameScreen({
+  onBack,
+  onPlayed,
+}: {
+  onBack: () => void;
+  /** Fired once when a started round reaches its finished state. */
+  onPlayed?: (score: number) => void;
+}) {
   const [game, setGame] = useState(createKikkiRunnerState);
   const [paused, setPaused] = useState(false);
+  const playCounted = useRef(false);
 
   useEffect(() => {
     if (game.status !== 'playing' || paused) return undefined;
@@ -40,6 +48,12 @@ export function KikkiRunnerGameScreen({ onBack }: { onBack: () => void }) {
     }, KIKKI_RUNNER_TICK_MS);
     return () => clearInterval(timer);
   }, [game.status, paused]);
+
+  useEffect(() => {
+    if (game.status !== 'finished' || playCounted.current) return;
+    playCounted.current = true;
+    onPlayed?.(game.score);
+  }, [game.score, game.status, onPlayed]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {

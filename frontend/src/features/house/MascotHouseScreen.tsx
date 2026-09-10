@@ -233,9 +233,15 @@ export function MascotHouseScreen({
     [api],
   );
   const spend = useAsyncAction(spendRequest);
+  const claimMiniGameRequest = useCallback(
+    (score: number) => api.claimMiniGameReward({ score }),
+    [api],
+  );
+  const claimMiniGame = useAsyncAction(claimMiniGameRequest);
   const claimGiftRequest = useCallback(() => api.claimDailyReward(), [api]);
   const claimGift = useAsyncAction(claimGiftRequest);
-  const walletMutationPending = spend.pending || claimGift.pending;
+  const walletMutationPending =
+    spend.pending || claimGift.pending || claimMiniGame.pending;
   const runWalletMutation = async <T,>(
     request: () => Promise<T | undefined>,
   ) => {
@@ -285,14 +291,70 @@ export function MascotHouseScreen({
     activeScreen?.kind === 'mini-game' &&
     activeScreen.gameId === 'banana_catch'
   ) {
-    return <BananaCatchGameScreen onBack={() => setActiveScreen(null)} />;
+    return (
+      <BananaCatchGameScreen
+        onBack={() => setActiveScreen(null)}
+        onPlayed={(score) => {
+          // This branch runs before the house state is guaranteed loaded, so
+          // there is nothing to record against until it is.
+          const base = liveState.current ?? houseState;
+          if (base !== null)
+            persist(recordGamePlay(base, 'banana_catch', localDate));
+          // The payout, its cap and the once-a-day limit are the server's; the
+          // client only reports what the round scored. A scoreless round is
+          // refused there, which is not worth interrupting the player over, so
+          // the wallet is left exactly as it was and no error is surfaced.
+          void runWalletMutation(() => claimMiniGame.run(score)).then(
+            (result) => {
+              if (!result) return;
+              serverBalance.current = result.balance;
+              // The house was loaded to get here, but this branch sits above
+              // the ready guard, so narrow before reading the wallet.
+              if (remote.status !== 'ready') return;
+              setRemoteData({
+                ...remote.data,
+                wallet: {
+                  balance: result.balance,
+                  daily_reward: result.daily_reward,
+                },
+                walletError: null,
+              });
+            },
+          );
+        }}
+      />
+    );
   }
 
   if (
     activeScreen?.kind === 'mini-game' &&
     activeScreen.gameId === 'kikki_runner'
   ) {
-    return <KikkiRunnerGameScreen onBack={() => setActiveScreen(null)} />;
+    return (
+      <KikkiRunnerGameScreen
+        onBack={() => setActiveScreen(null)}
+        onPlayed={(score) => {
+          const base = liveState.current ?? houseState;
+          if (base !== null)
+            persist(recordGamePlay(base, 'kikki_runner', localDate));
+          void runWalletMutation(() => claimMiniGame.run(score)).then(
+            (result) => {
+              if (!result) return;
+              serverBalance.current = result.balance;
+              if (remote.status !== 'ready') return;
+              setRemoteData({
+                ...remote.data,
+                wallet: {
+                  balance: result.balance,
+                  daily_reward: result.daily_reward,
+                },
+                walletError: null,
+              });
+            },
+          );
+        }}
+      />
+    );
   }
 
   if (activeScreen?.kind === 'rewards') {
@@ -428,7 +490,8 @@ export function MascotHouseScreen({
       }}
       onPlayGame={(gameId) => {
         if (!view.canPlayGame[gameId]) return;
-        persist(recordGamePlay(houseState, gameId, localDate));
+        // The play is counted when the round finishes, not here: spending it on
+        // open meant backing out of the game still used up the day's only try.
         setActiveScreen({ kind: 'mini-game', gameId });
       }}
       onPlaceItem={(itemId: HouseItemId, placement: HouseItemPlacement) => {

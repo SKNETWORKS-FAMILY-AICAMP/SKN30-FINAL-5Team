@@ -8,8 +8,9 @@ describe('KikkiRunnerGameScreen', () => {
   it('starts, double-jumps and finishes the thirty-second prototype', () => {
     jest.useFakeTimers();
     const random = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    const onPlayed = jest.fn();
     try {
-      render(<KikkiRunnerGameScreen onBack={() => {}} />);
+      render(<KikkiRunnerGameScreen onBack={() => {}} onPlayed={onPlayed} />);
 
       expect(screen.getByRole('header', { name: '끼끼 달리기' })).toBeTruthy();
       expect(screen.getByText('끼끼와 바나나 섬을 달려요!')).toBeTruthy();
@@ -37,6 +38,8 @@ describe('KikkiRunnerGameScreen', () => {
         screen.getByText(/300m를 달리고 바나나 \d+개를 만났어요!/),
       ).toBeTruthy();
       expect(screen.getByText('한 번 더')).toBeTruthy();
+      expect(onPlayed).toHaveBeenCalledTimes(1);
+      expect(onPlayed).toHaveBeenCalledWith(expect.any(Number));
     } finally {
       random.mockRestore();
       jest.useRealTimers();

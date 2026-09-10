@@ -72,7 +72,21 @@ const COLLECTING_MASCOT_ASSETS = [
   },
 ];
 
-export function BananaCatchGameScreen({ onBack }: { onBack: () => void }) {
+export function BananaCatchGameScreen({
+  onBack,
+  onPlayed,
+}: {
+  onBack: () => void;
+  /**
+   * Fired once the round actually finishes, with the score it reached.
+   *
+   * The daily play used to be spent the moment the screen opened, so backing
+   * out before pressing start still consumed it and the game could not be
+   * played again that day. The score rides along so the house can claim the
+   * round's reward; the payout itself is the server's to decide.
+   */
+  onPlayed?: (score: number) => void;
+}) {
   const [game, setGame] = useState(createBananaCatchState);
   const [paused, setPaused] = useState(false);
   const arenaWidth = useRef(1);
@@ -98,6 +112,13 @@ export function BananaCatchGameScreen({ onBack }: { onBack: () => void }) {
     }, BANANA_CATCH_TICK_MS);
     return () => clearInterval(timer);
   }, [game.status, paused]);
+
+  const playCounted = useRef(false);
+  useEffect(() => {
+    if (game.status !== 'finished' || playCounted.current) return;
+    playCounted.current = true;
+    onPlayed?.(game.score);
+  }, [game.score, game.status, onPlayed]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {

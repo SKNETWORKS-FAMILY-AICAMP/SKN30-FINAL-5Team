@@ -63,6 +63,7 @@ import {
 } from '../src/features/house/houseArtSlots';
 import {
   BANANA_REWARD,
+  createHouseState,
   DAILY_GIFT_BANANAS,
   HOUSE_ACTION_COST,
   HOUSE_BONDING_COPY,
@@ -219,6 +220,28 @@ function houseApi({
               ? 'HOUSE_FEED'
               : 'HOUSE_ITEM_PURCHASE',
           amount: -cost,
+          balance_after: balance,
+          created_at: '2026-08-18T10:00:00+09:00',
+        },
+      };
+    }),
+    claimMiniGameReward: jest.fn(async ({ score }: { score: number }) => {
+      // Mirrors the server: the payout is derived from the score, not sent.
+      const amount = Math.min(Math.floor(score / 2), 25);
+      balance += amount;
+      return {
+        balance,
+        daily_reward: {
+          local_date: '2026-08-18',
+          reward_amount: 15,
+          is_claimable: true,
+          is_claimed: false,
+          claimed_at: null,
+        },
+        transaction: {
+          transaction_id: 'transaction-MINI_GAME',
+          transaction_type: 'MINI_GAME',
+          amount,
           balance_after: balance,
           created_at: '2026-08-18T10:00:00+09:00',
         },
@@ -573,14 +596,19 @@ describe('MascotHouseScreen', () => {
     expect(screen.getByTestId('house-scene')).toBeTruthy();
   });
 
-  it('spends the daily play of each game on its own row', async () => {
-    renderHouse(houseApi());
+  it('shows the daily play status of each game on its own row', async () => {
+    renderHouse(
+      houseApi(),
+      createMemoryHouseStore({
+        ...createHouseState(),
+        playedGameLocalDates: {
+          banana_catch: '2026-08-22',
+          kikki_runner: null,
+        },
+      }),
+    );
 
     await screen.findByTestId('house-scene');
-    fireEvent.press(screen.getByTestId('house-mini-game-tile'));
-    fireEvent.press(screen.getByTestId('house-mini-game-banana_catch'));
-    fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
-
     fireEvent.press(screen.getByTestId('house-mini-game-tile'));
     expect(
       screen.getByTestId('house-mini-game-banana_catch').props
@@ -596,20 +624,6 @@ describe('MascotHouseScreen', () => {
       screen.getByTestId('house-mini-game-kikki_runner').props
         .accessibilityState,
     ).toMatchObject({ disabled: false });
-
-    fireEvent.press(screen.getByTestId('house-mini-game-kikki_runner'));
-    fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
-
-    fireEvent.press(screen.getByTestId('house-mini-game-tile'));
-    expect(
-      screen.getByTestId('house-mini-game-kikki_runner').props
-        .accessibilityState,
-    ).toMatchObject({ disabled: true });
-    expect(
-      screen.getAllByText(
-        `오늘 ${HOUSE_GAME_DAILY_PLAYS}/${HOUSE_GAME_DAILY_PLAYS} 완료`,
-      ),
-    ).toHaveLength(2);
   });
 
   it('opens the banana catch game and returns to the same house', async () => {
@@ -634,6 +648,58 @@ describe('MascotHouseScreen', () => {
 
     fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
     expect(screen.getByTestId('house-scene')).toBeTruthy();
+  });
+
+  it('claims the mini-game reward with the finished score', async () => {
+    jest.useFakeTimers();
+    const random = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    try {
+      const api = houseApi({ rewardBalance: 100 });
+      renderHouse(api);
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+      fireEvent.press(screen.getByTestId('house-mini-game-tile'));
+      fireEvent.press(screen.getByTestId('house-mini-game-banana_catch'));
+      fireEvent.press(screen.getByRole('button', { name: '게임 시작' }));
+      act(() => jest.advanceTimersByTime(35_000));
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      // Only the score is sent; the payout is the server's to derive.
+      expect(api.claimMiniGameReward).toHaveBeenCalledTimes(1);
+      const sent = (api.claimMiniGameReward as jest.Mock).mock
+        .calls[0]?.[0] as {
+        score: number;
+      };
+      expect(sent.score).toBeGreaterThan(0);
+      expect(Object.keys(sent)).toEqual(['score']);
+    } finally {
+      random.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
+  it('keeps the daily play available when the game is left before it finishes', async () => {
+    // The play used to be spent on open, so backing out of the game burned the
+    // day's only try without the user ever having played a round.
+    renderHouse(houseApi());
+
+    await screen.findByTestId('house-scene');
+    fireEvent.press(screen.getByTestId('house-mini-game-tile'));
+    fireEvent.press(screen.getByTestId('house-mini-game-banana_catch'));
+    expect(screen.getByTestId('banana-catch-screen')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
+
+    fireEvent.press(screen.getByTestId('house-mini-game-tile'));
+    const tile = screen.getByTestId('house-mini-game-banana_catch');
+    expect(tile).toBeEnabled();
+    expect(screen.queryByText('오늘 1/1 완료')).toBeNull();
+    // And it can actually be opened again.
+    fireEvent.press(tile);
+    expect(screen.getByTestId('banana-catch-screen')).toBeTruthy();
   });
 
   it('opens the server-backed wallet from the banana chip and returns', async () => {

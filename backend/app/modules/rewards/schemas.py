@@ -2,7 +2,11 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from backend.app.modules.rewards.codes import BananaSpendActionCode, BananaTransactionType
+from backend.app.modules.rewards.codes import (
+    MINI_GAME_MAX_SCORE,
+    BananaSpendActionCode,
+    BananaTransactionType,
+)
 
 
 class DailyRewardStatus(BaseModel):
@@ -47,4 +51,16 @@ class BananaSpendRequest(BaseModel):
 
 
 class BananaSpendResponse(BananaWalletResponse):
+    transaction: BananaTransactionResponse
+
+
+class MiniGameRewardRequest(BaseModel):
+    """The score a finished round reached. The payout is the server's to decide."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    score: int = Field(ge=0, le=MINI_GAME_MAX_SCORE)
+
+
+class MiniGameRewardResponse(BananaWalletResponse):
     transaction: BananaTransactionResponse

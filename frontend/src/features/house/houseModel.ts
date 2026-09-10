@@ -457,7 +457,7 @@ export function petMascot(state: HouseState, today: string): HouseState {
   );
 }
 
-/** Records that one mini game was opened today. Each game counts on its own. */
+/** Records that one mini-game round finished today. Each game counts on its own. */
 export function recordGamePlay(
   state: HouseState,
   gameId: HouseMiniGameId,
