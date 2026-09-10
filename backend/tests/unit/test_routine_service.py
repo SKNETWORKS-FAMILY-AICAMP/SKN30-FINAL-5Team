@@ -412,6 +412,23 @@ def test_a_split_exercise_counts_once_against_the_type_budget() -> None:
         assert sum(item.exercise_id == exercise_id for item in items) <= 2
 
 
+def test_a_split_exercise_is_spread_rather_than_repeated_back_to_back() -> None:
+    # _subsets builds a split candidate as adjacent blocks, so two blocks of one
+    # movement used to arrive next to each other and the session read as one long
+    # exercise. The blocks stay; they are separated.
+    repository = FakeRoutineRepository(duration_minutes=40, wide_pool=True)
+    service = RoutineService(repository, clock=lambda: NOW)
+
+    response = service.create(FakeSession(), uuid4(), _request(), uuid4())  # type: ignore[arg-type]
+
+    main = [item for item in response.days[0].items if item.phase_code == "MAIN"]
+    neighbours = list(zip(main, main[1:], strict=False))
+    assert neighbours, "expected a MAIN block sequence to check"
+    assert all(left.exercise_id != right.exercise_id for left, right in neighbours), [
+        item.exercise_id for item in main
+    ]
+
+
 def test_stretching_stays_at_the_start_and_the_end() -> None:
     repository = FakeRoutineRepository(duration_minutes=30, wide_pool=True)
     service = RoutineService(repository, clock=lambda: NOW)

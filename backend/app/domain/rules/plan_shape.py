@@ -7,10 +7,12 @@ flat twelve-exercise list with no preparation or settling work. Keeping the
 numbers here means both planners answer to the same reviewed shape.
 """
 
-from collections.abc import Iterable, Sequence
-from typing import Final, Literal
+from collections.abc import Callable, Iterable, Sequence
+from typing import Any, Final, Literal
 
-PLAN_SHAPE_RULE_VERSION: Final = "1.2.0"
+PLAN_SHAPE_RULE_VERSION: Final = "1.3.0"
+
+_NO_KEY: Any = object()
 
 PhaseCode = Literal["WARMUP", "MAIN", "COOLDOWN"]
 
@@ -68,6 +70,58 @@ def families_over_budget(
     )
 
 
+def space_repeated_blocks[T](blocks: Sequence[T], key: Callable[[T], object]) -> tuple[T, ...]:
+    """Reorder blocks so no two neighbours share a key, keeping relative order.
+
+    Splitting one movement across several blocks is a way to shape a session, but
+    the blocks have to be spread through it: two deadlift blocks back to back read
+    as one long deadlift, not as a session. The base-routine composer builds a
+    split candidate as adjacent blocks (`(*selected, *blocks)`), so without this
+    they arrive next to each other; the V3 path already refuses that shape via
+    `has_consecutive_main_repetition`.
+
+    Round-robins the per-key queues, always taking from the largest queue that is
+    not the key just placed. That is what makes an unavoidable repeat land as late
+    as possible: a movement with more blocks than the rest of the session can
+    separate still ends up maximally spread rather than clumped at the front. The
+    relative order of a key's own blocks is preserved, so a split keeps its
+    prescribed sequence.
+
+    Returns the input order unchanged when it already has no neighbouring repeat,
+    so a plan that was fine is never reshuffled.
+    """
+
+    if not has_adjacent_duplicate(blocks, key):
+        return tuple(blocks)
+
+    queues: dict[object, list[T]] = {}
+    for block in blocks:
+        queues.setdefault(key(block), []).append(block)
+
+    spaced: list[T] = []
+    previous: object = _NO_KEY
+    while any(queues.values()):
+        candidates = [k for k, queue in queues.items() if queue and k != previous]
+        if not candidates:
+            # Only the just-placed key has blocks left. Nothing can separate them,
+            # so emit the remainder rather than failing the plan.
+            spaced.extend(queues[previous])
+            queues[previous] = []
+            break
+        chosen = max(candidates, key=lambda k: (len(queues[k]), str(k)))
+        spaced.append(queues[chosen].pop(0))
+        previous = chosen
+    return tuple(spaced)
+
+
+def has_adjacent_duplicate[T](blocks: Sequence[T], key: Callable[[T], object]) -> bool:
+    """Whether any two neighbouring blocks share a key."""
+
+    return any(
+        key(previous) == key(current) for previous, current in zip(blocks, blocks[1:], strict=False)
+    )
+
+
 def has_consecutive_main_repetition(
     blocks: Sequence[tuple[object, PhaseCode]],
 ) -> bool:
@@ -96,6 +150,8 @@ __all__ = [
     "PLAN_SHAPE_RULE_VERSION",
     "PhaseCode",
     "families_over_budget",
+    "has_adjacent_duplicate",
     "has_consecutive_main_repetition",
+    "space_repeated_blocks",
     "phase_rank",
 ]
