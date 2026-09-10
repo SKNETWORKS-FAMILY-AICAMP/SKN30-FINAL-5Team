@@ -1,0 +1,2 @@
+# Approved policy source is displayed verbatim, not reformatted as application code.
+src/policy_docs/*.md

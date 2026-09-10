@@ -62,7 +62,12 @@ export const INTIMACY_DAILY_EARN_LIMIT = 5;
 /** Points between one level and the next. */
 export const INTIMACY_POINTS_PER_LEVEL = 10;
 
-/** The banana catch game opens this many times a local day. */
+/** Every mini game the house can open. Titles and art live in the screen. */
+export const HOUSE_MINI_GAME_IDS = ['banana_catch', 'kikki_runner'] as const;
+
+export type HouseMiniGameId = (typeof HOUSE_MINI_GAME_IDS)[number];
+
+/** Each mini game opens this many times a local day, counted per game. */
 export const HOUSE_GAME_DAILY_PLAYS = 1;
 
 export type HouseQuestId = 'visit' | 'pet' | 'workout';
@@ -218,8 +223,8 @@ export type HouseState = {
   /** The day `intimacyEarnedToday` belongs to. */
   intimacyLocalDate: string | null;
   intimacyEarnedToday: number;
-  /** The day the banana catch game was last opened. */
-  playedGameLocalDate: string | null;
+  /** The day each mini game was last opened, counted per game. */
+  playedGameLocalDates: Record<HouseMiniGameId, string | null>;
   /** The day `paidQuestIds` belongs to. */
   questLocalDate: string | null;
   paidQuestIds: HouseQuestId[];
@@ -244,7 +249,7 @@ export function createHouseState(): HouseState {
     intimacyPoints: 0,
     intimacyLocalDate: null,
     intimacyEarnedToday: 0,
-    playedGameLocalDate: null,
+    playedGameLocalDates: emptyGamePlays(),
     questLocalDate: null,
     paidQuestIds: [],
     visitedLocalDates: [],
@@ -308,7 +313,10 @@ export function parseHouseState(raw: unknown): HouseState | null {
     intimacyPoints: counter(value.intimacyPoints),
     intimacyLocalDate: optionalString(value.intimacyLocalDate),
     intimacyEarnedToday: counter(value.intimacyEarnedToday),
-    playedGameLocalDate: optionalString(value.playedGameLocalDate),
+    playedGameLocalDates: parseGamePlays(
+      value.playedGameLocalDates,
+      value.playedGameLocalDate,
+    ),
     questLocalDate: optionalString(value.questLocalDate),
     paidQuestIds: stringList(value.paidQuestIds).filter(
       (id): id is HouseQuestId =>
@@ -449,10 +457,17 @@ export function petMascot(state: HouseState, today: string): HouseState {
   );
 }
 
-/** Records that the banana catch game was opened today. */
-export function recordGamePlay(state: HouseState, today: string): HouseState {
-  if (state.playedGameLocalDate === today) return state;
-  return { ...state, playedGameLocalDate: today };
+/** Records that one mini-game round finished today. Each game counts on its own. */
+export function recordGamePlay(
+  state: HouseState,
+  gameId: HouseMiniGameId,
+  today: string,
+): HouseState {
+  if (state.playedGameLocalDates[gameId] === today) return state;
+  return {
+    ...state,
+    playedGameLocalDates: { ...state.playedGameLocalDates, [gameId]: today },
+  };
 }
 
 /** How far each daily quest has come today. */
@@ -600,8 +615,9 @@ export type HouseView = {
   questsCompletedCount: number;
   questCount: number;
   weeklyQuests: readonly HouseWeeklyQuest[];
-  gamePlayedToday: boolean;
-  canPlayGame: boolean;
+  /** Whether each mini game has used up today's play. */
+  gamePlayedToday: Record<HouseMiniGameId, boolean>;
+  canPlayGame: Record<HouseMiniGameId, boolean>;
   ownedItems: readonly HouseItem[];
   itemPlacements: Record<HouseItemId, HouseItemPlacement>;
   lockedItems: readonly HouseItem[];
@@ -674,7 +690,15 @@ export function buildHouseView({
     state.intimacyEarnedToday,
     today,
   );
-  const gamePlayedToday = state.playedGameLocalDate === today;
+  const gamePlayedToday = HOUSE_MINI_GAME_IDS.reduce<
+    Record<HouseMiniGameId, boolean>
+  >(
+    (played, gameId) => {
+      played[gameId] = state.playedGameLocalDates[gameId] === today;
+      return played;
+    },
+    {} as Record<HouseMiniGameId, boolean>,
+  );
 
   return {
     bananas: state.bananas,
@@ -707,7 +731,13 @@ export function buildHouseView({
     questCount: HOUSE_DAILY_QUESTS.length,
     weeklyQuests,
     gamePlayedToday,
-    canPlayGame: !gamePlayedToday,
+    canPlayGame: HOUSE_MINI_GAME_IDS.reduce<Record<HouseMiniGameId, boolean>>(
+      (canPlay, gameId) => {
+        canPlay[gameId] = !gamePlayedToday[gameId];
+        return canPlay;
+      },
+      {} as Record<HouseMiniGameId, boolean>,
+    ),
     ownedItems: HOUSE_ITEMS.filter((item) => owned.has(item.id)),
     itemPlacements: HOUSE_ITEMS.reduce<Record<HouseItemId, HouseItemPlacement>>(
       (placements, item) => {
@@ -857,6 +887,41 @@ function stringList(value: unknown): string[] {
 
 function optionalString(value: unknown): string | null {
   return typeof value === 'string' ? value : null;
+}
+
+function emptyGamePlays(): Record<HouseMiniGameId, string | null> {
+  return HOUSE_MINI_GAME_IDS.reduce<Record<HouseMiniGameId, string | null>>(
+    (plays, gameId) => {
+      plays[gameId] = null;
+      return plays;
+    },
+    {} as Record<HouseMiniGameId, string | null>,
+  );
+}
+
+/**
+ * Reads the per-game play days back.
+ *
+ * `legacy` is the single `playedGameLocalDate` written while 바나나 받아라 was
+ * the only game. It still counts for that game so a stored payload keeps its
+ * meaning, and every other game simply starts unplayed.
+ */
+function parseGamePlays(
+  raw: unknown,
+  legacy: unknown,
+): Record<HouseMiniGameId, string | null> {
+  const stored =
+    typeof raw === 'object' && raw !== null && !Array.isArray(raw)
+      ? (raw as Record<string, unknown>)
+      : {};
+  const plays = emptyGamePlays();
+  for (const gameId of HOUSE_MINI_GAME_IDS) {
+    plays[gameId] = optionalString(stored[gameId]);
+  }
+  if (plays.banana_catch === null) {
+    plays.banana_catch = optionalString(legacy);
+  }
+  return plays;
 }
 
 /** A stored tally read back as a whole number, missing or corrupt meaning zero. */

@@ -1,5 +1,6 @@
 module.exports = {
   preset: 'jest-expo',
+  transform: { '\\.md$': '<rootDir>/tests/markdown-transformer.cjs' },
   // `roots` is treated as a path, not a glob, so it survives a checkout
   // directory whose name contains glob-significant characters. Interpolating
   // <rootDir> into a testMatch pattern does not: on Windows the expansion keeps

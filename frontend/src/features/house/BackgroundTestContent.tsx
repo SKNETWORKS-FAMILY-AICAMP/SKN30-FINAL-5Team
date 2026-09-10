@@ -1,3 +1,4 @@
+import { CloseButton } from '../../components/CloseButton';
 /**
  * 끼끼의 집 — the scene itself.
  *
@@ -245,15 +246,11 @@ export function BackgroundTestContent({
                         <Text style={styles.retryLabel}>다시 시도</Text>
                       </Pressable>
                     )}
-                    <Pressable
+                    <CloseButton
                       accessibilityLabel="알림 닫기"
-                      accessibilityRole="button"
                       onPress={onDismissFeedback}
-                      style={styles.dismissButton}
                       testID="house-feedback-dismiss"
-                    >
-                      <Text style={styles.dismissLabel}>닫기</Text>
-                    </Pressable>
+                    />
                   </View>
                 }
                 message={feedback.message}
@@ -593,14 +590,7 @@ function DecoratePanel({
         <View style={styles.decorateHeading}>
           <Text style={styles.weekTitle}>집 꾸미기</Text>
         </View>
-        <Pressable
-          accessibilityLabel="집 꾸미기 닫기"
-          accessibilityRole="button"
-          onPress={onClose}
-          style={styles.closeButton}
-        >
-          <Text style={styles.closeLabel}>닫기</Text>
-        </Pressable>
+        <CloseButton accessibilityLabel="집 꾸미기 닫기" onPress={onClose} />
       </View>
 
       <ScrollView
@@ -868,20 +858,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-  dismissButton: {
-    alignSelf: 'flex-start',
-    borderRadius: radii.control,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    backgroundColor: 'rgba(255, 255, 255, 0.62)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  dismissLabel: {
-    color: colors.textSub,
-    fontSize: 12,
-    fontWeight: '700',
-  },
   feedButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -994,17 +970,6 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     gap: 2,
-  },
-  closeButton: {
-    borderRadius: radii.control,
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  closeLabel: {
-    color: colors.textSub,
-    fontSize: 12,
-    fontWeight: '600',
   },
   itemGrid: {
     flexDirection: 'row',

@@ -63,10 +63,12 @@ import {
 } from '../src/features/house/houseArtSlots';
 import {
   BANANA_REWARD,
+  createHouseState,
   DAILY_GIFT_BANANAS,
   HOUSE_ACTION_COST,
   INTIMACY_DAILY_EARN_LIMIT,
   HOUSE_BONDING_COPY,
+  HOUSE_GAME_DAILY_PLAYS,
 } from '../src/features/house/houseModel';
 import { createMemoryHouseStore } from '../src/features/house/houseStorage';
 
@@ -346,17 +348,19 @@ describe('MascotHouseScreen', () => {
         .every((banana) => banana.props.source === imageAssets.banana),
     ).toBe(true);
     expect(screen.queryByRole('header', { name: '끼끼의 집' })).toBeNull();
-    // The panel lost its heading and its per-card blurb: two square tiles now
+    // The panel lost its heading and its per-card blurb: compact square tiles now
     // sit side by side where the horizontal list used to scroll.
     expect(screen.queryByText('끼끼와 놀기')).toBeNull();
     expect(screen.queryByText('떨어지는 바나나를 받아요')).toBeNull();
     expect(screen.queryByText('30초')).toBeNull();
     expect(screen.getByText('미니게임')).toBeTruthy();
-    expect(screen.getByText('하루 1회 플레이 가능')).toBeTruthy();
     expect(screen.getByText('퀘스트')).toBeTruthy();
     expect(screen.queryByTestId('house-quest-tile-count')).toBeNull();
+    // Each game's own name lives in the 미니게임 panel, not on the tile.
+    expect(screen.queryByText('바나나 받아라')).toBeNull();
+    expect(screen.queryByText('끼끼 달리기')).toBeNull();
     expect(
-      screen.getByTestId('house-mini-game-mascot-banana_catch', {
+      screen.getByTestId('house-mini-game-tile-mascot', {
         includeHiddenElements: true,
       }).props.source,
     ).toBe(imageAssets.houseMascotCollectingBananasEmpty);
@@ -576,12 +580,92 @@ describe('MascotHouseScreen', () => {
     });
   });
 
+  it('lists both games in a panel the size of the quest panel', async () => {
+    renderHouse(houseApi());
+
+    await screen.findByTestId('house-scene');
+    fireEvent(screen.getByTestId('house-quest-panel-anchor'), 'layout', {
+      nativeEvent: {
+        layout: { x: 0, y: 56, width: 358, height: 64 },
+      },
+    });
+    expect(screen.queryByTestId('house-game-panel')).toBeNull();
+
+    fireEvent.press(screen.getByTestId('house-mini-game-tile'));
+
+    expect(
+      StyleSheet.flatten(screen.getByTestId('house-game-panel').props.style),
+    ).toMatchObject({
+      position: 'absolute',
+      right: 0,
+      bottom: 0,
+      left: 0,
+      top: 56,
+    });
+    expect(screen.getByText('바나나 받아라')).toBeTruthy();
+    expect(screen.getByText('끼끼 달리기')).toBeTruthy();
+    // No play-limit blurb under either title.
+    expect(screen.queryByText('하루 1회 플레이 가능')).toBeNull();
+    expect(screen.queryByText('언제든 플레이')).toBeNull();
+    expect(screen.getByTestId('house-game-list')).toHaveStyle({
+      flex: 1,
+      minHeight: 0,
+    });
+
+    fireEvent.press(screen.getByTestId('house-game-close'));
+    expect(screen.queryByTestId('house-game-panel')).toBeNull();
+    expect(screen.getByTestId('house-scene')).toBeTruthy();
+  });
+
+  it('shows the daily play status of each game on its own row', async () => {
+    renderHouse(
+      houseApi(),
+      createMemoryHouseStore({
+        ...createHouseState(),
+        playedGameLocalDates: {
+          banana_catch: '2026-08-22',
+          kikki_runner: null,
+        },
+      }),
+    );
+
+    await screen.findByTestId('house-scene');
+    fireEvent.press(screen.getByTestId('house-mini-game-tile'));
+    expect(
+      screen.getByTestId('house-mini-game-banana_catch').props
+        .accessibilityState,
+    ).toMatchObject({ disabled: true });
+    expect(
+      screen.getByText(
+        `오늘 ${HOUSE_GAME_DAILY_PLAYS}/${HOUSE_GAME_DAILY_PLAYS} 완료`,
+      ),
+    ).toBeTruthy();
+    // 끼끼 달리기 still has its own play left for today.
+    expect(
+      screen.getByTestId('house-mini-game-kikki_runner').props
+        .accessibilityState,
+    ).toMatchObject({ disabled: false });
+  });
+
   it('opens the banana catch game and returns to the same house', async () => {
     renderHouse(houseApi());
 
     await screen.findByTestId('house-scene');
+    fireEvent.press(screen.getByTestId('house-mini-game-tile'));
     fireEvent.press(screen.getByTestId('house-mini-game-banana_catch'));
     expect(screen.getByTestId('banana-catch-screen')).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
+    expect(screen.getByTestId('house-scene')).toBeTruthy();
+  });
+
+  it('opens the Kkikki runner beside the banana game and returns', async () => {
+    renderHouse(houseApi());
+
+    await screen.findByTestId('house-scene');
+    fireEvent.press(screen.getByTestId('house-mini-game-tile'));
+    fireEvent.press(screen.getByTestId('house-mini-game-kikki_runner'));
+    expect(screen.getByTestId('kikki-runner-screen')).toBeTruthy();
 
     fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
     expect(screen.getByTestId('house-scene')).toBeTruthy();
@@ -625,6 +709,7 @@ describe('MascotHouseScreen', () => {
       await act(async () => {
         await Promise.resolve();
       });
+      fireEvent.press(screen.getByTestId('house-mini-game-tile'));
       fireEvent.press(screen.getByTestId('house-mini-game-banana_catch'));
       fireEvent.press(screen.getByRole('button', { name: '게임 시작' }));
       act(() => jest.advanceTimersByTime(35_000));
@@ -652,11 +737,13 @@ describe('MascotHouseScreen', () => {
     renderHouse(houseApi());
 
     await screen.findByTestId('house-scene');
+    fireEvent.press(screen.getByTestId('house-mini-game-tile'));
     fireEvent.press(screen.getByTestId('house-mini-game-banana_catch'));
     expect(screen.getByTestId('banana-catch-screen')).toBeTruthy();
     fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
 
-    const tile = await screen.findByTestId('house-mini-game-banana_catch');
+    fireEvent.press(screen.getByTestId('house-mini-game-tile'));
+    const tile = screen.getByTestId('house-mini-game-banana_catch');
     expect(tile).toBeEnabled();
     expect(screen.queryByText('오늘 1/1 완료')).toBeNull();
     // And it can actually be opened again.
@@ -664,19 +751,28 @@ describe('MascotHouseScreen', () => {
     expect(screen.getByTestId('banana-catch-screen')).toBeTruthy();
   });
 
-  it('opens the server-backed wallet from the banana chip and returns', async () => {
+  it('opens only HELKKI PASS from the banana chip and returns', async () => {
     const api = houseApi({ rewardBalance: 120 });
     renderHouse(api);
 
     await screen.findByTestId('house-scene');
-    fireEvent.press(screen.getByLabelText('바나나 지갑 보기'));
+    fireEvent.press(screen.getByLabelText('HELKKI PASS 보기'));
 
-    expect(await screen.findByLabelText('보유 바나나 120개')).toBeTruthy();
-    expect(api.getRewards).toHaveBeenCalledTimes(2);
+    expect(await screen.findByTestId('kkikki-pass-preview')).toBeTruthy();
+    expect(screen.getByText('‹')).toHaveStyle({
+      width: 44,
+      height: 44,
+      lineHeight: 44,
+      textAlign: 'center',
+      textAlignVertical: 'center',
+    });
+    expect(screen.queryByText('바나나 지갑')).toBeNull();
+    expect(screen.queryByLabelText('보유 바나나 120개')).toBeNull();
+    expect(api.getRewards).toHaveBeenCalledTimes(1);
 
     fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
     expect(await screen.findByTestId('house-scene')).toBeTruthy();
-    await waitFor(() => expect(api.getRewards).toHaveBeenCalledTimes(3));
+    expect(api.getRewards).toHaveBeenCalledTimes(1);
   });
 
   it('keeps only one house panel or child screen active at a time', async () => {
@@ -694,18 +790,18 @@ describe('MascotHouseScreen', () => {
     expect(screen.queryByTestId('house-decorate-panel')).toBeNull();
     expect(screen.getByTestId('house-scene')).toBeTruthy();
 
-    // 집 꾸미기 → 바나나 + → 뒤로가기 → 기본 화면
+    // 집 꾸미기 → HELKKI PASS → 뒤로가기 → 기본 화면
     fireEvent.press(screen.getByTestId('house-decorate-action'));
-    fireEvent.press(screen.getByLabelText('바나나 지갑 보기'));
-    expect(await screen.findByLabelText('보유 바나나 120개')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('HELKKI PASS 보기'));
+    expect(await screen.findByTestId('kkikki-pass-preview')).toBeTruthy();
     fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
     expect(await screen.findByTestId('house-scene')).toBeTruthy();
     expect(screen.queryByTestId('house-decorate-panel')).toBeNull();
 
-    // 퀘스트 → 바나나 + → 뒤로가기 → 기본 화면
+    // 퀘스트 → HELKKI PASS → 뒤로가기 → 기본 화면
     fireEvent.press(screen.getByTestId('house-quest-tile'));
-    fireEvent.press(screen.getByLabelText('바나나 지갑 보기'));
-    expect(await screen.findByLabelText('보유 바나나 120개')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('HELKKI PASS 보기'));
+    expect(await screen.findByTestId('kkikki-pass-preview')).toBeTruthy();
     fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
     expect(await screen.findByTestId('house-scene')).toBeTruthy();
     expect(screen.queryByTestId('house-quest-panel')).toBeNull();
@@ -833,7 +929,7 @@ describe('MascotHouseScreen', () => {
     expect(screen.getByTestId('house-play-panel')).toHaveStyle({
       padding: 16 * compactScale,
     });
-    expect(screen.getByTestId('house-mini-game-banana_catch')).toHaveStyle({
+    expect(screen.getByTestId('house-mini-game-tile')).toHaveStyle({
       padding: 12 * compactScale,
     });
     expect(screen.getByTestId('bottom-navigation')).toHaveStyle({
@@ -1154,7 +1250,7 @@ describe('MascotHouseScreen', () => {
     renderHouse(api);
 
     expect(await screen.findByTestId('house-scene')).toBeTruthy();
-    expect(screen.getByTestId('house-mini-game-banana_catch')).toBeTruthy();
+    expect(screen.getByTestId('house-mini-game-tile')).toBeTruthy();
     expect(screen.getByTestId('house-quest-tile')).toBeTruthy();
     expect(screen.queryByText('목표를 불러오지 못했어요')).toBeNull();
     expect(screen.queryByTestId('house-feedback')).toBeNull();

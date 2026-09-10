@@ -146,6 +146,8 @@ function sessionDetail(
         completed_at: null,
       },
     ],
+    completed_plan_item_ids: [],
+    current_plan_item_id: 'item-1',
     feedback: null,
     not_completed_reason_code: null,
     started_at: '2026-08-19T09:00:00+09:00',
@@ -342,8 +344,8 @@ describe('MainFlow restart recovery', () => {
         getWorkoutSession: async () => storedSession,
         recordTimerEvent: async () => ({ event_id: 'timer-1' }),
         markNotCompleted,
-        finishSession,
         stopSession,
+        finishSession,
         submitFeedback,
       };
       render(
@@ -573,7 +575,7 @@ describe('MainFlow restart recovery', () => {
     );
 
     expect(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+      await screen.findByRole('button', { name: '운동 체크인' }),
     ).toBeOnTheScreen();
     expect(calls.some((path) => path.startsWith('/decisions?'))).toBe(false);
   });
@@ -728,6 +730,16 @@ describe('MainFlow restart recovery', () => {
           finished_at: null,
         },
       ]),
+      '/workout-sessions/session-1/stop': {
+        session_id: 'session-1',
+        execution_state_code: 'STOPPED_RESUMABLE',
+        is_resumable: true,
+        completion_code: null,
+        stop_reason_code: 'TIME_SHORTAGE',
+        accumulated_progress_seconds: 0,
+        accumulated_rest_seconds: 0,
+        accumulated_paused_seconds: 0,
+      },
       '/workout-sessions/session-1': sessionDetail(),
     });
 

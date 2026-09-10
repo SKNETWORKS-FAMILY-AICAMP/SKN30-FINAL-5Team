@@ -17,14 +17,18 @@ import { colors, shadows, spacing } from '../../components/theme';
 
 export type NotificationLoadStatus = 'idle' | 'loading' | 'ready' | 'error';
 
+export function mascotDisplayName(text: string): string {
+  return text.replace(/키키/g, '끼끼');
+}
+
 export function notificationTitle(notification: NotificationResponse): string {
   if (notification.type !== 'WEEKLY_GOAL_REMINDER') {
-    return notification.title;
+    return mascotDisplayName(notification.title);
   }
 
   const remaining = notification.payload.remaining_workout_count;
   if (!Number.isInteger(remaining) || (remaining ?? 0) < 1) {
-    return notification.title;
+    return mascotDisplayName(notification.title);
   }
   if (remaining === 1) {
     return '이번 주 목표까지 운동 한 번 남았어요!';
@@ -185,7 +189,9 @@ export function NotificationSheet({
                   ) : null}
                   <Text style={styles.itemTitle}>{title}</Text>
                 </View>
-                <Text style={styles.itemMessage}>{notification.message}</Text>
+                <Text style={styles.itemMessage}>
+                  {mascotDisplayName(notification.message)}
+                </Text>
                 <View style={styles.itemFooter}>
                   <Text style={styles.itemTime}>
                     {createdAtLabel(notification.created_at)}

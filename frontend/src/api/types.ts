@@ -600,6 +600,8 @@ export type WorkoutSessionDetailResponse = {
   total_item_count: number;
   requested_duration_minutes: number;
   items: WorkoutSessionItemResult[];
+  completed_plan_item_ids: string[];
+  current_plan_item_id: string | null;
   feedback: WorkoutFeedbackSummary | null;
   not_completed_reason_code: string | null;
   started_at: string | null;

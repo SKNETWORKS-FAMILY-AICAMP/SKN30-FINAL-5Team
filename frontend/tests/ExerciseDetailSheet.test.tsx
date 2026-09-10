@@ -110,6 +110,32 @@ describe('ExerciseDetailSheet', () => {
     expect(screen.queryByText(/^1\. /)).toBeNull();
   });
 
+  it.each([
+    ['CARDIO', '유산소'],
+    ['MOBILITY', '가동성'],
+  ] as const)(
+    'labels %s focus as an exercise type instead of a muscle',
+    async (code, expectedLabel) => {
+      render(
+        <ExerciseDetailSheet
+          api={detailApi({
+            ...baseDetail,
+            training_type_code: code,
+            body_focus_code: code,
+            primary_body_area_codes: [],
+          })}
+          exerciseId="exercise-1"
+        />,
+      );
+
+      expect(
+        await screen.findByRole('header', { name: '운동 유형' }),
+      ).toBeOnTheScreen();
+      expect(screen.getByText(expectedLabel)).toBeOnTheScreen();
+      expect(screen.queryByRole('header', { name: '사용 근육' })).toBeNull();
+    },
+  );
+
   it('shows every reviewed household-equipment guide field at home', async () => {
     render(
       <ExerciseDetailSheet

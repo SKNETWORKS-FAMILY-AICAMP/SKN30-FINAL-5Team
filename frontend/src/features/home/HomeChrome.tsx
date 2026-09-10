@@ -1,3 +1,4 @@
+import { CloseButton } from '../../components/CloseButton';
 import { useState } from 'react';
 import {
   Platform,
@@ -236,14 +237,7 @@ export function SheetFrame({
           <Text accessibilityRole="header" style={styles.sheetTitle}>
             {title}
           </Text>
-          <Pressable
-            accessibilityLabel="닫기"
-            accessibilityRole="button"
-            onPress={onClose}
-            style={styles.closeButton}
-          >
-            <Text style={styles.closeText}>×</Text>
-          </Pressable>
+          <CloseButton accessibilityLabel="닫기" onPress={onClose} />
         </View>
         {children}
       </Pressable>

@@ -248,7 +248,7 @@ export function WeeklyOverviewCard({
 }
 
 export function CheckinButton({
-  label = '오늘 루틴 체크인',
+  label = '운동 체크인',
   onPress,
 }: {
   label?: string;
@@ -314,21 +314,22 @@ export function EmptyRoutineCard({
 }) {
   const styles = useHomeStyles();
   return (
-    <View style={styles.messageCard} testID="home-empty-state">
+    <View
+      style={[styles.messageCard, styles.checkinCard]}
+      testID="home-empty-state"
+    >
       <Text style={styles.messageTitle}>
-        {baselineReady
-          ? '오늘 운동을 준비해볼까요?'
-          : '아직 오늘의 운동이 없어요'}
+        {baselineReady ? '운동을 준비해볼까요?' : '아직 추천 운동이 없어요'}
       </Text>
-      <Text style={styles.messageText}>
+      <Text style={[styles.messageText, styles.checkinDescription]}>
         {baselineReady
-          ? '오늘 컨디션을 알려주면 나에게 맞게 운동을 조정해드려요.'
-          : '오늘 체크인을 하면 컨디션에 맞는 추천 루틴을 받아볼 수 있어요.'}
+          ? '컨디션을 알려주면 나에게 맞게 운동을 조정해드려요.'
+          : '체크인을 하면 컨디션에 맞는 추천 루틴을 받아볼 수 있어요.'}
       </Text>
       {onCheckin ? (
-        <View style={styles.messageCardAction}>
+        <View style={[styles.messageCardAction, styles.checkinCardAction]}>
           <GradientActionButton
-            label={checkinLabel ?? '오늘 루틴 체크인'}
+            label={checkinLabel ?? '운동 체크인'}
             labelStyle={styles.sheetSaveLabel}
             onPress={onCheckin}
             style={styles.checkinButton}
@@ -395,14 +396,18 @@ export function RoutineLookupCard({
 
 export function HomeStateCard({
   actionLabel,
+  checkinLabel,
   onAction,
+  onCheckin,
   serious = false,
   testID,
   text,
   title,
 }: {
   actionLabel?: string;
+  checkinLabel?: string;
   onAction?: () => void;
+  onCheckin?: () => void;
   serious?: boolean;
   testID?: string;
   text: string;
@@ -422,6 +427,18 @@ export function HomeStateCard({
         {title}
       </Text>
       <Text style={styles.messageText}>{text}</Text>
+      {checkinLabel && onCheckin ? (
+        <View style={styles.messageCardAction}>
+          <GradientActionButton
+            label={checkinLabel}
+            labelStyle={styles.sheetSaveLabel}
+            onPress={onCheckin}
+            style={styles.checkinButton}
+            testID="home-checkin"
+            trailing={<CheckinChevronIcon />}
+          />
+        </View>
+      ) : null}
       {actionLabel && onAction ? (
         <Pressable
           accessibilityRole="button"

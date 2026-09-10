@@ -9,6 +9,7 @@ export type PreviewMode =
   | 'gallery'
   | 'home'
   | 'home-map'
+  | 'kikki-runner'
   | 'login'
   | 'loading'
   | 'mascot-house'
@@ -47,6 +48,7 @@ export function getPreviewMode(): PreviewMode {
     requestedPreview === 'gallery' ||
     requestedPreview === 'home' ||
     requestedPreview === 'home-map' ||
+    requestedPreview === 'kikki-runner' ||
     requestedPreview === 'login' ||
     requestedPreview === 'loading' ||
     requestedPreview === 'mascot-house' ||

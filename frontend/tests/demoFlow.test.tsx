@@ -33,6 +33,7 @@ import type {
   WorkoutPlan,
 } from '../src/api/types';
 import { resolveEnvConfig } from '../src/config/env';
+import { MainFlow } from '../src/app/MainFlow';
 import { MascotStage } from '../src/components/brand/BrandChrome';
 import { HomeContainer } from '../src/features/home/HomeContainer';
 import { MascotHouseScreen } from '../src/features/house/MascotHouseScreen';
@@ -572,9 +573,9 @@ describe('HomeContainer', () => {
     renderHome(homeApi());
 
     expect(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+      await screen.findByRole('button', { name: '운동 체크인' }),
     ).toBeTruthy();
-    expect(screen.getByText('오늘 운동을 준비해볼까요?')).toBeTruthy();
+    expect(screen.getByText('운동을 준비해볼까요?')).toBeTruthy();
   });
 
   it('opens the existing account screen route from the Home profile button', async () => {
@@ -588,9 +589,7 @@ describe('HomeContainer', () => {
   it('offers transient discomfort areas independently of onboarding attention areas', async () => {
     renderHome(homeApi());
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
     expect(screen.queryByRole('button', { name: '무릎' })).toBeNull();
     fireEvent.press(screen.getByRole('button', { name: '통증 있어요' }));
     expect(screen.getByRole('button', { name: '무릎' })).toBeTruthy();
@@ -629,9 +628,7 @@ describe('HomeContainer', () => {
       },
     );
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
 
     expect(getDailyContextDefaults).toHaveBeenCalledWith(
       expect.any(String),
@@ -660,9 +657,7 @@ describe('HomeContainer', () => {
       },
     });
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
 
     expect(
       screen.getByRole('button', { name: '무릎' }).props.accessibilityState
@@ -696,9 +691,7 @@ describe('HomeContainer', () => {
       { me: customMe },
     );
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
 
     expect(screen.getByRole('button', { name: '집' })).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: '헬스장' })).toHaveProp(
@@ -720,9 +713,7 @@ describe('HomeContainer', () => {
       me: customMe,
     });
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
 
     expect(
       screen.getByText(
@@ -931,7 +922,7 @@ describe('HomeContainer', () => {
 
     renderHome(homeApi({ createRoutine, getCurrentRoutine }));
 
-    expect(await screen.findByText('오늘 운동을 준비해볼까요?')).toBeTruthy();
+    expect(await screen.findByText('운동을 준비해볼까요?')).toBeTruthy();
     expect(getCurrentRoutine).toHaveBeenCalledTimes(1);
     expect(createRoutine).toHaveBeenCalledWith(
       {
@@ -940,9 +931,7 @@ describe('HomeContainer', () => {
       },
       expect.any(String),
     );
-    expect(
-      screen.getByRole('button', { name: '오늘 루틴 체크인' }),
-    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: '운동 체크인' })).toBeTruthy();
   });
 
   it('retries an ambiguous routine creation with the same key', async () => {
@@ -966,7 +955,7 @@ describe('HomeContainer', () => {
     ).toBeTruthy();
     fireEvent.press(screen.getByRole('button', { name: '다시 준비하기' }));
 
-    expect(await screen.findByText('오늘 운동을 준비해볼까요?')).toBeTruthy();
+    expect(await screen.findByText('운동을 준비해볼까요?')).toBeTruthy();
     expect(createRoutine).toHaveBeenCalledTimes(2);
     expect(createRoutine.mock.calls[0]?.[1]).toBe(
       createRoutine.mock.calls[1]?.[1],
@@ -1100,9 +1089,7 @@ describe('HomeContainer', () => {
       { onDecisionChange },
     );
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
     submitRequiredCheckin();
 
     await waitFor(() => expect(createDecision).toHaveBeenCalled());
@@ -1119,6 +1106,60 @@ describe('HomeContainer', () => {
     );
     // The decision is owned above this screen, so a tab switch cannot lose it.
     expect(onDecisionChange).toHaveBeenCalledWith(serverDecision);
+  });
+
+  it('keeps routine generation visible after leaving and returning to Home', async () => {
+    let storedContext: DailyContextResponse | null = null;
+    const createDecision = jest.fn(
+      () => new Promise<DecisionResponse>(() => undefined),
+    );
+    const api = stubApi({
+      getCurrentRoutine: jest.fn(async () => routine()),
+      getDailyContext: jest.fn(async (date: string) => {
+        if (storedContext?.local_date === date) {
+          return storedContext;
+        }
+        return notFound();
+      }),
+      getDailyContextDefaults: jest.fn(async (date: string) => ({
+        local_date: date,
+        pains: [],
+        selectable_location_codes: ['HOME', 'GYM'],
+      })),
+      getWeek: jest.fn(async () => week()),
+      replaceDailyContext: jest.fn(async (date: string) => {
+        storedContext = { ...dailyContext(), local_date: date };
+        return storedContext;
+      }),
+      createDecision,
+      listNotifications: jest.fn(async () => ({
+        items: [],
+        unread_count: 0,
+      })),
+    } as unknown as Partial<Api>);
+
+    render(
+      <MainFlow
+        api={api}
+        me={me()}
+        onRefreshMe={async () => undefined}
+        onSignOut={() => undefined}
+      />,
+    );
+
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
+    submitRequiredCheckin();
+    await waitFor(() => expect(createDecision).toHaveBeenCalledTimes(1));
+    expect(screen.getByTestId('routine-generation-loading')).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByRole('tab', { name: '끼끼의 집' }));
+    fireEvent.press(await screen.findByRole('tab', { name: '홈' }));
+
+    expect(
+      await screen.findByTestId('routine-generation-loading'),
+    ).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: '운동 체크인' })).toBeNull();
+    expect(createDecision).toHaveBeenCalledTimes(1);
   });
 
   it('shows the server error instead of a shorter routine when 90 minutes cannot be planned', async () => {
@@ -1140,9 +1181,7 @@ describe('HomeContainer', () => {
       onDecisionChange,
     });
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
     for (let count = 0; count < 6; count += 1) {
       fireEvent.press(
         screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
@@ -1200,9 +1239,7 @@ describe('HomeContainer', () => {
       { onDecisionChange },
     );
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
     submitRequiredCheckin();
 
     await waitFor(() =>
@@ -1248,9 +1285,7 @@ describe('HomeContainer', () => {
       { onDecisionChange },
     );
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
     submitRequiredCheckin();
 
     const retry = await screen.findByRole('button', {
@@ -1416,25 +1451,21 @@ describe('HomeContainer', () => {
       { onDecisionChange, finalValidationHoldMs: 250 },
     );
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
     submitRequiredCheckin();
 
     await waitFor(() => expect(createDecision).toHaveBeenCalled());
     expect(screen.getByTestId('routine-generation-loading')).toBeOnTheScreen();
-    expect(
-      screen.queryByRole('button', { name: '오늘 루틴 체크인' }),
-    ).toBeNull();
+    expect(screen.queryByRole('button', { name: '운동 체크인' })).toBeNull();
     expect(
       screen.getByTestId('routine-generation-message').props.children[0],
-    ).toBe('끼끼가 오늘의 운동 재료를 하나씩 모으는 중');
+    ).toBe('끼끼가 오늘의 운동\n재료를 하나씩 모으는 중');
 
     await act(async () => finishDecision(decision()));
     await waitFor(() =>
       expect(
         screen.getByTestId('routine-generation-message').props.children[0],
-      ).toBe('조금만 기다려 주세요. 안전한 루틴인지 마지막으로 확인하는 중'),
+      ).toBe('조금만 기다려 주세요.\n안전한 루틴인지 마지막으로 확인하는 중'),
     );
     expect(
       screen.getByTestId('routine-generation-progress').props
@@ -1471,9 +1502,7 @@ describe('HomeContainer', () => {
       { onDecisionChange, finalValidationHoldMs: 5_000 },
     );
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
     submitRequiredCheckin();
 
     await waitFor(() => expect(onDecisionChange).toHaveBeenCalledWith(stopped));
@@ -1489,9 +1518,7 @@ describe('HomeContainer', () => {
       } as unknown as Partial<Api>),
     );
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
     submitRequiredCheckin();
 
     await waitFor(() => expect(replaceDailyContext).toHaveBeenCalled());
@@ -1516,9 +1543,7 @@ describe('HomeContainer', () => {
       }),
     );
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
     submitRequiredCheckin();
 
     await waitFor(() => expect(replaceDailyContext).toHaveBeenCalled());
@@ -1541,9 +1566,7 @@ describe('HomeContainer', () => {
       }),
     );
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
     fireEvent.press(screen.getByRole('button', { name: '통증 있어요' }));
     fireEvent.press(screen.getByRole('button', { name: '무릎' }));
     for (let count = 1; count < 7; count += 1) {
@@ -1591,9 +1614,7 @@ describe('HomeContainer', () => {
       { me: customMe },
     );
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
     fireEvent.press(screen.getByRole('button', { name: '헬스장' }));
     fireEvent.press(screen.getByRole('button', { name: '통증 있어요' }));
     fireEvent.press(screen.getByRole('button', { name: '어깨' }));
@@ -1754,9 +1775,7 @@ describe('HomeContainer', () => {
     expect(screen.getByText('요청을 완료하지 못했어요')).toBeOnTheScreen();
     expect(screen.queryByTestId('home-routine-state')).toBeNull();
     expect(screen.getByText('오늘은 휴식하기로 했어요')).toBeOnTheScreen();
-    expect(
-      screen.queryByRole('button', { name: '오늘 루틴 체크인' }),
-    ).toBeNull();
+    expect(screen.queryByRole('button', { name: '운동 체크인' })).toBeNull();
 
     fireEvent.press(
       screen.getByRole('button', { name: '최신 상태로 다시 시도' }),
@@ -1803,15 +1822,13 @@ describe('HomeContainer', () => {
       } as unknown as Partial<Api>),
     );
 
-    fireEvent.press(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
-    );
+    fireEvent.press(await screen.findByRole('button', { name: '운동 체크인' }));
     submitRequiredCheckin();
 
     expect(await screen.findByTestId('home-action-error')).toBeOnTheScreen();
     expect(screen.queryByTestId('home-routine-state')).toBeNull();
 
-    fireEvent.press(screen.getByRole('button', { name: '오늘 루틴 체크인' }));
+    fireEvent.press(screen.getByRole('button', { name: '운동 체크인' }));
     submitRequiredCheckin();
 
     await waitFor(() => expect(replaceDailyContext).toHaveBeenCalledTimes(2));

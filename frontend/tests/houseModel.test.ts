@@ -241,9 +241,9 @@ describe('intimacy', () => {
   });
 });
 
-describe('the banana catch game', () => {
-  it('opens once a day and reopens when the day turns', () => {
-    const played = recordGamePlay(createHouseState(), TODAY);
+describe('the mini games', () => {
+  it('opens each game once a day and reopens when the day turns', () => {
+    const played = recordGamePlay(createHouseState(), 'banana_catch', TODAY);
 
     const todayView = buildHouseView({
       state: played,
@@ -252,17 +252,49 @@ describe('the banana catch game', () => {
       weekStart: WEEK_START,
       today: TODAY,
     });
-    expect(todayView.gamePlayedToday).toBe(true);
-    expect(todayView.canPlayGame).toBe(false);
+    expect(todayView.gamePlayedToday.banana_catch).toBe(true);
+    expect(todayView.canPlayGame.banana_catch).toBe(false);
+    // Each game carries its own daily play, so one does not spend the other.
+    expect(todayView.gamePlayedToday.kikki_runner).toBe(false);
+    expect(todayView.canPlayGame.kikki_runner).toBe(true);
+
+    const bothPlayed = recordGamePlay(played, 'kikki_runner', TODAY);
+    const bothView = buildHouseView({
+      state: bothPlayed,
+      week: OPEN_WEEK,
+      sessions: [],
+      weekStart: WEEK_START,
+      today: TODAY,
+    });
+    expect(bothView.canPlayGame).toEqual({
+      banana_catch: false,
+      kikki_runner: false,
+    });
 
     const tomorrowView = buildHouseView({
-      state: played,
+      state: bothPlayed,
       week: OPEN_WEEK,
       sessions: [],
       weekStart: WEEK_START,
       today: '2026-08-23',
     });
-    expect(tomorrowView.canPlayGame).toBe(true);
+    expect(tomorrowView.canPlayGame).toEqual({
+      banana_catch: true,
+      kikki_runner: true,
+    });
+  });
+
+  it('keeps a stored payload from when the banana game was the only one', () => {
+    const legacy = parseHouseState({
+      ...createHouseState(),
+      playedGameLocalDates: undefined,
+      playedGameLocalDate: TODAY,
+    });
+
+    expect(legacy?.playedGameLocalDates).toEqual({
+      banana_catch: TODAY,
+      kikki_runner: null,
+    });
   });
 });
 

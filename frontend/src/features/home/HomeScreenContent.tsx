@@ -542,6 +542,7 @@ export function HomeScreenContent({
     seriousDecision,
   });
   const checkinLabel = recheckMode ? '다시 체크인하기' : undefined;
+  const openInitialCheckin = () => openCheckin('INITIAL');
   return (
     <HomeStyleContext.Provider value={styles}>
       <View
@@ -589,13 +590,13 @@ export function HomeScreenContent({
                 onPress={onOpenExerciseCatalog}
               />
             ) : null}
-            {showCheckin && !showGuidanceCard ? (
+            {showCheckin && !showGuidanceCard && !recheckMode ? (
               <CheckinButton
                 label={checkinLabel}
-                onPress={() => openCheckin('INITIAL')}
+                onPress={openInitialCheckin}
               />
             ) : null}
-            {apiMode && status === 'loading' ? (
+            {apiMode && status === 'loading' && !routineGenerationPending ? (
               <RoutineLookupCard loading />
             ) : null}
             {apiMode && status === 'error' ? (
@@ -641,6 +642,9 @@ export function HomeScreenContent({
             restToday &&
             !routineGenerationPending ? (
               <HomeStateCard
+                checkinLabel={checkinLabel}
+                onCheckin={showCheckin ? openInitialCheckin : undefined}
+                testID="home-rest-today"
                 text="오늘은 운동을 권하거나 재촉하지 않을게요."
                 title="오늘은 휴식하기로 했어요"
               />
@@ -650,7 +654,12 @@ export function HomeScreenContent({
             ) : null}
             {apiMode && contentReady && seriousDecision ? (
               <HomeStateCard
+                checkinLabel={checkinLabel}
+                onCheckin={
+                  !restToday && showCheckin ? openInitialCheckin : undefined
+                }
                 serious
+                testID="home-safety-decision"
                 text={
                   decision?.guidance?.message ??
                   decision?.summary ??
@@ -670,6 +679,9 @@ export function HomeScreenContent({
             !seriousDecision &&
             restRecommended ? (
               <HomeStateCard
+                checkinLabel={checkinLabel}
+                onCheckin={showCheckin ? openInitialCheckin : undefined}
+                testID="home-rest-recommendation"
                 text={
                   decision?.guidance?.message ??
                   decision?.summary ??
@@ -682,12 +694,10 @@ export function HomeScreenContent({
               <EmptyRoutineCard
                 baselineReady={apiMode && routine !== null}
                 checkinLabel={checkinLabel}
-                onCheckin={
-                  showCheckin ? () => openCheckin('INITIAL') : undefined
-                }
+                onCheckin={showCheckin ? openInitialCheckin : undefined}
               />
             ) : null}
-            {contentReady && routineGenerationPending ? (
+            {routineGenerationPending ? (
               <GeneratingRoutineCard
                 content={routineLoadingContent}
                 items={generationPreviewItems}

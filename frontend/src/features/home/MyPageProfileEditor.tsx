@@ -1,3 +1,4 @@
+import { CloseButton } from '../../components/CloseButton';
 import * as ImagePicker from 'expo-image-picker';
 import { useRef, useState } from 'react';
 import {
@@ -174,14 +175,10 @@ export function MyPageProfileEditor({
               <Text style={styles.description}>{description}</Text>
             ) : null}
           </View>
-          <Pressable
+          <CloseButton
             accessibilityLabel="프로필 편집 닫기"
-            accessibilityRole="button"
             onPress={onClose}
-            style={styles.closeButton}
-          >
-            <Text style={styles.closeText}>×</Text>
-          </Pressable>
+          />
         </View>
 
         <ScrollView
@@ -1001,15 +998,6 @@ const styles = StyleSheet.create({
   headingCopy: { flex: 1, gap: 3 },
   title: { color: colors.text, fontSize: 19, fontWeight: '800' },
   description: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
-  closeButton: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 14,
-    backgroundColor: colors.surface,
-  },
-  closeText: { color: colors.text, fontSize: 25, lineHeight: 26 },
   editorContent: { gap: 10, paddingTop: 12, paddingBottom: spacing.sm },
   stickySaveArea: {
     borderTopWidth: 1,

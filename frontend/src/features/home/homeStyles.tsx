@@ -244,6 +244,9 @@ export function createHomeStyles(
       paddingVertical: s(16),
     },
     messageCardAction: { alignSelf: 'stretch', marginTop: s(14) },
+    checkinCard: { paddingVertical: s(16) },
+    checkinDescription: { marginTop: s(6) },
+    checkinCardAction: { marginTop: s(10) },
     messageTitle: {
       color: '#5A4636',
       fontSize: f(15),

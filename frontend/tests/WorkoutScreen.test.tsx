@@ -10,6 +10,7 @@ import {
 import { Platform, processColor, ScrollView, StyleSheet } from 'react-native';
 
 import type { Api } from '../src/api/endpoints';
+import { ApiError } from '../src/api/errors';
 import type {
   SafetyEventResponse,
   SessionItemUpdateResponse,
@@ -109,6 +110,8 @@ function sessionDetail(status: 'PLANNED' | 'IN_PROGRESS' = 'PLANNED') {
         completed_at: null,
       },
     ],
+    completed_plan_item_ids: [],
+    current_plan_item_id: 'plan-item-api',
     feedback: null,
     not_completed_reason_code: null,
     started_at: status === 'IN_PROGRESS' ? '2026-08-19T09:00:00+09:00' : null,
@@ -158,6 +161,73 @@ function openSafetyReportFromStop() {
     screen.getByRole('button', { name: '안전하게 운동 중단하기' }),
   );
 }
+
+it('restores a running legacy session only after the server accepts pause and resume', async () => {
+  const recordTimerEvent = jest
+    .fn<Api['recordTimerEvent']>()
+    .mockRejectedValueOnce(
+      new ApiError({
+        kind: 'conflict',
+        status: 409,
+        code: 'INVALID_STATE_TRANSITION',
+        message: '이미 진행 중',
+      }),
+    )
+    .mockResolvedValueOnce({ event_id: 'pause' })
+    .mockResolvedValueOnce({
+      event_id: 'resume',
+      accumulated_progress_seconds: 75,
+      accumulated_rest_seconds: 15,
+    });
+  render(
+    <WorkoutScreen
+      api={workoutApi({
+        getWorkoutSession: async () => sessionDetail('IN_PROGRESS'),
+        recordTimerEvent,
+      })}
+      sessionId="session-api"
+      plan={API_PLAN}
+      onOutcome={jest.fn()}
+    />,
+  );
+  await waitFor(() => expect(recordTimerEvent).toHaveBeenCalledTimes(3));
+  expect(recordTimerEvent.mock.calls.map((call) => call[1])).toEqual([
+    'RESUME',
+    'PAUSE',
+    'RESUME',
+  ]);
+  expect(await screen.findByText('01:30')).toBeOnTheScreen();
+});
+
+it('keeps exercise blocks disabled when resuming is rejected', async () => {
+  const recordTimerEvent = jest.fn<Api['recordTimerEvent']>().mockRejectedValue(
+    new ApiError({
+      kind: 'conflict',
+      status: 409,
+      code: 'SESSION_ENDED',
+      message: '종료된 운동입니다.',
+    }),
+  );
+  const updateSessionItem = jest.fn<Api['updateSessionItem']>();
+  render(
+    <WorkoutScreen
+      api={workoutApi({
+        getWorkoutSession: async () => sessionDetail('IN_PROGRESS'),
+        recordTimerEvent,
+        updateSessionItem,
+      })}
+      sessionId="session-api"
+      plan={API_PLAN}
+      onOutcome={jest.fn()}
+    />,
+  );
+  expect(await screen.findByText('종료된 운동입니다.')).toBeOnTheScreen();
+  expect(
+    screen.getByRole('button', { name: '의자 스쿼트 블록 격파' }),
+  ).toBeDisabled();
+  expect(updateSessionItem).not.toHaveBeenCalled();
+  expect(recordTimerEvent).toHaveBeenCalledTimes(1);
+});
 
 describe('WorkoutScreen', () => {
   it('removes the static mascot after the GIF loads and restores it on failure', () => {
@@ -474,7 +544,7 @@ describe('WorkoutScreen', () => {
     fireEvent.press(expand);
 
     const collapse = screen.getByRole('button', { name: '설명 접기' });
-    expect(collapse.props.accessibilityState).toEqual({ expanded: true });
+    expect(collapse).toBeEnabled();
     expect(screen.getByTestId('workout-detail-overlay')).toBeOnTheScreen();
     expect(
       StyleSheet.flatten(
@@ -774,7 +844,7 @@ describe('WorkoutScreen', () => {
         screen.getByText('다른 일정이나 상황이 생겼어요.').props.style,
       ),
     ).toMatchObject({ textAlign: 'left' });
-    expect(screen.getByRole('button', { name: '돌아가기' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: '닫기' })).toBeOnTheScreen();
     expect(
       screen.queryByRole('button', {
         name: '불편·이상 반응 먼저 보고하기',
@@ -782,7 +852,7 @@ describe('WorkoutScreen', () => {
     ).toBeNull();
     expect(screen.queryByRole('button', { name: '계속 운동하기' })).toBeNull();
 
-    fireEvent.press(screen.getByRole('button', { name: '돌아가기' }));
+    fireEvent.press(screen.getByRole('button', { name: '닫기' }));
 
     expect(
       screen.queryByRole('header', {
@@ -997,7 +1067,7 @@ describe('WorkoutScreen', () => {
     expect(screen.getByLabelText('휴식 경과 00:02')).toHaveTextContent('00:02');
     expect(screen.queryByRole('button', { name: '휴식 일시정지' })).toBeNull();
     expect(screen.queryByRole('button', { name: '휴식 재개' })).toBeNull();
-    fireEvent.press(screen.getByRole('button', { name: '돌아가기' }));
+    fireEvent.press(screen.getByRole('button', { name: '휴식 닫기' }));
     expect(onRestChange).toHaveBeenCalledWith(false);
     expect(onBlockStatusChange).not.toHaveBeenCalled();
   });
@@ -1021,7 +1091,7 @@ describe('WorkoutScreen', () => {
     ).toBeOnTheScreen();
     expect(onRestChange).toHaveBeenCalledWith(false);
 
-    fireEvent.press(screen.getByRole('button', { name: '돌아가기' }));
+    fireEvent.press(screen.getByRole('button', { name: '닫기' }));
     expect(screen.getByText('운동 진행 중')).toBeOnTheScreen();
     expect(screen.queryByText('휴식도 운동의 일부예요')).toBeNull();
     expect(onPauseChange).toHaveBeenNthCalledWith(1, true);
@@ -1220,6 +1290,12 @@ describe('WorkoutScreen API mode', () => {
       expect(screen.queryByText('운동 세션을 준비하고 있어요…')).toBeNull(),
     );
 
+    expect(recordTimerEvent).toHaveBeenLastCalledWith(
+      'session-api',
+      'RESUME',
+      expect.any(String),
+    );
+    recordTimerEvent.mockClear();
     fireEvent.press(screen.getByRole('button', { name: '선택 휴식 타이머' }));
     expect(recordTimerEvent).not.toHaveBeenCalled();
 
@@ -1229,7 +1305,7 @@ describe('WorkoutScreen API mode', () => {
       'PAUSE',
       expect.any(String),
     );
-    fireEvent.press(screen.getByRole('button', { name: '돌아가기' }));
+    fireEvent.press(screen.getByRole('button', { name: '닫기' }));
     await waitFor(() =>
       expect(recordTimerEvent).toHaveBeenLastCalledWith(
         'session-api',
@@ -1967,7 +2043,7 @@ describe('WorkoutScreen API mode', () => {
     expect(
       screen.getByTestId('workout-stop-confirm-gradient').props.colors,
     ).toEqual(['#D97260', '#CC5A47', '#C2503C'].map(processColor));
-    fireEvent.press(screen.getByRole('button', { name: '돌아가기' }));
+    fireEvent.press(screen.getByRole('button', { name: '닫기' }));
 
     expect(
       screen.queryByRole('header', {

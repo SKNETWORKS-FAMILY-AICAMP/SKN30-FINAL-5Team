@@ -95,12 +95,19 @@ describe('ExerciseCatalogScreen', () => {
   });
 
   // 첫 테스트는 모듈 변환 비용까지 흡수하므로 cold cache에서 여유를 둔다.
-  it('lists the approved catalog and reloads when the body-area filter changes', async () => {
+  it('filters the approved catalog by its representative exercise focus', async () => {
     const queries: object[] = [];
     const api = {
       listExercises: async (query: object) => {
         queries.push(query);
-        return exercisePage(['스쿼트', '런지']);
+        const page = exercisePage(['스쿼트', '푸시업']);
+        return {
+          ...page,
+          items: page.items.map((item, index) => ({
+            ...item,
+            body_focus_code: index === 0 ? 'QUADRICEPS' : 'CHEST',
+          })),
+        };
       },
       getExercise: async () => {
         throw new Error('not used');
@@ -113,21 +120,21 @@ describe('ExerciseCatalogScreen', () => {
       await screen.findByText('스쿼트', undefined, { timeout: 5000 }),
     ).toBeTruthy();
     expect(view.UNSAFE_queryByType(BackgroundBands)).toBeNull();
-    expect(screen.getByText('런지')).toBeTruthy();
-    expect(screen.getAllByText('근력 · 대퇴사두근')).toHaveLength(2);
+    expect(screen.getByText('푸시업')).toBeTruthy();
+    expect(screen.getByText('근력 · 대퇴사두근')).toBeTruthy();
+    expect(screen.getByText('근력 · 가슴')).toBeTruthy();
     expect(screen.queryByText('상세 부위 무릎')).toBeNull();
     expect(screen.getAllByText('매트, 짐볼, 의자')).toHaveLength(2);
     // 카탈로그 버전 같은 내부 정보는 사용자 화면에 노출하지 않는다.
     expect(screen.queryByText(/카탈로그 버전/)).toBeNull();
 
-    fireEvent.press(screen.getByRole('button', { name: '무릎' }));
-    await waitFor(() => {
-      expect(queries.length).toBeGreaterThanOrEqual(2);
-    });
-    expect(queries.at(-1)).toMatchObject({ bodyAreaCode: 'KNEE', limit: 100 });
+    fireEvent.press(screen.getByRole('button', { name: '가슴' }));
+    expect(screen.queryByText('스쿼트')).toBeNull();
+    expect(screen.getByText('푸시업')).toBeOnTheScreen();
+    expect(queries).toEqual([{ cursor: undefined, limit: 100 }]);
   }, 15000);
 
-  it('offers only a body-area filter and hides equipment when an exercise needs none', async () => {
+  it('offers only an exercise-focus filter and hides equipment when an exercise needs none', async () => {
     const page = exercisePage(['맨몸 스쿼트']);
     const api = {
       listExercises: async () => ({
@@ -150,6 +157,32 @@ describe('ExerciseCatalogScreen', () => {
     expect(screen.queryByText('난이도')).toBeNull();
     expect(screen.queryByText(/^장비/)).toBeNull();
     expect(screen.queryByText('장비 없음')).toBeNull();
+  });
+
+  it('does not repeat a focus that matches the training type', async () => {
+    const page = exercisePage(['러닝', '모빌리티']);
+    const api = {
+      listExercises: async () => ({
+        ...page,
+        items: page.items.map((item, index) => ({
+          ...item,
+          training_type_code: index === 0 ? 'CARDIO' : 'MOBILITY',
+          body_focus_code: index === 0 ? 'CARDIO' : 'MOBILITY',
+        })),
+      }),
+      getExercise: async () => {
+        throw new Error('not used');
+      },
+    } as unknown as Pick<Api, 'listExercises' | 'getExercise'>;
+
+    render(<ExerciseCatalogScreen api={api} onBack={() => {}} />);
+
+    expect(
+      await screen.findByTestId('exercise-body-focus-ex-0-러닝'),
+    ).toHaveTextContent(/^유산소$/);
+    expect(
+      screen.getByTestId('exercise-body-focus-ex-1-모빌리티'),
+    ).toHaveTextContent(/^스트레칭$/);
   });
 
   it('shows the exercise GIF above reviewed catalog instructions', async () => {

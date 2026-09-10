@@ -42,6 +42,8 @@ import {
   ONBOARDING_WEEKLY_COUNT,
 } from './onboardingOptions';
 import { BirthDateField, latestEligibleBirthdateIso } from './BirthDateField';
+import { PolicyDetails } from './PolicyDetails';
+import type { PolicyDocumentId } from '../../policy_docs/documents';
 
 const CONSENT_OPTIONS = {
   service_terms: {
@@ -547,6 +549,7 @@ function OnboardingScreenContent({
             <Card style={styles.cardGroup}>
               <Text style={styles.fieldLabel}>필수 동의</Text>
               <ConsentRow
+                documentId="service_terms"
                 checked={termsConsent}
                 description={CONSENT_OPTIONS.service_terms.description}
                 label={CONSENT_OPTIONS.service_terms.label}
@@ -554,6 +557,7 @@ function OnboardingScreenContent({
                 onPress={() => setTermsConsent((value) => !value)}
               />
               <ConsentRow
+                documentId="privacy_policy"
                 checked={privacyPolicyConsent}
                 description={CONSENT_OPTIONS.privacy_policy.description}
                 label={CONSENT_OPTIONS.privacy_policy.label}
@@ -561,6 +565,7 @@ function OnboardingScreenContent({
                 onPress={() => setPrivacyPolicyConsent((value) => !value)}
               />
               <ConsentRow
+                documentId="general_personal_data"
                 checked={generalConsent}
                 description={CONSENT_OPTIONS.general_personal_data.description}
                 label={CONSENT_OPTIONS.general_personal_data.label}
@@ -568,6 +573,7 @@ function OnboardingScreenContent({
                 onPress={() => setGeneralConsent((value) => !value)}
               />
               <ConsentRow
+                documentId="sensitive_data"
                 checked={sensitiveConsent}
                 description={CONSENT_OPTIONS.sensitive_data.description}
                 label={CONSENT_OPTIONS.sensitive_data.label}
@@ -858,39 +864,47 @@ function DescriptionOption({
 
 function ConsentRow({
   checked,
+  documentId,
   description,
   label,
   onPress,
   required,
 }: {
   checked: boolean;
+  documentId: PolicyDocumentId;
   description: string;
   label: string;
   onPress: () => void;
   required: boolean;
 }) {
   return (
-    <Pressable
-      accessibilityHint={description}
-      accessibilityLabel={label}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked }}
-      onPress={onPress}
-      style={[styles.consentRow, checked && styles.consentRowSelected]}
+    <View
+      style={[styles.consentBox, checked && styles.consentRowSelected]}
+      testID={`consent-box-${documentId}`}
     >
-      <View style={[styles.checkbox, checked && styles.checkboxSelected]}>
-        <Text style={[styles.checkmark, !checked && styles.checkmarkHidden]}>
-          ✓
-        </Text>
-      </View>
-      <View style={styles.consentContent}>
-        <View style={styles.consentLabelRow}>
-          <Text style={styles.consentText}>{label}</Text>
-          <RequirementBadge required={required} />
+      <Pressable
+        accessibilityHint={description}
+        accessibilityLabel={label}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked }}
+        onPress={onPress}
+        style={styles.consentRow}
+      >
+        <View style={[styles.checkbox, checked && styles.checkboxSelected]}>
+          <Text style={[styles.checkmark, !checked && styles.checkmarkHidden]}>
+            ✓
+          </Text>
         </View>
-        <Text style={styles.hint}>{description}</Text>
-      </View>
-    </Pressable>
+        <View style={styles.consentContent}>
+          <View style={styles.consentLabelRow}>
+            <Text style={styles.consentText}>{label}</Text>
+            <RequirementBadge required={required} />
+          </View>
+          <Text style={styles.hint}>{description}</Text>
+        </View>
+      </Pressable>
+      <PolicyDetails documentId={documentId} />
+    </View>
   );
 }
 
@@ -1219,15 +1233,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
   },
-  consentRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
+  consentBox: {
     borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: radii.control,
     backgroundColor: colors.canvas,
     padding: 14,
+    paddingBottom: 2,
+  },
+  consentRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
   },
   consentRowSelected: { borderColor: colors.primary },
   checkbox: {

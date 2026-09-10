@@ -1,3 +1,4 @@
+import { CloseButton } from '../../components/CloseButton';
 /**
  * Reason capture for a session the user did not perform.
  *
@@ -28,7 +29,10 @@ export function NotCompletedSheet({
 
   return (
     <Card style={styles.sheet}>
-      <Text style={styles.title}>오늘 운동을 못 한 이유를 알려주세요</Text>
+      <View style={styles.closeHeader}>
+        <Text style={styles.title}>오늘 운동을 못 한 이유를 알려주세요</Text>
+        <CloseButton onPress={onCancel} />
+      </View>
       <Text style={styles.body}>
         다음 주 계획을 조정하는 데 참고할게요. 기록은 평가가 아니에요.
       </Text>
@@ -61,12 +65,17 @@ export function NotCompletedSheet({
         disabled={pending || reason === null}
         onPress={() => reason && onSubmit(reason)}
       />
-      <Button label="닫기" tone="secondary" onPress={onCancel} />
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
+  closeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
   sheet: {
     gap: spacing.md,
   },

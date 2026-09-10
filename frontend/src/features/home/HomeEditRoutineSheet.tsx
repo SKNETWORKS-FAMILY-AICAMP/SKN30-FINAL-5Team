@@ -1,3 +1,4 @@
+import { RoutineSections } from '../../components/RoutineSections';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -43,7 +44,11 @@ export function EditRoutineSheet({
   onSave: () => void;
 }) {
   const styles = useHomeStyles();
-  const drag = useDragController(onMove);
+  const canMoveItem = (index: number) => items[index] !== undefined;
+  const canMoveTo = (from: number, to: number) =>
+    canMoveItem(to) &&
+    (items[from]?.phaseCode ?? 'MAIN') === (items[to]?.phaseCode ?? 'MAIN');
+  const drag = useDragController(onMove, canMoveItem, canMoveTo);
   const patchItem = (id: string, patch: Partial<HomeRoutineItem>) => {
     const next: HomeRoutineItem[] = [];
     for (const item of items) {
@@ -70,100 +75,109 @@ export function EditRoutineSheet({
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.editList}>
-          {items.map((item, index) => {
-            const { activeIndex, targetIndex } = drag;
-            const active = activeIndex === index;
-            const dropTarget =
-              activeIndex !== null &&
-              targetIndex !== null &&
-              targetIndex !== activeIndex &&
-              targetIndex === index;
-            return (
-              <View
-                key={item.id}
-                onLayout={(event) => drag.register(index, event)}
-                style={[styles.dragOuterEdit, active && styles.dragOuterActive]}
-              >
-                {dropTarget ? (
-                  <View
-                    pointerEvents="none"
-                    style={styles.dropPlaceholder}
-                    testID={`edit-drop-placeholder-${item.id}`}
-                  />
-                ) : null}
-                <Animated.View
+          <RoutineSections
+            items={items}
+            getPhase={(item) => item.phaseCode}
+            renderItem={(item, index) => {
+              const { activeIndex, targetIndex } = drag;
+              const active = activeIndex === index;
+              const dropTarget =
+                activeIndex !== null &&
+                targetIndex !== null &&
+                targetIndex !== activeIndex &&
+                targetIndex === index;
+              return (
+                <View
+                  key={item.id}
+                  onLayout={(event) => drag.register(index, event)}
                   style={[
-                    styles.editRow,
-                    active && styles.dragInnerEditActive,
-                    {
-                      transform: [
-                        {
-                          translateY: active
-                            ? drag.dragY
-                            : drag.getItemShift(index),
-                        },
-                      ],
-                    },
+                    styles.dragOuterEdit,
+                    active && styles.dragOuterActive,
                   ]}
                 >
-                  <DragHandle
-                    disabled={false}
-                    index={index}
-                    onEnd={drag.end}
-                    onKeyboardMove={(direction) =>
-                      drag.keyboardMove(index, direction, items.length)
-                    }
-                    onMove={drag.move}
-                    onStart={drag.start}
-                    style={styles.editHandle}
-                    testID={`edit-drag-${item.id}`}
+                  {dropTarget ? (
+                    <View
+                      pointerEvents="none"
+                      style={styles.dropPlaceholder}
+                      testID={`edit-drop-placeholder-${item.id}`}
+                    />
+                  ) : null}
+                  <Animated.View
+                    style={[
+                      styles.editRow,
+                      active && styles.dragInnerEditActive,
+                      {
+                        transform: [
+                          {
+                            translateY: active
+                              ? drag.dragY
+                              : drag.getItemShift(index),
+                          },
+                        ],
+                      },
+                    ]}
                   >
-                    <EditDragIcon />
-                  </DragHandle>
-                  <TextInput
-                    accessibilityLabel={`${item.name || '빈 항목'} 운동명`}
-                    onChangeText={(name) => patchItem(item.id, { name })}
-                    placeholder="운동명"
-                    placeholderTextColor="#B8AA9E"
-                    style={styles.editNameInput}
-                    value={item.name}
-                  />
-                  <TextInput
-                    accessibilityLabel={`${item.name || '항목'} 세트 수`}
-                    inputMode="numeric"
-                    onChangeText={(sets) =>
-                      patchItem(item.id, { sets: digitsOnly(sets) })
-                    }
-                    placeholder="0"
-                    placeholderTextColor="#B8AA9E"
-                    style={styles.editSetsInput}
-                    value={item.sets ?? ''}
-                  />
-                  <Text style={styles.editUnit}>세트</Text>
-                  <TextInput
-                    accessibilityLabel={`${item.name || '항목'} 횟수`}
-                    inputMode="numeric"
-                    onChangeText={(reps) =>
-                      patchItem(item.id, { reps: digitsOnly(reps) })
-                    }
-                    placeholder="0"
-                    placeholderTextColor="#B8AA9E"
-                    style={styles.editRepsInput}
-                    value={item.reps ?? ''}
-                  />
-                  <Text style={styles.editUnit}>회</Text>
-                  <Pressable
-                    accessibilityLabel="항목 삭제"
-                    accessibilityRole="button"
-                    onPress={() => removeItem(item.id)}
-                    style={styles.deleteButton}
-                  >
-                    <DeleteIcon />
-                  </Pressable>
-                </Animated.View>
-              </View>
-            );
-          })}
+                    {canMoveItem(index) ? (
+                      <DragHandle
+                        disabled={false}
+                        index={index}
+                        onEnd={drag.end}
+                        onKeyboardMove={(direction) =>
+                          drag.keyboardMove(index, direction, items.length)
+                        }
+                        onMove={drag.move}
+                        onStart={drag.start}
+                        style={styles.editHandle}
+                        testID={`edit-drag-${item.id}`}
+                      >
+                        <EditDragIcon />
+                      </DragHandle>
+                    ) : null}
+                    <TextInput
+                      accessibilityLabel={`${item.name || '빈 항목'} 운동명`}
+                      onChangeText={(name) => patchItem(item.id, { name })}
+                      placeholder="운동명"
+                      placeholderTextColor="#B8AA9E"
+                      style={styles.editNameInput}
+                      value={item.name}
+                    />
+                    <TextInput
+                      accessibilityLabel={`${item.name || '항목'} 세트 수`}
+                      inputMode="numeric"
+                      onChangeText={(sets) =>
+                        patchItem(item.id, { sets: digitsOnly(sets) })
+                      }
+                      placeholder="0"
+                      placeholderTextColor="#B8AA9E"
+                      style={styles.editSetsInput}
+                      value={item.sets ?? ''}
+                    />
+                    <Text style={styles.editUnit}>세트</Text>
+                    <TextInput
+                      accessibilityLabel={`${item.name || '항목'} 횟수`}
+                      inputMode="numeric"
+                      onChangeText={(reps) =>
+                        patchItem(item.id, { reps: digitsOnly(reps) })
+                      }
+                      placeholder="0"
+                      placeholderTextColor="#B8AA9E"
+                      style={styles.editRepsInput}
+                      value={item.reps ?? ''}
+                    />
+                    <Text style={styles.editUnit}>회</Text>
+                    <Pressable
+                      accessibilityLabel="항목 삭제"
+                      accessibilityRole="button"
+                      onPress={() => removeItem(item.id)}
+                      style={styles.deleteButton}
+                    >
+                      <DeleteIcon />
+                    </Pressable>
+                  </Animated.View>
+                </View>
+              );
+            }}
+          />
         </View>
         <View style={styles.addBox}>
           <Text style={styles.addTitle}>운동 직접 추가</Text>
@@ -334,7 +348,24 @@ export function DragHandle({
 
 export function useDragController(
   onMoveItem: (from: number, to: number) => void,
+  isMovable: (index: number) => boolean = () => true,
+  isValidTarget: (from: number, to: number) => boolean = (_from, to) =>
+    isMovable(to),
 ) {
+  const movableRef = useRef(isMovable);
+  const validTargetRef = useRef(isValidTarget);
+  useEffect(() => {
+    movableRef.current = isMovable;
+    validTargetRef.current = isValidTarget;
+  }, [isMovable, isValidTarget]);
+  const canMoveItem = useCallback(
+    (index: number) => movableRef.current(index),
+    [],
+  );
+  const canMoveTo = useCallback(
+    (from: number, to: number) => validTargetRef.current(from, to),
+    [],
+  );
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [targetIndex, setTargetIndex] = useState<number | null>(null);
   const activeRef = useRef<number | null>(null);
@@ -399,6 +430,7 @@ export function useDragController(
   }, []);
   const start = useCallback(
     (index: number) => {
+      if (!canMoveItem(index)) return;
       settleAnimation.current?.stop();
       settleAnimation.current = null;
       resetItemShifts();
@@ -410,7 +442,7 @@ export function useDragController(
       setActiveIndex(index);
       setTargetIndex(index);
     },
-    [dragY, resetItemShifts],
+    [canMoveItem, dragY, resetItemShifts],
   );
   const move = useCallback(
     (dy: number) => {
@@ -418,12 +450,23 @@ export function useDragController(
       if (from === null) {
         return;
       }
-      const pointerY = originCenter.current + dy;
+      const movableCenters = centers.current.filter((_, index) =>
+        canMoveTo(from, index),
+      );
+      const boundedY =
+        movableCenters.length === 0
+          ? originCenter.current
+          : Math.max(
+              Math.min(...movableCenters),
+              Math.min(Math.max(...movableCenters), originCenter.current + dy),
+            );
+      const boundedOffset = boundedY - originCenter.current;
+      const pointerY = boundedY;
       let target = from;
       let closestDistance = Number.POSITIVE_INFINITY;
       for (let index = 0; index < centers.current.length; index += 1) {
         const center = centers.current[index];
-        if (center === undefined) {
+        if (center === undefined || !canMoveTo(from, index)) {
           continue;
         }
         const distance = Math.abs(pointerY - center);
@@ -437,10 +480,10 @@ export function useDragController(
         setTargetIndex(target);
         animateItemShifts(from, target);
       }
-      dragOffset.current = dy;
-      dragY.setValue(dy);
+      dragOffset.current = boundedOffset;
+      dragY.setValue(boundedOffset);
     },
-    [animateItemShifts, dragY],
+    [animateItemShifts, canMoveTo, dragY],
   );
   const end = useCallback(() => {
     const from = activeRef.current;
@@ -458,7 +501,7 @@ export function useDragController(
     dragY.setValue(remainingOffset);
     setActiveIndex(target);
     setTargetIndex(target);
-    if (target !== from) {
+    if (target !== from && canMoveItem(from) && canMoveTo(from, target)) {
       onMoveItem(from, target);
     }
     const animation = Animated.timing(dragY, {
@@ -478,7 +521,7 @@ export function useDragController(
         setTargetIndex(null);
       }
     });
-  }, [dragY, onMoveItem, resetItemShifts]);
+  }, [canMoveItem, canMoveTo, dragY, onMoveItem, resetItemShifts]);
   useEffect(
     () => () => {
       settleAnimation.current?.stop();
@@ -489,11 +532,11 @@ export function useDragController(
   const keyboardMove = useCallback(
     (index: number, direction: -1 | 1, length: number) => {
       const target = Math.max(0, Math.min(length - 1, index + direction));
-      if (target !== index) {
+      if (target !== index && canMoveItem(index) && canMoveTo(index, target)) {
         onMoveItem(index, target);
       }
     },
-    [onMoveItem],
+    [canMoveItem, canMoveTo, onMoveItem],
   );
   return {
     activeIndex,

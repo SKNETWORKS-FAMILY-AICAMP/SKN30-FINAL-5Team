@@ -1,3 +1,4 @@
+import { RoutineSections } from '../../components/RoutineSections';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Animated, Pressable, Text, TextInput, View } from 'react-native';
 
@@ -95,7 +96,18 @@ export function RoutineCard({
   variantApi?: Partial<Pick<Api, 'getExerciseVariants'>>;
 }) {
   const styles = useHomeStyles();
-  const drag = useDragController(onMove ?? (() => undefined));
+  const canMoveItem = (index: number) => {
+    const item = items[index];
+    return item !== undefined && !completedItemIds.includes(item.id);
+  };
+  const canMoveTo = (from: number, to: number) =>
+    canMoveItem(to) &&
+    (items[from]?.phaseCode ?? 'MAIN') === (items[to]?.phaseCode ?? 'MAIN');
+  const drag = useDragController(
+    onMove ?? (() => undefined),
+    canMoveItem,
+    canMoveTo,
+  );
   const rerollLabel = getHomeRerollLabel(rerolls, rerolling);
   const routineActionLabel =
     actionCode === undefined || actionCode === 'KEEP'
@@ -121,18 +133,20 @@ export function RoutineCard({
       : phase === 'COMPLETED'
         ? '오늘 운동 기록이에요. 완료한 운동과 진행 상태를 확인할 수 있어요.'
         : phase === 'SESSION_ACTIVE'
-          ? '진행 중인 운동이에요. 완료한 항목부터 이어서 진행할 수 있어요.'
+          ? '이어서 운동을 진행할 수 있어요'
           : phase === 'STOPPED_RESUMABLE'
-            ? '잠시 멈춘 운동이에요. 완료한 항목부터 이어서 진행할 수 있어요.'
+            ? '이어서 운동을 진행할 수 있어요'
             : null;
   const routineHeading =
-    phase === 'STOPPED_RESUMABLE' ||
-    sessionStatusCode === 'PARTIAL' ||
-    sessionStatusCode === 'NOT_COMPLETED'
-      ? '조금만 더 힘내요!'
-      : phase === 'COMPLETED' && sessionStatusCode === 'COMPLETED'
-        ? '오늘도 자신과의 싸움에서 승리했군요!'
-        : '컨디션에 맞춘 운동을 준비했어요';
+    phase === 'STOPPED_SAFETY'
+      ? '오늘은 회복에 집중해요'
+      : phase === 'STOPPED_RESUMABLE' ||
+          sessionStatusCode === 'PARTIAL' ||
+          sessionStatusCode === 'NOT_COMPLETED'
+        ? '조금만 더 힘내요!'
+        : phase === 'COMPLETED' && sessionStatusCode === 'COMPLETED'
+          ? '오늘도 자신과의 싸움에서 승리했군요!'
+          : '컨디션에 맞춘 운동을 준비했어요';
   return (
     <View style={styles.routineCard} testID="home-routine-state">
       <View style={styles.routineBadgeRow}>
@@ -204,294 +218,299 @@ export function RoutineCard({
       <View style={styles.routineList}>
         {onMove ? (
           <Text style={styles.orderHint}>
-            운동 순서는 자유롭게 바꿀 수 있어요.
+            운동 순서를 바꿔서 진행할 수 있어요
           </Text>
         ) : null}
-        {items.map((item, index) => {
-          const completed = completedItemIds.includes(item.id);
-          const current = currentPlanItemId === item.id && !completed;
-          const { activeIndex, targetIndex } = drag;
-          const active = activeIndex === index;
-          const dropTarget =
-            activeIndex !== null &&
-            targetIndex !== null &&
-            targetIndex !== activeIndex &&
-            targetIndex === index;
-          return (
-            <View
-              key={item.id}
-              onLayout={(event) => drag.register(index, event)}
-              style={[
-                styles.dragOuterRoutine,
-                active && styles.dragOuterActive,
-              ]}
-              testID={`routine-row-${item.id}`}
-            >
-              {dropTarget ? (
-                <View
-                  pointerEvents="none"
-                  style={styles.dropPlaceholder}
-                  testID={`routine-drop-placeholder-${item.id}`}
-                />
-              ) : null}
-              <Animated.View
+        <RoutineSections
+          items={items}
+          getPhase={(item) => item.phaseCode}
+          renderItem={(item, index) => {
+            const completed = completedItemIds.includes(item.id);
+            const current = currentPlanItemId === item.id && !completed;
+            const { activeIndex, targetIndex } = drag;
+            const active = activeIndex === index;
+            const dropTarget =
+              activeIndex !== null &&
+              targetIndex !== null &&
+              targetIndex !== activeIndex &&
+              targetIndex === index;
+            return (
+              <View
+                key={item.id}
+                onLayout={(event) => drag.register(index, event)}
                 style={[
-                  styles.routineRow,
-                  completed && styles.routineRowCompleted,
-                  active && styles.dragInnerRoutineActive,
-                  {
-                    transform: [
-                      {
-                        translateY: active
-                          ? drag.dragY
-                          : drag.getItemShift(index),
-                      },
-                    ],
-                  },
+                  styles.dragOuterRoutine,
+                  active && styles.dragOuterActive,
                 ]}
+                testID={`routine-row-${item.id}`}
               >
-                {onMove && !completed && !editing ? (
-                  <DragHandle
-                    disabled={interactionsDisabled}
-                    index={index}
-                    onEnd={drag.end}
-                    onKeyboardMove={(direction) =>
-                      drag.keyboardMove(index, direction, items.length)
-                    }
-                    onMove={drag.move}
-                    onStart={drag.start}
-                    style={[
-                      styles.routineHandle,
-                      interactionsDisabled && styles.disabledControl,
-                    ]}
-                    testID={`routine-drag-${item.id}`}
-                  >
-                    <RoutineDragIcon />
-                  </DragHandle>
+                {dropTarget ? (
+                  <View
+                    pointerEvents="none"
+                    style={styles.dropPlaceholder}
+                    testID={`routine-drop-placeholder-${item.id}`}
+                  />
                 ) : null}
-                {editing ? (
-                  <View
-                    style={[
-                      styles.inlinePrescriptionRow,
-                      styles.inlinePrescriptionRowEditing,
-                    ]}
-                  >
-                    <Text
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.58}
-                      numberOfLines={1}
-                      style={[
-                        styles.inlineExerciseName,
-                        styles.inlineExerciseNameEditing,
-                      ]}
-                    >
-                      {item.name}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.inlinePrescriptionUnit,
-                        styles.inlinePrescriptionUnitEditing,
-                      ]}
-                    >
-                      ·
-                    </Text>
-                    <TextInput
-                      accessibilityLabel={`${item.name} 세트 수`}
-                      inputMode="numeric"
-                      onChangeText={(sets) =>
-                        onChangePrescription(item.id, {
-                          sets: digitsOnly(sets),
-                        })
+                <Animated.View
+                  style={[
+                    styles.routineRow,
+                    completed && styles.routineRowCompleted,
+                    active && styles.dragInnerRoutineActive,
+                    {
+                      transform: [
+                        {
+                          translateY: active
+                            ? drag.dragY
+                            : drag.getItemShift(index),
+                        },
+                      ],
+                    },
+                  ]}
+                >
+                  {onMove && canMoveItem(index) && !editing ? (
+                    <DragHandle
+                      disabled={interactionsDisabled}
+                      index={index}
+                      onEnd={drag.end}
+                      onKeyboardMove={(direction) =>
+                        drag.keyboardMove(index, direction, items.length)
                       }
+                      onMove={drag.move}
+                      onStart={drag.start}
                       style={[
-                        styles.inlinePrescriptionInput,
-                        styles.inlinePrescriptionInputEditing,
+                        styles.routineHandle,
+                        interactionsDisabled && styles.disabledControl,
                       ]}
-                      value={item.sets ?? ''}
-                    />
-                    <Text
-                      style={[
-                        styles.inlinePrescriptionUnit,
-                        styles.inlinePrescriptionUnitEditing,
-                      ]}
+                      testID={`routine-drag-${item.id}`}
                     >
-                      세트
-                    </Text>
-                    <Text
-                      style={[
-                        styles.inlinePrescriptionUnit,
-                        styles.inlinePrescriptionUnitEditing,
-                      ]}
-                    >
-                      ×
-                    </Text>
-                    {/*
-                      Which number the item is measured in decides the field.
-                      Both used to be the repetition input, so editing a
-                      time-based block sent a duration as `reps` -- refused by
-                      the server, and the failed edit blocked starting.
-                    */}
-                    {item.workSeconds === undefined ? (
-                      <>
-                        <TextInput
-                          accessibilityLabel={`${item.name} 반복 횟수`}
-                          inputMode="numeric"
-                          onChangeText={(reps) =>
-                            onChangePrescription(item.id, {
-                              reps: digitsOnly(reps),
-                            })
-                          }
-                          placeholder="0"
-                          placeholderTextColor="#B8AA9E"
-                          style={[
-                            styles.inlinePrescriptionInput,
-                            styles.inlinePrescriptionInputEditing,
-                          ]}
-                          value={item.reps ?? ''}
-                        />
-                        <Text
-                          style={[
-                            styles.inlinePrescriptionUnit,
-                            styles.inlinePrescriptionUnitEditing,
-                          ]}
-                        >
-                          회
-                        </Text>
-                      </>
-                    ) : (
-                      <>
-                        <TextInput
-                          accessibilityLabel={`${item.name} 세트당 시간(초)`}
-                          inputMode="numeric"
-                          onChangeText={(seconds) =>
-                            onChangePrescription(item.id, {
-                              workSeconds: digitsOnly(seconds),
-                            })
-                          }
-                          placeholder="0"
-                          placeholderTextColor="#B8AA9E"
-                          style={[
-                            styles.inlinePrescriptionInput,
-                            styles.inlinePrescriptionInputEditing,
-                          ]}
-                          value={item.workSeconds}
-                        />
-                        <Text
-                          style={[
-                            styles.inlinePrescriptionUnit,
-                            styles.inlinePrescriptionUnitEditing,
-                          ]}
-                        >
-                          초
-                        </Text>
-                      </>
-                    )}
-                  </View>
-                ) : (
-                  <Text
-                    accessibilityLabel={
-                      completed
-                        ? `완료: ${formatRoutineItem(item)}`
-                        : current
-                          ? `다음 운동: ${formatRoutineItem(item)}`
-                          : undefined
-                    }
-                    style={[
-                      styles.routineItemText,
-                      completed && styles.routineItemCompleted,
-                    ]}
-                  >
-                    {completed ? '✓ ' : ''}
-                    {formatRoutineItem(item)}
-                  </Text>
-                )}
-                {item.exerciseId &&
-                (onOpenExerciseGuide || variantApi?.getExerciseVariants) ? (
-                  <View
-                    style={[
-                      styles.routineGuideActions,
-                      interactionsDisabled && styles.routineGuideActionsEditing,
-                    ]}
-                    testID={`routine-guide-actions-${item.id}`}
-                  >
+                      <RoutineDragIcon />
+                    </DragHandle>
+                  ) : null}
+                  {editing ? (
                     <View
                       style={[
-                        styles.routineGuideSlot,
-                        interactionsDisabled && styles.routineGuideSlotEditing,
+                        styles.inlinePrescriptionRow,
+                        styles.inlinePrescriptionRowEditing,
                       ]}
-                      testID={`routine-posture-slot-${item.id}`}
                     >
-                      {onOpenExerciseGuide ? (
-                        <Pressable
-                          accessibilityLabel={`${item.name} 자세`}
-                          accessibilityRole="button"
-                          accessibilityState={{
-                            disabled: interactionsDisabled,
-                          }}
-                          disabled={interactionsDisabled}
-                          onPress={() => onOpenExerciseGuide(item)}
-                          style={[
-                            styles.routineGuideButton,
-                            interactionsDisabled &&
-                              styles.routineGuideButtonEditing,
-                            interactionsDisabled &&
-                              styles.routineGuideButtonDisabled,
-                          ]}
-                        >
+                      <Text
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.58}
+                        numberOfLines={1}
+                        style={[
+                          styles.inlineExerciseName,
+                          styles.inlineExerciseNameEditing,
+                        ]}
+                      >
+                        {item.name}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.inlinePrescriptionUnit,
+                          styles.inlinePrescriptionUnitEditing,
+                        ]}
+                      >
+                        ·
+                      </Text>
+                      <TextInput
+                        accessibilityLabel={`${item.name} 세트 수`}
+                        inputMode="numeric"
+                        onChangeText={(sets) =>
+                          onChangePrescription(item.id, {
+                            sets: digitsOnly(sets),
+                          })
+                        }
+                        style={[
+                          styles.inlinePrescriptionInput,
+                          styles.inlinePrescriptionInputEditing,
+                        ]}
+                        value={item.sets ?? ''}
+                      />
+                      <Text
+                        style={[
+                          styles.inlinePrescriptionUnit,
+                          styles.inlinePrescriptionUnitEditing,
+                        ]}
+                      >
+                        세트
+                      </Text>
+                      <Text
+                        style={[
+                          styles.inlinePrescriptionUnit,
+                          styles.inlinePrescriptionUnitEditing,
+                        ]}
+                      >
+                        ×
+                      </Text>
+                      {/*
+                        Time-based blocks must update `workSeconds`; sending
+                        their duration as `reps` is rejected by the server.
+                      */}
+                      {item.workSeconds === undefined ? (
+                        <>
+                          <TextInput
+                            accessibilityLabel={`${item.name} 반복 횟수`}
+                            inputMode="numeric"
+                            onChangeText={(reps) =>
+                              onChangePrescription(item.id, {
+                                reps: digitsOnly(reps),
+                              })
+                            }
+                            placeholder="0"
+                            placeholderTextColor="#B8AA9E"
+                            style={[
+                              styles.inlinePrescriptionInput,
+                              styles.inlinePrescriptionInputEditing,
+                            ]}
+                            value={item.reps ?? ''}
+                          />
                           <Text
                             style={[
-                              styles.routineGuideButtonText,
+                              styles.inlinePrescriptionUnit,
+                              styles.inlinePrescriptionUnitEditing,
+                            ]}
+                          >
+                            회
+                          </Text>
+                        </>
+                      ) : (
+                        <>
+                          <TextInput
+                            accessibilityLabel={`${item.name} 세트당 시간(초)`}
+                            inputMode="numeric"
+                            onChangeText={(seconds) =>
+                              onChangePrescription(item.id, {
+                                workSeconds: digitsOnly(seconds),
+                              })
+                            }
+                            placeholder="0"
+                            placeholderTextColor="#B8AA9E"
+                            style={[
+                              styles.inlinePrescriptionInput,
+                              styles.inlinePrescriptionInputEditing,
+                            ]}
+                            value={item.workSeconds}
+                          />
+                          <Text
+                            style={[
+                              styles.inlinePrescriptionUnit,
+                              styles.inlinePrescriptionUnitEditing,
+                            ]}
+                          >
+                            초
+                          </Text>
+                        </>
+                      )}
+                    </View>
+                  ) : (
+                    <Text
+                      accessibilityLabel={
+                        completed
+                          ? `완료: ${formatRoutineItem(item)}`
+                          : current
+                            ? `다음 운동: ${formatRoutineItem(item)}`
+                            : undefined
+                      }
+                      style={[
+                        styles.routineItemText,
+                        completed && styles.routineItemCompleted,
+                      ]}
+                    >
+                      {completed ? '✓ ' : ''}
+                      {formatRoutineItem(item)}
+                    </Text>
+                  )}
+                  {item.exerciseId &&
+                  (onOpenExerciseGuide || variantApi?.getExerciseVariants) ? (
+                    <View
+                      style={[
+                        styles.routineGuideActions,
+                        interactionsDisabled &&
+                          styles.routineGuideActionsEditing,
+                      ]}
+                      testID={`routine-guide-actions-${item.id}`}
+                    >
+                      <View
+                        style={[
+                          styles.routineGuideSlot,
+                          interactionsDisabled &&
+                            styles.routineGuideSlotEditing,
+                        ]}
+                        testID={`routine-posture-slot-${item.id}`}
+                      >
+                        {onOpenExerciseGuide ? (
+                          <Pressable
+                            accessibilityLabel={`${item.name} 자세`}
+                            accessibilityRole="button"
+                            accessibilityState={{
+                              disabled: interactionsDisabled,
+                            }}
+                            disabled={interactionsDisabled}
+                            onPress={() => onOpenExerciseGuide(item)}
+                            style={[
+                              styles.routineGuideButton,
+                              interactionsDisabled &&
+                                styles.routineGuideButtonEditing,
+                              interactionsDisabled &&
+                                styles.routineGuideButtonDisabled,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.routineGuideButtonText,
+                                interactionsDisabled &&
+                                  styles.routineGuideButtonTextEditing,
+                                interactionsDisabled && styles.disabledLabel,
+                              ]}
+                              numberOfLines={1}
+                            >
+                              자세
+                            </Text>
+                          </Pressable>
+                        ) : null}
+                      </View>
+                      <View
+                        style={[
+                          styles.routineGuideSlot,
+                          interactionsDisabled &&
+                            styles.routineGuideSlotEditing,
+                        ]}
+                        testID={`routine-equipment-slot-${item.id}`}
+                      >
+                        {variantApi ? (
+                          <ExerciseVariantsAction
+                            actionStyle={[
+                              styles.routineGuideButton,
+                              styles.routineEquipmentButton,
+                              interactionsDisabled &&
+                                styles.routineGuideButtonEditing,
+                              interactionsDisabled &&
+                                styles.routineGuideButtonDisabled,
+                            ]}
+                            actionTextStyle={[
+                              styles.routineEquipmentButtonText,
                               interactionsDisabled &&
                                 styles.routineGuideButtonTextEditing,
                               interactionsDisabled && styles.disabledLabel,
                             ]}
-                            numberOfLines={1}
-                          >
-                            자세
-                          </Text>
-                        </Pressable>
-                      ) : null}
+                            api={variantApi}
+                            disabled={interactionsDisabled}
+                            exerciseId={item.exerciseId}
+                            exerciseName={item.name}
+                            locationCode={locationCode}
+                            onOpen={(response) =>
+                              onOpenExerciseVariants(item, response)
+                            }
+                          />
+                        ) : null}
+                      </View>
                     </View>
-                    <View
-                      style={[
-                        styles.routineGuideSlot,
-                        interactionsDisabled && styles.routineGuideSlotEditing,
-                      ]}
-                      testID={`routine-equipment-slot-${item.id}`}
-                    >
-                      {variantApi ? (
-                        <ExerciseVariantsAction
-                          actionStyle={[
-                            styles.routineGuideButton,
-                            styles.routineEquipmentButton,
-                            interactionsDisabled &&
-                              styles.routineGuideButtonEditing,
-                            interactionsDisabled &&
-                              styles.routineGuideButtonDisabled,
-                          ]}
-                          actionTextStyle={[
-                            styles.routineEquipmentButtonText,
-                            interactionsDisabled &&
-                              styles.routineGuideButtonTextEditing,
-                            interactionsDisabled && styles.disabledLabel,
-                          ]}
-                          api={variantApi}
-                          disabled={interactionsDisabled}
-                          exerciseId={item.exerciseId}
-                          exerciseName={item.name}
-                          locationCode={locationCode}
-                          onOpen={(response) =>
-                            onOpenExerciseVariants(item, response)
-                          }
-                        />
-                      ) : null}
-                    </View>
-                  </View>
-                ) : null}
-              </Animated.View>
-            </View>
-          );
-        })}
+                  ) : null}
+                </Animated.View>
+              </View>
+            );
+          }}
+        />
       </View>
 
       {painPart ? (

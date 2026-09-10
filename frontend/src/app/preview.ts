@@ -9,6 +9,7 @@ export type PreviewMode =
   | 'gallery'
   | 'home'
   | 'home-map'
+  | 'kikki-runner'
   | 'login'
   | 'loading'
   | 'mascot-house'

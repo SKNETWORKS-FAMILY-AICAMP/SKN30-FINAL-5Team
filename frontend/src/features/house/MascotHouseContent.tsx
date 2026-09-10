@@ -1,3 +1,4 @@
+import { CloseButton } from '../../components/CloseButton';
 /**
  * 끼끼의 집 — the scene itself.
  *
@@ -35,6 +36,7 @@ import {
   Text,
   View,
   type GestureResponderEvent,
+  type ImageSourcePropType,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, {
@@ -92,6 +94,7 @@ import {
   type HouseWeeklyQuest,
   type HouseItemId,
   type HouseItemPlacement,
+  type HouseMiniGameId,
   type HousePose,
   type HouseView,
 } from './houseModel';
@@ -265,19 +268,29 @@ export function housePlacedItemSize(itemId: HouseItemId): number {
 
 export const HOUSE_SPEECH_BUBBLE_DURATION_MS = 5000;
 
-export const HOUSE_MINI_GAMES = [
+export const HOUSE_MINI_GAMES: readonly {
+  id: HouseMiniGameId;
+  title: string;
+  imageSource: ImageSourcePropType;
+}[] = [
   {
     id: 'banana_catch',
-    title: '미니게임',
-    /** Shown under the title on the tile, in place of the old description. */
-    limitLabel: '하루 1회 플레이 가능',
+    title: '바나나 받아라',
     imageSource: imageAssets.houseMascotCollectingBananasEmpty,
   },
-] as const;
+  {
+    id: 'kikki_runner',
+    title: '끼끼 달리기',
+    imageSource: imageAssets.mascotWarmupWalk,
+  },
+];
 
-export type HouseMiniGameId = (typeof HOUSE_MINI_GAMES)[number]['id'];
+export type { HouseMiniGameId };
 
-type HousePanel = 'decorate' | 'quests';
+/** The hub tile's art. It stands for the panel, not for one of the games. */
+const HOUSE_MINI_GAME_TILE_ART = imageAssets.houseMascotCollectingBananasEmpty;
+
+type HousePanel = 'decorate' | 'games' | 'quests';
 
 /**
  * The bottom panel's inner height.
@@ -380,11 +393,6 @@ function houseControlStyles(controlScale: number) {
     tileMascot: { width: scaled(46), height: scaled(46) },
     tileTitle: { fontSize: scaled(15) },
     tileCaption: { fontSize: scaled(11), lineHeight: scaled(15) },
-    tileBadge: {
-      paddingHorizontal: scaled(8),
-      paddingVertical: scaled(3),
-    },
-    tileBadgeLabel: { fontSize: scaled(10) },
     bonusRow: {
       gap: scaled(spacing.md),
       borderRadius: scaled(16),
@@ -579,7 +587,7 @@ export function MascotHouseContent({
   onBuyItem,
   onClaimDailyGift,
   onFeed,
-  onOpenRewards,
+  onOpenPass,
   onPet,
   onPlayGame,
   onPlaceItem,
@@ -597,7 +605,7 @@ export function MascotHouseContent({
   /** Claims today's server-paid gift; `false` when nothing was claimed. */
   onClaimDailyGift: () => boolean | Promise<boolean>;
   onFeed: () => boolean | Promise<boolean>;
-  onOpenRewards: () => void;
+  onOpenPass: () => void;
   onPet: () => boolean;
   onPlayGame: (gameId: HouseMiniGameId) => void;
   onPlaceItem: (itemId: HouseItemId, placement: HouseItemPlacement) => void;
@@ -616,12 +624,18 @@ export function MascotHouseContent({
    * decorate panel covers. Every affordance that asks "how do I earn more?" —
    * the intimacy chip, the bonus row and the quest tile — opens it, because
    * the quest list is the one answer to all three. The banana chip's `+` opens
-   * the server-backed wallet instead. It is a
+   * the HELKKI PASS preview instead. It is a
    * panel and not a screen so the backdrop, the mascot and the tab bar all
    * stay exactly where they are.
    */
   const decorating = activePanel === 'decorate';
   const questing = activePanel === 'quests';
+  /**
+   * 미니게임, opened from the bottom tile as an overlay the same size as
+   * 오늘의 퀘스트. The tile is a hub rather than one game per tile so the row
+   * stays two tiles wide however many games ship.
+   */
+  const playing = activePanel === 'games';
   const openQuests = () => setActivePanel('quests');
   const overlayOpen = activePanel !== null;
   /** Today's gift is open only while the server still owes it. */
@@ -863,11 +877,11 @@ export function MascotHouseContent({
                     {view.bananas}개
                   </Text>
                   <Pressable
-                    accessibilityLabel="바나나 지갑 보기"
+                    accessibilityLabel="HELKKI PASS 보기"
                     accessibilityRole="button"
                     onPress={() => {
                       setActivePanel(null);
-                      onOpenRewards();
+                      onOpenPass();
                     }}
                     style={[styles.chipPlus, { marginLeft: spacing.xs }]}
                     testID="house-banana-earn-action"
@@ -1065,11 +1079,8 @@ export function MascotHouseContent({
               <HouseTilePanel
                 controlScale={controlScale}
                 onHeightChange={setBottomPanelHeight}
+                onOpenGames={() => setActivePanel('games')}
                 onOpenQuests={openQuests}
-                onPlayGame={(gameId) => {
-                  setActivePanel(null);
-                  onPlayGame(gameId);
-                }}
                 view={view}
               />
             </View>
@@ -1082,6 +1093,19 @@ export function MascotHouseContent({
                 onSelectBackground={onSelectBackground}
                 onSpend={(amount) => showActionEffect({ amount })}
                 spendPending={spendPending}
+                view={view}
+              />
+            ) : null}
+
+            {playing ? (
+              <MiniGamePanel
+                controlScale={controlScale}
+                onClose={() => setActivePanel(null)}
+                onPlayGame={(gameId) => {
+                  setActivePanel(null);
+                  onPlayGame(gameId);
+                }}
+                panelTop={questPanelTop ?? 0}
                 view={view}
               />
             ) : null}
@@ -1566,7 +1590,7 @@ function IntimacyBonusRow({
 }
 
 /**
- * The two square tiles at the foot of the screen.
+ * The square tiles at the foot of the screen.
  *
  * Its height is pinned to `HOUSE_PANEL_CONTENT_HEIGHT` because
  * `houseBottomPanelTop` reads this panel to place the backdrop's blur
@@ -1575,14 +1599,14 @@ function IntimacyBonusRow({
 function HouseTilePanel({
   controlScale,
   onHeightChange,
+  onOpenGames,
   onOpenQuests,
-  onPlayGame,
   view,
 }: {
   controlScale: number;
   onHeightChange: (height: number) => void;
+  onOpenGames: () => void;
   onOpenQuests: () => void;
-  onPlayGame: (gameId: HouseMiniGameId) => void;
   view: HouseView;
 }) {
   const compactStyles = houseControlStyles(controlScale);
@@ -1593,34 +1617,25 @@ function HouseTilePanel({
       testID="house-play-panel"
     >
       <View style={[styles.tileRow, compactStyles.tileRow]}>
-        {HOUSE_MINI_GAMES.map((game) => (
-          <HouseTile
-            badge={
-              view.gamePlayedToday
-                ? `오늘 ${HOUSE_GAME_DAILY_PLAYS}/${HOUSE_GAME_DAILY_PLAYS} 완료`
-                : null
-            }
-            caption={game.limitLabel}
-            controlScale={controlScale}
-            disabled={!view.canPlayGame}
-            key={game.id}
-            label={`${game.title} 게임하기`}
-            onPress={() => onPlayGame(game.id)}
-            testID={`house-mini-game-${game.id}`}
-            title={game.title}
-            tone="banana"
-          >
-            <Image
-              accessible={false}
-              accessibilityElementsHidden
-              importantForAccessibility="no"
-              resizeMode="contain"
-              source={game.imageSource}
-              style={[styles.tileMascot, compactStyles.tileMascot]}
-              testID={`house-mini-game-mascot-${game.id}`}
-            />
-          </HouseTile>
-        ))}
+        <HouseTile
+          caption={`${HOUSE_MINI_GAMES.length}가지 놀이`}
+          controlScale={controlScale}
+          label={`미니게임, ${HOUSE_MINI_GAMES.length}가지 놀이`}
+          onPress={onOpenGames}
+          testID="house-mini-game-tile"
+          title="미니게임"
+          tone="banana"
+        >
+          <Image
+            accessible={false}
+            accessibilityElementsHidden
+            importantForAccessibility="no"
+            resizeMode="contain"
+            source={HOUSE_MINI_GAME_TILE_ART}
+            style={[styles.tileMascot, compactStyles.tileMascot]}
+            testID="house-mini-game-tile-mascot"
+          />
+        </HouseTile>
 
         <HouseTile
           caption={`${view.questsCompletedCount} / ${view.questCount} 완료`}
@@ -1639,7 +1654,6 @@ function HouseTilePanel({
 }
 
 function HouseTile({
-  badge = null,
   caption,
   children,
   controlScale,
@@ -1650,7 +1664,6 @@ function HouseTile({
   title,
   tone,
 }: {
-  badge?: string | null;
   caption: string;
   children: ReactNode;
   controlScale: number;
@@ -1678,23 +1691,113 @@ function HouseTile({
       ]}
       testID={testID}
     >
-      {badge !== null ? (
-        <View
-          style={[styles.tileBadge, compactStyles.tileBadge]}
-          testID={`${testID}-badge`}
-        >
-          <Text style={[styles.tileBadgeLabel, compactStyles.tileBadgeLabel]}>
-            {badge}
-          </Text>
-        </View>
-      ) : null}
-
       <View style={[styles.tileIcon, compactStyles.tileIcon]}>{children}</View>
       <Text style={[styles.tileTitle, compactStyles.tileTitle]}>{title}</Text>
       <Text style={[styles.tileCaption, compactStyles.tileCaption]}>
         {caption}
       </Text>
     </Pressable>
+  );
+}
+
+/**
+ * 미니게임.
+ *
+ * The same overlay as 오늘의 퀘스트 — same anchor, same height — holding one
+ * row per game. Games live here instead of in the bottom row so the row keeps
+ * its two square tiles and the panel below it keeps its fixed height, which is
+ * what pins the backdrop's blur boundary.
+ *
+ * A game that is out of plays for today is disabled and says so; it is a limit
+ * that has been reached, not a failure, so it carries no warning colour.
+ */
+function MiniGamePanel({
+  controlScale,
+  onClose,
+  onPlayGame,
+  panelTop,
+  view,
+}: {
+  controlScale: number;
+  onClose: () => void;
+  onPlayGame: (gameId: HouseMiniGameId) => void;
+  panelTop: number;
+  view: HouseView;
+}) {
+  const compactStyles = houseControlStyles(controlScale);
+
+  return (
+    <View
+      style={[
+        styles.panel,
+        compactStyles.panel,
+        styles.questPanel,
+        { top: panelTop },
+      ]}
+      testID="house-game-panel"
+    >
+      <View style={styles.decorateHeader}>
+        <View style={styles.decorateHeading}>
+          <Text style={styles.weekTitle}>미니게임</Text>
+        </View>
+        <CloseButton
+          accessibilityLabel="미니게임 닫기"
+          onPress={onClose}
+          testID="house-game-close"
+        />
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.miniGameListContent}
+        showsVerticalScrollIndicator={false}
+        style={styles.questList}
+        testID="house-game-list"
+      >
+        {HOUSE_MINI_GAMES.map((game) => {
+          const playedOut = !view.canPlayGame[game.id];
+          return (
+            <Pressable
+              accessibilityLabel={`${game.title} 게임하기`}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: playedOut }}
+              disabled={playedOut}
+              key={game.id}
+              onPress={() => onPlayGame(game.id)}
+              style={({ pressed }) => [
+                styles.miniGameCard,
+                pressed && styles.miniGameCardPressed,
+                playedOut && styles.miniGameCardSpent,
+              ]}
+              testID={`house-mini-game-${game.id}`}
+            >
+              <View style={styles.miniGameIcon}>
+                <Image
+                  accessible={false}
+                  accessibilityElementsHidden
+                  importantForAccessibility="no"
+                  resizeMode="contain"
+                  source={game.imageSource}
+                  style={styles.miniGameMascot}
+                  testID={`house-mini-game-mascot-${game.id}`}
+                />
+              </View>
+              <View style={styles.miniGameCopy}>
+                <Text style={styles.miniGameTitle}>{game.title}</Text>
+              </View>
+              {playedOut ? (
+                <View style={styles.miniGameDuration}>
+                  <Text style={styles.miniGameDurationLabel}>
+                    {`오늘 ${HOUSE_GAME_DAILY_PLAYS}/${HOUSE_GAME_DAILY_PLAYS} 완료`}
+                  </Text>
+                </View>
+              ) : (
+                <ChevronGlyph size={14 * controlScale} />
+              )}
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -1738,15 +1841,11 @@ function QuestPanel({
         <View style={styles.decorateHeading}>
           <Text style={styles.weekTitle}>{title}</Text>
         </View>
-        <Pressable
+        <CloseButton
           accessibilityLabel={`${title} 닫기`}
-          accessibilityRole="button"
           onPress={onClose}
-          style={styles.closeButton}
           testID="house-quest-close"
-        >
-          <Text style={styles.closeLabel}>닫기</Text>
-        </Pressable>
+        />
       </View>
 
       <View style={styles.decorateTabs}>
@@ -1936,14 +2035,7 @@ function DecoratePanel({
         <View style={styles.decorateHeading}>
           <Text style={styles.weekTitle}>집 꾸미기</Text>
         </View>
-        <Pressable
-          accessibilityLabel="집 꾸미기 닫기"
-          accessibilityRole="button"
-          onPress={onClose}
-          style={styles.closeButton}
-        >
-          <Text style={styles.closeLabel}>닫기</Text>
-        </Pressable>
+        <CloseButton accessibilityLabel="집 꾸미기 닫기" onPress={onClose} />
       </View>
 
       <View style={styles.decorateTabs}>
@@ -2681,21 +2773,6 @@ const styles = StyleSheet.create({
     lineHeight: 15,
     textAlign: 'center',
   },
-  tileBadge: {
-    position: 'absolute',
-    top: spacing.sm,
-    borderRadius: 999,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  tileBadgeLabel: {
-    color: colors.textSub,
-    fontSize: 10,
-    fontWeight: '800',
-  },
   questList: {
     flex: 1,
     minHeight: 0,
@@ -2960,8 +3037,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   miniGameCard: {
-    width: 286,
-    minHeight: 122,
+    minHeight: 64,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
@@ -2973,6 +3049,9 @@ const styles = StyleSheet.create({
   },
   miniGameCardPressed: {
     opacity: 0.72,
+  },
+  miniGameCardSpent: {
+    backgroundColor: colors.surface,
   },
   miniGameIcon: {
     width: 44,
@@ -3059,17 +3138,6 @@ const styles = StyleSheet.create({
   },
   decorateTabLabelSelected: {
     color: colors.brandOutline,
-  },
-  closeButton: {
-    borderRadius: radii.control,
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  closeLabel: {
-    color: colors.textSub,
-    fontSize: 12,
-    fontWeight: '600',
   },
   decorateGridContent: {
     width: '100%',

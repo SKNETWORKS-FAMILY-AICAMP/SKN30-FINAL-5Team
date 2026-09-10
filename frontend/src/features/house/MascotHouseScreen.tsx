@@ -35,7 +35,8 @@ import type { TabId } from '../../components/brand/BrandChrome';
 import { LoadingState, ScreenShell } from '../../components/states/ScreenState';
 import { HomeBottomNavigation } from '../home/HomeScreen';
 import { BananaCatchGameScreen } from '../bananaCatch/BananaCatchGameScreen';
-import { RewardsScreen } from '../rewards/RewardsScreen';
+import { KikkiRunnerGameScreen } from '../kikkiRunner/KikkiRunnerGameScreen';
+import { HelkkiPassScreen } from '../rewards/RewardsScreen';
 import { MascotHouseContent, type HouseMiniGameId } from './MascotHouseContent';
 import {
   housePoseArt,
@@ -120,7 +121,7 @@ export function MascotHouseScreen({
   const [reactionArt, setReactionArt] = useState<HouseArtSlot | null>(null);
   const [settledArt, setSettledArt] = useState<HouseArtSlot | null>(null);
   const [activeScreen, setActiveScreen] = useState<
-    { kind: 'mini-game'; gameId: HouseMiniGameId } | { kind: 'rewards' } | null
+    { kind: 'mini-game'; gameId: HouseMiniGameId } | { kind: 'pass' } | null
   >(null);
   const lastBananaArt = useRef<HouseArtSlot['source']>(null);
   const lastRegularArt = useRef<HouseArtSlot['source']>(null);
@@ -131,11 +132,7 @@ export function MascotHouseScreen({
   /** Serializes wallet mutations so an older response cannot replace a newer balance. */
   const walletMutationInFlight = useRef(false);
 
-  const {
-    reload: reloadRemote,
-    setData: setRemoteData,
-    state: remote,
-  } = useAsyncData<HouseRemote>(
+  const { setData: setRemoteData, state: remote } = useAsyncData<HouseRemote>(
     async (signal) => {
       // Neither request rejects: the house stays reachable offline, and the
       // week-aware mascot copy degrades locally instead of failing the screen.
@@ -322,7 +319,8 @@ export function MascotHouseScreen({
           // This branch runs before the house state is guaranteed loaded, so
           // there is nothing to record against until it is.
           const base = liveState.current ?? houseState;
-          if (base !== null) persist(recordGamePlay(base, localDate));
+          if (base !== null)
+            persist(recordGamePlay(base, 'banana_catch', localDate));
           // The payout, its cap and the once-a-day limit are the server's; the
           // client only reports what the round scored. A scoreless round is
           // refused there, which is not worth interrupting the player over, so
@@ -349,16 +347,39 @@ export function MascotHouseScreen({
     );
   }
 
-  if (activeScreen?.kind === 'rewards') {
+  if (
+    activeScreen?.kind === 'mini-game' &&
+    activeScreen.gameId === 'kikki_runner'
+  ) {
     return (
-      <RewardsScreen
-        api={api}
-        onBack={() => {
-          setActiveScreen(null);
-          reloadRemote();
+      <KikkiRunnerGameScreen
+        onBack={() => setActiveScreen(null)}
+        onPlayed={(score) => {
+          const base = liveState.current ?? houseState;
+          if (base !== null)
+            persist(recordGamePlay(base, 'kikki_runner', localDate));
+          void runWalletMutation(() => claimMiniGame.run(score)).then(
+            (result) => {
+              if (!result) return;
+              serverBalance.current = result.balance;
+              if (remote.status !== 'ready') return;
+              setRemoteData({
+                ...remote.data,
+                wallet: {
+                  balance: result.balance,
+                  daily_reward: result.daily_reward,
+                },
+                walletError: null,
+              });
+            },
+          );
         }}
       />
     );
+  }
+
+  if (activeScreen?.kind === 'pass') {
+    return <HelkkiPassScreen onBack={() => setActiveScreen(null)} />;
   }
 
   if (remote.status !== 'ready' || houseState === null) {
@@ -467,7 +488,7 @@ export function MascotHouseScreen({
         react('eating', bananaArt, FEED_POSE_HOLD_MS, regularArt);
         return true;
       }}
-      onOpenRewards={() => setActiveScreen({ kind: 'rewards' })}
+      onOpenPass={() => setActiveScreen({ kind: 'pass' })}
       onPet={() => {
         // Free and unlimited, so there is no failure case: the touch always
         // lands, and only the intimacy it pays is capped.
@@ -481,7 +502,7 @@ export function MascotHouseScreen({
         return true;
       }}
       onPlayGame={(gameId) => {
-        if (!view.canPlayGame) return;
+        if (!view.canPlayGame[gameId]) return;
         // The play is counted when the round finishes, not here: spending it on
         // open meant backing out of the game still used up the day's only try.
         setActiveScreen({ kind: 'mini-game', gameId });

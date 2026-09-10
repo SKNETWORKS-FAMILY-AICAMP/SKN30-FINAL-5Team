@@ -1,3 +1,4 @@
+import { CloseButton } from '../../components/CloseButton';
 /**
  * Live workout session: count-up timer on top, mascot in the centre, and the
  * exercise blocks as a one-at-a-time carousel along the bottom, matching the
@@ -352,7 +353,10 @@ function SafetyStopConfirmation({
 }) {
   return (
     <Card style={styles.sheet}>
-      <Text style={styles.sheetTitle}>안전을 위해 운동을 중단할게요</Text>
+      <View style={styles.closeHeader}>
+        <Text style={styles.sheetTitle}>안전을 위해 운동을 중단할게요</Text>
+        <CloseButton onPress={onCancel} />
+      </View>
       <Text style={styles.sheetBody}>
         통증 또는 이상 반응이 있다면 오늘 운동은 여기서 종료되며 다시 이어할 수
         없습니다.
@@ -365,12 +369,17 @@ function SafetyStopConfirmation({
         disabled={pending}
         onPress={onConfirm}
       />
-      <Button label="닫기" tone="secondary" onPress={onCancel} />
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
+  closeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
   content: {
     paddingTop: spacing.lg,
   },

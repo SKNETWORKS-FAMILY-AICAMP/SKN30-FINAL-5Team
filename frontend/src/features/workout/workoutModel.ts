@@ -1,3 +1,4 @@
+import type { PlanPhaseCode } from '../../api/types';
 export type WorkoutMockPreviewState = 'symptom-mild' | 'symptom-severe';
 
 export type WorkoutPreviewState =
@@ -123,6 +124,7 @@ export const WORKOUT_ARC = {
 export type WorkoutBlockStatus = 'PENDING' | 'COMPLETED';
 
 export type WorkoutBlock = {
+  phaseCode?: PlanPhaseCode;
   id: string;
   name: string;
   meta: string;
@@ -132,6 +134,7 @@ export type WorkoutBlock = {
 export const WORKOUT_BLOCKS: readonly WorkoutBlock[] = [
   {
     id: 'warm-up',
+    phaseCode: 'WARMUP',
     name: '준비 운동',
     meta: '1세트 × 10회 · 스트레칭',
     tips: ['호흡을 편안하게 유지해요.', '천천히 움직임 범위를 넓혀요.'],
@@ -166,6 +169,7 @@ export const WORKOUT_BLOCKS: readonly WorkoutBlock[] = [
   },
   {
     id: 'cool-down',
+    phaseCode: 'COOLDOWN',
     name: '마무리 스트레칭',
     meta: '1세트 × 10회 · 호흡 정리',
     tips: ['반동 없이 편안한 범위에서 유지해요.'],
