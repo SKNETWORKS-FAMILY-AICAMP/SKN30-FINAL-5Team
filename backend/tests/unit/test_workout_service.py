@@ -27,6 +27,7 @@ from backend.app.modules.workouts.schemas import (
 )
 from backend.app.modules.workouts.service import (
     IdempotencyKeyReusedError,
+    InvalidSessionStateError,
     NotCompletedReasonRequiredServiceError,
     OptionNotSelectableError,
     SessionEndedError,
@@ -213,13 +214,10 @@ class FakeWorkoutRepository:
             self.session_state.estimated_calories_burned,
         )
 
-    def create_skip_feedback(self, session: Any, **values: Any) -> None:
+    def upsert_skip_feedback(self, session: Any, **values: Any) -> None:
         self.skip_feedback = values
 
-    def feedback_exists(self, session: Any, session_id: UUID) -> bool:
-        return self.feedback is not None
-
-    def create_feedback(self, session: Any, **values: Any) -> None:
+    def upsert_feedback(self, session: Any, **values: Any) -> None:
         self.feedback = values
 
 
@@ -778,3 +776,130 @@ def test_feedback_is_informational_and_uses_non_diagnostic_guidance() -> None:
     assert response.pressure_notifications_allowed is False
     assert response.guidance is not None
     assert not {"진단", "치료", "처방"} & set(response.guidance.split())
+
+
+def _stop(
+    service: WorkoutService,
+    user_id: UUID,
+    session_id: UUID,
+    *,
+    reason_code: str | None = "TIME_SHORTAGE",
+    at: datetime = NOW,
+) -> Any:
+    return service.stop_session(
+        FakeSession(),  # type: ignore[arg-type]
+        user_id,
+        session_id,
+        WorkoutSessionStopRequest(
+            stopped_at=at,
+            stop_reason_code="RESUME_LATER",
+            not_completed_reason_code=reason_code,
+        ),
+        uuid4(),
+    )
+
+
+def _feedback(
+    service: WorkoutService,
+    user_id: UUID,
+    session_id: UUID,
+    *,
+    difficulty_code: str = "APPROPRIATE",
+) -> Any:
+    return service.record_feedback(
+        FakeSession(),  # type: ignore[arg-type]
+        user_id,
+        session_id,
+        WorkoutFeedbackRequest(difficulty_code=difficulty_code, pain_occurred=False),
+        uuid4(),
+    )
+
+
+def test_a_stopped_session_takes_feedback_while_it_can_still_be_resumed() -> None:
+    """The point of the whole change: answering must not cost the resume action.
+
+    Feedback used to require a terminal session, so the client had to end the
+    session to ask how it went -- and an ended session has nothing to resume.
+    """
+
+    repository, service, user_id, session_id = _in_progress_repository(("COMPLETED", "PENDING"))
+    stopped = _stop(service, user_id, session_id)
+    assert stopped.execution_state_code == "STOPPED_RESUMABLE"
+    assert stopped.is_resumable is True
+
+    response = _feedback(service, user_id, session_id, difficulty_code="HARD")
+
+    assert response.session_status_code == "IN_PROGRESS"
+    assert repository.feedback is not None
+    assert repository.feedback["difficulty_code"] == "HARD"
+    # Still resumable after answering, which is what the user sees as 이어하기.
+    assert repository.session_state is not None
+    assert repository.session_state.is_resumable is True
+    assert repository.session_state.status_code == "IN_PROGRESS"
+
+
+def test_a_running_session_has_nothing_to_say_about_yet() -> None:
+    _, service, user_id, session_id = _in_progress_repository()
+
+    with pytest.raises(InvalidSessionStateError):
+        _feedback(service, user_id, session_id)
+
+
+def test_the_answer_given_after_resuming_replaces_the_earlier_one() -> None:
+    repository, service, user_id, session_id = _in_progress_repository(("COMPLETED", "PENDING"))
+    _stop(service, user_id, session_id)
+    _feedback(service, user_id, session_id, difficulty_code="EASY")
+
+    service.record_timer_event(
+        FakeSession(),  # type: ignore[arg-type]
+        user_id,
+        session_id,
+        WorkoutTimerEventRequest(
+            event_code="RESUME",
+            occurred_at=NOW + timedelta(minutes=1),
+            client_recorded_at=NOW,
+        ),
+        uuid4(),
+    )
+    _stop(service, user_id, session_id, at=NOW + timedelta(minutes=30))
+    _feedback(service, user_id, session_id, difficulty_code="HARD")
+
+    assert repository.feedback is not None
+    assert repository.feedback["difficulty_code"] == "HARD"
+
+
+def test_a_resumable_stop_records_why_so_an_abandoned_session_is_not_a_blank() -> None:
+    # Nobody closes a session the user never returns to, so the stop is the last
+    # moment the reason can be captured. The closed-week report needs it.
+    repository, service, user_id, session_id = _in_progress_repository()
+    _stop(service, user_id, session_id, reason_code="TIME_SHORTAGE")
+
+    assert repository.skip_feedback is not None
+    assert repository.skip_feedback["reason_code"] == "TIME_SHORTAGE"
+
+
+def test_stopping_again_replaces_the_reason_the_first_stop_recorded() -> None:
+    repository, service, user_id, session_id = _in_progress_repository()
+    _stop(service, user_id, session_id, reason_code="TIME_SHORTAGE")
+    service.record_timer_event(
+        FakeSession(),  # type: ignore[arg-type]
+        user_id,
+        session_id,
+        WorkoutTimerEventRequest(
+            event_code="RESUME",
+            occurred_at=NOW + timedelta(minutes=1),
+            client_recorded_at=NOW,
+        ),
+        uuid4(),
+    )
+    _stop(service, user_id, session_id, reason_code="FATIGUE", at=NOW + timedelta(minutes=30))
+
+    assert repository.skip_feedback is not None
+    assert repository.skip_feedback["reason_code"] == "FATIGUE"
+
+
+def test_a_stop_without_a_reason_still_works_for_clients_that_send_none() -> None:
+    repository, service, user_id, session_id = _in_progress_repository()
+    _stop(service, user_id, session_id, reason_code=None)
+
+    assert repository.skip_feedback is None

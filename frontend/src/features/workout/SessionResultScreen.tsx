@@ -38,10 +38,18 @@ const HARD_DIFFICULTY_DETAILS = [
 type HardDifficultyDetailCode =
   (typeof HARD_DIFFICULTY_DETAILS)[number]['code'];
 
+/**
+ * Whether the day is recorded as rest rather than a performed session.
+ *
+ * A safety stop is never one of these any more. It used to be, which sent a
+ * safety stop with no completed block straight home and skipped the only place
+ * the user is asked how the session went -- the exact case where the answer
+ * matters most. Home is still told the day is rest; the question is asked first.
+ */
 export function isRestOutcome(outcome: SessionOutcome): boolean {
-  return outcome.kind === 'safetyStop'
-    ? outcome.event.completion_code === 'NOT_COMPLETED'
-    : outcome.result.status_code === 'NOT_COMPLETED';
+  if (outcome.kind === 'safetyStop') return false;
+  if (outcome.kind === 'stopped') return false;
+  return outcome.result.status_code === 'NOT_COMPLETED';
 }
 
 export function SessionResultScreen({
@@ -60,6 +68,20 @@ export function SessionResultScreen({
     if (resting) onDone();
   }, [resting, onDone]);
   if (resting) return null;
+  if (outcome.kind === 'stopped') {
+    return (
+      <ScreenShell>
+        <ScreenHeading title="여기까지 기록했어요" />
+        <MascotStage
+          eyebrow="오늘의 기록"
+          art="feedback"
+          title="언제든 이어서 할 수 있어요"
+          caption="홈에서 이어하기를 누르면 남은 블록부터 계속돼요."
+        />
+        <FeedbackCard api={api} sessionId={sessionId} onDone={onDone} />
+      </ScreenShell>
+    );
+  }
   if (outcome.kind === 'safetyStop') {
     return (
       <ScreenShell>

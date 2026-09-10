@@ -268,7 +268,7 @@ class WorkoutRepositoryPort(Protocol):
         execution_state_code: str | None = None,
     ) -> None: ...
 
-    def create_skip_feedback(
+    def upsert_skip_feedback(
         self,
         session: Session,
         *,
@@ -277,9 +277,7 @@ class WorkoutRepositoryPort(Protocol):
         now: datetime,
     ) -> None: ...
 
-    def feedback_exists(self, session: Session, session_id: UUID) -> bool: ...
-
-    def create_feedback(
+    def upsert_feedback(
         self,
         session: Session,
         *,

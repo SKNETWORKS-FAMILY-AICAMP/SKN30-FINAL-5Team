@@ -31,6 +31,7 @@ from backend.app.db.models.workout import (
     WorkoutAdditionalActivity,
     WorkoutFeedback,
     WorkoutFeedbackAdverseReaction,
+    WorkoutFeedbackDifficultyReason,
     WorkoutFeedbackDiscomfort,
     WorkoutSafetyEvent,
     WorkoutSafetyEventAdverseReaction,
@@ -57,6 +58,7 @@ from backend.scripts.demo_seed import seed_catalog
 
 _ = db_models
 NOW = datetime(2026, 8, 14, 1, 0, tzinfo=UTC)
+LATER = datetime(2026, 8, 14, 2, 0, tzinfo=UTC)
 ALEMBIC_CONFIG = Path("backend/alembic.ini")
 
 
@@ -81,6 +83,7 @@ def test_repository_round_trip_keeps_timer_and_additional_activity_informational
             WorkoutFeedback.__table__,
             WorkoutFeedbackDiscomfort.__table__,
             WorkoutFeedbackAdverseReaction.__table__,
+            WorkoutFeedbackDifficultyReason.__table__,
             WorkoutSkipFeedback.__table__,
         ],
     )
@@ -254,7 +257,22 @@ def test_repository_round_trip_keeps_timer_and_additional_activity_informational
         assert completed_history.last_completed_local_date == date(2026, 8, 14)
         assert completed_history.not_completed_history_count == 0
 
-        repository.create_feedback(
+        repository.upsert_feedback(
+            session,
+            session_id=workout_session_id,
+            difficulty_code="HARD",
+            fatigue_code="MODERATE",
+            satisfaction_code="SATISFIED",
+            pain_occurred=False,
+            discomforts=(("KNEE", "MILD"),),
+            adverse_reaction_codes=("DIZZINESS",),
+            difficulty_reason_codes=("VOLUME_HIGH",),
+            now=NOW,
+        )
+        # Answering again after resuming replaces the row and its children
+        # outright: keeping the first answer's discomforts alongside the second
+        # answer would store a combination the user never gave.
+        repository.upsert_feedback(
             session,
             session_id=workout_session_id,
             difficulty_code="APPROPRIATE",
@@ -264,9 +282,17 @@ def test_repository_round_trip_keeps_timer_and_additional_activity_informational
             discomforts=(),
             adverse_reaction_codes=(),
             difficulty_reason_codes=(),
-            now=NOW,
+            now=LATER,
         )
-        assert repository.feedback_exists(session, workout_session_id)
+        stored = session.get(WorkoutFeedback, workout_session_id)
+        assert stored is not None
+        assert stored.difficulty_code == "APPROPRIATE"
+        assert stored.discomforts == []
+        assert stored.adverse_reactions == []
+        assert stored.difficulty_reasons == []
+        # `created_at` keeps the first answer's time; only `updated_at` moves.
+        # (Compared relatively because SQLite drops the tzinfo on read.)
+        assert stored.updated_at > stored.created_at
 
         repository.finish_session(
             session,
@@ -275,7 +301,7 @@ def test_repository_round_trip_keeps_timer_and_additional_activity_informational
             ended_at=NOW,
             actual_elapsed_seconds=None,
         )
-        repository.create_skip_feedback(
+        repository.upsert_skip_feedback(
             session,
             session_id=workout_session_id,
             reason_code="TIME_SHORTAGE",
@@ -538,6 +564,7 @@ def test_postgresql_workout_log_reads_are_owner_scoped_and_stably_paginated(
                         satisfaction_code="SATISFIED",
                         pain_occurred=True,
                         created_at=NOW,
+                        updated_at=NOW,
                     )
                 )
             if index == 2:

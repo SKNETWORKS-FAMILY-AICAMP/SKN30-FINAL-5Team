@@ -1114,11 +1114,14 @@ describe('PreviewGallery', () => {
     fireEvent.press(canvas.getByRole('radio', { name: '시간이 부족해요.' }));
     fireEvent.press(canvas.getByRole('button', { name: '이 사유로 중단하기' }));
 
+    // Stopping asks how it went instead of ending the session outright.
+    expect(await canvas.findByText('오늘 운동은 어땠나요?')).toBeOnTheScreen();
+    fireEvent.press(canvas.getByRole('radio', { name: '적당했어요' }));
+    fireEvent.press(canvas.getByTestId('session-feedback-save'));
+
     await waitFor(() =>
       expect(screen.getByRole('radio', { name: 'Home (API)' })).toBeChecked(),
     );
-    expect(canvas.queryByText('오늘 운동은 어땠나요?')).toBeNull();
-    expect(canvas.queryByTestId('session-feedback-save')).toBeNull();
 
     fireEvent.press(screen.getByRole('radio', { name: 'Workout (API)' }));
     await waitFor(
@@ -1149,10 +1152,14 @@ describe('PreviewGallery', () => {
       canvas.getByRole('radio', { name: '오늘은 여기까지 할게요.' }),
     );
     fireEvent.press(canvas.getByRole('button', { name: '이 사유로 중단하기' }));
+    // A completed block does not change the path any more: stopping with a
+    // reason keeps the session open either way.
     expect(
-      await canvas.findByRole('header', { name: '오늘 운동을 기록했어요' }),
+      await canvas.findByRole('header', { name: '여기까지 기록했어요' }),
     ).toBeOnTheScreen();
-    expect(canvas.getAllByText('블록 1 / 3 완료')).toHaveLength(1);
+    expect(
+      canvas.getByText('홈에서 이어하기를 누르면 남은 블록부터 계속돼요.'),
+    ).toBeOnTheScreen();
     expect(screen.getByText('단독 진입: ?preview=workout')).toBeOnTheScreen();
   });
 

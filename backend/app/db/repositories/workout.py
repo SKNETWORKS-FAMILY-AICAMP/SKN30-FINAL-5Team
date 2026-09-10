@@ -3,7 +3,7 @@ from hashlib import sha256
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import and_, func, or_, select, text
+from sqlalchemy import and_, delete, func, or_, select, text
 from sqlalchemy.orm import Session, selectinload
 
 from backend.app.db.models.catalog import CatalogVersion, Exercise
@@ -553,7 +553,7 @@ class WorkoutRepository:
         workout.actual_elapsed_seconds = actual_elapsed_seconds
         session.flush()
 
-    def create_skip_feedback(
+    def upsert_skip_feedback(
         self,
         session: Session,
         *,
@@ -561,26 +561,27 @@ class WorkoutRepository:
         reason_code: str,
         now: datetime,
     ) -> None:
-        session.add(
-            WorkoutSkipFeedback(
-                workout_session_id=session_id,
-                reason_code=reason_code,
-                created_at=now,
-            )
-        )
-        session.flush()
+        """Store why the session was not performed, replacing any earlier reason.
 
-    def feedback_exists(self, session: Session, session_id: UUID) -> bool:
-        return (
-            session.scalar(
-                select(WorkoutFeedback.workout_session_id).where(
-                    WorkoutFeedback.workout_session_id == session_id
+        A resumable stop can happen more than once in a session, and the reason the
+        user gives last is the one that describes how the session actually ended.
+        """
+
+        existing = session.get(WorkoutSkipFeedback, session_id)
+        if existing is None:
+            session.add(
+                WorkoutSkipFeedback(
+                    workout_session_id=session_id,
+                    reason_code=reason_code,
+                    created_at=now,
                 )
             )
-            is not None
-        )
+        else:
+            existing.reason_code = reason_code
+            existing.created_at = now
+        session.flush()
 
-    def create_feedback(
+    def upsert_feedback(
         self,
         session: Session,
         *,
@@ -594,16 +595,37 @@ class WorkoutRepository:
         difficulty_reason_codes: tuple[str, ...],
         now: datetime,
     ) -> None:
-        session.add(
-            WorkoutFeedback(
-                workout_session_id=session_id,
-                difficulty_code=difficulty_code,
-                fatigue_code=fatigue_code,
-                satisfaction_code=satisfaction_code,
-                pain_occurred=pain_occurred,
-                created_at=now,
-            )
-        )
+        """Store the session's feedback, replacing whatever was stored before.
+
+        A session can now be stopped, resumed and stopped again, and the user is
+        asked how it felt each time. The last answer describes the session as it
+        actually ended, so it wins outright rather than being rejected as a
+        duplicate. The child rows are replaced wholesale for the same reason:
+        merging an old answer's discomforts into a new one would store a
+        combination the user never gave.
+
+        Past decisions stay reproducible because they read their own
+        `input_snapshot`, not this row -- the same reason daily check-ins are
+        mutable (`DATA_MODEL.md` 10.4.1).
+        """
+
+        feedback = session.get(WorkoutFeedback, session_id)
+        if feedback is None:
+            feedback = WorkoutFeedback(workout_session_id=session_id, created_at=now)
+            session.add(feedback)
+        else:
+            for table in (
+                WorkoutFeedbackDiscomfort,
+                WorkoutFeedbackAdverseReaction,
+                WorkoutFeedbackDifficultyReason,
+            ):
+                session.execute(delete(table).where(table.workout_session_id == session_id))
+        feedback.difficulty_code = difficulty_code
+        feedback.fatigue_code = fatigue_code
+        feedback.satisfaction_code = satisfaction_code
+        feedback.pain_occurred = pain_occurred
+        feedback.updated_at = now
+        session.flush()
         session.add_all(
             [
                 WorkoutFeedbackDiscomfort(

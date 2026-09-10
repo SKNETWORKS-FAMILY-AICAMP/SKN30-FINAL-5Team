@@ -1750,13 +1750,32 @@ start·block·timer·additional-activity mutation은 `ended_at`이 있거나 공
 PATCH /api/v1/workout-sessions/{id}/stop
 
 ~~~json
-{"stopped_at":"2026-09-03T10:22:00+09:00","stop_reason_code":"RESUME_LATER"}
+{
+  "stopped_at": "2026-09-03T10:22:00+09:00",
+  "stop_reason_code": "RESUME_LATER",
+  "not_completed_reason_code": "TIME_SHORTAGE"
+}
 ~~~
 
 `HIGH_FATIGUE`, `TIME_SHORTAGE`, `RESUME_LATER`는 `STOPPED_RESUMABLE`과
 `is_resumable=true`를 반환하고, `POST /timer-events`의 `RESUME`으로 `RUNNING`으로 전이한다.
 이때 기존 `status_code`는 `IN_PROGRESS`로 dual-write한다. `PAIN_OR_ABNORMAL_RESPONSE`는
 세부 증상 입력 없이 Safety Event를 생성하며 당일 재개할 수 없다.
+
+**일반 중단은 세션을 종료하지 않는다.** 사유를 선택한 일반 중단은 `/finish`나
+`/not-completed`가 아니라 이 endpoint를 호출한다. 종료된 세션은 이어할 수 없으므로 종료로
+처리하면 이어하기 자체가 사라진다.
+
+`not_completed_reason_code`는 선택 필드이며 `WorkoutNotCompletedReasonCode` 값을 받는다.
+`stop_reason_code`는 어떤 실행 전이가 일어났는지를 나타내는 코드이므로 사용자가 고른 사유를
+담을 수 없다. 이 필드는 사용자의 답이며 `workout_skip_feedback`에 저장한다. 같은 세션을 다시
+중단하면 마지막 값으로 대체한다. 재개하지 않은 세션은 누구도 종료하지 않으므로, 사용자가
+사유를 남길 수 있는 마지막 시점이 중단 시점이다. 필드를 보내지 않는 기존 client는 그대로
+동작하며 사유를 기록하지 않는다.
+
+닫힌 주의 주간 리포트는 종료되지 않은 세션을 거부하지 않고 완료 블록으로 공식 상태를
+계산한다. 닫힌 주에는 재개가 불가능하고, 공식 수행 상태의 근거는 언제나 블록 체크이기
+때문이다. 완료 블록이 없는 세션은 여전히 미수행 사유를 요구한다.
 
 ### 12.4 운동 중 안전 이벤트
 
@@ -1870,9 +1889,29 @@ MOVEMENT_DIFFICULT
 다음 루틴을 바꾸지 않는다. 클라이언트가 값을 보내기 시작하고 호환 검증을 마친 뒤 별도 릴리스에서
 필수로 승격한다.
 
-표시 문구는 `EASY=쉬웠어요`, `APPROPRIATE=적당했어요`, `HARD=어려워요`를 유지한다. 피드백은 종료
-상태의 세션에 한 번만 저장하고 공식 수행 상태를 변경하지 않는다. 미수행 세션은 리포트 생성 전에
-`/not-completed`의 `reason_code`를 먼저 저장해야 한다.
+표시 문구는 `EASY=쉬웠어요`, `APPROPRIATE=적당했어요`, `HARD=어려워요`를 유지한다. 피드백은 공식
+수행 상태를 변경하지 않는다. 미수행 세션은 리포트 생성 전에 `/not-completed`의 `reason_code`를
+먼저 저장해야 한다.
+
+피드백은 **중단한 세션**에 저장하며, 세션당 한 행을 **갱신**한다.
+
+- 종료 상태(`COMPLETED`, `PARTIAL`, `NOT_COMPLETED`, `STOPPED_FOR_SAFETY`)와 실행 상태
+  `STOPPED_RESUMABLE`을 받는다. 후자의 `session_status_code`는 `IN_PROGRESS`다.
+- 수행 중(`RUNNING`, `RESTING`, `PAUSED`)인 세션은 `409 INVALID_STATE_TRANSITION`으로 거부한다.
+  "오늘 운동은 어땠나요"에 답이 생기는 시점은 사용자가 멈춘 뒤다.
+- 같은 세션에 다시 저장하면 마지막 요청이 이전 값을 완전히 대체한다. 자식 행
+  (`discomforts`, `adverse_reactions`, `difficulty_reasons`)도 함께 교체하며 병합하지 않는다.
+  두 답을 합치면 사용자가 준 적 없는 조합이 저장되기 때문이다.
+- `409 FEEDBACK_ALREADY_EXISTS`는 더 이상 발생하지 않는다.
+- `created_at`은 최초 응답 시각을, `workout_feedback.updated_at`은 현재 저장된 답의 시각을
+  가진다.
+
+종료 상태를 요구하던 이전 계약은 이어하기와 양립할 수 없었다. 사유를 골라 중단한 사용자는 이미
+답을 갖고 있지만 세션은 재개 가능한 `IN_PROGRESS`이므로, 답을 받으려면 세션을 종료해야 했고 종료된
+세션은 이어할 수 없었다. 갱신형인 이유도 같다. 재개해서 더 수행한 뒤의 답이 그 세션을 설명한다.
+
+과거 결정의 재현성은 영향을 받지 않는다. 결정은 자신의 `input_snapshot`을 읽으며, daily check-in이
+가변인 것과 같은 이유다(`DATA_MODEL.md` 10.4.1).
 
 현재 구현의 `fatigue_code`, `satisfaction_code`, `pain_occurred`, `discomforts`,
 `adverse_reaction_codes`는 즉시 삭제하지 않는다. 후속 호환 단계에서 다음 순서로 전환한다.

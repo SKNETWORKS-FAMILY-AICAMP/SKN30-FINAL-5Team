@@ -298,4 +298,64 @@ describe('SessionResultScreen feedback', () => {
     expect(screen.queryByTestId('session-feedback-save')).toBeNull();
     expect(onDone).toHaveBeenCalledTimes(1);
   });
+  it('asks how it went after a safety stop that completed no block', () => {
+    // This case used to skip the question entirely: a safety stop with nothing
+    // completed counted as rest and went straight home, so the one stop the
+    // user most needs to describe was the one never asked about.
+    const onDone = jest.fn();
+    render(
+      <SessionResultScreen
+        api={{ submitFeedback: jest.fn() } as unknown as Api}
+        sessionId="session-result"
+        outcome={{
+          kind: 'safetyStop',
+          event: {
+            event_id: 'safety-event-result',
+            result_code: 'SESSION_STOPPED',
+            execution_state_code: 'STOPPED_SAFETY',
+            completion_code: 'NOT_COMPLETED',
+            is_resumable: false,
+            guidance: '운동을 중단하고 상태를 확인해 주세요.',
+          },
+        }}
+        onDone={onDone}
+      />,
+    );
+
+    expect(onDone).not.toHaveBeenCalled();
+    expect(screen.getByText('오늘 운동은 어땠나요?')).toBeOnTheScreen();
+    // Serious throughout, with no mascot and no recovery framing.
+    expect(screen.getAllByText('운동을 중단했어요')).toHaveLength(1);
+    expect(screen.queryByText('오늘의 결과')).toBeNull();
+  });
+
+  it('offers to continue later after a stop that kept the session open', () => {
+    const onDone = jest.fn();
+    render(
+      <SessionResultScreen
+        api={{ submitFeedback: jest.fn() } as unknown as Api}
+        sessionId="session-result"
+        outcome={{
+          kind: 'stopped',
+          result: {
+            session_id: 'session-result',
+            completion_code: null,
+            execution_state_code: 'STOPPED_RESUMABLE',
+            stop_reason_code: 'RESUME_LATER',
+            is_resumable: true,
+            accumulated_progress_seconds: 300,
+            accumulated_rest_seconds: 0,
+            accumulated_paused_seconds: 0,
+          },
+        }}
+        onDone={onDone}
+      />,
+    );
+
+    expect(onDone).not.toHaveBeenCalled();
+    expect(screen.getByText('오늘 운동은 어땠나요?')).toBeOnTheScreen();
+    expect(
+      screen.getByText('홈에서 이어하기를 누르면 남은 블록부터 계속돼요.'),
+    ).toBeOnTheScreen();
+  });
 });

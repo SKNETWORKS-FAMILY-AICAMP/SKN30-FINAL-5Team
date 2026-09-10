@@ -115,6 +115,19 @@ class WorkoutSessionStopRequest(BaseModel):
     stop_reason_code: Literal[
         "HIGH_FATIGUE", "TIME_SHORTAGE", "RESUME_LATER", "PAIN_OR_ABNORMAL_RESPONSE"
     ]
+    not_completed_reason_code: WorkoutNotCompletedReasonCode | None = None
+    """Why the user stopped, in the vocabulary the weekly report learns from.
+
+    A resumable stop leaves the session open, so a user who never comes back
+    leaves it with no recorded reason at all -- and the closed-week report needs
+    one for a session with no completed block. `stop_reason_code` cannot supply
+    it: it names the execution transition (which of the two stops happened), and
+    only `PAIN_OR_ABNORMAL_RESPONSE` carries product meaning. This field is the
+    user's own answer, and it replaces any reason an earlier stop recorded.
+
+    Optional so the pause-and-stop clients that already call this endpoint keep
+    working; they simply record no reason, exactly as they do today.
+    """
 
 
 class WorkoutSessionStopResponse(BaseModel):
@@ -272,7 +285,10 @@ class WorkoutFeedbackRequest(BaseModel):
 
 class WorkoutFeedbackResponse(BaseModel):
     session_id: UUID
-    session_status_code: Literal["COMPLETED", "PARTIAL", "NOT_COMPLETED", "STOPPED_FOR_SAFETY"]
+    session_status_code: Literal[
+        "IN_PROGRESS", "COMPLETED", "PARTIAL", "NOT_COMPLETED", "STOPPED_FOR_SAFETY"
+    ]
+    """`IN_PROGRESS` means the session was stopped but can still be resumed today."""
     created_at: datetime
     guidance_code: str | None
     guidance: str | None

@@ -134,15 +134,6 @@ type WorkoutApiProps = {
   sessionId: string;
   plan: WorkoutPlan;
   onOutcome: (outcome: SessionOutcome) => void;
-  /**
-   * Leave for home without ending the session.
-   *
-   * Confirming a stop is terminal by design -- it records the day as rest or a
-   * partial session. That left no way to step away and come back, so the
-   * routine card lost its resume action entirely. This is the separate exit:
-   * the session stays IN_PROGRESS and Home offers 이어하기 again.
-   */
-  onResumeLater?: () => void;
 };
 
 type WorkoutScreenProps = WorkoutPreviewProps | WorkoutApiProps;
@@ -764,6 +755,36 @@ function WorkoutScreenContent({
     setApiError(null);
     try {
       await finalizeServerSession();
+    } catch (error) {
+      setApiError(messageForError(error));
+    } finally {
+      setActionPending(false);
+    }
+  };
+
+  /**
+   * Stops with the user's reason without ending the session.
+   *
+   * This used to call `/finish` or `/not-completed`, both of which close the
+   * session -- and a closed session has nothing to resume, which is how the
+   * 이어하기 action disappeared. `/stop` is the transition the domain model
+   * already describes (`STOPPED_RESUMABLE -> RUNNING`); the reason is stored so
+   * the weekly report still learns from a session the user never comes back to.
+   */
+  const submitStop = async (reasonCode: NotCompletedReasonCode) => {
+    if (apiConfig === undefined) {
+      return;
+    }
+    setActionPending(true);
+    setApiError(null);
+    try {
+      const result = await apiConfig.api.stopSession(
+        apiConfig.sessionId,
+        new Date().toISOString(),
+        reasonCode,
+      );
+      setExecutionState('PAUSED');
+      apiConfig.onOutcome({ kind: 'stopped', result });
     } catch (error) {
       setApiError(messageForError(error));
     } finally {
@@ -1416,7 +1437,6 @@ function WorkoutScreenContent({
           acknowledged={safetyStopAcknowledged}
           error={apiConfig === undefined ? null : apiError}
           onClose={closeSheets}
-          onResumeLater={apiConfig?.onResumeLater}
           onConfirm={() => {
             if (selectedStopReason === 'SAFETY') {
               if (apiConfig === undefined) {
@@ -1434,11 +1454,8 @@ function WorkoutScreenContent({
               setPreviewResult('stopped');
               return;
             }
-            if (completedCount === 0) {
-              void submitNotCompleted(selectedStopReason);
-            } else {
-              void finishWorkout();
-            }
+            onNotCompleted?.(selectedStopReason);
+            void submitStop(selectedStopReason);
           }}
           onSelect={setSelectedStopReason}
           onToggleAcknowledgement={() =>
@@ -2006,7 +2023,6 @@ function StopReasonSheet({
   error,
   onClose,
   onConfirm,
-  onResumeLater,
   onSelect,
   onToggleAcknowledgement,
   pending,
@@ -2017,7 +2033,6 @@ function StopReasonSheet({
   error: string | null;
   onClose: () => void;
   onConfirm: () => void;
-  onResumeLater?: (() => void) | undefined;
   onSelect: (reason: NotCompletedReasonCode | 'SAFETY') => void;
   onToggleAcknowledgement: () => void;
   pending: boolean;
@@ -2157,23 +2172,6 @@ function StopReasonSheet({
                 : '이 사유로 중단하기'}
         </Text>
       </Pressable>
-      {/*
-        Stepping away is not stopping. Confirming above is terminal; this leaves
-        the session IN_PROGRESS so Home can offer 이어하기. Withheld for a safety
-        stop, which the sheet states cannot be resumed.
-      */}
-      {onResumeLater !== undefined && !safetySelected ? (
-        <Pressable
-          accessibilityLabel="나중에 이어하기"
-          accessibilityRole="button"
-          disabled={pending}
-          onPress={onResumeLater}
-          style={styles.textButton}
-          testID="workout-resume-later"
-        >
-          <Text style={styles.textButtonLabel}>나중에 이어하기</Text>
-        </Pressable>
-      ) : null}
       <Pressable
         accessibilityRole="button"
         disabled={pending}

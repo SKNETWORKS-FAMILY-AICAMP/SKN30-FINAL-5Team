@@ -301,10 +301,17 @@ class WeeklyReportService:
         intensity_codes: list[str] = []
         training_type_codes: list[str] = []
         for row in evidence_rows:
-            if row.stored_status_code not in _TERMINAL_STATUS_CODES:
-                raise WeekOutcomesIncompleteError
             if not row.block_status_codes:
                 raise WeekOutcomeInconsistentError
+            # A session left open is not a reason to withhold the whole report.
+            # The week is closed before this runs, so nothing in it can be
+            # resumed any more, and the official status has always come from the
+            # completed blocks rather than from the stored code -- that is what
+            # the line below computes for every row, closed or not. The stored
+            # code is only cross-checked when there is one to cross-check: a user
+            # who stops mid-session and never returns leaves `IN_PROGRESS`
+            # behind, and refusing the report there would also block the next
+            # week's plan, which the report gates.
             official_status = derive_official_session_status(
                 WorkoutCompletionEvidence(
                     block_status_codes=tuple(
@@ -313,7 +320,10 @@ class WeeklyReportService:
                     safety_stopped=row.safety_stopped,
                 )
             ).value
-            if official_status != row.stored_status_code:
+            if (
+                row.stored_status_code in _TERMINAL_STATUS_CODES
+                and official_status != row.stored_status_code
+            ):
                 raise WeekOutcomeInconsistentError
             if official_status == "NOT_COMPLETED":
                 if row.not_completed_reason_code is None:

@@ -37,7 +37,6 @@ from backend.app.modules.workouts.schemas import (
 )
 from backend.app.modules.workouts.service import (
     DecisionAlreadySelectedError,
-    FeedbackAlreadyExistsError,
     IdempotencyKeyReusedError,
     InvalidSafetyEventInputError,
     InvalidSessionStateError,
@@ -103,12 +102,6 @@ def _error(exc: Exception) -> AppError:
             code="INVALID_SAFETY_EVENT",
             message="불편 부위 또는 이상 반응을 한 가지 이상 입력해야 합니다.",
         )
-    if isinstance(exc, FeedbackAlreadyExistsError):
-        return AppError(
-            status_code=409,
-            code="FEEDBACK_ALREADY_EXISTS",
-            message="이 운동 세션의 피드백이 이미 저장되었습니다.",
-        )
     if isinstance(exc, IntegrityError):
         return AppError(
             status_code=409,
@@ -131,7 +124,6 @@ _WORKOUT_ERRORS = (
     IdempotencyKeyReusedError,
     NotCompletedReasonRequiredServiceError,
     InvalidSafetyEventInputError,
-    FeedbackAlreadyExistsError,
     IntegrityError,
     SQLAlchemyError,
 )

@@ -125,10 +125,6 @@ class InvalidSafetyEventInputError(Exception):
     pass
 
 
-class FeedbackAlreadyExistsError(Exception):
-    pass
-
-
 class WorkoutLogNotFoundError(Exception):
     pass
 
@@ -151,6 +147,25 @@ _GUIDANCE: dict[str, str] = {
 
 def _utc_now() -> datetime:
     return datetime.now(UTC)
+
+
+def _accepts_feedback(state: SessionState) -> bool:
+    """Whether the session has stopped in a way the user can be asked about.
+
+    Feedback used to require a terminal session, which made the resumable stop
+    unusable: a user who stops with a reason has plainly finished exercising for
+    now and has an opinion about it, but the session is still `IN_PROGRESS`
+    because `DOMAIN_RULES.md` 10 lets `STOPPED_RESUMABLE` go back to `RUNNING`.
+    Requiring a terminal status therefore forced the client to end the session to
+    collect an answer, which is exactly what took the resume action away.
+
+    A running session is still refused. The question is about how the session
+    went, so it only has an answer once the user has stopped.
+    """
+
+    if state.status_code in TERMINAL_SESSION_STATUS_CODES:
+        return True
+    return state.execution_state_code == "STOPPED_RESUMABLE"
 
 
 def _request_hash(resource: dict[str, object], request: BaseModel) -> str:
@@ -893,6 +908,16 @@ class WorkoutService:
                 completion_code=completion_code,
                 ended_at=(request.stopped_at if not is_resumable else None),
             )
+            if request.not_completed_reason_code is not None:
+                # Recorded on the stop rather than on the close, because a session
+                # that is never resumed is never closed by anyone -- this is the
+                # last moment the user is present to say why.
+                self._repository.upsert_skip_feedback(
+                    session,
+                    session_id=session_id,
+                    reason_code=request.not_completed_reason_code.value,
+                    now=self._clock(),
+                )
             if execution_state is WorkoutExecutionStateCode.STOPPED_SAFETY:
                 self._persist_completed_block_calorie_estimate(
                     session,
@@ -1041,7 +1066,7 @@ class WorkoutService:
                 session_id=session_id,
                 accumulated_progress_seconds=state.accumulated_progress_seconds,
             )
-            self._repository.create_skip_feedback(
+            self._repository.upsert_skip_feedback(
                 session,
                 session_id=session_id,
                 reason_code=request.reason_code.value,
@@ -1090,12 +1115,10 @@ class WorkoutService:
             if prior is not None:
                 return prior
             state = self._required_state(session, user_id, session_id)
-            if state.status_code not in TERMINAL_SESSION_STATUS_CODES:
+            if not _accepts_feedback(state):
                 raise InvalidSessionStateError
-            if self._repository.feedback_exists(session, session_id):
-                raise FeedbackAlreadyExistsError
             now = self._clock()
-            self._repository.create_feedback(
+            self._repository.upsert_feedback(
                 session,
                 session_id=session_id,
                 difficulty_code=request.difficulty_code,
@@ -1126,7 +1149,13 @@ class WorkoutService:
             response = WorkoutFeedbackResponse(
                 session_id=session_id,
                 session_status_code=cast(
-                    Literal["COMPLETED", "PARTIAL", "NOT_COMPLETED", "STOPPED_FOR_SAFETY"],
+                    Literal[
+                        "IN_PROGRESS",
+                        "COMPLETED",
+                        "PARTIAL",
+                        "NOT_COMPLETED",
+                        "STOPPED_FOR_SAFETY",
+                    ],
                     state.status_code,
                 ),
                 created_at=now,
@@ -1208,7 +1237,6 @@ class WorkoutService:
 
 __all__ = [
     "DecisionAlreadySelectedError",
-    "FeedbackAlreadyExistsError",
     "IdempotencyKeyReusedError",
     "InvalidSessionStateError",
     "InvalidSafetyEventInputError",
