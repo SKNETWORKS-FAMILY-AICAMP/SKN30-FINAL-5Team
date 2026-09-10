@@ -30,9 +30,18 @@ const DIFFICULTIES = [
   { code: 'HARD' as const, label: '어려웠어요' },
 ];
 
+/**
+ * The two adjustment axes the next routine can lower, in the wording this app
+ * shows for them.
+ *
+ * The codes are the contract's (`API_CONTRACT.md` 12.6), not screen-local names.
+ * They used to be `FORM_DIFFICULTY` / `INTENSITY_TOO_HIGH`, which existed only
+ * here and were never sent, so the answer was collected and thrown away and the
+ * next routine had no axis to adjust.
+ */
 const HARD_DIFFICULTY_DETAILS = [
-  { code: 'FORM_DIFFICULTY' as const, label: '자세가 어려웠어요' },
-  { code: 'INTENSITY_TOO_HIGH' as const, label: '강도가 높았어요' },
+  { code: 'MOVEMENT_DIFFICULT' as const, label: '자세가 어려웠어요' },
+  { code: 'VOLUME_HIGH' as const, label: '강도가 높았어요' },
 ];
 
 type HardDifficultyDetailCode =
@@ -184,6 +193,10 @@ function FeedbackCard({
     if (difficulty === null) return;
     const response = await api.submitFeedback(sessionId, {
       difficulty_code: difficulty,
+      // Only `HARD` may carry reasons; the server rejects them otherwise rather
+      // than dropping them, so sending an empty list off `HARD` is deliberate.
+      difficulty_reason_codes:
+        difficulty === 'HARD' ? hardDifficultyDetails : [],
       fatigue_code: null,
       satisfaction_code: null,
       pain_occurred: legacyPainOccurred,

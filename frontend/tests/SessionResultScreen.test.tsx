@@ -200,6 +200,8 @@ describe('SessionResultScreen feedback', () => {
     await waitFor(() =>
       expect(submitFeedback).toHaveBeenCalledWith('session-result', {
         difficulty_code: 'APPROPRIATE',
+        // Reasons belong to HARD only; the server rejects them elsewhere.
+        difficulty_reason_codes: [],
         fatigue_code: null,
         satisfaction_code: null,
         pain_occurred: false,
@@ -208,6 +210,44 @@ describe('SessionResultScreen feedback', () => {
       }),
     );
     expect(await screen.findByText('피드백을 저장했어요.')).toBeOnTheScreen();
+  });
+
+  it('sends the hard-workout reasons that pick the next routine adjustment', async () => {
+    // These were collected and dropped: the codes existed only on this screen
+    // and never reached the request, so a HARD session chose no adjustment axis.
+    const submitFeedback = jest.fn<Api['submitFeedback']>(async () => ({
+      session_id: 'session-result',
+      session_status_code: 'COMPLETED',
+      created_at: '2026-08-19T10:01:00+09:00',
+      guidance_code: null,
+      guidance: null,
+      pressure_notifications_allowed: true,
+    }));
+
+    render(
+      <SessionResultScreen
+        api={{ submitFeedback } as unknown as Api}
+        sessionId="session-result"
+        outcome={finished}
+        onDone={jest.fn()}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('radio', { name: '어려웠어요' }));
+    fireEvent.press(screen.getByRole('checkbox', { name: '강도가 높았어요' }));
+    fireEvent.press(
+      screen.getByRole('button', { name: '피드백 저장하고 홈으로' }),
+    );
+
+    await waitFor(() =>
+      expect(submitFeedback).toHaveBeenCalledWith(
+        'session-result',
+        expect.objectContaining({
+          difficulty_code: 'HARD',
+          difficulty_reason_codes: ['VOLUME_HIGH'],
+        }),
+      ),
+    );
   });
 
   it('shows multi-select details only when the workout felt hard', () => {
