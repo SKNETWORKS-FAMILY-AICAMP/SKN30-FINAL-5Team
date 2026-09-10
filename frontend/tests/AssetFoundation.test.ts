@@ -57,6 +57,7 @@ describe('fidelity foundation', () => {
       'weeklyProgressIncomplete',
       'weeklyProgressCompletedWorkout',
       'mascotWarmupWalk',
+      'kikkiRunnerMascot',
       'houseCampingMorningBackground',
       'houseCampingDinnerBackground',
       'houseIndoorBackground',
