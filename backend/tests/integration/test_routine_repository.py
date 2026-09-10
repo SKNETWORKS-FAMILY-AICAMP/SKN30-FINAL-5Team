@@ -310,6 +310,34 @@ def test_postgresql_routine_repository_version_ownership_and_concurrency(
 
     assert versions == [1, 2]
     with Session(engine) as session, session.begin():
+        repository = RoutineRepository()
+        assert (
+            repository.archive_routines_incompatible_with_profile(
+                session,
+                owner_id,
+                primary_goal_code="GENERAL_FITNESS",
+                requested_duration_minutes=10,
+            )
+            == 0
+        )
+        assert (
+            repository.get_current_routine_payload(session, owner_id, date(2026, 8, 15)) is not None
+        )
+        assert (
+            repository.archive_routines_incompatible_with_profile(
+                session,
+                owner_id,
+                primary_goal_code="MUSCLE_GAIN",
+                requested_duration_minutes=10,
+            )
+            == 2
+        )
+        assert repository.get_current_routine_payload(session, owner_id, date(2026, 8, 15)) is None
+        assert (
+            repository.get_current_routine_payload(session, concurrent_id, date(2026, 8, 14))
+            is not None
+        )
+    with Session(engine) as session, session.begin():
         session.execute(
             update(CatalogVersion)
             .where(CatalogVersion.id == catalog_id)

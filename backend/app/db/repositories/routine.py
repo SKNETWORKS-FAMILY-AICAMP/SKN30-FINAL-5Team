@@ -350,18 +350,19 @@ class RoutineRepository:
         )
         return None if routine is None else self._response_payload(session, routine)
 
-    def archive_routines_with_other_duration(
+    def archive_routines_incompatible_with_profile(
         self,
         session: Session,
         user_id: UUID,
         *,
+        primary_goal_code: str,
         requested_duration_minutes: int,
     ) -> int:
-        """Archive this user's active routines built to a different duration.
+        """Archive active routines that no longer match the user's profile.
 
-        Scoped to the caller's own user id and to routines whose stored target
-        no longer matches, so a profile edit that does not move the duration
-        archives nothing.
+        The routine goal and every day duration are immutable evidence of the
+        profile inputs used to build that version. Archiving preserves that
+        history while allowing Home to provision a new compatible version.
         """
 
         stale_ids = session.scalars(
@@ -370,7 +371,10 @@ class RoutineRepository:
             .where(
                 Routine.user_id == user_id,
                 Routine.status_code == "ACTIVE",
-                RoutineDay.requested_duration_minutes != requested_duration_minutes,
+                (
+                    (Routine.goal_code != primary_goal_code)
+                    | (RoutineDay.requested_duration_minutes != requested_duration_minutes)
+                ),
             )
             .distinct()
         ).all()

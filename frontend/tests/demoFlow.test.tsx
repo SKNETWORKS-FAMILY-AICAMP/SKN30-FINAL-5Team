@@ -945,6 +945,36 @@ describe('HomeContainer', () => {
     ).toBeTruthy();
   });
 
+  it('creates the replacement routine from the refreshed profile goal', async () => {
+    const createRoutine = jest.fn(async () => ({
+      ...routine(),
+      goal_code: 'MUSCLE_GAIN',
+    }));
+    const refreshedMe = me();
+    refreshedMe.profile = {
+      ...refreshedMe.profile!,
+      primary_goal_code: 'MUSCLE_GAIN',
+      profile_version: refreshedMe.profile!.profile_version + 1,
+    };
+
+    renderHome(
+      homeApi({ createRoutine, getCurrentRoutine: jest.fn(notFound) }),
+      {
+        me: refreshedMe,
+      },
+    );
+
+    await waitFor(() =>
+      expect(createRoutine).toHaveBeenCalledWith(
+        {
+          effective_from: expect.any(String),
+          goal_code: 'MUSCLE_GAIN',
+        },
+        expect.any(String),
+      ),
+    );
+  });
+
   it('retries an ambiguous routine creation with the same key', async () => {
     const getCurrentRoutine = jest.fn(notFound);
     const createRoutine = jest

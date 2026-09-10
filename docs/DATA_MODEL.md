@@ -782,6 +782,11 @@ DOMAIN_REVIEWER는 건강운동관리사, 물리치료사 또는 동등한 수�
 
 ### 6.1 routines
 
+`routines.goal_code`는 해당 루틴 버전을 만들 때 사용한 프로필 목표의 불변 근거다. 프로필 수정으로
+`user_profiles.primary_goal_code`가 변경되면 목표가 다른 `ACTIVE` 루틴을 같은 transaction에서
+`ARCHIVED`로 바꾼다. 루틴 row와 연결된 운동 이력은 삭제하지 않으며, 다음 루틴은 현재 프로필 목표로
+새 버전을 만든다. 같은 호환성 검사에서 기존 프로필 운동 시간 변경에 따른 만료 동작도 유지한다.
+
 | 컬럼 | 설명 |
 |---|---|
 | id | UUID, PK |
