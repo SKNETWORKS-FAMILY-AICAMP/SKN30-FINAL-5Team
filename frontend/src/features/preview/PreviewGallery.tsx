@@ -35,6 +35,7 @@ import {
 import { SignInScreen } from '../auth/SignInScreen';
 import { SignUpScreen } from '../auth/SignUpScreen';
 import { BananaCatchGameScreen } from '../bananaCatch/BananaCatchGameScreen';
+import { KikkiRunnerGameScreen } from '../kikkiRunner/KikkiRunnerGameScreen';
 import { ExerciseCatalogScreen } from '../catalog/ExerciseCatalogScreen';
 import { ConfigurationRequiredScreen } from '../config/ConfigurationRequiredScreen';
 import { CalendarReportContainer } from '../home/CalendarReportContainer';
@@ -163,6 +164,7 @@ export type PreviewScreenId =
   | 'session'
   | 'mascot-house'
   | 'banana-catch'
+  | 'kikki-runner'
   | 'background_test'
   | 'calendar-report'
   | 'weekly-report'
@@ -222,6 +224,7 @@ const PREVIEW_SCREEN_GROUPS = [
     screens: [
       { id: 'mascot-house', label: 'Mascot house (API)' },
       { id: 'banana-catch', label: 'Banana catch (actual)' },
+      { id: 'kikki-runner', label: 'Kkikki runner (prototype)' },
       { id: 'background_test', label: 'background_test (mock)' },
     ],
   },
@@ -967,8 +970,17 @@ export function PreviewGallery({
 
         {screenId === 'banana-catch' ? (
           <Text style={styles.contractNotice}>
-            실제 앱에서 끼끼의 집의 ‘미니게임’을 눌러 진입하는 30초
-            미니게임입니다. 점수와 플레이 결과는 저장하거나 전송하지 않습니다.
+            실제 앱에서 끼끼의 집의 ‘미니게임’ 패널에서 ‘바나나 받아라’를 눌러
+            진입하는 30초 미니게임입니다. 점수와 플레이 결과는 저장하거나
+            전송하지 않습니다.
+          </Text>
+        ) : null}
+
+        {screenId === 'kikki-runner' ? (
+          <Text style={styles.contractNotice}>
+            끼끼의 집의 ‘미니게임’ 패널에서 바나나 받아라와 나란히 여는 30초
+            러너 프로토타입입니다. 점수와 플레이 결과는 저장하거나 전송하지
+            않습니다.
           </Text>
         ) : null}
 
@@ -1305,6 +1317,11 @@ export function PreviewGallery({
                   ) : null}
                   {screenId === 'banana-catch' ? (
                     <BananaCatchGameScreen
+                      onBack={() => setScreenId('mascot-house')}
+                    />
+                  ) : null}
+                  {screenId === 'kikki-runner' ? (
+                    <KikkiRunnerGameScreen
                       onBack={() => setScreenId('mascot-house')}
                     />
                   ) : null}

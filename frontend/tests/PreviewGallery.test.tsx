@@ -149,6 +149,26 @@ describe('PreviewGallery', () => {
     ).toBeOnTheScreen();
   });
 
+  it('opens the Kkikki runner prototype and returns to the mascot house', async () => {
+    await render(<PreviewGallery initialScreenId="kikki-runner" />);
+    const canvas = within(screen.getByTestId('preview-app-canvas'));
+
+    expect(
+      canvas.getByRole('header', { name: '끼끼 달리기' }),
+    ).toBeOnTheScreen();
+    expect(canvas.getByText('달리기 시작')).toBeOnTheScreen();
+    expect(
+      screen.getByText('단독 진입: ?preview=kikki-runner'),
+    ).toBeOnTheScreen();
+
+    fireEvent.press(
+      canvas.getByRole('button', { name: '끼끼의 집으로 돌아가기' }),
+    );
+    expect(
+      await canvas.findByRole('button', { name: '집 꾸미기' }),
+    ).toBeOnTheScreen();
+  });
+
   it('previews notification states, read updates and the Kikki house action', async () => {
     await render(<PreviewGallery initialScreenId="home" />);
 

@@ -136,6 +136,11 @@ describe('App boot navigation', () => {
       readyText: '30초 동안 바나나를 받아요!',
     },
     {
+      mode: 'kikki-runner' as const,
+      label: 'Kkikki runner (prototype)',
+      readyText: '끼끼와 바나나 섬을 달려요!',
+    },
+    {
       mode: 'account' as const,
       label: 'Account (mock)',
       readyText: '내 프로필',

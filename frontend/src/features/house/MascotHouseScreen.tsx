@@ -35,6 +35,7 @@ import type { TabId } from '../../components/brand/BrandChrome';
 import { LoadingState, ScreenShell } from '../../components/states/ScreenState';
 import { HomeBottomNavigation } from '../home/HomeScreen';
 import { BananaCatchGameScreen } from '../bananaCatch/BananaCatchGameScreen';
+import { KikkiRunnerGameScreen } from '../kikkiRunner/KikkiRunnerGameScreen';
 import { RewardsScreen } from '../rewards/RewardsScreen';
 import { MascotHouseContent, type HouseMiniGameId } from './MascotHouseContent';
 import {
@@ -287,6 +288,13 @@ export function MascotHouseScreen({
     return <BananaCatchGameScreen onBack={() => setActiveScreen(null)} />;
   }
 
+  if (
+    activeScreen?.kind === 'mini-game' &&
+    activeScreen.gameId === 'kikki_runner'
+  ) {
+    return <KikkiRunnerGameScreen onBack={() => setActiveScreen(null)} />;
+  }
+
   if (activeScreen?.kind === 'rewards') {
     return (
       <RewardsScreen
@@ -419,8 +427,8 @@ export function MascotHouseScreen({
         return true;
       }}
       onPlayGame={(gameId) => {
-        if (!view.canPlayGame) return;
-        persist(recordGamePlay(houseState, localDate));
+        if (!view.canPlayGame[gameId]) return;
+        persist(recordGamePlay(houseState, gameId, localDate));
         setActiveScreen({ kind: 'mini-game', gameId });
       }}
       onPlaceItem={(itemId: HouseItemId, placement: HouseItemPlacement) => {
