@@ -523,6 +523,9 @@ export function createHomeStyles(
       alignItems: 'center',
       justifyContent: 'center',
     },
+    routineGuideSlotExpanded: {
+      width: s(58),
+    },
     routineGuideSlotEditing: {
       width: s(44),
     },
@@ -538,6 +541,9 @@ export function createHomeStyles(
       backgroundColor: '#EDF3DD',
       paddingHorizontal: 0,
       paddingVertical: 0,
+    },
+    routineGuideButtonExpanded: {
+      width: s(58),
     },
     routineGuideButtonText: {
       color: '#5F7048',

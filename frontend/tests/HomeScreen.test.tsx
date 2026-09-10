@@ -6,7 +6,6 @@ import {
   fireEvent,
   render,
   screen,
-  waitFor,
   within,
 } from '@testing-library/react-native';
 import { Animated, processColor, StyleSheet } from 'react-native';
@@ -579,7 +578,7 @@ describe('HomeScreen Home v1 transcription', () => {
     );
   });
 
-  it('shows posture for every API item and variants only when the server returns them', async () => {
+  it('shows one wider posture action and keeps equipment actions hidden', () => {
     const props = homePreviewProps('routine');
     const getExerciseVariants = jest.fn(
       props.exerciseApi!.getExerciseVariants!,
@@ -598,49 +597,13 @@ describe('HomeScreen Home v1 transcription', () => {
     const postureButton = screen.getByRole('button', {
       name: '밴드 로우 자세',
     });
-    const equipmentButton = await screen.findByRole('button', {
-      name: '밴드 로우 장비 보기',
-    });
-    expect(equipmentButton).toBeOnTheScreen();
     expect(
-      screen.queryByRole('button', { name: '푸시업 장비 보기' }),
+      screen.queryByRole('button', { name: /장비 (보기|안내 다시 확인)/ }),
     ).toBeNull();
-    expect(screen.getByText('장비')).toBeOnTheScreen();
+    expect(screen.queryByText('장비')).toBeNull();
     const postureStyle = StyleSheet.flatten(postureButton.props.style);
-    const equipmentStyle = StyleSheet.flatten(equipmentButton.props.style);
-    expect(equipmentStyle).toMatchObject({
-      width: postureStyle.width,
-      height: postureStyle.height,
-      minHeight: postureStyle.minHeight,
-      paddingHorizontal: postureStyle.paddingHorizontal,
-      paddingVertical: postureStyle.paddingVertical,
-      borderColor: '#9CC5DF',
-      backgroundColor: '#E7F3FA',
-    });
-    const postureTextStyle = StyleSheet.flatten(
-      screen.getAllByText('자세')[0]?.props.style,
-    );
-    expect(
-      StyleSheet.flatten(screen.getByText('장비').props.style),
-    ).toMatchObject({
-      color: '#356A85',
-      fontSize: postureTextStyle.fontSize,
-      fontWeight: postureTextStyle.fontWeight,
-    });
-    expect(postureStyle).toMatchObject({
-      height: expect.any(Number),
-    });
-    expect(postureStyle.width).toBeCloseTo(48 * 1.2);
-    const emptyEquipmentSlot = screen.getByTestId(
-      'routine-equipment-slot-plan-item-2',
-    );
-    const filledEquipmentSlot = screen.getByTestId(
-      'routine-equipment-slot-plan-item-3',
-    );
-    expect(emptyEquipmentSlot).toBeVisible();
-    expect(StyleSheet.flatten(emptyEquipmentSlot.props.style)).toEqual(
-      StyleSheet.flatten(filledEquipmentSlot.props.style),
-    );
+    expect(postureStyle.width).toBeCloseTo(58 * 1.2);
+    expect(screen.queryByTestId(/routine-equipment-slot-/)).toBeNull();
     expect(
       screen.getByTestId('routine-guide-actions-plan-item-1'),
     ).toBeVisible();
@@ -650,11 +613,7 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(
       screen.getByTestId('routine-guide-actions-plan-item-3'),
     ).toBeVisible();
-    expect(getExerciseVariants).toHaveBeenCalledWith(
-      'exercise-2',
-      'HOME',
-      expect.any(AbortSignal),
-    );
+    expect(getExerciseVariants).not.toHaveBeenCalled();
   });
 
   it('opens reviewed posture guidance from an API routine item', async () => {
@@ -704,140 +663,6 @@ describe('HomeScreen Home v1 transcription', () => {
     ).toBeOnTheScreen();
   });
 
-  it('opens reviewed equipment variant guidance without replacing the routine item', async () => {
-    render(<HomeScreen {...homePreviewProps('routine')} />);
-
-    fireEvent.press(
-      await screen.findByRole('button', { name: '밴드 로우 장비 보기' }),
-    );
-
-    expect(
-      screen.getByRole('header', { name: '밴드가 없을 때' }),
-    ).toBeOnTheScreen();
-    expect(screen.queryByText('원래 운동의 필요 장비')).toBeNull();
-    expect(screen.getByText('엎드려 등 당기기')).toBeOnTheScreen();
-    expect(
-      screen.queryByText(
-        '이 안내는 운동을 교체하지 않으며 현재 루틴과 수행 기록도 바꾸지 않아요.',
-      ),
-    ).toBeNull();
-    expect(screen.queryByTestId('exercise-posture-guide')).toBeNull();
-  });
-
-  it('hides the action when a HOME lookup has no reviewed variants', async () => {
-    const props = homePreviewProps('routine');
-    const getExerciseVariants = jest.fn(async (exerciseId: string) => ({
-      source_exercise_id: exerciseId,
-      source_required_equipment_codes:
-        exerciseId === 'exercise-1' ? ['BODYWEIGHT', 'MAT'] : ['BODYWEIGHT'],
-      items: [],
-      catalog_version: 'home-equipment-only-v1',
-      alternative_set_version: null,
-    }));
-    render(
-      <HomeScreen
-        {...props}
-        exerciseApi={{
-          getExercise: props.exerciseApi!.getExercise,
-          getExerciseVariants,
-        }}
-      />,
-    );
-
-    await waitFor(
-      () =>
-        expect(
-          screen.queryByTestId('exercise-variants-loading-exercise-1'),
-        ).toBeNull(),
-      { timeout: 5000 },
-    );
-    expect(
-      screen.queryByRole('button', { name: '푸시업 장비 보기' }),
-    ).toBeNull();
-    expect(getExerciseVariants).toHaveBeenCalledWith(
-      'exercise-1',
-      'HOME',
-      expect.any(AbortSignal),
-    );
-  });
-
-  it.each(['GYM', 'OUTDOOR'])(
-    'hides variant entry points without a lookup in a %s context',
-    async (locationCode) => {
-      const props = homePreviewProps('routine');
-      const getExerciseVariants = jest.fn(
-        props.exerciseApi!.getExerciseVariants!,
-      );
-      render(
-        <HomeScreen
-          {...props}
-          context={{ ...props.context!, location_code: locationCode }}
-          exerciseApi={{
-            getExercise: props.exerciseApi!.getExercise,
-            getExerciseVariants,
-          }}
-        />,
-      );
-
-      expect(
-        screen.queryByTestId('exercise-variants-loading-exercise-2'),
-      ).toBeNull();
-      expect(
-        screen.queryByRole('button', { name: '밴드 로우 장비 보기' }),
-      ).toBeNull();
-      expect(getExerciseVariants).not.toHaveBeenCalled();
-    },
-  );
-
-  it('shows a retry state when a HOME variant lookup fails', async () => {
-    const props = homePreviewProps('routine');
-    const getExerciseVariants = jest.fn(async () => {
-      throw new Error('network unavailable');
-    });
-    render(
-      <HomeScreen
-        {...props}
-        exerciseApi={{
-          getExercise: props.exerciseApi!.getExercise,
-          getExerciseVariants,
-        }}
-      />,
-    );
-
-    expect(
-      await screen.findByRole('button', {
-        name: '밴드 로우 장비 안내 다시 확인',
-      }),
-    ).toBeOnTheScreen();
-  });
-
-  it('hides variant actions while the backend capability is unavailable', () => {
-    const props = homePreviewProps('routine');
-    render(
-      <HomeScreen
-        {...props}
-        exerciseApi={{
-          async getExercise(exerciseId) {
-            return {
-              exercise_id: exerciseId,
-              exercise_name: '푸시업',
-              training_type_code: 'STRENGTH',
-              primary_body_area_codes: ['CHEST'],
-              instruction_summary: '검수된 자세 안내',
-              form_cues: [],
-              media_asset_key: null,
-              media_url: null,
-              mascot_animation_asset_key: null,
-              instruction_content_version: 'current-backend-v1',
-            };
-          },
-        }}
-      />,
-    );
-
-    expect(screen.queryByText('장비')).toBeNull();
-  });
-
   it('explains the recommendation with server-supplied per-agent reasoning', () => {
     const view = render(<HomeScreen {...homePreviewProps('adjusted')} />);
     fireEvent.press(
@@ -849,6 +674,9 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.getByText('에이전트별 판단')).toBeOnTheScreen();
     expect(screen.getByText('최종 조정 이유')).toBeOnTheScreen();
     expect(screen.getByText('반영한 기준')).toBeOnTheScreen();
+    expect(
+      screen.queryByText(/저장된 체크인과 안전 기준을 바탕으로/),
+    ).toBeNull();
     // Machine codes stay internal however the sections are composed.
     const tree = JSON.stringify(view.toJSON());
     for (const internal of [
