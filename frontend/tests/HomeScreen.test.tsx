@@ -578,7 +578,7 @@ describe('HomeScreen Home v1 transcription', () => {
     );
   });
 
-  it('shows one wider posture action and keeps equipment actions hidden', () => {
+  it('shows one posture action at its original size and keeps equipment actions hidden', () => {
     const props = homePreviewProps('routine');
     const getExerciseVariants = jest.fn(
       props.exerciseApi!.getExerciseVariants!,
@@ -602,7 +602,7 @@ describe('HomeScreen Home v1 transcription', () => {
     ).toBeNull();
     expect(screen.queryByText('장비')).toBeNull();
     const postureStyle = StyleSheet.flatten(postureButton.props.style);
-    expect(postureStyle.width).toBeCloseTo(58 * 1.2);
+    expect(postureStyle.width).toBeCloseTo(48 * 1.2);
     expect(screen.queryByTestId(/routine-equipment-slot-/)).toBeNull();
     expect(
       screen.getByTestId('routine-guide-actions-plan-item-1'),

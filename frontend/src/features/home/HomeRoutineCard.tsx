@@ -437,8 +437,6 @@ export function RoutineCard({
                       <View
                         style={[
                           styles.routineGuideSlot,
-                          !SHOW_ROUTINE_EQUIPMENT_ACTION &&
-                            styles.routineGuideSlotExpanded,
                           interactionsDisabled &&
                             styles.routineGuideSlotEditing,
                         ]}
@@ -455,8 +453,6 @@ export function RoutineCard({
                             onPress={() => onOpenExerciseGuide(item)}
                             style={[
                               styles.routineGuideButton,
-                              !SHOW_ROUTINE_EQUIPMENT_ACTION &&
-                                styles.routineGuideButtonExpanded,
                               interactionsDisabled &&
                                 styles.routineGuideButtonEditing,
                               interactionsDisabled &&
