@@ -479,6 +479,7 @@ def _seed_linked_graph(session: Session, user_id: UUID, suffix: str) -> dict[str
                 satisfaction_code=None,
                 pain_occurred=False,
                 created_at=NOW,
+                updated_at=NOW,
             ),
         )
     )

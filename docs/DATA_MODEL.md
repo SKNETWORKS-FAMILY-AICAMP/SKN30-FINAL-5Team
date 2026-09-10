@@ -1731,7 +1731,14 @@ hash·최초 응답을 저장한다. 같은 키와 다른 요청 hash는 거부�
 | fatigue_code | legacy deprecated, nullable 유지 |
 | satisfaction_code | legacy deprecated, nullable 유지 |
 | pain_occurred | legacy deprecated, nullable 유지 검토. 기존 row 의미 보존 |
-| created_at | 생성 시각 |
+| created_at | 최초 저장 시각. 갱신해도 바뀌지 않는다 |
+| updated_at | 현재 저장된 답의 시각 (0054) |
+
+이 row는 **가변**이다. 세션당 한 행이며 재저장은 이전 값을 완전히 대체한다. 자식 테이블
+(`workout_feedback_discomforts`, `workout_feedback_adverse_reactions`,
+`workout_feedback_difficulty_reasons`)도 함께 교체하며 병합하지 않는다. 세션을 중단·재개·재중단할
+수 있고 그때마다 체감을 묻기 때문이며, 그 세션을 설명하는 답은 마지막 답이다. 과거 decision의
+재현성은 각 run의 `input_snapshot`이 보장하므로 영향을 받지 않는다(10.4.1의 daily check-in과 같다).
 
 신규 write 계약은 `difficulty_code`만 사용한다. 기존
 `workout_feedback_discomforts`와 `workout_feedback_adverse_reactions`, fatigue/satisfaction/pain 컬럼과
@@ -1761,9 +1768,13 @@ row는 즉시 삭제하지 않는다. 후속 migration은 먼저 신규 write에
 |---|---|
 | workout_session_id | PK, FK |
 | reason_code | 가장 큰 미수행 이유 하나 |
-| created_at | 생성 시각 |
+| created_at | 현재 저장된 사유의 시각 |
 
 허용 이유 코드는 MVP_SCOPE.md와 API_CONTRACT.md에서 관리한다.
+
+이 row도 가변이다. `/not-completed` 외에 `/stop`의 `not_completed_reason_code`도 여기에 쓰며,
+같은 세션을 다시 중단하면 마지막 사유로 대체한다. 재개하지 않은 세션은 종료되지 않으므로 이
+row가 닫힌 주 리포트의 유일한 미수행 사유 근거다.
 
 웨어러블 또는 외부 운동 기록은 별도 참고 테이블에 저장할 수 있으나 workout_sessions의 공식 status_code를 생성하거나 변경하지 않는다. 체크인 원자료는 28일, 웨어러블 원본은 24시간, 상세 수행·설문은 90일을 기본 보유한다.
 

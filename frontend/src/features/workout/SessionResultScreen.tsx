@@ -30,18 +30,35 @@ const DIFFICULTIES = [
   { code: 'HARD' as const, label: '어려웠어요' },
 ];
 
+/**
+ * The two adjustment axes the next routine can lower, in the wording this app
+ * shows for them.
+ *
+ * The codes are the contract's (`API_CONTRACT.md` 12.6), not screen-local names.
+ * They used to be `FORM_DIFFICULTY` / `INTENSITY_TOO_HIGH`, which existed only
+ * here and were never sent, so the answer was collected and thrown away and the
+ * next routine had no axis to adjust.
+ */
 const HARD_DIFFICULTY_DETAILS = [
-  { code: 'FORM_DIFFICULTY' as const, label: '자세가 어려웠어요' },
-  { code: 'INTENSITY_TOO_HIGH' as const, label: '강도가 높았어요' },
+  { code: 'MOVEMENT_DIFFICULT' as const, label: '자세가 어려웠어요' },
+  { code: 'VOLUME_HIGH' as const, label: '강도가 높았어요' },
 ];
 
 type HardDifficultyDetailCode =
   (typeof HARD_DIFFICULTY_DETAILS)[number]['code'];
 
+/**
+ * Whether the day is recorded as rest rather than a performed session.
+ *
+ * A safety stop is never one of these any more. It used to be, which sent a
+ * safety stop with no completed block straight home and skipped the only place
+ * the user is asked how the session went -- the exact case where the answer
+ * matters most. Home is still told the day is rest; the question is asked first.
+ */
 export function isRestOutcome(outcome: SessionOutcome): boolean {
-  return outcome.kind === 'safetyStop'
-    ? outcome.event.completion_code === 'NOT_COMPLETED'
-    : outcome.result.status_code === 'NOT_COMPLETED';
+  if (outcome.kind === 'safetyStop') return false;
+  if (outcome.kind === 'stopped') return false;
+  return outcome.result.status_code === 'NOT_COMPLETED';
 }
 
 export function SessionResultScreen({
@@ -60,6 +77,20 @@ export function SessionResultScreen({
     if (resting) onDone();
   }, [resting, onDone]);
   if (resting) return null;
+  if (outcome.kind === 'stopped') {
+    return (
+      <ScreenShell>
+        <ScreenHeading title="여기까지 기록했어요" />
+        <MascotStage
+          eyebrow="오늘의 기록"
+          art="feedback"
+          title="언제든 이어서 할 수 있어요"
+          caption="홈에서 이어하기를 누르면 남은 블록부터 계속돼요."
+        />
+        <FeedbackCard api={api} sessionId={sessionId} onDone={onDone} />
+      </ScreenShell>
+    );
+  }
   if (outcome.kind === 'safetyStop') {
     return (
       <ScreenShell>
@@ -162,6 +193,10 @@ function FeedbackCard({
     if (difficulty === null) return;
     const response = await api.submitFeedback(sessionId, {
       difficulty_code: difficulty,
+      // Only `HARD` may carry reasons; the server rejects them otherwise rather
+      // than dropping them, so sending an empty list off `HARD` is deliberate.
+      difficulty_reason_codes:
+        difficulty === 'HARD' ? hardDifficultyDetails : [],
       fatigue_code: null,
       satisfaction_code: null,
       pain_occurred: legacyPainOccurred,

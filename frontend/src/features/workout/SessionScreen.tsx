@@ -26,6 +26,7 @@ import type {
   SessionFinishResponse,
   SessionItem,
   SessionNotCompletedResponse,
+  SessionStopResponse,
   WorkoutPlan,
 } from '../../api/types';
 import { useAsyncAction } from '../../api/useAsync';
@@ -47,6 +48,12 @@ import { SessionCarousel } from './SessionCarousel';
 export type SessionOutcome =
   | { kind: 'finished'; result: SessionFinishResponse }
   | { kind: 'notCompleted'; result: SessionNotCompletedResponse }
+  /**
+   * Stopped with a reason but not ended, so Home still offers 이어하기. The user
+   * is asked how it went here, and answering again after resuming replaces the
+   * earlier answer.
+   */
+  | { kind: 'stopped'; result: SessionStopResponse }
   | { kind: 'safetyStop'; event: SafetyEventResponse };
 
 export function SessionScreen({

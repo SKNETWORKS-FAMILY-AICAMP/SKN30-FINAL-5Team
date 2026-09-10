@@ -520,6 +520,21 @@ export type SafetyEventResponse = {
   guidance: string;
 };
 
+export type SessionStopResponse = {
+  session_id: string;
+  completion_code: 'PARTIAL' | 'NOT_COMPLETED' | null;
+  execution_state_code: 'STOPPED_RESUMABLE' | 'STOPPED_SAFETY';
+  stop_reason_code:
+    | 'HIGH_FATIGUE'
+    | 'TIME_SHORTAGE'
+    | 'RESUME_LATER'
+    | 'PAIN_OR_ABNORMAL_RESPONSE';
+  is_resumable: boolean;
+  accumulated_progress_seconds: number;
+  accumulated_rest_seconds: number;
+  accumulated_paused_seconds: number;
+};
+
 export type SessionFinishResponse = {
   session_id: string;
   status_code: SessionStatusCode;
@@ -556,7 +571,11 @@ export type WorkoutFeedbackSummary = {
 export type WorkoutFeedbackResponse = {
   session_id: string;
   session_status_code:
-    'COMPLETED' | 'PARTIAL' | 'NOT_COMPLETED' | 'STOPPED_FOR_SAFETY';
+    | 'IN_PROGRESS'
+    | 'COMPLETED'
+    | 'PARTIAL'
+    | 'NOT_COMPLETED'
+    | 'STOPPED_FOR_SAFETY';
   created_at: string;
   guidance_code: string | null;
   guidance: string | null;

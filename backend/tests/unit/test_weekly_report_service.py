@@ -27,6 +27,7 @@ from backend.app.modules.weekly_reports.service import (
     ReportInputChangedError,
     WeeklyReportService,
     WeekNotClosedError,
+    WeekOutcomeInconsistentError,
     WeekOutcomesIncompleteError,
 )
 
@@ -571,14 +572,84 @@ def test_same_closed_week_and_input_hash_returns_same_report_across_keys() -> No
         )
 
 
-def test_unresolved_session_blocks_report_generation() -> None:
+def test_a_session_left_open_is_counted_from_its_blocks_not_refused() -> None:
+    """A stop the user never came back from must not withhold the whole report.
+
+    Stopping with a reason now keeps the session resumable, so a user who does
+    not return leaves `IN_PROGRESS` behind. The week is closed before this runs
+    and nothing in it can resume, so the blocks decide the outcome exactly as
+    they do for a session the user closed -- refusing here would also block the
+    next week's plan, which this report gates.
+    """
+
     repository = FakeWeeklyReportRepository()
     repository.evidence = (
         WeeklySessionEvidence(
             WEEK_START, "IN_PROGRESS", ("COMPLETED", "PENDING"), False, None, "KEEP"
         ),
     )
+    report = _service(repository).create_report(
+        FakeSession(),
+        uuid4(),
+        WEEK_START,
+        _request(),
+        uuid4(),  # type: ignore[arg-type]
+    )
+
+    assert report.counts.partial == 1
+    assert report.counts.completed == 0
+    assert report.counts.not_completed == 0
+
+
+def test_a_session_left_open_with_no_completed_block_still_needs_its_reason() -> None:
+    # Zero completed blocks is NOT_COMPLETED, and the report cannot report a
+    # missed session without the learning reason behind it. The resumable stop
+    # records that reason when the user gives it, so this only fires for a
+    # session abandoned without any stop at all.
+    repository = FakeWeeklyReportRepository()
+    repository.evidence = (
+        WeeklySessionEvidence(
+            WEEK_START, "IN_PROGRESS", ("PENDING", "PENDING"), False, None, "KEEP"
+        ),
+    )
     with pytest.raises(WeekOutcomesIncompleteError):
+        _service(repository).create_report(
+            FakeSession(),
+            uuid4(),
+            WEEK_START,
+            _request(),
+            uuid4(),  # type: ignore[arg-type]
+        )
+
+
+def test_a_session_left_open_with_a_recorded_reason_counts_as_missed() -> None:
+    repository = FakeWeeklyReportRepository()
+    repository.evidence = (
+        WeeklySessionEvidence(
+            WEEK_START, "IN_PROGRESS", ("PENDING", "PENDING"), False, "TIME_SHORTAGE", "KEEP"
+        ),
+    )
+    report = _service(repository).create_report(
+        FakeSession(),
+        uuid4(),
+        WEEK_START,
+        _request(),
+        uuid4(),  # type: ignore[arg-type]
+    )
+
+    assert report.counts.not_completed == 1
+
+
+def test_a_closed_session_whose_status_contradicts_its_blocks_is_still_refused() -> None:
+    # The tolerance above is only for sessions nobody closed. A stored terminal
+    # status that disagrees with the blocks is a real inconsistency.
+    repository = FakeWeeklyReportRepository()
+    repository.evidence = (
+        WeeklySessionEvidence(
+            WEEK_START, "COMPLETED", ("COMPLETED", "PENDING"), False, None, "KEEP"
+        ),
+    )
+    with pytest.raises(WeekOutcomeInconsistentError):
         _service(repository).create_report(
             FakeSession(),
             uuid4(),

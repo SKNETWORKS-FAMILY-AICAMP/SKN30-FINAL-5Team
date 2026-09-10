@@ -2127,7 +2127,20 @@ describe('WorkoutScreen API mode', () => {
     ).toBeNull();
   });
 
-  it('requires and stores a server reason when no block was completed', async () => {
+  it('stops with the chosen reason without ending the session', async () => {
+    // The reason goes to `/stop`, not `/not-completed`: ending the session is
+    // what removed 이어하기, and the reason still has to be recorded because a
+    // session the user never resumes is never closed by anyone.
+    const stopSession = jest.fn(async () => ({
+      session_id: 'session-api',
+      completion_code: null,
+      execution_state_code: 'STOPPED_RESUMABLE' as const,
+      stop_reason_code: 'RESUME_LATER' as const,
+      is_resumable: true,
+      accumulated_progress_seconds: 0,
+      accumulated_rest_seconds: 0,
+      accumulated_paused_seconds: 0,
+    }));
     const markNotCompleted = jest.fn(
       async (_sessionId: string, endedAt: string) => ({
         session_id: 'session-api',
@@ -2140,6 +2153,7 @@ describe('WorkoutScreen API mode', () => {
     const api = workoutApi({
       getWorkoutSession: jest.fn(async () => sessionDetail('IN_PROGRESS')),
       markNotCompleted,
+      stopSession,
     });
 
     render(
@@ -2162,14 +2176,38 @@ describe('WorkoutScreen API mode', () => {
     fireEvent.press(screen.getByRole('button', { name: '이 사유로 중단하기' }));
 
     await waitFor(() =>
-      expect(markNotCompleted).toHaveBeenCalledWith(
+      expect(stopSession).toHaveBeenCalledWith(
         'session-api',
         expect.any(String),
         'TIME_SHORTAGE',
       ),
     );
+    expect(markNotCompleted).not.toHaveBeenCalled();
     expect(onOutcome).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: 'notCompleted' }),
+      expect.objectContaining({
+        kind: 'stopped',
+        result: expect.objectContaining({ is_resumable: true }),
+      }),
     );
+  });
+
+  it('no longer offers a separate step-away exit', () => {
+    // Confirming a stop now leaves the session resumable, so the second exit
+    // that existed only to work around that is gone.
+    const api = workoutApi({
+      getWorkoutSession: jest.fn(async () => sessionDetail('IN_PROGRESS')),
+    });
+
+    render(
+      <WorkoutScreen
+        api={api}
+        sessionId="session-api"
+        plan={API_PLAN}
+        onOutcome={jest.fn()}
+      />,
+    );
+    fireEvent.press(screen.getByRole('button', { name: '운동 중단' }));
+
+    expect(screen.queryByTestId('workout-resume-later')).toBeNull();
   });
 });
