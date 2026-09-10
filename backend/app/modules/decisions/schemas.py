@@ -30,7 +30,11 @@ class DecisionPlanItem(BaseModel):
     tier_code: str
     sets: int
     reps: int | None
+    # The item total across every set.
     work_seconds: int
+    # One set's work. Optional so a payload stored before this field existed still
+    # validates; new plans always carry it.
+    work_seconds_per_set: int | None = None
     rest_seconds: int
     transition_seconds: int
     estimated_item_seconds: int
@@ -82,6 +86,11 @@ class PlanItemSetRepetitionRequest(BaseModel):
     # Required for a repetition-based item and rejected for a duration-based one; the
     # service decides which, because only the stored plan knows the item's timing mode.
     reps: int | None = Field(default=None, ge=1)
+    # The other half of the same choice, for an item measured in time rather than
+    # repetitions. Rejected for a repetition-based item, whose per-set work is derived
+    # from `reps` and the catalog basis. Omitting it on a duration-based item keeps the
+    # catalog basis, so a sets-only edit still works and older clients are unaffected.
+    work_seconds_per_set: int | None = Field(default=None, ge=1)
 
 
 class PlanItemOrderRequest(BaseModel):

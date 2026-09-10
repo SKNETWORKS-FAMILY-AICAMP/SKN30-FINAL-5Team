@@ -313,7 +313,10 @@ export type WorkoutPlanItem = {
   tier_code: string;
   sets: number;
   reps: number | null;
+  /** The item total across every set, not one set's work. */
   work_seconds: number;
+  /** One set's work. Absent on plans stored before the server carried it. */
+  work_seconds_per_set?: number | null;
   rest_seconds: number;
   transition_seconds: number;
   estimated_item_seconds: number;
@@ -417,6 +420,8 @@ export type PlanItemPrescriptionEdit = {
   plan_item_id: string;
   sets: number;
   reps: number | null;
+  /** One set's work, for a duration-based item. Absent means "leave it alone". */
+  workSecondsPerSet?: number | null;
 };
 
 export type PlanItemSetRepetitionRequest = {
@@ -424,6 +429,11 @@ export type PlanItemSetRepetitionRequest = {
   expected_plan_revision: number;
   sets: number;
   reps: number | null;
+  /**
+   * One set's work, for a duration-based item. The server rejects it on a
+   * repetition-based item, whose per-set work comes from reps and the catalog.
+   */
+  work_seconds_per_set?: number | null;
 };
 
 export type PlanItemOrderRequest = {

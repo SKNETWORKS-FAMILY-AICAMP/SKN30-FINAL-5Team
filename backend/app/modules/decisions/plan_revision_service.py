@@ -95,6 +95,7 @@ class PlanRevisionService:
                 plan_item_id=plan_item_id,
                 sets=request.sets,
                 reps=request.reps,
+                work_seconds_per_set=request.work_seconds_per_set,
             )
 
         return self._revise(

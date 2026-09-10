@@ -107,6 +107,17 @@ def _effective_items(plan: PlanCandidate) -> list[PlanItem]:
     return sorted(plan.items, key=_effective_sequence)
 
 
+def _per_set_work_seconds(item: PlanItem, work_seconds: int, sets: int) -> int | None:
+    stored = (
+        item.user_work_seconds_per_set
+        if item.user_work_seconds_per_set is not None
+        else item.work_seconds_per_set
+    )
+    if stored is not None:
+        return stored
+    return work_seconds // sets if sets else None
+
+
 def _plan_item_payload(item: PlanItem) -> dict[str, Any]:
     work_seconds = (
         item.user_work_seconds if item.user_work_seconds is not None else item.work_seconds
@@ -114,6 +125,7 @@ def _plan_item_payload(item: PlanItem) -> dict[str, Any]:
     rest_seconds = (
         item.user_rest_seconds if item.user_rest_seconds is not None else item.rest_seconds
     )
+    sets = item.user_sets if item.user_sets is not None else item.sets
     return {
         "plan_item_id": item.id,
         "exercise_id": item.exercise_id,
@@ -123,9 +135,15 @@ def _plan_item_payload(item: PlanItem) -> dict[str, Any]:
         # instead of guessing which moves the server will accept.
         "phase_code": item.phase_code,
         "tier_code": item.tier_code,
-        "sets": item.user_sets if item.user_sets is not None else item.sets,
+        "sets": sets,
         "reps": item.user_reps if item.user_reps is not None else item.reps,
         "work_seconds": work_seconds,
+        # One set's work, which is what a screen shows next to the set count and what
+        # a duration-based item's edit replaces. `work_seconds` is the item total, so
+        # a client that used it as the per-set figure showed a plank of 2 x 30s as
+        # "2세트 x 1분". Derived when the column was never recorded, which is exact:
+        # the total was written as sets x per-set.
+        "work_seconds_per_set": _per_set_work_seconds(item, work_seconds, sets),
         "rest_seconds": rest_seconds,
         "transition_seconds": item.transition_seconds,
         "estimated_item_seconds": work_seconds + rest_seconds + item.transition_seconds,

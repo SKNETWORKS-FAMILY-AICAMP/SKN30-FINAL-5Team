@@ -275,10 +275,14 @@ export function hasInvalidRoutinePrescription(
   return items.some((item) => {
     const sets = Number(item.sets);
     const reps = item.reps === undefined ? null : Number(item.reps);
+    const workSeconds =
+      item.workSeconds === undefined ? null : Number(item.workSeconds);
     return (
       !Number.isInteger(sets) ||
       sets < 1 ||
-      (reps !== null && (!Number.isInteger(reps) || reps < 1))
+      (reps !== null && (!Number.isInteger(reps) || reps < 1)) ||
+      (workSeconds !== null &&
+        (!Number.isInteger(workSeconds) || workSeconds < 1))
     );
   });
 }
@@ -286,7 +290,7 @@ export function hasInvalidRoutinePrescription(
 export function patchRoutinePrescription(
   items: readonly HomeRoutineItem[],
   id: string,
-  patch: Pick<Partial<HomeRoutineItem>, 'sets' | 'reps'>,
+  patch: Pick<Partial<HomeRoutineItem>, 'sets' | 'reps' | 'workSeconds'>,
 ) {
   return items.map((item) => (item.id === id ? { ...item, ...patch } : item));
 }

@@ -346,3 +346,69 @@ def test_an_item_with_no_recoverable_basis_still_fails() -> None:
     with pytest.raises(PlanRevisionError) as excinfo:
         _ = item.work_seconds
     assert excinfo.value.code is PlanRevisionFailureCode.TIMING_BASIS_UNAVAILABLE
+
+
+def test_a_duration_item_takes_the_user_s_own_per_set_time() -> None:
+    """The edit the client could not make.
+
+    A time-based block has no repetition count, so the screen's only numeric field
+    besides sets was the one the server refuses for it. Editing the time is the same
+    kind of choice as editing reps -- the number simply is the per-set work.
+    """
+
+    items = (_item(1, reps=None), _item(2))
+
+    revised = apply_set_repetition_edit(
+        items, plan_item_id=UUID(int=1), sets=3, reps=None, work_seconds_per_set=45
+    )
+
+    assert revised[0].sets == 3
+    assert revised[0].reps is None
+    assert revised[0].work_seconds_per_set == 45
+    assert revised[0].work_seconds == 135
+    assert revised[1] == items[1]
+
+
+def test_a_duration_item_keeps_its_catalog_time_when_only_the_sets_change() -> None:
+    items = (_item(1, reps=None, work_seconds_per_set=None),)
+
+    revised = apply_set_repetition_edit(items, plan_item_id=UUID(int=1), sets=4, reps=None)
+
+    assert revised[0].work_seconds_per_set == 30
+
+
+def test_a_repetition_item_refuses_a_per_set_time() -> None:
+    # Its per-set work is derived from reps and the catalog basis. Accepting both would
+    # store a duration that contradicts the repetitions stored beside it.
+    items = (_item(1),)
+
+    with pytest.raises(PlanRevisionError) as failure:
+        apply_set_repetition_edit(
+            items, plan_item_id=UUID(int=1), sets=3, reps=12, work_seconds_per_set=45
+        )
+
+    assert failure.value.code is PlanRevisionFailureCode.WORK_SECONDS_NOT_APPLICABLE
+
+
+def test_a_duration_item_still_refuses_repetitions() -> None:
+    items = (_item(1, reps=None),)
+
+    with pytest.raises(PlanRevisionError) as failure:
+        apply_set_repetition_edit(items, plan_item_id=UUID(int=1), sets=3, reps=12)
+
+    assert failure.value.code is PlanRevisionFailureCode.REPETITIONS_NOT_APPLICABLE
+
+
+def test_the_transport_rejects_a_nonpositive_per_set_time() -> None:
+    base = {
+        "expected_plan_id": str(uuid4()),
+        "expected_plan_revision": 0,
+        "sets": 2,
+    }
+    for invalid in ({**base, "work_seconds_per_set": 0}, {**base, "work_seconds_per_set": -5}):
+        with pytest.raises(ValidationError):
+            PlanItemSetRepetitionRequest.model_validate(invalid)
+
+    accepted = PlanItemSetRepetitionRequest.model_validate({**base, "work_seconds_per_set": 45})
+    assert accepted.work_seconds_per_set == 45
+    assert accepted.reps is None

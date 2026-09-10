@@ -512,7 +512,7 @@ ManualActivityResponse
 | POST | /api/v1/decisions | 현재 컨텍스트로 결정 실행 |
 | GET | /api/v1/decisions/{decision_id} | 저장된 결정 조회 |
 | POST | /api/v1/decisions/{decision_id}/regenerations | [V3 backend API 구현, 기본 비활성] 추가 입력 없이 다른 루틴 재생성 |
-| PATCH | /api/v1/decisions/{decision_id}/plan-items/{plan_item_id} | 당일 plan item의 세트·반복 저장 |
+| PATCH | /api/v1/decisions/{decision_id}/plan-items/{plan_item_id} | 당일 plan item의 세트·반복 또는 세트당 시간 저장 |
 | PUT | /api/v1/decisions/{decision_id}/plan-item-order | 당일 plan의 phase 내 순서 저장 |
 | POST | /api/v1/decisions/{decision_id}/selection | 서버가 허용한 옵션 선택 |
 | GET | /api/v1/home?local_date={local_date} | 홈 복구용 decision·final_plan·workout_session 통합 조회 |
@@ -1596,10 +1596,36 @@ Idempotency-Key: uuid
 }
 ~~~
 
-`sets`와 반복 기반 운동의 `reps`는 양의 정수다. 빈 값·0·음수는 거부한다. 시간 기반 운동은
-`reps=null`만 허용한다. 요청은 장소를 받지 않으며 `location_code`를 비롯한 추가 필드를 거부한다.
+시간 기반 운동은 `reps` 대신 `work_seconds_per_set`을 보낸다.
+
+~~~json
+{
+  "expected_plan_id": "uuid",
+  "expected_plan_revision": 0,
+  "sets": 2,
+  "work_seconds_per_set": 45
+}
+~~~
+
+`sets`, `reps`, `work_seconds_per_set`은 모두 양의 정수다. 빈 값·0·음수는 거부한다.
+
+운동의 측정 방식이 어느 필드를 쓸지 정하며 둘은 배타적이다.
+
+- 반복 기반 운동은 `reps`가 필수이고 `work_seconds_per_set`을 보내면
+  `422 WORK_SECONDS_NOT_APPLICABLE`이다. 세트당 시간은 `reps × 카탈로그 seconds_per_rep`으로
+  서버가 계산하므로, 둘을 함께 받으면 저장된 반복 수와 모순되는 시간을 저장하게 된다.
+- 시간 기반 운동은 `reps`를 보내면 `422 REPETITIONS_NOT_APPLICABLE`이다.
+  `work_seconds_per_set`은 선택이며, 생략하면 승인된 카탈로그 기준을 유지한다. 세트 수만 바꾸는
+  편집이 여기 해당한다.
+
+요청은 장소를 받지 않으며 `location_code`를 비롯한 추가 필드를 거부한다.
 성공 응답은 `decision_id`, 증가한 `plan_revision`, 갱신된 `final_plan`이다. 직접 편집은 체크인 수정과
 재추천의 하루 2회 한도에 포함하지 않는다.
+
+`final_plan`의 각 item은 `work_seconds`(해당 운동의 전체 합)와 함께
+`work_seconds_per_set`(한 세트분)을 반환한다. 화면이 세트 수 옆에 표시하는 값과 시간 기반 편집이
+대체하는 값은 후자다. 이 필드를 기록하기 전에 저장된 계획에서는 서버가 `work_seconds / sets`로
+계산해 채우며, 합이 `sets × 세트당`으로 기록됐으므로 정확하다.
 
 ~~~http
 PUT /api/v1/decisions/{decision_id}/plan-item-order

@@ -17,6 +17,7 @@ import type {
 import {
   orderedWorkoutPlanItems,
   planItemPhaseCode,
+  planItemWorkSecondsPerSet,
 } from '../../api/workoutPlan';
 
 export type HomePreviewState =
@@ -78,7 +79,12 @@ export type HomeRoutineItem = {
   phaseCode?: PlanPhaseCode;
   reps?: string;
   sets?: string;
-  workSeconds?: number;
+  /**
+   * One set's work in seconds, for an item measured in time rather than reps.
+   * A draft string like `sets` and `reps` because the user edits it directly;
+   * `undefined` marks a repetition-based item, which has no time to edit.
+   */
+  workSeconds?: string;
 };
 
 export type HomeAvailabilitySlot = {
@@ -152,6 +158,8 @@ export type RoutineItemDraftOverride = {
   planItemId: string;
   sets: number;
   reps: number | null;
+  /** One set's work, for a duration-based item; null when reps carry the volume. */
+  workSecondsPerSet: number | null;
 };
 
 export type HomeRoutineEditDraft = {
@@ -506,18 +514,28 @@ export function routineItemOverrides(
     const before = originalById.get(item.id);
     const sets = Number(item.sets);
     const reps = item.reps === undefined ? null : Number(item.reps);
+    // Only a duration-based item has one, and the server refuses it on the other
+    // kind, so it is sent exactly when the item is measured in time.
+    const workSecondsPerSet =
+      item.workSeconds === undefined ? null : Number(item.workSeconds);
     if (
       before === undefined ||
       !Number.isInteger(sets) ||
       sets < 1 ||
-      (reps !== null && (!Number.isInteger(reps) || reps < 1))
+      (reps !== null && (!Number.isInteger(reps) || reps < 1)) ||
+      (workSecondsPerSet !== null &&
+        (!Number.isInteger(workSecondsPerSet) || workSecondsPerSet < 1))
     ) {
       return [];
     }
-    if (before.sets === item.sets && before.reps === item.reps) {
+    if (
+      before.sets === item.sets &&
+      before.reps === item.reps &&
+      before.workSeconds === item.workSeconds
+    ) {
       return [];
     }
-    return [{ planItemId: item.id, sets, reps }];
+    return [{ planItemId: item.id, sets, reps, workSecondsPerSet }];
   });
 }
 
@@ -536,6 +554,10 @@ export function applyRoutineItemOverrides(
           ...item,
           sets: String(override.sets),
           reps: override.reps === null ? undefined : String(override.reps),
+          workSeconds:
+            override.workSecondsPerSet === null
+              ? undefined
+              : String(override.workSecondsPerSet),
         };
   });
 }
@@ -684,7 +706,8 @@ export function routineItemsFromPlan(plan: WorkoutPlan): HomeRoutineItem[] {
     phaseCode: planItemPhaseCode(item),
     reps: item.reps === null ? undefined : String(item.reps),
     sets: String(item.sets),
-    workSeconds: item.reps === null ? item.work_seconds : undefined,
+    workSeconds:
+      item.reps === null ? String(planItemWorkSecondsPerSet(item)) : undefined,
   }));
 }
 
@@ -844,13 +867,12 @@ export function formatRoutineItem(item: HomeRoutineItem): string | null {
   }
   const sets = String(item.sets ?? '').replace(/[^0-9]/g, '');
   const reps = String(item.reps ?? '').replace(/[^0-9]/g, '');
-  const hasTimedPrescription =
-    item.workSeconds !== undefined && item.workSeconds > 0;
-  return sets && (reps || hasTimedPrescription)
+  const workSeconds = String(item.workSeconds ?? '').replace(/[^0-9]/g, '');
+  return sets && (reps || workSeconds)
     ? `${name} · ${formatExercisePrescription({
         reps: reps ? Number(reps) : null,
         sets: Number(sets),
-        workSeconds: item.workSeconds,
+        workSeconds: workSeconds ? Number(workSeconds) : undefined,
       })}`
     : name;
 }

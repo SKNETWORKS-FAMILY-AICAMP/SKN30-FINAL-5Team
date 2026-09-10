@@ -33,6 +33,10 @@ def _plan_item() -> SimpleNamespace:
         user_reps=None,
         work_seconds=40,
         user_work_seconds=None,
+        # Null on plans written before the resolved per-set figure was recorded, which
+        # is the case this stub stands for; the payload derives it from the total.
+        work_seconds_per_set=None,
+        user_work_seconds_per_set=None,
         rest_seconds=60,
         user_rest_seconds=None,
         transition_seconds=10,
