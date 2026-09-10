@@ -803,10 +803,15 @@ GET 자체는 상태를 변경하지 않으며, 서버의 `ACKNOWLEDGED` 응답�
 
 ### 11.1 닫힌 주 집계 입력 계약
 
-- 리포트 입력은 timezone, 월요일·일요일 로컬 날짜, 세 공식 세션 상태의 횟수, 별도 Safety Event 수, 선택적인 대표 미수행 reason code와 버전만 가진 불변 최소 집계다.
+- 리포트 입력은 timezone, 월요일·일요일 로컬 날짜, 세 공식 세션 상태의 횟수, 별도 Safety Event 수,
+  실제 저장된 결과별 reason code, 추천 action code, 체감 난이도와 운동 결정에 연결된 체크인의
+  피로도·통증 여부를 비식별 횟수와 변화 코드로 축약한 불변 최소 집계다.
 - `NOT_COMPLETED`는 `NOT_COMPLETED` 학습 신호로만 전달하고 penalty 또는 감점 필드를 허용하지 않는다.
 - 원시 체크인, 원시 건강 기록, 원시 웨어러블 샘플, 캘린더 본문과 직접 식별자는 집계 스냅샷에 복제하지 않는다.
 - 집계 schema version과 report policy version을 함께 고정한다. 같은 불변 집계와 같은 policy version은 같은 domain 판정을 만든다.
+- 이번 주 목표·수행·체감 난이도·컨디션·통증·사유는 결정적으로 집계한다. OpenAI narration은
+  실제 추천 반영 설명, 다음 주 강도·운동량·시간·통증 대응 문구, 한 줄 코치만 작성할 수 있으며
+  집계값이나 안전 판정은 바꿀 수 없다. provider 장애나 검증 실패 시 같은 집계의 템플릿 문구를 쓴다.
 - 신규 `pain_report_count`의 canonical 원천은 해당 주의 `workout_safety_event_discomforts`가 존재하는
   distinct workout session 수다. 동일 세션의 여러 event/부위는 한 번만 센다. 호환 기간의 legacy
   `workout_feedback.pain_occurred=true`는 safety event가 없는 historical session에 한해 한 번 포함하고

@@ -87,7 +87,15 @@ def test_repository_round_trip_preserves_week_snapshot_and_block_evidence() -> N
         connection.execute(
             text(
                 "CREATE TABLE exercises ("
-                "id CHAR(32) PRIMARY KEY, training_type_code VARCHAR(32) NOT NULL)"
+                "id CHAR(32) PRIMARY KEY, training_type_code VARCHAR(32) NOT NULL, "
+                "name_ko VARCHAR(200) NOT NULL)"
+            )
+        )
+        connection.execute(
+            text(
+                "CREATE TABLE daily_contexts ("
+                "id CHAR(32) PRIMARY KEY, fatigue_level_code VARCHAR(16) NOT NULL, "
+                "pain_present BOOLEAN NOT NULL)"
             )
         )
     user_id = uuid4()
@@ -118,6 +126,16 @@ def test_repository_round_trip_preserves_week_snapshot_and_block_evidence() -> N
             )
         )
         session.add_all([completed_run, missed_run])
+        session.execute(
+            text(
+                "INSERT INTO daily_contexts (id, fatigue_level_code, pain_present) "
+                "VALUES (:first_id, 'HIGH', 1), (:second_id, 'LOW', 0)"
+            ),
+            {
+                "first_id": completed_run.daily_context_id.hex,
+                "second_id": missed_run.daily_context_id.hex,
+            },
+        )
         session.add_all(
             [
                 DecisionSelection(
@@ -198,9 +216,14 @@ def test_repository_round_trip_preserves_week_snapshot_and_block_evidence() -> N
         )
         session.execute(
             text(
-                "INSERT INTO exercises (id, training_type_code) VALUES (:id, :training_type_code)"
+                "INSERT INTO exercises (id, training_type_code, name_ko) "
+                "VALUES (:id, :training_type_code, :name_ko)"
             ),
-            {"id": completed_exercise_id.hex, "training_type_code": "STRENGTH"},
+            {
+                "id": completed_exercise_id.hex,
+                "training_type_code": "STRENGTH",
+                "name_ko": "스쿼트",
+            },
         )
         session.execute(
             text(
@@ -243,6 +266,7 @@ def test_repository_round_trip_preserves_week_snapshot_and_block_evidence() -> N
         assert evidence[0].estimated_calories_burned == 123.5
         assert evidence[0].training_type_codes == ("STRENGTH",)
         assert evidence[0].intensity_codes == ("LOW",)
+        assert evidence[0].exercise_names == ("스쿼트",)
         assert evidence[1].not_completed_reason_code == "TIME_SHORTAGE"
 
         report_id = uuid4()
@@ -259,10 +283,21 @@ def test_repository_round_trip_preserves_week_snapshot_and_block_evidence() -> N
                         "total_estimated_calories_burned": None,
                         "average_intensity_code": "LOW",
                         "most_performed_training_type_code": "STRENGTH",
+                        "most_performed_exercise_name": "스쿼트",
                         "completed_count_change": None,
                         "highlight_codes": ["COMPLETED_SESSION_RECORDED"],
                         "improvement_codes": ["MISSED_SESSION_PATTERN_RECORDED"],
+                        "routine_difficulty_code": "APPROPRIATE",
                     },
+                    "condition_summary": {
+                        "checkin_count": 2,
+                        "fatigue_level_counts": {"MODERATE": 2},
+                        "fatigue_change_code": "STABLE",
+                        "pain_checkin_count": 0,
+                        "workout_pain_or_safety_stop_count": 0,
+                    },
+                    "outcome_reason_summary": {"not_completed": {"TIME_SHORTAGE": 1}},
+                    "recommendation_action_counts": {"KEEP": 2},
                 },
                 input_hash="a" * 64,
                 completed_count=1,
@@ -291,9 +326,27 @@ def test_repository_round_trip_preserves_week_snapshot_and_block_evidence() -> N
                 total_estimated_calories_burned=None,
                 average_intensity_code=None,
                 most_performed_training_type_code=None,
+                most_performed_exercise_name=None,
                 completed_count_change=None,
                 highlight_codes=[],
                 improvement_codes=["MISSED_SESSION_PATTERN_RECORDED"],
+                routine_difficulty_code="APPROPRIATE",
+                condition_summary={
+                    "checkin_count": 2,
+                    "fatigue_level_counts": {"MODERATE": 2},
+                    "fatigue_change_code": "STABLE",
+                    "pain_checkin_count": 0,
+                    "workout_pain_or_safety_stop_count": 0,
+                },
+                outcome_reason_summary={"not_completed": {"TIME_SHORTAGE": 1}},
+                recommendation_action_counts={"KEEP": 2},
+                next_week_recommendation={
+                    "intensity": "강도 안내",
+                    "volume": "운동량 안내",
+                    "duration": "시간 안내",
+                    "pain_response": "통증 대응 안내",
+                },
+                coach_message="summary",
                 report_policy_version="weekly-report-policy-v1",
                 generated_at=NOW,
             ),

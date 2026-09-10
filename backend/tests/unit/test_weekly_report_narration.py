@@ -38,6 +38,12 @@ def _report() -> WeeklyReportNarrationInput:
         template_summary="template summary",
         template_decision_summary="template decision",
         template_next_action="template action",
+        template_next_week_recommendation={
+            "intensity": "template intensity",
+            "volume": "template volume",
+            "duration": "template duration",
+            "pain_response": "template pain response",
+        },
     )
 
 
@@ -46,9 +52,12 @@ def test_valid_provider_result_is_used_without_an_external_call() -> None:
         NarrationCompletion(
             model_code="test-model",
             sentences={
-                "SUMMARY": "이번 주 기록의 흐름을 차분히 살펴보았어요.",
-                "DECISION_SUMMARY": "조정과 미완료 사유를 함께 반영했어요.",
-                "NEXT_ACTION": "다음 주에는 가능한 일정부터 가볍게 이어가 보세요.",
+                "ADJUSTMENT_SUMMARY": "조정과 휴식 사유를 실제 추천에 함께 반영했어요.",
+                "NEXT_WEEK_INTENSITY": "체감 난이도에 맞는 강도를 이어갈게요.",
+                "NEXT_WEEK_VOLUME": "완료 가능한 운동량을 우선할게요.",
+                "NEXT_WEEK_DURATION": "가능한 일정에 맞춰 운동 시간을 구성할게요.",
+                "NEXT_WEEK_PAIN_RESPONSE": "통증 신호에는 안전 기준을 우선할게요.",
+                "COACH_MESSAGE": "이번 주 기록을 잘 남겼어요. 다음 주에도 무리 없이 이어가요.",
             },
         )
     )
@@ -57,7 +66,8 @@ def test_valid_provider_result_is_used_without_an_external_call() -> None:
 
     assert result.source_code == "LLM"
     assert result.model_code == "test-model"
-    assert result.summary == "이번 주 기록의 흐름을 차분히 살펴보았어요."
+    assert result.summary == "이번 주 기록을 잘 남겼어요. 다음 주에도 무리 없이 이어가요."
+    assert result.next_week_recommendation["volume"] == "완료 가능한 운동량을 우선할게요."
     assert len(provider.prompts) == 1
     assert provider.prompts[0].payload == {
         "input_snapshot": _report().input_snapshot,
@@ -71,9 +81,12 @@ def test_numeric_or_incomplete_provider_output_uses_template_fallback() -> None:
         NarrationCompletion(
             model_code="test-model",
             sentences={
-                "SUMMARY": "이번 주에 4회를 완료했어요.",
-                "DECISION_SUMMARY": "조정 결과를 반영했어요.",
-                "NEXT_ACTION": "가능한 시간부터 시작해 보세요.",
+                "ADJUSTMENT_SUMMARY": "이번 주에 4회를 조정했어요.",
+                "NEXT_WEEK_INTENSITY": "강도를 확인할게요.",
+                "NEXT_WEEK_VOLUME": "운동량을 확인할게요.",
+                "NEXT_WEEK_DURATION": "시간을 확인할게요.",
+                "NEXT_WEEK_PAIN_RESPONSE": "통증 신호를 확인할게요.",
+                "COACH_MESSAGE": "다음 주에도 이어가요.",
             },
         )
     )
@@ -83,6 +96,27 @@ def test_numeric_or_incomplete_provider_output_uses_template_fallback() -> None:
     assert result.source_code == "TEMPLATE"
     assert result.fallback_reason_code == "LLM_OUTPUT_REJECTED"
     assert result.summary == "template summary"
+
+
+def test_medicalized_korean_provider_output_uses_template_fallback() -> None:
+    provider = RecordingProvider(
+        NarrationCompletion(
+            model_code="test-model",
+            sentences={
+                "ADJUSTMENT_SUMMARY": "통증을 치료하도록 운동을 조정했어요.",
+                "NEXT_WEEK_INTENSITY": "강도를 확인할게요.",
+                "NEXT_WEEK_VOLUME": "운동량을 확인할게요.",
+                "NEXT_WEEK_DURATION": "시간을 확인할게요.",
+                "NEXT_WEEK_PAIN_RESPONSE": "통증 신호에는 멈출게요.",
+                "COACH_MESSAGE": "다음 주에도 이어가요.",
+            },
+        )
+    )
+
+    result = WeeklyReportNarrationAgent(provider).interpret(_report())
+
+    assert result.source_code == "TEMPLATE"
+    assert result.fallback_reason_code == "LLM_OUTPUT_REJECTED"
 
 
 def test_provider_timeout_uses_template_fallback() -> None:

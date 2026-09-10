@@ -34,9 +34,33 @@ const REPORT: WeeklyReportResponse = {
   total_estimated_calories_burned: 245.5,
   average_intensity_code: 'MODERATE',
   most_performed_training_type_code: 'STRENGTH',
+  most_performed_exercise_name: '스쿼트',
   completed_count_change: 1,
   highlight_codes: ['COMPLETED_SESSION_RECORDED'],
   improvement_codes: ['MISSED_SESSION_PATTERN_RECORDED'],
+  routine_difficulty_code: 'APPROPRIATE',
+  condition_summary: {
+    checkin_count: 4,
+    fatigue_level_counts: { HIGH: 1, LOW: 1, MODERATE: 2 },
+    fatigue_change_code: 'IMPROVED',
+    pain_checkin_count: 1,
+    workout_pain_or_safety_stop_count: 0,
+  },
+  outcome_reason_summary: {
+    partial: { TIME_SHORTAGE: 1 },
+    not_completed: { SCHEDULE_CHANGE: 1 },
+  },
+  recommendation_action_counts: { KEEP: 3, DOWNSHIFT: 2 },
+  adjustment_summary:
+    '컨디션과 수행 피드백을 반영해 실제 추천의 부담을 조정했어요.',
+  next_week_recommendation: {
+    intensity: '잘 맞았던 강도는 유지할게요.',
+    volume: '완료 가능한 운동량을 우선할게요.',
+    duration: '요청한 운동 시간을 기준으로 구성할게요.',
+    pain_response: '통증 신호에는 안전 기준을 우선할게요.',
+  },
+  coach_message:
+    '이번 주에는 가능한 만큼 꾸준히 움직였어요. 다음 주에도 무리 없이 이어가요.',
   weekday_failure_summary: {
     THURSDAY: {
       partial: 0,
@@ -506,68 +530,54 @@ describe('WeeklyReportScreen selected week', () => {
 
     expect(await screen.findByText('목표 달성 현황')).toBeOnTheScreen();
     expect(screen.getByText('운동 기록 요약')).toBeOnTheScreen();
-    expect(screen.getByText('이런 점이 좋았어요')).toBeOnTheScreen();
-    expect(screen.getByText('다음 주에 살펴볼 점')).toBeOnTheScreen();
-    expect(screen.getByText('이번 주 컨디션과 조정')).toBeOnTheScreen();
+    expect(screen.getByText('헬끼가 확인한 점')).toBeOnTheScreen();
+    expect(
+      screen.getByText('이번 주 헬끼가 이렇게 조정했어요'),
+    ).toBeOnTheScreen();
+    expect(screen.getByText('다음 주에는 이렇게 추천할게요')).toBeOnTheScreen();
     expect(screen.getByText('헬끼의 한 줄 코치')).toBeOnTheScreen();
     expect(screen.getByText('목표 4회 중 완료 3회')).toBeOnTheScreen();
     expect(screen.getByTestId('weekly-report-delta')).toHaveTextContent(
       '지난주보다 +1회',
     );
     expect(screen.getByText('1시간 5분')).toBeOnTheScreen();
-    expect(screen.getByText('245.5 kcal')).toBeOnTheScreen();
-    expect(screen.queryByText('평균 강도')).toBeNull();
-    expect(screen.queryByText('보통')).toBeNull();
-    expect(screen.getByText('근력')).toBeOnTheScreen();
+    expect(screen.getByText('스쿼트')).toBeOnTheScreen();
+    expect(screen.getByText('적절함')).toBeOnTheScreen();
+    expect(
+      screen.getByText('주 초보다 피로도가 낮아졌어요.'),
+    ).toBeOnTheScreen();
+    expect(screen.getByText(REPORT.coach_message!)).toBeOnTheScreen();
   });
 
-  it('decorates the reflection and condition cards with tone badges and markers', async () => {
+  it('decorates the observation and adjustment cards with condition markers', async () => {
     renderExistingReport();
 
     expect(
-      await screen.findByTestId('weekly-report-badge-good'),
-    ).toBeOnTheScreen();
-    expect(screen.getByTestId('weekly-report-badge-watch')).toBeOnTheScreen();
-    expect(
-      screen.getByTestId('weekly-report-badge-condition'),
-    ).toBeOnTheScreen();
+      await screen.findAllByTestId('weekly-report-badge-condition'),
+    ).toHaveLength(2);
     expect(
       screen.getByTestId('weekly-report-direction-icon'),
     ).toBeOnTheScreen();
   });
 
-  it('shows the main missed reason as a separate note below the missed-pattern item', async () => {
+  it('shows recorded rest and partial reasons without inventing a cause', async () => {
     renderExistingReport({
       ...REPORT,
-      primary_miss_reason_code: 'TIME_SHORTAGE',
-      improvement_codes: [
-        'PARTIAL_SESSION_PATTERN_RECORDED',
-        'MISSED_SESSION_PATTERN_RECORDED',
-      ],
+      outcome_reason_summary: {
+        partial: { RESUME_LATER: 1 },
+        not_completed: { TIME_SHORTAGE: 2 },
+      },
     });
 
-    const note = await screen.findByTestId('weekly-report-miss-reason');
-    expect(note).toHaveTextContent('가장 잦은 이유: 시간이 부족했어요');
-    const item = screen.getByText('휴식 이유를 다음 주 계획에 반영해요.');
-    expect(item).not.toHaveTextContent('가장 잦은 이유');
-    expect(screen.getAllByTestId('weekly-report-miss-reason')).toHaveLength(1);
+    expect(
+      await screen.findByText('나중에 재개 1회, 시간이 부족했어요 2회'),
+    ).toBeOnTheScreen();
   });
 
-  it.each([
-    { reason: null, codes: ['MISSED_SESSION_PATTERN_RECORDED'] },
-    { reason: 'TIME_SHORTAGE', codes: ['PARTIAL_SESSION_PATTERN_RECORDED'] },
-  ])(
-    'hides the missed-reason note when its prerequisites are absent: %j',
-    async ({ reason, codes }) => {
-      renderExistingReport({
-        ...REPORT,
-        primary_miss_reason_code: reason,
-        improvement_codes: codes,
-      });
-      await screen.findByText('다음 주에 살펴볼 점');
-      expect(screen.queryByTestId('weekly-report-miss-reason')).toBeNull();
-    },
-  );
+  it('states when no rest, partial, or stop reason was recorded', async () => {
+    renderExistingReport({ ...REPORT, outcome_reason_summary: {} });
+    expect(await screen.findByText('기록된 이유가 없어요.')).toBeOnTheScreen();
+  });
 
   it('formats the server persistence rate independently of counts and completion rate', async () => {
     renderExistingReport({
@@ -578,62 +588,38 @@ describe('WeeklyReportScreen selected week', () => {
     });
     expect(
       await screen.findByTestId('weekly-report-persistence'),
-    ).toHaveTextContent('부분 수행까지 포함하면 63%');
+    ).toHaveTextContent('부분 수행 1회 · 부분 수행까지 포함하면 63%');
     expect(screen.getByText('42%')).toBeOnTheScreen();
   });
 
-  it('hides persistence when no session was partially performed', async () => {
+  it('shows an explicit zero when no session was partially performed', async () => {
     renderExistingReport({
       ...REPORT,
       counts: { ...REPORT.counts, partial: 0 },
     });
     await screen.findByText('목표 달성 현황');
-    expect(screen.queryByTestId('weekly-report-persistence')).toBeNull();
+    expect(screen.getByTestId('weekly-report-persistence')).toHaveTextContent(
+      '부분 수행 0회 · 부분 수행까지 포함하면 100%',
+    );
   });
 
-  it('selects the weekday with the largest sum of partial, missed and safety-stopped records', async () => {
+  it('keeps an insufficient condition trend explicit for legacy or sparse reports', async () => {
     renderExistingReport({
       ...REPORT,
-      weekday_failure_summary: {
-        MONDAY: { partial: 0, not_completed: 3, stopped_for_safety: 0 },
-        WEDNESDAY: { partial: 2, not_completed: 1, stopped_for_safety: 2 },
-        SUNDAY: { partial: 4, not_completed: 0, stopped_for_safety: 0 },
+      condition_summary: {
+        ...REPORT.condition_summary!,
+        checkin_count: 1,
+        fatigue_change_code: 'INSUFFICIENT_DATA',
       },
     });
     expect(
-      await screen.findByTestId('weekly-report-weekday-focus'),
-    ).toHaveTextContent('미완료 기록이 가장 많은 요일은 수요일이에요.');
+      await screen.findByText('비교할 컨디션 기록이 충분하지 않아요.'),
+    ).toBeOnTheScreen();
   });
 
-  it('breaks weekday ties in Monday-to-Sunday order regardless of API key order', async () => {
-    renderExistingReport({
-      ...REPORT,
-      weekday_failure_summary: {
-        SUNDAY: { partial: 0, not_completed: 0, stopped_for_safety: 3 },
-        FRIDAY: { partial: 0, not_completed: 3, stopped_for_safety: 0 },
-        MONDAY: { partial: 3, not_completed: 0, stopped_for_safety: 0 },
-      },
-    });
-    expect(
-      await screen.findByTestId('weekly-report-weekday-focus'),
-    ).toHaveTextContent('미완료 기록이 가장 많은 요일은 월요일이에요.');
-  });
-
-  it.each<WeeklyReportResponse['weekday_failure_summary']>([
-    {},
-    { MONDAY: { partial: 0, not_completed: 0, stopped_for_safety: 0 } },
-  ])(
-    'hides the weekday focus when there are no positive totals: %j',
-    async (summary) => {
-      renderExistingReport({ ...REPORT, weekday_failure_summary: summary });
-      await screen.findByText('운동 기록 요약');
-      expect(screen.queryByTestId('weekly-report-weekday-focus')).toBeNull();
-    },
-  );
-
-  it('states the safety-stop fact and leaves the server coaching action unchanged', async () => {
-    const nextAction =
-      '다음 계획을 시작하기 전에 현재 상태를 다시 확인해주세요.';
+  it('states safety-stop evidence seriously and keeps the server coach copy', async () => {
+    const coachMessage =
+      '통증 신호에 맞춰 안전하게 멈춘 점이 중요해요. 다음 주에도 몸 상태를 먼저 확인해요.';
     renderExistingReport({
       ...REPORT,
       counts: {
@@ -641,19 +627,23 @@ describe('WeeklyReportScreen selected week', () => {
         stopped_for_safety: 1,
         safety_stopped_session_count: 1,
       },
-      improvement_codes: ['SAFETY_STOPPED_SESSION_RECORDED'],
-      next_action: nextAction,
+      condition_summary: {
+        ...REPORT.condition_summary!,
+        workout_pain_or_safety_stop_count: 1,
+      },
+      outcome_reason_summary: {
+        stopped_for_safety: { PAIN_OR_ABNORMAL_RESPONSE: 1 },
+      },
+      coach_message: coachMessage,
     });
     expect(
-      await screen.findByText('안전 중단으로 마친 세션이 있어요.'),
+      await screen.findByText(
+        '통증 체크인 1회, 운동 중 통증·안전 중단 1회가 기록됐어요.',
+      ),
     ).toBeOnTheScreen();
     expect(
-      screen.queryByText('안전 중단 기록을 다음 계획 전에 다시 확인해요.'),
-    ).toBeNull();
-    expect(
-      within(screen.getByTestId('weekly-report-coach')).getByText(nextAction),
+      within(screen.getByTestId('weekly-report-coach')).getByText(coachMessage),
     ).toBeOnTheScreen();
-    expect(screen.getAllByText(nextAction)).toHaveLength(1);
     expect(screen.getByLabelText('응원하는 끼끼')).toBeOnTheScreen();
   });
 
@@ -674,6 +664,7 @@ describe('WeeklyReportScreen selected week', () => {
       ...REPORT,
       average_intensity_code: 'FUTURE_INTENSITY',
       most_performed_training_type_code: 'FUTURE_TRAINING',
+      most_performed_exercise_name: undefined,
     });
 
     await screen.findByText('운동 기록 요약', {}, { timeout: 10_000 });
@@ -688,7 +679,6 @@ describe('WeeklyReportScreen selected week', () => {
       completion_rate: 0.42,
       completed_count_change: -2,
       total_workout_seconds: 7200,
-      total_estimated_calories_burned: 0,
     });
 
     expect(await screen.findByText('42%')).toBeOnTheScreen();
@@ -697,8 +687,7 @@ describe('WeeklyReportScreen selected week', () => {
       '지난주보다 -2회',
     );
     expect(screen.getByText('2시간')).toBeOnTheScreen();
-    expect(screen.getByText('0 kcal')).toBeOnTheScreen();
-    expect(screen.getAllByText(REPORT.next_action)).toHaveLength(1);
+    expect(screen.getAllByText(REPORT.coach_message!)).toHaveLength(1);
   });
 
   it('preserves legacy safety counts and does not invent missing workout metrics', async () => {
@@ -712,7 +701,11 @@ describe('WeeklyReportScreen selected week', () => {
       total_workout_seconds: undefined,
       total_estimated_calories_burned: undefined,
       most_performed_training_type_code: undefined,
-      improvement_codes: ['SAFETY_STOPPED_SESSION_RECORDED'],
+      most_performed_exercise_name: undefined,
+      routine_difficulty_code: undefined,
+      condition_summary: undefined,
+      outcome_reason_summary: undefined,
+      coach_message: undefined,
     });
 
     const safety = await screen.findByTestId(
@@ -720,16 +713,15 @@ describe('WeeklyReportScreen selected week', () => {
     );
     expect(within(safety).getByText('2')).toBeOnTheScreen();
     expect(screen.queryByText('총 운동 시간')).toBeNull();
-    expect(screen.queryByText('예상 소모 칼로리')).toBeNull();
     expect(screen.queryByText('가장 많이 한 운동')).toBeNull();
     expect(
-      screen.getByText('안전 중단으로 마친 세션이 있어요.'),
+      screen.getByText('기록된 통증 정보를 확인할 수 없어요.'),
     ).toBeOnTheScreen();
     expect(screen.getByLabelText('응원하는 끼끼')).toBeOnTheScreen();
     expect(screen.getByTestId('weekly-report-coach-mascot')).toBeOnTheScreen();
   });
 
-  it('keeps the three metrics horizontal while reflection cards adapt to width and text size', async () => {
+  it('keeps the workout metrics horizontal at narrow and wide widths', async () => {
     const originalWindow = Dimensions.get('window');
     const originalScreen = Dimensions.get('screen');
     Dimensions.set({
@@ -745,9 +737,6 @@ describe('WeeklyReportScreen selected week', () => {
       expect(screen.getByTestId('weekly-report-metrics')).toHaveStyle({
         flexDirection: 'row',
       });
-      expect(screen.getByTestId('weekly-report-reflections')).toHaveStyle({
-        flexDirection: 'column',
-      });
 
       fireEvent(summary, 'layout', {
         nativeEvent: { layout: { width: 768, height: 1000, x: 0, y: 0 } },
@@ -757,9 +746,6 @@ describe('WeeklyReportScreen selected week', () => {
           flexDirection: 'row',
         }),
       );
-      expect(screen.getByTestId('weekly-report-reflections')).toHaveStyle({
-        flexDirection: 'row',
-      });
       act(() =>
         Dimensions.set({
           window: {
@@ -778,9 +764,6 @@ describe('WeeklyReportScreen selected week', () => {
           flexDirection: 'row',
         }),
       );
-      expect(screen.getByTestId('weekly-report-reflections')).toHaveStyle({
-        flexDirection: 'column',
-      });
     } finally {
       act(() =>
         Dimensions.set({ window: originalWindow, screen: originalScreen }),
@@ -1088,9 +1071,9 @@ describe('WeeklyReportScreen selected week', () => {
     const headings = [
       '목표 달성 현황',
       '운동 기록 요약',
-      '이런 점이 좋았어요',
-      '다음 주에 살펴볼 점',
-      '이번 주 컨디션과 조정',
+      '헬끼가 확인한 점',
+      '이번 주 헬끼가 이렇게 조정했어요',
+      '다음 주에는 이렇게 추천할게요',
       '헬끼의 한 줄 코치',
     ];
     const positions = headings.map((heading) => tree.indexOf(heading));
@@ -1099,38 +1082,35 @@ describe('WeeklyReportScreen selected week', () => {
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
   });
 
-  it('keeps server-provided highlight order and ignores unknown codes', async () => {
+  it('keeps server-provided recommendation axes in their approved order', async () => {
     const view = renderExistingReport({
       ...REPORT,
-      highlight_codes: [
-        'PARTIAL_SESSION_PROGRESS_RECORDED',
-        'UNKNOWN_FUTURE_CODE',
-        'COMPLETED_SESSION_RECORDED',
-      ],
+      next_week_recommendation: {
+        intensity: '강도 문구',
+        volume: '운동량 문구',
+        duration: '시간 문구',
+        pain_response: '통증 대응 문구',
+      },
     });
 
     await screen.findByTestId('weekly-report-summary');
     const tree = JSON.stringify(view.toJSON());
 
-    expect(tree.indexOf('가능한 만큼 진행한 기록을 남겼어요.')).toBeLessThan(
-      tree.indexOf('완료한 운동 기록을 남겼어요.'),
-    );
-    expect(tree).not.toContain('UNKNOWN_FUTURE_CODE');
+    const copy = ['강도 문구', '운동량 문구', '시간 문구', '통증 대응 문구'];
+    const positions = copy.map((value) => tree.indexOf(value));
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
   });
 
-  it('uses neutral fallback copy when no strengths or improvements were aggregated', async () => {
+  it('uses legacy narration fields when the additive LLM fields are absent', async () => {
     renderExistingReport({
       ...REPORT,
-      highlight_codes: [],
-      improvement_codes: [],
+      adjustment_summary: undefined,
+      next_week_recommendation: undefined,
+      coach_message: undefined,
     });
 
-    expect(
-      await screen.findByText('이번 주 기록에서 이어갈 점을 확인했어요.'),
-    ).toBeOnTheScreen();
-    expect(
-      screen.getByText('다음 주에도 실행 가능한 조건을 함께 찾아요.'),
-    ).toBeOnTheScreen();
+    expect(await screen.findByText(REPORT.decision_summary)).toBeOnTheScreen();
+    expect(screen.getAllByText(REPORT.next_action)).toHaveLength(2);
   });
 
   it('hides the negotiation rate when the server returns null', async () => {

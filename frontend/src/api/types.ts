@@ -843,9 +843,29 @@ export type WeeklyReportResponse = {
   total_estimated_calories_burned?: number | null;
   average_intensity_code?: string | null;
   most_performed_training_type_code?: string | null;
+  most_performed_exercise_name?: string | null;
   completed_count_change?: number | null;
   highlight_codes?: string[] | null;
   improvement_codes?: string[] | null;
+  routine_difficulty_code?: 'EASY' | 'APPROPRIATE' | 'HARD' | null;
+  condition_summary?: {
+    checkin_count: number;
+    fatigue_level_counts: Record<string, number>;
+    fatigue_change_code:
+      'IMPROVED' | 'STABLE' | 'DECLINED' | 'INSUFFICIENT_DATA';
+    pain_checkin_count: number;
+    workout_pain_or_safety_stop_count: number;
+  } | null;
+  outcome_reason_summary?: Record<string, Record<string, number>> | null;
+  recommendation_action_counts?: Record<string, number> | null;
+  adjustment_summary?: string | null;
+  next_week_recommendation?: {
+    intensity: string;
+    volume: string;
+    duration: string;
+    pain_response: string;
+  } | null;
+  coach_message?: string | null;
   weekday_failure_summary: Record<
     string,
     {

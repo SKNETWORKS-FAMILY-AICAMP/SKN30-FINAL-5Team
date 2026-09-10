@@ -26,8 +26,15 @@ from backend.app.modules.weekly_reports.ports import (
 )
 
 WEEKLY_REPORT_INTERPRETER_CODE: Final = "WEEKLY_REPORT_INTERPRETER"
-WEEKLY_REPORT_NARRATION_PROMPT_VERSION: Final = "weekly-report-narration-prompt-v1"
-_SLOT_CODES: Final = ("SUMMARY", "DECISION_SUMMARY", "NEXT_ACTION")
+WEEKLY_REPORT_NARRATION_PROMPT_VERSION: Final = "weekly-report-narration-prompt-v2"
+_SLOT_CODES: Final = (
+    "ADJUSTMENT_SUMMARY",
+    "NEXT_WEEK_INTENSITY",
+    "NEXT_WEEK_VOLUME",
+    "NEXT_WEEK_DURATION",
+    "NEXT_WEEK_PAIN_RESPONSE",
+    "COACH_MESSAGE",
+)
 _MAX_SENTENCE_LENGTH: Final = 180
 _DIGIT_PATTERN: Final = re.compile(r"\d")
 _MACHINE_CODE_PATTERN: Final = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
@@ -38,15 +45,24 @@ _BANNED_TERMS: Final = (
     "prompt",
     "system",
     "assistant",
+    "진단",
+    "치료",
+    "처방",
 )
 _INSTRUCTION: Final = (
-    "Write three concise, supportive Korean sentences for a weekly exercise report. "
-    "Use only the supplied deterministic aggregate. Do not invent facts, recalculate, "
-    "estimate, or state any number. Do not diagnose, treat, prescribe, pressure, shame, "
-    "or automatically recommend a lower intensity solely because completion is low. "
-    "Consider missed-reason codes, safety events, and adjusted-selection outcomes together. "
-    "Return exactly a JSON object with a sentences object containing SUMMARY, "
-    "DECISION_SUMMARY, and NEXT_ACTION strings; each must be one line."
+    "Write concise, supportive Korean copy for sections four, five, and six of a weekly "
+    "exercise report. Use only the supplied deterministic aggregate and distinguish the "
+    "recommendations actually shown this week from directions proposed for next week. "
+    "For this week's adjustment, describe only action-and-context combinations present in "
+    "recommendation_context_counts and do not invent an unrecorded causal reason. "
+    "Do not invent facts, recalculate, estimate, or state any number. Do not diagnose, "
+    "treat, prescribe, pressure, or shame. A safety stop or pain signal requires serious, "
+    "non-playful wording. Low completion alone must not imply lower intensity or shorter "
+    "duration. Preserve the requested duration unless the aggregate explicitly records a "
+    "time or schedule reason. COACH_MESSAGE must combine one observed strength, a neutral "
+    "weekly summary, and encouragement for next week in one or two sentences. Return exactly "
+    "a JSON object with a sentences object containing every supplied slot code; each value "
+    "must be a single line."
 )
 
 
@@ -90,12 +106,15 @@ def _llm_narration_is_acceptable(narration: WeeklyReportNarration) -> bool:
         and isinstance(narration.model_code, str)
         and bool(_MACHINE_CODE_PATTERN.fullmatch(narration.model_code))
         and narration.fallback_reason_code is None
+        and set(narration.next_week_recommendation)
+        == {"intensity", "volume", "duration", "pain_response"}
         and all(
             _sentence_is_acceptable(sentence)
             for sentence in (
                 narration.summary,
                 narration.decision_summary,
                 narration.next_action,
+                *narration.next_week_recommendation.values(),
             )
         )
     )
@@ -107,6 +126,7 @@ def _template(report: WeeklyReportNarrationInput, reason_code: str) -> WeeklyRep
         decision_summary=report.template_decision_summary,
         next_action=report.template_next_action,
         source_code="TEMPLATE",
+        next_week_recommendation=report.template_next_week_recommendation,
         fallback_reason_code=reason_code,
     )
 
@@ -157,10 +177,24 @@ class WeeklyReportNarrationAgent:
         if not all(_sentence_is_acceptable(sentence) for sentence in sentences.values()):
             return _template(report, "LLM_OUTPUT_REJECTED")
         return WeeklyReportNarration(
-            summary=sentences["SUMMARY"],
-            decision_summary=sentences["DECISION_SUMMARY"],
-            next_action=sentences["NEXT_ACTION"],
+            summary=sentences["COACH_MESSAGE"],
+            decision_summary=sentences["ADJUSTMENT_SUMMARY"],
+            next_action=" ".join(
+                sentences[code]
+                for code in (
+                    "NEXT_WEEK_INTENSITY",
+                    "NEXT_WEEK_VOLUME",
+                    "NEXT_WEEK_DURATION",
+                    "NEXT_WEEK_PAIN_RESPONSE",
+                )
+            ),
             source_code="LLM",
+            next_week_recommendation={
+                "intensity": sentences["NEXT_WEEK_INTENSITY"],
+                "volume": sentences["NEXT_WEEK_VOLUME"],
+                "duration": sentences["NEXT_WEEK_DURATION"],
+                "pain_response": sentences["NEXT_WEEK_PAIN_RESPONSE"],
+            },
             model_code=completion.model_code,
             prompt_version=prompt.prompt_version,
         )
@@ -172,8 +206,29 @@ def apply_narration(
 ) -> ReportValues:
     """Attach narration audit data while preserving every deterministic report value."""
 
+    narration_snapshot: dict[str, Any] = {
+        key: values.input_snapshot[key]
+        for key in (
+            "official_outcome_counts",
+            "not_completed_reason_counts",
+            "adjusted_selection_outcomes",
+            "feedback_summary",
+            "condition_summary",
+            "outcome_reason_summary",
+            "recommendation_action_counts",
+            "recommendation_context_counts",
+        )
+        if key in values.input_snapshot
+    }
+    raw_metrics = values.input_snapshot.get("weekly_metrics")
+    if isinstance(raw_metrics, dict):
+        narration_snapshot["weekly_metrics"] = {
+            key: value
+            for key, value in raw_metrics.items()
+            if key != "most_performed_exercise_name"
+        }
     report = WeeklyReportNarrationInput(
-        input_snapshot=values.input_snapshot,
+        input_snapshot=narration_snapshot,
         objective_metrics={
             "counts": {
                 "completed": values.completed_count,
@@ -193,6 +248,7 @@ def apply_narration(
         template_summary=values.summary,
         template_decision_summary=values.decision_summary,
         template_next_action=values.next_action,
+        template_next_week_recommendation=values.next_week_recommendation,
     )
     narrator = agent or WeeklyReportNarrationAgent()
     try:
@@ -209,7 +265,11 @@ def apply_narration(
         values,
         summary=narration.summary,
         decision_summary=narration.decision_summary,
-        next_action=narration.next_action,
+        # Keep the legacy field concise and within its existing DB column. New clients
+        # read the four explicit recommendation axes stored in the narration audit JSON.
+        next_action=values.next_action,
+        next_week_recommendation=narration.next_week_recommendation,
+        coach_message=narration.summary,
         agent_summaries={
             WEEKLY_REPORT_INTERPRETER_CODE: {
                 "agent_type_code": WEEKLY_REPORT_INTERPRETER_CODE,
@@ -219,6 +279,7 @@ def apply_narration(
                 "fallback_reason_code": narration.fallback_reason_code,
                 "input_schema_version": values.input_schema_version,
                 "input_hash": values.input_hash,
+                "next_week_recommendation": narration.next_week_recommendation,
             }
         },
     )

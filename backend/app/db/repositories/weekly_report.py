@@ -7,6 +7,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session, selectinload
 
 from backend.app.db.models.catalog import Exercise
+from backend.app.db.models.checkin import DailyContext
 from backend.app.db.models.decision import DecisionRun, PlanItem
 from backend.app.db.models.profile import MutationIdempotencyRecord, UserProfile
 from backend.app.db.models.weekly_report import UserWeek, WeeklyReport
@@ -177,9 +178,12 @@ class WeeklyReportRepository:
                 WorkoutSession,
                 DecisionRun.local_date,
                 DecisionSelection.selected_action_code,
+                WorkoutSession.stop_reason_code,
                 WorkoutSkipFeedback.reason_code,
                 WorkoutFeedback.difficulty_code,
                 WorkoutFeedback.pain_occurred,
+                DailyContext.fatigue_level_code,
+                DailyContext.pain_present,
             )
             .options(
                 selectinload(WorkoutSession.items),
@@ -190,6 +194,7 @@ class WeeklyReportRepository:
                 DecisionSelection.id == WorkoutSession.decision_selection_id,
             )
             .join(DecisionRun, DecisionRun.id == DecisionSelection.decision_run_id)
+            .join(DailyContext, DailyContext.id == DecisionRun.daily_context_id)
             .outerjoin(
                 WorkoutSkipFeedback,
                 WorkoutSkipFeedback.workout_session_id == WorkoutSession.id,
@@ -221,24 +226,31 @@ class WeeklyReportRepository:
                 pain_occurred=pain_occurred,
                 progress_seconds=workout.accumulated_progress_seconds,
                 estimated_calories_burned=workout.estimated_calories_burned,
-                training_type_codes=plan_shape.get(workout.id, ((), ()))[0],
-                intensity_codes=plan_shape.get(workout.id, ((), ()))[1],
+                training_type_codes=plan_shape.get(workout.id, ((), (), ()))[0],
+                intensity_codes=plan_shape.get(workout.id, ((), (), ()))[1],
+                exercise_names=plan_shape.get(workout.id, ((), (), ()))[2],
+                stop_reason_code=stop_reason_code,
+                fatigue_level_code=fatigue_level_code,
+                daily_pain_present=pain_present,
             )
             for (
                 workout,
                 local_date,
                 selected_action_code,
+                stop_reason_code,
                 reason_code,
                 difficulty_code,
                 pain_occurred,
+                fatigue_level_code,
+                pain_present,
             ) in rows
         )
 
     @staticmethod
     def _completed_plan_shape(
         session: Session, workout_session_ids: tuple[UUID, ...]
-    ) -> dict[UUID, tuple[tuple[str, ...], tuple[str, ...]]]:
-        """Training type and intensity for completed blocks, keyed by session.
+    ) -> dict[UUID, tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]]:
+        """Training type, intensity, and reviewed name for completed blocks, keyed by session.
 
         Read per completed block rather than per distinct exercise: a movement
         repeated across blocks weighs as much as it actually occupied.
@@ -251,6 +263,7 @@ class WeeklyReportRepository:
                 WorkoutSessionItem.workout_session_id,
                 Exercise.training_type_code,
                 PlanItem.intensity_code,
+                Exercise.name_ko,
             )
             .join(PlanItem, PlanItem.id == WorkoutSessionItem.plan_item_id)
             .join(Exercise, Exercise.id == PlanItem.exercise_id)
@@ -260,14 +273,15 @@ class WeeklyReportRepository:
             )
             .order_by(WorkoutSessionItem.workout_session_id, PlanItem.sequence)
         ).all()
-        shape: dict[UUID, tuple[list[str], list[str]]] = {}
-        for candidate_id, training_type_code, intensity_code in rows:
-            types, intensities = shape.setdefault(candidate_id, ([], []))
+        shape: dict[UUID, tuple[list[str], list[str], list[str]]] = {}
+        for candidate_id, training_type_code, intensity_code, exercise_name in rows:
+            types, intensities, names = shape.setdefault(candidate_id, ([], [], []))
             types.append(training_type_code)
             intensities.append(intensity_code)
+            names.append(exercise_name)
         return {
-            candidate_id: (tuple(types), tuple(intensities))
-            for candidate_id, (types, intensities) in shape.items()
+            candidate_id: (tuple(types), tuple(intensities), tuple(names))
+            for candidate_id, (types, intensities, names) in shape.items()
         }
 
     def get_prior_week_completed_count(
@@ -392,6 +406,20 @@ class WeeklyReportRepository:
     def _stored_report(report: WeeklyReport, week: UserWeek) -> StoredReport:
         raw_metrics = report.input_snapshot.get("weekly_metrics", {})
         metrics = raw_metrics if isinstance(raw_metrics, dict) else {}
+        raw_condition = report.input_snapshot.get("condition_summary")
+        condition = raw_condition if isinstance(raw_condition, dict) else None
+        raw_reasons = report.input_snapshot.get("outcome_reason_summary")
+        reasons = raw_reasons if isinstance(raw_reasons, dict) else None
+        raw_actions = report.input_snapshot.get("recommendation_action_counts")
+        actions = raw_actions if isinstance(raw_actions, dict) else None
+        narration = (
+            report.agent_summaries.get("WEEKLY_REPORT_INTERPRETER", {})
+            if isinstance(report.agent_summaries, dict)
+            else {}
+        )
+        next_week = narration.get("next_week_recommendation")
+        if not isinstance(next_week, dict):
+            next_week = None
         return StoredReport(
             input_hash=report.input_hash,
             response_payload={
@@ -423,9 +451,17 @@ class WeeklyReportRepository:
                 "most_performed_training_type_code": metrics.get(
                     "most_performed_training_type_code"
                 ),
+                "most_performed_exercise_name": metrics.get("most_performed_exercise_name"),
                 "completed_count_change": metrics.get("completed_count_change"),
                 "highlight_codes": metrics.get("highlight_codes"),
                 "improvement_codes": metrics.get("improvement_codes"),
+                "routine_difficulty_code": metrics.get("routine_difficulty_code"),
+                "condition_summary": condition,
+                "outcome_reason_summary": reasons,
+                "recommendation_action_counts": actions,
+                "adjustment_summary": report.decision_summary,
+                "next_week_recommendation": next_week,
+                "coach_message": report.summary,
                 "acknowledged_at": report.acknowledged_at,
                 "generated_at": report.generated_at,
             },

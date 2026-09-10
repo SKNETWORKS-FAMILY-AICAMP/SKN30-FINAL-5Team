@@ -2107,9 +2107,31 @@ POST /api/v1/weeks/{week_start}/report
   "total_estimated_calories_burned": 312.4,
   "average_intensity_code": "MODERATE",
   "most_performed_training_type_code": "STRENGTH",
+  "most_performed_exercise_name": "스쿼트",
   "completed_count_change": 1,
   "highlight_codes": ["COMPLETED_SESSION_RECORDED"],
   "improvement_codes": ["MISSED_SESSION_PATTERN_RECORDED"],
+  "routine_difficulty_code": "APPROPRIATE",
+  "condition_summary": {
+    "checkin_count": 4,
+    "fatigue_level_counts": {"LOW": 1, "MODERATE": 2, "HIGH": 1},
+    "fatigue_change_code": "IMPROVED",
+    "pain_checkin_count": 1,
+    "workout_pain_or_safety_stop_count": 0
+  },
+  "outcome_reason_summary": {
+    "partial": {"RESUME_LATER": 1},
+    "not_completed": {"TIME_SHORTAGE": 1}
+  },
+  "recommendation_action_counts": {"DOWNSHIFT": 1, "KEEP": 3},
+  "adjustment_summary": "컨디션과 수행 피드백을 반영해 실제 추천의 부담을 조정했어요.",
+  "next_week_recommendation": {
+    "intensity": "잘 맞았던 강도는 유지할게요.",
+    "volume": "완료 가능한 운동량을 우선할게요.",
+    "duration": "요청한 운동 시간을 기준으로 구성할게요.",
+    "pain_response": "통증 신호에는 안전 기준을 우선할게요."
+  },
+  "coach_message": "이번 주에는 가능한 만큼 꾸준히 움직였어요. 다음 주에도 무리 없이 이어가요.",
   "acknowledged_at": null,
   "generated_at": "2026-08-10T09:00:00+09:00"
 }
@@ -2138,10 +2160,32 @@ UUID `Idempotency-Key` header가 필수다. 서로 다른 키를 사용하더라
   반올림한 값이다. 정확히 중간이면 `MODERATE`이며, 지원하지 않는 legacy 코드는 평균에서 제외한다.
 - `most_performed_training_type_code`: 완료한 운동 블록의 training type 최빈값이다. 동률은 코드
   오름차순으로 결정한다.
+- `most_performed_exercise_name`: 완료한 운동 블록의 검수된 한국어 운동명 최빈값이다. 동률은 이름
+  오름차순으로 결정하며, 화면의 "가장 많이 한 운동"은 이 값을 우선하고 구버전 리포트만 training
+  type을 fallback으로 표시한다.
 - `completed_count_change`: 가장 가까운 이전 주간 리포트의 완료 수와의 차이다. 이전 리포트가 없으면
   `null`이다.
 - `highlight_codes`, `improvement_codes`: 결정적 집계에서 나온 UI 문구용 코드 목록이다. 미수행은
   학습 신호로만 표현하며, 안전 중단 코드에는 가벼운 문체를 붙이지 않는다.
+- `routine_difficulty_code`: 운동 후 피드백의 체감 난이도 최빈값이다. 동률은 코드 오름차순으로
+  결정하며, 피드백이 없으면 `null`이다.
+- `condition_summary`: 해당 주 운동 결정에 연결된 체크인의 피로도 분포, 첫 기록과 마지막 기록을
+  비교한 `fatigue_change_code`, 통증 체크인 수, 운동 중 통증·안전 중단 세션 수다. 원시 체크인이나
+  부위·NRS는 포함하지 않는다.
+- `outcome_reason_summary`: 부분 수행·휴식·안전 중단에 실제로 저장된 reason code별 횟수다. 사유가
+  없으면 빈 객체이며 서버와 LLM이 원인을 추정하지 않는다.
+- `recommendation_action_counts`: 이번 주 실제 최종 추천의 action code별 횟수다.
+- `adjustment_summary`, `next_week_recommendation`, `coach_message`: 4~6번 화면용 OpenAI narration
+  결과다. 각각 실제 추천 반영 설명, 강도·운동량·시간·통증 대응 방향, 한 줄 코치에 해당한다.
+  OpenAI에는 위의 비식별·정규화 집계만 전달하며 수치·코드·판정 변경 권한은 없다. 비활성화,
+  timeout, 잘못된 JSON 또는 안전하지 않은 문구에는 결정적 템플릿을 사용한다. 기존 리포트에서는
+  이 additive 필드가 `null`일 수 있으며 클라이언트는 기존 `decision_summary`, `next_action`,
+  `summary`를 fallback으로 사용한다.
+
+4번 narration에는 공개 `recommendation_action_counts`와 함께 action별 당일 피로 코드·통증 여부의
+비식별 교차 집계도 전달한다. 따라서 모델은 저장된 실제 추천과 컨디션의 동시 기록만 설명하며,
+명시되지 않은 인과관계나 조정 이유를 만들어서는 안 된다. 이 내부 교차 집계에도 날짜·식별자·통증
+부위·NRS는 포함하지 않는다.
 
 내부 집계의 `pain_report_count`는 신규 aggregate version부터 해당 주에 discomfort가 기록된 distinct
 workout safety-event session 수를 사용한다. 한 session의 여러 event/부위는 한 번만 센다. legacy

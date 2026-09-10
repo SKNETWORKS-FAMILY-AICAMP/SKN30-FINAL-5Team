@@ -43,6 +43,21 @@ class WeeklyPatternSummary(BaseModel):
     blocker_reason_codes: list[str]
 
 
+class WeeklyConditionSummary(BaseModel):
+    checkin_count: int
+    fatigue_level_counts: dict[str, int]
+    fatigue_change_code: Literal["IMPROVED", "STABLE", "DECLINED", "INSUFFICIENT_DATA"]
+    pain_checkin_count: int
+    workout_pain_or_safety_stop_count: int
+
+
+class WeeklyNextRecommendation(BaseModel):
+    intensity: str
+    volume: str
+    duration: str
+    pain_response: str
+
+
 class WeeklyReportResponse(BaseModel):
     report_id: UUID
     week_start: date
@@ -66,9 +81,17 @@ class WeeklyReportResponse(BaseModel):
     total_estimated_calories_burned: float | None = None
     average_intensity_code: str | None = None
     most_performed_training_type_code: str | None = None
+    most_performed_exercise_name: str | None = None
     completed_count_change: int | None = None
     highlight_codes: list[str] | None = None
     improvement_codes: list[str] | None = None
+    routine_difficulty_code: Literal["EASY", "APPROPRIATE", "HARD"] | None = None
+    condition_summary: WeeklyConditionSummary | None = None
+    outcome_reason_summary: dict[str, dict[str, int]] | None = None
+    recommendation_action_counts: dict[str, int] | None = None
+    adjustment_summary: str | None = None
+    next_week_recommendation: WeeklyNextRecommendation | None = None
+    coach_message: str | None = None
     acknowledged_at: datetime | None
     generated_at: datetime
 
@@ -82,6 +105,8 @@ class WeeklyReportAcknowledgementRequest(BaseModel):
 __all__ = [
     "WeekResponse",
     "WeeklyPatternSummary",
+    "WeeklyConditionSummary",
+    "WeeklyNextRecommendation",
     "WeeklyReportAcknowledgementRequest",
     "WeeklyReportCounts",
     "WeeklyReportCreateRequest",
