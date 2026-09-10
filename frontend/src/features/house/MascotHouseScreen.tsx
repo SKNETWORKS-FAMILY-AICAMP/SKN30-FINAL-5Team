@@ -284,7 +284,17 @@ export function MascotHouseScreen({
     activeScreen?.kind === 'mini-game' &&
     activeScreen.gameId === 'banana_catch'
   ) {
-    return <BananaCatchGameScreen onBack={() => setActiveScreen(null)} />;
+    return (
+      <BananaCatchGameScreen
+        onBack={() => setActiveScreen(null)}
+        onPlayed={() => {
+          // This branch runs before the house state is guaranteed loaded, so
+          // there is nothing to record against until it is.
+          const base = liveState.current ?? houseState;
+          if (base !== null) persist(recordGamePlay(base, localDate));
+        }}
+      />
+    );
   }
 
   if (activeScreen?.kind === 'rewards') {
@@ -420,7 +430,8 @@ export function MascotHouseScreen({
       }}
       onPlayGame={(gameId) => {
         if (!view.canPlayGame) return;
-        persist(recordGamePlay(houseState, localDate));
+        // The play is counted when the round finishes, not here: spending it on
+        // open meant backing out of the game still used up the day's only try.
         setActiveScreen({ kind: 'mini-game', gameId });
       }}
       onPlaceItem={(itemId: HouseItemId, placement: HouseItemPlacement) => {

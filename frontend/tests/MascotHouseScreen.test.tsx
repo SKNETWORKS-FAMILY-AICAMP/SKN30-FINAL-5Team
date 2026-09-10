@@ -544,6 +544,24 @@ describe('MascotHouseScreen', () => {
     expect(screen.getByTestId('house-scene')).toBeTruthy();
   });
 
+  it('keeps the daily play available when the game is left before it finishes', async () => {
+    // The play used to be spent on open, so backing out of the game burned the
+    // day's only try without the user ever having played a round.
+    renderHouse(houseApi());
+
+    await screen.findByTestId('house-scene');
+    fireEvent.press(screen.getByTestId('house-mini-game-banana_catch'));
+    expect(screen.getByTestId('banana-catch-screen')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
+
+    const tile = await screen.findByTestId('house-mini-game-banana_catch');
+    expect(tile).toBeEnabled();
+    expect(screen.queryByText('오늘 1/1 완료')).toBeNull();
+    // And it can actually be opened again.
+    fireEvent.press(tile);
+    expect(screen.getByTestId('banana-catch-screen')).toBeTruthy();
+  });
+
   it('opens the server-backed wallet from the banana chip and returns', async () => {
     const api = houseApi({ rewardBalance: 120 });
     renderHouse(api);
