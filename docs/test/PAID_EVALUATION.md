@@ -13,12 +13,25 @@
 호출 수는 그래프 구조에서, 토큰량은 **실제 어댑터가 만드는 prompt를 직렬화해서**
 측정한 값이다. repair 1회분 여유(×1.25)를 이미 포함한 상한이다.
 
-| Phase | 대상 | LLM 호출 | prompt tokens | output tokens(상한) |
-|---|---|---|---|---|
-| 4 pilot | 14 case × 1회 | 56 | 259,358 | 67,200 |
-| 4 variance | 14 case × 3회 | 168 | 778,074 | 201,600 |
-| 5 judge | 14 plan × 1회 | 14 | 24,331 | 8,400 |
-| **합계** | | **238** | **1,327,202** | **346,500** |
+| Phase | 대상 | LLM 호출 | prompt tokens | output(상한) | output(실측 기반) |
+|---|---|---|---|---|---|
+| 4 pilot | 14 case × 1회 | 56 | 259,358 | 280,000 | 116,375 |
+| 4 variance | 14 case × 3회 | 168 | 778,074 | 840,000 | 349,125 |
+| 5 judge | 14 plan × 1회 | 14 | 24,331 | 10,500 | 8,750 |
+| **합계** | | **238** | **1,327,202** | **1,130,500** | **470,750** |
+
+output 두 열의 차이가 크다. 상한은 `LLM_AGENTS_MAX_OUTPUT_TOKENS=4000`을 모든
+호출이 소진한다고 가정한 값이고, 실측 기반은 역할별 실제 출력량을 쓴 값이다.
+
+| 역할 | 실측 output tokens | 출처 |
+|---|---|---|
+| TRAINING | ~2,900 | `config.py` 주석 (2,375–2,893) |
+| COORDINATOR | ~2,900 | `config.py` 주석 (2,047–2,913) |
+| RECOVERY | ~400 | 본 harness 첫 실호출 (358) |
+| FEASIBILITY | ~400 | 본 harness 첫 실호출 (324) |
+| JUDGE | ~500 | 스키마상 6개 점수 + 짧은 근거 |
+
+**예산 판단은 실측 기반 열을 쓰는 것이 맞다.** 상한만 보면 약 2.4배 과대 추정된다.
 
 역할별 1회 실행 prompt (평균):
 
@@ -39,7 +52,7 @@ prompt가 큰 이유는 세 Agent와 Coordinator가 **각각 승인된 운동 po
 variance 3회 반복이 전체 비용의 약 59%를 차지한다. 예산이 빠듯하면:
 
 ```bash
-# variance 생략: 70 호출, ~284K prompt tokens (전체의 21%)
+# variance 생략: 70 호출, prompt ~284K / output ~125K (전체의 약 21%)
 uv run python -m backend.tests.evaluation.paid_run_cli --confirm-spend --repeats 1
 ```
 
@@ -81,25 +94,30 @@ uv run python -m backend.tests.evaluation.budget_cli \
 수기 계산이 필요하면:
 
 ```
-비용 = 1.327 × (input 단가/1M) + 0.347 × (output 단가/1M)
+실측 기반 = 1.327 × (input 단가/1M) + 0.471 × (output 단가/1M)
+상한      = 1.327 × (input 단가/1M) + 1.131 × (output 단가/1M)
 ```
 
 ## 3. 실행 절차
 
 ### 3.1 OpenAI 키
 
-Secrets Manager `/helkki/staging/openai-api-key`에 있다.
+Secrets Manager `/helkki/staging/openai-api-key`에 있다. **평문 문자열**이며
+JSON 객체가 아니므로 그대로 쓰면 된다(확인함).
 
 ```bash
 export PYTHONIOENCODING=utf-8 PYTHONUTF8=1
+# Git Bash는 '/helkki/...'를 Windows 경로로 변환해버린다. 이 변수가 없으면
+# aws가 "Invalid name" 오류를 낸다.
+export MSYS_NO_PATHCONV=1
 export OPENAI_API_KEY=$(aws secretsmanager get-secret-value \
   --region ap-northeast-2 \
-  --secret-id /helkki/staging/openai-api-key \
+  --secret-id '/helkki/staging/openai-api-key' \
   --query SecretString --output text)
 ```
 
-시크릿이 JSON 객체 형태라면 해당 키를 추출해야 한다. 값을 파일·픽스처·결과물에
-기록하지 않는다.
+AWS 세션이 만료되면 `aws login`으로 재인증해야 한다. 키 값을 파일·픽스처·
+결과물·로그에 기록하지 않는다.
 
 ### 3.2 LangSmith 키 (선택)
 
@@ -148,6 +166,25 @@ results/
     ├── latency_metrics.json    # P50/P95 (실 provider 기준)
     └── judge_scores.json       # PHASE 5
 ```
+
+## 4.1 배포 설정 정합성 (중요)
+
+평가 runner는 `infra/deployment/compose.staging.v3production.yaml`을 그대로
+반영한다.
+
+| 항목 | 배포값 | 라이브러리 기본값 |
+|---|---|---|
+| `V3_EXECUTION_PROFILE` | `PRODUCTION` | `DEMO` 아님 |
+| `LLM_AGENTS_TIMEOUT_SECONDS` | **60** | 5.0 |
+| `LLM_AGENTS_MAX_OUTPUT_TOKENS` | **4000** | 1200 |
+| `LLM_AGENTS_MODEL_CODE` | `gpt-5.6-terra` | `unconfigured` |
+
+기본값으로 실행하면 **Training이 5초 deadline에서 취소되고 결정적 fallback이
+대신 계획을 만든다.** 상태는 `SUCCEEDED`로 보이지만 LLM은 계획을 만들지 않은
+것이므로 멀티에이전트를 측정한 결과가 아니다. `config.py`가 이미
+"a reasoning model needs both raised or every specialist call fails"라고
+경고하고 있다. 실측 latency는 Recovery 4.2초, Feasibility 4.0초로 5초에
+근접하며 Training은 초과한다.
 
 ## 5. 안전장치 요약
 

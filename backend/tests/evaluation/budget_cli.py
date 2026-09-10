@@ -74,7 +74,8 @@ def main() -> int:
     print("Measured provider work (no call made):")
     print(f"  total LLM calls          {measured['total_llm_calls']}")
     print(f"  prompt tokens (headroom) {measured['total_prompt_tokens_with_headroom']:,}")
-    print(f"  output tokens (ceiling)  {measured['total_output_tokens_with_headroom']:,}")
+    print(f"  output tokens (ceiling)  {measured['total_output_tokens_ceiling']:,}")
+    print(f"  output tokens (typical)  {measured['total_output_tokens_typical']:,}")
     print()
     for phase in measured["phases"]:  # type: ignore[index]
         print(
@@ -86,7 +87,8 @@ def main() -> int:
     cost = body["cost"]
     assert isinstance(cost, dict)
     if cost["available"]:
-        print(f"Estimated cost ({cost['currency_code']}): {cost['total']}")
+        print(f"Estimated cost ({cost['currency_code']}): {cost['typical_total']} typical")
+        print(f"                    ceiling: {cost['ceiling_total']}")
         print(f"  model  {cost['model_code']}")
         print(f"  source {cost['source_reference']}")
     else:

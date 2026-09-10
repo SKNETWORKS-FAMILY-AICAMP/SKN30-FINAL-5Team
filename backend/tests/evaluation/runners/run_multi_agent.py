@@ -181,6 +181,12 @@ class MultiAgentRunner:
             chat_model: object = self.provider.chat_model
             model_code = self.provider.model_code
             max_attempts = self.provider.max_attempts
+            # Production binds the provider's native JSON-schema mode
+            # (`build_v3_demo_runtime` passes `use_native_json_schema=chat_model
+            # is None`, and in production it builds its own model). A paid run
+            # has to bind it the same way or it would be measuring a different
+            # structured-output path than the one that ships.
+            native_json_schema = True
         else:
             scripted = ScriptedChatModel(
                 script=script,
@@ -189,14 +195,13 @@ class MultiAgentRunner:
             chat_model = scripted
             model_code = EVAL_MODEL_CODE
             max_attempts = 1
+            # The scripted stand-in implements the plain binding only.
+            native_json_schema = False
         invoker = StructuredChatInvoker(
             chat_model=cast(object, chat_model),  # type: ignore[arg-type]
             model_code=model_code,
             max_attempts=max_attempts,
-            # The demo runtime binds a native JSON schema only when it built the
-            # model itself. An injected model gets the plain binding, which is
-            # what the scripted stand-in understands.
-            use_native_json_schema=False,
+            use_native_json_schema=native_json_schema,
         )
         context = _ExecutionContext()
         graph_input = V3GraphInput(

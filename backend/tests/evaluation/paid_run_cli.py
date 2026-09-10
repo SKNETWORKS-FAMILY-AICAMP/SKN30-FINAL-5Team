@@ -46,7 +46,6 @@ from backend.tests.evaluation.tracing import (
 )
 
 DEFAULT_OUTPUT_DIR = Path("results/paid")
-PRODUCTION_NODE_TIMEOUT_SECONDS = 5.0
 
 
 @dataclass
@@ -72,9 +71,13 @@ async def _execute(
     judge_enabled: bool,
 ) -> PaidRunOutcome:
     provider = build_provider()
+    # The graph deadline is the deployment's own bound, not a number chosen
+    # here: `V3DemoRuntime` passes `settings.llm_agents_timeout_seconds` through
+    # as `node_timeout_seconds`, so taking it from the provider keeps the run
+    # matched to what staging actually enforces.
     runner = MultiAgentRunner(
         provider=provider,
-        node_timeout_seconds=PRODUCTION_NODE_TIMEOUT_SECONDS,
+        node_timeout_seconds=provider.timeout_seconds,
     )
     cases = planning_cases(GRAPH_CASES)
 
@@ -109,7 +112,14 @@ async def _execute(
                 if judge_model is not None and repeat == 0:
                     if calls + 1 > max_calls:
                         continue
-                    result = judge_run(run, judge_model)
+                    # A judge that fails is a missing score, not a lost run. The
+                    # graph results are the expensive part and must survive it.
+                    try:
+                        result = judge_run(run, judge_model)
+                    except Exception as error:  # noqa: BLE001 -- reported, not raised
+                        calls += 1
+                        print(f"      judge failed: {type(error).__name__}: {error}")
+                        continue
                     if result.output is not None:
                         calls += 1
                     judgements.append(result)

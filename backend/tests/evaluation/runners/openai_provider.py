@@ -30,12 +30,20 @@ from backend.app.integrations.llm_agents.openai import (
 OPENAI_API_KEY_ENV: Final = "OPENAI_API_KEY"
 EVAL_MODEL_CODE_ENV: Final = "EVAL_LLM_AGENTS_MODEL_CODE"
 
-# What staging runs (`infra/deployment/compose.staging.v3production.yaml`).
-# Overridable so the evaluation can be pointed at whatever is approved next,
-# but never silently: the report records which model produced every score.
+# Everything below mirrors `infra/deployment/compose.staging.v3production.yaml`,
+# which is what the deployed service actually runs. Taking the library defaults
+# instead is not a smaller version of the same thing: `config.py` warns that they
+# "suit a fast completion model" and that a reasoning model needs both raised or
+# "every specialist call fails". A 5-second deadline and a 1,200-token ceiling
+# starve Training, whose measured output is 2,375-2,893 tokens, so an evaluation
+# run on the defaults measures a timeout rather than the service.
 DEFAULT_MODEL_CODE: Final = "gpt-5.6-terra"
+DEFAULT_TIMEOUT_SECONDS: Final = 60.0
+DEFAULT_MAX_OUTPUT_TOKENS: Final = 4000
 
-EXECUTION_PROFILE: Final = "DEMO"
+# The deployed profile is PRODUCTION, promoted; DEMO is the staging-only
+# overlay. Mirroring PRODUCTION is what makes this "the same as deployed".
+EXECUTION_PROFILE: Final = "PRODUCTION"
 
 
 class ProviderUnavailableError(RuntimeError):
@@ -81,8 +89,11 @@ def build_settings(*, model_code: str | None = None) -> Settings:
         llm_agents_provider_code="OPENAI",
         llm_agents_model_code=resolved_model,
         llm_agents_approved_model_codes=(resolved_model,),
+        llm_agents_timeout_seconds=DEFAULT_TIMEOUT_SECONDS,
+        llm_agents_max_output_tokens=DEFAULT_MAX_OUTPUT_TOKENS,
         v3_langgraph_enabled=True,
         v3_execution_profile=EXECUTION_PROFILE,
+        v3_production_promotion_approved=True,
         openai_api_key=SecretStr(api_key),
     )
 

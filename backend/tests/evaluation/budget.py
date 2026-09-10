@@ -53,13 +53,29 @@ CALLS_PER_PLANNING_RUN: Final = 4
 # rather than assumed, so the forecast is a ceiling and not a hope.
 REPAIR_HEADROOM: Final = Decimal("1.25")
 
-# `llm_agents_max_output_tokens` bounds each structured answer.
-MAX_OUTPUT_TOKENS_PER_CALL: Final = 1200
+# `llm_agents_max_output_tokens` bounds each structured answer. This is the
+# deployed staging value (compose.staging.v3production.yaml), not the library
+# default of 1200, which is too small for Training's measured output.
+MAX_OUTPUT_TOKENS_PER_CALL: Final = 4000
 
 # Rough characters-per-token for the machine-code payloads these prompts carry.
 # `messages_for` serializes with ensure_ascii=True and the agent payload
 # allowlist admits no Korean, so the content is ASCII JSON.
 CHARS_PER_TOKEN: Final = 4
+
+# What each role actually returns, as opposed to what it is allowed to.
+# Training and Coordinator are the reviewed measurements recorded in
+# `config.py` (2,375-2,893 and 2,047-2,913); the two advisory roles are from
+# this harness's own first paid run, which observed 358 and 324 output tokens.
+# The ceiling above bounds the worst case; these describe the likely bill, and
+# reporting only the ceiling would overstate it roughly threefold.
+TYPICAL_OUTPUT_TOKENS: Final[dict[str, int]] = {
+    "TRAINING": 2900,
+    "RECOVERY": 400,
+    "FEASIBILITY": 400,
+    "COORDINATOR": 2900,
+    "JUDGE": 500,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,9 +111,28 @@ class PhaseForecast:
     def max_output_tokens(self) -> int:
         return self.call_count * self.output_tokens_per_call
 
+    @property
+    def typical_output_tokens(self) -> int:
+        """What the roles in this phase are likely to actually return."""
+
+        per_pass = sum(
+            role.call_count * TYPICAL_OUTPUT_TOKENS.get(role.role_code, self.output_tokens_per_call)
+            for role in self.roles
+        )
+        return per_pass * self.repeats
+
     def with_headroom(self) -> tuple[int, int]:
+        """Upper bound: every call returns its full allowance."""
+
         prompt = int(Decimal(self.prompt_tokens) * REPAIR_HEADROOM)
         output = int(Decimal(self.max_output_tokens) * REPAIR_HEADROOM)
+        return prompt, output
+
+    def typical_with_headroom(self) -> tuple[int, int]:
+        """Likely bill: measured output volumes rather than the allowance."""
+
+        prompt = int(Decimal(self.prompt_tokens) * REPAIR_HEADROOM)
+        output = int(Decimal(self.typical_output_tokens) * REPAIR_HEADROOM)
         return prompt, output
 
 
@@ -248,6 +283,10 @@ class BudgetForecast:
     def total_output_tokens(self) -> int:
         return sum(phase.with_headroom()[1] for phase in self.phases)
 
+    @property
+    def typical_output_tokens(self) -> int:
+        return sum(phase.typical_with_headroom()[1] for phase in self.phases)
+
     def to_json(self) -> dict[str, object]:
         body: dict[str, object] = {
             "measured": {
@@ -261,7 +300,9 @@ class BudgetForecast:
                 "repair_headroom": str(REPAIR_HEADROOM),
                 "total_llm_calls": self.total_calls,
                 "total_prompt_tokens_with_headroom": self.total_prompt_tokens,
-                "total_output_tokens_with_headroom": self.total_output_tokens,
+                "total_output_tokens_ceiling": self.total_output_tokens,
+                "total_output_tokens_typical": self.typical_output_tokens,
+                "typical_output_tokens_per_role": dict(sorted(TYPICAL_OUTPUT_TOKENS.items())),
                 "phases": [
                     {
                         "phase": phase.phase,
@@ -270,6 +311,7 @@ class BudgetForecast:
                         "llm_calls": phase.call_count,
                         "prompt_tokens": phase.prompt_tokens,
                         "max_output_tokens": phase.max_output_tokens,
+                        "typical_output_tokens": phase.typical_output_tokens,
                         "roles": [
                             {
                                 "role_code": role.role_code,
@@ -295,23 +337,29 @@ class BudgetForecast:
             }
             return body
 
-        total = cost_for(
+        ceiling = cost_for(
             prompt_tokens=self.total_prompt_tokens,
             output_tokens=self.total_output_tokens,
             pricing=self.pricing,
         )
+        typical = cost_for(
+            prompt_tokens=self.total_prompt_tokens,
+            output_tokens=self.typical_output_tokens,
+            pricing=self.pricing,
+        )
         body["cost"] = {
             "available": True,
+            "typical_total": str(typical),
             "currency_code": self.pricing.currency_code,
             "provider_code": self.pricing.provider_code,
             "model_code": self.pricing.model_code,
             "source_reference": self.pricing.source_reference,
-            "total": str(total),
-            "by_phase": {
+            "ceiling_total": str(ceiling),
+            "by_phase_typical": {
                 phase.phase: str(
                     cost_for(
-                        prompt_tokens=phase.with_headroom()[0],
-                        output_tokens=phase.with_headroom()[1],
+                        prompt_tokens=phase.typical_with_headroom()[0],
+                        output_tokens=phase.typical_with_headroom()[1],
                         pricing=self.pricing,
                     )
                 )

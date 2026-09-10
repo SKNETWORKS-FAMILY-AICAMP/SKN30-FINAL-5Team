@@ -72,7 +72,9 @@ def build_openai_judge(provider: ProviderContext | None = None) -> OpenAIJudge:
             chat_model=context.chat_model,
             model_code=context.model_code,
             max_attempts=context.max_attempts,
-            use_native_json_schema=False,
+            # Same binding the agents use against a real provider, so a judge
+            # failure is a judge failure and not a binding difference.
+            use_native_json_schema=True,
         ),
         model_label=context.label,
     )
