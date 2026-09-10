@@ -232,9 +232,15 @@ export function MascotHouseScreen({
     [api],
   );
   const spend = useAsyncAction(spendRequest);
+  const claimMiniGameRequest = useCallback(
+    (score: number) => api.claimMiniGameReward({ score }),
+    [api],
+  );
+  const claimMiniGame = useAsyncAction(claimMiniGameRequest);
   const claimGiftRequest = useCallback(() => api.claimDailyReward(), [api]);
   const claimGift = useAsyncAction(claimGiftRequest);
-  const walletMutationPending = spend.pending || claimGift.pending;
+  const walletMutationPending =
+    spend.pending || claimGift.pending || claimMiniGame.pending;
   const runWalletMutation = async <T,>(
     request: () => Promise<T | undefined>,
   ) => {
@@ -287,11 +293,32 @@ export function MascotHouseScreen({
     return (
       <BananaCatchGameScreen
         onBack={() => setActiveScreen(null)}
-        onPlayed={() => {
+        onPlayed={(score) => {
           // This branch runs before the house state is guaranteed loaded, so
           // there is nothing to record against until it is.
           const base = liveState.current ?? houseState;
           if (base !== null) persist(recordGamePlay(base, localDate));
+          // The payout, its cap and the once-a-day limit are the server's; the
+          // client only reports what the round scored. A scoreless round is
+          // refused there, which is not worth interrupting the player over, so
+          // the wallet is left exactly as it was and no error is surfaced.
+          void runWalletMutation(() => claimMiniGame.run(score)).then(
+            (result) => {
+              if (!result) return;
+              serverBalance.current = result.balance;
+              // The house was loaded to get here, but this branch sits above
+              // the ready guard, so narrow before reading the wallet.
+              if (remote.status !== 'ready') return;
+              setRemoteData({
+                ...remote.data,
+                wallet: {
+                  balance: result.balance,
+                  daily_reward: result.daily_reward,
+                },
+                walletError: null,
+              });
+            },
+          );
         }}
       />
     );

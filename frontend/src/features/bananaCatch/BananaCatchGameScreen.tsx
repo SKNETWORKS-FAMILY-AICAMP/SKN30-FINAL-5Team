@@ -78,13 +78,14 @@ export function BananaCatchGameScreen({
 }: {
   onBack: () => void;
   /**
-   * Fired once the round actually finishes.
+   * Fired once the round actually finishes, with the score it reached.
    *
    * The daily play used to be spent the moment the screen opened, so backing
    * out before pressing start still consumed it and the game could not be
-   * played again that day.
+   * played again that day. The score rides along so the house can claim the
+   * round's reward; the payout itself is the server's to decide.
    */
-  onPlayed?: () => void;
+  onPlayed?: (score: number) => void;
 }) {
   const [game, setGame] = useState(createBananaCatchState);
   const [paused, setPaused] = useState(false);
@@ -116,8 +117,8 @@ export function BananaCatchGameScreen({
   useEffect(() => {
     if (game.status !== 'finished' || playCounted.current) return;
     playCounted.current = true;
-    onPlayed?.();
-  }, [game.status, onPlayed]);
+    onPlayed?.(game.score);
+  }, [game.score, game.status, onPlayed]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {

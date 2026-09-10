@@ -19,6 +19,8 @@ import type {
   DecisionResponse,
   DecisionSelectionResponse,
   DailyRewardClaimResponse,
+  MiniGameRewardRequest,
+  MiniGameRewardResponse,
   ExerciseDetailResponse,
   ExerciseListResponse,
   ExerciseVariantsResponse,
@@ -86,6 +88,20 @@ export function createApi(client: ApiClient) {
       return client.request<DailyRewardClaimResponse>({
         method: 'POST',
         path: '/rewards/daily-reward/claim',
+        idempotent: true,
+      });
+    },
+
+    /**
+     * Claims the reward for one finished mini-game round. The server derives the
+     * amount from the score, caps it, and pays at most once a local day, so a
+     * retry of the same round replays instead of paying twice.
+     */
+    claimMiniGameReward(body: MiniGameRewardRequest) {
+      return client.request<MiniGameRewardResponse>({
+        method: 'POST',
+        path: '/rewards/mini-game/claim',
+        body,
         idempotent: true,
       });
     },

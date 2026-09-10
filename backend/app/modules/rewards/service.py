@@ -9,6 +9,8 @@ from backend.app.modules.rewards.codes import (
     DAILY_REWARD_BANANAS,
     HOUSE_FEED_COST,
     HOUSE_ITEM_COSTS,
+    MINI_GAME_MAX_BANANAS,
+    MINI_GAME_POINTS_PER_BANANA,
     WORKOUT_COMPLETED_BANANAS,
     WORKOUT_DAILY_QUEST_BANANAS,
     WORKOUT_PARTIAL_BANANAS,
@@ -27,6 +29,8 @@ from backend.app.modules.rewards.schemas import (
     BananaWalletResponse,
     DailyRewardClaimResponse,
     DailyRewardStatus,
+    MiniGameRewardRequest,
+    MiniGameRewardResponse,
 )
 
 
@@ -40,6 +44,10 @@ class InsufficientBananaBalanceError(Exception):
 
 class InvalidBananaSpendError(Exception):
     pass
+
+
+class InvalidMiniGameScoreError(Exception):
+    """The reported round earns nothing, or a different score was already paid today."""
 
 
 def _utc_now() -> datetime:
@@ -89,6 +97,55 @@ class RewardService:
             wallet = self._repository.get_wallet_for_update(session, user_id, now)
         return DailyRewardClaimResponse(
             **self._wallet_response(wallet, local_date, transaction).model_dump(),
+            transaction=self._transaction_response(transaction),
+        )
+
+    @staticmethod
+    def mini_game_bananas(score: int) -> int:
+        """Bananas earned for one finished round, in proportion to the score.
+
+        Bounded on both ends. The score is reported by the client, so the payout
+        is capped rather than trusted outright, and a round that caught nothing
+        earns nothing rather than a participation payment.
+        """
+
+        return min(score // MINI_GAME_POINTS_PER_BANANA, MINI_GAME_MAX_BANANAS)
+
+    def claim_mini_game_reward(
+        self, session: Session, user_id: UUID, request: MiniGameRewardRequest
+    ) -> MiniGameRewardResponse:
+        """Pay out one finished mini-game round, at most once per local day.
+
+        The day is the idempotency key, so a lost response can be retried with the
+        same score and returns the same transaction. A second, different score on
+        the same day is refused by `_apply` rather than paid again -- the first
+        finished round is the one that counts, which is the limit the house tile
+        already states.
+        """
+
+        amount = self.mini_game_bananas(request.score)
+        if amount <= 0:
+            raise InvalidMiniGameScoreError
+        now = self._clock()
+        with session.begin():
+            _, wallet, local_now = self._prepare(session, user_id, now)
+            self._sync_workout_rewards(session, user_id, wallet, local_now, now)
+            local_date = local_now.date()
+            transaction = self._apply(
+                session,
+                user_id=user_id,
+                wallet=self._repository.get_wallet_for_update(session, user_id, now),
+                transaction_type=BananaTransactionType.MINI_GAME,
+                amount=amount,
+                event_key=f"mini-game:{local_date.isoformat()}",
+                source_local_date=local_date,
+                reference_code=None,
+                now=now,
+            )
+            wallet = self._repository.get_wallet_for_update(session, user_id, now)
+            claim = self._repository.get_daily_claim(session, user_id, local_date)
+        return MiniGameRewardResponse(
+            **self._wallet_response(wallet, local_date, claim).model_dump(),
             transaction=self._transaction_response(transaction),
         )
 
