@@ -39,6 +39,22 @@ from backend.app.modules.workouts.ports import (
 )
 
 
+def _plan_item_order() -> Any:
+    """The order the user sees, which their own reorder may have rewritten.
+
+    A reorder writes `user_sequence` and leaves the decision's `sequence` alone,
+    so anything that reads a plan in running order has to coalesce the two. Three
+    queries in this module expressed that separately and one of them drifted:
+    `get_session_state` ordered by `sequence`, so after a reorder its
+    `next_pending_plan_item_id` named a different block than the one the client
+    had on screen. The client moves to the server's next block and then refuses
+    to complete it, because it is no longer the first pending block it knows
+    about -- the reordered blocks simply could not be finished.
+    """
+
+    return func.coalesce(PlanItem.user_sequence, PlanItem.sequence)
+
+
 class WorkoutRepository:
     def acquire_idempotency_lock(
         self, session: Session, user_id: UUID, endpoint_code: str, key: UUID
@@ -231,7 +247,7 @@ class WorkoutRepository:
             )
             .join(PlanItem, PlanItem.id == WorkoutSessionItem.plan_item_id)
             .where(WorkoutSessionItem.workout_session_id == workout.id)
-            .order_by(PlanItem.sequence)
+            .order_by(_plan_item_order())
         ).all()
         local_date = session.scalar(
             select(DecisionRun.local_date)
@@ -359,7 +375,7 @@ class WorkoutRepository:
                 WorkoutSessionItem.workout_session_id == session_id,
                 WorkoutSessionItem.status_code == "COMPLETED",
             )
-            .order_by(PlanItem.sequence)
+            .order_by(_plan_item_order())
         ).all()
         return CalorieEstimateSource(
             weight_kg=weight_kg,
@@ -854,7 +870,7 @@ class WorkoutRepository:
             .join(PlanItem, PlanItem.id == WorkoutSessionItem.plan_item_id)
             .join(Exercise, Exercise.id == PlanItem.exercise_id)
             .where(WorkoutSessionItem.workout_session_id == session_id)
-            .order_by(func.coalesce(PlanItem.user_sequence, PlanItem.sequence))
+            .order_by(_plan_item_order())
         ).all()
         items = tuple(
             WorkoutLogItem(
