@@ -1,0 +1,447 @@
+{
+  "architecture_code": "MULTI_AGENT",
+  "by_category": {
+    "complex": {
+      "critical": 0,
+      "failed": 0,
+      "passed": 24,
+      "total": 24
+    },
+    "conflict": {
+      "critical": 0,
+      "failed": 0,
+      "passed": 36,
+      "total": 36
+    },
+    "failure_case": {
+      "critical": 0,
+      "failed": 0,
+      "passed": 24,
+      "total": 24
+    },
+    "invalid_input": {
+      "critical": 0,
+      "failed": 0,
+      "passed": 12,
+      "total": 12
+    },
+    "moderate": {
+      "critical": 0,
+      "failed": 0,
+      "passed": 24,
+      "total": 24
+    },
+    "rag_retrieval": {
+      "critical": 0,
+      "failed": 0,
+      "passed": 24,
+      "total": 24
+    },
+    "safety_critical": {
+      "critical": 0,
+      "failed": 0,
+      "passed": 36,
+      "total": 36
+    },
+    "simple": {
+      "critical": 0,
+      "failed": 0,
+      "passed": 24,
+      "total": 24
+    }
+  },
+  "by_script": {
+    "compliant": {
+      "critical": 0,
+      "failed": 0,
+      "passed": 17,
+      "total": 17
+    },
+    "coordinator_duration_violating": {
+      "critical": 0,
+      "failed": 0,
+      "passed": 17,
+      "total": 17
+    },
+    "coordinator_safety_violating": {
+      "critical": 0,
+      "failed": 0,
+      "passed": 17,
+      "total": 17
+    },
+    "recovery_role_violating": {
+      "critical": 0,
+      "failed": 0,
+      "passed": 17,
+      "total": 17
+    },
+    "total_provider_failure": {
+      "critical": 0,
+      "failed": 0,
+      "passed": 17,
+      "total": 17
+    },
+    "training_duration_violating": {
+      "critical": 0,
+      "failed": 0,
+      "passed": 17,
+      "total": 17
+    },
+    "training_hangs": {
+      "critical": 0,
+      "failed": 0,
+      "passed": 17,
+      "total": 17
+    },
+    "training_phase_missing": {
+      "critical": 0,
+      "failed": 0,
+      "passed": 17,
+      "total": 17
+    },
+    "training_pool_escape": {
+      "critical": 0,
+      "failed": 0,
+      "passed": 17,
+      "total": 17
+    },
+    "training_provider_timeout": {
+      "critical": 0,
+      "failed": 0,
+      "passed": 17,
+      "total": 17
+    },
+    "training_safety_violating": {
+      "critical": 0,
+      "failed": 0,
+      "passed": 17,
+      "total": 17
+    },
+    "training_schema_invalid": {
+      "critical": 0,
+      "failed": 0,
+      "passed": 17,
+      "total": 17
+    }
+  },
+  "critical_failures": 0,
+  "dataset_cases": [
+    {
+      "case_id": "SQ-SIMPLE-001",
+      "category": "simple",
+      "description": "건강한 상태의 20분 홈 트레이닝 요청. 제약이 없으므로 원래 루틴이 그대로 최종 추천이어야 한다.",
+      "expected_outcome": "PLAN",
+      "legacy_scenario_code": "HEALTHY_ORIGINAL"
+    },
+    {
+      "case_id": "SQ-SIMPLE-002",
+      "category": "simple",
+      "description": "웨어러블 없이 수동 체크인만 제출한 15분 요청. 웨어러블은 선택 사항이므로 정상 처리되어야 한다.",
+      "expected_outcome": "PLAN",
+      "legacy_scenario_code": "WEARABLE_MISSING_MANUAL_FALLBACK"
+    },
+    {
+      "case_id": "SQ-MODERATE-001",
+      "category": "moderate",
+      "description": "피로도 MODERATE인 20분 요청. 요청 시간을 유지한 채 강도와 볼륨만 낮춘 downshift여야 한다.",
+      "expected_outcome": "PLAN",
+      "legacy_scenario_code": "LIMITED_TIME_DURATION_PRESERVED"
+    },
+    {
+      "case_id": "SQ-MODERATE-002",
+      "category": "moderate",
+      "description": "필수 운동이 지정된 20분 요청. 지정 운동은 최종 계획에서 제거될 수 없다.",
+      "expected_outcome": "PLAN",
+      "legacy_scenario_code": null
+    },
+    {
+      "case_id": "SQ-COMPLEX-001",
+      "category": "complex",
+      "description": "무릎 불편(경증) + 홈 환경 + 20분. 무릎 부하 운동을 제외하면서 목표와 요청 시간을 모두 보존해야 한다.",
+      "expected_outcome": "PLAN",
+      "legacy_scenario_code": "KNEE_LOAD_EXCLUDED_GOAL_PRESERVED"
+    },
+    {
+      "case_id": "SQ-COMPLEX-002",
+      "category": "complex",
+      "description": "무릎과 어깨 두 부위 불편이 동시에 있는 20분 요청. 두 계열 모두 제외한 뒤에도 세션 형태를 유지해야 한다.",
+      "expected_outcome": "PLAN",
+      "legacy_scenario_code": null
+    },
+    {
+      "case_id": "SQ-CONFLICT-001",
+      "category": "conflict",
+      "description": "근력 향상 목표와 높은 피로/수면 부족이 충돌한다. Recovery 상한이 Training 목표보다 우선하되 요청 시간은 보존되어야 한다.",
+      "expected_outcome": "PLAN",
+      "legacy_scenario_code": null
+    },
+    {
+      "case_id": "SQ-CONFLICT-002",
+      "category": "conflict",
+      "description": "사용자가 선호한다고 밝힌 운동이 안전상 제외 대상이다. 선호보다 안전 제약이 우선해야 한다.",
+      "expected_outcome": "PLAN",
+      "legacy_scenario_code": null
+    },
+    {
+      "case_id": "SQ-CONFLICT-003",
+      "category": "conflict",
+      "description": "장비가 필요한 운동이 벡터 순위 상단에 있고 사용자는 맨몸만 보유한다고 밝혔다. 승인된 설계상 장비는 선택 게이트가 아니므로 계획은 생성되며, 장비 요구는 관측으로만 기록한다.",
+      "expected_outcome": "PLAN",
+      "legacy_scenario_code": null
+    },
+    {
+      "case_id": "SQ-SAFETY-001",
+      "category": "safety_critical",
+      "description": "무릎 통증 NRS 4-6. 금기 운동 제외에 더해 LIGHT 상한이 적용되어야 하며 계획은 유지된다.",
+      "expected_outcome": "PLAN",
+      "legacy_scenario_code": null
+    },
+    {
+      "case_id": "SQ-SAFETY-002",
+      "category": "safety_critical",
+      "description": "무릎 통증 NRS 7-10 (SEVERE). 계획 없는 REST여야 하며 어떤 운동도 반환되어서는 안 된다.",
+      "expected_outcome": "NO_PLAN",
+      "legacy_scenario_code": "SAFETY_VETO_PRECEDENCE"
+    },
+    {
+      "case_id": "SQ-SAFETY-003",
+      "category": "safety_critical",
+      "description": "중대한 이상 반응(red flag). 계획 없는 STOP_AND_SEEK_HELP여야 한다.",
+      "expected_outcome": "NO_PLAN",
+      "legacy_scenario_code": null
+    },
+    {
+      "case_id": "SQ-RAG-001",
+      "category": "rag_retrieval",
+      "description": "벡터 검색이 성공하여 순위를 제공한 경우. 순위는 자격을 바꾸지 않는다.",
+      "expected_outcome": "PLAN",
+      "legacy_scenario_code": null
+    },
+    {
+      "case_id": "SQ-RAG-002",
+      "category": "rag_retrieval",
+      "description": "Qdrant 검색 실패로 결정적 순위 fallback이 사용된 경우. 검색 실패는 자격 실패가 아니므로 계획은 여전히 생성되어야 한다.",
+      "expected_outcome": "PLAN",
+      "legacy_scenario_code": "QDRANT_TIMEOUT_POOL_FALLBACK"
+    },
+    {
+      "case_id": "SQ-MISSING-001",
+      "category": "missing_input",
+      "description": "운동 가능 시간이 누락되었다. 그래프에 도달하기 전에 거부되어야 하며 계획을 만들어서는 안 된다.",
+      "expected_outcome": "NO_PLAN",
+      "legacy_scenario_code": null
+    },
+    {
+      "case_id": "SQ-MISSING-002",
+      "category": "missing_input",
+      "description": "주 목표가 누락되었다. 목표 없이는 CORE 작업을 고를 수 없으므로 거부되어야 한다.",
+      "expected_outcome": "NO_PLAN",
+      "legacy_scenario_code": null
+    },
+    {
+      "case_id": "SQ-INVALID-001",
+      "category": "invalid_input",
+      "description": "운동 장소가 하나도 지정되지 않았다. 장소 없이는 어떤 운동도 수행 가능하다고 말할 수 없다.",
+      "expected_outcome": "NO_PLAN",
+      "legacy_scenario_code": null
+    },
+    {
+      "case_id": "SQ-INVALID-002",
+      "category": "invalid_input",
+      "description": "사용자는 GYM만 이용 가능하다고 했으나 승인된 pool에는 HOME 전용 운동만 있다. 수행 불가능한 계획을 만들지 말고 실패해야 한다.",
+      "expected_outcome": "NO_PLAN",
+      "legacy_scenario_code": null
+    },
+    {
+      "case_id": "SQ-FAILURE-001",
+      "category": "failure_case",
+      "description": "필수 Agent의 LLM 호출이 모두 실패한다. 결정적 fallback이 답하거나, 안전한 fallback이 없으면 계획 없이 실패해야 한다.",
+      "expected_outcome": "PLAN_OR_NO_PLAN",
+      "legacy_scenario_code": "REQUIRED_LLM_FAILURE_FALLBACK"
+    },
+    {
+      "case_id": "SQ-FAILURE-002",
+      "category": "failure_case",
+      "description": "안전 제외 운동이 있는 상태에서 LLM이 실패한다. fallback 경로 역시 제외 운동을 되살려서는 안 된다.",
+      "expected_outcome": "PLAN_OR_NO_PLAN",
+      "legacy_scenario_code": null
+    }
+  ],
+  "dataset_id": "service-quality-smoke-v1",
+  "failed_runs": 0,
+  "fallback_coverage": {
+    "cases": [
+      {
+        "case_id": "SQ-SIMPLE-001",
+        "excluded_exercise_count": 0,
+        "fallback_produced_plan": true,
+        "maximum_sets_per_exercise": 3,
+        "pool_size": 15,
+        "requested_duration_minutes": 20,
+        "status_code": "SUCCEEDED"
+      },
+      {
+        "case_id": "SQ-SIMPLE-002",
+        "excluded_exercise_count": 0,
+        "fallback_produced_plan": true,
+        "maximum_sets_per_exercise": 3,
+        "pool_size": 15,
+        "requested_duration_minutes": 15,
+        "status_code": "SUCCEEDED"
+      },
+      {
+        "case_id": "SQ-MODERATE-001",
+        "excluded_exercise_count": 0,
+        "fallback_produced_plan": false,
+        "maximum_sets_per_exercise": 2,
+        "pool_size": 15,
+        "requested_duration_minutes": 20,
+        "status_code": "FAILED"
+      },
+      {
+        "case_id": "SQ-MODERATE-002",
+        "excluded_exercise_count": 0,
+        "fallback_produced_plan": true,
+        "maximum_sets_per_exercise": 3,
+        "pool_size": 15,
+        "requested_duration_minutes": 20,
+        "status_code": "SUCCEEDED"
+      },
+      {
+        "case_id": "SQ-COMPLEX-001",
+        "excluded_exercise_count": 3,
+        "fallback_produced_plan": false,
+        "maximum_sets_per_exercise": 3,
+        "pool_size": 15,
+        "requested_duration_minutes": 20,
+        "status_code": "FAILED"
+      },
+      {
+        "case_id": "SQ-COMPLEX-002",
+        "excluded_exercise_count": 4,
+        "fallback_produced_plan": false,
+        "maximum_sets_per_exercise": 3,
+        "pool_size": 15,
+        "requested_duration_minutes": 20,
+        "status_code": "FAILED"
+      },
+      {
+        "case_id": "SQ-CONFLICT-001",
+        "excluded_exercise_count": 0,
+        "fallback_produced_plan": false,
+        "maximum_sets_per_exercise": 2,
+        "pool_size": 15,
+        "requested_duration_minutes": 20,
+        "status_code": "FAILED"
+      },
+      {
+        "case_id": "SQ-CONFLICT-002",
+        "excluded_exercise_count": 3,
+        "fallback_produced_plan": false,
+        "maximum_sets_per_exercise": 2,
+        "pool_size": 15,
+        "requested_duration_minutes": 20,
+        "status_code": "FAILED"
+      },
+      {
+        "case_id": "SQ-CONFLICT-003",
+        "excluded_exercise_count": 0,
+        "fallback_produced_plan": true,
+        "maximum_sets_per_exercise": 3,
+        "pool_size": 17,
+        "requested_duration_minutes": 20,
+        "status_code": "SUCCEEDED"
+      },
+      {
+        "case_id": "SQ-SAFETY-001",
+        "excluded_exercise_count": 3,
+        "fallback_produced_plan": false,
+        "maximum_sets_per_exercise": 2,
+        "pool_size": 15,
+        "requested_duration_minutes": 20,
+        "status_code": "FAILED"
+      },
+      {
+        "case_id": "SQ-RAG-001",
+        "excluded_exercise_count": 0,
+        "fallback_produced_plan": true,
+        "maximum_sets_per_exercise": 3,
+        "pool_size": 15,
+        "requested_duration_minutes": 20,
+        "status_code": "SUCCEEDED"
+      },
+      {
+        "case_id": "SQ-RAG-002",
+        "excluded_exercise_count": 0,
+        "fallback_produced_plan": true,
+        "maximum_sets_per_exercise": 3,
+        "pool_size": 15,
+        "requested_duration_minutes": 20,
+        "status_code": "SUCCEEDED"
+      },
+      {
+        "case_id": "SQ-INVALID-002",
+        "excluded_exercise_count": 0,
+        "fallback_produced_plan": false,
+        "maximum_sets_per_exercise": 3,
+        "pool_size": 7,
+        "requested_duration_minutes": 20,
+        "status_code": "FAILED"
+      },
+      {
+        "case_id": "SQ-FAILURE-001",
+        "excluded_exercise_count": 0,
+        "fallback_produced_plan": true,
+        "maximum_sets_per_exercise": 3,
+        "pool_size": 15,
+        "requested_duration_minutes": 20,
+        "status_code": "SUCCEEDED"
+      },
+      {
+        "case_id": "SQ-FAILURE-002",
+        "excluded_exercise_count": 3,
+        "fallback_produced_plan": false,
+        "maximum_sets_per_exercise": 3,
+        "pool_size": 15,
+        "requested_duration_minutes": 20,
+        "status_code": "FAILED"
+      }
+    ],
+    "cases_measured": 15,
+    "fallback_produced_no_plan": 8,
+    "fallback_produced_plan": 7,
+    "note": "Under total provider failure, whether the deterministic fallback can still fill the requested duration depends on the surviving pool and the Recovery sets ceiling. When it cannot, the run fails closed with no plan rather than silently shortening the session (AGENTS.md 7). Measured against the evaluation catalog; confirm against the reviewed production catalog before drawing a product conclusion."
+  },
+  "graph_case_count": 17,
+  "input_rejection_cases": [
+    {
+      "case_id": "SQ-MISSING-001",
+      "category": "missing_input",
+      "expected_rejection_code": "REQUIRED_INPUT_MISSING_DURATION",
+      "observed": "REQUIRED_INPUT_MISSING_DURATION",
+      "passed": true
+    },
+    {
+      "case_id": "SQ-MISSING-002",
+      "category": "missing_input",
+      "expected_rejection_code": "REQUIRED_INPUT_MISSING_GOAL",
+      "observed": "REQUIRED_INPUT_MISSING_GOAL",
+      "passed": true
+    },
+    {
+      "case_id": "SQ-INVALID-001",
+      "category": "invalid_input",
+      "expected_rejection_code": "REQUIRED_INPUT_MISSING_LOCATION",
+      "observed": "REQUIRED_INPUT_MISSING_LOCATION",
+      "passed": true
+    }
+  ],
+  "latency_note": "Not measured. The provider is scripted and returns instantly, so any percentile from this run would describe the harness, not the service. PHASE 9 measures latency against a real provider.",
+  "passed_runs": 204,
+  "provider": "scripted-offline (no LLM call, no cost)",
+  "run_id": "phase2-deterministic-smoke-v1",
+  "runs_producing_a_plan": 95,
+  "runs_using_deterministic_fallback": 148,
+  "script_count": 12,
+  "total_runs": 204
+}
