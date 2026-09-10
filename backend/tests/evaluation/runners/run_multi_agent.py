@@ -44,6 +44,7 @@ from backend.app.integrations.llm_agents.specialists import (
 )
 from backend.tests.evaluation.dataset import EvaluationCase
 from backend.tests.evaluation.runners.fake_chat import InvocationLog, Script, ScriptedChatModel
+from backend.tests.evaluation.runners.openai_provider import ProviderContext
 from backend.tests.evaluation.runners.payloads import PayloadBuilder
 from backend.tests.evaluation.scenario import Scenario, build_scenario
 
@@ -134,12 +135,39 @@ class CaseRunResult:
         )
 
 
+def _audit_invocations(graph_result: V3GraphResult) -> tuple[InvocationLog, ...]:
+    """Reconstruct the invocation log from the graph's own audits.
+
+    A real provider has no script to record, so the log comes from
+    `InvocationAudit`, which the graph produces either way. That keeps the
+    multi-agent metrics identical between a scripted run and a paid one.
+    """
+
+    return tuple(
+        InvocationLog(
+            role_code=audit.role_code,
+            mode_code="REPAIR" if audit.phase_code == "REPAIR" else "INITIAL",
+            script_code=audit.status_code,
+        )
+        for audit in graph_result.invocation_audits
+    )
+
+
 @dataclass(slots=True)
 class MultiAgentRunner:
     """Compose the shipped graph once and run cases through it."""
 
     versions: V3DemoRuntimeVersions = field(default_factory=V3DemoRuntimeVersions)
     node_timeout_seconds: float = DEFAULT_NODE_TIMEOUT_SECONDS
+
+    # Supplied only for a paid run. When absent the scripted model answers, and
+    # the run costs nothing. Everything downstream is identical either way,
+    # which is the property that makes the offline results meaningful.
+    provider: ProviderContext | None = None
+
+    @property
+    def model_label(self) -> str:
+        return self.provider.label if self.provider is not None else EVAL_MODEL_CODE
 
     async def run(self, case: EvaluationCase, script: Script) -> CaseRunResult:
         scenario = build_scenario(case)
@@ -148,14 +176,26 @@ class MultiAgentRunner:
     async def run_scenario(self, scenario: Scenario, script: Script) -> CaseRunResult:
         envelope = scenario.constraint_envelope
         pool = scenario.exercise_pool
-        chat_model = ScriptedChatModel(
-            script=script,
-            payload_builder=PayloadBuilder(envelope=envelope, pool=pool),
-        )
+        scripted: ScriptedChatModel | None = None
+        if self.provider is not None:
+            chat_model: object = self.provider.chat_model
+            model_code = self.provider.model_code
+            max_attempts = self.provider.max_attempts
+        else:
+            scripted = ScriptedChatModel(
+                script=script,
+                payload_builder=PayloadBuilder(envelope=envelope, pool=pool),
+            )
+            chat_model = scripted
+            model_code = EVAL_MODEL_CODE
+            max_attempts = 1
         invoker = StructuredChatInvoker(
             chat_model=cast(object, chat_model),  # type: ignore[arg-type]
-            model_code=EVAL_MODEL_CODE,
-            max_attempts=1,
+            model_code=model_code,
+            max_attempts=max_attempts,
+            # The demo runtime binds a native JSON schema only when it built the
+            # model itself. An injected model gets the plain binding, which is
+            # what the scripted stand-in understands.
             use_native_json_schema=False,
         )
         context = _ExecutionContext()
@@ -164,7 +204,7 @@ class MultiAgentRunner:
             exercise_pool=pool,
             graph_version=self.versions.graph_version,
             prompt_version=self.versions.prompt_version,
-            model_version=EVAL_MODEL_CODE,
+            model_version=model_code,
             policy_version=envelope.policy_version,
             catalog_version=envelope.catalog_version,
             snapshot_is_fresh=True,
@@ -203,7 +243,9 @@ class MultiAgentRunner:
             architecture_code=ARCHITECTURE_CODE,
             script=script,
             graph_result=graph_result,
-            invocations=tuple(chat_model.calls),
+            invocations=tuple(scripted.calls)
+            if scripted is not None
+            else _audit_invocations(graph_result),
             wall_clock_ms=elapsed_ms,
         )
 

@@ -1,0 +1,9 @@
+case_id,returned,recall_at_1,recall_at_3,recall_at_5,reciprocal_rank,first_relevant_rank,eligibility_respected,previous_plan_excluded,mandatory_retained,metadata_match_rate,retrieval_status_code
+RQ-GOAL-001,12,0.0,0.0,0.4,0.25,4,True,True,True,0.0,VECTOR_RETRIEVAL_SUCCEEDED
+RQ-GOAL-002,12,0.0,0.25,0.5,0.3333,3,True,True,True,0.3333,VECTOR_RETRIEVAL_SUCCEEDED
+RQ-GOAL-003,12,0.0,0.0,0.5,0.25,4,True,True,True,0.0,VECTOR_RETRIEVAL_SUCCEEDED
+RQ-GOAL-004,12,0.25,0.25,0.75,1.0,1,True,True,True,0.3333,VECTOR_RETRIEVAL_SUCCEEDED
+RQ-EQUIP-001,10,0.0,0.0,0.5,0.2,5,True,True,True,0.0,VECTOR_RETRIEVAL_SUCCEEDED
+RQ-FILTER-001,3,1.0,1.0,1.0,1.0,1,True,True,True,,VECTOR_RETRIEVAL_SUCCEEDED
+RQ-FILTER-002,4,0.5,1.0,1.0,1.0,1,True,True,True,,VECTOR_RETRIEVAL_SUCCEEDED
+RQ-LOCATION-001,5,0.0,1.0,1.0,0.3333,3,True,True,True,0.3333,VECTOR_RETRIEVAL_SUCCEEDED

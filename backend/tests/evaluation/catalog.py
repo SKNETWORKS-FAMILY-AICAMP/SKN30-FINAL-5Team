@@ -128,6 +128,7 @@ _RECORDS: Final[tuple[ExercisePoolExerciseRecord, ...]] = (
         max_sets=2,
         min_reps=8,
         max_reps=15,
+        goal_codes=("GENERAL_FITNESS", "MOBILITY"),
     ),
     _record(
         "WARMUP_HIP_OPENER",
@@ -142,6 +143,7 @@ _RECORDS: Final[tuple[ExercisePoolExerciseRecord, ...]] = (
         max_sets=2,
         min_reps=8,
         max_reps=15,
+        goal_codes=("GENERAL_FITNESS", "MOBILITY"),
     ),
     _record(
         "WARMUP_MARCH_IN_PLACE",
@@ -156,6 +158,7 @@ _RECORDS: Final[tuple[ExercisePoolExerciseRecord, ...]] = (
         max_sets=2,
         min_reps=8,
         max_reps=20,
+        goal_codes=("GENERAL_FITNESS", "MOBILITY"),
     ),
     _record(
         "WARMUP_SHOULDER_ROLL",
@@ -170,6 +173,7 @@ _RECORDS: Final[tuple[ExercisePoolExerciseRecord, ...]] = (
         max_sets=2,
         min_reps=8,
         max_reps=15,
+        goal_codes=("GENERAL_FITNESS", "MOBILITY"),
     ),
     # --- MAIN (CORE tier) -------------------------------------------------
     _record(
@@ -179,6 +183,7 @@ _RECORDS: Final[tuple[ExercisePoolExerciseRecord, ...]] = (
         body_focus_code="LOWER_BODY",
         movement_pattern_codes=("SQUAT",),
         family_code="SQUAT_FAMILY",
+        goal_codes=("GENERAL_FITNESS", "STRENGTH"),
     ),
     _record(
         "LUNGE_FORWARD",
@@ -187,6 +192,7 @@ _RECORDS: Final[tuple[ExercisePoolExerciseRecord, ...]] = (
         body_focus_code="LOWER_BODY",
         movement_pattern_codes=("LUNGE",),
         family_code="LUNGE_FAMILY",
+        goal_codes=("GENERAL_FITNESS", "STRENGTH"),
     ),
     _record(
         "WALL_SIT",
@@ -194,6 +200,7 @@ _RECORDS: Final[tuple[ExercisePoolExerciseRecord, ...]] = (
         role_eligibility_code="CORE",
         body_focus_code="LOWER_BODY",
         movement_pattern_codes=("ISOMETRIC",),
+        goal_codes=("GENERAL_FITNESS", "STRENGTH"),
     ),
     _record(
         "PUSHUP_KNEE",
@@ -202,6 +209,7 @@ _RECORDS: Final[tuple[ExercisePoolExerciseRecord, ...]] = (
         body_focus_code="UPPER_BODY",
         movement_pattern_codes=("PUSH",),
         family_code="PUSH_FAMILY",
+        goal_codes=("GENERAL_FITNESS", "STRENGTH"),
     ),
     _record(
         "GLUTE_BRIDGE",
@@ -209,6 +217,7 @@ _RECORDS: Final[tuple[ExercisePoolExerciseRecord, ...]] = (
         role_eligibility_code="CORE",
         body_focus_code="LOWER_BODY",
         movement_pattern_codes=("HINGE",),
+        goal_codes=("GENERAL_FITNESS", "STRENGTH"),
     ),
     _record(
         "PLANK_FOREARM",
@@ -216,6 +225,7 @@ _RECORDS: Final[tuple[ExercisePoolExerciseRecord, ...]] = (
         role_eligibility_code="CORE",
         body_focus_code="TRUNK",
         movement_pattern_codes=("BRACE",),
+        goal_codes=("CORE_STABILITY", "GENERAL_FITNESS"),
     ),
     _record(
         "DEAD_BUG",
@@ -223,6 +233,7 @@ _RECORDS: Final[tuple[ExercisePoolExerciseRecord, ...]] = (
         role_eligibility_code="CORE",
         body_focus_code="TRUNK",
         movement_pattern_codes=("BRACE",),
+        goal_codes=("CORE_STABILITY", "GENERAL_FITNESS"),
     ),
     # Equipment-gated MAIN work. Present so a case can ask for a plan the
     # catalog can only satisfy with equipment the user does not have.
@@ -234,6 +245,7 @@ _RECORDS: Final[tuple[ExercisePoolExerciseRecord, ...]] = (
         movement_pattern_codes=("PULL",),
         equipment_codes=("DUMBBELL",),
         family_code="PULL_FAMILY",
+        goal_codes=("GENERAL_FITNESS", "STRENGTH"),
     ),
     _record(
         "OVERHEAD_PRESS_DUMBBELL",
@@ -242,6 +254,7 @@ _RECORDS: Final[tuple[ExercisePoolExerciseRecord, ...]] = (
         body_focus_code="UPPER_BODY",
         movement_pattern_codes=("PUSH",),
         equipment_codes=("DUMBBELL",),
+        goal_codes=("GENERAL_FITNESS", "STRENGTH"),
     ),
     # Gym-only location. Lets a case exercise the location gate.
     _record(
@@ -252,6 +265,7 @@ _RECORDS: Final[tuple[ExercisePoolExerciseRecord, ...]] = (
         movement_pattern_codes=("SQUAT",),
         equipment_codes=("MACHINE",),
         location_codes=("GYM",),
+        goal_codes=("GENERAL_FITNESS", "STRENGTH"),
     ),
     # --- COOLDOWN (SUPPORT tier) -----------------------------------------
     _record(
@@ -267,6 +281,7 @@ _RECORDS: Final[tuple[ExercisePoolExerciseRecord, ...]] = (
         max_sets=2,
         min_reps=8,
         max_reps=15,
+        goal_codes=("FLEXIBILITY", "GENERAL_FITNESS"),
     ),
     _record(
         "COOLDOWN_CHEST_STRETCH",
@@ -281,6 +296,7 @@ _RECORDS: Final[tuple[ExercisePoolExerciseRecord, ...]] = (
         max_sets=2,
         min_reps=8,
         max_reps=15,
+        goal_codes=("FLEXIBILITY", "GENERAL_FITNESS"),
     ),
     _record(
         "COOLDOWN_CHILD_POSE",
@@ -295,6 +311,7 @@ _RECORDS: Final[tuple[ExercisePoolExerciseRecord, ...]] = (
         max_sets=2,
         min_reps=8,
         max_reps=15,
+        goal_codes=("FLEXIBILITY", "GENERAL_FITNESS"),
     ),
     _record(
         "COOLDOWN_CALF_STRETCH",
@@ -309,6 +326,7 @@ _RECORDS: Final[tuple[ExercisePoolExerciseRecord, ...]] = (
         max_sets=2,
         min_reps=8,
         max_reps=15,
+        goal_codes=("FLEXIBILITY", "GENERAL_FITNESS"),
     ),
 )
 
