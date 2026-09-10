@@ -103,6 +103,37 @@ export function RewardsScreen({
   );
 }
 
+export function HelkkiPassScreen({
+  backAccessibilityLabel = '끼끼의 집으로 돌아가기',
+  onBack,
+}: {
+  backAccessibilityLabel?: string;
+  onBack: () => void;
+}) {
+  return (
+    <ScreenShell contentStyle={styles.screenContent}>
+      <View style={styles.topRow}>
+        <Pressable
+          accessibilityLabel={backAccessibilityLabel}
+          accessibilityRole="button"
+          hitSlop={10}
+          onPress={onBack}
+          style={({ pressed }) => [styles.back, pressed && styles.pressed]}
+          testID="helkki-pass-back"
+        >
+          <Text style={styles.backText}>‹</Text>
+        </Pressable>
+        <ScreenHeading
+          subtitle="끼끼와 함께하는 PASS 혜택을 미리 확인해요."
+          title="HELKKI PASS"
+        />
+      </View>
+
+      <KkikkiPassPreview />
+    </ScreenShell>
+  );
+}
+
 function RewardsTabButton({
   active,
   label,
@@ -298,10 +329,14 @@ const styles = StyleSheet.create({
     ...shadows.card,
   },
   backText: {
-    marginTop: -3,
+    width: 44,
+    height: 44,
     color: colors.text,
     fontSize: 34,
-    lineHeight: 38,
+    lineHeight: 44,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
   pressed: {
     opacity: 0.76,

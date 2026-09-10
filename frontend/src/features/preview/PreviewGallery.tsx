@@ -457,6 +457,10 @@ function calendarHistoryPreviewDetail(
     total_item_count: items.length,
     requested_duration_minutes: 30,
     items,
+    completed_plan_item_ids: items
+      .slice(0, completedItemCount)
+      .map((item) => item.plan_item_id),
+    current_plan_item_id: null,
     feedback:
       status === 'rest'
         ? null

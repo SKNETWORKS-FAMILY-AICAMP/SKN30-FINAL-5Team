@@ -1,3 +1,4 @@
+import { CloseButton } from '../../components/CloseButton';
 /**
  * 끼끼의 집 — the scene itself.
  *
@@ -586,7 +587,7 @@ export function MascotHouseContent({
   onBuyItem,
   onClaimDailyGift,
   onFeed,
-  onOpenRewards,
+  onOpenPass,
   onPet,
   onPlayGame,
   onPlaceItem,
@@ -604,7 +605,7 @@ export function MascotHouseContent({
   /** Claims today's server-paid gift; `false` when nothing was claimed. */
   onClaimDailyGift: () => boolean | Promise<boolean>;
   onFeed: () => boolean | Promise<boolean>;
-  onOpenRewards: () => void;
+  onOpenPass: () => void;
   onPet: () => boolean;
   onPlayGame: (gameId: HouseMiniGameId) => void;
   onPlaceItem: (itemId: HouseItemId, placement: HouseItemPlacement) => void;
@@ -623,7 +624,7 @@ export function MascotHouseContent({
    * decorate panel covers. Every affordance that asks "how do I earn more?" —
    * the intimacy chip, the bonus row and the quest tile — opens it, because
    * the quest list is the one answer to all three. The banana chip's `+` opens
-   * the server-backed wallet instead. It is a
+   * the HELKKI PASS preview instead. It is a
    * panel and not a screen so the backdrop, the mascot and the tab bar all
    * stay exactly where they are.
    */
@@ -876,11 +877,11 @@ export function MascotHouseContent({
                     {view.bananas}개
                   </Text>
                   <Pressable
-                    accessibilityLabel="바나나 지갑 보기"
+                    accessibilityLabel="HELKKI PASS 보기"
                     accessibilityRole="button"
                     onPress={() => {
                       setActivePanel(null);
-                      onOpenRewards();
+                      onOpenPass();
                     }}
                     style={[styles.chipPlus, { marginLeft: spacing.xs }]}
                     testID="house-banana-earn-action"
@@ -1739,15 +1740,11 @@ function MiniGamePanel({
         <View style={styles.decorateHeading}>
           <Text style={styles.weekTitle}>미니게임</Text>
         </View>
-        <Pressable
+        <CloseButton
           accessibilityLabel="미니게임 닫기"
-          accessibilityRole="button"
           onPress={onClose}
-          style={styles.closeButton}
           testID="house-game-close"
-        >
-          <Text style={styles.closeLabel}>닫기</Text>
-        </Pressable>
+        />
       </View>
 
       <ScrollView
@@ -1844,15 +1841,11 @@ function QuestPanel({
         <View style={styles.decorateHeading}>
           <Text style={styles.weekTitle}>{title}</Text>
         </View>
-        <Pressable
+        <CloseButton
           accessibilityLabel={`${title} 닫기`}
-          accessibilityRole="button"
           onPress={onClose}
-          style={styles.closeButton}
           testID="house-quest-close"
-        >
-          <Text style={styles.closeLabel}>닫기</Text>
-        </Pressable>
+        />
       </View>
 
       <View style={styles.decorateTabs}>
@@ -2042,14 +2035,7 @@ function DecoratePanel({
         <View style={styles.decorateHeading}>
           <Text style={styles.weekTitle}>집 꾸미기</Text>
         </View>
-        <Pressable
-          accessibilityLabel="집 꾸미기 닫기"
-          accessibilityRole="button"
-          onPress={onClose}
-          style={styles.closeButton}
-        >
-          <Text style={styles.closeLabel}>닫기</Text>
-        </Pressable>
+        <CloseButton accessibilityLabel="집 꾸미기 닫기" onPress={onClose} />
       </View>
 
       <View style={styles.decorateTabs}>
@@ -3152,17 +3138,6 @@ const styles = StyleSheet.create({
   },
   decorateTabLabelSelected: {
     color: colors.brandOutline,
-  },
-  closeButton: {
-    borderRadius: radii.control,
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  closeLabel: {
-    color: colors.textSub,
-    fontSize: 12,
-    fontWeight: '600',
   },
   decorateGridContent: {
     width: '100%',

@@ -612,13 +612,6 @@ export function TimePickerSheet({
       </View>
       <View style={styles.timePickerActions}>
         <Pressable
-          accessibilityRole="button"
-          onPress={onClose}
-          style={styles.timePickerCancelButton}
-        >
-          <Text style={styles.timePickerCancelLabel}>취소</Text>
-        </Pressable>
-        <Pressable
           accessibilityLabel="시간 선택 완료"
           accessibilityRole="button"
           onPress={() =>

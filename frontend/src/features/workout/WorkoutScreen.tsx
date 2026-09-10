@@ -1,3 +1,8 @@
+import {
+  RoutineSections,
+  ROUTINE_PHASE_LABELS,
+} from '../../components/RoutineSections';
+import { CloseButton } from '../../components/CloseButton';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -277,6 +282,7 @@ function WorkoutScreenContent({
     }
     return orderedWorkoutPlanItems(apiConfig.plan.items).map((item) => ({
       id: item.plan_item_id,
+      phaseCode: item.phase_code,
       exerciseId: item.exercise_id,
       instructionAvailable: item.instruction_available,
       name: item.exercise_name,
@@ -380,6 +386,39 @@ function WorkoutScreenContent({
             )
             .catch(() => undefined);
         } else if (detail.status_code === 'IN_PROGRESS') {
+          // The existing RESUME command also restores a STOPPED_RESUMABLE
+          // session. Wait for server acceptance before enabling any blocks.
+          const resume = () =>
+            apiConfig.api.recordTimerEvent(
+              apiConfig.sessionId,
+              'RESUME',
+              new Date().toISOString(),
+            );
+          let resumed;
+          try {
+            resumed = await resume();
+          } catch (error) {
+            // Legacy detail responses omit execution state. An already-running
+            // session rejects RESUME; PAUSE then RESUME is the supported path.
+            // Safety/date/auth/network failures never enable the workout.
+            if (
+              !(error instanceof ApiError) ||
+              error.code !== 'INVALID_STATE_TRANSITION'
+            )
+              throw error;
+            await apiConfig.api.recordTimerEvent(
+              apiConfig.sessionId,
+              'PAUSE',
+              new Date().toISOString(),
+            );
+            resumed = await resume();
+          }
+          if (active && resumed.accumulated_progress_seconds !== undefined) {
+            setElapsedSeconds(
+              resumed.accumulated_progress_seconds +
+                (resumed.accumulated_rest_seconds ?? 0),
+            );
+          }
           items = detail.items.map((item) => ({
             plan_item_id: item.plan_item_id,
             status_code: item.status_code,
@@ -1794,6 +1833,9 @@ function ArcBlockCard({
       testID={`workout-card-${index}`}
       onLayout={(event) => setCardHeight(event.nativeEvent.layout.height)}
     >
+      <Text style={styles.blockPhase}>
+        {ROUTINE_PHASE_LABELS[block.phaseCode ?? 'MAIN']}
+      </Text>
       <View style={styles.blockCardHeader}>
         <View
           style={[
@@ -1898,15 +1940,7 @@ function ExerciseDetailOverlay({
               {title ?? block.name}
             </Text>
           </View>
-          <Pressable
-            accessibilityLabel="설명 접기"
-            accessibilityRole="button"
-            accessibilityState={{ expanded: true }}
-            onPress={onClose}
-            style={styles.detailCloseButton}
-          >
-            <Text style={styles.detailCloseButtonText}>닫기</Text>
-          </Pressable>
+          <CloseButton accessibilityLabel="설명 접기" onPress={onClose} />
         </View>
         <ScrollView
           contentContainerStyle={styles.detailSheetContent}
@@ -1978,6 +2012,9 @@ function RestSheet({
       testID="workout-rest-overlay"
     >
       <View style={styles.restTimerCard} testID="workout-rest-timer-card">
+        <View style={styles.restCloseButton}>
+          <CloseButton onPress={onClose} accessibilityLabel="휴식 닫기" />
+        </View>
         <Text style={styles.restMessage}>휴식도 운동의 일부예요</Text>
         <Text style={styles.restLabel}>휴식 경과</Text>
         <Text
@@ -1986,15 +2023,6 @@ function RestSheet({
         >
           {formatWorkoutTime(restSeconds)}
         </Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={onClose}
-          style={styles.restEndButton}
-        >
-          <Text style={[styles.restEndButtonText, useJua && styles.jua]}>
-            돌아가기
-          </Text>
-        </Pressable>
       </View>
     </View>
   );
@@ -2003,17 +2031,29 @@ function RestSheet({
 function SheetFrame({
   children,
   title,
+  onClose,
+  closeDisabled = false,
 }: {
   children: React.ReactNode;
   title: string;
+  onClose?: () => void;
+  closeDisabled?: boolean;
 }) {
   return (
     <View accessibilityViewIsModal style={styles.sheetOverlay}>
       <View style={styles.sheet}>
         <View style={styles.sheetHandle} />
-        <Text accessibilityRole="header" style={styles.sheetTitle}>
-          {title}
-        </Text>
+        <View style={styles.detailSheetHeader}>
+          <Text
+            accessibilityRole="header"
+            style={[styles.sheetTitle, { flex: 1 }]}
+          >
+            {title}
+          </Text>
+          {onClose ? (
+            <CloseButton onPress={onClose} disabled={closeDisabled} />
+          ) : null}
+        </View>
         {children}
       </View>
     </View>
@@ -2046,9 +2086,16 @@ function StopReasonSheet({
   const canContinue =
     selectedReason !== null && (!safetySelected || acknowledged);
   return (
-    <SheetFrame title="운동을 중단하는 이유를 알려주세요">
+    <SheetFrame
+      title="운동을 중단하는 이유를 알려주세요"
+      onClose={onClose}
+      closeDisabled={pending}
+    >
       <ScrollView showsVerticalScrollIndicator={false}>
         <Text style={styles.helpSectionTitle}>일반 중단</Text>
+        <Text style={styles.helpSectionBody}>
+          진행 기록을 남기고, 오늘 안에 홈에서 이어할 수 있어요.
+        </Text>
         <View style={styles.stopReasonList}>
           {WORKOUT_STOP_REASONS.map((reason) => (
             <ChoiceButton
@@ -2174,14 +2221,6 @@ function StopReasonSheet({
                 : '이 사유로 중단하기'}
         </Text>
       </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        disabled={pending}
-        onPress={onClose}
-        style={styles.textButton}
-      >
-        <Text style={styles.textButtonLabel}>돌아가기</Text>
-      </Pressable>
     </SheetFrame>
   );
 }
@@ -2212,7 +2251,10 @@ function SymptomSheet({
         : SAFETY_GUIDANCE.mild;
 
   return (
-    <SheetFrame title="불편·이상 반응 보고">
+    <SheetFrame
+      title="불편·이상 반응 보고"
+      onClose={severe ? undefined : onClose}
+    >
       <ScrollView showsVerticalScrollIndicator={false}>
         <Text style={styles.sheetDescription}>{PAIN_REPORT_INTRO}</Text>
         <Text style={styles.choiceTitle}>어떤 일이 있었나요?</Text>
@@ -2269,15 +2311,6 @@ function SymptomSheet({
             {severe ? '보고하고 안전 중단' : '보고만 하고 계속하기'}
           </Text>
         </Pressable>
-        {!severe ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={onClose}
-            style={styles.textButton}
-          >
-            <Text style={styles.textButtonLabel}>취소</Text>
-          </Pressable>
-        ) : null}
       </ScrollView>
     </SheetFrame>
   );
@@ -2311,7 +2344,11 @@ function AdditionalActivitySheet({
   pending: boolean;
 }) {
   return (
-    <SheetFrame title="계획 외 활동 기록">
+    <SheetFrame
+      title="계획 외 활동 기록"
+      onClose={onClose}
+      closeDisabled={pending}
+    >
       <ScrollView showsVerticalScrollIndicator={false}>
         <Text style={styles.sheetDescription}>
           계획한 블록과 별개로 추가 활동을 남겨요. 이 기록은 운동 완료 상태를
@@ -2371,14 +2408,6 @@ function AdditionalActivitySheet({
             {pending ? '저장 중…' : '추가 활동 저장'}
           </Text>
         </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          disabled={pending}
-          onPress={onClose}
-          style={styles.textButton}
-        >
-          <Text style={styles.textButtonLabel}>돌아가기</Text>
-        </Pressable>
       </ScrollView>
     </SheetFrame>
   );
@@ -2437,7 +2466,11 @@ function NotCompletedSheet({
   pending: boolean;
 }) {
   return (
-    <SheetFrame title="오늘 운동을 마치지 못한 이유">
+    <SheetFrame
+      title="오늘 운동을 마치지 못한 이유"
+      onClose={onClose}
+      closeDisabled={pending}
+    >
       <Text style={styles.sheetDescription}>
         남긴 이유는 다음 추천을 위한 참고 정보로만 사용해요.
       </Text>
@@ -2455,14 +2488,6 @@ function NotCompletedSheet({
         ))}
       </View>
       {error ? <Text style={styles.inlineError}>{error}</Text> : null}
-      <Pressable
-        accessibilityRole="button"
-        disabled={pending}
-        onPress={onClose}
-        style={styles.textButton}
-      >
-        <Text style={styles.textButtonLabel}>돌아가기</Text>
-      </Pressable>
     </SheetFrame>
   );
 }
@@ -2533,30 +2558,34 @@ function ResultScreen({
             ))}
           </View>
           <View style={styles.resultItems}>
-            {blocks.map((block) => {
-              const done = block.status === 'COMPLETED';
-              return (
-                <View key={block.id} style={styles.resultItem}>
-                  <View style={styles.resultItemNameWrap}>
-                    <View
+            <RoutineSections
+              items={blocks}
+              getPhase={(block) => block.phaseCode}
+              renderItem={(block) => {
+                const done = block.status === 'COMPLETED';
+                return (
+                  <View key={block.id} style={styles.resultItem}>
+                    <View style={styles.resultItemNameWrap}>
+                      <View
+                        style={[
+                          styles.resultItemDot,
+                          done && styles.resultItemDotDone,
+                        ]}
+                      />
+                      <Text style={styles.resultItemName}>{block.name}</Text>
+                    </View>
+                    <Text
                       style={[
-                        styles.resultItemDot,
-                        done && styles.resultItemDotDone,
+                        styles.resultItemValue,
+                        done && styles.resultItemValueDone,
                       ]}
-                    />
-                    <Text style={styles.resultItemName}>{block.name}</Text>
+                    >
+                      {done ? '완료' : '미완료'}
+                    </Text>
                   </View>
-                  <Text
-                    style={[
-                      styles.resultItemValue,
-                      done && styles.resultItemValueDone,
-                    ]}
-                  >
-                    {done ? '완료' : '미완료'}
-                  </Text>
-                </View>
-              );
-            })}
+                );
+              }}
+            />
           </View>
           {reportNote ? (
             <View style={styles.reportNote}>
@@ -2688,6 +2717,12 @@ function getWorkoutFixture(state: WorkoutPreviewState): WorkoutFixture {
 }
 
 const styles = StyleSheet.create({
+  blockPhase: {
+    color: '#958476',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
   screen: { flex: 1, overflow: 'hidden', backgroundColor: colors.canvas },
   timerHeader: {
     flexShrink: 0,
@@ -3272,6 +3307,15 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
   },
+  restCloseButton: {
+    position: 'absolute',
+    top: 0,
+    right: 6,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   restMessage: {
     color: colors.text,
     fontSize: 18,
@@ -3312,18 +3356,6 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     fontWeight: '700',
   },
-  restEndButton: {
-    width: '100%',
-    minHeight: 46,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 22,
-    borderRadius: 16,
-    backgroundColor: colors.yellow,
-    paddingVertical: 13,
-    paddingHorizontal: 17,
-  },
-  restEndButtonText: { color: '#342E17', fontSize: 16, fontWeight: '900' },
   sheetOverlay: {
     position: 'absolute',
     top: 0,
@@ -3380,22 +3412,6 @@ const styles = StyleSheet.create({
   },
   detailSheetTitle: {
     marginTop: 4,
-  },
-  detailCloseButton: {
-    minWidth: 52,
-    minHeight: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 13,
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: 12,
-  },
-  detailCloseButtonText: {
-    color: colors.textSub,
-    fontSize: 13,
-    fontWeight: '800',
   },
   detailSheetScroll: {
     flexShrink: 1,
@@ -3479,17 +3495,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.15,
     textAlign: 'center',
-  },
-  textButton: {
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 6,
-  },
-  textButtonLabel: {
-    color: colors.textMuted,
-    fontSize: 13.5,
-    fontWeight: '700',
   },
   choiceTitle: {
     marginTop: 16,

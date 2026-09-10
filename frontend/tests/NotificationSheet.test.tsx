@@ -27,6 +27,32 @@ function notification(
 }
 
 describe('NotificationSheet', () => {
+  it('normalizes legacy mascot names in server titles and messages only for display', () => {
+    const original = notification({
+      title: '키키가 기다리고 있어요',
+      message: '키키의 집에서 키키를 만나세요.',
+    });
+    const onSelect = jest.fn();
+    render(
+      <NotificationSheet
+        onRetry={jest.fn()}
+        onSelect={onSelect}
+        pendingNotificationId={null}
+        response={{ items: [original], unread_count: 1 }}
+        status="ready"
+        visible
+      />,
+    );
+    expect(screen.getByText('끼끼가 기다리고 있어요')).toBeOnTheScreen();
+    expect(
+      screen.getByText('끼끼의 집에서 끼끼를 만나세요.'),
+    ).toBeOnTheScreen();
+    fireEvent.press(
+      screen.getByRole('button', { name: '끼끼가 기다리고 있어요 알림 확인' }),
+    );
+    expect(onSelect).toHaveBeenCalledWith(original);
+    expect(original.title).toBe('키키가 기다리고 있어요');
+  });
   it('uses the remaining count and separates one workout from multiple', () => {
     expect(
       notificationTitle(

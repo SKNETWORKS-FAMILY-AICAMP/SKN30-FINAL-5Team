@@ -1,3 +1,4 @@
+import { CloseButton } from '../../components/CloseButton';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -436,9 +437,12 @@ function ConfirmationDialog({
   return (
     <View accessibilityViewIsModal style={styles.dialogOverlay}>
       <Card style={styles.dialogCard}>
-        <Text accessibilityRole="header" style={styles.dialogTitle}>
-          {withdrawing ? '회원 탈퇴할까요?' : '로그아웃할까요?'}
-        </Text>
+        <View style={styles.dialogHeader}>
+          <Text accessibilityRole="header" style={styles.dialogTitle}>
+            {withdrawing ? '회원 탈퇴할까요?' : '로그아웃할까요?'}
+          </Text>
+          <CloseButton onPress={onCancel} disabled={pending} />
+        </View>
         <Text style={styles.dialogMessage}>
           {withdrawing
             ? '탈퇴하면 운동 기록과 헬끼와의 대화가 모두 삭제되고 되돌릴 수 없어요.'
@@ -453,12 +457,6 @@ function ConfirmationDialog({
             onPress={onConfirm}
             style={withdrawing ? styles.dangerButton : undefined}
             tone={withdrawing ? 'secondary' : 'primary'}
-          />
-          <Button
-            disabled={pending}
-            label="취소"
-            onPress={onCancel}
-            tone="secondary"
           />
         </View>
       </Card>
@@ -475,6 +473,12 @@ const shadow = {
 } as const;
 
 const styles = StyleSheet.create({
+  dialogHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
   screen: {
     flex: 1,
     overflow: 'hidden',

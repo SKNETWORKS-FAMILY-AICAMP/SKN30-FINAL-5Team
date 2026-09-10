@@ -1,4 +1,7 @@
-import { RestIcon } from './HomeSupport';
+import {
+  PartialStatusIcon,
+  RestStatusIcon,
+} from '../../components/StatusIcons';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -682,29 +685,38 @@ function CalendarStatusMark({
   testID: string;
 }) {
   const visual = CALENDAR_DAY_VISUALS[status];
+  /**
+   * Partial and rest use the shared status vectors, which carry their own disc
+   * and palette, so the wrapper drops its circle instead of drawing a second
+   * one behind them. `CALENDAR_DAY_VISUALS` still supplies the label and accent
+   * color those statuses need in the legend and the week stats.
+   */
+  const vectorMark =
+    !beforeRoutineStart && (status === 'partial' || status === 'rest');
+  const markColors = beforeRoutineStart
+    ? { backgroundColor: '#A9A49B', borderColor: '#8B8780' }
+    : vectorMark
+      ? { backgroundColor: 'transparent', borderColor: 'transparent' }
+      : {
+          backgroundColor: visual.backgroundColor,
+          borderColor: visual.borderColor,
+        };
 
   return (
     <View
       style={[
         styles.statusMark,
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: beforeRoutineStart
-            ? '#A9A49B'
-            : visual.backgroundColor,
-          borderColor: beforeRoutineStart ? '#8B8780' : visual.borderColor,
-        },
+        { width: size, height: size, borderRadius: size / 2 },
+        markColors,
       ]}
       testID={testID}
     >
-      {!beforeRoutineStart && status === 'rest' ? (
-        <RestIcon
-          color={visual.color}
-          size={size * 0.8}
-          testID={`${testID}-moon`}
-        />
+      {vectorMark ? (
+        status === 'rest' ? (
+          <RestStatusIcon size={size} testID={`${testID}-moon`} />
+        ) : (
+          <PartialStatusIcon size={size} testID={`${testID}-partial`} />
+        )
       ) : (
         <Text
           style={[

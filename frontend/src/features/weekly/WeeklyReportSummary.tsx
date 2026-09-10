@@ -17,8 +17,10 @@ import {
 import type { WeeklyReportResponse } from '../../api/types';
 import { imageAssets } from '../../assets';
 import { colors } from '../../components/theme';
-import { CALENDAR_DAY_VISUALS } from '../home/homeSecondaryModel';
-import { RestIcon } from '../home/HomeSupport';
+import {
+  PartialStatusIcon,
+  RestStatusIcon,
+} from '../../components/StatusIcons';
 
 type WeeklyReportSummaryProps = {
   report: WeeklyReportResponse;
@@ -523,38 +525,17 @@ type ReportIconName =
   'complete' | 'partial' | 'rest' | 'safety' | 'time' | 'calories' | 'exercise';
 
 function ReportIcon({ name }: { name: ReportIconName }) {
+  // Partial and rest share the calendar's status vectors so both report
+  // surfaces read the same mark for the same outcome.
   if (name === 'rest') {
-    return (
-      <RestIcon
-        color={CALENDAR_DAY_VISUALS.rest.accentColor}
-        size={28}
-        testID="weekly-report-icon-rest"
-      />
-    );
+    return <RestStatusIcon size={28} testID="weekly-report-icon-rest" />;
   }
   if (name === 'partial') {
-    const visual = CALENDAR_DAY_VISUALS.partial;
-    return (
-      <View
-        accessible={false}
-        style={[
-          styles.partialIcon,
-          {
-            backgroundColor: visual.backgroundColor,
-            borderColor: visual.borderColor,
-          },
-        ]}
-        testID="weekly-report-partial-icon"
-      >
-        <Text style={[styles.partialGlyph, { color: visual.color }]}>
-          {visual.glyph}
-        </Text>
-      </View>
-    );
+    return <PartialStatusIcon size={28} testID="weekly-report-partial-icon" />;
   }
   const paths: Record<ReportIconName, string> = {
     complete: 'M7 12l3 3 7-7',
-    partial: 'M12 3v9l6 6',
+    partial: '',
     rest: '',
     safety: 'M12 6v7M12 17h0',
     time: 'M12 6v6l4 2',
@@ -564,8 +545,6 @@ function ReportIcon({ name }: { name: ReportIconName }) {
   };
   const fills: Partial<Record<ReportIconName, string>> = {
     complete: '#6DA952',
-    partial: colors.primary,
-    rest: '#A9A49E',
     safety: '#FCE3E7',
   };
   const fill = fills[name];
@@ -796,19 +775,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 20,
-  },
-  partialIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  partialGlyph: {
-    fontSize: 16.8,
-    lineHeight: 16.8,
-    fontWeight: '800',
-    textAlign: 'center',
   },
 });

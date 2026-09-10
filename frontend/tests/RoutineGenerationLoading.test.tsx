@@ -27,7 +27,7 @@ describe('RoutineGenerationLoading', () => {
 
     expect(
       screen.getByTestId('routine-generation-message').props.children[0],
-    ).toBe('끼끼가 오늘의 운동 재료를 하나씩 모으는 중');
+    ).toBe('끼끼가 오늘의 운동\n재료를 하나씩 모으는 중');
     expect(screen.getByTestId('routine-generation-dots').props.children).toBe(
       '.',
     );
@@ -66,7 +66,7 @@ describe('RoutineGenerationLoading', () => {
     act(() => jest.advanceTimersByTime(2_000));
     expect(
       screen.getByTestId('routine-generation-message').props.children[0],
-    ).toBe('끼끼의 바나나가 안전 수칙을 꼼꼼히 확인하는 중');
+    ).toBe('끼끼의 바나나가 안전\n수칙을 꼼꼼히 확인하는 중');
     expect(screen.getByTestId('routine-generation-dots').props.children).toBe(
       '.',
     );
@@ -88,7 +88,7 @@ describe('RoutineGenerationLoading', () => {
     act(() => jest.advanceTimersByTime(0));
     expect(
       screen.getByTestId('routine-generation-message').props.children[0],
-    ).toBe('조금만 기다려 주세요. 안전한 루틴인지 마지막으로 확인하는 중');
+    ).toBe('조금만 기다려 주세요.\n안전한 루틴인지 마지막으로 확인하는 중');
     expect(screen.getByTestId('routine-generation-dots').props.children).toBe(
       '.',
     );
@@ -132,7 +132,7 @@ describe('RoutineGenerationLoading', () => {
 
     expect(
       screen.getByTestId('routine-generation-message').props.children[0],
-    ).toBe('끼끼가 운동 순서와 쉬는 시간을 정리하는 중');
+    ).toBe('끼끼가 운동 순서와\n쉬는 시간을 정리하는 중');
     expect(
       screen.getByTestId('routine-generation-progress').props
         .accessibilityValue,
@@ -165,5 +165,16 @@ describe('RoutineGenerationLoading', () => {
     ).toBeNull();
 
     view.unmount();
+  });
+
+  it('keeps long loading copy to two word-boundary lines', () => {
+    render(<RoutineGenerationLoading phaseCode="FINAL_VALIDATION" />);
+
+    const message = screen.getByTestId('routine-generation-message');
+    expect(message.props.children[0]).toBe(
+      '조금만 기다려 주세요.\n안전한 루틴인지 마지막으로 확인하는 중',
+    );
+    expect(message).toHaveProp('numberOfLines', 2);
+    expect(message).toHaveProp('lineBreakStrategyIOS', 'hangul-word');
   });
 });

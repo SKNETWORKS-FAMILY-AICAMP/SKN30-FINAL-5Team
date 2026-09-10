@@ -109,7 +109,7 @@ describe('App boot navigation', () => {
       screen.getByRole('header', { name: 'Preview Gallery' }),
     ).toBeOnTheScreen();
     expect(
-      await screen.findByRole('button', { name: '오늘 루틴 체크인' }),
+      await screen.findByRole('button', { name: '운동 체크인' }),
     ).toBeOnTheScreen();
     expect(bootResolver).not.toHaveBeenCalled();
   });
@@ -158,7 +158,7 @@ describe('App boot navigation', () => {
     {
       mode: 'notifications' as const,
       label: 'Home (API)',
-      readyText: '오늘 운동을 준비해볼까요?',
+      readyText: '운동을 준비해볼까요?',
     },
     {
       mode: 'loading' as const,

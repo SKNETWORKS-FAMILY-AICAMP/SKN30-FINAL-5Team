@@ -6,9 +6,10 @@
  * framing.
  */
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { createIdempotencyKey } from '../../api/client';
 import type { Api } from '../../api/endpoints';
 import { useAsyncAction } from '../../api/useAsync';
 import { MascotStage } from '../../components/brand/BrandChrome';
@@ -171,6 +172,10 @@ function FeedbackCard({
   const [hardDifficultyDetails, setHardDifficultyDetails] = useState<
     HardDifficultyDetailCode[]
   >([]);
+  const feedbackAttempt = useRef<{
+    idempotencyKey: string;
+    payloadFingerprint: string;
+  } | null>(null);
   const [saved, setSaved] = useState(false);
   const [savedGuidance, setSavedGuidance] = useState<string | null>(null);
 
@@ -191,7 +196,7 @@ function FeedbackCard({
 
   const feedback = useAsyncAction(async () => {
     if (difficulty === null) return;
-    const response = await api.submitFeedback(sessionId, {
+    const payload = {
       difficulty_code: difficulty,
       // Only `HARD` may carry reasons; the server rejects them otherwise rather
       // than dropping them, so sending an empty list off `HARD` is deliberate.
@@ -202,7 +207,19 @@ function FeedbackCard({
       pain_occurred: legacyPainOccurred,
       discomforts: [],
       adverse_reaction_codes: [],
-    });
+    };
+    const payloadFingerprint = JSON.stringify(payload);
+    if (feedbackAttempt.current?.payloadFingerprint !== payloadFingerprint) {
+      feedbackAttempt.current = {
+        idempotencyKey: createIdempotencyKey(),
+        payloadFingerprint,
+      };
+    }
+    const response = await api.submitFeedback(
+      sessionId,
+      payload,
+      feedbackAttempt.current.idempotencyKey,
+    );
     setSaved(true);
     setSavedGuidance(response.guidance);
     onDone();

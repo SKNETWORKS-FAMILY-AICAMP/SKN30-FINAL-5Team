@@ -383,6 +383,13 @@ function sessionDetail(
       completed_at:
         index < completedCount ? `${LOCAL_DATE}T08:15:00+09:00` : null,
     })),
+    completed_plan_item_ids: plan()
+      .items.slice(0, completedCount)
+      .map((item) => item.plan_item_id),
+    current_plan_item_id:
+      status === 'IN_PROGRESS' || status === 'PLANNED'
+        ? (plan().items[completedCount]?.plan_item_id ?? null)
+        : null,
     feedback: null,
     not_completed_reason_code: null,
     started_at: `${LOCAL_DATE}T08:00:00+09:00`,
@@ -394,6 +401,35 @@ function sessionDetail(
 }
 
 export function homePreviewProps(state: HomePreviewState): HomeScreenProps {
+  if (state === 'routine-phases') {
+    const props = homePreviewProps('routine');
+    const base = decision(false);
+    const source = plan();
+    return {
+      ...props,
+      decision: {
+        ...base,
+        final_plan: {
+          ...source,
+          items: [
+            ...source.items.map((item, index) => ({
+              ...item,
+              phase_code: index === 0 ? ('WARMUP' as const) : ('MAIN' as const),
+            })),
+            {
+              ...source.items[0]!,
+              plan_item_id: 'phase-cooldown',
+              exercise_name: '마무리 스트레칭',
+              sequence: 4,
+              phase_code: 'COOLDOWN',
+              instruction_available: false,
+            },
+          ],
+        },
+      },
+    };
+  }
+
   const showsRoutineLookup =
     state === 'routine-lookup-loading' || state === 'routine-lookup-failed';
   const showsRoutine =

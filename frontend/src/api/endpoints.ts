@@ -460,7 +460,12 @@ export function createApi(client: ApiClient) {
       eventCode: 'START' | 'PAUSE' | 'RESUME' | 'END',
       occurredAt: string,
     ) {
-      return client.request<{ event_id: string }>({
+      return client.request<{
+        event_id: string;
+        accumulated_progress_seconds?: number;
+        accumulated_rest_seconds?: number;
+        accumulated_paused_seconds?: number;
+      }>({
         method: 'POST',
         path: `/workout-sessions/${sessionId}/timer-events`,
         body: {
@@ -559,19 +564,21 @@ export function createApi(client: ApiClient) {
       sessionId: string,
       body: {
         difficulty_code: 'EASY' | 'APPROPRIATE' | 'HARD';
+        difficulty_reason_codes?: ('MOVEMENT_DIFFICULT' | 'VOLUME_HIGH')[];
         fatigue_code?: string | null;
         satisfaction_code?: string | null;
-        difficulty_reason_codes?: ('VOLUME_HIGH' | 'MOVEMENT_DIFFICULT')[];
         pain_occurred: boolean;
         discomforts: { body_area_code: string; severity_code: string }[];
         adverse_reaction_codes: string[];
       },
+      idempotencyKey?: string,
     ) {
       return client.request<WorkoutFeedbackResponse>({
         method: 'POST',
         path: `/workout-sessions/${sessionId}/feedback`,
         body,
         idempotent: true,
+        idempotencyKey,
       });
     },
 

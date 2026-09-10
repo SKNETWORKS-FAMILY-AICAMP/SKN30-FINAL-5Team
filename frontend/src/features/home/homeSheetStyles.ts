@@ -46,16 +46,6 @@ export function createHomeSheetStyles(
       gap: s(10),
     },
     sheetTitle: { color: '#5A4636', fontSize: f(18), fontWeight: '800' },
-    closeButton: {
-      width: s(44),
-      height: s(44),
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: s(-10),
-      marginRight: s(-12),
-      marginBottom: s(-10),
-    },
-    closeText: { color: '#958476', fontSize: f(22) },
     sheetIntro: {
       marginTop: s(4),
       color: '#958476',
@@ -366,21 +356,6 @@ export function createHomeSheetStyles(
       flexDirection: 'row',
       gap: s(10),
       marginTop: s(18),
-    },
-    timePickerCancelButton: {
-      minHeight: s(48),
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: s(1),
-      borderColor: '#D8D4CB',
-      borderRadius: s(14),
-      backgroundColor: '#FFFFFF',
-    },
-    timePickerCancelLabel: {
-      color: '#6F6B64',
-      fontSize: f(15),
-      fontWeight: '700',
     },
     timePickerConfirmButton: {
       minHeight: s(48),

@@ -45,7 +45,7 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.getByText('루틴 준비 중')).toBeOnTheScreen();
     expect(
       screen.getByTestId('routine-generation-message').props.children[0],
-    ).toBe('끼끼가 오늘의 운동 재료를 하나씩 모으는 중');
+    ).toBe('끼끼가 오늘의 운동\n재료를 하나씩 모으는 중');
     expect(
       StyleSheet.flatten(
         screen.getByTestId('routine-loading-slot').props.style,
@@ -63,7 +63,7 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.getByText('상체 근력 · 40분')).toBeOnTheScreen();
     expect(screen.queryByText('상체 근력 루틴')).toBeNull();
     expect(
-      screen.getByText('운동 순서는 자유롭게 바꿀 수 있어요.'),
+      screen.getByText('운동 순서를 바꿔서 진행할 수 있어요'),
     ).toBeOnTheScreen();
   });
 
@@ -81,7 +81,7 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.getByTestId('routine-loading-slot')).toBeOnTheScreen();
     expect(
       screen.getByTestId('routine-generation-message').props.children[0],
-    ).toBe('끼끼가 오늘의 운동 재료를 하나씩 모으는 중');
+    ).toBe('끼끼가 오늘의 운동\n재료를 하나씩 모으는 중');
     expect(screen.queryByTestId('home-empty-state')).toBeNull();
     expect(screen.queryByTestId('home-routine-state')).toBeNull();
 
@@ -94,7 +94,7 @@ describe('HomeScreen Home v1 transcription', () => {
     );
     expect(
       screen.getByTestId('routine-generation-message').props.children[0],
-    ).toBe('조금만 기다려 주세요. 안전한 루틴인지 마지막으로 확인하는 중');
+    ).toBe('조금만 기다려 주세요.\n안전한 루틴인지 마지막으로 확인하는 중');
 
     view.rerender(
       <HomeScreen
@@ -117,6 +117,22 @@ describe('HomeScreen Home v1 transcription', () => {
     );
     expect(progressStyle.height).toBeGreaterThan(placeholderStyle.height);
     expect(progressStyle.borderWidth).toBeGreaterThan(0);
+  });
+
+  it('keeps the generation screen visible while Home data reloads on re-entry', () => {
+    render(
+      <HomeScreen
+        busy="decision-generation"
+        context={null}
+        decision={null}
+        routine={null}
+        status="loading"
+      />,
+    );
+
+    expect(screen.getByTestId('routine-generation-loading')).toBeOnTheScreen();
+    expect(screen.queryByTestId('home-routine-lookup-loading')).toBeNull();
+    expect(screen.queryByRole('button', { name: '운동 체크인' })).toBeNull();
   });
 
   it('reuses the setup screen while the saved base routine is being loaded', () => {
@@ -428,7 +444,7 @@ describe('HomeScreen Home v1 transcription', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '오늘 루틴 체크인' }));
+    fireEvent.press(screen.getByRole('button', { name: '운동 체크인' }));
     expect(screen.getByText('통증이 있는 부위가 있나요?')).toBeOnTheScreen();
     fireEvent.press(screen.getByRole('button', { name: '헬스장' }));
     fireEvent.press(
@@ -484,7 +500,14 @@ describe('HomeScreen Home v1 transcription', () => {
         />,
       );
 
-      fireEvent.press(screen.getByRole('button', { name: '다시 체크인하기' }));
+      const safetyCard = screen.getByTestId('home-safety-decision');
+      const recheckButton = within(safetyCard).getByRole('button', {
+        name: '다시 체크인하기',
+      });
+      expect(
+        screen.getAllByRole('button', { name: '다시 체크인하기' }),
+      ).toHaveLength(1);
+      fireEvent.press(recheckButton);
 
       expect(
         screen.getByRole('header', { name: '컨디션 체크' }),
@@ -500,11 +523,11 @@ describe('HomeScreen Home v1 transcription', () => {
     render(<HomeScreen {...homePreviewProps('rest')} />);
 
     expect(
-      screen.getByRole('button', { name: '다시 체크인하기' }),
+      within(screen.getByTestId('home-rest-today')).getByRole('button', {
+        name: '다시 체크인하기',
+      }),
     ).toBeOnTheScreen();
-    expect(
-      screen.queryByRole('button', { name: '오늘 루틴 체크인' }),
-    ).toBeNull();
+    expect(screen.queryByRole('button', { name: '운동 체크인' })).toBeNull();
   });
 
   it('does not mount the preserved rest button after check-in', () => {
@@ -541,7 +564,7 @@ describe('HomeScreen Home v1 transcription', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '오늘 루틴 체크인' }));
+    fireEvent.press(screen.getByRole('button', { name: '운동 체크인' }));
     expect(screen.queryByText('오늘 운동 가능한 시간대')).toBeNull();
     expect(
       screen.queryByRole('button', { name: '가능 시간대 추가' }),
@@ -1212,7 +1235,7 @@ describe('HomeScreen Home v1 transcription', () => {
   it('starts workout duration at 30 minutes and adjusts it by ten', () => {
     render(<HomeScreen {...homePreviewProps('pre-checkin')} />);
 
-    fireEvent.press(screen.getByRole('button', { name: '오늘 루틴 체크인' }));
+    fireEvent.press(screen.getByRole('button', { name: '운동 체크인' }));
     expect(screen.getByLabelText('운동 가능 시간 30분')).toBeOnTheScreen();
     fireEvent.press(
       screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
@@ -1232,7 +1255,7 @@ describe('HomeScreen Home v1 transcription', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '오늘 루틴 체크인' }));
+    fireEvent.press(screen.getByRole('button', { name: '운동 체크인' }));
     expect(
       screen.getByRole('button', { name: '통증 있어요' }).props
         .accessibilityState.selected,
@@ -1317,7 +1340,7 @@ describe('HomeScreen Home v1 transcription', () => {
         onSubmitCheckin={onSubmitCheckin}
       />,
     );
-    fireEvent.press(screen.getByRole('button', { name: '오늘 루틴 체크인' }));
+    fireEvent.press(screen.getByRole('button', { name: '운동 체크인' }));
     fireEvent.press(screen.getByRole('button', { name: '통증 있어요' }));
     const painPrompt = '통증이 있는 부위를 모두 선택해주세요.';
     expect(
@@ -1355,7 +1378,7 @@ describe('HomeScreen Home v1 transcription', () => {
         onSubmitCheckin={onSubmitCheckin}
       />,
     );
-    fireEvent.press(screen.getByRole('button', { name: '오늘 루틴 체크인' }));
+    fireEvent.press(screen.getByRole('button', { name: '운동 체크인' }));
     expect(
       screen.getByRole('button', { name: '팔꿈치' }).props.accessibilityState
         .selected,
@@ -1383,7 +1406,7 @@ describe('HomeScreen Home v1 transcription', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '오늘 루틴 체크인' }));
+    fireEvent.press(screen.getByRole('button', { name: '운동 체크인' }));
     for (let count = 0; count < 2; count += 1) {
       fireEvent.press(
         screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
@@ -1414,7 +1437,7 @@ describe('HomeScreen Home v1 transcription', () => {
       />,
     );
 
-    fireEvent.press(screen.getByRole('button', { name: '오늘 루틴 체크인' }));
+    fireEvent.press(screen.getByRole('button', { name: '운동 체크인' }));
     expect(screen.queryByText(/권장 운동 시간/)).toBeNull();
 
     for (let count = 0; count < 6; count += 1) {
@@ -1527,7 +1550,7 @@ describe('HomeScreen Home v1 transcription', () => {
   it('isolates check-in draft changes until save and discards them on close', () => {
     render(<HomeScreen previewState="routine" />);
 
-    fireEvent.press(screen.getByRole('button', { name: '오늘 루틴 체크인' }));
+    fireEvent.press(screen.getByRole('button', { name: '운동 체크인' }));
     fireEvent.press(screen.getByRole('button', { name: '통증 있어요' }));
     fireEvent.press(screen.getByRole('button', { name: '어깨' }));
     expect(
@@ -1535,7 +1558,7 @@ describe('HomeScreen Home v1 transcription', () => {
     ).toBeNull();
     fireEvent.press(screen.getByRole('button', { name: '닫기' }));
 
-    fireEvent.press(screen.getByRole('button', { name: '오늘 루틴 체크인' }));
+    fireEvent.press(screen.getByRole('button', { name: '운동 체크인' }));
     expect(
       screen.getByRole('button', { name: '통증 없어요' }).props
         .accessibilityState.selected,
@@ -1591,9 +1614,7 @@ describe('HomeScreen Home v1 transcription', () => {
       />,
     );
 
-    expect(
-      screen.queryByRole('button', { name: '오늘 루틴 체크인' }),
-    ).toBeNull();
+    expect(screen.queryByRole('button', { name: '운동 체크인' })).toBeNull();
     fireEvent.press(
       screen.getByRole('button', { name: '다른 루틴 추천 받기' }),
     );
@@ -1673,9 +1694,8 @@ describe('HomeScreen Home v1 transcription', () => {
     expect(screen.queryByRole('button', { name: '이어하기' })).toBeNull();
     expect(screen.queryByRole('button', { name: '운동 시작하기' })).toBeNull();
     expect(screen.getByText(/진행 기록은 그대로 보관됩니다/)).toBeOnTheScreen();
-    expect(
-      screen.getByText('컨디션에 맞춘 운동을 준비했어요'),
-    ).toBeOnTheScreen();
+    expect(screen.getByText('오늘은 회복에 집중해요')).toBeOnTheScreen();
+    expect(screen.queryByText('컨디션에 맞춘 운동을 준비했어요')).toBeNull();
     expect(screen.queryByText('조금만 더 힘내요!')).toBeNull();
   });
 
@@ -1769,6 +1789,8 @@ describe('HomeScreen Home v1 transcription', () => {
     const onSaveEdit = jest.fn();
     render(<HomeScreen onSaveEdit={onSaveEdit} previewState="routine" />);
 
+    expect(screen.getByTestId('routine-drag-warm-up')).toBeOnTheScreen();
+    expect(screen.getByTestId('routine-drag-cool-down')).toBeOnTheScreen();
     fireEvent(
       screen.getByTestId('routine-drag-warm-up'),
       'accessibilityAction',
@@ -1776,17 +1798,26 @@ describe('HomeScreen Home v1 transcription', () => {
         nativeEvent: { actionName: 'increment' },
       },
     );
+    fireEvent(
+      screen.getByTestId('routine-drag-push-up'),
+      'accessibilityAction',
+      {
+        nativeEvent: { actionName: 'increment' },
+      },
+    );
     fireEvent.press(screen.getByRole('button', { name: '운동 수정하기' }));
-    fireEvent(screen.getByTestId('edit-drag-warm-up'), 'accessibilityAction', {
+    fireEvent(screen.getByTestId('edit-drag-push-up'), 'accessibilityAction', {
       nativeEvent: { actionName: 'increment' },
     });
     fireEvent.press(screen.getByRole('button', { name: '저장하기' }));
 
     const saved = onSaveEdit.mock.calls[0]?.[0] as HomeRoutineItem[];
-    expect(saved.slice(0, 3).map((item) => item.id)).toEqual([
-      'push-up',
-      'band-row',
+    expect(saved.map((item) => item.id)).toEqual([
       'warm-up',
+      'band-row',
+      'shoulder-press',
+      'push-up',
+      'cool-down',
     ]);
   });
 
@@ -1798,7 +1829,7 @@ describe('HomeScreen Home v1 transcription', () => {
       '프로필 열기',
       '이번 주 운동 현황 설명 보기',
       '월별·연별 기록 달력 보기',
-      '오늘 루틴 체크인',
+      '운동 체크인',
       '운동 시작하기',
       '운동 수정하기',
       '다른 루틴 추천 받기',
@@ -1862,23 +1893,23 @@ describe('HomeScreen Home v1 transcription', () => {
       </ScaleViewportProvider>,
     );
 
-    const button = screen.getByRole('button', { name: '오늘 루틴 체크인' });
+    const button = screen.getByRole('button', { name: '운동 체크인' });
     const greetingStyle = StyleSheet.flatten(
-      screen.getByRole('header').props.style,
+      screen.getByRole('header', { name: /님, 오늘도 반가워요/ }).props.style,
     );
     const progressTitleStyle = StyleSheet.flatten(
       screen.getByText('이번 주 운동 현황').props.style,
     );
     const buttonStyle = StyleSheet.flatten(button.props.style);
     const labelStyle = StyleSheet.flatten(
-      screen.getByText('오늘 루틴 체크인').props.style,
+      screen.getByText('운동 체크인').props.style,
     );
     const chevronStyle = StyleSheet.flatten(
       screen.getByTestId('home-checkin-chevron').props.style,
     );
     const gradient = screen.getByTestId('home-checkin-gradient');
 
-    expect(screen.getAllByText('오늘 루틴 체크인')).toHaveLength(1);
+    expect(screen.getAllByText('운동 체크인')).toHaveLength(1);
     expect(screen.queryByText('🍌')).toBeNull();
     expect(buttonStyle).toMatchObject({
       alignItems: 'center',

@@ -83,6 +83,8 @@ export function MainFlow({
     message: string;
   } | null>(null);
   const [decision, setDecision] = useState<DecisionResponse | null>(null);
+  const [decisionGenerationLocalDate, setDecisionGenerationLocalDate] =
+    useState<string | null>(null);
   const [planRevision, setPlanRevision] =
     useState<WeeklyPlanRevisionResponse | null>(null);
   const [recoveryNonce, setRecoveryNonce] = useState(0);
@@ -438,6 +440,9 @@ export function MainFlow({
                 : undefined
             }
             decision={decision}
+            decisionGenerationPending={
+              decisionGenerationLocalDate === localDate
+            }
             todaySession={todaySession}
             alternativeUsedCount={
               alternativeUsage.localDate === localDate
@@ -475,6 +480,11 @@ export function MainFlow({
               }))
             }
             onDecisionChange={setDecision}
+            onDecisionGenerationPendingChange={(pending) =>
+              setDecisionGenerationLocalDate((current) =>
+                pending ? localDate : current === localDate ? null : current,
+              )
+            }
             planRevision={planRevision}
             onSessionStarted={(sessionId, plan, locationCode) => {
               setStep({ name: 'session', sessionId, plan, locationCode });

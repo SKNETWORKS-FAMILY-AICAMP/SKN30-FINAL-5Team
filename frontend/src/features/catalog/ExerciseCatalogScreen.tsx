@@ -23,7 +23,6 @@ import {
   bodyFocusLabel,
   equipmentLabel,
   experienceLevelLabel,
-  SELECTABLE_BODY_AREA_OPTIONS,
   trainingTypeLabel,
 } from '../../api/labels';
 import type { ExerciseListItem, ExerciseListResponse } from '../../api/types';
@@ -42,9 +41,30 @@ import {
   type ExerciseGuideContext,
 } from '../workout/ExerciseDetailSheet';
 
-const BODY_AREA_FILTERS = [
+const BODY_FOCUS_FILTER_CODES = [
+  'CHEST',
+  'BACK',
+  'SHOULDERS',
+  'BICEPS',
+  'TRICEPS',
+  'FOREARMS',
+  'GLUTES',
+  'QUADRICEPS',
+  'HAMSTRINGS',
+  'CALVES',
+  'ADDUCTORS',
+  'CORE',
+  'FULL_BODY',
+  'CARDIO',
+  'MOBILITY',
+] as const;
+
+const BODY_FOCUS_FILTERS = [
   { code: undefined, label: '전체' },
-  ...SELECTABLE_BODY_AREA_OPTIONS,
+  ...BODY_FOCUS_FILTER_CODES.map((code) => ({
+    code,
+    label: bodyFocusLabel(code),
+  })),
 ] as const;
 
 const difficultyLabel = (code: string) => experienceLevelLabel(code);
@@ -59,18 +79,18 @@ export function ExerciseCatalogScreen({
   onBack: () => void;
 }) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [bodyArea, setBodyArea] = useState<string | undefined>();
+  const [bodyFocus, setBodyFocus] = useState<string | undefined>();
   const [openExercise, setOpenExercise] = useState<ExerciseListItem | null>(
     null,
   );
 
   const { state, reload } = useAsyncData<ExerciseListResponse>(
-    (signal) => loadEntireCatalog(api, bodyArea, signal),
-    [api, bodyArea],
+    (signal) => loadEntireCatalog(api, signal),
+    [api],
   );
 
-  const selectBodyArea = useCallback((code: string | undefined) => {
-    setBodyArea(code);
+  const selectBodyFocus = useCallback((code: string | undefined) => {
+    setBodyFocus(code);
   }, []);
 
   return (
@@ -113,9 +133,9 @@ export function ExerciseCatalogScreen({
           </View>
           <FilterRow
             groupLabel="운동 부위"
-            options={BODY_AREA_FILTERS}
-            selected={bodyArea}
-            onSelect={selectBodyArea}
+            options={BODY_FOCUS_FILTERS}
+            selected={bodyFocus}
+            onSelect={selectBodyFocus}
           />
         </View>
 
@@ -125,7 +145,7 @@ export function ExerciseCatalogScreen({
           <ErrorState message={state.message} onRetry={reload} />
         ) : (
           <CatalogList
-            items={filterByExerciseName(state.data.items, searchQuery)}
+            items={filterCatalogItems(state.data.items, searchQuery, bodyFocus)}
             searchActive={searchQuery.trim().length > 0}
             onOpen={setOpenExercise}
           />
@@ -270,7 +290,7 @@ function CatalogList({
               style={styles.itemSummary}
               testID={`exercise-body-focus-${item.id}`}
             >
-              {`${trainingTypeLabel(item.training_type_code)} · ${catalogFocusLabel(item)}`}
+              {catalogSummaryLabel(item)}
             </Text>
             <View style={styles.itemFooter}>
               {item.required_equipment_codes.length > 0 ? (
@@ -293,7 +313,6 @@ function CatalogList({
 
 async function loadEntireCatalog(
   api: Pick<Api, 'listExercises'>,
-  bodyAreaCode: string | undefined,
   signal?: AbortSignal,
 ): Promise<ExerciseListResponse> {
   const items: ExerciseListItem[] = [];
@@ -303,7 +322,7 @@ async function loadEntireCatalog(
 
   do {
     const page = await api.listExercises(
-      { bodyAreaCode, cursor: cursor ?? undefined, limit: 100 },
+      { cursor: cursor ?? undefined, limit: 100 },
       signal,
     );
     if (catalogVersion === '') catalogVersion = page.catalog_version;
@@ -318,16 +337,18 @@ async function loadEntireCatalog(
   return { items, next_cursor: null, catalog_version: catalogVersion };
 }
 
-function filterByExerciseName(
+function filterCatalogItems(
   items: ExerciseListItem[],
   searchQuery: string,
+  bodyFocus: string | undefined,
 ): ExerciseListItem[] {
   const query = searchQuery.trim().toLocaleLowerCase('ko-KR');
-  return query.length === 0
-    ? items
-    : items.filter((item) =>
-        item.name.toLocaleLowerCase('ko-KR').includes(query),
-      );
+  return items.filter(
+    (item) =>
+      (bodyFocus === undefined || item.body_focus_code === bodyFocus) &&
+      (query.length === 0 ||
+        item.name.toLocaleLowerCase('ko-KR').includes(query)),
+  );
 }
 
 function catalogFocusLabel(item: ExerciseListItem): string {
@@ -338,6 +359,14 @@ function catalogFocusLabel(item: ExerciseListItem): string {
     .map(bodyAreaLabel)
     .join(', ');
   return legacyAreas || '정보 없음';
+}
+
+function catalogSummaryLabel(item: ExerciseListItem): string {
+  const trainingType = trainingTypeLabel(item.training_type_code);
+  if (item.body_focus_code === item.training_type_code) {
+    return trainingType;
+  }
+  return `${trainingType} · ${catalogFocusLabel(item)}`;
 }
 
 const styles = StyleSheet.create({

@@ -243,8 +243,10 @@ describe('Home secondary visual prototypes', () => {
     ).toMatchObject({
       width: 20,
       height: 20,
-      backgroundColor: '#EDEAE2',
-      borderColor: '#EDEAE2',
+      // The moon-and-star vector carries its own shape, so the wrapper circle
+      // stays out of its way.
+      backgroundColor: 'transparent',
+      borderColor: 'transparent',
       borderWidth: 1.5,
     });
     expect(

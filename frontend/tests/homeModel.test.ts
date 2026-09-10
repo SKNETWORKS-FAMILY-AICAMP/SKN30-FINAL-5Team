@@ -122,6 +122,8 @@ describe('Home today routine presentation state', () => {
         completed_at: null,
       },
     ],
+    completed_plan_item_ids: ['item-1'],
+    current_plan_item_id: 'item-2',
     feedback: null,
     not_completed_reason_code: null,
     started_at: '2026-09-03T10:00:00+09:00',

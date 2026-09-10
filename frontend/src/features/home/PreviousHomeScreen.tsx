@@ -1,3 +1,5 @@
+import { RoutineSections } from '../../components/RoutineSections';
+import { CloseButton } from '../../components/CloseButton';
 /**
  * The home screen: the product's entry point.
  *
@@ -264,7 +266,7 @@ function HomeScreenContent({
             ) : (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="오늘 루틴 체크인"
+                accessibilityLabel="운동 체크인"
                 onPress={() => setSheet('checkin')}
                 style={({ pressed }) => [
                   styles.checkinButton,
@@ -272,9 +274,7 @@ function HomeScreenContent({
                 ]}
               >
                 <Text style={[styles.checkinLabel, useJua && styles.juaLabel]}>
-                  {context === null
-                    ? '오늘 루틴 체크인🍌'
-                    : '체크인 다시 하기🍌'}
+                  {context === null ? '운동 체크인🍌' : '체크인 다시 하기🍌'}
                 </Text>
                 <Text style={styles.checkinArrow}>›</Text>
               </Pressable>
@@ -582,7 +582,7 @@ function NoRoutineCard({
 function EmptyRoutineCard({ hasContext }: { hasContext: boolean }) {
   return (
     <Card style={styles.messageCard}>
-      <Text style={styles.messageTitle}>아직 오늘의 운동이 없어요</Text>
+      <Text style={styles.messageTitle}>아직 추천 운동이 없어요</Text>
       <Text style={styles.messageText}>
         {hasContext
           ? '체크인은 저장했어요. 다시 체크인하면 오늘의 최종 루틴을 받을 수 있어요.'
@@ -678,15 +678,19 @@ function RoutineCard({
       </View>
 
       <View style={styles.routineList}>
-        {items.map((item) => (
-          <View key={item.id} style={styles.routineRow}>
-            <Text style={styles.routineItemText}>
-              {item.name}
-              {item.prescription ? ` · ${item.prescription}` : ''}
-            </Text>
-            <View style={styles.routineDot} />
-          </View>
-        ))}
+        <RoutineSections
+          items={items}
+          getPhase={(item) => item.phaseCode}
+          renderItem={(item) => (
+            <View key={item.id} style={styles.routineRow}>
+              <Text style={styles.routineItemText}>
+                {item.name}
+                {item.prescription ? ` · ${item.prescription}` : ''}
+              </Text>
+              <View style={styles.routineDot} />
+            </View>
+          )}
+        />
       </View>
 
       {adjusted ? (
@@ -821,14 +825,7 @@ function SheetFrame({
           <Text accessibilityRole="header" style={styles.sheetTitle}>
             {title}
           </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="닫기"
-            onPress={onClose}
-            style={styles.closeButton}
-          >
-            <Text style={styles.closeText}>×</Text>
-          </Pressable>
+          <CloseButton accessibilityLabel="닫기" onPress={onClose} />
         </View>
         {children}
       </View>
@@ -1141,14 +1138,18 @@ function EditRoutineSheet({
           <Text style={styles.checkinSectionTitle}>
             현재 계획 {routine === null ? '' : `v${routine.version}`}
           </Text>
-          {items.map((item) => (
-            <View key={item.id} style={styles.editRow}>
-              <Text style={styles.editNameInput}>{item.name}</Text>
-              <Text style={styles.editPrescription}>
-                {item.prescription ?? '시간 자유'}
-              </Text>
-            </View>
-          ))}
+          <RoutineSections
+            items={items}
+            getPhase={(item) => item.phaseCode}
+            renderItem={(item) => (
+              <View key={item.id} style={styles.editRow}>
+                <Text style={styles.editNameInput}>{item.name}</Text>
+                <Text style={styles.editPrescription}>
+                  {item.prescription ?? '시간 자유'}
+                </Text>
+              </View>
+            )}
+          />
           {/*
             Exercise names, order and prescriptions are the server's output. The
             contract refuses arbitrary exercise edits, and letting the client
@@ -1161,13 +1162,6 @@ function EditRoutineSheet({
         </View>
 
         <View style={styles.editActions}>
-          <Button
-            label="닫기"
-            labelStyle={styles.resetLabel}
-            onPress={onClose}
-            style={styles.resetButton}
-            tone="secondary"
-          />
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ disabled: !canSave }}
@@ -1829,19 +1823,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 18,
     fontWeight: '800',
-  },
-  closeButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: -10,
-    marginRight: -12,
-    marginBottom: -10,
-  },
-  closeText: {
-    color: colors.textMuted,
-    fontSize: 22,
   },
   sheetIntro: {
     marginTop: 4,

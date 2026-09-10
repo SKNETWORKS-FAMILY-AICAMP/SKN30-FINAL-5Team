@@ -1,3 +1,4 @@
+import { RoutineSections } from '../../components/RoutineSections';
 import { StatusBar } from 'expo-status-bar';
 import {
   Image,
@@ -124,19 +125,23 @@ function RoutinePanel({
                 showsVerticalScrollIndicator
                 style={styles.routineItemsViewport}
               >
-                {day.items.map((item) => (
-                  <View key={item.id} style={styles.routineItemRow}>
-                    <Text style={[styles.routineItemName, pixelStyle]}>
-                      {item.exercise_name}
-                    </Text>
-                    <Text style={[styles.routineItemMeta, pixelStyle]}>
-                      {item.sets}세트
-                      {item.reps === null
-                        ? ` · ${item.work_seconds_per_set ?? 0}초`
-                        : ` × ${item.reps}회`}
-                    </Text>
-                  </View>
-                ))}
+                <RoutineSections
+                  items={[...day.items].sort((a, b) => a.sequence - b.sequence)}
+                  getPhase={(item) => item.phase_code}
+                  renderItem={(item) => (
+                    <View key={item.id} style={styles.routineItemRow}>
+                      <Text style={[styles.routineItemName, pixelStyle]}>
+                        {item.exercise_name}
+                      </Text>
+                      <Text style={[styles.routineItemMeta, pixelStyle]}>
+                        {item.sets}세트
+                        {item.reps === null
+                          ? ` · ${item.work_seconds_per_set ?? 0}초`
+                          : ` × ${item.reps}회`}
+                      </Text>
+                    </View>
+                  )}
+                />
               </ScrollView>
             </>
           ) : (

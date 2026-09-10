@@ -240,6 +240,8 @@ export function HomeContainer({
   onCheckinDecisionSuccess,
   alternativeUsedCount = 0,
   onAlternativeSuccess,
+  decisionGenerationPending = false,
+  onDecisionGenerationPendingChange,
   onRecoverDecision,
   todaySession = null,
   localSessionState = 'ACTIVE',
@@ -276,6 +278,9 @@ export function HomeContainer({
   /** UI-only until the backend owns the combined alternative quota. */
   alternativeUsedCount?: number;
   onAlternativeSuccess?: () => void;
+  /** Flow-owned generation state, preserved while Home is temporarily unmounted. */
+  decisionGenerationPending?: boolean;
+  onDecisionGenerationPendingChange?: (pending: boolean) => void;
   /** Re-read the flow-owned decision when Home data is manually refreshed. */
   onRecoverDecision?: () => void;
   todaySession?: WorkoutSessionDetailResponse | null;
@@ -462,30 +467,41 @@ export function HomeContainer({
     previousContext?.location_code,
   ]);
 
-  const run = useCallback((kind: HomeBusyKind, action: () => Promise<void>) => {
-    // Overlapping actions can represent different user intents. Serialize
-    // them even though a retry of one saved decision reuses its original key.
-    if (inFlight.current) {
-      return;
-    }
-    inFlight.current = true;
-    setBusy(kind);
-    setRoutineLoadingPhaseCode(null);
-    setActionError(null);
-    setPendingPlanEdit(null);
-    setStaleContext(false);
+  const run = useCallback(
+    (kind: HomeBusyKind, action: () => Promise<void>) => {
+      // Overlapping actions can represent different user intents. Serialize
+      // them even though a retry of one saved decision reuses its original key.
+      if (inFlight.current) {
+        return;
+      }
+      const generatesDecision =
+        kind === 'decision-generation' || kind === 'regeneration';
+      inFlight.current = true;
+      setBusy(kind);
+      if (generatesDecision) {
+        onDecisionGenerationPendingChange?.(true);
+      }
+      setRoutineLoadingPhaseCode(null);
+      setActionError(null);
+      setPendingPlanEdit(null);
+      setStaleContext(false);
 
-    void action()
-      .catch((error: unknown) => {
-        setActionError(actionMessage(error));
-        setStaleContext(isApiError(error) && error.kind === 'stale');
-      })
-      .finally(() => {
-        inFlight.current = false;
-        setBusy(null);
-        setRoutineLoadingPhaseCode(null);
-      });
-  }, []);
+      void action()
+        .catch((error: unknown) => {
+          setActionError(actionMessage(error));
+          setStaleContext(isApiError(error) && error.kind === 'stale');
+        })
+        .finally(() => {
+          inFlight.current = false;
+          setBusy(null);
+          if (generatesDecision) {
+            onDecisionGenerationPendingChange?.(false);
+          }
+          setRoutineLoadingPhaseCode(null);
+        });
+    },
+    [onDecisionGenerationPendingChange],
+  );
 
   const holdFinalValidation = useCallback(async () => {
     setRoutineLoadingPhaseCode('FINAL_VALIDATION');
@@ -942,7 +958,7 @@ export function HomeContainer({
       safetyGuidance={safetyGuidance}
       persistentPains={checkinDefaults?.pains ?? profile?.persistent_pains}
       locationCodes={locationCodes}
-      busy={busy}
+      busy={busy ?? (decisionGenerationPending ? 'decision-generation' : null)}
       routineLoadingPhaseCode={routineLoadingPhaseCode ?? undefined}
       actionError={actionError}
       staleContext={staleContext}

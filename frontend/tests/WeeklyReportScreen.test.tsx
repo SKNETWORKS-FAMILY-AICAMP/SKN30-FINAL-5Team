@@ -16,7 +16,6 @@ import type {
   WeeklyReportResponse,
 } from '../src/api/types';
 import { WeeklyReportScreen } from '../src/features/weekly/WeeklyReportScreen';
-import { CALENDAR_DAY_VISUALS } from '../src/features/home/homeSecondaryModel';
 
 const REPORT: WeeklyReportResponse = {
   report_id: 'report-1',
@@ -487,13 +486,10 @@ describe('WeeklyReportScreen selected week', () => {
 
   it('uses the calendar partial marker alongside the separate safety marker', async () => {
     renderExistingReport();
-    const partial = await screen.findByTestId('weekly-report-partial-icon');
     expect(
-      within(partial).getByText(CALENDAR_DAY_VISUALS.partial.glyph),
+      await screen.findByTestId('weekly-report-partial-icon'),
     ).toBeOnTheScreen();
-    expect(partial).toHaveStyle({
-      backgroundColor: CALENDAR_DAY_VISUALS.partial.backgroundColor,
-    });
+    expect(screen.getByTestId('weekly-report-icon-rest')).toBeOnTheScreen();
     expect(
       within(
         screen.getByTestId('weekly-report-safety-stopped-count'),

@@ -28,6 +28,7 @@ export type HomePreviewState =
   | 'generating'
   | 'generating-final'
   | 'routine'
+  | 'routine-phases'
   | 'decision-recovered'
   | 'decision-retry'
   | 'adjusted'
@@ -46,6 +47,7 @@ export const HOME_PREVIEW_OPTIONS = [
   { id: 'generating', label: '재추천 중' },
   { id: 'generating-final', label: '완료 직전 (95%)' },
   { id: 'routine', label: '최종 추천' },
+  { id: 'routine-phases', label: '웜업 · 메인 · 쿨다운' },
   { id: 'decision-recovered', label: '홈 재진입 · 오늘 결정 복구' },
   { id: 'decision-retry', label: '결정 응답 유실 · 재시도' },
   { id: 'adjusted', label: '부담 조정' },
@@ -209,18 +211,18 @@ export const HOME_ROUTINE_VARIANTS: readonly HomeRoutineVariant[] = [
     title: '상체 근력 루틴',
     focus: '상체 근력',
     items: [
-      { id: 'warm-up', name: '준비 운동' },
+      { id: 'warm-up', phaseCode: 'WARMUP', name: '준비 운동' },
       { id: 'push-up', name: '푸시업', sets: '3', reps: '10' },
       { id: 'band-row', name: '밴드 로우', sets: '3', reps: '12' },
       { id: 'shoulder-press', name: '숄더 프레스', sets: '2', reps: '10' },
-      { id: 'cool-down', name: '마무리 스트레칭' },
+      { id: 'cool-down', phaseCode: 'COOLDOWN', name: '마무리 스트레칭' },
     ],
   },
   {
     title: '하체 집중 루틴',
     focus: '하체 근력',
     items: [
-      { id: 'warm-up', name: '준비 운동' },
+      { id: 'warm-up', phaseCode: 'WARMUP', name: '준비 운동' },
       { id: 'dumbbell-squat', name: '덤벨 스쿼트', sets: '3', reps: '12' },
       {
         id: 'romanian-deadlift',
@@ -229,18 +231,30 @@ export const HOME_ROUTINE_VARIANTS: readonly HomeRoutineVariant[] = [
         reps: '10',
       },
       { id: 'lunge', name: '런지', sets: '2', reps: '12' },
-      { id: 'cool-down', name: '마무리 스트레칭' },
+      { id: 'cool-down', phaseCode: 'COOLDOWN', name: '마무리 스트레칭' },
     ],
   },
   {
     title: '유산소 · 코어 루틴',
     focus: '유산소 · 코어',
     items: [
-      { id: 'walk-warm-up', name: '준비 걷기', sets: '1', reps: '10' },
+      {
+        id: 'walk-warm-up',
+        phaseCode: 'WARMUP',
+        name: '준비 걷기',
+        sets: '1',
+        reps: '10',
+      },
       { id: 'interval-run', name: '인터벌 러닝', sets: '3', reps: '10' },
       { id: 'plank', name: '플랭크', sets: '3', reps: '10' },
       { id: 'core-bridge', name: '코어 브리지', sets: '2', reps: '15' },
-      { id: 'walk-cool-down', name: '마무리 걷기', sets: '1', reps: '10' },
+      {
+        id: 'walk-cool-down',
+        phaseCode: 'COOLDOWN',
+        name: '마무리 걷기',
+        sets: '1',
+        reps: '10',
+      },
     ],
   },
 ] as const;

@@ -751,19 +751,28 @@ describe('MascotHouseScreen', () => {
     expect(screen.getByTestId('banana-catch-screen')).toBeTruthy();
   });
 
-  it('opens the server-backed wallet from the banana chip and returns', async () => {
+  it('opens only HELKKI PASS from the banana chip and returns', async () => {
     const api = houseApi({ rewardBalance: 120 });
     renderHouse(api);
 
     await screen.findByTestId('house-scene');
-    fireEvent.press(screen.getByLabelText('바나나 지갑 보기'));
+    fireEvent.press(screen.getByLabelText('HELKKI PASS 보기'));
 
-    expect(await screen.findByLabelText('보유 바나나 120개')).toBeTruthy();
-    expect(api.getRewards).toHaveBeenCalledTimes(2);
+    expect(await screen.findByTestId('kkikki-pass-preview')).toBeTruthy();
+    expect(screen.getByText('‹')).toHaveStyle({
+      width: 44,
+      height: 44,
+      lineHeight: 44,
+      textAlign: 'center',
+      textAlignVertical: 'center',
+    });
+    expect(screen.queryByText('바나나 지갑')).toBeNull();
+    expect(screen.queryByLabelText('보유 바나나 120개')).toBeNull();
+    expect(api.getRewards).toHaveBeenCalledTimes(1);
 
     fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
     expect(await screen.findByTestId('house-scene')).toBeTruthy();
-    await waitFor(() => expect(api.getRewards).toHaveBeenCalledTimes(3));
+    expect(api.getRewards).toHaveBeenCalledTimes(1);
   });
 
   it('keeps only one house panel or child screen active at a time', async () => {
@@ -781,18 +790,18 @@ describe('MascotHouseScreen', () => {
     expect(screen.queryByTestId('house-decorate-panel')).toBeNull();
     expect(screen.getByTestId('house-scene')).toBeTruthy();
 
-    // 집 꾸미기 → 바나나 + → 뒤로가기 → 기본 화면
+    // 집 꾸미기 → HELKKI PASS → 뒤로가기 → 기본 화면
     fireEvent.press(screen.getByTestId('house-decorate-action'));
-    fireEvent.press(screen.getByLabelText('바나나 지갑 보기'));
-    expect(await screen.findByLabelText('보유 바나나 120개')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('HELKKI PASS 보기'));
+    expect(await screen.findByTestId('kkikki-pass-preview')).toBeTruthy();
     fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
     expect(await screen.findByTestId('house-scene')).toBeTruthy();
     expect(screen.queryByTestId('house-decorate-panel')).toBeNull();
 
-    // 퀘스트 → 바나나 + → 뒤로가기 → 기본 화면
+    // 퀘스트 → HELKKI PASS → 뒤로가기 → 기본 화면
     fireEvent.press(screen.getByTestId('house-quest-tile'));
-    fireEvent.press(screen.getByLabelText('바나나 지갑 보기'));
-    expect(await screen.findByLabelText('보유 바나나 120개')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('HELKKI PASS 보기'));
+    expect(await screen.findByTestId('kkikki-pass-preview')).toBeTruthy();
     fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
     expect(await screen.findByTestId('house-scene')).toBeTruthy();
     expect(screen.queryByTestId('house-quest-panel')).toBeNull();

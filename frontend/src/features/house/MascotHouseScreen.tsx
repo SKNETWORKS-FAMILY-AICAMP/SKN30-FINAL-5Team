@@ -36,7 +36,7 @@ import { LoadingState, ScreenShell } from '../../components/states/ScreenState';
 import { HomeBottomNavigation } from '../home/HomeScreen';
 import { BananaCatchGameScreen } from '../bananaCatch/BananaCatchGameScreen';
 import { KikkiRunnerGameScreen } from '../kikkiRunner/KikkiRunnerGameScreen';
-import { RewardsScreen } from '../rewards/RewardsScreen';
+import { HelkkiPassScreen } from '../rewards/RewardsScreen';
 import { MascotHouseContent, type HouseMiniGameId } from './MascotHouseContent';
 import {
   housePoseArt,
@@ -121,7 +121,7 @@ export function MascotHouseScreen({
   const [reactionArt, setReactionArt] = useState<HouseArtSlot | null>(null);
   const [settledArt, setSettledArt] = useState<HouseArtSlot | null>(null);
   const [activeScreen, setActiveScreen] = useState<
-    { kind: 'mini-game'; gameId: HouseMiniGameId } | { kind: 'rewards' } | null
+    { kind: 'mini-game'; gameId: HouseMiniGameId } | { kind: 'pass' } | null
   >(null);
   const lastBananaArt = useRef<HouseArtSlot['source']>(null);
   const lastRegularArt = useRef<HouseArtSlot['source']>(null);
@@ -132,11 +132,7 @@ export function MascotHouseScreen({
   /** Serializes wallet mutations so an older response cannot replace a newer balance. */
   const walletMutationInFlight = useRef(false);
 
-  const {
-    reload: reloadRemote,
-    setData: setRemoteData,
-    state: remote,
-  } = useAsyncData<HouseRemote>(
+  const { setData: setRemoteData, state: remote } = useAsyncData<HouseRemote>(
     async (signal) => {
       // Neither request rejects: the house stays reachable offline, and the
       // week-aware mascot copy degrades locally instead of failing the screen.
@@ -382,16 +378,8 @@ export function MascotHouseScreen({
     );
   }
 
-  if (activeScreen?.kind === 'rewards') {
-    return (
-      <RewardsScreen
-        api={api}
-        onBack={() => {
-          setActiveScreen(null);
-          reloadRemote();
-        }}
-      />
-    );
+  if (activeScreen?.kind === 'pass') {
+    return <HelkkiPassScreen onBack={() => setActiveScreen(null)} />;
   }
 
   if (remote.status !== 'ready' || houseState === null) {
@@ -500,7 +488,7 @@ export function MascotHouseScreen({
         react('eating', bananaArt, FEED_POSE_HOLD_MS, regularArt);
         return true;
       }}
-      onOpenRewards={() => setActiveScreen({ kind: 'rewards' })}
+      onOpenPass={() => setActiveScreen({ kind: 'pass' })}
       onPet={() => {
         // Free and unlimited, so there is no failure case: the touch always
         // lands, and only the intimacy it pays is capped.

@@ -96,6 +96,18 @@ describe('shared workout plan order', () => {
     expect(moveWorkoutPlanItem(source, 2, 0)).toBe(source);
   });
 
+  it.each(['WARMUP', 'COOLDOWN'] as const)(
+    'moves items within the %s phase',
+    (phase) => {
+      const source = phasedPlan([phase, phase]);
+      expect(
+        moveWorkoutPlanItem(source, 0, 1).items.map(
+          (item) => item.plan_item_id,
+        ),
+      ).toEqual(['item-2', 'item-1']);
+    },
+  );
+
   it('moves inside one phase', () => {
     const source = phasedPlan(['WARMUP', 'MAIN', 'MAIN']);
 

@@ -55,6 +55,10 @@ export function ExerciseDetailSheet({
   const representativeFocus = detail.body_focus_code
     ? bodyFocusLabel(detail.body_focus_code)
     : detail.primary_body_area_codes.map(bodyAreaLabel).join(', ');
+  const focusSectionTitle =
+    detail.body_focus_code === 'CARDIO' || detail.body_focus_code === 'MOBILITY'
+      ? '운동 유형'
+      : '사용 근육';
 
   return (
     <View style={styles.container} testID="exercise-posture-guide">
@@ -67,7 +71,7 @@ export function ExerciseDetailSheet({
         {representativeFocus ? (
           <View style={styles.section} testID="exercise-body-focus">
             <Text accessibilityRole="header" style={styles.sectionTitle}>
-              사용 근육
+              {focusSectionTitle}
             </Text>
             <Text style={styles.areas}>{representativeFocus}</Text>
           </View>

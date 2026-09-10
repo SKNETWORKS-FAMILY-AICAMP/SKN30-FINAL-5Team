@@ -92,6 +92,46 @@ it('preserves acknowledgement and initial-plan idempotency keys across retries',
   }
 });
 
+it('forwards the caller-owned feedback idempotency key', async () => {
+  const fetchImpl = jest.fn<typeof fetch>(async () =>
+    Promise.resolve({
+      ok: true,
+      status: 200,
+      text: async () => '{}',
+    } as Response),
+  );
+  const api = createApi(
+    new ApiClient({
+      baseUrl: 'https://api.example.test',
+      getToken: async () => null,
+      fetchImpl,
+    }),
+  );
+  const idempotencyKey = '33333333-3333-4333-8333-333333333333';
+
+  await api.submitFeedback(
+    'session-1',
+    {
+      difficulty_code: 'APPROPRIATE',
+      difficulty_reason_codes: [],
+      fatigue_code: null,
+      satisfaction_code: null,
+      pain_occurred: false,
+      discomforts: [],
+      adverse_reaction_codes: [],
+    },
+    idempotencyKey,
+  );
+
+  expect(fetchImpl).toHaveBeenCalledWith(
+    'https://api.example.test/api/v1/workout-sessions/session-1/feedback',
+    expect.objectContaining({
+      method: 'POST',
+      headers: expect.objectContaining({ 'Idempotency-Key': idempotencyKey }),
+    }),
+  );
+});
+
 it('reads and mutates the server-backed banana wallet through reviewed endpoints', async () => {
   const wallet: BananaWalletResponse = {
     balance: 20,

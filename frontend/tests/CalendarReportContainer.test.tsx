@@ -267,6 +267,8 @@ describe('CalendarReportContainer', () => {
           completed_at: '2026-08-04T09:20:00+09:00',
         },
       ],
+      completed_plan_item_ids: ['history-item-1', 'history-item-2'],
+      current_plan_item_id: null,
       feedback: {
         perceived_difficulty_code: 'APPROPRIATE',
         post_workout_discomfort_reported: false,
@@ -300,9 +302,10 @@ describe('CalendarReportContainer', () => {
     expect(
       screen.getByTestId('calendar-day-2026-08-03-5-mark-glyph').props.children,
     ).toBe('!');
+    // Partial now draws the shared dotted-check vector instead of a glyph.
     expect(
-      screen.getByTestId('calendar-day-2026-08-10-2-mark-glyph').props.children,
-    ).toBe('△');
+      screen.getByTestId('calendar-day-2026-08-10-2-mark-partial'),
+    ).toBeOnTheScreen();
     expect(
       screen.getByTestId('calendar-chip-2026-08-03-label').props.children,
     ).toBe('리포트 확인하기');

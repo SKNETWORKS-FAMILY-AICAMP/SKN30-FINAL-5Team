@@ -1,3 +1,4 @@
+import { ROUTINE_PHASE_LABELS } from '../../components/RoutineSections';
 /**
  * One-at-a-time exercise block carousel.
  *
@@ -116,6 +117,9 @@ export function SessionCarousel({
                 },
               ]}
             >
+              <Text style={styles.sequence}>
+                {ROUTINE_PHASE_LABELS[item.phase_code ?? 'MAIN']}
+              </Text>
               <View style={styles.cardHeader}>
                 <Text style={styles.sequence}>
                   {item.sequence} / {orderedItems.length}
