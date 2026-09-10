@@ -18,6 +18,7 @@ import type {
   DecisionRegenerationRequest,
   DecisionResponse,
   DecisionSelectionResponse,
+  BondingQuestRewardResponse,
   DailyRewardClaimResponse,
   MiniGameRewardRequest,
   MiniGameRewardResponse,
@@ -88,6 +89,18 @@ export function createApi(client: ApiClient) {
       return client.request<DailyRewardClaimResponse>({
         method: 'POST',
         path: '/rewards/daily-reward/claim',
+        idempotent: true,
+      });
+    },
+
+    /**
+     * Claims the house bonding quest for today. Idempotent for the user-local
+     * day: a repeat returns the original transaction and never pays twice.
+     */
+    claimBondingQuest() {
+      return client.request<BondingQuestRewardResponse>({
+        method: 'POST',
+        path: '/rewards/bonding-quest/claim',
         idempotent: true,
       });
     },

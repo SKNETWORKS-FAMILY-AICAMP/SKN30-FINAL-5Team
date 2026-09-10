@@ -683,7 +683,8 @@ export type BananaTransactionType =
   | 'WORKOUT_DAILY_QUEST'
   | 'HOUSE_FEED'
   | 'HOUSE_ITEM_PURCHASE'
-  | 'MINI_GAME';
+  | 'MINI_GAME'
+  | 'HOUSE_BONDING_QUEST';
 
 export type DailyRewardStatus = {
   local_date: string;
@@ -730,6 +731,14 @@ export type MiniGameRewardRequest = {
 };
 
 export type MiniGameRewardResponse = BananaWalletResponse & {
+  transaction: BananaTransactionResponse;
+};
+
+/**
+ * The house bonding quest, paid once a local day. The server owns the amount and
+ * the limit, so the request carries nothing.
+ */
+export type BondingQuestRewardResponse = BananaWalletResponse & {
   transaction: BananaTransactionResponse;
 };
 
