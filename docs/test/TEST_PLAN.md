@@ -23,22 +23,24 @@
 
 ## 0.1 Phase별 실행 가능 여부 (현재 환경 기준)
 
-| Phase | 내용 | 비용 | 현재 실행 가능 |
+| Phase | 내용 | 비용 | 상태 (2026-09-11) |
 |---|---|---|---|
 | 0 | 구조 분석 | 없음 | **완료** |
-| 1 | Evaluation Dataset | 없음 | **가능** |
-| 2 | Deterministic Evaluation | 없음 | **가능** |
-| 3 | Retrieval 평가 | 없음(fake) / 유료(실 임베딩) | 배선만 가능 |
-| 4 | Multi-Agent 지표 | 없음(scripted) / 유료(실 LLM) | scripted 가능 |
-| 5 | LLM-as-a-Judge | **유료** | 불가 (Key 없음) |
-| 6 | Single vs Multi | **유료** | 불가 (Key 없음) |
-| 7 | Pairwise Judge | **유료** | 불가 (Key 없음) |
-| 8 | LangSmith | 없음 | 문서화만 (정책상 비활성) |
-| 9 | Performance / Failure | 없음 | **가능** |
+| 1 | Evaluation Dataset | 없음 | **완료** (smoke 20건 + retrieval 8건) |
+| 2 | Deterministic Evaluation | 없음 | **완료** (204 run, critical 0) |
+| 3 | Retrieval 평가 | 없음(fake) / 소액(실 임베딩) | **harness 완료.** 실 임베딩 수치 대기 |
+| 4 | Multi-Agent 지표 | 없음(scripted) / 유료(실 LLM) | **harness 완료.** 실호출 대기 |
+| 5 | LLM-as-a-Judge | **유료** | **harness 완료.** 실호출 대기 |
+| 6 | Single vs Multi | **유료** | 미착수 (별도 작업) |
+| 7 | Pairwise Judge | **유료** | 미착수 |
+| 8 | LangSmith | 없음 | **조사 완료.** 워크플로 trace만 사용 결정 |
+| 9 | Performance / Failure | 없음/유료 | 실패 경로 완료, latency는 실호출 대기 |
 | 10 | Human Calibration | 없음 | 양식만 |
 | 11 | 결과 산출 | 없음 | 부분 |
 
-이번 작업 범위는 **PHASE 0 ~ 2**다. 3 이후는 계획만 고정한다.
+**대기 사유**: AWS 세션 만료로 `/helkki/staging/openai-api-key` 접근 불가.
+`aws login` 재인증 후 `docs/test/PAID_EVALUATION.md` 절차대로 실행하면 된다.
+실행 범위는 파일럿 우선(70 호출)으로 결정되었다.
 
 ---
 
@@ -294,17 +296,25 @@ Baseline 공정성 조건 — 이것을 어기면 실험이 무의미해진다:
 - A/B 위치 randomize, 동일 case를 순서 바꿔 재평가 → Position Bias 측정
 - 집계: Single Win / Tie / Multi Win
 
-## PHASE 8. LangSmith
+## PHASE 8. LangSmith — 조사 완료
 
-**설정하지 않는다.** 근거는 `TEST_SYSTEM_ANALYSIS.md` 15절.
+**결론: 워크플로 trace는 사용하고, LLM span은 열지 않는다** (2026-09-11 결정).
 
-수행할 일:
+실측 결과 (`docs/test/LANGSMITH_TRACING.md`, `test_tracing.py`):
 
-- 비활성 근거 문서화 (privacy 정책, 코드상 명시적 차단 지점)
-- 대체 내부 trace(`InvocationAudit`, `RetrievalMetadata`)가 명세 요구 항목을
-  어디까지 커버하는지 대조표 작성
-- 활성화가 필요해질 경우의 환경변수·승인 절차만 문서화
-- **Secret을 생성하거나 하드코딩하지 않는다**
+- **추적됨**: 노드 15개 전체. 세 specialist 각각 독립 span, coordinator,
+  compile/validate, 라우팅 결정, 실패·fallback·repair 경로, 노드별 latency,
+  state(envelope·pool·proposal·PlanSpec)
+- **추적 안 됨**: prompt, 모델 원문 응답, provider 토큰.
+  `provider.py:188`의 `tracing_context(enabled=False)`가 의도적으로 차단
+
+Token Usage는 trace가 아니라 `InvocationAudit`에서 이미 얻고 있으므로
+마스터 명세 PHASE 8 요구 항목 중 실질적으로 빠지는 것은 prompt 원문뿐이다.
+
+LLM span까지 열려면 `provider.py` 수정 + 개발팀장·PM 승인 2건이 필요하며
+**이번 작업에서 수행하지 않기로 결정했다.**
+
+실행: `LANGSMITH_API_KEY`만 설정하면 서비스 코드 변경 없이 바로 사용 가능.
 
 ## PHASE 9. Performance / Failure (계획)
 
