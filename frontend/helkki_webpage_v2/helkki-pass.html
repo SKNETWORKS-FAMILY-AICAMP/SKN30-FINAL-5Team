@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HELKKI PASS - 운동이 더 즐거워지는 특별한 경험</title>
+  <title>HELKKI PASS - 운동할수록, 더 나에게 맞게</title>
   <script>document.documentElement.classList.add('font-loading');</script>
   <link href="fonts.css" rel="stylesheet">
   <noscript><style>html.font-loading body { visibility: visible; }</style></noscript>
@@ -22,12 +22,20 @@
     html, body { margin: 0; padding: 0; background: #FFFDF9; color: #3D2D20; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
     body { overflow-x: hidden; overscroll-behavior: none; }
     ::-webkit-scrollbar { display: none; }
-    .mascot-blend { mix-blend-mode: multiply; image-rendering: pixelated; }
-    .keep-all { word-break: normal; overflow-wrap: anywhere; }
+    .keep-all { word-break: keep-all; overflow-wrap: normal; }
+    .reveal-enabled [data-hero-reveal],
     .reveal-enabled [data-reveal] { opacity: 0; transform: translateY(16px); transition: opacity 600ms ease-out, transform 600ms ease-out; }
+    .reveal-enabled [data-hero-reveal].is-revealed,
     .reveal-enabled [data-reveal].is-revealed { opacity: 1; transform: translateY(0); }
-    @media (max-width: 639px) { .reveal-enabled [data-mobile-hero-reveal] { opacity: 0; transform: translateY(16px); transition: opacity 600ms ease-out, transform 600ms ease-out; } .reveal-enabled [data-mobile-hero-reveal].is-revealed { opacity: 1; transform: translateY(0); } }
-    @media (prefers-reduced-motion: reduce) { .reveal-enabled [data-reveal], .reveal-enabled [data-mobile-hero-reveal] { opacity: 1; transform: none; transition: none; } }
+    @media (max-width: 639px) {
+      .reveal-enabled [data-split-hero] { opacity: 1; transform: none; transition: none; }
+      .reveal-enabled [data-mobile-hero-reveal] { opacity: 0; transform: translateY(16px); transition: opacity 600ms ease-out, transform 600ms ease-out; }
+      .reveal-enabled [data-mobile-hero-reveal].is-revealed { opacity: 1; transform: translateY(0); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .reveal-enabled [data-hero-reveal],
+      .reveal-enabled [data-reveal] { opacity: 1; transform: none; transition: none; }
+    }
   </style>
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <script>
@@ -45,191 +53,154 @@
     <div class="mx-auto flex max-w-[1200px] items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-16 sm:py-4">
       <a class="flex shrink-0 items-center gap-2 focus:outline-none" href="index.html"><span class="text-[20px] font-extrabold tracking-tight text-text-dark sm:text-[26px]">HELKKI</span></a>
       <nav class="flex min-w-0 items-center justify-end gap-2 whitespace-nowrap sm:gap-8" aria-label="주요 메뉴">
-        <a href="index.html" class="shrink-0 text-[10px] font-medium text-text-warm transition-colors hover:text-coral-orange sm:text-[15px]">HOME</a>
-        <a href="multi-agent.html" class="shrink-0 text-[10px] font-medium text-text-warm transition-colors hover:text-coral-orange sm:text-[15px]"><span class="sm:hidden">HOW</span><span class="hidden sm:inline">HOW IT WORKS</span></a>
-        <a href="kikki.html" class="shrink-0 text-[10px] font-medium text-text-warm transition-colors hover:text-coral-orange sm:text-[15px]"><span class="sm:hidden">KKIKKI</span><span class="hidden sm:inline">ABOUT KKIKKI</span></a>
-        <a href="helkki-pass.html" aria-current="page" class="relative shrink-0 text-[10px] font-bold text-coral-orange after:absolute after:-bottom-[3px] after:left-0 after:h-[2px] after:w-full after:rounded-full after:bg-coral-orange sm:text-[15px]"><span class="sm:hidden">PASS</span><span class="hidden sm:inline">HELKKI PASS</span></a>
+        <a href="index.html" class="shrink-0 text-[11px] font-medium text-text-warm transition-colors hover:text-coral-orange sm:text-[15px]">HOME</a>
+        <a href="multi-agent.html" class="shrink-0 text-[11px] font-medium text-text-warm transition-colors hover:text-coral-orange sm:text-[15px]"><span class="sm:hidden">HOW</span><span class="hidden sm:inline">HOW IT WORKS</span></a>
+        <a href="kikki.html" class="shrink-0 text-[11px] font-medium text-text-warm transition-colors hover:text-coral-orange sm:text-[15px]"><span class="sm:hidden">WITH</span><span class="hidden sm:inline">WITH KKIKKI</span></a>
+        <a href="helkki-pass.html" aria-current="page" class="relative shrink-0 text-[11px] font-bold text-coral-orange after:absolute after:-bottom-[3px] after:left-0 after:h-[2px] after:w-full after:rounded-full after:bg-coral-orange sm:text-[15px]"><span class="sm:hidden">PASS</span><span class="hidden sm:inline">HELKKI PASS</span></a>
       </nav>
     </div>
   </header>
 
   <main>
-    <section class="relative overflow-hidden py-10 sm:py-14 lg:min-h-[580px] lg:py-16" data-mobile-hero-reveal>
+    <section class="relative flex min-h-[calc(100dvh-3rem)] w-full items-center overflow-hidden py-10 sm:min-h-[680px] sm:py-12" data-hero-reveal data-split-hero>
       <div class="pointer-events-none absolute -right-28 top-12 h-[460px] w-[460px] rounded-full bg-butter-yellow/15 blur-3xl"></div>
       <div class="pointer-events-none absolute -left-20 bottom-0 h-[340px] w-[340px] rounded-full bg-coral-orange/10 blur-3xl"></div>
-      <div class="relative mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-8 px-4 sm:px-16 lg:grid-cols-12 lg:gap-12">
-        <div class="min-w-0 lg:col-span-6">
+      <div class="relative mx-auto grid w-full max-w-[1200px] grid-cols-1 items-center gap-8 px-4 sm:gap-12 sm:px-16 lg:grid-cols-12 lg:gap-16">
+        <div class="flex min-h-[calc(100dvh-5rem)] min-w-0 flex-col items-start justify-center text-left sm:min-h-0 lg:col-span-5" data-mobile-hero-reveal>
           <span class="inline-flex rounded-full border border-[#F0D287] bg-[#FFF8E5] px-3 py-1.5 text-[12px] font-bold tracking-[0.08em] text-[#8B6505]">HELKKI PASS</span>
-          <h1 class="mt-5 text-[38px] font-bold leading-[1.22] tracking-tight text-text-dark sm:text-[52px] keep-all">운동이 더 즐거워지는<br>특별한 경험</h1>
-          <p class="mt-5 max-w-[34rem] text-[16px] leading-[1.7] text-text-warm sm:text-[18px]">더 다양한 루틴, 더 많은 콘텐츠로 <br class="hidden sm:block">꾸준한 운동 습관을 만들어보세요.</p>
-          <div class="mt-8 flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center">
-            <a href="#plans" class="inline-flex w-full items-center justify-center gap-2 rounded-full bg-butter-yellow px-6 py-3.5 text-[15px] font-bold text-text-dark shadow-[0_6px_20px_rgba(244,185,66,0.30)] transition-all hover:bg-butter-yellow-hover hover:shadow-[0_8px_24px_rgba(244,185,66,0.40)] active:translate-y-px sm:w-auto">요금제 확인하기 <span class="material-symbols-outlined text-[19px]">arrow_forward</span></a>
+          <h1 class="mt-5 text-[36px] font-bold leading-[1.22] tracking-tight text-text-dark sm:text-[44px] lg:text-[48px] keep-all">운동할수록,<br>더 나에게 맞게</h1>
+          <p class="mt-5 max-w-[34rem] text-[16px] leading-[1.7] text-text-warm sm:text-[18px] keep-all"><span>오늘의 상태뿐 아니라 쌓여가는 운동 기록까지 반영해</span> <span class="block sm:inline">나에게 맞는 운동 경험을 더 깊게 이어가요.</span></p>
+          <div class="mt-8 flex w-full flex-col items-start gap-3 sm:w-auto sm:flex-row sm:items-center">
+            <a href="#plans" class="inline-flex w-auto items-center justify-center gap-2.5 rounded-full bg-butter-yellow px-6 py-3.5 text-[15px] font-semibold text-text-dark shadow-[0_6px_20px_rgba(244,185,66,0.30)] transition-all hover:bg-butter-yellow-hover hover:shadow-[0_8px_24px_rgba(244,185,66,0.40)] active:translate-y-px sm:gap-2 sm:font-bold">PASS 알아보기 <span class="material-symbols-outlined text-[20px] font-semibold sm:text-[19px] sm:font-bold">arrow_forward</span></a>
           </div>
-          <p class="mt-3 text-[12px] text-text-muted">모든 요금제는 첫 14일간 무료로 이용할 수 있어요.</p>
         </div>
-        <div class="relative mx-auto min-w-0 w-full max-w-[520px] lg:col-span-6 lg:justify-self-end">
+        <div class="relative flex w-full min-w-0 justify-center lg:col-span-7 lg:justify-end" data-mobile-hero-reveal>
+          <div class="relative w-full max-w-[600px]">
           <div class="absolute inset-x-[8%] top-[10%] bottom-[8%] rounded-[2.5rem] bg-[#FFF2D1] shadow-[0_16px_38px_-30px_rgba(96,66,25,.45)]"></div>
-          <div class="relative rounded-[1.75rem] border border-[#F1E1BA] bg-white p-5 shadow-[0_14px_32px_-24px_rgba(90,70,54,.22)] sm:p-6">
-            <div class="flex items-center justify-between gap-3 border-b border-[#F7EFE8] pb-3">
+          <img src="끼끼_helkki-pass.png" alt="" aria-hidden="true" class="pointer-events-none absolute -right-1 -top-8 z-10 h-auto w-[96px] object-contain drop-shadow-[0_14px_20px_rgba(124,92,70,0.18)] sm:-right-4 sm:-top-12 sm:w-[126px] lg:-right-5 lg:-top-14 lg:w-[140px]">
+          <div class="relative rounded-[1.75rem] border border-[#F1E1BA] bg-white p-5 shadow-[0_14px_32px_-24px_rgba(90,70,54,.22)] sm:p-7 lg:p-8">
+            <div class="border-b border-[#F7EFE8] pb-3 pr-20 sm:pr-28">
               <span class="text-[14px] font-bold text-text-dark">HELKKI PASS</span>
-              <span class="rounded-full bg-[#FFF8E5] px-3 py-1 text-[11px] font-bold text-[#8B6505]">14일 무료 체험</span>
             </div>
-            <div class="mt-5 grid min-w-0 grid-cols-[minmax(0,1fr)_132px] items-center gap-4 sm:grid-cols-[minmax(0,1fr)_164px] sm:gap-5">
-              <div class="min-w-0">
-                <p class="text-[13px] font-semibold text-text-dark sm:text-[14px]">꾸준한 운동을 위한 모든 혜택</p>
-                <ul class="mt-3 space-y-2" aria-label="HELKKI PASS 핵심 혜택">
-                  <li class="flex items-center gap-2 text-[12px] leading-4 text-text-warm sm:text-[13px]"><span class="material-symbols-outlined shrink-0 text-[16px] text-[#9A720A]">check_circle</span>AI 맞춤 루틴 무제한 생성</li>
-                  <li class="flex items-center gap-2 text-[12px] leading-4 text-text-warm sm:text-[13px]"><span class="material-symbols-outlined shrink-0 text-[16px] text-[#9A720A]">check_circle</span>프리미엄 운동 콘텐츠 이용</li>
-                  <li class="flex items-center gap-2 text-[12px] leading-4 text-text-warm sm:text-[13px]"><span class="material-symbols-outlined shrink-0 text-[16px] text-[#9A720A]">check_circle</span>바나나 코인 추가 지급</li>
-                  <li class="flex items-center gap-2 text-[12px] leading-4 text-text-warm sm:text-[13px]"><span class="material-symbols-outlined shrink-0 text-[16px] text-[#9A720A]">check_circle</span>다양한 끼끼 아이템 제공</li>
-                  <li class="flex items-center gap-2 text-[12px] leading-4 text-text-warm sm:text-[13px]"><span class="material-symbols-outlined shrink-0 text-[16px] text-[#9A720A]">check_circle</span>광고 제거</li>
-                </ul>
-              </div>
-              <div class="flex min-h-[148px] items-center justify-center rounded-3xl bg-[#FFF8E5] p-3 sm:min-h-[174px] sm:p-4">
-                <img src="끼끼_HELKKIPASS2.png" alt="HELKKI PASS 카드를 든 끼끼" class="mx-auto block h-auto w-full max-w-[132px] object-contain sm:max-w-[164px]">
-              </div>
-            </div>
-            <div class="mt-5 grid grid-cols-2 gap-2 border-t border-[#F7EFE8] pt-4 sm:gap-3">
-              <article class="min-w-0 rounded-2xl border border-[#F1E5DC] px-3 py-2.5 text-left">
-                <div class="flex items-center justify-between gap-2"><span class="text-[12px] font-bold text-text-dark">월간</span><span class="shrink-0 text-[10px] font-bold text-coral-orange">43% 할인</span></div>
-                <p class="mt-1 whitespace-nowrap text-[15px] font-bold tracking-tight text-text-dark"><span class="text-[10px] font-medium text-text-muted line-through">6,900원</span><span class="mx-1 text-text-muted">→</span>3,900원<span class="text-[10px] font-medium text-text-muted"> /월</span></p>
+            <div class="mt-4 flex flex-col items-stretch gap-2 md:flex-row md:items-center">
+              <article class="min-w-0 flex-1 rounded-2xl border border-[#F1E5DC] bg-[#FFFDF9] p-3.5 md:p-4">
+                <span class="text-[10px] font-bold tracking-[0.12em] text-coral-orange">BEFORE</span>
+                <h2 class="mt-1 text-[15px] font-bold text-text-dark">맞춤 운동</h2>
+                <p class="mt-1 text-[12px] leading-5 text-text-muted keep-all">상태와 상황에 맞는<br class="hidden md:block">운동 선택 폭 확대</p>
               </article>
-              <article class="min-w-0 rounded-2xl border border-[#E7B83D] bg-[#FFFDF9] px-3 py-2.5 text-left shadow-[0_8px_18px_-16px_rgba(154,114,10,.65)]">
-                <div class="flex items-center justify-between gap-2"><span class="text-[12px] font-bold text-text-dark">연간</span><span class="shrink-0 rounded-full bg-butter-yellow px-1.5 py-0.5 text-[9px] font-bold text-text-dark">추천 · 51%</span></div>
-                <p class="mt-1 whitespace-nowrap text-[15px] font-bold tracking-tight text-text-dark"><span class="text-[10px] font-medium text-text-muted line-through">59,000원</span><span class="mx-1 text-text-muted">→</span>29,000원<span class="text-[10px] font-medium text-text-muted"> /년</span></p>
-                <p class="mt-1 text-[10px] font-semibold text-[#7B5B06]">월 2,417원</p>
+              <span class="material-symbols-outlined self-center rotate-90 text-[20px] text-text-muted/40 md:rotate-0">arrow_forward</span>
+              <article class="min-w-0 flex-1 rounded-2xl border border-[#F1E5DC] bg-[#FFFDF9] p-3.5 md:p-4">
+                <span class="text-[10px] font-bold tracking-[0.12em] text-coral-orange">DURING</span>
+                <h2 class="mt-1 text-[15px] font-bold text-text-dark">루틴 조정</h2>
+                <p class="mt-1 text-[12px] leading-5 text-text-muted keep-all">상황이 달라지면<br class="hidden md:block">남은 운동 조정</p>
+              </article>
+              <span class="material-symbols-outlined self-center rotate-90 text-[20px] text-text-muted/40 md:rotate-0">arrow_forward</span>
+              <article class="min-w-0 flex-1 rounded-2xl border border-[#F1E5DC] bg-[#FFFDF9] p-3.5 md:p-4">
+                <span class="text-[10px] font-bold tracking-[0.12em] text-coral-orange">AFTER</span>
+                <h2 class="mt-1 text-[15px] font-bold text-text-dark">주간 분석</h2>
+                <p class="mt-1 text-[12px] leading-5 text-text-muted keep-all">운동 기록과 패턴을<br class="hidden md:block">다음 계획에 활용</p>
               </article>
             </div>
-            </div>
+            <p class="mt-4 border-t border-[#F7EFE8] pt-4 text-center text-[12px] font-semibold leading-5 text-[#7B5B06] keep-all">오늘의 운동 경험이 다음 계획으로 이어져요</p>
+          </div>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="mx-auto max-w-[1200px] px-4 py-10 sm:px-16 sm:py-16" data-reveal>
+    <section class="mx-auto max-w-[1200px] px-4 py-12 sm:px-16 sm:py-16" data-reveal>
       <div class="max-w-[640px]">
-        <span class="text-[12px] font-bold uppercase tracking-[0.12em] text-coral-orange">MEMBERSHIP BENEFITS</span>
-        <h2 class="mt-2 text-[28px] font-bold tracking-tight text-text-dark sm:text-[34px] keep-all">꾸준한 운동을 위한 혜택</h2>
-        <p class="mt-2 text-[15px] leading-6 text-text-warm keep-all sm:mt-3">운동을 이어가는 데 필요한 혜택을 한곳에 담았어요.</p>
+        <span class="text-[12px] font-bold uppercase tracking-[0.12em] text-coral-orange">CORE BENEFITS</span>
+        <h2 class="mt-2 text-[28px] font-bold tracking-tight text-text-dark sm:text-[34px] keep-all">PASS로 달라지는 운동 경험</h2>
+        <p class="mt-2 text-[15px] leading-6 text-text-warm keep-all sm:mt-3">운동 전·중·후, 필요한 순간마다 개인화의 범위를 넓혀요.</p>
       </div>
-      <div class="mx-auto mt-6 grid max-w-[1080px] auto-rows-fr grid-cols-1 gap-3 sm:mt-8 sm:gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <article class="flex h-full min-h-0 flex-row items-start gap-3 rounded-3xl border border-[#F1E5DC] bg-white p-3.5 shadow-[0_10px_28px_-22px_rgba(90,70,54,.34)] sm:min-h-[204px] sm:flex-col sm:gap-0 sm:p-4">
-          <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#FFF8E5] text-[#9A720A] sm:h-11 sm:w-11"><span class="material-symbols-outlined text-[20px] sm:text-[21px]">auto_awesome</span></span>
-          <div class="min-w-0 flex-1">
-            <h3 class="text-[16px] font-bold leading-[1.4] text-text-dark sm:mt-4 sm:text-[17px] sm:leading-6">AI 맞춤 루틴<span class="sm:hidden"> </span><br class="hidden sm:block">무제한 생성</h3>
-            <p class="mt-1 text-[13px] leading-[1.5] text-text-muted sm:mt-2 sm:leading-[1.6]">내 컨디션과 목표에 맞는 루틴을 제한 없이 생성해요.</p>
-          </div>
+      <div class="mx-auto mt-6 grid max-w-[1080px] grid-cols-1 items-start gap-3 sm:mt-8 sm:gap-4 lg:grid-cols-3 lg:items-stretch">
+        <article class="flex flex-row items-start gap-3 rounded-3xl border border-[#F1E5DC] bg-white p-4 shadow-[0_10px_28px_-22px_rgba(90,70,54,.34)] sm:flex-col sm:gap-0 sm:p-5 lg:h-full">
+          <span class="mt-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#FFF8E5] text-[#9A720A] sm:mt-0 sm:h-11 sm:w-11"><span class="material-symbols-outlined text-[20px] sm:text-[21px]">auto_awesome</span></span>
+          <div class="min-w-0 flex-1"><span class="text-[11px] font-bold tracking-[0.12em] text-coral-orange sm:mt-4 sm:block">BEFORE</span><h3 class="mt-1 text-[17px] font-bold leading-6 text-text-dark">더 유연한 운동 계획</h3><p class="mt-2 text-[13px] leading-[1.65] text-text-muted keep-all">맞춤 운동 이용 범위를 넓히고, 필요할 때 루틴을 다시 조정해요.</p></div>
         </article>
-        <article class="flex h-full min-h-0 flex-row items-start gap-3 rounded-3xl border border-[#F1E5DC] bg-white p-3.5 shadow-[0_10px_28px_-22px_rgba(90,70,54,.34)] sm:min-h-[204px] sm:flex-col sm:gap-0 sm:p-4">
-          <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#FFF8E5] text-[#9A720A] sm:h-11 sm:w-11"><span class="material-symbols-outlined text-[20px] sm:text-[21px]">fitness_center</span></span>
-          <div class="min-w-0 flex-1">
-            <h3 class="text-[16px] font-bold leading-[1.4] text-text-dark sm:mt-4 sm:text-[17px] sm:leading-6">프리미엄 운동<span class="sm:hidden"> </span><br class="hidden sm:block">콘텐츠 이용</h3>
-            <p class="mt-1 text-[13px] leading-[1.5] text-text-muted sm:mt-2 sm:leading-[1.6]">운동에 필요한 다양한 콘텐츠와 가이드를 이용해요.</p>
-          </div>
+        <article class="flex flex-row items-start gap-3 rounded-3xl border border-[#F1E5DC] bg-white p-4 shadow-[0_10px_28px_-22px_rgba(90,70,54,.34)] sm:flex-col sm:gap-0 sm:p-5 lg:h-full">
+          <span class="mt-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#FFF2E8] text-coral-orange sm:mt-0 sm:h-11 sm:w-11"><span class="material-symbols-outlined text-[20px] sm:text-[21px]">fitness_center</span></span>
+          <div class="min-w-0 flex-1"><div class="flex flex-wrap items-center justify-between gap-2 sm:mt-4"><span class="text-[11px] font-bold tracking-[0.12em] text-coral-orange">DURING</span><span class="rounded-full bg-[#FFF8E5] px-2 py-1 text-[10px] font-bold text-[#8B6505]">PASS 확장 예정</span></div><h3 class="mt-1 text-[17px] font-bold leading-6 text-text-dark">운동 중 상태가 달라져도</h3><p class="mt-2 text-[13px] leading-[1.65] text-text-muted keep-all">상태 변화가 생기면 운동을 멈추고 안전 기준을 다시 확인해요. 안전하게 가능한 경우 남은 루틴을 조정하는 기능을 준비하고 있어요.</p><p class="mt-4 border-t border-[#F7EFE8] pt-3 text-[11px] font-semibold leading-[1.65] text-[#7B5B06] keep-all">상태 변화 → 운동 중단 → 안전 재확인 → 가능한 경우 남은 루틴 조정</p></div>
         </article>
-        <article class="flex h-full min-h-0 flex-row items-start gap-3 rounded-3xl border border-[#F1E5DC] bg-white p-3.5 shadow-[0_10px_28px_-22px_rgba(90,70,54,.34)] sm:min-h-[204px] sm:flex-col sm:gap-0 sm:p-4">
-          <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#FFF8E5] text-[#9A720A] sm:h-11 sm:w-11"><span class="material-symbols-outlined text-[20px] sm:text-[21px]">monetization_on</span></span>
-          <div class="min-w-0 flex-1">
-            <h3 class="text-[16px] font-bold leading-[1.4] text-text-dark sm:mt-4 sm:text-[17px] sm:leading-6">바나나 코인<span class="sm:hidden"> </span><br class="hidden sm:block">추가 지급</h3>
-            <p class="mt-1 text-[13px] leading-[1.5] text-text-muted sm:mt-2 sm:leading-[1.6]">PASS 전용 추가 바나나 코인 혜택을 받아요.</p>
-          </div>
-        </article>
-        <article class="flex h-full min-h-0 flex-row items-start gap-3 rounded-3xl border border-[#F1E5DC] bg-white p-3.5 shadow-[0_10px_28px_-22px_rgba(90,70,54,.34)] sm:min-h-[204px] sm:flex-col sm:gap-0 sm:p-4">
-          <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#FFF8E5] text-[#9A720A] sm:h-11 sm:w-11"><span class="material-symbols-outlined text-[20px] sm:text-[21px]">redeem</span></span>
-          <div class="min-w-0 flex-1">
-            <h3 class="text-[16px] font-bold leading-[1.4] text-text-dark sm:mt-4 sm:text-[17px] sm:leading-6">다양한 끼끼<span class="sm:hidden"> </span><br class="hidden sm:block">아이템 제공</h3>
-            <p class="mt-1 text-[13px] leading-[1.5] text-text-muted sm:mt-2 sm:leading-[1.6]">PASS 전용 아이템으로 끼끼를 다양하게 꾸며보세요.</p>
-          </div>
-        </article>
-        <article class="flex h-full min-h-0 flex-row items-start gap-3 rounded-3xl border border-[#F1E5DC] bg-white p-3.5 shadow-[0_10px_28px_-22px_rgba(90,70,54,.34)] sm:min-h-[204px] sm:flex-col sm:gap-0 sm:p-4 sm:col-span-2 lg:col-span-1">
-          <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#FFF8E5] text-[#9A720A] sm:h-11 sm:w-11"><span class="material-symbols-outlined text-[20px] sm:text-[21px]">ad_off</span></span>
-          <div class="min-w-0 flex-1">
-            <h3 class="text-[16px] font-bold leading-[1.4] text-text-dark sm:mt-4 sm:text-[17px] sm:leading-6">광고 제거</h3>
-            <p class="mt-1 text-[13px] leading-[1.5] text-text-muted sm:mt-2 sm:leading-[1.6]">광고 없이 운동과 콘텐츠에 집중할 수 있어요.</p>
-          </div>
+        <article class="flex flex-row items-start gap-3 rounded-3xl border border-[#F1E5DC] bg-white p-4 shadow-[0_10px_28px_-22px_rgba(90,70,54,.34)] sm:flex-col sm:gap-0 sm:p-5 lg:h-full">
+          <span class="mt-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#F2F5E6] text-[#7C9A4B] sm:mt-0 sm:h-11 sm:w-11"><span class="material-symbols-outlined text-[20px] sm:text-[21px]">insights</span></span>
+          <div class="min-w-0 flex-1"><span class="text-[11px] font-bold tracking-[0.12em] text-coral-orange sm:mt-4 sm:block">AFTER</span><h3 class="mt-1 text-[17px] font-bold leading-6 text-text-dark">기록을 더 깊게 분석</h3><p class="mt-2 text-[13px] leading-[1.65] text-text-muted keep-all">운동 기록과 반복되는 수행 패턴을 분석해 다음 계획에 활용해요.</p></div>
         </article>
       </div>
     </section>
 
-    <section id="plans" class="border-y border-[#F2E7D8] bg-[#FFF8E5] py-12 sm:py-20" data-reveal>
+    <section class="border-y border-[#F2E7D8] bg-[#FFF8E5] py-12 sm:py-16" data-reveal>
       <div class="mx-auto max-w-[1200px] px-4 sm:px-16">
-        <div class="text-center">
-          <span class="text-[12px] font-bold uppercase tracking-[0.12em] text-coral-orange">PLANS</span>
-          <h2 class="mt-2 text-[28px] font-bold tracking-tight text-text-dark sm:text-[34px]">나에게 맞는 HELKKI PASS</h2>
-          <p class="mt-3 text-[15px] text-text-warm keep-all">이용 기간에 맞춰 월간 또는 연간 플랜을 선택해보세요.</p>
+        <div class="max-w-[640px]"><span class="text-[12px] font-bold tracking-[0.12em] text-coral-orange">FREE vs PASS</span><h2 class="mt-2 text-[28px] font-bold tracking-tight text-text-dark sm:text-[34px]">무엇이 달라지나요?</h2></div>
+        <div class="mx-auto mt-6 max-w-[1080px] overflow-hidden rounded-3xl border border-[#E9DDCF] bg-white sm:mt-8">
+          <div class="hidden grid-cols-[0.7fr_1.25fr_1.5fr] border-b border-[#E9DDCF] bg-[#FFFDF9] text-[14px] font-bold text-text-dark md:grid"><div class="px-5 py-4">기능</div><div class="border-l border-[#E9DDCF] px-5 py-4">FREE</div><div class="border-l border-butter-yellow/50 bg-butter-yellow/25 px-5 py-4 text-[#7B5B06]">PASS</div></div>
+          <div class="hidden md:block">
+            <div class="grid grid-cols-[0.7fr_1.25fr_1.5fr] border-b border-[#F0E4D7] text-[14px] leading-6"><div class="px-5 py-4 font-bold text-text-dark">맞춤 운동</div><div class="border-l border-[#F0E4D7] px-5 py-4 text-text-warm">오늘의 상태를 반영한 맞춤 루틴 추천</div><div class="border-l border-butter-yellow/50 bg-butter-yellow/15 px-5 py-4 font-semibold text-text-warm">맞춤 루틴 이용 범위 확대</div></div>
+            <div class="grid grid-cols-[0.7fr_1.25fr_1.5fr] border-b border-[#F0E4D7] text-[14px] leading-6"><div class="px-5 py-4 font-bold text-text-dark">루틴 조정</div><div class="border-l border-[#F0E4D7] px-5 py-4 text-text-warm">추천된 루틴 내 운동 변경</div><div class="border-l border-butter-yellow/50 bg-butter-yellow/15 px-5 py-4 font-semibold text-text-warm">추가 루틴 조정 기회 제공</div></div>
+            <div class="grid grid-cols-[0.7fr_1.25fr_1.5fr] border-b border-[#F0E4D7] text-[14px] leading-6"><div class="px-5 py-4 font-bold text-text-dark">운동 중 대응</div><div class="border-l border-[#F0E4D7] px-5 py-4 text-text-warm">불편함 발생 시 운동을 멈추고 상태 확인</div><div class="border-l border-butter-yellow/50 bg-butter-yellow/15 px-5 py-4 font-semibold text-text-warm">상태 확인 후 가능한 경우 남은 루틴 조정*</div></div>
+            <div class="grid grid-cols-[0.7fr_1.25fr_1.5fr] text-[14px] leading-6"><div class="px-5 py-4 font-bold text-text-dark">주간 분석</div><div class="border-l border-[#F0E4D7] px-5 py-4 text-text-warm">이번 주 운동 수행 기록 확인</div><div class="border-l border-butter-yellow/50 bg-butter-yellow/15 px-5 py-4 font-semibold text-text-warm">수행 패턴을 분석해 다음 운동 계획에 활용</div></div>
+          </div>
+          <div class="divide-y divide-[#F7EFE8] md:hidden">
+            <article class="p-3"><h3 class="font-bold text-text-dark">맞춤 운동</h3><div class="mt-2 grid grid-cols-2 items-stretch gap-2"><div class="rounded-2xl border border-[#F1E5DC] p-2.5"><span class="text-[10px] font-bold text-text-muted">FREE</span><p class="mt-1 text-[12px] leading-[1.45]">오늘 상태 기반 맞춤 루틴</p></div><div class="rounded-2xl border border-butter-yellow/40 bg-butter-yellow/15 p-2.5"><span class="text-[10px] font-bold text-[#8B6505]">PASS</span><p class="mt-1 text-[12px] leading-[1.45]">맞춤 루틴 이용 범위 확대</p></div></div></article>
+            <article class="p-3"><h3 class="font-bold text-text-dark">루틴 조정</h3><div class="mt-2 grid grid-cols-2 items-stretch gap-2"><div class="rounded-2xl border border-[#F1E5DC] p-2.5"><span class="text-[10px] font-bold text-text-muted">FREE</span><p class="mt-1 text-[12px] leading-[1.45]">추천 루틴 내 운동 변경</p></div><div class="rounded-2xl border border-butter-yellow/40 bg-butter-yellow/15 p-2.5"><span class="text-[10px] font-bold text-[#8B6505]">PASS</span><p class="mt-1 text-[12px] leading-[1.45]">추가 루틴 조정 기회</p></div></div></article>
+            <article class="p-3"><h3 class="font-bold text-text-dark">운동 중 대응</h3><div class="mt-2 grid grid-cols-2 items-stretch gap-2"><div class="rounded-2xl border border-[#F1E5DC] p-2.5"><span class="text-[10px] font-bold text-text-muted">FREE</span><p class="mt-1 text-[12px] leading-[1.45]">불편함 발생 시 중단 · 상태 확인</p></div><div class="rounded-2xl border border-butter-yellow/40 bg-butter-yellow/15 p-2.5"><span class="text-[10px] font-bold text-[#8B6505]">PASS</span><p class="mt-1 text-[12px] leading-[1.45]">가능한 경우 남은 루틴 조정*</p></div></div></article>
+            <article class="p-3"><h3 class="font-bold text-text-dark">주간 분석</h3><div class="mt-2 grid grid-cols-2 items-stretch gap-2"><div class="rounded-2xl border border-[#F1E5DC] p-2.5"><span class="text-[10px] font-bold text-text-muted">FREE</span><p class="mt-1 text-[12px] leading-[1.45]">이번 주 수행 기록 확인</p></div><div class="rounded-2xl border border-butter-yellow/40 bg-butter-yellow/15 p-2.5"><span class="text-[10px] font-bold text-[#8B6505]">PASS</span><p class="mt-1 text-[12px] leading-[1.45]">수행 패턴 분석 · 다음 계획 반영</p></div></div></article>
+          </div>
         </div>
-        <div class="mx-auto mt-7 grid max-w-[820px] grid-cols-1 items-stretch gap-3 sm:mt-9 sm:gap-5 lg:grid-cols-2">
-          <article class="flex h-full min-h-0 flex-col rounded-3xl border border-[#E9DDCF] bg-white p-5 sm:min-h-[402px] sm:p-8">
-            <div class="flex items-start justify-between gap-3"><div><p class="text-[14px] font-semibold text-text-muted">월간 구독</p><h3 class="mt-1 text-[24px] font-bold text-text-dark">가볍게 시작하기</h3></div><span class="rounded-full bg-[#FFF2E8] px-3 py-1 text-[12px] font-bold text-coral-orange">43% 할인</span></div>
-            <div class="mt-5 flex items-end gap-2 sm:mt-8 sm:gap-3"><span class="pb-1 text-[15px] text-text-muted line-through">6,900원 /월</span><span class="pb-1 text-text-muted">→</span><span class="text-[30px] font-bold tracking-tight text-text-dark">3,900원</span><span class="pb-1 text-[14px] font-semibold text-text-muted">/월</span></div>
-            <div class="mt-2 h-0 sm:mt-4 sm:h-[36px]"></div>
-            <div class="my-3 h-px bg-[#F2E7D8] sm:my-5"></div>
-            <p class="min-h-0 text-[14px] leading-[1.52] text-text-warm sm:min-h-[48px] sm:leading-6">한 달간 모든 혜택을 이용할 수 있어요.</p>
-            <button type="button" data-plan="monthly" data-open-pass-modal class="mt-4 inline-flex w-full items-center justify-center rounded-full border border-[#DCCBBE] px-5 py-2.5 text-[15px] font-bold text-text-warm transition-colors hover:border-coral-orange hover:text-coral-orange sm:mt-6 sm:py-3">14일 무료 체험</button>
-          </article>
-          <article class="relative flex h-full min-h-0 flex-col rounded-3xl border-2 border-[#E7B83D] bg-white p-5 shadow-[0_14px_34px_-22px_rgba(154,114,10,.42)] sm:min-h-[402px] sm:p-[31px]">
-            <span class="absolute -top-3 left-6 rounded-full bg-butter-yellow px-3 py-1 text-[12px] font-bold text-text-dark shadow-sm">추천</span>
-            <div class="flex items-start justify-between gap-3"><div><p class="text-[14px] font-semibold text-text-muted">연간 구독</p><h3 class="mt-1 text-[24px] font-bold text-text-dark">꾸준히 이어가기</h3></div><span class="rounded-full bg-[#FFF8E5] px-3 py-1 text-[12px] font-bold text-[#8B6505]">51% 할인</span></div>
-            <div class="mt-5 flex items-end gap-2 sm:mt-8 sm:gap-3"><span class="pb-1 text-[15px] text-text-muted line-through">59,000원 /년</span><span class="pb-1 text-text-muted">→</span><span class="text-[30px] font-bold tracking-tight text-text-dark">29,000원</span><span class="pb-1 text-[14px] font-semibold text-text-muted">/년</span></div>
-            <div class="mt-2 flex h-7 items-center sm:mt-4 sm:h-[36px]"><span class="inline-flex rounded-xl bg-[#FFF8E5] px-3 py-1.5 text-[13px] font-bold text-[#7B5B06] sm:py-2">월 2,417원</span></div>
-            <div class="my-3 h-px bg-[#F2E7D8] sm:my-5"></div>
-            <p class="min-h-0 text-[14px] leading-[1.52] text-text-warm sm:min-h-[48px] sm:leading-6">꾸준한 운동을 계획하고 있다면 더 합리적으로 이용할 수 있어요.</p>
-            <button type="button" data-plan="yearly" data-open-pass-modal class="mt-4 inline-flex w-full items-center justify-center rounded-full bg-butter-yellow px-5 py-2.5 text-[15px] font-bold text-text-dark shadow-[0_5px_16px_rgba(244,185,66,.28)] transition-colors hover:bg-butter-yellow-hover sm:mt-6 sm:py-3">14일 무료 체험</button>
-          </article>
+        <div class="mx-auto max-w-[1080px]">
+          <p class="mt-4 text-[12px] leading-5 text-text-muted">* PASS의 운동 중 루틴 재구성 기능은 확장 예정입니다.</p>
+          <div class="mt-3 flex items-start gap-2 text-[13px] leading-5 text-text-warm keep-all"><span class="material-symbols-outlined mt-px shrink-0 text-[17px] text-[#9A720A]" aria-hidden="true">verified_user</span><div><p class="font-bold text-text-dark">안전 기준은 요금제와 관계없이 동일합니다</p><p class="mt-1">현재 상태를 확인해 적합하지 않은 운동을 먼저 제외합니다.</p></div></div>
         </div>
       </div>
     </section>
 
+    <section id="plans" class="mx-auto max-w-[1200px] px-4 py-12 sm:px-16 sm:py-16" data-reveal>
+      <div class="mx-auto max-w-[680px]">
+        <div class="text-center"><span class="text-[12px] font-bold tracking-[0.12em] text-coral-orange">HELKKI PASS</span><h2 class="mx-auto mt-2 max-w-[22rem] text-[28px] font-bold leading-[1.35] tracking-tight text-text-dark sm:max-w-none sm:text-[34px]"><span class="block sm:inline">나에게 맞는 운동을</span> <span class="block sm:inline">더 꾸준히 이어가세요</span></h2></div>
+        <article class="mt-7 rounded-3xl border-2 border-[#E7B83D] bg-white p-5 shadow-[0_14px_34px_-22px_rgba(154,114,10,.42)] sm:mt-9 sm:p-8">
+          <p class="text-[14px] font-semibold text-text-muted">월간 단일 플랜</p>
+          <div class="mt-2 flex items-end gap-2"><span class="text-[34px] font-bold tracking-tight text-text-dark">6,900원</span><span class="pb-1 text-[14px] font-semibold text-text-muted">/월</span></div>
+          <p class="mt-4 text-[14px] leading-[1.65] text-text-warm keep-all">오늘의 상태와 쌓인 운동 기록을 바탕으로, 운동 계획을 더 유연하게 조정하고 수행 패턴까지 분석해요.</p>
+          <div class="my-5 h-px bg-[#F2E7D8]"></div>
+          <ul class="grid grid-cols-1 gap-2 text-[13px] leading-5 text-text-warm sm:grid-cols-2">
+            <li class="flex items-center gap-2"><span class="material-symbols-outlined text-[17px] text-[#9A720A]">check_circle</span>맞춤 운동 이용 확대</li>
+            <li class="flex items-center gap-2"><span class="material-symbols-outlined text-[17px] text-[#9A720A]">check_circle</span>추가 루틴 조정</li>
+            <li class="flex items-center gap-2"><span class="material-symbols-outlined text-[17px] text-[#9A720A]">check_circle</span>AI 주간 분석</li>
+            <li class="flex items-center gap-2"><span class="material-symbols-outlined text-[17px] text-[#9A720A]">schedule</span>운동 중 루틴 재구성 기능 확장 예정</li>
+          </ul>
+          <div class="mt-5 border-t border-[#F7EFE8] pt-4">
+            <p class="text-[12px] font-semibold text-text-dark">PASS 추가 혜택</p>
+            <p class="mt-1 text-[12px] leading-5 text-text-muted">끼끼 추가 리워드 · 프리미엄 콘텐츠 · 광고 없이 이용</p>
+          </div>
+        </article>
+      </div>
+    </section>
   </main>
 
   <footer class="w-full border-t border-[#F5E6DA]/70 bg-[#FFFDF9]"><div class="mx-auto flex max-w-[1200px] flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-4 text-[12px] text-text-muted sm:px-16"><span class="font-semibold tracking-wide text-text-warm">HELKKI</span><span aria-hidden="true">|</span><span>SKN30-FINAL-5Team</span><span aria-hidden="true">|</span><a href="https://github.com/SKNETWORKS-FAMILY-AICAMP/SKN30-FINAL-5Team" target="_blank" rel="noopener noreferrer" class="transition-colors hover:text-coral-orange">GitHub ↗</a></div></footer>
-
-  <div id="pass-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-[#3D2D20]/45 px-4 py-6" role="dialog" aria-modal="true" aria-labelledby="pass-modal-title" aria-hidden="true">
-    <div class="relative max-h-full w-full max-w-[520px] overflow-y-auto rounded-[2rem] border border-[#EEDFB3] bg-[#FFFDF9] p-6 shadow-2xl sm:p-8">
-      <button type="button" data-close-pass-modal class="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-[#FFF2E8] hover:text-text-dark" aria-label="HELKKI PASS 팝업 닫기"><span class="material-symbols-outlined">close</span></button>
-      <div class="pr-10"><span class="text-[13px] font-bold tracking-[0.08em] text-coral-orange">HELKKI PASS</span><h2 id="pass-modal-title" class="mt-3 text-[28px] font-bold leading-[1.3] tracking-tight text-text-dark keep-all">14일 무료 체험을 시작할까요?</h2><p class="mt-3 text-[15px] leading-6 text-text-warm">선택한 요금제와 무료 체험 종료 후 결제 금액을 확인해주세요.</p></div>
-      <div class="mt-6 rounded-2xl border border-[#F1E5DC] bg-white p-4"><div class="flex items-center justify-between gap-3"><span id="pass-modal-plan-name" class="text-[16px] font-bold text-text-dark">연간 구독</span><span class="rounded-full bg-[#FFF8E5] px-3 py-1 text-[12px] font-bold text-[#8B6505]">14일 무료 체험</span></div><p id="pass-modal-price" class="mt-3 text-[14px] leading-6 text-text-warm">14일 무료 체험 후 연 29,000원이 결제됩니다.</p></div>
-      <p class="mt-3 text-center text-[12px] text-text-muted">무료 체험 기간 중 언제든 취소할 수 있어요.</p>
-      <button id="pass-modal-cta" type="button" class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-butter-yellow px-5 py-3.5 text-[15px] font-bold text-text-dark transition-colors hover:bg-butter-yellow-hover">14일 무료 체험 시작하기</button>
-      <button type="button" data-close-pass-modal class="mt-3 w-full py-2 text-[14px] font-medium text-text-muted underline-offset-4 hover:text-text-dark hover:underline">취소</button>
-    </div>
-  </div>
-
   <script>
-    const setupReveal = () => {
-      const targets = document.querySelectorAll('[data-reveal]');
-      const mobileHero = document.querySelector('[data-mobile-hero-reveal]');
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) { targets.forEach((target) => target.classList.add('is-revealed')); mobileHero?.classList.add('is-revealed'); return; }
+    const hero = document.querySelector('[data-hero-reveal]');
+    const targets = document.querySelectorAll('[data-reveal]');
+    const mobileHeroTargets = document.querySelectorAll('[data-mobile-hero-reveal]');
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
+      hero?.classList.add('is-revealed');
+      targets.forEach((target) => target.classList.add('is-revealed'));
+      mobileHeroTargets.forEach((target) => target.classList.add('is-revealed'));
+    } else {
       document.documentElement.classList.add('reveal-enabled');
-      if (mobileHero) {
-        if (window.matchMedia('(max-width: 639px)').matches) window.requestAnimationFrame(() => mobileHero.classList.add('is-revealed'));
-        else mobileHero.classList.add('is-revealed');
+      const revealObserver = new IntersectionObserver((entries, observer) => entries.forEach((entry) => {
+        if (entry.isIntersecting) { entry.target.classList.add('is-revealed'); observer.unobserve(entry.target); }
+      }), { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
+      if (window.matchMedia('(max-width: 639px)').matches) {
+        hero?.classList.add('is-revealed');
+        mobileHeroTargets.forEach((target) => revealObserver.observe(target));
+      } else {
+        mobileHeroTargets.forEach((target) => target.classList.add('is-revealed'));
+        window.requestAnimationFrame(() => hero?.classList.add('is-revealed'));
       }
-      const revealObserver = new IntersectionObserver((entries, observer) => entries.forEach((entry) => { if (entry.isIntersecting) { entry.target.classList.add('is-revealed'); observer.unobserve(entry.target); } }), { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
       targets.forEach((target) => revealObserver.observe(target));
-    };
-    setupReveal();
-
-    const passModal = document.getElementById('pass-modal');
-    const passModalOpeners = document.querySelectorAll('[data-open-pass-modal]');
-    const passModalClosers = document.querySelectorAll('[data-close-pass-modal]');
-    const planDetails = {
-      monthly: { name: '월간 구독', postTrialPrice: '14일 무료 체험 후 월 3,900원이 결제됩니다.' },
-      yearly: { name: '연간 구독', postTrialPrice: '14일 무료 체험 후 연 29,000원이 결제됩니다.' }
-    };
-    let selectedPlan = 'yearly';
-    let lastFocusedElement;
-    const updatePassModal = () => {
-      const plan = planDetails[selectedPlan];
-      document.getElementById('pass-modal-plan-name').textContent = plan.name;
-      document.getElementById('pass-modal-price').textContent = plan.postTrialPrice;
-    };
-    const openPassModal = (event) => { const planCode = event?.currentTarget?.dataset.plan; if (planCode && planDetails[planCode]) selectedPlan = planCode; updatePassModal(); lastFocusedElement = document.activeElement; passModal.classList.remove('hidden'); passModal.classList.add('flex'); passModal.setAttribute('aria-hidden', 'false'); document.body.classList.add('overflow-hidden'); passModal.querySelector('[data-close-pass-modal]').focus(); };
-    const closePassModal = () => { passModal.classList.add('hidden'); passModal.classList.remove('flex'); passModal.setAttribute('aria-hidden', 'true'); document.body.classList.remove('overflow-hidden'); if (lastFocusedElement) lastFocusedElement.focus(); };
-    passModalOpeners.forEach((button) => button.addEventListener('click', openPassModal));
-    passModalClosers.forEach((button) => button.addEventListener('click', closePassModal));
-    passModal.addEventListener('click', (event) => { if (event.target === passModal) closePassModal(); });
-    document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !passModal.classList.contains('hidden')) closePassModal(); });
+    }
   </script>
 </body>
 </html>
