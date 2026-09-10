@@ -44,7 +44,7 @@ export function buildMyPageProfileRows(
     ],
     [
       'persistent_pains',
-      '평소 불편한 부위',
+      '통증 부위',
       (
         profile.persistent_pains?.map((pain) => pain.body_area_code) ??
         profile.attention_area_codes

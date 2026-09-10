@@ -287,9 +287,7 @@ describe('MyPageContainer', () => {
         '닉네임, 프로필 사진, 생년월일, 체중을 수정할 수 있어요.',
       ),
     ).toBeNull();
-    expect(
-      screen.getByText('생년월일과 체중은 변경할 항목만 입력해주세요.'),
-    ).toBeOnTheScreen();
+    expect(screen.getByText('변경하지 않은 사항은 유지돼요')).toBeOnTheScreen();
     expect(screen.queryByText('시간대')).toBeNull();
     expect(screen.queryByText('선택하지 않음')).toBeNull();
     expect(screen.queryByText(/변경할 때만/)).toBeNull();
@@ -970,11 +968,9 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(
-      screen.getByRole('button', { name: '평소 불편한 부위 수정' }),
-    );
+    fireEvent.press(screen.getByRole('button', { name: '통증 부위 수정' }));
     expect(
-      screen.getByRole('header', { name: '평소 불편한 부위 수정' }),
+      screen.getByRole('header', { name: '통증 부위 수정' }),
     ).toBeOnTheScreen();
     expect(screen.getByRole('checkbox', { name: '있어요' })).toBeChecked();
     expect(screen.getByText('불편한 부위')).toBeOnTheScreen();
@@ -1017,9 +1013,7 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(
-      screen.getByRole('button', { name: '평소 불편한 부위 수정' }),
-    );
+    fireEvent.press(screen.getByRole('button', { name: '통증 부위 수정' }));
     expect(
       screen
         .getAllByRole('adjustable')
@@ -1074,9 +1068,7 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(
-      screen.getByRole('button', { name: '평소 불편한 부위 수정' }),
-    );
+    fireEvent.press(screen.getByRole('button', { name: '통증 부위 수정' }));
     expect(
       screen.getByRole('button', { name: '다른 부위 보기' }).props
         .accessibilityState,
@@ -1096,9 +1088,7 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(
-      screen.getByRole('button', { name: '평소 불편한 부위 수정' }),
-    );
+    fireEvent.press(screen.getByRole('button', { name: '통증 부위 수정' }));
     fireEvent.press(screen.getByRole('checkbox', { name: '있어요' }));
 
     const toggle = screen.getByRole('button', { name: '다른 부위 보기' });
@@ -1143,9 +1133,7 @@ describe('MyPageContainer', () => {
       />,
     );
 
-    fireEvent.press(
-      screen.getByRole('button', { name: '평소 불편한 부위 수정' }),
-    );
+    fireEvent.press(screen.getByRole('button', { name: '통증 부위 수정' }));
     expect(screen.getByText('이전에 저장된 부위 (해제만 가능)')).toBeTruthy();
     expect(screen.getByRole('checkbox', { name: '전신' })).toBeChecked();
     fireEvent.press(screen.getByRole('checkbox', { name: '전신' }));

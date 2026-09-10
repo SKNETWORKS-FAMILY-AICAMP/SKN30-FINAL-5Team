@@ -343,11 +343,11 @@ export const MY_PAGE_PROFILE_ROWS = [
   ['primary_goal_code', '운동 목표', '체력 증진'],
   ['experience_level_code', '운동 경험', '초급'],
   ['desired_weekly_workout_count', '주간 운동 횟수', '주 4회'],
-  ['persistent_pains', '평소 불편한 부위', '무릎'],
+  ['persistent_pains', '통증 부위', '무릎'],
 ] as const;
 
 export const MY_PAGE_ACCOUNT_ROWS = [
-  ['개인정보 및 동의', ''],
+  ['개인정보 처리방침 및 이용', ''],
   ['문의하기', ''],
   ['이용약관', ''],
   ['앱 버전', '0.1.0'],

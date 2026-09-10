@@ -5,6 +5,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react-native';
 import {
   AccessibilityInfo,
@@ -781,9 +782,56 @@ describe('Home secondary visual prototypes', () => {
 
     fireEvent.press(screen.getByRole('switch', { name: /응원 알림/ }));
     expect(screen.queryByRole('button', { name: /연동 기기/ })).toBeNull();
-    fireEvent.press(screen.getByRole('button', { name: /개인정보 및 동의/ }));
+    fireEvent.press(
+      screen.getByRole('button', { name: /개인정보 처리방침 및 이용/ }),
+    );
     expect(onNotificationChange).toHaveBeenCalledWith('encouragement', true);
-    expect(onAccountAction).toHaveBeenCalledWith('개인정보 및 동의');
+    expect(onAccountAction).toHaveBeenCalledWith('개인정보 처리방침 및 이용');
+  });
+
+  it('shows the app version without a navigation arrow', async () => {
+    await render(<MyPageScreen />);
+
+    const versionRow = screen.getByRole('button', { name: '앱 버전' });
+    expect(versionRow).toBeDisabled();
+    expect(within(versionRow).getByText('0.1.0')).toBeOnTheScreen();
+    expect(within(versionRow).queryByText('›')).toBeNull();
+  });
+
+  it('opens privacy, terms, and inquiry details from My page', async () => {
+    await render(<MyPageScreen />);
+
+    fireEvent.press(
+      screen.getByRole('button', { name: '개인정보 처리방침 및 이용' }),
+    );
+    expect(
+      screen.getByRole('header', { name: '개인정보 처리방침 및 이용' }),
+    ).toBeOnTheScreen();
+    expect(screen.getByText('개인정보처리방침 확인')).toBeOnTheScreen();
+    expect(screen.getByText('개인정보 수집 및 이용')).toBeOnTheScreen();
+    expect(screen.getByText('건강 관련 민감정보 처리')).toBeOnTheScreen();
+    fireEvent.press(
+      screen.getByRole('button', { name: '개인정보처리방침 펼쳐보기' }),
+    );
+    expect(screen.getByTestId('policy-privacy_policy')).toBeOnTheScreen();
+
+    fireEvent.press(
+      screen.getByRole('button', { name: '마이페이지로 돌아가기' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '이용약관' }));
+    expect(screen.getByText('서비스 이용약관 동의')).toBeOnTheScreen();
+    fireEvent.press(
+      screen.getByRole('button', { name: '서비스 이용약관 펼쳐보기' }),
+    );
+    expect(screen.getByTestId('policy-service_terms')).toBeOnTheScreen();
+
+    fireEvent.press(
+      screen.getByRole('button', { name: '마이페이지로 돌아가기' }),
+    );
+    fireEvent.press(screen.getByRole('button', { name: '문의하기' }));
+    expect(screen.getByText('SKN30th-FINAL-5team')).toBeOnTheScreen();
+    expect(screen.getByText('TEAM 콩닥 관리자')).toBeOnTheScreen();
+    expect(screen.getByText('qwop1651@naver.com')).toBeOnTheScreen();
   });
 
   it('renders logout and withdrawal confirmations as callback-only states', async () => {

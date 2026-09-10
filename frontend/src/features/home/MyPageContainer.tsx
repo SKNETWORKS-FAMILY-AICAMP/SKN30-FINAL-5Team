@@ -163,7 +163,7 @@ const PROFILE_FIELD_LABELS: Record<string, string> = {
   default_requested_duration_minutes: '운동 시간',
   preferred_location_code: '선호 장소',
   available_location_codes: '운동 장소',
-  persistent_pains: '평소 불편한 부위',
+  persistent_pains: '통증 부위',
   preferred_exercise_type_codes: '선호 운동',
   experience_level_code: '운동 경험',
   nickname: '닉네임',
