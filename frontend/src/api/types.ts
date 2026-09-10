@@ -682,7 +682,8 @@ export type BananaTransactionType =
   | 'WORKOUT_SAFETY_STOPPED'
   | 'WORKOUT_DAILY_QUEST'
   | 'HOUSE_FEED'
-  | 'HOUSE_ITEM_PURCHASE';
+  | 'HOUSE_ITEM_PURCHASE'
+  | 'MINI_GAME';
 
 export type DailyRewardStatus = {
   local_date: string;
@@ -717,6 +718,18 @@ export type BananaSpendRequest =
     };
 
 export type BananaSpendResponse = BananaWalletResponse & {
+  transaction: BananaTransactionResponse;
+};
+
+/**
+ * One finished mini-game round. Only the score is sent: the payout, its cap and
+ * the once-a-day limit are the server's to decide.
+ */
+export type MiniGameRewardRequest = {
+  score: number;
+};
+
+export type MiniGameRewardResponse = BananaWalletResponse & {
   transaction: BananaTransactionResponse;
 };
 

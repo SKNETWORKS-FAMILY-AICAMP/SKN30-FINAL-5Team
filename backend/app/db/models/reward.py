@@ -41,7 +41,8 @@ class BananaTransaction(Base):
     __table_args__ = (
         CheckConstraint(
             "transaction_type IN ('DAILY_REWARD','WORKOUT_COMPLETED','WORKOUT_PARTIAL',"
-            "'WORKOUT_SAFETY_STOPPED','WORKOUT_DAILY_QUEST','HOUSE_FEED','HOUSE_ITEM_PURCHASE')",
+            "'WORKOUT_SAFETY_STOPPED','WORKOUT_DAILY_QUEST','HOUSE_FEED','HOUSE_ITEM_PURCHASE',"
+            "'MINI_GAME')",
             name="ck_banana_transactions_type",
         ),
         CheckConstraint("amount <> 0", name="ck_banana_transactions_amount_nonzero"),
