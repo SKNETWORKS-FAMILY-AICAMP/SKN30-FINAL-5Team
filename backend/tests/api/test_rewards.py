@@ -125,3 +125,41 @@ def test_mini_game_pays_nothing_for_a_round_that_caught_nothing() -> None:
     # ledger's amount <> 0 constraint would reject anyway.
     assert scoreless.status_code == 400
     assert scoreless.json()["error"]["code"] == "INVALID_MINI_GAME_SCORE"
+
+
+def test_bonding_quest_pays_a_fixed_amount_once_a_day_and_adds_to_the_balance() -> None:
+    client, _ = _mini_game_client()
+    with client:
+        gift = client.post("/api/v1/rewards/daily-reward/claim")
+        first = client.post("/api/v1/rewards/bonding-quest/claim")
+        repeated = client.post("/api/v1/rewards/bonding-quest/claim")
+
+    assert gift.json()["balance"] == 15
+    assert first.status_code == 200
+    assert first.json()["transaction"]["amount"] == 5
+    assert first.json()["transaction"]["transaction_type"] == "HOUSE_BONDING_QUEST"
+    # It adds to what is already there rather than replacing it.
+    assert first.json()["balance"] == 20
+    # The day is the idempotency key: a repeat replays, it does not pay again.
+    assert (
+        repeated.json()["transaction"]["transaction_id"]
+        == first.json()["transaction"]["transaction_id"]
+    )
+    assert repeated.json()["balance"] == 20
+
+
+def test_every_house_payout_accumulates_in_one_wallet() -> None:
+    """The house shows one number, so its three sources must add up in one place.
+
+    The bonding quest used to pay only into the house's own stored value, which
+    each write then overwrote with this balance -- so it paid nothing at all.
+    """
+
+    client, _ = _mini_game_client()
+    with client:
+        client.post("/api/v1/rewards/daily-reward/claim")
+        client.post("/api/v1/rewards/bonding-quest/claim")
+        final = client.post("/api/v1/rewards/mini-game/claim", json={"score": 20})
+
+    # 15 daily + 5 bonding + 10 mini-game
+    assert final.json()["balance"] == 30

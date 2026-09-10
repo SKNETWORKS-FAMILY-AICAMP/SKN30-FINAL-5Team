@@ -67,6 +67,16 @@ increase the balance again.
 fixed house costs. It returns `409 INSUFFICIENT_BANANA_BALANCE` when funds are insufficient.
 An already purchased house item is rejected server-side, including concurrent requests.
 
+`POST /api/v1/rewards/bonding-quest/claim` pays the house bonding quest (끼끼와 교감하기), a fixed
+5 bananas, at most once per user-local date. It takes no body. The server cannot observe petting, so
+it pays on request rather than verifying the quest -- the same arrangement, and the same bounded
+exposure, as the daily reward claim. Repeat calls return the original transaction and never raise the
+balance again. Transactions use type `HOUSE_BONDING_QUEST`.
+
+All three house daily quests now settle in the wallet: 접속하기 through the daily reward, 끼끼와
+교감하기 through this endpoint, and 운동 완료하기 through the `WORKOUT_DAILY_QUEST` sync. The wallet
+balance is the only number the app shows, so a payout that does not reach it is not paid at all.
+
 `POST /api/v1/rewards/mini-game/claim` pays out one finished house mini-game round. The body is
 `{"score": integer}` and nothing else: the amount is the server's, derived as `score // 2` bananas and
 capped at 25, so a strong round stays under the 30 a completed workout pays. The score is reported by

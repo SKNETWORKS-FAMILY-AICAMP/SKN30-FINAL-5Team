@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.modules.rewards.codes import (
     DAILY_REWARD_BANANAS,
+    HOUSE_BONDING_QUEST_BANANAS,
     HOUSE_FEED_COST,
     HOUSE_ITEM_COSTS,
     MINI_GAME_MAX_BANANAS,
@@ -27,6 +28,7 @@ from backend.app.modules.rewards.schemas import (
     BananaSpendResponse,
     BananaTransactionResponse,
     BananaWalletResponse,
+    BondingQuestRewardResponse,
     DailyRewardClaimResponse,
     DailyRewardStatus,
     MiniGameRewardRequest,
@@ -97,6 +99,43 @@ class RewardService:
             wallet = self._repository.get_wallet_for_update(session, user_id, now)
         return DailyRewardClaimResponse(
             **self._wallet_response(wallet, local_date, transaction).model_dump(),
+            transaction=self._transaction_response(transaction),
+        )
+
+    def claim_bonding_quest(self, session: Session, user_id: UUID) -> BondingQuestRewardResponse:
+        """Pay the house bonding quest, at most once per local day.
+
+        The house tracks petting locally and the server cannot observe it, so this
+        pays a fixed amount on request rather than verifying the quest -- the same
+        arrangement as the daily reward, and bounded the same way: the local date is
+        the idempotency key, so a repeat returns the original transaction and never
+        pays twice.
+
+        It exists because the wallet is the only balance the app shows. The house
+        used to add this reward to its own stored number, which every write then
+        overwrote with the server balance, so the quest silently paid nothing.
+        """
+
+        now = self._clock()
+        with session.begin():
+            _, wallet, local_now = self._prepare(session, user_id, now)
+            self._sync_workout_rewards(session, user_id, wallet, local_now, now)
+            local_date = local_now.date()
+            transaction = self._apply(
+                session,
+                user_id=user_id,
+                wallet=self._repository.get_wallet_for_update(session, user_id, now),
+                transaction_type=BananaTransactionType.HOUSE_BONDING_QUEST,
+                amount=HOUSE_BONDING_QUEST_BANANAS,
+                event_key=f"bonding-quest:{local_date.isoformat()}",
+                source_local_date=local_date,
+                reference_code=None,
+                now=now,
+            )
+            wallet = self._repository.get_wallet_for_update(session, user_id, now)
+            claim = self._repository.get_daily_claim(session, user_id, local_date)
+        return BondingQuestRewardResponse(
+            **self._wallet_response(wallet, local_date, claim).model_dump(),
             transaction=self._transaction_response(transaction),
         )
 

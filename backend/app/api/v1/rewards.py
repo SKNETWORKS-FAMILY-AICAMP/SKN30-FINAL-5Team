@@ -14,6 +14,7 @@ from backend.app.modules.rewards.schemas import (
     BananaSpendRequest,
     BananaSpendResponse,
     BananaWalletResponse,
+    BondingQuestRewardResponse,
     DailyRewardClaimResponse,
     MiniGameRewardRequest,
     MiniGameRewardResponse,
@@ -109,6 +110,24 @@ def spend_bananas(
         InvalidBananaSpendError,
         SQLAlchemyError,
     ) as exc:
+        raise _error(exc) from None
+
+
+@router.post("/bonding-quest/claim", response_model=BondingQuestRewardResponse)
+def claim_bonding_quest(
+    current_user: Annotated[CurrentUser, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_db_session)],
+    repository: Annotated[RewardRepositoryPort, Depends(get_reward_repository)],
+) -> BondingQuestRewardResponse:
+    """Pay the house bonding quest once per user-local day.
+
+    Idempotent for the day, including concurrent requests: a repeat returns the
+    original transaction and never raises the balance again.
+    """
+
+    try:
+        return RewardService(repository).claim_bonding_quest(session, current_user.user_id)
+    except (RewardProfileNotFoundError, SQLAlchemyError) as exc:
         raise _error(exc) from None
 
 

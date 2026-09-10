@@ -65,6 +65,7 @@ import {
   BANANA_REWARD,
   DAILY_GIFT_BANANAS,
   HOUSE_ACTION_COST,
+  INTIMACY_DAILY_EARN_LIMIT,
   HOUSE_BONDING_COPY,
 } from '../src/features/house/houseModel';
 import { createMemoryHouseStore } from '../src/features/house/houseStorage';
@@ -218,6 +219,26 @@ function houseApi({
               ? 'HOUSE_FEED'
               : 'HOUSE_ITEM_PURCHASE',
           amount: -cost,
+          balance_after: balance,
+          created_at: '2026-08-18T10:00:00+09:00',
+        },
+      };
+    }),
+    claimBondingQuest: jest.fn(async () => {
+      balance += 5;
+      return {
+        balance,
+        daily_reward: {
+          local_date: '2026-08-18',
+          reward_amount: 15,
+          is_claimable: true,
+          is_claimed: false,
+          claimed_at: null,
+        },
+        transaction: {
+          transaction_id: 'transaction-HOUSE_BONDING_QUEST',
+          transaction_type: 'HOUSE_BONDING_QUEST',
+          amount: 5,
           balance_after: balance,
           created_at: '2026-08-18T10:00:00+09:00',
         },
@@ -564,6 +585,34 @@ describe('MascotHouseScreen', () => {
 
     fireEvent.press(screen.getByLabelText('끼끼의 집으로 돌아가기'));
     expect(screen.getByTestId('house-scene')).toBeTruthy();
+  });
+
+  it('claims the bonding quest from the server once it is completed', async () => {
+    // The house settles this quest locally, but the wallet is the only balance
+    // shown. Paying it into the house's own number left it silently unpaid,
+    // because every write overwrites that number with the wallet balance.
+    const api = houseApi({ rewardBalance: 100 });
+    renderHouse(api);
+
+    await screen.findByTestId('house-scene');
+    expect(api.claimBondingQuest).not.toHaveBeenCalled();
+
+    // Petting earns intimacy; the quest completes at the daily limit.
+    for (let index = 0; index < INTIMACY_DAILY_EARN_LIMIT; index += 1) {
+      fireEvent.press(screen.getByTestId('house-pet-action'));
+      await act(async () => {
+        await Promise.resolve();
+      });
+    }
+
+    expect(api.claimBondingQuest).toHaveBeenCalledTimes(1);
+
+    // Further petting on the same day must not claim again.
+    fireEvent.press(screen.getByTestId('house-pet-action'));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(api.claimBondingQuest).toHaveBeenCalledTimes(1);
   });
 
   it('claims the mini-game reward with the finished score', async () => {
