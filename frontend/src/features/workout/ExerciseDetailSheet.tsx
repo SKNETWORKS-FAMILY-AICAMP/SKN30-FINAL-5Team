@@ -251,44 +251,60 @@ function ExerciseMedia({
   const canRender = mediaUri !== null && failedUri !== mediaUri;
 
   return (
-    <View
-      accessibilityLabel={`${exerciseName} 운동 GIF 영역`}
-      style={styles.mediaSlot}
-      testID="exercise-media-slot"
-    >
+    <>
+      <View
+        accessibilityLabel={`${exerciseName} 운동 GIF 영역`}
+        style={styles.mediaSlot}
+        testID="exercise-media-slot"
+      >
+        {canRender ? (
+          <>
+            <Image
+              accessibilityLabel={`${exerciseName} 운동 자세 GIF`}
+              accessibilityRole="image"
+              onError={() => setFailedUri(mediaUri)}
+              onLoad={() => setLoadedUri(mediaUri)}
+              onLoadStart={() =>
+                setLoadedUri((current) =>
+                  current === mediaUri ? current : null,
+                )
+              }
+              resizeMode="contain"
+              source={{ uri: mediaUri }}
+              style={styles.mediaImage}
+              testID="exercise-media-image"
+            />
+            {loadedUri !== mediaUri ? (
+              <View style={styles.mediaStatus} testID="exercise-media-loading">
+                <ActivityIndicator color={colors.greenText} />
+                <Text style={styles.mediaStatusText}>운동 GIF 불러오는 중</Text>
+              </View>
+            ) : null}
+          </>
+        ) : (
+          <View style={styles.mediaStatus} testID="exercise-media-placeholder">
+            <Text style={styles.mediaMark}>GIF</Text>
+            <Text style={styles.mediaStatusText}>
+              {mediaUri === null
+                ? '운동 GIF가 준비되면 이곳에 표시돼요.'
+                : '운동 GIF를 불러오지 못했어요.'}
+            </Text>
+          </View>
+        )}
+      </View>
+      {/*
+        Credited under the media it belongs to, on every screen that shows it:
+        this component is the only render site, and the posture sheet it lives in
+        is reused by home, the running workout, the session list and the catalog.
+        Shown only when an actual frame is rendered -- there is nothing to
+        attribute under the "GIF가 준비되면" placeholder or a failed load.
+      */}
       {canRender ? (
-        <>
-          <Image
-            accessibilityLabel={`${exerciseName} 운동 자세 GIF`}
-            accessibilityRole="image"
-            onError={() => setFailedUri(mediaUri)}
-            onLoad={() => setLoadedUri(mediaUri)}
-            onLoadStart={() =>
-              setLoadedUri((current) => (current === mediaUri ? current : null))
-            }
-            resizeMode="contain"
-            source={{ uri: mediaUri }}
-            style={styles.mediaImage}
-            testID="exercise-media-image"
-          />
-          {loadedUri !== mediaUri ? (
-            <View style={styles.mediaStatus} testID="exercise-media-loading">
-              <ActivityIndicator color={colors.greenText} />
-              <Text style={styles.mediaStatusText}>운동 GIF 불러오는 중</Text>
-            </View>
-          ) : null}
-        </>
-      ) : (
-        <View style={styles.mediaStatus} testID="exercise-media-placeholder">
-          <Text style={styles.mediaMark}>GIF</Text>
-          <Text style={styles.mediaStatusText}>
-            {mediaUri === null
-              ? '운동 GIF가 준비되면 이곳에 표시돼요.'
-              : '운동 GIF를 불러오지 못했어요.'}
-          </Text>
-        </View>
-      )}
-    </View>
+        <Text style={styles.mediaCredit} testID="exercise-media-credit">
+          © Gym visual - Aliaksandr Makatserchyk
+        </Text>
+      ) : null}
+    </>
   );
 }
 
@@ -313,6 +329,13 @@ const styles = StyleSheet.create({
   mediaImage: {
     width: '100%',
     height: '100%',
+  },
+  mediaCredit: {
+    marginTop: -4,
+    color: colors.textMuted,
+    fontSize: 10,
+    lineHeight: 14,
+    textAlign: 'center',
   },
   mediaStatus: {
     position: 'absolute',
