@@ -963,6 +963,12 @@ version으로 변경을 재적용하는 요청에는 새 `Idempotency-Key`를 �
 
 ### 8.1 RoutineCreateRequest
 
+`PATCH /api/v1/me/profile`이 `primary_goal_code`를 실제로 변경하면 서버는 새 프로필 목표와
+불일치하는 `ACTIVE` 루틴을 같은 transaction에서 `ARCHIVED`로 바꾼다. 이후
+`GET /api/v1/routines/current`는 기존 클라이언트 복구 흐름이 최신
+`MeProfile.primary_goal_code`로 루틴을 만들 때까지 `404 ROUTINE_NOT_FOUND`를 반환한다. 같은 목표를
+다시 저장하면 호환되는 루틴을 보관 처리하지 않는다. 과거 루틴과 운동 기록은 그대로 보존한다.
+
 ~~~json
 {
   "effective_from": "2026-08-06",

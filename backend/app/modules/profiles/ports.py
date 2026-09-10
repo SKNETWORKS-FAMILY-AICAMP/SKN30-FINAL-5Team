@@ -135,10 +135,9 @@ class ProfileImageUrlProvider(Protocol):
 class StaleRoutinePort(Protocol):
     """Retires routines a profile edit has made unreachable.
 
-    The profile default is the target a base routine is built to. When the user
-    changes it, the stored routine keeps the old target and every daily decision
-    then rejects it as CANDIDATE_DURATION_MISMATCH, leaving the user in a
-    permanent REST loop with no way out from the UI.
+    The profile goal and default duration are targets a base routine is built
+    to. When either changes, the stored routine no longer represents the
+    current profile.
 
     Archiving rather than rebuilding keeps this inside the profile transaction:
     a rebuild depends on catalog availability and can legitimately fail, and a
@@ -146,11 +145,12 @@ class StaleRoutinePort(Protocol):
     duration. The client already offers routine creation when none is active.
     """
 
-    def archive_routines_with_other_duration(
+    def archive_routines_incompatible_with_profile(
         self,
         session: Session,
         user_id: UUID,
         *,
+        primary_goal_code: str,
         requested_duration_minutes: int,
     ) -> int: ...
 

@@ -207,7 +207,49 @@ def test_changing_the_default_duration_retires_the_stale_routine() -> None:
     )
 
     assert response.status_code == 200
-    assert stale.archived_for == [45]
+    assert stale.archived_for == [("GENERAL_FITNESS", 45)]
+
+
+def test_changing_the_primary_goal_retires_the_stale_routine() -> None:
+    client, _ = _client()
+    stale = client.app.dependency_overrides[get_routine_repository]()
+
+    response = client.patch(
+        "/api/v1/me/profile",
+        json={"primary_goal_code": "MUSCLE_GAIN"},
+        headers=_headers(),
+    )
+
+    assert response.status_code == 200
+    assert stale.archived_for == [("MUSCLE_GAIN", 40)]
+
+
+def test_changing_goal_and_duration_retires_once_with_the_new_profile() -> None:
+    client, _ = _client()
+    stale = client.app.dependency_overrides[get_routine_repository]()
+
+    response = client.patch(
+        "/api/v1/me/profile",
+        json={"primary_goal_code": "MUSCLE_GAIN", "default_requested_duration_minutes": 45},
+        headers=_headers(),
+    )
+
+    assert response.status_code == 200
+    assert stale.archived_for == [("MUSCLE_GAIN", 45)]
+
+
+def test_saving_the_same_primary_goal_leaves_the_routine_alone() -> None:
+    client, _ = _client()
+    stale = client.app.dependency_overrides[get_routine_repository]()
+
+    response = client.patch(
+        "/api/v1/me/profile",
+        json={"primary_goal_code": "GENERAL_FITNESS"},
+        headers=_headers(),
+    )
+
+    assert response.status_code == 200
+    assert stale.archived_for == []
 
 
 def test_editing_other_fields_leaves_the_routine_alone() -> None:
@@ -228,13 +270,18 @@ class FakeStaleRoutines:
     """Records what the profile edit asked to retire, without a database."""
 
     def __init__(self) -> None:
-        self.archived_for: list[int] = []
+        self.archived_for: list[tuple[str, int]] = []
 
-    def archive_routines_with_other_duration(
-        self, session: Any, user_id: UUID, *, requested_duration_minutes: int
+    def archive_routines_incompatible_with_profile(
+        self,
+        session: Any,
+        user_id: UUID,
+        *,
+        primary_goal_code: str,
+        requested_duration_minutes: int,
     ) -> int:
         del session, user_id
-        self.archived_for.append(requested_duration_minutes)
+        self.archived_for.append((primary_goal_code, requested_duration_minutes))
         return 1
 
 

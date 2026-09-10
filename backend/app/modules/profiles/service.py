@@ -602,15 +602,32 @@ class ProfileService:
                 profile_version, updated_at = self._repository.update_profile_settings(
                     session, user_id, changes, now
                 )
-                # A routine is built to the profile default. Leaving one behind
-                # that targets the old duration makes every daily decision reject
-                # it and the user sees REST forever with no way out.
+                # A routine is built to the profile goal and default duration.
+                # Retire an incompatible version in the same transaction so Home's
+                # existing ROUTINE_NOT_FOUND recovery creates the next routine from
+                # the freshly persisted profile instead of returning stale content.
+                new_goal = changes.scalar_values.get("primary_goal_code")
                 new_duration = changes.scalar_values.get("default_requested_duration_minutes")
-                if self._stale_routines is not None and isinstance(new_duration, int):
-                    self._stale_routines.archive_routines_with_other_duration(
+                goal_changed = isinstance(new_goal, str) and new_goal != current.primary_goal_code
+                duration_changed = (
+                    isinstance(new_duration, int)
+                    and new_duration != current.default_requested_duration_minutes
+                )
+                if self._stale_routines is not None and (goal_changed or duration_changed):
+                    effective_goal = changes.scalar_values.get(
+                        "primary_goal_code", current.primary_goal_code
+                    )
+                    effective_duration = changes.scalar_values.get(
+                        "default_requested_duration_minutes",
+                        current.default_requested_duration_minutes,
+                    )
+                    assert isinstance(effective_goal, str)
+                    assert isinstance(effective_duration, int)
+                    self._stale_routines.archive_routines_incompatible_with_profile(
                         session,
                         user_id,
-                        requested_duration_minutes=new_duration,
+                        primary_goal_code=effective_goal,
+                        requested_duration_minutes=effective_duration,
                     )
                 response = ProfileSettingsUpdateResponse(
                     profile_version=profile_version,
