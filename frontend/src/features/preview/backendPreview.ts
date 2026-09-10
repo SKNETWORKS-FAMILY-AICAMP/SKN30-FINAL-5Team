@@ -182,12 +182,36 @@ const PREVIEW_REPORT: WeeklyReportResponse = {
   total_estimated_calories_burned: 312.5,
   average_intensity_code: 'MODERATE',
   most_performed_training_type_code: 'STRENGTH',
+  most_performed_exercise_name: '스쿼트',
   completed_count_change: 1,
   highlight_codes: [
     'COMPLETED_SESSION_RECORDED',
     'ADJUSTED_PLAN_PROGRESS_RECORDED',
   ],
   improvement_codes: ['SAFETY_STOPPED_SESSION_RECORDED'],
+  routine_difficulty_code: 'APPROPRIATE',
+  condition_summary: {
+    checkin_count: 4,
+    fatigue_level_counts: { HIGH: 1, LOW: 1, MODERATE: 2 },
+    fatigue_change_code: 'IMPROVED',
+    pain_checkin_count: 1,
+    workout_pain_or_safety_stop_count: 1,
+  },
+  outcome_reason_summary: {
+    partial: { TIME_SHORTAGE: 1 },
+    stopped_for_safety: { PAIN_OR_ABNORMAL_RESPONSE: 1 },
+  },
+  recommendation_action_counts: { DOWNSHIFT: 2, KEEP: 2 },
+  adjustment_summary:
+    '피로와 통증 신호를 확인한 날에는 실제 추천의 부담을 낮췄어요.',
+  next_week_recommendation: {
+    intensity: '잘 맞았던 강도를 기준으로 조정할게요.',
+    volume: '끝까지 수행 가능한 운동량을 우선할게요.',
+    duration: '요청한 운동 시간 안에서 구성할게요.',
+    pain_response: '통증 신호에는 안전 기준을 우선할게요.',
+  },
+  coach_message:
+    '이번 주에는 몸 상태에 맞춰 안전하게 조절했어요. 다음 주에도 잘 맞았던 흐름을 이어갈게요.',
   weekday_failure_summary: {
     WEDNESDAY: {
       partial: 1,

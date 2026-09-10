@@ -169,9 +169,17 @@ class FakeWeeklyReportRepository:
             "total_estimated_calories_burned": values.total_estimated_calories_burned,
             "average_intensity_code": values.average_intensity_code,
             "most_performed_training_type_code": values.most_performed_training_type_code,
+            "most_performed_exercise_name": values.most_performed_exercise_name,
             "completed_count_change": values.completed_count_change,
             "highlight_codes": values.highlight_codes,
             "improvement_codes": values.improvement_codes,
+            "routine_difficulty_code": values.routine_difficulty_code,
+            "condition_summary": values.condition_summary,
+            "outcome_reason_summary": values.outcome_reason_summary,
+            "recommendation_action_counts": values.recommendation_action_counts,
+            "adjustment_summary": values.decision_summary,
+            "next_week_recommendation": values.next_week_recommendation,
+            "coach_message": values.coach_message,
             "acknowledged_at": None,
             "generated_at": values.generated_at,
         }
@@ -241,13 +249,16 @@ def _evidence() -> tuple[WeeklySessionEvidence, ...]:
             estimated_calories_burned=90.5,
             training_type_codes=("STRENGTH", "STRENGTH"),
             intensity_codes=("LOW", "MODERATE"),
+            exercise_names=("스쿼트", "스쿼트"),
+            fatigue_level_code="HIGH",
+            daily_pain_present=True,
         ),
         WeeklySessionEvidence(
             WEEK_START + timedelta(days=1),
             "PARTIAL",
             ("COMPLETED", "PENDING"),
             False,
-            None,
+            "TIME_SHORTAGE",
             "DOWNSHIFT",
             "HARD",
             False,
@@ -255,6 +266,9 @@ def _evidence() -> tuple[WeeklySessionEvidence, ...]:
             estimated_calories_burned=45.25,
             training_type_codes=("CARDIO",),
             intensity_codes=("MODERATE",),
+            exercise_names=("제자리 걷기",),
+            stop_reason_code="TIME_SHORTAGE",
+            fatigue_level_code="MODERATE",
         ),
         WeeklySessionEvidence(
             WEEK_START + timedelta(days=2),
@@ -266,6 +280,7 @@ def _evidence() -> tuple[WeeklySessionEvidence, ...]:
             None,
             False,
             progress_seconds=0,
+            fatigue_level_code="MODERATE",
         ),
         WeeklySessionEvidence(
             WEEK_START + timedelta(days=3),
@@ -277,6 +292,8 @@ def _evidence() -> tuple[WeeklySessionEvidence, ...]:
             None,
             True,
             progress_seconds=120,
+            stop_reason_code="PAIN_OR_ABNORMAL_RESPONSE",
+            fatigue_level_code="LOW",
         ),
     )
 
@@ -369,6 +386,29 @@ def test_report_uses_block_evidence_and_builds_non_penalty_aggregate() -> None:
     assert response.total_estimated_calories_burned == 135.75
     assert response.average_intensity_code == "MODERATE"
     assert response.most_performed_training_type_code == "STRENGTH"
+    assert response.most_performed_exercise_name == "스쿼트"
+    assert response.routine_difficulty_code == "APPROPRIATE"
+    assert response.condition_summary is not None
+    assert response.condition_summary.model_dump() == {
+        "checkin_count": 4,
+        "fatigue_level_counts": {"HIGH": 1, "LOW": 1, "MODERATE": 2},
+        "fatigue_change_code": "IMPROVED",
+        "pain_checkin_count": 1,
+        "workout_pain_or_safety_stop_count": 1,
+    }
+    assert response.outcome_reason_summary == {
+        "not_completed": {"TIME_SHORTAGE": 1},
+        "partial": {"TIME_SHORTAGE": 1},
+        "stopped_for_safety": {"PAIN_OR_ABNORMAL_RESPONSE": 1},
+    }
+    assert response.recommendation_action_counts == {
+        "DOWNSHIFT": 1,
+        "KEEP": 2,
+        "RECOVERY": 1,
+    }
+    assert response.adjustment_summary == response.decision_summary
+    assert response.next_week_recommendation is not None
+    assert response.coach_message == response.summary
     assert response.completed_count_change is None
     assert response.highlight_codes == [
         "COMPLETED_SESSION_RECORDED",
@@ -383,6 +423,11 @@ def test_report_uses_block_evidence_and_builds_non_penalty_aggregate() -> None:
     assert "벌점" not in response.summary
     assert repository.last_report_values is not None
     snapshot = repository.last_report_values.input_snapshot
+    assert snapshot["recommendation_context_counts"] == {
+        "DOWNSHIFT": {"MODERATE_FATIGUE": 1},
+        "KEEP": {"HIGH_FATIGUE": 1, "MODERATE_FATIGUE": 1, "PAIN_PRESENT": 1},
+        "RECOVERY": {"LOW_FATIGUE": 1},
+    }
     assert snapshot["feedback_summary"] == {
         "difficulty_counts": {"APPROPRIATE": 1, "HARD": 1},
         "pain_report_count": 1,
@@ -444,8 +489,14 @@ class RecordingNarrationAgent:
             decision_summary="조정된 루틴의 수행 결과와 미완료 사유를 함께 반영했습니다.",
             next_action="다음 주에는 가능한 시간에 맞춰 한 번의 운동부터 시작해 보세요.",
             source_code="LLM",
+            next_week_recommendation={
+                "intensity": "체감 난이도에 맞춰 강도를 조정할게요.",
+                "volume": "완료할 수 있는 운동량을 우선할게요.",
+                "duration": "요청한 운동 시간을 기준으로 구성할게요.",
+                "pain_response": "통증 신호에는 안전 기준을 우선할게요.",
+            },
             model_code="test-model",
-            prompt_version="weekly-report-narration-prompt-v1",
+            prompt_version="weekly-report-narration-prompt-v2",
         )
 
 
@@ -471,7 +522,15 @@ def test_agent_receives_deterministic_aggregate_and_only_replaces_narration() ->
     assert len(agent.inputs) == 1
     received = agent.inputs[0]
     assert repository.last_report_values is not None
-    assert received.input_snapshot == repository.last_report_values.input_snapshot
+    assert "week" not in received.input_snapshot
+    assert "most_performed_exercise_name" not in received.input_snapshot["weekly_metrics"]
+    assert received.input_snapshot["condition_summary"] == {
+        "checkin_count": 4,
+        "fatigue_level_counts": {"HIGH": 1, "LOW": 1, "MODERATE": 2},
+        "fatigue_change_code": "IMPROVED",
+        "pain_checkin_count": 1,
+        "workout_pain_or_safety_stop_count": 1,
+    }
     assert received.objective_metrics == {
         "counts": {
             "completed": 1,
@@ -501,10 +560,16 @@ def test_agent_receives_deterministic_aggregate_and_only_replaces_narration() ->
             "agent_type_code": "WEEKLY_REPORT_INTERPRETER",
             "source_code": "LLM",
             "model_code": "test-model",
-            "prompt_version": "weekly-report-narration-prompt-v1",
+            "prompt_version": "weekly-report-narration-prompt-v2",
             "fallback_reason_code": None,
-            "input_schema_version": "weekly-report-input-v3",
+            "input_schema_version": "weekly-report-input-v4",
             "input_hash": repository.last_report_values.input_hash,
+            "next_week_recommendation": {
+                "intensity": "체감 난이도에 맞춰 강도를 조정할게요.",
+                "volume": "완료할 수 있는 운동량을 우선할게요.",
+                "duration": "요청한 운동 시간을 기준으로 구성할게요.",
+                "pain_response": "통증 신호에는 안전 기준을 우선할게요.",
+            },
         }
     }
 

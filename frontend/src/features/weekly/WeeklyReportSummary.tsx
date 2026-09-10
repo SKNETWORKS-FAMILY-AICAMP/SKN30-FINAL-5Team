@@ -1,18 +1,11 @@
-import {
-  Image,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-} from 'react-native';
-import { useState, type ReactNode } from 'react';
+import { Image, StyleSheet, Text, View } from 'react-native';
+import type { ReactNode } from 'react';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import {
   adjustmentDirectionLabel,
   notCompletedReasonLabel,
   trainingTypeLabel,
-  weekdayLabel,
 } from '../../api/labels';
 import type { WeeklyReportResponse } from '../../api/types';
 import { imageAssets } from '../../assets';
@@ -27,19 +20,6 @@ type WeeklyReportSummaryProps = {
   targetWorkoutCount: number;
 };
 
-const HIGHLIGHT_COPY: Record<string, string> = {
-  COMPLETED_SESSION_RECORDED: '완료한 운동 기록을 남겼어요.',
-  PARTIAL_SESSION_PROGRESS_RECORDED: '가능한 만큼 진행한 기록을 남겼어요.',
-  ADJUSTED_PLAN_PROGRESS_RECORDED: '조정된 계획에서도 운동을 이어갔어요.',
-};
-
-const IMPROVEMENT_COPY: Record<string, string> = {
-  SAFETY_STOPPED_SESSION_RECORDED: '안전 중단으로 마친 세션이 있어요.',
-  MISSED_SESSION_PATTERN_RECORDED: '휴식 이유를 다음 주 계획에 반영해요.',
-  PARTIAL_SESSION_PATTERN_RECORDED:
-    '부분 수행 기록을 바탕으로 부담을 조정해요.',
-};
-
 export function WeeklyReportSummary({
   report,
   targetWorkoutCount,
@@ -47,23 +27,6 @@ export function WeeklyReportSummary({
   const safetyStoppedCount =
     report.counts.safety_stopped_session_count ??
     report.counts.stopped_for_safety;
-  const { fontScale } = useWindowDimensions();
-  const [width, setWidth] = useState(0);
-  const roomy = width >= 600 && fontScale <= 1.2;
-  const highlights = copyForCodes(report.highlight_codes, HIGHLIGHT_COPY);
-  const improvements = copyForCodes(
-    report.improvement_codes,
-    IMPROVEMENT_COPY,
-    {
-      MISSED_SESSION_PATTERN_RECORDED:
-        report.primary_miss_reason_code !== null
-          ? `가장 잦은 이유: ${notCompletedReasonLabel(report.primary_miss_reason_code)}`
-          : undefined,
-    },
-  );
-  const weekdayFocus = mostFrequentFailureWeekday(
-    report.weekday_failure_summary,
-  );
   // Only format the server's rate; never derive it from the displayed counts.
   const progress = report.completion_rate;
   const percentFormatter = new Intl.NumberFormat('ko-KR', {
@@ -75,11 +38,7 @@ export function WeeklyReportSummary({
   const progressCircumference = 2 * Math.PI * progressRadius;
 
   return (
-    <View
-      onLayout={({ nativeEvent }) => setWidth(nativeEvent.layout.width)}
-      style={styles.container}
-      testID="weekly-report-summary"
-    >
+    <View style={styles.container} testID="weekly-report-summary">
       <ReportBlock title="목표 달성 현황">
         <View style={styles.progressRow}>
           <View
@@ -121,12 +80,10 @@ export function WeeklyReportSummary({
                 지난주보다 {formatSignedCount(report.completed_count_change)}회
               </Text>
             ) : null}
-            {report.counts.partial > 0 ? (
-              <Text style={styles.noteText} testID="weekly-report-persistence">
-                부분 수행까지 포함하면{' '}
-                {percentFormatter.format(report.persistence_rate)}
-              </Text>
-            ) : null}
+            <Text style={styles.noteText} testID="weekly-report-persistence">
+              부분 수행 {report.counts.partial}회 · 부분 수행까지 포함하면{' '}
+              {percentFormatter.format(report.persistence_rate)}
+            </Text>
           </View>
         </View>
       </ReportBlock>
@@ -160,66 +117,56 @@ export function WeeklyReportSummary({
               value={formatDuration(report.total_workout_seconds)}
             />
           ) : null}
-          {report.total_estimated_calories_burned != null ? (
-            <Metric
-              icon="calories"
-              label="예상 소모 칼로리"
-              testID="weekly-report-calories"
-              value={`${formatNumber(report.total_estimated_calories_burned)} kcal`}
-            />
-          ) : null}
-          {report.most_performed_training_type_code != null ? (
+          {report.most_performed_exercise_name != null ||
+          report.most_performed_training_type_code != null ? (
             <Metric
               icon="exercise"
               label="가장 많이 한 운동"
-              value={trainingTypeLabel(
-                report.most_performed_training_type_code,
-              )}
+              value={
+                report.most_performed_exercise_name ??
+                trainingTypeLabel(report.most_performed_training_type_code!)
+              }
+            />
+          ) : null}
+          {report.routine_difficulty_code != null ? (
+            <Metric
+              icon="difficulty"
+              label="루틴 난이도"
+              value={difficultyLabel(report.routine_difficulty_code)}
             />
           ) : null}
         </View>
-        {weekdayFocus !== null ? (
-          <Text style={styles.noteText} testID="weekly-report-weekday-focus">
-            미완료 기록이 가장 많은 요일은 {weekdayLabel(weekdayFocus)}이에요.
-          </Text>
-        ) : null}
       </ReportBlock>
 
-      <View
-        style={[styles.reflectionRow, roomy && styles.reflectionRowWide]}
-        testID="weekly-report-reflections"
-      >
-        <ReportBlock badge="good" tone="positive" title="이런 점이 좋았어요">
-          <CopyList
-            fallback="이번 주 기록에서 이어갈 점을 확인했어요."
-            items={highlights}
-            tone="positive"
+      <ReportBlock badge="condition" title="헬끼가 확인한 점">
+        <View style={styles.detailList} testID="weekly-report-observations">
+          <DetailRow
+            label="컨디션 변화"
+            value={conditionChangeLabel(report.condition_summary)}
           />
-        </ReportBlock>
-
-        <ReportBlock
-          badge="watch"
-          tone="improvement"
-          title="다음 주에 살펴볼 점"
-        >
-          <CopyList
-            fallback="다음 주에도 실행 가능한 조건을 함께 찾아요."
-            items={improvements}
-            tone="improvement"
+          <DetailRow
+            label="통증"
+            value={painSummaryLabel(report.condition_summary)}
           />
-        </ReportBlock>
-      </View>
+          <DetailRow
+            label="휴식·부분 수행·중단 이유"
+            value={reasonSummaryLabel(report.outcome_reason_summary)}
+          />
+        </View>
+      </ReportBlock>
 
-      <ReportBlock badge="condition" title="이번 주 컨디션과 조정">
+      <ReportBlock badge="condition" title="이번 주 헬끼가 이렇게 조정했어요">
         <View style={styles.decisionQuote}>
-          <Text style={styles.bodyText}>{report.decision_summary}</Text>
+          <Text style={styles.bodyText}>
+            {report.adjustment_summary ?? report.decision_summary}
+          </Text>
         </View>
         <View style={styles.directionCard}>
           <View style={styles.directionIcon}>
             <DirectionIcon code={report.adjustment_direction_code} />
           </View>
           <View style={styles.directionCopy}>
-            <Text style={styles.directionLabel}>다음 주 방향</Text>
+            <Text style={styles.directionLabel}>실제 추천 조정 방향</Text>
             <Text style={styles.directionTitle}>
               {adjustmentDirectionLabel(report.adjustment_direction_code)}
             </Text>
@@ -227,12 +174,39 @@ export function WeeklyReportSummary({
         </View>
       </ReportBlock>
 
+      <ReportBlock title="다음 주에는 이렇게 추천할게요">
+        {report.next_week_recommendation ? (
+          <View style={styles.detailList} testID="weekly-report-next-week">
+            <DetailRow
+              label="강도"
+              value={report.next_week_recommendation.intensity}
+            />
+            <DetailRow
+              label="운동량"
+              value={report.next_week_recommendation.volume}
+            />
+            <DetailRow
+              label="시간"
+              value={report.next_week_recommendation.duration}
+            />
+            <DetailRow
+              label="통증 대응"
+              value={report.next_week_recommendation.pain_response}
+            />
+          </View>
+        ) : (
+          <Text style={styles.bodyText}>{report.next_action}</Text>
+        )}
+      </ReportBlock>
+
       <View style={styles.coachCard} testID="weekly-report-coach">
         <Text accessibilityRole="header" style={styles.coachTitle}>
           헬끼의 한 줄 코치
         </Text>
         <View style={styles.coachBody}>
-          <Text style={styles.coachText}>{report.next_action}</Text>
+          <Text style={styles.coachText}>
+            {report.coach_message ?? report.next_action}
+          </Text>
         </View>
         <Image
           accessibilityIgnoresInvertColors
@@ -401,105 +375,64 @@ function Metric({
   );
 }
 
-type CopyItem = { text: string; note?: string };
-
-const LIST_TONES = {
-  positive: {
-    border: '#F2E1B8',
-    glyph: 'M6 12.4l3.7 3.6L18 7.8',
-    marker: '#FFEBC2',
-    markerColor: '#A45F00',
-  },
-  improvement: {
-    border: '#F1DACD',
-    glyph: 'M5.5 12h11m-4.6-5 5 5-5 5',
-    marker: '#FBE0D3',
-    markerColor: '#9C4F32',
-  },
-} as const;
-
-function CopyList({
-  fallback,
-  items,
-  tone,
-}: {
-  fallback: string;
-  items: CopyItem[];
-  tone: keyof typeof LIST_TONES;
-}) {
-  const visible = items.length > 0 ? items : [{ text: fallback }];
-  const palette = LIST_TONES[tone];
+function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <View style={styles.copyList}>
-      {visible.map((item) => (
-        <View
-          key={item.text}
-          style={[styles.copyChip, { borderColor: palette.border }]}
-        >
-          <View
-            accessible={false}
-            style={[styles.copyMarker, { backgroundColor: palette.marker }]}
-          >
-            <Svg accessible={false} height={16} width={16} viewBox="0 0 24 24">
-              <Path
-                d={palette.glyph}
-                fill="none"
-                stroke={palette.markerColor}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.4}
-              />
-            </Svg>
-          </View>
-          <View style={styles.copyContent}>
-            <Text style={styles.bodyText}>{item.text}</Text>
-            {item.note ? (
-              <Text style={styles.noteText} testID="weekly-report-miss-reason">
-                {item.note}
-              </Text>
-            ) : null}
-          </View>
-        </View>
-      ))}
+    <View style={styles.detailRow}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.bodyText}>{value}</Text>
     </View>
   );
 }
 
-function copyForCodes(
-  codes: string[] | null | undefined,
-  copy: Record<string, string>,
-  notes: Record<string, string | undefined> = {},
-): CopyItem[] {
-  return (codes ?? []).flatMap((code) =>
-    copy[code] ? [{ text: copy[code], note: notes[code] }] : [],
-  );
+function difficultyLabel(code: 'EASY' | 'APPROPRIATE' | 'HARD'): string {
+  return { EASY: '쉬움', APPROPRIATE: '적절함', HARD: '어려움' }[code];
 }
 
-function mostFrequentFailureWeekday(
-  summary: WeeklyReportResponse['weekday_failure_summary'],
-): string | null {
-  let selected: string | null = null;
-  let highestCount = 0;
-  // Compare the supplied weekday aggregates; Monday wins equal totals.
-  for (const weekday of [
-    'MONDAY',
-    'TUESDAY',
-    'WEDNESDAY',
-    'THURSDAY',
-    'FRIDAY',
-    'SATURDAY',
-    'SUNDAY',
-  ]) {
-    const counts = summary[weekday];
-    if (!counts) continue;
-    const total =
-      counts.partial + counts.not_completed + counts.stopped_for_safety;
-    if (total > highestCount) {
-      selected = weekday;
-      highestCount = total;
-    }
+function conditionChangeLabel(
+  summary: WeeklyReportResponse['condition_summary'],
+): string {
+  if (!summary || summary.fatigue_change_code === 'INSUFFICIENT_DATA') {
+    return '비교할 컨디션 기록이 충분하지 않아요.';
   }
-  return selected;
+  return {
+    IMPROVED: '주 초보다 피로도가 낮아졌어요.',
+    STABLE: '주 초와 주 후반의 피로도가 비슷했어요.',
+    DECLINED: '주 후반에 피로도가 높아졌어요.',
+  }[summary.fatigue_change_code];
+}
+
+function painSummaryLabel(
+  summary: WeeklyReportResponse['condition_summary'],
+): string {
+  if (!summary) return '기록된 통증 정보를 확인할 수 없어요.';
+  if (
+    summary.pain_checkin_count === 0 &&
+    summary.workout_pain_or_safety_stop_count === 0
+  ) {
+    return '체크인이나 운동 중 기록된 통증·이상 반응이 없어요.';
+  }
+  return `통증 체크인 ${summary.pain_checkin_count}회, 운동 중 통증·안전 중단 ${summary.workout_pain_or_safety_stop_count}회가 기록됐어요.`;
+}
+
+function reasonSummaryLabel(
+  summary: WeeklyReportResponse['outcome_reason_summary'],
+): string {
+  if (!summary) return '기록된 이유가 없어요.';
+  const labels = Object.values(summary).flatMap((counts) =>
+    Object.entries(counts).map(
+      ([code, count]) => `${reasonLabel(code)} ${count}회`,
+    ),
+  );
+  return labels.length > 0 ? labels.join(', ') : '기록된 이유가 없어요.';
+}
+
+function reasonLabel(code: string): string {
+  const stopReasons: Record<string, string> = {
+    HIGH_FATIGUE: '피로로 중단',
+    RESUME_LATER: '나중에 재개',
+    PAIN_OR_ABNORMAL_RESPONSE: '통증·이상 반응',
+  };
+  return stopReasons[code] ?? notCompletedReasonLabel(code);
 }
 
 function formatSignedCount(value: number): string {
@@ -515,14 +448,14 @@ function formatDuration(seconds: number): string {
   return `${hours}시간 ${remainingMinutes}분`;
 }
 
-function formatNumber(value: number): string {
-  return new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 1 }).format(
-    value,
-  );
-}
-
 type ReportIconName =
-  'complete' | 'partial' | 'rest' | 'safety' | 'time' | 'calories' | 'exercise';
+  | 'complete'
+  | 'partial'
+  | 'rest'
+  | 'safety'
+  | 'time'
+  | 'exercise'
+  | 'difficulty';
 
 function ReportIcon({ name }: { name: ReportIconName }) {
   // Partial and rest share the calendar's status vectors so both report
@@ -539,9 +472,8 @@ function ReportIcon({ name }: { name: ReportIconName }) {
     rest: '',
     safety: 'M12 6v7M12 17h0',
     time: 'M12 6v6l4 2',
-    calories:
-      'M12 3c1 5 6 6 6 12a6 6 0 0 1-12 0c0-3 2-5 3-6 0 3 2 3 2 3s2-4 1-9Z',
     exercise: 'M3 9v6m3-9v12m0-6h12m0-6v12m3-9v6',
+    difficulty: 'M5 16l4-4 3 3 7-8',
   };
   const fills: Partial<Record<ReportIconName, string>> = {
     complete: '#6DA952',
@@ -556,7 +488,7 @@ function ReportIcon({ name }: { name: ReportIconName }) {
       viewBox="0 0 24 24"
       testID={`weekly-report-icon-${name}`}
     >
-      {name !== 'calories' && name !== 'exercise' ? (
+      {name !== 'exercise' && name !== 'difficulty' ? (
         <Circle
           cx={12}
           cy={12}
@@ -689,6 +621,20 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 21,
     textAlign: 'center',
+  },
+  detailList: { gap: 10 },
+  detailRow: {
+    backgroundColor: colors.canvas,
+    borderRadius: 16,
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  detailLabel: {
+    color: colors.greenText,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 18,
   },
   reflectionRow: { gap: 12, flexDirection: 'column' },
   reflectionRowWide: { flexDirection: 'row', alignItems: 'stretch' },

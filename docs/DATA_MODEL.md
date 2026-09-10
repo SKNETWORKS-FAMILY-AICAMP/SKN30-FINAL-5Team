@@ -1834,9 +1834,10 @@ timezone과 target_workout_count는 해당 주를 처음 요청한 시점의 사
 
 동일한 닫힌 주와 input_hash에 대해 멱등 생성한다. MVP 주간 리포트는 생성 후 불변이며 사용자용 세션 정정·리포트 재생성 API는 제공하지 않는다. 운영 정정이 필요하면 후속 ADR에서 version 모델과 감사 절차를 먼저 정의한다.
 
-input_snapshot은 주 경계·목표 횟수, 블록 체크로 재검증한 공식 상태 수, 미수행 이유 수,
-요일별 실패 수, 조정안 수행 수와 선택적 사후 설문 최소 집계만 저장한다. 사용자 ID, 세션 ID,
-원시 건강 입력은 포함하지 않는다. completion_rate는 `COMPLETED / target_workout_count`,
+input_snapshot은 주 경계·목표 횟수, 블록 체크로 재검증한 공식 상태 수, 결과별 저장 사유 수,
+요일별 실패 수, 실제 추천 action 수, 선택적 사후 설문 난이도 집계와 운동 결정에 연결된 체크인의
+피로도 분포·첫/마지막 피로 변화 코드·통증 여부 횟수만 저장한다. 사용자 ID, 세션 ID, 통증 부위·NRS,
+자유서술을 포함한 원시 건강 입력은 포함하지 않는다. completion_rate는 `COMPLETED / target_workout_count`,
 persistence_rate는 `(COMPLETED + PARTIAL) / target_workout_count`이며 둘 다 1을 상한으로 한다.
 negotiation_success_rate는 조정 액션 세션 중 `COMPLETED | PARTIAL` 비율이고 분모가 0이면 null이다.
 

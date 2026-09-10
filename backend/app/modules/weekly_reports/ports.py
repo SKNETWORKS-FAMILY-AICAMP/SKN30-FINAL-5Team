@@ -56,6 +56,10 @@ class WeeklySessionEvidence:
     # weighted by how much of the session it actually occupied.
     training_type_codes: tuple[str, ...] = ()
     intensity_codes: tuple[str, ...] = ()
+    exercise_names: tuple[str, ...] = ()
+    stop_reason_code: str | None = None
+    fatigue_level_code: str | None = None
+    daily_pain_present: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,9 +95,16 @@ class ReportValues:
     total_estimated_calories_burned: float | None
     average_intensity_code: str | None
     most_performed_training_type_code: str | None
+    most_performed_exercise_name: str | None
     completed_count_change: int | None
     highlight_codes: list[str]
     improvement_codes: list[str]
+    routine_difficulty_code: str | None
+    condition_summary: dict[str, Any]
+    outcome_reason_summary: dict[str, dict[str, int]]
+    recommendation_action_counts: dict[str, int]
+    next_week_recommendation: dict[str, str]
+    coach_message: str
     report_policy_version: str
     generated_at: datetime
 
@@ -107,6 +118,7 @@ class WeeklyReportNarrationInput:
     template_summary: str
     template_decision_summary: str
     template_next_action: str
+    template_next_week_recommendation: dict[str, str]
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,6 +129,7 @@ class WeeklyReportNarration:
     decision_summary: str
     next_action: str
     source_code: str
+    next_week_recommendation: dict[str, str]
     model_code: str | None = None
     prompt_version: str | None = None
     fallback_reason_code: str | None = None

@@ -953,8 +953,14 @@ describe('PreviewGallery', () => {
       await canvas.findByRole('button', { name: '리포트 생성하기' }),
     );
     expect(await canvas.findByText('목표 달성 현황')).toBeOnTheScreen();
+    const safetyStopped = canvas.getByTestId(
+      'weekly-report-safety-stopped-count',
+    );
+    expect(within(safetyStopped).getByText('1')).toBeOnTheScreen();
     expect(
-      canvas.getByText('안전 중단으로 마친 세션이 있어요.'),
+      canvas.getByText(
+        '통증 체크인 1회, 운동 중 통증·안전 중단 1회가 기록됐어요.',
+      ),
     ).toBeOnTheScreen();
     expect(
       canvas.queryByRole('button', { name: '리포트 확인했어요' }),

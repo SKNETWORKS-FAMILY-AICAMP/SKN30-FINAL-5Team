@@ -47,8 +47,12 @@ URL credential과 provider 원문 오류는 로그 또는 domain result로 전�
 `UnavailableNarrationProvider` null object가 사용됩니다. `OpenAiNarrationProvider`는 OpenAI Responses
 API에 code만 담긴 payload를 보내고 slot별 문장을 돌려받습니다. HTTP 호출은 주입 가능한
 `JsonHttpTransport`(기본 표준 라이브러리 구현) 뒤에 있어 새 production dependency가 없습니다.
+응답은 요청 slot을 required property로 지정한 Responses API `json_schema` Structured Output으로
+제한하고 애플리케이션 경계에서 다시 검증합니다.
 
 adapter는 결정을 만들지 않습니다. 안전 상태·veto·후보·요청 시간은 결정적 규칙과 Coordinator만
 결정하며, provider 실패·비활성·검증 실패는 모두 `backend/app/modules/decisions/explanations.py`의
 검수 템플릿 문구로 되돌아갑니다. API key와 요청·응답 본문, provider 원시 오류 메시지는 로그에
 남기지 않습니다. 경계와 근거는 ADR-0011입니다.
+주간 리포트 narration도 같은 adapter를 사용하며 자체 검증 실패 시 weekly report 템플릿으로
+되돌아갑니다.
