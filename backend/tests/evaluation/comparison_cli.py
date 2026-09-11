@@ -38,7 +38,7 @@ from backend.tests.evaluation.architectures import (
 )
 from backend.tests.evaluation.budget import planning_cases
 from backend.tests.evaluation.comparison import ArchitectureResult, ComparisonReport
-from backend.tests.evaluation.dataset import EvaluationCase
+from backend.tests.evaluation.dataset import EvaluationCase, load_dataset
 from backend.tests.evaluation.evaluators import evaluate_case
 from backend.tests.evaluation.evaluators.agent_metrics import build_report as build_agent_report
 from backend.tests.evaluation.harness import GRAPH_CASES
@@ -75,6 +75,26 @@ CALLS_PER_RUN: dict[str, int] = {
     ARCHITECTURE_SINGLE_AGENT_RAG: 1,
     ARCHITECTURE_MULTI_AGENT: 4,
 }
+
+
+class CriticalFailureStop(RuntimeError):
+    """Raised to abort a paid run the moment an unsafe result appears.
+
+    `ROUND2_IMPROVEMENT_PLAN` section 5 pre-registers this: one unsafe plan,
+    critical failure or privacy violation stops the whole run. Spending the rest
+    of the budget after that produces numbers nobody should average, and the
+    abort is what makes "we checked" different from "we looked afterwards".
+    """
+
+
+def dataset_cases(name: str | None) -> tuple[EvaluationCase, ...]:
+    """The cases to run: the tuning smoke set by default, or a named dataset."""
+
+    if name is None:
+        return GRAPH_CASES
+    loaded = load_dataset(name)
+    return tuple(case for case in loaded.cases if case.expected_scenario_build_error is None)
+
 
 _REPORT_NOTES: tuple[str, ...] = (
     "Judge scores are blind and therefore not comparable with the PHASE 5 numbers.",
@@ -169,6 +189,9 @@ async def _run_architecture(
                 evaluation = evaluate_case(run)
                 result.runs.append(run)
                 result.evaluations.append(evaluation)
+                if evaluation.critical_failures:
+                    codes = ",".join(item.check_code for item in evaluation.critical_failures)
+                    raise CriticalFailureStop(f"{architecture_code} {case.case_id}: {codes}")
                 print(
                     f"  [{repeat + 1}/{repeats}] {architecture_code:<17} {case.case_id:<18} "
                     f"{run.status_code:<10} plan={'y' if run.has_plan else 'n'} "
@@ -209,11 +232,12 @@ async def _execute(
     max_calls: int,
     offline: bool,
     judge_enabled: bool,
+    dataset: str | None = None,
 ) -> ComparisonReport:
     _register_baseline_prompts()
     provider = None if offline else build_provider()
     model_label = provider.label if provider is not None else "eval-scripted-model-v1"
-    cases = planning_cases(GRAPH_CASES)
+    cases = planning_cases(dataset_cases(dataset))
     budget = _Budget(max_calls=max_calls)
 
     judge_model: JudgeModel | None = None
@@ -353,10 +377,15 @@ def main() -> int:
         choices=list(COMPARED_ARCHITECTURES),
         default=list(COMPARED_ARCHITECTURES),
     )
+    parser.add_argument(
+        "--dataset",
+        default=None,
+        help="dataset base name; default is the tuning smoke set",
+    )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     arguments = parser.parse_args()
 
-    cases = planning_cases(GRAPH_CASES)
+    cases = planning_cases(dataset_cases(arguments.dataset))
     print(_forecast(arguments.architectures, len(cases), arguments.repeats))
     print(f"hard stop at --max-calls {arguments.max_calls}")
     print(
@@ -376,11 +405,17 @@ def main() -> int:
                 max_calls=arguments.max_calls,
                 offline=arguments.offline,
                 judge_enabled=not arguments.no_judge,
+                dataset=arguments.dataset,
             )
         )
     except ProviderUnavailableError as error:
         print(f"\nProvider unavailable: {error}")
         return 2
+    except CriticalFailureStop as error:
+        # Pre-registered in ROUND2_IMPROVEMENT_PLAN section 5: one unsafe result
+        # ends the run rather than being averaged into it.
+        print(f"\nSTOPPED: a critical failure appeared and the run was aborted.\n  {error}")
+        return 3
 
     _write(report, arguments.output_dir)
     print()

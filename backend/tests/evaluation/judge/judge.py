@@ -192,7 +192,12 @@ def build_judge_payload(run: CaseRunResult, *, blind: bool = False) -> dict[str,
         )
     # The same guard the service applies to its own agent payloads. A judge is
     # still an external model, so it gets no wider a view than an agent does.
-    assert_private_machine_payload(payload)
+    # `body_focus_code` is the movement's reviewed catalog attribute, not a body
+    # area the user reported, and `project_exercise_pool` exempts it for exactly
+    # that reason. The synthetic catalog happened to use codes that never
+    # collided with `BodyAreaCode`; the deployed one uses CHEST and NECK, so
+    # without the same exemption every judge call on a real plan is refused.
+    assert_private_machine_payload(payload, body_area_exempt_fields=("body_focus_code",))
     return payload
 
 
