@@ -266,7 +266,7 @@ fake chat model은 case별로 다음 시나리오를 스크립트한다:
 
 ## PHASE 6. Single vs Multi 비교 — 완료
 
-결과: `docs/test/PHASE6_COMPARISON.md`
+결과: `docs/test/PHASE6_COMPARISON.md` (203 호출, 아키텍처당 28 run)
 구현: `backend/tests/evaluation/runners/single_agent.py`,
 `backend/tests/evaluation/comparison.py`, `comparison_cli.py`
 공정성 테스트: `backend/tests/evaluation/test_comparison.py`
@@ -312,10 +312,14 @@ Judge는 **blind**로 실행한다. 아키텍처를 식별시키는 유일한 pa
 (`advisory_codes`)를 양쪽 모두에서 제거한다. 그 대가로 PHASE 6의 judge 점수는
 PHASE 5 수치와 직접 비교할 수 없다.
 
-검증 가설: 단순 케이스에서는 차이가 작고, 복수·상충 조건에서는 Multi-Agent가
-조건 충족률·안전성·일관성에서 우수하다.
+검증 가설(착수 전 고정): 단순 케이스에서는 차이가 작고, 복수·상충 조건에서는
+Multi-Agent가 조건 충족률·안전성·일관성에서 우수하다.
 
-**가설에 맞지 않는 결과가 나와도 수정하거나 제외하지 않는다.**
+**실측 결과: 확인되지 않았다.** conflict에서 B와 C 동률(1.00), complex에서는
+B(1.00) > C(0.75), 안전성은 셋 다 1.00, structured output은 B(1.00) > C(0.893).
+멀티에이전트가 우월한 축은 조건 충족률이 아니라 **품질**(judge 4.40 vs 4.08)이었다.
+
+**가설에 맞지 않는 결과가 나와도 수정하거나 제외하지 않는다.** 수정하지 않았다.
 
 ## PHASE 7. Pairwise Judge (계획, 유료)
 

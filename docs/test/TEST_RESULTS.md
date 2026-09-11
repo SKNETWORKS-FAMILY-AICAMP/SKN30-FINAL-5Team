@@ -149,6 +149,39 @@ Coordinator의 계획은 12/12 전부 Training 초안 범위 안에 있었다.
 **한계**: judge 모델이 계획을 만든 모델과 동일해 self-preference 편향이 있다.
 `EVAL_JUDGE_MODEL_CODE`로 분리 가능하며 결과에 `model_label`이 기록된다.
 
+## 7.1 PHASE 6 — Single vs Multi 비교 (실 LLM, 203 호출)
+
+전체 보고서: `docs/test/PHASE6_COMPARISON.md` / 산출물: `results/comparison/`
+
+case 14건 × 2회 × 3 아키텍처 = 84 run. Judge는 **blind**(아키텍처 식별 필드 제거)
+이므로 이 점수는 위 7절 PHASE 5 수치와 직접 비교할 수 없다.
+
+| 지표 | A. Single LLM | B. Single Agent + RAG | C. Multi-Agent + RAG |
+|---|---|---|---|
+| LLM Plan Rate | 0.607 | **1.000** | 0.857 |
+| Safety Compliance | **1.000** | **1.000** | **1.000** |
+| Critical 실패 | **0** | **0** | **0** |
+| Judge 평균 | 3.639 | 4.083 | **4.403** |
+| 1회 실행당 토큰 | **4,361** | 7,475 | 26,646 |
+| P50 지연 | 18.2s | **14.0s** | 25.2s |
+
+세 가지만 짚는다.
+
+1. **안전성은 아키텍처와 무관했다** — 셋 다 1.000. 결정적 게이트가 담당하므로
+   설계대로다.
+2. **retrieval의 가치가 크다** (A→B: 0.607 → 1.000). A의 실패는 전부 컴파일
+   단계이며, 타이밍 기준을 못 보면 소요 시간을 계산할 수 없기 때문이다.
+3. **분해는 품질을 사고 신뢰성·비용을 팔았다** (B→C). judge 6항목 전부 C가
+   높지만 LLM Plan Rate는 C가 낮고 토큰은 3.6배다.
+
+**착수 전 고정한 가설("복수·상충 조건에서 Multi-Agent 우수")은 확인되지 않았다.**
+conflict에서 B와 C가 동률(1.00), complex에서는 B(1.00)가 C(0.75)보다 높았다.
+멀티에이전트가 우월한 축은 조건 충족률이 아니라 품질이었다.
+
+주의: A와 C의 `plan_delivery_rate`는 D-2에서 확인한 하네스 결함(합성 카탈로그)
+때문에 비관적이다. `LLM Plan Rate`는 영향받지 않으며 세 아키텍처에 동일하게
+적용되므로 비교 자체는 유효하다.
+
 ## 8. Latency / Token / Cost
 
 | 지표 | 값 |
@@ -279,6 +312,28 @@ ADR-0015상 advisory code에 강제력이 없으므로 **설계대로 동작한 
 **서비스 결함이 아니다.** 다만 `SUCCEEDED`만으로는 LLM이 계획했는지 알 수 없고
 `used_fallback`을 함께 봐야 한다는 점은 운영·보고 시 유의해야 한다.
 
+### D-5. advisory agent의 non-READY가 전체 멀티에이전트 경로를 막는다 (중간)
+
+PHASE 6에서 발견. Multi-Agent 28 run 중 **3 run이 `V3_FEASIBILITY_NOT_READY`로
+종료**했다(LLM 호출 3회 = coordinator 미실행).
+
+- `routing.py:14` `after_agents`: specialist 실패 코드가 하나라도 있으면
+  coordinator를 건너뛰고 fallback으로 간다
+- `v3_contracts.py:715` `CoordinatorInput`: 세 proposal 전부 READY를 요구한다
+
+**ADR-0015상 Feasibility의 `adjustment_codes`는 강제력이 없다. 그런데 그
+readiness는 전체 경로에 대한 하드 게이트다.** 내용은 비구속인데 가용성은
+구속이라는 비대칭이며, Training이 유효한 계획을 냈더라도 버려진다.
+
+사용자 영향: 같은 judge·같은 case 기준으로 LLM 계획 평균 3.896 vs 결정적 fallback
+계획 평균 3.125 — 약 **0.8점** 하락. 안전하지만 개인화가 사라진다.
+동일 case를 Single Agent + RAG(B)는 28/28 전부 성공시켰다.
+
+**분류**: 설계 결정의 결과이며 코드 결함은 아니다. advisory agent의 non-READY가
+전체 경로를 막아야 하는지 **PM·개발팀장 판단 대상**이다.
+
+상세: `docs/test/PHASE6_COMPARISON.md` 5.1절.
+
 ## 11. 테스트 자체의 한계
 
 1. **합성 카탈로그 18종**. 운영 카탈로그가 아니다. D-2는 이 한계 때문에
@@ -296,7 +351,7 @@ ADR-0015상 advisory code에 강제력이 없으므로 **설계대로 동작한 
 | Phase | 상태 | 사유 |
 |---|---|---|
 | 6. Single vs Multi | 미착수 | 별도 작업으로 분리 권고(마스터 명세) |
-| 7. Pairwise Judge | 미착수 | PHASE 6 선행 필요 |
+| 7. Pairwise Judge | 미착수 | 선행 조건 충족 (blind payload 완성) |
 | 10. Human Calibration | 양식만 | Human label 부재 — 임의 생성하지 않음 |
 | 전체 dataset 50~100건 확장 | 미실행 | smoke 20건으로 harness 검증 완료 |
 
@@ -326,5 +381,11 @@ case × 12개 ranking slice가 전부 계획을 생성하며, 안전 제외를 8
 실패가 없다. 원인은 하네스의 합성 카탈로그와, 하네스가 운영의 phase 예약 단계를
 건너뛴 데 있었다. 상세는 10절 D-2.
 
-현재 열려 있는 항목은 **D-1(동일 입력 재현 불가, LLM 고유 특성)** 과
-**D-3(advisory 무시 — PM 재검토 대상)** 이며, 둘 다 배포 차단 사유는 아니다.
+현재 열려 있는 항목은 **D-1(동일 입력 재현 불가, LLM 고유 특성)**,
+**D-3(advisory 무시 — PM 재검토)**, **D-5(advisory agent의 non-READY가 전체
+경로를 막음 — PM·개발팀장 재검토)** 이며, 셋 다 배포 차단 사유는 아니다.
+
+PHASE 6은 별도 질문에 답한다: **멀티에이전트 분해가 비용을 정당화하는가.**
+품질(judge 4.40 vs 4.08)은 얻었고 신뢰성(1.00 → 0.857)과 토큰(3.6배)을 지불했다.
+안전성은 어느 쪽도 아니었다 — 결정적 게이트가 담당한다. 이 교환을 받아들일지는
+제품 판단이며 `docs/test/PHASE6_COMPARISON.md`에 근거를 정리했다.
