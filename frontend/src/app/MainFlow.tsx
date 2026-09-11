@@ -110,6 +110,9 @@ export function MainFlow({
   >(null);
   const [notificationToastVisible, setNotificationToastVisible] =
     useState(false);
+  const [notificationNotice, setNotificationNotice] = useState<string | null>(
+    null,
+  );
   const knownNotificationIds = useRef<Set<string> | null>(null);
   const notificationRequestSequence = useRef(0);
   const decisionRef = useRef(decision);
@@ -279,6 +282,7 @@ export function MainFlow({
     [recoverHomeDecision],
   );
   const toggleNotifications = useCallback(() => {
+    setNotificationNotice(null);
     if (notificationSheetOpen) {
       setNotificationSheetOpen(false);
       return;
@@ -293,16 +297,24 @@ export function MainFlow({
       }
       setPendingNotificationId(notification.notification_id);
       setNotificationError(null);
+      setNotificationNotice(null);
       void (async () => {
         try {
           await api.markNotificationRead(notification.notification_id);
+          if (notification.action_type === 'CLAIM_DAILY_REWARD') {
+            // The reward is paid where it is offered: the sheet stays open and
+            // reports the amount the server actually granted, so tapping the
+            // notification never drops the user into the wallet screen. The
+            // claim is idempotent per local day on the server side.
+            const claimed = await api.claimDailyReward();
+            setNotificationNotice(
+              `바나나 ${claimed.transaction.amount}개를 받았어요.`,
+            );
+          }
           await refreshNotifications();
           if (notification.action_type === 'OPEN_KIKKI_HOME') {
             setNotificationSheetOpen(false);
             onTab('house');
-          } else if (notification.action_type === 'CLAIM_DAILY_REWARD') {
-            setNotificationSheetOpen(false);
-            setStep({ name: 'rewards' });
           }
         } catch (error: unknown) {
           setNotificationStatus('error');
@@ -455,6 +467,7 @@ export function MainFlow({
             notificationPanel={
               <NotificationSheet
                 errorMessage={notificationError}
+                notice={notificationNotice}
                 onRetry={() => void refreshNotifications()}
                 onSelect={selectNotification}
                 pendingNotificationId={pendingNotificationId}
@@ -465,7 +478,10 @@ export function MainFlow({
             }
             onDismissNotificationPanel={
               notificationSheetOpen
-                ? () => setNotificationSheetOpen(false)
+                ? () => {
+                    setNotificationSheetOpen(false);
+                    setNotificationNotice(null);
+                  }
                 : undefined
             }
             notificationToastVisible={notificationToastVisible}
