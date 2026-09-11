@@ -3,6 +3,7 @@ import {
   ROUTINE_PHASE_LABELS,
 } from '../../components/RoutineSections';
 import { CloseButton } from '../../components/CloseButton';
+import { ExerciseNameText } from '../../components/ExerciseNameText';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -1672,9 +1673,9 @@ function MascotStage({
         <Text style={styles.mascotEyebrow}>
           {serious ? '안전을 먼저 확인해주세요' : '지금 할 운동'}
         </Text>
-        <Text style={styles.mascotTitle}>
+        <ExerciseNameText style={styles.mascotTitle}>
           {serious ? '운동을 멈춘 상태예요' : blockName}
-        </Text>
+        </ExerciseNameText>
         <Text style={styles.mascotCaption}>
           {serious
             ? '안내를 확인하기 전에는 운동을 재개하지 않아요.'
@@ -1859,9 +1860,11 @@ function ArcBlockCard({
         </View>
         <Text style={styles.blockOrder}>{index + 1}번째 블록</Text>
       </View>
-      <Text style={[styles.blockName, done && styles.blockNameDone]}>
+      <ExerciseNameText
+        style={[styles.blockName, done && styles.blockNameDone]}
+      >
         {block.name}
-      </Text>
+      </ExerciseNameText>
       <Text style={[styles.blockMeta, current && styles.blockMetaCurrent]}>
         {block.meta}
       </Text>
@@ -1933,12 +1936,12 @@ function ExerciseDetailOverlay({
             {eyebrow ? (
               <Text style={styles.detailSheetEyebrow}>{eyebrow}</Text>
             ) : null}
-            <Text
+            <ExerciseNameText
               accessibilityRole="header"
               style={[styles.sheetTitle, styles.detailSheetTitle]}
             >
               {title ?? block.name}
-            </Text>
+            </ExerciseNameText>
           </View>
           <CloseButton accessibilityLabel="설명 접기" onPress={onClose} />
         </View>
@@ -2572,7 +2575,9 @@ function ResultScreen({
                           done && styles.resultItemDotDone,
                         ]}
                       />
-                      <Text style={styles.resultItemName}>{block.name}</Text>
+                      <ExerciseNameText style={styles.resultItemName}>
+                        {block.name}
+                      </ExerciseNameText>
                     </View>
                     <Text
                       style={[
