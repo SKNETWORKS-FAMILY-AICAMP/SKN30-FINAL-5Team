@@ -63,22 +63,37 @@ class IntegrityViolationCode(StrEnum):
 
 
 _VIOLATION_ORDER = tuple(IntegrityViolationCode)
-_CONDITIONALLY_REPAIRABLE = frozenset(
+# A repair is only worth routing to when the Coordinator has somewhere to go,
+# and the two ways of having somewhere to go are not the same (ADR-0022).
+#
+# Replacing an exercise Safety removed needs an exercise Safety approved in its
+# place -- the pool at large is not an answer to "what may this user do
+# instead". Rearranging a plan needs no such blessing: the pool is already the
+# approved candidate set, because PostgreSQL decides eligibility and the
+# envelope's exclusions are applied before the snapshot is built.
+_SUBSTITUTION_REPAIRABLE = frozenset(
+    {
+        IntegrityViolationCode.SAFETY_EXCLUDED_EXERCISE_INCLUDED,
+    }
+)
+
+# Shape and dosage violations are the Coordinator's to correct within the pool
+# it was already given: the pool reserves candidates for every phase, so one
+# repair round can restore the shape without weakening any safety bound. The
+# repaired plan is re-validated by this same function at `repair_attempt=1`, so
+# nothing here admits a plan that would otherwise have been refused -- when
+# repair does not fix it, REPAIR_ATTEMPT_EXHAUSTED sends the request to the
+# deterministic fallback, which builds the same shape from the same pool.
+_POOL_REPAIRABLE = frozenset(
     {
         IntegrityViolationCode.REQUESTED_DURATION_MISMATCH,
         IntegrityViolationCode.PRESCRIPTION_SCHEMA_INVALID,
         IntegrityViolationCode.MANDATORY_EXERCISE_MISSING,
-        IntegrityViolationCode.SAFETY_EXCLUDED_EXERCISE_INCLUDED,
         IntegrityViolationCode.LOCATION_NOT_ALLOWED,
         IntegrityViolationCode.EQUIPMENT_NOT_AVAILABLE,
         IntegrityViolationCode.RECOVERY_CEILING_EXCEEDED,
         IntegrityViolationCode.FITT_RANGE_EXCEEDED,
         IntegrityViolationCode.FITT_RANGE_UNAVAILABLE,
-        # Shape violations are the Coordinator's to correct: the pool always
-        # reserves candidates for every phase, so one repair round can restore
-        # the shape without weakening any safety bound. When repair does not,
-        # routing hands the request to the deterministic fallback, which builds
-        # the same shape from the same approved pool.
         IntegrityViolationCode.PLAN_PHASE_COVERAGE_INVALID,
         IntegrityViolationCode.PLAN_EXERCISE_VARIETY_EXCEEDED,
         IntegrityViolationCode.PLAN_PHASE_REPETITION_INVALID,
@@ -86,6 +101,26 @@ _CONDITIONALLY_REPAIRABLE = frozenset(
         IntegrityViolationCode.PLAN_EXERCISE_FAMILY_REPEATED,
     }
 )
+
+
+def _is_repairable(
+    code: IntegrityViolationCode,
+    *,
+    repair_attempt: int,
+    has_approved_alternative: bool,
+    pool_can_supply_repair: bool,
+) -> bool:
+    """Whether one repair round could plausibly clear this violation.
+
+    Never a safety judgement: a repaired plan is re-validated in full, so this
+    only decides whether spending the round is worth it.
+    """
+
+    if repair_attempt != 0:
+        return False
+    if code in _SUBSTITUTION_REPAIRABLE:
+        return has_approved_alternative
+    return code in _POOL_REPAIRABLE and pool_can_supply_repair
 
 
 class IntegrityValidationStatusCode(StrEnum):
@@ -392,14 +427,18 @@ def validate_plan_integrity(
         and safe_alternative_ids.issubset(pool_ids)
         and safe_alternative_ids.isdisjoint(envelope.excluded_exercise_ids)
     )
+    # The pool is the approved candidate set, so a rearranging repair has
+    # somewhere to go as soon as the pool holds anything Safety did not exclude.
+    pool_can_supply_repair = bool(pool_ids - set(envelope.excluded_exercise_ids))
     ordered_codes = tuple(code for code in _VIOLATION_ORDER if code in codes)
     violations = tuple(
         IntegrityViolation(
             code=code,
-            repairable=(
-                repair_attempt == 0
-                and has_approved_alternative
-                and code in _CONDITIONALLY_REPAIRABLE
+            repairable=_is_repairable(
+                code,
+                repair_attempt=repair_attempt,
+                has_approved_alternative=has_approved_alternative,
+                pool_can_supply_repair=pool_can_supply_repair,
             ),
         )
         for code in ordered_codes

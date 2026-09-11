@@ -275,3 +275,36 @@ def test_v3_domain_modules_have_no_framework_or_infrastructure_imports() -> None
             elif isinstance(node, ast.ImportFrom) and node.module is not None:
                 imported.add(node.module.split(".", maxsplit=1)[0])
         assert imported.isdisjoint(forbidden)
+
+
+def test_a_shape_violation_routes_to_repair_without_any_approved_alternative() -> None:
+    """ADR-0022: the routing that no production run could reach.
+
+    `approved_safe_alternative_ids` is populated nowhere outside these tests, so
+    requiring it made every violation NON_REPAIRABLE and this branch dead --
+    measured across 29 paid runs in `docs/test/ROUND2_HELDOUT_RESULTS.md` (D-6).
+    The context here is the one a real run actually builds: empty.
+    """
+
+    current_envelope = envelope()
+    current_pool = pool(current_envelope)
+    current_input = coordinator_input(current_envelope, current_pool)
+    compiled = compile_plan(
+        plan(current_input),
+        envelope=current_envelope,
+        pool=current_pool,
+        compiler_version=COMPILER_VERSION,
+        coordinator_input=current_input,
+    ).model_copy(update={"estimated_duration_seconds": 1799})
+
+    validation = validate_plan_integrity(
+        compiled,
+        envelope=current_envelope,
+        pool=current_pool,
+        repair_attempt=0,
+        validator_version=VALIDATOR_VERSION,
+        context=IntegrityValidationContext(),
+    )
+
+    assert validation.status_code is IntegrityValidationStatusCode.REPAIRABLE
+    assert route_after_integrity_validation(validation) is OrchestrationRouteCode.COORDINATOR_REPAIR

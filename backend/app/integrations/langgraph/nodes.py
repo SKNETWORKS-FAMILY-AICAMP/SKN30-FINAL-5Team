@@ -183,8 +183,17 @@ async def _run_specialist(
             outcome = AgentOutcome(
                 agent_type, failure_code=result.failure.code.value, telemetry=result.telemetry
             )
-        elif result.output is None or not _proposal_is_valid(state, agent_type, result.output):
-            outcome = AgentOutcome(agent_type, failure_code=f"V3_{agent_type.value}_NOT_READY")
+        elif result.output is None:
+            outcome = AgentOutcome(agent_type, failure_code=f"V3_{agent_type.value}_NO_PROPOSAL")
+        elif not _proposal_is_valid(state, agent_type, result.output):
+            # Distinct from NOT_READY below, which is the agent's own verdict on
+            # its inputs. This one is a contract breach -- a hash that does not
+            # match, or an exercise outside the pool it was handed -- and the
+            # two call for different responses. One code for both left a paid
+            # evaluation unable to say which had happened (ADR-0022).
+            outcome = AgentOutcome(
+                agent_type, failure_code=f"V3_{agent_type.value}_PROPOSAL_INVALID"
+            )
         elif result.output.proposal_status_code is V3ProposalStatusCode.FAILED:
             outcome = AgentOutcome(agent_type, failure_code=f"V3_{agent_type.value}_FAILED")
         elif (

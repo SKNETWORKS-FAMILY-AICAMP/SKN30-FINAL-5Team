@@ -148,6 +148,13 @@ def test_needs_input_training_still_skips_coordinator() -> None:
 
 
 def test_proposal_for_another_envelope_is_invalid_and_skips_coordinator() -> None:
+    """ADR-0022: a contract breach carries its own code.
+
+    Both this and the agent declining its inputs above reported
+    V3_TRAINING_NOT_READY until a paid held-out run had to tell them apart
+    after the fact and could not.
+    """
+
     current_envelope = envelope()
     current_pool = pool(current_envelope)
     other_values = current_envelope.model_dump(exclude={"envelope_hash"})
@@ -177,3 +184,5 @@ def test_proposal_for_another_envelope_is_invalid_and_skips_coordinator() -> Non
 
     assert result.used_fallback
     assert coordinator.initial_calls == 0
+    assert "V3_TRAINING_PROPOSAL_INVALID" in result.failure_codes
+    assert "V3_TRAINING_NOT_READY" not in result.failure_codes
