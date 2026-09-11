@@ -51,6 +51,7 @@ function createdAtLabel(value: string): string {
 
 export function NotificationSheet({
   errorMessage,
+  notice,
   onRetry,
   onSelect,
   pendingNotificationId,
@@ -59,6 +60,8 @@ export function NotificationSheet({
   visible,
 }: {
   errorMessage?: string | null;
+  /** Result of an action taken inside the sheet, e.g. the claimed daily reward. */
+  notice?: string | null;
   onRetry: () => void;
   onSelect: (notification: NotificationResponse) => void;
   pendingNotificationId: string | null;
@@ -120,6 +123,12 @@ export function NotificationSheet({
           ) : null}
         </View>
       </View>
+
+      {notice ? (
+        <View style={styles.notice} testID="notification-notice">
+          <Text style={styles.noticeText}>{notice}</Text>
+        </View>
+      ) : null}
 
       {status === 'loading' && response === null ? (
         <View style={styles.state}>
@@ -204,7 +213,7 @@ export function NotificationSheet({
                   ) : notification.action_type === 'OPEN_KIKKI_HOME' ? (
                     <Text style={styles.actionText}>끼끼의 집 보기 ›</Text>
                   ) : notification.action_type === 'CLAIM_DAILY_REWARD' ? (
-                    <Text style={styles.actionText}>바나나 받기 ›</Text>
+                    <Text style={styles.actionText}>바나나 받기</Text>
                   ) : null}
                 </View>
               </Pressable>
@@ -250,6 +259,21 @@ const styles = StyleSheet.create({
     color: colors.primaryBusy,
     fontSize: 12,
     fontWeight: '700',
+  },
+  notice: {
+    marginBottom: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.successBorder,
+    borderRadius: 12,
+    backgroundColor: colors.successSurface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+  },
+  noticeText: {
+    color: colors.greenText,
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 19,
   },
   state: {
     minHeight: 136,

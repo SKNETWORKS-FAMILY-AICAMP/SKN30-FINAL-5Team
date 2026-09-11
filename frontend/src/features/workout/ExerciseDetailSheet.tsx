@@ -46,7 +46,6 @@ export function ExerciseDetailSheet({
   }
 
   const detail = state.data;
-  const instructionSteps = detail.instruction_steps ?? [];
   const cautions = detail.cautions ?? detail.form_cues;
   const equipmentGuideSection = selectEquipmentGuideSection(
     detail,
@@ -76,35 +75,6 @@ export function ExerciseDetailSheet({
             <Text style={styles.areas}>{representativeFocus}</Text>
           </View>
         ) : null}
-
-        {detail.body_focus_code && detail.primary_body_area_codes.length > 0 ? (
-          <View style={styles.section} testID="exercise-primary-areas">
-            <Text accessibilityRole="header" style={styles.sectionTitle}>
-              주의 부위
-            </Text>
-            <Text style={styles.areas}>
-              {detail.primary_body_area_codes.map(bodyAreaLabel).join(', ')}
-            </Text>
-            <Text style={styles.areaCaution}>
-              해당 부위에 통증이 있는 경우 주의가 필요해요.
-            </Text>
-          </View>
-        ) : null}
-
-        <View style={styles.section} testID="exercise-instruction-steps">
-          <Text accessibilityRole="header" style={styles.sectionTitle}>
-            자세 설명
-          </Text>
-          {instructionSteps.length > 0 ? (
-            instructionSteps.map((step, index) => (
-              <Text key={`${index}-${step}`} style={styles.step}>
-                {index + 1}. {step}
-              </Text>
-            ))
-          ) : (
-            <Text style={styles.summary}>{detail.instruction_summary}</Text>
-          )}
-        </View>
 
         {cautions.length > 0 ? (
           <View style={styles.section} testID="exercise-cautions">
@@ -376,25 +346,10 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 24,
   },
-  summary: {
-    color: colors.text,
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  step: {
-    color: colors.textSub,
-    fontSize: 15,
-    lineHeight: 23,
-  },
   areas: {
     color: colors.textSub,
     fontSize: 15,
     lineHeight: 23,
-  },
-  areaCaution: {
-    color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 18,
   },
   cueRow: {
     flexDirection: 'row',

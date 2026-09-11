@@ -163,6 +163,11 @@ def test_onboarding_persists_atomically_and_retries_idempotently(
             select(UserPersistentPain.body_area_code, UserPersistentPain.intensity_score)
         )
     ) == [("SHOULDER", 3)]
+    me = service.get_me(postgres_session, current_user.user_id)
+    assert me.profile is not None
+    assert [pain.model_dump(mode="json") for pain in me.profile.persistent_pains] == [
+        {"body_area_code": "SHOULDER", "intensity_score": 3}
+    ]
     assert postgres_session.scalar(select(func.count()).select_from(MutationIdempotencyRecord)) == 1
 
 
@@ -243,7 +248,6 @@ def test_profile_settings_update_is_partial_atomic_versioned_and_idempotent(
             "experience_level_code": "INTERMEDIATE",
             "preferred_location_code": "HOME",
             "available_location_codes": ["HOME"],
-            "attention_area_codes": [],
             "preferred_exercise_type_codes": ["MOBILITY"],
             "date_of_birth": "1999-01-02",
             "persistent_pains": [{"body_area_code": "SHOULDER", "intensity_score": 4}],
@@ -287,6 +291,12 @@ def test_profile_settings_update_is_partial_atomic_versioned_and_idempotent(
             )
         )
     ) == [("SHOULDER", 4)]
+    me = service.get_me(postgres_session, current_user.user_id)
+    assert me.profile is not None
+    assert me.profile.persistent_pains is not None
+    assert [pain.model_dump(mode="json") for pain in me.profile.persistent_pains] == [
+        {"body_area_code": "SHOULDER", "intensity_score": 4}
+    ]
     assert (
         postgres_session.scalar(
             select(func.count())

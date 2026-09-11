@@ -121,7 +121,7 @@ describe('NotificationSheet', () => {
     );
   });
 
-  it('labels the daily reward action without claiming it inside the sheet', () => {
+  it('labels the daily reward action as an in-place claim', () => {
     render(
       <NotificationSheet
         onRetry={jest.fn()}
@@ -141,7 +141,24 @@ describe('NotificationSheet', () => {
       />,
     );
 
-    expect(screen.getByText('바나나 받기 ›')).toBeOnTheScreen();
+    expect(screen.getByText('바나나 받기')).toBeOnTheScreen();
+  });
+
+  it('shows the claim result notice above the list', () => {
+    render(
+      <NotificationSheet
+        notice="바나나 15개를 받았어요."
+        onRetry={jest.fn()}
+        onSelect={jest.fn()}
+        pendingNotificationId={null}
+        response={{ items: [], unread_count: 0 }}
+        status="ready"
+        visible
+      />,
+    );
+
+    expect(screen.getByTestId('notification-notice')).toBeOnTheScreen();
+    expect(screen.getByText('바나나 15개를 받았어요.')).toBeOnTheScreen();
   });
 
   it('opens as a compact popover below the notification button', () => {

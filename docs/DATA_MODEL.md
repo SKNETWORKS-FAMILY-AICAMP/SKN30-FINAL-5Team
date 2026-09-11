@@ -203,12 +203,12 @@ nonce와 token은 저장하지 않으며 keyed-digest secret은 DB·로그·fixt
 | experience_level_code | 운동 경험 |
 | timezone | IANA timezone |
 | weekly_target_sessions | 주간 목표 운동 횟수(1–7) |
-| weight_kg | 온보딩 요청 필수, DB nullable 유지, 체중 기반 칼로리 추정에만 사용 |
+| weight_kg | 온보딩 요청 필수, DB nullable 유지, 체중 기반 칼로리 추정에만 사용. 본인 프로필 조회에 반환(ADR-0020) |
 | profile_version | 낙관적 잠금 버전 |
 | created_at | 생성 시각 |
 | updated_at | 수정 시각 |
 
-`protected_birthdate`는 수정 가능한 생년월일 원본값의 암호화 envelope다. 서버는 복호화한 값을 사용자 timezone의 로컬 날짜를 기준으로 일시 계산해 만 18–64세 eligibility만 판정한다. 평문 생년월일과 만 나이는 DB에 저장·응답·분석하지 않는다. 범위를 벗어나면 일반 자동 루틴 생성을 차단한다.
+`protected_birthdate`는 수정 가능한 생년월일 원본값의 암호화 envelope다. 서버는 복호화한 값을 사용자 timezone의 로컬 날짜를 기준으로 일시 계산해 만 18–64세 eligibility를 판정하고, 같은 복호화 결과를 인증된 본인의 프로필 조회 응답에 돌려준다(ADR-0020). 평문 생년월일과 만 나이는 DB에 저장하지 않고 분석에도 사용하지 않는다. 암호문 자체는 응답에 포함하지 않는다. 범위를 벗어나면 일반 자동 루틴 생성을 차단한다.
 
 프로필 부분 수정은 `user_profiles` row를 transaction에서 잠근 뒤 요청 version과
 `profile_version`을 비교한다. 일치할 때만 요청된 scalar와 관계를 변경하고 version을 정확히 1
@@ -278,12 +278,11 @@ expected `profile_version`을 함께 포함한다. endpoint CHECK 확장은 migr
 
 ### 4.3.3 생년월일 개인정보 처리
 
-- API 응답 제외
+- 인증된 본인의 `GET /api/v1/me` 응답에만 생년월일과 만 나이를 포함(ADR-0020). 그 밖의 API 응답에서는 제외하며 암호문은 어디에도 반환하지 않음
 - 애플리케이션 로그 제외
 - 분석 이벤트 제외
 - decision snapshot에는 생년월일과 만 나이를 저장하지 않음
 - LLM·에이전트에는 생년월일과 만 나이를 전달하지 않음
-- 프로필 응답에는 계산된 만 나이를 표시하지 않음
 - 가입 자격 확인 외에는 만 나이를 사용하지 않음
 - 배포 환경(staging·production)은 AWS KMS 대칭 키로 암호화하며 애플리케이션은 평문 키를 보관하지 않는다. 자격 증명은 EC2 instance role에서 얻고 정적 AWS 키를 쓰지 않는다. `BIRTHDATE_ENCRYPTION_KEY_BASE64` 로컬 키는 local·test 전용이다. 키 설정이 없으면 온보딩은 fail-closed로 503을 반환한다. 설정 절차는 `infra/deployment/README.md`를 따른다.
 - 계정 삭제 시 운영 DB 7일 이내 삭제
@@ -331,6 +330,11 @@ Daily Check-in 기본값 전용이며 당일 사용자가 수정·추가·삭제
 `(user_id, body_area_code)`는 유일하고 `intensity_score BETWEEN 1 AND 10` CHECK를 둔다. 기존
 `user_attention_areas`를 즉시 삭제·변환하지 않고 legacy row에서 점수나 severity를 추정하지 않는다.
 원점수와 policy version은 계정 삭제 전까지 함께 보존하며 Qdrant/embedding 입력에는 사용하지 않는다.
+
+`GET /api/v1/me`는 `user_persistent_pains`가 비어 있고 활성 `user_attention_areas`만 남은 경우
+`persistent_pains=null`로 미전환 상태를 표현한다. 사용자가 마이페이지에서 `persistent_pains`를
+저장하면 빈 배열을 포함해 같은 transaction에서 해당 사용자의 legacy attention row를 삭제한다.
+따라서 명시적으로 통증을 모두 지운 뒤 과거 attention 값이 다시 표시되지 않는다.
 
 ### 4.6 (Legacy) user_preferred_exercise_types
 

@@ -1065,9 +1065,8 @@ describe('HomeContainer', () => {
       }),
     );
 
-    expect(
-      await screen.findByText('검수된 운동 설명입니다.'),
-    ).toBeOnTheScreen();
+    expect(await screen.findByText('천천히 움직이기')).toBeOnTheScreen();
+    expect(screen.queryByText('검수된 운동 설명입니다.')).toBeNull();
     expect(getExercise).toHaveBeenCalledWith('exercise-1', expect.anything());
   });
 
@@ -2347,7 +2346,7 @@ describe('OnboardingScreen', () => {
     );
     expect(ONBOARDING_STEPS.slice(0, 5).map(({ intro }) => intro)).toEqual([
       '',
-      '안전한 운동 계획을 위해 현재 서비스가 지원하는 범위인지 확인해요.',
+      '',
       '체중은 예상 소모 칼로리 계산에만 사용해요.',
       '',
       '',
@@ -2438,7 +2437,7 @@ describe('OnboardingScreen', () => {
     ).not.toBeOnTheScreen();
     expect(screen.queryByText(/선택 가능한 최근 날짜는/)).not.toBeOnTheScreen();
     expect(
-      screen.queryByText('운동 지원 범위를 확인해주세요'),
+      screen.queryByText('안전한 운동을 위해 확인해주세요'),
     ).not.toBeOnTheScreen();
 
     fireEvent.changeText(
@@ -2451,7 +2450,9 @@ describe('OnboardingScreen', () => {
     fireEvent.press(screen.getByText('다음'));
 
     expect(screen.getByText('2 / 8')).toBeOnTheScreen();
-    expect(screen.getByText('운동 지원 범위를 확인해주세요')).toBeOnTheScreen();
+    expect(
+      screen.getByText('안전한 운동을 위해 확인해주세요'),
+    ).toBeOnTheScreen();
     expect(
       screen.queryByText('맞춤 운동 추천에 참고해요.'),
     ).not.toBeOnTheScreen();
@@ -2992,10 +2993,31 @@ describe('OnboardingScreen', () => {
     );
     expect(screen.getByRole('button', { name: '다음' })).toBeEnabled();
     fireEvent.press(screen.getByText('있어요'));
-    expect(screen.getByText('불편한 부위')).toBeOnTheScreen();
+    expect(screen.getByText('통증 부위')).toBeOnTheScreen();
     expect(
       screen.getByText('해당하는 부위를 모두 선택해주세요.'),
     ).toBeOnTheScreen();
+    expect(
+      screen.queryByTestId('onboarding-pain-scale-info-bubble'),
+    ).toBeNull();
+    fireEvent.press(
+      screen.getByRole('button', { name: '통증 정도 기준 안내' }),
+    );
+    expect(
+      screen.getByText(
+        'HELKKI는 통증 정도를 0~10의 숫자로 표현하는 숫자통증등급(NRS)을 사용합니다.',
+      ),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByText(
+        '본 서비스에서는 통증 정도를 "1–3 경도 / 4–6 중등도 / 7–10 심한 통증"으로 구분합니다.',
+      ),
+    ).toBeOnTheScreen();
+    expect(screen.getByText('출처: 국제통증연구학회 (IASP)')).toBeOnTheScreen();
+    fireEvent.press(screen.getByTestId('onboarding-pain-scale-info-backdrop'));
+    expect(
+      screen.queryByTestId('onboarding-pain-scale-info-bubble'),
+    ).toBeNull();
     expect(
       screen.getByRole('button', { name: '입력이 필요해요' }),
     ).toBeDisabled();
@@ -3040,6 +3062,9 @@ describe('OnboardingScreen', () => {
     expect(screen.getByText('손목·손 통증 정도').props.numberOfLines).toBe(1);
     expect(screen.getByText('발목·발 통증 정도').props.numberOfLines).toBe(1);
     expect(
+      screen.getAllByText('1~3: 약함, 4~6: 중간, 7~10: 심함'),
+    ).toHaveLength(2);
+    expect(
       StyleSheet.flatten(
         screen.getByTestId('onboarding-pain-slider-card-손목·손').props.style,
       ),
@@ -3057,6 +3082,24 @@ describe('OnboardingScreen', () => {
       color: '#8E3226',
       fontWeight: '400',
     });
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('onboarding-pain-intensity-thumb-손목·손').props
+          .style,
+      ),
+    ).toMatchObject({ backgroundColor: '#FFFFFF' });
+    expect(
+      screen.getByTestId('onboarding-pain-intensity-gradient-손목·손'),
+    ).toHaveProp('locations', [0, 1]);
+    expect(
+      screen.getByTestId('onboarding-pain-intensity-value-pointer-손목·손'),
+    ).toBeOnTheScreen();
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('onboarding-pain-intensity-range-labels-손목·손')
+          .props.style,
+      ),
+    ).toMatchObject({ marginBottom: 4, paddingHorizontal: 17 });
   });
 
   it('lets users select every integer pain score from 1 to 10 on the slider', () => {
@@ -3086,6 +3129,26 @@ describe('OnboardingScreen', () => {
       text: '10점 중 7점',
     });
     expect(screen.getByText('7')).toBeOnTheScreen();
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('onboarding-pain-intensity-value-callout-무릎').props
+          .style,
+      ).left,
+    ).toBeCloseTo(97.333, 3);
+
+    fireEvent(slider, 'responderGrant', {
+      nativeEvent: { locationX: 180 },
+    });
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('onboarding-pain-intensity-value-callout-무릎').props
+          .style,
+      ).left,
+    ).toBe(146);
+    expect(StyleSheet.flatten(slider.props.style)).toMatchObject({
+      height: 54,
+      paddingHorizontal: 17,
+    });
   });
 
   it('hides unsupported and extended attention areas until expanded', () => {

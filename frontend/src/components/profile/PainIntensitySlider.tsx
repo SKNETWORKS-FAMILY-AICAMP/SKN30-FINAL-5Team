@@ -1,10 +1,14 @@
 import { useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, spacing } from '../theme';
 
 export const PAIN_INTENSITY_MIN = 1;
 export const PAIN_INTENSITY_MAX = 10;
+
+const VALUE_LABEL_WIDTH = 34;
+const TRACK_EDGE_INSET = VALUE_LABEL_WIDTH / 2;
 
 type Props = {
   bodyArea: string;
@@ -30,10 +34,15 @@ export function PainIntensitySlider({
     (boundedValue - PAIN_INTENSITY_MIN) /
     (PAIN_INTENSITY_MAX - PAIN_INTENSITY_MIN);
   const label = `${bodyArea} 통증 정도`;
+  const usableTrackWidth = Math.max(0, trackWidth - TRACK_EDGE_INSET * 2);
+  const valueLabelLeft = progress * usableTrackWidth;
 
   const updateFromTrack = (locationX: number) => {
-    if (disabled || trackWidth <= 0) return;
-    const ratio = Math.min(1, Math.max(0, locationX / trackWidth));
+    if (disabled || usableTrackWidth <= 0) return;
+    const ratio = Math.min(
+      1,
+      Math.max(0, (locationX - TRACK_EDGE_INSET) / usableTrackWidth),
+    );
     onChange(
       Math.round(
         PAIN_INTENSITY_MIN + ratio * (PAIN_INTENSITY_MAX - PAIN_INTENSITY_MIN),
@@ -58,12 +67,21 @@ export function PainIntensitySlider({
           {label}
         </Text>
         <Text
-          accessibilityLiveRegion="polite"
-          style={styles.value}
-          testID={`${testIDPrefix}-pain-intensity-value-${bodyArea}`}
+          adjustsFontSizeToFit
+          minimumFontScale={0.82}
+          numberOfLines={1}
+          style={styles.scaleHint}
         >
-          {boundedValue}
+          1~3: 약함, 4~6: 중간, 7~10: 심함
         </Text>
+      </View>
+      <View
+        pointerEvents="none"
+        style={styles.rangeLabels}
+        testID={`${testIDPrefix}-pain-intensity-range-labels-${bodyArea}`}
+      >
+        <Text style={styles.rangeLabel}>1</Text>
+        <Text style={styles.rangeLabel}>10</Text>
       </View>
       <View
         accessible
@@ -98,19 +116,39 @@ export function PainIntensitySlider({
       >
         <View
           pointerEvents="none"
+          style={[styles.valueCallout, { left: valueLabelLeft }]}
+          testID={`${testIDPrefix}-pain-intensity-value-callout-${bodyArea}`}
+        >
+          <Text
+            accessibilityLiveRegion="polite"
+            style={styles.value}
+            testID={`${testIDPrefix}-pain-intensity-value-${bodyArea}`}
+          >
+            {boundedValue}
+          </Text>
+          <View
+            style={styles.valuePointer}
+            testID={`${testIDPrefix}-pain-intensity-value-pointer-${bodyArea}`}
+          />
+        </View>
+        <View
+          pointerEvents="none"
           style={styles.track}
           testID={`${testIDPrefix}-pain-intensity-track-${bodyArea}`}
         >
-          <View style={[styles.fill, { width: `${progress * 100}%` }]} />
+          <LinearGradient
+            colors={['#F6BA50', '#E06555']}
+            end={{ x: 1, y: 0 }}
+            locations={[0, 1]}
+            start={{ x: 0, y: 0 }}
+            style={styles.gradientTrack}
+            testID={`${testIDPrefix}-pain-intensity-gradient-${bodyArea}`}
+          />
           <View
             style={[styles.thumb, { left: `${progress * 100}%` }]}
             testID={`${testIDPrefix}-pain-intensity-thumb-${bodyArea}`}
           />
         </View>
-      </View>
-      <View style={styles.rangeLabels}>
-        <Text style={styles.rangeLabel}>1</Text>
-        <Text style={styles.rangeLabel}>10</Text>
       </View>
     </View>
   );
@@ -123,18 +161,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing.md,
+    gap: 6,
   },
   label: {
-    minWidth: 0,
-    flex: 1,
+    flexShrink: 0,
     color: colors.text,
     fontSize: 14,
     fontWeight: '700',
   },
+  scaleHint: {
+    minWidth: 0,
+    flex: 1,
+    color: colors.textFaint,
+    fontSize: 11,
+    fontWeight: '500',
+    lineHeight: 16,
+    textAlign: 'right',
+  },
+  valueCallout: {
+    position: 'absolute',
+    top: 0,
+    zIndex: 2,
+    width: VALUE_LABEL_WIDTH,
+    alignItems: 'center',
+  },
   value: {
-    minWidth: 34,
-    flexShrink: 0,
+    width: VALUE_LABEL_WIDTH,
     borderWidth: 1,
     borderColor: colors.dangerBorder,
     borderRadius: 10,
@@ -143,23 +195,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '400',
     lineHeight: 20,
-    paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     textAlign: 'center',
   },
+  valuePointer: {
+    position: 'absolute',
+    bottom: -3,
+    width: 8,
+    height: 8,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.dangerBorder,
+    backgroundColor: colors.surface,
+    transform: [{ rotate: '45deg' }],
+  },
   touchTarget: {
-    height: 40,
-    justifyContent: 'center',
+    height: 54,
+    justifyContent: 'flex-end',
+    paddingHorizontal: TRACK_EDGE_INSET,
+    paddingBottom: 9,
   },
   track: {
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(162, 63, 42, 0.12)',
+    backgroundColor: colors.border,
   },
-  fill: {
+  gradientTrack: {
     height: '100%',
     borderRadius: 4,
-    backgroundColor: 'rgba(162, 63, 42, 0.42)',
   },
   thumb: {
     position: 'absolute',
@@ -168,13 +231,15 @@ const styles = StyleSheet.create({
     height: 18,
     marginLeft: -9,
     borderWidth: 2,
-    borderColor: colors.surface,
+    borderColor: '#A94B3D',
     borderRadius: 9,
-    backgroundColor: 'rgba(142, 50, 38, 0.72)',
+    backgroundColor: colors.surface,
   },
   rangeLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+    paddingHorizontal: TRACK_EDGE_INSET,
   },
   rangeLabel: {
     color: colors.textMuted,

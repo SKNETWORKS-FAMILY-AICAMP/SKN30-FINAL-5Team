@@ -521,7 +521,7 @@ describe('WorkoutScreen', () => {
     await render(<WorkoutScreen />);
 
     const expand = screen.getAllByRole('button', {
-      name: '자세 설명 보기',
+      name: '자세 보기',
     })[1]!;
     expect(
       StyleSheet.flatten(screen.getByTestId('workout-actions-1').props.style),
@@ -1495,11 +1495,11 @@ describe('WorkoutScreen API mode', () => {
     );
     expect(screen.getByText('2세트 × 8회')).toBeOnTheScreen();
 
-    fireEvent.press(screen.getByRole('button', { name: '자세 설명 보기' }));
+    fireEvent.press(screen.getByRole('button', { name: '자세 보기' }));
 
     expect(screen.getByTestId('workout-detail-scroll')).toBeOnTheScreen();
     expect(
-      await screen.findByText('발바닥을 바닥에 고르게 두고 천천히 움직여요.'),
+      await screen.findByText('무릎과 발끝의 방향을 맞춰요.'),
     ).toBeOnTheScreen();
     expect(screen.getByTestId('exercise-media-image')).toHaveProp('source', {
       uri: 'https://cdn.example.com/chair-squat.gif',

@@ -553,9 +553,7 @@ describe('PreviewGallery', () => {
     ).toBeOnTheScreen();
     fireEvent.press(canvas.getByRole('button', { name: '닫기' }));
     fireEvent.press(canvas.getByRole('button', { name: '푸시업 자세' }));
-    expect(
-      await canvas.findByText('통증이 없는 범위에서 천천히 움직여주세요.'),
-    ).toBeOnTheScreen();
+    expect(await canvas.findByText('호흡을 멈추지 않기')).toBeOnTheScreen();
     fireEvent.press(canvas.getByRole('button', { name: '닫기' }));
 
     fireEvent.press(
@@ -1079,9 +1077,7 @@ describe('PreviewGallery', () => {
     ).toBeOnTheScreen();
     expect(await canvas.findByTestId('exercise-media-image')).toBeOnTheScreen();
     expect(
-      canvas.getByText(
-        '데드리프트 운동은 엉덩이를 뒤로 보내며 엉덩이를 사용하는 운동입니다.',
-      ),
+      canvas.getByText('엉덩이를 뒤로 보내며 상체를 천천히 기울여요.'),
     ).toBeOnTheScreen();
 
     fireEvent.press(canvas.getByRole('button', { name: '목록으로' }));

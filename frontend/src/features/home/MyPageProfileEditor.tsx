@@ -36,6 +36,7 @@ import {
   PAIN_INTENSITY_MIN,
   PainIntensitySlider,
 } from '../../components/profile/PainIntensitySlider';
+import { PainScaleInfoHeading } from '../../components/profile/PainScaleInfo';
 import { ProfileAvatar } from '../../components/profile/ProfileAvatar';
 import {
   ONBOARDING_EXPERIENCE_OPTIONS,
@@ -363,7 +364,7 @@ function SingleChoiceEditor({
 
 type BasicProfileForm = {
   dateOfBirth: string;
-  dateOfBirthChanged: boolean;
+  dateOfBirthTouched: boolean;
   imageChange: ProfileImageChange | undefined;
   nickname: string;
   weightKg: string;
@@ -385,13 +386,9 @@ function BasicProfileEditor({
   pending: boolean;
   profile: MeProfile;
 }) {
-  const [form, setForm] = useState<BasicProfileForm>({
-    dateOfBirth: latestEligibleBirthdateIso(),
-    dateOfBirthChanged: false,
-    imageChange: undefined,
-    nickname: profile.nickname,
-    weightKg: '',
-  });
+  const [form, setForm] = useState<BasicProfileForm>(() =>
+    initialBasicProfileForm(profile),
+  );
   const formRef = useRef(form);
   const [imagePickerError, setImagePickerError] = useState<string | null>(null);
   const [imagePickerPending, setImagePickerPending] = useState(false);
@@ -475,11 +472,6 @@ function BasicProfileEditor({
 
   return (
     <View style={styles.basicForm}>
-      <InlineFeedback
-        message="변경하지 않은 사항은 유지돼요"
-        style={styles.privacyNotice}
-        tone="warning"
-      />
       <TextField
         accessibilityLabel="닉네임 입력"
         editable={!pending}
@@ -534,7 +526,7 @@ function BasicProfileEditor({
         compact
         disabled={pending}
         onChange={(value) =>
-          update({ dateOfBirth: value, dateOfBirthChanged: true })
+          update({ dateOfBirth: value, dateOfBirthTouched: true })
         }
         value={dateOfBirth}
       />
@@ -552,6 +544,24 @@ function BasicProfileEditor({
   );
 }
 
+/**
+ * Seeds the form with what the user already stored, so the sheet opens showing
+ * the saved values rather than asking for them again (ADR-0020).
+ *
+ * Either stored value can be absent: a birthdate this deployment cannot decrypt
+ * arrives as null, and a profile written before weight was collected has none.
+ * Both fall back to the pre-fill-era defaults.
+ */
+function initialBasicProfileForm(profile: MeProfile): BasicProfileForm {
+  return {
+    dateOfBirth: profile.date_of_birth ?? latestEligibleBirthdateIso(),
+    dateOfBirthTouched: false,
+    imageChange: undefined,
+    nickname: profile.nickname,
+    weightKg: profile.weight_kg == null ? '' : String(profile.weight_kg),
+  };
+}
+
 /** Reports the pending basic-profile edit, or null when it is not savable. */
 function basicProfileDraft(
   form: BasicProfileForm,
@@ -561,10 +571,23 @@ function basicProfileDraft(
   if (nickname.length < 1 || nickname.length > 64) return null;
   if (validateOptionalNumber(form.weightKg, 25, 300, '체중')) return null;
 
+  // Every field is pre-filled, so "the user typed something" no longer means
+  // "the user changed something". Sending an unchanged value would still bump
+  // profile_version and retire the routine built to the stored profile.
   const body: ProfileSettingsUpdateRequest = {};
   if (nickname !== profile.nickname) body.nickname = nickname;
-  if (form.dateOfBirthChanged) body.date_of_birth = form.dateOfBirth;
-  if (form.weightKg) body.weight_kg = Number(form.weightKg);
+  // A birthdate that could not be decrypted reads as null here, which is not
+  // the same as knowing it is unchanged: without the stored value to compare
+  // against, only an explicit edit may overwrite it.
+  if (form.dateOfBirthTouched && form.dateOfBirth !== profile.date_of_birth) {
+    body.date_of_birth = form.dateOfBirth;
+  }
+  // Compared numerically so re-typing the same weight as "68.50" reads as
+  // unchanged. Clearing the field sends nothing: this sheet cannot unset a
+  // stored weight, and the API rejects an explicit null.
+  if (form.weightKg && Number(form.weightKg) !== profile.weight_kg) {
+    body.weight_kg = Number(form.weightKg);
+  }
   const changedImage = form.imageChange !== undefined;
   if (!changedImage && Object.keys(body).length === 0) return null;
   return changedImage ? { body, imageChange: form.imageChange } : { body };
@@ -680,7 +703,11 @@ function AttentionAreaEditor({
       {hasAreas ? (
         <View style={styles.painDetails}>
           <View style={styles.painSection}>
-            <Text style={styles.painSectionTitle}>불편한 부위</Text>
+            <PainScaleInfoHeading
+              testIDPrefix="my-page"
+              title="통증 부위"
+              titleStyle={styles.painSectionTitle}
+            />
             <Text style={styles.hint}>해당하는 부위를 모두 선택해주세요.</Text>
             <View
               style={styles.optionGrid}
@@ -1015,7 +1042,6 @@ const styles = StyleSheet.create({
   },
   saveLabel: { fontSize: 17, fontWeight: '800' },
   basicForm: { gap: spacing.sm },
-  privacyNotice: { paddingHorizontal: 11, paddingVertical: 8 },
   profileImageEditor: {
     flexDirection: 'row',
     alignItems: 'flex-start',

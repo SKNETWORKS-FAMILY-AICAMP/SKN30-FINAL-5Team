@@ -53,8 +53,9 @@ class OnboardingRecord:
 class MeProfileRecord:
     """Stored profile values needed to describe the authenticated user.
 
-    `protected_birthdate` stays encrypted here; only the derived age leaves the
-    service layer and the birthdate itself is never part of a response.
+    `protected_birthdate` stays encrypted here. The service layer decrypts it to
+    derive the age and to return the birthdate to its own owner; the encrypted
+    envelope itself is never part of a response. See ADR-0005.
     """
 
     nickname: str
@@ -70,6 +71,8 @@ class MeProfileRecord:
     created_at: datetime
     updated_at: datetime
     profile_image_object_key: str | None = None
+    weight_kg: float | None = None
+    persistent_pains: tuple[tuple[str, int], ...] = ()
 
 
 @dataclass(frozen=True)

@@ -81,6 +81,14 @@ export type MeProfile = {
   nickname: string;
   profile_image_url?: string | null;
   age: number | null;
+  /**
+   * The stored birthdate, returned to its own owner so the settings editor can
+   * show what the user saved (ADR-0020). Null when the deployment cannot
+   * decrypt it, which is not an error: the profile still loads.
+   */
+  date_of_birth?: string | null;
+  /** The stored weight; null on a profile written before it was collected. */
+  weight_kg?: number | null;
   primary_goal_code: string;
   experience_level_code: string;
   timezone: string;
@@ -92,8 +100,12 @@ export type MeProfile = {
   attention_area_codes: string[];
   /** Present only after the additive pain-intensity profile contract is available. */
   pain_areas?: PainAreaInput[];
-  /** Daily Check-in defaults; never treat these as submitted daily pain. */
-  persistent_pains?: PainAreaInput[];
+  /**
+   * Daily Check-in defaults; never treat these as submitted daily pain. Null
+   * means the profile still uses legacy attention_area_codes, while [] means
+   * the user has explicitly stored no persistent pain.
+   */
+  persistent_pains?: PainAreaInput[] | null;
   preferred_exercise_type_codes: string[];
   profile_version: number;
   created_at: string;

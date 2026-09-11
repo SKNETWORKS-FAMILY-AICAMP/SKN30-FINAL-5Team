@@ -214,12 +214,15 @@ describe('ExerciseCatalogScreen', () => {
       'source',
       { uri: 'https://cdn.example.com/squat.gif' },
     );
-    const summary = screen.getByText('발바닥을 고르게 디디고 천천히 앉아요.');
-    expect(summary).toBeOnTheScreen();
-    expect(StyleSheet.flatten(summary.props.style)).toMatchObject({
-      fontSize: 16,
-      lineHeight: 24,
+    const cue = screen.getByText('무릎과 발끝의 방향을 맞춰요.');
+    expect(cue).toBeOnTheScreen();
+    expect(StyleSheet.flatten(cue.props.style)).toMatchObject({
+      fontSize: 15,
+      lineHeight: 23,
     });
+    expect(
+      screen.queryByText('발바닥을 고르게 디디고 천천히 앉아요.'),
+    ).toBeNull();
   });
 
   it('does not treat media_asset_key as a URL when media_url is null', async () => {

@@ -445,6 +445,13 @@ describe('HomeScreen Home v1 transcription', () => {
 
     fireEvent.press(screen.getByRole('button', { name: '운동 체크인' }));
     expect(screen.getByText('통증이 있는 부위가 있나요?')).toBeOnTheScreen();
+    expect(screen.queryByTestId('checkin-pain-scale-info-bubble')).toBeNull();
+    fireEvent.press(
+      screen.getByRole('button', { name: '통증 정도 기준 안내' }),
+    );
+    expect(screen.getByText('출처: 국제통증연구학회 (IASP)')).toBeOnTheScreen();
+    fireEvent.press(screen.getByTestId('checkin-pain-scale-info-backdrop'));
+    expect(screen.queryByTestId('checkin-pain-scale-info-bubble')).toBeNull();
     fireEvent.press(screen.getByRole('button', { name: '헬스장' }));
     fireEvent.press(
       screen.getByRole('button', { name: '운동 시간 10분 늘리기' }),
@@ -641,13 +648,13 @@ describe('HomeScreen Home v1 transcription', () => {
     fireEvent.press(screen.getByRole('button', { name: '푸시업 자세' }));
 
     expect(screen.getByRole('header', { name: '푸시업' })).toBeOnTheScreen();
-    expect(
-      await screen.findByText('통증이 없는 범위에서 천천히 움직여주세요.'),
-    ).toBeOnTheScreen();
+    expect(await screen.findByText('호흡을 멈추지 않기')).toBeOnTheScreen();
     expect(screen.getByTestId('exercise-media-image')).toHaveProp('source', {
       uri: 'https://cdn.example.com/push-up.gif',
     });
-    expect(screen.getByText('호흡을 멈추지 않기')).toBeOnTheScreen();
+    expect(
+      screen.queryByText('통증이 없는 범위에서 천천히 움직여주세요.'),
+    ).toBeNull();
   });
 
   it('keeps posture guidance scrollable inside the capped sheet', async () => {

@@ -60,7 +60,7 @@ describe('ExerciseDetailSheet', () => {
     expect(screen.getByRole('button', { name: '다시 시도' })).toBeOnTheScreen();
   });
 
-  it('shows server-separated steps and cautions in the requested section order', async () => {
+  it('shows only the focus and caution sections, without step instructions', async () => {
     render(
       <ExerciseDetailSheet
         api={detailApi({
@@ -79,23 +79,20 @@ describe('ExerciseDetailSheet', () => {
 
     expect(
       screen.getAllByRole('header').map((header) => header.props.children),
-    ).toEqual(['사용 근육', '주의 부위', '자세 설명', '주의사항']);
-    expect(
-      screen.getByText('해당 부위에 통증이 있는 경우 주의가 필요해요.'),
-    ).toBeOnTheScreen();
+    ).toEqual(['사용 근육', '주의사항']);
     expect(screen.getByText('둔근')).toBeOnTheScreen();
-    expect(
-      screen.getByText('1. 발을 골반 너비로 두고 서요.'),
-    ).toBeOnTheScreen();
-    expect(
-      screen.getByText('2. 엉덩이를 뒤로 보내며 앉아요.'),
-    ).toBeOnTheScreen();
     expect(
       screen.getByText('의자가 미끄러지지 않는지 확인해요.'),
     ).toBeOnTheScreen();
+    expect(screen.queryByTestId('exercise-primary-areas')).toBeNull();
+    expect(screen.queryByTestId('exercise-instruction-steps')).toBeNull();
+    expect(
+      screen.queryByText('해당 부위에 통증이 있는 경우 주의가 필요해요.'),
+    ).toBeNull();
+    expect(screen.queryByText('1. 발을 골반 너비로 두고 서요.')).toBeNull();
   }, 15000);
 
-  it('uses the legacy summary and form cues when additive fields are absent', async () => {
+  it('uses the legacy form cues when additive fields are absent', async () => {
     render(
       <ExerciseDetailSheet
         api={detailApi(baseDetail)}
@@ -104,10 +101,11 @@ describe('ExerciseDetailSheet', () => {
     );
 
     expect(
-      await screen.findByText('의자 앞에서 천천히 앉았다가 일어나요.'),
+      await screen.findByText('무릎과 발끝의 방향을 맞춰요.'),
     ).toBeOnTheScreen();
-    expect(screen.getByText('무릎과 발끝의 방향을 맞춰요.')).toBeOnTheScreen();
-    expect(screen.queryByText(/^1\. /)).toBeNull();
+    expect(
+      screen.queryByText('의자 앞에서 천천히 앉았다가 일어나요.'),
+    ).toBeNull();
   });
 
   it.each([
@@ -237,7 +235,6 @@ describe('ExerciseDetailSheet', () => {
 
     expect(await screen.findByText('고관절, 무릎')).toBeOnTheScreen();
     expect(screen.getByRole('header', { name: '사용 근육' })).toBeOnTheScreen();
-    expect(screen.queryByRole('header', { name: '주의 부위' })).toBeNull();
     expect(screen.queryByText('장소가 확인되어야 보여요.')).toBeNull();
   });
 });

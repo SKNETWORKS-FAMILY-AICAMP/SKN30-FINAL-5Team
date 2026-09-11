@@ -19,7 +19,7 @@ import { ApiClient } from '../src/api/client';
 import { createApi, type Api } from '../src/api/endpoints';
 import { ApiError } from '../src/api/errors';
 import type {
-  BananaWalletResponse,
+  DailyRewardClaimResponse,
   DecisionResponse,
   HomeStateResponse,
   MeResponse,
@@ -462,7 +462,7 @@ describe('MainFlow restart recovery', () => {
       await waitFor(() =>
         expect(screen.queryByText('운동 세션을 준비하고 있어요…')).toBeNull(),
       );
-      fireEvent.press(screen.getByRole('button', { name: '자세 설명 보기' }));
+      fireEvent.press(screen.getByRole('button', { name: '자세 보기' }));
       const expected =
         locationCode === 'HOME'
           ? 'household-equipment-guides'
@@ -903,7 +903,7 @@ describe('MainFlow restart recovery', () => {
     });
   });
 
-  it('opens the server-backed reward wallet from a daily reward notification', async () => {
+  it('claims the daily reward inside the notification sheet instead of navigating', async () => {
     const { api } = apiWithRoutes({
       '/decisions?': decision(),
       '/routines/current?': routine(),
@@ -924,22 +924,34 @@ describe('MainFlow restart recovery', () => {
       is_read: true,
       read_at: '2026-09-04T09:01:00+09:00',
     }));
-    const wallet: BananaWalletResponse = {
-      balance: 42,
+    const claimed: DailyRewardClaimResponse = {
+      balance: 57,
       daily_reward: {
         local_date: LOCAL_DATE,
         reward_amount: 15,
-        is_claimable: true,
-        is_claimed: false,
-        claimed_at: null,
+        is_claimable: false,
+        is_claimed: true,
+        claimed_at: '2026-09-04T09:01:00+09:00',
+      },
+      transaction: {
+        transaction_id: 'transaction-1',
+        transaction_type: 'DAILY_REWARD',
+        amount: 15,
+        balance_after: 57,
+        created_at: '2026-09-04T09:01:00+09:00',
       },
     };
-    const getRewards = jest.fn(async () => wallet);
+    const claimDailyReward = jest.fn(async () => claimed);
+    const getRewards = jest.fn(async () => ({
+      balance: claimed.balance,
+      daily_reward: claimed.daily_reward,
+    }));
 
     render(
       <MainFlow
         api={{
           ...api,
+          claimDailyReward,
           getRewards,
           listNotifications,
           markNotificationRead,
@@ -960,12 +972,74 @@ describe('MainFlow restart recovery', () => {
 
     await waitFor(() => {
       expect(markNotificationRead).toHaveBeenCalledWith('notification-1');
-      expect(getRewards).toHaveBeenCalledTimes(1);
+      expect(claimDailyReward).toHaveBeenCalledTimes(1);
     });
     expect(
-      await screen.findByRole('button', { name: '바나나 15개 받기' }),
+      await screen.findByText('바나나 15개를 받았어요.'),
     ).toBeOnTheScreen();
-    expect(screen.getByLabelText('홈으로 돌아가기')).toBeOnTheScreen();
+    expect(screen.getByTestId('notification-popover')).toBeOnTheScreen();
+    expect(getRewards).not.toHaveBeenCalled();
+    expect(screen.queryByText('바나나 지갑')).toBeNull();
+  });
+
+  it('keeps the sheet open with a retryable error when the claim fails', async () => {
+    const { api } = apiWithRoutes({
+      '/decisions?': decision(),
+      '/routines/current?': routine(),
+      '/workout-sessions?': sessions([]),
+    });
+    const item = notification({
+      type: 'DAILY_REWARD',
+      title: '오늘의 바나나가 도착했어요',
+      message: '지금 받을 수 있어요.',
+      action_type: 'CLAIM_DAILY_REWARD',
+    });
+    const listNotifications = jest.fn<
+      Promise<NotificationListResponse>,
+      [AbortSignal?]
+    >(async () => ({ items: [item], unread_count: 1 }));
+    const markNotificationRead = jest.fn(async () => ({
+      ...item,
+      is_read: true,
+      read_at: '2026-09-04T09:01:00+09:00',
+    }));
+    const claimDailyReward = jest.fn(async () => {
+      throw new ApiError({
+        kind: 'unavailable',
+        code: 'SERVICE_UNAVAILABLE',
+        status: 503,
+        message: '잠시 후 다시 시도해주세요.',
+      });
+    });
+
+    render(
+      <MainFlow
+        api={{
+          ...api,
+          claimDailyReward,
+          listNotifications,
+          markNotificationRead,
+        }}
+        me={me()}
+        onRefreshMe={async () => undefined}
+        onSignOut={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(listNotifications).toHaveBeenCalledTimes(1));
+    fireEvent.press(screen.getByRole('button', { name: '알림 보기' }));
+    fireEvent.press(
+      await screen.findByRole('button', {
+        name: '오늘의 바나나가 도착했어요 알림 확인',
+      }),
+    );
+
+    await waitFor(() => expect(claimDailyReward).toHaveBeenCalledTimes(1));
+    expect(
+      await screen.findByRole('button', { name: '다시 불러오기' }),
+    ).toBeOnTheScreen();
+    expect(screen.getByTestId('notification-popover')).toBeOnTheScreen();
+    expect(screen.queryByTestId('notification-notice')).toBeNull();
   });
 
   it('shows one toast only when a later Home read contains a new unread id', async () => {
