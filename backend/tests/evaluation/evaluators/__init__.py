@@ -53,6 +53,8 @@ def evaluate_case(run: CaseRunResult) -> CaseEvaluation:
         output_tokens=output_tokens,
         wall_clock_ms=run.wall_clock_ms,
         findings=tuple(findings),
+        failure_codes=run.failure_codes,
+        violation_codes=run.violation_codes,
     )
 
 

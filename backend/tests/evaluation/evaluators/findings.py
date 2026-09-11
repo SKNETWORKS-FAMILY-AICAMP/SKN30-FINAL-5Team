@@ -73,6 +73,13 @@ class CaseEvaluation:
     wall_clock_ms: int
     findings: tuple[Finding, ...] = ()
 
+    # Why a run fell back, not just that it did. The held-out comparison
+    # recorded `used_fallback` alone, so explaining its seven multi-agent
+    # fallbacks meant reading LangSmith traces after the fact -- and a run
+    # without tracing would have left no explanation at all.
+    failure_codes: tuple[str, ...] = ()
+    violation_codes: tuple[str, ...] = ()
+
     @property
     def failures(self) -> tuple[Finding, ...]:
         return tuple(finding for finding in self.findings if finding.fails_case)

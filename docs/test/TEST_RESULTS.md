@@ -6,6 +6,10 @@ PHASE 0~11 최종 실행 결과. 마스터 명세는 `docs/test/service_test_mas
 - 브랜치: `chore/service-quality-evaluation-harness` (`develop`에서 분기, `6deb151`)
 - PHASE 0~7은 서비스 코드 변경 없음. PHASE 8은 승인된 provider tracing 옵트인만 추가
 
+> **2차 평가로 갱신된 결론이 있다.** 이 문서는 1차(튜닝 데이터셋) 결과를 그대로 보존한다.
+> 개선 후 held-out 데이터셋에서의 재측정과 사전 등록 기준 판정은
+> `docs/test/ROUND2_HELDOUT_RESULTS.md`에 있다. 두 문서가 다르면 held-out 쪽이 최신이다.
+
 ---
 
 ## 1. 테스트 환경

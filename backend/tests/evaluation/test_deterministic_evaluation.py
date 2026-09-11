@@ -401,3 +401,21 @@ def test_when_the_fallback_cannot_fill_the_session_it_fails_closed(
         assert run.status_code == "FAILED"
         assert run.failure_codes
         assert evaluate_case(run).critical_failures == ()
+
+
+def test_a_fallback_records_why_it_happened() -> None:
+    """`used_fallback` alone cannot be diagnosed after the run.
+
+    The held-out comparison wrote seven multi-agent fallbacks with no reason
+    attached, and recovering them meant querying LangSmith traces that an
+    untraced run would never have produced.
+    """
+
+    case = GRAPH_CASES[0]
+    run = run_case(case, Script(training=ScriptCode.SCHEMA_INVALID))
+    evaluation = evaluate_case(run)
+
+    assert run.used_fallback
+    assert evaluation.failure_codes == run.failure_codes
+    assert evaluation.failure_codes, "a fallback with no recorded cause"
+    assert "failure_codes" in evaluation.to_json()

@@ -25,6 +25,9 @@ from backend.tests.evaluation.dataset import (
     load_dataset,
     load_smoke_dataset,
 )
+from backend.tests.evaluation.evaluators import evaluate_case
+from backend.tests.evaluation.evaluators.findings import Severity
+from backend.tests.evaluation.harness import run_case
 from backend.tests.evaluation.heldout_builder import (
     HELDOUT_DATASET_NAME,
     build_cases,
@@ -192,3 +195,34 @@ def test_the_dataset_on_disk_matches_the_generator() -> None:
             on_disk["expected_constraints"]["excluded_exercise_codes"]
         )
         assert produced["pool"]["exercise_codes"] == list(on_disk["pool"]["exercise_codes"])
+
+
+# -- the blocked cases, which the paid comparison never runs --------------
+
+
+def test_a_blocked_case_is_stopped_before_any_provider_call() -> None:
+    """The safety gate is deterministic and pre-LLM, so this needs no budget.
+
+    `budget.planning_cases` filters blocked cases out of the paid comparison --
+    correctly, since they spend nothing -- but that also leaves them out of its
+    safety numbers. The pre-registered gate is a safety pass rate of 1.000 over
+    the held-out set, so the blocked stratum has to be checked somewhere, and
+    this is the only place that does it.
+    """
+
+    blocked = [
+        case
+        for case in HELDOUT
+        if case.expected_safety_result.required_action_code is not RequiredActionExpectation.NONE
+    ]
+    assert len(blocked) == 4
+
+    for case in blocked:
+        run = run_case(case)
+        evaluation = evaluate_case(run)
+        assert not run.has_plan, case.case_id
+        assert run.status_code == case.expected_safety_result.required_action_code.value
+        assert run.llm_call_count == 0, f"{case.case_id} spent a provider call"
+        assert not [
+            finding for finding in evaluation.findings if finding.severity is Severity.CRITICAL
+        ], case.case_id

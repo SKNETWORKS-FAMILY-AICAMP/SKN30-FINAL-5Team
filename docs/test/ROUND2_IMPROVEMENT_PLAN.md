@@ -141,7 +141,16 @@ artifact 레지스트리이고 배포는 어떤 promotion 명령을 실행했는
   - tuning 20건과 case_id·내용 모두 겹치지 않음을 테스트로 고정
 - 오프라인 3-architecture 배관 점검: 29 planning case 전부 계획 생성, critical 0,
   세 architecture 결과 동일(fallback 8건도 동일)
-- 다음 게이트: held-out 유료 실행(smoke → pilot → 전체) 및 독립 blind Human 평가
+- **held-out 유료 실행 완료(2026-09-11)**: 29 planning case × 3 architecture, 실 호출 256회.
+  결과와 사전 등록 기준 판정은 `docs/test/ROUND2_HELDOUT_RESULTS.md`.
+  - 통과: safety 1.000(33/33), critical 0건, workflow completion 1.000, token −26.9786%
+  - 미달: Multi P95 48.813초(기준 30초), conflict/complex plan rate 0.600/0.667
+    (Single RAG 0.800/0.889)
+  - 미판정: Human mean(+0.20) — 독립 blind 평가 미실시
+  - 판정: 6절의 **"Single RAG가 동등 이상"** 분기. Multi-Agent 우월성 결론 보류
+  - Multi fallback 7건 중 5건이 Training agent 단독 실패(`V3_TRAINING_NOT_READY` 4,
+    `LLM_AGENT_DOMAIN_INVALID` 1). advisory 차단은 0건이므로 D-5 재발이 아니다
+- 다음 게이트: 독립 blind Human 평가(5절 6단계), Judge calibration(7단계) — 둘 다 사람 필요
 
 ### 하네스 한계 (held-out 해석 시 유의)
 
