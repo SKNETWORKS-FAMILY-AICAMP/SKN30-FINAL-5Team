@@ -38,10 +38,24 @@ from backend.app.domain.agents.retrieval import (
 from backend.app.domain.rules.fitt import context_for_exercise
 from backend.app.domain.rules.training_level import is_exercise_prescription_compatible
 
-# The catalog version `approvals.py` records as the current PRODUCTION_APPROVED
-# artifact (V2-0-8-PM-APPROVAL-2026-09-09-R01, 237 records).
-PRODUCTION_CATALOG_VERSION: Final = "exercise-catalog-v2.0.8-final"
-PRODUCTION_BUNDLE_ROOT: Final = Path("data/generated/integrated-catalog-v2.0.8-final/catalog")
+# The catalog the service actually runs, which is not the same question as the
+# highest version `approvals.py` carries. `approvals.py` is a registry of
+# approved artifacts; deployment is decided by which promotion command was run,
+# and `infra/deployment/README.md` documents only v2.0.7 as the release path
+# (V2-0-7-PRODUCTION-APPROVAL-2026-09-08-R01). v2.0.8 is approved but not
+# deployed. Two further checks agree: the shipped FITT reference is pinned to
+# `v2_0_7_fitt_stable_code_mapping.csv`, and the deployment README has no v2.0.8
+# section at all.
+#
+# An earlier version of this module pinned v2.0.8 by reading the registry alone.
+# The two catalogs hold the same 237 exercises but differ on fields the
+# deterministic fallback times a plan with -- `default_rest_seconds` on 14,
+# `default_work_seconds` on 13, `family_code` on 12 -- so the choice is not
+# cosmetic and the D-2 re-read had to be repeated against this one.
+PRODUCTION_CATALOG_VERSION: Final = "exercise-catalog-v2.0.7-final"
+PRODUCTION_BUNDLE_ROOT: Final = Path(
+    "data/generated/integrated-catalog-v2.0.7-final/backend_bundle/catalog"
+)
 
 # Exercise identifiers are assigned by the database at seed time, so the bundle
 # carries none. A uuid5 over the stable code gives every run the same ids
@@ -50,7 +64,7 @@ PRODUCTION_BUNDLE_ROOT: Final = Path("data/generated/integrated-catalog-v2.0.8-f
 _EXERCISE_ID_NAMESPACE: Final = UUID("9c2f7f7c-4c8a-4a2e-9f1b-2d6a0d3f5e11")
 
 _CONTENT_VERSION: Final = "production-catalog-replay-v1"
-_REFERENCE_CODES: Final[tuple[str, ...]] = ("v2.0.8-final",)
+_REFERENCE_CODES: Final[tuple[str, ...]] = ("v2.0.7-final",)
 
 
 class ProductionCatalogUnavailableError(RuntimeError):

@@ -14,6 +14,7 @@ from __future__ import annotations
 import pytest
 
 from backend.app.domain.agents.retrieval import ExercisePoolExerciseRecord
+from backend.app.domain.rules.fitt import _default_mapping_path
 from backend.tests.evaluation.budget import planning_cases
 from backend.tests.evaluation.fallback_reproduction import (
     _compose_pool,
@@ -44,10 +45,35 @@ def production_records() -> tuple[ExercisePoolExerciseRecord, ...]:
 def test_production_catalog_loads_the_approved_bundle(
     production_records: tuple[ExercisePoolExerciseRecord, ...],
 ) -> None:
-    """`approvals.py` records 237 records for this catalog version."""
+    """The bundle carries the 237 records its approval record claims."""
 
     assert len(production_records) == 237
     assert all(item.catalog_version == PRODUCTION_CATALOG_VERSION for item in production_records)
+
+
+def test_the_replay_uses_the_catalog_the_service_deploys() -> None:
+    """Guard against replaying a catalog that is approved but not deployed.
+
+    An earlier version of this module read `approvals.py` for the highest
+    approved version and replayed v2.0.8, which is registered but has no
+    deployment path; the service runs v2.0.7. The two hold the same exercises
+    but differ on the timing fields the deterministic fallback plans with, so
+    the D-2 re-read had to be repeated.
+
+    The shipped FITT reference is the check: `fitt.py` resolves every reviewed
+    volume range through a mapping file pinned to one catalog version. A replay
+    catalog that has moved past it would silently lose FITT coverage and time
+    plans against ranges that never applied to it.
+    """
+
+    mapping = _default_mapping_path().name
+    version_tag = PRODUCTION_CATALOG_VERSION.removeprefix("exercise-catalog-v").removesuffix(
+        "-final"
+    )
+    assert mapping.startswith(f"v{version_tag.replace('.', '_')}_"), (
+        f"replay catalog {PRODUCTION_CATALOG_VERSION} does not match the shipped "
+        f"FITT mapping {mapping}"
+    )
 
 
 def test_production_catalog_carries_every_phase(

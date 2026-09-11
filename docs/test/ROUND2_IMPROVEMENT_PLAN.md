@@ -102,10 +102,23 @@ held-out은 `provider failure`를 층화에 포함하므로 fallback 경로가 �
 
 | 선택지 | 내용 | 영향 |
 |---|---|---|
-| A | 운영 카탈로그(v2.0.8-final, 237종)에서 held-out pool 구성 | fallback 수치가 운영 대표성을 가짐. 카탈로그 로더는 이미 있음(`production_catalog.py`) |
+| A | **배포 카탈로그(v2.0.7-final, 237종)** 에서 held-out pool 구성 | fallback 수치가 운영 대표성을 가짐. 카탈로그 로더는 이미 있음(`production_catalog.py`) |
 | B | 합성 카탈로그 유지 | 세 architecture에 동일 적용되므로 **비교는 유효**하나 절대 수치는 비관적. 사전 등록 기준 판정에 주석 필요 |
 
 미결정 상태로 held-out을 실행하면 결과 해석이 사후 조정되므로 착수 전에 고정한다.
+
+**결정(2026-09-11): A 채택.** 사용 카탈로그는 **`exercise-catalog-v2.0.7-final`** 이다.
+
+카탈로그 버전 선택에서 한 번 틀렸던 기록을 남긴다. 최초 `production_catalog.py`는
+`approvals.py`의 최신 승인 항목을 배포본으로 가정해 v2.0.8을 읽었다. `approvals.py`는 승인된
+artifact 레지스트리이고 배포는 어떤 promotion 명령을 실행했는지로 정해진다.
+`infra/deployment/README.md`는 v2.0.7만 릴리스 경로로 문서화하며 v2.0.8 절이 없고, 배포된 FITT
+참조도 `v2_0_7_fitt_stable_code_mapping.csv`에 고정되어 있다.
+
+두 카탈로그는 같은 237종을 담지만 fallback이 계획 시간을 계산하는 필드가 다르다
+(`default_rest_seconds` 14종, `default_work_seconds` 13종, `family_code` 12종). 따라서 D-2
+재확인을 v2.0.7로 다시 수행했고 **결론은 유지된다**(14 case × 12 slice = 1.00, 제외 8배까지 동일).
+`test_the_replay_uses_the_catalog_the_service_deploys`가 재발을 막는다.
 
 ## 7. 진행 현황 (2026-09-11)
 
