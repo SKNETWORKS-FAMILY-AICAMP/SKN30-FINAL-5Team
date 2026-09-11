@@ -150,6 +150,19 @@ artifact 레지스트리이고 배포는 어떤 promotion 명령을 실행했는
   - 판정: 6절의 **"Single RAG가 동등 이상"** 분기. Multi-Agent 우월성 결론 보류
   - Multi fallback 7건 중 5건이 Training agent 단독 실패(`V3_TRAINING_NOT_READY` 4,
     `LLM_AGENT_DOMAIN_INVALID` 1). advisory 차단은 0건이므로 D-5 재발이 아니다
+- **D-6 발견 및 수정, 재측정 완료(2026-09-11)**: ADR-0022. repair 노드가 배포 구성에서
+  도달 불가능했고(승인 대체 운동 목록을 아무도 채우지 않음), specialist 실패 코드가 계약
+  위반과 자체 판단을 구분하지 못했다. 둘 다 고친 뒤 held-out을 재실행했다(255 호출,
+  `results/round2/heldout_adr22/`).
+  - ADR-0022는 의도대로 동작: repair 1회 실제 발생(SQ-HELD-023), 실패 코드 분리 확인
+  - **판정은 바뀌지 않음**: P95 43.093초(기준 30초) 미달, complex plan rate 0.667 대 0.944 미달
+  - **가용성 격차의 지배적 원인 확정**: Training 실패 7건 전부 `V3_TRAINING_NOT_READY`이고
+    `V3_TRAINING_PROPOSAL_INVALID`는 **0건**. 계약 위반이 아니라 Training의 자체 판단이며,
+    같은 입력을 Single-Agent는 29건 중 25건 처리했다. R2-2 역할 최소화 payload 또는
+    Training 프롬프트의 READY 조건이 다음 조사 대상이다
+  - **실행 간 변동이 크다**: B의 conflict plan rate가 0.800 → 0.400으로 뒤집혔다. category별
+    n이 3~9라 1건이 0.11~0.33을 움직이므로 단일 실행으로는 판정할 수 없다. 두 실행 합산
+    (58 run)은 B 0.879 대 C 0.741, conflict는 0.600 동률, complex는 0.944 대 0.667
 - 다음 게이트: 독립 blind Human 평가(5절 6단계), Judge calibration(7단계) — 둘 다 사람 필요
 
 ### 하네스 한계 (held-out 해석 시 유의)

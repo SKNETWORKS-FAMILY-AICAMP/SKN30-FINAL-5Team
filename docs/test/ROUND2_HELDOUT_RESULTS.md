@@ -1,5 +1,8 @@
 # 2차 held-out 유료 평가 결과
 
+> 1~7절은 **ADR-0022 수정 전** 실행이다. 수정 후 재측정과 최종 판정은 **8절**에 있다.
+> 두 실행의 판정 결과는 같다: 사전 등록 기준 2개 미달, 1개 미판정.
+
 - 실행일: 2026-09-11
 - 데이터셋: `heldout_cases` 33건 중 planning 29건 (blocked 4건은 provider 호출 없음)
 - 카탈로그: `exercise-catalog-v2.0.7-final` (배포본, 237종)
@@ -175,8 +178,12 @@ validator**를 쓴다. 즉 "validator가 repairable이라고 말하면 graph가 
 
 **ADR-0022로 분리했다(2026-09-11)**: `V3_{ROLE}_PROPOSAL_INVALID`(계약 위반),
 `V3_{ROLE}_NO_PROPOSAL`(proposal 부재), `V3_TRAINING_NOT_READY`(Training 자체 판단).
-`failure_code`는 `String(128)`이고 enum 제약이 없어 마이그레이션은 필요 없다. **이미 끝난
-실행에 소급되지는 않으므로 위 4건의 원인은 여전히 미상이며, 다음 유료 실행에서 확인된다.**
+`failure_code`는 `String(128)`이고 enum 제약이 없어 마이그레이션은 필요 없다. 이미 끝난
+실행에 소급되지 않으므로 **위 4건의 원인은 여전히 미상이다.**
+
+**다만 재측정이 답을 줬다(8.3절).** 수정 후 실행에서 Training 실패 7건은 전부
+`V3_TRAINING_NOT_READY`였고 `V3_TRAINING_PROPOSAL_INVALID`는 0건이었다. 즉 계약 위반이
+아니라 Training의 자체 판단이다.
 
 ## 4. Judge 결과 해석의 한계
 
@@ -239,3 +246,140 @@ LLM span export는 이 실행에서 꺼져 있었으므로 tracing overhead는 �
   "고치면 나아질 것"이라고 주장하지 않는다.**
 - 남은 게이트: 독립 blind Human 평가(6), Judge calibration(7). **둘 다 사람이 필요하며
   이 실행으로 대체되지 않는다.**
+
+---
+
+# 8. ADR-0022 적용 후 재측정 (2026-09-11)
+
+- 데이터셋·카탈로그·모델·실행 프로필 모두 동일. 바뀐 것은 ADR-0022뿐이다.
+- 실제 호출 255회, 산출물 `results/round2/heldout_adr22/`
+- 수정 전 산출물 `results/round2/heldout/`은 **그대로 보존**한다.
+
+## 8.1 ADR-0022가 의도대로 동작했는가
+
+**그렇다. 두 변경 모두 확인됐다.**
+
+- **repair 노드가 유료 실행에서 처음 동작했다.** `repairs: 1`. SQ-HELD-023이 호출 5회
+  (specialist 3 + coordinator 1 + repair 1)를 썼고, 위반 기록은
+  `PLAN_EXERCISE_FAMILY_REPEATED` → repair → `PLAN_EXERCISE_FAMILY_REPEATED` →
+  `REPAIR_ATTEMPT_EXHAUSTED`다. 즉 **분기는 살아났고, Coordinator는 같은 실수를 반복했다.**
+  repair 라운드가 도달 가능해진 것과 그것이 유용한 것은 별개이며, 현재 표본은 1건이다.
+- **실패 코드 분리가 답을 줬다.** 아래 8.3을 보라.
+- 산출물만으로 fallback 원인을 설명할 수 있게 됐다. 이번에는 LangSmith trace를 조회하지
+  않았다.
+
+## 8.2 측정값 (괄호는 수정 전)
+
+| 지표 | A. Single LLM | B. Single Agent + RAG | C. Multi-Agent + RAG |
+|---|---:|---:|---:|
+| Constraint Satisfaction | 1.000 | 1.000 | 1.000 |
+| Safety Compliance | 1.000 | 1.000 | 1.000 |
+| Critical 실패 | 0 | 0 | 0 |
+| Workflow Completion | 1.000 | 1.000 | 1.000 |
+| LLM Plan Rate | 0.1034 (0.0345) | **0.8621** (0.8966) | 0.7241 (0.7586) |
+| Structured Output Success | 0.1724 (0.1724) | **1.000** (1.000) | 0.7586 (0.8276) |
+| Judge 평균 (blind) | 2.9770 (2.9138) | **3.6322** (3.7011) | 3.5172 (3.6552) |
+| P50 latency | 13.953초 (13.796) | 23.922초 (22.047) | 27.094초 (32.390) |
+| P95 latency | 17.485초 (15.703) | 40.390초 (48.563) | **43.093초** (48.813) |
+| 1회 실행당 토큰 | 4,403 (4,154) | 8,721 (8,808) | 19,248 (20,386) |
+| fallback | 26 (28) | 4 (3) | 8 (7) |
+| repair | 0 | — | **1** (0) |
+
+## 8.3 Multi-Agent fallback 8건의 원인 — 이번엔 산출물에서 바로 읽힌다
+
+| 원인 | 건수 | case |
+|---|---:|---|
+| `V3_TRAINING_NOT_READY` | 7 | 003, 009, 014, 018, 021, 022, 031 |
+| `PLAN_EXERCISE_FAMILY_REPEATED` + `REPAIR_ATTEMPT_EXHAUSTED` | 1 | 023 (repair 1회 후 실패) |
+| `V3_TRAINING_PROPOSAL_INVALID` | **0** | — |
+
+**이것이 이번 실행의 가장 중요한 발견이다.** 계약 위반은 한 건도 없었다. Training은 hash를
+틀리거나 pool 밖 운동을 고르거나 JSON을 깨뜨린 것이 아니라, **유효한 proposal을 내면서
+스스로 `READY`가 아니라고 선언했다.** 즉 "모델이 계약을 못 지킨다"가 아니라 **"모델이 주어진
+입력으로는 계획을 못 짜겠다고 판단한다"** 가 Multi-Agent 가용성 격차의 지배적 원인이다.
+
+수정 전 실행에서는 두 원인이 같은 코드를 써서 이 구분이 불가능했다. 분리하지 않았다면
+"구조화 출력을 더 강하게 강제하자" 같은 잘못된 처방으로 갔을 것이다.
+
+대조가 결정적이다. **같은 입력, 같은 pool에서 Single-Agent는 29건 중 25건 계획을 냈다.**
+Training이 못 하겠다고 한 입력을, 한 번의 호출로 전체 작업을 하는 agent는 해냈다. 따라서
+입력이 실제로 부족한 것이 아니라 **역할 최소화 payload(R2-2) 또는 Training 프롬프트의 READY
+판정 기준이 과도하게 보수적일 가능성**이 크다. 이는 다음 조사 대상이며 지금 단정하지 않는다.
+
+Single-Agent의 fallback 4건은 `V3_COMPILATION_FAILED` 2건, `PLAN_EXERCISE_FAMILY_REPEATED`
+2건(022, 023)이다. **B와 C가 같은 case(022, 023)에서 같은 위반에 걸렸다.** 이 위반은
+아키텍처 고유 문제가 아니라 conflict case의 pool 구성에서 나온다.
+
+### repair 비대칭이 이제는 실재한다
+
+PHASE 6은 "baseline에는 repair가 없으므로 C에 유리하다"고 기록했고, 수정 전에는 repair 자체가
+불가능했으므로 그 주석은 사실이 아니었다. 이제는 사실이다. 그리고 이번 실행이 그 크기를
+보여준다: B는 022·023에서 `PLAN_EXERCISE_FAMILY_REPEATED`로 재시도 없이 fallback했고, C는
+023에서 재시도를 한 번 받고도 실패했다. **비대칭은 존재하지만 결과를 바꾸지 않았다.**
+
+## 8.4 실행 간 변동이 크다 — 단일 실행으로 판정하면 안 된다
+
+같은 입력에 대한 두 유료 실행의 category별 계획 생성률이다.
+
+| category | n | B 1회차 → 2회차 | C 1회차 → 2회차 |
+|---|---:|---|---|
+| simple | 4 | 0.750 → 1.000 | 0.750 → 0.750 |
+| moderate | 8 | 1.000 → 0.875 | 1.000 → 0.875 |
+| complex | 9 | 0.889 → 1.000 | 0.667 → 0.667 |
+| conflict | 5 | **0.800 → 0.400** | 0.600 → 0.600 |
+| failure_case | 3 | 1.000 → 1.000 | 0.667 → 0.667 |
+
+B의 conflict가 0.800에서 0.400으로 뒤집혔다. category당 n이 3~9이므로 **1건이 0.11~0.33을
+움직인다.** 이는 D-1(동일 입력 재현 불가)이 측정 잡음으로 나타난 것이며, 사전 등록 기준
+"conflict/complex plan rate"를 **단일 실행으로 판정할 수 없다**는 뜻이다. 기준 자체는 바꾸지
+않고, 두 실행을 합산한 값을 함께 제시한다.
+
+C의 수치는 두 실행에서 거의 동일했고(moderate만 변동), B가 크게 흔들렸다.
+
+### 두 유료 실행 합산 (아키텍처당 58 run)
+
+| category | n | A. Single LLM | B. Single Agent + RAG | C. Multi-Agent |
+|---|---:|---:|---:|---:|
+| simple | 8 | 0.000 | 0.875 | 0.750 |
+| moderate | 16 | 0.062 | 0.938 | 0.938 |
+| complex | 18 | 0.111 | **0.944** | 0.667 |
+| conflict | 10 | 0.000 | 0.600 | 0.600 |
+| failure_case | 6 | 0.167 | 1.000 | 0.667 |
+| **전체** | **58** | 0.069 | **0.879** | 0.741 |
+
+합산하면 **conflict는 0.600으로 동률**이고, **complex에서 C가 0.667 대 0.944로 뒤진다.**
+
+## 8.5 사전 등록 기준 재판정
+
+기준은 수정하지 않았다.
+
+| 지표 | 기준 | 2회차 실측 | 판정 |
+|---|---:|---:|:--:|
+| Safety golden pass rate | 1.000 | 1.000 (33/33) | 통과 |
+| Critical / unsafe plan | 0건 | 0건 | 통과 |
+| 실-provider workflow completion | ≥ 0.950 | 1.000 | 통과 |
+| Multi − Single RAG **Human** mean | ≥ +0.20 | 미측정 | **미판정** |
+| v1 Multi 대비 평균 total token | ≥ 25% 감소 | 26.9786% 감소 | 통과 |
+| Multi P95 latency | ≤ 30초 | **43.093초** | **미달** |
+| conflict/complex plan rate | ≥ Single RAG | conflict 동률, **complex 0.667 대 0.944** | **미달** |
+
+**판정은 바뀌지 않는다. 2개 미달, 1개 미판정.** ADR-0022는 실제 결함을 고쳤고 관측성을
+개선했지만, **Multi-Agent 우월성 결론을 바꾸지 못했다.** 수정 전에 "고치면 나아진다"고
+주장하지 않았고, 고친 뒤에도 그 주장은 성립하지 않는다.
+
+P95는 48.813초에서 43.093초로 내려갔지만 기준의 1.4배이고, 같은 실행에서 A와 B도 함께
+움직였으므로 아키텍처 개선이 아니라 실행 간 변동으로 읽는다. P50은 32.390초에서 27.094초로
+기준 아래에 들어왔으나 **기준은 P95다.**
+
+토큰은 held-out 기준 19,248로 v1 Multi 26,646 대비 27.76% 감소지만, 데이터셋이 다르므로
+판정에는 같은 데이터셋 측정값(26.9786%)을 계속 쓴다.
+
+## 8.6 다음 조사 대상
+
+1. **Training의 `READY` 판정 기준** — 계약 위반이 0건이고 Single-Agent가 같은 입력을
+   처리했으므로, 원인은 입력 부족이 아니라 Training의 자체 판정이거나 R2-2 역할 최소화
+   payload다. Training에 전달되는 payload와 프롬프트의 READY 조건을 대조하는 것이 다음 단계다.
+2. **Coordinator의 family 중복** — repair를 한 번 받고도 같은 위반을 반복했다. 위반 코드를
+   repair 프롬프트가 실제로 활용하는지 확인이 필요하다.
+3. **표본 크기** — category별 n이 3~9로 사전 등록 기준을 판정하기에 부족하다. held-out을
+   50~100 case로 늘리는 것이 `ROUND2_IMPROVEMENT_PLAN` 4절의 권장값이었다.
