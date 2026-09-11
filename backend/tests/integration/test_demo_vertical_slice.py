@@ -323,8 +323,8 @@ def test_full_vertical_slice_reaches_completed_session(client: TestClient) -> No
     assert body["profile"]["nickname"] == "데모사용자"
     assert body["profile"]["age"] == 29
     assert "equipment_codes" not in body["profile"]
-    # The birthdate itself must never travel back to the client.
-    assert "date_of_birth" not in body["profile"]
+    # The authenticated owner can read the stored birthdate for profile editing.
+    assert body["profile"]["date_of_birth"] == "1997-08-11"
     assert "protected_birthdate" not in body["profile"]
 
     routine = _create_routine(client)
