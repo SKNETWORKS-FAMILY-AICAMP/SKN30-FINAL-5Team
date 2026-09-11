@@ -173,9 +173,9 @@ const styles = StyleSheet.create({
     minWidth: 0,
     flex: 1,
     color: colors.textFaint,
-    fontSize: 9,
-    fontWeight: '400',
-    lineHeight: 13,
+    fontSize: 11,
+    fontWeight: '500',
+    lineHeight: 16,
     textAlign: 'right',
   },
   valueCallout: {

@@ -3,6 +3,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -10,8 +11,13 @@ import {
   type StyleProp,
   type TextStyle,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { InfoGlyph } from '../InfoGlyph';
+import {
+  type OverlayViewportBounds,
+  useOverlayViewportMeasure,
+} from '../OverlayViewport';
 import { colors, radii, shadows, spacing } from '../theme';
 
 /**
@@ -43,6 +49,73 @@ const clamp = (value: number, low: number, high: number) =>
 
 type Anchor = { height: number; width: number; x: number; y: number };
 
+type BubblePlacement = {
+  maxHeight: number;
+  side: 'above' | 'below';
+  top: number;
+};
+
+/** Keeps the entire bubble inside the usable vertical screen area. */
+export function placePainScaleBubble({
+  anchor,
+  bubbleHeight,
+  viewportBottom,
+  viewportTop = 0,
+}: {
+  anchor: Anchor | null;
+  bubbleHeight: number | null;
+  viewportBottom: number;
+  viewportTop?: number;
+}): BubblePlacement {
+  const safeTop = viewportTop + SCREEN_GUTTER;
+  const safeBottom = Math.max(safeTop, viewportBottom - SCREEN_GUTTER);
+  const maxHeight = Math.max(0, safeBottom - safeTop);
+  const measuredHeight = Math.min(bubbleHeight ?? 0, maxHeight);
+  const belowTop = anchor
+    ? anchor.y + anchor.height + spacing.xs
+    : viewportTop + Math.round((viewportBottom - viewportTop) / 3);
+  const fitsBelow =
+    anchor === null ||
+    bubbleHeight === null ||
+    belowTop + measuredHeight <= safeBottom;
+  const side = fitsBelow ? 'below' : 'above';
+  const requestedTop =
+    side === 'above' && anchor
+      ? anchor.y - spacing.xs - measuredHeight
+      : belowTop;
+
+  return {
+    maxHeight,
+    side,
+    top: clamp(requestedTop, safeTop, safeBottom - measuredHeight),
+  };
+}
+
+export function placePainScaleBubbleHorizontally({
+  anchor,
+  viewportLeft = 0,
+  viewportRight,
+}: {
+  anchor: Anchor | null;
+  viewportLeft?: number;
+  viewportRight: number;
+}) {
+  const safeLeft = viewportLeft + SCREEN_GUTTER;
+  const safeRight = Math.max(safeLeft, viewportRight - SCREEN_GUTTER);
+  const width = Math.min(BUBBLE_MAX_WIDTH, Math.max(0, safeRight - safeLeft));
+  const anchorCenterX = anchor
+    ? anchor.x + anchor.width / 2
+    : viewportLeft + (viewportRight - viewportLeft) / 2;
+  const left = clamp(anchorCenterX - width / 2, safeLeft, safeRight - width);
+  const pointerLeft = clamp(
+    anchorCenterX - left - POINTER_SIZE / 2,
+    radii.control,
+    width - radii.control - POINTER_SIZE,
+  );
+
+  return { left, pointerLeft, width };
+}
+
 /**
  * A pain section heading with the circled `i` beside it.
  *
@@ -67,44 +140,51 @@ export function PainScaleInfoHeading({
 }) {
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState<Anchor | null>(null);
+  const [bubbleHeight, setBubbleHeight] = useState<number | null>(null);
+  const [overlayBounds, setOverlayBounds] =
+    useState<OverlayViewportBounds | null>(null);
   const buttonRef = useRef<View | null>(null);
+  const insets = useSafeAreaInsets();
+  const measureOverlayViewport = useOverlayViewportMeasure();
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
 
-  const close = () => setOpen(false);
+  const close = () => {
+    setOpen(false);
+    setBubbleHeight(null);
+  };
   const toggle = () => {
     if (open) {
       close();
       return;
     }
+    measureOverlayViewport?.(setOverlayBounds);
     // Measured on open rather than on layout: only the window position still
     // places the bubble under the button once the modal leaves the scroll view.
     buttonRef.current?.measureInWindow((x, y, width, height) => {
       if (typeof x !== 'number' || typeof y !== 'number') return;
       setAnchor({ height, width, x, y });
     });
+    setBubbleHeight(null);
     setOpen(true);
   };
 
-  const bubbleWidth = Math.min(
-    BUBBLE_MAX_WIDTH,
-    Math.max(0, windowWidth - SCREEN_GUTTER * 2),
-  );
-  const anchorCenterX = anchor ? anchor.x + anchor.width / 2 : windowWidth / 2;
-  const bubbleLeft = clamp(
-    anchorCenterX - bubbleWidth / 2,
-    SCREEN_GUTTER,
-    windowWidth - SCREEN_GUTTER - bubbleWidth,
-  );
-  // Without a measurement the copy still has to be readable, so it falls back to
-  // the upper third of the screen and drops the pointer that would lie.
-  const bubbleTop = anchor
-    ? anchor.y + anchor.height + spacing.xs
-    : Math.round(windowHeight / 3);
-  const pointerLeft = clamp(
-    anchorCenterX - bubbleLeft - POINTER_SIZE / 2,
-    radii.control,
-    bubbleWidth - radii.control - POINTER_SIZE,
-  );
+  const viewport = overlayBounds ?? {
+    bottom: windowHeight - insets.bottom,
+    left: 0,
+    right: windowWidth,
+    top: insets.top,
+  };
+  const horizontalPlacement = placePainScaleBubbleHorizontally({
+    anchor,
+    viewportLeft: viewport.left,
+    viewportRight: viewport.right,
+  });
+  const placement = placePainScaleBubble({
+    anchor,
+    bubbleHeight,
+    viewportBottom: viewport.bottom,
+    viewportTop: viewport.top,
+  });
 
   return (
     <View style={styles.wrapper}>
@@ -131,39 +211,63 @@ export function PainScaleInfoHeading({
           transparent
           visible
         >
-          <Pressable
-            accessibilityLabel="통증 정도 기준 안내 닫기"
-            accessibilityRole="button"
-            onPress={close}
-            style={styles.backdrop}
-            testID={`${testIDPrefix}-pain-scale-info-backdrop`}
-          >
+          <View style={styles.modalRoot}>
+            <Pressable
+              accessibilityLabel="통증 정도 기준 안내 닫기"
+              accessibilityRole="button"
+              onPress={close}
+              style={styles.backdrop}
+              testID={`${testIDPrefix}-pain-scale-info-backdrop`}
+            />
             <View
               accessibilityLiveRegion="polite"
+              onLayout={(event) => {
+                const nextHeight = event.nativeEvent.layout.height;
+                setBubbleHeight((current) =>
+                  current === nextHeight ? current : nextHeight,
+                );
+              }}
               style={[
                 styles.bubble,
-                { left: bubbleLeft, top: bubbleTop, width: bubbleWidth },
+                {
+                  left: horizontalPlacement.left,
+                  maxHeight: placement.maxHeight,
+                  top: placement.top,
+                  width: horizontalPlacement.width,
+                },
               ]}
               testID={`${testIDPrefix}-pain-scale-info-bubble`}
             >
               {anchor ? (
                 <View
                   pointerEvents="none"
-                  style={[styles.pointer, { left: pointerLeft }]}
+                  style={[
+                    styles.pointer,
+                    placement.side === 'above'
+                      ? styles.pointerBelow
+                      : styles.pointerAbove,
+                    { left: horizontalPlacement.pointerLeft },
+                  ]}
                   testID={`${testIDPrefix}-pain-scale-info-pointer`}
                 />
               ) : null}
-              <Text style={styles.bubbleBody}>
-                {PAIN_SCALE_INFO_COPY.scale}
-              </Text>
-              <Text style={styles.bubbleBody}>
-                {PAIN_SCALE_INFO_COPY.bands}
-              </Text>
-              <Text style={styles.bubbleSource}>
-                {PAIN_SCALE_INFO_COPY.source}
-              </Text>
+              <ScrollView
+                contentContainerStyle={styles.bubbleContent}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator
+              >
+                <Text style={styles.bubbleBody}>
+                  {PAIN_SCALE_INFO_COPY.scale}
+                </Text>
+                <Text style={styles.bubbleBody}>
+                  {PAIN_SCALE_INFO_COPY.bands}
+                </Text>
+                <Text style={styles.bubbleSource}>
+                  {PAIN_SCALE_INFO_COPY.source}
+                </Text>
+              </ScrollView>
             </View>
-          </Pressable>
+          </View>
         </Modal>
       ) : null}
     </View>
@@ -188,29 +292,40 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pressed: { opacity: 0.6 },
+  modalRoot: { flex: 1 },
   /** Transparent on purpose: it only has to catch the dismissing tap. */
-  backdrop: { flex: 1 },
+  backdrop: StyleSheet.absoluteFill,
   bubble: {
     position: 'absolute',
-    gap: 3,
     borderWidth: 1,
     borderColor: colors.borderSoft,
     borderRadius: radii.control,
     backgroundColor: colors.surface,
+    ...shadows.card,
+  },
+  bubbleContent: {
+    gap: 3,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    ...shadows.card,
   },
   pointer: {
     position: 'absolute',
-    top: -POINTER_SIZE / 2,
+    zIndex: 1,
     width: POINTER_SIZE,
     height: POINTER_SIZE,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
     borderColor: colors.borderSoft,
     backgroundColor: colors.surface,
     transform: [{ rotate: '45deg' }],
+  },
+  pointerAbove: {
+    top: -POINTER_SIZE / 2,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+  },
+  pointerBelow: {
+    bottom: -POINTER_SIZE / 2,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
   },
   bubbleBody: {
     color: colors.textSub,

@@ -20,6 +20,7 @@ import {
   ScaleViewportProvider,
   WEB_APP_MAX_WIDTH,
 } from '../../components/scale';
+import type { OverlayViewportBounds } from '../../components/OverlayViewport';
 import type { TabId } from '../../components/brand/BrandChrome';
 import {
   ProfileErrorScreen,
@@ -521,6 +522,7 @@ export function PreviewGallery({
   const homeTransitionTimer = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const canvasFrameRef = useRef<View | null>(null);
   const [todayState, setTodayState] =
     useState<TodayPreviewState>('pre-checkin');
   const [sessionState, setSessionState] =
@@ -570,6 +572,28 @@ export function PreviewGallery({
     width: canvasViewport.width * canvasPreviewScale,
     height: canvasViewport.height * canvasPreviewScale,
   };
+  const measureOverlayViewport = useCallback(
+    (onMeasure: (bounds: OverlayViewportBounds) => void) => {
+      canvasFrameRef.current?.measureInWindow(
+        (x, y, frameWidth, frameHeight) => {
+          if (
+            ![x, y, frameWidth, frameHeight].every(Number.isFinite) ||
+            frameWidth <= 0 ||
+            frameHeight <= 0
+          ) {
+            return;
+          }
+          onMeasure({
+            bottom: y + frameHeight,
+            left: x,
+            right: x + frameWidth,
+            top: y,
+          });
+        },
+      );
+    },
+    [],
+  );
   const selectDevicePreview = useCallback((preview: DevicePreview) => {
     setDevicePreviewId(preview.id);
     setCustomViewport({ width: preview.width, height: preview.height });
@@ -1132,6 +1156,7 @@ export function PreviewGallery({
           </View>
         ) : null}
         <View
+          ref={canvasFrameRef}
           testID="preview-canvas-frame"
           style={[
             styles.canvasFrame,
@@ -1164,7 +1189,10 @@ export function PreviewGallery({
                 ]}
                 testID="preview-app-content"
               >
-                <ScaleViewportProvider viewport={canvasViewport}>
+                <ScaleViewportProvider
+                  measureOverlayViewport={measureOverlayViewport}
+                  viewport={canvasViewport}
+                >
                   {screenId === 'splash' ? (
                     <SplashScreen
                       bootStatus={splashState}

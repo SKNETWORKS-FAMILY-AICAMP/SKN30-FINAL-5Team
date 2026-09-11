@@ -6,6 +6,11 @@ import {
 } from 'react';
 import { useWindowDimensions } from 'react-native';
 
+import {
+  type MeasureOverlayViewport,
+  OverlayViewportProvider,
+} from './OverlayViewport';
+
 export const BASE_W = 390;
 export const BASE_H = 844;
 export const MAX_INTERFACE_SCALE = 1.2;
@@ -37,16 +42,26 @@ const ScaleViewportContext = createContext<ScaleViewport | null>(null);
 
 export function ScaleViewportProvider({
   children,
+  measureOverlayViewport,
   viewport,
 }: {
   children: ReactNode;
+  measureOverlayViewport?: MeasureOverlayViewport;
   viewport: ScaleViewport;
 }) {
-  return createElement(
+  const scaleProvider = createElement(
     ScaleViewportContext.Provider,
     { value: viewport },
     children,
   );
+
+  return measureOverlayViewport
+    ? createElement(
+        OverlayViewportProvider,
+        { measure: measureOverlayViewport },
+        scaleProvider,
+      )
+    : scaleProvider;
 }
 
 export function useScale() {
